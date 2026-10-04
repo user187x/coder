@@ -32,10 +32,13 @@ const DeploymentSettingsLayout: React.FC = () => {
 
 	// The deployment settings page also contains users and groups and more so
 	// this page must be visible if you can see any of these. The AI settings
-	// pages render in this layout too and check their own permissions.
+	// pages render in this layout too and check their own permissions, and so
+	// do the Health pages (the health report).
+	const canViewHealth = permissions.viewDebugInfo;
 	const canViewDeploymentSettingsPage =
 		canViewDeploymentSettings(permissions) ||
-		location.pathname.startsWith("/ai/settings");
+		location.pathname.startsWith("/ai/settings") ||
+		(location.pathname.startsWith("/health") && canViewHealth);
 
 	return (
 		<RequirePermission isFeatureVisible={canViewDeploymentSettingsPage}>

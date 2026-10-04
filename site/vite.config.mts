@@ -244,7 +244,9 @@ export default defineConfig({
 								if (
 									url.startsWith("/api/") ||
 									url.startsWith("/swagger/") ||
-									url.startsWith("/healthz")
+									url.startsWith("/healthz") ||
+									url.startsWith("/__coder-ui/") ||
+									url.startsWith("/__banner/")
 								) {
 									res.statusCode = 502;
 									res.end();

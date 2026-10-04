@@ -10,6 +10,7 @@ import type { HealthCode, HealthSeverity } from "#/api/typesGenerated";
 import { Link } from "#/components/Link/Link";
 import { docs } from "#/utils/docs";
 
+// The pages open inside General's layout, which provides the outer spacing.
 const CONTENT_PADDING = 36;
 
 export const Header: React.FC<React.ComponentProps<"header">> = ({
@@ -21,7 +22,7 @@ export const Header: React.FC<React.ComponentProps<"header">> = ({
 	return (
 		<header
 			className={cn("flex items-center justify-between", className)}
-			style={{ padding: `36px ${CONTENT_PADDING}px`, ...style }}
+			style={{ padding: "8px 0 28px", ...style }}
 			{...props}
 		>
 			{children}
@@ -94,7 +95,7 @@ export const Main: React.FC<React.ComponentProps<"div">> = ({
 		<div
 			className={cn("flex flex-col gap-9", className)}
 			style={{
-				padding: `0 ${CONTENT_PADDING}px ${CONTENT_PADDING}px`,
+				padding: `0 0 ${CONTENT_PADDING}px`,
 				...style,
 			}}
 			{...props}

@@ -491,10 +491,11 @@ const boot = async () => {
 	}
 	cursor = state.cursor;
 	clearVersion = state.clearVersion || 0;
+	const conversations = state.conversations ?? [];
 	update({
 		me: state.me,
-		conversations: new Map(state.conversations.map((c) => [c.peer.id, c])),
-		typing: new Set(state.typing),
+		conversations: new Map(conversations.map((c) => [c.peer.id, c])),
+		typing: new Set(state.typing ?? []),
 		available: new Set(state.available ?? []),
 		off: new Set(state.off ?? []),
 		availVersion: state.availVersion || 0,
@@ -508,7 +509,7 @@ const boot = async () => {
 		}
 	}
 	// Unread conversations come up minimized, with their count.
-	for (const conversation of state.conversations) {
+	for (const conversation of conversations) {
 		if (conversation.unread && !findWindow(conversation.peer.id)) {
 			openWindow(conversation.peer, { minimized: true });
 		}

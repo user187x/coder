@@ -11,6 +11,8 @@ type DeploymentSidebarViewProps = {
 	buildInfo: BuildInfoResponse;
 	/** General's Super Intelligence entry (AISettingsTree), shown after Accounts. */
 	aiSettings?: React.ReactNode;
+	/** General's Health entry (HealthSettingsTree), placed in alphabetical order. */
+	health?: React.ReactNode;
 };
 
 /**
@@ -22,6 +24,7 @@ export const DeploymentSidebarView: React.FC<DeploymentSidebarViewProps> = ({
 	permissions,
 	buildInfo,
 	aiSettings,
+	health,
 }) => {
 	return (
 		<BaseSidebar>
@@ -50,6 +53,7 @@ export const DeploymentSidebarView: React.FC<DeploymentSidebarViewProps> = ({
 						Customize
 					</SidebarNavItem>
 				)}
+				{health}
 				{permissions.editDeploymentConfig && (
 					<SidebarNavItem href="/deployment/monitoring">
 						Monitoring

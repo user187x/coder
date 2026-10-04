@@ -1,11 +1,15 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { reactRouterParameters } from "storybook-addon-remix-react-router";
+import { HEALTH_QUERY_KEY } from "#/api/queries/debug";
 import {
 	MockBuildInfo,
+	MockHealth,
 	MockNoPermissions,
 	MockPermissions,
 } from "#/testHelpers/entities";
 import { withDashboardProvider } from "#/testHelpers/storybook";
 import { DeploymentSidebarView } from "./DeploymentSidebarView";
+import { HealthSettingsTree } from "./HealthSettingsTree";
 
 const meta: Meta<typeof DeploymentSidebarView> = {
 	title: "modules/management/DeploymentSidebarView",
@@ -70,5 +74,20 @@ export const OAuth2ProviderDisabled: Story = {
 			version: "v2.99.99-devel+abcdef",
 			oauth2_provider: false,
 		},
+	},
+};
+
+// On a health page the Health entry starts open, each section marked with its
+// severity and the current one highlighted.
+export const HealthOpen: Story = {
+	args: {
+		health: <HealthSettingsTree />,
+	},
+	parameters: {
+		reactRouter: reactRouterParameters({
+			location: { path: "/health/derp" },
+			routing: { path: "/health/derp" },
+		}),
+		queries: [{ key: HEALTH_QUERY_KEY, data: MockHealth }],
 	},
 };

@@ -840,22 +840,34 @@ export const router = createBrowserRouter(
 						/>
 					</Route>
 
-					<Route path="/health" element={<HealthLayout />}>
-						<Route index element={<Navigate to="access-url" replace />} />
-						<Route path="access-url" element={<AccessURLPage />} />
-						<Route path="database" element={<DatabasePage />} />
-						<Route path="derp" element={<DERPPage />} />
-						<Route path="derp/regions/:regionId" element={<DERPRegionPage />} />
-						<Route path="websocket" element={<WebsocketPage />} />
-						<Route
-							path="workspace-proxy"
-							element={<WorkspaceProxyHealthPage />}
-						/>
-						<Route
-							path="provisioner-daemons"
-							element={<ProvisionerDaemonsHealthPage />}
-						/>
-						<Route path="workspace-health" element={<WorkspaceHealthPage />} />
+					{/* The health pages open inside General, with its sidebar. */}
+					<Route path="/health" element={<DeploymentSettingsLayout />}>
+						<Route element={<HealthLayout />}>
+							<Route
+								index
+								element={<Navigate to="workspace-health" replace />}
+							/>
+							<Route path="access-url" element={<AccessURLPage />} />
+							<Route path="database" element={<DatabasePage />} />
+							<Route path="derp" element={<DERPPage />} />
+							<Route
+								path="derp/regions/:regionId"
+								element={<DERPRegionPage />}
+							/>
+							<Route path="websocket" element={<WebsocketPage />} />
+							<Route
+								path="workspace-proxy"
+								element={<WorkspaceProxyHealthPage />}
+							/>
+							<Route
+								path="provisioner-daemons"
+								element={<ProvisionerDaemonsHealthPage />}
+							/>
+							<Route
+								path="workspace-health"
+								element={<WorkspaceHealthPage />}
+							/>
+						</Route>
 					</Route>
 
 					<Route path="/install" element={<CliInstallPage />} />

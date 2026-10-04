@@ -1,6 +1,7 @@
 import { Link } from "react-router";
 import { DropdownMenuItem } from "#/components/DropdownMenu/DropdownMenu";
 import { ClusterGauge } from "#/modules/platform/ClusterGauge";
+import { WORKSPACE_HEALTH_PATH } from "#/pages/HealthPage/healthSections";
 
 /**
  * Permissions that determine which items appear in the Admin menu.
@@ -73,7 +74,7 @@ export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
 			)}
 			{permissions.canViewHealth && (
 				<DropdownMenuItem asChild className={itemClassName}>
-					<Link to="/health">Health</Link>
+					<Link to={WORKSPACE_HEALTH_PATH}>Health</Link>
 				</DropdownMenuItem>
 			)}
 			<ClusterGauge />
