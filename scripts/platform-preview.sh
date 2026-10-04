@@ -30,6 +30,9 @@ mkdir -p "${GOTMPDIR}"
 
 # The generated files (protobuf, mocks, ...) are committed. Mark them up to date
 # so make doesn't try to regenerate them, which needs protoc and other tools.
+# Install packages first: a fresh install touches the node_modules markers that
+# several generated files depend on, which would make them look stale again.
+make node_modules/.installed site/node_modules/.installed >/dev/null
 make gen/mark-fresh >/dev/null
 
 python3 scripts/platform-mock.py "${mock_port}" &

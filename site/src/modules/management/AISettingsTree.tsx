@@ -97,7 +97,7 @@ type AISettingsTreeViewProps = {
 };
 
 /**
- * General's "AI" entry: a collapsible tree with Coder Agents (embedded in
+ * General's "Super Intelligence" entry: a collapsible tree with Coder Agents (embedded in
  * General) and Coder's own AI settings pages, with the same permissions as
  * Coder's AI settings sidebar. AI Governance and AI Gateway keys are left
  * out; their pages still answer. Open while one of its pages is shown.
@@ -158,7 +158,7 @@ export const AISettingsTreeView: React.FC<AISettingsTreeViewProps> = ({
 					open ? "text-content-primary" : "text-content-secondary",
 				)}
 			>
-				AI
+				Super Intelligence
 				<ChevronRightIcon
 					aria-hidden
 					className={cn(
@@ -220,7 +220,7 @@ export const AISettingsTreeView: React.FC<AISettingsTreeViewProps> = ({
 	);
 };
 
-/** General's AI tree for the signed-in user. */
+/** General's Super Intelligence tree for the signed-in user. */
 export const AISettingsTree: React.FC = () => {
 	const { permissions } = useAuthenticated();
 	const { entitlements, organizations } = useDashboard();

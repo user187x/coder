@@ -183,6 +183,12 @@ const KeycloakSettingsPage = lazy(
 			"./pages/DeploymentSettingsPage/KeycloakSettingsPage/KeycloakSettingsPage"
 		),
 );
+const PersistenceSettingsPage = lazy(
+	() =>
+		import(
+			"./pages/DeploymentSettingsPage/PersistenceSettingsPage/PersistenceSettingsPage"
+		),
+);
 const CustomizeSettingsPage = lazy(
 	() =>
 		import(
@@ -696,6 +702,7 @@ export const router = createBrowserRouter(
 						<Route path="keycloak" element={<KeycloakSettingsPage />} />
 						<Route path="customize" element={<CustomizeSettingsPage />} />
 						<Route path="monitoring" element={<MonitoringSettingsPage />} />
+						<Route path="persistence" element={<PersistenceSettingsPage />} />
 						<Route path="agents" element={<AgentsEmbedPage />} />
 						<Route path="workspace-proxies" element={<WorkspaceProxyPage />} />
 						<Route path="oauth2-provider">

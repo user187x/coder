@@ -9,7 +9,7 @@ type DeploymentSidebarViewProps = {
 	/** Site-wide permissions. */
 	permissions: Permissions;
 	buildInfo: BuildInfoResponse;
-	/** General's AI entry (AISettingsTree), placed in alphabetical order. */
+	/** General's Super Intelligence entry (AISettingsTree), shown after Accounts. */
 	aiSettings?: React.ReactNode;
 };
 
@@ -75,6 +75,11 @@ export const DeploymentSidebarView: React.FC<DeploymentSidebarViewProps> = ({
 				)}
 				{permissions.viewDeploymentConfig && (
 					<SidebarNavItem href="/deployment/overview">Overview</SidebarNavItem>
+				)}
+				{permissions.viewDeploymentConfig && (
+					<SidebarNavItem href="/deployment/persistence">
+						Persistence
+					</SidebarNavItem>
 				)}
 				{permissions.viewDeploymentConfig && (
 					<SidebarNavItem href="/deployment/security">Security</SidebarNavItem>

@@ -5,7 +5,6 @@ import { toast } from "sonner";
 import { getErrorMessage } from "#/api/errors";
 import type {
 	KeycloakCheck,
-	KeycloakCheckStatus,
 	KeycloakFix,
 	KeycloakReport,
 	KeycloakSettings,
@@ -33,6 +32,11 @@ import {
 	TableHeader,
 	TableRow,
 } from "#/components/Table/Table";
+import {
+	CHECK_STATUS_LABELS,
+	CHECK_STATUS_VARIANTS,
+	worstCheckStatus,
+} from "#/modules/platform/checkStatus";
 
 const FIX_LABELS: Record<KeycloakFix, string> = {
 	"kc.client": "Create / repair the Keycloak client",
@@ -41,22 +45,6 @@ const FIX_LABELS: Record<KeycloakFix, string> = {
 	"coder.ca": "Give Coder Keycloak's CA",
 	"coder.values": "Update Coder's OIDC settings (Coder restarts)",
 };
-
-const STATUS_LABELS: Record<KeycloakCheckStatus, string> = {
-	ok: "OK",
-	warn: "Needs fix",
-	error: "Problem",
-	info: "Note",
-	unknown: "Unknown",
-};
-
-const STATUS_VARIANTS = {
-	ok: "green",
-	warn: "warning",
-	error: "destructive",
-	info: "default",
-	unknown: "default",
-} as const;
 
 // The settings field <- the Coder setting it becomes, to show what Coder has now.
 const ENV_FOR: Partial<Record<keyof KeycloakSettings, string>> = {
@@ -98,13 +86,6 @@ const DEFAULT_SETTINGS: KeycloakSettings = {
 	allowSignups: true,
 	ignoreEmailVerified: true,
 };
-
-const worstStatus = (checks: readonly KeycloakCheck[]) =>
-	checks.some((c) => c.status === "error")
-		? "error"
-		: checks.some((c) => c.status === "warn")
-			? "warn"
-			: "ok";
 
 /** "kc.connect" is not applied like the others: an admin signs in once instead. */
 const fixesNeeded = (report: KeycloakReport): KeycloakFix[] => [
@@ -270,7 +251,7 @@ const StatusCard: React.FC<StatusCardProps> = ({
 	onUndo,
 }) => {
 	const { checks, facts } = report;
-	const level = worstStatus(checks);
+	const level = worstCheckStatus(checks);
 	const problems = checks.filter(
 		(c) => c.status === "error" || c.status === "warn",
 	).length;
@@ -499,8 +480,8 @@ const CheckRow: React.FC<CheckRowProps> = ({ check, report, onFix }) => {
 	const diffs = check.id === "coder.env" ? (report.facts.envDiffs ?? []) : [];
 	return (
 		<div className="grid grid-cols-[auto_1fr_auto] items-start gap-3 rounded-md border border-solid border-border p-3">
-			<Badge size="xs" variant={STATUS_VARIANTS[check.status]}>
-				{STATUS_LABELS[check.status]}
+			<Badge size="xs" variant={CHECK_STATUS_VARIANTS[check.status]}>
+				{CHECK_STATUS_LABELS[check.status]}
 			</Badge>
 			<div className="flex min-w-0 flex-col gap-1">
 				<span className="text-sm font-medium">{check.title}</span>

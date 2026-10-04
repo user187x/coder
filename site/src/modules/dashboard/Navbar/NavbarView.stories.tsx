@@ -137,7 +137,9 @@ export const ForTemplateUpdateOnlyAdmin: Story = {
 		const canvas = within(canvasElement);
 		await userEvent.click(canvas.getByRole("button", { name: "Admin" }));
 		const body = within(canvasElement.ownerDocument.body);
-		const aiSettingsLink = body.getByRole("menuitem", { name: "AI" });
+		const aiSettingsLink = body.getByRole("menuitem", {
+			name: "Super Intelligence",
+		});
 		await expect(aiSettingsLink).toHaveAttribute("href", "/ai/settings");
 		await userEvent.click(aiSettingsLink);
 		await expect(
@@ -181,7 +183,9 @@ export const ForMCPUpdateOnlyAdmin: Story = {
 		const canvas = within(canvasElement);
 		await userEvent.click(canvas.getByRole("button", { name: "Admin" }));
 		const body = within(canvasElement.ownerDocument.body);
-		const aiSettingsLink = body.getByRole("menuitem", { name: "AI" });
+		const aiSettingsLink = body.getByRole("menuitem", {
+			name: "Super Intelligence",
+		});
 		await expect(aiSettingsLink).toHaveAttribute("href", "/ai/settings");
 		await userEvent.click(aiSettingsLink);
 		await expect(
@@ -225,7 +229,9 @@ export const ForMCPDeleteOnlyAdmin: Story = {
 		const canvas = within(canvasElement);
 		await userEvent.click(canvas.getByRole("button", { name: "Admin" }));
 		const body = within(canvasElement.ownerDocument.body);
-		await userEvent.click(body.getByRole("menuitem", { name: "AI" }));
+		await userEvent.click(
+			body.getByRole("menuitem", { name: "Super Intelligence" }),
+		);
 		await expect(
 			await canvas.findByRole("heading", { name: "MCP servers" }),
 		).toBeInTheDocument();
@@ -267,7 +273,9 @@ export const ForMCPCreateOnlyAdmin: Story = {
 		const canvas = within(canvasElement);
 		await userEvent.click(canvas.getByRole("button", { name: "Admin" }));
 		const body = within(canvasElement.ownerDocument.body);
-		await userEvent.click(body.getByRole("menuitem", { name: "AI" }));
+		await userEvent.click(
+			body.getByRole("menuitem", { name: "Super Intelligence" }),
+		);
 		await expect(
 			await canvas.findByRole("heading", { name: "Add MCP server" }),
 		).toBeInTheDocument();

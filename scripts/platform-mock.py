@@ -196,6 +196,109 @@ KEYCLOAK = {
 }
 
 
+# General > Persistence: a CloudNativePG cluster that starts with one instance, a nearly full volume and no backups.
+# Approved fixes change it: new replicas start, catch up and stream; volumes grow; snapshot backups begin.
+GI = 2 ** 30
+pg = {"instances": 1, "size_gi": 10, "backups": False, "scaled_at": 0.0, "db_bytes": 8.2 * GI}
+STORAGE_CLASSES = [
+    {"name": "longhorn", "provisioner": "driver.longhorn.io", "label": "Longhorn", "kind": "network", "isDefault": True,
+     "allowExpansion": True, "reclaimPolicy": "Delete", "bindingMode": "Immediate"},
+    {"name": "local-path", "provisioner": "rancher.io/local-path", "label": "local-path", "kind": "local",
+     "isDefault": False, "allowExpansion": False, "reclaimPolicy": "Delete", "bindingMode": "WaitForFirstConsumer"},
+]
+NODES = [("dev-control-1", "zone-a"), ("dev-worker-1", "zone-b"), ("dev-worker-2", "zone-c")]
+
+
+def pg_check(cid, group, title, status, current=None, expected=None, detail="", fix=None):
+    return {"id": cid, "group": group, "title": title, "status": status, "current": current, "expected": expected,
+            "detail": detail, "fix": fix}
+
+
+def persistence():
+    n, size = pg["instances"], pg["size_gi"]
+    since = time.time() - pg["scaled_at"]
+    instances = []
+    for i in range(n):
+        name = "coder-db-%d" % (i + 1)
+        node_name, zone = NODES[i % len(NODES)]
+        primary = i == 0
+        fresh = not primary and since < 20 * i    # each new replica takes ~20 s to join
+        lag = None if primary else (0 if since > 20 * i + 10 else int(max(0, 300 - since * 10) * 2 ** 20))
+        instances.append({"name": name, "namespace": "coder", "node": node_name, "podIP": "10.42.%d.%d" % (i, 20 + i),
+                          "hostIP": None, "phase": "Running", "ready": not fresh, "restarts": 0,
+                          "started": now(-int(since) if not primary else -86400 * 9), "role": "primary" if primary else "replica",
+                          "zone": zone, "pvc": {"name": name, "storageClass": "longhorn", "capacityBytes": size * GI,
+                                                "requestedBytes": size * GI, "phase": "Bound"},
+                          "walPvc": None, "lagBytes": lag, "replicationState": None if primary else ("streaming" if not fresh else "catchup"),
+                          "syncState": None if primary else "async"})
+    ready = sum(1 for i in instances if i["ready"])
+    used = pg["db_bytes"] / (size * GI)
+    checks = [
+        pg_check("db.connection", "Database", "Coder's database", "ok", "coder-db-rw.coder.svc:5432/app",
+                 detail="Coder connects as app, TLS require. Read from Secret coder-db-app (key uri)."),
+        pg_check("db.reachable", "Database", "Database answers", "ok", "PostgreSQL 18.4, 23 of 100 connections in use"),
+        pg_check("cnpg.operator", "Operator", "CloudNativePG operator", "ok", "CloudNativePG 1.27.0 in cnpg-system"),
+        pg_check("cnpg.instances", "High availability", "Replicas for automatic fail-over", "ok",
+                 "%d instances (1 primary, %d replicas)" % (n, n - 1)) if n >= 2 else
+        pg_check("cnpg.instances", "High availability", "Replicas for automatic fail-over", "warn", "1 instance (no replica)",
+                 "3 instances (1 primary, 2 replicas)", "With a single instance, Coder is down whenever that pod or its "
+                 "node is. Replicas stream every change and one is promoted automatically if the primary fails.", "cnpg.instances"),
+        pg_check("cnpg.ready", "High availability", "Instances ready", "ok" if ready == n else "error",
+                 "%d of %d ready" % (ready, n), detail="" if ready == n else "New replicas are copying the data."),
+        pg_check("cnpg.storageclass", "Storage", "Storage class", "ok", "longhorn (Longhorn, default)",
+                 detail="Volumes are network-attached: an instance can move to another node with its data."),
+        pg_check("cnpg.storage", "Storage", "Room on the database volume", "warn" if used >= 0.8 else "ok",
+                 "%.0f%% used (%dGi)" % (used * 100, size), "%dGi" % (size * 2) if used >= 0.8 else None,
+                 "The volume can be grown in place." if used >= 0.8 else "", "cnpg.storage" if used >= 0.8 else None),
+    ]
+    if pg["backups"]:
+        checks += [pg_check("cnpg.backup", "Backups", "Scheduled backups", "ok", "volume snapshots, schedule 0 0 2 * * *"),
+                   pg_check("cnpg.lastbackup", "Backups", "Last successful backup", "ok", pg["backups"])]
+    else:
+        checks.append(pg_check("cnpg.backup", "Backups", "Scheduled backups", "warn", "none", "daily volume snapshots (longhorn-snap)",
+                               "Replicas protect against a lost node, not against deleted or corrupted data.", "cnpg.backup"))
+    return {"generatedAt": now(), "mode": "cloudnative-pg", "checks": checks, "facts": {
+        "provider": "CloudNativePG",
+        "coderDatabase": {"host": "coder-db-rw.coder.svc", "port": 5432, "database": "app", "user": "app", "sslMode": "require",
+                          "source": "Secret coder-db-app (key uri)", "secret": "coder-db-app"},
+        "operator": {"installed": True, "crd": True, "namespace": "cnpg-system", "version": "1.27.0", "ready": True},
+        "cluster": {"name": "coder-db", "namespace": "coder", "phase": "Cluster in healthy state" if ready == n else "Creating replica",
+                    "instances": n, "readyInstances": ready, "primary": "coder-db-1",
+                    "image": "ghcr.io/cloudnative-pg/postgresql:18.4-system-trixie", "storageSize": "%dGi" % size,
+                    "storageClass": "longhorn", "walStorageSize": None, "managedBy": "Helm release coder-platform",
+                    "created": now(-86400 * 30)},
+        "instances": instances, "storageClasses": STORAGE_CLASSES, "snapshotClasses": ["longhorn-snap"],
+        "database": {"sizeBytes": pg["db_bytes"], "connections": 23, "maxConnections": 100, "version": "18.4",
+                     "startedAt": now(-86400 * 9)},
+        "backups": {"configured": bool(pg["backups"]), "method": "volume snapshots" if pg["backups"] else None,
+                    "schedule": "0 0 2 * * *" if pg["backups"] else None, "lastSuccess": pg["backups"] or None,
+                    "lastFailure": None, "recoverableSince": pg["backups"] or None, "count": 1 if pg["backups"] else 0},
+        "otherClusters": [],
+        "settings": {"clusterName": "coder-db", "instances": n if n >= 2 else 3, "storageSize": "%dGi" % (size * 2 if used >= 0.8 else size),
+                     "storageClass": "longhorn", "snapshotClass": "longhorn-snap", "backupSchedule": "0 0 2 * * *"},
+    }}
+
+
+def apply_persistence(fixes, settings):
+    done = []
+    if "cnpg.instances" in fixes:
+        pg["instances"] = max(1, min(9, int(settings.get("instances") or 3)))
+        pg["scaled_at"] = time.time()
+        done.append("Cluster coder-db now runs %d instances" % pg["instances"])
+    if "cnpg.storage" in fixes:
+        m = re.match(r"^(\d+)Gi$", str(settings.get("storageSize") or ""))
+        if not m or int(m.group(1)) <= pg["size_gi"]:
+            raise ValueError("Storage can only grow: the cluster has %dGi." % pg["size_gi"])
+        pg["size_gi"] = int(m.group(1))
+        done.append("Growing coder-db's volumes to %dGi" % pg["size_gi"])
+    if "cnpg.backup" in fixes:
+        pg["backups"] = now()
+        done.append("Scheduled volume-snapshot backups of coder-db (0 0 2 * * *), the first one now")
+    if "cnpg.cluster" in fixes:
+        done.append("Cluster coder/coder-db already exists")
+    return done
+
+
 def acks_report():
     current = banner_public()
     if banner["fields"]["enabled"] and banner["fields"]["message"]:
@@ -280,6 +383,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(200, logs(int(arg("after", "0") or 0)))
         if path == ui + "/api/keycloak":
             return self.send(200, KEYCLOAK)
+        if path == ui + "/api/persistence":
+            return self.send(200, persistence())
         if path == ui + "/api/chat/state":
             return self.send(200, {"me": {**{k: ME[k] for k in ("id", "username", "name")}, "admin": True,
                                           "chatOn": state["chat_on"]},
@@ -342,6 +447,11 @@ class Handler(BaseHTTPRequestHandler):
             state["events"].pop(payload.get("id"), None)
             state["receipts"].pop(payload.get("id"), None)
             return self.send(200, {"ok": True, "removed": 1})
+        if path == ui + "/api/persistence/apply":
+            try:
+                return self.send(200, {"ok": True, "done": apply_persistence(payload.get("fixes") or [], payload.get("settings") or {})})
+            except ValueError as e:
+                return self.send(400, {"error": str(e)})
         if path.startswith(ui + "/api/keycloak/"):
             return self.send(200, {"ok": True, "done": ["The mock applied nothing"]})
         if path == ui + "/api/chat/send":

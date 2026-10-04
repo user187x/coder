@@ -132,7 +132,9 @@ test("navigates an organization group member reader to AI settings from Admin", 
 
 	const user = userEvent.setup();
 	await user.click(await screen.findByRole("button", { name: "Admin" }));
-	await user.click(await screen.findByRole("menuitem", { name: "AI" }));
+	await user.click(
+		await screen.findByRole("menuitem", { name: "Super Intelligence" }),
+	);
 	await screen.findByRole("heading", { name: "AI settings" });
 	expect(router.state.location.pathname).toBe("/ai/settings");
 });

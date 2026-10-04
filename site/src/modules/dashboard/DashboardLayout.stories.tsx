@@ -133,7 +133,9 @@ export const CustomOrganizationRoleCanOpenMCPServers: Story = {
 		const user = userEvent.setup();
 		const canvas = within(canvasElement);
 		await user.click(await canvas.findByRole("button", { name: "Admin" }));
-		await user.click(await screen.findByRole("menuitem", { name: "AI" }));
+		await user.click(
+			await screen.findByRole("menuitem", { name: "Super Intelligence" }),
+		);
 		await expect(
 			await canvas.findByRole("heading", {
 				name: "AI settings for sharers",

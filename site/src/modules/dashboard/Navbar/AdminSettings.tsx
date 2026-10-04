@@ -26,8 +26,8 @@ export type AdminSettingsPermissions = {
 /**
  * Builds the ordered list of Admin menu items for the given permissions. The
  * deployment settings are called "Settings" (they open General), and AI
- * settings live in General's sidebar: "AI" is only offered to those who
- * cannot open General. The menu ends with the cluster's CPU and memory, which
+ * settings live in General's sidebar as "Super Intelligence", which is only
+ * offered here to those who cannot open General. The menu ends with the cluster's CPU and memory, which
  * only admins get an answer for.
  */
 export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
@@ -53,7 +53,7 @@ export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
 			)}
 			{permissions.canViewAISettings && !permissions.canViewDeployment && (
 				<DropdownMenuItem asChild className={itemClassName}>
-					<Link to="/ai/settings">AI</Link>
+					<Link to="/ai/settings">Super Intelligence</Link>
 				</DropdownMenuItem>
 			)}
 			{permissions.canViewAuditLog && (

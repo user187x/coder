@@ -8,6 +8,8 @@ import {
 	type KeycloakFix,
 	type KeycloakReport,
 	type KeycloakSettings,
+	type PersistenceFix,
+	type PersistenceSettings,
 	PlatformAPI,
 } from "#/api/platform";
 
@@ -24,6 +26,7 @@ export const clusterUsageKey = [...platformKey, "cluster", "usage"] as const;
 export const networkReportKey = [...platformKey, "network"] as const;
 export const monitoringKey = [...platformKey, "monitoring"] as const;
 export const keycloakReportKey = [...platformKey, "keycloak"] as const;
+export const persistenceReportKey = [...platformKey, "persistence"] as const;
 const chatAdminsKey = [...platformKey, "chat", "admins"] as const;
 export const bannerKey = ["banner"] as const;
 export const bannerStateKey = [...bannerKey, "state"] as const;
@@ -274,4 +277,26 @@ export const reshowBanner = (queryClient: QueryClient) => ({
 export const resetBanner = (queryClient: QueryClient) => ({
 	mutationFn: PlatformAPI.resetBanner,
 	onSuccess: onBannerChange(queryClient),
+});
+
+const PERSISTENCE_REFRESH_MS = 10_000;
+
+/** The database map is live: re-read every 10 seconds unless paused. */
+export const persistenceReport = (paused: boolean) => ({
+	queryKey: persistenceReportKey,
+	queryFn: PlatformAPI.getPersistenceReport,
+	refetchInterval: paused ? (false as const) : PERSISTENCE_REFRESH_MS,
+});
+
+export const applyPersistenceFixes = (queryClient: QueryClient) => ({
+	mutationFn: ({
+		fixes,
+		settings,
+	}: {
+		fixes: readonly PersistenceFix[];
+		settings: PersistenceSettings;
+	}) => PlatformAPI.applyPersistenceFixes(fixes, settings),
+	onSettled: async () => {
+		await queryClient.invalidateQueries({ queryKey: persistenceReportKey });
+	},
 });

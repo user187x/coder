@@ -371,6 +371,142 @@ export type KeycloakReport = {
 
 type KeycloakResult = { ok: true; done: string[] };
 
+export type PersistenceFix =
+	| "cnpg.cluster"
+	| "cnpg.instances"
+	| "cnpg.storage"
+	| "cnpg.backup";
+
+export type PersistenceCheck = {
+	id: string;
+	group: string;
+	title: string;
+	status: KeycloakCheckStatus;
+	current: string | null;
+	expected: string | null;
+	detail: string;
+	/** "cnpg.operator" is guided (installed by an administrator), not applied. */
+	fix: PersistenceFix | "cnpg.operator" | null;
+};
+
+/** What a Cluster created or changed from General > Persistence looks like. */
+export type PersistenceSettings = {
+	clusterName: string;
+	instances: number;
+	storageSize: string;
+	storageClass: string;
+	snapshotClass: string;
+	/** Six cron fields, seconds first (CloudNativePG's format). */
+	backupSchedule: string;
+};
+
+export type StorageClassInfo = {
+	name: string;
+	provisioner: string;
+	/** What the provisioner is, e.g. "AWS EBS" or "Longhorn". */
+	label: string;
+	kind: "cloud" | "network" | "local" | "unknown";
+	isDefault: boolean;
+	allowExpansion: boolean;
+	reclaimPolicy: string | null;
+	bindingMode: string | null;
+};
+
+type InstanceVolume = {
+	name: string;
+	storageClass: string | null;
+	capacityBytes: number | null;
+	requestedBytes: number | null;
+	phase: string | null;
+};
+
+export type DatabaseInstance = PodBrief & {
+	role: "primary" | "replica";
+	zone: string | null;
+	pvc: InstanceVolume | null;
+	walPvc: InstanceVolume | null;
+	/** How far a replica's replay is behind the primary; null when unknown. */
+	lagBytes: number | null;
+	replicationState: string | null;
+	syncState: string | null;
+};
+
+type CoderDatabaseConnection = {
+	host: string | null;
+	port: number | null;
+	database: string | null;
+	user: string | null;
+	sslMode: string | null;
+	source: string | null;
+	secret: string | null;
+};
+
+type CnpgOperator = {
+	installed: boolean;
+	crd: boolean;
+	namespace: string | null;
+	version: string | null;
+	/** null when the CRD answers but the operator's Deployment is not visible. */
+	ready: boolean | null;
+};
+
+export type DatabaseCluster = {
+	name: string;
+	namespace: string;
+	phase: string | null;
+	instances: number;
+	readyInstances: number;
+	primary: string | null;
+	image: string | null;
+	storageSize: string | null;
+	storageClass: string | null;
+	walStorageSize: string | null;
+	managedBy: string | null;
+	created: string | null;
+};
+
+type DatabaseStats = {
+	sizeBytes: number | null;
+	connections: number | null;
+	maxConnections: number | null;
+	version: string | null;
+	startedAt: string | null;
+};
+
+type BackupState = {
+	configured: boolean;
+	method: string | null;
+	schedule: string | null;
+	lastSuccess: string | null;
+	lastFailure: string | null;
+	recoverableSince: string | null;
+	count: number;
+};
+
+export type PersistenceReport = {
+	generatedAt: string;
+	/** "external": a database outside this Kubernetes cluster or not run by CloudNativePG. */
+	mode: "cloudnative-pg" | "external" | "unknown";
+	checks: PersistenceCheck[];
+	facts: {
+		/** "CloudNativePG", a cloud service such as "Amazon RDS", or "PostgreSQL". */
+		provider: string | null;
+		coderDatabase: CoderDatabaseConnection;
+		operator: CnpgOperator;
+		cluster: DatabaseCluster | null;
+		instances: DatabaseInstance[];
+		storageClasses: StorageClassInfo[];
+		snapshotClasses: string[];
+		database: DatabaseStats | null;
+		backups: BackupState | null;
+		/** CloudNativePG clusters in Coder's namespace that Coder does not use. */
+		otherClusters: string[];
+		settings: PersistenceSettings;
+	};
+};
+
+type PersistenceResult = { ok: true; done: string[] };
+
 export type ChatPeer = {
 	id: string;
 	username: string;
@@ -569,6 +705,17 @@ export const PlatformAPI = {
 	}) => post<KeycloakResult>(`${PLATFORM_BASE}/api/keycloak/connect`, req),
 	undoKeycloakChange: () =>
 		post<KeycloakResult>(`${PLATFORM_BASE}/api/keycloak/undo`, {}),
+
+	getPersistenceReport: () =>
+		get<PersistenceReport>(`${PLATFORM_BASE}/api/persistence`),
+	applyPersistenceFixes: (
+		fixes: readonly PersistenceFix[],
+		settings: PersistenceSettings,
+	) =>
+		post<PersistenceResult>(`${PLATFORM_BASE}/api/persistence/apply`, {
+			fixes,
+			settings,
+		}),
 
 	getChatState: () => get<ChatState>(chat("state")),
 	getChatAdmins: () => get<{ admins: ChatPeer[] }>(chat("admins")),

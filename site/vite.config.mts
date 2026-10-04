@@ -165,15 +165,17 @@ export default defineConfig({
 					// The platform services that run next to Coder in a deployment
 					// (dashboard add-ons and the announcement banner). Set
 					// CODER_PLATFORM_HOST to develop against them or a mock of them
-					// (scripts/platform-preview.sh).
+					// (scripts/platform-preview.sh). The Host header is passed on
+					// unchanged: the services reject a POST whose Origin differs
+					// from its Host, as it would behind the deployment's Gateway.
 					...(process.env.CODER_PLATFORM_HOST
 						? {
 								"/__coder-ui": {
-									changeOrigin: true,
+									changeOrigin: false,
 									target: process.env.CODER_PLATFORM_HOST,
 								},
 								"/__banner": {
-									changeOrigin: true,
+									changeOrigin: false,
 									target: process.env.CODER_PLATFORM_HOST,
 								},
 							}
