@@ -1,6 +1,4 @@
-import { ArrowUpRightIcon } from "lucide-react";
 import type { BuildInfoResponse } from "#/api/typesGenerated";
-import { PREMIUM_PAGE_PATH } from "#/components/Paywall/Paywall";
 import {
 	Sidebar as BaseSidebar,
 	SettingsSidebarNavItem as SidebarNavItem,
@@ -10,43 +8,59 @@ import type { Permissions } from "#/modules/permissions";
 type DeploymentSidebarViewProps = {
 	/** Site-wide permissions. */
 	permissions: Permissions;
-	showOrganizations: boolean;
-	hidePremiumTab: boolean;
 	buildInfo: BuildInfoResponse;
+	/** General's AI entry (AISettingsTree), placed in alphabetical order. */
+	aiSettings?: React.ReactNode;
 };
 
 /**
- * Displays navigation for deployment settings.  If active, highlight the main
- * menu heading.
+ * Navigation for General (the deployment settings), in alphabetical order.
+ * Licenses, Workspace Proxies, Groups, IdP Organization Sync, External
+ * Authentication and Premium are not offered here; their pages still answer.
  */
 export const DeploymentSidebarView: React.FC<DeploymentSidebarViewProps> = ({
 	permissions,
-	showOrganizations,
-	hidePremiumTab,
 	buildInfo,
+	aiSettings,
 }) => {
 	return (
 		<BaseSidebar>
 			<div className="flex flex-col gap-1">
-				{permissions.viewDeploymentConfig && (
-					<SidebarNavItem href="/deployment/overview">Overview</SidebarNavItem>
+				{permissions.viewAllUsers && (
+					<SidebarNavItem href="/deployment/users">Accounts</SidebarNavItem>
 				)}
-				{permissions.viewAllLicenses && (
-					<SidebarNavItem href="/deployment/licenses">Licenses</SidebarNavItem>
-				)}
+				{aiSettings}
 				{permissions.editDeploymentConfig && (
-					<SidebarNavItem href="/deployment/appearance">
-						Appearance
+					<SidebarNavItem href="/deployment/announcement">
+						Announcement
 					</SidebarNavItem>
 				)}
 				{permissions.viewDeploymentConfig && (
 					<SidebarNavItem href="/deployment/userauth">
-						User Authentication
+						Authentication
+					</SidebarNavItem>
+				)}
+				{permissions.editDeploymentConfig && (
+					<SidebarNavItem href="/deployment/classification">
+						Classification
+					</SidebarNavItem>
+				)}
+				{permissions.editDeploymentConfig && (
+					<SidebarNavItem href="/deployment/customize">
+						Customize
+					</SidebarNavItem>
+				)}
+				{permissions.editDeploymentConfig && (
+					<SidebarNavItem href="/deployment/monitoring">
+						Monitoring
 					</SidebarNavItem>
 				)}
 				{permissions.viewDeploymentConfig && (
-					<SidebarNavItem href="/deployment/external-auth">
-						External Authentication
+					<SidebarNavItem href="/deployment/network">Network</SidebarNavItem>
+				)}
+				{permissions.viewNotificationTemplate && (
+					<SidebarNavItem href="/deployment/notifications">
+						Notifications
 					</SidebarNavItem>
 				)}
 				{permissions.viewDeploymentConfig && buildInfo.oauth2_provider && (
@@ -55,48 +69,15 @@ export const DeploymentSidebarView: React.FC<DeploymentSidebarViewProps> = ({
 					</SidebarNavItem>
 				)}
 				{permissions.viewDeploymentConfig && (
-					<SidebarNavItem href="/deployment/network">Network</SidebarNavItem>
-				)}
-				{permissions.readWorkspaceProxies && (
-					<SidebarNavItem href="/deployment/workspace-proxies">
-						Workspace Proxies
-					</SidebarNavItem>
-				)}
-				{permissions.viewDeploymentConfig && (
-					<SidebarNavItem href="/deployment/security">Security</SidebarNavItem>
-				)}
-				{permissions.viewDeploymentConfig && (
 					<SidebarNavItem href="/deployment/observability">
 						Observability
 					</SidebarNavItem>
 				)}
-
-				{permissions.viewAllUsers && (
-					<SidebarNavItem href="/deployment/users">Users</SidebarNavItem>
+				{permissions.viewDeploymentConfig && (
+					<SidebarNavItem href="/deployment/overview">Overview</SidebarNavItem>
 				)}
-				{permissions.viewAnyGroup && (
-					<SidebarNavItem href="/deployment/groups">
-						<div className="flex flex-row items-center gap-1">
-							Groups {showOrganizations && <ArrowUpRightIcon size={16} />}
-						</div>
-					</SidebarNavItem>
-				)}
-				{permissions.viewOrganizationIDPSyncSettings && (
-					<SidebarNavItem href="/deployment/idp-org-sync">
-						IdP Organization Sync
-					</SidebarNavItem>
-				)}
-				{permissions.viewNotificationTemplate && (
-					<SidebarNavItem href="/deployment/notifications">
-						<div className="flex flex-row items-center gap-2">
-							<span>Notifications</span>
-						</div>
-					</SidebarNavItem>
-				)}
-				{!hidePremiumTab && (
-					<SidebarNavItem href={PREMIUM_PAGE_PATH}>
-						Trial Upgrade
-					</SidebarNavItem>
+				{permissions.viewDeploymentConfig && (
+					<SidebarNavItem href="/deployment/security">Security</SidebarNavItem>
 				)}
 			</div>
 		</BaseSidebar>

@@ -17,8 +17,7 @@ import {
 	withAuthProvider,
 	withDashboardProvider,
 } from "#/testHelpers/storybook";
-import { AISettingsSidebar } from "./AISettingsSidebar";
-import AISettingsSidebarView from "./AISettingsSidebarView";
+import { AISettingsTree, AISettingsTreeView } from "./AISettingsTree";
 
 const LocationProbe = () => {
 	const location = useLocation();
@@ -67,9 +66,9 @@ const followLink = async (
 	);
 };
 
-const meta: Meta<typeof AISettingsSidebarView> = {
-	title: "modules/management/AISettingsSidebarView",
-	component: AISettingsSidebarView,
+const meta: Meta<typeof AISettingsTreeView> = {
+	title: "modules/management/AISettingsTreeView",
+	component: AISettingsTreeView,
 	decorators: [
 		(Story) => (
 			<>
@@ -87,7 +86,7 @@ const meta: Meta<typeof AISettingsSidebarView> = {
 };
 
 export default meta;
-type Story = StoryObj<typeof AISettingsSidebarView>;
+type Story = StoryObj<typeof AISettingsTreeView>;
 
 export const CoderAgentsActive: Story = {};
 
@@ -222,7 +221,7 @@ export const ModelsWithReadPermissionOnly: Story = {
 };
 
 export const OrganizationOnlyRoleCanAccessModels: Story = {
-	render: () => <AISettingsSidebar />,
+	render: () => <AISettingsTree />,
 	decorators: [withAuthProvider, withDashboardProvider],
 	parameters: {
 		user: MockUserOwner,

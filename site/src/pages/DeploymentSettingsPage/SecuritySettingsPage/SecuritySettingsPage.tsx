@@ -1,23 +1,15 @@
-import { useDashboard } from "#/modules/dashboard/useDashboard";
 import { useDeploymentConfig } from "#/modules/management/DeploymentConfigProvider";
 import { pageTitle } from "#/utils/page";
 import { SecuritySettingsPageView } from "./SecuritySettingsPageView";
 
 const SecuritySettingsPage: React.FC = () => {
 	const { deploymentConfig } = useDeploymentConfig();
-	const { entitlements } = useDashboard();
 
 	return (
 		<>
 			<title>{pageTitle("Security Settings")}</title>
 
-			<SecuritySettingsPageView
-				options={deploymentConfig.options}
-				isBrowserOnlyEntitled={
-					entitlements.features.browser_only.entitlement !== "not_entitled"
-				}
-				featureBrowserOnlyEnabled={entitlements.features.browser_only.enabled}
-			/>
+			<SecuritySettingsPageView options={deploymentConfig.options} />
 		</>
 	);
 };

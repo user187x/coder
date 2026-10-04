@@ -54,6 +54,7 @@ import {
 import { useProxy } from "#/contexts/ProxyContext";
 import { useClipboard } from "#/hooks/useClipboard";
 import { useFeatureVisibility } from "#/modules/dashboard/useFeatureVisibility";
+import { AgentTerminalSection } from "#/modules/platform/agentTerminal/AgentTerminalSection";
 import {
 	getAgentConnectivityIssues,
 	getAgentScriptIssues,
@@ -766,6 +767,8 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 					</CollapsibleContent>
 				</Collapsible>
 			</section>
+
+			<AgentTerminalSection agent={agent} workspace={workspace} />
 		</div>
 	);
 };

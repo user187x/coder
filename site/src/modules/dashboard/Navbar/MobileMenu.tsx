@@ -84,9 +84,6 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
 				<DropdownMenuItem asChild className={itemStyles.default}>
 					<Link to="/templates">Templates</Link>
 				</DropdownMenuItem>
-				<DropdownMenuItem asChild className={itemStyles.default}>
-					<Link to="/agents">Agents</Link>
-				</DropdownMenuItem>
 				<DropdownMenuSeparator />
 				<ProxySettingsSub proxyContextValue={proxyContextValue} />
 
@@ -196,12 +193,6 @@ const ProxySettingsSub: React.FC<ProxySettingsSubProps> = ({
 					})}
 				<DropdownMenuSeparator />
 				<DropdownMenuItem
-					asChild
-					className={cn(itemStyles.default, itemStyles.sub)}
-				>
-					<Link to="/deployment/workspace-proxies">Proxy settings</Link>
-				</DropdownMenuItem>
-				<DropdownMenuItem
 					className={cn(itemStyles.default, itemStyles.sub)}
 					onClick={(event) => {
 						event.stopPropagation();
@@ -232,7 +223,7 @@ const AdminSettingsSub: React.FC<AdminSettingsSubProps> = ({ permissions }) => {
 						setOpen((prev) => !prev);
 					}}
 				>
-					Admin settings
+					Admin
 					<ChevronRightIcon
 						className={cn("ml-auto", open ? "rotate-90" : "")}
 					/>

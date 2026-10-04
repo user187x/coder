@@ -36,7 +36,7 @@ export const Example: Story = {
 	},
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		await expect(canvas.getByRole("table", { name: "Users" })).toBeVisible();
+		await expect(canvas.getByRole("table", { name: "Accounts" })).toBeVisible();
 		await expect(canvas.getByText(MockUserOwner.username)).toBeVisible();
 		await expect(
 			canvas.queryByRole("button", { name: /open menu/i }),
@@ -86,7 +86,8 @@ export const Editable: Story = {
 	},
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		const ownerRow = canvas.getByRole("row", {
+		// A row opens the user's workspace, so it is a button named by its cells.
+		const ownerRow = canvas.getByRole("button", {
 			name: (accessibleName) => accessibleName.includes(MockUserOwner.email),
 		});
 		await userEvent.click(

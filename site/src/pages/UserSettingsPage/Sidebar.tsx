@@ -14,9 +14,6 @@ export const Sidebar: React.FC = () => {
 		<BaseSidebar>
 			<div className="flex flex-col gap-1">
 				<SettingsSidebarNavItem href="account">Account</SettingsSidebarNavItem>
-				<SettingsSidebarNavItem href="appearance">
-					Appearance
-				</SettingsSidebarNavItem>
 				<SettingsSidebarNavItem href="external-auth">
 					External Authentication
 				</SettingsSidebarNavItem>
@@ -38,6 +35,9 @@ export const Sidebar: React.FC = () => {
 				</SettingsSidebarNavItem>
 				<SettingsSidebarNavItem href="tokens">Tokens</SettingsSidebarNavItem>
 				<SettingsSidebarNavItem href="secrets">Secrets</SettingsSidebarNavItem>
+				<SettingsSidebarNavItem href="certificates">
+					Certificates
+				</SettingsSidebarNavItem>
 				<SettingsSidebarNavItem href="notifications">
 					Notifications
 				</SettingsSidebarNavItem>

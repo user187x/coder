@@ -358,7 +358,8 @@ async function openUserMenu(
 	canvas: ReturnType<typeof within>,
 	user: ReturnType<typeof userEvent.setup>,
 ) {
-	const row = canvas.getByRole("row", {
+	// A row opens the user's workspace, so it is a button named by its cells.
+	const row = canvas.getByRole("button", {
 		name: (accessibleName: string) =>
 			accessibleName.includes(MockUsers[0].email),
 	});

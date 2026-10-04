@@ -1,8 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { expect, within } from "storybook/test";
 import type { SerpentGroup } from "#/api/typesGenerated";
-import { MockPermissions } from "#/testHelpers/entities";
-import { docs } from "#/utils/docs";
 import { ObservabilitySettingsPageView } from "./ObservabilitySettingsPageView";
 
 const introspectionGroup: SerpentGroup = {
@@ -63,8 +60,6 @@ const meta: Meta<typeof ObservabilitySettingsPageView> = {
 				hidden: false,
 			},
 		],
-		featureAuditLogEnabled: true,
-		canViewPremium: MockPermissions.viewAllLicenses,
 	},
 };
 
@@ -72,54 +67,3 @@ export default meta;
 type Story = StoryObj<typeof ObservabilitySettingsPageView>;
 
 export const Page: Story = {};
-
-export const OSS: Story = {
-	args: { featureAuditLogEnabled: false },
-	play: async ({ canvasElement }) => {
-		const canvas = within(canvasElement);
-
-		await expect(canvas.getByText("Audit Logging")).toBeVisible();
-		await expect(
-			canvas.getByRole("link", { name: "Start trial for free" }),
-		).toHaveAttribute("href", "/deployment/premium");
-		const docsLinks = canvas.getAllByRole("link", { name: /View docs/ });
-		await expect(docsLinks).toHaveLength(2);
-		await expect(docsLinks[0]).toHaveAttribute(
-			"href",
-			docs("/admin/security/audit-logs"),
-		);
-		await expect(docsLinks[1]).toHaveAttribute(
-			"href",
-			docs("/admin/monitoring"),
-		);
-		await expect(
-			canvas.queryByText("Audit Logs Retention"),
-		).not.toBeInTheDocument();
-	},
-};
-
-export const OSSWithoutLicenseAccess: Story = {
-	args: { featureAuditLogEnabled: false, canViewPremium: false },
-	play: async ({ canvasElement }) => {
-		const canvas = within(canvasElement);
-
-		await expect(
-			canvas.getByText(/contact your deployment administrator/i),
-		).toBeVisible();
-		await expect(
-			canvas.queryByRole("link", { name: "Start trial for free" }),
-		).not.toBeInTheDocument();
-	},
-};
-
-export const Entitled: Story = {
-	args: { featureAuditLogEnabled: true },
-	play: async ({ canvasElement }) => {
-		const canvas = within(canvasElement);
-
-		await expect(
-			canvas.queryByRole("link", { name: "Start trial for free" }),
-		).not.toBeInTheDocument();
-		await expect(canvas.getByText("Audit Logs Retention")).toBeVisible();
-	},
-};

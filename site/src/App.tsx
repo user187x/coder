@@ -11,6 +11,8 @@ import { Toaster } from "./components/Toaster/Toaster";
 import { AuthProvider } from "./contexts/auth/AuthProvider";
 import { DiffsWorkerPoolProvider } from "./contexts/DiffsWorkerPoolProvider";
 import { ThemeProvider } from "./contexts/ThemeProvider";
+import { AvatarDialogHost } from "./modules/platform/avatar/AvatarDialog";
+import { ClassificationBars } from "./modules/platform/ClassificationBars";
 import { router } from "./router";
 
 const defaultQueryClient = new QueryClient({
@@ -72,6 +74,8 @@ export const App: React.FC = () => {
 				{/* If you're wondering where the global error boundary is,
 				    it's connected to the router */}
 				<RouterProvider router={router} />
+				<ClassificationBars />
+				<AvatarDialogHost />
 			</AppProviders>
 		</StrictMode>
 	);

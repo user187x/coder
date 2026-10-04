@@ -1,12 +1,22 @@
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { API } from "#/api/api";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuTrigger,
 } from "#/components/DropdownMenu/DropdownMenu";
-import { MockUserOwner } from "#/testHelpers/entities";
+import { openAvatarDialog } from "#/modules/platform/avatar/avatarDialogStore";
+import {
+	MockUserAppearanceSettings,
+	MockUserOwner,
+} from "#/testHelpers/entities";
 import { render, waitForLoaderToBeRemoved } from "#/testHelpers/renderHelpers";
 import { UserDropdownContent } from "./UserDropdownContent";
+
+vi.mock("#/modules/platform/avatar/avatarDialogStore", () => ({
+	openAvatarDialog: vi.fn(),
+}));
 
 const renderUserDropdownContent = (props: {
 	onSignOut: () => void;
@@ -58,5 +68,36 @@ describe("UserDropdownContent", () => {
 		expect(
 			screen.getByText("AI spend - $819 / $1,200 USD"),
 		).toBeInTheDocument();
+	});
+
+	it("switches between the dark and light themes from Dark Mode", async () => {
+		const update = vi.spyOn(API, "updateAppearanceSettings").mockResolvedValue({
+			...MockUserAppearanceSettings,
+			theme_preference: "light",
+		});
+		renderUserDropdownContent({ onSignOut: vi.fn() });
+		await waitForLoaderToBeRemoved();
+
+		await userEvent.click(
+			screen.getByRole("menuitemcheckbox", { name: "Dark Mode" }),
+		);
+
+		await waitFor(() =>
+			expect(update).toHaveBeenCalledWith(
+				expect.objectContaining({
+					theme_preference: "light",
+					theme_mode: "single",
+				}),
+			),
+		);
+	});
+
+	it("opens the avatar dialog from Avatar", async () => {
+		renderUserDropdownContent({ onSignOut: vi.fn() });
+		await waitForLoaderToBeRemoved();
+
+		await userEvent.click(screen.getByRole("menuitem", { name: "Avatar" }));
+
+		expect(openAvatarDialog).toHaveBeenCalled();
 	});
 });

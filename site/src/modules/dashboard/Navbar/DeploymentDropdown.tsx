@@ -19,12 +19,15 @@ export const AdminSettingsDropdown: React.FC<AdminSettingsDropdownProps> = ({
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>
 				<Button variant="outline" size="lg">
-					Admin settings
+					Admin
 					<ChevronDownIcon className="text-content-primary" />
 				</Button>
 			</DropdownMenuTrigger>
 
-			<DropdownMenuContent align="end" className="w-[180px]">
+			<DropdownMenuContent
+				align="end"
+				className="w-[180px] has-[[data-cluster-gauge]]:w-[300px]"
+			>
 				<nav>
 					<AdminSettingsItems permissions={permissions} />
 				</nav>

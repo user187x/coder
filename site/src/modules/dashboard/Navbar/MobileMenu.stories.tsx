@@ -44,6 +44,7 @@ const meta: Meta<typeof MobileMenu> = {
 		adminPermissions: {
 			canViewDeployment: true,
 			canViewOrganizations: true,
+			canViewUsers: true,
 			canViewAISettings: true,
 			canViewAuditLog: true,
 			canViewConnectionLog: true,
@@ -180,7 +181,7 @@ async function openAdminSettings({
 	const user = userEvent.setup();
 	const body = within(canvasElement.ownerDocument.body);
 	const menuItem = await body.findByRole("menuitem", {
-		name: /admin settings/i,
+		name: /^admin$/i,
 	});
 	await user.click(menuItem);
 }

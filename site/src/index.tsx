@@ -1,5 +1,6 @@
 import { createRoot } from "react-dom/client";
 import "./index.css";
+import "./contexts/platformBoot";
 import { App } from "./App";
 
 console.info(`      -#######          +######-      ########+       ##########  ########+.      ###########

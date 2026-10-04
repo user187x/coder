@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { NavLink, useLocation } from "react-router";
+import { NavLink } from "react-router";
 import { API } from "#/api/api";
 import type * as TypesGen from "#/api/typesGenerated";
 import { Badge } from "#/components/Badge/Badge";
@@ -7,6 +7,8 @@ import { Button } from "#/components/Button/Button";
 import { ProductLogo } from "#/components/Icons/ProductLogo";
 import type { ProxyContextValue } from "#/contexts/ProxyContext";
 import { NotificationsInbox } from "#/modules/notifications/NotificationsInbox/NotificationsInbox";
+import { AnnouncementBanner } from "#/modules/platform/announcement/AnnouncementBanner";
+import { ChatInboxIndicator } from "#/modules/platform/chat/ChatInboxIndicator";
 import { getPrereleaseFlag } from "#/utils/buildInfo";
 import {
 	type AdminSettingsPermissions,
@@ -17,33 +19,24 @@ import { MobileMenu } from "./MobileMenu";
 import { ProxyMenu } from "./ProxyMenu";
 import { SupportIcon } from "./SupportIcon";
 import { UserDropdown } from "./UserDropdown/UserDropdown";
+import { WorkspacesDropdown } from "./WorkspacesDropdown";
 
 type NavbarViewProps = {
 	user: TypesGen.User;
 	buildInfo?: TypesGen.BuildInfoResponse;
 	supportLinks: readonly TypesGen.LinkConfig[];
-	codernautsEnabled?: boolean;
 	onSignOut: () => void;
 	adminPermissions: AdminSettingsPermissions;
-	canCreateChat: boolean;
 	canViewLicenses: boolean;
 	proxyContextValue?: ProxyContextValue;
-};
-
-const linkStyles = {
-	default:
-		"text-sm font-medium text-content-secondary no-underline block h-full px-2 flex items-center hover:text-content-primary transition-colors",
-	active: "text-content-primary",
 };
 
 export const NavbarView: React.FC<NavbarViewProps> = ({
 	user,
 	buildInfo,
 	supportLinks,
-	codernautsEnabled,
 	onSignOut,
 	adminPermissions,
-	canCreateChat,
 	canViewLicenses,
 	proxyContextValue,
 }) => {
@@ -73,7 +66,9 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 				<ProductLogo className="h-7" />
 			</NavLink>
 
-			<NavItems className="ml-4 hidden md:flex" canCreateChat={canCreateChat} />
+			<nav className="ml-4 hidden md:flex items-center h-full">
+				<WorkspacesDropdown />
+			</nav>
 
 			{prerelease && buildInfo?.version && (
 				<a
@@ -92,7 +87,11 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 				</a>
 			)}
 
-			<div className="flex items-center gap-3 ml-auto">
+			<div className="flex flex-1 min-w-0 items-center justify-end gap-3 ml-auto">
+				<div className="hidden md:flex flex-1 min-w-0 empty:hidden">
+					<AnnouncementBanner placement="navbar" />
+				</div>
+
 				{supportLinks.filter(isNavbarLink).map((link) => (
 					<div key={link.name} className="hidden md:block">
 						<SupportButton
@@ -115,22 +114,24 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 					</div>
 				)}
 
-				<NotificationsInbox
-					fetchNotifications={API.getInboxNotifications}
-					markAllAsRead={API.markAllInboxNotificationsAsRead}
-					markNotificationAsRead={(notificationId) =>
-						API.updateInboxNotificationReadStatus(notificationId, {
-							is_read: true,
-						})
-					}
-				/>
+				<div className="relative">
+					<NotificationsInbox
+						fetchNotifications={API.getInboxNotifications}
+						markAllAsRead={API.markAllInboxNotificationsAsRead}
+						markNotificationAsRead={(notificationId) =>
+							API.updateInboxNotificationReadStatus(notificationId, {
+								is_read: true,
+							})
+						}
+					/>
+					<ChatInboxIndicator />
+				</div>
 
 				<div className="hidden md:block">
 					<UserDropdown
 						user={user}
 						buildInfo={buildInfo}
 						supportLinks={supportLinks?.filter((link) => !isNavbarLink(link))}
-						codernautsEnabled={codernautsEnabled}
 						onSignOut={onSignOut}
 						canViewLicenses={canViewLicenses}
 					/>
@@ -147,49 +148,6 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 				</div>
 			</div>
 		</div>
-	);
-};
-
-type NavItemsProps = {
-	className?: string;
-	canCreateChat: boolean;
-};
-
-const NavItems: React.FC<NavItemsProps> = ({ className, canCreateChat }) => {
-	const location = useLocation();
-
-	return (
-		<nav className={cn("flex items-center gap-4 h-full", className)}>
-			<NavLink
-				className={({ isActive }) => {
-					if (location.pathname.startsWith("/@")) {
-						isActive = true;
-					}
-					return cn(linkStyles.default, { [linkStyles.active]: isActive });
-				}}
-				to="/workspaces"
-			>
-				Workspaces
-			</NavLink>
-			<NavLink
-				className={({ isActive }) => {
-					return cn(linkStyles.default, { [linkStyles.active]: isActive });
-				}}
-				to="/templates"
-			>
-				Templates
-			</NavLink>
-			{canCreateChat && (
-				<NavLink
-					className={({ isActive }) => {
-						return cn(linkStyles.default, { [linkStyles.active]: isActive });
-					}}
-					to="/agents"
-				>
-					Agents
-				</NavLink>
-			)}
-		</nav>
 	);
 };
 

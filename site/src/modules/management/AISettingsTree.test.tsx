@@ -10,7 +10,7 @@ import {
 	MockUserMember,
 } from "#/testHelpers/entities";
 import { renderWithRouter } from "#/testHelpers/renderHelpers";
-import { AISettingsSidebar } from "./AISettingsSidebar";
+import { AISettingsTree } from "./AISettingsTree";
 
 const mockAIGatewayEntitlements = {
 	...MockEntitlements,
@@ -45,7 +45,7 @@ it("links organization group member readers to the Spend page", async () => {
 	});
 	const router = createMemoryRouter(
 		[
-			{ path: "/ai/settings", element: <AISettingsSidebar /> },
+			{ path: "/ai/settings", element: <AISettingsTree /> },
 			{ path: "/ai/settings/spend", element: <div /> },
 		],
 		{ initialEntries: ["/ai/settings?org=second"] },

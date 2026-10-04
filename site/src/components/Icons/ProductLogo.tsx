@@ -1,16 +1,18 @@
 import { cn } from "cn";
+import { usePlatformSnapshot } from "#/contexts/platformBoot";
 import { getApplicationName, getLogoURL } from "#/utils/appearance";
 import { ExternalImage } from "../ExternalImage/ExternalImage";
 
 /**
- * Enterprise customers can set a custom logo for their Coder application. Use
- * the custom logo wherever the Coder logo is used, if a custom one is provided.
+ * The logo uploaded in General > Customize, else the custom logo of the
+ * deployment's appearance settings, replaces the Coder logo everywhere.
  */
 export const ProductLogo: React.FC<{ className?: string }> = ({
 	className,
 }) => {
 	const applicationName = getApplicationName();
-	const logoURL = getLogoURL();
+	const { logoURL: uploadedLogoURL } = usePlatformSnapshot();
+	const logoURL = uploadedLogoURL || getLogoURL();
 
 	return logoURL ? (
 		<ExternalImage
@@ -31,7 +33,7 @@ export const ProductLogo: React.FC<{ className?: string }> = ({
 	);
 };
 
-const CoderLogo: React.FC<React.ComponentProps<"svg">> = ({
+export const CoderLogo: React.FC<React.ComponentProps<"svg">> = ({
 	className,
 	...props
 }) => (

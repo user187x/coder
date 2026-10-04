@@ -50,13 +50,13 @@ const meta: Meta<typeof NavbarView> = {
 		adminPermissions: {
 			canViewDeployment: true,
 			canViewOrganizations: true,
+			canViewUsers: true,
 			canViewAISettings: true,
 			canViewAuditLog: true,
 			canViewConnectionLog: true,
 			canViewAIBridge: true,
 			canViewHealth: true,
 		},
-		canCreateChat: true,
 		canViewLicenses: false,
 		supportLinks: [],
 	},
@@ -70,9 +70,7 @@ export const ForAdmin: Story = {
 	parameters: { pixel: { matrix: pixelWithDesktop } },
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		await userEvent.click(
-			canvas.getByRole("button", { name: "Admin settings" }),
-		);
+		await userEvent.click(canvas.getByRole("button", { name: "Admin" }));
 	},
 };
 
@@ -86,9 +84,7 @@ export const ForAuditor: Story = {
 	},
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		await userEvent.click(
-			canvas.getByRole("button", { name: "Admin settings" }),
-		);
+		await userEvent.click(canvas.getByRole("button", { name: "Admin" }));
 	},
 };
 
@@ -103,9 +99,7 @@ export const ForOrgAdmin: Story = {
 	},
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		await userEvent.click(
-			canvas.getByRole("button", { name: "Admin settings" }),
-		);
+		await userEvent.click(canvas.getByRole("button", { name: "Admin" }));
 	},
 };
 
@@ -136,14 +130,13 @@ export const ForTemplateUpdateOnlyAdmin: Story = {
 	args: {
 		user: MockUserMember,
 		adminPermissions: {
+			canViewUsers: true,
 			canViewAISettings: true,
 		},
 	},
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		await userEvent.click(
-			canvas.getByRole("button", { name: "Admin settings" }),
-		);
+		await userEvent.click(canvas.getByRole("button", { name: "Admin" }));
 		const body = within(canvasElement.ownerDocument.body);
 		const aiSettingsLink = body.getByRole("menuitem", { name: "AI" });
 		await expect(aiSettingsLink).toHaveAttribute("href", "/ai/settings");
@@ -181,14 +174,13 @@ export const ForMCPUpdateOnlyAdmin: Story = {
 	args: {
 		user: MockUserMember,
 		adminPermissions: {
+			canViewUsers: true,
 			canViewAISettings: true,
 		},
 	},
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		await userEvent.click(
-			canvas.getByRole("button", { name: "Admin settings" }),
-		);
+		await userEvent.click(canvas.getByRole("button", { name: "Admin" }));
 		const body = within(canvasElement.ownerDocument.body);
 		const aiSettingsLink = body.getByRole("menuitem", { name: "AI" });
 		await expect(aiSettingsLink).toHaveAttribute("href", "/ai/settings");
@@ -226,14 +218,13 @@ export const ForMCPDeleteOnlyAdmin: Story = {
 	args: {
 		user: MockUserMember,
 		adminPermissions: {
+			canViewUsers: true,
 			canViewAISettings: true,
 		},
 	},
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		await userEvent.click(
-			canvas.getByRole("button", { name: "Admin settings" }),
-		);
+		await userEvent.click(canvas.getByRole("button", { name: "Admin" }));
 		const body = within(canvasElement.ownerDocument.body);
 		await userEvent.click(body.getByRole("menuitem", { name: "AI" }));
 		await expect(
@@ -269,14 +260,13 @@ export const ForMCPCreateOnlyAdmin: Story = {
 	args: {
 		user: MockUserMember,
 		adminPermissions: {
+			canViewUsers: true,
 			canViewAISettings: true,
 		},
 	},
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		await userEvent.click(
-			canvas.getByRole("button", { name: "Admin settings" }),
-		);
+		await userEvent.click(canvas.getByRole("button", { name: "Admin" }));
 		const body = within(canvasElement.ownerDocument.body);
 		await userEvent.click(body.getByRole("menuitem", { name: "AI" }));
 		await expect(
@@ -294,9 +284,7 @@ export const ForSingleOrgOSSAdmin: Story = {
 	},
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		await userEvent.click(
-			canvas.getByRole("button", { name: "Admin settings" }),
-		);
+		await userEvent.click(canvas.getByRole("button", { name: "Admin" }));
 	},
 };
 
@@ -304,7 +292,6 @@ export const ForUserWithoutOrganization: Story = {
 	args: {
 		user: MockUserMember,
 		adminPermissions: {},
-		canCreateChat: false,
 	},
 };
 
@@ -312,7 +299,6 @@ export const ForMember: Story = {
 	args: {
 		user: MockUserMember,
 		adminPermissions: {},
-		canCreateChat: true,
 	},
 };
 

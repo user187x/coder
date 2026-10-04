@@ -7,6 +7,7 @@ import {
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { UserDropdownContent } from "#/modules/dashboard/Navbar/UserDropdown/UserDropdownContent";
 import { useDashboard } from "#/modules/dashboard/useDashboard";
+import { isOfferedSupportLink } from "#/modules/platform/supportLinks";
 import { UsageIndicator } from "../../UsageIndicator";
 
 export const UserSidebarFooter: React.FC = () => {
@@ -40,7 +41,8 @@ export const UserSidebarFooter: React.FC = () => {
 							buildInfo={buildInfo}
 							supportLinks={
 								appearance.support_links?.filter(
-									(link) => link.location !== "navbar",
+									(link) =>
+										link.location !== "navbar" && isOfferedSupportLink(link),
 								) ?? []
 							}
 							onSignOut={signOut}

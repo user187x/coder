@@ -12,6 +12,10 @@
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "cn";
 import { Avatar as AvatarPrimitive } from "radix-ui";
+import {
+	resolvePlatformAvatar,
+	usePlatformSnapshot,
+} from "#/contexts/platformBoot";
 import { useAppearance } from "#/theme/appearance";
 import { getExternalImageStylesFromUrl } from "#/theme/externalImages";
 
@@ -77,8 +81,16 @@ export const Avatar: React.FC<AvatarProps> = ({
 	...props
 }) => {
 	const { externalImages } = useAppearance();
+	const platform = usePlatformSnapshot();
+	// Most places pass the username as the fallback text: a picture that user
+	// uploaded (or the default avatar) replaces Coder's own, drawn as a circle.
+	const uploadedSrc =
+		variant !== "icon" && fallback
+			? resolvePlatformAvatar(platform, fallback, src)
+			: undefined;
+	const imageSrc = uploadedSrc ?? src;
 
-	const isEmoji = src?.startsWith("/emojis/");
+	const isEmoji = imageSrc?.startsWith("/emojis/");
 	const avatarSizeToken = size === "lg" || size === "sm" ? size : "default";
 
 	return (
@@ -89,6 +101,7 @@ export const Avatar: React.FC<AvatarProps> = ({
 					variant: isEmoji ? "default" : variant,
 					className,
 				}),
+				uploadedSrc && (size === "sm" ? "p-px" : "p-0.5"),
 			)}
 			style={{
 				...style,
@@ -99,10 +112,13 @@ export const Avatar: React.FC<AvatarProps> = ({
 			{...props}
 		>
 			<AvatarPrimitive.Image
-				src={src}
+				src={imageSrc}
 				alt={alt}
-				className="aspect-square size-full object-contain"
-				style={getExternalImageStylesFromUrl(externalImages, src)}
+				className={cn(
+					"aspect-square size-full",
+					uploadedSrc ? "rounded-full object-cover" : "object-contain",
+				)}
+				style={getExternalImageStylesFromUrl(externalImages, imageSrc)}
 			/>
 			{fallback && (
 				<AvatarPrimitive.Fallback className="flex h-full w-full items-center justify-center rounded-full">

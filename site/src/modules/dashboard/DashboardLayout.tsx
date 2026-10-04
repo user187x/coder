@@ -5,6 +5,8 @@ import { Loader } from "#/components/Loader/Loader";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { AnnouncementBanners } from "#/modules/dashboard/AnnouncementBanners/AnnouncementBanners";
 import { LicenseBanner } from "#/modules/dashboard/LicenseBanner/LicenseBanner";
+import { AnnouncementBanner } from "#/modules/platform/announcement/AnnouncementBanner";
+import { DashboardAddons } from "#/modules/platform/DashboardAddons";
 import { DeploymentBanner } from "./DeploymentBanner/DeploymentBanner";
 import { Navbar } from "./Navbar/Navbar";
 import { UpdateCheckNotice } from "./UpdateCheckNotice/UpdateCheckNotice";
@@ -34,6 +36,10 @@ export const DashboardLayout: React.FC = () => {
 					Skip to main content
 				</a>
 				<Navbar />
+				{/* On narrow screens the announcement is not docked in the navbar. */}
+				<div className="md:hidden sticky top-[calc(72px+var(--coder-classification-h,0px))] z-39 empty:hidden">
+					<AnnouncementBanner placement="page" />
+				</div>
 
 				<main
 					id="main-content"
@@ -59,6 +65,8 @@ export const DashboardLayout: React.FC = () => {
 					/>
 				)}
 			</div>
+
+			<DashboardAddons />
 		</>
 	);
 };

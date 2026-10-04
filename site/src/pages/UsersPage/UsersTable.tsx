@@ -1,7 +1,10 @@
 import { cn } from "cn";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
+import { useQueryClient } from "react-query";
+import { useNavigate } from "react-router";
 import type { GroupsByUserId } from "#/api/queries/groups";
+import { workspaces } from "#/api/queries/workspaces";
 import type * as TypesGen from "#/api/typesGenerated";
 import { AvatarData } from "#/components/Avatar/AvatarData";
 import { AvatarDataSkeleton } from "#/components/Avatar/AvatarDataSkeleton";
@@ -20,6 +23,8 @@ import {
 	TableLoaderSkeleton,
 	TableRowSkeleton,
 } from "#/components/TableLoader/TableLoader";
+import { useClickableTableRow } from "#/hooks/useClickableTableRow";
+import { ChatUserButton } from "#/modules/platform/chat/ChatUserButton";
 import type { UserAdminAction } from "#/modules/users/UserActionDialogs";
 import { UserGroupsCell } from "#/modules/users/UserGroupsCell";
 import {
@@ -49,7 +54,7 @@ export type UsersTableProps = {
 
 export const UsersTable: React.FC<UsersTableProps> = (props) => {
 	return (
-		<Table data-testid="users-table" aria-label="Users">
+		<Table data-testid="users-table" aria-label="Accounts">
 			<TableHeader>
 				<TableRow>
 					<TableHead className="w-max">User</TableHead>
@@ -95,13 +100,100 @@ const UsersTableBody: React.FC<UsersTableProps> = ({
 	}
 
 	return users.map((user) => (
-		<TableRow key={user.id} data-testid={`user-${user.id}`}>
+		<UsersTableRow
+			key={user.id}
+			user={user}
+			groupsByUserId={groupsByUserId}
+			me={me}
+			canEditUsers={canEditUsers}
+			canViewActivity={canViewActivity}
+			oidcRoleSyncEnabled={oidcRoleSyncEnabled}
+			onAction={onAction}
+		/>
+	));
+};
+
+// Clicks meant for something inside the row (Chat, the menu, the groups and
+// roles pop-overs) are left to it.
+const ROW_CONTROLS =
+	"a, button, input, select, textarea, label, [role=menuitem], [role=menu], [role=dialog], [role=checkbox]";
+
+type UsersTableRowProps = Omit<UsersTableProps, "isLoading" | "users"> & {
+	user: TypesGen.User;
+};
+
+/**
+ * A click on a user's row opens their workspace when they have exactly one,
+ * else their workspaces list (what the row menu's "View workspaces" opens).
+ * Ctrl / Cmd-click opens it in a new tab.
+ */
+const UsersTableRow: React.FC<UsersTableRowProps> = ({
+	user,
+	groupsByUserId,
+	me,
+	canEditUsers,
+	canViewActivity,
+	oidcRoleSyncEnabled,
+	onAction,
+}) => {
+	const queryClient = useQueryClient();
+	const navigate = useNavigate();
+
+	const open = async (href: () => Promise<string>, newTab: boolean) => {
+		const target = await href();
+		if (newTab) {
+			window.open(target, "_blank", "noopener");
+		} else {
+			navigate(target);
+		}
+	};
+
+	const userWorkspaceHref = async () => {
+		const list = `/workspaces?filter=${encodeURIComponent(`owner:${user.username}`)}`;
+		try {
+			const result = await queryClient.fetchQuery(
+				workspaces({ q: `owner:${user.username}`, limit: 2 }),
+			);
+			const [only] = result.workspaces;
+			return result.count === 1 && only
+				? `/@${encodeURIComponent(only.owner_name)}/${encodeURIComponent(only.name)}`
+				: list;
+		} catch {
+			return list;
+		}
+	};
+
+	const clickable = useClickableTableRow({
+		onClick: (event) => {
+			const target = event.target;
+			if (
+				target instanceof Element &&
+				target !== event.currentTarget &&
+				target.closest(ROW_CONTROLS)
+			) {
+				return;
+			}
+			if (window.getSelection()?.toString().trim()) {
+				return;
+			}
+			void open(userWorkspaceHref, event.ctrlKey || event.metaKey);
+		},
+		onMiddleClick: () => {
+			void open(userWorkspaceHref, true);
+		},
+	});
+
+	return (
+		<TableRow {...clickable} data-testid={`user-${user.id}`}>
 			<TableCell>
-				<AvatarData
-					title={user.username}
-					subtitle={user.is_service_account ? "Service Account" : user.email}
-					src={user.avatar_url}
-				/>
+				<div className="flex items-center justify-between gap-3">
+					<AvatarData
+						title={user.username}
+						subtitle={user.is_service_account ? "Service Account" : user.email}
+						src={user.avatar_url}
+					/>
+					<ChatUserButton user={user} />
+				</div>
 			</TableCell>
 
 			<UserRoleCell roles={user.roles} />
@@ -134,7 +226,7 @@ const UsersTableBody: React.FC<UsersTableProps> = ({
 				</TableCell>
 			)}
 		</TableRow>
-	));
+	);
 };
 
 type UsersTableSkeletonProps = {

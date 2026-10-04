@@ -162,6 +162,22 @@ export default defineConfig({
 						target: process.env.CODER_HOST || "http://localhost:3000",
 						secure: process.env.NODE_ENV === "production",
 					},
+					// The platform services that run next to Coder in a deployment
+					// (dashboard add-ons and the announcement banner). Set
+					// CODER_PLATFORM_HOST to develop against them or a mock of them
+					// (scripts/platform-preview.sh).
+					...(process.env.CODER_PLATFORM_HOST
+						? {
+								"/__coder-ui": {
+									changeOrigin: true,
+									target: process.env.CODER_PLATFORM_HOST,
+								},
+								"/__banner": {
+									changeOrigin: true,
+									target: process.env.CODER_PLATFORM_HOST,
+								},
+							}
+						: {}),
 				},
 		allowedHosts: [".coder", ".dogfood.cdr.dev"],
 	},

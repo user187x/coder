@@ -1,13 +1,10 @@
 import type { SerpentOption } from "#/api/typesGenerated";
-import { BadgeGroup } from "#/components/Badge/Badge";
-import { DisabledBadge, EnabledBadge } from "#/components/Badge/PresetBadges";
 import {
 	SettingsHeader,
 	SettingsHeaderDescription,
 	SettingsHeaderDocsLink,
 	SettingsHeaderTitle,
 } from "#/components/SettingsHeader/SettingsHeader";
-import { PremiumPaywallSmall } from "#/modules/paywall/PremiumPaywallSmall";
 import {
 	deploymentGroupHasParent,
 	useDeploymentOptions,
@@ -17,15 +14,11 @@ import OptionsTable from "../OptionsTable";
 
 type SecuritySettingsPageViewProps = {
 	options: SerpentOption[];
-	/** True when the license covers browser-only connections. */
-	isBrowserOnlyEntitled: boolean;
-	/** True when the deployment has browser-only connections turned on. */
-	featureBrowserOnlyEnabled: boolean;
 };
 
 export const SecuritySettingsPageView: React.FC<
 	SecuritySettingsPageViewProps
-> = ({ options, isBrowserOnlyEntitled, featureBrowserOnlyEnabled }) => {
+> = ({ options }) => {
 	const tlsOptions = options.filter((o) =>
 		deploymentGroupHasParent(o.group, "TLS"),
 	);
@@ -52,43 +45,6 @@ export const SecuritySettingsPageView: React.FC<
 						"Disable Owner Workspace Access",
 					)}
 				/>
-			</div>
-
-			<div>
-				<SettingsHeader>
-					<SettingsHeaderTitle
-						level="h2"
-						hierarchy="secondary"
-						className="items-center"
-					>
-						Browser-Only Connections{" "}
-						<BadgeGroup>
-							{featureBrowserOnlyEnabled ? <EnabledBadge /> : <DisabledBadge />}
-						</BadgeGroup>
-					</SettingsHeaderTitle>
-					<SettingsHeaderDescription>
-						Block all workspace access via SSH, port forward, and other
-						non-browser connections.{" "}
-						<SettingsHeaderDocsLink
-							href={docs("/admin/networking#browser-only-connections")}
-							context="about browser-only connections"
-						/>
-					</SettingsHeaderDescription>
-				</SettingsHeader>
-
-				{!isBrowserOnlyEntitled ? (
-					<PremiumPaywallSmall
-						source="browser_only"
-						message="Browser-Only Connections"
-						description="Block all workspace access via SSH, port forward, and other non-browser connections."
-						features={[
-							"Restrict access to web-based connections",
-							"Block SSH and port-forward entirely",
-							"Enforce browser-only compliance policies",
-						]}
-						canViewPremium
-					/>
-				) : null}
 			</div>
 
 			{tlsOptions.length > 0 && (

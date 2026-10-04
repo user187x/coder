@@ -51,7 +51,9 @@ export const Admin: Story = {
 	},
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		await expect(canvas.getByRole("link", { name: "New user" })).toBeVisible();
+		await expect(
+			canvas.getByRole("link", { name: "New account" }),
+		).toBeVisible();
 	},
 };
 

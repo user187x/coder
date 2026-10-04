@@ -41,13 +41,13 @@ export const UsersPageView: React.FC<UsersPageViewProps> = ({
 						<Button asChild>
 							<Link to="create">
 								<UserPlusIcon />
-								New user
+								New account
 							</Link>
 						</Button>
 					)
 				}
 			>
-				<SettingsHeaderTitle>Users</SettingsHeaderTitle>
+				<SettingsHeaderTitle>Accounts</SettingsHeaderTitle>
 				<SettingsHeaderDescription>
 					Manage user accounts and permissions.
 				</SettingsHeaderDescription>
@@ -55,7 +55,7 @@ export const UsersPageView: React.FC<UsersPageViewProps> = ({
 
 			<UsersFilter {...filterProps} />
 
-			<PaginationContainer query={usersQuery} paginationUnitLabel="users">
+			<PaginationContainer query={usersQuery} paginationUnitLabel="accounts">
 				<UsersTable
 					{...props}
 					users={usersQuery.data?.users}

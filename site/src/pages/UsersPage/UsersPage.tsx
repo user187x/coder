@@ -54,7 +54,7 @@ const UsersPage: React.FC = () => {
 
 	return (
 		<>
-			<title>{pageTitle("Users")}</title>
+			<title>{pageTitle("Accounts")}</title>
 
 			<UsersPageView
 				isLoading={isLoading}

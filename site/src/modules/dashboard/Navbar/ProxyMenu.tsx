@@ -1,6 +1,5 @@
 import { RadioIcon } from "lucide-react";
 import { useState } from "react";
-import { Link } from "react-router";
 import { toast } from "sonner";
 import type * as TypesGen from "#/api/typesGenerated";
 import { Abbr } from "#/components/Abbr/Abbr";
@@ -19,7 +18,6 @@ import { ExternalImage } from "#/components/ExternalImage/ExternalImage";
 import { Latency } from "#/components/Latency/Latency";
 import { Skeleton } from "#/components/Skeleton/Skeleton";
 import type { ProxyContextValue } from "#/contexts/ProxyContext";
-import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { getLatencyColor } from "#/utils/latency";
 import { sortProxiesByLatency } from "./proxyUtils";
 
@@ -36,7 +34,6 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({ proxyContextValue }) => {
 	const latencies = proxyContextValue.proxyLatencies;
 	const isLoadingLatencies = Object.keys(latencies).length === 0;
 	const isLoading = proxyContextValue.isLoading || isLoadingLatencies;
-	const { permissions } = useAuthenticated();
 
 	const proxyLatencyLoading = (proxy: TypesGen.Region): boolean => {
 		if (!refetchDate) {
@@ -183,14 +180,6 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({ proxyContextValue }) => {
 				)}
 
 				<DropdownMenuSeparator />
-
-				{Boolean(permissions.editWorkspaceProxies) && (
-					<DropdownMenuItem asChild>
-						<Link to="/deployment/workspace-proxies">
-							<span>Proxy settings</span>
-						</Link>
-					</DropdownMenuItem>
-				)}
 
 				<DropdownMenuItem
 					onClick={(e) => {

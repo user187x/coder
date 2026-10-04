@@ -1,8 +1,9 @@
 import { Link } from "react-router";
 import { DropdownMenuItem } from "#/components/DropdownMenu/DropdownMenu";
+import { ClusterGauge } from "#/modules/platform/ClusterGauge";
 
 /**
- * Permissions that determine which items appear in the Admin settings menu.
+ * Permissions that determine which items appear in the Admin menu.
  * Shared by the desktop `DeploymentDropdown` and the mobile `MobileMenu` so
  * both surfaces render the same set of items from a single source of truth.
  */
@@ -13,6 +14,7 @@ type AdminSettingsItemsProps = {
 
 export type AdminSettingsPermissions = {
 	canViewDeployment?: boolean;
+	canViewUsers?: boolean;
 	canViewOrganizations?: boolean;
 	canViewAISettings?: boolean;
 	canViewAuditLog?: boolean;
@@ -22,9 +24,11 @@ export type AdminSettingsPermissions = {
 };
 
 /**
- * Builds the ordered list of Admin settings menu items for the given
- * permissions. Organizations is always available; the rest are gated behind
- * their respective permissions.
+ * Builds the ordered list of Admin menu items for the given permissions. The
+ * deployment settings are called "Settings" (they open General), and AI
+ * settings live in General's sidebar: "AI" is only offered to those who
+ * cannot open General. The menu ends with the cluster's CPU and memory, which
+ * only admins get an answer for.
  */
 export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
 	itemClassName,
@@ -34,7 +38,12 @@ export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
 		<>
 			{permissions.canViewDeployment && (
 				<DropdownMenuItem asChild className={itemClassName}>
-					<Link to="/deployment">Deployment</Link>
+					<Link to="/deployment">Settings</Link>
+				</DropdownMenuItem>
+			)}
+			{permissions.canViewUsers && (
+				<DropdownMenuItem asChild className={itemClassName}>
+					<Link to="/deployment/users">Accounts</Link>
 				</DropdownMenuItem>
 			)}
 			{permissions.canViewOrganizations && (
@@ -42,7 +51,7 @@ export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
 					<Link to="/organizations">Organizations</Link>
 				</DropdownMenuItem>
 			)}
-			{permissions.canViewAISettings && (
+			{permissions.canViewAISettings && !permissions.canViewDeployment && (
 				<DropdownMenuItem asChild className={itemClassName}>
 					<Link to="/ai/settings">AI</Link>
 				</DropdownMenuItem>
@@ -64,16 +73,17 @@ export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
 			)}
 			{permissions.canViewHealth && (
 				<DropdownMenuItem asChild className={itemClassName}>
-					<Link to="/health">Healthcheck</Link>
+					<Link to="/health">Health</Link>
 				</DropdownMenuItem>
 			)}
+			<ClusterGauge />
 		</>
 	);
 };
 
 /**
- * Whether the user has any permission that should surface the Admin settings
- * menu. Organizations alone does not gate visibility, matching prior behavior.
+ * Whether the user has any permission that should surface the Admin menu.
+ * Organizations alone does not gate visibility, matching prior behavior.
  */
 export const canViewAdminSettings = (
 	permissions: AdminSettingsPermissions,

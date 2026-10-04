@@ -839,3 +839,124 @@
 		}
 	}
 }
+
+/* Text effects of the announcement banner (modules/platform/announcement). */
+@keyframes announce-appear {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+
+@keyframes announce-rise {
+	from {
+		opacity: 0;
+		transform: translateY(1em);
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+
+@keyframes announce-wave {
+	0%,
+	50%,
+	100% {
+		transform: none;
+	}
+	25% {
+		transform: translateY(-0.5em);
+	}
+}
+
+@keyframes announce-bounce {
+	0% {
+		opacity: 0;
+		transform: translateY(-1em);
+	}
+	40% {
+		opacity: 1;
+		transform: none;
+	}
+	55% {
+		transform: translateY(-0.35em);
+	}
+	70% {
+		transform: none;
+	}
+	82% {
+		transform: translateY(-0.12em);
+	}
+	100% {
+		opacity: 1;
+		transform: none;
+	}
+}
+
+@keyframes announce-flip {
+	from {
+		opacity: 0;
+		transform: rotateX(-90deg);
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+
+@keyframes announce-shake {
+	0%,
+	24%,
+	100% {
+		transform: none;
+	}
+	4% {
+		transform: translateX(-7px);
+	}
+	9% {
+		transform: translateX(7px);
+	}
+	15% {
+		transform: translateX(-5px);
+	}
+	20% {
+		transform: translateX(5px);
+	}
+}
+
+@keyframes announce-pulse {
+	0%,
+	100% {
+		opacity: 1;
+		transform: scale(1);
+	}
+	50% {
+		opacity: 0.4;
+		transform: scale(1.03);
+	}
+}
+
+@keyframes announce-rainbow {
+	0%,
+	100% {
+		color: hsl(0 95% 78%);
+	}
+	17% {
+		color: hsl(60 95% 78%);
+	}
+	33% {
+		color: hsl(120 95% 78%);
+	}
+	50% {
+		color: hsl(180 95% 78%);
+	}
+	67% {
+		color: hsl(240 95% 78%);
+	}
+	83% {
+		color: hsl(300 95% 78%);
+	}
+}

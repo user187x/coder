@@ -5,6 +5,7 @@ import { buildInfo } from "#/api/queries/buildInfo";
 import { authMethods } from "#/api/queries/users";
 import { useAuthContext } from "#/contexts/auth/AuthProvider";
 import { useEmbeddedMetadata } from "#/hooks/useEmbeddedMetadata";
+import { AnnouncementBanner } from "#/modules/platform/announcement/AnnouncementBanner";
 import { getApplicationName } from "#/utils/appearance";
 import { retrieveRedirect, sanitizeRedirect } from "#/utils/redirect";
 import { sendDeploymentEvent } from "#/utils/telemetry";
@@ -66,6 +67,8 @@ const LoginPage: React.FC = () => {
 	return (
 		<>
 			<title>Sign in to {applicationName}</title>
+			{/* Shown when the admin allowed it on the sign-in page. */}
+			<AnnouncementBanner placement="login" />
 			<LoginPageView
 				authMethods={authMethodsQuery.data}
 				error={signInError ?? redirectError}

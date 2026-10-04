@@ -16,6 +16,7 @@ import {
 	TooltipTrigger,
 } from "#/components/Tooltip/Tooltip";
 import { DashboardFullPage } from "#/modules/dashboard/DashboardLayout";
+import { WorkspaceHealthIcon } from "#/modules/platform/workspaceHealth/WorkspaceHealthIcon";
 import { createDayString } from "#/utils/createDayString";
 import { pageTitle } from "#/utils/page";
 import { HealthIcon } from "./Content";
@@ -167,6 +168,16 @@ export const HealthLayout: React.FC = () => {
 										</NavLink>
 									);
 								})}
+							<NavLink
+								end
+								to="/health/workspace-health"
+								className={({ isActive }) =>
+									cn(linkStyles.normal, isActive && linkStyles.active)
+								}
+							>
+								<WorkspaceHealthIcon />
+								Workspace Health
+							</NavLink>
 						</nav>
 					</div>
 

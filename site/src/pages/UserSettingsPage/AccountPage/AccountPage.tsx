@@ -8,6 +8,7 @@ import {
 import { useAuthContext } from "#/contexts/auth/AuthProvider";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { useDashboard } from "#/modules/dashboard/useDashboard";
+import { AccountAvatar } from "#/modules/platform/avatar/AccountAvatar";
 import { AccountForm } from "./AccountForm";
 import { AccountUserGroups } from "./AccountUserGroups";
 
@@ -32,6 +33,7 @@ const AccountPage: React.FC = () => {
 						Update your account info.
 					</SettingsHeaderDescription>
 				</SettingsHeader>
+				<AccountAvatar user={me} />
 				<AccountForm
 					editable={permissions?.updateUsers ?? false}
 					email={me.email}

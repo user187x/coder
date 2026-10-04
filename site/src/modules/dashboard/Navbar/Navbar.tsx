@@ -10,6 +10,7 @@ import {
 	canAccessAnyChatModelConfig,
 	canViewDeploymentSettings,
 } from "#/modules/permissions";
+import { isOfferedSupportLink } from "#/modules/platform/supportLinks";
 import { useCanShareOrganizationMCPServers } from "#/pages/AISettingsPage/MCPServersPage/organizationSharing";
 import { canViewAISpend } from "#/pages/AISettingsPage/SpendPage/spendAccess";
 import { useFeatureVisibility } from "../useFeatureVisibility";
@@ -27,7 +28,6 @@ export const Navbar: React.FC = () => {
 	const { user: me, permissions, signOut } = useAuthenticated();
 	const featureVisibility = useFeatureVisibility();
 	const proxyContextValue = useProxy();
-	const canAccessAnyModel = canAccessAnyChatModelConfig(permissions);
 
 	const canViewDeployment = canViewDeploymentSettings(permissions);
 	const canViewOrganizations = canViewOrganizationSettings;
@@ -47,7 +47,7 @@ export const Navbar: React.FC = () => {
 		permissions.updateAnyMCPServerConfig ||
 		permissions.deleteAnyMCPServerConfig ||
 		permissions.updateAnyTemplate ||
-		canAccessAnyModel;
+		canAccessAnyChatModelConfig(permissions);
 	const organizationMCPSharing = useCanShareOrganizationMCPServers(
 		organizations,
 		{ enabled: !canViewSiteWideAISettings },
@@ -61,11 +61,10 @@ export const Navbar: React.FC = () => {
 		canViewSiteWideAISettings ||
 		organizationMCPSharing.canShare ||
 		canViewAISpend(entitlements, spendOrganizationsQuery.data);
-	const canCreateChat = permissions.createChat;
 
 	const uniqueLinks = new Map<string, LinkConfig>();
 	for (const link of appearance.support_links ?? []) {
-		if (!uniqueLinks.has(link.name)) {
+		if (!uniqueLinks.has(link.name) && isOfferedSupportLink(link)) {
 			uniqueLinks.set(link.name, link);
 		}
 	}
@@ -74,10 +73,10 @@ export const Navbar: React.FC = () => {
 			user={me}
 			buildInfo={buildInfoQuery.data}
 			supportLinks={Array.from(uniqueLinks.values())}
-			codernautsEnabled={appearance.codernauts_enabled}
 			onSignOut={signOut}
 			adminPermissions={{
 				canViewDeployment,
+				canViewUsers: permissions.viewAllUsers,
 				canViewOrganizations,
 				canViewAISettings,
 				canViewAuditLog,
@@ -85,7 +84,6 @@ export const Navbar: React.FC = () => {
 				canViewAIBridge,
 				canViewHealth,
 			}}
-			canCreateChat={canCreateChat}
 			canViewLicenses={permissions.viewAllLicenses}
 			proxyContextValue={proxyContextValue}
 		/>

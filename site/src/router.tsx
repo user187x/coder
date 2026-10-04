@@ -165,6 +165,46 @@ const NetworkSettingsPage = lazy(
 			"./pages/DeploymentSettingsPage/NetworkSettingsPage/NetworkSettingsPage"
 		),
 );
+const AnnouncementSettingsPage = lazy(
+	() =>
+		import(
+			"./pages/DeploymentSettingsPage/AnnouncementSettingsPage/AnnouncementSettingsPage"
+		),
+);
+const ClassificationSettingsPage = lazy(
+	() =>
+		import(
+			"./pages/DeploymentSettingsPage/ClassificationSettingsPage/ClassificationSettingsPage"
+		),
+);
+const KeycloakSettingsPage = lazy(
+	() =>
+		import(
+			"./pages/DeploymentSettingsPage/KeycloakSettingsPage/KeycloakSettingsPage"
+		),
+);
+const CustomizeSettingsPage = lazy(
+	() =>
+		import(
+			"./pages/DeploymentSettingsPage/CustomizeSettingsPage/CustomizeSettingsPage"
+		),
+);
+const MonitoringSettingsPage = lazy(
+	() =>
+		import(
+			"./pages/DeploymentSettingsPage/MonitoringSettingsPage/MonitoringSettingsPage"
+		),
+);
+const AgentsEmbedPage = lazy(
+	() =>
+		import("./pages/DeploymentSettingsPage/AgentsEmbedPage/AgentsEmbedPage"),
+);
+const WorkspaceHealthPage = lazy(
+	() => import("./pages/HealthPage/WorkspaceHealthPage"),
+);
+const CertificatesPage = lazy(
+	() => import("./pages/UserSettingsPage/CertificatesPage/CertificatesPage"),
+);
 const ObservabilitySettingsPage = lazy(
 	() =>
 		import(
@@ -422,9 +462,6 @@ const AIBridgeSessionThreadsPage = lazy(
 	() => import("./pages/AIBridgePage/SessionThreadsPage/SessionThreadsPage"),
 );
 
-const AISettingsLayout = lazy(
-	() => import("./pages/AISettingsPage/AISettingsLayout"),
-);
 const AISettingsProvidersPage = lazy(
 	() => import("./pages/AISettingsPage/ProvidersPage/ProvidersPage"),
 );
@@ -654,6 +691,15 @@ export const router = createBrowserRouter(
 							<Route path="add" element={<AddNewLicensePage />} />
 						</Route>
 						<Route path="appearance" element={<AppearanceSettingsPage />} />
+						<Route path="announcement" element={<AnnouncementSettingsPage />} />
+						<Route
+							path="classification"
+							element={<ClassificationSettingsPage />}
+						/>
+						<Route path="keycloak" element={<KeycloakSettingsPage />} />
+						<Route path="customize" element={<CustomizeSettingsPage />} />
+						<Route path="monitoring" element={<MonitoringSettingsPage />} />
+						<Route path="agents" element={<AgentsEmbedPage />} />
 						<Route path="workspace-proxies" element={<WorkspaceProxyPage />} />
 						<Route path="oauth2-provider">
 							<Route index element={<NotFoundPage />} />
@@ -695,6 +741,7 @@ export const router = createBrowserRouter(
 							<Route path="new" element={<CreateTokenPage />} />
 						</Route>
 						<Route path="secrets" element={<SecretsPage />} />
+						<Route path="certificates" element={<CertificatesPage />} />
 						<Route path="notifications" element={<UserNotificationsPage />} />
 					</Route>
 
@@ -743,7 +790,8 @@ export const router = createBrowserRouter(
 						element={<RedirectAIBridgeSession />}
 					/>
 
-					<Route path="/ai/settings" element={<AISettingsLayout />}>
+					{/* The AI settings pages open inside General, with its sidebar. */}
+					<Route path="/ai/settings" element={<DeploymentSettingsLayout />}>
 						<Route element={<DeploymentConfigProvider />}>
 							<Route path="governance" element={<AIGovernanceSettingsPage />} />
 						</Route>
@@ -804,6 +852,7 @@ export const router = createBrowserRouter(
 							path="provisioner-daemons"
 							element={<ProvisionerDaemonsHealthPage />}
 						/>
+						<Route path="workspace-health" element={<WorkspaceHealthPage />} />
 					</Route>
 
 					<Route path="/install" element={<CliInstallPage />} />

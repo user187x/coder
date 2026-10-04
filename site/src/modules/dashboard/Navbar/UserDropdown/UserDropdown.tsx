@@ -39,7 +39,6 @@ type UserDropdownProps = {
 	user: TypesGen.User;
 	buildInfo?: TypesGen.BuildInfoResponse;
 	supportLinks: readonly TypesGen.LinkConfig[];
-	codernautsEnabled?: boolean;
 	onSignOut: () => void;
 	canViewLicenses: boolean;
 };
@@ -48,7 +47,6 @@ export const UserDropdown: React.FC<UserDropdownProps> = ({
 	buildInfo,
 	user,
 	supportLinks,
-	codernautsEnabled,
 	onSignOut,
 	canViewLicenses,
 }) => {
@@ -115,7 +113,6 @@ export const UserDropdown: React.FC<UserDropdownProps> = ({
 						)
 					}
 					supportLinks={supportLinks}
-					codernautsEnabled={codernautsEnabled}
 					onSignOut={onSignOut}
 					trialCta={
 						<UserDropdownPremiumTrialCTA canViewLicenses={canViewLicenses} />
