@@ -112,10 +112,6 @@ OPTIONS:
           A URL to an external Terms of Service that must be accepted by users
           when logging in.
 
-      --update-check bool, $CODER_UPDATE_CHECK (default: false)
-          Periodically check for new releases of Coder and inform the owner. The
-          check is performed once per day.
-
 AI GATEWAY OPTIONS: 
       --ai-budget-period month, $CODER_AI_BUDGET_PERIOD (default: month)
           Determines when accumulated AI spend resets to zero, aligned to UTC
@@ -556,9 +552,11 @@ backed by Tailscale and WireGuard.
       --derp-server-region-name string, $CODER_DERP_SERVER_REGION_NAME (default: Coder Embedded Relay)
           Region name that for the embedded DERP server.
 
-      --derp-server-stun-addresses string-array, $CODER_DERP_SERVER_STUN_ADDRESSES (default: stun.l.google.com:19302,stun1.l.google.com:19302,stun2.l.google.com:19302,stun3.l.google.com:19302,stun4.l.google.com:19302)
-          Addresses for STUN servers to establish P2P connections. It's
-          recommended to have at least two STUN servers to give users the best
+      --derp-server-stun-addresses string-array, $CODER_DERP_SERVER_STUN_ADDRESSES
+          Addresses for STUN servers to establish P2P connections. None are
+          configured by default, so Coder never contacts a third-party STUN
+          server; connections that cannot be made directly are relayed through
+          DERP. Set at least two STUN servers you trust to give users the best
           chance of connecting P2P to workspaces. Each STUN server will get it's
           own DERP region, with region IDs starting at `--derp-server-region-id
           + 1`. Use special value 'disable' to turn off STUN completely.
@@ -955,15 +953,6 @@ that data type.
           builds are deleted if the agent hasn't connected within this period.
           Logs from the latest build are always retained. Set to 0 to disable
           automatic deletion.
-
-TELEMETRY OPTIONS: 
-Telemetry is critical to our ability to improve Coder. We strip all personal
-information before sending data to our servers. Please only disable telemetry
-when required by your organization's security policy.
-
-      --telemetry bool, $CODER_TELEMETRY_ENABLE (default: false)
-          Whether telemetry is enabled or not. Coder collects anonymized usage
-          data to help improve our product.
 
 TEMPLATE BUILDER OPTIONS: 
       --disable-template-builder bool, $CODER_DISABLE_TEMPLATE_BUILDER

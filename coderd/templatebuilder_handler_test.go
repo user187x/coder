@@ -5,13 +5,9 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
 	"github.com/coder/coder/v2/coderd/coderdtest"
-	"github.com/coder/coder/v2/coderd/database"
-	"github.com/coder/coder/v2/coderd/database/dbgen"
-	"github.com/coder/coder/v2/coderd/database/dbtestutil"
 	"github.com/coder/coder/v2/coderd/templatebuilder"
 	"github.com/coder/coder/v2/codersdk"
 	"github.com/coder/coder/v2/testutil"
@@ -303,19 +299,4 @@ func TestTemplateBuilderModules(t *testing.T) {
 		require.ErrorAs(t, err, &sdkErr)
 		require.Equal(t, http.StatusNotFound, sdkErr.StatusCode())
 	})
-}
-
-// receiveTemplateBuilderSession drains snapshots until one carries a template
-// builder session event. Unrelated snapshots, such as those reported while
-// creating the first user, arrive on the same channel.
-func receiveTemplateBuilderSession(ctx context.Context, t *testing.T, reporter *fakeTelemetryReporter) telemetry.TemplateBuilderSession {
-	t.Helper()
-	for {
-		snapshot := testutil.TryReceive(ctx, t, reporter.snapshots)
-		if len(snapshot.TemplateBuilderSessions) == 0 {
-			continue
-		}
-		require.Len(t, snapshot.TemplateBuilderSessions, 1)
-		return snapshot.TemplateBuilderSessions[0]
-	}
 }

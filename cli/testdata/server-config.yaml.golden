@@ -136,20 +136,15 @@ networking:
     # Region name that for the embedded DERP server.
     # (default: Coder Embedded Relay, type: string)
     regionName: Coder Embedded Relay
-    # Addresses for STUN servers to establish P2P connections. It's recommended to
-    # have at least two STUN servers to give users the best chance of connecting P2P
-    # to workspaces. Each STUN server will get it's own DERP region, with region IDs
-    # starting at `--derp-server-region-id + 1`. Use special value 'disable' to turn
-    # off STUN completely.
-    # (default:
-    # stun.l.google.com:19302,stun1.l.google.com:19302,stun2.l.google.com:19302,stun3.l.google.com:19302,stun4.l.google.com:19302,
-    # type: string-array)
-    stunAddresses:
-      - stun.l.google.com:19302
-      - stun1.l.google.com:19302
-      - stun2.l.google.com:19302
-      - stun3.l.google.com:19302
-      - stun4.l.google.com:19302
+    # Addresses for STUN servers to establish P2P connections. None are configured by
+    # default, so Coder never contacts a third-party STUN server; connections that
+    # cannot be made directly are relayed through DERP. Set at least two STUN servers
+    # you trust to give users the best chance of connecting P2P to workspaces. Each
+    # STUN server will get it's own DERP region, with region IDs starting at
+    # `--derp-server-region-id + 1`. Use special value 'disable' to turn off STUN
+    # completely.
+    # (default: <unset>, type: string-array)
+    stunAddresses: []
     # An HTTP URL that is accessible by other replicas to relay DERP traffic. Required
     # for high availability.
     # (default: <unset>, type: url)
@@ -468,17 +463,13 @@ oidc:
   # provider. Ignored when oidc-redirect-url is set.
   # (default: <unset>, type: string-array)
   oidcRedirectAllowedHosts: []
-# Telemetry is critical to our ability to improve Coder. We strip all personal
-#  information before sending data to our servers. Please only disable telemetry
-#  when required by your organization's security policy.
 telemetry:
-  # Whether telemetry is enabled or not. Coder collects anonymized usage data to
-  # help improve our product.
-  # (default: false, type: bool)
+  # Removed. Accepted so existing configurations keep working; it has no effect.
+  # (default: <unset>, type: bool)
   enable: false
-  # URL to send telemetry.
-  # (default: https://telemetry.coder.com, type: url)
-  url: https://telemetry.coder.com
+  # Removed. Accepted so existing configurations keep working; it has no effect.
+  # (default: <unset>, type: string)
+  url: ""
 # Tune the behavior of the provisioner, which is responsible for creating,
 # updating, and deleting workspace resources.
 provisioning:
@@ -515,9 +506,8 @@ dynamicParametersFullEvaluation: false
 # experiments.
 # (default: <unset>, type: string-array)
 experiments: []
-# Periodically check for new releases of Coder and inform the owner. The check is
-# performed once per day.
-# (default: false, type: bool)
+# Removed. Accepted so existing configurations keep working; it has no effect.
+# (default: <unset>, type: bool)
 updateCheck: false
 # The default lifetime duration for API tokens. This value is used when creating a
 # token without specifying a duration, such as when authenticating the CLI or an

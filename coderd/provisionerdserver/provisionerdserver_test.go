@@ -3655,10 +3655,10 @@ func TestInsertWorkspaceResource(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	insert := func(db database.Store, jobID uuid.UUID, resource *sdkproto.Resource) error {
-		return provisionerdserver.InsertWorkspaceResource(ctx, db, jobID, database.WorkspaceTransitionStart, resource, &telemetry.Snapshot{})
+		return provisionerdserver.InsertWorkspaceResource(ctx, db, jobID, database.WorkspaceTransitionStart, resource)
 	}
 	insertWithProtoIDs := func(db database.Store, jobID uuid.UUID, resource *sdkproto.Resource) error {
-		return provisionerdserver.InsertWorkspaceResource(ctx, db, jobID, database.WorkspaceTransitionStart, resource, &telemetry.Snapshot{}, provisionerdserver.InsertWorkspaceResourceWithAgentIDsFromProto())
+		return provisionerdserver.InsertWorkspaceResource(ctx, db, jobID, database.WorkspaceTransitionStart, resource, provisionerdserver.InsertWorkspaceResourceWithAgentIDsFromProto())
 	}
 	t.Run("NoAgents", func(t *testing.T) {
 		t.Parallel()
@@ -5058,7 +5058,6 @@ func setup(t *testing.T, ignoreLogErrors bool, ov *overrides) (proto.DRPCProvisi
 			ps,
 			provisionerdserver.WithClock(clock),
 		),
-		telemetry.NewNoop(),
 		trace.NewNoopTracerProvider().Tracer("noop"),
 		&atomic.Pointer[proto.QuotaCommitter]{},
 		auditPtr,

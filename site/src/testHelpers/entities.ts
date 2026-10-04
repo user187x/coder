@@ -247,7 +247,6 @@ export const MockBuildInfo: TypesGen.BuildInfoResponse = {
 	upgrade_message: "My custom upgrade message",
 	deployment_id: "510d407f-e521-4180-b559-eab4a6d802b8",
 	webpush_public_key: "fake-public-key",
-	telemetry: true,
 	oauth2_provider: true,
 };
 

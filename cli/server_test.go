@@ -11,7 +11,6 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"database/sql/driver"
-	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"io"
@@ -25,13 +24,11 @@ import (
 	"reflect"
 	"regexp"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -42,7 +39,6 @@ import (
 	"tailscale.com/types/key"
 
 	"cdr.dev/slog/v3/sloggers/slogtest"
-	"github.com/coder/coder/v2/buildinfo"
 	"github.com/coder/coder/v2/cli"
 	"github.com/coder/coder/v2/cli/clitest"
 	"github.com/coder/coder/v2/cli/config"
@@ -2474,44 +2470,6 @@ func TestServer_DisabledDERP_ExternalMap(t *testing.T) {
 	// DERP should fail to connect
 	err = c.Connect(ctx)
 	require.Error(t, err)
-}
-
-type runServerOpts struct {
-	waitForSnapshot               bool
-	telemetryDisabled             bool
-	waitForTelemetryDisabledCheck bool
-	name                          string
-}
-
-func mockTelemetryServer(t *testing.T) (*url.URL, chan *telemetry.Deployment, chan *telemetry.Snapshot) {
-	t.Helper()
-	deployment := make(chan *telemetry.Deployment, 64)
-	snapshot := make(chan *telemetry.Snapshot, 64)
-	r := chi.NewRouter()
-	r.Post("/deployment", func(w http.ResponseWriter, r *http.Request) {
-		require.Equal(t, buildinfo.Version(), r.Header.Get(telemetry.VersionHeader))
-		dd := &telemetry.Deployment{}
-		err := json.NewDecoder(r.Body).Decode(dd)
-		require.NoError(t, err)
-		deployment <- dd
-		// Ensure the header is sent only after deployment is sent
-		w.WriteHeader(http.StatusAccepted)
-	})
-	r.Post("/snapshot", func(w http.ResponseWriter, r *http.Request) {
-		require.Equal(t, buildinfo.Version(), r.Header.Get(telemetry.VersionHeader))
-		ss := &telemetry.Snapshot{}
-		err := json.NewDecoder(r.Body).Decode(ss)
-		require.NoError(t, err)
-		snapshot <- ss
-		// Ensure the header is sent only after snapshot is sent
-		w.WriteHeader(http.StatusAccepted)
-	})
-	server := httptest.NewServer(r)
-	t.Cleanup(server.Close)
-	serverURL, err := url.Parse(server.URL)
-	require.NoError(t, err)
-
-	return serverURL, deployment, snapshot
 }
 
 // startIgnoringPostgresQueryCancel starts the Invocation, but excludes PostgreSQL query canceled and context

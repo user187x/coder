@@ -14,7 +14,3 @@ export const templateBuilderModules = (base?: string) => ({
 export const createTemplateFromBuilder = () => ({
 	mutationFn: API.createTemplateFromBuilder,
 });
-
-export const recordTemplateBuilderSession = () => ({
-	mutationFn: API.recordTemplateBuilderSession,
-});

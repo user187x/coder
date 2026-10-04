@@ -10,7 +10,6 @@ const baseBuildInfo: BuildInfoResponse = {
 	workspace_proxy: false,
 	upgrade_message: "",
 	deployment_id: "test",
-	telemetry: false,
 	oauth2_provider: false,
 };
 

@@ -23,6 +23,11 @@ if ! command -v pnpm >/dev/null; then
 fi
 export COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 
+# Linking the coder binary needs several GB of scratch space. Keep it off /tmp,
+# which is often a small tmpfs.
+export GOTMPDIR="${GOTMPDIR:-${HOME}/.cache/coder-go-tmp}"
+mkdir -p "${GOTMPDIR}"
+
 # The generated files (protobuf, mocks, ...) are committed. Mark them up to date
 # so make doesn't try to regenerate them, which needs protoc and other tools.
 make gen/mark-fresh >/dev/null

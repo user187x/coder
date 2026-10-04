@@ -89,7 +89,6 @@ func TestInjectionAppearanceEscapesMetaAttributes(t *testing.T) {
 			}})
 			appearanceFetcher.Store(&fetcher)
 			handler, err := site.New(&site.Options{
-				Telemetry:         telemetry.NewNoop(),
 				Database:          db,
 				SiteFS:            siteFS,
 				AppearanceFetcher: &appearanceFetcher,
@@ -129,9 +128,8 @@ func TestInjection(t *testing.T) {
 	}
 	db, _ := dbtestutil.NewDB(t)
 	handler, err := site.New(&site.Options{
-		Telemetry: telemetry.NewNoop(),
-		Database:  db,
-		SiteFS:    siteFS,
+		Database: db,
+		SiteFS:   siteFS,
 	})
 	require.NoError(t, err)
 
@@ -171,9 +169,8 @@ func TestInjectionUserAppearance(t *testing.T) {
 	}
 	db, _ := dbtestutil.NewDB(t)
 	handler, err := site.New(&site.Options{
-		Telemetry: telemetry.NewNoop(),
-		Database:  db,
-		SiteFS:    siteFS,
+		Database: db,
+		SiteFS:   siteFS,
 	})
 	require.NoError(t, err)
 
@@ -241,7 +238,6 @@ func TestRenderPermissionsResolvesMe(t *testing.T) {
 	authorizer := rbac.NewStrictCachingAuthorizer(prometheus.NewRegistry())
 
 	handler, err := site.New(&site.Options{
-		Telemetry:  telemetry.NewNoop(),
 		Database:   db,
 		SiteFS:     siteFS,
 		Authorizer: authorizer,
@@ -353,9 +349,8 @@ func TestInjectionFailureProducesCleanHTML(t *testing.T) {
 		},
 	}
 	handler, err := site.New(&site.Options{
-		Telemetry: telemetry.NewNoop(),
-		Database:  db,
-		SiteFS:    siteFS,
+		Database: db,
+		SiteFS:   siteFS,
 
 		// No OAuth2 configs, refresh will fail.
 		OAuth2Configs: &httpmw.OAuth2Configs{
@@ -397,9 +392,8 @@ func TestOrganizationsMetadata(t *testing.T) {
 		coderdtest.AccessControlStorePointer(),
 	)
 	handler, err := site.New(&site.Options{
-		Telemetry: telemetry.NewNoop(),
-		Database:  db,
-		SiteFS:    siteFS,
+		Database: db,
+		SiteFS:   siteFS,
 	})
 	require.NoError(t, err)
 
@@ -495,7 +489,6 @@ func TestUserSecretFilePathEnabledMetadata(t *testing.T) {
 			}
 			db, _ := dbtestutil.NewDB(t)
 			handler, err := site.New(&site.Options{
-				Telemetry:                 telemetry.NewNoop(),
 				Database:                  db,
 				SiteFS:                    siteFS,
 				UserSecretFilePathEnabled: tc.enabled,
@@ -535,7 +528,6 @@ func TestExperimentsMetadata(t *testing.T) {
 	evaluator, err := experiments.New(testutil.Logger(t), experiments.NewDBStore(db), codersdk.Experiments{"foo"})
 	require.NoError(t, err)
 	handler, err := site.New(&site.Options{
-		Telemetry:           telemetry.NewNoop(),
 		Database:            db,
 		SiteFS:              siteFS,
 		ExperimentEvaluator: evaluator,
@@ -596,9 +588,8 @@ func TestCaching(t *testing.T) {
 
 	db, _ := dbtestutil.NewDB(t)
 	s, err := site.New(&site.Options{
-		Telemetry: telemetry.NewNoop(),
-		SiteFS:    rootFS,
-		Database:  db,
+		SiteFS:   rootFS,
+		Database: db,
 	})
 	require.NoError(t, err)
 	srv := httptest.NewServer(s)
@@ -662,9 +653,8 @@ func TestServingFiles(t *testing.T) {
 
 	db, _ := dbtestutil.NewDB(t)
 	handler, err := site.New(&site.Options{
-		Telemetry: telemetry.NewNoop(),
-		SiteFS:    rootFS,
-		Database:  db,
+		SiteFS:   rootFS,
+		Database: db,
 	})
 	require.NoError(t, err)
 	srv := httptest.NewServer(handler)
@@ -946,9 +936,8 @@ func TestServingBin(t *testing.T) {
 			testFS := maps.Clone(rootFS)
 			maps.Copy(testFS, tt.fs)
 			handler, err := site.New(&site.Options{
-				Telemetry: telemetry.NewNoop(),
-				SiteFS:    testFS,
-				CacheDir:  dest,
+				SiteFS:   testFS,
+				CacheDir: dest,
 			})
 			if !tt.wantErr && err != nil {
 				require.NoError(t, err, "extract or read failed")

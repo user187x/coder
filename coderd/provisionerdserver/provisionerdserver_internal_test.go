@@ -181,7 +181,7 @@ func TestNewServer_SessionCancelRequired(t *testing.T) {
 	newServer := func(keyID uuid.UUID) error {
 		_, err := NewServer(
 			context.Background(), "", nil, uuid.Nil, uuid.Nil, slog.Logger{},
-			nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+			nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 			Options{KeyID: keyID},
 			nil, nil, nil, codersdk.Experiments{},
 		)

@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 import { createMemoryRouter } from "react-router";
 import type { Response, User } from "#/api/typesGenerated";
-import { MockBuildInfo, MockUserOwner } from "#/testHelpers/entities";
+import { MockUserOwner } from "#/testHelpers/entities";
 import {
 	renderWithRouter,
 	waitForLoaderToBeRemoved,
@@ -120,40 +120,5 @@ describe("Setup Page", () => {
 		await waitForLoaderToBeRemoved();
 		await fillForm();
 		await waitFor(() => screen.findByText("Template Builder"));
-	});
-
-	it("calls sendBeacon with telemetry", async () => {
-		const sendBeacon = vi.fn();
-		Object.defineProperty(navigator, "sendBeacon", {
-			value: sendBeacon,
-		});
-		renderWithRouter(
-			createMemoryRouter(
-				[
-					{
-						path: "/setup",
-						element: <SetupPage />,
-					},
-				],
-				{ initialEntries: ["/setup"] },
-			),
-		);
-		await waitForLoaderToBeRemoved();
-		await waitFor(() => {
-			expect(navigator.sendBeacon).toBeCalledWith(
-				"https://coder.com/api/track-deployment",
-				new Blob(
-					[
-						JSON.stringify({
-							type: "deployment_setup",
-							deployment_id: MockBuildInfo.deployment_id,
-						}),
-					],
-					{
-						type: "application/json",
-					},
-				),
-			);
-		});
 	});
 });

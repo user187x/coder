@@ -41,7 +41,6 @@ const meta: Meta<typeof TemplateBuilderPageView> = {
 		createError: null,
 		isCreating: false,
 		onClearCreateError: fn(),
-		sessionId: "session-1",
 	},
 	parameters: {
 		queries: [

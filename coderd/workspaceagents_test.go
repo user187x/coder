@@ -3402,49 +3402,6 @@ func waitForUpdates(
 	}
 }
 
-// fakeTelemetryReporter is a fake implementation of telemetry.Reporter
-// that sends snapshots on a buffered channel, useful for testing.
-type fakeTelemetryReporter struct {
-	enabled   bool
-	snapshots chan *telemetry.Snapshot
-	t         testing.TB
-	ctx       context.Context
-}
-
-// newFakeTelemetryReporter creates a new fakeTelemetryReporter with a buffered channel.
-// The buffer size determines how many snapshots can be reported before blocking.
-func newFakeTelemetryReporter(ctx context.Context, t testing.TB, bufferSize int) *fakeTelemetryReporter {
-	return &fakeTelemetryReporter{
-		enabled:   true,
-		snapshots: make(chan *telemetry.Snapshot, bufferSize),
-		ctx:       ctx,
-		t:         t,
-	}
-}
-
-// Report implements the telemetry.Reporter interface by sending the snapshot
-// to the snapshots channel.
-func (f *fakeTelemetryReporter) Report(snapshot *telemetry.Snapshot) {
-	if !f.enabled {
-		return
-	}
-
-	select {
-	case f.snapshots <- snapshot:
-		// Successfully sent
-	case <-f.ctx.Done():
-		f.t.Error("context closed while writing snapshot")
-	}
-}
-
-// Enabled implements the telemetry.Reporter interface.
-func (f *fakeTelemetryReporter) Enabled() bool {
-	return f.enabled
-}
-
-// Close implements the telemetry.Reporter interface.
-func (*fakeTelemetryReporter) Close() {}
-
 func requireEqualOrBothNil[T any](t testing.TB, a, b *T) {
 	t.Helper()
 	if a != nil && b != nil {

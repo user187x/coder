@@ -517,7 +517,6 @@ describe("toCreateTemplateRequest", () => {
 			description: "A test template",
 			icon: "/icon/docker.svg",
 			modules: [{ id: "code-server" }],
-			sessionId: "session-123",
 		};
 		const request = toCreateTemplateRequest(state, {
 			organization_id: "org-123",
@@ -533,8 +532,6 @@ describe("toCreateTemplateRequest", () => {
 		expect(request.description).toBe("A test template");
 		expect(request.icon).toBe("/icon/docker.svg");
 		expect(request.modules).toEqual([{ id: "code-server" }]);
-		// Correlates a server-reported build failure with this wizard visit.
-		expect(request.session_id).toBe("session-123");
 	});
 
 	it("omits empty optional fields", () => {
@@ -553,7 +550,6 @@ describe("toCreateTemplateRequest", () => {
 		expect(request.display_name).toBeUndefined();
 		expect(request.description).toBeUndefined();
 		expect(request.icon).toBeUndefined();
-		expect(request.session_id).toBeUndefined();
 	});
 });
 
@@ -617,18 +613,12 @@ describe("baseCustomizationDefaults", () => {
 
 describe("initWizardState", () => {
 	it("returns the initial state without a preselected base", () => {
-		const state = initWizardState({ sessionId: "test-session-id" });
-		expect(state).toMatchObject({
-			...initialWizardState,
-			enteredAt: expect.any(Number),
-			sessionId: "test-session-id",
-		});
-		expect(state.enteredAt).toBeGreaterThan(0);
+		const state = initWizardState({});
+		expect(state).toEqual(initialWizardState);
 	});
 
 	it("seeds base and customization defaults from a preselected base", () => {
 		const state = initWizardState({
-			sessionId: "test-session-id",
 			preselectedBase: {
 				id: "docker",
 				name: "Docker Containers",
@@ -644,6 +634,5 @@ describe("initWizardState", () => {
 		expect(state.displayName).toBe("Docker Containers");
 		expect(state.description).toBe("Docker");
 		expect(state.icon).toBe("/icon/docker.png");
-		expect(state.sessionId).toBe("test-session-id");
 	});
 });
