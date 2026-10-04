@@ -117,15 +117,14 @@ func UserAuthorization(ctx context.Context) rbac.Subject {
 // OAuth2Configs is a collection of configurations for OAuth-based authentication.
 // This should be extended to support other authentication types in the future.
 type OAuth2Configs struct {
-	Github promoauth.OAuth2Config
-	OIDC   promoauth.OAuth2Config
+	OIDC promoauth.OAuth2Config
 }
 
 func (c *OAuth2Configs) IsZero() bool {
 	if c == nil {
 		return true
 	}
-	return c.Github == nil && c.OIDC == nil
+	return c.OIDC == nil
 }
 
 const (
@@ -283,8 +282,19 @@ func ValidateAPIKey(ctx context.Context, cfg ValidateAPIKeyConfig, r *http.Reque
 		}
 	}
 
-	// Refresh OIDC/GitHub tokens if applicable.
-	if key.LoginType == database.LoginTypeGithub || key.LoginType == database.LoginTypeOIDC {
+	// GitHub sign-in has been removed: a session it created is signed out.
+	if key.LoginType == database.LoginTypeGithub {
+		return nil, &ValidateAPIKeyError{
+			Code: http.StatusUnauthorized,
+			Response: codersdk.Response{
+				Message: SignedOutErrorMessage,
+				Detail:  "GitHub sign-in is not available on this deployment. Sign in with your password or OpenID Connect.",
+			},
+		}
+	}
+
+	// Refresh OIDC tokens if applicable.
+	if key.LoginType == database.LoginTypeOIDC {
 		//nolint:gocritic // System needs to fetch UserLink to check if it's valid.
 		link, err := cfg.DB.GetUserLinkByUserIDLoginType(dbauthz.AsSystemRestricted(ctx), database.GetUserLinkByUserIDLoginTypeParams{
 			UserID:    key.UserID,
@@ -326,9 +336,6 @@ func ValidateAPIKey(ctx context.Context, cfg ValidateAPIKeyConfig, r *http.Reque
 			var friendlyName string
 			var oauthConfig promoauth.OAuth2Config
 			switch key.LoginType {
-			case database.LoginTypeGithub:
-				oauthConfig = cfg.OAuth2Configs.Github
-				friendlyName = "GitHub"
 			case database.LoginTypeOIDC:
 				oauthConfig = cfg.OAuth2Configs.OIDC
 				friendlyName = "OpenID Connect"

@@ -84,28 +84,6 @@ export const SetupPageView: React.FC<SetupPageViewProps> = ({
 				</header>
 
 				<form onSubmit={form.handleSubmit} className="flex flex-col gap-6">
-					{authMethods?.github.enabled && (
-						<>
-							<Button className="w-full" asChild type="submit" size="lg">
-								<a
-									href={`/api/v2/users/oauth2/github/callback?redirect=${encodeURIComponent(
-										"/templates/new/builder",
-									)}`}
-								>
-									<ExternalImage src="/icon/github.svg?blackWithColor" />
-									GitHub
-								</a>
-							</Button>
-							<div className="flex items-center gap-4">
-								<div className="h-px w-full bg-border" />
-								<div className="shrink-0 text-xs uppercase text-content-secondary tracking-wider">
-									or
-								</div>
-								<div className="h-px w-full bg-border" />
-							</div>
-						</>
-					)}
-
 					{/* Email */}
 					<FormField
 						label="Email"

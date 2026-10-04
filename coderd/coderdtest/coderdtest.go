@@ -121,7 +121,6 @@ type Options struct {
 	AWSCertificates      awsidentity.Certificates
 	Authorizer           rbac.Authorizer
 	AzureCertificates    azureidentity.Options
-	GithubOAuth2Config   *coderd.GithubOAuth2Config
 	RealIPConfig         *httpmw.RealIPConfig
 	OIDCConfig           *coderd.OIDCConfig
 	GoogleTokenValidator *idtoken.Validator
@@ -639,7 +638,6 @@ func NewOptions(t testing.TB, options *Options) (func(http.Handler), context.Can
 			ConnectionLogger:                   options.ConnectionLogger,
 			AWSCertificates:                    options.AWSCertificates,
 			AzureCertificates:                  options.AzureCertificates,
-			GithubOAuth2Config:                 options.GithubOAuth2Config,
 			RealIPConfig:                       options.RealIPConfig,
 			OIDCConfig:                         options.OIDCConfig,
 			GoogleTokenValidator:               options.GoogleTokenValidator,

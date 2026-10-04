@@ -37,7 +37,6 @@ import (
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/coreos/go-systemd/daemon"
 	embeddedpostgres "github.com/fergusstrange/embedded-postgres"
-	"github.com/google/go-github/v43/github"
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
@@ -46,7 +45,6 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/oauth2"
-	xgithub "golang.org/x/oauth2/github"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/xerrors"
 	"google.golang.org/api/idtoken"
@@ -959,17 +957,6 @@ func (r *RootCmd) Server(newAPI func(context.Context, *coderd.Options) (*coderd.
 			mergedExternalAuthProviders = append(mergedExternalAuthProviders, extAuthEnv...)
 			vals.ExternalAuthConfigs.Value = mergedExternalAuthProviders
 
-			mergedExternalAuthProviders, err = maybeAppendDefaultGithubExternalAuthProvider(
-				ctx,
-				options.Logger,
-				options.Database,
-				vals,
-				mergedExternalAuthProviders,
-			)
-			if err != nil {
-				return xerrors.Errorf("maybe append default github external auth provider: %w", err)
-			}
-
 			options.ExternalAuthConfigs, err = externalauth.ConvertConfig(
 				ctx,
 				logger,
@@ -997,20 +984,6 @@ func (r *RootCmd) Server(newAPI func(context.Context, *coderd.Options) (*coderd.
 				}
 			}
 			options.WebPushDispatcher = webpusher
-
-			githubOAuth2ConfigParams, err := getGithubOAuth2ConfigParams(ctx, options.Database, vals)
-			if err != nil {
-				return xerrors.Errorf("get github oauth2 config params: %w", err)
-			}
-			if githubOAuth2ConfigParams != nil {
-				options.GithubOAuth2Config, err = configureGithubOAuth2(
-					oauthInstrument,
-					githubOAuth2ConfigParams,
-				)
-				if err != nil {
-					return xerrors.Errorf("configure github oauth2: %w", err)
-				}
-			}
 
 			coderd.LogOAuth2ProviderState(ctx, logger, options.Database, vals.OAuth2.Provider)
 
@@ -2067,277 +2040,6 @@ func configureCAPool(tlsClientCAFile string, tlsConfig *tls.Config) error {
 		tlsConfig.ClientCAs = caPool
 	}
 	return nil
-}
-
-const (
-	// Client ID for https://github.com/apps/coder
-	GithubOAuth2DefaultProviderClientID      = "Iv1.6a2b4b4aec4f4fe7"
-	GithubOAuth2DefaultProviderAllowEveryone = true
-	GithubOAuth2DefaultProviderDeviceFlow    = true
-)
-
-type githubOAuth2ConfigParams struct {
-	accessURL         *url.URL
-	clientID          string
-	clientSecret      string
-	deviceFlow        bool
-	allowSignups      bool
-	allowEveryone     bool
-	allowOrgs         []string
-	rawTeams          []string
-	enterpriseBaseURL string
-}
-
-func isDeploymentEligibleForGithubDefaultProvider(ctx context.Context, db database.Store) (bool, error) {
-	// We want to enable the default provider only for new deployments, and avoid
-	// enabling it if a deployment was upgraded from an older version.
-	// nolint:gocritic // Requires system privileges
-	defaultEligible, err := db.GetOAuth2GithubDefaultEligible(dbauthz.AsSystemRestricted(ctx))
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return false, xerrors.Errorf("get github default eligible: %w", err)
-	}
-	defaultEligibleNotSet := errors.Is(err, sql.ErrNoRows)
-
-	if defaultEligibleNotSet {
-		// nolint:gocritic // User count requires system privileges
-		userCount, err := db.GetUserCount(dbauthz.AsSystemRestricted(ctx), false)
-		if err != nil {
-			return false, xerrors.Errorf("get user count: %w", err)
-		}
-		// We check if a deployment is new by checking if it has any users.
-		defaultEligible = userCount == 0
-		// nolint:gocritic // Requires system privileges
-		if err := db.UpsertOAuth2GithubDefaultEligible(dbauthz.AsSystemRestricted(ctx), defaultEligible); err != nil {
-			return false, xerrors.Errorf("upsert github default eligible: %w", err)
-		}
-	}
-
-	return defaultEligible, nil
-}
-
-func maybeAppendDefaultGithubExternalAuthProvider(
-	ctx context.Context,
-	logger slog.Logger,
-	db database.Store,
-	vals *codersdk.DeploymentValues,
-	mergedExplicitProviders []codersdk.ExternalAuthConfig,
-) ([]codersdk.ExternalAuthConfig, error) {
-	if !vals.ExternalAuthGithubDefaultProviderEnable.Value() {
-		logger.Info(ctx, "default github external auth provider suppressed",
-			slog.F("reason", "disabled by configuration"),
-			slog.F("flag", "external-auth-github-default-provider-enable"),
-		)
-		return mergedExplicitProviders, nil
-	}
-
-	if len(mergedExplicitProviders) > 0 {
-		logger.Info(ctx, "default github external auth provider suppressed",
-			slog.F("reason", "explicit external auth providers configured"),
-			slog.F("provider_count", len(mergedExplicitProviders)),
-		)
-		return mergedExplicitProviders, nil
-	}
-
-	defaultEligible, err := isDeploymentEligibleForGithubDefaultProvider(ctx, db)
-	if err != nil {
-		return nil, err
-	}
-	if !defaultEligible {
-		logger.Info(ctx, "default github external auth provider suppressed",
-			slog.F("reason", "deployment is not eligible"),
-		)
-		return mergedExplicitProviders, nil
-	}
-
-	logger.Info(ctx, "injecting default github external auth provider",
-		slog.F("type", codersdk.EnhancedExternalAuthProviderGitHub.String()),
-		slog.F("client_id", GithubOAuth2DefaultProviderClientID),
-		slog.F("device_flow", GithubOAuth2DefaultProviderDeviceFlow),
-	)
-	return append(mergedExplicitProviders, codersdk.ExternalAuthConfig{
-		Type:       codersdk.EnhancedExternalAuthProviderGitHub.String(),
-		ClientID:   GithubOAuth2DefaultProviderClientID,
-		DeviceFlow: GithubOAuth2DefaultProviderDeviceFlow,
-	}), nil
-}
-
-func getGithubOAuth2ConfigParams(ctx context.Context, db database.Store, vals *codersdk.DeploymentValues) (*githubOAuth2ConfigParams, error) {
-	params := githubOAuth2ConfigParams{
-		accessURL:         vals.AccessURL.Value(),
-		clientID:          vals.OAuth2.Github.ClientID.String(),
-		clientSecret:      vals.OAuth2.Github.ClientSecret.String(),
-		deviceFlow:        vals.OAuth2.Github.DeviceFlow.Value(),
-		allowSignups:      vals.OAuth2.Github.AllowSignups.Value(),
-		allowEveryone:     vals.OAuth2.Github.AllowEveryone.Value(),
-		allowOrgs:         vals.OAuth2.Github.AllowedOrgs.Value(),
-		rawTeams:          vals.OAuth2.Github.AllowedTeams.Value(),
-		enterpriseBaseURL: vals.OAuth2.Github.EnterpriseBaseURL.String(),
-	}
-
-	// If the user manually configured the GitHub OAuth2 provider,
-	// we won't add the default configuration.
-	if params.clientID != "" || params.clientSecret != "" || params.enterpriseBaseURL != "" {
-		return &params, nil
-	}
-
-	// Check if the user manually disabled the default GitHub OAuth2 provider.
-	if !vals.OAuth2.Github.DefaultProviderEnable.Value() {
-		return nil, nil //nolint:nilnil
-	}
-
-	defaultEligible, err := isDeploymentEligibleForGithubDefaultProvider(ctx, db)
-	if err != nil {
-		return nil, err
-	}
-
-	if !defaultEligible {
-		return nil, nil //nolint:nilnil
-	}
-
-	params.clientID = GithubOAuth2DefaultProviderClientID
-	params.deviceFlow = GithubOAuth2DefaultProviderDeviceFlow
-	if len(params.allowOrgs) == 0 {
-		params.allowEveryone = GithubOAuth2DefaultProviderAllowEveryone
-	}
-
-	return &params, nil
-}
-
-func configureGithubOAuth2(instrument *promoauth.Factory, params *githubOAuth2ConfigParams) (*coderd.GithubOAuth2Config, error) {
-	redirectURL, err := params.accessURL.Parse("/api/v2/users/oauth2/github/callback")
-	if err != nil {
-		return nil, xerrors.Errorf("parse github oauth callback url: %w", err)
-	}
-	if params.allowEveryone && len(params.allowOrgs) > 0 {
-		return nil, xerrors.New("allow everyone and allowed orgs cannot be used together")
-	}
-	if params.allowEveryone && len(params.rawTeams) > 0 {
-		return nil, xerrors.New("allow everyone and allowed teams cannot be used together")
-	}
-	if !params.allowEveryone && len(params.allowOrgs) == 0 {
-		return nil, xerrors.New("allowed orgs is empty: must specify at least one org or allow everyone")
-	}
-	allowTeams := make([]coderd.GithubOAuth2Team, 0, len(params.rawTeams))
-	for _, rawTeam := range params.rawTeams {
-		parts := strings.SplitN(rawTeam, "/", 2)
-		if len(parts) != 2 {
-			return nil, xerrors.Errorf("github team allowlist is formatted incorrectly. got %s; wanted <organization>/<team>", rawTeam)
-		}
-		allowTeams = append(allowTeams, coderd.GithubOAuth2Team{
-			Organization: parts[0],
-			Slug:         parts[1],
-		})
-	}
-
-	endpoint := xgithub.Endpoint
-	if params.enterpriseBaseURL != "" {
-		enterpriseURL, err := url.Parse(params.enterpriseBaseURL)
-		if err != nil {
-			return nil, xerrors.Errorf("parse enterprise base url: %w", err)
-		}
-		authURL, err := enterpriseURL.Parse("/login/oauth/authorize")
-		if err != nil {
-			return nil, xerrors.Errorf("parse enterprise auth url: %w", err)
-		}
-		tokenURL, err := enterpriseURL.Parse("/login/oauth/access_token")
-		if err != nil {
-			return nil, xerrors.Errorf("parse enterprise token url: %w", err)
-		}
-		endpoint = oauth2.Endpoint{
-			AuthURL:  authURL.String(),
-			TokenURL: tokenURL.String(),
-		}
-	}
-
-	instrumentedOauth := instrument.NewGithub("github-login", &oauth2.Config{
-		ClientID:     params.clientID,
-		ClientSecret: params.clientSecret,
-		Endpoint:     endpoint,
-		RedirectURL:  redirectURL.String(),
-		Scopes: []string{
-			"read:user",
-			"read:org",
-			"user:email",
-		},
-	})
-
-	createClient := func(client *http.Client, source promoauth.Oauth2Source) (*github.Client, error) {
-		client = instrumentedOauth.InstrumentHTTPClient(client, source)
-		if params.enterpriseBaseURL != "" {
-			return github.NewEnterpriseClient(params.enterpriseBaseURL, "", client)
-		}
-		return github.NewClient(client), nil
-	}
-
-	var deviceAuth *externalauth.DeviceAuth
-	if params.deviceFlow {
-		deviceAuth = &externalauth.DeviceAuth{
-			Config:   instrumentedOauth,
-			ClientID: params.clientID,
-			TokenURL: endpoint.TokenURL,
-			Scopes:   []string{"read:user", "read:org", "user:email"},
-			CodeURL:  endpoint.DeviceAuthURL,
-		}
-	}
-
-	return &coderd.GithubOAuth2Config{
-		OAuth2Config:       instrumentedOauth,
-		AllowSignups:       params.allowSignups,
-		AllowEveryone:      params.allowEveryone,
-		AllowOrganizations: params.allowOrgs,
-		AllowTeams:         allowTeams,
-		AuthenticatedUser: func(ctx context.Context, client *http.Client) (*github.User, error) {
-			api, err := createClient(client, promoauth.SourceGitAPIAuthUser)
-			if err != nil {
-				return nil, err
-			}
-			user, _, err := api.Users.Get(ctx, "")
-			return user, err
-		},
-		ListEmails: func(ctx context.Context, client *http.Client) ([]*github.UserEmail, error) {
-			api, err := createClient(client, promoauth.SourceGitAPIListEmails)
-			if err != nil {
-				return nil, err
-			}
-			emails, _, err := api.Users.ListEmails(ctx, &github.ListOptions{})
-			return emails, err
-		},
-		ListOrganizationMemberships: func(ctx context.Context, client *http.Client) ([]*github.Membership, error) {
-			api, err := createClient(client, promoauth.SourceGitAPIOrgMemberships)
-			if err != nil {
-				return nil, err
-			}
-			memberships, _, err := api.Organizations.ListOrgMemberships(ctx, &github.ListOrgMembershipsOptions{
-				State: "active",
-				ListOptions: github.ListOptions{
-					PerPage: 100,
-				},
-			})
-			return memberships, err
-		},
-		TeamMembership: func(ctx context.Context, client *http.Client, org, teamSlug, username string) (*github.Membership, error) {
-			api, err := createClient(client, promoauth.SourceGitAPITeamMemberships)
-			if err != nil {
-				return nil, err
-			}
-			team, _, err := api.Teams.GetTeamMembershipBySlug(ctx, org, teamSlug, username)
-			return team, err
-		},
-		DeviceFlowEnabled: params.deviceFlow,
-		ExchangeDeviceCode: func(ctx context.Context, deviceCode string) (*oauth2.Token, error) {
-			if !params.deviceFlow {
-				return nil, xerrors.New("device flow is not enabled")
-			}
-			return deviceAuth.ExchangeDeviceCode(ctx, deviceCode)
-		},
-		AuthorizeDevice: func(ctx context.Context) (*codersdk.ExternalAuthDevice, error) {
-			if !params.deviceFlow {
-				return nil, xerrors.New("device flow is not enabled")
-			}
-			return deviceAuth.AuthorizeDevice(ctx)
-		},
-		DefaultProviderConfigured: params.clientID == GithubOAuth2DefaultProviderClientID,
-	}, nil
 }
 
 // embeddedPostgresURL returns the URL for the embedded PostgreSQL deployment.

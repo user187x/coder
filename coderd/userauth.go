@@ -18,7 +18,6 @@ import (
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/go-jose/go-jose/v4"
 	"github.com/go-jose/go-jose/v4/jwt"
-	"github.com/google/go-github/v43/github"
 	"github.com/google/uuid"
 	"golang.org/x/oauth2"
 	"golang.org/x/xerrors"
@@ -30,7 +29,6 @@ import (
 	"github.com/coder/coder/v2/coderd/database"
 	"github.com/coder/coder/v2/coderd/database/dbauthz"
 	"github.com/coder/coder/v2/coderd/database/dbtime"
-	"github.com/coder/coder/v2/coderd/externalauth"
 	"github.com/coder/coder/v2/coderd/httpapi"
 	"github.com/coder/coder/v2/coderd/httpmw"
 	"github.com/coder/coder/v2/coderd/idpsync"
@@ -107,9 +105,9 @@ func (api *API) postConvertLoginType(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	switch req.ToType {
-	case codersdk.LoginTypeGithub, codersdk.LoginTypeOIDC:
+	case codersdk.LoginTypeOIDC:
 		// Allowed!
-	case codersdk.LoginTypeNone, codersdk.LoginTypePassword, codersdk.LoginTypeToken:
+	case codersdk.LoginTypeNone, codersdk.LoginTypePassword, codersdk.LoginTypeToken, codersdk.LoginTypeGithub:
 		// These login types are not allowed to be converted to at this time.
 		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
 			Message: fmt.Sprintf("Cannot convert to login type %q.", req.ToType),
@@ -744,52 +742,6 @@ func (api *API) postLogout(rw http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// GithubOAuth2Team represents a team scoped to an organization.
-type GithubOAuth2Team struct {
-	Organization string
-	Slug         string
-}
-
-// GithubOAuth2Provider exposes required functions for the Github authentication flow.
-type GithubOAuth2Config struct {
-	promoauth.OAuth2Config
-	AuthenticatedUser           func(ctx context.Context, client *http.Client) (*github.User, error)
-	ListEmails                  func(ctx context.Context, client *http.Client) ([]*github.UserEmail, error)
-	ListOrganizationMemberships func(ctx context.Context, client *http.Client) ([]*github.Membership, error)
-	TeamMembership              func(ctx context.Context, client *http.Client, org, team, username string) (*github.Membership, error)
-
-	DeviceFlowEnabled  bool
-	ExchangeDeviceCode func(ctx context.Context, deviceCode string) (*oauth2.Token, error)
-	AuthorizeDevice    func(ctx context.Context) (*codersdk.ExternalAuthDevice, error)
-
-	AllowSignups       bool
-	AllowEveryone      bool
-	AllowOrganizations []string
-	AllowTeams         []GithubOAuth2Team
-
-	DefaultProviderConfigured bool
-}
-
-func (*GithubOAuth2Config) PKCESupported() []promoauth.Oauth2PKCEChallengeMethod {
-	return []promoauth.Oauth2PKCEChallengeMethod{promoauth.PKCEChallengeMethodSha256}
-}
-
-func (c *GithubOAuth2Config) Exchange(ctx context.Context, code string, opts ...oauth2.AuthCodeOption) (*oauth2.Token, error) {
-	if !c.DeviceFlowEnabled {
-		return c.OAuth2Config.Exchange(ctx, code, opts...)
-	}
-	return c.ExchangeDeviceCode(ctx, code)
-}
-
-func (c *GithubOAuth2Config) AuthCodeURL(state string, opts ...oauth2.AuthCodeOption) string {
-	if !c.DeviceFlowEnabled {
-		return c.OAuth2Config.AuthCodeURL(state, opts...)
-	}
-	// This is an absolute path in the Coder app. The device flow is orchestrated
-	// by the Coder frontend, so we need to redirect the user to the device flow page.
-	return "/login/device?state=" + state
-}
-
 // @Summary Get authentication methods
 // @ID get-authentication-methods
 // @Security CoderSessionToken
@@ -813,340 +765,12 @@ func (api *API) userAuthMethods(rw http.ResponseWriter, r *http.Request) {
 		Password: codersdk.AuthMethod{
 			Enabled: !api.DeploymentValues.DisablePasswordAuth.Value(),
 		},
-		Github: codersdk.GithubAuthMethod{
-			Enabled:                   api.GithubOAuth2Config != nil,
-			DefaultProviderConfigured: api.GithubOAuth2Config != nil && api.GithubOAuth2Config.DefaultProviderConfigured,
-		},
 		OIDC: codersdk.OIDCAuthMethod{
 			AuthMethod: codersdk.AuthMethod{Enabled: api.OIDCConfig != nil},
 			SignInText: signInText,
 			IconURL:    iconURL,
 		},
 	})
-}
-
-// @Summary Get Github device auth.
-// @ID get-github-device-auth
-// @Security CoderSessionToken
-// @Produce json
-// @Tags Users
-// @Success 200 {object} codersdk.ExternalAuthDevice
-// @Router /api/v2/users/oauth2/github/device [get]
-func (api *API) userOAuth2GithubDevice(rw http.ResponseWriter, r *http.Request) {
-	var (
-		ctx               = r.Context()
-		auditor           = api.Auditor.Load()
-		aReq, commitAudit = audit.InitRequest[database.APIKey](rw, &audit.RequestParams{
-			Audit:   *auditor,
-			Log:     api.Logger,
-			Request: r,
-			Action:  database.AuditActionLogin,
-		})
-	)
-	aReq.Old = database.APIKey{}
-	defer commitAudit()
-
-	if api.GithubOAuth2Config == nil {
-		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-			Message: "Github OAuth2 is not enabled.",
-		})
-		return
-	}
-
-	if !api.GithubOAuth2Config.DeviceFlowEnabled {
-		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-			Message: "Device flow is not enabled for Github OAuth2.",
-		})
-		return
-	}
-
-	deviceAuth, err := api.GithubOAuth2Config.AuthorizeDevice(ctx)
-	if err != nil {
-		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Failed to authorize device.",
-			Detail:  err.Error(),
-		})
-		return
-	}
-
-	httpapi.Write(ctx, rw, http.StatusOK, deviceAuth)
-}
-
-// @Summary OAuth 2.0 GitHub Callback
-// @ID oauth-20-github-callback
-// @Security CoderSessionToken
-// @Tags Users
-// @Success 307
-// @Router /api/v2/users/oauth2/github/callback [get]
-func (api *API) userOAuth2Github(rw http.ResponseWriter, r *http.Request) {
-	var (
-		// userOAuth2Github is a system function.
-		//nolint:gocritic
-		ctx               = dbauthz.AsSystemRestricted(r.Context())
-		state             = httpmw.OAuth2(r)
-		auditor           = api.Auditor.Load()
-		aReq, commitAudit = audit.InitRequest[database.APIKey](rw, &audit.RequestParams{
-			Audit:   *auditor,
-			Log:     api.Logger,
-			Request: r,
-			Action:  database.AuditActionLogin,
-		})
-	)
-	aReq.Old = database.APIKey{}
-	defer commitAudit()
-
-	oauthClient := oauth2.NewClient(ctx, oauth2.StaticTokenSource(state.Token))
-
-	logger := api.Logger.Named(userAuthLoggerName)
-
-	var selectedMemberships []*github.Membership
-	var organizationNames []string
-	redirect := state.Redirect
-	if !api.GithubOAuth2Config.AllowEveryone {
-		memberships, err := api.GithubOAuth2Config.ListOrganizationMemberships(ctx, oauthClient)
-		if err != nil {
-			logger.Error(ctx, "unable to list organization members", slog.Error(err))
-			httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-				Message: "Internal error fetching authenticated Github user organizations.",
-				Detail:  err.Error(),
-			})
-			return
-		}
-
-		for _, membership := range memberships {
-			if membership.GetState() != "active" {
-				continue
-			}
-			for _, allowed := range api.GithubOAuth2Config.AllowOrganizations {
-				if *membership.Organization.Login != allowed {
-					continue
-				}
-				selectedMemberships = append(selectedMemberships, membership)
-				organizationNames = append(organizationNames, membership.Organization.GetLogin())
-				break
-			}
-		}
-		if len(selectedMemberships) == 0 {
-			status := http.StatusUnauthorized
-			msg := "You aren't a member of the authorized Github organizations!"
-			if api.GithubOAuth2Config.DeviceFlowEnabled {
-				// In the device flow, the error is rendered client-side.
-				httpapi.Write(ctx, rw, status, codersdk.Response{
-					Message: "Unauthorized",
-					Detail:  msg,
-				})
-			} else {
-				httpmw.CustomRedirectToLogin(rw, r, redirect, msg, status)
-			}
-			return
-		}
-	}
-
-	ghUser, err := api.GithubOAuth2Config.AuthenticatedUser(ctx, oauthClient)
-	if err != nil {
-		logger.Error(ctx, "oauth2: unable to fetch authenticated user", slog.Error(err))
-		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Internal error fetching authenticated Github user.",
-			Detail:  err.Error(),
-		})
-		return
-	}
-
-	// The default if no teams are specified is to allow all.
-	if !api.GithubOAuth2Config.AllowEveryone && len(api.GithubOAuth2Config.AllowTeams) > 0 {
-		var allowedTeam *github.Membership
-		for _, allowTeam := range api.GithubOAuth2Config.AllowTeams {
-			if allowedTeam != nil {
-				break
-			}
-			for _, selectedMembership := range selectedMemberships {
-				if allowTeam.Organization != *selectedMembership.Organization.Login {
-					// This needs to continue because multiple organizations
-					// could exist in the allow/team listings.
-					continue
-				}
-
-				allowedTeam, err = api.GithubOAuth2Config.TeamMembership(ctx, oauthClient, allowTeam.Organization, allowTeam.Slug, *ghUser.Login)
-				// The calling user may not have permission to the requested team!
-				if err != nil {
-					continue
-				}
-			}
-		}
-		if allowedTeam == nil {
-			msg := fmt.Sprintf("You aren't a member of an authorized team in the %v Github organization(s)!", organizationNames)
-			status := http.StatusUnauthorized
-			if api.GithubOAuth2Config.DeviceFlowEnabled {
-				// In the device flow, the error is rendered client-side.
-				httpapi.Write(ctx, rw, status, codersdk.Response{
-					Message: "Unauthorized",
-					Detail:  msg,
-				})
-			} else {
-				httpmw.CustomRedirectToLogin(rw, r, redirect, msg, status)
-			}
-			return
-		}
-	}
-
-	emails, err := api.GithubOAuth2Config.ListEmails(ctx, oauthClient)
-	if err != nil {
-		logger.Error(ctx, "oauth2: unable to list emails", slog.Error(err))
-		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Internal error fetching personal Github user.",
-			Detail:  err.Error(),
-		})
-		return
-	}
-
-	var verifiedEmail *github.UserEmail
-	for _, email := range emails {
-		if email.GetVerified() && email.GetPrimary() {
-			verifiedEmail = email
-			break
-		}
-	}
-
-	if verifiedEmail == nil {
-		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-			Message: "Your primary email must be verified on GitHub!",
-		})
-		return
-	}
-
-	ghName := ghUser.GetName()
-	normName := codersdk.NormalizeRealUsername(ghName)
-
-	// If we have a nil GitHub ID, that is a big problem. That would mean we link
-	// this user and all other users with this bug to the same uuid.
-	// We should instead throw an error. This should never occur in production.
-	//
-	// Verified that the lowest ID on GitHub is "1", so 0 should never occur.
-	if ghUser.GetID() == 0 {
-		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "The GitHub user ID is missing, this should never happen. Please report this error.",
-			// If this happens, the User could either be:
-			//  - Empty, in which case all these fields would also be empty.
-			//  - Not a user, in which case the "Type" would be something other than "User"
-			Detail: fmt.Sprintf("Other user fields: name=%q, email=%q, type=%q",
-				ghUser.GetName(),
-				ghUser.GetEmail(),
-				ghUser.GetType(),
-			),
-		})
-		return
-	}
-	user, link, err := findLinkedUser(ctx, api.Database, githubLinkedID(ghUser), database.LoginTypeGithub, false, verifiedEmail.GetEmail())
-	if errors.Is(err, errLinkedIDAlreadyBound) {
-		logger.Warn(ctx, "oauth2: blocked login, account already linked to different identity",
-			slog.F("email", verifiedEmail.GetEmail()),
-		)
-		httpapi.Write(ctx, rw, http.StatusForbidden, codersdk.Response{
-			Message: "This account is already linked to a different identity provider subject.",
-		})
-		return
-	}
-	if err != nil {
-		logger.Error(ctx, "oauth2: unable to find linked user", slog.F("gh_user", ghUser.Name), slog.Error(err))
-		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Failed to find linked user.",
-			Detail:  err.Error(),
-		})
-		return
-	}
-
-	// If a new user is authenticating for the first time
-	// the audit action is 'register', not 'login'
-	if user.ID == uuid.Nil {
-		aReq.Action = database.AuditActionRegister
-	}
-	// See: https://github.com/coder/coder/discussions/13340
-	// In GitHub Enterprise, admins are permitted to have `_`
-	// in their usernames. This is janky, but much better
-	// than changing the username format globally.
-	username := ghUser.GetLogin()
-	if strings.Contains(username, "_") {
-		api.Logger.Warn(ctx, "login associates a github username that contains underscores. underscores are not permitted in usernames, replacing with `-`", slog.F("username", username))
-		username = strings.ReplaceAll(username, "_", "-")
-	}
-	params := (&oauthLoginParams{
-		User:         user,
-		Link:         link,
-		State:        state,
-		LinkedID:     githubLinkedID(ghUser),
-		LoginType:    database.LoginTypeGithub,
-		AllowSignups: api.GithubOAuth2Config.AllowSignups,
-		Email:        verifiedEmail.GetEmail(),
-		Username:     username,
-		AvatarURL:    ghUser.GetAvatarURL(),
-		Name:         normName,
-		UserClaims:   database.UserLinkClaims{},
-		GroupSync: idpsync.GroupParams{
-			SyncEntitled: false,
-		},
-		OrganizationSync: idpsync.OrganizationParams{
-			SyncEntitled: false,
-		},
-	}).SetInitAuditRequest(func(params *audit.RequestParams) (*audit.Request[database.User], func()) {
-		return audit.InitRequest[database.User](rw, params)
-	})
-	cookies, user, key, err := api.oauthLogin(r, params)
-	defer params.CommitAuditLogs()
-	if err != nil {
-		if httpErr := idpsync.IsHTTPError(err); httpErr != nil {
-			// In the device flow, the error page is rendered client-side.
-			if api.GithubOAuth2Config.DeviceFlowEnabled && httpErr.RenderStaticPage {
-				httpErr.RenderStaticPage = false
-			}
-			httpErr.Write(rw, r)
-			return
-		}
-		logger.Error(ctx, "oauth2: login failed", slog.F("user", user.Username), slog.Error(err))
-		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Failed to process OAuth login.",
-			Detail:  err.Error(),
-		})
-		return
-	}
-	// If the user is logging in with github.com we update their associated
-	// GitHub user ID to the new one.
-	// We use AuthCodeURL from the OAuth2Config field instead of the one on
-	// GithubOAuth2Config because when device flow is configured, AuthCodeURL
-	// is overridden and returns a value that doesn't pass the URL check.
-	// codeql[go/constant-oauth2-state] -- We are solely using the AuthCodeURL from the OAuth2Config field in order to validate the hostname of the external auth provider.
-	if externalauth.IsGithubDotComURL(api.GithubOAuth2Config.OAuth2Config.AuthCodeURL("")) && user.GithubComUserID.Int64 != ghUser.GetID() {
-		err = api.Database.UpdateUserGithubComUserID(ctx, database.UpdateUserGithubComUserIDParams{
-			ID: user.ID,
-			GithubComUserID: sql.NullInt64{
-				Int64: ghUser.GetID(),
-				Valid: true,
-			},
-		})
-		if err != nil {
-			logger.Error(ctx, "oauth2: unable to update user github id", slog.F("user", user.Username), slog.Error(err))
-			httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-				Message: "Failed to update user GitHub ID.",
-				Detail:  err.Error(),
-			})
-			return
-		}
-	}
-	aReq.New = key
-	aReq.UserID = key.UserID
-
-	for _, cookie := range cookies {
-		http.SetCookie(rw, cookie)
-	}
-
-	redirect = httpapi.SafeRedirectPath(redirect)
-	if api.GithubOAuth2Config.DeviceFlowEnabled {
-		// In the device flow, the redirect is handled client-side.
-		httpapi.Write(ctx, rw, http.StatusOK, codersdk.OAuth2DeviceFlowCallbackResponse{
-			RedirectURL: redirect,
-		})
-	} else {
-		http.Redirect(rw, r, redirect, http.StatusTemporaryRedirect)
-	}
 }
 
 type OIDCConfig struct {
@@ -2177,11 +1801,6 @@ func (api *API) convertUserToOauth(ctx context.Context, r *http.Request, db data
 	}
 	oauthConvertAudit.New = user
 	return user, nil
-}
-
-// githubLinkedID returns the unique ID for a GitHub user.
-func githubLinkedID(u *github.User) string {
-	return strconv.FormatInt(u.GetID(), 10)
 }
 
 // oidcLinkedID returns the uniqued ID for an OIDC user.

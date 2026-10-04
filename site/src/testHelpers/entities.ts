@@ -2072,34 +2072,30 @@ export const MockTemplateVersionVariable5: TypesGen.TemplateVersionVariable = {
 
 export const MockAuthMethodsPasswordOnly: TypesGen.AuthMethods = {
 	password: { enabled: true },
-	github: { enabled: false, default_provider_configured: true },
 	oidc: { enabled: false, signInText: "", iconUrl: "" },
 };
 
 export const MockAuthMethodsPasswordTermsOfService: TypesGen.AuthMethods = {
 	terms_of_service_url: "https://www.youtube.com/watch?v=C2f37Vb2NAE",
 	password: { enabled: true },
-	github: { enabled: false, default_provider_configured: true },
 	oidc: { enabled: false, signInText: "", iconUrl: "" },
 };
 
 export const MockAuthMethodsExternal: TypesGen.AuthMethods = {
 	password: { enabled: false },
-	github: { enabled: true, default_provider_configured: true },
 	oidc: {
 		enabled: true,
-		signInText: "Google",
-		iconUrl: "/icon/google.svg",
+		signInText: "Keycloak",
+		iconUrl: "/icon/keycloak.svg",
 	},
 };
 
 export const MockAuthMethodsAll: TypesGen.AuthMethods = {
 	password: { enabled: true },
-	github: { enabled: true, default_provider_configured: true },
 	oidc: {
 		enabled: true,
-		signInText: "Google",
-		iconUrl: "/icon/google.svg",
+		signInText: "Keycloak",
+		iconUrl: "/icon/keycloak.svg",
 	},
 };
 

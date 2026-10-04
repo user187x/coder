@@ -40,9 +40,6 @@ export const redirectToOIDCAuth = (
 	redirectTo: string,
 ) => {
 	switch (toType) {
-		case "github":
-			location.href = `/api/v2/users/oauth2/github/callback?oidc_merge_state=${stateString}&redirect=${redirectTo}`;
-			break;
 		case "oidc":
 			location.href = `/api/v2/users/oidc/callback?oidc_merge_state=${stateString}&redirect=${redirectTo}`;
 			break;
@@ -58,8 +55,7 @@ export const useSingleSignOnSection = () => {
 	const mutation = useMutation({
 		mutationFn: API.convertToOAUTH,
 		onSuccess: (data) => {
-			const loginTypeMsg =
-				data.to_type === "github" ? "Github" : "OpenID Connect";
+			const loginTypeMsg = "OpenID Connect";
 			redirectToOIDCAuth(
 				data.to_type,
 				data.state_string,
@@ -137,7 +133,7 @@ export const SingleSignOnSection: React.FC<SingleSignOnSectionProps> = ({
 	isConfirming,
 	error,
 }) => {
-	const noSsoEnabled = !authMethods.github.enabled && !authMethods.oidc.enabled;
+	const noSsoEnabled = !authMethods.oidc.enabled;
 
 	return (
 		<div id="sso-section" data-testid="sso-section">
@@ -153,19 +149,6 @@ export const SingleSignOnSection: React.FC<SingleSignOnSectionProps> = ({
 			<div className="grid gap-4">
 				{userLoginType.login_type === "password" ? (
 					<>
-						{authMethods.github.enabled && (
-							<Button
-								variant="outline"
-								size="lg"
-								className="w-full"
-								disabled={isUpdating}
-								onClick={() => openConfirmation("github")}
-							>
-								<ExternalImage src="/icon/github.svg" />
-								GitHub
-							</Button>
-						)}
-
 						{authMethods.oidc.enabled && (
 							<Button
 								variant="outline"
@@ -187,17 +170,11 @@ export const SingleSignOnSection: React.FC<SingleSignOnSectionProps> = ({
 						<span>
 							Authenticated with{" "}
 							<strong>
-								{userLoginType.login_type === "github"
-									? "GitHub"
-									: getOIDCLabel(authMethods.oidc)}
+								{getOIDCLabel(authMethods.oidc)}
 							</strong>
 						</span>
 						<div className="leading-none ml-auto">
-							{userLoginType.login_type === "github" ? (
-								<ExternalImage src="/icon/github.svg" className="size-4" />
-							) : (
-								<OIDCIcon oidcAuth={authMethods.oidc} />
-							)}
+							<OIDCIcon oidcAuth={authMethods.oidc} />
 						</div>
 					</div>
 				)}

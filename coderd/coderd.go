@@ -184,7 +184,6 @@ type Options struct {
 	Authorizer                     rbac.Authorizer
 	AzureCertificates              azureidentity.Options
 	GoogleTokenValidator           *idtoken.Validator
-	GithubOAuth2Config             *GithubOAuth2Config
 	OIDCConfig                     *OIDCConfig
 	PrometheusRegistry             *prometheus.Registry
 	StrictTransportSecurityCfg     httpmw.HSTSConfig
@@ -529,8 +528,7 @@ func New(options *Options) *API {
 	)
 
 	oauthConfigs := &httpmw.OAuth2Configs{
-		Github: options.GithubOAuth2Config,
-		OIDC:   options.OIDCConfig,
+		OIDC: options.OIDCConfig,
 	}
 
 	if options.DatabaseRolluper == nil {
@@ -1648,16 +1646,6 @@ func New(options *Options) *API {
 				r.Post("/otp/request", api.postRequestOneTimePasscode)
 				r.Post("/validate-password", api.validateUserPassword)
 				r.Post("/otp/change-password", api.postChangePasswordWithOneTimePasscode)
-				r.Route("/oauth2", func(r chi.Router) {
-					r.Get("/github/device", api.userOAuth2GithubDevice)
-					r.Route("/github", func(r chi.Router) {
-						r.Use(
-							// Github supports PKCE S256
-							httpmw.ExtractOAuth2(options.GithubOAuth2Config, options.HTTPClient, options.DeploymentValues.HTTPCookies, nil, options.GithubOAuth2Config.PKCESupported(), nil, ""),
-						)
-						r.Get("/callback", api.userOAuth2Github)
-					})
-				})
 				r.Route("/oidc/callback", func(r chi.Router) {
 					r.Use(
 						httpmw.ExtractOAuth2(options.OIDCConfig, options.HTTPClient, options.DeploymentValues.HTTPCookies, oidcAuthURLParams, options.OIDCConfig.PKCESupported(), oidcRedirectAllowedHosts, oidcRedirectDefaultScheme),

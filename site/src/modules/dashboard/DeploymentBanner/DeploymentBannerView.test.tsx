@@ -23,11 +23,10 @@ describe("groupSessionApps", () => {
 		const ids = Object.fromEntries(
 			[...groups].map(([family, apps]) => [family, apps.map((a) => a.id)]),
 		);
-		// sftp has no slot in the banner, so it joins unknown.
+		// Editors and sftp have no slot in the banner, so they join unknown.
 		expect(ids).toEqual({
-			vscode: ["cursor", "codium", "vscodium"],
 			ssh: ["zed"],
-			unknown: ["future_ide", "sftp"],
+			unknown: ["cursor", "future_ide", "sftp", "codium", "vscodium"],
 		});
 	});
 

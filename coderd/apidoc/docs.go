@@ -12614,50 +12614,6 @@ const docTemplate = `{
                 ]
             }
         },
-        "/api/v2/users/oauth2/github/callback": {
-            "get": {
-                "tags": [
-                    "Users"
-                ],
-                "summary": "OAuth 2.0 GitHub Callback",
-                "operationId": "oauth-20-github-callback",
-                "responses": {
-                    "307": {
-                        "description": "Temporary Redirect"
-                    }
-                },
-                "security": [
-                    {
-                        "CoderSessionToken": []
-                    }
-                ]
-            }
-        },
-        "/api/v2/users/oauth2/github/device": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Users"
-                ],
-                "summary": "Get Github device auth.",
-                "operationId": "get-github-device-auth",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/codersdk.ExternalAuthDevice"
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "CoderSessionToken": []
-                    }
-                ]
-            }
-        },
         "/api/v2/users/oidc-claims": {
             "get": {
                 "produces": [
@@ -20316,9 +20272,6 @@ const docTemplate = `{
         "codersdk.AuthMethods": {
             "type": "object",
             "properties": {
-                "github": {
-                    "$ref": "#/definitions/codersdk.GithubAuthMethod"
-                },
                 "oidc": {
                     "$ref": "#/definitions/codersdk.OIDCAuthMethod"
                 },
@@ -25437,17 +25390,6 @@ const docTemplate = `{
                 "user_id": {
                     "type": "string",
                     "format": "uuid"
-                }
-            }
-        },
-        "codersdk.GithubAuthMethod": {
-            "type": "object",
-            "properties": {
-                "default_provider_configured": {
-                    "type": "boolean"
-                },
-                "enabled": {
-                    "type": "boolean"
                 }
             }
         },

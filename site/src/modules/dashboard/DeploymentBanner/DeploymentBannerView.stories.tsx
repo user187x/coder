@@ -73,7 +73,7 @@ export const Loading: Story = {
 	play: async ({ canvasElement }) => {
 		within(canvasElement)
 			.getByRole("button", {
-				name: "Visual Studio Code: - loading active connections",
+				name: "SSH: - loading active connections",
 			})
 			.focus();
 		await waitFor(() => screen.getByRole("tooltip"));
@@ -85,31 +85,7 @@ export const NoActiveConnections: Story = {
 	play: async ({ canvasElement }) => {
 		await userEvent.hover(
 			within(canvasElement).getByRole("button", {
-				name: "Visual Studio Code: 0 active connections",
-			}),
-		);
-		await waitFor(() => screen.getByRole("tooltip"));
-	},
-};
-
-/** VS Code and its forks, as a real deployment reports them. */
-export const VSCodeForks: Story = {
-	args: {
-		stats: withSessionCount({
-			...MockDeploymentStats.session_count.apps,
-			vscode_insiders: app(
-				12,
-				"VS Code Insiders",
-				"vscode",
-				"/icon/code-insiders.svg",
-			),
-			antigravity: app(9, "Antigravity", "vscode", "/icon/antigravity.svg"),
-		}),
-	},
-	play: async ({ canvasElement }) => {
-		await userEvent.hover(
-			within(canvasElement).getByRole("button", {
-				name: "Visual Studio Code: 173 active connections",
+				name: "SSH: 0 active connections",
 			}),
 		);
 		await waitFor(() => screen.getByRole("tooltip"));

@@ -354,8 +354,7 @@ func TestInjectionFailureProducesCleanHTML(t *testing.T) {
 
 		// No OAuth2 configs, refresh will fail.
 		OAuth2Configs: &httpmw.OAuth2Configs{
-			Github: nil,
-			OIDC:   nil,
+			OIDC: nil,
 		},
 	})
 	require.NoError(t, err)

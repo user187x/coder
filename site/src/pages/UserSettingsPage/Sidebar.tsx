@@ -14,9 +14,6 @@ export const Sidebar: React.FC = () => {
 		<BaseSidebar>
 			<div className="flex flex-col gap-1">
 				<SettingsSidebarNavItem href="account">Account</SettingsSidebarNavItem>
-				<SettingsSidebarNavItem href="external-auth">
-					External Authentication
-				</SettingsSidebarNavItem>
 				{showOAuth2Page && (
 					<SettingsSidebarNavItem href="oauth2-provider">
 						OAuth2 Applications

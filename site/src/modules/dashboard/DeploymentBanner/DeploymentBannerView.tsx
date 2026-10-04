@@ -293,20 +293,14 @@ export const DeploymentBannerView: React.FC<DeploymentBannerViewProps> = ({
  * gets a slot here, or null to total under Other.
  */
 const SESSION_FAMILIES = {
-	vscode: {
-		name: "Visual Studio Code",
-		icon: <ExternalImage src="/icon/code.svg" className="size-icon-xs" />,
-	},
-	jetbrains: {
-		name: "JetBrains",
-		icon: <ExternalImage src="/icon/jetbrains.svg" className="size-icon-xs" />,
-	},
 	ssh: { name: "SSH", icon: <SquareTerminalIcon className="size-icon-xs" /> },
 	reconnecting_pty: {
 		name: "Web Terminal",
 		icon: <AppWindowIcon className="size-icon-xs" />,
 	},
 	unknown: { name: "Other", icon: <BlocksIcon className="size-icon-xs" /> },
+	vscode: null,
+	jetbrains: null,
 	sftp: null,
 	port_forwarding: null,
 } satisfies Record<

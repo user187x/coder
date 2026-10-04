@@ -226,9 +226,6 @@ const AIGovernanceSettingsPage = lazy(
 const ExternalAuthPage = lazy(
 	() => import("./pages/ExternalAuthPage/ExternalAuthPage"),
 );
-const UserExternalAuthSettingsPage = lazy(
-	() => import("./pages/UserSettingsPage/ExternalAuthPage/ExternalAuthPage"),
-);
 const UserOAuth2ProviderSettingsPage = lazy(
 	() =>
 		import("./pages/UserSettingsPage/OAuth2ProviderPage/OAuth2ProviderPage"),
@@ -731,10 +728,6 @@ export const router = createBrowserRouter(
 						<Route path="schedule" element={<SchedulePage />} />
 						<Route path="security" element={<SecurityPage />} />
 						<Route path="ssh-keys" element={<SSHKeysPage />} />
-						<Route
-							path="external-auth"
-							element={<UserExternalAuthSettingsPage />}
-						/>
 						<Route
 							path="oauth2-provider"
 							element={<UserOAuth2ProviderSettingsPage />}

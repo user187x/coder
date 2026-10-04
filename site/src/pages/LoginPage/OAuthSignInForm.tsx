@@ -17,26 +17,6 @@ export const OAuthSignInForm: React.FC<OAuthSignInFormProps> = ({
 }) => {
 	return (
 		<div className="grid gap-4">
-			{authMethods?.github.enabled && (
-				<Button
-					variant="outline"
-					asChild
-					disabled={isSigningIn}
-					className="w-full"
-					type="submit"
-					size="lg"
-				>
-					<a
-						href={`/api/v2/users/oauth2/github/callback?redirect=${encodeURIComponent(
-							redirectTo,
-						)}`}
-					>
-						<ExternalImage src="/icon/github.svg" />
-						GitHub
-					</a>
-				</Button>
-			)}
-
 			{authMethods?.oidc.enabled && (
 				<Button
 					variant="outline"

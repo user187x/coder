@@ -226,7 +226,7 @@ func TestAPIKey(t *testing.T) {
 			r     = httptest.NewRequest("GET", "/", nil)
 			rw    = httptest.NewRecorder()
 			user  = dbgen.User(t, db, database.User{
-				LoginType: database.LoginTypeGithub,
+				LoginType: database.LoginTypeOIDC,
 			})
 			// Intentionally not inserting any user link
 			_, token = dbgen.APIKey(t, db, database.APIKey{
@@ -245,6 +245,32 @@ func TestAPIKey(t *testing.T) {
 		var resp codersdk.Response
 		require.NoError(t, json.NewDecoder(res.Body).Decode(&resp))
 		require.Equal(t, resp.Message, httpmw.SignedOutErrorMessage)
+	})
+
+	t.Run("GithubSessionSignedOut", func(t *testing.T) {
+		t.Parallel()
+		var (
+			db, _    = dbtestutil.NewDB(t)
+			r        = httptest.NewRequest("GET", "/", nil)
+			rw       = httptest.NewRecorder()
+			user     = dbgen.User(t, db, database.User{LoginType: database.LoginTypeGithub})
+			_, token = dbgen.APIKey(t, db, database.APIKey{
+				UserID:    user.ID,
+				LoginType: database.LoginTypeGithub,
+			})
+		)
+		r.Header.Set(codersdk.SessionTokenHeader, token)
+		httpmw.ExtractAPIKeyMW(httpmw.ExtractAPIKeyConfig{
+			DB:              db,
+			RedirectToLogin: false,
+		})(successHandler).ServeHTTP(rw, r)
+		res := rw.Result()
+		defer res.Body.Close()
+		require.Equal(t, http.StatusUnauthorized, res.StatusCode)
+		var resp codersdk.Response
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&resp))
+		require.Equal(t, httpmw.SignedOutErrorMessage, resp.Message)
+		require.Contains(t, resp.Detail, "GitHub sign-in is not available")
 	})
 
 	t.Run("InvalidSecret", func(t *testing.T) {
@@ -545,11 +571,11 @@ func TestAPIKey(t *testing.T) {
 				UserID:    user.ID,
 				LastUsed:  dbtime.Now(),
 				ExpiresAt: dbtime.Now().AddDate(0, 0, 1),
-				LoginType: database.LoginTypeGithub,
+				LoginType: database.LoginTypeOIDC,
 			})
 			_ = dbgen.UserLink(t, db, database.UserLink{
 				UserID:    user.ID,
-				LoginType: database.LoginTypeGithub,
+				LoginType: database.LoginTypeOIDC,
 			})
 
 			r  = httptest.NewRequest("GET", "/", nil)
@@ -677,11 +703,11 @@ func TestAPIKey(t *testing.T) {
 				UserID:    user.ID,
 				LastUsed:  dbtime.Now(),
 				ExpiresAt: dbtime.Now().AddDate(0, 0, 1),
-				LoginType: database.LoginTypeGithub,
+				LoginType: database.LoginTypeOIDC,
 			})
 			_ = dbgen.UserLink(t, db, database.UserLink{
 				UserID:            user.ID,
-				LoginType:         database.LoginTypeGithub,
+				LoginType:         database.LoginTypeOIDC,
 				OAuthRefreshToken: "hello",
 				OAuthExpiry:       dbtime.Now().AddDate(0, 0, -1),
 			})
@@ -699,7 +725,7 @@ func TestAPIKey(t *testing.T) {
 		httpmw.ExtractAPIKeyMW(httpmw.ExtractAPIKeyConfig{
 			DB: db,
 			OAuth2Configs: &httpmw.OAuth2Configs{
-				Github: &testutil.OAuth2Config{
+				OIDC: &testutil.OAuth2Config{
 					Token: oauthToken,
 				},
 			},
@@ -719,7 +745,7 @@ func TestAPIKey(t *testing.T) {
 
 		gotLink, err := db.GetUserLinkByUserIDLoginType(r.Context(), database.GetUserLinkByUserIDLoginTypeParams{
 			UserID:    user.ID,
-			LoginType: database.LoginTypeGithub,
+			LoginType: database.LoginTypeOIDC,
 		})
 		require.NoError(t, err)
 		require.Equal(t, gotLink.OAuthRefreshToken, "moo")
@@ -735,7 +761,7 @@ func TestAPIKey(t *testing.T) {
 				UserID:    user.ID,
 				LastUsed:  dbtime.Now(),
 				ExpiresAt: dbtime.Now().AddDate(0, 0, 1),
-				LoginType: database.LoginTypeGithub,
+				LoginType: database.LoginTypeOIDC,
 			})
 
 			r  = httptest.NewRequest("GET", "/", nil)
@@ -743,7 +769,7 @@ func TestAPIKey(t *testing.T) {
 		)
 		_, err := db.InsertUserLink(ctx, database.InsertUserLinkParams{
 			UserID:           user.ID,
-			LoginType:        database.LoginTypeGithub,
+			LoginType:        database.LoginTypeOIDC,
 			OAuthExpiry:      dbtime.Now().AddDate(0, 0, -1),
 			OAuthAccessToken: "letmein",
 		})
@@ -759,7 +785,7 @@ func TestAPIKey(t *testing.T) {
 		httpmw.ExtractAPIKeyMW(httpmw.ExtractAPIKeyConfig{
 			DB: db,
 			OAuth2Configs: &httpmw.OAuth2Configs{
-				Github: &testutil.OAuth2Config{
+				OIDC: &testutil.OAuth2Config{
 					Token: oauthToken,
 				},
 			},

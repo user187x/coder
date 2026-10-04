@@ -56,7 +56,6 @@ export const NoAvailableLoginTypes: Story = {
 	args: {
 		authMethods: {
 			password: { enabled: false },
-			github: { enabled: false, default_provider_configured: false },
 			oidc: { enabled: false, signInText: "", iconUrl: "" },
 		},
 		serviceAccountsEnabled: false,

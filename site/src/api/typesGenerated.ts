@@ -1789,7 +1789,6 @@ export interface AuthMethod {
 export interface AuthMethods {
 	readonly terms_of_service_url?: string;
 	readonly password: AuthMethod;
-	readonly github: GithubAuthMethod;
 	readonly oidc: OIDCAuthMethod;
 }
 
@@ -5952,12 +5951,6 @@ export interface GitSSHKey {
 	 * Note: The key includes a trailing newline (\n).
 	 */
 	readonly public_key: string;
-}
-
-// From codersdk/users.go
-export interface GithubAuthMethod {
-	readonly enabled: boolean;
-	readonly default_provider_configured: boolean;
 }
 
 // From codersdk/groups.go

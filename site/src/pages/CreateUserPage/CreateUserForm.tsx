@@ -45,10 +45,6 @@ const loginTypeOptions = {
 		label: "OpenID Connect",
 		description: "Use an OpenID Connect provider for authentication.",
 	},
-	github: {
-		label: "GitHub",
-		description: "Use GitHub OAuth for authentication.",
-	},
 	none: {
 		label: "Service account",
 		description:
@@ -114,7 +110,7 @@ const createOrgMemberCheck = {
 
 export const CreateUserForm: React.FC<CreateUserFormProps> = (props) => {
 	const availableLoginTypes = (
-		["password", "oidc", "github", "none"] as const
+		["password", "oidc", "none"] as const
 	).filter((key) => {
 		if (key === "none") {
 			return props.serviceAccountsEnabled;

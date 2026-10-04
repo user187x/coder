@@ -254,8 +254,7 @@ func New(ctx context.Context, options *Options) (_ *API, err error) {
 	}
 
 	oauthConfigs := &httpmw.OAuth2Configs{
-		Github: options.GithubOAuth2Config,
-		OIDC:   options.OIDCConfig,
+		OIDC: options.OIDCConfig,
 	}
 	apiKeyMiddleware := httpmw.ExtractAPIKeyMW(httpmw.ExtractAPIKeyConfig{
 		DB:                            options.Database,

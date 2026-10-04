@@ -563,8 +563,6 @@ func (api *API) postUser(rw http.ResponseWriter, r *http.Request) {
 			return
 		}
 		loginType = database.LoginTypeOIDC
-	case codersdk.LoginTypeGithub:
-		loginType = database.LoginTypeGithub
 	default:
 		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
 			Message: fmt.Sprintf("Unsupported login type %q for manually creating new users.", req.UserLoginType),
