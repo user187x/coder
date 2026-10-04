@@ -19,8 +19,7 @@ $CODER login http://coderd:3000 \
 	--first-user-username=admin \
 	--first-user-email=admin@coder.com \
 	--first-user-password="$PASSWORD" \
-	--first-user-full-name="Admin User" \
-	--first-user-trial=false
+	--first-user-full-name="Admin User"
 
 # Step 2: Create or retrieve bootstrap token
 if [ -f "$TOKEN_FILE" ] && [ -s "$TOKEN_FILE" ]; then

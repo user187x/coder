@@ -7,6 +7,7 @@ import {
 	organizationIdpSyncSettings,
 	patchOrganizationSyncSettings,
 } from "#/api/queries/idpsync";
+import { FeatureUnavailable } from "#/components/FeatureUnavailable/FeatureUnavailable";
 import { Loader } from "#/components/Loader/Loader";
 import {
 	SettingsHeader,
@@ -14,17 +15,14 @@ import {
 	SettingsHeaderDocsLink,
 	SettingsHeaderTitle,
 } from "#/components/SettingsHeader/SettingsHeader";
-import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { useDashboard } from "#/modules/dashboard/useDashboard";
 import { useFeatureVisibility } from "#/modules/dashboard/useFeatureVisibility";
 import { ExportPolicyButton } from "#/modules/idpSync/ExportPolicyButton";
-import { PremiumPaywall } from "#/modules/paywall/PremiumPaywall";
 import { docs } from "#/utils/docs";
 import { pageTitle } from "#/utils/page";
 import { IdpOrgSyncPageView } from "./IdpOrgSyncPageView";
 
 const IdpOrgSyncPage: React.FC = () => {
-	const { permissions } = useAuthenticated();
 	const queryClient = useQueryClient();
 	// IdP sync does not have its own entitlement and is based on templace_rbac
 	const { template_rbac: isIdpSyncEnabled } = useFeatureVisibility();
@@ -69,17 +67,7 @@ const IdpOrgSyncPage: React.FC = () => {
 					</SettingsHeaderDescription>
 				</SettingsHeader>
 				{!isIdpSyncEnabled ? (
-					<PremiumPaywall
-						source="idp_org_sync"
-						message="IdP Organization Sync"
-						description="Configure organization mappings to synchronize claims in your auth provider to organizations within Coder."
-						features={[
-							"Sync groups & roles automatically",
-							"No manual user assignment",
-							"Works with your OIDC provider",
-						]}
-						canViewPremium={permissions.viewAllLicenses}
-					/>
+					<FeatureUnavailable feature="IdP Organization Sync" />
 				) : (
 					<IdpOrgSyncPageView
 						organizationSyncSettings={settingsQuery.data}

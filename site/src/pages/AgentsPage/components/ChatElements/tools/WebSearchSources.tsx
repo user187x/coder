@@ -49,8 +49,9 @@ const WebSearchSources: React.FC<WebSearchSourcesProps> = ({ sources }) => {
 };
 
 /**
- * A single source citation pill. Shows a favicon from Google's S2
- * service, a truncated title, and an external-link icon on hover.
+ * A single source citation pill. Shows a globe icon, a truncated title,
+ * and an external-link icon on hover. Favicons are not fetched, so the
+ * browser makes no third-party request just to render the pill.
  */
 const SourcePill: React.FC<{ source: { url: string; title: string } }> = ({
 	source,
@@ -61,10 +62,6 @@ const SourcePill: React.FC<{ source: { url: string; title: string } }> = ({
 	} catch {
 		hostname = "";
 	}
-
-	const faviconUrl = hostname
-		? `https://www.google.com/s2/favicons?domain=${hostname}&sz=16`
-		: undefined;
 
 	// Use the title if available, otherwise fall back to the hostname.
 	const label = source.title || hostname || source.url;
@@ -85,19 +82,7 @@ const SourcePill: React.FC<{ source: { url: string; title: string } }> = ({
 				"max-w-[200px]",
 			)}
 		>
-			{faviconUrl && (
-				<img
-					src={faviconUrl}
-					alt=""
-					width={14}
-					height={14}
-					className="shrink-0 rounded-sm"
-					// Hide the broken-image icon if the favicon fails to load.
-					onError={(e) => {
-						(e.target as HTMLImageElement).style.display = "none";
-					}}
-				/>
-			)}
+			<GlobeIcon className="size-3.5 shrink-0" aria-hidden="true" />
 			<span className="truncate">{label}</span>
 			<ExternalLinkIcon className="size-3 shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />
 		</a>

@@ -131,8 +131,8 @@ export const TotalAgentHoursCard: React.FC<TotalAgentHoursCardProps> = ({
 		const usedPercent =
 			meteredLimit > 0 ? formatPercent(usedTenths, meteredLimit * 10) : "100";
 		tooltip = reachedHardCap
-			? `You've used ${usedPercent}% of your Total Agent hours for this license and reached the hard cap of ${limitLabel} hours. Contact sales to receive more Agent hours.`
-			: `You've used ${usedPercent}% of your Total Agent hours for this license. Contact sales to receive more Agent hours.`;
+			? `You've used ${usedPercent}% of your Total Agent hours for this license and reached the hard cap of ${limitLabel} hours.`
+			: `You've used ${usedPercent}% of your Total Agent hours for this license.`;
 	} else if (reachedSoftLimit) {
 		tooltip = `You've used ${softLimitPercent}% or more of your Total Agent hours for this license. Agent sessions are still working normally, but you'll want to plan for the 100% limit.`;
 	} else if (softLimitPercent !== undefined) {

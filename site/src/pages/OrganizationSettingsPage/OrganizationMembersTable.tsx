@@ -6,7 +6,6 @@ import type {
 } from "#/api/typesGenerated";
 import { Avatar } from "#/components/Avatar/Avatar";
 import { AvatarData } from "#/components/Avatar/AvatarData";
-import { PremiumBadge } from "#/components/Badge/PresetBadges";
 import { Button } from "#/components/Button/Button";
 import {
 	DropdownMenu,
@@ -155,7 +154,7 @@ const OrganizationMembersTableBody: React.FC<OrganizationMembersTableProps> = ({
 												<Link
 													to={`/audit?filter=${encodeURIComponent(`username:${member.username} organization:${organizationName}`)}`}
 												>
-													View activity {!canViewActivity && <PremiumBadge />}
+													View activity
 												</Link>
 											</DropdownMenuItem>
 										)}

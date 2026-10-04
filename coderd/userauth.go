@@ -39,7 +39,6 @@ import (
 	"github.com/coder/coder/v2/coderd/promoauth"
 	"github.com/coder/coder/v2/coderd/rbac"
 	"github.com/coder/coder/v2/coderd/render"
-	"github.com/coder/coder/v2/coderd/telemetry"
 	"github.com/coder/coder/v2/coderd/userpassword"
 	"github.com/coder/coder/v2/coderd/util/namesgenerator"
 	"github.com/coder/coder/v2/codersdk"
@@ -1868,15 +1867,6 @@ func (api *API) oauthLogin(r *http.Request, params *oauthLoginParams) ([]*http.C
 			})
 			if err != nil {
 				return xerrors.Errorf("create user: %w", err)
-			}
-
-			if userCount == 0 {
-				telemetryUser := telemetry.ConvertUser(user)
-				// The email is not anonymized for the first user.
-				telemetryUser.Email = &user.Email
-				api.Telemetry.Report(&telemetry.Snapshot{
-					Users: []telemetry.User{telemetryUser},
-				})
 			}
 		}
 

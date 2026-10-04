@@ -58,7 +58,7 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof SpendPageView>;
 
-export const Paywall: Story = {
+export const FeatureUnavailable: Story = {
 	args: { isEntitled: false },
 };
 

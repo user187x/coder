@@ -354,9 +354,6 @@ const TemplatePrebuildsPage = lazy(
 	() =>
 		import("./pages/TemplatePage/TemplatePrebuildsPage/TemplatePrebuildsPage"),
 );
-const PremiumPage = lazy(
-	() => import("./pages/DeploymentSettingsPage/PremiumPage/PremiumPage"),
-);
 const IconsPage = lazy(() => import("./pages/IconsPage/IconsPage"));
 const AccessURLPage = lazy(() => import("./pages/HealthPage/AccessURLPage"));
 const DatabasePage = lazy(() => import("./pages/HealthPage/DatabasePage"));
@@ -719,7 +716,6 @@ export const router = createBrowserRouter(
 						{groupsRouter()}
 
 						<Route path="idp-org-sync" element={<IdpOrgSyncPage />} />
-						<Route path="premium" element={<PremiumPage />} />
 					</Route>
 
 					<Route path="/settings" element={<UserSettingsLayout />}>

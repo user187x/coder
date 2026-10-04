@@ -6,6 +6,7 @@ import type {
 	AIBridgeThread,
 } from "#/api/typesGenerated";
 import { Button } from "#/components/Button/Button";
+import { FeatureUnavailable } from "#/components/FeatureUnavailable/FeatureUnavailable";
 import { Loader } from "#/components/Loader/Loader";
 import { SearchField } from "#/components/SearchField/SearchField";
 import {
@@ -15,7 +16,6 @@ import {
 	TooltipTrigger,
 } from "#/components/Tooltip/Tooltip";
 import { useDebouncedValue } from "#/hooks/debounce";
-import { PremiumPaywallAIGovernance } from "#/modules/paywall/PremiumPaywallAIGovernance";
 import { AIBridgeSetupAlert } from "../AIBridgeSetupAlert";
 import { SessionSummaryTable } from "./SessionSummaryTable";
 import { SessionTimeline } from "./SessionTimeline/SessionTimeline";
@@ -72,12 +72,7 @@ export const SessionThreadsPageView: React.FC<SessionThreadsPageViewProps> = ({
 	const debouncedQuery = useDebouncedValue(searchQuery, 500);
 
 	if (!isAISessionsEntitled) {
-		return (
-			<PremiumPaywallAIGovernance
-				variant="sessions"
-				source="aibridge_session_threads"
-			/>
-		);
+		return <FeatureUnavailable feature="AI session logs" />;
 	}
 
 	if (!isAISessionsEnabled) {

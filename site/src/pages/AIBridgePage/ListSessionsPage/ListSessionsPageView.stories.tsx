@@ -57,7 +57,7 @@ const meta: Meta<typeof ListSessionsPageView> = {
 export default meta;
 type Story = StoryObj<typeof ListSessionsPageView>;
 
-export const Paywall: Story = {
+export const FeatureUnavailable: Story = {
 	args: {
 		isAISessionsEntitled: false,
 		isAISessionsEnabled: false,

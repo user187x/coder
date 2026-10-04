@@ -57,7 +57,6 @@ const meta: Meta<typeof NavbarView> = {
 			canViewAIBridge: true,
 			canViewHealth: true,
 		},
-		canViewLicenses: false,
 		supportLinks: [],
 	},
 	decorators: [withDashboardProvider],

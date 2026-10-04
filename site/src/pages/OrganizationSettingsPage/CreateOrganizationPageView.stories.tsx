@@ -2,13 +2,8 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, spyOn, userEvent, within } from "storybook/test";
 import { reactRouterParameters } from "storybook-addon-remix-react-router";
 import { API } from "#/api/api";
-import {
-	MockOrganization,
-	MockPermissions,
-	mockApiError,
-} from "#/testHelpers/entities";
+import { MockOrganization, mockApiError } from "#/testHelpers/entities";
 import { withToaster } from "#/testHelpers/storybook";
-import { docs } from "#/utils/docs";
 import { CreateOrganizationPageView } from "./CreateOrganizationPageView";
 
 const meta: Meta<typeof CreateOrganizationPageView> = {
@@ -17,7 +12,6 @@ const meta: Meta<typeof CreateOrganizationPageView> = {
 	decorators: [withToaster],
 	args: {
 		isEntitled: true,
-		permissions: MockPermissions,
 	},
 	parameters: {
 		reactRouter: reactRouterParameters({
@@ -57,28 +51,6 @@ export const NotEntitled: Story = {
 		).toBeVisible();
 		await expect(
 			canvas.queryByRole("form", { name: "Organization settings form" }),
-		).not.toBeInTheDocument();
-		await expect(
-			canvas.getByRole("link", { name: /View docs/ }),
-		).toHaveAttribute("href", docs("/admin/users/organizations"));
-		const cta = canvas.getByRole("link", { name: "Start trial for free" });
-		await expect(cta).toHaveAttribute("href", "/deployment/premium");
-	},
-};
-
-export const NotEntitledWithoutLicenseAccess: Story = {
-	args: {
-		isEntitled: false,
-		permissions: { ...MockPermissions, viewAllLicenses: false },
-	},
-	play: async ({ canvasElement }) => {
-		const canvas = within(canvasElement);
-
-		await expect(
-			canvas.getByText(/contact your deployment administrator/i),
-		).toBeVisible();
-		await expect(
-			canvas.queryByRole("link", { name: "Start trial for free" }),
 		).not.toBeInTheDocument();
 	},
 };

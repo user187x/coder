@@ -1923,10 +1923,6 @@ export interface BuildInfoResponse {
 	 */
 	readonly dashboard_url: string;
 	/**
-	 * Telemetry is a boolean that indicates whether telemetry is enabled.
-	 */
-	readonly telemetry: boolean;
-	/**
 	 * OAuth2Provider reports whether the OAuth 2.1 authorization server is
 	 * enabled. The dashboard uses it to show or hide OAuth2 navigation.
 	 */
@@ -1993,14 +1989,6 @@ export const BuildVersionHeader = "X-Coder-Build-Version";
  * nolint: gosec
  */
 export const BypassRatelimitHeader = "X-Coder-Bypass-Ratelimit";
-
-// From codersdk/client.go
-/**
- * CLITelemetryHeader contains a base64-encoded representation of the CLI
- * command that was invoked to produce the request. It is for internal use
- * only.
- */
-export const CLITelemetryHeader = "Coder-CLI-Telemetry";
 
 // From codersdk/cors_behavior.go
 export type CORSBehavior = "passthru" | "simple";
@@ -4029,13 +4017,6 @@ export interface ClusterConfig {
 	readonly host: string;
 }
 
-// From codersdk/client.go
-/**
- * CoderDesktopTelemetryHeader contains a JSON-encoded representation of Desktop telemetry
- * fields, including device ID, OS, and Desktop version.
- */
-export const CoderDesktopTelemetryHeader = "Coder-Desktop-Telemetry";
-
 // From codersdk/disconnect.go
 export type ConnectionDirection =
 	| "agent_to_client"
@@ -4382,24 +4363,11 @@ export interface CreateChatRequest {
 }
 
 // From codersdk/users.go
-/**
- * CreateFirstUserOnboardingInfo contains optional newsletter preference
- * data collected during first user setup.
- */
-export interface CreateFirstUserOnboardingInfo {
-	readonly newsletter_marketing: boolean;
-	readonly newsletter_releases: boolean;
-}
-
-// From codersdk/users.go
 export interface CreateFirstUserRequest {
 	readonly email: string;
 	readonly username: string;
 	readonly name: string;
 	readonly password: string;
-	readonly trial: boolean;
-	readonly trial_info: CreateFirstUserTrialInfo;
-	readonly onboarding_info?: CreateFirstUserOnboardingInfo;
 }
 
 // From codersdk/users.go
@@ -4409,17 +4377,6 @@ export interface CreateFirstUserRequest {
 export interface CreateFirstUserResponse {
 	readonly user_id: string;
 	readonly organization_id: string;
-}
-
-// From codersdk/users.go
-export interface CreateFirstUserTrialInfo {
-	readonly first_name: string;
-	readonly last_name: string;
-	readonly phone_number: string;
-	readonly job_title: string;
-	readonly company_name: string;
-	readonly country: string;
-	readonly developers: string;
 }
 
 // From codersdk/groups.go
@@ -4678,31 +4635,6 @@ export interface CreateTokenRequest {
 	readonly scopes?: readonly APIKeyScope[];
 	readonly token_name: string;
 	readonly allow_list?: readonly APIAllowListTarget[];
-}
-
-// From codersdk/licenses.go
-/**
- * Defines the input payload for requesting a trial license.
- */
-export interface CreateTrialLicenseRequest {
-	readonly email: string;
-	readonly first_name: string;
-	readonly last_name: string;
-	readonly phone_number: string;
-	readonly job_title: string;
-	readonly company_name: string;
-	readonly country: string;
-	readonly developers: string;
-	/**
-	 * Source is the premium paywall the request came from, for telemetry. It
-	 * is not forwarded to the licensor. Omit it to report "direct".
-	 */
-	readonly source?: PremiumFunnelSource;
-	/**
-	 * AttributionID is the ID of the cta_click funnel event that led here, so
-	 * that a signup can be joined back to the paywall that produced it.
-	 */
-	readonly attribution_id?: string;
 }
 
 // From codersdk/chats.go
@@ -6509,20 +6441,6 @@ export const LicenseExpiryClaim = "license_expires";
 export const LicenseTelemetryRequiredErrorText =
 	"License requires telemetry but telemetry is disabled";
 
-// From codersdk/users.go
-/**
- * Trial request source origination reported to the licensor.
- * LicensorTrialSourceNewUser is the first user setup flow.
- */
-export const LicensorTrialSourceNewUser = "NewUser";
-
-// From codersdk/users.go
-/**
- * Trial request source origination reported to the licensor.
- * LicensorTrialSourceProduct is a request from within the product in-app trial request
- */
-export const LicensorTrialSourceProduct = "Product";
-
 // From codersdk/deployment.go
 export interface LinkConfig {
 	readonly name: string;
@@ -8312,76 +8230,6 @@ export interface PrebuildsSettings {
  */
 export const PrebuildsSystemUserID = "c42fdf75-3097-471c-8c33-fb52454d81c0";
 
-// From codersdk/premiumfunnel.go
-/**
- * PremiumFunnelEventRequest is the request body for
- * POST /api/v2/deployment/premium-funnel-events.
- */
-export interface PremiumFunnelEventRequest {
-	/**
-	 * ID identifies this click, and doubles as the attribution token that a
-	 * later trial signup reports.
-	 */
-	readonly id: string;
-	readonly source: PremiumFunnelSource;
-	readonly variant: PremiumFunnelVariant;
-}
-
-// From codersdk/premiumfunnel.go
-export type PremiumFunnelSource =
-	| "aibridge_session_threads"
-	| "aibridge_sessions"
-	| "ai_gateway_keys"
-	| "ai_governance"
-	| "appearance"
-	| "audit_log"
-	| "browser_only"
-	| "connection_log"
-	| "custom_roles"
-	| "direct"
-	| "external_auth"
-	| "groups"
-	| "idp_org_sync"
-	| "idp_sync"
-	| "multiple_organizations"
-	| "observability"
-	| "provisioner_keys"
-	| "provisioners"
-	| "template_permissions"
-	| "workspace_proxies";
-
-export const PremiumFunnelSources: PremiumFunnelSource[] = [
-	"aibridge_session_threads",
-	"aibridge_sessions",
-	"ai_gateway_keys",
-	"ai_governance",
-	"appearance",
-	"audit_log",
-	"browser_only",
-	"connection_log",
-	"custom_roles",
-	"direct",
-	"external_auth",
-	"groups",
-	"idp_org_sync",
-	"idp_sync",
-	"multiple_organizations",
-	"observability",
-	"provisioner_keys",
-	"provisioners",
-	"template_permissions",
-	"workspace_proxies",
-];
-
-// From codersdk/premiumfunnel.go
-export type PremiumFunnelVariant = "ai_governance" | "premium" | "small";
-
-export const PremiumFunnelVariants: PremiumFunnelVariant[] = [
-	"ai_governance",
-	"premium",
-	"small",
-];
-
 // From codersdk/presets.go
 export interface Preset {
 	readonly ID: string;
@@ -9911,10 +9759,13 @@ export interface TailDERPRegion {
 }
 
 // From codersdk/deployment.go
+/**
+ * TelemetryConfig reports whether telemetry is enabled. Telemetry has been
+ * removed, so Enable is always false. It remains so that license checks that
+ * require telemetry report that it is disabled.
+ */
 export interface TelemetryConfig {
 	readonly enable: boolean;
-	readonly trace: boolean;
-	readonly url: string;
 }
 
 // From codersdk/templates.go
@@ -10153,12 +10004,6 @@ export interface TemplateBuilderCreateTemplateRequest {
 	readonly description?: string;
 	readonly icon?: string;
 	readonly provisioner_tags?: Record<string, string>;
-	/**
-	 * SessionID is the wizard session this request belongs to, as reported to
-	 * POST /api/v2/templatebuilder/sessions. It is optional and used only to
-	 * attribute a build failure to the session that produced it.
-	 */
-	readonly session_id?: string;
 }
 
 // From codersdk/templatebuilder.go
@@ -10204,28 +10049,6 @@ export interface TemplateBuilderModuleVariable {
  */
 export interface TemplateBuilderModulesResponse {
 	readonly modules: readonly TemplateBuilderModule[];
-}
-
-// From codersdk/templatebuilder.go
-export type TemplateBuilderSessionEventType =
-	| "compose_completion"
-	| "wizard_entry";
-
-export const TemplateBuilderSessionEventTypes: TemplateBuilderSessionEventType[] =
-	["compose_completion", "wizard_entry"];
-
-// From codersdk/templatebuilder.go
-/**
- * TemplateBuilderSessionRequest is the request body for
- * POST /api/v2/templatebuilder/sessions.
- */
-export interface TemplateBuilderSessionRequest {
-	readonly session_id: string;
-	readonly event_type: TemplateBuilderSessionEventType;
-	readonly base_template_id?: string;
-	readonly module_ids?: readonly string[];
-	readonly duration_seconds?: number;
-	readonly success?: boolean;
 }
 
 // From codersdk/templatebuilder.go
@@ -12570,19 +12393,6 @@ export interface WorkspaceBuild {
 	readonly matched_provisioners?: MatchedProvisioners;
 	readonly template_version_preset_id: string | null;
 	readonly has_external_agent?: boolean;
-}
-
-// From codersdk/workspacebuilds.go
-/**
- * WorkspaceBuildDebugEventRequest is the request body for
- * POST /api/v2/workspacebuilds/{workspacebuild}/debug-events.
- */
-export interface WorkspaceBuildDebugEventRequest {
-	/**
-	 * ID identifies this click so a later step of the funnel can be
-	 * attributed to it.
-	 */
-	readonly id: string;
 }
 
 // From codersdk/workspacebuilds.go

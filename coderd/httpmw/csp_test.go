@@ -21,7 +21,7 @@ func TestCSPFrameAncestors(t *testing.T) {
 		r := httptest.NewRequest(http.MethodGet, "/", nil)
 		rw := httptest.NewRecorder()
 
-		httpmw.CSPHeaders(false, func() []*proxyhealth.ProxyHost {
+		httpmw.CSPHeaders(func() []*proxyhealth.ProxyHost {
 			return nil
 		}, nil)(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 			rw.WriteHeader(http.StatusOK)
@@ -37,7 +37,7 @@ func TestCSPFrameAncestors(t *testing.T) {
 		r := httptest.NewRequest(http.MethodGet, "/", nil)
 		rw := httptest.NewRecorder()
 
-		httpmw.CSPHeaders(false, func() []*proxyhealth.ProxyHost {
+		httpmw.CSPHeaders(func() []*proxyhealth.ProxyHost {
 			return nil
 		}, map[httpmw.CSPFetchDirective][]string{
 			httpmw.CSPFrameAncestors: {"https://example.com"},
@@ -56,7 +56,7 @@ func TestCSPFrameAncestors(t *testing.T) {
 		r := httptest.NewRequest(http.MethodGet, "/", nil)
 		rw := httptest.NewRecorder()
 
-		httpmw.CSPHeaders(false, func() []*proxyhealth.ProxyHost {
+		httpmw.CSPHeaders(func() []*proxyhealth.ProxyHost {
 			return nil
 		}, map[httpmw.CSPFetchDirective][]string{
 			httpmw.CSPFrameAncestors: {},
@@ -106,7 +106,7 @@ func TestCSP(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 	rw := httptest.NewRecorder()
 
-	httpmw.CSPHeaders(false, func() []*proxyhealth.ProxyHost {
+	httpmw.CSPHeaders(func() []*proxyhealth.ProxyHost {
 		return proxyHosts
 	}, map[httpmw.CSPFetchDirective][]string{
 		httpmw.CSPDirectiveMediaSrc: expectedMedia,

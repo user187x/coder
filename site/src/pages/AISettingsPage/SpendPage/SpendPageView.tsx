@@ -4,6 +4,7 @@ import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { ExperimentalBadge } from "#/components/Badge/PresetBadges";
 import type { DateTimeRangeValue } from "#/components/DateTimeRangePicker/dateTimeRange";
 import { EmptyState } from "#/components/EmptyState/EmptyState";
+import { FeatureUnavailable } from "#/components/FeatureUnavailable/FeatureUnavailable";
 import { Loader } from "#/components/Loader/Loader";
 import { OrganizationAutocomplete } from "#/components/OrganizationAutocomplete/OrganizationAutocomplete";
 import {
@@ -11,7 +12,6 @@ import {
 	SettingsHeaderDescription,
 	SettingsHeaderTitle,
 } from "#/components/SettingsHeader/SettingsHeader";
-import { PremiumPaywallAIGovernance } from "#/modules/paywall/PremiumPaywallAIGovernance";
 import { AIBridgeSetupAlert } from "#/pages/AIBridgePage/AIBridgeSetupAlert";
 import { type SpendFilterMenus, SpendFilters } from "./components/SpendFilters";
 import {
@@ -41,9 +41,7 @@ export const SpendPageView: React.FC<SpendPageViewProps> = ({
 	...contentProps
 }) => {
 	if (!isEntitled) {
-		return (
-			<PremiumPaywallAIGovernance variant="governance" source="ai_governance" />
-		);
+		return <FeatureUnavailable feature="AI Governance" />;
 	}
 
 	if (!isEnabled) {

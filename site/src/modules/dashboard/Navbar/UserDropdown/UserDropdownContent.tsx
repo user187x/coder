@@ -34,8 +34,6 @@ type UserDropdownContentProps = {
 	profileExtra?: React.ReactNode;
 	supportLinks: readonly TypesGen.LinkConfig[];
 	onSignOut: () => void;
-	/** Premium trial entry, rendered above the build info. */
-	trialCta?: React.ReactNode;
 };
 
 export const UserDropdownContent: React.FC<UserDropdownContentProps> = ({
@@ -44,7 +42,6 @@ export const UserDropdownContent: React.FC<UserDropdownContentProps> = ({
 	profileExtra,
 	supportLinks,
 	onSignOut,
-	trialCta,
 }) => {
 	const { showCopiedSuccess, copyToClipboard } = useClipboard();
 
@@ -98,7 +95,6 @@ export const UserDropdownContent: React.FC<UserDropdownContentProps> = ({
 					</a>
 				</DropdownMenuItem>
 			))}
-			{trialCta}
 			<DropdownMenuSeparator />
 			{buildInfo?.deployment_id && (
 				<Tooltip disableHoverableContent>

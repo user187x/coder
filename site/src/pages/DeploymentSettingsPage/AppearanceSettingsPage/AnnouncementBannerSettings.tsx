@@ -3,7 +3,6 @@ import { useState } from "react";
 import type { BannerConfig } from "#/api/typesGenerated";
 import { Button } from "#/components/Button/Button";
 import { ConfirmDialog } from "#/components/Dialog/ConfirmDialog/ConfirmDialog";
-import { Link } from "#/components/Link/Link";
 import {
 	SettingsHeader,
 	SettingsHeaderDescription,
@@ -93,14 +92,7 @@ export const AnnouncementBannerSettings: React.FC<
 					<SettingsHeaderDescription>
 						Display message banners to all users.
 						{!isEntitled && (
-							<>
-								{" "}
-								Your license does not include Service Banners.{" "}
-								<Link href="mailto:sales@coder.com" showExternalIcon={false}>
-									Contact sales
-								</Link>{" "}
-								to learn more.
-							</>
+							<> Announcement banners are not enabled on this deployment.</>
 						)}
 					</SettingsHeaderDescription>
 				</SettingsHeader>

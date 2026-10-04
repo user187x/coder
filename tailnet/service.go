@@ -4,7 +4,6 @@ import (
 	"context"
 	"io"
 	"net"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -20,7 +19,6 @@ import (
 	"github.com/coder/coder/v2/apiversion"
 	"github.com/coder/coder/v2/codersdk/drpcsdk"
 	"github.com/coder/coder/v2/tailnet/proto"
-	"github.com/coder/quartz"
 )
 
 var ErrUnsupportedVersion = xerrors.New("unsupported version")
@@ -60,7 +58,6 @@ type ClientServiceOptions struct {
 	CoordPtr                 *atomic.Pointer[Coordinator]
 	DERPMapUpdateFrequency   time.Duration
 	DERPMapFn                func() *tailcfg.DERPMap
-	NetworkTelemetryHandler  func(batch []*proto.TelemetryEvent)
 	ResumeTokenProvider      ResumeTokenProvider
 	WorkspaceUpdatesProvider WorkspaceUpdatesProvider
 }
@@ -85,7 +82,6 @@ func NewClientService(options ClientServiceOptions) (
 		Logger:                   options.Logger,
 		DerpMapUpdateFrequency:   options.DERPMapUpdateFrequency,
 		DerpMapFn:                options.DERPMapFn,
-		NetworkTelemetryHandler:  options.NetworkTelemetryHandler,
 		ResumeTokenProvider:      options.ResumeTokenProvider,
 		WorkspaceUpdatesProvider: options.WorkspaceUpdatesProvider,
 	}
@@ -142,15 +138,13 @@ type DRPCService struct {
 	Logger                   slog.Logger
 	DerpMapUpdateFrequency   time.Duration
 	DerpMapFn                func() *tailcfg.DERPMap
-	NetworkTelemetryHandler  func(batch []*proto.TelemetryEvent)
 	ResumeTokenProvider      ResumeTokenProvider
 	WorkspaceUpdatesProvider WorkspaceUpdatesProvider
 }
 
-func (s *DRPCService) PostTelemetry(_ context.Context, req *proto.TelemetryRequest) (*proto.TelemetryResponse, error) {
-	if s.NetworkTelemetryHandler != nil {
-		s.NetworkTelemetryHandler(req.Events)
-	}
+// PostTelemetry accepts network telemetry from clients that still send it and
+// discards it. Nothing is collected or forwarded.
+func (*DRPCService) PostTelemetry(context.Context, *proto.TelemetryRequest) (*proto.TelemetryResponse, error) {
 	return &proto.TelemetryResponse{}, nil
 }
 
@@ -312,112 +306,6 @@ func (c communicator) loopResp() {
 		if err != nil {
 			c.logger.Debug(ctx, "loopResp failed to send response to DRPC stream", slog.Error(err))
 			return
-		}
-	}
-}
-
-type NetworkTelemetryBatcher struct {
-	clock     quartz.Clock
-	frequency time.Duration
-	maxSize   int
-	batchFn   func(batch []*proto.TelemetryEvent)
-
-	mu      sync.Mutex
-	closed  chan struct{}
-	done    chan struct{}
-	ticker  *quartz.Ticker
-	pending []*proto.TelemetryEvent
-}
-
-func NewNetworkTelemetryBatcher(clk quartz.Clock, frequency time.Duration, maxSize int, batchFn func(batch []*proto.TelemetryEvent)) *NetworkTelemetryBatcher {
-	b := &NetworkTelemetryBatcher{
-		clock:     clk,
-		frequency: frequency,
-		maxSize:   maxSize,
-		batchFn:   batchFn,
-		closed:    make(chan struct{}),
-		done:      make(chan struct{}),
-	}
-	if b.batchFn == nil {
-		b.batchFn = func(_ []*proto.TelemetryEvent) {}
-	}
-	b.start()
-	return b
-}
-
-func (b *NetworkTelemetryBatcher) Close() error {
-	close(b.closed)
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	select {
-	case <-ctx.Done():
-		return xerrors.New("timed out waiting for batcher to close")
-	case <-b.done:
-	}
-	return nil
-}
-
-func (b *NetworkTelemetryBatcher) sendTelemetryBatch() {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	events := b.pending
-	if len(events) == 0 {
-		return
-	}
-	b.pending = []*proto.TelemetryEvent{}
-	b.batchFn(events)
-}
-
-func (b *NetworkTelemetryBatcher) start() {
-	b.ticker = b.clock.NewTicker(b.frequency)
-
-	go func() {
-		defer func() {
-			// The lock prevents Handler from racing with Close.
-			b.mu.Lock()
-			defer b.mu.Unlock()
-			close(b.done)
-			b.ticker.Stop()
-		}()
-
-		for {
-			select {
-			case <-b.ticker.C:
-				b.sendTelemetryBatch()
-				b.ticker.Reset(b.frequency)
-			case <-b.closed:
-				// Send any remaining telemetry events before exiting.
-				b.sendTelemetryBatch()
-				return
-			}
-		}
-	}()
-}
-
-func (b *NetworkTelemetryBatcher) Handler(events []*proto.TelemetryEvent) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	select {
-	case <-b.closed:
-		return
-	default:
-	}
-
-	for _, event := range events {
-		b.pending = append(b.pending, event)
-
-		if len(b.pending) >= b.maxSize {
-			// This can't call sendTelemetryBatch directly because we already
-			// hold the lock.
-			events := b.pending
-			b.pending = []*proto.TelemetryEvent{}
-			// Resetting the ticker is best effort. We don't care if the ticker
-			// has already fired or has a pending message, because the only risk
-			// is that we send two telemetry events in short succession (which
-			// is totally fine).
-			b.ticker.Reset(b.frequency)
-			// Perform the send in a goroutine to avoid blocking the DRPC call.
-			go b.batchFn(events)
 		}
 	}
 }

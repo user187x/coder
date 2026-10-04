@@ -58,7 +58,7 @@ const (
 //     Example: https://github.com/coder/coder/issues/15118
 //
 //nolint:revive
-func CSPHeaders(telemetry bool, proxyHosts func() []*proxyhealth.ProxyHost, staticAdditions map[CSPFetchDirective][]string) func(next http.Handler) http.Handler {
+func CSPHeaders(proxyHosts func() []*proxyhealth.ProxyHost, staticAdditions map[CSPFetchDirective][]string) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// Content-Security-Policy disables loading certain content types and can prevent XSS injections.
@@ -95,11 +95,6 @@ func CSPHeaders(telemetry bool, proxyHosts func() []*proxyhealth.ProxyHost, stat
 				// Only scripts can manipulate the dom. This prevents someone from
 				// naming themselves something like '<svg onload="alert(/cross-site-scripting/)" />'.
 				// "require-trusted-types-for" : []string{"'script'"},
-			}
-
-			if telemetry {
-				// If telemetry is enabled, we report to coder.com.
-				cspSrcs.Append(CSPDirectiveConnectSrc, "https://coder.com")
 			}
 
 			// This extra connect-src addition is required to support old webkit

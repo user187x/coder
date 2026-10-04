@@ -40,7 +40,6 @@ import (
 	"github.com/coder/coder/v2/coderd/tracing"
 	"github.com/coder/coder/v2/codersdk"
 	"github.com/coder/coder/v2/tailnet"
-	tailnetproto "github.com/coder/coder/v2/tailnet/proto"
 	"github.com/coder/coder/v2/testutil"
 	"github.com/coder/websocket"
 )
@@ -196,8 +195,7 @@ func (o SimpleServerOptions) Router(t *testing.T, logger slog.Logger) *chi.Mux {
 				Regions: map[int]*tailcfg.DERPRegion{},
 			}
 		},
-		NetworkTelemetryHandler: func(_ []*tailnetproto.TelemetryEvent) {},
-		ResumeTokenProvider:     tailnet.NewInsecureTestResumeTokenProvider(),
+		ResumeTokenProvider: tailnet.NewInsecureTestResumeTokenProvider(),
 	})
 	require.NoError(t, err)
 

@@ -1,5 +1,4 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { expect, within } from "storybook/test";
 import {
 	getDefaultFilterProps,
 	MockMenu,
@@ -12,11 +11,9 @@ import type { UsePaginatedQueryResult } from "#/hooks/usePaginatedQuery";
 import {
 	MockConnectedSSHConnectionLog,
 	MockDisconnectedSSHConnectionLog,
-	MockPermissions,
 	MockUserOwner,
 } from "#/testHelpers/entities";
 import { pixelWithTablet } from "#/testHelpers/pixel";
-import { docs } from "#/utils/docs";
 import { ConnectionLogPageView } from "./ConnectionLogPageView";
 
 type FilterProps = React.ComponentProps<
@@ -48,7 +45,6 @@ const meta: Meta<typeof ConnectionLogPageView> = {
 		],
 		isConnectionLogVisible: true,
 		filterProps: defaultFilterProps,
-		permissions: MockPermissions,
 	},
 };
 
@@ -96,31 +92,5 @@ export const NotVisible: Story = {
 	args: {
 		isConnectionLogVisible: false,
 		connectionLogsQuery: mockInitialRenderResult,
-	},
-	play: async ({ canvasElement }) => {
-		const canvas = within(canvasElement);
-
-		const cta = canvas.getByRole("link", { name: "Start trial for free" });
-		await expect(cta).toHaveAttribute("href", "/deployment/premium");
-		await expect(
-			canvas.getByRole("link", { name: /View docs/ }),
-		).toHaveAttribute("href", docs("/admin/monitoring/connection-logs"));
-	},
-};
-
-export const NotVisibleWithoutLicenseAccess: Story = {
-	args: {
-		...NotVisible.args,
-		permissions: { ...MockPermissions, viewAllLicenses: false },
-	},
-	play: async ({ canvasElement }) => {
-		const canvas = within(canvasElement);
-
-		await expect(
-			canvas.getByText(/contact your deployment administrator/i),
-		).toBeVisible();
-		await expect(
-			canvas.queryByRole("link", { name: "Start trial for free" }),
-		).not.toBeInTheDocument();
 	},
 };

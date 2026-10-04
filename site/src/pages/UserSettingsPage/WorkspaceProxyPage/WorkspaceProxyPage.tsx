@@ -1,10 +1,8 @@
 import { useProxy } from "#/contexts/ProxyContext";
-import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { useFeatureVisibility } from "#/modules/dashboard/useFeatureVisibility";
 import { WorkspaceProxyView } from "./WorkspaceProxyView";
 
 const WorkspaceProxyPage: React.FC = () => {
-	const { permissions } = useAuthenticated();
 	const {
 		proxyLatencies,
 		proxies,
@@ -23,8 +21,7 @@ const WorkspaceProxyPage: React.FC = () => {
 			hasLoaded={proxiesFetched}
 			getWorkspaceProxiesError={proxiesError}
 			preferredProxy={proxy.proxy}
-			showPaywall={!workspaceProxyEnabled}
-			permissions={permissions}
+			isFeatureUnavailable={!workspaceProxyEnabled}
 		/>
 	);
 };

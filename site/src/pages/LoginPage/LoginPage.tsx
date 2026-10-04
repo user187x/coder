@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { useQuery } from "react-query";
 import { Navigate, useLocation } from "react-router";
 import { buildInfo } from "#/api/queries/buildInfo";
@@ -8,7 +7,6 @@ import { useEmbeddedMetadata } from "#/hooks/useEmbeddedMetadata";
 import { AnnouncementBanner } from "#/modules/platform/announcement/AnnouncementBanner";
 import { getApplicationName } from "#/utils/appearance";
 import { retrieveRedirect, sanitizeRedirect } from "#/utils/redirect";
-import { sendDeploymentEvent } from "#/utils/telemetry";
 import { LoginPageView } from "./LoginPageView";
 
 const LoginPage: React.FC = () => {
@@ -20,7 +18,6 @@ const LoginPage: React.FC = () => {
 		signIn,
 		isSigningIn,
 		signInError,
-		user,
 	} = useAuthContext();
 	const authMethodsQuery = useQuery(authMethods());
 	const redirectTo = retrieveRedirect(routerLocation.search);
@@ -32,18 +29,6 @@ const LoginPage: React.FC = () => {
 	const isApiRouteRedirect =
 		redirectTo.startsWith("/api/v2") ||
 		redirectTo.startsWith("/oauth2/authorize");
-
-	useEffect(() => {
-		if (!buildInfoQuery.data || isSignedIn) {
-			// isSignedIn already tracks with window.href!
-			return;
-		}
-		// This uses `navigator.sendBeacon`, so navigating away will not prevent it!
-		sendDeploymentEvent(buildInfoQuery.data, {
-			type: "deployment_login",
-			user_id: user?.id,
-		});
-	}, [isSignedIn, buildInfoQuery.data, user?.id]);
 
 	if (isSignedIn) {
 		// The reason we need `location.href` for api redirects is that

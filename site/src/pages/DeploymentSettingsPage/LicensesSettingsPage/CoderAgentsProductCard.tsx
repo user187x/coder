@@ -1,14 +1,12 @@
 import { cn } from "cn";
 import { InfoIcon, TriangleAlertIcon } from "lucide-react";
 import { Badge } from "#/components/Badge/Badge";
-import { Button } from "#/components/Button/Button";
 import { Link } from "#/components/Link/Link";
 import {
 	Tooltip,
 	TooltipContent,
 	TooltipTrigger,
 } from "#/components/Tooltip/Tooltip";
-import { CONTACT_SALES_LINK } from "#/modules/licenses/trialLicense";
 import { docs } from "#/utils/docs";
 
 // Allocation sentinel for unlimited agent runtime hours
@@ -134,11 +132,6 @@ export const CoderAgentsProductCard: React.FC<CoderAgentsProductCardProps> = ({
 						</div>
 					)}
 				</div>
-				<Button asChild className="mt-4 w-full">
-					<a href={CONTACT_SALES_LINK} target="_blank" rel="noreferrer">
-						Upgrade
-					</a>
-				</Button>
 			</CardContainer>
 		);
 	}

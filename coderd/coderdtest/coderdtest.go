@@ -83,8 +83,6 @@ import (
 	"github.com/coder/coder/v2/coderd/rbac/rolestore"
 	"github.com/coder/coder/v2/coderd/runtimeconfig"
 	"github.com/coder/coder/v2/coderd/schedule"
-	"github.com/coder/coder/v2/coderd/telemetry"
-	"github.com/coder/coder/v2/coderd/updatecheck"
 	"github.com/coder/coder/v2/coderd/usage"
 	"github.com/coder/coder/v2/coderd/util/namesgenerator"
 	"github.com/coder/coder/v2/coderd/util/slice"
@@ -133,7 +131,6 @@ type Options struct {
 	Auditor              audit.Auditor
 	TLSCertificates      []tls.Certificate
 	ExternalAuthConfigs  []*externalauth.Config
-	TrialGenerator       func(ctx context.Context, body codersdk.LicensorTrialRequest) error
 	// MCPAllowedPrivateCIDRs exempts IP ranges from the MCP
 	// SSRF guard for MCP server and OAuth2 traffic. Defaults to loopback so
 	// tests can serve mock MCP and authorization servers via httptest.
@@ -169,7 +166,6 @@ type Options struct {
 	DeploymentValues            *codersdk.DeploymentValues
 
 	// Set update check options to enable update check.
-	UpdateCheckOptions *updatecheck.Options
 
 	// Overriding the database is heavily discouraged.
 	// It should only be used in cases where multiple Coder
@@ -205,7 +201,6 @@ type Options struct {
 	ChatFileTokenKeyCache              cryptokeys.SigningKeycache
 	Clock                              quartz.Clock
 	Acquirer                           *provisionerdserver.Acquirer
-	TelemetryReporter                  telemetry.Reporter
 
 	ProvisionerdServerMetrics *provisionerdserver.Metrics
 	WorkspaceBuilderMetrics   *wsbuilder.Metrics
@@ -457,10 +452,6 @@ func NewOptions(t testing.TB, options *Options) (func(http.Handler), context.Can
 	jobReaper.Start()
 	t.Cleanup(jobReaper.Close)
 
-	if options.TelemetryReporter == nil {
-		options.TelemetryReporter = telemetry.NewNoop()
-	}
-
 	// Did last_used_at not update? Scratching your noggin? Here's why.
 	// Workspace usage tracking must be triggered manually in tests.
 	// The vast majority of existing tests do not depend on last_used_at
@@ -658,11 +649,9 @@ func NewOptions(t testing.TB, options *Options) (func(http.Handler), context.Can
 			LoginRateLimit:                     options.LoginRateLimit,
 			FilesRateLimit:                     options.FilesRateLimit,
 			Authorizer:                         options.Authorizer,
-			Telemetry:                          options.TelemetryReporter,
 			TemplateScheduleStore:              &templateScheduleStore,
 			AccessControlStore:                 accessControlStore,
 			TLSCertificates:                    options.TLSCertificates,
-			TrialGenerator:                     options.TrialGenerator,
 			RefreshEntitlements:                options.RefreshEntitlements,
 			TailnetCoordinator:                 options.Coordinator,
 			WebPushDispatcher:                  options.WebpushDispatcher,
@@ -673,7 +662,6 @@ func NewOptions(t testing.TB, options *Options) (func(http.Handler), context.Can
 			AgentStatsRefreshInterval:          options.AgentStatsRefreshInterval,
 			DeploymentValues:                   options.DeploymentValues,
 			DeploymentOptions:                  codersdk.DeploymentOptionsWithoutSecrets(options.DeploymentValues.Options()),
-			UpdateCheckOptions:                 options.UpdateCheckOptions,
 			SwaggerEndpoint:                    options.SwaggerEndpoint,
 			SSHConfig:                          options.ConfigSSH,
 			HealthcheckFunc:                    options.HealthcheckFunc,
@@ -859,16 +847,6 @@ var FirstUserParams = codersdk.CreateFirstUserRequest{
 	Username: "testuser",
 	Password: "SomeSecurePassword!",
 	Name:     "Test User",
-}
-
-var TrialUserParams = codersdk.CreateFirstUserTrialInfo{
-	FirstName:   "John",
-	LastName:    "Doe",
-	PhoneNumber: "9999999999",
-	JobTitle:    "Engineer",
-	CompanyName: "Acme Inc",
-	Country:     "United States",
-	Developers:  "10-50",
 }
 
 // CreateFirstUser creates a user with preset credentials and authenticates

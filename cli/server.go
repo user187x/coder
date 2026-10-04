@@ -45,7 +45,6 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
-	"golang.org/x/mod/semver"
 	"golang.org/x/oauth2"
 	xgithub "golang.org/x/oauth2/github"
 	"golang.org/x/sync/errgroup"
@@ -93,9 +92,7 @@ import (
 	"github.com/coder/coder/v2/coderd/provisionerdserver"
 	"github.com/coder/coder/v2/coderd/runtimeconfig"
 	"github.com/coder/coder/v2/coderd/schedule"
-	"github.com/coder/coder/v2/coderd/telemetry"
 	"github.com/coder/coder/v2/coderd/tracing"
-	"github.com/coder/coder/v2/coderd/updatecheck"
 	"github.com/coder/coder/v2/coderd/util/slice"
 	stringutil "github.com/coder/coder/v2/coderd/util/strings"
 	"github.com/coder/coder/v2/coderd/webpush"
@@ -546,7 +543,6 @@ func (r *RootCmd) Server(newAPI func(context.Context, *coderd.Options) (*coderd.
 			}
 			config := r.createConfig()
 
-			builtinPostgres := false
 			// Only use built-in if PostgreSQL URL isn't specified!
 			if vals.PostgresURL == "" {
 				var closeFunc func() error
@@ -569,7 +565,6 @@ func (r *RootCmd) Server(newAPI func(context.Context, *coderd.Options) (*coderd.
 				if err != nil {
 					return err
 				}
-				builtinPostgres = true
 				defer func() {
 					cliui.Infof(inv.Stdout, "Stopping built-in PostgreSQL...")
 					// Gracefully shut PostgreSQL down!
@@ -766,7 +761,6 @@ func (r *RootCmd) Server(newAPI func(context.Context, *coderd.Options) (*coderd.
 				RealIPConfig:                realIPConfig,
 				SSHKeygenAlgorithm:          sshKeygenAlgorithm,
 				TracerProvider:              tracerProvider,
-				Telemetry:                   telemetry.NewNoop(),
 				MetricsCacheRefreshInterval: vals.MetricsCacheRefreshInterval.Value(),
 				AgentStatsRefreshInterval:   vals.AgentStatRefreshInterval.Value(),
 				DeploymentValues:            vals,
@@ -797,25 +791,6 @@ func (r *RootCmd) Server(newAPI func(context.Context, *coderd.Options) (*coderd.
 				)
 				if err != nil {
 					return xerrors.Errorf("coderd: setting hsts header failed (options: %v): %w", vals.StrictTransportSecurityOptions, err)
-				}
-			}
-
-			if vals.UpdateCheck {
-				options.UpdateCheckOptions = &updatecheck.Options{
-					// Avoid spamming GitHub API checking for updates.
-					Interval: 24 * time.Hour,
-					// Inform server admins of new versions.
-					Notify: func(r updatecheck.Result) {
-						if semver.Compare(r.Version, buildinfo.Version()) > 0 {
-							options.Logger.Info(
-								context.Background(),
-								"new version of coder available",
-								slog.F("new_version", r.Version),
-								slog.F("url", r.URL),
-								slog.F("upgrade_instructions", fmt.Sprintf("%s/admin/upgrade", vals.DocsURL.String())),
-							)
-						}
-					},
 				}
 			}
 
@@ -1043,52 +1018,6 @@ func (r *RootCmd) Server(newAPI func(context.Context, *coderd.Options) (*coderd.
 
 			// This should be output before the logs start streaming.
 			cliui.Infof(inv.Stdout, "\n==> Logs will stream in below (press ctrl+c to gracefully exit):")
-
-			deploymentConfigWithoutSecrets, err := vals.WithoutSecrets()
-			if err != nil {
-				return xerrors.Errorf("remove secrets from deployment values: %w", err)
-			}
-
-			telemetryReporter, err := telemetry.New(telemetry.Options{
-				Disabled:         !vals.Telemetry.Enable.Value(),
-				BuiltinPostgres:  builtinPostgres,
-				DeploymentID:     deploymentID,
-				Database:         options.Database,
-				Experiments:      coderd.ReadExperiments(options.Logger, options.DeploymentValues.Experiments.Value()),
-				Logger:           logger.Named("telemetry"),
-				URL:              vals.Telemetry.URL.Value(),
-				Tunnel:           tunnel != nil,
-				DeploymentConfig: deploymentConfigWithoutSecrets,
-				// SCIMAPIKey is a secret and is scrubbed by WithoutSecrets above,
-				// so we derive SCIMEnabled from vals (pre-scrub) instead.
-				SCIMEnabled:   vals.SCIMAPIKey != "",
-				SCIMUseLegacy: vals.UseLegacySCIM.Value(),
-				ParseLicenseJWT: func(lic *telemetry.License) error {
-					// This will be nil when running in AGPL-only mode.
-					if options.ParseLicenseClaims == nil {
-						return nil
-					}
-
-					email, trial, err := options.ParseLicenseClaims(lic.JWT)
-					if err != nil {
-						return err
-					}
-					if email != "" {
-						lic.Email = &email
-					}
-					lic.Trial = &trial
-					return nil
-				},
-			})
-			if err != nil {
-				return xerrors.Errorf("create telemetry reporter: %w", err)
-			}
-			defer telemetryReporter.Close()
-			if vals.Telemetry.Enable.Value() {
-				options.Telemetry = telemetryReporter
-			} else {
-				logger.Warn(ctx, fmt.Sprintf(`telemetry disabled, unable to notify of security issues. Read more: %s/admin/setup/telemetry`, vals.DocsURL.String()))
-			}
 
 			// This prevents the pprof import from being accidentally deleted.
 			_ = pprof.Handler
@@ -1488,9 +1417,6 @@ func (r *RootCmd) Server(newAPI func(context.Context, *coderd.Options) (*coderd.
 				<-tunnel.Wait()
 				cliui.Infof(inv.Stdout, "Done waiting for tunnel")
 			}
-
-			// Ensures a last report can be sent before exit!
-			options.Telemetry.Close()
 
 			// Trigger context cancellation for any remaining services.
 			cancel()

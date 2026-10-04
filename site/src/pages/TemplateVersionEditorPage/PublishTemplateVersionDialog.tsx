@@ -1,7 +1,6 @@
 import { cn } from "cn";
 import { useFormik } from "formik";
 import * as Yup from "yup";
-import { EnterpriseBadge } from "#/components/Badge/PresetBadges";
 import { Checkbox } from "#/components/Checkbox/Checkbox";
 import { ConfirmDialog } from "#/components/Dialog/ConfirmDialog/ConfirmDialog";
 import { FormFields } from "#/components/Form/Form";
@@ -131,7 +130,7 @@ export const PublishTemplateVersionDialog: React.FC<
 									<TooltipTitle>Active versions</TooltipTitle>
 									<TooltipMessage>
 										Templates can enforce that the active version be used for
-										all workspaces <EnterpriseBadge />
+										all workspaces.
 										<br />
 										<Link
 											size="sm"

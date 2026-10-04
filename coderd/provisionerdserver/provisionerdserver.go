@@ -41,7 +41,6 @@ import (
 	"github.com/coder/coder/v2/coderd/prebuilds"
 	"github.com/coder/coder/v2/coderd/promoauth"
 	"github.com/coder/coder/v2/coderd/schedule"
-	"github.com/coder/coder/v2/coderd/telemetry"
 	"github.com/coder/coder/v2/coderd/tracing"
 	"github.com/coder/coder/v2/coderd/usage"
 	"github.com/coder/coder/v2/coderd/util/slice"
@@ -122,7 +121,6 @@ type server struct {
 	Database                    database.Store
 	Pubsub                      pubsub.Pubsub
 	Acquirer                    *Acquirer
-	Telemetry                   telemetry.Reporter
 	Tracer                      trace.Tracer
 	QuotaCommitter              *atomic.Pointer[proto.QuotaCommitter]
 	Auditor                     *atomic.Pointer[audit.Auditor]
@@ -206,7 +204,6 @@ func NewServer(
 	db database.Store,
 	ps pubsub.Pubsub,
 	acquirer *Acquirer,
-	tel telemetry.Reporter,
 	tracer trace.Tracer,
 	quotaCommitter *atomic.Pointer[proto.QuotaCommitter],
 	auditor *atomic.Pointer[audit.Auditor],
@@ -285,7 +282,6 @@ func NewServer(
 		Pubsub:                      ps,
 		Acquirer:                    acquirer,
 		NotificationsEnqueuer:       enqueuer,
-		Telemetry:                   tel,
 		Tracer:                      tracer,
 		QuotaCommitter:              quotaCommitter,
 		Auditor:                     auditor,
@@ -1383,10 +1379,6 @@ func (s *server) FailJob(ctx context.Context, failJob *proto.FailedJob) (*proto.
 	if err != nil {
 		return nil, xerrors.Errorf("update provisioner job: %w", err)
 	}
-	s.Telemetry.Report(&telemetry.Snapshot{
-		ProvisionerJobs: []telemetry.ProvisionerJob{telemetry.ConvertProvisionerJob(job)},
-	})
-
 	switch jobType := failJob.Type.(type) {
 	case *proto.FailedJob_WorkspaceBuild_:
 		var input WorkspaceProvisionJob
@@ -1822,23 +1814,19 @@ func (s *server) CompleteJob(ctx context.Context, completed *proto.CompletedJob)
 		return nil, xerrors.Errorf("you don't own this job")
 	}
 
-	telemetrySnapshot := &telemetry.Snapshot{}
-	// Items are added to this snapshot as they complete!
-	defer s.Telemetry.Report(telemetrySnapshot)
-
 	switch jobType := completed.Type.(type) {
 	case *proto.CompletedJob_TemplateImport_:
-		err = s.completeTemplateImportJob(ctx, job, jobID, jobType, telemetrySnapshot)
+		err = s.completeTemplateImportJob(ctx, job, jobID, jobType)
 		if err != nil {
 			return nil, err
 		}
 	case *proto.CompletedJob_WorkspaceBuild_:
-		err = s.completeWorkspaceBuildJob(ctx, job, jobID, jobType, telemetrySnapshot)
+		err = s.completeWorkspaceBuildJob(ctx, job, jobID, jobType)
 		if err != nil {
 			return nil, err
 		}
 	case *proto.CompletedJob_TemplateDryRun_:
-		err = s.completeTemplateDryRunJob(ctx, job, jobID, jobType, telemetrySnapshot)
+		err = s.completeTemplateDryRunJob(ctx, job, jobID, jobType)
 		if err != nil {
 			return nil, err
 		}
@@ -1867,7 +1855,7 @@ func (s *server) CompleteJob(ctx context.Context, completed *proto.CompletedJob)
 
 // completeTemplateImportJob handles completion of a template import job.
 // All database operations are performed within a transaction.
-func (s *server) completeTemplateImportJob(ctx context.Context, job database.ProvisionerJob, jobID uuid.UUID, jobType *proto.CompletedJob_TemplateImport_, telemetrySnapshot *telemetry.Snapshot) error {
+func (s *server) completeTemplateImportJob(ctx context.Context, job database.ProvisionerJob, jobID uuid.UUID, jobType *proto.CompletedJob_TemplateImport_) error {
 	var input TemplateVersionImportJob
 	err := json.Unmarshal(job.Input, &input)
 	if err != nil {
@@ -1890,7 +1878,7 @@ func (s *server) completeTemplateImportJob(ctx context.Context, job database.Pro
 					slog.F("resource_type", resource.Type),
 					slog.F("transition", transition))
 
-				if err := InsertWorkspaceResource(ctx, db, jobID, transition, resource, telemetrySnapshot); err != nil {
+				if err := InsertWorkspaceResource(ctx, db, jobID, transition, resource); err != nil {
 					s.warnWorkspaceAppRebindRejected(ctx, jobID, err)
 					return xerrors.Errorf("insert resource: %w", err)
 				}
@@ -1909,7 +1897,7 @@ func (s *server) completeTemplateImportJob(ctx context.Context, job database.Pro
 					slog.F("module_key", module.Key),
 					slog.F("transition", transition))
 
-				if err := InsertWorkspaceModule(ctx, db, jobID, transition, module, telemetrySnapshot); err != nil {
+				if err := InsertWorkspaceModule(ctx, db, jobID, transition, module); err != nil {
 					return xerrors.Errorf("insert module: %w", err)
 				}
 			}
@@ -2147,7 +2135,7 @@ func (s *server) completeTemplateImportJob(ctx context.Context, job database.Pro
 
 // completeWorkspaceBuildJob handles completion of a workspace build job.
 // Most database operations are performed within a transaction.
-func (s *server) completeWorkspaceBuildJob(ctx context.Context, job database.ProvisionerJob, jobID uuid.UUID, jobType *proto.CompletedJob_WorkspaceBuild_, telemetrySnapshot *telemetry.Snapshot) error {
+func (s *server) completeWorkspaceBuildJob(ctx context.Context, job database.ProvisionerJob, jobID uuid.UUID, jobType *proto.CompletedJob_WorkspaceBuild_) error {
 	var input WorkspaceProvisionJob
 	err := json.Unmarshal(job.Input, &input)
 	if err != nil {
@@ -2284,7 +2272,6 @@ func (s *server) completeWorkspaceBuildJob(ctx context.Context, job database.Pro
 				job.ID,
 				workspaceBuild.Transition,
 				protoResource,
-				telemetrySnapshot,
 				// Ensure that the agent IDs we set previously
 				// are written to the database.
 				InsertWorkspaceResourceWithAgentIDsFromProto(),
@@ -2309,7 +2296,7 @@ func (s *server) completeWorkspaceBuildJob(ctx context.Context, job database.Pro
 		}
 
 		for _, module := range jobType.WorkspaceBuild.Modules {
-			if err := InsertWorkspaceModule(ctx, db, job.ID, workspaceBuild.Transition, module, telemetrySnapshot); err != nil {
+			if err := InsertWorkspaceModule(ctx, db, job.ID, workspaceBuild.Transition, module); err != nil {
 				return xerrors.Errorf("insert provisioner job module: %w", err)
 			}
 		}
@@ -2622,7 +2609,7 @@ func (s *server) completeWorkspaceBuildJob(ctx context.Context, job database.Pro
 
 // completeTemplateDryRunJob handles completion of a template dry-run job.
 // All database operations are performed within a transaction.
-func (s *server) completeTemplateDryRunJob(ctx context.Context, job database.ProvisionerJob, jobID uuid.UUID, jobType *proto.CompletedJob_TemplateDryRun_, telemetrySnapshot *telemetry.Snapshot) error {
+func (s *server) completeTemplateDryRunJob(ctx context.Context, job database.ProvisionerJob, jobID uuid.UUID, jobType *proto.CompletedJob_TemplateDryRun_) error {
 	// Execute all database operations in a transaction
 	return s.Database.InTx(func(db database.Store) error {
 		now := s.timeNow()
@@ -2634,7 +2621,7 @@ func (s *server) completeTemplateDryRunJob(ctx context.Context, job database.Pro
 				slog.F("resource_name", resource.Name),
 				slog.F("resource_type", resource.Type))
 
-			err := InsertWorkspaceResource(ctx, db, jobID, database.WorkspaceTransitionStart, resource, telemetrySnapshot)
+			err := InsertWorkspaceResource(ctx, db, jobID, database.WorkspaceTransitionStart, resource)
 			if err != nil {
 				s.warnWorkspaceAppRebindRejected(ctx, jobID, err)
 				return xerrors.Errorf("insert resource: %w", err)
@@ -2648,7 +2635,7 @@ func (s *server) completeTemplateDryRunJob(ctx context.Context, job database.Pro
 				slog.F("module_source", module.Source),
 			)
 
-			if err := InsertWorkspaceModule(ctx, db, jobID, database.WorkspaceTransitionStart, module, telemetrySnapshot); err != nil {
+			if err := InsertWorkspaceModule(ctx, db, jobID, database.WorkspaceTransitionStart, module); err != nil {
 				return xerrors.Errorf("insert module: %w", err)
 			}
 		}
@@ -2716,8 +2703,8 @@ func (s *server) startTrace(ctx context.Context, name string, opts ...trace.Span
 	))...)
 }
 
-func InsertWorkspaceModule(ctx context.Context, db database.Store, jobID uuid.UUID, transition database.WorkspaceTransition, protoModule *sdkproto.Module, snapshot *telemetry.Snapshot) error {
-	module, err := db.InsertWorkspaceModule(ctx, database.InsertWorkspaceModuleParams{
+func InsertWorkspaceModule(ctx context.Context, db database.Store, jobID uuid.UUID, transition database.WorkspaceTransition, protoModule *sdkproto.Module) error {
+	_, err := db.InsertWorkspaceModule(ctx, database.InsertWorkspaceModuleParams{
 		ID:         uuid.New(),
 		CreatedAt:  dbtime.Now(),
 		JobID:      jobID,
@@ -2729,7 +2716,6 @@ func InsertWorkspaceModule(ctx context.Context, db database.Store, jobID uuid.UU
 	if err != nil {
 		return xerrors.Errorf("insert provisioner job module %q: %w", protoModule.Source, err)
 	}
-	snapshot.WorkspaceModules = append(snapshot.WorkspaceModules, telemetry.ConvertWorkspaceModule(module))
 	return nil
 }
 
@@ -2845,7 +2831,7 @@ func InsertWorkspaceResourceWithAgentIDsFromProto() InsertWorkspaceResourceOptio
 	}
 }
 
-func InsertWorkspaceResource(ctx context.Context, db database.Store, jobID uuid.UUID, transition database.WorkspaceTransition, protoResource *sdkproto.Resource, snapshot *telemetry.Snapshot, opt ...InsertWorkspaceResourceOption) error {
+func InsertWorkspaceResource(ctx context.Context, db database.Store, jobID uuid.UUID, transition database.WorkspaceTransition, protoResource *sdkproto.Resource, opt ...InsertWorkspaceResourceOption) error {
 	opts := &insertWorkspaceResourceOptions{}
 	for _, o := range opt {
 		o(opts)
@@ -2874,7 +2860,6 @@ func InsertWorkspaceResource(ctx context.Context, db database.Store, jobID uuid.
 	if err != nil {
 		return xerrors.Errorf("insert provisioner job resource %q: %w", protoResource.Name, err)
 	}
-	snapshot.WorkspaceResources = append(snapshot.WorkspaceResources, telemetry.ConvertWorkspaceResource(resource))
 
 	var (
 		agentNames = make(map[string]struct{})
@@ -2986,7 +2971,6 @@ func InsertWorkspaceResource(ctx context.Context, db database.Store, jobID uuid.
 		if err != nil {
 			return xerrors.Errorf("insert agent: %w", err)
 		}
-		snapshot.WorkspaceAgents = append(snapshot.WorkspaceAgents, telemetry.ConvertWorkspaceAgent(dbAgent))
 
 		for _, md := range prAgent.Metadata {
 			p := database.InsertWorkspaceAgentMetadataParams{
@@ -3058,7 +3042,7 @@ func InsertWorkspaceResource(ctx context.Context, db database.Store, jobID uuid.
 					}
 				}
 
-				subAgentID, err := insertDevcontainerSubagent(ctx, db, dc, dbAgent, resource.ID, appSlugs, snapshot, opts)
+				subAgentID, err := insertDevcontainerSubagent(ctx, db, dc, dbAgent, resource.ID, appSlugs, opts)
 				if err != nil {
 					return xerrors.Errorf("insert devcontainer %q subagent: %w", dc.GetName(), err)
 				}
@@ -3105,7 +3089,7 @@ func InsertWorkspaceResource(ctx context.Context, db database.Store, jobID uuid.
 		}
 
 		for _, app := range prAgent.Apps {
-			if err := insertAgentApp(ctx, db, dbAgent.ID, app, appSlugs, snapshot); err != nil {
+			if err := insertAgentApp(ctx, db, dbAgent.ID, app, appSlugs); err != nil {
 				return xerrors.Errorf("insert agent app: %w", err)
 			}
 		}
@@ -3477,7 +3461,6 @@ func insertDevcontainerSubagent(
 	parentAgent database.WorkspaceAgent,
 	resourceID uuid.UUID,
 	appSlugs map[string]struct{},
-	snapshot *telemetry.Snapshot,
 	opts *insertWorkspaceResourceOptions,
 ) (uuid.UUID, error) {
 	// If there are no attached resources, we don't need to pre-create the
@@ -3528,7 +3511,7 @@ func insertDevcontainerSubagent(
 	}
 
 	for _, app := range dc.GetApps() {
-		if err := insertAgentApp(ctx, db, subAgentID, app, appSlugs, snapshot); err != nil {
+		if err := insertAgentApp(ctx, db, subAgentID, app, appSlugs); err != nil {
 			return uuid.UUID{}, xerrors.Errorf("insert agent app: %w", err)
 		}
 	}
@@ -3720,7 +3703,7 @@ func (s *server) warnWorkspaceAppRebindRejected(ctx context.Context, jobID uuid.
 	)
 }
 
-func insertAgentApp(ctx context.Context, db database.Store, agentID uuid.UUID, app *sdkproto.App, appSlugs map[string]struct{}, snapshot *telemetry.Snapshot) error {
+func insertAgentApp(ctx context.Context, db database.Store, agentID uuid.UUID, app *sdkproto.App, appSlugs map[string]struct{}) error {
 	// Similar logic is duplicated in terraform/resources.go.
 	slug := app.Slug
 	if slug == "" {
@@ -3778,7 +3761,7 @@ func insertAgentApp(ctx context.Context, db database.Store, agentID uuid.UUID, a
 	}
 
 	// If workspace apps are "persistent", the ID will not be regenerated across workspace builds, so we have to upsert.
-	dbApp, err := db.UpsertWorkspaceApp(ctx, database.UpsertWorkspaceAppParams{
+	_, err = db.UpsertWorkspaceApp(ctx, database.UpsertWorkspaceAppParams{
 		ID:          id,
 		CreatedAt:   dbtime.Now(),
 		AgentID:     agentID,
@@ -3821,8 +3804,6 @@ func insertAgentApp(ctx context.Context, db database.Store, agentID uuid.UUID, a
 		}
 		return xerrors.Errorf("upsert app: %w", err)
 	}
-
-	snapshot.WorkspaceApps = append(snapshot.WorkspaceApps, telemetry.ConvertWorkspaceApp(dbApp))
 
 	return nil
 }

@@ -2,7 +2,6 @@ import { EllipsisVerticalIcon, PlusIcon } from "lucide-react";
 import { useState } from "react";
 import { Link as RouterLink, useNavigate } from "react-router";
 import type { AssignableRoles, Organization, Role } from "#/api/typesGenerated";
-import { PremiumBadge } from "#/components/Badge/PresetBadges";
 import { Button, Button as ShadcnButton } from "#/components/Button/Button";
 import {
 	DropdownMenu,
@@ -10,6 +9,7 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "#/components/DropdownMenu/DropdownMenu";
+import { FeatureUnavailable } from "#/components/FeatureUnavailable/FeatureUnavailable";
 import {
 	SettingsHeader,
 	SettingsHeaderDescription,
@@ -29,8 +29,6 @@ import {
 	TableLoaderSkeleton,
 	TableRowSkeleton,
 } from "#/components/TableLoader/TableLoader";
-import { PremiumPaywallSmall } from "#/modules/paywall/PremiumPaywallSmall";
-import type { Permissions } from "#/modules/permissions";
 import { DefaultRolesDialog } from "./DefaultRolesDialog";
 import { PermissionPillsList } from "./PermissionPillsList";
 
@@ -44,7 +42,6 @@ type CustomRolesPageViewProps = {
 	canDeleteOrgRole: boolean;
 	canEditDefaultRoles: boolean;
 	isCustomRolesEnabled: boolean;
-	permissions: Permissions;
 	defaultRolesEntitled?: boolean;
 	availableOrgRoles?: AssignableRoles[];
 	onUpdateDefaultRoles?: (roles: string[]) => Promise<void>;
@@ -61,7 +58,6 @@ export const CustomRolesPageView: React.FC<CustomRolesPageViewProps> = ({
 	canDeleteOrgRole,
 	canEditDefaultRoles,
 	isCustomRolesEnabled,
-	permissions,
 	defaultRolesEntitled,
 	availableOrgRoles,
 	onUpdateDefaultRoles,
@@ -69,19 +65,7 @@ export const CustomRolesPageView: React.FC<CustomRolesPageViewProps> = ({
 }) => {
 	return (
 		<div className="flex flex-col gap-12">
-			{!isCustomRolesEnabled && (
-				<PremiumPaywallSmall
-					source="custom_roles"
-					message="Custom Roles"
-					description="Build roles with the exact permissions your team needs."
-					features={[
-						"Configure roles per organization",
-						"Go beyond the built-in role set",
-						"Assign custom roles to any user",
-					]}
-					canViewPremium={permissions.viewAllLicenses}
-				/>
-			)}
+			{!isCustomRolesEnabled && <FeatureUnavailable feature="Custom Roles" />}
 			{onUpdateDefaultRoles && (
 				<DefaultRolesSection
 					organization={organization}
@@ -189,7 +173,6 @@ const DefaultRolesSection: React.FC<DefaultRolesSectionProps> = ({
 			>
 				<SettingsHeaderTitle level="h2" hierarchy="secondary">
 					Default Roles
-					{!defaultRolesEntitled && <PremiumBadge />}
 				</SettingsHeaderTitle>
 				<SettingsHeaderDescription>
 					Roles granted to every member of this organization, current and
@@ -197,7 +180,7 @@ const DefaultRolesSection: React.FC<DefaultRolesSectionProps> = ({
 					here removes it from all members that are not assigned that role
 					directly.
 					{!defaultRolesEntitled && (
-						<> Editing organization settings requires a Premium license.</>
+						<> Editing default roles is not enabled on this deployment.</>
 					)}
 				</SettingsHeaderDescription>
 			</SettingsHeader>
@@ -304,7 +287,7 @@ const RoleTableBody: React.FC<RoleTableBodyProps> = ({
 					canCreateOrgRole && isCustomRolesEnabled
 						? "Create your first custom role"
 						: !isCustomRolesEnabled
-							? "Upgrade to a premium license to create a custom role"
+							? "Custom roles are not enabled on this deployment"
 							: "You don't have permission to create a custom role"
 				}
 				cta={

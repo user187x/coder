@@ -1,6 +1,7 @@
 import { useFormik } from "formik";
 import type { UpdateAppearanceConfig } from "#/api/typesGenerated";
 import { Button } from "#/components/Button/Button";
+import { FeatureUnavailable } from "#/components/FeatureUnavailable/FeatureUnavailable";
 import {
 	FormFields,
 	FormFooter,
@@ -17,7 +18,6 @@ import {
 } from "#/components/SettingsHeader/SettingsHeader";
 import { Spinner } from "#/components/Spinner/Spinner";
 import { Switch } from "#/components/Switch/Switch";
-import { PremiumPaywall } from "#/modules/paywall/PremiumPaywall";
 import { docs } from "#/utils/docs";
 import { getFormHelpers } from "#/utils/formUtils";
 import { AnnouncementBannerSettings } from "./AnnouncementBannerSettings";
@@ -25,7 +25,6 @@ import { AnnouncementBannerSettings } from "./AnnouncementBannerSettings";
 type AppearanceSettingsPageViewProps = {
 	appearance: UpdateAppearanceConfig;
 	isEntitled: boolean;
-	canViewPremium: boolean;
 	onSaveAppearance: (
 		newConfig: Partial<UpdateAppearanceConfig>,
 	) => Promise<void>;
@@ -33,7 +32,7 @@ type AppearanceSettingsPageViewProps = {
 
 export const AppearanceSettingsPageView: React.FC<
 	AppearanceSettingsPageViewProps
-> = ({ appearance, isEntitled, canViewPremium, onSaveAppearance }) => {
+> = ({ appearance, isEntitled, onSaveAppearance }) => {
 	const form = useFormik<{
 		application_name: string;
 		logo_url: string;
@@ -58,18 +57,7 @@ export const AppearanceSettingsPageView: React.FC<
 			</SettingsHeader>
 
 			{!isEntitled ? (
-				<PremiumPaywall
-					source="appearance"
-					message="Appearance"
-					description="Configure branding and announcement banners for your deployment."
-					features={[
-						"Custom application name and logo",
-						"Site-wide announcement banners for updates",
-						"Custom branded OIDC sign-in button",
-						"Custom support links in dropdown",
-					]}
-					canViewPremium={canViewPremium}
-				/>
+				<FeatureUnavailable feature="Appearance" />
 			) : (
 				<div className="flex flex-col gap-8">
 					<VerticalForm

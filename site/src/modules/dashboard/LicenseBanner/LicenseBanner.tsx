@@ -4,11 +4,9 @@ import {
 	LicenseAgentRuntimeUsageUnavailableErrorText,
 	LicenseAIGovernance90PercentWarningText,
 	LicenseAIGovernanceOverLimitWarningText,
-	LicenseTelemetryRequiredErrorText,
 } from "#/api/typesGenerated";
 import { useDashboard } from "#/modules/dashboard/useDashboard";
 import {
-	type LicenseBannerLink,
 	type LicenseBannerMessage,
 	LicenseBannerView,
 } from "./LicenseBannerView";
@@ -39,8 +37,8 @@ export const formatLicenseMessage = (
 	);
 
 // Diagnostics about the license or the usage measurement rather than about
-// usage itself. They render muted, without the exceedance heading or a sales
-// link, even when they arrive via entitlements.errors.
+// usage itself. They render muted, without the exceedance heading, even when
+// they arrive via entitlements.errors.
 const diagnosticMessages: readonly string[] = [
 	LicenseAgentRuntimeUsageUnavailableErrorText,
 	LicenseAgentRuntimeHoursClaimsIgnoredWarningText,
@@ -130,26 +128,6 @@ const normalizeAIGovernanceWarning = (
 	);
 };
 
-const messageLink = (message: string): LicenseBannerLink | undefined => {
-	if (message === LicenseTelemetryRequiredErrorText) {
-		return {
-			href: "mailto:sales@coder.com",
-			label: "Contact sales@coder.com if you need an exception.",
-			showExternalIcon: false,
-		};
-	}
-	// The soft-limit advisory fires inside the purchased allocation, so it
-	// does not get a sales link.
-	if (message.startsWith(agentRuntimeSoftLimitWarningPrefix)) {
-		return undefined;
-	}
-	return {
-		href: "mailto:sales@coder.com",
-		label: "Contact sales@coder.com.",
-		showExternalIcon: false,
-	};
-};
-
 // Classifies a raw entitlements message once and carries the result as
 // structured message data, so rendering branches on the message's kind and
 // variant fields rather than re-matching display text.
@@ -158,18 +136,16 @@ const toBannerMessage = (
 	channel: "errors" | "warnings",
 ): LicenseBannerMessage => {
 	// Measurement diagnostics travel in the errors channel but are not
-	// license errors. They render muted and without a sales link: they point
-	// the operator at the logs, not at sales.
+	// license errors. They render muted and point the operator at the logs.
 	if (isDiagnosticMessage(message)) {
 		return { message, variant: "warning", kind: "diagnostic" };
 	}
 	if (channel === "errors") {
-		return { message, variant: "error", link: messageLink(message) };
+		return { message, variant: "error" };
 	}
 	return {
 		message,
 		variant: isAdvisoryMessage(message) ? "warning" : "warningProminent",
-		link: messageLink(message),
 	};
 };
 

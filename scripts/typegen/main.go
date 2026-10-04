@@ -21,7 +21,6 @@ import (
 	"github.com/coder/coder/v2/coderd/rbac"
 	"github.com/coder/coder/v2/coderd/rbac/policy"
 	utilstrings "github.com/coder/coder/v2/coderd/util/strings"
-	"github.com/coder/coder/v2/codersdk"
 )
 
 //go:embed rbacobject.gotmpl
@@ -36,14 +35,10 @@ var typescriptTemplate string
 //go:embed scopenames.gotmpl
 var scopenamesTemplate string
 
-//go:embed countries.tstmpl
-var countriesTemplate string
-
 func usage() {
 	_, _ = fmt.Println("Usage: typegen <type> [template]")
 	_, _ = fmt.Println("Types:")
 	_, _ = fmt.Println("  rbac <object|codersdk|typescript> - Generate RBAC related files")
-	_, _ = fmt.Println("  countries              - Generate countries TypeScript")
 }
 
 // main will generate a file based on the type and template specified.
@@ -72,8 +67,6 @@ func main() {
 			os.Exit(1)
 		}
 		out, err = generateRBAC(flag.Args()[1])
-	case "countries":
-		out, err = generateCountries()
 	default:
 		_, _ = fmt.Fprintf(os.Stderr, "%q is not a valid type\n", flag.Args()[0])
 		usage()
@@ -112,21 +105,6 @@ func generateRBAC(tmpl string) ([]byte, error) {
 		return nil, err
 	}
 	return formatSource(out)
-}
-
-func generateCountries() ([]byte, error) {
-	tmpl, err := template.New("countries.tstmpl").Parse(countriesTemplate)
-	if err != nil {
-		return nil, xerrors.Errorf("parse template: %w", err)
-	}
-
-	var out bytes.Buffer
-	err = tmpl.Execute(&out, codersdk.Countries)
-	if err != nil {
-		return nil, xerrors.Errorf("execute template: %w", err)
-	}
-
-	return out.Bytes(), nil
 }
 
 func pascalCaseName[T ~string](name T) string {

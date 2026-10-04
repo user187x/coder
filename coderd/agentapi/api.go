@@ -117,7 +117,6 @@ type Options struct {
 	AppearanceFetcher                 *atomic.Pointer[appearance.Fetcher]
 	PublishWorkspaceUpdateFn          func(ctx context.Context, userID uuid.UUID, event wspubsub.WorkspaceEvent)
 	PublishWorkspaceAgentLogsUpdateFn func(ctx context.Context, workspaceAgentID uuid.UUID, msg agentsdk.LogsNotifyMessage)
-	NetworkTelemetryHandler           func(batch []*tailnetproto.TelemetryEvent)
 	BoundaryUsageTracker              *boundaryusage.Tracker
 	LifecycleMetrics                  *LifecycleMetrics
 	PortSharer                        *atomic.Pointer[portsharing.PortSharer]
@@ -249,11 +248,10 @@ func New(opts Options, workspace database.Workspace, agent database.WorkspaceAge
 	}
 
 	api.tailnetService = &tailnet.DRPCService{
-		CoordPtr:                opts.TailnetCoordinator,
-		Logger:                  opts.Log,
-		DerpMapUpdateFrequency:  opts.DerpMapUpdateFrequency,
-		DerpMapFn:               opts.DerpMapFn,
-		NetworkTelemetryHandler: opts.NetworkTelemetryHandler,
+		CoordPtr:               opts.TailnetCoordinator,
+		Logger:                 opts.Log,
+		DerpMapUpdateFrequency: opts.DerpMapUpdateFrequency,
+		DerpMapFn:              opts.DerpMapFn,
 	}
 
 	api.SubAgentAPI = &SubAgentAPI{

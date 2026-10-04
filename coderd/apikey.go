@@ -20,7 +20,6 @@ import (
 	"github.com/coder/coder/v2/coderd/httpmw"
 	"github.com/coder/coder/v2/coderd/rbac"
 	"github.com/coder/coder/v2/coderd/rbac/policy"
-	"github.com/coder/coder/v2/coderd/telemetry"
 	"github.com/coder/coder/v2/coderd/util/namesgenerator"
 	"github.com/coder/coder/v2/codersdk"
 )
@@ -577,10 +576,6 @@ func (api *API) createAPIKey(ctx context.Context, params apikey.CreateParams) (*
 	if err != nil {
 		return nil, nil, xerrors.Errorf("insert API key: %w", err)
 	}
-
-	api.Telemetry.Report(&telemetry.Snapshot{
-		APIKeys: []telemetry.APIKey{telemetry.ConvertAPIKey(newkey)},
-	})
 
 	return api.DeploymentValues.HTTPCookies.Apply(&http.Cookie{
 		Name:     codersdk.SessionTokenCookie,

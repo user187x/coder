@@ -15,6 +15,7 @@ import { AvatarDataSkeleton } from "#/components/Avatar/AvatarDataSkeleton";
 import { Badge } from "#/components/Badge/Badge";
 import { Button } from "#/components/Button/Button";
 import { EmptyState } from "#/components/EmptyState/EmptyState";
+import { FeatureUnavailable } from "#/components/FeatureUnavailable/FeatureUnavailable";
 import type { useFilter } from "#/components/Filter/Filter";
 import { GroupsFilter } from "#/components/Filter/GroupsFilter";
 import { PaginationContainer } from "#/components/PaginationWidget/PaginationContainer";
@@ -41,8 +42,6 @@ import {
 import { useClickableTableRow } from "#/hooks/useClickableTableRow";
 import type { PaginationResultInfo } from "#/hooks/usePaginatedQuery";
 import { AIBudgetUsage } from "#/modules/groups/AIBudgetUsage";
-import { PremiumPaywall } from "#/modules/paywall/PremiumPaywall";
-import type { Permissions } from "#/modules/permissions";
 import { docs } from "#/utils/docs";
 import { SpendEstimateDocsLink } from "./AICostControl";
 import { StatusIconTooltip } from "./StatusIconTooltip";
@@ -85,7 +84,6 @@ type GroupsPageViewProps = {
 	groupsQuery: PaginationResultInfo & {
 		isPlaceholderData: boolean;
 	};
-	permissions: Permissions;
 };
 
 export const GroupsPageView: React.FC<GroupsPageViewProps> = ({
@@ -97,7 +95,6 @@ export const GroupsPageView: React.FC<GroupsPageViewProps> = ({
 	showAIBudget,
 	filterProps,
 	groupsQuery,
-	permissions,
 }) => {
 	return (
 		<>
@@ -123,17 +120,7 @@ export const GroupsPageView: React.FC<GroupsPageViewProps> = ({
 			</SettingsHeader>
 
 			{!groupsEnabled ? (
-				<PremiumPaywall
-					source="groups"
-					message="Groups"
-					description="Run isolated business units on one deployment, each with its own users, templates, provisioners, and infrastructure."
-					features={[
-						"Isolate provisioners & infrastructure",
-						"Sync org membership from your IdP",
-						"Manage orgs at scale via Terraform",
-					]}
-					canViewPremium={permissions.viewAllLicenses}
-				/>
+				<FeatureUnavailable feature="Groups" />
 			) : (
 				<div className="flex flex-col gap-4">
 					<GroupsFilter {...filterProps} />

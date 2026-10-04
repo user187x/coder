@@ -23,7 +23,6 @@ import (
 	"github.com/coder/coder/v2/enterprise/coderd/dormancy"
 	"github.com/coder/coder/v2/enterprise/coderd/usage"
 	"github.com/coder/coder/v2/enterprise/dbcrypt"
-	"github.com/coder/coder/v2/enterprise/trialer"
 	"github.com/coder/coder/v2/tailnet"
 	"github.com/coder/quartz"
 	"github.com/coder/serpent"
@@ -78,8 +77,6 @@ func (r *RootCmd) Server(_ func()) *serpent.Command {
 			backends.NewPostgres(options.Database, true),
 			backends.NewSlog(options.Logger),
 		)
-
-		options.TrialGenerator = trialer.New(options.Database, trialer.LicenseRequestURL, coderd.Keys).Generate
 
 		o := &coderd.Options{
 			Options:                   options,

@@ -9,7 +9,6 @@ import {
 	WorkspaceAppSharingLevels,
 } from "#/api/typesGenerated";
 import { Badge } from "#/components/Badge/Badge";
-import { PremiumBadge } from "#/components/Badge/PresetBadges";
 import { Button } from "#/components/Button/Button";
 import { Checkbox } from "#/components/Checkbox/Checkbox";
 import {
@@ -280,10 +279,9 @@ export const TemplateSettingsForm: React.FC<TemplateSettingsFormProps> = ({
 									</span>
 
 									{!advancedSchedulingEnabled && (
-										<div className="flex flex-row gap-4 items-center mt-4">
-											<PremiumBadge />
-											<span>Premium license required to be enabled.</span>
-										</div>
+										<span className="block mt-4">
+											Not enabled on this deployment.
+										</span>
 									)}
 								</StackLabelHelperText>
 							</StackLabel>
@@ -396,9 +394,8 @@ export const TemplateSettingsForm: React.FC<TemplateSettingsFormProps> = ({
 					/>
 					{!accessControlEnabled && (
 						<div className="flex flex-row gap-4 items-center">
-							<PremiumBadge />
 							<span className="text-xs text-content-secondary">
-								Premium license required to deprecate templates.
+								Deprecating templates is not enabled on this deployment.
 								{template.deprecated &&
 									" You cannot change the message, but you may remove it to mark this template as no longer deprecated."}
 							</span>
@@ -468,9 +465,9 @@ export const TemplateSettingsForm: React.FC<TemplateSettingsFormProps> = ({
 					</div>
 					{!portSharingControlsEnabled && (
 						<div className="flex flex-row gap-4 items-center">
-							<PremiumBadge />
 							<span className="text-xs text-content-secondary">
-								Premium license required to control max port sharing level.
+								Controlling the maximum port sharing level is not enabled on
+								this deployment.
 							</span>
 						</div>
 					)}

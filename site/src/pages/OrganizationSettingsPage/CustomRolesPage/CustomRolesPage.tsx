@@ -14,7 +14,6 @@ import {
 	SettingsHeaderDocsLink,
 	SettingsHeaderTitle,
 } from "#/components/SettingsHeader/SettingsHeader";
-import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { useDashboard } from "#/modules/dashboard/useDashboard";
 import { useFeatureVisibility } from "#/modules/dashboard/useFeatureVisibility";
 import { useOrganizationSettings } from "#/modules/management/OrganizationSettingsLayout";
@@ -24,7 +23,6 @@ import { pageTitle } from "#/utils/page";
 import { CustomRolesPageView } from "./CustomRolesPageView";
 
 const CustomRolesPage: React.FC = () => {
-	const { permissions } = useAuthenticated();
 	const queryClient = useQueryClient();
 	const { custom_roles: isCustomRolesEnabled } = useFeatureVisibility();
 	const { organization: organizationName } = useParams() as {
@@ -100,7 +98,6 @@ const CustomRolesPage: React.FC = () => {
 					canDeleteOrgRole={organizationPermissions?.deleteOrgRoles ?? false}
 					canEditDefaultRoles={organizationPermissions?.editSettings ?? false}
 					isCustomRolesEnabled={isCustomRolesEnabled}
-					permissions={permissions}
 					defaultRolesEntitled={defaultRolesEntitled}
 					availableOrgRoles={organizationRolesQuery.data}
 					isUpdatingDefaultRoles={updateOrganizationMutation.isPending}

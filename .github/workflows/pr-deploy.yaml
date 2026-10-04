@@ -458,7 +458,6 @@ jobs:
             --first-user-username "pr${PR_NUMBER}-admin" \
             --first-user-email "pr${PR_NUMBER}@coder.com" \
             --first-user-password "$password" \
-            --first-user-trial=false \
             --use-token-as-session \
             "https://${PR_HOSTNAME}"
 

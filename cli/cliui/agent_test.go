@@ -966,32 +966,6 @@ func TestConnDiagnostics(t *testing.T) {
 				`Network interface eth1 has MTU 1310, (less than 1378), which may degrade the quality of direct connections`,
 			},
 		},
-		{
-			name: "ClientAWSIP",
-			diags: cliui.ConnDiags{
-				ConnInfo: workspacesdk.AgentConnectionInfo{
-					DERPMap: &tailcfg.DERPMap{},
-				},
-				ClientIPIsAWS: true,
-				AgentIPIsAWS:  false,
-			},
-			want: []string{
-				`Client IP address is within an AWS range (AWS uses hard NAT)`,
-			},
-		},
-		{
-			name: "AgentAWSIP",
-			diags: cliui.ConnDiags{
-				ConnInfo: workspacesdk.AgentConnectionInfo{
-					DERPMap: &tailcfg.DERPMap{},
-				},
-				ClientIPIsAWS: false,
-				AgentIPIsAWS:  true,
-			},
-			want: []string{
-				`Agent IP address is within an AWS range (AWS uses hard NAT)`,
-			},
-		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {

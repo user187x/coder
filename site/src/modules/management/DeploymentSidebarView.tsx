@@ -15,8 +15,8 @@ type DeploymentSidebarViewProps = {
 
 /**
  * Navigation for General (the deployment settings), in alphabetical order.
- * Licenses, Workspace Proxies, Groups, IdP Organization Sync, External
- * Authentication and Premium are not offered here; their pages still answer.
+ * Licenses, Workspace Proxies, Groups, IdP Organization Sync and External
+ * Authentication are not offered here; their pages still answer.
  */
 export const DeploymentSidebarView: React.FC<DeploymentSidebarViewProps> = ({
 	permissions,

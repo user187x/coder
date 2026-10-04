@@ -107,55 +107,11 @@ type GetUsersResponse struct {
 	Count int    `json:"count"`
 }
 
-// Trial request source origination reported to the licensor.
-const (
-	// LicensorTrialSourceNewUser is the first user setup flow.
-	LicensorTrialSourceNewUser = "NewUser"
-	// LicensorTrialSourceProduct is a request from within the product in-app trial request
-	LicensorTrialSourceProduct = "Product"
-)
-
-// @typescript-ignore LicensorTrialRequest
-type LicensorTrialRequest struct {
-	DeploymentID string `json:"deployment_id"`
-	Email        string `json:"email"`
-	Source       string `json:"source"`
-
-	// Personal details.
-	FirstName   string `json:"first_name"`
-	LastName    string `json:"last_name"`
-	PhoneNumber string `json:"phone_number"`
-	JobTitle    string `json:"job_title"`
-	CompanyName string `json:"company_name"`
-	Country     string `json:"country"`
-	Developers  string `json:"developers"`
-}
-
 type CreateFirstUserRequest struct {
-	Email          string                         `json:"email" validate:"required,email"`
-	Username       string                         `json:"username" validate:"required,username"`
-	Name           string                         `json:"name" validate:"user_real_name"`
-	Password       string                         `json:"password" validate:"required"`
-	Trial          bool                           `json:"trial"`
-	TrialInfo      CreateFirstUserTrialInfo       `json:"trial_info"`
-	OnboardingInfo *CreateFirstUserOnboardingInfo `json:"onboarding_info,omitempty"`
-}
-
-type CreateFirstUserTrialInfo struct {
-	FirstName   string `json:"first_name"`
-	LastName    string `json:"last_name"`
-	PhoneNumber string `json:"phone_number"`
-	JobTitle    string `json:"job_title"`
-	CompanyName string `json:"company_name"`
-	Country     string `json:"country"`
-	Developers  string `json:"developers"`
-}
-
-// CreateFirstUserOnboardingInfo contains optional newsletter preference
-// data collected during first user setup.
-type CreateFirstUserOnboardingInfo struct {
-	NewsletterMarketing bool `json:"newsletter_marketing"`
-	NewsletterReleases  bool `json:"newsletter_releases"`
+	Email    string `json:"email" validate:"required,email"`
+	Username string `json:"username" validate:"required,username"`
+	Name     string `json:"name" validate:"user_real_name"`
+	Password string `json:"password" validate:"required"`
 }
 
 // CreateFirstUserResponse contains IDs for newly created user info.

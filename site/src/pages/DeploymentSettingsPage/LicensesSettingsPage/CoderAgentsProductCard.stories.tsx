@@ -1,6 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, screen, userEvent, waitFor, within } from "storybook/test";
-import { CONTACT_SALES_LINK } from "#/modules/licenses/trialLicense";
 import { CoderAgentsProductCard } from "./CoderAgentsProductCard";
 
 const meta: Meta<typeof CoderAgentsProductCard> = {
@@ -173,8 +172,6 @@ export const NoAllocation: Story = {
 		await expect(
 			canvas.queryByText(/Agent hours used/),
 		).not.toBeInTheDocument();
-		const upgrade = canvas.getByRole("link", { name: "Upgrade" });
-		await expect(upgrade).toHaveAttribute("href", CONTACT_SALES_LINK);
 	},
 };
 
@@ -188,8 +185,5 @@ export const NoAllocationWithUsage: Story = {
 		await expect(getMetricValue(canvas, "Agent hours used")).toHaveTextContent(
 			"1,234.5",
 		);
-		await expect(
-			canvas.getByRole("link", { name: "Upgrade" }),
-		).toBeInTheDocument();
 	},
 };

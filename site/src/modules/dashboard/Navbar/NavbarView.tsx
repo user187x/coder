@@ -27,7 +27,6 @@ type NavbarViewProps = {
 	supportLinks: readonly TypesGen.LinkConfig[];
 	onSignOut: () => void;
 	adminPermissions: AdminSettingsPermissions;
-	canViewLicenses: boolean;
 	proxyContextValue?: ProxyContextValue;
 };
 
@@ -37,7 +36,6 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 	supportLinks,
 	onSignOut,
 	adminPermissions,
-	canViewLicenses,
 	proxyContextValue,
 }) => {
 	const prerelease = getPrereleaseFlag(buildInfo);
@@ -133,7 +131,6 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 						buildInfo={buildInfo}
 						supportLinks={supportLinks?.filter((link) => !isNavbarLink(link))}
 						onSignOut={onSignOut}
-						canViewLicenses={canViewLicenses}
 					/>
 				</div>
 

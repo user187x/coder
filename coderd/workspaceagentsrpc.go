@@ -23,11 +23,9 @@ import (
 	"github.com/coder/coder/v2/coderd/database/dbtime"
 	"github.com/coder/coder/v2/coderd/httpapi"
 	"github.com/coder/coder/v2/coderd/httpmw"
-	"github.com/coder/coder/v2/coderd/telemetry"
 	"github.com/coder/coder/v2/coderd/wspubsub"
 	"github.com/coder/coder/v2/codersdk"
 	"github.com/coder/coder/v2/tailnet"
-	tailnetproto "github.com/coder/coder/v2/tailnet/proto"
 	"github.com/coder/websocket"
 )
 
@@ -174,7 +172,6 @@ func (api *API) workspaceAgentRPC(rw http.ResponseWriter, r *http.Request) {
 		MetadataBatcher:                   api.metadataBatcher,
 		PublishWorkspaceUpdateFn:          api.publishWorkspaceUpdate,
 		PublishWorkspaceAgentLogsUpdateFn: api.publishWorkspaceAgentLogsUpdate,
-		NetworkTelemetryHandler:           api.NetworkTelemetryBatcher.Handler,
 		BoundaryUsageTracker:              api.BoundaryUsageTracker,
 		PortSharer:                        &api.PortSharer,
 
@@ -208,29 +205,6 @@ func (api *API) workspaceAgentRPC(rw http.ResponseWriter, r *http.Request) {
 		_ = conn.Close(websocket.StatusInternalError, err.Error())
 		return
 	}
-}
-
-func (api *API) handleNetworkTelemetry(batch []*tailnetproto.TelemetryEvent) {
-	var (
-		telemetryEvents = make([]telemetry.NetworkEvent, 0, len(batch))
-		didLogErr       = false
-	)
-	for _, pEvent := range batch {
-		tEvent, err := telemetry.NetworkEventFromProto(pEvent)
-		if err != nil {
-			if !didLogErr {
-				api.Logger.Warn(api.ctx, "error converting network telemetry event", slog.Error(err))
-				didLogErr = true
-			}
-			// Events that fail to be converted get discarded for now.
-			continue
-		}
-		telemetryEvents = append(telemetryEvents, tEvent)
-	}
-
-	api.Telemetry.Report(&telemetry.Snapshot{
-		NetworkEvents: telemetryEvents,
-	})
 }
 
 type yamuxPingerCloser struct {

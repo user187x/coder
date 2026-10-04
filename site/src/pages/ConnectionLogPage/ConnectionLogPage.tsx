@@ -3,7 +3,6 @@ import { paginatedConnectionLogs } from "#/api/queries/connectionlog";
 import { useFilter } from "#/components/Filter/Filter";
 import { useUserFilterMenu } from "#/components/Filter/UserFilter";
 import { isNonInitialPage } from "#/components/PaginationWidget/utils";
-import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { usePaginatedQuery } from "#/hooks/usePaginatedQuery";
 import { useDashboard } from "#/modules/dashboard/useDashboard";
 import { useFeatureVisibility } from "#/modules/dashboard/useFeatureVisibility";
@@ -13,7 +12,6 @@ import { useStatusFilterMenu, useTypeFilterMenu } from "./ConnectionLogFilter";
 import { ConnectionLogPageView } from "./ConnectionLogPageView";
 
 const ConnectionLogPage: React.FC = () => {
-	const { permissions } = useAuthenticated();
 	const feats = useFeatureVisibility();
 
 	// The "else false" is required if connection_log is undefined, which may
@@ -80,7 +78,6 @@ const ConnectionLogPage: React.FC = () => {
 				isConnectionLogVisible={isConnectionLogVisible}
 				connectionLogsQuery={connectionlogsQuery}
 				error={connectionlogsQuery.error}
-				permissions={permissions}
 				filterProps={{
 					filter,
 					error: connectionlogsQuery.error,

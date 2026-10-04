@@ -11,7 +11,6 @@ import { organizationsPermissions } from "#/api/queries/organizations";
 import { EmptyState } from "#/components/EmptyState/EmptyState";
 import { useFilter } from "#/components/Filter/Filter";
 import { Loader } from "#/components/Loader/Loader";
-import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { usePaginatedQuery } from "#/hooks/usePaginatedQuery";
 import { useFeatureVisibility } from "#/modules/dashboard/useFeatureVisibility";
 import { RequirePermission } from "#/modules/permissions/RequirePermission";
@@ -20,7 +19,6 @@ import { useGroupsSettings } from "./GroupsPageProvider";
 import { GroupsPageView, joinGroupsSpend } from "./GroupsPageView";
 
 const GroupsPage: React.FC = () => {
-	const { permissions: authPermissions } = useAuthenticated();
 	const { template_rbac: groupsEnabled, aibridge } = useFeatureVisibility();
 	const { organization, showOrganizations } = useGroupsSettings();
 	const aibridgeVisible = Boolean(aibridge);
@@ -115,7 +113,6 @@ const GroupsPage: React.FC = () => {
 				showAIBudget={aibridgeVisible}
 				filterProps={{ filter }}
 				groupsQuery={groupsQuery}
-				permissions={authPermissions}
 			/>
 		</div>
 	);

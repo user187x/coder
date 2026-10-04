@@ -5,6 +5,7 @@ import {
 	ProvisionerKeyIDUserAuth,
 } from "#/api/typesGenerated";
 import { Button } from "#/components/Button/Button";
+import { FeatureUnavailable } from "#/components/FeatureUnavailable/FeatureUnavailable";
 import {
 	SettingsHeader,
 	SettingsHeaderDescription,
@@ -20,8 +21,6 @@ import {
 } from "#/components/Table/Table";
 import { TableEmpty } from "#/components/TableEmpty/TableEmpty";
 import { TableLoader } from "#/components/TableLoader/TableLoader";
-import { PremiumPaywall } from "#/modules/paywall/PremiumPaywall";
-import type { Permissions } from "#/modules/permissions";
 import { docs } from "#/utils/docs";
 import { ProvisionerKeyRow } from "./ProvisionerKeyRow";
 
@@ -34,16 +33,15 @@ const HIDDEN_PROVISIONER_KEYS = [
 ];
 
 type OrganizationProvisionerKeysPageViewProps = {
-	showPaywall: boolean | undefined;
+	isFeatureUnavailable: boolean | undefined;
 	provisionerKeyDaemons: ProvisionerKeyDaemons[] | undefined;
 	error: unknown;
-	permissions: Permissions;
 	onRetry: () => void;
 };
 
 export const OrganizationProvisionerKeysPageView: React.FC<
 	OrganizationProvisionerKeysPageViewProps
-> = ({ showPaywall, provisionerKeyDaemons, error, permissions, onRetry }) => {
+> = ({ isFeatureUnavailable, provisionerKeyDaemons, error, onRetry }) => {
 	const filteredProvisionerKeyDaemons = provisionerKeyDaemons?.filter(
 		(pkd) => !HIDDEN_PROVISIONER_KEYS.includes(pkd.key.id),
 	);
@@ -58,19 +56,8 @@ export const OrganizationProvisionerKeysPageView: React.FC<
 				</SettingsHeaderDescription>
 			</SettingsHeader>
 
-			{showPaywall ? (
-				<PremiumPaywall
-					source="provisioner_keys"
-					message="Provisioners"
-					description="Scoped authentication keys for org provisioners."
-					features={[
-						"Scoped per organization & tag",
-						"Recommended provisioner authentication",
-						"Rotate keys without downtime",
-						"Fully isolated per organization",
-					]}
-					canViewPremium={permissions.viewAllLicenses}
-				/>
+			{isFeatureUnavailable ? (
+				<FeatureUnavailable feature="Provisioners" />
 			) : (
 				<Table className="mt-6">
 					<TableHeader>

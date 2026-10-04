@@ -1,6 +1,4 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { expect, within } from "storybook/test";
-import { docs } from "#/utils/docs";
 import { ExternalAuthSettingsPageView } from "./ExternalAuthSettingsPageView";
 
 const meta: Meta<typeof ExternalAuthSettingsPageView> = {
@@ -36,49 +34,17 @@ const meta: Meta<typeof ExternalAuthSettingsPageView> = {
 			],
 		},
 		isEntitled: false,
-		canViewPremium: true,
 	},
 };
 
 export default meta;
 type Story = StoryObj<typeof ExternalAuthSettingsPageView>;
 
-export const Page: Story = {
-	play: async ({ canvasElement }) => {
-		const canvas = within(canvasElement);
-
-		await expect(
-			canvas.getByRole("link", { name: "Start trial for free" }),
-		).toHaveAttribute("href", "/deployment/premium");
-		await expect(
-			canvas.getByRole("link", { name: /View docs/ }),
-		).toHaveAttribute("href", docs("/admin/external-auth"));
-	},
-};
+export const Page: Story = {};
 
 export const Entitled: Story = {
 	args: {
 		isEntitled: true,
-	},
-	play: async ({ canvasElement }) => {
-		const canvas = within(canvasElement);
-
-		await expect(
-			canvas.queryByRole("link", { name: "Start trial for free" }),
-		).not.toBeInTheDocument();
-	},
-};
-
-export const PaywallWithoutLicenseAccess: Story = {
-	args: {
-		canViewPremium: false,
-	},
-	play: async ({ canvasElement }) => {
-		const canvas = within(canvasElement);
-
-		await expect(
-			canvas.queryByRole("link", { name: "Start trial for free" }),
-		).not.toBeInTheDocument();
 	},
 };
 

@@ -364,33 +364,18 @@ export const ArchivedOtherUserChat: Story = {
 	),
 };
 
-export const QueuedForCapacityCommunityAdmin: Story = {
-	parameters: {
-		permissions: { viewAllLicenses: true },
-	},
+export const QueuedForCapacity: Story = {
 	render: () => <StoryAgentChatPageView chat={{ queued_for_capacity: true }} />,
 };
 
-export const QueuedForCapacityCommunityMember: Story = {
-	render: () => <StoryAgentChatPageView chat={{ queued_for_capacity: true }} />,
-};
-
-export const QueuedForCapacityPremiumAdmin: Story = {
-	parameters: {
-		features: ["multiple_organizations"],
-		permissions: { viewAllLicenses: true },
-	},
-	render: () => <StoryAgentChatPageView chat={{ queued_for_capacity: true }} />,
-};
-
-export const QueuedForCapacityPremiumMember: Story = {
+export const QueuedForCapacityLicensed: Story = {
 	parameters: {
 		features: ["multiple_organizations"],
 	},
 	render: () => <StoryAgentChatPageView chat={{ queued_for_capacity: true }} />,
 };
 
-export const QueuedForCapacityPremiumHardLimit: Story = {
+export const QueuedForCapacityHardLimit: Story = {
 	parameters: {
 		features: [
 			"multiple_organizations",
@@ -401,7 +386,6 @@ export const QueuedForCapacityPremiumHardLimit: Story = {
 				actual: 4000,
 			},
 		],
-		permissions: { viewAllLicenses: true },
 	},
 	render: () => <StoryAgentChatPageView chat={{ queued_for_capacity: true }} />,
 };

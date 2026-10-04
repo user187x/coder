@@ -8,7 +8,6 @@ import (
 	_ "embed"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"slices"
@@ -27,13 +26,10 @@ import (
 	"github.com/coder/coder/v2/coderd/database"
 	"github.com/coder/coder/v2/coderd/database/dbtime"
 	"github.com/coder/coder/v2/coderd/httpapi"
-	"github.com/coder/coder/v2/coderd/httpmw"
 	"github.com/coder/coder/v2/coderd/rbac"
 	"github.com/coder/coder/v2/coderd/rbac/policy"
-	"github.com/coder/coder/v2/coderd/telemetry"
 	"github.com/coder/coder/v2/codersdk"
 	"github.com/coder/coder/v2/enterprise/coderd/license"
-	"github.com/coder/coder/v2/enterprise/trialer"
 )
 
 const (
@@ -126,116 +122,6 @@ func (api *API) postLicense(rw http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	httpapi.Write(ctx, rw, http.StatusCreated, lic)
-}
-
-// @Summary Request a trial license
-// @ID request-a-trial-license
-// @Security CoderSessionToken
-// @Accept json
-// @Produce json
-// @Tags Enterprise
-// @Param request body codersdk.CreateTrialLicenseRequest true "Trial license request"
-// @Success 201 {object} codersdk.License
-// @Router /api/v2/licenses/trial [post]
-func (api *API) postTrialLicense(rw http.ResponseWriter, r *http.Request) {
-	var (
-		ctx               = r.Context()
-		auditor           = api.AGPL.Auditor.Load()
-		aReq, commitAudit = audit.InitRequest[database.License](rw, &audit.RequestParams{
-			Audit:   *auditor,
-			Log:     api.Logger,
-			Request: r,
-			Action:  database.AuditActionCreate,
-		})
-	)
-	defer commitAudit()
-
-	if !api.Authorize(r, policy.ActionCreate, rbac.ResourceLicense) {
-		httpapi.Forbidden(rw)
-		return
-	}
-
-	var req codersdk.CreateTrialLicenseRequest
-	if !httpapi.Read(ctx, rw, r, &req) {
-		return
-	}
-
-	// Prevent overwriting existing license
-	if api.Entitlements.HasLicense() {
-		httpapi.Write(ctx, rw, http.StatusConflict, codersdk.Response{
-			Message: "This deployment already has a license.",
-			Detail:  "Remove the existing license before requesting a trial.",
-		})
-		return
-	}
-
-	rawLicense, err := api.trialer.Request(ctx, codersdk.LicensorTrialRequest{
-		DeploymentID: api.AGPL.DeploymentID,
-		Email:        req.Email,
-		Source:       codersdk.LicensorTrialSourceProduct,
-		FirstName:    req.FirstName,
-		LastName:     req.LastName,
-		PhoneNumber:  req.PhoneNumber,
-		JobTitle:     req.JobTitle,
-		CompanyName:  req.CompanyName,
-		Country:      req.Country,
-		Developers:   req.Developers,
-	})
-	if err != nil {
-		if licensorErr, ok := errors.AsType[*trialer.LicensorError](err); ok {
-			httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
-				Message: "Unable to issue a trial license.",
-				Detail:  licensorErr.Message,
-			})
-			return
-		}
-		httpapi.Write(ctx, rw, http.StatusBadGateway, codersdk.Response{
-			Message: "Failed to reach the Coder license server.",
-			Detail:  err.Error(),
-		})
-		return
-	}
-
-	// The deployment ID was supplied by us, so unlike postLicense there is no
-	// need to check the license against claims.DeploymentIDs.
-	claims, err := license.ParseClaimsIgnoreNbf(rawLicense, api.LicenseKeys)
-	if err != nil {
-		httpapi.Write(ctx, rw, http.StatusBadGateway, codersdk.Response{
-			Message: "The Coder license server returned an invalid license.",
-			Detail:  err.Error(),
-		})
-		return
-	}
-
-	lic, err := api.installLicense(ctx, aReq, rawLicense, claims)
-	if err != nil {
-		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Failed to install license",
-			Detail:  err.Error(),
-		})
-		return
-	}
-
-	// Reported here rather than from the browser so that a conversion is only
-	// counted when a license was actually issued.
-	source := req.Source
-	if !source.Valid() {
-		source = codersdk.PremiumFunnelSourceDirect
-	}
-	api.Telemetry.Report(&telemetry.Snapshot{
-		PremiumFunnelEvents: []telemetry.PremiumFunnelEvent{
-			{
-				ID:            uuid.New(),
-				EventType:     telemetry.PremiumFunnelEventTrialSignup,
-				Source:        string(source),
-				AttributionID: req.AttributionID,
-				UserID:        httpmw.APIKey(r).UserID,
-				CreatedAt:     dbtime.Now(),
-			},
-		},
-	})
-
 	httpapi.Write(ctx, rw, http.StatusCreated, lic)
 }
 

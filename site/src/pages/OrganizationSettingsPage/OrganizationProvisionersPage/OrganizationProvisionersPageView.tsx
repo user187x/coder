@@ -3,6 +3,7 @@ import type { ProvisionerDaemon } from "#/api/typesGenerated";
 import { Badge } from "#/components/Badge/Badge";
 import { Button } from "#/components/Button/Button";
 import { Checkbox } from "#/components/Checkbox/Checkbox";
+import { FeatureUnavailable } from "#/components/FeatureUnavailable/FeatureUnavailable";
 import { Link } from "#/components/Link/Link";
 import {
 	SettingsHeader,
@@ -24,8 +25,6 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "#/components/Tooltip/Tooltip";
-import { PremiumPaywall } from "#/modules/paywall/PremiumPaywall";
-import type { Permissions } from "#/modules/permissions";
 import { docs } from "#/utils/docs";
 import { LastConnectionHead } from "./LastConnectionHead";
 import { ProvisionerRow } from "./ProvisionerRow";
@@ -36,12 +35,11 @@ type ProvisionersFilter = {
 };
 
 type OrganizationProvisionersPageViewProps = {
-	showPaywall: boolean | undefined;
+	isFeatureUnavailable: boolean | undefined;
 	provisioners: readonly ProvisionerDaemon[] | undefined;
 	buildVersion: string | undefined;
 	error: unknown;
 	filter: ProvisionersFilter;
-	permissions: Permissions;
 	onRetry: () => void;
 	onFilterChange: (filter: ProvisionersFilter) => void;
 };
@@ -49,12 +47,11 @@ type OrganizationProvisionersPageViewProps = {
 export const OrganizationProvisionersPageView: React.FC<
 	OrganizationProvisionersPageViewProps
 > = ({
-	showPaywall,
+	isFeatureUnavailable,
 	error,
 	provisioners,
 	buildVersion,
 	filter,
-	permissions,
 	onFilterChange,
 	onRetry,
 }) => {
@@ -96,19 +93,8 @@ export const OrganizationProvisionersPageView: React.FC<
 				</div>
 			)}
 
-			{showPaywall ? (
-				<PremiumPaywall
-					source="provisioners"
-					message="Provisioners"
-					description="Provisioners run your Terraform to create templates and workspaces."
-					features={[
-						"Run build jobs in isolation",
-						"Isolate cloud APIs from Coder",
-						"Keep secrets off the Coder host",
-						"Reduce server load and queue times",
-					]}
-					canViewPremium={permissions.viewAllLicenses}
-				/>
+			{isFeatureUnavailable ? (
+				<FeatureUnavailable feature="Provisioners" />
 			) : (
 				<>
 					<div className="flex items-center gap-2 mb-6">

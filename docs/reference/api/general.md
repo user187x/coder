@@ -64,7 +64,6 @@ curl -X GET http://coder-server:8080/api/v2/buildinfo \
   "external_url": "string",
   "oauth2_provider": true,
   "provisioner_api_version": "string",
-  "telemetry": true,
   "upgrade_message": "string",
   "version": "string",
   "webpush_public_key": "string",
@@ -610,21 +609,7 @@ curl -X GET http://coder-server:8080/api/v2/deployment/config \
       "enable": true
     },
     "telemetry": {
-      "enable": true,
-      "trace": true,
-      "url": {
-        "forceQuery": true,
-        "fragment": "string",
-        "host": "string",
-        "omitHost": true,
-        "opaque": "string",
-        "path": "string",
-        "rawFragment": "string",
-        "rawPath": "string",
-        "rawQuery": "string",
-        "scheme": "string",
-        "user": {}
-      }
+      "enable": true
     },
     "template_builder": {
       "disabled": true,

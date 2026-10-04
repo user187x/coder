@@ -27,7 +27,6 @@ import (
 	"github.com/coder/coder/v2/coderd/rbac"
 	"github.com/coder/coder/v2/coderd/rbac/policy"
 	"github.com/coder/coder/v2/coderd/searchquery"
-	"github.com/coder/coder/v2/coderd/telemetry"
 	"github.com/coder/coder/v2/coderd/userpassword"
 	"github.com/coder/coder/v2/coderd/util/slice"
 	"github.com/coder/coder/v2/codersdk"
@@ -215,27 +214,6 @@ func (api *API) postFirstUser(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if createUser.Trial && api.TrialGenerator != nil {
-		err = api.TrialGenerator(ctx, codersdk.LicensorTrialRequest{
-			Email:       createUser.Email,
-			FirstName:   createUser.TrialInfo.FirstName,
-			LastName:    createUser.TrialInfo.LastName,
-			PhoneNumber: createUser.TrialInfo.PhoneNumber,
-			JobTitle:    createUser.TrialInfo.JobTitle,
-			CompanyName: createUser.TrialInfo.CompanyName,
-			Country:     createUser.TrialInfo.Country,
-			Developers:  createUser.TrialInfo.Developers,
-			Source:      codersdk.LicensorTrialSourceNewUser,
-		})
-		if err != nil {
-			httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-				Message: "Failed to generate trial",
-				Detail:  err.Error(),
-			})
-			return
-		}
-	}
-
 	//nolint:gocritic // needed to create first user
 	defaultOrg, err := api.Database.GetDefaultOrganization(dbauthz.AsSystemRestricted(ctx))
 	if err != nil {
@@ -273,30 +251,12 @@ func (api *API) postFirstUser(rw http.ResponseWriter, r *http.Request) {
 	if api.RefreshEntitlements != nil {
 		err = api.RefreshEntitlements(ctx)
 		if err != nil {
-			api.Logger.Error(ctx, "failed to refresh entitlements after generating trial license")
+			api.Logger.Error(ctx, "failed to refresh entitlements after creating the first user")
 			return
 		}
 	} else {
 		api.Logger.Debug(ctx, "entitlements will not be refreshed")
 	}
-
-	telemetryUser := telemetry.ConvertUser(user)
-	// Send the initial users email address!
-	telemetryUser.Email = &user.Email
-	// Only populate onboarding data when the client actually sent it. A nil
-	// OnboardingInfo means the request came from an older client, the CLI, or
-	// the OIDC flow — not from a user who answered "no" to every question.
-	var onboarding *telemetry.FirstUserOnboarding
-	if createUser.OnboardingInfo != nil {
-		onboarding = &telemetry.FirstUserOnboarding{
-			NewsletterMarketing: createUser.OnboardingInfo.NewsletterMarketing,
-			NewsletterReleases:  createUser.OnboardingInfo.NewsletterReleases,
-		}
-	}
-	api.Telemetry.Report(&telemetry.Snapshot{
-		Users:               []telemetry.User{telemetryUser},
-		FirstUserOnboarding: onboarding,
-	})
 
 	httpapi.Write(ctx, rw, http.StatusCreated, codersdk.CreateFirstUserResponse{
 		UserID:         user.ID,
@@ -644,11 +604,6 @@ func (api *API) postUser(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	aReq.New = user
-
-	// Report when users are added!
-	api.Telemetry.Report(&telemetry.Snapshot{
-		Users: []telemetry.User{telemetry.ConvertUser(user)},
-	})
 
 	sdkUser := db2sdk.User(user, req.OrganizationIDs)
 	api.enrichUserAISeat(ctx, &sdkUser)

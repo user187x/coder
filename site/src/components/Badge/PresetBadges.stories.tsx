@@ -5,8 +5,6 @@ import {
 	DeprecatedBadge,
 	DisabledBadge,
 	EnabledBadge,
-	EnterpriseBadge,
-	PremiumBadge,
 } from "./PresetBadges";
 
 const meta: Meta<typeof BadgeGroup> = {
@@ -29,21 +27,9 @@ export const Disabled: Story = {
 	},
 };
 
-export const Premium: Story = {
-	args: {
-		children: <PremiumBadge />,
-	},
-};
-
 export const Alpha: Story = {
 	args: {
 		children: <AlphaBadge />,
-	},
-};
-
-export const Enterprise: Story = {
-	args: {
-		children: <EnterpriseBadge />,
 	},
 };
 

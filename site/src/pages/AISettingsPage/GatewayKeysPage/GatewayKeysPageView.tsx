@@ -2,6 +2,7 @@ import { PlusIcon, TrashIcon } from "lucide-react";
 import type { AIGatewayKey } from "#/api/typesGenerated";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { Button } from "#/components/Button/Button";
+import { FeatureUnavailable } from "#/components/FeatureUnavailable/FeatureUnavailable";
 import {
 	SettingsHeader,
 	SettingsHeaderDescription,
@@ -18,8 +19,6 @@ import {
 } from "#/components/Table/Table";
 import { TableEmpty } from "#/components/TableEmpty/TableEmpty";
 import { TableLoader } from "#/components/TableLoader/TableLoader";
-import { PremiumPaywall } from "#/modules/paywall/PremiumPaywall";
-import type { Permissions } from "#/modules/permissions";
 import { docs } from "#/utils/docs";
 import { relativeTime } from "#/utils/time";
 
@@ -27,8 +26,7 @@ type GatewayKeysPageViewProps = {
 	keys: AIGatewayKey[];
 	isLoading: boolean;
 	error: unknown;
-	showPaywall: boolean;
-	permissions: Permissions;
+	isFeatureUnavailable: boolean;
 	onCreateKey: () => void;
 	onDeleteKey: (key: AIGatewayKey) => void;
 };
@@ -37,8 +35,7 @@ export const GatewayKeysPageView: React.FC<GatewayKeysPageViewProps> = ({
 	keys,
 	isLoading,
 	error,
-	showPaywall,
-	permissions,
+	isFeatureUnavailable,
 	onCreateKey,
 	onDeleteKey,
 }) => {
@@ -46,7 +43,7 @@ export const GatewayKeysPageView: React.FC<GatewayKeysPageViewProps> = ({
 		<div>
 			<SettingsHeader
 				actions={
-					!showPaywall && (
+					!isFeatureUnavailable && (
 						<Button variant="outline" onClick={onCreateKey}>
 							<PlusIcon />
 							Create key
@@ -64,27 +61,15 @@ export const GatewayKeysPageView: React.FC<GatewayKeysPageViewProps> = ({
 				</SettingsHeaderDescription>
 			</SettingsHeader>
 
-			{showPaywall && (
-				<PremiumPaywall
-					source="ai_gateway_keys"
-					message="AI Gateway"
-					description="Authenticate standalone AI Gateway replicas securely."
-					features={[
-						"Authenticate without shared secrets",
-						"Works inside coderd or standalone",
-						"Independently scale, rotate, or revoke keys per deployment",
-					]}
-					canViewPremium={permissions.viewAllLicenses}
-				/>
-			)}
+			{isFeatureUnavailable && <FeatureUnavailable feature="AI Gateway" />}
 
-			{!showPaywall && Boolean(error) && (
+			{!isFeatureUnavailable && Boolean(error) && (
 				<div className="mb-4">
 					<ErrorAlert error={error} />
 				</div>
 			)}
 
-			{!showPaywall && (
+			{!isFeatureUnavailable && (
 				<Table aria-label="AI Gateway keys">
 					<TableHeader>
 						<TableRow>

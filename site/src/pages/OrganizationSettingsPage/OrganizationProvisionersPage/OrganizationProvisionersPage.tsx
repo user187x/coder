@@ -3,7 +3,6 @@ import { useParams, useSearchParams } from "react-router";
 import { buildInfo } from "#/api/queries/buildInfo";
 import { provisionerDaemons } from "#/api/queries/organizations";
 import { EmptyState } from "#/components/EmptyState/EmptyState";
-import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { useEmbeddedMetadata } from "#/hooks/useEmbeddedMetadata";
 import { useDashboard } from "#/modules/dashboard/useDashboard";
 import { useOrganizationSettings } from "#/modules/management/OrganizationSettingsLayout";
@@ -12,7 +11,6 @@ import { pageTitle } from "#/utils/page";
 import { OrganizationProvisionersPageView } from "./OrganizationProvisionersPageView";
 
 const OrganizationProvisionersPage: React.FC = () => {
-	const { permissions } = useAuthenticated();
 	const { organization: organizationName } = useParams() as {
 		organization: string;
 	};
@@ -60,11 +58,12 @@ const OrganizationProvisionersPage: React.FC = () => {
 		<>
 			{title}
 			<OrganizationProvisionersPageView
-				showPaywall={!entitlements.features.multiple_organizations.enabled}
+				isFeatureUnavailable={
+					!entitlements.features.multiple_organizations.enabled
+				}
 				error={provisionersQuery.error}
 				provisioners={provisionersQuery.data}
 				buildVersion={buildInfoQuery.data?.version}
-				permissions={permissions}
 				onRetry={provisionersQuery.refetch}
 				filter={queryParams}
 				onFilterChange={({ ids, offline }) => {

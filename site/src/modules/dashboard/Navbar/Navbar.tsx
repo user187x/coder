@@ -84,7 +84,6 @@ export const Navbar: React.FC = () => {
 				canViewAIBridge,
 				canViewHealth,
 			}}
-			canViewLicenses={permissions.viewAllLicenses}
 			proxyContextValue={proxyContextValue}
 		/>
 	);

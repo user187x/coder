@@ -24,7 +24,6 @@ import (
 	"github.com/coder/coder/v2/coderd/httpapi"
 	"github.com/coder/coder/v2/coderd/httpmw"
 	"github.com/coder/coder/v2/coderd/rbac/policy"
-	"github.com/coder/coder/v2/coderd/telemetry"
 	"github.com/coder/coder/v2/coderd/workspaceapps"
 	"github.com/coder/coder/v2/coderd/workspaceapps/appurl"
 	"github.com/coder/coder/v2/codersdk"
@@ -377,10 +376,6 @@ func (api *API) postWorkspaceProxy(rw http.ResponseWriter, r *http.Request) {
 		httpapi.InternalServerError(rw, err)
 		return
 	}
-
-	api.Telemetry.Report(&telemetry.Snapshot{
-		WorkspaceProxies: []telemetry.WorkspaceProxy{telemetry.ConvertWorkspaceProxy(proxy)},
-	})
 
 	aReq.New = proxy
 	httpapi.Write(ctx, rw, http.StatusCreated, codersdk.UpdateWorkspaceProxyResponse{

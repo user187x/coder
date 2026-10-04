@@ -226,14 +226,13 @@ Region name that for the embedded DERP server.
 
 ### --derp-server-stun-addresses
 
-|             |                                                                                                                                          |
-|-------------|------------------------------------------------------------------------------------------------------------------------------------------|
-| Type        | <code>string-array</code>                                                                                                                |
-| Environment | <code>$CODER_DERP_SERVER_STUN_ADDRESSES</code>                                                                                           |
-| YAML        | <code>networking.derp.stunAddresses</code>                                                                                               |
-| Default     | <code>stun.l.google.com:19302,stun1.l.google.com:19302,stun2.l.google.com:19302,stun3.l.google.com:19302,stun4.l.google.com:19302</code> |
+|             |                                                |
+|-------------|------------------------------------------------|
+| Type        | <code>string-array</code>                      |
+| Environment | <code>$CODER_DERP_SERVER_STUN_ADDRESSES</code> |
+| YAML        | <code>networking.derp.stunAddresses</code>     |
 
-Addresses for STUN servers to establish P2P connections. It's recommended to have at least two STUN servers to give users the best chance of connecting P2P to workspaces. Each STUN server will get it's own DERP region, with region IDs starting at `--derp-server-region-id + 1`. Use special value 'disable' to turn off STUN completely.
+Addresses for STUN servers to establish P2P connections. None are configured by default, so Coder never contacts a third-party STUN server; connections that cannot be made directly are relayed through DERP. Set at least two STUN servers you trust to give users the best chance of connecting P2P to workspaces. Each STUN server will get it's own DERP region, with region IDs starting at `--derp-server-region-id + 1`. Use special value 'disable' to turn off STUN completely.
 
 ### --derp-server-relay-url
 
@@ -753,17 +752,6 @@ OIDC issuer urls must match in the request, the id_token 'iss' claim, and in the
 
 Optional override of the default redirect url which uses the deployment's access url. Useful in situations where a deployment has more than 1 domain. Using this setting can also break OIDC, so use with caution.
 
-### --telemetry
-
-|             |                                      |
-|-------------|--------------------------------------|
-| Type        | <code>bool</code>                    |
-| Environment | <code>$CODER_TELEMETRY_ENABLE</code> |
-| YAML        | <code>telemetry.enable</code>        |
-| Default     | <code>true</code>                    |
-
-Whether telemetry is enabled or not. Coder collects anonymized usage data to help improve our product.
-
 ### --trace
 
 |             |                                           |
@@ -946,17 +934,6 @@ Allow site-owners to access workspace apps from workspaces they do not own. Owne
 | YAML        | <code>experiments</code>        |
 
 Enable one or more experiments. These are not ready for production. Separate multiple experiments with commas, or enter '*' to opt-in to all available experiments.
-
-### --update-check
-
-|             |                                  |
-|-------------|----------------------------------|
-| Type        | <code>bool</code>                |
-| Environment | <code>$CODER_UPDATE_CHECK</code> |
-| YAML        | <code>updateCheck</code>         |
-| Default     | <code>false</code>               |
-
-Periodically check for new releases of Coder and inform the owner. The check is performed once per day.
 
 ### --max-token-lifetime
 

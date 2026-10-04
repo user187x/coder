@@ -2,6 +2,7 @@ import type {
 	DeploymentValues,
 	ExternalAuthConfig,
 } from "#/api/typesGenerated";
+import { FeatureUnavailable } from "#/components/FeatureUnavailable/FeatureUnavailable";
 import {
 	SettingsHeader,
 	SettingsHeaderDescription,
@@ -17,19 +18,17 @@ import {
 	TableRow,
 } from "#/components/Table/Table";
 import { TableEmpty } from "#/components/TableEmpty/TableEmpty";
-import { PremiumPaywallSmall } from "#/modules/paywall/PremiumPaywallSmall";
 import { docs } from "#/utils/docs";
 
 type ExternalAuthSettingsPageViewProps = {
 	config: DeploymentValues;
 	/** True when the deployment may configure more than one provider. */
 	isEntitled: boolean;
-	canViewPremium: boolean;
 };
 
 export const ExternalAuthSettingsPageView: React.FC<
 	ExternalAuthSettingsPageViewProps
-> = ({ config, isEntitled, canViewPremium }) => {
+> = ({ config, isEntitled }) => {
 	return (
 		<>
 			<SettingsHeader>
@@ -55,17 +54,7 @@ export const ExternalAuthSettingsPageView: React.FC<
 
 			{!isEntitled && (
 				<div className="mt-6 mb-6">
-					<PremiumPaywallSmall
-						source="external_auth"
-						message="External Authentication"
-						description="Connect multiple Git and OAuth providers at once."
-						features={[
-							"Connect multiple Git providers at once",
-							"Match providers by regex per host",
-							"Separate credentials for each provider",
-						]}
-						canViewPremium={canViewPremium}
-					/>
+					<FeatureUnavailable feature="External Authentication" />
 				</div>
 			)}
 

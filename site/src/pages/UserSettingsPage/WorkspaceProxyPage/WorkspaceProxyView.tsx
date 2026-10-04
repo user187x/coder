@@ -1,5 +1,6 @@
 import type { Region } from "#/api/typesGenerated";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
+import { FeatureUnavailable } from "#/components/FeatureUnavailable/FeatureUnavailable";
 import {
 	SettingsHeader,
 	SettingsHeaderDescription,
@@ -16,8 +17,6 @@ import {
 import { TableEmpty } from "#/components/TableEmpty/TableEmpty";
 import { TableLoader } from "#/components/TableLoader/TableLoader";
 import type { ProxyLatencyReport } from "#/contexts/useProxyLatency";
-import { PremiumPaywall } from "#/modules/paywall/PremiumPaywall";
-import type { Permissions } from "#/modules/permissions";
 import { docs } from "#/utils/docs";
 import { ProxyRow } from "./WorkspaceProxyRow";
 
@@ -29,8 +28,7 @@ type WorkspaceProxyViewProps = {
 	hasLoaded: boolean;
 	preferredProxy?: Region;
 	selectProxyError?: unknown;
-	showPaywall: boolean;
-	permissions: Permissions;
+	isFeatureUnavailable: boolean;
 };
 
 export const WorkspaceProxyView: React.FC<WorkspaceProxyViewProps> = ({
@@ -40,8 +38,7 @@ export const WorkspaceProxyView: React.FC<WorkspaceProxyViewProps> = ({
 	isLoading,
 	hasLoaded,
 	selectProxyError,
-	showPaywall,
-	permissions,
+	isFeatureUnavailable,
 }) => {
 	return (
 		<div>
@@ -56,19 +53,8 @@ export const WorkspaceProxyView: React.FC<WorkspaceProxyViewProps> = ({
 				</SettingsHeaderDescription>
 			</SettingsHeader>
 
-			{showPaywall ? (
-				<PremiumPaywall
-					source="workspace_proxies"
-					message="Workspace Proxies"
-					description="Provide low-latency connections for geo-distributed teams."
-					features={[
-						"Low-latency connections for global teams",
-						"Automatic lowest-latency proxy selection",
-						"Relay for SSH, apps, and ports",
-						"Per-proxy latency and health metrics",
-					]}
-					canViewPremium={permissions.viewAllLicenses}
-				/>
+			{isFeatureUnavailable ? (
+				<FeatureUnavailable feature="Workspace Proxies" />
 			) : (
 				<div className="flex flex-col gap-4">
 					{Boolean(getWorkspaceProxiesError) && (

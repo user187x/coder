@@ -22,7 +22,9 @@ import (
 )
 
 const (
-	notificationsDefaultLogoURL = "https://coder.com/coder-logo-horizontal.png"
+	// notificationsDefaultLogoURL is empty so emails never load an image from
+	// a third-party host; without a configured logo the app name is shown.
+	notificationsDefaultLogoURL = ""
 	notificationsDefaultAppName = "Coder"
 )
 

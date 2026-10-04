@@ -8,7 +8,6 @@ import {
 	CollapsibleContent,
 	CollapsibleTrigger,
 } from "#/components/Collapsible/Collapsible";
-import { Link } from "#/components/Link/Link";
 
 const formatMessage = (message: string) => {
 	// If the message ends with an alphanumeric character, add a period.
@@ -20,13 +19,6 @@ const formatMessage = (message: string) => {
 
 type LicenseBannerVariant = "warning" | "warningProminent" | "error";
 
-export type LicenseBannerLink = {
-	href: string;
-	label: string;
-	showExternalIcon?: boolean;
-	target?: React.ComponentProps<typeof Link>["target"];
-};
-
 export type LicenseBannerMessage = {
 	message: string;
 	variant: LicenseBannerVariant;
@@ -34,7 +26,6 @@ export type LicenseBannerMessage = {
 	// about usage itself. They keep the "License notices" heading even when
 	// they are the only message, since the muted text needs that context.
 	kind?: "diagnostic";
-	link?: LicenseBannerLink;
 };
 
 const bannerVariants = cva("flex items-center p-3", {
@@ -61,7 +52,6 @@ type LicenseBannerViewProps = {
 	messages: readonly LicenseBannerMessage[];
 };
 
-const messageLinkClass = "text-xs font-medium text-content-link!";
 const listClass =
 	"m-0 list-disc space-y-1 pl-4 text-xs leading-[18px] text-content-primary";
 
@@ -97,32 +87,12 @@ const bannerTitle = (variant: LicenseBannerVariant): string => {
 const bannerRole = (variant: LicenseBannerVariant): "alert" | "status" =>
 	variant === "error" ? "alert" : "status";
 
-const LicenseMessageText: React.FC<{
-	entry: LicenseBannerMessage;
-}> = ({ entry }) => (
-	<>
-		{formatMessage(entry.message)}{" "}
-		{entry.link && (
-			<Link
-				className={messageLinkClass}
-				href={entry.link.href}
-				showExternalIcon={entry.link.showExternalIcon}
-				target={entry.link.target}
-			>
-				{entry.link.label}
-			</Link>
-		)}
-	</>
-);
-
 const LicenseMessageList: React.FC<{
 	messages: readonly LicenseBannerMessage[];
 }> = ({ messages }) => (
 	<ul className={listClass}>
 		{messages.map((entry, index) => (
-			<li key={`${entry.message}-${index}`}>
-				<LicenseMessageText entry={entry} />
-			</li>
+			<li key={`${entry.message}-${index}`}>{formatMessage(entry.message)}</li>
 		))}
 	</ul>
 );
@@ -201,7 +171,7 @@ export const LicenseBannerView: React.FC<LicenseBannerViewProps> = ({
 					)}
 					{isSingleMessage ? (
 						<div className="flex min-h-6 items-center text-xs leading-4 text-content-primary">
-							<LicenseMessageText entry={messages[0]} />
+							{formatMessage(messages[0].message)}
 						</div>
 					) : (
 						<ExpandableLicenseMessageList

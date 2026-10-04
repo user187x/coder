@@ -34,11 +34,6 @@ export const OneWarning: Story = {
 			{
 				message: "You have exceeded the number of seats in your license.",
 				variant: "warningProminent",
-				link: {
-					href: "mailto:sales@coder.com",
-					label: "Contact sales@coder.com.",
-					showExternalIcon: false,
-				},
 			},
 		],
 	},
@@ -138,11 +133,6 @@ export const TelemetryRequiredError: Story = {
 			{
 				message: LicenseTelemetryRequiredErrorText,
 				variant: "error",
-				link: {
-					href: "mailto:sales@coder.com",
-					label: "Contact sales@coder.com if you need an exception.",
-					showExternalIcon: false,
-				},
 			},
 		],
 	},
@@ -151,11 +141,6 @@ export const TelemetryRequiredError: Story = {
 		await expect(canvas.getByRole("alert")).toHaveTextContent(
 			LicenseTelemetryRequiredErrorText,
 		);
-		await expect(
-			canvas.getByRole("link", {
-				name: /Contact sales@coder\.com if you need an exception\./i,
-			}),
-		).toHaveAttribute("href", "mailto:sales@coder.com");
 	},
 };
 
@@ -230,9 +215,6 @@ export const AIGovernanceNearLimit: Story = {
 		await expect(banner).toHaveTextContent(
 			"You have used 95% of your AI Governance add-on seats.",
 		);
-		await expect(
-			canvas.getByRole("link", { name: /Contact sales@coder\.com/i }),
-		).toHaveAttribute("href", "mailto:sales@coder.com");
 		// A lone advisory is muted but not a diagnostic, so it renders
 		// without the notices heading.
 		await expect(canvas.queryByText("License notices")).not.toBeInTheDocument();
@@ -286,9 +268,6 @@ export const AgentRuntimeHoursSoftLimit: Story = {
 		await expect(banner).toHaveTextContent(
 			"Your deployment is approaching its Coder Agent runtime hours allocation: 90 of the 100 hours included in the current license term are used, at or above the advisory soft limit of 80 hours.",
 		);
-		await expect(
-			canvas.queryByRole("link", { name: /Contact sales@coder\.com/i }),
-		).not.toBeInTheDocument();
 	},
 };
 
@@ -309,9 +288,6 @@ export const AgentRuntimeHoursAllocationReached: Story = {
 		await expect(banner).toHaveTextContent(
 			"Your deployment has used 100 of the 100 Coder Agent runtime hours included in the current license term.",
 		);
-		await expect(
-			canvas.getByRole("link", { name: /Contact sales@coder\.com/i }),
-		).toHaveAttribute("href", "mailto:sales@coder.com");
 	},
 };
 
@@ -345,17 +321,14 @@ export const AgentRuntimeHoursAllocationReachedWithDiagnostic: Story = {
 	},
 };
 
-// Each diagnostic pins role=status (not alert) and a suppressed sales
-// link. Background mutedness is covered by the visual snapshot.
+// Each diagnostic pins role=status (not alert). Background mutedness is
+// covered by the visual snapshot.
 const playMutedDiagnostic =
 	(message: string): Story["play"] =>
 	async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
 		const banner = canvas.getByRole("status");
 		await expect(banner).toHaveTextContent(message);
-		await expect(
-			canvas.queryByRole("link", { name: /Contact sales@coder\.com/i }),
-		).not.toBeInTheDocument();
 	};
 
 export const AgentRuntimeUsageUnavailable: Story = {

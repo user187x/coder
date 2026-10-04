@@ -58,7 +58,6 @@ const AppearanceSettingsPage: React.FC = () => {
 					isEntitled={
 						entitlements.features.appearance.entitlement !== "not_entitled"
 					}
-					canViewPremium={permissions.viewAllLicenses}
 				/>
 			</RequirePermission>
 		</>

@@ -1,5 +1,4 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { expect, within } from "storybook/test";
 import {
 	type ProvisionerKeyDaemons,
 	ProvisionerKeyIDBuiltIn,
@@ -7,12 +6,10 @@ import {
 	ProvisionerKeyIDUserAuth,
 } from "#/api/typesGenerated";
 import {
-	MockPermissions,
 	MockProvisioner,
 	MockProvisionerKey,
 	mockApiError,
 } from "#/testHelpers/entities";
-import { docs } from "#/utils/docs";
 import { OrganizationProvisionerKeysPageView } from "./OrganizationProvisionerKeysPageView";
 
 const mockProvisionerKeyDaemons: ProvisionerKeyDaemons[] = [
@@ -73,7 +70,6 @@ const meta: Meta<typeof OrganizationProvisionerKeysPageView> = {
 	args: {
 		error: undefined,
 		provisionerKeyDaemons: mockProvisionerKeyDaemons,
-		permissions: MockPermissions,
 		onRetry: () => {},
 	},
 };
@@ -86,41 +82,14 @@ export const Default: Story = {
 		error: undefined,
 		provisionerKeyDaemons: mockProvisionerKeyDaemons,
 		onRetry: () => {},
-		showPaywall: false,
+		isFeatureUnavailable: false,
 	},
 };
 
-export const Paywalled: Story = {
+export const FeatureUnavailable: Story = {
 	...Default,
 	args: {
-		showPaywall: true,
-	},
-	play: async ({ canvasElement }) => {
-		const canvas = within(canvasElement);
-
-		const cta = canvas.getByRole("link", { name: "Start trial for free" });
-		await expect(cta).toHaveAttribute("href", "/deployment/premium");
-		await expect(
-			canvas.getByRole("link", { name: /View docs/ }),
-		).toHaveAttribute("href", docs("/admin/provisioners"));
-	},
-};
-
-export const PaywalledWithoutLicenseAccess: Story = {
-	...Default,
-	args: {
-		showPaywall: true,
-		permissions: { ...MockPermissions, viewAllLicenses: false },
-	},
-	play: async ({ canvasElement }) => {
-		const canvas = within(canvasElement);
-
-		await expect(
-			canvas.getByText(/contact your deployment administrator/i),
-		).toBeVisible();
-		await expect(
-			canvas.queryByRole("link", { name: "Start trial for free" }),
-		).not.toBeInTheDocument();
+		isFeatureUnavailable: true,
 	},
 };
 

@@ -38,7 +38,6 @@ import (
 	"github.com/coder/coder/v2/coderd/schedule"
 	"github.com/coder/coder/v2/coderd/schedule/cron"
 	"github.com/coder/coder/v2/coderd/searchquery"
-	"github.com/coder/coder/v2/coderd/telemetry"
 	"github.com/coder/coder/v2/coderd/util/ptr"
 	"github.com/coder/coder/v2/coderd/util/slice"
 	"github.com/coder/coder/v2/coderd/wsbuilder"
@@ -880,11 +879,6 @@ func createWorkspace(
 	}
 
 	auditReq.New = workspace.WorkspaceTable()
-
-	api.Telemetry.Report(&telemetry.Snapshot{
-		Workspaces:      []telemetry.Workspace{telemetry.ConvertWorkspace(workspace)},
-		WorkspaceBuilds: []telemetry.WorkspaceBuild{telemetry.ConvertWorkspaceBuild(*workspaceBuild)},
-	})
 
 	apiBuild, err := api.convertWorkspaceBuild(
 		*workspaceBuild,

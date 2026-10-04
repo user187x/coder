@@ -50,21 +50,18 @@ set -o pipefail
 CODER_FIRST_USER_EMAIL="admin@coder.com"
 CODER_FIRST_USER_USERNAME="coder"
 CODER_FIRST_USER_PASSWORD="${RANDOM_ADMIN_PASSWORD}"
-CODER_FIRST_USER_TRIAL="false"
 echo "Running login command!"
 DRY_RUN="$DRY_RUN" "${PROJECT_ROOT}/scaletest/lib/coder_shim.sh" login "${CODER_URL}" \
 	--global-config="${CONFIG_DIR}" \
 	--first-user-username="${CODER_FIRST_USER_USERNAME}" \
 	--first-user-email="${CODER_FIRST_USER_EMAIL}" \
-	--first-user-password="${CODER_FIRST_USER_PASSWORD}" \
-	--first-user-trial=false
+	--first-user-password="${CODER_FIRST_USER_PASSWORD}"
 
 echo "Writing credentials to ${CONFIG_DIR}/coder.env"
 maybedryrun "$DRY_RUN" cat <<EOF >"${CONFIG_DIR}/coder.env"
 CODER_FIRST_USER_EMAIL=admin@coder.com
 CODER_FIRST_USER_USERNAME=coder
 CODER_FIRST_USER_PASSWORD="${RANDOM_ADMIN_PASSWORD}"
-CODER_FIRST_USER_TRIAL="${CODER_FIRST_USER_TRIAL}"
 EOF
 
 echo "Importing kubernetes template"

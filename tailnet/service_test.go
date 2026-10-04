@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 	"golang.org/x/xerrors"
@@ -20,7 +19,6 @@ import (
 	"github.com/coder/coder/v2/tailnet/proto"
 	"github.com/coder/coder/v2/tailnet/tailnettest"
 	"github.com/coder/coder/v2/testutil"
-	"github.com/coder/quartz"
 )
 
 func TestClientService_ServeClient_V2(t *testing.T) {
@@ -32,16 +30,12 @@ func TestClientService_ServeClient_V2(t *testing.T) {
 	logger := testutil.Logger(t)
 	derpMap := &tailcfg.DERPMap{Regions: map[int]*tailcfg.DERPRegion{999: {RegionCode: "test"}}}
 
-	telemetryEvents := make(chan []*proto.TelemetryEvent, 64)
 	uut, err := tailnet.NewClientService(tailnet.ClientServiceOptions{
 		Logger:                 logger,
 		CoordPtr:               &coordPtr,
 		DERPMapUpdateFrequency: time.Millisecond,
 		DERPMapFn:              func() *tailcfg.DERPMap { return derpMap },
-		NetworkTelemetryHandler: func(batch []*proto.TelemetryEvent) {
-			telemetryEvents <- batch
-		},
-		ResumeTokenProvider: tailnet.NewInsecureTestResumeTokenProvider(),
+		ResumeTokenProvider:    tailnet.NewInsecureTestResumeTokenProvider(),
 	})
 	require.NoError(t, err)
 
@@ -113,7 +107,7 @@ func TestClientService_ServeClient_V2(t *testing.T) {
 	err = dms.Close()
 	require.NoError(t, err)
 
-	// PostTelemetry
+	// PostTelemetry is accepted and discarded.
 	telemetryReq := &proto.TelemetryRequest{
 		Events: []*proto.TelemetryEvent{
 			{
@@ -127,10 +121,6 @@ func TestClientService_ServeClient_V2(t *testing.T) {
 	res, err := client.PostTelemetry(ctx, telemetryReq)
 	require.NoError(t, err)
 	require.NotNil(t, res)
-	gotEvents := testutil.TryReceive(ctx, t, telemetryEvents)
-	require.Len(t, gotEvents, 2)
-	require.Equal(t, "hi", string(gotEvents[0].Id))
-	require.Equal(t, "bye", string(gotEvents[1].Id))
 
 	// RPCs closed; we need to close the Conn to end the session.
 	err = c.Close()
@@ -147,12 +137,11 @@ func TestClientService_ServeClient_V1(t *testing.T) {
 	coordPtr.Store(&coord)
 	logger := testutil.Logger(t)
 	uut, err := tailnet.NewClientService(tailnet.ClientServiceOptions{
-		Logger:                  logger,
-		CoordPtr:                &coordPtr,
-		DERPMapUpdateFrequency:  0,
-		DERPMapFn:               nil,
-		NetworkTelemetryHandler: nil,
-		ResumeTokenProvider:     tailnet.NewInsecureTestResumeTokenProvider(),
+		Logger:                 logger,
+		CoordPtr:               &coordPtr,
+		DERPMapUpdateFrequency: 0,
+		DERPMapFn:              nil,
+		ResumeTokenProvider:    tailnet.NewInsecureTestResumeTokenProvider(),
 	})
 	require.NoError(t, err)
 
@@ -198,54 +187,6 @@ func TestClientService_UnsupportedProviders(t *testing.T) {
 	}
 	require.ErrorContains(t, err, "workspace updates not supported on this connection")
 	require.EqualValues(t, drpcerr.Unimplemented, drpcerr.Code(err))
-}
-
-func TestNetworkTelemetryBatcher(t *testing.T) {
-	t.Parallel()
-
-	var (
-		events = make(chan []*proto.TelemetryEvent, 64)
-		mClock = quartz.NewMock(t)
-		b      = tailnet.NewNetworkTelemetryBatcher(mClock, time.Millisecond, 3, func(batch []*proto.TelemetryEvent) {
-			assert.LessOrEqual(t, len(batch), 3)
-			events <- batch
-		})
-	)
-
-	b.Handler([]*proto.TelemetryEvent{
-		{Id: []byte("1")},
-		{Id: []byte("2")},
-	})
-	b.Handler([]*proto.TelemetryEvent{
-		{Id: []byte("3")},
-		{Id: []byte("4")},
-	})
-
-	// Should overflow and send a batch.
-	ctx := testutil.Context(t, testutil.WaitShort)
-	batch := testutil.TryReceive(ctx, t, events)
-	require.Len(t, batch, 3)
-	require.Equal(t, "1", string(batch[0].Id))
-	require.Equal(t, "2", string(batch[1].Id))
-	require.Equal(t, "3", string(batch[2].Id))
-
-	// Should send any pending events when the ticker fires.
-	mClock.Advance(time.Millisecond)
-	batch = testutil.TryReceive(ctx, t, events)
-	require.Len(t, batch, 1)
-	require.Equal(t, "4", string(batch[0].Id))
-
-	// Should send any pending events when closed.
-	b.Handler([]*proto.TelemetryEvent{
-		{Id: []byte("5")},
-		{Id: []byte("6")},
-	})
-	err := b.Close()
-	require.NoError(t, err)
-	batch = testutil.TryReceive(ctx, t, events)
-	require.Len(t, batch, 2)
-	require.Equal(t, "5", string(batch[0].Id))
-	require.Equal(t, "6", string(batch[1].Id))
 }
 
 func TestClientUserCoordinateeAuth(t *testing.T) {

@@ -476,8 +476,6 @@ type ConnDiags struct {
 	LocalNetInfo       *tailcfg.NetInfo
 	LocalInterfaces    *healthsdk.InterfacesReport
 	AgentNetcheck      *healthsdk.AgentNetcheckReport
-	ClientIPIsAWS      bool
-	AgentIPIsAWS       bool
 	Verbose            bool
 	TroubleshootingURL string
 }
@@ -566,16 +564,6 @@ func (d ConnDiags) splitDiagnostics() (general, client, agent []string) {
 			agent = append(agent,
 				fmt.Sprintf("Agent could not connect to STUN over UDP\n   %s#udp-blocked", d.TroubleshootingURL))
 		}
-	}
-
-	if d.ClientIPIsAWS {
-		client = append(client,
-			fmt.Sprintf("Client IP address is within an AWS range (AWS uses hard NAT)\n   %s#endpoint-dependent-nat-hard-nat", d.TroubleshootingURL))
-	}
-
-	if d.AgentIPIsAWS {
-		agent = append(agent,
-			fmt.Sprintf("Agent IP address is within an AWS range (AWS uses hard NAT)\n   %s#endpoint-dependent-nat-hard-nat", d.TroubleshootingURL))
 	}
 
 	return general, client, agent

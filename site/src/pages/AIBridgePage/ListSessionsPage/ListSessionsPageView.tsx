@@ -1,5 +1,6 @@
 import { InfoIcon } from "lucide-react";
 import type { AIBridgeSession } from "#/api/typesGenerated";
+import { FeatureUnavailable } from "#/components/FeatureUnavailable/FeatureUnavailable";
 import {
 	PaginationContainer,
 	type PaginationResult,
@@ -19,7 +20,6 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "#/components/Tooltip/Tooltip";
-import { PremiumPaywallAIGovernance } from "#/modules/paywall/PremiumPaywallAIGovernance";
 import { DATE_FORMAT, formatDateTime } from "#/utils/time";
 import { AIBridgeSetupAlert } from "../AIBridgeSetupAlert";
 import { ListSessionsFilter } from "./ListSessionsFilter";
@@ -63,12 +63,7 @@ export const ListSessionsPageView: React.FC<ListSessionsPageViewProps> = ({
 	onSessionRowClick,
 }) => {
 	if (!isAISessionsEntitled) {
-		return (
-			<PremiumPaywallAIGovernance
-				variant="sessions"
-				source="aibridge_sessions"
-			/>
-		);
+		return <FeatureUnavailable feature="AI session logs" />;
 	}
 
 	if (!isAISessionsEnabled) {

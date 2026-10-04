@@ -13,12 +13,10 @@ import (
 	"github.com/briandowns/spinner"
 	"golang.org/x/xerrors"
 	"tailscale.com/ipn/ipnstate"
-	"tailscale.com/tailcfg"
 
 	"cdr.dev/slog/v3"
 	"cdr.dev/slog/v3/sloggers/sloghuman"
 	"github.com/coder/coder/v2/cli/cliui"
-	"github.com/coder/coder/v2/cli/cliutil"
 	"github.com/coder/coder/v2/codersdk"
 	"github.com/coder/coder/v2/codersdk/healthsdk"
 	"github.com/coder/coder/v2/codersdk/workspacesdk"
@@ -160,13 +158,6 @@ func (r *RootCmd) ping() *serpent.Command {
 				TroubleshootingURL: appearanceConfig.DocsURL + "/admin/networking/troubleshooting",
 			}
 
-			awsRanges, err := cliutil.FetchAWSIPRanges(diagCtx, cliutil.AWSIPRangesURL)
-			if err != nil {
-				opts.Logger.Debug(inv.Context(), "failed to retrieve AWS IP ranges", slog.Error(err))
-			}
-
-			connDiags.ClientIPIsAWS = isAWSIP(awsRanges, ni)
-
 			connInfo, err := wsClient.AgentConnectionInfoGeneric(diagCtx)
 			if err != nil || connInfo.DERPMap == nil {
 				spin.Stop()
@@ -183,7 +174,6 @@ func (r *RootCmd) ping() *serpent.Command {
 			agentNetcheck, err := conn.Netcheck(diagCtx)
 			if err == nil {
 				connDiags.AgentNetcheck = &agentNetcheck
-				connDiags.AgentIPIsAWS = isAWSIP(awsRanges, agentNetcheck.NetInfo)
 			} else {
 				var sdkErr *codersdk.Error
 				if errors.As(err, &sdkErr) && sdkErr.StatusCode() == http.StatusNotFound {
@@ -341,25 +331,6 @@ func (r *RootCmd) ping() *serpent.Command {
 		},
 	}
 	return cmd
-}
-
-func isAWSIP(awsRanges *cliutil.AWSIPRanges, ni *tailcfg.NetInfo) bool {
-	if awsRanges == nil {
-		return false
-	}
-	if ni.GlobalV4 != "" {
-		ip, err := netip.ParseAddr(ni.GlobalV4)
-		if err == nil && awsRanges.CheckIP(ip) {
-			return true
-		}
-	}
-	if ni.GlobalV6 != "" {
-		ip, err := netip.ParseAddr(ni.GlobalV6)
-		if err == nil && awsRanges.CheckIP(ip) {
-			return true
-		}
-	}
-	return false
 }
 
 func isPrivateEndpoint(endpoint string) bool {

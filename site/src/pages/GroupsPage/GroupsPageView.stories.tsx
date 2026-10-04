@@ -15,7 +15,6 @@ import type { UsePaginatedQueryResult } from "#/hooks/usePaginatedQuery";
 import {
 	MockGroup,
 	MockOrganization,
-	MockPermissions,
 	MockUserMember,
 	MockUserOwner,
 } from "#/testHelpers/entities";
@@ -39,7 +38,6 @@ const meta: Meta<typeof GroupsPageView> = {
 			...mockSuccessResult,
 			totalRecords: 1,
 		} as UsePaginatedQueryResult,
-		permissions: MockPermissions,
 	},
 };
 
@@ -82,29 +80,6 @@ export const NotEnabled: Story = {
 	args: {
 		groups: [mockGroupWithSpend],
 		groupsEnabled: false,
-	},
-	play: async ({ canvasElement }) => {
-		const canvas = within(canvasElement);
-
-		const cta = canvas.getByRole("link", { name: "Start trial for free" });
-		await expect(cta).toHaveAttribute("href", "/deployment/premium");
-	},
-};
-
-export const NotEnabledWithoutLicenseAccess: Story = {
-	args: {
-		...NotEnabled.args,
-		permissions: { ...MockPermissions, viewAllLicenses: false },
-	},
-	play: async ({ canvasElement }) => {
-		const canvas = within(canvasElement);
-
-		await expect(
-			canvas.getByText(/contact your deployment administrator/i),
-		).toBeVisible();
-		await expect(
-			canvas.queryByRole("link", { name: "Start trial for free" }),
-		).not.toBeInTheDocument();
 	},
 };
 

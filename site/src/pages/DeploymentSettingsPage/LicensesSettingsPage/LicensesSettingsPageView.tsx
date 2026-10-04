@@ -4,7 +4,6 @@ import { Link as RouterLink } from "react-router";
 import type { GetLicensesResponse } from "#/api/api";
 import type { Feature, UserStatusChangeCount } from "#/api/typesGenerated";
 import { Button } from "#/components/Button/Button";
-import { Link } from "#/components/Link/Link";
 import {
 	SettingsHeader,
 	SettingsHeaderDescription,
@@ -18,7 +17,6 @@ import {
 	TooltipTrigger,
 } from "#/components/Tooltip/Tooltip";
 import { useWindowSize } from "#/hooks/useWindowSize";
-import { CONTACT_SALES_LINK } from "#/modules/licenses/trialLicense";
 import { useTheme } from "#/theme/context";
 import { AIGovernanceUsersConsumption } from "./AIGovernanceUsersConsumptionChart";
 import { LicenseCard } from "./LicenseCard";
@@ -74,7 +72,7 @@ const LicensesSettingsPageView: React.FC<Props> = ({
 				<SettingsHeader>
 					<SettingsHeaderTitle>Licenses</SettingsHeaderTitle>
 					<SettingsHeaderDescription>
-						Manage licenses to unlock Premium features.
+						Licenses installed on this deployment.
 					</SettingsHeaderDescription>
 				</SettingsHeader>
 
@@ -138,25 +136,6 @@ const LicensesSettingsPageView: React.FC<Props> = ({
 							<div className="flex flex-col gap-1 items-center">
 								<span className="text-base">
 									You don&apos;t have any licenses!
-								</span>
-								<span className="text-content-secondary text-center max-w-[464px] mt-2">
-									You&apos;re missing out on high availability, RBAC, quotas,
-									and much more. Contact{" "}
-									<Link
-										href={CONTACT_SALES_LINK}
-										className="m-0 p-0 text-base"
-										showExternalIcon={false}
-									>
-										sales
-									</Link>{" "}
-									or{" "}
-									<RouterLink
-										to="/deployment/premium"
-										className="m-0 p-0 text-content-link"
-									>
-										request a trial license
-									</RouterLink>{" "}
-									to get started.
 								</span>
 							</div>
 						</div>

@@ -72,7 +72,6 @@ endif
 	site/e2e/provisionerGenerated.ts \
 	site/src/api/chatModelOptionsGenerated.json \
 	site/src/api/rbacresourcesGenerated.ts \
-	site/src/api/countriesGenerated.ts \
 	site/src/theme/icons.json \
 	examples/examples.gen.json \
 	docs/manifest.json \
@@ -146,8 +145,7 @@ TYPEGEN_INPUTS := \
 	$(wildcard scripts/typegen/*.gotmpl) \
 	$(wildcard scripts/typegen/*.tstmpl) \
 	$(TYPEGEN_RBAC_GO_FILES) \
-	$(wildcard coderd/util/strings/*.go) \
-	codersdk/countries.go
+	$(wildcard coderd/util/strings/*.go)
 
 # Helper binary targets. Built with go build -o to avoid caching
 # link-stage executables in GOCACHE. Each binary is a real Make
@@ -612,7 +610,6 @@ scripts/apidocgen/node_modules/.installed: scripts/apidocgen/package.json script
 SITE_GEN_FILES := \
 	site/src/api/typesGenerated.ts \
 	site/src/api/rbacresourcesGenerated.ts \
-	site/src/api/countriesGenerated.ts \
 	site/src/api/chatModelOptionsGenerated.json \
 	site/src/theme/icons.json
 
@@ -1192,7 +1189,6 @@ gen/mark-fresh:
 		coderd/rbac/scopes_constants_gen.go \
 		codersdk/apikey_scopes_gen.go \
 		site/src/api/rbacresourcesGenerated.ts \
-		site/src/api/countriesGenerated.ts \
 		site/src/api/chatModelOptionsGenerated.json \
 		docs/admin/integrations/prometheus.md \
 		docs/reference/cli/index.md \
@@ -1401,9 +1397,6 @@ codersdk/apikey_scopes_gen.go: scripts/apikeyscopesgen/main.go coderd/rbac/scope
 site/src/api/rbacresourcesGenerated.ts: site/node_modules/.installed scripts/typegen/codersdk.gotmpl scripts/typegen/main.go coderd/rbac/object.go coderd/rbac/policy/policy.go \
 	coderd/rbac/object_gen.go coderd/rbac/scopes_constants_gen.go | _gen _gen/bin/typegen
 	$(call atomic_write,_gen/bin/typegen rbac typescript,./scripts/biome_format.sh)
-
-site/src/api/countriesGenerated.ts: site/node_modules/.installed scripts/typegen/countries.tstmpl scripts/typegen/main.go codersdk/countries.go | _gen _gen/bin/typegen
-	$(call atomic_write,_gen/bin/typegen countries,./scripts/biome_format.sh)
 
 site/src/api/chatModelOptionsGenerated.json: scripts/modeloptionsgen/main.go codersdk/chats.go | _gen _gen/bin/modeloptionsgen
 	$(call atomic_write,_gen/bin/modeloptionsgen | tail -n +2,./scripts/biome_format.sh)

@@ -1,4 +1,5 @@
 import type { AuditLog } from "#/api/typesGenerated";
+import { FeatureUnavailable } from "#/components/FeatureUnavailable/FeatureUnavailable";
 import { Margins } from "#/components/Margins/Margins";
 import {
 	PageHeader,
@@ -14,8 +15,6 @@ import { Table, TableBody } from "#/components/Table/Table";
 import { TableEmpty } from "#/components/TableEmpty/TableEmpty";
 import { TableLoader } from "#/components/TableLoader/TableLoader";
 import { Timeline } from "#/components/Timeline/Timeline";
-import { PremiumPaywall } from "#/modules/paywall/PremiumPaywall";
-import type { Permissions } from "#/modules/permissions";
 import { docs } from "#/utils/docs";
 import { AuditFilter } from "./AuditFilter";
 import { AuditHelpPopover } from "./AuditHelpPopover";
@@ -29,7 +28,6 @@ type AuditPageViewProps = {
 	filterProps: React.ComponentProps<typeof AuditFilter>;
 	auditsQuery: PaginationResult;
 	showOrgDetails: boolean;
-	permissions: Permissions;
 };
 
 export const AuditPageView: React.FC<AuditPageViewProps> = ({
@@ -40,7 +38,6 @@ export const AuditPageView: React.FC<AuditPageViewProps> = ({
 	filterProps,
 	auditsQuery: paginationResult,
 	showOrgDetails,
-	permissions,
 }) => {
 	const isLoading =
 		(auditLogs === undefined || paginationResult.totalRecords === undefined) &&
@@ -86,17 +83,7 @@ export const AuditPageView: React.FC<AuditPageViewProps> = ({
 					</PaginationContainer>
 				</>
 			) : (
-				<PremiumPaywall
-					source="audit_log"
-					message="Audit logs"
-					description="See exactly who changed what and when, with every workspace, template, and user action logged for compliance and incident response."
-					features={[
-						"Configurable retention & auto-purge",
-						"API export to Splunk, Datadog & more",
-						"Meets SOC 2 & HIPAA audit requirements",
-					]}
-					canViewPremium={permissions.viewAllLicenses}
-				/>
+				<FeatureUnavailable feature="Audit logs" />
 			)}
 		</Margins>
 	);

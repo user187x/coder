@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
-	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -23,7 +21,6 @@ import (
 	"cdr.dev/slog/v3"
 	"cdr.dev/slog/v3/sloggers/sloghuman"
 	"github.com/coder/coder/v2/cli/cliui"
-	"github.com/coder/coder/v2/cli/telemetry"
 	"github.com/coder/coder/v2/coderd/tracing"
 	"github.com/coder/coder/v2/codersdk"
 	"github.com/coder/coder/v2/testutil"
@@ -215,36 +212,6 @@ func Test_serverVersionMessage(t *testing.T) {
 			require.Equal(t, c.expected, serverVersionMessage(c.version))
 		})
 	}
-}
-
-func Test_wrapTransportWithTelemetryHeader(t *testing.T) {
-	t.Parallel()
-
-	rt := wrapTransportWithTelemetryHeader(roundTripper(func(req *http.Request) (*http.Response, error) {
-		return &http.Response{
-			Body: io.NopCloser(nil),
-		}, nil
-	}), &serpent.Invocation{
-		Command: &serpent.Command{
-			Use: "test",
-			Options: serpent.OptionSet{{
-				Name:        "bananas",
-				Description: "hey",
-			}},
-		},
-	})
-	req := httptest.NewRequest(http.MethodGet, "http://example.com", nil)
-	res, err := rt.RoundTrip(req)
-	require.NoError(t, err)
-	defer res.Body.Close()
-	resp := req.Header.Get(codersdk.CLITelemetryHeader)
-	require.NotEmpty(t, resp)
-	data, err := base64.StdEncoding.DecodeString(resp)
-	require.NoError(t, err)
-	var ti telemetry.Invocation
-	err = json.Unmarshal(data, &ti)
-	require.NoError(t, err)
-	require.Equal(t, ti.Command, "test")
 }
 
 //nolint:tparallel,paralleltest // This test modifies environment variables.

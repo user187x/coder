@@ -13,23 +13,21 @@ import {
 } from "#/api/queries/organizations";
 import { organizationRoles } from "#/api/queries/roles";
 import { EmptyState } from "#/components/EmptyState/EmptyState";
+import { FeatureUnavailable } from "#/components/FeatureUnavailable/FeatureUnavailable";
 import {
 	SettingsHeader,
 	SettingsHeaderDescription,
 	SettingsHeaderDocsLink,
 	SettingsHeaderTitle,
 } from "#/components/SettingsHeader/SettingsHeader";
-import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { useFeatureVisibility } from "#/modules/dashboard/useFeatureVisibility";
 import { useOrganizationSettings } from "#/modules/management/OrganizationSettingsLayout";
-import { PremiumPaywall } from "#/modules/paywall/PremiumPaywall";
 import { RequirePermission } from "#/modules/permissions/RequirePermission";
 import { docs } from "#/utils/docs";
 import { pageTitle } from "#/utils/page";
 import IdpSyncPageView from "./IdpSyncPageView";
 
 const IdpSyncPage: React.FC = () => {
-	const { permissions } = useAuthenticated();
 	const queryClient = useQueryClient();
 	// IdP sync does not have its own entitlement and is based on templace_rbac
 	const { template_rbac: isIdpSyncEnabled } = useFeatureVisibility();
@@ -127,18 +125,7 @@ const IdpSyncPage: React.FC = () => {
 				</SettingsHeaderDescription>
 			</SettingsHeader>
 			{!isIdpSyncEnabled ? (
-				<PremiumPaywall
-					source="idp_sync"
-					message="IdP Sync"
-					description="Auto-sync groups & roles from your IdP."
-					features={[
-						"Sync groups & roles automatically",
-						"Configured per organization",
-						"No manual user assignment",
-						"Works with your OIDC provider",
-					]}
-					canViewPremium={permissions.viewAllLicenses}
-				/>
+				<FeatureUnavailable feature="IdP Sync" />
 			) : (
 				<IdpSyncPageView
 					tab={tab}

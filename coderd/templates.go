@@ -27,7 +27,6 @@ import (
 	"github.com/coder/coder/v2/coderd/rbac/policy"
 	"github.com/coder/coder/v2/coderd/schedule"
 	"github.com/coder/coder/v2/coderd/searchquery"
-	"github.com/coder/coder/v2/coderd/telemetry"
 	"github.com/coder/coder/v2/coderd/util/ptr"
 	"github.com/coder/coder/v2/coderd/util/slice"
 	"github.com/coder/coder/v2/coderd/workspacestats"
@@ -526,11 +525,6 @@ func (api *API) postTemplateByOrganization(rw http.ResponseWriter, r *http.Reque
 		})
 		return
 	}
-
-	api.Telemetry.Report(&telemetry.Snapshot{
-		Templates:        []telemetry.Template{telemetry.ConvertTemplate(dbTemplate)},
-		TemplateVersions: []telemetry.TemplateVersion{telemetry.ConvertTemplateVersion(templateVersion)},
-	})
 
 	httpapi.Write(ctx, rw, http.StatusCreated, api.convertTemplate(dbTemplate))
 }

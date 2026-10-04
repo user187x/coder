@@ -1,6 +1,5 @@
 import type { GetLicensesResponse } from "#/api/api";
 import type { Feature } from "#/api/typesGenerated";
-import { Link } from "#/components/Link/Link";
 import {
 	effectiveAiGovernanceLimitForUsageCard,
 	hasAiGovernanceAddOnLicense,
@@ -35,9 +34,7 @@ export const AIGovernanceUsersConsumption: React.FC<
 					<div className="flex flex-col items-center justify-center">
 						<span className="text-base">AI Governance add-on usage</span>
 						<span className="text-content-secondary text-center max-w-[464px] mt-2">
-							AI Governance is not included in your current license. Contact{" "}
-							<Link href="mailto:sales@coder.com">sales</Link> to upgrade your
-							license and unlock this addon.
+							AI Governance is not enabled on this deployment.
 						</span>
 					</div>
 				</div>

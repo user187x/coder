@@ -4370,35 +4370,6 @@
 				]
 			}
 		},
-		"/api/v2/deployment/premium-funnel-events": {
-			"post": {
-				"consumes": ["application/json"],
-				"tags": ["Enterprise"],
-				"summary": "Report a premium paywall click",
-				"operationId": "report-a-premium-paywall-click",
-				"parameters": [
-					{
-						"description": "Premium funnel event",
-						"name": "request",
-						"in": "body",
-						"required": true,
-						"schema": {
-							"$ref": "#/definitions/codersdk.PremiumFunnelEventRequest"
-						}
-					}
-				],
-				"responses": {
-					"204": {
-						"description": "No Content"
-					}
-				},
-				"security": [
-					{
-						"CoderSessionToken": []
-					}
-				]
-			}
-		},
 		"/api/v2/deployment/ssh": {
 			"get": {
 				"produces": ["application/json"],
@@ -5449,39 +5420,6 @@
 						"description": "Created",
 						"schema": {
 							"$ref": "#/definitions/codersdk.Response"
-						}
-					}
-				},
-				"security": [
-					{
-						"CoderSessionToken": []
-					}
-				]
-			}
-		},
-		"/api/v2/licenses/trial": {
-			"post": {
-				"consumes": ["application/json"],
-				"produces": ["application/json"],
-				"tags": ["Enterprise"],
-				"summary": "Request a trial license",
-				"operationId": "request-a-trial-license",
-				"parameters": [
-					{
-						"description": "Trial license request",
-						"name": "request",
-						"in": "body",
-						"required": true,
-						"schema": {
-							"$ref": "#/definitions/codersdk.CreateTrialLicenseRequest"
-						}
-					}
-				],
-				"responses": {
-					"201": {
-						"description": "Created",
-						"schema": {
-							"$ref": "#/definitions/codersdk.License"
 						}
 					}
 				},
@@ -9799,35 +9737,6 @@
 						"schema": {
 							"$ref": "#/definitions/codersdk.TemplateBuilderModulesResponse"
 						}
-					}
-				},
-				"security": [
-					{
-						"CoderSessionToken": []
-					}
-				]
-			}
-		},
-		"/api/v2/templatebuilder/sessions": {
-			"post": {
-				"consumes": ["application/json"],
-				"tags": ["TemplateBuilder"],
-				"summary": "Report a template builder session event",
-				"operationId": "report-a-template-builder-session-event",
-				"parameters": [
-					{
-						"description": "Session event",
-						"name": "request",
-						"in": "body",
-						"required": true,
-						"schema": {
-							"$ref": "#/definitions/codersdk.TemplateBuilderSessionRequest"
-						}
-					}
-				],
-				"responses": {
-					"204": {
-						"description": "No Content"
 					}
 				},
 				"security": [
@@ -14300,45 +14209,6 @@
 				]
 			}
 		},
-		"/api/v2/workspacebuilds/{workspacebuild}/debug-events": {
-			"post": {
-				"consumes": ["application/json"],
-				"tags": ["Builds"],
-				"summary": "Report a workspace build debug click",
-				"operationId": "report-a-workspace-build-debug-click",
-				"parameters": [
-					{
-						"type": "string",
-						"description": "Workspace build ID",
-						"name": "workspacebuild",
-						"in": "path",
-						"required": true
-					},
-					{
-						"description": "Debug event",
-						"name": "request",
-						"in": "body",
-						"required": true,
-						"schema": {
-							"$ref": "#/definitions/codersdk.WorkspaceBuildDebugEventRequest"
-						}
-					}
-				],
-				"responses": {
-					"204": {
-						"description": "No Content"
-					}
-				},
-				"security": [
-					{
-						"CoderSessionToken": []
-					}
-				],
-				"x-apidocgen": {
-					"skip": true
-				}
-			}
-		},
 		"/api/v2/workspacebuilds/{workspacebuild}/logs": {
 			"get": {
 				"produces": ["application/json"],
@@ -18553,10 +18423,6 @@
 					"description": "ProvisionerAPIVersion is the current version of the Provisioner API",
 					"type": "string"
 				},
-				"telemetry": {
-					"description": "Telemetry is a boolean that indicates whether telemetry is enabled.",
-					"type": "boolean"
-				},
 				"upgrade_message": {
 					"description": "UpgradeMessage is the message displayed to users when an outdated client\nis detected.",
 					"type": "string"
@@ -21382,17 +21248,6 @@
 				}
 			}
 		},
-		"codersdk.CreateFirstUserOnboardingInfo": {
-			"type": "object",
-			"properties": {
-				"newsletter_marketing": {
-					"type": "boolean"
-				},
-				"newsletter_releases": {
-					"type": "boolean"
-				}
-			}
-		},
 		"codersdk.CreateFirstUserRequest": {
 			"type": "object",
 			"required": ["email", "password", "username"],
@@ -21403,17 +21258,8 @@
 				"name": {
 					"type": "string"
 				},
-				"onboarding_info": {
-					"$ref": "#/definitions/codersdk.CreateFirstUserOnboardingInfo"
-				},
 				"password": {
 					"type": "string"
-				},
-				"trial": {
-					"type": "boolean"
-				},
-				"trial_info": {
-					"$ref": "#/definitions/codersdk.CreateFirstUserTrialInfo"
 				},
 				"username": {
 					"type": "string"
@@ -21430,32 +21276,6 @@
 				"user_id": {
 					"type": "string",
 					"format": "uuid"
-				}
-			}
-		},
-		"codersdk.CreateFirstUserTrialInfo": {
-			"type": "object",
-			"properties": {
-				"company_name": {
-					"type": "string"
-				},
-				"country": {
-					"type": "string"
-				},
-				"developers": {
-					"type": "string"
-				},
-				"first_name": {
-					"type": "string"
-				},
-				"job_title": {
-					"type": "string"
-				},
-				"last_name": {
-					"type": "string"
-				},
-				"phone_number": {
-					"type": "string"
 				}
 			}
 		},
@@ -21874,77 +21694,6 @@
 				},
 				"token_name": {
 					"type": "string"
-				}
-			}
-		},
-		"codersdk.CreateTrialLicenseRequest": {
-			"type": "object",
-			"required": [
-				"company_name",
-				"country",
-				"developers",
-				"email",
-				"first_name",
-				"job_title",
-				"last_name",
-				"phone_number"
-			],
-			"properties": {
-				"attribution_id": {
-					"description": "AttributionID is the ID of the cta_click funnel event that led here, so\nthat a signup can be joined back to the paywall that produced it.",
-					"type": "string",
-					"format": "uuid"
-				},
-				"company_name": {
-					"type": "string",
-					"maxLength": 100,
-					"minLength": 2,
-					"example": "Acme Corp"
-				},
-				"country": {
-					"type": "string",
-					"example": "United States"
-				},
-				"developers": {
-					"type": "string"
-				},
-				"email": {
-					"type": "string",
-					"format": "email",
-					"maxLength": 254,
-					"example": "jane.doe@example.com"
-				},
-				"first_name": {
-					"type": "string",
-					"maxLength": 60,
-					"minLength": 1,
-					"example": "Jane"
-				},
-				"job_title": {
-					"type": "string",
-					"maxLength": 100,
-					"minLength": 2,
-					"example": "Engineering Manager"
-				},
-				"last_name": {
-					"type": "string",
-					"maxLength": 60,
-					"minLength": 1,
-					"example": "Doe"
-				},
-				"phone_number": {
-					"type": "string",
-					"maxLength": 20,
-					"minLength": 7,
-					"example": "+14155552671"
-				},
-				"source": {
-					"description": "Source is the premium paywall the request came from, for telemetry. It\nis not forwarded to the licensor. Omit it to report \"direct\".",
-					"allOf": [
-						{
-							"$ref": "#/definitions/codersdk.PremiumFunnelSource"
-						}
-					]
 				}
 			}
 		},
@@ -26085,79 +25834,6 @@
 				}
 			}
 		},
-		"codersdk.PremiumFunnelEventRequest": {
-			"type": "object",
-			"required": ["id", "source", "variant"],
-			"properties": {
-				"id": {
-					"description": "ID identifies this click, and doubles as the attribution token that a\nlater trial signup reports.",
-					"type": "string",
-					"format": "uuid"
-				},
-				"source": {
-					"$ref": "#/definitions/codersdk.PremiumFunnelSource"
-				},
-				"variant": {
-					"$ref": "#/definitions/codersdk.PremiumFunnelVariant"
-				}
-			}
-		},
-		"codersdk.PremiumFunnelSource": {
-			"type": "string",
-			"enum": [
-				"aibridge_session_threads",
-				"aibridge_sessions",
-				"ai_gateway_keys",
-				"ai_governance",
-				"appearance",
-				"audit_log",
-				"browser_only",
-				"connection_log",
-				"custom_roles",
-				"external_auth",
-				"groups",
-				"idp_org_sync",
-				"idp_sync",
-				"multiple_organizations",
-				"observability",
-				"provisioner_keys",
-				"provisioners",
-				"template_permissions",
-				"workspace_proxies",
-				"direct"
-			],
-			"x-enum-varnames": [
-				"PremiumFunnelSourceAIBridgeSessionThreads",
-				"PremiumFunnelSourceAIBridgeSessions",
-				"PremiumFunnelSourceAIGatewayKeys",
-				"PremiumFunnelSourceAIGovernance",
-				"PremiumFunnelSourceAppearance",
-				"PremiumFunnelSourceAuditLog",
-				"PremiumFunnelSourceBrowserOnly",
-				"PremiumFunnelSourceConnectionLog",
-				"PremiumFunnelSourceCustomRoles",
-				"PremiumFunnelSourceExternalAuth",
-				"PremiumFunnelSourceGroups",
-				"PremiumFunnelSourceIdpOrgSync",
-				"PremiumFunnelSourceIdpSync",
-				"PremiumFunnelSourceMultipleOrganizations",
-				"PremiumFunnelSourceObservability",
-				"PremiumFunnelSourceProvisionerKeys",
-				"PremiumFunnelSourceProvisioners",
-				"PremiumFunnelSourceTemplatePermissions",
-				"PremiumFunnelSourceWorkspaceProxies",
-				"PremiumFunnelSourceDirect"
-			]
-		},
-		"codersdk.PremiumFunnelVariant": {
-			"type": "string",
-			"enum": ["premium", "small", "ai_governance"],
-			"x-enum-varnames": [
-				"PremiumFunnelVariantPremium",
-				"PremiumFunnelVariantSmall",
-				"PremiumFunnelVariantAIGovernance"
-			]
-		},
 		"codersdk.Preset": {
 			"type": "object",
 			"properties": {
@@ -27692,12 +27368,6 @@
 			"properties": {
 				"enable": {
 					"type": "boolean"
-				},
-				"trace": {
-					"type": "boolean"
-				},
-				"url": {
-					"$ref": "#/definitions/serpent.URL"
 				}
 			}
 		},
@@ -28107,11 +27777,6 @@
 					"additionalProperties": {
 						"type": "string"
 					}
-				},
-				"session_id": {
-					"description": "SessionID is the wizard session this request belongs to, as reported to\nPOST /api/v2/templatebuilder/sessions. It is optional and used only to\nattribute a build failure to the session that produced it.",
-					"type": "string",
-					"format": "uuid"
 				}
 			}
 		},
@@ -28198,47 +27863,6 @@
 					"items": {
 						"$ref": "#/definitions/codersdk.TemplateBuilderModule"
 					}
-				}
-			}
-		},
-		"codersdk.TemplateBuilderSessionEventType": {
-			"type": "string",
-			"enum": ["wizard_entry", "compose_completion"],
-			"x-enum-varnames": [
-				"TemplateBuilderSessionEventWizardEntry",
-				"TemplateBuilderSessionEventComposeCompletion"
-			]
-		},
-		"codersdk.TemplateBuilderSessionRequest": {
-			"type": "object",
-			"required": ["event_type", "session_id"],
-			"properties": {
-				"base_template_id": {
-					"type": "string"
-				},
-				"duration_seconds": {
-					"type": "number"
-				},
-				"event_type": {
-					"enum": ["wizard_entry", "compose_completion"],
-					"allOf": [
-						{
-							"$ref": "#/definitions/codersdk.TemplateBuilderSessionEventType"
-						}
-					]
-				},
-				"module_ids": {
-					"type": "array",
-					"items": {
-						"type": "string"
-					}
-				},
-				"session_id": {
-					"type": "string",
-					"format": "uuid"
-				},
-				"success": {
-					"type": "boolean"
 				}
 			}
 		},
@@ -31581,17 +31205,6 @@
 				"workspace_owner_name": {
 					"description": "WorkspaceOwnerName is the username of the owner of the workspace.",
 					"type": "string"
-				}
-			}
-		},
-		"codersdk.WorkspaceBuildDebugEventRequest": {
-			"type": "object",
-			"required": ["id"],
-			"properties": {
-				"id": {
-					"description": "ID identifies this click so a later step of the funnel can be\nattributed to it.",
-					"type": "string",
-					"format": "uuid"
 				}
 			}
 		},

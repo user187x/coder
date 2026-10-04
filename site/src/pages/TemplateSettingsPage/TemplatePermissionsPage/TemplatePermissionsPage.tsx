@@ -6,22 +6,20 @@ import {
 	setUserRole,
 	templateACL,
 } from "#/api/queries/templates";
+import { FeatureUnavailable } from "#/components/FeatureUnavailable/FeatureUnavailable";
 import {
 	SettingsHeader,
 	SettingsHeaderDescription,
 	SettingsHeaderDocsLink,
 	SettingsHeaderTitle,
 } from "#/components/SettingsHeader/SettingsHeader";
-import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { useFeatureVisibility } from "#/modules/dashboard/useFeatureVisibility";
-import { PremiumPaywall } from "#/modules/paywall/PremiumPaywall";
 import { docs } from "#/utils/docs";
 import { pageTitle } from "#/utils/page";
 import { useTemplateSettings } from "../TemplateSettingsLayout";
 import { TemplatePermissionsPageView } from "./TemplatePermissionsPageView";
 
 const TemplatePermissionsPage: React.FC = () => {
-	const { permissions: authPermissions } = useAuthenticated();
 	const { template, permissions } = useTemplateSettings();
 	const { template_rbac: isTemplateRBACEnabled } = useFeatureVisibility();
 	const templateACLQuery = useQuery(templateACL(template.id));
@@ -51,17 +49,7 @@ const TemplatePermissionsPage: React.FC = () => {
 				</SettingsHeader>
 
 				{!isTemplateRBACEnabled ? (
-					<PremiumPaywall
-						source="template_permissions"
-						message="Template permissions"
-						description="Restrict template access by user or group."
-						features={[
-							"Choose Use or Admin-level access",
-							"Prevent unauthorized template use",
-							"Let teams self-serve templates without admin bottlenecks",
-						]}
-						canViewPremium={authPermissions.viewAllLicenses}
-					/>
+					<FeatureUnavailable feature="Template permissions" />
 				) : (
 					<TemplatePermissionsPageView
 						templateID={template.id}

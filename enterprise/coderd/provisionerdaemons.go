@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/hashicorp/yamux"
@@ -29,7 +28,6 @@ import (
 	"github.com/coder/coder/v2/coderd/pubsub"
 	"github.com/coder/coder/v2/coderd/rbac"
 	"github.com/coder/coder/v2/coderd/rbac/policy"
-	"github.com/coder/coder/v2/coderd/telemetry"
 	"github.com/coder/coder/v2/coderd/util/namesgenerator"
 	"github.com/coder/coder/v2/codersdk"
 	"github.com/coder/coder/v2/codersdk/drpcsdk"
@@ -293,13 +291,6 @@ func (api *API) provisionerDaemonServe(rw http.ResponseWriter, r *http.Request) 
 	api.AGPL.WebsocketWaitMutex.Unlock()
 	defer api.AGPL.WebsocketWaitGroup.Done()
 
-	tep := telemetry.ConvertExternalProvisioner(daemon.ID, tags, provisioners)
-	api.Telemetry.Report(&telemetry.Snapshot{ExternalProvisioners: []telemetry.ExternalProvisioner{tep}})
-	defer func() {
-		tep.ShutdownAt = new(time.Now())
-		api.Telemetry.Report(&telemetry.Snapshot{ExternalProvisioners: []telemetry.ExternalProvisioner{tep}})
-	}()
-
 	conn, err := websocket.Accept(rw, r, &websocket.AcceptOptions{
 		// Need to disable compression to avoid a data-race.
 		CompressionMode: websocket.CompressionDisabled,
@@ -344,7 +335,6 @@ func (api *API) provisionerDaemonServe(rw http.ResponseWriter, r *http.Request) 
 		api.Database,
 		api.Pubsub,
 		api.AGPL.Acquirer,
-		api.Telemetry,
 		trace.NewNoopTracerProvider().Tracer("noop"),
 		&api.AGPL.QuotaCommitter,
 		&api.AGPL.Auditor,

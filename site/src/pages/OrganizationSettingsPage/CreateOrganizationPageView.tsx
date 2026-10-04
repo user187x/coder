@@ -10,6 +10,7 @@ import { createOrganization } from "#/api/queries/organizations";
 import type { CreateOrganizationRequest } from "#/api/typesGenerated";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { Button } from "#/components/Button/Button";
+import { FeatureUnavailable } from "#/components/FeatureUnavailable/FeatureUnavailable";
 import { FormField } from "#/components/FormField/FormField";
 import { IconField } from "#/components/IconField/IconField";
 import { Label } from "#/components/Label/Label";
@@ -21,8 +22,6 @@ import {
 } from "#/components/SettingsHeader/SettingsHeader";
 import { Spinner } from "#/components/Spinner/Spinner";
 import { Textarea } from "#/components/Textarea/Textarea";
-import { PremiumPaywall } from "#/modules/paywall/PremiumPaywall";
-import type { Permissions } from "#/modules/permissions";
 import { docs } from "#/utils/docs";
 import {
 	displayNameValidator,
@@ -45,12 +44,11 @@ const validationSchema = Yup.object({
 
 type CreateOrganizationPageViewProps = {
 	isEntitled: boolean;
-	permissions: Permissions;
 };
 
 export const CreateOrganizationPageView: React.FC<
 	CreateOrganizationPageViewProps
-> = ({ isEntitled, permissions }) => {
+> = ({ isEntitled }) => {
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 	const createOrganizationMutation = useMutation(
@@ -107,17 +105,7 @@ export const CreateOrganizationPageView: React.FC<
 					</SettingsHeader>
 
 					{!isEntitled ? (
-						<PremiumPaywall
-							source="multiple_organizations"
-							message="Organizations"
-							description="Run isolated business units on one deployment, each with its own users, templates, provisioners, and infrastructure."
-							features={[
-								"Isolate provisioners & infrastructure",
-								"Sync org membership from your IdP",
-								"Manage orgs at scale via Terraform",
-							]}
-							canViewPremium={permissions.viewAllLicenses}
-						/>
+						<FeatureUnavailable feature="Organizations" />
 					) : (
 						<div className="border border-solid p-6 rounded-lg">
 							<form

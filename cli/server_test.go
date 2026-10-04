@@ -52,7 +52,6 @@ import (
 	"github.com/coder/coder/v2/coderd/database/dbtestutil"
 	"github.com/coder/coder/v2/coderd/database/migrations"
 	"github.com/coder/coder/v2/coderd/httpapi"
-	"github.com/coder/coder/v2/coderd/telemetry"
 	"github.com/coder/coder/v2/coderd/userpassword"
 	"github.com/coder/coder/v2/codersdk"
 	"github.com/coder/coder/v2/cryptorand"
@@ -1233,44 +1232,6 @@ func TestServer(t *testing.T) {
 		cancel()
 		require.Error(t, goleak.Find())
 	})
-	t.Run("Telemetry", func(t *testing.T) {
-		t.Parallel()
-
-		telemetryServerURL, deployment, snapshot := mockTelemetryServer(t)
-
-		inv, cfg := clitest.New(t,
-			"server",
-			dbArg(t),
-			"--http-address", "127.0.0.1:0",
-			"--access-url", "http://example.com",
-			"--telemetry",
-			"--telemetry-url", telemetryServerURL.String(),
-			"--cache-dir", t.TempDir(),
-		)
-		clitest.Start(t, inv)
-
-		<-deployment
-		<-snapshot
-
-		accessURL := waitAccessURL(t, cfg)
-
-		ctx := testutil.Context(t, testutil.WaitMedium)
-		client := codersdk.New(accessURL)
-		body, err := client.Request(ctx, http.MethodGet, "/", nil)
-		require.NoError(t, err)
-		require.NoError(t, body.Body.Close())
-
-		require.Eventually(t, func() bool {
-			snap := <-snapshot
-			htmlFirstServedFound := false
-			for _, item := range snap.TelemetryItems {
-				if item.Key == string(telemetry.TelemetryItemKeyHTMLFirstServedAt) {
-					htmlFirstServedFound = true
-				}
-			}
-			return htmlFirstServedFound
-		}, testutil.WaitLong, testutil.IntervalSlow, "no html_first_served telemetry item")
-	})
 	t.Run("Prometheus", func(t *testing.T) {
 		t.Parallel()
 
@@ -1465,7 +1426,6 @@ func TestServer(t *testing.T) {
 				Email:    "admin@coder.com",
 				Password: randPassword,
 				Username: "admin",
-				Trial:    true,
 			})
 			require.NoError(t, err)
 
@@ -1553,7 +1513,6 @@ func TestServer(t *testing.T) {
 				Email:    "admin@coder.com",
 				Password: randPassword,
 				Username: "admin",
-				Trial:    true,
 			})
 			require.NoError(t, err)
 
@@ -1641,7 +1600,6 @@ func TestServer(t *testing.T) {
 				Email:    "admin@coder.com",
 				Password: randPassword,
 				Username: "admin",
-				Trial:    true,
 			})
 			require.NoError(t, err)
 
@@ -2197,38 +2155,6 @@ func TestServer_Production(t *testing.T) {
 	require.NoError(t, err)
 }
 
-//nolint:tparallel,paralleltest // This test sets environment variables.
-func TestServer_TelemetryDisable(t *testing.T) {
-	// Set the default telemetry to true (normally disabled in tests).
-	t.Setenv("CODER_TEST_TELEMETRY_DEFAULT_ENABLE", "true")
-
-	for _, tt := range []struct {
-		key  string
-		val  string
-		want bool
-	}{
-		{"", "", true},
-		{"CODER_TELEMETRY_ENABLE", "true", true},
-		{"CODER_TELEMETRY_ENABLE", "false", false},
-		{"CODER_TELEMETRY", "true", true},
-		{"CODER_TELEMETRY", "false", false},
-	} {
-		t.Run(fmt.Sprintf("%s=%s", tt.key, tt.val), func(t *testing.T) {
-			t.Parallel()
-			var b bytes.Buffer
-			inv, _ := clitest.New(t, "server", "--write-config")
-			inv.Stdout = &b
-			inv.Environ.Set(tt.key, tt.val)
-			clitest.Run(t, inv)
-
-			var dv codersdk.DeploymentValues
-			err := yaml.Unmarshal(b.Bytes(), &dv)
-			require.NoError(t, err)
-			assert.Equal(t, tt.want, dv.Telemetry.Enable.Value())
-		})
-	}
-}
-
 //nolint:tparallel,paralleltest // This test cannot be run in parallel due to signal handling.
 func TestServer_InterruptShutdown(t *testing.T) {
 	t.Skip("This test issues an interrupt signal which will propagate to the test runner.")
@@ -2555,128 +2481,6 @@ type runServerOpts struct {
 	telemetryDisabled             bool
 	waitForTelemetryDisabledCheck bool
 	name                          string
-}
-
-func TestServer_TelemetryDisabled_FinalReport(t *testing.T) {
-	t.Parallel()
-
-	telemetryServerURL, deployment, snapshot := mockTelemetryServer(t)
-	dbConnURL, err := dbtestutil.Open(t)
-	require.NoError(t, err)
-
-	cacheDir := t.TempDir()
-	runServer := func(t *testing.T, opts runServerOpts) (chan error, context.CancelFunc) {
-		ctx, cancelFunc := context.WithCancel(context.Background())
-		t.Cleanup(cancelFunc)
-		inv, cfg := clitest.New(t,
-			"server",
-			"--postgres-url", dbConnURL,
-			"--http-address", "127.0.0.1:0",
-			"--access-url", "http://example.com",
-			"--telemetry="+strconv.FormatBool(!opts.telemetryDisabled),
-			"--telemetry-url", telemetryServerURL.String(),
-			"--cache-dir", cacheDir,
-			"--log-filter", ".*",
-		)
-		inv.Logger = inv.Logger.Named(opts.name)
-
-		errChan := make(chan error, 1)
-		stdout := expecter.NewAttachedToInvocation(t, inv)
-		go func() {
-			errChan <- inv.WithContext(ctx).Run()
-			// close the pty here so that we can start tearing down resources. This test creates multiple servers with
-			// associated ptys. There is a `t.Cleanup()` that does this, but it waits until the whole test is complete.
-			stdout.Close("invocation complete")
-		}()
-
-		if opts.waitForSnapshot {
-			stdout.ExpectMatch(testutil.Context(t, testutil.WaitLong), "submitted snapshot")
-		}
-		if opts.waitForTelemetryDisabledCheck {
-			stdout.ExpectMatch(testutil.Context(t, testutil.WaitLong), "finished telemetry status check")
-		}
-
-		// Telemetry can initialize before the server is healthy.
-		// Wait for HTTP serving so context cancellation does not interrupt startup.
-		client := codersdk.New(waitAccessURL(t, cfg))
-		healthCtx := testutil.Context(t, testutil.WaitLong)
-		testutil.Eventually(healthCtx, t, func(ctx context.Context) bool {
-			resp, err := client.Request(ctx, http.MethodGet, "/healthz", nil)
-			if err != nil {
-				return false
-			}
-			defer resp.Body.Close()
-			return resp.StatusCode == http.StatusOK
-		}, testutil.IntervalFast, "server did not become healthy")
-		return errChan, cancelFunc
-	}
-	waitForShutdown := func(t *testing.T, errChan chan error) error {
-		t.Helper()
-		select {
-		case err := <-errChan:
-			return err
-		case <-time.After(testutil.WaitMedium):
-			t.Fatalf("timed out waiting for server to shutdown")
-		}
-		return nil
-	}
-
-	errChan, cancelFunc := runServer(t, runServerOpts{
-		telemetryDisabled: true, waitForTelemetryDisabledCheck: true, name: "0disabled",
-	})
-	cancelFunc()
-	require.NoError(t, waitForShutdown(t, errChan))
-
-	// Since telemetry was disabled, we expect no deployments or snapshots.
-	require.Empty(t, deployment)
-	require.Empty(t, snapshot)
-
-	errChan, cancelFunc = runServer(t, runServerOpts{waitForSnapshot: true, name: "1enabled"})
-	cancelFunc()
-	require.NoError(t, waitForShutdown(t, errChan))
-	// we expect to see a deployment and a snapshot twice:
-	// 1. the first pair is sent when the server starts
-	// 2. the second pair is sent when the server shuts down
-	for i := 0; i < 2; i++ {
-		select {
-		case <-snapshot:
-		case <-time.After(testutil.WaitShort / 2):
-			t.Fatalf("timed out waiting for snapshot")
-		}
-		select {
-		case <-deployment:
-		case <-time.After(testutil.WaitShort / 2):
-			t.Fatalf("timed out waiting for deployment")
-		}
-	}
-
-	errChan, cancelFunc = runServer(t, runServerOpts{
-		telemetryDisabled: true, waitForTelemetryDisabledCheck: true, name: "2disabled",
-	})
-	cancelFunc()
-	require.NoError(t, waitForShutdown(t, errChan))
-
-	// Since telemetry is disabled, we expect no deployment. We expect a snapshot
-	// with the telemetry disabled item.
-	require.Empty(t, deployment)
-	select {
-	case ss := <-snapshot:
-		require.Len(t, ss.TelemetryItems, 1)
-		require.Equal(t, string(telemetry.TelemetryItemKeyTelemetryEnabled), ss.TelemetryItems[0].Key)
-		require.Equal(t, "false", ss.TelemetryItems[0].Value)
-	case <-time.After(testutil.WaitShort / 2):
-		t.Fatalf("timed out waiting for snapshot")
-	}
-
-	errChan, cancelFunc = runServer(t, runServerOpts{
-		telemetryDisabled: true, waitForTelemetryDisabledCheck: true, name: "3disabled",
-	})
-	cancelFunc()
-	require.NoError(t, waitForShutdown(t, errChan))
-	// Since telemetry is disabled and we've already sent a snapshot, we expect no
-	// new deployments or snapshots.
-	require.Empty(t, deployment)
-	require.Empty(t, snapshot)
 }
 
 func mockTelemetryServer(t *testing.T) (*url.URL, chan *telemetry.Deployment, chan *telemetry.Snapshot) {

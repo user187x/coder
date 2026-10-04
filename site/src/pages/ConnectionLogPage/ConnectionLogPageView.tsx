@@ -1,4 +1,5 @@
 import type { ConnectionLog } from "#/api/typesGenerated";
+import { FeatureUnavailable } from "#/components/FeatureUnavailable/FeatureUnavailable";
 import { Margins } from "#/components/Margins/Margins";
 import {
 	PageHeader,
@@ -14,8 +15,6 @@ import { Table, TableBody } from "#/components/Table/Table";
 import { TableEmpty } from "#/components/TableEmpty/TableEmpty";
 import { TableLoader } from "#/components/TableLoader/TableLoader";
 import { Timeline } from "#/components/Timeline/Timeline";
-import { PremiumPaywall } from "#/modules/paywall/PremiumPaywall";
-import type { Permissions } from "#/modules/permissions";
 import { docs } from "#/utils/docs";
 import { ConnectionLogFilter } from "./ConnectionLogFilter";
 import { ConnectionLogHelpPopover } from "./ConnectionLogHelpPopover";
@@ -28,7 +27,6 @@ type ConnectionLogPageViewProps = {
 	error?: unknown;
 	filterProps: React.ComponentProps<typeof ConnectionLogFilter>;
 	connectionLogsQuery: PaginationResult;
-	permissions: Permissions;
 };
 
 export const ConnectionLogPageView: React.FC<ConnectionLogPageViewProps> = ({
@@ -38,7 +36,6 @@ export const ConnectionLogPageView: React.FC<ConnectionLogPageViewProps> = ({
 	error,
 	filterProps,
 	connectionLogsQuery: paginationResult,
-	permissions,
 }) => {
 	const isLoading =
 		(connectionLogs === undefined ||
@@ -86,17 +83,7 @@ export const ConnectionLogPageView: React.FC<ConnectionLogPageViewProps> = ({
 					</PaginationContainer>
 				</>
 			) : (
-				<PremiumPaywall
-					source="connection_log"
-					message="Connection logs"
-					description="Track every SSH, IDE & port-forward connection."
-					features={[
-						"Full record of SSH, IDE & app sessions",
-						"Filter by organization, user & type",
-						"Export to Splunk & other SIEMs",
-					]}
-					canViewPremium={permissions.viewAllLicenses}
-				/>
+				<FeatureUnavailable feature="Connection logs" />
 			)}
 		</Margins>
 	);

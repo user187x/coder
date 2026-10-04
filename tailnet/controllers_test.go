@@ -83,12 +83,11 @@ func TestTunnelSrcCoordController_Mainline(t *testing.T) {
 	coordPtr := atomic.Pointer[tailnet.Coordinator]{}
 	coordPtr.Store(&coord)
 	svc, err := tailnet.NewClientService(tailnet.ClientServiceOptions{
-		Logger:                  logger.Named("svc"),
-		CoordPtr:                &coordPtr,
-		DERPMapUpdateFrequency:  time.Hour,
-		DERPMapFn:               func() *tailcfg.DERPMap { panic("not implemented") },
-		NetworkTelemetryHandler: func(batch []*proto.TelemetryEvent) { panic("not implemented") },
-		ResumeTokenProvider:     tailnet.NewInsecureTestResumeTokenProvider(),
+		Logger:                 logger.Named("svc"),
+		CoordPtr:               &coordPtr,
+		DERPMapUpdateFrequency: time.Hour,
+		DERPMapFn:              func() *tailcfg.DERPMap { panic("not implemented") },
+		ResumeTokenProvider:    tailnet.NewInsecureTestResumeTokenProvider(),
 	})
 	require.NoError(t, err)
 	sC, cC := net.Pipe()
@@ -422,12 +421,11 @@ func TestAgentCoordinationController_SendsReadyForHandshake(t *testing.T) {
 	coordPtr := atomic.Pointer[tailnet.Coordinator]{}
 	coordPtr.Store(&coord)
 	svc, err := tailnet.NewClientService(tailnet.ClientServiceOptions{
-		Logger:                  logger.Named("svc"),
-		CoordPtr:                &coordPtr,
-		DERPMapUpdateFrequency:  time.Hour,
-		DERPMapFn:               func() *tailcfg.DERPMap { panic("not implemented") },
-		NetworkTelemetryHandler: func(batch []*proto.TelemetryEvent) { panic("not implemented") },
-		ResumeTokenProvider:     tailnet.NewInsecureTestResumeTokenProvider(),
+		Logger:                 logger.Named("svc"),
+		CoordPtr:               &coordPtr,
+		DERPMapUpdateFrequency: time.Hour,
+		DERPMapFn:              func() *tailcfg.DERPMap { panic("not implemented") },
+		ResumeTokenProvider:    tailnet.NewInsecureTestResumeTokenProvider(),
 	})
 	require.NoError(t, err)
 	sC, cC := net.Pipe()
@@ -1013,12 +1011,11 @@ func TestController_Disconnects(t *testing.T) {
 	derpMapCh := make(chan *tailcfg.DERPMap)
 	defer close(derpMapCh)
 	svc, err := tailnet.NewClientService(tailnet.ClientServiceOptions{
-		Logger:                  logger.Named("svc"),
-		CoordPtr:                &coordPtr,
-		DERPMapUpdateFrequency:  time.Millisecond,
-		DERPMapFn:               func() *tailcfg.DERPMap { return <-derpMapCh },
-		NetworkTelemetryHandler: func([]*proto.TelemetryEvent) {},
-		ResumeTokenProvider:     tailnet.NewInsecureTestResumeTokenProvider(),
+		Logger:                 logger.Named("svc"),
+		CoordPtr:               &coordPtr,
+		DERPMapUpdateFrequency: time.Millisecond,
+		DERPMapFn:              func() *tailcfg.DERPMap { return <-derpMapCh },
+		ResumeTokenProvider:    tailnet.NewInsecureTestResumeTokenProvider(),
 	})
 	require.NoError(t, err)
 
@@ -1151,68 +1148,6 @@ func TestController_DoesNotRedialAfterCancel(t *testing.T) {
 		t.Fatalf("unexpected redial attempt after cancel: %d", attempt)
 	default:
 	}
-}
-
-func TestController_TelemetrySuccess(t *testing.T) {
-	t.Parallel()
-	ctx := testutil.Context(t, testutil.WaitShort)
-	logger := testutil.Logger(t)
-	agentID := uuid.UUID{0x55}
-	clientID := uuid.UUID{0x66}
-	fCoord := tailnettest.NewFakeCoordinator()
-	var coord tailnet.Coordinator = fCoord
-	coordPtr := atomic.Pointer[tailnet.Coordinator]{}
-	coordPtr.Store(&coord)
-	derpMapCh := make(chan *tailcfg.DERPMap)
-	defer close(derpMapCh)
-	eventCh := make(chan []*proto.TelemetryEvent, 1)
-	svc, err := tailnet.NewClientService(tailnet.ClientServiceOptions{
-		Logger:                 logger,
-		CoordPtr:               &coordPtr,
-		DERPMapUpdateFrequency: time.Millisecond,
-		DERPMapFn:              func() *tailcfg.DERPMap { return <-derpMapCh },
-		NetworkTelemetryHandler: func(batch []*proto.TelemetryEvent) {
-			select {
-			case <-ctx.Done():
-				t.Error("timeout sending telemetry event")
-			case eventCh <- batch:
-				t.Log("sent telemetry batch")
-			}
-		},
-		ResumeTokenProvider: tailnet.NewInsecureTestResumeTokenProvider(),
-	})
-	require.NoError(t, err)
-
-	dialer := &pipeDialer{
-		ctx:    ctx,
-		logger: logger,
-		t:      t,
-		svc:    svc,
-		streamID: tailnet.StreamID{
-			Name: "client",
-			ID:   clientID,
-			Auth: tailnet.ClientCoordinateeAuth{AgentID: agentID},
-		},
-	}
-
-	uut := tailnet.NewController(logger, dialer)
-	uut.CoordCtrl = tailnet.NewAgentCoordinationController(logger, &fakeTailnetConn{})
-	tel := tailnet.NewBasicTelemetryController(logger)
-	uut.TelemetryCtrl = tel
-	uut.Run(ctx)
-	// Coordinate calls happen _after_ telemetry is connected up, so we use this
-	// to ensure telemetry is connected before sending our event
-	cc := testutil.TryReceive(ctx, t, fCoord.CoordinateCalls)
-	defer close(cc.Resps)
-
-	tel.SendTelemetryEvent(&proto.TelemetryEvent{
-		Id: []byte("test event"),
-	})
-
-	testEvents := testutil.TryReceive(ctx, t, eventCh)
-
-	require.Len(t, testEvents, 1)
-	require.Equal(t, []byte("test event"), testEvents[0].Id)
 }
 
 func TestController_WorkspaceUpdates(t *testing.T) {

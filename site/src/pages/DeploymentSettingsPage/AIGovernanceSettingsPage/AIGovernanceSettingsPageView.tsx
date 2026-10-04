@@ -1,5 +1,6 @@
 import type { SerpentOption } from "#/api/typesGenerated";
 import { Alert, AlertDescription, AlertTitle } from "#/components/Alert/Alert";
+import { FeatureUnavailable } from "#/components/FeatureUnavailable/FeatureUnavailable";
 import { Link } from "#/components/Link/Link";
 import {
 	SettingsHeader,
@@ -7,7 +8,6 @@ import {
 	SettingsHeaderDocsLink,
 	SettingsHeaderTitle,
 } from "#/components/SettingsHeader/SettingsHeader";
-import { PremiumPaywallAIGovernance } from "#/modules/paywall/PremiumPaywallAIGovernance";
 import { deploymentGroupHasParent } from "#/utils/deployOptions";
 import { docs } from "#/utils/docs";
 import OptionsTable from "../OptionsTable";
@@ -62,7 +62,7 @@ export const AIGovernanceSettingsPageView: React.FC<
 						/>
 					</>
 				) : (
-					<PremiumPaywallAIGovernance source="ai_governance" />
+					<FeatureUnavailable feature="AI Governance" />
 				)}
 			</div>
 		</div>

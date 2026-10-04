@@ -88,9 +88,7 @@ import (
 	"github.com/coder/coder/v2/coderd/rbac/rolestore"
 	"github.com/coder/coder/v2/coderd/runtimeconfig"
 	"github.com/coder/coder/v2/coderd/schedule"
-	"github.com/coder/coder/v2/coderd/telemetry"
 	"github.com/coder/coder/v2/coderd/tracing"
-	"github.com/coder/coder/v2/coderd/updatecheck"
 	"github.com/coder/coder/v2/coderd/usage"
 	"github.com/coder/coder/v2/coderd/util/slice"
 	"github.com/coder/coder/v2/coderd/webpush"
@@ -191,12 +189,10 @@ type Options struct {
 	PrometheusRegistry             *prometheus.Registry
 	StrictTransportSecurityCfg     httpmw.HSTSConfig
 	SSHKeygenAlgorithm             gitsshkey.Algorithm
-	Telemetry                      telemetry.Reporter
 	TracerProvider                 trace.TracerProvider
 	ExternalAuthConfigs            []*externalauth.Config
 	RealIPConfig                   *httpmw.RealIPConfig
-	TrialGenerator                 func(ctx context.Context, body codersdk.LicensorTrialRequest) error
-	// RefreshEntitlements is used to set correct entitlements after creating first user and generating trial license.
+	// RefreshEntitlements is used to set correct entitlements after creating the first user.
 	RefreshEntitlements func(ctx context.Context) error
 	// Entitlements can come from the enterprise caller if enterprise code is
 	// included.
@@ -220,15 +216,13 @@ type Options struct {
 	ClusterHost string
 	// BaseDERPMap is used as the base DERP map for all clients and agents.
 	// Proxies are added to this list.
-	BaseDERPMap                    *tailcfg.DERPMap
-	DERPMapUpdateFrequency         time.Duration
-	NetworkTelemetryBatchFrequency time.Duration
-	NetworkTelemetryBatchMaxSize   int
-	SwaggerEndpoint                bool
-	TemplateScheduleStore          *atomic.Pointer[schedule.TemplateScheduleStore]
-	UserQuietHoursScheduleStore    *atomic.Pointer[schedule.UserQuietHoursScheduleStore]
-	AccessControlStore             *atomic.Pointer[dbauthz.AccessControlStore]
-	UsageInserter                  *atomic.Pointer[usage.Inserter]
+	BaseDERPMap                 *tailcfg.DERPMap
+	DERPMapUpdateFrequency      time.Duration
+	SwaggerEndpoint             bool
+	TemplateScheduleStore       *atomic.Pointer[schedule.TemplateScheduleStore]
+	UserQuietHoursScheduleStore *atomic.Pointer[schedule.UserQuietHoursScheduleStore]
+	AccessControlStore          *atomic.Pointer[dbauthz.AccessControlStore]
+	UsageInserter               *atomic.Pointer[usage.Inserter]
 	// CoordinatorResumeTokenProvider is used to provide and validate resume
 	// tokens issued by and passed to the coordinator DRPC API.
 	CoordinatorResumeTokenProvider tailnet.ResumeTokenProvider
@@ -257,8 +251,7 @@ type Options struct {
 	// contextual information about how the values were set.
 	// Do not use DeploymentOptions to retrieve values, use DeploymentValues instead.
 	// All secrets values are stripped.
-	DeploymentOptions  serpent.OptionSet
-	UpdateCheckOptions *updatecheck.Options // Set non-nil to enable update checking.
+	DeploymentOptions serpent.OptionSet
 
 	// SSHConfig is the response clients use to configure config-ssh locally.
 	SSHConfig codersdk.SSHConfigResponse
@@ -294,10 +287,6 @@ type Options struct {
 	WorkspaceAppAuditSessionTimeout    time.Duration
 	WorkspaceAppsStatsCollectorOptions workspaceapps.StatsCollectorOptions
 
-	// This janky function is used in telemetry to parse fields out of the raw
-	// JWT. It needs to be passed through like this because license parsing is
-	// under the enterprise license, and can't be imported into AGPL.
-	ParseLicenseClaims    func(rawJWT string) (email string, trial bool, err error)
 	AllowWorkspaceRenames bool
 
 	// NewTicker is used for unit tests to replace "time.NewTicker".
@@ -478,12 +467,6 @@ func New(options *Options) *API {
 	}
 	if options.DERPMapUpdateFrequency == 0 {
 		options.DERPMapUpdateFrequency = 5 * time.Second
-	}
-	if options.NetworkTelemetryBatchFrequency == 0 {
-		options.NetworkTelemetryBatchFrequency = 1 * time.Minute
-	}
-	if options.NetworkTelemetryBatchMaxSize == 0 {
-		options.NetworkTelemetryBatchMaxSize = 1_000
 	}
 	if options.TailnetCoordinator == nil {
 		options.TailnetCoordinator = tailnet.NewCoordinator(options.Logger)
@@ -768,7 +751,6 @@ func New(options *Options) *API {
 		UpgradeMessage:        api.DeploymentValues.CLIUpgradeMessage.String(),
 		DeploymentID:          api.DeploymentID,
 		WebPushPublicKey:      api.WebpushDispatcher.PublicKey(),
-		Telemetry:             api.Telemetry.Enabled(),
 		OAuth2Provider:        api.DeploymentValues.OAuth2.Provider.Enable.Value(),
 	}
 	api.SiteHandler, err = site.New(&site.Options{
@@ -781,7 +763,6 @@ func New(options *Options) *API {
 		AppearanceFetcher:         &api.AppearanceFetcher,
 		BuildInfo:                 buildInfo,
 		Entitlements:              options.Entitlements,
-		Telemetry:                 options.Telemetry,
 		Logger:                    options.Logger.Named("site"),
 		AIGatewayEnabled:          options.DeploymentValues.AI.BridgeConfig.Enabled.Value(),
 		UserSecretFilePathEnabled: !options.DeploymentValues.DisableUserSecretFilePath.Value(),
@@ -789,14 +770,6 @@ func New(options *Options) *API {
 	})
 	if err != nil {
 		options.Logger.Fatal(ctx, "failed to initialize site handler", slog.Error(err))
-	}
-
-	if options.UpdateCheckOptions != nil {
-		api.updateChecker = updatecheck.New(
-			options.Database,
-			options.Logger.Named("update_checker"),
-			*options.UpdateCheckOptions,
-		)
 	}
 
 	if options.WorkspaceProxiesFetchUpdater == nil {
@@ -998,12 +971,6 @@ func New(options *Options) *API {
 		api.lifecycleMetrics = agentapi.NewLifecycleMetrics(options.PrometheusRegistry)
 		api.workspaceAgentRPCMetrics = NewWorkspaceAgentRPCMetrics(options.PrometheusRegistry, options.Logger)
 	}
-	api.NetworkTelemetryBatcher = tailnet.NewNetworkTelemetryBatcher(
-		quartz.NewReal(),
-		api.NetworkTelemetryBatchFrequency,
-		api.NetworkTelemetryBatchMaxSize,
-		api.handleNetworkTelemetry,
-	)
 	if options.CoordinatorResumeTokenProvider == nil {
 		panic("CoordinatorResumeTokenProvider is nil")
 	}
@@ -1012,7 +979,6 @@ func New(options *Options) *API {
 		CoordPtr:                 &api.TailnetCoordinator,
 		DERPMapUpdateFrequency:   api.DERPMapUpdateFrequency,
 		DERPMapFn:                api.DERPMap,
-		NetworkTelemetryHandler:  api.NetworkTelemetryBatcher.Handler,
 		ResumeTokenProvider:      api.CoordinatorResumeTokenProvider,
 		WorkspaceUpdatesProvider: api.UpdatesProvider,
 	})
@@ -1355,7 +1321,6 @@ func New(options *Options) *API {
 		r.NotFound(func(rw http.ResponseWriter, _ *http.Request) { httpapi.RouteNotFound(rw) })
 		r.Use(
 			apiRateLimiter,
-			httpmw.ReportCLITelemetry(api.Logger, options.Telemetry),
 		)
 
 		r.Route("/users/email", func(r chi.Router) {
@@ -1439,7 +1404,6 @@ func New(options *Options) *API {
 		r.NotFound(func(rw http.ResponseWriter, _ *http.Request) { httpapi.RouteNotFound(rw) })
 		r.Use(
 			apiRateLimiter,
-			httpmw.ReportCLITelemetry(api.Logger, options.Telemetry),
 		)
 		r.Get("/", apiRoot)
 		// All CSP errors will be logged
@@ -1463,7 +1427,6 @@ func New(options *Options) *API {
 			r.Get("/stats", api.deploymentStats)
 			r.Get("/ssh", api.sshConfig)
 			r.Get("/user-secrets/capabilities", api.userSecretsCapabilities)
-			r.Post("/premium-funnel-events", api.postPremiumFunnelEvent)
 		})
 		r.Route("/experiments", func(r chi.Router) {
 			r.Use(apiKeyMiddleware)
@@ -1666,7 +1629,6 @@ func New(options *Options) *API {
 				r.Get("/modules", api.templateBuilderModules)
 				r.Post("/compose", api.templateBuilderCompose)
 				r.Post("/compose/template", api.templateBuilderCreateTemplate)
-				r.Post("/sessions", api.templateBuilderSession)
 			})
 		}
 
@@ -1916,7 +1878,6 @@ func New(options *Options) *API {
 			)
 			r.Get("/", api.workspaceBuild)
 			r.Patch("/cancel", api.patchCancelWorkspaceBuild)
-			r.Post("/debug-events", api.postWorkspaceBuildDebugEvent)
 			r.Get("/logs", api.workspaceBuildLogs)
 			r.Get("/parameters", api.workspaceBuildParameters)
 			r.Get("/resources", api.workspaceBuildResourcesDeprecated)
@@ -2177,7 +2138,7 @@ func New(options *Options) *API {
 		}
 		return proxies
 	}
-	cspMW := httpmw.CSPHeaders(options.Telemetry.Enabled(), cspProxyHosts, additionalCSPHeaders)
+	cspMW := httpmw.CSPHeaders(cspProxyHosts, additionalCSPHeaders)
 
 	// Embed routes (e.g. VS Code extension chat) are designed to be
 	// loaded inside iframes, so they must not include frame-ancestors
@@ -2195,7 +2156,7 @@ func New(options *Options) *API {
 	if _, ok := additionalCSPHeaders[httpmw.CSPFrameAncestors]; !ok {
 		embedCSPHeaders[httpmw.CSPFrameAncestors] = []string{}
 	}
-	embedCSPMW := httpmw.CSPHeaders(options.Telemetry.Enabled(), cspProxyHosts, embedCSPHeaders)
+	embedCSPMW := httpmw.CSPHeaders(cspProxyHosts, embedCSPHeaders)
 	embedHandler := embedCSPMW(compressHandler(httpmw.HSTS(api.SiteHandler, options.StrictTransportSecurityCfg)))
 	r.Get("/agents/{agentId}/embed", embedHandler.ServeHTTP)
 	r.Get("/agents/{agentId}/embed/*", embedHandler.ServeHTTP)
@@ -2230,7 +2191,6 @@ type API struct {
 	ConnectionLogger                  atomic.Pointer[connectionlog.ConnectionLogger]
 	WorkspaceClientCoordinateOverride atomic.Pointer[func(rw http.ResponseWriter) bool]
 	TailnetCoordinator                atomic.Pointer[tailnet.Coordinator]
-	NetworkTelemetryBatcher           *tailnet.NetworkTelemetryBatcher
 	TailnetClientService              *tailnet.ClientService
 	// WebpushDispatcher is a way to send notifications to users via Web Push.
 	WebpushDispatcher webpush.Dispatcher
@@ -2293,7 +2253,6 @@ type API struct {
 	derpCloseFunc      func()
 
 	metricsCache          *metricscache.Cache
-	updateChecker         *updatecheck.Checker
 	WorkspaceAppsProvider workspaceapps.SignedTokenProvider
 	workspaceAppServer    *workspaceapps.Server
 	agentProvider         workspaceapps.AgentProvider
@@ -2402,9 +2361,6 @@ func (api *API) Close() error {
 		}
 	}
 	api.metricsCache.Close()
-	if api.updateChecker != nil {
-		api.updateChecker.Close()
-	}
 	_ = api.workspaceAppServer.Close()
 	_ = api.agentProvider.Close()
 	if api.derpCloseFunc != nil {
@@ -2420,7 +2376,6 @@ func (api *API) Close() error {
 	if api.metadataBatcher != nil {
 		api.metadataBatcher.Close()
 	}
-	_ = api.NetworkTelemetryBatcher.Close()
 	_ = api.OIDCConvertKeyCache.Close()
 	_ = api.ChatFileTokenKeyCache.Close()
 	_ = api.AppSigningKeyCache.Close()
@@ -2557,7 +2512,6 @@ func (api *API) CreateInMemoryTaggedProvisionerDaemon(dialCtx context.Context, n
 		api.Database,
 		api.Pubsub,
 		api.Acquirer,
-		api.Telemetry,
 		tracer,
 		&api.QuotaCommitter,
 		&api.Auditor,

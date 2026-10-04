@@ -2160,7 +2160,6 @@ AuthorizationObject can represent a "set" of objects, such as: all workspaces in
   "external_url": "string",
   "oauth2_provider": true,
   "provisioner_api_version": "string",
-  "telemetry": true,
   "upgrade_message": "string",
   "version": "string",
   "webpush_public_key": "string",
@@ -2178,7 +2177,6 @@ AuthorizationObject can represent a "set" of objects, such as: all workspaces in
 | `external_url`            | string  | false    |              | External URL references the current Coder version. For production builds, this will link directly to a release. For development builds, this will link to a commit. |
 | `oauth2_provider`         | boolean | false    |              | Oauth2 provider reports whether the OAuth 2.1 authorization server is enabled. The dashboard uses it to show or hide OAuth2 navigation.                             |
 | `provisioner_api_version` | string  | false    |              | Provisioner api version is the current version of the Provisioner API                                                                                               |
-| `telemetry`               | boolean | false    |              | Telemetry is a boolean that indicates whether telemetry is enabled.                                                                                                 |
 | `upgrade_message`         | string  | false    |              | Upgrade message is the message displayed to users when an outdated client is detected.                                                                              |
 | `version`                 | string  | false    |              | Version returns the semantic version of the build.                                                                                                                  |
 | `webpush_public_key`      | string  | false    |              | Webpush public key is the public key for push notifications via Web Push.                                                                                           |
@@ -6851,58 +6849,25 @@ AuthorizationObject can represent a "set" of objects, such as: all workspaces in
 | `unsafe_dynamic_tools`       | array of [codersdk.DynamicTool](#codersdkdynamictool)                       | false    |              | Unsafe dynamic tools declares client-executed tools that the LLM can invoke. This API is highly experimental and highly subject to change.                                                                                                                                                                                            |
 | `workspace_id`               | string                                                                      | false    |              |                                                                                                                                                                                                                                                                                                                                       |
 
-## codersdk.CreateFirstUserOnboardingInfo
-
-```json
-{
-  "newsletter_marketing": true,
-  "newsletter_releases": true
-}
-```
-
-### Properties
-
-| Name                   | Type    | Required | Restrictions | Description |
-|------------------------|---------|----------|--------------|-------------|
-| `newsletter_marketing` | boolean | false    |              |             |
-| `newsletter_releases`  | boolean | false    |              |             |
-
 ## codersdk.CreateFirstUserRequest
 
 ```json
 {
   "email": "string",
   "name": "string",
-  "onboarding_info": {
-    "newsletter_marketing": true,
-    "newsletter_releases": true
-  },
   "password": "string",
-  "trial": true,
-  "trial_info": {
-    "company_name": "string",
-    "country": "string",
-    "developers": "string",
-    "first_name": "string",
-    "job_title": "string",
-    "last_name": "string",
-    "phone_number": "string"
-  },
   "username": "string"
 }
 ```
 
 ### Properties
 
-| Name              | Type                                                                             | Required | Restrictions | Description |
-|-------------------|----------------------------------------------------------------------------------|----------|--------------|-------------|
-| `email`           | string                                                                           | true     |              |             |
-| `name`            | string                                                                           | false    |              |             |
-| `onboarding_info` | [codersdk.CreateFirstUserOnboardingInfo](#codersdkcreatefirstuseronboardinginfo) | false    |              |             |
-| `password`        | string                                                                           | true     |              |             |
-| `trial`           | boolean                                                                          | false    |              |             |
-| `trial_info`      | [codersdk.CreateFirstUserTrialInfo](#codersdkcreatefirstusertrialinfo)           | false    |              |             |
-| `username`        | string                                                                           | true     |              |             |
+| Name       | Type   | Required | Restrictions | Description |
+|------------|--------|----------|--------------|-------------|
+| `email`    | string | true     |              |             |
+| `name`     | string | false    |              |             |
+| `password` | string | true     |              |             |
+| `username` | string | true     |              |             |
 
 ## codersdk.CreateFirstUserResponse
 
@@ -6919,32 +6884,6 @@ AuthorizationObject can represent a "set" of objects, such as: all workspaces in
 |-------------------|--------|----------|--------------|-------------|
 | `organization_id` | string | false    |              |             |
 | `user_id`         | string | false    |              |             |
-
-## codersdk.CreateFirstUserTrialInfo
-
-```json
-{
-  "company_name": "string",
-  "country": "string",
-  "developers": "string",
-  "first_name": "string",
-  "job_title": "string",
-  "last_name": "string",
-  "phone_number": "string"
-}
-```
-
-### Properties
-
-| Name           | Type   | Required | Restrictions | Description |
-|----------------|--------|----------|--------------|-------------|
-| `company_name` | string | false    |              |             |
-| `country`      | string | false    |              |             |
-| `developers`   | string | false    |              |             |
-| `first_name`   | string | false    |              |             |
-| `job_title`    | string | false    |              |             |
-| `last_name`    | string | false    |              |             |
-| `phone_number` | string | false    |              |             |
 
 ## codersdk.CreateGroupRequest
 
@@ -7284,38 +7223,6 @@ This is required on creation to enable a user-flow of validating a template work
 | `scope`      | [codersdk.APIKeyScope](#codersdkapikeyscope)                        | false    |              | Deprecated: use Scopes instead. |
 | `scopes`     | array of [codersdk.APIKeyScope](#codersdkapikeyscope)               | false    |              |                                 |
 | `token_name` | string                                                              | false    |              |                                 |
-
-## codersdk.CreateTrialLicenseRequest
-
-```json
-{
-  "attribution_id": "6f882a62-1d45-46e1-b5f4-0abfea127010",
-  "company_name": "Acme Corp",
-  "country": "United States",
-  "developers": "string",
-  "email": "jane.doe@example.com",
-  "first_name": "Jane",
-  "job_title": "Engineering Manager",
-  "last_name": "Doe",
-  "phone_number": "+14155552671",
-  "source": "aibridge_session_threads"
-}
-```
-
-### Properties
-
-| Name             | Type                                                         | Required | Restrictions | Description                                                                                                                                |
-|------------------|--------------------------------------------------------------|----------|--------------|--------------------------------------------------------------------------------------------------------------------------------------------|
-| `attribution_id` | string                                                       | false    |              | Attribution ID is the ID of the cta_click funnel event that led here, so that a signup can be joined back to the paywall that produced it. |
-| `company_name`   | string                                                       | true     |              |                                                                                                                                            |
-| `country`        | string                                                       | true     |              |                                                                                                                                            |
-| `developers`     | string                                                       | true     |              |                                                                                                                                            |
-| `email`          | string                                                       | true     |              |                                                                                                                                            |
-| `first_name`     | string                                                       | true     |              |                                                                                                                                            |
-| `job_title`      | string                                                       | true     |              |                                                                                                                                            |
-| `last_name`      | string                                                       | true     |              |                                                                                                                                            |
-| `phone_number`   | string                                                       | true     |              |                                                                                                                                            |
-| `source`         | [codersdk.PremiumFunnelSource](#codersdkpremiumfunnelsource) | false    |              | Source is the premium paywall the request came from, for telemetry. It is not forwarded to the licensor. Omit it to report "direct".       |
 
 ## codersdk.CreateUserAIProviderKeyRequest
 
@@ -8368,21 +8275,7 @@ CreateWorkspaceRequest provides options for creating a new workspace. Only one o
       "enable": true
     },
     "telemetry": {
-      "enable": true,
-      "trace": true,
-      "url": {
-        "forceQuery": true,
-        "fragment": "string",
-        "host": "string",
-        "omitHost": true,
-        "opaque": "string",
-        "path": "string",
-        "rawFragment": "string",
-        "rawPath": "string",
-        "rawQuery": "string",
-        "scheme": "string",
-        "user": {}
-      }
+      "enable": true
     },
     "template_builder": {
       "disabled": true,
@@ -9007,21 +8900,7 @@ CreateWorkspaceRequest provides options for creating a new workspace. Only one o
     "enable": true
   },
   "telemetry": {
-    "enable": true,
-    "trace": true,
-    "url": {
-      "forceQuery": true,
-      "fragment": "string",
-      "host": "string",
-      "omitHost": true,
-      "opaque": "string",
-      "path": "string",
-      "rawFragment": "string",
-      "rawPath": "string",
-      "rawQuery": "string",
-      "scheme": "string",
-      "user": {}
-    }
+    "enable": true
   },
   "template_builder": {
     "disabled": true,
@@ -13115,52 +12994,6 @@ Git clone makes use of this by parsing the URL from: 'Username for "https://gith
 |-------------------------|---------|----------|--------------|-------------|
 | `reconciliation_paused` | boolean | false    |              |             |
 
-## codersdk.PremiumFunnelEventRequest
-
-```json
-{
-  "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
-  "source": "aibridge_session_threads",
-  "variant": "premium"
-}
-```
-
-### Properties
-
-| Name      | Type                                                           | Required | Restrictions | Description                                                                                       |
-|-----------|----------------------------------------------------------------|----------|--------------|---------------------------------------------------------------------------------------------------|
-| `id`      | string                                                         | true     |              | ID identifies this click, and doubles as the attribution token that a later trial signup reports. |
-| `source`  | [codersdk.PremiumFunnelSource](#codersdkpremiumfunnelsource)   | true     |              |                                                                                                   |
-| `variant` | [codersdk.PremiumFunnelVariant](#codersdkpremiumfunnelvariant) | true     |              |                                                                                                   |
-
-## codersdk.PremiumFunnelSource
-
-```json
-"aibridge_session_threads"
-```
-
-### Properties
-
-#### Enumerated Values
-
-| Value(s)                                                                                                                                                                                                                                                                                                                                                      |
-|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `ai_gateway_keys`, `ai_governance`, `aibridge_session_threads`, `aibridge_sessions`, `appearance`, `audit_log`, `browser_only`, `connection_log`, `custom_roles`, `direct`, `external_auth`, `groups`, `idp_org_sync`, `idp_sync`, `multiple_organizations`, `observability`, `provisioner_keys`, `provisioners`, `template_permissions`, `workspace_proxies` |
-
-## codersdk.PremiumFunnelVariant
-
-```json
-"premium"
-```
-
-### Properties
-
-#### Enumerated Values
-
-| Value(s)                            |
-|-------------------------------------|
-| `ai_governance`, `premium`, `small` |
-
 ## codersdk.Preset
 
 ```json
@@ -14708,31 +14541,15 @@ Git clone makes use of this by parsing the URL from: 'Username for "https://gith
 
 ```json
 {
-  "enable": true,
-  "trace": true,
-  "url": {
-    "forceQuery": true,
-    "fragment": "string",
-    "host": "string",
-    "omitHost": true,
-    "opaque": "string",
-    "path": "string",
-    "rawFragment": "string",
-    "rawPath": "string",
-    "rawQuery": "string",
-    "scheme": "string",
-    "user": {}
-  }
+  "enable": true
 }
 ```
 
 ### Properties
 
-| Name     | Type                       | Required | Restrictions | Description |
-|----------|----------------------------|----------|--------------|-------------|
-| `enable` | boolean                    | false    |              |             |
-| `trace`  | boolean                    | false    |              |             |
-| `url`    | [serpent.URL](#serpenturl) | false    |              |             |
+| Name     | Type    | Required | Restrictions | Description |
+|----------|---------|----------|--------------|-------------|
+| `enable` | boolean | false    |              |             |
 
 ## codersdk.Template
 
@@ -15220,27 +15037,25 @@ Restarts will only happen on weekdays in this list on weeks which line up with W
   "provisioner_tags": {
     "property1": "string",
     "property2": "string"
-  },
-  "session_id": "1ffd059c-17ea-40a8-8aef-70fd0307db82"
+  }
 }
 ```
 
 ### Properties
 
-| Name                   | Type                                                                                    | Required | Restrictions | Description                                                                                                                                                                                                |
-|------------------------|-----------------------------------------------------------------------------------------|----------|--------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `base_template_id`     | string                                                                                  | false    |              |                                                                                                                                                                                                            |
-| `base_variable_values` | object                                                                                  | false    |              |                                                                                                                                                                                                            |
-| » `[any property]`     | string                                                                                  | false    |              |                                                                                                                                                                                                            |
-| `description`          | string                                                                                  | false    |              |                                                                                                                                                                                                            |
-| `display_name`         | string                                                                                  | false    |              |                                                                                                                                                                                                            |
-| `icon`                 | string                                                                                  | false    |              |                                                                                                                                                                                                            |
-| `modules`              | array of [codersdk.TemplateBuilderComposeModule](#codersdktemplatebuildercomposemodule) | false    |              |                                                                                                                                                                                                            |
-| `name`                 | string                                                                                  | true     |              |                                                                                                                                                                                                            |
-| `organization_id`      | string                                                                                  | true     |              |                                                                                                                                                                                                            |
-| `provisioner_tags`     | object                                                                                  | false    |              |                                                                                                                                                                                                            |
-| » `[any property]`     | string                                                                                  | false    |              |                                                                                                                                                                                                            |
-| `session_id`           | string                                                                                  | false    |              | Session ID is the wizard session this request belongs to, as reported to POST /api/v2/templatebuilder/sessions. It is optional and used only to attribute a build failure to the session that produced it. |
+| Name                   | Type                                                                                    | Required | Restrictions | Description |
+|------------------------|-----------------------------------------------------------------------------------------|----------|--------------|-------------|
+| `base_template_id`     | string                                                                                  | false    |              |             |
+| `base_variable_values` | object                                                                                  | false    |              |             |
+| » `[any property]`     | string                                                                                  | false    |              |             |
+| `description`          | string                                                                                  | false    |              |             |
+| `display_name`         | string                                                                                  | false    |              |             |
+| `icon`                 | string                                                                                  | false    |              |             |
+| `modules`              | array of [codersdk.TemplateBuilderComposeModule](#codersdktemplatebuildercomposemodule) | false    |              |             |
+| `name`                 | string                                                                                  | true     |              |             |
+| `organization_id`      | string                                                                                  | true     |              |             |
+| `provisioner_tags`     | object                                                                                  | false    |              |             |
+| » `[any property]`     | string                                                                                  | false    |              |             |
 
 ## codersdk.TemplateBuilderCreateTemplateResponse
 
@@ -15425,52 +15240,6 @@ Restarts will only happen on weekdays in this list on weeks which line up with W
 | Name      | Type                                                                      | Required | Restrictions | Description |
 |-----------|---------------------------------------------------------------------------|----------|--------------|-------------|
 | `modules` | array of [codersdk.TemplateBuilderModule](#codersdktemplatebuildermodule) | false    |              |             |
-
-## codersdk.TemplateBuilderSessionEventType
-
-```json
-"wizard_entry"
-```
-
-### Properties
-
-#### Enumerated Values
-
-| Value(s)                             |
-|--------------------------------------|
-| `compose_completion`, `wizard_entry` |
-
-## codersdk.TemplateBuilderSessionRequest
-
-```json
-{
-  "base_template_id": "string",
-  "duration_seconds": 0,
-  "event_type": "wizard_entry",
-  "module_ids": [
-    "string"
-  ],
-  "session_id": "1ffd059c-17ea-40a8-8aef-70fd0307db82",
-  "success": true
-}
-```
-
-### Properties
-
-| Name               | Type                                                                                 | Required | Restrictions | Description |
-|--------------------|--------------------------------------------------------------------------------------|----------|--------------|-------------|
-| `base_template_id` | string                                                                               | false    |              |             |
-| `duration_seconds` | number                                                                               | false    |              |             |
-| `event_type`       | [codersdk.TemplateBuilderSessionEventType](#codersdktemplatebuildersessioneventtype) | true     |              |             |
-| `module_ids`       | array of string                                                                      | false    |              |             |
-| `session_id`       | string                                                                               | true     |              |             |
-| `success`          | boolean                                                                              | false    |              |             |
-
-#### Enumerated Values
-
-| Property     | Value(s)                             |
-|--------------|--------------------------------------|
-| `event_type` | `compose_completion`, `wizard_entry` |
 
 ## codersdk.TemplateBuilderVariableType
 
@@ -19899,20 +19668,6 @@ If the schedule is empty, the user will be updated to use the default schedule.|
 | `reason`     | `autostart`, `autostop`, `initiator`                                                                              |
 | `status`     | `canceled`, `canceling`, `deleted`, `deleting`, `failed`, `pending`, `running`, `starting`, `stopped`, `stopping` |
 | `transition` | `delete`, `start`, `stop`                                                                                         |
-
-## codersdk.WorkspaceBuildDebugEventRequest
-
-```json
-{
-  "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08"
-}
-```
-
-### Properties
-
-| Name | Type   | Required | Restrictions | Description                                                                     |
-|------|--------|----------|--------------|---------------------------------------------------------------------------------|
-| `id` | string | true     |              | ID identifies this click so a later step of the funnel can be attributed to it. |
 
 ## codersdk.WorkspaceBuildParameter
 

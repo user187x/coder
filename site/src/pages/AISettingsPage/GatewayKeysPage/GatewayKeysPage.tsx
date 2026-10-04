@@ -19,12 +19,12 @@ import { GatewayKeysPageView } from "./GatewayKeysPageView";
 const GatewayKeysPage: React.FC = () => {
 	const { permissions } = useAuthenticated();
 	const featureVisibility = useFeatureVisibility();
-	const showPaywall = !featureVisibility.aibridge;
+	const isFeatureUnavailable = !featureVisibility.aibridge;
 
 	const queryClient = useQueryClient();
 	const keysQuery = useQuery({
 		...aiGatewayKeysList(),
-		enabled: !showPaywall,
+		enabled: !isFeatureUnavailable,
 	});
 	const createMutation = useMutation(createAIGatewayKeyMutation(queryClient));
 	const deleteMutation = useMutation(deleteAIGatewayKeyMutation(queryClient));
@@ -42,8 +42,7 @@ const GatewayKeysPage: React.FC = () => {
 				keys={keysQuery.data ?? []}
 				isLoading={keysQuery.isLoading}
 				error={keysQuery.error}
-				showPaywall={showPaywall}
-				permissions={permissions}
+				isFeatureUnavailable={isFeatureUnavailable}
 				onCreateKey={() => setIsCreateOpen(true)}
 				onDeleteKey={setKeyToDelete}
 			/>

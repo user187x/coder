@@ -3,7 +3,6 @@ package codersdk
 import (
 	"context"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"math"
 	"net/http"
@@ -1107,10 +1106,11 @@ type OIDCConfig struct {
 	RedirectAllowedHosts serpent.StringArray `json:"redirect_allowed_hosts" typescript:",notnull"`
 }
 
+// TelemetryConfig reports whether telemetry is enabled. Telemetry has been
+// removed, so Enable is always false. It remains so that license checks that
+// require telemetry report that it is disabled.
 type TelemetryConfig struct {
 	Enable serpent.Bool `json:"enable" typescript:",notnull"`
-	Trace  serpent.Bool `json:"trace" typescript:",notnull"`
-	URL    serpent.URL  `json:"url" typescript:",notnull"`
 }
 
 type TLSConfig struct {
@@ -1666,13 +1666,6 @@ communicating directly.`,
 			Name: "OIDC",
 			YAML: "oidc",
 		}
-		deploymentGroupTelemetry = serpent.Group{
-			Name: "Telemetry",
-			YAML: "telemetry",
-			Description: `Telemetry is critical to our ability to improve Coder. We strip all personal
- information before sending data to our servers. Please only disable telemetry
- when required by your organization's security policy.`,
-		}
 		deploymentGroupProvisioning = serpent.Group{
 			Name:        "Provisioning",
 			Description: `Tune the behavior of the provisioner, which is responsible for creating, updating, and deleting workspace resources.`,
@@ -1954,16 +1947,9 @@ communicating directly.`,
 		Group:       &deploymentGroupEmailTLS,
 		YAML:        "certKeyFile",
 	}
-	telemetryEnable := serpent.Option{
-		Name:        "Telemetry Enable",
-		Description: "Whether telemetry is enabled or not. Coder collects anonymized usage data to help improve our product.",
-		Flag:        "telemetry",
-		Env:         "CODER_TELEMETRY_ENABLE",
-		Default:     strconv.FormatBool(flag.Lookup("test.v") == nil || os.Getenv("CODER_TEST_TELEMETRY_DEFAULT_ENABLE") == "true"),
-		Value:       &c.Telemetry.Enable,
-		Group:       &deploymentGroupTelemetry,
-		YAML:        "enable",
-	}
+	// removedTelemetryGroup only exists so old `telemetry:` YAML blocks still
+	// parse; see the hidden telemetry options below.
+	removedTelemetryGroup := serpent.Group{Name: "Telemetry", YAML: "telemetry"}
 	workspaceHostnameSuffix := serpent.Option{
 		Name:        "Workspace Hostname Suffix",
 		Description: "Workspace hostnames use this suffix in SSH config and Coder Connect on Coder Desktop. By default it is coder, resulting in names like myworkspace.coder. The suffix must not start with a dot, and must not contain spaces, newlines, or glob characters (* and ?).",
@@ -2569,10 +2555,9 @@ communicating directly.`,
 		},
 		{
 			Name:        "DERP Server STUN Addresses",
-			Description: "Addresses for STUN servers to establish P2P connections. It's recommended to have at least two STUN servers to give users the best chance of connecting P2P to workspaces. Each STUN server will get it's own DERP region, with region IDs starting at `--derp-server-region-id + 1`. Use special value 'disable' to turn off STUN completely.",
+			Description: "Addresses for STUN servers to establish P2P connections. None are configured by default, so Coder never contacts a third-party STUN server; connections that cannot be made directly are relayed through DERP. Set at least two STUN servers you trust to give users the best chance of connecting P2P to workspaces. Each STUN server will get it's own DERP region, with region IDs starting at `--derp-server-region-id + 1`. Use special value 'disable' to turn off STUN completely.",
 			Flag:        "derp-server-stun-addresses",
 			Env:         "CODER_DERP_SERVER_STUN_ADDRESSES",
-			Default:     "stun.l.google.com:19302,stun1.l.google.com:19302,stun2.l.google.com:19302,stun3.l.google.com:19302,stun4.l.google.com:19302",
 			Value:       &c.DERP.Server.STUNAddresses,
 			Group:       &deploymentGroupNetworkingDERP,
 			YAML:        "stunAddresses",
@@ -3191,33 +3176,33 @@ communicating directly.`,
 			// Niche feature for multi-domain deployments. Surface only to operators who need it.
 			Hidden: true,
 		},
-		// Telemetry settings
-		telemetryEnable,
+		// Telemetry has been removed. These hidden options still accept the old
+		// flags, environment variables and YAML keys so existing deployment
+		// configs keep working, but the values are discarded.
 		{
+			Name:   "Telemetry (removed)",
+			Flag:   "telemetry",
+			Env:    "CODER_TELEMETRY_ENABLE",
+			YAML:   "enable",
+			Group:  &removedTelemetryGroup,
+			Value:  new(serpent.Bool),
 			Hidden: true,
-			Name:   "Telemetry (backwards compatibility)",
-			// Note the flip-flop of flag and env to maintain backwards
-			// compatibility and consistency. Inconsistently, the env
-			// was renamed to CODER_TELEMETRY_ENABLE in the past, but
-			// the flag was not renamed -enable.
-			Flag:       "telemetry-enable",
-			Env:        "CODER_TELEMETRY",
-			Value:      &c.Telemetry.Enable,
-			Group:      &deploymentGroupTelemetry,
-			UseInstead: []serpent.Option{telemetryEnable},
 		},
-		// For local development testing, see scripts/telemetry-server which
-		// provides a mock server that prints received telemetry as JSON.
 		{
-			Name:        "Telemetry URL",
-			Description: "URL to send telemetry.",
-			Flag:        "telemetry-url",
-			Env:         "CODER_TELEMETRY_URL",
-			Hidden:      true,
-			Default:     "https://telemetry.coder.com",
-			Value:       &c.Telemetry.URL,
-			Group:       &deploymentGroupTelemetry,
-			YAML:        "url",
+			Name:   "Telemetry (removed, backwards compatibility)",
+			Flag:   "telemetry-enable",
+			Env:    "CODER_TELEMETRY",
+			Value:  new(serpent.Bool),
+			Hidden: true,
+		},
+		{
+			Name:   "Telemetry URL (removed)",
+			Flag:   "telemetry-url",
+			Env:    "CODER_TELEMETRY_URL",
+			YAML:   "url",
+			Group:  &removedTelemetryGroup,
+			Value:  new(serpent.String),
+			Hidden: true,
 		},
 		// Trace settings
 		{
@@ -3499,15 +3484,14 @@ communicating directly.`,
 			Annotations: serpent.Annotations{}.Mark(annotationExternalProxies, "true"),
 		},
 		{
-			Name:        "Update Check",
-			Description: "Periodically check for new releases of Coder and inform the owner. The check is performed once per day.",
-			Flag:        "update-check",
-			Env:         "CODER_UPDATE_CHECK",
-			Default: strconv.FormatBool(
-				flag.Lookup("test.v") == nil && !buildinfo.IsDev(),
-			),
-			Value: &c.UpdateCheck,
-			YAML:  "updateCheck",
+			// Update checks have been removed: Coder never contacts GitHub for
+			// new releases. Hidden so existing configs that set it keep working.
+			Name:   "Update Check (removed)",
+			Flag:   "update-check",
+			Env:    "CODER_UPDATE_CHECK",
+			Value:  &c.UpdateCheck,
+			YAML:   "updateCheck",
+			Hidden: true,
 		},
 		{
 			Name:        "Max Token Lifetime",
@@ -5451,8 +5435,6 @@ type BuildInfoResponse struct {
 	// For external workspace proxies, this is the coderd they are connected
 	// to.
 	DashboardURL string `json:"dashboard_url"`
-	// Telemetry is a boolean that indicates whether telemetry is enabled.
-	Telemetry bool `json:"telemetry"`
 	// OAuth2Provider reports whether the OAuth 2.1 authorization server is
 	// enabled. The dashboard uses it to show or hide OAuth2 navigation.
 	OAuth2Provider bool `json:"oauth2_provider"`

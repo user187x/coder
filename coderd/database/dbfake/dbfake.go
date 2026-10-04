@@ -21,7 +21,6 @@ import (
 	"github.com/coder/coder/v2/coderd/database/pubsub"
 	"github.com/coder/coder/v2/coderd/provisionerdserver"
 	"github.com/coder/coder/v2/coderd/rbac"
-	"github.com/coder/coder/v2/coderd/telemetry"
 	"github.com/coder/coder/v2/coderd/wspubsub"
 	"github.com/coder/coder/v2/provisionersdk"
 	sdkproto "github.com/coder/coder/v2/provisionersdk/proto"
@@ -519,7 +518,7 @@ func (b ProvisionerJobResourcesBuilder) Do() {
 	}
 	for _, resource := range b.resources {
 		//nolint:gocritic // This is only used by tests.
-		err := provisionerdserver.InsertWorkspaceResource(ownerCtx, b.db, b.jobID, transition, resource, &telemetry.Snapshot{})
+		err := provisionerdserver.InsertWorkspaceResource(ownerCtx, b.db, b.jobID, transition, resource)
 		require.NoError(b.t, err)
 		b.logger.Debug(context.Background(), "created workspace resource",
 			slog.F("resource_name", resource.Name),

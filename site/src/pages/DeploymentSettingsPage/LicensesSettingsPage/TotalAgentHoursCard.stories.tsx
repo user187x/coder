@@ -110,7 +110,7 @@ export const ReachedAllocation: Story = {
 		const body = await hoverInfoIcon(canvasElement);
 		await expectTooltipText(
 			body,
-			/You've used 100% of your Total Agent hours for this license\. Contact sales to receive more Agent hours\./,
+			/You've used 100% of your Total Agent hours for this license\./,
 		);
 	},
 };
@@ -130,7 +130,7 @@ export const OverAllocation: Story = {
 		const body = await hoverInfoIcon(canvasElement);
 		await expectTooltipText(
 			body,
-			/You've used 120% of your Total Agent hours for this license\. Contact sales to receive more Agent hours\./,
+			/You've used 120% of your Total Agent hours for this license\./,
 		);
 	},
 };
@@ -151,7 +151,7 @@ export const ReachedAllocationByFraction: Story = {
 		const body = await hoverInfoIcon(canvasElement);
 		await expectTooltipText(
 			body,
-			/You've used 100% of your Total Agent hours for this license\. Contact sales to receive more Agent hours\./,
+			/You've used 100% of your Total Agent hours for this license\./,
 		);
 	},
 };
@@ -328,7 +328,7 @@ export const HardCapBetweenLimitAndHardCap: Story = {
 		const body = await hoverInfoIcon(canvasElement);
 		await expectTooltipText(
 			body,
-			/You've used 120% of your Total Agent hours for this license\. Contact sales to receive more Agent hours\./,
+			/You've used 120% of your Total Agent hours for this license\./,
 		);
 	},
 };
@@ -353,7 +353,7 @@ export const ReachedHardCap: Story = {
 		const body = await hoverInfoIcon(canvasElement);
 		await expectTooltipText(
 			body,
-			/You've used 160% of your Total Agent hours for this license and reached the hard cap of 1,500 hours\. Contact sales to receive more Agent hours\./,
+			/You've used 160% of your Total Agent hours for this license and reached the hard cap of 1,500 hours\./,
 		);
 	},
 };
@@ -379,7 +379,7 @@ export const ReachedCoincidentHardCap: Story = {
 		const body = await hoverInfoIcon(canvasElement);
 		await expectTooltipText(
 			body,
-			/You've used 100% of your Total Agent hours for this license and reached the hard cap of 1,000 hours\. Contact sales to receive more Agent hours\./,
+			/You've used 100% of your Total Agent hours for this license and reached the hard cap of 1,000 hours\./,
 		);
 	},
 };

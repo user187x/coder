@@ -63,7 +63,6 @@ import (
 	"github.com/coder/coder/v2/enterprise/derpmesh"
 	"github.com/coder/coder/v2/enterprise/replicasync"
 	"github.com/coder/coder/v2/enterprise/tailnet"
-	"github.com/coder/coder/v2/enterprise/trialer"
 	"github.com/coder/coder/v2/provisionerd/proto"
 	agpltailnet "github.com/coder/coder/v2/tailnet"
 	"github.com/coder/quartz"
@@ -227,7 +226,6 @@ func New(ctx context.Context, options *Options) (_ *API, err error) {
 
 	api.AGPL = coderd.New(options.Options)
 	api.aiSeatTracker = aiseats.New(options.Database, api.Logger.Named("aiseats"), quartz.NewReal(), &api.AGPL.Auditor)
-	api.trialer = trialer.New(options.Database, trialer.LicenseRequestURL, options.LicenseKeys)
 	api.AGPL.AISeatTracker = api.aiSeatTracker
 	defer func() {
 		if err != nil {
@@ -235,13 +233,6 @@ func New(ctx context.Context, options *Options) (_ *API, err error) {
 		}
 	}()
 
-	api.AGPL.ParseLicenseClaims = func(rawJWT string) (email string, trial bool, err error) {
-		c, err := license.ParseClaims(rawJWT, Keys)
-		if err != nil {
-			return "", false, err
-		}
-		return c.Subject, c.Trial, nil
-	}
 	api.AGPL.SiteHandler.RegionsFetcher = func(ctx context.Context) (any, error) {
 		// If the user can read the workspace proxy resource, return that.
 		// If not, always default to the regions.
@@ -252,12 +243,11 @@ func New(ctx context.Context, options *Options) (_ *API, err error) {
 		return api.fetchRegions(ctx)
 	}
 	api.tailnetService, err = tailnet.NewClientService(agpltailnet.ClientServiceOptions{
-		Logger:                  api.Logger.Named("tailnetclient"),
-		CoordPtr:                &api.AGPL.TailnetCoordinator,
-		DERPMapUpdateFrequency:  api.DERPMapUpdateFrequency,
-		DERPMapFn:               api.AGPL.DERPMap,
-		NetworkTelemetryHandler: api.AGPL.NetworkTelemetryBatcher.Handler,
-		ResumeTokenProvider:     api.AGPL.CoordinatorResumeTokenProvider,
+		Logger:                 api.Logger.Named("tailnetclient"),
+		CoordPtr:               &api.AGPL.TailnetCoordinator,
+		DERPMapUpdateFrequency: api.DERPMapUpdateFrequency,
+		DERPMapFn:              api.AGPL.DERPMap,
+		ResumeTokenProvider:    api.AGPL.CoordinatorResumeTokenProvider,
 	})
 	if err != nil {
 		api.Logger.Fatal(api.ctx, "failed to initialize tailnet client service", slog.Error(err))
@@ -400,7 +390,6 @@ func New(ctx context.Context, options *Options) (_ *API, err error) {
 			r.Use(apiKeyMiddleware)
 			r.Post("/refresh-entitlements", api.postRefreshEntitlements)
 			r.Post("/", api.postLicense)
-			r.Post("/trial", api.postTrialLicense)
 			r.Get("/", api.licenses)
 			r.Delete("/{id}", api.deleteLicense)
 		})
@@ -910,8 +899,6 @@ type Options struct {
 type API struct {
 	AGPL *coderd.API
 	*Options
-
-	trialer *trialer.Trialer
 
 	// ctx is canceled immediately on shutdown, it can be used to abort
 	// interruptible tasks.

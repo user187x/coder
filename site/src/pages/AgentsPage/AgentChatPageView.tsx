@@ -325,7 +325,7 @@ export const AgentChatPageView: React.FC<AgentChatPageViewProps> = ({
 	const queryClient = useQueryClient();
 	const { proxy } = useProxy();
 	const { entitlements } = useDashboard();
-	const { permissions, user: currentUser } = useAuthenticated();
+	const { user: currentUser } = useAuthenticated();
 	const wildcardHostname = proxy.preferredWildcardHostname;
 	const agentId = chat.id;
 	const organizationId = chat.organization_id;
@@ -816,7 +816,6 @@ export const AgentChatPageView: React.FC<AgentChatPageViewProps> = ({
 		: undefined;
 
 	const hasLicense = entitlements.has_license;
-	const canManageLicenses = permissions.viewAllLicenses;
 	const runtimeHours = entitlements.features.agent_runtime_hours;
 	const agentHoursHardLimit =
 		runtimeHours.enabled &&
@@ -936,7 +935,6 @@ export const AgentChatPageView: React.FC<AgentChatPageViewProps> = ({
 									chat.queued_for_capacity ? (
 										<QueuedForCapacityCallout
 											hasLicense={hasLicense}
-											canManageLicenses={canManageLicenses}
 											agentHoursHardLimit={agentHoursHardLimit}
 										/>
 									) : undefined
