@@ -240,7 +240,14 @@ type UserPreferenceSettings struct {
 	CodeDiffDisplayMode    AgentDisplayMode      `json:"code_diff_display_mode"`
 	CollapseAssistantSteps bool                  `json:"collapse_assistant_steps"`
 	AgentChatSendShortcut  AgentChatSendShortcut `json:"agent_chat_send_shortcut"`
+	// AdminQuickLinks are the admin pages the user pinned to the Admin
+	// menu, by page ID, in menu order. Empty means the dashboard's
+	// defaults.
+	AdminQuickLinks []string `json:"admin_quick_links"`
 }
+
+// MaxAdminQuickLinks is the most admin pages a user can pin to the Admin menu.
+const MaxAdminQuickLinks = 8
 
 type UpdateUserPreferenceSettingsRequest struct {
 	ThinkingDisplayMode    ThinkingDisplayMode   `json:"thinking_display_mode,omitempty"`
@@ -248,6 +255,9 @@ type UpdateUserPreferenceSettingsRequest struct {
 	CodeDiffDisplayMode    AgentDisplayMode      `json:"code_diff_display_mode,omitempty"`
 	CollapseAssistantSteps *bool                 `json:"collapse_assistant_steps,omitempty"`
 	AgentChatSendShortcut  AgentChatSendShortcut `json:"agent_chat_send_shortcut,omitempty"`
+	// AdminQuickLinks replaces the pinned admin pages when set. An empty
+	// list restores the defaults; omit it to leave them unchanged.
+	AdminQuickLinks *[]string `json:"admin_quick_links,omitempty"`
 }
 
 type AgentChatSendShortcut string

@@ -9,11 +9,18 @@ import {
 	AdminSettingsItems,
 	type AdminSettingsPermissions,
 } from "./AdminSettings";
+import type { AdminPage } from "./adminQuickLinks";
 
-type AdminSettingsDropdownProps = { permissions: AdminSettingsPermissions };
+type AdminSettingsDropdownProps = {
+	permissions: AdminSettingsPermissions;
+	quickLinks?: readonly (AdminPage | undefined)[];
+	onCustomizeQuickLinks?: () => void;
+};
 
 export const AdminSettingsDropdown: React.FC<AdminSettingsDropdownProps> = ({
 	permissions,
+	quickLinks,
+	onCustomizeQuickLinks,
 }) => {
 	return (
 		<DropdownMenu>
@@ -29,7 +36,11 @@ export const AdminSettingsDropdown: React.FC<AdminSettingsDropdownProps> = ({
 				className="w-[180px] has-[[data-cluster-gauge]]:w-[300px]"
 			>
 				<nav>
-					<AdminSettingsItems permissions={permissions} />
+					<AdminSettingsItems
+						permissions={permissions}
+						quickLinks={quickLinks}
+						onCustomizeQuickLinks={onCustomizeQuickLinks}
+					/>
 				</nav>
 			</DropdownMenuContent>
 		</DropdownMenu>

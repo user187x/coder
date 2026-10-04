@@ -33,6 +33,7 @@ import {
 	type AdminSettingsPermissions,
 	canViewAdminSettings,
 } from "./AdminSettings";
+import type { AdminPage } from "./adminQuickLinks";
 import { sortProxiesByLatency } from "./proxyUtils";
 
 const itemStyles = {
@@ -44,6 +45,8 @@ const itemStyles = {
 type MobileMenuProps = {
 	proxyContextValue?: ProxyContextValue;
 	adminPermissions: AdminSettingsPermissions;
+	adminQuickLinks?: readonly (AdminPage | undefined)[];
+	onCustomizeAdminQuickLinks?: () => void;
 	user?: TypesGen.User;
 	supportLinks?: readonly TypesGen.LinkConfig[];
 	onSignOut: () => void;
@@ -52,6 +55,8 @@ type MobileMenuProps = {
 
 export const MobileMenu: React.FC<MobileMenuProps> = ({
 	adminPermissions,
+	adminQuickLinks,
+	onCustomizeAdminQuickLinks,
 	proxyContextValue,
 	user,
 	supportLinks,
@@ -90,7 +95,11 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
 				{canViewAdminSettings(adminPermissions) && (
 					<>
 						<DropdownMenuSeparator />
-						<AdminSettingsSub permissions={adminPermissions} />
+						<AdminSettingsSub
+							permissions={adminPermissions}
+							quickLinks={adminQuickLinks}
+							onCustomizeQuickLinks={onCustomizeAdminQuickLinks}
+						/>
 					</>
 				)}
 				<DropdownMenuSeparator />
@@ -208,9 +217,15 @@ const ProxySettingsSub: React.FC<ProxySettingsSubProps> = ({
 
 type AdminSettingsSubProps = {
 	permissions: AdminSettingsPermissions;
+	quickLinks?: readonly (AdminPage | undefined)[];
+	onCustomizeQuickLinks?: () => void;
 };
 
-const AdminSettingsSub: React.FC<AdminSettingsSubProps> = ({ permissions }) => {
+const AdminSettingsSub: React.FC<AdminSettingsSubProps> = ({
+	permissions,
+	quickLinks,
+	onCustomizeQuickLinks,
+}) => {
 	const [open, setOpen] = useState(false);
 
 	return (
@@ -233,6 +248,8 @@ const AdminSettingsSub: React.FC<AdminSettingsSubProps> = ({ permissions }) => {
 				<AdminSettingsItems
 					itemClassName={cn(itemStyles.default, itemStyles.sub)}
 					permissions={permissions}
+					quickLinks={quickLinks}
+					onCustomizeQuickLinks={onCustomizeQuickLinks}
 				/>
 			</CollapsibleContent>
 		</Collapsible>

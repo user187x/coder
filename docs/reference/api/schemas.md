@@ -16882,6 +16882,9 @@ The cursor is owner-scoped, so only the chat owner may set this. Opening a chat'
 
 ```json
 {
+  "admin_quick_links": [
+    "string"
+  ],
   "agent_chat_send_shortcut": "enter",
   "code_diff_display_mode": "auto",
   "collapse_assistant_steps": true,
@@ -16892,13 +16895,14 @@ The cursor is owner-scoped, so only the chat owner may set this. Opening a chat'
 
 ### Properties
 
-| Name                       | Type                                                             | Required | Restrictions | Description |
-|----------------------------|------------------------------------------------------------------|----------|--------------|-------------|
-| `agent_chat_send_shortcut` | [codersdk.AgentChatSendShortcut](#codersdkagentchatsendshortcut) | false    |              |             |
-| `code_diff_display_mode`   | [codersdk.AgentDisplayMode](#codersdkagentdisplaymode)           | false    |              |             |
-| `collapse_assistant_steps` | boolean                                                          | false    |              |             |
-| `shell_tool_display_mode`  | [codersdk.AgentDisplayMode](#codersdkagentdisplaymode)           | false    |              |             |
-| `thinking_display_mode`    | [codersdk.ThinkingDisplayMode](#codersdkthinkingdisplaymode)     | false    |              |             |
+| Name                       | Type                                                             | Required | Restrictions | Description                                                                                                                       |
+|----------------------------|------------------------------------------------------------------|----------|--------------|-----------------------------------------------------------------------------------------------------------------------------------|
+| `admin_quick_links`        | array of string                                                  | false    |              | Admin quick links replaces the pinned admin pages when set. An empty list restores the defaults; omit it to leave them unchanged. |
+| `agent_chat_send_shortcut` | [codersdk.AgentChatSendShortcut](#codersdkagentchatsendshortcut) | false    |              |                                                                                                                                   |
+| `code_diff_display_mode`   | [codersdk.AgentDisplayMode](#codersdkagentdisplaymode)           | false    |              |                                                                                                                                   |
+| `collapse_assistant_steps` | boolean                                                          | false    |              |                                                                                                                                   |
+| `shell_tool_display_mode`  | [codersdk.AgentDisplayMode](#codersdkagentdisplaymode)           | false    |              |                                                                                                                                   |
+| `thinking_display_mode`    | [codersdk.ThinkingDisplayMode](#codersdkthinkingdisplaymode)     | false    |              |                                                                                                                                   |
 
 ## codersdk.UpdateUserProfileRequest
 
@@ -17754,6 +17758,9 @@ If the schedule is empty, the user will be updated to use the default schedule.|
 
 ```json
 {
+  "admin_quick_links": [
+    "string"
+  ],
   "agent_chat_send_shortcut": "enter",
   "code_diff_display_mode": "auto",
   "collapse_assistant_steps": true,
@@ -17764,13 +17771,14 @@ If the schedule is empty, the user will be updated to use the default schedule.|
 
 ### Properties
 
-| Name                       | Type                                                             | Required | Restrictions | Description |
-|----------------------------|------------------------------------------------------------------|----------|--------------|-------------|
-| `agent_chat_send_shortcut` | [codersdk.AgentChatSendShortcut](#codersdkagentchatsendshortcut) | false    |              |             |
-| `code_diff_display_mode`   | [codersdk.AgentDisplayMode](#codersdkagentdisplaymode)           | false    |              |             |
-| `collapse_assistant_steps` | boolean                                                          | false    |              |             |
-| `shell_tool_display_mode`  | [codersdk.AgentDisplayMode](#codersdkagentdisplaymode)           | false    |              |             |
-| `thinking_display_mode`    | [codersdk.ThinkingDisplayMode](#codersdkthinkingdisplaymode)     | false    |              |             |
+| Name                       | Type                                                             | Required | Restrictions | Description                                                                                                                               |
+|----------------------------|------------------------------------------------------------------|----------|--------------|-------------------------------------------------------------------------------------------------------------------------------------------|
+| `admin_quick_links`        | array of string                                                  | false    |              | Admin quick links are the admin pages the user pinned to the Admin menu, by page ID, in menu order. Empty means the dashboard's defaults. |
+| `agent_chat_send_shortcut` | [codersdk.AgentChatSendShortcut](#codersdkagentchatsendshortcut) | false    |              |                                                                                                                                           |
+| `code_diff_display_mode`   | [codersdk.AgentDisplayMode](#codersdkagentdisplaymode)           | false    |              |                                                                                                                                           |
+| `collapse_assistant_steps` | boolean                                                          | false    |              |                                                                                                                                           |
+| `shell_tool_display_mode`  | [codersdk.AgentDisplayMode](#codersdkagentdisplaymode)           | false    |              |                                                                                                                                           |
+| `thinking_display_mode`    | [codersdk.ThinkingDisplayMode](#codersdkthinkingdisplaymode)     | false    |              |                                                                                                                                           |
 
 ## codersdk.UserQuietHoursScheduleConfig
 

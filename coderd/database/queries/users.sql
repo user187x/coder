@@ -376,6 +376,29 @@ WHERE user_configs.user_id = @user_id
 	AND user_configs.key = 'preference_agent_chat_send_shortcut'
 RETURNING value AS agent_chat_send_shortcut;
 
+-- name: GetUserAdminQuickLinks :one
+SELECT
+	value AS admin_quick_links
+FROM
+	user_configs
+WHERE
+	user_id = @user_id
+	AND key = 'preference_admin_quick_links';
+
+-- name: UpdateUserAdminQuickLinks :one
+INSERT INTO
+	user_configs (user_id, key, value)
+VALUES
+	(@user_id, 'preference_admin_quick_links', @admin_quick_links::text)
+ON CONFLICT
+	ON CONSTRAINT user_configs_pkey
+DO UPDATE
+SET
+	value = @admin_quick_links
+WHERE user_configs.user_id = @user_id
+	AND user_configs.key = 'preference_admin_quick_links'
+RETURNING value AS admin_quick_links;
+
 -- name: GetUserCollapseAssistantSteps :one
 SELECT
 	value::boolean as collapse_assistant_steps

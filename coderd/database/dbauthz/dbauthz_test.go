@@ -3688,6 +3688,19 @@ func (s *MethodTestSuite) TestUser() {
 		dbm.EXPECT().UpdateUserCollapseAssistantSteps(gomock.Any(), arg).Return(true, nil).AnyTimes()
 		check.Args(arg).Asserts(u, policy.ActionUpdatePersonal).Returns(true)
 	}))
+	s.Run("GetUserAdminQuickLinks", s.Mocked(func(dbm *dbmock.MockStore, faker *gofakeit.Faker, check *expects) {
+		u := testutil.Fake(s.T(), faker, database.User{})
+		dbm.EXPECT().GetUserByID(gomock.Any(), u.ID).Return(u, nil).AnyTimes()
+		dbm.EXPECT().GetUserAdminQuickLinks(gomock.Any(), u.ID).Return(`["network"]`, nil).AnyTimes()
+		check.Args(u.ID).Asserts(u, policy.ActionReadPersonal).Returns(`["network"]`)
+	}))
+	s.Run("UpdateUserAdminQuickLinks", s.Mocked(func(dbm *dbmock.MockStore, faker *gofakeit.Faker, check *expects) {
+		u := testutil.Fake(s.T(), faker, database.User{})
+		arg := database.UpdateUserAdminQuickLinksParams{UserID: u.ID, AdminQuickLinks: `["network"]`}
+		dbm.EXPECT().GetUserByID(gomock.Any(), u.ID).Return(u, nil).AnyTimes()
+		dbm.EXPECT().UpdateUserAdminQuickLinks(gomock.Any(), arg).Return(`["network"]`, nil).AnyTimes()
+		check.Args(arg).Asserts(u, policy.ActionUpdatePersonal).Returns(`["network"]`)
+	}))
 	s.Run("GetUserAgentChatSendShortcut", s.Mocked(func(dbm *dbmock.MockStore, faker *gofakeit.Faker, check *expects) {
 		u := testutil.Fake(s.T(), faker, database.User{})
 		dbm.EXPECT().GetUserByID(gomock.Any(), u.ID).Return(u, nil).AnyTimes()

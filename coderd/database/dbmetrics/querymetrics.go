@@ -3456,6 +3456,14 @@ func (m queryMetricsStore) GetUserActivityInsights(ctx context.Context, arg data
 	return r0, r1
 }
 
+func (m queryMetricsStore) GetUserAdminQuickLinks(ctx context.Context, userID uuid.UUID) (string, error) {
+	start := time.Now()
+	r0, r1 := m.s.GetUserAdminQuickLinks(ctx, userID)
+	m.queryLatencies.WithLabelValues("GetUserAdminQuickLinks").Observe(time.Since(start).Seconds())
+	m.queryCounts.WithLabelValues(httpmw.ExtractHTTPRoute(ctx), httpmw.ExtractHTTPMethod(ctx), "GetUserAdminQuickLinks").Inc()
+	return r0, r1
+}
+
 func (m queryMetricsStore) GetUserAgentChatSendShortcut(ctx context.Context, userID uuid.UUID) (string, error) {
 	start := time.Now()
 	r0, r1 := m.s.GetUserAgentChatSendShortcut(ctx, userID)
@@ -6030,6 +6038,14 @@ func (m queryMetricsStore) UpdateUserAIProviderKey(ctx context.Context, arg data
 	r0, r1 := m.s.UpdateUserAIProviderKey(ctx, arg)
 	m.queryLatencies.WithLabelValues("UpdateUserAIProviderKey").Observe(time.Since(start).Seconds())
 	m.queryCounts.WithLabelValues(httpmw.ExtractHTTPRoute(ctx), httpmw.ExtractHTTPMethod(ctx), "UpdateUserAIProviderKey").Inc()
+	return r0, r1
+}
+
+func (m queryMetricsStore) UpdateUserAdminQuickLinks(ctx context.Context, arg database.UpdateUserAdminQuickLinksParams) (string, error) {
+	start := time.Now()
+	r0, r1 := m.s.UpdateUserAdminQuickLinks(ctx, arg)
+	m.queryLatencies.WithLabelValues("UpdateUserAdminQuickLinks").Observe(time.Since(start).Seconds())
+	m.queryCounts.WithLabelValues(httpmw.ExtractHTTPRoute(ctx), httpmw.ExtractHTTPMethod(ctx), "UpdateUserAdminQuickLinks").Inc()
 	return r0, r1
 }
 

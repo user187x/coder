@@ -3,9 +3,11 @@ package coderd
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -1456,12 +1458,22 @@ func (api *API) userPreferenceSettings(rw http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	adminQuickLinks, err := api.Database.GetUserAdminQuickLinks(ctx, user.ID)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
+			Message: "Error reading user preference settings.",
+			Detail:  err.Error(),
+		})
+		return
+	}
+
 	httpapi.Write(ctx, rw, http.StatusOK, codersdk.UserPreferenceSettings{
 		ThinkingDisplayMode:    sanitizeThinkingDisplayMode(thinkingMode),
 		ShellToolDisplayMode:   sanitizeShellToolDisplayMode(shellToolMode),
 		CodeDiffDisplayMode:    sanitizeAgentDisplayMode(codeDiffMode),
 		CollapseAssistantSteps: collapseAssistantSteps,
 		AgentChatSendShortcut:  sanitizeAgentChatSendShortcut(agentChatSendShortcut),
+		AdminQuickLinks:        decodeAdminQuickLinks(adminQuickLinks),
 	})
 }
 
@@ -1525,6 +1537,17 @@ func (api *API) putUserPreferenceSettings(rw http.ResponseWriter, r *http.Reques
 			},
 		})
 		return
+	}
+	if params.AdminQuickLinks != nil {
+		if detail := validateAdminQuickLinks(*params.AdminQuickLinks); detail != "" {
+			httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
+				Message: "Invalid admin quick links.",
+				Validations: []codersdk.ValidationError{
+					{Field: "admin_quick_links", Detail: detail},
+				},
+			})
+			return
+		}
 	}
 	var settings codersdk.UserPreferenceSettings
 	err := api.Database.InTx(func(tx database.Store) error {
@@ -1612,6 +1635,27 @@ func (api *API) putUserPreferenceSettings(rw http.ResponseWriter, r *http.Reques
 			}
 			settings.AgentChatSendShortcut = sanitizeAgentChatSendShortcut(stored)
 		}
+
+		if params.AdminQuickLinks != nil {
+			encoded, err := json.Marshal(*params.AdminQuickLinks)
+			if err != nil {
+				return newUserPreferenceSettingsAPIError("Internal error encoding admin quick links.", err)
+			}
+			updated, err := tx.UpdateUserAdminQuickLinks(ctx, database.UpdateUserAdminQuickLinksParams{
+				UserID:          user.ID,
+				AdminQuickLinks: string(encoded),
+			})
+			if err != nil {
+				return newUserPreferenceSettingsAPIError("Internal error updating admin quick links.", err)
+			}
+			settings.AdminQuickLinks = decodeAdminQuickLinks(updated)
+		} else {
+			stored, err := tx.GetUserAdminQuickLinks(ctx, user.ID)
+			if err != nil && !errors.Is(err, sql.ErrNoRows) {
+				return newUserPreferenceSettingsAPIError("Error reading admin quick links.", err)
+			}
+			settings.AdminQuickLinks = decodeAdminQuickLinks(stored)
+		}
 		return nil
 	}, database.DefaultTXOptions().WithID("user_preference_settings"))
 	if err != nil {
@@ -1691,6 +1735,43 @@ func sanitizeAgentChatSendShortcut(raw string) codersdk.AgentChatSendShortcut {
 		return shortcut
 	}
 	return codersdk.AgentChatSendShortcutEnter
+}
+
+// adminQuickLinkIDPattern matches the page IDs the dashboard uses for admin
+// pages. The dashboard owns the list of pages, so the server checks only the
+// shape of each ID.
+var adminQuickLinkIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,63}$`)
+
+// validateAdminQuickLinks returns why the pinned admin pages are invalid, or
+// "" when they are valid.
+func validateAdminQuickLinks(links []string) string {
+	if len(links) > codersdk.MaxAdminQuickLinks {
+		return fmt.Sprintf("at most %d pages", codersdk.MaxAdminQuickLinks)
+	}
+	seen := make(map[string]struct{}, len(links))
+	for _, link := range links {
+		if !adminQuickLinkIDPattern.MatchString(link) {
+			return fmt.Sprintf("%q is not a page ID: lower-case letters, digits and '-'", link)
+		}
+		if _, ok := seen[link]; ok {
+			return fmt.Sprintf("%q is listed twice", link)
+		}
+		seen[link] = struct{}{}
+	}
+	return ""
+}
+
+// decodeAdminQuickLinks reads the stored pinned admin pages. A missing or
+// unreadable value means the defaults, so it never fails the request.
+func decodeAdminQuickLinks(raw string) []string {
+	links := []string{}
+	if raw == "" {
+		return links
+	}
+	if err := json.Unmarshal([]byte(raw), &links); err != nil || validateAdminQuickLinks(links) != "" {
+		return []string{}
+	}
+	return links
 }
 
 func isValidFontName(font codersdk.TerminalFontName) bool {

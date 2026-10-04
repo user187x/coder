@@ -523,6 +523,7 @@ export const MockUserPreferenceSettings: TypesGen.UserPreferenceSettings = {
 	code_diff_display_mode: "auto",
 	collapse_assistant_steps: false,
 	agent_chat_send_shortcut: "enter",
+	admin_quick_links: [],
 };
 
 export const MockUserChatCompactionThresholds: TypesGen.UserChatCompactionThresholds =

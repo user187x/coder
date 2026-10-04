@@ -6695,6 +6695,12 @@ export const MaxAISpendLimitMicros = 1000000000000;
  */
 export const MaxAISpendPeriodDays = 31;
 
+// From codersdk/users.go
+/**
+ * MaxAdminQuickLinks is the most admin pages a user can pin to the Admin menu.
+ */
+export const MaxAdminQuickLinks = 8;
+
 // From codersdk/chats.go
 /**
  * MaxChatFileSizeBytes is the upload-endpoint cap for chat
@@ -10972,6 +10978,11 @@ export interface UpdateUserPreferenceSettingsRequest {
 	readonly code_diff_display_mode?: AgentDisplayMode;
 	readonly collapse_assistant_steps?: boolean;
 	readonly agent_chat_send_shortcut?: AgentChatSendShortcut;
+	/**
+	 * AdminQuickLinks replaces the pinned admin pages when set. An empty
+	 * list restores the defaults; omit it to leave them unchanged.
+	 */
+	readonly admin_quick_links?: string[];
 }
 
 // From codersdk/users.go
@@ -11501,6 +11512,12 @@ export interface UserPreferenceSettings {
 	readonly code_diff_display_mode: AgentDisplayMode;
 	readonly collapse_assistant_steps: boolean;
 	readonly agent_chat_send_shortcut: AgentChatSendShortcut;
+	/**
+	 * AdminQuickLinks are the admin pages the user pinned to the Admin
+	 * menu, by page ID, in menu order. Empty means the dashboard's
+	 * defaults.
+	 */
+	readonly admin_quick_links: readonly string[];
 }
 
 // From codersdk/deployment.go

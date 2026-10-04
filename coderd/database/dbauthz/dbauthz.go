@@ -5350,6 +5350,17 @@ func (q *querier) GetUserActivityInsights(ctx context.Context, arg database.GetU
 	return q.db.GetUserActivityInsights(ctx, arg)
 }
 
+func (q *querier) GetUserAdminQuickLinks(ctx context.Context, userID uuid.UUID) (string, error) {
+	user, err := q.db.GetUserByID(ctx, userID)
+	if err != nil {
+		return "", err
+	}
+	if err := q.authorizeContext(ctx, policy.ActionReadPersonal, user); err != nil {
+		return "", err
+	}
+	return q.db.GetUserAdminQuickLinks(ctx, userID)
+}
+
 func (q *querier) GetUserAgentChatSendShortcut(ctx context.Context, userID uuid.UUID) (string, error) {
 	user, err := q.db.GetUserByID(ctx, userID)
 	if err != nil {
@@ -8568,6 +8579,17 @@ func (q *querier) UpdateUserAIProviderKey(ctx context.Context, arg database.Upda
 		return database.UserAIProviderKey{}, err
 	}
 	return q.db.UpdateUserAIProviderKey(ctx, arg)
+}
+
+func (q *querier) UpdateUserAdminQuickLinks(ctx context.Context, arg database.UpdateUserAdminQuickLinksParams) (string, error) {
+	user, err := q.db.GetUserByID(ctx, arg.UserID)
+	if err != nil {
+		return "", err
+	}
+	if err := q.authorizeContext(ctx, policy.ActionUpdatePersonal, user); err != nil {
+		return "", err
+	}
+	return q.db.UpdateUserAdminQuickLinks(ctx, arg)
 }
 
 func (q *querier) UpdateUserAgentChatSendShortcut(ctx context.Context, arg database.UpdateUserAgentChatSendShortcutParams) (string, error) {

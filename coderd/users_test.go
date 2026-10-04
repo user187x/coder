@@ -2711,6 +2711,83 @@ func TestAgentChatSendShortcutPreference(t *testing.T) {
 	})
 }
 
+func TestAdminQuickLinksPreference(t *testing.T) {
+	t.Parallel()
+
+	adminClient := coderdtest.New(t, nil)
+	firstUser := coderdtest.CreateFirstUser(t, adminClient)
+
+	t.Run("defaults to empty", func(t *testing.T) {
+		t.Parallel()
+
+		client, _ := coderdtest.CreateAnotherUser(t, adminClient, firstUser.OrganizationID)
+
+		ctx, cancel := context.WithTimeout(context.Background(), testutil.WaitShort)
+		defer cancel()
+
+		settings, err := client.GetUserPreferenceSettings(ctx, codersdk.Me)
+		require.NoError(t, err)
+		require.NotNil(t, settings.AdminQuickLinks)
+		require.Empty(t, settings.AdminQuickLinks)
+	})
+
+	t.Run("round-trips, is kept by other updates, and resets", func(t *testing.T) {
+		t.Parallel()
+
+		client, _ := coderdtest.CreateAnotherUser(t, adminClient, firstUser.OrganizationID)
+
+		ctx, cancel := context.WithTimeout(context.Background(), testutil.WaitShort)
+		defer cancel()
+
+		links := []string{"network", "notifications"}
+		updated, err := client.UpdateUserPreferenceSettings(ctx, codersdk.Me, codersdk.UpdateUserPreferenceSettingsRequest{
+			AdminQuickLinks: &links,
+		})
+		require.NoError(t, err)
+		require.Equal(t, links, updated.AdminQuickLinks)
+
+		updated, err = client.UpdateUserPreferenceSettings(ctx, codersdk.Me, codersdk.UpdateUserPreferenceSettingsRequest{
+			ThinkingDisplayMode: codersdk.ThinkingDisplayModePreview,
+		})
+		require.NoError(t, err)
+		require.Equal(t, links, updated.AdminQuickLinks)
+
+		settings, err := client.GetUserPreferenceSettings(ctx, codersdk.Me)
+		require.NoError(t, err)
+		require.Equal(t, links, settings.AdminQuickLinks)
+
+		updated, err = client.UpdateUserPreferenceSettings(ctx, codersdk.Me, codersdk.UpdateUserPreferenceSettingsRequest{
+			AdminQuickLinks: &[]string{},
+		})
+		require.NoError(t, err)
+		require.Empty(t, updated.AdminQuickLinks)
+	})
+
+	t.Run("rejects invalid links", func(t *testing.T) {
+		t.Parallel()
+
+		client, _ := coderdtest.CreateAnotherUser(t, adminClient, firstUser.OrganizationID)
+
+		for _, links := range [][]string{
+			{"Network"},
+			{"../users"},
+			{"network", "network"},
+			{"a", "b", "c", "d", "e", "f", "g", "h", "i"},
+		} {
+			ctx, cancel := context.WithTimeout(context.Background(), testutil.WaitShort)
+			_, err := client.UpdateUserPreferenceSettings(ctx, codersdk.Me, codersdk.UpdateUserPreferenceSettingsRequest{
+				AdminQuickLinks: &links,
+			})
+			cancel()
+			var sdkErr *codersdk.Error
+			require.ErrorAs(t, err, &sdkErr, "links %v", links)
+			require.Equal(t, http.StatusBadRequest, sdkErr.StatusCode())
+			require.Len(t, sdkErr.Validations, 1)
+			require.Equal(t, "admin_quick_links", sdkErr.Validations[0].Field)
+		}
+	})
+}
+
 func TestAgentDisplayModePreferences(t *testing.T) {
 	t.Parallel()
 

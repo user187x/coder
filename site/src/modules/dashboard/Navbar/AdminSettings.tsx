@@ -1,7 +1,10 @@
+import { cn } from "cn";
+import { PencilIcon } from "lucide-react";
 import { Link } from "react-router";
 import { DropdownMenuItem } from "#/components/DropdownMenu/DropdownMenu";
 import { ClusterGauge } from "#/modules/platform/ClusterGauge";
 import { WORKSPACE_HEALTH_PATH } from "#/pages/HealthPage/healthSections";
+import type { AdminPage } from "./adminQuickLinks";
 
 /**
  * Permissions that determine which items appear in the Admin menu.
@@ -11,6 +14,24 @@ import { WORKSPACE_HEALTH_PATH } from "#/pages/HealthPage/healthSections";
 type AdminSettingsItemsProps = {
 	itemClassName?: string;
 	permissions: AdminSettingsPermissions;
+	/**
+	 * The page each quick link opens (where Accounts and Health are by
+	 * default). Without it, Accounts and Health are shown when permitted.
+	 */
+	quickLinks?: readonly (AdminPage | undefined)[];
+	/** Offers "Customize quick links" when set. */
+	onCustomizeQuickLinks?: () => void;
+};
+
+/** An admin's choice of quick links, and how to change it. */
+export type AdminQuickLinks = {
+	/** The pages this admin can pick from. */
+	pages: readonly AdminPage[];
+	/** The page in each slot. */
+	links: readonly (AdminPage | undefined)[];
+	isSaving: boolean;
+	error: unknown;
+	onSave: (ids: string[], onSaved: () => void) => void;
 };
 
 export type AdminSettingsPermissions = {
@@ -28,13 +49,41 @@ export type AdminSettingsPermissions = {
  * Builds the ordered list of Admin menu items for the given permissions. The
  * deployment settings are called "Settings" (they open General), and AI
  * settings live in General's sidebar as "Super Intelligence", which is only
- * offered here to those who cannot open General. The menu ends with the cluster's CPU and memory, which
- * only admins get an answer for.
+ * offered here to those who cannot open General. Two quick links, Accounts and
+ * Health unless the admin chose other pages, open admin pages directly. The
+ * menu ends with the cluster's CPU and memory, which only admins get an
+ * answer for.
  */
 export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
 	itemClassName,
 	permissions,
+	quickLinks = [
+		permissions.canViewUsers
+			? {
+					id: "accounts",
+					label: "Accounts",
+					path: "/deployment/users",
+					group: "General",
+				}
+			: undefined,
+		permissions.canViewHealth
+			? {
+					id: "health",
+					label: "Workspace Health",
+					menuLabel: "Health",
+					path: WORKSPACE_HEALTH_PATH,
+					group: "Health",
+				}
+			: undefined,
+	],
+	onCustomizeQuickLinks,
 }) => {
+	const quickLink = (page: AdminPage | undefined) =>
+		page && (
+			<DropdownMenuItem asChild className={itemClassName}>
+				<Link to={page.path}>{page.menuLabel ?? page.label}</Link>
+			</DropdownMenuItem>
+		);
 	return (
 		<>
 			{permissions.canViewDeployment && (
@@ -42,11 +91,7 @@ export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
 					<Link to="/deployment">Settings</Link>
 				</DropdownMenuItem>
 			)}
-			{permissions.canViewUsers && (
-				<DropdownMenuItem asChild className={itemClassName}>
-					<Link to="/deployment/users">Accounts</Link>
-				</DropdownMenuItem>
-			)}
+			{quickLink(quickLinks[0])}
 			{permissions.canViewOrganizations && (
 				<DropdownMenuItem asChild className={itemClassName}>
 					<Link to="/organizations">Organizations</Link>
@@ -72,9 +117,14 @@ export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
 					<Link to="/ai-gateway/sessions">AI sessions</Link>
 				</DropdownMenuItem>
 			)}
-			{permissions.canViewHealth && (
-				<DropdownMenuItem asChild className={itemClassName}>
-					<Link to={WORKSPACE_HEALTH_PATH}>Health</Link>
+			{quickLink(quickLinks[1])}
+			{onCustomizeQuickLinks && (
+				<DropdownMenuItem
+					className={cn("text-content-secondary", itemClassName)}
+					onSelect={onCustomizeQuickLinks}
+				>
+					<PencilIcon />
+					Customize quick links…
 				</DropdownMenuItem>
 			)}
 			<ClusterGauge />

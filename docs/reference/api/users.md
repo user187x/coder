@@ -1249,6 +1249,9 @@ curl -X GET http://coder-server:8080/api/v2/users/{user}/preferences \
 
 ```json
 {
+  "admin_quick_links": [
+    "string"
+  ],
   "agent_chat_send_shortcut": "enter",
   "code_diff_display_mode": "auto",
   "collapse_assistant_steps": true,
@@ -1283,6 +1286,9 @@ curl -X PUT http://coder-server:8080/api/v2/users/{user}/preferences \
 
 ```json
 {
+  "admin_quick_links": [
+    "string"
+  ],
   "agent_chat_send_shortcut": "enter",
   "code_diff_display_mode": "auto",
   "collapse_assistant_steps": true,
@@ -1304,6 +1310,9 @@ curl -X PUT http://coder-server:8080/api/v2/users/{user}/preferences \
 
 ```json
 {
+  "admin_quick_links": [
+    "string"
+  ],
   "agent_chat_send_shortcut": "enter",
   "code_diff_display_mode": "auto",
   "collapse_assistant_steps": true,

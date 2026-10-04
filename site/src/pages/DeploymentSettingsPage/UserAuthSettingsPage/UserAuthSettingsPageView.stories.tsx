@@ -9,11 +9,6 @@ const oidcGroup: SerpentGroup = {
 	description: "",
 };
 
-const ghGroup: SerpentGroup = {
-	name: "GitHub",
-	description: "",
-};
-
 const meta: Meta<typeof UserAuthSettingsPageView> = {
 	title: "pages/DeploymentSettingsPage/UserAuthSettingsPageView",
 	component: UserAuthSettingsPageView,
@@ -76,64 +71,6 @@ const meta: Meta<typeof UserAuthSettingsPageView> = {
 				flag_shorthand: "o",
 				hidden: false,
 			},
-			{
-				name: "OAuth2 GitHub Client ID",
-				description: "Client ID for Login with GitHub.",
-				value: "1224",
-				group: ghGroup,
-				flag: "oidc",
-				flag_shorthand: "o",
-				hidden: false,
-			},
-			{
-				name: "OAuth2 GitHub Client Secret",
-				description: "Client secret for Login with GitHub.",
-				value: "",
-				value_source: "flag",
-				group: ghGroup,
-				flag: "oauth2-github-client-secret",
-				annotations: { secret: "true" },
-				hidden: false,
-			},
-			{
-				name: "OAuth2 GitHub Allow Signups",
-				description: "Whether new users can sign up with GitHub.",
-				value: true,
-				group: ghGroup,
-				flag: "oidc",
-				flag_shorthand: "o",
-				hidden: false,
-			},
-			{
-				name: "OAuth2 GitHub Enterprise Base URL",
-				description:
-					"Base URL of a GitHub Enterprise deployment to use for Login with GitHub.",
-				value: "https://google.com",
-				group: ghGroup,
-				flag: "oidc",
-				flag_shorthand: "o",
-				hidden: false,
-			},
-			{
-				name: "OAuth2 GitHub Allowed Orgs",
-				description:
-					"Organizations the user must be a member of to Login with GitHub.",
-				value: true,
-				group: ghGroup,
-				flag: "oidc",
-				flag_shorthand: "o",
-				hidden: false,
-			},
-			{
-				name: "OAuth2 GitHub Allowed Teams",
-				description:
-					"Teams inside organizations the user must be a member of to Login with GitHub. Structured as: <organization-name>/<team-slug>.",
-				value: true,
-				group: ghGroup,
-				flag: "oidc",
-				flag_shorthand: "o",
-				hidden: false,
-			},
 		],
 	},
 };
@@ -145,14 +82,10 @@ export const Page: Story = {
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
 		const docsLinks = canvas.getAllByRole("link", { name: /View docs/ });
-		await expect(docsLinks).toHaveLength(2);
+		await expect(docsLinks).toHaveLength(1);
 		await expect(docsLinks[0]).toHaveAttribute(
 			"href",
 			docs("/admin/users/oidc-auth"),
-		);
-		await expect(docsLinks[1]).toHaveAttribute(
-			"href",
-			docs("/admin/users/github-auth"),
 		);
 	},
 };

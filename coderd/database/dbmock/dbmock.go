@@ -6507,6 +6507,21 @@ func (mr *MockStoreMockRecorder) GetUserActivityInsights(ctx, arg any) *gomock.C
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserActivityInsights", reflect.TypeOf((*MockStore)(nil).GetUserActivityInsights), ctx, arg)
 }
 
+// GetUserAdminQuickLinks mocks base method.
+func (m *MockStore) GetUserAdminQuickLinks(ctx context.Context, userID uuid.UUID) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetUserAdminQuickLinks", ctx, userID)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetUserAdminQuickLinks indicates an expected call of GetUserAdminQuickLinks.
+func (mr *MockStoreMockRecorder) GetUserAdminQuickLinks(ctx, userID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserAdminQuickLinks", reflect.TypeOf((*MockStore)(nil).GetUserAdminQuickLinks), ctx, userID)
+}
+
 // GetUserAgentChatSendShortcut mocks base method.
 func (m *MockStore) GetUserAgentChatSendShortcut(ctx context.Context, userID uuid.UUID) (string, error) {
 	m.ctrl.T.Helper()
@@ -11390,6 +11405,21 @@ func (m *MockStore) UpdateUserAIProviderKey(ctx context.Context, arg database.Up
 func (mr *MockStoreMockRecorder) UpdateUserAIProviderKey(ctx, arg any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateUserAIProviderKey", reflect.TypeOf((*MockStore)(nil).UpdateUserAIProviderKey), ctx, arg)
+}
+
+// UpdateUserAdminQuickLinks mocks base method.
+func (m *MockStore) UpdateUserAdminQuickLinks(ctx context.Context, arg database.UpdateUserAdminQuickLinksParams) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateUserAdminQuickLinks", ctx, arg)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UpdateUserAdminQuickLinks indicates an expected call of UpdateUserAdminQuickLinks.
+func (mr *MockStoreMockRecorder) UpdateUserAdminQuickLinks(ctx, arg any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateUserAdminQuickLinks", reflect.TypeOf((*MockStore)(nil).UpdateUserAdminQuickLinks), ctx, arg)
 }
 
 // UpdateUserAgentChatSendShortcut mocks base method.

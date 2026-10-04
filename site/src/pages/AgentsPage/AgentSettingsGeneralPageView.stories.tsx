@@ -13,6 +13,7 @@ const preferencesData = {
 	code_diff_display_mode: "auto" as const,
 	collapse_assistant_steps: false,
 	agent_chat_send_shortcut: "enter" as const,
+	admin_quick_links: [],
 };
 
 const baseArgs: AgentSettingsGeneralPageViewProps = {

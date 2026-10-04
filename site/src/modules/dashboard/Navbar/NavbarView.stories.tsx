@@ -10,6 +10,7 @@ import {
 	MockDefaultOrganization,
 	MockEntitlements,
 	MockNoPermissions,
+	MockPermissions,
 	MockUserMember,
 	MockUserOwner,
 } from "#/testHelpers/entities";
@@ -18,7 +19,14 @@ import {
 	withAuthProvider,
 	withDashboardProvider,
 } from "#/testHelpers/storybook";
+import { adminPagesFor, resolveAdminQuickLinks } from "./adminQuickLinks";
 import { NavbarView } from "./NavbarView";
+
+const adminPages = adminPagesFor({
+	permissions: MockPermissions,
+	oauth2Provider: true,
+	canViewAISettings: true,
+});
 
 const AISettingsIndexRedirectWithProviders = () => (
 	<AuthProvider>
@@ -70,6 +78,37 @@ export const ForAdmin: Story = {
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
 		await userEvent.click(canvas.getByRole("button", { name: "Admin" }));
+	},
+};
+
+export const ForAdminWithCustomQuickLinks: Story = {
+	parameters: { pixel: { matrix: pixelWithDesktop } },
+	args: {
+		adminQuickLinks: {
+			pages: adminPages,
+			links: resolveAdminQuickLinks(["network", "health-database"], adminPages),
+			isSaving: false,
+			error: undefined,
+			onSave: () => {},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		await userEvent.click(canvas.getByRole("button", { name: "Admin" }));
+	},
+};
+
+export const CustomizingQuickLinks: Story = {
+	parameters: { pixel: { matrix: pixelWithDesktop } },
+	args: ForAdminWithCustomQuickLinks.args,
+	play: async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		await userEvent.click(canvas.getByRole("button", { name: "Admin" }));
+		await userEvent.click(
+			await within(canvasElement.ownerDocument.body).findByRole("menuitem", {
+				name: /Customize quick links/,
+			}),
+		);
 	},
 };
 

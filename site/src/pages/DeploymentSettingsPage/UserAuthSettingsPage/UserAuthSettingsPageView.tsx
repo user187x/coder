@@ -24,9 +24,6 @@ export const UserAuthSettingsPageView = ({
 	const oidcEnabled = Boolean(
 		useDeploymentOptions(options, "OIDC Client ID")[0].value,
 	);
-	const githubEnabled = Boolean(
-		useDeploymentOptions(options, "OAuth2 GitHub Client ID")[0].value,
-	);
 
 	return (
 		<div className="flex flex-col gap-12">
@@ -56,33 +53,6 @@ export const UserAuthSettingsPageView = ({
 					<OptionsTable
 						options={options.filter((o) =>
 							deploymentGroupHasParent(o.group, "OIDC"),
-						)}
-					/>
-				)}
-			</div>
-
-			<div>
-				<SettingsHeader>
-					<SettingsHeaderTitle level="h2" hierarchy="secondary">
-						Login with GitHub
-					</SettingsHeaderTitle>
-					<SettingsHeaderDescription>
-						Set up authentication to login with GitHub.{" "}
-						<SettingsHeaderDocsLink
-							href={docs("/admin/users/github-auth")}
-							context="about GitHub login"
-						/>
-					</SettingsHeaderDescription>
-				</SettingsHeader>
-
-				<BadgeGroup>
-					{githubEnabled ? <EnabledBadge /> : <DisabledBadge />}
-				</BadgeGroup>
-
-				{githubEnabled && (
-					<OptionsTable
-						options={options.filter((o) =>
-							deploymentGroupHasParent(o.group, "GitHub"),
 						)}
 					/>
 				)}

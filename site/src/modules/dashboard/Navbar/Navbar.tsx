@@ -1,6 +1,10 @@
-import { useQuery } from "react-query";
+import { useMutation, useQuery, useQueryClient } from "react-query";
 import { aiSpendOrganizations } from "#/api/queries/aiBridge";
 import { buildInfo } from "#/api/queries/buildInfo";
+import {
+	preferenceSettings,
+	updatePreferenceSettings,
+} from "#/api/queries/users";
 import type { LinkConfig } from "#/api/typesGenerated";
 import { useProxy } from "#/contexts/ProxyContext";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
@@ -14,6 +18,11 @@ import { isOfferedSupportLink } from "#/modules/platform/supportLinks";
 import { useCanShareOrganizationMCPServers } from "#/pages/AISettingsPage/MCPServersPage/organizationSharing";
 import { canViewAISpend } from "#/pages/AISettingsPage/SpendPage/spendAccess";
 import { useFeatureVisibility } from "../useFeatureVisibility";
+import {
+	adminPagesFor,
+	adminQuickLinksToSave,
+	resolveAdminQuickLinks,
+} from "./adminQuickLinks";
 import { NavbarView } from "./NavbarView";
 
 export const Navbar: React.FC = () => {
@@ -62,6 +71,18 @@ export const Navbar: React.FC = () => {
 		organizationMCPSharing.canShare ||
 		canViewAISpend(entitlements, spendOrganizationsQuery.data);
 
+	const adminPages = adminPagesFor({
+		permissions,
+		oauth2Provider: Boolean(buildInfoQuery.data?.oauth2_provider),
+		canViewAISettings,
+	});
+	const queryClient = useQueryClient();
+	const preferencesQuery = useQuery({
+		...preferenceSettings(),
+		enabled: adminPages.length > 0,
+	});
+	const savePreferences = useMutation(updatePreferenceSettings(queryClient));
+
 	const uniqueLinks = new Map<string, LinkConfig>();
 	for (const link of appearance.support_links ?? []) {
 		if (!uniqueLinks.has(link.name) && isOfferedSupportLink(link)) {
@@ -83,6 +104,20 @@ export const Navbar: React.FC = () => {
 				canViewConnectionLog,
 				canViewAIBridge,
 				canViewHealth,
+			}}
+			adminQuickLinks={{
+				pages: adminPages,
+				links: resolveAdminQuickLinks(
+					preferencesQuery.data?.admin_quick_links ?? [],
+					adminPages,
+				),
+				isSaving: savePreferences.isPending,
+				error: savePreferences.error,
+				onSave: (ids, onSaved) =>
+					savePreferences.mutate(
+						{ admin_quick_links: adminQuickLinksToSave(ids) },
+						{ onSuccess: onSaved },
+					),
 			}}
 			proxyContextValue={proxyContextValue}
 		/>

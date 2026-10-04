@@ -1017,6 +1017,7 @@ type sqlcQuerier interface {
 	// produces a bloated value if a user has used multiple templates
 	// simultaneously.
 	GetUserActivityInsights(ctx context.Context, arg GetUserActivityInsightsParams) ([]GetUserActivityInsightsRow, error)
+	GetUserAdminQuickLinks(ctx context.Context, userID uuid.UUID) (string, error)
 	GetUserAgentChatSendShortcut(ctx context.Context, userID uuid.UUID) (string, error)
 	GetUserAppearanceSettings(ctx context.Context, userID uuid.UUID) (GetUserAppearanceSettingsRow, error)
 	GetUserByEmailOrUsername(ctx context.Context, arg GetUserByEmailOrUsernameParams) (User, error)
@@ -1700,6 +1701,7 @@ type sqlcQuerier interface {
 	UpdateTemplateWorkspacesLastUsedAt(ctx context.Context, arg UpdateTemplateWorkspacesLastUsedAtParams) error
 	UpdateUsageEventsPostPublish(ctx context.Context, arg UpdateUsageEventsPostPublishParams) error
 	UpdateUserAIProviderKey(ctx context.Context, arg UpdateUserAIProviderKeyParams) (UserAIProviderKey, error)
+	UpdateUserAdminQuickLinks(ctx context.Context, arg UpdateUserAdminQuickLinksParams) (string, error)
 	UpdateUserAgentChatSendShortcut(ctx context.Context, arg UpdateUserAgentChatSendShortcutParams) (string, error)
 	UpdateUserChatCompactionThreshold(ctx context.Context, arg UpdateUserChatCompactionThresholdParams) (UserConfig, error)
 	UpdateUserChatCustomPrompt(ctx context.Context, arg UpdateUserChatCustomPromptParams) (UserConfig, error)

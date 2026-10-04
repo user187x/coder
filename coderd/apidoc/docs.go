@@ -31642,6 +31642,13 @@ const docTemplate = `{
         "codersdk.UpdateUserPreferenceSettingsRequest": {
             "type": "object",
             "properties": {
+                "admin_quick_links": {
+                    "description": "AdminQuickLinks replaces the pinned admin pages when set. An empty\nlist restores the defaults; omit it to leave them unchanged.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "agent_chat_send_shortcut": {
                     "$ref": "#/definitions/codersdk.AgentChatSendShortcut"
                 },
@@ -32342,6 +32349,13 @@ const docTemplate = `{
         "codersdk.UserPreferenceSettings": {
             "type": "object",
             "properties": {
+                "admin_quick_links": {
+                    "description": "AdminQuickLinks are the admin pages the user pinned to the Admin\nmenu, by page ID, in menu order. Empty means the dashboard's\ndefaults.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "agent_chat_send_shortcut": {
                     "$ref": "#/definitions/codersdk.AgentChatSendShortcut"
                 },
