@@ -19,15 +19,3 @@ export const formatBytes = (bytes: number): string =>
 		: bytes < 1024 * 1024
 			? `${Math.round(bytes / 1024)} KB`
 			: `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-
-/** Encodes a canvas as WebP where the browser can, else as `fallback`. */
-export const canvasToDataURL = (
-	canvas: HTMLCanvasElement,
-	fallback: "image/png" | "image/jpeg",
-	quality: number,
-): string => {
-	const webp = canvas.toDataURL("image/webp", quality);
-	return webp.startsWith("data:image/webp")
-		? webp
-		: canvas.toDataURL(fallback, quality);
-};

@@ -169,9 +169,7 @@ export const SingleSignOnSection: React.FC<SingleSignOnSectionProps> = ({
 						<CircleCheckIcon className="text-content-success size-icon-xs" />
 						<span>
 							Authenticated with{" "}
-							<strong>
-								{getOIDCLabel(authMethods.oidc)}
-							</strong>
+							<strong>{getOIDCLabel(authMethods.oidc)}</strong>
 						</span>
 						<div className="leading-none ml-auto">
 							<OIDCIcon oidcAuth={authMethods.oidc} />

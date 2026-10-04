@@ -10,6 +10,7 @@ import type {
 	MonitoringOverview,
 	NetworkReport,
 	PersistenceReport,
+	TemplateIconList,
 } from "#/api/platform";
 import { MockUserMember, MockUserOwner } from "./entities";
 
@@ -669,4 +670,34 @@ export const MockPersistenceReportCloud: PersistenceReport = {
 		},
 		database: MockPersistenceReport.facts.database,
 	},
+};
+
+export const MockTemplateIcons: TemplateIconList = {
+	canManage: true,
+	icons: [
+		{
+			name: "build-runner",
+			type: "image/svg+xml",
+			url: "/icon/docker.svg",
+			bytes: 1_840,
+			uploadedBy: MockUserOwner.username,
+			uploadedAt: "2026-09-30T14:02:11Z",
+		},
+		{
+			name: "gpu-node",
+			type: "image/gif",
+			url: "/brain.gif",
+			bytes: 412_903,
+			uploadedBy: MockUserOwner.username,
+			uploadedAt: "2026-10-01T09:45:00Z",
+		},
+		{
+			name: "team-logo",
+			type: "image/png",
+			url: "/icon/k8s.png",
+			bytes: 18_220,
+			uploadedBy: MockUserMember.username,
+			uploadedAt: "2026-10-02T17:20:37Z",
+		},
+	],
 };

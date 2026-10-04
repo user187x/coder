@@ -290,30 +290,36 @@ introspection:
     thresholdDatabase: 15ms
 oauth2:
   github:
-    # Client ID for Login with GitHub.
+    # Removed: GitHub sign-in and the default GitHub provider are not available.
+    # Accepted so existing configurations keep working; it has no effect.
     # (default: <unset>, type: string)
     clientID: ""
-    # Enable device flow for Login with GitHub.
+    # Removed: GitHub sign-in and the default GitHub provider are not available.
+    # Accepted so existing configurations keep working; it has no effect.
     # (default: false, type: bool)
     deviceFlow: false
-    # Enable the default GitHub OAuth2 provider managed by Coder.
+    # Removed: GitHub sign-in and the default GitHub provider are not available.
+    # Accepted so existing configurations keep working; it has no effect.
     # (default: true, type: bool)
     defaultProviderEnable: true
-    # Organizations the user must be a member of to Login with GitHub.
+    # Removed: GitHub sign-in and the default GitHub provider are not available.
+    # Accepted so existing configurations keep working; it has no effect.
     # (default: <unset>, type: string-array)
     allowedOrgs: []
-    # Teams inside organizations the user must be a member of to Login with GitHub.
-    # Structured as: `<organization-name>/<team-slug>`.
+    # Removed: GitHub sign-in and the default GitHub provider are not available.
+    # Accepted so existing configurations keep working; it has no effect.
     # (default: <unset>, type: string-array)
     allowedTeams: []
-    # Whether new users can sign up with GitHub.
+    # Removed: GitHub sign-in and the default GitHub provider are not available.
+    # Accepted so existing configurations keep working; it has no effect.
     # (default: <unset>, type: bool)
     allowSignups: false
-    # Allow all logins, setting this option means allowed orgs and teams must be
-    # empty.
+    # Removed: GitHub sign-in and the default GitHub provider are not available.
+    # Accepted so existing configurations keep working; it has no effect.
     # (default: <unset>, type: bool)
     allowEveryone: false
-    # Base URL of a GitHub Enterprise deployment to use for Login with GitHub.
+    # Removed: GitHub sign-in and the default GitHub provider are not available.
+    # Accepted so existing configurations keep working; it has no effect.
     # (default: <unset>, type: string)
     enterpriseBaseURL: ""
   provider:
@@ -632,7 +638,8 @@ supportLinks: []
 # External Authentication providers.
 # (default: <unset>, type: struct[[]codersdk.ExternalAuthConfig])
 externalAuthProviders: []
-# Enable the default GitHub external auth provider managed by Coder.
+# Removed: GitHub sign-in and the default GitHub provider are not available.
+# Accepted so existing configurations keep working; it has no effect.
 # (default: true, type: bool)
 externalAuthGithubDefaultProviderEnable: true
 # Hostname of HTTPS server that runs https://github.com/coder/wgtunnel. By

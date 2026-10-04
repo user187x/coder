@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { useMutation, useQuery } from "react-query";
+import { useMutation } from "react-query";
 import { Navigate } from "react-router";
-import { authMethods, createFirstUser } from "#/api/queries/users";
+import { createFirstUser } from "#/api/queries/users";
 import { Loader } from "#/components/Loader/Loader";
 import { useAuthContext } from "#/contexts/auth/AuthProvider";
 import { pageTitle } from "#/utils/page";
@@ -15,12 +15,11 @@ export const SetupPage: React.FC = () => {
 		isSignedIn,
 		isSigningIn,
 	} = useAuthContext();
-	const authMethodsQuery = useQuery(authMethods());
 	const createFirstUserMutation = useMutation(createFirstUser());
 	const setupIsComplete = !isConfiguringTheFirstUser;
 	const [setupRequired, setSetupRequired] = useState(false);
 
-	if (isLoading || authMethodsQuery.isLoading) {
+	if (isLoading) {
 		return <Loader fullscreen />;
 	}
 
@@ -46,7 +45,6 @@ export const SetupPage: React.FC = () => {
 		<>
 			<title>{pageTitle("Set up your account")}</title>
 			<SetupPageView
-				authMethods={authMethodsQuery.data}
 				isLoading={isSigningIn || createFirstUserMutation.isPending}
 				error={createFirstUserMutation.error}
 				onSubmit={async (firstUser) => {

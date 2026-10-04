@@ -4,7 +4,6 @@ import * as Yup from "yup";
 import type * as TypesGen from "#/api/typesGenerated";
 import { Alert, AlertDescription, AlertTitle } from "#/components/Alert/Alert";
 import { Button } from "#/components/Button/Button";
-import { ExternalImage } from "#/components/ExternalImage/ExternalImage";
 import { FormField } from "#/components/FormField/FormField";
 import { ProductLogo } from "#/components/Icons/ProductLogo";
 import { PasswordField } from "#/components/PasswordField/PasswordField";
@@ -44,14 +43,12 @@ type SetupPageViewProps = {
 	onSubmit: (firstUser: TypesGen.CreateFirstUserRequest) => void;
 	error?: unknown;
 	isLoading?: boolean;
-	authMethods: TypesGen.AuthMethods | undefined;
 };
 
 export const SetupPageView: React.FC<SetupPageViewProps> = ({
 	onSubmit,
 	error,
 	isLoading,
-	authMethods,
 }) => {
 	const form: FormikContextType<TypesGen.CreateFirstUserRequest> =
 		useFormik<TypesGen.CreateFirstUserRequest>({

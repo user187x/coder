@@ -109,14 +109,14 @@ const createOrgMemberCheck = {
 } as const;
 
 export const CreateUserForm: React.FC<CreateUserFormProps> = (props) => {
-	const availableLoginTypes = (
-		["password", "oidc", "none"] as const
-	).filter((key) => {
-		if (key === "none") {
-			return props.serviceAccountsEnabled;
-		}
-		return props.authMethods[key].enabled;
-	});
+	const availableLoginTypes = (["password", "oidc", "none"] as const).filter(
+		(key) => {
+			if (key === "none") {
+				return props.serviceAccountsEnabled;
+			}
+			return props.authMethods[key].enabled;
+		},
+	);
 	const defaultLoginType = availableLoginTypes[0];
 
 	if (!defaultLoginType) {

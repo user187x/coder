@@ -12,7 +12,7 @@ const meta: Meta<typeof LogoView> = {
 export default meta;
 type Story = StoryObj<typeof LogoView>;
 
-export const CoderLogo: Story = {};
+export const DefaultLogo: Story = {};
 
 export const CustomLogo: Story = {
 	args: {

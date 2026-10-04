@@ -14,8 +14,12 @@ import {
 } from "#/components/Dialog/Dialog";
 import { Spinner } from "#/components/Spinner/Spinner";
 import { setUserAvatar } from "#/contexts/platformBoot";
+import {
+	AVATAR_TARGET,
+	ImageNormalizeError,
+	normalizeImage,
+} from "../normalizeImage";
 import { closeAvatarDialog, useAvatarDialogOpen } from "./avatarDialogStore";
-import { AvatarImageError, prepareAvatar } from "./prepareAvatar";
 
 /**
  * Renders the avatar dialog wherever it is opened from (the user menu, the
@@ -52,13 +56,14 @@ const AvatarDialog: React.FC<AvatarDialogProps> = ({ onClose }) => {
 	const pick = async (file: File) => {
 		setPickError(undefined);
 		try {
-			setNext({ dataURL: await prepareAvatar(file), name: file.name });
+			const { dataURL } = await normalizeImage(file, AVATAR_TARGET);
+			setNext({ dataURL, name: file.name });
 		} catch (error) {
 			setNext(undefined);
 			setPickError(
-				error instanceof AvatarImageError
+				error instanceof ImageNormalizeError
 					? error.message
-					: "This browser cannot read that file as a picture. Try a PNG, JPEG, WebP, GIF or SVG.",
+					: "This browser cannot read that file as a picture. Try a PNG, JPEG, WebP, GIF or AVIF.",
 			);
 		}
 	};
@@ -76,7 +81,8 @@ const AvatarDialog: React.FC<AvatarDialogProps> = ({ onClose }) => {
 				<DialogHeader>
 					<DialogTitle>Your avatar</DialogTitle>
 					<DialogDescription>
-						Any picture works, animated GIFs too: it is shown as a circle
+						Any picture works, animated ones too (GIF, PNG, WebP, AVIF). It is
+						cropped to a square and resized for you, and shown as a circle
 						wherever Coder shows you.
 					</DialogDescription>
 				</DialogHeader>

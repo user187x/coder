@@ -18,7 +18,6 @@ import {
 	DialogTitle,
 } from "#/components/Dialog/Dialog";
 import { FileUpload } from "#/components/FileUpload/FileUpload";
-import { CoderLogo } from "#/components/Icons/ProductLogo";
 import { Loader } from "#/components/Loader/Loader";
 import {
 	SettingsHeader,
@@ -26,20 +25,18 @@ import {
 	SettingsHeaderTitle,
 } from "#/components/SettingsHeader/SettingsHeader";
 import { Spinner } from "#/components/Spinner/Spinner";
-import { setLogoURL } from "#/contexts/platformBoot";
-import { formatBytes, readFileAsDataURL } from "#/modules/platform/images";
+import { DEFAULT_LOGO_URL, setLogoURL } from "#/contexts/platformBoot";
+import { formatBytes } from "#/modules/platform/images";
+import {
+	ImageNormalizeError,
+	LOGO_TARGET,
+	type NormalizedImage,
+	normalizeImage,
+} from "#/modules/platform/normalizeImage";
 import AppearancePage from "#/pages/UserSettingsPage/AppearancePage/AppearancePage";
 import { pageTitle } from "#/utils/page";
 
-const MAX_LOGO_BYTES = 1024 * 1024;
-const LOGO_TYPES = [
-	"image/png",
-	"image/jpeg",
-	"image/svg+xml",
-	"image/webp",
-	"image/gif",
-];
-const LOGO_EXTENSIONS = ["png", "jpg", "jpeg", "svg", "webp", "gif"];
+const LOGO_EXTENSIONS = ["png", "jpg", "jpeg", "svg", "webp", "gif", "avif"];
 
 /**
  * General > Customize: the logo shown everywhere in Coder (navigation bar,
@@ -105,8 +102,8 @@ const LogoSection: React.FC = () => {
 			<ConfirmDialog
 				type="delete"
 				open={confirmingReset}
-				title="Restore the Coder logo"
-				description="Remove the custom logo and show Coder's logo again?"
+				title="Restore the default logo"
+				description="Remove the custom logo and show the default logo again?"
 				confirmText="Restore"
 				confirmLoading={reset.isPending}
 				onClose={() => setConfirmingReset(false)}
@@ -115,7 +112,7 @@ const LogoSection: React.FC = () => {
 						onSuccess: () => {
 							setLogoURL(null);
 							setConfirmingReset(false);
-							toast.success("Coder's logo is back.");
+							toast.success("The default logo is back.");
 						},
 						onError: (error) => {
 							toast.error(
@@ -154,7 +151,7 @@ export const LogoView: React.FC<LogoViewProps> = ({
 						? "Not available"
 						: logo.set
 							? "Custom logo"
-							: "Coder's logo"}
+							: "Default logo"}
 				</Badge>
 			</div>
 			<div className="grid gap-4 sm:grid-cols-2">
@@ -166,7 +163,7 @@ export const LogoView: React.FC<LogoViewProps> = ({
 					? "The platform service is not connected to Coder's database, so a logo cannot be stored."
 					: logo.set && logo.type && logo.bytes !== null
 						? `${logo.type.replace("image/", "").toUpperCase()}, ${formatBytes(logo.bytes)} · uploaded by ${logo.updatedBy ?? "unknown"}${logo.updatedAt ? ` on ${new Date(logo.updatedAt).toLocaleString("en-US")}` : ""}`
-						: "No custom logo: Coder shows its own."}
+						: "No custom logo: the default logo is shown."}
 			</p>
 			<div className="mt-4 flex flex-wrap gap-3">
 				<Button disabled={!logo.available} onClick={onUpload}>
@@ -174,7 +171,7 @@ export const LogoView: React.FC<LogoViewProps> = ({
 				</Button>
 				{logo.set && (
 					<Button variant="outline" onClick={onReset}>
-						Restore the Coder logo
+						Restore the default logo
 					</Button>
 				)}
 			</div>
@@ -210,18 +207,11 @@ const LogoPreview: React.FC<LogoPreviewProps> = ({
 					: "h-[72px] items-center gap-4",
 			)}
 		>
-			{src ? (
-				<img
-					src={src}
-					alt="Logo"
-					className={cn(
-						"max-w-[200px] object-contain",
-						signIn ? "h-12" : "h-7",
-					)}
-				/>
-			) : (
-				<CoderLogo className={signIn ? "h-12" : "h-7"} />
-			)}
+			<img
+				src={src || DEFAULT_LOGO_URL}
+				alt="Logo"
+				className={cn("max-w-[200px] object-contain", signIn ? "h-12" : "h-7")}
+			/>
 			<span className="text-sm">
 				{signIn ? "Sign in to Coder" : "Workspaces · Templates"}
 			</span>
@@ -232,7 +222,7 @@ const LogoPreview: React.FC<LogoPreviewProps> = ({
 	</figure>
 );
 
-type PendingLogo = { file: File; dataURL: string };
+type PendingLogo = { file: File; image: NormalizedImage };
 
 const LogoUploadDialog: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 	const queryClient = useQueryClient();
@@ -242,18 +232,14 @@ const LogoUploadDialog: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
 	const pick = async (file: File) => {
 		setPending(undefined);
-		if (!LOGO_TYPES.includes(file.type)) {
-			setProblem(`${file.name}: not a PNG, JPEG, SVG, WebP or GIF image.`);
-			return;
-		}
-		if (file.size > MAX_LOGO_BYTES) {
-			setProblem(
-				`${file.name} is ${formatBytes(file.size)}; the limit is 1 MB.`,
-			);
-			return;
-		}
 		setProblem(undefined);
-		setPending({ file, dataURL: await readFileAsDataURL(file) });
+		try {
+			setPending({ file, image: await normalizeImage(file, LOGO_TARGET) });
+		} catch (error) {
+			setProblem(
+				`${file.name}: ${error instanceof ImageNormalizeError ? error.message : "this browser cannot read it as a picture."}`,
+			);
+		}
 	};
 
 	return (
@@ -269,8 +255,10 @@ const LogoUploadDialog: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 				<DialogHeader>
 					<DialogTitle>Upload a new logo</DialogTitle>
 					<DialogDescription>
-						PNG, JPEG, SVG, WebP or GIF, up to 1 MB. A wide logo about 3 to 4
-						times as wide as it is tall works best.
+						PNG, JPEG, SVG, WebP, GIF or AVIF; animated ones stay animated. It
+						is resized for you to fit 512 × 256, so it looks the same
+						everywhere. A wide logo about 3 to 4 times as wide as it is tall
+						works best.
 					</DialogDescription>
 				</DialogHeader>
 				<FileUpload
@@ -283,7 +271,9 @@ const LogoUploadDialog: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 						void pick(file);
 					}}
 					onUnsupportedFile={(file) =>
-						setProblem(`${file.name}: not a PNG, JPEG, SVG, WebP or GIF image.`)
+						setProblem(
+							`${file.name}: not a PNG, JPEG, SVG, WebP, GIF or AVIF image.`,
+						)
 					}
 					onRemove={() => setPending(undefined)}
 				/>
@@ -291,21 +281,31 @@ const LogoUploadDialog: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 					<div className="grid gap-4 sm:grid-cols-3">
 						<LogoPreview
 							theme="dark"
-							src={pending.dataURL}
+							src={pending.image.dataURL}
 							caption="Navigation bar (dark)"
 						/>
 						<LogoPreview
 							theme="light"
-							src={pending.dataURL}
+							src={pending.image.dataURL}
 							caption="Navigation bar (light)"
 						/>
 						<LogoPreview
 							theme="dark"
-							src={pending.dataURL}
+							src={pending.image.dataURL}
 							caption="Sign-in page"
 							signIn
 						/>
 					</div>
+				)}
+				{pending && (
+					<p className="m-0 text-xs text-content-secondary">
+						{pending.image.width
+							? `Resized to ${pending.image.width} × ${pending.image.height}`
+							: "Kept as uploaded"}
+						{pending.image.frames > 1 ? `, ${pending.image.frames} frames` : ""}
+						, {pending.image.type.replace("image/", "").toUpperCase()},{" "}
+						{formatBytes(pending.image.bytes)}.
+					</p>
 				)}
 				{problem && (
 					<p role="alert" className="m-0 text-sm text-content-destructive">
@@ -327,7 +327,7 @@ const LogoUploadDialog: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 							if (!pending) {
 								return;
 							}
-							upload.mutate(pending.dataURL, {
+							upload.mutate(pending.image.dataURL, {
 								onSuccess: ({ url }) => {
 									setLogoURL(url);
 									toast.success("Logo saved.");

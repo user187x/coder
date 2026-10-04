@@ -22,9 +22,7 @@ export const SignInForm: React.FC<SignInFormProps> = ({
 	message,
 	onSubmit,
 }) => {
-	const oAuthEnabled = Boolean(
-		authMethods?.oidc.enabled,
-	);
+	const oAuthEnabled = Boolean(authMethods?.oidc.enabled);
 	const passwordEnabled = authMethods?.password.enabled ?? true;
 	const applicationName = getApplicationName();
 

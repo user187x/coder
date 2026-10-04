@@ -1,18 +1,18 @@
 import { cn } from "cn";
-import { usePlatformSnapshot } from "#/contexts/platformBoot";
+import { DEFAULT_LOGO_URL, usePlatformSnapshot } from "#/contexts/platformBoot";
 import { getApplicationName, getLogoURL } from "#/utils/appearance";
 import { ExternalImage } from "../ExternalImage/ExternalImage";
 
 /**
  * The logo uploaded in General > Customize, else the custom logo of the
- * deployment's appearance settings, replaces the Coder logo everywhere.
+ * deployment's appearance settings, else the default logo (brix), everywhere.
  */
 export const ProductLogo: React.FC<{ className?: string }> = ({
 	className,
 }) => {
 	const applicationName = getApplicationName();
 	const { logoURL: uploadedLogoURL } = usePlatformSnapshot();
-	const logoURL = uploadedLogoURL || getLogoURL();
+	const logoURL = uploadedLogoURL || getLogoURL() || DEFAULT_LOGO_URL;
 
 	return logoURL ? (
 		<ExternalImage
@@ -33,7 +33,7 @@ export const ProductLogo: React.FC<{ className?: string }> = ({
 	);
 };
 
-export const CoderLogo: React.FC<React.ComponentProps<"svg">> = ({
+const CoderLogo: React.FC<React.ComponentProps<"svg">> = ({
 	className,
 	...props
 }) => (

@@ -20,10 +20,15 @@ type PlatformSnapshot = {
 
 const AVATAR_USERS_STORAGE_KEY = "coder-ui-avatar-users";
 
+/** The logo shown when none was uploaded (bundled with the dashboard). */
+export const DEFAULT_LOGO_URL = "/brix.gif";
+/** The avatar of users with no picture of their own, unless the platform names another. */
+const DEFAULT_AVATAR_URL = "/brain.gif";
+
 let snapshot: PlatformSnapshot = {
 	logoURL: window.__cuiLogo ?? "",
 	avatars: window.__cuiAvatars ?? {},
-	defaultAvatarURL: window.__cuiAvatarDefault ?? "",
+	defaultAvatarURL: window.__cuiAvatarDefault || DEFAULT_AVATAR_URL,
 	defaultAvatarUsers: window.__cuiAvatarUsers ?? new Set(),
 };
 

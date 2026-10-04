@@ -7,6 +7,7 @@ import { templateExamples, templates } from "#/api/queries/templates";
 import type { AuthorizationRequest } from "#/api/typesGenerated";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { useDashboard } from "#/modules/dashboard/useDashboard";
+import { TemplateIconsButton } from "#/modules/platform/templateIcons/TemplateIconsDialog";
 import { pageTitle } from "#/utils/page";
 import { useTemplatesFilter } from "./TemplatesFilter";
 import { TemplatesPageView } from "./TemplatesPageView";
@@ -71,6 +72,7 @@ const TemplatesPage: React.FC = () => {
 				filterState={filterState}
 				showOrganizations={showOrganizations}
 				canCreateTemplates={permissions.createTemplates}
+				iconsAction={<TemplateIconsButton />}
 				templateBuilderEnabled={templateBuilderEnabled}
 				examples={examplesQuery.data}
 				templates={templatesQuery.data}

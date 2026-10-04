@@ -507,6 +507,27 @@ export type PersistenceReport = {
 
 type PersistenceResult = { ok: true; done: string[] };
 
+/** An icon uploaded in Templates > Icons, usable in templates like Coder's /icon/ files. */
+export type TemplateIcon = {
+	name: string;
+	type: string;
+	/** Versioned URL (changes when the icon is replaced). */
+	url: string;
+	bytes: number;
+	uploadedBy: string | null;
+	uploadedAt: string | null;
+};
+
+export type TemplateIconList = {
+	icons: TemplateIcon[];
+	/** Owners and template admins may add and remove icons. */
+	canManage: boolean;
+};
+
+/** Where a template refers to an icon: stable across replacements. */
+export const templateIconPath = (name: string) =>
+	`${PLATFORM_BASE}/icons/${name}`;
+
 export type ChatPeer = {
 	id: string;
 	username: string;
@@ -705,6 +726,14 @@ export const PlatformAPI = {
 	}) => post<KeycloakResult>(`${PLATFORM_BASE}/api/keycloak/connect`, req),
 	undoKeycloakChange: () =>
 		post<KeycloakResult>(`${PLATFORM_BASE}/api/keycloak/undo`, {}),
+
+	getTemplateIcons: () => get<TemplateIconList>(`${PLATFORM_BASE}/api/icons`),
+	uploadTemplateIcon: (req: { name: string; dataUrl: string }) =>
+		post<{ ok: true; url: string }>(`${PLATFORM_BASE}/api/icons`, req),
+	deleteTemplateIcon: (name: string) =>
+		post<{ ok: true; removed: boolean }>(`${PLATFORM_BASE}/api/icons/delete`, {
+			name,
+		}),
 
 	getPersistenceReport: () =>
 		get<PersistenceReport>(`${PLATFORM_BASE}/api/persistence`),

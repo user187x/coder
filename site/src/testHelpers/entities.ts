@@ -4987,28 +4987,6 @@ export const MockHealthSettings: TypesGen.HealthSettings = {
 	dismissed_healthchecks: [],
 };
 
-export const MockGithubExternalProvider: TypesGen.ExternalAuthLinkProvider = {
-	id: "github",
-	type: "github",
-	device: false,
-	display_icon: "/icon/github.svg",
-	display_name: "GitHub",
-	allow_refresh: true,
-	allow_validate: true,
-	supports_revocation: false,
-	code_challenge_methods_supported: ["S256"],
-};
-
-export const MockGithubAuthLink: TypesGen.ExternalAuthLink = {
-	provider_id: "github",
-	created_at: "",
-	updated_at: "",
-	has_refresh_token: true,
-	expires: "",
-	authenticated: true,
-	validate_error: "",
-};
-
 export const MockOAuth2ProviderApps: TypesGen.OAuth2ProviderApp[] = [
 	{
 		id: "1",

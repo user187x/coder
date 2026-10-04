@@ -1,5 +1,8 @@
 import { cn } from "cn";
 import { lazy, Suspense, useId, useState } from "react";
+import { useQuery } from "react-query";
+import { templateIconPath } from "#/api/platform";
+import { templateIcons } from "#/api/queries/platform";
 import { ChevronDownIcon as AnimatedChevronDownIcon } from "#/components/AnimatedIcons/ChevronDown";
 import { Button } from "#/components/Button/Button";
 import { ExternalImage } from "#/components/ExternalImage/ExternalImage";
@@ -110,16 +113,12 @@ export const IconField: React.FC<IconFieldProps> = ({
 							// Stop clicks here so the emoji picker keeps focus.
 							onClick={(event) => event.stopPropagation()}
 						>
-							<Suspense fallback={<Loader />}>
-								<EmojiPicker
-									onEmojiSelect={(emoji) => {
-										const picked = emoji.src ?? `/emojis/${emoji.unified}.png`;
-										onPickEmoji(picked);
-										setOpen(false);
-									}}
-									autoFocus
-								/>
-							</Suspense>
+							<IconPicker
+								onPick={(picked) => {
+									onPickEmoji(picked);
+									setOpen(false);
+								}}
+							/>
 						</PopoverContent>
 					</Popover>
 				</InputGroupAddon>
@@ -152,5 +151,34 @@ export const IconField: React.FC<IconFieldProps> = ({
 				</div>
 			)}
 		</div>
+	);
+};
+
+/**
+ * The emoji picker with icons uploaded in Templates > Icons in their own
+ * category. Mounted only while the popover is open, so the list is fetched on
+ * first use; without the platform service the category is simply absent.
+ */
+const IconPicker: React.FC<{ onPick: (value: string) => void }> = ({
+	onPick,
+}) => {
+	const iconsQuery = useQuery(templateIcons());
+	if (iconsQuery.isLoading) {
+		return <Loader />;
+	}
+	const uploadedIcons = (iconsQuery.data?.icons ?? []).map((icon) => ({
+		name: icon.name,
+		url: templateIconPath(icon.name),
+	}));
+	return (
+		<Suspense fallback={<Loader />}>
+			<EmojiPicker
+				uploadedIcons={uploadedIcons}
+				onEmojiSelect={(emoji) => {
+					onPick(emoji.src ?? `/emojis/${emoji.unified}.png`);
+				}}
+				autoFocus
+			/>
+		</Suspense>
 	);
 };

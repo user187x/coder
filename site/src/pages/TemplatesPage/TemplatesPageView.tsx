@@ -261,6 +261,8 @@ type TemplatesPageViewProps = {
 	filterState: TemplateFilterState;
 	showOrganizations: boolean;
 	canCreateTemplates: boolean;
+	/** Opens the icon library; shown next to "New template". */
+	iconsAction?: React.ReactNode;
 	templateBuilderEnabled: boolean;
 	examples: TemplateExample[] | undefined;
 	templates: Template[] | undefined;
@@ -273,6 +275,7 @@ export const TemplatesPageView: React.FC<TemplatesPageViewProps> = ({
 	filterState,
 	showOrganizations,
 	canCreateTemplates,
+	iconsAction,
 	templateBuilderEnabled,
 	examples,
 	templates,
@@ -300,18 +303,21 @@ export const TemplatesPageView: React.FC<TemplatesPageViewProps> = ({
 			<PageHeader
 				actions={
 					canCreateTemplates && (
-						<Button asChild size="lg">
-							<RouterLink
-								to={
-									templateBuilderEnabled
-										? "/templates/new/builder"
-										: "/starter-templates"
-								}
-							>
-								<PlusIcon />
-								New template
-							</RouterLink>
-						</Button>
+						<div className="flex flex-wrap gap-2">
+							{iconsAction}
+							<Button asChild size="lg">
+								<RouterLink
+									to={
+										templateBuilderEnabled
+											? "/templates/new/builder"
+											: "/starter-templates"
+									}
+								>
+									<PlusIcon />
+									New template
+								</RouterLink>
+							</Button>
+						</div>
 					)
 				}
 			>

@@ -79,9 +79,6 @@ OPTIONS:
           Separate multiple experiments with commas, or enter '*' to opt-in to
           all available experiments.
 
-      --external-auth-github-default-provider-enable bool, $CODER_EXTERNAL_AUTH_GITHUB_DEFAULT_PROVIDER_ENABLE (default: true)
-          Enable the default GitHub external auth provider managed by Coder.
-
       --postgres-auth password|awsiamrds, $CODER_PG_AUTH (default: password)
           Type of auth to use when connecting to postgres. For AWS RDS, using
           IAM authentication (awsiamrds) is recommended.
@@ -750,37 +747,6 @@ NOTIFICATIONS / INBOX OPTIONS:
 NOTIFICATIONS / WEBHOOK OPTIONS: 
       --notifications-webhook-endpoint url, $CODER_NOTIFICATIONS_WEBHOOK_ENDPOINT
           The endpoint to which to send webhooks.
-
-OAUTH2 / GITHUB OPTIONS: 
-      --oauth2-github-allow-everyone bool, $CODER_OAUTH2_GITHUB_ALLOW_EVERYONE
-          Allow all logins, setting this option means allowed orgs and teams
-          must be empty.
-
-      --oauth2-github-allow-signups bool, $CODER_OAUTH2_GITHUB_ALLOW_SIGNUPS
-          Whether new users can sign up with GitHub.
-
-      --oauth2-github-allowed-orgs string-array, $CODER_OAUTH2_GITHUB_ALLOWED_ORGS
-          Organizations the user must be a member of to Login with GitHub.
-
-      --oauth2-github-allowed-teams string-array, $CODER_OAUTH2_GITHUB_ALLOWED_TEAMS
-          Teams inside organizations the user must be a member of to Login with
-          GitHub. Structured as: `<organization-name>/<team-slug>`.
-
-      --oauth2-github-client-id string, $CODER_OAUTH2_GITHUB_CLIENT_ID
-          Client ID for Login with GitHub.
-
-      --oauth2-github-client-secret string, $CODER_OAUTH2_GITHUB_CLIENT_SECRET
-          Client secret for Login with GitHub.
-
-      --oauth2-github-default-provider-enable bool, $CODER_OAUTH2_GITHUB_DEFAULT_PROVIDER_ENABLE (default: true)
-          Enable the default GitHub OAuth2 provider managed by Coder.
-
-      --oauth2-github-device-flow bool, $CODER_OAUTH2_GITHUB_DEVICE_FLOW (default: false)
-          Enable device flow for Login with GitHub.
-
-      --oauth2-github-enterprise-base-url string, $CODER_OAUTH2_GITHUB_ENTERPRISE_BASE_URL
-          Base URL of a GitHub Enterprise deployment to use for Login with
-          GitHub.
 
 OAUTH2 / PROVIDER OPTIONS: 
       --oauth2-provider-enable bool, $CODER_OAUTH2_PROVIDER_ENABLE (default: false)

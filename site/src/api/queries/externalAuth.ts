@@ -1,14 +1,4 @@
-import type { QueryClient, UseMutationOptions } from "react-query";
 import { API } from "#/api/api";
-import type { ExternalAuth } from "#/api/typesGenerated";
-
-// Returns all configured external auths for a given user.
-export const externalAuths = () => {
-	return {
-		queryKey: ["external-auth"],
-		queryFn: () => API.getUserExternalAuthProviders(),
-	};
-};
 
 export const externalAuthProvider = (providerId: string) => {
 	return {
@@ -34,27 +24,5 @@ export const exchangeExternalAuthDevice = (
 				device_code: deviceCode,
 			}),
 		queryKey: ["external-auth", providerId, "device", deviceCode],
-	};
-};
-
-export const validateExternalAuth = (
-	queryClient: QueryClient,
-): UseMutationOptions<ExternalAuth, unknown, string> => {
-	return {
-		mutationFn: API.getExternalAuthProvider,
-		onSuccess: (data, providerId) => {
-			queryClient.setQueryData(["external-auth", providerId], data);
-		},
-	};
-};
-
-export const unlinkExternalAuths = (queryClient: QueryClient) => {
-	return {
-		mutationFn: API.unlinkExternalAuthProvider,
-		onSuccess: async () => {
-			await queryClient.invalidateQueries({
-				queryKey: ["external-auth"],
-			});
-		},
 	};
 };

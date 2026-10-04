@@ -39,6 +39,7 @@ state = {
                        "color": "#ffffff", "updatedBy": "admin", "updatedAt": now(-3600)},
     "logo": None,          # {"type", "data", "sha", "by", "at"}
     "avatars": {},         # username -> {"type", "data", "sha"}
+    "icons": {},           # name -> {"type", "data", "sha", "by", "at"}
     "receipts": {},        # announcement id -> {username: {"viewedAt", "ackedAt"}}
     "events": {},          # announcement id -> event info (first seen)
     "messages": [],
@@ -363,10 +364,19 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(200, {"available": True, "set": bool(mine), "url": url_, "defaultUrl": None,
                                    "username": ME["username"]})
         if path == ui + "/api/avatar/defaults":
-            return self.send(200, {"url": None, "users": []})
+            # Like the service: users with no picture of their own get the default avatar (the dashboard's brain.gif).
+            dev_users = ["admin", "member", "owner"]
+            return self.send(200, {"url": None, "users": [u for u in dev_users if u not in state["avatars"]]})
         if path.startswith(ui + "/avatar/"):
             hit = state["avatars"].get(path.rsplit("/", 1)[1])
             return self.send(200, hit["data"], hit["type"]) if hit else self.send(404, {"error": "no avatar"})
+        if path == ui + "/api/icons":
+            icons = [{"name": n, "type": i["type"], "url": "%s/icons/%s?v=%s" % (ui, n, i["sha"]), "bytes": len(i["data"]),
+                      "uploadedBy": i["by"], "uploadedAt": i["at"]} for n, i in sorted(state["icons"].items())]
+            return self.send(200, {"icons": icons, "canManage": True})
+        if path.startswith(ui + "/icons/"):
+            hit = state["icons"].get(path.rsplit("/", 1)[1])
+            return self.send(200, hit["data"], hit["type"]) if hit else self.send(404, {"error": "no icon"})
         if path == ui + "/api/me":
             eid = arg("id")
             receipt = state["receipts"].get(eid, {}).get(ME["username"])
@@ -434,6 +444,18 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(400, {"error": str(e)})
             state["avatars"][ME["username"]] = {"type": ctype, "data": data, "sha": sha}
             return self.send(200, {"ok": True, "set": True, "url": "%s/avatar/%s?v=%s" % (ui, ME["username"], sha)})
+        if path in (ui + "/api/icons", ui + "/api/icons/delete"):
+            name = payload.get("name")
+            if not isinstance(name, str) or not re.match(r"^[a-z0-9][a-z0-9._-]{0,63}$", name):
+                return self.send(400, {"error": "Icon names use lower-case letters, digits, '.', '-' and '_' (at most 64)."})
+            if path.endswith("/delete"):
+                return self.send(200, {"ok": True, "removed": state["icons"].pop(name, None) is not None})
+            try:
+                ctype, data, sha = data_url(payload.get("dataUrl"))
+            except ValueError as e:
+                return self.send(400, {"error": str(e)})
+            state["icons"][name] = {"type": ctype, "data": data, "sha": sha, "by": ME["username"], "at": now()}
+            return self.send(200, {"ok": True, "url": "%s/icons/%s?v=%s" % (ui, name, sha)})
         if path == ui + "/api/avatar/reset":
             state["avatars"].pop(ME["username"], None)
             return self.send(200, {"ok": True, "set": False})

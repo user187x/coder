@@ -369,97 +369,6 @@ Serve pprof metrics on the address defined by pprof address.
 
 The bind address to serve pprof.
 
-### --oauth2-github-client-id
-
-|             |                                             |
-|-------------|---------------------------------------------|
-| Type        | <code>string</code>                         |
-| Environment | <code>$CODER_OAUTH2_GITHUB_CLIENT_ID</code> |
-| YAML        | <code>oauth2.github.clientID</code>         |
-
-Client ID for Login with GitHub.
-
-### --oauth2-github-client-secret
-
-|             |                                                 |
-|-------------|-------------------------------------------------|
-| Type        | <code>string</code>                             |
-| Environment | <code>$CODER_OAUTH2_GITHUB_CLIENT_SECRET</code> |
-
-Client secret for Login with GitHub.
-
-### --oauth2-github-device-flow
-
-|             |                                               |
-|-------------|-----------------------------------------------|
-| Type        | <code>bool</code>                             |
-| Environment | <code>$CODER_OAUTH2_GITHUB_DEVICE_FLOW</code> |
-| YAML        | <code>oauth2.github.deviceFlow</code>         |
-| Default     | <code>false</code>                            |
-
-Enable device flow for Login with GitHub.
-
-### --oauth2-github-default-provider-enable
-
-|             |                                                           |
-|-------------|-----------------------------------------------------------|
-| Type        | <code>bool</code>                                         |
-| Environment | <code>$CODER_OAUTH2_GITHUB_DEFAULT_PROVIDER_ENABLE</code> |
-| YAML        | <code>oauth2.github.defaultProviderEnable</code>          |
-| Default     | <code>true</code>                                         |
-
-Enable the default GitHub OAuth2 provider managed by Coder.
-
-### --oauth2-github-allowed-orgs
-
-|             |                                                |
-|-------------|------------------------------------------------|
-| Type        | <code>string-array</code>                      |
-| Environment | <code>$CODER_OAUTH2_GITHUB_ALLOWED_ORGS</code> |
-| YAML        | <code>oauth2.github.allowedOrgs</code>         |
-
-Organizations the user must be a member of to Login with GitHub.
-
-### --oauth2-github-allowed-teams
-
-|             |                                                 |
-|-------------|-------------------------------------------------|
-| Type        | <code>string-array</code>                       |
-| Environment | <code>$CODER_OAUTH2_GITHUB_ALLOWED_TEAMS</code> |
-| YAML        | <code>oauth2.github.allowedTeams</code>         |
-
-Teams inside organizations the user must be a member of to Login with GitHub. Structured as: `<organization-name>/<team-slug>`.
-
-### --oauth2-github-allow-signups
-
-|             |                                                 |
-|-------------|-------------------------------------------------|
-| Type        | <code>bool</code>                               |
-| Environment | <code>$CODER_OAUTH2_GITHUB_ALLOW_SIGNUPS</code> |
-| YAML        | <code>oauth2.github.allowSignups</code>         |
-
-Whether new users can sign up with GitHub.
-
-### --oauth2-github-allow-everyone
-
-|             |                                                  |
-|-------------|--------------------------------------------------|
-| Type        | <code>bool</code>                                |
-| Environment | <code>$CODER_OAUTH2_GITHUB_ALLOW_EVERYONE</code> |
-| YAML        | <code>oauth2.github.allowEveryone</code>         |
-
-Allow all logins, setting this option means allowed orgs and teams must be empty.
-
-### --oauth2-github-enterprise-base-url
-
-|             |                                                       |
-|-------------|-------------------------------------------------------|
-| Type        | <code>string</code>                                   |
-| Environment | <code>$CODER_OAUTH2_GITHUB_ENTERPRISE_BASE_URL</code> |
-| YAML        | <code>oauth2.github.enterpriseBaseURL</code>          |
-
-Base URL of a GitHub Enterprise deployment to use for Login with GitHub.
-
 ### --oauth2-provider-enable
 
 |             |                                            |
@@ -1343,17 +1252,6 @@ The upgrade message to display to users when a client/server mismatch is detecte
 | YAML        | <code>supportLinks</code>                  |
 
 Support links to display in the top right drop down menu.
-
-### --external-auth-github-default-provider-enable
-
-|             |                                                                  |
-|-------------|------------------------------------------------------------------|
-| Type        | <code>bool</code>                                                |
-| Environment | <code>$CODER_EXTERNAL_AUTH_GITHUB_DEFAULT_PROVIDER_ENABLE</code> |
-| YAML        | <code>externalAuthGithubDefaultProviderEnable</code>             |
-| Default     | <code>true</code>                                                |
-
-Enable the default GitHub external auth provider managed by Coder.
 
 ### --proxy-health-interval
 

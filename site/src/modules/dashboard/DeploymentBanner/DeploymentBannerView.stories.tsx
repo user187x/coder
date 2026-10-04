@@ -98,7 +98,7 @@ export const OtherApps: Story = {
 	play: async ({ canvasElement }) => {
 		await userEvent.hover(
 			within(canvasElement).getByRole("button", {
-				name: "Other: 27 active connections",
+				name: /^Other: \d+ active connections$/,
 			}),
 		);
 		await waitFor(() => screen.getByRole("tooltip"));

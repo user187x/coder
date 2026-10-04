@@ -105,8 +105,8 @@ test("change login type to OIDC", async () => {
 	});
 
 	const ssoSection = screen.getByTestId("sso-section");
-	const githubButton = within(ssoSection).getByText("GitHub", { exact: false });
-	await user.click(githubButton);
+	const oidcButton = within(ssoSection).getByText("Keycloak", { exact: false });
+	await user.click(oidcButton);
 
 	const confirmationDialog = await screen.findByTestId("dialog");
 	const confirmPasswordField = within(confirmationDialog).getByLabelText(
@@ -119,7 +119,7 @@ test("change login type to OIDC", async () => {
 	await waitFor(() => {
 		expect(convertToOAUTHSpy).toHaveBeenCalledWith({
 			password: "password123",
-			to_type: "github",
+			to_type: "oidc",
 		});
 	});
 });

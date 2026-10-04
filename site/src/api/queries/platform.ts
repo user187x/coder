@@ -27,6 +27,7 @@ export const networkReportKey = [...platformKey, "network"] as const;
 export const monitoringKey = [...platformKey, "monitoring"] as const;
 export const keycloakReportKey = [...platformKey, "keycloak"] as const;
 export const persistenceReportKey = [...platformKey, "persistence"] as const;
+export const templateIconsKey = [...platformKey, "icons"] as const;
 const chatAdminsKey = [...platformKey, "chat", "admins"] as const;
 export const bannerKey = ["banner"] as const;
 export const bannerStateKey = [...bannerKey, "state"] as const;
@@ -298,5 +299,27 @@ export const applyPersistenceFixes = (queryClient: QueryClient) => ({
 	}) => PlatformAPI.applyPersistenceFixes(fixes, settings),
 	onSettled: async () => {
 		await queryClient.invalidateQueries({ queryKey: persistenceReportKey });
+	},
+});
+
+/** Icons uploaded for templates; empty (not an error to show) where the platform service is absent. */
+export const templateIcons = () => ({
+	queryKey: templateIconsKey,
+	queryFn: PlatformAPI.getTemplateIcons,
+	staleTime: 60_000,
+	retry: false,
+});
+
+export const uploadTemplateIcon = (queryClient: QueryClient) => ({
+	mutationFn: PlatformAPI.uploadTemplateIcon,
+	onSettled: async () => {
+		await queryClient.invalidateQueries({ queryKey: templateIconsKey });
+	},
+});
+
+export const deleteTemplateIcon = (queryClient: QueryClient) => ({
+	mutationFn: PlatformAPI.deleteTemplateIcon,
+	onSettled: async () => {
+		await queryClient.invalidateQueries({ queryKey: templateIconsKey });
 	},
 });
