@@ -1,17 +1,16 @@
 # coder-platform: this repository's Coder and the services its dashboard uses, as one release.
 #
-# Most installations set only:
-#   accessURL                      https URL users open Coder at (required)
-#   wildcardAccessURL              *.domain for workspace apps (optional)
-#   image.repository / image.tag   where scripts/build_platform_image.sh pushed the image
-#   ingress.* or httpRoute.*       how traffic reaches Coder
-#   oidc.*                         Keycloak (or any OpenID Connect provider) sign-in
-#   firstUser.*                    the first admin, created on the first sync
+# Nothing is required: with the defaults, Coder runs at its in-cluster address (which workspaces in the cluster reach)
+# and you open it with
+#   kubectl -n <namespace> port-forward svc/coder 8080:80      then http://localhost:8080
+# To publish it, set accessURL and one of coder.service.type (LoadBalancer / NodePort), ingress.* or httpRoute.*.
+# Coder itself forwards /__coder-ui and /__banner to the platform services, so every way in needs one backend only.
 #
 # Resource names are fixed (coder, coder-db, coder-ui-updates, coder-banner, ...), so install one release per
 # namespace. Workspaces are created in the release namespace unless workspaces.namespaces adds others.
 
-# https URL of Coder, e.g. https://coder.example.com (required).
+# The URL users open Coder at, e.g. https://coder.example.com. Empty = http://coder.<namespace>.svc.cluster.local.
+# Keycloak sign-in needs a real one (the browser returns to it).
 accessURL: ""
 # Wildcard host for workspace apps, e.g. *.coder.example.com. Empty = apps use path URLs.
 wildcardAccessURL: ""
@@ -41,6 +40,8 @@ coder:
   # Extra environment entries for the Coder container (for valueFrom references).
   extraEnv: []
   service:
+    # ClusterIP (port-forward, Ingress, Gateway API), LoadBalancer or NodePort. Argo CD reports a LoadBalancer Service
+    # as healthy only once the cluster assigns it an address.
     type: ClusterIP
     annotations: {}
   podAnnotations: {}
@@ -157,15 +158,17 @@ banner:
     limits:
       memory: 128Mi
 
-# Kubernetes Ingress for accessURL (and wildcardAccessURL). Any controller that supports WebSockets works.
+# A Kubernetes Ingress to Coder: for accessURL's host (and wildcardAccessURL), or any host when accessURL is empty.
+# Any controller that supports WebSockets works. Argo CD reports an Ingress as healthy once the controller publishes
+# its address.
 ingress:
-  enabled: true
+  enabled: false
   className: ""
   annotations: {}
   # TLS Secret for the host(s); empty = the controller's default certificate.
   tlsSecretName: ""
 
-# Gateway API HTTPRoute instead of (or as well as) the Ingress.
+# A Gateway API HTTPRoute to Coder, instead of (or as well as) the Ingress. Hostnames as for the Ingress.
 httpRoute:
   enabled: false
   parentRefs: []

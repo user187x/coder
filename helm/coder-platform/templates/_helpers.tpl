@@ -11,18 +11,18 @@ helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" }}
 {{- printf "%s:%s" .Values.image.repository (.Values.image.tag | default .Chart.AppVersion) }}
 {{- end }}
 
-{{/* accessURL, validated. */}}
+{{/* accessURL, validated; empty = Coder's in-cluster address, which workspaces in the cluster always reach. */}}
 {{- define "cp.accessURL" -}}
-{{- $url := required "accessURL is required, e.g. https://coder.example.com" .Values.accessURL | trimSuffix "/" }}
+{{- $url := .Values.accessURL | default (printf "http://coder.%s.svc.cluster.local" .Release.Namespace) | trimSuffix "/" }}
 {{- if not (regexMatch "^https?://[^/]+$" $url) }}
 {{- fail (printf "accessURL must be a scheme and host without a path, e.g. https://coder.example.com (got %q)" $url) }}
 {{- end }}
 {{- $url }}
 {{- end }}
 
-{{/* The host of accessURL. */}}
+{{/* The public host of accessURL, or empty when accessURL isn't set (routes then match any host). */}}
 {{- define "cp.host" -}}
-{{- regexReplaceAll "^https?://([^/:]+).*$" (include "cp.accessURL" .) "${1}" }}
+{{- with .Values.accessURL }}{{ regexReplaceAll "^https?://([^/:]+).*$" (include "cp.accessURL" $) "${1}" }}{{ end }}
 {{- end }}
 
 {{/* The wildcard host without a scheme (*.example.com), or empty. */}}
@@ -36,6 +36,18 @@ helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" }}
 {{- end }}
 {{- define "cp.dbSecretKey" -}}
 {{- if .Values.postgres.enabled }}uri{{ else }}{{ .Values.postgres.external.secretKey | default "uri" }}{{ end }}
+{{- end }}
+
+{{/* Path prefixes Coder forwards to the platform services (CODER_PLATFORM_SERVICE_ROUTES). */}}
+{{- define "cp.serviceRoutes" -}}
+{{- $ns := .Release.Namespace }}
+{{- $routes := list }}
+{{- if .Values.platform.enabled }}{{ $routes = append $routes (printf "/__coder-ui=http://coder-ui-updates.%s.svc.cluster.local" $ns) }}{{ end }}
+{{- if .Values.banner.enabled }}
+{{- $routes = append $routes (printf "/__banner=http://coder-banner.%s.svc.cluster.local" $ns) }}
+{{- if .Values.banner.live.enabled }}{{ $routes = append $routes (printf "/__banner/live=http://coder-banner.%s.svc.cluster.local:8081" $ns) }}{{ end }}
+{{- end }}
+{{- join "," $routes }}
 {{- end }}
 
 {{/* The first admin's password Secret. */}}

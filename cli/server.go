@@ -783,6 +783,15 @@ func (r *RootCmd) Server(newAPI func(context.Context, *coderd.Options) (*coderd.
 				options.TLSCertificates = httpServers.TLSConfig.Certificates
 			}
 
+			// The dashboard's platform services (helm/coder-platform sets this),
+			// forwarded so they share Coder's origin however Coder is exposed.
+			if routes := os.Getenv("CODER_PLATFORM_SERVICE_ROUTES"); routes != "" {
+				options.PlatformServiceRoutes, err = coderd.ParsePlatformServiceRoutes(routes)
+				if err != nil {
+					return xerrors.Errorf("parse CODER_PLATFORM_SERVICE_ROUTES: %w", err)
+				}
+			}
+
 			if vals.StrictTransportSecurity > 0 {
 				options.StrictTransportSecurityCfg, err = httpmw.HSTSConfigOptions(
 					int(vals.StrictTransportSecurity.Value()), vals.StrictTransportSecurityOptions,

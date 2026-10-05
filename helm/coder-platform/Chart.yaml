@@ -4,12 +4,13 @@ description: >-
   This repository's Coder (its dashboard and server changes built in) with everything the dashboard's
   platform pages need: PostgreSQL, the platform service (logo, avatars, template icons, classification,
   announcements, chat, Keycloak, Network, Monitoring, Persistence), the announcement banner service, the
-  first admin, and an Ingress or Gateway API route. One release per namespace; no other charts required.
+  first admin, and optional Ingress or Gateway API routing. Works with no values set (open Coder with
+  kubectl port-forward). One release per namespace; no other charts required.
 type: application
 # Bump version for chart changes and appVersion for a new image (scripts/build_platform_image.sh tags the
 # image with appVersion, and the chart deploys that tag when image.tag is empty).
-version: 0.1.0
-appVersion: "2.0.0-platform.1"
+version: 0.2.0
+appVersion: "2.0.0-platform.2"
 kubeVersion: ">=1.25.0-0"
 keywords:
   - coder

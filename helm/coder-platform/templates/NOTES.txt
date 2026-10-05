@@ -1,8 +1,14 @@
 Coder: {{ include "cp.accessURL" . }}
 Image: {{ include "cp.coderImage" . }}
+{{- if not .Values.accessURL }}
+
+Open Coder from your machine:
+  kubectl -n {{ .Release.Namespace }} port-forward svc/coder 8080:80
+  then http://localhost:8080
+{{- end }}
 {{- if .Values.firstUser.enabled }}
 
-First admin: {{ .Values.firstUser.username }} ({{ .Values.firstUser.email }}), created once Coder is up.
+First admin: {{ .Values.firstUser.email }} (user {{ .Values.firstUser.username }}), created once Coder is up.
 Password:
   kubectl -n {{ .Release.Namespace }} get secret {{ include "cp.firstUserSecret" . }} -o jsonpath='{.data.password}' | base64 -d; echo
 {{- end }}

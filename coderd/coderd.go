@@ -187,10 +187,13 @@ type Options struct {
 	OIDCConfig                     *OIDCConfig
 	PrometheusRegistry             *prometheus.Registry
 	StrictTransportSecurityCfg     httpmw.HSTSConfig
-	SSHKeygenAlgorithm             gitsshkey.Algorithm
-	TracerProvider                 trace.TracerProvider
-	ExternalAuthConfigs            []*externalauth.Config
-	RealIPConfig                   *httpmw.RealIPConfig
+	// PlatformServiceRoutes forward path prefixes (/__coder-ui, /__banner)
+	// to the dashboard's platform services.
+	PlatformServiceRoutes []PlatformServiceRoute
+	SSHKeygenAlgorithm    gitsshkey.Algorithm
+	TracerProvider        trace.TracerProvider
+	ExternalAuthConfigs   []*externalauth.Config
+	RealIPConfig          *httpmw.RealIPConfig
 	// RefreshEntitlements is used to set correct entitlements after creating the first user.
 	RefreshEntitlements func(ctx context.Context) error
 	// Entitlements can come from the enterprise caller if enterprise code is
@@ -2148,6 +2151,10 @@ func New(options *Options) *API {
 	embedHandler := embedCSPMW(compressHandler(httpmw.HSTS(api.SiteHandler, options.StrictTransportSecurityCfg)))
 	r.Get("/agents/{agentId}/embed", embedHandler.ServeHTTP)
 	r.Get("/agents/{agentId}/embed/*", embedHandler.ServeHTTP)
+
+	for _, route := range options.PlatformServiceRoutes {
+		r.Mount(route.PathPrefix, platformServiceProxy(api.Logger.Named("platform_services"), route.Target))
+	}
 
 	// Static file handler must be wrapped with HSTS handler if the
 	// StrictTransportSecurityAge is set. We only need to set this header on

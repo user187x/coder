@@ -1,27 +1,42 @@
-# Argo CD Application: this repository's Coder (helm/coder-platform) on the devbox cluster.
+# Coder (github.com/user187x/coder, with all its dashboard and server changes) on any Kubernetes cluster that runs
+# Argo CD. Everything comes from public sources: the Helm chart from this GitHub repository, the images from ghcr.io
+# and Docker Hub (linux/amd64 and linux/arm64). Nothing else is needed and nothing has to be edited.
 #
-#   kubectl apply -n argocd -f helm/coder-platform/argocd/application.yaml
+#   kubectl apply -n argocd -f application.yaml
 #
-# Installs next to the existing "coder" Application (namespace coder, coder.xxx.com) without touching it:
-#   namespace coder-platform, https://coder-platform.xxx.com, routed by traefik-gateway's HTTPS listener (its
-#   wildcard-tls certificate covers the host). Full guide: helm/coder-platform/DEPLOY.md.
+# What it installs, in namespace coder-platform: Coder, PostgreSQL, the dashboard's platform and banner services,
+# and the first admin. Full guide: https://github.com/user187x/coder/blob/main/helm/coder-platform/DEPLOY.md
 #
-# Before the first sync (once):
-#   1. The image is public (GitHub > Packages > coder-platform > Package settings > Change visibility > Public).
-#   2. DNS (or /etc/hosts) resolves coder-platform.xxx.com to Traefik, like the other xxx.com hosts.
-#   3. Recommended: Secret tls-ca in namespace coder-platform holds the xxx.com Root CA, so Coder trusts Keycloak
-#      and its own address (DEPLOY.md, "Prepare the namespace"). Required before turning on Keycloak sign-in.
+# Needs: Argo CD 2.10 or newer with the in-cluster destination, a default StorageClass (or set the two storageClass
+# values below), and internet access from the cluster to ghcr.io and docker.io.
 #
-# First admin: user "admin", password generated on the first sync:
-#   kubectl -n coder-platform get secret coder-first-user -o jsonpath='{.data.password}' | base64 -d; echo
+# ---- After the first sync (about 2 to 5 minutes; Synced and Healthy in Argo CD) ----
+#
+#   Admin password (user "admin", e-mail admin@example.com):
+#     kubectl -n coder-platform get secret coder-first-user -o jsonpath='{.data.password}' | base64 -d; echo
+#
+#   Open Coder (as long as accessURL below is empty):
+#     kubectl -n coder-platform port-forward svc/coder 8080:80
+#     then browse to http://localhost:8080
+#
+#   Progress:  kubectl -n coder-platform get pods     (all Running, plus two Completed setup Jobs)
+#
+# ---- Optional: publish Coder at a real address ----
+#   Set accessURL and uncomment ONE of the "Publish" blocks below (LoadBalancer, Ingress or Gateway API).
+#   Serve it over HTTPS: the dashboard resizes uploaded images only on secure addresses.
+#
+# ---- Optional: Keycloak (or any OpenID Connect) sign-in ----
+#   Needs accessURL. In Keycloak, give the client this Valid redirect URI: <accessURL>/api/v2/users/oidc/callback
+#   then put the client secret in the cluster and uncomment the oidc block:
+#     kubectl -n coder-platform create secret generic keycloaking-coder-oidc --from-literal=client-secret=<secret>
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: coder-platform
   namespace: argocd
   annotations:
-    # The API server fills in HTTPRoute defaults the chart doesn't render (backendRefs group/kind/weight, the
-    # catch-all match); a server-side diff keeps them from showing as OutOfSync.
+    # The API server fills in defaults the chart doesn't render (e.g. HTTPRoute backendRefs); a server-side diff
+    # keeps them from showing as OutOfSync.
     argocd.argoproj.io/compare-options: ServerSideDiff=true
   finalizers:
     - resources-finalizer.argocd.argoproj.io
@@ -34,49 +49,61 @@ spec:
     helm:
       releaseName: coder-platform
       valuesObject:
-        accessURL: https://coder-platform.xxx.com
-        # Workspace apps use path URLs. A wildcard (e.g. *.coder-platform.xxx.com) needs DNS and a certificate for
-        # it; *.xxx.com itself belongs to the existing Coder.
+        # Empty = Coder's in-cluster address (open it with kubectl port-forward, see above).
+        # e.g. https://coder.example.com
+        accessURL: ""
+        # Workspace apps on their own subdomains, e.g. "*.coder.example.com" (needs DNS and a certificate for it).
         wildcardAccessURL: ""
-
-        image:
-          repository: ghcr.io/user187x/coder-platform
-          tag: ""                       # "" = the chart's appVersion (2.0.0-platform.1)
-
-        # Routing: traefik-gateway's HTTPS listener (no Ingress).
-        ingress:
-          enabled: false
-        httpRoute:
-          enabled: true
-          parentRefs:
-            - name: traefik-gateway
-              namespace: traefik
-              sectionName: websecure
 
         firstUser:
           enabled: true
           username: admin
-          email: admin@xxx.com
+          email: admin@example.com
           name: Admin
-
-        # Keycloak sign-in: off until the "coder" client accepts this host and Secret keycloaking-coder-oidc exists
-        # in coder-platform (DEPLOY.md, "Turn on Keycloak sign-in"). Then set enabled: true.
-        oidc:
-          enabled: false
-          issuerURL: https://keycloak.xxx.com/realms/master
-          clientID: coder
-          signInText: Sign in with Keycloak
-          iconURL: /icon/keycloak.svg
-
-        platform:
-          # The Keycloak page reads the Keycloak operator's resource and admin Secret here.
-          keycloakNamespace: keycloak
 
         postgres:
           enabled: true
           storage:
             size: 10Gi
             storageClass: ""            # "" = the cluster's default StorageClass
+        platform:
+          storage:
+            storageClass: ""            # "" = the cluster's default StorageClass
+          # With Keycloak: the namespace the Keycloak operator runs in, for the dashboard's Keycloak page.
+          # keycloakNamespace: keycloak
+
+        # ---- Publish: a LoadBalancer Service (clouds, MetalLB, k3s ServiceLB) ----
+        # coder:
+        #   service:
+        #     type: LoadBalancer
+
+        # ---- Publish: an Ingress (any controller; e.g. className: nginx or traefik) ----
+        # ingress:
+        #   enabled: true
+        #   className: nginx
+        #   tlsSecretName: coder-tls    # a TLS Secret in coder-platform for accessURL's host; "" = controller default
+
+        # ---- Publish: a Gateway API route ----
+        # httpRoute:
+        #   enabled: true
+        #   parentRefs:
+        #     - name: my-gateway
+        #       namespace: my-gateway-namespace
+        #       sectionName: https       # the HTTPS listener
+
+        # ---- Keycloak / OpenID Connect sign-in (needs accessURL; see the top of this file) ----
+        # oidc:
+        #   enabled: true
+        #   issuerURL: https://keycloak.example.com/realms/master
+        #   clientID: coder
+        #   signInText: Sign in with Keycloak
+
+        # ---- A private CA (signed Keycloak's or accessURL's certificate) ----
+        # tls:
+        #   caPem: |
+        #     -----BEGIN CERTIFICATE-----
+        #     ...
+        #     -----END CERTIFICATE-----
 
   destination:
     server: https://kubernetes.default.svc
