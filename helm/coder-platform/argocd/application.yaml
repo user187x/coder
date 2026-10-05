@@ -1,17 +1,28 @@
-# Argo CD Application for coder-platform, straight from this repository. Edit the values below, then:
+# Argo CD Application: this repository's Coder (helm/coder-platform) on the devbox cluster.
+#
 #   kubectl apply -n argocd -f helm/coder-platform/argocd/application.yaml
 #
-# Before the first sync:
-#   * push the image: ./scripts/build_platform_image.sh --push   (tags it with the chart's appVersion)
-#   * if the registry is private: create a docker-registry Secret in the destination namespace and list it in
-#     imagePullSecrets
-#   * with OIDC: put the client secret in Secret keycloaking-coder-oidc (key client-secret) in that namespace, or
-#     set oidc.clientSecret (it then lives in Git, so prefer the Secret)
+# Installs next to the existing "coder" Application (namespace coder, coder.xxx.com) without touching it:
+#   namespace coder-platform, https://coder-platform.xxx.com, routed by traefik-gateway's HTTPS listener (its
+#   wildcard-tls certificate covers the host). Full guide: helm/coder-platform/DEPLOY.md.
+#
+# Before the first sync (once):
+#   1. The image is public (GitHub > Packages > coder-platform > Package settings > Change visibility > Public).
+#   2. DNS (or /etc/hosts) resolves coder-platform.xxx.com to Traefik, like the other xxx.com hosts.
+#   3. Recommended: Secret tls-ca in namespace coder-platform holds the xxx.com Root CA, so Coder trusts Keycloak
+#      and its own address (DEPLOY.md, "Prepare the namespace"). Required before turning on Keycloak sign-in.
+#
+# First admin: user "admin", password generated on the first sync:
+#   kubectl -n coder-platform get secret coder-first-user -o jsonpath='{.data.password}' | base64 -d; echo
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: coder-platform
   namespace: argocd
+  annotations:
+    # The API server fills in HTTPRoute defaults the chart doesn't render (backendRefs group/kind/weight, the
+    # catch-all match); a server-side diff keeps them from showing as OutOfSync.
+    argocd.argoproj.io/compare-options: ServerSideDiff=true
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
@@ -21,26 +32,65 @@ spec:
     targetRevision: main
     path: helm/coder-platform
     helm:
+      releaseName: coder-platform
       valuesObject:
-        accessURL: https://coder.example.com
-        wildcardAccessURL: "*.coder.example.com"
+        accessURL: https://coder-platform.xxx.com
+        # Workspace apps use path URLs. A wildcard (e.g. *.coder-platform.xxx.com) needs DNS and a certificate for
+        # it; *.xxx.com itself belongs to the existing Coder.
+        wildcardAccessURL: ""
+
         image:
           repository: ghcr.io/user187x/coder-platform
+          tag: ""                       # "" = the chart's appVersion (2.0.0-platform.1)
+
+        # Routing: traefik-gateway's HTTPS listener (no Ingress).
         ingress:
-          className: traefik
-          tlsSecretName: coder-tls
+          enabled: false
+        httpRoute:
+          enabled: true
+          parentRefs:
+            - name: traefik-gateway
+              namespace: traefik
+              sectionName: websecure
+
         firstUser:
+          enabled: true
           username: admin
-          email: admin@example.com
+          email: admin@xxx.com
+          name: Admin
+
+        # Keycloak sign-in: off until the "coder" client accepts this host and Secret keycloaking-coder-oidc exists
+        # in coder-platform (DEPLOY.md, "Turn on Keycloak sign-in"). Then set enabled: true.
         oidc:
           enabled: false
-          issuerURL: https://keycloak.example.com/realms/master
+          issuerURL: https://keycloak.xxx.com/realms/master
+          clientID: coder
+          signInText: Sign in with Keycloak
+          iconURL: /icon/keycloak.svg
+
+        platform:
+          # The Keycloak page reads the Keycloak operator's resource and admin Secret here.
+          keycloakNamespace: keycloak
+
+        postgres:
+          enabled: true
+          storage:
+            size: 10Gi
+            storageClass: ""            # "" = the cluster's default StorageClass
+
   destination:
     server: https://kubernetes.default.svc
-    namespace: coder
+    namespace: coder-platform
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+    # The first sync pulls images, initialises PostgreSQL and migrates Coder's schema.
+    retry:
+      limit: 10
+      backoff:
+        duration: 15s
+        factor: 2
+        maxDuration: 5m

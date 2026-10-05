@@ -5,6 +5,10 @@ dashboard and server changes built in, and the services its dashboard uses. It
 needs no other chart and no Traefik plugin, and it deploys with Argo CD or
 Helm.
 
+For a step-by-step deployment on the devbox cluster (DNS, CA, Keycloak,
+workspaces, upgrades, replacing an existing Coder, troubleshooting), see
+[DEPLOY.md](DEPLOY.md).
+
 ## What it deploys
 
 | Component | Objects | Serves |
