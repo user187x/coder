@@ -7,10 +7,11 @@
 # What it installs, in namespace coder-platform: Coder, PostgreSQL, the dashboard's platform and banner services,
 # and the first admin. Full guide: https://github.com/user187x/coder/blob/main/helm/coder-platform/DEPLOY.md
 #
-# Needs: Argo CD 2.10 or newer with the in-cluster destination, a default StorageClass (or set the two storageClass
-# values below), and internet access from the cluster to ghcr.io and docker.io.
+# Needs: Argo CD 2.10 or newer deploying to its own cluster, a default StorageClass (or set the two storageClass
+# values below), and internet access from the cluster to github.com, ghcr.io and docker.io. The file also creates
+# the Argo CD project the Application uses.
 #
-# ---- After the first sync (about 2 to 5 minutes; Synced and Healthy in Argo CD) ----
+# ---- After the first sync (5 to 10 minutes, mostly Argo CD cloning the repository; Synced and Healthy) ----
 #
 #   Admin password (user "admin", e-mail admin@example.com):
 #     kubectl -n coder-platform get secret coder-first-user -o jsonpath='{.data.password}' | base64 -d; echo
@@ -29,6 +30,32 @@
 #   Needs accessURL. In Keycloak, give the client this Valid redirect URI: <accessURL>/api/v2/users/oidc/callback
 #   then put the client secret in the cluster and uncomment the oidc block:
 #     kubectl -n coder-platform create secret generic keycloaking-coder-oidc --from-literal=client-secret=<secret>
+# Its own Argo CD project, so the Application doesn't depend on project "default" existing or allowing it: this
+# repository, namespace coder-platform, and the cluster-scoped objects the chart creates (read-only RBAC for the
+# Network and Persistence pages).
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: coder-platform
+  namespace: argocd
+spec:
+  description: Coder with the dashboard's platform services (github.com/user187x/coder, helm/coder-platform)
+  sourceRepos:
+    - https://github.com/user187x/coder.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: coder-platform
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRole
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRoleBinding
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"
+---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -41,7 +68,7 @@ metadata:
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  project: default
+  project: coder-platform
   source:
     repoURL: https://github.com/user187x/coder.git
     targetRevision: main

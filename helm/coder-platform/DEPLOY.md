@@ -27,8 +27,9 @@ or a Gateway API route.
 ## Requirements
 
 - Argo CD 2.10 or newer, deploying to its own cluster
-  (`https://kubernetes.default.svc`) from project `default`, or a project that
-  allows namespace `coder-platform` and cluster-scoped RBAC objects.
+  (`https://kubernetes.default.svc`). The file also creates the Argo CD project
+  `coder-platform` the Application uses, limited to this repository, namespace
+  `coder-platform`, and the cluster-scoped objects the chart creates.
 - A default StorageClass, or set `postgres.storage.storageClass` and
   `platform.storage.storageClass`.
 - Internet access from the cluster to `github.com`, `ghcr.io` and `docker.io`.
@@ -52,8 +53,8 @@ Argo CD then:
 3. **PostSync:** Job `coder-platform-first-user` waits for Coder and creates the
    first admin, unless one exists.
 
-It's done when the Application shows **Synced** and **Healthy**, usually after
-2 to 5 minutes:
+It's done when the Application shows **Synced** and **Healthy**. The first
+sync takes 5 to 10 minutes, most of it Argo CD cloning this repository:
 
 ```sh
 kubectl -n argocd get application coder-platform

@@ -112,9 +112,9 @@ done
 if [[ "${#arch_list[@]}" -gt 1 ]]; then
 	if [[ "$push" == 1 ]]; then
 		log "--- Pushing the multi-architecture tag $image:$tag (${arch_images[*]})"
-		docker manifest rm "$image:$tag" >/dev/null 2>&1 || true
-		docker manifest create "$image:$tag" "${arch_images[@]}"
-		docker manifest push "$image:$tag"
+		# Each pushed image is itself an index (BuildKit adds attestations), which
+		# `docker manifest` can't combine; imagetools can.
+		docker buildx imagetools create --tag "$image:$tag" "${arch_images[@]}"
 	else
 		log "Built ${arch_images[*]}. Run with --push to publish them under the multi-architecture tag $image:$tag."
 	fi
