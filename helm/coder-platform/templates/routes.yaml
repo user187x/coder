@@ -1,0 +1,117 @@
+{{- /*
+Traffic for accessURL (and wildcardAccessURL): /__coder-ui/ to the platform service, /__banner/ to the banner service
+(/__banner/live to its WebSocket port), everything else to Coder. Workspace apps on the wildcard host go to Coder.
+*/ -}}
+{{- $ns := .Release.Namespace }}
+{{- $host := include "cp.host" . }}
+{{- $wildcard := include "cp.wildcardHost" . }}
+{{- $paths := list }}
+{{- if .Values.platform.enabled }}{{ $paths = append $paths (dict "path" "/__coder-ui/" "service" "coder-ui-updates" "port" 80) }}{{ end }}
+{{- if .Values.banner.enabled }}
+{{- if .Values.banner.live.enabled }}{{ $paths = append $paths (dict "path" "/__banner/live" "service" "coder-banner" "port" 8081) }}{{ end }}
+{{- $paths = append $paths (dict "path" "/__banner/" "service" "coder-banner" "port" 80) }}
+{{- end }}
+{{- $paths = append $paths (dict "path" "/" "service" "coder" "port" 80) }}
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: coder
+  namespace: {{ $ns }}
+  labels:
+    {{- include "cp.labels" . | nindent 4 }}
+    app.kubernetes.io/name: coder
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- with .Values.ingress.className }}
+  ingressClassName: {{ . }}
+  {{- end }}
+  {{- if .Values.ingress.tlsSecretName }}
+  tls:
+    - secretName: {{ .Values.ingress.tlsSecretName }}
+      hosts:
+        - {{ $host | quote }}
+        {{- with $wildcard }}
+        - {{ . | quote }}
+        {{- end }}
+  {{- end }}
+  rules:
+    - host: {{ $host | quote }}
+      http:
+        paths:
+          {{- range $paths }}
+          - path: {{ .path }}
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .service }}
+                port:
+                  number: {{ .port }}
+          {{- end }}
+    {{- with $wildcard }}
+    - host: {{ . | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: coder
+                port:
+                  number: 80
+    {{- end }}
+{{- end }}
+{{- if .Values.httpRoute.enabled }}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: coder
+  namespace: {{ $ns }}
+  labels:
+    {{- include "cp.labels" . | nindent 4 }}
+    app.kubernetes.io/name: coder
+  {{- with .Values.httpRoute.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  parentRefs:
+    {{- required "httpRoute.parentRefs is required when httpRoute.enabled is true" .Values.httpRoute.parentRefs | toYaml | nindent 4 }}
+  hostnames:
+    - {{ $host | quote }}
+  rules:
+    {{- range $paths }}
+    - matches:
+        - path:
+            type: PathPrefix
+            value: {{ .path }}
+      backendRefs:
+        - name: {{ .service }}
+          port: {{ .port }}
+    {{- end }}
+{{- with $wildcard }}
+---
+# Workspace apps on the wildcard host: everything to Coder (the platform paths above belong to Coder's own host).
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: coder-apps
+  namespace: {{ $ns }}
+  labels:
+    {{- include "cp.labels" $ | nindent 4 }}
+    app.kubernetes.io/name: coder
+spec:
+  parentRefs:
+    {{- $.Values.httpRoute.parentRefs | toYaml | nindent 4 }}
+  hostnames:
+    - {{ . | quote }}
+  rules:
+    - backendRefs:
+        - name: coder
+          port: 80
+{{- end }}
+{{- end }}

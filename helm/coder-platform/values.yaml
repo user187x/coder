@@ -1,0 +1,179 @@
+# coder-platform: this repository's Coder and the services its dashboard uses, as one release.
+#
+# Most installations set only:
+#   accessURL                      https URL users open Coder at (required)
+#   wildcardAccessURL              *.domain for workspace apps (optional)
+#   image.repository / image.tag   where scripts/build_platform_image.sh pushed the image
+#   ingress.* or httpRoute.*       how traffic reaches Coder
+#   oidc.*                         Keycloak (or any OpenID Connect provider) sign-in
+#   firstUser.*                    the first admin, created on the first sync
+#
+# Resource names are fixed (coder, coder-db, coder-ui-updates, coder-banner, ...), so install one release per
+# namespace. Workspaces are created in the release namespace unless workspaces.namespaces adds others.
+
+# https URL of Coder, e.g. https://coder.example.com (required).
+accessURL: ""
+# Wildcard host for workspace apps, e.g. *.coder.example.com. Empty = apps use path URLs.
+wildcardAccessURL: ""
+
+# The Coder image built from this repository (scripts/build_platform_image.sh --push).
+image:
+  repository: ghcr.io/user187x/coder-platform
+  tag: ""                         # empty = the chart's appVersion
+  pullPolicy: IfNotPresent
+imagePullSecrets: []              # names of docker-registry Secrets in the release namespace
+
+# Every pod the chart creates (Coder, its database and the platform services).
+nodeSelector: {}
+tolerations: []
+
+coder:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      memory: 2Gi
+  # Extra Coder settings (CODER_* variables; `coder server --help`), added to the chart's ConfigMap.
+  env: {}
+  #  CODER_MAX_SESSION_EXPIRY: 168h
+  # Extra environment entries for the Coder container (for valueFrom references).
+  extraEnv: []
+  service:
+    type: ClusterIP
+    annotations: {}
+  podAnnotations: {}
+
+# Where workspaces run. Coder's service account may manage pods, volumes and deployments in the release namespace
+# and in each namespace listed here.
+workspaces:
+  namespaces: []
+  enableDeployments: true
+
+# PostgreSQL. enabled: true runs a single PostgreSQL in the release namespace; its password is generated on the first
+# sync into Secret coder-db (keys password and uri) and kept from then on. enabled: false uses external.secretName.
+postgres:
+  enabled: true
+  image: docker.io/library/postgres:17
+  storage:
+    size: 10Gi
+    storageClass: ""              # empty = the cluster's default StorageClass
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 1Gi
+  external:
+    # A Secret holding a PostgreSQL connection URL (postgres://user:password@host:5432/db?sslmode=...).
+    secretName: ""
+    secretKey: uri
+
+# Sign-in with Keycloak or another OpenID Connect provider. The client secret is read from Secret
+# keycloaking-coder-oidc (key client-secret): set clientSecret to have the chart create it, or create it yourself.
+oidc:
+  enabled: false
+  issuerURL: ""                   # e.g. https://keycloak.example.com/realms/master
+  clientID: coder
+  clientSecret: ""
+  signInText: Sign in with Keycloak
+  iconURL: /icon/keycloak.svg
+  scopes: [openid, profile, email]
+  emailDomain: []                 # allowed e-mail domains; empty = any
+  allowSignups: true
+  usernameField: preferred_username
+  groupField: ""                  # e.g. groups, to sync Keycloak groups
+  allowedGroups: []
+  ignoreEmailVerified: false
+  # Turn password sign-in off once an OIDC admin exists (the first user signs in with a password).
+  disablePasswordAuth: false
+
+# The first admin, created once Coder is up (Helm post-install/post-upgrade hook, Argo CD PostSync). Skipped when an
+# admin already exists. The password comes from existingSecret (key password) or is generated into Secret
+# coder-first-user: kubectl -n <namespace> get secret coder-first-user -o jsonpath='{.data.password}' | base64 -d
+firstUser:
+  enabled: true
+  username: admin
+  email: admin@example.com
+  name: Admin
+  existingSecret: ""
+
+# A private CA that signed Keycloak's (or anything else Coder calls) certificate: Secret tls-ca (key ca.crt), trusted
+# by Coder and the platform service. Paste the PEM here to have the chart create it. Public CAs need nothing.
+tls:
+  caPem: ""
+
+# The platform service (/__coder-ui/): logo, avatars, template icons, classification, announcements and receipts,
+# chat, and the Keycloak, Network, Monitoring and Persistence pages. Standard-library Python; the code is mounted
+# from a ConfigMap, so any python3 image works.
+platform:
+  enabled: true
+  image: docker.io/library/python:3.13-alpine
+  adminRoles: [owner]             # Coder roles that manage the platform pages
+  storage:
+    size: 1Gi                     # announcement receipts and chat (SQLite)
+    storageClass: ""
+  # Network and Persistence read cluster-wide objects (nodes, pods, storage classes): a ClusterRole. false = those
+  # pages show what the namespace allows.
+  clusterRead: true
+  # The Keycloak page reads the Keycloak operator's resource and admin Secret in this namespace. Empty = off.
+  keycloakNamespace: ""
+  keycloakAdminSecret: keycloak-initial-admin
+  # Monitoring buffers workspace logs in a temporary PostgreSQL (coder-ui-logs-db, emptyDir).
+  monitoring:
+    enabled: true
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      memory: 256Mi
+
+# The announcement banner service (/__banner/): what the dashboard's banner shows and the admin page saves.
+banner:
+  enabled: true
+  image: docker.io/library/python:3.13-alpine
+  adminRoles: [owner]
+  live:
+    enabled: true                 # open tabs get changes at once over a WebSocket (/__banner/live)
+    maxConnections: 5000
+    heartbeatSeconds: 20
+  # Shown until an admin publishes a banner.
+  defaults:
+    enabled: false
+    level: info                   # info | success | warning | critical
+    title: ""
+    message: ""
+    linkText: ""
+    linkUrl: ""
+    dismissible: true
+    showOnLoginPage: true
+    refreshSeconds: 60
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      memory: 128Mi
+
+# Kubernetes Ingress for accessURL (and wildcardAccessURL). Any controller that supports WebSockets works.
+ingress:
+  enabled: true
+  className: ""
+  annotations: {}
+  # TLS Secret for the host(s); empty = the controller's default certificate.
+  tlsSecretName: ""
+
+# Gateway API HTTPRoute instead of (or as well as) the Ingress.
+httpRoute:
+  enabled: false
+  parentRefs: []
+  #  - name: traefik-gateway
+  #    namespace: traefik
+  #    sectionName: https
+  annotations: {}
+
+# Image for the setup Jobs (Secrets and first admin): any python3 image.
+setup:
+  image: docker.io/library/python:3.13-alpine

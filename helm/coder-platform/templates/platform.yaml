@@ -1,0 +1,416 @@
+{{- /*
+The platform service (/__coder-ui/): files/platform/ui-service.py, standard-library Python mounted from a ConfigMap.
+Its data lives in Coder's database (logo, avatars, template icons) and in SQLite on a small volume (announcement
+receipts, chat). Names are the ones the service expects (coder-ui-updates, coder-ui-logs-db, coder-platform-config).
+*/ -}}
+{{- if .Values.platform.enabled }}
+{{- $p := .Values.platform }}
+{{- $ns := .Release.Namespace }}
+{{- $code := print (.Files.Get "files/platform/ui-service.py") (.Files.Get "files/platform/pgwire.py") }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coder-ui-updates
+  namespace: {{ $ns }}
+  labels:
+    {{- include "cp.labels" . | nindent 4 }}
+    app.kubernetes.io/name: coder-ui-updates
+data:
+  ui-service.py: |
+    {{- .Files.Get "files/platform/ui-service.py" | nindent 4 }}
+  pgwire.py: |
+    {{- .Files.Get "files/platform/pgwire.py" | nindent 4 }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: coder-ui-updates-data
+  namespace: {{ $ns }}
+  labels:
+    {{- include "cp.labels" . | nindent 4 }}
+    app.kubernetes.io/name: coder-ui-updates
+  annotations:
+    # Receipts and chat history survive uninstalling the release (Helm) or deleting the Application (Argo CD).
+    helm.sh/resource-policy: keep
+    argocd.argoproj.io/sync-options: Delete=false
+spec:
+  accessModes: [ReadWriteOnce]
+  {{- with $p.storage.storageClass }}
+  storageClassName: {{ . }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ $p.storage.size }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coder-ui-updates
+  namespace: {{ $ns }}
+  labels:
+    {{- include "cp.labels" . | nindent 4 }}
+    app.kubernetes.io/name: coder-ui-updates
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate          # one writer on a ReadWriteOnce volume
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: coder-ui-updates
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: coder-ui-updates
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/part-of: coder-platform
+      annotations:
+        checksum/code: {{ $code | sha256sum | trunc 16 }}
+    spec:
+      serviceAccountName: coder-ui-updates
+      {{- include "cp.podPlacement" . | nindent 6 }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        fsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: ui
+          image: {{ $p.image | quote }}
+          imagePullPolicy: IfNotPresent
+          command: [python3, /app/ui-service.py]
+          env:
+            - {name: PORT, value: "8080"}
+            - {name: DB_PATH, value: /data/receipts.sqlite}
+            - {name: CODER_URL, value: "http://coder.{{ $ns }}.svc.cluster.local:80"}
+            - {name: CODER_ACCESS_URL, value: {{ include "cp.accessURL" . | quote }}}
+            - {name: CODER_NAMESPACE, value: {{ $ns | quote }}}
+            - {name: CODER_DEPLOYMENT, value: coder}
+            - {name: BANNER_URL, value: {{ ternary (printf "http://coder-banner.%s.svc.cluster.local:80" $ns) "" .Values.banner.enabled | quote }}}
+            - {name: ADMIN_ROLES, value: {{ join "," $p.adminRoles | quote }}}
+            - {name: KEYCLOAK_NAMESPACE, value: {{ $p.keycloakNamespace | quote }}}
+            - {name: KEYCLOAK_ADMIN_SECRET, value: {{ $p.keycloakAdminSecret | quote }}}
+            - {name: ARGOCD_APP, value: ""}
+            - {name: CA_SOURCE_SECRET, value: tls-ca}
+            - {name: CA_FILE, value: /etc/coder-ui/ca/ca.crt}
+            - {name: WORKSPACE_NAMESPACE, value: {{ $ns | quote }}}
+            # Logo, avatars and template icons are stored in Coder's own database.
+            - name: CODER_DB_URI
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "cp.dbSecretName" . }}
+                  key: {{ include "cp.dbSecretKey" . }}
+                  optional: true
+            - {name: CODER_DB_SECRET, value: {{ include "cp.dbSecretName" . | quote }}}
+            - {name: CODER_DB_SECRET_KEY, value: {{ include "cp.dbSecretKey" . | quote }}}
+            {{- if $p.monitoring.enabled }}
+            # Monitoring: the temporary log database; the service creates its password Secret if missing.
+            - {name: LOGS_DB_SECRET, value: coder-ui-logs-db}
+            - {name: LOGS_DB_URL, value: "postgresql://logs:{password}@coder-ui-logs-db.{{ $ns }}.svc.cluster.local:5432/logs?sslmode=disable"}
+            {{- end }}
+            - {name: PYTHONDONTWRITEBYTECODE, value: "1"}
+            - {name: PYTHONUNBUFFERED, value: "1"}
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /__coder-ui/healthz
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /__coder-ui/healthz
+              port: http
+            periodSeconds: 30
+          {{- include "cp.containerSecurity" . | nindent 10 }}
+          resources:
+            {{- toYaml $p.resources | nindent 12 }}
+          volumeMounts:
+            - {name: code, mountPath: /app, readOnly: true}
+            - {name: data, mountPath: /data}
+            - {name: ca, mountPath: /etc/coder-ui/ca, readOnly: true}
+      volumes:
+        - name: code
+          configMap:
+            name: coder-ui-updates
+        - name: data
+          persistentVolumeClaim:
+            claimName: coder-ui-updates-data
+        - name: ca
+          secret:
+            secretName: tls-ca
+            optional: true
+            items:
+              - {key: ca.crt, path: ca.crt}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: coder-ui-updates
+  namespace: {{ $ns }}
+  labels:
+    {{- include "cp.labels" . | nindent 4 }}
+    app.kubernetes.io/name: coder-ui-updates
+spec:
+  selector:
+    app.kubernetes.io/name: coder-ui-updates
+    app.kubernetes.io/instance: {{ .Release.Name }}
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: coder-ui-updates
+  namespace: {{ $ns }}
+  labels:
+    {{- include "cp.labels" . | nindent 4 }}
+    app.kubernetes.io/name: coder-ui-updates
+---
+# What the service may do in Coder's namespace. Creating a Secret can't be limited by name: the service only creates
+# the two Secrets Coder reads for Keycloak (keycloaking-coder-oidc, keycloaking-coder-ca) and the log database's.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: coder-ui-updates
+  namespace: {{ $ns }}
+  labels:
+    {{- include "cp.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: [secrets]
+    resourceNames: [tls-ca, keycloaking-coder-oidc, keycloaking-coder-ca]
+    verbs: [get, update, patch]
+  - apiGroups: [""]
+    resources: [secrets]
+    resourceNames: [coder-ui-logs-db, {{ include "cp.dbSecretName" . | quote }}]
+    verbs: [get]
+  - apiGroups: [""]
+    resources: [secrets]
+    verbs: [create]
+  # Coder's running settings (Keycloak page: what is configured)
+  - apiGroups: [apps]
+    resources: [deployments]
+    resourceNames: [coder]
+    verbs: [get]
+  - apiGroups: [""]
+    resources: [configmaps]
+    resourceNames: [coder-platform-config]
+    verbs: [get]
+  # Persistence: CloudNativePG clusters and backups, when the operator is installed
+  - apiGroups: [postgresql.cnpg.io]
+    resources: [clusters]
+    verbs: [get, list, create, patch]
+  - apiGroups: [postgresql.cnpg.io]
+    resources: [backups, scheduledbackups]
+    verbs: [get, list, create]
+  - apiGroups: [""]
+    resources: [persistentvolumeclaims]
+    verbs: [get, list]
+  # Monitoring: workspace pods and their logs
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [get, list]
+  - apiGroups: [""]
+    resources: [pods/log]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: coder-ui-updates
+  namespace: {{ $ns }}
+  labels:
+    {{- include "cp.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: coder-ui-updates
+subjects:
+  - kind: ServiceAccount
+    name: coder-ui-updates
+    namespace: {{ $ns }}
+{{- if $p.clusterRead }}
+---
+# Network (nodes and their pods) and Persistence (storage classes, whether CloudNativePG is installed). Read-only.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: coder-ui-updates-{{ $ns }}
+  labels:
+    {{- include "cp.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: [nodes, pods]
+    verbs: [get, list]
+  - apiGroups: [metrics.k8s.io]
+    resources: [nodes]
+    verbs: [get, list]
+  - apiGroups: [storage.k8s.io]
+    resources: [storageclasses]
+    verbs: [get, list]
+  - apiGroups: [snapshot.storage.k8s.io]
+    resources: [volumesnapshotclasses]
+    verbs: [get, list]
+  - apiGroups: [apiextensions.k8s.io]
+    resources: [customresourcedefinitions]
+    resourceNames: [clusters.postgresql.cnpg.io]
+    verbs: [get]
+  - apiGroups: [apps]
+    resources: [deployments]
+    verbs: [list]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: coder-ui-updates-{{ $ns }}
+  labels:
+    {{- include "cp.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: coder-ui-updates-{{ $ns }}
+subjects:
+  - kind: ServiceAccount
+    name: coder-ui-updates
+    namespace: {{ $ns }}
+{{- end }}
+{{- with $p.keycloakNamespace }}
+---
+# Keycloak page: the Keycloak operator's resource and admin credentials, for reading and repairing Coder's client.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: coder-ui-updates-{{ $ns }}
+  namespace: {{ . }}
+  labels:
+    {{- include "cp.labels" $ | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: [secrets]
+    resourceNames: [{{ $p.keycloakAdminSecret | quote }}]
+    verbs: [get]
+  - apiGroups: [k8s.keycloak.org]
+    resources: [keycloaks]
+    verbs: [get, list]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: coder-ui-updates-{{ $ns }}
+  namespace: {{ . }}
+  labels:
+    {{- include "cp.labels" $ | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: coder-ui-updates-{{ $ns }}
+subjects:
+  - kind: ServiceAccount
+    name: coder-ui-updates
+    namespace: {{ $ns }}
+{{- end }}
+{{- if $p.monitoring.enabled }}
+---
+# Monitoring's temporary log database: PostgreSQL on an emptyDir. Its password Secret (coder-ui-logs-db) is created
+# by the platform service; the pod starts once it exists.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coder-ui-logs-db
+  namespace: {{ $ns }}
+  labels:
+    {{- include "cp.labels" . | nindent 4 }}
+    app.kubernetes.io/name: coder-ui-logs-db
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: coder-ui-logs-db
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: coder-ui-logs-db
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/part-of: coder-platform
+    spec:
+      automountServiceAccountToken: false
+      {{- include "cp.podPlacement" . | nindent 6 }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: postgres
+          image: {{ .Values.postgres.image | quote }}
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              BIN=$(ls -d /usr/lib/postgresql/*/bin | sort -V | tail -n1)
+              if [ ! -s /data/pg/PG_VERSION ]; then
+                printf '%s' "$POSTGRES_PASSWORD" > /tmp/pw
+                "$BIN/initdb" -D /data/pg -U logs --auth-local=trust --auth-host=scram-sha-256 --pwfile=/tmp/pw -E UTF8 >/dev/null
+                rm -f /tmp/pw
+                echo "host all all 0.0.0.0/0 scram-sha-256" >> /data/pg/pg_hba.conf
+                echo "CREATE DATABASE logs;" | "$BIN/postgres" --single -D /data/pg postgres >/dev/null
+              fi
+              exec "$BIN/postgres" -D /data/pg -c listen_addresses='*' -c unix_socket_directories=/tmp \
+                -c max_connections=30 -c shared_buffers=32MB -c fsync=off -c synchronous_commit=off \
+                -c full_page_writes=off -c log_min_messages=warning
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef: {name: coder-ui-logs-db, key: password}
+          ports:
+            - name: postgres
+              containerPort: 5432
+          readinessProbe:
+            tcpSocket:
+              port: postgres
+            periodSeconds: 5
+          {{- include "cp.containerSecurity" . | nindent 10 }}
+          resources:
+            requests: {cpu: 20m, memory: 64Mi}
+            limits: {memory: 256Mi}
+          volumeMounts:
+            - {name: data, mountPath: /data}
+            - {name: tmp, mountPath: /tmp}
+            - {name: run, mountPath: /var/run/postgresql}
+      volumes:
+        - name: data
+          emptyDir:
+            sizeLimit: 1Gi
+        - name: tmp
+          emptyDir: {}
+        - name: run
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: coder-ui-logs-db
+  namespace: {{ $ns }}
+  labels:
+    {{- include "cp.labels" . | nindent 4 }}
+    app.kubernetes.io/name: coder-ui-logs-db
+spec:
+  selector:
+    app.kubernetes.io/name: coder-ui-logs-db
+    app.kubernetes.io/instance: {{ .Release.Name }}
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+{{- end }}
+{{- end }}

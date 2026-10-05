@@ -1,0 +1,46 @@
+# Argo CD Application for coder-platform, straight from this repository. Edit the values below, then:
+#   kubectl apply -n argocd -f helm/coder-platform/argocd/application.yaml
+#
+# Before the first sync:
+#   * push the image: ./scripts/build_platform_image.sh --push   (tags it with the chart's appVersion)
+#   * if the registry is private: create a docker-registry Secret in the destination namespace and list it in
+#     imagePullSecrets
+#   * with OIDC: put the client secret in Secret keycloaking-coder-oidc (key client-secret) in that namespace, or
+#     set oidc.clientSecret (it then lives in Git, so prefer the Secret)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: coder-platform
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/user187x/coder.git
+    targetRevision: main
+    path: helm/coder-platform
+    helm:
+      valuesObject:
+        accessURL: https://coder.example.com
+        wildcardAccessURL: "*.coder.example.com"
+        image:
+          repository: ghcr.io/user187x/coder-platform
+        ingress:
+          className: traefik
+          tlsSecretName: coder-tls
+        firstUser:
+          username: admin
+          email: admin@example.com
+        oidc:
+          enabled: false
+          issuerURL: https://keycloak.example.com/realms/master
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: coder
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

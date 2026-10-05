@@ -1,0 +1,234 @@
+{{- /*
+Coder: its settings (ConfigMap coder-platform-config, which the platform service's Keycloak page reads as "what the
+chart declares"), its service account with the workspace permissions, the Deployment and the Service.
+*/ -}}
+{{- $config := dict
+  "CODER_ACCESS_URL" (include "cp.accessURL" .)
+  "CODER_HTTP_ADDRESS" "0.0.0.0:8080"
+  "CODER_DISABLE_PASSWORD_AUTH" (toString (and .Values.oidc.enabled .Values.oidc.disablePasswordAuth))
+}}
+{{- with .Values.wildcardAccessURL }}{{ $_ := set $config "CODER_WILDCARD_ACCESS_URL" (include "cp.wildcardHost" $) }}{{ end }}
+{{- if .Values.oidc.enabled }}
+{{- $o := .Values.oidc }}
+{{- $_ := set $config "CODER_OIDC_ISSUER_URL" (required "oidc.issuerURL is required when oidc.enabled is true" $o.issuerURL) }}
+{{- $_ := set $config "CODER_OIDC_CLIENT_ID" $o.clientID }}
+{{- $_ := set $config "CODER_OIDC_SIGN_IN_TEXT" $o.signInText }}
+{{- $_ := set $config "CODER_OIDC_ICON_URL" $o.iconURL }}
+{{- $_ := set $config "CODER_OIDC_SCOPES" (join "," $o.scopes) }}
+{{- $_ := set $config "CODER_OIDC_ALLOW_SIGNUPS" (toString $o.allowSignups) }}
+{{- $_ := set $config "CODER_OIDC_USERNAME_FIELD" $o.usernameField }}
+{{- $_ := set $config "CODER_OIDC_IGNORE_EMAIL_VERIFIED" (toString $o.ignoreEmailVerified) }}
+{{- with $o.emailDomain }}{{ $_ := set $config "CODER_OIDC_EMAIL_DOMAIN" (join "," .) }}{{ end }}
+{{- with $o.groupField }}{{ $_ := set $config "CODER_OIDC_GROUP_FIELD" . }}{{ end }}
+{{- with $o.allowedGroups }}{{ $_ := set $config "CODER_OIDC_ALLOWED_GROUPS" (join "," .) }}{{ end }}
+{{- end }}
+{{- range $k, $v := .Values.coder.env }}{{ $_ := set $config $k (toString $v) }}{{ end }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coder-platform-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "cp.labels" . | nindent 4 }}
+    app.kubernetes.io/name: coder
+data:
+  {{- range $k, $v := $config }}
+  {{ $k }}: {{ $v | quote }}
+  {{- end }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: coder
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "cp.labels" . | nindent 4 }}
+    app.kubernetes.io/name: coder
+{{- range $ns := include "cp.workspaceNamespaces" . | fromJsonArray }}
+---
+# What Coder's Kubernetes workspace templates create: pods, volumes and (optionally) deployments.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: coder-workspace-perms
+  namespace: {{ $ns }}
+  labels:
+    {{- include "cp.labels" $ | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: [pods, persistentvolumeclaims]
+    verbs: [create, delete, deletecollection, get, list, patch, update, watch]
+  {{- if $.Values.workspaces.enableDeployments }}
+  - apiGroups: [apps]
+    resources: [deployments]
+    verbs: [create, delete, deletecollection, get, list, patch, update, watch]
+  {{- end }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: coder
+  namespace: {{ $ns }}
+  labels:
+    {{- include "cp.labels" $ | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: coder-workspace-perms
+subjects:
+  - kind: ServiceAccount
+    name: coder
+    namespace: {{ $.Release.Namespace }}
+{{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coder
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "cp.labels" . | nindent 4 }}
+    app.kubernetes.io/name: coder
+spec:
+  replicas: {{ .Values.coder.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: coder
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: coder
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/part-of: coder-platform
+      annotations:
+        # Settings come from the ConfigMap through envFrom: restart Coder when they change.
+        checksum/config: {{ toJson $config | sha256sum | trunc 16 }}
+        {{- with .Values.coder.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: coder
+      terminationGracePeriodSeconds: 60
+      {{- include "cp.podPlacement" . | nindent 6 }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: coder
+          image: {{ include "cp.coderImage" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          envFrom:
+            - configMapRef:
+                name: coder-platform-config
+          env:
+            - name: CODER_PG_CONNECTION_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "cp.dbSecretName" . }}
+                  key: {{ include "cp.dbSecretKey" . }}
+            {{- if .Values.oidc.enabled }}
+            - name: CODER_OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: keycloaking-coder-oidc
+                  key: client-secret
+            {{- end }}
+            # High availability: replicas reach each other directly.
+            - name: KUBE_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: CODER_DERP_SERVER_RELAY_URL
+              value: "http://$(KUBE_POD_IP):8080"
+            {{- with .Values.coder.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            failureThreshold: 8
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          resources:
+            {{- toYaml .Values.coder.resources | nindent 12 }}
+          volumeMounts:
+            # A private CA (Secret tls-ca), trusted next to the system CAs. Optional: absent = public CAs only.
+            - name: tls-ca
+              mountPath: /etc/ssl/certs/coder-platform-ca.crt
+              subPath: ca.crt
+              readOnly: true
+      volumes:
+        - name: tls-ca
+          secret:
+            secretName: tls-ca
+            optional: true
+            items:
+              - key: ca.crt
+                path: ca.crt
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: coder
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "cp.labels" . | nindent 4 }}
+    app.kubernetes.io/name: coder
+  {{- with .Values.coder.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.coder.service.type }}
+  selector:
+    app.kubernetes.io/name: coder
+    app.kubernetes.io/instance: {{ .Release.Name }}
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+{{- if .Values.tls.caPem }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: tls-ca
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "cp.labels" . | nindent 4 }}
+type: Opaque
+stringData:
+  ca.crt: |
+    {{- .Values.tls.caPem | nindent 4 }}
+{{- end }}
+{{- if and .Values.oidc.enabled .Values.oidc.clientSecret }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: keycloaking-coder-oidc
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "cp.labels" . | nindent 4 }}
+type: Opaque
+stringData:
+  client-secret: {{ .Values.oidc.clientSecret | quote }}
+{{- end }}

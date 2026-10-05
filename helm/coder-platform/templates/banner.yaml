@@ -1,0 +1,197 @@
+{{- /*
+The announcement banner service (/__banner/): files/banner/server.py and live.py. The dashboard shows the banner
+itself; this service keeps what admins publish (ConfigMap coder-banner-state) and pushes changes to open tabs.
+*/ -}}
+{{- if .Values.banner.enabled }}
+{{- $b := .Values.banner }}
+{{- $ns := .Release.Namespace }}
+{{- $d := $b.defaults }}
+{{- $defaults := dict
+  "enabled" $d.enabled
+  "id" (print $d.level $d.title $d.message $d.linkText $d.linkUrl | sha256sum | trunc 12)
+  "level" $d.level
+  "title" $d.title
+  "message" $d.message
+  "linkText" $d.linkText
+  "linkUrl" $d.linkUrl
+  "dismissible" $d.dismissible
+  "showOnLoginPage" $d.showOnLoginPage
+  "refreshSeconds" $d.refreshSeconds
+  "effect" "none"
+  "repeat" false
+}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coder-banner-app
+  namespace: {{ $ns }}
+  labels:
+    {{- include "cp.labels" . | nindent 4 }}
+    app.kubernetes.io/name: coder-banner
+data:
+  server.py: |
+    {{- .Files.Get "files/banner/server.py" | nindent 4 }}
+  live.py: |
+    {{- .Files.Get "files/banner/live.py" | nindent 4 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coder-banner-content
+  namespace: {{ $ns }}
+  labels:
+    {{- include "cp.labels" . | nindent 4 }}
+    app.kubernetes.io/name: coder-banner
+data:
+  banner.json: |
+    {{- $defaults | toPrettyJson | nindent 4 }}
+---
+# What admins publish. The chart owns only the metadata and never renders data, so a sync can't undo a published
+# banner.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coder-banner-state
+  namespace: {{ $ns }}
+  labels:
+    {{- include "cp.labels" . | nindent 4 }}
+    app.kubernetes.io/name: coder-banner
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: coder-banner
+  namespace: {{ $ns }}
+  labels:
+    {{- include "cp.labels" . | nindent 4 }}
+    app.kubernetes.io/name: coder-banner
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: coder-banner-state
+  namespace: {{ $ns }}
+  labels:
+    {{- include "cp.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: [configmaps]
+    resourceNames: [coder-banner-state]
+    verbs: [get, update, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: coder-banner-state
+  namespace: {{ $ns }}
+  labels:
+    {{- include "cp.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: coder-banner-state
+subjects:
+  - kind: ServiceAccount
+    name: coder-banner
+    namespace: {{ $ns }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coder-banner
+  namespace: {{ $ns }}
+  labels:
+    {{- include "cp.labels" . | nindent 4 }}
+    app.kubernetes.io/name: coder-banner
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: coder-banner
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: coder-banner
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/part-of: coder-platform
+      annotations:
+        checksum/app: {{ print (.Files.Get "files/banner/server.py") (.Files.Get "files/banner/live.py") (toJson $defaults) | sha256sum | trunc 16 }}
+    spec:
+      serviceAccountName: coder-banner
+      {{- include "cp.podPlacement" . | nindent 6 }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: banner
+          image: {{ $b.image | quote }}
+          imagePullPolicy: IfNotPresent
+          command: [python3, /app/server.py]
+          env:
+            - {name: PORT, value: "8080"}
+            - {name: APP_DIR, value: /app}
+            - {name: DEFAULTS_FILE, value: /config/banner.json}
+            - {name: STATE_CONFIGMAP, value: coder-banner-state}
+            - {name: CODER_URL, value: "http://coder.{{ $ns }}.svc.cluster.local:80"}
+            - {name: ADMIN_ROLES, value: {{ join "," $b.adminRoles | quote }}}
+            - {name: LIVE_ENABLED, value: {{ $b.live.enabled | quote }}}
+            - {name: LIVE_PORT, value: "8081"}
+            - {name: LIVE_MAX_CLIENTS, value: {{ $b.live.maxConnections | quote }}}
+            - {name: LIVE_HEARTBEAT, value: {{ $b.live.heartbeatSeconds | quote }}}
+            - {name: PYTHONDONTWRITEBYTECODE, value: "1"}
+            - {name: PYTHONUNBUFFERED, value: "1"}
+          ports:
+            - name: http
+              containerPort: 8080
+            {{- if $b.live.enabled }}
+            - name: live
+              containerPort: 8081
+            {{- end }}
+          readinessProbe:
+            httpGet: {path: /healthz, port: http}
+          livenessProbe:
+            httpGet: {path: /healthz, port: http}
+            periodSeconds: 30
+          {{- include "cp.containerSecurity" . | nindent 10 }}
+          resources:
+            {{- toYaml $b.resources | nindent 12 }}
+          volumeMounts:
+            - {name: app, mountPath: /app, readOnly: true}
+            - {name: defaults, mountPath: /config, readOnly: true}
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - name: app
+          configMap:
+            name: coder-banner-app
+        - name: defaults
+          configMap:
+            name: coder-banner-content
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: coder-banner
+  namespace: {{ $ns }}
+  labels:
+    {{- include "cp.labels" . | nindent 4 }}
+    app.kubernetes.io/name: coder-banner
+spec:
+  selector:
+    app.kubernetes.io/name: coder-banner
+    app.kubernetes.io/instance: {{ .Release.Name }}
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+    {{- if $b.live.enabled }}
+    - name: live
+      port: 8081
+      targetPort: live
+    {{- end }}
+{{- end }}

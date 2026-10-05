@@ -13,7 +13,7 @@ all: lint
 lint: lint/helm
 .PHONY: lint
 
-lint/helm: lint/helm/coder lint/helm/provisioner lint/helm/ai-gateway
+lint/helm: lint/helm/coder lint/helm/provisioner lint/helm/ai-gateway lint/helm/coder-platform
 .PHONY: lint/helm
 
 lint/helm/coder:
@@ -33,3 +33,7 @@ lint/helm/ai-gateway:
 		--set aigateway.keySecret.name=test \
 		ai-gateway/
 .PHONY: lint/helm/ai-gateway
+
+lint/helm/coder-platform:
+	helm lint --strict --set accessURL=https://coder.example.com coder-platform/
+.PHONY: lint/helm/coder-platform

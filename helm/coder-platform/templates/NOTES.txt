@@ -1,0 +1,11 @@
+Coder: {{ include "cp.accessURL" . }}
+Image: {{ include "cp.coderImage" . }}
+{{- if .Values.firstUser.enabled }}
+
+First admin: {{ .Values.firstUser.username }} ({{ .Values.firstUser.email }}), created once Coder is up.
+Password:
+  kubectl -n {{ .Release.Namespace }} get secret {{ include "cp.firstUserSecret" . }} -o jsonpath='{.data.password}' | base64 -d; echo
+{{- end }}
+
+Status:
+  kubectl -n {{ .Release.Namespace }} get pods -l app.kubernetes.io/instance={{ .Release.Name }}
