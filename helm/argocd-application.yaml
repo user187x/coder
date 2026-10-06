@@ -1,0 +1,150 @@
+# Coder (github.com/user187x/coder, with all its dashboard and server changes) on any Kubernetes cluster that runs
+# Argo CD. Everything comes from public sources: the Helm chart from this GitHub repository, the images from ghcr.io
+# and Docker Hub (linux/amd64 and linux/arm64). Nothing else is needed and nothing has to be edited.
+#
+#   kubectl apply -n argocd -f application.yaml
+#
+# What it installs, in namespace coder-platform: Coder, PostgreSQL, the dashboard's platform and banner services,
+# and the first admin. Full guide: https://github.com/user187x/coder/blob/main/helm/coder-platform/DEPLOY.md
+#
+# Needs: Argo CD 2.10 or newer deploying to its own cluster, a default StorageClass (or set the two storageClass
+# values below), and internet access from the cluster to github.com, ghcr.io and docker.io. The file also creates
+# the Argo CD project the Application uses.
+#
+# ---- After the first sync (5 to 10 minutes, mostly Argo CD cloning the repository; Synced and Healthy) ----
+#
+#   Admin password (user "admin", e-mail admin@example.com):
+#     kubectl -n coder-platform get secret coder-first-user -o jsonpath='{.data.password}' | base64 -d; echo
+#
+#   Open Coder (as long as accessURL below is empty):
+#     kubectl -n coder-platform port-forward svc/coder 8080:80
+#     then browse to http://localhost:8080
+#
+#   Progress:  kubectl -n coder-platform get pods     (all Running, plus two Completed setup Jobs)
+#
+# ---- Optional: publish Coder at a real address ----
+#   Set accessURL and uncomment ONE of the "Publish" blocks below (LoadBalancer, Ingress or Gateway API).
+#   Serve it over HTTPS: the dashboard resizes uploaded images only on secure addresses.
+#
+# ---- Optional: Keycloak (or any OpenID Connect) sign-in ----
+#   Needs accessURL. In Keycloak, give the client this Valid redirect URI: <accessURL>/api/v2/users/oidc/callback
+#   then put the client secret in the cluster and uncomment the oidc block:
+#     kubectl -n coder-platform create secret generic keycloaking-coder-oidc --from-literal=client-secret=<secret>
+# Its own Argo CD project, so the Application doesn't depend on project "default" existing or allowing it: this
+# repository, namespace coder-platform, and the cluster-scoped objects the chart creates (read-only RBAC for the
+# Network and Persistence pages).
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: coder-platform
+  namespace: argocd
+spec:
+  description: Coder with the dashboard's platform services (github.com/user187x/coder, helm/coder-platform)
+  sourceRepos:
+    - https://github.com/user187x/coder.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: coder-platform
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRole
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRoleBinding
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: coder-platform
+  namespace: argocd
+  annotations:
+    # The API server fills in defaults the chart doesn't render (e.g. HTTPRoute backendRefs); a server-side diff
+    # keeps them from showing as OutOfSync.
+    argocd.argoproj.io/compare-options: ServerSideDiff=true
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: coder-platform
+  source:
+    repoURL: https://github.com/user187x/coder.git
+    targetRevision: main
+    path: helm/coder-platform
+    helm:
+      releaseName: coder-platform
+      valuesObject:
+        # Empty = Coder's in-cluster address (open it with kubectl port-forward, see above).
+        # e.g. https://coder.example.com
+        accessURL: ""
+        # Workspace apps on their own subdomains, e.g. "*.coder.example.com" (needs DNS and a certificate for it).
+        wildcardAccessURL: ""
+
+        firstUser:
+          enabled: true
+          username: admin
+          email: admin@example.com
+          name: Admin
+
+        postgres:
+          enabled: true
+          storage:
+            size: 10Gi
+            storageClass: ""            # "" = the cluster's default StorageClass
+        platform:
+          storage:
+            storageClass: ""            # "" = the cluster's default StorageClass
+          # With Keycloak: the namespace the Keycloak operator runs in, for the dashboard's Keycloak page.
+          # keycloakNamespace: keycloak
+
+        # ---- Publish: a LoadBalancer Service (clouds, MetalLB, k3s ServiceLB) ----
+        # coder:
+        #   service:
+        #     type: LoadBalancer
+
+        # ---- Publish: an Ingress (any controller; e.g. className: nginx or traefik) ----
+        # ingress:
+        #   enabled: true
+        #   className: nginx
+        #   tlsSecretName: coder-tls    # a TLS Secret in coder-platform for accessURL's host; "" = controller default
+
+        # ---- Publish: a Gateway API route ----
+        # httpRoute:
+        #   enabled: true
+        #   parentRefs:
+        #     - name: my-gateway
+        #       namespace: my-gateway-namespace
+        #       sectionName: https       # the HTTPS listener
+
+        # ---- Keycloak / OpenID Connect sign-in (needs accessURL; see the top of this file) ----
+        # oidc:
+        #   enabled: true
+        #   issuerURL: https://keycloak.example.com/realms/master
+        #   clientID: coder
+        #   signInText: Sign in with Keycloak
+
+        # ---- A private CA (signed Keycloak's or accessURL's certificate) ----
+        # tls:
+        #   caPem: |
+        #     -----BEGIN CERTIFICATE-----
+        #     ...
+        #     -----END CERTIFICATE-----
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: coder-platform
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    # The first sync pulls images, initialises PostgreSQL and migrates Coder's schema.
+    retry:
+      limit: 10
+      backoff:
+        duration: 15s
+        factor: 2
+        maxDuration: 5m
