@@ -208,6 +208,7 @@ const AgentsEmbedPage = lazy(
 const WorkspaceHealthPage = lazy(
 	() => import("./pages/HealthPage/WorkspaceHealthPage"),
 );
+const UserQuotaPage = lazy(() => import("./pages/HealthPage/UserQuotaPage"));
 const CertificatesPage = lazy(
 	() => import("./pages/UserSettingsPage/CertificatesPage/CertificatesPage"),
 );
@@ -860,6 +861,7 @@ export const router = createBrowserRouter(
 								path="workspace-health"
 								element={<WorkspaceHealthPage />}
 							/>
+							<Route path="user-quota" element={<UserQuotaPage />} />
 						</Route>
 					</Route>
 

@@ -1,7 +1,12 @@
 import { cn } from "cn";
-import { PencilIcon } from "lucide-react";
+import { PencilIcon, SettingsIcon } from "lucide-react";
 import { Link } from "react-router";
 import { DropdownMenuItem } from "#/components/DropdownMenu/DropdownMenu";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "#/components/Tooltip/Tooltip";
 import { ClusterGauge } from "#/modules/platform/ClusterGauge";
 import { WORKSPACE_HEALTH_PATH } from "#/pages/HealthPage/healthSections";
 import type { AdminPage } from "./adminQuickLinks";
@@ -19,7 +24,7 @@ type AdminSettingsItemsProps = {
 	 * default). Without it, Accounts and Health are shown when permitted.
 	 */
 	quickLinks?: readonly (AdminPage | undefined)[];
-	/** Offers "Customize quick links" when set. */
+	/** Puts an edit button ("Customize this link") in front of each quick link when set. */
 	onCustomizeQuickLinks?: () => void;
 };
 
@@ -50,7 +55,8 @@ export type AdminSettingsPermissions = {
  * deployment settings are called "Settings" (they open General), and AI
  * settings live in General's sidebar as "Super Intelligence", which is only
  * offered here to those who cannot open General. Two quick links, Accounts and
- * Health unless the admin chose other pages, open admin pages directly. The
+ * Health unless the admin chose other pages, open admin pages directly; the
+ * edit button in front of each changes them. The
  * menu ends with the cluster's CPU and memory, which only admins get an
  * answer for.
  */
@@ -78,17 +84,51 @@ export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
 	],
 	onCustomizeQuickLinks,
 }) => {
-	const quickLink = (page: AdminPage | undefined) =>
-		page && (
-			<DropdownMenuItem asChild className={itemClassName}>
+	const quickLink = (page: AdminPage | undefined) => {
+		if (!page) {
+			return null;
+		}
+		const link = (
+			<DropdownMenuItem
+				asChild
+				className={cn(onCustomizeQuickLinks && "flex-1 pl-0", itemClassName)}
+			>
 				<Link to={page.path}>{page.menuLabel ?? page.label}</Link>
 			</DropdownMenuItem>
 		);
+		if (!onCustomizeQuickLinks) {
+			return link;
+		}
+		return (
+			<div className="flex items-center">
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<DropdownMenuItem
+							aria-label="Customize this link"
+							className={cn(
+								"text-content-secondary hover:text-content-primary",
+								itemClassName,
+								"flex-none pr-2",
+							)}
+							onSelect={onCustomizeQuickLinks}
+						>
+							<PencilIcon />
+						</DropdownMenuItem>
+					</TooltipTrigger>
+					<TooltipContent side="left">Customize this link</TooltipContent>
+				</Tooltip>
+				{link}
+			</div>
+		);
+	};
 	return (
 		<>
 			{permissions.canViewDeployment && (
 				<DropdownMenuItem asChild className={itemClassName}>
-					<Link to="/deployment">Settings</Link>
+					<Link to="/deployment">
+						<SettingsIcon aria-hidden />
+						Settings
+					</Link>
 				</DropdownMenuItem>
 			)}
 			{quickLink(quickLinks[0])}
@@ -118,15 +158,6 @@ export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
 				</DropdownMenuItem>
 			)}
 			{quickLink(quickLinks[1])}
-			{onCustomizeQuickLinks && (
-				<DropdownMenuItem
-					className={cn("text-content-secondary", itemClassName)}
-					onSelect={onCustomizeQuickLinks}
-				>
-					<PencilIcon />
-					Customize quick links…
-				</DropdownMenuItem>
-			)}
 			<ClusterGauge />
 		</>
 	);

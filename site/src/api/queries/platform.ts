@@ -11,6 +11,7 @@ import {
 	type PersistenceFix,
 	type PersistenceSettings,
 	PlatformAPI,
+	type QuotaSettings,
 } from "#/api/platform";
 
 const platformKey = ["platform"] as const;
@@ -28,6 +29,9 @@ export const monitoringKey = [...platformKey, "monitoring"] as const;
 export const keycloakReportKey = [...platformKey, "keycloak"] as const;
 export const persistenceReportKey = [...platformKey, "persistence"] as const;
 export const templateIconsKey = [...platformKey, "icons"] as const;
+const keycloakStatusKey = [...platformKey, "keycloak", "status"] as const;
+const quotaReportKey = [...platformKey, "quota"] as const;
+const certificatesKey = [...platformKey, "certificates"] as const;
 const chatAdminsKey = [...platformKey, "chat", "admins"] as const;
 export const bannerKey = ["banner"] as const;
 export const bannerStateKey = [...bannerKey, "state"] as const;
@@ -321,5 +325,47 @@ export const deleteTemplateIcon = (queryClient: QueryClient) => ({
 	mutationFn: PlatformAPI.deleteTemplateIcon,
 	onSettled: async () => {
 		await queryClient.invalidateQueries({ queryKey: templateIconsKey });
+	},
+});
+
+const KEYCLOAK_STATUS_REFRESH_MS = 60_000;
+
+/** Whether the add-on service is connected to Keycloak (a check next to Authentication). */
+export const keycloakStatus = () => ({
+	queryKey: keycloakStatusKey,
+	queryFn: PlatformAPI.getKeycloakStatus,
+	refetchInterval: KEYCLOAK_STATUS_REFRESH_MS,
+	retry: false,
+});
+
+const QUOTA_REFRESH_MS = 30_000;
+
+export const quotaReport = () => ({
+	queryKey: quotaReportKey,
+	queryFn: PlatformAPI.getQuotaReport,
+	refetchInterval: QUOTA_REFRESH_MS,
+});
+
+export const updateQuota = (queryClient: QueryClient) => ({
+	mutationFn: (settings: QuotaSettings) => PlatformAPI.updateQuota(settings),
+	onSuccess: async () => {
+		await queryClient.invalidateQueries({ queryKey: quotaReportKey });
+	},
+});
+
+/** The probes take several seconds; the service caches the result for 10 minutes. */
+export const certificates = () => ({
+	queryKey: certificatesKey,
+	queryFn: () => PlatformAPI.getCertificates(),
+	staleTime: 5 * 60_000,
+	retry: false,
+});
+
+export const refreshCertificates = (queryClient: QueryClient) => ({
+	mutationFn: () => PlatformAPI.getCertificates(true),
+	onSuccess: (
+		data: Awaited<ReturnType<typeof PlatformAPI.getCertificates>>,
+	) => {
+		queryClient.setQueryData(certificatesKey, data);
 	},
 });

@@ -463,7 +463,8 @@ func (api *API) postWorkspacesByOrganization(rw http.ResponseWriter, r *http.Req
 	}
 
 	w, err := createWorkspace(ctx, aReq, apiKey.UserID, api, owner, req, &createWorkspaceOptions{
-		remoteAddr: r.RemoteAddr,
+		remoteAddr:   r.RemoteAddr,
+		sessionToken: httpmw.APITokenFromRequest(r),
 	})
 	if err != nil {
 		httperror.WriteResponseError(ctx, rw, err)
@@ -561,7 +562,8 @@ func (api *API) postUserWorkspaces(rw http.ResponseWriter, r *http.Request) {
 	defer commitAudit()
 
 	w, err := createWorkspace(ctx, aReq, apiKey.UserID, api, owner, req, &createWorkspaceOptions{
-		remoteAddr: r.RemoteAddr,
+		remoteAddr:   r.RemoteAddr,
+		sessionToken: httpmw.APITokenFromRequest(r),
 	})
 	if err != nil {
 		httperror.WriteResponseError(ctx, rw, err)
@@ -588,6 +590,9 @@ type createWorkspaceOptions struct {
 	// audit logging. HTTP handlers should pass r.RemoteAddr;
 	// programmatic callers may leave it empty.
 	remoteAddr string
+	// sessionToken is the requester's session, with which the platform
+	// service's workspace quota is checked (none: not checked).
+	sessionToken string
 }
 
 func createWorkspace(
@@ -697,6 +702,11 @@ func createWorkspace(
 			Message: fmt.Sprintf("Internal error fetching workspace by name %q.", req.Name),
 			Detail:  err.Error(),
 		})
+	}
+
+	// The platform's per-user quota (number of workspaces, CPU cores, memory).
+	if err := api.checkPlatformQuota(ctx, opts.sessionToken, owner, template.ID, templateVersionID, req); err != nil {
+		return codersdk.Workspace{}, err
 	}
 
 	var (

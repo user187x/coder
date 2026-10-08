@@ -1,6 +1,7 @@
 import type { Permissions } from "#/modules/permissions";
 import {
 	HEALTH_SECTIONS,
+	USER_QUOTA_PATH,
 	WORKSPACE_HEALTH_PATH,
 } from "#/pages/HealthPage/healthSections";
 
@@ -140,6 +141,14 @@ const ADMIN_PAGES: readonly (AdminPage & {
 		path: WORKSPACE_HEALTH_PATH,
 		group: "Health",
 		allowed: ({ permissions }) => permissions.viewDebugInfo,
+	},
+	{
+		id: "health-user-quota",
+		label: "User Quota",
+		path: USER_QUOTA_PATH,
+		group: "Health",
+		allowed: ({ permissions }) =>
+			permissions.viewDebugInfo && permissions.editDeploymentConfig,
 	},
 	...HEALTH_SECTIONS.map((section) => ({
 		id: `health-${section.path.split("/").at(-1)}`,

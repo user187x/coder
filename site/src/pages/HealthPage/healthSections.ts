@@ -33,3 +33,5 @@ export const HEALTH_SECTIONS: readonly {
 ];
 
 export const WORKSPACE_HEALTH_PATH = "/health/workspace-health";
+
+export const USER_QUOTA_PATH = "/health/user-quota";

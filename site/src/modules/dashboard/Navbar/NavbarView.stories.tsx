@@ -104,11 +104,11 @@ export const CustomizingQuickLinks: Story = {
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
 		await userEvent.click(canvas.getByRole("button", { name: "Admin" }));
-		await userEvent.click(
-			await within(canvasElement.ownerDocument.body).findByRole("menuitem", {
-				name: /Customize quick links/,
-			}),
+		const [edit] = await within(canvasElement.ownerDocument.body).findAllByRole(
+			"menuitem",
+			{ name: "Customize this link" },
 		);
+		await userEvent.click(edit);
 	},
 };
 

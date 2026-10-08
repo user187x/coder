@@ -14,11 +14,13 @@ import OptionsTable from "../OptionsTable";
 
 type SecuritySettingsPageViewProps = {
 	options: SerpentOption[];
+	/** The certificate overview, at the top of the page (admins only). */
+	certificates?: React.ReactNode;
 };
 
 export const SecuritySettingsPageView: React.FC<
 	SecuritySettingsPageViewProps
-> = ({ options }) => {
+> = ({ options, certificates }) => {
 	const tlsOptions = options.filter((o) =>
 		deploymentGroupHasParent(o.group, "TLS"),
 	);
@@ -36,6 +38,8 @@ export const SecuritySettingsPageView: React.FC<
 						/>
 					</SettingsHeaderDescription>
 				</SettingsHeader>
+
+				{certificates && <div className="mb-12">{certificates}</div>}
 
 				<OptionsTable
 					options={useDeploymentOptions(

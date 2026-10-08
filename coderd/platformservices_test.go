@@ -1,6 +1,7 @@
 package coderd_test
 
 import (
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -112,4 +113,75 @@ func TestPlatformServiceRoutes(t *testing.T) {
 
 	status, _ = send(http.MethodGet, "/__down/x", "")
 	require.Equal(t, http.StatusBadGateway, status)
+}
+
+func TestPlatformWorkspaceQuota(t *testing.T) {
+	t.Parallel()
+
+	type check struct {
+		token string
+		body  map[string]any
+	}
+	checks := make(chan check, 10)
+	answer := make(chan func(rw http.ResponseWriter), 10)
+	srv := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/__coder-ui/api/quota/check" || r.Header.Get("X-Requested-With") != "coder-ui" {
+			rw.WriteHeader(http.StatusNotFound)
+			return
+		}
+		var body map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		checks <- check{token: r.Header.Get(codersdk.SessionTokenHeader), body: body}
+		(<-answer)(rw)
+	}))
+	t.Cleanup(srv.Close)
+	target, err := url.Parse(srv.URL)
+	require.NoError(t, err)
+
+	client := coderdtest.New(t, &coderdtest.Options{
+		IncludeProvisionerDaemon: true,
+		PlatformServiceRoutes:    []coderd.PlatformServiceRoute{{PathPrefix: "/__coder-ui", Target: target}},
+	})
+	first := coderdtest.CreateFirstUser(t, client)
+	version := coderdtest.CreateTemplateVersion(t, client, first.OrganizationID, nil)
+	coderdtest.AwaitTemplateVersionJobCompleted(t, client, version.ID)
+	template := coderdtest.CreateTemplate(t, client, first.OrganizationID, version.ID)
+
+	create := func() error {
+		ctx := testutil.Context(t, testutil.WaitLong)
+		_, err := client.CreateUserWorkspace(ctx, codersdk.Me, codersdk.CreateWorkspaceRequest{
+			TemplateID: template.ID,
+			Name:       coderdtest.RandomUsername(t),
+		})
+		return err
+	}
+	reply := func(status int, body string) {
+		answer <- func(rw http.ResponseWriter) {
+			rw.Header().Set("Content-Type", "application/json")
+			rw.WriteHeader(status)
+			_, _ = rw.Write([]byte(body))
+		}
+	}
+
+	// Refused: the service's message reaches the requester.
+	reply(http.StatusOK, `{"allowed": false, "message": "Your workspace quota is reached (workspaces: 1 of 1 already)."}`)
+	err = create()
+	var sdkErr *codersdk.Error
+	require.ErrorAs(t, err, &sdkErr)
+	require.Equal(t, http.StatusForbidden, sdkErr.StatusCode())
+	require.Contains(t, sdkErr.Message, "quota is reached")
+	got := <-checks
+	require.Equal(t, client.SessionToken(), got.token)
+	require.Equal(t, template.ID.String(), got.body["template_id"])
+	require.Equal(t, version.ID.String(), got.body["template_version_id"])
+
+	// Allowed.
+	reply(http.StatusOK, `{"allowed": true}`)
+	require.NoError(t, create())
+	<-checks
+
+	// The check itself failing lets the workspace through.
+	reply(http.StatusServiceUnavailable, `{"error": "down"}`)
+	require.NoError(t, create())
+	<-checks
 }

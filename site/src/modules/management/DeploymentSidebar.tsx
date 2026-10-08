@@ -1,3 +1,5 @@
+import { useQuery } from "react-query";
+import { keycloakStatus } from "#/api/queries/platform";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { useDashboard } from "#/modules/dashboard/useDashboard";
 import { AISettingsTree } from "./AISettingsTree";
@@ -10,6 +12,10 @@ import { HealthSettingsTree } from "./HealthSettingsTree";
 export const DeploymentSidebar: React.FC = () => {
 	const { permissions } = useAuthenticated();
 	const { buildInfo } = useDashboard();
+	const { data: keycloak } = useQuery({
+		...keycloakStatus(),
+		enabled: permissions.editDeploymentConfig,
+	});
 
 	return (
 		<DeploymentSidebarView
@@ -17,6 +23,7 @@ export const DeploymentSidebar: React.FC = () => {
 			buildInfo={buildInfo}
 			aiSettings={<AISettingsTree />}
 			health={permissions.viewDebugInfo ? <HealthSettingsTree /> : undefined}
+			keycloakConnected={keycloak?.connected === true}
 		/>
 	);
 };

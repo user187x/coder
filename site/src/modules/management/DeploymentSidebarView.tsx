@@ -4,6 +4,7 @@ import {
 	SettingsSidebarNavItem as SidebarNavItem,
 } from "#/components/Sidebar/Sidebar";
 import type { Permissions } from "#/modules/permissions";
+import { HealthIcon } from "#/pages/HealthPage/Content";
 
 type DeploymentSidebarViewProps = {
 	/** Site-wide permissions. */
@@ -13,6 +14,8 @@ type DeploymentSidebarViewProps = {
 	aiSettings?: React.ReactNode;
 	/** General's Health entry (HealthSettingsTree), placed in alphabetical order. */
 	health?: React.ReactNode;
+	/** The platform service is connected to Keycloak: a green check after Authentication. */
+	keycloakConnected?: boolean;
 };
 
 /**
@@ -25,6 +28,7 @@ export const DeploymentSidebarView: React.FC<DeploymentSidebarViewProps> = ({
 	buildInfo,
 	aiSettings,
 	health,
+	keycloakConnected,
 }) => {
 	return (
 		<BaseSidebar>
@@ -40,7 +44,14 @@ export const DeploymentSidebarView: React.FC<DeploymentSidebarViewProps> = ({
 				)}
 				{permissions.viewDeploymentConfig && (
 					<SidebarNavItem href="/deployment/userauth">
-						Authentication
+						<span className="inline-flex items-center gap-2">
+							Authentication
+							{keycloakConnected && (
+								<span title="Connected to Keycloak" className="inline-flex">
+									<HealthIcon size={14} severity="ok" />
+								</span>
+							)}
+						</span>
 					</SidebarNavItem>
 				)}
 				{permissions.editDeploymentConfig && (

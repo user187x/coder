@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { BellOffIcon, ChevronRightIcon } from "lucide-react";
+import { BellOffIcon, ChevronRightIcon, GaugeIcon } from "lucide-react";
 import { useState } from "react";
 import { useQuery } from "react-query";
 import { useLocation } from "react-router";
@@ -14,11 +14,12 @@ import { WorkspaceHealthIcon } from "#/modules/platform/workspaceHealth/Workspac
 import { HealthIcon } from "#/pages/HealthPage/Content";
 import {
 	HEALTH_SECTIONS,
+	USER_QUOTA_PATH,
 	WORKSPACE_HEALTH_PATH,
 } from "#/pages/HealthPage/healthSections";
 
 /**
- * General's "Health" entry: a collapsible tree with Workspace Health and each
+ * General's "Health" entry: a collapsible tree with Workspace Health, User Quota and each
  * section of the deployment's health report, marked with its severity. The
  * pages open on the right like the other entries. Open while one of them is
  * shown; the report is only fetched once the tree is open.
@@ -56,6 +57,15 @@ export const HealthSettingsTree: React.FC = () => {
 						<span className="inline-flex items-center gap-2">
 							<WorkspaceHealthIcon />
 							Workspace Health
+						</span>
+					</SidebarNavItem>
+					<SidebarNavItem href={USER_QUOTA_PATH}>
+						<span className="inline-flex items-center gap-2">
+							<GaugeIcon
+								aria-hidden
+								className="size-3.5 text-content-secondary"
+							/>
+							User Quota
 						</span>
 					</SidebarNavItem>
 					{HEALTH_SECTIONS.map(({ key, label, path }) => {

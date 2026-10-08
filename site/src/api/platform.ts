@@ -371,6 +371,151 @@ export type KeycloakReport = {
 
 type KeycloakResult = { ok: true; done: string[] };
 
+/** Whether the add-on service can use Keycloak's admin API (General's sidebar marks Authentication with it). */
+type KeycloakStatus = {
+	connected: boolean;
+	keycloakUrl: string | null;
+	via?: string | null;
+	reason: string | null;
+};
+
+// ---------------------------------------------------------------- user quota
+
+export type QuotaKey = "workspaces" | "cpu" | "memory";
+
+/** One set of limits; null = no limit. CPU in cores, memory in GiB. */
+export type QuotaLimits = Record<QuotaKey, number | null>;
+
+export type QuotaSettings = {
+	default: QuotaLimits;
+	/** Per-user overrides: only the keys set there replace the default. */
+	users: Record<string, Partial<QuotaLimits>>;
+	exemptAdmins: boolean;
+};
+
+type QuotaWorkspace = {
+	id: string;
+	name: string;
+	owner: string;
+	ownerId: string;
+	template: string;
+	cpu: number;
+	memory: number;
+	status: string;
+	running: boolean;
+};
+
+type QuotaUsage = {
+	workspaces: number;
+	cpu: number;
+	memory: number;
+	running: number;
+	runningCpu: number;
+	runningMemory: number;
+	liveCpu: number | null;
+	liveMemory: number | null;
+};
+
+export type QuotaUser = {
+	id: string;
+	username: string;
+	name: string;
+	avatar: string;
+	admin: boolean;
+	exempt: boolean;
+	override: Partial<QuotaLimits> | null;
+	limits: QuotaLimits;
+	usage: QuotaUsage;
+	atLimit: boolean;
+	workspaces: QuotaWorkspace[];
+};
+
+type QuotaCluster =
+	| {
+			cpu: number;
+			memory: number;
+			usedCpu: number;
+			usedMemory: number;
+			requestedCpu: number;
+			requestedMemory: number;
+			nodes: number;
+			live: boolean;
+			error?: undefined;
+	  }
+	| { error: string };
+
+export type QuotaReport = {
+	settings: QuotaSettings;
+	users: QuotaUser[];
+	cluster: QuotaCluster;
+	liveUsage: boolean;
+	/** The template parameters read as cores and GiB. */
+	parameters: Record<"cpu" | "memory", string>;
+	generatedAt: string;
+};
+
+// ---------------------------------------------------------------- certificates
+
+export type CertificateInfo = {
+	kind: "certificate";
+	subject: string;
+	commonName: string;
+	issuer: string;
+	issuerCommonName: string;
+	serial: string;
+	notBefore: string;
+	notAfter: string;
+	signature: string;
+	keyAlgorithm: string;
+	keySize: number | string | null;
+	sans: string[];
+	isCA: boolean;
+	keyUsage: string[];
+	extendedKeyUsage: string[];
+	selfSigned: boolean;
+	sha256: string;
+	error?: string;
+};
+
+type PrivateKeyInfo = {
+	kind: "key";
+	keyAlgorithm: string;
+	keySize: number | string | null;
+	/** The certificate (common name) with this key's public key, if any. */
+	matches?: string | null;
+};
+
+type Pkcs12Info = { kind: "pkcs12"; bytes: number };
+
+type CertificateFileItem = CertificateInfo | PrivateKeyInfo | Pkcs12Info;
+
+export type CertificateFile = {
+	source: string;
+	key?: string;
+	mountPath?: string;
+	items?: CertificateFileItem[];
+	error?: string;
+};
+
+export type TlsEndpoint = {
+	name: string;
+	host: string;
+	port: number;
+	versions?: { version: string; cipher: string }[];
+	ciphers12?: string[];
+	negotiated?: { version: string; cipher: string; bits: number } | null;
+	chain?: (CertificateInfo | { error: string })[];
+	trusted?: boolean | null;
+	trustError?: string;
+	error?: string;
+};
+
+export type CertificatesOverview = {
+	endpoints: TlsEndpoint[];
+	files: CertificateFile[];
+	generatedAt: string;
+};
+
 export type PersistenceFix =
 	| "cnpg.cluster"
 	| "cnpg.instances"
@@ -726,6 +871,20 @@ export const PlatformAPI = {
 	}) => post<KeycloakResult>(`${PLATFORM_BASE}/api/keycloak/connect`, req),
 	undoKeycloakChange: () =>
 		post<KeycloakResult>(`${PLATFORM_BASE}/api/keycloak/undo`, {}),
+	getKeycloakStatus: () =>
+		get<KeycloakStatus>(`${PLATFORM_BASE}/api/keycloak/status`),
+
+	getQuotaReport: () => get<QuotaReport>(`${PLATFORM_BASE}/api/quota`),
+	updateQuota: (settings: QuotaSettings) =>
+		post<{ ok: true; settings: QuotaSettings }>(
+			`${PLATFORM_BASE}/api/quota`,
+			settings,
+		),
+
+	getCertificates: (refresh = false) =>
+		get<CertificatesOverview>(
+			`${PLATFORM_BASE}/api/certificates${refresh ? "?refresh=1" : ""}`,
+		),
 
 	getTemplateIcons: () => get<TemplateIconList>(`${PLATFORM_BASE}/api/icons`),
 	uploadTemplateIcon: (req: { name: string; dataUrl: string }) =>
