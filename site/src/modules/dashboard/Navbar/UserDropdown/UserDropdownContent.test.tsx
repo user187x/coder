@@ -6,17 +6,12 @@ import {
 	DropdownMenuContent,
 	DropdownMenuTrigger,
 } from "#/components/DropdownMenu/DropdownMenu";
-import { openAvatarDialog } from "#/modules/platform/avatar/avatarDialogStore";
 import {
 	MockUserAppearanceSettings,
 	MockUserOwner,
 } from "#/testHelpers/entities";
 import { render, waitForLoaderToBeRemoved } from "#/testHelpers/renderHelpers";
 import { UserDropdownContent } from "./UserDropdownContent";
-
-vi.mock("#/modules/platform/avatar/avatarDialogStore", () => ({
-	openAvatarDialog: vi.fn(),
-}));
 
 const renderUserDropdownContent = (props: {
 	onSignOut: () => void;
@@ -92,12 +87,15 @@ describe("UserDropdownContent", () => {
 		);
 	});
 
-	it("opens the avatar dialog from Avatar", async () => {
+	it("has no Avatar item (the avatar is changed in Settings > Account)", async () => {
 		renderUserDropdownContent({ onSignOut: vi.fn() });
 		await waitForLoaderToBeRemoved();
 
-		await userEvent.click(screen.getByRole("menuitem", { name: "Avatar" }));
-
-		expect(openAvatarDialog).toHaveBeenCalled();
+		expect(
+			screen.queryByRole("menuitem", { name: "Avatar" }),
+		).not.toBeInTheDocument();
+		expect(
+			screen.getByRole("menuitem", { name: "Account" }),
+		).toBeInTheDocument();
 	});
 });

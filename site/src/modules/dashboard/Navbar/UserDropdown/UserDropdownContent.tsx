@@ -3,7 +3,6 @@ import {
 	CopyIcon,
 	LogOutIcon,
 	MonitorIcon,
-	SquareUserRoundIcon,
 	TerminalIcon,
 } from "lucide-react";
 import { Link } from "react-router";
@@ -19,7 +18,6 @@ import {
 	TooltipTrigger,
 } from "#/components/Tooltip/Tooltip";
 import { useClipboard } from "#/hooks/useClipboard";
-import { openAvatarDialog } from "#/modules/platform/avatar/avatarDialogStore";
 import { supportsCoderDesktop } from "#/utils/platform";
 import { SupportIcon } from "../SupportIcon";
 import { ThemeToggleItem } from "./ThemeToggleItem";
@@ -76,10 +74,6 @@ export const UserDropdownContent: React.FC<UserDropdownContentProps> = ({
 					<CircleUserIcon />
 					<span>Account</span>
 				</Link>
-			</DropdownMenuItem>
-			<DropdownMenuItem onSelect={openAvatarDialog}>
-				<SquareUserRoundIcon />
-				<span>Avatar</span>
 			</DropdownMenuItem>
 			<DropdownMenuItem onClick={onSignOut}>
 				<LogOutIcon />
