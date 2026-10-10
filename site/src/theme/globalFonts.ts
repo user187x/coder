@@ -6,6 +6,7 @@ import "@fontsource-variable/geist";
 import "@fontsource-variable/geist-mono";
 // Alternative fonts for Terminal
 import "./fonts/coder-terminal-symbols.css";
+import "./fonts/jetbrains-mono-nerd.css";
 import "@fontsource/fira-code/400.css";
 import "@fontsource/fira-code/600.css";
 import "@fontsource/source-code-pro/400.css";

@@ -59,6 +59,10 @@ type WorkspaceTerminalProps = {
 	sessionId: string;
 	baseUrl?: string;
 	terminalFontFamily?: string;
+	/** Font size in px (default 16). Changing it resizes the running terminal; it does not reconnect. */
+	fontSize?: number;
+	/** The terminal's size in characters, whenever it changes. */
+	onResize?: (cols: number, rows: number) => void;
 	renderer?: string;
 	backgroundColor?: string;
 	onOpenLink?: (uri: string) => void;
@@ -91,6 +95,8 @@ export const WorkspaceTerminal = ({
 	sessionId,
 	baseUrl,
 	terminalFontFamily = DEFAULT_TERMINAL_FONT_FAMILY,
+	fontSize = 16,
+	onResize,
 	renderer,
 	backgroundColor,
 	onOpenLink,
@@ -111,6 +117,11 @@ export const WorkspaceTerminal = ({
 	const handleContentReady = useEffectEvent(() => {
 		onContentReady?.();
 	});
+	const handleResize = useEffectEvent((cols: number, rows: number) => {
+		onResize?.(cols, rows);
+	});
+	// The size the terminal is created with; later changes are applied in place.
+	const currentFontSize = useEffectEvent(() => fontSize);
 	const [terminal, setTerminal] = useState<Terminal>();
 	const { copyToClipboard, readFromClipboard } = useClipboard();
 
@@ -194,6 +205,26 @@ export const WorkspaceTerminal = ({
 		}
 	}, []);
 
+	// A new font size re-measures the terminal in place (the session keeps running).
+	useEffect(() => {
+		if (!terminal || terminal.options.fontSize === fontSize) {
+			return;
+		}
+		terminal.options.fontSize = fontSize;
+		refit();
+	}, [terminal, fontSize, refit]);
+
+	useEffect(() => {
+		if (!terminal) {
+			return;
+		}
+		handleResize(terminal.cols, terminal.rows);
+		const subscription = terminal.onResize(({ cols, rows }) =>
+			handleResize(cols, rows),
+		);
+		return () => subscription.dispose();
+	}, [terminal]);
+
 	useImperativeHandle(
 		ref,
 		() => ({
@@ -224,7 +255,7 @@ export const WorkspaceTerminal = ({
 			customGlyphs: false,
 			disableStdin: false,
 			fontFamily: terminalFontFamily,
-			fontSize: 16,
+			fontSize: currentFontSize(),
 			...(backgroundColor ? { theme: { background: backgroundColor } } : {}),
 		});
 

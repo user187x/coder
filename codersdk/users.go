@@ -173,6 +173,7 @@ type TerminalFontName string
 var TerminalFontNames = []TerminalFontName{
 	TerminalFontUnknown, TerminalFontGeistMono, TerminalFontIBMPlexMono,
 	TerminalFontFiraCode, TerminalFontSourceCodePro, TerminalFontJetBrainsMono,
+	TerminalFontJetBrainsMonoNerd,
 }
 
 const (
@@ -182,6 +183,9 @@ const (
 	TerminalFontFiraCode      TerminalFontName = "fira-code"
 	TerminalFontSourceCodePro TerminalFontName = "source-code-pro"
 	TerminalFontJetBrainsMono TerminalFontName = "jetbrains-mono"
+	// TerminalFontJetBrainsMonoNerd is JetBrains Mono with the Nerd Font glyphs
+	// (powerline, devicons, ...), bundled with the dashboard; the default.
+	TerminalFontJetBrainsMonoNerd TerminalFontName = "jetbrains-mono-nerd"
 )
 
 type ThemeMode string

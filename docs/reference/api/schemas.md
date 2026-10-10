@@ -15861,7 +15861,7 @@ Restarts will only happen on weekdays in this list on weeks which line up with W
 
 | Value(s)                                                                            |
 |-------------------------------------------------------------------------------------|
-| ``, `fira-code`, `geist-mono`, `ibm-plex-mono`, `jetbrains-mono`, `source-code-pro` |
+| ``, `fira-code`, `geist-mono`, `ibm-plex-mono`, `jetbrains-mono`, `jetbrains-mono-nerd`, `source-code-pro` |
 
 ## codersdk.ThemeMode
 

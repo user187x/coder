@@ -1,0 +1,14 @@
+/*
+ * JetBrains Mono Nerd Font (Light), the default terminal font: JetBrains Mono
+ * (https://github.com/JetBrains/JetBrainsMono) patched by Nerd Fonts 3.5.1
+ * (https://github.com/ryanoasis/nerd-fonts) with powerline, devicon and other
+ * glyphs. SIL Open Font License 1.1: jetbrains-mono-nerd-LICENSE.txt.
+ * One weight is bundled; it serves every weight (bold is synthesized).
+ */
+@font-face {
+	font-family: "JetBrainsMono Nerd Font";
+	font-style: normal;
+	font-display: swap;
+	font-weight: 100 900;
+	src: url("./jetbrains-mono-nerd-light.woff2?no-inline") format("woff2");
+}

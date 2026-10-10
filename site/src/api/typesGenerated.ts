@@ -10305,6 +10305,7 @@ export type TerminalFontName =
 	| "geist-mono"
 	| "ibm-plex-mono"
 	| "jetbrains-mono"
+	| "jetbrains-mono-nerd"
 	| "source-code-pro"
 	| "";
 
@@ -10313,6 +10314,7 @@ export const TerminalFontNames: TerminalFontName[] = [
 	"geist-mono",
 	"ibm-plex-mono",
 	"jetbrains-mono",
+	"jetbrains-mono-nerd",
 	"source-code-pro",
 	"",
 ];

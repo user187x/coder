@@ -87,6 +87,54 @@ export const writeEndOnClose = (on: boolean) => {
 	}
 };
 
+const FONT_SIZE_KEY = "coder-ui-terminal-font-size";
+export const MIN_TERMINAL_FONT_SIZE = 8;
+export const MAX_TERMINAL_FONT_SIZE = 24;
+/** The smallest terminal full-screen tools like btop accept. */
+export const MIN_TERMINAL_COLS = 80;
+export const MIN_TERMINAL_ROWS = 24;
+
+const clampFontSize = (size: number) =>
+	Math.min(
+		MAX_TERMINAL_FONT_SIZE,
+		Math.max(MIN_TERMINAL_FONT_SIZE, Math.round(size)),
+	);
+
+/** The text size the user chose for this terminal, or undefined (then it is sized to fit 80x24). */
+export const readFontSize = (): number | undefined => {
+	try {
+		const stored = Number(localStorage.getItem(FONT_SIZE_KEY));
+		return stored > 0 ? clampFontSize(stored) : undefined;
+	} catch {
+		return undefined;
+	}
+};
+
+export const writeFontSize = (size: number) => {
+	try {
+		localStorage.setItem(FONT_SIZE_KEY, String(clampFontSize(size)));
+	} catch {
+		// Not remembered.
+	}
+};
+
+/**
+ * A starting text size for a terminal box of this size (px) that shows at least
+ * 80x24 characters, from the monospace cell's usual proportions (0.6em wide,
+ * about 1.25em tall); the terminal then shrinks it further if it still falls short.
+ */
+export const fittingFontSize = (width: number, height: number): number => {
+	if (width <= 0 || height <= 0) {
+		return 13;
+	}
+	const byWidth = width / MIN_TERMINAL_COLS / 0.6;
+	const byHeight = height / MIN_TERMINAL_ROWS / 1.25;
+	return clampFontSize(Math.min(14, Math.floor(Math.min(byWidth, byHeight))));
+};
+
+export const stepFontSize = (size: number, by: number) =>
+	clampFontSize(size + by);
+
 // Run with the user's login shell -c: one `exec`, the rest single-quoted for
 // /bin/sh, with no backslashes or single quotes inside (fish treats those
 // differently).

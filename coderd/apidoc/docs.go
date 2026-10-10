@@ -30788,7 +30788,8 @@ const docTemplate = `{
                 "ibm-plex-mono",
                 "fira-code",
                 "source-code-pro",
-                "jetbrains-mono"
+                "jetbrains-mono",
+                "jetbrains-mono-nerd"
             ],
             "x-enum-varnames": [
                 "TerminalFontUnknown",
@@ -30796,7 +30797,8 @@ const docTemplate = `{
                 "TerminalFontIBMPlexMono",
                 "TerminalFontFiraCode",
                 "TerminalFontSourceCodePro",
-                "TerminalFontJetBrainsMono"
+                "TerminalFontJetBrainsMono",
+                "TerminalFontJetBrainsMonoNerd"
             ]
         },
         "codersdk.ThemeMode": {
