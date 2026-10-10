@@ -7,6 +7,7 @@ import { AnnouncementBanners } from "#/modules/dashboard/AnnouncementBanners/Ann
 import { LicenseBanner } from "#/modules/dashboard/LicenseBanner/LicenseBanner";
 import { AnnouncementBanner } from "#/modules/platform/announcement/AnnouncementBanner";
 import { DashboardAddons } from "#/modules/platform/DashboardAddons";
+import { WorkspaceScheduleGate } from "#/modules/platform/scheduler/WorkspaceScheduleGate";
 import { DeploymentBanner } from "./DeploymentBanner/DeploymentBanner";
 import { Navbar } from "./Navbar/Navbar";
 import { UpdateCheckNotice } from "./UpdateCheckNotice/UpdateCheckNotice";
@@ -21,6 +22,7 @@ export const DashboardLayout: React.FC = () => {
 		<>
 			{canViewDeployment && <LicenseBanner />}
 			<AnnouncementBanners />
+			<WorkspaceScheduleGate />
 
 			<div className="flex flex-col min-h-screen justify-between">
 				{/* biome-ignore lint/a11y/useValidAnchor: Skip links use fragment anchors by design. */}

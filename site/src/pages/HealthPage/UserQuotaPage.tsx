@@ -31,6 +31,7 @@ import {
 import { TableEmpty } from "#/components/TableEmpty/TableEmpty";
 import { pageTitle } from "#/utils/page";
 import { Header, HeaderTitle, Main } from "./Content";
+import { WorkspaceSchedulerSection } from "./WorkspaceSchedulerSection";
 
 const KEYS: readonly QuotaKey[] = ["workspaces", "cpu", "memory"];
 
@@ -339,6 +340,9 @@ const UserQuotaPage: React.FC = () => {
 						</div>
 					</>
 				)}
+				<div className="border-0 border-t border-solid border-border pt-6">
+					<WorkspaceSchedulerSection />
+				</div>
 			</Main>
 		</>
 	);

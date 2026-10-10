@@ -379,6 +379,53 @@ type KeycloakStatus = {
 	reason: string | null;
 };
 
+// ---------------------------------------------------- global workspace scheduler
+
+/** "user": each user sets their workspaces' start and stop times; "fixed": the admin's schedule applies to all. */
+export type SchedulerMode = "user" | "fixed";
+
+export type SchedulerSettings = {
+	enabled: boolean;
+	mode: SchedulerMode;
+	/** The schedule for everyone (mode "fixed"): HH:MM, cron weekdays (0 = Sunday), an IANA time zone. */
+	fixed: { start: string; stop: string; days: number[]; timezone: string };
+	/** How long a workspace may stay up after it starts; null = no limit. */
+	maxActiveHours: number | null;
+	ignoreAdmins: boolean;
+	excludedUsers: string[];
+};
+
+/** A workspace's schedule as Coder stores it. */
+export type CoderSchedule = { autostart_schedule: string; ttl_ms: number };
+
+export type ScheduledWorkspace = {
+	id: string;
+	name: string;
+	owner: string;
+	autostart_schedule: string | null;
+	ttl_ms: number | null;
+};
+
+export type SchedulerReport = {
+	settings: SchedulerSettings;
+	workspaces: number;
+	exempt: number;
+	noncompliant: (ScheduledWorkspace & { problem: string })[];
+	users: string[];
+	fixedSchedule?: CoderSchedule;
+	generatedAt: string;
+};
+
+/** The rules for the signed-in user, and their workspaces against them. */
+export type SchedulerMe = {
+	enforced: boolean;
+	reason: string;
+	mode: SchedulerMode;
+	maxActiveHours: number | null;
+	fixed?: SchedulerSettings["fixed"] & CoderSchedule;
+	workspaces: (ScheduledWorkspace & { compliant: boolean; problem: string })[];
+};
+
 // ---------------------------------------------------------------- user quota
 
 export type QuotaKey = "workspaces" | "cpu" | "memory";
@@ -875,6 +922,14 @@ export const PlatformAPI = {
 		get<KeycloakStatus>(`${PLATFORM_BASE}/api/keycloak/status`),
 
 	getQuotaReport: () => get<QuotaReport>(`${PLATFORM_BASE}/api/quota`),
+	getSchedulerReport: () =>
+		get<SchedulerReport>(`${PLATFORM_BASE}/api/scheduler`),
+	updateScheduler: (settings: SchedulerSettings) =>
+		post<{ ok: true; settings: SchedulerSettings }>(
+			`${PLATFORM_BASE}/api/scheduler`,
+			settings,
+		),
+	getSchedulerMe: () => get<SchedulerMe>(`${PLATFORM_BASE}/api/scheduler/me`),
 	updateQuota: (settings: QuotaSettings) =>
 		post<{ ok: true; settings: QuotaSettings }>(
 			`${PLATFORM_BASE}/api/quota`,

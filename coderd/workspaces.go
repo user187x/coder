@@ -637,6 +637,17 @@ func createWorkspace(
 		return codersdk.Workspace{}, err
 	}
 
+	// The platform's Global Workspace Scheduler: a start and stop time are
+	// required, or the administrator's schedule is applied.
+	scheduleAnswer, err := api.checkPlatformSchedule(ctx, opts.sessionToken, owner.Username, platformScheduleCreate, req.AutostartSchedule, req.TTLMillis)
+	if err != nil {
+		return codersdk.Workspace{}, err
+	}
+	if scheduleAnswer != nil && scheduleAnswer.Apply != nil {
+		req.AutostartSchedule = &scheduleAnswer.Apply.AutostartSchedule
+		req.TTLMillis = &scheduleAnswer.Apply.TTLMillis
+	}
+
 	dbAutostartSchedule, err := validWorkspaceSchedule(req.AutostartSchedule)
 	if err != nil {
 		return codersdk.Workspace{}, httperror.NewResponseError(http.StatusBadRequest, codersdk.Response{
@@ -1326,6 +1337,14 @@ func (api *API) putWorkspaceAutostart(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The platform's Global Workspace Scheduler: the start time may not be
+	// removed (or, when the administrator sets it, changed).
+	ttl := convertWorkspaceTTLMillis(workspace.Ttl)
+	if _, err := api.checkPlatformSchedule(ctx, httpmw.APITokenFromRequest(r), workspace.OwnerUsername, platformScheduleAutostart, req.Schedule, ttl); err != nil {
+		httperror.WriteResponseError(ctx, rw, err)
+		return
+	}
+
 	dbSched, err := validWorkspaceSchedule(req.Schedule)
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
@@ -1426,6 +1445,17 @@ func (api *API) putWorkspaceTTL(rw http.ResponseWriter, r *http.Request) {
 			Message: "TTL updates are not supported for prebuilt workspaces",
 			Detail:  "Prebuilt workspace TTL is configured per preset at the template level. Workspace-level overrides are not supported.",
 		})
+		return
+	}
+
+	// The platform's Global Workspace Scheduler: the stop time may not be
+	// removed or exceed the maximum (or, when the administrator sets it, change).
+	var autostart *string
+	if workspace.AutostartSchedule.Valid {
+		autostart = &workspace.AutostartSchedule.String
+	}
+	if _, err := api.checkPlatformSchedule(ctx, httpmw.APITokenFromRequest(r), workspace.OwnerUsername, platformScheduleTTL, autostart, req.TTLMillis); err != nil {
+		httperror.WriteResponseError(ctx, rw, err)
 		return
 	}
 

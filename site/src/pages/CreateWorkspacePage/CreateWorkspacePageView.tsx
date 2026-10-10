@@ -78,6 +78,10 @@ type CreateWorkspacePageViewProps = {
 	startPollingExternalAuth: (providerId: string) => void;
 	owner: TypesGen.MinimalUser;
 	setOwner: (user: TypesGen.MinimalUser) => void;
+	/** Shown above the submit button (the Global Workspace Scheduler's schedule fields). */
+	scheduleSection?: React.ReactNode;
+	/** The schedule is not valid yet: the workspace cannot be created. */
+	scheduleBlocked?: boolean;
 };
 
 export const CreateWorkspacePageView: React.FC<
@@ -111,6 +115,8 @@ export const CreateWorkspacePageView: React.FC<
 	startPollingExternalAuth,
 	owner,
 	setOwner,
+	scheduleSection,
+	scheduleBlocked,
 }) => {
 	const [suggestedName, setSuggestedName] = useState(generateWorkspaceName);
 	const [showPresetParameters, setShowPresetParameters] = useState(false);
@@ -792,8 +798,10 @@ export const CreateWorkspacePageView: React.FC<
 						</section>
 					)}
 
+					{scheduleSection}
+
 					<div className="flex flex-row justify-end">
-						<Button type="submit" disabled={disabled}>
+						<Button type="submit" disabled={disabled || scheduleBlocked}>
 							<Spinner loading={creatingWorkspace} />
 							Create workspace
 						</Button>

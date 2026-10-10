@@ -12,6 +12,7 @@ import {
 	type PersistenceSettings,
 	PlatformAPI,
 	type QuotaSettings,
+	type SchedulerSettings,
 } from "#/api/platform";
 
 const platformKey = ["platform"] as const;
@@ -31,6 +32,8 @@ export const persistenceReportKey = [...platformKey, "persistence"] as const;
 export const templateIconsKey = [...platformKey, "icons"] as const;
 const keycloakStatusKey = [...platformKey, "keycloak", "status"] as const;
 const quotaReportKey = [...platformKey, "quota"] as const;
+const schedulerReportKey = [...platformKey, "scheduler"] as const;
+export const schedulerMeKey = [...platformKey, "scheduler", "me"] as const;
 const certificatesKey = [...platformKey, "certificates"] as const;
 const chatAdminsKey = [...platformKey, "chat", "admins"] as const;
 export const bannerKey = ["banner"] as const;
@@ -351,6 +354,29 @@ export const updateQuota = (queryClient: QueryClient) => ({
 	onSuccess: async () => {
 		await queryClient.invalidateQueries({ queryKey: quotaReportKey });
 	},
+});
+
+export const schedulerReport = () => ({
+	queryKey: schedulerReportKey,
+	queryFn: PlatformAPI.getSchedulerReport,
+	refetchInterval: QUOTA_REFRESH_MS,
+});
+
+export const updateScheduler = (queryClient: QueryClient) => ({
+	mutationFn: (settings: SchedulerSettings) =>
+		PlatformAPI.updateScheduler(settings),
+	onSuccess: async () => {
+		await queryClient.invalidateQueries({ queryKey: schedulerReportKey });
+		await queryClient.invalidateQueries({ queryKey: schedulerMeKey });
+	},
+});
+
+/** The scheduler's rules for the signed-in user and their workspaces (the dashboard's gate). */
+export const schedulerMe = () => ({
+	queryKey: schedulerMeKey,
+	queryFn: PlatformAPI.getSchedulerMe,
+	refetchInterval: 60_000,
+	retry: false,
 });
 
 /** The probes take several seconds; the service caches the result for 10 minutes. */

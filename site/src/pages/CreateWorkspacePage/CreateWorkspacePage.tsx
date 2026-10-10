@@ -29,6 +29,7 @@ import { Margins } from "#/components/Margins/Margins";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { useExternalAuth } from "#/hooks/useExternalAuth";
 import { RequirePermission } from "#/modules/permissions/RequirePermission";
+import { useCreateWorkspaceSchedule } from "#/modules/platform/scheduler/useCreateWorkspaceSchedule";
 import { generateWorkspaceName } from "#/modules/workspaces/generateWorkspaceName";
 import { pageTitle } from "#/utils/page";
 import type { AutofillBuildParameter } from "#/utils/richParameters";
@@ -77,6 +78,8 @@ const CreateWorkspacePage: React.FC = () => {
 		autoCreateWorkspace(queryClient),
 	);
 	const createWorkspaceMutation = useMutation(createWorkspace(queryClient));
+	// The Global Workspace Scheduler's start and stop times, where required.
+	const schedule = useCreateWorkspaceSchedule();
 
 	const templateQuery = useQuery(
 		templateByName(organizationName, templateName),
@@ -474,8 +477,10 @@ const CreateWorkspacePage: React.FC = () => {
 						onCancel={() => {
 							navigate(-1);
 						}}
+						scheduleSection={schedule.section}
+						scheduleBlocked={schedule.blocked}
 						onSubmit={async (request, owner) => {
-							let workspaceRequest = request;
+							let workspaceRequest = schedule.withSchedule(request);
 							if (realizedVersionId) {
 								workspaceRequest = {
 									...request,
