@@ -1,4 +1,5 @@
 import { cn } from "cn";
+import { GaugeIcon } from "lucide-react";
 import { NavLink } from "react-router";
 import { API } from "#/api/api";
 import type * as TypesGen from "#/api/typesGenerated";
@@ -119,6 +120,17 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 				{proxyContextValue && (
 					<div className="hidden md:block">
 						<ProxyMenu proxyContextValue={proxyContextValue} />
+					</div>
+				)}
+
+				{adminPermissions.canViewDeployment && (
+					<div className="hidden md:block">
+						<Button asChild variant="outline" size="lg">
+							<NavLink to="/hud" title="HUD: the platform at a glance">
+								<GaugeIcon aria-hidden />
+								HUD
+							</NavLink>
+						</Button>
 					</div>
 				)}
 

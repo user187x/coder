@@ -1,0 +1,15 @@
+/* One faint tint on a HUD tile whose figure just changed, fading out (none when motion is reduced). */
+@media (prefers-reduced-motion: no-preference) {
+	.hud-flash {
+		animation: hud-flash 1.6s ease-out;
+	}
+}
+
+@keyframes hud-flash {
+	from {
+		background-color: hsl(var(--surface-secondary));
+	}
+	to {
+		background-color: hsl(var(--surface-primary));
+	}
+}

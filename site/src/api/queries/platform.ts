@@ -356,6 +356,16 @@ export const updateQuota = (queryClient: QueryClient) => ({
 	},
 });
 
+export const HUD_REFRESH_MS = 10_000;
+
+/** The HUD's figures, refreshed while the page is open. */
+export const hud = () => ({
+	queryKey: [...platformKey, "hud"] as const,
+	queryFn: PlatformAPI.getHud,
+	refetchInterval: HUD_REFRESH_MS,
+	refetchIntervalInBackground: false,
+});
+
 /** General > Monitoring's zero-trust checks; the service caches them for 30 seconds. */
 export const monitoringPosture = () => ({
 	queryKey: [...platformKey, "monitoring", "posture"] as const,

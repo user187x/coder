@@ -379,6 +379,28 @@ type KeycloakStatus = {
 	reason: string | null;
 };
 
+// ----------------------------------------------------------------------- HUD
+
+export type HudGroup = "totals" | "leaders" | "health";
+
+/** One HUD figure: a number (or null when unknown), its unit, and who / what it is about. */
+export type HudMetric = {
+	id: string;
+	label: string;
+	group: HudGroup;
+	value: number | null;
+	unit: string;
+	detail: string;
+	hint: string;
+};
+
+export type HudReport = {
+	metrics: HudMetric[];
+	generatedAt: string;
+	/** Live usage (metrics-server) is available. */
+	live: boolean;
+};
+
 // ---------------------------------------------------------- security posture
 
 export type PostureSeverity =
@@ -960,6 +982,7 @@ export const PlatformAPI = {
 			settings,
 		),
 	getSchedulerMe: () => get<SchedulerMe>(`${PLATFORM_BASE}/api/scheduler/me`),
+	getHud: () => get<HudReport>(`${PLATFORM_BASE}/api/hud`),
 	getMonitoringPosture: () =>
 		get<MonitoringPosture>(`${PLATFORM_BASE}/api/monitoring/posture`),
 	updateQuota: (settings: QuotaSettings) =>

@@ -209,6 +209,7 @@ const WorkspaceHealthPage = lazy(
 	() => import("./pages/HealthPage/WorkspaceHealthPage"),
 );
 const UserQuotaPage = lazy(() => import("./pages/HealthPage/UserQuotaPage"));
+const HudPage = lazy(() => import("./pages/HudPage/HudPage"));
 const CertificatesPage = lazy(
 	() => import("./pages/UserSettingsPage/CertificatesPage/CertificatesPage"),
 );
@@ -607,6 +608,7 @@ export const router = createBrowserRouter(
 					/>
 
 					<Route path="/workspaces" element={<WorkspacesPage />} />
+					<Route path="/hud" element={<HudPage />} />
 
 					<Route path="/starter-templates">
 						<Route index element={<CreateTemplateGalleryPage />} />
