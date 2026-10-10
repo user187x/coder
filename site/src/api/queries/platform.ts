@@ -356,6 +356,13 @@ export const updateQuota = (queryClient: QueryClient) => ({
 	},
 });
 
+/** General > Monitoring's zero-trust checks; the service caches them for 30 seconds. */
+export const monitoringPosture = () => ({
+	queryKey: [...platformKey, "monitoring", "posture"] as const,
+	queryFn: PlatformAPI.getMonitoringPosture,
+	refetchInterval: 60_000,
+});
+
 export const schedulerReport = () => ({
 	queryKey: schedulerReportKey,
 	queryFn: PlatformAPI.getSchedulerReport,

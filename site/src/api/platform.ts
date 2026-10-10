@@ -379,6 +379,36 @@ type KeycloakStatus = {
 	reason: string | null;
 };
 
+// ---------------------------------------------------------- security posture
+
+export type PostureSeverity =
+	| "critical"
+	| "warning"
+	| "info"
+	| "ok"
+	| "unknown";
+
+/** One zero-trust check or runtime signal (General > Monitoring). */
+export type PostureCheck = {
+	id: string;
+	category: "Identity" | "Exposure" | "Runtime" | "Signals";
+	title: string;
+	severity: PostureSeverity;
+	summary: string;
+	items: { label: string; note: string }[];
+	count: number;
+	fix: string;
+};
+
+export type MonitoringPosture = {
+	checks: PostureCheck[];
+	summary: Record<PostureSeverity, number>;
+	workspaces: number;
+	pods: number;
+	users: number;
+	generatedAt: string;
+};
+
 // ---------------------------------------------------- global workspace scheduler
 
 /** "user": each user sets their workspaces' start and stop times; "fixed": the admin's schedule applies to all. */
@@ -930,6 +960,8 @@ export const PlatformAPI = {
 			settings,
 		),
 	getSchedulerMe: () => get<SchedulerMe>(`${PLATFORM_BASE}/api/scheduler/me`),
+	getMonitoringPosture: () =>
+		get<MonitoringPosture>(`${PLATFORM_BASE}/api/monitoring/posture`),
 	updateQuota: (settings: QuotaSettings) =>
 		post<{ ok: true; settings: QuotaSettings }>(
 			`${PLATFORM_BASE}/api/quota`,

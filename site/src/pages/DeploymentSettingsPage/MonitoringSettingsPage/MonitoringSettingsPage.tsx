@@ -31,6 +31,7 @@ import {
 	TableRow,
 } from "#/components/Table/Table";
 import { pageTitle } from "#/utils/page";
+import { SecurityPostureSection } from "./SecurityPostureSection";
 import { MAX_SHOWN_LINES, useWorkspaceLogs } from "./useWorkspaceLogs";
 
 const formatSize = (b: number) =>
@@ -56,7 +57,8 @@ const startedAgo = (iso: string | null) => {
 };
 
 /**
- * General > Monitoring: every user, their running workspaces, and a live log
+ * General > Monitoring: the platform's security posture (zero-trust checks and
+ * runtime signals), then every user, their running workspaces, and a live log
  * for any of them (the workspace pod's log, kept by the platform service, the
  * newest 5 MB per workspace).
  */
@@ -71,10 +73,13 @@ const MonitoringSettingsPage: React.FC = () => {
 			<SettingsHeader>
 				<SettingsHeaderTitle>Monitoring</SettingsHeaderTitle>
 				<SettingsHeaderDescription>
-					Every user and their running workspaces. Open one to follow its logs
-					live.
+					Zero-trust checks and runtime signals that help protect the platform,
+					then every user and their running workspaces: open one to follow its
+					logs live.
 				</SettingsHeaderDescription>
 			</SettingsHeader>
+
+			<SecurityPostureSection />
 
 			<div className="mb-4 flex flex-wrap items-center gap-4">
 				<SearchField
