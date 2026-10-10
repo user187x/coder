@@ -45,8 +45,8 @@ const itemStyles = {
 type MobileMenuProps = {
 	proxyContextValue?: ProxyContextValue;
 	adminPermissions: AdminSettingsPermissions;
-	adminQuickLinks?: readonly (AdminPage | undefined)[];
-	onCustomizeAdminQuickLinks?: () => void;
+	/** The admin's quick links, shown read-only (they are edited in the desktop Admin menu). */
+	adminQuickLinks?: readonly AdminPage[];
 	user?: TypesGen.User;
 	supportLinks?: readonly TypesGen.LinkConfig[];
 	onSignOut: () => void;
@@ -56,7 +56,6 @@ type MobileMenuProps = {
 export const MobileMenu: React.FC<MobileMenuProps> = ({
 	adminPermissions,
 	adminQuickLinks,
-	onCustomizeAdminQuickLinks,
 	proxyContextValue,
 	user,
 	supportLinks,
@@ -98,7 +97,6 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
 						<AdminSettingsSub
 							permissions={adminPermissions}
 							quickLinks={adminQuickLinks}
-							onCustomizeQuickLinks={onCustomizeAdminQuickLinks}
 						/>
 					</>
 				)}
@@ -217,14 +215,12 @@ const ProxySettingsSub: React.FC<ProxySettingsSubProps> = ({
 
 type AdminSettingsSubProps = {
 	permissions: AdminSettingsPermissions;
-	quickLinks?: readonly (AdminPage | undefined)[];
-	onCustomizeQuickLinks?: () => void;
+	quickLinks?: readonly AdminPage[];
 };
 
 const AdminSettingsSub: React.FC<AdminSettingsSubProps> = ({
 	permissions,
 	quickLinks,
-	onCustomizeQuickLinks,
 }) => {
 	const [open, setOpen] = useState(false);
 
@@ -249,7 +245,6 @@ const AdminSettingsSub: React.FC<AdminSettingsSubProps> = ({
 					itemClassName={cn(itemStyles.default, itemStyles.sub)}
 					permissions={permissions}
 					quickLinks={quickLinks}
-					onCustomizeQuickLinks={onCustomizeQuickLinks}
 				/>
 			</CollapsibleContent>
 		</Collapsible>

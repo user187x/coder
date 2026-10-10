@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { expect, userEvent, within } from "storybook/test";
+import { expect, fn, userEvent, within } from "storybook/test";
 import { reactRouterParameters } from "storybook-addon-remix-react-router";
 import { AuthProvider } from "#/contexts/auth/AuthProvider";
 import { DashboardContext } from "#/modules/dashboard/DashboardProvider";
@@ -81,34 +81,99 @@ export const ForAdmin: Story = {
 	},
 };
 
-export const ForAdminWithCustomQuickLinks: Story = {
+export const ForAdminWithoutQuickLinks: Story = {
+	parameters: { pixel: { matrix: pixelWithDesktop } },
+	args: {
+		adminQuickLinks: { pages: adminPages, links: [], onChange: fn() },
+	},
+	play: async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		await userEvent.click(canvas.getByRole("button", { name: "Admin" }));
+		const body = within(canvasElement.ownerDocument.body);
+		await expect(
+			await body.findByRole("menuitem", { name: "Add a quick link" }),
+		).toBeInTheDocument();
+		expect(body.queryByTestId("admin-quick-link")).toBeNull();
+	},
+};
+
+export const ForAdminWithQuickLinks: Story = {
 	parameters: { pixel: { matrix: pixelWithDesktop } },
 	args: {
 		adminQuickLinks: {
 			pages: adminPages,
-			links: resolveAdminQuickLinks(["network", "health-database"], adminPages),
-			isSaving: false,
-			error: undefined,
-			onSave: () => {},
+			links: resolveAdminQuickLinks(
+				["announcement", "health", "monitoring"],
+				adminPages,
+			),
+			onChange: fn(),
 		},
 	},
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
 		await userEvent.click(canvas.getByRole("button", { name: "Admin" }));
+		const body = within(canvasElement.ownerDocument.body);
+		await expect(await body.findAllByTestId("admin-quick-link")).toHaveLength(
+			3,
+		);
 	},
 };
 
-export const CustomizingQuickLinks: Story = {
+export const RemovingQuickLink: Story = {
 	parameters: { pixel: { matrix: pixelWithDesktop } },
-	args: ForAdminWithCustomQuickLinks.args,
-	play: async ({ canvasElement }) => {
+	args: ForAdminWithQuickLinks.args,
+	play: async ({ canvasElement, args }) => {
 		const canvas = within(canvasElement);
 		await userEvent.click(canvas.getByRole("button", { name: "Admin" }));
-		const [edit] = await within(canvasElement.ownerDocument.body).findAllByRole(
-			"menuitem",
-			{ name: "Customize this link" },
+		const body = within(canvasElement.ownerDocument.body);
+		await userEvent.click(
+			await body.findByRole("menuitem", {
+				name: "Remove Health from the quick links",
+			}),
 		);
-		await userEvent.click(edit);
+		await expect(args.adminQuickLinks?.onChange).toHaveBeenCalledWith([
+			"announcement",
+			"monitoring",
+		]);
+	},
+};
+
+export const AddingQuickLink: Story = {
+	parameters: { pixel: { matrix: pixelWithDesktop } },
+	args: ForAdminWithQuickLinks.args,
+	play: async ({ canvasElement, args }) => {
+		const canvas = within(canvasElement);
+		await userEvent.click(canvas.getByRole("button", { name: "Admin" }));
+		const body = within(canvasElement.ownerDocument.body);
+		await userEvent.click(
+			await body.findByRole("menuitem", { name: "Add a quick link" }),
+		);
+		await userEvent.click(
+			await body.findByRole("menuitem", { name: "Security" }),
+		);
+		await expect(args.adminQuickLinks?.onChange).toHaveBeenCalledWith([
+			"announcement",
+			"health",
+			"monitoring",
+			"security",
+		]);
+	},
+};
+
+export const ReorderingQuickLinkWithKeyboard: Story = {
+	parameters: { pixel: { matrix: pixelWithDesktop } },
+	args: ForAdminWithQuickLinks.args,
+	play: async ({ canvasElement, args }) => {
+		const canvas = within(canvasElement);
+		await userEvent.click(canvas.getByRole("button", { name: "Admin" }));
+		const body = within(canvasElement.ownerDocument.body);
+		(await body.findByRole("menuitem", { name: "Reorder Monitoring" })).focus();
+		await userEvent.keyboard("{Enter}{ArrowUp}");
+		await expect(args.adminQuickLinks?.onChange).toHaveBeenCalledWith([
+			"announcement",
+			"monitoring",
+			"health",
+		]);
 	},
 };
 

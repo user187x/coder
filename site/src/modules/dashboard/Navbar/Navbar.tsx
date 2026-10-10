@@ -1,11 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "react-query";
+import { toast } from "sonner";
+import { getErrorMessage } from "#/api/errors";
 import { aiSpendOrganizations } from "#/api/queries/aiBridge";
 import { buildInfo } from "#/api/queries/buildInfo";
 import {
 	preferenceSettings,
+	preferenceSettingsKey,
 	updatePreferenceSettings,
 } from "#/api/queries/users";
-import type { LinkConfig } from "#/api/typesGenerated";
+import type { LinkConfig, UserPreferenceSettings } from "#/api/typesGenerated";
 import { useProxy } from "#/contexts/ProxyContext";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { useEmbeddedMetadata } from "#/hooks/useEmbeddedMetadata";
@@ -18,11 +21,7 @@ import { isOfferedSupportLink } from "#/modules/platform/supportLinks";
 import { useCanShareOrganizationMCPServers } from "#/pages/AISettingsPage/MCPServersPage/organizationSharing";
 import { canViewAISpend } from "#/pages/AISettingsPage/SpendPage/spendAccess";
 import { useFeatureVisibility } from "../useFeatureVisibility";
-import {
-	adminPagesFor,
-	adminQuickLinksToSave,
-	resolveAdminQuickLinks,
-} from "./adminQuickLinks";
+import { adminPagesFor, resolveAdminQuickLinks } from "./adminQuickLinks";
 import { NavbarView } from "./NavbarView";
 
 export const Navbar: React.FC = () => {
@@ -111,13 +110,27 @@ export const Navbar: React.FC = () => {
 					preferencesQuery.data?.admin_quick_links ?? [],
 					adminPages,
 				),
-				isSaving: savePreferences.isPending,
-				error: savePreferences.error,
-				onSave: (ids, onSaved) =>
+				// The menu changes at once; the save follows, and a failed one puts
+				// back what the server has.
+				onChange: (ids) => {
+					queryClient.setQueryData<UserPreferenceSettings>(
+						preferenceSettingsKey,
+						(old) => (old ? { ...old, admin_quick_links: ids } : old),
+					);
 					savePreferences.mutate(
-						{ admin_quick_links: adminQuickLinksToSave(ids) },
-						{ onSuccess: onSaved },
-					),
+						{ admin_quick_links: ids },
+						{
+							onError: (error) => {
+								void queryClient.invalidateQueries({
+									queryKey: preferenceSettingsKey,
+								});
+								toast.error(
+									getErrorMessage(error, "Could not save your quick links."),
+								);
+							},
+						},
+					);
+				},
 			}}
 			proxyContextValue={proxyContextValue}
 		/>

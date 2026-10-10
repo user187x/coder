@@ -1,5 +1,4 @@
 import { cn } from "cn";
-import { useState } from "react";
 import { NavLink } from "react-router";
 import { API } from "#/api/api";
 import type * as TypesGen from "#/api/typesGenerated";
@@ -11,13 +10,12 @@ import { NotificationsInbox } from "#/modules/notifications/NotificationsInbox/N
 import { AnnouncementBanner } from "#/modules/platform/announcement/AnnouncementBanner";
 import { ChatInboxIndicator } from "#/modules/platform/chat/ChatInboxIndicator";
 import { getPrereleaseFlag } from "#/utils/buildInfo";
-import { AdminQuickLinksDialog } from "./AdminQuickLinksDialog";
 import {
 	type AdminQuickLinks,
 	type AdminSettingsPermissions,
 	canViewAdminSettings,
 } from "./AdminSettings";
-import { ADMIN_QUICK_LINK_SLOTS } from "./adminQuickLinks";
+import { addableAdminPages } from "./adminQuickLinks";
 import { AdminSettingsDropdown } from "./DeploymentDropdown";
 import { MobileMenu } from "./MobileMenu";
 import { ProxyMenu } from "./ProxyMenu";
@@ -31,7 +29,7 @@ type NavbarViewProps = {
 	supportLinks: readonly TypesGen.LinkConfig[];
 	onSignOut: () => void;
 	adminPermissions: AdminSettingsPermissions;
-	/** The admin's quick links; without it the Admin menu shows Accounts and Health. */
+	/** The admin's quick links; without it the Admin menu has none (and no add row). */
 	adminQuickLinks?: AdminQuickLinks;
 	proxyContextValue?: ProxyContextValue;
 };
@@ -46,11 +44,16 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 	proxyContextValue,
 }) => {
 	const prerelease = getPrereleaseFlag(buildInfo);
-	const [customizingQuickLinks, setCustomizingQuickLinks] = useState(false);
-	// There is something to choose only with more pages than one.
-	const onCustomizeQuickLinks =
-		adminQuickLinks && adminQuickLinks.pages.length >= ADMIN_QUICK_LINK_SLOTS
-			? () => setCustomizingQuickLinks(true)
+	// Editable where there is anything to link to.
+	const quickLinksEditor =
+		adminQuickLinks && adminQuickLinks.pages.length > 0
+			? {
+					addable: addableAdminPages(
+						adminQuickLinks.links,
+						adminQuickLinks.pages,
+					),
+					onChange: adminQuickLinks.onChange,
+				}
 			: undefined;
 
 	return (
@@ -124,7 +127,7 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 						<AdminSettingsDropdown
 							permissions={adminPermissions}
 							quickLinks={adminQuickLinks?.links}
-							onCustomizeQuickLinks={onCustomizeQuickLinks}
+							quickLinksEditor={quickLinksEditor}
 						/>
 					</div>
 				)}
@@ -156,25 +159,12 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 						proxyContextValue={proxyContextValue}
 						adminPermissions={adminPermissions}
 						adminQuickLinks={adminQuickLinks?.links}
-						onCustomizeAdminQuickLinks={onCustomizeQuickLinks}
 						user={user}
 						supportLinks={supportLinks}
 						onSignOut={onSignOut}
 					/>
 				</div>
 			</div>
-			{customizingQuickLinks && adminQuickLinks && (
-				<AdminQuickLinksDialog
-					pages={adminQuickLinks.pages}
-					current={adminQuickLinks.links}
-					isSaving={adminQuickLinks.isSaving}
-					error={adminQuickLinks.error}
-					onSave={(ids) =>
-						adminQuickLinks.onSave(ids, () => setCustomizingQuickLinks(false))
-					}
-					onClose={() => setCustomizingQuickLinks(false)}
-				/>
-			)}
 		</div>
 	);
 };

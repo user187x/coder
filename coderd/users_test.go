@@ -2768,11 +2768,15 @@ func TestAdminQuickLinksPreference(t *testing.T) {
 
 		client, _ := coderdtest.CreateAnotherUser(t, adminClient, firstUser.OrganizationID)
 
+		tooMany := make([]string, codersdk.MaxAdminQuickLinks+1)
+		for i := range tooMany {
+			tooMany[i] = fmt.Sprintf("page-%d", i)
+		}
 		for _, links := range [][]string{
 			{"Network"},
 			{"../users"},
 			{"network", "network"},
-			{"a", "b", "c", "d", "e", "f", "g", "h", "i"},
+			tooMany,
 		} {
 			ctx, cancel := context.WithTimeout(context.Background(), testutil.WaitShort)
 			_, err := client.UpdateUserPreferenceSettings(ctx, codersdk.Me, codersdk.UpdateUserPreferenceSettingsRequest{

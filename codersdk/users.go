@@ -247,7 +247,7 @@ type UserPreferenceSettings struct {
 }
 
 // MaxAdminQuickLinks is the most admin pages a user can pin to the Admin menu.
-const MaxAdminQuickLinks = 8
+const MaxAdminQuickLinks = 32
 
 type UpdateUserPreferenceSettingsRequest struct {
 	ThinkingDisplayMode    ThinkingDisplayMode   `json:"thinking_display_mode,omitempty"`

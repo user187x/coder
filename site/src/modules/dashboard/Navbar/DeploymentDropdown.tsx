@@ -6,6 +6,7 @@ import {
 	DropdownMenuTrigger,
 } from "#/components/DropdownMenu/DropdownMenu";
 import {
+	type AdminQuickLinksEditor,
 	AdminSettingsItems,
 	type AdminSettingsPermissions,
 } from "./AdminSettings";
@@ -13,14 +14,14 @@ import type { AdminPage } from "./adminQuickLinks";
 
 type AdminSettingsDropdownProps = {
 	permissions: AdminSettingsPermissions;
-	quickLinks?: readonly (AdminPage | undefined)[];
-	onCustomizeQuickLinks?: () => void;
+	quickLinks?: readonly AdminPage[];
+	quickLinksEditor?: AdminQuickLinksEditor;
 };
 
 export const AdminSettingsDropdown: React.FC<AdminSettingsDropdownProps> = ({
 	permissions,
 	quickLinks,
-	onCustomizeQuickLinks,
+	quickLinksEditor,
 }) => {
 	return (
 		<DropdownMenu>
@@ -33,13 +34,13 @@ export const AdminSettingsDropdown: React.FC<AdminSettingsDropdownProps> = ({
 
 			<DropdownMenuContent
 				align="end"
-				className="w-[180px] has-[[data-cluster-gauge]]:w-[300px]"
+				className="w-[220px] has-[[data-cluster-gauge]]:w-[300px]"
 			>
 				<nav>
 					<AdminSettingsItems
 						permissions={permissions}
 						quickLinks={quickLinks}
-						onCustomizeQuickLinks={onCustomizeQuickLinks}
+						quickLinksEditor={quickLinksEditor}
 					/>
 				</nav>
 			</DropdownMenuContent>

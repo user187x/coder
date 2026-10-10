@@ -6699,7 +6699,7 @@ export const MaxAISpendPeriodDays = 31;
 /**
  * MaxAdminQuickLinks is the most admin pages a user can pin to the Admin menu.
  */
-export const MaxAdminQuickLinks = 8;
+export const MaxAdminQuickLinks = 32;
 
 // From codersdk/chats.go
 /**

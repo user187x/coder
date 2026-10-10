@@ -1,7 +1,8 @@
+import { MaxAdminQuickLinks } from "#/api/typesGenerated";
 import { MockNoPermissions, MockPermissions } from "#/testHelpers/entities";
 import {
+	addableAdminPages,
 	adminPagesFor,
-	adminQuickLinksToSave,
 	resolveAdminQuickLinks,
 } from "./adminQuickLinks";
 
@@ -10,8 +11,7 @@ const allPages = adminPagesFor({
 	oauth2Provider: true,
 	canViewAISettings: true,
 });
-const ids = (pages: readonly ({ id: string } | undefined)[]) =>
-	pages.map((page) => page?.id);
+const ids = (pages: readonly { id: string }[]) => pages.map((page) => page.id);
 
 describe("adminPagesFor", () => {
 	it("offers only the pages the user can open", () => {
@@ -36,45 +36,71 @@ describe("adminPagesFor", () => {
 		expect(ids(without)).not.toContain("oauth2-applications");
 	});
 
+	it("lists General's categories in the order of its sidebar", () => {
+		expect(allPages.map((page) => page.label)).toEqual([
+			"Accounts",
+			"Super Intelligence",
+			"Announcement",
+			"Authentication",
+			"Classification",
+			"Customize",
+			"Health",
+			"Monitoring",
+			"Network",
+			"Notifications",
+			"OAuth2 Applications",
+			"Observability",
+			"Overview",
+			"Persistence",
+			"Security",
+		]);
+	});
+
 	it("gives every page a distinct ID", () => {
 		expect(new Set(ids(allPages)).size).toBe(allPages.length);
+	});
+
+	it("can link every category", () => {
+		expect(allPages.length).toBeLessThanOrEqual(MaxAdminQuickLinks);
 	});
 });
 
 describe("resolveAdminQuickLinks", () => {
-	it("uses Accounts and Health until the user chooses", () => {
-		expect(ids(resolveAdminQuickLinks([], allPages))).toEqual([
-			"accounts",
-			"health",
-		]);
+	it("has no quick links until the user adds some", () => {
+		expect(resolveAdminQuickLinks([], allPages)).toEqual([]);
 	});
 
-	it("uses the user's choices", () => {
+	it("keeps the user's order", () => {
 		expect(
-			ids(resolveAdminQuickLinks(["network", "notifications"], allPages)),
-		).toEqual(["network", "notifications"]);
+			ids(resolveAdminQuickLinks(["network", "health", "accounts"], allPages)),
+		).toEqual(["network", "health", "accounts"]);
 	});
 
-	it("falls back to a slot's default when its page is unknown or no longer allowed", () => {
+	it("drops pages that are unknown or no longer allowed", () => {
 		const pages = allPages.filter((page) => page.id !== "network");
 		expect(
-			ids(resolveAdminQuickLinks(["network", "removed-page"], pages)),
-		).toEqual(["accounts", "health"]);
+			ids(resolveAdminQuickLinks(["network", "removed-page", "health"], pages)),
+		).toEqual(["health"]);
 	});
 
 	it("never shows a page twice", () => {
 		expect(
-			ids(resolveAdminQuickLinks(["health", "unknown"], allPages)),
-		).toEqual(["health", undefined]);
+			ids(resolveAdminQuickLinks(["health", "health", "security"], allPages)),
+		).toEqual(["health", "security"]);
 	});
 });
 
-describe("adminQuickLinksToSave", () => {
-	it("stores nothing for the defaults, so the user follows future defaults", () => {
-		expect(adminQuickLinksToSave(["accounts", "health"])).toEqual([]);
-		expect(adminQuickLinksToSave(["health", "accounts"])).toEqual([
-			"health",
-			"accounts",
-		]);
+describe("addableAdminPages", () => {
+	it("offers every page not linked yet, in sidebar order", () => {
+		const links = resolveAdminQuickLinks(["network", "accounts"], allPages);
+		const addable = ids(addableAdminPages(links, allPages));
+		expect(addable).not.toContain("network");
+		expect(addable).not.toContain("accounts");
+		expect(addable[0]).toBe("super-intelligence");
+		expect(addable.length).toBe(allPages.length - 2);
+	});
+
+	it("offers nothing once every page is linked", () => {
+		expect(addableAdminPages(allPages, allPages)).toEqual([]);
 	});
 });
