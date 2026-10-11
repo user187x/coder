@@ -140,7 +140,7 @@ export const SelectSingleLightDefault: Story = {
 				theme_mode: "single",
 				theme_light: "light",
 				theme_dark: "dark",
-				terminal_font: "geist-mono",
+				terminal_font: "jetbrains-mono-nerd",
 			});
 		});
 		expect(
@@ -226,7 +226,7 @@ export const SelectSyncMode: Story = {
 				theme_mode: "sync",
 				theme_light: "light",
 				theme_dark: "dark",
-				terminal_font: "geist-mono",
+				terminal_font: "jetbrains-mono-nerd",
 			});
 		});
 		expect(dropdown).toHaveTextContent("Sync with system");
@@ -265,7 +265,7 @@ export const SelectSingleFromSync: Story = {
 				theme_mode: "single",
 				theme_light: "light-protan-deuter",
 				theme_dark: "dark-tritan",
-				terminal_font: "geist-mono",
+				terminal_font: "jetbrains-mono-nerd",
 			});
 		});
 		expect(dropdown).toHaveTextContent("Single theme");
@@ -340,7 +340,7 @@ export const SelectDarkThemeInLightSyncSlot: Story = {
 				theme_mode: "sync",
 				theme_light: "dark-tritan",
 				theme_dark: "dark",
-				terminal_font: "geist-mono",
+				terminal_font: "jetbrains-mono-nerd",
 			});
 		});
 		expect(darkTritanopia).toBeChecked();
