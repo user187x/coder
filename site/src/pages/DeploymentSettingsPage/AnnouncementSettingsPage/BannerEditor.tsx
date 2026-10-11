@@ -3,10 +3,14 @@ import { PlayIcon, TimerIcon } from "lucide-react";
 import { useId, useRef, useState } from "react";
 import {
 	BANNER_EFFECTS,
+	BANNER_FONTS,
 	BANNER_LEVELS,
+	BANNER_SPEEDS,
 	type BannerEffect,
 	type BannerFields,
+	type BannerFont,
 	type BannerLevel,
+	type BannerSpeed,
 } from "#/api/platform";
 import { Button } from "#/components/Button/Button";
 import { Checkbox } from "#/components/Checkbox/Checkbox";
@@ -27,6 +31,7 @@ import {
 import { Spinner } from "#/components/Spinner/Spinner";
 import { Textarea } from "#/components/Textarea/Textarea";
 import { BannerPreview } from "#/modules/platform/announcement/BannerPreview";
+import { BANNER_FONT_OPTIONS } from "#/modules/platform/announcement/bannerFonts";
 import {
 	colorsToken,
 	LEVEL_COLORS,
@@ -36,7 +41,8 @@ import { ColorField } from "#/modules/platform/ColorField";
 import { CountdownBuilder } from "./CountdownBuilder";
 import { EmojiButton } from "./EmojiButton";
 
-export const MESSAGE_MAX_LENGTH = 400;
+// Long broadcasts are what the crawl and the banner's scroll-down view are for.
+export const MESSAGE_MAX_LENGTH = 4000;
 
 const LEVEL_LABELS: Record<BannerLevel, string> = {
 	info: "Info",
@@ -62,6 +68,16 @@ const EFFECT_OPTIONS: Record<BannerEffect, { label: string; hint: string }> = {
 	},
 	pulse: { label: "Pulse", hint: "The message gently pulses." },
 	rainbow: { label: "Rainbow", hint: "Colours sweep through the letters." },
+	starwars: {
+		label: "Star Wars crawl",
+		hint: "The opening crawl: the message rises and recedes into the distance at a steady pace, for long broadcasts. Developers can also read it at once in the banner's scroll-down view.",
+	},
+};
+
+const SPEED_LABELS: Record<BannerSpeed, string> = {
+	slow: "Slow",
+	normal: "Normal",
+	fast: "Fast",
 };
 
 type Preset = Pick<BannerFields, "level" | "message" | "dismissible">;
@@ -336,6 +352,7 @@ export const BannerEditor: React.FC<BannerEditorProps> = ({
 			</fieldset>
 
 			<EffectField form={form} onChange={onChange} />
+			<FontField form={form} onChange={onChange} />
 
 			<div className="flex flex-col gap-3">
 				<div className="flex items-center gap-2 text-sm">
@@ -474,6 +491,29 @@ const EffectField: React.FC<EffectFieldProps> = ({ form, onChange }) => {
 						))}
 					</SelectContent>
 				</Select>
+				{form.effect === "starwars" && (
+					<Select
+						value={form.speed ?? "normal"}
+						onValueChange={(value) => {
+							const speed = BANNER_SPEEDS.find((s) => s === value);
+							if (speed) {
+								onChange({ speed });
+								setReplay((n) => n + 1);
+							}
+						}}
+					>
+						<SelectTrigger className="w-32" aria-label="Crawl speed">
+							<SelectValue />
+						</SelectTrigger>
+						<SelectContent>
+							{BANNER_SPEEDS.map((speed) => (
+								<SelectItem key={speed} value={speed}>
+									{SPEED_LABELS[speed]}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+				)}
 				<div className="flex items-center gap-2 text-sm">
 					<Checkbox
 						id={`${id}-repeat`}
@@ -506,6 +546,47 @@ const EffectField: React.FC<EffectFieldProps> = ({ form, onChange }) => {
 			{form.effect !== "none" && form.message && (
 				<BannerPreview key={replay} banner={form} animate />
 			)}
+		</fieldset>
+	);
+};
+
+type FontFieldProps = {
+	form: BannerFields;
+	onChange: (change: Partial<BannerFields>) => void;
+};
+
+/** The banner's font (and its scroll-down view's): bundled fonts and generic stacks only. */
+const FontField: React.FC<FontFieldProps> = ({ form, onChange }) => {
+	const font = form.font ?? "default";
+	return (
+		<fieldset className="m-0 flex flex-col gap-3 border-0 p-0">
+			<legend className="mb-2 p-0 text-sm font-semibold">Font</legend>
+			<Select
+				value={font}
+				onValueChange={(value) => {
+					const next = BANNER_FONTS.find((f) => f === value);
+					if (next) {
+						onChange({ font: next as BannerFont });
+					}
+				}}
+			>
+				<SelectTrigger className="w-64" aria-label="Font">
+					<SelectValue />
+				</SelectTrigger>
+				<SelectContent>
+					{BANNER_FONTS.map((f) => (
+						<SelectItem key={f} value={f}>
+							<span style={{ fontFamily: BANNER_FONT_OPTIONS[f].stack }}>
+								{BANNER_FONT_OPTIONS[f].label}
+							</span>
+						</SelectItem>
+					))}
+				</SelectContent>
+			</Select>
+			<p className="m-0 text-sm text-content-secondary">
+				For the banner and its scroll-down view. Only fonts that need no
+				download are offered.
+			</p>
 		</fieldset>
 	);
 };

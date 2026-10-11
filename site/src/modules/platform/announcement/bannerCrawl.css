@@ -1,0 +1,60 @@
+/*
+ * The announcement's "starwars" effect (BannerText's Crawl): the opening crawl. A viewport two lines tall (more
+ * where the banner spans the page) with perspective; the text, justified and tilted away, rises from below it
+ * and recedes into the distance, fading out at the top. Its duration is set from its height and the chosen speed.
+ */
+/* The crawl's text is out of the flow, so its host takes the banner's free width itself (a flex item). */
+.banner-crawl-host {
+	display: block;
+	flex: 1 1 auto;
+	align-self: stretch;
+	min-width: 0;
+}
+
+.banner-crawl {
+	position: relative;
+	display: block;
+	height: 2.7em;
+	overflow: hidden;
+	perspective: 9em;
+	perspective-origin: 50% 0%;
+	-webkit-mask-image: linear-gradient(to top, #000 55%, transparent);
+	mask-image: linear-gradient(to top, #000 55%, transparent);
+}
+
+.banner-crawl-text {
+	position: absolute;
+	top: 100%;
+	left: 6%;
+	right: 6%;
+	display: block;
+	text-align: justify;
+	text-align-last: center;
+	font-weight: 600;
+	letter-spacing: 0.02em;
+	transform-origin: 50% 0%;
+	animation-name: banner-crawl;
+	animation-timing-function: linear;
+	animation-fill-mode: both;
+}
+
+@keyframes banner-crawl {
+	from {
+		transform: rotateX(24deg) translateY(0);
+	}
+	to {
+		transform: rotateX(24deg) translateY(calc(-100% - 2.9em));
+	}
+}
+
+html[data-animations="off"] .banner-crawl-text {
+	animation: none;
+	position: static;
+	transform: none;
+}
+
+html[data-animations="off"] .banner-crawl {
+	height: auto;
+	-webkit-mask-image: none;
+	mask-image: none;
+}

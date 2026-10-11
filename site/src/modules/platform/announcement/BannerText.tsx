@@ -1,9 +1,19 @@
-import { useEffect, useState, useSyncExternalStore } from "react";
-import type { Banner, BannerEffect } from "#/api/platform";
+import { cn } from "cn";
+import {
+	useEffect,
+	useLayoutEffect,
+	useRef,
+	useState,
+	useSyncExternalStore,
+} from "react";
+import type { Banner, BannerEffect, BannerSpeed } from "#/api/platform";
+import { bannerFontStack } from "./bannerFonts";
+import "./bannerCrawl.css";
 import {
 	type Countdown,
 	countdownText,
 	type InlineNode,
+	parseBlocks,
 	parseColors,
 	parseInline,
 	safeHref,
@@ -64,7 +74,10 @@ const staggered =
 	(index, count, repeat) =>
 		`${keyframes} ${duration}ms ${easing} ${Math.round(index * stagger(count, per, total))}ms ${repeat ? "infinite" : "1"} both`;
 
-const EFFECTS: Record<Exclude<BannerEffect, "none">, EffectPlan> = {
+const EFFECTS: Record<
+	Exclude<BannerEffect, "none" | "starwars">,
+	EffectPlan
+> = {
 	typewriter: {
 		unit: "char",
 		animation: staggered("announce-appear", 1, "linear", 45, 3000),
@@ -161,7 +174,7 @@ const countUnits = (nodes: InlineNode[], unit: "char" | "word"): number => {
 	for (const node of nodes) {
 		if (node.type === "text" || node.type === "code") {
 			count += segmentsOf(node.text, unit).filter((s) => s.trim()).length;
-		} else if (node.type !== "countdown") {
+		} else if (node.type !== "countdown" && node.type !== "image") {
 			count += countUnits(node.children, unit);
 		}
 	}
@@ -250,13 +263,86 @@ const renderNodes = (
 			}
 			case "countdown":
 				return <CountdownText key={key} countdown={node.countdown} />;
+			case "image":
+				return (
+					<img
+						key={key}
+						src={node.src}
+						alt={node.alt}
+						className="inline-block h-[1.25em] w-auto max-w-[6em] rounded-[3px] align-text-bottom object-contain"
+					/>
+				);
 		}
 	});
+
+// The crawl's pace, in pixels per second.
+const CRAWL_PX_PER_SECOND: Record<BannerSpeed, number> = {
+	slow: 9,
+	normal: 15,
+	fast: 26,
+};
+
+type CrawlProps = {
+	speed: BannerSpeed;
+	repeat: boolean;
+	onDone: () => void;
+	children: React.ReactNode;
+};
+
+/**
+ * The "starwars" effect: the opening crawl. The text rises from below the
+ * banner, tilted away, and recedes into the distance, fading at the top, at
+ * a steady pace (CRAWL_PX_PER_SECOND), so a long broadcast takes as long as
+ * it needs to be read. Without repeat it plays once, then the message stays.
+ */
+const Crawl: React.FC<CrawlProps> = ({ speed, repeat, onDone, children }) => {
+	const view = useRef<HTMLSpanElement>(null);
+	const text = useRef<HTMLSpanElement>(null);
+	const [seconds, setSeconds] = useState<number>();
+	useLayoutEffect(() => {
+		const measure = () => {
+			const travel =
+				(text.current?.offsetHeight ?? 0) + (view.current?.offsetHeight ?? 0);
+			if (travel > 0) {
+				setSeconds(Math.max(4, travel / CRAWL_PX_PER_SECOND[speed]));
+			}
+		};
+		measure();
+		const observer = new ResizeObserver(measure);
+		if (text.current) {
+			observer.observe(text.current);
+		}
+		return () => observer.disconnect();
+	}, [speed]);
+	return (
+		<span ref={view} className="banner-crawl" data-banner-crawl="">
+			<span
+				ref={text}
+				className="banner-crawl-text"
+				style={{
+					animationDuration: `${seconds ?? 30}s`,
+					animationIterationCount: repeat ? "infinite" : 1,
+					visibility: seconds === undefined ? "hidden" : undefined,
+				}}
+				onAnimationEnd={onDone}
+			>
+				{children}
+			</span>
+		</span>
+	);
+};
 
 type BannerTextProps = {
 	banner: Pick<
 		Banner,
-		"title" | "message" | "linkText" | "linkUrl" | "effect" | "repeat"
+		| "title"
+		| "message"
+		| "linkText"
+		| "linkUrl"
+		| "effect"
+		| "repeat"
+		| "speed"
+		| "font"
 	>;
 	/** Plays the banner's text effect (a remount plays it again). */
 	animate?: boolean;
@@ -274,7 +360,12 @@ export const BannerText: React.FC<BannerTextProps> = ({
 	className,
 }) => {
 	const message = parseInline(banner.message);
-	const effect = banner.effect !== "none" ? EFFECTS[banner.effect] : undefined;
+	const crawl = banner.effect === "starwars";
+	const [crawlDone, setCrawlDone] = useState(false);
+	const effect =
+		banner.effect !== "none" && banner.effect !== "starwars"
+			? EFFECTS[banner.effect]
+			: undefined;
 	const plan = animate && effect && !prefersReducedMotion() ? effect : null;
 	const count =
 		plan && plan.unit !== "whole" ? countUnits(message, plan.unit) : 0;
@@ -293,19 +384,9 @@ export const BannerText: React.FC<BannerTextProps> = ({
 	const title = banner.title && !parseColors(banner.title) ? banner.title : "";
 	const href = safeHref(banner.linkUrl);
 
-	return (
-		<span
-			data-banner-text=""
-			className={className}
-			style={
-				plan?.unit === "whole"
-					? {
-							display: "inline-block",
-							animation: plan.animation(0, 1, banner.repeat),
-						}
-					: undefined
-			}
-		>
+	const fontFamily = bannerFontStack(banner.font);
+	const content = (
+		<>
 			{title && <strong>{title} </strong>}
 			{renderNodes(message, splitter, "m")}
 			{href && (
@@ -322,6 +403,89 @@ export const BannerText: React.FC<BannerTextProps> = ({
 					</a>
 				</>
 			)}
+		</>
+	);
+	if (crawl && animate && !crawlDone && !prefersReducedMotion()) {
+		return (
+			<span
+				data-banner-text=""
+				className={cn(className, "banner-crawl-host")}
+				style={{ fontFamily }}
+			>
+				<Crawl
+					speed={banner.speed ?? "normal"}
+					repeat={banner.repeat}
+					onDone={() => setCrawlDone(true)}
+				>
+					{content}
+				</Crawl>
+			</span>
+		);
+	}
+
+	return (
+		<span
+			data-banner-text=""
+			className={className}
+			style={
+				plan?.unit === "whole"
+					? {
+							display: "inline-block",
+							fontFamily,
+							animation: plan.animation(0, 1, banner.repeat),
+						}
+					: { fontFamily }
+			}
+		>
+			{content}
 		</span>
+	);
+};
+
+/**
+ * The whole message as rich text, for the banner's scroll-down view: headings,
+ * lists and paragraphs (line breaks kept), with inline Markdown, emoji,
+ * countdowns, links and full-size images. No effect.
+ */
+export const BannerBlocks: React.FC<{ message: string }> = ({ message }) => {
+	return (
+		<>
+			{parseBlocks(message).map((block, i) => {
+				const key = `b${i}`;
+				switch (block.type) {
+					case "heading": {
+						const Tag = (["h2", "h3", "h4"] as const)[block.level - 1];
+						return (
+							<Tag key={key} data-level={block.level}>
+								{renderNodes(block.children, null, `${key}.`)}
+							</Tag>
+						);
+					}
+					case "list": {
+						const List = block.ordered ? "ol" : "ul";
+						return (
+							<List key={key}>
+								{block.items.map((item, j) => (
+									<li key={`${key}.${j}`}>
+										{renderNodes(item, null, `${key}.${j}.`)}
+									</li>
+								))}
+							</List>
+						);
+					}
+					case "paragraph":
+						return (
+							<p key={key}>
+								{block.lines.map((line, j) => (
+									<span key={`${key}.${j}`}>
+										{j > 0 && <br />}
+										{renderNodes(line, null, `${key}.${j}.`)}
+									</span>
+								))}
+							</p>
+						);
+				}
+			})}
+		</>
 	);
 };

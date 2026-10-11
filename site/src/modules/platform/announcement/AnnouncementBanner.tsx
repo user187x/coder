@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import type { Banner } from "#/api/platform";
 import {
@@ -9,6 +9,7 @@ import {
 	markAnnouncementViewed,
 } from "#/api/queries/platform";
 import { isEmbeddedFrame } from "#/contexts/platformBoot";
+import { BannerScrollView } from "./BannerScrollView";
 import { BannerText } from "./BannerText";
 import { LEVEL_COLORS, parseColors } from "./bannerTokens";
 import { useBannerLive, wasPushed } from "./useBannerLive";
@@ -113,6 +114,7 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 		status?.signedIn === true ? (status.viewedAt ?? undefined) : undefined;
 	const { bg, fg } = bannerColors(banner);
 	const { mutate: reportView } = markViewed;
+	const card = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
 		if (signedIn && !viewed.has(banner.id)) {
@@ -131,12 +133,13 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 
 	return (
 		<div
+			ref={card}
 			id="coder-system-banner"
 			role="status"
 			className={cn(
 				"flex items-center gap-3",
 				placement === "navbar"
-					? "ml-3 min-h-9 min-w-0 flex-1 rounded-[10px] py-1 pr-1 pl-3.5 text-[13px] leading-[18px] shadow-[0_1px_3px_rgb(0_0_0/.2),inset_0_0_0_1px_rgb(255_255_255/.14)]"
+					? "ml-3 min-h-9 min-w-0 flex-1 rounded-[10px] py-1 pr-1 pl-1 text-[13px] leading-[18px] shadow-[0_1px_3px_rgb(0_0_0/.2),inset_0_0_0_1px_rgb(255_255_255/.14)]"
 					: "w-full justify-center px-6 py-2.5 text-center text-sm",
 				placement === "navbar" && !signedIn && "pr-3.5",
 				wasPushed(banner.id) &&
@@ -157,6 +160,8 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 				}
 			}}
 		>
+			{/* Scroll mode: the whole message at once, without waiting for its effect. */}
+			<BannerScrollView banner={banner} anchor={card} />
 			<BannerText
 				banner={banner}
 				animate

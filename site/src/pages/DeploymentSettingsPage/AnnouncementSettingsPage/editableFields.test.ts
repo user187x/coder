@@ -20,7 +20,12 @@ describe("editableFields", () => {
 	it("leaves Markdown announcements as they are", () => {
 		const custom = { ...banner, title: "{{colors bg=#000000 fg=#ffffff}}" };
 		const { id: _id, ...fields } = custom;
-		expect(editableFields(custom)).toEqual(fields);
+		// Saved before the crawl's speed and the font existed: their defaults.
+		expect(editableFields(custom)).toEqual({
+			...fields,
+			speed: "normal",
+			font: "default",
+		});
 	});
 
 	it("folds an older lead-in and link into the Markdown message", () => {

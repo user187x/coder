@@ -3,6 +3,8 @@
  * text. These tokens are how the dashboard carries more than plain text in it:
  *
  *   Markdown    **bold**  *italic*  ~~strike~~  `code`  [text](https://… or /path)
+ *               ![alt](https://… or /path) images; and, for longer broadcasts
+ *               (parseBlocks), # headings, - lists, blank lines between paragraphs
  *   Countdown   {{countdown to=2026-10-04T02:00:00Z format=dhms done="now"}}
  *   Colours     {{colors bg=#rrggbb fg=#rrggbb}} in the (otherwise unused)
  *               lead-in field: custom background and text colours
@@ -116,6 +118,7 @@ export type InlineNode =
 	| { type: "code"; text: string }
 	| { type: "strong" | "em" | "s"; children: InlineNode[] }
 	| { type: "link"; href: string; children: InlineNode[] }
+	| { type: "image"; src: string; alt: string }
 	| { type: "countdown"; countdown: Countdown };
 
 type Rule = {
@@ -125,6 +128,15 @@ type Rule = {
 };
 
 const RULES: Rule[] = [
+	{
+		re: /^!\[([^\]]*)\]\(([^)\s]+)\)/,
+		toNode: (match) => {
+			const src = safeHref(match[2]);
+			return src
+				? { type: "image", src, alt: match[1] }
+				: { type: "text", text: match[0] };
+		},
+	},
 	{
 		re: /^\{\{countdown\s[^}]*\}\}/,
 		toNode: (match) => {
@@ -214,10 +226,67 @@ export const parseInline = (text: string): InlineNode[] => {
 	return out;
 };
 
+export type Block =
+	| { type: "heading"; level: 1 | 2 | 3; children: InlineNode[] }
+	| { type: "list"; ordered: boolean; items: InlineNode[][] }
+	| { type: "paragraph"; lines: InlineNode[][] };
+
+/**
+ * A longer broadcast as blocks: "# " to "### " headings, "- " / "* " / "1. "
+ * list items, and paragraphs (separated by blank lines; their line breaks
+ * kept). Inline Markdown inside each.
+ */
+export const parseBlocks = (message: string): Block[] => {
+	const blocks: Block[] = [];
+	let paragraph: InlineNode[][] | null = null;
+	let list: { ordered: boolean; items: InlineNode[][] } | null = null;
+	const end = () => {
+		if (paragraph) {
+			blocks.push({ type: "paragraph", lines: paragraph });
+		}
+		if (list) {
+			blocks.push({ type: "list", ...list });
+		}
+		paragraph = null;
+		list = null;
+	};
+	for (const raw of message.replace(/\r\n?/g, "\n").split("\n")) {
+		const line = raw.trimEnd();
+		const heading = /^(#{1,3})\s+(.*)$/.exec(line);
+		const item = /^\s*(?:([-*])|(\d+)[.)])\s+(.*)$/.exec(line);
+		if (!line.trim()) {
+			end();
+		} else if (heading) {
+			end();
+			blocks.push({
+				type: "heading",
+				level: heading[1].length as 1 | 2 | 3,
+				children: parseInline(heading[2]),
+			});
+		} else if (item) {
+			const ordered = Boolean(item[2]);
+			if (paragraph || (list && list.ordered !== ordered)) {
+				end();
+			}
+			list ??= { ordered, items: [] };
+			list.items.push(parseInline(item[3]));
+		} else {
+			if (list) {
+				end();
+			}
+			paragraph ??= [];
+			paragraph.push(parseInline(line));
+		}
+	}
+	end();
+	return blocks;
+};
+
 /** The message as one line of plain text: tokens shown as what they are. */
 export const plainLabel = (title: string, message: string): string => {
 	const text = (message || "(no message)")
 		.replace(/\{\{countdown[^}]*\}\}/g, "⏱")
+		.replace(/!\[([^\]]*)\]\([^)\s]+\)/g, "🖼 $1")
 		.replace(/\[([^\]]+)\]\([^)\s]+\)/g, "$1")
 		.replace(/[*_~`]/g, "");
 	return title && !parseColors(title) ? `${title} ${text}` : text;

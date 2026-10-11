@@ -876,6 +876,7 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 								label: app?.display_name || panel.slug,
 								render: (handle: React.ReactNode) => (
 									<AgentAppPanel
+										id={panel.id}
 										workspace={workspace}
 										agent={agent}
 										app={app}

@@ -870,8 +870,27 @@ export const BANNER_EFFECTS = [
 	"shake",
 	"pulse",
 	"rainbow",
+	"starwars",
 ] as const;
 export type BannerEffect = (typeof BANNER_EFFECTS)[number];
+
+/** The crawl's pace (effect "starwars"). */
+export const BANNER_SPEEDS = ["slow", "normal", "fast"] as const;
+export type BannerSpeed = (typeof BANNER_SPEEDS)[number];
+
+/** The banner's font (bannerFonts.ts; the banner service checks the same list). */
+export const BANNER_FONTS = [
+	"default",
+	"sans",
+	"serif",
+	"condensed",
+	"geist-mono",
+	"ibm-plex-mono",
+	"jetbrains-mono",
+	"fira-code",
+	"source-code-pro",
+] as const;
+export type BannerFont = (typeof BANNER_FONTS)[number];
 
 /** The announcement as every page gets it (coder-banner's banner.json). */
 export type Banner = {
@@ -887,6 +906,10 @@ export type Banner = {
 	refreshSeconds: number;
 	effect: BannerEffect;
 	repeat: boolean;
+	/** Missing in announcements saved before it existed: "normal". */
+	speed?: BannerSpeed;
+	/** Missing in announcements saved before it existed: "default". */
+	font?: BannerFont;
 };
 
 export type BannerFields = Omit<Banner, "id">;

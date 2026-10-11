@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { Trash2Icon } from "lucide-react";
+import { SquareArrowOutUpRightIcon, Trash2Icon, Undo2Icon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type {
 	Workspace,
@@ -14,6 +14,7 @@ import {
 	CollapsibleTrigger,
 } from "#/components/Collapsible/Collapsible";
 import { ExternalImage } from "#/components/ExternalImage/ExternalImage";
+import { useAppLink } from "#/modules/apps/useAppLink";
 import { WorkspaceAppFrame } from "#/modules/apps/WorkspaceAppFrame";
 
 const DEFAULT_HEIGHT = 640;
@@ -33,6 +34,8 @@ const clampHeight = (height: number) =>
 	Math.min(MAX_APP_HEIGHT, Math.max(MIN_APP_HEIGHT, Math.round(height)));
 
 type AgentAppPanelProps = {
+	/** The panel's id (its browser window is named after it). */
+	id: string;
 	workspace: Workspace;
 	agent: WorkspaceAgent;
 	/** The app, or undefined when the workspace no longer has it. */
@@ -60,8 +63,14 @@ type AgentAppPanelProps = {
  * there is no scroll bar; the handle at the bottom right makes it any
  * height (dragged, or with the up and down arrow keys) - the width always
  * stays the card's. The height the user picks is remembered.
+ *
+ * Pop out (like the Terminal panel's): the app moves into a browser window of
+ * its own and leaves the panel (one copy of the app, not two - the desktop has
+ * one screen); "Bring back", or closing that window, returns it to the panel.
+ * The bin closes the window too.
  */
 export const AgentAppPanel: React.FC<AgentAppPanelProps> = ({
+	id,
 	workspace,
 	agent,
 	app,
@@ -79,6 +88,28 @@ export const AgentAppPanel: React.FC<AgentAppPanelProps> = ({
 	const [resizing, setResizing] = useState(false);
 	const box = useRef<HTMLDivElement>(null);
 	const userSized = useRef(height !== undefined);
+	// The app's own browser window, while it is popped out.
+	const [popup, setPopup] = useState<Window | null>(null);
+	useEffect(() => {
+		if (!popup) {
+			return;
+		}
+		// Closed by the user: the app comes back to the panel.
+		const timer = window.setInterval(() => {
+			if (popup.closed) {
+				setPopup(null);
+				setLoaded(true);
+				setOpen(true);
+			}
+		}, 500);
+		return () => window.clearInterval(timer);
+	}, [popup]);
+	const bringBack = () => {
+		popup?.close();
+		setPopup(null);
+		setLoaded(true);
+		setOpen(true);
+	};
 	useEffect(() => {
 		if (!ready) {
 			setOpen(false);
@@ -205,17 +236,63 @@ export const AgentAppPanel: React.FC<AgentAppPanelProps> = ({
 							Opens when the workspace is ready
 						</Badge>
 					)}
-					<Button
-						size="icon"
-						variant="subtle"
-						className="relative z-[1] ml-auto text-content-secondary hover:text-content-destructive"
-						aria-label={`Remove the ${name} panel`}
-						title={`Remove this panel and close ${name}`}
-						onClick={onRemove}
-					>
-						<Trash2Icon />
-					</Button>
+					{popup && (
+						<Badge size="xs" className="relative z-[1]">
+							In its own window
+						</Badge>
+					)}
+					<span className="relative z-[1] ml-auto flex items-center gap-1">
+						{app && ready && !popup && (
+							<PopOutButton
+								id={id}
+								name={name}
+								app={app}
+								agent={agent}
+								workspace={workspace}
+								onPoppedOut={(win) => {
+									setPopup(win);
+									setLoaded(false);
+								}}
+							/>
+						)}
+						{popup && (
+							<Button
+								size="sm"
+								variant="outline"
+								title={`Close ${name}'s window and show it here again`}
+								onClick={bringBack}
+							>
+								<Undo2Icon />
+								Bring back
+							</Button>
+						)}
+						<Button
+							size="icon"
+							variant="subtle"
+							className="text-content-secondary hover:text-content-destructive"
+							aria-label={`Remove the ${name} panel`}
+							title={`Remove this panel and close ${name}`}
+							onClick={() => {
+								popup?.close();
+								onRemove();
+							}}
+						>
+							<Trash2Icon />
+						</Button>
+					</span>
 				</div>
+				{popup && open && (
+					<div className="flex items-center justify-between gap-3 px-4 pb-4 text-sm text-content-secondary">
+						<span>
+							{name} is open in its own browser window. Bring it back to show it
+							here again.
+						</span>
+						<Button size="sm" variant="outline" onClick={() => popup.focus()}>
+							<SquareArrowOutUpRightIcon />
+							Go to the window
+						</Button>
+					</div>
+				)}
 				{loaded && app && (
 					<div className={cn("relative px-4 pb-6", !open && "hidden")}>
 						<div
@@ -270,5 +347,47 @@ export const AgentAppPanel: React.FC<AgentAppPanelProps> = ({
 				)}
 			</Collapsible>
 		</section>
+	);
+};
+
+type PopOutButtonProps = {
+	id: string;
+	name: string;
+	app: WorkspaceApp;
+	agent: WorkspaceAgent;
+	workspace: Workspace;
+	onPoppedOut: (win: Window) => void;
+};
+
+/** Opens the app in a browser window of its own (named after the panel, so a second click reuses it). */
+const PopOutButton: React.FC<PopOutButtonProps> = ({
+	id,
+	name,
+	app,
+	agent,
+	workspace,
+	onPoppedOut,
+}) => {
+	const link = useAppLink(app, { agent, workspace });
+	return (
+		<Button
+			size="sm"
+			variant="outline"
+			disabled={!link.href}
+			title={`Open ${name} in a browser window of its own`}
+			onClick={() => {
+				const win = window.open(
+					link.href,
+					`coder-app-${id.replace(/[^a-zA-Z0-9_-]/g, "")}`,
+					"popup,width=1280,height=820",
+				);
+				if (win) {
+					onPoppedOut(win);
+				}
+			}}
+		>
+			<SquareArrowOutUpRightIcon />
+			Pop out
+		</Button>
 	);
 };

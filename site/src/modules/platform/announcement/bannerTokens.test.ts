@@ -1,6 +1,7 @@
 import {
 	countdownText,
 	countdownToken,
+	parseBlocks,
 	parseColors,
 	parseCountdown,
 	parseInline,
@@ -112,5 +113,33 @@ describe("plainLabel", () => {
 			bg: "#112233",
 			fg: "#ffffff",
 		});
+	});
+});
+
+describe("images and blocks", () => {
+	it("parses Markdown images with safe sources only", () => {
+		expect(parseInline("see ![logo](/logo.png) here")).toEqual([
+			{ type: "text", text: "see " },
+			{ type: "image", src: "/logo.png", alt: "logo" },
+			{ type: "text", text: " here" },
+		]);
+		expect(parseInline("![x](javascript:alert(1))")[0].type).toBe("text");
+	});
+
+	it("splits a long broadcast into headings, lists and paragraphs", () => {
+		const blocks = parseBlocks(
+			"# Title\nfirst line\nsecond line\n\n- one\n- two\n\n1. a\n2. b\nafter",
+		);
+		expect(blocks.map((b) => b.type)).toEqual([
+			"heading",
+			"paragraph",
+			"list",
+			"list",
+			"paragraph",
+		]);
+		const paragraph = blocks[1];
+		expect(paragraph.type === "paragraph" && paragraph.lines.length).toBe(2);
+		const ordered = blocks[3];
+		expect(ordered.type === "list" && ordered.ordered).toBe(true);
 	});
 });
