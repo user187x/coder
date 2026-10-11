@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import type { Banner, BannerEffect } from "#/api/platform";
 import {
 	type Countdown,
@@ -113,6 +113,44 @@ type Splitter = {
 	repeat: boolean;
 	count: number;
 	next: number;
+	/**
+	 * Typewriter with repeat: how many letters are typed so far (drawn by a
+	 * timer, not a CSS animation; the others take their space but are hidden).
+	 */
+	typed?: number;
+};
+
+// Typewriter with repeat: type the message, hold it, clear it, type it again.
+// A CSS animation cannot do it: each letter's 1 ms appearing step, repeated
+// forever, made every letter blink.
+const TYPE_HOLD_MS = 3000;
+const TYPE_BLANK_MS = 500;
+
+const useTypedCount = (count: number, active: boolean): number => {
+	const per = stagger(count, 45, 3000);
+	const [typed, setTyped] = useState(0);
+	useEffect(() => {
+		if (!active) {
+			return;
+		}
+		const start = performance.now();
+		const typing = count * per;
+		const cycle = typing + TYPE_HOLD_MS + TYPE_BLANK_MS;
+		const tick = () => {
+			const t = (performance.now() - start) % cycle;
+			setTyped(
+				t < typing
+					? Math.min(count, Math.floor(t / per) + 1)
+					: t < typing + TYPE_HOLD_MS
+						? count
+						: 0,
+			);
+		};
+		tick();
+		const timer = window.setInterval(tick, Math.max(16, per / 2));
+		return () => window.clearInterval(timer);
+	}, [count, per, active]);
+	return typed;
 };
 
 const segmentsOf = (text: string, unit: "char" | "word"): string[] =>
@@ -147,13 +185,17 @@ const renderText = (
 			<span
 				key={`${key}-${i}`}
 				className="inline-block whitespace-pre"
-				style={{
-					animation: splitter.plan.animation(
-						index,
-						splitter.count,
-						splitter.repeat,
-					),
-				}}
+				style={
+					splitter.typed !== undefined
+						? { visibility: index < splitter.typed ? "visible" : "hidden" }
+						: {
+								animation: splitter.plan.animation(
+									index,
+									splitter.count,
+									splitter.repeat,
+								),
+							}
+				}
 			>
 				{segment}
 			</span>
@@ -234,13 +276,18 @@ export const BannerText: React.FC<BannerTextProps> = ({
 	const message = parseInline(banner.message);
 	const effect = banner.effect !== "none" ? EFFECTS[banner.effect] : undefined;
 	const plan = animate && effect && !prefersReducedMotion() ? effect : null;
+	const count =
+		plan && plan.unit !== "whole" ? countUnits(message, plan.unit) : 0;
+	const timedTypewriter = banner.effect === "typewriter" && banner.repeat;
+	const typed = useTypedCount(count, Boolean(plan) && timedTypewriter);
 	const splitter: Splitter | null =
 		plan && plan.unit !== "whole"
 			? {
 					plan,
 					repeat: banner.repeat,
-					count: countUnits(message, plan.unit),
+					count,
 					next: 0,
+					...(timedTypewriter ? { typed } : {}),
 				}
 			: null;
 	const title = banner.title && !parseColors(banner.title) ? banner.title : "";

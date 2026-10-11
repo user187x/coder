@@ -27,6 +27,21 @@ export const AdminSettingsDropdown: React.FC<AdminSettingsDropdownProps> = ({
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>
 				<Button variant="outline" size="lg">
+					{/*
+					 * Platform: static/admin-icon.svg holds both variants side by side, the white gear on a
+					 * black disc (dark theme) on the left and the outlined gear (light theme) on the right;
+					 * each theme shows its half.
+					 */}
+					<img
+						src="/admin-icon.svg"
+						alt=""
+						className="hidden size-5 shrink-0 object-cover object-left dark:block"
+					/>
+					<img
+						src="/admin-icon.svg"
+						alt=""
+						className="block size-5 shrink-0 object-cover object-right dark:hidden"
+					/>
 					Admin
 					<ChevronDownIcon className="text-content-primary" />
 				</Button>

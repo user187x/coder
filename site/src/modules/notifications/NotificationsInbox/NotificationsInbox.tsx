@@ -23,6 +23,9 @@ type NotificationsInboxProps = {
 	) => Promise<UpdateInboxNotificationReadStatusResponse>;
 };
 
+const WATCH_FAILURES_BEFORE_WARNING = 3;
+const WATCH_TOAST_ID = "inbox-watch-unavailable";
+
 export const NotificationsInbox: React.FC<NotificationsInboxProps> = ({
 	defaultOpen,
 	fetchNotifications,
@@ -60,33 +63,95 @@ export const NotificationsInbox: React.FC<NotificationsInboxProps> = ({
 		[queryClient],
 	);
 
+	// Platform: the live channel reconnects by itself (with backoff) and fetches
+	// what it missed. A single failed attempt - a sign-in redirect or a Coder
+	// restart cutting connections - is not an error worth telling the user
+	// about; only several failures in a row are, and that message goes away
+	// once the channel is back.
 	useEffect(() => {
-		const socket = watchInboxNotifications({ read_status: "unread" });
+		let socket: ReturnType<typeof watchInboxNotifications> | undefined;
+		let retryTimer: number | undefined;
+		let failures = 0;
+		let stopped = false;
+		let warned = false;
 
-		socket.addEventListener("message", (e) => {
-			if (e.parseError) {
-				console.warn("Error parsing inbox notification: ", e.parseError);
+		const scheduleReconnect = () => {
+			socket?.close();
+			socket = undefined;
+			if (stopped || retryTimer !== undefined) {
 				return;
 			}
+			failures++;
+			if (failures >= WATCH_FAILURES_BEFORE_WARNING && !warned) {
+				warned = true;
+				toast.error("Unable to retrieve latest inbox notifications.", {
+					id: WATCH_TOAST_ID,
+					description: "Reconnecting...",
+				});
+			}
+			const delay = Math.min(30_000, 1000 * 2 ** (failures - 1));
+			retryTimer = window.setTimeout(() => {
+				retryTimer = undefined;
+				connect();
+			}, delay);
+		};
 
-			const msg = e.parsedMessage;
-			updateNotificationsCache((current) => {
-				return {
-					unread_count: msg.unread_count,
-					notifications: [msg.notification, ...current.notifications],
-				};
+		const connect = () => {
+			if (stopped) {
+				return;
+			}
+			const ws = watchInboxNotifications({ read_status: "unread" });
+			socket = ws;
+			ws.addEventListener("open", () => {
+				if (failures > 0) {
+					// Back after a gap: fetch what arrived meanwhile.
+					void queryClient.invalidateQueries({
+						queryKey: NOTIFICATIONS_QUERY_KEY,
+					});
+				}
+				failures = 0;
+				if (warned) {
+					warned = false;
+					toast.dismiss(WATCH_TOAST_ID);
+				}
 			});
-		});
+			ws.addEventListener("message", (e) => {
+				if (e.parseError) {
+					console.warn("Error parsing inbox notification: ", e.parseError);
+					return;
+				}
 
-		socket.addEventListener("error", () => {
-			toast.error("Unable to retrieve latest inbox notifications.", {
-				description: "Please try refreshing the browser.",
+				const msg = e.parsedMessage;
+				updateNotificationsCache((current) => {
+					return {
+						unread_count: msg.unread_count,
+						notifications: [msg.notification, ...current.notifications],
+					};
+				});
 			});
-			socket.close();
-		});
+			ws.addEventListener("error", () => {
+				if (socket === ws) {
+					scheduleReconnect();
+				}
+			});
+			ws.addEventListener("close", () => {
+				if (socket === ws) {
+					scheduleReconnect();
+				}
+			});
+		};
 
-		return () => socket.close();
-	}, [updateNotificationsCache]);
+		connect();
+		return () => {
+			stopped = true;
+			window.clearTimeout(retryTimer);
+			socket?.close();
+			socket = undefined;
+			if (warned) {
+				toast.dismiss(WATCH_TOAST_ID);
+			}
+		};
+	}, [updateNotificationsCache, queryClient]);
 
 	const {
 		mutate: loadMoreNotifications,

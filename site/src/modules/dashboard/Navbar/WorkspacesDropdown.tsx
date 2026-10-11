@@ -9,25 +9,21 @@ import {
 } from "#/components/DropdownMenu/DropdownMenu";
 
 /**
- * The navbar's "Workspaces" menu, built like the Admin menu: the workspaces
+ * The navbar's "Resources" menu, built like the Admin menu: the workspaces
  * list and the templates. Its trigger shows the workspaces icon, drawn at
- * twice its size for sharp HiDPI screens.
+ * twice its size for sharp HiDPI screens, and the word "Resources".
  */
 export const WorkspacesDropdown: React.FC = () => {
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>
-				<Button
-					variant="outline"
-					size="lg"
-					aria-label="Workspaces"
-					title="Workspaces"
-				>
+				<Button variant="outline" size="lg" title="Workspaces and templates">
 					<img
 						src="/workspaces-icon.png"
 						alt=""
 						className="size-5 shrink-0 block"
 					/>
+					Resources
 					<ChevronDownIcon className="text-content-primary" />
 				</Button>
 			</DropdownMenuTrigger>
@@ -35,7 +31,7 @@ export const WorkspacesDropdown: React.FC = () => {
 			<DropdownMenuContent align="start" className="w-[180px] min-w-auto">
 				<nav>
 					<DropdownMenuItem asChild>
-						<Link to="/workspaces">Workspace</Link>
+						<Link to="/workspaces">Workspaces</Link>
 					</DropdownMenuItem>
 					<DropdownMenuItem asChild>
 						<Link to="/templates">Templates</Link>

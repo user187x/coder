@@ -104,11 +104,13 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 		...announcementStatus(banner.id),
 		enabled: receipts,
 	});
-	const markViewed = useMutation(markAnnouncementViewed());
+	const markViewed = useMutation(markAnnouncementViewed(queryClient));
 	const confirm = useMutation(confirmAnnouncement(queryClient));
 	const status = statusQuery.data;
 	const signedIn = status?.signedIn === true;
 	const acked = status?.signedIn === true && status.acked;
+	const viewedAt =
+		status?.signedIn === true ? (status.viewedAt ?? undefined) : undefined;
 	const { bg, fg } = bannerColors(banner);
 	const { mutate: reportView } = markViewed;
 
@@ -160,9 +162,10 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 				animate
 				className={cn(
 					placement === "navbar" &&
-						"min-w-0 flex-1 overflow-hidden [overflow-wrap:anywhere] line-clamp-2",
+						"min-w-0 flex-1 overflow-hidden text-center [overflow-wrap:anywhere] line-clamp-2",
 				)}
 			/>
+			{receipts && signedIn && viewedAt && <ViewedStamp viewedAt={viewedAt} />}
 			{receipts && signedIn && (
 				<ConfirmButton
 					confirmed={acked && !banner.dismissible}
@@ -175,6 +178,56 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 				/>
 			)}
 		</div>
+	);
+};
+
+// The Viewed box and the Confirm button: the same size, side by side at the right.
+const RECEIPT_BOX =
+	"flex h-[30px] w-[6.75rem] shrink-0 items-center justify-center rounded-[7px] border border-solid";
+
+/**
+ * When this user first saw the announcement, as the admins' report records it:
+ * whether or not they confirm it, both sides know it was seen.
+ */
+const ViewedStamp: React.FC<{ viewedAt: string }> = ({ viewedAt }) => {
+	const at = new Date(viewedAt);
+	if (Number.isNaN(at.getTime())) {
+		return null;
+	}
+	const date = at.toLocaleDateString(undefined, {
+		year: "numeric",
+		month: "2-digit",
+		day: "2-digit",
+	});
+	const time = at.toLocaleTimeString(undefined, {
+		hour: "numeric",
+		minute: "2-digit",
+	});
+	const full = at.toLocaleString(undefined, {
+		dateStyle: "full",
+		timeStyle: "medium",
+	});
+	return (
+		<span
+			role="note"
+			data-testid="announcement-viewed"
+			aria-label={`You viewed this announcement on ${full}`}
+			title={`You viewed this announcement on ${full}. Your administrators can see that you have seen it, even if you do not confirm it.`}
+			className={cn(
+				RECEIPT_BOX,
+				"flex-col border-dashed border-white/45 bg-white/10 px-1.5 text-[9.5px] leading-[12px] tabular-nums whitespace-nowrap",
+			)}
+		>
+			{/* Each line justified: the label at the left edge, the value at the right. */}
+			<span className="flex w-full justify-between gap-1">
+				<span>Viewed</span>
+				<span>{date}</span>
+			</span>
+			<span className="flex w-full justify-between gap-1">
+				<span />
+				<span>{time}</span>
+			</span>
+		</span>
 	);
 };
 
@@ -201,7 +254,8 @@ const ConfirmButton: React.FC<ConfirmButtonProps> = ({
 				confirmed ? undefined : "Confirm that you have read this announcement"
 			}
 			className={cn(
-				"min-h-7 shrink-0 rounded-[7px] border border-solid border-white/60 bg-white/15 px-3.5 py-[3px]",
+				RECEIPT_BOX,
+				"border-white/60 bg-white/15 px-2",
 				"text-inherit text-[13px] font-semibold leading-[18px] whitespace-nowrap",
 				confirmed ? "cursor-default opacity-80" : "cursor-pointer",
 			)}

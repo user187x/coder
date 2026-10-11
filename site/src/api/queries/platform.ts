@@ -112,8 +112,11 @@ export const announcementStatus = (
 	staleTime: Number.POSITIVE_INFINITY,
 });
 
-export const markAnnouncementViewed = () => ({
+export const markAnnouncementViewed = (queryClient?: QueryClient) => ({
 	mutationFn: PlatformAPI.markAnnouncementViewed,
+	// The view is on record now: fetch its time for the banner's "Viewed" box.
+	onSuccess: (_data: unknown, id: string) =>
+		queryClient?.invalidateQueries({ queryKey: announcementStatusKey(id) }),
 });
 
 export const confirmAnnouncement = (queryClient: QueryClient) => ({
@@ -125,7 +128,11 @@ export const confirmAnnouncement = (queryClient: QueryClient) => ({
 		if (previous?.signedIn) {
 			queryClient.setQueryData<AnnouncementReceiptStatus>(
 				announcementStatusKey(id),
-				{ ...previous, acked: true },
+				{
+					...previous,
+					acked: true,
+					ackedAt: previous.ackedAt ?? new Date().toISOString(),
+				},
 			);
 		}
 		return { previous };

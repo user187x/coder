@@ -137,7 +137,14 @@ type AvatarDefaults = {
 
 export type AnnouncementReceiptStatus =
 	| { signedIn: false }
-	| { signedIn: true; username: string; acked: boolean };
+	| {
+			signedIn: true;
+			username: string;
+			acked: boolean;
+			/** When this user first saw the announcement (on record for the admins), if they have. */
+			viewedAt?: string | null;
+			ackedAt?: string | null;
+	  };
 
 export type PlatformUser = {
 	id: string;

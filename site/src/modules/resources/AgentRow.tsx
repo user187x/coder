@@ -251,6 +251,11 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 	};
 
 	const devcontainers = useAgentContainers(agent);
+	const agentCount = workspace.latest_build.resources.reduce(
+		(count, resource) =>
+			count + (resource.agents?.filter((a) => !a.parent_id).length ?? 0),
+		0,
+	);
 
 	// This is used to show the parent apps of the devcontainer.
 	const [showParentApps, setShowParentApps] = useState(false);
@@ -445,8 +450,18 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 					<div className="flex min-w-0 items-center gap-6 text-sm text-content-secondary">
 						<div className="flex min-w-0 w-full items-center gap-4 md:w-auto">
 							<AgentStatus agent={agent} />
-							<span className="block max-w-[260px] overflow-hidden text-ellipsis whitespace-nowrap text-base font-semibold text-content-primary">
-								{agent.name}
+							{/* Platform: the workspace's name (its agent's, after it, when it has several). */}
+							<span
+								className="block max-w-[260px] overflow-hidden text-ellipsis whitespace-nowrap text-base font-semibold text-content-primary"
+								title={`Workspace ${workspace.name}, agent ${agent.name}`}
+							>
+								{workspace.name}
+								{agentCount > 1 && (
+									<span className="font-normal text-content-secondary">
+										{" "}
+										/ {agent.name}
+									</span>
+								)}
 							</span>
 						</div>
 						{agent.status === "connected" && (
