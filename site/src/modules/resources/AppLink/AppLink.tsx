@@ -9,7 +9,6 @@ import {
 import { useState } from "react";
 import type * as TypesGen from "#/api/typesGenerated";
 import { DropdownMenuItem } from "#/components/DropdownMenu/DropdownMenu";
-import { Link } from "#/components/Link/Link";
 import { Markdown } from "#/components/Markdown/Markdown";
 import { Spinner } from "#/components/Spinner/Spinner";
 import {
@@ -23,7 +22,6 @@ import {
 	isAppUrlValid,
 } from "#/modules/apps/apps";
 import { useAppLink } from "#/modules/apps/useAppLink";
-import { docs } from "#/utils/docs";
 import { AgentButton } from "../AgentButton";
 import { BaseIcon } from "./BaseIcon";
 
@@ -99,17 +97,7 @@ export const AppLink: React.FC<AppLinkProps> = ({
 			/>
 		);
 		primaryTooltip = (
-			<>
-				Port forwarding will not work because hostname is too long, see the{" "}
-				<Link
-					href={docs("/user-guides/workspace-access/port-forwarding#dashboard")}
-					target="_blank"
-					size="sm"
-				>
-					documentation
-				</Link>{" "}
-				for more details
-			</>
+			<>Port forwarding will not work because the hostname is too long.</>
 		);
 	}
 

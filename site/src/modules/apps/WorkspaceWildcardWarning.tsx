@@ -1,8 +1,4 @@
-import { SquareArrowOutUpRightIcon } from "lucide-react";
-import { Link as RouterLink } from "react-router";
-import { Button } from "#/components/Button/Button";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
-import { docs } from "#/utils/docs";
 
 export const WorkspaceWildcardWarning = () => {
 	const { permissions } = useAuthenticated();
@@ -29,12 +25,6 @@ export const WorkspaceWildcardWarning = () => {
 						", which requires a Coder deployment with a Wildcard Access URL configured. Please contact your administrator."
 					)}
 				</div>
-				<Button size="sm" variant="outline" asChild>
-					<RouterLink to={docs("/admin/networking/wildcard-access-url")}>
-						<SquareArrowOutUpRightIcon />
-						Learn more about wildcard access URL
-					</RouterLink>
-				</Button>
 			</div>
 		</div>
 	);

@@ -13,7 +13,6 @@ import {
 	ActivateButton,
 	CancelButton,
 	DisabledButton,
-	FavoriteButton,
 	RestartButton,
 	StartButton,
 	StopButton,
@@ -28,7 +27,6 @@ type WorkspaceActionsProps = {
 	isUpdating: boolean;
 	isRestarting: boolean;
 	permissions: WorkspacePermissions;
-	handleToggleFavorite: () => void;
 	handleStart: (buildParameters?: WorkspaceBuildParameter[]) => void;
 	handleStop: () => void;
 	handleRestart: (buildParameters?: WorkspaceBuildParameter[]) => void;
@@ -44,7 +42,6 @@ export const WorkspaceActions: React.FC<WorkspaceActionsProps> = ({
 	isUpdating,
 	isRestarting,
 	permissions,
-	handleToggleFavorite,
 	handleStart,
 	handleStop,
 	handleRestart,
@@ -177,15 +174,6 @@ export const WorkspaceActions: React.FC<WorkspaceActionsProps> = ({
 						))}
 
 			{canCancel && <CancelButton handleAction={handleCancel} />}
-
-			{/* Only the owner can favorite a workspace. */}
-			{user.id === workspace.owner_id && (
-				<FavoriteButton
-					workspaceID={workspace.id}
-					isFavorite={workspace.favorite}
-					onToggle={handleToggleFavorite}
-				/>
-			)}
 
 			{permissions.shareWorkspace && (
 				<ShareButton

@@ -1,7 +1,6 @@
 import { Link } from "react-router";
 import type { Organization } from "#/api/typesGenerated";
 import { organizationModelsPath } from "#/pages/AISettingsPage/ModelsPage/organizationModels";
-import { docs } from "#/utils/docs";
 
 type AgentSetupNoticeProps = {
 	isAdmin: boolean;
@@ -61,16 +60,7 @@ export const AgentSetupNotice: React.FC<AgentSetupNoticeProps> = ({
 	// (e.g. GitHub Copilot). Say so rather than asking to set up a provider.
 	if (hasUnsupportedProviderNames) {
 		const providerList = formatProviderList(unsupportedProviderNames);
-		const unsupportedLink = (
-			<a
-				href={docs("/ai-coder/agents/models#providers")}
-				target="_blank"
-				rel="noreferrer"
-				className="text-content-link transition-colors hover:text-content-link/80"
-			>
-				not supported by Coder Agents
-			</a>
-		);
+		const unsupportedLink = "not supported by Coder Agents";
 		if (!isAdmin) {
 			return (
 				<NoticeContainer>

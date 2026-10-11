@@ -23,7 +23,6 @@ import {
 	InputGroupInput,
 } from "#/components/InputGroup/InputGroup";
 import { Label } from "#/components/Label/Label";
-import { Link } from "#/components/Link/Link";
 import { OrganizationField } from "#/components/OrganizationAutocomplete/OrganizationAutocomplete";
 import { Spinner } from "#/components/Spinner/Spinner";
 import {
@@ -43,7 +42,6 @@ import type {
 	ModelFormValues,
 } from "#/modules/aiModels/modelConfigFormLogic";
 import type { ProviderState } from "#/modules/aiModels/providerStates";
-import { docs } from "#/utils/docs";
 import type { FormHelpers } from "#/utils/formUtils";
 import {
 	creatableModelOrganizations,
@@ -303,15 +301,7 @@ export const ModelFormFields: React.FC<{
 						description={
 							<>
 								Estimated price per million tokens in USD. Prices are read-only.{" "}
-								Model prices are managed by AI Gateway.{" "}
-								<Link
-									href={docs(
-										"/ai-coder/ai-gateway/cost-controls#configure-model-prices",
-									)}
-									size="sm"
-								>
-									Learn how to configure model prices.
-								</Link>
+								Model prices are managed by AI Gateway.
 							</>
 						}
 						open={showCostEstimate}

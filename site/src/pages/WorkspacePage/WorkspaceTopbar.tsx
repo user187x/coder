@@ -57,7 +57,6 @@ type WorkspaceTopbarProps = {
 	handleDormantActivate: () => void;
 	handleRetry: (buildParameters?: TypesGen.WorkspaceBuildParameter[]) => void;
 	handleDebug: (buildParameters?: TypesGen.WorkspaceBuildParameter[]) => void;
-	handleToggleFavorite: () => void;
 };
 
 export const WorkspaceTopbar: React.FC<WorkspaceTopbarProps> = ({
@@ -73,7 +72,6 @@ export const WorkspaceTopbar: React.FC<WorkspaceTopbarProps> = ({
 	handleUpdate,
 	handleCancel,
 	handleDormantActivate,
-	handleToggleFavorite,
 	handleRetry,
 	handleDebug,
 }) => {
@@ -246,7 +244,6 @@ export const WorkspaceTopbar: React.FC<WorkspaceTopbarProps> = ({
 						handleRetry={handleRetry}
 						handleDebug={handleDebug}
 						handleDormantActivate={handleDormantActivate}
-						handleToggleFavorite={handleToggleFavorite}
 					/>
 				</div>
 			)}

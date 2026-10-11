@@ -9,7 +9,12 @@ import { generateUUID } from "#/utils/random";
  */
 export const BUILT_IN_PANELS = ["logs", "terminal"] as const;
 
-export type AppPanel = { id: string; slug: string };
+export type AppPanel = {
+	id: string;
+	slug: string;
+	/** The height the user gave the app's box (px), if any. */
+	height?: number;
+};
 
 type StoredPanels = { order: string[]; apps: AppPanel[] };
 
@@ -23,7 +28,10 @@ const isAppPanel = (value: unknown): value is AppPanel =>
 	typeof value.id === "string" &&
 	value.id.startsWith("app:") &&
 	"slug" in value &&
-	typeof value.slug === "string";
+	typeof value.slug === "string" &&
+	(!("height" in value) ||
+		value.height === undefined ||
+		(typeof value.height === "number" && value.height > 0));
 
 export const readPanels = (
 	workspaceId: string,
@@ -96,6 +104,13 @@ export const useAgentPanels = (workspaceId: string, agentName: string) => {
 			update({ order: [...order, id], apps: [...stored.apps, { id, slug }] });
 			return id;
 		},
+		setHeight: (id: string, height: number) =>
+			update({
+				...stored,
+				apps: stored.apps.map((app) =>
+					app.id === id ? { ...app, height: Math.round(height) } : app,
+				),
+			}),
 		remove: (id: string) =>
 			update({
 				order: order.filter((panel) => panel !== id),

@@ -7,11 +7,9 @@ import { FormFields } from "#/components/Form/Form";
 import { FormField } from "#/components/FormField/FormField";
 import { InfoTooltip } from "#/components/InfoTooltip/InfoTooltip";
 import { Label } from "#/components/Label/Label";
-import { Link } from "#/components/Link/Link";
 import { Textarea } from "#/components/Textarea/Textarea";
 import { TooltipMessage, TooltipTitle } from "#/components/Tooltip/Tooltip";
 import type { PublishVersionData } from "#/pages/TemplateVersionEditorPage/types";
-import { docs } from "#/utils/docs";
 import { getFormHelpers } from "#/utils/formUtils";
 
 type PublishTemplateVersionDialogProps = {
@@ -131,15 +129,6 @@ export const PublishTemplateVersionDialog: React.FC<
 									<TooltipMessage>
 										Templates can enforce that the active version be used for
 										all workspaces.
-										<br />
-										<Link
-											size="sm"
-											href={docs(
-												"/admin/templates/managing-templates#template-update-policies",
-											)}
-										>
-											Review the documentation
-										</Link>
 									</TooltipMessage>
 								</InfoTooltip>
 							</div>

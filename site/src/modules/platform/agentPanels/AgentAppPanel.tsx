@@ -1,6 +1,6 @@
 import { cn } from "cn";
 import { Trash2Icon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type {
 	Workspace,
 	WorkspaceAgent,
@@ -16,6 +16,22 @@ import {
 import { ExternalImage } from "#/components/ExternalImage/ExternalImage";
 import { WorkspaceAppFrame } from "#/modules/apps/WorkspaceAppFrame";
 
+const DEFAULT_HEIGHT = 640;
+export const MIN_APP_HEIGHT = 200;
+export const MAX_APP_HEIGHT = 4000;
+/** An app that scrolls its whole page grows to fit it, up to this. */
+const MAX_FIT_HEIGHT = 2400;
+/**
+ * The apps that grow to fit their page. Not the desktop, code-server or marimo:
+ * they size themselves to the box (noVNC even resizes the remote desktop to
+ * it), so growing the box to their page would never stop.
+ */
+const FIT_TO_PAGE = new Set(["filebrowser"]);
+const KEY_STEP = 40;
+
+const clampHeight = (height: number) =>
+	Math.min(MAX_APP_HEIGHT, Math.max(MIN_APP_HEIGHT, Math.round(height)));
+
 type AgentAppPanelProps = {
 	workspace: Workspace;
 	agent: WorkspaceAgent;
@@ -27,6 +43,9 @@ type AgentAppPanelProps = {
 	ready: boolean;
 	/** Just added: open it right away. */
 	initiallyOpen: boolean;
+	/** The height the user gave it before, if any. */
+	height: number | undefined;
+	onHeightChange: (height: number) => void;
 	onRemove: () => void;
 };
 
@@ -35,8 +54,12 @@ type AgentAppPanelProps = {
  * in the page, like the Terminal panel. The app loads when the panel first
  * opens; collapsing the panel only hides it (the app keeps its state), the
  * bin removes the panel and closes the app. A workspace that stops takes the
- * app with it: the panel rolls up and starts over when it is next opened. The
- * app's box can be made taller or shorter by its bottom-right corner.
+ * app with it: the panel rolls up and starts over when it is next opened.
+ *
+ * Height: File Browser, which scrolls its whole page, first grows to fit it, so
+ * there is no scroll bar; the handle at the bottom right makes it any
+ * height (dragged, or with the up and down arrow keys) - the width always
+ * stays the card's. The height the user picks is remembered.
  */
 export const AgentAppPanel: React.FC<AgentAppPanelProps> = ({
 	workspace,
@@ -46,10 +69,16 @@ export const AgentAppPanel: React.FC<AgentAppPanelProps> = ({
 	handle,
 	ready,
 	initiallyOpen,
+	height,
+	onHeightChange,
 	onRemove,
 }) => {
 	const [open, setOpen] = useState(initiallyOpen && ready);
 	const [loaded, setLoaded] = useState(initiallyOpen && ready);
+	const [boxHeight, setBoxHeight] = useState(height ?? DEFAULT_HEIGHT);
+	const [resizing, setResizing] = useState(false);
+	const box = useRef<HTMLDivElement>(null);
+	const userSized = useRef(height !== undefined);
 	useEffect(() => {
 		if (!ready) {
 			setOpen(false);
@@ -57,6 +86,86 @@ export const AgentAppPanel: React.FC<AgentAppPanelProps> = ({
 		}
 	}, [ready]);
 	const name = app?.display_name || slug;
+
+	// Grow to the app's page, a few times while it settles after loading.
+	useEffect(() => {
+		if (!loaded || !open || userSized.current || !FIT_TO_PAGE.has(slug)) {
+			return;
+		}
+		const iframe = box.current?.querySelector("iframe");
+		if (!iframe) {
+			return;
+		}
+		const fit = () => {
+			if (userSized.current) {
+				return;
+			}
+			let root: HTMLElement | undefined;
+			try {
+				root = iframe.contentDocument?.documentElement;
+			} catch {
+				return; // Not the dashboard's origin: it cannot be measured.
+			}
+			if (!root || root.clientHeight === 0) {
+				return;
+			}
+			const extra = root.scrollHeight - root.clientHeight;
+			if (extra > 1) {
+				setBoxHeight((current) =>
+					Math.max(current, Math.min(MAX_FIT_HEIGHT, current + extra)),
+				);
+			}
+		};
+		const timers: number[] = [];
+		const onLoad = () => {
+			for (const delay of [100, 600, 1500, 3000]) {
+				timers.push(window.setTimeout(fit, delay));
+			}
+		};
+		iframe.addEventListener("load", onLoad);
+		if (iframe.contentDocument?.readyState === "complete") {
+			onLoad();
+		}
+		return () => {
+			iframe.removeEventListener("load", onLoad);
+			for (const timer of timers) {
+				window.clearTimeout(timer);
+			}
+		};
+	}, [loaded, open, slug]);
+
+	const resizeTo = (next: number) => {
+		userSized.current = true;
+		const clamped = clampHeight(next);
+		setBoxHeight(clamped);
+		return clamped;
+	};
+
+	const onResizeStart = (event: React.PointerEvent<HTMLButtonElement>) => {
+		event.preventDefault();
+		const startY = event.clientY;
+		const startHeight = boxHeight;
+		try {
+			event.currentTarget.setPointerCapture(event.pointerId);
+		} catch {
+			// The window listeners below do without it.
+		}
+		setResizing(true);
+		let last = startHeight;
+		const onMove = (move: PointerEvent) => {
+			last = resizeTo(startHeight + move.clientY - startY);
+		};
+		const onEnd = () => {
+			window.removeEventListener("pointermove", onMove);
+			window.removeEventListener("pointerup", onEnd);
+			window.removeEventListener("pointercancel", onEnd);
+			setResizing(false);
+			onHeightChange(last);
+		};
+		window.addEventListener("pointermove", onMove);
+		window.addEventListener("pointerup", onEnd);
+		window.addEventListener("pointercancel", onEnd);
+	};
 
 	return (
 		<section
@@ -108,9 +217,15 @@ export const AgentAppPanel: React.FC<AgentAppPanelProps> = ({
 					</Button>
 				</div>
 				{loaded && app && (
-					<div className={cn("px-4 pb-4", !open && "hidden")}>
+					<div className={cn("relative px-4 pb-6", !open && "hidden")}>
 						<div
-							className="h-[640px] min-h-[240px] resize-y overflow-hidden rounded-md border border-solid border-border"
+							ref={box}
+							style={{ height: boxHeight }}
+							className={cn(
+								"overflow-hidden rounded-md border border-solid border-border",
+								// The pointer must not disappear into the app while resizing.
+								resizing && "select-none [&_iframe]:pointer-events-none",
+							)}
 							data-testid="agent-app-frame"
 						>
 							<WorkspaceAppFrame
@@ -119,6 +234,38 @@ export const AgentAppPanel: React.FC<AgentAppPanelProps> = ({
 								active
 							/>
 						</div>
+						<button
+							type="button"
+							aria-label={`Resize the ${name} panel`}
+							title="Drag to resize (or use the up and down arrow keys)"
+							data-testid="app-panel-resize"
+							className="absolute right-4 bottom-0.5 flex h-5 w-8 cursor-ns-resize touch-none items-center justify-center rounded border-0 bg-transparent p-0 text-content-secondary hover:text-content-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-content-link"
+							onPointerDown={onResizeStart}
+							onKeyDown={(event) => {
+								if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+									event.preventDefault();
+									onHeightChange(
+										resizeTo(
+											boxHeight +
+												(event.key === "ArrowDown" ? KEY_STEP : -KEY_STEP),
+										),
+									);
+								}
+							}}
+						>
+							{/* Two short lines, like a grip. */}
+							<svg
+								aria-hidden
+								viewBox="0 0 16 8"
+								className="h-2 w-4"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="1.5"
+								strokeLinecap="round"
+							>
+								<path d="M1 2h14M4 6h8" />
+							</svg>
+						</button>
 					</div>
 				)}
 			</Collapsible>

@@ -1,15 +1,12 @@
 import type { SerpentOption } from "#/api/typesGenerated";
 import { Alert, AlertDescription, AlertTitle } from "#/components/Alert/Alert";
 import { FeatureUnavailable } from "#/components/FeatureUnavailable/FeatureUnavailable";
-import { Link } from "#/components/Link/Link";
 import {
 	SettingsHeader,
 	SettingsHeaderDescription,
-	SettingsHeaderDocsLink,
 	SettingsHeaderTitle,
 } from "#/components/SettingsHeader/SettingsHeader";
 import { deploymentGroupHasParent } from "#/utils/deployOptions";
-import { docs } from "#/utils/docs";
 import OptionsTable from "../OptionsTable";
 
 type AIGovernanceSettingsPageViewProps = {
@@ -34,7 +31,6 @@ export const AIGovernanceSettingsPageView: React.FC<
 					</SettingsHeaderTitle>
 					<SettingsHeaderDescription>
 						Monitor and manage AI requests across your deployment.{" "}
-						<SettingsHeaderDocsLink href={docs("/ai-coder/ai-governance")} />
 					</SettingsHeaderDescription>
 				</SettingsHeader>
 
@@ -46,12 +42,8 @@ export const AIGovernanceSettingsPageView: React.FC<
 									AI Gateway is included in your license, but not set up yet.
 								</AlertTitle>
 								<AlertDescription>
-									You have access to AI Governance, but it still needs to be
-									setup. Check out the{" "}
-									<Link href={docs("/ai-coder/ai-gateway")} target="_blank">
-										AI Gateway
-									</Link>{" "}
-									documentation to get started.
+									You have access to AI Governance, but it still needs to be set
+									up.
 								</AlertDescription>
 							</Alert>
 						)}

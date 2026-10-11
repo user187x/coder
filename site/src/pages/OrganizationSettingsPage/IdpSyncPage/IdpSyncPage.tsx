@@ -17,13 +17,11 @@ import { FeatureUnavailable } from "#/components/FeatureUnavailable/FeatureUnava
 import {
 	SettingsHeader,
 	SettingsHeaderDescription,
-	SettingsHeaderDocsLink,
 	SettingsHeaderTitle,
 } from "#/components/SettingsHeader/SettingsHeader";
 import { useFeatureVisibility } from "#/modules/dashboard/useFeatureVisibility";
 import { useOrganizationSettings } from "#/modules/management/OrganizationSettingsLayout";
 import { RequirePermission } from "#/modules/permissions/RequirePermission";
-import { docs } from "#/utils/docs";
 import { pageTitle } from "#/utils/page";
 import IdpSyncPageView from "./IdpSyncPageView";
 
@@ -121,7 +119,6 @@ const IdpSyncPage: React.FC = () => {
 				<SettingsHeaderDescription>
 					Automatically assign groups or roles to a user based on their IdP
 					claims.{" "}
-					<SettingsHeaderDocsLink href={docs("/admin/users/idp-sync")} />
 				</SettingsHeaderDescription>
 			</SettingsHeader>
 			{!isIdpSyncEnabled ? (

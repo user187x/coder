@@ -9,7 +9,6 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "#/components/DropdownMenu/DropdownMenu";
-import { Link } from "#/components/Link/Link";
 import {
 	SettingsHeader,
 	SettingsHeaderDescription,
@@ -27,7 +26,6 @@ import { TableLoader } from "#/components/TableLoader/TableLoader";
 import { ProviderIcon } from "#/modules/aiModels/ProviderIcon";
 import { addableProviders } from "#/pages/AISettingsPage/ProvidersPage/components/addableProviderTypes";
 import { ProviderRow } from "#/pages/AISettingsPage/ProvidersPage/components/ProviderRow";
-import { docs } from "#/utils/docs";
 
 type ProvidersPageViewProps = {
 	isLoading: boolean;
@@ -87,10 +85,7 @@ const ProvidersPageView: React.FC<ProvidersPageViewProps> = ({
 					Connect third-party services like OpenAI, Anthropic, or Amazon
 					Bedrock. Providers configured here power Coder Agents, AI Gateway, and
 					other capabilities such as APIs, CLI or IDEs that use LLMs. By
-					default, users can supply their own keys for any provider.{" "}
-					<Link href={docs("/ai-coder/ai-gateway/setup#configure-providers")}>
-						View docs
-					</Link>
+					default, users can supply their own keys for any provider.
 				</SettingsHeaderDescription>
 			</SettingsHeader>
 			{Boolean(error) && (

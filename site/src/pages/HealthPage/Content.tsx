@@ -6,9 +6,7 @@ import {
 	CircleMinusIcon,
 } from "lucide-react";
 import { cloneElement } from "react";
-import type { HealthCode, HealthSeverity } from "#/api/typesGenerated";
-import { Link } from "#/components/Link/Link";
-import { docs } from "#/utils/docs";
+import type { HealthSeverity } from "#/api/typesGenerated";
 
 // The pages open inside General's layout, which provides the outer spacing.
 const CONTENT_PADDING = 36;
@@ -258,24 +256,5 @@ export const Logs: React.FC<LogsProps> = ({
 				<span className="text-content-secondary">No logs available</span>
 			)}
 		</div>
-	);
-};
-
-type HealthMessageDocsLinkProps = {
-	code: HealthCode;
-};
-
-export const HealthMessageDocsLink: React.FC<HealthMessageDocsLinkProps> = ({
-	code,
-}) => {
-	return (
-		<Link
-			href={docs(`/admin/monitoring/health-check#${code.toLocaleLowerCase()}`)}
-			target="_blank"
-			rel="noreferrer"
-			className="mx-0"
-		>
-			Docs for {code}
-		</Link>
 	);
 };

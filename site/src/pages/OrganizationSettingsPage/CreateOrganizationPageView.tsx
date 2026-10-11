@@ -17,12 +17,10 @@ import { Label } from "#/components/Label/Label";
 import {
 	SettingsHeader,
 	SettingsHeaderDescription,
-	SettingsHeaderDocsLink,
 	SettingsHeaderTitle,
 } from "#/components/SettingsHeader/SettingsHeader";
 import { Spinner } from "#/components/Spinner/Spinner";
 import { Textarea } from "#/components/Textarea/Textarea";
-import { docs } from "#/utils/docs";
 import {
 	displayNameValidator,
 	getFormHelpers,
@@ -98,9 +96,6 @@ export const CreateOrganizationPageView: React.FC<
 						<SettingsHeaderDescription>
 							Isolate members, templates, and provisioners for a team or
 							project.{" "}
-							<SettingsHeaderDocsLink
-								href={docs("/admin/users/organizations")}
-							/>
 						</SettingsHeaderDescription>
 					</SettingsHeader>
 

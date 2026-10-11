@@ -20,7 +20,6 @@ import {
 import { FormField } from "#/components/FormField/FormField";
 import { IconField } from "#/components/IconField/IconField";
 import { Label } from "#/components/Label/Label";
-import { Link } from "#/components/Link/Link";
 import {
 	Select,
 	SelectContent,
@@ -34,7 +33,6 @@ import {
 	StackLabelHelperText,
 } from "#/components/StackLabel/StackLabel";
 import { Textarea } from "#/components/Textarea/Textarea";
-import { docs } from "#/utils/docs";
 import {
 	displayNameValidator,
 	getFormHelpers,
@@ -361,14 +359,6 @@ export const TemplateSettingsForm: React.FC<TemplateSettingsFormProps> = ({
 										name in such a way that changing it may destroy/recreate a
 										resource.
 									</div>
-									<Link
-										className="text-xs"
-										href={docs(
-											"/admin/templates/extending-templates/resource-persistence",
-										)}
-									>
-										Learn more
-									</Link>
 								</StackLabelHelperText>
 							</StackLabel>
 						</Label>

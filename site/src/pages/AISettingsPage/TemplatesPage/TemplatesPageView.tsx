@@ -12,7 +12,6 @@ import { Button } from "#/components/Button/Button";
 import {
 	SettingsHeader,
 	SettingsHeaderDescription,
-	SettingsHeaderDocsLink,
 	SettingsHeaderTitle,
 } from "#/components/SettingsHeader/SettingsHeader";
 import { Switch } from "#/components/Switch/Switch";
@@ -31,7 +30,6 @@ import {
 	TemplatesFilter,
 } from "#/pages/TemplatesPage/TemplatesFilter";
 import { createDayString } from "#/utils/createDayString";
-import { docs } from "#/utils/docs";
 import { formatTemplateActiveDevelopersLabel } from "#/utils/templates";
 
 type TemplatesPageViewProps = {
@@ -123,11 +121,6 @@ export const TemplatesPageView: React.FC<TemplatesPageViewProps> = ({
 				<SettingsHeaderTitle>Templates</SettingsHeaderTitle>
 				<SettingsHeaderDescription>
 					Choose which templates Coder Agents can use to create workspaces.{" "}
-					<SettingsHeaderDocsLink
-						href={docs(
-							"/ai-coder/agents/platform-controls/template-optimization#restrict-available-templates",
-						)}
-					/>
 				</SettingsHeaderDescription>
 			</SettingsHeader>
 

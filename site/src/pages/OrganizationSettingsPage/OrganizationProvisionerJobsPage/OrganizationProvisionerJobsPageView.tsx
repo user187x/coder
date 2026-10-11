@@ -7,7 +7,6 @@ import type {
 import { Badge } from "#/components/Badge/Badge";
 import { Button } from "#/components/Button/Button";
 import { EmptyState } from "#/components/EmptyState/EmptyState";
-import { Link } from "#/components/Link/Link";
 import {
 	Select,
 	SelectContent,
@@ -40,7 +39,6 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "#/components/Tooltip/Tooltip";
-import { docs } from "#/utils/docs";
 import { pageTitle } from "#/utils/page";
 import { JobRow } from "./JobRow";
 
@@ -108,10 +106,7 @@ const OrganizationProvisionerJobsPageView: React.FC<
 					<SettingsHeaderTitle>Provisioner Jobs</SettingsHeaderTitle>
 					<SettingsHeaderDescription>
 						Provisioner Jobs are the individual tasks assigned to Provisioners
-						when the workspaces are being built.{" "}
-						<Link href={docs("/admin/provisioners/manage-provisioner-jobs")}>
-							View docs
-						</Link>
+						when the workspaces are being built.
 					</SettingsHeaderDescription>
 				</SettingsHeader>
 

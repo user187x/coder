@@ -16,7 +16,6 @@ import { Badge } from "#/components/Badge/Badge";
 import { DeprecatedBadge } from "#/components/Badge/PresetBadges";
 import { Button } from "#/components/Button/Button";
 import { InfoTooltip } from "#/components/InfoTooltip/InfoTooltip";
-import { Link } from "#/components/Link/Link";
 import { Margins } from "#/components/Margins/Margins";
 import {
 	PageHeader,
@@ -41,7 +40,6 @@ import { useClickableTableRow } from "#/hooks/useClickableTableRow";
 import { linkToTemplate, useLinks } from "#/modules/navigation";
 import type { WorkspacePermissions } from "#/modules/permissions/workspaces";
 import { createDayString } from "#/utils/createDayString";
-import { docs } from "#/utils/docs";
 import {
 	formatTemplateActiveDevelopersLabel,
 	formatTemplateBuildTime,
@@ -86,17 +84,7 @@ const CompatibilityModeAlert: React.FC<{ templates: readonly Template[] }> = ({
 				{singleTemplate ? "this template" : "these templates"} on the legacy
 				parameter flow, which will be removed in a future release. Switching to
 				dynamic parameters takes one click in the template&apos;s parameter
-				settings.{" "}
-				<Link
-					href={docs(
-						"/admin/templates/extending-templates/dynamic-parameters#upgrade-from-parameter-compatibility-mode",
-					)}
-					target="_blank"
-					rel="noreferrer"
-				>
-					How to upgrade
-					<span className="sr-only"> (opens in new tab)</span>
-				</Link>
+				settings.
 			</AlertDescription>
 		</Alert>
 	);
@@ -109,10 +97,6 @@ const TemplateHelpPopover: React.FC = () => {
 			<TooltipMessage>
 				With templates you can create a common configuration for your workspaces
 				using Terraform.
-				<br />
-				<Link size="sm" href={docs("/admin/templates")}>
-					Manage templates
-				</Link>
 			</TooltipMessage>
 		</InfoTooltip>
 	);

@@ -2,14 +2,12 @@ import type { SerpentOption } from "#/api/typesGenerated";
 import {
 	SettingsHeader,
 	SettingsHeaderDescription,
-	SettingsHeaderDocsLink,
 	SettingsHeaderTitle,
 } from "#/components/SettingsHeader/SettingsHeader";
 import {
 	deploymentGroupHasParent,
 	useDeploymentOptions,
 } from "#/utils/deployOptions";
-import { docs } from "#/utils/docs";
 import OptionsTable from "../OptionsTable";
 
 type SecuritySettingsPageViewProps = {
@@ -32,10 +30,6 @@ export const SecuritySettingsPageView: React.FC<
 					<SettingsHeaderTitle>Security</SettingsHeaderTitle>
 					<SettingsHeaderDescription>
 						Ensure your Coder deployment is secure.{" "}
-						<SettingsHeaderDocsLink
-							href={docs("/admin/security")}
-							context="about security"
-						/>
 					</SettingsHeaderDescription>
 				</SettingsHeader>
 

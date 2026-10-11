@@ -1,7 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, within } from "storybook/test";
 import type { SerpentGroup, SerpentOption } from "#/api/typesGenerated";
-import { docs } from "#/utils/docs";
 import { SecuritySettingsPageView } from "./SecuritySettingsPageView";
 
 const group: SerpentGroup = {
@@ -58,9 +57,10 @@ type Story = StoryObj<typeof SecuritySettingsPageView>;
 export const Page: Story = {
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		const docsLinks = canvas.getAllByRole("link", { name: /View docs/ });
-		await expect(docsLinks).toHaveLength(1);
-		await expect(docsLinks[0]).toHaveAttribute("href", docs("/admin/security"));
+		// Platform: no links to the online docs (air-gapped).
+		await expect(canvas.queryAllByRole("link", { name: /docs/i })).toHaveLength(
+			0,
+		);
 	},
 };
 

@@ -4,11 +4,9 @@ import { Badge } from "#/components/Badge/Badge";
 import { Button } from "#/components/Button/Button";
 import { Checkbox } from "#/components/Checkbox/Checkbox";
 import { FeatureUnavailable } from "#/components/FeatureUnavailable/FeatureUnavailable";
-import { Link } from "#/components/Link/Link";
 import {
 	SettingsHeader,
 	SettingsHeaderDescription,
-	SettingsHeaderDocsLink,
 	SettingsHeaderTitle,
 } from "#/components/SettingsHeader/SettingsHeader";
 import {
@@ -25,7 +23,6 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "#/components/Tooltip/Tooltip";
-import { docs } from "#/utils/docs";
 import { LastConnectionHead } from "./LastConnectionHead";
 import { ProvisionerRow } from "./ProvisionerRow";
 
@@ -62,7 +59,6 @@ export const OrganizationProvisionersPageView: React.FC<
 				<SettingsHeaderDescription>
 					Coder server runs provisioner daemons which execute terraform during
 					workspace and template builds.{" "}
-					<SettingsHeaderDocsLink href={docs("/admin/provisioners")} />
 				</SettingsHeaderDescription>
 			</SettingsHeader>
 
@@ -142,14 +138,7 @@ export const OrganizationProvisionersPageView: React.FC<
 								) : (
 									<TableEmpty
 										message="No provisioners found"
-										description="A provisioner is required before you can create templates and workspaces. You can connect your first provisioner by following our documentation."
-										cta={
-											<Button size="sm" asChild>
-												<Link href={docs("/admin/provisioners")}>
-													Create a provisioner
-												</Link>
-											</Button>
-										}
+										description="A provisioner is required before you can create templates and workspaces."
 									/>
 								)
 							) : error ? (

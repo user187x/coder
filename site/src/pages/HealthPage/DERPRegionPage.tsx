@@ -25,7 +25,6 @@ import {
 	BooleanPill,
 	Header,
 	HeaderTitle,
-	HealthMessageDocsLink,
 	HealthyDot,
 	Logs,
 	Main,
@@ -77,13 +76,7 @@ const DERPRegionPage: React.FC = () => {
 			<Main>
 				{warnings.map((warning) => {
 					return (
-						<Alert
-							actions={<HealthMessageDocsLink {...warning} />}
-							key={warning.code}
-							severity="warning"
-							prominent
-							dismissible
-						>
+						<Alert key={warning.code} severity="warning" prominent dismissible>
 							{warning.message}
 						</Alert>
 					);

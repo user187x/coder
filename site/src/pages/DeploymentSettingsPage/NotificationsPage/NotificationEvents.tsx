@@ -7,7 +7,6 @@ import {
 } from "#/api/queries/notifications";
 import type { DeploymentValues } from "#/api/typesGenerated";
 import { Alert } from "#/components/Alert/Alert";
-import { Link } from "#/components/Link/Link";
 import {
 	Select,
 	SelectContent,
@@ -21,7 +20,6 @@ import {
 	methodLabels,
 	type NotificationMethod,
 } from "#/modules/notifications/utils";
-import { docs } from "#/utils/docs";
 
 type NotificationEventsProps = {
 	defaultMethod: NotificationMethod;
@@ -61,39 +59,13 @@ export const NotificationEvents: React.FC<NotificationEventsProps> = ({
 	return (
 		<div className="flex flex-col gap-8">
 			{hasWebhookNotifications && !isWebhookConfigured && (
-				<Alert
-					severity="warning"
-					prominent
-					actions={
-						<Link
-							href={docs("/admin/monitoring/notifications#webhook")}
-							target="_blank"
-							rel="noreferrer"
-						>
-							View docs
-							<span className="sr-only"> (opens in new tab)</span>
-						</Link>
-					}
-				>
+				<Alert severity="warning" prominent>
 					Webhook notifications are enabled, but not properly configured.
 				</Alert>
 			)}
 
 			{hasSMTPNotifications && !isSMTPConfigured && (
-				<Alert
-					severity="warning"
-					prominent
-					actions={
-						<Link
-							href={docs("/admin/monitoring/notifications#smtp-email")}
-							target="_blank"
-							rel="noreferrer"
-						>
-							View docs
-							<span className="sr-only"> (opens in new tab)</span>
-						</Link>
-					}
-				>
+				<Alert severity="warning" prominent>
 					SMTP notifications are enabled but not properly configured.
 				</Alert>
 			)}

@@ -6,7 +6,6 @@ import { FeatureUnavailable } from "#/components/FeatureUnavailable/FeatureUnava
 import {
 	SettingsHeader,
 	SettingsHeaderDescription,
-	SettingsHeaderDocsLink,
 	SettingsHeaderTitle,
 } from "#/components/SettingsHeader/SettingsHeader";
 import {
@@ -18,7 +17,6 @@ import {
 	TableRow,
 } from "#/components/Table/Table";
 import { TableEmpty } from "#/components/TableEmpty/TableEmpty";
-import { docs } from "#/utils/docs";
 
 type ExternalAuthSettingsPageViewProps = {
 	config: DeploymentValues;
@@ -36,7 +34,6 @@ export const ExternalAuthSettingsPageView: React.FC<
 				<SettingsHeaderDescription>
 					Coder integrates with GitHub, GitLab, BitBucket, Azure Repos, and
 					OpenID Connect to authenticate developers with external services.{" "}
-					<SettingsHeaderDocsLink href={docs("/admin/external-auth")} />
 				</SettingsHeaderDescription>
 			</SettingsHeader>
 

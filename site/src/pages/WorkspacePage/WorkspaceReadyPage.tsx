@@ -16,7 +16,6 @@ import {
 	deleteWorkspace,
 	startWorkspace,
 	stopWorkspace,
-	toggleFavorite,
 } from "#/api/queries/workspaces";
 import type * as TypesGen from "#/api/typesGenerated";
 import {
@@ -176,14 +175,6 @@ export const WorkspaceReadyPage: React.FC<WorkspaceReadyPageProps> = ({
 				buildParameters,
 			);
 		},
-		onError: (error: unknown) => {
-			handleError(error);
-		},
-	});
-
-	// Toggle workspace favorite
-	const toggleFavoriteMutation = useMutation({
-		...toggleFavorite(workspace, queryClient),
 		onError: (error: unknown) => {
 			handleError(error);
 		},
@@ -363,9 +354,6 @@ export const WorkspaceReadyPage: React.FC<WorkspaceReadyPageProps> = ({
 							},
 						);
 					}
-				}}
-				handleToggleFavorite={() => {
-					toggleFavoriteMutation.mutate();
 				}}
 			/>
 

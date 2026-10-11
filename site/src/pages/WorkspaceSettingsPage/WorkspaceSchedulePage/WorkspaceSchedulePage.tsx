@@ -11,7 +11,6 @@ import type * as TypesGen from "#/api/typesGenerated";
 import { Alert } from "#/components/Alert/Alert";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { ConfirmDialog } from "#/components/Dialog/ConfirmDialog/ConfirmDialog";
-import { Link } from "#/components/Link/Link";
 import { Loader } from "#/components/Loader/Loader";
 import {
 	SettingsHeader,
@@ -23,7 +22,6 @@ import {
 	scheduleToAutostart,
 } from "#/pages/WorkspaceSettingsPage/WorkspaceSchedulePage/schedule";
 import { ttlMsToAutostop } from "#/pages/WorkspaceSettingsPage/WorkspaceSchedulePage/ttl";
-import { docs } from "#/utils/docs";
 import { pageTitle } from "#/utils/page";
 import { useWorkspaceSettings } from "../useWorkspaceSettings";
 import {
@@ -97,18 +95,7 @@ const WorkspaceSchedulePage: React.FC = () => {
 				(workspace.is_prebuild ? (
 					<Alert severity="info">
 						Prebuilt workspaces ignore workspace-level scheduling until they are
-						claimed. For prebuilt workspace specific scheduling refer to the{" "}
-						<Link
-							title="Prebuilt Workspaces Scheduling"
-							href={docs(
-								"/admin/templates/extending-templates/prebuilt-workspaces#scheduling",
-							)}
-							target="_blank"
-							rel="noreferrer"
-						>
-							Prebuilt Workspaces Scheduling
-						</Link>{" "}
-						documentation page.
+						claimed.
 					</Alert>
 				) : (
 					<WorkspaceScheduleForm

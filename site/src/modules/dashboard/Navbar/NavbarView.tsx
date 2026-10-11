@@ -10,6 +10,7 @@ import type { ProxyContextValue } from "#/contexts/ProxyContext";
 import { NotificationsInbox } from "#/modules/notifications/NotificationsInbox/NotificationsInbox";
 import { AnnouncementBanner } from "#/modules/platform/announcement/AnnouncementBanner";
 import { ChatInboxIndicator } from "#/modules/platform/chat/ChatInboxIndicator";
+import { NavbarArrange } from "#/modules/platform/navbarOrder/NavbarArrange";
 import { getPrereleaseFlag } from "#/utils/buildInfo";
 import {
 	type AdminQuickLinks,
@@ -81,9 +82,29 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 				<ProductLogo className="h-7" />
 			</NavLink>
 
-			<nav className="ml-4 hidden md:flex items-center h-full">
-				<WorkspacesDropdown />
-			</nav>
+			{/* Platform: Workspaces, the banner, latency and HUD, in the user's order (NavbarArrange). */}
+			<NavbarArrange
+				className="relative ml-4 hidden md:flex flex-1 min-w-0 items-center gap-3 h-full"
+				items={{
+					workspaces: (
+						<nav className="flex items-center h-full">
+							<WorkspacesDropdown />
+						</nav>
+					),
+					banner: <AnnouncementBanner placement="navbar" />,
+					latency: proxyContextValue ? (
+						<ProxyMenu proxyContextValue={proxyContextValue} />
+					) : null,
+					hud: adminPermissions.canViewDeployment ? (
+						<Button asChild variant="outline" size="lg">
+							<NavLink to="/hud" title="HUD: the platform at a glance">
+								<GaugeIcon aria-hidden />
+								HUD
+							</NavLink>
+						</Button>
+					) : null,
+				}}
+			/>
 
 			{prerelease && buildInfo?.version && (
 				<a
@@ -102,11 +123,7 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 				</a>
 			)}
 
-			<div className="flex flex-1 min-w-0 items-center justify-end gap-3 ml-auto">
-				<div className="hidden md:flex flex-1 min-w-0 empty:hidden">
-					<AnnouncementBanner placement="navbar" />
-				</div>
-
+			<div className="flex items-center justify-end gap-3 ml-auto md:ml-3">
 				{supportLinks.filter(isNavbarLink).map((link) => (
 					<div key={link.name} className="hidden md:block">
 						<SupportButton
@@ -116,23 +133,6 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 						/>
 					</div>
 				))}
-
-				{proxyContextValue && (
-					<div className="hidden md:block">
-						<ProxyMenu proxyContextValue={proxyContextValue} />
-					</div>
-				)}
-
-				{adminPermissions.canViewDeployment && (
-					<div className="hidden md:block">
-						<Button asChild variant="outline" size="lg">
-							<NavLink to="/hud" title="HUD: the platform at a glance">
-								<GaugeIcon aria-hidden />
-								HUD
-							</NavLink>
-						</Button>
-					</div>
-				)}
 
 				{canViewAdminSettings(adminPermissions) && (
 					<div className="hidden md:block">

@@ -13,7 +13,6 @@ import {
 	PopoverContent,
 	PopoverTrigger,
 } from "#/components/Popover/Popover";
-import { docs } from "#/utils/docs";
 
 type AgentSSHButtonProps = {
 	workspaceName: string;
@@ -61,20 +60,6 @@ export const AgentSSHButton: React.FC<AgentSSHButtonProps> = ({
 
 				<HelpPopoverLinksGroup>
 					<HelpPopoverLink href="/install">Install Coder CLI</HelpPopoverLink>
-					<HelpPopoverLink href={docs("/user-guides/workspace-access/vscode")}>
-						Connect via VS Code Remote SSH
-					</HelpPopoverLink>
-					<HelpPopoverLink
-						href={docs("/user-guides/workspace-access/jetbrains")}
-					>
-						Connect via JetBrains IDEs
-					</HelpPopoverLink>
-					<HelpPopoverLink href={docs("/user-guides/desktop")}>
-						Connect via Coder Desktop
-					</HelpPopoverLink>
-					<HelpPopoverLink href={docs("/user-guides/workspace-access#ssh")}>
-						SSH configuration
-					</HelpPopoverLink>
 				</HelpPopoverLinksGroup>
 			</PopoverContent>
 		</Popover>

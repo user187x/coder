@@ -306,13 +306,6 @@ export const HiddenResourcesRevealed: Story = {
 	},
 };
 
-export const Favorite: Story = {
-	args: {
-		...Running.args,
-		workspace: Mocks.MockFavoriteWorkspace,
-	},
-};
-
 export const WithoutUpdateAccess: Story = {
 	args: {
 		...Running.args,

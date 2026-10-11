@@ -960,3 +960,14 @@
 		color: hsl(300 95% 78%);
 	}
 }
+
+/*
+ * Platform: the deployment is air-gapped, so Coder's online documentation is
+ * unreachable. The dashboard no longer links to it; this hides any link into it
+ * that is still produced somewhere (template READMEs, markdown, messages).
+ */
+a[href^="https://coder.com/docs"],
+a[href^="http://coder.com/docs"],
+a[href^="https://www.coder.com/docs"] {
+	display: none !important;
+}

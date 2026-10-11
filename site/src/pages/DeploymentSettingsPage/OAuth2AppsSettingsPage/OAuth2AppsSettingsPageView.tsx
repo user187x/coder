@@ -10,7 +10,6 @@ import { Loader } from "#/components/Loader/Loader";
 import {
 	SettingsHeader,
 	SettingsHeaderDescription,
-	SettingsHeaderDocsLink,
 	SettingsHeaderTitle,
 } from "#/components/SettingsHeader/SettingsHeader";
 import {
@@ -31,7 +30,6 @@ import {
 } from "#/components/Tabs/Tabs";
 import { useClickableTableRow } from "#/hooks/useClickableTableRow";
 import { useSearchParamsKey } from "#/hooks/useSearchParamsKey";
-import { docs } from "#/utils/docs";
 import { DynamicClientRegistrationSetting } from "./DynamicClientRegistrationSetting";
 
 /**
@@ -156,11 +154,6 @@ const OAuth2AppsSettingsPageView: React.FC<OAuth2AppsSettingsProps> = ({
 				<SettingsHeaderDescription>
 					Register applications to use Coder as an OAuth2 provider
 					{settings && ", and configure how this deployment behaves as one"}.{" "}
-					<SettingsHeaderDocsLink
-						href={docs(
-							"/admin/integrations/oauth2-provider#dynamic-client-registration",
-						)}
-					/>
 				</SettingsHeaderDescription>
 			</SettingsHeader>
 

@@ -11,10 +11,8 @@ import { Button } from "#/components/Button/Button";
 import {
 	SettingsHeader,
 	SettingsHeaderDescription,
-	SettingsHeaderDocsLink,
 	SettingsHeaderTitle,
 } from "#/components/SettingsHeader/SettingsHeader";
-import { docs } from "#/utils/docs";
 import { SecretDialog } from "./SecretDialog";
 import { SecretsTable } from "./SecretsTable";
 
@@ -101,7 +99,6 @@ export const SecretsPageView: React.FC<SecretsPageViewProps> = ({
 					{filePathEnabled
 						? "Secrets with an environment variable or file path are injected into workspaces you own when they start. Each environment variable and file path must be unique."
 						: "File path delivery is disabled. Environment variables still work; saved paths remain blocked until delivery is enabled."}{" "}
-					<SettingsHeaderDocsLink href={docs("/user-guides/user-secrets")} />
 				</SettingsHeaderDescription>
 			</SettingsHeader>
 

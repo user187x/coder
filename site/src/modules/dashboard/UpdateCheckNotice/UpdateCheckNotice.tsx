@@ -1,7 +1,6 @@
 import { cn } from "cn";
 import { InfoIcon, XIcon } from "lucide-react";
 import { Button } from "#/components/Button/Button";
-import { docs } from "#/utils/docs";
 
 type UpdateCheckNoticeProps = {
 	version: string;
@@ -39,16 +38,7 @@ export const UpdateCheckNotice: React.FC<UpdateCheckNoticeProps> = ({
 					>
 						release notes
 					</a>{" "}
-					and{" "}
-					<a
-						href={docs("/install/upgrade")}
-						target="_blank"
-						rel="noreferrer"
-						className="text-content-link underline hover:no-underline"
-					>
-						upgrade instructions
-					</a>{" "}
-					for more information.
+					and for more information.
 				</p>
 			</div>
 			<Button

@@ -11,14 +11,12 @@ import { EmptyState } from "#/components/EmptyState/EmptyState";
 import {
 	SettingsHeader,
 	SettingsHeaderDescription,
-	SettingsHeaderDocsLink,
 	SettingsHeaderTitle,
 } from "#/components/SettingsHeader/SettingsHeader";
 import { useDashboard } from "#/modules/dashboard/useDashboard";
 import { useFeatureVisibility } from "#/modules/dashboard/useFeatureVisibility";
 import { useOrganizationSettings } from "#/modules/management/OrganizationSettingsLayout";
 import { RequirePermission } from "#/modules/permissions/RequirePermission";
-import { docs } from "#/utils/docs";
 import { pageTitle } from "#/utils/page";
 import { CustomRolesPageView } from "./CustomRolesPageView";
 
@@ -84,7 +82,6 @@ const CustomRolesPage: React.FC = () => {
 					<SettingsHeaderTitle>Roles</SettingsHeaderTitle>
 					<SettingsHeaderDescription>
 						Manage roles for this organization.{" "}
-						<SettingsHeaderDocsLink href={docs("/admin/users/groups-roles")} />
 					</SettingsHeaderDescription>
 				</SettingsHeader>
 

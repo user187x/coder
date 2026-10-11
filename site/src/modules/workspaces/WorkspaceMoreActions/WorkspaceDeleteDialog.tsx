@@ -10,8 +10,6 @@ import {
 	DeleteConfirmationField,
 	useDeleteConfirmation,
 } from "#/components/Dialog/DeleteDialog/DeleteConfirmationField";
-import { Link } from "#/components/Link/Link";
-import { docs } from "#/utils/docs";
 
 const warnBoxClassName =
 	"mt-6 flex gap-2 rounded-lg border border-solid border-border-warning bg-surface-orange p-3 leading-snug text-content-warning";
@@ -130,17 +128,7 @@ export const WorkspaceDeleteDialog: React.FC<WorkspaceDeleteDialogProps> = ({
 										<span className="mt-1 block text-xs text-content-secondary">
 											As a Template Admin, you may skip resource cleanup to
 											delete a failed workspace. Resources such as volumes and
-											virtual machines will not be destroyed.{" "}
-											<Link
-												href={docs(
-													"/user-guides/workspace-management#workspace-resources",
-												)}
-												target="_blank"
-												rel="noreferrer"
-												size="sm"
-											>
-												Learn more
-											</Link>
+											virtual machines will not be destroyed.
 										</span>
 									</span>
 								</label>

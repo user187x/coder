@@ -1,6 +1,4 @@
 import { Alert, AlertDescription, AlertTitle } from "#/components/Alert/Alert";
-import { Link } from "#/components/Link/Link";
-import { docs } from "#/utils/docs";
 
 export const AIBridgeSetupAlert: React.FC = () => {
 	return (
@@ -9,12 +7,7 @@ export const AIBridgeSetupAlert: React.FC = () => {
 				AI Gateway is included in your license, but not set up yet.
 			</AlertTitle>
 			<AlertDescription>
-				You have access to AI Governance, but it still needs to be set up. Check
-				out the{" "}
-				<Link href={docs("/ai-coder/ai-gateway")} target="_blank">
-					AI Gateway
-				</Link>{" "}
-				documentation to get started.
+				You have access to AI Governance, but it still needs to be set up.
 			</AlertDescription>
 		</Alert>
 	);

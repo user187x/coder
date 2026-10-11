@@ -8,7 +8,6 @@ import type {
 import { Alert } from "#/components/Alert/Alert";
 import { Button } from "#/components/Button/Button";
 import { Label } from "#/components/Label/Label";
-import { Link } from "#/components/Link/Link";
 import { Spinner } from "#/components/Spinner/Spinner";
 import { useDebouncedFunction } from "#/hooks/debounce";
 import { useSyncFormParameters } from "#/modules/hooks/useSyncFormParameters";
@@ -17,7 +16,6 @@ import {
 	getInitialParameterValues,
 	useValidationSchemaForDynamicParameters,
 } from "#/modules/workspaces/DynamicParameter/DynamicParameter";
-import { docs } from "#/utils/docs";
 import type { AutofillBuildParameter } from "#/utils/richParameters";
 
 type WorkspaceParametersPageViewProps = {
@@ -224,13 +222,6 @@ export const WorkspaceParametersPageView: React.FC<
 							<p className="text-sm text-content-secondary m-0">
 								These are the settings used by your template. Immutable
 								parameters cannot be modified once the workspace is created.
-								<Link
-									href={docs(
-										"/admin/templates/extending-templates/dynamic-parameters",
-									)}
-								>
-									View docs
-								</Link>
 							</p>
 						</hgroup>
 						{parameters.map((parameter, index) => {

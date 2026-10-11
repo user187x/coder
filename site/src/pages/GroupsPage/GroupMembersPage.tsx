@@ -41,7 +41,6 @@ import { TableEmpty } from "#/components/TableEmpty/TableEmpty";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { useFeatureVisibility } from "#/modules/dashboard/useFeatureVisibility";
 import { formatBudgetUSD } from "#/utils/currency";
-import { SpendEstimateDocsLink } from "./AICostControl";
 import {
 	effectiveBudgetGroup,
 	GroupMemberBudgetCells,
@@ -148,13 +147,7 @@ const GroupMembersPage: React.FC = () => {
 													message="AI spend couldn't be loaded, so budgets aren't shown."
 												/>
 											) : (
-												<StatusIconTooltip
-													message={
-														<>
-															{aiBudgetNote} <SpendEstimateDocsLink />
-														</>
-													}
-												/>
+												<StatusIconTooltip message={<>{aiBudgetNote}</>} />
 											)}
 										</div>
 									</TableHead>

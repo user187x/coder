@@ -22,7 +22,6 @@ import {
 } from "#/components/Collapsible/Collapsible";
 import { Link } from "#/components/Link/Link";
 import { Spinner } from "#/components/Spinner/Spinner";
-import { docs } from "#/utils/docs";
 import { formatDate } from "#/utils/time";
 
 const chartConfig = {
@@ -112,15 +111,6 @@ export const LicenseSeatConsumptionChart: React.FC<
 										<RouterLink to="/deployment/overview">
 											Daily user activity
 										</RouterLink>
-									</Link>
-								</li>
-								<li>
-									<Link
-										href={docs("/admin/users#user-status")}
-										target="_blank"
-										rel="noreferrer"
-									>
-										More details on user account statuses
 									</Link>
 								</li>
 							</ul>

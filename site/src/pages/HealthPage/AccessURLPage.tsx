@@ -8,7 +8,6 @@ import {
 	GridDataValue,
 	Header,
 	HeaderTitle,
-	HealthMessageDocsLink,
 	HealthyDot,
 	Main,
 } from "./Content";
@@ -35,13 +34,7 @@ const AccessURLPage = () => {
 
 				{accessUrl.warnings.map((warning) => {
 					return (
-						<Alert
-							actions={<HealthMessageDocsLink {...warning} />}
-							key={warning.code}
-							severity="warning"
-							prominent
-							dismissible
-						>
+						<Alert key={warning.code} severity="warning" prominent dismissible>
 							{warning.message}
 						</Alert>
 					);

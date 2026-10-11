@@ -2,14 +2,12 @@ import type { ProvisionerDaemon } from "#/api/typesGenerated";
 import { ChevronDownIcon } from "#/components/AnimatedIcons/ChevronDown";
 import { FormSection, VerticalForm } from "#/components/Form/Form";
 import { TopbarButton } from "#/components/FullPageLayout/Topbar";
-import { Link } from "#/components/Link/Link";
 import {
 	Popover,
 	PopoverContent,
 	PopoverTrigger,
 } from "#/components/Popover/Popover";
 import { ProvisionerTagsField } from "#/modules/provisioners/ProvisionerTagsField";
-import { docs } from "#/utils/docs";
 
 type ProvisionerTagsPopoverProps = {
 	tags: ProvisionerDaemon["tags"];
@@ -45,16 +43,7 @@ export const ProvisionerTagsPopover: React.FC<ProvisionerTagsPopoverProps> = ({
 							description={
 								<>
 									Tags are a way to control which provisioner daemons complete
-									which build jobs.&nbsp;
-									<Link
-										href={docs("/admin/provisioners")}
-										target="_blank"
-										rel="noreferrer"
-										className="p-0"
-										showExternalIcon={false}
-									>
-										Learn more...
-									</Link>
+									which build jobs.
 								</>
 							}
 						>

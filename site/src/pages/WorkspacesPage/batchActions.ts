@@ -20,8 +20,6 @@ type UseBatchActionsResult = Readonly<{
 	updateTemplateVersions: (
 		payload: UpdateAllPayload,
 	) => Promise<WorkspaceBuild[]>;
-	favorite: (payload: readonly Workspace[]) => Promise<void>;
-	unfavorite: (payload: readonly Workspace[]) => Promise<void>;
 }>;
 
 export function useBatchActions(
@@ -97,48 +95,12 @@ export function useBatchActions(
 	// TypeScript's type system. Best to await them, and then have the wrapper
 	// mutation function return its own void promise
 
-	const favoriteAllMutation = useMutation({
-		mutationFn: async (workspaces: readonly Workspace[]): Promise<void> => {
-			await Promise.all(
-				workspaces
-					.filter((w) => !w.favorite)
-					.map((w) => API.putFavoriteWorkspace(w.id)),
-			);
-		},
-		onSuccess,
-		onError: (error) => {
-			toast.error("Failed to favorite some workspaces.", {
-				description: getErrorDetail(error),
-			});
-		},
-	});
-
-	const unfavoriteAllMutation = useMutation({
-		mutationFn: async (workspaces: readonly Workspace[]): Promise<void> => {
-			await Promise.all(
-				workspaces
-					.filter((w) => w.favorite)
-					.map((w) => API.deleteFavoriteWorkspace(w.id)),
-			);
-		},
-		onSuccess,
-		onError: (error) => {
-			toast.error("Failed to unfavorite some workspaces.", {
-				description: getErrorDetail(error),
-			});
-		},
-	});
-
 	return {
-		favorite: favoriteAllMutation.mutateAsync,
-		unfavorite: unfavoriteAllMutation.mutateAsync,
 		start: startAllMutation.mutateAsync,
 		stop: stopAllMutation.mutateAsync,
 		delete: deleteAllMutation.mutateAsync,
 		updateTemplateVersions: updateAllMutation.mutateAsync,
 		isProcessing:
-			favoriteAllMutation.isPending ||
-			unfavoriteAllMutation.isPending ||
 			startAllMutation.isPending ||
 			stopAllMutation.isPending ||
 			deleteAllMutation.isPending ||

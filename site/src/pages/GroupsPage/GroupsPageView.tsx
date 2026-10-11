@@ -22,7 +22,6 @@ import { PaginationContainer } from "#/components/PaginationWidget/PaginationCon
 import {
 	SettingsHeader,
 	SettingsHeaderDescription,
-	SettingsHeaderDocsLink,
 	SettingsHeaderTitle,
 } from "#/components/SettingsHeader/SettingsHeader";
 import { Skeleton } from "#/components/Skeleton/Skeleton";
@@ -42,8 +41,6 @@ import {
 import { useClickableTableRow } from "#/hooks/useClickableTableRow";
 import type { PaginationResultInfo } from "#/hooks/usePaginatedQuery";
 import { AIBudgetUsage } from "#/modules/groups/AIBudgetUsage";
-import { docs } from "#/utils/docs";
-import { SpendEstimateDocsLink } from "./AICostControl";
 import { StatusIconTooltip } from "./StatusIconTooltip";
 
 const EM_DASH = "\u2014";
@@ -115,7 +112,6 @@ export const GroupsPageView: React.FC<GroupsPageViewProps> = ({
 				<SettingsHeaderDescription>
 					Manage groups for this{" "}
 					{showOrganizations ? "organization" : "deployment"}.{" "}
-					<SettingsHeaderDocsLink href={docs("/admin/users/groups-roles")} />
 				</SettingsHeaderDescription>
 			</SettingsHeader>
 
@@ -147,8 +143,7 @@ export const GroupsPageView: React.FC<GroupsPageViewProps> = ({
 														message={
 															<>
 																Approximate AI spend compared to the group's AI
-																budget for the active period.{" "}
-																<SpendEstimateDocsLink />
+																budget for the active period.
 															</>
 														}
 													/>

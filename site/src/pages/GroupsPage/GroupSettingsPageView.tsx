@@ -10,7 +10,6 @@ import {
 	InputGroupInput,
 } from "#/components/InputGroup/InputGroup";
 import { Label } from "#/components/Label/Label";
-import { Link } from "#/components/Link/Link";
 import { Spinner } from "#/components/Spinner/Spinner";
 import {
 	aiBudgetRangeError,
@@ -18,7 +17,6 @@ import {
 	maxAIBudgetDollars,
 } from "#/modules/groups";
 import { usdBudgetFormatter } from "#/utils/currency";
-import { docs } from "#/utils/docs";
 import {
 	getFormHelpers,
 	nameValidator,
@@ -43,20 +41,6 @@ const validationSchema = Yup.object({
 		.min(0, aiBudgetRangeError)
 		.max(maxAIBudgetDollars, aiBudgetRangeError),
 });
-
-const BudgetDocsLink: React.FC = () => (
-	<Link
-		href={docs("/ai-coder/ai-gateway/cost-controls#effective-group-resolution")}
-		target="_blank"
-		rel="noreferrer"
-		size="sm"
-		// The link's default left padding reads as a stray gap when the link
-		// wraps to its own line under the helper text.
-		className="pl-0"
-	>
-		View docs
-	</Link>
-);
 
 type AIBudgetFeedbackProps = {
 	error: boolean;
@@ -108,7 +92,7 @@ const AIBudgetFeedback: React.FC<AIBudgetFeedbackProps> = ({
 					{summary}
 				</span>
 				<span className="text-left text-xs text-content-secondary">
-					{message} <BudgetDocsLink />
+					{message}
 				</span>
 			</>
 		);
@@ -123,7 +107,7 @@ const AIBudgetFeedback: React.FC<AIBudgetFeedbackProps> = ({
 				</span>
 				/month, based on{" "}
 				<span className="font-medium text-content-primary">{memberCount}</span>{" "}
-				{memberCount === 1 ? "member" : "members"}. <BudgetDocsLink />
+				{memberCount === 1 ? "member" : "members"}.
 			</span>
 		);
 	}

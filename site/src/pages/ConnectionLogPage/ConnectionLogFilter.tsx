@@ -28,7 +28,6 @@ import {
 	OrganizationsMenu,
 } from "#/modules/tableFiltering/options";
 import { connectionTypeToFriendlyName } from "#/utils/connection";
-import { docs } from "#/utils/docs";
 
 type ConnectionLogFilterValues = {
 	status?: ConnectionLogStatus;
@@ -75,9 +74,6 @@ export const ConnectionLogFilter: React.FC<ConnectionLogFilterProps> = ({
 	const width = menus.organization ? DEFAULT_USER_FILTER_WIDTH : undefined;
 	return (
 		<Filter
-			learnMoreLink={docs(
-				"/admin/monitoring/connection-logs#how-to-filter-connection-logs",
-			)}
 			presets={CONNECTION_LOG_PRESET_FILTERS}
 			isLoading={menus.user.isInitializing}
 			filter={filter}

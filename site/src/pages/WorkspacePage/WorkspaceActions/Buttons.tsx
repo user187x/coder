@@ -4,8 +4,6 @@ import {
 	PowerIcon,
 	RotateCcwIcon,
 	SquareIcon,
-	StarIcon,
-	StarOffIcon,
 } from "lucide-react";
 import type { Workspace, WorkspaceBuildParameter } from "#/api/typesGenerated";
 import { TopbarButton } from "#/components/FullPageLayout/Topbar";
@@ -175,25 +173,6 @@ export const DisabledButton: React.FC<DisabledButtonProps> = ({ label }) => {
 		<TopbarButton disabled>
 			<BanIcon />
 			{label}
-		</TopbarButton>
-	);
-};
-
-type FavoriteButtonProps = {
-	onToggle: (workspaceID: string) => void;
-	workspaceID: string;
-	isFavorite: boolean;
-};
-
-export const FavoriteButton: React.FC<FavoriteButtonProps> = ({
-	onToggle,
-	workspaceID,
-	isFavorite,
-}) => {
-	return (
-		<TopbarButton onClick={() => onToggle(workspaceID)}>
-			{isFavorite ? <StarOffIcon /> : <StarIcon />}
-			{isFavorite ? "Unfavorite" : "Favorite"}
 		</TopbarButton>
 	);
 };

@@ -9,7 +9,6 @@ import {
 	RefreshCcwIcon,
 	RotateCcwIcon,
 	SquareTerminalIcon,
-	StarIcon,
 } from "lucide-react";
 import type React from "react";
 import { useState } from "react";
@@ -220,9 +219,6 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 												>
 													{workspace.name}
 												</Link>
-												{workspace.favorite && (
-													<StarIcon className="size-icon-xs" />
-												)}
 												{workspace.outdated && (
 													<WorkspaceOutdatedTooltip workspace={workspace} />
 												)}

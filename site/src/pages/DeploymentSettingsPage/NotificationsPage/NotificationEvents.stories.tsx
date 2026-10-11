@@ -4,7 +4,6 @@ import { API } from "#/api/api";
 import { selectTemplatesByGroup } from "#/api/queries/notifications";
 import type { DeploymentValues } from "#/api/typesGenerated";
 import { MockSystemNotificationTemplates } from "#/testHelpers/entities";
-import { docs } from "#/utils/docs";
 import { NotificationEvents } from "./NotificationEvents";
 import { baseMeta } from "./storybookUtils";
 
@@ -39,11 +38,9 @@ export const SMTPNotConfigured: Story = {
 	},
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		await expect(
-			canvas.getByRole("link", { name: /View docs/ }),
-		).toHaveAttribute(
-			"href",
-			docs("/admin/monitoring/notifications#smtp-email"),
+		// Platform: no links to the online docs (air-gapped).
+		await expect(canvas.queryAllByRole("link", { name: /docs/i })).toHaveLength(
+			0,
 		);
 	},
 };
@@ -65,9 +62,10 @@ export const WebhookNotConfigured: Story = {
 	},
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		await expect(
-			canvas.getByRole("link", { name: /View docs/ }),
-		).toHaveAttribute("href", docs("/admin/monitoring/notifications#webhook"));
+		// Platform: no links to the online docs (air-gapped).
+		await expect(canvas.queryAllByRole("link", { name: /docs/i })).toHaveLength(
+			0,
+		);
 	},
 };
 

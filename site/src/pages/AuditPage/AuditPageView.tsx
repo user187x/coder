@@ -10,12 +10,10 @@ import {
 	PaginationContainer,
 	type PaginationResult,
 } from "#/components/PaginationWidget/PaginationContainer";
-import { SettingsHeaderDocsLink } from "#/components/SettingsHeader/SettingsHeader";
 import { Table, TableBody } from "#/components/Table/Table";
 import { TableEmpty } from "#/components/TableEmpty/TableEmpty";
 import { TableLoader } from "#/components/TableLoader/TableLoader";
 import { Timeline } from "#/components/Timeline/Timeline";
-import { docs } from "#/utils/docs";
 import { AuditFilter } from "./AuditFilter";
 import { AuditHelpPopover } from "./AuditHelpPopover";
 import { AuditLogRow } from "./AuditLogRow/AuditLogRow";
@@ -54,10 +52,7 @@ export const AuditPageView: React.FC<AuditPageViewProps> = ({
 						<AuditHelpPopover />
 					</div>
 				</PageHeaderTitle>
-				<PageHeaderSubtitle>
-					View events in your audit log.{" "}
-					<SettingsHeaderDocsLink href={docs("/admin/security/audit-logs")} />
-				</PageHeaderSubtitle>
+				<PageHeaderSubtitle>View events in your audit log. </PageHeaderSubtitle>
 			</PageHeader>
 
 			{isAuditLogVisible ? (

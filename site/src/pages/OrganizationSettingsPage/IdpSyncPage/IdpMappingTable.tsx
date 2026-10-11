@@ -1,4 +1,3 @@
-import { Link } from "#/components/Link/Link";
 import {
 	Table,
 	TableBody,
@@ -7,7 +6,6 @@ import {
 	TableRow,
 } from "#/components/Table/Table";
 import { TableEmpty } from "#/components/TableEmpty/TableEmpty";
-import { docs } from "#/utils/docs";
 
 type IdpMappingTableProps = {
 	type: "Role" | "Group";
@@ -39,15 +37,6 @@ export const IdpMappingTable: React.FC<IdpMappingTableProps> = ({
 						<TableEmpty
 							message={`No ${type.toLocaleLowerCase()} mappings`}
 							isCompact
-							cta={
-								<Link
-									href={docs(
-										`/admin/users/idp-sync#${type.toLocaleLowerCase()}-sync`,
-									)}
-								>
-									How to setup IdP {type.toLocaleLowerCase()} sync
-								</Link>
-							}
 						/>
 					) : (
 						children

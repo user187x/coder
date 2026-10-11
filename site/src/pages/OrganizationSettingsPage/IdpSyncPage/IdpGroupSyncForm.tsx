@@ -23,7 +23,6 @@ import {
 import {
 	SettingsHeader,
 	SettingsHeaderDescription,
-	SettingsHeaderDocsLink,
 	SettingsHeaderTitle,
 } from "#/components/SettingsHeader/SettingsHeader";
 import { Spinner } from "#/components/Spinner/Spinner";
@@ -35,7 +34,6 @@ import { Switch } from "#/components/Switch/Switch";
 import { TableCell, TableRow } from "#/components/Table/Table";
 import { isEveryoneGroup } from "#/modules/groups";
 import { IdpUnseenClaimWarning } from "#/modules/idpSync/IdpUnseenClaimWarning";
-import { docs } from "#/utils/docs";
 import { isUUID } from "#/utils/uuid";
 import { IdpMappingTable } from "./IdpMappingTable";
 import { IdpPillList } from "./IdpPillList";
@@ -377,9 +375,6 @@ export const IdpGroupSyncForm: React.FC<IdpGroupSyncFormProps> = ({
 									These settings were configured using environment variables,
 									and only apply to the default organization. Configure IdP sync
 									in the UI or CLI so it can apply to any organization.{" "}
-									<SettingsHeaderDocsLink
-										href={docs("/admin/users/idp-sync")}
-									/>
 								</SettingsHeaderDescription>
 							</SettingsHeader>
 							<IdpMappingTable type="Group" rowCount={legacyGroupMappingCount}>

@@ -25,7 +25,6 @@ import {
 } from "#/components/Select/Select";
 import { Spinner } from "#/components/Spinner/Spinner";
 import { useUnsavedChangesPrompt } from "#/hooks/useUnsavedChangesPrompt";
-import { docs } from "#/utils/docs";
 import { getFormHelpers } from "#/utils/formUtils";
 import {
 	type AnthropicAuthMethod,
@@ -742,15 +741,7 @@ export const ProviderForm: React.FC<ProviderFormProps> = ({
 						</div>
 						<p className="text-xs text-content-secondary m-0">
 							Optional. Leave both fields blank to authenticate with the AWS
-							environment (IAM role, instance profile, AWS_PROFILE).{" "}
-							<DocsLink
-								size="sm"
-								href={docs("/ai-coder/ai-gateway/providers#amazon-bedrock")}
-								target="_blank"
-								rel="noreferrer"
-							>
-								View docs
-							</DocsLink>
+							environment (IAM role, instance profile, AWS_PROFILE).
 						</p>
 						<FormField
 							field={getFieldHelpers("roleArn")}

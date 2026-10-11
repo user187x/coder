@@ -6,7 +6,6 @@ import { Button } from "#/components/Button/Button";
 import { Checkbox } from "#/components/Checkbox/Checkbox";
 import { ConfirmDialog } from "#/components/Dialog/ConfirmDialog/ConfirmDialog";
 import { Label } from "#/components/Label/Label";
-import { Link } from "#/components/Link/Link";
 import { Separator } from "#/components/Separator/Separator";
 import {
 	SettingsHeader,
@@ -18,7 +17,6 @@ import {
 	StackLabel,
 	StackLabelHelperText,
 } from "#/components/StackLabel/StackLabel";
-import { docs } from "#/utils/docs";
 import { formatDate } from "#/utils/time";
 
 type TemplateParametersPageViewProps = {
@@ -105,14 +103,6 @@ export const TemplateParametersPageView: React.FC<
 						parameters, and data sources. In some cases it may be necessary to
 						refresh template data for dynamic parameters to work properly.
 					</StackLabelHelperText>
-					<Link
-						className="self-start text-xs"
-						href={docs(
-							"/admin/templates/extending-templates/dynamic-parameters",
-						)}
-					>
-						Learn more
-					</Link>
 				</StackLabel>
 			</div>
 

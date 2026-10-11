@@ -4,7 +4,6 @@ import { FeatureUnavailable } from "#/components/FeatureUnavailable/FeatureUnava
 import {
 	SettingsHeader,
 	SettingsHeaderDescription,
-	SettingsHeaderDocsLink,
 	SettingsHeaderTitle,
 } from "#/components/SettingsHeader/SettingsHeader";
 import {
@@ -17,7 +16,6 @@ import {
 import { TableEmpty } from "#/components/TableEmpty/TableEmpty";
 import { TableLoader } from "#/components/TableLoader/TableLoader";
 import type { ProxyLatencyReport } from "#/contexts/useProxyLatency";
-import { docs } from "#/utils/docs";
 import { ProxyRow } from "./WorkspaceProxyRow";
 
 type WorkspaceProxyViewProps = {
@@ -47,9 +45,6 @@ export const WorkspaceProxyView: React.FC<WorkspaceProxyViewProps> = ({
 				<SettingsHeaderDescription>
 					Workspace proxies improve terminal and web app connections to
 					workspaces.{" "}
-					<SettingsHeaderDocsLink
-						href={docs("/admin/networking/workspace-proxies")}
-					/>
 				</SettingsHeaderDescription>
 			</SettingsHeader>
 

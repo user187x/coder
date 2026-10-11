@@ -2,10 +2,8 @@ import { Link as RouterLink } from "react-router";
 import type { TemplateExample } from "#/api/typesGenerated";
 import { Button } from "#/components/Button/Button";
 import { CodeExample } from "#/components/CodeExample/CodeExample";
-import { Link } from "#/components/Link/Link";
 import { TableEmpty } from "#/components/TableEmpty/TableEmpty";
 import { TemplateExampleCard } from "#/modules/templates/TemplateExampleCard/TemplateExampleCard";
-import { docs } from "#/utils/docs";
 
 // Those are from https://github.com/coder/coder/tree/main/examples/templates
 const featuredExampleIds = [
@@ -58,17 +56,7 @@ export const EmptyTemplates: React.FC<EmptyTemplatesProps> = ({
 				description={
 					<>
 						Templates are written in Terraform and describe the infrastructure
-						for workspaces. You can start using a starter template below or{" "}
-						<Link
-							href={docs("/admin/templates/creating-templates")}
-							target="_blank"
-							rel="noreferrer"
-							showExternalIcon={false}
-							className="p-0 text-xs"
-						>
-							create your own
-						</Link>
-						.
+						for workspaces. You can start using a starter template below or .
 					</>
 				}
 				cta={

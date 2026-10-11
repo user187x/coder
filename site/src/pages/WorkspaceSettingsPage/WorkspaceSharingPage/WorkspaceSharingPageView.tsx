@@ -9,13 +9,11 @@ import type {
 import {
 	SettingsHeader,
 	SettingsHeaderDescription,
-	SettingsHeaderDocsLink,
 	SettingsHeaderTitle,
 } from "#/components/SettingsHeader/SettingsHeader";
 import { isGroup } from "#/modules/groups";
 import { AddWorkspaceUserOrGroup } from "#/modules/workspaces/WorkspaceSharingForm/AddWorkspaceUserOrGroup";
 import { WorkspaceSharingForm } from "#/modules/workspaces/WorkspaceSharingForm/WorkspaceSharingForm";
-import { docs } from "#/utils/docs";
 
 type WorkspaceSharingPageViewProps = {
 	workspace: Workspace;
@@ -64,9 +62,6 @@ export const WorkspaceSharingPageView: React.FC<
 				<SettingsHeaderTitle>Sharing</SettingsHeaderTitle>
 				<SettingsHeaderDescription>
 					Share this workspace with other users and groups.{" "}
-					<SettingsHeaderDocsLink
-						href={docs("/user-guides/shared-workspaces")}
-					/>
 				</SettingsHeaderDescription>
 			</SettingsHeader>
 

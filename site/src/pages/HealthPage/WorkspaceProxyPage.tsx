@@ -15,7 +15,6 @@ import {
 	BooleanPill,
 	Header,
 	HeaderTitle,
-	HealthMessageDocsLink,
 	HealthyDot,
 	Main,
 	Pill,
@@ -47,13 +46,7 @@ const WorkspaceProxyPage: React.FC = () => {
 				)}
 				{workspace_proxy.warnings.map((warning) => {
 					return (
-						<Alert
-							actions={<HealthMessageDocsLink {...warning} />}
-							key={warning.code}
-							severity="warning"
-							prominent
-							dismissible
-						>
+						<Alert key={warning.code} severity="warning" prominent dismissible>
 							{warning.message}
 						</Alert>
 					);

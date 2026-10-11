@@ -1,9 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { docs } from "#/utils/docs";
 import {
 	SettingsHeader,
 	SettingsHeaderDescription,
-	SettingsHeaderDocsLink,
 	SettingsHeaderTitle,
 } from "./SettingsHeader";
 
@@ -46,7 +44,6 @@ export const PrimaryHeaderWithDescriptionAndDocsLink: Story = {
 				</SettingsHeaderDescription>
 			</>
 		),
-		actions: <SettingsHeaderDocsLink href={docs("/admin/external-auth")} />,
 	},
 };
 
@@ -78,7 +75,6 @@ export const SecondaryHeaderWithDescriptionAndDocsLink: Story = {
 				</SettingsHeaderDescription>
 			</>
 		),
-		actions: <SettingsHeaderDocsLink href={docs("/admin/external-auth")} />,
 	},
 };
 

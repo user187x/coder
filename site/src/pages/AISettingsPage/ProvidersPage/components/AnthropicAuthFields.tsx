@@ -1,7 +1,6 @@
 import { useId } from "react";
 import { FormField } from "#/components/FormField/FormField";
 import { Label } from "#/components/Label/Label";
-import { Link as DocsLink } from "#/components/Link/Link";
 import {
 	Select,
 	SelectContent,
@@ -9,7 +8,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "#/components/Select/Select";
-import { docs } from "#/utils/docs";
 import type { FormHelpers } from "#/utils/formUtils";
 import { CredentialField } from "./CredentialField";
 import {
@@ -123,15 +121,7 @@ export const ClaudePlatformFields: React.FC<ClaudePlatformFieldsProps> = ({
 			Optional. Client keys take precedence when BYOK is enabled, followed by
 			stored provider keys. Without either, requests use the gateway's ambient
 			AWS credentials. AWS identity is configured on the gateway, not per
-			provider.{" "}
-			<DocsLink
-				size="sm"
-				href={docs("/ai-coder/ai-gateway/providers#claude-platform-for-aws")}
-				target="_blank"
-				rel="noreferrer"
-			>
-				View docs
-			</DocsLink>
+			provider.
 		</p>
 	</>
 );

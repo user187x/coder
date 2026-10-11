@@ -31,13 +31,11 @@ import {
 import { FormField } from "#/components/FormField/FormField";
 import { IconField } from "#/components/IconField/IconField";
 import { Label } from "#/components/Label/Label";
-import { Link } from "#/components/Link/Link";
 import { OrganizationAutocomplete } from "#/components/OrganizationAutocomplete/OrganizationAutocomplete";
 import { Spinner } from "#/components/Spinner/Spinner";
 import { Textarea } from "#/components/Textarea/Textarea";
 import { ProvisionerTagsField } from "#/modules/provisioners/ProvisionerTagsField";
 import { SelectedTemplate } from "#/pages/CreateWorkspacePage/SelectedTemplate";
-import { docs } from "#/utils/docs";
 import {
 	displayNameValidator,
 	getFormHelpers,
@@ -399,14 +397,7 @@ export const CreateTemplateForm: React.FC<CreateTemplateFormProps> = (
 					description={
 						<>
 							Tags are a way to control which provisioner daemons complete which
-							build jobs.{" "}
-							<Link
-								href={docs("/admin/provisioners")}
-								target="_blank"
-								rel="noreferrer"
-							>
-								Learn more...
-							</Link>
+							build jobs.
 						</>
 					}
 				>
@@ -486,10 +477,7 @@ const ProvisionerWarning: React.FC = () => {
 	return (
 		<Alert severity="warning" className="mb-4" prominent>
 			This organization does not have any provisioners. Before you create a
-			template, you&apos;ll need to configure a provisioner.{" "}
-			<Link href={docs("/admin/provisioners#organization-scoped-provisioners")}>
-				See our documentation.
-			</Link>
+			template, you&apos;ll need to configure a provisioner.
 		</Alert>
 	);
 };

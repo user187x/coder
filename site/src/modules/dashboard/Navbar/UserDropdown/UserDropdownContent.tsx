@@ -1,8 +1,8 @@
 import {
+	ArrowLeftRightIcon,
 	CircleUserIcon,
 	CopyIcon,
 	LogOutIcon,
-	MonitorIcon,
 	TerminalIcon,
 } from "lucide-react";
 import { Link } from "react-router";
@@ -18,12 +18,10 @@ import {
 	TooltipTrigger,
 } from "#/components/Tooltip/Tooltip";
 import { useClipboard } from "#/hooks/useClipboard";
-import { supportsCoderDesktop } from "#/utils/platform";
+import { startNavbarArrange } from "#/modules/platform/navbarOrder/navbarOrder";
 import { SupportIcon } from "../SupportIcon";
 import { AnimationsToggleItem } from "./AnimationsToggleItem";
 import { ThemeToggleItem } from "./ThemeToggleItem";
-
-const CODER_DESKTOP_DOCS_URL = "https://coder.com/docs/user-guides/desktop";
 
 type UserDropdownContentProps = {
 	user: TypesGen.User;
@@ -56,14 +54,6 @@ export const UserDropdownContent: React.FC<UserDropdownContentProps> = ({
 			</DropdownMenuItem>
 			{profileExtra}
 			<DropdownMenuSeparator />
-			{supportsCoderDesktop() && (
-				<DropdownMenuItem asChild>
-					<a href={CODER_DESKTOP_DOCS_URL} target="_blank" rel="noreferrer">
-						<MonitorIcon />
-						<span>Install Coder Desktop</span>
-					</a>
-				</DropdownMenuItem>
-			)}
 			<DropdownMenuItem asChild>
 				<Link to="/install">
 					<TerminalIcon />
@@ -83,6 +73,11 @@ export const UserDropdownContent: React.FC<UserDropdownContentProps> = ({
 			<DropdownMenuSeparator />
 			<ThemeToggleItem />
 			<AnimationsToggleItem />
+			{/* Platform: move Workspaces, latency and HUD around the announcement banner (NavbarArrange). */}
+			<DropdownMenuItem onSelect={() => startNavbarArrange()}>
+				<ArrowLeftRightIcon />
+				<span>Rearrange top bar</span>
+			</DropdownMenuItem>
 			{supportLinks.map((link) => (
 				<DropdownMenuItem key={link.name} asChild>
 					<a href={link.target} target="_blank" rel="noreferrer">

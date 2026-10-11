@@ -4,14 +4,12 @@ import { DisabledBadge, EnabledBadge } from "#/components/Badge/PresetBadges";
 import {
 	SettingsHeader,
 	SettingsHeaderDescription,
-	SettingsHeaderDocsLink,
 	SettingsHeaderTitle,
 } from "#/components/SettingsHeader/SettingsHeader";
 import {
 	deploymentGroupHasParent,
 	useDeploymentOptions,
 } from "#/utils/deployOptions";
-import { docs } from "#/utils/docs";
 import OptionsTable from "../OptionsTable";
 
 type UserAuthSettingsPageViewProps = {
@@ -38,10 +36,6 @@ export const UserAuthSettingsPageView = ({
 					</SettingsHeaderTitle>
 					<SettingsHeaderDescription>
 						Set up authentication to login with OpenID Connect.{" "}
-						<SettingsHeaderDocsLink
-							href={docs("/admin/users/oidc-auth")}
-							context="about OpenID Connect login"
-						/>
 					</SettingsHeaderDescription>
 				</SettingsHeader>
 

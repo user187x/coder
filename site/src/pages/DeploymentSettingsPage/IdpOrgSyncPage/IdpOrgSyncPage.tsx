@@ -12,13 +12,11 @@ import { Loader } from "#/components/Loader/Loader";
 import {
 	SettingsHeader,
 	SettingsHeaderDescription,
-	SettingsHeaderDocsLink,
 	SettingsHeaderTitle,
 } from "#/components/SettingsHeader/SettingsHeader";
 import { useDashboard } from "#/modules/dashboard/useDashboard";
 import { useFeatureVisibility } from "#/modules/dashboard/useFeatureVisibility";
 import { ExportPolicyButton } from "#/modules/idpSync/ExportPolicyButton";
-import { docs } from "#/utils/docs";
 import { pageTitle } from "#/utils/page";
 import { IdpOrgSyncPageView } from "./IdpOrgSyncPageView";
 
@@ -61,9 +59,6 @@ const IdpOrgSyncPage: React.FC = () => {
 					<SettingsHeaderDescription>
 						Automatically assign users to an organization based on their IdP
 						claims.{" "}
-						<SettingsHeaderDocsLink
-							href={docs("/admin/users/idp-sync#organization-sync")}
-						/>
 					</SettingsHeaderDescription>
 				</SettingsHeader>
 				{!isIdpSyncEnabled ? (

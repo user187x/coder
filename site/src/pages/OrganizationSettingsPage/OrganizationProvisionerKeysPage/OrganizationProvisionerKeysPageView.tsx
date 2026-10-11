@@ -9,7 +9,6 @@ import { FeatureUnavailable } from "#/components/FeatureUnavailable/FeatureUnava
 import {
 	SettingsHeader,
 	SettingsHeaderDescription,
-	SettingsHeaderDocsLink,
 	SettingsHeaderTitle,
 } from "#/components/SettingsHeader/SettingsHeader";
 import {
@@ -21,7 +20,6 @@ import {
 } from "#/components/Table/Table";
 import { TableEmpty } from "#/components/TableEmpty/TableEmpty";
 import { TableLoader } from "#/components/TableLoader/TableLoader";
-import { docs } from "#/utils/docs";
 import { ProvisionerKeyRow } from "./ProvisionerKeyRow";
 
 // If the user using provisioner keys for external provisioners you're unlikely to
@@ -52,7 +50,6 @@ export const OrganizationProvisionerKeysPageView: React.FC<
 				<SettingsHeaderTitle>Provisioner Keys</SettingsHeaderTitle>
 				<SettingsHeaderDescription>
 					Manage provisioner keys used to authenticate provisioner instances.{" "}
-					<SettingsHeaderDocsLink href={docs("/admin/provisioners")} />
 				</SettingsHeaderDescription>
 			</SettingsHeader>
 

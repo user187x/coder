@@ -13,12 +13,10 @@ import { IconField } from "#/components/IconField/IconField";
 import {
 	SettingsHeader,
 	SettingsHeaderDescription,
-	SettingsHeaderDocsLink,
 	SettingsHeaderTitle,
 } from "#/components/SettingsHeader/SettingsHeader";
 import { Spinner } from "#/components/Spinner/Spinner";
 import { Switch } from "#/components/Switch/Switch";
-import { docs } from "#/utils/docs";
 import { getFormHelpers } from "#/utils/formUtils";
 import { AnnouncementBannerSettings } from "./AnnouncementBannerSettings";
 
@@ -52,7 +50,6 @@ export const AppearanceSettingsPageView: React.FC<
 				<SettingsHeaderTitle>Appearance</SettingsHeaderTitle>
 				<SettingsHeaderDescription>
 					Customize the look and feel of your Coder deployment.{" "}
-					<SettingsHeaderDocsLink href={docs("/admin/setup/appearance")} />
 				</SettingsHeaderDescription>
 			</SettingsHeader>
 

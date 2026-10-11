@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { ExternalLinkIcon, SlidersHorizontalIcon } from "lucide-react";
+import { SlidersHorizontalIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import {
 	getValidationErrorMessage,
@@ -10,10 +10,8 @@ import { Button } from "#/components/Button/Button";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
-	DropdownMenuItem,
 	DropdownMenuRadioGroup,
 	DropdownMenuRadioItem,
-	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "#/components/DropdownMenu/DropdownMenu";
 import { SearchField } from "#/components/SearchField/SearchField";
@@ -121,9 +119,6 @@ type FilterProps = React.ComponentProps<"div"> & {
 	filter: ReturnType<typeof useFilter>;
 	optionsSkeleton: React.ReactNode;
 	isLoading: boolean;
-	learnMoreLink?: string;
-	learnMoreLabel2?: string;
-	learnMoreLink2?: string;
 	error?: unknown;
 	options?: React.ReactNode;
 	presets: PresetFilter[];
@@ -135,9 +130,6 @@ export const Filter: React.FC<FilterProps> = ({
 	error,
 	optionsSkeleton,
 	options,
-	learnMoreLink,
-	learnMoreLabel2,
-	learnMoreLink2,
 	presets,
 	className,
 	...props
@@ -181,9 +173,6 @@ export const Filter: React.FC<FilterProps> = ({
 							value={filter.query}
 							onSelect={(query) => filter.update(query)}
 							presets={presets}
-							learnMoreLink={learnMoreLink}
-							learnMoreLabel2={learnMoreLabel2}
-							learnMoreLink2={learnMoreLink2}
 						/>
 					)}
 					<div className="flex flex-col gap-2 w-full">
@@ -224,18 +213,12 @@ export const Filter: React.FC<FilterProps> = ({
 type PresetMenuProps = {
 	value: string;
 	presets: PresetFilter[];
-	learnMoreLink?: string;
-	learnMoreLabel2?: string;
-	learnMoreLink2?: string;
 	onSelect: (query: string) => void;
 };
 
 const PresetMenu: React.FC<PresetMenuProps> = ({
 	value,
 	presets,
-	learnMoreLink,
-	learnMoreLabel2,
-	learnMoreLink2,
 	onSelect,
 }) => {
 	return (
@@ -258,23 +241,6 @@ const PresetMenu: React.FC<PresetMenuProps> = ({
 						</DropdownMenuRadioItem>
 					))}
 				</DropdownMenuRadioGroup>
-				{(learnMoreLink || learnMoreLink2) && <DropdownMenuSeparator />}
-				{learnMoreLink && (
-					<DropdownMenuItem asChild>
-						<a href={learnMoreLink} target="_blank" rel="noreferrer">
-							<ExternalLinkIcon className="size-icon-xs" />
-							View advanced filtering
-						</a>
-					</DropdownMenuItem>
-				)}
-				{learnMoreLink2 && learnMoreLabel2 && (
-					<DropdownMenuItem asChild>
-						<a href={learnMoreLink2} target="_blank" rel="noreferrer">
-							<ExternalLinkIcon className="size-icon-xs" />
-							{learnMoreLabel2}
-						</a>
-					</DropdownMenuItem>
-				)}
 			</DropdownMenuContent>
 		</DropdownMenu>
 	);

@@ -4,14 +4,12 @@ import { DisabledBadge, EnabledBadge } from "#/components/Badge/PresetBadges";
 import {
 	SettingsHeader,
 	SettingsHeaderDescription,
-	SettingsHeaderDocsLink,
 	SettingsHeaderTitle,
 } from "#/components/SettingsHeader/SettingsHeader";
 import {
 	deploymentGroupHasParent,
 	useDeploymentOptions,
 } from "#/utils/deployOptions";
-import { docs } from "#/utils/docs";
 import OptionsTable from "../OptionsTable";
 
 type NetworkSettingsPageViewProps = {
@@ -27,10 +25,6 @@ export const NetworkSettingsPageView: React.FC<
 				<SettingsHeaderTitle>Network</SettingsHeaderTitle>
 				<SettingsHeaderDescription>
 					Configure your deployment connectivity.{" "}
-					<SettingsHeaderDocsLink
-						href={docs("/admin/networking")}
-						context="about deployment networking"
-					/>
 				</SettingsHeaderDescription>
 			</SettingsHeader>
 
@@ -49,10 +43,6 @@ export const NetworkSettingsPageView: React.FC<
 				<SettingsHeaderDescription>
 					Port forwarding lets developers securely access processes on their
 					Coder workspace from a local machine.{" "}
-					<SettingsHeaderDocsLink
-						href={docs("/admin/networking/port-forwarding")}
-						context="about port forwarding"
-					/>
 				</SettingsHeaderDescription>
 			</SettingsHeader>
 

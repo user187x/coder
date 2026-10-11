@@ -25,7 +25,6 @@ import { ExternalImage } from "#/components/ExternalImage/ExternalImage";
 import { InfoTooltip } from "#/components/InfoTooltip/InfoTooltip";
 import { Input } from "#/components/Input/Input";
 import { Label } from "#/components/Label/Label";
-import { Link } from "#/components/Link/Link";
 import { Spinner } from "#/components/Spinner/Spinner";
 import { Switch } from "#/components/Switch/Switch";
 import { TooltipMessage } from "#/components/Tooltip/Tooltip";
@@ -39,7 +38,6 @@ import {
 	useValidationSchemaForDynamicParameters,
 } from "#/modules/workspaces/DynamicParameter/DynamicParameter";
 import { generateWorkspaceName } from "#/modules/workspaces/generateWorkspaceName";
-import { docs } from "#/utils/docs";
 import { nameValidator } from "#/utils/formUtils";
 import type { AutofillBuildParameter } from "#/utils/richParameters";
 import type { CreateWorkspaceMode } from "./CreateWorkspacePage";
@@ -443,15 +441,6 @@ export const CreateWorkspacePageView: React.FC<
 								Dynamic Parameters enhances Coder's existing parameter system
 								with real-time validation, conditional parameter behavior, and
 								richer input types.
-								<br />
-								<Link
-									size="sm"
-									href={docs(
-										"/admin/templates/extending-templates/dynamic-parameters",
-									)}
-								>
-									View docs
-								</Link>
 							</TooltipMessage>
 						</InfoTooltip>
 					</span>
@@ -485,17 +474,7 @@ export const CreateWorkspacePageView: React.FC<
 							<AlertDescription>
 								Some features like real-time validation and conditional
 								parameters won&apos;t work here until the template is switched
-								to dynamic parameters.{" "}
-								<Link
-									href={docs(
-										"/admin/templates/extending-templates/dynamic-parameters",
-									)}
-									target="_blank"
-									rel="noreferrer"
-								>
-									View docs
-									<span className="sr-only"> (opens in new tab)</span>
-								</Link>
+								to dynamic parameters.
 							</AlertDescription>
 						</Alert>
 					)}
@@ -652,13 +631,6 @@ export const CreateWorkspacePageView: React.FC<
 								<p className="text-sm text-content-secondary m-0">
 									These are the settings used by your template. Immutable
 									parameters cannot be modified once the workspace is created.
-									<Link
-										href={docs(
-											"/admin/templates/extending-templates/dynamic-parameters",
-										)}
-									>
-										View docs
-									</Link>
 								</p>
 							</hgroup>
 							{diagnostics.length > 0 && (

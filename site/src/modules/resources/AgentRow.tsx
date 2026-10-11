@@ -868,6 +868,10 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 										handle={handle}
 										ready={appsReady}
 										initiallyOpen={panel.id === justAdded}
+										height={panel.height}
+										onHeightChange={(height) =>
+											panels.setHeight(panel.id, height)
+										}
 										onRemove={() => panels.remove(panel.id)}
 									/>
 								),

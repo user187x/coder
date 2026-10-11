@@ -16,13 +16,11 @@ import { EmptyState } from "#/components/EmptyState/EmptyState";
 import { ExternalImage } from "#/components/ExternalImage/ExternalImage";
 import { Input } from "#/components/Input/Input";
 import { Label } from "#/components/Label/Label";
-import { Link } from "#/components/Link/Link";
 import {
 	SettingsHeader,
 	SettingsHeaderDescription,
 	SettingsHeaderTitle,
 } from "#/components/SettingsHeader/SettingsHeader";
-import { docs } from "#/utils/docs";
 
 type LoginTypeConfirmation =
 	| {
@@ -105,15 +103,6 @@ const SSOEmptyState: React.FC = () => {
 			className="rounded-lg border border-solid border-border min-h-0"
 			message="No SSO Providers"
 			description="No SSO providers are configured with this Coder deployment."
-			cta={
-				<Link
-					href={docs("/admin/users/oidc-auth")}
-					target="_blank"
-					rel="noreferrer"
-				>
-					Learn how to add a provider
-				</Link>
-			}
 		/>
 	);
 };

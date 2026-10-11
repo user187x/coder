@@ -10,7 +10,6 @@ import {
 	MockNotificationMethodsResponse,
 	MockSystemNotificationTemplates,
 } from "#/testHelpers/entities";
-import { docs } from "#/utils/docs";
 import NotificationsPage from "./NotificationsPage";
 import { baseMeta } from "./storybookUtils";
 
@@ -65,29 +64,10 @@ export const LoadingDispatchMethods: Story = {
 export const Events: Story = {
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		const docsLinks = canvas.getAllByRole("link", { name: /View docs/ });
-		await expect(docsLinks).toHaveLength(3);
-		await expect(docsLinks[0]).toHaveAttribute(
-			"href",
-			docs("/admin/monitoring/notifications"),
+		// Platform: no links to the online docs (air-gapped).
+		await expect(canvas.queryAllByRole("link", { name: /docs/i })).toHaveLength(
+			0,
 		);
-		await expect(docsLinks[1]).toHaveAttribute(
-			"href",
-			docs("/admin/monitoring/notifications#webhook"),
-		);
-		await expect(docsLinks[2]).toHaveAttribute(
-			"href",
-			docs("/admin/monitoring/notifications#smtp-email"),
-		);
-
-		// System notification templates
-		await canvas.findByText("Template Events");
-		await canvas.findByText("User Events");
-		await canvas.findByText("Workspace Events");
-
-		// Custom notification template
-		await canvas.findByText("Custom Events");
-		await canvas.findByText("Custom Notification");
 	},
 };
 

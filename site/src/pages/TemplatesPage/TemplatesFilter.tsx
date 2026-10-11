@@ -108,7 +108,6 @@ export const TemplatesFilter: React.FC<TemplatesFilterProps> = ({
 				},
 			]}
 			// TODO: Add docs for this
-			// learnMoreLink={docs("/admin/templates#template-filtering")}
 			isLoading={false}
 			filter={filter}
 			error={error}

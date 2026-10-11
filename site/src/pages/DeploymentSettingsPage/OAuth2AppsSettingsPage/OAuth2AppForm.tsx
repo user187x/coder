@@ -20,11 +20,9 @@ import { Form, FormFields } from "#/components/Form/Form";
 import { FormField } from "#/components/FormField/FormField";
 import { IconField } from "#/components/IconField/IconField";
 import { Label } from "#/components/Label/Label";
-import { Link } from "#/components/Link/Link";
 import { MultiSelectCombobox } from "#/components/MultiSelectCombobox/MultiSelectCombobox";
 import { Spinner } from "#/components/Spinner/Spinner";
 import { useUnsavedChangesPrompt } from "#/hooks/useUnsavedChangesPrompt";
-import { docs } from "#/utils/docs";
 import { getFormHelpers, iconValidator } from "#/utils/formUtils";
 import { RedirectURIsField } from "./components/RedirectURIsField";
 
@@ -422,15 +420,7 @@ export const OAuth2AppForm: React.FC<OAuth2AppFormProps> = ({
 						<Alert severity="warning">
 							A self-registered client that requests every advertised scope
 							fails new authorizations with invalid_scope once its allowlist is
-							narrower than that list. Existing tokens keep their scopes.{" "}
-							<Link
-								href={docs("/admin/integrations/oauth2-provider#scopes")}
-								target="_blank"
-								rel="noreferrer"
-							>
-								Learn more
-								<span className="sr-only"> (link opens in new tab)</span>
-							</Link>
+							narrower than that list. Existing tokens keep their scopes.
 						</Alert>
 					)}
 					<MultiSelectCombobox

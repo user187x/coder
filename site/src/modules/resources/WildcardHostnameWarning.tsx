@@ -1,9 +1,7 @@
 import type { WorkspaceResource } from "#/api/typesGenerated";
 import { Alert, AlertDescription, AlertTitle } from "#/components/Alert/Alert";
-import { Link } from "#/components/Link/Link";
 import { useProxy } from "#/contexts/ProxyContext";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
-import { docs } from "#/utils/docs";
 
 type WildcardHostnameWarningProps = {
 	// If resources are provided, show template-focused warning
@@ -66,16 +64,6 @@ export const WildcardHostnameWarning: React.FC<
 					) : (
 						", which requires a Coder deployment with a Wildcard Access URL configured. Please contact your administrator."
 					)}
-				</div>
-				<div className="pt-2">
-					<Link
-						href={docs("/admin/networking/wildcard-access-url")}
-						target="_blank"
-					>
-						<span className="font-semibold">
-							Learn more about wildcard access URL
-						</span>
-					</Link>
 				</div>
 			</AlertDescription>
 		</Alert>

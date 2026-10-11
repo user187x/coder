@@ -17,7 +17,6 @@ import { pageTitle } from "#/utils/page";
 import {
 	Header,
 	HeaderTitle,
-	HealthMessageDocsLink,
 	HealthyDot,
 	Logs,
 	Main,
@@ -148,13 +147,7 @@ const DERPPage: React.FC = () => {
 			<Main>
 				{derp.warnings.map((warning) => {
 					return (
-						<Alert
-							actions={<HealthMessageDocsLink {...warning} />}
-							key={warning.code}
-							severity="warning"
-							prominent
-							dismissible
-						>
+						<Alert key={warning.code} severity="warning" prominent dismissible>
 							{warning.message}
 						</Alert>
 					);

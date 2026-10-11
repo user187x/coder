@@ -4,7 +4,6 @@ import type {
 	WorkspaceAgent,
 	WorkspaceAgentDevcontainer,
 } from "#/api/typesGenerated";
-import { Link } from "#/components/Link/Link";
 import {
 	Tooltip,
 	TooltipContent,
@@ -47,7 +46,6 @@ const AgentWarningTooltip: React.FC<AgentWarningTooltipProps> = ({
 	ariaLabel,
 	title,
 	detail,
-	troubleshootingURL,
 	variant = "warning",
 }) => {
 	return (
@@ -67,22 +65,8 @@ const AgentWarningTooltip: React.FC<AgentWarningTooltipProps> = ({
 			<TooltipContent className="max-w-xs">
 				<TooltipTitle>{title}</TooltipTitle>
 				<TooltipMessage>
+					{/* Platform: no "Troubleshoot" link (Coder's online docs, by default). */}
 					{detail}
-					{troubleshootingURL && (
-						<>
-							{" "}
-							<Link
-								size="sm"
-								target="_blank"
-								rel="noreferrer"
-								href={troubleshootingURL}
-								className="p-0 mt-2"
-								showExternalIcon={false}
-							>
-								Troubleshoot
-							</Link>
-						</>
-					)}
 				</TooltipMessage>
 			</TooltipContent>
 		</Tooltip>

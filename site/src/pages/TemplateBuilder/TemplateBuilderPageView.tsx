@@ -9,7 +9,6 @@ import type {
 } from "#/api/typesGenerated";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { Button } from "#/components/Button/Button";
-import { Link } from "#/components/Link/Link";
 import { Margins } from "#/components/Margins/Margins";
 import {
 	PageHeader,
@@ -17,7 +16,6 @@ import {
 	PageHeaderTitle,
 } from "#/components/PageHeader/PageHeader";
 
-import { docs } from "#/utils/docs";
 import { BaseInfraSelectStep } from "./BaseInfraSelectStep";
 import {
 	BaseTemplateParametersStep,
@@ -294,13 +292,6 @@ export const TemplateBuilderPageView: React.FC<
 				<PageHeaderTitle>Create new template</PageHeaderTitle>
 				<PageHeaderSubtitle>
 					A Terraform blueprint for reproducible workspaces.
-					<Link
-						href={docs("/admin/templates")}
-						target="_blank"
-						className="ml-1 font-normal"
-					>
-						View docs
-					</Link>
 				</PageHeaderSubtitle>
 			</PageHeader>
 

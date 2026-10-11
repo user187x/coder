@@ -1,11 +1,11 @@
 import { Alert, AlertDescription, AlertTitle } from "#/components/Alert/Alert";
-import { Button } from "#/components/Button/Button";
 
 type AgentAlertProps = {
 	title: string;
 	detail: React.ReactNode;
 	severity: "info" | "warning";
 	prominent: boolean;
+	/** Not shown (Coder's online docs, by default): kept so callers need not change. */
 	troubleshootingURL?: string;
 };
 
@@ -14,20 +14,13 @@ export const AgentAlert: React.FC<AgentAlertProps> = ({
 	detail,
 	severity,
 	prominent,
-	troubleshootingURL,
 }) => {
 	return (
 		<Alert severity={severity} prominent={prominent}>
 			<AlertTitle>{title}</AlertTitle>
 			<AlertDescription>
-				<div className="mb-2">{detail}</div>
-				{troubleshootingURL && (
-					<Button size="sm" asChild>
-						<a href={troubleshootingURL} target="_blank" rel="noreferrer">
-							View docs to troubleshoot
-						</a>
-					</Button>
-				)}
+				{/* Platform: no troubleshooting docs button (Coder's online docs, by default). */}
+				<div>{detail}</div>
 			</AlertDescription>
 		</Alert>
 	);

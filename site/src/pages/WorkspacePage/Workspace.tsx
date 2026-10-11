@@ -36,7 +36,6 @@ type WorkspaceProps = {
 	handleUpdate: () => void;
 	handleCancel: () => void;
 	handleDormantActivate: () => void;
-	handleToggleFavorite: () => void;
 	handleRetry: (buildParameters?: TypesGen.WorkspaceBuildParameter[]) => void;
 	handleDebug: (buildParameters?: TypesGen.WorkspaceBuildParameter[]) => void;
 };
@@ -59,7 +58,6 @@ export const Workspace: React.FC<WorkspaceProps> = ({
 	handleUpdate,
 	handleCancel,
 	handleDormantActivate,
-	handleToggleFavorite,
 	handleRetry,
 	handleDebug,
 }) => {
@@ -119,7 +117,6 @@ export const Workspace: React.FC<WorkspaceProps> = ({
 				handleRetry={handleRetry}
 				handleDebug={handleDebug}
 				handleDormantActivate={handleDormantActivate}
-				handleToggleFavorite={handleToggleFavorite}
 			/>
 
 			<div className="flex flex-1 min-h-0">

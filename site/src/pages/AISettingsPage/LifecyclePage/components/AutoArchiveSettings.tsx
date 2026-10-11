@@ -3,7 +3,6 @@ import * as Yup from "yup";
 import type * as TypesGen from "#/api/typesGenerated";
 import { DefaultChatAutoArchiveDays } from "#/api/typesGenerated";
 import { useTemporarySavedState } from "#/components/TemporarySavedState/TemporarySavedState";
-import { docs } from "#/utils/docs";
 import { DaysField, LifecycleSettingLayout } from "./LifecycleSettingLayout";
 
 type MutationCallbacks = {
@@ -84,7 +83,6 @@ export const AutoArchiveSettings: React.FC<AutoArchiveSettingsProps> = ({
 		<LifecycleSettingLayout
 			title="Auto-archive inactive conversations"
 			description="Inactive conversations are automatically archived after this period. Pinned conversations are exempt."
-			docsHref={docs("/ai-coder/agents/platform-controls/chat-auto-archive")}
 			checked={form.values.enabled}
 			onCheckedChange={(checked) => void form.setFieldValue("enabled", checked)}
 			switchLabel="Enable auto-archive"

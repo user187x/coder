@@ -10,11 +10,9 @@ import { FeatureUnavailable } from "#/components/FeatureUnavailable/FeatureUnava
 import {
 	SettingsHeader,
 	SettingsHeaderDescription,
-	SettingsHeaderDocsLink,
 	SettingsHeaderTitle,
 } from "#/components/SettingsHeader/SettingsHeader";
 import { useFeatureVisibility } from "#/modules/dashboard/useFeatureVisibility";
-import { docs } from "#/utils/docs";
 import { pageTitle } from "#/utils/page";
 import { useTemplateSettings } from "../TemplateSettingsLayout";
 import { TemplatePermissionsPageView } from "./TemplatePermissionsPageView";
@@ -42,9 +40,6 @@ const TemplatePermissionsPage: React.FC = () => {
 					<SettingsHeaderTitle>Permissions</SettingsHeaderTitle>
 					<SettingsHeaderDescription>
 						Manage which members and groups can use this template.{" "}
-						<SettingsHeaderDocsLink
-							href={docs("/admin/templates/template-permissions")}
-						/>
 					</SettingsHeaderDescription>
 				</SettingsHeader>
 

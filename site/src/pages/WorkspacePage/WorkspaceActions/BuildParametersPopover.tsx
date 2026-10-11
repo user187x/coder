@@ -5,7 +5,6 @@ import type { TemplateVersionParameter, Workspace } from "#/api/typesGenerated";
 import { ChevronDownIcon } from "#/components/AnimatedIcons/ChevronDown";
 import { TopbarButton } from "#/components/FullPageLayout/Topbar";
 import {
-	HelpPopoverLink,
 	HelpPopoverLinksGroup,
 	HelpPopoverText,
 	HelpPopoverTitle,
@@ -17,7 +16,6 @@ import {
 	PopoverContent,
 	PopoverTrigger,
 } from "#/components/Popover/Popover";
-import { docs } from "#/utils/docs";
 
 type BuildParametersPopoverProps = {
 	workspace: Workspace;
@@ -83,15 +81,7 @@ const BuildParametersPopoverContent: React.FC<
 				<HelpPopoverText>
 					This template has no ephemeral build options.
 				</HelpPopoverText>
-				<HelpPopoverLinksGroup>
-					<HelpPopoverLink
-						href={docs(
-							"/admin/templates/extending-templates/parameters#ephemeral-parameters",
-						)}
-					>
-						Read the docs
-					</HelpPopoverLink>
-				</HelpPopoverLinksGroup>
+				<HelpPopoverLinksGroup></HelpPopoverLinksGroup>
 			</div>
 		);
 	}

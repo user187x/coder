@@ -1,6 +1,5 @@
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "cn";
-import { Link } from "#/components/Link/Link";
 
 type SettingsHeaderProps = Readonly<
 	React.PropsWithChildren<{
@@ -23,26 +22,6 @@ export const SettingsHeader: React.FC<SettingsHeaderProps> = ({
 			<div className="text-sm flex flex-col gap-2 flex-1">{children}</div>
 			{actions}
 		</hgroup>
-	);
-};
-
-type SettingsHeaderDocsLinkProps = Readonly<
-	React.PropsWithChildren<{
-		href: string;
-		context?: string;
-	}>
->;
-export const SettingsHeaderDocsLink: React.FC<SettingsHeaderDocsLinkProps> = ({
-	href,
-	context,
-	children = "View docs",
-}) => {
-	return (
-		<Link href={href} target="_blank" rel="noreferrer">
-			{children}
-			{context && <span className="sr-only"> {context}</span>}
-			<span className="sr-only"> (opens in new tab)</span>
-		</Link>
 	);
 };
 

@@ -3,13 +3,7 @@ import type { HealthcheckReport } from "#/api/typesGenerated";
 import { Alert } from "#/components/Alert/Alert";
 import { Provisioner } from "#/modules/provisioners/Provisioner";
 import { pageTitle } from "#/utils/page";
-import {
-	Header,
-	HeaderTitle,
-	HealthMessageDocsLink,
-	HealthyDot,
-	Main,
-} from "./Content";
+import { Header, HeaderTitle, HealthyDot, Main } from "./Content";
 import { MuteWarningsButton } from "./MuteWarningsButton";
 
 const ProvisionerDaemonsPage: React.FC = () => {
@@ -36,13 +30,7 @@ const ProvisionerDaemonsPage: React.FC = () => {
 				)}
 				{daemons.warnings.map((warning) => {
 					return (
-						<Alert
-							actions={<HealthMessageDocsLink {...warning} />}
-							key={warning.code}
-							severity="warning"
-							prominent
-							dismissible
-						>
+						<Alert key={warning.code} severity="warning" prominent dismissible>
 							{warning.message}
 						</Alert>
 					);

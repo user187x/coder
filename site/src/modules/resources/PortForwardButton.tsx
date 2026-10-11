@@ -29,7 +29,6 @@ import { ChevronDownIcon } from "#/components/AnimatedIcons/ChevronDown";
 import { Button } from "#/components/Button/Button";
 import { FormField } from "#/components/FormField/FormField";
 import {
-	HelpPopoverLink,
 	HelpPopoverText,
 	HelpPopoverTitle,
 } from "#/components/HelpPopover/HelpPopover";
@@ -55,7 +54,6 @@ import {
 } from "#/components/Tooltip/Tooltip";
 import { useDashboard } from "#/modules/dashboard/useDashboard";
 import { usePortsData } from "#/modules/resources/usePortsData";
-import { docs } from "#/utils/docs";
 import { getFormHelpers } from "#/utils/formUtils";
 import {
 	getWorkspaceListeningPortsProtocol,
@@ -302,11 +300,6 @@ export const PortForwardPopoverView: React.FC<PortForwardPopoverViewProps> = ({
 				<div className="flex flex-col p-5">
 					<div className="flex flex-row justify-between items-start">
 						<HelpPopoverTitle>Listening Ports</HelpPopoverTitle>
-						<HelpPopoverLink
-							href={docs("/admin/networking/port-forwarding#dashboard")}
-						>
-							Learn more
-						</HelpPopoverLink>
 					</div>
 					<div className="flex flex-col gap-1">
 						<HelpPopoverText>

@@ -11,7 +11,6 @@ import { Button } from "#/components/Button/Button";
 import { Loader } from "#/components/Loader/Loader";
 import { TemplateFiles } from "#/modules/templates/TemplateFiles/TemplateFiles";
 import { useTemplateLayoutContext } from "#/pages/TemplatePage/TemplateLayout";
-import { docs } from "#/utils/docs";
 import { getTemplatePageTitle } from "../utils";
 
 const TemplateFilesPage: React.FC = () => {
@@ -71,17 +70,6 @@ const TemplateFilesPage: React.FC = () => {
 								className="flex items-center"
 							>
 								View agent skill
-								<ExternalLinkIcon className="size-icon-sm ml-1" />
-							</a>
-						</Button>
-						<Button asChild size="sm" variant="outline">
-							<a
-								href={docs("/admin/templates/creating-templates")}
-								target="_blank"
-								rel="noopener noreferrer"
-								className="flex items-center"
-							>
-								View docs
 								<ExternalLinkIcon className="size-icon-sm ml-1" />
 							</a>
 						</Button>

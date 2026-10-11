@@ -9,7 +9,6 @@ import { Loader } from "#/components/Loader/Loader";
 import {
 	SettingsHeader,
 	SettingsHeaderDescription,
-	SettingsHeaderDocsLink,
 	SettingsHeaderTitle,
 } from "#/components/SettingsHeader/SettingsHeader";
 import {
@@ -23,7 +22,6 @@ import { useSearchParamsKey } from "#/hooks/useSearchParamsKey";
 import { useDeploymentConfig } from "#/modules/management/DeploymentConfigProvider";
 import { castNotificationMethod } from "#/modules/notifications/utils";
 import { deploymentGroupHasParent } from "#/utils/deployOptions";
-import { docs } from "#/utils/docs";
 import { pageTitle } from "#/utils/page";
 import OptionsTable from "../OptionsTable";
 import { NotificationEvents } from "./NotificationEvents";
@@ -81,10 +79,6 @@ const NotificationsPage: React.FC = () => {
 				<SettingsHeaderTitle>Notifications</SettingsHeaderTitle>
 				<SettingsHeaderDescription>
 					Control delivery methods for notifications on this deployment.{" "}
-					<SettingsHeaderDocsLink
-						href={docs("/admin/monitoring/notifications")}
-						context="about notifications"
-					/>
 				</SettingsHeaderDescription>
 			</SettingsHeader>
 

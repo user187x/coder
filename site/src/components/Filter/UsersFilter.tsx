@@ -12,7 +12,6 @@ import {
 	type SelectFilterOption,
 } from "#/components/Filter/SelectFilter";
 import { StatusIndicatorDot } from "#/components/StatusIndicator/StatusIndicator";
-import { docs } from "#/utils/docs";
 
 const userFilterQuery = {
 	active: "status:active",
@@ -75,9 +74,6 @@ export const UsersFilter: React.FC<UsersFilterProps> = ({
 	return (
 		<Filter
 			presets={PRESET_FILTERS}
-			learnMoreLink={docs("/admin/users#user-filtering")}
-			learnMoreLabel2="User status"
-			learnMoreLink2={docs("/admin/users#user-status")}
 			isLoading={menus?.status?.isInitializing ?? false}
 			filter={filter}
 			error={error}

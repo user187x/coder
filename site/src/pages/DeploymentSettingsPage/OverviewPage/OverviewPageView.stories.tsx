@@ -1,7 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, within } from "storybook/test";
 import { MockDeploymentDAUResponse } from "#/testHelpers/entities";
-import { docs } from "#/utils/docs";
 import { OverviewPageView } from "./OverviewPageView";
 
 const meta: Meta<typeof OverviewPageView> = {
@@ -49,9 +48,10 @@ type Story = StoryObj<typeof OverviewPageView>;
 export const Page: Story = {
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		await expect(
-			canvas.getByRole("link", { name: /View docs/ }),
-		).toHaveAttribute("href", docs("/admin/setup"));
+		// Platform: no links to the online docs (air-gapped).
+		await expect(canvas.queryAllByRole("link", { name: /docs/i })).toHaveLength(
+			0,
+		);
 	},
 };
 

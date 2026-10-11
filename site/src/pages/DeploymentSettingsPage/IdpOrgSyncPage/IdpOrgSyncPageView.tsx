@@ -28,7 +28,6 @@ import {
 import { InfoTooltip } from "#/components/InfoTooltip/InfoTooltip";
 import { Input } from "#/components/Input/Input";
 import { Label } from "#/components/Label/Label";
-import { Link } from "#/components/Link/Link";
 import {
 	MultiSelectCombobox,
 	type Option,
@@ -46,7 +45,6 @@ import {
 import { TableEmpty } from "#/components/TableEmpty/TableEmpty";
 import { TooltipMessage } from "#/components/Tooltip/Tooltip";
 import { IdpUnseenClaimWarning } from "#/modules/idpSync/IdpUnseenClaimWarning";
-import { docs } from "#/utils/docs";
 import { isUUID } from "#/utils/uuid";
 import { OrganizationPills } from "./OrganizationPills";
 
@@ -405,15 +403,7 @@ const IdpMappingTable: React.FC<IdpMappingTableProps> = ({
 			</TableHeader>
 			<TableBody>
 				{isEmpty ? (
-					<TableEmpty
-						message="No organization mappings"
-						isCompact
-						cta={
-							<Link href={docs("/admin/users/idp-sync#organization-sync")}>
-								How to set up IdP organization sync
-							</Link>
-						}
-					/>
+					<TableEmpty message="No organization mappings" isCompact />
 				) : (
 					children
 				)}

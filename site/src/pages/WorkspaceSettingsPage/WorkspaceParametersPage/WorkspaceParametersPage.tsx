@@ -12,7 +12,6 @@ import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { ConfirmDialog } from "#/components/Dialog/ConfirmDialog/ConfirmDialog";
 import { EmptyState } from "#/components/EmptyState/EmptyState";
 import { InfoTooltip } from "#/components/InfoTooltip/InfoTooltip";
-import { Link } from "#/components/Link/Link";
 import { Loader } from "#/components/Loader/Loader";
 import {
 	SettingsHeader,
@@ -20,7 +19,6 @@ import {
 	SettingsHeaderTitle,
 } from "#/components/SettingsHeader/SettingsHeader";
 import { TooltipMessage } from "#/components/Tooltip/Tooltip";
-import { docs } from "#/utils/docs";
 import { pageTitle } from "#/utils/page";
 import type { AutofillBuildParameter } from "#/utils/richParameters";
 import { useWorkspaceSettings } from "../useWorkspaceSettings";
@@ -280,15 +278,6 @@ const WorkspaceParametersPage: React.FC = () => {
 								Dynamic Parameters enhances Coder's existing parameter system
 								with real-time validation, conditional parameter behavior, and
 								richer input types.
-								<br />
-								<Link
-									size="sm"
-									href={docs(
-										"/admin/templates/extending-templates/dynamic-parameters",
-									)}
-								>
-									View docs
-								</Link>
 							</TooltipMessage>
 						</InfoTooltip>
 					}
@@ -326,15 +315,6 @@ const WorkspaceParametersPage: React.FC = () => {
 				<EmptyState
 					className="border border-border border-solid rounded-md"
 					message="This workspace has no parameters"
-					cta={
-						<Link
-							href={docs(
-								"/admin/templates/extending-templates/dynamic-parameters",
-							)}
-						>
-							Learn more about parameters
-						</Link>
-					}
 				/>
 			)}
 

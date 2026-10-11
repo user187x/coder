@@ -1,13 +1,11 @@
 import { cn } from "cn";
 import { InfoIcon, TriangleAlertIcon } from "lucide-react";
 import { Badge } from "#/components/Badge/Badge";
-import { Link } from "#/components/Link/Link";
 import {
 	Tooltip,
 	TooltipContent,
 	TooltipTrigger,
 } from "#/components/Tooltip/Tooltip";
-import { docs } from "#/utils/docs";
 
 // Allocation sentinel for unlimited agent runtime hours
 // (AgentRuntimeHoursUnlimitedAllocation in enterprise/coderd/license).
@@ -208,11 +206,6 @@ export const CoderAgentsProductCard: React.FC<CoderAgentsProductCardProps> = ({
 							: "Unlimited"}
 					</div>
 				</div>
-			</div>
-			<div className="mt-4 text-sm">
-				<Link href={docs("/ai-coder/agents/licensing-usage")} size="lg">
-					View docs
-				</Link>
 			</div>
 		</CardContainer>
 	);

@@ -6,7 +6,6 @@ import { FeatureUnavailable } from "#/components/FeatureUnavailable/FeatureUnava
 import {
 	SettingsHeader,
 	SettingsHeaderDescription,
-	SettingsHeaderDocsLink,
 	SettingsHeaderTitle,
 } from "#/components/SettingsHeader/SettingsHeader";
 import {
@@ -19,7 +18,6 @@ import {
 } from "#/components/Table/Table";
 import { TableEmpty } from "#/components/TableEmpty/TableEmpty";
 import { TableLoader } from "#/components/TableLoader/TableLoader";
-import { docs } from "#/utils/docs";
 import { relativeTime } from "#/utils/time";
 
 type GatewayKeysPageViewProps = {
@@ -55,9 +53,6 @@ export const GatewayKeysPageView: React.FC<GatewayKeysPageViewProps> = ({
 				<SettingsHeaderDescription>
 					Keys authenticate standalone AI Gateway replicas to this deployment.
 					The key value is shown only once when created.{" "}
-					<SettingsHeaderDocsLink
-						href={docs("/ai-coder/ai-gateway/standalone#create-a-gateway-key")}
-					/>
 				</SettingsHeaderDescription>
 			</SettingsHeader>
 
