@@ -62,8 +62,11 @@ export const AgentBorderFx: React.FC<AgentBorderFxProps> = ({
  * The original's "turbulent-displace" filter: two pairs of turbulence fields
  * sliding past each other, displacing the border. Five octaves instead of
  * ten: the finer ones are below a pixel at this frequency, so they look the
- * same and cost twice as much.
+ * same and cost twice as much. Toned down: a third of the original's pace
+ * (18 s instead of 6 s per cycle) and less than half its displacement.
  */
+const FLOW = "18s";
+const DISPLACEMENT = "12";
 const TurbulenceFilter: React.FC<{ id: string }> = ({ id }) => (
 	<svg aria-hidden width="0" height="0" className="absolute">
 		<defs>
@@ -86,7 +89,7 @@ const TurbulenceFilter: React.FC<{ id: string }> = ({ id }) => (
 					<animate
 						attributeName="dy"
 						values="700; 0"
-						dur="6s"
+						dur={FLOW}
 						repeatCount="indefinite"
 						calcMode="linear"
 					/>
@@ -102,7 +105,7 @@ const TurbulenceFilter: React.FC<{ id: string }> = ({ id }) => (
 					<animate
 						attributeName="dy"
 						values="0; -700"
-						dur="6s"
+						dur={FLOW}
 						repeatCount="indefinite"
 						calcMode="linear"
 					/>
@@ -118,7 +121,7 @@ const TurbulenceFilter: React.FC<{ id: string }> = ({ id }) => (
 					<animate
 						attributeName="dx"
 						values="490; 0"
-						dur="6s"
+						dur={FLOW}
 						repeatCount="indefinite"
 						calcMode="linear"
 					/>
@@ -134,7 +137,7 @@ const TurbulenceFilter: React.FC<{ id: string }> = ({ id }) => (
 					<animate
 						attributeName="dx"
 						values="0; -490"
-						dur="6s"
+						dur={FLOW}
 						repeatCount="indefinite"
 						calcMode="linear"
 					/>
@@ -150,7 +153,7 @@ const TurbulenceFilter: React.FC<{ id: string }> = ({ id }) => (
 				<feDisplacementMap
 					in="SourceGraphic"
 					in2="combinedNoise"
-					scale="30"
+					scale={DISPLACEMENT}
 					xChannelSelector="R"
 					yChannelSelector="B"
 				/>

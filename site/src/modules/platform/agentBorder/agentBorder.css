@@ -5,13 +5,18 @@
  * borders, a white sheen along the edges and a soft coloured glow behind. The
  * ready border is update-todos/workspace-border.html: a comet of green light
  * running round the card. Layers sit on and around the card's edge, never in
- * the layout, and ignore the pointer.
+ * the layout, and ignore the pointer. Both are toned down to be only just
+ * noticeable, and run slowly: --fx-strength (0-1) scales every layer, and the
+ * ring takes --fx-ring-turn per turn (the electric border's pace is the SVG
+ * filter's, in AgentBorderFx).
  */
 .agent-fx {
 	position: relative;
 	isolation: isolate;
 	border-radius: 0.5rem;
 	--fx-color: #48dd55;
+	--fx-strength: 0.45;
+	--fx-ring-turn: 9s;
 }
 .agent-fx[data-fx="pending"] {
 	--fx-color: #ff6a13;
@@ -28,6 +33,9 @@
 }
 
 /* ---- electric border (after the card, without a z-index of its own: on top of it, and its sheen blends with it) */
+.agent-fx-electric {
+	opacity: var(--fx-strength);
+}
 .agent-fx-outer {
 	border: 2px solid color-mix(in srgb, var(--fx-color) 50%, transparent);
 }
@@ -43,6 +51,7 @@
 .agent-fx-glow-2 {
 	border: 2px solid var(--fx-color);
 	filter: blur(4px);
+	opacity: 0.6;
 }
 /* The sheen of the original, kept to a band along the edges so the card's content stays as it is. */
 .agent-fx-sheen {
@@ -60,12 +69,15 @@
 		linear-gradient(#000 0 0) content-box exclude,
 		linear-gradient(#000 0 0);
 }
+.agent-fx-sheen {
+	opacity: 0.4;
+}
 .agent-fx-sheen-2 {
-	opacity: 0.5;
+	opacity: 0.2;
 }
 .agent-fx-backglow {
 	z-index: -1;
-	opacity: 0.3;
+	opacity: calc(0.3 * var(--fx-strength));
 	filter: blur(32px);
 	transform: scale(1.03);
 	background: linear-gradient(
@@ -83,9 +95,10 @@
 	}
 }
 .agent-fx-ring {
-	inset: -3px;
-	border-radius: calc(0.5rem + 3px);
-	padding: 4px;
+	inset: -2px;
+	border-radius: calc(0.5rem + 2px);
+	padding: 2px;
+	opacity: var(--fx-strength);
 	overflow: hidden;
 	mask:
 		linear-gradient(#000 0 0) content-box exclude,
@@ -107,7 +120,7 @@
 		#39ff14 95%,
 		#d4ffcf 100%
 	);
-	animation: agent-fx-rotate 2s linear infinite;
+	animation: agent-fx-rotate var(--fx-ring-turn) linear infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
