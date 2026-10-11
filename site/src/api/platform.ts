@@ -381,7 +381,7 @@ type KeycloakStatus = {
 
 // ----------------------------------------------------------------------- HUD
 
-export type HudGroup = "totals" | "leaders" | "health";
+type HudGroup = "totals" | "leaders" | "health";
 
 /** One HUD figure: a number (or null when unknown), its unit, and who / what it is about. */
 export type HudMetric = {
@@ -392,9 +392,11 @@ export type HudMetric = {
 	unit: string;
 	detail: string;
 	hint: string;
+	/** Where clicking it goes: the dashboard page behind the figure (e.g. the top account's workspace), or "". */
+	href: string;
 };
 
-export type HudReport = {
+type HudReport = {
 	metrics: HudMetric[];
 	generatedAt: string;
 	/** Live usage (metrics-server) is available. */
@@ -422,7 +424,7 @@ export type PostureCheck = {
 	fix: string;
 };
 
-export type MonitoringPosture = {
+type MonitoringPosture = {
 	checks: PostureCheck[];
 	summary: Record<PostureSeverity, number>;
 	workspaces: number;
@@ -434,7 +436,7 @@ export type MonitoringPosture = {
 // ---------------------------------------------------- global workspace scheduler
 
 /** "user": each user sets their workspaces' start and stop times; "fixed": the admin's schedule applies to all. */
-export type SchedulerMode = "user" | "fixed";
+type SchedulerMode = "user" | "fixed";
 
 export type SchedulerSettings = {
 	enabled: boolean;
@@ -450,7 +452,7 @@ export type SchedulerSettings = {
 /** A workspace's schedule as Coder stores it. */
 export type CoderSchedule = { autostart_schedule: string; ttl_ms: number };
 
-export type ScheduledWorkspace = {
+type ScheduledWorkspace = {
 	id: string;
 	name: string;
 	owner: string;
@@ -458,7 +460,7 @@ export type ScheduledWorkspace = {
 	ttl_ms: number | null;
 };
 
-export type SchedulerReport = {
+type SchedulerReport = {
 	settings: SchedulerSettings;
 	workspaces: number;
 	exempt: number;

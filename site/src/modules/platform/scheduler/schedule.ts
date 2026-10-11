@@ -121,7 +121,7 @@ export const scheduleProblem = (
 export const formatHours = (hours: number) =>
 	hours % 1 === 0 ? `${hours} h` : `${hours.toFixed(1).replace(/\.0$/, "")} h`;
 
-export const describeDays = (days: number[]): string => {
+const describeDays = (days: number[]): string => {
 	if (days.length === 7) {
 		return "every day";
 	}

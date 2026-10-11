@@ -1,11 +1,26 @@
 import { cn } from "cn";
-import { ArrowUpToLineIcon, GaugeIcon, RotateCcwIcon } from "lucide-react";
+import {
+	ArrowUpDownIcon,
+	ArrowUpToLineIcon,
+	ChevronRightIcon,
+	GaugeIcon,
+	RotateCcwIcon,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { useQuery } from "react-query";
+import { Link as RouterLink } from "react-router";
 import type { HudMetric } from "#/api/platform";
 import { HUD_REFRESH_MS, hud } from "#/api/queries/platform";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { Button } from "#/components/Button/Button";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuLabel,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from "#/components/DropdownMenu/DropdownMenu";
 import { Loader } from "#/components/Loader/Loader";
 import { Margins } from "#/components/Margins/Margins";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
@@ -34,8 +49,9 @@ const formatValue = (m: HudMetric) => {
  * The HUD: the platform at a glance, for administrators. Every figure updates
  * in place every 10 seconds, like a ticker, without moving or blinking (a
  * changed tile gets one faint tint that fades); each shows its change over the
- * last five minutes and a sparkline. Clicking a tile moves it to the top; the
- * order is remembered in this browser.
+ * last five minutes and a sparkline. Clicking a figure opens what is behind it
+ * (the top account's workspace, the running workspaces, ...); the Sort menu
+ * moves figures to the top, in an order remembered in this browser.
  */
 const HudPage: React.FC = () => {
 	const { permissions } = useAuthenticated();
@@ -72,8 +88,7 @@ const HudPage: React.FC = () => {
 		});
 	}, [data]);
 
-	const raise = (id: string) => {
-		const next = elevate(order, id);
+	const reorder = (next: string[]) => {
 		setOrder(next);
 		writeHudOrder(next);
 	};
@@ -101,7 +116,7 @@ const HudPage: React.FC = () => {
 						</h1>
 						<p className="m-0 text-sm text-content-secondary">
 							The platform at a glance, updated every {HUD_REFRESH_MS / 1000}{" "}
-							seconds. Click a figure to move it to the top.
+							seconds. Click a figure to open what is behind it.
 						</p>
 					</div>
 					<div className="flex items-center gap-3 text-sm text-content-secondary">
@@ -115,18 +130,6 @@ const HudPage: React.FC = () => {
 								{!data.live && " · no live usage (metrics-server)"}
 							</span>
 						)}
-						<Button
-							variant="outline"
-							size="sm"
-							disabled={order.length === 0}
-							onClick={() => {
-								setOrder([]);
-								writeHudOrder([]);
-							}}
-						>
-							<RotateCcwIcon />
-							Reset order
-						</Button>
 					</div>
 				</header>
 
@@ -135,21 +138,36 @@ const HudPage: React.FC = () => {
 
 				{data && (
 					<>
-						<ul
-							aria-label="Totals"
-							className="m-0 flex list-none flex-wrap gap-x-8 gap-y-2 rounded-lg border border-solid border-border bg-surface-secondary/40 px-5 py-3 font-mono text-sm"
-						>
-							{totals.map((m) => (
-								<li key={m.id} className="flex items-baseline gap-2">
-									<span className="text-content-secondary">{m.label}</span>
-									<span className="font-semibold tabular-nums text-content-primary">
-										{formatValue(m)}
-										{m.unit && m.value !== null ? ` ${m.unit}` : ""}
-									</span>
-									<Delta series={track.series[m.id]} />
-								</li>
-							))}
-						</ul>
+						<div className="relative">
+							<ul
+								aria-label="Totals"
+								className="m-0 flex list-none flex-wrap gap-x-8 gap-y-2 rounded-lg border border-solid border-border bg-surface-secondary/40 py-3 pl-5 pr-28 font-mono text-sm"
+							>
+								{totals.map((m) => (
+									<li key={m.id}>
+										<MetricLink
+											metric={m}
+											className="flex items-baseline gap-2 text-inherit no-underline hover:underline"
+										>
+											<span className="text-content-secondary">{m.label}</span>
+											<span className="font-semibold tabular-nums text-content-primary">
+												{formatValue(m)}
+												{m.unit && m.value !== null ? ` ${m.unit}` : ""}
+											</span>
+											<Delta series={track.series[m.id]} />
+										</MetricLink>
+									</li>
+								))}
+							</ul>
+							<div className="absolute right-2 top-2">
+								<SortMenu
+									metrics={metrics}
+									order={order}
+									onRaise={(id) => reorder(elevate(order, id))}
+									onReset={() => reorder([])}
+								/>
+							</div>
+						</div>
 
 						<ul
 							aria-label="Metrics"
@@ -164,7 +182,6 @@ const HudPage: React.FC = () => {
 										flash={
 											track.at === data.generatedAt && track.moved.has(m.id)
 										}
-										onRaise={() => raise(m.id)}
 									/>
 								</li>
 							))}
@@ -226,12 +243,86 @@ const Sparkline: React.FC<{ series?: number[] }> = ({ series }) => {
 	);
 };
 
+type SortMenuProps = {
+	metrics: readonly HudMetric[];
+	order: readonly string[];
+	onRaise: (id: string) => void;
+	onReset: () => void;
+};
+
+/** Sort: pick a figure to move it to the top (the last one picked leads). */
+const SortMenu: React.FC<SortMenuProps> = ({
+	metrics,
+	order,
+	onRaise,
+	onReset,
+}) => (
+	<DropdownMenu>
+		<DropdownMenuTrigger asChild>
+			<Button variant="outline" size="sm">
+				<ArrowUpDownIcon />
+				Sort
+			</Button>
+		</DropdownMenuTrigger>
+		<DropdownMenuContent
+			align="end"
+			className="max-h-[min(70vh,32rem)] w-64 overflow-y-auto"
+		>
+			<DropdownMenuLabel>Move to the top</DropdownMenuLabel>
+			{metrics.map((m, i) => (
+				<DropdownMenuItem key={m.id} onSelect={() => onRaise(m.id)}>
+					<ArrowUpToLineIcon
+						aria-hidden
+						className={cn(
+							"size-3.5 shrink-0",
+							i === 0 && order[0] === m.id ? "opacity-100" : "opacity-40",
+						)}
+					/>
+					<span className="flex-1 truncate">{m.label}</span>
+					<span className="text-xs text-content-secondary">
+						{GROUP_LABEL[m.group]}
+					</span>
+				</DropdownMenuItem>
+			))}
+			<DropdownMenuSeparator />
+			<DropdownMenuItem disabled={order.length === 0} onSelect={onReset}>
+				<RotateCcwIcon aria-hidden className="size-3.5" />
+				Reset order
+			</DropdownMenuItem>
+		</DropdownMenuContent>
+	</DropdownMenu>
+);
+
+const describeMetric = (metric: HudMetric) =>
+	`${metric.label}: ${formatValue(metric)} ${metric.unit}${metric.detail ? `, ${metric.detail}` : ""}`;
+
+/** A figure as a link to what is behind it, or as plain text when nothing is. */
+const MetricLink: React.FC<{
+	metric: HudMetric;
+	className: string;
+	title?: string;
+	children: React.ReactNode;
+}> = ({ metric, className, title, children }) =>
+	metric.href ? (
+		<RouterLink
+			to={metric.href}
+			className={className}
+			title={title}
+			aria-label={`${describeMetric(metric)}. Open.`}
+		>
+			{children}
+		</RouterLink>
+	) : (
+		<div className={className} title={title}>
+			{children}
+		</div>
+	);
+
 type MetricTileProps = {
 	metric: HudMetric;
 	series?: number[];
 	first: boolean;
 	flash: boolean;
-	onRaise: () => void;
 };
 
 const MetricTile: React.FC<MetricTileProps> = ({
@@ -239,16 +330,14 @@ const MetricTile: React.FC<MetricTileProps> = ({
 	series,
 	first,
 	flash,
-	onRaise,
 }) => (
-	<button
-		type="button"
-		onClick={onRaise}
-		title={metric.hint || "Move to the top"}
-		aria-label={`${metric.label}: ${formatValue(metric)} ${metric.unit}${metric.detail ? `, ${metric.detail}` : ""}. Move to the top.`}
+	<MetricLink
+		metric={metric}
+		title={metric.hint || undefined}
 		className={cn(
-			"group flex h-full w-full cursor-pointer flex-col gap-1 rounded-lg border border-solid border-border bg-surface-primary p-4 text-left text-content-primary",
-			"motion-safe:transition-colors hover:border-content-secondary",
+			"group flex h-full w-full flex-col gap-1 rounded-lg border border-solid border-border bg-surface-primary p-4 text-left text-content-primary no-underline",
+			metric.href &&
+				"cursor-pointer motion-safe:transition-colors hover:border-content-secondary",
 			first && "border-content-link",
 			flash && "hud-flash",
 		)}
@@ -257,10 +346,12 @@ const MetricTile: React.FC<MetricTileProps> = ({
 			<span className="truncate">{metric.label}</span>
 			<span className="flex shrink-0 items-center gap-1 normal-case tracking-normal">
 				{GROUP_LABEL[metric.group]}
-				<ArrowUpToLineIcon
-					aria-hidden
-					className="size-3.5 opacity-0 group-hover:opacity-100"
-				/>
+				{metric.href && (
+					<ChevronRightIcon
+						aria-hidden
+						className="size-3.5 opacity-0 group-hover:opacity-100"
+					/>
+				)}
 			</span>
 		</span>
 		<span className="flex items-baseline gap-1.5">
@@ -282,10 +373,10 @@ const MetricTile: React.FC<MetricTileProps> = ({
 					: "text-content-secondary",
 			)}
 		>
-			{metric.detail || " "}
+			{metric.detail || " "}
 		</span>
 		<Sparkline series={series} />
-	</button>
+	</MetricLink>
 );
 
 export default HudPage;
