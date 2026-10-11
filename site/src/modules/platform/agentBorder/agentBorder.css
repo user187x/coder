@@ -1,0 +1,117 @@
+/*
+ * The workspace page's agent card borders (AgentBorderFx). The electric border
+ * (initializing / pending / failed) is update-todos/workspace-loadding.html:
+ * a border displaced by animated turbulence (an SVG filter), two blurred glow
+ * borders, a white sheen along the edges and a soft coloured glow behind. The
+ * ready border is update-todos/workspace-border.html: a comet of green light
+ * running round the card. Layers sit on and around the card's edge, never in
+ * the layout, and ignore the pointer.
+ */
+.agent-fx {
+	position: relative;
+	isolation: isolate;
+	border-radius: 0.5rem;
+	--fx-color: #48dd55;
+}
+.agent-fx[data-fx="pending"] {
+	--fx-color: #ff6a13;
+}
+.agent-fx[data-fx="failed"] {
+	--fx-color: #ff3131;
+}
+
+.agent-fx-layer {
+	position: absolute;
+	inset: 0;
+	border-radius: inherit;
+	pointer-events: none;
+}
+
+/* ---- electric border (after the card, without a z-index of its own: on top of it, and its sheen blends with it) */
+.agent-fx-outer {
+	border: 2px solid color-mix(in srgb, var(--fx-color) 50%, transparent);
+}
+.agent-fx-main {
+	inset: -2px 2px 2px -2px;
+	border: 2px solid var(--fx-color);
+	filter: var(--fx-filter);
+}
+.agent-fx-glow-1 {
+	border: 2px solid color-mix(in srgb, var(--fx-color) 60%, transparent);
+	filter: blur(1px);
+}
+.agent-fx-glow-2 {
+	border: 2px solid var(--fx-color);
+	filter: blur(4px);
+}
+/* The sheen of the original, kept to a band along the edges so the card's content stays as it is. */
+.agent-fx-sheen {
+	padding: 16px;
+	mix-blend-mode: overlay;
+	filter: blur(16px);
+	background: linear-gradient(
+		-30deg,
+		white,
+		transparent 30%,
+		transparent 70%,
+		white
+	);
+	mask:
+		linear-gradient(#000 0 0) content-box exclude,
+		linear-gradient(#000 0 0);
+}
+.agent-fx-sheen-2 {
+	opacity: 0.5;
+}
+.agent-fx-backglow {
+	z-index: -1;
+	opacity: 0.3;
+	filter: blur(32px);
+	transform: scale(1.03);
+	background: linear-gradient(
+		-30deg,
+		var(--fx-color),
+		transparent,
+		var(--fx-color)
+	);
+}
+
+/* ---- ready border */
+@keyframes agent-fx-rotate {
+	to {
+		transform: translate(-50%, -50%) rotate(1turn);
+	}
+}
+.agent-fx-ring {
+	inset: -3px;
+	border-radius: calc(0.5rem + 3px);
+	padding: 4px;
+	overflow: hidden;
+	mask:
+		linear-gradient(#000 0 0) content-box exclude,
+		linear-gradient(#000 0 0);
+}
+.agent-fx-ring::before {
+	content: "";
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	width: 300%;
+	aspect-ratio: 1;
+	transform: translate(-50%, -50%);
+	background-image: conic-gradient(
+		transparent 0%,
+		transparent 5%,
+		rgba(57, 255, 20, 0.1) 10%,
+		rgba(57, 255, 20, 0.4) 40%,
+		#39ff14 95%,
+		#d4ffcf 100%
+	);
+	animation: agent-fx-rotate 2s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.agent-fx-ring::before {
+		animation: none;
+	}
+}

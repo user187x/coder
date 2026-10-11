@@ -54,6 +54,8 @@ import {
 import { useProxy } from "#/contexts/ProxyContext";
 import { useClipboard } from "#/hooks/useClipboard";
 import { useFeatureVisibility } from "#/modules/dashboard/useFeatureVisibility";
+import { AgentBorderFx } from "#/modules/platform/agentBorder/AgentBorderFx";
+import { agentBorderState } from "#/modules/platform/agentBorder/agentBorderState";
 import { AgentTerminalSection } from "#/modules/platform/agentTerminal/AgentTerminalSection";
 import {
 	getAgentConnectivityIssues,
@@ -259,6 +261,11 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 		agent,
 		Boolean(hasDevcontainerErrors || shouldShowWildcardWarning),
 	);
+	// Platform: the animated borders (AgentBorderFx) replace Coder's border colours.
+	const fxState = agentBorderState(workspace, agent, {
+		scriptIssues: hasScriptIssues,
+		otherIssues: Boolean(hasDevcontainerErrors || shouldShowWildcardWarning),
+	});
 	const [selectedLogTab, setSelectedLogTab] = useState("all");
 	const hasAutoSelectedLogTabRef = useRef(false);
 	// Auto-select the first log tab whose script failed and has rendered output.
@@ -399,376 +406,383 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 		});
 
 	return (
-		<div
-			key={agent.id}
-			className={cn(
-				"flex max-w-full flex-col rounded-lg border border-solid bg-surface-primary text-sm shadow-md overflow-clip",
-				borderClass,
-			)}
-		>
-			<header className="flex flex-wrap items-center justify-between gap-4 px-4 pt-4 pl-8 leading-normal md:gap-6 [&:has(+_[role='alert'])]:pb-4">
-				<div className="flex min-w-0 items-center gap-6 text-sm text-content-secondary">
-					<div className="flex min-w-0 w-full items-center gap-4 md:w-auto">
-						<AgentStatus agent={agent} />
-						<span className="block max-w-[260px] overflow-hidden text-ellipsis whitespace-nowrap text-base font-semibold text-content-primary">
-							{agent.name}
-						</span>
-					</div>
-					{agent.status === "connected" && (
-						<>
-							<AgentVersion agent={agent} onUpdate={onUpdateAgent} />
-							<AgentLatency agent={agent} />
-						</>
-					)}
-					{agent.status === "connecting" && (
-						<>
-							<Skeleton width={160} variant="text" />
-							<Skeleton width={36} variant="text" />
-						</>
-					)}
-				</div>
-
-				<div className="flex items-center gap-2">
-					{anyRunningOrStartingDevcontainers && (
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={() => setShowParentApps((show) => !show)}
-						>
-							Show parent apps
-							<ChevronDownIcon open={showParentApps} />
-						</Button>
-					)}
-
-					{!browser_only && agent.display_apps.includes("ssh_helper") && (
-						<AgentSSHButton
-							workspaceName={workspace.name}
-							agentName={agent.name}
-							workspaceOwnerUsername={workspace.owner_name}
-						/>
-					)}
-					{canShowPortForwarding(agent, proxy.preferredWildcardHostname) && (
-						<PortForwardButton
-							host={proxy.preferredWildcardHostname}
-							workspace={workspace}
-							agent={agent}
-							template={template}
-						/>
-					)}
-				</div>
-			</header>
-
-			<div className="flex flex-col gap-8 p-8">
-				{workspace.latest_app_status?.agent_id === agent.id && (
-					<section>
-						<h3 className="sr-only">App statuses</h3>
-						<AppStatuses workspace={workspace} agent={agent} />
-					</section>
+		<AgentBorderFx key={agent.id} state={fxState}>
+			<div
+				className={cn(
+					"flex max-w-full flex-col rounded-lg border border-solid bg-surface-primary text-sm shadow-md overflow-clip",
+					fxState ? "border-transparent" : borderClass,
 				)}
-
-				{shouldShowWildcardWarning && <WildcardHostnameWarning />}
-
-				{shouldDisplayAppsSection && (
-					<section className="flex flex-wrap gap-4 empty:hidden">
-						{shouldDisplayAgentApps && (
+			>
+				<header className="flex flex-wrap items-center justify-between gap-4 px-4 pt-4 pl-8 leading-normal md:gap-6 [&:has(+_[role='alert'])]:pb-4">
+					<div className="flex min-w-0 items-center gap-6 text-sm text-content-secondary">
+						<div className="flex min-w-0 w-full items-center gap-4 md:w-auto">
+							<AgentStatus agent={agent} />
+							<span className="block max-w-[260px] overflow-hidden text-ellipsis whitespace-nowrap text-base font-semibold text-content-primary">
+								{agent.name}
+							</span>
+						</div>
+						{agent.status === "connected" && (
 							<>
-								{showVSCode && (
-									<VSCodeDesktopButton
-										userName={workspace.owner_name}
-										workspaceName={workspace.name}
-										agentName={agent.name}
-										folderPath={agent.expanded_directory}
-										displayApps={agent.display_apps}
-									/>
-								)}
-								{appSections.map((section, i) => (
-									<AgentApps
-										key={section.group ?? i}
-										section={section}
-										agent={agent}
-										workspace={workspace}
-									/>
-								))}
+								<AgentVersion agent={agent} onUpdate={onUpdateAgent} />
+								<AgentLatency agent={agent} />
 							</>
 						)}
+						{agent.status === "connecting" && (
+							<>
+								<Skeleton width={160} variant="text" />
+								<Skeleton width={36} variant="text" />
+							</>
+						)}
+					</div>
 
-						{agent.display_apps.includes("web_terminal") && (
-							<TerminalLink
+					<div className="flex items-center gap-2">
+						{anyRunningOrStartingDevcontainers && (
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={() => setShowParentApps((show) => !show)}
+							>
+								Show parent apps
+								<ChevronDownIcon open={showParentApps} />
+							</Button>
+						)}
+
+						{!browser_only && agent.display_apps.includes("ssh_helper") && (
+							<AgentSSHButton
 								workspaceName={workspace.name}
 								agentName={agent.name}
-								userName={workspace.owner_name}
+								workspaceOwnerUsername={workspace.owner_name}
 							/>
 						)}
-					</section>
-				)}
+						{canShowPortForwarding(agent, proxy.preferredWildcardHostname) && (
+							<PortForwardButton
+								host={proxy.preferredWildcardHostname}
+								workspace={workspace}
+								agent={agent}
+								template={template}
+							/>
+						)}
+					</div>
+				</header>
 
-				{agent.status === "connecting" && !isExternalAgent && (
-					<section className="flex flex-wrap gap-4 empty:hidden">
-						<Skeleton width={80} height={32} className="rounded" />
-						<Skeleton width={110} height={32} className="rounded" />
-					</section>
-				)}
-
-				{devcontainers && devcontainers.length > 0 && (
-					<section className="flex flex-col gap-4">
-						{devcontainers.map((devcontainer) => {
-							return (
-								<AgentDevcontainerCard
-									key={devcontainer.id}
-									devcontainer={devcontainer}
-									workspace={workspace}
-									template={template}
-									wildcardHostname={proxy.preferredWildcardHostname}
-									parentAgent={agent}
-									subAgents={subAgents ?? []}
-								/>
-							);
-						})}
-					</section>
-				)}
-
-				{isExternalAgent &&
-					(agent.status === "timeout" || agent.status === "connecting") &&
-					workspace_external_agent && (
-						<AgentExternal agent={agent} workspace={workspace} />
+				<div className="flex flex-col gap-8 p-8">
+					{workspace.latest_app_status?.agent_id === agent.id && (
+						<section>
+							<h3 className="sr-only">App statuses</h3>
+							<AppStatuses workspace={workspace} agent={agent} />
+						</section>
 					)}
 
-				<AgentMetadata initialMetadata={initialMetadata} agent={agent} />
-			</div>
+					{shouldShowWildcardWarning && <WildcardHostnameWarning />}
 
-			<section className="border-0 border-t border-solid border-border">
-				<Collapsible open={shouldExpandLogs} onOpenChange={setShowLogs}>
-					<div className="px-4 py-2 relative">
-						<CollapsibleTrigger asChild>
-							<Button
-								variant="subtle"
-								className="after:content-[''] after:absolute after:inset-0"
-							>
-								<ChevronDownIcon open={showLogs} />
-								<span>Logs</span>
-								{agent.lifecycle_state === "starting" &&
-									runningScriptsCount > 0 &&
-									connectivityIssues.length === 0 && (
+					{shouldDisplayAppsSection && (
+						<section className="flex flex-wrap gap-4 empty:hidden">
+							{shouldDisplayAgentApps && (
+								<>
+									{showVSCode && (
+										<VSCodeDesktopButton
+											userName={workspace.owner_name}
+											workspaceName={workspace.name}
+											agentName={agent.name}
+											folderPath={agent.expanded_directory}
+											displayApps={agent.display_apps}
+										/>
+									)}
+									{appSections.map((section, i) => (
+										<AgentApps
+											key={section.group ?? i}
+											section={section}
+											agent={agent}
+											workspace={workspace}
+										/>
+									))}
+								</>
+							)}
+
+							{agent.display_apps.includes("web_terminal") && (
+								<TerminalLink
+									workspaceName={workspace.name}
+									agentName={agent.name}
+									userName={workspace.owner_name}
+								/>
+							)}
+						</section>
+					)}
+
+					{agent.status === "connecting" && !isExternalAgent && (
+						<section className="flex flex-wrap gap-4 empty:hidden">
+							<Skeleton width={80} height={32} className="rounded" />
+							<Skeleton width={110} height={32} className="rounded" />
+						</section>
+					)}
+
+					{devcontainers && devcontainers.length > 0 && (
+						<section className="flex flex-col gap-4">
+							{devcontainers.map((devcontainer) => {
+								return (
+									<AgentDevcontainerCard
+										key={devcontainer.id}
+										devcontainer={devcontainer}
+										workspace={workspace}
+										template={template}
+										wildcardHostname={proxy.preferredWildcardHostname}
+										parentAgent={agent}
+										subAgents={subAgents ?? []}
+									/>
+								);
+							})}
+						</section>
+					)}
+
+					{isExternalAgent &&
+						(agent.status === "timeout" || agent.status === "connecting") &&
+						workspace_external_agent && (
+							<AgentExternal agent={agent} workspace={workspace} />
+						)}
+
+					<AgentMetadata initialMetadata={initialMetadata} agent={agent} />
+				</div>
+
+				<section className="border-0 border-t border-solid border-border">
+					<Collapsible open={shouldExpandLogs} onOpenChange={setShowLogs}>
+						<div className="px-4 py-2 relative">
+							<CollapsibleTrigger asChild>
+								<Button
+									variant="subtle"
+									className="after:content-[''] after:absolute after:inset-0"
+								>
+									<ChevronDownIcon open={showLogs} />
+									<span>Logs</span>
+									{agent.lifecycle_state === "starting" &&
+										runningScriptsCount > 0 &&
+										connectivityIssues.length === 0 && (
+											<Badge
+												variant="default"
+												size="xs"
+												className="ml-1.5"
+												svgSize="sm"
+											>
+												<Spinner
+													size="lg"
+													loading
+													className="text-content-secondary -ml-1"
+												/>
+												<span>{runningScriptsCount}</span>
+											</Badge>
+										)}
+									{hasConnectivityIssues && (
 										<Badge
-											variant="default"
+											variant={
+												hasWarningConnectivityIssues ? "warning" : "info"
+											}
 											size="xs"
 											className="ml-1.5"
-											svgSize="sm"
 										>
-											<Spinner
-												size="lg"
-												loading
-												className="text-content-secondary -ml-1"
-											/>
-											<span>{runningScriptsCount}</span>
+											{hasWarningConnectivityIssues ? (
+												<TriangleAlertIcon className="-ml-0.5" />
+											) : (
+												<InfoIcon className="-ml-0.5" />
+											)}
+											<span>{connectivityIssues.length}</span>
 										</Badge>
 									)}
-								{hasConnectivityIssues && (
-									<Badge
-										variant={hasWarningConnectivityIssues ? "warning" : "info"}
-										size="xs"
-										className="ml-1.5"
-									>
-										{hasWarningConnectivityIssues ? (
-											<TriangleAlertIcon className="-ml-0.5" />
-										) : (
-											<InfoIcon className="-ml-0.5" />
-										)}
-										<span>{connectivityIssues.length}</span>
-									</Badge>
-								)}
-							</Button>
-						</CollapsibleTrigger>
-					</div>
-					<CollapsibleContent>
-						<div className={cn("px-4", hasStartupFeatures ? "pb-4" : "py-4")}>
-							{/*
+								</Button>
+							</CollapsibleTrigger>
+						</div>
+						<CollapsibleContent>
+							<div className={cn("px-4", hasStartupFeatures ? "pb-4" : "py-4")}>
+								{/*
 								Gate the spinner on `shouldExpandLogs` so it does not flash while
 								CollapsibleContent is closing.
 							*/}
-							{shouldExpandLogs &&
-								!(hasConnectivityIssues || shouldShowLogsTabs) && (
-									<div className="h-[300px] flex items-center justify-center">
-										<Spinner size="lg" loading className="block mx-auto" />
+								{shouldExpandLogs &&
+									!(hasConnectivityIssues || shouldShowLogsTabs) && (
+										<div className="h-[300px] flex items-center justify-center">
+											<Spinner size="lg" loading className="block mx-auto" />
+										</div>
+									)}
+								{hasConnectivityIssues && (
+									<div className="mb-4 flex flex-col gap-3">
+										{connectivityIssues.map((issue) => (
+											<AgentAlert
+												key={`${issue.title}-${issue.detail}`}
+												{...issue}
+												troubleshootingURL={agent.troubleshooting_url}
+											/>
+										))}
 									</div>
 								)}
-							{hasConnectivityIssues && (
-								<div className="mb-4 flex flex-col gap-3">
-									{connectivityIssues.map((issue) => (
-										<AgentAlert
-											key={`${issue.title}-${issue.detail}`}
-											{...issue}
-											troubleshootingURL={agent.troubleshooting_url}
-										/>
-									))}
-								</div>
-							)}
-							{shouldShowLogsTabs && (
-								<div className="border border-solid rounded-md overflow-clip">
-									<Tabs
-										className="-mx-px -mt-px"
-										value={selectedLogTab}
-										onValueChange={handleSelectedLogTabChange}
-									>
-										<div className="flex items-stretch">
-											<div className="min-w-0 flex-1 overflow-hidden">
-												<TabsList
-													variant="outsideBox"
-													overflowKebabMenu
-													ref={logTabsListContainerRef}
-													className="px-4"
-												>
-													{visibleLogTabs.map((tab) => (
-														<TabsTrigger
-															key={tab.value}
-															value={tab.value}
-															{...getTabMeasureProps(tab.value)}
-														>
-															{tab.startIcon}
-															<span className="whitespace-nowrap">
-																{tab.title}
-															</span>
-															{tab.error && (
-																<Badge
-																	variant="warning"
-																	size="xs"
-																	className="ml-1.5"
-																>
-																	<TriangleAlertIcon />
-																</Badge>
-															)}
-														</TabsTrigger>
-													))}
-													{overflowLogTabs.length > 0 && (
-														<DropdownMenu>
-															<DropdownMenuTrigger asChild>
-																<button
-																	type="button"
-																	data-slot="tabs-trigger"
-																	data-log-overflow-trigger
-																	data-state={
-																		overflowLogTabValuesSet.has(selectedLogTab)
-																			? "active"
-																			: "inactive"
-																	}
-																	aria-label="More log tabs"
-																	className={cn(
-																		"cursor-pointer -mb-px",
-																		"inline-flex items-center justify-center",
-																		"border-none py-3 bg-transparent text-inherit",
-																		"transition-colors duration-150 ease-linear",
-																	)}
-																>
-																	<EllipsisIcon className="size-icon-sm" />
-																	<span className="sr-only">More log tabs</span>
-																</button>
-															</DropdownMenuTrigger>
-															<DropdownMenuContent
-																align="end"
-																className="max-h-56 overflow-y-auto"
+								{shouldShowLogsTabs && (
+									<div className="border border-solid rounded-md overflow-clip">
+										<Tabs
+											className="-mx-px -mt-px"
+											value={selectedLogTab}
+											onValueChange={handleSelectedLogTabChange}
+										>
+											<div className="flex items-stretch">
+												<div className="min-w-0 flex-1 overflow-hidden">
+													<TabsList
+														variant="outsideBox"
+														overflowKebabMenu
+														ref={logTabsListContainerRef}
+														className="px-4"
+													>
+														{visibleLogTabs.map((tab) => (
+															<TabsTrigger
+																key={tab.value}
+																value={tab.value}
+																{...getTabMeasureProps(tab.value)}
 															>
-																<DropdownMenuRadioGroup
-																	value={selectedLogTab}
-																	onValueChange={handleSelectedLogTabChange}
-																>
-																	{overflowLogTabs.map((tab) => (
-																		<DropdownMenuRadioItem
-																			key={tab.value}
-																			value={tab.value}
-																			className="gap-2"
-																		>
-																			{tab.startIcon}
-																			<span className="whitespace-nowrap">
-																				{tab.title}
-																			</span>
-																			{tab.error && (
-																				<Badge
-																					variant="warning"
-																					size="xs"
-																					className="ml-1.5"
-																				>
-																					<TriangleAlertIcon />
-																				</Badge>
-																			)}
-																		</DropdownMenuRadioItem>
-																	))}
-																</DropdownMenuRadioGroup>
-															</DropdownMenuContent>
-														</DropdownMenu>
-													)}
-												</TabsList>
-											</div>
-											<div
-												className={cn(
-													"shrink-0 flex items-center gap-2 pl-2 pr-3",
-													"border-solid border-0 border-b border-l",
-												)}
-											>
-												<TooltipProvider>
-													<Tooltip>
-														<TooltipTrigger asChild>
-															<Button
-																variant="subtle"
-																size="sm"
-																className="min-w-0"
-																disabled={!hasSelectedLogs}
-																onClick={() =>
-																	copyToClipboard(selectedLogsText)
-																}
-															>
-																{showCopiedSuccess ? (
-																	<CheckIcon />
-																) : (
-																	<CopyIcon />
+																{tab.startIcon}
+																<span className="whitespace-nowrap">
+																	{tab.title}
+																</span>
+																{tab.error && (
+																	<Badge
+																		variant="warning"
+																		size="xs"
+																		className="ml-1.5"
+																	>
+																		<TriangleAlertIcon />
+																	</Badge>
 																)}
-															</Button>
-														</TooltipTrigger>
-														<TooltipContent>
-															{showCopiedSuccess
-																? "Copied!"
-																: "Copy selected logs"}
-														</TooltipContent>
-													</Tooltip>
-												</TooltipProvider>
-												<DownloadSelectedAgentLogsButton
-													agentName={agent.name}
-													logSets={downloadableLogSets}
-													allLogsText={allLogsText}
-													disabled={!hasAnyLogs}
-												/>
+															</TabsTrigger>
+														))}
+														{overflowLogTabs.length > 0 && (
+															<DropdownMenu>
+																<DropdownMenuTrigger asChild>
+																	<button
+																		type="button"
+																		data-slot="tabs-trigger"
+																		data-log-overflow-trigger
+																		data-state={
+																			overflowLogTabValuesSet.has(
+																				selectedLogTab,
+																			)
+																				? "active"
+																				: "inactive"
+																		}
+																		aria-label="More log tabs"
+																		className={cn(
+																			"cursor-pointer -mb-px",
+																			"inline-flex items-center justify-center",
+																			"border-none py-3 bg-transparent text-inherit",
+																			"transition-colors duration-150 ease-linear",
+																		)}
+																	>
+																		<EllipsisIcon className="size-icon-sm" />
+																		<span className="sr-only">
+																			More log tabs
+																		</span>
+																	</button>
+																</DropdownMenuTrigger>
+																<DropdownMenuContent
+																	align="end"
+																	className="max-h-56 overflow-y-auto"
+																>
+																	<DropdownMenuRadioGroup
+																		value={selectedLogTab}
+																		onValueChange={handleSelectedLogTabChange}
+																	>
+																		{overflowLogTabs.map((tab) => (
+																			<DropdownMenuRadioItem
+																				key={tab.value}
+																				value={tab.value}
+																				className="gap-2"
+																			>
+																				{tab.startIcon}
+																				<span className="whitespace-nowrap">
+																					{tab.title}
+																				</span>
+																				{tab.error && (
+																					<Badge
+																						variant="warning"
+																						size="xs"
+																						className="ml-1.5"
+																					>
+																						<TriangleAlertIcon />
+																					</Badge>
+																				)}
+																			</DropdownMenuRadioItem>
+																		))}
+																	</DropdownMenuRadioGroup>
+																</DropdownMenuContent>
+															</DropdownMenu>
+														)}
+													</TabsList>
+												</div>
+												<div
+													className={cn(
+														"shrink-0 flex items-center gap-2 pl-2 pr-3",
+														"border-solid border-0 border-b border-l",
+													)}
+												>
+													<TooltipProvider>
+														<Tooltip>
+															<TooltipTrigger asChild>
+																<Button
+																	variant="subtle"
+																	size="sm"
+																	className="min-w-0"
+																	disabled={!hasSelectedLogs}
+																	onClick={() =>
+																		copyToClipboard(selectedLogsText)
+																	}
+																>
+																	{showCopiedSuccess ? (
+																		<CheckIcon />
+																	) : (
+																		<CopyIcon />
+																	)}
+																</Button>
+															</TooltipTrigger>
+															<TooltipContent>
+																{showCopiedSuccess
+																	? "Copied!"
+																	: "Copy selected logs"}
+															</TooltipContent>
+														</Tooltip>
+													</TooltipProvider>
+													<DownloadSelectedAgentLogsButton
+														agentName={agent.name}
+														logSets={downloadableLogSets}
+														allLogsText={allLogsText}
+														disabled={!hasAnyLogs}
+													/>
+												</div>
 											</div>
-										</div>
-										{/*
+											{/*
 											Using a singular TabsContent is necessary to avoid scrolling
 											issues when the selected log tab changes.
 										*/}
-										<TabsContent value={selectedLogTab}>
-											<AutoSizer disableHeight>
-												{({ width }) => (
-													<AgentLogs
-														ref={logListRef}
-														innerRef={logListDivRef}
-														height={256}
-														width={width}
-														onScroll={handleLogScroll}
-														logs={selectedLogLines}
-														sources={agent.log_sources}
-														overflowed={agent.logs_overflowed}
-														className="bg-transparent"
-														showSourceIcons={selectedLogTab === "all"}
-													/>
-												)}
-											</AutoSizer>
-										</TabsContent>
-									</Tabs>
-								</div>
-							)}
-						</div>
-					</CollapsibleContent>
-				</Collapsible>
-			</section>
+											<TabsContent value={selectedLogTab}>
+												<AutoSizer disableHeight>
+													{({ width }) => (
+														<AgentLogs
+															ref={logListRef}
+															innerRef={logListDivRef}
+															height={256}
+															width={width}
+															onScroll={handleLogScroll}
+															logs={selectedLogLines}
+															sources={agent.log_sources}
+															overflowed={agent.logs_overflowed}
+															className="bg-transparent"
+															showSourceIcons={selectedLogTab === "all"}
+														/>
+													)}
+												</AutoSizer>
+											</TabsContent>
+										</Tabs>
+									</div>
+								)}
+							</div>
+						</CollapsibleContent>
+					</Collapsible>
+				</section>
 
-			<AgentTerminalSection agent={agent} workspace={workspace} />
-		</div>
+				<AgentTerminalSection agent={agent} workspace={workspace} />
+			</div>
+		</AgentBorderFx>
 	);
 };
