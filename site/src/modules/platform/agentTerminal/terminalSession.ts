@@ -79,14 +79,18 @@ export const newSession = (
 	return { id: generateUUID(), wrapped, ...(run ? { command: run } : {}) };
 };
 
-// v2: btop runs by default (it was off); a new key, so that default reaches everyone once.
-const CUSTOM_COMMAND_KEY = "coder-ui-terminal-custom-command-v2";
-export const DEFAULT_CUSTOM_COMMAND = "btop";
+// v3: btop inside a shared tmux session by default (v2: plain btop; v1: off); a new key,
+// so the new default reaches everyone once.
+const CUSTOM_COMMAND_KEY = "coder-ui-terminal-custom-command-v3";
+export const DEFAULT_CUSTOM_COMMAND = 'tmux new-session -A -s monitor "btop"';
 export const MAX_CUSTOM_COMMAND_LENGTH = 1000;
 
 type CustomCommand = { enabled: boolean; command: string };
 
-/** "Custom command": on by default, running btop; remembered per browser. */
+/**
+ * "Custom command": on by default, attaching to (or starting) the tmux session
+ * "monitor" running btop; remembered per browser.
+ */
 export const readCustomCommand = (): CustomCommand => {
 	try {
 		const parsed: unknown = JSON.parse(

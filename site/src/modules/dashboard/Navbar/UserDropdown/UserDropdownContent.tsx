@@ -20,6 +20,7 @@ import {
 import { useClipboard } from "#/hooks/useClipboard";
 import { supportsCoderDesktop } from "#/utils/platform";
 import { SupportIcon } from "../SupportIcon";
+import { AnimationsToggleItem } from "./AnimationsToggleItem";
 import { ThemeToggleItem } from "./ThemeToggleItem";
 
 const CODER_DESKTOP_DOCS_URL = "https://coder.com/docs/user-guides/desktop";
@@ -81,6 +82,7 @@ export const UserDropdownContent: React.FC<UserDropdownContentProps> = ({
 			</DropdownMenuItem>
 			<DropdownMenuSeparator />
 			<ThemeToggleItem />
+			<AnimationsToggleItem />
 			{supportLinks.map((link) => (
 				<DropdownMenuItem key={link.name} asChild>
 					<a href={link.target} target="_blank" rel="noreferrer">

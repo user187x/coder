@@ -56,6 +56,8 @@ type AgentTerminalSectionProps = {
 	workspace: Workspace;
 	/** The workspace is ready (agentAppsReady): until then the terminal does not open. */
 	ready: boolean;
+	/** The panel's reorder handle (AgentPanels), at the left of its header. */
+	handle?: React.ReactNode;
 };
 
 /**
@@ -81,8 +83,9 @@ type AgentTerminalSectionProps = {
  * such as btop need, until the user picks a size. The terminal's columns x
  * rows show faintly in its top-right corner.
  *
- * "Custom command" (on by default, running btop; remembered in this browser):
- * new sessions run it first and continue in the login shell when it exits.
+ * "Custom command" (on by default: tmux's shared session "monitor" with btop
+ * in it, started or joined; remembered in this browser): new sessions run it
+ * first and continue in the login shell when it exits.
  * "Run" starts a new session with it right away.
  *
  * Until the workspace is ready (its startup scripts, the terminal's tmux among
@@ -93,6 +96,7 @@ export const AgentTerminalSection: React.FC<AgentTerminalSectionProps> = ({
 	agent,
 	workspace,
 	ready,
+	handle,
 }) => {
 	const { proxy } = useProxy();
 	const { metadata } = useEmbeddedMetadata();
@@ -363,6 +367,7 @@ export const AgentTerminalSection: React.FC<AgentTerminalSectionProps> = ({
 				}}
 			>
 				<div className="px-4 py-2 relative flex items-center gap-2">
+					{handle}
 					<CollapsibleTrigger asChild>
 						<Button
 							variant="subtle"
@@ -422,7 +427,7 @@ export const AgentTerminalSection: React.FC<AgentTerminalSectionProps> = ({
 									</Label>
 									<Input
 										aria-label="Command"
-										className="h-7 w-40 px-2 font-mono text-xs"
+										className="h-7 w-72 px-2 font-mono text-xs"
 										spellCheck={false}
 										autoComplete="off"
 										maxLength={MAX_CUSTOM_COMMAND_LENGTH}

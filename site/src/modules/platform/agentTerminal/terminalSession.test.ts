@@ -50,12 +50,14 @@ describe("startCommand", () => {
 describe("custom command setting", () => {
 	beforeEach(() => localStorage.clear());
 
-	it("runs btop by default and is remembered", () => {
+	it("runs btop in tmux's shared session by default and is remembered", () => {
 		expect(readCustomCommand()).toEqual({
 			enabled: true,
 			command: DEFAULT_CUSTOM_COMMAND,
 		});
-		expect(DEFAULT_CUSTOM_COMMAND).toBe("btop");
+		expect(DEFAULT_CUSTOM_COMMAND).toBe(
+			'tmux new-session -A -s monitor "btop"',
+		);
 		writeCustomCommand({ enabled: false, command: "htop" });
 		expect(readCustomCommand()).toEqual({ enabled: false, command: "htop" });
 	});

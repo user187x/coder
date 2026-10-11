@@ -11,6 +11,7 @@ import { Toaster } from "./components/Toaster/Toaster";
 import { AuthProvider } from "./contexts/auth/AuthProvider";
 import { DiffsWorkerPoolProvider } from "./contexts/DiffsWorkerPoolProvider";
 import { ThemeProvider } from "./contexts/ThemeProvider";
+import { AnimationsController } from "./modules/platform/animations/AnimationsController";
 import { AvatarDialogHost } from "./modules/platform/avatar/AvatarDialog";
 import { ClassificationBars } from "./modules/platform/ClassificationBars";
 import { router } from "./router";
@@ -76,6 +77,7 @@ export const App: React.FC = () => {
 				<RouterProvider router={router} />
 				<ClassificationBars />
 				<AvatarDialogHost />
+				<AnimationsController />
 			</AppProviders>
 		</StrictMode>
 	);
