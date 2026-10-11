@@ -680,6 +680,60 @@ curl -X PUT http://coder-server:8080/api/v2/users/{user}/gitsshkey \
 
 To perform this operation, you must be authenticated. [Learn more](authentication.md).
 
+## Import user SSH key
+
+### Code samples
+
+```sh
+# Example request using curl
+curl -X PUT http://coder-server:8080/api/v2/users/{user}/gitsshkey/import \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json' \
+  -H 'Coder-Session-Token: API_KEY'
+```
+
+`PUT /api/v2/users/{user}/gitsshkey/import`
+
+Platform: replaces the user's Git SSH key with one they bring (the key of their PKCS#12
+certificate, extracted in their browser): an unencrypted PEM private key, RSA (2048+ bits),
+ECDSA (P-256/384/521) or Ed25519. Like regenerating, workspaces use it from then on.
+
+> Body parameter
+
+```json
+{
+  "private_key": "string"
+}
+```
+
+### Parameters
+
+| Name   | In   | Type                                                                         | Required | Description          |
+|--------|------|------------------------------------------------------------------------------|----------|----------------------|
+| `user` | path | string                                                                       | true     | User ID, name, or me |
+| `body` | body | [codersdk.ImportGitSSHKeyRequest](schemas.md#codersdkimportgitsshkeyrequest) | true     | Private key          |
+
+### Example responses
+
+> 200 Response
+
+```json
+{
+  "created_at": "2019-08-24T14:15:22Z",
+  "public_key": "string",
+  "updated_at": "2019-08-24T14:15:22Z",
+  "user_id": "a169451c-8525-4352-b8ca-070dd449a1a5"
+}
+```
+
+### Responses
+
+| Status | Meaning                                                 | Description | Schema                                             |
+|--------|---------------------------------------------------------|-------------|----------------------------------------------------|
+| 200    | [OK](https://tools.ietf.org/html/rfc7231#section-6.3.1) | OK          | [codersdk.GitSSHKey](schemas.md#codersdkgitsshkey) |
+
+To perform this operation, you must be authenticated. [Learn more](authentication.md).
+
 ## Create new session key
 
 ### Code samples

@@ -1780,6 +1780,25 @@ class ApiMethods {
 		return response.data;
 	};
 
+	/**
+	 * Platform: replaces the user's SSH key with their own private key (PKCS#8
+	 * PEM, from their PKCS#12 certificate, decrypted in the browser).
+	 */
+	importUserSSHKey = async (
+		userId: string,
+		privateKey: string,
+	): Promise<TypesGen.GitSSHKey> => {
+		const request: TypesGen.ImportGitSSHKeyRequest = {
+			private_key: privateKey,
+		};
+		const response = await this.axios.put<TypesGen.GitSSHKey>(
+			`/api/v2/users/${userId}/gitsshkey/import`,
+			request,
+		);
+
+		return response.data;
+	};
+
 	getUserSecrets = async (userId: string): Promise<TypesGen.UserSecret[]> => {
 		const response = await this.axios.get<TypesGen.UserSecret[]>(
 			`/api/v2/users/${encodeURIComponent(userId)}/secrets`,

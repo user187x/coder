@@ -13338,6 +13338,53 @@ const docTemplate = `{
                 ]
             }
         },
+        "/api/v2/users/{user}/gitsshkey/import": {
+            "put": {
+                "description": "Platform: replaces the user's Git SSH key with one they bring (the key of their PKCS#12\ncertificate, extracted in their browser): an unencrypted PEM private key, RSA (2048+ bits),\nECDSA (P-256/384/521) or Ed25519. Like regenerating, workspaces use it from then on.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Import user SSH key",
+                "operationId": "import-user-ssh-key",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID, name, or me",
+                        "name": "user",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Private key",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.ImportGitSSHKeyRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.GitSSHKey"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ]
+            }
+        },
         "/api/v2/users/{user}/keys": {
             "post": {
                 "produces": [
@@ -25646,6 +25693,18 @@ const docTemplate = `{
                 },
                 "threshold_database": {
                     "type": "integer"
+                }
+            }
+        },
+        "codersdk.ImportGitSSHKeyRequest": {
+            "type": "object",
+            "required": [
+                "private_key"
+            ],
+            "properties": {
+                "private_key": {
+                    "description": "PrivateKey is an unencrypted PEM private key (PKCS#8, PKCS#1, SEC 1 or\nOpenSSH): RSA of 2048 bits or more, ECDSA on P-256/384/521, or Ed25519.",
+                    "type": "string"
                 }
             }
         },

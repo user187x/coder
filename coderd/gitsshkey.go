@@ -79,6 +79,79 @@ func (api *API) regenerateGitSSHKey(rw http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// @Summary Import user SSH key
+// @Description Platform: replaces the user's Git SSH key with one they bring (the key of their PKCS#12
+// @Description certificate, extracted in their browser): an unencrypted PEM private key, RSA (2048+ bits),
+// @Description ECDSA (P-256/384/521) or Ed25519. Like regenerating, workspaces use it from then on.
+// @ID import-user-ssh-key
+// @Security CoderSessionToken
+// @Accept json
+// @Produce json
+// @Tags Users
+// @Param user path string true "User ID, name, or me"
+// @Param request body codersdk.ImportGitSSHKeyRequest true "Private key"
+// @Success 200 {object} codersdk.GitSSHKey
+// @Router /api/v2/users/{user}/gitsshkey/import [put]
+func (api *API) importGitSSHKey(rw http.ResponseWriter, r *http.Request) {
+	var (
+		ctx               = r.Context()
+		user              = httpmw.UserParam(r)
+		auditor           = api.Auditor.Load()
+		aReq, commitAudit = audit.InitRequest[database.GitSSHKey](rw, &audit.RequestParams{
+			Audit:   *auditor,
+			Log:     api.Logger,
+			Request: r,
+			Action:  database.AuditActionWrite,
+		})
+	)
+	defer commitAudit()
+
+	var req codersdk.ImportGitSSHKeyRequest
+	if !httpapi.Read(ctx, rw, r, &req) {
+		return
+	}
+	// The key itself is never logged or echoed back, not even in errors.
+	privateKey, publicKey, err := gitsshkey.Import([]byte(req.PrivateKey))
+	req.PrivateKey = ""
+	if err != nil {
+		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
+			Message: "This private key cannot be used as an SSH key.",
+			Detail:  err.Error(),
+		})
+		return
+	}
+
+	oldKey, err := api.Database.GetGitSSHKey(ctx, user.ID)
+	if err != nil {
+		httpapi.InternalServerError(rw, err)
+		return
+	}
+	aReq.Old = oldKey
+
+	newKey, err := api.Database.UpdateGitSSHKey(ctx, database.UpdateGitSSHKeyParams{
+		UserID:          user.ID,
+		UpdatedAt:       dbtime.Now(),
+		PrivateKey:      privateKey,
+		PrivateKeyKeyID: sql.NullString{}, // dbcrypt will update as required
+		PublicKey:       publicKey,
+	})
+	if err != nil {
+		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
+			Message: "Internal error updating user's git SSH key.",
+			Detail:  err.Error(),
+		})
+		return
+	}
+	aReq.New = newKey
+
+	httpapi.Write(ctx, rw, http.StatusOK, codersdk.GitSSHKey{
+		UserID:    newKey.UserID,
+		CreatedAt: newKey.CreatedAt,
+		UpdatedAt: newKey.UpdatedAt,
+		PublicKey: newKey.PublicKey,
+	})
+}
+
 // @Summary Get user Git SSH key
 // @ID get-user-git-ssh-key
 // @Security CoderSessionToken

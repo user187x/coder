@@ -6262,6 +6262,19 @@ export interface IDPSyncMapping<ResourceIdType extends string> {
 	readonly Gets: ResourceIdType;
 }
 
+// From codersdk/gitsshkey.go
+/**
+ * ImportGitSSHKeyRequest is a private key the user brings as their Git SSH key
+ * (platform: the key of their PKCS#12 certificate).
+ */
+export interface ImportGitSSHKeyRequest {
+	/**
+	 * PrivateKey is an unencrypted PEM private key (PKCS#8, PKCS#1, SEC 1 or
+	 * OpenSSH): RSA of 2048 bits or more, ECDSA on P-256/384/521, or Ed25519.
+	 */
+	readonly private_key: string;
+}
+
 // From codersdk/usersecrets.go
 /**
  * ImportUserSecretsRequest is the payload for the bulk secret import

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
+import { useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { getErrorMessage } from "#/api/errors";
 import {
@@ -43,6 +44,7 @@ import {
 	parseCertificateDescription,
 	parseCertificatePath,
 } from "./certificateSecrets";
+import { type P12File, UseAsSSHKeyDialog } from "./UseAsSSHKeyDialog";
 
 type CertificateSecret = UserSecret & { certificate: string };
 
@@ -75,6 +77,22 @@ const CertificatesPage: React.FC = () => {
 	const [uploading, setUploading] = useState(false);
 	const [deleting, setDeleting] = useState<CertificateSecret | null>(null);
 	const [saving, setSaving] = useState(false);
+	// Settings > SSH keys > "Use P12" opens this page with ?ssh-key.
+	const [searchParams, setSearchParams] = useSearchParams();
+	const [sshKeyFrom, setSSHKeyFrom] = useState<P12File | "choose" | null>(() =>
+		searchParams.has("ssh-key") ? "choose" : null,
+	);
+	useEffect(() => {
+		if (searchParams.has("ssh-key")) {
+			setSearchParams(
+				(params) => {
+					params.delete("ssh-key");
+					return params;
+				},
+				{ replace: true },
+			);
+		}
+	}, [searchParams, setSearchParams]);
 
 	const username = user.username;
 	const certificates: CertificateSecret[] = (secretsQuery.data ?? [])
@@ -174,6 +192,9 @@ const CertificatesPage: React.FC = () => {
 			toast.success(
 				`${replaced ? "Replaced" : "Uploaded"} ~/.cert/${username}.p12. Workspaces you start from now on have it; restart running ones.`,
 			);
+			if (prepared.useAsSSHKey) {
+				setSSHKeyFrom(prepared.file);
+			}
 		} catch (error) {
 			toast.error(
 				getErrorMessage(error, "The certificate could not be saved."),
@@ -188,12 +209,17 @@ const CertificatesPage: React.FC = () => {
 			<title>{pageTitle("Certificates")}</title>
 			<SettingsHeader
 				actions={
-					<Button
-						disabled={!filePathsEnabled}
-						onClick={() => setUploading(true)}
-					>
-						{current ? "Replace certificate…" : "Upload certificate…"}
-					</Button>
+					<div className="flex flex-wrap gap-2">
+						<Button variant="outline" onClick={() => setSSHKeyFrom("choose")}>
+							Use as SSH key…
+						</Button>
+						<Button
+							disabled={!filePathsEnabled}
+							onClick={() => setUploading(true)}
+						>
+							{current ? "Replace certificate…" : "Upload certificate…"}
+						</Button>
+					</div>
 				}
 			>
 				<SettingsHeaderTitle>Certificates</SettingsHeaderTitle>
@@ -225,6 +251,7 @@ const CertificatesPage: React.FC = () => {
 						current={current}
 						extras={extras}
 						onReplace={() => setUploading(true)}
+						onUseAsSSHKey={() => setSSHKeyFrom("choose")}
 						onDelete={setDeleting}
 					/>
 				)}
@@ -258,10 +285,29 @@ const CertificatesPage: React.FC = () => {
 							password is never sent or stored: keep using it wherever the
 							certificate is opened.
 						</li>
+						<li>
+							<span className="text-content-primary">Use as SSH key</span> makes
+							the certificate's private key your SSH key for Git in your
+							workspaces (Settings &gt; SSH keys). The key is decrypted in this
+							page, with the password if it has one, which is never sent or
+							stored; Coder keeps the key as it keeps the keys it generates.
+						</li>
 					</ul>
 				</section>
 			</div>
 
+			{sshKeyFrom && (
+				<UseAsSSHKeyDialog
+					userId={user.id}
+					initial={sshKeyFrom === "choose" ? undefined : sshKeyFrom}
+					storedSha={
+						current
+							? parseCertificateDescription(current.description).sha
+							: undefined
+					}
+					onClose={() => setSSHKeyFrom(null)}
+				/>
+			)}
 			{uploading && (
 				<CertificateUploadDialog
 					username={username}
@@ -315,6 +361,7 @@ type CertificatesTableProps = {
 	current: CertificateSecret | null;
 	extras: CertificateSecret[];
 	onReplace: () => void;
+	onUseAsSSHKey: () => void;
 	onDelete: (certificate: CertificateSecret) => void;
 };
 
@@ -323,6 +370,7 @@ const CertificatesTable: React.FC<CertificatesTableProps> = ({
 	current,
 	extras,
 	onReplace,
+	onUseAsSSHKey,
 	onDelete,
 }) => (
 	<div className="flex flex-col gap-2">
@@ -390,6 +438,11 @@ const CertificatesTable: React.FC<CertificatesTableProps> = ({
 							<TableCell>{formatDate(certificate.updated_at)}</TableCell>
 							<TableCell className="text-right">
 								<div className="flex justify-end gap-2">
+									{installed && (
+										<Button size="sm" variant="outline" onClick={onUseAsSSHKey}>
+											Use as SSH key…
+										</Button>
+									)}
 									{installed && (
 										<Button size="sm" variant="outline" onClick={onReplace}>
 											Replace…

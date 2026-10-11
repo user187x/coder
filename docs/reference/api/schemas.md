@@ -10285,6 +10285,20 @@ Git clone makes use of this by parsing the URL from: 'Username for "https://gith
 | `refresh`            | integer | false    |              |             |
 | `threshold_database` | integer | false    |              |             |
 
+## codersdk.ImportGitSSHKeyRequest
+
+```json
+{
+  "private_key": "string"
+}
+```
+
+### Properties
+
+| Name          | Type   | Required | Restrictions | Description                                                                                                                                     |
+|---------------|--------|----------|--------------|-------------------------------------------------------------------------------------------------------------------------------------------------|
+| `private_key` | string | true     |              | Private key is an unencrypted PEM private key (PKCS#8, PKCS#1, SEC 1 or OpenSSH): RSA of 2048 bits or more, ECDSA on P-256/384/521, or Ed25519. |
+
 ## codersdk.ImportUserSecretsRequest
 
 ```json
@@ -15859,8 +15873,8 @@ Restarts will only happen on weekdays in this list on weeks which line up with W
 
 #### Enumerated Values
 
-| Value(s)                                                                            |
-|-------------------------------------------------------------------------------------|
+| Value(s)                                                                                                   |
+|------------------------------------------------------------------------------------------------------------|
 | ``, `fira-code`, `geist-mono`, `ibm-plex-mono`, `jetbrains-mono`, `jetbrains-mono-nerd`, `source-code-pro` |
 
 ## codersdk.ThemeMode

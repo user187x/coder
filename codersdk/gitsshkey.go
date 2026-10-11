@@ -51,3 +51,27 @@ func (c *Client) RegenerateGitSSHKey(ctx context.Context, user string) (GitSSHKe
 	var gitsshkey GitSSHKey
 	return gitsshkey, ReadBodyAsJSON(res, &gitsshkey)
 }
+
+// ImportGitSSHKeyRequest is a private key the user brings as their Git SSH key
+// (platform: the key of their PKCS#12 certificate).
+type ImportGitSSHKeyRequest struct {
+	// PrivateKey is an unencrypted PEM private key (PKCS#8, PKCS#1, SEC 1 or
+	// OpenSSH): RSA of 2048 bits or more, ECDSA on P-256/384/521, or Ed25519.
+	PrivateKey string `json:"private_key" validate:"required"`
+}
+
+// ImportGitSSHKey replaces the user's SSH key pair with the given private key's.
+func (c *Client) ImportGitSSHKey(ctx context.Context, user string, req ImportGitSSHKeyRequest) (GitSSHKey, error) {
+	res, err := c.Request(ctx, http.MethodPut, fmt.Sprintf("/api/v2/users/%s/gitsshkey/import", user), req)
+	if err != nil {
+		return GitSSHKey{}, xerrors.Errorf("execute request: %w", err)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return GitSSHKey{}, ReadBodyAsError(res)
+	}
+
+	var gitsshkey GitSSHKey
+	return gitsshkey, ReadBodyAsJSON(res, &gitsshkey)
+}

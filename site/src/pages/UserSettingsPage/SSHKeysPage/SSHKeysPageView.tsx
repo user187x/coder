@@ -1,3 +1,4 @@
+import { Link as RouterLink } from "react-router";
 import type { GitSSHKey } from "#/api/typesGenerated";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { Button } from "#/components/Button/Button";
@@ -43,13 +44,22 @@ export const SSHKeysPageView: React.FC<SSHKeysPageViewProps> = ({
 						.
 					</p>
 					<CodeExample secret={false} code={sshKey.public_key.trim()} />
-					<div>
+					<div className="flex flex-wrap gap-2">
 						<Button
 							onClick={onRegenerateClick}
 							data-testid="regenerate"
 							variant="outline"
 						>
 							Regenerate&hellip;
+						</Button>
+						{/* Platform: the private key of the user's .p12 instead, on the Certificates page. */}
+						<Button variant="outline" asChild>
+							<RouterLink
+								to="/settings/certificates?ssh-key"
+								title="Use the private key of your .p12 certificate as your SSH key"
+							>
+								Use P12&hellip;
+							</RouterLink>
 						</Button>
 					</div>
 				</>

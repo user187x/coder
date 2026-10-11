@@ -10,9 +10,13 @@
  *                                 encrypted or not encrypted; legacy RC2 / 3DES
  *                                 files are reported as such (WebCrypto has
  *                                 no RC2)
+ *   pkcs12PrivateKey(bytes, pw)   the private key (PKCS#8), PBES2 (AES) or
+ *                                 legacy 3DES encrypted, or not encrypted
  *
  * Nothing leaves the page; the password is only used in its memory.
  */
+
+import { tripleDesCbcDecrypt } from "./des";
 
 type Bytes = Uint8Array<ArrayBuffer>;
 
@@ -29,6 +33,17 @@ const OID = {
 	x509Certificate: "1.2.840.113549.1.9.22.1",
 	commonName: "2.5.4.3",
 	organization: "2.5.4.10",
+	pbeSha1TripleDes: "1.2.840.113549.1.12.1.3",
+	pbeSha1TwoKeyTripleDes: "1.2.840.113549.1.12.1.4",
+	rsaEncryption: "1.2.840.113549.1.1.1",
+	ecPublicKey: "1.2.840.10045.2.1",
+	ed25519: "1.3.101.112",
+};
+
+const CURVES: Record<string, string> = {
+	"1.2.840.10045.3.1.7": "P-256",
+	"1.3.132.0.34": "P-384",
+	"1.3.132.0.35": "P-521",
 };
 
 /** Digest / HMAC OID: WebCrypto name, block size and output size in bytes. */
@@ -561,3 +576,186 @@ export const sha256Hex = async (bytes: Bytes): Promise<string> =>
 	[...(await digest("SHA-256", bytes))]
 		.map((b) => b.toString(16).padStart(2, "0"))
 		.join("");
+
+// ---------------------------------------------------------------- private key
+
+/** The private key of a PKCS#12 file, as PKCS#8 (PrivateKeyInfo, DER). */
+type Pkcs12PrivateKey = {
+	pkcs8: Bytes;
+	/** "RSA 4096", "ECDSA P-256", "Ed25519", or the algorithm's OID. */
+	algorithm: string;
+};
+
+/** The whole DER encoding of a node, header included. */
+const encodingOf = (n: DerNode): Bytes =>
+	n.buf.subarray(n.end - n.total, n.end);
+
+const describeKey = (pkcs8: Bytes): string => {
+	const [, algorithmId, privateKey] = sequence(
+		node(pkcs8, 0),
+		"PrivateKeyInfo",
+	);
+	const [algorithmOid, params] = sequence(algorithmId, "AlgorithmIdentifier");
+	const algorithm = oid(algorithmOid);
+	if (algorithm === OID.rsaEncryption) {
+		const [, modulus] = sequence(node(octets(privateKey), 0), "RSAPrivateKey");
+		const n = contentOf(expectTag(modulus, 0x02, "modulus"));
+		const leading = n[0] === 0 ? 1 : 0;
+		const bits = (n.length - leading) * 8 - Math.clz32(n[leading]) + 24;
+		return `RSA ${bits}`;
+	}
+	if (algorithm === OID.ecPublicKey) {
+		const curve = params?.tag === 0x06 ? oid(params) : "";
+		return `ECDSA ${CURVES[curve] ?? curve}`;
+	}
+	return algorithm === OID.ed25519 ? "Ed25519" : algorithm;
+};
+
+/** Decrypts a PKCS#12 password-based encryption: PBES2 (AES) or legacy 3DES. */
+const pbeDecrypt = async (
+	algorithmId: DerNode | undefined,
+	encrypted: Bytes,
+	password: string,
+): Promise<Bytes> => {
+	const [algorithmOid, params] = sequence(algorithmId, "AlgorithmIdentifier");
+	const algorithm = oid(algorithmOid);
+	if (algorithm === OID.pbes2) {
+		return pbes2Decrypt(params, encrypted, password);
+	}
+	const keyLength =
+		algorithm === OID.pbeSha1TripleDes
+			? 24
+			: algorithm === OID.pbeSha1TwoKeyTripleDes
+				? 16
+				: 0;
+	if (!keyLength) {
+		throw new Pkcs12Error(
+			`The private key is encrypted with ${LEGACY_CIPHERS[algorithm] ?? "a cipher"} this page cannot decrypt; re-export the file with AES (openssl pkcs12 -export without -legacy).`,
+		);
+	}
+	const [saltNode, iterationsNode] = sequence(params, "pbeParams");
+	const salt = octets(saltNode);
+	const iterations = integer(iterationsNode);
+	// "" can mean an empty BMPString or no password at all, depending on the tool.
+	const candidates = password
+		? [bmpPassword(password)]
+		: [bmpPassword(""), new Uint8Array(0)];
+	for (const candidate of candidates) {
+		const key = await pkcs12Kdf(
+			"SHA-1",
+			64,
+			20,
+			candidate,
+			salt,
+			iterations,
+			1,
+			keyLength,
+		);
+		const iv = await pkcs12Kdf(
+			"SHA-1",
+			64,
+			20,
+			candidate,
+			salt,
+			iterations,
+			2,
+			8,
+		);
+		try {
+			return tripleDesCbcDecrypt(key, iv, encrypted);
+		} catch {
+			// Try the next reading of the password, or report it wrong.
+		} finally {
+			key.fill(0);
+		}
+	}
+	throw new Pkcs12Error("The password does not open this file.");
+};
+
+const isPrivateKeyInfo = (der: Bytes) => {
+	try {
+		describeKey(der);
+		return true;
+	} catch {
+		return false;
+	}
+};
+
+/**
+ * The file's private key, decrypted with `password` in this page. Throws a
+ * Pkcs12Error when the file holds none, the password is wrong, or the key is
+ * encrypted with a cipher this page cannot decrypt (RC2, RC4).
+ */
+export const pkcs12PrivateKey = async (
+	bytes: Bytes,
+	password: string,
+): Promise<Pkcs12PrivateKey> => {
+	const { authData } = parse(bytes);
+	const bagLists: Bytes[] = [];
+	let unreadable: Pkcs12Error | null = null;
+	for (const contentInfo of safeContents(authData)) {
+		if (contentInfo.type === OID.data) {
+			bagLists.push(octets(firstChild(contentInfo.content, 0xa0, "data")));
+		} else if (contentInfo.type === OID.encryptedData) {
+			// Some tools put the key bag in an encrypted content too.
+			const eci = encryptedContentInfo(contentInfo.content);
+			const content = eci[2];
+			if (!content) {
+				continue;
+			}
+			const encrypted =
+				content.tag === 0x80
+					? contentOf(content)
+					: concat(children(content).map(contentOf));
+			try {
+				bagLists.push(await pbeDecrypt(eci[1], encrypted, password));
+			} catch (error) {
+				// Usually the certificates (RC2 in legacy files): only fatal without a key elsewhere.
+				unreadable = error instanceof Pkcs12Error ? error : unreadable;
+			}
+		}
+	}
+	for (const list of bagLists) {
+		for (const bag of children(node(list, 0))) {
+			const [id, value] = sequence(bag, "SafeBag");
+			const type = oid(id);
+			if (type === OID.keyBag) {
+				const pkcs8 = encodingOf(firstChild(value, 0xa0, "keyBag")).slice();
+				return { pkcs8, algorithm: describeKey(pkcs8) };
+			}
+			if (type === OID.shroudedKeyBag) {
+				const [algorithmId, data] = sequence(
+					firstChild(value, 0xa0, "pkcs8ShroudedKeyBag"),
+					"EncryptedPrivateKeyInfo",
+				);
+				let pkcs8: Bytes;
+				try {
+					pkcs8 = await pbeDecrypt(algorithmId, octets(data), password);
+				} catch (error) {
+					throw error instanceof Pkcs12Error
+						? error
+						: new Pkcs12Error("The password does not open this file.");
+				}
+				if (!isPrivateKeyInfo(pkcs8)) {
+					pkcs8.fill(0);
+					throw new Pkcs12Error("The password does not open this file.");
+				}
+				return { pkcs8, algorithm: describeKey(pkcs8) };
+			}
+		}
+	}
+	throw (
+		unreadable ??
+		new Pkcs12Error("This file holds no private key (certificate only).")
+	);
+};
+
+/** PKCS#8 DER as PEM ("-----BEGIN PRIVATE KEY-----"). */
+export const privateKeyPem = (pkcs8: Bytes): string => {
+	let binary = "";
+	for (const b of pkcs8) {
+		binary += String.fromCharCode(b);
+	}
+	const lines = btoa(binary).match(/.{1,64}/g) ?? [];
+	return `-----BEGIN PRIVATE KEY-----\n${lines.join("\n")}\n-----END PRIVATE KEY-----\n`;
+};

@@ -22,3 +22,16 @@ export const regenerateUserSSHKey = (
 		},
 	};
 };
+
+/**
+ * Platform: shows a key the user imported (API.importUserSSHKey). The import
+ * itself is not a mutation: react-query would keep the private key it was
+ * called with in its mutation cache.
+ */
+export const setUserSSHKey = (
+	queryClient: QueryClient,
+	userId: string,
+	key: GitSSHKey,
+) => {
+	queryClient.setQueryData(getUserSSHKeyQueryKey(userId), key);
+};

@@ -1,6 +1,7 @@
 import { cn } from "cn";
 import { useId, useState } from "react";
 import { Button } from "#/components/Button/Button";
+import { Checkbox } from "#/components/Checkbox/Checkbox";
 import {
 	Dialog,
 	DialogContent,
@@ -30,6 +31,9 @@ export type PreparedCertificate = {
 	base64: string;
 	sha: string;
 	details: Pkcs12Certificate | null;
+	file: { file: File; bytes: Uint8Array<ArrayBuffer> };
+	/** Then use its private key as the user's SSH key (UseAsSSHKeyDialog). */
+	useAsSSHKey: boolean;
 };
 
 type Fact = {
@@ -78,6 +82,7 @@ export const CertificateUploadDialog: React.FC<
 	const [password, setPassword] = useState("");
 	const [facts, setFacts] = useState<Fact[]>([]);
 	const [details, setDetails] = useState<Pkcs12Certificate | null>(null);
+	const [useAsSSHKey, setUseAsSSHKey] = useState(false);
 
 	const describe = async (current: Analysis, pw: string) => {
 		const { info } = current;
@@ -282,6 +287,22 @@ export const CertificateUploadDialog: React.FC<
 						))}
 					</dl>
 				)}
+				{analysis?.info.hasKey !== false && (
+					<div className="flex items-start gap-2">
+						<Checkbox
+							id={`${id}-ssh`}
+							checked={useAsSSHKey}
+							onCheckedChange={(checked) => setUseAsSSHKey(checked === true)}
+						/>
+						<Label htmlFor={`${id}-ssh`} className="font-normal leading-snug">
+							Also use its private key as my SSH key{" "}
+							<span className="text-content-secondary">
+								(next, replacing the current one; asks for the password if the
+								file has one)
+							</span>
+						</Label>
+					</div>
+				)}
 				<DialogFooter className="gap-2">
 					<Button variant="outline" disabled={saving} onClick={onClose}>
 						Cancel
@@ -290,7 +311,13 @@ export const CertificateUploadDialog: React.FC<
 						disabled={!analysis || saving}
 						onClick={() => {
 							if (analysis) {
-								onSave({ base64: analysis.base64, sha: analysis.sha, details });
+								onSave({
+									base64: analysis.base64,
+									sha: analysis.sha,
+									details,
+									file: { file: analysis.file, bytes: analysis.bytes },
+									useAsSSHKey,
+								});
 								setPassword("");
 							}
 						}}
