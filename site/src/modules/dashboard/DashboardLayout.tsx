@@ -43,11 +43,15 @@ export const DashboardLayout: React.FC = () => {
 					<AnnouncementBanner placement="page" />
 				</div>
 
+				{/* Pages that scroll end with room to spare, so their last line clears
+				    the deployment stats bar and the Chats dock; full-height pages
+				    (their root grows to fill main) do not. */}
 				<main
 					id="main-content"
 					tabIndex={-1}
 					className={cn(
 						"relative flex flex-col flex-1 min-h-0",
+						"pb-20 has-[>.flex-1]:pb-0",
 						"focus:outline-hidden",
 					)}
 				>

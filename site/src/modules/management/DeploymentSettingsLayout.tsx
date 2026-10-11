@@ -9,6 +9,7 @@ import {
 } from "#/components/Breadcrumb/Breadcrumb";
 import { Loader } from "#/components/Loader/Loader";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
+import { adminCategoryLabel } from "#/modules/dashboard/Navbar/adminQuickLinks";
 import { canViewDeploymentSettings } from "#/modules/permissions";
 import { RequirePermission } from "#/modules/permissions/RequirePermission";
 import { DeploymentSidebar } from "./DeploymentSidebar";
@@ -51,7 +52,7 @@ const DeploymentSettingsLayout: React.FC = () => {
 						<BreadcrumbSeparator />
 						<BreadcrumbItem>
 							<BreadcrumbPage className="text-content-primary">
-								General
+								{adminCategoryLabel(location.pathname) ?? "General"}
 							</BreadcrumbPage>
 						</BreadcrumbItem>
 					</BreadcrumbList>

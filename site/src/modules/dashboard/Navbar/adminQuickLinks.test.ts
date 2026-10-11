@@ -2,6 +2,7 @@ import { MaxAdminQuickLinks } from "#/api/typesGenerated";
 import { MockNoPermissions, MockPermissions } from "#/testHelpers/entities";
 import {
 	addableAdminPages,
+	adminCategoryLabel,
 	adminPagesFor,
 	resolveAdminQuickLinks,
 } from "./adminQuickLinks";
@@ -102,5 +103,27 @@ describe("addableAdminPages", () => {
 
 	it("offers nothing once every page is linked", () => {
 		expect(addableAdminPages(allPages, allPages)).toEqual([]);
+	});
+});
+
+describe("adminCategoryLabel", () => {
+	it("names the category of a page and its subpages", () => {
+		expect(adminCategoryLabel("/deployment/customize")).toBe("Customize");
+		expect(adminCategoryLabel("/deployment/userauth")).toBe("Authentication");
+		expect(adminCategoryLabel("/health/user-quota")).toBe("Health");
+		expect(adminCategoryLabel("/health/workspace-health")).toBe("Health");
+		expect(adminCategoryLabel("/ai/settings/providers")).toBe(
+			"Super Intelligence",
+		);
+		expect(adminCategoryLabel("/deployment/agents")).toBe("Super Intelligence");
+		expect(adminCategoryLabel("/deployment/oauth2-provider/apps/add")).toBe(
+			"OAuth2 Applications",
+		);
+		expect(adminCategoryLabel("/deployment/users")).toBe("Accounts");
+	});
+
+	it("has no category for other pages", () => {
+		expect(adminCategoryLabel("/deployment/licenses")).toBeNull();
+		expect(adminCategoryLabel("/deployment/users-old")).toBeNull();
 	});
 });

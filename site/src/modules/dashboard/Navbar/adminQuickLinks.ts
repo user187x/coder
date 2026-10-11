@@ -151,3 +151,23 @@ export const addableAdminPages = (
 	links.length >= MaxAdminQuickLinks
 		? []
 		: pages.filter((page) => !links.some((link) => link.id === page.id));
+
+/** The paths of each category beyond its own (its subpages are matched too). */
+const CATEGORY_PREFIXES: Record<string, readonly string[]> = {
+	"super-intelligence": ["/ai/settings", "/deployment/agents"],
+	health: ["/health"],
+	"oauth2-applications": ["/deployment/oauth2-provider"],
+};
+
+/**
+ * The category of General a page belongs to (for the breadcrumb), e.g.
+ * "Health" for /health/user-quota; null for pages outside the categories.
+ */
+export const adminCategoryLabel = (pathname: string): string | null => {
+	const under = (prefix: string) =>
+		pathname === prefix || pathname.startsWith(`${prefix}/`);
+	const page = ADMIN_PAGES.find((p) =>
+		[p.path, ...(CATEGORY_PREFIXES[p.id] ?? [])].some(under),
+	);
+	return page?.label ?? null;
+};
