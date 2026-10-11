@@ -7,7 +7,6 @@ import type {
 	Template,
 	TemplateVersion,
 	Workspace,
-	WorkspaceBuild,
 } from "#/api/typesGenerated";
 import { MemoizedInlineMarkdown } from "#/components/Markdown/InlineMarkdown";
 import { useDashboard } from "#/modules/dashboard/useDashboard";
@@ -89,8 +88,7 @@ export const WorkspaceNotifications: React.FC<WorkspaceNotificationsProps> = ({
 		workspace.latest_build.status === "running" &&
 		!workspace.health.healthy
 	) {
-		const troubleshootingURL = findTroubleshootingURL(workspace.latest_build);
-
+		// Platform: no "Troubleshooting" buttons (they open the template's docs link).
 		if (isStartupScriptFailure(workspace)) {
 			// Restarting won't fix a broken startup script, so omit the Restart
 			// button and guide the user to their template admin instead.
@@ -99,35 +97,16 @@ export const WorkspaceNotifications: React.FC<WorkspaceNotificationsProps> = ({
 				severity: "warning",
 				detail:
 					"The workspace agent is running but a startup script exited with an error.",
-				actions: troubleshootingURL ? (
-					<NotificationActionButton
-						onClick={() => window.open(troubleshootingURL, "_blank")}
-					>
-						Troubleshooting
-					</NotificationActionButton>
-				) : undefined,
 			});
 		} else {
-			const hasActions = permissions.updateWorkspace || troubleshootingURL;
 			notifications.push({
 				title: "One or more workspace agents need attention",
 				severity: "warning",
 				detail: "Expand an agent's logs to view per-agent health details.",
-				actions: hasActions ? (
-					<>
-						{permissions.updateWorkspace && (
-							<NotificationActionButton onClick={onRestartWorkspace}>
-								Restart
-							</NotificationActionButton>
-						)}
-						{troubleshootingURL && (
-							<NotificationActionButton
-								onClick={() => window.open(troubleshootingURL, "_blank")}
-							>
-								Troubleshooting
-							</NotificationActionButton>
-						)}
-					</>
+				actions: permissions.updateWorkspace ? (
+					<NotificationActionButton onClick={onRestartWorkspace}>
+						Restart
+					</NotificationActionButton>
 				) : undefined,
 			});
 		}
@@ -276,21 +255,6 @@ export const WorkspaceNotifications: React.FC<WorkspaceNotificationsProps> = ({
 			)}
 		</div>
 	);
-};
-
-const findTroubleshootingURL = (
-	workspaceBuild: WorkspaceBuild,
-): string | undefined => {
-	for (const resource of workspaceBuild.resources) {
-		if (resource.agents) {
-			for (const agent of resource.agents) {
-				if (agent.troubleshooting_url) {
-					return agent.troubleshooting_url;
-				}
-			}
-		}
-	}
-	return undefined;
 };
 
 /**

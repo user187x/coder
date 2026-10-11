@@ -54,6 +54,8 @@ import {
 type AgentTerminalSectionProps = {
 	agent: WorkspaceAgent;
 	workspace: Workspace;
+	/** The workspace is ready (agentAppsReady): until then the terminal does not open. */
+	ready: boolean;
 };
 
 /**
@@ -82,10 +84,15 @@ type AgentTerminalSectionProps = {
  * "Custom command" (on by default, running btop; remembered in this browser):
  * new sessions run it first and continue in the login shell when it exits.
  * "Run" starts a new session with it right away.
+ *
+ * Until the workspace is ready (its startup scripts, the terminal's tmux among
+ * them, have finished) the drop-down stays shut; a terminal already open or
+ * popped out is left alone.
  */
 export const AgentTerminalSection: React.FC<AgentTerminalSectionProps> = ({
 	agent,
 	workspace,
+	ready,
 }) => {
 	const { proxy } = useProxy();
 	const { metadata } = useEmbeddedMetadata();
@@ -309,7 +316,7 @@ export const AgentTerminalSection: React.FC<AgentTerminalSectionProps> = ({
 						// Columns x rows, very faint, pinned to the terminal's top-right corner.
 						<span
 							data-testid="terminal-dimensions"
-							aria-label={`Terminal size ${dimensions.cols} columns by ${dimensions.rows} rows`}
+							title={`Terminal size ${dimensions.cols} columns by ${dimensions.rows} rows`}
 							className={cn(
 								"pointer-events-none absolute right-3 top-1.5 z-[1] select-none font-mono text-[10px] tabular-nums",
 								dimensions.cols < MIN_TERMINAL_COLS ||
@@ -337,6 +344,7 @@ export const AgentTerminalSection: React.FC<AgentTerminalSectionProps> = ({
 		<section className="border-0 border-t border-solid border-border">
 			<Collapsible
 				open={open}
+				disabled={!ready && !open && !poppedOut}
 				onOpenChange={(next) => {
 					if (poppedOut) {
 						if (next) {
@@ -364,6 +372,11 @@ export const AgentTerminalSection: React.FC<AgentTerminalSectionProps> = ({
 							<span>Terminal</span>
 						</Button>
 					</CollapsibleTrigger>
+					{!ready && !open && !poppedOut && (
+						<Badge size="xs" className="relative z-[1]">
+							Opens when the workspace is ready
+						</Badge>
+					)}
 					{poppedOut && (
 						<Badge size="xs" className="relative z-[1]">
 							Popped out

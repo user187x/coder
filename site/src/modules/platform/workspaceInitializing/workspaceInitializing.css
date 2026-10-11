@@ -1,0 +1,124 @@
+/*
+ * The workspace page's "workspace initializing" panel (WorkspaceInitializing),
+ * after development/coder-fork/design/workspace-initializing.html in the
+ * coder-airgapped repository: warning stripes above and below, the brick
+ * animation (static/loading-brix.gif) tinted orange behind, and the title
+ * fading slowly in and out. Always black, in both themes.
+ */
+.ws-init {
+	position: relative;
+	overflow: hidden;
+	border-radius: 0.375rem;
+	background: #000;
+	color: #fff;
+}
+
+.ws-init-stripes {
+	height: 20px;
+	background: repeating-linear-gradient(
+		45deg,
+		#000,
+		#000 10px,
+		#ffeb04 10px,
+		#ffeb04 20px
+	);
+}
+
+.ws-init-stage {
+	position: relative;
+	height: 286px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.ws-init-anim {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	max-height: 100%;
+	transform: translate(-50%, -50%);
+	opacity: 0.8;
+	filter: sepia(100%) saturate(250%) hue-rotate(345deg);
+	pointer-events: none;
+	user-select: none;
+}
+
+.ws-init-text {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 0.75rem;
+	padding: 0 1rem;
+	text-align: center;
+}
+
+.ws-init-title {
+	margin: 0;
+	font-family: sans-serif;
+	font-size: 1.5rem;
+	font-weight: 700;
+	letter-spacing: 1px;
+	text-shadow: 0 0 8px #000;
+	animation: ws-init-fade 6s ease-in-out infinite;
+}
+
+.ws-init-info {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 0.375rem;
+	max-width: 32rem;
+	padding: 0.625rem 1rem;
+	border-radius: 0.5rem;
+	background: rgb(0 0 0 / 0.6);
+	font-size: 0.8125rem;
+	line-height: 1.4;
+}
+
+.ws-init-step {
+	margin: 0;
+	font-weight: 600;
+}
+
+.ws-init-detail {
+	margin: 0;
+	color: rgb(255 255 255 / 0.75);
+}
+
+.ws-init-note {
+	margin: 0;
+	color: rgb(255 255 255 / 0.6);
+	font-size: 0.75rem;
+}
+
+.ws-init-progress {
+	width: 14rem;
+	height: 4px;
+	overflow: hidden;
+	border-radius: 2px;
+	background: rgb(255 255 255 / 0.15);
+}
+
+.ws-init-progress > div {
+	height: 100%;
+	background: #ffeb04;
+	transition: width 0.6s ease;
+}
+
+@keyframes ws-init-fade {
+	0%,
+	100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.ws-init-title {
+		animation: none;
+	}
+}

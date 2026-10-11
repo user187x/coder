@@ -69,6 +69,7 @@ import {
 import { useAppLink } from "#/modules/apps/useAppLink";
 import { findWorkspaceAppWithAgent } from "#/modules/apps/workspaceApps";
 import { useDashboard } from "#/modules/dashboard/useDashboard";
+import { agentAppsReady } from "#/modules/platform/workspaceInitializing/workspaceReadiness";
 import { abilitiesByWorkspaceStatus } from "#/modules/workspaces/actions";
 import { WorkspaceBuildCancelDialog } from "#/modules/workspaces/WorkspaceBuildCancelDialog/WorkspaceBuildCancelDialog";
 import { WorkspaceMoreActions } from "#/modules/workspaces/WorkspaceMoreActions/WorkspaceMoreActions";
@@ -723,7 +724,8 @@ const WorkspaceApps: React.FC<WorkspaceAppsProps> = ({ workspace }) => {
 		.filter((r) => !r.hide)
 		.at(0)
 		?.agents?.find((a) => a.parent_id === null);
-	if (!agent) {
+	// Platform: no app buttons until the workspace is ready.
+	if (!agent || !agentAppsReady(agent)) {
 		return null;
 	}
 

@@ -57,7 +57,13 @@ import { useFeatureVisibility } from "#/modules/dashboard/useFeatureVisibility";
 import { AgentBorderFx } from "#/modules/platform/agentBorder/AgentBorderFx";
 import { agentBorderState } from "#/modules/platform/agentBorder/agentBorderState";
 import { AgentTerminalSection } from "#/modules/platform/agentTerminal/AgentTerminalSection";
+import { WorkspaceInitializing } from "#/modules/platform/workspaceInitializing/WorkspaceInitializing";
 import {
+	agentAppsReady,
+	agentInitializing,
+} from "#/modules/platform/workspaceInitializing/workspaceReadiness";
+import {
+	agentConnectionMessages,
 	getAgentConnectivityIssues,
 	getAgentScriptIssues,
 } from "#/modules/workspaces/health";
@@ -153,9 +159,11 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 	const hasAppsToDisplay =
 		!browser_only || appSections.some((it) => it.apps.length > 0);
 	const isExternalAgent = workspace.latest_build.has_external_agent;
-	const shouldDisplayAgentApps =
-		(agent.status === "connected" && hasAppsToDisplay) ||
-		(agent.status === "connecting" && !isExternalAgent);
+	// Platform: the apps (and the terminal) open only once the workspace is
+	// ready; until then WorkspaceInitializing stands in for them.
+	const appsReady = agentAppsReady(agent);
+	const initializing = agentInitializing(workspace, agent) && !isExternalAgent;
+	const shouldDisplayAgentApps = appsReady && hasAppsToDisplay;
 	const hasVSCodeApp =
 		agent.display_apps.includes("vscode") ||
 		agent.display_apps.includes("vscode_insiders");
@@ -169,7 +177,10 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 	// badge). Script issues are kept out of that styling so a failed script
 	// does not imply a connectivity problem, but they still auto-expand the
 	// logs so the failing script's tab surfaces on its own.
-	const connectivityIssues = getAgentConnectivityIssues(agent);
+	// Platform: "Workspace agent is connecting" is WorkspaceInitializing's to say.
+	const connectivityIssues = getAgentConnectivityIssues(agent).filter(
+		(issue) => issue.title !== agentConnectionMessages.connecting.title,
+	);
 	const hasConnectivityIssues = connectivityIssues.length > 0;
 	const hasWarningConnectivityIssues = connectivityIssues.some(
 		(i) => i.severity === "warning",
@@ -447,21 +458,24 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 							</Button>
 						)}
 
-						{!browser_only && agent.display_apps.includes("ssh_helper") && (
-							<AgentSSHButton
-								workspaceName={workspace.name}
-								agentName={agent.name}
-								workspaceOwnerUsername={workspace.owner_name}
-							/>
-						)}
-						{canShowPortForwarding(agent, proxy.preferredWildcardHostname) && (
-							<PortForwardButton
-								host={proxy.preferredWildcardHostname}
-								workspace={workspace}
-								agent={agent}
-								template={template}
-							/>
-						)}
+						{appsReady &&
+							!browser_only &&
+							agent.display_apps.includes("ssh_helper") && (
+								<AgentSSHButton
+									workspaceName={workspace.name}
+									agentName={agent.name}
+									workspaceOwnerUsername={workspace.owner_name}
+								/>
+							)}
+						{appsReady &&
+							canShowPortForwarding(agent, proxy.preferredWildcardHostname) && (
+								<PortForwardButton
+									host={proxy.preferredWildcardHostname}
+									workspace={workspace}
+									agent={agent}
+									template={template}
+								/>
+							)}
 					</div>
 				</header>
 
@@ -509,11 +523,8 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 						</section>
 					)}
 
-					{agent.status === "connecting" && !isExternalAgent && (
-						<section className="flex flex-wrap gap-4 empty:hidden">
-							<Skeleton width={80} height={32} className="rounded" />
-							<Skeleton width={110} height={32} className="rounded" />
-						</section>
+					{initializing && (
+						<WorkspaceInitializing workspace={workspace} agent={agent} />
 					)}
 
 					{devcontainers && devcontainers.length > 0 && (
@@ -781,7 +792,11 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 					</Collapsible>
 				</section>
 
-				<AgentTerminalSection agent={agent} workspace={workspace} />
+				<AgentTerminalSection
+					agent={agent}
+					workspace={workspace}
+					ready={appsReady}
+				/>
 			</div>
 		</AgentBorderFx>
 	);
