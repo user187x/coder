@@ -25,6 +25,8 @@ export type TerminalSession = {
 	id: string;
 	/** Started through the wrapper, so it can be ended from here. */
 	wrapped: boolean;
+	/** The custom command the session started with (then the login shell), if any. */
+	command?: string;
 };
 
 const sessionKey = (agentId: string) => `coder-ui-terminal:${agentId}`;
@@ -36,7 +38,10 @@ const isSession = (value: unknown): value is TerminalSession =>
 	typeof value.id === "string" &&
 	UUID_RE.test(value.id) &&
 	"wrapped" in value &&
-	typeof value.wrapped === "boolean";
+	typeof value.wrapped === "boolean" &&
+	(!("command" in value) ||
+		value.command === undefined ||
+		typeof value.command === "string");
 
 /** The session survives reloads of this tab (sessionStorage), not other tabs. */
 export const loadSession = (agentId: string): TerminalSession | null => {
@@ -65,10 +70,53 @@ export const saveSession = (
 	}
 };
 
-export const newSession = (operatingSystem: string): TerminalSession => ({
-	id: generateUUID(),
-	wrapped: operatingSystem !== "windows",
-});
+export const newSession = (
+	operatingSystem: string,
+	command?: string,
+): TerminalSession => {
+	const wrapped = operatingSystem !== "windows";
+	const run = wrapped ? command?.trim() : undefined;
+	return { id: generateUUID(), wrapped, ...(run ? { command: run } : {}) };
+};
+
+const CUSTOM_COMMAND_KEY = "coder-ui-terminal-custom-command";
+export const DEFAULT_CUSTOM_COMMAND = "btop";
+export const MAX_CUSTOM_COMMAND_LENGTH = 1000;
+
+type CustomCommand = { enabled: boolean; command: string };
+
+/** "Custom command": off by default, btop until changed; remembered per browser. */
+export const readCustomCommand = (): CustomCommand => {
+	try {
+		const parsed: unknown = JSON.parse(
+			localStorage.getItem(CUSTOM_COMMAND_KEY) ?? "null",
+		);
+		if (
+			typeof parsed === "object" &&
+			parsed !== null &&
+			"enabled" in parsed &&
+			typeof parsed.enabled === "boolean" &&
+			"command" in parsed &&
+			typeof parsed.command === "string"
+		) {
+			return {
+				enabled: parsed.enabled,
+				command: parsed.command.slice(0, MAX_CUSTOM_COMMAND_LENGTH),
+			};
+		}
+	} catch {
+		// The defaults.
+	}
+	return { enabled: false, command: DEFAULT_CUSTOM_COMMAND };
+};
+
+export const writeCustomCommand = (value: CustomCommand) => {
+	try {
+		localStorage.setItem(CUSTOM_COMMAND_KEY, JSON.stringify(value));
+	} catch {
+		// Not remembered.
+	}
+};
 
 /** "End session when closed": on by default, remembered per browser. */
 export const readEndOnClose = (): boolean => {
@@ -140,12 +188,33 @@ export const stepFontSize = (size: number, by: number) =>
 // differently).
 const pidFile = (id: string) => `/tmp/coder-ui-terminal-${id}.pid`;
 
-export const startCommand = (session: TerminalSession): string | undefined =>
-	session.wrapped
-		? "exec /bin/sh -c '" +
-			`echo $$ >${pidFile(session.id)}; s=$SHELL; [ -n "$s" ] || s=$(getent passwd "$(id -un)" 2>/dev/null | cut -d: -f7); ` +
-			`exec env CODER_UI_TERMINAL=${session.id} "\${s:-/bin/sh}" -l'`
-		: undefined;
+// The custom command travels base64-encoded (only [A-Za-z0-9+/=], safe inside the
+// single quotes) with the shell to continue in after it; the login shell runs
+// both with -c, so the command gets the user's login environment and PATH.
+const base64Utf8 = (text: string) => {
+	let binary = "";
+	for (const b of new TextEncoder().encode(text)) {
+		binary += String.fromCharCode(b);
+	}
+	return btoa(binary);
+};
+
+export const startCommand = (session: TerminalSession): string | undefined => {
+	if (!session.wrapped) {
+		return undefined;
+	}
+	const shell = `s=$SHELL; [ -n "$s" ] || s=$(getent passwd "$(id -un)" 2>/dev/null | cut -d: -f7); s=\${s:-/bin/sh}; `;
+	const env = `exec env CODER_UI_TERMINAL=${session.id}`;
+	if (!session.command) {
+		return `exec /bin/sh -c 'echo $$ >${pidFile(session.id)}; ${shell}${env} "$s" -l'`;
+	}
+	// When the command exits, the session goes on in the login shell.
+	const script = base64Utf8(`${session.command}\nexec "$CODER_UI_SHELL" -l\n`);
+	return (
+		`exec /bin/sh -c 'echo $$ >${pidFile(session.id)}; ${shell}` +
+		`c=$(printf %s ${script} | base64 -d); ${env} CODER_UI_SHELL="$s" "$s" -lc "$c"'`
+	);
+};
 
 const endCommand = (id: string) =>
 	"exec /bin/sh -c '" +

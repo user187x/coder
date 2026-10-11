@@ -1,9 +1,5 @@
 import { cn } from "cn";
-import {
-	AArrowDownIcon,
-	AArrowUpIcon,
-	PictureInPicture2Icon,
-} from "lucide-react";
+import { PictureInPicture2Icon, PlayIcon } from "lucide-react";
 import { useEffect, useEffectEvent, useId, useRef, useState } from "react";
 import { useQuery } from "react-query";
 import { deploymentConfig } from "#/api/queries/deployment";
@@ -18,7 +14,9 @@ import {
 	CollapsibleContent,
 	CollapsibleTrigger,
 } from "#/components/Collapsible/Collapsible";
+import { Input } from "#/components/Input/Input";
 import { Label } from "#/components/Label/Label";
+import { Switch } from "#/components/Switch/Switch";
 import { useProxy } from "#/contexts/ProxyContext";
 import { ThemeOverride } from "#/contexts/ThemeProvider";
 import { useEmbeddedMetadata } from "#/hooks/useEmbeddedMetadata";
@@ -28,22 +26,26 @@ import { WorkspaceTerminal } from "#/modules/terminal/WorkspaceTerminal";
 import themes from "#/theme";
 import { openMaybePortForwardedURL } from "#/utils/portForward";
 import { generateConnectionSessionId } from "#/utils/random";
+import { FaMinusCircleIcon, FaPlusCircleIcon } from "./circleIcons";
 import { TerminalPopout } from "./TerminalPopout";
 import {
 	endSession,
 	fittingFontSize,
 	loadSession,
+	MAX_CUSTOM_COMMAND_LENGTH,
 	MAX_TERMINAL_FONT_SIZE,
 	MIN_TERMINAL_COLS,
 	MIN_TERMINAL_FONT_SIZE,
 	MIN_TERMINAL_ROWS,
 	newSession,
+	readCustomCommand,
 	readEndOnClose,
 	readFontSize,
 	saveSession,
 	startCommand,
 	stepFontSize,
 	type TerminalSession,
+	writeCustomCommand,
 	writeEndOnClose,
 	writeFontSize,
 } from "./terminalSession";
@@ -73,6 +75,10 @@ type AgentTerminalSectionProps = {
  * size buttons change only this terminal's text (the page layout stays): it
  * starts at the largest size that still shows 80x24 characters, the least
  * full-screen tools such as btop need, until the user picks a size.
+ *
+ * "Custom command" (off by default; btop until changed, remembered in this
+ * browser): new sessions run it first and continue in the login shell when it
+ * exits. "Run" starts a new session with it right away.
  */
 export const AgentTerminalSection: React.FC<AgentTerminalSectionProps> = ({
 	agent,
@@ -97,6 +103,13 @@ export const AgentTerminalSection: React.FC<AgentTerminalSectionProps> = ({
 	const [ending, setEnding] = useState(false);
 	const [clientSessionId] = useState(generateConnectionSessionId);
 	const endOnCloseId = useId();
+	const customId = useId();
+	const [custom, setCustom] = useState(readCustomCommand);
+	const changeCustom = (next: typeof custom) => {
+		setCustom(next);
+		writeCustomCommand(next);
+	};
+	const canRunCommands = agent.operating_system !== "windows";
 	const connected = useRef(false);
 	const [poppedOut, setPoppedOut] = useState(false);
 	// The user's text size; until they choose one, a size that fits 80x24.
@@ -156,7 +169,12 @@ export const AgentTerminalSection: React.FC<AgentTerminalSectionProps> = ({
 	};
 
 	const start = (next: TerminalSession | null) => {
-		const current = next ?? newSession(agent.operating_system);
+		const current =
+			next ??
+			newSession(
+				agent.operating_system,
+				custom.enabled ? custom.command : undefined,
+			);
 		if (!next) {
 			replaceSession(current);
 		}
@@ -207,7 +225,7 @@ export const AgentTerminalSection: React.FC<AgentTerminalSectionProps> = ({
 				disabled={fontSize <= MIN_TERMINAL_FONT_SIZE}
 				onClick={() => changeFontSize(-1)}
 			>
-				<AArrowDownIcon />
+				<FaMinusCircleIcon className="size-4" />
 			</Button>
 			<span className="w-6 text-center tabular-nums" title="Text size (px)">
 				{fontSize}
@@ -221,7 +239,7 @@ export const AgentTerminalSection: React.FC<AgentTerminalSectionProps> = ({
 				disabled={fontSize >= MAX_TERMINAL_FONT_SIZE}
 				onClick={() => changeFontSize(1)}
 			>
-				<AArrowUpIcon />
+				<FaPlusCircleIcon className="size-4" />
 			</Button>
 			{dimensions && (
 				<span
@@ -378,6 +396,56 @@ export const AgentTerminalSection: React.FC<AgentTerminalSectionProps> = ({
 					<div className="px-4 pb-4">
 						<div className="mb-2 flex flex-wrap items-center gap-3">
 							{fontSizeControls}
+							{canRunCommands && (
+								<div
+									className="flex items-center gap-2 text-sm text-content-secondary"
+									role="group"
+									aria-label="Custom command"
+									title="New sessions run this command first, then continue in your shell"
+								>
+									<Switch
+										id={customId}
+										size="sm"
+										checked={custom.enabled}
+										onCheckedChange={(enabled) =>
+											changeCustom({ ...custom, enabled })
+										}
+									/>
+									<Label htmlFor={customId} className="font-normal">
+										Custom command
+									</Label>
+									<Input
+										aria-label="Command"
+										className="h-7 w-40 px-2 font-mono text-xs"
+										spellCheck={false}
+										autoComplete="off"
+										maxLength={MAX_CUSTOM_COMMAND_LENGTH}
+										disabled={!custom.enabled}
+										value={custom.command}
+										onChange={(event) =>
+											changeCustom({ ...custom, command: event.target.value })
+										}
+									/>
+									<Button
+										size="sm"
+										variant="outline"
+										className="h-7"
+										disabled={
+											!custom.enabled || !custom.command.trim() || ending
+										}
+										title="Start a new session with this command now"
+										onClick={() => {
+											if (session) {
+												void finish(session, false);
+											}
+											start(null);
+										}}
+									>
+										<PlayIcon />
+										Run
+									</Button>
+								</div>
+							)}
 							<p
 								role="status"
 								aria-live="polite"
