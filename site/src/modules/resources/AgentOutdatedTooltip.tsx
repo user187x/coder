@@ -42,13 +42,24 @@ export const AgentOutdatedTooltip: React.FC<AgentOutdatedTooltipProps> = ({
 			<HelpPopoverTrigger asChild>
 				<span role="status" className="cursor-pointer">
 					{status === agentVersionStatus.Outdated ? (
-						// Platform: the update badge (static/agent-outdated.png) instead of the word.
-						<img
-							src="/agent-outdated.png"
-							alt="Outdated"
+						// Platform: the update badge instead of the word. static/agent-outdated.png holds both
+						// variants side by side: the filled gear (light theme) on the left, the outlined one
+						// (dark theme) on the right; each theme shows its half.
+						<span
+							className="flex items-center"
 							title="Agent outdated: click for details"
-							className="block size-6 shrink-0"
-						/>
+						>
+							<img
+								src="/agent-outdated.png"
+								alt="Outdated"
+								className="block size-6 shrink-0 object-cover object-left dark:hidden"
+							/>
+							<img
+								src="/agent-outdated.png"
+								alt="Outdated"
+								className="hidden size-6 shrink-0 object-cover object-right dark:block"
+							/>
+						</span>
 					) : (
 						"Deprecated"
 					)}

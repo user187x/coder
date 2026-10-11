@@ -215,7 +215,9 @@ const ViewedStamp: React.FC<{ viewedAt: string }> = ({ viewedAt }) => {
 			title={`You viewed this announcement on ${full}. Your administrators can see that you have seen it, even if you do not confirm it.`}
 			className={cn(
 				RECEIPT_BOX,
-				"flex-col border-dashed border-white/45 bg-white/10 px-1.5 text-[9.5px] leading-[12px] tabular-nums whitespace-nowrap",
+				"relative flex-col border-dashed border-white/45 px-1.5 text-[9.5px] leading-[12px] tabular-nums whitespace-nowrap",
+				// Very faint diagonal zebra lines on a faint wash.
+				"bg-white/[0.06] bg-[repeating-linear-gradient(135deg,rgb(255_255_255/0.09)_0_1.5px,transparent_1.5px_5px)]",
 			)}
 		>
 			{/* Each line justified: the label at the left edge, the value at the right. */}
@@ -227,6 +229,16 @@ const ViewedStamp: React.FC<{ viewedAt: string }> = ({ viewedAt }) => {
 				<span />
 				<span>{time}</span>
 			</span>
+			{/*
+			 * The "seen and accounted for" badge: centred under "Viewed" and hanging over the box's bottom edge,
+			 * like a sticker on the banner.
+			 */}
+			<img
+				src="/announcement-viewed.png"
+				alt=""
+				data-testid="announcement-viewed-badge"
+				className="pointer-events-none absolute -bottom-[7px] left-[12px] z-10 block size-[18px] drop-shadow-[0_1px_1.5px_rgb(0_0_0/0.5)]"
+			/>
 		</span>
 	);
 };

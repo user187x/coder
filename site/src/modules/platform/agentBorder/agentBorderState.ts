@@ -1,9 +1,11 @@
 import type { Workspace, WorkspaceAgent } from "#/api/typesGenerated";
+import { appsStarting } from "../workspaceInitializing/workspaceReadiness";
 
 /**
  * Which effect the workspace page's agent card wears (AgentBorderFx):
  *   initializing  the electric green border: the workspace is starting and the
- *                 agent is connecting or running its startup scripts
+ *                 agent is connecting or running its startup scripts, or its
+ *                 apps have not answered their health checks yet
  *   pending       the same border in fiery orange: the build is queued
  *                 (pending), or something went wrong without stopping the
  *                 workspace (a startup script / module failed or timed out, the
@@ -58,7 +60,8 @@ export const agentBorderState = (
 	if (
 		agent.status === "connecting" ||
 		agent.lifecycle_state === "created" ||
-		agent.lifecycle_state === "starting"
+		agent.lifecycle_state === "starting" ||
+		appsStarting(agent).length > 0
 	) {
 		return "initializing";
 	}

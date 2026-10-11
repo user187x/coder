@@ -7,6 +7,7 @@ import { MockWorkspace, MockWorkspaceAgent } from "#/testHelpers/entities";
 import {
 	agentAppsReady,
 	agentInitializing,
+	initializingMilestones,
 	initializingStep,
 } from "./workspaceReadiness";
 
@@ -60,6 +61,40 @@ describe("agentAppsReady", () => {
 	});
 });
 
+describe("apps still starting", () => {
+	const withApps = (health: WorkspaceAgent["apps"][number]["health"]) => ({
+		...agent("connected", "ready"),
+		apps: [
+			{
+				...MockWorkspaceAgent.apps[0],
+				slug: "marimo",
+				display_name: "marimo",
+				hidden: false,
+				health,
+			},
+		],
+	});
+
+	it("keep the apps shut and the panel up until each answers its health check", () => {
+		expect(agentAppsReady(withApps("initializing"))).toBe(false);
+		expect(
+			agentInitializing(workspace("running"), withApps("initializing")),
+		).toBe(true);
+		expect(initializingStep(withApps("initializing"))).toEqual({
+			step: "Starting the apps",
+			progress: { of: "apps", done: 0, total: 1, pending: ["marimo"] },
+		});
+	});
+
+	it("do not hold the others back once healthy or unhealthy", () => {
+		expect(agentAppsReady(withApps("healthy"))).toBe(true);
+		expect(agentAppsReady(withApps("unhealthy"))).toBe(true);
+		expect(agentInitializing(workspace("running"), withApps("healthy"))).toBe(
+			false,
+		);
+	});
+});
+
 describe("agentInitializing", () => {
 	it("is true while a starting workspace's agent comes up", () => {
 		expect(
@@ -98,7 +133,31 @@ describe("initializingStep", () => {
 			),
 		).toEqual({
 			step: "Running the startup scripts",
-			scripts: { done: 1, total: 3, running: ["code-server", "desktop"] },
+			progress: {
+				of: "scripts",
+				done: 1,
+				total: 3,
+				pending: ["code-server", "desktop"],
+			},
 		});
+	});
+});
+
+describe("initializingMilestones", () => {
+	const app = (health: WorkspaceAgent["apps"][number]["health"]) => ({
+		...MockWorkspaceAgent.apps[0],
+		hidden: false,
+		health,
+	});
+
+	it("counts the agent, each startup script and each checked app", () => {
+		const starting = {
+			...agent("connected", "starting", [script("tmux", "ok"), script("main")]),
+			apps: [app("healthy"), app("initializing"), app("disabled")],
+		};
+		expect(initializingMilestones(starting)).toEqual({ done: 3, total: 5 });
+		expect(
+			initializingMilestones({ ...agent("connecting", "created"), apps: [] }),
+		).toEqual({ done: 0, total: 1 });
 	});
 });
