@@ -1,4 +1,4 @@
-import { PanelBottomCloseIcon, XIcon } from "lucide-react";
+import { ExternalLinkIcon, PanelBottomCloseIcon, XIcon } from "lucide-react";
 import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "#/components/Button/Button";
@@ -9,6 +9,8 @@ type TerminalPopoutProps = {
 	onDock: () => void;
 	/** Closes the window; the drop-down is back, collapsed. */
 	onClose: () => void;
+	/** Moves the session into a browser window of its own (Coder's terminal page). */
+	onOpenInBrowserWindow: () => void;
 	/** Controls shown in the title bar (e.g. the text size buttons). */
 	toolbar?: React.ReactNode;
 	children: React.ReactNode;
@@ -17,12 +19,14 @@ type TerminalPopoutProps = {
 /**
  * A floating window over the page for the agent terminal, popped out of its
  * drop-down: dragged by the title bar, resized from the corner. The terminal in
- * it is the same session as in the drop-down.
+ * it is the same session as in the drop-down; it can also move on into a
+ * browser window of its own.
  */
 export const TerminalPopout: React.FC<TerminalPopoutProps> = ({
 	title,
 	onDock,
 	onClose,
+	onOpenInBrowserWindow,
 	toolbar,
 	children,
 }) => {
@@ -94,6 +98,15 @@ export const TerminalPopout: React.FC<TerminalPopoutProps> = ({
 				<span className="min-w-0 flex-1 truncate text-center text-sm text-content-secondary">
 					{title}
 				</span>
+				<Button
+					size="icon"
+					variant="subtle"
+					aria-label="Open the terminal in a separate browser window"
+					title="Open in a browser window"
+					onClick={onOpenInBrowserWindow}
+				>
+					<ExternalLinkIcon />
+				</Button>
 				<Button
 					size="icon"
 					variant="subtle"

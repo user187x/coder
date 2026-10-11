@@ -79,13 +79,14 @@ export const newSession = (
 	return { id: generateUUID(), wrapped, ...(run ? { command: run } : {}) };
 };
 
-const CUSTOM_COMMAND_KEY = "coder-ui-terminal-custom-command";
+// v2: btop runs by default (it was off); a new key, so that default reaches everyone once.
+const CUSTOM_COMMAND_KEY = "coder-ui-terminal-custom-command-v2";
 export const DEFAULT_CUSTOM_COMMAND = "btop";
 export const MAX_CUSTOM_COMMAND_LENGTH = 1000;
 
 type CustomCommand = { enabled: boolean; command: string };
 
-/** "Custom command": off by default, btop until changed; remembered per browser. */
+/** "Custom command": on by default, running btop; remembered per browser. */
 export const readCustomCommand = (): CustomCommand => {
 	try {
 		const parsed: unknown = JSON.parse(
@@ -107,7 +108,7 @@ export const readCustomCommand = (): CustomCommand => {
 	} catch {
 		// The defaults.
 	}
-	return { enabled: false, command: DEFAULT_CUSTOM_COMMAND };
+	return { enabled: true, command: DEFAULT_CUSTOM_COMMAND };
 };
 
 export const writeCustomCommand = (value: CustomCommand) => {

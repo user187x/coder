@@ -50,12 +50,13 @@ describe("startCommand", () => {
 describe("custom command setting", () => {
 	beforeEach(() => localStorage.clear());
 
-	it("is off with btop by default and remembered", () => {
+	it("runs btop by default and is remembered", () => {
 		expect(readCustomCommand()).toEqual({
-			enabled: false,
+			enabled: true,
 			command: DEFAULT_CUSTOM_COMMAND,
 		});
-		writeCustomCommand({ enabled: true, command: "htop" });
-		expect(readCustomCommand()).toEqual({ enabled: true, command: "htop" });
+		expect(DEFAULT_CUSTOM_COMMAND).toBe("btop");
+		writeCustomCommand({ enabled: false, command: "htop" });
+		expect(readCustomCommand()).toEqual({ enabled: false, command: "htop" });
 	});
 });
