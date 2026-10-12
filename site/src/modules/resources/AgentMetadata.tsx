@@ -102,7 +102,7 @@ export const AgentMetadataView: React.FC<AgentMetadataViewProps> = ({
 					<div className="text-xs font-semibold uppercase tracking-wide text-content-secondary">
 						{g.title}
 					</div>
-					<div className="flex items-baseline flex-nowrap gap-6">
+					<div className="flex items-baseline flex-nowrap gap-5">
 						{g.items.map(item)}
 					</div>
 				</div>
