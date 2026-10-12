@@ -45,7 +45,7 @@ export const AgentMetadataView: React.FC<AgentMetadataViewProps> = ({
 }) => {
 	const every = useGraphEvery();
 	const historyOf = useMetadataHistory(historyScope, metadata, every !== "off");
-	// for the agent's Refresh Interval menu (beside Open ports): how often each metric is reported
+	// for the agent's Metrics Interval menu (beside Open ports): how often each metric is reported
 	const intervals = JSON.stringify(
 		metadata
 			.filter((m) => m.description.interval > 0 && shareOrNumber(m))
@@ -59,6 +59,15 @@ export const AgentMetadataView: React.FC<AgentMetadataViewProps> = ({
 			publishIntervals(historyScope, JSON.parse(intervals));
 		}
 	}, [historyScope, intervals]);
+	// 1 s and 5 s graphs advance on their own between the agent's readings
+	const [, tick] = useState(0);
+	useEffect(() => {
+		if (typeof every !== "number" || every <= 0 || every >= 10) {
+			return;
+		}
+		const id = window.setInterval(() => tick((n) => n + 1), every * 1000);
+		return () => window.clearInterval(id);
+	}, [every]);
 	if (metadata.length === 0) {
 		return null;
 	}
@@ -265,6 +274,11 @@ const MetadataItem: React.FC<MetadataItemProps> = ({
 					samples={history}
 					share={shareOf(item)}
 					every={every}
+					hold={
+						every > 0 && every < item.description.interval
+							? item.description.interval * 1.5 + item.description.timeout
+							: 0
+					}
 					stale={status === "stale"}
 					label={item.description.display_name}
 				/>

@@ -60,3 +60,23 @@ describe("toBars", () => {
 		expect(bars.length).toBe(40);
 	});
 });
+
+describe("toBars, shorter periods than the agent's interval", () => {
+	it("holds the last reading, marked, until it is too old", () => {
+		const now = Date.now();
+		const at = (ago: number, value: number) => ({
+			at: new Date(now - ago * 1000).toISOString(),
+			t: now - ago * 1000,
+			value,
+			text: String(value),
+		});
+		const bars = toBars([at(25, 40), at(12, 60)], 1, 15);
+		const real = bars.filter((b) => b && !b.held);
+		const held = bars.filter((b) => b?.held);
+		expect(real.length).toBe(2);
+		expect(held.length).toBeGreaterThan(5);
+		expect(held.every((b) => b?.value === 40 || b?.value === 60)).toBe(true);
+		// without hold: only the two readings
+		expect(toBars([at(25, 40), at(12, 60)], 1).filter(Boolean).length).toBe(2);
+	});
+});

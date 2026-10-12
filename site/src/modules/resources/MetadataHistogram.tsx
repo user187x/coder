@@ -72,7 +72,7 @@ export const levelColor = (share: number | null) =>
 export const useMetadataHistory = (
 	scope: string,
 	metadata: readonly WorkspaceAgentMetadata[],
-	/** Off (the Refresh Interval menu's "off"): nothing is recorded. */
+	/** Off (the Metrics Interval menu's "off"): nothing is recorded. */
 	enabled = true,
 ) => {
 	const [, setVersion] = useState(0);
@@ -108,7 +108,14 @@ export const useMetadataHistory = (
 	return (key: string) => history.get(`${scope}/${key}`) ?? [];
 };
 
-type Bar = { t: number; value: number; text: string; count: number };
+type Bar = {
+	t: number;
+	value: number;
+	text: string;
+	count: number;
+	/** No reading in this period: the last one, held (periods shorter than the agent's interval). */
+	held?: boolean;
+};
 
 /**
  * The bars of a graph: each reading (every = 0), or the highest reading of
@@ -118,6 +125,8 @@ type Bar = { t: number; value: number; text: string; count: number };
 export const toBars = (
 	samples: readonly Sample[],
 	every: number,
+	/** Seconds a reading stays good for a period without one (about the agent's interval); 0: none. */
+	hold = 0,
 ): (Bar | null)[] => {
 	if (every <= 0) {
 		const last = samples.slice(-BARS);
@@ -146,6 +155,26 @@ export const toBars = (
 			cur.count++;
 		}
 	}
+	if (hold > 0) {
+		// a period with no reading shows the last one while it is still fresh (a 1 s graph of 10 s readings)
+		let k = -1;
+		for (let i = 0; i < BARS; i++) {
+			const slotEnd = (end - (BARS - 1 - i) + 1) * ms;
+			while (k + 1 < samples.length && samples[k + 1].t < slotEnd) {
+				k++;
+			}
+			const last = samples[k];
+			if (!out[i] && last && slotEnd - last.t <= hold * 1000) {
+				out[i] = {
+					t: last.t,
+					value: last.value,
+					text: last.text,
+					count: 0,
+					held: true,
+				};
+			}
+		}
+	}
 	return out;
 };
 
@@ -155,6 +184,8 @@ type MetadataHistogramProps = {
 	share: ((v: number) => number) | null;
 	/** Seconds per bar (0: one bar per reading). */
 	every: number;
+	/** Seconds a reading holds for a period without one (shorter periods than the agent's interval). */
+	hold?: number;
 	stale: boolean;
 	label: string;
 };
@@ -168,13 +199,14 @@ export const MetadataHistogram: React.FC<MetadataHistogramProps> = ({
 	samples,
 	share,
 	every,
+	hold = 0,
 	stale,
 	label,
 }) => {
 	const W = 120;
 	const H = 26;
 	const slot = W / BARS;
-	const bars = toBars(samples, every);
+	const bars = toBars(samples, every, hold);
 	const top = share
 		? 100
 		: Math.max(0, ...bars.map((b) => b?.value ?? 0)) * 1.15 || 1;
@@ -216,11 +248,11 @@ export const MetadataHistogram: React.FC<MetadataHistogramProps> = ({
 						height={h}
 						rx={0.75}
 						fill={levelColor(share ? scaled : null)}
-						opacity={latest ? 1 : 0.7}
+						opacity={b.held ? 0.3 : latest ? 1 : 0.7}
 						data-level={levelColor(share ? scaled : null)}
 					>
 						<title>
-							{`${new Date(b.t).toLocaleTimeString()}: ${b.text}${b.count > 1 ? ` (the highest of ${b.count} readings)` : ""}`}
+							{`${new Date(b.t).toLocaleTimeString()}: ${b.text}${b.held ? " (the last reading, held until the next)" : b.count > 1 ? ` (the highest of ${b.count} readings)` : ""}`}
 						</title>
 					</rect>
 				);

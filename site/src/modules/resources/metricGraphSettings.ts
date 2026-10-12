@@ -2,7 +2,7 @@ import { useSyncExternalStore } from "react";
 
 /**
  * The workspace metric graphs' refresh interval, shared by the agent's
- * "Refresh Interval" menu (next to Open ports) and the graphs: seconds per bar
+ * "Metrics Interval" menu (next to Open ports) and the graphs: seconds per bar
  * (0 = one bar per reading, as the agent sends it) or "off" (no graphs, nothing
  * recorded: for browsers short on processing power). Remembered in this
  * browser. The graphs also publish how often each agent reports its metrics,
@@ -10,7 +10,7 @@ import { useSyncExternalStore } from "react";
  */
 export type GraphEvery = number | "off";
 
-export const GRAPH_CHOICES: readonly GraphEvery[] = [0, 30, 60, 300];
+export const GRAPH_CHOICES: readonly GraphEvery[] = [0, 1, 5, 30, 60, 300];
 
 const STORE_KEY = "workspace.metrics.graphEvery";
 const listeners = new Set<() => void>();

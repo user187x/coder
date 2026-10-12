@@ -22,16 +22,16 @@ import {
 	useGraphEvery,
 } from "./metricGraphSettings";
 
-type RefreshIntervalButtonProps = { agentId: string };
+type MetricsIntervalButtonProps = { agentId: string };
 
 /**
- * The agent card's "Refresh Interval" menu, beside Open ports and built like
+ * The agent card's "Metrics Interval" menu, beside Open ports and built like
  * it: the interval in the circle (10s, 30s, 1m, 5m, or off), and a popover to
  * change how often the metric graphs advance (each reading the agent sends, or
  * a bar per 30 s / 1 min / 5 min holding its highest reading), or to turn them
  * off on a browser short on processing power. Shown once the agent has metrics.
  */
-export const RefreshIntervalButton: React.FC<RefreshIntervalButtonProps> = ({
+export const MetricsIntervalButton: React.FC<MetricsIntervalButtonProps> = ({
 	agentId,
 }) => {
 	const every = useGraphEvery();
@@ -50,7 +50,9 @@ export const RefreshIntervalButton: React.FC<RefreshIntervalButtonProps> = ({
 			? "No graphs, nothing recorded: for a browser short on processing power"
 			: v === 0
 				? `A bar per reading, as the agent sends it (every ${usual} s)`
-				: `A bar per ${spanOf(v)}: its highest reading · covers ${spanOf(BARS * v)}`;
+				: v < usual
+					? `A bar per ${spanOf(v)} · covers ${spanOf(BARS * v)} · between the agent's readings (every ${usual} s) the last one holds, dimmer`
+					: `A bar per ${spanOf(v)}: its highest reading · covers ${spanOf(BARS * v)}`;
 
 	return (
 		<Popover>
@@ -58,7 +60,7 @@ export const RefreshIntervalButton: React.FC<RefreshIntervalButtonProps> = ({
 				<Button
 					size="sm"
 					variant="subtle"
-					data-testid="refresh-interval-button"
+					data-testid="metrics-interval-button"
 				>
 					<span
 						className={cn(
@@ -68,7 +70,7 @@ export const RefreshIntervalButton: React.FC<RefreshIntervalButtonProps> = ({
 					>
 						{badge}
 					</span>
-					Refresh Interval
+					Metrics Interval
 					<ChevronDownIcon />
 				</Button>
 			</PopoverTrigger>
@@ -77,7 +79,7 @@ export const RefreshIntervalButton: React.FC<RefreshIntervalButtonProps> = ({
 				className="p-0 w-[360px] mt-1 text-content-secondary bg-surface-secondary border-surface-quaternary"
 			>
 				<div className="flex flex-col p-5 pb-3">
-					<HelpPopoverTitle>Refresh Interval</HelpPopoverTitle>
+					<HelpPopoverTitle>Metrics Interval</HelpPopoverTitle>
 					<HelpPopoverText>
 						How often the metric graphs above the values advance. The agent
 						reports every {usual} s
@@ -88,7 +90,7 @@ export const RefreshIntervalButton: React.FC<RefreshIntervalButtonProps> = ({
 				</div>
 				<div
 					role="radiogroup"
-					aria-label="Refresh interval"
+					aria-label="Metrics interval"
 					className="flex flex-col border-0 border-y border-solid border-surface-quaternary py-1"
 				>
 					{[...GRAPH_CHOICES, "off" as const].map((v) => (
