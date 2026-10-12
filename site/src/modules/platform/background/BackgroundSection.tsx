@@ -111,10 +111,11 @@ export const BackgroundSection: React.FC = () => {
 				Background image
 			</h2>
 			<p className="m-0 mb-6 max-w-3xl text-sm font-medium text-content-secondary">
-				A faint picture behind the sign-in page and the dashboard. It is drawn
-				as a separate layer that the mouse passes through, so the pages keep
-				their own look; by default it lies behind their content and is barely
-				visible.
+				A faint picture behind the sign-in page and the dashboard. By default it
+				lies beneath everything on the page, mixed into the page's own
+				background colour, so the pages keep their look and their text stays
+				readable; it can also lie over the page as a watermark. Either way the
+				mouse never notices it.
 			</p>
 			{query.isLoading ? (
 				<Loader />
