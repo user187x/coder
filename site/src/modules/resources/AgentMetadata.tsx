@@ -89,20 +89,20 @@ export const AgentMetadataView: React.FC<AgentMetadataViewProps> = ({
 		);
 	}
 	return (
-		<section className="flex flex-wrap items-stretch gap-4">
+		<section className="flex flex-nowrap items-stretch gap-4 overflow-x-auto pb-1">
 			{groups.map((g) => (
 				<div
 					key={g.id}
 					role="group"
 					aria-label={g.title}
 					title={g.hint}
-					className="flex flex-col gap-2 rounded-2xl border border-solid border-border bg-surface-secondary/40 px-5 pt-3 pb-4"
+					className="flex shrink-0 flex-col gap-2 rounded-2xl border border-solid border-border bg-surface-secondary/40 px-4 pt-3 pb-4"
 					data-testid={`metrics-group-${g.id}`}
 				>
 					<div className="text-xs font-semibold uppercase tracking-wide text-content-secondary">
 						{g.title}
 					</div>
-					<div className="flex items-baseline flex-wrap gap-8 gap-y-4">
+					<div className="flex items-baseline flex-nowrap gap-6">
 						{g.items.map(item)}
 					</div>
 				</div>
