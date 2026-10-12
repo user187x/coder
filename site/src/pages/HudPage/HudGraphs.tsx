@@ -35,6 +35,20 @@ const clock = (t: number, range: HudRange) =>
 			: { hour: "numeric", minute: "2-digit", second: "2-digit" }),
 	});
 
+/**
+ * The scale of a usage graph: a little above the range's peak, so the bars
+ * show how use moves (never above what the cluster has).
+ */
+const peakScale = (
+	points: HudHistoryPoint[],
+	peak: (p: HudHistoryPoint) => number | null,
+	total: (p: HudHistoryPoint) => number | null,
+) => {
+	const top = Math.max(0, ...points.map((p) => peak(p) ?? 0));
+	const all = Math.max(0, ...points.map((p) => total(p) ?? 0));
+	return all ? Math.min(all, top * 1.25 || all) : top * 1.25;
+};
+
 type Bar = {
 	/** The bar (cluster in use, the median latency). */
 	value: number | null;
@@ -311,7 +325,13 @@ export const HudGraphs: React.FC = () => {
 						unit="cores"
 						history={data}
 						bars={(p) => ({ value: p.cpu, part: p.cpuWorkspaces })}
-						top={(ps) => Math.max(...ps.map((p) => p.cpuTotal ?? p.cpu ?? 0))}
+						top={(ps) =>
+							peakScale(
+								ps,
+								(p) => p.cpuPeak ?? p.cpu,
+								(p) => p.cpuTotal,
+							)
+						}
 						summary={(p) => (
 							<>
 								<span className="text-2xl font-semibold tabular-nums">
@@ -340,7 +360,11 @@ export const HudGraphs: React.FC = () => {
 						history={data}
 						bars={(p) => ({ value: p.memory, part: p.memoryWorkspaces })}
 						top={(ps) =>
-							Math.max(...ps.map((p) => p.memoryTotal ?? p.memory ?? 0))
+							peakScale(
+								ps,
+								(p) => p.memoryPeak ?? p.memory,
+								(p) => p.memoryTotal,
+							)
 						}
 						summary={(p) => (
 							<>

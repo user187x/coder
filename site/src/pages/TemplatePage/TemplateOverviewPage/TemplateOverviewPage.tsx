@@ -33,20 +33,25 @@ const TemplateOverviewPage: React.FC = () => {
 				) : (
 					<Loader />
 				)}
-				{readme.body.trim() && (
-					<section
-						className="rounded-lg border border-solid border-border bg-surface-primary"
-						id="readme"
-						aria-label="Docs"
-					>
-						<div className="border-0 border-b border-solid border-border px-6 py-4 font-semibold text-content-secondary">
-							README.md
-						</div>
-						<div className="max-w-[860px] px-8 pb-12 pt-2">
+				<section
+					className="rounded-lg border border-solid border-border bg-surface-primary"
+					id="readme"
+					aria-label="Docs"
+				>
+					<div className="border-0 border-b border-solid border-border px-6 py-4 font-semibold text-content-secondary">
+						README.md
+					</div>
+					<div className="max-w-[860px] px-8 pb-12 pt-2">
+						{readme.body.trim() ? (
 							<MemoizedMarkdown>{readme.body}</MemoizedMarkdown>
-						</div>
-					</section>
-				)}
+						) : (
+							<p className="text-sm text-content-secondary">
+								This template has no README.md. Add one to its files to describe
+								it here.
+							</p>
+						)}
+					</div>
+				</section>
 			</div>
 		</>
 	);
