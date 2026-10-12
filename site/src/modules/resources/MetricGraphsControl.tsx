@@ -13,7 +13,7 @@ const STORE_KEY = "workspace.metrics.graphEvery";
 
 /** Seconds per bar: 0 = every reading. */
 const CHOICES = [
-	{ every: 0, label: "Each reading" },
+	{ every: 0, label: "Live" },
 	{ every: 30, label: "30 s" },
 	{ every: 60, label: "1 min" },
 	{ every: 300, label: "5 min" },
@@ -93,7 +93,7 @@ export const MetricGraphsControl: React.FC<MetricGraphsControlProps> = ({
 						aria-label={`Graph interval: ${current.label}. Change`}
 					>
 						<TimerIcon className="size-3.5 text-content-secondary" />
-						{every ? `every ${current.label}` : `every ${usual} s`}
+						{every ? `every ${current.label}` : `live · ${usual} s`}
 						<ChevronDownIcon className="size-3 text-content-secondary" />
 					</button>
 				</PopoverTrigger>
@@ -141,7 +141,7 @@ export const MetricGraphsControl: React.FC<MetricGraphsControlProps> = ({
 							>
 								{every
 									? `Each bar: the highest reading of ${current.label}. `
-									: "Each bar: one reading. "}
+									: "Live: each bar is one reading, as it arrives. "}
 								The graphs cover the last {span(covers)} since this page opened.
 							</span>
 						</div>
