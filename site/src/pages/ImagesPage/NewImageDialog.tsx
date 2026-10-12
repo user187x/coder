@@ -47,7 +47,7 @@ export const NewImageDialog: React.FC<{ onClose: () => void }> = ({
 			open
 			onOpenChange={(open) => !open && !create.isPending && onClose()}
 		>
-			<DialogContent className="max-w-lg">
+			<DialogContent className="max-w-xl">
 				<DialogHeader>
 					<DialogTitle>New Image</DialogTitle>
 					<DialogDescription>
@@ -56,7 +56,7 @@ export const NewImageDialog: React.FC<{ onClose: () => void }> = ({
 					</DialogDescription>
 				</DialogHeader>
 				<form
-					className="flex flex-col gap-4"
+					className="flex min-w-0 flex-col gap-4"
 					onSubmit={(e) => {
 						e.preventDefault();
 						if (valid) {
@@ -79,7 +79,7 @@ export const NewImageDialog: React.FC<{ onClose: () => void }> = ({
 						/>
 						<span className="text-xs text-content-secondary">
 							3–40 lowercase letters, digits and dashes. Templates use it as{" "}
-							<code>
+							<code className="break-all">
 								{list.data?.pullPrefix ?? "localhost:5000"}/coder-images/
 								{name || "<name>"}:&lt;version&gt;
 							</code>
@@ -102,18 +102,22 @@ export const NewImageDialog: React.FC<{ onClose: () => void }> = ({
 							id="image-base"
 							value={base}
 							onChange={(e) => setBase(e.target.value)}
-							className="h-10 rounded-md border border-solid border-border bg-surface-primary px-3 text-sm text-content-primary"
+							className="h-10 w-full min-w-0 truncate rounded-md border border-solid border-border bg-surface-primary px-3 text-sm text-content-primary"
 						>
 							<option value="workspace">
-								The workspace image ({list.data?.baseImage ?? "coder-workspace"}
-								): XFCE desktop, Firefox, tools
+								The workspace image: XFCE desktop, Firefox, tools
 							</option>
 							{ready.map((i) => (
 								<option key={i.id} value={i.id}>
-									Another built image: {i.name} (v{i.version})
+									{i.name} (v{i.version}), built here
 								</option>
 							))}
 						</select>
+						<span className="break-all font-mono text-xs text-content-secondary">
+							{base === "workspace"
+								? (list.data?.baseImage ?? "coder-workspace")
+								: (ready.find((i) => i.id === base)?.pullRef ?? "")}
+						</span>
 					</div>
 					{create.error ? (
 						<p role="alert" className="m-0 text-sm text-content-destructive">

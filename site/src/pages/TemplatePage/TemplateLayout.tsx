@@ -132,26 +132,20 @@ export const TemplateLayout: React.FC<React.PropsWithChildren> = ({
 			<LinkTabs active={activeTab} className="mb-10 -mt-3">
 				<Margins>
 					<LinkTabsList>
-						<TabLink to="docs" value="docs">
-							Docs
+						<TabLink to="overview" value="overview">
+							Overview
 						</TabLink>
 						{data.permissions.canUpdateTemplate && (
 							<TabLink to="files" value="files">
 								Source Code
 							</TabLink>
 						)}
-						<TabLink to="resources" value="resources">
-							Resources
-						</TabLink>
-						<TabLink to="versions" value="versions">
-							Versions
-						</TabLink>
 						<TabLink to="embed" value="embed">
 							Embed
 						</TabLink>
 						{shouldShowInsights && (
 							<TabLink to="insights" value="insights">
-								Insights
+								Details
 							</TabLink>
 						)}
 						{isWorkspacePrebuildsEnabled &&

@@ -383,7 +383,7 @@ const ImageEditor: React.FC<{ image: ImageDetail }> = ({ image }) => {
 													: { kind: "image", id: e.target.value },
 										})
 									}
-									className="h-10 rounded-md border border-solid border-border bg-surface-primary px-3 text-sm text-content-primary"
+									className="h-10 w-full min-w-0 rounded-md border border-solid border-border bg-surface-primary px-3 text-sm text-content-primary"
 								>
 									<option value="workspace">
 										The workspace image (

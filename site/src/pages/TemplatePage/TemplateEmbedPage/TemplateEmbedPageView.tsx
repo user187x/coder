@@ -1,4 +1,4 @@
-import { CheckIcon, CopyIcon } from "lucide-react";
+import { Share2Icon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type {
 	FriendlyDiagnostic,
@@ -13,11 +13,11 @@ import { RadioGroup, RadioGroupItem } from "#/components/RadioGroup/RadioGroup";
 import { Separator } from "#/components/Separator/Separator";
 import { Skeleton } from "#/components/Skeleton/Skeleton";
 import { TooltipMessage, TooltipTitle } from "#/components/Tooltip/Tooltip";
-import { useClipboard } from "#/hooks/useClipboard";
 import {
 	Diagnostics,
 	DynamicParameter,
 } from "#/modules/workspaces/DynamicParameter/DynamicParameter";
+import { setEmbedValues } from "./embedShare";
 
 type ButtonValues = Record<string, string>;
 
@@ -64,6 +64,10 @@ export const TemplateEmbedPageView: React.FC<TemplateEmbedPageViewProps> = ({
 		}
 		return values;
 	}, [formState]);
+	// what ⋮ › Share copies, while this tab is open
+	useEffect(() => {
+		setEmbedValues(template.id, buttonValues);
+	}, [template.id, buttonValues]);
 
 	const handleChange = (
 		changedParamInfo: PreviewParameter,
@@ -164,10 +168,13 @@ export const TemplateEmbedPageView: React.FC<TemplateEmbedPageViewProps> = ({
 
 						<TestHelpPopover />
 					</div>
+					<p className="m-0 flex items-center gap-1.5 text-sm text-content-secondary">
+						<Share2Icon className="size-icon-sm shrink-0" />
+						To share the button or its link with these settings, use the
+						template&apos;s ⋮ menu › Share.
+					</p>
 				</div>
 			</div>
-
-			<ButtonPreview template={template} buttonValues={buttonValues} />
 		</div>
 	);
 };
@@ -210,14 +217,6 @@ const TestHelpPopover: React.FC = () => {
 
 const deploymentUrl = `${location.protocol}//${location.host}`;
 
-function getClipboardCopyContent(
-	template: Template,
-	buttonValues: ButtonValues | undefined,
-): string {
-	const buttonUrl = getButtonUrl(template, buttonValues);
-	return `[![Open in Coder](${deploymentUrl}/open-in-coder.svg)](${buttonUrl})`;
-}
-
 function getButtonUrl(
 	template: Template,
 	buttonValues: ButtonValues | undefined,
@@ -226,37 +225,3 @@ function getButtonUrl(
 	const createWorkspaceParams = new URLSearchParams(buttonValues);
 	return `${createWorkspaceUrl}?${createWorkspaceParams.toString()}`;
 }
-
-type ButtonPreviewProps = {
-	template: Template;
-	buttonValues: ButtonValues | undefined;
-};
-
-const ButtonPreview: React.FC<ButtonPreviewProps> = ({
-	template,
-	buttonValues,
-}) => {
-	const clipboard = useClipboard();
-	return (
-		<div className="flex gap-8 pt-4 flex-col items-center justify-center">
-			<div
-				className="
-				flex flex-col items-center justify-center p-6
-			 	rounded-lg border border-border border-solid bg-surface-secondary"
-			>
-				<img src="/open-in-coder.svg" alt="Open in Coder button" />
-			</div>
-			<Button
-				variant="default"
-				disabled={clipboard.showCopiedSuccess}
-				onClick={() => {
-					const textToCopy = getClipboardCopyContent(template, buttonValues);
-					clipboard.copyToClipboard(textToCopy);
-				}}
-			>
-				{clipboard.showCopiedSuccess ? <CheckIcon /> : <CopyIcon />} Copy button
-				Markdown
-			</Button>
-		</div>
-	);
-};

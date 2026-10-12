@@ -15,6 +15,7 @@ import {
 	HorizontalForm,
 } from "#/components/Form/Form";
 import { FormField } from "#/components/FormField/FormField";
+import { IconField } from "#/components/IconField/IconField";
 import { Label } from "#/components/Label/Label";
 import {
 	Select,
@@ -33,10 +34,14 @@ import {
 export type WorkspaceSettingsFormValues = {
 	name: string;
 	automatic_updates: AutomaticUpdates;
+	/** The workspace's own icon ("" = its template's), kept by the platform service. */
+	icon: string;
 };
 
 type WorkspaceSettingsFormProps = {
 	workspace: Workspace;
+	/** Its own icon now ("" when it shows the template's). */
+	icon: string;
 	error: unknown;
 	onCancel: () => void;
 	onSubmit: (values: WorkspaceSettingsFormValues) => Promise<void>;
@@ -46,16 +51,15 @@ export const WorkspaceSettingsForm: React.FC<WorkspaceSettingsFormProps> = ({
 	onCancel,
 	onSubmit,
 	workspace,
+	icon,
 	error,
 }) => {
-	const formEnabled =
-		!workspace.template_require_active_version || workspace.allow_renames;
-
 	const form = useFormik<WorkspaceSettingsFormValues>({
 		onSubmit,
 		initialValues: {
 			name: workspace.name,
 			automatic_updates: workspace.automatic_updates,
+			icon,
 		},
 		validationSchema: Yup.object({
 			name: nameValidator("Name"),
@@ -96,6 +100,25 @@ export const WorkspaceSettingsForm: React.FC<WorkspaceSettingsFormProps> = ({
 						onChange={onChangeTrimmed(form)}
 						autoFocus
 						className="w-full"
+					/>
+				</FormFields>
+			</FormSection>
+			<FormSection
+				title="Icon"
+				description="Its own icon in the workspaces list and on its page. Empty: the template's."
+			>
+				<FormFields>
+					<IconField
+						{...getFieldHelpers("icon", {
+							helperText:
+								"A Coder icon or emoji (Emoji / Icon), or a path such as /icon/go.svg.",
+						})}
+						disabled={form.isSubmitting}
+						onChange={onChangeTrimmed(form)}
+						fullWidth
+						label="Icon"
+						placeholder={workspace.template_icon || "/emojis/1f4bb.png"}
+						onPickEmoji={(value) => form.setFieldValue("icon", value)}
 					/>
 				</FormFields>
 			</FormSection>
@@ -158,18 +181,16 @@ export const WorkspaceSettingsForm: React.FC<WorkspaceSettingsFormProps> = ({
 					</div>
 				</FormFields>
 			</FormSection>
-			{formEnabled && (
-				<FormFooter>
-					<Button onClick={onCancel} variant="outline">
-						Cancel
-					</Button>
+			<FormFooter>
+				<Button onClick={onCancel} variant="outline">
+					Cancel
+				</Button>
 
-					<Button type="submit" disabled={form.isSubmitting}>
-						<Spinner loading={form.isSubmitting} />
-						Save
-					</Button>
-				</FormFooter>
-			)}
+				<Button type="submit" disabled={form.isSubmitting}>
+					<Spinner loading={form.isSubmitting} />
+					Save
+				</Button>
+			</FormFooter>
 		</HorizontalForm>
 	);
 };

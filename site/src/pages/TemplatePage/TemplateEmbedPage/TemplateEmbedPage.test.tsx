@@ -10,6 +10,7 @@ import {
 	mockDynamicParameterWebSocket,
 } from "#/testHelpers/websockets";
 import { TemplateLayout } from "../TemplateLayout";
+import { shareMarkdown } from "./embedShare";
 import TemplateEmbedPage from "./TemplateEmbedPage";
 
 // Renders TemplateEmbedPage inside the real TemplateLayout so that
@@ -166,16 +167,8 @@ describe("TemplateEmbedPage", () => {
 		expect(searchParams.get("mode")).toBe("manual");
 		expect(searchParams.get("param.flavor")).toBe("vanilla");
 
-		const copyButton = screen.getByRole("button", {
-			name: /copy button markdown/i,
-		});
-		await userEvent.click(copyButton);
-
-		await waitFor(() => {
-			expect(writeTextMock).toHaveBeenCalled();
-		});
-
-		const copiedText = writeTextMock.mock.calls[0][0] as string;
+		// ⋮ › Share copies the button with these settings
+		const copiedText = shareMarkdown(MockTemplate);
 		expect(copiedText).toContain("open-in-coder.svg");
 		expect(copiedText).toContain(
 			`/templates/${MockTemplate.organization_name}/${MockTemplate.name}/workspace`,
@@ -200,20 +193,14 @@ describe("TemplateEmbedPage", () => {
 		});
 
 		// The Test link always forces mode=manual regardless of form state,
-		// but the Copy button Markdown uses the selected mode.
+		// but what ⋮ › Share copies uses the selected mode.
 		const autoRadio = screen.getByLabelText(/automatic/i);
 		await userEvent.click(autoRadio);
 
-		const copyButton = screen.getByRole("button", {
-			name: /copy button markdown/i,
-		});
-		await userEvent.click(copyButton);
-
 		await waitFor(() => {
-			expect(writeTextMock).toHaveBeenCalled();
+			expect(shareMarkdown(MockTemplate)).toContain("mode=auto");
 		});
-
-		const copiedText = writeTextMock.mock.calls[0][0] as string;
+		const copiedText = shareMarkdown(MockTemplate);
 		expect(copiedText).toContain("mode=auto");
 		expect(copiedText).toContain("param.region=us-east-1");
 

@@ -28,6 +28,7 @@ import {
 } from "#/components/Tooltip/Tooltip";
 import { useDashboard } from "#/modules/dashboard/useDashboard";
 import { linkToTemplate, useLinks } from "#/modules/navigation";
+import { useWorkspaceIcon } from "#/modules/workspaces/WorkspaceIcon/useWorkspaceIcon";
 import { WorkspaceStatusIndicator } from "#/modules/workspaces/WorkspaceStatusIndicator/WorkspaceStatusIndicator";
 import { displayDormantDeletion } from "#/utils/dormant";
 import { formatDate } from "#/utils/time";
@@ -75,6 +76,7 @@ export const WorkspaceTopbar: React.FC<WorkspaceTopbarProps> = ({
 	handleRetry,
 	handleDebug,
 }) => {
+	const workspaceIcon = useWorkspaceIcon(workspace);
 	const { entitlements, organizations, showOrganizations } = useDashboard();
 	const getLink = useLinks();
 
@@ -148,6 +150,7 @@ export const WorkspaceTopbar: React.FC<WorkspaceTopbarProps> = ({
 
 					<WorkspaceBreadcrumb
 						workspaceName={workspace.name}
+						workspaceIconUrl={workspaceIcon}
 						templateIconUrl={workspace.template_icon}
 						rootTemplateUrl={templateLink}
 						templateVersionName={workspace.latest_build.template_version_name}
@@ -332,6 +335,8 @@ const OrganizationBreadcrumb: React.FC<OrganizationBreadcrumbProps> = ({
 
 type WorkspaceBreadcrumbProps = Readonly<{
 	workspaceName: string;
+	/** Its own icon (Settings), else the template's. */
+	workspaceIconUrl: string;
 	templateIconUrl: string;
 	rootTemplateUrl: string;
 	templateVersionName: string;
@@ -341,6 +346,7 @@ type WorkspaceBreadcrumbProps = Readonly<{
 
 const WorkspaceBreadcrumb: React.FC<WorkspaceBreadcrumbProps> = ({
 	workspaceName,
+	workspaceIconUrl,
 	templateIconUrl,
 	rootTemplateUrl,
 	templateVersionName,
@@ -353,7 +359,7 @@ const WorkspaceBreadcrumb: React.FC<WorkspaceBreadcrumbProps> = ({
 				<HelpPopoverTrigger asChild>
 					<span className={BREADCRUMB_SEGMENT_CLASS}>
 						<TopbarAvatar
-							src={templateIconUrl}
+							src={workspaceIconUrl}
 							fallback={templateDisplayName}
 						/>
 

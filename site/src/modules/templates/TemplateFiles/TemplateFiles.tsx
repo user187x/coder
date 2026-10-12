@@ -19,6 +19,8 @@ type TemplateFilesProps = {
 	 * Files used to compare with current files
 	 */
 	baseFiles?: TemplateVersionFiles;
+	/** Shown under the file tree, in the same sticky column (Source Code: the versions). */
+	sidebar?: React.ReactNode;
 };
 
 export const TemplateFiles: React.FC<TemplateFilesProps> = ({
@@ -27,6 +29,7 @@ export const TemplateFiles: React.FC<TemplateFilesProps> = ({
 	versionName,
 	currentFiles,
 	baseFiles,
+	sidebar,
 }) => {
 	const getLink = useLinks();
 
@@ -62,33 +65,41 @@ export const TemplateFiles: React.FC<TemplateFilesProps> = ({
 		<div>
 			<div className="flex items-start gap-8">
 				{/* top-28 (112px) is a sum of nav height (72px) and TemplateLayout's LinkTabs' mb-10 (40px) */}
-				<div className="sticky top-28 w-[240px] shrink-0 overflow-auto rounded-lg border border-solid border-surface-quaternary py-1">
-					<TemplateFileTree
-						fileTree={fileTree}
-						onSelect={(path: string) => {
-							location.hash = path;
-							document.getElementById(path)?.scrollIntoView({
-								behavior: "smooth",
-								block: "start",
-							});
-						}}
-						Label={({ path, filename, isFolder }) => {
-							if (isFolder) {
-								return filename;
-							}
+				<div className="sticky top-28 flex max-h-[calc(100vh-8rem)] w-[240px] shrink-0 flex-col gap-3">
+					<div
+						className={cn(
+							"min-h-0 overflow-auto rounded-lg border border-solid border-surface-quaternary py-1",
+							sidebar && "max-h-[40vh] shrink-0",
+						)}
+					>
+						<TemplateFileTree
+							fileTree={fileTree}
+							onSelect={(path: string) => {
+								location.hash = path;
+								document.getElementById(path)?.scrollIntoView({
+									behavior: "smooth",
+									block: "start",
+								});
+							}}
+							Label={({ path, filename, isFolder }) => {
+								if (isFolder) {
+									return filename;
+								}
 
-							const hasDiff = fileInfo(path).hasDiff;
-							return (
-								<span className={cn(hasDiff && "text-content-warning")}>
-									{filename}
-								</span>
-							);
-						}}
-					/>
+								const hasDiff = fileInfo(path).hasDiff;
+								return (
+									<span className={cn(hasDiff && "text-content-warning")}>
+										{filename}
+									</span>
+								);
+							}}
+						/>
+					</div>
+					{sidebar}
 				</div>
 
 				<div
-					className="flex flex-1 flex-col gap-4"
+					className="flex min-w-0 flex-1 flex-col gap-4"
 					data-testid="template-files-content"
 				>
 					{Object.keys(currentFiles)

@@ -1,7 +1,9 @@
 import {
+	ArchiveIcon,
 	CopyIcon,
 	DownloadIcon,
 	EllipsisVerticalIcon,
+	HardDriveIcon,
 	HistoryIcon,
 	RotateCcwIcon,
 	SettingsIcon,
@@ -39,6 +41,7 @@ import { ChangeWorkspaceVersionDialog } from "./ChangeWorkspaceVersionDialog";
 import { DownloadLogsDialog } from "./DownloadLogsDialog";
 import { useWorkspaceDuplication } from "./useWorkspaceDuplication";
 import { WorkspaceDeleteDialog } from "./WorkspaceDeleteDialog";
+import { BackupHomeDialog, ExpandDiskDialog } from "./WorkspaceVolumeDialogs";
 
 type WorkspaceMoreActionsProps = {
 	workspace: Workspace;
@@ -71,6 +74,10 @@ export const WorkspaceMoreActions: React.FC<WorkspaceMoreActionsProps> = ({
 
 	// Download logs
 	const [isDownloadDialogOpen, setIsDownloadDialogOpen] = useState(false);
+	// Home volume: back up, expand
+	const [volumeDialog, setVolumeDialog] = useState<"backup" | "expand" | null>(
+		null,
+	);
 
 	// Change version
 	const [changeVersionDialogOpen, setChangeVersionDialogOpen] = useState(false);
@@ -187,6 +194,20 @@ export const WorkspaceMoreActions: React.FC<WorkspaceMoreActionsProps> = ({
 						Download logs&hellip;
 					</DropdownMenuItem>
 
+					{permissions?.updateWorkspace && (
+						<>
+							<DropdownMenuSeparator />
+							<DropdownMenuItem onClick={() => setVolumeDialog("backup")}>
+								<ArchiveIcon />
+								Back up home&hellip;
+							</DropdownMenuItem>
+							<DropdownMenuItem onClick={() => setVolumeDialog("expand")}>
+								<HardDriveIcon />
+								Expand disk&hellip;
+							</DropdownMenuItem>
+						</>
+					)}
+
 					<DropdownMenuSeparator />
 
 					<DropdownMenuItem
@@ -206,6 +227,17 @@ export const WorkspaceMoreActions: React.FC<WorkspaceMoreActionsProps> = ({
 				workspace={workspace}
 				open={isDownloadDialogOpen}
 				onClose={() => setIsDownloadDialogOpen(false)}
+			/>
+
+			<BackupHomeDialog
+				workspace={workspace}
+				open={volumeDialog === "backup"}
+				onClose={() => setVolumeDialog(null)}
+			/>
+			<ExpandDiskDialog
+				workspace={workspace}
+				open={volumeDialog === "expand"}
+				onClose={() => setVolumeDialog(null)}
 			/>
 
 			{changeVersionMutation.error instanceof ParameterValidationError && (

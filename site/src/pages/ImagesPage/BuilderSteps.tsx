@@ -906,8 +906,7 @@ const DESKTOPS: { value: ImageDesktop; title: string; detail: string }[] = [
 	{
 		value: "gnome",
 		title: "GNOME",
-		detail:
-			"GNOME Flashback (GNOME without 3D effects, made for VNC).",
+		detail: "GNOME Flashback (GNOME without 3D effects, made for VNC).",
 	},
 	{
 		value: "none",

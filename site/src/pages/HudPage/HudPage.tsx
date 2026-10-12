@@ -26,6 +26,7 @@ import { Margins } from "#/components/Margins/Margins";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { pageTitle } from "#/utils/page";
 import "./hud.css";
+import { HudGraphs } from "./HudGraphs";
 import { applyOrder, elevate, readHudOrder, writeHudOrder } from "./hudOrder";
 
 /** How many updates each sparkline (and "change") covers: 30 × 10 s = 5 minutes. */
@@ -124,10 +125,15 @@ const HudPage: React.FC = () => {
 							<span className="flex items-center gap-2" aria-live="off">
 								<span
 									aria-hidden
-									className="inline-block size-2 rounded-full bg-content-success"
+									className={cn(
+										"inline-block size-2 rounded-full",
+										data.live ? "bg-content-success" : "bg-content-warning",
+									)}
 								/>
-								Live · {new Date(data.generatedAt).toLocaleTimeString("en-US")}
-								{!data.live && " · no live usage (metrics-server)"}
+								{data.live ? "Live" : "Updated"} ·{" "}
+								{new Date(data.generatedAt).toLocaleTimeString("en-US")}
+								{!data.live &&
+									" · CPU and memory are what was requested: metrics-server is not answering"}
 							</span>
 						)}
 					</div>
@@ -168,6 +174,8 @@ const HudPage: React.FC = () => {
 								/>
 							</div>
 						</div>
+
+						<HudGraphs />
 
 						<ul
 							aria-label="Metrics"

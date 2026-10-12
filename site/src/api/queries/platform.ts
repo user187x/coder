@@ -1,10 +1,15 @@
-import type { QueryClient, UseQueryOptions } from "react-query";
+import {
+	keepPreviousData,
+	type QueryClient,
+	type UseQueryOptions,
+} from "react-query";
 import {
 	type AnnouncementReceiptStatus,
 	type Banner,
 	type BannerFields,
 	type BannerState,
 	type ClassificationSettings,
+	type HudRange,
 	type KeycloakFix,
 	type KeycloakReport,
 	type KeycloakSettings,
@@ -366,6 +371,13 @@ export const updateQuota = (queryClient: QueryClient) => ({
 export const HUD_REFRESH_MS = 10_000;
 
 /** The HUD's figures, refreshed while the page is open. */
+export const hudHistory = (range: HudRange) => ({
+	queryKey: [...platformKey, "hud", "history", range] as const,
+	queryFn: () => PlatformAPI.getHudHistory(range),
+	refetchInterval: HUD_REFRESH_MS,
+	placeholderData: keepPreviousData,
+});
+
 export const hud = () => ({
 	queryKey: [...platformKey, "hud"] as const,
 	queryFn: PlatformAPI.getHud,

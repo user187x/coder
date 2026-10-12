@@ -1,10 +1,13 @@
 import {
+	CodeIcon,
 	CopyIcon,
 	DownloadIcon,
 	EditIcon,
 	EllipsisVerticalIcon,
+	LinkIcon,
 	PlusIcon,
 	SettingsIcon,
+	Share2Icon,
 	TrashIcon,
 } from "lucide-react";
 import { useQuery } from "react-query";
@@ -28,6 +31,9 @@ import {
 	DropdownMenuContent,
 	DropdownMenuItem,
 	DropdownMenuSeparator,
+	DropdownMenuSub,
+	DropdownMenuSubContent,
+	DropdownMenuSubTrigger,
 	DropdownMenuTrigger,
 } from "#/components/DropdownMenu/DropdownMenu";
 import { Margins } from "#/components/Margins/Margins";
@@ -39,10 +45,18 @@ import {
 } from "#/components/PageHeader/PageHeader";
 import { linkToTemplate, useLinks } from "#/modules/navigation";
 import type { WorkspacePermissions } from "#/modules/permissions/workspaces";
+import {
+	shareHtml,
+	shareLink,
+	shareMarkdown,
+} from "./TemplateEmbedPage/embedShare";
 import { TemplateStats } from "./TemplateStats";
 import { useDeletionDialogState } from "./useDeletionDialogState";
 
 type TemplateMenuProps = {
+	template: Template;
+	/** Editors get everything; everyone else Share. */
+	canUpdate: boolean;
 	organizationName: string;
 	templateName: string;
 	templateVersion: string;
@@ -52,6 +66,8 @@ type TemplateMenuProps = {
 };
 
 const TemplateMenu: React.FC<TemplateMenuProps> = ({
+	template,
+	canUpdate,
 	organizationName,
 	templateName,
 	templateVersion,
@@ -70,7 +86,16 @@ const TemplateMenu: React.FC<TemplateMenuProps> = ({
 	const workspaceCountQuery = useQuery({
 		...workspaces({ q: queryText }),
 		select: (res) => res.count,
+		enabled: canUpdate,
 	});
+	const copy = async (text: string, what: string) => {
+		try {
+			await navigator.clipboard.writeText(text);
+			toast.success(`${what} copied.`);
+		} catch {
+			toast.error(`${what} could not be copied.`, { description: text });
+		}
+	};
 	const safeToDeleteTemplate = workspaceCountQuery.data === 0;
 
 	const templateLink = getLink(linkToTemplate(organizationName, templateName));
@@ -105,44 +130,91 @@ const TemplateMenu: React.FC<TemplateMenuProps> = ({
 					</ShadcnButton>
 				</DropdownMenuTrigger>
 				<DropdownMenuContent align="end">
-					<DropdownMenuItem asChild>
-						<RouterLink to={`${templateLink}/settings`}>
-							<SettingsIcon className="size-icon-sm" />
-							Settings
-						</RouterLink>
-					</DropdownMenuItem>
+					<DropdownMenuSub>
+						<DropdownMenuSubTrigger>
+							<Share2Icon className="size-icon-sm" />
+							Share
+						</DropdownMenuSubTrigger>
+						<DropdownMenuSubContent>
+							<DropdownMenuItem
+								onClick={() =>
+									copy(
+										shareMarkdown(template),
+										"The Open in Coder button (Markdown)",
+									)
+								}
+							>
+								<CopyIcon className="size-icon-sm" />
+								Copy button Markdown
+							</DropdownMenuItem>
+							<DropdownMenuItem
+								onClick={() =>
+									copy(shareHtml(template), "The Open in Coder button (HTML)")
+								}
+							>
+								<CodeIcon className="size-icon-sm" />
+								Copy button HTML
+							</DropdownMenuItem>
+							<DropdownMenuItem
+								onClick={() => copy(shareLink(template), "The link")}
+							>
+								<LinkIcon className="size-icon-sm" />
+								Copy link
+							</DropdownMenuItem>
+							<DropdownMenuSeparator />
+							<DropdownMenuItem asChild>
+								<RouterLink to={`${templateLink}/embed`}>
+									<SettingsIcon className="size-icon-sm" />
+									Button settings&hellip;
+								</RouterLink>
+							</DropdownMenuItem>
+						</DropdownMenuSubContent>
+					</DropdownMenuSub>
+					{canUpdate && (
+						<>
+							<DropdownMenuSeparator />
+							<DropdownMenuItem asChild>
+								<RouterLink to={`${templateLink}/settings`}>
+									<SettingsIcon className="size-icon-sm" />
+									Settings
+								</RouterLink>
+							</DropdownMenuItem>
 
-					<DropdownMenuItem asChild>
-						<RouterLink to={`${templateLink}/versions/${templateVersion}/edit`}>
-							<EditIcon />
-							Edit files
-						</RouterLink>
-					</DropdownMenuItem>
+							<DropdownMenuItem asChild>
+								<RouterLink
+									to={`${templateLink}/versions/${templateVersion}/edit`}
+								>
+									<EditIcon />
+									Edit files
+								</RouterLink>
+							</DropdownMenuItem>
 
-					<DropdownMenuItem asChild>
-						<RouterLink to={`/templates/new?fromTemplate=${templateId}`}>
-							<CopyIcon className="size-icon-sm" />
-							Duplicate&hellip;
-						</RouterLink>
-					</DropdownMenuItem>
+							<DropdownMenuItem asChild>
+								<RouterLink to={`/templates/new?fromTemplate=${templateId}`}>
+									<CopyIcon className="size-icon-sm" />
+									Duplicate&hellip;
+								</RouterLink>
+							</DropdownMenuItem>
 
-					<DropdownMenuItem onClick={() => handleExport()}>
-						<DownloadIcon className="size-icon-sm" />
-						Export as TAR
-					</DropdownMenuItem>
+							<DropdownMenuItem onClick={() => handleExport()}>
+								<DownloadIcon className="size-icon-sm" />
+								Export as TAR
+							</DropdownMenuItem>
 
-					<DropdownMenuItem onClick={() => handleExport("zip")}>
-						<DownloadIcon className="size-icon-sm" />
-						Export as ZIP
-					</DropdownMenuItem>
-					<DropdownMenuSeparator />
-					<DropdownMenuItem
-						className="text-content-destructive focus:text-content-destructive"
-						onClick={dialogState.openDeleteConfirmation}
-					>
-						<TrashIcon />
-						Delete&hellip;
-					</DropdownMenuItem>
+							<DropdownMenuItem onClick={() => handleExport("zip")}>
+								<DownloadIcon className="size-icon-sm" />
+								Export as ZIP
+							</DropdownMenuItem>
+							<DropdownMenuSeparator />
+							<DropdownMenuItem
+								className="text-content-destructive focus:text-content-destructive"
+								onClick={dialogState.openDeleteConfirmation}
+							>
+								<TrashIcon />
+								Delete&hellip;
+							</DropdownMenuItem>
+						</>
+					)}
 				</DropdownMenuContent>
 			</DropdownMenu>
 
@@ -231,8 +303,10 @@ export const TemplatePageHeader: React.FC<TemplatePageHeaderProps> = ({
 								</Button>
 							)}
 
-						{permissions.canUpdateTemplate && (
+						{
 							<TemplateMenu
+								template={template}
+								canUpdate={permissions.canUpdateTemplate}
 								organizationName={template.organization_name}
 								templateId={template.id}
 								templateName={template.name}
@@ -240,7 +314,7 @@ export const TemplatePageHeader: React.FC<TemplatePageHeaderProps> = ({
 								fileId={activeVersion.job.file_id}
 								onDelete={onDeleteTemplate}
 							/>
-						)}
+						}
 					</>
 				}
 			>

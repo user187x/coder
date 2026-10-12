@@ -71,6 +71,7 @@ import { useDashboard } from "#/modules/dashboard/useDashboard";
 import { agentAppsReady } from "#/modules/platform/workspaceInitializing/workspaceReadiness";
 import { abilitiesByWorkspaceStatus } from "#/modules/workspaces/actions";
 import { WorkspaceBuildCancelDialog } from "#/modules/workspaces/WorkspaceBuildCancelDialog/WorkspaceBuildCancelDialog";
+import { useWorkspaceIcons } from "#/modules/workspaces/WorkspaceIcon/useWorkspaceIcon";
 import { WorkspaceMoreActions } from "#/modules/workspaces/WorkspaceMoreActions/WorkspaceMoreActions";
 import { WorkspaceOutdatedTooltip } from "#/modules/workspaces/WorkspaceOutdatedTooltip/WorkspaceOutdatedTooltip";
 import { WorkspaceStatus } from "#/modules/workspaces/WorkspaceStatus/WorkspaceStatus";
@@ -110,6 +111,7 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 	onActionError,
 	chatsByWorkspace,
 }) => {
+	const { data: icons } = useWorkspaceIcons();
 	const dashboard = useDashboard();
 	const isLoading = !workspaces;
 	const isEmpty = workspaces && workspaces.length === 0;
@@ -279,7 +281,7 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 									avatar={
 										<Avatar
 											variant="icon"
-											src={workspace.template_icon}
+											src={icons?.[workspace.id] || workspace.template_icon}
 											fallback={getDisplayWorkspaceTemplateName(workspace)}
 											size="lg"
 										/>

@@ -107,9 +107,14 @@ const TemplatePermissionsPage = lazy(
 			"./pages/TemplateSettingsPage/TemplatePermissionsPage/TemplatePermissionsPage"
 		),
 );
-const TemplateResourcesPage = lazy(
+const TemplateOverviewPage = lazy(
 	() =>
-		import("./pages/TemplatePage/TemplateResourcesPage/TemplateResourcesPage"),
+		import("./pages/TemplatePage/TemplateOverviewPage/TemplateOverviewPage"),
+);
+const TemplateVersionsRedirect = lazy(() =>
+	import("./pages/TemplatePage/TemplateOverviewPage/TemplateOverviewPage").then(
+		(m) => ({ default: m.TemplateVersionsRedirect }),
+	),
 );
 const CreateWorkspacePage = lazy(
 	() => import("./pages/CreateWorkspacePage/CreateWorkspacePage"),
@@ -262,15 +267,8 @@ const WorkspaceSettingsPage = lazy(
 const CreateTokenPage = lazy(
 	() => import("./pages/CreateTokenPage/CreateTokenPage"),
 );
-const TemplateDocsPage = lazy(
-	() => import("./pages/TemplatePage/TemplateDocsPage/TemplateDocsPage"),
-);
 const TemplateFilesPage = lazy(
 	() => import("./pages/TemplatePage/TemplateFilesPage/TemplateFilesPage"),
-);
-const TemplateVersionsPage = lazy(
-	() =>
-		import("./pages/TemplatePage/TemplateVersionsPage/TemplateVersionsPage"),
 );
 const TemplateSchedulePage = lazy(
 	() =>
@@ -542,11 +540,16 @@ const templateRouter = () => {
 		<Route path=":template">
 			<Route element={<TemplateRedirectController />}>
 				<Route element={<TemplateLayout />}>
-					<Route index element={<Navigate to="docs" replace />} />
-					<Route path="docs" element={<TemplateDocsPage />} />
+					<Route index element={<Navigate to="overview" replace />} />
+					<Route path="overview" element={<TemplateOverviewPage />} />
+					{/* Docs and Resources are Overview now, Versions part of Source Code */}
+					<Route path="docs" element={<Navigate to="../overview" replace />} />
+					<Route
+						path="resources"
+						element={<Navigate to="../overview" replace />}
+					/>
 					<Route path="files" element={<TemplateFilesPage />} />
-					<Route path="resources" element={<TemplateResourcesPage />} />
-					<Route path="versions" element={<TemplateVersionsPage />} />
+					<Route path="versions" element={<TemplateVersionsRedirect />} />
 					<Route path="embed" element={<TemplateEmbedPage />} />
 					<Route path="insights" element={<TemplateInsightsPage />} />
 					<Route path="prebuilds" element={<TemplatePrebuildsPage />} />

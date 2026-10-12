@@ -485,6 +485,34 @@ export type HudMetric = {
 	href: string;
 };
 
+/** One bucket of the HUD's graphs (cores, GiB, milliseconds; null where nothing was measured). */
+export type HudHistoryPoint = {
+	t: number;
+	live: boolean;
+	cpu: number | null;
+	cpuPeak: number | null;
+	cpuWorkspaces: number | null;
+	cpuTotal: number | null;
+	memory: number | null;
+	memoryPeak: number | null;
+	memoryWorkspaces: number | null;
+	memoryTotal: number | null;
+	latency: number | null;
+	latencyP95: number | null;
+	latencyMax: number | null;
+	connections: number;
+};
+
+export type HudRange = "15m" | "1h" | "6h" | "24h" | "7d";
+
+export type HudHistory = {
+	range: HudRange;
+	start: number;
+	end: number;
+	step: number;
+	points: HudHistoryPoint[];
+};
+
 type HudReport = {
 	metrics: HudMetric[];
 	generatedAt: string;
@@ -1186,6 +1214,8 @@ export const PlatformAPI = {
 		),
 	getSchedulerMe: () => get<SchedulerMe>(`${PLATFORM_BASE}/api/scheduler/me`),
 	getHud: () => get<HudReport>(`${PLATFORM_BASE}/api/hud`),
+	getHudHistory: (range: HudRange) =>
+		get<HudHistory>(`${PLATFORM_BASE}/api/hud/history?range=${range}`),
 	getMonitoringPosture: () =>
 		get<MonitoringPosture>(`${PLATFORM_BASE}/api/monitoring/posture`),
 	updateQuota: (settings: QuotaSettings) =>
