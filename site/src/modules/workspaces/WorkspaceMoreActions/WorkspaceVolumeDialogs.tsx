@@ -126,7 +126,7 @@ export const BackupHomeDialog: React.FC<DialogProps> = ({
 					>
 						<p className="m-0 flex items-center gap-2 text-sm text-content-secondary">
 							<HardDriveIcon className="size-4" />
-							{data.volume.name} · {data.volume.sizeGi} GiB ·{" "}
+							{data.volume.name} · {data.volume.sizeGB} GB ·{" "}
 							{data.volume.storageClass || "default storage"}
 						</p>
 						<div
@@ -261,11 +261,11 @@ export const ExpandDiskDialog: React.FC<DialogProps> = ({
 	const queryClient = useQueryClient();
 	const query = useVolume(workspace, open);
 	const data = query.data;
-	const current = data?.volume?.sizeGi ?? 0;
+	const current = data?.volume?.sizeGB ?? 0;
 	const [value, setValue] = useState("");
 	const want = Number(value);
 	const valid =
-		Number.isInteger(want) && want > current && want <= (data?.maxGi ?? 2000);
+		Number.isInteger(want) && want > current && want <= (data?.maxGB ?? 2000);
 	const expand = useMutation({
 		mutationFn: () => WorkspaceExtrasAPI.expand(workspace.id, want),
 		onSuccess: () =>
@@ -307,18 +307,18 @@ export const ExpandDiskDialog: React.FC<DialogProps> = ({
 						}}
 					>
 						<p className="m-0 text-sm">
-							Now <strong>{current} GiB</strong> (
+							Now <strong>{current} GB</strong> (
 							{data.volume.storageClass || "default storage"}).
 						</p>
 						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="disk-size">New size (GiB)</Label>
+							<Label htmlFor="disk-size">New size (GB)</Label>
 							<Input
 								id="disk-size"
 								type="number"
-								min={current + 1}
-								max={data.maxGi}
+								min={Math.floor(current) + 1}
+								max={data.maxGB}
 								value={value}
-								placeholder={String(current * 2)}
+								placeholder={String(Math.ceil(current * 2))}
 								onChange={(e) => setValue(e.target.value)}
 								className="w-40"
 							/>
@@ -341,7 +341,7 @@ export const ExpandDiskDialog: React.FC<DialogProps> = ({
 									{last.status === "running"
 										? "Now"
 										: `Last change, ${createDayString(last.created_at)}`}
-									: {last.fromGi} → {last.toGi} GiB
+									: {last.fromGB} → {last.toGB} GB
 								</span>
 								<OpStatus op={last} />
 							</div>
@@ -367,8 +367,8 @@ export const ExpandDiskDialog: React.FC<DialogProps> = ({
 								{data.busy
 									? "Working…"
 									: copy && data.running
-										? `Stop, expand to ${valid ? want : "…"} GiB, start`
-										: `Expand to ${valid ? want : "…"} GiB`}
+										? `Stop, expand to ${valid ? want : "…"} GB, start`
+										: `Expand to ${valid ? want : "…"} GB`}
 							</Button>
 						</DialogFooter>
 					</form>

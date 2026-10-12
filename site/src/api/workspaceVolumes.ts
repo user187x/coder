@@ -21,16 +21,16 @@ export type VolumeOp = {
 	by: string | null;
 	created_at: string;
 	finished_at: string | null;
-	fromGi: number | null;
-	toGi: number | null;
+	fromGB: number | null;
+	toGB: number | null;
 	downloadable: boolean;
 };
 
 export type WorkspaceVolume = {
 	volume: {
 		name: string;
-		sizeGi: number;
-		requestedGi: number;
+		sizeGB: number;
+		requestedGB: number;
 		storageClass: string;
 		/** The storage class grows volumes in place (no copy, no stop). */
 		expandable: boolean;
@@ -43,7 +43,7 @@ export type WorkspaceVolume = {
 	disk: VolumeOp[];
 	s3: boolean;
 	keepHours: number;
-	maxGi: number;
+	maxGB: number;
 };
 
 export const WorkspaceExtrasAPI = {
