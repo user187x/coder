@@ -15,23 +15,36 @@ import {
 	TooltipTrigger,
 } from "#/components/Tooltip/Tooltip";
 import type { OneWayWebSocket } from "#/utils/OneWayWebSocket";
+import {
+	MetadataHistogram,
+	metadataNumber,
+	useMetadataHistory,
+} from "./MetadataHistogram";
 
 type ItemStatus = "stale" | "valid" | "loading";
 
 type AgentMetadataViewProps = {
 	metadata: WorkspaceAgentMetadata[];
+	/** Whose readings the graphs keep (the agent's ID); one page can show several agents. */
+	historyScope?: string;
 };
 
 export const AgentMetadataView: React.FC<AgentMetadataViewProps> = ({
 	metadata,
+	historyScope = "",
 }) => {
+	const historyOf = useMetadataHistory(historyScope, metadata);
 	if (metadata.length === 0) {
 		return null;
 	}
 	return (
 		<section className="flex items-baseline flex-wrap gap-8 gap-y-4">
 			{metadata.map((m) => (
-				<MetadataItem key={m.description.key} item={m} />
+				<MetadataItem
+					key={m.description.key}
+					item={m}
+					history={historyOf(m.description.key)}
+				/>
 			))}
 		</section>
 	);
@@ -128,7 +141,9 @@ export const AgentMetadata: React.FC<AgentMetadataProps> = ({
 		);
 	}
 
-	return <AgentMetadataView metadata={activeMetadata} />;
+	return (
+		<AgentMetadataView metadata={activeMetadata} historyScope={agent.id} />
+	);
 };
 
 const AgentMetadataSkeleton: React.FC = () => {
@@ -154,9 +169,11 @@ const AgentMetadataSkeleton: React.FC = () => {
 
 type MetadataItemProps = {
 	item: WorkspaceAgentMetadata;
+	/** Its readings so far, for the live graph above the value. */
+	history: React.ComponentProps<typeof MetadataHistogram>["samples"];
 };
 
-const MetadataItem: React.FC<MetadataItemProps> = ({ item }) => {
+const MetadataItem: React.FC<MetadataItemProps> = ({ item, history }) => {
 	const staleThreshold = Math.max(
 		item.description.interval + item.description.timeout * 2,
 		// In case there is intense backpressure, we give a little bit of slack.
@@ -210,6 +227,15 @@ const MetadataItem: React.FC<MetadataItemProps> = ({ item }) => {
 			<div className="text-content-secondary text-ellipsis overflow-hidden whitespace-nowrap text-[13px]">
 				{item.description.display_name}
 			</div>
+			{/* Platform: the readings so far, as a live bar graph above the value */}
+			{history.length > 0 && (
+				<MetadataHistogram
+					samples={history}
+					percent={metadataNumber(item.result.value)?.percent ?? false}
+					stale={status === "stale"}
+					label={item.description.display_name}
+				/>
+			)}
 			<div>{value}</div>
 		</div>
 	);
