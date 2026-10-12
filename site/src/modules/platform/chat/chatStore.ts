@@ -655,9 +655,13 @@ const newClientId = () =>
 		? crypto.randomUUID()
 		: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
 
+/** No answer, or the proxy's: worth one more try. */
+const retryable = (error: unknown) =>
+	[0, 502, 503, 504].includes(statusOf(error));
+
 /**
  * Sends one message. It carries an id of its own, so when the answer is lost
- * (a network hiccup) the one retry, or any later one, does not store it twice.
+ * (a network hiccup, a busy proxy) the retries do not store it twice.
  */
 export const sendChatMessage = async (
 	peerId: string,
@@ -670,15 +674,16 @@ export const sendChatMessage = async (
 		clientId: newClientId(),
 		...(screenshot ? { image: screenshot.dataURL, page: screenshot.page } : {}),
 	};
-	let result: { message: ChatMessage };
-	try {
-		result = await PlatformAPI.sendChatMessage(request);
-	} catch (error) {
-		if (statusOf(error) !== 0) {
-			throw error;
+	let result: { message: ChatMessage } | undefined;
+	for (let attempt = 0; !result; attempt++) {
+		try {
+			result = await PlatformAPI.sendChatMessage(request);
+		} catch (error) {
+			if (attempt >= 2 || !retryable(error)) {
+				throw error;
+			}
+			await sleep(400 * 2 ** attempt + Math.random() * 300);
 		}
-		await sleep(800);
-		result = await PlatformAPI.sendChatMessage(request);
 	}
 	typedAt.delete(peerId);
 	receive(result.message);

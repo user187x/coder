@@ -160,12 +160,16 @@ export const ChatConsole: React.FC<ChatConsoleProps> = ({ dock }) => {
 	const selectedId = view?.peer.id;
 	const index = list.findIndex((c) => c.peer.id === selectedId);
 
-	const go = (to: Conversation | undefined, dir: "next" | "prev") => {
+	const go = (
+		to: Conversation | undefined,
+		dir: "next" | "prev",
+		focus = false,
+	) => {
 		if (!to) {
 			return;
 		}
 		setDirection(dir);
-		selectInConsole(to.peer);
+		selectInConsole(to.peer, focus);
 		const i = list.findIndex((c) => c.peer.id === to.peer.id);
 		const box = listRef.current;
 		if (box && i >= 0) {
@@ -182,14 +186,15 @@ export const ChatConsole: React.FC<ChatConsoleProps> = ({ dock }) => {
 			list[index < 0 ? 0 : (index + by + list.length) % list.length],
 			by > 0 ? "next" : "prev",
 		);
-	const nextWaiting = () => {
+	/** On to the conversation waiting longest; `focus`: its message box (after a reply). */
+	const nextWaiting = (focus = false) => {
 		const waiting = consoleList(
 			state.conversations.values(),
 			meId,
 			"waiting",
 			"",
 		).filter((c) => c.peer.id !== selectedId);
-		go(waiting[0], "next");
+		go(waiting[0], "next", focus);
 	};
 
 	const onKeyDown = (event: React.KeyboardEvent) => {
@@ -201,7 +206,7 @@ export const ChatConsole: React.FC<ChatConsoleProps> = ({ dock }) => {
 			step(event.key === "ArrowDown" ? 1 : -1);
 		} else if (event.altKey && event.key.toLowerCase() === "n") {
 			event.preventDefault();
-			nextWaiting();
+			nextWaiting(true);
 		} else if (
 			(event.key === "/" && !isTextField(event.target)) ||
 			((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k")
@@ -399,7 +404,7 @@ export const ChatConsole: React.FC<ChatConsoleProps> = ({ dock }) => {
 							<Button
 								variant="subtle"
 								size="icon"
-								onClick={nextWaiting}
+								onClick={() => nextWaiting(true)}
 								disabled={
 									counts.waiting === 0 ||
 									(counts.waiting === 1 && isWaitingSelected(state, meId))
@@ -450,7 +455,7 @@ export const ChatConsole: React.FC<ChatConsoleProps> = ({ dock }) => {
 								dock={dock}
 								className="min-h-0 flex-1"
 								onEscape={() => listRef.current?.focus()}
-								onSent={autoNext ? nextWaiting : undefined}
+								onSent={autoNext ? () => nextWaiting(true) : undefined}
 								onShootingChange={setShooting}
 							/>
 						</div>
