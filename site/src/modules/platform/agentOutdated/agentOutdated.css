@@ -1,82 +1,127 @@
 /*
- * The workspace card's "agent outdated" gear (AgentOutdatedTooltip): a soft glow that pulses now and then, at
- * irregular moments, to catch the eye without nagging. Two animations of different lengths (11 s on the gear's
- * own glow, 17 s on a halo behind it) overlap, so the pattern only repeats every few minutes. Still with the
- * user menu's Animations off, or reduced motion.
+ * The workspace card's "agent outdated" indicator (AgentOutdatedTooltip), after workspace-update.html at the root of
+ * the coder-airgapped repository: a green-rimmed pill that glows, a recessed groove on its left holding a refresh
+ * icon with a ring pulsing out of it, and the word "Update". HTML and CSS, no image; sized for the agent row. The
+ * light theme is the default here and the dark one comes with the dashboard's .dark class. Still with the user
+ * menu's Animations off, or reduced motion.
  */
-.agent-outdated-glow {
-	position: relative;
+.agent-update {
+	--agent-update-bg: #ffffff;
+	--agent-update-border: #1c9948;
+	--agent-update-glow: rgb(28 153 72 / 0.4);
+	--agent-update-inner-glow: rgb(28 153 72 / 0.1);
+	--agent-update-text: #1f2937;
+	--agent-update-groove-bg: #f9fafb;
+	--agent-update-groove-border: rgb(0 0 0 / 0.1);
+	--agent-update-groove-inset: rgb(0 0 0 / 0.1);
+	--agent-update-groove-drop: rgb(255 255 255 / 1);
+	--agent-update-icon: #1c9948;
+	--agent-update-icon-glow: rgb(28 153 72 / 0.4);
+
 	display: inline-flex;
 	align-items: center;
-	isolation: isolate;
+	gap: 8px;
+	padding: 2px 12px 2px 2px;
+	border: 2px solid var(--agent-update-border);
+	border-radius: 999px;
+	background: var(--agent-update-bg);
+	color: var(--agent-update-text);
+	font-size: 12px;
+	font-weight: 500;
+	line-height: 1;
+	letter-spacing: 0.3px;
+	white-space: nowrap;
+	cursor: pointer;
+	user-select: none;
+	box-shadow:
+		0 0 10px var(--agent-update-glow),
+		inset 0 0 8px var(--agent-update-inner-glow);
+	transition: box-shadow 0.3s ease;
 }
 
-.agent-outdated-glow img {
-	animation: agent-outdated-gear 11s ease-in-out infinite;
+.dark .agent-update {
+	--agent-update-bg: #1f2937;
+	--agent-update-glow: rgb(28 153 72 / 0.6);
+	--agent-update-inner-glow: rgb(28 153 72 / 0.2);
+	--agent-update-text: #ffffff;
+	--agent-update-groove-bg: #111827;
+	--agent-update-groove-border: rgb(255 255 255 / 0.1);
+	--agent-update-groove-inset: rgb(0 0 0 / 0.6);
+	--agent-update-groove-drop: rgb(255 255 255 / 0.05);
+	--agent-update-icon-glow: rgb(28 153 72 / 0.8);
 }
 
-.agent-outdated-glow::before {
+.agent-update:hover {
+	box-shadow:
+		0 0 16px var(--agent-update-glow),
+		inset 0 0 12px var(--agent-update-inner-glow);
+}
+
+.agent-update:active {
+	box-shadow:
+		0 0 8px var(--agent-update-glow),
+		inset 0 0 6px var(--agent-update-inner-glow);
+}
+
+.agent-update-groove {
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 22px;
+	height: 22px;
+	flex-shrink: 0;
+	border: 1px solid var(--agent-update-groove-border);
+	border-radius: 50%;
+	background: var(--agent-update-groove-bg);
+	box-shadow:
+		inset 1px 2px 4px var(--agent-update-groove-inset),
+		1px 1px 1px var(--agent-update-groove-drop);
+}
+
+/* The ring that keeps pulsing out of the groove. */
+.agent-update-groove::before {
 	content: "";
 	position: absolute;
-	inset: -5px;
-	z-index: -1;
+	inset: -1px;
+	z-index: 0;
+	border: 2px solid var(--agent-update-border);
 	border-radius: 50%;
-	background: radial-gradient(circle, rgb(255 170 30 / 0.55), transparent 68%);
 	opacity: 0;
-	pointer-events: none;
-	animation: agent-outdated-halo 17s ease-in-out infinite;
+	animation: agent-update-pulse 1.5s cubic-bezier(0.215, 0.61, 0.355, 1)
+		infinite;
 }
 
-@keyframes agent-outdated-gear {
-	0%,
-	8%,
-	14%,
-	47%,
-	55%,
-	100% {
-		filter: drop-shadow(0 0 0 rgb(255 170 30 / 0));
-	}
-	4% {
-		filter: drop-shadow(0 0 3px rgb(255 170 30 / 0.8));
-	}
-	11% {
-		filter: drop-shadow(0 0 2px rgb(255 170 30 / 0.55));
-	}
-	51% {
-		filter: drop-shadow(0 0 4px rgb(255 170 30 / 0.85));
-	}
+.agent-update-icon {
+	position: relative;
+	z-index: 1;
+	width: 13px;
+	height: 13px;
+	fill: none;
+	stroke: var(--agent-update-icon);
+	stroke-width: 2.5;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+	filter: drop-shadow(0 0 2px var(--agent-update-icon-glow));
 }
 
-@keyframes agent-outdated-halo {
-	0%,
-	22%,
-	31%,
-	63%,
-	69%,
-	88%,
-	96%,
-	100% {
-		opacity: 0;
-	}
-	26% {
-		opacity: 0.7;
-	}
-	66% {
-		opacity: 0.45;
-	}
-	92% {
+@keyframes agent-update-pulse {
+	0% {
+		transform: scale(0.9);
 		opacity: 0.8;
 	}
+	100% {
+		transform: scale(1.6);
+		opacity: 0;
+	}
 }
 
-html[data-animations="off"] .agent-outdated-glow img,
-html[data-animations="off"] .agent-outdated-glow::before {
+html[data-animations="off"] .agent-update-groove::before {
 	animation: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.agent-outdated-glow img,
-	.agent-outdated-glow::before {
+	.agent-update-groove::before {
 		animation: none;
 	}
 }
