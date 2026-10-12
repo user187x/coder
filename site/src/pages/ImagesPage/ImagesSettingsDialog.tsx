@@ -19,6 +19,7 @@ import { Spinner } from "#/components/Spinner/Spinner";
 import { Switch } from "#/components/Switch/Switch";
 import { Textarea } from "#/components/Textarea/Textarea";
 import { createDayString } from "#/utils/createDayString";
+import { SecurityDataSection } from "./SecurityData";
 
 /**
  * Images > Settings: where apt packages come from (in an air gap: your
@@ -60,7 +61,7 @@ export const ImagesSettingsDialog: React.FC<{ onClose: () => void }> = ({
 					<DialogTitle>Image builder settings</DialogTitle>
 					<DialogDescription>
 						{can
-							? "Apt sources for every build, and S3 for backups."
+							? "The security data that grades images, apt sources for every build, and S3 for backups."
 							: "Only admins change these."}
 					</DialogDescription>
 				</DialogHeader>
@@ -68,6 +69,7 @@ export const ImagesSettingsDialog: React.FC<{ onClose: () => void }> = ({
 					<Loader />
 				) : (
 					<div className="flex max-h-[65vh] flex-col gap-5 overflow-y-auto pr-1">
+						<SecurityDataSection />
 						<section className="flex flex-col gap-2">
 							<Label htmlFor="apt-sources">
 								Apt sources (deb822 or one-line "deb" entries)

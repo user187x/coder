@@ -4,6 +4,7 @@ import {
 	DownloadIcon,
 	HammerIcon,
 	PencilIcon,
+	ScanSearchIcon,
 	TrashIcon,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -79,6 +80,12 @@ const ImageDetailView: React.FC<{ image: ImageDetail }> = ({ image }) => {
 		onSuccess: ({ build: n }) => navigate(`/images/${image.id}/builds/${n}`),
 		onError: (e) =>
 			toast.error(getErrorMessage(e, "The build could not start.")),
+	});
+	const rescan = useMutation({
+		mutationFn: () => ImagesAPI.rescan(image.id),
+		onSuccess: ({ build: n }) => navigate(`/images/${image.id}/builds/${n}`),
+		onError: (e) =>
+			toast.error(getErrorMessage(e, "The rescan could not start.")),
 	});
 	const s3 = useMutation({
 		mutationFn: (enabled: boolean) => ImagesAPI.setS3(image.id, enabled),
@@ -162,6 +169,19 @@ const ImageDetailView: React.FC<{ image: ImageDetail }> = ({ image }) => {
 								</Spinner>
 								{image.version ? "Rebuild" : "Build"}
 							</Button>
+							{image.pullRef && (
+								<Button
+									variant="outline"
+									onClick={() => rescan.mutate()}
+									disabled={Boolean(image.activeBuild) || rescan.isPending}
+									title="Scan this version again with the security data in force (nothing is rebuilt)"
+								>
+									<Spinner loading={rescan.isPending}>
+										<ScanSearchIcon />
+									</Spinner>
+									Rescan
+								</Button>
+							)}
 							<Button
 								variant="outline"
 								size="icon"
@@ -234,7 +254,16 @@ const ImageDetailView: React.FC<{ image: ImageDetail }> = ({ image }) => {
 					)}
 				</div>
 				{image.report ? (
-					<ImageReport report={image.report} summary={image.summary} />
+					<ImageReport
+						report={image.report}
+						summary={image.summary}
+						onRescan={
+							image.canEdit && !image.activeBuild
+								? () => rescan.mutate()
+								: undefined
+						}
+						rescanning={rescan.isPending}
+					/>
 				) : (
 					<p className="m-0 text-sm text-content-secondary">
 						Each build is scanned; this image has no scan yet.

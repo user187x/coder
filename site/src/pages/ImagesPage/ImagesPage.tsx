@@ -48,6 +48,7 @@ import { FipsBadge, formatSize, GradeBadge, StatusBadge } from "./badges";
 import { ImagesSettingsDialog } from "./ImagesSettingsDialog";
 import { NewImageDialog } from "./NewImageDialog";
 import { ResourceTabs } from "./ResourceTabs";
+import { SecurityDataBadge } from "./SecurityData";
 
 export const imagesKey = ["platform", "images"] as const;
 
@@ -86,7 +87,8 @@ const ImagesPage: React.FC = () => {
 			<ResourceTabs active="images" />
 			<PageHeader
 				actions={
-					<div className="flex flex-wrap gap-2">
+					<div className="flex flex-wrap items-center gap-2">
+						<SecurityDataBadge onOpen={() => setSettings(true)} />
 						<Button
 							variant="outline"
 							size="lg"

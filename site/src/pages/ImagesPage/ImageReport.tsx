@@ -4,6 +4,7 @@ import {
 	CircleCheckIcon,
 	InfoIcon,
 	KeyRoundIcon,
+	ScanSearchIcon,
 	ShieldCheckIcon,
 	TriangleAlertIcon,
 } from "lucide-react";
@@ -14,6 +15,8 @@ import type {
 	ReportSummary,
 	Severity,
 } from "#/api/images";
+import { Button } from "#/components/Button/Button";
+import { Spinner } from "#/components/Spinner/Spinner";
 import {
 	Table,
 	TableBody,
@@ -24,6 +27,7 @@ import {
 } from "#/components/Table/Table";
 import { createDayString } from "#/utils/createDayString";
 import { FipsBadge, GradeBadge } from "./badges";
+import { useSecurityData } from "./SecurityData";
 
 const SEVERITIES: Severity[] = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "UNKNOWN"];
 
@@ -60,15 +64,26 @@ const StatusIcon: React.FC<{ status: CheckStatus }> = ({ status }) =>
 
 /**
  * An image's security health report: its grade, the known vulnerabilities in
- * its packages (trivy, against the bundle's vulnerability database), secrets
+ * its packages (trivy, against the security data in force), secrets
  * left in its files, how it is set up (users, sudo, setuid, leftovers…) and
  * how far it goes toward FIPS 140.
  */
 export const ImageReport: React.FC<{
 	report: Report;
 	summary: ReportSummary | null;
-}> = ({ report, summary }) => {
+	/** A rescan with the security data in force, offered when newer data than this report's is loaded. */
+	onRescan?: () => void;
+	rescanning?: boolean;
+}> = ({ report, summary, onRescan, rescanning }) => {
 	const [severity, setSeverity] = useState<Severity | "all">("all");
+	const { data: current } = useSecurityData();
+	const graded = report.data?.vulnerabilityDbUpdatedAt ?? report.dbUpdatedAt;
+	const newer =
+		current?.vulnerabilityDb?.updatedAt &&
+		(!graded || new Date(current.vulnerabilityDb.updatedAt) > new Date(graded));
+	const ageDays = graded
+		? Math.floor((Date.now() - new Date(graded).getTime()) / 86_400_000)
+		: null;
 	const v = report.vulnerabilities;
 	const shown = v.top.filter(
 		(x) => severity === "all" || x.severity === severity,
@@ -86,6 +101,57 @@ export const ImageReport: React.FC<{
 					</span>
 				</div>
 				<FipsBadge status={report.fips.status} />
+			</div>
+			<div
+				className={cn(
+					"flex flex-wrap items-center gap-x-4 gap-y-1 rounded-md border border-solid px-3 py-2 text-xs",
+					newer || (ageDays ?? 0) > 30
+						? "border-border-warning bg-surface-orange text-highlight-orange"
+						: "border-border text-content-secondary",
+				)}
+				data-testid="report-data"
+			>
+				<span className="font-medium">Graded with</span>
+				<span>
+					vulnerability database of {graded ? graded.slice(0, 10) : "—"}
+					{ageDays !== null &&
+						` (${ageDays} day${ageDays === 1 ? "" : "s"} old when scanned: ${report.scannedAt.slice(0, 10)})`}
+				</span>
+				<span>
+					{report.data?.javaDbUpdatedAt
+						? `Java database of ${report.data.javaDbUpdatedAt.slice(0, 10)}`
+						: "Java archives not scanned"}
+				</span>
+				<span>
+					FIPS rules{" "}
+					{report.data?.fipsRules.version ??
+						report.fips.rules?.version ??
+						"(built in)"}
+					{(report.data?.fipsRules.published ?? report.fips.rules?.published) &&
+						` (${report.data?.fipsRules.published ?? report.fips.rules?.published})`}
+				</span>
+				{report.data?.trivyVersion && (
+					<span>trivy {report.data.trivyVersion}</span>
+				)}
+				{newer && (
+					<span className="flex items-center gap-2 font-medium">
+						Newer security data is loaded (
+						{current?.vulnerabilityDb?.updatedAt?.slice(0, 10)}).
+						{onRescan && (
+							<Button
+								size="xs"
+								variant="outline"
+								onClick={onRescan}
+								disabled={rescanning}
+							>
+								<Spinner loading={rescanning}>
+									<ScanSearchIcon />
+								</Spinner>
+								Rescan for a current grade
+							</Button>
+						)}
+					</span>
+				)}
 			</div>
 			{report.error && (
 				<p

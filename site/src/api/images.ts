@@ -68,6 +68,68 @@ export type ReportSummary = {
 
 export type CheckStatus = "pass" | "warn" | "fail" | "info";
 
+/** What a report records about the security data that graded it. */
+export type ReportData = {
+	source: "bundled" | "uploaded";
+	trivyVersion: string | null;
+	vulnerabilityDbUpdatedAt: string | null;
+	javaDbUpdatedAt: string | null;
+	fipsRules: { version: string | null; published: string | null };
+};
+
+export type DataLevel = "current" | "aging" | "stale" | "unknown";
+
+type DatedDb = {
+	updatedAt: string | null;
+	nextUpdate: string | null;
+	downloadedAt: string | null;
+	ageDays: number | null;
+	level: DataLevel;
+};
+
+/** Images > Settings > Security data: what grades images now, how old it is. */
+export type SecurityDataStatus = {
+	source: {
+		kind: "bundled" | "uploaded";
+		id?: string;
+		installedAt?: string;
+		installedBy?: string;
+		createdAt?: string;
+		file?: string;
+		sha256?: string;
+		size?: number;
+	};
+	trivyVersion: string | null;
+	vulnerabilityDb: DatedDb | null;
+	javaDb: DatedDb | null;
+	fipsRules: {
+		version: string | null;
+		published: string | null;
+		standard: string | null;
+		summary: string | null;
+		sources: string[];
+		ageDays: number | null;
+		level: DataLevel;
+	};
+	level: DataLevel;
+	history: {
+		id: string;
+		installedAt: string;
+		installedBy: string;
+		dbUpdatedAt: string | null;
+		active: boolean;
+	}[];
+	thresholds: { agingDays: number; staleDays: number };
+	canChange?: boolean;
+	rescan?: {
+		running: boolean;
+		queued: string[];
+		done: string[];
+		failed: string[];
+		startedAt: string | null;
+	};
+};
+
 export type ImageReport = {
 	ref: string;
 	scannedAt: string;
@@ -75,11 +137,14 @@ export type ImageReport = {
 	os?: string | null;
 	grade: string;
 	dbUpdatedAt: string | null;
+	/** The security data that graded it (reports from before 1.27 have only dbUpdatedAt). */
+	data?: ReportData;
 	vulnerabilities: {
 		counts: Partial<Record<Severity, number>>;
 		total: number;
 		fixable: number;
 		scanned?: boolean;
+		javaScanned?: boolean;
 		note?: string;
 		top: {
 			id: string;
@@ -108,6 +173,11 @@ export type ImageReport = {
 	fips: {
 		status: "ready" | "partial" | "not-ready";
 		note: string;
+		rules?: {
+			version: string | null;
+			published: string | null;
+			standard: string | null;
+		};
 		checks: {
 			id: string;
 			title: string;
@@ -321,6 +391,18 @@ export const ImagesAPI = {
 			{ id, spec },
 		),
 	settings: () => get<ImagesSettings>(`${IMAGES}/settings`),
+	securityData: () => get<SecurityDataStatus>(`${IMAGES}/security-data`),
+	uploadSecurityData: (file: File, onProgress?: (fraction: number) => void) =>
+		upload<SecurityDataStatus>(
+			`${IMAGES}/security-data?name=${enc(file.name)}`,
+			file,
+			onProgress,
+		),
+	activateSecurityData: (id: string | null) =>
+		post<SecurityDataStatus>(`${IMAGES}/security-data/activate`, { id }),
+	rescanAll: () => post<{ images: string[] }>(`${IMAGES}/rescan-all`, {}),
+	rescan: (id: string) =>
+		post<{ build: number }>(`${IMAGES}/${enc(id)}/rescan`, {}),
 	saveSettings: (change: { aptSources?: string; s3?: ImagesSettings["s3"] }) =>
 		post<{ ok: true; s3: ImagesSettings["s3"] }>(`${IMAGES}/settings`, change),
 };
