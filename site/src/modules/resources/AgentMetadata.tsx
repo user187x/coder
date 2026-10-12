@@ -17,9 +17,10 @@ import {
 import type { OneWayWebSocket } from "#/utils/OneWayWebSocket";
 import {
 	MetadataHistogram,
-	metadataNumber,
+	shareOf,
 	useMetadataHistory,
 } from "./MetadataHistogram";
+import { MetricGraphsControl, useGraphEvery } from "./MetricGraphsControl";
 
 type ItemStatus = "stale" | "valid" | "loading";
 
@@ -34,6 +35,7 @@ export const AgentMetadataView: React.FC<AgentMetadataViewProps> = ({
 	historyScope = "",
 }) => {
 	const historyOf = useMetadataHistory(historyScope, metadata);
+	const [every, setEvery] = useGraphEvery();
 	if (metadata.length === 0) {
 		return null;
 	}
@@ -44,8 +46,15 @@ export const AgentMetadataView: React.FC<AgentMetadataViewProps> = ({
 					key={m.description.key}
 					item={m}
 					history={historyOf(m.description.key)}
+					every={every}
 				/>
 			))}
+			{/* Platform: how often the graphs advance, and what their colours mean */}
+			<MetricGraphsControl
+				metadata={metadata}
+				every={every}
+				onChange={setEvery}
+			/>
 		</section>
 	);
 };
@@ -171,9 +180,15 @@ type MetadataItemProps = {
 	item: WorkspaceAgentMetadata;
 	/** Its readings so far, for the live graph above the value. */
 	history: React.ComponentProps<typeof MetadataHistogram>["samples"];
+	/** Seconds per bar (0: one per reading). */
+	every: number;
 };
 
-const MetadataItem: React.FC<MetadataItemProps> = ({ item, history }) => {
+const MetadataItem: React.FC<MetadataItemProps> = ({
+	item,
+	history,
+	every,
+}) => {
 	const staleThreshold = Math.max(
 		item.description.interval + item.description.timeout * 2,
 		// In case there is intense backpressure, we give a little bit of slack.
@@ -231,7 +246,8 @@ const MetadataItem: React.FC<MetadataItemProps> = ({ item, history }) => {
 			{history.length > 0 && (
 				<MetadataHistogram
 					samples={history}
-					percent={metadataNumber(item.result.value)?.percent ?? false}
+					share={shareOf(item)}
+					every={every}
 					stale={status === "stale"}
 					label={item.description.display_name}
 				/>
