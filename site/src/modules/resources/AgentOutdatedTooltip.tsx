@@ -11,6 +11,7 @@ import {
 	HelpPopoverTrigger,
 } from "#/components/HelpPopover/HelpPopover";
 import { agentVersionStatus } from "../../utils/workspace";
+import "#/modules/platform/agentOutdated/agentOutdated.css";
 
 type AgentOutdatedTooltipProps = {
 	agent: WorkspaceAgent;
@@ -46,7 +47,7 @@ export const AgentOutdatedTooltip: React.FC<AgentOutdatedTooltipProps> = ({
 						// variants side by side: the filled gear (light theme) on the left, the outlined one
 						// (dark theme) on the right; each theme shows its half.
 						<span
-							className="flex items-center"
+							className="agent-outdated-glow"
 							title="Agent outdated: click for details"
 						>
 							<img

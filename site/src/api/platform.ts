@@ -914,6 +914,32 @@ export type Banner = {
 
 export type BannerFields = Omit<Banner, "id">;
 
+export const NOTE_COLORS = [
+	"yellow",
+	"pink",
+	"green",
+	"blue",
+	"orange",
+] as const;
+export type NoteColor = (typeof NOTE_COLORS)[number];
+
+/** A post-it note an admin stuck on a workspace's page (position: fractions of the window). */
+export type WorkspaceNote = {
+	id: string;
+	workspaceId: string;
+	text: string;
+	color: NoteColor;
+	x: number;
+	y: number;
+	/** Degrees: how crooked it hangs. */
+	tilt: number;
+	author: string | null;
+	createdAt: string;
+	updatedAt: string;
+	/** When the workspace's owner dismissed it (admins still see it). */
+	dismissedAt: string | null;
+};
+
 /** What the coder-banner admin API answers. */
 export type BannerState = {
 	user: { username: string };
@@ -968,6 +994,31 @@ export const PlatformAPI = {
 		post<{ ok: true }>(`${PLATFORM_BASE}/api/view`, { id }),
 	confirmAnnouncement: (id: string) =>
 		post<{ ok: true }>(`${PLATFORM_BASE}/api/ack`, { id }),
+
+	getWorkspaceNotes: (workspaceId: string) =>
+		get<{ notes: WorkspaceNote[]; canEdit: boolean }>(
+			`${PLATFORM_BASE}/api/notes?workspace=${encodeURIComponent(workspaceId)}`,
+		),
+	createWorkspaceNote: (
+		workspaceId: string,
+		note: Pick<WorkspaceNote, "text" | "color" | "x" | "y">,
+	) =>
+		post<{ note: WorkspaceNote }>(`${PLATFORM_BASE}/api/notes`, {
+			workspace: workspaceId,
+			...note,
+		}),
+	updateWorkspaceNote: (
+		id: string,
+		change: Partial<Pick<WorkspaceNote, "text" | "color" | "x" | "y">>,
+	) =>
+		post<{ note: WorkspaceNote }>(`${PLATFORM_BASE}/api/notes/update`, {
+			id,
+			...change,
+		}),
+	deleteWorkspaceNote: (id: string) =>
+		post<{ ok: true }>(`${PLATFORM_BASE}/api/notes/delete`, { id }),
+	dismissWorkspaceNote: (id: string) =>
+		post<{ note: WorkspaceNote }>(`${PLATFORM_BASE}/api/notes/dismiss`, { id }),
 	getAnnouncementReport: () =>
 		get<AnnouncementReport>(`${PLATFORM_BASE}/api/acks`),
 	deleteAnnouncementEvent: (id: string) =>

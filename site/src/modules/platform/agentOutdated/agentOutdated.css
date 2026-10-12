@@ -1,0 +1,82 @@
+/*
+ * The workspace card's "agent outdated" gear (AgentOutdatedTooltip): a soft glow that pulses now and then, at
+ * irregular moments, to catch the eye without nagging. Two animations of different lengths (11 s on the gear's
+ * own glow, 17 s on a halo behind it) overlap, so the pattern only repeats every few minutes. Still with the
+ * user menu's Animations off, or reduced motion.
+ */
+.agent-outdated-glow {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	isolation: isolate;
+}
+
+.agent-outdated-glow img {
+	animation: agent-outdated-gear 11s ease-in-out infinite;
+}
+
+.agent-outdated-glow::before {
+	content: "";
+	position: absolute;
+	inset: -5px;
+	z-index: -1;
+	border-radius: 50%;
+	background: radial-gradient(circle, rgb(255 170 30 / 0.55), transparent 68%);
+	opacity: 0;
+	pointer-events: none;
+	animation: agent-outdated-halo 17s ease-in-out infinite;
+}
+
+@keyframes agent-outdated-gear {
+	0%,
+	8%,
+	14%,
+	47%,
+	55%,
+	100% {
+		filter: drop-shadow(0 0 0 rgb(255 170 30 / 0));
+	}
+	4% {
+		filter: drop-shadow(0 0 3px rgb(255 170 30 / 0.8));
+	}
+	11% {
+		filter: drop-shadow(0 0 2px rgb(255 170 30 / 0.55));
+	}
+	51% {
+		filter: drop-shadow(0 0 4px rgb(255 170 30 / 0.85));
+	}
+}
+
+@keyframes agent-outdated-halo {
+	0%,
+	22%,
+	31%,
+	63%,
+	69%,
+	88%,
+	96%,
+	100% {
+		opacity: 0;
+	}
+	26% {
+		opacity: 0.7;
+	}
+	66% {
+		opacity: 0.45;
+	}
+	92% {
+		opacity: 0.8;
+	}
+}
+
+html[data-animations="off"] .agent-outdated-glow img,
+html[data-animations="off"] .agent-outdated-glow::before {
+	animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.agent-outdated-glow img,
+	.agent-outdated-glow::before {
+		animation: none;
+	}
+}

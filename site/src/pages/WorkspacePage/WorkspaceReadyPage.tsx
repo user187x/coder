@@ -23,6 +23,7 @@ import {
 	type ConfirmDialogProps,
 } from "#/components/Dialog/ConfirmDialog/ConfirmDialog";
 import { useWorkspaceBuildLogs } from "#/hooks/useWorkspaceBuildLogs";
+import { WorkspaceNotes } from "#/modules/platform/workspaceNotes/WorkspaceNotes";
 import { EphemeralParametersDialog } from "#/modules/workspaces/EphemeralParametersDialog/EphemeralParametersDialog";
 import { WorkspaceErrorDialog } from "#/modules/workspaces/ErrorDialog/WorkspaceErrorDialog";
 import type { WorkspacePermissions } from "#/modules/workspaces/permissions";
@@ -285,6 +286,8 @@ export const WorkspaceReadyPage: React.FC<WorkspaceReadyPageProps> = ({
 	return (
 		<>
 			<title>{pageTitle(`${workspace.owner_name}/${workspace.name}`)}</title>
+			{/* Platform: admins' post-it notes on this workspace's page. */}
+			<WorkspaceNotes workspace={workspace} />
 			<link
 				rel="alternate icon"
 				type="image/png"

@@ -1,0 +1,239 @@
+/*
+ * Post-it notes on a workspace's page (WorkspaceNotes): squares of coloured paper over everything else (the highest
+ * z-index), each hanging a little crooked (--note-tilt), with a strip of tape, a soft shadow and a slightly curled
+ * corner. Handwriting-like system fonts only (nothing is downloaded).
+ */
+.workspace-notes {
+	position: fixed;
+	inset: 0;
+	z-index: 2147483646;
+	pointer-events: none;
+}
+
+.workspace-note {
+	--note-paper: #fff475;
+	--note-edge: #f2df3c;
+	position: fixed;
+	box-sizing: border-box;
+	width: 220px;
+	min-height: 170px;
+	padding: 26px 16px 22px;
+	pointer-events: auto;
+	color: #3b3300;
+	font-family:
+		"Segoe Print", "Bradley Hand", "Marker Felt", "Comic Sans MS",
+		"Chalkboard SE", "Comic Neue", cursive;
+	font-size: 15px;
+	line-height: 1.35;
+	background: linear-gradient(
+		170deg,
+		var(--note-paper) 0%,
+		var(--note-paper) 72%,
+		var(--note-edge) 100%
+	);
+	box-shadow:
+		0 1px 1px rgb(0 0 0 / 0.12),
+		4px 12px 18px -8px rgb(0 0 0 / 0.55);
+	border-bottom-right-radius: 28px 6px;
+	transform: rotate(var(--note-tilt, -2deg));
+	transform-origin: 50% 0%;
+	transition:
+		transform 0.18s ease,
+		box-shadow 0.18s ease;
+	user-select: none;
+	touch-action: none;
+}
+
+.workspace-note[data-color="pink"] {
+	--note-paper: #ffc6e0;
+	--note-edge: #f7a6cb;
+}
+.workspace-note[data-color="green"] {
+	--note-paper: #c5f7c0;
+	--note-edge: #9fe697;
+}
+.workspace-note[data-color="blue"] {
+	--note-paper: #c4e4ff;
+	--note-edge: #9ccdfa;
+}
+.workspace-note[data-color="orange"] {
+	--note-paper: #ffd8a8;
+	--note-edge: #fbbd73;
+}
+
+.workspace-note:hover {
+	box-shadow:
+		0 1px 1px rgb(0 0 0 / 0.12),
+		6px 16px 22px -8px rgb(0 0 0 / 0.6);
+}
+
+/* Lifted off the page while it is dragged. */
+.workspace-note[data-dragging] {
+	cursor: grabbing;
+	transform: rotate(calc(var(--note-tilt, -2deg) * 0.4)) scale(1.04);
+	box-shadow:
+		0 2px 2px rgb(0 0 0 / 0.1),
+		10px 24px 30px -10px rgb(0 0 0 / 0.6);
+	transition: none;
+}
+
+.workspace-note[data-dismissed] {
+	opacity: 0.55;
+}
+
+.workspace-note-tape {
+	position: absolute;
+	top: -11px;
+	left: 50%;
+	width: 86px;
+	height: 24px;
+	transform: translateX(-50%) rotate(-3deg);
+	background: rgb(255 255 255 / 0.45);
+	box-shadow: 0 1px 2px rgb(0 0 0 / 0.15);
+	backdrop-filter: blur(1px);
+}
+
+.workspace-note-text {
+	margin: 0;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+
+.workspace-note-foot {
+	position: absolute;
+	right: 14px;
+	bottom: 6px;
+	font-size: 11px;
+	opacity: 0.6;
+}
+
+.workspace-note-tools {
+	position: absolute;
+	top: 6px;
+	right: 6px;
+	display: flex;
+	gap: 2px;
+	opacity: 0;
+	transition: opacity 0.15s;
+}
+.workspace-note:hover .workspace-note-tools,
+.workspace-note:focus-within .workspace-note-tools {
+	opacity: 1;
+}
+.workspace-note-tools button {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 22px;
+	height: 22px;
+	padding: 0;
+	border: 0;
+	border-radius: 5px;
+	background: rgb(0 0 0 / 0.08);
+	color: inherit;
+	cursor: pointer;
+}
+.workspace-note-tools button:hover {
+	background: rgb(0 0 0 / 0.16);
+}
+.workspace-note-tools svg {
+	width: 13px;
+	height: 13px;
+}
+
+.workspace-note-edit textarea {
+	box-sizing: border-box;
+	width: 100%;
+	min-height: 96px;
+	padding: 0;
+	resize: vertical;
+	border: 0;
+	outline: none;
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	user-select: text;
+}
+
+.workspace-note-edit-bar {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin-top: 6px;
+	font-family: system-ui, sans-serif;
+	font-size: 12px;
+}
+.workspace-note-edit-bar [role="radiogroup"] {
+	display: flex;
+	gap: 4px;
+	margin-right: auto;
+}
+.workspace-note-edit-bar [data-swatch] {
+	width: 14px;
+	height: 14px;
+	padding: 0;
+	border: 1px solid rgb(0 0 0 / 0.25);
+	border-radius: 50%;
+	cursor: pointer;
+}
+.workspace-note-edit-bar [data-swatch][aria-checked="true"] {
+	outline: 2px solid rgb(0 0 0 / 0.55);
+	outline-offset: 1px;
+}
+.workspace-note-edit-bar [data-swatch="yellow"] {
+	background: #fff475;
+}
+.workspace-note-edit-bar [data-swatch="pink"] {
+	background: #ffc6e0;
+}
+.workspace-note-edit-bar [data-swatch="green"] {
+	background: #c5f7c0;
+}
+.workspace-note-edit-bar [data-swatch="blue"] {
+	background: #c4e4ff;
+}
+.workspace-note-edit-bar [data-swatch="orange"] {
+	background: #ffd8a8;
+}
+.workspace-note-edit-bar > button:not([data-swatch]) {
+	padding: 2px 8px;
+	border: 1px solid rgb(0 0 0 / 0.25);
+	border-radius: 5px;
+	background: rgb(255 255 255 / 0.5);
+	color: #3b3300;
+	cursor: pointer;
+}
+.workspace-note-edit-bar > button:disabled {
+	opacity: 0.5;
+	cursor: default;
+}
+
+/* Admins: stick a note on this workspace's page. */
+.workspace-notes-add {
+	position: fixed;
+	left: 16px;
+	bottom: 64px;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 6px 12px;
+	pointer-events: auto;
+	border: 1px solid rgb(0 0 0 / 0.2);
+	border-radius: 999px;
+	background: #fff475;
+	color: #3b3300;
+	font-size: 13px;
+	font-weight: 600;
+	box-shadow: 0 4px 12px -4px rgb(0 0 0 / 0.45);
+	cursor: pointer;
+}
+.workspace-notes-add svg {
+	width: 15px;
+	height: 15px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.workspace-note {
+		transition: none;
+	}
+}
