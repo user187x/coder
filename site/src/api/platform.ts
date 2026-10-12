@@ -100,6 +100,40 @@ const post = async <T>(
 	}
 };
 
+/**
+ * A file sent as the request body (PUT), with upload progress (0-1). The
+ * service's cross-site check for uploads wants the same X-Requested-With.
+ */
+const upload = async <T>(
+	url: string,
+	file: Blob,
+	onProgress?: (fraction: number) => void,
+): Promise<T> => {
+	try {
+		const response = await platformAxios.put<T>(
+			url,
+			file,
+			withSession({
+				headers: {
+					"Content-Type": "application/octet-stream",
+					"X-Requested-With": PLATFORM_REQUESTED_WITH,
+				},
+				onUploadProgress: (event) => {
+					if (onProgress && event.total) {
+						onProgress(event.loaded / event.total);
+					}
+				},
+			}),
+		);
+		return response.data;
+	} catch (error) {
+		throw toPlatformError(error);
+	}
+};
+
+/** The request helpers, for the platform's other API modules (api/images.ts). */
+export const platformRequest = { get, post, upload, base: PLATFORM_BASE };
+
 // ---------------------------------------------------------------- types
 
 export type ClassificationSettings = {

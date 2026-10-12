@@ -88,6 +88,9 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
 				<DropdownMenuItem asChild className={itemStyles.default}>
 					<Link to="/templates">Templates</Link>
 				</DropdownMenuItem>
+				<DropdownMenuItem asChild className={itemStyles.default}>
+					<Link to="/images">Images</Link>
+				</DropdownMenuItem>
 				<DropdownMenuSeparator />
 				<ProxySettingsSub proxyContextValue={proxyContextValue} />
 

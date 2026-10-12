@@ -10,7 +10,7 @@ import {
 
 /**
  * The navbar's "Resources" menu, built like the Admin menu: the workspaces
- * list and the templates. Its trigger shows the workspaces icon, drawn at
+ * list, the templates and the workspace images built for them. Its trigger shows the workspaces icon, drawn at
  * twice its size for sharp HiDPI screens, in the version that reads on the
  * selected theme (black on light, white on dark), and the word "Resources".
  */
@@ -41,6 +41,9 @@ export const WorkspacesDropdown: React.FC = () => {
 					</DropdownMenuItem>
 					<DropdownMenuItem asChild>
 						<Link to="/templates">Templates</Link>
+					</DropdownMenuItem>
+					<DropdownMenuItem asChild>
+						<Link to="/images">Images</Link>
 					</DropdownMenuItem>
 				</nav>
 			</DropdownMenuContent>

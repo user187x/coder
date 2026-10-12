@@ -513,6 +513,14 @@ const AISettingsAddMCPServerPage = lazy(
 			"./pages/AISettingsPage/MCPServersPage/AddMCPServerPage/AddMCPServerPage"
 		),
 );
+const ImagesPage = lazy(() => import("./pages/ImagesPage/ImagesPage"));
+const ImageDetailPage = lazy(
+	() => import("./pages/ImagesPage/ImageDetailPage"),
+);
+const ImageEditorPage = lazy(
+	() => import("./pages/ImagesPage/ImageEditorPage"),
+);
+const ImageBuildPage = lazy(() => import("./pages/ImagesPage/ImageBuildPage"));
 const AISettingsUpdateMCPServerPage = lazy(
 	() =>
 		import(
@@ -623,6 +631,15 @@ export const router = createBrowserRouter(
 						</Route>
 						<Route path=":organization">{templateRouter()}</Route>
 						{templateRouter()}
+					</Route>
+
+					<Route path="/images">
+						<Route index element={<ImagesPage />} />
+						<Route path=":image">
+							<Route index element={<ImageDetailPage />} />
+							<Route path="edit" element={<ImageEditorPage />} />
+							<Route path="builds/:build" element={<ImageBuildPage />} />
+						</Route>
 					</Route>
 
 					<Route
