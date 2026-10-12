@@ -30,12 +30,14 @@ export const useSecurityData = () =>
 		refetchInterval: (q) => (q.state.data?.rescan?.running ? 3000 : 60_000),
 	});
 
+/** Dates in UTC, as trivy and the FIPS rules give them (a local time zone would show 01:00 UTC as the day before). */
 const day = (ts: string | null | undefined) =>
 	ts
 		? new Date(ts).toLocaleDateString("en-US", {
 				year: "numeric",
 				month: "short",
 				day: "numeric",
+				timeZone: "UTC",
 			})
 		: "—";
 
