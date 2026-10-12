@@ -50,7 +50,7 @@ export const AgentMetadataView: React.FC<AgentMetadataViewProps> = ({
 		metadata
 			.filter((m) => m.description.interval > 0 && shareOrNumber(m))
 			.map((m) => ({
-				name: m.description.display_name,
+				name: `${isHostMetric(m) ? "Cluster" : "Workspace"} ${metricName(m)}`,
 				s: m.description.interval,
 			})),
 	);
@@ -71,18 +71,92 @@ export const AgentMetadataView: React.FC<AgentMetadataViewProps> = ({
 	if (metadata.length === 0) {
 		return null;
 	}
+	const groups = groupMetadata(metadata);
+	const item = (m: WorkspaceAgentMetadata) => (
+		<MetadataItem
+			key={m.description.key}
+			item={m}
+			history={historyOf(m.description.key)}
+			every={every}
+		/>
+	);
+	// Platform: the workspace's own metrics and the cluster's (the node it runs on), each in its own squircle
+	if (groups.length === 1 && groups[0].id === "other") {
+		return (
+			<section className="flex items-baseline flex-wrap gap-8 gap-y-4">
+				{metadata.map(item)}
+			</section>
+		);
+	}
 	return (
-		<section className="flex items-baseline flex-wrap gap-8 gap-y-4">
-			{metadata.map((m) => (
-				<MetadataItem
-					key={m.description.key}
-					item={m}
-					history={historyOf(m.description.key)}
-					every={every}
-				/>
+		<section className="flex flex-wrap items-stretch gap-4">
+			{groups.map((g) => (
+				<div
+					key={g.id}
+					role="group"
+					aria-label={g.title}
+					title={g.hint}
+					className="flex flex-col gap-2 rounded-2xl border border-solid border-border bg-surface-secondary/40 px-5 pt-3 pb-4"
+					data-testid={`metrics-group-${g.id}`}
+				>
+					<div className="text-xs font-semibold uppercase tracking-wide text-content-secondary">
+						{g.title}
+					</div>
+					<div className="flex items-baseline flex-wrap gap-8 gap-y-4">
+						{g.items.map(item)}
+					</div>
+				</div>
 			))}
 		</section>
 	);
+};
+
+/** "CPU Usage (Host)" → "CPU Usage": the Cluster group says it (templates from before the grouping). */
+const metricName = (m: WorkspaceAgentMetadata) =>
+	m.description.display_name.replace(/\s*\((host|cluster)\)\s*$/i, "");
+
+const isHostMetric = (m: WorkspaceAgentMetadata) =>
+	/_host$/i.test(m.description.key) ||
+	/\((host|cluster)\)\s*$/i.test(m.description.display_name);
+
+type MetricGroup = {
+	id: "workspace" | "cluster" | "other";
+	title: string;
+	hint: string;
+	items: WorkspaceAgentMetadata[];
+};
+
+/**
+ * The agent's metrics in two groups: Cluster (the host's: keys ending in
+ * "_host", or names ending "(Host)") and Workspace (the rest). A template with
+ * no host metrics keeps the plain row.
+ */
+const groupMetadata = (
+	metadata: readonly WorkspaceAgentMetadata[],
+): MetricGroup[] => {
+	const cluster = metadata.filter(isHostMetric);
+	const workspace = metadata.filter((m) => !isHostMetric(m));
+	if (cluster.length === 0) {
+		return [{ id: "other", title: "", hint: "", items: [...metadata] }];
+	}
+	return [
+		...(workspace.length
+			? [
+					{
+						id: "workspace" as const,
+						title: "Workspace",
+						hint: "This workspace: its own CPU, memory and disk",
+						items: workspace,
+					},
+				]
+			: []),
+		{
+			id: "cluster" as const,
+			title: "Cluster",
+			hint: "The cluster node this workspace runs on",
+			items: cluster,
+		},
+	];
 };
 
 type AgentMetadataProps = {
@@ -266,7 +340,7 @@ const MetadataItem: React.FC<MetadataItemProps> = ({
 	return (
 		<div className="leading-relaxed flex flex-col overflow-visible shrink-0">
 			<div className="text-content-secondary text-ellipsis overflow-hidden whitespace-nowrap text-[13px]">
-				{item.description.display_name}
+				{metricName(item)}
 			</div>
 			{/* Platform: the readings so far, as a live bar graph above the value */}
 			{every !== "off" && history.length > 0 && (
@@ -280,7 +354,7 @@ const MetadataItem: React.FC<MetadataItemProps> = ({
 							: 0
 					}
 					stale={status === "stale"}
-					label={item.description.display_name}
+					label={metricName(item)}
 				/>
 			)}
 			<div>{value}</div>
