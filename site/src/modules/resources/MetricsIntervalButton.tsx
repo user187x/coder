@@ -3,10 +3,6 @@ import { CheckIcon } from "lucide-react";
 import { ChevronDownIcon } from "#/components/AnimatedIcons/ChevronDown";
 import { Button } from "#/components/Button/Button";
 import {
-	HelpPopoverText,
-	HelpPopoverTitle,
-} from "#/components/HelpPopover/HelpPopover";
-import {
 	Popover,
 	PopoverContent,
 	PopoverTrigger,
@@ -26,10 +22,12 @@ type MetricsIntervalButtonProps = { agentId: string };
 
 /**
  * The agent card's "Metrics Interval" menu, beside Open ports and built like
- * it: the interval in the circle (10s, 30s, 1m, 5m, or off), and a popover to
- * change how often the metric graphs advance (each reading the agent sends, or
- * a bar per 30 s / 1 min / 5 min holding its highest reading), or to turn them
- * off on a browser short on processing power. Shown once the agent has metrics.
+ * it: the interval in the circle (1s by default), and a compact menu, in order
+ * of length, of how often the metric graphs advance: 1 s and 5 s (between the
+ * agent's readings the last one holds, dimmer), each reading as the agent
+ * sends it (live), a bar per 30 s / 1 min / 5 min holding its highest reading,
+ * or off for a browser short on processing power. Shown once the agent has
+ * metrics.
  */
 export const MetricsIntervalButton: React.FC<MetricsIntervalButtonProps> = ({
 	agentId,
@@ -40,19 +38,14 @@ export const MetricsIntervalButton: React.FC<MetricsIntervalButtonProps> = ({
 		return null;
 	}
 	const usual = Math.min(...intervals.map((i) => i.s));
-	const others = intervals.filter((i) => i.s !== usual);
-	const badge = every === "off" ? "off" : shortInterval(every || usual);
-
-	const label = (v: GraphEvery) =>
-		v === "off" ? "Off" : v === 0 ? "Live" : spanOf(v);
-	const detail = (v: GraphEvery) =>
-		v === "off"
-			? "No graphs, nothing recorded: for a browser short on processing power"
-			: v === 0
-				? `A bar per reading, as the agent sends it (every ${usual} s)`
-				: v < usual
-					? `A bar per ${spanOf(v)} · covers ${spanOf(BARS * v)} · between the agent's readings (every ${usual} s) the last one holds, dimmer`
-					: `A bar per ${spanOf(v)}: its highest reading · covers ${spanOf(BARS * v)}`;
+	const slower = intervals.filter((i) => i.s !== usual);
+	const seconds = (v: number) => v || usual;
+	const badge = every === "off" ? "off" : shortInterval(seconds(every));
+	// in order of length; live sits at the agent's own interval
+	const choices = [...GRAPH_CHOICES].sort(
+		(a, b) => seconds(a as number) - seconds(b as number) || (a === 0 ? -1 : 1),
+	);
+	const covers = (v: number) => spanOf(BARS * seconds(v));
 
 	return (
 		<Popover>
@@ -76,74 +69,90 @@ export const MetricsIntervalButton: React.FC<MetricsIntervalButtonProps> = ({
 			</PopoverTrigger>
 			<PopoverContent
 				align="end"
-				className="p-0 w-[360px] mt-1 text-content-secondary bg-surface-secondary border-surface-quaternary"
+				className="p-0 w-[232px] mt-1 text-content-secondary bg-surface-secondary border-surface-quaternary"
 			>
-				<div className="flex flex-col p-5 pb-3">
-					<HelpPopoverTitle>Metrics Interval</HelpPopoverTitle>
-					<HelpPopoverText>
-						How often the metric graphs above the values advance. The agent
-						reports every {usual} s
-						{others.length > 0 &&
-							` (${others.map((o) => `${o.name} ${o.s} s`).join(", ")})`}
-						, as set in the template.
-					</HelpPopoverText>
+				<div className="px-3 pt-2.5 pb-1.5">
+					<div className="text-[13px] font-semibold text-content-primary">
+						Metrics Interval
+					</div>
+					<div
+						className="text-[11px] leading-snug"
+						title={slower.map((o) => `${o.name}: every ${o.s} s`).join("\n")}
+					>
+						Agent reports every {usual} s
+						{slower.length > 0 &&
+							` (${slower.length} every ${shortInterval(slower[0].s)})`}
+					</div>
 				</div>
 				<div
 					role="radiogroup"
 					aria-label="Metrics interval"
 					className="flex flex-col border-0 border-y border-solid border-surface-quaternary py-1"
 				>
-					{[...GRAPH_CHOICES, "off" as const].map((v) => (
+					{[...choices, "off" as const].map((v: GraphEvery) => (
 						<button
 							key={String(v)}
 							type="button"
 							role="radio"
 							aria-checked={every === v}
 							onClick={() => setGraphEvery(v)}
+							title={
+								v === "off"
+									? "No graphs, nothing recorded: for a browser short on processing power"
+									: v === 0
+										? "A bar per reading, as the agent sends it"
+										: v < usual
+											? `Advances every ${spanOf(v)}; between the agent's readings the last one holds, dimmer`
+											: `A bar per ${spanOf(v)}, its highest reading`
+							}
 							className={cn(
-								"flex cursor-pointer items-center gap-3 border-0 bg-transparent px-5 py-2 text-left text-inherit hover:bg-surface-tertiary",
+								"flex cursor-pointer items-center gap-2 border-0 bg-transparent px-3 py-1 text-left text-inherit hover:bg-surface-tertiary",
 								v === "off" &&
-									"mt-1 border-0 border-t border-solid border-surface-quaternary pt-3",
+									"mt-1 border-0 border-t border-solid border-surface-quaternary pt-1.5",
 							)}
 						>
-							<span className="flex h-5 min-w-9 items-center justify-center rounded-full bg-surface-tertiary px-1 text-xs font-medium tabular-nums text-content-primary">
-								{v === "off" ? "off" : shortInterval(v || usual)}
+							<span className="flex h-[18px] min-w-8 items-center justify-center rounded-full bg-surface-tertiary px-1 text-[11px] font-medium tabular-nums text-content-primary">
+								{v === "off" ? "off" : shortInterval(seconds(v))}
 							</span>
-							<span className="flex min-w-0 flex-1 flex-col">
-								<span className="text-sm font-medium text-content-primary">
-									{label(v)}
-								</span>
-								<span className="text-xs">{detail(v)}</span>
+							<span className="flex-1 text-[13px] text-content-primary">
+								{v === "off" ? "Off" : v === 0 ? "Live" : spanOf(v)}
 							</span>
+							{v !== "off" && (
+								<span className="text-[11px] tabular-nums">{covers(v)}</span>
+							)}
 							<CheckIcon
 								className={cn(
-									"size-4 shrink-0 text-content-primary",
+									"size-3.5 shrink-0 text-content-primary",
 									every !== v && "invisible",
 								)}
 							/>
 						</button>
 					))}
 				</div>
-				<div className="flex flex-col gap-1.5 p-5 pt-3">
-					<span className="text-xs font-medium text-content-primary">
-						Colours (share of what there is)
-					</span>
-					<ul className="m-0 grid list-none grid-cols-2 gap-x-3 gap-y-0.5 p-0 text-xs">
-						{LEVELS.map((l) => (
-							<li key={l.color} className="flex items-center gap-2">
+				<div className="flex flex-col gap-1 px-3 py-2">
+					<div
+						role="group"
+						className="flex items-center gap-1"
+						aria-label="Colours: share of what there is"
+					>
+						{[...LEVELS].reverse().map((l) => (
+							<span
+								key={l.color}
+								className="flex items-center gap-0.5 text-[10px] tabular-nums"
+								title={l.label}
+							>
 								<span
 									aria-hidden
-									className="inline-block size-2.5 rounded-sm"
+									className="inline-block size-2 rounded-[2px]"
 									style={{ background: l.color }}
 								/>
-								{l.label}
-							</li>
+								{Number.isFinite(l.from) ? `${l.from}%` : "<50"}
+							</span>
 						))}
-					</ul>
-					<span className="text-xs">
-						Load average counts per core (1.0 = every core busy). The graphs
-						start when this page opens.
-					</span>
+					</div>
+					<div className="text-[10px] leading-snug">
+						Right column: span the graphs cover. Load counts per core.
+					</div>
 				</div>
 			</PopoverContent>
 		</Popover>
