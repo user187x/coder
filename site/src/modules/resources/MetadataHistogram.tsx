@@ -72,9 +72,14 @@ export const levelColor = (share: number | null) =>
 export const useMetadataHistory = (
 	scope: string,
 	metadata: readonly WorkspaceAgentMetadata[],
+	/** Off (the Refresh Interval menu's "off"): nothing is recorded. */
+	enabled = true,
 ) => {
 	const [, setVersion] = useState(0);
 	useEffect(() => {
+		if (!enabled) {
+			return;
+		}
 		let changed = false;
 		for (const m of metadata) {
 			const at = m.result.collected_at;
@@ -99,7 +104,7 @@ export const useMetadataHistory = (
 		if (changed) {
 			setVersion((v) => v + 1);
 		}
-	}, [scope, metadata]);
+	}, [scope, metadata, enabled]);
 	return (key: string) => history.get(`${scope}/${key}`) ?? [];
 };
 

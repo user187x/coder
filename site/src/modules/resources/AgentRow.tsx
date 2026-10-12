@@ -86,6 +86,7 @@ import { AgentStatus } from "./AgentStatus";
 import { AgentVersion } from "./AgentVersion";
 import { DownloadSelectedAgentLogsButton } from "./DownloadSelectedAgentLogsButton";
 import { PortForwardButton } from "./PortForwardButton";
+import { RefreshIntervalButton } from "./RefreshIntervalButton";
 import { AgentSSHButton } from "./SSHButton/SSHButton";
 import { TerminalLink } from "./TerminalLink/TerminalLink";
 import { useAgentContainers } from "./useAgentContainers";
@@ -499,6 +500,8 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 									workspaceOwnerUsername={workspace.owner_name}
 								/>
 							)}
+						{/* Platform: the metric graphs' Refresh Interval, to the left of Open ports */}
+						<RefreshIntervalButton agentId={agent.id} />
 						{appsReady &&
 							canShowPortForwarding(agent, proxy.preferredWildcardHostname) && (
 								<PortForwardButton

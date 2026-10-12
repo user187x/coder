@@ -17,10 +17,19 @@ import {
 import type { OneWayWebSocket } from "#/utils/OneWayWebSocket";
 import {
 	MetadataHistogram,
+	metadataNumber,
 	shareOf,
 	useMetadataHistory,
 } from "./MetadataHistogram";
-import { MetricGraphsControl, useGraphEvery } from "./MetricGraphsControl";
+import {
+	type GraphEvery,
+	publishIntervals,
+	useGraphEvery,
+} from "./metricGraphSettings";
+
+/** A metric the graphs can draw: its value holds a number. */
+const shareOrNumber = (m: WorkspaceAgentMetadata) =>
+	metadataNumber(m.result.value) !== null;
 
 type ItemStatus = "stale" | "valid" | "loading";
 
@@ -34,8 +43,22 @@ export const AgentMetadataView: React.FC<AgentMetadataViewProps> = ({
 	metadata,
 	historyScope = "",
 }) => {
-	const historyOf = useMetadataHistory(historyScope, metadata);
-	const [every, setEvery] = useGraphEvery();
+	const every = useGraphEvery();
+	const historyOf = useMetadataHistory(historyScope, metadata, every !== "off");
+	// for the agent's Refresh Interval menu (beside Open ports): how often each metric is reported
+	const intervals = JSON.stringify(
+		metadata
+			.filter((m) => m.description.interval > 0 && shareOrNumber(m))
+			.map((m) => ({
+				name: m.description.display_name,
+				s: m.description.interval,
+			})),
+	);
+	useEffect(() => {
+		if (historyScope) {
+			publishIntervals(historyScope, JSON.parse(intervals));
+		}
+	}, [historyScope, intervals]);
 	if (metadata.length === 0) {
 		return null;
 	}
@@ -49,12 +72,6 @@ export const AgentMetadataView: React.FC<AgentMetadataViewProps> = ({
 					every={every}
 				/>
 			))}
-			{/* Platform: how often the graphs advance, and what their colours mean */}
-			<MetricGraphsControl
-				metadata={metadata}
-				every={every}
-				onChange={setEvery}
-			/>
 		</section>
 	);
 };
@@ -180,8 +197,8 @@ type MetadataItemProps = {
 	item: WorkspaceAgentMetadata;
 	/** Its readings so far, for the live graph above the value. */
 	history: React.ComponentProps<typeof MetadataHistogram>["samples"];
-	/** Seconds per bar (0: one per reading). */
-	every: number;
+	/** Seconds per bar (0: one per reading); "off": no graph. */
+	every: GraphEvery;
 };
 
 const MetadataItem: React.FC<MetadataItemProps> = ({
@@ -243,7 +260,7 @@ const MetadataItem: React.FC<MetadataItemProps> = ({
 				{item.description.display_name}
 			</div>
 			{/* Platform: the readings so far, as a live bar graph above the value */}
-			{history.length > 0 && (
+			{every !== "off" && history.length > 0 && (
 				<MetadataHistogram
 					samples={history}
 					share={shareOf(item)}
