@@ -122,6 +122,37 @@ export type LogoState = {
 	updatedAt: string | null;
 };
 
+export const BACKGROUND_SLOTS = ["login", "dashboard"] as const;
+export type BackgroundSlot = (typeof BACKGROUND_SLOTS)[number];
+export type BackgroundFit = "cover" | "contain" | "tile";
+/** Behind the page's content (an underlay), or a faint watermark over it. */
+export type BackgroundLayer = "under" | "over";
+
+/** What a page needs to draw a background image (boot.js hands it to every page). */
+export type BackgroundImage = {
+	url: string;
+	opacity: number;
+	fit: BackgroundFit;
+	layer: BackgroundLayer;
+};
+
+export type BackgroundsState = {
+	available: boolean;
+	limits: {
+		opacity: { min: number; max: number; default: number };
+		maxBytes: number;
+	};
+} & Record<
+	BackgroundSlot,
+	| (BackgroundImage & {
+			type: string;
+			bytes: number;
+			updatedBy: string | null;
+			updatedAt: string | null;
+	  })
+	| null
+>;
+
 type MyAvatar = {
 	available: boolean;
 	set: boolean;
@@ -849,6 +880,8 @@ type ChatSendRequest = {
 	text: string;
 	image?: string;
 	page?: string;
+	/** The sender's id for this message: sending it again returns the first one. */
+	clientId?: string;
 };
 
 export const BANNER_LEVELS = [
@@ -997,6 +1030,20 @@ export const PlatformAPI = {
 		}),
 	resetAvatar: () =>
 		post<{ ok: true; set: false }>(`${PLATFORM_BASE}/api/avatar/reset`, {}),
+	getBackgrounds: () =>
+		get<BackgroundsState>(`${PLATFORM_BASE}/api/backgrounds`),
+	/** A new image (dataUrl) and/or new settings for one background. */
+	saveBackground: (
+		slot: BackgroundSlot,
+		change: Partial<Omit<BackgroundImage, "url">> & { dataUrl?: string },
+	) =>
+		post<
+			{ ok: true; set: true } & Partial<Record<BackgroundSlot, BackgroundImage>>
+		>(`${PLATFORM_BASE}/api/backgrounds`, { slot, ...change }),
+	resetBackground: (slot: BackgroundSlot) =>
+		post<{ ok: true; set: false }>(`${PLATFORM_BASE}/api/backgrounds/reset`, {
+			slot,
+		}),
 	getGallery: () =>
 		get<{ images: GalleryImage[] }>(`${PLATFORM_BASE}/api/gallery`),
 
@@ -1119,9 +1166,11 @@ export const PlatformAPI = {
 
 	getChatState: () => get<ChatState>(chat("state")),
 	getChatAdmins: () => get<{ admins: ChatPeer[] }>(chat("admins")),
-	getChatMessages: (peerId: string) =>
+	getChatMessages: (peerId: string, before?: number) =>
 		get<{ messages: ChatMessage[]; readUpTo: number }>(
-			chat(`messages?peer=${encodeURIComponent(peerId)}`),
+			chat(
+				`messages?peer=${encodeURIComponent(peerId)}${before ? `&before=${before}` : ""}`,
+			),
 		),
 	pollChat: (req: ChatPollRequest) => {
 		const query = new URLSearchParams({

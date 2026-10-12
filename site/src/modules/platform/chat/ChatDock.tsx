@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { isEmbeddedFrame } from "#/contexts/platformBoot";
+import { ChatConsole } from "./ChatConsole";
 import { ChatPanel } from "./ChatPanel";
 import { ChatWindow } from "./ChatWindow";
 import { setDrawerOpen, useChatConnection, useChatSnapshot } from "./chatStore";
@@ -153,12 +154,17 @@ export const ChatDock: React.FC = () => {
 			className="pointer-events-none fixed right-4 z-[60] flex flex-col items-end gap-2 text-sm text-content-primary transition-[bottom] duration-200 motion-reduce:transition-none [&>*]:pointer-events-auto"
 			style={{ bottom: "var(--chat-bottom, 0px)" }}
 		>
-			{state.windows.length > 0 && (
-				<div className="pointer-events-none flex flex-row-reverse items-end gap-3 [&>*]:pointer-events-auto">
-					{state.windows.map((w) => (
-						<ChatWindow key={w.peer.id} window={w} dock={dock} />
-					))}
-				</div>
+			{/* Admins' console takes the place of the windows while it is open. */}
+			{state.consoleOpen && state.me.admin ? (
+				<ChatConsole dock={dock} />
+			) : (
+				state.windows.length > 0 && (
+					<div className="pointer-events-none flex flex-row-reverse items-end gap-3 [&>*]:pointer-events-auto">
+						{state.windows.map((w) => (
+							<ChatWindow key={w.peer.id} window={w} dock={dock} />
+						))}
+					</div>
+				)
 			)}
 			<ChatPanel />
 		</div>

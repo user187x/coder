@@ -5,11 +5,13 @@ import { chatAdmins } from "#/api/queries/platform";
 import { ChatAvatar } from "./ChatAvatar";
 import { CountBadge } from "./ChatWindow";
 import {
+	closeConsole,
 	displayName,
 	hasRecentConversation,
 	markRead,
 	noAdminAvailable,
 	openChatWith,
+	openConsole,
 	setChatOn,
 	setDrawerOpen,
 	unreadTotal,
@@ -23,7 +25,8 @@ const LISTED_CONVERSATIONS = 15;
  * window and the list of recent conversations slides up from it, to reopen
  * one. For everyone who is not an admin it is also their line to support,
  * listing the admins to write to. Admins have an on/off switch beside the
- * handle: developers only write to admins with chat on.
+ * handle (developers only write to admins with chat on), and their handle
+ * opens the chat console (ChatConsole) instead of the short list.
  */
 export const ChatPanel: React.FC = () => {
 	const state = useChatSnapshot();
@@ -31,7 +34,7 @@ export const ChatPanel: React.FC = () => {
 	if (!me) {
 		return null;
 	}
-	const open = state.drawerOpen;
+	const open = me.admin ? state.consoleOpen : state.drawerOpen;
 	const total = unreadTotal(state);
 	const none = noAdminAvailable(state);
 	const label = none
@@ -51,12 +54,14 @@ export const ChatPanel: React.FC = () => {
 			<div
 				className={cn(
 					"grid transition-[grid-template-rows] duration-250 motion-reduce:transition-none",
-					open
+					state.drawerOpen && !me.admin
 						? "grid-rows-[1fr] border-0 border-b border-solid border-border"
 						: "grid-rows-[0fr]",
 				)}
 			>
-				<div className="min-h-0 overflow-hidden">{open && <ChatList />}</div>
+				<div className="min-h-0 overflow-hidden">
+					{state.drawerOpen && !me.admin && <ChatList />}
+				</div>
 			</div>
 			<div className="flex items-center bg-surface-secondary">
 				<button
@@ -65,7 +70,15 @@ export const ChatPanel: React.FC = () => {
 					aria-disabled={none}
 					aria-label={total ? `Chats, ${total} unread` : label}
 					title={none ? "No admin is taking chats right now" : undefined}
-					onClick={() => setDrawerOpen(!open)}
+					onClick={() => {
+						if (!me.admin) {
+							setDrawerOpen(!open);
+						} else if (open) {
+							closeConsole();
+						} else {
+							openConsole();
+						}
+					}}
 					className={cn(
 						"flex h-9 min-w-0 flex-1 items-center gap-2 border-0 bg-surface-secondary px-2.5 text-left text-[13px] font-semibold text-inherit",
 						none

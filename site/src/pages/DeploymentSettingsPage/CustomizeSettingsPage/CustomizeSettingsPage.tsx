@@ -26,6 +26,7 @@ import {
 } from "#/components/SettingsHeader/SettingsHeader";
 import { Spinner } from "#/components/Spinner/Spinner";
 import { DEFAULT_LOGO_URL, setLogoURL } from "#/contexts/platformBoot";
+import { BackgroundSection } from "#/modules/platform/background/BackgroundSection";
 import { GalleryPicker } from "#/modules/platform/gallery/GalleryPicker";
 import { formatBytes } from "#/modules/platform/images";
 import {
@@ -41,8 +42,9 @@ const LOGO_EXTENSIONS = ["png", "jpg", "jpeg", "svg", "webp", "gif", "avif"];
 
 /**
  * General > Customize: the logo shown everywhere in Coder (navigation bar,
- * sign-in and set-up pages, browser tab icon), stored in Coder's own database
- * by the platform service, and your own appearance: theme and terminal font.
+ * sign-in and set-up pages, browser tab icon) and the faint background images
+ * of the sign-in page and the dashboard, stored in Coder's own database by the
+ * platform service, and your own appearance: theme and terminal font.
  */
 const CustomizeSettingsPage: React.FC = () => {
 	return (
@@ -52,12 +54,14 @@ const CustomizeSettingsPage: React.FC = () => {
 				<SettingsHeaderTitle>Customize</SettingsHeaderTitle>
 				<SettingsHeaderDescription>
 					The logo shown everywhere in Coder (navigation bar, sign-in and set-up
-					pages, browser tab icon), and your appearance: theme and terminal
-					font.
+					pages, browser tab icon), the background images of the sign-in page
+					and the dashboard, and your appearance: theme and terminal font.
 				</SettingsHeaderDescription>
 			</SettingsHeader>
 
 			<LogoSection />
+
+			<BackgroundSection />
 
 			<section
 				aria-labelledby="customize-appearance"

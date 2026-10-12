@@ -7,6 +7,11 @@
  * it as soon as a message, a typing change, a deleted conversation or an
  * admin's availability concerns this user. The windows that are open are
  * remembered per tab (sessionStorage), so they survive reloads.
+ *
+ * Admins have the chat console besides (ChatConsole): every conversation in one
+ * list, one open at a time. While it is open, or once the dock holds as many
+ * windows as fit, a new message from someone else does not pop up a window:
+ * it waits in the console's list, counted, so a busy hour stays orderly.
  */
 import { useEffect, useSyncExternalStore } from "react";
 import {
@@ -25,6 +30,8 @@ const SIGNED_OUT_RETRY_MS = 30_000;
 const UNAVAILABLE_RETRY_MS = 10_000;
 /** The panel says "Chats" (not "Chat with an admin") after recent conversations. */
 const RECENT_DAYS = 14;
+/** Messages per page of history (the service's default). */
+const HISTORY_PAGE = 100;
 
 export type ChatWindowState = {
 	peer: ChatPeer;
@@ -41,6 +48,9 @@ export type ChatWindowState = {
 	clearedByPeer: boolean;
 	/** Bumped to ask the window to focus its message box. */
 	focusRequest: number;
+	/** Older messages: being fetched; none left. */
+	loadingOlder: boolean;
+	olderDone: boolean;
 };
 
 type ChatSnapshot = {
@@ -53,6 +63,9 @@ type ChatSnapshot = {
 	off: ReadonlySet<string>;
 	availVersion: number;
 	drawerOpen: boolean;
+	/** Admins: the chat console, and the conversation open in it. */
+	consoleOpen: boolean;
+	consoleView: ChatWindowState | null;
 };
 
 const initialSnapshot: ChatSnapshot = {
@@ -64,6 +77,8 @@ const initialSnapshot: ChatSnapshot = {
 	off: new Set(),
 	availVersion: 0,
 	drawerOpen: false,
+	consoleOpen: false,
+	consoleView: null,
 };
 
 let snapshot = initialSnapshot;
@@ -182,23 +197,68 @@ const loadOpenWindows = () => {
 	}
 };
 
+/** Changes the conversation's window and, if it is the one there, the console's view of it. */
 const updateWindow = (
 	peerId: string,
 	change: (w: ChatWindowState) => ChatWindowState,
 ) => {
+	const view = snapshot.consoleView;
 	update({
 		windows: snapshot.windows.map((w) =>
 			w.peer.id === peerId ? change(w) : w,
 		),
+		consoleView: view && view.peer.id === peerId ? change(view) : view,
 	});
 };
 
 const findWindow = (peerId: string) =>
 	snapshot.windows.find((w) => w.peer.id === peerId);
 
+/** The conversation's window, or the console's view of it while the console shows it. */
+const findView = (peerId: string) =>
+	findWindow(peerId) ??
+	(snapshot.consoleOpen && snapshot.consoleView?.peer.id === peerId
+		? snapshot.consoleView
+		: undefined);
+
+const newView = (peer: ChatPeer, minimized: boolean, focus: boolean) => ({
+	peer,
+	minimized,
+	loading: true,
+	loadError: null,
+	messages: [],
+	pending: [],
+	lastIn: 0,
+	readSent: 0,
+	clearedByPeer: false,
+	focusRequest: focus && !minimized ? 1 : 0,
+	loadingOlder: false,
+	olderDone: false,
+});
+
 /** As many windows as fit side by side (at most three); the oldest gives way. */
 const maxOpenWindows = () =>
 	Math.max(1, Math.min(3, Math.floor((window.innerWidth - 32) / 340)));
+
+/**
+ * The messages of `incoming` not shown yet, each once. A message can come
+ * twice in one batch: it arrived (and was queued) while the history that also
+ * holds it was loading.
+ */
+export const newMessages = (
+	shown: readonly ChatMessage[],
+	incoming: readonly ChatMessage[],
+): ChatMessage[] => {
+	const known = new Set(shown.map((m) => m.id));
+	const fresh: ChatMessage[] = [];
+	for (const m of incoming) {
+		if (!known.has(m.id)) {
+			known.add(m.id);
+			fresh.push(m);
+		}
+	}
+	return fresh;
+};
 
 const appendMessages = (
 	w: ChatWindowState,
@@ -207,8 +267,7 @@ const appendMessages = (
 	if (w.loading) {
 		return { ...w, pending: [...w.pending, ...messages] };
 	}
-	const known = new Set(w.messages.map((m) => m.id));
-	const fresh = messages.filter((m) => !known.has(m.id));
+	const fresh = newMessages(w.messages, messages);
 	if (!fresh.length) {
 		return w;
 	}
@@ -234,6 +293,7 @@ const loadHistory = async (peerId: string) => {
 			const ready = {
 				...w,
 				loading: false,
+				olderDone: messages.length < HISTORY_PAGE,
 				readSent: Math.max(w.readSent, readUpTo),
 			};
 			return appendMessages({ ...ready, pending: [] }, [
@@ -271,18 +331,7 @@ const openWindow = (
 			focusRequest: focus && !minimized ? w.focusRequest + 1 : w.focusRequest,
 		}));
 	} else {
-		const created: ChatWindowState = {
-			peer,
-			minimized,
-			loading: true,
-			loadError: null,
-			messages: [],
-			pending: [],
-			lastIn: 0,
-			readSent: 0,
-			clearedByPeer: false,
-			focusRequest: focus && !minimized ? 1 : 0,
-		};
+		const created: ChatWindowState = newView(peer, minimized, focus);
 		const windows = [created, ...snapshot.windows];
 		update({ windows: windows.slice(0, maxOpenWindows()) });
 		void loadHistory(peer.id);
@@ -314,7 +363,7 @@ export const setFocusedWindow = (peerId: string | null) => {
  * messages unread: its title bar, the panel and the bell say so.
  */
 export const markRead = (peerId: string, used: boolean) => {
-	const w = findWindow(peerId);
+	const w = findView(peerId);
 	if (!w || w.minimized || document.visibilityState !== "visible") {
 		return;
 	}
@@ -338,6 +387,10 @@ export const markRead = (peerId: string, used: boolean) => {
 
 // ---------------------------------------------------------------- messages
 
+const popsUp = () =>
+	!snapshot.me?.admin ||
+	(!snapshot.consoleOpen && snapshot.windows.length < maxOpenWindows());
+
 const receive = (m: ChatMessage) => {
 	const me = snapshot.me;
 	if (!me) {
@@ -350,9 +403,7 @@ const receive = (m: ChatMessage) => {
 		: { id: m.to, username: m.toName, name: m.toDisplay };
 	const known = snapshot.conversations.get(peer.id);
 	if (known && known.last.id >= m.id) {
-		if (findWindow(peer.id)) {
-			updateWindow(peer.id, (w) => appendMessages(w, [m]));
-		}
+		updateWindow(peer.id, (w) => appendMessages(w, [m]));
 		return;
 	}
 	const conversations = new Map(snapshot.conversations);
@@ -367,12 +418,15 @@ const receive = (m: ChatMessage) => {
 	}
 	update({ conversations, typing });
 	// A new message brings its conversation up: opened if it was closed, left
-	// minimized (with its count) if it was.
-	if (incoming && !findWindow(peer.id)) {
+	// minimized (with its count) if it was. For admins only while the console
+	// is closed and the dock has room: otherwise it waits in the console.
+	if (incoming && !findView(peer.id) && popsUp()) {
 		openWindow(peer);
 	}
-	if (findWindow(peer.id)) {
-		updateWindow(peer.id, (w) => appendMessages(w, [m]));
+	// Every copy of the conversation (its window, the console's view, even
+	// while the console is closed) gets the message.
+	updateWindow(peer.id, (w) => appendMessages(w, [m]));
+	if (findView(peer.id)) {
 		markRead(peer.id, false);
 	}
 };
@@ -383,6 +437,9 @@ const cleared = (peerId: string, byMe: boolean) => {
 	update({ conversations });
 	if (byMe) {
 		closeWindow(peerId);
+		if (snapshot.consoleView?.peer.id === peerId) {
+			update({ consoleView: null });
+		}
 		return;
 	}
 	updateWindow(peerId, (w) => ({
@@ -508,9 +565,10 @@ const boot = async () => {
 			);
 		}
 	}
-	// Unread conversations come up minimized, with their count.
+	// Unread conversations come up minimized, with their count (for admins as
+	// many as fit; the console has the rest).
 	for (const conversation of conversations) {
-		if (conversation.unread && !findWindow(conversation.peer.id)) {
+		if (conversation.unread && !findWindow(conversation.peer.id) && popsUp()) {
 			openWindow(conversation.peer, { minimized: true });
 		}
 	}
@@ -552,13 +610,24 @@ export const openChatWith = async (peer: ChatPeer) => {
 	if (!snapshot.me || peer.id === snapshot.me.id) {
 		return;
 	}
+	if (snapshot.consoleOpen && snapshot.me.admin) {
+		selectInConsole(peer, true);
+		return;
+	}
 	openWindow(peer, { focus: true });
 	markRead(peer.id, true);
 };
 
-/** Every conversation with unread messages, expanded; else the Chats panel. */
+/** Every conversation with unread messages, expanded; else the Chats panel. Admins: the console, at the first. */
 export const openUnreadChats = async () => {
 	await startChat();
+	if (snapshot.me?.admin) {
+		const first = [...snapshot.conversations.values()]
+			.filter((c) => c.unread)
+			.sort((a, b) => a.last.id - b.last.id)[0];
+		openConsole(first?.peer);
+		return;
+	}
 	const unread = [...snapshot.conversations.values()]
 		.filter((c) => c.unread)
 		.sort((a, b) => a.last.id - b.last.id);
@@ -581,18 +650,116 @@ export const setDrawerOpen = (open: boolean) => {
 	update({ drawerOpen: open });
 };
 
+const newClientId = () =>
+	typeof crypto !== "undefined" && "randomUUID" in crypto
+		? crypto.randomUUID()
+		: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+
+/**
+ * Sends one message. It carries an id of its own, so when the answer is lost
+ * (a network hiccup) the one retry, or any later one, does not store it twice.
+ */
 export const sendChatMessage = async (
 	peerId: string,
 	text: string,
 	screenshot?: { dataURL: string; page: string },
 ) => {
-	const { message } = await PlatformAPI.sendChatMessage({
+	const request = {
 		to: peerId,
 		text,
+		clientId: newClientId(),
 		...(screenshot ? { image: screenshot.dataURL, page: screenshot.page } : {}),
-	});
+	};
+	let result: { message: ChatMessage };
+	try {
+		result = await PlatformAPI.sendChatMessage(request);
+	} catch (error) {
+		if (statusOf(error) !== 0) {
+			throw error;
+		}
+		await sleep(800);
+		result = await PlatformAPI.sendChatMessage(request);
+	}
 	typedAt.delete(peerId);
-	receive(message);
+	receive(result.message);
+};
+
+/** The page of messages before the oldest one shown. */
+export const loadOlderMessages = async (peerId: string) => {
+	const w = findView(peerId);
+	if (!w || w.loading || w.loadingOlder || w.olderDone || !w.messages.length) {
+		return;
+	}
+	updateWindow(peerId, (v) => ({ ...v, loadingOlder: true }));
+	try {
+		const { messages } = await PlatformAPI.getChatMessages(
+			peerId,
+			w.messages[0].id,
+		);
+		updateWindow(peerId, (v) => {
+			const known = new Set(v.messages.map((m) => m.id));
+			return {
+				...v,
+				loadingOlder: false,
+				olderDone: messages.length < HISTORY_PAGE,
+				messages: [...messages.filter((m) => !known.has(m.id)), ...v.messages],
+			};
+		});
+	} catch {
+		updateWindow(peerId, (v) => ({ ...v, loadingOlder: false }));
+	}
+};
+
+// ---------------------------------------------------------------- console (admins)
+
+/** Opens the console, on this conversation (else the one it showed, else the first waiting). */
+export const openConsole = (peer?: ChatPeer) => {
+	update({ consoleOpen: true, drawerOpen: false });
+	if (peer) {
+		selectInConsole(peer);
+	} else if (!snapshot.consoleView) {
+		const first = [...snapshot.conversations.values()].sort(
+			(a, b) => b.last.id - a.last.id,
+		)[0];
+		if (first) {
+			selectInConsole(first.peer);
+		}
+	} else {
+		markRead(snapshot.consoleView.peer.id, true);
+	}
+};
+
+export const closeConsole = () => update({ consoleOpen: false });
+
+/** Shows this conversation in the console (its window, if one is open, keeps its own copy). */
+export const selectInConsole = (peer: ChatPeer, focus = false) => {
+	const current = snapshot.consoleView;
+	if (current?.peer.id === peer.id) {
+		update({
+			consoleView: focus
+				? { ...current, focusRequest: current.focusRequest + 1 }
+				: current,
+		});
+		markRead(peer.id, true);
+		return;
+	}
+	const open = findWindow(peer.id);
+	update({
+		consoleView: open
+			? { ...open, minimized: false, focusRequest: focus ? 1 : 0 }
+			: newView(peer, false, focus),
+	});
+	if (!open) {
+		void loadHistory(peer.id);
+	}
+	markRead(peer.id, true);
+};
+
+/** Pops the console's conversation out into a window of its own. */
+export const popOutOfConsole = (peer: ChatPeer) => {
+	closeConsole();
+	openWindow(peer, { focus: true });
+	markRead(peer.id, true);
 };
 
 /** Renews the service's few-second "typing" signal while keys are pressed. */

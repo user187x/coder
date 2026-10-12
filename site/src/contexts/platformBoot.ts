@@ -9,13 +9,20 @@
  * updates every place that shows it without a page reload.
  */
 import { useSyncExternalStore } from "react";
-import type { ClassificationSettings } from "#/api/platform";
+import type {
+	BackgroundImage,
+	BackgroundSlot,
+	ClassificationSettings,
+} from "#/api/platform";
 
 type PlatformSnapshot = {
 	logoURL: string;
 	avatars: Readonly<Record<string, string>>;
 	defaultAvatarURL: string;
 	defaultAvatarUsers: ReadonlySet<string>;
+	backgrounds: Readonly<
+		Partial<Record<BackgroundSlot, BackgroundImage | null>>
+	>;
 };
 
 const AVATAR_USERS_STORAGE_KEY = "coder-ui-avatar-users";
@@ -30,6 +37,7 @@ let snapshot: PlatformSnapshot = {
 	avatars: window.__cuiAvatars ?? {},
 	defaultAvatarURL: window.__cuiAvatarDefault || DEFAULT_AVATAR_URL,
 	defaultAvatarUsers: window.__cuiAvatarUsers ?? new Set(),
+	backgrounds: window.__cuiBackgrounds ?? {},
 };
 
 const listeners = new Set<() => void>();
@@ -59,6 +67,14 @@ export const getBootClassification = (): ClassificationSettings | undefined =>
 export const setLogoURL = (url: string | null) => {
 	update({ logoURL: url ?? "" });
 	applyFavicons(url ?? "");
+};
+
+/** A saved (or removed) background shows at once on this page. */
+export const setBackground = (
+	slot: BackgroundSlot,
+	image: BackgroundImage | null,
+) => {
+	update({ backgrounds: { ...snapshot.backgrounds, [slot]: image } });
 };
 
 export const setUserAvatar = (username: string, url: string | null) => {

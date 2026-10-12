@@ -1,4 +1,8 @@
-import type { ClassificationSettings } from "#/api/platform";
+import type {
+	BackgroundImage,
+	BackgroundSlot,
+	ClassificationSettings,
+} from "#/api/platform";
 
 // What the platform service's boot.js sets before the dashboard starts
 // (contexts/platformBoot.ts), and browser APIs not yet in TypeScript's DOM types.
@@ -13,6 +17,8 @@ declare global {
 		__cuiAvatarDefault?: string;
 		/** Usernames that get the default avatar (this browser's last answer). */
 		__cuiAvatarUsers?: Set<string>;
+		/** The background images of the sign-in page and the dashboard (null: none). */
+		__cuiBackgrounds?: Partial<Record<BackgroundSlot, BackgroundImage | null>>;
 		/** Lets a dashboard page embedded in a frame navigate the page around it. */
 		__platformNavigate?: (url: string) => void;
 		/** The EyeDropper API (Chromium): picks a colour from the screen. */

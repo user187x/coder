@@ -4,6 +4,7 @@ import type { AuthMethods, BuildInfoResponse } from "#/api/typesGenerated";
 import { Button } from "#/components/Button/Button";
 import { ProductLogo } from "#/components/Icons/ProductLogo";
 import { Loader } from "#/components/Loader/Loader";
+import { PlatformBackground } from "#/modules/platform/background/PlatformBackground";
 import { SignInForm } from "./SignInForm";
 import { TermsOfServiceLink } from "./TermsOfServiceLink";
 
@@ -36,6 +37,8 @@ export const LoginPageView: React.FC<LoginPageViewProps> = ({
 
 	return (
 		<div className="p-6 flex items-center justify-center min-h-full text-center">
+			{/* Platform: the sign-in page's background image (Customize). */}
+			<PlatformBackground slot="login" />
 			<div className="w-full max-w-xs flex flex-col items-center gap-4">
 				<ProductLogo />
 				{isLoading ? (
