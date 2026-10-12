@@ -128,12 +128,28 @@ export type BackgroundFit = "cover" | "contain" | "tile";
 /** Behind the page's content (an underlay), or a faint watermark over it. */
 export type BackgroundLayer = "under" | "over";
 
+/** The dials of an HTML background: its animations' speed, then CSS filters. */
+export type BackgroundDials = {
+	speed?: number;
+	hue?: number;
+	saturation?: number;
+	brightness?: number;
+	blur?: number;
+};
+export type BackgroundParams = BackgroundDials & {
+	/** A built-in animated background's own settings (e.g. the Particles colours). */
+	preset?: { name: string } & Record<string, unknown>;
+};
+
 /** What a page needs to draw a background image (boot.js hands it to every page). */
 export type BackgroundImage = {
 	url: string;
 	opacity: number;
 	fit: BackgroundFit;
 	layer: BackgroundLayer;
+	/** A picture, or an HTML / CSS page shown in a sandboxed frame. */
+	kind?: "image" | "html";
+	params?: BackgroundParams;
 };
 
 export type BackgroundsState = {
@@ -141,6 +157,7 @@ export type BackgroundsState = {
 	limits: {
 		opacity: { min: number; max: number; default: number };
 		maxBytes: number;
+		htmlMaxBytes?: number;
 	};
 } & Record<
 	BackgroundSlot,
@@ -1035,7 +1052,10 @@ export const PlatformAPI = {
 	/** A new image (dataUrl) and/or new settings for one background. */
 	saveBackground: (
 		slot: BackgroundSlot,
-		change: Partial<Omit<BackgroundImage, "url">> & { dataUrl?: string },
+		change: Partial<Omit<BackgroundImage, "url" | "kind">> & {
+			dataUrl?: string;
+			html?: string;
+		},
 	) =>
 		post<
 			{ ok: true; set: true } & Partial<Record<BackgroundSlot, BackgroundImage>>

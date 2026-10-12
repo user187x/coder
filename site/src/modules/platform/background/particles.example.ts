@@ -1,0 +1,23 @@
+// The twenty particle rules of the original example.html (repository root), verbatim.
+export const EXAMPLE_RULES = [
+	".background span:nth-child(1) { color: #583C87; top: 12%; left: 45%; animation-duration: 15s; animation-delay: -5s; transform-origin: -12vw 15vh; box-shadow: 40vmin 0 8.5vmin currentColor; }",
+	".background span:nth-child(2) { color: #E45A84; top: 67%; left: 89%; animation-duration: 12s; animation-delay: -11s; transform-origin: 22vw -10vh; box-shadow: -40vmin 0 12.1vmin currentColor; }",
+	".background span:nth-child(3) { color: #FFACAC; top: 34%; left: 12%; animation-duration: 14s; animation-delay: -3s; transform-origin: -5vw -20vh; box-shadow: 40vmin 0 7vmin currentColor; }",
+	".background span:nth-child(4) { color: #583C87; top: 88%; left: 56%; animation-duration: 11s; animation-delay: -15s; transform-origin: 18vw 23vh; box-shadow: -40vmin 0 14vmin currentColor; }",
+	".background span:nth-child(5) { color: #E45A84; top: 45%; left: 77%; animation-duration: 13s; animation-delay: -7s; transform-origin: -21vw 8vh; box-shadow: 40vmin 0 11vmin currentColor; }",
+	".background span:nth-child(6) { color: #FFACAC; top: 11%; left: 23%; animation-duration: 16s; animation-delay: -1s; transform-origin: 5vw -15vh; box-shadow: -40vmin 0 9vmin currentColor; }",
+	".background span:nth-child(7) { color: #583C87; top: 92%; left: 18%; animation-duration: 10.5s; animation-delay: -9s; transform-origin: 24vw 11vh; box-shadow: 40vmin 0 10vmin currentColor; }",
+	".background span:nth-child(8) { color: #E45A84; top: 31%; left: 66%; animation-duration: 14.5s; animation-delay: -14s; transform-origin: -11vw -6vh; box-shadow: -40vmin 0 6vmin currentColor; }",
+	".background span:nth-child(9) { color: #FFACAC; top: 76%; left: 41%; animation-duration: 11.8s; animation-delay: -4s; transform-origin: 15vw 19vh; box-shadow: 40vmin 0 13vmin currentColor; }",
+	".background span:nth-child(10) { color: #583C87; top: 5%; left: 91%; animation-duration: 15.2s; animation-delay: -12s; transform-origin: -8vw -22vh; box-shadow: -40vmin 0 8vmin currentColor; }",
+	".background span:nth-child(11) { color: #E45A84; top: 54%; left: 11%; animation-duration: 12.3s; animation-delay: -8s; transform-origin: 21vw 4vh; box-shadow: 40vmin 0 11.5vmin currentColor; }",
+	".background span:nth-child(12) { color: #FFACAC; top: 22%; left: 81%; animation-duration: 13.7s; animation-delay: -10s; transform-origin: -19vw 16vh; box-shadow: -40vmin 0 9.5vmin currentColor; }",
+	".background span:nth-child(13) { color: #583C87; top: 61%; left: 34%; animation-duration: 10.9s; animation-delay: -6s; transform-origin: 12vw -13vh; box-shadow: 40vmin 0 14.2vmin currentColor; }",
+	".background span:nth-child(14) { color: #E45A84; top: 83%; left: 6%; animation-duration: 14.1s; animation-delay: -13s; transform-origin: -24vw 21vh; box-shadow: -40vmin 0 5.5vmin currentColor; }",
+	".background span:nth-child(15) { color: #FFACAC; top: 15%; left: 59%; animation-duration: 11.4s; animation-delay: -2s; transform-origin: 8vw -9vh; box-shadow: 40vmin 0 12.8vmin currentColor; }",
+	".background span:nth-child(16) { color: #583C87; top: 48%; left: 94%; animation-duration: 15.6s; animation-delay: -15.5s; transform-origin: 20vw 18vh; box-shadow: -40vmin 0 7.2vmin currentColor; }",
+	".background span:nth-child(17) { color: #E45A84; top: 71%; left: 27%; animation-duration: 13.2s; animation-delay: -5.5s; transform-origin: -14vw -17vh; box-shadow: 40vmin 0 10.3vmin currentColor; }",
+	".background span:nth-child(18) { color: #FFACAC; top: 39%; left: 48%; animation-duration: 10.3s; animation-delay: -11.5s; transform-origin: 17vw 7vh; box-shadow: -40vmin 0 14.8vmin currentColor; }",
+	".background span:nth-child(19) { color: #583C87; top: 97%; left: 72%; animation-duration: 14.8s; animation-delay: -1.5s; transform-origin: -6vw 24vh; box-shadow: 40vmin 0 6.4vmin currentColor; }",
+	".background span:nth-child(20) { color: #E45A84; top: 8%; left: 16%; animation-duration: 12.6s; animation-delay: -9.5s; transform-origin: 11vw -11vh; box-shadow: -40vmin 0 11.9vmin currentColor; }",
+];
