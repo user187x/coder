@@ -1096,8 +1096,10 @@ export const ReviewStep: React.FC<
 		problems: string[];
 		dockerfile?: string;
 		plan?: { key: string; label: string }[];
+		/** The hardening options' labels (from the settings). */
+		labels: Record<string, string>;
 	}
-> = ({ spec, problems, dockerfile, plan }) => {
+> = ({ spec, problems, dockerfile, plan, labels }) => {
 	const rows = useMemo(
 		() => [
 			[
@@ -1126,12 +1128,12 @@ export const ReviewStep: React.FC<
 				[
 					...Object.entries(spec.hardening)
 						.filter(([k, v]) => k !== "script" && v)
-						.map(([k]) => k),
+						.map(([k]) => labels[k] ?? k),
 					spec.hardening.script.trim() ? "own script" : "",
 					spec.fips ? "FIPS-aligned crypto" : "",
 				]
 					.filter(Boolean)
-					.join(", ") || "none",
+					.join("; ") || "none",
 			],
 			[
 				"Desktop",
@@ -1149,13 +1151,13 @@ export const ReviewStep: React.FC<
 					spec.config.aliases.trim() && "aliases",
 					spec.config.functions.trim() && "functions",
 					spec.config.dotfiles.length &&
-						`${spec.config.dotfiles.length} dotfiles`,
+						`${spec.config.dotfiles.length} dotfile${spec.config.dotfiles.length === 1 ? "" : "s"}`,
 				]
 					.filter(Boolean)
 					.join(", ") || "none",
 			],
 		],
-		[spec],
+		[spec, labels],
 	);
 	return (
 		<div className="flex flex-col gap-5">

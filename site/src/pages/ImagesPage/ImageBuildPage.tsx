@@ -239,8 +239,10 @@ const BuildPanel: React.FC<{ build: BuildDetail }> = ({ build }) => {
 								Step{" "}
 								{Math.min(total, activeIndex >= 0 ? activeIndex + 1 : done)} of{" "}
 								{total}
-								{build.steps[activeIndex] &&
-									` · ${build.steps[activeIndex].label}`}
+								{!finished &&
+									build.steps[activeIndex + 1] &&
+									activeIndex >= 0 &&
+									` · next: ${build.steps[activeIndex + 1].label.toLowerCase()}`}
 							</p>
 							<p className="ws-init-note">
 								{elapsed(build.startedAt, end)}{" "}

@@ -242,8 +242,10 @@ const ImageRow: React.FC<{ image: ImageListItem; canEdit: boolean }> = ({
 		onError: (e) => toast.error(getErrorMessage(e, "Not deleted.")),
 	});
 	const contents = [
-		image.counts.packages && `${image.counts.packages} packages`,
-		image.counts.installations && `${image.counts.installations} installations`,
+		image.counts.packages &&
+			`${image.counts.packages} package${image.counts.packages === 1 ? "" : "s"}`,
+		image.counts.installations &&
+			`${image.counts.installations} installation${image.counts.installations === 1 ? "" : "s"}`,
 		image.desktop !== "keep" &&
 			(image.desktop === "none" ? "no desktop" : image.desktop.toUpperCase()),
 	]

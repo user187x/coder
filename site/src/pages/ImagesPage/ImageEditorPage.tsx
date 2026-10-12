@@ -434,6 +434,7 @@ const ImageEditor: React.FC<{ image: ImageDetail }> = ({ image }) => {
 							problems={problems}
 							dockerfile={preview.data?.dockerfile}
 							plan={preview.data?.steps}
+							labels={settings.data?.hardening ?? {}}
 						/>
 					)}
 					<footer className="flex items-center gap-2 border-0 border-t border-solid border-border pt-4">
