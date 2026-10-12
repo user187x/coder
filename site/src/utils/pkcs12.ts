@@ -406,6 +406,8 @@ export type Pkcs12Certificate = {
 	issuer: string;
 	notBefore: Date | null;
 	notAfter: Date | null;
+	/** The certificate's own DER encoding (what its x509 fingerprint is taken over). */
+	der: Bytes;
 };
 
 const distinguishedName = (n: DerNode | undefined): Record<string, string> => {
@@ -463,6 +465,7 @@ const certificate = (der: Bytes): Pkcs12Certificate => {
 		issuer: iss[OID.commonName] || iss[OID.organization] || "(no common name)",
 		notBefore: time(notBefore),
 		notAfter: time(notAfter),
+		der,
 	};
 };
 
@@ -576,6 +579,10 @@ export const sha256Hex = async (bytes: Bytes): Promise<string> =>
 	[...(await digest("SHA-256", bytes))]
 		.map((b) => b.toString(16).padStart(2, "0"))
 		.join("");
+
+/** "AB:CD:…": hex pairs of a fingerprint, the way certificate viewers show it. */
+export const formatFingerprint = (hex: string): string =>
+	(hex.toUpperCase().match(/../g) ?? []).join(":");
 
 // ---------------------------------------------------------------- private key
 

@@ -133,7 +133,7 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 						</div>
 						<div className="banner-scroll-body">
 							<div className="banner-scroll-prompt" aria-hidden>
-								<i>coder@platform</i>:<em>~</em>$ cat broadcast.md
+								<i>root@platform</i>:<em>~</em># cat broadcast.md
 							</div>
 							<div
 								className="banner-scroll-text"
@@ -142,7 +142,7 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 								<BannerBlocks message={banner.message} />
 							</div>
 							<div className="banner-scroll-prompt" aria-hidden>
-								<i>coder@platform</i>:<em>~</em>${" "}
+								<i>root@platform</i>:<em>~</em>#{" "}
 								<span className="banner-scroll-cursor" />
 							</div>
 						</div>

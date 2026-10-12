@@ -1,8 +1,9 @@
 import { cn } from "cn";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
-import { useQueryClient } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 import { useNavigate } from "react-router";
+import { PlatformAPI, type WorkspaceNote } from "#/api/platform";
 import type { GroupsByUserId } from "#/api/queries/groups";
 import { workspaces } from "#/api/queries/workspaces";
 import type * as TypesGen from "#/api/typesGenerated";
@@ -25,12 +26,9 @@ import {
 } from "#/components/TableLoader/TableLoader";
 import { useClickableTableRow } from "#/hooks/useClickableTableRow";
 import { ChatUserButton } from "#/modules/platform/chat/ChatUserButton";
+import { UserNotesCell } from "#/modules/platform/workspaceNotes/UserNotesCell";
 import type { UserAdminAction } from "#/modules/users/UserActionDialogs";
-import { UserGroupsCell } from "#/modules/users/UserGroupsCell";
-import {
-	GroupsHelpPopover,
-	RolesHelpPopover,
-} from "#/modules/users/UserHelpPopovers";
+import { RolesHelpPopover } from "#/modules/users/UserHelpPopovers";
 import { UserMoreActions } from "#/modules/users/UserMoreActions";
 import { UserRoleCell } from "#/modules/users/UserRoleCell";
 
@@ -64,12 +62,8 @@ export const UsersTable: React.FC<UsersTableProps> = (props) => {
 							<RolesHelpPopover />
 						</div>
 					</TableHead>
-					<TableHead className="w-1/6">
-						<div className="flex flex-row gap-2 items-center">
-							<span>Groups</span>
-							<GroupsHelpPopover />
-						</div>
-					</TableHead>
+					{/* Platform: admins' post-it notes on the user's workspaces, instead of Groups. */}
+					<TableHead className="w-1/6">Notes</TableHead>
 					<TableHead className="w-1/6">Status</TableHead>
 				</TableRow>
 			</TableHeader>
@@ -84,13 +78,18 @@ export const UsersTable: React.FC<UsersTableProps> = (props) => {
 const UsersTableBody: React.FC<UsersTableProps> = ({
 	isLoading,
 	users,
-	groupsByUserId,
 	me,
 	canEditUsers,
 	canViewActivity,
 	oidcRoleSyncEnabled,
 	onAction,
 }) => {
+	const notesQuery = useQuery({
+		queryKey: ["platform", "notes", "by-user"],
+		queryFn: PlatformAPI.getNotesByUser,
+		refetchInterval: 60_000,
+		retry: false,
+	});
 	if (isLoading) {
 		return <UsersTableSkeleton canEditUsers={canEditUsers} />;
 	}
@@ -103,7 +102,7 @@ const UsersTableBody: React.FC<UsersTableProps> = ({
 		<UsersTableRow
 			key={user.id}
 			user={user}
-			groupsByUserId={groupsByUserId}
+			notes={notesQuery.data?.users[user.id]}
 			me={me}
 			canEditUsers={canEditUsers}
 			canViewActivity={canViewActivity}
@@ -118,8 +117,12 @@ const UsersTableBody: React.FC<UsersTableProps> = ({
 const ROW_CONTROLS =
 	"a, button, input, select, textarea, label, [role=menuitem], [role=menu], [role=dialog], [role=checkbox]";
 
-type UsersTableRowProps = Omit<UsersTableProps, "isLoading" | "users"> & {
+type UsersTableRowProps = Omit<
+	UsersTableProps,
+	"isLoading" | "users" | "groupsByUserId"
+> & {
 	user: TypesGen.User;
+	notes: readonly WorkspaceNote[] | undefined;
 };
 
 /**
@@ -129,7 +132,7 @@ type UsersTableRowProps = Omit<UsersTableProps, "isLoading" | "users"> & {
  */
 const UsersTableRow: React.FC<UsersTableRowProps> = ({
 	user,
-	groupsByUserId,
+	notes,
 	me,
 	canEditUsers,
 	canViewActivity,
@@ -198,7 +201,7 @@ const UsersTableRow: React.FC<UsersTableRowProps> = ({
 
 			<UserRoleCell roles={user.roles} />
 
-			<UserGroupsCell userGroups={groupsByUserId?.get(user.id)} />
+			<UserNotesCell username={user.username} notes={notes} />
 
 			<TableCell
 				className={cn(

@@ -1,7 +1,14 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+	act,
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+} from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { PlatformAPI, type WorkspaceNote } from "#/api/platform";
 import { MockWorkspace } from "#/testHelpers/entities";
+import { requestNoteDraft } from "./noteDraftStore";
 import { WorkspaceNotes } from "./WorkspaceNotes";
 
 const note: WorkspaceNote = {
@@ -67,7 +74,8 @@ describe("WorkspaceNotes", () => {
 		expect(
 			screen.getByRole("button", { name: "Delete the note" }),
 		).toBeInTheDocument();
-		fireEvent.click(screen.getByTestId("workspace-notes-add"));
+		// The workspace page's sidebar button (WorkspaceNotesButton) asks for a new note.
+		act(() => requestNoteDraft());
 		fireEvent.change(screen.getByRole("textbox", { name: "Note" }), {
 			target: { value: "Restart after the update" },
 		});

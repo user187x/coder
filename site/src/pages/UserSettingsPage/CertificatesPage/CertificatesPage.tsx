@@ -32,6 +32,7 @@ import {
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { useEmbeddedMetadata } from "#/hooks/useEmbeddedMetadata";
 import { pageTitle } from "#/utils/page";
+import { sha256Hex } from "#/utils/pkcs12";
 import {
 	CertificateUploadDialog,
 	type PreparedCertificate,
@@ -125,6 +126,7 @@ const CertificatesPage: React.FC = () => {
 						sha: parsed.sha ?? "",
 						subject: parsed.subject,
 						notAfter: parsed.expires ? new Date(parsed.expires) : null,
+						x509: parsed.x509,
 					}),
 				},
 			},
@@ -145,6 +147,9 @@ const CertificatesPage: React.FC = () => {
 			sha: prepared.sha,
 			subject: prepared.details?.subject,
 			notAfter: prepared.details?.notAfter ?? null,
+			x509: prepared.details
+				? await sha256Hex(prepared.details.der)
+				: undefined,
 		};
 		const body = {
 			value: prepared.base64,

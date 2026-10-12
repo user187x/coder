@@ -938,6 +938,18 @@ export type WorkspaceNote = {
 	updatedAt: string;
 	/** When the workspace's owner dismissed it (admins still see it). */
 	dismissedAt: string | null;
+	/** The workspace's owner and name (notes made before 1.22.0: filled in once an admin lists them). */
+	ownerId?: string | null;
+	ownerName?: string | null;
+	workspaceName?: string | null;
+};
+
+/** A picture installed with the platform to choose as logo or avatar. */
+export type GalleryImage = {
+	name: string;
+	type: string;
+	bytes: number;
+	url: string;
 };
 
 /** What the coder-banner admin API answers. */
@@ -985,6 +997,8 @@ export const PlatformAPI = {
 		}),
 	resetAvatar: () =>
 		post<{ ok: true; set: false }>(`${PLATFORM_BASE}/api/avatar/reset`, {}),
+	getGallery: () =>
+		get<{ images: GalleryImage[] }>(`${PLATFORM_BASE}/api/gallery`),
 
 	getAnnouncementStatus: (id: string) =>
 		get<AnnouncementReceiptStatus>(
@@ -1019,6 +1033,11 @@ export const PlatformAPI = {
 		post<{ ok: true }>(`${PLATFORM_BASE}/api/notes/delete`, { id }),
 	dismissWorkspaceNote: (id: string) =>
 		post<{ note: WorkspaceNote }>(`${PLATFORM_BASE}/api/notes/dismiss`, { id }),
+	/** Admins: every note not dismissed yet, by the workspace owner's user id. */
+	getNotesByUser: () =>
+		get<{ users: Record<string, WorkspaceNote[]> }>(
+			`${PLATFORM_BASE}/api/notes/users`,
+		),
 	getAnnouncementReport: () =>
 		get<AnnouncementReport>(`${PLATFORM_BASE}/api/acks`),
 	deleteAnnouncementEvent: (id: string) =>

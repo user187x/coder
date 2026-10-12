@@ -14,6 +14,7 @@ import {
 } from "#/components/Dialog/Dialog";
 import { Spinner } from "#/components/Spinner/Spinner";
 import { setUserAvatar } from "#/contexts/platformBoot";
+import { GalleryPicker } from "../gallery/GalleryPicker";
 import {
 	AVATAR_TARGET,
 	ImageNormalizeError,
@@ -46,6 +47,7 @@ const AvatarDialog: React.FC<AvatarDialogProps> = ({ onClose }) => {
 	const reset = useMutation(resetAvatar(queryClient));
 	const [next, setNext] = useState<{ dataURL: string; name: string }>();
 	const [pickError, setPickError] = useState<string>();
+	const [galleryPick, setGalleryPick] = useState<string>();
 
 	const me = meQuery.data;
 	const busy = upload.isPending || reset.isPending;
@@ -81,9 +83,9 @@ const AvatarDialog: React.FC<AvatarDialogProps> = ({ onClose }) => {
 				<DialogHeader>
 					<DialogTitle>Your avatar</DialogTitle>
 					<DialogDescription>
-						Any picture works, animated ones too (GIF, PNG, WebP, AVIF). It is
-						cropped to a square and resized for you, and shown as a circle
-						wherever Coder shows you.
+						Any picture works, animated ones too (GIF, PNG, WebP, AVIF): one of
+						your own or one of the provided ones. It is cropped to a square and
+						resized for you, and shown as a circle wherever Coder shows you.
 					</DialogDescription>
 				</DialogHeader>
 
@@ -118,6 +120,7 @@ const AvatarDialog: React.FC<AvatarDialogProps> = ({ onClose }) => {
 								const file = event.currentTarget.files?.[0];
 								event.currentTarget.value = "";
 								if (file) {
+									setGalleryPick(undefined);
 									void pick(file);
 								}
 							}}
@@ -130,6 +133,18 @@ const AvatarDialog: React.FC<AvatarDialogProps> = ({ onClose }) => {
 						</span>
 					</div>
 				</div>
+
+				{!unavailable && (
+					<GalleryPicker
+						tile="round"
+						selected={galleryPick}
+						onSelect={setGalleryPick}
+						disabled={busy}
+						onPick={(file) => {
+							void pick(file);
+						}}
+					/>
+				)}
 
 				{unavailable && (
 					<p role="alert" className="m-0 text-sm text-content-destructive">

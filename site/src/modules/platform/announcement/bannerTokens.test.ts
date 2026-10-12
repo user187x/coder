@@ -1,4 +1,5 @@
 import {
+	confirmBackground,
 	countdownText,
 	countdownToken,
 	parseBlocks,
@@ -141,5 +142,15 @@ describe("images and blocks", () => {
 		expect(paragraph.type === "paragraph" && paragraph.lines.length).toBe(2);
 		const ordered = blocks[3];
 		expect(ordered.type === "list" && ordered.ordered).toBe(true);
+	});
+});
+
+describe("confirmBackground", () => {
+	it("is the banner's colour, grayer and a touch lighter", () => {
+		// #1e40af (info blue): hsl(226 71% 40%) -> half the saturation, +6% lightness.
+		expect(confirmBackground("#1e40af")).toBe("hsl(226 35% 46%)");
+		// A gray stays gray.
+		expect(confirmBackground("#808080")).toBe("hsl(0 0% 56%)");
+		expect(confirmBackground("not a colour")).toBe("rgb(255 255 255 / 0.15)");
 	});
 });

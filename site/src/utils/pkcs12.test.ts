@@ -1,5 +1,6 @@
 import {
 	checkPkcs12Password,
+	formatFingerprint,
 	inspectPkcs12,
 	Pkcs12Error,
 	pkcs12Certificates,
@@ -40,7 +41,7 @@ describe("checkPkcs12Password", () => {
 describe("pkcs12Certificates", () => {
 	it("reads the certificate's subject, issuer and expiry", async () => {
 		const certificates = await pkcs12Certificates(fixture(), "secret");
-		expect(certificates).toEqual([
+		expect(certificates).toMatchObject([
 			{
 				subject: "Fixture User",
 				issuer: "Fixture User",
@@ -48,6 +49,17 @@ describe("pkcs12Certificates", () => {
 				notAfter: new Date("2036-09-30T16:22:24Z"),
 			},
 		]);
+	});
+
+	it("keeps the certificate's DER, whose SHA-256 is its x509 fingerprint", async () => {
+		const certificates = await pkcs12Certificates(fixture(), "secret");
+		if (!Array.isArray(certificates) || !certificates[0]) {
+			throw new Error("no certificate");
+		}
+		// openssl pkcs12 -nokeys | openssl x509 -noout -fingerprint -sha256
+		expect(formatFingerprint(await sha256Hex(certificates[0].der))).toBe(
+			"14:77:2A:89:43:A5:9D:2B:6F:B4:B3:CC:4B:56:A2:25:4A:84:4F:A5:73:5A:DD:B0:6B:87:EF:5F:0D:02:3D:CD",
+		);
 	});
 });
 

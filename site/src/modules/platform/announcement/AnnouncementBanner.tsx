@@ -11,8 +11,9 @@ import {
 import { isEmbeddedFrame } from "#/contexts/platformBoot";
 import { BannerScrollView } from "./BannerScrollView";
 import { BannerText } from "./BannerText";
-import { LEVEL_COLORS, parseColors } from "./bannerTokens";
+import { confirmBackground, LEVEL_COLORS, parseColors } from "./bannerTokens";
 import { useBannerLive, wasPushed } from "./useBannerLive";
+import { useCertificateFingerprint } from "./useCertificateFingerprint";
 
 /**
  * Where the banner is drawn:
@@ -173,6 +174,7 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 			{receipts && signedIn && viewedAt && <ViewedStamp viewedAt={viewedAt} />}
 			{receipts && signedIn && (
 				<ConfirmButton
+					background={confirmBackground(bg)}
 					confirmed={acked && !banner.dismissible}
 					onConfirm={() => {
 						confirm.mutate(banner.id);
@@ -186,6 +188,41 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 	);
 };
 
+/** "UTC-5", "UTC+5:30", "UTC": the browser's offset from UTC at that moment. */
+const utcOffset = (at: Date): string => {
+	const minutes = -at.getTimezoneOffset();
+	if (minutes === 0) {
+		return "UTC";
+	}
+	const sign = minutes > 0 ? "+" : "-";
+	const h = Math.floor(Math.abs(minutes) / 60);
+	const m = Math.abs(minutes) % 60;
+	return `UTC${sign}${h}${m ? `:${String(m).padStart(2, "0")}` : ""}`;
+};
+
+/**
+ * The Viewed box's tooltip:
+ *   Announcement Viewed:
+ *   Date: October 11, 2026 @ 10:29 PM UTC-5
+ *   TLS/x509 Fingerprint: AB:CD:…
+ */
+export const viewedTooltip = (at: Date, fingerprint: string | undefined) => {
+	const date = at.toLocaleDateString("en-US", {
+		month: "long",
+		day: "numeric",
+		year: "numeric",
+	});
+	const time = at.toLocaleTimeString("en-US", {
+		hour: "numeric",
+		minute: "2-digit",
+	});
+	return [
+		"Announcement Viewed:",
+		`Date: ${date} @ ${time} ${utcOffset(at)}`,
+		`TLS/x509 Fingerprint: ${fingerprint ?? "…"}`,
+	].join("\n");
+};
+
 // The Viewed box and the Confirm button: the same size, side by side at the right.
 const RECEIPT_BOX =
 	"flex h-[30px] w-[6.75rem] shrink-0 items-center justify-center rounded-[7px] border border-solid";
@@ -195,6 +232,7 @@ const RECEIPT_BOX =
  * whether or not they confirm it, both sides know it was seen.
  */
 const ViewedStamp: React.FC<{ viewedAt: string }> = ({ viewedAt }) => {
+	const fingerprint = useCertificateFingerprint();
 	const at = new Date(viewedAt);
 	if (Number.isNaN(at.getTime())) {
 		return null;
@@ -217,7 +255,7 @@ const ViewedStamp: React.FC<{ viewedAt: string }> = ({ viewedAt }) => {
 			role="note"
 			data-testid="announcement-viewed"
 			aria-label={`You viewed this announcement on ${full}`}
-			title={`You viewed this announcement on ${full}. Your administrators can see that you have seen it, even if you do not confirm it.`}
+			title={viewedTooltip(at, fingerprint)}
 			className={cn(
 				RECEIPT_BOX,
 				"relative flex-col border-dashed border-white/45 px-1.5 text-[9.5px] leading-[12px] tabular-nums whitespace-nowrap",
@@ -249,11 +287,14 @@ const ViewedStamp: React.FC<{ viewedAt: string }> = ({ viewedAt }) => {
 };
 
 type ConfirmButtonProps = {
+	/** A grayer shade of the banner's colour (confirmBackground). */
+	background: string;
 	confirmed: boolean;
 	onConfirm: () => void;
 };
 
 const ConfirmButton: React.FC<ConfirmButtonProps> = ({
+	background,
 	confirmed,
 	onConfirm,
 }) => {
@@ -262,6 +303,7 @@ const ConfirmButton: React.FC<ConfirmButtonProps> = ({
 			type="button"
 			disabled={confirmed}
 			onClick={onConfirm}
+			style={{ background }}
 			aria-label={
 				confirmed
 					? "You confirmed this announcement"
@@ -272,7 +314,7 @@ const ConfirmButton: React.FC<ConfirmButtonProps> = ({
 			}
 			className={cn(
 				RECEIPT_BOX,
-				"border-white/60 bg-white/15 px-2",
+				"border-white/60 px-2 hover:brightness-110",
 				"text-inherit text-[13px] font-semibold leading-[18px] whitespace-nowrap",
 				confirmed ? "cursor-default opacity-80" : "cursor-pointer",
 			)}

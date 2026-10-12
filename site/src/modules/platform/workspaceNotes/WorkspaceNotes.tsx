@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { PencilIcon, StickyNoteIcon, Trash2Icon, XIcon } from "lucide-react";
+import { PencilIcon, Trash2Icon, XIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "react-query";
@@ -12,10 +12,11 @@ import {
 	type WorkspaceNote,
 } from "#/api/platform";
 import type { Workspace } from "#/api/typesGenerated";
+import { useNoteDraftRequests } from "./noteDraftStore";
 import "./workspaceNotes.css";
 
 const NOTE_TEXT_MAX = 600;
-const notesKey = (workspaceId: string) =>
+export const notesKey = (workspaceId: string) =>
 	["platform", "notes", workspaceId] as const;
 
 type Draft = Pick<WorkspaceNote, "text" | "color" | "x" | "y">;
@@ -24,8 +25,10 @@ type Draft = Pick<WorkspaceNote, "text" | "color" | "x" | "y">;
  * Post-it notes on a workspace's page: admins stick them on any user's
  * workspace - to guide, remind, give a short how-to or a "don't forget" - and
  * they lie over everything else on the page (the highest z-index), hanging a
- * little crooked, where the admin put them. Admins add (the "Add a note"
- * button), drag, edit (double-click or the pencil) and delete them; the
+ * little crooked, where the admin put them. Admins add them on other users'
+ * workspaces (the sticky-note button in the page's sidebar,
+ * WorkspaceNotesButton), drag, edit (double-click or the pencil) and delete
+ * them; the
  * workspace's owner can dismiss them (admins still see a dismissed note,
  * faded). Kept by the platform service, per workspace.
  */
@@ -41,6 +44,15 @@ export const WorkspaceNotes: React.FC<{ workspace: Workspace }> = ({
 		retry: false,
 	});
 	const [draft, setDraft] = useState<Draft | null>(null);
+	// The sidebar button asks for a new note.
+	const draftRequests = useNoteDraftRequests();
+	const seenRequests = useRef(draftRequests);
+	useEffect(() => {
+		if (draftRequests !== seenRequests.current) {
+			seenRequests.current = draftRequests;
+			setDraft({ text: "", color: "yellow", x: 0.42, y: 0.3 });
+		}
+	}, [draftRequests]);
 	const refresh = () => queryClient.invalidateQueries({ queryKey: key });
 	const onError = (error: unknown) =>
 		toast.error(getErrorMessage(error, "The note could not be saved."));
@@ -107,20 +119,6 @@ export const WorkspaceNotes: React.FC<{ workspace: Workspace }> = ({
 					onSave={(text, color) => create.mutate({ ...draft, text, color })}
 					onCancel={() => setDraft(null)}
 				/>
-			)}
-			{canEdit && !draft && (
-				<button
-					type="button"
-					className="workspace-notes-add"
-					data-testid="workspace-notes-add"
-					title={`Stick a note on ${workspace.owner_name}'s workspace page`}
-					onClick={() =>
-						setDraft({ text: "", color: "yellow", x: 0.42, y: 0.3 })
-					}
-				>
-					<StickyNoteIcon aria-hidden />
-					Add a note
-				</button>
 			)}
 		</div>,
 		document.body,

@@ -3,6 +3,7 @@ import type * as TypesGen from "#/api/typesGenerated";
 import { SidebarIconButton } from "#/components/FullPageLayout/Sidebar";
 import { useSearchParamsKey } from "#/hooks/useSearchParamsKey";
 import { linkToTemplate, useLinks } from "#/modules/navigation";
+import { WorkspaceNotesButton } from "#/modules/platform/workspaceNotes/WorkspaceNotesButton";
 import { ProvisionerStatusAlert } from "#/modules/provisioners/ProvisionerStatusAlert";
 import { AgentRow } from "#/modules/resources/AgentRow";
 import { WorkspaceTimings } from "#/modules/workspaces/WorkspaceTiming/WorkspaceTimings";
@@ -140,6 +141,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
 							<HistoryIcon className="size-icon-sm" />
 							<span className="sr-only">History</span>
 						</SidebarIconButton>
+						<WorkspaceNotesButton workspace={workspace} />
 					</div>
 
 					{sidebarOption.value === "resources" && (

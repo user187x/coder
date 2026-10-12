@@ -26,6 +26,7 @@ import {
 } from "#/components/SettingsHeader/SettingsHeader";
 import { Spinner } from "#/components/Spinner/Spinner";
 import { DEFAULT_LOGO_URL, setLogoURL } from "#/contexts/platformBoot";
+import { GalleryPicker } from "#/modules/platform/gallery/GalleryPicker";
 import { formatBytes } from "#/modules/platform/images";
 import {
 	ImageNormalizeError,
@@ -167,7 +168,7 @@ export const LogoView: React.FC<LogoViewProps> = ({
 			</p>
 			<div className="mt-4 flex flex-wrap gap-3">
 				<Button disabled={!logo.available} onClick={onUpload}>
-					Upload a new logo…
+					Change the logo…
 				</Button>
 				{logo.set && (
 					<Button variant="outline" onClick={onReset}>
@@ -229,6 +230,7 @@ const LogoUploadDialog: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 	const upload = useMutation(uploadLogo(queryClient));
 	const [pending, setPending] = useState<PendingLogo>();
 	const [problem, setProblem] = useState<string>();
+	const [galleryPick, setGalleryPick] = useState<string>();
 
 	const pick = async (file: File) => {
 		setPending(undefined);
@@ -253,7 +255,7 @@ const LogoUploadDialog: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 		>
 			<DialogContent className="max-w-2xl">
 				<DialogHeader>
-					<DialogTitle>Upload a new logo</DialogTitle>
+					<DialogTitle>Choose a new logo</DialogTitle>
 					<DialogDescription>
 						PNG, JPEG, SVG, WebP, GIF or AVIF; animated ones stay animated. It
 						is resized for you to fit 512 × 256, so it looks the same
@@ -268,6 +270,7 @@ const LogoUploadDialog: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 					title="Choose an image or drop it here"
 					removeLabel="Choose another image"
 					onUpload={(file) => {
+						setGalleryPick(undefined);
 						void pick(file);
 					}}
 					onUnsupportedFile={(file) =>
@@ -275,7 +278,18 @@ const LogoUploadDialog: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 							`${file.name}: not a PNG, JPEG, SVG, WebP, GIF or AVIF image.`,
 						)
 					}
-					onRemove={() => setPending(undefined)}
+					onRemove={() => {
+						setGalleryPick(undefined);
+						setPending(undefined);
+					}}
+				/>
+				<GalleryPicker
+					selected={galleryPick}
+					onSelect={setGalleryPick}
+					disabled={upload.isPending}
+					onPick={(file) => {
+						void pick(file);
+					}}
 				/>
 				{pending && (
 					<div className="grid gap-4 sm:grid-cols-3">

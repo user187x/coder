@@ -21,6 +21,37 @@ export const LEVEL_COLORS: Record<BannerLevel, { bg: string; fg: string }> = {
 	critical: { bg: "#b91c1c", fg: "#ffffff" },
 };
 
+/**
+ * The Confirm button's background: the banner's colour, a little grayer
+ * (about half its saturation) and a touch lighter, so the button reads as part
+ * of the banner yet stands out from it. `bg` is #rrggbb.
+ */
+export const confirmBackground = (bg: string): string => {
+	const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(bg);
+	if (!m) {
+		return "rgb(255 255 255 / 0.15)";
+	}
+	const [r, g, b] = [m[1], m[2], m[3]].map((x) => Number.parseInt(x, 16) / 255);
+	const max = Math.max(r, g, b);
+	const min = Math.min(r, g, b);
+	const l = (max + min) / 2;
+	const d = max - min;
+	const s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+	let h = 0;
+	if (d !== 0) {
+		h =
+			max === r
+				? ((g - b) / d) % 6
+				: max === g
+					? (b - r) / d + 2
+					: (r - g) / d + 4;
+	}
+	const hue = Math.round((h * 60 + 360) % 360);
+	const sat = Math.round(s * 0.5 * 100);
+	const light = Math.round(Math.min(0.92, l + 0.06) * 100);
+	return `hsl(${hue} ${sat}% ${light}%)`;
+};
+
 const COLORS_RE = /^\{\{colors bg=(#[0-9a-fA-F]{6}) fg=(#[0-9a-fA-F]{6})\}\}$/;
 const COUNTDOWN_RE =
 	/\{\{countdown\s+to=([0-9T:.\-+Z]+)(?:\s+format=(dhms|clock|words))?(?:\s+done="([^"]{0,80})")?\s*\}\}/;
