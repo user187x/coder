@@ -211,52 +211,90 @@ export const MetadataHistogram: React.FC<MetadataHistogramProps> = ({
 		? 100
 		: Math.max(0, ...bars.map((b) => b?.value ?? 0)) * 1.15 || 1;
 	const shown = bars.filter(Boolean).length;
+	// the gauge: the current reading (the graph's newest bar, held or not) as a share of the scale
+	const current = [...bars].reverse().find(Boolean) ?? null;
+	const currentShare = current
+		? Math.max(
+				0,
+				Math.min(
+					100,
+					((share ? share(current.value) : current.value) / top) * 100,
+				),
+			)
+		: 0;
+	const currentColor = levelColor(
+		current && share ? share(current.value) : null,
+	);
 	return (
-		<svg
-			width={W}
-			height={H}
-			viewBox={`0 0 ${W} ${H}`}
-			role="img"
-			aria-label={`${label}: ${shown} ${every ? `periods of ${every} s` : "readings"}`}
+		<div
 			className={cn(
-				"my-1 block overflow-visible",
+				"my-1 flex flex-col gap-1",
 				stale && "opacity-40 grayscale",
 			)}
-			data-testid="metadata-histogram"
 		>
-			<line
-				x1={0}
-				x2={W}
-				y1={H - 0.5}
-				y2={H - 0.5}
-				className="stroke-border"
-				strokeWidth={1}
-			/>
-			{bars.map((b, i) => {
-				if (!b) {
-					return null;
-				}
-				const scaled = share ? share(b.value) : b.value;
-				const h = Math.max(1, Math.min(1, Math.max(0, scaled) / top) * (H - 2));
-				const latest = bars.slice(i + 1).every((x) => !x);
-				return (
-					<rect
-						key={`${i}-${b.t}`}
-						x={i * slot + slot * 0.15}
-						width={slot * 0.7}
-						y={H - 1 - h}
-						height={h}
-						rx={0.75}
-						fill={levelColor(share ? scaled : null)}
-						opacity={b.held ? 0.3 : latest ? 1 : 0.7}
-						data-level={levelColor(share ? scaled : null)}
-					>
-						<title>
-							{`${new Date(b.t).toLocaleTimeString()}: ${b.text}${b.held ? " (the last reading, held until the next)" : b.count > 1 ? ` (the highest of ${b.count} readings)` : ""}`}
-						</title>
-					</rect>
-				);
-			})}
-		</svg>
+			<div
+				role="meter"
+				aria-label={`${label} now`}
+				aria-valuemin={0}
+				aria-valuemax={100}
+				aria-valuenow={Math.round(currentShare)}
+				aria-valuetext={current?.text ?? "no reading yet"}
+				title={current ? `Now: ${current.text}` : undefined}
+				className="h-1.5 overflow-hidden rounded-full bg-surface-tertiary"
+				style={{ width: W }}
+				data-testid="metadata-gauge"
+			>
+				<div
+					className="h-full rounded-full motion-safe:transition-[width,background-color] motion-safe:duration-500 motion-safe:ease-out"
+					style={{ width: `${currentShare}%`, background: currentColor }}
+				/>
+			</div>
+			<svg
+				width={W}
+				height={H}
+				viewBox={`0 0 ${W} ${H}`}
+				role="img"
+				aria-label={`${label}: ${shown} ${every ? `periods of ${every} s` : "readings"}`}
+				className="block overflow-visible"
+				data-testid="metadata-histogram"
+			>
+				<line
+					x1={0}
+					x2={W}
+					y1={H - 0.5}
+					y2={H - 0.5}
+					className="stroke-border"
+					strokeWidth={1}
+				/>
+				{bars.map((b, i) => {
+					if (!b) {
+						return null;
+					}
+					const scaled = share ? share(b.value) : b.value;
+					const h = Math.max(
+						1,
+						Math.min(1, Math.max(0, scaled) / top) * (H - 2),
+					);
+					const latest = bars.slice(i + 1).every((x) => !x);
+					return (
+						<rect
+							key={`${i}-${b.t}`}
+							x={i * slot + slot * 0.15}
+							width={slot * 0.7}
+							y={H - 1 - h}
+							height={h}
+							rx={0.75}
+							fill={levelColor(share ? scaled : null)}
+							opacity={b.held ? 0.3 : latest ? 1 : 0.7}
+							data-level={levelColor(share ? scaled : null)}
+						>
+							<title>
+								{`${new Date(b.t).toLocaleTimeString()}: ${b.text}${b.held ? " (the last reading, held until the next)" : b.count > 1 ? ` (the highest of ${b.count} readings)` : ""}`}
+							</title>
+						</rect>
+					);
+				})}
+			</svg>
+		</div>
 	);
 };
