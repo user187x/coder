@@ -1402,6 +1402,18 @@ func (api *API) oauthLogin(r *http.Request, params *oauthLoginParams) ([]*http.C
 			return xerrors.Errorf("unable to fetch user count: %w", err)
 		}
 
+		// Platform: the first owner is the one the installer creates (its bootstrap); until then an OIDC sign-in
+		// would make whoever signs in first the owner, and the bootstrap would then find Coder set up already.
+		if userCount == 0 && user.ID == uuid.Nil && api.PlatformFirstOwnerByBootstrap {
+			return &idpsync.HTTPError{
+				Code:                 http.StatusServiceUnavailable,
+				Msg:                  "Coder is being set up",
+				Detail:               "Its administrator account is created first. Please try again in a minute.",
+				RenderStaticPage:     true,
+				RenderDetailMarkdown: true,
+			}
+		}
+
 		// Allow the first user to sign up with OIDC, regardless of
 		// whether signups are enabled or not.
 		allowSignup := userCount == 0 || params.AllowSignups

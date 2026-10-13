@@ -783,6 +783,9 @@ func (r *RootCmd) Server(newAPI func(context.Context, *coderd.Options) (*coderd.
 				}
 			}
 
+			// Platform: the installer's bootstrap creates the first owner (refuse OIDC sign-ins until then).
+			options.PlatformFirstOwnerByBootstrap = os.Getenv("CODER_PLATFORM_FIRST_OWNER") == "bootstrap"
+
 			if vals.StrictTransportSecurity > 0 {
 				options.StrictTransportSecurityCfg, err = httpmw.HSTSConfigOptions(
 					int(vals.StrictTransportSecurity.Value()), vals.StrictTransportSecurityOptions,

@@ -120,18 +120,20 @@ type Options struct {
 	AppHostname string
 	// PlatformServiceRoutes forward path prefixes to platform services.
 	PlatformServiceRoutes []coderd.PlatformServiceRoute
-	AWSCertificates       awsidentity.Certificates
-	Authorizer            rbac.Authorizer
-	AzureCertificates     azureidentity.Options
-	RealIPConfig          *httpmw.RealIPConfig
-	OIDCConfig            *coderd.OIDCConfig
-	GoogleTokenValidator  *idtoken.Validator
-	SSHKeygenAlgorithm    gitsshkey.Algorithm
-	AutobuildTicker       <-chan time.Time
-	AutobuildStats        chan<- autobuild.Stats
-	Auditor               audit.Auditor
-	TLSCertificates       []tls.Certificate
-	ExternalAuthConfigs   []*externalauth.Config
+	// PlatformFirstOwnerByBootstrap: see coderd.Options.
+	PlatformFirstOwnerByBootstrap bool
+	AWSCertificates               awsidentity.Certificates
+	Authorizer                    rbac.Authorizer
+	AzureCertificates             azureidentity.Options
+	RealIPConfig                  *httpmw.RealIPConfig
+	OIDCConfig                    *coderd.OIDCConfig
+	GoogleTokenValidator          *idtoken.Validator
+	SSHKeygenAlgorithm            gitsshkey.Algorithm
+	AutobuildTicker               <-chan time.Time
+	AutobuildStats                chan<- autobuild.Stats
+	Auditor                       audit.Auditor
+	TLSCertificates               []tls.Certificate
+	ExternalAuthConfigs           []*externalauth.Config
 	// MCPAllowedPrivateCIDRs exempts IP ranges from the MCP
 	// SSRF guard for MCP server and OAuth2 traffic. Defaults to loopback so
 	// tests can serve mock MCP and authorization servers via httptest.
@@ -635,6 +637,7 @@ func NewOptions(t testing.TB, options *Options) (func(http.Handler), context.Can
 			ReplicaSyncPubsub:              options.ReplicaSyncPubsub,
 			ExternalAuthConfigs:            options.ExternalAuthConfigs,
 			PlatformServiceRoutes:          options.PlatformServiceRoutes,
+			PlatformFirstOwnerByBootstrap:  options.PlatformFirstOwnerByBootstrap,
 			UsageInserter:                  usageInserter,
 
 			Auditor:                            options.Auditor,

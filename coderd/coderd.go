@@ -190,10 +190,13 @@ type Options struct {
 	// PlatformServiceRoutes forward path prefixes (/__coder-ui, /__banner)
 	// to the dashboard's platform services.
 	PlatformServiceRoutes []PlatformServiceRoute
-	SSHKeygenAlgorithm    gitsshkey.Algorithm
-	TracerProvider        trace.TracerProvider
-	ExternalAuthConfigs   []*externalauth.Config
-	RealIPConfig          *httpmw.RealIPConfig
+	// PlatformFirstOwnerByBootstrap: while Coder has no user, OIDC sign-ins are refused, so the installer's bootstrap
+	// creates the first owner (else whoever signs in first with OIDC becomes the owner).
+	PlatformFirstOwnerByBootstrap bool
+	SSHKeygenAlgorithm            gitsshkey.Algorithm
+	TracerProvider                trace.TracerProvider
+	ExternalAuthConfigs           []*externalauth.Config
+	RealIPConfig                  *httpmw.RealIPConfig
 	// RefreshEntitlements is used to set correct entitlements after creating the first user.
 	RefreshEntitlements func(ctx context.Context) error
 	// Entitlements can come from the enterprise caller if enterprise code is
