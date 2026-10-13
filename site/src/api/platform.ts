@@ -513,6 +513,21 @@ export type HudHistory = {
 	points: HudHistoryPoint[];
 };
 
+/** Lock Down: what an admin jailed in a workspace (lockdown.py in the platform service). */
+export type LockdownMode = "network" | "sudo" | "complete" | "off";
+export type WorkspaceLockdown = {
+	locked: boolean;
+	modes: ("network" | "sudo")[];
+	by: string | null;
+	at: string | null;
+	/** The workspace runs now. */
+	running: boolean;
+	/** In force in the running workspace (null: not running). */
+	inForce: boolean | null;
+	/** The viewer may change it (admins). */
+	canChange: boolean;
+};
+
 type HudReport = {
 	metrics: HudMetric[];
 	generatedAt: string;
@@ -1164,6 +1179,21 @@ export const PlatformAPI = {
 		post<{ ok: true }>(`${PLATFORM_BASE}/api/notes/delete`, { id }),
 	dismissWorkspaceNote: (id: string) =>
 		post<{ note: WorkspaceNote }>(`${PLATFORM_BASE}/api/notes/dismiss`, { id }),
+	/** Lock Down: whether the workspace is jailed (its owner and admins). */
+	getLockdown: (workspaceId: string) =>
+		get<WorkspaceLockdown>(
+			`${PLATFORM_BASE}/api/lockdown/${encodeURIComponent(workspaceId)}`,
+		),
+	/** Admins: lock a workspace down (network, sudo, both) or lift it; a running workspace at once. */
+	setLockdown: (workspaceId: string, mode: LockdownMode) =>
+		post<
+			WorkspaceLockdown & {
+				applied: "now" | "next start";
+				error: string | null;
+			}
+		>(`${PLATFORM_BASE}/api/lockdown/${encodeURIComponent(workspaceId)}`, {
+			mode,
+		}),
 	/** The signed-in user's Inbox (the bell) emptied: every notification deleted (Coder can only mark them read). */
 	clearInbox: () =>
 		post<{ cleared: number }>(`${PLATFORM_BASE}/api/inbox/clear`, {}),
