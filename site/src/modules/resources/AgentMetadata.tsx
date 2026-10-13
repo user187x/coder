@@ -16,9 +16,11 @@ import {
 } from "#/components/Tooltip/Tooltip";
 import type { OneWayWebSocket } from "#/utils/OneWayWebSocket";
 import {
+	levelColor,
 	MetadataHistogram,
 	metadataNumber,
 	shareOf,
+	splitPercent,
 	useMetadataHistory,
 } from "./MetadataHistogram";
 import {
@@ -83,13 +85,19 @@ export const AgentMetadataView: React.FC<AgentMetadataViewProps> = ({
 	// Platform: the workspace's own metrics and the cluster's (the node it runs on), each in its own squircle
 	if (groups.length === 1 && groups[0].id === "other") {
 		return (
-			<section className="flex items-baseline flex-wrap gap-8 gap-y-4">
+			<section
+				className="flex items-baseline flex-wrap gap-8 gap-y-4"
+				data-metrics
+			>
 				{metadata.map(item)}
 			</section>
 		);
 	}
 	return (
-		<section className="flex flex-nowrap items-stretch gap-3 overflow-x-auto pb-1 [justify-content:safe_center]">
+		<section
+			className="flex min-w-0 flex-nowrap items-stretch gap-3 overflow-x-auto pb-1 [justify-content:safe_center]"
+			data-metrics
+		>
 			{groups.map((g) => (
 				<div
 					key={g.id}
@@ -309,6 +317,13 @@ const MetadataItem: React.FC<MetadataItemProps> = ({
 		return "valid";
 	})();
 
+	// Platform: the percentage goes in a chip by the name, the rest stays below the graph
+	const reading = splitPercent(item.result.value);
+	const percent =
+		status === "loading" || item.result.error.length > 0
+			? null
+			: reading.percent;
+
 	// Stale data is as good as no data. Plus, we want to build confidence in our
 	// users that what's shown is real. If times aren't correctly synced this
 	// could be buggy. But, how common is that anyways?
@@ -319,7 +334,7 @@ const MetadataItem: React.FC<MetadataItemProps> = ({
 			<Tooltip>
 				<TooltipTrigger asChild>
 					<StaticWidth className="text-ellipsis overflow-hidden whitespace-nowrap max-w-64 text-sm text-content-disabled cursor-pointer">
-						{item.result.value}
+						{reading.text}
 					</StaticWidth>
 				</TooltipTrigger>
 				<TooltipContent side="bottom">
@@ -333,14 +348,19 @@ const MetadataItem: React.FC<MetadataItemProps> = ({
 					item.result.error.length > 0 && "text-content-destructive",
 				)}
 			>
-				{item.result.value}
+				{reading.text}
 			</StaticWidth>
 		);
 
 	return (
 		<div className="leading-relaxed flex flex-col overflow-visible shrink-0">
-			<div className="text-content-secondary text-ellipsis overflow-hidden whitespace-nowrap text-[13px]">
-				{metricName(item)}
+			<div className="flex items-center justify-between gap-3">
+				<div className="text-content-secondary text-ellipsis overflow-hidden whitespace-nowrap text-[13px]">
+					{metricName(item)}
+				</div>
+				{percent !== null && (
+					<PercentChip percent={percent} stale={status === "stale"} />
+				)}
 			</div>
 			{/* Platform: the readings so far, as a live bar graph above the value */}
 			{every !== "off" && history.length > 0 && (
@@ -359,6 +379,34 @@ const MetadataItem: React.FC<MetadataItemProps> = ({
 			)}
 			<div>{value}</div>
 		</div>
+	);
+};
+
+/** The reading's percentage, tinted like its graph (levelColor). */
+const PercentChip: React.FC<{ percent: number; stale: boolean }> = ({
+	percent,
+	stale,
+}) => {
+	const color = levelColor(percent);
+	return (
+		<span
+			className={cn(
+				"shrink-0 rounded-md border border-solid px-1.5 text-[11px] font-semibold leading-[18px] tabular-nums",
+				stale && "border-border text-content-disabled",
+			)}
+			style={
+				stale
+					? undefined
+					: {
+							color,
+							borderColor: `${color}66`,
+							backgroundColor: `${color}1a`,
+						}
+			}
+			data-testid="metadata-percent"
+		>
+			{Math.round(percent)}%
+		</span>
 	);
 };
 

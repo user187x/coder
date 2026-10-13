@@ -3,7 +3,7 @@
  * (initializing / pending / failed) is update-todos/workspace-loadding.html:
  * a border displaced by animated turbulence (an SVG filter), two blurred glow
  * borders, a white sheen along the edges and a soft coloured glow behind. The
- * ready border is a green border pulsing a soft ring outward every 2 s (paused
+ * ready border is a border in the theme's success colour pulsing rings outward every 2 s (paused
  * while the pointer is on the card). Layers sit on and around the card's edge,
  * never in the layout, and ignore the pointer. The electric border is toned
  * down to be only just noticeable: --fx-strength (0-1) scales its layers (its
@@ -86,29 +86,49 @@
 	);
 }
 
-/* ---- ready border: the card's border in green, pulsing a soft ring outward (after a border-pulse example the user
-   gave: 2 px #27c45e, a 12 px ring every 2 s); it pauses while the pointer is on the card */
+/* ---- ready border: the card's border pulsing rings outward (after a border-pulse example the user gave: a 2 px
+   border, a ring every 2 s), made more obvious: a 3 px border that glows as it pulses, and two rings 18 px out, the
+   second half a beat behind. In the theme's success colour (--border-success), so it follows the theme the user
+   picked: green, or blue in the colour-blind themes. It pauses while the pointer is on the card. */
+.agent-fx[data-fx="ready"] {
+	--pulse: var(--border-success);
+}
 @keyframes agent-fx-pulse {
 	0% {
-		box-shadow: 0 0 0 0 rgb(39 196 94 / 0.4);
+		box-shadow:
+			0 0 0 0 hsl(var(--pulse) / 0.7),
+			0 0 0 0 hsl(var(--pulse) / 0.45),
+			0 0 6px 0 hsl(var(--pulse) / 0.6);
+	}
+	35% {
+		box-shadow:
+			0 0 0 8px hsl(var(--pulse) / 0.3),
+			0 0 0 0 hsl(var(--pulse) / 0.45),
+			0 0 14px 2px hsl(var(--pulse) / 0.55);
 	}
 	70% {
-		box-shadow: 0 0 0 12px rgb(39 196 94 / 0);
+		box-shadow:
+			0 0 0 18px hsl(var(--pulse) / 0),
+			0 0 0 10px hsl(var(--pulse) / 0.15),
+			0 0 6px 0 hsl(var(--pulse) / 0.4);
 	}
 	100% {
-		box-shadow: 0 0 0 0 rgb(39 196 94 / 0);
+		box-shadow:
+			0 0 0 18px hsl(var(--pulse) / 0),
+			0 0 0 18px hsl(var(--pulse) / 0),
+			0 0 6px 0 hsl(var(--pulse) / 0.6);
 	}
 }
 .agent-fx-pulse {
-	border: 2px solid #27c45e;
-	box-shadow: 0 0 0 0 rgb(39 196 94 / 0.4);
-	animation: agent-fx-pulse 2s infinite;
+	border: 3px solid hsl(var(--pulse));
+	box-shadow: 0 0 6px 0 hsl(var(--pulse) / 0.6);
+	animation: agent-fx-pulse 2s ease-out infinite;
 }
 .agent-fx:hover .agent-fx-pulse {
 	animation: none;
 }
 
-/* The user menu's Animations switch is off, or the system asks for less motion: the green border, still. */
+/* The user menu's Animations switch is off, or the system asks for less motion: the border, still. */
 html[data-animations="off"] .agent-fx-pulse {
 	animation: none;
 }

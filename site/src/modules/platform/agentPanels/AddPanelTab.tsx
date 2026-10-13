@@ -34,7 +34,7 @@ export const AddPanelTab: React.FC<AddPanelTabProps> = ({
 			data-testid="add-panel-tab"
 		>
 			{/* -mb-px: the tab covers the panel's top border, so the two are one. */}
-			<div className="pointer-events-auto -mb-px flex items-center rounded-t-lg border border-b-0 border-solid border-border bg-surface-primary px-2.5 pt-1 pb-[5px]">
+			<div className="pointer-events-auto -mb-px flex items-center rounded-t-md border border-b-0 border-solid border-border bg-surface-primary px-1.5 pt-0.5 pb-[3px]">
 				<DropdownMenu>
 					<DropdownMenuTrigger asChild>
 						<button
@@ -46,9 +46,9 @@ export const AddPanelTab: React.FC<AddPanelTabProps> = ({
 									? "Opens when the workspace is ready"
 									: "Add a panel with an app"
 							}
-							className="flex size-6 cursor-pointer items-center justify-center rounded-full border border-solid border-border bg-surface-secondary p-0 text-content-secondary transition-colors hover:border-content-secondary hover:text-content-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-content-link disabled:cursor-not-allowed disabled:opacity-50"
+							className="flex size-[18px] cursor-pointer items-center justify-center rounded-full border border-solid border-border bg-surface-secondary p-0 text-content-secondary transition-colors hover:border-content-secondary hover:text-content-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-content-link disabled:cursor-not-allowed disabled:opacity-50"
 						>
-							<PlusIcon className="size-3.5" aria-hidden />
+							<PlusIcon className="size-3" aria-hidden />
 						</button>
 					</DropdownMenuTrigger>
 					<DropdownMenuContent align="end" className="min-w-52">

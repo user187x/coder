@@ -518,7 +518,7 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 					</div>
 				</header>
 
-				<div className="flex flex-col gap-8 p-8">
+				<div className="flex flex-col gap-8 px-8 pt-8 pb-12">
 					{workspace.latest_app_status?.agent_id === agent.id && (
 						<section>
 							<h3 className="sr-only">App statuses</h3>
@@ -528,43 +528,52 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 
 					{shouldShowWildcardWarning && <WildcardHostnameWarning />}
 
-					{shouldDisplayAppsSection && (
-						<section className="flex flex-wrap gap-4 empty:hidden">
-							{shouldDisplayAgentApps && (
-								<>
-									{showVSCode && (
-										<VSCodeDesktopButton
-											userName={workspace.owner_name}
-											workspaceName={workspace.name}
-											agentName={agent.name}
-											folderPath={agent.expanded_directory}
-											displayApps={agent.display_apps}
-										/>
-									)}
-									{appSections.map((section, i) => (
-										<AgentApps
-											key={section.group ?? i}
-											section={section}
-											agent={agent}
-											workspace={workspace}
-										/>
-									))}
-								</>
-							)}
-
-							{agent.display_apps.includes("web_terminal") && (
-								<TerminalLink
-									workspaceName={workspace.name}
-									agentName={agent.name}
-									userName={workspace.owner_name}
-								/>
-							)}
-						</section>
-					)}
-
 					{initializing && (
 						<WorkspaceInitializing workspace={workspace} agent={agent} />
 					)}
+
+					{/* Platform: the apps in a squircle whose edges line up with the metrics' squircles below it: the block is as
+					    wide as the metrics (the apps wrap within it, adding no width) and centred like them */}
+					<div className="grid max-w-full gap-4 has-[[data-metrics]]:mx-auto has-[[data-metrics]]:w-fit empty:hidden">
+						{shouldDisplayAppsSection && (
+							<section
+								className="flex w-0 min-w-full flex-wrap gap-4 rounded-2xl border border-solid border-border bg-surface-secondary/40 p-4 empty:hidden"
+								data-testid="agent-apps"
+							>
+								{shouldDisplayAgentApps && (
+									<>
+										{showVSCode && (
+											<VSCodeDesktopButton
+												userName={workspace.owner_name}
+												workspaceName={workspace.name}
+												agentName={agent.name}
+												folderPath={agent.expanded_directory}
+												displayApps={agent.display_apps}
+											/>
+										)}
+										{appSections.map((section, i) => (
+											<AgentApps
+												key={section.group ?? i}
+												section={section}
+												agent={agent}
+												workspace={workspace}
+											/>
+										))}
+									</>
+								)}
+
+								{agent.display_apps.includes("web_terminal") && (
+									<TerminalLink
+										workspaceName={workspace.name}
+										agentName={agent.name}
+										userName={workspace.owner_name}
+									/>
+								)}
+							</section>
+						)}
+
+						<AgentMetadata initialMetadata={initialMetadata} agent={agent} />
+					</div>
 
 					{devcontainers && devcontainers.length > 0 && (
 						<section className="flex flex-col gap-4">
@@ -589,8 +598,6 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 						workspace_external_agent && (
 							<AgentExternal agent={agent} workspace={workspace} />
 						)}
-
-					<AgentMetadata initialMetadata={initialMetadata} agent={agent} />
 				</div>
 
 				<AgentPanels

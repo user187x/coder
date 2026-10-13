@@ -32,6 +32,21 @@ export const metadataNumber = (
 };
 
 /**
+ * A reading's percentage, apart from the rest of it: "2.24 / 24 cores (9%)" →
+ * { text: "2.24 / 24 cores", percent: 9 }, for the chip by the metric's name.
+ * A reading that is only a percentage keeps it as its text too.
+ */
+export const splitPercent = (
+	text: string,
+): { text: string; percent: number | null } => {
+	const m = text.match(/^(.*?)\s*\(?\s*(-?\d+(?:\.\d+)?)\s*%\s*\)?\s*$/);
+	if (!m) {
+		return { text, percent: null };
+	}
+	return { text: m[1].trim() || text, percent: Number(m[2]) };
+};
+
+/**
  * How a metric's readings map to a share of what there is (0–100), for the
  * graph's scale and colour: its percentage; a load average per core (1.0 =
  * every core busy); else nothing (an unscaled number).

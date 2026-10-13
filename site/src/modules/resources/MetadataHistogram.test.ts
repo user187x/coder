@@ -2,6 +2,7 @@ import {
 	LEVELS,
 	levelColor,
 	metadataNumber,
+	splitPercent,
 	toBars,
 } from "./MetadataHistogram";
 
@@ -78,5 +79,23 @@ describe("toBars, shorter periods than the agent's interval", () => {
 		expect(held.every((b) => b?.value === 40 || b?.value === 60)).toBe(true);
 		// without hold: only the two readings
 		expect(toBars([at(25, 40), at(12, 60)], 1).filter(Boolean).length).toBe(2);
+	});
+});
+
+describe("splitPercent", () => {
+	it("takes the percentage out of a reading", () => {
+		expect(splitPercent("2.24/24 cores (9%)")).toEqual({
+			text: "2.24/24 cores",
+			percent: 9,
+		});
+		expect(splitPercent("1.2 / 8.0 GB (15%)")).toEqual({
+			text: "1.2 / 8.0 GB",
+			percent: 15,
+		});
+		expect(splitPercent("42%")).toEqual({ text: "42%", percent: 42 });
+		expect(splitPercent("0.90 load")).toEqual({
+			text: "0.90 load",
+			percent: null,
+		});
 	});
 });
