@@ -651,6 +651,11 @@ const ParameterUsageLabel: React.FC<ParameterUsageLabelProps> = ({
 		);
 	}
 
+	// Platform: a number shows as itself; the quotes of TextValue mark text.
+	if (parameter.type === "number") {
+		return <span className="break-all">{usage.value}</span>;
+	}
+
 	return <TextValue>{usage.value}</TextValue>;
 };
 
