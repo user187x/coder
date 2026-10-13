@@ -169,7 +169,9 @@ func UsersFilter(
 		userClient, userData := CreateAnotherUserMutators(t, client, orgID, roles, func(r *codersdk.CreateUserRequestWithOrgs) {
 			switch {
 			case i%7 == 0:
-				r.UserLoginType = codersdk.LoginTypeGithub
+				// Platform: the API no longer creates GitHub users (GitHub sign-in is removed); the user is made
+				// as an OIDC user and switched to github in the database below, as upstream's data has them.
+				r.UserLoginType = codersdk.LoginTypeOIDC
 				r.Password = ""
 			case i%6 == 0:
 				r.UserLoginType = codersdk.LoginTypeOIDC
@@ -190,6 +192,12 @@ func UsersFilter(
 
 		// Set a github user ID for github login types.
 		if i%7 == 0 {
+			// nolint:gocritic // Setting up unit test data.
+			_, err = db.UpdateUserLoginType(dbauthz.AsSystemRestricted(setupCtx), database.UpdateUserLoginTypeParams{
+				NewLoginType: database.LoginTypeGithub,
+				UserID:       userData.ID,
+			})
+			require.NoError(t, err, "make a github user")
 			// nolint:gocritic // Setting up unit test data.
 			err = db.UpdateUserGithubComUserID(dbauthz.AsSystemRestricted(setupCtx), database.UpdateUserGithubComUserIDParams{
 				ID: userData.ID,
