@@ -3,12 +3,11 @@
  * (initializing / pending / failed) is update-todos/workspace-loadding.html:
  * a border displaced by animated turbulence (an SVG filter), two blurred glow
  * borders, a white sheen along the edges and a soft coloured glow behind. The
- * ready border is update-todos/workspace-border.html: a comet of green light
- * running round the card. Layers sit on and around the card's edge, never in
- * the layout, and ignore the pointer. Both are toned down to be only just
- * noticeable, and run slowly: --fx-strength (0-1) scales every layer, and the
- * ring takes --fx-ring-turn per turn (the electric border's pace is the SVG
- * filter's, in AgentBorderFx).
+ * ready border is a green border pulsing a soft ring outward every 2 s (paused
+ * while the pointer is on the card). Layers sit on and around the card's edge,
+ * never in the layout, and ignore the pointer. The electric border is toned
+ * down to be only just noticeable: --fx-strength (0-1) scales its layers (its
+ * pace is the SVG filter's, in AgentBorderFx).
  */
 .agent-fx {
 	position: relative;
@@ -16,7 +15,6 @@
 	border-radius: 0.5rem;
 	--fx-color: #48dd55;
 	--fx-strength: 0.45;
-	--fx-ring-turn: 9s;
 }
 .agent-fx[data-fx="pending"] {
 	--fx-color: #ff6a13;
@@ -88,43 +86,34 @@
 	);
 }
 
-/* ---- ready border */
-@keyframes agent-fx-rotate {
-	to {
-		transform: translate(-50%, -50%) rotate(1turn);
+/* ---- ready border: the card's border in green, pulsing a soft ring outward (after a border-pulse example the user
+   gave: 2 px #27c45e, a 12 px ring every 2 s); it pauses while the pointer is on the card */
+@keyframes agent-fx-pulse {
+	0% {
+		box-shadow: 0 0 0 0 rgb(39 196 94 / 0.4);
+	}
+	70% {
+		box-shadow: 0 0 0 12px rgb(39 196 94 / 0);
+	}
+	100% {
+		box-shadow: 0 0 0 0 rgb(39 196 94 / 0);
 	}
 }
-.agent-fx-ring {
-	inset: -2px;
-	border-radius: calc(0.5rem + 2px);
-	padding: 2px;
-	opacity: var(--fx-strength);
-	overflow: hidden;
-	mask:
-		linear-gradient(#000 0 0) content-box exclude,
-		linear-gradient(#000 0 0);
+.agent-fx-pulse {
+	border: 2px solid #27c45e;
+	box-shadow: 0 0 0 0 rgb(39 196 94 / 0.4);
+	animation: agent-fx-pulse 2s infinite;
 }
-.agent-fx-ring::before {
-	content: "";
-	position: absolute;
-	left: 50%;
-	top: 50%;
-	width: 300%;
-	aspect-ratio: 1;
-	transform: translate(-50%, -50%);
-	background-image: conic-gradient(
-		transparent 0%,
-		transparent 5%,
-		rgba(57, 255, 20, 0.1) 10%,
-		rgba(57, 255, 20, 0.4) 40%,
-		#39ff14 95%,
-		#d4ffcf 100%
-	);
-	animation: agent-fx-rotate var(--fx-ring-turn) linear infinite;
+.agent-fx:hover .agent-fx-pulse {
+	animation: none;
 }
 
+/* The user menu's Animations switch is off, or the system asks for less motion: the green border, still. */
+html[data-animations="off"] .agent-fx-pulse {
+	animation: none;
+}
 @media (prefers-reduced-motion: reduce) {
-	.agent-fx-ring::before {
+	.agent-fx-pulse {
 		animation: none;
 	}
 }
