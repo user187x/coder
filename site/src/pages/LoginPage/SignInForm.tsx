@@ -1,6 +1,7 @@
 import type { AuthMethods } from "#/api/typesGenerated";
 import { Alert } from "#/components/Alert/Alert";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
+import { ContourTitle } from "#/modules/platform/contourTitle/ContourTitle";
 import { getApplicationName } from "#/utils/appearance";
 import { OAuthSignInForm } from "./OAuthSignInForm";
 import { PasswordSignInForm } from "./PasswordSignInForm";
@@ -28,8 +29,9 @@ export const SignInForm: React.FC<SignInFormProps> = ({
 
 	return (
 		<div className="w-full">
-			<h1 className="text-3xl font-semibold m-0 mb-8 leading-none">
-				{applicationName}
+			{/* Platform: the name as a traced outline (ContourTitle), on signing in and after signing out */}
+			<h1 className="m-0 mb-8 flex justify-center leading-none">
+				<ContourTitle text={applicationName} />
 			</h1>
 
 			{Boolean(error) && (

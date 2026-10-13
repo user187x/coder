@@ -1,0 +1,49 @@
+/*
+ * The sign-in page's title (ContourTitle), after the "Wireframe" text effect
+ * the user gave: the letters faintly filled, a dashed cyan outline endlessly
+ * tracing them (a 34-on, 66-off dash moved 100 units every 3.2 s). In the
+ * bundled JetBrains Mono (the dashboard works offline). The light themes get
+ * a darker cyan, which the original's #4FF8FF is too pale to read on.
+ */
+.fx-contour {
+	--ink: currentColor;
+	--ink-2: #ff4fd8;
+	--ink-3: #4ff8ff;
+	height: 56px;
+	max-width: 100%;
+	overflow: visible;
+}
+.light .fx-contour,
+.light-protan-deuter .fx-contour,
+.light-tritan .fx-contour {
+	--ink-3: #0891b2;
+}
+.fx-contour text {
+	font:
+		600 40px "JetBrainsMono Nerd Font",
+		"JetBrains Mono",
+		monospace;
+	letter-spacing: 0.02em;
+	fill: color-mix(in srgb, var(--ink) 10%, transparent);
+	stroke: var(--ink-3);
+	stroke-width: 1.2;
+	stroke-dasharray: 34 66;
+	animation: fx-contour 3.2s linear infinite;
+}
+@keyframes fx-contour {
+	to {
+		stroke-dashoffset: -100;
+	}
+}
+
+/* The user menu's Animations switch is off, or the system asks for less motion: the outline, whole and still. */
+html[data-animations="off"] .fx-contour text {
+	animation: none;
+	stroke-dasharray: none;
+}
+@media (prefers-reduced-motion: reduce) {
+	.fx-contour text {
+		animation: none;
+		stroke-dasharray: none;
+	}
+}
