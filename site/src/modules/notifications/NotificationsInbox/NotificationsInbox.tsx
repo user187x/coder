@@ -19,7 +19,7 @@ type NotificationsInboxProps = {
 	) => Promise<ListInboxNotificationsResponse>;
 	markAllAsRead: () => Promise<void>;
 	/** Platform: every notification deleted (PlatformAPI.clearInbox); without it there is no Clear all. */
-	clearAll?: () => Promise<unknown>;
+	clearAll?: () => Promise<{ cleared: number } | unknown>;
 	markNotificationAsRead: (
 		notificationId: string,
 	) => Promise<UpdateInboxNotificationReadStatusResponse>;
@@ -184,6 +184,7 @@ export const NotificationsInbox: React.FC<NotificationsInboxProps> = ({
 	const markAllAsReadMutation = useMutation({
 		mutationFn: markAllAsRead,
 		onSuccess: () => {
+			const unread = inboxRes?.unread_count ?? 0;
 			updateNotificationsCache((prev) => {
 				return {
 					unread_count: 0,
@@ -193,6 +194,10 @@ export const NotificationsInbox: React.FC<NotificationsInboxProps> = ({
 					})),
 				};
 			});
+			// Platform: say it, so the click is seen to work
+			toast.success(
+				`${unread} notification${unread === 1 ? "" : "s"} marked as read.`,
+			);
 		},
 		onError: (error) => {
 			toast.error(
@@ -205,8 +210,14 @@ export const NotificationsInbox: React.FC<NotificationsInboxProps> = ({
 	// Platform: Clear all empties the Inbox (the notifications are deleted).
 	const clearAllMutation = useMutation({
 		mutationFn: () => (clearAll ? clearAll() : Promise.resolve()),
-		onSuccess: () => {
+		onSuccess: (res) => {
 			updateNotificationsCache(() => ({ unread_count: 0, notifications: [] }));
+			const n = (res as { cleared?: number } | undefined)?.cleared;
+			toast.success(
+				typeof n === "number"
+					? `Inbox cleared: ${n} notification${n === 1 ? "" : "s"} deleted.`
+					: "Inbox cleared.",
+			);
 		},
 		onError: (error) => {
 			toast.error(getErrorMessage(error, "Error on clearing the Inbox."), {

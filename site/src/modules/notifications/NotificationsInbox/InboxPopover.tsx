@@ -20,7 +20,7 @@ import { InboxButton } from "./InboxButton";
 import { InboxItem } from "./InboxItem";
 import { UnreadBadge } from "./UnreadBadge";
 
-const CLEAR_ARMED_MS = 3000;
+const CLEAR_ARMED_MS = 4000;
 
 type InboxPopoverProps = {
 	notifications: readonly InboxNotification[] | undefined;
@@ -53,7 +53,8 @@ export const InboxPopover: React.FC<InboxPopoverProps> = ({
 	onLoadMoreNotifications,
 }) => {
 	const [isOpen, setIsOpen] = useState(defaultOpen);
-	// Platform: Clear all deletes, so it asks twice - the first click arms it for a few seconds.
+	// Platform: Clear all deletes, so it asks twice: the first click opens it into a labelled "Clear all?" for a few
+	// seconds, the second clears.
 	const [clearArmed, setClearArmed] = useState(false);
 	useEffect(() => {
 		if (!clearArmed) {
@@ -99,7 +100,7 @@ export const InboxPopover: React.FC<InboxPopoverProps> = ({
 							{onClearAll && (
 								<Button
 									variant={clearArmed ? "destructive" : "outline"}
-									size="icon"
+									size={clearArmed ? "sm" : "icon"}
 									disabled={!hasNotifications || isClearing}
 									title={
 										clearArmed
@@ -120,18 +121,20 @@ export const InboxPopover: React.FC<InboxPopoverProps> = ({
 									<Spinner loading={isClearing}>
 										<Trash2Icon />
 									</Spinner>
-									<span className="sr-only">
-										{clearArmed
-											? "Click again to clear all notifications"
-											: "Clear all"}
-									</span>
+									{clearArmed ? (
+										<span>Clear all?</span>
+									) : (
+										<span className="sr-only">Clear all</span>
+									)}
 								</Button>
 							)}
 							<Button
 								variant="outline"
 								size="icon"
-								disabled={!hasNotifications}
-								title="Mark all as read"
+								disabled={unreadCount === 0}
+								title={
+									unreadCount === 0 ? "Nothing unread" : "Mark all as read"
+								}
 								onClick={onMarkAllAsRead}
 							>
 								<CheckCheckIcon />

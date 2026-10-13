@@ -9,13 +9,17 @@ describe("InboxPopover Clear all", () => {
 	beforeEach(() => vi.useFakeTimers());
 	afterEach(() => vi.useRealTimers());
 
-	const renderInbox = (onClearAll = vi.fn(), onMarkAllAsRead = vi.fn()) => {
+	const renderInbox = (
+		onClearAll = vi.fn(),
+		onMarkAllAsRead = vi.fn(),
+		unreadCount = 2,
+	) => {
 		renderComponent(
 			<MemoryRouter>
 				<InboxPopover
 					defaultOpen
 					notifications={MockNotifications.slice(0, 3)}
-					unreadCount={2}
+					unreadCount={unreadCount}
 					error={undefined}
 					isLoadingMoreNotifications={false}
 					hasMoreNotifications={false}
@@ -33,11 +37,15 @@ describe("InboxPopover Clear all", () => {
 	it("clears on the second click, and the first one wears off", () => {
 		const { onClearAll } = renderInbox();
 		const clear = screen.getByTestId("inbox-clear-all");
+		expect(clear.textContent).toBe("Clear all"); // an icon, its name for screen readers only
 		fireEvent.click(clear);
 		expect(onClearAll).not.toHaveBeenCalled();
 		expect(clear.dataset.armed).toBe("true");
-		act(() => vi.advanceTimersByTime(3500));
+		// armed, it says what the next click does
+		expect(screen.getByText("Clear all?")).toBeVisible();
+		act(() => vi.advanceTimersByTime(4500));
 		expect(clear.dataset.armed).toBeUndefined();
+		expect(screen.queryByText("Clear all?")).toBeNull();
 		fireEvent.click(clear);
 		fireEvent.click(clear);
 		expect(onClearAll).toHaveBeenCalledTimes(1);
@@ -57,5 +65,16 @@ describe("InboxPopover Clear all", () => {
 		);
 		fireEvent.click(mark);
 		expect(onMarkAllAsRead).toHaveBeenCalled();
+	});
+
+	it("disables Mark all as read when nothing is unread", () => {
+		const { onMarkAllAsRead } = renderInbox(vi.fn(), vi.fn(), 0);
+		const mark = screen.getByRole("button", { name: /mark all as read/i });
+		expect(mark).toBeDisabled();
+		expect(mark.getAttribute("title")).toBe("Nothing unread");
+		fireEvent.click(mark);
+		expect(onMarkAllAsRead).not.toHaveBeenCalled();
+		// Clear all still works on read notifications
+		expect(screen.getByTestId("inbox-clear-all")).toBeEnabled();
 	});
 });
