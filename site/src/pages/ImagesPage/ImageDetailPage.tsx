@@ -36,12 +36,23 @@ import {
 } from "#/components/Table/Table";
 import { createDayString } from "#/utils/createDayString";
 import { pageTitle } from "#/utils/page";
-import { FipsBadge, formatSize, GradeBadge, StatusBadge } from "./badges";
+import {
+	FipsBadge,
+	formatSize,
+	GradeBadge,
+	StatusBadge,
+	TrackedBadge,
+} from "./badges";
+import { ImageAddons } from "./ImageAddons";
 import { imageKey } from "./ImageEditorPage";
 import { ImageReport } from "./ImageReport";
 import { imagesKey } from "./ImagesPage";
 
-/** Templates > Images > (an image): how to use it, its security report, its builds, its backup. */
+/**
+ * Templates > Images > (an image): how to use it, its security report, its
+ * add-ons, its builds, its backup. The workspace template's own image (tracked)
+ * is read-only: its report and add-ons, rescans, a download.
+ */
 const ImageDetailPage: React.FC = () => {
 	const { image: id = "" } = useParams();
 	const query = useQuery({
@@ -71,6 +82,9 @@ const ImageDetailView: React.FC<{ image: ImageDetail }> = ({ image }) => {
 	const location = useLocation();
 	const queryClient = useQueryClient();
 	const [deleting, setDeleting] = useState(false);
+	const tracked = image.tracked;
+	const editable = image.canEdit && !tracked;
+	const tag = tracked?.image.split(":").pop();
 	const refresh = () => {
 		void queryClient.invalidateQueries({ queryKey: imageKey(image.id) });
 		void queryClient.invalidateQueries({ queryKey: imagesKey, exact: true });
@@ -130,6 +144,8 @@ const ImageDetailView: React.FC<{ image: ImageDetail }> = ({ image }) => {
 						status={image.status}
 						building={Boolean(image.activeBuild)}
 					/>
+					{tracked && <TrackedBadge />}
+					{tag && <span className="text-content-secondary">{tag}</span>}
 					{image.version > 0 && (
 						<span className="text-content-secondary">v{image.version}</span>
 					)}
@@ -140,7 +156,7 @@ const ImageDetailView: React.FC<{ image: ImageDetail }> = ({ image }) => {
 								to={`/images/${image.id}/builds/${image.activeBuild}`}
 							>
 								<Spinner loading />
-								Building: watch it
+								{tracked ? "Scanning: watch it" : "Building: watch it"}
 							</RouterLink>
 						</Button>
 					)}
@@ -152,7 +168,20 @@ const ImageDetailView: React.FC<{ image: ImageDetail }> = ({ image }) => {
 							</a>
 						</Button>
 					)}
-					{image.canEdit && (
+					{tracked && image.canEdit && image.pullRef && (
+						<Button
+							variant="outline"
+							onClick={() => rescan.mutate()}
+							disabled={Boolean(image.activeBuild) || rescan.isPending}
+							title="Scan it again with the security data in force"
+						>
+							<Spinner loading={rescan.isPending}>
+								<ScanSearchIcon />
+							</Spinner>
+							Rescan
+						</Button>
+					)}
+					{editable && (
 						<>
 							<Button variant="outline" asChild>
 								<RouterLink to={`/images/${image.id}/edit`}>
@@ -200,10 +229,20 @@ const ImageDetailView: React.FC<{ image: ImageDetail }> = ({ image }) => {
 					</p>
 				)}
 				<p className="m-0 text-xs text-content-secondary">
-					Created {createDayString(image.createdAt)}
-					{image.createdBy && ` by ${image.createdBy}`}
-					{image.builtAt &&
-						` · built ${createDayString(image.builtAt)}${image.builtBy ? ` by ${image.builtBy}` : ""}`}
+					{tracked ? (
+						<>
+							Deployed with the platform
+							{image.builtAt &&
+								` · current since ${createDayString(image.builtAt)}`}
+						</>
+					) : (
+						<>
+							Created {createDayString(image.createdAt)}
+							{image.createdBy && ` by ${image.createdBy}`}
+							{image.builtAt &&
+								` · built ${createDayString(image.builtAt)}${image.builtBy ? ` by ${image.builtBy}` : ""}`}
+						</>
+					)}
 					{image.digest && (
 						<>
 							·
@@ -215,7 +254,30 @@ const ImageDetailView: React.FC<{ image: ImageDetail }> = ({ image }) => {
 				</p>
 			</header>
 
-			{image.pullRef ? (
+			{tracked ? (
+				<section className="flex flex-col gap-3" data-testid="tracked-image">
+					<h2 className="m-0 text-lg font-semibold">
+						Used by the workspace template
+					</h2>
+					<CodeExample code={tracked.image} secret={false} />
+					<p className="m-0 max-w-3xl text-sm text-content-secondary">
+						The workspace template
+						{tracked.template && <b> {tracked.template}</b>} runs this image:
+						every workspace from it starts here. It comes with the platform and
+						follows it (an upgrade that ships a new image updates this entry and
+						scans it), so it is not edited or built in this view. New images
+						build on it: <b>New Image</b> starts from the workspace image.
+					</p>
+					{!image.pullRef && (
+						<p className="m-0 rounded-md border border-solid border-border p-4 text-sm text-content-secondary">
+							Waiting for the image builder's copy of it, which is scanned: the
+							install seeds it (<code>./make --deploy</code>, or{" "}
+							<code>./mirror-images.sh seed-builder</code> after an Argo CD
+							install).
+						</p>
+					)}
+				</section>
+			) : image.pullRef ? (
 				<section className="flex flex-col gap-3" data-testid="use-in-template">
 					<h2 className="m-0 text-lg font-semibold">Use in a template</h2>
 					<CodeExample code={image.pullRef} secret={false} />
@@ -232,7 +294,7 @@ const ImageDetailView: React.FC<{ image: ImageDetail }> = ({ image }) => {
 			) : (
 				<p className="m-0 rounded-md border border-solid border-border p-4 text-sm text-content-secondary">
 					Not built yet.{" "}
-					{image.canEdit && (
+					{editable && (
 						<RouterLink
 							to={`/images/${image.id}/edit`}
 							className="text-content-link"
@@ -266,57 +328,88 @@ const ImageDetailView: React.FC<{ image: ImageDetail }> = ({ image }) => {
 					/>
 				) : (
 					<p className="m-0 text-sm text-content-secondary">
-						Each build is scanned; this image has no scan yet.
+						{tracked
+							? image.activeBuild
+								? "Being scanned…"
+								: "Not scanned yet."
+							: "Each build is scanned; this image has no scan yet."}
 					</p>
 				)}
 			</section>
 
-			<section className="flex flex-col gap-3" data-testid="s3">
-				<h2 className="m-0 text-lg font-semibold">S3 backup</h2>
-				<div className="flex flex-wrap items-center gap-4 text-sm">
-					<label htmlFor="image-s3" className="flex items-center gap-2">
-						<Switch
-							id="image-s3"
-							checked={Boolean(image.s3.enabled)}
-							disabled={!image.canEdit || s3.isPending}
-							onCheckedChange={(v) => s3.mutate(v)}
-							aria-label="Back up to S3 after every build"
-						/>
-						Back up to S3 after every build
-					</label>
-					{image.canEdit && image.pullRef && (
-						<Button
-							size="sm"
-							variant="outline"
-							onClick={() => backup.mutate()}
-							disabled={backup.isPending || image.s3.status === "uploading"}
-						>
-							<Spinner
-								loading={backup.isPending || image.s3.status === "uploading"}
-							>
-								<CloudUploadIcon />
-							</Spinner>
-							Back up now
-						</Button>
-					)}
-					<span className="text-content-secondary">
-						{image.s3.status === "uploading" ? (
-							"Uploading…"
-						) : image.s3.status === "done" ? (
-							`v${image.s3.version} is in s3://${image.s3.bucket}/${image.s3.key} (${formatSize(image.s3.bytes ?? null)}, ${createDayString(image.s3.finishedAt ?? "")})`
-						) : image.s3.status === "failed" ? (
-							<span className="text-content-destructive">
-								The last backup failed: {image.s3.error}
+			{(image.report?.addons || tracked) && (
+				<section className="flex flex-col gap-3" id="addons">
+					<h2 className="m-0 text-lg font-semibold">
+						Add-ons
+						{!tracked && (
+							<span className="ml-2 text-sm font-normal text-content-secondary">
+								of the workspace image it is built on (its own are in the
+								builder)
 							</span>
-						) : (
-							"Not backed up yet. Set the bucket in Images > Settings."
 						)}
-					</span>
-				</div>
-			</section>
+					</h2>
+					{image.report?.addons ? (
+						<ImageAddons addons={image.report.addons} />
+					) : (
+						<p className="m-0 text-sm text-content-secondary">
+							{image.report
+								? "This image does not list its add-ons (workspace images from 1.8.2 on do)."
+								: "Listed once it is scanned."}
+						</p>
+					)}
+				</section>
+			)}
+
+			{!tracked && (
+				<section className="flex flex-col gap-3" data-testid="s3">
+					<h2 className="m-0 text-lg font-semibold">S3 backup</h2>
+					<div className="flex flex-wrap items-center gap-4 text-sm">
+						<label htmlFor="image-s3" className="flex items-center gap-2">
+							<Switch
+								id="image-s3"
+								checked={Boolean(image.s3.enabled)}
+								disabled={!image.canEdit || s3.isPending}
+								onCheckedChange={(v) => s3.mutate(v)}
+								aria-label="Back up to S3 after every build"
+							/>
+							Back up to S3 after every build
+						</label>
+						{image.canEdit && image.pullRef && (
+							<Button
+								size="sm"
+								variant="outline"
+								onClick={() => backup.mutate()}
+								disabled={backup.isPending || image.s3.status === "uploading"}
+							>
+								<Spinner
+									loading={backup.isPending || image.s3.status === "uploading"}
+								>
+									<CloudUploadIcon />
+								</Spinner>
+								Back up now
+							</Button>
+						)}
+						<span className="text-content-secondary">
+							{image.s3.status === "uploading" ? (
+								"Uploading…"
+							) : image.s3.status === "done" ? (
+								`v${image.s3.version} is in s3://${image.s3.bucket}/${image.s3.key} (${formatSize(image.s3.bytes ?? null)}, ${createDayString(image.s3.finishedAt ?? "")})`
+							) : image.s3.status === "failed" ? (
+								<span className="text-content-destructive">
+									The last backup failed: {image.s3.error}
+								</span>
+							) : (
+								"Not backed up yet. Set the bucket in Images > Settings."
+							)}
+						</span>
+					</div>
+				</section>
+			)}
 
 			<section className="flex flex-col gap-3">
-				<h2 className="m-0 text-lg font-semibold">Builds</h2>
+				<h2 className="m-0 text-lg font-semibold">
+					{tracked ? "Scans" : "Builds"}
+				</h2>
 				{image.builds.length === 0 ? (
 					<p className="m-0 text-sm text-content-secondary">None yet.</p>
 				) : (
@@ -346,7 +439,7 @@ const ImageDetailView: React.FC<{ image: ImageDetail }> = ({ image }) => {
 											#{b.id}
 										</RouterLink>
 									</TableCell>
-									<TableCell>v{b.version}</TableCell>
+									<TableCell>{tracked ? tag : `v${b.version}`}</TableCell>
 									<TableCell className="text-sm">
 										{b.status}
 										{b.error && (

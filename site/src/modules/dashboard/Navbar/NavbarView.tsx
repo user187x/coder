@@ -2,6 +2,7 @@ import { cn } from "cn";
 import { GaugeIcon } from "lucide-react";
 import { NavLink } from "react-router";
 import { API } from "#/api/api";
+import { PlatformAPI } from "#/api/platform";
 import type * as TypesGen from "#/api/typesGenerated";
 import { Badge } from "#/components/Badge/Badge";
 import { Button } from "#/components/Button/Button";
@@ -148,6 +149,7 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 					<NotificationsInbox
 						fetchNotifications={API.getInboxNotifications}
 						markAllAsRead={API.markAllInboxNotificationsAsRead}
+						clearAll={PlatformAPI.clearInbox}
 						markNotificationAsRead={(notificationId) =>
 							API.updateInboxNotificationReadStatus(notificationId, {
 								is_read: true,

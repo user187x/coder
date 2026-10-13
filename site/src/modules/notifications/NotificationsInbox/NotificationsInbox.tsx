@@ -18,6 +18,8 @@ type NotificationsInboxProps = {
 		startingBeforeId?: string,
 	) => Promise<ListInboxNotificationsResponse>;
 	markAllAsRead: () => Promise<void>;
+	/** Platform: every notification deleted (PlatformAPI.clearInbox); without it there is no Clear all. */
+	clearAll?: () => Promise<unknown>;
 	markNotificationAsRead: (
 		notificationId: string,
 	) => Promise<UpdateInboxNotificationReadStatusResponse>;
@@ -30,6 +32,7 @@ export const NotificationsInbox: React.FC<NotificationsInboxProps> = ({
 	defaultOpen,
 	fetchNotifications,
 	markAllAsRead,
+	clearAll,
 	markNotificationAsRead,
 }) => {
 	const queryClient = useQueryClient();
@@ -199,6 +202,19 @@ export const NotificationsInbox: React.FC<NotificationsInboxProps> = ({
 		},
 	});
 
+	// Platform: Clear all empties the Inbox (the notifications are deleted).
+	const clearAllMutation = useMutation({
+		mutationFn: () => (clearAll ? clearAll() : Promise.resolve()),
+		onSuccess: () => {
+			updateNotificationsCache(() => ({ unread_count: 0, notifications: [] }));
+		},
+		onError: (error) => {
+			toast.error(getErrorMessage(error, "Error on clearing the Inbox."), {
+				description: getErrorDetail(error),
+			});
+		},
+	});
+
 	const markNotificationAsReadMutation = useMutation({
 		mutationFn: markNotificationAsRead,
 		onSuccess: (res) => {
@@ -234,6 +250,8 @@ export const NotificationsInbox: React.FC<NotificationsInboxProps> = ({
 			)}
 			onRetry={refetch}
 			onMarkAllAsRead={markAllAsReadMutation.mutate}
+			onClearAll={clearAll ? () => clearAllMutation.mutate() : undefined}
+			isClearing={clearAllMutation.isPending}
 			onMarkNotificationAsRead={markNotificationAsReadMutation.mutate}
 			onLoadMoreNotifications={loadMoreNotifications}
 		/>

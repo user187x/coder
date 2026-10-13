@@ -64,6 +64,45 @@ export type ReportSummary = {
 	scannedAt: string | null;
 	dbUpdatedAt: string | null;
 	checks: { pass: number; warn: number; fail: number };
+	/** Programs the image adds over its base, and apt packages asked for (addons.json; 0 without one). */
+	addons?: number;
+	addonPackages?: number;
+};
+
+/**
+ * What an image adds over its base (/usr/share/coder-workspace/addons.json,
+ * written by the workspace image's build): each program with the version it
+ * reports, the apt packages asked for, and marimo's Python packages.
+ */
+export type ImageAddons = {
+	base: string | null;
+	builtAt: string | null;
+	software: {
+		name: string;
+		what: string | null;
+		group: string | null;
+		version: string | null;
+	}[];
+	packages: {
+		added: { name: string; version: string }[];
+		dependencies: number;
+		upgraded: number;
+		installed: number;
+	};
+	python: {
+		environment: string | null;
+		packages: { name: string; version: string }[];
+	};
+};
+
+/** The workspace template's own image, listed (read-only) for its report and add-ons. */
+export type TrackedImage = {
+	/** As the template names it (what workspaces run). */
+	image: string;
+	/** The builder's copy, which is scanned. */
+	ref: string;
+	/** The template's name. */
+	template: string;
 };
 
 export type CheckStatus = "pass" | "warn" | "fail" | "info";
@@ -185,6 +224,8 @@ export type ImageReport = {
 			detail: string;
 		}[];
 	};
+	/** What the image adds over its base, when it says (addons.json). */
+	addons?: ImageAddons | null;
 };
 
 export type ImageS3 = {
@@ -225,6 +266,8 @@ export type ImageListItem = {
 	};
 	desktop: ImageDesktop;
 	summary: ReportSummary | null;
+	/** Set for the workspace template's own image (read-only here). */
+	tracked?: TrackedImage | null;
 };
 
 export type BuildSummary = {

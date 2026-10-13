@@ -19,6 +19,16 @@ export const StatusBadge: React.FC<{
 	return <Badge variant="default">Draft</Badge>;
 };
 
+/** The workspace template's own image (tracked here, read-only). */
+export const TrackedBadge: React.FC = () => (
+	<Badge
+		variant="info"
+		title="The image the workspace template runs: listed for its security report and add-ons"
+	>
+		In use by workspaces
+	</Badge>
+);
+
 const GRADE_STYLE: Record<string, string> = {
 	A: "bg-surface-green text-highlight-green border-border-green",
 	B: "bg-surface-green text-highlight-green border-border-green",

@@ -1162,6 +1162,9 @@ export const PlatformAPI = {
 		post<{ ok: true }>(`${PLATFORM_BASE}/api/notes/delete`, { id }),
 	dismissWorkspaceNote: (id: string) =>
 		post<{ note: WorkspaceNote }>(`${PLATFORM_BASE}/api/notes/dismiss`, { id }),
+	/** The signed-in user's Inbox (the bell) emptied: every notification deleted (Coder can only mark them read). */
+	clearInbox: () =>
+		post<{ cleared: number }>(`${PLATFORM_BASE}/api/inbox/clear`, {}),
 	/** Admins: every note not dismissed yet, by the workspace owner's user id. */
 	getNotesByUser: () =>
 		get<{ users: Record<string, WorkspaceNote[]> }>(

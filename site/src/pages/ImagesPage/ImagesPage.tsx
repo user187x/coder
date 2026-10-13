@@ -44,7 +44,13 @@ import { TableEmpty } from "#/components/TableEmpty/TableEmpty";
 import { useClickableTableRow } from "#/hooks/useClickableTableRow";
 import { createDayString } from "#/utils/createDayString";
 import { pageTitle } from "#/utils/page";
-import { FipsBadge, formatSize, GradeBadge, StatusBadge } from "./badges";
+import {
+	FipsBadge,
+	formatSize,
+	GradeBadge,
+	StatusBadge,
+	TrackedBadge,
+} from "./badges";
 import { ImagesSettingsDialog } from "./ImagesSettingsDialog";
 import { NewImageDialog } from "./NewImageDialog";
 import { ResourceTabs } from "./ResourceTabs";
@@ -57,7 +63,9 @@ type StatusFilter = "all" | "ready" | "building" | "draft" | "failed";
 /**
  * Templates > Images: workspace images built in the cluster. Each is ready to
  * be named in a workspace template (localhost:5000/coder-images/<name>:<version>);
- * admins and template admins create, edit, build and delete them.
+ * admins and template admins create, edit, build and delete them. First, the
+ * image the workspace template runs (tracked, read-only): its security report
+ * and add-ons, for everyone to see.
  */
 const ImagesPage: React.FC = () => {
 	const query = useQuery({
@@ -74,11 +82,13 @@ const ImagesPage: React.FC = () => {
 
 	const images = useMemo(() => {
 		const q = search.trim().toLowerCase();
-		return (query.data?.images ?? []).filter(
-			(i) =>
-				(status === "all" || i.status === status) &&
-				(!q || i.name.includes(q) || i.description.toLowerCase().includes(q)),
-		);
+		return (query.data?.images ?? [])
+			.filter(
+				(i) =>
+					(status === "all" || i.status === status) &&
+					(!q || i.name.includes(q) || i.description.toLowerCase().includes(q)),
+			)
+			.sort((a, b) => Number(Boolean(b.tracked)) - Number(Boolean(a.tracked)));
 	}, [query.data, search, status]);
 
 	return (
@@ -243,7 +253,11 @@ const ImageRow: React.FC<{ image: ImageListItem; canEdit: boolean }> = ({
 		},
 		onError: (e) => toast.error(getErrorMessage(e, "Not deleted.")),
 	});
+	const tracked = image.tracked;
 	const contents = [
+		tracked &&
+			image.summary?.addons &&
+			`${image.summary.addons} add-ons · ${image.summary.addonPackages ?? 0} packages`,
 		image.counts.packages &&
 			`${image.counts.packages} package${image.counts.packages === 1 ? "" : "s"}`,
 		image.counts.installations &&
@@ -261,6 +275,7 @@ const ImageRow: React.FC<{ image: ImageListItem; canEdit: boolean }> = ({
 					<span className="flex items-center gap-2 font-semibold">
 						{image.name}
 						<StatusBadge status={image.status} />
+						{tracked && <TrackedBadge />}
 						{image.version > 0 && (
 							<span className="text-xs font-normal text-content-secondary">
 								v{image.version}
@@ -304,7 +319,11 @@ const ImageRow: React.FC<{ image: ImageListItem; canEdit: boolean }> = ({
 				{image.builtAt ? (
 					<>
 						{createDayString(image.builtAt)}
-						{image.builtBy && <div className="text-xs">by {image.builtBy}</div>}
+						<div className="text-xs">
+							{tracked
+								? "deployed with the platform"
+								: image.builtBy && `by ${image.builtBy}`}
+						</div>
 					</>
 				) : (
 					"Never"
@@ -344,7 +363,7 @@ const ImageRow: React.FC<{ image: ImageListItem; canEdit: boolean }> = ({
 							</a>
 						</Button>
 					)}
-					{canEdit && (
+					{canEdit && !tracked && (
 						<DropdownMenu>
 							<DropdownMenuTrigger asChild>
 								<Button

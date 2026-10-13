@@ -40,7 +40,10 @@ export const NewImageDialog: React.FC<{ onClose: () => void }> = ({
 		onSuccess: ({ image }) => navigate(`/images/${image.id}/edit`),
 	});
 	const valid = NAME_RE.test(name);
-	const ready = (list.data?.images ?? []).filter((i) => i.pullRef);
+	// the workspace template's own image is the "workspace image" choice already
+	const ready = (list.data?.images ?? []).filter(
+		(i) => i.pullRef && !i.tracked,
+	);
 
 	return (
 		<Dialog

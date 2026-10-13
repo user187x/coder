@@ -1,6 +1,11 @@
 import { cn } from "cn";
-import { RefreshCwIcon, SettingsIcon } from "lucide-react";
-import { useState } from "react";
+import {
+	CheckCheckIcon,
+	RefreshCwIcon,
+	SettingsIcon,
+	Trash2Icon,
+} from "lucide-react";
+import { useEffect, useState } from "react";
 import { Link as RouterLink } from "react-router";
 import type { InboxNotification } from "#/api/typesGenerated";
 import { Button } from "#/components/Button/Button";
@@ -15,6 +20,8 @@ import { InboxButton } from "./InboxButton";
 import { InboxItem } from "./InboxItem";
 import { UnreadBadge } from "./UnreadBadge";
 
+const CLEAR_ARMED_MS = 3000;
+
 type InboxPopoverProps = {
 	notifications: readonly InboxNotification[] | undefined;
 	unreadCount: number;
@@ -23,6 +30,9 @@ type InboxPopoverProps = {
 	hasMoreNotifications: boolean;
 	onRetry: () => void;
 	onMarkAllAsRead: () => void;
+	/** Platform: delete every notification (the Inbox's Clear all); none, no button. */
+	onClearAll?: () => void;
+	isClearing?: boolean;
 	onMarkNotificationAsRead: (notificationId: string) => void;
 	onLoadMoreNotifications: () => void;
 	defaultOpen?: boolean;
@@ -37,10 +47,22 @@ export const InboxPopover: React.FC<InboxPopoverProps> = ({
 	hasMoreNotifications,
 	onRetry,
 	onMarkAllAsRead,
+	onClearAll,
+	isClearing,
 	onMarkNotificationAsRead,
 	onLoadMoreNotifications,
 }) => {
 	const [isOpen, setIsOpen] = useState(defaultOpen);
+	// Platform: Clear all deletes, so it asks twice - the first click arms it for a few seconds.
+	const [clearArmed, setClearArmed] = useState(false);
+	useEffect(() => {
+		if (!clearArmed) {
+			return;
+		}
+		const timer = window.setTimeout(() => setClearArmed(false), CLEAR_ARMED_MS);
+		return () => window.clearTimeout(timer);
+	}, [clearArmed]);
+	const hasNotifications = Boolean(notifications && notifications.length > 0);
 
 	return (
 		<Popover open={isOpen} onOpenChange={setIsOpen}>
@@ -74,13 +96,46 @@ export const InboxPopover: React.FC<InboxPopoverProps> = ({
 						</div>
 
 						<div className="flex justify-end gap-1">
+							{onClearAll && (
+								<Button
+									variant={clearArmed ? "destructive" : "outline"}
+									size="icon"
+									disabled={!hasNotifications || isClearing}
+									title={
+										clearArmed
+											? "Click again to clear all notifications"
+											: "Clear all"
+									}
+									data-testid="inbox-clear-all"
+									data-armed={clearArmed || undefined}
+									onClick={() => {
+										if (clearArmed) {
+											setClearArmed(false);
+											onClearAll();
+										} else {
+											setClearArmed(true);
+										}
+									}}
+								>
+									<Spinner loading={isClearing}>
+										<Trash2Icon />
+									</Spinner>
+									<span className="sr-only">
+										{clearArmed
+											? "Click again to clear all notifications"
+											: "Clear all"}
+									</span>
+								</Button>
+							)}
 							<Button
-								variant="subtle"
-								size="sm"
-								disabled={!(notifications && notifications.length > 0)}
+								variant="outline"
+								size="icon"
+								disabled={!hasNotifications}
+								title="Mark all as read"
 								onClick={onMarkAllAsRead}
 							>
-								Mark all as read
+								<CheckCheckIcon />
+								<span className="sr-only">Mark all as read</span>
 							</Button>
 							<Button variant="outline" size="icon" asChild>
 								<RouterLink
