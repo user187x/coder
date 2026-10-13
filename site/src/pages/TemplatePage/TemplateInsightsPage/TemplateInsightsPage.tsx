@@ -39,7 +39,6 @@ import {
 	TooltipTitle,
 	TooltipTrigger,
 } from "#/components/Tooltip/Tooltip";
-import { RequirePermission } from "#/modules/permissions/RequirePermission";
 import { useTemplateLayoutContext } from "#/pages/TemplatePage/TemplateLayout";
 import { getLatencyColor } from "#/utils/latency";
 import {
@@ -49,7 +48,6 @@ import {
 	startOfHour,
 	subtractTime,
 } from "#/utils/time";
-import { getTemplatePageTitle } from "../utils";
 import { ActiveUserChart } from "./ActiveUserChart";
 import { type InsightsInterval, IntervalMenu } from "./IntervalMenu";
 import { lastWeeks } from "./utils";
@@ -57,7 +55,13 @@ import { numberOfWeeksOptions, WeekPicker } from "./WeekPicker";
 
 const DEFAULT_NUMBER_OF_WEEKS = numberOfWeeksOptions[0];
 
-export default function TemplateInsightsPage() {
+/**
+ * Platform: the template's Details (Coder's Insights: active users, latency,
+ * app usage, activity, parameters), a section of its Overview above the
+ * README rather than a tab of its own. Nothing for those who can't view
+ * insights.
+ */
+export default function TemplateDetailsSection() {
 	const { template, permissions } = useTemplateLayoutContext();
 	const [searchParams, setSearchParams] = useSearchParams();
 
@@ -98,10 +102,17 @@ export default function TemplateInsightsPage() {
 		enabled: canViewInsights,
 	});
 
+	if (!canViewInsights) {
+		return null;
+	}
 	return (
-		<RequirePermission isFeatureVisible={canViewInsights}>
-			<title>{getTemplatePageTitle("Insights", template)}</title>
-
+		<section id="details" aria-labelledby="template-details-title">
+			<h2
+				id="template-details-title"
+				className="m-0 mb-4 text-base font-semibold text-content-secondary"
+			>
+				Details
+			</h2>
 			<TemplateInsightsPageView
 				controls={
 					<TemplateInsightsControls
@@ -117,7 +128,7 @@ export default function TemplateInsightsPage() {
 				userActivity={userActivity}
 				interval={interval}
 			/>
-		</RequirePermission>
+		</section>
 	);
 }
 

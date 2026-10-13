@@ -349,10 +349,6 @@ const ProvisionersPage = lazy(
 const TemplateEmbedPage = lazy(
 	() => import("./pages/TemplatePage/TemplateEmbedPage/TemplateEmbedPage"),
 );
-const TemplateInsightsPage = lazy(
-	() =>
-		import("./pages/TemplatePage/TemplateInsightsPage/TemplateInsightsPage"),
-);
 const TemplatePrebuildsPage = lazy(
 	() =>
 		import("./pages/TemplatePage/TemplatePrebuildsPage/TemplatePrebuildsPage"),
@@ -551,7 +547,11 @@ const templateRouter = () => {
 					<Route path="files" element={<TemplateFilesPage />} />
 					<Route path="versions" element={<TemplateVersionsRedirect />} />
 					<Route path="embed" element={<TemplateEmbedPage />} />
-					<Route path="insights" element={<TemplateInsightsPage />} />
+					{/* Details (Insights) is part of Overview now */}
+					<Route
+						path="insights"
+						element={<Navigate to="../overview#details" replace />}
+					/>
 					<Route path="prebuilds" element={<TemplatePrebuildsPage />} />
 				</Route>
 

@@ -1,4 +1,5 @@
 import frontMatter from "front-matter";
+import { lazy, Suspense } from "react";
 import { useQuery } from "react-query";
 import { Navigate } from "react-router";
 import { API } from "#/api/api";
@@ -8,9 +9,15 @@ import { TemplateResourcesTable } from "#/modules/templates/TemplateResourcesTab
 import { useTemplateLayoutContext } from "#/pages/TemplatePage/TemplateLayout";
 import { getTemplatePageTitle } from "../utils";
 
+// Its charts load only with the Overview.
+const TemplateDetailsSection = lazy(
+	() => import("../TemplateInsightsPage/TemplateInsightsPage"),
+);
+
 /**
- * A template's Overview: the resources a workspace of it gets, then its docs
- * (the active version's README) beneath them.
+ * A template's Overview: the resources a workspace of it gets, its Details
+ * (usage: active users, latency, apps, parameters; what was the Details tab),
+ * then its docs (the active version's README) beneath them.
  */
 const TemplateOverviewPage: React.FC = () => {
 	const { template, activeVersion } = useTemplateLayoutContext();
@@ -33,6 +40,9 @@ const TemplateOverviewPage: React.FC = () => {
 				) : (
 					<Loader />
 				)}
+				<Suspense fallback={<Loader />}>
+					<TemplateDetailsSection />
+				</Suspense>
 				<section
 					className="rounded-lg border border-solid border-border bg-surface-primary"
 					id="readme"
@@ -57,7 +67,7 @@ const TemplateOverviewPage: React.FC = () => {
 	);
 };
 
-/** Versions now live in Source Code (editors) and the old tabs in Overview: their links still land. */
+/** Versions now live in Source Code (editors) and the old tabs (Docs, Resources, Details) in Overview: their links still land. */
 export const TemplateVersionsRedirect: React.FC = () => {
 	const { permissions } = useTemplateLayoutContext();
 	return (

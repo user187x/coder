@@ -96,10 +96,6 @@ export const TemplateLayout: React.FC<React.PropsWithChildren> = ({
 		templateNamePath === templateName
 			? "summary"
 			: (templateNamePath as string);
-	// Auditors should also be able to view insights, but do not automatically
-	// have permission to update templates. Need both checks.
-	const shouldShowInsights =
-		data?.permissions?.canUpdateTemplate || data?.permissions?.canReadInsights;
 	const { workspace_prebuilds: isWorkspacePrebuildsEnabled } =
 		useFeatureVisibility();
 
@@ -143,11 +139,6 @@ export const TemplateLayout: React.FC<React.PropsWithChildren> = ({
 						<TabLink to="embed" value="embed">
 							Embed
 						</TabLink>
-						{shouldShowInsights && (
-							<TabLink to="insights" value="insights">
-								Details
-							</TabLink>
-						)}
 						{isWorkspacePrebuildsEnabled &&
 							data.permissions.canUpdateTemplate && (
 								<TabLink to="prebuilds" value="prebuilds">
