@@ -1,5 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "#/components/Tooltip/Tooltip";
 import { useAgentNetworkMetadata } from "./agentMetadataStore";
+import {
+	formatRate,
+	NetworkHistogram,
+	type NetworkSample,
+	withSample,
+} from "./NetworkHistogram";
 import "./networkLeds.css";
 
 /** "received sent" byte counters, as the template's net metadata reports them. */
@@ -55,23 +66,14 @@ const useLed = () => {
 	return [on, show] as const;
 };
 
-const formatRate = (bytesPerSecond: number) => {
-	const units = ["B", "KB", "MB", "GB"];
-	let v = bytesPerSecond;
-	let u = 0;
-	while (v >= 1000 && u < units.length - 1) {
-		v /= 1000;
-		u++;
-	}
-	return `${v < 10 && u > 0 ? v.toFixed(1) : Math.round(v)} ${units[u]}/s`;
-};
-
 /**
  * The workspace's network lights, by its name in the agent's header: RX (green)
  * and TX (blue) in a small oval, lighting up like a network card's LEDs when the
  * workspace receives or sends data. The template reports the workspace's own
  * byte counters every second (metadata "8_net_io", scripts/metadata.sh net);
  * each reading with traffic flickers its light, more often the busier it is.
+ * Hovering the lights (or focusing them) shows the last minute as a live bar
+ * graph, received in green and sent in blue (NetworkHistogram).
  */
 export const AgentNetworkLeds: React.FC<{ agentId: string }> = ({
 	agentId,
@@ -81,6 +83,8 @@ export const AgentNetworkLeds: React.FC<{ agentId: string }> = ({
 	const [txOn, showTx] = useLed();
 	const last = useRef<{ at: number; rx: number; tx: number } | null>(null);
 	const [rates, setRates] = useState<{ rx: number; tx: number } | null>(null);
+	// the last minute's readings (since the page opened), for the hover graph
+	const [history, setHistory] = useState<NetworkSample[]>([]);
 
 	const value = item?.result.value ?? "";
 	const collectedAt = item?.result.collected_at ?? "";
@@ -101,6 +105,9 @@ export const AgentNetworkLeds: React.FC<{ agentId: string }> = ({
 		const rxRate = rx >= prev.rx ? (rx - prev.rx) / seconds : 0;
 		const txRate = tx >= prev.tx ? (tx - prev.tx) / seconds : 0;
 		setRates({ rx: rxRate, tx: txRate });
+		setHistory((h) =>
+			withSample(h, { from: prev.at, t: at, rx: rxRate, tx: txRate }),
+		);
 		const windowMs = Math.min(1000, seconds * 1000) * 0.9;
 		showRx(flashesFor(rxRate), windowMs);
 		showTx(flashesFor(txRate), windowMs);
@@ -113,14 +120,14 @@ export const AgentNetworkLeds: React.FC<{ agentId: string }> = ({
 			? `Network: ↓ ${formatRate(rates.rx)} received · ↑ ${formatRate(rates.tx)} sent`
 			: "Network activity";
 
-	return (
-		<span
+	const leds = (
+		// a button, so the graph opens from the keyboard as well (it does nothing on a click)
+		<button
+			type="button"
 			data-testid="agent-network"
 			data-reporting={reporting || undefined}
-			title={title}
 			aria-label={title}
-			role="img"
-			className="net-leds inline-flex shrink-0 items-center gap-2.5 rounded-full border border-solid border-border px-2.5 py-0.5 text-[11px] font-medium tabular-nums text-content-secondary"
+			className="net-leds inline-flex shrink-0 cursor-default items-center gap-2.5 rounded-full border border-solid border-border bg-transparent px-2.5 py-0.5 font-[inherit] text-[11px] font-medium tabular-nums text-content-secondary"
 		>
 			<span className="inline-flex items-center gap-1">
 				<span
@@ -138,6 +145,27 @@ export const AgentNetworkLeds: React.FC<{ agentId: string }> = ({
 				/>
 				TX ↑
 			</span>
-		</span>
+		</button>
+	);
+	return (
+		<Tooltip>
+			<TooltipTrigger asChild>{leds}</TooltipTrigger>
+			<TooltipContent
+				side="bottom"
+				align="start"
+				className="px-3 py-2.5"
+				data-testid="agent-network-tooltip"
+			>
+				{reporting ? (
+					history.length > 0 ? (
+						<NetworkHistogram samples={history} />
+					) : (
+						"Network: waiting for the next reading…"
+					)
+				) : (
+					title
+				)}
+			</TooltipContent>
+		</Tooltip>
 	);
 };

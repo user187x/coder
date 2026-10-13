@@ -46,9 +46,9 @@ describe("AgentNetworkLeds", () => {
 		expect(tx.dataset.on).toBeUndefined();
 		act(() => vi.advanceTimersByTime(1000));
 		expect(rx.dataset.on).toBeUndefined(); // it goes out again
-		expect(screen.getByTestId("agent-network").getAttribute("title")).toMatch(
-			/↓ 50 KB\/s received · ↑ 0 B\/s sent/,
-		);
+		expect(
+			screen.getByTestId("agent-network").getAttribute("aria-label"),
+		).toMatch(/↓ 50 KB\/s received · ↑ 0 B\/s sent/);
 	});
 
 	it("flickers more the busier it is", () => {
@@ -62,6 +62,6 @@ describe("AgentNetworkLeds", () => {
 		renderComponent(<AgentNetworkLeds agentId="a2" />);
 		const leds = screen.getByTestId("agent-network");
 		expect(leds.dataset.reporting).toBeUndefined();
-		expect(leds.getAttribute("title")).toMatch(/update this workspace/);
+		expect(leds.getAttribute("aria-label")).toMatch(/update this workspace/);
 	});
 });
