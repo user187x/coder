@@ -356,7 +356,8 @@ it.each([
 it("sends no filter option requests when AI Gateway is unavailable", async () => {
 	dashboard.aibridge = { enabled: false, entitlement: "not_entitled" };
 	renderSpend(`${initialSearch}&provider_name=openai`);
-	await screen.findByText("Get access with a Coder trial");
+	// Platform: the fork shows that the feature is not enabled (no trial offer).
+	await screen.findByText(/is not enabled on this deployment/);
 	expect(API.getAIBridgeProviders).not.toHaveBeenCalled();
 	expect(API.getAIBridgeModels).not.toHaveBeenCalled();
 	expect(API.getAIBridgeClients).not.toHaveBeenCalled();
