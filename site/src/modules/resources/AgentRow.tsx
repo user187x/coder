@@ -467,7 +467,11 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 						</div>
 						{agent.status === "connected" && (
 							<>
-								<AgentVersion agent={agent} onUpdate={onUpdateAgent} />
+								<AgentVersion
+									agent={agent}
+									onUpdate={onUpdateAgent}
+									workspaceOutdated={workspace.outdated}
+								/>
 								<AgentLatency agent={agent} />
 							</>
 						)}

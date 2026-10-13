@@ -17,6 +17,8 @@ type AgentOutdatedTooltipProps = {
 	agent: WorkspaceAgent;
 	serverVersion: string;
 	status: agentVersionStatus;
+	/** Why: an older agent (or API), another build of the server's version, or a newer template version. */
+	reason?: "agent" | "build" | "template";
 	onUpdate: () => void;
 };
 
@@ -24,19 +26,27 @@ export const AgentOutdatedTooltip: React.FC<AgentOutdatedTooltipProps> = ({
 	agent,
 	serverVersion,
 	status,
+	reason = "agent",
 	onUpdate,
 }) => {
 	const [isOpen, setIsOpen] = useState(false);
 
 	const title =
-		status === agentVersionStatus.Outdated
-			? "Agent Outdated"
-			: "Agent Deprecated";
-	const opener =
-		status === agentVersionStatus.Outdated
-			? "This agent is an older version than the Coder server."
-			: "This agent is using a deprecated version of the API.";
-	const text = `${opener} This can happen after you update Coder with running workspaces. To fix this, you can stop and start the workspace.`;
+		reason === "template"
+			? "Update Available"
+			: status === agentVersionStatus.Outdated
+				? "Agent Outdated"
+				: "Agent Deprecated";
+	const text =
+		reason === "template"
+			? "The workspace's template has a newer version. Update the workspace to start it on that version."
+			: reason === "build"
+				? "This agent comes from an earlier build of the Coder server's version: Coder was rebuilt or upgraded while the workspace ran. Update the workspace (or stop and start it) to get the current agent."
+				: `${
+						status === agentVersionStatus.Outdated
+							? "This agent is an older version than the Coder server."
+							: "This agent is using a deprecated version of the API."
+					} This can happen after you update Coder with running workspaces. To fix this, you can stop and start the workspace.`;
 
 	return (
 		<HelpPopover open={isOpen} onOpenChange={setIsOpen}>
@@ -47,7 +57,7 @@ export const AgentOutdatedTooltip: React.FC<AgentOutdatedTooltipProps> = ({
 						// the word.
 						<span
 							className="agent-update"
-							title="Agent outdated: click for details"
+							title={`${title}: click for details`}
 							data-testid="agent-outdated-update"
 						>
 							<span className="agent-update-groove" aria-hidden="true">
