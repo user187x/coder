@@ -1,6 +1,6 @@
 import { cn } from "cn";
 import dayjs from "dayjs";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { watchAgentMetadata } from "#/api/api";
 import type {
@@ -14,6 +14,10 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "#/components/Tooltip/Tooltip";
+import {
+	isNetworkMetadata,
+	publishAgentMetadata,
+} from "#/modules/platform/networkLeds/agentMetadataStore";
 import type { OneWayWebSocket } from "#/utils/OneWayWebSocket";
 import {
 	levelColor,
@@ -250,7 +254,19 @@ export const AgentMetadata: React.FC<AgentMetadataProps> = ({
 		};
 	}, [agent.id, initialMetadata]);
 
-	if (activeMetadata === undefined) {
+	// Platform: every update for the rest of the page (the network lights in the agent's header), and the network
+	// reading kept out of the metric displays
+	useEffect(() => {
+		if (activeMetadata) {
+			publishAgentMetadata(agent.id, activeMetadata);
+		}
+	}, [agent.id, activeMetadata]);
+	const shown = useMemo(
+		() => activeMetadata?.filter((m) => !isNetworkMetadata(m)),
+		[activeMetadata],
+	);
+
+	if (shown === undefined) {
 		return (
 			<section className="flex items-baseline flex-wrap gap-8 gap-y-4">
 				<AgentMetadataSkeleton />
@@ -258,9 +274,7 @@ export const AgentMetadata: React.FC<AgentMetadataProps> = ({
 		);
 	}
 
-	return (
-		<AgentMetadataView metadata={activeMetadata} historyScope={agent.id} />
-	);
+	return <AgentMetadataView metadata={shown} historyScope={agent.id} />;
 };
 
 const AgentMetadataSkeleton: React.FC = () => {

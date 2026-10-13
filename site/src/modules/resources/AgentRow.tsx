@@ -63,6 +63,7 @@ import { AgentPanels } from "#/modules/platform/agentPanels/AgentPanels";
 import { useAgentPanels } from "#/modules/platform/agentPanels/agentPanelsStore";
 import { AgentTerminalSection } from "#/modules/platform/agentTerminal/AgentTerminalSection";
 import { useAnimationsEnabled } from "#/modules/platform/animations/animations";
+import { AgentNetworkLeds } from "#/modules/platform/networkLeds/AgentNetworkLeds";
 import { WorkspaceInitializing } from "#/modules/platform/workspaceInitializing/WorkspaceInitializing";
 import {
 	agentAppsReady,
@@ -464,6 +465,10 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 									</span>
 								)}
 							</span>
+							{/* Platform: the workspace's network lights (RX / TX), between its name and the latency */}
+							{agent.status === "connected" && (
+								<AgentNetworkLeds agentId={agent.id} />
+							)}
 						</div>
 						{agent.status === "connected" && (
 							<>
