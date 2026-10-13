@@ -1,10 +1,12 @@
 package coderd
 
 import (
+	"context"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"strings"
+	"time"
 
 	"golang.org/x/xerrors"
 
@@ -63,10 +65,39 @@ func platformServiceProxy(logger slog.Logger, target *url.URL) http.Handler {
 	proxy.FlushInterval = -1
 	proxy.ErrorHandler = func(rw http.ResponseWriter, r *http.Request, err error) {
 		logger.Warn(r.Context(), "platform service unreachable", slog.F("target", target.String()), slog.Error(err))
+		if isPlatformBootScript(r) {
+			writePlatformBootFallback(rw)
+			return
+		}
 		httpapi.Write(r.Context(), rw, http.StatusBadGateway, codersdk.Response{
 			Message: "The platform service is not reachable.",
 			Detail:  err.Error(),
 		})
 	}
-	return proxy
+	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		if isPlatformBootScript(r) {
+			// Every dashboard page waits for this script before it starts: a slow or overloaded platform service
+			// must not hold the dashboard up. Past the limit the page starts with its defaults.
+			ctx, cancel := context.WithTimeout(r.Context(), platformBootTimeout)
+			defer cancel()
+			r = r.WithContext(ctx)
+		}
+		proxy.ServeHTTP(rw, r)
+	})
+}
+
+// platformBootTimeout bounds how long the dashboard waits for the platform service's boot script.
+const platformBootTimeout = 3 * time.Second
+
+func isPlatformBootScript(r *http.Request) bool {
+	return r.Method == http.MethodGet && strings.HasSuffix(r.URL.Path, "/boot.js")
+}
+
+// writePlatformBootFallback is the boot script when the platform service cannot give it: nothing set, so the
+// dashboard uses its defaults (logo, no classification marking) and works without the service.
+func writePlatformBootFallback(rw http.ResponseWriter) {
+	rw.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+	rw.Header().Set("Cache-Control", "no-store")
+	rw.WriteHeader(http.StatusOK)
+	_, _ = rw.Write([]byte("/* platform service unavailable: the dashboard's defaults */\n"))
 }

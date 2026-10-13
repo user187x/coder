@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -64,6 +65,13 @@ func TestPlatformServiceRoutes(t *testing.T) {
 	}
 	down, err := url.Parse("http://127.0.0.1:1")
 	require.NoError(t, err)
+	// A service that hangs (overloaded): its boot script must not hold the dashboard up.
+	hang := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		<-r.Context().Done()
+	}))
+	t.Cleanup(hang.Close)
+	slow, err := url.Parse(hang.URL)
+	require.NoError(t, err)
 
 	client := coderdtest.New(t, &coderdtest.Options{
 		PlatformServiceRoutes: []coderd.PlatformServiceRoute{
@@ -71,6 +79,7 @@ func TestPlatformServiceRoutes(t *testing.T) {
 			{PathPrefix: "/__banner", Target: upstream("banner")},
 			{PathPrefix: "/__banner/live", Target: upstream("live")},
 			{PathPrefix: "/__down", Target: down},
+			{PathPrefix: "/__slow", Target: slow},
 		},
 	})
 	_ = coderdtest.CreateFirstUser(t, client)
@@ -113,6 +122,17 @@ func TestPlatformServiceRoutes(t *testing.T) {
 
 	status, _ = send(http.MethodGet, "/__down/x", "")
 	require.Equal(t, http.StatusBadGateway, status)
+
+	// The boot script of a service that is down or hangs: an empty script at once (down) or within the limit
+	// (hangs), so every dashboard page still starts.
+	status, body = send(http.MethodGet, "/__down/boot.js", "")
+	require.Equal(t, http.StatusOK, status)
+	require.Contains(t, body, "platform service unavailable")
+	start := time.Now()
+	status, body = send(http.MethodGet, "/__slow/boot.js", "")
+	require.Equal(t, http.StatusOK, status)
+	require.Contains(t, body, "platform service unavailable")
+	require.Less(t, time.Since(start), 6*time.Second)
 }
 
 func TestPlatformWorkspaceQuota(t *testing.T) {
