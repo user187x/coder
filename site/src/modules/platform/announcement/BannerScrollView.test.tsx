@@ -49,6 +49,60 @@ describe("BannerScrollView", () => {
 		expect(screen.queryByTestId("announcement-scroll-view")).toBeNull();
 	});
 
+	const type = (text: string) => {
+		const view = screen.getByTestId("announcement-scroll-view");
+		for (const key of text) {
+			fireEvent.keyDown(view, { key });
+		}
+	};
+
+	it("takes typing at its prompt, like a terminal", () => {
+		render(<Harness />);
+		fireEvent.click(screen.getByTestId("announcement-scroll-toggle"));
+		const view = screen.getByTestId("announcement-scroll-view");
+		expect(document.activeElement).toBe(view);
+		type("lsx");
+		fireEvent.keyDown(view, { key: "Backspace" });
+		const prompt = screen.getByTestId("announcement-scroll-prompt");
+		expect(prompt.textContent).toBe("root@platform:~# ls");
+		fireEvent.keyDown(view, { key: "Enter" });
+		expect(view.textContent).toContain("bash: ls: command not found");
+		expect(prompt.textContent).toBe("root@platform:~# ");
+	});
+
+	it("fades the screen into Skynet when someone types skynet, and glitches out on a key", () => {
+		render(<Harness />);
+		fireEvent.click(screen.getByTestId("announcement-scroll-toggle"));
+		type("SkyNet");
+		// The terminal rolls up; the whole screen is Skynet, above everything.
+		const skynet = screen.getByTestId("skynet");
+		expect(skynet.parentElement).toBe(document.body);
+		expect(skynet.querySelector("img")?.getAttribute("src")).toBe(
+			"/skynet.webp",
+		);
+		act(() => vi.advanceTimersByTime(300));
+		expect(screen.queryByTestId("announcement-scroll-view")).toBeNull();
+		// The keystrokes right after it shows are the typing that summoned it.
+		fireEvent.keyDown(document, { key: "x" });
+		expect(skynet.dataset.leaving).toBeUndefined();
+		act(() => vi.advanceTimersByTime(500));
+		fireEvent.keyDown(document, { key: "x" });
+		expect(skynet.dataset.leaving).toBe("true");
+		act(() => vi.advanceTimersByTime(1000));
+		expect(screen.queryByTestId("skynet")).toBeNull();
+	});
+
+	it("dismisses Skynet with a click", () => {
+		render(<Harness />);
+		fireEvent.click(screen.getByTestId("announcement-scroll-toggle"));
+		type("skynet");
+		act(() => vi.advanceTimersByTime(1000));
+		fireEvent.pointerDown(screen.getByTestId("skynet"));
+		expect(screen.getByTestId("skynet").dataset.leaving).toBe("true");
+		act(() => vi.advanceTimersByTime(1000));
+		expect(screen.queryByTestId("skynet")).toBeNull();
+	});
+
 	it("closes with Escape", () => {
 		render(<Harness />);
 		fireEvent.click(screen.getByTestId("announcement-scroll-toggle"));

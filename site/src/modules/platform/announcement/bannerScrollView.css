@@ -24,6 +24,11 @@
 	animation: banner-scroll-down 0.22s cubic-bezier(0.2, 0.9, 0.3, 1) both;
 }
 
+/* It has the focus while open (its prompt takes typing): the blinking cursor shows it, not an outline. */
+.banner-scroll:focus {
+	outline: none;
+}
+
 .banner-scroll[data-closing] {
 	animation: banner-scroll-up 0.22s ease-in both;
 }

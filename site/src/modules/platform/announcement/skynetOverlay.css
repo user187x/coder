@@ -1,0 +1,210 @@
+/*
+ * The announcement terminal's easter egg (SkynetOverlay): the whole screen fades into Skynet, above everything (even
+ * the terminal). Leaving, it glitches: the picture jumps and flickers while two colour-split copies (red and cyan,
+ * --skynet) tear across it in shifting slices, then the screen collapses to a line and goes dark, as an old monitor
+ * switching off. Without animations it only fades.
+ */
+.skynet {
+	position: fixed;
+	inset: 0;
+	z-index: 2147483600;
+	overflow: hidden;
+	background: #000;
+	cursor: pointer;
+	animation: skynet-in 1.6s ease-in both;
+}
+
+.skynet img,
+.skynet::before,
+.skynet::after {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
+	user-select: none;
+}
+
+.skynet img {
+	object-fit: cover;
+}
+
+/* The colour-split copies, hidden until it leaves. */
+.skynet::before,
+.skynet::after {
+	content: "";
+	background: var(--skynet) center / cover no-repeat;
+	mix-blend-mode: screen;
+	opacity: 0;
+}
+.skynet::before {
+	filter: sepia(1) saturate(9) hue-rotate(-45deg);
+}
+.skynet::after {
+	filter: sepia(1) saturate(9) hue-rotate(150deg);
+}
+
+.skynet[data-leaving] {
+	cursor: default;
+	animation: skynet-out 0.9s linear both;
+}
+.skynet[data-leaving] img {
+	animation: skynet-jitter 0.9s steps(1) both;
+}
+.skynet[data-leaving]::before {
+	animation: skynet-tear-red 0.9s steps(1) both;
+}
+.skynet[data-leaving]::after {
+	animation: skynet-tear-cyan 0.9s steps(1) both;
+}
+
+@keyframes skynet-in {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+
+/* The screen: holds while the picture glitches, then collapses to a line and goes dark. */
+@keyframes skynet-out {
+	0%,
+	62% {
+		opacity: 1;
+		transform: none;
+		filter: none;
+	}
+	78% {
+		opacity: 1;
+		transform: scale(1, 0.012);
+		filter: brightness(3);
+	}
+	90% {
+		opacity: 0.8;
+		transform: scale(0.4, 0.004);
+		filter: brightness(5);
+	}
+	100% {
+		opacity: 0;
+		transform: scale(0, 0.002);
+	}
+}
+
+@keyframes skynet-jitter {
+	0% {
+		transform: translate(-8px, 2px) skewX(6deg);
+		filter: contrast(1.6) hue-rotate(20deg);
+	}
+	10% {
+		transform: translate(6px, -3px);
+		filter: brightness(1.8);
+	}
+	20% {
+		transform: translate(-3px, 0) skewX(-9deg);
+		filter: invert(1);
+	}
+	30% {
+		transform: translate(10px, 4px);
+		filter: contrast(2) saturate(3);
+	}
+	40% {
+		transform: translate(-12px, -2px) skewX(4deg);
+		filter: brightness(0.5);
+	}
+	50% {
+		transform: translate(4px, 1px);
+		filter: hue-rotate(-60deg);
+	}
+	60%,
+	100% {
+		transform: none;
+		filter: brightness(1.4);
+	}
+}
+
+@keyframes skynet-tear-red {
+	0% {
+		opacity: 0.85;
+		clip-path: inset(8% 0 72% 0);
+		transform: translate(-22px, 0);
+	}
+	12% {
+		clip-path: inset(46% 0 30% 0);
+		transform: translate(16px, 0);
+	}
+	24% {
+		clip-path: inset(70% 0 6% 0);
+		transform: translate(-30px, 0);
+	}
+	36% {
+		clip-path: inset(18% 0 58% 0);
+		transform: translate(26px, 0);
+	}
+	48% {
+		clip-path: inset(0 0 0 0);
+		transform: translate(-9px, 0);
+	}
+	60%,
+	100% {
+		opacity: 0;
+		clip-path: inset(0 0 0 0);
+		transform: none;
+	}
+}
+
+@keyframes skynet-tear-cyan {
+	0% {
+		opacity: 0.85;
+		clip-path: inset(60% 0 22% 0);
+		transform: translate(24px, 0);
+	}
+	12% {
+		clip-path: inset(4% 0 80% 0);
+		transform: translate(-18px, 0);
+	}
+	24% {
+		clip-path: inset(34% 0 44% 0);
+		transform: translate(28px, 0);
+	}
+	36% {
+		clip-path: inset(82% 0 2% 0);
+		transform: translate(-24px, 0);
+	}
+	48% {
+		clip-path: inset(0 0 0 0);
+		transform: translate(9px, 0);
+	}
+	60%,
+	100% {
+		opacity: 0;
+		clip-path: inset(0 0 0 0);
+		transform: none;
+	}
+}
+
+html[data-animations="off"] .skynet {
+	animation: skynet-in 0.3s ease-in both;
+}
+html[data-animations="off"] .skynet[data-leaving] {
+	animation: skynet-in 0.3s ease-out reverse both;
+}
+html[data-animations="off"] .skynet[data-leaving] img,
+html[data-animations="off"] .skynet[data-leaving]::before,
+html[data-animations="off"] .skynet[data-leaving]::after {
+	animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.skynet {
+		animation: skynet-in 0.3s ease-in both;
+	}
+	.skynet[data-leaving] {
+		animation: skynet-in 0.3s ease-out reverse both;
+	}
+	.skynet[data-leaving] img,
+	.skynet[data-leaving]::before,
+	.skynet[data-leaving]::after {
+		animation: none;
+	}
+}

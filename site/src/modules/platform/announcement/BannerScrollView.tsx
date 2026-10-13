@@ -1,13 +1,25 @@
 import { cn } from "cn";
 import { ChevronDownIcon } from "lucide-react";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+	useCallback,
+	useEffect,
+	useLayoutEffect,
+	useRef,
+	useState,
+} from "react";
 import { createPortal } from "react-dom";
 import type { Banner } from "#/api/platform";
 import { BannerBlocks } from "./BannerText";
 import { bannerFontStack } from "./bannerFonts";
+import { SkynetOverlay } from "./SkynetOverlay";
 import "./bannerScrollView.css";
 
 const CLOSE_MS = 220;
+/** The longest line the prompt takes, and how many earlier commands it keeps. */
+const MAX_TYPED = 64;
+const MAX_HISTORY = 20;
+/** Typed at the prompt: the easter egg (SkynetOverlay). */
+const SKYNET = "skynet";
 
 type Rect = { top: number; left: number; width: number };
 
@@ -25,6 +37,10 @@ type BannerScrollViewProps = {
  * text (headings, lists, links, code, emoji, images) in the banner's font,
  * on a terminal's dark, monospaced, faintly scan-lined screen. A click outside
  * it, Escape or the arrow rolls it back up.
+ *
+ * The last prompt takes typing while the view is open (it has the focus), as a
+ * terminal would: Backspace, and Enter answers "command not found". Typing
+ * "skynet" rolls the view up and fades the whole screen into Skynet.
  */
 export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 	banner,
@@ -33,8 +49,13 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 	const [open, setOpen] = useState(false);
 	const [closing, setClosing] = useState(false);
 	const [rect, setRect] = useState<Rect>();
+	const [typed, setTyped] = useState("");
+	const [history, setHistory] = useState<string[]>([]);
+	const [skynet, setSkynet] = useState(false);
 	const panel = useRef<HTMLDivElement>(null);
+	const body = useRef<HTMLDivElement>(null);
 	const toggle = useRef<HTMLButtonElement>(null);
+	const endSkynet = useCallback(() => setSkynet(false), []);
 
 	const place = () => {
 		const r = anchor.current?.getBoundingClientRect();
@@ -62,6 +83,50 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 			place();
 		}
 	}, [open]);
+
+	// Open: the prompt takes the keyboard, starting empty.
+	useEffect(() => {
+		if (open && rect) {
+			panel.current?.focus({ preventScroll: true });
+		}
+		if (!open) {
+			setTyped("");
+			setHistory([]);
+		}
+	}, [open, rect]);
+
+	// Typing shows at the bottom, where the prompt is.
+	useLayoutEffect(() => {
+		if (body.current && (typed || history.length)) {
+			body.current.scrollTop = body.current.scrollHeight;
+		}
+	}, [typed, history]);
+
+	const onPromptKey = (event: React.KeyboardEvent) => {
+		if (event.ctrlKey || event.metaKey || event.altKey) {
+			return;
+		}
+		if (event.key === "Backspace") {
+			setTyped((t) => t.slice(0, -1));
+		} else if (event.key === "Enter") {
+			const command = typed.trim();
+			setHistory((h) => [...h, command].slice(-MAX_HISTORY));
+			setTyped("");
+		} else if (event.key.length === 1) {
+			const next = (typed + event.key).slice(0, MAX_TYPED);
+			if (next.trim().toLowerCase() === SKYNET) {
+				setTyped("");
+				setSkynet(true);
+				close();
+			} else {
+				setTyped(next);
+			}
+		} else {
+			return;
+		}
+		event.preventDefault();
+		event.stopPropagation();
+	};
 
 	useEffect(() => {
 		if (!open) {
@@ -122,6 +187,8 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 						aria-label="Announcement"
 						data-testid="announcement-scroll-view"
 						data-closing={closing || undefined}
+						tabIndex={-1}
+						onKeyDown={onPromptKey}
 						className="banner-scroll"
 						style={{ top: rect.top, left: rect.left, width: rect.width }}
 					>
@@ -131,7 +198,7 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 							<span />
 							<b>announcement — broadcast.md</b>
 						</div>
-						<div className="banner-scroll-body">
+						<div ref={body} className="banner-scroll-body">
 							<div className="banner-scroll-prompt" aria-hidden>
 								<i>root@platform</i>:<em>~</em># cat broadcast.md
 							</div>
@@ -141,14 +208,26 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 							>
 								<BannerBlocks message={banner.message} />
 							</div>
-							<div className="banner-scroll-prompt" aria-hidden>
-								<i>root@platform</i>:<em>~</em>#{" "}
+							{history.map((command, i) => (
+								<div key={i} className="banner-scroll-prompt" aria-hidden>
+									<i>root@platform</i>:<em>~</em># {command}
+									{command &&
+										`\nbash: ${command.split(/\s+/)[0]}: command not found`}
+								</div>
+							))}
+							<div
+								className="banner-scroll-prompt"
+								data-testid="announcement-scroll-prompt"
+								aria-hidden
+							>
+								<i>root@platform</i>:<em>~</em># {typed}
 								<span className="banner-scroll-cursor" />
 							</div>
 						</div>
 					</div>,
 					document.body,
 				)}
+			{skynet && <SkynetOverlay onDone={endSkynet} />}
 		</>
 	);
 };
