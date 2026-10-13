@@ -182,9 +182,8 @@ func createOIDCConfig(ctx context.Context, logger slog.Logger, vals *codersdk.De
 		ctx = oidc.InsecureIssuerURLContext(ctx, vals.OIDC.IssuerURL.String())
 	}
 
-	oidcProvider, err := oidc.NewProvider(
-		ctx, vals.OIDC.IssuerURL.String(),
-	)
+	// Platform: falls back to a Keycloak realm's fixed endpoints when the issuer cannot be discovered (platform_oidc.go)
+	oidcProvider, pkceMethods, err := platformOIDCProvider(ctx, logger, vals.OIDC.IssuerURL.String())
 	if err != nil {
 		return nil, xerrors.Errorf("configure oidc provider: %w", err)
 	}
@@ -259,14 +258,6 @@ func createOIDCConfig(ctx context.Context, logger slog.Logger, vals *codersdk.De
 		secondaryClaimsSrc = coderd.MergedClaimsSourceAccessToken
 	}
 
-	var pkceSupport struct {
-		CodeChallengeMethodsSupported []promoauth.Oauth2PKCEChallengeMethod `json:"code_challenge_methods_supported"`
-	}
-	err = oidcProvider.Claims(&pkceSupport)
-	if err != nil {
-		return nil, xerrors.Errorf("pkce detect in claims: %w", err)
-	}
-
 	// CODER_OIDC_REDIRECT_URL is a strict override: when set, the redirect_uri
 	// is fixed at startup and dynamic-host selection is disabled. Otherwise,
 	// surface the allowlist to the middleware.
@@ -298,7 +289,7 @@ func createOIDCConfig(ctx context.Context, logger slog.Logger, vals *codersdk.De
 		SignupsDisabledText:   vals.OIDC.SignupsDisabledText.String(),
 		IconURL:               vals.OIDC.IconURL.String(),
 		IgnoreEmailVerified:   vals.OIDC.IgnoreEmailVerified.Value(),
-		PKCEMethods:           pkceSupport.CodeChallengeMethodsSupported,
+		PKCEMethods:           pkceMethods,
 		EmailFallback:         vals.OIDC.EmailFallback.Value(),
 		RedirectAllowedHosts:  redirectAllowedHosts,
 		RedirectDefaultScheme: redirectDefaultScheme,
@@ -929,6 +920,9 @@ func (r *RootCmd) Server(newAPI func(context.Context, *coderd.Options) (*coderd.
 				return xerrors.Errorf("set deployment id: %w", err)
 			}
 
+			// Platform: sent when the server started without an unreachable OIDC issuer and it answers now.
+			oidcRestart := make(chan error, 1)
+
 			// As OIDC clients can be confidential or public,
 			// we should only check for a client id being set.
 			// The underlying library handles the case of no
@@ -946,15 +940,22 @@ func (r *RootCmd) Server(newAPI func(context.Context, *coderd.Options) (*coderd.
 				//	- Userinfo
 				//	- Verify
 				oc, err := createOIDCConfig(ctx, options.Logger, vals)
-				if err != nil {
+				switch {
+				case xerrors.Is(err, errOIDCUnreachable):
+					// Platform: start without OIDC (password sign-in works) and restart once the issuer answers
+					logger.Error(ctx, "the OIDC issuer is unreachable: starting without OIDC sign-in, restarting when it answers",
+						slog.F("issuer", vals.OIDC.IssuerURL.String()), slog.Error(err))
+					go watchOIDCIssuer(ctx, logger, httpClient, vals.OIDC.IssuerURL.String(), 30*time.Second, oidcRestart)
+				case err != nil:
 					return xerrors.Errorf("create oidc config: %w", err)
-				}
-				options.OIDCConfig = oc
+				default:
+					options.OIDCConfig = oc
 
-				// Repair any existing broken OIDC
-				err = oidcAuthLinks(ctx, logger, httpClient, vals, options.Database)
-				if err != nil {
-					return xerrors.Errorf("oidc auth links: %w", err)
+					// Repair any existing broken OIDC
+					err = oidcAuthLinks(ctx, logger, httpClient, vals, options.Database)
+					if err != nil {
+						return xerrors.Errorf("oidc auth links: %w", err)
+					}
 				}
 			}
 
@@ -1304,6 +1305,7 @@ func (r *RootCmd) Server(newAPI func(context.Context, *coderd.Options) (*coderd.
 			case <-pubsubWatchdogTimeout:
 				exitErr = xerrors.New("pubsub Watchdog timed out")
 			case exitErr = <-errCh:
+			case exitErr = <-oidcRestart:
 			}
 			if exitErr != nil && !xerrors.Is(exitErr, context.Canceled) {
 				cliui.Errorf(inv.Stderr, "Unexpected error, shutting down server: %s\n", exitErr)
