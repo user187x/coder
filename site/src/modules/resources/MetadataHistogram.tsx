@@ -218,7 +218,8 @@ export const MetadataHistogram: React.FC<MetadataHistogramProps> = ({
 	stale,
 	label,
 }) => {
-	const W = 120;
+	// Platform: 104 wide, so the eight metrics (workspace and cluster) fit on one line from 1280 px up.
+	const W = 104;
 	const H = 26;
 	const slot = W / BARS;
 	const bars = toBars(samples, every, hold);

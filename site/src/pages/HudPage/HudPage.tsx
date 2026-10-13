@@ -28,6 +28,7 @@ import { pageTitle } from "#/utils/page";
 import "./hud.css";
 import { HudGraphs } from "./HudGraphs";
 import { applyOrder, elevate, readHudOrder, writeHudOrder } from "./hudOrder";
+import { SystemUptime } from "./SystemUptime";
 
 /** How many updates each sparkline (and "change") covers: 30 × 10 s = 5 minutes. */
 const HISTORY = 30;
@@ -120,7 +121,7 @@ const HudPage: React.FC = () => {
 							seconds. Click a figure to open what is behind it.
 						</p>
 					</div>
-					<div className="flex items-center gap-3 text-sm text-content-secondary">
+					<div className="flex flex-col items-end gap-1.5 text-sm text-content-secondary">
 						{data && (
 							<span className="flex items-center gap-2" aria-live="off">
 								<span
@@ -136,6 +137,7 @@ const HudPage: React.FC = () => {
 									" · CPU and memory are what was requested: metrics-server is not answering"}
 							</span>
 						)}
+						{data?.uptime && <SystemUptime uptime={data.uptime} />}
 					</div>
 				</header>
 

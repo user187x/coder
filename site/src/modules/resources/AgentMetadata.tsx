@@ -104,13 +104,13 @@ export const AgentMetadataView: React.FC<AgentMetadataViewProps> = ({
 					role="group"
 					aria-label={g.title}
 					title={g.hint}
-					className="flex shrink-0 flex-col gap-2 rounded-2xl border border-solid border-border bg-surface-secondary/40 px-4 pt-3 pb-4"
+					className="flex shrink-0 flex-col gap-2 rounded-2xl border border-solid border-border bg-surface-secondary/40 px-3.5 pt-3 pb-4"
 					data-testid={`metrics-group-${g.id}`}
 				>
 					<div className="text-center text-xs font-semibold uppercase tracking-wide text-content-secondary">
 						{g.title}
 					</div>
-					<div className="flex items-baseline flex-nowrap gap-5">
+					<div className="flex items-baseline flex-nowrap gap-4">
 						{g.items.map(item)}
 					</div>
 				</div>
@@ -333,7 +333,7 @@ const MetadataItem: React.FC<MetadataItemProps> = ({
 		) : status === "stale" ? (
 			<Tooltip>
 				<TooltipTrigger asChild>
-					<StaticWidth className="text-ellipsis overflow-hidden whitespace-nowrap max-w-64 text-sm text-content-disabled cursor-pointer">
+					<StaticWidth className="text-ellipsis overflow-hidden whitespace-nowrap max-w-64 text-[13px] text-content-disabled cursor-pointer">
 						{reading.text}
 					</StaticWidth>
 				</TooltipTrigger>
@@ -344,7 +344,7 @@ const MetadataItem: React.FC<MetadataItemProps> = ({
 		) : (
 			<StaticWidth
 				className={cn(
-					"text-ellipsis overflow-hidden whitespace-nowrap max-w-64 text-sm text-content-success",
+					"text-ellipsis overflow-hidden whitespace-nowrap max-w-64 text-[13px] text-content-success",
 					item.result.error.length > 0 && "text-content-destructive",
 				)}
 			>

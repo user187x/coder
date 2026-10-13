@@ -518,6 +518,8 @@ type HudReport = {
 	generatedAt: string;
 	/** Live usage (metrics-server) is available. */
 	live: boolean;
+	/** How long Coder has been up: since its oldest ready replica started (null: Kubernetes not asked). */
+	uptime?: { since: string | null; replicas: number } | null;
 };
 
 // ---------------------------------------------------------- security posture
