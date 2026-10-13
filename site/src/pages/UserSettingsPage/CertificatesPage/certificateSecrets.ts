@@ -4,8 +4,8 @@
  * ~/.cert/.<username>.p12.b64, which Coder's agent writes into the owner's
  * workspaces and the template's installer decodes to ~/.cert/<username>.p12.
  * The description carries what the page shows (never secret): subject, expiry,
- * the file's SHA-256 and the certificate's x509 fingerprint (SHA-256 of its
- * DER encoding; known when the password was given at upload).
+ * the file's SHA-256 and the certificate's x509 fingerprints (SHA-256 and MD5
+ * of its DER encoding; known when the password was given at upload).
  */
 
 const PATH_RE = /^~\/\.cert\/\.([A-Za-z0-9_@+-][A-Za-z0-9._@+-]*)\.p12\.b64$/;
@@ -25,6 +25,8 @@ export type CertificateFacts = {
 	notAfter: Date | null;
 	/** SHA-256 of the certificate (DER), 64 hex digits. */
 	x509?: string;
+	/** MD5 of the certificate (DER), 32 hex digits. */
+	md5?: string;
 };
 
 export const describeCertificate = (
@@ -44,6 +46,9 @@ export const describeCertificate = (
 	if (facts.x509) {
 		parts.push(`x509 ${facts.x509}`);
 	}
+	if (facts.md5) {
+		parts.push(`md5 ${facts.md5}`);
+	}
 	return parts.join(" · ");
 };
 
@@ -52,4 +57,5 @@ export const parseCertificateDescription = (description: string) => ({
 	expires: /expires (\d{4}-\d\d-\d\d)/.exec(description)?.[1],
 	sha: /sha256 ([0-9a-f]{16})/.exec(description)?.[1],
 	x509: /x509 ([0-9a-f]{64})/.exec(description)?.[1],
+	md5: /md5 ([0-9a-f]{32})/.exec(description)?.[1],
 });

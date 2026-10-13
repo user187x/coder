@@ -20,6 +20,35 @@ const MAX_TYPED = 64;
 const MAX_HISTORY = 20;
 /** Typed at the prompt: the easter egg (SkynetOverlay). */
 const SKYNET = "skynet";
+/** Any other command's answer (site/static/no-no.gif), then this, typed out. */
+const NO_NO_SRC = "/no-no.gif";
+const NO_NO_TEXT = "ahh ahh ahh...";
+/** The typing starts once the picture is up, a letter at a time (the typewriter effect's 45 ms, slowed down). */
+const NO_NO_LEAD_MS = 700;
+const NO_NO_PER_MS = 110;
+
+/**
+ * The terminal's answer to any command but "skynet": a picture printed inline,
+ * as image-capable terminals show one (imgcat), then "ahh ahh ahh..." typed out
+ * a letter at a time, with the banner's typewriter effect (announce-appear).
+ */
+const NoNoResponse: React.FC = () => (
+	<div className="banner-scroll-nono" data-testid="announcement-scroll-nono">
+		<img src={NO_NO_SRC} alt="" width={120} height={120} draggable={false} />
+		<div className="banner-scroll-ahh">
+			{Array.from(NO_NO_TEXT).map((ch, i) => (
+				<span
+					key={i}
+					style={{
+						animation: `announce-appear 1ms linear ${NO_NO_LEAD_MS + i * NO_NO_PER_MS}ms 1 both`,
+					}}
+				>
+					{ch}
+				</span>
+			))}
+		</div>
+	</div>
+);
 
 type Rect = { top: number; left: number; width: number };
 
@@ -39,7 +68,8 @@ type BannerScrollViewProps = {
  * it, Escape or the arrow rolls it back up.
  *
  * The last prompt takes typing while the view is open (it has the focus), as a
- * terminal would: Backspace, and Enter answers "command not found". Typing
+ * terminal would: Backspace, and Enter runs the line - every command is
+ * answered with a wagging finger and "ahh ahh ahh..." (NoNoResponse). Typing
  * "skynet" rolls the view up and fades the whole screen into Skynet.
  */
 export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
@@ -211,8 +241,7 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 							{history.map((command, i) => (
 								<div key={i} className="banner-scroll-prompt" aria-hidden>
 									<i>root@platform</i>:<em>~</em># {command}
-									{command &&
-										`\nbash: ${command.split(/\s+/)[0]}: command not found`}
+									{command && <NoNoResponse />}
 								</div>
 							))}
 							<div

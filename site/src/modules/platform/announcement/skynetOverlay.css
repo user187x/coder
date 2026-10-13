@@ -25,15 +25,16 @@
 	user-select: none;
 }
 
+/* The logo whole, on its own black, at any screen shape. */
 .skynet img {
-	object-fit: cover;
+	object-fit: contain;
 }
 
 /* The colour-split copies, hidden until it leaves. */
 .skynet::before,
 .skynet::after {
 	content: "";
-	background: var(--skynet) center / cover no-repeat;
+	background: var(--skynet) center / contain no-repeat;
 	mix-blend-mode: screen;
 	opacity: 0;
 }

@@ -7,12 +7,27 @@ import {
 } from "#/pages/UserSettingsPage/CertificatesPage/certificateSecrets";
 import { formatFingerprint } from "#/utils/pkcs12";
 
+/** The signed-in user's certificate's fingerprints, "AB:CD:…" each. */
+export type CertificateFingerprints = {
+	/** SHA-256 of the certificate (x509, DER). */
+	sha256?: string;
+	/** MD5 of it. */
+	md5?: string;
+};
+
+/** A fingerprint Settings › Certificates did not record (an older upload, or one without its password). */
+export const NOT_RECORDED =
+	"not recorded (upload your certificate again, with its password, in Settings › Certificates)";
+
 /**
- * The signed-in user's certificate fingerprint (x509, SHA-256 of the
- * certificate, as "AB:CD:…"), from what Settings > Certificates recorded with
- * their certificate. `undefined` while loading; a sentence when there is none.
+ * The signed-in user's certificate fingerprints, from what Settings >
+ * Certificates recorded with their certificate. `undefined` while loading;
+ * `null` when they have none (or it cannot be told).
  */
-export const useCertificateFingerprint = (): string | undefined => {
+export const useCertificateFingerprint = ():
+	| CertificateFingerprints
+	| null
+	| undefined => {
 	const { user } = useAuthContext();
 	const query = useQuery({
 		...userSecrets(user?.id ?? ""),
@@ -24,7 +39,7 @@ export const useCertificateFingerprint = (): string | undefined => {
 		return undefined;
 	}
 	if (query.isError) {
-		return "unavailable";
+		return null;
 	}
 	const certificates = (query.data ?? [])
 		.filter((secret) => parseCertificatePath(secret.file_path))
@@ -34,10 +49,11 @@ export const useCertificateFingerprint = (): string | undefined => {
 			(secret) => parseCertificatePath(secret.file_path) === user.username,
 		) ?? certificates[0];
 	if (!mine) {
-		return "no certificate on file (Settings › Certificates)";
+		return null;
 	}
-	const x509 = parseCertificateDescription(mine.description).x509;
-	return x509
-		? formatFingerprint(x509)
-		: "not recorded (upload your certificate again, with its password, in Settings › Certificates)";
+	const { x509, md5 } = parseCertificateDescription(mine.description);
+	return {
+		sha256: x509 ? formatFingerprint(x509) : undefined,
+		md5: md5 ? formatFingerprint(md5) : undefined,
+	};
 };

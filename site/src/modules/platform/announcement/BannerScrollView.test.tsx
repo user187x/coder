@@ -66,8 +66,20 @@ describe("BannerScrollView", () => {
 		const prompt = screen.getByTestId("announcement-scroll-prompt");
 		expect(prompt.textContent).toBe("root@platform:~# ls");
 		fireEvent.keyDown(view, { key: "Enter" });
-		expect(view.textContent).toContain("bash: ls: command not found");
+		// Every command is answered with the wagging finger, then "ahh ahh ahh..." typed out.
+		const answer = screen.getByTestId("announcement-scroll-nono");
+		expect(answer.querySelector("img")?.getAttribute("src")).toBe("/no-no.gif");
+		const letters = [...answer.querySelectorAll(".banner-scroll-ahh span")];
+		expect(letters.map((l) => l.textContent).join("")).toBe("ahh ahh ahh...");
+		const delays = letters.map((l) =>
+			Number(/(\d+)ms 1 both/.exec((l as HTMLElement).style.animation)?.[1]),
+		);
+		expect(delays[0]).toBeGreaterThan(0);
+		expect(delays).toEqual([...delays].sort((a, b) => a - b));
 		expect(prompt.textContent).toBe("root@platform:~# ");
+		// An empty line gets no answer.
+		fireEvent.keyDown(view, { key: "Enter" });
+		expect(screen.getAllByTestId("announcement-scroll-nono")).toHaveLength(1);
 	});
 
 	it("fades the screen into Skynet when someone types skynet, and glitches out on a key", () => {

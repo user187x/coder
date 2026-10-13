@@ -24,4 +24,19 @@ describe("certificate secrets", () => {
 			sha: "0123456789abcdef",
 		});
 	});
+
+	it("keeps the certificate's SHA-256 and MD5 fingerprints in the description", () => {
+		const x509 = "ab".repeat(32);
+		const md5 = "cd".repeat(16);
+		const parsed = parseCertificateDescription(
+			describeCertificate("jane", {
+				sha: "0123456789abcdef",
+				notAfter: null,
+				x509,
+				md5,
+			}),
+		);
+		expect(parsed.x509).toBe(x509);
+		expect(parsed.md5).toBe(md5);
+	});
 });

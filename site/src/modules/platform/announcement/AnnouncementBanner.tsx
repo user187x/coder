@@ -13,7 +13,11 @@ import { BannerScrollView } from "./BannerScrollView";
 import { BannerText } from "./BannerText";
 import { confirmBackground, LEVEL_COLORS, parseColors } from "./bannerTokens";
 import { useBannerLive, wasPushed } from "./useBannerLive";
-import { useCertificateFingerprint } from "./useCertificateFingerprint";
+import {
+	type CertificateFingerprints,
+	NOT_RECORDED,
+	useCertificateFingerprint,
+} from "./useCertificateFingerprint";
 
 /**
  * Where the banner is drawn:
@@ -204,9 +208,14 @@ const utcOffset = (at: Date): string => {
  * The Viewed box's tooltip:
  *   Announcement Viewed:
  *   Date: October 11, 2026 @ 10:29 PM UTC-5
- *   TLS/x509 Fingerprint: AB:CD:…
+ *   Certificate Fingerprint: AB:CD:…   (SHA-256 of the user's certificate)
+ *   MD5 HASH: 01:23:…                  (MD5 of it)
+ * The two certificate lines only when the user has a certificate on file.
  */
-export const viewedTooltip = (at: Date, fingerprint: string | undefined) => {
+export const viewedTooltip = (
+	at: Date,
+	certificate: CertificateFingerprints | null | undefined,
+) => {
 	const date = at.toLocaleDateString("en-US", {
 		month: "long",
 		day: "numeric",
@@ -216,11 +225,17 @@ export const viewedTooltip = (at: Date, fingerprint: string | undefined) => {
 		hour: "numeric",
 		minute: "2-digit",
 	});
-	return [
+	const lines = [
 		"Announcement Viewed:",
 		`Date: ${date} @ ${time} ${utcOffset(at)}`,
-		`TLS/x509 Fingerprint: ${fingerprint ?? "…"}`,
-	].join("\n");
+	];
+	if (certificate) {
+		lines.push(
+			`Certificate Fingerprint: ${certificate.sha256 ?? NOT_RECORDED}`,
+			`MD5 HASH: ${certificate.md5 ?? NOT_RECORDED}`,
+		);
+	}
+	return lines.join("\n");
 };
 
 // The Viewed box and the Confirm button: the same size, side by side at the right.

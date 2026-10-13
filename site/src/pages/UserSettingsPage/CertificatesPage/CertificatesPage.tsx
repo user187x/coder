@@ -31,6 +31,7 @@ import {
 } from "#/components/Table/Table";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { useEmbeddedMetadata } from "#/hooks/useEmbeddedMetadata";
+import { md5Hex } from "#/utils/md5";
 import { pageTitle } from "#/utils/page";
 import { sha256Hex } from "#/utils/pkcs12";
 import {
@@ -127,6 +128,7 @@ const CertificatesPage: React.FC = () => {
 						subject: parsed.subject,
 						notAfter: parsed.expires ? new Date(parsed.expires) : null,
 						x509: parsed.x509,
+						md5: parsed.md5,
 					}),
 				},
 			},
@@ -150,6 +152,7 @@ const CertificatesPage: React.FC = () => {
 			x509: prepared.details
 				? await sha256Hex(prepared.details.der)
 				: undefined,
+			md5: prepared.details ? md5Hex(prepared.details.der) : undefined,
 		};
 		const body = {
 			value: prepared.base64,

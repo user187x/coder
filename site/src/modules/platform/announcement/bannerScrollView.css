@@ -195,3 +195,30 @@ html[data-animations="off"] .banner-scroll-cursor {
 		animation: none;
 	}
 }
+
+/* The answer to any command but "skynet" (NoNoResponse): a picture printed inline, as image-capable terminals show
+ * one, then "ahh ahh ahh..." typed out (the typewriter effect's announce-appear, staggered). */
+.banner-scroll-nono {
+	margin: 4px 0 6px;
+	white-space: normal;
+}
+.banner-scroll-nono img {
+	display: block;
+	width: 120px;
+	height: 120px;
+	image-rendering: auto;
+}
+.banner-scroll-ahh {
+	margin-top: 4px;
+	color: #d6f5dc;
+	white-space: pre;
+}
+
+html[data-animations="off"] .banner-scroll-ahh span {
+	animation: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+	.banner-scroll-ahh span {
+		animation: none !important;
+	}
+}
