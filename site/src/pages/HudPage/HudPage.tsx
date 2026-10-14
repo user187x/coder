@@ -27,6 +27,7 @@ import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { pageTitle } from "#/utils/page";
 import "./hud.css";
 import { HudGraphs } from "./HudGraphs";
+import { hudIcon } from "./hudIcons";
 import { applyOrder, elevate, readHudOrder, writeHudOrder } from "./hudOrder";
 import { SystemUptime } from "./SystemUptime";
 
@@ -340,53 +341,63 @@ const MetricTile: React.FC<MetricTileProps> = ({
 	series,
 	first,
 	flash,
-}) => (
-	<MetricLink
-		metric={metric}
-		title={metric.hint || undefined}
-		className={cn(
-			"group flex h-full w-full flex-col gap-1 rounded-lg border border-solid border-border bg-surface-primary p-4 text-left text-content-primary no-underline",
-			metric.href &&
-				"cursor-pointer motion-safe:transition-colors hover:border-content-secondary",
-			first && "border-content-link",
-			flash && "hud-flash",
-		)}
-	>
-		<span className="flex items-center justify-between gap-2 text-xs uppercase tracking-wide text-content-secondary">
-			<span className="truncate">{metric.label}</span>
-			<span className="flex shrink-0 items-center gap-1 normal-case tracking-normal">
-				{GROUP_LABEL[metric.group]}
-				{metric.href && (
-					<ChevronRightIcon
-						aria-hidden
-						className="size-3.5 opacity-0 group-hover:opacity-100"
-					/>
-				)}
-			</span>
-		</span>
-		<span className="flex items-baseline gap-1.5">
-			<span className="text-3xl font-semibold tabular-nums">
-				{formatValue(metric)}
-			</span>
-			{metric.unit && metric.value !== null && (
-				<span className="text-sm text-content-secondary">{metric.unit}</span>
-			)}
-			<span className="ml-auto">
-				<Delta series={series} />
-			</span>
-		</span>
-		<span
+}) => {
+	const Icon = hudIcon(metric.id);
+	return (
+		<MetricLink
+			metric={metric}
+			title={metric.hint || undefined}
 			className={cn(
-				"truncate text-sm",
-				metric.group === "leaders"
-					? "font-medium text-content-primary"
-					: "text-content-secondary",
+				"group flex h-full w-full flex-col gap-1 rounded-lg border border-solid border-border bg-surface-primary p-4 text-left text-content-primary no-underline",
+				metric.href &&
+					"cursor-pointer motion-safe:transition-colors hover:border-content-secondary",
+				first && "border-content-link",
+				flash && "hud-flash",
 			)}
 		>
-			{metric.detail || " "}
-		</span>
-		<Sparkline series={series} />
-	</MetricLink>
-);
+			<span className="flex items-center justify-between gap-2 text-xs uppercase tracking-wide text-content-secondary">
+				<span className="flex min-w-0 items-center gap-1.5">
+					<Icon
+						aria-hidden
+						data-testid="hud-metric-icon"
+						className="size-3.5 shrink-0"
+					/>
+					<span className="truncate">{metric.label}</span>
+				</span>
+				<span className="flex shrink-0 items-center gap-1 normal-case tracking-normal">
+					{GROUP_LABEL[metric.group]}
+					{metric.href && (
+						<ChevronRightIcon
+							aria-hidden
+							className="size-3.5 opacity-0 group-hover:opacity-100"
+						/>
+					)}
+				</span>
+			</span>
+			<span className="flex items-baseline gap-1.5">
+				<span className="text-3xl font-semibold tabular-nums">
+					{formatValue(metric)}
+				</span>
+				{metric.unit && metric.value !== null && (
+					<span className="text-sm text-content-secondary">{metric.unit}</span>
+				)}
+				<span className="ml-auto">
+					<Delta series={series} />
+				</span>
+			</span>
+			<span
+				className={cn(
+					"truncate text-sm",
+					metric.group === "leaders"
+						? "font-medium text-content-primary"
+						: "text-content-secondary",
+				)}
+			>
+				{metric.detail || " "}
+			</span>
+			<Sparkline series={series} />
+		</MetricLink>
+	);
+};
 
 export default HudPage;
