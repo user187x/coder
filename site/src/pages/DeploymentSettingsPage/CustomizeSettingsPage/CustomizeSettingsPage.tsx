@@ -29,6 +29,7 @@ import { DEFAULT_LOGO_URL, setLogoURL } from "#/contexts/platformBoot";
 import { BackgroundSection } from "#/modules/platform/background/BackgroundSection";
 import { GalleryPicker } from "#/modules/platform/gallery/GalleryPicker";
 import { formatBytes } from "#/modules/platform/images";
+import { LoginPageSection } from "#/modules/platform/loginPage/LoginPageSection";
 import {
 	ImageNormalizeError,
 	LOGO_TARGET,
@@ -42,7 +43,8 @@ const LOGO_EXTENSIONS = ["png", "jpg", "jpeg", "svg", "webp", "gif", "avif"];
 
 /**
  * General > Customize: the logo shown everywhere in Coder (navigation bar,
- * sign-in and set-up pages, browser tab icon) and the faint background images
+ * sign-in and set-up pages, browser tab icon), the sign-in and sign-out page's
+ * title, text effect and messages, and the faint background images
  * of the sign-in page and the dashboard, stored in Coder's own database by the
  * platform service, and your own appearance: theme and terminal font.
  */
@@ -54,12 +56,15 @@ const CustomizeSettingsPage: React.FC = () => {
 				<SettingsHeaderTitle>Customize</SettingsHeaderTitle>
 				<SettingsHeaderDescription>
 					The logo shown everywhere in Coder (navigation bar, sign-in and set-up
-					pages, browser tab icon), the background images of the sign-in page
-					and the dashboard, and your appearance: theme and terminal font.
+					pages, browser tab icon), the sign-in and sign-out page's title and
+					messages, the background images of the sign-in page and the dashboard,
+					and your appearance: theme and terminal font.
 				</SettingsHeaderDescription>
 			</SettingsHeader>
 
 			<LogoSection />
+
+			<LoginPageSection />
 
 			<BackgroundSection />
 

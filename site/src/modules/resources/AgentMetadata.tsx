@@ -23,6 +23,7 @@ import {
 	levelColor,
 	MetadataHistogram,
 	metadataNumber,
+	oneDecimal,
 	shareOf,
 	splitPercent,
 	useMetadataHistory,
@@ -99,7 +100,7 @@ export const AgentMetadataView: React.FC<AgentMetadataViewProps> = ({
 	}
 	return (
 		<section
-			className="flex min-w-0 flex-nowrap items-stretch gap-3 overflow-x-auto pb-1 [justify-content:safe_center]"
+			className="flex min-w-0 flex-nowrap items-stretch gap-3 overflow-x-auto pb-1"
 			data-metrics
 		>
 			{groups.map((g) => (
@@ -108,13 +109,14 @@ export const AgentMetadataView: React.FC<AgentMetadataViewProps> = ({
 					role="group"
 					aria-label={g.title}
 					title={g.hint}
-					className="flex shrink-0 flex-col gap-2 rounded-2xl border border-solid border-border bg-surface-secondary/40 px-3.5 pt-3 pb-4"
+					className="flex min-w-fit flex-1 flex-col gap-2 rounded-2xl border border-solid border-border bg-surface-secondary/40 px-3.5 pt-3 pb-4"
 					data-testid={`metrics-group-${g.id}`}
 				>
 					<div className="text-center text-xs font-semibold uppercase tracking-wide text-content-secondary">
 						{g.title}
 					</div>
-					<div className="flex items-baseline flex-nowrap gap-4">
+					{/* Platform: the group fills its share of the row; its metrics spread across it, each a little wider */}
+					<div className="flex items-baseline flex-nowrap justify-evenly gap-4">
 						{g.items.map(item)}
 					</div>
 				</div>
@@ -123,9 +125,27 @@ export const AgentMetadataView: React.FC<AgentMetadataViewProps> = ({
 	);
 };
 
-/** "CPU Usage (Host)" → "CPU Usage": the Cluster group says it (templates from before the grouping). */
-const metricName = (m: WorkspaceAgentMetadata) =>
-	m.description.display_name.replace(/\s*\((host|cluster)\)\s*$/i, "");
+/**
+ * "CPU Usage (Host)" → "CPU Usage": the Cluster group says it (templates from before the grouping); a load average
+ * ("Load Avg", "Load Average") is "Ø Load", as the template names it now.
+ */
+export const metricName = (m: WorkspaceAgentMetadata) => {
+	const name = m.description.display_name.replace(
+		/\s*\((host|cluster)\)\s*$/i,
+		"",
+	);
+	return /^load(\s+av(g|erage)\.?)?$/i.test(name) ? "Ø Load" : name;
+};
+
+/** The order of the metrics in both groups: CPU, RAM, Disk, Ø Load, then anything else as the template has it. */
+const METRIC_ORDER = [/cpu/i, /ram|mem/i, /disk/i, /load/i] as const;
+export const metricRank = (m: WorkspaceAgentMetadata) => {
+	const text = `${m.description.key} ${m.description.display_name}`;
+	const i = METRIC_ORDER.findIndex((re) => re.test(text));
+	return i === -1 ? METRIC_ORDER.length : i;
+};
+const inMetricOrder = (items: readonly WorkspaceAgentMetadata[]) =>
+	[...items].sort((a, b) => metricRank(a) - metricRank(b)); // stable: the rest keep the template's order
 
 const isHostMetric = (m: WorkspaceAgentMetadata) =>
 	/_host$/i.test(m.description.key) ||
@@ -140,8 +160,9 @@ type MetricGroup = {
 
 /**
  * The agent's metrics in two groups: Cluster (the host's: keys ending in
- * "_host", or names ending "(Host)") and Workspace (the rest). A template with
- * no host metrics keeps the plain row.
+ * "_host", or names ending "(Host)") and Workspace (the rest), each in the
+ * same order: CPU, RAM, Disk, Ø Load. A template with no host metrics keeps
+ * the plain row.
  */
 const groupMetadata = (
 	metadata: readonly WorkspaceAgentMetadata[],
@@ -157,8 +178,8 @@ const groupMetadata = (
 					{
 						id: "workspace" as const,
 						title: "Workspace",
-						hint: "This workspace: its own CPU, memory and disk",
-						items: workspace,
+						hint: "This workspace: its own CPU, memory, disk and load",
+						items: inMetricOrder(workspace),
 					},
 				]
 			: []),
@@ -166,7 +187,7 @@ const groupMetadata = (
 			id: "cluster" as const,
 			title: "Cluster",
 			hint: "The cluster node this workspace runs on",
-			items: cluster,
+			items: inMetricOrder(cluster),
 		},
 	];
 };
@@ -332,7 +353,7 @@ const MetadataItem: React.FC<MetadataItemProps> = ({
 	})();
 
 	// Platform: the percentage goes in a chip by the name, the rest stays below the graph
-	const reading = splitPercent(item.result.value);
+	const reading = splitPercent(oneDecimal(item.result.value));
 	const percent =
 		status === "loading" || item.result.error.length > 0
 			? null
@@ -367,7 +388,7 @@ const MetadataItem: React.FC<MetadataItemProps> = ({
 		);
 
 	return (
-		<div className="leading-relaxed flex flex-col overflow-visible shrink-0">
+		<div className="leading-relaxed flex min-w-[104px] max-w-[136px] flex-1 flex-col overflow-visible">
 			<div className="flex items-center justify-between gap-3">
 				<div className="text-content-secondary text-ellipsis overflow-hidden whitespace-nowrap text-[13px]">
 					{metricName(item)}

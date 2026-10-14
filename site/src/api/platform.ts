@@ -136,6 +136,33 @@ export const platformRequest = { get, post, upload, base: PLATFORM_BASE };
 
 // ---------------------------------------------------------------- types
 
+/** The sign-in page (where signing out lands too): its title's text and effect, and a message for each. */
+export const LOGIN_EFFECTS = ["wireframe", "neon", "plain"] as const;
+export type LoginEffect = (typeof LOGIN_EFFECTS)[number];
+export type LoginPageSettings = {
+	/** "": the deployment's name (Coder, or the one set in Appearance). */
+	title: string;
+	effect: LoginEffect;
+	/** The effect's colour (#rrggbb): the traced outline, the neon's glow, the plain title. */
+	color: string;
+	/** Seconds for one trace (wireframe) or one pulse (neon). */
+	speed: number;
+	/** Under the title on the sign-in page ("": none). */
+	message: string;
+	/** Under the title right after signing out ("": none). */
+	signedOutMessage: string;
+	updatedBy?: string;
+	updatedAt?: string;
+};
+export const LOGIN_PAGE_DEFAULT: LoginPageSettings = {
+	title: "",
+	effect: "wireframe",
+	color: "#4ff8ff",
+	speed: 3.2,
+	message: "",
+	signedOutMessage: "",
+};
+
 export type ClassificationSettings = {
 	enabled: boolean;
 	text: string;
@@ -514,10 +541,26 @@ export type HudHistory = {
 };
 
 /** Lock Down: what an admin jailed in a workspace (lockdown.py in the platform service). */
-export type LockdownMode = "network" | "sudo" | "complete" | "off";
+export type LockdownMode = "network" | "sudo" | "complete" | "freeze" | "off";
+/** Lock Down > Freeze: the workspace's disk as it was when it was frozen (admins only). */
+export type LockdownSnapshot = {
+	/** A VolumeSnapshot where the cluster can make one, else a copy in a new volume (a PVC). */
+	kind: "VolumeSnapshot" | "PersistentVolumeClaim" | null;
+	name: string | null;
+	at: string;
+	/** The workspace's home volume it is of. */
+	claim: string | null;
+	/** It could not be taken. */
+	error: string | null;
+	status: "copying" | "ready" | "failed" | "gone" | null;
+	/** How many processes were paused. */
+	processes: number;
+};
 export type WorkspaceLockdown = {
 	locked: boolean;
-	modes: ("network" | "sudo")[];
+	modes: ("network" | "sudo" | "freeze")[];
+	/** Admins: the snapshot of the last freeze (kept after it is lifted, until deleted or replaced). */
+	snapshot?: LockdownSnapshot | null;
 	by: string | null;
 	at: string | null;
 	/** The workspace runs now. */
@@ -1109,6 +1152,17 @@ export const PlatformAPI = {
 			color: settings.color,
 		}),
 
+	getLoginPage: () => get<LoginPageSettings>(`${PLATFORM_BASE}/api/login-page`),
+	updateLoginPage: (settings: LoginPageSettings) =>
+		post<LoginPageSettings>(`${PLATFORM_BASE}/api/login-page`, {
+			title: settings.title.trim(),
+			effect: settings.effect,
+			color: settings.color,
+			speed: settings.speed,
+			message: settings.message.trim(),
+			signedOutMessage: settings.signedOutMessage.trim(),
+		}),
+
 	getLogo: () => get<LogoState>(`${PLATFORM_BASE}/api/logo`),
 	uploadLogo: (dataUrl: string) =>
 		post<{ ok: true; set: true; url: string }>(`${PLATFORM_BASE}/api/logo`, {
@@ -1184,7 +1238,7 @@ export const PlatformAPI = {
 		get<WorkspaceLockdown>(
 			`${PLATFORM_BASE}/api/lockdown/${encodeURIComponent(workspaceId)}`,
 		),
-	/** Admins: lock a workspace down (network, sudo, both) or lift it; a running workspace at once. */
+	/** Admins: lock a workspace down (network, sudo, both, or frozen) or lift it; a running workspace at once. */
 	setLockdown: (workspaceId: string, mode: LockdownMode) =>
 		post<
 			WorkspaceLockdown & {
@@ -1194,6 +1248,12 @@ export const PlatformAPI = {
 		>(`${PLATFORM_BASE}/api/lockdown/${encodeURIComponent(workspaceId)}`, {
 			mode,
 		}),
+	/** Admins: the workspace's Freeze snapshot deleted. */
+	deleteLockdownSnapshot: (workspaceId: string) =>
+		post<WorkspaceLockdown>(
+			`${PLATFORM_BASE}/api/lockdown/${encodeURIComponent(workspaceId)}/snapshot/delete`,
+			{},
+		),
 	/** The signed-in user's Inbox (the bell) emptied: every notification deleted (Coder can only mark them read). */
 	clearInbox: () =>
 		post<{ cleared: number }>(`${PLATFORM_BASE}/api/inbox/clear`, {}),

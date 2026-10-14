@@ -61,6 +61,18 @@ describe("adminPagesFor", () => {
 		expect(new Set(ids(allPages)).size).toBe(allPages.length);
 	});
 
+	it("gives every page an icon of its own", () => {
+		expect(
+			allPages.every(
+				(page) =>
+					typeof page.icon === "object" || typeof page.icon === "function",
+			),
+		).toBe(true);
+		expect(new Set(allPages.map((page) => page.icon)).size).toBe(
+			allPages.length,
+		);
+	});
+
 	it("can link every category", () => {
 		expect(allPages.length).toBeLessThanOrEqual(MaxAdminQuickLinks);
 	});

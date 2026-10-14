@@ -63,9 +63,11 @@ const AXIS = 54;
  * what it sent, side by side across the time the reading covers, on an axis that
  * scales with the busiest reading shown.
  */
-export const NetworkHistogram: React.FC<{ samples: NetworkSample[] }> = ({
-	samples,
-}) => {
+export const NetworkHistogram: React.FC<{
+	samples: NetworkSample[];
+	/** Lock Down cut the workspace's network: said under the title, in red. */
+	locked?: boolean;
+}> = ({ samples, locked = false }) => {
 	const last = samples[samples.length - 1];
 	const end = last?.t ?? 0;
 	const start = end - NETWORK_WINDOW_MS;
@@ -79,7 +81,17 @@ export const NetworkHistogram: React.FC<{ samples: NetworkSample[] }> = ({
 	return (
 		<div className="flex flex-col gap-2" data-testid="network-histogram">
 			<div className="flex items-center justify-between gap-4 text-xs text-content-primary">
-				<span className="font-semibold">Network, last minute</span>
+				<span className="flex flex-col">
+					<span className="font-semibold">Network, last minute</span>
+					{locked && (
+						<span
+							className="font-medium text-content-destructive"
+							data-testid="network-histogram-locked"
+						>
+							Locked down: no traffic
+						</span>
+					)}
+				</span>
 				<span className="flex items-center gap-3 tabular-nums">
 					<span className="inline-flex items-center gap-1">
 						<span className="inline-block size-2 rounded-full bg-[#22c55e]" />

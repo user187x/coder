@@ -3,7 +3,12 @@ import { QueryClient, QueryClientProvider } from "react-query";
 import { PlatformAPI, type WorkspaceLockdown } from "#/api/platform";
 import { MockWorkspace } from "#/testHelpers/entities";
 import { renderComponent } from "#/testHelpers/renderHelpers";
-import { LockdownBanner, LockdownButton, modeOf } from "./Lockdown";
+import {
+	LockdownBanner,
+	LockdownButton,
+	modeOf,
+	networkLocked,
+} from "./Lockdown";
 
 const lock = (over: Partial<WorkspaceLockdown>): WorkspaceLockdown => ({
 	locked: false,
@@ -29,6 +34,45 @@ describe("Lock Down", () => {
 		expect(modeOf(lock({ modes: ["network"] }))).toBe("network");
 		expect(modeOf(lock({ modes: ["sudo"] }))).toBe("sudo");
 		expect(modeOf(lock({}))).toBe("off");
+		expect(modeOf(lock({ modes: ["network", "sudo", "freeze"] }))).toBe(
+			"freeze",
+		);
+	});
+
+	it("knows when the network is cut: Network, Complete and Freeze", () => {
+		expect(networkLocked(lock({ locked: true, modes: ["network"] }))).toBe(
+			true,
+		);
+		expect(
+			networkLocked(
+				lock({ locked: true, modes: ["network", "sudo", "freeze"] }),
+			),
+		).toBe(true);
+		expect(networkLocked(lock({ locked: true, modes: ["sudo"] }))).toBe(false);
+		expect(networkLocked(undefined)).toBe(false);
+	});
+
+	it("centres the notice between two shields, and says a frozen workspace is paused through restarts", async () => {
+		vi.spyOn(PlatformAPI, "getLockdown").mockResolvedValue(
+			lock({
+				locked: true,
+				modes: ["network", "sudo", "freeze"],
+				by: "admin",
+				canChange: false,
+			}),
+		);
+		renderWith(<LockdownBanner workspace={MockWorkspace} />);
+		const banner = await screen.findByTestId("workspace-lockdown-banner");
+		expect(banner.className).toContain("justify-center");
+		expect(banner.className).toContain("text-center");
+		const shields = screen.getAllByTestId("workspace-lockdown-shield");
+		expect(shields).toHaveLength(2);
+		expect(banner.firstElementChild).toBe(shields[0]);
+		expect(banner.lastElementChild).toBe(shields[1]);
+		expect(banner.textContent).toContain(
+			"Locked down: Freeze (everything paused, no network but Coder, no sudo)",
+		);
+		expect(banner.textContent).toContain("stays frozen through restarts");
 	});
 
 	it("tells everyone who sees the workspace what is locked, by whom, and whether it is in force", async () => {
@@ -79,5 +123,51 @@ describe("Lock Down", () => {
 				"complete",
 			),
 		);
+	});
+
+	it("freezes a workspace, and shows and deletes its snapshot", async () => {
+		const frozen = lock({
+			locked: true,
+			modes: ["network", "sudo", "freeze"],
+			snapshot: {
+				kind: "PersistentVolumeClaim",
+				name: "coder-freeze-5250ca5d-20261013-120000",
+				at: new Date().toISOString(),
+				claim: "coder-5250ca5d-home",
+				error: null,
+				status: "ready",
+				processes: 42,
+			},
+		});
+		vi.spyOn(PlatformAPI, "getLockdown").mockResolvedValue(lock({}));
+		const set = vi
+			.spyOn(PlatformAPI, "setLockdown")
+			.mockResolvedValue({ ...frozen, applied: "now", error: null });
+		const del = vi
+			.spyOn(PlatformAPI, "deleteLockdownSnapshot")
+			.mockResolvedValue({ ...frozen, snapshot: null });
+		renderWith(<LockdownButton workspace={MockWorkspace} />);
+		const open = async () =>
+			fireEvent.pointerDown(await screen.findByTestId("workspace-lockdown"), {
+				button: 0,
+				ctrlKey: false,
+			});
+		await open();
+		fireEvent.click(await screen.findByTestId("lockdown-freeze"));
+		await waitFor(() =>
+			expect(set).toHaveBeenCalledWith(MockWorkspace.id, "freeze"),
+		);
+		await waitFor(() =>
+			expect(screen.getByTestId("workspace-lockdown").dataset.mode).toBe(
+				"freeze",
+			),
+		);
+		await open();
+		const snap = await screen.findByTestId("lockdown-snapshot");
+		expect(snap.textContent).toContain("Snapshot ready");
+		expect(snap.textContent).toContain("coder-freeze-5250ca5d-20261013-120000");
+		expect(snap.textContent).toContain("42 processes paused");
+		fireEvent.click(screen.getByTestId("lockdown-snapshot-delete"));
+		await waitFor(() => expect(del).toHaveBeenCalledWith(MockWorkspace.id));
 	});
 });

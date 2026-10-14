@@ -136,9 +136,6 @@ export const TemplateLayout: React.FC<React.PropsWithChildren> = ({
 								Source Code
 							</TabLink>
 						)}
-						<TabLink to="embed" value="embed">
-							Embed
-						</TabLink>
 						{isWorkspacePrebuildsEnabled &&
 							data.permissions.canUpdateTemplate && (
 								<TabLink to="prebuilds" value="prebuilds">

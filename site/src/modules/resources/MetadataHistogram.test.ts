@@ -2,6 +2,7 @@ import {
 	LEVELS,
 	levelColor,
 	metadataNumber,
+	oneDecimal,
 	splitPercent,
 	toBars,
 } from "./MetadataHistogram";
@@ -97,5 +98,20 @@ describe("splitPercent", () => {
 			text: "0.90 load",
 			percent: null,
 		});
+	});
+});
+
+describe("oneDecimal: fractional readings to one decimal place", () => {
+	it.each([
+		["0.621/6 cores", "0.6/6 cores"],
+		["0.45/6.44 GB", "0.5/6.4 GB"],
+		["0.13 / 6 cores", "0.1 / 6 cores"],
+		["19.54/98.55 GB", "19.5/98.6 GB"],
+		["2.10 / 24 cores (9%)", "2.1 / 24 cores (9%)"],
+		["918.7/1003.7 GB", "918.7/1003.7 GB"],
+		["6 cores", "6 cores"],
+		["12%", "12%"],
+	])("%s → %s", (reading, shown) => {
+		expect(oneDecimal(reading)).toBe(shown);
 	});
 });

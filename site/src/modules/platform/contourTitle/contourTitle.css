@@ -25,10 +25,35 @@
 		monospace;
 	letter-spacing: 0.02em;
 	fill: color-mix(in srgb, var(--ink) 10%, transparent);
-	stroke: var(--ink-3);
+	stroke: var(--fx-color, var(--ink-3));
 	stroke-width: 1.2;
 	stroke-dasharray: 34 66;
-	animation: fx-contour 3.2s linear infinite;
+	animation: fx-contour var(--fx-speed, 3.2s) linear infinite;
+}
+
+/* Customize > Sign-in page > Neon: the letters filled with the colour, glowing, the glow slowly pulsing. */
+.fx-contour[data-effect="neon"] text {
+	fill: var(--fx-color, var(--ink-3));
+	stroke: none;
+	stroke-dasharray: none;
+	filter: drop-shadow(0 0 2px var(--fx-color, var(--ink-3)))
+		drop-shadow(0 0 9px var(--fx-color, var(--ink-3)));
+	animation: fx-neon var(--fx-speed, 3.2s) ease-in-out infinite;
+}
+@keyframes fx-neon {
+	50% {
+		opacity: 0.78;
+		filter: drop-shadow(0 0 1px var(--fx-color, var(--ink-3)))
+			drop-shadow(0 0 3px var(--fx-color, var(--ink-3)));
+	}
+}
+
+/* ... > Plain: the letters filled with the colour, still (the default colour: the page's text colour). */
+.fx-contour[data-effect="plain"] text {
+	fill: var(--fx-color, currentColor);
+	stroke: none;
+	stroke-dasharray: none;
+	animation: none;
 }
 @keyframes fx-contour {
 	to {
@@ -45,5 +70,15 @@ html[data-animations="off"] .fx-contour text {
 	.fx-contour text {
 		animation: none;
 		stroke-dasharray: none;
+	}
+}
+
+/* ... and the neon's pulse, still too, its glow kept. */
+html[data-animations="off"] .fx-contour[data-effect="neon"] text {
+	animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+	.fx-contour[data-effect="neon"] text {
+		animation: none;
 	}
 }

@@ -288,14 +288,14 @@ const ViewedStamp: React.FC<{ viewedAt: string }> = ({ viewedAt }) => {
 				<span>{time}</span>
 			</span>
 			{/*
-			 * The "seen and accounted for" badge: centred under "Viewed" and hanging over the box's bottom edge,
-			 * like a sticker on the banner.
+			 * The "seen and accounted for" badge: under "Viewed", a little to its right, hanging over the box's bottom
+			 * edge like a sticker on the banner, its ribbons reaching past the banner into the navigation bar.
 			 */}
 			<img
 				src="/announcement-viewed.png"
 				alt=""
 				data-testid="announcement-viewed-badge"
-				className="pointer-events-none absolute -bottom-[7px] left-[12px] z-10 block size-[18px] drop-shadow-[0_1px_1.5px_rgb(0_0_0/0.5)]"
+				className="pointer-events-none absolute -bottom-[14px] left-[19px] z-10 block size-[25px] drop-shadow-[0_1px_2px_rgb(0_0_0/0.55)]"
 			/>
 		</span>
 	);

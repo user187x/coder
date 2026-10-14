@@ -146,6 +146,7 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 									setAnnouncement(`${page.label} added to the quick links.`);
 								}}
 							>
+								<page.icon aria-hidden />
 								{page.label}
 							</DropdownMenuItem>
 						))}
@@ -207,6 +208,7 @@ const QuickLinkRow: React.FC<QuickLinkRowProps> = ({
 		>
 			<DropdownMenuItem asChild className={cn("min-w-0 flex-1", itemClassName)}>
 				<Link to={link.path}>
+					<link.icon aria-hidden />
 					<span className="truncate">{link.label}</span>
 				</Link>
 			</DropdownMenuItem>

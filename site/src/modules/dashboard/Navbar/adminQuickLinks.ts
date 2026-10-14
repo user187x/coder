@@ -1,3 +1,21 @@
+import {
+	ActivityIcon,
+	AppWindowIcon,
+	BellIcon,
+	BrainCircuitIcon,
+	DatabaseIcon,
+	HeartPulseIcon,
+	KeyRoundIcon,
+	LayoutDashboardIcon,
+	LockIcon,
+	type LucideIcon,
+	MegaphoneIcon,
+	NetworkIcon,
+	PaletteIcon,
+	TagIcon,
+	TelescopeIcon,
+	UsersIcon,
+} from "lucide-react";
 import { MaxAdminQuickLinks } from "#/api/typesGenerated";
 import type { Permissions } from "#/modules/permissions";
 import { WORKSPACE_HEALTH_PATH } from "#/pages/HealthPage/healthSections";
@@ -8,6 +26,8 @@ export type AdminPage = {
 	id: string;
 	label: string;
 	path: string;
+	/** Shown before its label in the Admin menu. */
+	icon: LucideIcon;
 };
 
 type AdminPageAccess = {
@@ -27,66 +47,77 @@ const ADMIN_PAGES: readonly (AdminPage & {
 	{
 		id: "accounts",
 		label: "Accounts",
+		icon: UsersIcon,
 		path: "/deployment/users",
 		allowed: ({ permissions }) => permissions.viewAllUsers,
 	},
 	{
 		id: "super-intelligence",
 		label: "Super Intelligence",
+		icon: BrainCircuitIcon,
 		path: "/ai/settings",
 		allowed: ({ canViewAISettings }) => canViewAISettings,
 	},
 	{
 		id: "announcement",
 		label: "Announcement",
+		icon: MegaphoneIcon,
 		path: "/deployment/announcement",
 		allowed: ({ permissions }) => permissions.editDeploymentConfig,
 	},
 	{
 		id: "authentication",
 		label: "Authentication",
+		icon: KeyRoundIcon,
 		path: "/deployment/userauth",
 		allowed: ({ permissions }) => permissions.viewDeploymentConfig,
 	},
 	{
 		id: "classification",
 		label: "Classification",
+		icon: TagIcon,
 		path: "/deployment/classification",
 		allowed: ({ permissions }) => permissions.editDeploymentConfig,
 	},
 	{
 		id: "customize",
 		label: "Customize",
+		icon: PaletteIcon,
 		path: "/deployment/customize",
 		allowed: ({ permissions }) => permissions.editDeploymentConfig,
 	},
 	{
 		id: "health",
 		label: "Health",
+		icon: HeartPulseIcon,
 		path: WORKSPACE_HEALTH_PATH,
 		allowed: ({ permissions }) => permissions.viewDebugInfo,
 	},
 	{
 		id: "monitoring",
 		label: "Monitoring",
+		icon: ActivityIcon,
 		path: "/deployment/monitoring",
 		allowed: ({ permissions }) => permissions.editDeploymentConfig,
 	},
 	{
 		id: "network",
 		label: "Network",
+		icon: NetworkIcon,
 		path: "/deployment/network",
 		allowed: ({ permissions }) => permissions.viewDeploymentConfig,
 	},
 	{
 		id: "notifications",
 		label: "Notifications",
+		icon: BellIcon,
 		path: "/deployment/notifications",
 		allowed: ({ permissions }) => permissions.viewNotificationTemplate,
 	},
 	{
 		id: "oauth2-applications",
 		label: "OAuth2 Applications",
+		icon: AppWindowIcon,
 		path: "/deployment/oauth2-provider/apps",
 		allowed: ({ permissions, oauth2Provider }) =>
 			permissions.viewDeploymentConfig && oauth2Provider,
@@ -94,24 +125,28 @@ const ADMIN_PAGES: readonly (AdminPage & {
 	{
 		id: "observability",
 		label: "Observability",
+		icon: TelescopeIcon,
 		path: "/deployment/observability",
 		allowed: ({ permissions }) => permissions.viewDeploymentConfig,
 	},
 	{
 		id: "overview",
 		label: "Overview",
+		icon: LayoutDashboardIcon,
 		path: "/deployment/overview",
 		allowed: ({ permissions }) => permissions.viewDeploymentConfig,
 	},
 	{
 		id: "persistence",
 		label: "Persistence",
+		icon: DatabaseIcon,
 		path: "/deployment/persistence",
 		allowed: ({ permissions }) => permissions.viewDeploymentConfig,
 	},
 	{
 		id: "security",
 		label: "Security",
+		icon: LockIcon,
 		path: "/deployment/security",
 		allowed: ({ permissions }) => permissions.viewDeploymentConfig,
 	},

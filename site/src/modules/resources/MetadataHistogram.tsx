@@ -36,6 +36,17 @@ export const metadataNumber = (
  * { text: "2.24 / 24 cores", percent: 9 }, for the chip by the metric's name.
  * A reading that is only a percentage keeps it as its text too.
  */
+/**
+ * Every fractional number in a reading to one decimal place: "0.621/6 cores"
+ * → "0.6/6 cores", "19.54/98.55 GB" → "19.5/98.6 GB", "2.10" → "2.1". Whole
+ * numbers stay as they are.
+ */
+export const oneDecimal = (text: string) =>
+	// half up, as written: 98.55 is 98.5499... as a float, which toFixed would round down
+	text.replace(/\d+\.\d+/g, (n) =>
+		(Math.round(Number(n) * 10 + 1e-6) / 10).toFixed(1),
+	);
+
 export const splitPercent = (
 	text: string,
 ): { text: string; percent: number | null } => {
@@ -218,7 +229,8 @@ export const MetadataHistogram: React.FC<MetadataHistogramProps> = ({
 	stale,
 	label,
 }) => {
-	// Platform: 104 wide, so the eight metrics (workspace and cluster) fit on one line from 1280 px up.
+	// Platform: drawn 104 wide and stretched to its metric's width (at least 104, so the eight metrics, workspace and
+	// cluster, fit on one line from 1280 px up; a little more on wider screens)
 	const W = 104;
 	const H = 26;
 	const slot = W / BARS;
@@ -254,10 +266,9 @@ export const MetadataHistogram: React.FC<MetadataHistogramProps> = ({
 				aria-valuemin={0}
 				aria-valuemax={100}
 				aria-valuenow={Math.round(currentShare)}
-				aria-valuetext={current?.text ?? "no reading yet"}
-				title={current ? `Now: ${current.text}` : undefined}
-				className="h-1.5 overflow-hidden rounded-full bg-surface-tertiary"
-				style={{ width: W }}
+				aria-valuetext={current ? oneDecimal(current.text) : "no reading yet"}
+				title={current ? `Now: ${oneDecimal(current.text)}` : undefined}
+				className="h-1.5 w-full overflow-hidden rounded-full bg-surface-tertiary"
 				data-testid="metadata-gauge"
 			>
 				<div
@@ -266,9 +277,10 @@ export const MetadataHistogram: React.FC<MetadataHistogramProps> = ({
 				/>
 			</div>
 			<svg
-				width={W}
+				width="100%"
 				height={H}
 				viewBox={`0 0 ${W} ${H}`}
+				preserveAspectRatio="none"
 				role="img"
 				aria-label={`${label}: ${shown} ${every ? `periods of ${every} s` : "readings"}`}
 				className="block overflow-visible"
@@ -281,6 +293,7 @@ export const MetadataHistogram: React.FC<MetadataHistogramProps> = ({
 					y2={H - 0.5}
 					className="stroke-border"
 					strokeWidth={1}
+					vectorEffect="non-scaling-stroke"
 				/>
 				{bars.map((b, i) => {
 					if (!b) {
@@ -305,7 +318,7 @@ export const MetadataHistogram: React.FC<MetadataHistogramProps> = ({
 							data-level={levelColor(share ? scaled : null)}
 						>
 							<title>
-								{`${new Date(b.t).toLocaleTimeString()}: ${b.text}${b.held ? " (the last reading, held until the next)" : b.count > 1 ? ` (the highest of ${b.count} readings)` : ""}`}
+								{`${new Date(b.t).toLocaleTimeString()}: ${oneDecimal(b.text)}${b.held ? " (the last reading, held until the next)" : b.count > 1 ? ` (the highest of ${b.count} readings)` : ""}`}
 							</title>
 						</rect>
 					);

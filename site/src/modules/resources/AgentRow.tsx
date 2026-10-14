@@ -467,7 +467,10 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 							</span>
 							{/* Platform: the workspace's network lights (RX / TX), between its name and the latency */}
 							{agent.status === "connected" && (
-								<AgentNetworkLeds agentId={agent.id} />
+								<AgentNetworkLeds
+									agentId={agent.id}
+									workspaceId={workspace.id}
+								/>
 							)}
 						</div>
 						{agent.status === "connected" && (
@@ -537,12 +540,12 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 						<WorkspaceInitializing workspace={workspace} agent={agent} />
 					)}
 
-					{/* Platform: the apps in a squircle whose edges line up with the metrics' squircles below it: the block is as
-					    wide as the metrics (the apps wrap within it, adding no width) and centred like them */}
-					<div className="grid max-w-full gap-4 has-[[data-metrics]]:mx-auto has-[[data-metrics]]:w-fit empty:hidden">
+					{/* Platform: the apps in a squircle as wide as the metrics' squircles below it, both filling the card: the
+					    apps centred in equal columns across it (as many as fit, at least 150 px each) */}
+					<div className="grid w-full max-w-full gap-4 empty:hidden">
 						{shouldDisplayAppsSection && (
 							<section
-								className="flex w-0 min-w-full flex-wrap gap-4 rounded-2xl border border-solid border-border bg-surface-secondary/40 p-4 empty:hidden"
+								className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] justify-center gap-3 rounded-2xl border border-solid border-border bg-surface-secondary/40 p-4 empty:hidden [&>*]:w-full [&>*]:justify-center"
 								data-testid="agent-apps"
 							>
 								{shouldDisplayAgentApps && (

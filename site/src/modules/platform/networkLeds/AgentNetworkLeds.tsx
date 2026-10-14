@@ -4,6 +4,10 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "#/components/Tooltip/Tooltip";
+import {
+	networkLocked,
+	useWorkspaceLockdown,
+} from "#/modules/platform/lockdown/Lockdown";
 import { useAgentNetworkMetadata } from "./agentMetadataStore";
 import {
 	formatRate,
@@ -73,12 +77,18 @@ const useLed = () => {
  * byte counters every second (metadata "8_net_io", scripts/metadata.sh net);
  * each reading with traffic flickers its light, more often the busier it is.
  * Hovering the lights (or focusing them) shows the last minute as a live bar
- * graph, received in green and sent in blue (NetworkHistogram).
+ * graph, received in green and sent in blue (NetworkHistogram). While an admin
+ * has the workspace's network locked down (Lock Down: Network, Complete or
+ * Freeze) both lights are red and still, and the graph shows no traffic: none
+ * gets in or out but Coder's own connection to its agent.
  */
-export const AgentNetworkLeds: React.FC<{ agentId: string }> = ({
-	agentId,
-}) => {
+export const AgentNetworkLeds: React.FC<{
+	agentId: string;
+	/** Its workspace, for Lock Down (none: never shown as locked). */
+	workspaceId?: string;
+}> = ({ agentId, workspaceId }) => {
 	const item = useAgentNetworkMetadata(agentId);
+	const locked = networkLocked(useWorkspaceLockdown(workspaceId));
 	const [rxOn, showRx] = useLed();
 	const [txOn, showTx] = useLed();
 	const last = useRef<{ at: number; rx: number; tx: number } | null>(null);
@@ -88,10 +98,37 @@ export const AgentNetworkLeds: React.FC<{ agentId: string }> = ({
 
 	const value = item?.result.value ?? "";
 	const collectedAt = item?.result.collected_at ?? "";
+	// Locked down: the lights off (red, still), and the graph started afresh with a reading of no traffic each
+	// second, whether or not the agent still reports (Freeze pauses it); the counters start afresh once it is lifted.
+	useEffect(() => {
+		if (!locked) {
+			return;
+		}
+		showRx(0, 0);
+		showTx(0, 0);
+		last.current = null;
+		setRates({ rx: 0, tx: 0 });
+		setHistory([]);
+		const add = () => {
+			const t = Date.now();
+			setHistory((h) =>
+				withSample(h, {
+					from: h.length ? Math.max(h[h.length - 1].t, t - 1000) : t - 1000,
+					t,
+					rx: 0,
+					tx: 0,
+				}),
+			);
+		};
+		add();
+		const id = window.setInterval(add, 1000);
+		return () => window.clearInterval(id);
+	}, [locked, showRx, showTx]);
+
 	useEffect(() => {
 		const counters = parse(value);
 		const at = Date.parse(collectedAt);
-		if (!counters || Number.isNaN(at)) {
+		if (locked || !counters || Number.isNaN(at)) {
 			return;
 		}
 		const [rx, tx] = counters;
@@ -111,14 +148,16 @@ export const AgentNetworkLeds: React.FC<{ agentId: string }> = ({
 		const windowMs = Math.min(1000, seconds * 1000) * 0.9;
 		showRx(flashesFor(rxRate), windowMs);
 		showTx(flashesFor(txRate), windowMs);
-	}, [value, collectedAt, showRx, showTx]);
+	}, [value, collectedAt, locked, showRx, showTx]);
 
 	const reporting = Boolean(item && parse(value));
-	const title = !reporting
-		? "Network activity: update this workspace to a template version that reports it"
-		: rates
-			? `Network: ↓ ${formatRate(rates.rx)} received · ↑ ${formatRate(rates.tx)} sent`
-			: "Network activity";
+	const title = locked
+		? "Network locked down: nothing gets in or out but Coder's own connection"
+		: !reporting
+			? "Network activity: update this workspace to a template version that reports it"
+			: rates
+				? `Network: ↓ ${formatRate(rates.rx)} received · ↑ ${formatRate(rates.tx)} sent`
+				: "Network activity";
 
 	const leds = (
 		// a button, so the graph opens from the keyboard as well (it does nothing on a click)
@@ -126,6 +165,7 @@ export const AgentNetworkLeds: React.FC<{ agentId: string }> = ({
 			type="button"
 			data-testid="agent-network"
 			data-reporting={reporting || undefined}
+			data-locked={locked || undefined}
 			aria-label={title}
 			className="net-leds inline-flex shrink-0 cursor-default items-center gap-2.5 rounded-full border border-solid border-border bg-transparent px-2.5 py-0.5 font-[inherit] text-[11px] font-medium tabular-nums text-content-secondary"
 		>
@@ -156,9 +196,9 @@ export const AgentNetworkLeds: React.FC<{ agentId: string }> = ({
 				className="px-3 py-2.5"
 				data-testid="agent-network-tooltip"
 			>
-				{reporting ? (
+				{locked || reporting ? (
 					history.length > 0 ? (
-						<NetworkHistogram samples={history} />
+						<NetworkHistogram samples={history} locked={locked} />
 					) : (
 						"Network: waiting for the next reading…"
 					)

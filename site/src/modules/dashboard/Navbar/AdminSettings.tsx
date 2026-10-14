@@ -1,4 +1,11 @@
-import { SettingsIcon } from "lucide-react";
+import {
+	BotIcon,
+	BrainCircuitIcon,
+	Building2Icon,
+	CableIcon,
+	ScrollTextIcon,
+	SettingsIcon,
+} from "lucide-react";
 import { Link } from "react-router";
 import { DropdownMenuItem } from "#/components/DropdownMenu/DropdownMenu";
 import { ClusterGauge } from "#/modules/platform/ClusterGauge";
@@ -83,33 +90,51 @@ export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
 			) : (
 				quickLinks.map((page) => (
 					<DropdownMenuItem key={page.id} asChild className={itemClassName}>
-						<Link to={page.path}>{page.label}</Link>
+						<Link to={page.path}>
+							<page.icon aria-hidden />
+							{page.label}
+						</Link>
 					</DropdownMenuItem>
 				))
 			)}
 			{permissions.canViewOrganizations && (
 				<DropdownMenuItem asChild className={itemClassName}>
-					<Link to="/organizations">Organizations</Link>
+					<Link to="/organizations">
+						<Building2Icon aria-hidden />
+						Organizations
+					</Link>
 				</DropdownMenuItem>
 			)}
 			{permissions.canViewAISettings && !permissions.canViewDeployment && (
 				<DropdownMenuItem asChild className={itemClassName}>
-					<Link to="/ai/settings">Super Intelligence</Link>
+					<Link to="/ai/settings">
+						<BrainCircuitIcon aria-hidden />
+						Super Intelligence
+					</Link>
 				</DropdownMenuItem>
 			)}
 			{permissions.canViewAuditLog && (
 				<DropdownMenuItem asChild className={itemClassName}>
-					<Link to="/audit">Audit logs</Link>
+					<Link to="/audit">
+						<ScrollTextIcon aria-hidden />
+						Audit logs
+					</Link>
 				</DropdownMenuItem>
 			)}
 			{permissions.canViewConnectionLog && (
 				<DropdownMenuItem asChild className={itemClassName}>
-					<Link to="/connectionlog">Connection logs</Link>
+					<Link to="/connectionlog">
+						<CableIcon aria-hidden />
+						Connection logs
+					</Link>
 				</DropdownMenuItem>
 			)}
 			{permissions.canViewAIBridge && (
 				<DropdownMenuItem asChild className={itemClassName}>
-					<Link to="/ai-gateway/sessions">AI sessions</Link>
+					<Link to="/ai-gateway/sessions">
+						<BotIcon aria-hidden />
+						AI sessions
+					</Link>
 				</DropdownMenuItem>
 			)}
 			<ClusterGauge />

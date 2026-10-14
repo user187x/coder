@@ -1,4 +1,5 @@
 import { act, fireEvent, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "react-query";
 import type { WorkspaceAgentMetadata } from "#/api/typesGenerated";
 import { renderComponent } from "#/testHelpers/renderHelpers";
 import { AgentNetworkLeds } from "./AgentNetworkLeds";
@@ -11,6 +12,14 @@ import {
 	scaleFor,
 	withSample,
 } from "./NetworkHistogram";
+
+// the lights read the workspace's Lock Down (react-query)
+const renderLeds = (node: React.ReactNode) =>
+	renderComponent(
+		<QueryClientProvider client={new QueryClient()}>
+			{node}
+		</QueryClientProvider>,
+	);
 
 const reading = (
 	rx: number,
@@ -116,7 +125,7 @@ describe("the graph's time axis", () => {
 
 describe("AgentNetworkLeds hover", () => {
 	it("opens the live graph over the lights, and it grows with each reading", async () => {
-		renderComponent(<AgentNetworkLeds agentId="hover" />);
+		renderLeds(<AgentNetworkLeds agentId="hover" />);
 		act(() => publishAgentMetadata("hover", reading(0, 0, 1_000)));
 		act(() => publishAgentMetadata("hover", reading(5_000, 1_000, 2_000)));
 		fireEvent.focus(screen.getByTestId("agent-network"));

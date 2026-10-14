@@ -346,9 +346,6 @@ const ProvisionersPage = lazy(
 			"./pages/OrganizationSettingsPage/OrganizationProvisionersPage/OrganizationProvisionersPage"
 		),
 );
-const TemplateEmbedPage = lazy(
-	() => import("./pages/TemplatePage/TemplateEmbedPage/TemplateEmbedPage"),
-);
 const TemplatePrebuildsPage = lazy(
 	() =>
 		import("./pages/TemplatePage/TemplatePrebuildsPage/TemplatePrebuildsPage"),
@@ -546,7 +543,8 @@ const templateRouter = () => {
 					/>
 					<Route path="files" element={<TemplateFilesPage />} />
 					<Route path="versions" element={<TemplateVersionsRedirect />} />
-					<Route path="embed" element={<TemplateEmbedPage />} />
+					{/* Platform: no Embed tab any more; old links land on the overview */}
+					<Route path="embed" element={<Navigate to=".." replace />} />
 					{/* Details (Insights) is part of Overview now */}
 					<Route
 						path="insights"

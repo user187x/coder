@@ -2,6 +2,7 @@ import type {
 	BackgroundImage,
 	BackgroundSlot,
 	ClassificationSettings,
+	LoginPageSettings,
 } from "#/api/platform";
 
 // What the platform service's boot.js sets before the dashboard starts
@@ -11,6 +12,8 @@ declare global {
 		/** URL of the uploaded logo, or "" when Coder's own logo is used. */
 		__cuiLogo?: string;
 		__cuiClassification?: ClassificationSettings;
+		/** The sign-in page's title, effect and messages (Customize > Sign-in page). */
+		__cuiLoginPage?: LoginPageSettings;
 		/** Uploaded avatars by username. */
 		__cuiAvatars?: Record<string, string>;
 		/** URL of the default avatar, or "" when none is installed. */

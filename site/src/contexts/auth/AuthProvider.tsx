@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext } from "react";
+import { createContext, useCallback, useContext, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { toast } from "sonner";
 import { isApiError } from "#/api/errors";
@@ -13,6 +13,10 @@ import {
 import type { UpdateUserProfileRequest, User } from "#/api/typesGenerated";
 import { useEmbeddedMetadata } from "#/hooks/useEmbeddedMetadata";
 import { type Permissions, permissionChecks } from "#/modules/permissions";
+import {
+	clearSignedOut,
+	markSignedOut,
+} from "#/modules/platform/loginPage/SignInTitle";
 
 export type AuthContextValue = {
 	isLoading: boolean;
@@ -78,10 +82,17 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({
 	const isConfiguringTheFirstUser =
 		!hasFirstUserQuery.isLoading && !hasFirstUserQuery.data;
 	const isSignedIn = userQuery.isSuccess && userQuery.data !== undefined;
+	// Platform: signed in (with a password or OIDC): the next sign-in page is not one after signing out
+	useEffect(() => {
+		if (isSignedIn) {
+			clearSignedOut();
+		}
+	}, [isSignedIn]);
 	const isSigningIn = loginMutation.isPending;
 	const isUpdatingProfile = updateProfileMutation.isPending;
 
 	const signOut = useCallback(() => {
+		markSignedOut(); // Platform: the sign-in page it lands on says the sign-out message
 		logoutMutation.mutate();
 	}, [logoutMutation]);
 
