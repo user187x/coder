@@ -1,3 +1,4 @@
+import { SettingsIcon } from "lucide-react";
 import { Suspense } from "react";
 import { Navigate, Outlet, useLocation } from "react-router";
 import {
@@ -9,7 +10,7 @@ import {
 } from "#/components/Breadcrumb/Breadcrumb";
 import { Loader } from "#/components/Loader/Loader";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
-import { adminCategoryLabel } from "#/modules/dashboard/Navbar/adminQuickLinks";
+import { adminCategory } from "#/modules/dashboard/Navbar/adminQuickLinks";
 import { canViewDeploymentSettings } from "#/modules/permissions";
 import { RequirePermission } from "#/modules/permissions/RequirePermission";
 import { DeploymentSidebar } from "./DeploymentSidebar";
@@ -41,18 +42,26 @@ const DeploymentSettingsLayout: React.FC = () => {
 		location.pathname.startsWith("/ai/settings") ||
 		(location.pathname.startsWith("/health") && canViewHealth);
 
+	// the category's quick-link icon in the breadcrumb (General: the Admin menu's Settings icon)
+	const category = adminCategory(location.pathname);
+	const CategoryIcon = category?.icon ?? SettingsIcon;
+
 	return (
 		<RequirePermission isFeatureVisible={canViewDeploymentSettingsPage}>
 			<div>
 				<Breadcrumb>
 					<BreadcrumbList>
 						<BreadcrumbItem>
-							<BreadcrumbPage>Admin Settings</BreadcrumbPage>
+							<BreadcrumbPage>
+								<SettingsIcon aria-hidden className="size-4 shrink-0" />
+								Admin Settings
+							</BreadcrumbPage>
 						</BreadcrumbItem>
 						<BreadcrumbSeparator />
 						<BreadcrumbItem>
 							<BreadcrumbPage className="text-content-primary">
-								{adminCategoryLabel(location.pathname) ?? "General"}
+								<CategoryIcon aria-hidden className="size-4 shrink-0" />
+								{category?.label ?? "General"}
 							</BreadcrumbPage>
 						</BreadcrumbItem>
 					</BreadcrumbList>

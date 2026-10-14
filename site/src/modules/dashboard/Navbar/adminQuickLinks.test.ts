@@ -2,7 +2,9 @@ import { MaxAdminQuickLinks } from "#/api/typesGenerated";
 import { MockNoPermissions, MockPermissions } from "#/testHelpers/entities";
 import {
 	addableAdminPages,
+	adminCategory,
 	adminCategoryLabel,
+	adminPageIcon,
 	adminPagesFor,
 	resolveAdminQuickLinks,
 } from "./adminQuickLinks";
@@ -137,5 +139,22 @@ describe("adminCategoryLabel", () => {
 	it("has no category for other pages", () => {
 		expect(adminCategoryLabel("/deployment/licenses")).toBeNull();
 		expect(adminCategoryLabel("/deployment/users-old")).toBeNull();
+	});
+});
+
+describe("adminCategory", () => {
+	it("gives the category with its quick link's icon, for the breadcrumb", () => {
+		const health = allPages.find((page) => page.id === "health");
+		expect(adminCategory("/health/user-quota")).toEqual(health);
+		expect(adminCategory("/deployment/licenses")).toBeNull();
+	});
+});
+
+describe("adminPageIcon", () => {
+	it("gives every category the icon its quick link shows", () => {
+		for (const page of allPages) {
+			expect(adminPageIcon(page.id)).toBe(page.icon);
+		}
+		expect(adminPageIcon("no-such-page")).toBeUndefined();
 	});
 });

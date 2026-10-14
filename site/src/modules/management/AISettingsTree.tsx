@@ -29,6 +29,7 @@ import {
 	useAccessibleModelOrganizations,
 } from "#/pages/AISettingsPage/ModelsPage/organizationModels";
 import { canViewAISpend } from "#/pages/AISettingsPage/SpendPage/spendAccess";
+import { AdminCategoryLabel } from "./AdminCategoryLabel";
 
 const SubNavItem: React.FC<{ href: To; children?: React.ReactNode }> = ({
 	href,
@@ -158,7 +159,9 @@ export const AISettingsTreeView: React.FC<AISettingsTreeViewProps> = ({
 					open ? "text-content-primary" : "text-content-secondary",
 				)}
 			>
-				Super Intelligence
+				<AdminCategoryLabel id="super-intelligence">
+					Super Intelligence
+				</AdminCategoryLabel>
 				<ChevronRightIcon
 					aria-hidden
 					className={cn(

@@ -196,13 +196,25 @@ const CATEGORY_PREFIXES: Record<string, readonly string[]> = {
 
 /**
  * The category of General a page belongs to (for the breadcrumb), e.g.
- * "Health" for /health/user-quota; null for pages outside the categories.
+ * Health for /health/user-quota; null for pages outside the categories.
  */
-export const adminCategoryLabel = (pathname: string): string | null => {
+export const adminCategory = (pathname: string): AdminPage | null => {
 	const under = (prefix: string) =>
 		pathname === prefix || pathname.startsWith(`${prefix}/`);
 	const page = ADMIN_PAGES.find((p) =>
 		[p.path, ...(CATEGORY_PREFIXES[p.id] ?? [])].some(under),
 	);
-	return page?.label ?? null;
+	if (!page) {
+		return null;
+	}
+	const { allowed: _allowed, ...category } = page;
+	return category;
 };
+
+/** The category's label, e.g. "Health" for /health/user-quota. */
+export const adminCategoryLabel = (pathname: string): string | null =>
+	adminCategory(pathname)?.label ?? null;
+
+/** A category's icon (the one its quick link shows), by its ID. */
+export const adminPageIcon = (id: string): LucideIcon | undefined =>
+	ADMIN_PAGES.find((page) => page.id === id)?.icon;

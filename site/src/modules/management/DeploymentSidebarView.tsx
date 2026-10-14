@@ -5,6 +5,7 @@ import {
 } from "#/components/Sidebar/Sidebar";
 import type { Permissions } from "#/modules/permissions";
 import { HealthIcon } from "#/pages/HealthPage/Content";
+import { AdminCategoryLabel } from "./AdminCategoryLabel";
 
 type DeploymentSidebarViewProps = {
 	/** Site-wide permissions. */
@@ -34,70 +35,90 @@ export const DeploymentSidebarView: React.FC<DeploymentSidebarViewProps> = ({
 		<BaseSidebar>
 			<div className="flex flex-col gap-1">
 				{permissions.viewAllUsers && (
-					<SidebarNavItem href="/deployment/users">Accounts</SidebarNavItem>
+					<SidebarNavItem href="/deployment/users">
+						<AdminCategoryLabel id="accounts">Accounts</AdminCategoryLabel>
+					</SidebarNavItem>
 				)}
 				{aiSettings}
 				{permissions.editDeploymentConfig && (
 					<SidebarNavItem href="/deployment/announcement">
-						Announcement
+						<AdminCategoryLabel id="announcement">
+							Announcement
+						</AdminCategoryLabel>
 					</SidebarNavItem>
 				)}
 				{permissions.viewDeploymentConfig && (
 					<SidebarNavItem href="/deployment/userauth">
-						<span className="inline-flex items-center gap-2">
+						<AdminCategoryLabel id="authentication">
 							Authentication
 							{keycloakConnected && (
 								<span title="Connected to Keycloak" className="inline-flex">
 									<HealthIcon size={14} severity="ok" />
 								</span>
 							)}
-						</span>
+						</AdminCategoryLabel>
 					</SidebarNavItem>
 				)}
 				{permissions.editDeploymentConfig && (
 					<SidebarNavItem href="/deployment/classification">
-						Classification
+						<AdminCategoryLabel id="classification">
+							Classification
+						</AdminCategoryLabel>
 					</SidebarNavItem>
 				)}
 				{permissions.editDeploymentConfig && (
 					<SidebarNavItem href="/deployment/customize">
-						Customize
+						<AdminCategoryLabel id="customize">Customize</AdminCategoryLabel>
 					</SidebarNavItem>
 				)}
 				{health}
 				{permissions.editDeploymentConfig && (
 					<SidebarNavItem href="/deployment/monitoring">
-						Monitoring
+						<AdminCategoryLabel id="monitoring">Monitoring</AdminCategoryLabel>
 					</SidebarNavItem>
 				)}
 				{permissions.viewDeploymentConfig && (
-					<SidebarNavItem href="/deployment/network">Network</SidebarNavItem>
+					<SidebarNavItem href="/deployment/network">
+						<AdminCategoryLabel id="network">Network</AdminCategoryLabel>
+					</SidebarNavItem>
 				)}
 				{permissions.viewNotificationTemplate && (
 					<SidebarNavItem href="/deployment/notifications">
-						Notifications
+						<AdminCategoryLabel id="notifications">
+							Notifications
+						</AdminCategoryLabel>
 					</SidebarNavItem>
 				)}
 				{permissions.viewDeploymentConfig && buildInfo.oauth2_provider && (
 					<SidebarNavItem href="/deployment/oauth2-provider/apps">
-						OAuth2 Applications
+						<AdminCategoryLabel id="oauth2-applications">
+							OAuth2 Applications
+						</AdminCategoryLabel>
 					</SidebarNavItem>
 				)}
 				{permissions.viewDeploymentConfig && (
 					<SidebarNavItem href="/deployment/observability">
-						Observability
+						<AdminCategoryLabel id="observability">
+							Observability
+						</AdminCategoryLabel>
 					</SidebarNavItem>
 				)}
 				{permissions.viewDeploymentConfig && (
-					<SidebarNavItem href="/deployment/overview">Overview</SidebarNavItem>
+					<SidebarNavItem href="/deployment/overview">
+						<AdminCategoryLabel id="overview">Overview</AdminCategoryLabel>
+					</SidebarNavItem>
 				)}
 				{permissions.viewDeploymentConfig && (
 					<SidebarNavItem href="/deployment/persistence">
-						Persistence
+						<AdminCategoryLabel id="persistence">
+							Persistence
+						</AdminCategoryLabel>
 					</SidebarNavItem>
 				)}
 				{permissions.viewDeploymentConfig && (
-					<SidebarNavItem href="/deployment/security">Security</SidebarNavItem>
+					<SidebarNavItem href="/deployment/security">
+						<AdminCategoryLabel id="security">Security</AdminCategoryLabel>
+					</SidebarNavItem>
 				)}
 			</div>
 		</BaseSidebar>

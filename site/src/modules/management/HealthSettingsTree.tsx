@@ -17,6 +17,7 @@ import {
 	USER_QUOTA_PATH,
 	WORKSPACE_HEALTH_PATH,
 } from "#/pages/HealthPage/healthSections";
+import { AdminCategoryLabel } from "./AdminCategoryLabel";
 
 /**
  * General's "Health" entry: a collapsible tree with Workspace Health, User Quota and each
@@ -39,10 +40,10 @@ export const HealthSettingsTree: React.FC = () => {
 					open ? "text-content-primary" : "text-content-secondary",
 				)}
 			>
-				<span className="inline-flex items-center gap-2">
+				<AdminCategoryLabel id="health">
 					Health
 					{report && <HealthIcon size={14} severity={report.severity} />}
-				</span>
+				</AdminCategoryLabel>
 				<ChevronRightIcon
 					aria-hidden
 					className={cn(
