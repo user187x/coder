@@ -212,17 +212,6 @@ export const WorkspaceTerminal = ({
 		}
 		terminal.options.fontSize = fontSize;
 		refit();
-		// The renderer measures the new font's cells on a later frame; until then
-		// fit() sizes the terminal with the old cells (e.g. 142 columns where 163
-		// fit), so fit again once they are measured.
-		let frame = requestAnimationFrame(() => {
-			frame = requestAnimationFrame(refit);
-		});
-		const settled = window.setTimeout(refit, 150);
-		return () => {
-			cancelAnimationFrame(frame);
-			window.clearTimeout(settled);
-		};
 	}, [terminal, fontSize, refit]);
 
 	useEffect(() => {
