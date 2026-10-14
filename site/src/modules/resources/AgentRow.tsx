@@ -687,6 +687,7 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 								CollapsibleContent is closing.
 							*/}
 												{shouldExpandLogs &&
+													hasStartupFeatures &&
 													!(hasConnectivityIssues || shouldShowLogsTabs) && (
 														<div className="h-[300px] flex items-center justify-center">
 															<Spinner
@@ -695,6 +696,19 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 																className="block mx-auto"
 															/>
 														</div>
+													)}
+												{/* Platform: an agent with no log lines at all (its scripts printed nothing) said so
+												instead of a spinner that never ends. */}
+												{shouldExpandLogs &&
+													!hasStartupFeatures &&
+													!hasConnectivityIssues && (
+														<p
+															className="m-0 py-6 text-center text-sm text-content-secondary"
+															data-testid="agent-logs-empty"
+														>
+															No logs yet: this workspace&apos;s startup scripts
+															have not printed anything.
+														</p>
 													)}
 												{hasConnectivityIssues && (
 													<div className="mb-4 flex flex-col gap-3">
