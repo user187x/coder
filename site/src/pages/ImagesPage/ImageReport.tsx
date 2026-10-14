@@ -240,6 +240,39 @@ export const ImageReport: React.FC<{
 						The {v.top.length} most severe of {v.total} are listed.
 					</p>
 				)}
+				{(v.notApplicable ?? []).length > 0 && (
+					<div
+						className="flex flex-col gap-2 rounded-md border border-dashed border-border px-3 py-2.5"
+						data-testid="image-report-not-applicable"
+					>
+						<span className="text-sm font-medium">
+							Not applicable to a container (not counted, not graded)
+						</span>
+						{v.notApplicable?.map((na) => (
+							<details key={na.rule} className="text-xs">
+								<summary className="cursor-pointer text-content-primary">
+									<span className="font-mono">{na.packages.join(", ")}</span>:{" "}
+									{na.total} (
+									{SEVERITIES.filter((s) => (na.counts[s] ?? 0) > 0)
+										.map((s) => `${na.counts[s]} ${s.toLowerCase()}`)
+										.join(", ")}
+									)
+								</summary>
+								<p className="m-0 mt-1.5 text-content-secondary">{na.reason}</p>
+								<ul className="m-0 mt-1.5 max-h-40 list-none overflow-auto p-0 font-mono text-content-secondary">
+									{na.items.map((x) => (
+										<li key={`${x.id}:${x.pkg}`}>
+											{x.severity.toLowerCase()} {x.id} {x.pkg} {x.installed}
+										</li>
+									))}
+									{na.items.length < na.total && (
+										<li>… and {na.total - na.items.length} more</li>
+									)}
+								</ul>
+							</details>
+						))}
+					</div>
+				)}
 			</section>
 
 			<section className="flex flex-col gap-3">

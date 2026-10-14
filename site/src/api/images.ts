@@ -169,6 +169,16 @@ export type SecurityDataStatus = {
 	};
 };
 
+export type ImageVulnerability = {
+	id: string;
+	pkg: string;
+	installed: string;
+	fixed: string;
+	severity: Severity;
+	title: string;
+	target: string;
+};
+
 export type ImageReport = {
 	ref: string;
 	scannedAt: string;
@@ -185,14 +195,19 @@ export type ImageReport = {
 		scanned?: boolean;
 		javaScanned?: boolean;
 		note?: string;
-		top: {
-			id: string;
-			pkg: string;
-			installed: string;
-			fixed: string;
-			severity: Severity;
-			title: string;
-			target: string;
+		top: ImageVulnerability[];
+		/**
+		 * Findings that cannot apply to a container image, set apart (not in the counts or the grade), each rule
+		 * with its reason: kernel-headers (the kernel's header package; a container runs its node's kernel),
+		 * mozilla-firefox (Ubuntu's snap-package advisories, at least two years old, on Mozilla's own Firefox).
+		 */
+		notApplicable?: {
+			rule: string;
+			reason: string;
+			total: number;
+			counts: Partial<Record<Severity, number>>;
+			packages: string[];
+			items: ImageVulnerability[];
 		}[];
 	};
 	secrets: {
