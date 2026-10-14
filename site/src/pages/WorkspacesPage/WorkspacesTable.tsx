@@ -80,8 +80,10 @@ import {
 	WorkspaceUpdateDialogs,
 } from "#/modules/workspaces/WorkspaceUpdateDialogs";
 import { getDisplayWorkspaceTemplateName } from "#/utils/workspace";
+import { isStartingUp, markRestarting, useRestarting } from "./startingRows";
 import { WorkspaceSharingIndicator } from "./WorkspaceSharingIndicator";
 import { WorkspacesEmpty } from "./WorkspacesEmpty";
+import "./startingRows.css";
 
 type WorkspacesTableProps = {
 	workspaces?: readonly Workspace[];
@@ -339,12 +341,18 @@ const WorkspacesRow: React.FC<WorkspacesRowProps> = ({
 		},
 	});
 
+	// Started, updated or restarted: a barber pole across the row until it is up or failed (startingRows.ts).
+	const starting = isStartingUp(workspace, useRestarting(workspace.id));
+
 	return (
 		<TableRow
 			{...clickableProps}
 			data-testid={`workspace-${workspace.id}`}
+			data-starting={starting || undefined}
+			aria-busy={starting || undefined}
 			className={cn([
 				checked ? "bg-surface-secondary hover:bg-surface-secondary" : undefined,
+				starting && "workspace-row-starting",
 				clickableProps.className,
 			])}
 		>
@@ -432,6 +440,7 @@ const WorkspaceActionsCell: React.FC<WorkspaceActionsCellProps> = ({
 		// stopping. This reflects the restart immediately and flips the list to
 		// its fast poll interval, which then tracks the real build statuses.
 		onMutate: async () => {
+			markRestarting(workspace.id, true);
 			await queryClient.cancelQueries({
 				queryKey: ["workspaces"],
 			});
@@ -451,6 +460,7 @@ const WorkspaceActionsCell: React.FC<WorkspaceActionsCellProps> = ({
 			context?.rollback?.();
 			onActionError(error);
 		},
+		onSettled: () => markRestarting(workspace.id, false),
 	});
 
 	const cancelJobOptions = cancelBuild(workspace, queryClient);

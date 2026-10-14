@@ -147,4 +147,31 @@ describe("WorkspacesPageView", () => {
 			screen.queryByRole("menuitem", { name: /restart/i }),
 		).not.toBeInTheDocument();
 	});
+
+	it("stripes the row of a workspace on its way up, and only that one", async () => {
+		const starting = {
+			...MockWorkspace,
+			id: "starting-ws",
+			name: "starting",
+			latest_build: {
+				...MockWorkspace.latest_build,
+				transition: "start" as const,
+				status: "starting" as const,
+			},
+		};
+		renderWithAuth(
+			<WorkspacesPageView
+				{...defaultProps}
+				workspaces={[starting, MockStoppedWorkspace]}
+				count={2}
+			/>,
+		);
+
+		const row = await screen.findByTestId("workspace-starting-ws");
+		expect(row).toHaveAttribute("data-starting", "true");
+		expect(row).toHaveAttribute("aria-busy", "true");
+		expect(row).toHaveClass("workspace-row-starting");
+		const other = screen.getByTestId(`workspace-${MockStoppedWorkspace.id}`);
+		expect(other).not.toHaveAttribute("data-starting");
+	});
 });

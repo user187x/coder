@@ -16,6 +16,7 @@ import { BatchDeleteConfirmation } from "./BatchDeleteConfirmation";
 import { BatchStopConfirmation } from "./BatchStopConfirmation";
 import { BatchUpdateModalForm } from "./BatchUpdateModalForm";
 import { useBatchActions } from "./batchActions";
+import { isStartingUp } from "./startingRows";
 import { WorkspacesPageView } from "./WorkspacesPageView";
 
 // To reduce the number of fetches, we reduce the fetch interval if there are no
@@ -117,9 +118,12 @@ const WorkspacesPage: React.FC = () => {
 			if (!state.data) return ACTIVE_BUILDS_REFRESH_INTERVAL;
 
 			// Check if any workspace has an active build
+			// (or an agent still starting: its row's barber pole ends as soon as it is ready)
 			const hasActiveBuilds = state.data.workspaces?.some((workspace) => {
 				const status = workspace.latest_build.status;
-				return ACTIVE_BUILD_STATUSES.includes(status);
+				return (
+					ACTIVE_BUILD_STATUSES.includes(status) || isStartingUp(workspace)
+				);
 			});
 
 			// Poll every 5s if there are active builds, otherwise every 30s
