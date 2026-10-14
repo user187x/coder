@@ -1,3 +1,4 @@
+import { CircleUserIcon } from "lucide-react";
 import { Suspense } from "react";
 import { Outlet } from "react-router";
 import { Avatar } from "#/components/Avatar/Avatar";
@@ -25,6 +26,7 @@ const Layout: React.FC = () => {
 					<BreadcrumbList>
 						<BreadcrumbItem>
 							<BreadcrumbPage className="text-content-primary">
+								<CircleUserIcon aria-hidden className="size-4 shrink-0" />
 								User Settings
 							</BreadcrumbPage>
 						</BreadcrumbItem>

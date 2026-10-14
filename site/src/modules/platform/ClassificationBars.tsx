@@ -15,13 +15,18 @@ export const classificationHeight = (height: number): number =>
 export const classificationFontSize = (height: number): number =>
 	Math.max(10, Math.min(20, Math.round(height * 0.55)));
 
+/** Coder's terminal page (/:username/:workspace.agent/terminal), in a window of its own. */
+export const isTerminalPage = (pathname: string): boolean =>
+	/^\/[^/]+\/[^/]+\/terminal\/?$/.test(pathname);
+
 const isShown = (
 	settings: ClassificationSettings | undefined,
 ): settings is ClassificationSettings =>
 	Boolean(settings?.enabled && settings.text);
 
 /**
- * The classification marking on every page, the sign-in page included: two
+ * The classification marking on every page, the sign-in page included (but
+ * not the terminal page, which App leaves it off: isTerminalPage): two
  * identical bars glued to the very top and the very bottom of the window,
  * above everything else. The page is inset by the bars' height so nothing
  * hides underneath them.

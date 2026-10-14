@@ -1,6 +1,6 @@
 import "./theme/globalFonts";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
-import { StrictMode, useEffect, useState } from "react";
+import { StrictMode, useEffect, useState, useSyncExternalStore } from "react";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { RouterProvider } from "react-router";
 import {
@@ -13,7 +13,10 @@ import { DiffsWorkerPoolProvider } from "./contexts/DiffsWorkerPoolProvider";
 import { ThemeProvider } from "./contexts/ThemeProvider";
 import { AnimationsController } from "./modules/platform/animations/AnimationsController";
 import { AvatarDialogHost } from "./modules/platform/avatar/AvatarDialog";
-import { ClassificationBars } from "./modules/platform/ClassificationBars";
+import {
+	ClassificationBars,
+	isTerminalPage,
+} from "./modules/platform/ClassificationBars";
 import { router } from "./router";
 
 const defaultQueryClient = new QueryClient({
@@ -68,14 +71,23 @@ export const AppProviders: React.FC<AppProvidersProps> = ({
 	);
 };
 
+/** The router's current path (the classification bars sit outside the router). */
+const useRouterPathname = () =>
+	useSyncExternalStore(
+		(onChange) => router.subscribe(onChange),
+		() => router.state.location.pathname,
+	);
+
 export const App: React.FC = () => {
+	const pathname = useRouterPathname();
 	return (
 		<StrictMode>
 			<AppProviders>
 				{/* If you're wondering where the global error boundary is,
 				    it's connected to the router */}
 				<RouterProvider router={router} />
-				<ClassificationBars />
+				{/* not on the terminal page: the terminal fills its whole window */}
+				{!isTerminalPage(pathname) && <ClassificationBars />}
 				<AvatarDialogHost />
 				<AnimationsController />
 			</AppProviders>

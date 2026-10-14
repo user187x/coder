@@ -1,8 +1,34 @@
 import {
+	AppWindowIcon,
+	BellIcon,
+	CalendarClockIcon,
+	CircleUserIcon,
+	FileKeyIcon,
+	KeySquareIcon,
+	LockIcon,
+	type LucideIcon,
+	TicketIcon,
+	VaultIcon,
+} from "lucide-react";
+import {
 	Sidebar as BaseSidebar,
 	SettingsSidebarNavItem,
 } from "#/components/Sidebar/Sidebar";
 import { useDashboard } from "#/modules/dashboard/useDashboard";
+
+/** A page of the account view, with its icon before its name (as in the Admin menu and General's sidebar). */
+const Item: React.FC<{ href: string; icon: LucideIcon; children: string }> = ({
+	href,
+	icon: Icon,
+	children,
+}) => (
+	<SettingsSidebarNavItem href={href}>
+		<span className="inline-flex items-center gap-2">
+			<Icon aria-hidden className="size-4 shrink-0" />
+			{children}
+		</span>
+	</SettingsSidebarNavItem>
+);
 
 export const Sidebar: React.FC = () => {
 	const { entitlements, buildInfo } = useDashboard();
@@ -13,31 +39,37 @@ export const Sidebar: React.FC = () => {
 	return (
 		<BaseSidebar>
 			<div className="flex flex-col gap-1">
-				<SettingsSidebarNavItem href="account">Account</SettingsSidebarNavItem>
+				<Item href="account" icon={CircleUserIcon}>
+					Account
+				</Item>
 				{showOAuth2Page && (
-					<SettingsSidebarNavItem href="oauth2-provider">
+					<Item href="oauth2-provider" icon={AppWindowIcon}>
 						OAuth2 Applications
-					</SettingsSidebarNavItem>
+					</Item>
 				)}
 				{showSchedulePage && (
-					<SettingsSidebarNavItem href="schedule">
+					<Item href="schedule" icon={CalendarClockIcon}>
 						Schedule
-					</SettingsSidebarNavItem>
+					</Item>
 				)}
-				<SettingsSidebarNavItem href="security">
+				<Item href="security" icon={LockIcon}>
 					Security
-				</SettingsSidebarNavItem>
-				<SettingsSidebarNavItem href="ssh-keys">
+				</Item>
+				<Item href="ssh-keys" icon={KeySquareIcon}>
 					SSH Keys
-				</SettingsSidebarNavItem>
-				<SettingsSidebarNavItem href="tokens">Tokens</SettingsSidebarNavItem>
-				<SettingsSidebarNavItem href="secrets">Secrets</SettingsSidebarNavItem>
-				<SettingsSidebarNavItem href="certificates">
+				</Item>
+				<Item href="tokens" icon={TicketIcon}>
+					Tokens
+				</Item>
+				<Item href="secrets" icon={VaultIcon}>
+					Secrets
+				</Item>
+				<Item href="certificates" icon={FileKeyIcon}>
 					Certificates
-				</SettingsSidebarNavItem>
-				<SettingsSidebarNavItem href="notifications">
+				</Item>
+				<Item href="notifications" icon={BellIcon}>
 					Notifications
-				</SettingsSidebarNavItem>
+				</Item>
 			</div>
 		</BaseSidebar>
 	);

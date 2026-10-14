@@ -51,6 +51,9 @@ import {
 	writeFontSize,
 } from "./terminalSession";
 
+/** How long the columns x rows readout stays after the last text size change. */
+const DIMENSIONS_SHOWN_MS = 2500;
+
 type AgentTerminalSectionProps = {
 	agent: WorkspaceAgent;
 	workspace: Workspace;
@@ -80,8 +83,9 @@ type AgentTerminalSectionProps = {
  * window of its own (this page then lets go of it). The text size buttons
  * change only this terminal's text (the page layout stays): it starts at the
  * largest size that still shows 80x24 characters, the least full-screen tools
- * such as btop need, until the user picks a size. The terminal's columns x
- * rows show faintly in its top-right corner.
+ * such as btop need, until the user picks a size. While they change it, the
+ * terminal's columns x rows show in a small pill in its top-right corner, for
+ * a few seconds after the last change.
  *
  * "Custom command" (on by default: tmux's shared session "monitor" with btop
  * in it, started or joined; remembered in this browser): new sessions run it
@@ -134,10 +138,22 @@ export const AgentTerminalSection: React.FC<AgentTerminalSectionProps> = ({
 	}>();
 	const terminalBox = useRef<HTMLDivElement>(null);
 
+	// The columns x rows readout: shown while the user changes the text size,
+	// until DIMENSIONS_SHOWN_MS after the last change.
+	const [dimensionsShown, setDimensionsShown] = useState(false);
+	const hideDimensions = useRef<number>(undefined);
+	useEffect(() => () => window.clearTimeout(hideDimensions.current), []);
+
 	const changeFontSize = (by: number) => {
 		const next = stepFontSize(fontSize, by);
 		setChosenFontSize(next);
 		writeFontSize(next);
+		setDimensionsShown(true);
+		window.clearTimeout(hideDimensions.current);
+		hideDimensions.current = window.setTimeout(
+			() => setDimensionsShown(false),
+			DIMENSIONS_SHOWN_MS,
+		);
 	};
 	// Too small for 80x24 at the starting size: one step smaller, until it fits.
 	useEffect(() => {
@@ -317,16 +333,20 @@ export const AgentTerminalSection: React.FC<AgentTerminalSectionProps> = ({
 						}}
 					/>
 					{dimensions && (
-						// Columns x rows, very faint, pinned to the terminal's top-right corner.
+						// Columns x rows in a pill in the terminal's top-right corner, while the text size changes.
 						<span
 							data-testid="terminal-dimensions"
+							data-shown={dimensionsShown || undefined}
+							aria-hidden={!dimensionsShown}
 							title={`Terminal size ${dimensions.cols} columns by ${dimensions.rows} rows`}
 							className={cn(
-								"pointer-events-none absolute right-3 top-1.5 z-[1] select-none font-mono text-[10px] tabular-nums",
+								"pointer-events-none absolute right-5 top-3.5 z-[1] select-none rounded-full border border-solid bg-surface-primary/85 px-2 py-0.5 font-mono text-[10px] leading-4 tabular-nums shadow-sm",
+								"transition-opacity duration-300 motion-reduce:transition-none",
+								dimensionsShown ? "opacity-100" : "opacity-0",
 								dimensions.cols < MIN_TERMINAL_COLS ||
 									dimensions.rows < MIN_TERMINAL_ROWS
-									? "text-content-warning opacity-60"
-									: "text-content-secondary opacity-25",
+									? "border-border-warning text-content-warning"
+									: "border-border text-content-secondary",
 							)}
 						>
 							{dimensions.cols}x{dimensions.rows}
