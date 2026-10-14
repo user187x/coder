@@ -1,10 +1,13 @@
 import { useSyncExternalStore } from "react";
 import type { Workspace } from "#/api/typesGenerated";
+import { agentInitializing } from "#/modules/platform/workspaceInitializing/workspaceReadiness";
 
 /**
  * The Workspaces list's starting rows: a workspace being started, updated or
  * restarted shows a moving barber-pole stripe across its whole row until it
- * has started (its build done and every agent ready) or failed.
+ * is completely initialized - its build done, every agent's startup scripts
+ * finished and every app's health check answered, so the row shows its app
+ * icons the moment the stripes end - or its start failed.
  */
 
 const restarting = new Set<string>();
@@ -44,8 +47,11 @@ export const useRestarting = (workspaceId: string): boolean => {
 /**
  * Whether the workspace is on its way up: a start (or update, which is a
  * start of the new version) queued or running, or done with an agent still
- * starting; with a restart, its stop too. Not once it runs with every agent
- * ready, nor when its build or an agent's start failed.
+ * initializing (agentInitializing: connecting, running its startup scripts,
+ * or an app's health check not answered yet - the row's app icons wait for
+ * that too); with a restart, its stop too. Not once it is fully up, nor when
+ * its build failed, an agent's start failed or timed out, or an app failed its
+ * checks (those do not hold the others back).
  */
 export const isStartingUp = (
 	workspace: Workspace,
@@ -77,10 +83,8 @@ export const isStartingUp = (
 		return false;
 	}
 	return build.resources.some((resource) =>
-		(resource.agents ?? []).some(
-			(agent) =>
-				agent.lifecycle_state === "created" ||
-				agent.lifecycle_state === "starting",
+		(resource.agents ?? []).some((agent) =>
+			agentInitializing(workspace, agent),
 		),
 	);
 };

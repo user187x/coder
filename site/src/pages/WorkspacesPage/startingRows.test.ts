@@ -1,11 +1,13 @@
 import type {
 	Workspace,
 	WorkspaceAgentLifecycle,
+	WorkspaceApp,
 	WorkspaceBuild,
 } from "#/api/typesGenerated";
 import {
 	MockWorkspace,
 	MockWorkspaceAgent,
+	MockWorkspaceApp,
 	MockWorkspaceResource,
 } from "#/testHelpers/entities";
 import { isStartingUp, markRestarting } from "./startingRows";
@@ -13,6 +15,7 @@ import { isStartingUp, markRestarting } from "./startingRows";
 const withBuild = (
 	build: Partial<WorkspaceBuild>,
 	lifecycle: WorkspaceAgentLifecycle = "ready",
+	appHealth: WorkspaceApp["health"] = "healthy",
 ): Workspace => ({
 	...MockWorkspace,
 	latest_build: {
@@ -21,7 +24,14 @@ const withBuild = (
 		resources: [
 			{
 				...MockWorkspaceResource,
-				agents: [{ ...MockWorkspaceAgent, lifecycle_state: lifecycle }],
+				agents: [
+					{
+						...MockWorkspaceAgent,
+						status: "connected",
+						lifecycle_state: lifecycle,
+						apps: [{ ...MockWorkspaceApp, health: appHealth, hidden: false }],
+					},
+				],
 			},
 		],
 	},
@@ -51,6 +61,48 @@ describe("isStartingUp", () => {
 		expect(
 			isStartingUp(
 				withBuild({ transition: "start", status: "running" }, "ready"),
+			),
+		).toBe(false);
+	});
+
+	it("lasts until every app has answered its health check (the row's app icons wait for that)", () => {
+		expect(
+			isStartingUp(
+				withBuild(
+					{ transition: "start", status: "running" },
+					"ready",
+					"initializing",
+				),
+			),
+		).toBe(true);
+		expect(
+			isStartingUp(
+				withBuild(
+					{ transition: "start", status: "running" },
+					"ready",
+					"healthy",
+				),
+			),
+		).toBe(false);
+		expect(
+			isStartingUp(
+				withBuild(
+					{ transition: "start", status: "running" },
+					"ready",
+					"disabled",
+				),
+			),
+		).toBe(false);
+	});
+
+	it("is not held back by an app that fails its checks", () => {
+		expect(
+			isStartingUp(
+				withBuild(
+					{ transition: "start", status: "running" },
+					"ready",
+					"unhealthy",
+				),
 			),
 		).toBe(false);
 	});
