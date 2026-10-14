@@ -125,6 +125,28 @@ describe("Lock Down", () => {
 		);
 	});
 
+	it("shows each mode's icon: a pulled plug, passport control, the shield, a snowflake", async () => {
+		vi.spyOn(PlatformAPI, "getLockdown").mockResolvedValue(lock({}));
+		renderWith(<LockdownButton workspace={MockWorkspace} />);
+		const button = await screen.findByTestId("workspace-lockdown");
+		fireEvent.pointerDown(button, { button: 0, ctrlKey: false });
+		const network = await screen.findByTestId("lockdown-network");
+		expect(network.querySelector("svg.lucide-unplug")).not.toBeNull();
+		expect(
+			screen.getByTestId("lockdown-sudo").querySelector("img"),
+		).toHaveAttribute("src", "/emojis/1f6c2.png");
+		expect(
+			screen
+				.getByTestId("lockdown-complete")
+				.querySelector("svg.lucide-shield-alert"),
+		).not.toBeNull();
+		expect(
+			screen
+				.getByTestId("lockdown-freeze")
+				.querySelector("svg.lucide-snowflake"),
+		).not.toBeNull();
+	});
+
 	it("freezes a workspace, and shows and deletes its snapshot", async () => {
 		const frozen = lock({
 			locked: true,

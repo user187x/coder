@@ -6,6 +6,7 @@ import {
 	ShieldIcon,
 	SnowflakeIcon,
 	TrashIcon,
+	UnplugIcon,
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { toast } from "sonner";
@@ -67,6 +68,34 @@ const MODE_HINT: Record<Exclude<LockdownMode, "off">, string> = {
 };
 
 const MODES = ["network", "sudo", "complete", "freeze"] as const;
+
+/** Each mode's icon in the menu: Network a pulled plug, Sudo Command passport control (no way past it), Complete
+ * the red shield, Freeze a snowflake. */
+const ModeIcon: React.FC<{ mode: (typeof MODES)[number] }> = ({ mode }) => {
+	switch (mode) {
+		case "network":
+			return (
+				<UnplugIcon
+					className="mt-0.5 text-content-destructive"
+					data-testid="lockdown-icon-network"
+				/>
+			);
+		case "sudo":
+			return (
+				<img
+					src="/emojis/1f6c2.png"
+					alt=""
+					aria-hidden
+					className="mt-0.5 size-4 shrink-0"
+					data-testid="lockdown-icon-sudo"
+				/>
+			);
+		case "freeze":
+			return <SnowflakeIcon className="mt-0.5 text-content-link" />;
+		default:
+			return <ShieldAlertIcon className="mt-0.5 text-content-destructive" />;
+	}
+};
 
 const useLockdown = (workspaceId: string, enabled = true) =>
 	useQuery({
@@ -173,11 +202,7 @@ export const LockdownButton: React.FC<{ workspace: Workspace }> = ({
 						data-testid={`lockdown-${mode}`}
 						className="items-start"
 					>
-						{mode === "freeze" ? (
-							<SnowflakeIcon className="mt-0.5 text-content-link" />
-						) : (
-							<ShieldAlertIcon className="mt-0.5 text-content-destructive" />
-						)}
+						<ModeIcon mode={mode} />
 						<span className="flex flex-col">
 							<span className="font-medium">
 								{MODE_LABEL[mode]}
