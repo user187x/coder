@@ -2,7 +2,7 @@
  * The announcement's countdown (BannerCountdown): a split-flap clock at the banner's left. Each character on its own
  * black rounded plate - the top half a shade lighter than the bottom, a dark split across the middle with a hair of
  * light under it, as on a departure board - in bold white figures. A character that changes flips in over the split;
- * the colons are two black dots. At zero the plates blink. No flipping for reduced motion.
+ * the colons are two light dots ringed in black. At zero the plates blink. No flipping for reduced motion.
  */
 .banner-flapclock {
 	display: inline-flex;
@@ -29,8 +29,8 @@
 	font-variant-numeric: tabular-nums;
 	background: linear-gradient(180deg, #2a2a2e 0 50%, #161618 50% 100%);
 	box-shadow:
-		inset 0 0 0 1px rgb(255 255 255 / 0.1),
-		inset 0 1px 0 rgb(255 255 255 / 0.12),
+		inset 0 0 0 1px rgb(255 255 255 / 0.17),
+		inset 0 1px 0 rgb(255 255 255 / 0.14),
 		0 1px 2px rgb(0 0 0 / 0.55);
 	perspective: 70px;
 }
@@ -91,8 +91,9 @@
 	width: 3.5px;
 	height: 3.5px;
 	border-radius: 1px;
-	background: #161618;
-	box-shadow: 0 0 0 0.5px rgb(255 255 255 / 0.18);
+	/* Light with a dark ring: seen on a dark banner and a light one alike. */
+	background: #d4d4d8;
+	box-shadow: 0 0 0 1px rgb(0 0 0 / 0.55);
 }
 
 .banner-flapclock[data-done] .banner-flapclock-plate {

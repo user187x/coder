@@ -39,7 +39,8 @@ export const LoginPageView: React.FC<LoginPageViewProps> = ({
 			{/* Platform: the sign-in page's background image (Customize). */}
 			<PlatformBackground slot="login" />
 			<div className="w-full max-w-xs flex flex-col items-center gap-4">
-				<ProductLogo />
+				{/* Platform: the deployment's logo, large: the page's emblem, above the sign-in button. */}
+				<ProductLogo className="h-28 max-w-[320px]" />
 				{isLoading ? (
 					<Loader />
 				) : tosAcceptanceRequired ? (

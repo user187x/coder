@@ -54,10 +54,11 @@ export const OAuthSignInForm: React.FC<OAuthSignInFormProps> = ({
 					<img
 						src={KEYCLOAK_LOGO}
 						alt=""
-						width={200}
-						height={128}
+						width={120}
+						height={77}
 						draggable={false}
-						className="block h-auto w-[200px]"
+						// Smaller than the deployment's own logo above it.
+						className="block h-auto w-[120px]"
 					/>
 				</a>
 			</div>
