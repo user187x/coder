@@ -255,15 +255,6 @@ export const AgentAppPanel: React.FC<AgentAppPanelProps> = ({
 							<ChevronDownIcon open={open} />
 							{app?.icon && <ExternalImage src={app.icon} className="size-4" />}
 							<span>{name}</span>
-							{service && (
-								<span
-									className="rounded-full border border-solid border-border-default bg-surface-secondary px-2 py-px font-mono text-[11px] leading-4 font-medium text-content-secondary"
-									title={`${name} runs on port ${service.port} (${service.protocol}) inside the workspace`}
-									data-testid="agent-app-service-port"
-								>
-									{service.protocol} :{service.port}
-								</span>
-							)}
 						</Button>
 					</CollapsibleTrigger>
 					{!app && (
@@ -282,6 +273,16 @@ export const AgentAppPanel: React.FC<AgentAppPanelProps> = ({
 						</Badge>
 					)}
 					<span className="relative z-[1] ml-auto flex items-center gap-1">
+						{/* Platform: the port and protocol the app's service runs on, at the right, before Pop out. */}
+						{service && (
+							<span
+								className="mr-1 rounded-full border border-solid border-border-default bg-surface-secondary px-2 py-px font-mono text-[11px] leading-4 font-medium whitespace-nowrap text-content-secondary"
+								title={`${name} runs on port ${service.port} (${service.protocol}) inside the workspace`}
+								data-testid="agent-app-service-port"
+							>
+								{service.protocol} :{service.port}
+							</span>
+						)}
 						{app && ready && !popup && (
 							<PopOutButton
 								id={id}
