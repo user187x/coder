@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { PlayIcon } from "lucide-react";
+import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { toast } from "sonner";
 import { getErrorMessage } from "#/api/errors";
@@ -27,14 +28,13 @@ import {
 } from "#/components/SettingsHeader/SettingsHeader";
 import { Switch } from "#/components/Switch/Switch";
 import { BannerPreview } from "#/modules/platform/announcement/BannerPreview";
-import { parseColors } from "#/modules/platform/announcement/bannerTokens";
+import {
+	fromMarkdown,
+	parseColors,
+} from "#/modules/platform/announcement/bannerTokens";
 import { pageTitle } from "#/utils/page";
 import { Acknowledgements } from "./Acknowledgements";
-import {
-	BannerEditor,
-	hasPlaceholders,
-	MESSAGE_MAX_LENGTH,
-} from "./BannerEditor";
+import { BannerEditor, MESSAGE_MAX_LENGTH } from "./BannerEditor";
 
 const FIELDS = [
 	"enabled",
@@ -52,46 +52,88 @@ const FIELDS = [
 	"font",
 	"receipts",
 	"closeEffect",
+	"markdown",
+	"align",
+	"picture",
+	"pictureFit",
+	"countdown",
 ] as const;
 
-/** A banner saved before effects existed has none: that means "none", not "changed". */
-const fieldsOf = ({ id: _id, ...banner }: Banner): BannerFields => ({
-	...banner,
-	effect: banner.effect ?? "none",
-	repeat: banner.repeat ?? false,
-	speed: banner.speed ?? "normal",
-	font: banner.font ?? "default",
-	receipts: banner.receipts ?? true,
-	closeEffect: banner.closeEffect ?? "fade",
-});
+/**
+ * A banner saved before effects (and the rest) existed has none: that means
+ * "none", not "changed". A Markdown message with nothing of Markdown in it is
+ * the plain text it reads as.
+ */
+const fieldsOf = ({ id: _id, ...banner }: Banner): BannerFields => {
+	const fields: BannerFields = {
+		...banner,
+		effect: banner.effect ?? "none",
+		repeat: banner.repeat ?? false,
+		speed: banner.speed ?? "normal",
+		font: banner.font ?? "default",
+		receipts: banner.receipts ?? true,
+		closeEffect: banner.closeEffect ?? "fade",
+		markdown: banner.markdown ?? true,
+		align: banner.align ?? "center",
+		picture: banner.picture ?? "",
+		pictureFit: banner.pictureFit ?? "span",
+		countdown: banner.countdown ?? "",
+	};
+	if (fields.markdown) {
+		const plain = fromMarkdown(fields.message);
+		if (
+			plain.message === fields.message &&
+			!plain.countdown &&
+			!plain.picture
+		) {
+			fields.markdown = false;
+		}
+	}
+	return fields;
+};
 
 const sameFields = (a: BannerFields, b: BannerFields) =>
 	FIELDS.every((field) => a[field] === b[field]);
 
 /**
- * Announcements published before the Markdown editor had a bold lead-in and a
- * link: they are folded into the Markdown message (an unpublished edit).
+ * The published announcement as the editor writes it, plain text. One
+ * written in Markdown (or before it, with a bold lead-in and a link) becomes
+ * plain text, its first countdown and first picture the banner's countdown
+ * and background image (an unpublished edit: the banner keeps showing it as
+ * it was until it is published).
  */
 export const editableFields = (banner: Banner): BannerFields => {
 	const fields = fieldsOf(banner);
 	const title = fields.title.trim();
 	const isColors = Boolean(parseColors(title));
-	if ((!title || isColors) && !fields.linkUrl && !fields.linkText) {
+	if (
+		!fields.markdown &&
+		(!title || isColors) &&
+		!fields.linkUrl &&
+		!fields.linkText
+	) {
 		return fields;
 	}
-	let message = fields.message.trim();
+	let message = fields.markdown
+		? fields.message.trim()
+		: fields.message.trim().replace(/[\\`*_~[\]{}()]/g, "\\$&");
 	if (title && !isColors) {
-		message = `**${title}** ${message}`;
+		message = `${title} ${message}`;
 	}
 	if (fields.linkUrl) {
 		message = `${message} [${fields.linkText || fields.linkUrl}](${fields.linkUrl})`;
 	}
+	const plain = fromMarkdown(message);
 	return {
 		...fields,
 		title: isColors ? title : "",
-		message: message.slice(0, MESSAGE_MAX_LENGTH),
+		message: plain.message.slice(0, MESSAGE_MAX_LENGTH),
 		linkText: "",
 		linkUrl: "",
+		markdown: false,
+		picture: fields.picture || plain.picture,
+		pictureFit: fields.picture ? fields.pictureFit : plain.pictureFit,
+		countdown: fields.countdown || plain.countdown,
 	};
 };
 
@@ -151,7 +193,7 @@ const AnnouncementSettingsPage: React.FC = () => {
 	);
 };
 
-type ConfirmKind = "placeholders" | "reshow" | "reset";
+type ConfirmKind = "reshow" | "reset";
 
 const AnnouncementEditor: React.FC<{ state: BannerState }> = ({ state }) => {
 	const queryClient = useQueryClient();
@@ -163,6 +205,14 @@ const AnnouncementEditor: React.FC<{ state: BannerState }> = ({ state }) => {
 	const [draft, setDraft] = useState<BannerFields | null>(null);
 	const [problem, setProblem] = useState<string | null>(null);
 	const [confirm, setConfirm] = useState<ConfirmKind | null>(null);
+	// The preview: replayed (its effect again) by changing its key; "Try it"
+	// plays its close transition, then it comes back.
+	const [run, setRun] = useState(0);
+	const [closing, setClosing] = useState(false);
+	const [gone, setGone] = useState(false);
+	const preview = useRef<HTMLElement>(null);
+	const reducedMotion =
+		window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 
 	const published = fieldsOf(state.banner);
 	const form = draft ?? editableFields(state.banner);
@@ -250,22 +300,54 @@ const AnnouncementEditor: React.FC<{ state: BannerState }> = ({ state }) => {
 			</section>
 
 			<section
+				ref={preview}
 				aria-labelledby="announcement-preview"
-				className="flex flex-col gap-3 rounded-lg border border-solid border-border p-6"
+				className="flex scroll-mt-6 flex-col gap-3 rounded-lg border border-solid border-border p-6"
 			>
 				<div className="flex flex-wrap items-center justify-between gap-3">
 					<h2 id="announcement-preview" className="m-0 text-base font-semibold">
 						What developers see
 					</h2>
-					<Badge variant={live ? "green" : "default"} role="status">
-						{live
-							? `Live for all developers${tabsText(state, " · ", " connected")}`
-							: "Hidden"}
-					</Badge>
+					<div className="flex items-center gap-3">
+						<Button
+							size="sm"
+							variant="outline"
+							disabled={form.effect === "none" || !form.message || closing}
+							title="Play the text effect again"
+							onClick={() => setRun((n) => n + 1)}
+						>
+							<PlayIcon />
+							Replay
+						</Button>
+						<Badge variant={live ? "green" : "default"} role="status">
+							{live
+								? `Live for all developers${tabsText(state, " · ", " connected")}`
+								: "Hidden"}
+						</Badge>
+					</div>
 				</div>
-				<div className="rounded-md bg-surface-secondary p-3">
+				<div
+					className="min-h-[62px] rounded-md bg-surface-secondary p-3"
+					data-testid="announcement-preview"
+				>
 					{form.message ? (
-						<BannerPreview banner={{ ...form, effect: "none" }} />
+						!gone && (
+							<BannerPreview
+								// A new effect (or its speed, or repeat) plays from the start.
+								key={`${run}:${form.effect}:${form.speed}:${form.repeat}`}
+								banner={form}
+								animate
+								closing={closing}
+								onClosed={() => {
+									setGone(true);
+									window.setTimeout(() => {
+										setGone(false);
+										setClosing(false);
+										setRun((n) => n + 1);
+									}, 700);
+								}}
+							/>
+						)
 					) : (
 						<p className="m-0 text-sm text-content-secondary">
 							Type a message to see a preview.
@@ -273,8 +355,10 @@ const AnnouncementEditor: React.FC<{ state: BannerState }> = ({ state }) => {
 					)}
 				</div>
 				<p className="m-0 text-sm text-content-secondary">
-					Live preview of your draft below. Nothing is published until you press{" "}
-					<strong>Publish changes</strong>.
+					Live preview of your draft below, its text effect playing. Nothing is
+					published until you press <strong>Publish changes</strong>.
+					{reducedMotion &&
+						" This device asks for reduced motion, so effects are not played here, or for anyone with that setting."}
 				</p>
 			</section>
 
@@ -288,11 +372,14 @@ const AnnouncementEditor: React.FC<{ state: BannerState }> = ({ state }) => {
 					setDraft({ ...form, ...change });
 				}}
 				onProblem={setProblem}
-				onPublish={() =>
-					hasPlaceholders(form.message)
-						? setConfirm("placeholders")
-						: doPublish()
-				}
+				onPublish={doPublish}
+				onTryClose={() => {
+					preview.current?.scrollIntoView({
+						block: "nearest",
+						behavior: "smooth",
+					});
+					setClosing(true);
+				}}
 				onDiscard={() => {
 					setDraft(null);
 					setProblem(null);
@@ -319,19 +406,6 @@ const AnnouncementEditor: React.FC<{ state: BannerState }> = ({ state }) => {
 				)}
 			</div>
 
-			<ConfirmDialog
-				type="info"
-				hideCancel={false}
-				open={confirm === "placeholders"}
-				title="Publish with placeholders?"
-				description="The message still contains [bracketed] placeholders. Publish it anyway?"
-				confirmText="Publish"
-				onClose={() => setConfirm(null)}
-				onConfirm={() => {
-					setConfirm(null);
-					doPublish();
-				}}
-			/>
 			<ConfirmDialog
 				type="info"
 				hideCancel={false}

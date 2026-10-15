@@ -20,7 +20,6 @@ import {
 } from "./Buttons";
 import { DebugButton } from "./DebugButton";
 import { RetryButton } from "./RetryButton";
-import { ShareButton } from "./ShareButton";
 
 type WorkspaceActionsProps = {
 	workspace: Workspace;
@@ -161,8 +160,9 @@ export const WorkspaceActions: React.FC<WorkspaceActionsProps> = ({
 
 	return (
 		<div
-			// Platform: room to the right of the last button (Share), which the ⋮ menu used to give.
-			className="flex flex-wrap items-center justify-end gap-2 pr-3"
+			// Platform: the buttons end as far from the edge as the navbar's user menu above them (its px-6),
+			// evenly spaced.
+			className="flex flex-wrap items-center justify-end gap-2 pr-6"
 			data-testid="workspace-actions"
 		>
 			{/* Restarting must be handled separately, because it otherwise would appear as stopping */}
@@ -174,25 +174,22 @@ export const WorkspaceActions: React.FC<WorkspaceActionsProps> = ({
 							<Fragment key={action}>{buttonMapping[action]}</Fragment>
 						))}
 
-			{/* Platform: every workspace action (no ⋮ menu) under one arrow, right after the action buttons
-			    (beside Restart or Start), in every state: mounted once, so it never goes while the workspace
-			    builds; during a build only what would start another is unavailable in it. */}
+			{/* Platform: every workspace action (no ⋮ menu, Share among them) under one arrow, right after
+			    the action buttons (beside Restart or Start), in every state: mounted once, so it never goes
+			    while the workspace builds; during a build only what would start another is unavailable in it. */}
 			<WorkspaceMoreActions
 				workspace={workspace}
 				variant="arrow"
 				disabled={false}
 				jobsBlocked={!canAcceptJobs}
-				className="-ml-1"
+				share={
+					permissions.shareWorkspace
+						? { canUpdatePermissions: permissions.updateWorkspace }
+						: undefined
+				}
 			/>
 
 			{canCancel && <CancelButton handleAction={handleCancel} />}
-
-			{permissions.shareWorkspace && (
-				<ShareButton
-					workspace={workspace}
-					canUpdatePermissions={permissions.updateWorkspace}
-				/>
-			)}
 		</div>
 	);
 };

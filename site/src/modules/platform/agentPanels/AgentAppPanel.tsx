@@ -30,6 +30,36 @@ const MAX_FIT_HEIGHT = 2400;
 const FIT_TO_PAGE = new Set(["filebrowser"]);
 const KEY_STEP = 40;
 
+/** The apps whose panel shows the port and protocol their service runs on: the dataflow template's. */
+const SERVICE_APPS = new Set(["nifi", "airflow"]);
+
+/**
+ * The protocol and port an app's service runs on, inside the workspace: its
+ * health check's (the service itself; NiFi's app URL is the nginx in front of
+ * it), else its URL's. Null without either, or for an address that is not one.
+ */
+export const servicePort = (
+	app: Pick<WorkspaceApp, "url" | "healthcheck">,
+): { protocol: "HTTP" | "HTTPS"; port: number } | null => {
+	const address = app.healthcheck?.url || app.url;
+	if (!address) {
+		return null;
+	}
+	try {
+		const url = new URL(address);
+		if (url.protocol !== "http:" && url.protocol !== "https:") {
+			return null;
+		}
+		const secure = url.protocol === "https:";
+		return {
+			protocol: secure ? "HTTPS" : "HTTP",
+			port: url.port ? Number(url.port) : secure ? 443 : 80,
+		};
+	} catch {
+		return null;
+	}
+};
+
 const clampHeight = (height: number) =>
 	Math.min(MAX_APP_HEIGHT, Math.max(MIN_APP_HEIGHT, Math.round(height)));
 
@@ -117,6 +147,7 @@ export const AgentAppPanel: React.FC<AgentAppPanelProps> = ({
 		}
 	}, [ready]);
 	const name = app?.display_name || slug;
+	const service = app && SERVICE_APPS.has(slug) ? servicePort(app) : null;
 
 	// Grow to the app's page, a few times while it settles after loading.
 	useEffect(() => {
@@ -224,6 +255,15 @@ export const AgentAppPanel: React.FC<AgentAppPanelProps> = ({
 							<ChevronDownIcon open={open} />
 							{app?.icon && <ExternalImage src={app.icon} className="size-4" />}
 							<span>{name}</span>
+							{service && (
+								<span
+									className="rounded-full border border-solid border-border-default bg-surface-secondary px-2 py-px font-mono text-[11px] leading-4 font-medium text-content-secondary"
+									title={`${name} runs on port ${service.port} (${service.protocol}) inside the workspace`}
+									data-testid="agent-app-service-port"
+								>
+									{service.protocol} :{service.port}
+								</span>
+							)}
 						</Button>
 					</CollapsibleTrigger>
 					{!app && (

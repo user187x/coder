@@ -14,6 +14,7 @@ import {
 	type DisplayWorkspaceStatusType,
 	getDisplayWorkspaceStatus,
 } from "#/utils/workspace";
+import "./runningLight.css";
 
 export const variantByStatusType: Record<
 	DisplayWorkspaceStatusType,
@@ -27,13 +28,24 @@ export const variantByStatusType: Record<
 	warning: "warning",
 };
 
-/** Platform: the running workspace's light on its page (site/static, an animated green dot). */
-const RUNNING_LIGHT = "/workspace-running.gif";
+/** Platform: the running workspace's light on its page: rings of light turning round a pulsing core (runningLight.css). */
+const RunningLight: React.FC = () => (
+	<span
+		aria-hidden
+		data-testid="workspace-running-light"
+		className="ws-running-light"
+	>
+		<i className="ws-running-ring ws-running-outer" />
+		<i className="ws-running-ring ws-running-middle" />
+		<i className="ws-running-ring ws-running-inner" />
+		<i className="ws-running-core" />
+	</span>
+);
 
 type WorkspaceStatusIndicatorProps = {
 	workspace: Workspace;
 	children?: React.ReactNode;
-	/** Platform: a running, healthy workspace shows the animated light instead of the dot. */
+	/** Platform: a running, healthy workspace shows the running light instead of the dot. */
 	runningLight?: boolean;
 };
 
@@ -53,12 +65,7 @@ export const WorkspaceStatusIndicator: React.FC<
 		runningLight &&
 		type === "success" &&
 		workspace.latest_build.status === "running" ? (
-			<img
-				src={RUNNING_LIGHT}
-				alt=""
-				data-testid="workspace-running-light"
-				className="size-5 shrink-0"
-			/>
+			<RunningLight />
 		) : (
 			<StatusIndicatorDot />
 		);

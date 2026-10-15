@@ -3,12 +3,12 @@ import { MockStoppedWorkspace, MockWorkspace } from "#/testHelpers/entities";
 import { WorkspaceStatusIndicator } from "./WorkspaceStatusIndicator";
 
 describe("WorkspaceStatusIndicator", () => {
-	it("shows the animated light for a running workspace when asked", () => {
+	it("shows the running light (HTML and CSS, no image) for a running workspace when asked", () => {
 		render(<WorkspaceStatusIndicator workspace={MockWorkspace} runningLight />);
-		expect(screen.getByTestId("workspace-running-light")).toHaveAttribute(
-			"src",
-			"/workspace-running.gif",
-		);
+		const light = screen.getByTestId("workspace-running-light");
+		expect(light).toHaveClass("ws-running-light");
+		expect(light.querySelector("img")).toBeNull();
+		expect(light.querySelectorAll(".ws-running-ring")).toHaveLength(3);
 		expect(screen.getByText("Running")).toBeInTheDocument();
 	});
 

@@ -1,0 +1,120 @@
+/*
+ * The announcement's countdown (BannerWatch): a digital watch's display at the banner's left. A dark case around a
+ * grey-green LCD, its digits drawn in seven segments (the unlit ones faintly there), a little slanted; the seconds
+ * smaller beside the hours and minutes, the colon blinking every second.
+ */
+.banner-watch {
+	--watch-ink: #1b2316;
+	--watch-ghost: rgb(27 35 22 / 0.1);
+	display: inline-flex;
+	flex-shrink: 0;
+	align-self: stretch;
+	align-items: stretch;
+	min-height: 30px;
+	padding: 2px;
+	border-radius: 7px;
+	background: linear-gradient(180deg, #34363b, #141518);
+	box-shadow:
+		inset 0 0 0 1px rgb(255 255 255 / 0.14),
+		0 1px 2px rgb(0 0 0 / 0.5);
+}
+
+.banner-watch-face {
+	position: relative;
+	display: flex;
+	align-items: center;
+	gap: 1px;
+	padding: 2px 6px 2px 5px;
+	overflow: hidden;
+	border-radius: 5px;
+	background: linear-gradient(180deg, #c6d1b4 0%, #aab897 55%, #9cab8a 100%);
+	box-shadow:
+		inset 0 1px 3px rgb(0 0 0 / 0.5),
+		inset 0 0 0 1px rgb(0 0 0 / 0.3);
+}
+
+/* Glare on the watch glass. */
+.banner-watch-face::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	background: linear-gradient(
+		165deg,
+		rgb(255 255 255 / 0.28) 0 30%,
+		transparent 31%
+	);
+}
+
+.banner-watch-digit {
+	display: block;
+	width: 11px;
+	height: 18px;
+	transform: skewX(-6deg);
+}
+
+.banner-watch-digit polygon {
+	fill: var(--watch-ghost);
+}
+
+.banner-watch-digit polygon[data-lit] {
+	fill: var(--watch-ink);
+}
+
+/* The seconds: smaller, sitting on the digits' baseline. */
+.banner-watch-seconds {
+	display: flex;
+	align-self: flex-end;
+	gap: 1px;
+	margin-left: 2px;
+	padding-bottom: 3px;
+}
+
+.banner-watch-seconds .banner-watch-digit {
+	width: 7.5px;
+	height: 12.5px;
+}
+
+.banner-watch-colon {
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	gap: 5px;
+	margin: 0 1.5px;
+	animation: banner-watch-blink 1s steps(1, end) infinite;
+}
+
+.banner-watch-colon i {
+	display: block;
+	width: 2.2px;
+	height: 2.2px;
+	background: var(--watch-ink);
+}
+
+/* "D": the days, as a watch marks its modes. */
+.banner-watch-unit {
+	align-self: flex-start;
+	margin: 1px 3px 0 1px;
+	color: var(--watch-ink);
+	font:
+		700 7px / 1 ui-monospace,
+		monospace;
+}
+
+/* At zero: the whole display blinks. */
+.banner-watch[data-done] .banner-watch-face > * {
+	animation: banner-watch-blink 1s steps(1, end) infinite;
+}
+
+@keyframes banner-watch-blink {
+	50% {
+		opacity: 0.12;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.banner-watch-colon,
+	.banner-watch[data-done] .banner-watch-face > * {
+		animation: none;
+	}
+}

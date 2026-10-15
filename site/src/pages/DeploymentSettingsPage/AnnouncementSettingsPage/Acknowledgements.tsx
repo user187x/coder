@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { ChevronRightIcon, XIcon } from "lucide-react";
+import { ChevronRightIcon, ListXIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { toast } from "sonner";
@@ -11,6 +11,7 @@ import type {
 } from "#/api/platform";
 import {
 	announcementReport,
+	clearAnnouncementEvents,
 	deleteAnnouncementEvent,
 } from "#/api/queries/platform";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
@@ -48,10 +49,16 @@ const formatWhen = (iso: string | null) =>
 
 /**
  * Every announcement published (or shown again), with who has seen it and
- * who pressed Confirm; open one to see the people. A record can be deleted.
+ * who pressed Confirm; open one to see the people. A record can be deleted,
+ * or all of them at once (Clear all).
  */
 export const Acknowledgements: React.FC = () => {
+	const queryClient = useQueryClient();
 	const reportQuery = useQuery(announcementReport());
+	const clear = useMutation(clearAnnouncementEvents(queryClient));
+	const [confirming, setConfirming] = useState(false);
+	const events = reportQuery.data?.events ?? [];
+	const live = events.some((event) => event.current);
 
 	return (
 		<section
@@ -62,13 +69,56 @@ export const Acknowledgements: React.FC = () => {
 				<h2 id="announcement-acks" className="m-0 text-base font-semibold">
 					Acknowledgements
 				</h2>
-				{reportQuery.dataUpdatedAt > 0 && (
-					<span className="text-xs text-content-secondary" data-pixel="ignore">
-						Updated{" "}
-						{new Date(reportQuery.dataUpdatedAt).toLocaleTimeString("en-US")}
-					</span>
-				)}
+				<div className="flex items-center gap-3">
+					{reportQuery.dataUpdatedAt > 0 && (
+						<span
+							className="text-xs text-content-secondary"
+							data-pixel="ignore"
+						>
+							Updated{" "}
+							{new Date(reportQuery.dataUpdatedAt).toLocaleTimeString("en-US")}
+						</span>
+					)}
+					<Button
+						size="sm"
+						variant="outline"
+						disabled={events.length === 0 || clear.isPending}
+						onClick={() => setConfirming(true)}
+						data-testid="announcement-acks-clear"
+					>
+						<ListXIcon />
+						Clear all
+					</Button>
+				</div>
 			</div>
+			<ConfirmDialog
+				type="delete"
+				open={confirming}
+				title="Clear all records"
+				description={`Delete the record of every announcement (${events.length}) and everyone's confirmations?${
+					live
+						? " The live announcement stays up; its confirmations start again from nobody."
+						: ""
+				}`}
+				confirmText="Clear all"
+				confirmLoading={clear.isPending}
+				onClose={() => setConfirming(false)}
+				onConfirm={() =>
+					clear.mutate(undefined, {
+						onSuccess: ({ removed }) => {
+							setConfirming(false);
+							toast.success(
+								`Cleared ${removed} ${removed === 1 ? "record" : "records"}.`,
+							);
+						},
+						onError: (error) => {
+							toast.error(
+								getErrorMessage(error, "The records could not be cleared."),
+							);
+						},
+					})
+				}
+			/>
 			<p className="m-0 text-sm text-content-secondary">
 				Each announcement you publish (or show again) is listed with everyone
 				who has seen it and who pressed Confirm. Open one to see the people.

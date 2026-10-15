@@ -1,58 +1,30 @@
 import { cn } from "cn";
-import {
-	useEffect,
-	useLayoutEffect,
-	useRef,
-	useState,
-	useSyncExternalStore,
-} from "react";
-import {
-	type Banner,
-	type BannerEffect,
-	type BannerSpeed,
-	PICTURE_FITS,
-	type PictureFit,
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import type {
+	Banner,
+	BannerEffect,
+	BannerSpeed,
+	PictureFit,
 } from "#/api/platform";
+import { useBannerClock } from "./bannerClock";
 import { bannerFontStack } from "./bannerFonts";
 import "./bannerCrawl.css";
 import "./bannerFx.css";
 import "./bannerRoll.css";
 import {
+	type Block,
 	type Countdown,
 	countdownText,
 	type InlineNode,
 	parseBlocks,
 	parseColors,
 	parseInline,
+	pictureFit,
 	safeHref,
 } from "./bannerTokens";
 
-// One ticking clock for every countdown on the page.
-let now = Date.now();
-const tickListeners = new Set<() => void>();
-let ticker: number | undefined;
-
-const subscribeToClock = (listener: () => void) => {
-	tickListeners.add(listener);
-	if (ticker === undefined) {
-		ticker = window.setInterval(() => {
-			now = Date.now();
-			for (const l of tickListeners) {
-				l();
-			}
-		}, 1000);
-	}
-	return () => {
-		tickListeners.delete(listener);
-		if (tickListeners.size === 0 && ticker !== undefined) {
-			window.clearInterval(ticker);
-			ticker = undefined;
-		}
-	};
-};
-
 const CountdownText: React.FC<{ countdown: Countdown }> = ({ countdown }) => {
-	const current = useSyncExternalStore(subscribeToClock, () => now);
+	const current = useBannerClock();
 	return (
 		<span role="timer" className="font-bold tabular-nums whitespace-nowrap">
 			{countdownText(countdown, current)}
@@ -350,18 +322,17 @@ const imagesOf = (nodes: InlineNode[]): { src: string; alt: string }[] =>
 				: [],
 	);
 
-/** A picture's fit, from its address (`…#fit=tile`); none given: null. */
-export const pictureFit = (src: string): PictureFit | null => {
-	const fit = /#(?:.*&)?fit=([a-z]+)/.exec(src)?.[1];
-	return PICTURE_FITS.find((f) => f === fit) ?? null;
-};
+/** A picture on the banner's screen, behind the text, and how it fills the screen. */
+type ScreenPicture = { src: string; alt: string; fit: PictureFit };
 
 /**
- * The message's pictures: its images given a fit (Insert picture), and those
- * found, once loaded, to be at least PICTURE_MIN_PX (until then they stay in
- * the line).
+ * A Markdown message's pictures: its images given a fit (Insert picture),
+ * and those found, once loaded, to be at least PICTURE_MIN_PX (until then
+ * they stay in the line).
  */
-const usePictures = (images: { src: string; alt: string }[]) => {
+const usePictures = (
+	images: { src: string; alt: string }[],
+): ScreenPicture[] => {
 	const [sizes, setSizes] = useState<Record<string, number>>({});
 	const key = [...new Set(images.map((i) => i.src))].join("\n");
 	useEffect(() => {
@@ -383,38 +354,35 @@ const usePictures = (images: { src: string; alt: string }[]) => {
 			live = false;
 		};
 	}, [key]);
-	return images.filter(
-		(image, i) =>
-			(pictureFit(image.src) !== null ||
-				(sizes[image.src] ?? 0) >= PICTURE_MIN_PX) &&
-			images.findIndex((other) => other.src === image.src) === i,
-	);
+	return images
+		.filter(
+			(image, i) =>
+				(pictureFit(image.src) !== null ||
+					(sizes[image.src] ?? 0) >= PICTURE_MIN_PX) &&
+				images.findIndex((other) => other.src === image.src) === i,
+		)
+		.map((image) => ({ ...image, fit: pictureFit(image.src) ?? "span" }));
 };
 
 /** A URL for CSS url("…"): an address that passed safeHref, its quotes and backslashes dropped. */
 const cssUrl = (src: string) => `url("${src.replace(/["\\\n\r]/g, "")}")`;
 
 /**
- * The banner's screen behind the text, from the message's pictures: the first
- * one's fit decides. Span (the default): as wide as the screen, rolling through
- * it (PictureRoll), with every other spanning picture after it. Center: the
- * whole picture, fitted in the middle. Tile: repeated across, as tall as the
- * screen. Fill: covering the screen, its middle showing. Stretch: squeezed to
- * the screen's size. The banner keeps its size whatever the fit (bannerRoll.css).
+ * The banner's screen behind the text, from its background picture (or a
+ * Markdown message's pictures: the first one's fit decides). Span (the
+ * default): as wide as the screen, rolling through it (PictureRoll), with
+ * every other spanning picture after it. Center: the whole picture, fitted in
+ * the middle. Tile: repeated across, as tall as the screen. Fill: covering the
+ * screen, its middle showing. Stretch: squeezed to the screen's size. The
+ * banner keeps its size whatever the fit (bannerRoll.css).
  */
-const PictureScreen: React.FC<{
-	pictures: { src: string; alt: string }[];
-}> = ({ pictures }) => {
+const PictureScreen: React.FC<{ pictures: ScreenPicture[] }> = ({
+	pictures,
+}) => {
 	const lead = pictures[0];
-	const fit = pictureFit(lead.src) ?? "span";
+	const fit = lead.fit;
 	if (fit === "span") {
-		return (
-			<PictureRoll
-				pictures={pictures.filter(
-					(p) => (pictureFit(p.src) ?? "span") === "span",
-				)}
-			/>
-		);
+		return <PictureRoll pictures={pictures.filter((p) => p.fit === "span")} />;
 	}
 	return (
 		<span
@@ -554,6 +522,10 @@ type BannerTextProps = {
 		| "repeat"
 		| "speed"
 		| "font"
+		| "markdown"
+		| "align"
+		| "picture"
+		| "pictureFit"
 	>;
 	/** Plays the banner's text effect (a remount plays it again). */
 	animate?: boolean;
@@ -561,18 +533,29 @@ type BannerTextProps = {
 };
 
 /**
- * The announcement's text: an optional bold lead-in, the Markdown message
- * with live countdowns, and an optional link. A lead-in that carries custom
- * colours is not shown (the banner is drawn in those colours instead).
+ * The announcement's text, lined up as the admin chose, over its background
+ * picture: plain text as written (the editor's), or, for announcements
+ * written before it, an optional bold lead-in, the Markdown message with
+ * live countdowns and pictures, and an optional link. A lead-in that carries
+ * custom colours is not shown (the banner is drawn in those colours instead).
  */
 export const BannerText: React.FC<BannerTextProps> = ({
 	banner,
 	animate = false,
 	className,
 }) => {
-	const message = parseInline(banner.message);
-	const pictureList = usePictures(imagesOf(message));
-	const pictures = new Set(pictureList.map((p) => p.src));
+	const plain = banner.markdown === false;
+	const message: InlineNode[] = plain
+		? banner.message
+			? [{ type: "text", text: banner.message }]
+			: []
+		: parseInline(banner.message);
+	const inMessage = usePictures(plain ? [] : imagesOf(message));
+	const pictures = new Set(inMessage.map((p) => p.src));
+	const background = safeHref(banner.picture ?? "");
+	const pictureList: ScreenPicture[] = background
+		? [{ src: background, alt: "", fit: banner.pictureFit ?? "span" }]
+		: inMessage;
 	const roll = pictureList.length > 0 && (
 		<PictureScreen pictures={pictureList} />
 	);
@@ -606,6 +589,7 @@ export const BannerText: React.FC<BannerTextProps> = ({
 	const href = safeHref(banner.linkUrl);
 
 	const fontFamily = bannerFontStack(banner.font);
+	const textAlign = banner.align ?? "center";
 	const content = (
 		<>
 			{title && <strong>{title} </strong>}
@@ -634,7 +618,7 @@ export const BannerText: React.FC<BannerTextProps> = ({
 					data-banner-text=""
 					data-over-picture={roll ? "" : undefined}
 					className={cn(className, "banner-crawl-host")}
-					style={{ fontFamily }}
+					style={{ fontFamily, textAlign }}
 				>
 					<Crawl
 						speed={banner.speed ?? "normal"}
@@ -660,8 +644,13 @@ export const BannerText: React.FC<BannerTextProps> = ({
 				className={cn(className, plan?.className)}
 				style={
 					wholeAnimation
-						? { display: "inline-block", fontFamily, animation: wholeAnimation }
-						: { fontFamily }
+						? {
+								display: "inline-block",
+								fontFamily,
+								textAlign,
+								animation: wholeAnimation,
+							}
+						: { fontFamily, textAlign }
 				}
 				onAnimationEnd={
 					plan?.className && plan.unit === "whole"
@@ -679,50 +668,69 @@ export const BannerText: React.FC<BannerTextProps> = ({
 	);
 };
 
+/** Plain text as the scroll-down view's blocks: paragraphs between blank lines, their line breaks kept. */
+const plainBlocks = (message: string): Block[] =>
+	message
+		.replace(/\r\n?/g, "\n")
+		.split(/\n\s*\n/)
+		.filter((paragraph) => paragraph.trim())
+		.map((paragraph) => ({
+			type: "paragraph",
+			lines: paragraph
+				.split("\n")
+				.map((line): InlineNode[] => [{ type: "text", text: line }]),
+		}));
+
 /**
- * The whole message as rich text, for the banner's scroll-down view: headings,
- * lists and paragraphs (line breaks kept), with inline Markdown, emoji,
- * countdowns, links and full-size images. No effect.
+ * The whole message, for the banner's scroll-down view: plain text as
+ * paragraphs, or a Markdown message as rich text (headings, lists and
+ * paragraphs, line breaks kept, with inline Markdown, emoji, countdowns,
+ * links and full-size images). No effect.
  */
-export const BannerBlocks: React.FC<{ message: string }> = ({ message }) => {
+export const BannerBlocks: React.FC<{
+	message: string;
+	markdown?: boolean;
+}> = ({ message, markdown = true }) => {
 	return (
 		<>
-			{parseBlocks(message).map((block, i) => {
-				const key = `b${i}`;
-				switch (block.type) {
-					case "heading": {
-						const Tag = (["h2", "h3", "h4"] as const)[block.level - 1];
-						return (
-							<Tag key={key} data-level={block.level}>
-								{renderNodes(block.children, null, `${key}.`)}
-							</Tag>
-						);
+			{(markdown ? parseBlocks(message) : plainBlocks(message)).map(
+				(block, i) => {
+					const key = `b${i}`;
+					switch (block.type) {
+						case "heading": {
+							const Tag = (["h2", "h3", "h4"] as const)[block.level - 1];
+							return (
+								<Tag key={key} data-level={block.level}>
+									{renderNodes(block.children, null, `${key}.`)}
+								</Tag>
+							);
+						}
+						case "list": {
+							const List = block.ordered ? "ol" : "ul";
+							return (
+								<List key={key}>
+									{block.items.map((item, j) => (
+										<li key={`${key}.${j}`}>
+											{renderNodes(item, null, `${key}.${j}.`)}
+										</li>
+									))}
+								</List>
+							);
+						}
+						case "paragraph":
+							return (
+								<p key={key}>
+									{block.lines.map((line, j) => (
+										<span key={`${key}.${j}`}>
+											{j > 0 && <br />}
+											{renderNodes(line, null, `${key}.${j}.`)}
+										</span>
+									))}
+								</p>
+							);
 					}
-					case "list": {
-						const List = block.ordered ? "ol" : "ul";
-						return (
-							<List key={key}>
-								{block.items.map((item, j) => (
-									<li key={`${key}.${j}`}>
-										{renderNodes(item, null, `${key}.${j}.`)}
-									</li>
-								))}
-							</List>
-						);
-					}
-					case "paragraph":
-						return (
-							<p key={key}>
-								{block.lines.map((line, j) => (
-									<span key={`${key}.${j}`}>
-										{j > 0 && <br />}
-										{renderNodes(line, null, `${key}.${j}.`)}
-									</span>
-								))}
-							</p>
-						);
-				}
-			})}
+				},
+			)}
 		</>
 	);
 };

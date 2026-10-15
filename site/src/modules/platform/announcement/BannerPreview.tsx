@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import type { BannerFields } from "#/api/platform";
 import { BannerLcd, bannerColors } from "./AnnouncementBanner";
 import { BannerText } from "./BannerText";
+import { BannerWatch } from "./BannerWatch";
 import { CloseLayers, useCloseTransition } from "./bannerClose";
 
 type BannerPreviewProps = {
@@ -39,6 +40,7 @@ export const BannerPreview: React.FC<BannerPreviewProps> = ({
 			style={{ background: bg, color: fg }}
 			{...close.props}
 		>
+			{banner.countdown && <BannerWatch to={banner.countdown} />}
 			<BannerLcd bg={bg} fg={fg} radius={6}>
 				<BannerText
 					banner={banner}

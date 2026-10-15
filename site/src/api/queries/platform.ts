@@ -186,6 +186,13 @@ export const deleteAnnouncementEvent = (queryClient: QueryClient) => ({
 	},
 });
 
+export const clearAnnouncementEvents = (queryClient: QueryClient) => ({
+	mutationFn: PlatformAPI.clearAnnouncementEvents,
+	onSuccess: async () => {
+		await queryClient.invalidateQueries({ queryKey: announcementReportKey });
+	},
+});
+
 const CLUSTER_USAGE_REFRESH_MS = 3_000;
 
 export const clusterUsage = () => ({

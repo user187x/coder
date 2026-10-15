@@ -17,20 +17,41 @@ const banner: Banner = {
 };
 
 describe("editableFields", () => {
-	it("leaves Markdown announcements as they are", () => {
+	it("takes a message with nothing of Markdown in it as the plain text it is", () => {
 		const custom = { ...banner, title: "{{colors bg=#000000 fg=#ffffff}}" };
 		const { id: _id, ...fields } = custom;
-		// Saved before the crawl's speed, the font, receipts and the close transition existed: their defaults.
+		// Saved before the newer settings existed: their defaults.
 		expect(editableFields(custom)).toEqual({
 			...fields,
 			speed: "normal",
 			font: "default",
 			receipts: true,
 			closeEffect: "fade",
+			markdown: false,
+			align: "center",
+			picture: "",
+			pictureFit: "span",
+			countdown: "",
 		});
 	});
 
-	it("folds an older lead-in and link into the Markdown message", () => {
+	it("turns a Markdown message into plain text, its picture and countdown into the banner's", () => {
+		expect(
+			editableFields({
+				...banner,
+				message:
+					'**Save** your work: {{countdown to=2026-10-20T18:00:00Z format=dhms done="now"}} ![usa](/__coder-ui/banner-picture/56bf5ea1f007daca#fit=fill)',
+			}),
+		).toMatchObject({
+			markdown: false,
+			message: "Save your work:",
+			picture: "/__coder-ui/banner-picture/56bf5ea1f007daca",
+			pictureFit: "fill",
+			countdown: "2026-10-20T18:00:00Z",
+		});
+	});
+
+	it("folds an older lead-in and link into the plain text", () => {
 		expect(
 			editableFields({
 				...banner,
@@ -42,8 +63,28 @@ describe("editableFields", () => {
 			title: "",
 			linkText: "",
 			linkUrl: "",
-			message:
-				"**Heads up:** Restart tonight. [status](https://status.example)",
+			markdown: false,
+			message: "Heads up: Restart tonight. status (https://status.example)",
+		});
+	});
+
+	it("leaves the editor's own plain text as it is", () => {
+		const plain: Banner = {
+			...banner,
+			markdown: false,
+			message: "Use **bold** as you like",
+			picture: "/pictures/usa.gif",
+			pictureFit: "tile",
+			countdown: "2026-10-20T18:00:00Z",
+			align: "left",
+		};
+		expect(editableFields(plain)).toMatchObject({
+			markdown: false,
+			message: "Use **bold** as you like",
+			picture: "/pictures/usa.gif",
+			pictureFit: "tile",
+			countdown: "2026-10-20T18:00:00Z",
+			align: "left",
 		});
 	});
 });

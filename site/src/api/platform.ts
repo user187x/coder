@@ -1078,7 +1078,8 @@ export const BANNER_CLOSE_EFFECTS = [
 export type BannerCloseEffect = (typeof BANNER_CLOSE_EFFECTS)[number];
 
 /**
- * How a picture fills the banner's screen, written in its address
+ * How a picture fills the banner's screen: the background picture's
+ * pictureFit, or, in a Markdown message, written in the picture's address
  * (`![flag](/__coder-ui/banner-picture/<id>#fit=tile)`); none: span.
  */
 export const PICTURE_FITS = [
@@ -1089,6 +1090,10 @@ export const PICTURE_FITS = [
 	"stretch",
 ] as const;
 export type PictureFit = (typeof PICTURE_FITS)[number];
+
+/** How the message lines up on the banner's screen. */
+export const BANNER_ALIGNS = ["left", "center", "right"] as const;
+export type BannerAlign = (typeof BANNER_ALIGNS)[number];
 
 /** The crawl's pace (effect "starwars"). */
 export const BANNER_SPEEDS = ["slow", "normal", "fast"] as const;
@@ -1134,6 +1139,21 @@ export type Banner = {
 	receipts?: boolean;
 	/** Missing in announcements saved before it existed: "fade". */
 	closeEffect?: BannerCloseEffect;
+	/**
+	 * The message is Markdown (with {{countdown}} tokens and pictures in it):
+	 * announcements written before the plain editor (missing: true). The
+	 * editor writes plain text (false), its picture and countdown in the
+	 * fields below.
+	 */
+	markdown?: boolean;
+	/** Missing: "center". */
+	align?: BannerAlign;
+	/** The banner's background picture (a same-site path or an http(s) URL); "" or missing: none. */
+	picture?: string;
+	/** How the background picture fills the banner's screen; missing: "span". */
+	pictureFit?: PictureFit;
+	/** The moment the watch at the banner's left counts down to (UTC, ISO 8601); "" or missing: no countdown. */
+	countdown?: string;
 };
 
 export type BannerFields = Omit<Banner, "id">;
@@ -1335,6 +1355,12 @@ export const PlatformAPI = {
 		post<{ ok: true; removed: number }>(`${PLATFORM_BASE}/api/events/delete`, {
 			id,
 		}),
+	/** Admins: every announcement's record and confirmations (the live one's start again from nobody). */
+	clearAnnouncementEvents: () =>
+		post<{ ok: true; removed: number }>(
+			`${PLATFORM_BASE}/api/events/clear`,
+			{},
+		),
 
 	getClusterUsage: () =>
 		get<ClusterUsage>(`${PLATFORM_BASE}/api/cluster/usage`),

@@ -1,17 +1,26 @@
-import { cn } from "cn";
-import { PlayIcon, TimerIcon } from "lucide-react";
+import {
+	AlignCenterIcon,
+	AlignLeftIcon,
+	AlignRightIcon,
+	ChevronDownIcon,
+	type LucideIcon,
+	PlayIcon,
+	Repeat2Icon,
+	TimerIcon,
+} from "lucide-react";
 import { useId, useRef, useState } from "react";
 import {
+	BANNER_ALIGNS,
 	BANNER_CLOSE_EFFECTS,
 	BANNER_EFFECTS,
 	BANNER_FONTS,
 	BANNER_LEVELS,
 	BANNER_SPEEDS,
+	type BannerAlign,
 	type BannerCloseEffect,
 	type BannerEffect,
 	type BannerFields,
 	type BannerFont,
-	type BannerLevel,
 	type BannerSpeed,
 } from "#/api/platform";
 import { Button } from "#/components/Button/Button";
@@ -21,8 +30,20 @@ import {
 	CollapsibleContent,
 	CollapsibleTrigger,
 } from "#/components/Collapsible/Collapsible";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuRadioGroup,
+	DropdownMenuRadioItem,
+	DropdownMenuTrigger,
+} from "#/components/DropdownMenu/DropdownMenu";
 import { Input } from "#/components/Input/Input";
 import { Label } from "#/components/Label/Label";
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "#/components/Popover/Popover";
 import {
 	Select,
 	SelectContent,
@@ -32,28 +53,23 @@ import {
 } from "#/components/Select/Select";
 import { Spinner } from "#/components/Spinner/Spinner";
 import { Textarea } from "#/components/Textarea/Textarea";
-import { BannerPreview } from "#/modules/platform/announcement/BannerPreview";
+import { bannerColors } from "#/modules/platform/announcement/AnnouncementBanner";
 import { CLOSE_EFFECT_OPTIONS } from "#/modules/platform/announcement/bannerClose";
-import { BANNER_FONT_OPTIONS } from "#/modules/platform/announcement/bannerFonts";
+import {
+	BANNER_FONT_OPTIONS,
+	bannerFontStack,
+} from "#/modules/platform/announcement/bannerFonts";
 import {
 	colorsToken,
 	LEVEL_COLORS,
-	parseColors,
+	utcSeconds,
 } from "#/modules/platform/announcement/bannerTokens";
-import { ColorField } from "#/modules/platform/ColorField";
-import { CountdownBuilder } from "./CountdownBuilder";
+import { ColorField, type ColorPreset } from "#/modules/platform/ColorField";
+import { PictureFitSelect, UploadImageButton } from "./BackgroundPicture";
 import { EmojiButton } from "./EmojiButton";
-import { PictureButton } from "./PictureButton";
 
 // Long broadcasts are what the crawl and the banner's scroll-down view are for.
 export const MESSAGE_MAX_LENGTH = 4000;
-
-const LEVEL_LABELS: Record<BannerLevel, string> = {
-	info: "Info",
-	success: "Success",
-	warning: "Warning",
-	critical: "Critical",
-};
 
 const EFFECT_OPTIONS: Record<BannerEffect, { label: string; hint: string }> = {
 	none: { label: "None", hint: "Plain text, no animation." },
@@ -96,45 +112,70 @@ const SPEED_LABELS: Record<BannerSpeed, string> = {
 	fast: "Fast",
 };
 
-type Preset = Pick<BannerFields, "level" | "message" | "dismissible">;
+const ALIGN_OPTIONS: Record<BannerAlign, { label: string; icon: LucideIcon }> =
+	{
+		left: { label: "Left", icon: AlignLeftIcon },
+		center: { label: "Center", icon: AlignCenterIcon },
+		right: { label: "Right", icon: AlignRightIcon },
+	};
 
-const PRESETS: { name: string; preset: Preset; danger?: boolean }[] = [
-	{
-		name: "Scheduled maintenance",
-		preset: {
-			level: "warning",
-			dismissible: true,
-			message:
-				"**Scheduled maintenance:** Coder will be unavailable on [date] from [start] to [end] UTC. Please save your work and stop your workspaces beforehand.",
-		},
-	},
-	{
-		name: "Emergency patch",
-		danger: true,
-		preset: {
-			level: "critical",
-			dismissible: false,
-			message:
-				"**Emergency security patch:** Coder will restart at [time] UTC to apply a critical security fix. Save your work and push any code you need to keep now.",
-		},
-	},
-	{
-		name: "All clear",
-		preset: {
-			level: "success",
-			dismissible: true,
-			message:
-				"**All clear:** Maintenance is complete and Coder is back to normal. Thanks for your patience.",
-		},
-	},
+const LEVEL_NAMES = {
+	info: "Info blue",
+	success: "Success green",
+	warning: "Warning amber",
+	critical: "Critical red",
+} as const;
+
+/** The banner's colour: its level's colours first (they keep the level), then a few more. */
+const BANNER_COLOR_PRESETS: readonly ColorPreset[] = [
+	...BANNER_LEVELS.map((level) => ({
+		name: LEVEL_NAMES[level],
+		value: LEVEL_COLORS[level].bg,
+	})),
+	{ name: "Violet", value: "#6d28d9" },
+	{ name: "Slate", value: "#334155" },
+	{ name: "Black", value: "#111111" },
 ];
 
-const BRACKETED = /\[[^\]]+\]/;
+/** The text's colour, lit on the banner's dark screen (a dark one falls back to the banner's colour or white). */
+const TEXT_COLOR_PRESETS: readonly ColorPreset[] = [
+	{ name: "White", value: "#ffffff" },
+	{ name: "Yellow", value: "#fde047" },
+	{ name: "Amber", value: "#fbbf24" },
+	{ name: "Green", value: "#86efac" },
+	{ name: "Cyan", value: "#67e8f9" },
+	{ name: "Pink", value: "#f9a8d4" },
+];
 
-/** The message still holds [bracketed] placeholders of a template. */
-export const hasPlaceholders = (message: string) => {
-	// Links are [text](url): only brackets not followed by "(" are placeholders.
-	return BRACKETED.test(message.replace(/\[[^\]]+\]\([^)\s]+\)/g, ""));
+/**
+ * The banner's and the text's colours as the banner service keeps them: a
+ * level's own pair is that level (no custom colours), any other pair the
+ * colours token.
+ */
+const colorsChange = (bg: string, fg: string): Partial<BannerFields> => {
+	const level = BANNER_LEVELS.find(
+		(l) =>
+			LEVEL_COLORS[l].bg === bg.toLowerCase() &&
+			LEVEL_COLORS[l].fg === fg.toLowerCase(),
+	);
+	return level ? { level, title: "" } : { title: colorsToken({ bg, fg }) };
+};
+
+const pad = (n: number) => String(n).padStart(2, "0");
+
+/** A UTC moment as a datetime-local input shows it, in this browser's time zone. */
+const toLocalInput = (iso: string): string => {
+	const date = new Date(iso);
+	if (Number.isNaN(date.getTime())) {
+		return "";
+	}
+	return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
+
+const nextHour = (): string => {
+	const soon = new Date(Date.now() + 3600e3);
+	soon.setMinutes(0, 0, 0);
+	return utcSeconds(soon);
 };
 
 type BannerEditorProps = {
@@ -146,12 +187,16 @@ type BannerEditorProps = {
 	onProblem: (problem: string) => void;
 	onPublish: () => void;
 	onDiscard: () => void;
+	/** Plays the close transition on the preview above ("What developers see"). */
+	onTryClose: () => void;
 };
 
 /**
- * The announcement's message (Markdown, with emoji and a live countdown),
- * its colours, text effect and options. Nothing is published until
- * "Publish changes".
+ * The announcement, written like a document: Compose (its font, text effect,
+ * colours, emoji and alignment; its background image and how it fills the
+ * banner; a countdown; the text itself, plain as typed) and Controls (who may
+ * dismiss it, where it shows, receipts, how it closes). The preview is the
+ * page's "What developers see". Nothing is published until "Publish changes".
  */
 export const BannerEditor: React.FC<BannerEditorProps> = ({
 	form,
@@ -162,13 +207,12 @@ export const BannerEditor: React.FC<BannerEditorProps> = ({
 	onProblem,
 	onPublish,
 	onDiscard,
+	onTryClose,
 }) => {
 	const id = useId();
 	const messageRef = useRef<HTMLTextAreaElement>(null);
 	const [caret, setCaret] = useState<[number, number] | null>(null);
-	const [previewing, setPreviewing] = useState(false);
-	const [countdownOpen, setCountdownOpen] = useState(false);
-	const customColors = parseColors(form.title);
+	const { bg, fg } = bannerColors(form);
 	const rememberCaret = () => {
 		const el = messageRef.current;
 		if (el) {
@@ -196,87 +240,65 @@ export const BannerEditor: React.FC<BannerEditorProps> = ({
 				Message
 			</h2>
 
-			<div
-				role="group"
-				aria-label="Start from a template"
-				className="flex flex-wrap items-center gap-2"
+			<fieldset
+				className="m-0 flex flex-col gap-3 border-0 p-0"
+				data-testid="announcement-compose"
 			>
-				<span className="text-sm text-content-secondary">Start from:</span>
-				{PRESETS.map(({ name, preset, danger }) => (
-					<Button
-						key={name}
-						size="sm"
-						variant={danger ? "destructive" : "outline"}
-						onClick={() => {
-							// A template's colours are its level's, not custom ones.
-							onChange({ ...preset, title: "" });
-							messageRef.current?.focus();
-						}}
-					>
-						{name}
-					</Button>
-				))}
-			</div>
-
-			<div className="flex flex-col gap-2">
-				<div className="flex items-baseline justify-between">
-					<Label htmlFor={`${id}-message`}>Message</Label>
-					<span className="text-xs text-content-secondary tabular-nums">
-						{form.message.length} / {MESSAGE_MAX_LENGTH}
-					</span>
-				</div>
-				<div className="flex flex-wrap items-center gap-2">
+				<legend className="mb-2 p-0 text-sm font-semibold">Compose</legend>
+				<div
+					role="toolbar"
+					aria-label="Text"
+					className="flex flex-wrap items-center gap-2"
+				>
+					<FontPicker form={form} onChange={onChange} />
+					<EffectPicker form={form} onChange={onChange} />
+					<ColorButton
+						label="Text color"
+						short="Text"
+						value={fg}
+						presets={TEXT_COLOR_PRESETS}
+						onChange={(next) => onChange(colorsChange(bg, next))}
+					/>
+					<ColorButton
+						label="Banner color"
+						short="Banner"
+						value={bg}
+						presets={BANNER_COLOR_PRESETS}
+						onChange={(next) => onChange(colorsChange(next, fg))}
+					/>
 					<EmojiButton onPick={insertAtCaret} />
-					<PictureButton onInsert={insertAtCaret} onProblem={onProblem} />
-					<Button
-						size="sm"
-						variant="outline"
-						aria-expanded={countdownOpen}
-						onClick={() => setCountdownOpen(!countdownOpen)}
-					>
-						<TimerIcon />
-						Countdown
-					</Button>
-					<span className="text-xs text-content-secondary">
-						Markdown: **bold** *italic* ~~strike~~ `code` [link](https://…)
-					</span>
-					<span className="flex-1" />
-					<div role="group" aria-label="Message view" className="flex gap-1">
-						<Button
-							size="sm"
-							variant={previewing ? "subtle" : "outline"}
-							aria-pressed={!previewing}
-							onClick={() => {
-								setPreviewing(false);
-								messageRef.current?.focus();
-							}}
-						>
-							Write
-						</Button>
-						<Button
-							size="sm"
-							variant={previewing ? "outline" : "subtle"}
-							aria-pressed={previewing}
-							onClick={() => setPreviewing(true)}
-						>
-							Preview
-						</Button>
-					</div>
+					<AlignButton
+						value={form.align ?? "center"}
+						onChange={(align) => onChange({ align })}
+					/>
 				</div>
-				{previewing ? (
-					<div
-						aria-live="polite"
-						className="rounded-md bg-surface-secondary p-3"
-					>
-						{form.message ? (
-							<BannerPreview banner={{ ...form, effect: "none" }} />
-						) : (
-							<p className="m-0 text-sm text-content-secondary">
-								Type a message to see a preview.
-							</p>
-						)}
+				<div
+					role="toolbar"
+					aria-label="Background image"
+					className="flex flex-wrap items-center justify-between gap-2"
+				>
+					<UploadImageButton
+						picture={form.picture ?? ""}
+						onChange={(picture) => onChange({ picture })}
+						onProblem={onProblem}
+					/>
+					<PictureFitSelect
+						value={form.pictureFit ?? "span"}
+						disabled={!form.picture}
+						onChange={(pictureFit) => onChange({ pictureFit })}
+					/>
+				</div>
+				<CountdownField
+					value={form.countdown ?? ""}
+					onChange={(countdown) => onChange({ countdown })}
+				/>
+				<div className="flex flex-col gap-2">
+					<div className="flex items-baseline justify-between">
+						<Label htmlFor={`${id}-message`}>Text</Label>
+						<span className="text-xs text-content-secondary tabular-nums">
+							{form.message.length} / {MESSAGE_MAX_LENGTH}
+						</span>
 					</div>
-				) : (
 					<Textarea
 						id={`${id}-message`}
 						ref={messageRef}
@@ -284,94 +306,24 @@ export const BannerEditor: React.FC<BannerEditorProps> = ({
 						maxLength={MESSAGE_MAX_LENGTH}
 						placeholder="What do developers need to know?"
 						value={form.message}
+						// As it will look: in the banner's font, lined up as chosen.
+						style={{
+							fontFamily: bannerFontStack(form.font),
+							textAlign: form.align ?? "center",
+						}}
 						onChange={(event) => onChange({ message: event.target.value })}
 						onKeyUp={rememberCaret}
 						onClick={rememberCaret}
 						onBlur={rememberCaret}
 					/>
-				)}
-				{countdownOpen && (
-					<CountdownBuilder
-						message={form.message}
-						caret={caret}
-						maxLength={MESSAGE_MAX_LENGTH}
-						onChange={(message) => onChange({ message })}
-						onProblem={onProblem}
-					/>
-				)}
-			</div>
-
-			<fieldset className="m-0 flex flex-col gap-3 border-0 p-0">
-				<legend className="mb-2 p-0 text-sm font-semibold">Colors</legend>
-				<div className="flex flex-wrap gap-2">
-					{BANNER_LEVELS.map((level) => {
-						const selected = !customColors && form.level === level;
-						return (
-							<Button
-								key={level}
-								size="sm"
-								variant="outline"
-								aria-pressed={selected}
-								title={`${LEVEL_LABELS[level]} (${LEVEL_COLORS[level].bg})`}
-								className={cn(selected && "ring-2 ring-content-primary")}
-								onClick={() => onChange({ level, title: "" })}
-							>
-								<span
-									aria-hidden
-									className="size-3 rounded-full"
-									style={{ background: LEVEL_COLORS[level].bg }}
-								/>
-								{LEVEL_LABELS[level]}
-							</Button>
-						);
-					})}
-					<Button
-						size="sm"
-						variant="outline"
-						aria-pressed={Boolean(customColors)}
-						className={cn(customColors && "ring-2 ring-content-primary")}
-						onClick={() => {
-							if (!customColors) {
-								onChange({
-									title: colorsToken({
-										bg: LEVEL_COLORS[form.level].bg,
-										fg: "#ffffff",
-									}),
-								});
-							}
-						}}
-					>
-						<span
-							aria-hidden
-							className="size-3 rounded-full bg-[conic-gradient(red,yellow,lime,cyan,blue,magenta,red)]"
-						/>
-						Custom
-					</Button>
 				</div>
-				{customColors && (
-					<div className="grid gap-4 md:grid-cols-2">
-						<ColorField
-							label="Background"
-							value={customColors.bg}
-							onChange={(bg) =>
-								onChange({ title: colorsToken({ ...customColors, bg }) })
-							}
-						/>
-						<ColorField
-							label="Text"
-							value={customColors.fg}
-							onChange={(fg) =>
-								onChange({ title: colorsToken({ ...customColors, fg }) })
-							}
-						/>
-					</div>
-				)}
 			</fieldset>
 
-			<EffectField form={form} onChange={onChange} />
-			<FontField form={form} onChange={onChange} />
-
-			<div className="flex flex-col gap-3">
+			<fieldset
+				className="m-0 flex flex-col gap-3 border-0 p-0"
+				data-testid="announcement-controls"
+			>
+				<legend className="mb-2 p-0 text-sm font-semibold">Controls</legend>
 				<div className="flex items-center gap-2 text-sm">
 					<Checkbox
 						id={`${id}-dismissible`}
@@ -414,9 +366,8 @@ export const BannerEditor: React.FC<BannerEditorProps> = ({
 						</span>
 					</Label>
 				</div>
-			</div>
-
-			<CloseField form={form} onChange={onChange} />
+				<CloseField form={form} onChange={onChange} onTry={onTryClose} />
+			</fieldset>
 
 			<Collapsible>
 				<CollapsibleTrigger asChild>
@@ -474,35 +425,280 @@ export const BannerEditor: React.FC<BannerEditorProps> = ({
 					Discard edits
 				</Button>
 				<span aria-live="polite" className="text-sm text-content-secondary">
-					{dirty
-						? "You have unpublished changes."
-						: hasPlaceholders(form.message)
-							? "Replace the [bracketed] parts of the message before publishing."
-							: ""}
+					{dirty ? "You have unpublished changes." : ""}
 				</span>
 			</div>
 		</section>
 	);
 };
 
-/**
- * Platform: how the banner goes away when someone dismisses it, and "Try
- * it", which plays it on a preview (that then comes back).
- */
-const CloseField: React.FC<{
+type FieldProps = {
 	form: BannerFields;
 	onChange: (change: Partial<BannerFields>) => void;
-}> = ({ form, onChange }) => {
+};
+
+/** The banner's font (and its scroll-down view's): bundled fonts and generic stacks only. */
+const FontPicker: React.FC<FieldProps> = ({ form, onChange }) => {
+	const font = form.font ?? "default";
+	return (
+		<Select
+			value={font}
+			onValueChange={(value) => {
+				const next = BANNER_FONTS.find((f) => f === value);
+				if (next) {
+					onChange({ font: next as BannerFont });
+				}
+			}}
+		>
+			<SelectTrigger
+				className="h-8 w-44 text-xs"
+				aria-label="Font"
+				title="The banner's font (only fonts that need no download)"
+			>
+				<SelectValue />
+			</SelectTrigger>
+			<SelectContent>
+				{BANNER_FONTS.map((f) => (
+					<SelectItem key={f} value={f}>
+						<span style={{ fontFamily: BANNER_FONT_OPTIONS[f].stack }}>
+							{BANNER_FONT_OPTIONS[f].label}
+						</span>
+					</SelectItem>
+				))}
+			</SelectContent>
+		</Select>
+	);
+};
+
+/** The text effect; the crawl's speed for the crawl; whether it repeats. It plays on the preview above. */
+const EffectPicker: React.FC<FieldProps> = ({ form, onChange }) => (
+	<div className="flex items-center gap-1">
+		<Select
+			value={form.effect}
+			onValueChange={(value) => {
+				const effect = BANNER_EFFECTS.find((e) => e === value);
+				if (effect) {
+					onChange({ effect });
+				}
+			}}
+		>
+			<SelectTrigger
+				className="h-8 w-40 text-xs"
+				aria-label="Text effect"
+				title={EFFECT_OPTIONS[form.effect].hint}
+			>
+				<SelectValue />
+			</SelectTrigger>
+			<SelectContent>
+				{BANNER_EFFECTS.map((effect) => (
+					<SelectItem
+						key={effect}
+						value={effect}
+						title={EFFECT_OPTIONS[effect].hint}
+					>
+						{EFFECT_OPTIONS[effect].label}
+					</SelectItem>
+				))}
+			</SelectContent>
+		</Select>
+		{form.effect === "starwars" && (
+			<Select
+				value={form.speed ?? "normal"}
+				onValueChange={(value) => {
+					const speed = BANNER_SPEEDS.find((s) => s === value);
+					if (speed) {
+						onChange({ speed });
+					}
+				}}
+			>
+				<SelectTrigger className="h-8 w-24 text-xs" aria-label="Crawl speed">
+					<SelectValue />
+				</SelectTrigger>
+				<SelectContent>
+					{BANNER_SPEEDS.map((speed) => (
+						<SelectItem key={speed} value={speed}>
+							{SPEED_LABELS[speed]}
+						</SelectItem>
+					))}
+				</SelectContent>
+			</Select>
+		)}
+		<Button
+			size="icon"
+			variant={form.repeat ? "default" : "outline"}
+			className="size-8"
+			disabled={form.effect === "none"}
+			aria-pressed={form.repeat}
+			aria-label="Repeat the effect continuously"
+			title={
+				form.repeat
+					? "Repeats continuously (click to play it once)"
+					: "Plays once when the banner appears (click to repeat it continuously)"
+			}
+			onClick={() => onChange({ repeat: !form.repeat })}
+		>
+			<Repeat2Icon />
+		</Button>
+	</div>
+);
+
+type ColorButtonProps = {
+	label: string;
+	/** What the button says beside its swatch. */
+	short: string;
+	value: string;
+	presets: readonly ColorPreset[];
+	onChange: (value: string) => void;
+};
+
+/** One colour: a swatch button (like the former Custom one) opening its presets, picker and hex value. */
+const ColorButton: React.FC<ColorButtonProps> = ({
+	label,
+	short,
+	value,
+	presets,
+	onChange,
+}) => (
+	<Popover>
+		<PopoverTrigger asChild>
+			<Button
+				size="sm"
+				variant="outline"
+				aria-label={`${label}: ${value}`}
+				title={`${label} (${value})`}
+			>
+				<span
+					aria-hidden
+					className="size-3 rounded-full shadow-[0_0_0_1px_hsl(var(--border-default))]"
+					style={{ background: value }}
+				/>
+				{short}
+			</Button>
+		</PopoverTrigger>
+		<PopoverContent align="start" className="w-80 p-4">
+			<ColorField
+				label={label}
+				value={value}
+				presets={presets}
+				onChange={onChange}
+			/>
+		</PopoverContent>
+	</Popover>
+);
+
+const AlignButton: React.FC<{
+	value: BannerAlign;
+	onChange: (align: BannerAlign) => void;
+}> = ({ value, onChange }) => {
+	const Icon = ALIGN_OPTIONS[value].icon;
+	return (
+		<DropdownMenu>
+			<DropdownMenuTrigger asChild>
+				<Button
+					size="sm"
+					variant="outline"
+					className="gap-1 px-2"
+					aria-label={`Alignment: ${ALIGN_OPTIONS[value].label}`}
+					title="How the text lines up on the banner"
+				>
+					<Icon />
+					<ChevronDownIcon className="size-3.5!" />
+				</Button>
+			</DropdownMenuTrigger>
+			<DropdownMenuContent align="start">
+				<DropdownMenuRadioGroup
+					value={value}
+					onValueChange={(next) => {
+						const align = BANNER_ALIGNS.find((a) => a === next);
+						if (align) {
+							onChange(align);
+						}
+					}}
+				>
+					{BANNER_ALIGNS.map((align) => {
+						const { label, icon: ItemIcon } = ALIGN_OPTIONS[align];
+						return (
+							<DropdownMenuRadioItem key={align} value={align}>
+								<ItemIcon />
+								{label}
+							</DropdownMenuRadioItem>
+						);
+					})}
+				</DropdownMenuRadioGroup>
+			</DropdownMenuContent>
+		</DropdownMenu>
+	);
+};
+
+/**
+ * The countdown: ticked, it is shown as a watch at the banner's far left,
+ * before the text; only the moment it counts down to is asked for.
+ */
+const CountdownField: React.FC<{
+	value: string;
+	onChange: (countdown: string) => void;
+}> = ({ value, onChange }) => {
+	const id = useId();
+	const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+	return (
+		<div className="flex min-h-8 flex-wrap items-center gap-3">
+			<div className="flex items-center gap-2 text-sm">
+				<Checkbox
+					id={`${id}-countdown`}
+					checked={Boolean(value)}
+					onCheckedChange={(checked) =>
+						onChange(checked === true ? nextHour() : "")
+					}
+				/>
+				<Label
+					htmlFor={`${id}-countdown`}
+					className="flex items-center gap-1.5 font-normal"
+				>
+					<TimerIcon aria-hidden className="size-4" />
+					Countdown timer
+				</Label>
+			</div>
+			{value && (
+				<>
+					<Input
+						type="datetime-local"
+						step={60}
+						className="h-8 w-56 text-xs"
+						aria-label={`Counts down to (${zone})`}
+						value={toLocalInput(value)}
+						onChange={(event) => {
+							const next = utcSeconds(event.target.value);
+							if (next) {
+								onChange(next);
+							}
+						}}
+					/>
+					<span className="text-xs text-content-secondary">
+						{zone}; shown as a watch at the banner's far left
+					</span>
+				</>
+			)}
+		</div>
+	);
+};
+
+/**
+ * Platform: how the banner goes away when someone dismisses it, and "Try
+ * it", which plays it on the preview above (that then comes back).
+ */
+const CloseField: React.FC<FieldProps & { onTry: () => void }> = ({
+	form,
+	onChange,
+	onTry,
+}) => {
 	const id = useId();
 	const effect = form.closeEffect ?? "fade";
-	const [trial, setTrial] = useState(0);
-	const [gone, setGone] = useState(false);
 	return (
-		<fieldset className="m-0 flex flex-col gap-3 border-0 p-0">
-			<legend className="mb-2 p-0 text-sm font-semibold">
-				Close transition
-			</legend>
-			<div className="flex flex-wrap items-center gap-4">
+		<div className="flex flex-col gap-2 pt-1">
+			<div className="flex flex-wrap items-center gap-3">
+				<Label htmlFor={`${id}-close`} className="text-sm">
+					Close transition
+				</Label>
 				<Select
 					value={effect}
 					disabled={!form.dismissible}
@@ -514,7 +710,8 @@ const CloseField: React.FC<{
 					}}
 				>
 					<SelectTrigger
-						className="w-48"
+						id={`${id}-close`}
+						className="h-8 w-44 text-xs"
 						aria-label="Close transition"
 						aria-describedby={`${id}-hint`}
 					>
@@ -531,8 +728,8 @@ const CloseField: React.FC<{
 				<Button
 					size="sm"
 					variant="outline"
-					disabled={!form.dismissible || effect === "none" || trial > 0}
-					onClick={() => setTrial((n) => n + 1)}
+					disabled={!form.dismissible || effect === "none" || !form.message}
+					onClick={onTry}
 				>
 					<PlayIcon />
 					Try it
@@ -543,164 +740,6 @@ const CloseField: React.FC<{
 					? CLOSE_EFFECT_OPTIONS[effect].hint
 					: "Only for an announcement people may dismiss."}
 			</p>
-			{trial > 0 && form.message && (
-				<div className="min-h-[46px]">
-					{!gone && (
-						<BannerPreview
-							key={trial}
-							banner={form}
-							closing
-							onClosed={() => {
-								setGone(true);
-								window.setTimeout(() => {
-									setGone(false);
-									setTrial(0);
-								}, 700);
-							}}
-						/>
-					)}
-				</div>
-			)}
-		</fieldset>
-	);
-};
-
-type EffectFieldProps = {
-	form: BannerFields;
-	onChange: (change: Partial<BannerFields>) => void;
-};
-
-const EffectField: React.FC<EffectFieldProps> = ({ form, onChange }) => {
-	const id = useId();
-	const [replay, setReplay] = useState(0);
-	const reducedMotion =
-		window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
-
-	return (
-		<fieldset className="m-0 flex flex-col gap-3 border-0 p-0">
-			<legend className="mb-2 p-0 text-sm font-semibold">Text effect</legend>
-			<div className="flex flex-wrap items-center gap-4">
-				<Select
-					value={form.effect}
-					onValueChange={(value) => {
-						const effect = BANNER_EFFECTS.find((e) => e === value);
-						if (effect) {
-							onChange({ effect });
-							setReplay((n) => n + 1);
-						}
-					}}
-				>
-					<SelectTrigger
-						className="w-48"
-						aria-label="Text effect"
-						aria-describedby={`${id}-hint`}
-					>
-						<SelectValue />
-					</SelectTrigger>
-					<SelectContent>
-						{BANNER_EFFECTS.map((effect) => (
-							<SelectItem key={effect} value={effect}>
-								{EFFECT_OPTIONS[effect].label}
-							</SelectItem>
-						))}
-					</SelectContent>
-				</Select>
-				{form.effect === "starwars" && (
-					<Select
-						value={form.speed ?? "normal"}
-						onValueChange={(value) => {
-							const speed = BANNER_SPEEDS.find((s) => s === value);
-							if (speed) {
-								onChange({ speed });
-								setReplay((n) => n + 1);
-							}
-						}}
-					>
-						<SelectTrigger className="w-32" aria-label="Crawl speed">
-							<SelectValue />
-						</SelectTrigger>
-						<SelectContent>
-							{BANNER_SPEEDS.map((speed) => (
-								<SelectItem key={speed} value={speed}>
-									{SPEED_LABELS[speed]}
-								</SelectItem>
-							))}
-						</SelectContent>
-					</Select>
-				)}
-				<div className="flex items-center gap-2 text-sm">
-					<Checkbox
-						id={`${id}-repeat`}
-						disabled={form.effect === "none"}
-						checked={form.repeat}
-						onCheckedChange={(checked) =>
-							onChange({ repeat: checked === true })
-						}
-					/>
-					<Label htmlFor={`${id}-repeat`} className="font-normal">
-						Repeat continuously
-					</Label>
-				</div>
-				<Button
-					size="sm"
-					variant="outline"
-					disabled={form.effect === "none" || !form.message}
-					onClick={() => setReplay((n) => n + 1)}
-				>
-					<PlayIcon />
-					Replay
-				</Button>
-			</div>
-			<p id={`${id}-hint`} className="m-0 text-sm text-content-secondary">
-				{EFFECT_OPTIONS[form.effect].hint}
-				{form.repeat ? "" : " It plays once when the banner appears."}
-				{reducedMotion &&
-					" This device asks for reduced motion, so effects are not played here, or for anyone with that setting."}
-			</p>
-			{form.effect !== "none" && form.message && (
-				<BannerPreview key={replay} banner={form} animate />
-			)}
-		</fieldset>
-	);
-};
-
-type FontFieldProps = {
-	form: BannerFields;
-	onChange: (change: Partial<BannerFields>) => void;
-};
-
-/** The banner's font (and its scroll-down view's): bundled fonts and generic stacks only. */
-const FontField: React.FC<FontFieldProps> = ({ form, onChange }) => {
-	const font = form.font ?? "default";
-	return (
-		<fieldset className="m-0 flex flex-col gap-3 border-0 p-0">
-			<legend className="mb-2 p-0 text-sm font-semibold">Font</legend>
-			<Select
-				value={font}
-				onValueChange={(value) => {
-					const next = BANNER_FONTS.find((f) => f === value);
-					if (next) {
-						onChange({ font: next as BannerFont });
-					}
-				}}
-			>
-				<SelectTrigger className="w-64" aria-label="Font">
-					<SelectValue />
-				</SelectTrigger>
-				<SelectContent>
-					{BANNER_FONTS.map((f) => (
-						<SelectItem key={f} value={f}>
-							<span style={{ fontFamily: BANNER_FONT_OPTIONS[f].stack }}>
-								{BANNER_FONT_OPTIONS[f].label}
-							</span>
-						</SelectItem>
-					))}
-				</SelectContent>
-			</Select>
-			<p className="m-0 text-sm text-content-secondary">
-				For the banner and its scroll-down view. Only fonts that need no
-				download are offered.
-			</p>
-		</fieldset>
+		</div>
 	);
 };

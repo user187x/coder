@@ -53,7 +53,7 @@ const NoNoResponse: React.FC = () => (
 type Rect = { top: number; left: number; width: number };
 
 type BannerScrollViewProps = {
-	banner: Pick<Banner, "id" | "message" | "font">;
+	banner: Pick<Banner, "id" | "message" | "font" | "markdown">;
 	/** The banner card: the view opens just under it, at least as wide. */
 	anchor: React.RefObject<HTMLElement | null>;
 };
@@ -237,7 +237,10 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 								className="banner-scroll-text"
 								style={{ fontFamily: bannerFontStack(banner.font) }}
 							>
-								<BannerBlocks message={banner.message} />
+								<BannerBlocks
+									message={banner.message}
+									markdown={banner.markdown !== false}
+								/>
 							</div>
 							{history.map((command, i) => (
 								<div key={i} className="banner-scroll-prompt" aria-hidden>

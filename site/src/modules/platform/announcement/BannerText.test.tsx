@@ -1,5 +1,6 @@
 import { act, render } from "@testing-library/react";
-import { BannerText, pictureFit } from "./BannerText";
+import { BannerText } from "./BannerText";
+import { pictureFit } from "./bannerTokens";
 
 const banner = {
 	title: "",
@@ -167,6 +168,49 @@ describe("BannerText pictures", () => {
 		expect(picture.style.backgroundImage).toBe(
 			'url("/emojis/2b50.png#fit=tile")',
 		);
+	});
+
+	it("draws a plain message as typed, over its background picture, lined up as chosen", async () => {
+		const { container, findByTestId } = render(
+			<BannerText
+				banner={{
+					...banner,
+					effect: "none",
+					markdown: false,
+					message: "Save **now** [docs](https://x.example) ![a](/b.png)",
+					align: "right",
+					picture: "/pictures/usa.gif",
+					pictureFit: "stretch",
+				}}
+			/>,
+		);
+		const picture = await findByTestId("announcement-picture");
+		expect(picture.dataset.fit).toBe("stretch");
+		expect(picture.style.backgroundImage).toBe('url("/pictures/usa.gif")');
+		const text = container.querySelector<HTMLElement>("[data-banner-text]");
+		// No Markdown: the stars, brackets and image stay text.
+		expect(text?.textContent).toBe(
+			"Save **now** [docs](https://x.example) ![a](/b.png)",
+		);
+		expect(text?.querySelector("strong, a, img")).toBeNull();
+		expect(text?.style.textAlign).toBe("right");
+	});
+
+	it("rolls a spanning background picture", async () => {
+		const { findByTestId } = render(
+			<BannerText
+				banner={{
+					...banner,
+					effect: "none",
+					markdown: false,
+					picture: "/pictures/background.gif",
+				}}
+			/>,
+		);
+		const roll = await findByTestId("announcement-picture-roll");
+		expect(
+			[...roll.querySelectorAll("img")].map((i) => i.getAttribute("src")),
+		).toEqual(["/pictures/background.gif", "/pictures/background.gif"]);
 	});
 
 	it("reads a picture's fit from its address", () => {

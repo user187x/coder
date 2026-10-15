@@ -1,0 +1,118 @@
+/*
+ * The running workspace's light on its page (WorkspaceStatusIndicator, runningLight): HTML and CSS only, after the
+ * former running.gif - broken rings of light, one inside the other, turning at their own pace (the middle one the
+ * other way), round a core that pulses, the whole light glowing softly with it. Still for reduced motion.
+ */
+.ws-running-light {
+	--ws-light: hsl(var(--content-success));
+	--ws-light-soft: color-mix(in srgb, hsl(var(--content-success)) 55%, #ffffff);
+	position: relative;
+	display: inline-block;
+	flex-shrink: 0;
+	width: 20px;
+	height: 20px;
+	border-radius: 50%;
+	animation: ws-running-glow 1.8s ease-in-out infinite;
+}
+
+.ws-running-light > i {
+	position: absolute;
+	border-radius: 50%;
+}
+
+/* A ring: a conic gradient of arcs, cut to a band --band wide. */
+.ws-running-ring {
+	-webkit-mask: radial-gradient(
+		farthest-side,
+		transparent calc(100% - var(--band) - 0.5px),
+		#000 calc(100% - var(--band))
+	);
+	mask: radial-gradient(
+		farthest-side,
+		transparent calc(100% - var(--band) - 0.5px),
+		#000 calc(100% - var(--band))
+	);
+	animation: ws-running-turn var(--turn) linear infinite;
+}
+
+.ws-running-outer {
+	--band: 2px;
+	--turn: 2.4s;
+	inset: 0;
+	background: conic-gradient(
+		var(--ws-light) 0 24%,
+		transparent 24% 31%,
+		var(--ws-light-soft) 31% 41%,
+		transparent 41% 56%,
+		var(--ws-light) 56% 82%,
+		transparent 82%
+	);
+}
+
+.ws-running-middle {
+	--band: 1.2px;
+	--turn: 3.6s;
+	inset: 3.5px;
+	opacity: 0.85;
+	animation-direction: reverse;
+	background: conic-gradient(
+		from 120deg,
+		var(--ws-light-soft) 0 36%,
+		transparent 36% 47%,
+		var(--ws-light-soft) 47% 74%,
+		transparent 74%
+	);
+}
+
+.ws-running-inner {
+	--band: 1.4px;
+	--turn: 1.6s;
+	inset: 6.5px;
+	background: conic-gradient(
+		from 240deg,
+		var(--ws-light) 0 58%,
+		transparent 58%
+	);
+}
+
+.ws-running-core {
+	inset: 8.5px;
+	background: var(--ws-light-soft);
+	box-shadow: 0 0 4px var(--ws-light);
+	animation: ws-running-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes ws-running-turn {
+	to {
+		transform: rotate(1turn);
+	}
+}
+
+@keyframes ws-running-pulse {
+	0%,
+	100% {
+		opacity: 0.55;
+		transform: scale(0.7);
+	}
+	50% {
+		opacity: 1;
+		transform: scale(1.2);
+	}
+}
+
+@keyframes ws-running-glow {
+	0%,
+	100% {
+		box-shadow: 0 0 0 0 transparent;
+	}
+	50% {
+		box-shadow: 0 0 7px 1px color-mix(in srgb, var(--ws-light) 45%, transparent);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.ws-running-light,
+	.ws-running-light > i {
+		animation: none;
+	}
+}

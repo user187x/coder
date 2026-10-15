@@ -2,6 +2,7 @@ import {
 	confirmBackground,
 	countdownText,
 	countdownToken,
+	fromMarkdown,
 	lcdInk,
 	parseBlocks,
 	parseColors,
@@ -164,5 +165,32 @@ describe("lcdInk", () => {
 	it("uses the banner's colour, or white, when its text colour is dark", () => {
 		expect(lcdInk("#ffd700", "#000000")).toBe("#ffd700");
 		expect(lcdInk("#1e1e1e", "#202020")).toBe("#ffffff");
+	});
+});
+
+describe("fromMarkdown", () => {
+	it("keeps the text, takes out the first countdown and picture", () => {
+		expect(
+			fromMarkdown(
+				'**Maintenance** in {{countdown to=2026-10-20T18:00:00.000Z format=clock done="now"}}: see [status](https://s.example) ![usa](/__coder-ui/banner-picture/56bf#fit=tile) ![x](/p.png)',
+			),
+		).toEqual({
+			message: "Maintenance in : see status (https://s.example)",
+			countdown: "2026-10-20T18:00:00Z",
+			picture: "/__coder-ui/banner-picture/56bf",
+			pictureFit: "tile",
+		});
+	});
+
+	it("drops emphasis, code and headings; leaves words and plain text alone", () => {
+		expect(
+			fromMarkdown("# Hi\n*a* _b_ ~~c~~ `d` snake_case 2*3*4 \\*x\\*"),
+		).toEqual({
+			message: "Hi\na b c d snake_case 2*3*4 *x*",
+			countdown: "",
+			picture: "",
+			pictureFit: "span",
+		});
+		expect(fromMarkdown("Restart tonight.").message).toBe("Restart tonight.");
 	});
 });

@@ -12,7 +12,11 @@
  * The service stores and delivers the text unchanged, so its live push, ids
  * and dismissals keep working; the dashboard only draws it differently.
  */
-import type { BannerLevel } from "#/api/platform";
+import {
+	type BannerLevel,
+	PICTURE_FITS,
+	type PictureFit,
+} from "#/api/platform";
 
 export const LEVEL_COLORS: Record<BannerLevel, { bg: string; fg: string }> = {
 	info: { bg: "#1e40af", fg: "#ffffff" },
@@ -83,7 +87,7 @@ const COUNTDOWN_RE =
 	/\{\{countdown\s+to=([0-9T:.\-+Z]+)(?:\s+format=(dhms|clock|words))?(?:\s+done="([^"]{0,80})")?\s*\}\}/;
 
 export const COUNTDOWN_FORMATS = ["dhms", "clock", "words"] as const;
-export type CountdownFormat = (typeof COUNTDOWN_FORMATS)[number];
+type CountdownFormat = (typeof COUNTDOWN_FORMATS)[number];
 
 const isCountdownFormat = (
 	value: string | undefined,
@@ -337,6 +341,81 @@ export const parseBlocks = (message: string): Block[] => {
 	}
 	end();
 	return blocks;
+};
+
+/** A picture's fit, from its address (`…#fit=tile`); none given: null. */
+export const pictureFit = (src: string): PictureFit | null => {
+	const fit = /#(?:.*&)?fit=([a-z]+)/.exec(src)?.[1];
+	return PICTURE_FITS.find((f) => f === fit) ?? null;
+};
+
+/** A moment as the banner service takes it: UTC, to the second ("2026-10-20T18:00:00Z"); invalid: "". */
+export const utcSeconds = (moment: string | Date): string => {
+	const date = moment instanceof Date ? moment : new Date(moment);
+	return Number.isNaN(date.getTime())
+		? ""
+		: date.toISOString().replace(/\.\d{3}Z$/, "Z");
+};
+
+/** A Markdown message as the plain editor keeps it: its text, its first countdown and its first picture. */
+type PlainMessage = {
+	message: string;
+	/** The first {{countdown}}'s moment (utcSeconds); "" none. */
+	countdown: string;
+	/** The first picture's address, without its #fit; "" none. */
+	picture: string;
+	pictureFit: PictureFit;
+};
+
+/**
+ * An announcement written in Markdown, as plain text: the first countdown
+ * and the first picture taken out of it (the editor shows them as the
+ * banner's countdown and background), the others dropped, emphasis and
+ * code marks removed, links as "text (address)", headings without their #.
+ */
+export const fromMarkdown = (markdown: string): PlainMessage => {
+	let countdown = "";
+	let picture = "";
+	let fit: PictureFit = "span";
+	// Escaped characters (\*) are kept out of the way, then put back as themselves.
+	const escaped: string[] = [];
+	const message = markdown
+		.replace(/\r\n?/g, "\n")
+		.replace(
+			/\\([\\`*_~[\]{}()])/g,
+			(_escape, char: string) => `\uE000${escaped.push(char) - 1}\uE000`,
+		)
+		.replace(/\{\{countdown\s[^}]*\}\}/g, (token) => {
+			const parsed = parseCountdown(token);
+			if (parsed && !countdown) {
+				countdown = utcSeconds(parsed.to);
+			}
+			return "";
+		})
+		.replace(/!\[[^\]]*\]\(([^)\s]+)\)/g, (_token, src: string) => {
+			if (!picture && safeHref(src)) {
+				picture = src.replace(/#.*$/, "");
+				fit = pictureFit(src) ?? "span";
+			}
+			return "";
+		})
+		.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, "$1 ($2)")
+		.replace(/\*\*(.+?)\*\*/g, "$1")
+		.replace(/__(.+?)__/g, "$1")
+		.replace(/~~(.+?)~~/g, "$1")
+		.replace(/`([^`]+)`/g, "$1")
+		.replace(/(^|[^A-Za-z0-9])\*([^*\s](?:[^*]*[^*\s])?)\*/g, "$1$2")
+		.replace(
+			/(^|[^A-Za-z0-9])_([^_\s](?:[^_]*[^_\s])?)_(?![A-Za-z0-9])/g,
+			"$1$2",
+		)
+		.replace(/^#{1,3}\s+/gm, "")
+		.replace(/\uE000(\d+)\uE000/g, (_mark, i: string) => escaped[Number(i)])
+		.split("\n")
+		.map((line) => line.replace(/[ \t]{2,}/g, " ").trim())
+		.join("\n")
+		.trim();
+	return { message, countdown, picture, pictureFit: fit };
 };
 
 /** The message as one line of plain text: tokens shown as what they are. */

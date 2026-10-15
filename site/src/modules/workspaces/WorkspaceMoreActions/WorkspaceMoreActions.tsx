@@ -8,6 +8,7 @@ import {
 	HistoryIcon,
 	RotateCcwIcon,
 	SettingsIcon,
+	Share2Icon,
 	SlidersHorizontalIcon,
 	SquareIcon,
 	TrashIcon,
@@ -43,6 +44,7 @@ import { WorkspaceErrorDialog } from "../ErrorDialog/WorkspaceErrorDialog";
 import { UpdateBuildParametersDialog } from "../WorkspaceUpdateDialogs";
 import { ChangeWorkspaceVersionDialog } from "./ChangeWorkspaceVersionDialog";
 import { DownloadLogsDialog } from "./DownloadLogsDialog";
+import { ShareWorkspaceDialog } from "./ShareWorkspaceDialog";
 import { useWorkspaceDuplication } from "./useWorkspaceDuplication";
 import { WorkspaceDeleteDialog } from "./WorkspaceDeleteDialog";
 import { BackupHomeDialog, ExpandDiskDialog } from "./WorkspaceVolumeDialogs";
@@ -66,8 +68,13 @@ type WorkspaceMoreActionsProps = {
 	 * would start another (Change version, Expand disk, Delete) waits for it.
 	 */
 	jobsBlocked?: boolean;
-	/** Platform: on the trigger (the arrow sits close to the button before it). */
+	/** Platform: on the trigger. */
 	className?: string;
+	/**
+	 * Platform: Share (Workspace Sharing, in a dialog), where the workspace
+	 * page's Share button was; whether the sharing can be changed.
+	 */
+	share?: { canUpdatePermissions: boolean };
 };
 
 export const WorkspaceMoreActions: React.FC<WorkspaceMoreActionsProps> = ({
@@ -81,6 +88,7 @@ export const WorkspaceMoreActions: React.FC<WorkspaceMoreActionsProps> = ({
 	variant = "ellipsis",
 	jobsBlocked = false,
 	className,
+	share,
 }) => {
 	const afterBuild = jobsBlocked
 		? "Available once the current build has finished"
@@ -97,6 +105,8 @@ export const WorkspaceMoreActions: React.FC<WorkspaceMoreActionsProps> = ({
 
 	// Download logs
 	const [isDownloadDialogOpen, setIsDownloadDialogOpen] = useState(false);
+	// Workspace Sharing
+	const [isSharing, setIsSharing] = useState(false);
 	// Home volume: back up, expand
 	const [volumeDialog, setVolumeDialog] = useState<"backup" | "expand" | null>(
 		null,
@@ -193,6 +203,15 @@ export const WorkspaceMoreActions: React.FC<WorkspaceMoreActionsProps> = ({
 									Build parameters&hellip;
 								</RouterLink>
 							</DropdownMenuItem>
+							{share && (
+								<DropdownMenuItem
+									onClick={() => setIsSharing(true)}
+									data-testid="workspace-share-item"
+								>
+									<Share2Icon />
+									Share&hellip;
+								</DropdownMenuItem>
+							)}
 							<DropdownMenuSeparator />
 						</>
 					)}
@@ -285,6 +304,15 @@ export const WorkspaceMoreActions: React.FC<WorkspaceMoreActionsProps> = ({
 				open={isDownloadDialogOpen}
 				onClose={() => setIsDownloadDialogOpen(false)}
 			/>
+
+			{share && (
+				<ShareWorkspaceDialog
+					workspace={workspace}
+					canUpdatePermissions={share.canUpdatePermissions}
+					open={isSharing}
+					onClose={() => setIsSharing(false)}
+				/>
+			)}
 
 			<BackupHomeDialog
 				workspace={workspace}
