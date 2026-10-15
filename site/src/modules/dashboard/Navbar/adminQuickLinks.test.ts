@@ -44,6 +44,7 @@ describe("adminPagesFor", () => {
 			"Accounts",
 			"Super Intelligence",
 			"Announcement",
+			"Chat",
 			"Authentication",
 			"Classification",
 			"Customize",

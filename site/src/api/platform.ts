@@ -999,6 +999,46 @@ export type ChatAvailability = {
 	available: string[];
 	off: string[];
 	availVersion: number;
+	/** Peer-to-peer chat is on (Admin Controls > Chat): developers may write to each other. */
+	peers?: boolean;
+	/** Bumped by each purge: the conversations are reloaded. */
+	purgeVersion?: number;
+};
+
+/** Someone in the People list: online (a tab open now) or seen by Coder today. */
+export type ChatPerson = ChatPeer & {
+	online: boolean;
+	lastSeen: string | null;
+	/** An admin who turned chat off: developers can't write to them. */
+	chatOff?: boolean;
+	/** Admins only: they chose to be invisible to everyone else. */
+	invisible?: boolean;
+};
+
+/** Admin Controls > Chat. */
+export type ChatSettings = {
+	peers: boolean;
+	keepDays: number;
+	keepRange: [number, number];
+	updatedBy: string | null;
+	updatedAt: string | null;
+	stats: {
+		messages: number;
+		peerMessages: number;
+		oldest: string | null;
+		screenshots: number;
+		bytes: number;
+		fileBytes: number | null;
+	};
+};
+
+/** Two developers who talk (Admin Controls > Chat): never what they wrote. */
+export type ChatPair = {
+	a: ChatPeer & { online: boolean };
+	b: ChatPeer & { online: boolean };
+	messages: number;
+	first: string;
+	last: string;
 };
 
 export type ChatState = ChatAvailability & {
@@ -1008,6 +1048,8 @@ export type ChatState = ChatAvailability & {
 		name: string;
 		admin: boolean;
 		chatOn: boolean;
+		/** Invisible to everyone but admins in the People list. */
+		invisible?: boolean;
 	};
 	conversations: ChatConversation[];
 	cursor: number;
@@ -1444,6 +1486,20 @@ export const PlatformAPI = {
 
 	getChatState: () => get<ChatState>(chat("state")),
 	getChatAdmins: () => get<{ admins: ChatPeer[] }>(chat("admins")),
+	getChatPeople: () =>
+		get<{ enabled: boolean; people: ChatPerson[] }>(chat("people")),
+	setChatInvisible: (invisible: boolean) =>
+		post<{ invisible: boolean }>(chat("presence"), { invisible }),
+	getChatSettings: () => get<ChatSettings>(chat("settings")),
+	saveChatSettings: (
+		change: Partial<Pick<ChatSettings, "peers" | "keepDays">>,
+	) => post<ChatSettings>(chat("settings"), change),
+	purgeChats: () =>
+		post<{ ok: true; deleted: number; stats: ChatSettings["stats"] }>(
+			chat("purge"),
+			{},
+		),
+	getChatPairs: () => get<{ pairs: ChatPair[] }>(chat("pairs")),
 	getChatMessages: (peerId: string, before?: number) =>
 		get<{ messages: ChatMessage[]; readUpTo: number }>(
 			chat(

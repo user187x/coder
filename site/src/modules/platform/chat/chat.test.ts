@@ -76,3 +76,43 @@ describe("consoleList", () => {
 		expect(consoleList(list, ME, "all", "CAROL")[0].peer.id).toBe("carol");
 	});
 });
+
+describe("peer-to-peer chat", () => {
+	it("says how present someone is", async () => {
+		const { presenceText } = await import("./ChatPeople");
+		expect(presenceText({ online: true, lastSeen: null })).toBe("online");
+		const ago = (minutes: number) =>
+			new Date(Date.now() - minutes * 60_000).toISOString();
+		expect(presenceText({ online: false, lastSeen: ago(5) })).toBe(
+			"active 5 min ago",
+		);
+		expect(presenceText({ online: false, lastSeen: ago(185) })).toBe(
+			"active 3 h ago",
+		);
+	});
+
+	it("does not grey a developer's panel out when they may chat with each other", async () => {
+		const { noAdminAvailable } = await import("./chatStore");
+		const me = {
+			id: "u",
+			username: "ann",
+			name: "",
+			admin: false,
+			chatOn: true,
+		};
+		const base = {
+			me,
+			conversations: new Map(),
+			windows: [],
+			typing: new Set<string>(),
+			available: new Set<string>(),
+			off: new Set<string>(),
+			availVersion: 1,
+			drawerOpen: false,
+			consoleOpen: false,
+			consoleView: null,
+		};
+		expect(noAdminAvailable({ ...base, peers: false })).toBe(true);
+		expect(noAdminAvailable({ ...base, peers: true })).toBe(false);
+	});
+});

@@ -62,6 +62,8 @@ type ChatSnapshot = {
 	available: ReadonlySet<string>;
 	off: ReadonlySet<string>;
 	availVersion: number;
+	/** Peer-to-peer chat is on: developers see the People list and write to each other. */
+	peers: boolean;
 	drawerOpen: boolean;
 	/** Admins: the chat console, and the conversation open in it. */
 	consoleOpen: boolean;
@@ -76,6 +78,7 @@ const initialSnapshot: ChatSnapshot = {
 	available: new Set(),
 	off: new Set(),
 	availVersion: 0,
+	peers: false,
 	drawerOpen: false,
 	consoleOpen: false,
 	consoleView: null,
@@ -84,6 +87,7 @@ const initialSnapshot: ChatSnapshot = {
 let snapshot = initialSnapshot;
 let cursor = 0;
 let clearVersion = 0;
+let purgeVersion = 0;
 let started: Promise<void> | null = null;
 // The chat runs while a dock shows it; its loops stop once none does (the
 // page left the dashboard), and start again with the next dock.
@@ -137,9 +141,11 @@ export const hasRecentConversation = (state: ChatSnapshot): boolean => {
 	return false;
 };
 
-/** No admin is taking chats: a developer's panel is greyed out. */
+/** No admin is taking chats and no one else may be written to: a developer's panel is greyed out. */
 export const noAdminAvailable = (state: ChatSnapshot): boolean =>
-	Boolean(state.me && !state.me.admin && state.available.size === 0);
+	Boolean(
+		state.me && !state.me.admin && state.available.size === 0 && !state.peers,
+	);
 
 /** A developer writing to an admin who turned chat off. */
 export const isBlocked = (state: ChatSnapshot, peerId: string): boolean =>
@@ -452,7 +458,28 @@ const cleared = (peerId: string, byMe: boolean) => {
 	}));
 };
 
+/** The admins purged every chat: the conversations (and open windows' messages) are gone. */
+const purged = () => {
+	update({
+		conversations: new Map(),
+		windows: snapshot.windows.map((w) => ({
+			...w,
+			messages: [],
+			pending: [],
+			lastIn: 0,
+			readSent: 0,
+		})),
+		consoleView: snapshot.consoleView
+			? { ...snapshot.consoleView, messages: [], pending: [] }
+			: null,
+	});
+};
+
 const applyAvailability = (availability: ChatAvailability) => {
+	if ((availability.purgeVersion ?? 0) > purgeVersion) {
+		purgeVersion = availability.purgeVersion ?? 0;
+		purged();
+	}
 	if ((availability.availVersion || 0) < snapshot.availVersion) {
 		return;
 	}
@@ -471,8 +498,12 @@ const applyAvailability = (availability: ChatAvailability) => {
 		available: new Set(availability.available),
 		off: new Set(availability.off),
 		availVersion: availability.availVersion || snapshot.availVersion,
+		peers: availability.peers ?? snapshot.peers,
 		me: me && chatOn !== undefined ? { ...me, chatOn } : me,
-		drawerOpen: noneAvailable ? false : snapshot.drawerOpen,
+		drawerOpen:
+			noneAvailable && !(availability.peers ?? snapshot.peers)
+				? false
+				: snapshot.drawerOpen,
 	});
 };
 
@@ -482,6 +513,7 @@ const signedOut = () => {
 	snapshot = initialSnapshot;
 	cursor = 0;
 	clearVersion = 0;
+	purgeVersion = 0;
 	for (const listener of listeners) {
 		listener();
 	}
@@ -548,6 +580,7 @@ const boot = async () => {
 	}
 	cursor = state.cursor;
 	clearVersion = state.clearVersion || 0;
+	purgeVersion = state.purgeVersion ?? 0;
 	const conversations = state.conversations ?? [];
 	update({
 		me: state.me,
@@ -556,6 +589,7 @@ const boot = async () => {
 		available: new Set(state.available ?? []),
 		off: new Set(state.off ?? []),
 		availVersion: state.availVersion || 0,
+		peers: Boolean(state.peers),
 	});
 	for (const saved of loadOpenWindows()) {
 		if (saved.id !== state.me.id) {
@@ -640,6 +674,23 @@ export const openUnreadChats = async () => {
 	);
 	for (const c of unread) {
 		markRead(c.peer.id, true);
+	}
+};
+
+/** Invisible: left out of everyone's People list but admins'. */
+export const setInvisible = async (invisible: boolean) => {
+	const me = snapshot.me;
+	if (!me) {
+		return;
+	}
+	update({ me: { ...me, invisible } });
+	try {
+		await PlatformAPI.setChatInvisible(invisible);
+	} catch (error) {
+		update({
+			me: snapshot.me ? { ...snapshot.me, invisible: !invisible } : null,
+		});
+		throw error;
 	}
 };
 

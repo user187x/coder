@@ -24,7 +24,7 @@ describe("DeploymentSidebarView", () => {
 		);
 
 		const links = await screen.findAllByRole("link");
-		expect(links).toHaveLength(13);
+		expect(links).toHaveLength(14);
 		for (const link of links) {
 			expect(link.querySelector("svg.lucide")).not.toBeNull();
 		}

@@ -277,6 +277,51 @@ export const chatAdmins = (availabilityVersion: number) => ({
 	staleTime: CHAT_ADMINS_STALE_MS,
 });
 
+const CHAT_PEOPLE_REFRESH_MS = 20_000;
+const chatPeopleKey = [...platformKey, "chat", "people"] as const;
+
+/** Who is online or active today (peer-to-peer chat; admins: everyone, the invisible marked). */
+export const chatPeople = (availabilityVersion: number) => ({
+	queryKey: [...chatPeopleKey, availabilityVersion],
+	queryFn: PlatformAPI.getChatPeople,
+	refetchInterval: CHAT_PEOPLE_REFRESH_MS,
+	placeholderData: (
+		previous?: Awaited<ReturnType<typeof PlatformAPI.getChatPeople>>,
+	) => previous,
+});
+
+const chatSettingsKey = [...platformKey, "chat", "settings"] as const;
+export const chatSettings = () => ({
+	queryKey: chatSettingsKey,
+	queryFn: PlatformAPI.getChatSettings,
+	refetchInterval: 30_000,
+});
+
+export const saveChatSettings = (queryClient: QueryClient) => ({
+	mutationFn: PlatformAPI.saveChatSettings,
+	onSuccess: (
+		settings: Awaited<ReturnType<typeof PlatformAPI.getChatSettings>>,
+	) => {
+		queryClient.setQueryData(chatSettingsKey, settings);
+	},
+});
+
+export const purgeChats = (queryClient: QueryClient) => ({
+	mutationFn: PlatformAPI.purgeChats,
+	onSuccess: async () => {
+		await queryClient.invalidateQueries({ queryKey: chatSettingsKey });
+		await queryClient.invalidateQueries({ queryKey: chatPairsKey });
+	},
+});
+
+const chatPairsKey = [...platformKey, "chat", "pairs"] as const;
+/** Which developers talk to each other (never what they wrote). */
+export const chatPairs = () => ({
+	queryKey: chatPairsKey,
+	queryFn: PlatformAPI.getChatPairs,
+	refetchInterval: 30_000,
+});
+
 // While the live channel is up, polling only guards against a missed push.
 const BANNER_SLOW_POLL_MS = 300_000;
 const BANNER_MIN_POLL_SECONDS = 15;

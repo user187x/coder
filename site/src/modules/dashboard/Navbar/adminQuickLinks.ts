@@ -10,6 +10,7 @@ import {
 	LockIcon,
 	type LucideIcon,
 	MegaphoneIcon,
+	MessagesSquareIcon,
 	NetworkIcon,
 	PaletteIcon,
 	TagIcon,
@@ -63,6 +64,13 @@ const ADMIN_PAGES: readonly (AdminPage & {
 		label: "Announcement",
 		icon: MegaphoneIcon,
 		path: "/deployment/announcement",
+		allowed: ({ permissions }) => permissions.editDeploymentConfig,
+	},
+	{
+		id: "chat",
+		label: "Chat",
+		icon: MessagesSquareIcon,
+		path: "/deployment/chat",
 		allowed: ({ permissions }) => permissions.editDeploymentConfig,
 	},
 	{

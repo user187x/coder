@@ -47,6 +47,11 @@ export const DeploymentSidebarView: React.FC<DeploymentSidebarViewProps> = ({
 						</AdminCategoryLabel>
 					</SidebarNavItem>
 				)}
+				{permissions.editDeploymentConfig && (
+					<SidebarNavItem href="/deployment/chat">
+						<AdminCategoryLabel id="chat">Chat</AdminCategoryLabel>
+					</SidebarNavItem>
+				)}
 				{permissions.viewDeploymentConfig && (
 					<SidebarNavItem href="/deployment/userauth">
 						<AdminCategoryLabel id="authentication">

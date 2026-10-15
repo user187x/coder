@@ -3,6 +3,7 @@ import { ChevronUpIcon, MessageSquareIcon } from "lucide-react";
 import { useQuery } from "react-query";
 import { chatAdmins } from "#/api/queries/platform";
 import { ChatAvatar } from "./ChatAvatar";
+import { ChatPeople } from "./ChatPeople";
 import { CountBadge } from "./ChatWindow";
 import {
 	closeConsole,
@@ -24,9 +25,11 @@ const LISTED_CONVERSATIONS = 15;
  * The "Chats" panel at the far right: its handle stays at the bottom of the
  * window and the list of recent conversations slides up from it, to reopen
  * one. For everyone who is not an admin it is also their line to support,
- * listing the admins to write to. Admins have an on/off switch beside the
- * handle (developers only write to admins with chat on), and their handle
- * opens the chat console (ChatConsole) instead of the short list.
+ * listing the admins to write to, and, when the admins turn peer-to-peer chat
+ * on, the People online or active today (ChatPeople) with their own visible /
+ * invisible switch. Admins have an on/off switch beside the handle
+ * (developers only write to admins with chat on), and their handle opens the
+ * chat console (ChatConsole) instead of the short list.
  */
 export const ChatPanel: React.FC = () => {
 	const state = useChatSnapshot();
@@ -39,7 +42,7 @@ export const ChatPanel: React.FC = () => {
 	const none = noAdminAvailable(state);
 	const label = none
 		? "Chat unavailable"
-		: me.admin || hasRecentConversation(state)
+		: me.admin || state.peers || hasRecentConversation(state)
 			? "Chats"
 			: "Chat with an admin";
 	const switchLabel = me.chatOn
@@ -164,7 +167,7 @@ const ChatList: React.FC = () => {
 	return (
 		<nav
 			aria-label="Recent chats"
-			className="max-h-[min(360px,calc(100vh-var(--chat-bottom,0px)-160px))] overflow-y-auto p-1.5"
+			className="max-h-[min(440px,calc(100vh-var(--chat-bottom,0px)-160px))] overflow-y-auto p-1.5"
 		>
 			{conversations.map((c) => {
 				const mine = c.last.from === me.id;
@@ -200,6 +203,7 @@ const ChatList: React.FC = () => {
 				)
 			) : (
 				<>
+					{state.peers && <ChatPeople onOpen={open} withoutAdmins />}
 					<div className="px-2 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-content-secondary">
 						Need help? Message an admin
 					</div>
