@@ -233,7 +233,6 @@ export const PictureFitSelect: React.FC<PictureFitSelectProps> = ({
 	disabled,
 	onChange,
 }) => {
-	const FitIcon = FIT_OPTIONS[value].icon;
 	return (
 		<Select
 			value={value}
@@ -255,11 +254,8 @@ export const PictureFitSelect: React.FC<PictureFitSelectProps> = ({
 				}
 				data-testid="announcement-picture-fit"
 			>
-				{/* flex!: the trigger clamps its span children to one line (display: -webkit-box), which would stack the icon and the name. */}
-				<span className="flex! min-w-0 items-center gap-1.5">
-					<FitIcon aria-hidden className="size-3.5 shrink-0" />
-					<SelectValue />
-				</span>
+				{/* The chosen fit's icon and name, as its menu item shows them. */}
+				<SelectValue />
 			</SelectTrigger>
 			<SelectContent>
 				{FIT_ORDER.map((f) => {
