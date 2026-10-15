@@ -1141,6 +1141,15 @@ export type WorkspaceNote = {
 };
 
 /** A picture installed with the platform to choose as logo or avatar. */
+/** A picture uploaded for the announcement, at its own (never-changing) address. */
+export type BannerPicture = {
+	id: string;
+	url: string;
+	name: string;
+	type: string;
+	bytes: number;
+};
+
 export type GalleryImage = {
 	name: string;
 	type: string;
@@ -1223,6 +1232,12 @@ export const PlatformAPI = {
 		}),
 	getGallery: () =>
 		get<{ images: GalleryImage[] }>(`${PLATFORM_BASE}/api/gallery`),
+	/** Admins: a picture for the announcement (stored as it is: an animated GIF keeps its frames). */
+	uploadBannerPicture: (name: string, dataUrl: string) =>
+		post<BannerPicture>(`${PLATFORM_BASE}/api/banner-pictures`, {
+			name,
+			dataUrl,
+		}),
 
 	getAnnouncementStatus: (id: string) =>
 		get<AnnouncementReceiptStatus>(

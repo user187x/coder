@@ -40,6 +40,7 @@ import {
 import { ColorField } from "#/modules/platform/ColorField";
 import { CountdownBuilder } from "./CountdownBuilder";
 import { EmojiButton } from "./EmojiButton";
+import { PictureButton } from "./PictureButton";
 
 // Long broadcasts are what the crawl and the banner's scroll-down view are for.
 export const MESSAGE_MAX_LENGTH = 4000;
@@ -223,6 +224,7 @@ export const BannerEditor: React.FC<BannerEditorProps> = ({
 				</div>
 				<div className="flex flex-wrap items-center gap-2">
 					<EmojiButton onPick={insertAtCaret} />
+					<PictureButton onInsert={insertAtCaret} onProblem={onProblem} />
 					<Button
 						size="sm"
 						variant="outline"
