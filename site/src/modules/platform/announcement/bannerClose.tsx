@@ -7,6 +7,7 @@ import {
 } from "react";
 import type { BannerCloseEffect } from "#/api/platform";
 import "./bannerClose.css";
+import "./bannerKitt.css";
 
 /** The close transitions, as the editor offers them. */
 export const CLOSE_EFFECT_OPTIONS: Record<
@@ -30,12 +31,16 @@ export const CLOSE_EFFECT_OPTIONS: Record<
 		label: "Evaporate",
 		hint: "It rises and evaporates from the bottom up.",
 	},
+	kitt: {
+		label: "Knight Rider",
+		hint: "It turns into KITT's scanner: the red light runs out and, on its way back, sweeps it away.",
+	},
 };
 
 /** The longest transition, and a little more: the banner goes then even if no animation ends. */
 const CLOSE_FALLBACK_MS = 1600;
 
-const motionOff = () =>
+export const motionOff = () =>
 	(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false) ||
 	document.documentElement.dataset.animations === "off";
 
@@ -125,6 +130,9 @@ export const CloseLayers: React.FC<{ effect: BannerCloseEffect }> = ({
 			</svg>
 		);
 	}
+	if (effect === "kitt") {
+		return <KittSweep phase="close" />;
+	}
 	if (effect === "matrix") {
 		return (
 			<span aria-hidden className="banner-matrix">
@@ -144,3 +152,16 @@ export const CloseLayers: React.FC<{ effect: BannerCloseEffect }> = ({
 	}
 	return null;
 };
+
+/**
+ * Knight Rider, as a transition (bannerKitt.css): KITT's scanner over the
+ * whole banner, a row of dim red lamps, its light running out to the right
+ * and back. Opening, the banner shows behind the light on its way out;
+ * closing, it is swept away behind it on its way back.
+ */
+export const KittSweep: React.FC<{ phase: "open" | "close" }> = ({ phase }) => (
+	<span aria-hidden className="banner-kitt-sweep" data-phase={phase}>
+		<span className="banner-kitt-sweep-out" />
+		<span className="banner-kitt-sweep-back" />
+	</span>
+);

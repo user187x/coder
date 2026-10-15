@@ -116,6 +116,24 @@
 	}
 }
 
+/*
+ * Knight Rider (KittSweep, bannerKitt.css): the banner turns into KITT's scanner, the light runs out to the right and,
+ * on its way back, the banner is cut off just behind the light's trail (the sweep's light element, 12% of the width),
+ * so the light stays whole to the last.
+ */
+[data-closing="kitt"] {
+	animation: banner-close-kitt 1300ms linear forwards;
+}
+@keyframes banner-close-kitt {
+	0%,
+	51% {
+		clip-path: inset(0 0 0 0);
+	}
+	100% {
+		clip-path: inset(0 100% 0 0);
+	}
+}
+
 /* Green code raining over the banner while it dissolves (its contents and colours go; the rain stays to the end). */
 [data-closing="matrix"] {
 	animation: banner-close-matrix 1100ms ease-in forwards;

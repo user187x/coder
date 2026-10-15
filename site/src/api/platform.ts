@@ -1103,6 +1103,7 @@ export const BANNER_EFFECTS = [
 	"pewpew",
 	"flap",
 	"shimmer",
+	"kitt",
 ] as const;
 export type BannerEffect = (typeof BANNER_EFFECTS)[number];
 
@@ -1116,8 +1117,20 @@ export const BANNER_CLOSE_EFFECTS = [
 	"matrix",
 	"gaussian",
 	"evaporate",
+	"kitt",
 ] as const;
 export type BannerCloseEffect = (typeof BANNER_CLOSE_EFFECTS)[number];
+
+/** How the banner comes in when it appears (the banner service checks the same list). */
+export const BANNER_OPEN_EFFECTS = [
+	"none",
+	"fade",
+	"rolldown",
+	"kitt",
+	"crt",
+	"glitch",
+] as const;
+export type BannerOpenEffect = (typeof BANNER_OPEN_EFFECTS)[number];
 
 /**
  * How a picture fills the banner's screen: the background picture's
@@ -1181,6 +1194,8 @@ export type Banner = {
 	receipts?: boolean;
 	/** Missing in announcements saved before it existed: "fade". */
 	closeEffect?: BannerCloseEffect;
+	/** Missing in announcements saved before it existed: "none". */
+	openEffect?: BannerOpenEffect;
 	/**
 	 * The message is Markdown (with {{countdown}} tokens and pictures in it):
 	 * announcements written before the plain editor (missing: true). The

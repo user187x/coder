@@ -53,6 +53,7 @@ const FIELDS = [
 	"font",
 	"receipts",
 	"closeEffect",
+	"openEffect",
 	"markdown",
 	"align",
 	"outline",
@@ -75,6 +76,7 @@ const fieldsOf = ({ id: _id, ...banner }: Banner): BannerFields => {
 		font: banner.font ?? "default",
 		receipts: banner.receipts ?? true,
 		closeEffect: banner.closeEffect ?? "fade",
+		openEffect: banner.openEffect ?? "none",
 		markdown: banner.markdown ?? true,
 		align: banner.align ?? "center",
 		outline: banner.outline ?? false,
@@ -315,8 +317,13 @@ const AnnouncementEditor: React.FC<{ state: BannerState }> = ({ state }) => {
 						<Button
 							size="sm"
 							variant="outline"
-							disabled={form.effect === "none" || !hasContent(form) || closing}
-							title="Play the text effect again"
+							disabled={
+								(form.effect === "none" &&
+									(form.openEffect ?? "none") === "none") ||
+								!hasContent(form) ||
+								closing
+							}
+							title="Play the open transition and the text effect again"
 							onClick={() => setRun((n) => n + 1)}
 						>
 							<PlayIcon />
@@ -336,8 +343,8 @@ const AnnouncementEditor: React.FC<{ state: BannerState }> = ({ state }) => {
 					{hasContent(form) ? (
 						!gone && (
 							<BannerPreview
-								// A new effect (or its speed, or repeat) plays from the start.
-								key={`${run}:${form.effect}:${form.speed}:${form.repeat}`}
+								// A new effect (or its speed, or repeat), or open transition, plays from the start.
+								key={`${run}:${form.effect}:${form.speed}:${form.repeat}:${form.openEffect}`}
 								banner={form}
 								animate
 								closing={closing}
@@ -376,6 +383,13 @@ const AnnouncementEditor: React.FC<{ state: BannerState }> = ({ state }) => {
 				}}
 				onProblem={setProblem}
 				onPublish={doPublish}
+				onTryOpen={() => {
+					preview.current?.scrollIntoView({
+						block: "nearest",
+						behavior: "smooth",
+					});
+					setRun((n) => n + 1);
+				}}
 				onTryClose={() => {
 					preview.current?.scrollIntoView({
 						block: "nearest",

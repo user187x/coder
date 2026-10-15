@@ -1,0 +1,171 @@
+/*
+ * The banner's open transitions (bannerOpen.tsx): played on the banner (data-opening) when it appears - the page
+ * loads with it, or a new announcement arrives; once its own animation ends the banner is as usual. Without motion it
+ * is simply there (no animation is started).
+ */
+[data-opening] {
+	position: relative;
+}
+
+[data-opening="fade"] {
+	animation: banner-open-fade 450ms ease-out both;
+}
+@keyframes banner-open-fade {
+	from {
+		opacity: 0;
+	}
+}
+
+/* A blind rolling down: unfolding from the top. */
+[data-opening="rolldown"] {
+	transform-origin: top center;
+	animation: banner-open-rolldown 560ms cubic-bezier(0.25, 0.6, 0.45, 1) both;
+}
+@keyframes banner-open-rolldown {
+	0% {
+		transform: perspective(600px) rotateX(75deg) scaleY(0.05);
+		opacity: 0;
+	}
+	30% {
+		opacity: 1;
+	}
+	100% {
+		transform: perspective(600px) rotateX(0) scaleY(1);
+	}
+}
+
+/*
+ * Knight Rider (KittSweep, bannerKitt.css): the light runs out from the left with the banner shown up to its leading
+ * edge (12% of the width ahead of where the sweep's light element starts), then comes back over it.
+ */
+[data-opening="kitt"] {
+	animation: banner-open-kitt 1300ms linear both;
+}
+@keyframes banner-open-kitt {
+	0% {
+		clip-path: inset(0 100% 0 0);
+	}
+	45%,
+	100% {
+		clip-path: inset(0 0 0 0);
+	}
+}
+
+/* An old tube set switched on: a dot of light opens into a bright line, the line into the banner, which settles. */
+[data-opening="crt"] {
+	transform-origin: center;
+	animation: banner-open-crt 700ms linear both;
+}
+@keyframes banner-open-crt {
+	0% {
+		transform: scale(0, 0.06);
+		filter: brightness(5) saturate(0);
+		opacity: 0;
+	}
+	12% {
+		transform: scale(0.02, 0.06);
+		filter: brightness(5) saturate(0);
+		opacity: 1;
+		animation-timing-function: cubic-bezier(0.2, 0.8, 0.3, 1);
+	}
+	40% {
+		transform: scale(1, 0.06);
+		filter: brightness(3.5) saturate(0.2);
+		animation-timing-function: cubic-bezier(0.2, 0.8, 0.3, 1);
+	}
+	70% {
+		transform: scale(1, 1.04);
+		filter: brightness(1.6) saturate(0.8);
+	}
+	100% {
+		transform: scale(1, 1);
+		filter: brightness(1) saturate(1);
+		opacity: 1;
+	}
+}
+
+/* Glitching into place: slices of it jump sideways, its colours split and flicker, and it settles. Held frames. */
+[data-opening="glitch"] {
+	animation: banner-open-glitch 700ms steps(1, end) both;
+}
+@keyframes banner-open-glitch {
+	0% {
+		opacity: 0;
+		clip-path: inset(50% 0 50% 0);
+		transform: none;
+		filter: none;
+	}
+	8% {
+		opacity: 0.8;
+		clip-path: inset(48% 0 46% 0);
+		transform: none;
+		filter: brightness(4);
+	}
+	16% {
+		opacity: 0.4;
+		clip-path: inset(0 0 0 0);
+		transform: translate(-14px, 0);
+		filter: drop-shadow(-8px 0 #ff0040) drop-shadow(8px 0 #00e5ff);
+	}
+	24% {
+		opacity: 1;
+		clip-path: inset(10% 0 55% 0);
+		transform: translate(12px, 0) skewX(10deg);
+		filter: brightness(3);
+	}
+	32% {
+		opacity: 0.9;
+		clip-path: inset(0 0 0 0);
+		transform: translate(-2px, 0);
+		filter: none;
+	}
+	40% {
+		opacity: 0.6;
+		clip-path: inset(20% 0 45% 0);
+		transform: translate(4px, 0);
+		filter: hue-rotate(-90deg);
+	}
+	48% {
+		opacity: 1;
+		clip-path: inset(0 0 0 0);
+		transform: translate(-10px, 0) scaleY(1.08);
+		filter: drop-shadow(6px 0 #ff0040) drop-shadow(-6px 0 #00e5ff) saturate(3);
+	}
+	56% {
+		opacity: 1;
+		clip-path: inset(70% 0 5% 0);
+		transform: none;
+		filter: none;
+	}
+	64% {
+		opacity: 0.85;
+		clip-path: inset(0 0 0 0);
+		transform: translate(8px, 0);
+		filter: drop-shadow(-5px 0 #ff0040) drop-shadow(5px 0 #00e5ff);
+	}
+	72% {
+		opacity: 1;
+		clip-path: inset(40% 0 20% 0);
+		transform: translate(-3px, -1px) skewX(-8deg);
+		filter: invert(1);
+	}
+	80% {
+		opacity: 1;
+		clip-path: inset(0 0 0 0);
+		transform: translate(5px, 1px);
+		filter: drop-shadow(4px 0 #ff0040) drop-shadow(-4px 0 #00e5ff)
+			hue-rotate(60deg);
+	}
+	88% {
+		opacity: 1;
+		clip-path: inset(0 0 0 0);
+		transform: translate(-2px, 0);
+		filter: drop-shadow(-2px 0 #ff0040) drop-shadow(2px 0 #00e5ff);
+	}
+	100% {
+		opacity: 1;
+		clip-path: inset(0 0 0 0);
+		transform: none;
+		filter: none;
+	}
+}

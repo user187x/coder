@@ -1,0 +1,237 @@
+/*
+ * Knight Rider (BannerText's KittScanner, the "kitt" effect): KITT's scanner across the banner's screen, behind the
+ * message. A row of red lamps, dim until the light comes; the light runs from one end to the other and back without a
+ * pause, and every lamp it passes flares and fades out behind it: the trail. A lamp flares twice a cycle
+ * (--kitt-cycle), once each way: its ::before on the way out, when the light reaches its place (--i of --kitt-n
+ * lamps), and its ::after on the way back. The delays are negative, as if the cycle were under way: the light starts
+ * at the left end, just back from the right, its trail already behind it.
+ */
+.banner-kitt {
+	position: absolute;
+	inset: 3px 4px;
+	z-index: -1;
+	display: flex;
+	gap: 3px;
+	pointer-events: none;
+}
+
+.banner-kitt i {
+	position: relative;
+	flex: 1 1 0;
+	min-width: 0;
+	border-radius: 2px;
+	background: rgb(110 0 0 / 0.32);
+	box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.45);
+}
+
+.banner-kitt i::before,
+.banner-kitt i::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	border-radius: inherit;
+	background: radial-gradient(
+		ellipse at center,
+		#ffe2d8 0%,
+		#ff4a2a 30%,
+		#e60000 65%,
+		#9a0000 100%
+	);
+	box-shadow:
+		0 0 6px 1px rgb(255 40 0 / 0.9),
+		0 0 18px 4px rgb(255 0 0 / 0.5);
+	opacity: 0;
+	animation: banner-kitt-lamp var(--kitt-cycle, 1600ms) linear infinite;
+}
+.banner-kitt i::before {
+	animation-delay: calc(
+		var(--kitt-cycle, 1600ms) *
+		(var(--i) / max(1, var(--kitt-n) - 1) / 2 - 1)
+	);
+}
+.banner-kitt i::after {
+	animation-delay: calc(
+		var(--kitt-cycle, 1600ms) *
+		(0 - var(--i) / max(1, var(--kitt-n) - 1) / 2)
+	);
+}
+
+/* The flare, then the trail: bright for a moment, fading out over about a third of the sweep. */
+@keyframes banner-kitt-lamp {
+	0%,
+	2% {
+		opacity: 1;
+	}
+	6% {
+		opacity: 0.55;
+	}
+	12% {
+		opacity: 0.18;
+	}
+	18%,
+	100% {
+		opacity: 0;
+	}
+}
+
+/* The message reads over the glow: a dark halo, as over a picture (in place of the screen's own glow). */
+.banner-lcd .banner-kitt ~ [data-banner-text] {
+	text-shadow:
+		0 0 2px #000,
+		0 0 6px #000,
+		0 0 12px rgb(0 0 0 / 0.8);
+}
+
+/* Without "Repeat continuously": a few sweeps (its duration, set inline), then the lamps go dark. */
+.banner-kitt[data-once] {
+	animation: banner-kitt-once linear 1 both;
+}
+@keyframes banner-kitt-once {
+	0%,
+	92% {
+		opacity: 1;
+	}
+	100% {
+		opacity: 0;
+	}
+}
+
+/* Without motion: no scanner (BannerText draws none either when the browser asks for less motion). */
+@media (prefers-reduced-motion: reduce) {
+	.banner-kitt {
+		display: none;
+	}
+}
+html[data-animations="off"] .banner-kitt {
+	display: none;
+}
+
+/*
+ * Knight Rider as an open or close transition (bannerClose.tsx's KittSweep): KITT's scanner over the whole banner
+ * for 1300 ms - dim red lamps (::before), the light (two elements, one each way, 12% of the width: bright at their
+ * leading edge, the trail behind), and the dark gaps between the lamps over it (::after), so the light lights lamps.
+ * Out, its leading edge runs from the left end to the right (0-45%); back, from the right end to the left (45-100%).
+ * bannerOpen.css and bannerClose.css cut the banner to the light's edge on the same clock. Opening, the lamps go out
+ * at the end; closing, they come on at the start.
+ */
+.banner-kitt-sweep {
+	position: absolute;
+	inset: 0;
+	z-index: 2;
+	overflow: hidden;
+	border-radius: inherit;
+	pointer-events: none;
+}
+.banner-kitt-sweep::before,
+.banner-kitt-sweep::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+}
+.banner-kitt-sweep::before {
+	background:
+		repeating-linear-gradient(
+			to right,
+			rgb(110 0 0 / 0.5) 0 41px,
+			transparent 41px 44px
+		),
+		rgb(10 0 0 / 0.55);
+}
+.banner-kitt-sweep::after {
+	z-index: 1;
+	background:
+		linear-gradient(
+			to bottom,
+			rgb(0 0 0 / 0.7) 0 3px,
+			transparent 3px calc(100% - 3px),
+			rgb(0 0 0 / 0.7) calc(100% - 3px)
+		),
+		repeating-linear-gradient(
+			to right,
+			transparent 0 41px,
+			rgb(0 0 0 / 0.7) 41px 44px
+		);
+}
+.banner-kitt-sweep[data-phase="open"] {
+	animation: banner-kitt-sweep-off 1300ms linear both;
+}
+.banner-kitt-sweep[data-phase="close"] {
+	animation: banner-kitt-sweep-on 1300ms linear both;
+}
+@keyframes banner-kitt-sweep-off {
+	0%,
+	85% {
+		opacity: 1;
+	}
+	100% {
+		opacity: 0;
+	}
+}
+@keyframes banner-kitt-sweep-on {
+	0% {
+		opacity: 0;
+	}
+	12%,
+	100% {
+		opacity: 1;
+	}
+}
+
+.banner-kitt-sweep-out,
+.banner-kitt-sweep-back {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	width: 12%;
+	filter: drop-shadow(0 0 6px rgb(255 30 0 / 0.9));
+}
+.banner-kitt-sweep-out {
+	background: linear-gradient(
+		to right,
+		transparent,
+		rgb(255 0 0 / 0.3) 40%,
+		rgb(255 20 0 / 0.85) 72%,
+		#ff6a4a 88%,
+		#ffd6c8 95%,
+		rgb(255 80 50 / 0.7)
+	);
+	animation: banner-kitt-sweep-out 1300ms linear both;
+}
+.banner-kitt-sweep-back {
+	background: linear-gradient(
+		to left,
+		transparent,
+		rgb(255 0 0 / 0.3) 40%,
+		rgb(255 20 0 / 0.85) 72%,
+		#ff6a4a 88%,
+		#ffd6c8 95%,
+		rgb(255 80 50 / 0.7)
+	);
+	animation: banner-kitt-sweep-back 1300ms linear both;
+}
+/* Out: its leading (right) edge from the left end to the right end; there, its trail fades as the light turns. */
+@keyframes banner-kitt-sweep-out {
+	0% {
+		left: -12%;
+		opacity: 1;
+	}
+	45% {
+		left: 88%;
+		opacity: 1;
+	}
+	55%,
+	100% {
+		left: 88%;
+		opacity: 0;
+	}
+}
+/* Back: its leading (left) edge from the right end past the left one, its trail with it. */
+@keyframes banner-kitt-sweep-back {
+	0%,
+	45% {
+		left: 100%;
+	}
+	100% {
+		left: -12%;
+	}
+}

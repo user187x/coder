@@ -129,4 +129,51 @@ describe("AnnouncementBanner", () => {
 			),
 		);
 	});
+
+	it("goes with KITT's scanner sweeping it away", async () => {
+		useBanner({ ...MockBanner, receipts: false, closeEffect: "kitt" });
+		const { container } = render(<AnnouncementBanner placement="navbar" />);
+		await userEvent.click(
+			await screen.findByRole("button", { name: "Dismiss this announcement" }),
+		);
+		const card = container.querySelector<HTMLElement>("#coder-system-banner");
+		expect(card?.dataset.closing).toBe("kitt");
+		const sweep = card?.querySelector<HTMLElement>(".banner-kitt-sweep");
+		expect(sweep?.dataset.phase).toBe("close");
+		card?.dispatchEvent(
+			Object.assign(new Event("animationend", { bubbles: true }), {
+				animationName: "banner-close-kitt",
+			}),
+		);
+		await waitFor(() =>
+			expect(localStorage.getItem("coder-banner-dismissed")).toBe(
+				MockBanner.id,
+			),
+		);
+	});
+
+	it("comes in with its open transition, then is as usual", async () => {
+		useBanner({ ...MockBanner, openEffect: "kitt" });
+		const { container } = render(<AnnouncementBanner placement="navbar" />);
+		await screen.findByText("Maintenance");
+		const card = container.querySelector<HTMLElement>("#coder-system-banner");
+		expect(card?.dataset.opening).toBe("kitt");
+		expect(
+			card?.querySelector<HTMLElement>(".banner-kitt-sweep")?.dataset.phase,
+		).toBe("open");
+		// A child's animation (the sweep's light) does not end it.
+		card?.querySelector(".banner-kitt-sweep")?.dispatchEvent(
+			Object.assign(new Event("animationend", { bubbles: true }), {
+				animationName: "banner-kitt-sweep-out",
+			}),
+		);
+		expect(card?.dataset.opening).toBe("kitt");
+		card?.dispatchEvent(
+			Object.assign(new Event("animationend", { bubbles: true }), {
+				animationName: "banner-open-kitt",
+			}),
+		);
+		await waitFor(() => expect(card?.dataset.opening).toBeUndefined());
+		expect(card?.querySelector(".banner-kitt-sweep")).toBeNull();
+	});
 });

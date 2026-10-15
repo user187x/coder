@@ -16,12 +16,14 @@ import {
 	BANNER_EFFECTS,
 	BANNER_FONTS,
 	BANNER_LEVELS,
+	BANNER_OPEN_EFFECTS,
 	BANNER_SPEEDS,
 	type BannerAlign,
 	type BannerCloseEffect,
 	type BannerEffect,
 	type BannerFields,
 	type BannerFont,
+	type BannerOpenEffect,
 	type BannerSpeed,
 } from "#/api/platform";
 import { Button } from "#/components/Button/Button";
@@ -60,6 +62,7 @@ import {
 	BANNER_FONT_OPTIONS,
 	bannerFontStack,
 } from "#/modules/platform/announcement/bannerFonts";
+import { OPEN_EFFECT_OPTIONS } from "#/modules/platform/announcement/bannerOpen";
 import {
 	colorsToken,
 	hasContent,
@@ -109,6 +112,10 @@ const EFFECT_OPTIONS: Record<BannerEffect, { label: string; hint: string }> = {
 	shimmer: {
 		label: "Ghostwrite",
 		hint: "Muted letters with a soft band of light sweeping across them.",
+	},
+	kitt: {
+		label: "Knight Rider",
+		hint: "KITT's scanner: a red light sweeps back and forth across the banner, its trail fading behind it.",
 	},
 };
 
@@ -193,6 +200,8 @@ type BannerEditorProps = {
 	onProblem: (problem: string) => void;
 	onPublish: () => void;
 	onDiscard: () => void;
+	/** Plays the open transition on the preview above ("What developers see"). */
+	onTryOpen: () => void;
 	/** Plays the close transition on the preview above ("What developers see"). */
 	onTryClose: () => void;
 };
@@ -201,7 +210,7 @@ type BannerEditorProps = {
  * The announcement, written like a document: Compose (its font, text effect,
  * colours, emoji and alignment; its background image and how it fills the
  * banner; a countdown; the text itself, plain as typed) and Controls (who may
- * dismiss it, where it shows, receipts, how it closes). The preview is the
+ * dismiss it, where it shows, receipts, how it opens and closes). The preview is the
  * page's "What developers see". Nothing is published until "Publish changes".
  */
 export const BannerEditor: React.FC<BannerEditorProps> = ({
@@ -213,6 +222,7 @@ export const BannerEditor: React.FC<BannerEditorProps> = ({
 	onProblem,
 	onPublish,
 	onDiscard,
+	onTryOpen,
 	onTryClose,
 }) => {
 	const id = useId();
@@ -381,6 +391,7 @@ export const BannerEditor: React.FC<BannerEditorProps> = ({
 						</span>
 					</Label>
 				</div>
+				<OpenField form={form} onChange={onChange} onTry={onTryOpen} />
 				<CloseField form={form} onChange={onChange} onTry={onTryClose} />
 			</fieldset>
 
@@ -510,7 +521,7 @@ const OutlineButton: React.FC<{
 	</Button>
 );
 
-/** The text effect; the crawl's speed for the crawl; whether it repeats. It plays on the preview above. */
+/** The text effect; its speed for the crawl and the Knight Rider sweep; whether it repeats. It plays on the preview above. */
 const EffectPicker: React.FC<FieldProps> = ({ form, onChange }) => (
 	<div className="flex items-center gap-1">
 		<Select
@@ -541,7 +552,7 @@ const EffectPicker: React.FC<FieldProps> = ({ form, onChange }) => (
 				))}
 			</SelectContent>
 		</Select>
-		{form.effect === "starwars" && (
+		{(form.effect === "starwars" || form.effect === "kitt") && (
 			<Select
 				value={form.speed ?? "normal"}
 				onValueChange={(value) => {
@@ -551,7 +562,10 @@ const EffectPicker: React.FC<FieldProps> = ({ form, onChange }) => (
 					}
 				}}
 			>
-				<SelectTrigger className="h-8 w-24 text-xs" aria-label="Crawl speed">
+				<SelectTrigger
+					className="h-8 w-24 text-xs"
+					aria-label={form.effect === "kitt" ? "Sweep speed" : "Crawl speed"}
+				>
 					<SelectValue />
 				</SelectTrigger>
 				<SelectContent>
@@ -718,6 +732,66 @@ const CountdownField: React.FC<{
 					</span>
 				</>
 			)}
+		</div>
+	);
+};
+
+/**
+ * Platform: how the banner comes in when it appears (the page loads with it,
+ * or a new announcement arrives), and "Try it", which plays it on the preview
+ * above.
+ */
+const OpenField: React.FC<FieldProps & { onTry: () => void }> = ({
+	form,
+	onChange,
+	onTry,
+}) => {
+	const id = useId();
+	const effect = form.openEffect ?? "none";
+	return (
+		<div className="flex flex-col gap-2 pt-1">
+			<div className="flex flex-wrap items-center gap-3">
+				<Label htmlFor={`${id}-open`} className="text-sm">
+					Open transition
+				</Label>
+				<Select
+					value={effect}
+					onValueChange={(value) => {
+						const next = BANNER_OPEN_EFFECTS.find((e) => e === value);
+						if (next) {
+							onChange({ openEffect: next as BannerOpenEffect });
+						}
+					}}
+				>
+					<SelectTrigger
+						id={`${id}-open`}
+						className="h-8 w-44 text-xs"
+						aria-label="Open transition"
+						aria-describedby={`${id}-hint`}
+					>
+						<SelectValue />
+					</SelectTrigger>
+					<SelectContent>
+						{BANNER_OPEN_EFFECTS.map((e) => (
+							<SelectItem key={e} value={e}>
+								{OPEN_EFFECT_OPTIONS[e].label}
+							</SelectItem>
+						))}
+					</SelectContent>
+				</Select>
+				<Button
+					size="sm"
+					variant="outline"
+					disabled={effect === "none" || !hasContent(form)}
+					onClick={onTry}
+				>
+					<PlayIcon />
+					Try it
+				</Button>
+			</div>
+			<p id={`${id}-hint`} className="m-0 text-sm text-content-secondary">
+				{OPEN_EFFECT_OPTIONS[effect].hint}
+			</p>
 		</div>
 	);
 };

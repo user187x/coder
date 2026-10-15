@@ -125,6 +125,46 @@ describe("BannerText stylesheet effects", () => {
 		expect(text()?.textContent).toBe("THINKING");
 	});
 
+	it("runs KITT's scanner behind the plain message, then puts it out when it played once", () => {
+		const width = vi
+			.spyOn(HTMLElement.prototype, "offsetWidth", "get")
+			.mockReturnValue(880);
+		try {
+			const { container, getByTestId, queryByTestId } = render(
+				<BannerText
+					banner={{
+						...fx,
+						effect: "kitt",
+						message: "KITT",
+						repeat: false,
+						speed: "fast" as const,
+					}}
+					animate
+				/>,
+			);
+			const scanner = getByTestId("announcement-kitt");
+			expect(scanner.getAttribute("aria-hidden")).toBe("true");
+			expect(scanner.hasAttribute("data-once")).toBe(true);
+			expect(scanner.style.getPropertyValue("--kitt-cycle")).toBe("1000ms");
+			// A lamp for every 44 px of the screen, each placed on the row's clock.
+			const lamps = scanner.querySelectorAll<HTMLElement>("i");
+			expect(lamps).toHaveLength(20);
+			expect(scanner.style.getPropertyValue("--kitt-n")).toBe("20");
+			expect(lamps[19].style.getPropertyValue("--i")).toBe("19");
+			const text = () =>
+				container.querySelector<HTMLElement>("[data-banner-text]");
+			expect(text()?.className).toBe("");
+			expect(text()?.textContent).toBe("KITT");
+			act(() => {
+				scanner.dispatchEvent(new Event("animationend", { bubbles: true }));
+			});
+			expect(queryByTestId("announcement-kitt")).toBeNull();
+			expect(text()?.textContent).toBe("KITT");
+		} finally {
+			width.mockRestore();
+		}
+	});
+
 	it("keeps the plain text without animate", () => {
 		const { container } = render(<BannerText banner={fx} />);
 		const text = container.querySelector<HTMLElement>("[data-banner-text]");

@@ -27,6 +27,7 @@ describe("editableFields", () => {
 			font: "default",
 			receipts: true,
 			closeEffect: "fade",
+			openEffect: "none",
 			markdown: false,
 			align: "center",
 			outline: false,

@@ -5,10 +5,11 @@ import { BannerLcd, bannerColors } from "./AnnouncementBanner";
 import { BannerCountdown } from "./BannerCountdown";
 import { BannerText } from "./BannerText";
 import { CloseLayers, useCloseTransition } from "./bannerClose";
+import { OpenLayers, useOpenTransition } from "./bannerOpen";
 
 type BannerPreviewProps = {
 	banner: BannerFields;
-	/** Plays the text effect; change the component's key to replay it. */
+	/** Plays the open transition and the text effect; change the component's key to replay them. */
 	animate?: boolean;
 	/** Plays its close transition as soon as it is shown, then calls onClosed. */
 	closing?: boolean;
@@ -26,6 +27,9 @@ export const BannerPreview: React.FC<BannerPreviewProps> = ({
 	const closeEffect = banner.closeEffect ?? "fade";
 	const close = useCloseTransition(closeEffect, () => onClosed?.());
 	const { start } = close;
+	const openEffect = animate ? (banner.openEffect ?? "none") : "none";
+	const open = useOpenTransition(openEffect);
+	const opening = open.opening && !close.closing;
 	// Shown a moment first, then closed.
 	useEffect(() => {
 		if (!closing) {
@@ -38,7 +42,12 @@ export const BannerPreview: React.FC<BannerPreviewProps> = ({
 		<div
 			className="flex w-full items-center gap-1 rounded-md p-1 text-center text-sm"
 			style={{ background: bg, color: fg }}
-			{...close.props}
+			data-closing={close.props["data-closing"]}
+			data-opening={opening ? openEffect : undefined}
+			onAnimationEnd={(event) => {
+				open.props.onAnimationEnd(event);
+				close.props.onAnimationEnd(event);
+			}}
 		>
 			{banner.countdown && <BannerCountdown to={banner.countdown} />}
 			<BannerLcd bg={bg} fg={fg} radius={6}>
@@ -48,6 +57,7 @@ export const BannerPreview: React.FC<BannerPreviewProps> = ({
 					className="min-w-0 flex-1 py-1.5 text-center"
 				/>
 			</BannerLcd>
+			{opening && <OpenLayers effect={openEffect} />}
 			{close.closing && <CloseLayers effect={closeEffect} />}
 			{banner.receipts !== false ? (
 				<span

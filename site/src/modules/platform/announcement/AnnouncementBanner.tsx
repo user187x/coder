@@ -14,6 +14,7 @@ import { BannerCountdown } from "./BannerCountdown";
 import { BannerScrollView } from "./BannerScrollView";
 import { BannerText } from "./BannerText";
 import { CloseLayers, useCloseTransition } from "./bannerClose";
+import { OpenLayers, useOpenTransition } from "./bannerOpen";
 import {
 	confirmBackground,
 	hasContent,
@@ -194,19 +195,29 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 	// Dismissed here (the close button, or Confirm): it goes with its close transition.
 	const closeEffect = banner.closeEffect ?? "fade";
 	const close = useCloseTransition(closeEffect, onDismiss);
+	// Appearing (the page loads with it, or a new announcement arrives): its open transition.
+	const openEffect = banner.openEffect ?? "none";
+	const open = useOpenTransition(openEffect);
+	const opening = open.opening && !close.closing;
 
 	return (
 		<div
 			ref={card}
 			id="coder-system-banner"
 			role="status"
-			{...close.props}
+			data-closing={close.props["data-closing"]}
+			data-opening={opening ? openEffect : undefined}
+			onAnimationEnd={(event) => {
+				open.props.onAnimationEnd(event);
+				close.props.onAnimationEnd(event);
+			}}
 			className={cn(
 				"flex items-center gap-1",
 				placement === "navbar"
 					? "ml-3 min-h-9 min-w-0 flex-1 rounded-[10px] p-1 text-[13px] leading-[18px] shadow-[0_1px_3px_rgb(0_0_0/.2),inset_0_0_0_1px_rgb(255_255_255/.14)]"
 					: "w-full p-1 text-center text-sm",
 				wasPushed(banner.id) &&
+					openEffect === "none" &&
 					"animate-in fade-in slide-in-from-top-2 duration-300",
 			)}
 			style={{ background: bg, color: fg }}
@@ -238,6 +249,7 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 					)}
 				/>
 			</BannerLcd>
+			{opening && <OpenLayers effect={openEffect} />}
 			{close.closing && <CloseLayers effect={closeEffect} />}
 			{receipts && signedIn && viewedAt && <ViewedStamp viewedAt={viewedAt} />}
 			{receipts && signedIn && (

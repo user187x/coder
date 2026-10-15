@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type {
 	Banner,
 	BannerEffect,
@@ -10,6 +10,7 @@ import { useBannerClock } from "./bannerClock";
 import { bannerFontStack } from "./bannerFonts";
 import "./bannerCrawl.css";
 import "./bannerFx.css";
+import "./bannerKitt.css";
 import "./bannerRoll.css";
 import {
 	type Block,
@@ -47,6 +48,8 @@ type EffectPlan = {
 	 * closer together, so its last letter does not wait half a minute.
 	 */
 	maxIndex?: number;
+	/** Drawn across the banner's screen behind the message (KittScanner), not on the letters. */
+	scanner?: true;
 };
 
 // Delay between letters: `per` ms, but never more than `total` ms for the
@@ -110,6 +113,7 @@ const EFFECTS: Record<
 	pewpew: { unit: "char", className: "fx-pewpew", maxIndex: 12 },
 	flap: { unit: "char", className: "fx-flap", maxIndex: 14 },
 	shimmer: { unit: "whole", className: "fx-shimmer" },
+	kitt: { unit: "whole", scanner: true },
 };
 
 /** A letter's --i: its index, closer together past plan.maxIndex letters. */
@@ -511,6 +515,87 @@ const Crawl: React.FC<CrawlProps> = ({ speed, repeat, onDone, children }) => {
 	);
 };
 
+// Knight Rider: one sweep there and back, by the banner's speed; a lamp for
+// about every KITT_LAMP_PX of the screen; without repeat, KITT_ONCE_CYCLES
+// sweeps there and back, then the lamps go dark.
+const KITT_CYCLE_MS: Record<BannerSpeed, number> = {
+	slow: 2400,
+	normal: 1600,
+	fast: 1000,
+};
+const KITT_LAMP_PX = 44;
+const KITT_MIN_LAMPS = 8;
+const KITT_MAX_LAMPS = 40;
+const KITT_ONCE_CYCLES = 2;
+
+type KittScannerProps = {
+	speed: BannerSpeed;
+	repeat: boolean;
+	onDone: () => void;
+};
+
+/**
+ * The "kitt" effect: KITT's scanner from Knight Rider. A row of red lamps
+ * across the banner's screen, behind the message; a light runs from one end to
+ * the other and back without a pause, every lamp flaring as it passes and
+ * fading behind it (bannerKitt.css). The message stays as it is. The row is
+ * drawn anew when the screen's width changes its number of lamps, so they all
+ * keep the same clock.
+ */
+const KittScanner: React.FC<KittScannerProps> = ({ speed, repeat, onDone }) => {
+	const row = useRef<HTMLSpanElement>(null);
+	const [lamps, setLamps] = useState(0);
+	useLayoutEffect(() => {
+		const measure = () => {
+			const width = row.current?.offsetWidth ?? 0;
+			if (width > 0) {
+				setLamps(
+					Math.min(
+						KITT_MAX_LAMPS,
+						Math.max(KITT_MIN_LAMPS, Math.round(width / KITT_LAMP_PX)),
+					),
+				);
+			}
+		};
+		measure();
+		const observer = new ResizeObserver(measure);
+		if (row.current) {
+			observer.observe(row.current);
+		}
+		return () => observer.disconnect();
+	}, []);
+	const cycle = KITT_CYCLE_MS[speed];
+	return (
+		<span
+			ref={row}
+			aria-hidden
+			className="banner-kitt"
+			data-testid="announcement-kitt"
+			data-once={repeat ? undefined : ""}
+			style={
+				{
+					"--kitt-cycle": `${cycle}ms`,
+					"--kitt-n": lamps,
+					animationDuration: repeat
+						? undefined
+						: `${cycle * KITT_ONCE_CYCLES}ms`,
+				} as React.CSSProperties
+			}
+			onAnimationEnd={(event) => {
+				if (event.target === event.currentTarget) {
+					onDone();
+				}
+			}}
+		>
+			<Fragment key={lamps}>
+				{Array.from({ length: lamps }, (_, i) => (
+					<i key={i} style={{ "--i": i } as React.CSSProperties} />
+				))}
+			</Fragment>
+		</span>
+	);
+};
+
 type BannerTextProps = {
 	banner: Pick<
 		Banner,
@@ -639,6 +724,13 @@ export const BannerText: React.FC<BannerTextProps> = ({
 	return (
 		<>
 			{roll}
+			{plan?.scanner && (
+				<KittScanner
+					speed={banner.speed ?? "normal"}
+					repeat={banner.repeat}
+					onDone={() => setFxDone(true)}
+				/>
+			)}
 			<span
 				data-banner-text=""
 				data-over-picture={roll ? "" : undefined}
