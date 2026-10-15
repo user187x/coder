@@ -1,7 +1,11 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PlatformAPI } from "#/api/platform";
-import { PictureFitSelect, UploadImageButton } from "./BackgroundPicture";
+import {
+	ChosenImage,
+	PictureFitSelect,
+	UploadImageButton,
+} from "./BackgroundPicture";
 
 describe("UploadImageButton", () => {
 	it("uploads the file as it is and makes it the background", async () => {
@@ -15,9 +19,7 @@ describe("UploadImageButton", () => {
 				bytes: 12,
 			});
 		const onChange = vi.fn();
-		render(
-			<UploadImageButton picture="" onChange={onChange} onProblem={vi.fn()} />,
-		);
+		render(<UploadImageButton onChange={onChange} onProblem={vi.fn()} />);
 		expect(
 			screen.getByRole("button", { name: /Upload image/ }),
 		).toBeInTheDocument();
@@ -40,9 +42,7 @@ describe("UploadImageButton", () => {
 	it("refuses an image over 8 MB before uploading it", () => {
 		const upload = vi.spyOn(PlatformAPI, "uploadBannerPicture");
 		const onProblem = vi.fn();
-		render(
-			<UploadImageButton picture="" onChange={vi.fn()} onProblem={onProblem} />,
-		);
+		render(<UploadImageButton onChange={vi.fn()} onProblem={onProblem} />);
 		const big = new File([new Uint8Array(8 * 1024 * 1024 + 1)], "big.png", {
 			type: "image/png",
 		});
@@ -58,9 +58,7 @@ describe("UploadImageButton", () => {
 	it("offers the preset images under its arrow, without uploading anything", async () => {
 		const upload = vi.spyOn(PlatformAPI, "uploadBannerPicture");
 		const onChange = vi.fn();
-		render(
-			<UploadImageButton picture="" onChange={onChange} onProblem={vi.fn()} />,
-		);
+		render(<UploadImageButton onChange={onChange} onProblem={vi.fn()} />);
 		await userEvent.click(screen.getByTestId("announcement-preset-menu"));
 		await userEvent.click(
 			await screen.findByTestId("announcement-preset-usa.gif"),
@@ -68,16 +66,12 @@ describe("UploadImageButton", () => {
 		expect(onChange).toHaveBeenCalledWith("/pictures/usa.gif");
 		expect(upload).not.toHaveBeenCalled();
 	});
+});
 
+describe("ChosenImage", () => {
 	it("shows the image chosen, and takes it away", async () => {
-		const onChange = vi.fn();
-		render(
-			<UploadImageButton
-				picture="/pictures/usa.gif"
-				onChange={onChange}
-				onProblem={vi.fn()}
-			/>,
-		);
+		const onRemove = vi.fn();
+		render(<ChosenImage picture="/pictures/usa.gif" onRemove={onRemove} />);
 		expect(screen.getByAltText("The banner's background")).toHaveAttribute(
 			"src",
 			"/pictures/usa.gif",
@@ -85,7 +79,7 @@ describe("UploadImageButton", () => {
 		await userEvent.click(
 			screen.getByRole("button", { name: "Remove the background image" }),
 		);
-		expect(onChange).toHaveBeenCalledWith("");
+		expect(onRemove).toHaveBeenCalled();
 	});
 });
 

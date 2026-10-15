@@ -67,7 +67,11 @@ import {
 	utcSeconds,
 } from "#/modules/platform/announcement/bannerTokens";
 import { ColorField, type ColorPreset } from "#/modules/platform/ColorField";
-import { PictureFitSelect, UploadImageButton } from "./BackgroundPicture";
+import {
+	ChosenImage,
+	PictureFitSelect,
+	UploadImageButton,
+} from "./BackgroundPicture";
 import { EmojiButton } from "./EmojiButton";
 
 // Long broadcasts are what the crawl and the banner's scroll-down view are for.
@@ -281,10 +285,9 @@ export const BannerEditor: React.FC<BannerEditorProps> = ({
 				<div
 					role="toolbar"
 					aria-label="Background image"
-					className="flex flex-wrap items-center justify-between gap-2"
+					className="flex flex-wrap items-center gap-2"
 				>
 					<UploadImageButton
-						picture={form.picture ?? ""}
 						onChange={(picture) => onChange({ picture })}
 						onProblem={onProblem}
 					/>
@@ -293,6 +296,12 @@ export const BannerEditor: React.FC<BannerEditorProps> = ({
 						disabled={!form.picture}
 						onChange={(pictureFit) => onChange({ pictureFit })}
 					/>
+					{form.picture && (
+						<ChosenImage
+							picture={form.picture}
+							onRemove={() => onChange({ picture: "" })}
+						/>
+					)}
 				</div>
 				<CountdownField
 					value={form.countdown ?? ""}

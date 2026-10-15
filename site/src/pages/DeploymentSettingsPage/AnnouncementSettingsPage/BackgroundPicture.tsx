@@ -84,8 +84,6 @@ const readAsDataUrl = (file: File) =>
 	});
 
 type UploadImageButtonProps = {
-	/** The background image's address; "" none. */
-	picture: string;
 	onChange: (picture: string) => void;
 	onProblem: (problem: string) => void;
 };
@@ -94,11 +92,9 @@ type UploadImageButtonProps = {
  * Platform: the announcement's background image. Upload image opens the file
  * chooser straight away (PNG, JPEG, GIF - animated too -, WebP or AVIF, up to
  * 8 MB; the platform service keeps it as it is and serves it on the Coder
- * site); its arrow offers the preset images baked into the dashboard. The
- * image chosen is shown beside them, with a button to take it away.
+ * site); its arrow offers the preset images baked into the dashboard.
  */
 export const UploadImageButton: React.FC<UploadImageButtonProps> = ({
-	picture,
 	onChange,
 	onProblem,
 }) => {
@@ -191,34 +187,39 @@ export const UploadImageButton: React.FC<UploadImageButtonProps> = ({
 					}
 				}}
 			/>
-			{picture && (
-				<span
-					className="flex h-8 items-center gap-1 rounded-md border border-solid border-border pl-0.5"
-					data-testid="announcement-picture-chosen"
-					title={picture}
-				>
-					<span className="flex h-[26px] w-11 items-center justify-center overflow-hidden rounded-[4px] bg-[#09090b]">
-						<img
-							src={picture}
-							alt="The banner's background"
-							className="max-h-full max-w-full object-contain"
-						/>
-					</span>
-					<Button
-						size="icon"
-						variant="subtle"
-						className="size-7"
-						aria-label="Remove the background image"
-						title="Remove the background image"
-						onClick={() => onChange("")}
-					>
-						<XIcon />
-					</Button>
-				</span>
-			)}
 		</div>
 	);
 };
+
+/** The background image chosen, small, with a button to take it away. */
+export const ChosenImage: React.FC<{
+	picture: string;
+	onRemove: () => void;
+}> = ({ picture, onRemove }) => (
+	<span
+		className="flex h-8 items-center gap-1 rounded-md border border-solid border-border pl-0.5"
+		data-testid="announcement-picture-chosen"
+		title={picture}
+	>
+		<span className="flex h-[26px] w-11 items-center justify-center overflow-hidden rounded-[4px] bg-[#09090b]">
+			<img
+				src={picture}
+				alt="The banner's background"
+				className="max-h-full max-w-full object-contain"
+			/>
+		</span>
+		<Button
+			size="icon"
+			variant="subtle"
+			className="size-7"
+			aria-label="Remove the background image"
+			title="Remove the background image"
+			onClick={onRemove}
+		>
+			<XIcon />
+		</Button>
+	</span>
+);
 
 type PictureFitSelectProps = {
 	value: PictureFit;
