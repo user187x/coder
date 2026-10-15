@@ -3,6 +3,7 @@ import {
 	countdownText,
 	countdownToken,
 	fromMarkdown,
+	hasContent,
 	lcdInk,
 	parseBlocks,
 	parseColors,
@@ -192,5 +193,18 @@ describe("fromMarkdown", () => {
 			pictureFit: "span",
 		});
 		expect(fromMarkdown("Restart tonight.").message).toBe("Restart tonight.");
+	});
+});
+
+describe("hasContent", () => {
+	it("is a message, a background picture or a countdown", () => {
+		expect(hasContent({ message: "  " })).toBe(false);
+		expect(hasContent({ message: "Hi" })).toBe(true);
+		expect(hasContent({ message: "", picture: "/pictures/usa.gif" })).toBe(
+			true,
+		);
+		expect(hasContent({ message: "", countdown: "2026-10-20T18:00:00Z" })).toBe(
+			true,
+		);
 	});
 });

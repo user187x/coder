@@ -30,6 +30,7 @@ import { Switch } from "#/components/Switch/Switch";
 import { BannerPreview } from "#/modules/platform/announcement/BannerPreview";
 import {
 	fromMarkdown,
+	hasContent,
 	parseColors,
 } from "#/modules/platform/announcement/bannerTokens";
 import { pageTitle } from "#/utils/page";
@@ -217,7 +218,7 @@ const AnnouncementEditor: React.FC<{ state: BannerState }> = ({ state }) => {
 	const published = fieldsOf(state.banner);
 	const form = draft ?? editableFields(state.banner);
 	const dirty = !sameFields(form, published);
-	const live = state.banner.enabled && Boolean(state.banner.message);
+	const live = state.banner.enabled && hasContent(state.banner);
 	const busy = publish.isPending || reshow.isPending || reset.isPending;
 
 	const onError = (error: unknown) => {
@@ -257,8 +258,8 @@ const AnnouncementEditor: React.FC<{ state: BannerState }> = ({ state }) => {
 							checked={live}
 							disabled={busy}
 							onCheckedChange={(enabled) => {
-								if (enabled && !state.banner.message) {
-									setProblem("Write and publish a message first.");
+								if (enabled && !hasContent(state.banner)) {
+									setProblem("Write and publish an announcement first.");
 									return;
 								}
 								publish.mutate(
@@ -283,7 +284,7 @@ const AnnouncementEditor: React.FC<{ state: BannerState }> = ({ state }) => {
 					<Button
 						variant="outline"
 						className="border-highlight-orange text-highlight-orange"
-						disabled={busy || !state.banner.message}
+						disabled={busy || !hasContent(state.banner)}
 						title="Show the banner again to everyone, including people who dismissed it"
 						onClick={() => setConfirm("reshow")}
 					>
@@ -312,7 +313,7 @@ const AnnouncementEditor: React.FC<{ state: BannerState }> = ({ state }) => {
 						<Button
 							size="sm"
 							variant="outline"
-							disabled={form.effect === "none" || !form.message || closing}
+							disabled={form.effect === "none" || !hasContent(form) || closing}
 							title="Play the text effect again"
 							onClick={() => setRun((n) => n + 1)}
 						>
@@ -330,7 +331,7 @@ const AnnouncementEditor: React.FC<{ state: BannerState }> = ({ state }) => {
 					className="min-h-[62px] rounded-md bg-surface-secondary p-3"
 					data-testid="announcement-preview"
 				>
-					{form.message ? (
+					{hasContent(form) ? (
 						!gone && (
 							<BannerPreview
 								// A new effect (or its speed, or repeat) plays from the start.
@@ -350,7 +351,7 @@ const AnnouncementEditor: React.FC<{ state: BannerState }> = ({ state }) => {
 						)
 					) : (
 						<p className="m-0 text-sm text-content-secondary">
-							Type a message to see a preview.
+							Type a message (or choose a background image) to see a preview.
 						</p>
 					)}
 				</div>

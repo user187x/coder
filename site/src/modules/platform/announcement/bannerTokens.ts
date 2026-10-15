@@ -343,6 +343,14 @@ export const parseBlocks = (message: string): Block[] => {
 	return blocks;
 };
 
+/** The announcement has something to show: a message, a background picture or a countdown (it may be only a picture). */
+export const hasContent = (banner: {
+	message: string;
+	picture?: string;
+	countdown?: string;
+}): boolean =>
+	Boolean(banner.message.trim() || banner.picture || banner.countdown);
+
 /** A picture's fit, from its address (`…#fit=tile`); none given: null. */
 export const pictureFit = (src: string): PictureFit | null => {
 	const fit = /#(?:.*&)?fit=([a-z]+)/.exec(src)?.[1];

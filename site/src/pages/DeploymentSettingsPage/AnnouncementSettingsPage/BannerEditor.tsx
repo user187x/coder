@@ -61,6 +61,7 @@ import {
 } from "#/modules/platform/announcement/bannerFonts";
 import {
 	colorsToken,
+	hasContent,
 	LEVEL_COLORS,
 	utcSeconds,
 } from "#/modules/platform/announcement/bannerTokens";
@@ -411,7 +412,7 @@ export const BannerEditor: React.FC<BannerEditorProps> = ({
 
 			<div className="flex flex-wrap items-center gap-3">
 				<Button
-					disabled={isPublishing || !dirty || !form.message}
+					disabled={isPublishing || !dirty || !hasContent(form)}
 					onClick={onPublish}
 				>
 					<Spinner loading={isPublishing} />
@@ -728,7 +729,7 @@ const CloseField: React.FC<FieldProps & { onTry: () => void }> = ({
 				<Button
 					size="sm"
 					variant="outline"
-					disabled={!form.dismissible || effect === "none" || !form.message}
+					disabled={!form.dismissible || effect === "none" || !hasContent(form)}
 					onClick={onTry}
 				>
 					<PlayIcon />

@@ -30,7 +30,8 @@ export const ShareWorkspaceDialog: React.FC<ShareWorkspaceDialogProps> = ({
 }) => (
 	<Dialog open={open} onOpenChange={(next) => !next && onClose()}>
 		<DialogContent
-			className="max-w-[640px] gap-4 p-6"
+			// As wide as the form needs (search, role and Add member on one line).
+			className="flex max-w-[720px] flex-col gap-4 p-6"
 			data-testid="workspace-share-dialog"
 		>
 			<DialogHeader>

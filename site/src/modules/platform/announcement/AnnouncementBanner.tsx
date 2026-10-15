@@ -16,6 +16,7 @@ import { BannerWatch } from "./BannerWatch";
 import { CloseLayers, useCloseTransition } from "./bannerClose";
 import {
 	confirmBackground,
+	hasContent,
 	LEVEL_COLORS,
 	lcdInk,
 	parseColors,
@@ -120,7 +121,7 @@ export const AnnouncementBanner: React.FC<AnnouncementBannerProps> = ({
 
 	const shown =
 		banner?.enabled &&
-		banner.message &&
+		hasContent(banner) &&
 		!(banner.dismissible && dismissedId === banner.id) &&
 		(placement !== "login" || banner.showOnLoginPage);
 
