@@ -628,7 +628,7 @@ const AlignButton: React.FC<{
 				<Button
 					size="sm"
 					variant="outline"
-					className="gap-1 px-2"
+					className="min-w-0 gap-1 px-2"
 					aria-label={`Alignment: ${ALIGN_OPTIONS[value].label}`}
 					title="How the text lines up on the banner"
 				>

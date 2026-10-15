@@ -148,7 +148,7 @@ export const UploadImageButton: React.FC<UploadImageButtonProps> = ({
 						<Button
 							size="sm"
 							variant="outline"
-							className="-ml-px rounded-l-none px-2"
+							className="-ml-px min-w-0 rounded-l-none px-2"
 							aria-label="Preset images"
 							title="Preset images"
 							data-testid="announcement-preset-menu"
