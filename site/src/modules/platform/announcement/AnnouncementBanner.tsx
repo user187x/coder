@@ -10,9 +10,9 @@ import {
 	markAnnouncementViewed,
 } from "#/api/queries/platform";
 import { isEmbeddedFrame } from "#/contexts/platformBoot";
+import { BannerCountdown } from "./BannerCountdown";
 import { BannerScrollView } from "./BannerScrollView";
 import { BannerText } from "./BannerText";
-import { BannerWatch } from "./BannerWatch";
 import { CloseLayers, useCloseTransition } from "./bannerClose";
 import {
 	confirmBackground,
@@ -224,7 +224,7 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 				}
 			}}
 		>
-			{banner.countdown && <BannerWatch to={banner.countdown} />}
+			{banner.countdown && <BannerCountdown to={banner.countdown} />}
 			<BannerLcd bg={bg} fg={fg} radius={CARD_RADIUS[placement]}>
 				{/* Scroll mode: the whole message at once, without waiting for its effect. */}
 				<BannerScrollView banner={banner} anchor={card} />

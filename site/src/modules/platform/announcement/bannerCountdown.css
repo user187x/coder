@@ -1,0 +1,113 @@
+/*
+ * The announcement's countdown (BannerCountdown): a split-flap clock at the banner's left. Each character on its own
+ * black rounded plate - the top half a shade lighter than the bottom, a dark split across the middle with a hair of
+ * light under it, as on a departure board - in bold white figures. A character that changes flips in over the split;
+ * the colons are two black dots. At zero the plates blink. No flipping for reduced motion.
+ */
+.banner-flapclock {
+	display: inline-flex;
+	flex-shrink: 0;
+	align-items: center;
+	gap: 2px;
+	padding: 0 2px;
+}
+
+.banner-flapclock-plate {
+	position: relative;
+	display: grid;
+	place-items: center;
+	width: 16px;
+	height: 26px;
+	overflow: hidden;
+	border-radius: 4px;
+	color: #f4f4f5;
+	font:
+		700 16px / 1 "Geist",
+		"Inter",
+		system-ui,
+		sans-serif;
+	font-variant-numeric: tabular-nums;
+	background: linear-gradient(180deg, #2a2a2e 0 50%, #161618 50% 100%);
+	box-shadow:
+		inset 0 0 0 1px rgb(255 255 255 / 0.1),
+		inset 0 1px 0 rgb(255 255 255 / 0.12),
+		0 1px 2px rgb(0 0 0 / 0.55);
+	perspective: 70px;
+}
+
+/* The split: a dark line across the middle, a hair of light under it. */
+.banner-flapclock-plate::after {
+	content: "";
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: calc(50% - 0.5px);
+	height: 1px;
+	background: rgb(0 0 0 / 0.9);
+	box-shadow: 0 1px 0 rgb(255 255 255 / 0.07);
+	pointer-events: none;
+}
+
+/* "D": the days, smaller on a narrower plate. */
+.banner-flapclock-plate[data-unit] {
+	width: 12px;
+	color: #a1a1aa;
+	font-size: 10px;
+	margin-right: 3px;
+}
+
+.banner-flapclock-char {
+	display: block;
+	backface-visibility: hidden;
+	transform-origin: 50% 50%;
+	animation: banner-flapclock-flip 0.32s cubic-bezier(0.3, 0.7, 0.4, 1) both;
+}
+
+/* A new character falls into place over the split, shaded until it lands. */
+@keyframes banner-flapclock-flip {
+	0% {
+		transform: rotateX(80deg);
+		opacity: 0.35;
+	}
+	70% {
+		transform: rotateX(-12deg);
+		opacity: 1;
+	}
+	100% {
+		transform: rotateX(0);
+	}
+}
+
+.banner-flapclock-colon {
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	gap: 5px;
+	margin: 0 1px;
+}
+
+.banner-flapclock-colon i {
+	display: block;
+	width: 3.5px;
+	height: 3.5px;
+	border-radius: 1px;
+	background: #161618;
+	box-shadow: 0 0 0 0.5px rgb(255 255 255 / 0.18);
+}
+
+.banner-flapclock[data-done] .banner-flapclock-plate {
+	animation: banner-flapclock-blink 1s steps(1, end) infinite;
+}
+
+@keyframes banner-flapclock-blink {
+	50% {
+		opacity: 0.25;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.banner-flapclock-char,
+	.banner-flapclock[data-done] .banner-flapclock-plate {
+		animation: none;
+	}
+}

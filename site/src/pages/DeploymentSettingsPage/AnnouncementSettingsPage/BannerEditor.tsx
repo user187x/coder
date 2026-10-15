@@ -662,7 +662,7 @@ const AlignButton: React.FC<{
 };
 
 /**
- * The countdown: ticked, it is shown as a watch at the banner's far left,
+ * The countdown: ticked, it is shown as a split-flap clock at the banner's far left,
  * before the text; only the moment it counts down to is asked for.
  */
 const CountdownField: React.FC<{
@@ -705,7 +705,7 @@ const CountdownField: React.FC<{
 						}}
 					/>
 					<span className="text-xs text-content-secondary">
-						{zone}; shown as a watch at the banner's far left
+						{zone}; shown as a split-flap clock at the banner's far left
 					</span>
 				</>
 			)}
