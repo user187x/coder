@@ -19,7 +19,6 @@ import {
 	SettingsHeaderTitle,
 } from "#/components/SettingsHeader/SettingsHeader";
 import { TooltipMessage } from "#/components/Tooltip/Tooltip";
-import { pageTitle } from "#/utils/page";
 import type { AutofillBuildParameter } from "#/utils/richParameters";
 import { useWorkspaceSettings } from "../useWorkspaceSettings";
 import { WorkspaceParametersPageView } from "./WorkspaceParametersPageView";
@@ -268,7 +267,7 @@ const WorkspaceParametersPage: React.FC = () => {
 
 	return (
 		<div className="flex flex-col gap-12">
-			<title>{pageTitle(workspace.name, "Parameters")}</title>
+			{/* Platform: a card of the one settings page, whose layout titles it. */}
 
 			<SettingsHeader>
 				<SettingsHeaderTitle

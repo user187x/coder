@@ -3,7 +3,6 @@ import { checkAuthorization } from "#/api/queries/authCheck";
 import type { WorkspacePermissions } from "#/modules/workspaces/permissions";
 import { workspaceChecks } from "#/modules/workspaces/permissions";
 import { useWorkspaceSharing } from "#/modules/workspaces/WorkspaceSharingForm/useWorkspaceSharing";
-import { pageTitle } from "#/utils/page";
 import { useWorkspaceSettings } from "../useWorkspaceSettings";
 import { WorkspaceSharingPageView } from "./WorkspaceSharingPageView";
 
@@ -23,7 +22,7 @@ const WorkspaceSharingPage: React.FC = () => {
 
 	return (
 		<>
-			<title>{pageTitle(workspace.name, "Sharing")}</title>
+			{/* Platform: a card of the one settings page, whose layout titles it. */}
 
 			<WorkspaceSharingPageView
 				workspace={workspace}

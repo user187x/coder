@@ -50,6 +50,7 @@ const FIELDS = [
 	"repeat",
 	"speed",
 	"font",
+	"receipts",
 ] as const;
 
 /** A banner saved before effects existed has none: that means "none", not "changed". */
@@ -59,6 +60,7 @@ const fieldsOf = ({ id: _id, ...banner }: Banner): BannerFields => ({
 	repeat: banner.repeat ?? false,
 	speed: banner.speed ?? "normal",
 	font: banner.font ?? "default",
+	receipts: banner.receipts ?? true,
 });
 
 const sameFields = (a: BannerFields, b: BannerFields) =>

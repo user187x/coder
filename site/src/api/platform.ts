@@ -1100,6 +1100,12 @@ export type Banner = {
 	speed?: BannerSpeed;
 	/** Missing in announcements saved before it existed: "default". */
 	font?: BannerFont;
+	/**
+	 * Who viewed it is recorded, and they can confirm it (the Viewed box and
+	 * Confirm). Off for a greeting nobody needs to account for. Missing in
+	 * announcements saved before it existed: on.
+	 */
+	receipts?: boolean;
 };
 
 export type BannerFields = Omit<Banner, "id">;

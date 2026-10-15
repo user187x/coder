@@ -1,3 +1,4 @@
+import { XIcon } from "lucide-react";
 import type { BannerFields } from "#/api/platform";
 import { BannerLcd, bannerColors } from "./AnnouncementBanner";
 import { BannerText } from "./BannerText";
@@ -8,7 +9,7 @@ type BannerPreviewProps = {
 	animate?: boolean;
 };
 
-/** The announcement as developers see it, without its receipts. */
+/** The announcement as developers see it: its Confirm, or its close button without receipts. */
 export const BannerPreview: React.FC<BannerPreviewProps> = ({
 	banner,
 	animate = false,
@@ -26,12 +27,23 @@ export const BannerPreview: React.FC<BannerPreviewProps> = ({
 					className="min-w-0 flex-1 py-1.5 text-center"
 				/>
 			</BannerLcd>
-			<span
-				aria-hidden
-				className="shrink-0 rounded-[7px] border border-solid border-white/60 bg-white/15 px-3.5 py-[3px] text-[13px] leading-[18px] font-semibold whitespace-nowrap"
-			>
-				Confirm
-			</span>
+			{banner.receipts !== false ? (
+				<span
+					aria-hidden
+					className="shrink-0 rounded-[7px] border border-solid border-white/60 bg-white/15 px-3.5 py-[3px] text-[13px] leading-[18px] font-semibold whitespace-nowrap"
+				>
+					Confirm
+				</span>
+			) : (
+				banner.dismissible && (
+					<span
+						aria-hidden
+						className="flex size-[26px] shrink-0 items-center justify-center rounded-[7px] border border-solid border-white/60 bg-white/15"
+					>
+						<XIcon className="size-4" />
+					</span>
+				)
+			)}
 		</div>
 	);
 };

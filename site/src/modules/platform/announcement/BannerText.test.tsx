@@ -131,3 +131,50 @@ describe("BannerText stylesheet effects", () => {
 		expect(container.querySelectorAll("b")).toHaveLength(0);
 	});
 });
+
+describe("BannerText pictures", () => {
+	// jsdom loads no images: a stand-in that "loads" at the size its name says.
+	class SizedImage {
+		naturalWidth = 0;
+		naturalHeight = 0;
+		onload: (() => void) | null = null;
+		set src(value: string) {
+			const size = value.includes("flag") ? 600 : 64;
+			this.naturalWidth = size;
+			this.naturalHeight = Math.round(size * 0.53);
+			queueMicrotask(() => this.onload?.());
+		}
+	}
+	beforeEach(() => {
+		vi.stubGlobal("Image", SizedImage);
+	});
+	afterEach(() => {
+		vi.unstubAllGlobals();
+	});
+
+	it("rolls a large picture behind the text, keeps a small one (an emoji) in the line", async () => {
+		const { container, findByTestId } = render(
+			<BannerText
+				banner={{
+					...banner,
+					effect: "none",
+					message:
+						"Happy holidays ![smile](/emojis/1f600.png) ![US flag](/flag.png)",
+				}}
+			/>,
+		);
+		const roll = await findByTestId("announcement-picture-roll");
+		expect(roll).toHaveAttribute("aria-label", "US flag");
+		// Twice, one copy after the other: the roll goes round without a jump.
+		expect(
+			[...roll.querySelectorAll("img")].map((i) => i.getAttribute("src")),
+		).toEqual(["/flag.png", "/flag.png"]);
+		const text = container.querySelector<HTMLElement>("[data-banner-text]");
+		expect(text?.hasAttribute("data-over-picture")).toBe(true);
+		expect(
+			[...(text?.querySelectorAll("img") ?? [])].map((i) =>
+				i.getAttribute("src"),
+			),
+		).toEqual(["/emojis/1f600.png"]);
+	});
+});

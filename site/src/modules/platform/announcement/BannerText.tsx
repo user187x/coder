@@ -10,6 +10,7 @@ import type { Banner, BannerEffect, BannerSpeed } from "#/api/platform";
 import { bannerFontStack } from "./bannerFonts";
 import "./bannerCrawl.css";
 import "./bannerFx.css";
+import "./bannerRoll.css";
 import {
 	type Countdown,
 	countdownText,
@@ -265,6 +266,7 @@ const renderNodes = (
 	nodes: InlineNode[],
 	splitter: Splitter | null,
 	prefix: string,
+	pictures?: ReadonlySet<string>,
 ): React.ReactNode[] =>
 	nodes.map((node, i) => {
 		const key = `${prefix}${i}`;
@@ -280,16 +282,20 @@ const renderNodes = (
 			case "strong":
 				return (
 					<strong key={key}>
-						{renderNodes(node.children, splitter, `${key}.`)}
+						{renderNodes(node.children, splitter, `${key}.`, pictures)}
 					</strong>
 				);
 			case "em":
 				return (
-					<em key={key}>{renderNodes(node.children, splitter, `${key}.`)}</em>
+					<em key={key}>
+						{renderNodes(node.children, splitter, `${key}.`, pictures)}
+					</em>
 				);
 			case "s":
 				return (
-					<s key={key}>{renderNodes(node.children, splitter, `${key}.`)}</s>
+					<s key={key}>
+						{renderNodes(node.children, splitter, `${key}.`, pictures)}
+					</s>
 				);
 			case "link": {
 				const external = /^https?:/i.test(node.href);
@@ -302,13 +308,17 @@ const renderNodes = (
 							? { target: "_blank", rel: "noopener noreferrer" }
 							: {})}
 					>
-						{renderNodes(node.children, splitter, `${key}.`)}
+						{renderNodes(node.children, splitter, `${key}.`, pictures)}
 					</a>
 				);
 			}
 			case "countdown":
 				return <CountdownText key={key} countdown={node.countdown} />;
 			case "image":
+				// A picture rolls through the banner's screen (PictureRoll), not in the line.
+				if (pictures?.has(node.src)) {
+					return null;
+				}
 				return (
 					<img
 						key={key}
@@ -319,6 +329,111 @@ const renderNodes = (
 				);
 		}
 	});
+
+/** Images at least this big (natural px, either side) are pictures; smaller ones (emoji: 64) stay in the line. */
+const PICTURE_MIN_PX = 128;
+/** A picture's roll through the banner's screen, in pixels per second. */
+const ROLL_PX_PER_SECOND = 24;
+
+const imagesOf = (nodes: InlineNode[]): { src: string; alt: string }[] =>
+	nodes.flatMap((node) =>
+		node.type === "image"
+			? [{ src: node.src, alt: node.alt }]
+			: "children" in node
+				? imagesOf(node.children)
+				: [],
+	);
+
+/**
+ * The message's pictures: its images found, once loaded, to be at least
+ * PICTURE_MIN_PX (until then they stay in the line).
+ */
+const usePictures = (images: { src: string; alt: string }[]) => {
+	const [sizes, setSizes] = useState<Record<string, number>>({});
+	const key = [...new Set(images.map((i) => i.src))].join("\n");
+	useEffect(() => {
+		let live = true;
+		const srcs = key ? key.split("\n") : [];
+		for (const src of srcs) {
+			const img = new Image();
+			img.onload = () => {
+				if (live) {
+					setSizes((s) => ({
+						...s,
+						[src]: Math.max(img.naturalWidth, img.naturalHeight),
+					}));
+				}
+			};
+			img.src = src;
+		}
+		return () => {
+			live = false;
+		};
+	}, [key]);
+	return images.filter(
+		(image, i) =>
+			(sizes[image.src] ?? 0) >= PICTURE_MIN_PX &&
+			images.findIndex((other) => other.src === image.src) === i,
+	);
+};
+
+/**
+ * The banner's pictures, as on a rolling pin: as wide as the banner's screen,
+ * rolling through it from top to bottom at a steady pace, one after another
+ * and round again, behind the text. The screen shows the strip of them that
+ * fits; the banner keeps its size whatever the pictures' (bannerRoll.css).
+ */
+const PictureRoll: React.FC<{ pictures: { src: string; alt: string }[] }> = ({
+	pictures,
+}) => {
+	const strip = useRef<HTMLSpanElement>(null);
+	const [seconds, setSeconds] = useState<number>();
+	useLayoutEffect(() => {
+		const measure = () => {
+			// Two copies of the pictures, one after the other: the strip rolls by one.
+			const height = (strip.current?.offsetHeight ?? 0) / 2;
+			if (height > 0) {
+				setSeconds(Math.max(4, height / ROLL_PX_PER_SECOND));
+			}
+		};
+		measure();
+		const observer = new ResizeObserver(measure);
+		if (strip.current) {
+			observer.observe(strip.current);
+		}
+		return () => observer.disconnect();
+	}, []);
+	return (
+		<span
+			className="banner-roll"
+			role="img"
+			aria-label={
+				pictures
+					.map((p) => p.alt)
+					.filter(Boolean)
+					.join(", ") || "Picture"
+			}
+			data-testid="announcement-picture-roll"
+		>
+			<span
+				ref={strip}
+				className="banner-roll-strip"
+				style={{ animationDuration: `${seconds ?? 30}s` }}
+			>
+				{[0, 1].flatMap((copy) =>
+					pictures.map((p) => (
+						<img
+							key={`${copy}-${p.src}`}
+							src={p.src}
+							alt=""
+							draggable={false}
+						/>
+					)),
+				)}
+			</span>
+		</span>
+	);
+};
 
 // The crawl's pace, in pixels per second.
 const CRAWL_PX_PER_SECOND: Record<BannerSpeed, number> = {
@@ -405,6 +520,9 @@ export const BannerText: React.FC<BannerTextProps> = ({
 	className,
 }) => {
 	const message = parseInline(banner.message);
+	const pictureList = usePictures(imagesOf(message));
+	const pictures = new Set(pictureList.map((p) => p.src));
+	const roll = pictureList.length > 0 && <PictureRoll pictures={pictureList} />;
 	const crawl = banner.effect === "starwars";
 	const [crawlDone, setCrawlDone] = useState(false);
 	// A stylesheet effect on the whole message that played once: plain text.
@@ -438,7 +556,7 @@ export const BannerText: React.FC<BannerTextProps> = ({
 	const content = (
 		<>
 			{title && <strong>{title} </strong>}
-			{renderNodes(message, splitter, "m")}
+			{renderNodes(message, splitter, "m", pictures)}
 			{href && (
 				<>
 					{" "}
@@ -457,46 +575,54 @@ export const BannerText: React.FC<BannerTextProps> = ({
 	);
 	if (crawl && animate && !crawlDone && !prefersReducedMotion()) {
 		return (
-			<span
-				data-banner-text=""
-				className={cn(className, "banner-crawl-host")}
-				style={{ fontFamily }}
-			>
-				<Crawl
-					speed={banner.speed ?? "normal"}
-					repeat={banner.repeat}
-					onDone={() => setCrawlDone(true)}
+			<>
+				{roll}
+				<span
+					data-banner-text=""
+					data-over-picture={roll ? "" : undefined}
+					className={cn(className, "banner-crawl-host")}
+					style={{ fontFamily }}
 				>
-					{content}
-				</Crawl>
-			</span>
+					<Crawl
+						speed={banner.speed ?? "normal"}
+						repeat={banner.repeat}
+						onDone={() => setCrawlDone(true)}
+					>
+						{content}
+					</Crawl>
+				</span>
+			</>
 		);
 	}
 
 	const wholeAnimation =
 		plan?.unit === "whole" ? plan.animation?.(0, 1, banner.repeat) : undefined;
 	return (
-		<span
-			data-banner-text=""
-			data-fx-once={plan?.className && !banner.repeat ? "" : undefined}
-			className={cn(className, plan?.className)}
-			style={
-				wholeAnimation
-					? { display: "inline-block", fontFamily, animation: wholeAnimation }
-					: { fontFamily }
-			}
-			onAnimationEnd={
-				plan?.className && plan.unit === "whole"
-					? (event) => {
-							if (event.target === event.currentTarget) {
-								setFxDone(true);
+		<>
+			{roll}
+			<span
+				data-banner-text=""
+				data-over-picture={roll ? "" : undefined}
+				data-fx-once={plan?.className && !banner.repeat ? "" : undefined}
+				className={cn(className, plan?.className)}
+				style={
+					wholeAnimation
+						? { display: "inline-block", fontFamily, animation: wholeAnimation }
+						: { fontFamily }
+				}
+				onAnimationEnd={
+					plan?.className && plan.unit === "whole"
+						? (event) => {
+								if (event.target === event.currentTarget) {
+									setFxDone(true);
+								}
 							}
-						}
-					: undefined
-			}
-		>
-			{content}
-		</span>
+						: undefined
+				}
+			>
+				{content}
+			</span>
+		</>
 	);
 };
 

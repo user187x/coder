@@ -22,7 +22,6 @@ import {
 	scheduleToAutostart,
 } from "#/pages/WorkspaceSettingsPage/WorkspaceSchedulePage/schedule";
 import { ttlMsToAutostop } from "#/pages/WorkspaceSettingsPage/WorkspaceSchedulePage/ttl";
-import { pageTitle } from "#/utils/page";
 import { useWorkspaceSettings } from "../useWorkspaceSettings";
 import {
 	formValuesToAutostartRequest,
@@ -71,7 +70,7 @@ const WorkspaceSchedulePage: React.FC = () => {
 
 	return (
 		<div className="flex flex-col gap-12">
-			<title>{pageTitle(workspaceName, "Schedule")}</title>
+			{/* Platform: a card of the one settings page, whose layout titles it. */}
 
 			<SettingsHeader>
 				<SettingsHeaderTitle>Schedule</SettingsHeaderTitle>

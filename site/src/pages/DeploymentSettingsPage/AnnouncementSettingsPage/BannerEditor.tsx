@@ -394,6 +394,21 @@ export const BannerEditor: React.FC<BannerEditorProps> = ({
 						Also show on the sign-in page
 					</Label>
 				</div>
+				<div className="flex items-center gap-2 text-sm">
+					<Checkbox
+						id={`${id}-receipts`}
+						checked={form.receipts !== false}
+						onCheckedChange={(checked) =>
+							onChange({ receipts: checked === true })
+						}
+					/>
+					<Label htmlFor={`${id}-receipts`} className="font-normal">
+						Record who viewed it, and let them confirm it
+						<span className="text-content-secondary">
+							(the Viewed box and Confirm; untick for a greeting)
+						</span>
+					</Label>
+				</div>
 			</div>
 
 			<Collapsible>

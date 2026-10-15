@@ -1,0 +1,58 @@
+/*
+ * The banner's pictures (BannerText's PictureRoll), as on a rolling pin: as wide as the banner's screen, rolling
+ * through it from top to bottom, behind the text. The strip holds the pictures twice, one copy after the other, and
+ * moves up by one copy, so the roll goes round without a jump. The screen (bannerLcd.css) is the window: the banner
+ * keeps its size, whatever the pictures'.
+ */
+.banner-lcd {
+	isolation: isolate;
+}
+
+.banner-roll {
+	position: absolute;
+	inset: 0;
+	z-index: -1;
+	overflow: hidden;
+	border-radius: inherit;
+	pointer-events: none;
+}
+
+.banner-roll-strip {
+	display: block;
+	animation-name: banner-roll;
+	animation-timing-function: linear;
+	animation-iteration-count: infinite;
+}
+
+.banner-roll-strip img {
+	display: block;
+	width: 100%;
+	height: auto;
+}
+
+@keyframes banner-roll {
+	from {
+		transform: translateY(0);
+	}
+	to {
+		transform: translateY(-50%);
+	}
+}
+
+/* Text over a picture: a dark halo keeps it readable whatever is behind it. */
+[data-banner-text][data-over-picture] {
+	text-shadow:
+		0 0 2px #000,
+		0 0 6px #000,
+		0 0 12px rgb(0 0 0 / 0.8);
+}
+
+/* Without motion: the pictures' top, still. */
+@media (prefers-reduced-motion: reduce) {
+	.banner-roll-strip {
+		animation: none;
+	}
+}
+html[data-animations="off"] .banner-roll-strip {
+	animation: none;
+}

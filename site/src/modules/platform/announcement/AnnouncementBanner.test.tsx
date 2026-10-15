@@ -87,4 +87,22 @@ describe("AnnouncementBanner", () => {
 		expect(confirmed).toBeDisabled();
 		expect(localStorage.getItem("coder-banner-dismissed")).toBeNull();
 	});
+
+	it("records nothing without receipts: no Viewed, no Confirm, a plain close button", async () => {
+		const receipts = useBanner({ ...MockBanner, receipts: false });
+		render(<AnnouncementBanner placement="navbar" />);
+
+		const close = await screen.findByRole("button", {
+			name: "Dismiss this announcement",
+		});
+		expect(
+			screen.queryByRole("button", {
+				name: "Confirm that you have read this announcement",
+			}),
+		).toBeNull();
+		expect(screen.queryByTestId("announcement-viewed")).toBeNull();
+		await userEvent.click(close);
+		expect(localStorage.getItem("coder-banner-dismissed")).toBe(MockBanner.id);
+		expect(receipts).toEqual([]);
+	});
 });

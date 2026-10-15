@@ -5,7 +5,6 @@ import { API } from "#/api/api";
 import { WorkspaceExtrasAPI, workspaceIconsKey } from "#/api/workspaceVolumes";
 import { Loader } from "#/components/Loader/Loader";
 import { useWorkspaceIcons } from "#/modules/workspaces/WorkspaceIcon/useWorkspaceIcon";
-import { pageTitle } from "#/utils/page";
 import { useWorkspaceSettings } from "./useWorkspaceSettings";
 import type { WorkspaceSettingsFormValues } from "./WorkspaceSettingsForm";
 import { WorkspaceSettingsPageView } from "./WorkspaceSettingsPageView";
@@ -47,7 +46,7 @@ const WorkspaceSettingsPage: React.FC = () => {
 
 	return (
 		<>
-			<title>{pageTitle(workspaceName, "Settings")}</title>
+			{/* Platform: a card of the one settings page, whose layout titles it. */}
 
 			{icons.isLoading ? (
 				<Loader />

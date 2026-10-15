@@ -1,4 +1,5 @@
 import { cn } from "cn";
+import { XIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import type { Banner } from "#/api/platform";
@@ -152,7 +153,9 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 	onDismiss,
 }) => {
 	const queryClient = useQueryClient();
-	const receipts = placement !== "login";
+	// Receipts (who viewed it, Confirm): not on the sign-in page, and only when
+	// the announcement asks for them (a greeting need not).
+	const receipts = placement !== "login" && banner.receipts !== false;
 	const statusQuery = useQuery({
 		...announcementStatus(banner.id),
 		enabled: receipts,
@@ -237,9 +240,26 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 					}}
 				/>
 			)}
+			{!receipts && placement !== "login" && banner.dismissible && (
+				<DismissButton onDismiss={onDismiss} />
+			)}
 		</div>
 	);
 };
+
+/** Without receipts there is no Confirm to put a dismissible announcement away: a plain close button does. */
+const DismissButton: React.FC<{ onDismiss: () => void }> = ({ onDismiss }) => (
+	<button
+		type="button"
+		onClick={onDismiss}
+		aria-label="Dismiss this announcement"
+		title="Dismiss"
+		data-testid="announcement-dismiss"
+		className="flex size-[30px] shrink-0 cursor-pointer items-center justify-center rounded-[7px] border border-solid border-white/60 bg-white/15 p-0 text-inherit hover:brightness-110"
+	>
+		<XIcon aria-hidden className="size-4" />
+	</button>
+);
 
 /** "UTC-5", "UTC+5:30", "UTC": the browser's offset from UTC at that moment. */
 const utcOffset = (at: Date): string => {
