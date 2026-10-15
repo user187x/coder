@@ -68,6 +68,11 @@
 }
 
 .banner-lcd [data-banner-text] {
+	/*
+	 * The text effects' main colour (bannerFx.css): the screen's. Their default, currentColor, is no colour at all
+	 * for the ghostwrite, whose own text colour is transparent (only the white band would show).
+	 */
+	--ink: var(--banner-lcd-ink, #fff);
 	text-shadow: 0 0 6px
 		color-mix(in srgb, var(--banner-lcd-ink, #fff) 45%, transparent);
 }
