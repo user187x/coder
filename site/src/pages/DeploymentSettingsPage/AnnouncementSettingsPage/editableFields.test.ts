@@ -29,6 +29,7 @@ describe("editableFields", () => {
 			closeEffect: "fade",
 			markdown: false,
 			align: "center",
+			outline: false,
 			picture: "",
 			pictureFit: "span",
 			countdown: "",

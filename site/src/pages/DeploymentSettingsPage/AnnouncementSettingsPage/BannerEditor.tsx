@@ -7,6 +7,7 @@ import {
 	PlayIcon,
 	Repeat2Icon,
 	TimerIcon,
+	TypeOutlineIcon,
 } from "lucide-react";
 import { useId, useRef, useState } from "react";
 import {
@@ -252,6 +253,10 @@ export const BannerEditor: React.FC<BannerEditorProps> = ({
 					className="flex flex-wrap items-center gap-2"
 				>
 					<FontPicker form={form} onChange={onChange} />
+					<OutlineButton
+						on={form.outline === true}
+						onChange={(outline) => onChange({ outline })}
+					/>
 					<EffectPicker form={form} onChange={onChange} />
 					<ColorButton
 						label="Text color"
@@ -470,6 +475,31 @@ const FontPicker: React.FC<FieldProps> = ({ form, onChange }) => {
 		</Select>
 	);
 };
+
+/**
+ * Outline: the text ringed in the opposite colour, for legibility over a busy
+ * or changing background (any font, any effect: they are drawn as they are).
+ */
+const OutlineButton: React.FC<{
+	on: boolean;
+	onChange: (outline: boolean) => void;
+}> = ({ on, onChange }) => (
+	<Button
+		size="icon"
+		variant={on ? "default" : "outline"}
+		className="size-8"
+		aria-pressed={on}
+		aria-label="Outline the text"
+		title={
+			on
+				? "The text is outlined, to stay legible over any background (click to take the outline off)"
+				: "Outline the text, to stay legible over a light or dark background (the font and effect stay as they are)"
+		}
+		onClick={() => onChange(!on)}
+	>
+		<TypeOutlineIcon />
+	</Button>
+);
 
 /** The text effect; the crawl's speed for the crawl; whether it repeats. It plays on the preview above. */
 const EffectPicker: React.FC<FieldProps> = ({ form, onChange }) => (

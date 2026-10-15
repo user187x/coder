@@ -19,6 +19,7 @@ import {
 	hasContent,
 	LEVEL_COLORS,
 	lcdInk,
+	outlineColor,
 	parseColors,
 } from "./bannerTokens";
 import "./bannerLcd.css";
@@ -91,6 +92,7 @@ export const BannerLcd: React.FC<BannerLcdProps> = ({
 			{
 				"--banner-bg": bg,
 				"--banner-lcd-ink": lcdInk(bg, fg),
+				"--banner-outline": outlineColor(lcdInk(bg, fg)),
 				"--banner-lcd-radius": `${Math.max(2, radius - LCD_BEZEL)}px`,
 			} as React.CSSProperties
 		}

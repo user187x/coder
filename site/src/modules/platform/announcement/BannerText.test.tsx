@@ -196,6 +196,33 @@ describe("BannerText pictures", () => {
 		expect(text?.style.textAlign).toBe("right");
 	});
 
+	it("outlines the text when asked, its font and effect as they are", () => {
+		const { container, rerender } = render(
+			<BannerText
+				banner={{ ...banner, effect: "pewpew", repeat: true, font: "serif" }}
+				animate
+			/>,
+		);
+		const text = () =>
+			container.querySelector<HTMLElement>("[data-banner-text]");
+		expect(text()?.hasAttribute("data-outline")).toBe(false);
+		rerender(
+			<BannerText
+				banner={{
+					...banner,
+					effect: "pewpew",
+					repeat: true,
+					font: "serif",
+					outline: true,
+				}}
+				animate
+			/>,
+		);
+		expect(text()?.hasAttribute("data-outline")).toBe(true);
+		expect(text()).toHaveClass("fx-pewpew");
+		expect(text()?.style.fontFamily).toContain("serif");
+	});
+
 	it("rolls a spanning background picture", async () => {
 		const { findByTestId } = render(
 			<BannerText

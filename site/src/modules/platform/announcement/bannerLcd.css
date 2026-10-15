@@ -81,3 +81,16 @@
 .banner-lcd [data-banner-text].fx-shimmer {
 	text-shadow: none;
 }
+
+/*
+ * Outline (the announcement's setting): the message ringed by a hair of the opposite colour (--banner-outline), so
+ * it stays legible over a light or a dark background picture alike. A filter, drawn around whatever is painted - the
+ * font's own letters as they are, and every text effect's letters, glows and colours as they move - so neither the
+ * font nor the effect is changed: four 1px shadows, one after another, grow the text by a pixel all round.
+ */
+.banner-lcd [data-banner-text][data-outline] {
+	filter: drop-shadow(1px 0 0 var(--banner-outline, #000))
+		drop-shadow(-1px 0 0 var(--banner-outline, #000))
+		drop-shadow(0 1px 0 var(--banner-outline, #000))
+		drop-shadow(0 -1px 0 var(--banner-outline, #000));
+}

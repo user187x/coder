@@ -5,6 +5,7 @@ import {
 	fromMarkdown,
 	hasContent,
 	lcdInk,
+	outlineColor,
 	parseBlocks,
 	parseColors,
 	parseCountdown,
@@ -206,5 +207,13 @@ describe("hasContent", () => {
 		expect(hasContent({ message: "", countdown: "2026-10-20T18:00:00Z" })).toBe(
 			true,
 		);
+	});
+});
+
+describe("outlineColor", () => {
+	it("is the opposite of the text's colour", () => {
+		expect(outlineColor("#ffffff")).toBe("rgb(0 0 0 / 0.92)");
+		expect(outlineColor("#fde047")).toBe("rgb(0 0 0 / 0.92)");
+		expect(outlineColor("#1e40af")).toBe("rgb(255 255 255 / 0.92)");
 	});
 });

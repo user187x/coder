@@ -524,6 +524,7 @@ type BannerTextProps = {
 		| "font"
 		| "markdown"
 		| "align"
+		| "outline"
 		| "picture"
 		| "pictureFit"
 	>;
@@ -617,6 +618,7 @@ export const BannerText: React.FC<BannerTextProps> = ({
 				<span
 					data-banner-text=""
 					data-over-picture={roll ? "" : undefined}
+					data-outline={banner.outline ? "" : undefined}
 					className={cn(className, "banner-crawl-host")}
 					style={{ fontFamily, textAlign }}
 				>
@@ -640,6 +642,7 @@ export const BannerText: React.FC<BannerTextProps> = ({
 			<span
 				data-banner-text=""
 				data-over-picture={roll ? "" : undefined}
+				data-outline={banner.outline ? "" : undefined}
 				data-fx-once={plan?.className && !banner.repeat ? "" : undefined}
 				className={cn(className, plan?.className)}
 				style={

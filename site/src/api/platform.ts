@@ -1148,6 +1148,12 @@ export type Banner = {
 	markdown?: boolean;
 	/** Missing: "center". */
 	align?: BannerAlign;
+	/**
+	 * The message outlined in a contrasting colour (around whatever its font
+	 * and effect draw), to stay legible over any background picture. Missing:
+	 * off.
+	 */
+	outline?: boolean;
 	/** The banner's background picture (a same-site path or an http(s) URL); "" or missing: none. */
 	picture?: string;
 	/** How the background picture fills the banner's screen; missing: "span". */

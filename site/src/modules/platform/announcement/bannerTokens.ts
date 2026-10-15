@@ -70,6 +70,15 @@ const luminance = (hex: string): number | null => {
 };
 
 /**
+ * The outline around the message (its "Outline" setting): the opposite of the
+ * text's colour, so the text stands out of a light or a dark background alike.
+ */
+export const outlineColor = (ink: string): string =>
+	(luminance(ink) ?? 1) >= 0.3
+		? "rgb(0 0 0 / 0.92)"
+		: "rgb(255 255 255 / 0.92)";
+
+/**
  * The colour the message is lit in on the banner's screen, which is dark: the
  * banner's text colour, unless that is dark too (custom colours such as black
  * on yellow); then the banner's own colour if it is light, else white.
