@@ -25,7 +25,7 @@ export const OAuthSignInForm: React.FC<OAuthSignInFormProps> = ({
 				<Button
 					variant="outline"
 					asChild
-					className="size-20 rounded-xl p-3 [&>img]:size-12 [&>svg]:size-10"
+					className="size-20 rounded-xl p-3"
 					disabled={isSigningIn}
 					type="submit"
 				>
@@ -37,9 +37,14 @@ export const OAuthSignInForm: React.FC<OAuthSignInFormProps> = ({
 						data-testid="oidc-sign-in"
 					>
 						{authMethods.oidc.iconUrl ? (
-							<ExternalImage alt="" src={authMethods.oidc.iconUrl} />
+							// The button's own icon size (size-icon-lg) is for icons beside text.
+							<ExternalImage
+								alt=""
+								src={authMethods.oidc.iconUrl}
+								className="size-12!"
+							/>
 						) : (
-							<KeyIcon aria-hidden />
+							<KeyIcon aria-hidden className="size-10!" />
 						)}
 					</a>
 				</Button>

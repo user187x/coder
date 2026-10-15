@@ -37,7 +37,7 @@ const HISTORY = 30;
 
 /** The totals' line: its text size, shrunk as far as this to keep it one line (px). */
 const TOTALS_FONT_MAX = 14;
-const TOTALS_FONT_MIN = 8;
+const TOTALS_FONT_MIN = 7;
 
 const GROUP_LABEL: Record<HudMetric["group"], string> = {
 	totals: "Total",
@@ -165,7 +165,7 @@ const HudPage: React.FC = () => {
 								ref={totalsLine}
 								aria-label="Totals"
 								data-testid="hud-totals"
-								className="m-0 flex list-none flex-nowrap items-baseline justify-between gap-x-[2em] overflow-hidden whitespace-nowrap rounded-lg border border-solid border-border bg-surface-secondary/40 py-3 pl-5 pr-28 font-mono leading-5"
+								className="m-0 flex list-none flex-nowrap items-baseline justify-between gap-x-[1.75em] overflow-hidden whitespace-nowrap rounded-lg border border-solid border-border bg-surface-secondary/40 py-3 pl-4 pr-24 font-mono leading-5"
 								style={{ fontSize: `${totalsFont}px` }}
 							>
 								{totals.map((m) => (

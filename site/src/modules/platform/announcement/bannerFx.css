@@ -228,6 +228,10 @@ html[data-animations="off"] .fx-shimmer {
 [data-banner-text].fx-pewpew b::after {
 	animation-fill-mode: both;
 }
+/* Its plates are wide: a word that does not fit the line goes to the next one whole, not split between plates. */
+[data-banner-text].fx-flap {
+	overflow-wrap: normal;
+}
 [data-banner-text].fx-flap b {
 	display: inline-grid;
 	margin: 1px 1.5px;
