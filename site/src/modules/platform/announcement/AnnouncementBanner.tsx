@@ -11,7 +11,13 @@ import {
 import { isEmbeddedFrame } from "#/contexts/platformBoot";
 import { BannerScrollView } from "./BannerScrollView";
 import { BannerText } from "./BannerText";
-import { confirmBackground, LEVEL_COLORS, parseColors } from "./bannerTokens";
+import {
+	confirmBackground,
+	LEVEL_COLORS,
+	lcdInk,
+	parseColors,
+} from "./bannerTokens";
+import "./bannerLcd.css";
 import { useBannerLive, wasPushed } from "./useBannerLive";
 import {
 	type CertificateFingerprints,
@@ -54,6 +60,47 @@ const viewed = new Set<string>();
 
 export const bannerColors = (banner: Pick<Banner, "title" | "level">) =>
 	parseColors(banner.title) ?? LEVEL_COLORS[banner.level] ?? LEVEL_COLORS.info;
+
+type BannerLcdProps = {
+	/** The banner's colours: the screen is tinted with bg, the message lit in lcdInk. */
+	bg: string;
+	fg: string;
+	/** The banner's corner radius: the screen's corners follow it, less the bezel. */
+	radius: number;
+	children: React.ReactNode;
+};
+
+/** The bezel around the screen: the banner's padding at the top, bottom and left. */
+const LCD_BEZEL = 4;
+
+/** The banner's screen (bannerLcd.css): a long LCD set into the banner, holding the message. */
+export const BannerLcd: React.FC<BannerLcdProps> = ({
+	bg,
+	fg,
+	radius,
+	children,
+}) => (
+	<div
+		className="banner-lcd"
+		data-testid="announcement-lcd"
+		style={
+			{
+				"--banner-bg": bg,
+				"--banner-lcd-ink": lcdInk(bg, fg),
+				"--banner-lcd-radius": `${Math.max(2, radius - LCD_BEZEL)}px`,
+			} as React.CSSProperties
+		}
+	>
+		{children}
+	</div>
+);
+
+// The navbar's card is rounded 10px; full-width banners are square, their screen a little rounded.
+const CARD_RADIUS: Record<Placement, number> = {
+	navbar: 10,
+	page: 0,
+	login: 0,
+};
 
 type AnnouncementBannerProps = {
 	placement: Placement;
@@ -142,11 +189,10 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 			id="coder-system-banner"
 			role="status"
 			className={cn(
-				"flex items-center gap-3",
+				"flex items-center gap-1",
 				placement === "navbar"
-					? "ml-3 min-h-9 min-w-0 flex-1 rounded-[10px] py-1 pr-1 pl-1 text-[13px] leading-[18px] shadow-[0_1px_3px_rgb(0_0_0/.2),inset_0_0_0_1px_rgb(255_255_255/.14)]"
-					: "w-full justify-center px-6 py-2.5 text-center text-sm",
-				placement === "navbar" && !signedIn && "pr-3.5",
+					? "ml-3 min-h-9 min-w-0 flex-1 rounded-[10px] p-1 text-[13px] leading-[18px] shadow-[0_1px_3px_rgb(0_0_0/.2),inset_0_0_0_1px_rgb(255_255_255/.14)]"
+					: "w-full p-1 text-center text-sm",
 				wasPushed(banner.id) &&
 					"animate-in fade-in slide-in-from-top-2 duration-300",
 			)}
@@ -165,16 +211,19 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 				}
 			}}
 		>
-			{/* Scroll mode: the whole message at once, without waiting for its effect. */}
-			<BannerScrollView banner={banner} anchor={card} />
-			<BannerText
-				banner={banner}
-				animate
-				className={cn(
-					placement === "navbar" &&
-						"min-w-0 flex-1 overflow-hidden text-center [overflow-wrap:anywhere] line-clamp-2",
-				)}
-			/>
+			<BannerLcd bg={bg} fg={fg} radius={CARD_RADIUS[placement]}>
+				{/* Scroll mode: the whole message at once, without waiting for its effect. */}
+				<BannerScrollView banner={banner} anchor={card} />
+				<BannerText
+					banner={banner}
+					animate
+					className={cn(
+						"min-w-0 flex-1 text-center",
+						placement === "navbar" &&
+							"overflow-hidden [overflow-wrap:anywhere] line-clamp-2",
+					)}
+				/>
+			</BannerLcd>
 			{receipts && signedIn && viewedAt && <ViewedStamp viewedAt={viewedAt} />}
 			{receipts && signedIn && (
 				<ConfirmButton

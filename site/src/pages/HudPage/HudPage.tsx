@@ -6,7 +6,7 @@ import {
 	GaugeIcon,
 	RotateCcwIcon,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "react-query";
 import { Link as RouterLink } from "react-router";
 import type { HudMetric } from "#/api/platform";
@@ -30,9 +30,14 @@ import { HudGraphs } from "./HudGraphs";
 import { hudIcon } from "./hudIcons";
 import { applyOrder, elevate, readHudOrder, writeHudOrder } from "./hudOrder";
 import { SystemUptime } from "./SystemUptime";
+import { useFitText } from "./useFitText";
 
 /** How many updates each sparkline (and "change") covers: 30 × 10 s = 5 minutes. */
 const HISTORY = 30;
+
+/** The totals' line: its text size, shrunk as far as this to keep it one line (px). */
+const TOTALS_FONT_MAX = 14;
+const TOTALS_FONT_MIN = 8;
 
 const GROUP_LABEL: Record<HudMetric["group"], string> = {
 	totals: "Total",
@@ -61,6 +66,13 @@ const HudPage: React.FC = () => {
 	const allowed = Boolean(permissions.viewDeploymentConfig);
 	const { data, error } = useQuery({ ...hud(), enabled: allowed });
 	const [order, setOrder] = useState(readHudOrder);
+	const totalsLine = useRef<HTMLUListElement>(null);
+	const totalsFont = useFitText(
+		totalsLine,
+		TOTALS_FONT_MAX,
+		TOTALS_FONT_MIN,
+		data?.generatedAt,
+	);
 	// Each metric's recent values, and which ones moved with the latest update.
 	const [track, setTrack] = useState<{
 		series: Record<string, number[]>;
@@ -148,22 +160,26 @@ const HudPage: React.FC = () => {
 				{data && (
 					<>
 						<div className="relative">
+							{/* Every total on one line: the text shrinks (useFitText) rather than wrap. */}
 							<ul
+								ref={totalsLine}
 								aria-label="Totals"
-								className="m-0 flex list-none flex-wrap gap-x-8 gap-y-2 rounded-lg border border-solid border-border bg-surface-secondary/40 py-3 pl-5 pr-28 font-mono text-sm"
+								data-testid="hud-totals"
+								className="m-0 flex list-none flex-nowrap items-baseline justify-between gap-x-[2em] overflow-hidden whitespace-nowrap rounded-lg border border-solid border-border bg-surface-secondary/40 py-3 pl-5 pr-28 font-mono leading-5"
+								style={{ fontSize: `${totalsFont}px` }}
 							>
 								{totals.map((m) => (
-									<li key={m.id}>
+									<li key={m.id} className="shrink-0">
 										<MetricLink
 											metric={m}
-											className="flex items-baseline gap-2 text-inherit no-underline hover:underline"
+											className="flex items-baseline gap-[0.6em] text-inherit no-underline hover:underline"
 										>
 											<span className="text-content-secondary">{m.label}</span>
 											<span className="font-semibold tabular-nums text-content-primary">
 												{formatValue(m)}
 												{m.unit && m.value !== null ? ` ${m.unit}` : ""}
 											</span>
-											<Delta series={track.series[m.id]} />
+											<Delta series={track.series[m.id]} inline />
 										</MetricLink>
 									</li>
 								))}
@@ -204,7 +220,11 @@ const HudPage: React.FC = () => {
 	);
 };
 
-const Delta: React.FC<{ series?: number[] }> = ({ series }) => {
+/** `inline`: in the totals' line, its size following the line's. */
+const Delta: React.FC<{ series?: number[]; inline?: boolean }> = ({
+	series,
+	inline,
+}) => {
 	if (!series || series.length < 2) {
 		return null;
 	}
@@ -214,7 +234,10 @@ const Delta: React.FC<{ series?: number[] }> = ({ series }) => {
 	}
 	return (
 		<span
-			className="text-xs tabular-nums text-content-secondary"
+			className={cn(
+				"tabular-nums text-content-secondary",
+				inline ? "text-[0.85em]" : "text-xs",
+			)}
 			title="Change over the last few minutes"
 		>
 			{change > 0 ? "▲" : "▼"}{" "}

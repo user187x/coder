@@ -20,6 +20,7 @@ import (
 // @Produce json
 // @Tags Users
 // @Param user path string true "User ID, name, or me"
+// @Param algorithm query string false "Platform: the new key's algorithm (ed25519, ecdsa or rsa4096); default: the deployment's"
 // @Success 200 {object} codersdk.GitSSHKey
 // @Router /api/v2/users/{user}/gitsshkey [put]
 func (api *API) regenerateGitSSHKey(rw http.ResponseWriter, r *http.Request) {
@@ -36,6 +37,20 @@ func (api *API) regenerateGitSSHKey(rw http.ResponseWriter, r *http.Request) {
 	)
 	defer commitAudit()
 
+	// Platform: the user may pick the algorithm (Settings > SSH keys > Regenerate Key: RSA or ED25519).
+	algorithm := api.SSHKeygenAlgorithm
+	if requested := r.URL.Query().Get("algorithm"); requested != "" {
+		parsed, err := gitsshkey.ParseAlgorithm(requested)
+		if err != nil {
+			httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
+				Message: "Invalid SSH key algorithm.",
+				Detail:  err.Error(),
+			})
+			return
+		}
+		algorithm = parsed
+	}
+
 	oldKey, err := api.Database.GetGitSSHKey(ctx, user.ID)
 	if err != nil {
 		httpapi.InternalServerError(rw, err)
@@ -44,7 +59,7 @@ func (api *API) regenerateGitSSHKey(rw http.ResponseWriter, r *http.Request) {
 
 	aReq.Old = oldKey
 
-	privateKey, publicKey, err := gitsshkey.Generate(api.SSHKeygenAlgorithm)
+	privateKey, publicKey, err := gitsshkey.Generate(algorithm)
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
 			Message: "Internal error generating a new SSH keypair.",

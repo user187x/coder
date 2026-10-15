@@ -8,11 +8,16 @@ import {
 	SettingsHeader,
 	SettingsHeaderTitle,
 } from "#/components/SettingsHeader/SettingsHeader";
-import { SSHKeysPageView } from "./SSHKeysPageView";
+import {
+	SSH_KEY_TYPES,
+	type SSHKeyAlgorithm,
+	SSHKeysPageView,
+} from "./SSHKeysPageView";
 
 const SSHKeysPage: React.FC = () => {
-	const [isConfirmingRegeneration, setIsConfirmingRegeneration] =
-		useState(false);
+	// Platform: the key type being confirmed (Regenerate Key > RSA or ED25519).
+	const [confirming, setConfirming] = useState<SSHKeyAlgorithm | null>(null);
+	const keyType = SSH_KEY_TYPES.find((t) => t.algorithm === confirming);
 
 	const userSSHKeyQuery = useQuery(userSSHKey("me"));
 	const queryClient = useQueryClient();
@@ -29,22 +34,24 @@ const SSHKeysPage: React.FC = () => {
 				isLoading={userSSHKeyQuery.isLoading}
 				getSSHKeyError={userSSHKeyQuery.error}
 				sshKey={userSSHKeyQuery.data}
-				onRegenerateClick={() => setIsConfirmingRegeneration(true)}
+				onRegenerateClick={setConfirming}
 			/>
 
 			<ConfirmDialog
 				type="delete"
 				hideCancel={false}
-				open={isConfirmingRegeneration}
+				open={confirming !== null}
 				confirmLoading={regenerateSSHKeyMutation.isPending}
-				title="Regenerate SSH key?"
-				description="You will need to replace the public SSH key on services you use it with, and you'll need to rebuild existing workspaces."
+				title={`Regenerate SSH key as ${keyType?.label ?? ""}?`}
+				description={`A new ${keyType ? `${keyType.label} (${keyType.detail})` : ""} key replaces the current one. You will need to replace the public SSH key on services you use it with, and you'll need to rebuild existing workspaces.`}
 				confirmText="Confirm"
-				onClose={() => setIsConfirmingRegeneration(false)}
+				onClose={() => setConfirming(null)}
 				onConfirm={async () => {
 					try {
-						await regenerateSSHKeyMutation.mutateAsync();
-						toast.success("SSH Key regenerated successfully.");
+						await regenerateSSHKeyMutation.mutateAsync(confirming ?? undefined);
+						toast.success(
+							`SSH Key regenerated successfully (${keyType?.label ?? ""}).`,
+						);
 					} catch (error) {
 						toast.error(
 							getErrorMessage(error, "Failed to regenerate SSH key"),
@@ -53,7 +60,7 @@ const SSHKeysPage: React.FC = () => {
 							},
 						);
 					} finally {
-						setIsConfirmingRegeneration(false);
+						setConfirming(null);
 					}
 				}}
 			/>

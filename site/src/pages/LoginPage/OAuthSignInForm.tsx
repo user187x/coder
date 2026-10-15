@@ -1,5 +1,4 @@
 import { KeyIcon } from "lucide-react";
-import { useId } from "react";
 import type { AuthMethods } from "#/api/typesGenerated";
 import { Button } from "#/components/Button/Button";
 import { ExternalImage } from "#/components/ExternalImage/ExternalImage";
@@ -10,19 +9,23 @@ type OAuthSignInFormProps = {
 	authMethods?: AuthMethods;
 };
 
+/**
+ * Platform: the OIDC provider (Keycloak) as one large icon, centered. Everyone
+ * knows what it is for, so its sign-in text is not shown: it is the button's
+ * accessible name only.
+ */
 export const OAuthSignInForm: React.FC<OAuthSignInFormProps> = ({
 	isSigningIn,
 	redirectTo,
 	authMethods,
 }) => {
 	return (
-		<div className="grid gap-4">
+		<div className="flex justify-center">
 			{authMethods?.oidc.enabled && (
 				<Button
 					variant="outline"
 					asChild
-					className="w-full"
-					size="lg"
+					className="size-20 rounded-xl p-3 [&>img]:size-12 [&>svg]:size-10"
 					disabled={isSigningIn}
 					type="submit"
 				>
@@ -30,37 +33,17 @@ export const OAuthSignInForm: React.FC<OAuthSignInFormProps> = ({
 						href={`/api/v2/users/oidc/callback?redirect=${encodeURIComponent(
 							redirectTo,
 						)}`}
+						aria-label={authMethods.oidc.signInText || "OpenID Connect"}
+						data-testid="oidc-sign-in"
 					>
 						{authMethods.oidc.iconUrl ? (
-							<OidcIcon iconUrl={authMethods.oidc.iconUrl} />
+							<ExternalImage alt="" src={authMethods.oidc.iconUrl} />
 						) : (
-							<KeyIcon />
+							<KeyIcon aria-hidden />
 						)}
-						{authMethods.oidc.signInText || "OpenID Connect"}
 					</a>
 				</Button>
 			)}
 		</div>
-	);
-};
-
-type OidcIconProps = {
-	iconUrl: string;
-};
-
-const OidcIcon: React.FC<OidcIconProps> = ({ iconUrl }) => {
-	const hookId = useId();
-	const oidcId = `${hookId}-oidc`;
-
-	// Even if the URL is defined, there is a chance that the request for the
-	// image fails. Have to use blank alt text to avoid button from getting ugly
-	// if that happens, but also still need a way to inject accessible text
-	return (
-		<>
-			<ExternalImage alt="" src={iconUrl} aria-labelledby={oidcId} />
-			<div id={oidcId} className="sr-only">
-				Open ID Connect
-			</div>
-		</>
 	);
 };

@@ -1772,9 +1772,18 @@ class ApiMethods {
 		return response.data;
 	};
 
-	regenerateUserSSHKey = async (userId = "me"): Promise<TypesGen.GitSSHKey> => {
+	/**
+	 * Platform: `algorithm` picks the new key's type ("rsa4096", "ed25519" or
+	 * "ecdsa"); without it, the deployment's.
+	 */
+	regenerateUserSSHKey = async (
+		userId = "me",
+		algorithm?: string,
+	): Promise<TypesGen.GitSSHKey> => {
 		const response = await this.axios.put<TypesGen.GitSSHKey>(
 			`/api/v2/users/${userId}/gitsshkey`,
+			undefined,
+			algorithm ? { params: { algorithm } } : undefined,
 		);
 
 		return response.data;

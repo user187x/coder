@@ -52,6 +52,32 @@ export const confirmBackground = (bg: string): string => {
 	return `hsl(${hue} ${sat}% ${light}%)`;
 };
 
+/** Relative luminance (WCAG) of #rrggbb, or null for anything else. */
+const luminance = (hex: string): number | null => {
+	const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex);
+	if (!m) {
+		return null;
+	}
+	const [r, g, b] = [m[1], m[2], m[3]].map((x) => {
+		const c = Number.parseInt(x, 16) / 255;
+		return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+	});
+	return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+};
+
+/**
+ * The colour the message is lit in on the banner's screen, which is dark: the
+ * banner's text colour, unless that is dark too (custom colours such as black
+ * on yellow); then the banner's own colour if it is light, else white.
+ */
+export const lcdInk = (bg: string, fg: string): string => {
+	const light = (hex: string) => (luminance(hex) ?? 1) >= 0.18;
+	if (light(fg)) {
+		return fg;
+	}
+	return light(bg) ? bg : "#ffffff";
+};
+
 const COLORS_RE = /^\{\{colors bg=(#[0-9a-fA-F]{6}) fg=(#[0-9a-fA-F]{6})\}\}$/;
 const COUNTDOWN_RE =
 	/\{\{countdown\s+to=([0-9T:.\-+Z]+)(?:\s+format=(dhms|clock|words))?(?:\s+done="([^"]{0,80})")?\s*\}\}/;

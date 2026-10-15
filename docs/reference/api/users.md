@@ -655,9 +655,10 @@ curl -X PUT http://coder-server:8080/api/v2/users/{user}/gitsshkey \
 
 ### Parameters
 
-| Name   | In   | Type   | Required | Description          |
-|--------|------|--------|----------|----------------------|
-| `user` | path | string | true     | User ID, name, or me |
+| Name        | In    | Type   | Required | Description                                                                              |
+|-------------|-------|--------|----------|------------------------------------------------------------------------------------------|
+| `user`      | path  | string | true     | User ID, name, or me                                                                     |
+| `algorithm` | query | string | false    | Platform: the new key's algorithm (ed25519, ecdsa or rsa4096); default: the deployment's |
 
 ### Example responses
 

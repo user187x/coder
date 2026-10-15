@@ -198,7 +198,8 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 				title={open ? "Close" : "Read the whole announcement"}
 				data-testid="announcement-scroll-toggle"
 				onClick={() => (open ? close() : setOpen(true))}
-				className="flex size-[30px] shrink-0 cursor-pointer items-center justify-center rounded-[7px] border border-solid border-white/60 bg-white/15 p-0 text-inherit"
+				// A key on the banner's screen (BannerLcd), at its left.
+				className="flex size-[26px] shrink-0 cursor-pointer items-center justify-center rounded-[5px] border border-solid border-white/35 bg-white/[0.07] p-0 text-inherit hover:bg-white/15"
 			>
 				<ChevronDownIcon
 					aria-hidden

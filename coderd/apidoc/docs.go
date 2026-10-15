@@ -13321,6 +13321,12 @@ const docTemplate = `{
                         "name": "user",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Platform: the new key's algorithm (ed25519, ecdsa or rsa4096); default: the deployment's",
+                        "name": "algorithm",
+                        "in": "query"
                     }
                 ],
                 "responses": {

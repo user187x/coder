@@ -1043,6 +1043,9 @@ export const BANNER_EFFECTS = [
 	"pulse",
 	"rainbow",
 	"starwars",
+	"pewpew",
+	"flap",
+	"shimmer",
 ] as const;
 export type BannerEffect = (typeof BANNER_EFFECTS)[number];
 

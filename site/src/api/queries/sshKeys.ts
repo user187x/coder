@@ -16,7 +16,8 @@ export const regenerateUserSSHKey = (
 	queryClient: QueryClient,
 ) => {
 	return {
-		mutationFn: () => API.regenerateUserSSHKey(userId),
+		mutationFn: (algorithm?: string) =>
+			API.regenerateUserSSHKey(userId, algorithm),
 		onSuccess: (newKey: GitSSHKey) => {
 			queryClient.setQueryData(getUserSSHKeyQueryKey(userId), newKey);
 		},

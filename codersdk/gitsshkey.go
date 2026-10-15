@@ -52,6 +52,24 @@ func (c *Client) RegenerateGitSSHKey(ctx context.Context, user string) (GitSSHKe
 	return gitsshkey, ReadBodyAsJSON(res, &gitsshkey)
 }
 
+// RegenerateGitSSHKeyWithAlgorithm is RegenerateGitSSHKey with the new key's
+// algorithm chosen (platform): "ed25519", "ecdsa" or "rsa4096".
+func (c *Client) RegenerateGitSSHKeyWithAlgorithm(ctx context.Context, user string, algorithm string) (GitSSHKey, error) {
+	res, err := c.Request(ctx, http.MethodPut, fmt.Sprintf("/api/v2/users/%s/gitsshkey", user), nil,
+		WithQueryParam("algorithm", algorithm))
+	if err != nil {
+		return GitSSHKey{}, xerrors.Errorf("execute request: %w", err)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return GitSSHKey{}, ReadBodyAsError(res)
+	}
+
+	var gitsshkey GitSSHKey
+	return gitsshkey, ReadBodyAsJSON(res, &gitsshkey)
+}
+
 // ImportGitSSHKeyRequest is a private key the user brings as their Git SSH key
 // (platform: the key of their PKCS#12 certificate).
 type ImportGitSSHKeyRequest struct {

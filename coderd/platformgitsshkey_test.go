@@ -14,6 +14,7 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	"github.com/coder/coder/v2/coderd/coderdtest"
+	"github.com/coder/coder/v2/coderd/gitsshkey"
 	"github.com/coder/coder/v2/codersdk"
 	"github.com/coder/coder/v2/codersdk/agentsdk"
 	"github.com/coder/coder/v2/provisioner/echo"
@@ -80,4 +81,53 @@ func TestImportGitSSHKey(t *testing.T) {
 		_, err := member.ImportGitSSHKey(ctx, owner.UserID.String(), codersdk.ImportGitSSHKeyRequest{PrivateKey: keyPEM})
 		require.Error(t, err)
 	})
+}
+
+// Platform: Settings > SSH keys > Regenerate Key offers RSA and ED25519, whatever the deployment's default.
+func TestRegenerateGitSSHKeyWithAlgorithm(t *testing.T) {
+	t.Parallel()
+
+	client := coderdtest.New(t, &coderdtest.Options{SSHKeygenAlgorithm: gitsshkey.AlgorithmEd25519})
+	owner := coderdtest.CreateFirstUser(t, client)
+	member, _ := coderdtest.CreateAnotherUser(t, client, owner.OrganizationID)
+
+	ctx, cancel := context.WithTimeout(context.Background(), testutil.WaitLong)
+	defer cancel()
+
+	keyType := func(key codersdk.GitSSHKey) string {
+		t.Helper()
+		public, _, _, _, err := ssh.ParseAuthorizedKey([]byte(key.PublicKey))
+		require.NoError(t, err)
+		return public.Type()
+	}
+
+	rsaKey, err := member.RegenerateGitSSHKeyWithAlgorithm(ctx, codersdk.Me, "rsa4096")
+	require.NoError(t, err)
+	require.Equal(t, ssh.KeyAlgoRSA, keyType(rsaKey))
+	public, _, _, _, err := ssh.ParseAuthorizedKey([]byte(rsaKey.PublicKey))
+	require.NoError(t, err)
+	cryptoKey, ok := public.(ssh.CryptoPublicKey)
+	require.True(t, ok)
+	rsaPublic, ok := cryptoKey.CryptoPublicKey().(*rsa.PublicKey)
+	require.True(t, ok)
+	require.Equal(t, 4096, rsaPublic.N.BitLen())
+
+	edKey, err := member.RegenerateGitSSHKeyWithAlgorithm(ctx, codersdk.Me, "ed25519")
+	require.NoError(t, err)
+	require.Equal(t, ssh.KeyAlgoED25519, keyType(edKey))
+
+	// No algorithm: the deployment's, as before.
+	_, err = member.RegenerateGitSSHKeyWithAlgorithm(ctx, codersdk.Me, "rsa4096")
+	require.NoError(t, err)
+	defaultKey, err := member.RegenerateGitSSHKey(ctx, codersdk.Me)
+	require.NoError(t, err)
+	require.Equal(t, ssh.KeyAlgoED25519, keyType(defaultKey))
+
+	_, err = member.RegenerateGitSSHKeyWithAlgorithm(ctx, codersdk.Me, "dsa")
+	var sdkErr *codersdk.Error
+	require.ErrorAs(t, err, &sdkErr)
+	require.Equal(t, http.StatusBadRequest, sdkErr.StatusCode())
+	stored, err := member.GitSSHKey(ctx, codersdk.Me)
+	require.NoError(t, err)
+	require.Equal(t, defaultKey.PublicKey, stored.PublicKey, "a refused algorithm leaves the key alone")
 }

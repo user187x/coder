@@ -22,7 +22,6 @@ export const LoginPageView: React.FC<LoginPageViewProps> = ({
 	authMethods,
 	error,
 	isLoading,
-	buildInfo,
 	isSigningIn,
 	onSignIn,
 	redirectTo,
@@ -64,15 +63,12 @@ export const LoginPageView: React.FC<LoginPageViewProps> = ({
 						onSubmit={onSignIn}
 					/>
 				)}
-				<footer className="text-xs text-content-secondary mt-6">
-					<div>
-						Copyright &copy; {new Date().getFullYear()} Coder Technologies, Inc.
-					</div>
-					<div>{buildInfo?.version}</div>
-					{tosAccepted && (
+				{/* Platform: no footer (copyright and version); the terms, once accepted, stay linked. */}
+				{tosAccepted && (
+					<div className="mt-6 text-xs text-content-secondary">
 						<TermsOfServiceLink url={authMethods?.terms_of_service_url} />
-					)}
-				</footer>
+					</div>
+				)}
 			</div>
 		</div>
 	);

@@ -100,7 +100,7 @@ export const ForMember: Story = {
 			screen.queryByTestId("update-check-notice"),
 		).not.toBeInTheDocument();
 		await expect(
-			canvas.queryByRole("button", { name: "Admin" }),
+			canvas.queryByRole("button", { name: "Settings" }),
 		).not.toBeInTheDocument();
 		await expect(
 			canvas.queryByRole("link", { name: "Models" }),
@@ -132,7 +132,7 @@ export const CustomOrganizationRoleCanOpenMCPServers: Story = {
 	play: async ({ canvasElement }) => {
 		const user = userEvent.setup();
 		const canvas = within(canvasElement);
-		await user.click(await canvas.findByRole("button", { name: "Admin" }));
+		await user.click(await canvas.findByRole("button", { name: "Settings" }));
 		await user.click(
 			await screen.findByRole("menuitem", { name: "Super Intelligence" }),
 		);

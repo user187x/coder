@@ -9,6 +9,7 @@ import {
 import type { Banner, BannerEffect, BannerSpeed } from "#/api/platform";
 import { bannerFontStack } from "./bannerFonts";
 import "./bannerCrawl.css";
+import "./bannerFx.css";
 import {
 	type Countdown,
 	countdownText,
@@ -55,7 +56,18 @@ const CountdownText: React.FC<{ countdown: Countdown }> = ({ countdown }) => {
 type EffectPlan = {
 	/** Animates each character, each word, or the whole message. */
 	unit: "char" | "word" | "whole";
-	animation: (index: number, count: number, repeat: boolean) => string;
+	/** An animation set inline on each unit (or on the whole message). */
+	animation?: (index: number, count: number, repeat: boolean) => string;
+	/**
+	 * A stylesheet effect (bannerFx.css): the message's class. Each letter is a
+	 * <b> indexed by --i, which delays it.
+	 */
+	className?: string;
+	/**
+	 * At most this many letters' delays: a longer message's letters are indexed
+	 * closer together, so its last letter does not wait half a minute.
+	 */
+	maxIndex?: number;
 };
 
 // Delay between letters: `per` ms, but never more than `total` ms for the
@@ -116,6 +128,15 @@ const EFFECTS: Record<
 		unit: "char",
 		animation: staggered("announce-rainbow", 2600, "linear", 60, 1200),
 	},
+	pewpew: { unit: "char", className: "fx-pewpew", maxIndex: 12 },
+	flap: { unit: "char", className: "fx-flap", maxIndex: 14 },
+	shimmer: { unit: "whole", className: "fx-shimmer" },
+};
+
+/** A letter's --i: its index, closer together past plan.maxIndex letters. */
+const letterIndex = (plan: EffectPlan, index: number, count: number) => {
+	const scale = plan.maxIndex ? Math.min(1, plan.maxIndex / count) : 1;
+	return Math.round(index * scale * 1000) / 1000;
 };
 
 const prefersReducedMotion = () =>
@@ -194,6 +215,21 @@ const renderText = (
 			return segment;
 		}
 		const index = splitter.next++;
+		if (splitter.plan.className) {
+			return (
+				<b
+					key={`${key}-${i}`}
+					style={
+						{
+							"--i": letterIndex(splitter.plan, index, splitter.count),
+						} as React.CSSProperties
+					}
+				>
+					{segment}
+				</b>
+			);
+		}
+		const animation = splitter.plan.animation;
 		return (
 			<span
 				key={`${key}-${i}`}
@@ -201,13 +237,7 @@ const renderText = (
 				style={
 					splitter.typed !== undefined
 						? { visibility: index < splitter.typed ? "visible" : "hidden" }
-						: {
-								animation: splitter.plan.animation(
-									index,
-									splitter.count,
-									splitter.repeat,
-								),
-							}
+						: { animation: animation?.(index, splitter.count, splitter.repeat) }
 				}
 			>
 				{segment}
@@ -362,11 +392,16 @@ export const BannerText: React.FC<BannerTextProps> = ({
 	const message = parseInline(banner.message);
 	const crawl = banner.effect === "starwars";
 	const [crawlDone, setCrawlDone] = useState(false);
+	// A stylesheet effect on the whole message that played once: plain text.
+	const [fxDone, setFxDone] = useState(false);
 	const effect =
 		banner.effect !== "none" && banner.effect !== "starwars"
 			? EFFECTS[banner.effect]
 			: undefined;
-	const plan = animate && effect && !prefersReducedMotion() ? effect : null;
+	const plan =
+		animate && effect && !(fxDone && !banner.repeat) && !prefersReducedMotion()
+			? effect
+			: null;
 	const count =
 		plan && plan.unit !== "whole" ? countUnits(message, plan.unit) : 0;
 	const timedTypewriter = banner.effect === "typewriter" && banner.repeat;
@@ -423,18 +458,26 @@ export const BannerText: React.FC<BannerTextProps> = ({
 		);
 	}
 
+	const wholeAnimation =
+		plan?.unit === "whole" ? plan.animation?.(0, 1, banner.repeat) : undefined;
 	return (
 		<span
 			data-banner-text=""
-			className={className}
+			data-fx-once={plan?.className && !banner.repeat ? "" : undefined}
+			className={cn(className, plan?.className)}
 			style={
-				plan?.unit === "whole"
-					? {
-							display: "inline-block",
-							fontFamily,
-							animation: plan.animation(0, 1, banner.repeat),
-						}
+				wholeAnimation
+					? { display: "inline-block", fontFamily, animation: wholeAnimation }
 					: { fontFamily }
+			}
+			onAnimationEnd={
+				plan?.className && plan.unit === "whole"
+					? (event) => {
+							if (event.target === event.currentTarget) {
+								setFxDone(true);
+							}
+						}
+					: undefined
 			}
 		>
 			{content}

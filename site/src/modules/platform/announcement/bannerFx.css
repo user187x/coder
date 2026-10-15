@@ -1,0 +1,249 @@
+/*
+ * The announcement's stylesheet text effects (BannerText): Pew-Pew, Split-Flap and Ghostwrite, as they were given
+ * (motion, timing curves, colours). The per-letter ones index each letter with an inline --i; the colour tokens
+ * --ink, --ink-2 and --ink-3 can be overridden. After them, what the banner changes around them: its own text size,
+ * wrapping like text, and playing once without "Repeat continuously".
+ */
+
+/* Colour tokens — override to re-skin the effect:
+   --ink    main text colour (defaults to currentColor)
+   --ink-2  primary accent   --ink-3  secondary accent */
+:where(.fx-pewpew, .fx-flap, .fx-shimmer) {
+	--ink: currentColor;
+	--ink-2: #ff4fd8;
+	--ink-3: #4ff8ff;
+}
+
+/* 93 Pew-Pew — each letter fires in as a stretched laser bolt, flashes white
+   on impact with a spark, recoils and settles into a faint glow */
+.fx-pewpew {
+	font:
+		700 34px / 1.1 "JetBrains Mono",
+		monospace;
+	letter-spacing: 0.06em;
+	color: var(--ink);
+	display: inline-flex;
+}
+.fx-pewpew b {
+	position: relative;
+	font-weight: inherit;
+	display: inline-block;
+	animation: fx-pewpew 3.2s infinite;
+	animation-delay: calc(var(--i) * 0.14s);
+}
+/* impact spark */
+.fx-pewpew b::after {
+	content: "";
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	width: 1.5em;
+	height: 1.5em;
+	margin: -0.75em 0 0 -0.75em;
+	border-radius: 50%;
+	background: radial-gradient(
+		circle,
+		#fff 0 7%,
+		var(--ink-3) 14%,
+		color-mix(in srgb, var(--ink-2) 50%, transparent) 26%,
+		transparent 46%
+	);
+	opacity: 0;
+	pointer-events: none;
+	animation: fx-pewpew-spark 3.2s ease-out infinite;
+	animation-delay: calc(var(--i) * 0.14s);
+}
+@keyframes fx-pewpew {
+	0% {
+		opacity: 0;
+		transform: translateX(-170px) scale(4, 0.08);
+		color: #fff;
+		text-shadow:
+			0 0 4px var(--ink-3),
+			0 0 10px var(--ink-3);
+		animation-timing-function: linear;
+	}
+	2% {
+		opacity: 1;
+		animation-timing-function: linear;
+	}
+	8% {
+		transform: translateX(0) scale(1.35, 0.7);
+		color: #fff;
+		text-shadow:
+			0 0 6px #fff,
+			0 0 16px var(--ink-3),
+			0 0 30px var(--ink-2);
+		animation-timing-function: cubic-bezier(0.2, 0.8, 0.3, 1);
+	}
+	12% {
+		transform: translateX(-6px) scale(0.88, 1.14);
+	}
+	17% {
+		transform: translateX(2px) scale(1.04, 0.97);
+	}
+	24%,
+	80% {
+		opacity: 1;
+		transform: none;
+		color: var(--ink);
+		text-shadow: 0 0 10px color-mix(in srgb, var(--ink-3) 40%, transparent);
+	}
+	92%,
+	100% {
+		opacity: 0;
+		transform: translateX(18px);
+		text-shadow: none;
+	}
+}
+@keyframes fx-pewpew-spark {
+	0%,
+	7% {
+		opacity: 0;
+		transform: scale(0);
+	}
+	8% {
+		opacity: 1;
+		transform: scale(0.45);
+	}
+	20% {
+		opacity: 0;
+		transform: scale(1.7);
+	}
+	100% {
+		opacity: 0;
+		transform: scale(1.7);
+	}
+}
+
+/* 19 Split-Flap — airport departure board; letters flip on their plates */
+.fx-flap {
+	font:
+		600 24px / 1 "JetBrains Mono",
+		monospace;
+	letter-spacing: 0;
+	display: inline-flex;
+	gap: 3px;
+	perspective: 400px;
+	color: var(--ink);
+}
+.fx-flap b {
+	font-weight: inherit;
+	display: grid;
+	place-items: center;
+	width: 1.5em;
+	height: 1.9em;
+	background: linear-gradient(
+		color-mix(in srgb, var(--ink) 16%, transparent) 0 49%,
+		color-mix(in srgb, var(--ink) 8%, transparent) 51% 100%
+	);
+	border-radius: 4px;
+	transform-origin: center;
+	animation: fx-flap 3.2s ease-in-out infinite;
+	animation-delay: calc(var(--i) * 0.12s);
+}
+@keyframes fx-flap {
+	0%,
+	55%,
+	100% {
+		transform: rotateX(0);
+	}
+	62% {
+		transform: rotateX(-88deg);
+	}
+	69% {
+		transform: rotateX(0);
+	}
+	74% {
+		transform: rotateX(-25deg);
+	}
+	79% {
+		transform: rotateX(0);
+	}
+}
+
+/* 82 Ghostwrite — the AI shimmer: a soft luminance band sweeps muted letters */
+.fx-shimmer {
+	font:
+		600 30px / 1.1 "JetBrains Mono",
+		monospace;
+	letter-spacing: 0.14em;
+	color: transparent;
+	background:
+		linear-gradient(
+			90deg,
+			color-mix(in srgb, var(--ink) 16%, transparent) 0 40%,
+			color-mix(in srgb, var(--ink) 55%, transparent) 46%,
+			#fff 50%,
+			color-mix(in srgb, var(--ink) 55%, transparent) 54%,
+			color-mix(in srgb, var(--ink) 16%, transparent) 60% 100%
+		)
+		0 0 / 300% 100%;
+	-webkit-background-clip: text;
+	background-clip: text;
+	animation: fx-shimmer 2.8s linear infinite;
+}
+@keyframes fx-shimmer {
+	to {
+		background-position: 300% 0;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.fx-pewpew b,
+	.fx-pewpew b::after,
+	.fx-flap b,
+	.fx-shimmer {
+		animation: none;
+	}
+	/* Still, the muted letters would be all there is: the text plain instead. */
+	.fx-shimmer {
+		color: var(--ink);
+		background: none;
+	}
+}
+html[data-animations="off"]
+	:is(.fx-pewpew b, .fx-pewpew b::after, .fx-flap b, .fx-shimmer) {
+	animation: none;
+}
+html[data-animations="off"] .fx-shimmer {
+	color: var(--ink);
+	background: none;
+}
+
+/*
+ * In the announcement banner: its own text size and line, and the message wraps (and is cut to the banner's
+ * lines) like any other text, so the container keeps the display the banner gives it. A letter waits hidden for
+ * its turn instead of showing until its delay ends. The plates of the split-flap stand in the line.
+ */
+[data-banner-text]:is(.fx-pewpew, .fx-flap, .fx-shimmer) {
+	font-size: inherit;
+	line-height: inherit;
+}
+[data-banner-text]:is(.fx-pewpew, .fx-flap) {
+	display: revert-layer;
+	gap: normal;
+}
+[data-banner-text].fx-pewpew b,
+[data-banner-text].fx-pewpew b::after {
+	animation-fill-mode: both;
+}
+[data-banner-text].fx-flap b {
+	display: inline-grid;
+	margin: 1px 1.5px;
+	vertical-align: middle;
+}
+
+/*
+ * Without "Repeat continuously" an effect plays once and the message stays: the pew-pew stops where its letters
+ * have settled (80% of the way), the split-flap after its flip, the ghostwrite after one sweep (BannerText then
+ * shows the plain text).
+ */
+[data-banner-text][data-fx-once].fx-pewpew b,
+[data-banner-text][data-fx-once].fx-pewpew b::after {
+	animation-iteration-count: 0.8;
+}
+[data-banner-text][data-fx-once].fx-flap b,
+[data-banner-text][data-fx-once].fx-shimmer {
+	animation-iteration-count: 1;
+}

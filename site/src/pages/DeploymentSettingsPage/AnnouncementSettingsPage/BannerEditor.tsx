@@ -72,6 +72,18 @@ const EFFECT_OPTIONS: Record<BannerEffect, { label: string; hint: string }> = {
 		label: "Star Wars crawl",
 		hint: "The opening crawl: the message rises and recedes into the distance at a steady pace, for long broadcasts. Developers can also read it at once in the banner's scroll-down view.",
 	},
+	pewpew: {
+		label: "Pew-Pew",
+		hint: "Each letter fires in as a laser bolt, flashes white on impact with a spark, recoils and settles into a faint glow.",
+	},
+	flap: {
+		label: "Split-Flap",
+		hint: "A departure board: every letter on its own plate, flipping over.",
+	},
+	shimmer: {
+		label: "Ghostwrite",
+		hint: "Muted letters with a soft band of light sweeping across them.",
+	},
 };
 
 const SPEED_LABELS: Record<BannerSpeed, string> = {

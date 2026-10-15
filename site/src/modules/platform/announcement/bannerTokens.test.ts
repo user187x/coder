@@ -2,6 +2,7 @@ import {
 	confirmBackground,
 	countdownText,
 	countdownToken,
+	lcdInk,
 	parseBlocks,
 	parseColors,
 	parseCountdown,
@@ -152,5 +153,16 @@ describe("confirmBackground", () => {
 		// A gray stays gray.
 		expect(confirmBackground("#808080")).toBe("hsl(0 0% 56%)");
 		expect(confirmBackground("not a colour")).toBe("rgb(255 255 255 / 0.15)");
+	});
+});
+
+describe("lcdInk", () => {
+	it("lights the message in the banner's text colour when it shows on a dark screen", () => {
+		expect(lcdInk("#1e40af", "#ffffff")).toBe("#ffffff");
+		expect(lcdInk("#000000", "#50fa7b")).toBe("#50fa7b");
+	});
+	it("uses the banner's colour, or white, when its text colour is dark", () => {
+		expect(lcdInk("#ffd700", "#000000")).toBe("#ffd700");
+		expect(lcdInk("#1e1e1e", "#202020")).toBe("#ffffff");
 	});
 });

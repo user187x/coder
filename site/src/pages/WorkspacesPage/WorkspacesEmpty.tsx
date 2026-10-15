@@ -86,9 +86,10 @@ export const WorkspacesEmpty: React.FC<WorkspacesEmptyProps> = ({
 								to={`${getLink(
 									linkToTemplate(t.organization_name, t.name),
 								)}/workspace`}
-								className="w-[320px] p-4 rounded-md border border-solid border-surface-quaternary text-left flex gap-4 no-underline text-inherit hover:bg-surface-grey"
+								// Platform: the template's name and description centered in the card.
+								className="w-[320px] p-4 rounded-md border border-solid border-surface-quaternary text-center flex items-center gap-4 no-underline text-inherit hover:bg-surface-grey"
 							>
-								<div className="shrink-0 pt-1">
+								<div className="shrink-0">
 									<Avatar variant="icon" src={t.icon} fallback={t.name} />
 								</div>
 
