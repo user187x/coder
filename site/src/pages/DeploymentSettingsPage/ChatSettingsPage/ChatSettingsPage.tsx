@@ -318,8 +318,7 @@ const PairsCard: React.FC = () => {
 												title={`Message ${displayName(p)}`}
 												onClick={() => void openChatWith(p)}
 											>
-												<MessageSquareIcon />
-												{p.name ? p.name.split(" ")[0] : p.username}
+												<MessageSquareIcon />@{p.username}
 											</Button>
 										))}
 									</span>
