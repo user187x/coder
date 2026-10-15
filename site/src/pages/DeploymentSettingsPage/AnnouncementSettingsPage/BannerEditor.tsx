@@ -2,10 +2,12 @@ import { cn } from "cn";
 import { PlayIcon, TimerIcon } from "lucide-react";
 import { useId, useRef, useState } from "react";
 import {
+	BANNER_CLOSE_EFFECTS,
 	BANNER_EFFECTS,
 	BANNER_FONTS,
 	BANNER_LEVELS,
 	BANNER_SPEEDS,
+	type BannerCloseEffect,
 	type BannerEffect,
 	type BannerFields,
 	type BannerFont,
@@ -31,6 +33,7 @@ import {
 import { Spinner } from "#/components/Spinner/Spinner";
 import { Textarea } from "#/components/Textarea/Textarea";
 import { BannerPreview } from "#/modules/platform/announcement/BannerPreview";
+import { CLOSE_EFFECT_OPTIONS } from "#/modules/platform/announcement/bannerClose";
 import { BANNER_FONT_OPTIONS } from "#/modules/platform/announcement/bannerFonts";
 import {
 	colorsToken,
@@ -413,6 +416,8 @@ export const BannerEditor: React.FC<BannerEditorProps> = ({
 				</div>
 			</div>
 
+			<CloseField form={form} onChange={onChange} />
+
 			<Collapsible>
 				<CollapsibleTrigger asChild>
 					<Button variant="subtle" size="sm" className="self-start">
@@ -477,6 +482,86 @@ export const BannerEditor: React.FC<BannerEditorProps> = ({
 				</span>
 			</div>
 		</section>
+	);
+};
+
+/**
+ * Platform: how the banner goes away when someone dismisses it, and "Try
+ * it", which plays it on a preview (that then comes back).
+ */
+const CloseField: React.FC<{
+	form: BannerFields;
+	onChange: (change: Partial<BannerFields>) => void;
+}> = ({ form, onChange }) => {
+	const id = useId();
+	const effect = form.closeEffect ?? "fade";
+	const [trial, setTrial] = useState(0);
+	const [gone, setGone] = useState(false);
+	return (
+		<fieldset className="m-0 flex flex-col gap-3 border-0 p-0">
+			<legend className="mb-2 p-0 text-sm font-semibold">
+				Close transition
+			</legend>
+			<div className="flex flex-wrap items-center gap-4">
+				<Select
+					value={effect}
+					disabled={!form.dismissible}
+					onValueChange={(value) => {
+						const next = BANNER_CLOSE_EFFECTS.find((e) => e === value);
+						if (next) {
+							onChange({ closeEffect: next as BannerCloseEffect });
+						}
+					}}
+				>
+					<SelectTrigger
+						className="w-48"
+						aria-label="Close transition"
+						aria-describedby={`${id}-hint`}
+					>
+						<SelectValue />
+					</SelectTrigger>
+					<SelectContent>
+						{BANNER_CLOSE_EFFECTS.map((e) => (
+							<SelectItem key={e} value={e}>
+								{CLOSE_EFFECT_OPTIONS[e].label}
+							</SelectItem>
+						))}
+					</SelectContent>
+				</Select>
+				<Button
+					size="sm"
+					variant="outline"
+					disabled={!form.dismissible || effect === "none" || trial > 0}
+					onClick={() => setTrial((n) => n + 1)}
+				>
+					<PlayIcon />
+					Try it
+				</Button>
+			</div>
+			<p id={`${id}-hint`} className="m-0 text-sm text-content-secondary">
+				{form.dismissible
+					? CLOSE_EFFECT_OPTIONS[effect].hint
+					: "Only for an announcement people may dismiss."}
+			</p>
+			{trial > 0 && form.message && (
+				<div className="min-h-[46px]">
+					{!gone && (
+						<BannerPreview
+							key={trial}
+							banner={form}
+							closing
+							onClosed={() => {
+								setGone(true);
+								window.setTimeout(() => {
+									setGone(false);
+									setTrial(0);
+								}, 700);
+							}}
+						/>
+					)}
+				</div>
+			)}
+		</fieldset>
 	);
 };
 

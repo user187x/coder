@@ -12,6 +12,7 @@ import {
 import { isEmbeddedFrame } from "#/contexts/platformBoot";
 import { BannerScrollView } from "./BannerScrollView";
 import { BannerText } from "./BannerText";
+import { CloseLayers, useCloseTransition } from "./bannerClose";
 import {
 	confirmBackground,
 	LEVEL_COLORS,
@@ -186,11 +187,16 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 		}
 	}, [acked, banner.dismissible, onDismiss]);
 
+	// Dismissed here (the close button, or Confirm): it goes with its close transition.
+	const closeEffect = banner.closeEffect ?? "fade";
+	const close = useCloseTransition(closeEffect, onDismiss);
+
 	return (
 		<div
 			ref={card}
 			id="coder-system-banner"
 			role="status"
+			{...close.props}
 			className={cn(
 				"flex items-center gap-1",
 				placement === "navbar"
@@ -227,6 +233,7 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 					)}
 				/>
 			</BannerLcd>
+			{close.closing && <CloseLayers effect={closeEffect} />}
 			{receipts && signedIn && viewedAt && <ViewedStamp viewedAt={viewedAt} />}
 			{receipts && signedIn && (
 				<ConfirmButton
@@ -235,13 +242,13 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 					onConfirm={() => {
 						confirm.mutate(banner.id);
 						if (banner.dismissible) {
-							onDismiss();
+							close.start();
 						}
 					}}
 				/>
 			)}
 			{!receipts && placement !== "login" && banner.dismissible && (
-				<DismissButton onDismiss={onDismiss} />
+				<DismissButton onDismiss={close.start} />
 			)}
 		</div>
 	);

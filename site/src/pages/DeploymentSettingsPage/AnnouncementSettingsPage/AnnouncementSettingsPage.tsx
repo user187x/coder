@@ -51,6 +51,7 @@ const FIELDS = [
 	"speed",
 	"font",
 	"receipts",
+	"closeEffect",
 ] as const;
 
 /** A banner saved before effects existed has none: that means "none", not "changed". */
@@ -61,6 +62,7 @@ const fieldsOf = ({ id: _id, ...banner }: Banner): BannerFields => ({
 	speed: banner.speed ?? "normal",
 	font: banner.font ?? "default",
 	receipts: banner.receipts ?? true,
+	closeEffect: banner.closeEffect ?? "fade",
 });
 
 const sameFields = (a: BannerFields, b: BannerFields) =>

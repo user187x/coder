@@ -56,3 +56,28 @@
 html[data-animations="off"] .banner-roll-strip {
 	animation: none;
 }
+
+/* A picture's other fits (PictureScreen): still, behind the text, the banner's size whatever the picture's. */
+.banner-picture {
+	position: absolute;
+	inset: 0;
+	z-index: -1;
+	border-radius: inherit;
+	pointer-events: none;
+	background-repeat: no-repeat;
+	background-position: center;
+}
+.banner-picture[data-fit="center"] {
+	background-size: contain;
+}
+.banner-picture[data-fit="fill"] {
+	background-size: cover;
+}
+.banner-picture[data-fit="stretch"] {
+	background-size: 100% 100%;
+}
+.banner-picture[data-fit="tile"] {
+	background-size: auto 100%;
+	background-repeat: repeat-x;
+	background-position: left center;
+}

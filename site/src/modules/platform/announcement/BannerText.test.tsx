@@ -1,5 +1,5 @@
 import { act, render } from "@testing-library/react";
-import { BannerText } from "./BannerText";
+import { BannerText, pictureFit } from "./BannerText";
 
 const banner = {
 	title: "",
@@ -150,6 +150,30 @@ describe("BannerText pictures", () => {
 	});
 	afterEach(() => {
 		vi.unstubAllGlobals();
+	});
+
+	it("draws a picture as its fit says, whatever its size", async () => {
+		const { findByTestId } = render(
+			<BannerText
+				banner={{
+					...banner,
+					effect: "none",
+					message: "![stars](/emojis/2b50.png#fit=tile)",
+				}}
+			/>,
+		);
+		const picture = await findByTestId("announcement-picture");
+		expect(picture.dataset.fit).toBe("tile");
+		expect(picture.style.backgroundImage).toBe(
+			'url("/emojis/2b50.png#fit=tile")',
+		);
+	});
+
+	it("reads a picture's fit from its address", () => {
+		expect(pictureFit("/p.png#fit=stretch")).toBe("stretch");
+		expect(pictureFit("/p.png#x=1&fit=center")).toBe("center");
+		expect(pictureFit("/p.png#fit=bogus")).toBeNull();
+		expect(pictureFit("/p.png")).toBeNull();
 	});
 
 	it("rolls a large picture behind the text, keeps a small one (an emoji) in the line", async () => {

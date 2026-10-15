@@ -1,0 +1,172 @@
+/*
+ * The banner's close transitions (bannerClose.tsx): played on the banner (data-closing) when someone dismisses it;
+ * the banner goes when its own animation ends. Without motion it goes at once (no animation is started).
+ */
+[data-closing] {
+	position: relative;
+	pointer-events: none;
+	animation-fill-mode: forwards;
+}
+
+[data-closing="fade"] {
+	animation: banner-close-fade 450ms ease-in forwards;
+}
+@keyframes banner-close-fade {
+	to {
+		opacity: 0;
+	}
+}
+
+/* A blind rolling up: folded back from the top and squeezed. */
+[data-closing="rollup"] {
+	transform-origin: top center;
+	animation: banner-close-rollup 560ms cubic-bezier(0.55, 0, 0.75, 0.4) forwards;
+}
+@keyframes banner-close-rollup {
+	0% {
+		transform: perspective(600px) rotateX(0) scaleY(1);
+	}
+	70% {
+		opacity: 1;
+	}
+	100% {
+		transform: perspective(600px) rotateX(75deg) scaleY(0.05);
+		opacity: 0;
+	}
+}
+
+[data-closing="wipe"] {
+	animation: banner-close-wipe 560ms ease-in-out forwards;
+}
+@keyframes banner-close-wipe {
+	from {
+		clip-path: inset(0 0 0 0);
+	}
+	to {
+		clip-path: inset(0 0 0 100%);
+	}
+}
+
+[data-closing="gaussian"] {
+	animation: banner-close-gaussian 650ms ease-in forwards;
+}
+@keyframes banner-close-gaussian {
+	0% {
+		filter: blur(0);
+	}
+	60% {
+		opacity: 0.85;
+	}
+	100% {
+		filter: blur(14px);
+		opacity: 0;
+	}
+}
+
+/* Ever bigger pixels (the SVG filters of CloseLayers), then gone. */
+[data-closing="pixelate"] {
+	animation: banner-close-pixelate 760ms linear forwards;
+}
+@keyframes banner-close-pixelate {
+	0% {
+		filter: url(#banner-px-2);
+	}
+	20% {
+		filter: url(#banner-px-4);
+	}
+	40% {
+		filter: url(#banner-px-8);
+	}
+	60% {
+		filter: url(#banner-px-12);
+	}
+	80% {
+		filter: url(#banner-px-16);
+		opacity: 1;
+	}
+	100% {
+		filter: url(#banner-px-16);
+		opacity: 0;
+	}
+}
+
+/* Rising, blurring, vanishing from the bottom up: a soft edge sweeps up through it as it drifts away. */
+[data-closing="evaporate"] {
+	-webkit-mask-image: linear-gradient(to top, transparent 0 35%, #000 65% 100%);
+	mask-image: linear-gradient(to top, transparent 0 35%, #000 65% 100%);
+	-webkit-mask-size: 100% 300%;
+	mask-size: 100% 300%;
+	-webkit-mask-position: 0 0%;
+	mask-position: 0 0%;
+	animation: banner-close-evaporate 1000ms linear forwards;
+}
+@keyframes banner-close-evaporate {
+	0% {
+		-webkit-mask-position: 0 15%;
+		mask-position: 0 15%;
+		transform: none;
+		filter: blur(0);
+	}
+	100% {
+		-webkit-mask-position: 0 100%;
+		mask-position: 0 100%;
+		transform: translateY(-14px) scale(1.03);
+		filter: blur(5px);
+		opacity: 0;
+	}
+}
+
+/* Green code raining over the banner while it dissolves (its contents and colours go; the rain stays to the end). */
+[data-closing="matrix"] {
+	animation: banner-close-matrix 1100ms ease-in forwards;
+}
+[data-closing="matrix"] > :not(.banner-matrix) {
+	animation: banner-close-matrix-content 900ms ease-in forwards;
+}
+@keyframes banner-close-matrix {
+	60% {
+		background-color: rgb(0 20 0 / 0.9);
+	}
+	100% {
+		background-color: transparent;
+		box-shadow: none;
+	}
+}
+@keyframes banner-close-matrix-content {
+	40% {
+		filter: sepia(1) hue-rotate(70deg) saturate(5) brightness(0.8);
+		opacity: 0.8;
+	}
+	100% {
+		filter: sepia(1) hue-rotate(70deg) saturate(5) brightness(0.4);
+		opacity: 0;
+	}
+}
+.banner-matrix {
+	position: absolute;
+	inset: 0;
+	z-index: 2;
+	overflow: hidden;
+	border-radius: inherit;
+	pointer-events: none;
+}
+.banner-matrix span {
+	position: absolute;
+	top: 0;
+	width: 1ch;
+	font:
+		600 10px / 10px "JetBrains Mono",
+		monospace;
+	color: #50fa7b;
+	text-shadow: 0 0 4px #50fa7b;
+	writing-mode: vertical-rl;
+	text-orientation: upright;
+	transform: translateY(-110%);
+	animation: banner-matrix-fall 900ms linear forwards;
+}
+@keyframes banner-matrix-fall {
+	to {
+		transform: translateY(160%);
+		opacity: 0.2;
+	}
+}

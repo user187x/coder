@@ -12,7 +12,7 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "#/components/Tooltip/Tooltip";
-import { BuildParametersPopover } from "./BuildParametersPopover";
+import { WorkspaceMoreActions } from "#/modules/workspaces/WorkspaceMoreActions/WorkspaceMoreActions";
 
 export type ActionButtonProps = {
 	loading?: boolean;
@@ -106,10 +106,11 @@ export const StartButton: React.FC<ActionButtonPropsWithWorkspace> = ({
 	return (
 		<div className="flex gap-1 items-center">
 			{mainButton}
-			<BuildParametersPopover
-				label="Start with build parameters"
+			{/* Platform: every workspace action under the arrow (build parameters first). */}
+			<WorkspaceMoreActions
 				workspace={workspace}
-				disabled={loading}
+				variant="arrow"
+				disabled={Boolean(loading)}
 			/>
 		</div>
 	);
@@ -146,10 +147,11 @@ export const RestartButton: React.FC<ActionButtonPropsWithWorkspace> = ({
 				<RotateCcwIcon />
 				{loading ? <>Restarting&hellip;</> : <>Restart&hellip;</>}
 			</TopbarButton>
-			<BuildParametersPopover
-				label="Restart with build parameters"
+			{/* Platform: every workspace action under the arrow (build parameters first). */}
+			<WorkspaceMoreActions
 				workspace={workspace}
-				disabled={loading}
+				variant="arrow"
+				disabled={Boolean(loading)}
 			/>
 		</div>
 	);

@@ -67,6 +67,18 @@ export const WorkspaceActions: React.FC<WorkspaceActionsProps> = ({
 		},
 	);
 
+	// Start and Restart carry the actions' arrow (Buttons.tsx).
+	const shown: readonly ActionType[] = isUpdating
+		? ["updating"]
+		: isRestarting
+			? ["restarting"]
+			: actions;
+	const hasActionsArrow = shown.some((action) =>
+		(["start", "starting", "restart", "restarting"] as ActionType[]).includes(
+			action,
+		),
+	);
+
 	const tooltipText = getTooltipText(
 		workspace,
 		permissions.updateWorkspaceVersion,
@@ -182,7 +194,15 @@ export const WorkspaceActions: React.FC<WorkspaceActionsProps> = ({
 				/>
 			)}
 
-			<WorkspaceMoreActions workspace={workspace} disabled={!canAcceptJobs} />
+			{/* Platform: no ⋮ menu; its actions are under the arrow beside Start or Restart, or on their own here
+			    when neither is shown (stopping, failed, updating, ...). */}
+			{!hasActionsArrow && (
+				<WorkspaceMoreActions
+					workspace={workspace}
+					variant="arrow"
+					disabled={!canAcceptJobs}
+				/>
+			)}
 		</div>
 	);
 };

@@ -1064,6 +1064,32 @@ export const BANNER_EFFECTS = [
 ] as const;
 export type BannerEffect = (typeof BANNER_EFFECTS)[number];
 
+/** How the banner goes away when someone dismisses it (the banner service checks the same list). */
+export const BANNER_CLOSE_EFFECTS = [
+	"none",
+	"pixelate",
+	"rollup",
+	"fade",
+	"wipe",
+	"matrix",
+	"gaussian",
+	"evaporate",
+] as const;
+export type BannerCloseEffect = (typeof BANNER_CLOSE_EFFECTS)[number];
+
+/**
+ * How a picture fills the banner's screen, written in its address
+ * (`![flag](/__coder-ui/banner-picture/<id>#fit=tile)`); none: span.
+ */
+export const PICTURE_FITS = [
+	"center",
+	"span",
+	"tile",
+	"fill",
+	"stretch",
+] as const;
+export type PictureFit = (typeof PICTURE_FITS)[number];
+
 /** The crawl's pace (effect "starwars"). */
 export const BANNER_SPEEDS = ["slow", "normal", "fast"] as const;
 export type BannerSpeed = (typeof BANNER_SPEEDS)[number];
@@ -1106,6 +1132,8 @@ export type Banner = {
 	 * announcements saved before it existed: on.
 	 */
 	receipts?: boolean;
+	/** Missing in announcements saved before it existed: "fade". */
+	closeEffect?: BannerCloseEffect;
 };
 
 export type BannerFields = Omit<Banner, "id">;

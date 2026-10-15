@@ -6,7 +6,13 @@ import {
 	useState,
 	useSyncExternalStore,
 } from "react";
-import type { Banner, BannerEffect, BannerSpeed } from "#/api/platform";
+import {
+	type Banner,
+	type BannerEffect,
+	type BannerSpeed,
+	PICTURE_FITS,
+	type PictureFit,
+} from "#/api/platform";
 import { bannerFontStack } from "./bannerFonts";
 import "./bannerCrawl.css";
 import "./bannerFx.css";
@@ -344,9 +350,16 @@ const imagesOf = (nodes: InlineNode[]): { src: string; alt: string }[] =>
 				: [],
 	);
 
+/** A picture's fit, from its address (`…#fit=tile`); none given: null. */
+export const pictureFit = (src: string): PictureFit | null => {
+	const fit = /#(?:.*&)?fit=([a-z]+)/.exec(src)?.[1];
+	return PICTURE_FITS.find((f) => f === fit) ?? null;
+};
+
 /**
- * The message's pictures: its images found, once loaded, to be at least
- * PICTURE_MIN_PX (until then they stay in the line).
+ * The message's pictures: its images given a fit (Insert picture), and those
+ * found, once loaded, to be at least PICTURE_MIN_PX (until then they stay in
+ * the line).
  */
 const usePictures = (images: { src: string; alt: string }[]) => {
 	const [sizes, setSizes] = useState<Record<string, number>>({});
@@ -372,8 +385,46 @@ const usePictures = (images: { src: string; alt: string }[]) => {
 	}, [key]);
 	return images.filter(
 		(image, i) =>
-			(sizes[image.src] ?? 0) >= PICTURE_MIN_PX &&
+			(pictureFit(image.src) !== null ||
+				(sizes[image.src] ?? 0) >= PICTURE_MIN_PX) &&
 			images.findIndex((other) => other.src === image.src) === i,
+	);
+};
+
+/** A URL for CSS url("…"): an address that passed safeHref, its quotes and backslashes dropped. */
+const cssUrl = (src: string) => `url("${src.replace(/["\\\n\r]/g, "")}")`;
+
+/**
+ * The banner's screen behind the text, from the message's pictures: the first
+ * one's fit decides. Span (the default): as wide as the screen, rolling through
+ * it (PictureRoll), with every other spanning picture after it. Center: the
+ * whole picture, fitted in the middle. Tile: repeated across, as tall as the
+ * screen. Fill: covering the screen, its middle showing. Stretch: squeezed to
+ * the screen's size. The banner keeps its size whatever the fit (bannerRoll.css).
+ */
+const PictureScreen: React.FC<{
+	pictures: { src: string; alt: string }[];
+}> = ({ pictures }) => {
+	const lead = pictures[0];
+	const fit = pictureFit(lead.src) ?? "span";
+	if (fit === "span") {
+		return (
+			<PictureRoll
+				pictures={pictures.filter(
+					(p) => (pictureFit(p.src) ?? "span") === "span",
+				)}
+			/>
+		);
+	}
+	return (
+		<span
+			className="banner-picture"
+			data-fit={fit}
+			role="img"
+			aria-label={lead.alt || "Picture"}
+			data-testid="announcement-picture"
+			style={{ backgroundImage: cssUrl(lead.src) }}
+		/>
 	);
 };
 
@@ -522,7 +573,9 @@ export const BannerText: React.FC<BannerTextProps> = ({
 	const message = parseInline(banner.message);
 	const pictureList = usePictures(imagesOf(message));
 	const pictures = new Set(pictureList.map((p) => p.src));
-	const roll = pictureList.length > 0 && <PictureRoll pictures={pictureList} />;
+	const roll = pictureList.length > 0 && (
+		<PictureScreen pictures={pictureList} />
+	);
 	const crawl = banner.effect === "starwars";
 	const [crawlDone, setCrawlDone] = useState(false);
 	// A stylesheet effect on the whole message that played once: plain text.

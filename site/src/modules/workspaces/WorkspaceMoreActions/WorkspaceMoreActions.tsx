@@ -7,6 +7,7 @@ import {
 	HistoryIcon,
 	RotateCcwIcon,
 	SettingsIcon,
+	SlidersHorizontalIcon,
 	SquareIcon,
 	TrashIcon,
 } from "lucide-react";
@@ -27,6 +28,7 @@ import {
 	workspacePermissions,
 } from "#/api/queries/workspaces";
 import type { Workspace } from "#/api/typesGenerated";
+import { ChevronDownIcon } from "#/components/AnimatedIcons/ChevronDown";
 import { Button } from "#/components/Button/Button";
 import {
 	DropdownMenu,
@@ -35,6 +37,7 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "#/components/DropdownMenu/DropdownMenu";
+import { TopbarButton } from "#/components/FullPageLayout/Topbar";
 import { WorkspaceErrorDialog } from "../ErrorDialog/WorkspaceErrorDialog";
 import { UpdateBuildParametersDialog } from "../WorkspaceUpdateDialogs";
 import { ChangeWorkspaceVersionDialog } from "./ChangeWorkspaceVersionDialog";
@@ -51,6 +54,12 @@ type WorkspaceMoreActionsProps = {
 	onRestart?: () => void;
 	isRestarting?: boolean;
 	onActionSuccess?: () => Promise<void> | void;
+	/**
+	 * Platform: "arrow" on the workspace page - the arrow beside Start or
+	 * Restart (or on its own), holding every action, its first item the build
+	 * parameters; "ellipsis" (the default) elsewhere, as in the Workspaces list.
+	 */
+	variant?: "ellipsis" | "arrow";
 };
 
 export const WorkspaceMoreActions: React.FC<WorkspaceMoreActionsProps> = ({
@@ -61,6 +70,7 @@ export const WorkspaceMoreActions: React.FC<WorkspaceMoreActionsProps> = ({
 	onRestart,
 	isRestarting,
 	onActionSuccess,
+	variant = "ellipsis",
 }) => {
 	const queryClient = useQueryClient();
 
@@ -134,19 +144,45 @@ export const WorkspaceMoreActions: React.FC<WorkspaceMoreActionsProps> = ({
 		<>
 			<DropdownMenu open={open} onOpenChange={setOpen}>
 				<DropdownMenuTrigger asChild>
-					<Button
-						size="icon-lg"
-						variant="subtle"
-						data-testid="workspace-options-button"
-						aria-controls="workspace-options"
-						disabled={disabled}
-					>
-						<EllipsisVerticalIcon aria-hidden="true" />
-						<span className="sr-only">Workspace actions</span>
-					</Button>
+					{variant === "arrow" ? (
+						<TopbarButton
+							data-testid="workspace-options-button"
+							aria-controls="workspace-options"
+							disabled={disabled}
+							className="min-w-fit"
+						>
+							<ChevronDownIcon />
+							<span className="sr-only">Workspace actions</span>
+						</TopbarButton>
+					) : (
+						<Button
+							size="icon-lg"
+							variant="subtle"
+							data-testid="workspace-options-button"
+							aria-controls="workspace-options"
+							disabled={disabled}
+						>
+							<EllipsisVerticalIcon aria-hidden="true" />
+							<span className="sr-only">Workspace actions</span>
+						</Button>
+					)}
 				</DropdownMenuTrigger>
 
 				<DropdownMenuContent id="workspace-options" align="end">
+					{variant === "arrow" && (
+						<>
+							{/* What the arrow showed before: the parameters to build with. */}
+							<DropdownMenuItem asChild>
+								<RouterLink
+									to={`/@${workspace.owner_name}/${workspace.name}/settings#parameters`}
+								>
+									<SlidersHorizontalIcon />
+									Build parameters&hellip;
+								</RouterLink>
+							</DropdownMenuItem>
+							<DropdownMenuSeparator />
+						</>
+					)}
 					{onStop && (
 						<DropdownMenuItem onClick={onStop} disabled={isStopping}>
 							<SquareIcon />

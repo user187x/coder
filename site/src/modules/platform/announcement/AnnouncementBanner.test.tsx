@@ -19,6 +19,8 @@ const MockBanner: Banner = {
 	refreshSeconds: 60,
 	effect: "none",
 	repeat: false,
+	// Gone at once when dismissed (the transitions are tested on their own).
+	closeEffect: "none",
 };
 
 // The live channel is not under test: a socket that never connects.
@@ -104,5 +106,27 @@ describe("AnnouncementBanner", () => {
 		await userEvent.click(close);
 		expect(localStorage.getItem("coder-banner-dismissed")).toBe(MockBanner.id);
 		expect(receipts).toEqual([]);
+	});
+
+	it("plays its close transition, then goes", async () => {
+		useBanner({ ...MockBanner, receipts: false, closeEffect: "matrix" });
+		const { container } = render(<AnnouncementBanner placement="navbar" />);
+		await userEvent.click(
+			await screen.findByRole("button", { name: "Dismiss this announcement" }),
+		);
+		const card = container.querySelector<HTMLElement>("#coder-system-banner");
+		expect(card?.dataset.closing).toBe("matrix");
+		expect(card?.querySelector(".banner-matrix")).not.toBeNull();
+		expect(localStorage.getItem("coder-banner-dismissed")).toBeNull();
+		card?.dispatchEvent(
+			Object.assign(new Event("animationend", { bubbles: true }), {
+				animationName: "banner-close-matrix",
+			}),
+		);
+		await waitFor(() =>
+			expect(localStorage.getItem("coder-banner-dismissed")).toBe(
+				MockBanner.id,
+			),
+		);
 	});
 });

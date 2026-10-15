@@ -18,6 +18,7 @@ describe("PictureButton", () => {
 		expect(
 			screen.getByRole("button", { name: /Insert picture/ }),
 		).toBeInTheDocument();
+		// The menu's choice (Span here, the default) goes into the picture's address.
 		const gif = new File(["GIF89a-frames"], "waving flag.gif", {
 			type: "image/gif",
 		});
@@ -26,7 +27,7 @@ describe("PictureButton", () => {
 		});
 		await waitFor(() =>
 			expect(onInsert).toHaveBeenCalledWith(
-				"![waving flag](/__coder-ui/banner-picture/0123456789abcdef)",
+				"![waving flag](/__coder-ui/banner-picture/0123456789abcdef#fit=span)",
 			),
 		);
 		const [name, dataUrl] = upload.mock.calls[0];
@@ -51,7 +52,9 @@ describe("PictureButton", () => {
 	});
 
 	it("keeps Markdown's own characters out of the description", () => {
-		expect(pictureMarkdown("[x](y)*!.png", "/p")).toBe("![xy](/p)");
-		expect(pictureMarkdown(".gif", "/p")).toBe("![picture](/p)");
+		expect(pictureMarkdown("[x](y)*!.png", "/p")).toBe("![xy](/p#fit=span)");
+		expect(pictureMarkdown(".gif", "/p", "tile")).toBe(
+			"![picture](/p#fit=tile)",
+		);
 	});
 });

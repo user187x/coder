@@ -20,12 +20,13 @@ describe("editableFields", () => {
 	it("leaves Markdown announcements as they are", () => {
 		const custom = { ...banner, title: "{{colors bg=#000000 fg=#ffffff}}" };
 		const { id: _id, ...fields } = custom;
-		// Saved before the crawl's speed, the font and receipts existed: their defaults.
+		// Saved before the crawl's speed, the font, receipts and the close transition existed: their defaults.
 		expect(editableFields(custom)).toEqual({
 			...fields,
 			speed: "normal",
 			font: "default",
 			receipts: true,
+			closeEffect: "fade",
 		});
 	});
 
