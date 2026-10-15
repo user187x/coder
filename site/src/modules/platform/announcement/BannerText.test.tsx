@@ -73,6 +73,9 @@ describe("BannerText stylesheet effects", () => {
 			"5",
 		]);
 		expect(text?.textContent).toBe("PEW PEW");
+		// Each word's letters together: a line breaks only at the spaces.
+		const words = [...(text?.querySelectorAll("span.whitespace-nowrap") ?? [])];
+		expect(words.map((w) => w.textContent)).toEqual(["PEW", "PEW"]);
 	});
 
 	it("brings a long message's letters closer together", () => {

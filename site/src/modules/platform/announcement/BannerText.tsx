@@ -207,29 +207,44 @@ const renderText = (
 	splitter: Splitter | null,
 	key: string,
 ): React.ReactNode => {
-	if (!splitter || splitter.plan.unit === "whole") {
+	if (!splitter) {
 		return text;
 	}
-	return segmentsOf(text, splitter.plan.unit).map((segment, i) => {
+	const { plan } = splitter;
+	if (plan.unit === "whole") {
+		return text;
+	}
+	if (plan.className) {
+		// A <b> per letter, each word's letters kept together: a line may
+		// break between any two inline-block letters, so only the spaces may
+		// break it.
+		return segmentsOf(text, "word").map((word, w) =>
+			word.trim() ? (
+				<span key={`${key}-${w}`} className="whitespace-nowrap">
+					{Array.from(word).map((letter, i) => (
+						<b
+							key={i}
+							style={
+								{
+									"--i": letterIndex(plan, splitter.next++, splitter.count),
+								} as React.CSSProperties
+							}
+						>
+							{letter}
+						</b>
+					))}
+				</span>
+			) : (
+				word
+			),
+		);
+	}
+	return segmentsOf(text, plan.unit).map((segment, i) => {
 		if (!segment.trim()) {
 			return segment;
 		}
 		const index = splitter.next++;
-		if (splitter.plan.className) {
-			return (
-				<b
-					key={`${key}-${i}`}
-					style={
-						{
-							"--i": letterIndex(splitter.plan, index, splitter.count),
-						} as React.CSSProperties
-					}
-				>
-					{segment}
-				</b>
-			);
-		}
-		const animation = splitter.plan.animation;
+		const animation = plan.animation;
 		return (
 			<span
 				key={`${key}-${i}`}
