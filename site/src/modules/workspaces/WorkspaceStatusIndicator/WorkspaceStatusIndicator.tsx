@@ -27,14 +27,19 @@ export const variantByStatusType: Record<
 	warning: "warning",
 };
 
+/** Platform: the running workspace's light on its page (site/static, an animated green dot). */
+const RUNNING_LIGHT = "/workspace-running.gif";
+
 type WorkspaceStatusIndicatorProps = {
 	workspace: Workspace;
 	children?: React.ReactNode;
+	/** Platform: a running, healthy workspace shows the animated light instead of the dot. */
+	runningLight?: boolean;
 };
 
 export const WorkspaceStatusIndicator: React.FC<
 	WorkspaceStatusIndicatorProps
-> = ({ workspace, children }) => {
+> = ({ workspace, children, runningLight = false }) => {
 	let { text, type } = getDisplayWorkspaceStatus(
 		workspace.latest_build.status,
 		workspace.latest_build.job,
@@ -44,9 +49,23 @@ export const WorkspaceStatusIndicator: React.FC<
 		type = "warning";
 	}
 
+	const dot =
+		runningLight &&
+		type === "success" &&
+		workspace.latest_build.status === "running" ? (
+			<img
+				src={RUNNING_LIGHT}
+				alt=""
+				data-testid="workspace-running-light"
+				className="size-5 shrink-0"
+			/>
+		) : (
+			<StatusIndicatorDot />
+		);
+
 	const statusIndicator = (
 		<StatusIndicator variant={variantByStatusType[type]}>
-			<StatusIndicatorDot />
+			{dot}
 			<span className="sr-only">Workspace status:</span> {text}
 			{children}
 		</StatusIndicator>
@@ -60,7 +79,7 @@ export const WorkspaceStatusIndicator: React.FC<
 		<Tooltip>
 			<TooltipTrigger asChild>
 				<StatusIndicator variant={variantByStatusType[type]}>
-					<StatusIndicatorDot />
+					{dot}
 					<span className="sr-only">Workspace status:</span> {text}
 					{children}
 				</StatusIndicator>

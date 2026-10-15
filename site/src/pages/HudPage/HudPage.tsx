@@ -71,7 +71,7 @@ const HudPage: React.FC = () => {
 		totalsLine,
 		TOTALS_FONT_MAX,
 		TOTALS_FONT_MIN,
-		data?.generatedAt,
+		Boolean(data),
 	);
 	// Each metric's recent values, and which ones moved with the latest update.
 	const [track, setTrack] = useState<{
@@ -159,42 +159,42 @@ const HudPage: React.FC = () => {
 
 				{data && (
 					<>
-						<div className="relative">
-							{/* Every total on one line: the text shrinks (useFitText) rather than wrap. */}
-							<ul
-								ref={totalsLine}
-								aria-label="Totals"
-								data-testid="hud-totals"
-								className="m-0 flex list-none flex-nowrap items-baseline justify-between gap-x-[1.75em] overflow-hidden whitespace-nowrap rounded-lg border border-solid border-border bg-surface-secondary/40 py-3 pl-4 pr-24 font-mono leading-5"
-								style={{ fontSize: `${totalsFont}px` }}
-							>
-								{totals.map((m) => (
-									<li key={m.id} className="shrink-0">
-										<MetricLink
-											metric={m}
-											className="flex items-baseline gap-[0.6em] text-inherit no-underline hover:underline"
-										>
-											<span className="text-content-secondary">{m.label}</span>
-											<span className="font-semibold tabular-nums text-content-primary">
-												{formatValue(m)}
-												{m.unit && m.value !== null ? ` ${m.unit}` : ""}
-											</span>
-											<Delta series={track.series[m.id]} inline />
-										</MetricLink>
-									</li>
-								))}
-							</ul>
-							<div className="absolute right-2 top-2">
+						{/* Every total on one line: the text shrinks (useFitText) rather than wrap. */}
+						<ul
+							ref={totalsLine}
+							aria-label="Totals"
+							data-testid="hud-totals"
+							className="m-0 flex list-none flex-nowrap items-baseline justify-between gap-x-[1.75em] overflow-hidden whitespace-nowrap rounded-lg border border-solid border-border bg-surface-secondary/40 px-4 py-3 font-mono leading-5"
+							style={{ fontSize: `${totalsFont}px` }}
+						>
+							{totals.map((m) => (
+								<li key={m.id} className="shrink-0">
+									<MetricLink
+										metric={m}
+										className="flex items-baseline gap-[0.6em] text-inherit no-underline hover:underline"
+									>
+										<span className="text-content-secondary">{m.label}</span>
+										<span className="font-semibold tabular-nums text-content-primary">
+											{formatValue(m)}
+											{m.unit && m.value !== null ? ` ${m.unit}` : ""}
+										</span>
+										<Delta series={track.series[m.id]} inline />
+									</MetricLink>
+								</li>
+							))}
+						</ul>
+
+						{/* The Sort menu sits with the graphs' controls, not over the totals (which grow). */}
+						<HudGraphs
+							leading={
 								<SortMenu
 									metrics={metrics}
 									order={order}
 									onRaise={(id) => reorder(elevate(order, id))}
 									onReset={() => reorder([])}
 								/>
-							</div>
-						</div>
-
-						<HudGraphs />
+							}
+						/>
 
 						<ul
 							aria-label="Metrics"

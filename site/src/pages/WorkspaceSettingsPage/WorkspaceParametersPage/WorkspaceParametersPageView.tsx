@@ -1,5 +1,6 @@
 import { cn } from "cn";
 import { useFormik } from "formik";
+import { Fragment } from "react";
 import type {
 	PreviewParameter,
 	Workspace,
@@ -11,6 +12,10 @@ import { Label } from "#/components/Label/Label";
 import { Spinner } from "#/components/Spinner/Spinner";
 import { useDebouncedFunction } from "#/hooks/debounce";
 import { useSyncFormParameters } from "#/modules/hooks/useSyncFormParameters";
+import {
+	HOME_DISK_PARAMETER,
+	HomeDiskActions,
+} from "#/modules/platform/homeDisk/HomeDiskActions";
 import {
 	DynamicParameter,
 	getInitialParameterValues,
@@ -249,16 +254,21 @@ export const WorkspaceParametersPageView: React.FC<
 								isSubmitting;
 
 							return (
-								<DynamicParameter
-									key={parameter.name}
-									parameter={parameter}
-									onChange={(value) =>
-										handleChange(parameter, parameterField, value)
-									}
-									autofill={false}
-									disabled={isDisabled}
-									value={formValue}
-								/>
+								<Fragment key={parameter.name}>
+									<DynamicParameter
+										parameter={parameter}
+										onChange={(value) =>
+											handleChange(parameter, parameterField, value)
+										}
+										autofill={false}
+										disabled={isDisabled}
+										value={formValue}
+									/>
+									{/* Platform: the home disk can grow after all (Expand disk). */}
+									{parameter.name === HOME_DISK_PARAMETER && (
+										<HomeDiskActions workspace={workspace} />
+									)}
+								</Fragment>
 							);
 						})}
 					</section>

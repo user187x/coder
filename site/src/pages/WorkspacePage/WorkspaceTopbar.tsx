@@ -232,7 +232,8 @@ export const WorkspaceTopbar: React.FC<WorkspaceTopbarProps> = ({
 						onActivateWorkspace={handleDormantActivate}
 					/>
 
-					<WorkspaceStatusIndicator workspace={workspace} />
+					{/* Platform: an animated light while it runs. */}
+					<WorkspaceStatusIndicator workspace={workspace} runningLight />
 
 					<WorkspaceActions
 						workspace={workspace}

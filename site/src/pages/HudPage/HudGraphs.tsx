@@ -238,7 +238,12 @@ const Swatch: React.FC<{ className: string; children: React.ReactNode }> = ({
  * (what workspaces use of it, darker), over a chosen range. Sampled by the
  * platform service every 15 seconds whether or not the page is open.
  */
-export const HudGraphs: React.FC = () => {
+type HudGraphsProps = {
+	/** Shown before the graphs' note, at the left of their controls (the HUD's Sort menu). */
+	leading?: React.ReactNode;
+};
+
+export const HudGraphs: React.FC<HudGraphsProps> = ({ leading }) => {
 	const [range, setRangeState] = useState<HudRange>(readRange);
 	const setRange = (r: HudRange) => {
 		setRangeState(r);
@@ -253,11 +258,14 @@ export const HudGraphs: React.FC = () => {
 	return (
 		<div className="flex flex-col gap-3" data-testid="hud-graphs">
 			<div className="flex flex-wrap items-center justify-between gap-2">
-				<p className="m-0 text-xs text-content-secondary">
-					{data?.points.some((p) => !p.live)
-						? "CPU and memory are live from metrics-server where it ran; before that, what pods requested."
-						: "Live: sampled every 15 seconds, kept 7 days."}
-				</p>
+				<div className="flex items-center gap-3">
+					{leading}
+					<p className="m-0 text-xs text-content-secondary">
+						{data?.points.some((p) => !p.live)
+							? "CPU and memory are live from metrics-server where it ran; before that, what pods requested."
+							: "Live: sampled every 15 seconds, kept 7 days."}
+					</p>
+				</div>
 				<div role="radiogroup" aria-label="Range" className="flex gap-1">
 					{RANGES.map((r) => (
 						<button

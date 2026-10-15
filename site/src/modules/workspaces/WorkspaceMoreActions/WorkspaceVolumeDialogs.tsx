@@ -44,7 +44,8 @@ const size = (bytes: number | null) => {
 	return `${n.toLocaleString("en-US", { maximumFractionDigits: n >= 100 ? 0 : 1 })} ${units[i]}`;
 };
 
-const useVolume = (workspace: Workspace, open: boolean) =>
+/** The workspace's home volume and its backups and disk changes (polled while one runs). */
+export const useWorkspaceVolume = (workspace: Workspace, open: boolean) =>
 	useQuery({
 		queryKey: workspaceVolumeKey(workspace.id),
 		queryFn: () => WorkspaceExtrasAPI.volume(workspace.id),
@@ -86,7 +87,7 @@ export const BackupHomeDialog: React.FC<DialogProps> = ({
 	onClose,
 }) => {
 	const queryClient = useQueryClient();
-	const query = useVolume(workspace, open);
+	const query = useWorkspaceVolume(workspace, open);
 	const [target, setTarget] = useState<"download" | "s3">("download");
 	const start = useMutation({
 		mutationFn: () => WorkspaceExtrasAPI.backup(workspace.id, target),
@@ -259,7 +260,7 @@ export const ExpandDiskDialog: React.FC<DialogProps> = ({
 	onClose,
 }) => {
 	const queryClient = useQueryClient();
-	const query = useVolume(workspace, open);
+	const query = useWorkspaceVolume(workspace, open);
 	const data = query.data;
 	const current = data?.volume?.sizeGB ?? 0;
 	const [value, setValue] = useState("");
