@@ -67,18 +67,6 @@ export const WorkspaceActions: React.FC<WorkspaceActionsProps> = ({
 		},
 	);
 
-	// Start and Restart carry the actions' arrow (Buttons.tsx).
-	const shown: readonly ActionType[] = isUpdating
-		? ["updating"]
-		: isRestarting
-			? ["restarting"]
-			: actions;
-	const hasActionsArrow = shown.some((action) =>
-		(["start", "starting", "restart", "restarting"] as ActionType[]).includes(
-			action,
-		),
-	);
-
 	const tooltipText = getTooltipText(
 		workspace,
 		permissions.updateWorkspaceVersion,
@@ -173,7 +161,8 @@ export const WorkspaceActions: React.FC<WorkspaceActionsProps> = ({
 
 	return (
 		<div
-			className="flex flex-wrap items-center justify-end gap-2"
+			// Platform: room to the right of the last button (Share), which the ⋮ menu used to give.
+			className="flex flex-wrap items-center justify-end gap-2 pr-3"
 			data-testid="workspace-actions"
 		>
 			{/* Restarting must be handled separately, because it otherwise would appear as stopping */}
@@ -185,22 +174,23 @@ export const WorkspaceActions: React.FC<WorkspaceActionsProps> = ({
 							<Fragment key={action}>{buttonMapping[action]}</Fragment>
 						))}
 
+			{/* Platform: every workspace action (no ⋮ menu) under one arrow, right after the action buttons
+			    (beside Restart or Start), in every state: mounted once, so it never goes while the workspace
+			    builds; during a build only what would start another is unavailable in it. */}
+			<WorkspaceMoreActions
+				workspace={workspace}
+				variant="arrow"
+				disabled={false}
+				jobsBlocked={!canAcceptJobs}
+				className="-ml-1"
+			/>
+
 			{canCancel && <CancelButton handleAction={handleCancel} />}
 
 			{permissions.shareWorkspace && (
 				<ShareButton
 					workspace={workspace}
 					canUpdatePermissions={permissions.updateWorkspace}
-				/>
-			)}
-
-			{/* Platform: no ⋮ menu; its actions are under the arrow beside Start or Restart, or on their own here
-			    when neither is shown (stopping, failed, updating, ...). */}
-			{!hasActionsArrow && (
-				<WorkspaceMoreActions
-					workspace={workspace}
-					variant="arrow"
-					disabled={!canAcceptJobs}
 				/>
 			)}
 		</div>

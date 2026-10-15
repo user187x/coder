@@ -2,6 +2,7 @@ import { cn } from "cn";
 import { useState } from "react";
 import { useQuery } from "react-query";
 import { type GalleryImage, PlatformAPI } from "#/api/platform";
+import type { PrebakedPicture } from "../pictures";
 
 type GalleryPickerProps = {
 	/** Called with the picture as a file, exactly as if it had been chosen. */
@@ -13,6 +14,8 @@ type GalleryPickerProps = {
 	tile?: "dark" | "round";
 	disabled?: boolean;
 	label?: string;
+	/** Platform: pictures baked into the dashboard, offered first (the backgrounds' prebaked ones). */
+	extra?: readonly PrebakedPicture[];
 };
 
 /**
@@ -27,6 +30,7 @@ export const GalleryPicker: React.FC<GalleryPickerProps> = ({
 	tile = "dark",
 	disabled,
 	label = "Or use one of the provided pictures:",
+	extra = [],
 }) => {
 	const query = useQuery({
 		queryKey: ["platform", "gallery"],
@@ -34,7 +38,12 @@ export const GalleryPicker: React.FC<GalleryPickerProps> = ({
 		staleTime: 60_000,
 	});
 	const [loading, setLoading] = useState<string>();
-	const images = query.data?.images ?? [];
+	const images: GalleryImage[] = [
+		...extra.map((p) => ({ ...p, bytes: 0 })),
+		...(query.data?.images ?? []).filter(
+			(image) => !extra.some((p) => p.name === image.name),
+		),
+	];
 	if (images.length === 0) {
 		return null;
 	}

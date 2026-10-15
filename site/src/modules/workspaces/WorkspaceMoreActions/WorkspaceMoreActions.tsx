@@ -1,3 +1,4 @@
+import { cn } from "cn";
 import {
 	ArchiveIcon,
 	CopyIcon,
@@ -60,6 +61,13 @@ type WorkspaceMoreActionsProps = {
 	 * parameters; "ellipsis" (the default) elsewhere, as in the Workspaces list.
 	 */
 	variant?: "ellipsis" | "arrow";
+	/**
+	 * Platform: a build is running; the menu stays available, and only what
+	 * would start another (Change version, Expand disk, Delete) waits for it.
+	 */
+	jobsBlocked?: boolean;
+	/** Platform: on the trigger (the arrow sits close to the button before it). */
+	className?: string;
 };
 
 export const WorkspaceMoreActions: React.FC<WorkspaceMoreActionsProps> = ({
@@ -71,7 +79,12 @@ export const WorkspaceMoreActions: React.FC<WorkspaceMoreActionsProps> = ({
 	isRestarting,
 	onActionSuccess,
 	variant = "ellipsis",
+	jobsBlocked = false,
+	className,
 }) => {
+	const afterBuild = jobsBlocked
+		? "Available once the current build has finished"
+		: undefined;
 	const queryClient = useQueryClient();
 
 	const [workspaceErrorDialog, setWorkspaceErrorDialog] = useState<{
@@ -149,7 +162,7 @@ export const WorkspaceMoreActions: React.FC<WorkspaceMoreActionsProps> = ({
 							data-testid="workspace-options-button"
 							aria-controls="workspace-options"
 							disabled={disabled}
-							className="min-w-fit"
+							className={cn("min-w-fit", className)}
 						>
 							<ChevronDownIcon />
 							<span className="sr-only">Workspace actions</span>
@@ -208,6 +221,8 @@ export const WorkspaceMoreActions: React.FC<WorkspaceMoreActionsProps> = ({
 
 					{permissions?.updateWorkspaceVersion && (
 						<DropdownMenuItem
+							disabled={jobsBlocked}
+							title={afterBuild}
 							onClick={() => {
 								setChangeVersionDialogOpen(true);
 							}}
@@ -237,7 +252,11 @@ export const WorkspaceMoreActions: React.FC<WorkspaceMoreActionsProps> = ({
 								<ArchiveIcon />
 								Back up home&hellip;
 							</DropdownMenuItem>
-							<DropdownMenuItem onClick={() => setVolumeDialog("expand")}>
+							<DropdownMenuItem
+								disabled={jobsBlocked}
+								title={afterBuild}
+								onClick={() => setVolumeDialog("expand")}
+							>
 								<HardDriveIcon />
 								Expand disk&hellip;
 							</DropdownMenuItem>
@@ -248,6 +267,8 @@ export const WorkspaceMoreActions: React.FC<WorkspaceMoreActionsProps> = ({
 
 					<DropdownMenuItem
 						className="text-content-destructive focus:text-content-destructive"
+						disabled={jobsBlocked}
+						title={afterBuild}
 						onClick={() => {
 							setIsConfirmingDelete(true);
 						}}

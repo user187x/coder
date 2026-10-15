@@ -12,7 +12,6 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "#/components/Tooltip/Tooltip";
-import { WorkspaceMoreActions } from "#/modules/workspaces/WorkspaceMoreActions/WorkspaceMoreActions";
 
 export type ActionButtonProps = {
 	loading?: boolean;
@@ -76,7 +75,6 @@ type ActionButtonPropsWithWorkspace = ActionButtonProps & {
 
 export const StartButton: React.FC<ActionButtonPropsWithWorkspace> = ({
 	handleAction,
-	workspace,
 	loading,
 	disabled,
 	tooltipText,
@@ -103,17 +101,8 @@ export const StartButton: React.FC<ActionButtonPropsWithWorkspace> = ({
 		);
 	}
 
-	return (
-		<div className="flex gap-1 items-center">
-			{mainButton}
-			{/* Platform: every workspace action under the arrow (build parameters first). */}
-			<WorkspaceMoreActions
-				workspace={workspace}
-				variant="arrow"
-				disabled={Boolean(loading)}
-			/>
-		</div>
-	);
+	// Platform: the actions' arrow follows the action buttons (WorkspaceActions), whatever the state.
+	return mainButton;
 };
 
 export const StopButton: React.FC<ActionButtonProps> = ({
@@ -135,25 +124,17 @@ export const StopButton: React.FC<ActionButtonProps> = ({
 export const RestartButton: React.FC<ActionButtonPropsWithWorkspace> = ({
 	handleAction,
 	loading,
-	workspace,
 }) => {
+	// Platform: the actions' arrow follows the action buttons (WorkspaceActions), whatever the state.
 	return (
-		<div className="flex gap-1 items-center">
-			<TopbarButton
-				onClick={() => handleAction()}
-				data-testid="workspace-restart-button"
-				disabled={loading}
-			>
-				<RotateCcwIcon />
-				{loading ? <>Restarting&hellip;</> : <>Restart&hellip;</>}
-			</TopbarButton>
-			{/* Platform: every workspace action under the arrow (build parameters first). */}
-			<WorkspaceMoreActions
-				workspace={workspace}
-				variant="arrow"
-				disabled={Boolean(loading)}
-			/>
-		</div>
+		<TopbarButton
+			onClick={() => handleAction()}
+			data-testid="workspace-restart-button"
+			disabled={loading}
+		>
+			<RotateCcwIcon />
+			{loading ? <>Restarting&hellip;</> : <>Restart&hellip;</>}
+		</TopbarButton>
 	);
 };
 

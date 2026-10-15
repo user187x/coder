@@ -1,5 +1,4 @@
 import {
-	ChevronDownIcon,
 	ExpandIcon,
 	ImagePlusIcon,
 	LayoutGridIcon,
@@ -13,13 +12,14 @@ import { getErrorMessage } from "#/api/errors";
 import { PICTURE_FITS, type PictureFit, PlatformAPI } from "#/api/platform";
 import { Button } from "#/components/Button/Button";
 import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuLabel,
-	DropdownMenuTrigger,
-} from "#/components/DropdownMenu/DropdownMenu";
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "#/components/Select/Select";
 import { Spinner } from "#/components/Spinner/Spinner";
+import { BANNER_PRESET_PICTURES } from "#/modules/platform/pictures";
 
 /** How a picture fills the banner's screen, as the menu offers it. */
 export const FIT_OPTIONS: Record<
@@ -87,19 +87,19 @@ type PictureButtonProps = {
 };
 
 /**
- * Platform: General > Announcement > Insert picture > Center, Span, Tile,
- * Fill or Stretch (how it fills the banner's screen). Uploads a picture (PNG, JPEG,
- * GIF - animated too -, WebP or AVIF, up to 8 MB) to the platform service,
- * which keeps it as it is and serves it on the Coder site, and puts it into
- * the message as Markdown. A large one rolls through the banner's screen; a
- * small one sits in the line.
+ * Platform: General > Announcement's pictures, three controls side by side:
+ * the fit (how a picture fills the banner's screen: Center, Span, Tile, Fill,
+ * Stretch), Upload picture (PNG, JPEG, GIF - animated too -, WebP or AVIF, up
+ * to 8 MB; the platform service keeps it as it is and serves it on the Coder
+ * site), and the preset pictures baked into the dashboard. Each puts the
+ * picture into the message as Markdown, with the fit chosen.
  */
 export const PictureButton: React.FC<PictureButtonProps> = ({
 	onInsert,
 	onProblem,
 }) => {
 	const input = useRef<HTMLInputElement>(null);
-	const fit = useRef<PictureFit>("span");
+	const [fit, setFit] = useState<PictureFit>("span");
 	const [uploading, setUploading] = useState(false);
 
 	const upload = async (file: File) => {
@@ -114,7 +114,7 @@ export const PictureButton: React.FC<PictureButtonProps> = ({
 				file.name,
 				await readAsDataUrl(file),
 			);
-			onInsert(pictureMarkdown(file.name, picture.url, fit.current));
+			onInsert(pictureMarkdown(file.name, picture.url, fit));
 		} catch (error) {
 			onProblem(getErrorMessage(error, "The picture could not be uploaded."));
 		} finally {
@@ -122,46 +122,57 @@ export const PictureButton: React.FC<PictureButtonProps> = ({
 		}
 	};
 
+	const FitIcon = FIT_OPTIONS[fit].icon;
 	return (
-		<>
-			<DropdownMenu>
-				<DropdownMenuTrigger asChild>
-					<Button
-						size="sm"
-						variant="outline"
-						disabled={uploading}
-						title="Upload a picture (PNG, JPEG, GIF - animated too -, WebP; up to 8 MB) and put it into the message"
-					>
-						{uploading ? <Spinner loading /> : <ImagePlusIcon />}
-						Insert picture
-						<ChevronDownIcon />
-					</Button>
-				</DropdownMenuTrigger>
-				<DropdownMenuContent align="start" className="w-72">
-					<DropdownMenuLabel>
-						How it fills the banner's screen
-					</DropdownMenuLabel>
+		<div
+			role="group"
+			aria-label="Pictures"
+			className="flex flex-wrap items-center gap-2"
+		>
+			<Select
+				value={fit}
+				onValueChange={(value) => {
+					const next = PICTURE_FITS.find((f) => f === value);
+					if (next) {
+						setFit(next);
+					}
+				}}
+			>
+				<SelectTrigger
+					className="h-8 w-32 text-xs"
+					aria-label="Picture fit"
+					title={`How a picture fills the banner's screen: ${FIT_OPTIONS[fit].hint}`}
+					data-testid="announcement-picture-fit"
+				>
+					<span className="flex items-center gap-1.5">
+						<FitIcon aria-hidden className="size-3.5" />
+						<SelectValue />
+					</span>
+				</SelectTrigger>
+				<SelectContent>
 					{PICTURE_FITS.map((f) => {
 						const { label, hint, icon: Icon } = FIT_OPTIONS[f];
 						return (
-							<DropdownMenuItem
-								key={f}
-								data-testid={`announcement-picture-${f}`}
-								onSelect={() => {
-									fit.current = f;
-									input.current?.click();
-								}}
-							>
-								<Icon aria-hidden />
-								<span className="flex flex-col">
-									<span>{label}</span>
-									<span className="text-xs text-content-secondary">{hint}</span>
+							<SelectItem key={f} value={f} title={hint}>
+								<span className="flex items-center gap-2">
+									<Icon aria-hidden className="size-3.5" />
+									{label}
 								</span>
-							</DropdownMenuItem>
+							</SelectItem>
 						);
 					})}
-				</DropdownMenuContent>
-			</DropdownMenu>
+				</SelectContent>
+			</Select>
+			<Button
+				size="sm"
+				variant="outline"
+				disabled={uploading}
+				onClick={() => input.current?.click()}
+				title="Upload a picture (PNG, JPEG, GIF - animated too -, WebP; up to 8 MB) and put it into the message"
+			>
+				{uploading ? <Spinner loading /> : <ImagePlusIcon />}
+				Upload picture
+			</Button>
 			<input
 				ref={input}
 				type="file"
@@ -176,6 +187,26 @@ export const PictureButton: React.FC<PictureButtonProps> = ({
 					}
 				}}
 			/>
-		</>
+			<span className="text-xs text-content-secondary">Presets:</span>
+			{BANNER_PRESET_PICTURES.map((preset) => (
+				<button
+					key={preset.name}
+					type="button"
+					title={`Insert ${preset.name}`}
+					aria-label={`Insert the preset picture ${preset.name}`}
+					data-testid={`announcement-preset-${preset.name}`}
+					onClick={() =>
+						onInsert(pictureMarkdown(preset.name, preset.url, fit))
+					}
+					className="flex h-8 w-12 cursor-pointer items-center justify-center overflow-hidden rounded-md border border-solid border-border bg-[#09090b] p-0.5 hover:border-content-link"
+				>
+					<img
+						src={preset.url}
+						alt=""
+						className="max-h-full max-w-full object-contain"
+					/>
+				</button>
+			))}
+		</div>
 	);
 };

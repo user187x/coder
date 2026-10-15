@@ -16,9 +16,9 @@ describe("PictureButton", () => {
 		const onInsert = vi.fn();
 		render(<PictureButton onInsert={onInsert} onProblem={vi.fn()} />);
 		expect(
-			screen.getByRole("button", { name: /Insert picture/ }),
+			screen.getByRole("button", { name: /Upload picture/ }),
 		).toBeInTheDocument();
-		// The menu's choice (Span here, the default) goes into the picture's address.
+		// The fit selector's choice (Span here, the default) goes into the picture's address.
 		const gif = new File(["GIF89a-frames"], "waving flag.gif", {
 			type: "image/gif",
 		});
@@ -49,6 +49,16 @@ describe("PictureButton", () => {
 			"The picture must be smaller than 8 MB.",
 		);
 		expect(upload).not.toHaveBeenCalled();
+	});
+
+	it("inserts a preset picture with the fit chosen, without uploading anything", () => {
+		const upload = vi.spyOn(PlatformAPI, "uploadBannerPicture");
+		const onInsert = vi.fn();
+		render(<PictureButton onInsert={onInsert} onProblem={vi.fn()} />);
+		fireEvent.click(screen.getByTestId("announcement-preset-usa.gif"));
+		expect(onInsert).toHaveBeenCalledWith("![usa](/pictures/usa.gif#fit=span)");
+		expect(upload).not.toHaveBeenCalled();
+		expect(screen.getByLabelText("Picture fit")).toBeInTheDocument();
 	});
 
 	it("keeps Markdown's own characters out of the description", () => {

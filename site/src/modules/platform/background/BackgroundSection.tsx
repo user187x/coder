@@ -23,6 +23,7 @@ import { setBackground } from "#/contexts/platformBoot";
 import { GalleryPicker } from "../gallery/GalleryPicker";
 import { formatBytes } from "../images";
 import { sniffImageType } from "../normalizeImage";
+import { PREBAKED_BACKGROUNDS } from "../pictures";
 import { CONTROLLER, DIALS } from "./backgroundHtml";
 import {
 	CustomHtmlEditor,
@@ -414,6 +415,7 @@ const BackgroundCard: React.FC<{
 			</div>
 			<GalleryPicker
 				label="Or use one of the provided pictures:"
+				extra={PREBAKED_BACKGROUNDS}
 				selected={draft.source === "image" ? galleryPick : undefined}
 				onSelect={setGalleryPick}
 				disabled={busy}
