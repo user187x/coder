@@ -91,7 +91,7 @@ describe("particle themes and settings", () => {
 			variation: 1,
 			opacity: 0.5,
 		});
-		expect(diamonds).toContain("clip-path: polygon(50% 0, 100% 50%");
+		expect(diamonds).toContain("clip-path: polygon(50% 0, 82% 50%");
 		expect(diamonds).toContain("filter: drop-shadow(");
 		expect(diamonds).toContain("opacity: 0.5;");
 		expect(diamonds).toMatch(/nth-child\(1\) \{[^}]*width: [\d.]+vmin/);

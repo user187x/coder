@@ -138,10 +138,10 @@ export const PARTICLE_THEMES: readonly ParticleTheme[] = [
 		shape: "dot",
 		motion: "twinkle",
 		count: 42,
-		size: 1.5,
+		size: 1.8,
 		variation: 0.5,
 		spread: 0,
-		glow: 2.4,
+		glow: 2.6,
 		screen: true,
 		seed: 7,
 	}),
@@ -216,11 +216,11 @@ export const PARTICLE_THEMES: readonly ParticleTheme[] = [
 			shape: "block",
 			motion: "rise",
 			tumble: true,
-			count: 40,
-			size: 1.8,
+			count: 44,
+			size: 2.2,
 			variation: 0.6,
 			spread: 0,
-			glow: 1.5,
+			glow: 1.8,
 			screen: true,
 			seed: 66,
 		},
@@ -237,10 +237,10 @@ export const PARTICLE_THEMES: readonly ParticleTheme[] = [
 			shape: "dot",
 			motion: "twinkle",
 			count: 30,
-			size: 2.4,
+			size: 3,
 			variation: 0.4,
 			spread: 0,
-			glow: 2,
+			glow: 2.4,
 			screen: true,
 			seed: 9,
 		},
@@ -373,7 +373,7 @@ const backgroundOf = (s: ParticlesSettings) =>
 
 /** Shapes drawn with a clipped ::before (their glow a drop-shadow filter, which clipping would cut off). */
 const CLIPS: Partial<Record<ParticleShape, string>> = {
-	diamond: "polygon(50% 0, 100% 50%, 50% 100%, 0 50%)",
+	diamond: "polygon(50% 0, 82% 50%, 50% 100%, 18% 50%)",
 	spark:
 		"polygon(50% 0, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0 50%, 39% 39%)",
 };
@@ -396,9 +396,10 @@ const shapeRules = (s: ParticlesSettings): string[] => {
 				`.background span { border-radius: ${round(s.size * 0.18)}vmin; background: currentColor; }`,
 			];
 		case "block":
-			// A pixel-art block: its colour, a grain of squares over it, lit from the top left.
+			// A pixel-art block: its colour under two grains of squares (offset, so the pixels look uneven), lit
+			// from the top left (the bevel, per particle).
 			return [
-				".background span { border-radius: 0; background-color: currentColor; background-image: repeating-conic-gradient(rgb(0 0 0 / 0.14) 0 25%, rgb(255 255 255 / 0.07) 0 50%); background-size: 50% 50%; }",
+				".background span { border-radius: 0; background-color: currentColor; background-image: repeating-conic-gradient(rgb(0 0 0 / 0.16) 0 25%, transparent 0 50%), repeating-conic-gradient(rgb(255 255 255 / 0.1) 0 25%, transparent 0 50%); background-size: 50% 50%, 25% 25%; background-position: 0 0, 12.5% 37.5%; }",
 			];
 		case "diamond":
 		case "spark":
@@ -482,7 +483,14 @@ export const particlesHTML = (settings: ParticlesSettings): string => {
 				decl.push(`border-radius: ${size}vmin`);
 			}
 		}
-		const blurOf = s.variation > 0 ? round(glow * factor) : glow;
+		// The orb's glow is example.html's, whatever its size; the other shapes' glow is in proportion to them
+		// (a 2 vmin dot's halo, not a 20 vmin orb's).
+		const blurOf =
+			s.shape === "orb"
+				? s.variation > 0
+					? round(glow * factor)
+					: glow
+				: round((glow * size) / 20);
 		if (clipped) {
 			decl.push(
 				`filter: drop-shadow(${offset}vmin 0 ${round(blurOf / 2)}vmin currentColor)`,

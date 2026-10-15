@@ -209,8 +209,22 @@ export const WorkspaceActions: React.FC<WorkspaceActionsProps> = ({
 	 */
 	const activeSlot = (action: ActionType | undefined): React.ReactNode => {
 		if (canCancel) {
-			return (
+			const cancel = (
 				<CancelButton handleAction={handleCancel} tooltipText={cancelText()} />
+			);
+			// In one cell with an invisible copy of the button it stands for, so it is at least as wide and the
+			// buttons before it do not move.
+			return action ? (
+				<span className="grid" data-testid="workspace-cancel-slot">
+					<span aria-hidden inert className="invisible [grid-area:1/1]">
+						{waiting[action]}
+					</span>
+					<span className="flex [grid-area:1/1] [&>button]:w-full">
+						{cancel}
+					</span>
+				</span>
+			) : (
+				cancel
 			);
 		}
 		if (status === "canceling") {
