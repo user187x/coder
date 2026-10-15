@@ -8,9 +8,11 @@ import {
 } from "./backgroundHtml";
 import { PlatformBackground } from "./PlatformBackground";
 import {
+	PARTICLE_THEMES,
 	PARTICLES_DEFAULT,
 	particlesHTML,
 	particlesSettings,
+	particleThemeOf,
 } from "./particles";
 import { EXAMPLE_RULES } from "./particles.example";
 
@@ -38,6 +40,83 @@ describe("particles", () => {
 		expect(
 			particlesSettings({ count: 999, background: "red;}" }),
 		).toMatchObject({ count: 60, background: PARTICLES_DEFAULT.background });
+	});
+});
+
+describe("particle themes and settings", () => {
+	it("has themes, three of them Minecraft's, each its own page", () => {
+		const names = PARTICLE_THEMES.map((t) => t.name);
+		expect(names.filter((n) => n.startsWith("Minecraft"))).toEqual([
+			"Minecraft: Overworld",
+			"Minecraft: Nether",
+			"Minecraft: XP orbs",
+		]);
+		const pages = new Set(
+			PARTICLE_THEMES.map((t) => particlesHTML(t.settings)),
+		);
+		expect(pages.size).toBe(PARTICLE_THEMES.length);
+		for (const t of PARTICLE_THEMES) {
+			// A theme is valid as it is: reading it back changes nothing.
+			expect(particlesSettings(t.settings)).toEqual(t.settings);
+			expect(particleThemeOf(t.settings)?.id).toBe(t.id);
+		}
+		expect(particleThemeOf(PARTICLES_DEFAULT)?.id).toBe("original");
+		expect(
+			particleThemeOf({ ...PARTICLES_DEFAULT, count: 21 }),
+		).toBeUndefined();
+	});
+
+	it("draws Minecraft's blocks as pixel blocks, and the Nether's rising", () => {
+		const overworld = PARTICLE_THEMES.find(
+			(t) => t.id === "minecraft-overworld",
+		);
+		const nether = PARTICLE_THEMES.find((t) => t.id === "minecraft-nether");
+		const o = particlesHTML(overworld!.settings);
+		expect(o).toContain("repeating-conic-gradient");
+		expect(o).toContain("box-shadow: inset");
+		expect(o).toContain("linear-gradient(180deg, #78A9FF, #CDE6FF)");
+		expect(o).toMatch(/rotate\(360deg\);\s*\} \}/);
+		const n = particlesHTML(nether!.settings);
+		expect(n).toContain("top: 100%");
+		expect(n).toContain("translate3d(0, -150vh, 1px)");
+		expect(n).toContain("mix-blend-mode: screen");
+		expect(n).toContain("radial-gradient(");
+	});
+
+	it("follows the new dials: shape, motion, variety, opacity, layout", () => {
+		const diamonds = particlesHTML({
+			...PARTICLES_DEFAULT,
+			shape: "diamond",
+			motion: "twinkle",
+			variation: 1,
+			opacity: 0.5,
+		});
+		expect(diamonds).toContain("clip-path: polygon(50% 0, 100% 50%");
+		expect(diamonds).toContain("filter: drop-shadow(");
+		expect(diamonds).toContain("opacity: 0.5;");
+		expect(diamonds).toMatch(/nth-child\(1\) \{[^}]*width: [\d.]+vmin/);
+		const shuffled = particlesHTML({ ...PARTICLES_DEFAULT, seed: 5 });
+		expect(shuffled).not.toContain("top: 12%; left: 45%");
+		expect(particlesHTML({ ...PARTICLES_DEFAULT, seed: 5 })).toBe(shuffled);
+		expect(
+			particlesSettings({
+				shape: "cube",
+				motion: 1,
+				backgroundStyle: "plaid",
+				opacity: 9,
+				variation: -1,
+				seed: 5000,
+				tumble: "yes",
+			}),
+		).toMatchObject({
+			shape: "orb",
+			motion: "orbit",
+			backgroundStyle: "solid",
+			opacity: 1,
+			variation: 0,
+			seed: 999,
+			tumble: false,
+		});
 	});
 });
 

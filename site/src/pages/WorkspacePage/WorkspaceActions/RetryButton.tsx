@@ -13,9 +13,10 @@ export const RetryButton: React.FC<RetryButtonProps> = ({
 	handleAction,
 	workspace,
 	enableBuildParameters,
+	disabled,
 }) => {
 	const mainAction = (
-		<TopbarButton onClick={() => handleAction()}>
+		<TopbarButton onClick={() => handleAction()} disabled={disabled}>
 			<RotateCcwIcon />
 			Retry
 		</TopbarButton>
@@ -31,6 +32,7 @@ export const RetryButton: React.FC<RetryButtonProps> = ({
 			<BuildParametersPopover
 				label="Retry with build parameters"
 				workspace={workspace}
+				disabled={disabled}
 			/>
 		</div>
 	);

@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { CodeIcon, FileUpIcon, RotateCcwIcon } from "lucide-react";
+import { CodeIcon, FileUpIcon, RotateCcwIcon, ShuffleIcon } from "lucide-react";
 import { useRef } from "react";
 import type { BackgroundDials } from "#/api/platform";
 import { Button } from "#/components/Button/Button";
@@ -7,10 +7,18 @@ import { ColorField } from "../ColorField";
 import { formatBytes } from "../images";
 import { DIALS, dial, dialFilter, previewDocument } from "./backgroundHtml";
 import {
+	BACKGROUND_STYLES,
+	type BackgroundStyle,
+	PARTICLE_MOTIONS,
+	PARTICLE_SHAPES,
+	PARTICLE_THEMES,
 	PARTICLES_DEFAULT,
 	PARTICLES_LIMITS,
+	type ParticleMotion,
+	type ParticleShape,
 	type ParticlesSettings,
 	particlesHTML,
+	particleThemeOf,
 } from "./particles";
 
 export type HtmlSource = "particles" | "custom";
@@ -65,7 +73,7 @@ export const HtmlSourcePicker: React.FC<{
 				role="radio"
 				aria-checked={selected === "particles"}
 				aria-label="Particles (animated)"
-				title="Particles: glowing orbs circling slowly"
+				title="Particles: themes (Minecraft among them) and dials for their colours, shapes and motion"
 				disabled={disabled}
 				onClick={() => onSelect("particles")}
 				className={cn(
@@ -133,7 +141,149 @@ const Slider: React.FC<{
 	</label>
 );
 
-/** The Particles preset's own dials: its colours, how many, how big, how far and how soft the glow. */
+const SHAPE_LABELS: Record<ParticleShape, string> = {
+	orb: "Soft orbs",
+	dot: "Dots",
+	bubble: "Bubbles",
+	square: "Squares",
+	block: "Pixel blocks",
+	diamond: "Diamonds",
+	spark: "Sparks",
+};
+
+const MOTION_LABELS: Record<ParticleMotion, string> = {
+	orbit: "Orbit",
+	drift: "Drift",
+	rise: "Rise",
+	fall: "Fall",
+	twinkle: "Twinkle",
+};
+
+const BACKGROUND_STYLE_LABELS: Record<BackgroundStyle, string> = {
+	solid: "Solid",
+	vertical: "Vertical gradient",
+	radial: "Radial glow",
+};
+
+/** One of a few choices, as a row of buttons. */
+function Choice<T extends string>({
+	label,
+	options,
+	labels,
+	value,
+	onChange,
+	children,
+}: {
+	label: string;
+	options: readonly T[];
+	labels: Record<T, string>;
+	value: T;
+	onChange: (value: T) => void;
+	children?: React.ReactNode;
+}) {
+	return (
+		<div className="flex flex-col gap-1.5">
+			<span className="text-sm font-medium">{label}</span>
+			<div className="flex flex-wrap items-center gap-1.5">
+				<div
+					role="radiogroup"
+					aria-label={label}
+					className="flex flex-wrap gap-1.5"
+				>
+					{options.map((option) => (
+						<Button
+							key={option}
+							size="sm"
+							role="radio"
+							aria-checked={option === value}
+							variant={option === value ? "default" : "outline"}
+							className="min-w-0"
+							onClick={() => onChange(option)}
+						>
+							{labels[option]}
+						</Button>
+					))}
+				</div>
+				{children}
+			</div>
+		</div>
+	);
+}
+
+const Toggle: React.FC<{
+	label: string;
+	hint: string;
+	checked: boolean;
+	onChange: (checked: boolean) => void;
+}> = ({ label, hint, checked, onChange }) => (
+	<label className="flex items-center gap-2 text-sm" title={hint}>
+		<input
+			type="checkbox"
+			checked={checked}
+			onChange={(event) => onChange(event.target.checked)}
+			className="size-4 accent-[hsl(var(--content-link))]"
+		/>
+		{label}
+	</label>
+);
+
+/** The Particles themes: ready-made settings, each drawn live in its tile. */
+const ThemePicker: React.FC<{
+	value: ParticlesSettings;
+	onPick: (settings: ParticlesSettings) => void;
+}> = ({ value, onPick }) => {
+	const current = particleThemeOf(value);
+	return (
+		<div className="flex flex-col gap-2">
+			<span className="text-sm font-medium">Themes</span>
+			<div
+				role="radiogroup"
+				aria-label="Particle themes"
+				className="flex flex-wrap gap-2.5"
+				data-testid="particle-themes"
+			>
+				{PARTICLE_THEMES.map((t) => (
+					<button
+						key={t.id}
+						type="button"
+						role="radio"
+						aria-checked={current?.id === t.id}
+						aria-label={t.name}
+						title={`${t.name}: ${t.description}`}
+						data-theme={t.id}
+						onClick={() => onPick(t.settings)}
+						className={cn(
+							"relative h-16 w-28 cursor-pointer overflow-hidden rounded-md border border-solid border-border p-0",
+							"hover:border-content-link focus-visible:border-content-link focus-visible:outline-none",
+							current?.id === t.id &&
+								"border-content-link ring-2 ring-content-link",
+						)}
+					>
+						<HtmlPreviewFrame
+							html={particlesHTML(t.settings)}
+							className="absolute inset-0 h-[400%] w-[400%] origin-top-left scale-25"
+						/>
+						<span className="absolute right-0 bottom-0 left-0 truncate bg-black/50 px-1 py-0.5 text-left text-[10px] font-semibold text-white">
+							{t.name}
+						</span>
+					</button>
+				))}
+			</div>
+			<p className="m-0 text-xs text-content-secondary" aria-live="polite">
+				{current
+					? current.description
+					: "Your own settings. Pick a theme to start again from it."}
+			</p>
+		</div>
+	);
+};
+
+/**
+ * The Particles preset's own dials: a theme to start from; the background
+ * (solid or a gradient); the particles' colours, shape and motion; how many,
+ * how big and how varied, how opaque; their glow; luminous blending; and a
+ * shuffle of their places.
+ */
 export const ParticlesControls: React.FC<{
 	value: ParticlesSettings;
 	disabled?: boolean;
@@ -143,16 +293,40 @@ export const ParticlesControls: React.FC<{
 		onChange({ ...value, ...change });
 	return (
 		<fieldset
-			className="m-0 flex flex-col gap-3 rounded-md border border-solid border-border p-3"
+			className="m-0 flex flex-col gap-4 rounded-md border border-solid border-border p-3"
 			disabled={disabled}
+			data-testid="particles-controls"
 		>
 			<legend className="px-1 text-sm font-semibold">Particles</legend>
+			<ThemePicker value={value} onPick={onChange} />
+			<Choice
+				label="Background"
+				options={BACKGROUND_STYLES}
+				labels={BACKGROUND_STYLE_LABELS}
+				value={value.backgroundStyle}
+				onChange={(backgroundStyle) => set({ backgroundStyle })}
+			/>
 			<div className="grid gap-3 sm:grid-cols-2">
 				<ColorField
-					label="Background"
+					label={
+						value.backgroundStyle === "solid"
+							? "Background"
+							: value.backgroundStyle === "vertical"
+								? "Top"
+								: "Edges"
+					}
 					value={value.background}
 					onChange={(background) => set({ background })}
 				/>
+				{value.backgroundStyle !== "solid" && (
+					<ColorField
+						label={value.backgroundStyle === "vertical" ? "Bottom" : "Middle"}
+						value={value.background2}
+						onChange={(background2) => set({ background2 })}
+					/>
+				)}
+			</div>
+			<div className="grid gap-3 sm:grid-cols-3">
 				{value.colors.map((c, i) => (
 					<ColorField
 						key={i}
@@ -166,6 +340,31 @@ export const ParticlesControls: React.FC<{
 					/>
 				))}
 			</div>
+			<Choice
+				label="Shape"
+				options={PARTICLE_SHAPES}
+				labels={SHAPE_LABELS}
+				value={value.shape}
+				onChange={(shape) => set({ shape })}
+			/>
+			<Choice
+				label="Motion"
+				options={PARTICLE_MOTIONS}
+				labels={MOTION_LABELS}
+				value={value.motion}
+				onChange={(motion) => set({ motion })}
+			>
+				{value.motion !== "orbit" && (
+					<span className="ml-2">
+						<Toggle
+							label="Tumble"
+							hint="Each particle turns about itself as it goes"
+							checked={value.tumble}
+							onChange={(tumble) => set({ tumble })}
+						/>
+					</span>
+				)}
+			</Choice>
 			<div className="grid gap-3 sm:grid-cols-2">
 				<Slider
 					label="Particles"
@@ -182,6 +381,20 @@ export const ParticlesControls: React.FC<{
 					onChange={(size) => set({ size })}
 				/>
 				<Slider
+					label="Size variety"
+					{...PARTICLES_LIMITS.variation}
+					value={value.variation}
+					display={`${Math.round(value.variation * 100)}%`}
+					onChange={(variation) => set({ variation })}
+				/>
+				<Slider
+					label="Opacity"
+					{...PARTICLES_LIMITS.opacity}
+					value={value.opacity}
+					display={`${Math.round(value.opacity * 100)}%`}
+					onChange={(opacity) => set({ opacity })}
+				/>
+				<Slider
 					label="Glow distance"
 					{...PARTICLES_LIMITS.spread}
 					value={value.spread}
@@ -192,18 +405,41 @@ export const ParticlesControls: React.FC<{
 					label="Glow softness"
 					{...PARTICLES_LIMITS.glow}
 					value={value.glow}
-					display={`${value.glow.toFixed(2)}×`}
+					display={value.glow ? `${value.glow.toFixed(2)}×` : "none"}
 					onChange={(glow) => set({ glow })}
 				/>
 			</div>
-			<div>
+			<div className="flex flex-wrap items-center gap-3">
+				<Toggle
+					label="Luminous"
+					hint="Overlapping particles brighten each other, as light does"
+					checked={value.screen}
+					onChange={(screen) => set({ screen })}
+				/>
+				<Button
+					size="sm"
+					variant="outline"
+					title="Put the particles in other places"
+					onClick={() =>
+						set({
+							seed:
+								1 + ((value.seed + 1 + Math.floor(Math.random() * 997)) % 999),
+						})
+					}
+				>
+					<ShuffleIcon />
+					Shuffle places
+				</Button>
+				<span className="text-xs tabular-nums text-content-secondary">
+					{value.seed ? `Layout ${value.seed}` : "The original layout"}
+				</span>
 				<Button
 					size="sm"
 					variant="outline"
 					onClick={() => onChange(PARTICLES_DEFAULT)}
 				>
 					<RotateCcwIcon />
-					Original colours and sizes
+					Back to the original
 				</Button>
 			</div>
 		</fieldset>

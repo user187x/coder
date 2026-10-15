@@ -25,6 +25,7 @@ export type ActionButtonProps = {
 export const UpdateButton: React.FC<ActionButtonProps> = ({
 	handleAction,
 	loading,
+	disabled,
 	isRunning,
 	requireActiveVersion,
 }) => {
@@ -33,7 +34,7 @@ export const UpdateButton: React.FC<ActionButtonProps> = ({
 			<TooltipTrigger asChild>
 				<TopbarButton
 					data-testid="workspace-update-button"
-					disabled={loading}
+					disabled={loading || disabled}
 					onClick={() => handleAction()}
 				>
 					{requireActiveVersion ? <PlayIcon /> : <RotateCcwIcon />}
@@ -60,9 +61,10 @@ export const UpdateButton: React.FC<ActionButtonProps> = ({
 export const ActivateButton: React.FC<ActionButtonProps> = ({
 	handleAction,
 	loading,
+	disabled,
 }) => {
 	return (
-		<TopbarButton disabled={loading} onClick={() => handleAction()}>
+		<TopbarButton disabled={loading || disabled} onClick={() => handleAction()}>
 			<PowerIcon />
 			{loading ? <>Activating&hellip;</> : "Activate"}
 		</TopbarButton>
@@ -108,10 +110,11 @@ export const StartButton: React.FC<ActionButtonPropsWithWorkspace> = ({
 export const StopButton: React.FC<ActionButtonProps> = ({
 	handleAction,
 	loading,
+	disabled,
 }) => {
 	return (
 		<TopbarButton
-			disabled={loading}
+			disabled={loading || disabled}
 			onClick={() => handleAction()}
 			data-testid="workspace-stop-button"
 		>
@@ -124,13 +127,14 @@ export const StopButton: React.FC<ActionButtonProps> = ({
 export const RestartButton: React.FC<ActionButtonPropsWithWorkspace> = ({
 	handleAction,
 	loading,
+	disabled,
 }) => {
 	// Platform: the actions' arrow follows the action buttons (WorkspaceActions), whatever the state.
 	return (
 		<TopbarButton
 			onClick={() => handleAction()}
 			data-testid="workspace-restart-button"
-			disabled={loading}
+			disabled={loading || disabled}
 		>
 			<RotateCcwIcon />
 			{loading ? <>Restarting&hellip;</> : <>Restart&hellip;</>}
@@ -138,9 +142,17 @@ export const RestartButton: React.FC<ActionButtonPropsWithWorkspace> = ({
 	);
 };
 
-export const CancelButton: React.FC<ActionButtonProps> = ({ handleAction }) => {
+/** Platform: in the place of the button whose build it cancels (WorkspaceActions); `tooltipText` says which. */
+export const CancelButton: React.FC<ActionButtonProps> = ({
+	handleAction,
+	tooltipText,
+}) => {
 	return (
-		<TopbarButton onClick={() => handleAction()}>
+		<TopbarButton
+			onClick={() => handleAction()}
+			title={tooltipText}
+			data-testid="workspace-cancel-button"
+		>
 			<BanIcon />
 			Cancel
 		</TopbarButton>

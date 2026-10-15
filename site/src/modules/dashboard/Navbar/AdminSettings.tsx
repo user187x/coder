@@ -57,7 +57,7 @@ export type AdminSettingsPermissions = {
 
 /**
  * Builds the ordered list of Admin menu items for the given permissions. The
- * deployment settings are called "Control Panel" (they open General; the menu
+ * deployment settings are called "Admin Controls" (they open General; the menu
  * itself is "Settings"). Under it are
  * the admin's quick links to General's categories, none until they add some
  * with the row after them; each link can be removed or dragged into another
@@ -77,7 +77,7 @@ export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
 				<DropdownMenuItem asChild className={itemClassName}>
 					<Link to="/deployment">
 						<SettingsIcon aria-hidden />
-						Control Panel
+						Admin Controls
 					</Link>
 				</DropdownMenuItem>
 			)}

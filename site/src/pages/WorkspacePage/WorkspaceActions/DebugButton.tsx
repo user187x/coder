@@ -13,9 +13,10 @@ export const DebugButton: React.FC<DebugButtonProps> = ({
 	handleAction,
 	workspace,
 	enableBuildParameters,
+	disabled,
 }) => {
 	const mainAction = (
-		<TopbarButton onClick={() => handleAction()}>
+		<TopbarButton onClick={() => handleAction()} disabled={disabled}>
 			<BugIcon />
 			Debug
 		</TopbarButton>
@@ -31,6 +32,7 @@ export const DebugButton: React.FC<DebugButtonProps> = ({
 			<BuildParametersPopover
 				label="Debug with build parameters"
 				workspace={workspace}
+				disabled={disabled}
 			/>
 		</div>
 	);
