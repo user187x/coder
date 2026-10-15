@@ -26,6 +26,7 @@ import { TemplateSettingsLayout } from "./pages/TemplateSettingsPage/TemplateSet
 import TemplatesPage from "./pages/TemplatesPage/TemplatesPage";
 import UserSettingsLayout from "./pages/UserSettingsPage/Layout";
 import UsersPage from "./pages/UsersPage/UsersPage";
+import { WorkspaceSettingsSectionRedirect } from "./pages/WorkspaceSettingsPage/WorkspaceSettingsCardsPage";
 import { WorkspaceSettingsLayout } from "./pages/WorkspaceSettingsPage/WorkspaceSettingsLayout";
 import WorkspacesPage from "./pages/WorkspacesPage/WorkspacesPage";
 
@@ -82,24 +83,6 @@ const WorkspaceBuildPage = lazy(
 	() => import("./pages/WorkspaceBuildPage/WorkspaceBuildPage"),
 );
 const WorkspacePage = lazy(() => import("./pages/WorkspacePage/WorkspacePage"));
-const WorkspaceSchedulePage = lazy(
-	() =>
-		import(
-			"./pages/WorkspaceSettingsPage/WorkspaceSchedulePage/WorkspaceSchedulePage"
-		),
-);
-const WorkspaceParametersPage = lazy(
-	() =>
-		import(
-			"./pages/WorkspaceSettingsPage/WorkspaceParametersPage/WorkspaceParametersPage"
-		),
-);
-const WorkspaceSharingPage = lazy(
-	() =>
-		import(
-			"./pages/WorkspaceSettingsPage/WorkspaceSharingPage/WorkspaceSharingPage"
-		),
-);
 const TerminalPage = lazy(() => import("./pages/TerminalPage/TerminalPage"));
 const TemplatePermissionsPage = lazy(
 	() =>
@@ -261,8 +244,9 @@ const TemplateVariablesPage = lazy(
 			"./pages/TemplateSettingsPage/TemplateVariablesPage/TemplateVariablesPage"
 		),
 );
-const WorkspaceSettingsPage = lazy(
-	() => import("./pages/WorkspaceSettingsPage/WorkspaceSettingsPage"),
+// Platform: the workspace's settings on one page of cards (General, Parameters, Schedule, Sharing).
+const WorkspaceSettingsCardsPage = lazy(
+	() => import("./pages/WorkspaceSettingsPage/WorkspaceSettingsCardsPage"),
 );
 const CreateTokenPage = lazy(
 	() => import("./pages/CreateTokenPage/CreateTokenPage"),
@@ -771,10 +755,23 @@ export const router = createBrowserRouter(
 							element={<WorkspaceBuildPage />}
 						/>
 						<Route path="settings" element={<WorkspaceSettingsLayout />}>
-							<Route index element={<WorkspaceSettingsPage />} />
-							<Route path="parameters" element={<WorkspaceParametersPage />} />
-							<Route path="schedule" element={<WorkspaceSchedulePage />} />
-							<Route path="sharing" element={<WorkspaceSharingPage />} />
+							<Route index element={<WorkspaceSettingsCardsPage />} />
+							<Route
+								path="parameters"
+								element={
+									<WorkspaceSettingsSectionRedirect section="parameters" />
+								}
+							/>
+							<Route
+								path="schedule"
+								element={
+									<WorkspaceSettingsSectionRedirect section="schedule" />
+								}
+							/>
+							<Route
+								path="sharing"
+								element={<WorkspaceSettingsSectionRedirect section="sharing" />}
+							/>
 						</Route>
 					</Route>
 

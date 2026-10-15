@@ -298,12 +298,27 @@ export type ResourceUsage = {
 	free: number;
 };
 
+/** The cluster's network traffic: bytes per second the nodes received (rx) and sent (tx). */
+export type NetworkPoint = { t: number; rx: number; tx: number };
+
+export type ClusterNetwork = {
+	/** The latest round's rates. */
+	rx: number;
+	tx: number;
+	/** The last 15 minutes, one point a round. */
+	points: NetworkPoint[];
+	/** Seconds between rounds. */
+	every: number;
+};
+
 export type ClusterUsage = {
 	cpu: ResourceUsage;
 	memory: ResourceUsage;
 	nodes: number;
 	live: boolean;
 	generatedAt: string;
+	/** Missing before the first samples, or when no kubelet answers. */
+	network?: ClusterNetwork | null;
 };
 
 type NodeResources = {

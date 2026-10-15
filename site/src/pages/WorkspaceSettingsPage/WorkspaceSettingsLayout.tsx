@@ -17,7 +17,6 @@ import {
 } from "#/components/Breadcrumb/Breadcrumb";
 import { Loader } from "#/components/Loader/Loader";
 import { pageTitle } from "#/utils/page";
-import { Sidebar } from "./Sidebar";
 import { WorkspaceSettings } from "./useWorkspaceSettings";
 
 export const WorkspaceSettingsLayout: React.FC = () => {
@@ -87,7 +86,8 @@ export const WorkspaceSettingsLayout: React.FC = () => {
 				<div className="h-px border-none bg-border" />
 
 				<section className="px-4 sm:px-6 lg:px-10 max-w-(--breakpoint-2xl) mx-auto">
-					<div className="flex flex-col gap-8 py-6 lg:flex-row lg:gap-28 lg:py-10">
+					{/* Platform: one page of cards (WorkspaceSettingsCardsPage), no sidebar of pages. */}
+					<div className="py-6 lg:py-10">
 						{error ? (
 							<ErrorAlert error={error} />
 						) : (
@@ -99,12 +99,9 @@ export const WorkspaceSettingsLayout: React.FC = () => {
 										permissions: permissionsQuery.data,
 									}}
 								>
-									<Sidebar />
-									<div className="grow min-w-0">
-										<Suspense fallback={<Loader />}>
-											<Outlet />
-										</Suspense>
-									</div>
+									<Suspense fallback={<Loader />}>
+										<Outlet />
+									</Suspense>
 								</WorkspaceSettings.Provider>
 							)
 						)}
