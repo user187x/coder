@@ -1,4 +1,5 @@
 import {
+	BrainCircuitIcon,
 	DiscIcon,
 	DownloadCloudIcon,
 	TrashIcon,
@@ -7,7 +8,7 @@ import {
 import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { getErrorMessage } from "#/api/errors";
-import { ImagesAPI } from "#/api/images";
+import { ImagesAPI, type Library, type LibraryKind } from "#/api/images";
 import { PlatformError } from "#/api/platform";
 import { Button } from "#/components/Button/Button";
 import { Input } from "#/components/Input/Input";
@@ -22,23 +23,45 @@ import {
 import { createDayString } from "#/utils/createDayString";
 import { formatSize } from "./badges";
 
-export const isosKey = ["platform", "isos"] as const;
+export const libraryKey = (kind: LibraryKind) =>
+	["platform", "library", kind] as const;
 
-/** Where workspaces have it, as their users see it: ~/isos. */
+/** Where workspaces have it, as their users see it: ~/isos, ~/models. */
 const homePath = (path: string) => path.replace(/^\/home\/coder(?=\/|$)/, "~");
 
+/** What sets one library apart from the other. */
+type LibraryCopy = {
+	kind: LibraryKind;
+	title: string;
+	icon: React.ReactNode;
+	/** One file, several ("ISO", "ISOs"). */
+	noun: [string, string];
+	accept: string;
+	placeholder: string;
+	/** Before how much is there. */
+	describe: (lib: Library) => React.ReactNode;
+};
+
 /**
- * The ISO library: disk images for every workspace, read-only at ~/isos in
- * each (on the Cloud Drive's storage). Everyone sees what is there; admins and
- * template admins upload ISOs (with their progress), have the service fetch
- * one from a URL (its progress while it comes in), and delete them. Nothing
- * where the deployment has no Cloud Drive storage.
+ * A shared library on the Cloud Drive's storage: files every workspace (or every AI workspace) has read-only.
+ * Everyone sees what is there; admins and template admins upload files (with their progress), have the service fetch
+ * one from a URL (its progress while it comes in), and delete them. Nothing where the deployment has no Cloud Drive
+ * storage.
  */
-export const IsoLibrary: React.FC = () => {
+const FileLibrary: React.FC<LibraryCopy> = ({
+	kind,
+	title,
+	icon,
+	noun,
+	accept,
+	placeholder,
+	describe,
+}) => {
 	const queryClient = useQueryClient();
+	const key = libraryKey(kind);
 	const query = useQuery({
-		queryKey: isosKey,
-		queryFn: ImagesAPI.isos,
+		queryKey: key,
+		queryFn: () => ImagesAPI.library(kind),
 		retry: false,
 		refetchInterval: (q) =>
 			q.state.data?.imports.some((i) => !i.done && !i.error) ? 2000 : 30_000,
@@ -50,11 +73,11 @@ export const IsoLibrary: React.FC = () => {
 	} | null>(null);
 	const [url, setUrl] = useState("");
 	const [confirming, setConfirming] = useState<string | null>(null);
-	const refresh = () => queryClient.invalidateQueries({ queryKey: isosKey });
+	const refresh = () => queryClient.invalidateQueries({ queryKey: key });
 	const send = useMutation({
 		mutationFn: (file: File) => {
 			setUpload({ name: file.name, fraction: 0 });
-			return ImagesAPI.uploadIso(file, (fraction) =>
+			return ImagesAPI.uploadToLibrary(kind, file, (fraction) =>
 				setUpload({ name: file.name, fraction }),
 			);
 		},
@@ -64,14 +87,14 @@ export const IsoLibrary: React.FC = () => {
 		},
 	});
 	const fetchUrl = useMutation({
-		mutationFn: () => ImagesAPI.importIso(url.trim(), ""),
+		mutationFn: () => ImagesAPI.importToLibrary(kind, url.trim(), ""),
 		onSuccess: () => {
 			setUrl("");
 			void refresh();
 		},
 	});
 	const remove = useMutation({
-		mutationFn: (name: string) => ImagesAPI.deleteIso(name),
+		mutationFn: (name: string) => ImagesAPI.deleteFromLibrary(kind, name),
 		onSettled: () => {
 			setConfirming(null);
 			void refresh();
@@ -87,23 +110,23 @@ export const IsoLibrary: React.FC = () => {
 	}
 	const running = lib.imports.filter((i) => !i.done);
 	const problem = send.error ?? fetchUrl.error ?? remove.error;
+	const headingId = `library-${kind}`;
 
 	return (
-		<section className="mt-10" aria-labelledby="iso-library">
+		<section className="mt-10" aria-labelledby={headingId}>
 			<div className="flex flex-wrap items-end justify-between gap-3">
 				<div>
 					<h2
-						id="iso-library"
+						id={headingId}
 						className="m-0 flex items-center gap-2 text-lg font-semibold"
 					>
-						<DiscIcon aria-hidden className="size-5 text-content-secondary" />
-						ISO library
+						{icon}
+						{title}
 					</h2>
 					<p className="mt-1 mb-0 text-sm text-content-secondary">
-						Disk images for every workspace: read-only at{" "}
-						<code>{homePath(lib.mountPath)}</code> in each. {lib.files.length}{" "}
-						{lib.files.length === 1 ? "ISO" : "ISOs"},{" "}
-						{formatSize(lib.usedBytes)}. Your own go in your Cloud Drive.
+						{describe(lib)} {lib.files.length}{" "}
+						{lib.files.length === 1 ? noun[0] : noun[1]},{" "}
+						{formatSize(lib.usedBytes)}.
 					</p>
 				</div>
 				{lib.canEdit && (
@@ -111,9 +134,9 @@ export const IsoLibrary: React.FC = () => {
 						<input
 							ref={fileInput}
 							type="file"
-							accept=".iso,.img"
+							accept={accept}
 							hidden
-							data-testid="iso-file-input"
+							data-testid={`${kind}-file-input`}
 							onChange={(e) => {
 								const f = e.target.files?.[0];
 								e.target.value = "";
@@ -130,8 +153,8 @@ export const IsoLibrary: React.FC = () => {
 							}}
 						>
 							<Input
-								aria-label="The ISO's address"
-								placeholder="https://… .iso"
+								aria-label={`The ${noun[0]}'s address`}
+								placeholder={placeholder}
 								value={url}
 								onChange={(e) => setUrl(e.target.value)}
 								className="h-8 w-64 text-xs"
@@ -154,7 +177,7 @@ export const IsoLibrary: React.FC = () => {
 							onClick={() => fileInput.current?.click()}
 						>
 							<UploadIcon />
-							Upload ISO
+							Upload {noun[0]}
 						</Button>
 					</div>
 				)}
@@ -165,9 +188,12 @@ export const IsoLibrary: React.FC = () => {
 				</p>
 			) : null}
 			{(upload || running.length > 0 || lib.imports.some((i) => i.error)) && (
-				<div className="mt-3 flex flex-col gap-1.5" data-testid="iso-progress">
+				<div
+					className="mt-3 flex flex-col gap-1.5"
+					data-testid={`${kind}-progress`}
+				>
 					{upload && (
-						<IsoProgress
+						<LibraryProgress
 							name={upload.name}
 							fraction={upload.fraction}
 							label="Uploading"
@@ -184,7 +210,7 @@ export const IsoLibrary: React.FC = () => {
 									{i.name}: {i.error}
 								</p>
 							) : (
-								<IsoProgress
+								<LibraryProgress
 									key={i.name}
 									name={i.name}
 									fraction={i.total ? i.bytes / i.total : 0}
@@ -194,10 +220,10 @@ export const IsoLibrary: React.FC = () => {
 						)}
 				</div>
 			)}
-			<Table className="mt-3" data-testid="iso-table">
+			<Table className="mt-3" data-testid={`${kind}-table`}>
 				<TableHeader>
 					<TableRow>
-						<TableHead className="w-[60%]">ISO</TableHead>
+						<TableHead className="w-[60%]">{noun[0]}</TableHead>
 						<TableHead className="w-[15%]">Size</TableHead>
 						<TableHead className="w-[20%]">Added</TableHead>
 						<TableHead className="w-[5%]" />
@@ -207,7 +233,7 @@ export const IsoLibrary: React.FC = () => {
 					{lib.files.length === 0 ? (
 						<TableRow>
 							<TableCell colSpan={4} className="text-sm text-content-secondary">
-								No ISOs yet.
+								No {noun[1]} yet.
 								{lib.canEdit &&
 									" Upload one, or fetch one from an address the cluster reaches."}
 							</TableCell>
@@ -255,7 +281,7 @@ export const IsoLibrary: React.FC = () => {
 	);
 };
 
-const IsoProgress: React.FC<{
+const LibraryProgress: React.FC<{
 	name: string;
 	fraction: number;
 	label: string;
@@ -281,4 +307,48 @@ const IsoProgress: React.FC<{
 			{Math.round(fraction * 100)}%
 		</span>
 	</div>
+);
+
+/** The ISO library: disk images for every workspace, read-only at ~/isos in each. */
+export const IsoLibrary: React.FC = () => (
+	<FileLibrary
+		kind="isos"
+		title="ISO library"
+		icon={<DiscIcon aria-hidden className="size-5 text-content-secondary" />}
+		noun={["ISO", "ISOs"]}
+		accept=".iso,.img"
+		placeholder="https://… .iso"
+		describe={(lib) => (
+			<>
+				Disk images for every workspace: read-only at{" "}
+				<code>{homePath(lib.mountPath)}</code> in each. Your own go in your
+				Cloud Drive.
+			</>
+		)}
+	/>
+);
+
+/**
+ * The model library: language models (GGUF) for the AI workspaces (UBUNTU LM STUDIO, UBUNTU OPENCODE), read-only at
+ * ~/models in each, where LM Studio lists them and OpenCode can use them.
+ */
+export const ModelLibrary: React.FC = () => (
+	<FileLibrary
+		kind="models"
+		title="Model library"
+		icon={
+			<BrainCircuitIcon aria-hidden className="size-5 text-content-secondary" />
+		}
+		noun={["model", "models"]}
+		accept=".gguf"
+		placeholder="https://… .gguf"
+		describe={(lib) => (
+			<>
+				Language models (GGUF) for the LM Studio and OpenCode workspaces:
+				read-only at <code>{homePath(lib.mountPath)}</code> in each, where LM
+				Studio lists them and OpenCode can use them. Your own go in your Cloud
+				Drive's <code>models</code> folder.
+			</>
+		)}
+	/>
 );

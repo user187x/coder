@@ -53,13 +53,13 @@ import {
 	StatusBadge,
 	TrackedBadge,
 } from "./badges";
+import { IsoLibrary, ModelLibrary } from "./FileLibrary";
 import { ImagesInUse } from "./ImagesInUse";
 import { ImagesSettingsDialog } from "./ImagesSettingsDialog";
 import {
 	ImportImageDialog,
 	type ImportImageDialogProps,
 } from "./ImportImageDialog";
-import { IsoLibrary } from "./IsoLibrary";
 import { NewImageDialog } from "./NewImageDialog";
 import { ResourceTabs } from "./ResourceTabs";
 import { SecurityDataBadge } from "./SecurityData";
@@ -242,6 +242,7 @@ const ImagesPage: React.FC = () => {
 				onImport={(initial) => setImporting(initial)}
 			/>
 			<IsoLibrary />
+			<ModelLibrary />
 			{creating && <NewImageDialog onClose={() => setCreating(false)} />}
 			{importing && (
 				<ImportImageDialog

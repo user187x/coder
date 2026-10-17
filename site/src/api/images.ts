@@ -304,11 +304,17 @@ export type ImageInUse = {
 	entry: string | null;
 };
 
-/** An ISO of the library: in every workspace at ~/isos, read-only. */
-export type IsoFile = { name: string; size: number; modified: string };
+/**
+ * The shared libraries: files every workspace (or every AI workspace) has read-only - the ISO library's disk images
+ * at ~/isos, the model library's GGUF language models at ~/models.
+ */
+export type LibraryKind = "isos" | "models";
 
-/** An ISO the service downloads into the library. */
-export type IsoImport = {
+/** A file of a library. */
+export type LibraryFile = { name: string; size: number; modified: string };
+
+/** A file the service downloads into a library. */
+export type LibraryImport = {
 	name: string;
 	url: string;
 	bytes: number;
@@ -319,17 +325,17 @@ export type IsoImport = {
 	startedAt: number;
 };
 
-export type IsoLibrary = {
+export type Library = {
 	enabled: boolean;
 	canEdit: boolean;
 	mountPath: string;
 	maxBytes: number;
-	files: IsoFile[];
+	files: LibraryFile[];
 	usedBytes: number;
-	imports: IsoImport[];
+	imports: LibraryImport[];
 };
 
-const ISOS = `${base}/api/isos`;
+const LIBRARY = (kind: LibraryKind) => `${base}/api/${kind}`;
 
 export type BuildSummary = {
 	id: number;
@@ -532,16 +538,21 @@ export const ImagesAPI = {
 			onProgress,
 		),
 	inUse: () => get<{ images: ImageInUse[] }>(`${IMAGES}/in-use`),
-	isos: () => get<IsoLibrary>(ISOS),
-	uploadIso: (file: File, onProgress?: (fraction: number) => void) =>
+	library: (kind: LibraryKind) => get<Library>(LIBRARY(kind)),
+	uploadToLibrary: (
+		kind: LibraryKind,
+		file: File,
+		onProgress?: (fraction: number) => void,
+	) =>
 		upload<{ ok: true; name: string; size: number }>(
-			`${ISOS}/upload?name=${enc(file.name)}`,
+			`${LIBRARY(kind)}/upload?name=${enc(file.name)}`,
 			file,
 			onProgress,
 		),
-	importIso: (url: string, name: string) =>
-		post<{ ok: true; name: string }>(`${ISOS}/import`, { url, name }),
-	deleteIso: (name: string) => post<{ ok: true }>(`${ISOS}/delete`, { name }),
+	importToLibrary: (kind: LibraryKind, url: string, name: string) =>
+		post<{ ok: true; name: string }>(`${LIBRARY(kind)}/import`, { url, name }),
+	deleteFromLibrary: (kind: LibraryKind, name: string) =>
+		post<{ ok: true }>(`${LIBRARY(kind)}/delete`, { name }),
 };
 
 /** The Terraform a workspace template uses to run on the image. */
