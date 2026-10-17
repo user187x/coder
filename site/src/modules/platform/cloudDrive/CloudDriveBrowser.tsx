@@ -25,6 +25,7 @@ import {
 	usedPercent,
 	validName,
 } from "./drivePaths";
+import { describe, download, type Transfer } from "./transfers";
 
 const levelOf = (percent: number) =>
 	percent >= 90 ? "high" : percent >= 70 ? "mid" : "low";
@@ -33,21 +34,13 @@ const levelOf = (percent: number) =>
 export const homePath = (path: string) =>
 	path.replace(/^\/home\/coder(?=\/|$)/, "~");
 
-type Upload = {
-	id: number;
-	name: string;
-	fraction: number;
-	error?: string;
-	done?: boolean;
-};
-
-let nextUpload = 1;
+let nextTransfer = 1;
 
 /**
  * The Cloud Drive's files (in its window): folders and files with their size
- * and date, upload with progress (or by dropping files on it), new folder,
- * download, delete (asked once more); how full it is, and where its
- * workspaces have it.
+ * and date, upload (or drop files on it) and download, each with a moving bar,
+ * how much has gone, how fast and how long is left (transfers.ts); new folder,
+ * delete (asked once more); how full it is, and where its workspaces have it.
  */
 export const CloudDriveBrowser: React.FC<{ summary: SafeSummary }> = ({
 	summary,
@@ -55,7 +48,7 @@ export const CloudDriveBrowser: React.FC<{ summary: SafeSummary }> = ({
 	const queryClient = useQueryClient();
 	const [path, setPath] = useState("");
 	const listing = useQuery(safeListing(path, true));
-	const [uploads, setUploads] = useState<Upload[]>([]);
+	const [transfers, setTransfers] = useState<Transfer[]>([]);
 	const [folderName, setFolderName] = useState<string | null>(null);
 	const [confirming, setConfirming] = useState<string | null>(null);
 	const [problem, setProblem] = useState<string | null>(null);
@@ -63,37 +56,83 @@ export const CloudDriveBrowser: React.FC<{ summary: SafeSummary }> = ({
 	const fileInput = useRef<HTMLInputElement>(null);
 	const refresh = () => queryClient.invalidateQueries({ queryKey: safeKey });
 
-	const patchUpload = (id: number, patch: Partial<Upload>) =>
-		setUploads((all) => all.map((u) => (u.id === id ? { ...u, ...patch } : u)));
+	const patch = (id: number, change: Partial<Transfer>) =>
+		setTransfers((all) =>
+			all.map((t) => (t.id === id ? { ...t, ...change } : t)),
+		);
+	// A finished transfer stays a moment, then goes.
+	const finish = (id: number, change: Partial<Transfer>) => {
+		patch(id, { ...change, done: true });
+		window.setTimeout(
+			() => setTransfers((all) => all.filter((t) => t.id !== id)),
+			change.browser ? 6000 : 2500,
+		);
+	};
 
 	const uploadFiles = async (files: File[]) => {
 		setProblem(null);
 		for (const file of files) {
-			const id = nextUpload++;
+			const id = nextTransfer++;
 			const bad = validName(file.name);
-			setUploads((all) => [
+			setTransfers((all) => [
 				...all,
-				{ id, name: file.name, fraction: 0, error: bad ?? undefined },
+				{
+					id,
+					kind: "upload",
+					name: file.name,
+					loaded: 0,
+					total: file.size,
+					startedAt: Date.now(),
+					error: bad ?? undefined,
+				},
 			]);
 			if (bad) {
 				continue;
 			}
 			try {
 				await PlatformAPI.uploadToSafe(joinPath(path, file.name), file, (f) =>
-					patchUpload(id, { fraction: f }),
+					patch(id, { loaded: Math.round(f * file.size) }),
 				);
-				patchUpload(id, { fraction: 1, done: true });
+				finish(id, { loaded: file.size });
 			} catch (e) {
-				patchUpload(id, {
+				patch(id, {
 					error: e instanceof Error ? e.message : "The upload failed.",
 				});
 			}
 		}
 		await refresh();
-		window.setTimeout(
-			() => setUploads((all) => all.filter((u) => !u.done)),
-			2500,
-		);
+	};
+
+	const downloadFile = async (target: string, name: string, size: number) => {
+		const id = nextTransfer++;
+		setTransfers((all) => [
+			...all,
+			{
+				id,
+				kind: "download",
+				name,
+				loaded: 0,
+				total: size,
+				startedAt: Date.now(),
+			},
+		]);
+		try {
+			const how = await download(
+				PlatformAPI.safeDownloadUrl(target),
+				name,
+				size,
+				(loaded, total) => patch(id, { loaded, total }),
+			);
+			if (how === "cancelled") {
+				setTransfers((all) => all.filter((t) => t.id !== id));
+			} else {
+				finish(id, how === "browser" ? { browser: true } : { loaded: size });
+			}
+		} catch (e) {
+			patch(id, {
+				error: e instanceof Error ? e.message : "The download failed.",
+			});
+		}
 	};
 
 	const makeFolder = async () => {
@@ -327,14 +366,16 @@ export const CloudDriveBrowser: React.FC<{ summary: SafeSummary }> = ({
 										})}
 									</span>
 									<span className="flex items-center gap-1">
-										<a
-											href={PlatformAPI.safeDownloadUrl(target)}
-											download={file.name}
+										<button
+											type="button"
 											aria-label={`Download ${file.name}`}
-											className="inline-flex size-7 items-center justify-center rounded text-content-secondary hover:text-content-primary"
+											onClick={() =>
+												void downloadFile(target, file.name, file.size)
+											}
+											className="inline-flex size-7 cursor-pointer items-center justify-center rounded border-0 bg-transparent text-content-secondary hover:text-content-primary"
 										>
 											<DownloadIcon aria-hidden className="size-4" />
-										</a>
+										</button>
 										<DeleteButton
 											name={file.name}
 											confirming={confirming === target}
@@ -348,45 +389,15 @@ export const CloudDriveBrowser: React.FC<{ summary: SafeSummary }> = ({
 				)}
 			</div>
 
-			{(uploads.length > 0 || problem) && (
+			{(transfers.length > 0 || problem) && (
 				<div className="flex flex-col gap-1.5 border-0 border-t border-solid border-border px-4 py-2">
 					{problem && (
 						<p role="alert" className="m-0 text-xs text-content-destructive">
 							{problem}
 						</p>
 					)}
-					{uploads.map((u) => (
-						<div
-							key={u.id}
-							className="flex items-center gap-3 text-xs"
-							data-testid="cloud-drive-upload"
-						>
-							<span
-								className="w-48 truncate text-content-primary"
-								title={u.name}
-							>
-								{u.name}
-							</span>
-							{u.error ? (
-								<span className="text-content-destructive">{u.error}</span>
-							) : (
-								<>
-									<span
-										className="cd-progress flex-1"
-										role="progressbar"
-										aria-label={`Uploading ${u.name}`}
-										aria-valuenow={Math.round(u.fraction * 100)}
-										aria-valuemin={0}
-										aria-valuemax={100}
-									>
-										<i style={{ width: `${Math.round(u.fraction * 100)}%` }} />
-									</span>
-									<span className="w-10 text-right tabular-nums text-content-secondary">
-										{u.done ? "Done" : `${Math.round(u.fraction * 100)}%`}
-									</span>
-								</>
-							)}
-						</div>
+					{transfers.map((t) => (
+						<TransferRow key={t.id} transfer={t} />
 					))}
 				</div>
 			)}
@@ -439,3 +450,50 @@ const DeleteButton: React.FC<{
 			<Trash2Icon aria-hidden className="size-4" />
 		</button>
 	);
+
+/** A transfer: which way, the file, a moving bar, how much has gone, how fast, how long is left. */
+const TransferRow: React.FC<{ transfer: Transfer }> = ({ transfer: t }) => {
+	const percent = t.total
+		? Math.min(100, Math.round((t.loaded / t.total) * 100))
+		: 0;
+	const verb = t.kind === "upload" ? "Uploading" : "Downloading";
+	const Icon = t.kind === "upload" ? UploadIcon : DownloadIcon;
+	return (
+		<div
+			className="flex items-center gap-3 text-xs"
+			data-testid={`cloud-drive-${t.kind}`}
+		>
+			<Icon aria-hidden className="size-3.5 shrink-0 text-content-secondary" />
+			<span
+				className="w-40 shrink-0 truncate text-content-primary"
+				title={t.name}
+			>
+				{t.name}
+			</span>
+			{t.error ? (
+				<span className="text-content-destructive">{t.error}</span>
+			) : t.browser ? (
+				<span className="text-content-secondary">
+					Too large to follow here: in your browser's downloads.
+				</span>
+			) : (
+				<>
+					<span
+						className="cd-progress flex-1"
+						role="progressbar"
+						aria-label={`${verb} ${t.name}`}
+						aria-valuenow={percent}
+						aria-valuemin={0}
+						aria-valuemax={100}
+						data-done={t.done || undefined}
+					>
+						<i style={{ width: `${percent}%` }} />
+					</span>
+					<span className="w-56 shrink-0 text-right tabular-nums text-content-secondary">
+						{t.done ? "Done" : `${percent}% · ${describe(t)}`}
+					</span>
+				</>
+			)}
+		</div>
+	);
+};

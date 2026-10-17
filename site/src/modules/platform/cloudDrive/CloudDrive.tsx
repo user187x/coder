@@ -1,6 +1,6 @@
 import { cn } from "cn";
 import { ChevronRightIcon, CloudIcon, SettingsIcon, XIcon } from "lucide-react";
-import { useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { useQuery } from "react-query";
 import { getErrorMessage } from "#/api/errors";
 import { PlatformError } from "#/api/platform";
@@ -13,7 +13,7 @@ import {
 	DialogTitle,
 } from "#/components/Dialog/Dialog";
 import { CloudDriveBrowser } from "./CloudDriveBrowser";
-import { CloudDriveRopes } from "./CloudDriveRopes";
+import { CloudDriveRopes, ROPES_AREA } from "./CloudDriveRopes";
 import { CloudDriveSettings, StatusIndicator } from "./CloudDriveSettings";
 import { formatBytes } from "./drivePaths";
 import "./cloudDrive.css";
@@ -37,6 +37,44 @@ export const CloudDrive: React.FC<{
 	const [open, setOpen] = useState(false);
 	const [view, setView] = useState<"files" | "settings">("files");
 	const button = useRef<HTMLButtonElement>(null);
+	// Its left edge where the table's last column - the apps' - would have its name: the space it leaves to its
+	// right. Too wide for that column: flush with the table's right edge.
+	const [right, setRight] = useState(0);
+	const present = Boolean(summary?.enabled);
+	useLayoutEffect(() => {
+		const el = button.current;
+		const area = el?.closest(`[${ROPES_AREA}]`);
+		if (!el || !area || !present) {
+			return;
+		}
+		const place = () => {
+			const th = area.querySelector("table thead th:last-child");
+			const table = th?.closest("table");
+			if (!th || !table) {
+				setRight(0);
+				return;
+			}
+			const col = th.getBoundingClientRect();
+			const pad = Number.parseFloat(getComputedStyle(th).paddingLeft) || 0;
+			const width = el.getBoundingClientRect().width;
+			const free =
+				table.getBoundingClientRect().right - (col.left + pad + width);
+			// (The table does not move with it: the measure holds whatever the margin is now.)
+			const next = Math.max(0, Math.round(free));
+			setRight((r) => (Math.abs(next - r) > 1 ? next : r));
+		};
+		place();
+		const resize = new ResizeObserver(place);
+		resize.observe(area);
+		const changes = new MutationObserver(place);
+		changes.observe(area, { childList: true, subtree: true });
+		window.addEventListener("resize", place);
+		return () => {
+			resize.disconnect();
+			changes.disconnect();
+			window.removeEventListener("resize", place);
+		};
+	}, [present]);
 
 	if (
 		!summary ||
@@ -54,7 +92,12 @@ export const CloudDrive: React.FC<{
 				ref={button}
 				variant="outline"
 				size="sm"
-				className={cn("gap-2 font-normal", className)}
+				// The theme's accent for its border: it follows the theme the user picks.
+				className={cn(
+					"gap-2 border-content-link/60 font-normal hover:border-content-link",
+					className,
+				)}
+				style={{ marginRight: right }}
 				data-testid="cloud-drive"
 				aria-haspopup="dialog"
 				aria-label={`Cloud Drive: ${usage} used${status?.connected === true ? ", connected" : status?.connected === false ? ", not connected" : ""}`}

@@ -300,8 +300,9 @@ export const TemplatesPageView: React.FC<TemplatesPageViewProps> = ({
 											: "/starter-templates"
 									}
 								>
+									{/* Platform: the plus glyph says "new" */}
 									<PlusIcon />
-									New template
+									Template
 								</RouterLink>
 							</Button>
 						</div>

@@ -10,6 +10,7 @@ import {
 import { createPortal } from "react-dom";
 import type { Banner } from "#/api/platform";
 import { BannerBlocks } from "./BannerText";
+import { BrokenScreenOverlay } from "./BrokenScreenOverlay";
 import { bannerFontStack } from "./bannerFonts";
 import { SkynetOverlay } from "./SkynetOverlay";
 import "./bannerScrollView.css";
@@ -20,6 +21,9 @@ const MAX_TYPED = 64;
 const MAX_HISTORY = 20;
 /** Typed at the prompt: the easter egg (SkynetOverlay). */
 const SKYNET = "skynet";
+/** Run at the prompt (Enter): the screen breaks (BrokenScreenOverlay) - "rm -rf *", and its kin (/, ~, ., sudo). */
+export const RM_RF =
+	/^(sudo\s+)?rm\s+-(rf|fr|Rf|fR)\s+(\*|\/\*?|~\/?\*?|\.\/?\*?)$/;
 /** Any other command's answer (site/static/no-no.gif), then this, typed out. */
 const NO_NO_SRC = "/no-no.gif";
 const NO_NO_TEXT = "ahh ahh ahh...";
@@ -70,7 +74,8 @@ type BannerScrollViewProps = {
  * The last prompt takes typing while the view is open (it has the focus), as a
  * terminal would: Backspace, and Enter runs the line - every command is
  * answered with a wagging finger and "ahh ahh ahh..." (NoNoResponse). Typing
- * "skynet" rolls the view up and fades the whole screen into Skynet.
+ * "skynet" rolls the view up and fades the whole screen into Skynet; running "rm -rf *" rolls it up and breaks the
+ * screen (BrokenScreenOverlay) until its Restore screen button is clicked.
  */
 export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 	banner,
@@ -82,10 +87,12 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 	const [typed, setTyped] = useState("");
 	const [history, setHistory] = useState<string[]>([]);
 	const [skynet, setSkynet] = useState(false);
+	const [broken, setBroken] = useState(false);
 	const panel = useRef<HTMLDivElement>(null);
 	const body = useRef<HTMLDivElement>(null);
 	const toggle = useRef<HTMLButtonElement>(null);
 	const endSkynet = useCallback(() => setSkynet(false), []);
+	const endBroken = useCallback(() => setBroken(false), []);
 
 	const place = () => {
 		const r = anchor.current?.getBoundingClientRect();
@@ -139,9 +146,13 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 		if (event.key === "Backspace") {
 			setTyped((t) => t.slice(0, -1));
 		} else if (event.key === "Enter") {
-			const command = typed.trim();
+			const command = typed.trim().replace(/\s+/g, " ");
 			setHistory((h) => [...h, command].slice(-MAX_HISTORY));
 			setTyped("");
+			if (RM_RF.test(command)) {
+				setBroken(true);
+				close();
+			}
 		} else if (event.key.length === 1) {
 			const next = (typed + event.key).slice(0, MAX_TYPED);
 			if (next.trim().toLowerCase() === SKYNET) {
@@ -261,6 +272,7 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 					document.body,
 				)}
 			{skynet && <SkynetOverlay onDone={endSkynet} />}
+			{broken && <BrokenScreenOverlay onDone={endBroken} />}
 		</>
 	);
 };

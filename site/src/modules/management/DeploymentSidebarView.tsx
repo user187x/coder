@@ -73,7 +73,7 @@ export const DeploymentSidebarView: React.FC<DeploymentSidebarViewProps> = ({
 				)}
 				{permissions.editDeploymentConfig && (
 					<SidebarNavItem href="/deployment/customize">
-						<AdminCategoryLabel id="customize">Customize</AdminCategoryLabel>
+						<AdminCategoryLabel id="customize">Appearance</AdminCategoryLabel>
 					</SidebarNavItem>
 				)}
 				{health}

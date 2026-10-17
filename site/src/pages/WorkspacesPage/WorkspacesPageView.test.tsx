@@ -51,7 +51,7 @@ describe("WorkspacesPageView", () => {
 
 		await screen.findByText(/don't have permission to create workspaces/i);
 		expect(
-			screen.queryByRole("button", { name: /new workspace/i }),
+			screen.queryByRole("button", { name: "Workspace" }),
 		).not.toBeInTheDocument();
 	});
 
@@ -59,7 +59,7 @@ describe("WorkspacesPageView", () => {
 		renderWithAuth(<WorkspacesPageView {...defaultProps} />);
 
 		expect(
-			await screen.findByRole("button", { name: /new workspace/i }),
+			await screen.findByRole("button", { name: "Workspace" }),
 		).toBeInTheDocument();
 	});
 
@@ -79,7 +79,7 @@ describe("WorkspacesPageView", () => {
 			screen.queryByText(/don't have permission to create workspaces/i),
 		).not.toBeInTheDocument();
 		expect(
-			screen.queryByRole("button", { name: /new workspace/i }),
+			screen.queryByRole("button", { name: "Workspace" }),
 		).not.toBeInTheDocument();
 	});
 

@@ -1,4 +1,5 @@
 import { cn } from "cn";
+import { ChevronDownIcon, RotateCcwIcon } from "lucide-react";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { toast } from "sonner";
@@ -17,6 +18,12 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "#/components/Dialog/Dialog";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "#/components/DropdownMenu/DropdownMenu";
 import { FileUpload } from "#/components/FileUpload/FileUpload";
 import { Loader } from "#/components/Loader/Loader";
 import {
@@ -42,23 +49,24 @@ import { pageTitle } from "#/utils/page";
 const LOGO_EXTENSIONS = ["png", "jpg", "jpeg", "svg", "webp", "gif", "avif"];
 
 /**
- * General > Customize: the logo shown everywhere in Coder (navigation bar,
+ * General > Appearance (named Customize before; its address is still
+ * /deployment/customize): the logo shown everywhere in Coder (navigation bar,
  * sign-in and set-up pages, browser tab icon), the sign-in and sign-out page's
  * title, text effect and messages, and the faint background images
  * of the sign-in page and the dashboard, stored in Coder's own database by the
- * platform service, and your own appearance: theme and terminal font.
+ * platform service, and your own theme and terminal font.
  */
 const CustomizeSettingsPage: React.FC = () => {
 	return (
 		<>
-			<title>{pageTitle("Customize")}</title>
+			<title>{pageTitle("Appearance")}</title>
 			<SettingsHeader>
-				<SettingsHeaderTitle>Customize</SettingsHeaderTitle>
+				<SettingsHeaderTitle>Appearance</SettingsHeaderTitle>
 				<SettingsHeaderDescription>
 					The logo shown everywhere in Coder (navigation bar, sign-in and set-up
 					pages, browser tab icon), the sign-in and sign-out page's title and
 					messages, the background images of the sign-in page and the dashboard,
-					and your appearance: theme and terminal font.
+					and your own theme and terminal font.
 				</SettingsHeaderDescription>
 			</SettingsHeader>
 
@@ -69,18 +77,9 @@ const CustomizeSettingsPage: React.FC = () => {
 			<BackgroundSection />
 
 			<section
-				aria-labelledby="customize-appearance"
+				aria-label="Your theme and terminal font"
 				className="mt-10 border-0 border-t border-solid border-border pt-8"
 			>
-				<h2
-					id="customize-appearance"
-					className="m-0 mb-2 text-2xl font-semibold"
-				>
-					Appearance
-				</h2>
-				<p className="m-0 mb-8 text-sm font-medium text-content-secondary">
-					Your own theme and terminal font.
-				</p>
 				<AppearancePage />
 			</section>
 		</>
@@ -175,15 +174,33 @@ export const LogoView: React.FC<LogoViewProps> = ({
 						? `${logo.type.replace("image/", "").toUpperCase()}, ${formatBytes(logo.bytes)} · uploaded by ${logo.updatedBy ?? "unknown"}${logo.updatedAt ? ` on ${new Date(logo.updatedAt).toLocaleString("en-US")}` : ""}`
 						: "No custom logo: the default logo is shown."}
 			</p>
-			<div className="mt-4 flex flex-wrap gap-3">
-				<Button disabled={!logo.available} onClick={onUpload}>
-					Change the logo…
+			{/* One button: Change Logo, its arrow's menu restoring the default. */}
+			<div className="mt-4 flex">
+				<Button
+					className="rounded-r-none"
+					disabled={!logo.available}
+					onClick={onUpload}
+				>
+					Change Logo
 				</Button>
-				{logo.set && (
-					<Button variant="outline" onClick={onReset}>
-						Restore the default logo
-					</Button>
-				)}
+				<DropdownMenu>
+					<DropdownMenuTrigger asChild>
+						<Button
+							className="min-w-0 rounded-l-none border-0 border-l border-solid border-l-content-invert/25 px-2"
+							disabled={!logo.available}
+							aria-label="More logo choices"
+							data-testid="logo-menu"
+						>
+							<ChevronDownIcon />
+						</Button>
+					</DropdownMenuTrigger>
+					<DropdownMenuContent align="start">
+						<DropdownMenuItem disabled={!logo.set} onSelect={onReset}>
+							<RotateCcwIcon />
+							Restore the default logo
+						</DropdownMenuItem>
+					</DropdownMenuContent>
+				</DropdownMenu>
 			</div>
 			<p className="m-0 mt-4 text-sm text-content-secondary">
 				Stored in Coder's own PostgreSQL database, so it survives restarts and

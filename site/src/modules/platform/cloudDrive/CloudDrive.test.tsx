@@ -36,6 +36,7 @@ const settings = (
 		bucket: "coder-user-storage",
 	},
 	mountPath: "/home/coder/cloud-drive",
+	quota: { gib: 10, chartGib: 10, custom: false, min: 1, max: 10240 },
 	status: {
 		connected: true,
 		error: null,
@@ -128,8 +129,8 @@ describe("CloudDrive", () => {
 		expect(dialog.className).toMatch(/top-\[50%\]/);
 		expect(await screen.findByText("notes.txt")).toBeInTheDocument();
 		expect(
-			screen.getByRole("link", { name: "Download notes.txt" }),
-		).toHaveAttribute("href", "/__coder-ui/api/safe/download?path=notes.txt");
+			screen.getByRole("button", { name: "Download notes.txt" }),
+		).toBeInTheDocument();
 		expect(
 			screen.getByText("In each of your workspaces at ~/cloud-drive"),
 		).toBeInTheDocument();
@@ -261,6 +262,84 @@ describe("CloudDrive", () => {
 		);
 	});
 
+	it("downloads a file with its progress", async () => {
+		vi.spyOn(PlatformAPI, "getSafe").mockResolvedValue(summary);
+		vi.spyOn(PlatformAPI, "cloudDriveSettings").mockResolvedValue(settings());
+		vi.spyOn(PlatformAPI, "listSafe").mockResolvedValue({
+			path: "",
+			folders: [],
+			files: [{ name: "big.bin", size: 8, modified: "2026-10-17T05:00:00Z" }],
+		});
+		let release: () => void = () => {};
+		const second = new Promise<void>((r) => {
+			release = r;
+		});
+		const body = new ReadableStream<Uint8Array>({
+			async start(controller) {
+				controller.enqueue(new Uint8Array(4));
+				await second;
+				controller.enqueue(new Uint8Array(4));
+				controller.close();
+			},
+		});
+		const fetchSpy = vi
+			.spyOn(window, "fetch")
+			.mockResolvedValue(
+				new Response(body, { headers: { "Content-Length": "8" } }),
+			);
+		URL.createObjectURL = vi.fn(() => "blob:big");
+		URL.revokeObjectURL = vi.fn();
+		renderDrive();
+		fireEvent.click(await screen.findByTestId("cloud-drive"));
+		fireEvent.click(
+			await screen.findByRole("button", { name: "Download big.bin" }),
+		);
+		const bar = await screen.findByRole("progressbar", {
+			name: "Downloading big.bin",
+		});
+		await waitFor(() => expect(bar).toHaveAttribute("aria-valuenow", "50"));
+		expect(fetchSpy.mock.calls[0][0]).toBe(
+			"/__coder-ui/api/safe/download?path=big.bin",
+		);
+		release();
+		await waitFor(() =>
+			expect(screen.getByTestId("cloud-drive-download")).toHaveTextContent(
+				"Done",
+			),
+		);
+		expect(URL.createObjectURL).toHaveBeenCalled();
+	});
+
+	it("lets an admin set every account's capacity", async () => {
+		vi.spyOn(PlatformAPI, "getSafe").mockResolvedValue(summary);
+		vi.spyOn(PlatformAPI, "cloudDriveSettings").mockResolvedValue(
+			settings({ canEdit: true }),
+		);
+		vi.spyOn(PlatformAPI, "listSafe").mockResolvedValue(emptyListing);
+		const save = vi
+			.spyOn(PlatformAPI, "saveCloudDriveQuota")
+			.mockResolvedValue({
+				gib: 250,
+				chartGib: 10,
+				custom: true,
+				min: 1,
+				max: 10240,
+			});
+		renderDrive();
+		fireEvent.click(await screen.findByTestId("cloud-drive"));
+		fireEvent.click(await screen.findByRole("button", { name: "Settings" }));
+		const capacity = await screen.findByTestId("cloud-drive-capacity");
+		expect(within(capacity).getByRole("slider")).toBeInTheDocument();
+		fireEvent.change(
+			within(capacity).getByLabelText("Capacity per account, in GiB"),
+			{ target: { value: "250" } },
+		);
+		fireEvent.click(
+			within(capacity).getByRole("button", { name: "Save capacity" }),
+		);
+		await waitFor(() => expect(save).toHaveBeenCalledWith({ quotaGiB: 250 }));
+	});
+
 	it("says when its storage does not answer", async () => {
 		vi.spyOn(PlatformAPI, "getSafe").mockResolvedValue(summary);
 		vi.spyOn(PlatformAPI, "cloudDriveSettings").mockResolvedValue(
@@ -320,15 +399,20 @@ describe("CloudDrive", () => {
 			renderDrive(["w1", "w2", "not-on-this-page"]);
 			const ropes = await screen.findByTestId("cloud-drive-ropes");
 			await waitFor(() => {
-				const drawn = [...ropes.querySelectorAll("path")].filter((p) =>
+				const drawn = [...ropes.querySelectorAll("path.cd-cable")].filter((p) =>
 					p.getAttribute("d"),
 				);
 				expect(drawn).toHaveLength(2);
 			});
-			const [first] = ropes.querySelectorAll("path");
-			// from under the Cloud Drive to the row's right end
-			expect(first.getAttribute("d")).toMatch(/^M720,52 /);
-			expect(first.getAttribute("d")).toMatch(/ L799,125$/);
+			const [first] = ropes.querySelectorAll("path.cd-cable");
+			// from the socket on the Cloud Drive's right side to the plug at the row's right end
+			expect(first.getAttribute("d")).toMatch(/^M807,36 /);
+			expect(first.getAttribute("d")).toMatch(/ L815,125$/);
+			expect(
+				ropes
+					.querySelector("g[data-workspace='w1'] .cd-plug")
+					?.getAttribute("transform"),
+			).toBe("translate(800,125)");
 		} finally {
 			for (const row of rows) {
 				row.remove();

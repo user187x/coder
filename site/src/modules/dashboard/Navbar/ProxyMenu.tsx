@@ -18,6 +18,7 @@ import { ExternalImage } from "#/components/ExternalImage/ExternalImage";
 import { Latency } from "#/components/Latency/Latency";
 import { Skeleton } from "#/components/Skeleton/Skeleton";
 import type { ProxyContextValue } from "#/contexts/ProxyContext";
+import { WorkspacesLatencyMenu } from "#/modules/platform/workspaceLatency/WorkspacesLatencyMenu";
 import { getLatencyColor } from "#/utils/latency";
 import { sortProxiesByLatency } from "./proxyUtils";
 
@@ -180,6 +181,9 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({ proxyContextValue }) => {
 				)}
 
 				<DropdownMenuSeparator />
+
+				{/* Platform: the latency to each of your workspaces, live. */}
+				<WorkspacesLatencyMenu open={open} />
 
 				<DropdownMenuItem
 					onClick={(e) => {

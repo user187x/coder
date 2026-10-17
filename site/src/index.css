@@ -695,6 +695,12 @@
 		@apply bg-surface-primary text-content-primary font-sans antialiased;
 	}
 
+	/* Platform: every table's rows lightly striped - every other row on the theme's secondary surface, faintly - so
+	   rows read apart. In the base layer: a row's own background (selected, a workspace on its way up) still wins. */
+	tbody > tr:nth-child(even) {
+		background-color: hsl(var(--surface-secondary) / 0.55);
+	}
+
 	button,
 	input {
 		@apply font-sans;

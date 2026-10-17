@@ -1,4 +1,10 @@
-import { PlayIcon, RotateCcwIcon, SquareIcon, TrashIcon } from "lucide-react";
+import {
+	PlayIcon,
+	PlusIcon,
+	RotateCcwIcon,
+	SquareIcon,
+	TrashIcon,
+} from "lucide-react";
 import { useMemo } from "react";
 import type { UseQueryResult } from "react-query";
 import { hasError, isApiValidationError } from "#/api/errors";
@@ -26,6 +32,7 @@ import { Spinner } from "#/components/Spinner/Spinner";
 import { TableToolbar } from "#/components/TableToolbar/TableToolbar";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { CloudDrive } from "#/modules/platform/cloudDrive/CloudDrive";
+import { ResourceTabs } from "#/pages/ImagesPage/ResourceTabs";
 import { WorkspacesTable } from "#/pages/WorkspacesPage/WorkspacesTable";
 import { mustUpdateWorkspace } from "#/utils/workspace";
 import { WorkspacesFilter } from "./filter/WorkspacesFilter";
@@ -97,6 +104,8 @@ export const WorkspacesPageView: React.FC<WorkspacesPageViewProps> = ({
 	return (
 		// Platform: relative for the Cloud Drive's ropes over the table.
 		<Margins className="relative pb-12" data-cloud-drive-area>
+			{/* Platform: Workspaces | Templates | Images. */}
+			<ResourceTabs active="workspaces" />
 			<PageHeader
 				actions={
 					canCreateWorkspace && (
@@ -104,7 +113,9 @@ export const WorkspacesPageView: React.FC<WorkspacesPageViewProps> = ({
 							templates={templates}
 							templatesFetchStatus={templatesFetchStatus}
 						>
-							New workspace
+							{/* Platform: the plus glyph says "new" */}
+							<PlusIcon aria-hidden />
+							Workspace
 						</WorkspacesButton>
 					)
 				}

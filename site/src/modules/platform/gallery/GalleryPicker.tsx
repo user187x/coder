@@ -2,7 +2,7 @@ import { cn } from "cn";
 import { useState } from "react";
 import { useQuery } from "react-query";
 import { type GalleryImage, PlatformAPI } from "#/api/platform";
-import type { PrebakedPicture } from "../pictures";
+import { PREBAKED_GALLERY, type PrebakedPicture } from "../pictures";
 
 type GalleryPickerProps = {
 	/** Called with the picture as a file, exactly as if it had been chosen. */
@@ -16,12 +16,18 @@ type GalleryPickerProps = {
 	label?: string;
 	/** Platform: pictures baked into the dashboard, offered first (the backgrounds' prebaked ones). */
 	extra?: readonly PrebakedPicture[];
+	/**
+	 * A picture baked into the dashboard (extra, and the gallery's own: PREBAKED_GALLERY) chosen: given as it is,
+	 * for a caller that stores its path rather than the file. Without it, it comes as a file like the others.
+	 */
+	onPickBuiltin?: (picture: PrebakedPicture) => void;
 };
 
 /**
- * The pictures installed with the platform (helm-chart/defaults/gallery/),
- * offered next to "choose your own" in the logo and avatar editors. Nothing
- * shows when there are none.
+ * The pictures to choose from next to "choose your own" (the logo, avatar and
+ * background editors): those baked into the dashboard (extra, then
+ * PREBAKED_GALLERY: there with every install), then any the platform service
+ * has (helm-chart/defaults/gallery/, which install.sh installs).
  */
 export const GalleryPicker: React.FC<GalleryPickerProps> = ({
 	onPick,
@@ -31,6 +37,7 @@ export const GalleryPicker: React.FC<GalleryPickerProps> = ({
 	disabled,
 	label = "Or use one of the provided pictures:",
 	extra = [],
+	onPickBuiltin,
 }) => {
 	const query = useQuery({
 		queryKey: ["platform", "gallery"],
@@ -38,10 +45,14 @@ export const GalleryPicker: React.FC<GalleryPickerProps> = ({
 		staleTime: 60_000,
 	});
 	const [loading, setLoading] = useState<string>();
+	const builtins = [
+		...extra,
+		...PREBAKED_GALLERY.filter((p) => !extra.some((e) => e.name === p.name)),
+	];
 	const images: GalleryImage[] = [
-		...extra.map((p) => ({ ...p, bytes: 0 })),
+		...builtins.map((p) => ({ ...p, bytes: 0 })),
 		...(query.data?.images ?? []).filter(
-			(image) => !extra.some((p) => p.name === image.name),
+			(image) => !builtins.some((p) => p.name === image.name),
 		),
 	];
 	if (images.length === 0) {
@@ -49,6 +60,12 @@ export const GalleryPicker: React.FC<GalleryPickerProps> = ({
 	}
 
 	const choose = async (image: GalleryImage) => {
+		const builtin = builtins.find((p) => p.name === image.name);
+		if (builtin && onPickBuiltin) {
+			onSelect?.(image.name);
+			onPickBuiltin(builtin);
+			return;
+		}
 		setLoading(image.name);
 		try {
 			const blob = await (

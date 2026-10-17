@@ -30,8 +30,8 @@
 }
 
 .cd-progress {
-	height: 4px;
-	border-radius: 2px;
+	height: 6px;
+	border-radius: 3px;
 	background: hsl(var(--surface-tertiary));
 	overflow: hidden;
 }
@@ -42,7 +42,8 @@
 	transition: width 150ms linear;
 }
 
-/* The ropes: the backend's colour while connected, dashed red while not. */
+/* The cables: a dark sheathed cable with a faint shine, round the table's corner to each row's plug; the plugs' and
+   the socket's metal in the theme's accent. Red and dashed while the storage does not answer. */
 .cd-ropes {
 	position: absolute;
 	inset: 0;
@@ -52,23 +53,69 @@
 	overflow: visible;
 	pointer-events: none;
 }
-.cd-rope {
+.cd-cable,
+.cd-cable-shine {
 	fill: none;
-	stroke: hsl(var(--content-link));
-	stroke-width: 1.5;
 	stroke-linecap: round;
-	opacity: 0.55;
+	stroke-linejoin: round;
 }
-.cd-ropes[data-connected="false"] .cd-rope {
-	stroke: hsl(var(--content-destructive));
-	stroke-dasharray: 4 4;
-	opacity: 0.45;
+.cd-cable {
+	stroke: hsl(var(--content-secondary));
+	stroke-width: 3.2;
 }
-.cd-plug {
-	fill: hsl(var(--surface-primary));
+.cd-cable-shine {
+	stroke: hsl(var(--surface-primary) / 0.45);
+	stroke-width: 1;
+	transform: translate(-0.6px, -0.6px);
+}
+.cd-plug-body,
+.cd-socket {
+	fill: hsl(var(--surface-tertiary));
+	stroke: hsl(var(--content-secondary));
+	stroke-width: 1;
+}
+.cd-prong {
 	stroke: hsl(var(--content-link));
-	stroke-width: 1.5;
+	stroke-width: 1.6;
+	stroke-linecap: round;
 }
-.cd-ropes[data-connected="false"] .cd-plug {
+.cd-socket {
+	stroke: hsl(var(--content-link));
+}
+.cd-ropes[data-connected="false"] .cd-cable {
 	stroke: hsl(var(--content-destructive));
+	stroke-dasharray: 5 4;
+}
+.cd-ropes[data-connected="false"] .cd-prong,
+.cd-ropes[data-connected="false"] .cd-socket {
+	stroke: hsl(var(--content-destructive));
+}
+
+/* A transfer's bar, moving: stripes running along it while it goes, and its width easing to each new value. */
+.cd-progress > i {
+	background-image: repeating-linear-gradient(
+		-45deg,
+		hsl(0 0% 100% / 0.28) 0 6px,
+		transparent 6px 12px
+	);
+	background-size: 17px 17px;
+	animation: cd-stripes 0.7s linear infinite;
+}
+.cd-progress[data-done] > i {
+	background-image: none;
+	background-color: hsl(var(--content-success));
+	animation: none;
+}
+@keyframes cd-stripes {
+	to {
+		background-position: 17px 0;
+	}
+}
+html[data-animations="off"] .cd-progress > i {
+	animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+	.cd-progress > i {
+		animation: none;
+	}
 }

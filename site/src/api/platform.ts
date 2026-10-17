@@ -210,6 +210,8 @@ export type BackgroundImage = {
 	layer: BackgroundLayer;
 	/** A picture, or an HTML / CSS page shown in a sandboxed frame. */
 	kind?: "image" | "html";
+	/** One of the dashboard's own pictures (/pictures/...): stored as its path, drawn from Coder. */
+	builtin?: boolean;
 	params?: BackgroundParams;
 };
 
@@ -1335,6 +1337,15 @@ export type CloudDriveStatus = {
 };
 
 /** Where the Cloud Drive keeps files: the chart's storage, or one an admin set here. */
+export type CloudDriveQuota = {
+	gib: number;
+	chartGib: number;
+	/** Set by an admin (else the chart's). */
+	custom: boolean;
+	min: number;
+	max: number;
+};
+
 export type CloudDriveSettings = {
 	canEdit: boolean;
 	source: "chart" | "custom";
@@ -1348,6 +1359,8 @@ export type CloudDriveSettings = {
 	chart: { kind: "minio" | "s3"; endpoint: string; bucket: string };
 	mountPath: string;
 	status: CloudDriveStatus;
+	/** Every account's capacity: an admin's, else the chart's (userStorage.quotaGiB). */
+	quota: CloudDriveQuota;
 };
 
 export type CloudDriveBackend = {
@@ -1391,6 +1404,9 @@ export const PlatformAPI = {
 	/** Admins: another S3 service (saved once it answers), or { reset: true } for the chart's. */
 	saveCloudDriveSettings: (backend: CloudDriveBackend | { reset: true }) =>
 		post<CloudDriveSettings>(`${PLATFORM_BASE}/api/safe/settings`, backend),
+	/** Admins: every account's capacity (GiB), or { reset: true } for the chart's. */
+	saveCloudDriveQuota: (body: { quotaGiB: number } | { reset: true }) =>
+		post<CloudDriveQuota>(`${PLATFORM_BASE}/api/safe/settings/quota`, body),
 	/** Admins: whether an S3 service answers, without saving it. */
 	testCloudDriveBackend: (backend: CloudDriveBackend) =>
 		post<CloudDriveStatus>(`${PLATFORM_BASE}/api/safe/settings/test`, backend),
@@ -1443,9 +1459,11 @@ export const PlatformAPI = {
 	/** A new image (dataUrl) and/or new settings for one background. */
 	saveBackground: (
 		slot: BackgroundSlot,
-		change: Partial<Omit<BackgroundImage, "url" | "kind">> & {
+		change: Partial<Omit<BackgroundImage, "url" | "kind" | "builtin">> & {
 			dataUrl?: string;
 			html?: string;
+			/** One of the dashboard's own pictures, by its path (/pictures/...). */
+			picture?: string;
 		},
 	) =>
 		post<

@@ -47,7 +47,7 @@ describe("adminPagesFor", () => {
 			"Chat",
 			"Authentication",
 			"Classification",
-			"Customize",
+			"Appearance",
 			"Health",
 			"Monitoring",
 			"Network",
@@ -123,7 +123,7 @@ describe("addableAdminPages", () => {
 
 describe("adminCategoryLabel", () => {
 	it("names the category of a page and its subpages", () => {
-		expect(adminCategoryLabel("/deployment/customize")).toBe("Customize");
+		expect(adminCategoryLabel("/deployment/customize")).toBe("Appearance");
 		expect(adminCategoryLabel("/deployment/userauth")).toBe("Authentication");
 		expect(adminCategoryLabel("/health/user-quota")).toBe("Health");
 		expect(adminCategoryLabel("/health/workspace-health")).toBe("Health");

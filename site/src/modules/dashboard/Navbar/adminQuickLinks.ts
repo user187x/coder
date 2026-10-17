@@ -89,7 +89,7 @@ const ADMIN_PAGES: readonly (AdminPage & {
 	},
 	{
 		id: "customize",
-		label: "Customize",
+		label: "Appearance",
 		icon: PaletteIcon,
 		path: "/deployment/customize",
 		allowed: ({ permissions }) => permissions.editDeploymentConfig,

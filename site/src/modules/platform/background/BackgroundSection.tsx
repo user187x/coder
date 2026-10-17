@@ -154,6 +154,8 @@ type Draft = {
 	/** A picture, the Particles preset, or HTML of one's own. */
 	source: "image" | HtmlSource;
 	dataURL?: string;
+	/** One of the dashboard's own pictures, by its path: saved as that, not uploaded. */
+	picture?: string;
 	name?: string;
 	bytes?: number;
 	html: string;
@@ -274,9 +276,11 @@ const BackgroundCard: React.FC<{
 		mutationFn: () =>
 			PlatformAPI.saveBackground(slot, {
 				...(draft.source === "image"
-					? draft.dataURL
-						? { dataUrl: draft.dataURL }
-						: {}
+					? draft.picture
+						? { picture: draft.picture }
+						: draft.dataURL
+							? { dataUrl: draft.dataURL }
+							: {}
 					: {
 							html,
 							params: {
@@ -316,7 +320,12 @@ const BackgroundCard: React.FC<{
 		setPreparing(true);
 		try {
 			const ready = await prepareBackground(file);
-			change({ ...ready, name: file.name, source: "image" });
+			change({
+				...ready,
+				name: file.name,
+				source: "image",
+				picture: undefined,
+			});
 			setGalleryPick(fromGallery);
 		} catch (error) {
 			setProblem(
@@ -330,7 +339,9 @@ const BackgroundCard: React.FC<{
 	const isHtml = draft.source !== "image";
 	const imageURL =
 		draft.source === "image"
-			? (draft.dataURL ?? (current?.kind !== "html" ? current?.url : undefined))
+			? (draft.picture ??
+				draft.dataURL ??
+				(current?.kind !== "html" ? current?.url : undefined))
 			: undefined;
 	const htmlBytes = new TextEncoder().encode(html).length;
 	const ready = isHtml
@@ -409,7 +420,7 @@ const BackgroundCard: React.FC<{
 						: draft.name
 							? `${draft.name}${draft.bytes ? `, ${formatBytes(draft.bytes)}` : ""} (not saved yet)`
 							: current && current.kind !== "html"
-								? `${current.type.replace("image/", "").toUpperCase()}, ${formatBytes(current.bytes)}${current.updatedBy ? ` · by ${current.updatedBy}` : ""}`
+								? `${current.type.replace("image/", "").toUpperCase()}, ${formatBytes(current.bytes)}${current.builtin ? " · built into the dashboard" : ""}${current.updatedBy ? ` · by ${current.updatedBy}` : ""}`
 								: "No image."}
 				</span>
 			</div>
@@ -420,6 +431,18 @@ const BackgroundCard: React.FC<{
 				onSelect={setGalleryPick}
 				disabled={busy}
 				onPick={(file) => void pick(file, file.name)}
+				// The dashboard's own pictures are saved as their path: no upload, nothing to go missing.
+				onPickBuiltin={(picture) => {
+					setProblem(undefined);
+					setGalleryPick(picture.name);
+					change({
+						source: "image",
+						picture: picture.url,
+						dataURL: undefined,
+						bytes: undefined,
+						name: picture.name,
+					});
+				}}
 			/>
 			<HtmlSourcePicker
 				selected={isHtml ? (draft.source as HtmlSource) : undefined}
@@ -427,7 +450,12 @@ const BackgroundCard: React.FC<{
 				onSelect={(source) => {
 					setProblem(undefined);
 					setGalleryPick(undefined);
-					change({ source, dataURL: undefined, name: undefined });
+					change({
+						source,
+						dataURL: undefined,
+						picture: undefined,
+						name: undefined,
+					});
 				}}
 			/>
 			{problem && (

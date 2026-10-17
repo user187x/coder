@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { useRef } from "react";
-import { BannerScrollView } from "./BannerScrollView";
+import { BannerScrollView, RM_RF } from "./BannerScrollView";
 
 const message =
 	"# Maintenance tonight\nThe cluster restarts at 22:00.\n\n- save your work\n- push your branches\n\n![diagram](/icon/desktop.svg) 🚀 **Thanks!**";
@@ -113,6 +113,49 @@ describe("BannerScrollView", () => {
 		expect(screen.getByTestId("skynet").dataset.leaving).toBe("true");
 		act(() => vi.advanceTimersByTime(1000));
 		expect(screen.queryByTestId("skynet")).toBeNull();
+	});
+
+	it("breaks the screen on rm -rf *, and puts it back with Restore screen", () => {
+		render(<Harness />);
+		fireEvent.click(screen.getByTestId("announcement-scroll-toggle"));
+		type("rm  -rf *");
+		// Typing alone does nothing; running it does.
+		expect(screen.queryByTestId("broken-screen")).toBeNull();
+		fireEvent.keyDown(screen.getByTestId("announcement-scroll-view"), {
+			key: "Enter",
+		});
+		const broken = screen.getByTestId("broken-screen");
+		expect(broken.parentElement).toBe(document.body);
+		expect(document.documentElement.dataset.screenBroken).toBe("true");
+		expect(
+			broken.querySelectorAll(".broken-screen-crack").length,
+		).toBeGreaterThan(12);
+		act(() => vi.advanceTimersByTime(300));
+		expect(screen.queryByTestId("announcement-scroll-view")).toBeNull();
+		// The way back comes once it has broken.
+		expect(screen.queryByRole("button", { name: "Restore screen" })).toBeNull();
+		act(() => vi.advanceTimersByTime(3000));
+		fireEvent.click(screen.getByRole("button", { name: "Restore screen" }));
+		expect(broken.dataset.restoring).toBe("true");
+		act(() => vi.advanceTimersByTime(1000));
+		expect(screen.queryByTestId("broken-screen")).toBeNull();
+		expect(document.documentElement.dataset.screenBroken).toBeUndefined();
+	});
+
+	it("knows rm -rf * and its kin, not other commands", () => {
+		for (const ok of [
+			"rm -rf *",
+			"rm -fr *",
+			"sudo rm -rf /",
+			"rm -rf ~",
+			"rm -rf ./*",
+			"rm -rf /*",
+		]) {
+			expect(RM_RF.test(ok)).toBe(true);
+		}
+		for (const no of ["rm -rf build", "rm *", "ls -la", "rm -rf * now"]) {
+			expect(RM_RF.test(no)).toBe(false);
+		}
 	});
 
 	it("closes with Escape", () => {

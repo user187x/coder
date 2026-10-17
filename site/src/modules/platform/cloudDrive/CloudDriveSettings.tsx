@@ -12,6 +12,7 @@ import { safeKey } from "#/api/queries/platform";
 import { Button } from "#/components/Button/Button";
 import { Input } from "#/components/Input/Input";
 import { Label } from "#/components/Label/Label";
+import { Slider } from "#/components/Slider/Slider";
 import { Spinner } from "#/components/Spinner/Spinner";
 import { homePath } from "./CloudDriveBrowser";
 
@@ -176,6 +177,8 @@ export const CloudDriveSettings: React.FC<{ settings: Settings }> = ({
 				</dl>
 			</section>
 
+			<CapacitySection settings={settings} />
+
 			{settings.canEdit ? (
 				<form
 					className="flex flex-col gap-3 border-0 border-t border-solid border-border pt-5"
@@ -317,3 +320,121 @@ const Field: React.FC<{
 		{children}
 	</div>
 );
+
+/** The slider's stops (GiB): fine at the small end, coarse at the large one. */
+export const CAPACITY_STOPS = [
+	1, 2, 5, 10, 15, 20, 25, 30, 40, 50, 75, 100, 150, 200, 250, 300, 400, 500,
+	750, 1000, 1500, 2000, 2500, 3000, 4000, 5000, 7500, 10240,
+];
+const nearestStop = (gib: number) =>
+	CAPACITY_STOPS.reduce(
+		(best, stop, i) =>
+			Math.abs(stop - gib) < Math.abs(CAPACITY_STOPS[best] - gib) ? i : best,
+		0,
+	);
+
+/**
+ * Every account's capacity: how much its Cloud Drive may hold (uploads past it are refused). Admins set it with the
+ * slider or as a number, or go back to the chart's (userStorage.quotaGiB); everyone else sees it.
+ */
+const CapacitySection: React.FC<{ settings: Settings }> = ({ settings }) => {
+	const queryClient = useQueryClient();
+	const quota = settings.quota;
+	const [gib, setGib] = useState(quota.gib);
+	const save = useMutation({
+		mutationFn: (body: { quotaGiB: number } | { reset: true }) =>
+			PlatformAPI.saveCloudDriveQuota(body),
+		onSuccess: (q) => {
+			setGib(q.gib);
+			void queryClient.invalidateQueries({ queryKey: safeKey });
+		},
+	});
+	const valid = Number.isInteger(gib) && gib >= quota.min && gib <= quota.max;
+
+	return (
+		<section
+			className="flex flex-col gap-3 border-0 border-t border-solid border-border pt-5"
+			data-testid="cloud-drive-capacity"
+		>
+			<div className="flex items-center justify-between gap-3">
+				<h3 className="m-0 text-base font-semibold">Capacity</h3>
+				<span className="text-xs text-content-secondary">
+					{quota.custom
+						? `Set here (the chart's: ${quota.chartGib} GiB)`
+						: "The chart's (userStorage.quotaGiB)"}
+				</span>
+			</div>
+			{settings.canEdit ? (
+				<>
+					<p className="m-0 text-xs text-content-secondary">
+						How much each account's Cloud Drive may hold. Uploads past it are
+						refused; files already there stay.
+					</p>
+					<div className="flex items-center gap-4">
+						<Slider
+							aria-label="Capacity per account"
+							min={0}
+							max={CAPACITY_STOPS.length - 1}
+							step={1}
+							value={[nearestStop(gib)]}
+							onValueChange={([i]) => setGib(CAPACITY_STOPS[i])}
+							disabled={save.isPending}
+							className="flex-1"
+						/>
+						<div className="flex items-center gap-1.5">
+							<Input
+								aria-label="Capacity per account, in GiB"
+								type="number"
+								min={quota.min}
+								max={quota.max}
+								step={1}
+								value={Number.isFinite(gib) ? gib : ""}
+								onChange={(e) => setGib(Number(e.target.value))}
+								className="h-8 w-24 text-right tabular-nums"
+							/>
+							<span className="text-xs text-content-secondary">GiB</span>
+						</div>
+					</div>
+					{!valid && (
+						<p className="m-0 text-xs text-content-destructive">
+							A whole number of {quota.min} to {quota.max} GiB.
+						</p>
+					)}
+					{save.error ? (
+						<p role="alert" className="m-0 text-xs text-content-destructive">
+							{getErrorMessage(save.error, "The capacity was not saved.")}
+						</p>
+					) : null}
+					<div className="flex flex-wrap items-center gap-2">
+						<Button
+							size="sm"
+							disabled={!valid || gib === quota.gib || save.isPending}
+							onClick={() => save.mutate({ quotaGiB: gib })}
+						>
+							<Spinner loading={save.isPending} />
+							Save capacity
+						</Button>
+						{quota.custom && (
+							<Button
+								size="sm"
+								variant="subtle"
+								disabled={save.isPending}
+								onClick={() => save.mutate({ reset: true })}
+							>
+								Use the chart's ({quota.chartGib} GiB)
+							</Button>
+						)}
+					</div>
+				</>
+			) : (
+				<p className="m-0 text-sm text-content-secondary">
+					Each account's Cloud Drive holds up to{" "}
+					<span className="font-semibold text-content-primary">
+						{quota.gib} GiB
+					</span>
+					.
+				</p>
+			)}
+		</section>
+	);
+};

@@ -25,16 +25,74 @@ const ITERATIONS = 14;
 const ropeLength = (a: Point, b: Point) =>
 	Math.hypot(b.x - a.x, b.y - a.y) * SLACK + 24;
 
-/** A rope hanging between two points, straight to begin with (it falls into its curve). */
-export const makeRope = (a: Point, b: Point, segments = 18): Rope => {
-	const points = Array.from({ length: segments + 1 }, (_, i) => ({
-		x: a.x + ((b.x - a.x) * i) / segments,
-		y: a.y + ((b.y - a.y) * i) / segments,
-	}));
+/** What a rope is held to, beside its ends. */
+export type RopeOptions = {
+	/** Its whole length (default: the distance between its ends, with SLACK). */
+	length?: number;
+	/** Moves a point back where it may be (a wall it cannot pass); called on every inner point after each pull. */
+	constrain?: (p: Point) => void;
+};
+
+/**
+ * A box a rope may not enter (a table, to the left of and below its top-right corner): a point inside is moved to the
+ * nearer of its edges - up onto its top, or out past its right side - so a rope wraps round the corner.
+ */
+export const outsideCorner =
+	(corner: Point) =>
+	(p: Point): void => {
+		if (p.x >= corner.x || p.y <= corner.y) {
+			return;
+		}
+		if (p.y - corner.y < corner.x - p.x) {
+			p.y = corner.y;
+		} else {
+			p.x = corner.x;
+		}
+	};
+
+/** A polyline's length. */
+export const pathLength = (points: Point[]) =>
+	points.reduce(
+		(sum, p, i) =>
+			i ? sum + Math.hypot(p.x - points[i - 1].x, p.y - points[i - 1].y) : 0,
+		0,
+	);
+
+/** A point at distance d along a polyline. */
+const along = (points: Point[], d: number): Point => {
+	for (let i = 1; i < points.length; i++) {
+		const a = points[i - 1];
+		const b = points[i];
+		const seg = Math.hypot(b.x - a.x, b.y - a.y);
+		if (d <= seg || i === points.length - 1) {
+			const t = seg ? Math.min(1, d / seg) : 0;
+			return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+		}
+		d -= seg;
+	}
+	return { ...points[points.length - 1] };
+};
+
+/**
+ * A rope hanging between two points, straight to begin with (it falls into its curve) - or laid along a path
+ * through `via` (round a corner) - of `length` (default: the distance between its ends, with SLACK).
+ */
+export const makeRope = (
+	a: Point,
+	b: Point,
+	segments = 18,
+	length?: number,
+	via: Point[] = [],
+): Rope => {
+	const path = [a, ...via, b];
+	const total = pathLength(path);
+	const points = Array.from({ length: segments + 1 }, (_, i) =>
+		along(path, (total * i) / segments),
+	);
 	return {
 		points,
 		previous: points.map((p) => ({ ...p })),
-		link: ropeLength(a, b) / segments,
+		link: (length ?? ropeLength(a, b)) / segments,
 	};
 };
 
@@ -48,11 +106,12 @@ export const stepRope = (
 	a: Point,
 	b: Point,
 	dt: number,
+	options: RopeOptions = {},
 ): number => {
 	const { points, previous } = rope;
 	const n = points.length;
 	// a moved end lengthens or shortens the rope with it
-	rope.link = ropeLength(a, b) / (n - 1);
+	rope.link = (options.length ?? ropeLength(a, b)) / (n - 1);
 	let moved = 0;
 	for (let i = 1; i < n - 1; i++) {
 		const p = points[i];
@@ -83,14 +142,25 @@ export const stepRope = (
 			q.x -= dx * diff * wq;
 			q.y -= dy * diff * wq;
 		}
+		if (options.constrain) {
+			for (let i = 1; i < n - 1; i++) {
+				options.constrain(points[i]);
+			}
+		}
 	}
 	return moved;
 };
 
 /** The rope at rest: stepped until it stops moving (for reduced motion, and tests). */
-export const settle = (rope: Rope, a: Point, b: Point, steps = 600) => {
+export const settle = (
+	rope: Rope,
+	a: Point,
+	b: Point,
+	steps = 600,
+	options: RopeOptions = {},
+) => {
 	for (let i = 0; i < steps; i++) {
-		if (stepRope(rope, a, b, 1 / 60) < 0.01 && i > 30) {
+		if (stepRope(rope, a, b, 1 / 60, options) < 0.01 && i > 30) {
 			break;
 		}
 	}
