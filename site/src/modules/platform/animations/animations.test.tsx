@@ -81,7 +81,7 @@ describe("Animations", () => {
 		expect(probe().effects).toBe(true);
 	});
 
-	it("is a submenu: All animations, then effects, GIFs, live graphs and background", async () => {
+	it("opens in the menu: All animations, then effects, GIFs, live graphs and background", async () => {
 		render(
 			<>
 				<DropdownMenu open>
@@ -95,7 +95,8 @@ describe("Animations", () => {
 		);
 		const trigger = screen.getByTestId("animations-menu");
 		expect(trigger).toHaveTextContent("On");
-		fireEvent.keyDown(trigger, { key: "ArrowRight" });
+		expect(screen.queryAllByRole("menuitemcheckbox")).toHaveLength(0);
+		fireEvent.click(trigger);
 		const items = await screen.findAllByRole("menuitemcheckbox");
 		const labels = [
 			"All animations",

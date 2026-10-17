@@ -1,12 +1,7 @@
 import { cn } from "cn";
-import { SparklesIcon } from "lucide-react";
-import {
-	DropdownMenuItem,
-	DropdownMenuSeparator,
-	DropdownMenuSub,
-	DropdownMenuSubContent,
-	DropdownMenuSubTrigger,
-} from "#/components/DropdownMenu/DropdownMenu";
+import { ChevronDownIcon, SparklesIcon } from "lucide-react";
+import { useState } from "react";
+import { DropdownMenuItem } from "#/components/DropdownMenu/DropdownMenu";
 import {
 	type AnimationPart,
 	setAnimationPart,
@@ -48,6 +43,7 @@ const SwitchItem: React.FC<{
 		aria-checked={on}
 		disabled={disabled}
 		title={hint}
+		className="pl-8"
 		onSelect={(event) => {
 			// Choosing keeps the menu open.
 			event.preventDefault();
@@ -80,9 +76,12 @@ const PARTS: readonly { part: AnimationPart; label: string; hint: string }[] = [
  * Platform: the user menu's Animations (animations.ts): a switch for all of
  * them, and one for each part a slow browser may want still - effects and
  * transitions, animated GIFs, the live metric graphs, the moving background.
- * Choosing keeps the menu open.
+ * "Animations" opens them right below it, in the menu (not a hover submenu:
+ * one at the screen's edge closes on the way to it); choosing keeps the menu
+ * open.
  */
 export const AnimationsToggleItem: React.FC = () => {
+	const [expanded, setExpanded] = useState(false);
 	const s = useAnimationSettings();
 	const graphs = useGraphEveryChoice() !== "off";
 	const parts = PARTS.map(({ part }) => s[part]).concat(graphs);
@@ -94,50 +93,65 @@ export const AnimationsToggleItem: React.FC = () => {
 				? "Some"
 				: "Off";
 	return (
-		<DropdownMenuSub>
-			<DropdownMenuSubTrigger data-testid="animations-menu">
+		<>
+			<DropdownMenuItem
+				data-testid="animations-menu"
+				aria-expanded={expanded}
+				onSelect={(event) => {
+					event.preventDefault();
+					setExpanded((e) => !e);
+				}}
+			>
 				<SparklesIcon />
 				<span>Animations</span>
 				<span className="ml-auto pl-3 text-xs text-content-secondary">
 					{state}
 				</span>
-			</DropdownMenuSubTrigger>
-			<DropdownMenuSubContent className="w-64">
-				<SwitchItem
-					label="All animations"
-					hint="Off: everything below stands still"
-					on={s.all}
-					onChange={setAnimationsEnabled}
+				<ChevronDownIcon
+					aria-hidden
+					className={cn(
+						"size-3.5 text-content-secondary transition-transform motion-reduce:transition-none",
+						expanded && "rotate-180",
+					)}
 				/>
-				<DropdownMenuSeparator />
-				{PARTS.slice(0, 2).map(({ part, label, hint }) => (
+			</DropdownMenuItem>
+			{expanded && (
+				<>
 					<SwitchItem
-						key={part}
-						label={label}
-						hint={hint}
-						on={s.all && s[part]}
-						disabled={!s.all}
-						onChange={(on) => setAnimationPart(part, on)}
+						label="All animations"
+						hint="Off: everything below stands still"
+						on={s.all}
+						onChange={setAnimationsEnabled}
 					/>
-				))}
-				<SwitchItem
-					label="Live graphs"
-					hint="The workspace metric graphs"
-					on={s.all && graphs}
-					disabled={!s.all}
-					onChange={setGraphsOn}
-				/>
-				{PARTS.slice(2).map(({ part, label, hint }) => (
+					{PARTS.slice(0, 2).map(({ part, label, hint }) => (
+						<SwitchItem
+							key={part}
+							label={label}
+							hint={hint}
+							on={s.all && s[part]}
+							disabled={!s.all}
+							onChange={(on) => setAnimationPart(part, on)}
+						/>
+					))}
 					<SwitchItem
-						key={part}
-						label={label}
-						hint={hint}
-						on={s.all && s[part]}
+						label="Live graphs"
+						hint="The workspace metric graphs"
+						on={s.all && graphs}
 						disabled={!s.all}
-						onChange={(on) => setAnimationPart(part, on)}
+						onChange={setGraphsOn}
 					/>
-				))}
-			</DropdownMenuSubContent>
-		</DropdownMenuSub>
+					{PARTS.slice(2).map(({ part, label, hint }) => (
+						<SwitchItem
+							key={part}
+							label={label}
+							hint={hint}
+							on={s.all && s[part]}
+							disabled={!s.all}
+							onChange={(on) => setAnimationPart(part, on)}
+						/>
+					))}
+				</>
+			)}
+		</>
 	);
 };
