@@ -1,10 +1,11 @@
 import { cn } from "cn";
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
-import type {
-	Banner,
-	BannerEffect,
-	BannerSpeed,
-	PictureFit,
+import {
+	type Banner,
+	type BannerEffect,
+	type BannerSpeed,
+	CRAWL_TILT,
+	type PictureFit,
 } from "#/api/platform";
 import { useBannerClock } from "./bannerClock";
 import { bannerFontStack } from "./bannerFonts";
@@ -458,7 +459,7 @@ const PictureRoll: React.FC<{ pictures: { src: string; alt: string }[] }> = ({
 	);
 };
 
-// The crawl's pace, in pixels per second.
+// The crawl's pace in pixels per second, for announcements saved before crawlSpeed.
 const CRAWL_PX_PER_SECOND: Record<BannerSpeed, number> = {
 	slow: 9,
 	normal: 15,
@@ -466,46 +467,95 @@ const CRAWL_PX_PER_SECOND: Record<BannerSpeed, number> = {
 };
 
 type CrawlProps = {
-	speed: BannerSpeed;
+	/** Pixels per second. */
+	speed: number;
+	/** 0 (a flat scroller) to 1 (the opening crawl). */
+	tilt: number;
 	repeat: boolean;
 	onDone: () => void;
 	children: React.ReactNode;
 };
 
+type CrawlFrame = {
+	left: number;
+	top: number;
+	width: number;
+	height: number;
+};
+
 /**
- * The "starwars" effect: the opening crawl. The text rises from below the
- * banner, tilted away, and recedes into the distance, fading at the top, at
- * a steady pace (CRAWL_PX_PER_SECOND), so a long broadcast takes as long as
- * it needs to be read. Without repeat it plays once, then the message stays.
+ * The "starwars" effect: the text rises from the bottom of the banner's
+ * screen to its top, at a steady pace, so a long broadcast takes as long as
+ * it needs to be read; tilted away towards a horizon as far as its
+ * convergence says. It runs over the banner's screen (the LCD, or the host's
+ * own box without one) and never changes the banner's size: the host keeps
+ * the message in its place, invisible. Without repeat it plays once, then
+ * the message stays.
  */
-const Crawl: React.FC<CrawlProps> = ({ speed, repeat, onDone, children }) => {
+const Crawl: React.FC<CrawlProps> = ({
+	speed,
+	tilt,
+	repeat,
+	onDone,
+	children,
+}) => {
 	const view = useRef<HTMLSpanElement>(null);
 	const text = useRef<HTMLSpanElement>(null);
+	const [frame, setFrame] = useState<CrawlFrame>();
 	const [seconds, setSeconds] = useState<number>();
 	useLayoutEffect(() => {
+		const host = view.current?.parentElement;
+		if (!host) {
+			return;
+		}
+		// The screen the crawl runs over: across the host's width, the screen's whole height.
+		const screen = host.closest<HTMLElement>(".banner-lcd");
 		const measure = () => {
-			const travel =
-				(text.current?.offsetHeight ?? 0) + (view.current?.offsetHeight ?? 0);
+			const h = host.getBoundingClientRect();
+			const s = screen?.getBoundingClientRect();
+			const next: CrawlFrame = s
+				? { left: 0, top: s.top - h.top, width: h.width, height: s.height }
+				: { left: 0, top: 0, width: h.width, height: h.height };
+			setFrame(next);
+			const travel = (text.current?.offsetHeight ?? 0) + next.height;
 			if (travel > 0) {
-				setSeconds(Math.max(4, travel / CRAWL_PX_PER_SECOND[speed]));
+				setSeconds(Math.max(4, travel / speed));
 			}
 		};
 		measure();
 		const observer = new ResizeObserver(measure);
+		observer.observe(host);
+		if (screen) {
+			observer.observe(screen);
+		}
 		if (text.current) {
 			observer.observe(text.current);
 		}
 		return () => observer.disconnect();
 	}, [speed]);
 	return (
-		<span ref={view} className="banner-crawl" data-banner-crawl="">
+		<span
+			ref={view}
+			className="banner-crawl"
+			data-banner-crawl=""
+			style={
+				{
+					left: frame?.left,
+					top: frame?.top,
+					width: frame?.width,
+					height: frame?.height,
+					"--crawl-tilt": tilt,
+					"--crawl-screen": `${frame?.height ?? 0}px`,
+				} as React.CSSProperties
+			}
+		>
 			<span
 				ref={text}
 				className="banner-crawl-text"
 				style={{
 					animationDuration: `${seconds ?? 30}s`,
 					animationIterationCount: repeat ? "infinite" : 1,
-					visibility: seconds === undefined ? "hidden" : undefined,
+					visibility: seconds === undefined || !frame ? "hidden" : undefined,
 				}}
 				onAnimationEnd={onDone}
 			>
@@ -606,6 +656,8 @@ type BannerTextProps = {
 		| "effect"
 		| "repeat"
 		| "speed"
+		| "crawlSpeed"
+		| "crawlTilt"
 		| "font"
 		| "markdown"
 		| "align"
@@ -707,8 +759,15 @@ export const BannerText: React.FC<BannerTextProps> = ({
 					className={cn(className, "banner-crawl-host")}
 					style={{ fontFamily, textAlign }}
 				>
+					{/* The message where it stands without the effect: the banner keeps its size. */}
+					<span className="banner-crawl-sizer" aria-hidden inert>
+						{content}
+					</span>
 					<Crawl
-						speed={banner.speed ?? "normal"}
+						speed={
+							banner.crawlSpeed ?? CRAWL_PX_PER_SECOND[banner.speed ?? "normal"]
+						}
+						tilt={(banner.crawlTilt ?? CRAWL_TILT.default) / 100}
 						repeat={banner.repeat}
 						onDone={() => setCrawlDone(true)}
 					>

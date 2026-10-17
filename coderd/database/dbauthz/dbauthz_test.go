@@ -3701,6 +3701,19 @@ func (s *MethodTestSuite) TestUser() {
 		dbm.EXPECT().UpdateUserAdminQuickLinks(gomock.Any(), arg).Return(`["network"]`, nil).AnyTimes()
 		check.Args(arg).Asserts(u, policy.ActionUpdatePersonal).Returns(`["network"]`)
 	}))
+	s.Run("GetUserAdminSidebarOrder", s.Mocked(func(dbm *dbmock.MockStore, faker *gofakeit.Faker, check *expects) {
+		u := testutil.Fake(s.T(), faker, database.User{})
+		dbm.EXPECT().GetUserByID(gomock.Any(), u.ID).Return(u, nil).AnyTimes()
+		dbm.EXPECT().GetUserAdminSidebarOrder(gomock.Any(), u.ID).Return(`["security","accounts"]`, nil).AnyTimes()
+		check.Args(u.ID).Asserts(u, policy.ActionReadPersonal).Returns(`["security","accounts"]`)
+	}))
+	s.Run("UpdateUserAdminSidebarOrder", s.Mocked(func(dbm *dbmock.MockStore, faker *gofakeit.Faker, check *expects) {
+		u := testutil.Fake(s.T(), faker, database.User{})
+		arg := database.UpdateUserAdminSidebarOrderParams{UserID: u.ID, AdminSidebarOrder: `["security","accounts"]`}
+		dbm.EXPECT().GetUserByID(gomock.Any(), u.ID).Return(u, nil).AnyTimes()
+		dbm.EXPECT().UpdateUserAdminSidebarOrder(gomock.Any(), arg).Return(`["security","accounts"]`, nil).AnyTimes()
+		check.Args(arg).Asserts(u, policy.ActionUpdatePersonal).Returns(`["security","accounts"]`)
+	}))
 	s.Run("GetUserAgentChatSendShortcut", s.Mocked(func(dbm *dbmock.MockStore, faker *gofakeit.Faker, check *expects) {
 		u := testutil.Fake(s.T(), faker, database.User{})
 		dbm.EXPECT().GetUserByID(gomock.Any(), u.ID).Return(u, nil).AnyTimes()

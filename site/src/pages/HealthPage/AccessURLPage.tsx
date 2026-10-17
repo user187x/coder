@@ -1,7 +1,6 @@
 import { useOutletContext } from "react-router";
 import type { HealthcheckReport } from "#/api/typesGenerated";
 import { Alert } from "#/components/Alert/Alert";
-import { pageTitle } from "#/utils/page";
 import {
 	GridData,
 	GridDataLabel,
@@ -19,8 +18,6 @@ const AccessURLPage = () => {
 
 	return (
 		<>
-			<title>{pageTitle("Access URL - Health")}</title>
-
 			<Header>
 				<HeaderTitle>
 					<HealthyDot severity={accessUrl.severity} />

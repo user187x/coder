@@ -1,5 +1,5 @@
 import { UserPlusIcon } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router";
 import type * as TypesGen from "#/api/typesGenerated";
 import { Button } from "#/components/Button/Button";
@@ -13,25 +13,41 @@ import {
 	SettingsHeaderDescription,
 	SettingsHeaderTitle,
 } from "#/components/SettingsHeader/SettingsHeader";
+import { BulkUserActions } from "#/modules/users/BulkUserActions";
 import {
 	UserActionDialogs,
 	type UserAdminAction,
 } from "#/modules/users/UserActionDialogs";
 import { UsersTable, type UsersTableProps } from "./UsersTable";
 
-type UsersPageViewProps = Omit<UsersTableProps, "users" | "onAction"> & {
+type UsersPageViewProps = Omit<
+	UsersTableProps,
+	"users" | "onAction" | "selected" | "onSelect"
+> & {
 	filterProps: React.ComponentProps<typeof UsersFilter>;
 	usersQuery: PaginationResult<TypesGen.GetUsersResponse>;
 	canCreateUser?: boolean;
+	/** User Quota (UserQuotaSection), for admins: at the top, above the accounts. */
+	quota?: React.ReactNode;
 };
 
 export const UsersPageView: React.FC<UsersPageViewProps> = ({
 	filterProps,
 	usersQuery,
 	canCreateUser,
+	quota,
 	...props
 }) => {
 	const [action, setAction] = useState<UserAdminAction | undefined>();
+	// Platform: accounts chosen for Edit Roles, Suspend, Delete or Chat at once (on this page).
+	const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(
+		new Set(),
+	);
+	const pageUsers = usersQuery.data?.users;
+	const selected = useMemo(
+		() => (pageUsers ?? []).filter((u) => selectedIds.has(u.id)),
+		[pageUsers, selectedIds],
+	);
 
 	return (
 		<>
@@ -53,13 +69,34 @@ export const UsersPageView: React.FC<UsersPageViewProps> = ({
 				</SettingsHeaderDescription>
 			</SettingsHeader>
 
+			{quota && (
+				<section
+					aria-label="User Quota"
+					data-testid="user-quota"
+					className="mb-6 rounded-lg border border-solid border-border px-6 pt-3"
+				>
+					{quota}
+				</section>
+			)}
+
 			<UsersFilter {...filterProps} />
+
+			{props.canEditUsers && (
+				<BulkUserActions
+					selected={selected}
+					me={props.me}
+					oidcRoleSyncEnabled={props.oidcRoleSyncEnabled}
+					onClear={() => setSelectedIds(new Set())}
+				/>
+			)}
 
 			<PaginationContainer query={usersQuery} paginationUnitLabel="accounts">
 				<UsersTable
 					{...props}
-					users={usersQuery.data?.users}
+					users={pageUsers}
 					onAction={setAction}
+					selected={props.canEditUsers ? selectedIds : undefined}
+					onSelect={setSelectedIds}
 				/>
 			</PaginationContainer>
 

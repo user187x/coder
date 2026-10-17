@@ -399,6 +399,29 @@ WHERE user_configs.user_id = @user_id
 	AND user_configs.key = 'preference_admin_quick_links'
 RETURNING value AS admin_quick_links;
 
+-- name: GetUserAdminSidebarOrder :one
+SELECT
+	value AS admin_sidebar_order
+FROM
+	user_configs
+WHERE
+	user_id = @user_id
+	AND key = 'preference_admin_sidebar_order';
+
+-- name: UpdateUserAdminSidebarOrder :one
+INSERT INTO
+	user_configs (user_id, key, value)
+VALUES
+	(@user_id, 'preference_admin_sidebar_order', @admin_sidebar_order::text)
+ON CONFLICT
+	ON CONSTRAINT user_configs_pkey
+DO UPDATE
+SET
+	value = @admin_sidebar_order
+WHERE user_configs.user_id = @user_id
+	AND user_configs.key = 'preference_admin_sidebar_order'
+RETURNING value AS admin_sidebar_order;
+
 -- name: GetUserCollapseAssistantSteps :one
 SELECT
 	value::boolean as collapse_assistant_steps

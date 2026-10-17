@@ -113,6 +113,7 @@ describe("peer-to-peer chat", () => {
 			drawerOpen: false,
 			consoleOpen: false,
 			consoleView: null,
+			focus: [],
 		};
 		expect(noAdminAvailable({ ...base, peers: false })).toBe(true);
 		expect(noAdminAvailable({ ...base, peers: true })).toBe(false);

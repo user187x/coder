@@ -5361,6 +5361,17 @@ func (q *querier) GetUserAdminQuickLinks(ctx context.Context, userID uuid.UUID) 
 	return q.db.GetUserAdminQuickLinks(ctx, userID)
 }
 
+func (q *querier) GetUserAdminSidebarOrder(ctx context.Context, userID uuid.UUID) (string, error) {
+	user, err := q.db.GetUserByID(ctx, userID)
+	if err != nil {
+		return "", err
+	}
+	if err := q.authorizeContext(ctx, policy.ActionReadPersonal, user); err != nil {
+		return "", err
+	}
+	return q.db.GetUserAdminSidebarOrder(ctx, userID)
+}
+
 func (q *querier) GetUserAgentChatSendShortcut(ctx context.Context, userID uuid.UUID) (string, error) {
 	user, err := q.db.GetUserByID(ctx, userID)
 	if err != nil {
@@ -8590,6 +8601,17 @@ func (q *querier) UpdateUserAdminQuickLinks(ctx context.Context, arg database.Up
 		return "", err
 	}
 	return q.db.UpdateUserAdminQuickLinks(ctx, arg)
+}
+
+func (q *querier) UpdateUserAdminSidebarOrder(ctx context.Context, arg database.UpdateUserAdminSidebarOrderParams) (string, error) {
+	user, err := q.db.GetUserByID(ctx, arg.UserID)
+	if err != nil {
+		return "", err
+	}
+	if err := q.authorizeContext(ctx, policy.ActionUpdatePersonal, user); err != nil {
+		return "", err
+	}
+	return q.db.UpdateUserAdminSidebarOrder(ctx, arg)
 }
 
 func (q *querier) UpdateUserAgentChatSendShortcut(ctx context.Context, arg database.UpdateUserAgentChatSendShortcutParams) (string, error) {

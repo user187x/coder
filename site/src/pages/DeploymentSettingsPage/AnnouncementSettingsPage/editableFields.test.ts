@@ -24,6 +24,8 @@ describe("editableFields", () => {
 		expect(editableFields(custom)).toEqual({
 			...fields,
 			speed: "normal",
+			crawlSpeed: 15,
+			crawlTilt: 100,
 			font: "default",
 			receipts: true,
 			closeEffect: "fade",

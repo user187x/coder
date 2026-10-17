@@ -285,6 +285,8 @@ export type ImageListItem = {
 	tracked?: TrackedImage | null;
 	/** Set for an image brought in (copied from a registry, or an uploaded archive) rather than built. */
 	imported?: ImportedImage | null;
+	/** Set for an image scanned as it is (in a registry, or on a node that holds it): read-only, only its report. */
+	scanned?: { image: string } | null;
 };
 
 /** Where an imported image came from, and its last import. */
@@ -294,6 +296,18 @@ export type ImportedImage = {
 	from: string;
 	at: string;
 	by: string;
+};
+
+/** An image a node of the cluster holds (preloaded, loaded or pulled): its names there, size, nodes, entry here. */
+export type ImageOnNode = {
+	image: string;
+	/** Its other names on the nodes (digests). */
+	names: string[];
+	sizeBytes: number;
+	nodes: string[];
+	/** A workspace runs it now. */
+	running: boolean;
+	entry: string | null;
 };
 
 /** An image workspaces run now, or a template runs: which, and its entry here if it has one. */
@@ -538,6 +552,10 @@ export const ImagesAPI = {
 			onProgress,
 		),
 	inUse: () => get<{ images: ImageInUse[] }>(`${IMAGES}/in-use`),
+	onNodes: () => get<{ images: ImageOnNode[] }>(`${IMAGES}/on-nodes`),
+	/** Any image scanned as it is (from the cluster's registry, else from a node that holds it): its entry and the scan. */
+	scan: (image: string) =>
+		post<{ id: string; build: number }>(`${IMAGES}/scan`, { image }),
 	library: (kind: LibraryKind) => get<Library>(LIBRARY(kind)),
 	uploadToLibrary: (
 		kind: LibraryKind,

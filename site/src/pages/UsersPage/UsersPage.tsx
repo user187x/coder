@@ -9,6 +9,7 @@ import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { usePaginatedQuery } from "#/hooks/usePaginatedQuery";
 import { useDashboard } from "#/modules/dashboard/useDashboard";
 import { pageTitle } from "#/utils/page";
+import { UserQuotaSection } from "./UserQuotaSection";
 import { UsersPageView } from "./UsersPageView";
 
 const UsersPage: React.FC = () => {
@@ -70,6 +71,9 @@ const UsersPage: React.FC = () => {
 				canEditUsers={canEditUsers}
 				canViewActivity={entitlements.features.audit_log.enabled}
 				oidcRoleSyncEnabled={oidcRoleSyncEnabled}
+				quota={
+					permissions.editDeploymentConfig ? <UserQuotaSection /> : undefined
+				}
 			/>
 		</>
 	);

@@ -313,3 +313,36 @@ describe("BannerText pictures", () => {
 		).toEqual(["/emojis/1f600.png"]);
 	});
 });
+
+describe("BannerText crawl (starwars)", () => {
+	const crawl = { ...banner, effect: "starwars" as const, repeat: false };
+
+	it("keeps the message in its place, invisible, so the banner keeps its size, and runs the crawl over it", () => {
+		const { container } = render(
+			<div className="banner-lcd">
+				<BannerText banner={crawl} animate />
+			</div>,
+		);
+		const sizer = container.querySelector<HTMLElement>(".banner-crawl-sizer");
+		expect(sizer?.textContent).toBe("Hello");
+		expect(sizer).toHaveAttribute("aria-hidden", "true");
+		expect(sizer?.hasAttribute("inert")).toBe(true);
+		const view = container.querySelector<HTMLElement>("[data-banner-crawl]");
+		expect(view?.textContent).toBe("Hello");
+		// out of the flow: the host's size is the sizer's
+		expect(view?.closest(".banner-crawl-host")).not.toBeNull();
+	});
+
+	it("tilts as far as its convergence says (the opening crawl when unset) and paces by its speed", () => {
+		const { container, rerender } = render(
+			<BannerText banner={crawl} animate />,
+		);
+		const view = () =>
+			container.querySelector<HTMLElement>("[data-banner-crawl]");
+		expect(view()?.style.getPropertyValue("--crawl-tilt")).toBe("1");
+		rerender(<BannerText banner={{ ...crawl, crawlTilt: 0 }} animate />);
+		expect(view()?.style.getPropertyValue("--crawl-tilt")).toBe("0");
+		rerender(<BannerText banner={{ ...crawl, crawlTilt: 40 }} animate />);
+		expect(view()?.style.getPropertyValue("--crawl-tilt")).toBe("0.4");
+	});
+});

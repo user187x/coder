@@ -10,6 +10,7 @@ import {
 	type BannerState,
 	type ClassificationSettings,
 	type CloudDriveConnections,
+	type CloudDriveEncryption,
 	type HudRange,
 	type KeycloakFix,
 	type KeycloakReport,
@@ -265,11 +266,45 @@ export const setCloudDriveConnection = (queryClient: QueryClient) => ({
 		}
 	},
 	onSuccess: (result: CloudDriveConnections) => {
-		queryClient.setQueryData<CloudDriveConnections>(cloudDriveConnectionsKey, {
-			disconnected: result.disconnected,
-			older: result.older,
-		});
+		const {
+			workspace: _w,
+			connected: _c,
+			applied: _a,
+			...connections
+		} = result as CloudDriveConnections & Record<string, unknown>;
+		queryClient.setQueryData<CloudDriveConnections>(
+			cloudDriveConnectionsKey,
+			connections,
+		);
 	},
+});
+
+const cloudDriveEncryptionKey = [...safeKey, "encryption"] as const;
+/** The caller's Cloud Drive encryption; every two seconds while it re-encrypts. */
+export const cloudDriveEncryption = (enabled = true) => ({
+	queryKey: cloudDriveEncryptionKey,
+	queryFn: PlatformAPI.getCloudDriveEncryption,
+	enabled,
+	retry: false,
+	refetchInterval: (query: { state: { data?: CloudDriveEncryption } }) =>
+		query.state.data?.state === "encrypting" ||
+		query.state.data?.state === "decrypting"
+			? 2_000
+			: 30_000,
+});
+
+/** After an encryption or source change: everything about the Cloud Drive read again. */
+export const invalidateCloudDrive = (queryClient: QueryClient) =>
+	queryClient.invalidateQueries({ queryKey: safeKey });
+
+export const cloudDriveSourceGuard = (
+	workspaceId: string,
+	enabled: boolean,
+) => ({
+	queryKey: [...safeKey, "source-guard", workspaceId],
+	queryFn: () => PlatformAPI.getCloudDriveSourceGuard(workspaceId),
+	enabled,
+	retry: false,
 });
 
 export const safeListing = (path: string, enabled: boolean) => ({
@@ -536,6 +571,29 @@ export const quotaReport = () => ({
 	queryKey: quotaReportKey,
 	queryFn: PlatformAPI.getQuotaReport,
 	refetchInterval: QUOTA_REFRESH_MS,
+});
+
+const provisionersKey = [...platformKey, "provisioners"] as const;
+
+/** Coder's provisioner daemons, their jobs and terraform processes, refreshed while shown. */
+export const provisioners = () => ({
+	queryKey: provisionersKey,
+	queryFn: PlatformAPI.getProvisioners,
+	refetchInterval: 15_000,
+});
+
+export const rekickProvisioners = (queryClient: QueryClient) => ({
+	mutationFn: (jobs: string[]) => PlatformAPI.rekickProvisioners(jobs),
+	onSettled: async () => {
+		await queryClient.invalidateQueries({ queryKey: provisionersKey });
+	},
+});
+
+export const restartCoderPod = (queryClient: QueryClient) => ({
+	mutationFn: (pod: string) => PlatformAPI.restartCoderPod(pod),
+	onSettled: async () => {
+		await queryClient.invalidateQueries({ queryKey: provisionersKey });
+	},
 });
 
 export const updateQuota = (queryClient: QueryClient) => ({

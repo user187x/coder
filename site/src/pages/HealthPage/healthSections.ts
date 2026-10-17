@@ -10,7 +10,7 @@ type HealthSectionKey = keyof Pick<
 	| "workspace_proxy"
 >;
 
-/** The health report's sections, in the order General's sidebar lists them, with their pages under /health. */
+/** The health report's sections, with their anchors on the Health page. */
 export const HEALTH_SECTIONS: readonly {
 	key: HealthSectionKey;
 	label: string;
@@ -32,6 +32,14 @@ export const HEALTH_SECTIONS: readonly {
 	},
 ];
 
-export const WORKSPACE_HEALTH_PATH = "/health/workspace-health";
-
-export const USER_QUOTA_PATH = "/health/user-quota";
+/** Health's cards on its one page, in order; each id is the card's anchor (/health#database) and a former page's path. */
+export const HEALTH_CARD_IDS = [
+	"workspace-health",
+	"provisioner-daemons",
+	"access-url",
+	"database",
+	"derp",
+	"websocket",
+	"workspace-proxy",
+] as const;
+export type HealthCardId = (typeof HEALTH_CARD_IDS)[number];

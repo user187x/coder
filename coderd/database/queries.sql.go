@@ -33343,11 +33343,28 @@ WHERE
 	AND key = 'preference_admin_quick_links'
 `
 
+const getUserAdminSidebarOrder = `-- name: GetUserAdminSidebarOrder :one
+SELECT
+	value AS admin_sidebar_order
+FROM
+	user_configs
+WHERE
+	user_id = $1
+	AND key = 'preference_admin_sidebar_order'
+`
+
 func (q *sqlQuerier) GetUserAdminQuickLinks(ctx context.Context, userID uuid.UUID) (string, error) {
 	row := q.db.QueryRowContext(ctx, getUserAdminQuickLinks, userID)
 	var admin_quick_links string
 	err := row.Scan(&admin_quick_links)
 	return admin_quick_links, err
+}
+
+func (q *sqlQuerier) GetUserAdminSidebarOrder(ctx context.Context, userID uuid.UUID) (string, error) {
+	row := q.db.QueryRowContext(ctx, getUserAdminSidebarOrder, userID)
+	var admin_sidebar_order string
+	err := row.Scan(&admin_sidebar_order)
+	return admin_sidebar_order, err
 }
 
 const getUserAgentChatSendShortcut = `-- name: GetUserAgentChatSendShortcut :one
@@ -34124,9 +34141,29 @@ WHERE user_configs.user_id = $1
 RETURNING value AS admin_quick_links
 `
 
+const updateUserAdminSidebarOrder = `-- name: UpdateUserAdminSidebarOrder :one
+INSERT INTO
+	user_configs (user_id, key, value)
+VALUES
+	($1, 'preference_admin_sidebar_order', $2::text)
+ON CONFLICT
+	ON CONSTRAINT user_configs_pkey
+DO UPDATE
+SET
+	value = $2
+WHERE user_configs.user_id = $1
+	AND user_configs.key = 'preference_admin_sidebar_order'
+RETURNING value AS admin_sidebar_order
+`
+
 type UpdateUserAdminQuickLinksParams struct {
 	UserID          uuid.UUID `db:"user_id" json:"user_id"`
 	AdminQuickLinks string    `db:"admin_quick_links" json:"admin_quick_links"`
+}
+
+type UpdateUserAdminSidebarOrderParams struct {
+	UserID            uuid.UUID `db:"user_id" json:"user_id"`
+	AdminSidebarOrder string    `db:"admin_sidebar_order" json:"admin_sidebar_order"`
 }
 
 func (q *sqlQuerier) UpdateUserAdminQuickLinks(ctx context.Context, arg UpdateUserAdminQuickLinksParams) (string, error) {
@@ -34134,6 +34171,13 @@ func (q *sqlQuerier) UpdateUserAdminQuickLinks(ctx context.Context, arg UpdateUs
 	var admin_quick_links string
 	err := row.Scan(&admin_quick_links)
 	return admin_quick_links, err
+}
+
+func (q *sqlQuerier) UpdateUserAdminSidebarOrder(ctx context.Context, arg UpdateUserAdminSidebarOrderParams) (string, error) {
+	row := q.db.QueryRowContext(ctx, updateUserAdminSidebarOrder, arg.UserID, arg.AdminSidebarOrder)
+	var admin_sidebar_order string
+	err := row.Scan(&admin_sidebar_order)
+	return admin_sidebar_order, err
 }
 
 const updateUserAgentChatSendShortcut = `-- name: UpdateUserAgentChatSendShortcut :one

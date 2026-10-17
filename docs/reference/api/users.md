@@ -1307,11 +1307,9 @@ curl -X GET http://coder-server:8080/api/v2/users/{user}/preferences \
   "admin_quick_links": [
     "string"
   ],
-  "agent_chat_send_shortcut": "enter",
-  "code_diff_display_mode": "auto",
-  "collapse_assistant_steps": true,
-  "shell_tool_display_mode": "auto",
-  "thinking_display_mode": "auto"
+  "admin_sidebar_order": [
+    "string"
+  ]
 }
 ```
 
@@ -1344,11 +1342,9 @@ curl -X PUT http://coder-server:8080/api/v2/users/{user}/preferences \
   "admin_quick_links": [
     "string"
   ],
-  "agent_chat_send_shortcut": "enter",
-  "code_diff_display_mode": "auto",
-  "collapse_assistant_steps": true,
-  "shell_tool_display_mode": "auto",
-  "thinking_display_mode": "auto"
+  "admin_sidebar_order": [
+    "string"
+  ]
 }
 ```
 
@@ -1368,11 +1364,9 @@ curl -X PUT http://coder-server:8080/api/v2/users/{user}/preferences \
   "admin_quick_links": [
     "string"
   ],
-  "agent_chat_send_shortcut": "enter",
-  "code_diff_display_mode": "auto",
-  "collapse_assistant_steps": true,
-  "shell_tool_display_mode": "auto",
-  "thinking_display_mode": "auto"
+  "admin_sidebar_order": [
+    "string"
+  ]
 }
 ```
 

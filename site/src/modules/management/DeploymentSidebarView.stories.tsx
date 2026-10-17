@@ -9,7 +9,7 @@ import {
 } from "#/testHelpers/entities";
 import { withDashboardProvider } from "#/testHelpers/storybook";
 import { DeploymentSidebarView } from "./DeploymentSidebarView";
-import { HealthSettingsTree } from "./HealthSettingsTree";
+import { HealthNavItem } from "./HealthNavItem";
 
 const meta: Meta<typeof DeploymentSidebarView> = {
 	title: "modules/management/DeploymentSidebarView",
@@ -81,7 +81,7 @@ export const OAuth2ProviderDisabled: Story = {
 // severity and the current one highlighted.
 export const HealthOpen: Story = {
 	args: {
-		health: <HealthSettingsTree />,
+		health: <HealthNavItem />,
 	},
 	parameters: {
 		reactRouter: reactRouterParameters({

@@ -3992,6 +3992,15 @@ Write out the current server config as YAML to stdout.`,
 			Group:       &deploymentGroupTemplateBuilder,
 			YAML:        "registryURL",
 		},
+		{
+			Name:        "Template Builder Base Template",
+			Description: "The name of a template whose active version is the template builder's only base: a new template starts from a copy of its files and variable values, with the builder's choices added. Empty: the builder's own bases.",
+			Flag:        "template-builder-base-template",
+			Env:         "CODER_TEMPLATE_BUILDER_BASE_TEMPLATE",
+			Value:       &c.TemplateBuilder.BaseTemplate,
+			Group:       &deploymentGroupTemplateBuilder,
+			YAML:        "baseTemplate",
+		},
 	}
 
 	return opts
@@ -4000,6 +4009,9 @@ Write out the current server config as YAML to stdout.`,
 type TemplateBuilderConfig struct {
 	Disabled    serpent.Bool   `json:"disabled,omitempty"`
 	RegistryURL serpent.String `json:"registry_url,omitempty"`
+	// BaseTemplate names the deployment's own base template (platform fork):
+	// the builder offers it alone.
+	BaseTemplate serpent.String `json:"base_template,omitempty"`
 }
 
 // NormalizeTemplateBuilderRegistryURL canonicalizes a configured template

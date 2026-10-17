@@ -22,6 +22,5 @@ sections:
   - install.yml
   - user-guides.yml
   - admin.yml
-  - ai-coder.yml
   - tutorials.yml
   - reference.yml

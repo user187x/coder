@@ -19,7 +19,6 @@ import {
 } from "lucide-react";
 import { MaxAdminQuickLinks } from "#/api/typesGenerated";
 import type { Permissions } from "#/modules/permissions";
-import { WORKSPACE_HEALTH_PATH } from "#/pages/HealthPage/healthSections";
 
 /** An admin page (a category of General) the Admin menu can link to directly. */
 export type AdminPage = {
@@ -90,7 +89,7 @@ const ADMIN_PAGES: readonly (AdminPage & {
 		id: "health",
 		label: "Health",
 		icon: HeartPulseIcon,
-		path: WORKSPACE_HEALTH_PATH,
+		path: "/health",
 		allowed: ({ permissions }) => permissions.viewDebugInfo,
 	},
 	{
@@ -202,7 +201,7 @@ const CATEGORY_PREFIXES: Record<string, readonly string[]> = {
 
 /**
  * The category of General a page belongs to (for the breadcrumb), e.g.
- * Health for /health/user-quota; null for pages outside the categories.
+ * Health for /health/derp/regions/1; null for pages outside the categories.
  */
 export const adminCategory = (pathname: string): AdminPage | null => {
 	const under = (prefix: string) =>
@@ -217,7 +216,7 @@ export const adminCategory = (pathname: string): AdminPage | null => {
 	return category;
 };
 
-/** The category's label, e.g. "Health" for /health/user-quota. */
+/** The category's label, e.g. "Health" for /health/derp/regions/1. */
 export const adminCategoryLabel = (pathname: string): string | null =>
 	adminCategory(pathname)?.label ?? null;
 

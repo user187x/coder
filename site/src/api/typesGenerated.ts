@@ -6093,6 +6093,11 @@ export interface TemplateBuilderComposeRequest {
 export interface TemplateBuilderConfig {
 	readonly disabled?: boolean;
 	readonly registry_url?: string;
+	/**
+	 * BaseTemplate names the deployment's own base template (platform fork):
+	 * the builder offers it alone.
+	 */
+	readonly base_template?: string;
 }
 
 // From codersdk/templatebuilder.go
@@ -6726,6 +6731,12 @@ export interface UpdateUserPreferenceSettingsRequest {
 	 * list restores the defaults; omit it to leave them unchanged.
 	 */
 	readonly admin_quick_links?: string[];
+	/**
+	 * AdminSidebarOrder replaces the order of Admin Controls' categories when
+	 * set. An empty list restores the alphabetical order; omit it to leave it
+	 * unchanged.
+	 */
+	readonly admin_sidebar_order?: string[];
 }
 
 // From codersdk/users.go
@@ -7050,6 +7061,12 @@ export interface UserPreferenceSettings {
 	 * defaults.
 	 */
 	readonly admin_quick_links: readonly string[];
+	/**
+	 * AdminSidebarOrder is the order the user arranged Admin Controls'
+	 * categories in, by page ID. Empty means the dashboard's (alphabetical)
+	 * order.
+	 */
+	readonly admin_sidebar_order: readonly string[];
 }
 
 // From codersdk/deployment.go

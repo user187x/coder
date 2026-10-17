@@ -18,7 +18,6 @@ import {
 	type UnhealthyWorkspace,
 	useUnhealthyWorkspaces,
 } from "#/modules/platform/workspaceHealth/workspaceHealth";
-import { pageTitle } from "#/utils/page";
 import { Header, HeaderTitle, Main } from "./Content";
 
 /**
@@ -38,8 +37,6 @@ const WorkspaceHealthPage: React.FC = () => {
 
 	return (
 		<>
-			<title>{pageTitle("Workspace Health - Health")}</title>
-
 			<Header>
 				<HeaderTitle>
 					{worst === "ok" ? (

@@ -3464,6 +3464,14 @@ func (m queryMetricsStore) GetUserAdminQuickLinks(ctx context.Context, userID uu
 	return r0, r1
 }
 
+func (m queryMetricsStore) GetUserAdminSidebarOrder(ctx context.Context, userID uuid.UUID) (string, error) {
+	start := time.Now()
+	r0, r1 := m.s.GetUserAdminSidebarOrder(ctx, userID)
+	m.queryLatencies.WithLabelValues("GetUserAdminSidebarOrder").Observe(time.Since(start).Seconds())
+	m.queryCounts.WithLabelValues(httpmw.ExtractHTTPRoute(ctx), httpmw.ExtractHTTPMethod(ctx), "GetUserAdminSidebarOrder").Inc()
+	return r0, r1
+}
+
 func (m queryMetricsStore) GetUserAgentChatSendShortcut(ctx context.Context, userID uuid.UUID) (string, error) {
 	start := time.Now()
 	r0, r1 := m.s.GetUserAgentChatSendShortcut(ctx, userID)
@@ -6046,6 +6054,14 @@ func (m queryMetricsStore) UpdateUserAdminQuickLinks(ctx context.Context, arg da
 	r0, r1 := m.s.UpdateUserAdminQuickLinks(ctx, arg)
 	m.queryLatencies.WithLabelValues("UpdateUserAdminQuickLinks").Observe(time.Since(start).Seconds())
 	m.queryCounts.WithLabelValues(httpmw.ExtractHTTPRoute(ctx), httpmw.ExtractHTTPMethod(ctx), "UpdateUserAdminQuickLinks").Inc()
+	return r0, r1
+}
+
+func (m queryMetricsStore) UpdateUserAdminSidebarOrder(ctx context.Context, arg database.UpdateUserAdminSidebarOrderParams) (string, error) {
+	start := time.Now()
+	r0, r1 := m.s.UpdateUserAdminSidebarOrder(ctx, arg)
+	m.queryLatencies.WithLabelValues("UpdateUserAdminSidebarOrder").Observe(time.Since(start).Seconds())
+	m.queryCounts.WithLabelValues(httpmw.ExtractHTTPRoute(ctx), httpmw.ExtractHTTPMethod(ctx), "UpdateUserAdminSidebarOrder").Inc()
 	return r0, r1
 }
 

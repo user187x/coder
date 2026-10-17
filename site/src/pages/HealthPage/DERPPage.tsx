@@ -13,7 +13,6 @@ import {
 	TableCell,
 	TableRow,
 } from "#/components/Table/Table";
-import { pageTitle } from "#/utils/page";
 import {
 	Header,
 	HeaderTitle,
@@ -134,8 +133,6 @@ const DERPPage: React.FC = () => {
 
 	return (
 		<>
-			<title>{pageTitle("DERP - Health")}</title>
-
 			<Header>
 				<HeaderTitle>
 					<HealthyDot severity={derp.severity as HealthSeverity} />

@@ -519,6 +519,7 @@ export const MockSiteRoles = [
 
 export const MockUserPreferenceSettings: TypesGen.UserPreferenceSettings = {
 	admin_quick_links: [],
+	admin_sidebar_order: [],
 };
 
 export const MockUserOwner: TypesGen.User = {

@@ -122,7 +122,7 @@ describe("adminCategoryLabel", () => {
 	it("names the category of a page and its subpages", () => {
 		expect(adminCategoryLabel("/deployment/customize")).toBe("Appearance");
 		expect(adminCategoryLabel("/deployment/userauth")).toBe("Authentication");
-		expect(adminCategoryLabel("/health/user-quota")).toBe("Health");
+		expect(adminCategoryLabel("/health/derp/regions/1")).toBe("Health");
 		expect(adminCategoryLabel("/health/workspace-health")).toBe("Health");
 		expect(adminCategoryLabel("/deployment/oauth2-provider/apps/add")).toBe(
 			"OAuth2 Applications",
@@ -139,7 +139,7 @@ describe("adminCategoryLabel", () => {
 describe("adminCategory", () => {
 	it("gives the category with its quick link's icon, for the breadcrumb", () => {
 		const health = allPages.find((page) => page.id === "health");
-		expect(adminCategory("/health/user-quota")).toEqual(health);
+		expect(adminCategory("/health/derp/regions/1")).toEqual(health);
 		expect(adminCategory("/deployment/licenses")).toBeNull();
 	});
 });

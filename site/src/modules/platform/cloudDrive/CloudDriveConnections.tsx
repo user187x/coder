@@ -10,7 +10,8 @@ import { Switch } from "#/components/Switch/Switch";
 
 /**
  * The Cloud Drive window's Workspaces: each of the account's workspaces with a switch, connected to the drive (it
- * has ~/cloud-drive) or not - what the Workspaces page's cables do by dragging, here by switch (and keyboard).
+ * has ~/cloud-drive) or not - what the Workspaces page's cables do by dragging, here by switch (and keyboard). A
+ * workspace shared with others is never connected: the Cloud Drive is its owner's alone.
  */
 export const CloudDriveConnections: React.FC = () => {
 	const list = useQuery(workspaces({ q: "owner:me" }));
@@ -20,6 +21,8 @@ export const CloudDriveConnections: React.FC = () => {
 	const mine = list.data?.workspaces ?? [];
 	const off = new Set(connections.data?.disconnected ?? []);
 	const older = new Set(connections.data?.older ?? []);
+	const shared = new Set(connections.data?.shared ?? []);
+	const stillMounted = new Set(connections.data?.sharedWithVolume ?? []);
 
 	return (
 		<div className="flex max-h-[60vh] flex-col gap-3 overflow-y-auto px-6 py-5">
@@ -45,7 +48,8 @@ export const CloudDriveConnections: React.FC = () => {
 			) : (
 				<ul className="m-0 flex list-none flex-col p-0">
 					{mine.map((w) => {
-						const on = !off.has(w.id);
+						const isShared = shared.has(w.id);
+						const on = !off.has(w.id) && !isShared;
 						const id = `cloud-drive-link-${w.id}`;
 						return (
 							<li
@@ -60,15 +64,23 @@ export const CloudDriveConnections: React.FC = () => {
 										{w.name}
 									</span>
 									<span className="text-xs text-content-secondary">
-										{on ? "Connected" : "Disconnected"}
-										{older.has(w.id) &&
+										{isShared
+											? "Shared with others: your Cloud Drive stays out of it"
+											: on
+												? "Connected"
+												: "Disconnected"}
+										{isShared &&
+											stillMounted.has(w.id) &&
+											" · restart it to take out the volume it had before it was shared"}
+										{!isShared &&
+											older.has(w.id) &&
 											" · takes effect once it is updated to its template's latest version"}
 									</span>
 								</label>
 								<Switch
 									id={id}
 									checked={on}
-									disabled={link.isPending}
+									disabled={link.isPending || isShared}
 									onCheckedChange={(connected) =>
 										link.mutate(
 											{ workspaceId: w.id, connected },

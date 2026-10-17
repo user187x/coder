@@ -29,9 +29,8 @@ import {
 	TableRow,
 } from "#/components/Table/Table";
 import { TableEmpty } from "#/components/TableEmpty/TableEmpty";
-import { pageTitle } from "#/utils/page";
-import { Header, HeaderTitle, Main } from "./Content";
-import { WorkspaceSchedulerSection } from "./WorkspaceSchedulerSection";
+import { Header, HeaderTitle, Main } from "#/pages/HealthPage/Content";
+import { WorkspaceSchedulerSection } from "#/pages/HealthPage/WorkspaceSchedulerSection";
 
 const KEYS: readonly QuotaKey[] = ["workspaces", "cpu", "memory"];
 
@@ -146,7 +145,12 @@ const userColor = (index: number) => `hsl(${(index * 137.508) % 360} 65% 55%)`;
  * workspace and refuses one that would pass a limit. The charts show what each
  * user's workspaces take against the cluster's capacity.
  */
-const UserQuotaPage: React.FC = () => {
+/**
+ * User Quota, at the top of Accounts: what every developer may provision and
+ * each one's overrides, their usage, the cluster's load and the workspace
+ * scheduler.
+ */
+export const UserQuotaSection: React.FC = () => {
 	const queryClient = useQueryClient();
 	const { data: report, error } = useQuery(quotaReport());
 	const save = useMutation(updateQuota(queryClient));
@@ -194,8 +198,6 @@ const UserQuotaPage: React.FC = () => {
 
 	return (
 		<>
-			<title>{pageTitle("User Quota - Health")}</title>
-
 			<Header>
 				<HeaderTitle>
 					{report &&
@@ -619,5 +621,3 @@ const QuotaRow: React.FC<QuotaRowProps> = ({
 		</TableRow>
 	);
 };
-
-export default UserQuotaPage;

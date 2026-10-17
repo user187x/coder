@@ -1422,8 +1422,18 @@ func (api *API) userPreferenceSettings(rw http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	adminSidebarOrder, err := api.Database.GetUserAdminSidebarOrder(ctx, user.ID)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
+			Message: "Error reading user preference settings.",
+			Detail:  err.Error(),
+		})
+		return
+	}
+
 	httpapi.Write(ctx, rw, http.StatusOK, codersdk.UserPreferenceSettings{
-		AdminQuickLinks: decodeAdminQuickLinks(adminQuickLinks),
+		AdminQuickLinks:   decodeAdminQuickLinks(adminQuickLinks),
+		AdminSidebarOrder: decodeAdminQuickLinks(adminSidebarOrder),
 	})
 }
 
@@ -1459,6 +1469,17 @@ func (api *API) putUserPreferenceSettings(rw http.ResponseWriter, r *http.Reques
 			return
 		}
 	}
+	if params.AdminSidebarOrder != nil {
+		if detail := validateAdminQuickLinks(*params.AdminSidebarOrder); detail != "" {
+			httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
+				Message: "Invalid admin sidebar order.",
+				Validations: []codersdk.ValidationError{
+					{Field: "admin_sidebar_order", Detail: detail},
+				},
+			})
+			return
+		}
+	}
 	var settings codersdk.UserPreferenceSettings
 	err := api.Database.InTx(func(tx database.Store) error {
 		if params.AdminQuickLinks != nil {
@@ -1480,6 +1501,27 @@ func (api *API) putUserPreferenceSettings(rw http.ResponseWriter, r *http.Reques
 				return newUserPreferenceSettingsAPIError("Error reading admin quick links.", err)
 			}
 			settings.AdminQuickLinks = decodeAdminQuickLinks(stored)
+		}
+
+		if params.AdminSidebarOrder != nil {
+			encoded, err := json.Marshal(*params.AdminSidebarOrder)
+			if err != nil {
+				return newUserPreferenceSettingsAPIError("Internal error encoding admin sidebar order.", err)
+			}
+			updated, err := tx.UpdateUserAdminSidebarOrder(ctx, database.UpdateUserAdminSidebarOrderParams{
+				UserID:            user.ID,
+				AdminSidebarOrder: string(encoded),
+			})
+			if err != nil {
+				return newUserPreferenceSettingsAPIError("Internal error updating admin sidebar order.", err)
+			}
+			settings.AdminSidebarOrder = decodeAdminQuickLinks(updated)
+		} else {
+			stored, err := tx.GetUserAdminSidebarOrder(ctx, user.ID)
+			if err != nil && !errors.Is(err, sql.ErrNoRows) {
+				return newUserPreferenceSettingsAPIError("Error reading admin sidebar order.", err)
+			}
+			settings.AdminSidebarOrder = decodeAdminQuickLinks(stored)
 		}
 		return nil
 	}, database.DefaultTXOptions().WithID("user_preference_settings"))
@@ -1548,7 +1590,8 @@ func validateAdminQuickLinks(links []string) string {
 	return ""
 }
 
-// decodeAdminQuickLinks reads the stored pinned admin pages. A missing or
+// decodeAdminQuickLinks reads a stored list of admin page IDs: the pinned
+// admin pages, or the order of Admin Controls' categories. A missing or
 // unreadable value means the defaults, so it never fails the request.
 func decodeAdminQuickLinks(raw string) []string {
 	links := []string{}

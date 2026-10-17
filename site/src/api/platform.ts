@@ -990,10 +990,24 @@ export const templateIconPath = (name: string) =>
 
 export type ChatPeer = {
 	id: string;
+	/** A group chat's: its title. */
 	username: string;
+	/** A group chat's: its members' names. */
 	name: string;
 	admin?: boolean;
+	/** A group chat (an admin's, from Admin > Accounts): its id is "g:<hex>". */
+	group?: boolean;
+	members?: ChatPeer[];
 };
+
+/** A group chat's first message, the admin's: in front of everything until the member clicks it (once). */
+export type ChatFocus = {
+	group: ChatPeer;
+	message: ChatMessage;
+};
+
+/** Whether a conversation's peer id is a group chat's. */
+export const isChatGroupId = (id: string) => id.startsWith("g:");
 
 export type ChatMessage = {
 	id: number;
@@ -1096,9 +1110,11 @@ export type ChatState = ChatAvailability & {
 	cursor: number;
 	typing: string[];
 	clearVersion: number;
+	focus?: ChatFocus[];
 };
 
 type ChatPoll = ChatAvailability & {
+	focus?: ChatFocus[];
 	messages: ChatMessage[];
 	typing: string[];
 	cleared: string[];
@@ -1228,9 +1244,15 @@ export type PictureFit = (typeof PICTURE_FITS)[number];
 export const BANNER_ALIGNS = ["left", "center", "right"] as const;
 export type BannerAlign = (typeof BANNER_ALIGNS)[number];
 
-/** The crawl's pace (effect "starwars"). */
+/** The Knight Rider sweep's pace (and the crawl's, in announcements saved before crawlSpeed). */
 export const BANNER_SPEEDS = ["slow", "normal", "fast"] as const;
 export type BannerSpeed = (typeof BANNER_SPEEDS)[number];
+
+/** The crawl's pace (effect "starwars"), in pixels per second; the banner service checks the same range. */
+export const CRAWL_SPEED = { min: 4, max: 60, default: 15 } as const;
+
+/** How far the crawl's lines tilt towards a horizon, in percent: 0 a flat scroller, 100 the opening crawl. */
+export const CRAWL_TILT = { min: 0, max: 100, default: 100 } as const;
 
 /** The banner's font (bannerFonts.ts; the banner service checks the same list). */
 export const BANNER_FONTS = [
@@ -1262,6 +1284,10 @@ export type Banner = {
 	repeat: boolean;
 	/** Missing in announcements saved before it existed: "normal". */
 	speed?: BannerSpeed;
+	/** The crawl's pace (effect "starwars"), pixels per second (CRAWL_SPEED). Missing: from speed. */
+	crawlSpeed?: number;
+	/** The crawl's convergence (effect "starwars"), 0 to 100 (CRAWL_TILT). Missing: 100, the opening crawl. */
+	crawlTilt?: number;
 	/** Missing in announcements saved before it existed: "default". */
 	font?: BannerFont;
 	/**
@@ -1369,11 +1395,145 @@ export type SafeSummary = {
 	mountPath: string;
 	usedBytes: number;
 	files: number;
-	quotaBytes: number;
+	/** null: a workspace's folder is the Cloud Drive (its volume's room, no quota). */
+	quotaBytes: number | null;
 	maxUploadBytes: number;
 	/** "pending" until the account's volume is there (a minute after the account is made). */
 	volume: "ready" | "pending";
+	/** Why its files cannot be reached now (its source workspace is stopped, a re-encryption). */
+	offline?: string | null;
+	/** Encrypted with the owner's key (their workspaces show a lock). */
+	encrypted?: boolean;
+	/** A folder of one of the owner's workspaces is the Cloud Drive. */
+	source?: CloudDriveSource | null;
 };
+
+/** Persistence > Disaster recovery: where Coder's database is dumped or copied outside the cluster. */
+export type DrTarget = {
+	id: string;
+	kind: "s3" | "postgres";
+	name: string;
+	enabled: boolean;
+	/** 0: on demand only. */
+	everyHours: number;
+	lastRun?: number;
+	lastSuccess?: number;
+	hasSecret: boolean;
+	// s3
+	endpoint?: string;
+	region?: string;
+	bucket?: string;
+	prefix?: string;
+	accessKey?: string;
+	keep?: number;
+	hasCa?: boolean;
+	// postgres: host:port/db, never the password
+	where?: string;
+};
+
+export type DrRun = {
+	id: string;
+	target: string;
+	name: string;
+	kind: "s3" | "postgres";
+	at: number;
+	by: string;
+	ok: boolean | null;
+	bytes: number | null;
+	seconds: number | null;
+	error: string | null;
+	key?: string;
+};
+
+export type DrView = {
+	available: boolean;
+	unavailable: string | null;
+	database: string;
+	cluster: string;
+	targets: DrTarget[];
+	runs: DrRun[];
+	running: DrRun | null;
+	everyHoursRange: [number, number];
+	keepRange: [number, number];
+};
+
+export type DrTargetInput = {
+	id?: string;
+	kind: "s3" | "postgres";
+	name: string;
+	enabled: boolean;
+	everyHours: number;
+	endpoint?: string;
+	region?: string;
+	bucket?: string;
+	prefix?: string;
+	accessKey?: string;
+	secretKey?: string;
+	caCert?: string;
+	keep?: number;
+	url?: string;
+};
+
+/** A folder of one of the owner's workspaces as their Cloud Drive (served from it while it runs). */
+export type CloudDriveSource = {
+	workspace: string;
+	name: string | null;
+	path: string;
+	since: number | null;
+	running: boolean;
+	error: string | null;
+	pod?: string | null;
+};
+
+/** The owner's encryption of their Cloud Drive (S3 with their key, SSE-C). */
+export type CloudDriveEncryption = {
+	state: "off" | "encrypting" | "on" | "decrypting";
+	method: "password" | "pki" | null;
+	keyId: string | null;
+	since: number | null;
+	certificate: {
+		subject: string;
+		issuer: string;
+		serial: string;
+		notAfter: string | null;
+		fingerprint: string;
+		bits: number;
+	} | null;
+	/** Whether the storage takes it (TLS), and why not. */
+	available: boolean;
+	unavailable: string;
+	/** A re-encryption under way or just ended. */
+	job: {
+		action: "encrypt" | "decrypt";
+		done: number;
+		total: number;
+		error: string | null;
+		startedAt: number;
+		finishedAt: number | null;
+	} | null;
+	/** The owner's workspaces that have the drive now (it changes only while none does). */
+	running: string[];
+	/** A workspace's folder is the Cloud Drive (encryption is for its S3 storage). */
+	source: boolean;
+	pending: { keyId: string; method: "password" | "pki" } | null;
+	passwordMin: number;
+};
+
+/** What the owner keeps to reach their encrypted files without this deployment. */
+export type CloudDriveRecoveryKit = Record<string, unknown> & {
+	kind: string;
+	encryption: { keyId: string };
+};
+
+/** Deleting a workspace that is its owner's Cloud Drive source: its connected workspaces, each confirmed. */
+export type CloudDriveSourceGuard =
+	| { source: false }
+	| {
+			source: true;
+			path: string;
+			name: string | null;
+			connected: { id: string; name: string; mounted: boolean }[];
+	  };
 
 export type SafeFile = { name: string; size: number; modified: string };
 
@@ -1383,6 +1543,13 @@ export type CloudDriveConnections = {
 	disconnected: string[];
 	/** Running from a template version before the connections: a change takes effect once they are updated. */
 	older: string[];
+	/** Shared with others: never connected (the Cloud Drive is the owner's alone). */
+	shared?: string[];
+	/** Of those, the ones whose pod still has the volume from before they were shared (a restart takes it out). */
+	sharedWithVolume?: string[];
+	/** Encrypted: its connected workspaces show a lock. */
+	encrypted?: boolean;
+	source?: CloudDriveSource | null;
 };
 
 /** A folder of the Cloud Drive: its folders and files (path "" is the top). */
@@ -1440,6 +1607,60 @@ export type CloudDriveBackend = {
 
 const safeQuery = (path: string) => `?path=${encodeURIComponent(path)}`;
 
+/** A provisioner job waiting, running or being cancelled (the platform service's /api/provisioners). */
+export type ProvisionerJobState = {
+	id: string;
+	organization: string;
+	status: string;
+	type: string;
+	startedAt: string | null;
+	createdAt: string | null;
+	ageSeconds: number;
+	/** Running (or cancelling) longer than stuckAfterSeconds. */
+	stuck: boolean;
+	workerId: string | null;
+	workspace?: string;
+	template?: string;
+	workspaceBuildId?: string;
+	templateVersionId?: string;
+};
+
+/** A terraform process in one of Coder's pods; defunct ones are zombies their daemon never reaped. */
+export type TerraformProcess = {
+	pid: number;
+	state: string;
+	defunct: boolean;
+	ageSeconds: number;
+	/** Its subcommand (init, plan, apply, ...). */
+	command: string;
+	args: string;
+};
+
+export type ProvisionersReport = {
+	stuckAfterSeconds: number;
+	jobs: ProvisionerJobState[];
+	daemons: {
+		id: string;
+		name: string;
+		organization: string;
+		status: string;
+		lastSeenAt: string | null;
+		currentJob: string | null;
+		version: string;
+	}[];
+	/** By Coder pod: its terraform processes, or why they could not be read. */
+	pods: Record<string, TerraformProcess[] | { error: string }>;
+	stuck: number;
+};
+
+export type ProvisionersRekickResult = {
+	cancelled: { id: string; workspace?: string; error: string | null }[];
+	stopped: (TerraformProcess & { pod: string })[];
+	errors: string[];
+	/** The jobs still running afterwards: their daemon may need its pod restarted. */
+	stillRunning: string[];
+};
+
 export const PlatformAPI = {
 	/** The caller's Cloud Drive; PlatformError 404 where the deployment has none. */
 	getSafe: () => get<SafeSummary>(`${PLATFORM_BASE}/api/safe`),
@@ -1489,6 +1710,77 @@ export const PlatformAPI = {
 			{ connected },
 		),
 	/** Admins: whether an S3 service answers, without saving it. */
+	getDisasterRecovery: () => get<DrView>(`${PLATFORM_BASE}/api/persistence/dr`),
+	drDumpUrl: () => `${PLATFORM_BASE}/api/persistence/dr/dump`,
+	saveDrTarget: (target: DrTargetInput) =>
+		post<DrView>(`${PLATFORM_BASE}/api/persistence/dr/targets`, target),
+	deleteDrTarget: (id: string) =>
+		post<DrView>(`${PLATFORM_BASE}/api/persistence/dr/targets/delete`, { id }),
+	testDrTarget: (target: DrTargetInput | { id: string }) =>
+		post<{ ok: boolean; detail: string }>(
+			`${PLATFORM_BASE}/api/persistence/dr/test`,
+			target,
+		),
+	runDrTarget: (id: string) =>
+		post<DrView>(`${PLATFORM_BASE}/api/persistence/dr/run`, { id }),
+
+	getCloudDriveEncryption: () =>
+		get<CloudDriveEncryption>(`${PLATFORM_BASE}/api/safe/encryption`),
+
+	prepareCloudDriveEncryption: (
+		body:
+			| { method: "password"; password: string }
+			| { method: "pki"; certificate: string },
+	) =>
+		post<{ keyId: string; kit: CloudDriveRecoveryKit; fileName: string }>(
+			`${PLATFORM_BASE}/api/safe/encryption/prepare`,
+			body,
+		),
+
+	enableCloudDriveEncryption: (keyId: string) =>
+		post<CloudDriveEncryption>(`${PLATFORM_BASE}/api/safe/encryption/enable`, {
+			keyId,
+			kitSaved: true,
+		}),
+
+	disableCloudDriveEncryption: (
+		body: { password: string } | { dataKey: string },
+	) =>
+		post<CloudDriveEncryption>(
+			`${PLATFORM_BASE}/api/safe/encryption/disable`,
+			body,
+		),
+
+	resumeCloudDriveEncryption: () =>
+		post<CloudDriveEncryption>(
+			`${PLATFORM_BASE}/api/safe/encryption/resume`,
+			{},
+		),
+
+	setCloudDriveSource: (workspace: string, path: string) =>
+		post<CloudDriveConnections>(`${PLATFORM_BASE}/api/safe/source`, {
+			workspace,
+			path,
+		}),
+
+	clearCloudDriveSource: () =>
+		post<CloudDriveConnections>(`${PLATFORM_BASE}/api/safe/source/clear`, {}),
+
+	getCloudDriveSourceGuard: (workspace: string) =>
+		get<CloudDriveSourceGuard>(
+			`${PLATFORM_BASE}/api/safe/source/guard?workspace=${encodeURIComponent(workspace)}`,
+		),
+
+	releaseCloudDriveSource: (body: {
+		workspace: string;
+		disconnect: string[];
+		confirm: string;
+	}) =>
+		post<CloudDriveConnections>(
+			`${PLATFORM_BASE}/api/safe/source/release`,
+			body,
+		),
+
 	testCloudDriveBackend: (backend: CloudDriveBackend) =>
 		post<CloudDriveStatus>(`${PLATFORM_BASE}/api/safe/settings/test`, backend),
 	/** A file, or a folder with everything in it (path ending in "/"). */
@@ -1677,6 +1969,16 @@ export const PlatformAPI = {
 		get<KeycloakStatus>(`${PLATFORM_BASE}/api/keycloak/status`),
 
 	getQuotaReport: () => get<QuotaReport>(`${PLATFORM_BASE}/api/quota`),
+	getProvisioners: () =>
+		get<ProvisionersReport>(`${PLATFORM_BASE}/api/provisioners`),
+	rekickProvisioners: (jobs: string[]) =>
+		post<ProvisionersRekickResult>(`${PLATFORM_BASE}/api/provisioners/rekick`, {
+			jobs,
+		}),
+	restartCoderPod: (pod: string) =>
+		post<{ restarted: string }>(`${PLATFORM_BASE}/api/provisioners/restart`, {
+			pod,
+		}),
 	getSchedulerReport: () =>
 		get<SchedulerReport>(`${PLATFORM_BASE}/api/scheduler`),
 	updateScheduler: (settings: SchedulerSettings) =>
@@ -1802,6 +2104,11 @@ export const PlatformAPI = {
 	sendChatTyping: (to: string) => post<{ ok: true }>(chat("typing"), { to }),
 	markChatRead: (to: string, last: number) =>
 		post<{ ok: true }>(chat("read"), { to, last }),
+	/** Admins: one thread with these accounts (Admin > Accounts, Chat). */
+	createChatGroup: (members: readonly string[]) =>
+		post<{ peer: ChatPeer }>(chat("groups"), { members }),
+	acknowledgeChatFocus: (group: string) =>
+		post<{ ok: true }>(chat("focus/ack"), { group }),
 	deleteChatConversation: (to: string) =>
 		post<{ ok: true; deleted: number }>(chat("delete"), { to }),
 	setChatAvailability: (enabled: boolean) =>

@@ -1018,6 +1018,7 @@ type sqlcQuerier interface {
 	// simultaneously.
 	GetUserActivityInsights(ctx context.Context, arg GetUserActivityInsightsParams) ([]GetUserActivityInsightsRow, error)
 	GetUserAdminQuickLinks(ctx context.Context, userID uuid.UUID) (string, error)
+	GetUserAdminSidebarOrder(ctx context.Context, userID uuid.UUID) (string, error)
 	GetUserAgentChatSendShortcut(ctx context.Context, userID uuid.UUID) (string, error)
 	GetUserAppearanceSettings(ctx context.Context, userID uuid.UUID) (GetUserAppearanceSettingsRow, error)
 	GetUserByEmailOrUsername(ctx context.Context, arg GetUserByEmailOrUsernameParams) (User, error)
@@ -1702,6 +1703,7 @@ type sqlcQuerier interface {
 	UpdateUsageEventsPostPublish(ctx context.Context, arg UpdateUsageEventsPostPublishParams) error
 	UpdateUserAIProviderKey(ctx context.Context, arg UpdateUserAIProviderKeyParams) (UserAIProviderKey, error)
 	UpdateUserAdminQuickLinks(ctx context.Context, arg UpdateUserAdminQuickLinksParams) (string, error)
+	UpdateUserAdminSidebarOrder(ctx context.Context, arg UpdateUserAdminSidebarOrderParams) (string, error)
 	UpdateUserAgentChatSendShortcut(ctx context.Context, arg UpdateUserAgentChatSendShortcutParams) (string, error)
 	UpdateUserChatCompactionThreshold(ctx context.Context, arg UpdateUserChatCompactionThresholdParams) (UserConfig, error)
 	UpdateUserChatCustomPrompt(ctx context.Context, arg UpdateUserChatCustomPromptParams) (UserConfig, error)

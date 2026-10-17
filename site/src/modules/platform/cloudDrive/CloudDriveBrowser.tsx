@@ -166,7 +166,9 @@ export const CloudDriveBrowser: React.FC<{ summary: SafeSummary }> = ({
 		}
 	};
 
-	const percent = usedPercent(summary.usedBytes, summary.quotaBytes);
+	// a workspace's folder (the source) has its volume's room, no quota
+	const quota = summary.quotaBytes;
+	const percent = quota === null ? 0 : usedPercent(summary.usedBytes, quota);
 	const data: SafeListing | undefined = listing.data;
 	const empty = data && data.folders.length === 0 && data.files.length === 0;
 
@@ -404,18 +406,20 @@ export const CloudDriveBrowser: React.FC<{ summary: SafeSummary }> = ({
 
 			<footer className="flex flex-wrap items-center gap-x-4 gap-y-1 border-0 border-t border-solid border-border px-4 py-2.5 text-xs text-content-secondary">
 				<span className="flex items-center gap-2 tabular-nums">
-					<span
-						className="cd-meter w-28"
-						data-level={levelOf(percent)}
-						role="meter"
-						aria-label="Cloud Drive used"
-						aria-valuenow={summary.usedBytes}
-						aria-valuemin={0}
-						aria-valuemax={summary.quotaBytes}
-					>
-						<i style={{ width: `${percent}%` }} />
-					</span>
-					{`${formatBytes(summary.usedBytes)} of ${formatBytes(summary.quotaBytes)} · ${summary.files} ${summary.files === 1 ? "file" : "files"}`}
+					{quota !== null && (
+						<span
+							className="cd-meter w-28"
+							data-level={levelOf(percent)}
+							role="meter"
+							aria-label="Cloud Drive used"
+							aria-valuenow={summary.usedBytes}
+							aria-valuemin={0}
+							aria-valuemax={quota}
+						>
+							<i style={{ width: `${percent}%` }} />
+						</span>
+					)}
+					{`${formatBytes(summary.usedBytes)}${quota === null ? ` in ${summary.source?.path ?? "a workspace's folder"}` : ` of ${formatBytes(quota)}`} · ${summary.files} ${summary.files === 1 ? "file" : "files"}`}
 				</span>
 				<span>
 					{summary.volume === "ready"

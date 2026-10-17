@@ -25,6 +25,7 @@ import {
 	CHECK_STATUS_VARIANTS,
 	worstCheckStatus,
 } from "#/modules/platform/checkStatus";
+import { DisasterRecoveryCard } from "./DisasterRecoveryCard";
 import { PersistenceMap } from "./PersistenceMap";
 import { ClusterSettingsCard, OperatorSetupCard } from "./PersistenceSetup";
 import { InstancesTable, StorageClassesTable } from "./PersistenceTables";
@@ -132,6 +133,8 @@ export const PersistenceView: React.FC = () => {
 					onApply={() => setPending(formFixes)}
 				/>
 			)}
+			{/* Platform: copies of the database outside the cluster. */}
+			<DisasterRecoveryCard />
 			{report.facts.cluster && <InstancesTable report={report} />}
 			<StorageClassesTable report={report} />
 			<ConfirmDialog

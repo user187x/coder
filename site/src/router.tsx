@@ -14,6 +14,7 @@ import { DashboardLayout } from "./modules/dashboard/DashboardLayout";
 import AuditPage from "./pages/AuditPage/AuditPage";
 import ConnectionLogPage from "./pages/ConnectionLogPage/ConnectionLogPage";
 import { HealthLayout } from "./pages/HealthPage/HealthLayout";
+import { HEALTH_CARD_IDS } from "./pages/HealthPage/healthSections";
 import LoginOAuthDevicePage from "./pages/LoginOAuthDevicePage/LoginOAuthDevicePage";
 import LoginPage from "./pages/LoginPage/LoginPage";
 import { SetupPage } from "./pages/SetupPage/SetupPage";
@@ -194,10 +195,6 @@ const MonitoringSettingsPage = lazy(
 			"./pages/DeploymentSettingsPage/MonitoringSettingsPage/MonitoringSettingsPage"
 		),
 );
-const WorkspaceHealthPage = lazy(
-	() => import("./pages/HealthPage/WorkspaceHealthPage"),
-);
-const UserQuotaPage = lazy(() => import("./pages/HealthPage/UserQuotaPage"));
 const HudPage = lazy(() => import("./pages/HudPage/HudPage"));
 const CertificatesPage = lazy(
 	() => import("./pages/UserSettingsPage/CertificatesPage/CertificatesPage"),
@@ -330,16 +327,9 @@ const TemplatePrebuildsPage = lazy(
 		import("./pages/TemplatePage/TemplatePrebuildsPage/TemplatePrebuildsPage"),
 );
 const IconsPage = lazy(() => import("./pages/IconsPage/IconsPage"));
-const AccessURLPage = lazy(() => import("./pages/HealthPage/AccessURLPage"));
-const DatabasePage = lazy(() => import("./pages/HealthPage/DatabasePage"));
-const DERPPage = lazy(() => import("./pages/HealthPage/DERPPage"));
 const DERPRegionPage = lazy(() => import("./pages/HealthPage/DERPRegionPage"));
-const WebsocketPage = lazy(() => import("./pages/HealthPage/WebsocketPage"));
-const WorkspaceProxyHealthPage = lazy(
-	() => import("./pages/HealthPage/WorkspaceProxyPage"),
-);
-const ProvisionerDaemonsHealthPage = lazy(
-	() => import("./pages/HealthPage/ProvisionerDaemonsPage"),
+const HealthOverviewPage = lazy(
+	() => import("./pages/HealthPage/HealthOverviewPage"),
 );
 const UserNotificationsPage = lazy(
 	() => import("./pages/UserSettingsPage/NotificationsPage/NotificationsPage"),
@@ -652,32 +642,25 @@ export const router = createBrowserRouter(
 					{/* The health pages open inside General, with its sidebar. */}
 					<Route path="/health" element={<DeploymentSettingsLayout />}>
 						<Route element={<HealthLayout />}>
-							<Route
-								index
-								element={<Navigate to="workspace-health" replace />}
-							/>
-							<Route path="access-url" element={<AccessURLPage />} />
-							<Route path="database" element={<DatabasePage />} />
-							<Route path="derp" element={<DERPPage />} />
+							<Route index element={<HealthOverviewPage />} />
+							{/* Health's sections had pages of their own: now cards on its one page. */}
+							{HEALTH_CARD_IDS.map((id) => (
+								<Route
+									key={id}
+									path={id}
+									element={<Navigate to={`/health#${id}`} replace />}
+								/>
+							))}
 							<Route
 								path="derp/regions/:regionId"
 								element={<DERPRegionPage />}
 							/>
-							<Route path="websocket" element={<WebsocketPage />} />
-							<Route
-								path="workspace-proxy"
-								element={<WorkspaceProxyHealthPage />}
-							/>
-							<Route
-								path="provisioner-daemons"
-								element={<ProvisionerDaemonsHealthPage />}
-							/>
-							<Route
-								path="workspace-health"
-								element={<WorkspaceHealthPage />}
-							/>
-							<Route path="user-quota" element={<UserQuotaPage />} />
 						</Route>
+						{/* User Quota is at the top of Accounts now. */}
+						<Route
+							path="user-quota"
+							element={<Navigate to="/deployment/users" replace />}
+						/>
 					</Route>
 
 					<Route path="/install" element={<CliInstallPage />} />

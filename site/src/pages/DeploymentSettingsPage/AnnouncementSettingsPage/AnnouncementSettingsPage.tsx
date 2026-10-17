@@ -7,6 +7,7 @@ import {
 	type Banner,
 	type BannerFields,
 	type BannerState,
+	CRAWL_TILT,
 	PlatformError,
 } from "#/api/platform";
 import {
@@ -37,6 +38,9 @@ import { pageTitle } from "#/utils/page";
 import { Acknowledgements } from "./Acknowledgements";
 import { BannerEditor, MESSAGE_MAX_LENGTH } from "./BannerEditor";
 
+// The crawl's pace before it had a slider of its own (announcements with only a speed).
+const LEGACY_CRAWL_SPEED = { slow: 9, normal: 15, fast: 26 } as const;
+
 const FIELDS = [
 	"enabled",
 	"level",
@@ -50,6 +54,8 @@ const FIELDS = [
 	"effect",
 	"repeat",
 	"speed",
+	"crawlSpeed",
+	"crawlTilt",
 	"font",
 	"receipts",
 	"closeEffect",
@@ -73,6 +79,9 @@ const fieldsOf = ({ id: _id, ...banner }: Banner): BannerFields => {
 		effect: banner.effect ?? "none",
 		repeat: banner.repeat ?? false,
 		speed: banner.speed ?? "normal",
+		crawlSpeed:
+			banner.crawlSpeed ?? LEGACY_CRAWL_SPEED[banner.speed ?? "normal"],
+		crawlTilt: banner.crawlTilt ?? CRAWL_TILT.default,
 		font: banner.font ?? "default",
 		receipts: banner.receipts ?? true,
 		closeEffect: banner.closeEffect ?? "fade",

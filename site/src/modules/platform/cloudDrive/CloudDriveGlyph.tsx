@@ -39,7 +39,8 @@ export const CloudDriveGlyph: React.FC<{ workspace: Workspace }> = ({
 		!enabled ||
 		!summary ||
 		!connections.data ||
-		connections.data.disconnected.includes(workspace.id)
+		connections.data.disconnected.includes(workspace.id) ||
+		connections.data.shared?.includes(workspace.id)
 	) {
 		return null;
 	}
@@ -58,7 +59,7 @@ export const CloudDriveGlyph: React.FC<{ workspace: Workspace }> = ({
 			<TooltipTrigger asChild>
 				<button
 					type="button"
-					aria-label={`Cloud Drive: ${formatBytes(used)} of ${formatBytes(quota)} used`}
+					aria-label={`Cloud Drive: ${formatBytes(used)}${quota === null ? "" : ` of ${formatBytes(quota)}`} used`}
 					data-testid="cloud-drive-glyph"
 					// in a grey circle, as Metrics Interval's and Open ports' numbers beside it
 					className="flex h-5 min-w-5 cursor-default items-center justify-center rounded-full border-0 bg-surface-tertiary p-0 px-1 text-content-link"
@@ -99,7 +100,11 @@ export const CloudDriveGlyph: React.FC<{ workspace: Workspace }> = ({
 				</div>
 				<p className="m-0 mt-1 flex justify-between tabular-nums">
 					<span>{formatBytes(used)} used</span>
-					<span>{formatBytes(Math.max(0, quota - used))} free</span>
+					<span>
+						{quota === null
+							? `in ${summary.source?.name ?? "a workspace"}`
+							: `${formatBytes(Math.max(0, quota - used))} free`}
+					</span>
 				</p>
 				<ul className="m-0 mt-2 flex list-none flex-col gap-0.5 border-0 border-t border-solid border-border p-0 pt-2">
 					{listing.isLoading ? (

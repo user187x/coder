@@ -7,7 +7,6 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "#/components/Tooltip/Tooltip";
-import { pageTitle } from "#/utils/page";
 import {
 	Header,
 	HeaderTitle,
@@ -24,8 +23,6 @@ const WebsocketPage = () => {
 
 	return (
 		<>
-			<title>{pageTitle("Websocket - Health")}</title>
-
 			<Header>
 				<HeaderTitle>
 					<HealthyDot severity={websocket.severity} />

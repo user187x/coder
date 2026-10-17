@@ -88,7 +88,8 @@ const ImageDetailView: React.FC<{ image: ImageDetail }> = ({ image }) => {
 	const [deleting, setDeleting] = useState(false);
 	const tracked = image.tracked;
 	const imported = image.imported;
-	const editable = image.canEdit && !tracked;
+	const scanned = image.scanned;
+	const editable = image.canEdit && !tracked && !scanned;
 	const [importing, setImporting] = useState(false);
 	// the templates a workspace can be made from on this image (their Workspace image parameter)
 	const templates =
@@ -167,11 +168,13 @@ const ImageDetailView: React.FC<{ image: ImageDetail }> = ({ image }) => {
 								to={`/images/${image.id}/builds/${image.activeBuild}`}
 							>
 								<Spinner loading />
-								{tracked ? "Scanning: watch it" : "Building: watch it"}
+								{tracked || scanned
+									? "Scanning: watch it"
+									: "Building: watch it"}
 							</RouterLink>
 						</Button>
 					)}
-					{image.pullRef && (
+					{image.pullRef && !scanned && (
 						<Button variant="outline" asChild>
 							<a href={ImagesAPI.downloadUrl(image.id)} download>
 								<DownloadIcon />
@@ -179,7 +182,9 @@ const ImageDetailView: React.FC<{ image: ImageDetail }> = ({ image }) => {
 							</a>
 						</Button>
 					)}
-					{tracked && image.canEdit && image.pullRef && (
+					{(tracked || scanned) && image.canEdit && (
+						// a scanned image, or the workspace image even before the builder's registry has its copy
+						// (read from a node that holds it)
 						<Button
 							variant="outline"
 							onClick={() => rescan.mutate()}
@@ -190,6 +195,18 @@ const ImageDetailView: React.FC<{ image: ImageDetail }> = ({ image }) => {
 								<ScanSearchIcon />
 							</Spinner>
 							Rescan
+						</Button>
+					)}
+					{scanned && image.canEdit && (
+						<Button
+							variant="outline"
+							size="icon"
+							aria-label={`Delete ${image.name}`}
+							title="Forget this scan (the image itself is not touched)"
+							disabled={Boolean(image.activeBuild)}
+							onClick={() => setDeleting(true)}
+						>
+							<TrashIcon />
 						</Button>
 					)}
 					{editable && (
@@ -252,7 +269,14 @@ const ImageDetailView: React.FC<{ image: ImageDetail }> = ({ image }) => {
 					</p>
 				)}
 				<p className="m-0 text-xs text-content-secondary">
-					{tracked ? (
+					{scanned ? (
+						<>
+							Scanned as it is
+							{image.builtAt &&
+								` · first scanned ${createDayString(image.builtAt)}`}
+							{image.builtBy && ` by ${image.builtBy}`}
+						</>
+					) : tracked ? (
 						<>
 							Deployed with the platform
 							{image.builtAt &&

@@ -243,6 +243,10 @@ type UserPreferenceSettings struct {
 	// menu, by page ID, in menu order. Empty means the dashboard's
 	// defaults.
 	AdminQuickLinks []string `json:"admin_quick_links"`
+	// AdminSidebarOrder is the order the user arranged Admin Controls'
+	// categories in, by page ID. Empty means the dashboard's (alphabetical)
+	// order.
+	AdminSidebarOrder []string `json:"admin_sidebar_order"`
 }
 
 // MaxAdminQuickLinks is the most admin pages a user can pin to the Admin menu.
@@ -252,6 +256,10 @@ type UpdateUserPreferenceSettingsRequest struct {
 	// AdminQuickLinks replaces the pinned admin pages when set. An empty
 	// list restores the defaults; omit it to leave them unchanged.
 	AdminQuickLinks *[]string `json:"admin_quick_links,omitempty"`
+	// AdminSidebarOrder replaces the order of Admin Controls' categories when
+	// set. An empty list restores the alphabetical order; omit it to leave it
+	// unchanged.
+	AdminSidebarOrder *[]string `json:"admin_sidebar_order,omitempty"`
 }
 
 type UpdateUserPasswordRequest struct {

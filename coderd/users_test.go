@@ -3011,3 +3011,47 @@ func BenchmarkUsersMe(b *testing.B) {
 		require.NoError(b, err)
 	}
 }
+
+func TestAdminSidebarOrderPreference(t *testing.T) {
+	t.Parallel()
+
+	adminClient := coderdtest.New(t, nil)
+	firstUser := coderdtest.CreateFirstUser(t, adminClient)
+	client, _ := coderdtest.CreateAnotherUser(t, adminClient, firstUser.OrganizationID)
+
+	ctx, cancel := context.WithTimeout(context.Background(), testutil.WaitShort)
+	defer cancel()
+
+	settings, err := client.GetUserPreferenceSettings(ctx, codersdk.Me)
+	require.NoError(t, err)
+	require.Empty(t, settings.AdminSidebarOrder)
+
+	order := []string{"security", "accounts", "health"}
+	updated, err := client.UpdateUserPreferenceSettings(ctx, codersdk.Me, codersdk.UpdateUserPreferenceSettingsRequest{
+		AdminSidebarOrder: &order,
+	})
+	require.NoError(t, err)
+	require.Equal(t, order, updated.AdminSidebarOrder)
+
+	// An update of the quick links keeps the order, and the order keeps them.
+	links := []string{"network"}
+	updated, err = client.UpdateUserPreferenceSettings(ctx, codersdk.Me, codersdk.UpdateUserPreferenceSettingsRequest{
+		AdminQuickLinks: &links,
+	})
+	require.NoError(t, err)
+	require.Equal(t, order, updated.AdminSidebarOrder)
+	require.Equal(t, links, updated.AdminQuickLinks)
+
+	_, err = client.UpdateUserPreferenceSettings(ctx, codersdk.Me, codersdk.UpdateUserPreferenceSettingsRequest{
+		AdminSidebarOrder: &[]string{"Not An ID"},
+	})
+	var apiErr *codersdk.Error
+	require.ErrorAs(t, err, &apiErr)
+	require.Equal(t, http.StatusBadRequest, apiErr.StatusCode())
+
+	updated, err = client.UpdateUserPreferenceSettings(ctx, codersdk.Me, codersdk.UpdateUserPreferenceSettingsRequest{
+		AdminSidebarOrder: &[]string{},
+	})
+	require.NoError(t, err)
+	require.Empty(t, updated.AdminSidebarOrder)
+}

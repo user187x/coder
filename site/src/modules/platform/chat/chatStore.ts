@@ -17,9 +17,11 @@ import { useEffect, useSyncExternalStore } from "react";
 import {
 	type ChatAvailability,
 	type ChatConversation,
+	type ChatFocus,
 	type ChatMessage,
 	type ChatPeer,
 	type ChatState,
+	isChatGroupId,
 	PlatformAPI,
 	PlatformError,
 } from "#/api/platform";
@@ -78,6 +80,8 @@ type ChatSnapshot = {
 	/** Admins: the chat console, and the conversation open in it. */
 	consoleOpen: boolean;
 	consoleView: ChatWindowState | null;
+	/** Group chats' first messages this user has not clicked yet: in front of everything (ChatFocusOverlay). */
+	focus: readonly ChatFocus[];
 };
 
 const initialSnapshot: ChatSnapshot = {
@@ -94,6 +98,7 @@ const initialSnapshot: ChatSnapshot = {
 	drawerOpen: false,
 	consoleOpen: false,
 	consoleView: null,
+	focus: [],
 };
 
 let snapshot = initialSnapshot;
@@ -132,8 +137,12 @@ const sleep = (ms: number) =>
 const statusOf = (error: unknown) =>
 	error instanceof PlatformError ? error.status : 0;
 
-export const displayName = (peer: Pick<ChatPeer, "name" | "username">) =>
-	peer.name || peer.username;
+export const displayName = (
+	peer: Pick<ChatPeer, "name" | "username"> & { id?: string },
+) =>
+	peer.id && isChatGroupId(peer.id)
+		? peer.username
+		: peer.name || peer.username;
 
 export const unreadTotal = (state: ChatSnapshot): number => {
 	let total = 0;
@@ -415,10 +424,13 @@ const receive = (m: ChatMessage) => {
 		return;
 	}
 	cursor = Math.max(cursor, m.id);
-	const incoming = m.to === me.id;
-	const peer: ChatPeer = incoming
-		? { id: m.from, username: m.fromName, name: m.fromDisplay }
-		: { id: m.to, username: m.toName, name: m.toDisplay };
+	// A group chat's message: the group is the conversation, whoever wrote it.
+	const group = isChatGroupId(m.to);
+	const incoming = group ? m.from !== me.id : m.to === me.id;
+	const peer: ChatPeer =
+		group || !incoming
+			? { id: m.to, username: m.toName, name: m.toDisplay, group }
+			: { id: m.from, username: m.fromName, name: m.fromDisplay };
 	const known = snapshot.conversations.get(peer.id);
 	if (known && known.last.id >= m.id) {
 		updateWindow(peer.id, (w) => appendMessages(w, [m]));
@@ -569,7 +581,7 @@ const poll = async () => {
 			for (const message of result.messages) {
 				receive(message);
 			}
-			update({ typing: new Set(result.typing) });
+			update({ typing: new Set(result.typing), focus: result.focus ?? [] });
 		} catch (error) {
 			if (statusOf(error) === 401) {
 				signedOut();
@@ -611,11 +623,17 @@ const boot = async () => {
 		presenceVersion: state.presenceVersion ?? 0,
 		maxFileMb: state.maxFileMb ?? snapshot.maxFileMb,
 		peers: Boolean(state.peers),
+		focus: state.focus ?? [],
 	});
 	for (const saved of loadOpenWindows()) {
 		if (saved.id !== state.me.id) {
 			openWindow(
-				{ id: saved.id, username: saved.username, name: saved.name ?? "" },
+				{
+					id: saved.id,
+					username: saved.username,
+					name: saved.name ?? "",
+					group: isChatGroupId(saved.id),
+				},
 				{ minimized: Boolean(saved.min) },
 			);
 		}
@@ -874,4 +892,22 @@ export const setChatOn = async (on: boolean) => {
 	} catch {
 		update({ me: { ...me, chatOn: me.chatOn } });
 	}
+};
+
+/** Admins: one thread with these accounts (Admin > Accounts, Chat), opened to write its first message. */
+export const startGroupChat = async (memberIds: readonly string[]) => {
+	const { peer } = await PlatformAPI.createChatGroup(memberIds);
+	await openChatWith(peer);
+	return peer;
+};
+
+/** The member clicked a group chat's first message: it lets go of the page, and its conversation opens. */
+export const acknowledgeFocus = async (item: ChatFocus) => {
+	update({ focus: snapshot.focus.filter((f) => f.group.id !== item.group.id) });
+	try {
+		await PlatformAPI.acknowledgeChatFocus(item.group.id);
+	} catch {
+		// Shown again by the next poll if it was not recorded.
+	}
+	await openChatWith(item.group);
 };

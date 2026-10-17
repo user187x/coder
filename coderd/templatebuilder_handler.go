@@ -51,6 +51,22 @@ func (api *API) templateBuilderBases(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Platform: the deployment's own base template, alone.
+	if name := api.templateBuilderPlatformBaseName(); name != "" {
+		base, err := api.templateBuilderPlatformBase(ctx, uuid.Nil)
+		if err != nil {
+			httpapi.Write(ctx, rw, http.StatusNotFound, codersdk.Response{
+				Message: "The deployment's base template " + name + " cannot be read.",
+				Detail:  err.Error(),
+			})
+			return
+		}
+		httpapi.Write(ctx, rw, http.StatusOK, codersdk.TemplateBuilderBasesResponse{
+			Bases: []codersdk.TemplateBuilderBase{platformBuilderBaseSDK(base)},
+		})
+		return
+	}
+
 	exampleList, err := examples.List()
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
@@ -163,7 +179,9 @@ func (api *API) templateBuilderModules(rw http.ResponseWriter, r *http.Request) 
 		filterOS    templatebuilder.BaseOS
 		baseModules map[string]bool
 	)
-	if base := r.URL.Query().Get("base"); base != "" {
+	if base := r.URL.Query().Get("base"); base == templateBuilderPlatformBaseID && api.templateBuilderPlatformBaseName() != "" {
+		filterOS = templatebuilder.BaseOSLinux
+	} else if base != "" {
 		filterOS = templatebuilder.BaseTemplateOS(base)
 		if filterOS == "" {
 			httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
@@ -238,7 +256,7 @@ func (api *API) templateBuilderCompose(rw http.ResponseWriter, r *http.Request) 
 		})
 	}
 
-	result, err := templatebuilder.Compose(composeReq)
+	result, _, err := api.composeBuilderTemplate(ctx, uuid.Nil, composeReq)
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
 			Message: "Failed to compose template.",
@@ -349,7 +367,7 @@ func (api *API) templateBuilderCreateTemplate(rw http.ResponseWriter, r *http.Re
 		})
 	}
 
-	result, err := templatebuilder.Compose(composeReq)
+	result, baseVariables, err := api.composeBuilderTemplate(ctx, organization.ID, composeReq)
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
 			Message: "Failed to compose template.",
@@ -421,6 +439,8 @@ func (api *API) templateBuilderCreateTemplate(rw http.ResponseWriter, r *http.Re
 
 		jobInput, err := json.Marshal(provisionerdserver.TemplateVersionImportJob{
 			TemplateVersionID: templateVersionID,
+			// Platform: the deployment's base template's variable values, as its own versions have them.
+			UserVariableValues: baseVariables,
 		})
 		if err != nil {
 			return xerrors.Errorf("marshal job input: %w", err)
@@ -686,4 +706,29 @@ func (api *API) waitForProvisionerJob(
 			return job, nil
 		}
 	}
+}
+
+// composeBuilderTemplate composes the builder's template: onto the deployment's
+// own base template (platform) when that is the base asked for, with that
+// base's variable values for the new version; else from the builder's bases.
+func (api *API) composeBuilderTemplate(ctx context.Context, orgID uuid.UUID, req templatebuilder.ComposeRequest) (*templatebuilder.ComposeResult, []codersdk.VariableValue, error) {
+	if api.templateBuilderPlatformBaseName() == "" {
+		if req.BaseTemplateID == templateBuilderPlatformBaseID {
+			return nil, nil, xerrors.New("this deployment has no base template of its own")
+		}
+		result, err := templatebuilder.Compose(req)
+		return result, nil, err
+	}
+	if req.BaseTemplateID != templateBuilderPlatformBaseID {
+		return nil, nil, xerrors.Errorf("only the deployment's base template (%q) can be the base", templateBuilderPlatformBaseID)
+	}
+	base, err := api.templateBuilderPlatformBase(ctx, orgID)
+	if xerrors.Is(err, errPlatformBaseMissing) && orgID != uuid.Nil {
+		base, err = api.templateBuilderPlatformBase(ctx, uuid.Nil)
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+	result, err := api.composePlatform(base, req.Modules)
+	return result, base.Variables, err
 }

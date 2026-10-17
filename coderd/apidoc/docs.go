@@ -20342,6 +20342,10 @@ const docTemplate = `{
         "codersdk.TemplateBuilderConfig": {
             "type": "object",
             "properties": {
+                "base_template": {
+                    "description": "BaseTemplate names the deployment's own base template (platform fork):\nthe builder offers it alone.",
+                    "type": "string"
+                },
                 "disabled": {
                     "type": "boolean"
                 },
@@ -21456,6 +21460,13 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                },
+                "admin_sidebar_order": {
+                    "description": "AdminSidebarOrder replaces the order of Admin Controls' categories when\nset. An empty list restores the alphabetical order; omit it to leave it\nunchanged.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -21919,6 +21930,13 @@ const docTemplate = `{
             "properties": {
                 "admin_quick_links": {
                     "description": "AdminQuickLinks are the admin pages the user pinned to the Admin\nmenu, by page ID, in menu order. Empty means the dashboard's\ndefaults.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "admin_sidebar_order": {
+                    "description": "AdminSidebarOrder is the order the user arranged Admin Controls'\ncategories in, by page ID. Empty means the dashboard's (alphabetical)\norder.",
                     "type": "array",
                     "items": {
                         "type": "string"

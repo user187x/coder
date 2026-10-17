@@ -172,78 +172,6 @@ curl -X GET http://coder-server:8080/api/v2/deployment/config \
       "user": {}
     },
     "agent_stat_refresh_interval": 0,
-    "ai": {
-      "aibridge_proxy": {
-        "allowed_private_cidrs": [
-          "string"
-        ],
-        "api_dump_dir": "string",
-        "cert_file": "string",
-        "domain_allowlist": [
-          "string"
-        ],
-        "enabled": true,
-        "key_file": "string",
-        "listen_addr": "string",
-        "target": "string",
-        "tls_cert_file": "string",
-        "tls_key_file": "string",
-        "upstream_proxy": "string",
-        "upstream_proxy_ca": "string"
-      },
-      "bridge": {
-        "actor_header_email": "string",
-        "actor_header_id": "string",
-        "actor_header_username": "string",
-        "allow_byok": true,
-        "api_dump_dir": "string",
-        "budget_period": "string",
-        "budget_policy": "string",
-        "circuit_breaker_enabled": true,
-        "circuit_breaker_failure_threshold": 0,
-        "circuit_breaker_interval": 0,
-        "circuit_breaker_max_requests": 0,
-        "circuit_breaker_timeout": 0,
-        "disable_content_recording": true,
-        "enabled": true,
-        "inject_coder_mcp_tools": true,
-        "max_concurrency": 0,
-        "rate_limit": 0,
-        "retention": 0,
-        "send_actor_headers": true,
-        "structured_logging": true,
-        "structured_logging_source": "string"
-      },
-      "chat": {
-        "acquire_batch_size": 0,
-        "debug_logging_enabled": true,
-        "hook_allow_insecure": true,
-        "hook_enabled": true,
-        "hook_secret": "string",
-        "hook_timeout": 0,
-        "hook_url": {
-          "forceQuery": true,
-          "fragment": "string",
-          "host": "string",
-          "omitHost": true,
-          "opaque": "string",
-          "path": "string",
-          "rawFragment": "string",
-          "rawPath": "string",
-          "rawQuery": "string",
-          "scheme": "string",
-          "user": {}
-        },
-        "max_attachments_per_chat": 0,
-        "max_automations_per_owner": 0,
-        "max_concurrent_recording_uploads": 0,
-        "max_generation_retries": 0,
-        "max_prompt_bytes": 0,
-        "max_queued_messages_per_chat": 0,
-        "max_steps_per_turn": 0,
-        "stream_silence_timeout": 0
-      }
-    },
     "allow_workspace_renames": true,
     "autobuild_poll_interval": 0,
     "browser_only": true,
@@ -294,13 +222,10 @@ curl -X GET http://coder-server:8080/api/v2/deployment/config \
         ]
       }
     },
-    "disable_chat_caller_supplied_tools": true,
-    "disable_chat_sharing": true,
     "disable_owner_workspace_exec": true,
     "disable_password_auth": true,
     "disable_path_apps": true,
     "disable_user_secret_file_path": true,
-    "disable_workspace_agent_context_sync": true,
     "disable_workspace_sharing": true,
     "docs_url": {
       "forceQuery": true,
@@ -377,9 +302,6 @@ curl -X GET http://coder-server:8080/api/v2/deployment/config \
       ],
       "stackdriver": "string"
     },
-    "mcp_allowed_private_cidrs": [
-      "string"
-    ],
     "metrics_cache_refresh_interval": 0,
     "notifications": {
       "dispatch_timeout": 0,
@@ -612,6 +534,7 @@ curl -X GET http://coder-server:8080/api/v2/deployment/config \
       "enable": true
     },
     "template_builder": {
+      "base_template": "string",
       "disabled": true,
       "registry_url": "string"
     },

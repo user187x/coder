@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useQuery } from "react-query";
 import { templateBuilderBases } from "#/api/queries/templateBuilder";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
@@ -15,8 +16,14 @@ type BaseInfraSelectStepProps = {
 	onSelectBase: (base: SelectedBaseMeta) => void;
 };
 
-function detailsUrl(baseId: string): string {
-	return `https://registry.coder.com/templates/${baseId}`;
+// Platform: the deployment's own base template (Coder's TemplateBuilder.BaseTemplate) - its only base, so every new
+// template keeps what the platform builds into it (the Cloud Drive, Lock Down, the user's certificate, the metrics).
+export const PLATFORM_BASE_ID = "platform";
+
+function detailsUrl(baseId: string): string | undefined {
+	return baseId === PLATFORM_BASE_ID
+		? undefined
+		: `https://registry.coder.com/templates/${baseId}`;
 }
 
 // Preferred display order for base templates. Bases listed here appear first, in
@@ -30,6 +37,13 @@ export const BaseInfraSelectStep: React.FC<BaseInfraSelectStepProps> = ({
 	onSelectBase,
 }) => {
 	const { data, error, isLoading } = useQuery(templateBuilderBases());
+	const only = data?.bases.length === 1 ? data.bases[0] : undefined;
+	// The deployment's base alone: chosen already.
+	useEffect(() => {
+		if (only && selectedBaseId === null) {
+			onSelectBase(toSelectedBaseMeta(only));
+		}
+	}, [only, selectedBaseId, onSelectBase]);
 
 	if (isLoading) {
 		return <Loader />;
@@ -43,9 +57,13 @@ export const BaseInfraSelectStep: React.FC<BaseInfraSelectStepProps> = ({
 
 	return (
 		<div role="radiogroup" aria-label="Base infrastructure templates">
-			<TemplateBuilderTitle>Pick a base template</TemplateBuilderTitle>
+			<TemplateBuilderTitle>
+				{only ? "Your base template" : "Pick a base template"}
+			</TemplateBuilderTitle>
 			<TemplateBuilderSubtitle>
-				Select your infrastructure foundation.
+				{only
+					? "Every new template starts from it, with your Cloud Drive and the rest of the platform in place."
+					: "Select your infrastructure foundation."}
 			</TemplateBuilderSubtitle>
 
 			{/* Show three rows of cards (sized to the common 214px card height plus

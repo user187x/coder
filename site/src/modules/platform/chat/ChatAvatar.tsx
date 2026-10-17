@@ -1,4 +1,5 @@
-import type { ChatPeer } from "#/api/platform";
+import { UsersIcon } from "lucide-react";
+import { type ChatPeer, isChatGroupId } from "#/api/platform";
 import {
 	resolvePlatformAvatar,
 	usePlatformSnapshot,
@@ -6,12 +7,22 @@ import {
 import { displayName } from "./chatStore";
 
 type ChatAvatarProps = {
-	peer: Pick<ChatPeer, "username" | "name">;
+	peer: Pick<ChatPeer, "username" | "name"> & { id?: string };
 };
 
-/** The picture Coder shows for this user (uploaded or default), else initials. */
+/** The picture Coder shows for this user (uploaded or default), else initials; a group chat's sign. */
 export const ChatAvatar: React.FC<ChatAvatarProps> = ({ peer }) => {
 	const platform = usePlatformSnapshot();
+	if (peer.id && isChatGroupId(peer.id)) {
+		return (
+			<span
+				aria-hidden
+				className="flex size-[26px] shrink-0 items-center justify-center rounded-full bg-surface-tertiary text-content-secondary"
+			>
+				<UsersIcon className="size-3.5" />
+			</span>
+		);
+	}
 	const src = resolvePlatformAvatar(platform, peer.username, undefined);
 	const initials =
 		displayName(peer)

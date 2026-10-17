@@ -36,7 +36,6 @@ import {
 	type StepId,
 	WIZARD_STEPS,
 } from "./steps";
-import { TemplateAlternatives } from "./TemplateAlternatives";
 import {
 	TEMPLATE_CUSTOMIZATIONS_FORM_ID,
 	TemplateCustomizationsStep,
@@ -342,8 +341,6 @@ export const TemplateBuilderPageView: React.FC<
 							{getContinueErrorMessage(currentStep.id)}
 						</p>
 					)}
-
-					{currentStep.id === "base-infra" && <TemplateAlternatives />}
 				</div>
 
 				{/* Sidebar (top position is 72px so that it can sit below nav) */}

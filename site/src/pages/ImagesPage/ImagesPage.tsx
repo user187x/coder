@@ -54,7 +54,7 @@ import {
 	TrackedBadge,
 } from "./badges";
 import { IsoLibrary, ModelLibrary } from "./FileLibrary";
-import { ImagesInUse } from "./ImagesInUse";
+import { ImagesInUse, ImagesOnNodes } from "./ImagesInUse";
 import { ImagesSettingsDialog } from "./ImagesSettingsDialog";
 import {
 	ImportImageDialog,
@@ -241,6 +241,7 @@ const ImagesPage: React.FC = () => {
 				canEdit={canEdit}
 				onImport={(initial) => setImporting(initial)}
 			/>
+			<ImagesOnNodes canEdit={canEdit} />
 			<IsoLibrary />
 			<ModelLibrary />
 			{creating && <NewImageDialog onClose={() => setCreating(false)} />}

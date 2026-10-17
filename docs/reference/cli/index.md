@@ -73,7 +73,6 @@ Coder — A tool for provisioning self-hosted development environments with Terr
 | [<code>support</code>](./support/index.md)                         | Commands for troubleshooting issues with a Coder deployment.                                                                 |
 | [<code>server</code>](./server/index.md)                           | Start a Coder server                                                                                                         |
 | [<code>provisioner</code>](./provisioner/index.md)                 | View and manage provisioner daemons and jobs                                                                                 |
-| [<code>ai-gateway</code>](./ai-gateway/index.md)                   | Manage AI Gateway                                                                                                            |
 | [<code>agent-firewall</code>](./agent-firewall.md)                 | Network isolation tool for monitoring and restricting HTTP/HTTPS requests                                                    |
 | [<code>workspace-proxy</code>](./workspace-proxy/index.md)         | Workspace proxies provide low-latency experiences for geo-distributed teams.                                                 |
 | [<code>features</code>](./features/index.md)                       | List Enterprise features                                                                                                     |

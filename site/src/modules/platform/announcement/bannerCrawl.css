@@ -1,38 +1,52 @@
 /*
- * The announcement's "starwars" effect (BannerText's Crawl): the opening crawl. A viewport two lines tall (more
- * where the banner spans the page) with perspective; the text, justified and tilted away, rises from below it
- * and recedes into the distance, fading out at the top. Its duration is set from its height and the chosen speed.
+ * The announcement's "starwars" effect (BannerText's Crawl): the text rises from the bottom of the banner's screen to
+ * its top. It never changes the banner's size: the message keeps its place in the layout, invisible
+ * (.banner-crawl-sizer), and the crawl runs over the banner's screen (the LCD, or the text's own box without one),
+ * out of the flow. Its convergence (--crawl-tilt, 0-1) tilts the lines away towards a horizon - 0 a flat scroller,
+ * 1 the opening crawl, the lines narrowing as they recede - and its duration comes from its height and the pace.
  */
-/* The crawl's text is out of the flow, so its host takes the banner's free width itself (a flex item). */
 .banner-crawl-host {
-	display: block;
-	flex: 1 1 auto;
-	align-self: stretch;
-	min-width: 0;
+	position: relative;
+}
+
+/* The message as it would stand without the effect: it sizes the banner, and is not seen. */
+.banner-crawl-sizer {
+	visibility: hidden;
 }
 
 .banner-crawl {
-	position: relative;
+	--crawl-tilt: 1;
+	position: absolute;
+	z-index: 0;
 	display: block;
-	height: 2.7em;
 	overflow: hidden;
-	perspective: 9em;
+	pointer-events: none;
+	perspective: calc(9em + (1 - var(--crawl-tilt)) * 60em);
 	perspective-origin: 50% 0%;
-	-webkit-mask-image: linear-gradient(to top, #000 55%, transparent);
-	mask-image: linear-gradient(to top, #000 55%, transparent);
+	-webkit-mask-image: linear-gradient(
+		to top,
+		#000 calc(100% - 10% - var(--crawl-tilt) * 40%),
+		transparent
+	);
+	mask-image: linear-gradient(
+		to top,
+		#000 calc(100% - 10% - var(--crawl-tilt) * 40%),
+		transparent
+	);
 }
 
 .banner-crawl-text {
 	position: absolute;
 	top: 100%;
-	left: 6%;
-	right: 6%;
+	left: calc(var(--crawl-tilt) * 6%);
+	right: calc(var(--crawl-tilt) * 6%);
 	display: block;
 	text-align: justify;
 	text-align-last: center;
 	font-weight: 600;
 	letter-spacing: 0.02em;
 	transform-origin: 50% 0%;
+	pointer-events: auto;
 	animation-name: banner-crawl;
 	animation-timing-function: linear;
 	animation-fill-mode: both;
@@ -40,21 +54,19 @@
 
 @keyframes banner-crawl {
 	from {
-		transform: rotateX(24deg) translateY(0);
+		transform: rotateX(calc(var(--crawl-tilt) * 30deg)) translateY(0);
 	}
 	to {
-		transform: rotateX(24deg) translateY(calc(-100% - 2.9em));
+		transform: rotateX(calc(var(--crawl-tilt) * 30deg))
+			translateY(calc(-100% - var(--crawl-screen, 3em)));
 	}
 }
 
-html[data-animations="off"] .banner-crawl-text {
-	animation: none;
-	position: static;
-	transform: none;
+/* Without animations: the message where it stands. */
+html[data-animations="off"] .banner-crawl {
+	display: none;
 }
 
-html[data-animations="off"] .banner-crawl {
-	height: auto;
-	-webkit-mask-image: none;
-	mask-image: none;
+html[data-animations="off"] .banner-crawl-sizer {
+	visibility: visible;
 }

@@ -25,6 +25,8 @@ import {
 	type BannerFont,
 	type BannerOpenEffect,
 	type BannerSpeed,
+	CRAWL_SPEED,
+	CRAWL_TILT,
 } from "#/api/platform";
 import { Button } from "#/components/Button/Button";
 import { Checkbox } from "#/components/Checkbox/Checkbox";
@@ -54,6 +56,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "#/components/Select/Select";
+import { Slider } from "#/components/Slider/Slider";
 import { Spinner } from "#/components/Spinner/Spinner";
 import { Textarea } from "#/components/Textarea/Textarea";
 import { bannerColors } from "#/modules/platform/announcement/AnnouncementBanner";
@@ -99,7 +102,7 @@ const EFFECT_OPTIONS: Record<BannerEffect, { label: string; hint: string }> = {
 	rainbow: { label: "Rainbow", hint: "Colours sweep through the letters." },
 	starwars: {
 		label: "Star Wars crawl",
-		hint: "The opening crawl: the message rises and recedes into the distance at a steady pace, for long broadcasts. Developers can also read it at once in the banner's scroll-down view.",
+		hint: "The message rises from the bottom of the banner to its top at a steady pace, within the banner as it stands, for long broadcasts; its convergence tilts the lines away like the opening crawl, or keeps them a flat scroller. Developers can also read it at once in the banner's scroll-down view.",
 	},
 	pewpew: {
 		label: "Pew-Pew",
@@ -521,7 +524,84 @@ const OutlineButton: React.FC<{
 	</Button>
 );
 
-/** The text effect; its speed for the crawl and the Knight Rider sweep; whether it repeats. It plays on the preview above. */
+// The crawl's pace before it had a slider of its own (announcements with only a speed).
+const LEGACY_CRAWL_SPEED: Record<BannerSpeed, number> = {
+	slow: 9,
+	normal: 15,
+	fast: 26,
+};
+
+type CrawlSliderProps = {
+	label: string;
+	value: number;
+	min: number;
+	max: number;
+	unit: string;
+	hint: string;
+	onChange: (value: number) => void;
+};
+
+/** One of the crawl's sliders: its name, the slider and the value it stands at. */
+const CrawlSlider: React.FC<CrawlSliderProps> = ({
+	label,
+	value,
+	min,
+	max,
+	unit,
+	hint,
+	onChange,
+}) => (
+	<span className="flex items-center gap-2" title={hint}>
+		<span className="text-xs text-content-secondary">{label}</span>
+		<Slider
+			className="w-24"
+			min={min}
+			max={max}
+			step={1}
+			value={[value]}
+			aria-label={label}
+			onValueChange={([next]) => {
+				if (next !== undefined) {
+					onChange(next);
+				}
+			}}
+		/>
+		<span className="w-12 text-xs tabular-nums text-content-secondary">
+			{value}
+			{unit}
+		</span>
+	</span>
+);
+
+/** The crawl's pace and how far its lines converge towards the horizon. */
+const CrawlControls: React.FC<FieldProps> = ({ form, onChange }) => (
+	<span
+		role="group"
+		aria-label="Crawl"
+		className="flex flex-wrap items-center gap-3"
+	>
+		<CrawlSlider
+			label="Speed"
+			value={form.crawlSpeed ?? LEGACY_CRAWL_SPEED[form.speed ?? "normal"]}
+			min={CRAWL_SPEED.min}
+			max={CRAWL_SPEED.max}
+			unit=" px/s"
+			hint="How fast the message rises, in pixels a second."
+			onChange={(crawlSpeed) => onChange({ crawlSpeed })}
+		/>
+		<CrawlSlider
+			label="Convergence"
+			value={form.crawlTilt ?? CRAWL_TILT.default}
+			min={CRAWL_TILT.min}
+			max={CRAWL_TILT.max}
+			unit="%"
+			hint="How far the lines tilt away and narrow towards a horizon: 0% scrolls the message flat from the bottom up, 100% is the opening crawl."
+			onChange={(crawlTilt) => onChange({ crawlTilt })}
+		/>
+	</span>
+);
+
+/** The text effect; the crawl's pace and convergence, the Knight Rider sweep's speed; whether it repeats. It plays on the preview above. */
 const EffectPicker: React.FC<FieldProps> = ({ form, onChange }) => (
 	<div className="flex items-center gap-1">
 		<Select
@@ -552,7 +632,10 @@ const EffectPicker: React.FC<FieldProps> = ({ form, onChange }) => (
 				))}
 			</SelectContent>
 		</Select>
-		{(form.effect === "starwars" || form.effect === "kitt") && (
+		{form.effect === "starwars" && (
+			<CrawlControls form={form} onChange={onChange} />
+		)}
+		{form.effect === "kitt" && (
 			<Select
 				value={form.speed ?? "normal"}
 				onValueChange={(value) => {
@@ -562,10 +645,7 @@ const EffectPicker: React.FC<FieldProps> = ({ form, onChange }) => (
 					}
 				}}
 			>
-				<SelectTrigger
-					className="h-8 w-24 text-xs"
-					aria-label={form.effect === "kitt" ? "Sweep speed" : "Crawl speed"}
-				>
+				<SelectTrigger className="h-8 w-24 text-xs" aria-label="Sweep speed">
 					<SelectValue />
 				</SelectTrigger>
 				<SelectContent>

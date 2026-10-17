@@ -2,6 +2,8 @@ import { cn } from "cn";
 import {
 	ChevronRightIcon,
 	CloudIcon,
+	FolderInputIcon,
+	LockIcon,
 	PlugIcon,
 	SettingsIcon,
 	XIcon,
@@ -26,8 +28,10 @@ import {
 } from "#/components/Dialog/Dialog";
 import { CloudDriveBrowser } from "./CloudDriveBrowser";
 import { CloudDriveConnections } from "./CloudDriveConnections";
+import { CloudDriveEncryption } from "./CloudDriveEncryption";
 import { CloudDriveRopes, ROPES_AREA } from "./CloudDriveRopes";
 import { CloudDriveSettings, StatusIndicator } from "./CloudDriveSettings";
+import { CloudDriveSource } from "./CloudDriveSource";
 import { formatBytes } from "./drivePaths";
 import "./cloudDrive.css";
 
@@ -38,8 +42,10 @@ import "./cloudDrive.css";
  * rows (CloudDriveRopes) - dragged away to disconnect one, out of the socket
  * onto another to connect it. Opened, a window in the middle of the screen
  * with the files (CloudDriveBrowser) and its Settings: where the files are
- * kept, and whether that answers. Only ever the signed-in user's own drive;
- * nothing where the deployment has none.
+ * kept, and whether that answers; its Encryption (the owner's own key) and its
+ * Source (a folder of one of their workspaces instead of S3). Only ever the
+ * signed-in user's own drive; nothing where the deployment has none. As tall
+ * as the "+ Workspace" button above it.
  */
 export const CloudDrive: React.FC<{
 	/** The signed-in user's workspaces on the page: a cable to each connected one. */
@@ -53,9 +59,7 @@ export const CloudDrive: React.FC<{
 	const queryClient = useQueryClient();
 	const link = useMutation(setCloudDriveConnection(queryClient));
 	const [open, setOpen] = useState(false);
-	const [view, setView] = useState<"files" | "workspaces" | "settings">(
-		"files",
-	);
+	const [view, setView] = useState<View>("files");
 	const button = useRef<HTMLButtonElement>(null);
 	// Flush with the table's right edge (the toolbar it sits in may be wider than the table).
 	const [right, setRight] = useState(0);
@@ -97,12 +101,16 @@ export const CloudDrive: React.FC<{
 		};
 	}, [present]);
 
-	// Every workspace is connected but those its owner disconnected (a new one is too); none until the list is in.
+	// Every workspace is connected but those its owner disconnected and those shared with others (a new one is
+	// too); none until the list is in.
 	const linked = useMemo(() => {
 		if (!connections.data) {
 			return [];
 		}
-		const off = new Set(connections.data.disconnected);
+		const off = new Set([
+			...connections.data.disconnected,
+			...(connections.data.shared ?? []),
+		]);
 		return workspaceIds.filter((id) => !off.has(id));
 	}, [connections.data, workspaceIds]);
 	const onLink = useCallback(
@@ -141,14 +149,19 @@ export const CloudDrive: React.FC<{
 		return null;
 	}
 	const status = settings.data?.status;
-	const usage = `${formatBytes(summary.usedBytes)} of ${formatBytes(summary.quotaBytes)}`;
+	const usage =
+		summary.quotaBytes === null
+			? `${formatBytes(summary.usedBytes)} in ${summary.source?.name ?? "a workspace"}`
+			: `${formatBytes(summary.usedBytes)} of ${formatBytes(summary.quotaBytes)}`;
+	const encrypted = Boolean(summary.encrypted && !summary.source);
 
 	return (
 		<>
 			<Button
 				ref={button}
 				variant="outline"
-				size="sm"
+				// as tall as "+ Workspace" above it
+				size="lg"
 				// The theme's accent for its border: it follows the theme the user picks.
 				className={cn(
 					"gap-2 border-content-link/60 font-normal hover:border-content-link",
@@ -157,7 +170,7 @@ export const CloudDrive: React.FC<{
 				style={{ marginRight: right }}
 				data-testid="cloud-drive"
 				aria-haspopup="dialog"
-				aria-label={`Cloud Drive: ${usage} used${status?.connected === true ? ", connected" : status?.connected === false ? ", not connected" : ""}`}
+				aria-label={`Cloud Drive: ${usage} used${encrypted ? ", encrypted" : ""}${status?.connected === true ? ", connected" : status?.connected === false ? ", not connected" : ""}`}
 				onClick={() => {
 					setView("files");
 					setOpen(true);
@@ -165,6 +178,13 @@ export const CloudDrive: React.FC<{
 			>
 				<CloudIcon aria-hidden />
 				<span className="font-semibold">Cloud Drive</span>
+				{encrypted && (
+					<LockIcon
+						aria-hidden
+						className="text-content-link"
+						data-testid="cloud-drive-encrypted"
+					/>
+				)}
 				<span className="tabular-nums text-content-secondary">{usage}</span>
 				<StatusIndicator status={status} compact />
 			</Button>
@@ -197,7 +217,7 @@ export const CloudDrive: React.FC<{
 										aria-hidden
 										className="size-4 text-content-secondary"
 									/>
-									{view === "settings" ? "Settings" : "Workspaces"}
+									{VIEW_TITLES[view]}
 								</>
 							) : (
 								"Cloud Drive"
@@ -221,6 +241,22 @@ export const CloudDrive: React.FC<{
 							>
 								<PlugIcon />
 							</Button>
+							<ViewButton
+								view="encryption"
+								current={view}
+								label="Encryption: your own key"
+								onToggle={setView}
+							>
+								<LockIcon />
+							</ViewButton>
+							<ViewButton
+								view="source"
+								current={view}
+								label="Source: a workspace's folder as the Cloud Drive"
+								onToggle={setView}
+							>
+								<FolderInputIcon />
+							</ViewButton>
 							<Button
 								size="icon"
 								variant="subtle"
@@ -251,6 +287,10 @@ export const CloudDrive: React.FC<{
 						<CloudDriveBrowser summary={summary} />
 					) : view === "workspaces" ? (
 						<CloudDriveConnections />
+					) : view === "encryption" ? (
+						<CloudDriveEncryption />
+					) : view === "source" ? (
+						<CloudDriveSource />
 					) : settings.data ? (
 						<CloudDriveSettings settings={settings.data} />
 					) : (
@@ -276,3 +316,35 @@ export const CloudDrive: React.FC<{
 		</>
 	);
 };
+
+type View = "files" | "workspaces" | "encryption" | "source" | "settings";
+
+const VIEW_TITLES: Record<View, string> = {
+	files: "Files",
+	workspaces: "Workspaces",
+	encryption: "Encryption",
+	source: "Source",
+	settings: "Settings",
+};
+
+const ViewButton: React.FC<{
+	view: View;
+	current: View;
+	label: string;
+	onToggle: (next: View) => void;
+	children: React.ReactNode;
+}> = ({ view, current, label, onToggle, children }) => (
+	<Button
+		size="icon"
+		variant="subtle"
+		aria-label={label}
+		title={label}
+		aria-pressed={current === view}
+		className={cn(
+			current === view && "bg-surface-secondary text-content-primary",
+		)}
+		onClick={() => onToggle(current === view ? "files" : view)}
+	>
+		{children}
+	</Button>
+);

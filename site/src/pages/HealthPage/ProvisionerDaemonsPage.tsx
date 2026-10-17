@@ -2,9 +2,9 @@ import { useOutletContext } from "react-router";
 import type { HealthcheckReport } from "#/api/typesGenerated";
 import { Alert } from "#/components/Alert/Alert";
 import { Provisioner } from "#/modules/provisioners/Provisioner";
-import { pageTitle } from "#/utils/page";
 import { Header, HeaderTitle, HealthyDot, Main } from "./Content";
 import { MuteWarningsButton } from "./MuteWarningsButton";
+import { ProvisionerRekick } from "./ProvisionerRekick";
 
 const ProvisionerDaemonsPage: React.FC = () => {
 	const healthStatus = useOutletContext<HealthcheckReport>();
@@ -12,8 +12,6 @@ const ProvisionerDaemonsPage: React.FC = () => {
 
 	return (
 		<>
-			<title>{pageTitle("Provisioner Daemons - Health")}</title>
-
 			<Header>
 				<HeaderTitle>
 					<HealthyDot severity={daemons.severity} />
@@ -35,6 +33,8 @@ const ProvisionerDaemonsPage: React.FC = () => {
 						</Alert>
 					);
 				})}
+
+				<ProvisionerRekick />
 
 				{daemons.items.map(({ provisioner_daemon, warnings }) => (
 					<Provisioner

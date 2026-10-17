@@ -10,7 +10,6 @@ import {
 	TooltipTrigger,
 } from "#/components/Tooltip/Tooltip";
 import { createDayString } from "#/utils/createDayString";
-import { pageTitle } from "#/utils/page";
 import {
 	BooleanPill,
 	Header,
@@ -28,8 +27,6 @@ const WorkspaceProxyPage: React.FC = () => {
 
 	return (
 		<>
-			<title>{pageTitle("Workspace Proxy - Health")}</title>
-
 			<Header>
 				<HeaderTitle>
 					<HealthyDot severity={workspace_proxy.severity} />

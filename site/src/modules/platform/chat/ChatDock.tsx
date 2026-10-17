@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { isEmbeddedFrame } from "#/contexts/platformBoot";
 import { ChatConsole } from "./ChatConsole";
+import { ChatFocusOverlay } from "./ChatFocusOverlay";
 import { ChatPanel } from "./ChatPanel";
 import { ChatWindow } from "./ChatWindow";
 import { setDrawerOpen, useChatConnection, useChatSnapshot } from "./chatStore";
@@ -167,6 +168,7 @@ export const ChatDock: React.FC = () => {
 				)
 			)}
 			<ChatPanel />
+			<ChatFocusOverlay />
 		</div>
 	);
 };

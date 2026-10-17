@@ -125,6 +125,54 @@ func Compose(req ComposeRequest) (*ComposeResult, error) {
 	return result, nil
 }
 
+// ComposeOnto renders the selected modules onto the files of an existing
+// template version: the deployment's own base template (the builder's only
+// base when TemplateBuilder.BaseTemplate is set), so every template made from
+// it keeps what it carries. main.tf and the other files are kept as they are;
+// the modules go in modules.tf, attached to the agent named "main" unless a
+// module names another the template declares.
+func ComposeOnto(mainTF, readme []byte, extraFiles map[string][]byte, registryURL string, modules []ComposeModule) (*ComposeResult, error) {
+	registryBase, err := codersdk.NormalizeTemplateBuilderRegistryURL(registryURL)
+	if err != nil {
+		return nil, err
+	}
+	if registryBase == "" {
+		registryBase = DefaultRegistryBase
+	}
+	result := &ComposeResult{MainTF: mainTF, Readme: readme, ExtraFiles: extraFiles}
+	if len(modules) == 0 {
+		return result, nil
+	}
+	agents, err := ExtractAgentResourceNames(mainTF)
+	if err != nil {
+		return nil, xerrors.Errorf("extract agents: %w", err)
+	}
+	if len(agents) == 0 {
+		return nil, xerrors.New("no coder_agent resource found in the base template's main.tf")
+	}
+	agentRefByName := make(map[string]string, len(agents))
+	defaultName := agents[0].Name
+	for _, a := range agents {
+		agentRefByName[a.Name] = a.Reference
+		if a.Name == "main" {
+			defaultName = a.Name
+		}
+	}
+	catalog, err := loadCatalogMap()
+	if err != nil {
+		return nil, err
+	}
+	if err := validateModules(modules, catalog, BaseOSLinux, nil); err != nil {
+		return nil, err
+	}
+	modulesTF, err := renderModules(modules, catalog, registryBase, agentRefByName, defaultName)
+	if err != nil {
+		return nil, err
+	}
+	result.ModulesTF = formatHCL(modulesTF)
+	return result, nil
+}
+
 // composedReadme returns the base README prepared for delivery in the
 // output archive. The prerequisites markers are stripped so they do not
 // render as literal text when the README is viewed. Returns nil when the

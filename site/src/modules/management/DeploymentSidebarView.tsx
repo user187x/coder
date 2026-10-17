@@ -6,20 +6,30 @@ import {
 import type { Permissions } from "#/modules/permissions";
 import { HealthIcon } from "#/pages/HealthPage/Content";
 import { AdminCategoryLabel } from "./AdminCategoryLabel";
+import {
+	orderCategories,
+	type SidebarCategory,
+	SortableCategories,
+} from "./SortableCategories";
 
 type DeploymentSidebarViewProps = {
 	/** Site-wide permissions. */
 	permissions: Permissions;
 	buildInfo: BuildInfoResponse;
-	/** General's Health entry (HealthSettingsTree), placed in alphabetical order. */
+	/** General's Health entry (HealthNavItem). */
 	health?: React.ReactNode;
 	/** The platform service is connected to Keycloak: a green check after Authentication. */
 	keycloakConnected?: boolean;
+	/** The admin's order of the categories (page IDs); empty or missing: alphabetical. */
+	order?: readonly string[];
+	/** Saves a new order ([]: alphabetical). Without it the categories cannot be moved. */
+	onReorder?: (ids: string[]) => void;
 };
 
 /**
- * Navigation for General (the deployment settings), in alphabetical order.
- * Licenses, Workspace Proxies, Groups, IdP Organization Sync and External
+ * Navigation for General (the deployment settings): its categories in the
+ * order the admin arranged them (alphabetical until then). Licenses,
+ * Workspace Proxies, Groups, IdP Organization Sync and External
  * Authentication are not offered here; their pages still answer.
  */
 export const DeploymentSidebarView: React.FC<DeploymentSidebarViewProps> = ({
@@ -27,108 +37,90 @@ export const DeploymentSidebarView: React.FC<DeploymentSidebarViewProps> = ({
 	buildInfo,
 	health,
 	keycloakConnected,
+	order = [],
+	onReorder,
 }) => {
+	const item = (
+		id: string,
+		href: string,
+		label: string,
+		extra?: React.ReactNode,
+	): SidebarCategory => ({
+		id,
+		label,
+		node: (
+			<SidebarNavItem href={href}>
+				<AdminCategoryLabel id={id}>
+					{label}
+					{extra}
+				</AdminCategoryLabel>
+			</SidebarNavItem>
+		),
+	});
+	const candidates: (SidebarCategory | false | undefined)[] = [
+		permissions.viewAllUsers &&
+			item("accounts", "/deployment/users", "Accounts"),
+		permissions.editDeploymentConfig &&
+			item("announcement", "/deployment/announcement", "Announcement"),
+		permissions.editDeploymentConfig &&
+			item("chat", "/deployment/chat", "Chat"),
+		permissions.viewDeploymentConfig &&
+			item(
+				"authentication",
+				"/deployment/userauth",
+				"Authentication",
+				keycloakConnected && (
+					<span title="Connected to Keycloak" className="inline-flex">
+						<HealthIcon size={14} severity="ok" />
+					</span>
+				),
+			),
+		permissions.editDeploymentConfig &&
+			item("classification", "/deployment/classification", "Classification"),
+		permissions.editDeploymentConfig &&
+			item("customize", "/deployment/customize", "Appearance"),
+		Boolean(health) && { id: "health", label: "Health", node: health },
+		permissions.editDeploymentConfig &&
+			item("monitoring", "/deployment/monitoring", "Monitoring"),
+		permissions.viewDeploymentConfig &&
+			item("network", "/deployment/network", "Network"),
+		permissions.viewNotificationTemplate &&
+			item("notifications", "/deployment/notifications", "Notifications"),
+		permissions.viewDeploymentConfig &&
+			buildInfo.oauth2_provider &&
+			item(
+				"oauth2-applications",
+				"/deployment/oauth2-provider/apps",
+				"OAuth2 Applications",
+			),
+		permissions.viewDeploymentConfig &&
+			item("observability", "/deployment/observability", "Observability"),
+		permissions.editDeploymentConfig &&
+			item("online-users", "/deployment/online", "Online Users"),
+		permissions.viewDeploymentConfig &&
+			item("overview", "/deployment/overview", "Overview"),
+		permissions.viewDeploymentConfig &&
+			item("persistence", "/deployment/persistence", "Persistence"),
+		permissions.viewDeploymentConfig &&
+			item("security", "/deployment/security", "Security"),
+	];
+	const categories = candidates.filter((c): c is SidebarCategory => Boolean(c));
+
 	return (
 		<BaseSidebar>
-			<div className="flex flex-col gap-1">
-				{permissions.viewAllUsers && (
-					<SidebarNavItem href="/deployment/users">
-						<AdminCategoryLabel id="accounts">Accounts</AdminCategoryLabel>
-					</SidebarNavItem>
-				)}
-				{permissions.editDeploymentConfig && (
-					<SidebarNavItem href="/deployment/announcement">
-						<AdminCategoryLabel id="announcement">
-							Announcement
-						</AdminCategoryLabel>
-					</SidebarNavItem>
-				)}
-				{permissions.editDeploymentConfig && (
-					<SidebarNavItem href="/deployment/chat">
-						<AdminCategoryLabel id="chat">Chat</AdminCategoryLabel>
-					</SidebarNavItem>
-				)}
-				{permissions.viewDeploymentConfig && (
-					<SidebarNavItem href="/deployment/userauth">
-						<AdminCategoryLabel id="authentication">
-							Authentication
-							{keycloakConnected && (
-								<span title="Connected to Keycloak" className="inline-flex">
-									<HealthIcon size={14} severity="ok" />
-								</span>
-							)}
-						</AdminCategoryLabel>
-					</SidebarNavItem>
-				)}
-				{permissions.editDeploymentConfig && (
-					<SidebarNavItem href="/deployment/classification">
-						<AdminCategoryLabel id="classification">
-							Classification
-						</AdminCategoryLabel>
-					</SidebarNavItem>
-				)}
-				{permissions.editDeploymentConfig && (
-					<SidebarNavItem href="/deployment/customize">
-						<AdminCategoryLabel id="customize">Appearance</AdminCategoryLabel>
-					</SidebarNavItem>
-				)}
-				{health}
-				{permissions.editDeploymentConfig && (
-					<SidebarNavItem href="/deployment/monitoring">
-						<AdminCategoryLabel id="monitoring">Monitoring</AdminCategoryLabel>
-					</SidebarNavItem>
-				)}
-				{permissions.viewDeploymentConfig && (
-					<SidebarNavItem href="/deployment/network">
-						<AdminCategoryLabel id="network">Network</AdminCategoryLabel>
-					</SidebarNavItem>
-				)}
-				{permissions.viewNotificationTemplate && (
-					<SidebarNavItem href="/deployment/notifications">
-						<AdminCategoryLabel id="notifications">
-							Notifications
-						</AdminCategoryLabel>
-					</SidebarNavItem>
-				)}
-				{permissions.viewDeploymentConfig && buildInfo.oauth2_provider && (
-					<SidebarNavItem href="/deployment/oauth2-provider/apps">
-						<AdminCategoryLabel id="oauth2-applications">
-							OAuth2 Applications
-						</AdminCategoryLabel>
-					</SidebarNavItem>
-				)}
-				{permissions.viewDeploymentConfig && (
-					<SidebarNavItem href="/deployment/observability">
-						<AdminCategoryLabel id="observability">
-							Observability
-						</AdminCategoryLabel>
-					</SidebarNavItem>
-				)}
-				{permissions.editDeploymentConfig && (
-					<SidebarNavItem href="/deployment/online">
-						<AdminCategoryLabel id="online-users">
-							Online Users
-						</AdminCategoryLabel>
-					</SidebarNavItem>
-				)}
-				{permissions.viewDeploymentConfig && (
-					<SidebarNavItem href="/deployment/overview">
-						<AdminCategoryLabel id="overview">Overview</AdminCategoryLabel>
-					</SidebarNavItem>
-				)}
-				{permissions.viewDeploymentConfig && (
-					<SidebarNavItem href="/deployment/persistence">
-						<AdminCategoryLabel id="persistence">
-							Persistence
-						</AdminCategoryLabel>
-					</SidebarNavItem>
-				)}
-				{permissions.viewDeploymentConfig && (
-					<SidebarNavItem href="/deployment/security">
-						<AdminCategoryLabel id="security">Security</AdminCategoryLabel>
-					</SidebarNavItem>
-				)}
-			</div>
+			{onReorder ? (
+				<SortableCategories
+					categories={categories}
+					order={order}
+					onReorder={onReorder}
+				/>
+			) : (
+				<div className="flex flex-col gap-1">
+					{orderCategories(categories, order).map((c) => (
+						<div key={c.id}>{c.node}</div>
+					))}
+				</div>
+			)}
 		</BaseSidebar>
 	);
 };

@@ -9,6 +9,7 @@ import { workspaces } from "#/api/queries/workspaces";
 import type * as TypesGen from "#/api/typesGenerated";
 import { AvatarData } from "#/components/Avatar/AvatarData";
 import { AvatarDataSkeleton } from "#/components/Avatar/AvatarDataSkeleton";
+import { Checkbox } from "#/components/Checkbox/Checkbox";
 import { LastSeen } from "#/components/LastSeen/LastSeen";
 import { Skeleton } from "#/components/Skeleton/Skeleton";
 import {
@@ -48,13 +49,35 @@ export type UsersTableProps = {
 	/** User roles cannot be edited if OIDC Role Sync is enabled. */
 	oidcRoleSyncEnabled?: boolean;
 	onAction: (action: UserAdminAction) => void;
+	/** Platform: the accounts chosen for a bulk action (admins); undefined: no choosing. */
+	selected?: ReadonlySet<string>;
+	onSelect?: (ids: ReadonlySet<string>) => void;
 };
 
 export const UsersTable: React.FC<UsersTableProps> = (props) => {
+	const { users = [], selected, onSelect } = props;
+	const choosable = users.filter((u) => u.id !== props.me);
+	const all =
+		choosable.length > 0 && choosable.every((u) => selected?.has(u.id));
+	const some = choosable.some((u) => selected?.has(u.id));
 	return (
 		<Table data-testid="users-table" aria-label="Accounts">
 			<TableHeader>
 				<TableRow>
+					{selected && onSelect && (
+						<TableHead className="w-px pr-0">
+							<Checkbox
+								aria-label="Choose every account on this page"
+								checked={all ? true : some ? "indeterminate" : false}
+								disabled={choosable.length === 0}
+								onCheckedChange={(v) =>
+									onSelect(
+										new Set(v === true ? choosable.map((u) => u.id) : []),
+									)
+								}
+							/>
+						</TableHead>
+					)}
 					<TableHead className="w-max">User</TableHead>
 					<TableHead className="w-1/6">
 						<div className="flex flex-row gap-2 items-center">
@@ -83,6 +106,8 @@ const UsersTableBody: React.FC<UsersTableProps> = ({
 	canViewActivity,
 	oidcRoleSyncEnabled,
 	onAction,
+	selected,
+	onSelect,
 }) => {
 	const notesQuery = useQuery({
 		queryKey: ["platform", "notes", "by-user"],
@@ -102,6 +127,8 @@ const UsersTableBody: React.FC<UsersTableProps> = ({
 		<UsersTableRow
 			key={user.id}
 			user={user}
+			selected={selected}
+			onSelect={onSelect}
 			notes={notesQuery.data?.users[user.id]}
 			me={me}
 			canEditUsers={canEditUsers}
@@ -138,6 +165,8 @@ const UsersTableRow: React.FC<UsersTableRowProps> = ({
 	canViewActivity,
 	oidcRoleSyncEnabled,
 	onAction,
+	selected,
+	onSelect,
 }) => {
 	const queryClient = useQueryClient();
 	const navigate = useNavigate();
@@ -188,6 +217,25 @@ const UsersTableRow: React.FC<UsersTableRowProps> = ({
 
 	return (
 		<TableRow {...clickable} data-testid={`user-${user.id}`}>
+			{selected && onSelect && (
+				<TableCell className="w-px pr-0">
+					<Checkbox
+						aria-label={`Choose ${user.username}`}
+						data-testid={`choose-${user.username}`}
+						checked={selected.has(user.id)}
+						disabled={user.id === me}
+						onCheckedChange={(v) => {
+							const next = new Set(selected);
+							if (v === true) {
+								next.add(user.id);
+							} else {
+								next.delete(user.id);
+							}
+							onSelect(next);
+						}}
+					/>
+				</TableCell>
+			)}
 			<TableCell>
 				<div className="flex items-center justify-between gap-3">
 					<AvatarData

@@ -2,7 +2,10 @@ import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { ClockIcon, UserIcon } from "lucide-react";
 import { useState } from "react";
+import { useQuery } from "react-query";
+import { cloudDriveConnections } from "#/api/queries/platform";
 import type { Workspace } from "#/api/typesGenerated";
+import { Alert, AlertDescription } from "#/components/Alert/Alert";
 import { ConfirmDialog } from "#/components/Dialog/ConfirmDialog/ConfirmDialog";
 import { ExternalImage } from "#/components/ExternalImage/ExternalImage";
 import { getResourceIconPath } from "#/utils/workspace";
@@ -23,6 +26,12 @@ export const BatchDeleteConfirmation: React.FC<
 	const [stage, setStage] = useState<
 		"consequences" | "workspaces" | "resources"
 	>("consequences");
+	// Platform: the owner's Cloud Drive source is deleted on its own, where each workspace connected to it is
+	// confirmed (WorkspaceDeleteDialog), never in a batch.
+	const { data: connections } = useQuery(cloudDriveConnections(open));
+	const source = checkedWorkspaces.find(
+		(w) => w.id === connections?.source?.workspace,
+	);
 
 	const onProceed = () => {
 		switch (stage) {
@@ -86,8 +95,19 @@ export const BatchDeleteConfirmation: React.FC<
 			confirmLoading={isLoading}
 			confirmText={confirmText}
 			onConfirm={onProceed}
+			disabled={Boolean(source)}
 			description={
 				<>
+					{source && (
+						<Alert severity="warning" className="mb-4">
+							<AlertDescription>
+								{source.name} holds your Cloud Drive (its folder{" "}
+								{connections?.source?.path}): delete it on its own, where each
+								workspace connected to it is confirmed. Unselect it to delete
+								the others.
+							</AlertDescription>
+						</Alert>
+					)}
 					{stage === "consequences" && <Consequences />}
 					{stage === "workspaces" && (
 						<Workspaces workspaces={checkedWorkspaces} />

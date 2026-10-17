@@ -67,6 +67,7 @@ import {
 import { useAppLink } from "#/modules/apps/useAppLink";
 import { findWorkspaceAppWithAgent } from "#/modules/apps/workspaceApps";
 import { useDashboard } from "#/modules/dashboard/useDashboard";
+import { CloudDriveLockBadge } from "#/modules/platform/cloudDrive/CloudDriveLockBadge";
 import {
 	LockdownBadge,
 	useAllLockdowns,
@@ -286,12 +287,18 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 										)
 									}
 									avatar={
-										<Avatar
-											variant="icon"
-											src={icons?.[workspace.id] || workspace.template_icon}
-											fallback={getDisplayWorkspaceTemplateName(workspace)}
-											size="lg"
-										/>
+										// Platform: a lock over it while its Cloud Drive is encrypted.
+										<CloudDriveLockBadge
+											workspaceId={workspace.id}
+											ownerId={workspace.owner_id}
+										>
+											<Avatar
+												variant="icon"
+												src={icons?.[workspace.id] || workspace.template_icon}
+												fallback={getDisplayWorkspaceTemplateName(workspace)}
+												size="lg"
+											/>
+										</CloudDriveLockBadge>
 									}
 								/>
 							</TableCell>

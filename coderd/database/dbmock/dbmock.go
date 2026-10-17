@@ -6516,10 +6516,25 @@ func (m *MockStore) GetUserAdminQuickLinks(ctx context.Context, userID uuid.UUID
 	return ret0, ret1
 }
 
+// GetUserAdminSidebarOrder mocks base method.
+func (m *MockStore) GetUserAdminSidebarOrder(ctx context.Context, userID uuid.UUID) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetUserAdminSidebarOrder", ctx, userID)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
 // GetUserAdminQuickLinks indicates an expected call of GetUserAdminQuickLinks.
 func (mr *MockStoreMockRecorder) GetUserAdminQuickLinks(ctx, userID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserAdminQuickLinks", reflect.TypeOf((*MockStore)(nil).GetUserAdminQuickLinks), ctx, userID)
+}
+
+// GetUserAdminSidebarOrder indicates an expected call of GetUserAdminSidebarOrder.
+func (mr *MockStoreMockRecorder) GetUserAdminSidebarOrder(ctx, userID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserAdminSidebarOrder", reflect.TypeOf((*MockStore)(nil).GetUserAdminSidebarOrder), ctx, userID)
 }
 
 // GetUserAgentChatSendShortcut mocks base method.
@@ -11416,10 +11431,25 @@ func (m *MockStore) UpdateUserAdminQuickLinks(ctx context.Context, arg database.
 	return ret0, ret1
 }
 
+// UpdateUserAdminSidebarOrder mocks base method.
+func (m *MockStore) UpdateUserAdminSidebarOrder(ctx context.Context, arg database.UpdateUserAdminSidebarOrderParams) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateUserAdminSidebarOrder", ctx, arg)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
 // UpdateUserAdminQuickLinks indicates an expected call of UpdateUserAdminQuickLinks.
 func (mr *MockStoreMockRecorder) UpdateUserAdminQuickLinks(ctx, arg any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateUserAdminQuickLinks", reflect.TypeOf((*MockStore)(nil).UpdateUserAdminQuickLinks), ctx, arg)
+}
+
+// UpdateUserAdminSidebarOrder indicates an expected call of UpdateUserAdminSidebarOrder.
+func (mr *MockStoreMockRecorder) UpdateUserAdminSidebarOrder(ctx, arg any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateUserAdminSidebarOrder", reflect.TypeOf((*MockStore)(nil).UpdateUserAdminSidebarOrder), ctx, arg)
 }
 
 // UpdateUserAgentChatSendShortcut mocks base method.

@@ -5,40 +5,6 @@
 		"path": "reference/cli/agent-firewall.md"
 	},
 	{
-		"title": "`ai-gateway`",
-		"description": "Manage AI Gateway",
-		"path": "reference/cli/ai-gateway/index.md",
-		"children": [
-			{
-				"title": "`keys`",
-				"description": "Manage AI Gateway keys",
-				"path": "reference/cli/ai-gateway/keys/index.md",
-				"children": [
-					{
-						"title": "`create`",
-						"description": "Create an AI Gateway key",
-						"path": "reference/cli/ai-gateway/keys/create.md"
-					},
-					{
-						"title": "`delete`",
-						"description": "Delete an AI Gateway key",
-						"path": "reference/cli/ai-gateway/keys/delete.md"
-					},
-					{
-						"title": "`list`",
-						"description": "List AI Gateway keys",
-						"path": "reference/cli/ai-gateway/keys/list.md"
-					}
-				]
-			},
-			{
-				"title": "`start`",
-				"description": "Run a standalone AI Gateway server",
-				"path": "reference/cli/ai-gateway/start.md"
-			}
-		]
-	},
-	{
 		"title": "`autoupdate`",
 		"description": "Toggle auto-update policy for a workspace",
 		"path": "reference/cli/autoupdate.md"

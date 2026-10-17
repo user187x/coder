@@ -8,7 +8,8 @@ type TemplateCardProps = {
 	name: string;
 	description: string;
 	iconUrl?: string;
-	detailsUrl: string;
+	/** Its page in the registry; none for the deployment's own base. */
+	detailsUrl?: string;
 	official?: boolean;
 	selected?: boolean;
 	onSelect?: () => void;
@@ -72,13 +73,15 @@ export const TemplateCard: React.FC<TemplateCardProps> = ({
 						{description}
 					</p>
 
-					<Link
-						href={detailsUrl}
-						target="_blank"
-						className="text-xs font-normal"
-					>
-						View details
-					</Link>
+					{detailsUrl && (
+						<Link
+							href={detailsUrl}
+							target="_blank"
+							className="text-xs font-normal"
+						>
+							View details
+						</Link>
+					)}
 				</div>
 			</div>
 		</div>

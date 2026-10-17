@@ -1,7 +1,13 @@
-import { useQuery } from "react-query";
-import { Link as RouterLink } from "react-router";
+import { ScanSearchIcon } from "lucide-react";
+import { useState } from "react";
+import { useMutation, useQuery } from "react-query";
+import { Link as RouterLink, useNavigate } from "react-router";
+import { toast } from "sonner";
+import { getErrorMessage } from "#/api/errors";
 import { ImagesAPI } from "#/api/images";
+import { Badge } from "#/components/Badge/Badge";
 import { Button } from "#/components/Button/Button";
+import { Spinner } from "#/components/Spinner/Spinner";
 import {
 	Table,
 	TableBody,
@@ -10,15 +16,46 @@ import {
 	TableHeader,
 	TableRow,
 } from "#/components/Table/Table";
+import { formatSize } from "./badges";
 import { nameFrom } from "./ImportImageDialog";
 
 export const inUseKey = ["platform", "images", "in-use"] as const;
+export const onNodesKey = ["platform", "images", "on-nodes"] as const;
+
+/**
+ * Scan, for an image that has no entry here: scanned as it is (from the
+ * cluster's registry, else from a node that holds it: no registry needed),
+ * listed as a read-only entry with its report; opens its scan.
+ */
+const ScanButton: React.FC<{ image: string }> = ({ image }) => {
+	const navigate = useNavigate();
+	const scan = useMutation({
+		mutationFn: () => ImagesAPI.scan(image),
+		onSuccess: ({ id, build }) => navigate(`/images/${id}/builds/${build}`),
+		onError: (e) =>
+			toast.error(getErrorMessage(e, `${image} could not be scanned.`)),
+	});
+	return (
+		<Button
+			variant="outline"
+			size="sm"
+			onClick={() => scan.mutate()}
+			disabled={scan.isPending}
+			title="Scan it as it is: from the cluster's registry, else from a node that holds it"
+		>
+			<Spinner loading={scan.isPending}>
+				<ScanSearchIcon />
+			</Spinner>
+			Scan
+		</Button>
+	);
+};
 
 /**
  * In use: every image workspaces run now, and the ones the templates run,
- * with which workspaces and templates. One that is here (built, imported, or
- * the template's own) links to its page; editors can import the others, so
- * they are scanned and listed too.
+ * with which workspaces and templates. One that is here (built, imported,
+ * scanned, or the template's own) links to its page; editors can scan the
+ * others as they are, or import them to build on them.
  */
 export const ImagesInUse: React.FC<{
 	canEdit: boolean;
@@ -39,15 +76,16 @@ export const ImagesInUse: React.FC<{
 				In use
 			</h2>
 			<p className="mt-1 mb-3 text-sm text-content-secondary">
-				The images workspaces run now, and the ones the templates run.
+				The images workspaces run now, and the ones the templates run. Any of
+				them can be scanned, wherever it comes from.
 			</p>
 			<Table data-testid="images-in-use">
 				<TableHeader>
 					<TableRow>
-						<TableHead className="w-[46%]">Image</TableHead>
-						<TableHead className="w-[22%]">Workspaces</TableHead>
-						<TableHead className="w-[20%]">Templates</TableHead>
-						<TableHead className="w-[12%]" />
+						<TableHead className="w-[42%]">Image</TableHead>
+						<TableHead className="w-[20%]">Workspaces</TableHead>
+						<TableHead className="w-[18%]">Templates</TableHead>
+						<TableHead className="w-[20%]" />
 					</TableRow>
 				</TableHeader>
 				<TableBody>
@@ -69,29 +107,123 @@ export const ImagesInUse: React.FC<{
 							<TableCell className="text-sm text-content-secondary">
 								{i.templates.join(", ") || "–"}
 							</TableCell>
-							<TableCell className="text-right">
-								{i.entry ? (
-									<Button asChild variant="outline" size="sm">
-										<RouterLink to={`/images/${i.entry}`}>Open</RouterLink>
-									</Button>
-								) : (
-									canEdit && (
-										<Button
-											variant="outline"
-											size="sm"
-											onClick={() =>
-												onImport({ name: nameFrom(i.image), ref: i.image })
-											}
-										>
-											Import
+							<TableCell>
+								<div className="flex justify-end gap-2">
+									{i.entry ? (
+										<Button asChild variant="outline" size="sm">
+											<RouterLink to={`/images/${i.entry}`}>Open</RouterLink>
 										</Button>
-									)
-								)}
+									) : (
+										canEdit && (
+											<>
+												<ScanButton image={i.image} />
+												<Button
+													variant="outline"
+													size="sm"
+													onClick={() =>
+														onImport({ name: nameFrom(i.image), ref: i.image })
+													}
+												>
+													Import
+												</Button>
+											</>
+										)
+									)}
+								</div>
 							</TableCell>
 						</TableRow>
 					))}
 				</TableBody>
 			</Table>
+		</section>
+	);
+};
+
+const NODE_IMAGES_SHOWN = 8;
+
+/**
+ * On the nodes: every image the cluster's nodes hold, preloaded (an
+ * air-gapped bundle's images) or pulled, with their size and nodes. Each can
+ * be scanned from the node that holds it, with no registry: in an air-gapped
+ * cluster the images in use are reported on too.
+ */
+export const ImagesOnNodes: React.FC<{ canEdit: boolean }> = ({ canEdit }) => {
+	const [all, setAll] = useState(false);
+	const query = useQuery({
+		queryKey: onNodesKey,
+		queryFn: ImagesAPI.onNodes,
+		refetchInterval: 60_000,
+	});
+	const images = query.data?.images ?? [];
+	if (!images.length) {
+		return null;
+	}
+	const shown = all ? images : images.slice(0, NODE_IMAGES_SHOWN);
+	return (
+		<section className="mt-10" aria-labelledby="images-on-nodes">
+			<h2 id="images-on-nodes" className="m-0 text-lg font-semibold">
+				On the nodes
+			</h2>
+			<p className="mt-1 mb-3 text-sm text-content-secondary">
+				Every image the cluster's nodes hold, preloaded or pulled (
+				{images.length}). A scan reads it from a node that holds it: no registry
+				needed.
+			</p>
+			<Table data-testid="images-on-nodes">
+				<TableHeader>
+					<TableRow>
+						<TableHead className="w-[52%]">Image</TableHead>
+						<TableHead className="w-[12%]">Size</TableHead>
+						<TableHead className="w-[18%]">Nodes</TableHead>
+						<TableHead className="w-[18%]" />
+					</TableRow>
+				</TableHeader>
+				<TableBody>
+					{shown.map((i) => (
+						<TableRow key={i.image} data-testid="image-on-node">
+							<TableCell className="break-all font-mono text-xs">
+								<span title={i.names.join("\n") || undefined}>{i.image}</span>
+								{i.running && (
+									<Badge size="xs" className="ml-2 align-middle">
+										running
+									</Badge>
+								)}
+							</TableCell>
+							<TableCell className="text-sm tabular-nums text-content-secondary">
+								{formatSize(i.sizeBytes)}
+							</TableCell>
+							<TableCell className="text-sm text-content-secondary">
+								<span title={i.nodes.join(", ")}>
+									{i.nodes.length === 1
+										? i.nodes[0]
+										: `${i.nodes.length} nodes`}
+								</span>
+							</TableCell>
+							<TableCell>
+								<div className="flex justify-end gap-2">
+									{i.entry ? (
+										<Button asChild variant="outline" size="sm">
+											<RouterLink to={`/images/${i.entry}`}>Open</RouterLink>
+										</Button>
+									) : (
+										canEdit && <ScanButton image={i.image} />
+									)}
+								</div>
+							</TableCell>
+						</TableRow>
+					))}
+				</TableBody>
+			</Table>
+			{images.length > NODE_IMAGES_SHOWN && (
+				<Button
+					variant="subtle"
+					size="sm"
+					className="mt-2"
+					onClick={() => setAll(!all)}
+				>
+					{all ? "Show fewer" : `Show all ${images.length}`}
+				</Button>
+			)}
 		</section>
 	);
 };
