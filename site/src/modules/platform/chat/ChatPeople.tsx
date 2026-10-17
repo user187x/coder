@@ -8,11 +8,24 @@ import { chatPeople } from "#/api/queries/platform";
 import { ChatAvatar } from "./ChatAvatar";
 import { displayName, setInvisible, useChatSnapshot } from "./chatStore";
 
-/** "online", "active 5 min ago", "active 3 h ago". */
+const ago = (iso: string | null | undefined) => {
+	const at = iso ? Date.parse(iso) : Number.NaN;
+	if (Number.isNaN(at)) {
+		return null;
+	}
+	const minutes = Math.max(1, Math.round((Date.now() - at) / 60_000));
+	return minutes < 60 ? `${minutes} min` : `${Math.round(minutes / 60)} h`;
+};
+
+/** "online", "idle 2 min" (online, no input for 30 s), "active 5 min ago", "active 3 h ago". */
 export const presenceText = (
-	person: Pick<ChatPerson, "online" | "lastSeen">,
+	person: Pick<ChatPerson, "online" | "lastSeen" | "idle" | "activeAt">,
 ) => {
 	if (person.online) {
+		if (person.idle) {
+			const since = ago(person.activeAt);
+			return since ? `idle ${since}` : "idle";
+		}
 		return "online";
 	}
 	const at = person.lastSeen ? Date.parse(person.lastSeen) : Number.NaN;
@@ -25,9 +38,9 @@ export const presenceText = (
 		: `active ${Math.round(minutes / 60)} h ago`;
 };
 
-/** A person's avatar with their presence: a green dot online, a grey one otherwise. */
+/** A person's avatar with their presence: a green dot online and active, a grey one idle or away. */
 export const PresenceAvatar: React.FC<{
-	person: Pick<ChatPerson, "username" | "name" | "online">;
+	person: Pick<ChatPerson, "username" | "name" | "online" | "idle">;
 }> = ({ person }) => (
 	<span className="relative shrink-0">
 		<ChatAvatar peer={person} />
@@ -35,7 +48,9 @@ export const PresenceAvatar: React.FC<{
 			aria-hidden
 			className={cn(
 				"absolute -right-px -bottom-px size-[9px] rounded-full border-2 border-solid border-surface-primary",
-				person.online ? "bg-content-success" : "bg-content-disabled",
+				person.online && !person.idle
+					? "bg-content-success"
+					: "bg-content-disabled",
 			)}
 		/>
 	</span>
@@ -86,28 +101,34 @@ type ChatPeopleProps = {
 	onOpen: (peer: ChatPeer) => void;
 	/** Leave the admins out (the developers' panel lists them on their own). */
 	withoutAdmins?: boolean;
+	/** The chat's roster: only who is online now, appearing and leaving as they come and go (grey when idle). */
+	onlineOnly?: boolean;
 	className?: string;
 };
 
 /**
  * Peer-to-peer chat's People list: everyone online now (a tab open) or seen
- * today, online first, with a search once there are more than a few, and the
- * user's own visible / invisible switch. Admins see the invisible too
- * (marked). Choosing someone opens the conversation.
+ * today, online first - or, as the chat's roster (onlineOnly), only who is
+ * online, each coming and going as their tabs open and close and turning grey
+ * after 30 seconds without input (the service pushes every change to the
+ * poll) - with a search once there are more than a few, and the user's own
+ * visible / invisible switch. Admins see the invisible too (marked). Choosing
+ * someone opens the conversation.
  */
 export const ChatPeople: React.FC<ChatPeopleProps> = ({
 	onOpen,
 	withoutAdmins = false,
+	onlineOnly = false,
 	className,
 }) => {
 	const state = useChatSnapshot();
 	const [search, setSearch] = useState("");
 	const peopleQuery = useQuery({
-		...chatPeople(state.availVersion),
+		...chatPeople(state.availVersion, state.presenceVersion),
 		enabled: Boolean(state.me && (state.peers || state.me.admin)),
 	});
 	const people = (peopleQuery.data?.people ?? []).filter(
-		(p) => !withoutAdmins || !p.admin,
+		(p) => (!withoutAdmins || !p.admin) && (!onlineOnly || p.online),
 	);
 	const needle = search.trim().toLowerCase();
 	const shown = needle
@@ -127,8 +148,11 @@ export const ChatPeople: React.FC<ChatPeopleProps> = ({
 		>
 			<div className="flex items-center gap-2 px-2 pt-2 pb-1">
 				<span className="flex-1 text-[11px] font-semibold uppercase tracking-wider text-content-secondary">
-					People{" "}
-					<span className="normal-case tracking-normal">· {online} online</span>
+					{onlineOnly ? "Online" : "People"}{" "}
+					<span className="normal-case tracking-normal">
+						· {online}
+						{onlineOnly ? "" : " online"}
+					</span>
 				</span>
 				<InvisibleSwitch />
 			</div>
@@ -150,7 +174,11 @@ export const ChatPeople: React.FC<ChatPeopleProps> = ({
 			)}
 			{!peopleQuery.isLoading && shown.length === 0 && (
 				<p className="m-2 text-[13px] text-content-secondary">
-					{needle ? "No one by that name." : "No one else is around right now."}
+					{needle
+						? "No one by that name."
+						: onlineOnly
+							? "No one else is online right now."
+							: "No one else is around right now."}
 				</p>
 			)}
 			{shown.map((person) => (
@@ -165,8 +193,15 @@ export const ChatPeople: React.FC<ChatPeopleProps> = ({
 					}
 					data-testid="chat-person"
 					data-online={person.online ? "" : undefined}
+					data-idle={person.online && person.idle ? "" : undefined}
 					onClick={() => onOpen(person)}
-					className="flex w-full cursor-pointer items-center gap-2.5 rounded-md border-0 bg-transparent p-2 text-left text-inherit hover:bg-surface-secondary focus-visible:bg-surface-secondary focus-visible:outline-hidden disabled:cursor-not-allowed disabled:opacity-50"
+					className={cn(
+						"flex w-full cursor-pointer items-center gap-2.5 rounded-md border-0 bg-transparent p-2 text-left text-inherit transition-[opacity,filter] duration-500 hover:bg-surface-secondary focus-visible:bg-surface-secondary focus-visible:outline-hidden disabled:cursor-not-allowed disabled:opacity-50",
+						// someone coming online slides in
+						"animate-in fade-in slide-in-from-left-1 duration-300 motion-reduce:animate-none",
+						// idle (no input for 30 s): grey
+						person.online && person.idle && "opacity-55 grayscale",
+					)}
 				>
 					<PresenceAvatar person={person} />
 					<span className="flex min-w-0 flex-1 flex-col gap-0.5">

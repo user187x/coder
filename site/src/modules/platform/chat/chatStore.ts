@@ -23,6 +23,7 @@ import {
 	PlatformAPI,
 	PlatformError,
 } from "#/api/platform";
+import { startPresence, stopPresence, TAB_ID } from "./chatPresence";
 
 const OPEN_KEY = "coder-ui-chat-windows";
 const TYPING_EVERY_MS = 2500;
@@ -62,6 +63,10 @@ type ChatSnapshot = {
 	available: ReadonlySet<string>;
 	off: ReadonlySet<string>;
 	availVersion: number;
+	/** Bumped by the service whenever someone comes online, goes idle or active, or leaves. */
+	presenceVersion: number;
+	/** The largest file a message may carry (MB). */
+	maxFileMb: number;
 	/** Peer-to-peer chat is on: developers see the People list and write to each other. */
 	peers: boolean;
 	drawerOpen: boolean;
@@ -78,6 +83,8 @@ const initialSnapshot: ChatSnapshot = {
 	available: new Set(),
 	off: new Set(),
 	availVersion: 0,
+	presenceVersion: 0,
+	maxFileMb: 25,
 	peers: false,
 	drawerOpen: false,
 	consoleOpen: false,
@@ -498,6 +505,11 @@ const applyAvailability = (availability: ChatAvailability) => {
 		available: new Set(availability.available),
 		off: new Set(availability.off),
 		availVersion: availability.availVersion || snapshot.availVersion,
+		presenceVersion: Math.max(
+			snapshot.presenceVersion,
+			availability.presenceVersion ?? 0,
+		),
+		maxFileMb: availability.maxFileMb ?? snapshot.maxFileMb,
 		peers: availability.peers ?? snapshot.peers,
 		me: me && chatOn !== undefined ? { ...me, chatOn } : me,
 		drawerOpen:
@@ -540,6 +552,8 @@ const poll = async () => {
 				typing: [...snapshot.typing],
 				cleared: clearVersion,
 				availVersion: snapshot.availVersion,
+				tab: TAB_ID,
+				presenceVersion: snapshot.presenceVersion,
 			});
 			backoff = 2000;
 			clearVersion = Math.max(clearVersion, result.clearVersion || 0);
@@ -567,7 +581,7 @@ const boot = async () => {
 	let state: ChatState | undefined;
 	while (!state) {
 		try {
-			state = await PlatformAPI.getChatState();
+			state = await PlatformAPI.getChatState(TAB_ID);
 		} catch (error) {
 			await sleep(
 				statusOf(error) === 401 ? SIGNED_OUT_RETRY_MS : UNAVAILABLE_RETRY_MS,
@@ -589,6 +603,8 @@ const boot = async () => {
 		available: new Set(state.available ?? []),
 		off: new Set(state.off ?? []),
 		availVersion: state.availVersion || 0,
+		presenceVersion: state.presenceVersion ?? 0,
+		maxFileMb: state.maxFileMb ?? snapshot.maxFileMb,
 		peers: Boolean(state.peers),
 	});
 	for (const saved of loadOpenWindows()) {
@@ -623,8 +639,12 @@ export const useChatConnection = (enabled: boolean) => {
 		}
 		docks++;
 		void startChat();
+		startPresence();
 		return () => {
 			docks--;
+			if (docks === 0) {
+				stopPresence();
+			}
 		};
 	}, [enabled]);
 };
@@ -718,12 +738,14 @@ export const sendChatMessage = async (
 	peerId: string,
 	text: string,
 	screenshot?: { dataURL: string; page: string },
+	upload?: string,
 ) => {
 	const request = {
 		to: peerId,
 		text,
 		clientId: newClientId(),
 		...(screenshot ? { image: screenshot.dataURL, page: screenshot.page } : {}),
+		...(upload ? { upload } : {}),
 	};
 	let result: { message: ChatMessage } | undefined;
 	for (let attempt = 0; !result; attempt++) {

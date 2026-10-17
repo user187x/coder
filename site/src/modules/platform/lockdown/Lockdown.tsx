@@ -8,6 +8,7 @@ import {
 	TrashIcon,
 	UnplugIcon,
 } from "lucide-react";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { toast } from "sonner";
 import { getErrorMessage } from "#/api/errors";
@@ -26,14 +27,15 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "#/components/DropdownMenu/DropdownMenu";
-import { SidebarIconButton } from "#/components/FullPageLayout/Sidebar";
 import { createDayString } from "#/utils/createDayString";
 
 export const lockdownKey = (workspaceId: string) =>
 	["platform", "lockdown", workspaceId] as const;
 
 /** The mode the lock is in: complete is both, freeze is complete and everything paused. */
-export const modeOf = (lock: WorkspaceLockdown | undefined): LockdownMode => {
+export const modeOf = (
+	lock: Pick<WorkspaceLockdown, "modes"> | undefined,
+): LockdownMode => {
 	const m = new Set(lock?.modes ?? []);
 	return m.has("freeze")
 		? "freeze"
@@ -120,26 +122,46 @@ const SNAPSHOT_STATUS: Record<
 	gone: "gone",
 };
 
+/** The workspaces locked now (admins): {workspace id: its modes}, for the Workspaces list's badges. */
+export const locksKey = ["platform", "lockdown", "all"] as const;
+export const useAllLockdowns = () =>
+	useQuery({
+		queryKey: locksKey,
+		queryFn: PlatformAPI.getAllLockdowns,
+		refetchInterval: 15_000,
+		retry: false,
+	});
+
 /**
- * Workspace page > left sidebar: admins lock any workspace down - Network,
- * Sudo Command, Complete (both) or Freeze - for instance when an agent in it
- * runs away. A running workspace is locked at once, without a restart: its
- * processes keep running, and its terminal and apps still open (they go through
- * Coder), so admins can look at what it is doing; Freeze instead pauses all of
- * it where it is, and snapshots its disk. A stopped one is locked from its next
- * start, and every lock comes back with each start until an admin lifts it.
- * The shield turns red while a lock is on.
+ * The Lock Down badge, for admins: a small shield next to a workspace (in the
+ * Workspaces list, between its name and its template; on its page, right of
+ * Open Ports), red with the mode while a lock is on. Its menu locks the
+ * workspace down - Network, Sudo Command, Complete (both) or Freeze - for
+ * instance when an agent in it runs away, or lifts the lock. A running
+ * workspace is locked at once, without a restart: its processes keep running,
+ * and its terminal and apps still open (they go through Coder), so admins can
+ * look at what it is doing; Freeze instead pauses all of it where it is, and
+ * snapshots its disk. A stopped one is locked from its next start, and every
+ * lock comes back with each start until an admin lifts it. `modes` (the list's
+ * one request for every workspace) shows the badge before the workspace's own
+ * state comes in; that is asked for once the badge is on a page or its menu
+ * opens.
  */
-export const LockdownButton: React.FC<{ workspace: Workspace }> = ({
-	workspace,
-}) => {
+export const LockdownBadge: React.FC<{
+	workspace: Workspace;
+	/** The modes already known (the Workspaces list): no request of its own until the menu opens. */
+	modes?: WorkspaceLockdown["modes"];
+	className?: string;
+}> = ({ workspace, modes, className }) => {
+	const [open, setOpen] = useState(false);
 	const queryClient = useQueryClient();
-	const query = useLockdown(workspace.id);
+	const query = useLockdown(workspace.id, modes === undefined || open);
 	const set = useMutation({
 		mutationFn: (mode: LockdownMode) =>
 			PlatformAPI.setLockdown(workspace.id, mode),
 		onSuccess: (res, mode) => {
 			queryClient.setQueryData(lockdownKey(workspace.id), res);
+			void queryClient.invalidateQueries({ queryKey: locksKey });
 			if (res.error) {
 				toast.error(`Lock Down saved, but not in force yet: ${res.error}`);
 				return;
@@ -163,34 +185,56 @@ export const LockdownButton: React.FC<{ workspace: Workspace }> = ({
 		onError: (e) =>
 			toast.error(getErrorMessage(e, "The snapshot was not deleted.")),
 	});
-	if (!query.data?.canChange) {
+	// Admins only: the list's badges come only for them; a page's waits for the workspace's state.
+	if (modes === undefined && !query.data?.canChange) {
 		return null;
 	}
-	const snapshot = query.data.snapshot;
-	const current = modeOf(query.data);
+	const current = modeOf(query.data ?? { modes: modes ?? [] });
 	const locked = current !== "off";
+	const snapshot = query.data?.snapshot;
+	// In a clickable row: the badge's clicks and keys stay with it.
+	const keep = (e: React.SyntheticEvent) => e.stopPropagation();
 	return (
-		<DropdownMenu>
+		<DropdownMenu open={open} onOpenChange={setOpen}>
 			<DropdownMenuTrigger asChild>
-				<SidebarIconButton
-					isActive={false}
+				<button
+					type="button"
+					onClick={keep}
+					onKeyDown={keep}
 					title={
 						locked
 							? `Locked down: ${MODE_LABEL[current]}`
 							: `Lock ${workspace.owner_name}'s workspace down`
 					}
+					aria-label={
+						locked
+							? `Lock Down: ${MODE_LABEL[current]}`
+							: `Lock Down ${workspace.owner_name}/${workspace.name}`
+					}
 					data-testid="workspace-lockdown"
 					data-mode={current}
+					className={cn(
+						"inline-flex h-6 shrink-0 cursor-pointer items-center gap-1 rounded-full border border-solid px-1.5 text-xs font-medium transition-colors",
+						locked
+							? "border-border-destructive bg-surface-destructive/50 text-content-destructive hover:bg-surface-destructive"
+							: "border-border bg-transparent text-content-secondary opacity-70 hover:text-content-primary hover:opacity-100",
+						className,
+					)}
 				>
 					{locked ? (
-						<ShieldAlertIcon className="size-icon-sm text-content-destructive" />
+						<ShieldAlertIcon aria-hidden className="size-3.5" />
 					) : (
-						<ShieldIcon className="size-icon-sm" />
+						<ShieldIcon aria-hidden className="size-3.5" />
 					)}
-					<span className="sr-only">Lock Down</span>
-				</SidebarIconButton>
+					{locked && <span className="pr-0.5">{MODE_LABEL[current]}</span>}
+				</button>
 			</DropdownMenuTrigger>
-			<DropdownMenuContent side="right" align="start" className="w-80">
+			<DropdownMenuContent
+				align="end"
+				className="w-80"
+				onClick={keep}
+				onKeyDown={keep}
+			>
 				<DropdownMenuLabel>
 					Lock Down {workspace.owner_name}/{workspace.name}
 				</DropdownMenuLabel>

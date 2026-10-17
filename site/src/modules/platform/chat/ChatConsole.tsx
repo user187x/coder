@@ -16,6 +16,7 @@ import type { ChatConversation as Conversation } from "#/api/platform";
 import { Button } from "#/components/Button/Button";
 import { ChatAvatar } from "./ChatAvatar";
 import { ChatConversation, type ConversationActions } from "./ChatConversation";
+import { ChatPeople } from "./ChatPeople";
 import { CountBadge } from "./ChatWindow";
 import {
 	closeConsole,
@@ -365,6 +366,12 @@ export const ChatConsole: React.FC<ChatConsoleProps> = ({ dock }) => {
 										? "Nothing unread."
 										: 'No conversations yet. Start one with "Chat" in Admin › Accounts.'
 						}
+					/>
+					{/* Who is online now (grey when idle): a conversation with any of them, from here. */}
+					<ChatPeople
+						onOpen={(peer) => selectInConsole(peer)}
+						onlineOnly
+						className="max-h-[40%] shrink-0 overflow-y-auto border-0 border-t border-solid border-border"
 					/>
 				</nav>
 

@@ -203,7 +203,7 @@ const ChatList: React.FC = () => {
 				)
 			) : (
 				<>
-					{state.peers && <ChatPeople onOpen={open} withoutAdmins />}
+					{state.peers && <ChatPeople onOpen={open} withoutAdmins onlineOnly />}
 					<div className="px-2 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-content-secondary">
 						Need help? Message an admin
 					</div>

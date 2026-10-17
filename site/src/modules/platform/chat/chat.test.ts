@@ -108,6 +108,8 @@ describe("peer-to-peer chat", () => {
 			available: new Set<string>(),
 			off: new Set<string>(),
 			availVersion: 1,
+			presenceVersion: 0,
+			maxFileMb: 25,
 			drawerOpen: false,
 			consoleOpen: false,
 			consoleView: null,

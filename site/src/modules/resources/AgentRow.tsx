@@ -63,6 +63,8 @@ import { AgentPanels } from "#/modules/platform/agentPanels/AgentPanels";
 import { useAgentPanels } from "#/modules/platform/agentPanels/agentPanelsStore";
 import { AgentTerminalSection } from "#/modules/platform/agentTerminal/AgentTerminalSection";
 import { useAnimationsEnabled } from "#/modules/platform/animations/animations";
+import { CloudDriveGlyph } from "#/modules/platform/cloudDrive/CloudDriveGlyph";
+import { LockdownBadge } from "#/modules/platform/lockdown/Lockdown";
 import { AgentNetworkLeds } from "#/modules/platform/networkLeds/AgentNetworkLeds";
 import { AgentNetworkPill } from "#/modules/platform/networkLeds/AgentNetworkPill";
 import { WorkspaceInitializing } from "#/modules/platform/workspaceInitializing/WorkspaceInitializing";
@@ -483,6 +485,8 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 									workspaceOutdated={workspace.outdated}
 								/>
 								<AgentLatency agent={agent} />
+								{/* Platform: connected to its owner's Cloud Drive (a HUD of it on hover) */}
+								<CloudDriveGlyph workspace={workspace} />
 							</>
 						)}
 						{agent.status === "connecting" && (
@@ -525,6 +529,8 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 									template={template}
 								/>
 							)}
+						{/* Platform: admins' Lock Down badge and its menu, right of Open Ports */}
+						<LockdownBadge workspace={workspace} />
 					</div>
 				</header>
 

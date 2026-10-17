@@ -15,6 +15,7 @@ import {
 	PaletteIcon,
 	TagIcon,
 	TelescopeIcon,
+	UserCheckIcon,
 	UsersIcon,
 } from "lucide-react";
 import { MaxAdminQuickLinks } from "#/api/typesGenerated";
@@ -136,6 +137,13 @@ const ADMIN_PAGES: readonly (AdminPage & {
 		icon: TelescopeIcon,
 		path: "/deployment/observability",
 		allowed: ({ permissions }) => permissions.viewDeploymentConfig,
+	},
+	{
+		id: "online-users",
+		label: "Online Users",
+		icon: UserCheckIcon,
+		path: "/deployment/online",
+		allowed: ({ permissions }) => permissions.editDeploymentConfig,
 	},
 	{
 		id: "overview",

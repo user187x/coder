@@ -108,6 +108,13 @@ export const DeploymentSidebarView: React.FC<DeploymentSidebarViewProps> = ({
 						</AdminCategoryLabel>
 					</SidebarNavItem>
 				)}
+				{permissions.editDeploymentConfig && (
+					<SidebarNavItem href="/deployment/online">
+						<AdminCategoryLabel id="online-users">
+							Online Users
+						</AdminCategoryLabel>
+					</SidebarNavItem>
+				)}
 				{permissions.viewDeploymentConfig && (
 					<SidebarNavItem href="/deployment/overview">
 						<AdminCategoryLabel id="overview">Overview</AdminCategoryLabel>

@@ -366,21 +366,30 @@ describe("CloudDrive", () => {
 		);
 	});
 
-	it("ropes each of the account's workspace rows to it", async () => {
+	const rect = (x: number, y: number, w: number, h: number) =>
+		({
+			x,
+			y,
+			left: x,
+			top: y,
+			width: w,
+			height: h,
+			right: x + w,
+			bottom: y + h,
+			toJSON: () => ({}),
+		}) as DOMRect;
+
+	/** Two of the account's rows (w1, w2) under a Cloud Drive at (640, 20), 160 wide; the drawing at (0, 0). */
+	const withRows = async (
+		disconnected: string[],
+		run: (ropes: HTMLElement) => Promise<void>,
+	) => {
 		vi.spyOn(PlatformAPI, "getSafe").mockResolvedValue(summary);
 		vi.spyOn(PlatformAPI, "cloudDriveSettings").mockResolvedValue(settings());
-		const rect = (x: number, y: number, w: number, h: number) =>
-			({
-				x,
-				y,
-				left: x,
-				top: y,
-				width: w,
-				height: h,
-				right: x + w,
-				bottom: y + h,
-				toJSON: () => ({}),
-			}) as DOMRect;
+		vi.spyOn(PlatformAPI, "getCloudDriveConnections").mockResolvedValue({
+			disconnected,
+			older: [],
+		});
 		const rows = ["w1", "w2"].map((id, i) => {
 			const row = document.createElement("div");
 			row.dataset.testid = `workspace-${id}`;
@@ -397,26 +406,102 @@ describe("CloudDrive", () => {
 		);
 		try {
 			renderDrive(["w1", "w2", "not-on-this-page"]);
-			const ropes = await screen.findByTestId("cloud-drive-ropes");
-			await waitFor(() => {
-				const drawn = [...ropes.querySelectorAll("path.cd-cable")].filter((p) =>
-					p.getAttribute("d"),
-				);
-				expect(drawn).toHaveLength(2);
-			});
-			const [first] = ropes.querySelectorAll("path.cd-cable");
-			// from the socket on the Cloud Drive's right side to the plug at the row's right end
-			expect(first.getAttribute("d")).toMatch(/^M807,36 /);
-			expect(first.getAttribute("d")).toMatch(/ L815,125$/);
-			expect(
-				ropes
-					.querySelector("g[data-workspace='w1'] .cd-plug")
-					?.getAttribute("transform"),
-			).toBe("translate(800,125)");
+			await run(await screen.findByTestId("cloud-drive-ropes"));
 		} finally {
 			for (const row of rows) {
 				row.remove();
 			}
 		}
+	};
+
+	const cables = (ropes: HTMLElement) =>
+		[...ropes.querySelectorAll<SVGGElement>("g[data-wire]")].filter(
+			(g) => g.getAttribute("visibility") === "visible",
+		);
+
+	it("cables each of the account's connected workspace rows to it", async () => {
+		await withRows(["w2"], async (ropes) => {
+			await waitFor(() => expect(cables(ropes)).toHaveLength(1));
+			const [cable] = cables(ropes);
+			expect(cable.dataset.workspace).toBe("w1");
+			// from the socket on the Cloud Drive's right side, looping round into the plug at the row's right end
+			const d = cable.querySelector("path.cd-cable")?.getAttribute("d");
+			expect(d).toMatch(/^M807,36 C/);
+			expect(d).toMatch(/ 815,125$/);
+			// the plug in the row's edge, its prongs pointing in (left)
+			expect(cable.querySelector(".cd-plug")?.getAttribute("transform")).toBe(
+				"translate(815,125) rotate(180)",
+			);
+		});
+	});
+
+	it("disconnects a workspace whose plug is dragged away, and connects one a new cable is dragged onto", async () => {
+		const off = new Set(["w2"]);
+		const save = vi
+			.spyOn(PlatformAPI, "setCloudDriveConnection")
+			.mockImplementation(async (workspaceId, connected) => {
+				if (connected) {
+					off.delete(workspaceId);
+				} else {
+					off.add(workspaceId);
+				}
+				return {
+					disconnected: [...off],
+					older: [],
+					workspace: workspaceId,
+					connected,
+					applied: true,
+				};
+			});
+		await withRows(["w2"], async (ropes) => {
+			await waitFor(() => expect(cables(ropes)).toHaveLength(1));
+			// w1's plug, dragged off to the right and let go
+			const plug = cables(ropes)[0].querySelector('[data-grab="plug"]');
+			fireEvent.pointerDown(plug as Element, {
+				button: 0,
+				pointerId: 1,
+				clientX: 815,
+				clientY: 125,
+			});
+			fireEvent.pointerMove(window, {
+				pointerId: 1,
+				clientX: 990,
+				clientY: 40,
+			});
+			fireEvent.pointerUp(window, { pointerId: 1, clientX: 990, clientY: 40 });
+			await waitFor(() => expect(save).toHaveBeenCalledWith("w1", false));
+			await waitFor(() => expect(cables(ropes)).toHaveLength(0));
+
+			// a new cable out of the socket, onto w2's row (connected already: nothing; then free)
+			const socket = ropes.querySelector('[data-grab="socket"]');
+			fireEvent.pointerDown(socket as Element, {
+				button: 0,
+				pointerId: 2,
+				clientX: 803,
+				clientY: 36,
+			});
+			fireEvent.pointerMove(window, {
+				pointerId: 2,
+				clientX: 840,
+				clientY: 185,
+			});
+			expect(
+				document
+					.querySelector('[data-testid="workspace-w2"]')
+					?.getAttribute("data-cloud-drive-drop"),
+			).toBe("on");
+			fireEvent.pointerUp(window, { pointerId: 2, clientX: 840, clientY: 185 });
+			await waitFor(() => expect(save).toHaveBeenCalledWith("w2", true));
+			await waitFor(() => {
+				const [cable] = cables(ropes);
+				expect(cable?.dataset.workspace).toBe("w2");
+				expect(cable?.dataset.phase).toBe("plugged");
+			});
+			expect(
+				document
+					.querySelector('[data-testid="workspace-w2"]')
+					?.hasAttribute("data-cloud-drive-drop"),
+			).toBe(false);
+		});
 	});
 });

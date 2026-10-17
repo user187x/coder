@@ -4,8 +4,8 @@ import { PlatformAPI, type WorkspaceLockdown } from "#/api/platform";
 import { MockWorkspace } from "#/testHelpers/entities";
 import { renderComponent } from "#/testHelpers/renderHelpers";
 import {
+	LockdownBadge,
 	LockdownBanner,
-	LockdownButton,
 	modeOf,
 	networkLocked,
 } from "./Lockdown";
@@ -94,11 +94,42 @@ describe("Lock Down", () => {
 		expect(banner.textContent).toContain("In force in the running workspace.");
 	});
 
+	it("in the Workspaces list: the mode from the list's request, the workspace's own state only once opened", async () => {
+		const get = vi
+			.spyOn(PlatformAPI, "getLockdown")
+			.mockResolvedValue(lock({ locked: true, modes: ["network"] }));
+		const row = vi.fn();
+		renderWith(
+			// biome-ignore lint/a11y/useKeyWithClickEvents: a stand-in for the list's clickable row
+			<div onClick={row}>
+				<LockdownBadge workspace={MockWorkspace} modes={["network"]} />
+			</div>,
+		);
+		const badge = screen.getByTestId("workspace-lockdown");
+		expect(badge.dataset.mode).toBe("network");
+		expect(badge).toHaveTextContent("Network");
+		expect(get).not.toHaveBeenCalled();
+		fireEvent.click(badge);
+		expect(row).not.toHaveBeenCalled();
+		fireEvent.pointerDown(badge, { button: 0, ctrlKey: false });
+		expect(await screen.findByTestId("lockdown-complete")).toBeInTheDocument();
+		await waitFor(() => expect(get).toHaveBeenCalled());
+	});
+
+	it("an unlocked workspace's badge is a quiet shield", () => {
+		renderWith(<LockdownBadge workspace={MockWorkspace} modes={[]} />);
+		const badge = screen.getByTestId("workspace-lockdown");
+		expect(badge.dataset.mode).toBe("off");
+		expect(badge).toHaveAccessibleName(
+			`Lock Down ${MockWorkspace.owner_name}/${MockWorkspace.name}`,
+		);
+	});
+
 	it("shows no control to someone who may not change it", async () => {
 		const get = vi
 			.spyOn(PlatformAPI, "getLockdown")
 			.mockResolvedValue(lock({ canChange: false }));
-		renderWith(<LockdownButton workspace={MockWorkspace} />);
+		renderWith(<LockdownBadge workspace={MockWorkspace} />);
 		await waitFor(() => expect(get).toHaveBeenCalled());
 		expect(screen.queryByTestId("workspace-lockdown")).toBeNull();
 	});
@@ -110,7 +141,7 @@ describe("Lock Down", () => {
 			applied: "now",
 			error: null,
 		});
-		renderWith(<LockdownButton workspace={MockWorkspace} />);
+		renderWith(<LockdownBadge workspace={MockWorkspace} />);
 		const button = await screen.findByTestId("workspace-lockdown");
 		expect(button.dataset.mode).toBe("off");
 		fireEvent.pointerDown(button, { button: 0, ctrlKey: false });
@@ -127,7 +158,7 @@ describe("Lock Down", () => {
 
 	it("shows each mode's icon: a pulled plug, passport control, the shield, a snowflake", async () => {
 		vi.spyOn(PlatformAPI, "getLockdown").mockResolvedValue(lock({}));
-		renderWith(<LockdownButton workspace={MockWorkspace} />);
+		renderWith(<LockdownBadge workspace={MockWorkspace} />);
 		const button = await screen.findByTestId("workspace-lockdown");
 		fireEvent.pointerDown(button, { button: 0, ctrlKey: false });
 		const network = await screen.findByTestId("lockdown-network");
@@ -168,7 +199,7 @@ describe("Lock Down", () => {
 		const del = vi
 			.spyOn(PlatformAPI, "deleteLockdownSnapshot")
 			.mockResolvedValue({ ...frozen, snapshot: null });
-		renderWith(<LockdownButton workspace={MockWorkspace} />);
+		renderWith(<LockdownBadge workspace={MockWorkspace} />);
 		const open = async () =>
 			fireEvent.pointerDown(await screen.findByTestId("workspace-lockdown"), {
 				button: 0,

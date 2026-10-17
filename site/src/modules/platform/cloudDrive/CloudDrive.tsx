@@ -1,10 +1,22 @@
 import { cn } from "cn";
-import { ChevronRightIcon, CloudIcon, SettingsIcon, XIcon } from "lucide-react";
-import { useLayoutEffect, useRef, useState } from "react";
-import { useQuery } from "react-query";
+import {
+	ChevronRightIcon,
+	CloudIcon,
+	PlugIcon,
+	SettingsIcon,
+	XIcon,
+} from "lucide-react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "react-query";
+import { toast } from "sonner";
 import { getErrorMessage } from "#/api/errors";
 import { PlatformError } from "#/api/platform";
-import { cloudDriveSettings, safe } from "#/api/queries/platform";
+import {
+	cloudDriveConnections,
+	cloudDriveSettings,
+	safe,
+	setCloudDriveConnection,
+} from "#/api/queries/platform";
 import { Button } from "#/components/Button/Button";
 import {
 	Dialog,
@@ -13,32 +25,39 @@ import {
 	DialogTitle,
 } from "#/components/Dialog/Dialog";
 import { CloudDriveBrowser } from "./CloudDriveBrowser";
+import { CloudDriveConnections } from "./CloudDriveConnections";
 import { CloudDriveRopes, ROPES_AREA } from "./CloudDriveRopes";
 import { CloudDriveSettings, StatusIndicator } from "./CloudDriveSettings";
 import { formatBytes } from "./drivePaths";
 import "./cloudDrive.css";
 
 /**
- * The account's Cloud Drive, once above the Workspaces table on its right: its
- * own files on S3, the same ones each of its workspaces has at ~/cloud-drive,
- * with ropes to each of those workspaces' rows (CloudDriveRopes). Opened, a
- * window in the middle of the screen with the files (CloudDriveBrowser) and
- * its Settings: where the files are kept, and whether that answers. Only ever
- * the signed-in user's own drive; nothing where the deployment has none.
+ * The account's Cloud Drive, once above the Workspaces table, flush with its
+ * right edge: its own files on S3, the same ones each of its connected
+ * workspaces has at ~/cloud-drive, with a cable to each of those workspaces'
+ * rows (CloudDriveRopes) - dragged away to disconnect one, out of the socket
+ * onto another to connect it. Opened, a window in the middle of the screen
+ * with the files (CloudDriveBrowser) and its Settings: where the files are
+ * kept, and whether that answers. Only ever the signed-in user's own drive;
+ * nothing where the deployment has none.
  */
 export const CloudDrive: React.FC<{
-	/** The signed-in user's workspaces on the page: a rope to each. */
+	/** The signed-in user's workspaces on the page: a cable to each connected one. */
 	workspaceIds: readonly string[];
 	className?: string;
 }> = ({ workspaceIds, className }) => {
 	const { data: summary, error } = useQuery(safe());
 	const enabled = Boolean(summary?.enabled);
 	const settings = useQuery({ ...cloudDriveSettings(), enabled });
+	const connections = useQuery(cloudDriveConnections(enabled));
+	const queryClient = useQueryClient();
+	const link = useMutation(setCloudDriveConnection(queryClient));
 	const [open, setOpen] = useState(false);
-	const [view, setView] = useState<"files" | "settings">("files");
+	const [view, setView] = useState<"files" | "workspaces" | "settings">(
+		"files",
+	);
 	const button = useRef<HTMLButtonElement>(null);
-	// Its left edge where the table's last column - the apps' - would have its name: the space it leaves to its
-	// right. Too wide for that column: flush with the table's right edge.
+	// Flush with the table's right edge (the toolbar it sits in may be wider than the table).
 	const [right, setRight] = useState(0);
 	const present = Boolean(summary?.enabled);
 	useLayoutEffect(() => {
@@ -48,19 +67,21 @@ export const CloudDrive: React.FC<{
 			return;
 		}
 		const place = () => {
-			const th = area.querySelector("table thead th:last-child");
-			const table = th?.closest("table");
-			if (!th || !table) {
+			const table = area.querySelector("table");
+			if (!table) {
 				setRight(0);
 				return;
 			}
-			const col = th.getBoundingClientRect();
-			const pad = Number.parseFloat(getComputedStyle(th).paddingLeft) || 0;
-			const width = el.getBoundingClientRect().width;
-			const free =
-				table.getBoundingClientRect().right - (col.left + pad + width);
-			// (The table does not move with it: the measure holds whatever the margin is now.)
-			const next = Math.max(0, Math.round(free));
+			const margin = Number.parseFloat(getComputedStyle(el).marginRight) || 0;
+			// where its right edge would be with no margin, less the table's
+			const next = Math.max(
+				0,
+				Math.round(
+					el.getBoundingClientRect().right +
+						margin -
+						table.getBoundingClientRect().right,
+				),
+			);
 			setRight((r) => (Math.abs(next - r) > 1 ? next : r));
 		};
 		place();
@@ -75,6 +96,42 @@ export const CloudDrive: React.FC<{
 			window.removeEventListener("resize", place);
 		};
 	}, [present]);
+
+	// Every workspace is connected but those its owner disconnected (a new one is too); none until the list is in.
+	const linked = useMemo(() => {
+		if (!connections.data) {
+			return [];
+		}
+		const off = new Set(connections.data.disconnected);
+		return workspaceIds.filter((id) => !off.has(id));
+	}, [connections.data, workspaceIds]);
+	const onLink = useCallback(
+		(workspaceId: string, connected: boolean) =>
+			link.mutate(
+				{ workspaceId, connected },
+				{
+					onSuccess: (result) => {
+						if (result.older.includes(workspaceId)) {
+							toast.info(
+								connected
+									? "Connected: the workspace has its Cloud Drive again once it is updated to its template's latest version."
+									: "Disconnected: it takes effect once the workspace is updated to its template's latest version.",
+							);
+						}
+					},
+					onError: (err) =>
+						toast.error(
+							getErrorMessage(
+								err,
+								connected
+									? "The workspace could not be connected."
+									: "The workspace could not be disconnected.",
+							),
+						),
+				},
+			),
+		[link.mutate],
+	);
 
 	if (
 		!summary ||
@@ -114,6 +171,8 @@ export const CloudDrive: React.FC<{
 			<CloudDriveRopes
 				anchor={button}
 				workspaceIds={workspaceIds}
+				linked={linked}
+				onLink={onLink}
 				connected={status?.connected}
 			/>
 			<Dialog open={open} onOpenChange={setOpen}>
@@ -125,7 +184,7 @@ export const CloudDrive: React.FC<{
 					<header className="flex items-center gap-3 border-0 border-b border-solid border-border px-4 py-3">
 						<CloudIcon aria-hidden className="size-5 text-content-secondary" />
 						<DialogTitle className="flex items-center gap-1.5 text-base">
-							{view === "settings" ? (
+							{view !== "files" ? (
 								<>
 									<button
 										type="button"
@@ -138,7 +197,7 @@ export const CloudDrive: React.FC<{
 										aria-hidden
 										className="size-4 text-content-secondary"
 									/>
-									Settings
+									{view === "settings" ? "Settings" : "Workspaces"}
 								</>
 							) : (
 								"Cloud Drive"
@@ -146,6 +205,22 @@ export const CloudDrive: React.FC<{
 						</DialogTitle>
 						<StatusIndicator status={status} />
 						<div className="ml-auto flex items-center gap-1">
+							<Button
+								size="icon"
+								variant="subtle"
+								aria-label="Workspaces: which are connected"
+								title="Workspaces: which are connected"
+								aria-pressed={view === "workspaces"}
+								className={cn(
+									view === "workspaces" &&
+										"bg-surface-secondary text-content-primary",
+								)}
+								onClick={() =>
+									setView((v) => (v === "workspaces" ? "files" : "workspaces"))
+								}
+							>
+								<PlugIcon />
+							</Button>
 							<Button
 								size="icon"
 								variant="subtle"
@@ -157,7 +232,7 @@ export const CloudDrive: React.FC<{
 								)}
 								onClick={() => {
 									// Opened: what the service has now.
-									if (view === "files") {
+									if (view !== "settings") {
 										void settings.refetch();
 									}
 									setView((v) => (v === "settings" ? "files" : "settings"));
@@ -174,6 +249,8 @@ export const CloudDrive: React.FC<{
 					</header>
 					{view === "files" ? (
 						<CloudDriveBrowser summary={summary} />
+					) : view === "workspaces" ? (
+						<CloudDriveConnections />
 					) : settings.data ? (
 						<CloudDriveSettings settings={settings.data} />
 					) : (

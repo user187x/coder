@@ -8,12 +8,8 @@ type AlternativeLink = {
 	external: boolean;
 };
 
+// Platform: no "Start from scratch" (Coder's online docs: unreachable in an air gap).
 const alternatives: readonly AlternativeLink[] = [
-	{
-		label: "Start from scratch",
-		href: "https://coder.com/docs/tutorials/template-from-scratch",
-		external: true,
-	},
 	{
 		label: "Upload an existing template",
 		href: "/templates/new",

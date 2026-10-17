@@ -199,8 +199,8 @@ const RetentionCard: React.FC<{ settings: ChatSettings }> = ({ settings }) => {
 				</span>
 			</div>
 			<p className="m-0 text-sm text-content-secondary">
-				Messages and screenshots older than this are deleted every hour, and at
-				once when you shorten it.
+				Messages, screenshots and files older than this are deleted every hour,
+				and at once when you shorten it.
 			</p>
 			<p className="m-0 text-sm" data-testid="chat-stats">
 				{stats.messages.toLocaleString()}{" "}
@@ -208,6 +208,13 @@ const RetentionCard: React.FC<{ settings: ChatSettings }> = ({ settings }) => {
 				{stats.peerMessages.toLocaleString()} between developers),{" "}
 				{stats.screenshots}{" "}
 				{stats.screenshots === 1 ? "screenshot" : "screenshots"},{" "}
+				{stats.attachments !== undefined && (
+					<>
+						{stats.attachments.toLocaleString()}{" "}
+						{stats.attachments === 1 ? "file" : "files"} (
+						{formatBytes(stats.attachmentBytes ?? 0)}),{" "}
+					</>
+				)}
 				{formatBytes(stats.bytes)}
 				{stats.oldest ? `; the oldest from ${when(stats.oldest)}` : ""}.
 				{stats.fileBytes !== null && (
@@ -231,7 +238,7 @@ const RetentionCard: React.FC<{ settings: ChatSettings }> = ({ settings }) => {
 				type="delete"
 				open={confirming}
 				title="Purge all chats"
-				description={`Delete every chat message and screenshot (${stats.messages.toLocaleString()}), for everyone, admins' conversations too? Open chat windows empty at once. This can't be undone.`}
+				description={`Delete every chat message, screenshot and file (${stats.messages.toLocaleString()}), for everyone, admins' conversations too? Open chat windows empty at once. This can't be undone.`}
 				confirmText="Purge"
 				confirmLoading={purge.isPending}
 				onClose={() => setConfirming(false)}

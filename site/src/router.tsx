@@ -157,6 +157,10 @@ const ChatSettingsPage = lazy(
 	() =>
 		import("./pages/DeploymentSettingsPage/ChatSettingsPage/ChatSettingsPage"),
 );
+const OnlineUsersPage = lazy(
+	() =>
+		import("./pages/DeploymentSettingsPage/OnlineUsersPage/OnlineUsersPage"),
+);
 const AnnouncementSettingsPage = lazy(
 	() =>
 		import(
@@ -702,6 +706,7 @@ export const router = createBrowserRouter(
 						<Route path="appearance" element={<AppearanceSettingsPage />} />
 						<Route path="announcement" element={<AnnouncementSettingsPage />} />
 						<Route path="chat" element={<ChatSettingsPage />} />
+						<Route path="online" element={<OnlineUsersPage />} />
 						<Route
 							path="classification"
 							element={<ClassificationSettingsPage />}

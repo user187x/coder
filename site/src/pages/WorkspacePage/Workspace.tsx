@@ -3,10 +3,7 @@ import type * as TypesGen from "#/api/typesGenerated";
 import { SidebarIconButton } from "#/components/FullPageLayout/Sidebar";
 import { useSearchParamsKey } from "#/hooks/useSearchParamsKey";
 import { linkToTemplate, useLinks } from "#/modules/navigation";
-import {
-	LockdownBanner,
-	LockdownButton,
-} from "#/modules/platform/lockdown/Lockdown";
+import { LockdownBanner } from "#/modules/platform/lockdown/Lockdown";
 import { WorkspaceNotesButton } from "#/modules/platform/workspaceNotes/WorkspaceNotesButton";
 import { ProvisionerStatusAlert } from "#/modules/provisioners/ProvisionerStatusAlert";
 import { AgentRow } from "#/modules/resources/AgentRow";
@@ -146,8 +143,6 @@ export const Workspace: React.FC<WorkspaceProps> = ({
 							<span className="sr-only">History</span>
 						</SidebarIconButton>
 						<WorkspaceNotesButton workspace={workspace} />
-						{/* Platform: admins' Lock Down (network, sudo, both) */}
-						<LockdownButton workspace={workspace} />
 					</div>
 
 					{sidebarOption.value === "resources" && (

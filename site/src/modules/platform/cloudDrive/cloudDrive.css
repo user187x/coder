@@ -42,8 +42,9 @@
 	transition: width 150ms linear;
 }
 
-/* The cables: a dark sheathed cable with a faint shine, round the table's corner to each row's plug; the plugs' and
-   the socket's metal in the theme's accent. Red and dashed while the storage does not answer. */
+/* The cables: a dark sheathed cable with a faint shine, looping from the Cloud Drive's socket out to the right of the
+   table and into each row's plug; the plugs' prongs and the socket in the theme's accent. Red and dashed while the
+   storage does not answer. The plugs and the socket are grabbed (the rest lets the pointer through). */
 .cd-ropes {
 	position: absolute;
 	inset: 0;
@@ -80,7 +81,60 @@
 	stroke-linecap: round;
 }
 .cd-socket {
+	fill: hsl(var(--content-link) / 0.35);
 	stroke: hsl(var(--content-link));
+}
+.cd-grab {
+	fill: transparent;
+	pointer-events: visible;
+	cursor: grab;
+	touch-action: none;
+}
+html.cd-dragging,
+html.cd-dragging * {
+	cursor: grabbing !important;
+	user-select: none;
+}
+html.cd-dragging:has([data-cloud-drive-drop="taken"]),
+html.cd-dragging:has([data-cloud-drive-drop="taken"]) * {
+	cursor: no-drop !important;
+}
+/* The row a cable is held over: it plugs in there (the accent), or it is connected already (nothing happens). */
+[data-cloud-drive-drop="on"] > td {
+	background-color: hsl(var(--content-link) / 0.1);
+}
+[data-cloud-drive-drop="on"] > td:last-child {
+	box-shadow: inset -3px 0 0 hsl(var(--content-link));
+}
+[data-cloud-drive-drop="taken"] > td {
+	background-color: hsl(var(--content-secondary) / 0.06);
+}
+/* A plug latching: its prongs light up; the socket taking a cable in: it bumps. */
+.cd-latched .cd-prong {
+	animation: cd-latch 600ms ease-out;
+}
+@keyframes cd-latch {
+	0% {
+		stroke: hsl(var(--content-success));
+		stroke-width: 3;
+		filter: drop-shadow(0 0 3px hsl(var(--content-success)));
+	}
+}
+.cd-gulp .cd-socket {
+	animation: cd-gulp-socket 260ms ease-out;
+	transform-origin: left center;
+	transform-box: fill-box;
+}
+@keyframes cd-gulp-socket {
+	40% {
+		transform: scaleY(1.35);
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.cd-latched .cd-prong,
+	.cd-gulp .cd-socket {
+		animation: none;
+	}
 }
 .cd-ropes[data-connected="false"] .cd-cable {
 	stroke: hsl(var(--content-destructive));

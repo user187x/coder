@@ -68,6 +68,10 @@ import {
 import { useAppLink } from "#/modules/apps/useAppLink";
 import { findWorkspaceAppWithAgent } from "#/modules/apps/workspaceApps";
 import { useDashboard } from "#/modules/dashboard/useDashboard";
+import {
+	LockdownBadge,
+	useAllLockdowns,
+} from "#/modules/platform/lockdown/Lockdown";
 import { agentAppsReady } from "#/modules/platform/workspaceInitializing/workspaceReadiness";
 import { abilitiesByWorkspaceStatus } from "#/modules/workspaces/actions";
 import { WorkspaceBuildCancelDialog } from "#/modules/workspaces/WorkspaceBuildCancelDialog/WorkspaceBuildCancelDialog";
@@ -118,6 +122,8 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 	const isLoading = !workspaces;
 	const isEmpty = workspaces && workspaces.length === 0;
 	const hideHeaders = isLoading || isEmpty;
+	// Platform: admins' Lock Down badges, in a column of their own between Name and Template (no heading).
+	const locks = useAllLockdowns();
 
 	return (
 		<Table>
@@ -152,6 +158,11 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 							</div>
 						)}
 					</TableHead>
+					{locks.isSuccess && (
+						<TableHead className="w-0 px-0">
+							<span className="sr-only">Lock Down</span>
+						</TableHead>
+					)}
 					<TableHead className={cn("w-1/3", hideHeaders && "invisible")}>
 						Template
 					</TableHead>
@@ -265,6 +276,14 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 								</div>
 							</TableCell>
 
+							{locks.isSuccess && (
+								<TableCell className="w-0 px-0">
+									<LockdownBadge
+										workspace={workspace}
+										modes={locks.data.workspaces[workspace.id]?.modes ?? []}
+									/>
+								</TableCell>
+							)}
 							<TableCell>
 								<AvatarData
 									title={

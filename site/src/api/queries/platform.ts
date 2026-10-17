@@ -9,6 +9,7 @@ import {
 	type BannerFields,
 	type BannerState,
 	type ClassificationSettings,
+	type CloudDriveConnections,
 	type HudRange,
 	type KeycloakFix,
 	type KeycloakReport,
@@ -212,6 +213,65 @@ export const cloudDriveSettings = () => ({
 	refetchInterval: 30_000,
 });
 
+const cloudDriveConnectionsKey = [...safeKey, "connections"] as const;
+/** Which of the caller's workspaces are disconnected from their Cloud Drive. */
+export const cloudDriveConnections = (enabled = true) => ({
+	queryKey: cloudDriveConnectionsKey,
+	queryFn: PlatformAPI.getCloudDriveConnections,
+	enabled,
+	retry: false,
+	refetchInterval: 30_000,
+});
+
+export const setCloudDriveConnection = (queryClient: QueryClient) => ({
+	mutationFn: ({
+		workspaceId,
+		connected,
+	}: {
+		workspaceId: string;
+		connected: boolean;
+	}) => PlatformAPI.setCloudDriveConnection(workspaceId, connected),
+	onMutate: async ({
+		workspaceId,
+		connected,
+	}: {
+		workspaceId: string;
+		connected: boolean;
+	}) => {
+		// The cable moved already: the list says so at once.
+		await queryClient.cancelQueries({ queryKey: cloudDriveConnectionsKey });
+		const before = queryClient.getQueryData<CloudDriveConnections>(
+			cloudDriveConnectionsKey,
+		);
+		if (before) {
+			const others = before.disconnected.filter((id) => id !== workspaceId);
+			queryClient.setQueryData<CloudDriveConnections>(
+				cloudDriveConnectionsKey,
+				{
+					...before,
+					disconnected: connected ? others : [...others, workspaceId],
+				},
+			);
+		}
+		return { before };
+	},
+	onError: (
+		_error: unknown,
+		_vars: unknown,
+		context?: { before?: CloudDriveConnections },
+	) => {
+		if (context?.before) {
+			queryClient.setQueryData(cloudDriveConnectionsKey, context.before);
+		}
+	},
+	onSuccess: (result: CloudDriveConnections) => {
+		queryClient.setQueryData<CloudDriveConnections>(cloudDriveConnectionsKey, {
+			disconnected: result.disconnected,
+			older: result.older,
+		});
+	},
+});
+
 export const safeListing = (path: string, enabled: boolean) => ({
 	queryKey: [...safeKey, "list", path],
 	queryFn: () => PlatformAPI.listSafe(path),
@@ -305,8 +365,12 @@ const CHAT_PEOPLE_REFRESH_MS = 20_000;
 const chatPeopleKey = [...platformKey, "chat", "people"] as const;
 
 /** Who is online or active today (peer-to-peer chat; admins: everyone, the invisible marked). */
-export const chatPeople = (availabilityVersion: number) => ({
-	queryKey: [...chatPeopleKey, availabilityVersion],
+/** The People list: asked again when availability changes, and whenever someone comes, goes idle or leaves. */
+export const chatPeople = (
+	availabilityVersion: number,
+	presenceVersion = 0,
+) => ({
+	queryKey: [...chatPeopleKey, availabilityVersion, presenceVersion],
 	queryFn: PlatformAPI.getChatPeople,
 	refetchInterval: CHAT_PEOPLE_REFRESH_MS,
 	placeholderData: (
@@ -344,6 +408,14 @@ export const chatPairs = () => ({
 	queryKey: chatPairsKey,
 	queryFn: PlatformAPI.getChatPairs,
 	refetchInterval: 30_000,
+});
+
+/** Admin Controls > Online Users: asked again every few seconds while the page is open. */
+export const onlineUsers = () => ({
+	queryKey: [...platformKey, "presence"] as const,
+	queryFn: PlatformAPI.getPresence,
+	refetchInterval: 3_000,
+	refetchIntervalInBackground: false,
 });
 
 // While the live channel is up, polling only guards against a missed push.

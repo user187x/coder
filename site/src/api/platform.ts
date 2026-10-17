@@ -108,6 +108,7 @@ const upload = async <T>(
 	url: string,
 	file: Blob,
 	onProgress?: (fraction: number) => void,
+	signal?: AbortSignal,
 ): Promise<T> => {
 	try {
 		const response = await platformAxios.put<T>(
@@ -123,6 +124,7 @@ const upload = async <T>(
 						onProgress(event.loaded / event.total);
 					}
 				},
+				signal,
 			}),
 		);
 		return response.data;
@@ -1007,6 +1009,15 @@ export type ChatMessage = {
 	toAdmin: boolean;
 	image: string | null;
 	page: string | null;
+	/** A file attached to it: a picture shown in the conversation, anything else a download. */
+	file?: ChatFile | null;
+};
+
+export type ChatFile = {
+	url: string;
+	name: string;
+	size: number;
+	type: string;
 };
 
 export type ChatConversation = {
@@ -1023,11 +1034,19 @@ export type ChatAvailability = {
 	peers?: boolean;
 	/** Bumped by each purge: the conversations are reloaded. */
 	purgeVersion?: number;
+	/** Bumped whenever someone comes online, goes idle or active, or leaves: the People lists ask again. */
+	presenceVersion?: number;
+	/** The largest file a message may carry (MB). */
+	maxFileMb?: number;
 };
 
 /** Someone in the People list: online (a tab open now) or seen by Coder today. */
 export type ChatPerson = ChatPeer & {
 	online: boolean;
+	/** Online, but no input in any of their tabs for 30 s: grey. */
+	idle?: boolean;
+	/** Their last input in a tab (online only). */
+	activeAt?: string | null;
 	lastSeen: string | null;
 	/** An admin who turned chat off: developers can't write to them. */
 	chatOff?: boolean;
@@ -1047,6 +1066,8 @@ export type ChatSettings = {
 		peerMessages: number;
 		oldest: string | null;
 		screenshots: number;
+		attachments?: number;
+		attachmentBytes?: number;
 		bytes: number;
 		fileBytes: number | null;
 	};
@@ -1089,6 +1110,9 @@ type ChatPollRequest = {
 	typing: readonly string[];
 	cleared: number;
 	availVersion: number;
+	/** This tab's id, and the presence version it knows: the poll answers as soon as someone comes or goes. */
+	tab?: string;
+	presenceVersion?: number;
 };
 
 type ChatSendRequest = {
@@ -1098,6 +1122,26 @@ type ChatSendRequest = {
 	page?: string;
 	/** The sender's id for this message: sending it again returns the first one. */
 	clientId?: string;
+	/** A file uploaded for it (uploadChatFile). */
+	upload?: string;
+};
+
+/** Admin Controls > Online Users: someone online now (or seen by Coder lately). */
+export type OnlineUser = ChatPeer & {
+	lastSeen: string | null;
+	status: "active" | "idle" | "offline";
+	activeAt: string | null;
+	since: string | null;
+	tabs: number;
+	invisible: boolean;
+	workspaces: { id: string; name: string; owner: string }[];
+};
+
+export type PresenceReport = {
+	online: OnlineUser[];
+	recent: OnlineUser[];
+	idleSeconds: number;
+	generatedAt: string;
 };
 
 export const BANNER_LEVELS = [
@@ -1319,6 +1363,14 @@ export type SafeSummary = {
 
 export type SafeFile = { name: string; size: number; modified: string };
 
+/** Which of the caller's workspaces have their Cloud Drive (a new one does: those disconnected are listed). */
+export type CloudDriveConnections = {
+	/** Disconnected by their owner. */
+	disconnected: string[];
+	/** Running from a template version before the connections: a change takes effect once they are updated. */
+	older: string[];
+};
+
 /** A folder of the Cloud Drive: its folders and files (path "" is the top). */
 export type SafeListing = {
 	path: string;
@@ -1407,6 +1459,21 @@ export const PlatformAPI = {
 	/** Admins: every account's capacity (GiB), or { reset: true } for the chart's. */
 	saveCloudDriveQuota: (body: { quotaGiB: number } | { reset: true }) =>
 		post<CloudDriveQuota>(`${PLATFORM_BASE}/api/safe/settings/quota`, body),
+	/** Which of the caller's workspaces are disconnected from their Cloud Drive. */
+	getCloudDriveConnections: () =>
+		get<CloudDriveConnections>(`${PLATFORM_BASE}/api/safe/connections`),
+	/** One of the caller's workspaces connected to their Cloud Drive, or disconnected from it (at once, if it runs). */
+	setCloudDriveConnection: (workspaceId: string, connected: boolean) =>
+		post<
+			CloudDriveConnections & {
+				workspace: string;
+				connected: boolean;
+				applied: boolean;
+			}
+		>(
+			`${PLATFORM_BASE}/api/safe/connections/${encodeURIComponent(workspaceId)}`,
+			{ connected },
+		),
 	/** Admins: whether an S3 service answers, without saving it. */
 	testCloudDriveBackend: (backend: CloudDriveBackend) =>
 		post<CloudDriveStatus>(`${PLATFORM_BASE}/api/safe/settings/test`, backend),
@@ -1515,6 +1582,14 @@ export const PlatformAPI = {
 		post<{ ok: true }>(`${PLATFORM_BASE}/api/notes/delete`, { id }),
 	dismissWorkspaceNote: (id: string) =>
 		post<{ note: WorkspaceNote }>(`${PLATFORM_BASE}/api/notes/dismiss`, { id }),
+	/** Lock Down, admins: every locked workspace, by its id. */
+	getAllLockdowns: () =>
+		get<{
+			workspaces: Record<
+				string,
+				{ modes: WorkspaceLockdown["modes"]; by?: string; at?: string }
+			>;
+		}>(`${PLATFORM_BASE}/api/lockdown`),
 	/** Lock Down: whether the workspace is jailed (its owner and admins). */
 	getLockdown: (workspaceId: string) =>
 		get<WorkspaceLockdown>(
@@ -1631,7 +1706,10 @@ export const PlatformAPI = {
 			settings,
 		}),
 
-	getChatState: () => get<ChatState>(chat("state")),
+	getChatState: (tab?: string) =>
+		get<ChatState>(
+			chat(tab ? `state?tab=${encodeURIComponent(tab)}` : "state"),
+		),
 	getChatAdmins: () => get<{ admins: ChatPeer[] }>(chat("admins")),
 	getChatPeople: () =>
 		get<{ enabled: boolean; people: ChatPerson[] }>(chat("people")),
@@ -1660,8 +1738,46 @@ export const PlatformAPI = {
 			cleared: String(req.cleared),
 			av: String(req.availVersion),
 		});
+		if (req.tab) {
+			query.set("tab", req.tab);
+		}
+		if (req.presenceVersion !== undefined) {
+			query.set("pv", String(req.presenceVersion));
+		}
 		return get<ChatPoll>(chat(`poll?${query}`));
 	},
+	/** This tab's user went idle (no input for 30 s) or came back. */
+	chatActivity: (tab: string, idle: boolean) =>
+		post<{ ok: true }>(chat("activity"), { tab, idle }),
+	/** This tab is closing: its user leaves the People lists with their last tab (it outlives the page). */
+	chatLeave: (tab: string) =>
+		fetch(chat("leave"), {
+			method: "POST",
+			keepalive: true,
+			credentials: "same-origin",
+			headers: {
+				"Content-Type": "application/json",
+				"X-Requested-With": PLATFORM_REQUESTED_WITH,
+			},
+			body: JSON.stringify({ tab }),
+		}).catch(() => undefined),
+	/** A file for the next message to `to`, with its progress; then sendChatMessage with its upload id. */
+	uploadChatFile: (
+		to: string,
+		file: File,
+		onProgress?: (fraction: number) => void,
+		signal?: AbortSignal,
+	) =>
+		upload<{ upload: string; name: string; size: number; type: string }>(
+			chat(
+				`upload?${new URLSearchParams({ to, name: file.name, type: file.type || "application/octet-stream" })}`,
+			),
+			file,
+			onProgress,
+			signal,
+		),
+	/** Admins: everyone online now, and who Coder saw lately. */
+	getPresence: () => get<PresenceReport>(`${PLATFORM_BASE}/api/presence`),
 	sendChatMessage: (req: ChatSendRequest) =>
 		post<{ message: ChatMessage }>(chat("send"), req),
 	sendChatTyping: (to: string) => post<{ ok: true }>(chat("typing"), { to }),
