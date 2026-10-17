@@ -68,3 +68,32 @@ export const WithNetwork: Story = {
 		],
 	},
 };
+
+// The same 15 minutes of CPU and memory: CPU busy for a few minutes (a workspace build), memory climbing slowly.
+const historyPoints = Array.from({ length: 60 }, (_, i) => ({
+	t: 1_792_000_000 + i * 15,
+	cpu: 1.2 + 0.4 * Math.sin(i / 3) ** 2 + (i > 30 && i < 42 ? 9.5 : 0),
+	cpuTotal: 16,
+	memory: (18 + i * 0.12) * 1024 ** 3,
+	memoryTotal: 64 * 1024 ** 3,
+}));
+
+export const WithHistory: Story = {
+	parameters: {
+		queries: [
+			{
+				key: clusterUsageKey,
+				data: {
+					...MockClusterUsage,
+					history: { points: historyPoints, every: 15 },
+					network: {
+						rx: networkPoints[59].rx,
+						tx: networkPoints[59].tx,
+						points: networkPoints,
+						every: 15,
+					},
+				},
+			},
+		],
+	},
+};

@@ -1,6 +1,11 @@
 import { cn } from "cn";
 import { useQuery } from "react-query";
-import type { ClusterNetwork, ResourceUsage } from "#/api/platform";
+import type {
+	ClusterHistory,
+	ClusterNetwork,
+	ResourceUsage,
+	UsagePoint,
+} from "#/api/platform";
 import { clusterUsage } from "#/api/queries/platform";
 
 const GiB = 1024 ** 3;
@@ -38,8 +43,8 @@ const formatAmount = (kind: Kind, value: number) =>
  * refreshed while the menu is open. Each bar fills with what is in use (live
  * from metrics-server; without it, what pods requested), the band behind it
  * is what running pods reserved, and "free" is what new workspaces can still
- * be given; under both, the network graph. Users who are not admins get no
- * answer, so nothing is shown.
+ * be given; under each, its last 15 minutes; under both, the network graph.
+ * Users who are not admins get no answer, so nothing is shown.
  */
 export const ClusterGauge: React.FC = () => {
 	const { data } = useQuery(clusterUsage());
@@ -76,8 +81,18 @@ export const ClusterGauge: React.FC = () => {
 				</span>
 			</div>
 			<div className="grid grid-cols-2 gap-3.5">
-				<UsageBar kind="cpu" label="CPU" usage={data.cpu} />
-				<UsageBar kind="memory" label="Memory" usage={data.memory} />
+				<UsageBar
+					kind="cpu"
+					label="CPU"
+					usage={data.cpu}
+					history={data.history}
+				/>
+				<UsageBar
+					kind="memory"
+					label="Memory"
+					usage={data.memory}
+					history={data.history}
+				/>
 			</div>
 			{data.network && data.network.points.length > 0 && (
 				<NetworkGraph network={data.network} />
@@ -183,17 +198,118 @@ const NetworkGraph: React.FC<{ network: ClusterNetwork }> = ({ network }) => {
 	);
 };
 
+type Level = "high" | "mid" | "low";
+
+const levelOf = (percent: number): Level =>
+	percent >= 90 ? "high" : percent >= 70 ? "mid" : "low";
+
+/** A round's CPU or memory in use: the amount, of what is allocatable, as a percentage. */
+export type UsageShare = {
+	t: number;
+	used: number;
+	total: number;
+	percent: number;
+};
+
+export const usageShares = (
+	points: readonly UsagePoint[],
+	kind: Kind,
+): UsageShare[] =>
+	points.map((p) => {
+		const used = kind === "cpu" ? p.cpu : p.memory;
+		const total = kind === "cpu" ? p.cpuTotal : p.memoryTotal;
+		return {
+			t: p.t,
+			used,
+			total,
+			percent: total > 0 ? Math.min(100, (used / total) * 100) : 0,
+		};
+	});
+
+/** The graph's top: the smallest of these (percent) that holds the window's peak, so low usage still shows. */
+const GRAPH_TOPS = [10, 25, 50, 100] as const;
+
+export const graphTop = (peak: number): number =>
+	GRAPH_TOPS.find((top) => peak <= top) ?? 100;
+
+/**
+ * Under a CPU or memory bar: its last 15 minutes, a bar a round (the HUD's
+ * samples), each as tall as the share of the allocatable in use then and
+ * coloured as the bar above is at that share. The scale's top is the window's
+ * peak rounded up (10, 25, 50 or 100%), written under the graph; newest at the
+ * right; each bar's time and amount on hover.
+ */
+const UsageGraph: React.FC<{
+	kind: Kind;
+	label: string;
+	history: ClusterHistory;
+}> = ({ kind, label, history }) => {
+	const shares = usageShares(history.points.slice(-NETWORK_SLOTS), kind);
+	if (shares.length === 0) {
+		return null;
+	}
+	const peak = Math.max(...shares.map((s) => s.percent));
+	const top = graphTop(peak);
+	const slot = 100 / NETWORK_SLOTS;
+	const height = 20;
+	const minutes = Math.round((NETWORK_SLOTS * history.every) / 60);
+
+	return (
+		<div className="mt-1.5" data-testid={`cluster-${kind}-history`}>
+			<svg
+				role="img"
+				aria-label={`${label} in use over the last ${minutes} minutes: peak ${Math.round(peak)}%`}
+				viewBox={`0 0 100 ${height}`}
+				preserveAspectRatio="none"
+				className="block h-6 w-full overflow-hidden rounded bg-surface-tertiary"
+			>
+				{shares.map((s, i) => {
+					const x = (NETWORK_SLOTS - shares.length + i) * slot;
+					const tall = (Math.min(top, s.percent) / top) * (height - 1);
+					const level = levelOf(s.percent);
+					return (
+						<g key={s.t}>
+							<title>
+								{`${new Date(s.t * 1000).toLocaleTimeString("en-US")} · ${formatAmount(kind, s.used)} of ${formatAmount(kind, s.total)} (${Math.round(s.percent)}%)`}
+							</title>
+							<rect
+								x={x + slot * 0.15}
+								width={slot * 0.7}
+								y={height - tall}
+								height={tall}
+								className={
+									level === "high"
+										? "fill-content-destructive"
+										: level === "mid"
+											? "fill-content-warning"
+											: "fill-content-success"
+								}
+							/>
+						</g>
+					);
+				})}
+			</svg>
+			<div className="mt-0.5 flex justify-between tabular-nums">
+				<span>peak {Math.round(peak)}%</span>
+				<span title="The graph's scale">0–{top}%</span>
+			</div>
+		</div>
+	);
+};
+
 type UsageBarProps = {
 	kind: Kind;
 	label: string;
 	usage: ResourceUsage;
+	/** Its last 15 minutes, drawn under it (UsageGraph); none from an older platform service. */
+	history?: ClusterHistory | null;
 };
 
-const UsageBar: React.FC<UsageBarProps> = ({ kind, label, usage }) => {
+const UsageBar: React.FC<UsageBarProps> = ({ kind, label, usage, history }) => {
 	const percentOf = (value: number) =>
 		usage.total > 0 ? Math.min(100, (value / usage.total) * 100) : 0;
 	const used = percentOf(usage.used);
-	const level = used >= 90 ? "high" : used >= 70 ? "mid" : "low";
+	const level = levelOf(used);
 
 	return (
 		<div
@@ -234,6 +350,9 @@ const UsageBar: React.FC<UsageBarProps> = ({ kind, label, usage }) => {
 				{unit(kind, usage.total)}
 			</div>
 			<div className="tabular-nums">{formatAmount(kind, usage.free)} free</div>
+			{history && history.points.length > 0 && (
+				<UsageGraph kind={kind} label={label} history={history} />
+			)}
 		</div>
 	);
 };

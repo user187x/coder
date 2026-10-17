@@ -311,12 +311,30 @@ export type ClusterNetwork = {
 	every: number;
 };
 
+/** The cluster's CPU (cores) and memory (bytes) in use, and allocatable, at one round. */
+export type UsagePoint = {
+	t: number;
+	cpu: number;
+	cpuTotal: number;
+	memory: number;
+	memoryTotal: number;
+};
+
+export type ClusterHistory = {
+	/** The last 15 minutes, one point a round. */
+	points: UsagePoint[];
+	/** Seconds between rounds. */
+	every: number;
+};
+
 export type ClusterUsage = {
 	cpu: ResourceUsage;
 	memory: ResourceUsage;
 	nodes: number;
 	live: boolean;
 	generatedAt: string;
+	/** The CPU and memory graphs. Missing before the first samples (and from an older platform service). */
+	history?: ClusterHistory | null;
 	/** Missing before the first samples, or when no kubelet answers. */
 	network?: ClusterNetwork | null;
 };
