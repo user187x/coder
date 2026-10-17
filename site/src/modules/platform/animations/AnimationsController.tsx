@@ -1,17 +1,23 @@
 import { useEffect } from "react";
-import { useAnimationsEnabled } from "./animations";
+import { animated, useAnimationSettings } from "./animations";
 import { freezeAll, freezeImage, thawAll } from "./gifFreezer";
+import "./animations.css";
 
 /**
- * Applies the "Animations" switch to the whole dashboard: <html
- * data-animations> for CSS, and, while it is off, every animated GIF on the
+ * Applies the user menu's Animations to the whole dashboard: <html
+ * data-animations> for CSS (effects: every animation and transition ends at
+ * once, animations.css), and, while GIFs are off, every animated GIF on the
  * page - including ones that appear or change later - stands still.
  */
 export const AnimationsController: React.FC = () => {
-	const enabled = useAnimationsEnabled();
+	const s = useAnimationSettings();
+	const effects = animated(s, "effects");
+	const gifs = animated(s, "gifs");
 	useEffect(() => {
-		document.documentElement.dataset.animations = enabled ? "on" : "off";
-		if (enabled) {
+		document.documentElement.dataset.animations = effects ? "on" : "off";
+	}, [effects]);
+	useEffect(() => {
+		if (gifs) {
 			thawAll();
 			return;
 		}
@@ -40,6 +46,6 @@ export const AnimationsController: React.FC = () => {
 			attributeFilter: ["src"],
 		});
 		return () => observer.disconnect();
-	}, [enabled]);
+	}, [gifs]);
 	return null;
 };

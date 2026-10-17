@@ -15,7 +15,6 @@ import {
 	HorizontalForm,
 } from "#/components/Form/Form";
 import { FormField } from "#/components/FormField/FormField";
-import { IconField } from "#/components/IconField/IconField";
 import { Label } from "#/components/Label/Label";
 import {
 	Select,
@@ -25,6 +24,7 @@ import {
 	SelectValue,
 } from "#/components/Select/Select";
 import { Spinner } from "#/components/Spinner/Spinner";
+import { IconEditor } from "#/modules/platform/templateIcons/IconEditor";
 import {
 	getFormHelpers,
 	nameValidator,
@@ -105,20 +105,16 @@ export const WorkspaceSettingsForm: React.FC<WorkspaceSettingsFormProps> = ({
 			</FormSection>
 			<FormSection
 				title="Icon"
-				description="Its own icon in the workspaces list and on its page. Empty: the template's."
+				description="Its own icon in the workspaces list and on its page; until you pick one, its template's."
 			>
 				<FormFields>
-					<IconField
-						{...getFieldHelpers("icon", {
-							helperText:
-								"A Coder icon or emoji (Emoji / Icon), or a path such as /icon/go.svg.",
-						})}
+					{/* Platform: the icon editor (preview, uploaded icons, Upload, Emoji or icon, reset, address). */}
+					<IconEditor
+						value={form.values.icon}
+						onChange={(value) => void form.setFieldValue("icon", value)}
+						fallback={workspace.template_icon || undefined}
+						resetLabel="Use the template's"
 						disabled={form.isSubmitting}
-						onChange={onChangeTrimmed(form)}
-						fullWidth
-						label="Icon"
-						placeholder={workspace.template_icon || "/emojis/1f4bb.png"}
-						onPickEmoji={(value) => form.setFieldValue("icon", value)}
 					/>
 				</FormFields>
 			</FormSection>

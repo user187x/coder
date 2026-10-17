@@ -10,8 +10,8 @@ describe("panelOrder", () => {
 			panelOrder({
 				order: ["terminal", "app:a", "logs"],
 				apps: [
-					{ id: "app:a", slug: "code-server" },
-					{ id: "app:b", slug: "novnc" },
+					{ id: "app:a", kind: "app", slug: "code-server" },
+					{ id: "app:b", kind: "app", slug: "novnc" },
 				],
 			}),
 		).toEqual(["terminal", "app:a", "logs", "app:b"]);
@@ -27,7 +27,7 @@ describe("panelOrder", () => {
 describe("readPanels", () => {
 	beforeEach(() => localStorage.clear());
 
-	it("ignores what it does not recognise", () => {
+	it("ignores what it does not recognise; a panel kept before kinds is an app's", () => {
 		localStorage.setItem(
 			"coder-ui-agent-panels:ws:main",
 			JSON.stringify({
@@ -37,7 +37,47 @@ describe("readPanels", () => {
 		);
 		expect(readPanels("ws", "main")).toEqual({
 			order: ["logs"],
-			apps: [{ id: "app:a", slug: "marimo" }],
+			apps: [{ id: "app:a", kind: "app", slug: "marimo" }],
 		});
+	});
+
+	it("keeps ports and web pages, with what they need", () => {
+		localStorage.setItem(
+			"coder-ui-agent-panels:ws:main",
+			JSON.stringify({
+				order: [],
+				apps: [
+					{
+						id: "app:p",
+						kind: "port",
+						port: 3000,
+						protocol: "http",
+						process: "node",
+						height: 500,
+					},
+					{
+						id: "app:w",
+						kind: "web",
+						url: "https://example.com/",
+						name: "Docs",
+					},
+					{ id: "app:bad1", kind: "port", port: "3000", protocol: "http" },
+					{ id: "app:bad2", kind: "port", port: 3000, protocol: "ftp" },
+					{ id: "app:bad3", kind: "web" },
+					{ id: "app:bad4", kind: "nonsense", slug: "x" },
+				],
+			}),
+		);
+		expect(readPanels("ws", "main").apps).toEqual([
+			{
+				id: "app:p",
+				kind: "port",
+				port: 3000,
+				protocol: "http",
+				process: "node",
+				height: 500,
+			},
+			{ id: "app:w", kind: "web", url: "https://example.com/", name: "Docs" },
+		]);
 	});
 });

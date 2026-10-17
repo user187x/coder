@@ -1,5 +1,7 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { QueryClient, QueryClientProvider } from "react-query";
+import { PlatformAPI } from "#/api/platform";
 import { MockTemplate } from "#/testHelpers/entities";
 import { renderComponent } from "#/testHelpers/renderHelpers";
 import { TemplateSettingsForm } from "./TemplateSettingsForm";
@@ -18,17 +20,24 @@ const renderForm = (
 	overrides: Partial<Parameters<typeof TemplateSettingsForm>[0]> = {},
 ) => {
 	const onSubmit = vi.fn();
+	// The icon editor lists the uploaded icons (Templates > Icons).
+	vi.spyOn(PlatformAPI, "getTemplateIcons").mockResolvedValue({
+		icons: [],
+		canManage: false,
+	});
 	renderComponent(
-		<TemplateSettingsForm
-			template={MockTemplate}
-			onSubmit={onSubmit}
-			onCancel={vi.fn()}
-			isSubmitting={false}
-			accessControlEnabled
-			advancedSchedulingEnabled
-			portSharingControlsEnabled
-			{...overrides}
-		/>,
+		<QueryClientProvider client={new QueryClient()}>
+			<TemplateSettingsForm
+				template={MockTemplate}
+				onSubmit={onSubmit}
+				onCancel={vi.fn()}
+				isSubmitting={false}
+				accessControlEnabled
+				advancedSchedulingEnabled
+				portSharingControlsEnabled
+				{...overrides}
+			/>
+		</QueryClientProvider>,
 	);
 	return { onSubmit };
 };

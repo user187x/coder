@@ -53,12 +53,18 @@ import {
 } from "#/components/Tooltip/Tooltip";
 import { useProxy } from "#/contexts/ProxyContext";
 import { useClipboard } from "#/hooks/useClipboard";
-import { isWorkspaceAppEmbeddable } from "#/modules/apps/apps";
 import { useFeatureVisibility } from "#/modules/dashboard/useFeatureVisibility";
 import { AgentBorderFx } from "#/modules/platform/agentBorder/AgentBorderFx";
 import { agentBorderState } from "#/modules/platform/agentBorder/agentBorderState";
 import { AddPanelTab } from "#/modules/platform/agentPanels/AddPanelTab";
-import { AgentAppPanel } from "#/modules/platform/agentPanels/AgentAppPanel";
+import {
+	AgentAppPanel,
+	canBePanel,
+} from "#/modules/platform/agentPanels/AgentAppPanel";
+import {
+	AgentPortPanel,
+	AgentWebPanel,
+} from "#/modules/platform/agentPanels/AgentLinkPanels";
 import { AgentPanels } from "#/modules/platform/agentPanels/AgentPanels";
 import { useAgentPanels } from "#/modules/platform/agentPanels/agentPanelsStore";
 import { AgentTerminalSection } from "#/modules/platform/agentTerminal/AgentTerminalSection";
@@ -80,6 +86,7 @@ import {
 } from "#/modules/workspaces/health";
 import { AgentAlert } from "#/pages/WorkspacePage/AgentAlert";
 import { AppStatuses } from "#/pages/WorkspacePage/AppStatuses";
+import { getWorkspaceListeningPortsProtocol } from "#/utils/portForward";
 import { AgentApps, organizeAgentApps } from "./AgentApps/AgentApps";
 import { AgentDevcontainerCard } from "./AgentDevcontainerCard";
 import { AgentExternal } from "./AgentExternal";
@@ -96,7 +103,7 @@ import { AgentSSHButton } from "./SSHButton/SSHButton";
 import { TerminalLink } from "./TerminalLink/TerminalLink";
 import { useAgentContainers } from "./useAgentContainers";
 import { useAgentLogs } from "./useAgentLogs";
-import { canShowPortForwarding } from "./usePortsData";
+import { canShowPortForwarding, usePortsData } from "./usePortsData";
 import { VSCodeDesktopButton } from "./VSCodeDesktopButton/VSCodeDesktopButton";
 import { WildcardHostnameWarning } from "./WildcardHostnameWarning";
 
@@ -304,7 +311,18 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 	// embeds), in the user's order.
 	const panels = useAgentPanels(workspace.id, agent.name);
 	const [justAdded, setJustAdded] = useState<string>();
-	const embeddableApps = agent.apps.filter(isWorkspaceAppEmbeddable);
+	const panelApps = agent.apps.filter(canBePanel);
+	// Any app goes in a panel: the listening ports too, where port forwarding is offered (as Open ports).
+	const portsOffered = canShowPortForwarding(
+		agent,
+		proxy.preferredWildcardHostname,
+	);
+	const { listeningPorts } = usePortsData(
+		workspace,
+		agent,
+		portsOffered && agent.status === "connected",
+	);
+	const portProtocol = getWorkspaceListeningPortsProtocol(workspace.id);
 	const [selectedLogTab, setSelectedLogTab] = useState("all");
 	const hasAutoSelectedLogTabRef = useRef(false);
 	// Auto-select the first log tab whose script failed and has rendered output.
@@ -631,9 +649,11 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 					onReorder={panels.reorder}
 					addTab={
 						<AddPanelTab
-							apps={embeddableApps}
+							apps={panelApps}
+							ports={portsOffered ? (listeningPorts ?? []) : []}
+							protocol={portProtocol}
 							disabled={!appsReady}
-							onAdd={(app) => setJustAdded(panels.add(app.slug))}
+							onAdd={(content) => setJustAdded(panels.add(content))}
 						/>
 					}
 					panels={[
@@ -924,25 +944,60 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 							),
 						},
 						...panels.apps.map((panel) => {
+							const common = {
+								id: panel.id,
+								initiallyOpen: panel.id === justAdded,
+								height: panel.height,
+								onHeightChange: (height: number) =>
+									panels.setHeight(panel.id, height),
+								onRemove: () => panels.remove(panel.id),
+							};
+							if (panel.kind === "port") {
+								return {
+									id: panel.id,
+									label: `Port ${panel.port}`,
+									render: (handle: React.ReactNode) => (
+										<AgentPortPanel
+											{...common}
+											handle={handle}
+											workspace={workspace}
+											agent={agent}
+											ready={appsReady}
+											host={proxy.preferredWildcardHostname}
+											port={panel.port}
+											protocol={panel.protocol}
+											process={panel.process}
+										/>
+									),
+								};
+							}
+							if (panel.kind === "web") {
+								return {
+									id: panel.id,
+									label: panel.name || panel.url,
+									render: (handle: React.ReactNode) => (
+										<AgentWebPanel
+											{...common}
+											handle={handle}
+											url={panel.url}
+											name={panel.name}
+										/>
+									),
+								};
+							}
 							const app = agent.apps.find((a) => a.slug === panel.slug);
 							return {
 								id: panel.id,
 								label: app?.display_name || panel.slug,
 								render: (handle: React.ReactNode) => (
 									<AgentAppPanel
-										id={panel.id}
+										{...common}
 										workspace={workspace}
 										agent={agent}
 										app={app}
 										slug={panel.slug}
 										handle={handle}
 										ready={appsReady}
-										initiallyOpen={panel.id === justAdded}
-										height={panel.height}
-										onHeightChange={(height) =>
-											panels.setHeight(panel.id, height)
-										}
-										onRemove={() => panels.remove(panel.id)}
 									/>
 								),
 							};

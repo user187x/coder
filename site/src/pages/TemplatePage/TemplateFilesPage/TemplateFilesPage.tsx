@@ -20,6 +20,7 @@ import { linkToTemplate, useLinks } from "#/modules/navigation";
 import { TemplateFiles } from "#/modules/templates/TemplateFiles/TemplateFiles";
 import { useTemplateLayoutContext } from "#/pages/TemplatePage/TemplateLayout";
 import { getTemplatePageTitle } from "../utils";
+import { UploadTemplateFiles } from "./UploadTemplateFiles";
 import { VersionsSidebar } from "./VersionsSidebar";
 
 const TemplateFilesPage: React.FC = () => {
@@ -129,6 +130,15 @@ const TemplateFilesPage: React.FC = () => {
 					versionName={version.name}
 					currentFiles={currentFiles}
 					baseFiles={previousFiles}
+					actions={
+						permissions.canUpdateTemplate && (
+							<UploadTemplateFiles
+								template={template}
+								version={version}
+								folders={foldersOf(currentFiles)}
+							/>
+						)
+					}
 					sidebar={
 						<VersionsSidebar
 							template={template}
@@ -148,6 +158,18 @@ const TemplateFilesPage: React.FC = () => {
 			)}
 		</>
 	);
+};
+
+/** The folders the files are in ("a", "a/b"), sorted. */
+const foldersOf = (files: Record<string, string>) => {
+	const folders = new Set<string>();
+	for (const name of Object.keys(files)) {
+		const parts = name.split("/").slice(0, -1);
+		for (let i = 1; i <= parts.length; i++) {
+			folders.add(parts.slice(0, i).join("/"));
+		}
+	}
+	return [...folders].sort((a, b) => a.localeCompare(b));
 };
 
 export default TemplateFilesPage;

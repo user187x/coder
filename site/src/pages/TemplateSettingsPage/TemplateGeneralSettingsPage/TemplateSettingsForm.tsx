@@ -11,14 +11,8 @@ import {
 import { Badge } from "#/components/Badge/Badge";
 import { Button } from "#/components/Button/Button";
 import { Checkbox } from "#/components/Checkbox/Checkbox";
-import {
-	FormFields,
-	FormFooter,
-	FormSection,
-	HorizontalForm,
-} from "#/components/Form/Form";
+import { FormFields, FormFooter } from "#/components/Form/Form";
 import { FormField } from "#/components/FormField/FormField";
-import { IconField } from "#/components/IconField/IconField";
 import { Label } from "#/components/Label/Label";
 import {
 	Select,
@@ -33,6 +27,8 @@ import {
 	StackLabelHelperText,
 } from "#/components/StackLabel/StackLabel";
 import { Textarea } from "#/components/Textarea/Textarea";
+import { SettingsCard } from "#/modules/platform/settingsCard/SettingsCard";
+import { IconEditor } from "#/modules/platform/templateIcons/IconEditor";
 import {
 	displayNameValidator,
 	getFormHelpers,
@@ -126,395 +122,421 @@ export const TemplateSettingsForm: React.FC<TemplateSettingsFormProps> = ({
 		template.module_cache_disabled_by_deployment;
 
 	return (
-		<HorizontalForm
+		<form
 			onSubmit={form.handleSubmit}
 			aria-label="Template settings form"
+			className="flex flex-col gap-6"
 		>
-			<FormSection
-				title="General info"
-				description="The name is used to identify the template in URLs and the API."
-			>
-				<FormFields>
-					<FormField
-						field={getFieldHelpers("name")}
-						label="Name"
-						disabled={isSubmitting}
-						onChange={onChangeTrimmed(form)}
-						autoFocus
-						className="w-full"
-					/>
-				</FormFields>
-			</FormSection>
+			{/* Platform: the settings in cards - who it is on the left, what workspaces may do on the right. */}
+			<div className="grid items-start gap-6 xl:grid-cols-2">
+				<div className="flex min-w-0 flex-col gap-6">
+					<SettingsCard
+						title="General info"
+						description="The name is used to identify the template in URLs and the API."
+					>
+						<FormFields>
+							<FormField
+								field={getFieldHelpers("name")}
+								label="Name"
+								disabled={isSubmitting}
+								onChange={onChangeTrimmed(form)}
+								autoFocus
+								className="w-full"
+							/>
+						</FormFields>
+					</SettingsCard>
+					<SettingsCard
+						title="Display info"
+						description="A friendly name, description, and icon to help developers identify your template."
+					>
+						<FormFields>
+							<FormField
+								field={getFieldHelpers("display_name")}
+								label="Display name"
+								disabled={isSubmitting}
+								className="w-full"
+							/>
 
-			<FormSection
-				title="Display info"
-				description="A friendly name, description, and icon to help developers identify your template."
-			>
-				<FormFields>
-					<FormField
-						field={getFieldHelpers("display_name")}
-						label="Display name"
-						disabled={isSubmitting}
-						className="w-full"
-					/>
+							<div className="flex flex-col gap-2">
+								<Label htmlFor={descriptionField.id}>Description</Label>
+								<Textarea
+									id={descriptionField.id}
+									name={descriptionField.name}
+									value={descriptionField.value ?? ""}
+									onChange={descriptionField.onChange}
+									onBlur={descriptionField.onBlur}
+									disabled={isSubmitting}
+									rows={2}
+									aria-invalid={descriptionField.error}
+									aria-describedby={
+										descriptionField.helperText
+											? descriptionHelperId
+											: undefined
+									}
+									className={cn(
+										descriptionField.error && "border-border-destructive",
+									)}
+								/>
+								{descriptionField.helperText && (
+									<span
+										id={descriptionHelperId}
+										className={cn(
+											"text-xs",
+											descriptionField.error
+												? "text-content-destructive"
+												: "text-content-secondary",
+										)}
+									>
+										{descriptionField.helperText}
+									</span>
+								)}
+							</div>
 
-					<div className="flex flex-col gap-2">
-						<Label htmlFor={descriptionField.id}>Description</Label>
-						<Textarea
-							id={descriptionField.id}
-							name={descriptionField.name}
-							value={descriptionField.value ?? ""}
-							onChange={descriptionField.onChange}
-							onBlur={descriptionField.onBlur}
-							disabled={isSubmitting}
-							rows={2}
-							aria-invalid={descriptionField.error}
-							aria-describedby={
-								descriptionField.helperText ? descriptionHelperId : undefined
-							}
-							className={cn(
-								descriptionField.error && "border-border-destructive",
+							<div className="flex flex-col gap-2">
+								<Label>Icon</Label>
+								{/* Platform: upload a picture (Templates > Icons), or pick one, instead of only an emoji. */}
+								<IconEditor
+									value={form.values.icon ?? ""}
+									onChange={(value) => void form.setFieldValue("icon", value)}
+									resetLabel="No icon"
+									uploadName={template.name}
+									disabled={isSubmitting}
+									error={Boolean(getFieldHelpers("icon").error)}
+									helperText={getFieldHelpers("icon").helperText}
+								/>
+							</div>
+						</FormFields>
+					</SettingsCard>
+					<SettingsCard
+						title="Deprecate"
+						description="Deprecating a template prevents any new workspaces from being created. Existing workspaces will continue to function."
+					>
+						<FormFields>
+							<FormField
+								field={getFieldHelpers("deprecation_message", {
+									helperText:
+										"Leave the message empty to keep the template active. Any message provided will mark the template as deprecated. Use this message to inform users of the deprecation and how to migrate to a new template.",
+								})}
+								label="Deprecation Message"
+								disabled={
+									isSubmitting ||
+									(!template.deprecated && !accessControlEnabled)
+								}
+								className="w-full"
+							/>
+							{!accessControlEnabled && (
+								<div className="flex flex-row gap-4 items-center">
+									<span className="text-xs text-content-secondary">
+										Deprecating templates is not enabled on this deployment.
+										{template.deprecated &&
+											" You cannot change the message, but you may remove it to mark this template as no longer deprecated."}
+									</span>
+								</div>
 							)}
-						/>
-						{descriptionField.helperText && (
-							<span
-								id={descriptionHelperId}
-								className={cn(
-									"text-xs",
-									descriptionField.error
-										? "text-content-destructive"
-										: "text-content-secondary",
-								)}
-							>
-								{descriptionField.helperText}
-							</span>
-						)}
-					</div>
+						</FormFields>
+					</SettingsCard>
+				</div>
+				<div className="flex min-w-0 flex-col gap-6">
+					<SettingsCard
+						title="Operations"
+						description="Regulate actions allowed on workspaces created from this template."
+					>
+						<FormFields className="gap-12">
+							<div className="flex items-start">
+								<Checkbox
+									id="agents_allowed"
+									name="agents_allowed"
+									disabled={isSubmitting}
+									checked={form.values.agents_allowed}
+									onCheckedChange={(checked) => {
+										form.setFieldValue("agents_allowed", checked === true);
+									}}
+								/>
+								<Label htmlFor="agents_allowed">
+									<StackLabel>
+										Allow Coder Agents to create workspaces using this template
+									</StackLabel>
+								</Label>
+							</div>
 
-					<IconField
-						{...getFieldHelpers("icon")}
-						disabled={isSubmitting}
-						onChange={onChangeTrimmed(form)}
-						fullWidth
-						label="Icon"
-						onPickEmoji={(value) => form.setFieldValue("icon", value)}
-					/>
-				</FormFields>
-			</FormSection>
+							<div className="flex items-start">
+								<Checkbox
+									id="allow_user_cancel_workspace_jobs"
+									name="allow_user_cancel_workspace_jobs"
+									disabled={isSubmitting}
+									checked={form.values.allow_user_cancel_workspace_jobs}
+									onCheckedChange={(checked) => {
+										form.setFieldValue(
+											"allow_user_cancel_workspace_jobs",
+											checked === true,
+										);
+									}}
+								/>
+								<Label htmlFor="allow_user_cancel_workspace_jobs">
+									<StackLabel>
+										Allow users to cancel in-progress workspace jobs.
+										<StackLabelHelperText>
+											Depending on your template, canceling builds may leave
+											workspaces in an unhealthy state. This option isn&apos;t
+											recommended for most use cases.{" "}
+											<strong>
+												If checked, users may be able to corrupt their
+												workspace.
+											</strong>
+										</StackLabelHelperText>
+									</StackLabel>
+								</Label>
+							</div>
 
-			<FormSection
-				title="Operations"
-				description="Regulate actions allowed on workspaces created from this template."
-			>
-				<FormFields className="gap-12">
-					<div className="flex items-start">
-						<Checkbox
-							id="agents_allowed"
-							name="agents_allowed"
-							disabled={isSubmitting}
-							checked={form.values.agents_allowed}
-							onCheckedChange={(checked) => {
-								form.setFieldValue("agents_allowed", checked === true);
-							}}
-						/>
-						<Label htmlFor="agents_allowed">
-							<StackLabel>
-								Allow Coder Agents to create workspaces using this template
-							</StackLabel>
-						</Label>
-					</div>
-
-					<div className="flex items-start">
-						<Checkbox
-							id="allow_user_cancel_workspace_jobs"
-							name="allow_user_cancel_workspace_jobs"
-							disabled={isSubmitting}
-							checked={form.values.allow_user_cancel_workspace_jobs}
-							onCheckedChange={(checked) => {
-								form.setFieldValue(
-									"allow_user_cancel_workspace_jobs",
-									checked === true,
-								);
-							}}
-						/>
-						<Label htmlFor="allow_user_cancel_workspace_jobs">
-							<StackLabel>
-								Allow users to cancel in-progress workspace jobs.
-								<StackLabelHelperText>
-									Depending on your template, canceling builds may leave
-									workspaces in an unhealthy state. This option isn&apos;t
-									recommended for most use cases.{" "}
-									<strong>
-										If checked, users may be able to corrupt their workspace.
-									</strong>
-								</StackLabelHelperText>
-							</StackLabel>
-						</Label>
-					</div>
-
-					<div className="flex items-start">
-						<Checkbox
-							id="require_active_version"
-							name="require_active_version"
-							checked={form.values.require_active_version}
-							onCheckedChange={(checked) => {
-								form.setFieldValue("require_active_version", checked === true);
-							}}
-							disabled={
-								!template.require_active_version && !advancedSchedulingEnabled
-							}
-						/>
-						<Label htmlFor="require_active_version">
-							<StackLabel>
-								Require workspaces automatically update when started.
-								<StackLabelHelperText>
-									<span>
-										Workspaces that are manually started or auto-started will
-										use the active template version.{" "}
-										<strong>
-											This setting is not enforced for template admins.
-										</strong>
-									</span>
-
-									{!advancedSchedulingEnabled && (
-										<span className="block mt-4">
-											Not enabled on this deployment.
-										</span>
-									)}
-								</StackLabelHelperText>
-							</StackLabel>
-						</Label>
-					</div>
-
-					<div className="flex items-start">
-						<Checkbox
-							id="disable_module_cache"
-							name="disable_module_cache"
-							checked={
-								moduleCacheDisabledByDeployment ||
-								form.values.disable_module_cache
-							}
-							onCheckedChange={(checked) => {
-								form.setFieldValue("disable_module_cache", checked === true);
-							}}
-							disabled={isSubmitting || moduleCacheDisabledByDeployment}
-						/>
-						<Label htmlFor="disable_module_cache">
-							<StackLabel>
-								<span className="flex flex-row gap-2 items-center">
-									Disable Terraform module caching
-									{moduleCacheDisabledByDeployment && (
-										<Badge variant="warning" size="sm" svgSize="sm">
-											<LockIcon />
-											Set deployment wide
-										</Badge>
-									)}
-								</span>
-								<StackLabelHelperText>
-									<span>
-										When checked, Terraform modules are re-downloaded for each
-										workspace build instead of using cached versions.{" "}
-										<strong>
-											Warning: This makes workspace builds less predictable and
-											is not recommended for production templates.
-										</strong>
-									</span>
-
-									{moduleCacheDisabledByDeployment && (
-										<span className="flex flex-row gap-2 items-start mt-4">
-											<TriangleAlertIcon className="size-icon-sm shrink-0 mt-0.5 text-content-warning" />
+							<div className="flex items-start">
+								<Checkbox
+									id="require_active_version"
+									name="require_active_version"
+									checked={form.values.require_active_version}
+									onCheckedChange={(checked) => {
+										form.setFieldValue(
+											"require_active_version",
+											checked === true,
+										);
+									}}
+									disabled={
+										!template.require_active_version &&
+										!advancedSchedulingEnabled
+									}
+								/>
+								<Label htmlFor="require_active_version">
+									<StackLabel>
+										Require workspaces automatically update when started.
+										<StackLabelHelperText>
 											<span>
+												Workspaces that are manually started or auto-started
+												will use the active template version.{" "}
 												<strong>
-													This setting is locked because module caching is
-													disabled for every template by the deployment option{" "}
-													<code>CODER_PROVISIONER_DISABLE_MODULE_CACHE</code>.
-												</strong>{" "}
-												This template cannot turn caching back on, so modules
-												are re-downloaded on each workspace build. Ask a
-												deployment admin to clear that option to change it here.
+													This setting is not enforced for template admins.
+												</strong>
 											</span>
+
+											{!advancedSchedulingEnabled && (
+												<span className="block mt-4">
+													Not enabled on this deployment.
+												</span>
+											)}
+										</StackLabelHelperText>
+									</StackLabel>
+								</Label>
+							</div>
+
+							<div className="flex items-start">
+								<Checkbox
+									id="disable_module_cache"
+									name="disable_module_cache"
+									checked={
+										moduleCacheDisabledByDeployment ||
+										form.values.disable_module_cache
+									}
+									onCheckedChange={(checked) => {
+										form.setFieldValue(
+											"disable_module_cache",
+											checked === true,
+										);
+									}}
+									disabled={isSubmitting || moduleCacheDisabledByDeployment}
+								/>
+								<Label htmlFor="disable_module_cache">
+									<StackLabel>
+										<span className="flex flex-row gap-2 items-center">
+											Disable Terraform module caching
+											{moduleCacheDisabledByDeployment && (
+												<Badge variant="warning" size="sm" svgSize="sm">
+													<LockIcon />
+													Set deployment wide
+												</Badge>
+											)}
 										</span>
-									)}
-								</StackLabelHelperText>
-							</StackLabel>
-						</Label>
-					</div>
+										<StackLabelHelperText>
+											<span>
+												When checked, Terraform modules are re-downloaded for
+												each workspace build instead of using cached versions.{" "}
+												<strong>
+													Warning: This makes workspace builds less predictable
+													and is not recommended for production templates.
+												</strong>
+											</span>
 
-					<div className="flex items-start">
-						<Checkbox
-							id="allow_workspace_renames"
-							name="allow_workspace_renames"
-							checked={form.values.allow_workspace_renames}
-							onCheckedChange={(checked) => {
-								form.setFieldValue("allow_workspace_renames", checked === true);
-							}}
-							disabled={isSubmitting}
-						/>
-						<Label htmlFor="allow_workspace_renames">
-							<StackLabel>
-								Allow users to rename their workspaces.
-								<StackLabelHelperText>
-									<div>
-										Only enable this if your template does not use the workspace
-										name in such a way that changing it may destroy/recreate a
-										resource.
-									</div>
-								</StackLabelHelperText>
-							</StackLabel>
-						</Label>
-					</div>
-				</FormFields>
-			</FormSection>
+											{moduleCacheDisabledByDeployment && (
+												<span className="flex flex-row gap-2 items-start mt-4">
+													<TriangleAlertIcon className="size-icon-sm shrink-0 mt-0.5 text-content-warning" />
+													<span>
+														<strong>
+															This setting is locked because module caching is
+															disabled for every template by the deployment
+															option{" "}
+															<code>
+																CODER_PROVISIONER_DISABLE_MODULE_CACHE
+															</code>
+															.
+														</strong>{" "}
+														This template cannot turn caching back on, so
+														modules are re-downloaded on each workspace build.
+														Ask a deployment admin to clear that option to
+														change it here.
+													</span>
+												</span>
+											)}
+										</StackLabelHelperText>
+									</StackLabel>
+								</Label>
+							</div>
 
-			<FormSection
-				title="Deprecate"
-				description="Deprecating a template prevents any new workspaces from being created. Existing workspaces will continue to function."
-			>
-				<FormFields>
-					<FormField
-						field={getFieldHelpers("deprecation_message", {
-							helperText:
-								"Leave the message empty to keep the template active. Any message provided will mark the template as deprecated. Use this message to inform users of the deprecation and how to migrate to a new template.",
-						})}
-						label="Deprecation Message"
-						disabled={
-							isSubmitting || (!template.deprecated && !accessControlEnabled)
-						}
-						className="w-full"
-					/>
-					{!accessControlEnabled && (
-						<div className="flex flex-row gap-4 items-center">
-							<span className="text-xs text-content-secondary">
-								Deprecating templates is not enabled on this deployment.
-								{template.deprecated &&
-									" You cannot change the message, but you may remove it to mark this template as no longer deprecated."}
-							</span>
-						</div>
-					)}
-				</FormFields>
-			</FormSection>
-
-			<FormSection
-				title="Port Sharing"
-				description="Shared ports with the Public sharing level can be accessed by anyone,
-          while ports with the Authenticated sharing level can only be accessed
-          by authenticated Coder users. Ports with the Owner sharing level can
-          only be accessed by the workspace owner."
-			>
-				<FormFields>
-					<div className="flex flex-col gap-2">
-						<Label htmlFor={maxPortShareField.id}>
-							Maximum Port Sharing Level
-						</Label>
-						<Select
-							value={
-								portSharingControlsEnabled
-									? form.values.max_port_share_level
-									: "public"
-							}
-							onValueChange={(value) => {
-								form.setFieldValue("max_port_share_level", value);
-							}}
-							disabled={isSubmitting || !portSharingControlsEnabled}
-						>
-							<SelectTrigger
-								id={maxPortShareField.id}
-								className={cn(
-									"w-full",
-									maxPortShareField.error && "border-border-destructive",
+							<div className="flex items-start">
+								<Checkbox
+									id="allow_workspace_renames"
+									name="allow_workspace_renames"
+									checked={form.values.allow_workspace_renames}
+									onCheckedChange={(checked) => {
+										form.setFieldValue(
+											"allow_workspace_renames",
+											checked === true,
+										);
+									}}
+									disabled={isSubmitting}
+								/>
+								<Label htmlFor="allow_workspace_renames">
+									<StackLabel>
+										Allow users to rename their workspaces.
+										<StackLabelHelperText>
+											<div>
+												Only enable this if your template does not use the
+												workspace name in such a way that changing it may
+												destroy/recreate a resource.
+											</div>
+										</StackLabelHelperText>
+									</StackLabel>
+								</Label>
+							</div>
+						</FormFields>
+					</SettingsCard>
+					<SettingsCard
+						title="Port Sharing"
+						description="Shared ports with the Public sharing level can be accessed by anyone,
+	          while ports with the Authenticated sharing level can only be accessed
+	          by authenticated Coder users. Ports with the Owner sharing level can
+	          only be accessed by the workspace owner."
+					>
+						<FormFields>
+							<div className="flex flex-col gap-2">
+								<Label htmlFor={maxPortShareField.id}>
+									Maximum Port Sharing Level
+								</Label>
+								<Select
+									value={
+										portSharingControlsEnabled
+											? form.values.max_port_share_level
+											: "public"
+									}
+									onValueChange={(value) => {
+										form.setFieldValue("max_port_share_level", value);
+									}}
+									disabled={isSubmitting || !portSharingControlsEnabled}
+								>
+									<SelectTrigger
+										id={maxPortShareField.id}
+										className={cn(
+											"w-full",
+											maxPortShareField.error && "border-border-destructive",
+										)}
+										aria-invalid={maxPortShareField.error}
+										aria-describedby={
+											maxPortShareField.helperText
+												? maxPortShareHelperId
+												: undefined
+										}
+									>
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="owner">Owner</SelectItem>
+										<SelectItem value="organization">Organization</SelectItem>
+										<SelectItem value="authenticated">Authenticated</SelectItem>
+										<SelectItem value="public">Public</SelectItem>
+									</SelectContent>
+								</Select>
+								{maxPortShareField.helperText && (
+									<span
+										id={maxPortShareHelperId}
+										className={cn(
+											"text-xs",
+											maxPortShareField.error
+												? "text-content-destructive"
+												: "text-content-secondary",
+										)}
+									>
+										{maxPortShareField.helperText}
+									</span>
 								)}
-								aria-invalid={maxPortShareField.error}
-								aria-describedby={
-									maxPortShareField.helperText
-										? maxPortShareHelperId
-										: undefined
-								}
-							>
-								<SelectValue />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value="owner">Owner</SelectItem>
-								<SelectItem value="organization">Organization</SelectItem>
-								<SelectItem value="authenticated">Authenticated</SelectItem>
-								<SelectItem value="public">Public</SelectItem>
-							</SelectContent>
-						</Select>
-						{maxPortShareField.helperText && (
-							<span
-								id={maxPortShareHelperId}
-								className={cn(
-									"text-xs",
-									maxPortShareField.error
-										? "text-content-destructive"
-										: "text-content-secondary",
+							</div>
+							{!portSharingControlsEnabled && (
+								<div className="flex flex-row gap-4 items-center">
+									<span className="text-xs text-content-secondary">
+										Controlling the maximum port sharing level is not enabled on
+										this deployment.
+									</span>
+								</div>
+							)}
+						</FormFields>
+					</SettingsCard>
+					<SettingsCard
+						title="CORS Behavior"
+						description="Control how Cross-Origin Resource Sharing (CORS) requests are handled for all shared ports."
+					>
+						<FormFields>
+							<div className="flex flex-col gap-2">
+								<Label htmlFor={corsBehaviorField.id}>CORS Behavior</Label>
+								<Select
+									value={form.values.cors_behavior}
+									onValueChange={(value) => {
+										form.setFieldValue("cors_behavior", value);
+									}}
+									disabled={isSubmitting}
+								>
+									<SelectTrigger
+										id={corsBehaviorField.id}
+										className={cn(
+											"w-full",
+											corsBehaviorField.error && "border-border-destructive",
+										)}
+										aria-invalid={corsBehaviorField.error}
+										aria-describedby={
+											corsBehaviorField.helperText
+												? corsBehaviorHelperId
+												: undefined
+										}
+									>
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="simple">Simple (recommended)</SelectItem>
+										<SelectItem value="passthru">Passthru</SelectItem>
+									</SelectContent>
+								</Select>
+								{corsBehaviorField.helperText && (
+									<span
+										id={corsBehaviorHelperId}
+										className={cn(
+											"text-xs",
+											corsBehaviorField.error
+												? "text-content-destructive"
+												: "text-content-secondary",
+										)}
+									>
+										{corsBehaviorField.helperText}
+									</span>
 								)}
-							>
-								{maxPortShareField.helperText}
-							</span>
-						)}
-					</div>
-					{!portSharingControlsEnabled && (
-						<div className="flex flex-row gap-4 items-center">
-							<span className="text-xs text-content-secondary">
-								Controlling the maximum port sharing level is not enabled on
-								this deployment.
-							</span>
-						</div>
-					)}
-				</FormFields>
-			</FormSection>
-
-			<FormSection
-				title="CORS Behavior"
-				description="Control how Cross-Origin Resource Sharing (CORS) requests are handled for all shared ports."
-			>
-				<FormFields>
-					<div className="flex flex-col gap-2">
-						<Label htmlFor={corsBehaviorField.id}>CORS Behavior</Label>
-						<Select
-							value={form.values.cors_behavior}
-							onValueChange={(value) => {
-								form.setFieldValue("cors_behavior", value);
-							}}
-							disabled={isSubmitting}
-						>
-							<SelectTrigger
-								id={corsBehaviorField.id}
-								className={cn(
-									"w-full",
-									corsBehaviorField.error && "border-border-destructive",
-								)}
-								aria-invalid={corsBehaviorField.error}
-								aria-describedby={
-									corsBehaviorField.helperText
-										? corsBehaviorHelperId
-										: undefined
-								}
-							>
-								<SelectValue />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value="simple">Simple (recommended)</SelectItem>
-								<SelectItem value="passthru">Passthru</SelectItem>
-							</SelectContent>
-						</Select>
-						{corsBehaviorField.helperText && (
-							<span
-								id={corsBehaviorHelperId}
-								className={cn(
-									"text-xs",
-									corsBehaviorField.error
-										? "text-content-destructive"
-										: "text-content-secondary",
-								)}
-							>
-								{corsBehaviorField.helperText}
-							</span>
-						)}
-					</div>
-				</FormFields>
-			</FormSection>
-
+							</div>
+						</FormFields>
+					</SettingsCard>
+				</div>
+			</div>
 			<FormFooter>
 				<Button onClick={onCancel} variant="outline">
 					Cancel
@@ -525,6 +547,6 @@ export const TemplateSettingsForm: React.FC<TemplateSettingsFormProps> = ({
 					Save
 				</Button>
 			</FormFooter>
-		</HorizontalForm>
+		</form>
 	);
 };

@@ -1,0 +1,13 @@
+/* Animations > Effects & transitions off (or all of them): every CSS animation and transition in the dashboard ends
+   at once, at its last frame - their end events still fire, so nothing waiting for them hangs. Loading spinners
+   still turn: they say something is under way. */
+html[data-animations="off"] *:not(.animate-spin),
+html[data-animations="off"] *::before,
+html[data-animations="off"] *::after {
+	animation-duration: 0.001ms !important;
+	animation-delay: 0s !important;
+	animation-iteration-count: 1 !important;
+	transition-duration: 0.001ms !important;
+	transition-delay: 0s !important;
+	scroll-behavior: auto !important;
+}

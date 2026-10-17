@@ -21,6 +21,8 @@ type TemplateFilesProps = {
 	baseFiles?: TemplateVersionFiles;
 	/** Shown under the file tree, in the same sticky column (Source Code: the versions). */
 	sidebar?: React.ReactNode;
+	/** Shown above the file tree (Source Code: Upload). */
+	actions?: React.ReactNode;
 };
 
 export const TemplateFiles: React.FC<TemplateFilesProps> = ({
@@ -30,6 +32,7 @@ export const TemplateFiles: React.FC<TemplateFilesProps> = ({
 	currentFiles,
 	baseFiles,
 	sidebar,
+	actions,
 }) => {
 	const getLink = useLinks();
 
@@ -66,6 +69,7 @@ export const TemplateFiles: React.FC<TemplateFilesProps> = ({
 			<div className="flex items-start gap-8">
 				{/* top-28 (112px) is a sum of nav height (72px) and TemplateLayout's LinkTabs' mb-10 (40px) */}
 				<div className="sticky top-28 flex max-h-[calc(100vh-8rem)] w-[240px] shrink-0 flex-col gap-3">
+					{actions}
 					<div
 						className={cn(
 							"min-h-0 overflow-auto rounded-lg border border-solid border-surface-quaternary py-1",

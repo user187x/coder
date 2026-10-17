@@ -1,11 +1,13 @@
 import { useSyncExternalStore } from "react";
+import { useAnimationSettings } from "#/modules/platform/animations/animations";
 
 /**
  * The workspace metric graphs' refresh interval, shared by the agent's
  * "Metrics Interval" menu (next to Open ports) and the graphs: seconds per bar
  * (0 = one bar per reading, as the agent sends it) or "off" (no graphs, nothing
- * recorded: for browsers short on processing power). 1 s unless chosen;
- * remembered in this browser. The graphs also publish how often each agent reports its metrics,
+ * recorded: for browsers short on processing power; also the user menu's
+ * Animations > Live graphs, and while all animations are off). 1 s unless
+ * chosen; remembered in this browser. The graphs also publish how often each agent reports its metrics,
  * for the menu's readout.
  */
 export type GraphEvery = number | "off";
@@ -33,6 +35,8 @@ const read = (): GraphEvery => {
 };
 
 let every: GraphEvery = read();
+// The interval to go back to when the graphs are switched on again (Animations > Live graphs).
+let lastOn: number = every === "off" ? 1 : every;
 let version = 0;
 
 const emit = () => {
@@ -49,6 +53,9 @@ const subscribe = (l: () => void) => {
 
 export const setGraphEvery = (v: GraphEvery) => {
 	every = v;
+	if (v !== "off") {
+		lastOn = v;
+	}
 	try {
 		localStorage.setItem(STORE_KEY, String(v));
 	} catch {
@@ -57,7 +64,18 @@ export const setGraphEvery = (v: GraphEvery) => {
 	emit();
 };
 
-export const useGraphEvery = () => useSyncExternalStore(subscribe, () => every);
+/** The interval as chosen (the Metrics Interval menu's and Animations > Live graphs' own setting). */
+export const useGraphEveryChoice = () =>
+	useSyncExternalStore(subscribe, () => every);
+
+/** The interval the graphs use: "off" while all animations are off. */
+export const useGraphEvery = (): GraphEvery => {
+	const chosen = useGraphEveryChoice();
+	return useAnimationSettings().all ? chosen : "off";
+};
+
+/** Animations > Live graphs: off, or back to the interval chosen before. */
+export const setGraphsOn = (on: boolean) => setGraphEvery(on ? lastOn : "off");
 
 /** The graphs say how often an agent reports each metric (its template's intervals). */
 export const publishIntervals = (

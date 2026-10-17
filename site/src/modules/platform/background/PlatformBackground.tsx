@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import type { BackgroundImage, BackgroundSlot } from "#/api/platform";
 import { isEmbeddedFrame, usePlatformSnapshot } from "#/contexts/platformBoot";
-import { useAnimationsEnabled } from "../animations/animations";
+import { useBackgroundAnimated } from "../animations/animations";
 import { dial, dialFilter, frameHash } from "./backgroundHtml";
 
 const size = (fit: BackgroundImage["fit"]) => (fit === "tile" ? "auto" : fit);
@@ -153,8 +153,8 @@ const useRoomBeneath = (active: boolean) => {
  *
  * An HTML background (the Particles preset, or HTML / CSS an admin pasted) is
  * a frame of its own page, sandboxed: it can't reach Coder's page, its cookies
- * or the network. Its dials set its animations' speed (paused while the
- * Animations switch is off) and its colour filters.
+ * or the network. Its dials set its animations' speed (paused while
+ * Animations > Moving background is off) and its colour filters.
  */
 export const PlatformBackground: React.FC<{ slot: BackgroundSlot }> = ({
 	slot,
@@ -162,7 +162,7 @@ export const PlatformBackground: React.FC<{ slot: BackgroundSlot }> = ({
 	const image = usePlatformSnapshot().backgrounds[slot];
 	// A page in another page's frame: the page around it has the background.
 	const shown = image && !isEmbeddedFrame() ? image : null;
-	const animations = useAnimationsEnabled();
+	const animations = useBackgroundAnimated();
 	useUnderlay(shown);
 	useRoomBeneath(shown?.kind === "html" && shown.layer === "under");
 	if (shown?.kind === "html") {

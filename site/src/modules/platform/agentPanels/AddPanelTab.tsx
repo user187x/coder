@@ -1,34 +1,65 @@
-import { LayoutGridIcon, PlusIcon } from "lucide-react";
-import type { WorkspaceApp } from "#/api/typesGenerated";
+import {
+	GlobeIcon,
+	LayoutGridIcon,
+	PlusIcon,
+	RadioIcon,
+	SquareTerminalIcon,
+} from "lucide-react";
+import { useId, useState } from "react";
+import type {
+	WorkspaceAgentListeningPort,
+	WorkspaceApp,
+} from "#/api/typesGenerated";
+import { Button } from "#/components/Button/Button";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "#/components/Dialog/Dialog";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
 	DropdownMenuLabel,
+	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "#/components/DropdownMenu/DropdownMenu";
 import { ExternalImage } from "#/components/ExternalImage/ExternalImage";
+import { Input } from "#/components/Input/Input";
+import { Label } from "#/components/Label/Label";
+import { webAddress } from "./AgentLinkPanels";
+import type { PanelContent } from "./agentPanelsStore";
 
 type AddPanelTabProps = {
-	/** The apps that can be embedded in a panel. */
+	/** The apps that can go in a panel (canBePanel). */
 	apps: readonly WorkspaceApp[];
+	/** The ports listening in the workspace; none where port forwarding is not offered. */
+	ports: readonly WorkspaceAgentListeningPort[];
+	/** How the listening ports are opened (Open ports' choice). */
+	protocol: "http" | "https";
 	/** The workspace is not ready yet (agentAppsReady). */
 	disabled: boolean;
-	onAdd: (app: WorkspaceApp) => void;
+	onAdd: (content: PanelContent) => void;
 };
 
 /**
  * A half-moon tab peeking out above the top panel's right end, over the card's
  * content above it (whichever panel is on top), with a round "+" inside it in
- * the theme's accent colour: it adds a panel with one of the workspace's apps
- * (File Browser, the desktop, marimo, code-server, ...) embedded, like the
- * Terminal panel.
+ * the theme's accent colour: it adds an accordion panel (AccordionPanel) with
+ * any app - one of the workspace's (served from it, a command in a terminal,
+ * an external page), a port listening in it, or any web address.
  */
 export const AddPanelTab: React.FC<AddPanelTabProps> = ({
 	apps,
+	ports,
+	protocol,
 	disabled,
 	onAdd,
 }) => {
+	const [asking, setAsking] = useState(false);
 	return (
 		<div
 			className="pointer-events-none absolute right-6 top-0 z-20 -translate-y-full"
@@ -54,24 +85,159 @@ export const AddPanelTab: React.FC<AddPanelTabProps> = ({
 							<PlusIcon className="size-[11px]" strokeWidth={3} aria-hidden />
 						</button>
 					</DropdownMenuTrigger>
-					<DropdownMenuContent align="end" className="min-w-52">
+					<DropdownMenuContent
+						align="end"
+						className="max-h-[70vh] min-w-56 overflow-y-auto"
+					>
 						<DropdownMenuLabel>Add a panel with</DropdownMenuLabel>
 						{apps.map((app) => (
-							<DropdownMenuItem key={app.id} onSelect={() => onAdd(app)}>
+							<DropdownMenuItem
+								key={app.id}
+								onSelect={() => onAdd({ kind: "app", slug: app.slug })}
+							>
 								{app.icon ? (
 									<ExternalImage src={app.icon} className="size-4" />
+								) : app.command ? (
+									<SquareTerminalIcon />
+								) : app.external ? (
+									<GlobeIcon />
 								) : (
 									<LayoutGridIcon />
 								)}
 								<span>{app.display_name || app.slug}</span>
+								{app.command && (
+									<span className="ml-auto text-2xs text-content-secondary">
+										terminal
+									</span>
+								)}
+								{app.external && !app.command && (
+									<span className="ml-auto text-2xs text-content-secondary">
+										external
+									</span>
+								)}
 							</DropdownMenuItem>
 						))}
 						{apps.length === 0 && (
-							<DropdownMenuItem disabled>No apps to embed</DropdownMenuItem>
+							<DropdownMenuItem disabled>No apps</DropdownMenuItem>
 						)}
+						{ports.length > 0 && (
+							<>
+								<DropdownMenuSeparator />
+								<DropdownMenuLabel>Open ports</DropdownMenuLabel>
+								{ports.map((port) => (
+									<DropdownMenuItem
+										key={port.port}
+										onSelect={() =>
+											onAdd({
+												kind: "port",
+												port: port.port,
+												protocol,
+												process: port.process_name || undefined,
+											})
+										}
+									>
+										<RadioIcon />
+										<span className="tabular-nums">{port.port}</span>
+										{port.process_name && (
+											<span className="truncate text-content-secondary">
+												{port.process_name}
+											</span>
+										)}
+									</DropdownMenuItem>
+								))}
+							</>
+						)}
+						<DropdownMenuSeparator />
+						<DropdownMenuItem onSelect={() => setAsking(true)}>
+							<GlobeIcon />
+							<span>A web address…</span>
+						</DropdownMenuItem>
 					</DropdownMenuContent>
 				</DropdownMenu>
 			</div>
+			<WebAddressDialog
+				open={asking}
+				onClose={() => setAsking(false)}
+				onAdd={(url, name) => {
+					setAsking(false);
+					onAdd({ kind: "web", url, name: name || undefined });
+				}}
+			/>
 		</div>
+	);
+};
+
+const WebAddressDialog: React.FC<{
+	open: boolean;
+	onClose: () => void;
+	onAdd: (url: string, name: string) => void;
+}> = ({ open, onClose, onAdd }) => {
+	const urlId = useId();
+	const nameId = useId();
+	const [url, setUrl] = useState("");
+	const [name, setName] = useState("");
+	const address = webAddress(url);
+	return (
+		<Dialog
+			open={open}
+			onOpenChange={(next) => {
+				if (!next) {
+					onClose();
+					setUrl("");
+					setName("");
+				}
+			}}
+		>
+			<DialogContent className="max-w-md">
+				<form
+					className="flex flex-col gap-4"
+					onSubmit={(event) => {
+						event.preventDefault();
+						if (address) {
+							onAdd(address.href, name.trim());
+							setUrl("");
+							setName("");
+						}
+					}}
+				>
+					<DialogHeader>
+						<DialogTitle>A panel with a web page</DialogTitle>
+						<DialogDescription>
+							Any http or https address. A page that does not allow being shown
+							inside another page stays blank: Pop out opens it.
+						</DialogDescription>
+					</DialogHeader>
+					<div className="flex flex-col gap-2">
+						<Label htmlFor={urlId}>Address</Label>
+						<Input
+							id={urlId}
+							autoFocus
+							placeholder="https://…"
+							value={url}
+							onChange={(event) => setUrl(event.target.value)}
+							aria-invalid={url.trim() !== "" && !address}
+						/>
+					</div>
+					<div className="flex flex-col gap-2">
+						<Label htmlFor={nameId}>Name (optional)</Label>
+						<Input
+							id={nameId}
+							placeholder={address?.host ?? "Its host"}
+							value={name}
+							maxLength={60}
+							onChange={(event) => setName(event.target.value)}
+						/>
+					</div>
+					<DialogFooter>
+						<Button type="button" variant="outline" onClick={onClose}>
+							Cancel
+						</Button>
+						<Button type="submit" disabled={!address}>
+							Add the panel
+						</Button>
+					</DialogFooter>
+				</form>
+			</DialogContent>
+		</Dialog>
 	);
 };

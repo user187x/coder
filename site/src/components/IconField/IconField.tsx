@@ -159,7 +159,7 @@ export const IconField: React.FC<IconFieldProps> = ({
  * category. Mounted only while the popover is open, so the list is fetched on
  * first use; without the platform service the category is simply absent.
  */
-const IconPicker: React.FC<{ onPick: (value: string) => void }> = ({
+export const IconPicker: React.FC<{ onPick: (value: string) => void }> = ({
 	onPick,
 }) => {
 	const iconsQuery = useQuery(templateIcons());
