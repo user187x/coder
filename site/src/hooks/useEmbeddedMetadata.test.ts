@@ -1,7 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import type { Region, User } from "#/api/typesGenerated";
 import {
-	MockAIGatewayEnabled,
 	MockAppearanceConfig,
 	MockBuildInfo,
 	MockEntitlements,
@@ -44,7 +43,6 @@ const mockDataForTags = {
 	user: MockUserOwner,
 	userAppearance: MockUserAppearanceSettings,
 	regions: MockRegions,
-	"ai-gateway-enabled": MockAIGatewayEnabled,
 	"user-secret-file-path-enabled": true,
 	permissions: MockPermissions,
 	organizations: [MockOrganization],
@@ -76,10 +74,6 @@ const emptyMetadata: RuntimeHtmlMetadata = {
 		value: undefined,
 	},
 	userAppearance: {
-		available: false,
-		value: undefined,
-	},
-	"ai-gateway-enabled": {
 		available: false,
 		value: undefined,
 	},
@@ -125,10 +119,6 @@ const populatedMetadata: RuntimeHtmlMetadata = {
 	userAppearance: {
 		available: true,
 		value: MockUserAppearanceSettings,
-	},
-	"ai-gateway-enabled": {
-		available: true,
-		value: MockAIGatewayEnabled,
 	},
 	"user-secret-file-path-enabled": {
 		available: true,

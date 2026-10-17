@@ -75,14 +75,10 @@ func TestExperimentRules(t *testing.T) {
 	t.Parallel()
 
 	// Each write takes effect on the member's next request, without a
-	// restart. mcp-tool-search is enabled at startup, example is not.
+	// restart. example is not enabled at startup.
 	t.Run("WritesApplyToNextRequest", func(t *testing.T) {
 		t.Parallel()
-		ownerClient := coderdtest.New(t, &coderdtest.Options{
-			DeploymentValues: coderdtest.DeploymentValues(t, func(v *codersdk.DeploymentValues) {
-				v.Experiments = []string{string(codersdk.ExperimentMCPToolSearch)}
-			}),
-		})
+		ownerClient := coderdtest.New(t, nil)
 		owner := coderdtest.CreateFirstUser(t, ownerClient)
 		memberClient, member := coderdtest.CreateAnotherUser(t, ownerClient, owner.OrganizationID)
 		ctx := testutil.Context(t, testutil.WaitLong)
@@ -92,8 +88,6 @@ func TestExperimentRules(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, []codersdk.ExperimentRuleEntry{
 			{Experiment: string(codersdk.ExperimentExample)},
-			{Experiment: string(codersdk.ExperimentMCPToolSearch), StaticDefault: true},
-			{Experiment: string(codersdk.ExperimentChatAutomations)},
 		}, entries)
 
 		w.put(ctx, codersdk.ExperimentExample, codersdk.ExperimentRuleModeOn, "")
@@ -105,21 +99,6 @@ func TestExperimentRules(t *testing.T) {
 
 		w.put(ctx, codersdk.ExperimentExample, codersdk.ExperimentRuleModeOff, "")
 		requireEnabled(ctx, t, memberClient, codersdk.ExperimentExample, false)
-
-		// off is a kill switch for a statically enabled experiment, and
-		// reset restores the startup default.
-		w.put(ctx, codersdk.ExperimentMCPToolSearch, codersdk.ExperimentRuleModeOff, "")
-		requireEnabled(ctx, t, memberClient, codersdk.ExperimentMCPToolSearch, false)
-		w.put(ctx, codersdk.ExperimentMCPToolSearch, codersdk.ExperimentRuleModeInherit, "")
-		requireEnabled(ctx, t, memberClient, codersdk.ExperimentMCPToolSearch, true)
-
-		entry := ruleEntry(ctx, t, w.client, codersdk.ExperimentMCPToolSearch)
-		require.True(t, entry.StaticDefault)
-		require.NotNil(t, entry.Rule)
-		require.Equal(t, string(codersdk.ExperimentRuleModeInherit), entry.Rule.Mode)
-		require.Equal(t, int64(2), entry.Rule.Revision)
-		require.Equal(t, owner.UserID, entry.Rule.UpdatedBy)
-		require.False(t, entry.Rule.UpdatedAt.IsZero())
 
 		// Responses carry condition text and must never be cached.
 		for _, req := range []struct {
@@ -135,6 +114,36 @@ func TestExperimentRules(t *testing.T) {
 			require.Equal(t, http.StatusOK, res.StatusCode, req.method)
 			require.Equal(t, "no-store", res.Header.Get("Cache-Control"), req.method)
 		}
+	})
+
+	// off is a kill switch for a statically enabled experiment, and
+	// inherit restores the startup default.
+	t.Run("OffOverridesStaticDefault", func(t *testing.T) {
+		t.Parallel()
+		ownerClient := coderdtest.New(t, &coderdtest.Options{
+			DeploymentValues: coderdtest.DeploymentValues(t, func(v *codersdk.DeploymentValues) {
+				v.Experiments = []string{string(codersdk.ExperimentExample)}
+			}),
+		})
+		owner := coderdtest.CreateFirstUser(t, ownerClient)
+		memberClient, _ := coderdtest.CreateAnotherUser(t, ownerClient, owner.OrganizationID)
+		ctx := testutil.Context(t, testutil.WaitLong)
+		w := newRuleWriter(t, ownerClient)
+
+		require.True(t, ruleEntry(ctx, t, w.client, codersdk.ExperimentExample).StaticDefault)
+		requireEnabled(ctx, t, memberClient, codersdk.ExperimentExample, true)
+		w.put(ctx, codersdk.ExperimentExample, codersdk.ExperimentRuleModeOff, "")
+		requireEnabled(ctx, t, memberClient, codersdk.ExperimentExample, false)
+		w.put(ctx, codersdk.ExperimentExample, codersdk.ExperimentRuleModeInherit, "")
+		requireEnabled(ctx, t, memberClient, codersdk.ExperimentExample, true)
+
+		entry := ruleEntry(ctx, t, w.client, codersdk.ExperimentExample)
+		require.True(t, entry.StaticDefault)
+		require.NotNil(t, entry.Rule)
+		require.Equal(t, string(codersdk.ExperimentRuleModeInherit), entry.Rule.Mode)
+		require.Equal(t, int64(2), entry.Rule.Revision)
+		require.Equal(t, owner.UserID, entry.Rule.UpdatedBy)
+		require.False(t, entry.Rule.UpdatedAt.IsZero())
 	})
 
 	t.Run("RejectedWritesKeepRule", func(t *testing.T) {
@@ -177,8 +186,6 @@ func TestExperimentRules(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, []codersdk.ExperimentRuleEntry{
 			{Experiment: string(codersdk.ExperimentExample), Rule: &stored},
-			{Experiment: string(codersdk.ExperimentMCPToolSearch)},
-			{Experiment: string(codersdk.ExperimentChatAutomations)},
 		}, entries)
 	})
 
@@ -225,8 +232,7 @@ func TestExperimentRules(t *testing.T) {
 		for ex, value := range map[codersdk.Experiment]string{
 			"not-an-experiment":                   `{"mode":"on","revision":1}`,
 			codersdk.ExperimentAutoFillParameters: `{"mode":"off","revision":4}`,
-			codersdk.ExperimentExample:            `{"mode":"percent","revision":2}`,
-			codersdk.ExperimentMCPToolSearch:      `{not json`,
+			codersdk.ExperimentExample:            `{not json`,
 		} {
 			require.NoError(t, db.UpsertExperimentRule(sysCtx, database.UpsertExperimentRuleParams{Experiment: string(ex), Value: value}))
 		}
@@ -235,39 +241,37 @@ func TestExperimentRules(t *testing.T) {
 		entries, err := client.ExperimentRules(ctx)
 		require.NoError(t, err)
 		require.Equal(t, []codersdk.ExperimentRuleEntry{
-			{Experiment: string(codersdk.ExperimentExample), Rule: &codersdk.ExperimentRule{Revision: 2}},
-			{Experiment: string(codersdk.ExperimentMCPToolSearch), Rule: &codersdk.ExperimentRule{}},
-			{Experiment: string(codersdk.ExperimentChatAutomations)},
+			{Experiment: string(codersdk.ExperimentExample), Rule: &codersdk.ExperimentRule{}},
 			{Experiment: string(codersdk.ExperimentAutoFillParameters), Rule: &codersdk.ExperimentRule{Mode: string(codersdk.ExperimentRuleModeOff), Revision: 4}, Ignored: true},
 			{Experiment: "not-an-experiment", Rule: &codersdk.ExperimentRule{Mode: string(codersdk.ExperimentRuleModeOn), Revision: 1}, Ignored: true},
 		}, entries)
 
-		rule, err := client.PutExperimentRule(ctx, codersdk.ExperimentExample, codersdk.PutExperimentRuleRequest{Mode: codersdk.ExperimentRuleModeOn, ExpectedRevision: 2})
-		require.NoError(t, err)
-		require.Equal(t, int64(3), rule.Revision)
-
-		_, err = client.PutExperimentRule(ctx, codersdk.ExperimentMCPToolSearch, codersdk.PutExperimentRuleRequest{Mode: codersdk.ExperimentRuleModeOn, ExpectedRevision: 5})
+		// An unreadable rule is replaced at revision 0, a stale one conflicts.
+		_, err = client.PutExperimentRule(ctx, codersdk.ExperimentExample, codersdk.PutExperimentRuleRequest{Mode: codersdk.ExperimentRuleModeOn, ExpectedRevision: 5})
 		requireStatus(t, err, http.StatusConflict)
-		rule, err = client.PutExperimentRule(ctx, codersdk.ExperimentMCPToolSearch, codersdk.PutExperimentRuleRequest{Mode: codersdk.ExperimentRuleModeOn, ExpectedRevision: 0})
+		rule, err := client.PutExperimentRule(ctx, codersdk.ExperimentExample, codersdk.PutExperimentRuleRequest{Mode: codersdk.ExperimentRuleModeOn, ExpectedRevision: 0})
 		require.NoError(t, err)
 		require.Equal(t, int64(1), rule.Revision)
 		for _, c := range []*codersdk.Client{ownerClient, memberClient} {
 			requireEnabled(ctx, t, c, codersdk.ExperimentExample, true)
-			requireEnabled(ctx, t, c, codersdk.ExperimentMCPToolSearch, true)
 		}
+
+		// A rule with an unknown mode is listed with its revision; the
+		// next write replaces it.
+		require.NoError(t, db.UpsertExperimentRule(sysCtx, database.UpsertExperimentRuleParams{Experiment: string(codersdk.ExperimentExample), Value: `{"mode":"percent","revision":2}`}))
+		require.Equal(t, &codersdk.ExperimentRule{Revision: 2}, ruleEntry(ctx, t, client, codersdk.ExperimentExample).Rule)
+		rule, err = client.PutExperimentRule(ctx, codersdk.ExperimentExample, codersdk.PutExperimentRuleRequest{Mode: codersdk.ExperimentRuleModeOn, ExpectedRevision: 2})
+		require.NoError(t, err)
+		require.Equal(t, int64(3), rule.Revision)
 
 		// An on rule without a positive revision is malformed: it is
 		// listed at revision 0 and decides off for everyone.
-		for ex, value := range map[codersdk.Experiment]string{
-			codersdk.ExperimentExample:       `{"mode":"on","revision":0}`,
-			codersdk.ExperimentMCPToolSearch: `{"mode":"on"}`,
-		} {
-			require.NoError(t, db.UpsertExperimentRule(sysCtx, database.UpsertExperimentRuleParams{Experiment: string(ex), Value: value}))
-			require.Equal(t, &codersdk.ExperimentRule{}, ruleEntry(ctx, t, client, ex).Rule, ex)
-		}
-		for _, c := range []*codersdk.Client{ownerClient, memberClient} {
-			requireEnabled(ctx, t, c, codersdk.ExperimentExample, false)
-			requireEnabled(ctx, t, c, codersdk.ExperimentMCPToolSearch, false)
+		for _, value := range []string{`{"mode":"on","revision":0}`, `{"mode":"on"}`} {
+			require.NoError(t, db.UpsertExperimentRule(sysCtx, database.UpsertExperimentRuleParams{Experiment: string(codersdk.ExperimentExample), Value: value}))
+			require.Equal(t, &codersdk.ExperimentRule{}, ruleEntry(ctx, t, client, codersdk.ExperimentExample).Rule, value)
+			for _, c := range []*codersdk.Client{ownerClient, memberClient} {
+				requireEnabled(ctx, t, c, codersdk.ExperimentExample, false)
+			}
 		}
 	})
 }

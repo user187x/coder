@@ -97,18 +97,12 @@ type Options struct {
 	OrganizationID    uuid.UUID
 	TemplateVersionID uuid.UUID
 
-	AuthenticatedCtx      context.Context
-	Log                   slog.Logger
-	Clock                 quartz.Clock
-	Database              database.Store
-	NotificationsEnqueuer notifications.Enqueuer
-	Pubsub                pubsub.Pubsub
-	// ContextDirtyMarker is the chatd-backed hydrate/dirty fan-out invoked
-	// from PushContextState. Nil when chatd is disabled.
-	ContextDirtyMarker ContextDirtyMarker
-	// ContextSyncDisabled makes PushContextState reject pushes with a dRPC
-	// Unimplemented code so agents stop sending context snapshots.
-	ContextSyncDisabled               bool
+	AuthenticatedCtx                  context.Context
+	Log                               slog.Logger
+	Clock                             quartz.Clock
+	Database                          database.Store
+	NotificationsEnqueuer             notifications.Enqueuer
+	Pubsub                            pubsub.Pubsub
 	ConnectionLogger                  *atomic.Pointer[connectionlog.ConnectionLogger]
 	DerpMapFn                         func() *tailcfg.DERPMap
 	TailnetCoordinator                *atomic.Pointer[tailnet.Coordinator]
@@ -275,15 +269,7 @@ func New(opts Options, workspace database.Workspace, agent database.WorkspaceAge
 		BoundaryUsageTracker: opts.BoundaryUsageTracker,
 	}
 
-	api.ContextAPI = &ContextAPI{
-		AgentID:     agent.ID,
-		Workspace:   api.cachedWorkspaceFields,
-		Log:         opts.Log,
-		Clock:       opts.Clock,
-		Database:    opts.Database,
-		DirtyMarker: opts.ContextDirtyMarker,
-		Disabled:    opts.ContextSyncDisabled,
-	}
+	api.ContextAPI = &ContextAPI{}
 
 	// Start background cache refresh loop to handle workspace changes
 	// like prebuild claims where owner_id and other fields may be modified in the DB.

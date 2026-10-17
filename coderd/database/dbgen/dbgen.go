@@ -35,7 +35,6 @@ import (
 	"github.com/coder/coder/v2/coderd/rbac"
 	"github.com/coder/coder/v2/coderd/rbac/policy"
 	"github.com/coder/coder/v2/coderd/rbac/rolestore"
-	"github.com/coder/coder/v2/coderd/x/chatd/chatprompt"
 	"github.com/coder/coder/v2/codersdk"
 	"github.com/coder/coder/v2/cryptorand"
 	"github.com/coder/coder/v2/testutil"
@@ -192,6 +191,10 @@ func ChatAutomation(t testing.TB, db database.Store, seed database.ChatAutomatio
 	return automation
 }
 
+// chatMessageContentVersion is the content version chat messages were written with (the database keeps the chat
+// tables of Coder Agents, which this build leaves out).
+const chatMessageContentVersion int16 = 1
+
 func ChatMessage(t testing.TB, db database.Store, seed database.ChatMessage) database.ChatMessage {
 	t.Helper()
 
@@ -208,7 +211,7 @@ func ChatMessage(t testing.TB, db database.Store, seed database.ChatMessage) dat
 		ReasoningEffort:     []string{string(seed.ReasoningEffort.ChatReasoningEffort)},
 		Role:                []database.ChatMessageRole{role},
 		Content:             []string{content},
-		ContentVersion:      []int16{takeFirst(seed.ContentVersion, chatprompt.CurrentContentVersion)},
+		ContentVersion:      []int16{takeFirst(seed.ContentVersion, chatMessageContentVersion)},
 		Visibility:          []database.ChatMessageVisibility{takeFirst(seed.Visibility, database.ChatMessageVisibilityBoth)},
 		InputTokens:         []int64{seed.InputTokens.Int64},
 		OutputTokens:        []int64{seed.OutputTokens.Int64},

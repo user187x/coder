@@ -12,7 +12,6 @@ import (
 	"golang.org/x/xerrors"
 
 	"cdr.dev/slog/v3"
-	"github.com/coder/coder/v2/coderd/aibridge/prices/providers"
 	"github.com/coder/coder/v2/coderd/database"
 	"github.com/coder/coder/v2/coderd/database/dbauthz"
 	"github.com/coder/coder/v2/coderd/database/dbtime"
@@ -63,15 +62,10 @@ func NewReportGenerator(ctx context.Context, logger slog.Logger, db database.Sto
 	doTick := func(_ time.Time) {
 		defer ticker.Reset(delay)
 
-		// Reports are independent, so each runs in its own transaction under
-		// its own advisory lock. Sharing either would couple them.
+		// The report runs in its own transaction under its own advisory lock.
 		runReport(ctx, logger, db, database.LockIDNotificationsReportGenerator, "failed workspace builds",
 			func(tx database.Store) error {
 				return reportFailedWorkspaceBuilds(ctx, logger, tx, enqueuer, clk)
-			})
-		runReport(ctx, logger, db, database.LockIDNotifyUnpricedAIModels, "unpriced AI models",
-			func(tx database.Store) error {
-				return reportUnpricedAIModels(ctx, logger, tx, enqueuer, clk)
 			})
 	}
 
@@ -341,98 +335,4 @@ func findTemplateAdmins(ctx context.Context, db database.Store, stats database.G
 		return templateAdmins[i].Username < templateAdmins[j].Username
 	})
 	return templateAdmins, nil
-}
-
-const (
-	unpricedAIModelsReportFrequency      = 7 * 24 * time.Hour
-	unpricedAIModelsReportFrequencyLabel = "week"
-	// unpricedAIModelsLimit caps how many models a single report lists.
-	// A deployment can accumulate more unpriced models than we want to display
-	// in a single notification, so the remaining models are reported as a count.
-	unpricedAIModelsLimit = 100
-)
-
-// reportUnpricedAIModels notifies owners about models used without a price
-// in the preceding week. Unpriced usage is recorded but contributes nothing to
-// spend, so it is neither reported nor enforced against a budget.
-//
-// The set of unpriced models is derived at report time from interceptions and
-// the price table, so setting a price removes the model from the next report.
-func reportUnpricedAIModels(ctx context.Context, logger slog.Logger, db database.Store, enqueuer notifications.Enqueuer, clk quartz.Clock) error {
-	now := clk.Now()
-	since := now.Add(-unpricedAIModelsReportFrequency)
-
-	reportLog, err := db.GetNotificationReportGeneratorLogByTemplate(ctx, notifications.TemplateAIModelsUnpricedReport)
-	if err != nil && !xerrors.Is(err, sql.ErrNoRows) {
-		return xerrors.Errorf("unable to read report generator log: %w", err)
-	}
-
-	// Check if the job has not been running recently. The ticker alone cannot
-	// enforce the frequency: it restarts with the process and each replica
-	// runs on its own phase.
-	if !reportLog.LastGeneratedAt.IsZero() && reportLog.LastGeneratedAt.Add(unpricedAIModelsReportFrequency).After(now) {
-		return nil // reports sent recently, no need to send them now
-	}
-
-	// Fetch the models used without a price.
-	unpricedModels, err := db.GetUnpricedAIModelsSince(ctx, database.GetUnpricedAIModelsSinceParams{
-		Since:              dbtime.Time(since).UTC(),
-		PriceableProviders: providers.SupportedStrings(),
-	})
-	if err != nil {
-		return xerrors.Errorf("unable to fetch unpriced AI models: %w", err)
-	}
-
-	if len(unpricedModels) > 0 {
-		owners, err := db.GetUsers(ctx, database.GetUsersParams{
-			RbacRole: []string{codersdk.RoleOwner},
-		})
-		if err != nil {
-			return xerrors.Errorf("unable to fetch owners: %w", err)
-		}
-
-		reportData := buildDataForReportUnpricedAIModels(unpricedModels)
-		for _, owner := range owners {
-			if _, err := enqueuer.EnqueueWithData(ctx, owner.ID, notifications.TemplateAIModelsUnpricedReport,
-				map[string]string{},
-				reportData,
-				"report_generator",
-			); err != nil {
-				logger.Warn(ctx, "failed to send a report with unpriced AI models", slog.F("user_id", owner.ID), slog.Error(err))
-			}
-		}
-	}
-
-	// Update the timestamp in the generator log. This happens even
-	// when nothing was reported, so the next report covers one week rather
-	// than every week since usage was last seen.
-	err = db.UpsertNotificationReportGeneratorLog(ctx, database.UpsertNotificationReportGeneratorLogParams{
-		NotificationTemplateID: notifications.TemplateAIModelsUnpricedReport,
-		LastGeneratedAt:        dbtime.Time(now).UTC(),
-	})
-	if err != nil {
-		return xerrors.Errorf("unable to update report generator logs: %w", err)
-	}
-	return nil
-}
-
-// buildDataForReportUnpricedAIModels renders the models most used first, so
-// the models dropped by the limit are the ones with the least unreported
-// usage.
-func buildDataForReportUnpricedAIModels(unpricedModels []database.GetUnpricedAIModelsSinceRow) map[string]any {
-	reportedCount := min(len(unpricedModels), unpricedAIModelsLimit)
-	reportedModels := make([]map[string]any, 0, reportedCount)
-	for _, row := range unpricedModels[:reportedCount] {
-		reportedModels = append(reportedModels, map[string]any{
-			"provider": row.ProviderType,
-			"model":    row.Model,
-		})
-	}
-
-	return map[string]any{
-		"report_frequency": unpricedAIModelsReportFrequencyLabel,
-		"models":           reportedModels,
-		"total_count":      len(unpricedModels),
-		"truncated":        len(unpricedModels) > reportedCount,
-	}
 }

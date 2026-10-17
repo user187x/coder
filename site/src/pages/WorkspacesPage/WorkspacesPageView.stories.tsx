@@ -600,23 +600,6 @@ export const ShowOrganizations: Story = {
 	},
 };
 
-export const ShowWorkspaceChats: Story = {
-	args: {
-		workspaces: [
-			{
-				...MockWorkspace,
-				name: "regular-workspace",
-			},
-			{
-				...MockWorkspace,
-				id: "ws-with-agent",
-				name: "agent-workspace",
-			},
-		],
-		chatsByWorkspace: { "ws-with-agent": "some-chat-id" },
-	},
-};
-
 export const WithCheckedWorkspaces: Story = {
 	args: {
 		workspaces: allWorkspaces.slice(0, 5),

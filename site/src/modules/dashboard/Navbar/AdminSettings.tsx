@@ -1,6 +1,4 @@
 import {
-	BotIcon,
-	BrainCircuitIcon,
 	Building2Icon,
 	CableIcon,
 	ScrollTextIcon,
@@ -48,10 +46,8 @@ export type AdminSettingsPermissions = {
 	canViewDeployment?: boolean;
 	canViewUsers?: boolean;
 	canViewOrganizations?: boolean;
-	canViewAISettings?: boolean;
 	canViewAuditLog?: boolean;
 	canViewConnectionLog?: boolean;
-	canViewAIBridge?: boolean;
 	canViewHealth?: boolean;
 };
 
@@ -61,8 +57,7 @@ export type AdminSettingsPermissions = {
  * itself is "Settings"). Under it are
  * the admin's quick links to General's categories, none until they add some
  * with the row after them; each link can be removed or dragged into another
- * place. AI settings live in General's sidebar as "Super Intelligence", which
- * is only offered here to those who cannot open General. The menu ends with
+ * place. The menu ends with
  * the cluster's CPU and memory, which only admins get an answer for.
  */
 export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
@@ -106,14 +101,6 @@ export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
 					</Link>
 				</DropdownMenuItem>
 			)}
-			{permissions.canViewAISettings && !permissions.canViewDeployment && (
-				<DropdownMenuItem asChild className={itemClassName}>
-					<Link to="/ai/settings">
-						<BrainCircuitIcon aria-hidden />
-						Super Intelligence
-					</Link>
-				</DropdownMenuItem>
-			)}
 			{permissions.canViewAuditLog && (
 				<DropdownMenuItem asChild className={itemClassName}>
 					<Link to="/audit">
@@ -127,14 +114,6 @@ export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
 					<Link to="/connectionlog">
 						<CableIcon aria-hidden />
 						Connection logs
-					</Link>
-				</DropdownMenuItem>
-			)}
-			{permissions.canViewAIBridge && (
-				<DropdownMenuItem asChild className={itemClassName}>
-					<Link to="/ai-gateway/sessions">
-						<BotIcon aria-hidden />
-						AI sessions
 					</Link>
 				</DropdownMenuItem>
 			)}

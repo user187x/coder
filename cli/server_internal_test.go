@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
-	"net/http"
 	"testing"
 
 	"github.com/spf13/pflag"
@@ -313,30 +312,6 @@ func TestIsDERPPath(t *testing.T) {
 			require.Equal(t, tc.expected, isDERPPath(tc.path))
 		})
 	}
-}
-
-func TestIsReplicaRelayRequest(t *testing.T) {
-	t.Parallel()
-
-	t.Run("WithHeader", func(t *testing.T) {
-		t.Parallel()
-		r, _ := http.NewRequestWithContext(context.Background(), "GET", "/api/v2/chats/abc/stream", nil)
-		r.Header.Set("X-Coder-Relay-Source-Replica", "some-uuid")
-		require.True(t, isReplicaRelayRequest(r))
-	})
-
-	t.Run("WithoutHeader", func(t *testing.T) {
-		t.Parallel()
-		r, _ := http.NewRequestWithContext(context.Background(), "GET", "/api/v2/chats/abc/stream", nil)
-		require.False(t, isReplicaRelayRequest(r))
-	})
-
-	t.Run("EmptyHeader", func(t *testing.T) {
-		t.Parallel()
-		r, _ := http.NewRequestWithContext(context.Background(), "GET", "/api/v2/chats/abc/stream", nil)
-		r.Header.Set("X-Coder-Relay-Source-Replica", "")
-		require.False(t, isReplicaRelayRequest(r))
-	})
 }
 
 func TestEscapePostgresURLUserInfo(t *testing.T) {

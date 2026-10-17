@@ -25,17 +25,13 @@ var gatedRoutes = []struct {
 	{http.MethodPost, "/oauth2/revoke"},
 	{http.MethodPost, "/oauth2/register"},
 	{http.MethodGet, "/api/v2/oauth2-provider/apps"},
-	{http.MethodPost, "/api/experimental/mcp/http"},
 }
 
-func newProviderClient(t *testing.T, enabled bool, experiments ...codersdk.Experiment) *codersdk.Client {
+func newProviderClient(t *testing.T, enabled bool) *codersdk.Client {
 	t.Helper()
 	client := coderdtest.New(t, &coderdtest.Options{
 		DeploymentValues: coderdtest.DeploymentValues(t, func(dv *codersdk.DeploymentValues) {
 			dv.OAuth2.Provider.Enable = serpent.Bool(enabled)
-			for _, exp := range experiments {
-				dv.Experiments = append(dv.Experiments, string(exp))
-			}
 		}),
 	})
 	_ = coderdtest.CreateFirstUser(t, client)
@@ -47,7 +43,7 @@ func TestOAuth2ProviderDisabled(t *testing.T) {
 
 	t.Run("GatedRoutesReturn404", func(t *testing.T) {
 		t.Parallel()
-		client := newProviderClient(t, false, codersdk.ExperimentMCPServerHTTP)
+		client := newProviderClient(t, false)
 		ctx := testutil.Context(t, testutil.WaitLong)
 
 		for _, route := range gatedRoutes {
@@ -65,7 +61,7 @@ func TestOAuth2ProviderDisabled(t *testing.T) {
 
 	t.Run("GatedRoutesReachableWhenEnabled", func(t *testing.T) {
 		t.Parallel()
-		client := newProviderClient(t, true, codersdk.ExperimentMCPServerHTTP)
+		client := newProviderClient(t, true)
 		ctx := testutil.Context(t, testutil.WaitLong)
 
 		for _, route := range gatedRoutes {
@@ -92,19 +88,5 @@ func TestOAuth2ProviderDisabled(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, settings.DynamicClientRegistrationEnabled)
 		require.True(t, *settings.DynamicClientRegistrationEnabled)
-	})
-
-	t.Run("MCPExperimentStillRequired", func(t *testing.T) {
-		t.Parallel()
-		client := newProviderClient(t, true)
-		ctx := testutil.Context(t, testutil.WaitLong)
-
-		res, err := client.Request(ctx, http.MethodPost, "/api/experimental/mcp/http", nil)
-		require.NoError(t, err)
-		body, err := io.ReadAll(res.Body)
-		_ = res.Body.Close()
-		require.NoError(t, err)
-		require.Equal(t, http.StatusForbidden, res.StatusCode)
-		require.Contains(t, string(body), string(codersdk.ExperimentMCPServerHTTP))
 	})
 }

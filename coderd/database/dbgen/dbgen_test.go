@@ -13,7 +13,6 @@ import (
 	"github.com/coder/coder/v2/coderd/database"
 	"github.com/coder/coder/v2/coderd/database/dbgen"
 	"github.com/coder/coder/v2/coderd/database/dbtestutil"
-	"github.com/coder/coder/v2/coderd/x/chatd/chatprompt"
 )
 
 func TestGenerator(t *testing.T) {
@@ -378,7 +377,7 @@ func TestGenerator(t *testing.T) {
 		require.NotZero(t, msg.ID)
 		require.Equal(t, database.ChatMessageRoleUser, msg.Role)
 		require.Equal(t, database.ChatMessageVisibilityBoth, msg.Visibility)
-		require.Equal(t, chatprompt.CurrentContentVersion, msg.ContentVersion)
+		require.Equal(t, int16(1), msg.ContentVersion)
 
 		// Overrides.
 		rawContent := json.RawMessage(`[{"type":"text","text":"hello"}]`)

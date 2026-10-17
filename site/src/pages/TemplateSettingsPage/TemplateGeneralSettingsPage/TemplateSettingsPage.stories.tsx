@@ -63,7 +63,6 @@ export const UpdateSucceeds: Story = {
 		const updatedTemplate: Template = {
 			...MockTemplate,
 			name: "new-name",
-			agents_allowed: false,
 		};
 		const updateTemplateMetaSpy = spyOn(
 			API,
@@ -72,7 +71,7 @@ export const UpdateSucceeds: Story = {
 		await fillAndSubmitForm(canvas, user);
 		await waitFor(() => expect(updateTemplateMetaSpy).toHaveBeenCalledTimes(1));
 		expect(updateTemplateMetaSpy.mock.calls[0][1]).toEqual(
-			expect.objectContaining({ agents_allowed: false }),
+			expect.objectContaining({ name: "Name" }),
 		);
 	},
 };
@@ -167,12 +166,6 @@ async function fillAndSubmitForm(
 	const iconField = await canvas.findByLabelText("Icon");
 	await user.clear(iconField);
 	await user.type(iconField, "vscode.png");
-
-	const agentsAllowedField = canvas.getByRole("checkbox", {
-		name: /allow coder agents to create workspaces using this template/i,
-	});
-	expect(agentsAllowedField).toBeChecked();
-	await user.click(agentsAllowedField);
 
 	const allowCancelJobsField = canvas.getByRole("checkbox", {
 		name: /allow users to cancel in-progress workspace jobs/i,

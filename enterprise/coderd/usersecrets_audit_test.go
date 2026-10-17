@@ -133,3 +133,15 @@ func TestUserSecretAuditDiffRedaction(t *testing.T) {
 	assert.NotContains(t, updateDiff, "created_at")
 	assert.NotContains(t, updateDiff, "updated_at")
 }
+
+// auditLogsByAction indexes audit log rows by action; it assumes each action appears once.
+func auditLogsByAction(t *testing.T, rows []database.GetAuditLogsOffsetRow) map[database.AuditAction]database.AuditLog {
+	t.Helper()
+	byAction := make(map[database.AuditAction]database.AuditLog, len(rows))
+	for _, r := range rows {
+		_, dup := byAction[r.AuditLog.Action]
+		require.Falsef(t, dup, "duplicate audit action %q: helper assumes distinct actions", r.AuditLog.Action)
+		byAction[r.AuditLog.Action] = r.AuditLog
+	}
+	return byAction
+}

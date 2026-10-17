@@ -103,14 +103,12 @@ export const WorkspaceInitializing: React.FC<WorkspaceInitializingProps> = ({
 							<span className="ws-init-percent">{percent}%</span>
 						</div>
 						{progress && (
-							<>
-								<p className="ws-init-detail">
-									{progress.done} of {progress.total}{" "}
-									{progress.of === "apps" ? "up" : "finished"}
-									{listed.length > 0 &&
-										` · ${progress.of === "apps" ? "starting" : "running"} ${listed.join(", ")}${more > 0 ? ` and ${more} more` : ""}`}
-								</p>
-							</>
+							<p className="ws-init-detail">
+								{progress.done} of {progress.total}{" "}
+								{progress.of === "apps" ? "up" : "finished"}
+								{listed.length > 0 &&
+									` · ${progress.of === "apps" ? "starting" : "running"} ${listed.join(", ")}${more > 0 ? ` and ${more} more` : ""}`}
+							</p>
 						)}
 						<p className="ws-init-note">
 							{elapsed(workspace.latest_build.created_at, now)} elapsed · apps

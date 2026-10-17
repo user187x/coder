@@ -44,7 +44,6 @@ import { LinkTabs, LinkTabsList, TabLink } from "#/components/Tabs/Tabs";
 import { usePaginatedQuery } from "#/hooks/usePaginatedQuery";
 import { isEveryoneGroup } from "#/modules/groups";
 import { pageTitle } from "#/utils/page";
-import { AIBudgetPeriod } from "./AIBudgetPeriod";
 
 export type GroupPageOutletContext = {
 	group: Group;
@@ -188,7 +187,6 @@ const GroupPage: React.FC = () => {
 								Group settings
 							</TabLink>
 						</LinkTabsList>
-						{activeTab === "members" && <AIBudgetPeriod />}
 					</LinkTabs>
 				)}
 

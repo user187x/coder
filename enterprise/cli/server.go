@@ -161,19 +161,6 @@ func (r *RootCmd) Server(_ func()) *serpent.Command {
 		usageGenerator.Start(ctx)
 		closers.Add(usageGenerator)
 
-		// In-memory AI Bridge Proxy daemon. The bridge daemon itself is
-		// started unconditionally by AGPL cli/server.go (chatd uses its
-		// in-memory roundtripper regardless of license); only the proxy
-		// daemon remains enterprise-gated by config.
-		if options.DeploymentValues.AI.BridgeProxyConfig.Enabled.Value() {
-			aiBridgeProxyCloser, err := newAIBridgeProxyDaemon(api)
-			if err != nil {
-				_ = closers.Close()
-				return nil, nil, xerrors.Errorf("create aibridgeproxyd: %w", err)
-			}
-			closers.Add(aiBridgeProxyCloser)
-		}
-
 		return api.AGPL, closers, nil
 	})
 

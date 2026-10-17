@@ -42,7 +42,6 @@ import (
 	"github.com/coder/coder/v2/coderd/rbac/policy"
 	maputil "github.com/coder/coder/v2/coderd/util/maps"
 	"github.com/coder/coder/v2/coderd/wspubsub"
-	"github.com/coder/coder/v2/coderd/x/gitsync"
 	"github.com/coder/coder/v2/codersdk"
 	"github.com/coder/coder/v2/codersdk/agentsdk"
 	"github.com/coder/coder/v2/codersdk/workspacesdk"
@@ -2093,15 +2092,6 @@ func convertWorkspaceAgentMetadata(db []database.WorkspaceAgentMetadatum) []code
 func (api *API) workspaceAgentsExternalAuth(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	query := r.URL.Query()
-	gitRef := chatGitRef{
-		Branch:       strings.TrimSpace(query.Get("git_branch")),
-		RemoteOrigin: strings.TrimSpace(query.Get("git_remote_origin")),
-	}
-	if raw := strings.TrimSpace(query.Get("chat_id")); raw != "" {
-		if parsed, err := uuid.Parse(raw); err == nil {
-			gitRef.ChatID = parsed
-		}
-	}
 	// Either match or configID must be provided!
 	match := query.Get("match")
 	if match == "" {
@@ -2243,19 +2233,6 @@ func (api *API) workspaceAgentsExternalAuth(rw http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// MarkStale will trigger a refresh by coderd/gitsync. This allows us to
-	// persist git refs as soon as the agent requests external auth so branch
-	// context is retained even if the flow requires an out-of-band login.
-	if gitRef.Branch != "" && gitRef.RemoteOrigin != "" {
-		//nolint:gocritic // Chat processor context required for cross-user chat lookup
-		api.gitSyncWorker.MarkStale(dbauthz.AsChatd(ctx), gitsync.MarkStaleParams{
-			WorkspaceID: workspace.ID,
-			Branch:      gitRef.Branch,
-			Origin:      gitRef.RemoteOrigin,
-			ChatID:      gitRef.ChatID,
-		})
-	}
-
 	var previousToken *database.ExternalAuthLink
 	// handleRetrying will attempt to continually check for a new token
 	// if listen is true. This is useful if an error is encountered in the
@@ -2269,7 +2246,7 @@ func (api *API) workspaceAgentsExternalAuth(rw http.ResponseWriter, r *http.Requ
 			return
 		}
 
-		api.workspaceAgentsExternalAuthListen(ctx, rw, previousToken, externalAuthConfig, workspace, gitRef)
+		api.workspaceAgentsExternalAuthListen(ctx, rw, previousToken, externalAuthConfig, workspace)
 	}
 
 	// This is the URL that will redirect the user with a state token.
@@ -2402,7 +2379,7 @@ func (api *API) workspaceAgentsExternalAuthDeclaredCandidates(ctx context.Contex
 	return out, nil
 }
 
-func (api *API) workspaceAgentsExternalAuthListen(ctx context.Context, rw http.ResponseWriter, previous *database.ExternalAuthLink, externalAuthConfig *externalauth.Config, workspace database.Workspace, gitRef chatGitRef) {
+func (api *API) workspaceAgentsExternalAuthListen(ctx context.Context, rw http.ResponseWriter, previous *database.ExternalAuthLink, externalAuthConfig *externalauth.Config, workspace database.Workspace) {
 	// Since we're ticking frequently and this sign-in operation is rare,
 	// we are OK with polling to avoid the complexity of pubsub.
 	ticker, done := api.NewTicker(time.Second)
@@ -2472,14 +2449,6 @@ func (api *API) workspaceAgentsExternalAuthListen(ctx context.Context, rw http.R
 			})
 			return
 		}
-		// MarkStale will trigger a refresh by coderd/gitsync.
-		//nolint:gocritic // Chat processor context required for cross-user chat lookup
-		api.gitSyncWorker.MarkStale(dbauthz.AsChatd(ctx), gitsync.MarkStaleParams{
-			WorkspaceID: workspace.ID,
-			Branch:      gitRef.Branch,
-			Origin:      gitRef.RemoteOrigin,
-			ChatID:      gitRef.ChatID,
-		})
 		httpapi.Write(ctx, rw, http.StatusOK, resp)
 		return
 	}
@@ -2617,67 +2586,4 @@ func convertWorkspaceAgentLogs(logs []database.WorkspaceAgentLog) []codersdk.Wor
 		sdk = append(sdk, db2sdk.WorkspaceAgentLog(logEntry))
 	}
 	return sdk
-}
-
-// workspaceAgentRefreshChatContext re-pins every drifted chat bound to the
-// calling agent to the agent's latest context snapshot, clearing their
-// drift markers. It backs the in-workspace `coder exp chat context refresh`
-// (no chat argument), which uses the agent token rather than a user
-// session.
-//
-// @x-apidocgen {"skip": true}
-func (api *API) workspaceAgentRefreshChatContext(rw http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	workspaceAgent := httpmw.WorkspaceAgent(r)
-
-	// Chats are processed by the chat daemon; without it there is
-	// nothing to refresh.
-	if api.chatDaemon == nil {
-		httpapi.Write(ctx, rw, http.StatusOK, agentsdk.RefreshChatContextResponse{})
-		return
-	}
-
-	// Use system context for chat operations since the workspace agent
-	// scope does not include chat resources.
-	//nolint:gocritic // Agent needs system access to read/write chat resources.
-	sysCtx := dbauthz.AsSystemRestricted(ctx)
-	workspace, err := api.Database.GetWorkspaceByAgentID(sysCtx, workspaceAgent.ID)
-	if err != nil {
-		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Failed to determine workspace from agent token.",
-			Detail:  err.Error(),
-		})
-		return
-	}
-
-	chats, err := api.Database.GetActiveChatsByAgentID(sysCtx, workspaceAgent.ID)
-	if err != nil {
-		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Failed to list chats for agent.",
-			Detail:  err.Error(),
-		})
-		return
-	}
-
-	refreshed := 0
-	for _, chat := range chats {
-		// Only re-pin chats owned by this workspace's owner that have
-		// drifted from the agent's latest snapshot.
-		if chat.OwnerID != workspace.OwnerID || !chat.ContextDirtySince.Valid {
-			continue
-		}
-		if _, err := api.chatDaemon.RefreshChatContext(sysCtx, chat); err != nil {
-			api.Logger.Warn(ctx, "failed to refresh chat context for agent",
-				slog.F("chat_id", chat.ID),
-				slog.F("agent_id", workspaceAgent.ID),
-				slog.Error(err),
-			)
-			continue
-		}
-		refreshed++
-	}
-
-	httpapi.Write(ctx, rw, http.StatusOK, agentsdk.RefreshChatContextResponse{
-		Refreshed: refreshed,
-	})
 }

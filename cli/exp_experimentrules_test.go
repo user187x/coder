@@ -17,12 +17,14 @@ import (
 func TestExperimentRules(t *testing.T) {
 	t.Parallel()
 
-	// mcp-tool-search is enabled at startup; example is not.
-	setup := func(t *testing.T) (*codersdk.Client, *codersdk.Client, func(args ...string) (string, string, error)) {
+	// static lists the experiments enabled at startup.
+	setup := func(t *testing.T, static ...codersdk.Experiment) (*codersdk.Client, *codersdk.Client, func(args ...string) (string, string, error)) {
 		t.Helper()
 		ownerClient := coderdtest.New(t, &coderdtest.Options{
 			DeploymentValues: coderdtest.DeploymentValues(t, func(v *codersdk.DeploymentValues) {
-				v.Experiments = []string{string(codersdk.ExperimentMCPToolSearch)}
+				for _, ex := range static {
+					v.Experiments = append(v.Experiments, string(ex))
+				}
 			}),
 		})
 		owner := coderdtest.CreateFirstUser(t, ownerClient)
@@ -92,7 +94,6 @@ func TestExperimentRules(t *testing.T) {
 		stdout, _, err = run("list")
 		require.NoError(t, err)
 		require.Regexp(t, `example\s+false\s+inherit\s+4`, stdout)
-		require.Regexp(t, `mcp-tool-search\s+true\s+\(none\)\s+0`, stdout)
 	})
 
 	// A stale --expected-revision fails with the current state and is not
@@ -117,18 +118,20 @@ func TestExperimentRules(t *testing.T) {
 	// that it is not a kill switch.
 	t.Run("ResetWarnsWhenStaticDefaultOn", func(t *testing.T) {
 		t.Parallel()
-		_, memberClient, run := setup(t)
+		_, memberClient, run := setup(t, codersdk.ExperimentExample)
 		ctx := testutil.Context(t, testutil.WaitLong)
 
-		_, _, err := run("off", "mcp-tool-search")
+		_, _, err := run("off", "example")
 		require.NoError(t, err)
-		requireMemberEnabled(ctx, t, memberClient, codersdk.ExperimentMCPToolSearch, false)
-		_, stderr, err := run("reset", "mcp-tool-search")
+		requireMemberEnabled(ctx, t, memberClient, codersdk.ExperimentExample, false)
+		_, stderr, err := run("reset", "example")
 		require.NoError(t, err)
 		require.Contains(t, stderr, "Reset is not a kill switch")
-		requireMemberEnabled(ctx, t, memberClient, codersdk.ExperimentMCPToolSearch, true)
+		requireMemberEnabled(ctx, t, memberClient, codersdk.ExperimentExample, true)
 
-		_, stderr, err = run("reset", "example")
+		// Without a startup default, reset is the off it looks like.
+		_, _, runStaticOff := setup(t)
+		_, stderr, err = runStaticOff("reset", "example")
 		require.NoError(t, err)
 		require.NotContains(t, stderr, "Reset is not a kill switch")
 	})

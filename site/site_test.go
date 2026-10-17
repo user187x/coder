@@ -262,11 +262,9 @@ func TestRenderPermissionsResolvesMe(t *testing.T) {
 	handler.ServeHTTP(rw, r)
 	require.Equal(t, http.StatusOK, rw.Code)
 
-	// The any_org check finds chat permission through the user's membership.
 	var memberPerms codersdk.AuthorizationResponse
 	err = json.Unmarshal([]byte(html.UnescapeString(rw.Body.String())), &memberPerms)
 	require.NoError(t, err)
-	assert.True(t, memberPerms["createChat"], "organization member should have createChat = true")
 	// THEN: createWorkspace = true because the organization-member role
 	// grants creating a workspace owned by the member, and owner_id "me"
 	// resolves to the requesting user.
@@ -288,7 +286,6 @@ func TestRenderPermissionsResolvesMe(t *testing.T) {
 	var permsWithoutMembership codersdk.AuthorizationResponse
 	err = json.Unmarshal([]byte(html.UnescapeString(rw.Body.String())), &permsWithoutMembership)
 	require.NoError(t, err)
-	assert.False(t, permsWithoutMembership["createChat"], "user without an organization membership should have createChat = false")
 	// THEN: createWorkspace = false because the user belongs to no
 	// organization, so the any_org check has no memberships to satisfy it.
 	assert.False(t, permsWithoutMembership["createWorkspace"], "user without an org membership should have createWorkspace = false")

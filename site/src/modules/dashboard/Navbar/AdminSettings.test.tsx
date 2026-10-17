@@ -16,7 +16,6 @@ describe("Admin menu", () => {
 		const pages = adminPagesFor({
 			permissions: MockPermissions,
 			oauth2Provider: true,
-			canViewAISettings: true,
 		});
 		renderComponent(
 			<QueryClientProvider client={new QueryClient()}>
@@ -30,7 +29,6 @@ describe("Admin menu", () => {
 									canViewOrganizations: true,
 									canViewAuditLog: true,
 									canViewConnectionLog: true,
-									canViewAIBridge: true,
 								}}
 								quickLinks={pages.slice(0, 4)}
 							/>
@@ -47,7 +45,6 @@ describe("Admin menu", () => {
 			"Organizations",
 			"Audit logs",
 			"Connection logs",
-			"AI sessions",
 		]);
 		for (const item of items) {
 			expect(item.firstElementChild?.tagName.toLowerCase()).toBe("svg");

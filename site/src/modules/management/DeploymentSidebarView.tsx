@@ -11,8 +11,6 @@ type DeploymentSidebarViewProps = {
 	/** Site-wide permissions. */
 	permissions: Permissions;
 	buildInfo: BuildInfoResponse;
-	/** General's Super Intelligence entry (AISettingsTree), shown after Accounts. */
-	aiSettings?: React.ReactNode;
 	/** General's Health entry (HealthSettingsTree), placed in alphabetical order. */
 	health?: React.ReactNode;
 	/** The platform service is connected to Keycloak: a green check after Authentication. */
@@ -27,7 +25,6 @@ type DeploymentSidebarViewProps = {
 export const DeploymentSidebarView: React.FC<DeploymentSidebarViewProps> = ({
 	permissions,
 	buildInfo,
-	aiSettings,
 	health,
 	keycloakConnected,
 }) => {
@@ -39,7 +36,6 @@ export const DeploymentSidebarView: React.FC<DeploymentSidebarViewProps> = ({
 						<AdminCategoryLabel id="accounts">Accounts</AdminCategoryLabel>
 					</SidebarNavItem>
 				)}
-				{aiSettings}
 				{permissions.editDeploymentConfig && (
 					<SidebarNavItem href="/deployment/announcement">
 						<AdminCategoryLabel id="announcement">

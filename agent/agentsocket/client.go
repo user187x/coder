@@ -16,8 +16,7 @@ import (
 type Option func(*options)
 
 type options struct {
-	path           string
-	contextManager ContextManager
+	path string
 }
 
 // WithPath sets the socket path. If not provided or empty, the client will
@@ -28,14 +27,6 @@ func WithPath(path string) Option {
 			return
 		}
 		opts.path = path
-	}
-}
-
-// WithContextManager supplies the workspace-context Manager the server uses to
-// serve context source CRUD. Server-only; ignored by the client.
-func WithContextManager(cm ContextManager) Option {
-	return func(opts *options) {
-		opts.contextManager = cm
 	}
 }
 

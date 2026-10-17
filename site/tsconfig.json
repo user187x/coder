@@ -20,8 +20,7 @@
 			"react",
 			"react-dom",
 			"vite/client",
-			"vitest/globals",
-			"novnc__novnc"
+			"vitest/globals"
 		],
 		"paths": {
 			"#/*": ["./src/*"]

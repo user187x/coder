@@ -122,23 +122,6 @@ test("shows AI Governance over-limit warning in LicenseBanner for admin users", 
 	).toBeInTheDocument();
 });
 
-test("navigates an organization group member reader to AI settings from Admin", async () => {
-	const { router } = await renderDashboardLayout({
-		permissions: MockNoPermissions,
-		features: { aibridge: { enabled: true, entitlement: "entitled" } },
-		organizationChecks: true,
-		children: [{ path: "/ai/settings", element: <h1>AI settings</h1> }],
-	});
-
-	const user = userEvent.setup();
-	await user.click(await screen.findByRole("button", { name: "Settings" }));
-	await user.click(
-		await screen.findByRole("menuitem", { name: "Super Intelligence" }),
-	);
-	await screen.findByRole("heading", { name: "AI settings" });
-	expect(router.state.location.pathname).toBe("/ai/settings");
-});
-
 test("renders a skip link before navigation content", async () => {
 	renderWithAuth(<DashboardLayout />, {
 		children: [{ element: <h1>Test page</h1> }],

@@ -239,11 +239,6 @@ type UpdateUserAppearanceSettingsRequest struct {
 }
 
 type UserPreferenceSettings struct {
-	ThinkingDisplayMode    ThinkingDisplayMode   `json:"thinking_display_mode"`
-	ShellToolDisplayMode   AgentDisplayMode      `json:"shell_tool_display_mode"`
-	CodeDiffDisplayMode    AgentDisplayMode      `json:"code_diff_display_mode"`
-	CollapseAssistantSteps bool                  `json:"collapse_assistant_steps"`
-	AgentChatSendShortcut  AgentChatSendShortcut `json:"agent_chat_send_shortcut"`
 	// AdminQuickLinks are the admin pages the user pinned to the Admin
 	// menu, by page ID, in menu order. Empty means the dashboard's
 	// defaults.
@@ -254,56 +249,9 @@ type UserPreferenceSettings struct {
 const MaxAdminQuickLinks = 32
 
 type UpdateUserPreferenceSettingsRequest struct {
-	ThinkingDisplayMode    ThinkingDisplayMode   `json:"thinking_display_mode,omitempty"`
-	ShellToolDisplayMode   AgentDisplayMode      `json:"shell_tool_display_mode,omitempty"`
-	CodeDiffDisplayMode    AgentDisplayMode      `json:"code_diff_display_mode,omitempty"`
-	CollapseAssistantSteps *bool                 `json:"collapse_assistant_steps,omitempty"`
-	AgentChatSendShortcut  AgentChatSendShortcut `json:"agent_chat_send_shortcut,omitempty"`
 	// AdminQuickLinks replaces the pinned admin pages when set. An empty
 	// list restores the defaults; omit it to leave them unchanged.
 	AdminQuickLinks *[]string `json:"admin_quick_links,omitempty"`
-}
-
-type AgentChatSendShortcut string
-
-const (
-	AgentChatSendShortcutEnter         AgentChatSendShortcut = "enter"
-	AgentChatSendShortcutModifierEnter AgentChatSendShortcut = "modifier_enter"
-)
-
-var ValidAgentChatSendShortcuts = []AgentChatSendShortcut{
-	AgentChatSendShortcutEnter,
-	AgentChatSendShortcutModifierEnter,
-}
-
-type ThinkingDisplayMode string
-
-const (
-	ThinkingDisplayModeAuto            ThinkingDisplayMode = "auto"
-	ThinkingDisplayModePreview         ThinkingDisplayMode = "preview"
-	ThinkingDisplayModeAlwaysExpanded  ThinkingDisplayMode = "always_expanded"
-	ThinkingDisplayModeAlwaysCollapsed ThinkingDisplayMode = "always_collapsed"
-)
-
-var ValidThinkingDisplayModes = []ThinkingDisplayMode{
-	ThinkingDisplayModeAuto,
-	ThinkingDisplayModePreview,
-	ThinkingDisplayModeAlwaysExpanded,
-	ThinkingDisplayModeAlwaysCollapsed,
-}
-
-type AgentDisplayMode string
-
-const (
-	AgentDisplayModeAuto            AgentDisplayMode = "auto"
-	AgentDisplayModeAlwaysExpanded  AgentDisplayMode = "always_expanded"
-	AgentDisplayModeAlwaysCollapsed AgentDisplayMode = "always_collapsed"
-)
-
-var ValidAgentDisplayModes = []AgentDisplayMode{
-	AgentDisplayModeAuto,
-	AgentDisplayModeAlwaysExpanded,
-	AgentDisplayModeAlwaysCollapsed,
 }
 
 type UpdateUserPasswordRequest struct {

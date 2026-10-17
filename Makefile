@@ -58,8 +58,6 @@ endif
 	tailnet/tailnettest/coordinateemock.go \
 	tailnet/tailnettest/workspaceupdatesprovidermock.go \
 	tailnet/tailnettest/subscriptionmock.go \
-	coderd/aibridged/aibridgedmock/clientmock.go \
-	coderd/aibridged/aibridgedmock/poolmock.go \
 	tailnet/proto/tailnet.pb.go \
 	agent/proto/agent.pb.go \
 	agent/agentsocket/proto/agentsocket.pb.go \
@@ -67,10 +65,8 @@ endif
 	provisionersdk/proto/provisioner.pb.go \
 	provisionerd/proto/provisionerd.pb.go \
 	vpn/vpn.pb.go \
-	coderd/aibridged/proto/aibridged.pb.go \
 	site/src/api/typesGenerated.ts \
 	site/e2e/provisionerGenerated.ts \
-	site/src/api/chatModelOptionsGenerated.json \
 	site/src/api/rbacresourcesGenerated.ts \
 	site/src/theme/icons.json \
 	examples/examples.gen.json \
@@ -202,10 +198,6 @@ _gen/bin/scopesdocgen: $(wildcard scripts/scopesdocgen/*.go) $(wildcard scripts/
 	@mkdir -p _gen/bin
 	go build -o $@ ./scripts/scopesdocgen
 
-_gen/bin/aibridgepricesgen: $(wildcard scripts/aibridgepricesgen/*.go) scripts/aibridgepricesgen/curation.json | _gen
-	@mkdir -p _gen/bin
-	go build -o $@ ./scripts/aibridgepricesgen
-
 _gen/bin/metricsdocgen: $(wildcard scripts/metricsdocgen/*.go) | _gen
 	@mkdir -p _gen/bin
 	go build -o $@ ./scripts/metricsdocgen
@@ -213,10 +205,6 @@ _gen/bin/metricsdocgen: $(wildcard scripts/metricsdocgen/*.go) | _gen
 _gen/bin/metricsdocgen-scanner: $(wildcard scripts/metricsdocgen/scanner/*.go) | _gen
 	@mkdir -p _gen/bin
 	go build -o $@ ./scripts/metricsdocgen/scanner
-
-_gen/bin/modeloptionsgen: $(wildcard scripts/modeloptionsgen/*.go) $(wildcard codersdk/*.go) | _gen
-	@mkdir -p _gen/bin
-	go build -o $@ ./scripts/modeloptionsgen
 
 _gen/bin/typegen: $(TYPEGEN_INPUTS) | _gen
 	@mkdir -p _gen/bin
@@ -577,7 +565,7 @@ push/$(CODER_MAIN_IMAGE): $(CODER_MAIN_IMAGE)
 .PHONY: push/$(CODER_MAIN_IMAGE)
 
 # Helm charts that are available
-charts = coder provisioner ai-gateway
+charts = coder provisioner
 
 # Shortcut for Helm chart package.
 $(foreach chart,$(charts),build/$(chart)_helm.tgz): build/%_helm.tgz: build/%_helm_$(VERSION).tgz
@@ -610,7 +598,6 @@ scripts/apidocgen/node_modules/.installed: scripts/apidocgen/package.json script
 SITE_GEN_FILES := \
 	site/src/api/typesGenerated.ts \
 	site/src/api/rbacresourcesGenerated.ts \
-	site/src/api/chatModelOptionsGenerated.json \
 	site/src/theme/icons.json
 
 site/out/index.html: \
@@ -1071,10 +1058,6 @@ TAILNETTEST_MOCKS := \
 	tailnet/tailnettest/workspaceupdatesprovidermock.go \
 	tailnet/tailnettest/subscriptionmock.go
 
-AIBRIDGED_MOCKS := \
-	coderd/aibridged/aibridgedmock/clientmock.go \
-	coderd/aibridged/aibridgedmock/poolmock.go
-
 GEN_FILES := \
 	tailnet/proto/tailnet.pb.go \
 	agent/proto/agent.pb.go \
@@ -1083,7 +1066,6 @@ GEN_FILES := \
 	provisionersdk/proto/provisioner.pb.go \
 	provisionerd/proto/provisionerd.pb.go \
 	vpn/vpn.pb.go \
-	coderd/aibridged/proto/aibridged.pb.go \
 	$(DB_GEN_FILES) \
 	$(SITE_GEN_FILES) \
 	coderd/rbac/object_gen.go \
@@ -1108,8 +1090,7 @@ GEN_FILES := \
 	agent/agentcontainers/acmock/acmock.go \
 	agent/agentcontainers/dcspec/dcspec_gen.go \
 	coderd/httpmw/loggermw/loggermock/loggermock.go \
-	codersdk/workspacesdk/agentconnmock/agentconnmock.go \
-	$(AIBRIDGED_MOCKS)
+	codersdk/workspacesdk/agentconnmock/agentconnmock.go
 
 # all gen targets should be added here and to gen/mark-fresh
 # Set GEN_SKIP_GOLDEN=1 to skip gen/golden-files (which needs Docker to
@@ -1121,34 +1102,6 @@ gen: gen/db $(if $(GEN_SKIP_GOLDEN),,gen/golden-files) $(GEN_FILES)
 gen/db: $(DB_GEN_FILES)
 .PHONY: gen/db
 
-# Patched snapshot of the models.dev catalog. Fetched once per
-# gen/aibridge-prices run, with upstream corrections applied by
-# overrides.jq; both prices.json and the frontend known-models catalog are
-# generated from this single snapshot. Phony so each invocation refreshes it.
-_gen/models-dev.json: | _gen
-	set -o pipefail; $(call atomic_write,curl -fsSL https://models.dev/api.json | jq -f scripts/aibridgepricesgen/overrides.jq)
-.PHONY: _gen/models-dev.json
-
-# Refresh the AI Bridge pricing seed file from the patched models.dev
-# snapshot. Kept out of `make gen` because the output depends on live
-# upstream data. Phony so each invocation regenerates.
-coderd/aibridge/prices/data/prices.json: _gen/bin/aibridgepricesgen _gen/models-dev.json | _gen
-	@mkdir -p $(dir $@)
-	$(call atomic_write,_gen/bin/aibridgepricesgen -upstream _gen/models-dev.json)
-.PHONY: coderd/aibridge/prices/data/prices.json
-
-# Frontend known-models catalog, generated from the same patched models.dev
-# snapshot joined with the editorial curation in
-# scripts/aibridgepricesgen/curation.json. Kept out of `make gen` for the
-# same live-upstream-data reason as prices.json.
-site/src/modules/aiModels/knownModels/knownModelsGenerated.json: _gen/bin/aibridgepricesgen _gen/models-dev.json | _gen
-	$(call atomic_write,_gen/bin/aibridgepricesgen -format=catalog -upstream _gen/models-dev.json,./scripts/biome_format.sh)
-.PHONY: site/src/modules/aiModels/knownModels/knownModelsGenerated.json
-
-gen/aibridge-prices: \
-	coderd/aibridge/prices/data/prices.json \
-	site/src/modules/aiModels/knownModels/knownModelsGenerated.json
-.PHONY: gen/aibridge-prices
 
 gen/golden-files: \
 	agent/unit/testdata/.gen-golden \
@@ -1159,7 +1112,6 @@ gen/golden-files: \
 	enterprise/tailnet/testdata/.gen-golden \
 	helm/coder/tests/testdata/.gen-golden \
 	helm/provisioner/tests/testdata/.gen-golden \
-	helm/ai-gateway/tests/testdata/.gen-golden \
 	provisioner/terraform/testdata/.gen-golden \
 	tailnet/testdata/.gen-golden
 .PHONY: gen/golden-files
@@ -1175,7 +1127,6 @@ gen/mark-fresh:
 		agent/agentsocket/proto/agentsocket.pb.go \
 		agent/boundarylogproxy/codec/boundary.pb.go \
 		vpn/vpn.pb.go \
-		coderd/aibridged/proto/aibridged.pb.go \
 		coderd/database/dump.sql \
 		coderd/database/querier.go \
 		coderd/database/unique_constraint.go \
@@ -1189,8 +1140,7 @@ gen/mark-fresh:
 		coderd/rbac/scopes_constants_gen.go \
 		codersdk/apikey_scopes_gen.go \
 		site/src/api/rbacresourcesGenerated.ts \
-		site/src/api/chatModelOptionsGenerated.json \
-		docs/admin/integrations/prometheus.md \
+			docs/admin/integrations/prometheus.md \
 		docs/reference/cli/index.md \
 		docs/admin/security/audit-logs.md \
 		docs/admin/setup/configuration-reference.md \
@@ -1208,7 +1158,6 @@ gen/mark-fresh:
 		agent/agentcontainers/dcspec/dcspec_gen.go \
 		coderd/httpmw/loggermw/loggermock/loggermock.go \
 		codersdk/workspacesdk/agentconnmock/agentconnmock.go \
-		$(AIBRIDGED_MOCKS) \
 		"
 
 	for file in $$files; do
@@ -1265,10 +1214,6 @@ coderd/httpmw/loggermw/loggermock/loggermock.go: coderd/httpmw/loggermw/logger.g
 codersdk/workspacesdk/agentconnmock/agentconnmock.go: codersdk/workspacesdk/agentconn.go
 	go generate ./codersdk/workspacesdk/agentconnmock/
 	./scripts/format_go_file.sh "$@"
-	touch "$@"
-
-$(AIBRIDGED_MOCKS): coderd/aibridged/client.go coderd/aibridged/pool.go
-	go generate ./coderd/aibridged/aibridgedmock/
 	touch "$@"
 
 agent/agentcontainers/dcspec/dcspec_gen.go: \
@@ -1335,14 +1280,6 @@ agent/boundarylogproxy/codec/boundary.pb.go: agent/boundarylogproxy/codec/bounda
 		--go_opt=paths=source_relative \
 		./agent/boundarylogproxy/codec/boundary.proto
 
-coderd/aibridged/proto/aibridged.pb.go: coderd/aibridged/proto/aibridged.proto
-	./scripts/atomic_protoc.sh \
-		--go_out=. \
-		--go_opt=paths=source_relative \
-		--go-drpc_out=. \
-		--go-drpc_opt=paths=source_relative \
-		./coderd/aibridged/proto/aibridged.proto
-
 site/src/api/typesGenerated.ts: site/node_modules/.installed $(wildcard scripts/apitypings/*) \
 		$(shell find ./codersdk $(FIND_EXCLUSIONS) -type f -name '*.go') \
 		$(wildcard coderd/healthcheck/health/*.go) \
@@ -1397,9 +1334,6 @@ codersdk/apikey_scopes_gen.go: scripts/apikeyscopesgen/main.go coderd/rbac/scope
 site/src/api/rbacresourcesGenerated.ts: site/node_modules/.installed scripts/typegen/codersdk.gotmpl scripts/typegen/main.go coderd/rbac/object.go coderd/rbac/policy/policy.go \
 	coderd/rbac/object_gen.go coderd/rbac/scopes_constants_gen.go | _gen _gen/bin/typegen
 	$(call atomic_write,_gen/bin/typegen rbac typescript,./scripts/biome_format.sh)
-
-site/src/api/chatModelOptionsGenerated.json: scripts/modeloptionsgen/main.go codersdk/chats.go | _gen _gen/bin/modeloptionsgen
-	$(call atomic_write,_gen/bin/modeloptionsgen | tail -n +2,./scripts/biome_format.sh)
 
 scripts/metricsdocgen/generated_metrics: $(GO_SRC_FILES) | _gen _gen/bin/metricsdocgen-scanner
 	$(call atomic_write,_gen/bin/metricsdocgen-scanner)
@@ -1519,7 +1453,6 @@ clean/golden-files:
 		enterprise/tailnet/testdata \
 		helm/coder/tests/testdata \
 		helm/provisioner/tests/testdata \
-		helm/ai-gateway/tests/testdata \
 		provisioner/terraform/testdata \
 		tailnet/testdata \
 		-type f -name '*.golden' -delete
@@ -1559,10 +1492,6 @@ helm/provisioner/tests/testdata/.gen-golden: $(wildcard helm/provisioner/tests/t
 	else
 		echo "WARNING: helm not found; skipping helm/provisioner golden generation" >&2
 	fi
-	touch "$@"
-
-helm/ai-gateway/tests/testdata/.gen-golden: $(wildcard helm/ai-gateway/tests/testdata/*.yaml) $(wildcard helm/ai-gateway/tests/testdata/*.golden) $(GO_SRC_FILES) $(wildcard helm/ai-gateway/tests/*_test.go)
-	TZ=UTC go test ./helm/ai-gateway/tests -run=TestUpdateGoldenFiles -update
 	touch "$@"
 
 coderd/.gen-golden: $(wildcard coderd/testdata/*/*.golden) $(GO_SRC_FILES) $(wildcard coderd/*_test.go)

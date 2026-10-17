@@ -5,10 +5,7 @@ import {
 	GROUP_MEMBER_AVATAR_LIMIT,
 	groupMemberAvatars,
 } from "#/api/queries/groups";
-import type {
-	OrganizationGroupsAISpend,
-	PaginatedGroup,
-} from "#/api/typesGenerated";
+import type { PaginatedGroup } from "#/api/typesGenerated";
 import { Avatar } from "#/components/Avatar/Avatar";
 import { AvatarData } from "#/components/Avatar/AvatarData";
 import { AvatarDataSkeleton } from "#/components/Avatar/AvatarDataSkeleton";
@@ -40,43 +37,17 @@ import {
 } from "#/components/TableLoader/TableLoader";
 import { useClickableTableRow } from "#/hooks/useClickableTableRow";
 import type { PaginationResultInfo } from "#/hooks/usePaginatedQuery";
-import { AIBudgetUsage } from "#/modules/groups/AIBudgetUsage";
-import { StatusIconTooltip } from "./StatusIconTooltip";
 
 const EM_DASH = "\u2014";
 
 // Stable keys for the avatar loading skeletons (indexes would trip lint).
 const AVATAR_SKELETON_KEYS = ["a", "b", "c", "d", "e"];
 
-export type GroupWithSpend = PaginatedGroup & {
-	readonly spend: OrganizationGroupsAISpend["groups"][number] | undefined;
-};
-
-/** Attach each group's spend, when present, so rows get a single object. */
-export const joinGroupsSpend = (
-	groups: readonly PaginatedGroup[] | undefined,
-	groupsSpend: OrganizationGroupsAISpend | undefined,
-): GroupWithSpend[] | undefined => {
-	if (groups === undefined) {
-		return undefined;
-	}
-	const spendByGroupId = new Map(
-		groupsSpend?.groups.map((spend) => [spend.group_id, spend]) ?? [],
-	);
-	return groups.map((group) => ({
-		...group,
-		spend: spendByGroupId.get(group.id),
-	}));
-};
-
 type GroupsPageViewProps = {
-	groups: GroupWithSpend[] | undefined;
-	/** True when the spend query failed; cells then show an em dash. */
-	spendError: boolean;
+	groups: readonly PaginatedGroup[] | undefined;
 	canCreateGroup: boolean;
 	groupsEnabled: boolean;
 	showOrganizations: boolean;
-	showAIBudget: boolean;
 	filterProps: { filter: ReturnType<typeof useFilter> };
 	groupsQuery: PaginationResultInfo & {
 		isPlaceholderData: boolean;
@@ -85,11 +56,9 @@ type GroupsPageViewProps = {
 
 export const GroupsPageView: React.FC<GroupsPageViewProps> = ({
 	groups,
-	spendError,
 	canCreateGroup,
 	groupsEnabled,
 	showOrganizations,
-	showAIBudget,
 	filterProps,
 	groupsQuery,
 }) => {
@@ -126,31 +95,7 @@ export const GroupsPageView: React.FC<GroupsPageViewProps> = ({
 							<TableHeader>
 								<TableRow>
 									<TableHead className="w-2/5">Name</TableHead>
-									<TableHead className={showAIBudget ? "w-1/5" : "w-3/5"}>
-										Users
-									</TableHead>
-									{showAIBudget && (
-										<TableHead className="w-2/5">
-											<div className="flex items-center gap-1">
-												AI spend
-												{spendError ? (
-													<StatusIconTooltip
-														kind="warning"
-														message="AI spend couldn't be loaded, so budgets aren't shown."
-													/>
-												) : (
-													<StatusIconTooltip
-														message={
-															<>
-																Approximate AI spend compared to the group's AI
-																budget for the active period.
-															</>
-														}
-													/>
-												)}
-											</div>
-										</TableHead>
-									)}
+									<TableHead className="w-3/5">Users</TableHead>
 									<TableHead className="w-auto" />
 								</TableRow>
 							</TableHeader>
@@ -158,7 +103,6 @@ export const GroupsPageView: React.FC<GroupsPageViewProps> = ({
 								<GroupsTableBody
 									groups={groups}
 									canCreateGroup={canCreateGroup}
-									showAIBudget={showAIBudget}
 									filterUsed={filterProps.filter.used}
 								/>
 							</TableBody>
@@ -171,20 +115,18 @@ export const GroupsPageView: React.FC<GroupsPageViewProps> = ({
 };
 
 type GroupsTableBodyProps = {
-	groups: GroupWithSpend[] | undefined;
+	groups: readonly PaginatedGroup[] | undefined;
 	canCreateGroup: boolean;
-	showAIBudget: boolean;
 	filterUsed: boolean;
 };
 
 const GroupsTableBody: React.FC<GroupsTableBodyProps> = ({
 	groups,
 	canCreateGroup,
-	showAIBudget,
 	filterUsed,
 }) => {
 	if (groups === undefined) {
-		return <TableLoader showAIBudget={showAIBudget} />;
+		return <TableLoader />;
 	}
 	if (groups.length === 0) {
 		// When a search returned no matches, don't nudge the user to create a
@@ -225,18 +167,17 @@ const GroupsTableBody: React.FC<GroupsTableBodyProps> = ({
 	return (
 		<>
 			{groups.map((group) => (
-				<GroupRow key={group.id} group={group} showAIBudget={showAIBudget} />
+				<GroupRow key={group.id} group={group} />
 			))}
 		</>
 	);
 };
 
 type GroupRowProps = {
-	group: GroupWithSpend;
-	showAIBudget: boolean;
+	group: PaginatedGroup;
 };
 
-const GroupRow: React.FC<GroupRowProps> = ({ group, showAIBudget }) => {
+const GroupRow: React.FC<GroupRowProps> = ({ group }) => {
 	const navigate = useNavigate();
 	const rowProps = useClickableTableRow({
 		onClick: () => navigate(group.name),
@@ -303,19 +244,6 @@ const GroupRow: React.FC<GroupRowProps> = ({ group, showAIBudget }) => {
 				)}
 			</TableCell>
 
-			{showAIBudget && (
-				<TableCell>
-					{group.spend ? (
-						<AIBudgetUsage
-							currentSpend={group.spend.current_spend_micros}
-							spendLimit={group.spend.total_spend_limit_micros}
-						/>
-					) : (
-						EM_DASH
-					)}
-				</TableCell>
-			)}
-
 			<TableCell>
 				<div className="flex">
 					<ChevronRightIcon className="size-icon-sm" />
@@ -325,7 +253,7 @@ const GroupRow: React.FC<GroupRowProps> = ({ group, showAIBudget }) => {
 	);
 };
 
-const TableLoader: React.FC<{ showAIBudget: boolean }> = ({ showAIBudget }) => {
+const TableLoader: React.FC = () => {
 	return (
 		<TableLoaderSkeleton>
 			<TableRowSkeleton>
@@ -337,11 +265,6 @@ const TableLoader: React.FC<{ showAIBudget: boolean }> = ({ showAIBudget }) => {
 				<TableCell>
 					<Skeleton variant="text" width="25%" />
 				</TableCell>
-				{showAIBudget && (
-					<TableCell>
-						<Skeleton variant="text" width="50%" />
-					</TableCell>
-				)}
 				<TableCell>
 					<Skeleton variant="text" width="25%" />
 				</TableCell>

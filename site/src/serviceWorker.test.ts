@@ -64,7 +64,7 @@ const testPayload: WebpushMessage = {
 	body: "Something happened",
 	icon: "/icon.png",
 	actions: [],
-	data: { url: "/agents/abc" },
+	data: { url: "/@admin/dev" },
 };
 
 // Import the service worker module. This executes the top-level
@@ -97,7 +97,7 @@ describe("serviceWorker push handler", () => {
 		mockMatchAll.mockResolvedValue([
 			{
 				visibilityState: "visible",
-				url: "https://example.com/agents/abc",
+				url: "https://example.com/@admin/dev",
 				focused: true,
 			},
 		]);
@@ -134,7 +134,7 @@ describe("serviceWorker push handler", () => {
 		mockMatchAll.mockResolvedValue([
 			{
 				visibilityState: "visible",
-				url: "https://example.com/agents/abc",
+				url: "https://example.com/@admin/dev",
 				focused: true,
 			},
 		]);
@@ -161,7 +161,7 @@ describe("serviceWorker push handler", () => {
 		mockMatchAll.mockResolvedValue([
 			{
 				visibilityState: "hidden",
-				url: "https://example.com/agents/abc",
+				url: "https://example.com/@admin/dev",
 				focused: false,
 			},
 		]);
@@ -182,7 +182,7 @@ describe("serviceWorker push handler", () => {
 		mockMatchAll.mockResolvedValue([
 			{
 				visibilityState: "visible",
-				url: "https://example.com/agents/abc",
+				url: "https://example.com/@admin/dev",
 				focused: false,
 			},
 		]);
@@ -272,7 +272,7 @@ function makeNotificationClickEvent(url?: string) {
 describe("serviceWorker notificationclick handler", () => {
 	it("focuses existing client without navigating when already on the target URL", async () => {
 		const mockClient = {
-			url: "https://example.com/agents/abc",
+			url: "https://example.com/@admin/dev",
 			visibilityState: "visible",
 			focused: true,
 			focus: vi.fn(() => Promise.resolve()),
@@ -280,7 +280,7 @@ describe("serviceWorker notificationclick handler", () => {
 		};
 		mockMatchAll.mockResolvedValue([mockClient]);
 
-		const event = makeNotificationClickEvent("/agents/abc");
+		const event = makeNotificationClickEvent("/@admin/dev");
 		handlers.notificationclick(event);
 		await event._waitUntilPromise;
 
@@ -289,9 +289,9 @@ describe("serviceWorker notificationclick handler", () => {
 		expect(mockClient.focus).toHaveBeenCalled();
 	});
 
-	it("navigates and focuses existing client when on a different agents page", async () => {
+	it("opens a new window when no open window shows the target page", async () => {
 		const mockClient = {
-			url: "https://example.com/agents/other",
+			url: "https://example.com/workspaces",
 			visibilityState: "visible",
 			focused: true,
 			focus: vi.fn(() => Promise.resolve()),
@@ -299,27 +299,27 @@ describe("serviceWorker notificationclick handler", () => {
 		};
 		mockMatchAll.mockResolvedValue([mockClient]);
 
-		const event = makeNotificationClickEvent("/agents/abc");
+		const event = makeNotificationClickEvent("/@admin/dev");
 		handlers.notificationclick(event);
 		await event._waitUntilPromise;
 
 		expect(event.notification.close).toHaveBeenCalled();
-		expect(mockClient.navigate).toHaveBeenCalledWith("/agents/abc");
-		expect(mockClient.focus).toHaveBeenCalled();
+		expect(mockClient.navigate).not.toHaveBeenCalled();
+		expect(mockClients.openWindow).toHaveBeenCalledWith("/@admin/dev");
 	});
 
 	it("opens new window when no matching client exists", async () => {
 		mockMatchAll.mockResolvedValue([]);
 
-		const event = makeNotificationClickEvent("/agents/abc");
+		const event = makeNotificationClickEvent("/@admin/dev");
 		handlers.notificationclick(event);
 		await event._waitUntilPromise;
 
 		expect(event.notification.close).toHaveBeenCalled();
-		expect(mockClients.openWindow).toHaveBeenCalledWith("/agents/abc");
+		expect(mockClients.openWindow).toHaveBeenCalledWith("/@admin/dev");
 	});
 
-	it("defaults to /agents when notification has no data url", async () => {
+	it("defaults to /workspaces when notification has no data url", async () => {
 		mockMatchAll.mockResolvedValue([]);
 
 		const event = makeNotificationClickEvent();
@@ -327,7 +327,7 @@ describe("serviceWorker notificationclick handler", () => {
 		await event._waitUntilPromise;
 
 		expect(event.notification.close).toHaveBeenCalled();
-		expect(mockClients.openWindow).toHaveBeenCalledWith("/agents");
+		expect(mockClients.openWindow).toHaveBeenCalledWith("/workspaces");
 	});
 });
 

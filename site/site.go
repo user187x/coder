@@ -81,7 +81,6 @@ type Options struct {
 	AppearanceFetcher         *atomic.Pointer[appearance.Fetcher]
 	Entitlements              *entitlements.Set
 	Logger                    slog.Logger
-	AIGatewayEnabled          bool
 	UserSecretFilePathEnabled bool
 	// ExperimentEvaluator decides the experiments embedded for the
 	// signed-in user. When nil, no experiments are embedded.
@@ -266,7 +265,6 @@ type htmlState struct {
 	Regions        string
 	DocsURL        string
 
-	AIGatewayEnabled          string
 	UserSecretFilePathEnabled string
 	Permissions               string
 	Organizations             string
@@ -480,12 +478,6 @@ func (h *Handler) populateHTMLState(
 			}
 		})
 	}
-	wg.Go(func() {
-		data, err := json.Marshal(h.opts.AIGatewayEnabled)
-		if err == nil {
-			state.AIGatewayEnabled = html.EscapeString(string(data))
-		}
-	})
 	wg.Go(func() {
 		data, err := json.Marshal(h.opts.UserSecretFilePathEnabled)
 		if err == nil {

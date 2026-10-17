@@ -2,7 +2,6 @@ import {
 	ActivityIcon,
 	AppWindowIcon,
 	BellIcon,
-	BrainCircuitIcon,
 	DatabaseIcon,
 	HeartPulseIcon,
 	KeyRoundIcon,
@@ -36,7 +35,6 @@ type AdminPageAccess = {
 	permissions: Permissions;
 	/** The deployment offers OAuth2 applications. */
 	oauth2Provider: boolean;
-	canViewAISettings: boolean;
 };
 
 /**
@@ -52,13 +50,6 @@ const ADMIN_PAGES: readonly (AdminPage & {
 		icon: UsersIcon,
 		path: "/deployment/users",
 		allowed: ({ permissions }) => permissions.viewAllUsers,
-	},
-	{
-		id: "super-intelligence",
-		label: "Super Intelligence",
-		icon: BrainCircuitIcon,
-		path: "/ai/settings",
-		allowed: ({ canViewAISettings }) => canViewAISettings,
 	},
 	{
 		id: "announcement",
@@ -205,7 +196,6 @@ export const addableAdminPages = (
 
 /** The paths of each category beyond its own (its subpages are matched too). */
 const CATEGORY_PREFIXES: Record<string, readonly string[]> = {
-	"super-intelligence": ["/ai/settings", "/deployment/agents"],
 	health: ["/health"],
 	"oauth2-applications": ["/deployment/oauth2-provider"],
 };

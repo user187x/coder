@@ -11,7 +11,6 @@ import (
 	"github.com/go-chi/httprate"
 	"golang.org/x/xerrors"
 
-	"github.com/coder/coder/v2/coderd/aibridge"
 	"github.com/coder/coder/v2/coderd/database"
 	"github.com/coder/coder/v2/coderd/httpapi"
 	"github.com/coder/coder/v2/coderd/rbac"
@@ -170,49 +169,6 @@ func keyByNormalizedEndpoint(r *http.Request) (string, error) {
 		p = "/"
 	}
 	return path.Clean(p), nil
-}
-
-// RateLimitByAuthToken returns a handler that limits requests based on the
-// authentication token in the request.
-//
-// This differs from [RateLimit] in several ways:
-//   - It extracts the token directly from request headers (Authorization Bearer
-//     or X-Api-Key) rather than from the request context, making it suitable for
-//     endpoints that handle authentication internally (like AI Bridge) rather than
-//     via [ExtractAPIKeyMW] middleware.
-//   - It does not support the bypass header for Owners.
-//   - It does not key by endpoint, so the limit applies across all endpoints using
-//     this middleware.
-//   - It includes a Retry-After header in 429 responses for backpressure signaling.
-//
-// If no token is found in the headers, it falls back to rate limiting by IP address.
-func RateLimitByAuthToken(count int, window time.Duration) func(http.Handler) http.Handler {
-	if count <= 0 {
-		return func(handler http.Handler) http.Handler {
-			return handler
-		}
-	}
-
-	return httprate.Limit(
-		count,
-		window,
-		httprate.WithKeyFuncs(func(r *http.Request) (string, error) {
-			// Try to extract auth token for per-user rate limiting using
-			// AI provider authentication headers (Authorization Bearer or X-Api-Key).
-			if token := aibridge.ExtractAuthToken(r.Header); token != "" {
-				return token, nil
-			}
-			// Fall back to IP-based rate limiting if no token present.
-			return httprate.KeyByIP(r)
-		}),
-		httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
-			// Add Retry-After header for backpressure signaling.
-			w.Header().Set("Retry-After", fmt.Sprintf("%d", int(window.Seconds())))
-			httpapi.Write(r.Context(), w, http.StatusTooManyRequests, codersdk.Response{
-				Message: "You've been rate limited. Please try again later.",
-			})
-		}),
-	)
 }
 
 // ConcurrencyLimit returns a handler that limits the number of concurrent

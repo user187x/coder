@@ -22,7 +22,6 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
-	"net/netip"
 	"net/url"
 	"regexp"
 	"strconv"
@@ -91,7 +90,6 @@ import (
 	"github.com/coder/coder/v2/coderd/workspaceapps/appurl"
 	"github.com/coder/coder/v2/coderd/workspacestats"
 	"github.com/coder/coder/v2/coderd/wsbuilder"
-	"github.com/coder/coder/v2/coderd/x/chatd/chatprovider"
 	natspubsub "github.com/coder/coder/v2/coderd/x/nats"
 	"github.com/coder/coder/v2/codersdk"
 	"github.com/coder/coder/v2/codersdk/agentsdk"
@@ -121,23 +119,19 @@ type Options struct {
 	// PlatformServiceRoutes forward path prefixes to platform services.
 	PlatformServiceRoutes []coderd.PlatformServiceRoute
 	// PlatformFirstOwnerByBootstrap: see coderd.Options.
-	PlatformFirstOwnerByBootstrap bool
-	AWSCertificates               awsidentity.Certificates
-	Authorizer                    rbac.Authorizer
-	AzureCertificates             azureidentity.Options
-	RealIPConfig                  *httpmw.RealIPConfig
-	OIDCConfig                    *coderd.OIDCConfig
-	GoogleTokenValidator          *idtoken.Validator
-	SSHKeygenAlgorithm            gitsshkey.Algorithm
-	AutobuildTicker               <-chan time.Time
-	AutobuildStats                chan<- autobuild.Stats
-	Auditor                       audit.Auditor
-	TLSCertificates               []tls.Certificate
-	ExternalAuthConfigs           []*externalauth.Config
-	// MCPAllowedPrivateCIDRs exempts IP ranges from the MCP
-	// SSRF guard for MCP server and OAuth2 traffic. Defaults to loopback so
-	// tests can serve mock MCP and authorization servers via httptest.
-	MCPAllowedPrivateCIDRs         []netip.Prefix
+	PlatformFirstOwnerByBootstrap  bool
+	AWSCertificates                awsidentity.Certificates
+	Authorizer                     rbac.Authorizer
+	AzureCertificates              azureidentity.Options
+	RealIPConfig                   *httpmw.RealIPConfig
+	OIDCConfig                     *coderd.OIDCConfig
+	GoogleTokenValidator           *idtoken.Validator
+	SSHKeygenAlgorithm             gitsshkey.Algorithm
+	AutobuildTicker                <-chan time.Time
+	AutobuildStats                 chan<- autobuild.Stats
+	Auditor                        audit.Auditor
+	TLSCertificates                []tls.Certificate
+	ExternalAuthConfigs            []*externalauth.Config
 	RefreshEntitlements            func(ctx context.Context) error
 	TemplateScheduleStore          schedule.TemplateScheduleStore
 	Coordinator                    tailnet.Coordinator
@@ -157,11 +151,7 @@ type Options struct {
 	OneTimePasscodeValidityPeriod time.Duration
 
 	// IncludeProvisionerDaemon when true means to start an in-memory provisionerD
-	IncludeProvisionerDaemon bool
-	ChatProviderAPIKeys      *chatprovider.ProviderAPIKeys
-	// ChatWorkerDisabled skips starting the chat daemon's background
-	// worker. Used in tests.
-	ChatWorkerDisabled          bool
+	IncludeProvisionerDaemon    bool
 	ProvisionerDaemonVersion    string
 	ProvisionerDaemonTags       map[string]string
 	MetricsCacheRefreshInterval time.Duration
@@ -201,7 +191,6 @@ type Options struct {
 	NotificationsEnqueuer              notifications.Enqueuer
 	APIKeyEncryptionCache              cryptokeys.EncryptionKeycache
 	OIDCConvertKeyCache                cryptokeys.SigningKeycache
-	ChatFileTokenKeyCache              cryptokeys.SigningKeycache
 	Clock                              quartz.Clock
 	Acquirer                           *provisionerdserver.Acquirer
 
@@ -318,15 +307,6 @@ func NewOptions(t testing.TB, options *Options) (func(http.Handler), context.Can
 
 	if options.CoordinatorResumeTokenProvider == nil {
 		options.CoordinatorResumeTokenProvider = tailnet.NewInsecureTestResumeTokenProvider()
-	}
-
-	if options.MCPAllowedPrivateCIDRs == nil {
-		// Tests allow loopback for mock MCP and OAuth servers. Pass a non-nil
-		// allowlist, including an empty one, to exercise the guard.
-		options.MCPAllowedPrivateCIDRs = []netip.Prefix{
-			netip.MustParsePrefix("127.0.0.0/8"),
-			netip.MustParsePrefix("::1/128"),
-		}
 	}
 
 	if options.NotificationsEnqueuer == nil {
@@ -623,9 +603,6 @@ func NewOptions(t testing.TB, options *Options) (func(http.Handler), context.Can
 			// Force a long disconnection timeout to ensure
 			// agents are not marked as disconnected during slow tests.
 			AgentInactiveDisconnectTimeout: testutil.WaitShort,
-			MCPAllowedPrivateCIDRs:         options.MCPAllowedPrivateCIDRs,
-			ChatProviderAPIKeys:            options.ChatProviderAPIKeys,
-			ChatWorkerDisabled:             options.ChatWorkerDisabled,
 			AccessURL:                      accessURL,
 			AppHostname:                    options.AppHostname,
 			AppHostnameRegex:               appHostnameRegex,
@@ -684,7 +661,6 @@ func NewOptions(t testing.TB, options *Options) (func(http.Handler), context.Can
 			Acquirer:                           options.Acquirer,
 			AppEncryptionKeyCache:              options.APIKeyEncryptionCache,
 			OIDCConvertKeyCache:                options.OIDCConvertKeyCache,
-			ChatFileTokenKeyCache:              options.ChatFileTokenKeyCache,
 			ProvisionerdServerMetrics:          options.ProvisionerdServerMetrics,
 			WorkspaceBuilderMetrics:            options.WorkspaceBuilderMetrics,
 		}

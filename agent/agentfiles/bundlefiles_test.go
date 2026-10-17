@@ -11,7 +11,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/spf13/afero"
 	"github.com/stretchr/testify/require"
 
 	"cdr.dev/slog/v3"
@@ -203,7 +202,7 @@ func newBundleFilesHandler(t *testing.T, home string, opts ...agentfiles.Option)
 
 	logger := slogtest.Make(t, &slogtest.Options{IgnoreErrors: true}).Leveled(slog.LevelDebug)
 	opts = append([]agentfiles.Option{agentfiles.WithEnvInfo(fakeBundleEnvInfo{home: home})}, opts...)
-	return agentfiles.NewAPI(logger, afero.NewOsFs(), nil, opts...).Routes()
+	return agentfiles.NewAPI(logger, opts...).Routes()
 }
 
 func requestBundleFiles(t *testing.T, handler http.Handler, paths []string) []byte {

@@ -12,7 +12,6 @@ import {
 const allPages = adminPagesFor({
 	permissions: MockPermissions,
 	oauth2Provider: true,
-	canViewAISettings: true,
 });
 const ids = (pages: readonly { id: string }[]) => pages.map((page) => page.id);
 
@@ -23,7 +22,6 @@ describe("adminPagesFor", () => {
 				adminPagesFor({
 					permissions: { ...MockNoPermissions, viewAllUsers: true },
 					oauth2Provider: true,
-					canViewAISettings: false,
 				}),
 			),
 		).toEqual(["accounts"]);
@@ -33,7 +31,6 @@ describe("adminPagesFor", () => {
 		const without = adminPagesFor({
 			permissions: MockPermissions,
 			oauth2Provider: false,
-			canViewAISettings: true,
 		});
 		expect(ids(allPages)).toContain("oauth2-applications");
 		expect(ids(without)).not.toContain("oauth2-applications");
@@ -42,7 +39,6 @@ describe("adminPagesFor", () => {
 	it("lists General's categories in the order of its sidebar", () => {
 		expect(allPages.map((page) => page.label)).toEqual([
 			"Accounts",
-			"Super Intelligence",
 			"Announcement",
 			"Chat",
 			"Authentication",
@@ -113,7 +109,7 @@ describe("addableAdminPages", () => {
 		const addable = ids(addableAdminPages(links, allPages));
 		expect(addable).not.toContain("network");
 		expect(addable).not.toContain("accounts");
-		expect(addable[0]).toBe("super-intelligence");
+		expect(addable[0]).toBe("announcement");
 		expect(addable.length).toBe(allPages.length - 2);
 	});
 
@@ -128,10 +124,6 @@ describe("adminCategoryLabel", () => {
 		expect(adminCategoryLabel("/deployment/userauth")).toBe("Authentication");
 		expect(adminCategoryLabel("/health/user-quota")).toBe("Health");
 		expect(adminCategoryLabel("/health/workspace-health")).toBe("Health");
-		expect(adminCategoryLabel("/ai/settings/providers")).toBe(
-			"Super Intelligence",
-		);
-		expect(adminCategoryLabel("/deployment/agents")).toBe("Super Intelligence");
 		expect(adminCategoryLabel("/deployment/oauth2-provider/apps/add")).toBe(
 			"OAuth2 Applications",
 		);

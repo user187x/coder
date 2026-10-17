@@ -9,7 +9,6 @@ import (
 	"net"
 	"net/http"
 	"net/netip"
-	"strings"
 	"sync/atomic"
 	"testing"
 
@@ -98,14 +97,16 @@ func TestAgentConnRejectsCrossAgentRedirects(t *testing.T) {
 			name:   "post 307",
 			status: http.StatusTemporaryRedirect,
 			invoke: func(ctx context.Context, conn workspacesdk.AgentConn) error {
-				return conn.WriteFile(ctx, "/tmp/attacker", strings.NewReader("redirect-body"))
+				_, err := conn.BundleFiles(ctx, workspacesdk.BundleFilesRequest{Paths: []string{"/tmp/attacker"}})
+				return err
 			},
 		},
 		{
 			name:   "post 308",
 			status: http.StatusPermanentRedirect,
 			invoke: func(ctx context.Context, conn workspacesdk.AgentConn) error {
-				return conn.WriteFile(ctx, "/tmp/attacker", strings.NewReader("redirect-body"))
+				_, err := conn.BundleFiles(ctx, workspacesdk.BundleFilesRequest{Paths: []string{"/tmp/attacker"}})
+				return err
 			},
 		},
 	}

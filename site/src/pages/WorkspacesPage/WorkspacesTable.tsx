@@ -32,7 +32,6 @@ import type {
 import { Avatar } from "#/components/Avatar/Avatar";
 import { AvatarData } from "#/components/Avatar/AvatarData";
 import { AvatarDataSkeleton } from "#/components/Avatar/AvatarDataSkeleton";
-import { Badge } from "#/components/Badge/Badge";
 import { Button } from "#/components/Button/Button";
 import { Checkbox } from "#/components/Checkbox/Checkbox";
 import { ConfirmDialog } from "#/components/Dialog/ConfirmDialog/ConfirmDialog";
@@ -101,7 +100,6 @@ type WorkspacesTableProps = {
 	canCreateWorkspace: boolean;
 	onActionSuccess: () => Promise<void>;
 	onActionError: (error: unknown) => void;
-	chatsByWorkspace?: Record<string, string>;
 };
 
 export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
@@ -115,7 +113,6 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 	canCreateWorkspace,
 	onActionSuccess,
 	onActionError,
-	chatsByWorkspace,
 }) => {
 	const { data: icons } = useWorkspaceIcons();
 	const dashboard = useDashboard();
@@ -236,17 +233,6 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 												</Link>
 												{workspace.outdated && (
 													<WorkspaceOutdatedTooltip workspace={workspace} />
-												)}
-												{chatsByWorkspace?.[workspace.id] && (
-													<Badge size="xs" variant="info" hover asChild>
-														<Link
-															to={`/agents/${chatsByWorkspace[workspace.id]}`}
-															onClick={(e) => e.stopPropagation()}
-															aria-label={`View agent conversation for ${workspace.name}`}
-														>
-															Agent
-														</Link>
-													</Badge>
 												)}
 											</div>
 										}

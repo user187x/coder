@@ -2,7 +2,6 @@ package dbpurge
 
 import (
 	"context"
-	"errors"
 	"io"
 	"time"
 
@@ -44,19 +43,6 @@ const (
 	workspaceBuildOrchestrationTerminalRetention = 24 * time.Hour
 	// Batch size for workspace build orchestration deletion.
 	workspaceBuildOrchestrationsBatchSize = 10000
-	// Chat and chat file batch sizes stay smaller than audit/connection
-	// log batches because chat_files rows carry bytea blobs.
-	chatsBatchSize     = 1000
-	chatFilesBatchSize = 1000
-	// Chat debug run deletions can cascade into steps with large JSONB
-	// payloads, so they use the same conservative batch size.
-	chatDebugRunsBatchSize = 1000
-	// Chat search tsvector backfill is capped at 5 batches of 10k
-	// rows per tick. Benchmarks on a dogfood-class machine (EPYC 9454P)
-	// with containerized Postgres were measured to take ~800ms per batch.
-	// This is considered acceptable but may need dialing in later.
-	chatSearchBackfillBatchSize  = 10000
-	chatSearchBackfillMaxBatches = 5
 )
 
 type Option func(*instance)
@@ -65,14 +51,6 @@ type Option func(*instance)
 // quartz.NewReal().
 func WithClock(clk quartz.Clock) Option {
 	return func(i *instance) { i.clk = clk }
-}
-
-// WithChatSearchBackfillLimits overrides backfill batch size and cap. For tests.
-func WithChatSearchBackfillLimits(batchSize int32, maxBatches int) Option {
-	return func(i *instance) {
-		i.chatSearchBackfillBatchSize = batchSize
-		i.chatSearchBackfillMaxBatches = maxBatches
-	}
 }
 
 // New creates a new periodically purging database instance.
@@ -101,25 +79,14 @@ func New(ctx context.Context, logger slog.Logger, db database.Store, vals *coder
 	}, []string{"record_type"})
 	reg.MustRegister(recordsPurged)
 
-	chatSearchRowsBackfilled := prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: "coderd",
-		Subsystem: "dbpurge",
-		Name:      "chat_search_rows_backfilled_total",
-		Help:      "Total number of chat message rows whose search_tsv was backfilled.",
-	})
-	reg.MustRegister(chatSearchRowsBackfilled)
-
 	inst := &instance{
-		cancel:                       cancelFunc,
-		closed:                       closed,
-		logger:                       logger,
-		vals:                         vals,
-		clk:                          quartz.NewReal(),
-		iterationDuration:            iterationDuration,
-		recordsPurged:                recordsPurged,
-		chatSearchRowsBackfilled:     chatSearchRowsBackfilled,
-		chatSearchBackfillBatchSize:  chatSearchBackfillBatchSize,
-		chatSearchBackfillMaxBatches: chatSearchBackfillMaxBatches,
+		cancel:            cancelFunc,
+		closed:            closed,
+		logger:            logger,
+		vals:              vals,
+		clk:               quartz.NewReal(),
+		iterationDuration: iterationDuration,
+		recordsPurged:     recordsPurged,
 	}
 	for _, opt := range opts {
 		opt(inst)
@@ -160,31 +127,6 @@ func New(ctx context.Context, logger slog.Logger, db database.Store, vals *coder
 // purgeTick performs a single purge iteration. It returns an error if the
 // purge fails.
 func (i *instance) purgeTick(ctx context.Context, db database.Store, start time.Time) error {
-	// Read chat configs outside the tx so a corrupt value can't
-	// poison subsequent queries. On config read errors, log and stash
-	// the error, then run unrelated purges best-effort. Retention
-	// errors skip only the conversation purge. Debug retention errors
-	// skip only the debug purge. purgeTick returns chatConfigErr after
-	// the tx so the failed iteration is operator-visible via metric and
-	// logs.
-	chatRetentionDays, chatRetentionErr := db.GetChatRetentionDays(ctx)
-	purgeChats := chatRetentionErr == nil
-	if chatRetentionErr != nil {
-		i.logger.Error(ctx, "failed to read chat retention config: skipping chat purge this tick", slog.Error(chatRetentionErr))
-	}
-
-	chatDebugRetentionDays, chatDebugRetentionErr := db.GetChatDebugRetentionDays(ctx, codersdk.DefaultChatDebugRetentionDays)
-	purgeChatDebugRuns := chatDebugRetentionErr == nil
-	if chatDebugRetentionErr != nil {
-		i.logger.Error(ctx, "failed to read chat debug retention config: skipping chat debug purge this tick", slog.Error(chatDebugRetentionErr))
-	}
-
-	chatConfigErr := errors.Join(chatRetentionErr, chatDebugRetentionErr)
-
-	// Set inside the transaction closure, applied to the instance only
-	// after the transaction commits.
-	var staleDrained bool
-
 	// Start a transaction to grab advisory lock, we don't want to run
 	// multiple purges at the same time (multiple replicas).
 	err := db.InTx(func(tx database.Store) error {
@@ -252,17 +194,6 @@ func (i *instance) purgeTick(ctx context.Context, db database.Store, start time.
 			return xerrors.Errorf("failed to delete old audit log connection events: %w", err)
 		}
 
-		var purgedAIBridgeRecords int64
-		aibridgeRetention := i.vals.AI.BridgeConfig.Retention.Value()
-		if aibridgeRetention > 0 {
-			deleteAIBridgeRecordsBefore := start.Add(-aibridgeRetention)
-			// nolint:gocritic // Needs to run as aibridge context.
-			purgedAIBridgeRecords, err = tx.DeleteOldAIBridgeRecords(dbauthz.AsAIBridged(ctx), deleteAIBridgeRecordsBefore)
-			if err != nil {
-				return xerrors.Errorf("failed to delete old aibridge records: %w", err)
-			}
-		}
-
 		var purgedConnectionLogs int64
 		connectionLogsRetention := i.vals.Retention.ConnectionLogs.Value()
 		if connectionLogsRetention > 0 {
@@ -318,104 +249,28 @@ func (i *instance) purgeTick(ctx context.Context, db database.Store, start time.
 			return xerrors.Errorf("failed to delete old workspace build orchestrations: %w", err)
 		}
 
-		var purgedChats, purgedChatFiles, purgedChatDebugRuns int64
-		if purgeChats {
-			purgedChats, purgedChatFiles, err = i.purgeChatsInTx(ctx, tx, start, chatRetentionDays)
-			if err != nil {
-				return xerrors.Errorf("failed to purge chats: %w", err)
-			}
-		}
-		if purgeChatDebugRuns && chatDebugRetentionDays > 0 {
-			deleteChatDebugRunsBefore := start.Add(-time.Duration(chatDebugRetentionDays) * 24 * time.Hour)
-			// updated_at is the retention clock, so the window starts after
-			// the run stops being written to. There is intentionally no
-			// finished_at guard, so abandoned in-flight rows can be purged.
-			purgedChatDebugRuns, err = tx.DeleteOldChatDebugRuns(ctx, database.DeleteOldChatDebugRunsParams{
-				BeforeTime: deleteChatDebugRunsBefore,
-				LimitCount: chatDebugRunsBatchSize,
-			})
-			if err != nil {
-				return xerrors.Errorf("failed to delete old chat debug runs: %w", err)
-			}
-		}
-
-		// Backfill search_tsv tsvector on chat_messages in batches. Doing this here because it's
-		// potentially too much for a regular migration, especially on larger deployments:
-		// - Each row with search_tsv = NULL is present in idx_chat_messages_search_tsv_pending.
-		// - Content of chat_messages is not changed after insert.
-		// - Rows that are soft-deleted are no longer part of the index.
-		// NOTE: This should not remain in dbpurge and should be adjusted when the "DBOps" gets
-		//   implemented.
-		var backfilledChatSearchRows int64
-		for range i.chatSearchBackfillMaxBatches {
-			n, err := tx.BackfillChatMessagesSearchTsv(ctx, i.chatSearchBackfillBatchSize)
-			if err != nil {
-				return xerrors.Errorf("backfill chat_messages.search_tsv: %w", err)
-			}
-			backfilledChatSearchRows += n
-			if n < int64(i.chatSearchBackfillBatchSize) {
-				break
-			}
-		}
-
-		// Rewrite vectors produced with a stale text search config
-		// ('simple' rows from before migration 000585, or rows written by
-		// an old binary mid rolling upgrade). Upgraded binaries always
-		// stamp search_tsv_config, so this backlog is finite: once a pass
-		// returns fewer rows than the batch size the scan has reached the
-		// end of the table and is skipped for the process lifetime.
-		var reindexedChatSearchRows int64
-		if !i.chatSearchStaleDrained {
-			for range i.chatSearchBackfillMaxBatches {
-				n, err := tx.ReindexStaleChatMessagesSearchTsv(ctx, i.chatSearchBackfillBatchSize)
-				if err != nil {
-					return xerrors.Errorf("reindex stale chat_messages.search_tsv: %w", err)
-				}
-				reindexedChatSearchRows += n
-				if n < int64(i.chatSearchBackfillBatchSize) {
-					staleDrained = true
-					break
-				}
-			}
-		}
-		backfilledChatSearchRows += reindexedChatSearchRows
-
 		i.logger.Debug(ctx, "purged old database entries",
 			slog.F("workspace_agent_logs", purgedWorkspaceAgentLogs),
 			slog.F("expired_api_keys", expiredAPIKeys),
-			slog.F("aibridge_records", purgedAIBridgeRecords),
 			slog.F("connection_logs", purgedConnectionLogs),
 			slog.F("audit_logs", purgedAuditLogs),
 			slog.F("boundary_logs", purgedBoundaryLogs),
 			slog.F("boundary_sessions", purgedBoundarySessions),
 			slog.F("workspace_build_orchestrations", purgedWorkspaceBuildOrchestrations),
-			slog.F("chats", purgedChats),
-			slog.F("chat_files", purgedChatFiles),
-			slog.F("chat_debug_runs", purgedChatDebugRuns),
-			slog.F("chat_search_rows_backfilled", backfilledChatSearchRows),
 			slog.F("duration", i.clk.Since(start)),
 		)
 
 		if i.recordsPurged != nil {
 			i.recordsPurged.WithLabelValues("workspace_agent_logs").Add(float64(purgedWorkspaceAgentLogs))
 			i.recordsPurged.WithLabelValues("expired_api_keys").Add(float64(expiredAPIKeys))
-			i.recordsPurged.WithLabelValues("aibridge_records").Add(float64(purgedAIBridgeRecords))
 			i.recordsPurged.WithLabelValues("connection_logs").Add(float64(purgedConnectionLogs))
 			i.recordsPurged.WithLabelValues("audit_logs").Add(float64(purgedAuditLogs))
 			i.recordsPurged.WithLabelValues("boundary_logs").Add(float64(purgedBoundaryLogs))
 			i.recordsPurged.WithLabelValues("boundary_sessions").Add(float64(purgedBoundarySessions))
 			i.recordsPurged.WithLabelValues("workspace_build_orchestrations").Add(float64(purgedWorkspaceBuildOrchestrations))
-			i.recordsPurged.WithLabelValues("chats").Add(float64(purgedChats))
-			i.recordsPurged.WithLabelValues("chat_debug_runs").Add(float64(purgedChatDebugRuns))
-			i.recordsPurged.WithLabelValues("chat_files").Add(float64(purgedChatFiles))
-		}
-		if i.chatSearchRowsBackfilled != nil {
-			i.chatSearchRowsBackfilled.Add(float64(backfilledChatSearchRows))
 		}
 
-		// chatConfigErr is returned after the tx, so do not record this
-		// iteration as successful when only the deferred config read failed.
-		if i.iterationDuration != nil && chatConfigErr == nil {
+		if i.iterationDuration != nil {
 			duration := i.clk.Since(start)
 			i.iterationDuration.WithLabelValues("true").Observe(duration.Seconds())
 		}
@@ -425,61 +280,21 @@ func (i *instance) purgeTick(ctx context.Context, db database.Store, start time.
 	if err != nil {
 		return err
 	}
-	if staleDrained {
-		i.chatSearchStaleDrained = true
-	}
-
-	// Surface the deferred chat-config error so doTick records
-	// the failed iteration metric.
-	if chatConfigErr != nil {
-		return xerrors.Errorf("chat config read failed this tick: %w", chatConfigErr)
-	}
-
 	return nil
 }
 
 type instance struct {
-	cancel                       context.CancelFunc
-	closed                       chan struct{}
-	logger                       slog.Logger
-	vals                         *codersdk.DeploymentValues
-	clk                          quartz.Clock
-	iterationDuration            *prometheus.HistogramVec
-	recordsPurged                *prometheus.CounterVec
-	chatSearchRowsBackfilled     prometheus.Counter
-	chatSearchBackfillBatchSize  int32
-	chatSearchBackfillMaxBatches int
-	chatSearchStaleDrained       bool
+	cancel            context.CancelFunc
+	closed            chan struct{}
+	logger            slog.Logger
+	vals              *codersdk.DeploymentValues
+	clk               quartz.Clock
+	iterationDuration *prometheus.HistogramVec
+	recordsPurged     *prometheus.CounterVec
 }
 
 func (i *instance) Close() error {
 	i.cancel()
 	<-i.closed
 	return nil
-}
-
-// purgeChatsInTx MUST BE CALLED WITH A TRANSACTION
-func (*instance) purgeChatsInTx(ctx context.Context, tx database.Store, start time.Time, chatRetentionDays int32) (purgedChats, purgedChatFiles int64, err error) {
-	// Delete old archived chats first, then orphaned files
-	// (cascade clears chat_file_links but not chat_files).
-	if chatRetentionDays > 0 {
-		deleteChatsBefore := start.Add(-time.Duration(chatRetentionDays) * 24 * time.Hour)
-		purgedChats, err = tx.DeleteOldChats(ctx, database.DeleteOldChatsParams{
-			BeforeTime: deleteChatsBefore,
-			LimitCount: chatsBatchSize,
-		})
-		if err != nil {
-			return 0, 0, xerrors.Errorf("failed to delete old chats: %w", err)
-		}
-
-		purgedChatFiles, err = tx.DeleteOldChatFiles(ctx, database.DeleteOldChatFilesParams{
-			BeforeTime: deleteChatsBefore,
-			LimitCount: chatFilesBatchSize,
-		})
-		if err != nil {
-			return 0, 0, xerrors.Errorf("failed to delete old chat files: %w", err)
-		}
-	}
-
-	return purgedChats, purgedChatFiles, nil
 }

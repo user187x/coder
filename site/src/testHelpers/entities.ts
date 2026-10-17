@@ -518,18 +518,8 @@ export const MockSiteRoles = [
 ];
 
 export const MockUserPreferenceSettings: TypesGen.UserPreferenceSettings = {
-	thinking_display_mode: "auto",
-	shell_tool_display_mode: "auto",
-	code_diff_display_mode: "auto",
-	collapse_assistant_steps: false,
-	agent_chat_send_shortcut: "enter",
 	admin_quick_links: [],
 };
-
-export const MockUserChatCompactionThresholds: TypesGen.UserChatCompactionThresholds =
-	{
-		thresholds: [],
-	};
 
 export const MockUserOwner: TypesGen.User = {
 	id: "test-user",
@@ -675,8 +665,6 @@ export const MockImportedUserSecrets: TypesGen.UserSecret[] = [
 		env_name: "API_TOKEN",
 	},
 ];
-
-export const MockAIGatewayEnabled = true;
 
 export const MockOrganizationMember: TypesGen.OrganizationMemberWithUserData = {
 	organization_id: MockOrganization.id,
@@ -3341,32 +3329,6 @@ export const MockEveryoneGroup: TypesGen.Group = {
 	total_member_count: 0,
 };
 
-export const MockChatModelACL: TypesGen.ChatModelACL = {
-	users: [{ ...MockUserMember, role: "read" }],
-	groups: [
-		{ ...MockGroup, role: "read" },
-		{ ...MockEveryoneGroup, role: "read" },
-	],
-};
-
-export const MockMCPServerConfigACL: TypesGen.MCPServerConfigACL = {
-	users: [{ ...MockUserMember, role: "read" }],
-	groups: [
-		{ ...MockGroup, role: "read" },
-		{ ...MockEveryoneGroup, role: "read" },
-	],
-};
-
-export const MockChatModelACLAvailable: TypesGen.ACLAvailable = {
-	users: [MockUserOwner, MockUserMember],
-	groups: [MockGroup, MockGroup2, MockEveryoneGroup],
-};
-
-export const MockMCPServerConfigACLAvailable: TypesGen.ACLAvailable = {
-	users: [MockUserOwner, MockUserMember],
-	groups: [MockGroup, MockGroup2, MockEveryoneGroup],
-};
-
 export const MockTemplateACL: TypesGen.TemplateACL = {
 	group: [
 		{ ...MockEveryoneGroup, role: "use" },
@@ -3429,24 +3391,11 @@ export const MockPermissions: Permissions = {
 	editAnyGroups: true,
 	editAnySettings: true,
 	viewAnyIdpSyncSettings: true,
-	viewAnyMCPServerConfigs: true,
-	createAnyMCPServerConfig: true,
-	updateAnyMCPServerConfig: true,
-	deleteAnyMCPServerConfig: true,
 	viewAnyMembers: true,
-	viewAnyAIBridgeInterception: true,
-	viewAnyAIProvider: true,
-	viewAIGatewayKeys: true,
 	createOAuth2App: true,
 	editOAuth2App: true,
 	deleteOAuth2App: true,
 	viewOAuth2AppSecrets: true,
-	createChat: true,
-	viewAnyChatModelConfig: true,
-	createAnyChatModelConfig: true,
-	editAnyChatModelConfig: true,
-	deleteAnyChatModelConfig: true,
-	shareAnyChatModelConfig: true,
 };
 
 export const MockNoPermissions: Permissions = {
@@ -3476,24 +3425,11 @@ export const MockNoPermissions: Permissions = {
 	editAnyGroups: false,
 	editAnySettings: false,
 	viewAnyIdpSyncSettings: false,
-	viewAnyMCPServerConfigs: false,
-	createAnyMCPServerConfig: false,
-	updateAnyMCPServerConfig: false,
-	deleteAnyMCPServerConfig: false,
 	viewAnyMembers: false,
-	viewAnyAIBridgeInterception: false,
-	viewAnyAIProvider: false,
-	viewAIGatewayKeys: false,
 	createOAuth2App: false,
 	editOAuth2App: false,
 	deleteOAuth2App: false,
 	viewOAuth2AppSecrets: false,
-	createChat: false,
-	viewAnyChatModelConfig: false,
-	createAnyChatModelConfig: false,
-	editAnyChatModelConfig: false,
-	deleteAnyChatModelConfig: false,
-	shareAnyChatModelConfig: false,
 };
 
 export const MockOrganizationPermissions: OrganizationPermissions = {
@@ -3513,16 +3449,6 @@ export const MockOrganizationPermissions: OrganizationPermissions = {
 	viewIdpSyncSettings: true,
 	editIdpSyncSettings: true,
 	updateTemplates: true,
-	viewMCPServerConfigs: true,
-	createMCPServerConfig: true,
-	updateMCPServerConfig: true,
-	deleteMCPServerConfig: true,
-	shareMCPServerConfig: true,
-	viewChatModelConfigs: true,
-	createChatModelConfigs: true,
-	editChatModelConfigs: true,
-	deleteChatModelConfigs: true,
-	shareChatModelConfigs: true,
 };
 
 export const MockNoOrganizationPermissions: OrganizationPermissions = {
@@ -3542,16 +3468,6 @@ export const MockNoOrganizationPermissions: OrganizationPermissions = {
 	viewIdpSyncSettings: false,
 	editIdpSyncSettings: false,
 	updateTemplates: false,
-	viewMCPServerConfigs: false,
-	createMCPServerConfig: false,
-	updateMCPServerConfig: false,
-	deleteMCPServerConfig: false,
-	shareMCPServerConfig: false,
-	viewChatModelConfigs: false,
-	createChatModelConfigs: false,
-	editChatModelConfigs: false,
-	deleteChatModelConfigs: false,
-	shareChatModelConfigs: false,
 };
 
 export const MockDeploymentConfig: DeploymentConfig = {
@@ -5416,317 +5332,3 @@ export function createTimestamp(minuteOffset: number, secondOffset: number) {
 	baseDate.setSeconds(baseDate.getSeconds() + secondOffset);
 	return baseDate.toISOString();
 }
-
-export const MockSession: TypesGen.AIBridgeSession = {
-	id: "c8f2df8c-149c-43e1-9d51-898daaa2c505",
-	initiator: {
-		id: "59da0bfe-9c99-47fa-a563-f9fdb18449d0",
-		username: "bob",
-		name: "The Builder, Bob",
-		avatar_url:
-			"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQeDqc5b7Ny5bJOKxDeFvy17kBQ2_ZmBE8vKw&s",
-	},
-	providers: ["anthropic", "openai"],
-	models: ["claude-opus-4-6", "gpt-5.4"],
-	client: "Xum",
-	metadata: {
-		request_user_agent:
-			"xum/0.20.1-next.8.g0f494106 ai-sdk/anthropic/3.0.58 ai-sdk/provider-utils/4.0.19 runtime/node.js/22",
-	},
-	started_at: "2026-03-09T09:28:15.03152Z",
-	ended_at: "2026-03-09T10:28:17.294897Z",
-	threads: 17,
-	token_usage_summary: {
-		input_tokens: 1234,
-		output_tokens: 4321,
-		cache_read_input_tokens: 980,
-		cache_write_input_tokens: 120,
-	},
-	network_calls: {
-		total: 23,
-		blocked: 2,
-	},
-	last_prompt: "But *can* I really fix it?",
-	last_active_at: "2026-03-09T10:28:15.03152Z",
-};
-
-export const MockAIBridgeThread: TypesGen.AIBridgeThread = {
-	id: "thread-1",
-	prompt: "Summarize the project structure",
-	model: "claude-opus-4-6",
-	provider: "anthropic",
-	credential_kind: "centralized",
-	credential_hint: "sk-a...efgh",
-	started_at: "2026-03-09T09:28:15.000Z",
-	ended_at: "2026-03-09T09:28:47.000Z",
-	token_usage: {
-		input_tokens: 1240,
-		output_tokens: 320,
-		cache_read_input_tokens: 900,
-		cache_write_input_tokens: 140,
-		metadata: {},
-	},
-	attribution: {
-		workspace_id: "workspace-1",
-	},
-	agentic_actions: [
-		{
-			interception_id: "interception-1",
-			model: "claude-opus-4-6",
-			attribution: {
-				workspace_id: "workspace-1",
-			},
-			token_usage: {
-				input_tokens: 620,
-				output_tokens: 160,
-				cache_read_input_tokens: 450,
-				cache_write_input_tokens: 70,
-				metadata: {},
-			},
-			thinking: [],
-			tool_calls: [
-				{
-					id: "tool-1",
-					interception_id: "interception-1",
-					provider_response_id: "resp-1",
-					server_url: "http://localhost:3000/mcp",
-					tool: "list_directory",
-					injected: false,
-					input: JSON.stringify({ path: "." }),
-					metadata: {},
-					created_at: "2026-03-09T09:28:20.000Z",
-				},
-			],
-		},
-	],
-};
-
-export const MockAIBridgeSessionNetworkCalls: readonly TypesGen.AgentFirewallLog[] =
-	[
-		{
-			id: "netcall-1",
-			session_id: "firewall-session-1",
-			sequence_number: 1,
-			proto: "http",
-			method: "POST",
-			detail: "https://api.github.com/repos/coder/coder",
-			allowed: true,
-			matched_rule: "allow api.github.com",
-			created_at: "2026-03-09T09:28:16.000Z",
-		},
-		{
-			id: "netcall-2",
-			session_id: "firewall-session-1",
-			sequence_number: 2,
-			proto: "http",
-			method: "GET",
-			detail: "https://registry.npmjs.org/lodash",
-			allowed: false,
-			matched_rule: null,
-			created_at: "2026-03-09T09:28:17.000Z",
-		},
-		{
-			id: "netcall-3",
-			session_id: "firewall-session-1",
-			sequence_number: 3,
-			proto: "http",
-			method: "POST",
-			detail: "https://hooks.slack.com/services/T01",
-			allowed: false,
-			matched_rule: null,
-			created_at: "2026-03-09T09:28:18.000Z",
-		},
-		{
-			id: "netcall-4",
-			session_id: "firewall-session-1",
-			sequence_number: 4,
-			proto: "dns",
-			method: "A",
-			detail: "api.github.com",
-			allowed: true,
-			matched_rule: "allow api.github.com",
-			created_at: "2026-03-09T09:28:19.000Z",
-		},
-	];
-
-export const MockAIProviderOpenAI: TypesGen.AIProvider = {
-	id: "7a5d6b6a-5f02-4a9c-9c4e-2b3e2a3d2f01",
-	type: "openai",
-	name: "openai",
-	display_name: "OpenAI",
-	icon: "",
-	base_url: "https://api.openai.com",
-	enabled: false,
-	api_keys: [
-		{
-			id: "6d7c1f3a-1f0b-4a12-a1b5-0fb1f8e72e01",
-			masked: "sk-***\u2026***ABCD",
-			created_at: "2026-05-14T10:00:00Z",
-		},
-	],
-	settings: null as unknown as TypesGen.AIProviderSettings,
-	created_at: "2026-05-14T10:00:00Z",
-	updated_at: "2026-05-14T10:00:00Z",
-};
-
-export const MockAIProviderAnthropic: TypesGen.AIProvider = {
-	id: "4f81f1ee-37c1-4a37-a9d5-7e0c1c8c0c11",
-	type: "anthropic",
-	name: "anthropic",
-	display_name: "Anthropic",
-	icon: "",
-	base_url: "https://api.anthropic.com",
-	enabled: false,
-	api_keys: [],
-	settings: null as unknown as TypesGen.AIProviderSettings,
-	created_at: "2026-05-14T10:00:00Z",
-	updated_at: "2026-05-14T10:00:00Z",
-};
-
-/**
- * Bedrock providers come over the wire with `type: "bedrock"` and a
- * `settings._type: "bedrock"` discriminator. `isBedrockProvider` checks
- * both the type and the settings discriminator, and also accepts legacy
- * providers stored as `type: "anthropic"` with Bedrock settings.
- */
-export const MockAIProviderBedrock: TypesGen.AIProvider = {
-	id: "9c2e3b41-2e9f-4c97-9a4f-2e1a3d8f9f21",
-	type: "bedrock",
-	name: "bedrock",
-	display_name: "Bedrock",
-	icon: "",
-	base_url: "https://bedrock-runtime.us-east-2.amazonaws.com",
-	enabled: true,
-	api_keys: [],
-	settings: {
-		_type: "bedrock",
-		_version: 1,
-		region: "us-east-2",
-		model: "anthropic.claude-opus-4-7",
-		small_fast_model: "anthropic.claude-haiku-4-5",
-	} as unknown as TypesGen.AIProviderSettings,
-	created_at: "2026-05-14T10:00:00Z",
-	updated_at: "2026-05-14T10:00:00Z",
-};
-
-/**
- * Claude Platform for AWS is an authentication method on the `anthropic`
- * provider type, identified by the `claude_platform_aws` settings
- * discriminator. Authentication is inferred from the provider key pool,
- * falling back to ambient AWS credentials when the pool is empty.
- */
-export const MockAIProviderClaudePlatformAWS: TypesGen.AIProvider = {
-	id: "5b8c1d92-4e7a-4f38-9b21-6d3c0a7e5f42",
-	type: "anthropic",
-	name: "claude-platform",
-	display_name: "Claude Platform",
-	icon: "",
-	base_url: "https://aws-external-anthropic.us-east-1.api.aws",
-	enabled: true,
-	api_keys: [],
-	settings: {
-		_type: "claude_platform_aws",
-		_version: 1,
-		region: "us-east-1",
-		workspace_id: "wrkspc_123",
-	},
-	created_at: "2026-05-14T10:00:00Z",
-	updated_at: "2026-05-14T10:00:00Z",
-};
-
-/** The same provider with a workspace key in its provider key pool. */
-export const MockAIProviderClaudePlatformAWSAPIKey: TypesGen.AIProvider = {
-	...MockAIProviderClaudePlatformAWS,
-	id: "6c9d2e03-5f8b-4a49-8c32-7e4d1b8f6a53",
-	name: "claude-platform-key",
-	display_name: "Claude Platform (workspace key)",
-	api_keys: [
-		{
-			id: "7d0e3f14-6a9c-4b5a-9d43-8f5e2c9a7b64",
-			masked: "sk-ant-***\u2026***WXYZ",
-			created_at: "2026-05-14T10:00:00Z",
-		},
-	],
-};
-
-export const MockAIProviderCopilot: TypesGen.AIProvider = {
-	id: "b3f0d2c8-6a4e-4d11-8c2f-1e9a7c5b4d31",
-	type: "copilot",
-	name: "copilot",
-	display_name: "GitHub Copilot",
-	icon: "",
-	base_url: "https://api.business.githubcopilot.com",
-	enabled: true,
-	api_keys: [],
-	settings: null as unknown as TypesGen.AIProviderSettings,
-	created_at: "2026-05-14T10:00:00Z",
-	updated_at: "2026-05-14T10:00:00Z",
-};
-
-export const MockOrganizationAISpendUser: TypesGen.OrganizationAISpendUser = {
-	user_id: MockUserOwner.id,
-	username: MockUserOwner.username,
-	name: "Test User",
-	avatar_url: "https://avatars.githubusercontent.com/u/95932066?s=200&v=4",
-	cost_micros: 2_500_000,
-	unpriced_usage_count: 0,
-	providers: ["anthropic", "openai"],
-	clients: ["Claude Code", "Cursor"],
-	models: ["claude-opus-4-6", "gpt-5.4"],
-};
-
-export const MockOrganizationAISpendReport: TypesGen.OrganizationAISpendReport =
-	{
-		period_start: "2026-02-10T00:00:00Z",
-		period_end: "2026-03-12T00:00:00Z",
-		retention_start: "2026-01-11T15:30:00Z",
-		count: 2,
-		totals: { cost_micros: 3_500_000, unpriced_usage_count: 0 },
-		users: [
-			MockOrganizationAISpendUser,
-			{
-				...MockOrganizationAISpendUser,
-				user_id: "5e1a2b3c-4d5e-4f60-8a9b-0c1d2e3f4a5b",
-				username: "alice",
-				name: "Alice Liddell",
-				avatar_url: "",
-				cost_micros: 1_000_000,
-				providers: ["anthropic"],
-				clients: ["Unknown"],
-				models: ["claude-opus-4-6"],
-			},
-		],
-	};
-
-export const MockAIProviders: TypesGen.AIProvider[] = [
-	MockAIProviderOpenAI,
-	MockAIProviderAnthropic,
-	MockAIProviderBedrock,
-	MockAIProviderClaudePlatformAWS,
-	MockAIProviderCopilot,
-];
-
-export const MockAIGatewayKeys: TypesGen.AIGatewayKey[] = [
-	{
-		id: "1c2e6f4a-8b3d-4f1a-9c7e-2a5b8d6f0e11",
-		name: "primary-gateway",
-		key_prefix: "a1B2c3D4e5F",
-		created_at: "2024-05-01T14:00:00Z",
-		last_heartbeat_at: "2024-05-20T09:30:00Z",
-	},
-	{
-		id: "2d3f7a5b-9c4e-4a2b-8d6f-3b6c9e7f1a22",
-		name: "backup-gateway",
-		key_prefix: "z9Y8x7W6v5U",
-		created_at: "2024-05-10T08:15:00Z",
-	},
-];
-
-export const MockCreateAIGatewayKeyResponse: TypesGen.CreateAIGatewayKeyResponse =
-	{
-		id: "3e4a8b6c-0d5f-4b3c-9e7a-4c7d0f8a2b33",
-		name: "new-gateway",
-		key: "K3mNp7qRs2TvW9xY4zA6bC1dE8fG5hJ0kL3nM7pQ2rS",
-		key_prefix: "K3mNp7qRs2T",
-		created_at: "2024-05-28T12:00:00Z",
-	};

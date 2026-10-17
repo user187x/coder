@@ -18,7 +18,6 @@ import (
 	"golang.org/x/xerrors"
 
 	"cdr.dev/slog/v3"
-	"github.com/coder/coder/v2/agent/agentcontext"
 	"github.com/coder/coder/v2/coderd/httpapi"
 	"github.com/coder/coder/v2/codersdk/workspacesdk"
 )
@@ -260,7 +259,7 @@ func bundleFileMatches(ctx context.Context, home string, requested string, maxMa
 	// Env vars expand from the agent environment and ~ resolves against
 	// the agent home, matching the agent's expandPathToAbs. Glob patterns
 	// never exist on disk, so canonicalization keeps them lexical.
-	abs, err := agentcontext.CanonicalizePathIn(home, os.ExpandEnv(requested))
+	abs, err := canonicalizePathIn(home, os.ExpandEnv(requested))
 	if err != nil {
 		return nil, false, err
 	}

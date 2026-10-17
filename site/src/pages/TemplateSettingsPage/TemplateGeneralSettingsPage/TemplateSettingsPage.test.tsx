@@ -8,6 +8,7 @@ type FormValues = Required<
 		| "activity_bump_ms"
 		| "time_til_autostop_notify_ms"
 		| "deprecation_message"
+		| "agents_allowed"
 	>
 >;
 
@@ -17,7 +18,6 @@ const validFormValues: FormValues = {
 	description: "A description",
 	icon: "vscode.png",
 	allow_user_cancel_workspace_jobs: false,
-	agents_allowed: true,
 	allow_user_autostart: false,
 	allow_user_autostop: false,
 	autostop_requirement: {

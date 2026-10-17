@@ -30,15 +30,15 @@ self.addEventListener("push", (event) => {
 			.matchAll({ type: "window", includeUncontrolled: true })
 			.then((clientList) => {
 				// Only suppress if the user is actively viewing the
-				// specific chat that triggered this notification and
-				// the browser window is focused.
-				const chatURL = payload.data?.url;
-				if (chatURL) {
+				// page the notification points to and the browser
+				// window is focused.
+				const pageURL = payload.data?.url;
+				if (pageURL) {
 					const isVisible = clientList.some(
 						(client) =>
 							client.visibilityState === "visible" &&
 							client.focused &&
-							client.url.includes(chatURL),
+							client.url.includes(pageURL),
 					);
 					if (isVisible) {
 						return;
@@ -112,19 +112,17 @@ async function handlePushSubscriptionChange(
 	}
 }
 
-// Handle notification click — navigate to the specific chat or agents page.
+// Handle notification click: show the page the notification points to (the
+// workspaces by default), in a window that already shows it when there is one.
 self.addEventListener("notificationclick", (event) => {
 	event.notification.close();
-	const targetUrl: string = event.notification.data?.url || "/agents";
+	const targetUrl: string = event.notification.data?.url || "/workspaces";
 	event.waitUntil(
 		self.clients
 			.matchAll({ type: "window", includeUncontrolled: true })
 			.then((clientList) => {
 				for (const client of clientList) {
-					if (client.url.includes("/agents") && "focus" in client) {
-						if (!client.url.includes(targetUrl)) {
-							client.navigate(targetUrl);
-						}
+					if (client.url.includes(targetUrl) && "focus" in client) {
 						return client.focus();
 					}
 				}

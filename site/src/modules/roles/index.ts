@@ -10,7 +10,6 @@ export const roleDescriptions: Record<string, string> = {
 	"user-admin": "User admin can manage all users and groups.",
 	"template-admin": "Template admin can manage all templates and workspaces.",
 	auditor: "Auditor can access the audit logs.",
-	"agents-access": "Coder Agents User can use Coder Agents chat.",
 	"organization-admin":
 		"Organization admin can manage all resources within this organization.",
 	"organization-user-admin":
@@ -34,6 +33,15 @@ export function getRoleNames(roles: readonly SlimRole[]): string[] {
 	return roles.map((role) => role.name);
 }
 
+/**
+ * Roles the server still knows but that grant nothing here: agents-access was Coder Agents' (its chats are not part
+ * of this build). Organization members hold it by default, so it stays in the server's role set, out of sight.
+ */
+const retiredRoles: ReadonlySet<string> = new Set(["agents-access"]);
+
+export const isRetiredRole = (role: Pick<SlimRole, "name">): boolean =>
+	retiredRoles.has(role.name);
+
 export function combineGlobalAndOrgRoles(
 	globalRoles: readonly SlimRole[],
 	orgRoles: readonly SlimRole[],
@@ -41,7 +49,7 @@ export function combineGlobalAndOrgRoles(
 	return [
 		...globalRoles.map((it) => ({ ...it, global: true })),
 		...orgRoles.map((it) => ({ ...it, global: false })),
-	];
+	].filter((role) => !isRetiredRole(role));
 }
 
 const roleNamesByAccessLevel: readonly string[] = [
@@ -53,7 +61,6 @@ const roleNamesByAccessLevel: readonly string[] = [
 	"organization-template-admin",
 	"auditor",
 	"organization-auditor",
-	"agents-access",
 	"member",
 	"organization-member",
 ];

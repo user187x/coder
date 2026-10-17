@@ -3,7 +3,6 @@ package coderd
 import (
 	"context"
 	"crypto/ed25519"
-	"crypto/tls"
 	"fmt"
 	"io"
 	"math"
@@ -17,7 +16,6 @@ import (
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/go-chi/chi/v5"
-	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/xerrors"
 	"tailscale.com/tailcfg"
@@ -48,7 +46,6 @@ import (
 	"github.com/coder/coder/v2/coderd/wsbuilder"
 	"github.com/coder/coder/v2/coderd/x/nats"
 	"github.com/coder/coder/v2/codersdk"
-	"github.com/coder/coder/v2/enterprise/aiseats"
 	"github.com/coder/coder/v2/enterprise/coderd/connectionlog"
 	"github.com/coder/coder/v2/enterprise/coderd/dbauthz"
 	"github.com/coder/coder/v2/enterprise/coderd/enidpsync"
@@ -58,7 +55,6 @@ import (
 	"github.com/coder/coder/v2/enterprise/coderd/proxyhealth"
 	"github.com/coder/coder/v2/enterprise/coderd/schedule"
 	"github.com/coder/coder/v2/enterprise/coderd/usage"
-	entchatd "github.com/coder/coder/v2/enterprise/coderd/x/chatd"
 	"github.com/coder/coder/v2/enterprise/dbcrypt"
 	"github.com/coder/coder/v2/enterprise/derpmesh"
 	"github.com/coder/coder/v2/enterprise/replicasync"
@@ -161,30 +157,6 @@ func New(ctx context.Context, options *Options) (_ *API, err error) {
 
 	var replicaManagerPtr atomic.Pointer[replicasync.Manager]
 	var api *API
-	resolveReplicaAddress := func(
-		_ context.Context,
-		replicaID uuid.UUID,
-	) (string, bool) {
-		if api != nil && api.AGPL != nil && replicaID == api.AGPL.ID && api.AGPL.AccessURL != nil {
-			return api.AGPL.AccessURL.String(), true
-		}
-		manager := replicaManagerPtr.Load()
-		if manager == nil {
-			return "", false
-		}
-		for _, replica := range manager.AllPrimary() {
-			if replica.ID != replicaID {
-				continue
-			}
-			relayAddress := strings.TrimSpace(replica.RelayAddress)
-			if relayAddress == "" {
-				return "", false
-			}
-			return relayAddress, true
-		}
-		return "", false
-	}
-
 	api = &API{
 		ctx:     ctx,
 		cancel:  cancelFunc,
@@ -201,32 +173,7 @@ func New(ctx context.Context, options *Options) (_ *API, err error) {
 	// This must happen before coderd initialization!
 	options.PostAuthAdditionalHeadersFunc = api.writeEntitlementWarningsHeader
 
-	// Wire up enterprise chat subscription with cross-replica relay
-	// and pubsub coordination. Must be set before coderd.New so the
-	// chat processor receives it.
-	replicaHTTPClient := replicaRelayHTTPClient(options.HTTPClient, meshTLSConfig)
-	if replicaHTTPClient == nil {
-		replicaHTTPClient = options.HTTPClient
-	}
-	if replicaHTTPClient == nil {
-		replicaHTTPClient = http.DefaultClient
-	}
-	// Use a closure that captures api by reference so it can access
-	// api.AGPL.ID after coderd.New is called. The parts dialer is
-	// only invoked from stream subscriptions, which happen after init.
-	options.ChatStreamPartsDialer = entchatd.NewStreamPartsDialer(entchatd.StreamPartsDialerConfig{
-		ResolveReplicaAddress: resolveReplicaAddress,
-		ReplicaHTTPClient:     replicaHTTPClient,
-		ReplicaIDFn: func() uuid.UUID {
-			return api.AGPL.ID
-		},
-	})
-
-	options.ChatAgentCapacityUnlock = entchatd.NewAgentCapacityUnlock(options.Entitlements)
-
 	api.AGPL = coderd.New(options.Options)
-	api.aiSeatTracker = aiseats.New(options.Database, api.Logger.Named("aiseats"), quartz.NewReal(), &api.AGPL.Auditor)
-	api.AGPL.AISeatTracker = api.aiSeatTracker
 	defer func() {
 		if err != nil {
 			_ = api.Close()
@@ -284,78 +231,6 @@ func New(ctx context.Context, options *Options) (_ *API, err error) {
 	api.AGPL.RefreshEntitlements = func(ctx context.Context) error {
 		return api.refreshEntitlements(ctx)
 	}
-
-	// Legacy aibridge routes: kept for backward compatibility.
-	// New endpoints should be added to /ai-gateway only.
-	api.AGPL.APIHandler.Group(func(r chi.Router) {
-		r.Route("/aibridge", aibridgeHTTPHandler(api, apiKeyMiddleware))
-	})
-
-	api.AGPL.APIHandler.Group(func(r chi.Router) {
-		r.Route("/aibridge/proxy", aibridgeProxyHTTPHandler(api, apiKeyMiddleware))
-	})
-
-	// AI Gateway routes: canonical aliases for the aibridge endpoints.
-	api.AGPL.APIHandler.Group(func(r chi.Router) {
-		r.Route("/ai-gateway", aiGatewayHTTPHandler(api, apiKeyMiddleware))
-	})
-
-	api.AGPL.APIHandler.Group(func(r chi.Router) {
-		r.Route("/ai-gateway/proxy", aiGatewayProxyHTTPHandler(api, apiKeyMiddleware))
-	})
-
-	api.AGPL.APIHandler.Group(func(r chi.Router) {
-		r.Route("/ai-gateway/providers", func(r chi.Router) {
-			r.Use(
-				apiKeyMiddleware,
-				api.RequireFeatureMW(codersdk.FeatureAIBridge),
-			)
-			r.Get("/", api.aiBridgeListProviders)
-		})
-	})
-
-	api.AGPL.APIHandler.Group(func(r chi.Router) {
-		r.Route("/ai-gateway/keys", func(r chi.Router) {
-			r.Use(
-				apiKeyMiddleware,
-				api.RequireFeatureMW(codersdk.FeatureAIBridge),
-			)
-			r.Get("/", api.aiGatewayKeys)
-			r.Post("/", api.postAIGatewayKey)
-			r.Delete("/{key}", api.deleteAIGatewayKey)
-		})
-	})
-
-	// /ai-gateway/serve provides the DRPC-over-WebSocket that standalone AI Gateway
-	// replicas connect to. It authenticates with a gateway key instead of a user session.
-	api.AGPL.APIHandler.Group(func(r chi.Router) {
-		r.Route("/ai-gateway/serve", func(r chi.Router) {
-			r.Use(
-				api.RequireFeatureMW(codersdk.FeatureAIBridge),
-			)
-			r.Get("/", api.aiGatewayServe)
-		})
-	})
-
-	api.AGPL.ExperimentalHandler.Group(func(r chi.Router) {
-		r.Route("/ai/model-prices", func(r chi.Router) {
-			r.Use(
-				apiKeyMiddleware,
-				api.RequireFeatureMW(codersdk.FeatureAIBridge),
-			)
-			r.Get("/", api.listAIModelPrices)
-			r.Post("/", api.upsertAIModelPrices)
-		})
-		r.Route("/organizations/{organization}/ai/spend", func(r chi.Router) {
-			// AI cost controls are a paid feature (AI Governance).
-			r.Use(
-				apiKeyMiddleware,
-				httpmw.ExtractOrganizationParam(api.Database),
-				api.RequireFeatureMW(codersdk.FeatureAIBridge),
-			)
-			r.Get("/users", api.organizationAISpendUsers)
-		})
-	})
 
 	api.AGPL.APIHandler.Group(func(r chi.Router) {
 		r.Get("/entitlements", api.serveEntitlements)
@@ -526,13 +401,6 @@ func New(ctx context.Context, options *Options) (_ *API, err error) {
 			)
 			r.Post("/", api.postGroupByOrganization)
 			r.Get("/", api.groupsByOrganization)
-			r.Route("/ai/spend", func(r chi.Router) {
-				// AI cost controls are a paid feature (AI Governance).
-				r.Use(
-					api.RequireFeatureMW(codersdk.FeatureAIBridge),
-				)
-				r.Get("/", api.organizationGroupsAISpend)
-			})
 			r.Route("/{groupName}", func(r chi.Router) {
 				r.Use(
 					httpmw.ExtractGroupByNameParam(api.Database),
@@ -540,13 +408,6 @@ func New(ctx context.Context, options *Options) (_ *API, err error) {
 
 				r.Get("/", api.groupByOrganization)
 				r.Get("/members", api.groupMembersByOrganization)
-				r.Route("/members/ai/spend", func(r chi.Router) {
-					// AI cost controls are a paid feature (AI Governance).
-					r.Use(
-						api.RequireFeatureMW(codersdk.FeatureAIBridge),
-					)
-					r.Get("/", api.groupMembersAISpendByOrganization)
-				})
 			})
 		})
 		r.Route("/organizations/{organization}/paginated-groups", func(r chi.Router) {
@@ -556,15 +417,6 @@ func New(ctx context.Context, options *Options) (_ *API, err error) {
 				httpmw.ExtractOrganizationParam(api.Database),
 			)
 			r.Get("/", api.paginatedGroups)
-		})
-		r.Route("/organizations/{organization}/ai/spend", func(r chi.Router) {
-			// AI cost controls are a paid feature (AI Governance).
-			r.Use(
-				apiKeyMiddleware,
-				httpmw.ExtractOrganizationParam(api.Database),
-				api.RequireFeatureMW(codersdk.FeatureAIBridge),
-			)
-			r.Get("/export", api.exportOrganizationAISpend)
 		})
 		r.Route("/provisionerkeys", func(r chi.Router) {
 			r.Use(
@@ -649,27 +501,6 @@ func New(ctx context.Context, options *Options) (_ *API, err error) {
 				r.Patch("/", api.patchGroup)
 				r.Delete("/", api.deleteGroup)
 				r.Get("/members", api.groupMembers)
-				r.Route("/members/ai/spend", func(r chi.Router) {
-					// AI cost controls are a paid feature (AI Governance).
-					r.Use(
-						api.RequireFeatureMW(codersdk.FeatureAIBridge),
-					)
-					r.Get("/", api.groupMembersAISpend)
-				})
-				r.Route("/ai/spend", func(r chi.Router) {
-					// AI cost controls are a paid feature (AI Governance).
-					r.Use(
-						api.RequireFeatureMW(codersdk.FeatureAIBridge),
-					)
-					r.Get("/", api.groupAISpend)
-				})
-				r.Route("/ai/budget", func(r chi.Router) {
-					// AI cost controls are a paid feature (AI Governance).
-					r.Use(api.RequireFeatureMW(codersdk.FeatureAIBridge))
-					r.Get("/", api.groupAIBudget)
-					r.Put("/", api.upsertGroupAIBudget)
-					r.Delete("/", api.deleteGroupAIBudget)
-				})
 			})
 		})
 		r.Route("/workspace-quota", func(r chi.Router) {
@@ -709,22 +540,6 @@ func New(ctx context.Context, options *Options) (_ *API, err error) {
 
 			r.Get("/", api.userQuietHoursSchedule)
 			r.Put("/", api.putUserQuietHoursSchedule)
-		})
-		r.Route("/users/{user}/ai", func(r chi.Router) {
-			// AI cost controls are a paid feature (AI Governance).
-			r.Use(
-				api.RequireFeatureMW(codersdk.FeatureAIBridge),
-				apiKeyMiddleware,
-				httpmw.ExtractUserParam(options.Database),
-			)
-			r.Route("/budget/override", func(r chi.Router) {
-				r.Get("/", api.userAIBudgetOverride)
-				r.Put("/", api.upsertUserAIBudgetOverride)
-				r.Delete("/", api.deleteUserAIBudgetOverride)
-			})
-			r.Route("/spend", func(r chi.Router) {
-				r.Get("/", api.userAISpendStatus)
-			})
 		})
 		r.Route("/prebuilds", func(r chi.Router) {
 			r.Use(
@@ -833,28 +648,6 @@ func New(ctx context.Context, options *Options) (_ *API, err error) {
 	return api, nil
 }
 
-func replicaRelayHTTPClient(base *http.Client, tlsConfig *tls.Config) *http.Client {
-	if base == nil {
-		base = http.DefaultClient
-	}
-
-	clone := *base
-	var transport *http.Transport
-	switch t := base.Transport.(type) {
-	case *http.Transport:
-		transport = t.Clone()
-	default:
-		if defaultTransport, ok := http.DefaultTransport.(*http.Transport); ok {
-			transport = defaultTransport.Clone()
-		} else {
-			transport = &http.Transport{}
-		}
-	}
-	transport.TLSClientConfig = tlsConfig
-	clone.Transport = transport
-	return &clone
-}
-
 type Options struct {
 	*coderd.Options
 
@@ -915,9 +708,6 @@ type API struct {
 
 	licenseMetricsCollector *license.MetricsCollector
 	tailnetService          *tailnet.ClientService
-
-	aibridgeproxydHandler http.Handler
-	aiSeatTracker         *aiseats.SeatTracker
 }
 
 // writeEntitlementWarningsHeader writes the entitlement warnings to the response header
@@ -991,7 +781,7 @@ func (api *API) updateEntitlements(ctx context.Context) error {
 				codersdk.FeatureUserRoleManagement:         true,
 				codersdk.FeatureAccessControl:              true,
 				codersdk.FeatureControlSharedPorts:         true,
-				codersdk.FeatureAIBridge:                   api.DeploymentValues.AI.BridgeConfig.Enabled.Value(),
+				codersdk.FeatureAIBridge:                   false, // AI Gateway is not part of this build
 			},
 			api.AGPL.HTTPAuth.Authorizer,
 			api.AGPL.Experiments,

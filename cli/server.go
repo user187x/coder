@@ -20,7 +20,6 @@ import (
 	"net"
 	"net/http"
 	"net/http/pprof"
-	"net/netip"
 	"net/url"
 	"os"
 	"os/user"
@@ -54,16 +53,12 @@ import (
 
 	"cdr.dev/slog/v3"
 	"cdr.dev/slog/v3/sloggers/sloghuman"
-	"github.com/coder/coder/v2/aibridge"
-	aibridgemetrics "github.com/coder/coder/v2/aibridge/metrics"
 	"github.com/coder/coder/v2/buildinfo"
 	"github.com/coder/coder/v2/cli/clilog"
 	"github.com/coder/coder/v2/cli/cliui"
 	"github.com/coder/coder/v2/cli/cliutil"
 	"github.com/coder/coder/v2/cli/config"
 	"github.com/coder/coder/v2/coderd"
-	"github.com/coder/coder/v2/coderd/aibridged"
-	"github.com/coder/coder/v2/coderd/aibridgedserver"
 	"github.com/coder/coder/v2/coderd/authlink"
 	"github.com/coder/coder/v2/coderd/autobuild"
 	"github.com/coder/coder/v2/coderd/cryptokeys"
@@ -111,7 +106,6 @@ import (
 	"github.com/coder/pretty"
 	"github.com/coder/quartz"
 	"github.com/coder/retry"
-	"github.com/coder/safedial"
 	"github.com/coder/serpent"
 	"github.com/coder/wgtunnel/tunnelsdk"
 )
@@ -717,15 +711,6 @@ func (r *RootCmd) Server(newAPI func(context.Context, *coderd.Options) (*coderd.
 				return xerrors.Errorf("parse real ip config: %w", err)
 			}
 
-			mcpAllowedPrivateCIDRs := make([]netip.Prefix, 0, len(vals.MCPAllowedPrivateCIDRs))
-			for _, cidr := range vals.MCPAllowedPrivateCIDRs {
-				prefix, err := safedial.ParseAllowedPrefix(cidr)
-				if err != nil {
-					return xerrors.Errorf("parse MCP allowed private CIDR %q: %w", cidr, err)
-				}
-				mcpAllowedPrivateCIDRs = append(mcpAllowedPrivateCIDRs, prefix)
-			}
-
 			// Resolve this replica's cluster host: the explicit Cluster.Host,
 			// else the DERP relay host for older HA deployments that predate the
 			// setting. Used as the NATS cluster route host and, when an IP, the
@@ -762,7 +747,6 @@ func (r *RootCmd) Server(newAPI func(context.Context, *coderd.Options) (*coderd.
 				LoginRateLimit:              loginRateLimit,
 				FilesRateLimit:              filesRateLimit,
 				HTTPClient:                  httpClient,
-				MCPAllowedPrivateCIDRs:      mcpAllowedPrivateCIDRs,
 				TemplateScheduleStore:       &atomic.Pointer[schedule.TemplateScheduleStore]{},
 				UserQuietHoursScheduleStore: &atomic.Pointer[schedule.UserQuietHoursScheduleStore]{},
 				SSHConfig:                   sshConfigResponse,
@@ -1079,58 +1063,9 @@ func (r *RootCmd) Server(newAPI func(context.Context, *coderd.Options) (*coderd.
 			if err != nil {
 				return xerrors.Errorf("create coder API: %w", err)
 			}
-			var aibridgeDaemon *aibridged.Server
-
-			// Run after newAPI so provider settings are decrypted by dbcrypt.
-			backfillCtx, cancelBackfill := context.WithTimeout(ctx, 30*time.Second)
-			coderd.BackfillBedrockProviderType(backfillCtx, options.Database, logger.Named("aibridge.backfill"))
-			cancelBackfill()
-
 			// Run report generator to distribute periodic reports.
-			// Must run after newAPI so prices and providers are initialized.
 			notificationReportGenerator := reports.NewReportGenerator(ctx, logger.Named("notifications.report_generator"), options.Database, options.NotificationsEnqueuer, quartz.NewReal())
 			defer notificationReportGenerator.Close()
-
-			// In-memory aibridge daemon. Registered on coderd so chatd can
-			// dispatch LLM requests via the in-process transport without
-			// crossing the gated /api/v2/ai-gateway HTTP route. The HTTP route
-			// itself is registered (and license-gated) only by enterprise/coderd;
-			// in AGPL builds it does not exist at all. The daemon starts here
-			// unconditionally when the bridge feature is enabled by config so
-			// chatd can use it regardless of license entitlement.
-			if vals.AI.BridgeConfig.Enabled.Value() {
-				// TODO(deprecation): Remove "coder_aibridged_" in v2.37.
-				// See AIGOV-447:
-				// https://linear.app/codercom/issue/AIGOV-447/remove-legacy-ai-gateway-metric-aliases
-				aibridgeReg := prometheusmetrics.NewMetricAliasRegisterer(coderAPI.PrometheusRegistry, aibridgemetrics.PrometheusMetricPrefix, "coder_aibridged_")
-				aibridgeMetrics := aibridge.NewMetrics(aibridgeReg)
-				costControlReg := prometheus.WrapRegistererWithPrefix("coder_ai_gateway_", coderAPI.PrometheusRegistry)
-				coderAPI.AIGatewayServerMetrics = aibridgedserver.NewMetrics(costControlReg)
-				if vals.Prometheus.Enable {
-					budgetPeriod := codersdk.NewAIBudgetPeriodFromString(vals.AI.BridgeConfig.BudgetPeriod)
-					closeBlockedUsersFunc := coderAPI.AIGatewayServerMetrics.StartBlockedUsersCollector(
-						ctx, logger.Named("aigateway_cost_control_metrics"), quartz.NewReal(),
-						coderAPI.Database, budgetPeriod, 0,
-					)
-					defer closeBlockedUsersFunc()
-				}
-				var unsubscribeProviderReload func()
-				aibridgeDaemon, unsubscribeProviderReload, err = NewAIBridgeDaemon(ctx, AIBridgeDaemonOptions{
-					API:           coderAPI,
-					Config:        vals.AI.BridgeConfig,
-					Registerer:    aibridgeReg,
-					BridgeMetrics: aibridgeMetrics,
-				})
-				if err != nil {
-					return xerrors.Errorf("create aibridged: %w", err)
-				}
-				coderAPI.RegisterInMemoryAIBridgedHTTPHandler(aibridgeDaemon)
-				// The handler is bound to coderAPI's lifecycle; Close() on the
-				// daemon does not affect in-flight requests but is needed to
-				// release pool/recorder resources at shutdown.
-				defer aibridgeDaemon.Close()
-				defer unsubscribeProviderReload()
-			}
 
 			if vals.Prometheus.Enable {
 				// Agent metrics require reference to the tailnet coordinator, so must be initiated after Coder API.
@@ -1388,11 +1323,6 @@ func (r *RootCmd) Server(newAPI func(context.Context, *coderd.Options) (*coderd.
 			}
 			wg.Wait()
 
-			// The in-memory aibridge server participates in the websocket
-			// wait group, so close its client before waiting for that group.
-			if aibridgeDaemon != nil {
-				_ = aibridgeDaemon.Close()
-			}
 			cliui.Info(inv.Stdout, "Waiting for WebSocket connections to close..."+"\n")
 			_ = coderAPICloser.Close()
 			cliui.Info(inv.Stdout, "Done waiting for WebSocket connections"+"\n")
@@ -2249,19 +2179,6 @@ func redirectToAccessURL(handler http.Handler, accessURL *url.URL, tunnel bool, 
 			return
 		}
 
-		// Exception: inter-replica relay.
-		// Enterprise chat streaming relays message_part events
-		// between replicas by dialing the worker replica's
-		// DERP relay address directly. Redirecting these
-		// requests to the access URL breaks the WebSocket
-		// handshake because the redirect strips the Upgrade
-		// headers, causing the load-balanced access URL to
-		// return HTTP 200 (SPA catch-all) instead of 101.
-		if isReplicaRelayRequest(r) {
-			handler.ServeHTTP(w, r)
-			return
-		}
-
 		// Only do this if we aren't tunneling.
 		// If we are tunneling, we want to allow the request to go through
 		// because the tunnel doesn't proxy with TLS.
@@ -2295,14 +2212,6 @@ func isDERPPath(p string) bool {
 		return false
 	}
 	return segments[1] == "derp"
-}
-
-// isReplicaRelayRequest returns true when the request was sent by
-// another coderd replica as part of cross-replica streaming. The
-// enterprise chat relay sets X-Coder-Relay-Source-Replica on every
-// request to identify itself.
-func isReplicaRelayRequest(r *http.Request) bool {
-	return r.Header.Get("X-Coder-Relay-Source-Replica") != ""
 }
 
 // PostgresConnectOptions contains options for connecting to Postgres.

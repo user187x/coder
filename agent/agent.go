@@ -39,23 +39,16 @@ import (
 	"cdr.dev/slog/v3"
 	"github.com/coder/clistat"
 	"github.com/coder/coder/v2/agent/agentcontainers"
-	"github.com/coder/coder/v2/agent/agentcontext"
-	"github.com/coder/coder/v2/agent/agentcontextconfig"
 	"github.com/coder/coder/v2/agent/agentexec"
 	"github.com/coder/coder/v2/agent/agentfiles"
-	"github.com/coder/coder/v2/agent/agentgit"
-	"github.com/coder/coder/v2/agent/agentproc"
 	"github.com/coder/coder/v2/agent/agentscripts"
 	"github.com/coder/coder/v2/agent/agentsocket"
 	"github.com/coder/coder/v2/agent/agentssh"
-	"github.com/coder/coder/v2/agent/agenttoolcall"
 	"github.com/coder/coder/v2/agent/boundarylogproxy"
 	"github.com/coder/coder/v2/agent/proto"
 	"github.com/coder/coder/v2/agent/proto/resourcesmonitor"
 	"github.com/coder/coder/v2/agent/reconnectingpty"
 	"github.com/coder/coder/v2/agent/usershell"
-	"github.com/coder/coder/v2/agent/x/agentdesktop"
-	"github.com/coder/coder/v2/agent/x/agentmcp"
 	"github.com/coder/coder/v2/buildinfo"
 	"github.com/coder/coder/v2/cli/gitauth"
 	"github.com/coder/coder/v2/coderd/database/dbtime"
@@ -114,12 +107,10 @@ type Options struct {
 	Execer                          agentexec.Execer
 	Devcontainers                   bool
 	DevcontainerAPIOptions          []agentcontainers.Option // Enable Devcontainers for these to be effective.
-	GitAPIOptions                   []agentgit.Option
 	Clock                           quartz.Clock
 	SocketServerEnabled             bool
 	SocketPath                      string // Path for the agent socket server socket
 	AgentFirewallLogProxySocketPath string
-	ContextConfig                   agentcontextconfig.Config
 	// DERPTLSConfig is an optional TLS config for DERP connections.
 	DERPTLSConfig *tls.Config
 	// StatsReportInterval is the interval for the connstats callback
@@ -243,11 +234,9 @@ func New(options Options) Agent {
 
 		devcontainers:                   options.Devcontainers,
 		containerAPIOptions:             options.DevcontainerAPIOptions,
-		gitAPIOptions:                   options.GitAPIOptions,
 		socketPath:                      options.SocketPath,
 		socketServerEnabled:             options.SocketServerEnabled,
 		agentFirewallLogProxySocketPath: options.AgentFirewallLogProxySocketPath,
-		contextConfig:                   options.ContextConfig,
 		derpTLSConfig:                   options.DERPTLSConfig,
 	}
 	// Initially, we have a closed channel, reflecting the fact that we are not initially connected.
@@ -327,7 +316,6 @@ type agent struct {
 	// It may be nil if there is a problem starting the server.
 	agentFirewallLogProxy           *boundarylogproxy.Server
 	agentFirewallLogProxySocketPath string
-	contextConfig                   agentcontextconfig.Config
 
 	prometheusRegistry *prometheus.Registry
 	// metrics are prometheus registered metrics that will be collected and
@@ -338,18 +326,7 @@ type agent struct {
 	devcontainers       bool
 	containerAPIOptions []agentcontainers.Option
 	containerAPI        *agentcontainers.API
-	gitAPIOptions       []agentgit.Option
-
-	filesAPI         *agentfiles.API
-	gitAPI           *agentgit.API
-	processAPI       *agentproc.API
-	toolCalls        *agenttoolcall.Table
-	desktopAPI       *agentdesktop.API
-	mcpManager       *agentmcp.Manager
-	mcpAPI           *agentmcp.API
-	contextConfigAPI *agentcontextconfig.API
-	contextManager   *agentcontext.Manager
-	contextAPI       *agentcontext.API
+	filesAPI            *agentfiles.API
 
 	socketServerEnabled bool
 	socketPath          string
@@ -362,41 +339,6 @@ func (a *agent) TailnetConn() *tailnet.Conn {
 	a.closeMutex.Lock()
 	defer a.closeMutex.Unlock()
 	return a.network
-}
-
-// initialContextSources translates the boot-time
-// CODER_AGENT_EXP_*_DIRS env vars into agentcontext.Source
-// entries. This preserves the "set it on the template" workflow
-// while the user-facing CLI for source CRUD ships in a
-// follow-up.
-func initialContextSources(cfg agentcontextconfig.Config, workingDir func() string) []agentcontext.Source {
-	base := ""
-	if workingDir != nil {
-		base = workingDir()
-	}
-
-	seen := make(map[string]struct{})
-	var sources []agentcontext.Source
-	add := func(path string) {
-		if path == "" {
-			return
-		}
-		if _, ok := seen[path]; ok {
-			return
-		}
-		seen[path] = struct{}{}
-		sources = append(sources, agentcontext.Source{Path: path})
-	}
-	for _, p := range agentcontextconfig.ResolvePaths(cfg.InstructionsDirs, base) {
-		add(p)
-	}
-	for _, p := range agentcontextconfig.ResolvePaths(cfg.SkillsDirs, base) {
-		add(p)
-	}
-	for _, p := range agentcontextconfig.ResolvePaths(cfg.MCPConfigFiles, base) {
-		add(p)
-	}
-	return sources
 }
 
 func (a *agent) init() {
@@ -443,50 +385,7 @@ func (a *agent) init() {
 
 	a.containerAPI = agentcontainers.NewAPI(a.logger.Named("containers"), containerAPIOpts...)
 
-	pathStore := agentgit.NewPathStore()
-	a.filesAPI = agentfiles.NewAPI(a.logger.Named("files"), a.filesystem, pathStore, agentfiles.WithEnvInfo(a.envInfo))
-	// workingDirFn reports the workspace directory ("" before the first manifest).
-	workingDirFn := func() string {
-		if m := a.manifest.Load(); m != nil {
-			return m.Directory
-		}
-		return ""
-	}
-	a.processAPI = agentproc.NewAPI(a.logger.Named("processes"), a.execer, a.filesystem, pathStore, a.envInfo, a.updateCommandEnv, workingDirFn)
-	a.toolCalls = agenttoolcall.New(a.clock, a.processAPI.CancelToolCall)
-	gitOpts := append([]agentgit.Option{agentgit.WithClock(a.clock)}, a.gitAPIOptions...)
-	a.gitAPI = agentgit.NewAPI(a.logger.Named("git"), pathStore, gitOpts...)
-	desktop := agentdesktop.NewPortableDesktop(
-		a.logger.Named("desktop"), a.execer, a.scriptRunner.ScriptBinDir(), nil,
-	)
-	a.desktopAPI = agentdesktop.NewAPI(a.logger.Named("desktop"), desktop, a.clock)
-	a.mcpManager = agentmcp.NewManager(a.gracefulCtx, a.logger.Named("mcp"), a.execer, a.filesystem, a.envInfo, a.updateCommandEnv, workingDirFn)
-	a.contextConfigAPI = agentcontextconfig.NewAPI(workingDirFn, a.contextConfig)
-	a.mcpAPI = agentmcp.NewAPI(a.mcpManager)
-
-	// agentcontext.Manager is the new consolidated resolver,
-	// watcher, and pusher. It coexists with contextConfigAPI
-	// and the MCP manager during rollout. Initial sources are
-	// seeded from the existing CODER_AGENT_EXP_* env vars and
-	// from the agent's working directory at scan time.
-	a.contextManager = agentcontext.NewManager(agentcontext.ManagerOptions{
-		Logger:         a.logger.Named("agentcontext"),
-		Clock:          a.clock,
-		WorkingDir:     workingDirFn,
-		InitialSources: initialContextSources(a.contextConfig, workingDirFn),
-		// The manager surfaces MCP servers and their tools as
-		// KindMCPServer resources by reading the shared MCP engine's
-		// catalog (a.mcpManager). That engine owns the single set of
-		// MCP server connections used for both discovery and tool-call
-		// execution, so each declared server is launched once.
-		MCPCatalog: func() []agentcontext.MCPServerStatus {
-			return mcpCatalogToContext(a.mcpManager.Catalog())
-		},
-	})
-	a.contextAPI = agentcontext.NewAPI(a.contextManager)
-	// Re-resolve and re-push KindMCPServer resources whenever the MCP
-	// engine's catalog changes (startup connect, .mcp.json edits).
-	a.mcpManager.SetOnReload(a.contextManager.Trigger)
+	a.filesAPI = agentfiles.NewAPI(a.logger.Named("files"), agentfiles.WithEnvInfo(a.envInfo))
 	a.reconnectingPTYServer = reconnectingpty.NewServer(
 		a.logger.Named("reconnecting-pty"),
 		a.sshServer,
@@ -501,16 +400,6 @@ func (a *agent) init() {
 	a.initSocketServer()
 	a.startAgentFirewallLogProxyServer()
 
-	// Start the agentcontext manager's resolver/watcher loop.
-	// It runs for the lifetime of the agent and is closed in
-	// agent.Close. The push goroutine is started per-connection
-	// inside run() so it picks up the right drpc client.
-	go func() {
-		if err := a.contextManager.Run(a.gracefulCtx); err != nil && !errors.Is(err, context.Canceled) {
-			a.logger.Warn(a.gracefulCtx, "agentcontext manager run exited", slog.Error(err))
-		}
-	}()
-
 	go a.runLoop()
 }
 
@@ -524,7 +413,6 @@ func (a *agent) initSocketServer() {
 	server, err := agentsocket.NewServer(
 		a.logger.Named("socket"),
 		agentsocket.WithPath(a.socketPath),
-		agentsocket.WithContextManager(a.contextManager),
 	)
 	if err != nil {
 		a.logger.Error(a.hardCtx, "failed to create socket server", slog.Error(err), slog.F("path", a.socketPath))
@@ -1104,22 +992,6 @@ func (a *agent) run() (retErr error) {
 		return a.connectionReporter.reportLoop(ctx, aAPI)
 	})
 
-	// Push resolved workspace context (instructions, skills, MCP
-	// configs, MCP server tool lists) to coderd. The push loop
-	// uses gracefulShutdownBehaviorStop because the snapshot is
-	// only useful while chats are alive, and a stale snapshot at
-	// shutdown costs nothing. The coderd handler is a stub that
-	// returns Unimplemented today (CODAGT-569 lands persistence);
-	// DRPCPusher translates Unimplemented to ErrPushUnimplemented
-	// so the goroutine exits cleanly on older coderd deployments.
-	connMan.startAgentAPI210("push context state", gracefulShutdownBehaviorStop,
-		func(ctx context.Context, aAPI proto.DRPCAgentClient210) error {
-			pusher := agentcontext.NewDRPCPusher(aAPI)
-			return a.contextManager.RunPush(ctx, pusher, agentcontext.PushOptions{
-				Logger: a.logger.Named("agentcontext-push"),
-			})
-		})
-
 	// channels to sync goroutines below
 	//  handle manifest
 	//       |
@@ -1267,22 +1139,6 @@ func (a *agent) handleManifest(manifestOK *checkpoint) func(ctx context.Context,
 		manifestOK.complete(nil)
 		sentResult = true
 
-		// Manifest just landed; the agentcontext manager now has
-		// a working directory to scan and a known set of scan
-		// roots. Re-seed sources from CODER_AGENT_EXP_*_DIRS so
-		// relative paths that depended on the working directory
-		// (and were dropped at boot when the directory was
-		// unknown) get added now. Then queue an asynchronous
-		// re-resolve so the snapshot reflects the workspace
-		// immediately instead of waiting for the next filesystem
-		// event. The Trigger result is handled by the Manager.Run
-		// loop, which respects gracefulCtx cancellation during
-		// shutdown.
-		a.contextManager.SeedSources(initialContextSources(a.contextConfig, func() string {
-			return manifest.Directory
-		}))
-		a.contextManager.Trigger()
-
 		// Write secret files after signaling manifest readiness so that network
 		// initialization (which depends on manifestOK) starts as soon as
 		// possible. This creates a theoretical race where an SSH session that
@@ -1384,20 +1240,6 @@ func (a *agent) handleManifest(manifestOK *checkpoint) func(ctx context.Context,
 				}
 				a.metrics.startupScriptSeconds.WithLabelValues(label).Set(dur)
 				a.scriptRunner.StartCron()
-
-				// Startup finished (success or terminal failure): release
-				// the context gate. MCP servers connect below and
-				// re-trigger a push once up, so we don't block readiness
-				// on them.
-				a.contextManager.SetReady()
-
-				// Connect to workspace MCP servers after the
-				// lifecycle transition to avoid delaying Ready.
-				// This runs inside the tracked goroutine so it
-				// is properly awaited on shutdown.
-				if mcpErr := a.mcpManager.Reload(a.gracefulCtx, a.contextConfigAPI.MCPConfigFiles()); mcpErr != nil {
-					a.logger.Warn(ctx, "failed to reload workspace MCP servers", slog.Error(mcpErr))
-				}
 			})
 			if err != nil {
 				return xerrors.Errorf("track conn goroutine: %w", err)
@@ -2271,22 +2113,6 @@ func (a *agent) Close() error {
 
 	if err := a.containerAPI.Close(); err != nil {
 		a.logger.Error(a.hardCtx, "container API close", slog.Error(err))
-	}
-
-	if err := a.processAPI.Close(); err != nil {
-		a.logger.Error(a.hardCtx, "process API close", slog.Error(err))
-	}
-
-	if err := a.desktopAPI.Close(); err != nil {
-		a.logger.Error(a.hardCtx, "desktop API close", slog.Error(err))
-	}
-
-	if err := a.mcpManager.Close(); err != nil {
-		a.logger.Error(a.hardCtx, "mcp manager close", slog.Error(err))
-	}
-
-	if err := a.contextManager.Close(); err != nil {
-		a.logger.Error(a.hardCtx, "agentcontext manager close", slog.Error(err))
 	}
 
 	if a.agentFirewallLogProxy != nil {

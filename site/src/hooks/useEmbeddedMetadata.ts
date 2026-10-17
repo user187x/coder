@@ -31,7 +31,6 @@ type AvailableMetadata = Readonly<{
 	entitlements: Entitlements;
 	regions: readonly Region[];
 	"build-info": BuildInfoResponse;
-	"ai-gateway-enabled": boolean;
 	"user-secret-file-path-enabled": boolean;
 	permissions: Permissions;
 	organizations: Organization[];
@@ -96,7 +95,6 @@ export class MetadataManager implements MetadataManagerApi {
 			experiments: this.registerValue<Experiment[]>("experiments"),
 			"build-info": this.registerValue<BuildInfoResponse>("build-info"),
 			regions: this.registerRegionValue(),
-			"ai-gateway-enabled": this.registerValue<boolean>("ai-gateway-enabled"),
 			"user-secret-file-path-enabled": this.registerValue<boolean>(
 				"user-secret-file-path-enabled",
 			),
@@ -253,8 +251,3 @@ export const defaultMetadataManager = new MetadataManager();
 export const useEmbeddedMetadata = makeUseEmbeddedMetadata(
 	defaultMetadataManager,
 );
-
-export function useAIGatewayEnabled(): boolean {
-	const { metadata } = useEmbeddedMetadata();
-	return metadata["ai-gateway-enabled"].value ?? true;
-}

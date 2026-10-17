@@ -1,4 +1,4 @@
-import { fireEvent, screen, within } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { ImagesAPI, type ImageReport as Report } from "#/api/images";
 import { renderComponent } from "#/testHelpers/renderHelpers";

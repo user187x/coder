@@ -29,7 +29,6 @@ import (
 	protobuf "google.golang.org/protobuf/proto"
 
 	"cdr.dev/slog/v3"
-	"github.com/coder/coder/v2/coderd/aiseats"
 	"github.com/coder/coder/v2/coderd/apikey"
 	"github.com/coder/coder/v2/coderd/audit"
 	"github.com/coder/coder/v2/coderd/database"
@@ -76,7 +75,6 @@ const (
 type Options struct {
 	OIDCConfig          promoauth.OAuth2Config
 	ExternalAuthConfigs []*externalauth.Config
-	AISeatTracker       aiseats.SeatTracker
 
 	// KeyID is the provisioner key the daemon authenticated with, or the
 	// zero value if it did not authenticate with a key.
@@ -130,7 +128,6 @@ type server struct {
 	NotificationsEnqueuer       notifications.Enqueuer
 	PrebuildsOrchestrator       *atomic.Pointer[prebuilds.ReconciliationOrchestrator]
 	UsageInserter               *atomic.Pointer[usage.Inserter]
-	AISeatTracker               aiseats.SeatTracker
 	Experiments                 codersdk.Experiments
 
 	OIDCConfig promoauth.OAuth2Config
@@ -253,9 +250,6 @@ func NewServer(
 	if err := tags.Valid(); err != nil {
 		return nil, xerrors.Errorf("invalid tags: %w", err)
 	}
-	if options.AISeatTracker == nil {
-		options.AISeatTracker = aiseats.Noop{}
-	}
 	if options.AcquireJobLongPollDur == 0 {
 		options.AcquireJobLongPollDur = DefaultAcquireJobLongPollDur
 	}
@@ -295,7 +289,6 @@ func NewServer(
 		heartbeatFn:                 options.HeartbeatFn,
 		PrebuildsOrchestrator:       prebuildsOrchestrator,
 		UsageInserter:               usageInserter,
-		AISeatTracker:               options.AISeatTracker,
 		activeJobs:                  map[uuid.UUID]struct{}{},
 		metrics:                     metrics,
 		Experiments:                 experiments,

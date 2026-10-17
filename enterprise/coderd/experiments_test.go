@@ -47,17 +47,14 @@ func TestExperimentRuleConditions(t *testing.T) {
 
 	//nolint:gocritic // Tests seed rules directly; there is no rules API yet.
 	systemCtx := dbauthz.AsSystemRestricted(ctx)
-	for ex, condition := range map[codersdk.Experiment]string{
-		codersdk.ExperimentExample:       fmt.Sprintf("%q in user.groups", defaultOrg.Name+"/"+group.Name),
-		codersdk.ExperimentMCPToolSearch: fmt.Sprintf("%q in user.organizations", otherOrg.Name),
-	} {
-		_, _, changed, err := experiments.WriteRule(systemCtx, db, owner.UserID, ex, experiments.Rule{
-			Mode:      experiments.ModeCondition,
-			Condition: condition,
-		}, 0)
-		require.NoError(t, err)
-		require.True(t, changed)
-	}
+	// One condition reads both the user's groups and their organizations.
+	_, _, changed, err := experiments.WriteRule(systemCtx, db, owner.UserID, codersdk.ExperimentExample, experiments.Rule{
+		Mode: experiments.ModeCondition,
+		Condition: fmt.Sprintf("%q in user.groups || %q in user.organizations",
+			defaultOrg.Name+"/"+group.Name, otherOrg.Name),
+	}, 0)
+	require.NoError(t, err)
+	require.True(t, changed)
 
 	for _, tc := range []struct {
 		name   string
@@ -65,7 +62,7 @@ func TestExperimentRuleConditions(t *testing.T) {
 		want   codersdk.Experiments
 	}{
 		{name: "GroupMember", client: groupedClient, want: codersdk.Experiments{codersdk.ExperimentExample}},
-		{name: "OrganizationMember", client: otherOrgClient, want: codersdk.Experiments{codersdk.ExperimentMCPToolSearch}},
+		{name: "OrganizationMember", client: otherOrgClient, want: codersdk.Experiments{codersdk.ExperimentExample}},
 		{name: "Neither", client: plainClient, want: codersdk.Experiments{}},
 	} {
 		got, err := tc.client.Experiments(ctx)

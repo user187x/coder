@@ -62,7 +62,6 @@ type WorkspacesPageViewProps = {
 	canChangeVersions: boolean;
 	onActionSuccess: () => Promise<void>;
 	onActionError: (error: unknown) => void;
-	chatsByWorkspace?: Record<string, string>;
 };
 
 export const WorkspacesPageView: React.FC<WorkspacesPageViewProps> = ({
@@ -87,7 +86,6 @@ export const WorkspacesPageView: React.FC<WorkspacesPageViewProps> = ({
 	canChangeVersions,
 	onActionSuccess,
 	onActionError,
-	chatsByWorkspace,
 }) => {
 	// Let's say the user has 5 workspaces, but tried to hit page 100, which
 	// does not exist. In this case, the page is not valid and we want to show a
@@ -243,7 +241,6 @@ export const WorkspacesPageView: React.FC<WorkspacesPageViewProps> = ({
 					templates={templates}
 					onActionSuccess={onActionSuccess}
 					onActionError={onActionError}
-					chatsByWorkspace={chatsByWorkspace}
 				/>
 			)}
 

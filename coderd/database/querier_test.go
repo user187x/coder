@@ -37,11 +37,13 @@ import (
 	"github.com/coder/coder/v2/coderd/rbac/policy"
 	"github.com/coder/coder/v2/coderd/usage/usagetypes"
 	"github.com/coder/coder/v2/coderd/util/slice"
-	"github.com/coder/coder/v2/coderd/x/chatd/chatprompt"
 	"github.com/coder/coder/v2/codersdk"
 	"github.com/coder/coder/v2/provisionersdk"
 	"github.com/coder/coder/v2/testutil"
 )
+
+// chatMessageContentVersion is the content version chat messages were written with.
+const chatMessageContentVersion int16 = 1
 
 func TestGetDeploymentWorkspaceAgentStats(t *testing.T) {
 	t.Parallel()
@@ -12564,7 +12566,7 @@ func TestInsertChatMessages(t *testing.T) {
 			CreatedBy:           []uuid.UUID{userID},
 			ModelConfigID:       []uuid.UUID{modelConfigID},
 			Role:                []database.ChatMessageRole{database.ChatMessageRoleUser},
-			ContentVersion:      []int16{chatprompt.CurrentContentVersion},
+			ContentVersion:      []int16{chatMessageContentVersion},
 			Visibility:          []database.ChatMessageVisibility{database.ChatMessageVisibilityBoth},
 			Content:             []string{fmt.Sprintf("%q", content)},
 			InputTokens:         []int64{0},
@@ -12624,7 +12626,7 @@ func TestInsertChatMessages(t *testing.T) {
 			CreatedBy:           []uuid.UUID{user.ID, uuid.Nil, uuid.Nil},
 			ModelConfigID:       []uuid.UUID{modelConfigA.ID, modelConfigA.ID, modelConfigA.ID},
 			Role:                []database.ChatMessageRole{database.ChatMessageRoleUser, database.ChatMessageRoleAssistant, database.ChatMessageRoleTool},
-			ContentVersion:      []int16{chatprompt.CurrentContentVersion, chatprompt.CurrentContentVersion, chatprompt.CurrentContentVersion},
+			ContentVersion:      []int16{chatMessageContentVersion, chatMessageContentVersion, chatMessageContentVersion},
 			Visibility:          []database.ChatMessageVisibility{database.ChatMessageVisibilityBoth, database.ChatMessageVisibilityBoth, database.ChatMessageVisibilityBoth},
 			Content:             []string{`"hello"`, `"response"`, `"tool result"`},
 			InputTokens:         []int64{10, 0, 0},
@@ -12696,7 +12698,7 @@ func insertChatMessagesInvertedTimestamps(t *testing.T, db database.Store, sqlDB
 		CreatedBy:           slices.Repeat([]uuid.UUID{owner.ID}, count),
 		ModelConfigID:       slices.Repeat([]uuid.UUID{modelCfg.ID}, count),
 		Role:                roles,
-		ContentVersion:      slices.Repeat([]int16{chatprompt.CurrentContentVersion}, count),
+		ContentVersion:      slices.Repeat([]int16{chatMessageContentVersion}, count),
 		Visibility:          slices.Repeat([]database.ChatMessageVisibility{database.ChatMessageVisibilityBoth}, count),
 		Content:             slices.Repeat([]string{`"message"`}, count),
 		InputTokens:         make([]int64, count),
@@ -12867,7 +12869,7 @@ func TestGetChatMessagesForPromptByChatID(t *testing.T) {
 			CreatedBy:           []uuid.UUID{uuid.Nil},
 			ModelConfigID:       []uuid.UUID{uuid.Nil},
 			Role:                []database.ChatMessageRole{role},
-			ContentVersion:      []int16{chatprompt.CurrentContentVersion},
+			ContentVersion:      []int16{chatMessageContentVersion},
 			Visibility:          []database.ChatMessageVisibility{vis},
 			Compressed:          []bool{compressed},
 			Content:             []string{`"` + content + `"`},
@@ -15907,7 +15909,7 @@ func TestUpdateChatLastTurnSummary(t *testing.T) {
 		ModelConfigID:       []uuid.UUID{modelCfg.ID},
 		Role:                []database.ChatMessageRole{database.ChatMessageRoleUser},
 		Content:             []string{`[{"type":"text","text":"new request"}]`},
-		ContentVersion:      []int16{chatprompt.CurrentContentVersion},
+		ContentVersion:      []int16{chatMessageContentVersion},
 		Visibility:          []database.ChatMessageVisibility{database.ChatMessageVisibilityBoth},
 		InputTokens:         []int64{0},
 		OutputTokens:        []int64{0},
@@ -16028,7 +16030,7 @@ func TestUpdateChatSummary(t *testing.T) {
 		ModelConfigID:       []uuid.UUID{modelCfg.ID},
 		Role:                []database.ChatMessageRole{database.ChatMessageRoleUser},
 		Content:             []string{`[{"type":"text","text":"new request"}]`},
-		ContentVersion:      []int16{chatprompt.CurrentContentVersion},
+		ContentVersion:      []int16{chatMessageContentVersion},
 		Visibility:          []database.ChatMessageVisibility{database.ChatMessageVisibilityBoth},
 		InputTokens:         []int64{0},
 		OutputTokens:        []int64{0},
@@ -19475,7 +19477,7 @@ func TestGetAIModelPrices(t *testing.T) {
 			params: database.GetAIModelPricesParams{
 				Provider: "anthropic",
 				Model:    "model-a",
-				Source:   string(codersdk.AIModelPriceSourceFilterAll),
+				Source:   "all",
 			},
 			want:       []string{"anthropic/model-a", "anthropic/model-a"},
 			wantPrices: []int64{9, 1},

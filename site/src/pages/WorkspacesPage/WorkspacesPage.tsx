@@ -3,7 +3,6 @@ import { useQuery, useQueryClient } from "react-query";
 import { useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { getErrorDetail, getErrorMessage } from "#/api/errors";
-import { chatsByWorkspace } from "#/api/queries/chats";
 import { workspacePermissionsByOrganization } from "#/api/queries/organizations";
 import { templates, templateVersionRoot } from "#/api/queries/templates";
 import { workspaces } from "#/api/queries/workspaces";
@@ -134,19 +133,6 @@ const WorkspacesPage: React.FC = () => {
 		refetchOnWindowFocus: "always",
 	});
 
-	const workspaceIds = useMemo(
-		() => data?.workspaces?.map((w) => w.id) ?? [],
-		[data?.workspaces],
-	);
-	const chatsByWorkspaceQuery = useQuery({
-		...chatsByWorkspace(workspaceIds),
-		// Only fetch chat lookups for users who can actually create chats;
-		// the endpoint still runs a DB query + RBAC post-filter and the
-		// AgentsNavItem / chat link UI is already hidden for users without
-		// this permission, so the query would return nothing useful for them.
-		enabled: permissions.createChat && workspaceIds.length > 0,
-	});
-
 	const [activeBatchAction, setActiveBatchAction] = useState<BatchAction>();
 	const batchActions = useBatchActions({
 		onSuccess: async () => {
@@ -174,7 +160,6 @@ const WorkspacesPage: React.FC = () => {
 				canCreateWorkspace={permissions.createWorkspace}
 				canChangeVersions={permissions.updateTemplates}
 				checkedWorkspaces={checkedWorkspaces}
-				chatsByWorkspace={chatsByWorkspaceQuery.data}
 				onCheckChange={(newWorkspaces) => {
 					setCheckedWorkspaceIds((current) => {
 						const newIds = newWorkspaces.map((ws) => ws.id);

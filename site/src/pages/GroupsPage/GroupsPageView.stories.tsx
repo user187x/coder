@@ -5,6 +5,7 @@ import {
 	GROUP_MEMBER_AVATAR_LIMIT,
 	getGroupMemberAvatarsQueryKey,
 } from "#/api/queries/groups";
+import type { PaginatedGroup } from "#/api/typesGenerated";
 import { getDefaultFilterProps } from "#/components/Filter/storyHelpers";
 import type { UsersFilter } from "#/components/Filter/UsersFilter";
 import {
@@ -18,7 +19,7 @@ import {
 	MockUserMember,
 	MockUserOwner,
 } from "#/testHelpers/entities";
-import { GroupsPageView, type GroupWithSpend } from "./GroupsPageView";
+import { GroupsPageView } from "./GroupsPageView";
 
 type FilterProps = React.ComponentProps<typeof UsersFilter>;
 
@@ -29,7 +30,6 @@ const meta: Meta<typeof GroupsPageView> = {
 		canCreateGroup: true,
 		groupsEnabled: true,
 		showOrganizations: true,
-		spendError: false,
 		filterProps: getDefaultFilterProps<FilterProps>({
 			values: {},
 			menus: {},
@@ -44,15 +44,10 @@ const meta: Meta<typeof GroupsPageView> = {
 export default meta;
 type Story = StoryObj<typeof GroupsPageView>;
 
-const mockGroupWithSpend: GroupWithSpend = {
+// The pagination story isn't about membership, so give its groups no members.
+// Rows with a zero count skip the per-row avatar fetch.
+const memberlessGroup = (id: string, name: string): PaginatedGroup => ({
 	...MockGroup,
-	spend: undefined,
-};
-
-// AI-budget and pagination stories aren't about membership, so give their
-// groups no members. Rows with a zero count skip the per-row avatar fetch.
-const aiGroup = (id: string, name: string): GroupWithSpend => ({
-	...mockGroupWithSpend,
 	id,
 	name,
 	display_name: name,
@@ -78,14 +73,14 @@ export const Default: Story = {};
 
 export const NotEnabled: Story = {
 	args: {
-		groups: [mockGroupWithSpend],
+		groups: [MockGroup],
 		groupsEnabled: false,
 	},
 };
 
 export const WithGroups: Story = {
 	args: {
-		groups: [mockGroupWithSpend],
+		groups: [MockGroup],
 	},
 	parameters: {
 		queries: [seedAvatars(MockGroup.name, [MockUserOwner, MockUserMember], 2)],
@@ -106,7 +101,7 @@ export const WithMemberAvatars: Story = {
 	args: {
 		groups: [
 			{
-				...mockGroupWithSpend,
+				...MockGroup,
 				id: "with-members",
 				name: "with-members",
 				display_name: "With members",
@@ -138,7 +133,7 @@ export const WithMemberAvatarsLoading: Story = {
 	args: {
 		groups: [
 			{
-				...mockGroupWithSpend,
+				...MockGroup,
 				id: "members-loading",
 				name: "members-loading",
 				display_name: "Members loading",
@@ -161,7 +156,7 @@ const limit = totalRecords / totalPages;
 export const WithSearchAndPagination: Story = {
 	args: {
 		groups: Array.from({ length: limit }, (_, i) =>
-			aiGroup(`group-${i}`, `Group ${i}`),
+			memberlessGroup(`group-${i}`, `Group ${i}`),
 		),
 		filterProps: getDefaultFilterProps<FilterProps>({
 			query: "group",
@@ -191,174 +186,9 @@ export const Loading: Story = {
 	},
 };
 
-export const WithAIBudgets: Story = {
-	args: {
-		showAIBudget: true,
-		groups: [
-			{
-				...aiGroup("ai-unlimited", "Unlimited"),
-				spend: {
-					group_id: "ai-unlimited",
-					current_spend_micros: 25_492_000_000,
-					spend_limit_micros: null,
-					total_spend_limit_micros: null,
-				},
-			},
-			{
-				...aiGroup("ai-under", "Under budget"),
-				spend: {
-					group_id: "ai-under",
-					current_spend_micros: 10_000_000,
-					spend_limit_micros: 25_000_000,
-					total_spend_limit_micros: 50_000_000,
-				},
-			},
-			{
-				...aiGroup("ai-warning", "Near limit"),
-				spend: {
-					group_id: "ai-warning",
-					current_spend_micros: 46_000_000,
-					spend_limit_micros: 25_000_000,
-					total_spend_limit_micros: 50_000_000,
-				},
-			},
-			{
-				...aiGroup("ai-at-limit", "At limit"),
-				spend: {
-					group_id: "ai-at-limit",
-					current_spend_micros: 50_000_000,
-					spend_limit_micros: 25_000_000,
-					total_spend_limit_micros: 50_000_000,
-				},
-			},
-			{
-				...aiGroup("ai-over", "Over budget"),
-				spend: {
-					group_id: "ai-over",
-					current_spend_micros: 75_000_000,
-					spend_limit_micros: 25_000_000,
-					total_spend_limit_micros: 50_000_000,
-				},
-			},
-			{
-				...aiGroup("ai-zero-budget", "Zero budget"),
-				spend: {
-					group_id: "ai-zero-budget",
-					current_spend_micros: 5_000_000,
-					spend_limit_micros: 0,
-					total_spend_limit_micros: 0,
-				},
-			},
-			{
-				...aiGroup("ai-zero-both", "Zero spend and budget"),
-				spend: {
-					group_id: "ai-zero-both",
-					current_spend_micros: 0,
-					spend_limit_micros: 0,
-					total_spend_limit_micros: 0,
-				},
-			},
-			// No spend exercises the missing-spend em-dash fallback.
-			aiGroup("ai-no-data", "No data"),
-		],
-	},
-	play: async ({ canvasElement }) => {
-		const canvas = within(canvasElement);
-		await expect(
-			await canvas.findByTestId("group-ai-unlimited"),
-		).toHaveTextContent("$25,492 / Unlimited USD");
-		await expect(await canvas.findByTestId("group-ai-under")).toHaveTextContent(
-			"$10 / $50 USD",
-		);
-		await expect(
-			await canvas.findByTestId("group-ai-warning"),
-		).toHaveTextContent("$46 / $50 USD");
-		await expect(
-			await canvas.findByTestId("group-ai-at-limit"),
-		).toHaveTextContent("$50 / $50 USD");
-		await expect(
-			await canvas.findByTestId("group-ai-zero-budget"),
-		).toHaveTextContent("$5 / $0 USD");
-		await expect(
-			await canvas.findByTestId("group-ai-no-data"),
-		).toHaveTextContent("\u2014");
-	},
-};
-
-// Groups still loading: the table shows skeleton rows including the AI column.
-export const WithAIBudgetsLoading: Story = {
-	args: {
-		groups: undefined,
-		showAIBudget: true,
-		groupsQuery: mockInitialRenderResult as UsePaginatedQueryResult,
-	},
-};
-
-// Spend still loading: every AI spend cell falls back to an em dash.
-export const WithAIBudgetsSpendLoading: Story = {
-	args: {
-		groups: [aiGroup("ai-loading", "Spend loading")],
-		canCreateGroup: true,
-		groupsEnabled: true,
-		showAIBudget: true,
-	},
-	play: async ({ canvasElement }) => {
-		const canvas = within(canvasElement);
-		await expect(
-			await canvas.findByTestId("group-ai-loading"),
-		).toHaveTextContent("\u2014");
-	},
-};
-
-// The spend fetch failed: the column header shows a warning and cells an em dash.
-export const WithAIBudgetsSpendError: Story = {
-	args: {
-		groups: [aiGroup("ai-errored", "Spend errored")],
-		spendError: true,
-		canCreateGroup: true,
-		groupsEnabled: true,
-		showAIBudget: true,
-	},
-	play: async ({ canvasElement }) => {
-		const canvas = within(canvasElement);
-		await expect(
-			await canvas.findByTestId("group-ai-errored"),
-		).toHaveTextContent("\u2014");
-		await expect(
-			canvas.getByRole("button", { name: "More info" }),
-		).toBeInTheDocument();
-	},
-};
-
-// Cost control unset for a group: the cell falls back to an em dash.
-export const WithAIBudgetsSpendUnavailable: Story = {
-	args: {
-		groups: [aiGroup("ai-unavailable", "Spend unavailable")],
-		showAIBudget: true,
-	},
-	play: async ({ canvasElement }) => {
-		const canvas = within(canvasElement);
-		await expect(
-			await canvas.findByTestId("group-ai-unavailable"),
-		).toHaveTextContent("\u2014");
-	},
-};
-
-// AI Bridge hidden: no AI spend column.
-export const WithoutAIBudgetColumn: Story = {
-	args: {
-		groups: [aiGroup("ai-hidden", "No AI column")],
-		showAIBudget: false,
-	},
-	play: async ({ canvasElement }) => {
-		const canvas = within(canvasElement);
-		expect(canvas.queryByText("AI spend")).not.toBeInTheDocument();
-	},
-};
-
 export const WithDisplayGroup: Story = {
 	args: {
-		groups: [{ ...mockGroupWithSpend, name: "front-end" }],
+		groups: [{ ...MockGroup, name: "front-end" }],
 	},
 	parameters: {
 		queries: [seedAvatars("front-end", [MockUserOwner, MockUserMember], 2)],

@@ -1,6 +1,7 @@
 import type { QueryClient } from "react-query";
 import { API } from "#/api/api";
 import type { Role } from "#/api/typesGenerated";
+import { isRetiredRole } from "#/modules/roles";
 
 const getRoleQueryKey = (organizationId: string, roleName: string) => [
 	"organization",
@@ -17,14 +18,18 @@ export const organizationRolesQueryKey = (organization: string) =>
 export const roles = () => {
 	return {
 		queryKey: rolesQueryKey,
-		queryFn: API.getRoles,
+		queryFn: async () =>
+			(await API.getRoles()).filter((role) => !isRetiredRole(role)),
 	};
 };
 
 export const organizationRoles = (organization: string) => {
 	return {
 		queryKey: organizationRolesQueryKey(organization),
-		queryFn: () => API.getOrganizationRoles(organization),
+		queryFn: async () =>
+			(await API.getOrganizationRoles(organization)).filter(
+				(role) => !isRetiredRole(role),
+			),
 	};
 };
 
