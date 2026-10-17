@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "react-query";
 import { getErrorMessage } from "#/api/errors";
 import {
@@ -341,6 +341,8 @@ const CapacitySection: React.FC<{ settings: Settings }> = ({ settings }) => {
 	const queryClient = useQueryClient();
 	const quota = settings.quota;
 	const [gib, setGib] = useState(quota.gib);
+	// A change made elsewhere (another admin, another tab) shows here.
+	useEffect(() => setGib(quota.gib), [quota.gib]);
 	const save = useMutation({
 		mutationFn: (body: { quotaGiB: number } | { reset: true }) =>
 			PlatformAPI.saveCloudDriveQuota(body),

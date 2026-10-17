@@ -12,6 +12,14 @@
 	overflow: hidden;
 	cursor: not-allowed;
 }
+/* The page behind flickering: a filter over it (backdrop-filter), not on the page itself - a filter or transform on
+   the page would make its fixed bars (classification banners, status bar) move with it. */
+.broken-screen::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	animation: broken-screen-page 2.2s steps(1) 0.6s infinite;
+}
 .broken-screen[data-restoring] {
 	animation: broken-screen-restore 0.7s ease-in both;
 	pointer-events: none;
@@ -137,11 +145,9 @@
 	outline-offset: 2px;
 }
 
-/* The page behind: one hard shake, then a flicker while it is broken. */
+/* The page behind: one hard shake as it is struck (half a second: the only time it moves). */
 html[data-screen-broken] #root {
-	animation:
-		broken-screen-shake 0.5s linear both,
-		broken-screen-page 2.2s steps(1) 0.6s infinite;
+	animation: broken-screen-shake 0.5s linear;
 }
 
 /* No animations: broken at once, nothing moving. */
@@ -266,24 +272,24 @@ html[data-animations="off"][data-screen-broken] #root {
 @keyframes broken-screen-page {
 	0%,
 	100% {
-		filter: none;
+		backdrop-filter: none;
 	}
 	12% {
-		filter: contrast(1.6) saturate(1.8) hue-rotate(20deg);
+		backdrop-filter: contrast(1.6) saturate(1.8) hue-rotate(20deg);
 	}
 	14% {
-		filter: none;
+		backdrop-filter: none;
 	}
 	47% {
-		filter: brightness(0.7) contrast(1.3);
+		backdrop-filter: brightness(0.7) contrast(1.3);
 	}
 	50% {
-		filter: none;
+		backdrop-filter: none;
 	}
 	81% {
-		filter: invert(0.08) hue-rotate(-30deg);
+		backdrop-filter: invert(0.08) hue-rotate(-30deg);
 	}
 	83% {
-		filter: none;
+		backdrop-filter: none;
 	}
 }

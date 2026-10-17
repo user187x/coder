@@ -155,9 +155,13 @@ export const CloudDrive: React.FC<{
 									view === "settings" &&
 										"bg-surface-secondary text-content-primary",
 								)}
-								onClick={() =>
-									setView((v) => (v === "settings" ? "files" : "settings"))
-								}
+								onClick={() => {
+									// Opened: what the service has now.
+									if (view === "files") {
+										void settings.refetch();
+									}
+									setView((v) => (v === "settings" ? "files" : "settings"));
+								}}
 							>
 								<SettingsIcon />
 							</Button>
