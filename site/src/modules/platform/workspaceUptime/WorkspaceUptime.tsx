@@ -36,17 +36,20 @@ const useNow = (active: boolean): number => {
 /**
  * The workspace page's uptime: how long the workspace has been on, in a pill
  * between the agent's Open Ports and its apps, counting up; its start on
- * hover. Nothing unless the workspace is running.
+ * hover. Nothing unless the workspace is running. Stopped (no contact with
+ * Coder): it stays at what it was then.
  */
-export const WorkspaceUptime: React.FC<{ workspace: Workspace }> = ({
-	workspace,
-}) => {
+export const WorkspaceUptime: React.FC<{
+	workspace: Workspace;
+	/** No contact with Coder since (ms): the count stops there. */
+	stoppedAt?: number;
+}> = ({ workspace, stoppedAt }) => {
 	const started = workspaceStartedAt(workspace);
-	const now = useNow(started !== null);
+	const ticking = useNow(started !== null && stoppedAt === undefined);
 	if (!started) {
 		return null;
 	}
-	const up = now - started.getTime();
+	const up = (stoppedAt ?? ticking) - started.getTime();
 	return (
 		<Tooltip>
 			<TooltipTrigger asChild>

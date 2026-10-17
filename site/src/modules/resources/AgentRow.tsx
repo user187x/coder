@@ -531,7 +531,16 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 									onUpdate={onUpdateAgent}
 									workspaceOutdated={workspace.outdated}
 								/>
-								<AgentLatency agent={agent} />
+								{/* Platform: no contact with Coder - the last latency, greyed */}
+								<span
+									className={cn(
+										"inline-flex",
+										contactLost && "opacity-60 grayscale",
+									)}
+									data-stale={contactLost || undefined}
+								>
+									<AgentLatency agent={agent} />
+								</span>
 								{/* Platform: connected to its owner's Cloud Drive (a HUD of it on hover) */}
 								<CloudDriveGlyph workspace={workspace} />
 							</>
@@ -592,7 +601,19 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 								stoppedAt={stoppedAt}
 							/>
 							<span className="ml-auto empty:hidden">
-								<WorkspaceUptime workspace={workspace} />
+								{/* Platform: no contact with Coder - not counting on as if it ran, greyed */}
+								<span
+									className={cn(
+										"inline-flex",
+										contactLost && "opacity-60 grayscale",
+									)}
+									data-stale={contactLost || undefined}
+								>
+									<WorkspaceUptime
+										workspace={workspace}
+										stoppedAt={contactLostAt ?? undefined}
+									/>
+								</span>
 							</span>
 						</div>
 					)}
