@@ -11,6 +11,10 @@ import {
 	TooltipTrigger,
 } from "#/components/Tooltip/Tooltip";
 import {
+	formatStarted,
+	workspaceStartedAt,
+} from "#/modules/platform/workspaceUptime/workspaceUptime";
+import {
 	type DisplayWorkspaceStatusType,
 	getDisplayWorkspaceStatus,
 } from "#/utils/workspace";
@@ -28,19 +32,41 @@ export const variantByStatusType: Record<
 	warning: "warning",
 };
 
-/** Platform: the running workspace's light on its page: rings of light turning round a pulsing core (runningLight.css). */
-const RunningLight: React.FC = () => (
-	<span
-		aria-hidden
-		data-testid="workspace-running-light"
-		className="ws-running-light"
-	>
-		<i className="ws-running-ring ws-running-outer" />
-		<i className="ws-running-ring ws-running-middle" />
-		<i className="ws-running-ring ws-running-inner" />
-		<i className="ws-running-core" />
-	</span>
-);
+/**
+ * Platform: the running workspace's light on its page: rings of light turning
+ * round a pulsing core (runningLight.css). Hovered, it tells when the
+ * workspace started.
+ */
+const RunningLight: React.FC<{ started: Date | null }> = ({ started }) => {
+	const light = (
+		<span
+			aria-hidden
+			data-testid="workspace-running-light"
+			className="ws-running-light"
+		>
+			<i className="ws-running-ring ws-running-outer" />
+			<i className="ws-running-ring ws-running-middle" />
+			<i className="ws-running-ring ws-running-inner" />
+			<i className="ws-running-core" />
+		</span>
+	);
+	if (!started) {
+		return light;
+	}
+	return (
+		<Tooltip>
+			<TooltipTrigger asChild>
+				<span
+					className="inline-flex"
+					data-testid="workspace-running-light-trigger"
+				>
+					{light}
+				</span>
+			</TooltipTrigger>
+			<TooltipContent>Started {formatStarted(started)}</TooltipContent>
+		</Tooltip>
+	);
+};
 
 type WorkspaceStatusIndicatorProps = {
 	workspace: Workspace;
@@ -65,7 +91,7 @@ export const WorkspaceStatusIndicator: React.FC<
 		runningLight &&
 		type === "success" &&
 		workspace.latest_build.status === "running" ? (
-			<RunningLight />
+			<RunningLight started={workspaceStartedAt(workspace)} />
 		) : (
 			<StatusIndicatorDot />
 		);

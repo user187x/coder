@@ -1,4 +1,5 @@
 import { cn } from "cn";
+import { TimerIcon } from "lucide-react";
 import type { DERPRegion, WorkspaceAgent } from "#/api/typesGenerated";
 import {
 	Tooltip,
@@ -42,7 +43,13 @@ export const AgentLatency: React.FC<AgentLatencyProps> = ({ agent }) => {
 	return (
 		<Tooltip>
 			<TooltipTrigger asChild>
-				<button type="button" aria-label="latency" className={latency.color}>
+				<button
+					type="button"
+					aria-label="latency"
+					className={cn("inline-flex items-center gap-1", latency.color)}
+				>
+					{/* Platform: a stopwatch before the latency: it is a time */}
+					<TimerIcon aria-hidden className="size-3.5" />
 					{Math.round(latency.latency_ms)}ms
 				</button>
 			</TooltipTrigger>

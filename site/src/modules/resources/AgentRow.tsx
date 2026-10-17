@@ -69,6 +69,7 @@ import {
 	agentAppsReady,
 	agentInitializing,
 } from "#/modules/platform/workspaceInitializing/workspaceReadiness";
+import { WorkspaceUptime } from "#/modules/platform/workspaceUptime/WorkspaceUptime";
 import {
 	agentConnectionMessages,
 	getAgentConnectivityIssues,
@@ -527,6 +528,12 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 				</header>
 
 				<div className="flex flex-col gap-8 px-8 pt-8 pb-12">
+					{/* Platform: how long the workspace has been on, under Open Ports and above the apps */}
+					{agent.status === "connected" && (
+						<div className="-my-4 flex justify-end empty:hidden">
+							<WorkspaceUptime workspace={workspace} />
+						</div>
+					)}
 					{workspace.latest_app_status?.agent_id === agent.id && (
 						<section>
 							<h3 className="sr-only">App statuses</h3>
