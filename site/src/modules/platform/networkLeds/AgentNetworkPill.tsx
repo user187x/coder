@@ -9,13 +9,9 @@ import {
 	useWorkspaceLockdown,
 } from "#/modules/platform/lockdown/Lockdown";
 import { WORKSPACE_PILL } from "#/modules/platform/workspaceUptime/WorkspaceUptime";
+import { BARS } from "#/modules/resources/MetadataHistogram";
 import { useAgentNetworkMetadata } from "./agentMetadataStore";
-import {
-	formatRate,
-	NETWORK_WINDOW_MS,
-	type NetworkSample,
-	withSample,
-} from "./NetworkHistogram";
+import { formatRate, type NetworkSample } from "./NetworkHistogram";
 
 const parse = (value: string): [number, number] | null => {
 	const m = /^\s*(\d+)\s+(\d+)\s*$/.exec(value);
@@ -24,40 +20,36 @@ const parse = (value: string): [number, number] | null => {
 
 /** The graph's floor: an idle workspace's few bytes a second stay near the line. */
 const MIN_PEAK = 1024;
-const W = 100;
+const W = 104;
 const H = 16;
 
 /**
- * The bars of the last minute: each reading across the time it covers, what
- * was received rising above the middle line, what was sent hanging below it,
- * to the window's peak.
+ * The bars of the latest readings, as the metric graphs below draw theirs
+ * (MetadataHistogram): BARS slots, a thin bar a reading, newest at the right;
+ * what was received rising above the middle line, what was sent hanging below
+ * it, to the busiest reading shown.
  */
 export const pillBars = (samples: NetworkSample[]) => {
-	const end = samples[samples.length - 1]?.t ?? 0;
-	const start = end - NETWORK_WINDOW_MS;
-	const shown = samples.filter((s) => s.t > start);
+	const shown = samples.slice(-BARS);
 	const peak = Math.max(MIN_PEAK, ...shown.flatMap((s) => [s.rx, s.tx]));
-	const x = (t: number) =>
-		((Math.max(t, start) - start) / NETWORK_WINDOW_MS) * W;
+	const slot = W / BARS;
 	const half = H / 2 - 0.5;
-	return shown.map((s) => {
-		const left = x(s.from);
-		const width = Math.max(0.8, x(s.t) - left - 0.6);
-		return {
-			t: s.t,
-			x: left,
-			width,
-			up: (Math.min(s.rx, peak) / peak) * half,
-			down: (Math.min(s.tx, peak) / peak) * half,
-		};
-	});
+	return shown.map((s, i) => ({
+		t: s.t,
+		x: (BARS - shown.length + i) * slot + slot * 0.15,
+		width: slot * 0.7,
+		up: Math.max(0.5, (Math.min(s.rx, peak) / peak) * half),
+		down: Math.max(0.5, (Math.min(s.tx, peak) / peak) * half),
+		latest: i === shown.length - 1,
+	}));
 };
 
 /**
  * The workspace page's network at a glance: a pill the uptime pill's size,
- * on the other side of the card under the workspace's name, holding the last
- * minute of its traffic as a tiny histogram - received in green above the
- * line, sent in blue below - its rates on hover. Locked down (Lock Down), a
+ * on the other side of the card under the workspace's name, holding its
+ * latest traffic readings as a tiny histogram drawn as the metric graphs are
+ * (a thin bar a reading) - received in green above the line, sent in blue
+ * below - its rates on hover. Locked down (Lock Down), a
  * flat red line. Nothing for a template that does not report the network.
  */
 export const AgentNetworkPill: React.FC<{
@@ -86,12 +78,15 @@ export const AgentNetworkPill: React.FC<{
 		const seconds = (at - prev.at) / 1000;
 		// counters restart with the workspace: a drop is no traffic
 		setHistory((h) =>
-			withSample(h, {
-				from: prev.at,
-				t: at,
-				rx: rx >= prev.rx ? (rx - prev.rx) / seconds : 0,
-				tx: tx >= prev.tx ? (tx - prev.tx) / seconds : 0,
-			}),
+			[
+				...h,
+				{
+					from: prev.at,
+					t: at,
+					rx: rx >= prev.rx ? (rx - prev.rx) / seconds : 0,
+					tx: tx >= prev.tx ? (tx - prev.tx) / seconds : 0,
+				},
+			].slice(-BARS),
 		);
 	}, [value, collectedAt, locked]);
 
@@ -110,8 +105,8 @@ export const AgentNetworkPill: React.FC<{
 	const label = locked
 		? "Network locked down: nothing gets in or out but Coder's own connection"
 		: now
-			? `Network, last minute: now ↓ ${formatRate(now.rx)} received · ↑ ${formatRate(now.tx)} sent`
-			: "Network, last minute: waiting for the second reading";
+			? `Network, latest readings: now ↓ ${formatRate(now.rx)} received · ↑ ${formatRate(now.tx)} sent`
+			: "Network: waiting for the second reading";
 
 	return (
 		<Tooltip>
@@ -147,6 +142,8 @@ export const AgentNetworkPill: React.FC<{
 									width={b.width}
 									y={H / 2 - b.up}
 									height={b.up}
+									rx={0.75}
+									opacity={b.latest ? 1 : 0.7}
 									className="fill-content-success"
 								/>
 								<rect
@@ -154,6 +151,8 @@ export const AgentNetworkPill: React.FC<{
 									width={b.width}
 									y={H / 2}
 									height={b.down}
+									rx={0.75}
+									opacity={b.latest ? 1 : 0.7}
 									className="fill-content-link"
 								/>
 							</g>

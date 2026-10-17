@@ -23,23 +23,30 @@ const reading = (
 ];
 
 describe("pillBars", () => {
-	it("puts the last minute across the pill, received up and sent down, to the peak", () => {
-		const t0 = 1_000_000;
+	it("draws a thin bar a reading, as the metric graphs do, newest at the right", () => {
 		const bars = pillBars([
-			{ from: t0 - 70_000, t: t0 - 65_000, rx: 9e9, tx: 9e9 }, // older than a minute: left out
-			{ from: t0 - 10_000, t: t0 - 5_000, rx: 4096, tx: 0 },
-			{ from: t0 - 5_000, t: t0, rx: 2048, tx: 4096 },
+			{ from: 0, t: 5_000, rx: 4096, tx: 0 },
+			{ from: 5_000, t: 10_000, rx: 2048, tx: 4096 },
 		]);
+		const slot = 104 / 40;
 		expect(bars).toHaveLength(2);
-		expect(bars[0].up).toBeCloseTo(7.5); // the peak: the half height
-		expect(bars[1].up).toBeCloseTo(3.75);
+		expect(bars[1].x).toBeCloseTo(39 * slot + slot * 0.15); // the last slot
+		expect(bars[0].width).toBeCloseTo(slot * 0.7);
+		expect(bars[0].up).toBeCloseTo(7.5); // the busiest reading: the half height
 		expect(bars[1].down).toBeCloseTo(7.5);
-		expect(bars[1].x).toBeGreaterThan(bars[0].x);
+		expect(bars[1].latest).toBe(true);
 	});
 
-	it("keeps an idle workspace near the line", () => {
-		const bars = pillBars([{ from: 0, t: 5_000, rx: 10, tx: 10 }]);
-		expect(bars[0].up).toBeLessThan(0.1);
+	it("keeps the latest 40 readings, and an idle workspace near the line", () => {
+		const many = Array.from({ length: 55 }, (_, i) => ({
+			from: i,
+			t: i + 1,
+			rx: 10,
+			tx: 10,
+		}));
+		const bars = pillBars(many);
+		expect(bars).toHaveLength(40);
+		expect(bars[0].up).toBeLessThan(0.6);
 	});
 });
 
