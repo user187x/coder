@@ -1,0 +1,74 @@
+/*
+ * The Cloud Drive (CloudDrive): its button above the Workspaces table, on the dashboard's own surfaces; its
+ * window's usage meter, upload progress and drop ring; and the ropes from it to each of the owner's workspaces
+ * (CloudDriveRopes), drawn over the table without catching the pointer.
+ */
+.cd-meter {
+	display: block;
+	height: 3px;
+	border-radius: 2px;
+	background: hsl(var(--surface-tertiary));
+	overflow: hidden;
+}
+.cd-meter > i {
+	display: block;
+	height: 100%;
+	border-radius: inherit;
+	background: hsl(var(--content-success));
+}
+.cd-meter[data-level="mid"] > i {
+	background: hsl(var(--content-warning));
+}
+.cd-meter[data-level="high"] > i {
+	background: hsl(var(--content-destructive));
+}
+
+/* A drop on the window: a dashed ring round it. */
+.cd-drop {
+	outline: 2px dashed hsl(var(--content-link));
+	outline-offset: -8px;
+}
+
+.cd-progress {
+	height: 4px;
+	border-radius: 2px;
+	background: hsl(var(--surface-tertiary));
+	overflow: hidden;
+}
+.cd-progress > i {
+	display: block;
+	height: 100%;
+	background: hsl(var(--content-link));
+	transition: width 150ms linear;
+}
+
+/* The ropes: the backend's colour while connected, dashed red while not. */
+.cd-ropes {
+	position: absolute;
+	inset: 0;
+	z-index: 5;
+	width: 100%;
+	height: 100%;
+	overflow: visible;
+	pointer-events: none;
+}
+.cd-rope {
+	fill: none;
+	stroke: hsl(var(--content-link));
+	stroke-width: 1.5;
+	stroke-linecap: round;
+	opacity: 0.55;
+}
+.cd-ropes[data-connected="false"] .cd-rope {
+	stroke: hsl(var(--content-destructive));
+	stroke-dasharray: 4 4;
+	opacity: 0.45;
+}
+.cd-plug {
+	fill: hsl(var(--surface-primary));
+	stroke: hsl(var(--content-link));
+	stroke-width: 1.5;
+}
+.cd-ropes[data-connected="false"] .cd-plug {
+	stroke: hsl(var(--content-destructive));
+}

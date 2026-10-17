@@ -196,12 +196,20 @@ export const clearAnnouncementEvents = (queryClient: QueryClient) => ({
 
 const CLUSTER_USAGE_REFRESH_MS = 3_000;
 
-/** The caller's safe; no retry on 404 (the deployment has none). */
+/** The caller's Cloud Drive; no retry on 404 (the deployment has none). */
 export const safe = () => ({
 	queryKey: safeKey,
 	queryFn: PlatformAPI.getSafe,
 	retry: false,
 	staleTime: 30_000,
+});
+
+/** The Cloud Drive's backend and its connection, checked again every half minute. */
+export const cloudDriveSettings = () => ({
+	queryKey: [...safeKey, "settings"],
+	queryFn: () => PlatformAPI.cloudDriveSettings(),
+	retry: false,
+	refetchInterval: 30_000,
 });
 
 export const safeListing = (path: string, enabled: boolean) => ({

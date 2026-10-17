@@ -1,12 +1,12 @@
-/** A folder's path and a name in it: "docs" + "a.txt" = "docs/a.txt" ("" is the safe's top). */
+/** A folder's path and a name in it: "docs" + "a.txt" = "docs/a.txt" ("" is the top). */
 export const joinPath = (folder: string, name: string): string =>
 	folder ? `${folder}/${name}` : name;
 
-/** The breadcrumbs of a folder: [{name: "Safe", path: ""}, {name: "docs", path: "docs"}, ...]. */
+/** The breadcrumbs of a folder: [{name: "Cloud Drive", path: ""}, {name: "docs", path: "docs"}, ...]. */
 export const breadcrumbs = (path: string): { name: string; path: string }[] => {
 	const parts = path ? path.split("/") : [];
 	return [
-		{ name: "Safe", path: "" },
+		{ name: "Cloud Drive", path: "" },
 		...parts.map((name, i) => ({
 			name,
 			path: parts.slice(0, i + 1).join("/"),
@@ -14,7 +14,7 @@ export const breadcrumbs = (path: string): { name: string; path: string }[] => {
 	];
 };
 
-/** A name the safe takes: no slashes, not "." or "..", no control characters, at most 255 bytes. */
+/** A name the Cloud Drive takes: no slashes, not "." or "..", no control characters, at most 255 bytes. */
 export const validName = (name: string): string | null => {
 	const trimmed = name.trim();
 	if (!trimmed) {

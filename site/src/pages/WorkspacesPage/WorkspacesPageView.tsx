@@ -1,4 +1,5 @@
 import { PlayIcon, RotateCcwIcon, SquareIcon, TrashIcon } from "lucide-react";
+import { useMemo } from "react";
 import type { UseQueryResult } from "react-query";
 import { hasError, isApiValidationError } from "#/api/errors";
 import type { Template, Workspace } from "#/api/typesGenerated";
@@ -23,7 +24,8 @@ import { PaginationAmount } from "#/components/PaginationWidget/PaginationAmount
 import { PaginationWidgetBase } from "#/components/PaginationWidget/PaginationWidgetBase";
 import { Spinner } from "#/components/Spinner/Spinner";
 import { TableToolbar } from "#/components/TableToolbar/TableToolbar";
-import { UserSafe } from "#/modules/platform/safe/UserSafe";
+import { useAuthenticated } from "#/hooks/useAuthenticated";
+import { CloudDrive } from "#/modules/platform/cloudDrive/CloudDrive";
 import { WorkspacesTable } from "#/pages/WorkspacesPage/WorkspacesTable";
 import { mustUpdateWorkspace } from "#/utils/workspace";
 import { WorkspacesFilter } from "./filter/WorkspacesFilter";
@@ -84,23 +86,27 @@ export const WorkspacesPageView: React.FC<WorkspacesPageViewProps> = ({
 	// does not exist. In this case, the page is not valid and we want to show a
 	// better error message.
 	const pageNumberIsInvalid = page !== 1 && workspaces?.length === 0;
+	// Platform: the signed-in user's own workspaces on this page, each roped to the Cloud Drive.
+	const { user: me } = useAuthenticated();
+	const mine = useMemo(
+		() =>
+			(workspaces ?? []).filter((w) => w.owner_id === me.id).map((w) => w.id),
+		[workspaces, me.id],
+	);
 
 	return (
-		<Margins className="pb-12">
+		// Platform: relative for the Cloud Drive's ropes over the table.
+		<Margins className="relative pb-12" data-cloud-drive-area>
 			<PageHeader
 				actions={
-					// Platform: the signed-in user's safe under New workspace (nothing where there is none).
-					<div className="flex w-full flex-col items-stretch gap-2 md:w-auto md:items-end">
-						{canCreateWorkspace && (
-							<WorkspacesButton
-								templates={templates}
-								templatesFetchStatus={templatesFetchStatus}
-							>
-								New workspace
-							</WorkspacesButton>
-						)}
-						<UserSafe />
-					</div>
+					canCreateWorkspace && (
+						<WorkspacesButton
+							templates={templates}
+							templatesFetchStatus={templatesFetchStatus}
+						>
+							New workspace
+						</WorkspacesButton>
+					)
 				}
 			>
 				<PageHeaderTitle>
@@ -192,6 +198,11 @@ export const WorkspacesPageView: React.FC<WorkspacesPageViewProps> = ({
 						/>
 					)
 				)}
+				{/* Platform: the account's Cloud Drive, once, above the rows' apps. */}
+				<CloudDrive
+					workspaceIds={mine}
+					className={checkedWorkspaces.length > 0 ? "ml-2" : "ml-auto"}
+				/>
 			</TableToolbar>
 
 			{pageNumberIsInvalid ? (

@@ -1302,7 +1302,7 @@ export type BannerState = {
 
 const chat = (path: string) => `${PLATFORM_BASE}/api/chat/${path}`;
 
-/** The caller's safe (their own files on S3, on the Workspaces page and in each of their workspaces). */
+/** The caller's Cloud Drive (their own files on S3, on the Workspaces page and in each of their workspaces). */
 export type SafeSummary = {
 	enabled: boolean;
 	/** Where every workspace of the account mounts it. */
@@ -1317,21 +1317,56 @@ export type SafeSummary = {
 
 export type SafeFile = { name: string; size: number; modified: string };
 
-/** A folder of the safe: its folders and files (path "" is the top). */
+/** A folder of the Cloud Drive: its folders and files (path "" is the top). */
 export type SafeListing = {
 	path: string;
 	folders: { name: string }[];
 	files: SafeFile[];
 };
 
+/** The Cloud Drive's backend's last check. */
+export type CloudDriveStatus = {
+	connected: boolean | null;
+	error: string | null;
+	/** Unix seconds. */
+	checkedAt: number | null;
+	latencyMs: number | null;
+	bucketExists?: boolean | null;
+};
+
+/** Where the Cloud Drive keeps files: the chart's storage, or one an admin set here. */
+export type CloudDriveSettings = {
+	canEdit: boolean;
+	source: "chart" | "custom";
+	kind: "minio" | "s3";
+	endpoint: string;
+	region: string;
+	bucket: string;
+	/** Admins only. */
+	accessKey: string;
+	hasSecret: boolean;
+	chart: { kind: "minio" | "s3"; endpoint: string; bucket: string };
+	mountPath: string;
+	status: CloudDriveStatus;
+};
+
+export type CloudDriveBackend = {
+	endpoint: string;
+	region: string;
+	bucket: string;
+	accessKey: string;
+	/** Empty: the one saved before. */
+	secretKey: string;
+};
+
 const safeQuery = (path: string) => `?path=${encodeURIComponent(path)}`;
 
 export const PlatformAPI = {
-	/** The caller's safe; PlatformError 404 where the deployment has none. */
+	/** The caller's Cloud Drive; PlatformError 404 where the deployment has none. */
 	getSafe: () => get<SafeSummary>(`${PLATFORM_BASE}/api/safe`),
 	listSafe: (path: string) =>
 		get<SafeListing>(`${PLATFORM_BASE}/api/safe/list${safeQuery(path)}`),
-	/** A file of the safe, as a download (the browser's own request: a link). */
+	/** A file of the Cloud Drive, as a download (the browser's own request: a link). */
 	safeDownloadUrl: (path: string) =>
 		`${PLATFORM_BASE}/api/safe/download${safeQuery(path)}`,
 	uploadToSafe: (
@@ -1348,6 +1383,17 @@ export const PlatformAPI = {
 		post<{ ok: true; path: string }>(`${PLATFORM_BASE}/api/safe/folder`, {
 			path,
 		}),
+	/** Where the Cloud Drives keep their files, and whether that answers (check: ask it now). */
+	cloudDriveSettings: (check = false) =>
+		get<CloudDriveSettings>(
+			`${PLATFORM_BASE}/api/safe/settings${check ? "?check=1" : ""}`,
+		),
+	/** Admins: another S3 service (saved once it answers), or { reset: true } for the chart's. */
+	saveCloudDriveSettings: (backend: CloudDriveBackend | { reset: true }) =>
+		post<CloudDriveSettings>(`${PLATFORM_BASE}/api/safe/settings`, backend),
+	/** Admins: whether an S3 service answers, without saving it. */
+	testCloudDriveBackend: (backend: CloudDriveBackend) =>
+		post<CloudDriveStatus>(`${PLATFORM_BASE}/api/safe/settings/test`, backend),
 	/** A file, or a folder with everything in it (path ending in "/"). */
 	deleteFromSafe: (path: string) =>
 		post<{ ok: true; removed: number }>(`${PLATFORM_BASE}/api/safe/delete`, {

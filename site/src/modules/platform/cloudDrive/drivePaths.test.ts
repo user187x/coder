@@ -4,18 +4,18 @@ import {
 	joinPath,
 	usedPercent,
 	validName,
-} from "./safePaths";
+} from "./drivePaths";
 
-describe("safe paths", () => {
+describe("Cloud Drive paths", () => {
 	it("joins a folder and a name", () => {
 		expect(joinPath("", "a.txt")).toBe("a.txt");
 		expect(joinPath("docs/2026", "a.txt")).toBe("docs/2026/a.txt");
 	});
 
 	it("gives a folder's breadcrumbs from the top", () => {
-		expect(breadcrumbs("")).toEqual([{ name: "Safe", path: "" }]);
+		expect(breadcrumbs("")).toEqual([{ name: "Cloud Drive", path: "" }]);
 		expect(breadcrumbs("docs/2026")).toEqual([
-			{ name: "Safe", path: "" },
+			{ name: "Cloud Drive", path: "" },
 			{ name: "docs", path: "docs" },
 			{ name: "2026", path: "docs/2026" },
 		]);

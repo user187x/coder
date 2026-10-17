@@ -29,10 +29,10 @@ const homePath = (path: string) => path.replace(/^\/home\/coder(?=\/|$)/, "~");
 
 /**
  * The ISO library: disk images for every workspace, read-only at ~/isos in
- * each (on the safe's storage). Everyone sees what is there; admins and
+ * each (on the Cloud Drive's storage). Everyone sees what is there; admins and
  * template admins upload ISOs (with their progress), have the service fetch
  * one from a URL (its progress while it comes in), and delete them. Nothing
- * where the deployment has no safe storage.
+ * where the deployment has no Cloud Drive storage.
  */
 export const IsoLibrary: React.FC = () => {
 	const queryClient = useQueryClient();
@@ -103,7 +103,7 @@ export const IsoLibrary: React.FC = () => {
 						Disk images for every workspace: read-only at{" "}
 						<code>{homePath(lib.mountPath)}</code> in each. {lib.files.length}{" "}
 						{lib.files.length === 1 ? "ISO" : "ISOs"},{" "}
-						{formatSize(lib.usedBytes)}. Your own go in your safe.
+						{formatSize(lib.usedBytes)}. Your own go in your Cloud Drive.
 					</p>
 				</div>
 				{lib.canEdit && (

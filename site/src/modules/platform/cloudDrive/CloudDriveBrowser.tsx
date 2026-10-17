@@ -5,21 +5,18 @@ import {
 	FileIcon,
 	FolderIcon,
 	FolderPlusIcon,
-	LockKeyholeOpenIcon,
 	RefreshCwIcon,
 	Trash2Icon,
 	UploadIcon,
-	XIcon,
 } from "lucide-react";
-import { useEffect, useId, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useQuery, useQueryClient } from "react-query";
 import {
 	PlatformAPI,
-	PlatformError,
 	type SafeListing,
 	type SafeSummary,
 } from "#/api/platform";
-import { safe, safeKey, safeListing } from "#/api/queries/platform";
+import { safeKey, safeListing } from "#/api/queries/platform";
 import { Button } from "#/components/Button/Button";
 import {
 	breadcrumbs,
@@ -27,130 +24,14 @@ import {
 	joinPath,
 	usedPercent,
 	validName,
-} from "./safePaths";
-import "./safe.css";
-
-/** The door's swing (safe.css): open, then shut. */
-const OPEN_MS = 760;
-const CLOSE_MS = 420;
-
-type Phase = "closed" | "opening" | "open" | "closing";
-
-const motionless = () =>
-	document.documentElement.dataset.animations === "off" ||
-	(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false);
+} from "./drivePaths";
 
 const levelOf = (percent: number) =>
 	percent >= 90 ? "high" : percent >= 70 ? "mid" : "low";
 
-/** Where the workspaces mount it, as their users see it: ~/safe. */
-const homePath = (path: string) => path.replace(/^\/home\/coder(?=\/|$)/, "~");
-
-/**
- * The account's safe, on the Workspaces page under New workspace: its own
- * files on S3, the same ones each of its workspaces has at ~/safe. Closed, a
- * small steel safe with how full it is; opened, its door swings open onto a
- * file manager (folders, upload with progress or by dropping files, new
- * folder, download, delete), and shut again. Only ever the signed-in user's
- * own safe; nothing where the deployment has none.
- */
-export const UserSafe: React.FC = () => {
-	const { data: summary, error } = useQuery(safe());
-	const [phase, setPhase] = useState<Phase>("closed");
-	const panelId = useId();
-	const timer = useRef<number>(undefined);
-
-	useEffect(() => () => window.clearTimeout(timer.current), []);
-
-	// Escape closes it wherever the focus is (a deleted row takes the focus with it).
-	const isOpen = phase === "opening" || phase === "open";
-	useEffect(() => {
-		if (!isOpen) {
-			return;
-		}
-		const onKey = (event: KeyboardEvent) => {
-			if (event.key === "Escape") {
-				window.clearTimeout(timer.current);
-				setPhase("closing");
-				timer.current = window.setTimeout(
-					() => setPhase("closed"),
-					motionless() ? 0 : CLOSE_MS,
-				);
-			}
-		};
-		window.addEventListener("keydown", onKey);
-		return () => window.removeEventListener("keydown", onKey);
-	}, [isOpen]);
-
-	if (
-		!summary ||
-		(error instanceof PlatformError && error.status === 404) ||
-		!summary.enabled
-	) {
-		return null;
-	}
-
-	const go = (next: Phase, then: Phase, ms: number) => {
-		window.clearTimeout(timer.current);
-		setPhase(next);
-		timer.current = window.setTimeout(
-			() => setPhase(then),
-			motionless() ? 0 : ms,
-		);
-	};
-	const open = () => go("opening", "open", OPEN_MS);
-	const close = () => go("closing", "closed", CLOSE_MS);
-	const percent = usedPercent(summary.usedBytes, summary.quotaBytes);
-
-	return (
-		<div className="relative w-full md:w-auto" data-testid="user-safe">
-			<button
-				type="button"
-				className="cs-tile cs-steel"
-				aria-expanded={isOpen}
-				aria-controls={panelId}
-				aria-label={`Your safe: ${formatBytes(summary.usedBytes)} of ${formatBytes(summary.quotaBytes)} used`}
-				onClick={() => (isOpen ? close() : open())}
-			>
-				<span aria-hidden className="cs-dial" />
-				<span className="flex min-w-0 flex-col">
-					<span className="text-sm font-semibold leading-tight">Safe</span>
-					<span className="text-2xs leading-tight text-zinc-300 tabular-nums">
-						{formatBytes(summary.usedBytes)} of{" "}
-						{formatBytes(summary.quotaBytes)}
-					</span>
-					<span
-						className="cs-meter w-24"
-						data-level={levelOf(percent)}
-						aria-hidden
-					>
-						<i style={{ width: `${percent}%` }} />
-					</span>
-				</span>
-				<span aria-hidden className="cs-lever" />
-			</button>
-			{phase !== "closed" && (
-				<div
-					id={panelId}
-					role="dialog"
-					aria-label="Your safe"
-					data-phase={phase}
-					className="cs-open absolute right-0 top-full z-40 mt-2 w-[min(760px,calc(100vw-2rem))]"
-				>
-					<div className="cs-inside relative bg-surface-primary">
-						<SafeBrowser summary={summary} onClose={close} />
-					</div>
-					<div aria-hidden className="cs-door cs-steel">
-						<span
-							className="cs-dial cs-door-dial"
-							data-spin={phase === "opening" ? "" : undefined}
-						/>
-					</div>
-				</div>
-			)}
-		</div>
-	);
-};
+/** Where the workspaces mount it, as their users see it: ~/cloud-drive. */
+export const homePath = (path: string) =>
+	path.replace(/^\/home\/coder(?=\/|$)/, "~");
 
 type Upload = {
 	id: number;
@@ -162,9 +43,14 @@ type Upload = {
 
 let nextUpload = 1;
 
-const SafeBrowser: React.FC<{ summary: SafeSummary; onClose: () => void }> = ({
+/**
+ * The Cloud Drive's files (in its window): folders and files with their size
+ * and date, upload with progress (or by dropping files on it), new folder,
+ * download, delete (asked once more); how full it is, and where its
+ * workspaces have it.
+ */
+export const CloudDriveBrowser: React.FC<{ summary: SafeSummary }> = ({
 	summary,
-	onClose,
 }) => {
 	const queryClient = useQueryClient();
 	const [path, setPath] = useState("");
@@ -175,12 +61,6 @@ const SafeBrowser: React.FC<{ summary: SafeSummary; onClose: () => void }> = ({
 	const [problem, setProblem] = useState<string | null>(null);
 	const [dragging, setDragging] = useState(false);
 	const fileInput = useRef<HTMLInputElement>(null);
-	const panel = useRef<HTMLDivElement>(null);
-
-	useEffect(() => {
-		panel.current?.focus();
-	}, []);
-
 	const refresh = () => queryClient.invalidateQueries({ queryKey: safeKey });
 
 	const patchUpload = (id: number, patch: Partial<Upload>) =>
@@ -253,11 +133,9 @@ const SafeBrowser: React.FC<{ summary: SafeSummary; onClose: () => void }> = ({
 
 	return (
 		<div
-			ref={panel}
-			tabIndex={-1}
 			className={cn(
-				"flex max-h-[min(560px,70vh)] flex-col text-sm outline-none",
-				dragging && "cs-drop",
+				"flex max-h-[min(560px,70vh)] flex-col text-sm",
+				dragging && "cd-drop",
 			)}
 			onDragOver={(event) => {
 				if (event.dataTransfer.types.includes("Files")) {
@@ -277,10 +155,6 @@ const SafeBrowser: React.FC<{ summary: SafeSummary; onClose: () => void }> = ({
 			}}
 		>
 			<header className="flex flex-wrap items-center gap-2 border-0 border-b border-solid border-border px-4 py-3">
-				<LockKeyholeOpenIcon
-					aria-hidden
-					className="size-5 text-content-secondary"
-				/>
 				<nav
 					aria-label="Folder"
 					className="flex min-w-0 flex-1 items-center gap-1"
@@ -314,7 +188,7 @@ const SafeBrowser: React.FC<{ summary: SafeSummary; onClose: () => void }> = ({
 					type="file"
 					multiple
 					hidden
-					data-testid="safe-file-input"
+					data-testid="cloud-drive-file-input"
 					onChange={(event) => {
 						const files = [...(event.target.files ?? [])];
 						event.target.value = "";
@@ -341,19 +215,11 @@ const SafeBrowser: React.FC<{ summary: SafeSummary; onClose: () => void }> = ({
 				>
 					<RefreshCwIcon />
 				</Button>
-				<Button
-					size="icon"
-					variant="subtle"
-					aria-label="Close the safe"
-					onClick={onClose}
-				>
-					<XIcon />
-				</Button>
 			</header>
 
 			<div
 				className="min-h-[180px] flex-1 overflow-auto px-2 py-2"
-				data-testid="safe-listing"
+				data-testid="cloud-drive-listing"
 			>
 				{folderName !== null && (
 					<form
@@ -397,14 +263,14 @@ const SafeBrowser: React.FC<{ summary: SafeSummary; onClose: () => void }> = ({
 					>
 						{listing.error instanceof Error
 							? listing.error.message
-							: "The safe could not be read."}
+							: "The Cloud Drive could not be read."}
 					</p>
 				)}
 				{empty && (
 					<p className="px-3 py-8 text-center text-content-secondary">
 						{path
 							? "This folder is empty."
-							: `Your safe is empty. Upload files here (or drop them on it), or save them in ${homePath(summary.mountPath)} in any of your workspaces.`}
+							: `Your Cloud Drive is empty. Upload files here (or drop them on it), or save them in ${homePath(summary.mountPath)} in any of your workspaces.`}
 					</p>
 				)}
 				{data && !empty && (
@@ -493,7 +359,7 @@ const SafeBrowser: React.FC<{ summary: SafeSummary; onClose: () => void }> = ({
 						<div
 							key={u.id}
 							className="flex items-center gap-3 text-xs"
-							data-testid="safe-upload"
+							data-testid="cloud-drive-upload"
 						>
 							<span
 								className="w-48 truncate text-content-primary"
@@ -506,7 +372,7 @@ const SafeBrowser: React.FC<{ summary: SafeSummary; onClose: () => void }> = ({
 							) : (
 								<>
 									<span
-										className="cs-progress flex-1"
+										className="cd-progress flex-1"
 										role="progressbar"
 										aria-label={`Uploading ${u.name}`}
 										aria-valuenow={Math.round(u.fraction * 100)}
@@ -528,10 +394,10 @@ const SafeBrowser: React.FC<{ summary: SafeSummary; onClose: () => void }> = ({
 			<footer className="flex flex-wrap items-center gap-x-4 gap-y-1 border-0 border-t border-solid border-border px-4 py-2.5 text-xs text-content-secondary">
 				<span className="flex items-center gap-2 tabular-nums">
 					<span
-						className="cs-meter w-28"
+						className="cd-meter w-28"
 						data-level={levelOf(percent)}
 						role="meter"
-						aria-label="Safe used"
+						aria-label="Cloud Drive used"
 						aria-valuenow={summary.usedBytes}
 						aria-valuemin={0}
 						aria-valuemax={summary.quotaBytes}
