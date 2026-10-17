@@ -31,6 +31,7 @@ export const announcementReportKey = [...platformKey, "announcements"] as const;
 export const announcementStatusKey = (id: string) =>
 	[...announcementReportKey, id, "me"] as const;
 export const clusterUsageKey = [...platformKey, "cluster", "usage"] as const;
+export const safeKey = [...platformKey, "safe"] as const;
 export const networkReportKey = [...platformKey, "network"] as const;
 export const monitoringKey = [...platformKey, "monitoring"] as const;
 export const keycloakReportKey = [...platformKey, "keycloak"] as const;
@@ -194,6 +195,21 @@ export const clearAnnouncementEvents = (queryClient: QueryClient) => ({
 });
 
 const CLUSTER_USAGE_REFRESH_MS = 3_000;
+
+/** The caller's safe; no retry on 404 (the deployment has none). */
+export const safe = () => ({
+	queryKey: safeKey,
+	queryFn: PlatformAPI.getSafe,
+	retry: false,
+	staleTime: 30_000,
+});
+
+export const safeListing = (path: string, enabled: boolean) => ({
+	queryKey: [...safeKey, "list", path],
+	queryFn: () => PlatformAPI.listSafe(path),
+	enabled,
+	retry: false,
+});
 
 export const clusterUsage = () => ({
 	queryKey: clusterUsageKey,

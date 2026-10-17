@@ -1302,7 +1302,57 @@ export type BannerState = {
 
 const chat = (path: string) => `${PLATFORM_BASE}/api/chat/${path}`;
 
+/** The caller's safe (their own files on S3, on the Workspaces page and in each of their workspaces). */
+export type SafeSummary = {
+	enabled: boolean;
+	/** Where every workspace of the account mounts it. */
+	mountPath: string;
+	usedBytes: number;
+	files: number;
+	quotaBytes: number;
+	maxUploadBytes: number;
+	/** "pending" until the account's volume is there (a minute after the account is made). */
+	volume: "ready" | "pending";
+};
+
+export type SafeFile = { name: string; size: number; modified: string };
+
+/** A folder of the safe: its folders and files (path "" is the top). */
+export type SafeListing = {
+	path: string;
+	folders: { name: string }[];
+	files: SafeFile[];
+};
+
+const safeQuery = (path: string) => `?path=${encodeURIComponent(path)}`;
+
 export const PlatformAPI = {
+	/** The caller's safe; PlatformError 404 where the deployment has none. */
+	getSafe: () => get<SafeSummary>(`${PLATFORM_BASE}/api/safe`),
+	listSafe: (path: string) =>
+		get<SafeListing>(`${PLATFORM_BASE}/api/safe/list${safeQuery(path)}`),
+	/** A file of the safe, as a download (the browser's own request: a link). */
+	safeDownloadUrl: (path: string) =>
+		`${PLATFORM_BASE}/api/safe/download${safeQuery(path)}`,
+	uploadToSafe: (
+		path: string,
+		file: Blob,
+		onProgress?: (fraction: number) => void,
+	) =>
+		upload<{ ok: true; path: string; size: number }>(
+			`${PLATFORM_BASE}/api/safe/upload${safeQuery(path)}`,
+			file,
+			onProgress,
+		),
+	makeSafeFolder: (path: string) =>
+		post<{ ok: true; path: string }>(`${PLATFORM_BASE}/api/safe/folder`, {
+			path,
+		}),
+	/** A file, or a folder with everything in it (path ending in "/"). */
+	deleteFromSafe: (path: string) =>
+		post<{ ok: true; removed: number }>(`${PLATFORM_BASE}/api/safe/delete`, {
+			path,
+		}),
 	getClassification: () =>
 		get<ClassificationSettings>(`${PLATFORM_BASE}/api/classification`),
 	updateClassification: (settings: ClassificationSettings) =>

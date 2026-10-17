@@ -23,6 +23,7 @@ import { PaginationAmount } from "#/components/PaginationWidget/PaginationAmount
 import { PaginationWidgetBase } from "#/components/PaginationWidget/PaginationWidgetBase";
 import { Spinner } from "#/components/Spinner/Spinner";
 import { TableToolbar } from "#/components/TableToolbar/TableToolbar";
+import { UserSafe } from "#/modules/platform/safe/UserSafe";
 import { WorkspacesTable } from "#/pages/WorkspacesPage/WorkspacesTable";
 import { mustUpdateWorkspace } from "#/utils/workspace";
 import { WorkspacesFilter } from "./filter/WorkspacesFilter";
@@ -88,14 +89,18 @@ export const WorkspacesPageView: React.FC<WorkspacesPageViewProps> = ({
 		<Margins className="pb-12">
 			<PageHeader
 				actions={
-					canCreateWorkspace && (
-						<WorkspacesButton
-							templates={templates}
-							templatesFetchStatus={templatesFetchStatus}
-						>
-							New workspace
-						</WorkspacesButton>
-					)
+					// Platform: the signed-in user's safe under New workspace (nothing where there is none).
+					<div className="flex w-full flex-col items-stretch gap-2 md:w-auto md:items-end">
+						{canCreateWorkspace && (
+							<WorkspacesButton
+								templates={templates}
+								templatesFetchStatus={templatesFetchStatus}
+							>
+								New workspace
+							</WorkspacesButton>
+						)}
+						<UserSafe />
+					</div>
 				}
 			>
 				<PageHeaderTitle>
