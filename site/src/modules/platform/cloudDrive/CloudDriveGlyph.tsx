@@ -60,9 +60,10 @@ export const CloudDriveGlyph: React.FC<{ workspace: Workspace }> = ({
 					type="button"
 					aria-label={`Cloud Drive: ${formatBytes(used)} of ${formatBytes(quota)} used`}
 					data-testid="cloud-drive-glyph"
-					className="inline-flex cursor-default items-center border-0 bg-transparent p-0 text-content-link"
+					// in a grey circle, as Metrics Interval's and Open ports' numbers beside it
+					className="flex h-5 min-w-5 cursor-default items-center justify-center rounded-full border-0 bg-surface-tertiary p-0 px-1 text-content-link"
 				>
-					<CloudIcon aria-hidden className="size-4" />
+					<CloudIcon aria-hidden className="size-3.5" />
 				</button>
 			</TooltipTrigger>
 			<TooltipContent

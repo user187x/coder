@@ -1,5 +1,6 @@
-import { act, screen } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "react-query";
+import { PlatformAPI } from "#/api/platform";
 import type { WorkspaceAgentMetadata } from "#/api/typesGenerated";
 import { renderComponent } from "#/testHelpers/renderHelpers";
 import { AgentNetworkPill, pillBars } from "./AgentNetworkPill";
@@ -23,55 +24,59 @@ const reading = (
 ];
 
 describe("pillBars", () => {
-	it("draws a thin bar a reading, as the metric graphs do, newest at the right", () => {
-		const bars = pillBars([
-			{ from: 0, t: 5_000, rx: 4096, tx: 0 },
-			{ from: 5_000, t: 10_000, rx: 2048, tx: 4096 },
-		]);
-		const slot = 104 / 40;
+	const slot = 104 / 40;
+	it("draws the last 5 minutes in 40 slots of 7.5 s, newest at the right, as the metric graphs do", () => {
+		const now = 300_000;
+		const bars = pillBars(
+			[
+				{ from: 145_000, t: 150_000, rx: 0, tx: 4096 },
+				{ from: 295_000, t: 299_000, rx: 4096, tx: 0 },
+			],
+			now,
+		);
 		expect(bars).toHaveLength(2);
+		expect(bars[0].x).toBeCloseTo(20 * slot + slot * 0.15); // 150 s into the 5 minutes
 		expect(bars[1].x).toBeCloseTo(39 * slot + slot * 0.15); // the last slot
 		expect(bars[0].width).toBeCloseTo(slot * 0.7);
-		expect(bars[0].up).toBeCloseTo(7.5); // the busiest reading: the half height
-		expect(bars[1].down).toBeCloseTo(7.5);
+		expect(bars[0].down).toBeCloseTo(7.5); // the busiest reading: the half height
+		expect(bars[1].up).toBeCloseTo(7.5);
 		expect(bars[1].latest).toBe(true);
 	});
 
-	it("keeps the latest 40 readings, and an idle workspace near the line", () => {
-		const many = Array.from({ length: 55 }, (_, i) => ({
-			from: i,
-			t: i + 1,
-			rx: 10,
-			tx: 10,
-		}));
-		const bars = pillBars(many);
-		expect(bars).toHaveLength(40);
+	it("keeps each slot's busiest reading, leaves out what is older than 5 minutes, an idle workspace near the line", () => {
+		const bars = pillBars(
+			[
+				{ from: 0, t: 1_000, rx: 99_999, tx: 99_999 }, // more than 5 minutes before
+				{ from: 300_000, t: 301_000, rx: 10, tx: 10 },
+				{ from: 301_000, t: 302_000, rx: 30, tx: 20 },
+			],
+			305_000,
+		);
+		expect(bars).toHaveLength(1);
 		expect(bars[0].up).toBeLessThan(0.6);
 	});
 });
 
 describe("AgentNetworkPill", () => {
-	const renderPill = () =>
+	afterEach(() => vi.restoreAllMocks());
+	const renderPill = (
+		props: Partial<Parameters<typeof AgentNetworkPill>[0]> = {},
+	) =>
 		renderComponent(
 			<QueryClientProvider client={new QueryClient()}>
-				<AgentNetworkPill agentId="pill-agent" />
+				<AgentNetworkPill agentId="pill-agent" {...props} />
 			</QueryClientProvider>,
 		);
+	const ago = (ms: number) => new Date(Date.now() - ms).toISOString();
 
 	it("draws the readings as they come in", () => {
 		renderPill();
 		expect(screen.queryByTestId("agent-network-pill")).toBeNull(); // nothing reported yet
 		act(() =>
-			publishAgentMetadata(
-				"pill-agent",
-				reading(1000, 500, "2026-10-17T05:00:00Z"),
-			),
+			publishAgentMetadata("pill-agent", reading(1000, 500, ago(6000))),
 		);
 		act(() =>
-			publishAgentMetadata(
-				"pill-agent",
-				reading(21000, 10500, "2026-10-17T05:00:05Z"),
-			),
+			publishAgentMetadata("pill-agent", reading(21000, 10500, ago(1000))),
 		);
 		const pill = screen.getByTestId("agent-network-pill");
 		expect(pill.querySelectorAll("rect")).toHaveLength(2);
@@ -79,5 +84,43 @@ describe("AgentNetworkPill", () => {
 			"aria-label",
 			expect.stringContaining("↓ 4.0 KB/s received"),
 		);
+	});
+
+	it("opens with the minutes before the page (the platform service's), then goes on from them", async () => {
+		const now = Date.now();
+		vi.spyOn(PlatformAPI, "getWorkspaceNetwork").mockResolvedValue({
+			windowSeconds: 300,
+			agents: {
+				"seeded-agent": {
+					samples: [
+						{ from: now - 241_000, t: now - 240_000, rx: 5000, tx: 100 },
+						{ from: now - 61_000, t: now - 60_000, rx: 100, tx: 5000 },
+					],
+					last: { at: now - 60_000, rx: 50_000, tx: 70_000 },
+				},
+			},
+		});
+		renderPill({ agentId: "seeded-agent", workspaceId: "ws" });
+		const pill = await screen.findByTestId("agent-network-pill");
+		await waitFor(() => expect(pill.querySelectorAll("rect")).toHaveLength(4));
+		// the next live reading goes on from the service's last counters
+		act(() =>
+			publishAgentMetadata(
+				"seeded-agent",
+				reading(50_000 + 60_000, 70_000, new Date(now).toISOString()),
+			),
+		);
+		expect(pill).toHaveAttribute(
+			"aria-label",
+			expect.stringContaining("↓ 1.0 KB/s received"),
+		);
+	});
+
+	it("is grey and still once the card stopped (no contact with Coder)", () => {
+		renderPill({ stoppedAt: Date.now() });
+		act(() => publishAgentMetadata("pill-agent", reading(1, 1, ago(2000))));
+		const pill = screen.getByTestId("agent-network-pill");
+		expect(pill).toHaveAttribute("data-stopped", "true");
+		expect(pill).toHaveClass("grayscale");
 	});
 });

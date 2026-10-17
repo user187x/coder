@@ -128,6 +128,12 @@
 	animation: none;
 }
 
+/* No contact with Coder about the workspace (the workspace page's check): a still grey border - nothing on the card
+   claims to be alive until Coder answers again. */
+.agent-fx-lost {
+	border: 3px solid hsl(var(--content-disabled));
+}
+
 /* The user menu's Animations switch is off, or the system asks for less motion: the border, still. */
 html[data-animations="off"] .agent-fx-pulse {
 	animation: none;

@@ -457,168 +457,183 @@ export const PortForwardPopoverView: React.FC<PortForwardPopoverViewProps> = ({
 								share.protocol,
 							);
 							return (
-								<div key={share.port} className="mt-1 flex items-center gap-1">
-									<a
-										className="flex min-w-0 flex-1 items-center gap-1.5 py-1 text-content-secondary no-underline"
-										href={url}
-										target="_blank"
-										rel="noreferrer"
-										title={`Open shared port ${share.port}`}
-									>
-										{levelIcon(share.share_level)}
-										{portBadge(share.port)}
-									</a>
-									<Select
-										value={share.protocol}
-										onValueChange={(value) => {
-											if (!isPortShareProtocol(value)) {
-												return;
-											}
-											upsertSharedPortMutation.mutate({
-												agent_name: agent.name,
-												port: share.port,
-												protocol: value,
-												share_level: share.share_level,
-											});
-										}}
-									>
-										<SelectTrigger
-											aria-label={`Protocol for port ${share.port}`}
-											className={small}
+								// two lines in the compact menu: the port and its removal, then how it is shared
+								<div
+									key={share.port}
+									className="mt-1.5 flex flex-col gap-1 rounded-md border border-solid border-surface-quaternary px-2 py-1.5"
+									data-testid="shared-port"
+								>
+									<div className="flex items-center gap-1.5">
+										<a
+											className="flex min-w-0 flex-1 items-center gap-1.5 text-content-secondary no-underline"
+											href={url}
+											target="_blank"
+											rel="noreferrer"
+											title={`Open shared port ${share.port}`}
 										>
-											<SelectValue />
-										</SelectTrigger>
-										<SelectContent>
-											<SelectItem value="http">HTTP</SelectItem>
-											<SelectItem value="https">HTTPS</SelectItem>
-										</SelectContent>
-									</Select>
-									<Select
-										value={share.share_level}
-										onValueChange={(value) => {
-											if (!isPortShareLevel(value)) {
-												return;
-											}
-											upsertSharedPortMutation.mutate({
-												agent_name: agent.name,
-												port: share.port,
-												protocol: share.protocol,
-												share_level: value,
-											});
-										}}
-									>
-										<SelectTrigger
-											aria-label={`Sharing level for port ${share.port}`}
-											className={small}
+											{levelIcon(share.share_level)}
+											{portBadge(share.port)}
+										</a>
+										<Button
+											size="icon"
+											variant="subtle"
+											className="size-6"
+											aria-label="Delete shared port"
+											onClick={() => {
+												deleteSharedPortMutation.mutate({
+													agent_name: agent.name,
+													port: share.port,
+												});
+											}}
 										>
-											<SelectValue />
-										</SelectTrigger>
-										<SelectContent>
-											<ShareLevelOptions
-												canShareAuthenticated={canSharePortsAuthenticated}
-												canSharePublic={canSharePortsPublic}
-											/>
-										</SelectContent>
-									</Select>
-									<Button
-										size="icon"
-										variant="subtle"
-										className="size-7"
-										aria-label="Delete shared port"
-										onClick={() => {
-											deleteSharedPortMutation.mutate({
-												agent_name: agent.name,
-												port: share.port,
-											});
-										}}
-									>
-										<XIcon />
-									</Button>
+											<XIcon />
+										</Button>
+									</div>
+									<div className="flex items-center gap-1">
+										<Select
+											value={share.protocol}
+											onValueChange={(value) => {
+												if (!isPortShareProtocol(value)) {
+													return;
+												}
+												upsertSharedPortMutation.mutate({
+													agent_name: agent.name,
+													port: share.port,
+													protocol: value,
+													share_level: share.share_level,
+												});
+											}}
+										>
+											<SelectTrigger
+												aria-label={`Protocol for port ${share.port}`}
+												className={cn(small, "w-[84px] shrink-0")}
+											>
+												<SelectValue />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value="http">HTTP</SelectItem>
+												<SelectItem value="https">HTTPS</SelectItem>
+											</SelectContent>
+										</Select>
+										<Select
+											value={share.share_level}
+											onValueChange={(value) => {
+												if (!isPortShareLevel(value)) {
+													return;
+												}
+												upsertSharedPortMutation.mutate({
+													agent_name: agent.name,
+													port: share.port,
+													protocol: share.protocol,
+													share_level: value,
+												});
+											}}
+										>
+											<SelectTrigger
+												aria-label={`Sharing level for port ${share.port}`}
+												className={cn(small, "min-w-0 flex-1")}
+											>
+												<SelectValue />
+											</SelectTrigger>
+											<SelectContent>
+												<ShareLevelOptions
+													canShareAuthenticated={canSharePortsAuthenticated}
+													canSharePublic={canSharePortsPublic}
+												/>
+											</SelectContent>
+										</Select>
+									</div>
 								</div>
 							);
 						})}
 						<form
 							onSubmit={form.handleSubmit}
-							className="mt-2 flex items-center gap-1"
+							className="mt-2 flex flex-col gap-1"
 						>
-							<Input
-								{...form.getFieldProps("port")}
-								aria-label="Port"
-								aria-invalid={Boolean(form.touched.port && form.errors.port)}
-								placeholder="Port"
-								type="number"
-								min={MIN_PORT}
-								max={MAX_PORT}
-								disabled={isSubmitting}
-								className="h-7 w-[72px] px-2 text-xs"
-							/>
-							<Select
-								value={form.values.protocol}
-								onValueChange={(value) => {
-									if (!isPortShareProtocol(value)) {
-										return;
-									}
-									void form.setFieldValue("protocol", value);
-								}}
-								disabled={isSubmitting}
-							>
-								<SelectTrigger
-									id={protocolFieldId}
-									aria-label="Protocol"
-									aria-invalid={protocolField.error}
-									className={cn(
-										small,
-										protocolField.error && "border-border-destructive",
-									)}
+							<div className="flex items-center gap-1">
+								<Input
+									{...form.getFieldProps("port")}
+									aria-label="Port"
+									aria-invalid={Boolean(form.touched.port && form.errors.port)}
+									placeholder="Port"
+									type="number"
+									min={MIN_PORT}
+									max={MAX_PORT}
+									disabled={isSubmitting}
+									className="h-7 min-w-0 flex-1 px-2 text-xs"
+								/>
+								<Select
+									value={form.values.protocol}
+									onValueChange={(value) => {
+										if (!isPortShareProtocol(value)) {
+											return;
+										}
+										void form.setFieldValue("protocol", value);
+									}}
+									disabled={isSubmitting}
 								>
-									<SelectValue />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="http">HTTP</SelectItem>
-									<SelectItem value="https">HTTPS</SelectItem>
-								</SelectContent>
-							</Select>
-							<Select
-								value={form.values.share_level}
-								onValueChange={(value) => {
-									if (!isPortShareLevel(value)) {
-										return;
-									}
-									void form.setFieldValue("share_level", value);
-								}}
-								disabled={isSubmitting}
-							>
-								<SelectTrigger
-									id={shareLevelFieldId}
-									aria-label="Sharing Level"
-									aria-invalid={shareLevelField.error}
-									className={cn(
-										small,
-										"flex-1",
-										shareLevelField.error && "border-border-destructive",
-									)}
+									<SelectTrigger
+										id={protocolFieldId}
+										aria-label="Protocol"
+										aria-invalid={protocolField.error}
+										className={cn(
+											small,
+											"w-[84px] shrink-0",
+											protocolField.error && "border-border-destructive",
+										)}
+									>
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="http">HTTP</SelectItem>
+										<SelectItem value="https">HTTPS</SelectItem>
+									</SelectContent>
+								</Select>
+							</div>
+							<div className="flex items-center gap-1">
+								<Select
+									value={form.values.share_level}
+									onValueChange={(value) => {
+										if (!isPortShareLevel(value)) {
+											return;
+										}
+										void form.setFieldValue("share_level", value);
+									}}
+									disabled={isSubmitting}
 								>
-									<SelectValue />
-								</SelectTrigger>
-								<SelectContent>
-									<ShareLevelOptions
-										canShareAuthenticated={canSharePortsAuthenticated}
-										canSharePublic={canSharePortsPublic}
-									/>
-								</SelectContent>
-							</Select>
-							<Button
-								type="submit"
-								size="icon"
-								className="size-7"
-								aria-label="Share Port"
-								title="Share this port"
-								disabled={!form.isValid || isSubmitting}
-							>
-								<Spinner loading={isSubmitting}>
-									<ShareIcon />
-								</Spinner>
-							</Button>
+									<SelectTrigger
+										id={shareLevelFieldId}
+										aria-label="Sharing Level"
+										aria-invalid={shareLevelField.error}
+										className={cn(
+											small,
+											"min-w-0 flex-1",
+											shareLevelField.error && "border-border-destructive",
+										)}
+									>
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent>
+										<ShareLevelOptions
+											canShareAuthenticated={canSharePortsAuthenticated}
+											canSharePublic={canSharePortsPublic}
+										/>
+									</SelectContent>
+								</Select>
+								<Button
+									type="submit"
+									size="sm"
+									className="h-7 shrink-0 px-2.5 text-xs"
+									aria-label="Share Port"
+									title="Share this port"
+									disabled={!form.isValid || isSubmitting}
+								>
+									<Spinner loading={isSubmitting}>
+										<ShareIcon />
+									</Spinner>
+									Share
+								</Button>
+							</div>
 						</form>
 						{submitError ? (
 							<p

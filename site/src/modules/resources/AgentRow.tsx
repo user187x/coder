@@ -78,6 +78,7 @@ import {
 	agentAppsReady,
 	agentInitializing,
 } from "#/modules/platform/workspaceInitializing/workspaceReadiness";
+import { useWorkspaceContactLost } from "#/modules/platform/workspaceLiveness/liveness";
 import { WorkspaceUptime } from "#/modules/platform/workspaceUptime/WorkspaceUptime";
 import {
 	agentConnectionMessages,
@@ -299,14 +300,28 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 	// Platform: the animated borders (AgentBorderFx) replace Coder's border
 	// colours, unless the user menu's "Animations" switch is off.
 	const animations = useAnimationsEnabled();
-	const fxState = animations
-		? agentBorderState(workspace, agent, {
-				scriptIssues: hasScriptIssues,
-				otherIssues: Boolean(
-					hasDevcontainerErrors || shouldShowWildcardWarning,
-				),
-			})
-		: null;
+	// Platform: no contact with Coder about the workspace (WorkspacePage), or its agent not connected: the card's
+	// live parts (graphs, network lights) stop where they were and turn grey; without contact the border too.
+	const contactLostAt = useWorkspaceContactLost(workspace.id);
+	const contactLost = contactLostAt !== null;
+	const live =
+		!contactLost &&
+		workspace.latest_build.status === "running" &&
+		agent.status === "connected";
+	const [stoppedAt, setStoppedAt] = useState<number>();
+	useEffect(() => {
+		setStoppedAt(live ? undefined : Date.now());
+	}, [live]);
+	const fxState = !animations
+		? null
+		: contactLost && workspace.latest_build.transition === "start"
+			? "lost"
+			: agentBorderState(workspace, agent, {
+					scriptIssues: hasScriptIssues,
+					otherIssues: Boolean(
+						hasDevcontainerErrors || shouldShowWildcardWarning,
+					),
+				});
 	// Platform: the drop-down panels (Logs, Terminal and the apps the user
 	// embeds), in the user's order.
 	const panels = useAgentPanels(workspace.id, agent.name);
@@ -470,10 +485,23 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 					fxState ? "border-transparent" : borderClass,
 				)}
 			>
-				<header className="flex flex-wrap items-center justify-between gap-4 px-4 pt-4 pl-8 leading-normal md:gap-6 [&:has(+_[role='alert'])]:pb-4">
+				{/* Platform: px-8 - its right end (Lock Down) lines up with the apps' and the metrics' squircles below */}
+				<header className="flex flex-wrap items-center justify-between gap-4 px-8 pt-4 leading-normal md:gap-6 [&:has(+_[role='alert'])]:pb-4">
 					<div className="flex min-w-0 items-center gap-6 text-sm text-content-secondary">
 						<div className="flex min-w-0 w-full items-center gap-4 md:w-auto">
-							<AgentStatus agent={agent} />
+							<span
+								className={cn(
+									"inline-flex",
+									contactLost && "opacity-60 grayscale",
+								)}
+								title={
+									contactLost
+										? "No contact with Coder: the agent's status as last seen"
+										: undefined
+								}
+							>
+								<AgentStatus agent={agent} />
+							</span>
 							{/* Platform: the workspace's name (its agent's, after it, when it has several). */}
 							<span
 								className="block max-w-[260px] overflow-hidden text-ellipsis whitespace-nowrap text-base font-semibold text-content-primary"
@@ -492,6 +520,7 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 								<AgentNetworkLeds
 									agentId={agent.id}
 									workspaceId={workspace.id}
+									stoppedAt={stoppedAt}
 								/>
 							)}
 						</div>
@@ -557,7 +586,11 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 					    the workspace has been on under Open Ports; two pills of one size */}
 					{agent.status === "connected" && (
 						<div className="-my-4 flex items-center justify-between gap-3 empty:hidden">
-							<AgentNetworkPill agentId={agent.id} workspaceId={workspace.id} />
+							<AgentNetworkPill
+								agentId={agent.id}
+								workspaceId={workspace.id}
+								stoppedAt={stoppedAt}
+							/>
 							<span className="ml-auto empty:hidden">
 								<WorkspaceUptime workspace={workspace} />
 							</span>
@@ -616,7 +649,20 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 							</section>
 						)}
 
-						<AgentMetadata initialMetadata={initialMetadata} agent={agent} />
+						{/* Platform: not live - the graphs stop where they were, greyed */}
+						<div
+							className={cn(
+								"min-w-0 transition-[filter,opacity] duration-500",
+								!live && "opacity-60 grayscale",
+							)}
+							data-stale={!live || undefined}
+						>
+							<AgentMetadata
+								initialMetadata={initialMetadata}
+								agent={agent}
+								pausedAt={stoppedAt}
+							/>
+						</div>
 					</div>
 
 					{devcontainers && devcontainers.length > 0 && (

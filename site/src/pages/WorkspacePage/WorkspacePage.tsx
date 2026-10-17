@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { useQuery, useQueryClient } from "react-query";
 import { useParams } from "react-router";
 import { toast } from "sonner";
@@ -13,7 +13,16 @@ import type { Workspace } from "#/api/typesGenerated";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { Loader } from "#/components/Loader/Loader";
 import { Margins } from "#/components/Margins/Margins";
+import {
+	setWorkspaceContact,
+	useWorkspaceContactLost,
+	workspaceContactLostAt,
+} from "#/modules/platform/workspaceLiveness/liveness";
 import { WorkspaceReadyPage } from "./WorkspaceReadyPage";
+
+/** How often the workspace page asks whether Coder answers, and how long it waits (ms). */
+const PROBE_EVERY_MS = 10_000;
+const PROBE_TIMEOUT_MS = 5_000;
 
 const WorkspacePage: React.FC = () => {
 	const queryClient = useQueryClient();
@@ -70,12 +79,21 @@ const WorkspacePage: React.FC = () => {
 		},
 	);
 	const workspaceId = workspace?.id;
+	// Platform: a new watch after contact with Coder came back (the old one is closed, or hung)
+	const [watchGeneration, setWatchGeneration] = useState(0);
 	useEffect(() => {
 		if (!workspaceId) {
 			return;
 		}
 
 		const socket = watchWorkspace(workspaceId);
+		let closing = false;
+		// Platform: the watch broke - the page's live parts stop and turn grey until Coder answers again
+		const lost = () => {
+			if (!closing) {
+				setWorkspaceContact(workspaceId, false);
+			}
+		};
 		socket.addEventListener("message", (event) => {
 			if (event.parseError) {
 				toast.error(
@@ -87,18 +105,73 @@ const WorkspacePage: React.FC = () => {
 				return;
 			}
 
+			setWorkspaceContact(workspaceId, true);
 			if (event.parsedMessage.type === "data") {
 				updateWorkspaceData(event.parsedMessage.data as Workspace);
 			}
 		});
-		socket.addEventListener("error", () => {
-			toast.error(`Unable to get changes for workspace "${workspaceName}".`, {
-				description: "Connection has been closed.",
-			});
-		});
+		socket.addEventListener("error", lost);
+		socket.addEventListener("close", lost);
 
-		return () => socket.close();
-	}, [workspaceId, workspaceName]);
+		return () => {
+			closing = true;
+			socket.close();
+		};
+		// (watchGeneration: a new watch each time it changes)
+	}, [workspaceId, workspaceName, watchGeneration]);
+
+	// Platform: the watch alone does not notice Coder gone when its connection hangs (its keep-alive pings are the
+	// browser's own): every few seconds, does Coder answer? Back again: a new watch, and the workspace as it is now.
+	useEffect(() => {
+		if (!workspaceId) {
+			return;
+		}
+		let stopped = false;
+		const probe = async () => {
+			const ok = await fetch("/api/v2/buildinfo", {
+				cache: "no-store",
+				signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
+			}).then(
+				(r) => r.ok,
+				() => false,
+			);
+			if (stopped) {
+				return;
+			}
+			if (!ok) {
+				setWorkspaceContact(workspaceId, false);
+			} else if (workspaceContactLostAt(workspaceId) !== null) {
+				setWorkspaceContact(workspaceId, true);
+				setWatchGeneration((g) => g + 1);
+				void queryClient.invalidateQueries({
+					queryKey: workspaceByOwnerAndName(username, workspaceName).queryKey,
+				});
+			}
+		};
+		const timer = window.setInterval(probe, PROBE_EVERY_MS);
+		return () => {
+			stopped = true;
+			window.clearInterval(timer);
+			// off the page: nothing else checks, so nothing else shows it as lost
+			setWorkspaceContact(workspaceId, true);
+		};
+	}, [workspaceId, queryClient, username, workspaceName]);
+
+	// Platform: one notice while contact is lost, gone when it is back
+	const contactLostAt = useWorkspaceContactLost(workspaceId);
+	useEffect(() => {
+		const id = `workspace-contact-${workspaceId}`;
+		if (contactLostAt === null) {
+			toast.dismiss(id);
+			return;
+		}
+		toast.warning(`No contact with Coder about "${workspaceName}".`, {
+			id,
+			duration: Number.POSITIVE_INFINITY,
+			description:
+				"Reconnecting... Until then the page shows the workspace as last seen, greyed out.",
+		});
+	}, [contactLostAt, workspaceId, workspaceName]);
 
 	// Page statuses
 	const pageError =

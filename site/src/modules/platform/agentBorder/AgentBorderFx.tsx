@@ -14,7 +14,8 @@ type AgentBorderFxProps = {
  * The agent card's border on the workspace page, by state (agentBorderState):
  * the electric border while it initializes (green), is pending or has a
  * problem (fiery orange) or has failed (red), and a border in the theme's
- * success colour pulsing rings outward once it is ready. The card keeps its own (transparent)
+ * success colour pulsing rings outward once it is ready, a still grey one while
+ * there is no contact with Coder. The card keeps its own (transparent)
  * border, so nothing moves when the state changes; without a state it is
  * Coder's own border.
  */
@@ -40,6 +41,8 @@ export const AgentBorderFx: React.FC<AgentBorderFxProps> = ({
 			{children}
 			{!state ? null : state === "ready" ? (
 				<div aria-hidden className="agent-fx-layer agent-fx-pulse" />
+			) : state === "lost" ? (
+				<div aria-hidden className="agent-fx-layer agent-fx-lost" />
 			) : (
 				<>
 					{animated && <TurbulenceFilter id={filterId} />}

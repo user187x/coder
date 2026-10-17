@@ -11,10 +11,12 @@ import {
 import { useAgentNetworkMetadata } from "./agentMetadataStore";
 import {
 	formatRate,
+	NETWORK_WINDOW_MS,
 	NetworkHistogram,
 	type NetworkSample,
 	withSample,
 } from "./NetworkHistogram";
+import { mergeSamples, useNetworkSeed } from "./networkSeed";
 import "./networkLeds.css";
 
 /** "received sent" byte counters, as the template's net metadata reports them. */
@@ -80,15 +82,22 @@ const useLed = () => {
  * graph, received in green and sent in blue (NetworkHistogram). While an admin
  * has the workspace's network locked down (Lock Down: Network, Complete or
  * Freeze) both lights are red and still, and the graph shows no traffic: none
- * gets in or out but Coder's own connection to its agent.
+ * gets in or out but Coder's own connection to its agent. Stopped (no contact
+ * with Coder, the agent gone), the lights are grey and still; the graph shows
+ * the minute as it was. The graph starts with the minute before the page
+ * opened (the platform service keeps it).
  */
 export const AgentNetworkLeds: React.FC<{
 	agentId: string;
 	/** Its workspace, for Lock Down (none: never shown as locked). */
 	workspaceId?: string;
-}> = ({ agentId, workspaceId }) => {
+	/** The card's live parts stopped at (ms): no contact with Coder, or the agent not connected. */
+	stoppedAt?: number;
+}> = ({ agentId, workspaceId, stoppedAt }) => {
 	const item = useAgentNetworkMetadata(agentId);
 	const locked = networkLocked(useWorkspaceLockdown(workspaceId));
+	const stopped = stoppedAt !== undefined;
+	const seed = useNetworkSeed(workspaceId, agentId, stopped);
 	const [rxOn, showRx] = useLed();
 	const [txOn, showTx] = useLed();
 	const last = useRef<{ at: number; rx: number; tx: number } | null>(null);
@@ -98,6 +107,23 @@ export const AgentNetworkLeds: React.FC<{
 
 	const value = item?.result.value ?? "";
 	const collectedAt = item?.result.collected_at ?? "";
+	// the minute before the page opened (or before contact came back), and the counters to go on from
+	useEffect(() => {
+		if (!seed || locked) {
+			return;
+		}
+		setHistory((h) => mergeSamples(seed.samples, h, NETWORK_WINDOW_MS));
+		if (seed.last && (!last.current || seed.last.at > last.current.at)) {
+			last.current = seed.last;
+		}
+	}, [seed, locked]);
+	// stopped: the lights off and still
+	useEffect(() => {
+		if (stopped) {
+			showRx(0, 0);
+			showTx(0, 0);
+		}
+	}, [stopped, showRx, showTx]);
 	// Locked down: the lights off (red, still), and the graph started afresh with a reading of no traffic each
 	// second, whether or not the agent still reports (Freeze pauses it); the counters start afresh once it is lifted.
 	useEffect(() => {
@@ -145,10 +171,13 @@ export const AgentNetworkLeds: React.FC<{
 		setHistory((h) =>
 			withSample(h, { from: prev.at, t: at, rx: rxRate, tx: txRate }),
 		);
+		if (stopped) {
+			return;
+		}
 		const windowMs = Math.min(1000, seconds * 1000) * 0.9;
 		showRx(flashesFor(rxRate), windowMs);
 		showTx(flashesFor(txRate), windowMs);
-	}, [value, collectedAt, locked, showRx, showTx]);
+	}, [value, collectedAt, locked, stopped, showRx, showTx]);
 
 	const reporting = Boolean(item && parse(value));
 	const title = locked
@@ -166,8 +195,9 @@ export const AgentNetworkLeds: React.FC<{
 			data-testid="agent-network"
 			data-reporting={reporting || undefined}
 			data-locked={locked || undefined}
-			aria-label={title}
-			className="net-leds inline-flex shrink-0 cursor-default items-center gap-2.5 rounded-full border border-solid border-border bg-transparent px-2.5 py-0.5 font-[inherit] text-[11px] font-medium tabular-nums text-content-secondary"
+			data-stopped={stopped || undefined}
+			aria-label={stopped ? `${title} (no live readings)` : title}
+			className="net-leds data-[stopped]:opacity-60 data-[stopped]:grayscale inline-flex shrink-0 cursor-default items-center gap-2.5 rounded-full border border-solid border-border bg-transparent px-2.5 py-0.5 font-[inherit] text-[11px] font-medium tabular-nums text-content-secondary"
 		>
 			<span className="inline-flex items-center gap-1">
 				<span

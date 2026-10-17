@@ -153,6 +153,8 @@ export const toBars = (
 	every: number,
 	/** Seconds a reading stays good for a period without one (about the agent's interval); 0: none. */
 	hold = 0,
+	/** The graph's right end (ms): now, or when it stopped (no contact with the workspace). */
+	now = Date.now(),
 ): (Bar | null)[] => {
 	if (every <= 0) {
 		const last = samples.slice(-BARS);
@@ -162,7 +164,7 @@ export const toBars = (
 		];
 	}
 	const ms = every * 1000;
-	const end = Math.floor(Date.now() / ms);
+	const end = Math.floor(now / ms);
 	const out: (Bar | null)[] = Array<null>(BARS).fill(null);
 	for (const s of samples) {
 		const slot = BARS - 1 - (end - Math.floor(s.t / ms));
@@ -214,6 +216,8 @@ type MetadataHistogramProps = {
 	hold?: number;
 	stale: boolean;
 	label: string;
+	/** Stopped at (ms): the graph stays as it was then. */
+	pausedAt?: number;
 };
 
 /**
@@ -228,13 +232,14 @@ export const MetadataHistogram: React.FC<MetadataHistogramProps> = ({
 	hold = 0,
 	stale,
 	label,
+	pausedAt,
 }) => {
 	// Platform: drawn 104 wide and stretched to its metric's width (at least 104, so the eight metrics, workspace and
 	// cluster, fit on one line from 1280 px up; a little more on wider screens)
 	const W = 104;
 	const H = 26;
 	const slot = W / BARS;
-	const bars = toBars(samples, every, hold);
+	const bars = toBars(samples, every, hold, pausedAt);
 	const top = share
 		? 100
 		: Math.max(0, ...bars.map((b) => b?.value ?? 0)) * 1.15 || 1;

@@ -15,7 +15,13 @@ import { appsStarting } from "../workspaceInitializing/workspaceReadiness";
  *   ready         the rotating green border: started, connected, scripts done
  *   null          Coder's own border (stopped, stopping, deleted, ...)
  */
-export type AgentBorderState = "initializing" | "pending" | "failed" | "ready";
+export type AgentBorderState =
+	| "initializing"
+	| "pending"
+	| "failed"
+	| "ready"
+	/** No contact with Coder about the workspace (the workspace page's check): a still grey border. */
+	| "lost";
 
 type Problems = {
 	/** A startup script (or module) failed or timed out. */

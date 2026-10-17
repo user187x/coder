@@ -44,11 +44,14 @@ type AgentMetadataViewProps = {
 	metadata: WorkspaceAgentMetadata[];
 	/** Whose readings the graphs keep (the agent's ID); one page can show several agents. */
 	historyScope?: string;
+	/** Stopped at (ms): the graphs stay as they were then, not advancing. */
+	pausedAt?: number;
 };
 
 export const AgentMetadataView: React.FC<AgentMetadataViewProps> = ({
 	metadata,
 	historyScope = "",
+	pausedAt,
 }) => {
 	const every = useGraphEvery();
 	const historyOf = useMetadataHistory(historyScope, metadata, every !== "off");
@@ -69,12 +72,17 @@ export const AgentMetadataView: React.FC<AgentMetadataViewProps> = ({
 	// 1 s and 5 s graphs advance on their own between the agent's readings
 	const [, tick] = useState(0);
 	useEffect(() => {
-		if (typeof every !== "number" || every <= 0 || every >= 10) {
+		if (
+			typeof every !== "number" ||
+			every <= 0 ||
+			every >= 10 ||
+			pausedAt !== undefined
+		) {
 			return;
 		}
 		const id = window.setInterval(() => tick((n) => n + 1), every * 1000);
 		return () => window.clearInterval(id);
-	}, [every]);
+	}, [every, pausedAt]);
 	if (metadata.length === 0) {
 		return null;
 	}
@@ -85,6 +93,7 @@ export const AgentMetadataView: React.FC<AgentMetadataViewProps> = ({
 			item={m}
 			history={historyOf(m.description.key)}
 			every={every}
+			pausedAt={pausedAt}
 		/>
 	);
 	// Platform: the workspace's own metrics and the cluster's (the node it runs on), each in its own squircle
@@ -195,13 +204,17 @@ const groupMetadata = (
 type AgentMetadataProps = {
 	agent: WorkspaceAgent;
 	initialMetadata?: WorkspaceAgentMetadata[];
+	/** Platform: stopped at (ms) - no contact with the workspace: the graphs stay as they were then. */
+	pausedAt?: number;
 };
 
-const maxSocketErrorRetryCount = 3;
+// Platform: the longest wait between attempts to watch the metadata again (ms)
+const maxRetryDelayMs = 30_000;
 
 export const AgentMetadata: React.FC<AgentMetadataProps> = ({
 	agent,
 	initialMetadata,
+	pausedAt,
 }) => {
 	const [activeMetadata, setActiveMetadata] = useState(initialMetadata);
 	useEffect(() => {
@@ -224,33 +237,16 @@ export const AgentMetadata: React.FC<AgentMetadataProps> = ({
 			activeSocket = socket;
 
 			socket.addEventListener("error", () => {
-				setActiveMetadata(undefined);
+				// Platform: the last readings stay (the card greys them while there is no contact with Coder, and the
+				// page says so) and it keeps trying, a little less often each time - it comes back with Coder.
 				window.clearTimeout(timeoutId);
-
-				// The error event is supposed to fire when an error happens
-				// with the connection itself, which implies that the connection
-				// would auto-close. Couldn't find a definitive answer on MDN,
-				// though, so closing it manually just to be safe
 				socket.close();
 				activeSocket = null;
-
 				retries++;
-				if (retries >= maxSocketErrorRetryCount) {
-					toast.error(
-						"Unexpected disconnect while watching Metadata changes.",
-						{
-							description: "Please try refreshing the page.",
-						},
-					);
-					return;
-				}
-
-				toast.error("Unexpected disconnect while watching Metadata changes.", {
-					description: "Creating new connection...",
-				});
-				timeoutId = window.setTimeout(() => {
-					createNewConnection();
-				}, 3_000);
+				timeoutId = window.setTimeout(
+					createNewConnection,
+					Math.min(maxRetryDelayMs, 3_000 * retries),
+				);
 			});
 
 			socket.addEventListener("message", (e) => {
@@ -262,6 +258,7 @@ export const AgentMetadata: React.FC<AgentMetadataProps> = ({
 				}
 
 				const msg = e.parsedMessage;
+				retries = 0;
 				if (msg.type === "data") {
 					setActiveMetadata(msg.data as WorkspaceAgentMetadata[]);
 				}
@@ -295,7 +292,13 @@ export const AgentMetadata: React.FC<AgentMetadataProps> = ({
 		);
 	}
 
-	return <AgentMetadataView metadata={shown} historyScope={agent.id} />;
+	return (
+		<AgentMetadataView
+			metadata={shown}
+			historyScope={agent.id}
+			pausedAt={pausedAt}
+		/>
+	);
 };
 
 const AgentMetadataSkeleton: React.FC = () => {
@@ -325,12 +328,15 @@ type MetadataItemProps = {
 	history: React.ComponentProps<typeof MetadataHistogram>["samples"];
 	/** Seconds per bar (0: one per reading); "off": no graph. */
 	every: GraphEvery;
+	/** Stopped at (ms): its graph stays as it was then. */
+	pausedAt?: number;
 };
 
 const MetadataItem: React.FC<MetadataItemProps> = ({
 	item,
 	history,
 	every,
+	pausedAt,
 }) => {
 	const staleThreshold = Math.max(
 		item.description.interval + item.description.timeout * 2,
@@ -410,6 +416,7 @@ const MetadataItem: React.FC<MetadataItemProps> = ({
 					}
 					stale={status === "stale"}
 					label={metricName(item)}
+					pausedAt={pausedAt}
 				/>
 			)}
 			<div>{value}</div>

@@ -110,6 +110,16 @@
 	}
 }
 
+/* No contact with Coder about the workspace (its page's check): grey and still - not claiming it runs. */
+.ws-running-light[data-lost] {
+	--ws-light: hsl(var(--content-disabled));
+	--ws-light-soft: hsl(var(--content-disabled) / 0.6);
+}
+.ws-running-light[data-lost],
+.ws-running-light[data-lost] > i {
+	animation: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
 	.ws-running-light,
 	.ws-running-light > i {

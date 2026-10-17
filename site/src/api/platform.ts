@@ -1126,6 +1126,20 @@ type ChatSendRequest = {
 	upload?: string;
 };
 
+/** The last minutes of a workspace's network traffic, each agent's (the platform service samples it all the time). */
+export type WorkspaceNetwork = {
+	windowSeconds: number;
+	agents: Record<
+		string,
+		{
+			/** Bytes a second received (rx) and sent (tx) between two readings (from, t: ms). */
+			samples: { from: number; t: number; rx: number; tx: number }[];
+			/** The latest reading's counters, to go on from. */
+			last: { at: number; rx: number; tx: number } | null;
+		}
+	>;
+};
+
 /** Admin Controls > Online Users: someone online now (or seen by Coder lately). */
 export type OnlineUser = ChatPeer & {
 	lastSeen: string | null;
@@ -1778,6 +1792,11 @@ export const PlatformAPI = {
 		),
 	/** Admins: everyone online now, and who Coder saw lately. */
 	getPresence: () => get<PresenceReport>(`${PLATFORM_BASE}/api/presence`),
+	/** The workspace's network traffic, the last minutes of each agent's. */
+	getWorkspaceNetwork: (workspaceId: string) =>
+		get<WorkspaceNetwork>(
+			`${PLATFORM_BASE}/api/workspaces/${encodeURIComponent(workspaceId)}/network`,
+		),
 	sendChatMessage: (req: ChatSendRequest) =>
 		post<{ message: ChatMessage }>(chat("send"), req),
 	sendChatTyping: (to: string) => post<{ ok: true }>(chat("typing"), { to }),

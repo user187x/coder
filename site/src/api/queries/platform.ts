@@ -410,6 +410,15 @@ export const chatPairs = () => ({
 	refetchInterval: 30_000,
 });
 
+/** The workspace's network traffic so far (the last minutes): read once, the page goes on from the live readings. */
+export const workspaceNetwork = (workspaceId: string) => ({
+	queryKey: [...platformKey, "network", workspaceId] as const,
+	queryFn: () => PlatformAPI.getWorkspaceNetwork(workspaceId),
+	staleTime: Number.POSITIVE_INFINITY,
+	refetchOnWindowFocus: false,
+	retry: false,
+});
+
 /** Admin Controls > Online Users: asked again every few seconds while the page is open. */
 export const onlineUsers = () => ({
 	queryKey: [...platformKey, "presence"] as const,

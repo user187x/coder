@@ -10,6 +10,7 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "#/components/Tooltip/Tooltip";
+import { useWorkspaceContactLost } from "#/modules/platform/workspaceLiveness/liveness";
 import {
 	formatStarted,
 	workspaceStartedAt,
@@ -35,13 +36,19 @@ export const variantByStatusType: Record<
 /**
  * Platform: the running workspace's light on its page: rings of light turning
  * round a pulsing core (runningLight.css). Hovered, it tells when the
- * workspace started.
+ * workspace started. No contact with Coder (the workspace page's check): grey
+ * and still, and it says since when.
  */
-const RunningLight: React.FC<{ started: Date | null }> = ({ started }) => {
+const RunningLight: React.FC<{
+	started: Date | null;
+	/** No contact with Coder since (ms). */
+	lostAt?: number | null;
+}> = ({ started, lostAt }) => {
 	const light = (
 		<span
 			aria-hidden
 			data-testid="workspace-running-light"
+			data-lost={lostAt ? true : undefined}
 			className="ws-running-light"
 		>
 			<i className="ws-running-ring ws-running-outer" />
@@ -50,7 +57,7 @@ const RunningLight: React.FC<{ started: Date | null }> = ({ started }) => {
 			<i className="ws-running-core" />
 		</span>
 	);
-	if (!started) {
+	if (!started && !lostAt) {
 		return light;
 	}
 	return (
@@ -63,7 +70,11 @@ const RunningLight: React.FC<{ started: Date | null }> = ({ started }) => {
 					{light}
 				</span>
 			</TooltipTrigger>
-			<TooltipContent>Started {formatStarted(started)}</TooltipContent>
+			<TooltipContent>
+				{lostAt
+					? `Last seen running. No contact with Coder since ${new Date(lostAt).toLocaleTimeString()}: reconnecting...`
+					: started && `Started ${formatStarted(started)}`}
+			</TooltipContent>
 		</Tooltip>
 	);
 };
@@ -86,12 +97,20 @@ export const WorkspaceStatusIndicator: React.FC<
 	if (!workspace.health.healthy) {
 		type = "warning";
 	}
+	// Platform: no contact with Coder about it (its page's check): running as last seen, not running for sure
+	const lostAt = useWorkspaceContactLost(workspace.id);
+	const lostWhileRunning =
+		lostAt !== null && workspace.latest_build.status === "running";
+	if (lostWhileRunning) {
+		text = "No contact";
+		type = "inactive";
+	}
 
 	const dot =
 		runningLight &&
-		type === "success" &&
+		(type === "success" || lostWhileRunning) &&
 		workspace.latest_build.status === "running" ? (
-			<RunningLight started={workspaceStartedAt(workspace)} />
+			<RunningLight started={workspaceStartedAt(workspace)} lostAt={lostAt} />
 		) : (
 			<StatusIndicatorDot />
 		);
