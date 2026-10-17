@@ -3,6 +3,8 @@ import {
 	CloudUploadIcon,
 	DownloadIcon,
 	HammerIcon,
+	ImportIcon,
+	MonitorPlayIcon,
 	PencilIcon,
 	ScanSearchIcon,
 	TrashIcon,
@@ -40,6 +42,7 @@ import {
 	FipsBadge,
 	formatSize,
 	GradeBadge,
+	ImportedBadge,
 	StatusBadge,
 	TrackedBadge,
 } from "./badges";
@@ -47,6 +50,7 @@ import { ImageAddons } from "./ImageAddons";
 import { imageKey } from "./ImageEditorPage";
 import { ImageReport } from "./ImageReport";
 import { imagesKey } from "./ImagesPage";
+import { ImportImageDialog } from "./ImportImageDialog";
 
 /**
  * Templates > Images > (an image): how to use it, its security report, its
@@ -83,7 +87,13 @@ const ImageDetailView: React.FC<{ image: ImageDetail }> = ({ image }) => {
 	const queryClient = useQueryClient();
 	const [deleting, setDeleting] = useState(false);
 	const tracked = image.tracked;
+	const imported = image.imported;
 	const editable = image.canEdit && !tracked;
+	const [importing, setImporting] = useState(false);
+	// the templates a workspace can be made from on this image (their Workspace image parameter)
+	const templates =
+		useQuery({ queryKey: imagesKey, queryFn: ImagesAPI.list }).data
+			?.templates ?? [];
 	const tag = tracked?.image.split(":").pop();
 	const refresh = () => {
 		void queryClient.invalidateQueries({ queryKey: imageKey(image.id) });
@@ -145,6 +155,7 @@ const ImageDetailView: React.FC<{ image: ImageDetail }> = ({ image }) => {
 						building={Boolean(image.activeBuild)}
 					/>
 					{tracked && <TrackedBadge />}
+					{imported && <ImportedBadge from={imported.from} />}
 					{tag && <span className="text-content-secondary">{tag}</span>}
 					{image.version > 0 && (
 						<span className="text-content-secondary">v{image.version}</span>
@@ -183,21 +194,33 @@ const ImageDetailView: React.FC<{ image: ImageDetail }> = ({ image }) => {
 					)}
 					{editable && (
 						<>
-							<Button variant="outline" asChild>
-								<RouterLink to={`/images/${image.id}/edit`}>
-									<PencilIcon />
-									Edit
-								</RouterLink>
-							</Button>
-							<Button
-								onClick={() => build.mutate()}
-								disabled={Boolean(image.activeBuild) || build.isPending}
-							>
-								<Spinner loading={build.isPending}>
-									<HammerIcon />
-								</Spinner>
-								{image.version ? "Rebuild" : "Build"}
-							</Button>
+							{imported ? (
+								<Button
+									onClick={() => setImporting(true)}
+									disabled={Boolean(image.activeBuild)}
+								>
+									<ImportIcon />
+									Import a new version
+								</Button>
+							) : (
+								<>
+									<Button variant="outline" asChild>
+										<RouterLink to={`/images/${image.id}/edit`}>
+											<PencilIcon />
+											Edit
+										</RouterLink>
+									</Button>
+									<Button
+										onClick={() => build.mutate()}
+										disabled={Boolean(image.activeBuild) || build.isPending}
+									>
+										<Spinner loading={build.isPending}>
+											<HammerIcon />
+										</Spinner>
+										{image.version ? "Rebuild" : "Build"}
+									</Button>
+								</>
+							)}
 							{image.pullRef && (
 								<Button
 									variant="outline"
@@ -234,6 +257,11 @@ const ImageDetailView: React.FC<{ image: ImageDetail }> = ({ image }) => {
 							Deployed with the platform
 							{image.builtAt &&
 								` · current since ${createDayString(image.builtAt)}`}
+						</>
+					) : imported ? (
+						<>
+							Imported {createDayString(imported.at)} by {imported.by} from{" "}
+							<span className="font-mono">{imported.from}</span>
 						</>
 					) : (
 						<>
@@ -279,6 +307,31 @@ const ImageDetailView: React.FC<{ image: ImageDetail }> = ({ image }) => {
 				</section>
 			) : image.pullRef ? (
 				<section className="flex flex-col gap-3" data-testid="use-in-template">
+					{templates.length > 0 && (
+						<div className="flex flex-col gap-2" data-testid="run-workspace">
+							<h2 className="m-0 text-lg font-semibold">
+								Run a workspace on it
+							</h2>
+							<p className="m-0 max-w-3xl text-sm text-content-secondary">
+								These templates take any image here as their{" "}
+								<b>Workspace image</b>: a new workspace on it, or an existing
+								one switched to it in its settings (from its next start). An
+								image built on the workspace image has everything they run.
+							</p>
+							<div className="flex flex-wrap gap-2">
+								{templates.map((t) => (
+									<Button key={t.name} variant="outline" asChild>
+										<RouterLink
+											to={`/templates/${encodeURIComponent(t.name)}/workspace?param.workspace_image=${encodeURIComponent(image.pullRef ?? "")}`}
+										>
+											<MonitorPlayIcon />
+											Create a {t.displayName} workspace on it
+										</RouterLink>
+									</Button>
+								))}
+							</div>
+						</div>
+					)}
 					<h2 className="m-0 text-lg font-semibold">Use in a template</h2>
 					<CodeExample code={image.pullRef} secret={false} />
 					<pre className="m-0 overflow-x-auto rounded-md border border-solid border-border bg-surface-secondary p-3 text-xs">
@@ -464,6 +517,16 @@ const ImageDetailView: React.FC<{ image: ImageDetail }> = ({ image }) => {
 				)}
 			</section>
 
+			{importing && imported && (
+				<ImportImageDialog
+					initial={{
+						name: image.id,
+						ref: imported.source === "registry" ? imported.from : undefined,
+						source: imported.source,
+					}}
+					onClose={() => setImporting(false)}
+				/>
+			)}
 			<ConfirmDialog
 				type="delete"
 				open={deleting}

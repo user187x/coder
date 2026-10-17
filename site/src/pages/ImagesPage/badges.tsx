@@ -19,6 +19,13 @@ export const StatusBadge: React.FC<{
 	return <Badge variant="default">Draft</Badge>;
 };
 
+/** An image brought in (from a registry or an archive), not built here. */
+export const ImportedBadge: React.FC<{ from: string }> = ({ from }) => (
+	<Badge variant="default" title={`Imported from ${from}`}>
+		Imported
+	</Badge>
+);
+
 /** The workspace template's own image (tracked here, read-only). */
 export const TrackedBadge: React.FC = () => (
 	<Badge

@@ -283,7 +283,53 @@ export type ImageListItem = {
 	summary: ReportSummary | null;
 	/** Set for the workspace template's own image (read-only here). */
 	tracked?: TrackedImage | null;
+	/** Set for an image brought in (copied from a registry, or an uploaded archive) rather than built. */
+	imported?: ImportedImage | null;
 };
+
+/** Where an imported image came from, and its last import. */
+export type ImportedImage = {
+	source: "registry" | "upload";
+	/** The registry reference, or the archive's file name. */
+	from: string;
+	at: string;
+	by: string;
+};
+
+/** An image workspaces run now, or a template runs: which, and its entry here if it has one. */
+export type ImageInUse = {
+	image: string;
+	workspaces: string[];
+	templates: string[];
+	entry: string | null;
+};
+
+/** An ISO of the library: in every workspace at ~/isos, read-only. */
+export type IsoFile = { name: string; size: number; modified: string };
+
+/** An ISO the service downloads into the library. */
+export type IsoImport = {
+	name: string;
+	url: string;
+	bytes: number;
+	total: number | null;
+	error: string | null;
+	done: boolean;
+	by: string;
+	startedAt: number;
+};
+
+export type IsoLibrary = {
+	enabled: boolean;
+	canEdit: boolean;
+	mountPath: string;
+	maxBytes: number;
+	files: IsoFile[];
+	usedBytes: number;
+	imports: IsoImport[];
+};
+
+const ISOS = `${base}/api/isos`;
 
 export type BuildSummary = {
 	id: number;
@@ -373,6 +419,8 @@ export const ImagesAPI = {
 			canEdit: boolean;
 			pullPrefix: string;
 			baseImage: string;
+			/** The templates whose workspaces can run on an image here (their Workspace image parameter). */
+			templates?: { name: string; displayName: string }[];
 		}>(IMAGES),
 	create: (name: string, description: string, base: ImageBase) =>
 		post<{ image: ImageDetail }>(IMAGES, { name, description, base }),
@@ -463,6 +511,37 @@ export const ImagesAPI = {
 		post<{ build: number }>(`${IMAGES}/${enc(id)}/rescan`, {}),
 	saveSettings: (change: { aptSources?: string; s3?: ImagesSettings["s3"] }) =>
 		post<{ ok: true; s3: ImagesSettings["s3"] }>(`${IMAGES}/settings`, change),
+	/** An image copied from a registry: a new image, or a new version of an imported one. */
+	importFromRegistry: (body: {
+		name: string;
+		description: string;
+		ref: string;
+		username?: string;
+		password?: string;
+	}) => post<{ image: string; build: number }>(`${IMAGES}/import`, body),
+	/** An image from a `docker save` or OCI archive (.tar, .tar.gz). */
+	importArchive: (
+		name: string,
+		description: string,
+		file: File,
+		onProgress?: (fraction: number) => void,
+	) =>
+		upload<{ image: string; build: number }>(
+			`${IMAGES}/import-upload?name=${enc(name)}&description=${enc(description)}&file=${enc(file.name)}`,
+			file,
+			onProgress,
+		),
+	inUse: () => get<{ images: ImageInUse[] }>(`${IMAGES}/in-use`),
+	isos: () => get<IsoLibrary>(ISOS),
+	uploadIso: (file: File, onProgress?: (fraction: number) => void) =>
+		upload<{ ok: true; name: string; size: number }>(
+			`${ISOS}/upload?name=${enc(file.name)}`,
+			file,
+			onProgress,
+		),
+	importIso: (url: string, name: string) =>
+		post<{ ok: true; name: string }>(`${ISOS}/import`, { url, name }),
+	deleteIso: (name: string) => post<{ ok: true }>(`${ISOS}/delete`, { name }),
 };
 
 /** The Terraform a workspace template uses to run on the image. */

@@ -3,6 +3,7 @@ import {
 	DownloadIcon,
 	EllipsisVerticalIcon,
 	HammerIcon,
+	ImportIcon,
 	PencilIcon,
 	PlusIcon,
 	SettingsIcon,
@@ -48,10 +49,17 @@ import {
 	FipsBadge,
 	formatSize,
 	GradeBadge,
+	ImportedBadge,
 	StatusBadge,
 	TrackedBadge,
 } from "./badges";
+import { ImagesInUse } from "./ImagesInUse";
 import { ImagesSettingsDialog } from "./ImagesSettingsDialog";
+import {
+	ImportImageDialog,
+	type ImportImageDialogProps,
+} from "./ImportImageDialog";
+import { IsoLibrary } from "./IsoLibrary";
 import { NewImageDialog } from "./NewImageDialog";
 import { ResourceTabs } from "./ResourceTabs";
 import { SecurityDataBadge } from "./SecurityData";
@@ -77,6 +85,9 @@ const ImagesPage: React.FC = () => {
 	const [search, setSearch] = useState("");
 	const [status, setStatus] = useState<StatusFilter>("all");
 	const [creating, setCreating] = useState(false);
+	const [importing, setImporting] = useState<
+		ImportImageDialogProps["initial"] | null
+	>(null);
 	const [settings, setSettings] = useState(false);
 	const canEdit = query.data?.canEdit ?? false;
 
@@ -107,6 +118,16 @@ const ImagesPage: React.FC = () => {
 							<SettingsIcon />
 							Settings
 						</Button>
+						{canEdit && (
+							<Button
+								variant="outline"
+								size="lg"
+								onClick={() => setImporting({})}
+							>
+								<ImportIcon />
+								Import
+							</Button>
+						)}
 						{canEdit && (
 							<Button size="lg" onClick={() => setCreating(true)}>
 								<PlusIcon />
@@ -196,22 +217,49 @@ const ImagesPage: React.FC = () => {
 						/>
 					) : (
 						images.map((image) => (
-							<ImageRow key={image.id} image={image} canEdit={canEdit} />
+							<ImageRow
+								key={image.id}
+								image={image}
+								canEdit={canEdit}
+								onImport={() =>
+									setImporting({
+										name: image.id,
+										ref:
+											image.imported?.source === "registry"
+												? image.imported.from
+												: undefined,
+										source: image.imported?.source,
+									})
+								}
+							/>
 						))
 					)}
 				</TableBody>
 			</Table>
 
+			<ImagesInUse
+				canEdit={canEdit}
+				onImport={(initial) => setImporting(initial)}
+			/>
+			<IsoLibrary />
 			{creating && <NewImageDialog onClose={() => setCreating(false)} />}
+			{importing && (
+				<ImportImageDialog
+					initial={importing}
+					onClose={() => setImporting(null)}
+				/>
+			)}
 			{settings && <ImagesSettingsDialog onClose={() => setSettings(false)} />}
 		</Margins>
 	);
 };
 
-const ImageRow: React.FC<{ image: ImageListItem; canEdit: boolean }> = ({
-	image,
-	canEdit,
-}) => {
+const ImageRow: React.FC<{
+	image: ImageListItem;
+	canEdit: boolean;
+	/** An imported image: import a new version of it. */
+	onImport: () => void;
+}> = ({ image, canEdit, onImport }) => {
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 	const [deleting, setDeleting] = useState(false);
@@ -276,6 +324,7 @@ const ImageRow: React.FC<{ image: ImageListItem; canEdit: boolean }> = ({
 						{image.name}
 						<StatusBadge status={image.status} />
 						{tracked && <TrackedBadge />}
+						{image.imported && <ImportedBadge from={image.imported.from} />}
 						{image.version > 0 && (
 							<span className="text-xs font-normal text-content-secondary">
 								v{image.version}
@@ -375,19 +424,31 @@ const ImageRow: React.FC<{ image: ImageListItem; canEdit: boolean }> = ({
 								</Button>
 							</DropdownMenuTrigger>
 							<DropdownMenuContent align="end">
-								<DropdownMenuItem asChild>
-									<RouterLink to={`/images/${image.id}/edit`}>
-										<PencilIcon />
-										Edit
-									</RouterLink>
-								</DropdownMenuItem>
-								<DropdownMenuItem
-									disabled={image.status === "building" || build.isPending}
-									onSelect={() => build.mutate()}
-								>
-									<HammerIcon />
-									{image.version ? "Rebuild" : "Build"}
-								</DropdownMenuItem>
+								{image.imported ? (
+									<DropdownMenuItem
+										disabled={image.status === "building"}
+										onSelect={onImport}
+									>
+										<ImportIcon />
+										Import a new version
+									</DropdownMenuItem>
+								) : (
+									<>
+										<DropdownMenuItem asChild>
+											<RouterLink to={`/images/${image.id}/edit`}>
+												<PencilIcon />
+												Edit
+											</RouterLink>
+										</DropdownMenuItem>
+										<DropdownMenuItem
+											disabled={image.status === "building" || build.isPending}
+											onSelect={() => build.mutate()}
+										>
+											<HammerIcon />
+											{image.version ? "Rebuild" : "Build"}
+										</DropdownMenuItem>
+									</>
+								)}
 								<DropdownMenuSeparator />
 								<DropdownMenuItem onSelect={() => s3.mutate(!image.s3.enabled)}>
 									<CloudUploadIcon />
