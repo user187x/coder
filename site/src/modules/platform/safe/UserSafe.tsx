@@ -5,10 +5,10 @@ import {
 	FileIcon,
 	FolderIcon,
 	FolderPlusIcon,
+	LockKeyholeOpenIcon,
 	RefreshCwIcon,
 	Trash2Icon,
 	UploadIcon,
-	VaultIcon,
 	XIcon,
 } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
@@ -62,6 +62,26 @@ export const UserSafe: React.FC = () => {
 
 	useEffect(() => () => window.clearTimeout(timer.current), []);
 
+	// Escape closes it wherever the focus is (a deleted row takes the focus with it).
+	const isOpen = phase === "opening" || phase === "open";
+	useEffect(() => {
+		if (!isOpen) {
+			return;
+		}
+		const onKey = (event: KeyboardEvent) => {
+			if (event.key === "Escape") {
+				window.clearTimeout(timer.current);
+				setPhase("closing");
+				timer.current = window.setTimeout(
+					() => setPhase("closed"),
+					motionless() ? 0 : CLOSE_MS,
+				);
+			}
+		};
+		window.addEventListener("keydown", onKey);
+		return () => window.removeEventListener("keydown", onKey);
+	}, [isOpen]);
+
 	if (
 		!summary ||
 		(error instanceof PlatformError && error.status === 404) ||
@@ -80,7 +100,6 @@ export const UserSafe: React.FC = () => {
 	};
 	const open = () => go("opening", "open", OPEN_MS);
 	const close = () => go("closing", "closed", CLOSE_MS);
-	const isOpen = phase === "opening" || phase === "open";
 	const percent = usedPercent(summary.usedBytes, summary.quotaBytes);
 
 	return (
@@ -117,11 +136,6 @@ export const UserSafe: React.FC = () => {
 					aria-label="Your safe"
 					data-phase={phase}
 					className="cs-open absolute right-0 top-full z-40 mt-2 w-[min(760px,calc(100vw-2rem))]"
-					onKeyDown={(event) => {
-						if (event.key === "Escape") {
-							close();
-						}
-					}}
 				>
 					<div className="cs-inside relative bg-surface-primary">
 						<SafeBrowser summary={summary} onClose={close} />
@@ -263,7 +277,10 @@ const SafeBrowser: React.FC<{ summary: SafeSummary; onClose: () => void }> = ({
 			}}
 		>
 			<header className="flex flex-wrap items-center gap-2 border-0 border-b border-solid border-border px-4 py-3">
-				<VaultIcon aria-hidden className="size-5 text-content-secondary" />
+				<LockKeyholeOpenIcon
+					aria-hidden
+					className="size-5 text-content-secondary"
+				/>
 				<nav
 					aria-label="Folder"
 					className="flex min-w-0 flex-1 items-center gap-1"

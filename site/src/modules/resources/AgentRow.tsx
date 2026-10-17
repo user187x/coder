@@ -64,6 +64,7 @@ import { useAgentPanels } from "#/modules/platform/agentPanels/agentPanelsStore"
 import { AgentTerminalSection } from "#/modules/platform/agentTerminal/AgentTerminalSection";
 import { useAnimationsEnabled } from "#/modules/platform/animations/animations";
 import { AgentNetworkLeds } from "#/modules/platform/networkLeds/AgentNetworkLeds";
+import { AgentNetworkPill } from "#/modules/platform/networkLeds/AgentNetworkPill";
 import { WorkspaceInitializing } from "#/modules/platform/workspaceInitializing/WorkspaceInitializing";
 import {
 	agentAppsReady,
@@ -528,10 +529,14 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 				</header>
 
 				<div className="flex flex-col gap-8 px-8 pt-8 pb-12">
-					{/* Platform: how long the workspace has been on, under Open Ports and above the apps */}
+					{/* Platform: under the header, above the apps: the network's last minute under the workspace's name, how long
+					    the workspace has been on under Open Ports; two pills of one size */}
 					{agent.status === "connected" && (
-						<div className="-my-4 flex justify-end empty:hidden">
-							<WorkspaceUptime workspace={workspace} />
+						<div className="-my-4 flex items-center justify-between gap-3 empty:hidden">
+							<AgentNetworkPill agentId={agent.id} workspaceId={workspace.id} />
+							<span className="ml-auto empty:hidden">
+								<WorkspaceUptime workspace={workspace} />
+							</span>
 						</div>
 					)}
 					{workspace.latest_app_status?.agent_id === agent.id && (

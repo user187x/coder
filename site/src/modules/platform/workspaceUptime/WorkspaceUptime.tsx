@@ -13,6 +13,13 @@ import {
 	workspaceStartedAt,
 } from "./workspaceUptime";
 
+/**
+ * The workspace page's pills under the agent's header (this one and the network's, AgentNetworkPill): one size,
+ * an oval on the dashboard's surface.
+ */
+export const WORKSPACE_PILL =
+	"inline-flex h-[26px] w-[150px] items-center justify-center gap-1.5 rounded-full border border-solid border-border bg-surface-secondary text-xs tabular-nums text-content-secondary";
+
 /** The clock, every second (the pill shows seconds in the first hour). */
 const useNow = (active: boolean): number => {
 	const [now, setNow] = useState(() => Date.now());
@@ -47,7 +54,7 @@ export const WorkspaceUptime: React.FC<{ workspace: Workspace }> = ({
 					role="timer"
 					aria-label={`Up ${uptimeInWords(up)}, since ${formatStarted(started)}`}
 					data-testid="workspace-uptime"
-					className="inline-flex items-center gap-1.5 rounded-full border border-solid border-border bg-surface-secondary px-3 py-1 text-xs tabular-nums text-content-secondary"
+					className={WORKSPACE_PILL}
 				>
 					<ClockIcon aria-hidden className="size-3.5" />
 					Uptime

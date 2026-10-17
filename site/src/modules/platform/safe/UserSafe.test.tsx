@@ -99,6 +99,25 @@ describe("UserSafe", () => {
 		expect(await screen.findByText("Done")).toBeInTheDocument();
 	});
 
+	it("closes on Escape wherever the focus is", async () => {
+		vi.spyOn(PlatformAPI, "getSafe").mockResolvedValue(summary);
+		vi.spyOn(PlatformAPI, "listSafe").mockResolvedValue({
+			path: "",
+			folders: [],
+			files: [],
+		});
+		renderSafe();
+		fireEvent.click(await screen.findByRole("button", { name: /your safe/i }));
+		expect(
+			await screen.findByRole("dialog", { name: "Your safe" }),
+		).toBeInTheDocument();
+		(document.activeElement as HTMLElement | null)?.blur();
+		fireEvent.keyDown(window, { key: "Escape" });
+		await waitFor(() =>
+			expect(screen.queryByRole("dialog", { name: "Your safe" })).toBeNull(),
+		);
+	});
+
 	it("asks once more before deleting", async () => {
 		vi.spyOn(PlatformAPI, "getSafe").mockResolvedValue(summary);
 		vi.spyOn(PlatformAPI, "listSafe").mockResolvedValue({
