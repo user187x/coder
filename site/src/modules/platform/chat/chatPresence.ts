@@ -20,6 +20,7 @@ const INPUT_EVENTS = [
 
 let running = false;
 let idle = false;
+let leaving = false;
 let timer: number | undefined;
 let lastInput = 0;
 
@@ -49,9 +50,17 @@ const onInput = () => {
 	arm();
 };
 
-const onLeave = () => {
+const onLeave = (event: PageTransitionEvent) => {
+	// Kept in the back/forward cache, the page may come back as it was: not gone (it stops polling meanwhile).
+	if (event.persisted) {
+		return;
+	}
+	leaving = true;
 	void PlatformAPI.chatLeave(TAB_ID);
 };
+
+/** The page is closing (or navigating away): no more polls from it. */
+export const pageLeaving = () => leaving;
 
 /**
  * The tab's presence for the chat's People lists and Admin Controls > Online Users: it reports its user idle after

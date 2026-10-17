@@ -23,7 +23,12 @@ import {
 	PlatformAPI,
 	PlatformError,
 } from "#/api/platform";
-import { startPresence, stopPresence, TAB_ID } from "./chatPresence";
+import {
+	pageLeaving,
+	startPresence,
+	stopPresence,
+	TAB_ID,
+} from "./chatPresence";
 
 const OPEN_KEY = "coder-ui-chat-windows";
 const TYPING_EVERY_MS = 2500;
@@ -545,7 +550,7 @@ const signedOut = () => {
 
 const poll = async () => {
 	let backoff = 2000;
-	while (docks > 0) {
+	while (docks > 0 && !pageLeaving()) {
 		try {
 			const result = await PlatformAPI.pollChat({
 				after: cursor,
