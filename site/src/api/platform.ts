@@ -1657,6 +1657,16 @@ export type SafeListing = {
 	files: SafeFile[];
 };
 
+/** A Cloud Drive at a glance (the HUD of a drive shared with the caller, on the Workspaces page). */
+export type CloudDriveGlance = {
+	files: number;
+	usedBytes: number;
+	/** Its newest files (a few), newest first. */
+	newest: { path: string; size: number; modified: string | null }[];
+	/** Its owner, when it is shared with the caller. */
+	owner: { id: string; username: string; name: string } | null;
+};
+
 /** The Cloud Drive's backend's last check. */
 export type CloudDriveStatus = {
 	connected: boolean | null;
@@ -1767,6 +1777,11 @@ export const PlatformAPI = {
 	/** drive: a Cloud Drive shared with the caller (its owner's id) - every file route takes it. */
 	listSafe: (path: string, drive?: string) =>
 		get<SafeListing>(`${PLATFORM_BASE}/api/safe/list${safeQuery(path, drive)}`),
+	/** How many files, how much, the newest few: a drive shared with the caller (its owner's id). */
+	getCloudDriveGlance: (drive: string) =>
+		get<CloudDriveGlance>(
+			`${PLATFORM_BASE}/api/safe/glance?drive=${encodeURIComponent(drive)}`,
+		),
 	/** A file of the Cloud Drive, as a download (the browser's own request: a link). */
 	safeDownloadUrl: (path: string, drive?: string) =>
 		`${PLATFORM_BASE}/api/safe/download${safeQuery(path, drive)}`,

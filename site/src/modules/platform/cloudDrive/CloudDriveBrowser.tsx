@@ -46,15 +46,18 @@ let nextTransfer = 1;
  * and date, upload (or drop files on it) and download, each with a moving bar,
  * how much has gone, how fast and how long is left (transfers.ts); new folder,
  * delete (asked once more); how full it is, and where its workspaces have it.
+ * Opened on a drive shared with the user (`initialDrive`: its owner's id) from
+ * its cloud on the Workspaces page.
  */
-export const CloudDriveBrowser: React.FC<{ summary: SafeSummary }> = ({
-	summary,
-}) => {
+export const CloudDriveBrowser: React.FC<{
+	summary: SafeSummary;
+	initialDrive?: string;
+}> = ({ summary, initialDrive = "" }) => {
 	const queryClient = useQueryClient();
 	const [path, setPath] = useState("");
 	// Which Cloud Drive: the user's own (""), or one shared with them (its owner's id) - open at once, while their
 	// workspaces get it at their next start. Writing only where it is shared read and write.
-	const [drive, setDrive] = useState("");
+	const [drive, setDrive] = useState(initialDrive);
 	const peers = useQuery(cloudDrivePeers());
 	const sharedWithMe = (peers.data?.asked ?? []).filter(
 		(s) => s.state === "active",

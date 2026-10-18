@@ -37,6 +37,7 @@ import { CloudDriveRopes, ROPES_AREA } from "./CloudDriveRopes";
 import { CloudDriveSettings, StatusIndicator } from "./CloudDriveSettings";
 import { CloudDriveSource } from "./CloudDriveSource";
 import { formatBytes } from "./drivePaths";
+import { SharedDriveClouds } from "./SharedDriveClouds";
 import "./cloudDrive.css";
 
 /**
@@ -49,7 +50,9 @@ import "./cloudDrive.css";
  * kept, and whether that answers; its Encryption (the owner's own key) and its
  * Source (a folder of one of their workspaces instead of S3). Only ever the
  * signed-in user's own drive; nothing where the deployment has none. As tall
- * as the "+ Workspace" button above it.
+ * as the "+ Workspace" button above it. Above it, a cloud for each drive
+ * shared with the user, plugged into it (SharedDriveClouds): clicked, the
+ * window opens on that drive.
  */
 export const CloudDrive: React.FC<{
 	/** The signed-in user's workspaces on the page: a cable to each connected one. */
@@ -64,6 +67,8 @@ export const CloudDrive: React.FC<{
 	const link = useMutation(setCloudDriveConnection(queryClient));
 	const [open, setOpen] = useState(false);
 	const [view, setView] = useState<View>("files");
+	// the drive the window opens on: the user's own (""), or one shared with them (from its cloud)
+	const [openDrive, setOpenDrive] = useState("");
 	const button = useRef<HTMLButtonElement>(null);
 	// Flush with the table's right edge (the toolbar it sits in may be wider than the table).
 	const [right, setRight] = useState(0);
@@ -181,6 +186,7 @@ export const CloudDrive: React.FC<{
 				aria-haspopup="dialog"
 				aria-label={`Cloud Drive: ${usage} used${encrypted ? ", encrypted" : ""}${status?.connected === true ? ", connected" : status?.connected === false ? ", not connected" : ""}`}
 				onClick={() => {
+					setOpenDrive("");
 					setView("files");
 					setOpen(true);
 				}}
@@ -227,6 +233,14 @@ export const CloudDrive: React.FC<{
 				linked={linked}
 				onLink={onLink}
 				connected={status?.connected}
+			/>
+			<SharedDriveClouds
+				anchor={button}
+				onOpen={(owner) => {
+					setOpenDrive(owner);
+					setView("files");
+					setOpen(true);
+				}}
 			/>
 			<Dialog open={open} onOpenChange={setOpen}>
 				<DialogContent
@@ -333,7 +347,7 @@ export const CloudDrive: React.FC<{
 						</div>
 					</header>
 					{view === "files" ? (
-						<CloudDriveBrowser summary={summary} />
+						<CloudDriveBrowser summary={summary} initialDrive={openDrive} />
 					) : view === "workspaces" ? (
 						<CloudDriveConnections />
 					) : view === "encryption" ? (

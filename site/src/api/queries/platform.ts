@@ -325,6 +325,15 @@ export const safeListing = (path: string, enabled: boolean, drive = "") => ({
 	retry: false,
 });
 
+/** A drive shared with the caller at a glance (its HUD, while it is open). */
+export const cloudDriveGlance = (drive: string, enabled: boolean) => ({
+	queryKey: [...safeKey, "glance", drive],
+	queryFn: () => PlatformAPI.getCloudDriveGlance(drive),
+	enabled,
+	retry: false,
+	staleTime: 15_000,
+});
+
 export const clusterUsage = () => ({
 	queryKey: clusterUsageKey,
 	queryFn: PlatformAPI.getClusterUsage,
