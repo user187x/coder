@@ -374,7 +374,7 @@ const MetadataItem: React.FC<MetadataItemProps> = ({
 		) : status === "stale" ? (
 			<Tooltip>
 				<TooltipTrigger asChild>
-					<StaticWidth className="text-ellipsis overflow-hidden whitespace-nowrap max-w-64 text-[13px] text-content-disabled cursor-pointer">
+					<StaticWidth className="text-ellipsis overflow-hidden whitespace-nowrap max-w-full text-[13px] text-content-disabled cursor-pointer">
 						{reading.text}
 					</StaticWidth>
 				</TooltipTrigger>
@@ -383,11 +383,14 @@ const MetadataItem: React.FC<MetadataItemProps> = ({
 				</TooltipContent>
 			</Tooltip>
 		) : (
+			// Platform: never wider than its column (StaticWidth only grows): a long reading - a script's error - is cut
+			// short, whole on hover, instead of widening its group and pushing the next one aside for good
 			<StaticWidth
 				className={cn(
-					"text-ellipsis overflow-hidden whitespace-nowrap max-w-64 text-[13px] text-content-success",
+					"text-ellipsis overflow-hidden whitespace-nowrap max-w-full text-[13px] text-content-success",
 					item.result.error.length > 0 && "text-content-destructive",
 				)}
+				title={reading.text}
 			>
 				{reading.text}
 			</StaticWidth>

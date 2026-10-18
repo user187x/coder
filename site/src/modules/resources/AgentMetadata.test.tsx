@@ -66,3 +66,29 @@ describe("AgentMetadataView: both groups in the same order", () => {
 		expect(metricName(metric("x", "CPU Usage (Host)", "1"))).toBe("CPU Usage");
 	});
 });
+
+describe("AgentMetadataView: a long reading", () => {
+	it("stays inside its column, whole on hover (a script's error never widens its group)", () => {
+		const error =
+			"bash: line 73: /proc/4242/cmdline: No such file or directory";
+		renderComponent(
+			<AgentMetadataView
+				metadata={[
+					...OLD_TEMPLATE.filter((m) => m.description.key !== "2_load"),
+					metric("2_load", "Ø Load", error),
+				]}
+				historyScope="long"
+			/>,
+		);
+		const value = within(
+			screen.getByTestId("metrics-group-workspace"),
+		).getByText(error);
+		expect(value).toHaveClass(
+			"max-w-full",
+			"text-ellipsis",
+			"whitespace-nowrap",
+		);
+		expect(value).not.toHaveClass("max-w-64");
+		expect(value).toHaveAttribute("title", error);
+	});
+});
