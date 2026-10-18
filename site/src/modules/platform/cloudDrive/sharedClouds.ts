@@ -34,7 +34,13 @@ export type SharedDrive = {
 	access: "read" | "write";
 	/** Only parts of it shared (a folder or a file, none of all of it): the first of them, for its HUD, and how many
 	 * more there are. */
-	part?: { id: string; kind: "folder" | "file"; path: string; more: number };
+	part?: {
+		id: string;
+		kind: "folder" | "file";
+		path: string;
+		access: "read" | "write";
+		more: number;
+	};
 };
 
 /** The Cloud Drives shared with the user now (their active shares; none while sharing is off), by owner's name: a
@@ -74,6 +80,7 @@ export const sharedDrives = (
 					id: parts[0].id,
 					kind: parts[0].kind === "file" ? "file" : "folder",
 					path: parts[0].path,
+					access: parts[0].access,
 					more: parts.length - 1,
 				},
 			};

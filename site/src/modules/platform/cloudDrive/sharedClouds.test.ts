@@ -77,7 +77,13 @@ describe("sharedDrives", () => {
 				owner: "zed",
 				ownerName: "zed",
 				access: "write",
-				part: { id: "1", kind: "folder", path: "docs", more: 1 },
+				part: {
+					id: "1",
+					kind: "folder",
+					path: "docs",
+					access: "read",
+					more: 1,
+				},
 			},
 		]);
 	});

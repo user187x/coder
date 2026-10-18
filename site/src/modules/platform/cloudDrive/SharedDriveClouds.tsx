@@ -615,7 +615,7 @@ const SharedCloud: React.FC<{
 						className="m-0 flex items-center gap-1.5 text-content-primary"
 						data-testid="shared-drive-hud-access"
 					>
-						{drive.access === "write" ? (
+						{(drive.part?.access ?? drive.access) === "write" ? (
 							<PencilIcon
 								aria-hidden
 								className="size-3.5 text-content-success"
@@ -623,7 +623,7 @@ const SharedCloud: React.FC<{
 						) : (
 							<EyeIcon aria-hidden className="size-3.5 text-content-link" />
 						)}
-						{drive.access === "write"
+						{(drive.part?.access ?? drive.access) === "write"
 							? "Read and write: open, add, change and delete"
 							: "Read only: open and download"}
 					</dd>
