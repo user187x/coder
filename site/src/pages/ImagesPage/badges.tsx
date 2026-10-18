@@ -36,7 +36,7 @@ export const TrackedBadge: React.FC = () => (
 	</Badge>
 );
 
-const GRADE_STYLE: Record<string, string> = {
+export const GRADE_STYLE: Record<string, string> = {
 	A: "bg-surface-green text-highlight-green border-border-green",
 	B: "bg-surface-green text-highlight-green border-border-green",
 	C: "bg-surface-orange text-highlight-orange border-border-warning",

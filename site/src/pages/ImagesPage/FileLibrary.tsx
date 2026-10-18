@@ -7,8 +7,14 @@ import {
 } from "lucide-react";
 import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
+import { toast } from "sonner";
 import { getErrorMessage } from "#/api/errors";
-import { ImagesAPI, type Library, type LibraryKind } from "#/api/images";
+import {
+	ImagesAPI,
+	type Library,
+	type LibraryKind,
+	libraryKey,
+} from "#/api/images";
 import { PlatformError } from "#/api/platform";
 import { Button } from "#/components/Button/Button";
 import { Input } from "#/components/Input/Input";
@@ -22,9 +28,16 @@ import {
 } from "#/components/Table/Table";
 import { createDayString } from "#/utils/createDayString";
 import { formatSize } from "./badges";
+import {
+	HeldModels,
+	ModelScanActions,
+	ModelScanCell,
+	ModelScannerPanel,
+	scanActive,
+	useModelScanner,
+} from "./ModelSecurity";
 
-export const libraryKey = (kind: LibraryKind) =>
-	["platform", "library", kind] as const;
+export { libraryKey };
 
 /** Where workspaces have it, as their users see it: ~/isos, ~/models. */
 const homePath = (path: string) => path.replace(/^\/home\/coder(?=\/|$)/, "~");
@@ -40,6 +53,8 @@ type LibraryCopy = {
 	placeholder: string;
 	/** Before how much is there. */
 	describe: (lib: Library) => React.ReactNode;
+	/** The model library: each file's security scan, and the models held until it releases them. */
+	security?: boolean;
 };
 
 /**
@@ -56,6 +71,7 @@ const FileLibrary: React.FC<LibraryCopy> = ({
 	accept,
 	placeholder,
 	describe,
+	security,
 }) => {
 	const queryClient = useQueryClient();
 	const key = libraryKey(kind);
@@ -64,8 +80,16 @@ const FileLibrary: React.FC<LibraryCopy> = ({
 		queryFn: () => ImagesAPI.library(kind),
 		retry: false,
 		refetchInterval: (q) =>
-			q.state.data?.imports.some((i) => !i.done && !i.error) ? 2000 : 30_000,
+			q.state.data?.imports.some((i) => !i.done && !i.error)
+				? 2000
+				: [...(q.state.data?.files ?? []), ...(q.state.data?.held ?? [])].some(
+							(f) => scanActive(f.scan),
+						)
+					? 4000
+					: 30_000,
 	});
+	const scanner = useModelScanner(!!security);
+	const gated = !!security && !!query.data?.scanner?.enabled;
 	const fileInput = useRef<HTMLInputElement>(null);
 	const [upload, setUpload] = useState<{
 		name: string;
@@ -80,6 +104,13 @@ const FileLibrary: React.FC<LibraryCopy> = ({
 			return ImagesAPI.uploadToLibrary(kind, file, (fraction) =>
 				setUpload({ name: file.name, fraction }),
 			);
+		},
+		onSuccess: (r) => {
+			if ("held" in r && r.held) {
+				toast.success(
+					`${r.name} is held until its security scan releases it into the library.`,
+				);
+			}
 		},
 		onSettled: () => {
 			setUpload(null);
@@ -127,6 +158,8 @@ const FileLibrary: React.FC<LibraryCopy> = ({
 						{describe(lib)} {lib.files.length}{" "}
 						{lib.files.length === 1 ? noun[0] : noun[1]},{" "}
 						{formatSize(lib.usedBytes)}.
+						{gated &&
+							" Each one added is held, and scanned for security with garak, before workspaces have it."}
 					</p>
 				</div>
 				{lib.canEdit && (
@@ -220,19 +253,35 @@ const FileLibrary: React.FC<LibraryCopy> = ({
 						)}
 				</div>
 			)}
+			{gated && <ModelScannerPanel />}
+			{gated && (
+				<HeldModels
+					held={lib.held ?? []}
+					canEdit={lib.canEdit}
+					canRelease={!!scanner.data?.canEdit}
+				/>
+			)}
 			<Table className="mt-3" data-testid={`${kind}-table`}>
 				<TableHeader>
 					<TableRow>
-						<TableHead className="w-[60%]">{noun[0]}</TableHead>
-						<TableHead className="w-[15%]">Size</TableHead>
-						<TableHead className="w-[20%]">Added</TableHead>
-						<TableHead className="w-[5%]" />
+						<TableHead className={gated ? "w-[42%]" : "w-[60%]"}>
+							{noun[0]}
+						</TableHead>
+						<TableHead className="w-[12%]">Size</TableHead>
+						{gated && <TableHead className="w-[22%]">Security</TableHead>}
+						<TableHead className={gated ? "w-[14%]" : "w-[20%]"}>
+							Added
+						</TableHead>
+						<TableHead className={gated ? "w-[10%]" : "w-[5%]"} />
 					</TableRow>
 				</TableHeader>
 				<TableBody>
 					{lib.files.length === 0 ? (
 						<TableRow>
-							<TableCell colSpan={4} className="text-sm text-content-secondary">
+							<TableCell
+								colSpan={gated ? 5 : 4}
+								className="text-sm text-content-secondary"
+							>
 								No {noun[1]} yet.
 								{lib.canEdit &&
 									" Upload one, or fetch one from an address the cluster reaches."}
@@ -247,30 +296,51 @@ const FileLibrary: React.FC<LibraryCopy> = ({
 								<TableCell className="text-sm tabular-nums">
 									{formatSize(f.size)}
 								</TableCell>
+								{gated && (
+									<TableCell>
+										<ModelScanCell scan={f.scan} />
+										{f.scan?.newerHeld && (
+											<span className="block text-xs text-content-secondary">
+												a newer version is held
+											</span>
+										)}
+									</TableCell>
+								)}
 								<TableCell className="text-sm text-content-secondary">
 									{createDayString(f.modified)}
 								</TableCell>
 								<TableCell className="text-right">
-									{lib.canEdit &&
-										(confirming === f.name ? (
-											<Button
-												size="xs"
-												variant="destructive"
-												disabled={remove.isPending}
-												onClick={() => remove.mutate(f.name)}
-											>
-												Delete?
-											</Button>
-										) : (
-											<Button
-												size="icon"
-												variant="subtle"
-												aria-label={`Delete ${f.name}`}
-												onClick={() => setConfirming(f.name)}
-											>
-												<TrashIcon />
-											</Button>
-										))}
+									<span className="flex items-center justify-end gap-1">
+										{gated && (
+											<ModelScanActions
+												name={f.name}
+												scan={f.scan}
+												held={false}
+												canScan={lib.canEdit}
+												canRelease={!!scanner.data?.canEdit}
+											/>
+										)}
+										{lib.canEdit &&
+											(confirming === f.name ? (
+												<Button
+													size="xs"
+													variant="destructive"
+													disabled={remove.isPending}
+													onClick={() => remove.mutate(f.name)}
+												>
+													Delete?
+												</Button>
+											) : (
+												<Button
+													size="icon"
+													variant="subtle"
+													aria-label={`Delete ${f.name}`}
+													onClick={() => setConfirming(f.name)}
+												>
+													<TrashIcon />
+												</Button>
+											))}
+									</span>
 								</TableCell>
 							</TableRow>
 						))
@@ -342,6 +412,7 @@ export const ModelLibrary: React.FC = () => (
 		noun={["model", "models"]}
 		accept=".gguf"
 		placeholder="https://… .gguf"
+		security
 		describe={(lib) => (
 			<>
 				Language models (GGUF) for the LM Studio and OpenCode workspaces:

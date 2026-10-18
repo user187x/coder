@@ -3,6 +3,7 @@ import {
 	ChevronRightIcon,
 	CloudIcon,
 	FolderInputIcon,
+	FolderSymlinkIcon,
 	LockIcon,
 	PlugIcon,
 	SettingsIcon,
@@ -29,6 +30,7 @@ import {
 import { CloudDriveBrowser } from "./CloudDriveBrowser";
 import { CloudDriveConnections } from "./CloudDriveConnections";
 import { CloudDriveEncryption } from "./CloudDriveEncryption";
+import { CloudDriveMount } from "./CloudDriveMount";
 import { CloudDriveRopes, ROPES_AREA } from "./CloudDriveRopes";
 import { CloudDriveSettings, StatusIndicator } from "./CloudDriveSettings";
 import { CloudDriveSource } from "./CloudDriveSource";
@@ -257,6 +259,14 @@ export const CloudDrive: React.FC<{
 							>
 								<FolderInputIcon />
 							</ViewButton>
+							<ViewButton
+								view="mount"
+								current={view}
+								label="Mount: the Cloud Drive in a folder of a workspace"
+								onToggle={setView}
+							>
+								<FolderSymlinkIcon />
+							</ViewButton>
 							<Button
 								size="icon"
 								variant="subtle"
@@ -291,6 +301,8 @@ export const CloudDrive: React.FC<{
 						<CloudDriveEncryption />
 					) : view === "source" ? (
 						<CloudDriveSource />
+					) : view === "mount" ? (
+						<CloudDriveMount />
 					) : settings.data ? (
 						<CloudDriveSettings settings={settings.data} />
 					) : (
@@ -317,13 +329,20 @@ export const CloudDrive: React.FC<{
 	);
 };
 
-type View = "files" | "workspaces" | "encryption" | "source" | "settings";
+type View =
+	| "files"
+	| "workspaces"
+	| "encryption"
+	| "source"
+	| "mount"
+	| "settings";
 
 const VIEW_TITLES: Record<View, string> = {
 	files: "Files",
 	workspaces: "Workspaces",
 	encryption: "Encryption",
 	source: "Source",
+	mount: "Mount",
 	settings: "Settings",
 };
 

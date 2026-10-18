@@ -1526,6 +1526,58 @@ export type CloudDriveRecoveryKit = Record<string, unknown> & {
 };
 
 /** Deleting a workspace that is its owner's Cloud Drive source: its connected workspaces, each confirmed. */
+/**
+ * The Cloud Drive mounted into a folder of one of the owner's workspaces (the workspace's `cloud-drive` command):
+ * its entries linked into the folder, folders of the same name merged; a file of the same name there halts the
+ * mount until the owner chooses - keep both (data-(cloud_drive).csv) or overwrite (all, or each occurrence).
+ */
+export type CloudDriveMountMode = "keep-both" | "overwrite-all" | "ask";
+
+export type CloudDriveCollision = {
+	path: string;
+	local: "file" | "folder" | "link";
+	cloud: "file" | "folder";
+	localSize: number | null;
+	cloudSize: number | null;
+	/** Its name when both are kept. */
+	keepBothAs: string;
+};
+
+export type CloudDriveMountPlan = {
+	target: string;
+	exists: boolean;
+	cloud: boolean;
+	links: { path: string; to: string }[];
+	collisions: CloudDriveCollision[];
+	merged: string[];
+	linked: number;
+};
+
+export type CloudDriveMountResult =
+	| { halted: true; unresolved: string[] }
+	| {
+			halted?: undefined;
+			target: string;
+			mode: CloudDriveMountMode;
+			linked: number;
+			keptBoth: { path: string; as: string }[];
+			overwritten: string[];
+			movedTo: string | null;
+			total: number;
+	  };
+
+export type CloudDriveMounts = {
+	workspace: string;
+	name: string;
+	cloud: boolean;
+	mounts: {
+		target: string;
+		mode: CloudDriveMountMode;
+		created: number;
+		links: number;
+	}[];
+};
+
 export type CloudDriveSourceGuard =
 	| { source: false }
 	| {
@@ -1764,6 +1816,36 @@ export const PlatformAPI = {
 			workspace,
 			path,
 		}),
+
+	getCloudDriveMounts: (workspace: string) =>
+		get<CloudDriveMounts>(
+			`${PLATFORM_BASE}/api/safe/mounts?workspace=${encodeURIComponent(workspace)}`,
+		),
+
+	planCloudDriveMount: (workspace: string, path: string) =>
+		post<CloudDriveMountPlan>(`${PLATFORM_BASE}/api/safe/mounts/plan`, {
+			workspace,
+			path,
+		}),
+
+	applyCloudDriveMount: (
+		workspace: string,
+		path: string,
+		mode: CloudDriveMountMode,
+		decisions: Record<string, "overwrite" | "keep"> = {},
+	) =>
+		post<CloudDriveMountResult>(`${PLATFORM_BASE}/api/safe/mounts/apply`, {
+			workspace,
+			path,
+			mode,
+			decisions,
+		}),
+
+	unmountCloudDrive: (workspace: string, path: string) =>
+		post<{ target: string; removed: number; restored: number; left: string[] }>(
+			`${PLATFORM_BASE}/api/safe/mounts/unmount`,
+			{ workspace, path },
+		),
 
 	clearCloudDriveSource: () =>
 		post<CloudDriveConnections>(`${PLATFORM_BASE}/api/safe/source/clear`, {}),

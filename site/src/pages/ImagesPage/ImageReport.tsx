@@ -39,7 +39,7 @@ const SEVERITY_STYLE: Record<Severity, string> = {
 	UNKNOWN: "text-content-secondary",
 };
 
-const StatusIcon: React.FC<{ status: CheckStatus }> = ({ status }) =>
+export const StatusIcon: React.FC<{ status: CheckStatus }> = ({ status }) =>
 	status === "pass" ? (
 		<CircleCheckIcon
 			className="size-4 shrink-0 text-content-success"
@@ -367,7 +367,7 @@ export const ImageReport: React.FC<{
 	);
 };
 
-const SeverityButton: React.FC<{
+export const SeverityButton: React.FC<{
 	label: string;
 	count: number;
 	active: boolean;
