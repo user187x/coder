@@ -207,6 +207,11 @@ export const WorkspacesPageView: React.FC<WorkspacesPageViewProps> = ({
 						/>
 					)
 				)}
+				{/* Platform: the account's Cloud Drive, once, above the rows' apps. */}
+				<CloudDrive
+					workspaceIds={mine}
+					className={checkedWorkspaces.length > 0 ? "ml-2" : "ml-auto"}
+				/>
 			</TableToolbar>
 
 			{pageNumberIsInvalid ? (
@@ -226,8 +231,6 @@ export const WorkspacesPageView: React.FC<WorkspacesPageViewProps> = ({
 				/>
 			) : (
 				<WorkspacesTable
-					// Platform: the account's Cloud Drive, once, in the header over the rows' apps.
-					actionsHeader={<CloudDrive workspaceIds={mine} />}
 					canCreateTemplate={canCreateTemplate}
 					canCreateWorkspace={canCreateWorkspace}
 					workspaces={workspaces}
