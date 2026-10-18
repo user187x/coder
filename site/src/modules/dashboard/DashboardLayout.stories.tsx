@@ -89,7 +89,7 @@ export const ForMember: Story = {
 			screen.queryByTestId("update-check-notice"),
 		).not.toBeInTheDocument();
 		await expect(
-			canvas.queryByRole("button", { name: "Settings" }),
+			canvas.queryByRole("button", { name: "Controls" }),
 		).not.toBeInTheDocument();
 	},
 };

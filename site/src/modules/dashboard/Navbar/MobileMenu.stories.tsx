@@ -179,7 +179,7 @@ async function openAdminSettings({
 	const user = userEvent.setup();
 	const body = within(canvasElement.ownerDocument.body);
 	const menuItem = await body.findByRole("menuitem", {
-		name: /^admin$/i,
+		name: /^controls$/i,
 	});
 	await user.click(menuItem);
 }

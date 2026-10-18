@@ -40,7 +40,7 @@ describe("Admin menu", () => {
 		const items = screen.getAllByRole("menuitem");
 		const labels = items.map((item) => item.textContent?.trim());
 		expect(labels).toEqual([
-			"Admin Controls",
+			"Settings",
 			...pages.slice(0, 4).map((page) => page.label),
 			"Organizations",
 			"Audit logs",

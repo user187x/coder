@@ -42,8 +42,8 @@ export const AdminSettingsDropdown: React.FC<AdminSettingsDropdownProps> = ({
 						alt=""
 						className="block size-5 shrink-0 object-cover object-right dark:hidden"
 					/>
-					{/* Platform: the menu is "Settings"; its first item, the deployment's, "Admin Controls". */}
-					Settings
+					{/* Platform: the menu is "Controls"; its first item, the deployment's, "Settings". */}
+					Controls
 					<ChevronDownIcon className="text-content-primary" />
 				</Button>
 			</DropdownMenuTrigger>
