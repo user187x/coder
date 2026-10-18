@@ -1703,7 +1703,9 @@ export type CloudDriveBackend = {
 	secretKey: string;
 };
 
-const safeQuery = (path: string) => `?path=${encodeURIComponent(path)}`;
+/** A file route's query: the path, and a Cloud Drive shared with the caller (its owner's id) when it is not theirs. */
+const safeQuery = (path: string, drive?: string) =>
+	`?path=${encodeURIComponent(path)}${drive ? `&drive=${encodeURIComponent(drive)}` : ""}`;
 
 /** A provisioner job waiting, running or being cancelled (the platform service's /api/provisioners). */
 export type ProvisionerJobState = {
@@ -1762,25 +1764,28 @@ export type ProvisionersRekickResult = {
 export const PlatformAPI = {
 	/** The caller's Cloud Drive; PlatformError 404 where the deployment has none. */
 	getSafe: () => get<SafeSummary>(`${PLATFORM_BASE}/api/safe`),
-	listSafe: (path: string) =>
-		get<SafeListing>(`${PLATFORM_BASE}/api/safe/list${safeQuery(path)}`),
+	/** drive: a Cloud Drive shared with the caller (its owner's id) - every file route takes it. */
+	listSafe: (path: string, drive?: string) =>
+		get<SafeListing>(`${PLATFORM_BASE}/api/safe/list${safeQuery(path, drive)}`),
 	/** A file of the Cloud Drive, as a download (the browser's own request: a link). */
-	safeDownloadUrl: (path: string) =>
-		`${PLATFORM_BASE}/api/safe/download${safeQuery(path)}`,
+	safeDownloadUrl: (path: string, drive?: string) =>
+		`${PLATFORM_BASE}/api/safe/download${safeQuery(path, drive)}`,
 	uploadToSafe: (
 		path: string,
 		file: Blob,
 		onProgress?: (fraction: number) => void,
+		drive?: string,
 	) =>
 		upload<{ ok: true; path: string; size: number }>(
-			`${PLATFORM_BASE}/api/safe/upload${safeQuery(path)}`,
+			`${PLATFORM_BASE}/api/safe/upload${safeQuery(path, drive)}`,
 			file,
 			onProgress,
 		),
-	makeSafeFolder: (path: string) =>
-		post<{ ok: true; path: string }>(`${PLATFORM_BASE}/api/safe/folder`, {
-			path,
-		}),
+	makeSafeFolder: (path: string, drive?: string) =>
+		post<{ ok: true; path: string }>(
+			`${PLATFORM_BASE}/api/safe/folder${drive ? `?drive=${encodeURIComponent(drive)}` : ""}`,
+			{ path },
+		),
 	/** Where the Cloud Drives keep their files, and whether that answers (check: ask it now). */
 	cloudDriveSettings: (check = false) =>
 		get<CloudDriveSettings>(
@@ -1942,10 +1947,11 @@ export const PlatformAPI = {
 	testCloudDriveBackend: (backend: CloudDriveBackend) =>
 		post<CloudDriveStatus>(`${PLATFORM_BASE}/api/safe/settings/test`, backend),
 	/** A file, or a folder with everything in it (path ending in "/"). */
-	deleteFromSafe: (path: string) =>
-		post<{ ok: true; removed: number }>(`${PLATFORM_BASE}/api/safe/delete`, {
-			path,
-		}),
+	deleteFromSafe: (path: string, drive?: string) =>
+		post<{ ok: true; removed: number }>(
+			`${PLATFORM_BASE}/api/safe/delete${drive ? `?drive=${encodeURIComponent(drive)}` : ""}`,
+			{ path },
+		),
 	getClassification: () =>
 		get<ClassificationSettings>(`${PLATFORM_BASE}/api/classification`),
 	updateClassification: (settings: ClassificationSettings) =>

@@ -135,7 +135,7 @@ describe("CloudDrive", () => {
 			screen.getByText("In each of your workspaces at ~/cloud-drive"),
 		).toBeInTheDocument();
 		fireEvent.click(screen.getByRole("button", { name: "docs" }));
-		await waitFor(() => expect(list).toHaveBeenCalledWith("docs"));
+		await waitFor(() => expect(list).toHaveBeenCalledWith("docs", undefined));
 		expect(
 			await screen.findByText("This folder is empty."),
 		).toBeInTheDocument();
@@ -183,7 +183,7 @@ describe("CloudDrive", () => {
 		);
 		expect(del).not.toHaveBeenCalled();
 		fireEvent.click(screen.getByRole("button", { name: "Delete?" }));
-		await waitFor(() => expect(del).toHaveBeenCalledWith("old.log"));
+		await waitFor(() => expect(del).toHaveBeenCalledWith("old.log", undefined));
 	});
 
 	it("shows its backend read-only to a member", async () => {
@@ -532,5 +532,95 @@ describe("CloudDrive", () => {
 		expect(screen.getByTestId("cloud-drive-refresh")).toHaveAccessibleName(
 			"Refreshed",
 		);
+	});
+
+	it("opens a Cloud Drive shared with the user at once, read only where it is", async () => {
+		vi.spyOn(PlatformAPI, "getSafe").mockResolvedValue(summary);
+		vi.spyOn(PlatformAPI, "cloudDriveSettings").mockResolvedValue(settings());
+		const share = (
+			owner: string,
+			ownerName: string,
+			access: "read" | "write",
+		) => ({
+			id: `s-${owner}`,
+			from: "me-id",
+			fromName: "me",
+			owner,
+			ownerName,
+			access,
+			asked: access,
+			state: "active" as const,
+			askedAt: 1,
+		});
+		vi.spyOn(PlatformAPI, "getCloudDrivePeers").mockResolvedValue({
+			settings: {
+				enabled: true,
+				adminApproval: true,
+				updatedBy: null,
+				updatedAt: null,
+			},
+			admin: false,
+			me: "me-id",
+			asked: [
+				share("greg-id", "greg", "read"),
+				share("ann-id", "ann", "write"),
+				{ ...share("bob-id", "bob", "read"), state: "ended" },
+			],
+			ofMine: [],
+		});
+		const list = vi
+			.spyOn(PlatformAPI, "listSafe")
+			.mockImplementation(async (path, drive) => ({
+				path,
+				folders: [],
+				files: [
+					{
+						name: drive ? `${drive}.txt` : "mine.txt",
+						size: 10,
+						modified: "2026-10-18T05:00:00Z",
+					},
+				],
+			}));
+		const upload = vi
+			.spyOn(PlatformAPI, "uploadToSafe")
+			.mockImplementation(async (path, file) => ({
+				ok: true,
+				path,
+				size: file.size,
+			}));
+		renderDrive();
+		fireEvent.click(await screen.findByTestId("cloud-drive"));
+		expect(await screen.findByText("mine.txt")).toBeInTheDocument();
+		const drives = await screen.findByTestId("cloud-drive-drives");
+		// the active shares only
+		expect(
+			within(drives)
+				.getAllByRole("tab")
+				.map((t) => t.textContent),
+		).toEqual(["Mine", "greg's (read only)", "ann's (read and write)"]);
+
+		fireEvent.click(within(drives).getByText("greg's (read only)"));
+		expect(await screen.findByText("greg-id.txt")).toBeInTheDocument();
+		expect(list).toHaveBeenLastCalledWith("", "greg-id");
+		expect(screen.getByText("greg's Cloud Drive")).toBeInTheDocument();
+		expect(screen.queryByRole("button", { name: /Upload/ })).toBeNull();
+		expect(screen.queryByRole("button", { name: /New folder/ })).toBeNull();
+		expect(screen.queryByRole("button", { name: /Delete/ })).toBeNull();
+		expect(screen.getByTestId("cloud-drive-shared-footer")).toHaveTextContent(
+			"Shared with you by greg, read only",
+		);
+
+		fireEvent.click(within(drives).getByText("ann's (read and write)"));
+		expect(await screen.findByText("ann-id.txt")).toBeInTheDocument();
+		expect(screen.getByRole("button", { name: /Upload/ })).toBeInTheDocument();
+		fireEvent.change(screen.getByTestId("cloud-drive-file-input"), {
+			target: { files: [new File(["x"], "x.txt")] },
+		});
+		await waitFor(() => expect(upload).toHaveBeenCalled());
+		expect(upload.mock.calls[0][0]).toBe("x.txt");
+		expect(upload.mock.calls[0][3]).toBe("ann-id");
+
+		fireEvent.click(within(drives).getByText("Mine"));
+		expect(await screen.findByText("mine.txt")).toBeInTheDocument();
 	});
 });

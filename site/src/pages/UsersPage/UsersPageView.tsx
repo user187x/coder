@@ -13,6 +13,7 @@ import {
 	SettingsHeaderDescription,
 	SettingsHeaderTitle,
 } from "#/components/SettingsHeader/SettingsHeader";
+import { AccountShareCables } from "#/modules/platform/cloudDrive/AccountShareCables";
 import { BulkUserActions } from "#/modules/users/BulkUserActions";
 import {
 	UserActionDialogs,
@@ -44,6 +45,10 @@ export const UsersPageView: React.FC<UsersPageViewProps> = ({
 		new Set(),
 	);
 	const pageUsers = usersQuery.data?.users;
+	const userIds = useMemo(
+		() => (pageUsers ?? []).map((u) => u.id),
+		[pageUsers],
+	);
 	const selected = useMemo(
 		() => (pageUsers ?? []).filter((u) => selectedIds.has(u.id)),
 		[pageUsers, selectedIds],
@@ -91,13 +96,16 @@ export const UsersPageView: React.FC<UsersPageViewProps> = ({
 			)}
 
 			<PaginationContainer query={usersQuery} paginationUnitLabel="accounts">
-				<UsersTable
-					{...props}
-					users={pageUsers}
-					onAction={setAction}
-					selected={props.canEditUsers ? selectedIds : undefined}
-					onSelect={setSelectedIds}
-				/>
+				{/* Platform: who shares their Cloud Drive with whom, as the Cloud Drive's cables between the rows. */}
+				<AccountShareCables userIds={userIds}>
+					<UsersTable
+						{...props}
+						users={pageUsers}
+						onAction={setAction}
+						selected={props.canEditUsers ? selectedIds : undefined}
+						onSelect={setSelectedIds}
+					/>
+				</AccountShareCables>
 			</PaginationContainer>
 
 			<UserActionDialogs action={action} onClose={() => setAction(undefined)} />

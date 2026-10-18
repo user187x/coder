@@ -317,9 +317,10 @@ export const cloudDriveSourceGuard = (
 	retry: false,
 });
 
-export const safeListing = (path: string, enabled: boolean) => ({
-	queryKey: [...safeKey, "list", path],
-	queryFn: () => PlatformAPI.listSafe(path),
+/** drive: a Cloud Drive shared with the caller (its owner's id), else theirs. */
+export const safeListing = (path: string, enabled: boolean, drive = "") => ({
+	queryKey: [...safeKey, "list", drive, path],
+	queryFn: () => PlatformAPI.listSafe(path, drive || undefined),
 	enabled,
 	retry: false,
 });

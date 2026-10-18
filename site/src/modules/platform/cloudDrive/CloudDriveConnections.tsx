@@ -78,7 +78,7 @@ export const CloudDriveConnections: React.FC = () => {
 											" · takes effect once it is updated to its template's latest version"}
 										{!isShared &&
 											restart.has(w.id) &&
-											" · restart it to have the Cloud Drive as it is now (its source changed)"}
+											" · restart it to have the Cloud Drives as they are now (its source, or those shared with you, changed)"}
 									</span>
 								</label>
 								<Switch

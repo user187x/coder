@@ -15,7 +15,12 @@ import {
 	type CloudDriveShare,
 	PlatformAPI,
 } from "#/api/platform";
-import { cloudDrivePeers, cloudDrivePeersKey } from "#/api/queries/platform";
+import {
+	cloudDriveConnections,
+	cloudDrivePeers,
+	cloudDrivePeersKey,
+} from "#/api/queries/platform";
+import { workspaces } from "#/api/queries/workspaces";
 import { Alert, AlertDescription, AlertTitle } from "#/components/Alert/Alert";
 import { Button } from "#/components/Button/Button";
 import {
@@ -463,6 +468,7 @@ export const CloudDrivePeersView: React.FC = () => {
 				shares={data.asked}
 				meId={meId}
 			/>
+			{data.asked.some((s) => s.state === "active") && <SharedNowHint />}
 			<ShareList
 				title="Your Cloud Drive, shared"
 				empty="Your Cloud Drive is yours alone."
@@ -502,3 +508,31 @@ const ShareList: React.FC<{
 		)}
 	</section>
 );
+
+/**
+ * Under the drives shared with the user: open at once in Files (its drive switcher); in their workspaces from their
+ * next start - the running ones that do not have the shares as they are now, by name.
+ */
+const SharedNowHint: React.FC = () => {
+	const connections = useQuery(cloudDriveConnections());
+	const list = useQuery(workspaces({ q: "owner:me" }));
+	const restart = new Set(connections.data?.restart ?? []);
+	const names = (list.data?.workspaces ?? [])
+		.filter((w) => restart.has(w.id))
+		.map((w) => w.name);
+	return (
+		<p
+			className="-mt-3 m-0 flex items-start gap-2 text-xs text-content-secondary"
+			data-testid="shared-now-hint"
+		>
+			<CloudIcon aria-hidden className="mt-px size-3.5 shrink-0" />
+			<span>
+				Open them now in Files: pick the drive above its list. Your workspaces
+				have them at ~/cloud-drive-shared/ from their next start
+				{names.length > 0 &&
+					` - restart ${names.join(", ")} to have the shares as they are now`}
+				.
+			</span>
+		</p>
+	);
+};

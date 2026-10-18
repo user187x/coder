@@ -20,7 +20,8 @@ export const ROPES_AREA = "data-cloud-drive-area";
 /** On the row a cable is dragged over: "on" (it plugs in there) or "taken" (connected already: it would not). */
 export const DROP = "data-cloud-drive-drop";
 
-const motionless = () =>
+/** No motion: the user menu's Animations off, or the system's reduced motion. */
+export const motionless = () =>
 	document.documentElement.dataset.animations === "off" ||
 	(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false);
 

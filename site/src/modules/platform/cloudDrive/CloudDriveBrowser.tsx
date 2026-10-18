@@ -10,14 +10,14 @@ import {
 	Trash2Icon,
 	UploadIcon,
 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "react-query";
 import {
 	PlatformAPI,
 	type SafeListing,
 	type SafeSummary,
 } from "#/api/platform";
-import { safeKey, safeListing } from "#/api/queries/platform";
+import { cloudDrivePeers, safeKey, safeListing } from "#/api/queries/platform";
 import { Button } from "#/components/Button/Button";
 import {
 	breadcrumbs,
@@ -52,7 +52,22 @@ export const CloudDriveBrowser: React.FC<{ summary: SafeSummary }> = ({
 }) => {
 	const queryClient = useQueryClient();
 	const [path, setPath] = useState("");
-	const listing = useQuery(safeListing(path, true));
+	// Which Cloud Drive: the user's own (""), or one shared with them (its owner's id) - open at once, while their
+	// workspaces get it at their next start. Writing only where it is shared read and write.
+	const [drive, setDrive] = useState("");
+	const peers = useQuery(cloudDrivePeers());
+	const sharedWithMe = (peers.data?.asked ?? []).filter(
+		(s) => s.state === "active",
+	);
+	const shared = sharedWithMe.find((s) => s.owner === drive);
+	useEffect(() => {
+		if (drive && peers.isSuccess && !shared) {
+			setDrive("");
+			setPath("");
+		}
+	}, [drive, peers.isSuccess, shared]);
+	const canWrite = !drive || shared?.access === "write";
+	const listing = useQuery(safeListing(path, true, drive));
 	const [transfers, setTransfers] = useState<Transfer[]>([]);
 	const [folderName, setFolderName] = useState<string | null>(null);
 	const [confirming, setConfirming] = useState<string | null>(null);
@@ -116,8 +131,11 @@ export const CloudDriveBrowser: React.FC<{ summary: SafeSummary }> = ({
 				continue;
 			}
 			try {
-				await PlatformAPI.uploadToSafe(joinPath(path, file.name), file, (f) =>
-					patch(id, { loaded: Math.round(f * file.size) }),
+				await PlatformAPI.uploadToSafe(
+					joinPath(path, file.name),
+					file,
+					(f) => patch(id, { loaded: Math.round(f * file.size) }),
+					drive || undefined,
 				);
 				finish(id, { loaded: file.size });
 			} catch (e) {
@@ -144,7 +162,7 @@ export const CloudDriveBrowser: React.FC<{ summary: SafeSummary }> = ({
 		]);
 		try {
 			const how = await download(
-				PlatformAPI.safeDownloadUrl(target),
+				PlatformAPI.safeDownloadUrl(target, drive || undefined),
 				name,
 				size,
 				(loaded, total) => patch(id, { loaded, total }),
@@ -169,7 +187,10 @@ export const CloudDriveBrowser: React.FC<{ summary: SafeSummary }> = ({
 			return;
 		}
 		try {
-			await PlatformAPI.makeSafeFolder(joinPath(path, name));
+			await PlatformAPI.makeSafeFolder(
+				joinPath(path, name),
+				drive || undefined,
+			);
 			setFolderName(null);
 			setProblem(null);
 			await refresh();
@@ -185,7 +206,7 @@ export const CloudDriveBrowser: React.FC<{ summary: SafeSummary }> = ({
 		}
 		setConfirming(null);
 		try {
-			await PlatformAPI.deleteFromSafe(target);
+			await PlatformAPI.deleteFromSafe(target, drive || undefined);
 			await refresh();
 		} catch (e) {
 			setProblem(e instanceof Error ? e.message : "It was not deleted.");
@@ -205,7 +226,7 @@ export const CloudDriveBrowser: React.FC<{ summary: SafeSummary }> = ({
 				dragging && "cd-drop",
 			)}
 			onDragOver={(event) => {
-				if (event.dataTransfer.types.includes("Files")) {
+				if (canWrite && event.dataTransfer.types.includes("Files")) {
 					event.preventDefault();
 					setDragging(true);
 				}
@@ -218,15 +239,58 @@ export const CloudDriveBrowser: React.FC<{ summary: SafeSummary }> = ({
 			onDrop={(event) => {
 				event.preventDefault();
 				setDragging(false);
-				void uploadFiles([...event.dataTransfer.files]);
+				if (canWrite) {
+					void uploadFiles([...event.dataTransfer.files]);
+				}
 			}}
 		>
+			{sharedWithMe.length > 0 && (
+				<div
+					className="flex flex-wrap items-center gap-1.5 border-0 border-b border-solid border-border px-4 py-2 text-xs"
+					role="tablist"
+					aria-label="Cloud Drives"
+					data-testid="cloud-drive-drives"
+				>
+					{[
+						{ owner: "", label: "Mine" },
+						...sharedWithMe.map((s) => ({
+							owner: s.owner,
+							label: `${s.ownerName}'s (${s.access === "write" ? "read and write" : "read only"})`,
+						})),
+					].map((d) => (
+						<button
+							key={d.owner || "mine"}
+							type="button"
+							role="tab"
+							aria-selected={drive === d.owner}
+							onClick={() => {
+								setDrive(d.owner);
+								setPath("");
+								setFolderName(null);
+								setConfirming(null);
+							}}
+							className={cn(
+								"cursor-pointer rounded-full border border-solid px-2.5 py-0.5",
+								drive === d.owner
+									? "border-content-link bg-surface-sky text-content-primary"
+									: "border-border bg-transparent text-content-secondary hover:text-content-primary",
+							)}
+							data-testid={`cloud-drive-drive-${d.owner || "mine"}`}
+						>
+							{d.label}
+						</button>
+					))}
+				</div>
+			)}
 			<header className="flex flex-wrap items-center gap-2 border-0 border-b border-solid border-border px-4 py-3">
 				<nav
 					aria-label="Folder"
 					className="flex min-w-0 flex-1 items-center gap-1"
 				>
-					{breadcrumbs(path).map((crumb, i, all) => (
+					{breadcrumbs(
+						path,
+						shared ? `${shared.ownerName}'s Cloud Drive` : "Cloud Drive",
+					).map((crumb, i, all) => (
 						<span key={crumb.path} className="flex min-w-0 items-center gap-1">
 							{i > 0 && (
 								<ChevronRightIcon
@@ -262,18 +326,26 @@ export const CloudDriveBrowser: React.FC<{ summary: SafeSummary }> = ({
 						void uploadFiles(files);
 					}}
 				/>
-				<Button
-					size="sm"
-					variant="outline"
-					onClick={() => fileInput.current?.click()}
-				>
-					<UploadIcon />
-					Upload
-				</Button>
-				<Button size="sm" variant="outline" onClick={() => setFolderName("")}>
-					<FolderPlusIcon />
-					New folder
-				</Button>
+				{canWrite && (
+					<>
+						<Button
+							size="sm"
+							variant="outline"
+							onClick={() => fileInput.current?.click()}
+						>
+							<UploadIcon />
+							Upload
+						</Button>
+						<Button
+							size="sm"
+							variant="outline"
+							onClick={() => setFolderName("")}
+						>
+							<FolderPlusIcon />
+							New folder
+						</Button>
+					</>
+				)}
 				<Button
 					size="icon"
 					variant="subtle"
@@ -356,7 +428,9 @@ export const CloudDriveBrowser: React.FC<{ summary: SafeSummary }> = ({
 					<p className="px-3 py-8 text-center text-content-secondary">
 						{path
 							? "This folder is empty."
-							: `Your Cloud Drive is empty. Upload files here (or drop them on it), or save them in ${homePath(summary.mountPath)} in any of your workspaces.`}
+							: shared
+								? `${shared.ownerName}'s Cloud Drive is empty.`
+								: `Your Cloud Drive is empty. Upload files here (or drop them on it), or save them in ${homePath(summary.mountPath)} in any of your workspaces.`}
 					</p>
 				)}
 				{data && !empty && (
@@ -379,11 +453,13 @@ export const CloudDriveBrowser: React.FC<{ summary: SafeSummary }> = ({
 										/>
 										<span className="truncate">{folder.name}</span>
 									</button>
-									<DeleteButton
-										name={folder.name}
-										confirming={confirming === target}
-										onClick={() => void remove(target)}
-									/>
+									{canWrite && (
+										<DeleteButton
+											name={folder.name}
+											confirming={confirming === target}
+											onClick={() => void remove(target)}
+										/>
+									)}
 								</li>
 							);
 						})}
@@ -423,11 +499,13 @@ export const CloudDriveBrowser: React.FC<{ summary: SafeSummary }> = ({
 										>
 											<DownloadIcon aria-hidden className="size-4" />
 										</button>
-										<DeleteButton
-											name={file.name}
-											confirming={confirming === target}
-											onClick={() => void remove(target)}
-										/>
+										{canWrite && (
+											<DeleteButton
+												name={file.name}
+												confirming={confirming === target}
+												onClick={() => void remove(target)}
+											/>
+										)}
 									</span>
 								</li>
 							);
@@ -449,33 +527,52 @@ export const CloudDriveBrowser: React.FC<{ summary: SafeSummary }> = ({
 				</div>
 			)}
 
-			<footer className="flex flex-wrap items-center gap-x-4 gap-y-1 border-0 border-t border-solid border-border px-4 py-2.5 text-xs text-content-secondary">
-				<span className="flex items-center gap-2 tabular-nums">
-					{quota !== null && (
-						<span
-							className="cd-meter w-28"
-							data-level={levelOf(percent)}
-							role="meter"
-							aria-label="Cloud Drive used"
-							aria-valuenow={summary.usedBytes}
-							aria-valuemin={0}
-							aria-valuemax={quota}
-						>
-							<i style={{ width: `${percent}%` }} />
+			{shared ? (
+				<footer
+					className="flex flex-wrap items-center gap-x-4 gap-y-1 border-0 border-t border-solid border-border px-4 py-2.5 text-xs text-content-secondary"
+					data-testid="cloud-drive-shared-footer"
+				>
+					<span>
+						{`Shared with you by ${shared.ownerName}, ${shared.access === "write" ? "read and write" : "read only"}`}
+					</span>
+					<span>
+						{`In your workspaces at ~/cloud-drive-shared/${shared.ownerName} from their next start`}
+					</span>
+					{canWrite && (
+						<span className="ml-auto">
+							Up to {formatBytes(summary.maxUploadBytes)} a file
 						</span>
 					)}
-					{`${formatBytes(summary.usedBytes)}${quota === null ? ` in ${summary.source?.path ?? "a workspace's folder"}` : ` of ${formatBytes(quota)}`} · ${summary.files} ${summary.files === 1 ? "file" : "files"}`}
-				</span>
-				<span>
-					{summary.volume === "ready"
-						? `In each of your workspaces at ${homePath(summary.mountPath)}`
-						: "Being set up: your workspaces get it in a minute"}
-				</span>
-				<span className="ml-auto">
-					Up to {formatBytes(summary.maxUploadBytes)} a file; drop files here to
-					upload them
-				</span>
-			</footer>
+				</footer>
+			) : (
+				<footer className="flex flex-wrap items-center gap-x-4 gap-y-1 border-0 border-t border-solid border-border px-4 py-2.5 text-xs text-content-secondary">
+					<span className="flex items-center gap-2 tabular-nums">
+						{quota !== null && (
+							<span
+								className="cd-meter w-28"
+								data-level={levelOf(percent)}
+								role="meter"
+								aria-label="Cloud Drive used"
+								aria-valuenow={summary.usedBytes}
+								aria-valuemin={0}
+								aria-valuemax={quota}
+							>
+								<i style={{ width: `${percent}%` }} />
+							</span>
+						)}
+						{`${formatBytes(summary.usedBytes)}${quota === null ? ` in ${summary.source?.path ?? "a workspace's folder"}` : ` of ${formatBytes(quota)}`} · ${summary.files} ${summary.files === 1 ? "file" : "files"}`}
+					</span>
+					<span>
+						{summary.volume === "ready"
+							? `In each of your workspaces at ${homePath(summary.mountPath)}`
+							: "Being set up: your workspaces get it in a minute"}
+					</span>
+					<span className="ml-auto">
+						Up to {formatBytes(summary.maxUploadBytes)} a file; drop files here
+						to upload them
+					</span>
+				</footer>
+			)}
 		</div>
 	);
 };

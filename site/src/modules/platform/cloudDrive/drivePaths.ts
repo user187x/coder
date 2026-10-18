@@ -3,10 +3,13 @@ export const joinPath = (folder: string, name: string): string =>
 	folder ? `${folder}/${name}` : name;
 
 /** The breadcrumbs of a folder: [{name: "Cloud Drive", path: ""}, {name: "docs", path: "docs"}, ...]. */
-export const breadcrumbs = (path: string): { name: string; path: string }[] => {
+export const breadcrumbs = (
+	path: string,
+	root = "Cloud Drive",
+): { name: string; path: string }[] => {
 	const parts = path ? path.split("/") : [];
 	return [
-		{ name: "Cloud Drive", path: "" },
+		{ name: root, path: "" },
 		...parts.map((name, i) => ({
 			name,
 			path: parts.slice(0, i + 1).join("/"),

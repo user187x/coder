@@ -145,6 +145,28 @@ html.cd-dragging:has([data-cloud-drive-drop="taken"]) * {
 	stroke: hsl(var(--content-destructive));
 }
 
+/* The Accounts table's cables (AccountShareCables): a share read and write has green prongs; pointing at a cable
+   (its wide, unseen stroke) lights it up and marks its two rows. */
+.cd-share[data-access="write"] .cd-prong {
+	stroke: hsl(var(--content-success));
+}
+.cd-share-hit {
+	fill: none;
+	stroke: transparent;
+	stroke-width: 12;
+	pointer-events: stroke;
+	cursor: help;
+}
+.cd-share:hover .cd-cable {
+	stroke: hsl(var(--content-link));
+}
+.cd-share[data-access="write"]:hover .cd-cable {
+	stroke: hsl(var(--content-success));
+}
+[data-share-hover] > td {
+	background-color: hsl(var(--content-link) / 0.08);
+}
+
 /* A transfer's bar, moving: stripes running along it while it goes, and its width easing to each new value. */
 .cd-progress > i {
 	background-image: repeating-linear-gradient(
