@@ -214,7 +214,9 @@ export const SharedDriveClouds: React.FC<{
 					for (const path of g.querySelectorAll("path")) {
 						path.setAttribute("d", d);
 					}
-					const angle = (plugAngle(t, t.end) * 180) / Math.PI;
+					// in its socket it points straight down, whatever the cable does; loose, along the cable
+					const angle =
+						t.phase === "plugged" ? 90 : (plugAngle(t, t.end) * 180) / Math.PI;
 					g.querySelector(".cd-plug")?.setAttribute(
 						"transform",
 						`translate(${f(t.end.x)},${f(t.end.y)}) rotate(${Math.round(angle)})`,
@@ -435,6 +437,25 @@ export const SharedDriveClouds: React.FC<{
 	return (
 		<div className="cd-clouds" data-testid="shared-drive-clouds">
 			<svg ref={svg} aria-hidden className="cd-ropes">
+				{/* the sockets under the plugs: their prongs show going in */}
+				{shown.map((d) => (
+					<g
+						key={d.owner}
+						data-cloud-socket={d.owner}
+						className="cd-cloud-socket"
+						visibility="hidden"
+						ref={register(sockets.current, d.owner)}
+					>
+						<rect
+							className="cd-socket"
+							x={-SOCKET_W / 2}
+							y={-SOCKET_H}
+							width={SOCKET_W}
+							height={SOCKET_H + 1}
+							rx={2}
+						/>
+					</g>
+				))}
 				{shown.map((d) => (
 					<g
 						key={d.owner}
@@ -470,24 +491,6 @@ export const SharedDriveClouds: React.FC<{
 								rx={2}
 							/>
 						</g>
-					</g>
-				))}
-				{shown.map((d) => (
-					<g
-						key={d.owner}
-						data-cloud-socket={d.owner}
-						className="cd-cloud-socket"
-						visibility="hidden"
-						ref={register(sockets.current, d.owner)}
-					>
-						<rect
-							className="cd-socket"
-							x={-SOCKET_W / 2}
-							y={-SOCKET_H}
-							width={SOCKET_W}
-							height={SOCKET_H + 1}
-							rx={2}
-						/>
 					</g>
 				))}
 			</svg>
