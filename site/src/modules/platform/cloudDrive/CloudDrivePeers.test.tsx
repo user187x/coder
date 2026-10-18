@@ -21,6 +21,9 @@ const share = (over: Partial<CloudDriveShare> = {}): CloudDriveShare => ({
 	asked: "write",
 	state: "asked",
 	askedAt: 1760000000,
+	kind: "drive",
+	path: "",
+	by: "request",
 	...over,
 });
 

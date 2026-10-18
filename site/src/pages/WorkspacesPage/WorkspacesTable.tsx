@@ -91,6 +91,8 @@ import "./startingRows.css";
 import "#/modules/platform/workspaceUpdate/updatePulse.css";
 
 type WorkspacesTableProps = {
+	/** Platform: what the Actions column's header holds (the Cloud Drive), right-aligned over the rows' apps. */
+	actionsHeader?: React.ReactNode;
 	workspaces?: readonly Workspace[];
 	checkedWorkspaces: readonly Workspace[];
 	error?: unknown;
@@ -105,6 +107,7 @@ type WorkspacesTableProps = {
 };
 
 export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
+	actionsHeader,
 	workspaces,
 	checkedWorkspaces,
 	isUsingFilter,
@@ -168,8 +171,11 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 					<TableHead className={cn("w-1/3", hideHeaders && "invisible")}>
 						Status
 					</TableHead>
-					<TableHead className="w-0">
+					<TableHead className="w-0 py-1.5">
 						<span className="sr-only">Actions</span>
+						{actionsHeader && (
+							<div className="flex justify-end">{actionsHeader}</div>
+						)}
 					</TableHead>
 				</TableRow>
 			</TableHeader>

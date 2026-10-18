@@ -7,8 +7,10 @@ import {
 	FolderIcon,
 	FolderPlusIcon,
 	RefreshCwIcon,
+	Share2Icon,
 	Trash2Icon,
 	UploadIcon,
+	UsersIcon,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "react-query";
@@ -26,6 +28,8 @@ import {
 	usedPercent,
 	validName,
 } from "./drivePaths";
+import { ShareDialog } from "./ShareDialog";
+import { incomingShares, shareWhat } from "./sharedWithYou";
 import { describe, download, type Transfer } from "./transfers";
 
 /** How long Refresh spins at least, and shows its check after. */
@@ -45,32 +49,46 @@ let nextTransfer = 1;
  * The Cloud Drive's files (in its window): folders and files with their size
  * and date, upload (or drop files on it) and download, each with a moving bar,
  * how much has gone, how fast and how long is left (transfers.ts); new folder,
- * delete (asked once more); how full it is, and where its workspaces have it.
- * Opened on a drive shared with the user (`initialDrive`: its owner's id) from
- * its cloud on the Workspaces page.
+ * delete (asked once more); how full it is, and where its workspaces have it;
+ * Share - the entire drive, a folder or a file of it (ShareDialog). Opened on
+ * what is shared with the user (`initialDrive`: its owner's id, `initialPath`:
+ * the folder) from the Workspaces page's shares: there, only what is shared is
+ * reached, and written only where it is shared read and write.
  */
 export const CloudDriveBrowser: React.FC<{
 	summary: SafeSummary;
 	initialDrive?: string;
-}> = ({ summary, initialDrive = "" }) => {
+	initialPath?: string;
+}> = ({ summary, initialDrive = "", initialPath = "" }) => {
 	const queryClient = useQueryClient();
-	const [path, setPath] = useState("");
-	// Which Cloud Drive: the user's own (""), or one shared with them (its owner's id) - open at once, while their
-	// workspaces get it at their next start. Writing only where it is shared read and write.
+	const [path, setPath] = useState(initialPath);
+	// Which Cloud Drive: the user's own (""), or one shared with them - all of it or parts (its owner's id) - open at
+	// once, while their workspaces get it at their next start.
 	const [drive, setDrive] = useState(initialDrive);
 	const peers = useQuery(cloudDrivePeers());
-	const sharedWithMe = (peers.data?.asked ?? []).filter(
-		(s) => s.state === "active",
-	);
-	const shared = sharedWithMe.find((s) => s.owner === drive);
+	const incoming = incomingShares(peers.data);
+	const fromOwner = incoming.filter((s) => s.owner === drive);
+	const owners = [...new Map(incoming.map((s) => [s.owner, s])).values()];
+	const shared = fromOwner[0];
 	useEffect(() => {
 		if (drive && peers.isSuccess && !shared) {
 			setDrive("");
 			setPath("");
 		}
 	}, [drive, peers.isSuccess, shared]);
-	const canWrite = !drive || shared?.access === "write";
 	const listing = useQuery(safeListing(path, true, drive));
+	// In a shared drive, the folder says what the user may do there (null: a folder on the way to what is shared).
+	const canWrite = !drive || listing.data?.access === "write";
+	// What of the user's own drive is shared already (a mark on it), and what they are sharing now.
+	const sharedOfMine = new Set(
+		(peers.data?.ofMine ?? [])
+			.filter((s) => ["asked", "approval", "active"].includes(s.state))
+			.map((s) => s.path ?? ""),
+	);
+	const [sharing, setSharing] = useState<{
+		path: string;
+		kind: "drive" | "folder" | "file";
+	} | null>(null);
 	const [transfers, setTransfers] = useState<Transfer[]>([]);
 	const [folderName, setFolderName] = useState<string | null>(null);
 	const [confirming, setConfirming] = useState<string | null>(null);
@@ -247,7 +265,7 @@ export const CloudDriveBrowser: React.FC<{
 				}
 			}}
 		>
-			{sharedWithMe.length > 0 && (
+			{owners.length > 0 && (
 				<div
 					className="flex flex-wrap items-center gap-1.5 border-0 border-b border-solid border-border px-4 py-2 text-xs"
 					role="tablist"
@@ -256,10 +274,16 @@ export const CloudDriveBrowser: React.FC<{
 				>
 					{[
 						{ owner: "", label: "Mine" },
-						...sharedWithMe.map((s) => ({
-							owner: s.owner,
-							label: `${s.ownerName}'s (${s.access === "write" ? "read and write" : "read only"})`,
-						})),
+						...owners.map((s) => {
+							const parts = incoming.filter((x) => x.owner === s.owner);
+							const whole = parts.find((x) => x.kind === "drive");
+							return {
+								owner: s.owner,
+								label: whole
+									? `${s.ownerName}'s (${whole.access === "write" ? "read and write" : "read only"})`
+									: `${s.ownerName}'s (${parts.length} shared)`,
+							};
+						}),
 					].map((d) => (
 						<button
 							key={d.owner || "mine"}
@@ -329,6 +353,18 @@ export const CloudDriveBrowser: React.FC<{
 						void uploadFiles(files);
 					}}
 				/>
+				{!drive && (
+					<Button
+						size="sm"
+						variant="outline"
+						onClick={() => setSharing({ path: "", kind: "drive" })}
+						data-testid="cloud-drive-share-drive"
+						title="Share your entire Cloud Drive"
+					>
+						<Share2Icon />
+						Share drive
+					</Button>
+				)}
 				{canWrite && (
 					<>
 						<Button
@@ -455,14 +491,34 @@ export const CloudDriveBrowser: React.FC<{
 											className="size-4 shrink-0 text-content-link"
 										/>
 										<span className="truncate">{folder.name}</span>
+										{!drive &&
+											sharedOfMine.has(joinPath(path, folder.name)) && (
+												<SharedMark />
+											)}
+										{drive && folder.access && (
+											<AccessMark access={folder.access} />
+										)}
 									</button>
-									{canWrite && (
-										<DeleteButton
-											name={folder.name}
-											confirming={confirming === target}
-											onClick={() => void remove(target)}
-										/>
-									)}
+									<span className="flex items-center gap-1">
+										{!drive && (
+											<ShareButton
+												name={folder.name}
+												onClick={() =>
+													setSharing({
+														path: joinPath(path, folder.name),
+														kind: "folder",
+													})
+												}
+											/>
+										)}
+										{canWrite && (
+											<DeleteButton
+												name={folder.name}
+												confirming={confirming === target}
+												onClick={() => void remove(target)}
+											/>
+										)}
+									</span>
 								</li>
 							);
 						})}
@@ -481,6 +537,10 @@ export const CloudDriveBrowser: React.FC<{
 										<span className="truncate" title={file.name}>
 											{file.name}
 										</span>
+										{!drive && sharedOfMine.has(target) && <SharedMark />}
+										{drive && file.access && (
+											<AccessMark access={file.access} />
+										)}
 									</span>
 									<span className="text-right text-xs tabular-nums text-content-secondary">
 										{formatBytes(file.size)}
@@ -502,6 +562,14 @@ export const CloudDriveBrowser: React.FC<{
 										>
 											<DownloadIcon aria-hidden className="size-4" />
 										</button>
+										{!drive && (
+											<ShareButton
+												name={file.name}
+												onClick={() =>
+													setSharing({ path: target, kind: "file" })
+												}
+											/>
+										)}
 										{canWrite && (
 											<DeleteButton
 												name={file.name}
@@ -530,13 +598,25 @@ export const CloudDriveBrowser: React.FC<{
 				</div>
 			)}
 
+			{sharing && (
+				<ShareDialog
+					path={sharing.path}
+					kind={sharing.kind}
+					onClose={() => setSharing(null)}
+				/>
+			)}
 			{shared ? (
 				<footer
 					className="flex flex-wrap items-center gap-x-4 gap-y-1 border-0 border-t border-solid border-border px-4 py-2.5 text-xs text-content-secondary"
 					data-testid="cloud-drive-shared-footer"
 				>
 					<span>
-						{`Shared with you by ${shared.ownerName}, ${shared.access === "write" ? "read and write" : "read only"}`}
+						{`Shared with you by ${shared.ownerName}: ${fromOwner
+							.map(
+								(s) =>
+									`${s.kind === "drive" ? "their entire Cloud Drive" : `the ${shareWhat(s)}`} (${s.access === "write" ? "read and write" : "read only"})`,
+							)
+							.join(", ")}`}
 					</span>
 					<span>
 						{`In your workspaces at ~/cloud-drive-shared/${shared.ownerName} from their next start`}
@@ -579,6 +659,47 @@ export const CloudDriveBrowser: React.FC<{
 		</div>
 	);
 };
+
+/** A mark on what of the user's own drive is shared with someone. */
+const SharedMark: React.FC = () => (
+	<span
+		className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-surface-sky px-1.5 text-[11px] text-content-link"
+		title="Shared with someone"
+		data-testid="cloud-drive-shared-mark"
+	>
+		<UsersIcon aria-hidden className="size-3" />
+		shared
+	</span>
+);
+
+/** In a folder on the way to what is shared with the user: what each shared one gives. */
+const AccessMark: React.FC<{ access: "read" | "write" }> = ({ access }) => (
+	<span
+		className={cn(
+			"inline-flex shrink-0 items-center rounded-full px-1.5 text-[11px]",
+			access === "write"
+				? "bg-surface-green text-content-success"
+				: "bg-surface-sky text-content-link",
+		)}
+	>
+		{access === "write" ? "read and write" : "read only"}
+	</span>
+);
+
+const ShareButton: React.FC<{ name: string; onClick: () => void }> = ({
+	name,
+	onClick,
+}) => (
+	<button
+		type="button"
+		aria-label={`Share ${name}`}
+		title={`Share ${name}`}
+		onClick={onClick}
+		className="inline-flex size-7 cursor-pointer items-center justify-center rounded border-0 bg-transparent text-content-secondary opacity-60 hover:text-content-link hover:opacity-100 group-hover:opacity-100"
+	>
+		<Share2Icon aria-hidden className="size-4" />
+	</button>
+);
 
 const DeleteButton: React.FC<{
 	name: string;

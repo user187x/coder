@@ -19,6 +19,9 @@ const share = (
 	asked: "read",
 	state: "active",
 	askedAt: 1,
+	kind: "drive",
+	path: "",
+	by: "request",
 	...over,
 });
 

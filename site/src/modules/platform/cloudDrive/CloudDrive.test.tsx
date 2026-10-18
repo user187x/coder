@@ -399,7 +399,7 @@ describe("CloudDrive", () => {
 		});
 		vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
 			function (this: HTMLElement) {
-				return this.dataset.testid === "cloud-drive"
+				return this.dataset.testid === "cloud-drive-container"
 					? rect(640, 20, 160, 32)
 					: rect(0, 0, 0, 0);
 			},
@@ -551,6 +551,9 @@ describe("CloudDrive", () => {
 			asked: access,
 			state: "active" as const,
 			askedAt: 1,
+			kind: "drive" as const,
+			path: "",
+			by: "request" as const,
 		});
 		vi.spyOn(PlatformAPI, "getCloudDrivePeers").mockResolvedValue({
 			settings: {
@@ -572,6 +575,8 @@ describe("CloudDrive", () => {
 			.spyOn(PlatformAPI, "listSafe")
 			.mockImplementation(async (path, drive) => ({
 				path,
+				// in a shared drive, what the user may do there
+				access: drive ? (drive === "ann-id" ? "write" : "read") : undefined,
 				folders: [],
 				files: [
 					{
@@ -592,12 +597,12 @@ describe("CloudDrive", () => {
 		fireEvent.click(await screen.findByTestId("cloud-drive"));
 		expect(await screen.findByText("mine.txt")).toBeInTheDocument();
 		const drives = await screen.findByTestId("cloud-drive-drives");
-		// the active shares only
+		// the active shares only, by owner
 		expect(
 			within(drives)
 				.getAllByRole("tab")
 				.map((t) => t.textContent),
-		).toEqual(["Mine", "greg's (read only)", "ann's (read and write)"]);
+		).toEqual(["Mine", "ann's (read and write)", "greg's (read only)"]);
 
 		fireEvent.click(within(drives).getByText("greg's (read only)"));
 		expect(await screen.findByText("greg-id.txt")).toBeInTheDocument();
@@ -607,7 +612,7 @@ describe("CloudDrive", () => {
 		expect(screen.queryByRole("button", { name: /New folder/ })).toBeNull();
 		expect(screen.queryByRole("button", { name: /Delete/ })).toBeNull();
 		expect(screen.getByTestId("cloud-drive-shared-footer")).toHaveTextContent(
-			"Shared with you by greg, read only",
+			"Shared with you by greg: their entire Cloud Drive (read only)",
 		);
 
 		fireEvent.click(within(drives).getByText("ann's (read and write)"));

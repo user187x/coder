@@ -195,8 +195,8 @@ export const CloudDriveShareCard: React.FC<{
 		>
 			<span className="flex items-center gap-1.5 font-medium">
 				<CloudIcon aria-hidden className="size-3.5 text-content-link" />
-				{share.owner === meId ? "Your" : `${share.ownerName}'s`} Cloud Drive for{" "}
-				{share.from === meId ? "you" : share.fromName}
+				{share.owner === meId ? "Your" : `${share.ownerName}'s`}{" "}
+				{sharedThing(share)} for {share.from === meId ? "you" : share.fromName}
 				<span className="text-content-secondary">
 					({ACCESS_WORDS[share.access]})
 				</span>
@@ -271,6 +271,12 @@ export const AskForCloudDriveDialog: React.FC<{
 	);
 };
 
+/** What of the owner's drive a share is: "Cloud Drive" (all of it), "folder docs", "file plan.md". */
+export const sharedThing = (share: Pick<CloudDriveShare, "kind" | "path">) =>
+	!share.kind || share.kind === "drive"
+		? "Cloud Drive"
+		: `${share.kind} ${share.path}`;
+
 const ShareRow: React.FC<{
 	share: CloudDriveShare;
 	meId?: string;
@@ -287,11 +293,14 @@ const ShareRow: React.FC<{
 		>
 			<span className="min-w-0 flex-1">
 				<span className="font-medium">{share.ownerName}</span>
-				<span className="text-content-secondary">'s Cloud Drive for </span>
+				<span className="text-content-secondary">
+					's {sharedThing(share)} for{" "}
+				</span>
 				<span className="font-medium">{share.fromName}</span>
 				<span className="text-content-secondary">
 					{" "}
-					· {ACCESS_WORDS[share.access]} · asked {when(share.askedAt)}
+					· {ACCESS_WORDS[share.access]} ·{" "}
+					{share.by === "owner" ? "shared" : "asked"} {when(share.askedAt)}
 					{share.approvedBy && share.state === "active"
 						? ` · approved by ${share.approvedBy}`
 						: ""}

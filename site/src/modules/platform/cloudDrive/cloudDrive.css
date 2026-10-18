@@ -167,64 +167,79 @@ html.cd-dragging:has([data-cloud-drive-drop="taken"]) * {
 	background-color: hsl(var(--content-link) / 0.08);
 }
 
-/* The Workspaces page's clouds (SharedDriveClouds): a Cloud Drive shared with the user, a dotted cloud with its
-   owner's avatar floating above their Cloud Drive button, tethered to a socket on its top edge - dots and prongs green
-   read and write, blue read only. It drifts in, and fades away once its cable has reeled in; pointed at, it lifts,
-   its dots run round it and its cable lights up. */
-.cd-clouds {
-	position: absolute;
-	inset: 0;
-	z-index: 6;
-	pointer-events: none;
-}
-.cd-cloud {
-	position: absolute;
-	left: 0;
-	top: 0;
+/* The Cloud Drive's leading cloud (SharedWithYou): while other users share something with the user, a plus in it,
+   glowing and pulsing in the shared colour (blue read only, green when anything is shared read and write). */
+.cd-shares-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
 	padding: 0;
 	border: 0;
+	border-radius: 9999px;
 	background: transparent;
+	color: hsl(var(--content-secondary));
 	cursor: pointer;
-	pointer-events: auto;
+	--cd-share: var(--content-link);
 }
-.cd-cloud:focus-visible {
+.cd-shares-icon[data-access="write"] {
+	--cd-share: var(--content-success);
+}
+.cd-shares-icon:hover,
+.cd-shares-icon:focus-visible {
+	color: hsl(var(--content-primary));
+	background: hsl(var(--surface-secondary));
 	outline: none;
 }
-.cd-cloud-body {
-	position: relative;
-	display: block;
-	width: 100%;
-	height: 100%;
-	transition: transform 200ms ease;
+.cd-shares-icon[data-shares] {
+	color: hsl(var(--cd-share));
 }
-.cd-cloud-body > svg {
-	display: block;
-	overflow: visible;
+.cd-shares-icon[data-shares]::before {
+	content: "";
+	position: absolute;
+	inset: 3px;
+	border-radius: 9999px;
+	pointer-events: none;
+	animation: cd-shares-pulse 2.4s ease-out infinite;
 }
-.cd-cloud:hover .cd-cloud-body,
-.cd-cloud:focus-visible .cd-cloud-body {
-	transform: translateY(-2px) scale(1.05);
+.cd-shares-icon[data-shares] > svg {
+	animation: cd-shares-glow 2.4s ease-in-out infinite;
 }
-.cd-cloud-outline {
-	fill: hsl(var(--surface-primary) / 0.92);
-	stroke: hsl(var(--content-link));
-	stroke-width: 1.9;
-	stroke-linecap: round;
-	stroke-dasharray: 0.01 4.2;
+.cd-shares-plus {
+	stroke-width: 2.4;
 }
-.cd-cloud[data-access="write"] .cd-cloud-outline {
-	stroke: hsl(var(--content-success));
-}
-.cd-cloud:hover .cd-cloud-outline,
-.cd-cloud:focus-visible .cd-cloud-outline {
-	animation: cd-cloud-dots 1.1s linear infinite;
-}
-@keyframes cd-cloud-dots {
-	to {
-		stroke-dashoffset: -8.42;
+@keyframes cd-shares-pulse {
+	0% {
+		box-shadow: 0 0 0 0 hsl(var(--cd-share) / 0.55);
+	}
+	70%,
+	100% {
+		box-shadow: 0 0 0 9px hsl(var(--cd-share) / 0);
 	}
 }
-.cd-cloud-avatar {
+@keyframes cd-shares-glow {
+	0%,
+	100% {
+		filter: drop-shadow(0 0 1px hsl(var(--cd-share) / 0.6));
+	}
+	50% {
+		filter: drop-shadow(0 0 5px hsl(var(--cd-share) / 0.95));
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.cd-shares-icon[data-shares]::before,
+	.cd-shares-icon[data-shares] > svg {
+		animation: none !important;
+	}
+}
+html[data-animations="off"] .cd-shares-icon::before,
+html[data-animations="off"] .cd-shares-icon > svg {
+	animation: none !important;
+}
+
+/* A share's card's avatar (the owner's picture, or their initials). */
+.cd-avatar {
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -235,57 +250,31 @@ html.cd-dragging:has([data-cloud-drive-drop="taken"]) * {
 	font-weight: 600;
 	line-height: 1;
 }
-.cd-cloud-avatar > img {
+.cd-avatar > img {
 	display: block;
 	width: 100%;
 	height: 100%;
 	object-fit: cover;
 }
-.cd-cloud[data-phase="arriving"] .cd-cloud-body {
-	animation: cd-cloud-in 450ms ease-out both;
+.cd-share-card[data-access="write"] {
+	border-left: 3px solid hsl(var(--content-success));
 }
-.cd-cloud[data-phase="vanishing"] .cd-cloud-body {
-	animation: cd-cloud-out 420ms ease-in both;
+.cd-share-card[data-access="read"] {
+	border-left: 3px solid hsl(var(--content-link));
 }
-@keyframes cd-cloud-in {
-	from {
-		opacity: 0;
-		transform: translateY(-12px) scale(0.85);
-		filter: blur(2px);
-	}
+
+/* The capacity bar's part for an entire drive shared with the user read and write: striped and outlined in the shared
+   colour, apart from their own drive's bar. */
+.cd-capacity-shared {
+	background: repeating-linear-gradient(
+		-45deg,
+		hsl(var(--content-success) / 0.28) 0 3px,
+		hsl(var(--content-success) / 0.08) 3px 6px
+	);
+	box-shadow: inset 0 0 0 1px hsl(var(--content-success) / 0.55);
 }
-@keyframes cd-cloud-out {
-	to {
-		opacity: 0;
-		transform: translateY(-8px) scale(1.25);
-		filter: blur(3px);
-	}
-}
-.cd-tether[data-lit] .cd-cable {
-	stroke: hsl(var(--content-link));
-}
-.cd-tether[data-lit][data-access="write"] .cd-cable {
-	stroke: hsl(var(--content-success));
-}
-/* its socket stands on the button's top edge: it bumps upwards */
-.cd-cloud-socket.cd-gulp .cd-socket {
-	animation: cd-gulp-socket 260ms ease-out;
-	transform-origin: center bottom;
-	transform-box: fill-box;
-}
-html[data-animations="off"] .cd-cloud-body,
-html[data-animations="off"] .cd-cloud-outline,
-html[data-animations="off"] .cd-cloud-socket .cd-socket {
-	animation: none !important;
-	transition: none;
-}
-@media (prefers-reduced-motion: reduce) {
-	.cd-cloud-body,
-	.cd-cloud-outline,
-	.cd-cloud-socket .cd-socket {
-		animation: none !important;
-		transition: none;
-	}
+.cd-capacity-shared > span {
+	background: hsl(var(--content-success));
 }
 
 /* A transfer's bar, moving: stripes running along it while it goes, and its width easing to each new value. */

@@ -1022,6 +1022,11 @@ export type CloudDriveShare = {
 	/** What was asked for (the owner may give read only instead of write). */
 	asked: "read" | "write";
 	state: "asked" | "approval" | "active" | "declined" | "denied" | "ended";
+	/** What of the owner's drive: all of it (path ""), a folder or a file. */
+	kind: "drive" | "folder" | "file";
+	path: string;
+	/** Asked for by the other user, or shared by the owner. */
+	by: "request" | "owner";
 	askedAt: number;
 	answeredAt?: number | null;
 	approvedBy?: string | null;
@@ -1450,6 +1455,18 @@ export type SafeSummary = {
 	encrypted?: boolean;
 	/** A folder of one of the owner's workspaces is the Cloud Drive. */
 	source?: CloudDriveSource | null;
+	/** Entire Cloud Drives shared with the user read and write: room they can use besides their own. */
+	shared?: SharedCapacity[];
+};
+
+/** An entire Cloud Drive shared with the user read and write (SafeSummary.shared). */
+export type SharedCapacity = {
+	owner: string;
+	ownerName: string;
+	/** null: its owner's workspace folder is that drive (no capacity to count). */
+	quotaBytes: number | null;
+	/** null: it cannot be read now. */
+	usedBytes: number | null;
 };
 
 /** Persistence > Disaster recovery: where Coder's database is dumped or copied outside the cluster. */
@@ -1653,8 +1670,12 @@ export type CloudDriveConnections = {
 /** A folder of the Cloud Drive: its folders and files (path "" is the top). */
 export type SafeListing = {
 	path: string;
-	folders: { name: string }[];
-	files: SafeFile[];
+	/** In a Cloud Drive shared with the caller: what they may do in this folder (null: a folder on the way to what is
+	 * shared, listing just that); absent in their own. */
+	access?: "read" | "write" | null;
+	/** In such a folder on the way, each entry's own access (null: a folder on the way). */
+	folders: { name: string; access?: "read" | "write" | null }[];
+	files: (SafeFile & { access?: "read" | "write" | null })[];
 };
 
 /** A Cloud Drive at a glance (the HUD of a drive shared with the caller, on the Workspaces page). */
@@ -1665,6 +1686,8 @@ export type CloudDriveGlance = {
 	newest: { path: string; size: number; modified: string | null }[];
 	/** Its owner, when it is shared with the caller. */
 	owner: { id: string; username: string; name: string } | null;
+	/** The share (a folder or file of the drive, or all of it) when one was asked for. */
+	share?: Pick<CloudDriveShare, "id" | "kind" | "path" | "access"> | null;
 };
 
 /** The Cloud Drive's backend's last check. */
@@ -1777,10 +1800,10 @@ export const PlatformAPI = {
 	/** drive: a Cloud Drive shared with the caller (its owner's id) - every file route takes it. */
 	listSafe: (path: string, drive?: string) =>
 		get<SafeListing>(`${PLATFORM_BASE}/api/safe/list${safeQuery(path, drive)}`),
-	/** How many files, how much, the newest few: a drive shared with the caller (its owner's id). */
-	getCloudDriveGlance: (drive: string) =>
+	/** How many files, how much, the newest few: what is shared with the caller (its owner's id; share: one share). */
+	getCloudDriveGlance: (drive: string, share?: string) =>
 		get<CloudDriveGlance>(
-			`${PLATFORM_BASE}/api/safe/glance?drive=${encodeURIComponent(drive)}`,
+			`${PLATFORM_BASE}/api/safe/glance?drive=${encodeURIComponent(drive)}${share ? `&share=${encodeURIComponent(share)}` : ""}`,
 		),
 	/** A file of the Cloud Drive, as a download (the browser's own request: a link). */
 	safeDownloadUrl: (path: string, drive?: string) =>
@@ -1854,6 +1877,17 @@ export const PlatformAPI = {
 		post<CloudDrivePeers & { share: CloudDriveShare }>(
 			`${PLATFORM_BASE}/api/safe/peers/request`,
 			{ owner, access },
+		),
+	/** The owner shares their entire drive (path ""), a folder or a file of it. */
+	shareCloudDrive: (to: string, path: string, access: "read" | "write") =>
+		post<CloudDrivePeers & { share: CloudDriveShare }>(
+			`${PLATFORM_BASE}/api/safe/peers/share`,
+			{ to, path, access },
+		),
+	/** Whom one can share with: the deployment's active users but the caller. */
+	getCloudDrivePeople: () =>
+		get<{ people: { id: string; username: string; name: string }[] }>(
+			`${PLATFORM_BASE}/api/safe/peers/people`,
 		),
 	answerCloudDriveShare: (
 		id: string,
