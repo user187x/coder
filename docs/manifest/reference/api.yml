@@ -6,5 +6,3 @@ children_from: generated/rest-api.json
 children:
   - title: Agents
     description: REST endpoints for the workspace agent daemon (`coder_agent`).
-  - title: Chats
-    description: REST endpoints for Coder Agents Chats API (programmatic agent sessions).

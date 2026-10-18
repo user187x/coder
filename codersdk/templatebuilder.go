@@ -177,3 +177,97 @@ func (c *Client) TemplateBuilderCreateTemplate(ctx context.Context, req Template
 	var resp TemplateBuilderCreateTemplateResponse
 	return resp, ReadBodyAsJSON(res, &resp)
 }
+
+// TemplateDecorator is the template decorator (coderd/templatedecorator): the
+// platform's sections of the deployment's base template, which Coder injects
+// into every template that lacks them when it is provisioned, and the files
+// they read - the global files, provided to every template under .platform/.
+type TemplateDecorator struct {
+	Enabled bool `json:"enabled"`
+	// BaseTemplate is the base template's name (TemplateBuilder.BaseTemplate).
+	BaseTemplate string                     `json:"base_template"`
+	BaseVersion  uuid.UUID                  `json:"base_version" format:"uuid"`
+	Features     []string                   `json:"features"`
+	Sections     []TemplateDecoratorSection `json:"sections"`
+	GlobalFiles  []TemplateDecoratorFile    `json:"global_files"`
+	// Error: the base template's sections could not be read.
+	Error string `json:"error,omitempty"`
+}
+
+// TemplateDecoratorSection is one platform section of the base template.
+type TemplateDecoratorSection struct {
+	Feature string `json:"feature"`
+	// Placement: top, agent, pod-metadata, pod-spec or container.
+	Placement string `json:"placement"`
+	Text      string `json:"text"`
+}
+
+// TemplateDecoratorFile is a file the decorator provides to every template.
+type TemplateDecoratorFile struct {
+	Name string `json:"name"`
+	// Path in a decorated template (.platform/<name>).
+	Path    string `json:"path"`
+	Size    int    `json:"size"`
+	Content string `json:"content"`
+	// Reference: how a template uses it (the base template's own use of it).
+	Reference string   `json:"reference"`
+	Features  []string `json:"features"`
+}
+
+// TemplateMaterializeRequest is the request body for
+// POST /api/v2/templatebuilder/materialize: a template version's files, or
+// files as given (the editor's).
+type TemplateMaterializeRequest struct {
+	TemplateVersionID uuid.UUID         `json:"template_version_id,omitempty" format:"uuid"`
+	Files             map[string]string `json:"files,omitempty"`
+}
+
+// TemplateMaterializeResponse is a template's Terraform as Coder provisions it:
+// its own code with the decorator's sections injected.
+type TemplateMaterializeResponse struct {
+	// MainTF is main.tf as it is provisioned (the file with the agent, when the
+	// template has no main.tf).
+	MainTF     string `json:"main_tf"`
+	MainTFName string `json:"main_tf_name"`
+	// Changed: every .tf file the decorator changed, as provisioned.
+	Changed map[string]string `json:"changed"`
+	// Added: the files the decorator adds (.platform/...).
+	Added    []string                `json:"added"`
+	Injected []string                `json:"injected"`
+	Skipped  []TemplateDecoratorSkip `json:"skipped"`
+	Enabled  bool                    `json:"enabled"`
+}
+
+// TemplateDecoratorSkip is a feature the decorator did not inject, and why.
+type TemplateDecoratorSkip struct {
+	Feature string `json:"feature"`
+	Reason  string `json:"reason"`
+}
+
+// TemplateDecorator reads the template decorator's sections and global files.
+func (c *Client) TemplateDecorator(ctx context.Context) (TemplateDecorator, error) {
+	res, err := c.Request(ctx, http.MethodGet, "/api/v2/templatebuilder/decorator", nil)
+	if err != nil {
+		return TemplateDecorator{}, err
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		return TemplateDecorator{}, ReadBodyAsError(res)
+	}
+	var resp TemplateDecorator
+	return resp, json.NewDecoder(res.Body).Decode(&resp)
+}
+
+// TemplateMaterialize is a template's Terraform as Coder provisions it.
+func (c *Client) TemplateMaterialize(ctx context.Context, req TemplateMaterializeRequest) (TemplateMaterializeResponse, error) {
+	res, err := c.Request(ctx, http.MethodPost, "/api/v2/templatebuilder/materialize", req)
+	if err != nil {
+		return TemplateMaterializeResponse{}, err
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		return TemplateMaterializeResponse{}, ReadBodyAsError(res)
+	}
+	var resp TemplateMaterializeResponse
+	return resp, json.NewDecoder(res.Body).Decode(&resp)
+}

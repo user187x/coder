@@ -51,11 +51,35 @@ func untarForTest(t *testing.T, data []byte) map[string]string {
 }
 
 // The deployment's own base template (TemplateBuilder.BaseTemplate) is the builder's only base: a new template
-// starts from a copy of its active version's files.
+// starts from a copy of its active version's own logic - its platform sections and the files only they read left
+// out, the builder's app choices as its variables' defaults - and the template decorator injects the sections back
+// when the template is provisioned (the Materialized view shows them).
 func TestTemplateBuilderPlatformBase(t *testing.T) {
 	t.Parallel()
 
-	const mainTF = "resource \"coder_agent\" \"main\" {\n  os   = \"linux\"\n  arch = \"amd64\"\n}\n"
+	const mainTF = `variable "desktop" {
+  type    = bool
+  default = true
+}
+
+data "coder_workspace_owner" "me" {}
+
+# platform:begin certificates
+resource "coder_script" "user_certificates" {
+  agent_id     = coder_agent.main.id
+  display_name = "Certificates"
+  script = templatefile("${path.module}/scripts/certificates.sh", {
+    owner_name = data.coder_workspace_owner.me.name
+  })
+}
+# platform:end certificates
+
+resource "coder_agent" "main" {
+  os             = "linux"
+  arch           = "amd64"
+  startup_script = file("${path.module}/scripts/startup.sh")
+}
+`
 	dv := coderdtest.DeploymentValues(t)
 	dv.TemplateBuilder.BaseTemplate = "ubuntu-base"
 	db, ps := dbtestutil.NewDB(t)
@@ -66,9 +90,9 @@ func TestTemplateBuilderPlatformBase(t *testing.T) {
 		CreatedBy: owner.UserID,
 		Mimetype:  codersdk.ContentTypeTar,
 		Data: platformBaseTar(t, map[string]string{
-			"main.tf":                mainTF,
-			"certificates.tf":        "# the user's certificate\n",
-			"scripts/cloud-drive.sh": "#!/bin/sh\n",
+			"main.tf":                 mainTF,
+			"scripts/certificates.sh": "#!/bin/sh\necho certificate\n",
+			"scripts/startup.sh":      "#!/bin/sh\n",
 		}),
 	})
 	job := dbgen.ProvisionerJob(t, db, nil, database.ProvisionerJob{
@@ -105,12 +129,42 @@ func TestTemplateBuilderPlatformBase(t *testing.T) {
 	require.Equal(t, "platform", bases.Bases[0].ID)
 	require.Equal(t, "UBUNTU", bases.Bases[0].Name)
 
-	data, err := client.TemplateBuilderCompose(ctx, codersdk.TemplateBuilderComposeRequest{BaseTemplateID: "platform"})
+	// A new template: the base's own logic, without the Desktop.
+	data, err := client.TemplateBuilderCompose(ctx, codersdk.TemplateBuilderComposeRequest{
+		BaseTemplateID:     "platform",
+		BaseVariableValues: map[string]string{"desktop": "false"},
+	})
 	require.NoError(t, err)
 	files := untarForTest(t, data)
-	require.Equal(t, mainTF, files["main.tf"])
-	require.Equal(t, "# the user's certificate\n", files["certificates.tf"])
-	require.Equal(t, "#!/bin/sh\n", files["scripts/cloud-drive.sh"])
+	require.NotContains(t, files["main.tf"], "platform:")
+	require.NotContains(t, files["main.tf"], "user_certificates")
+	require.Regexp(t, `default\s*=\s*false`, files["main.tf"])
+	require.NotContains(t, files, "scripts/certificates.sh") // only the platform's section read it
+	require.Equal(t, "#!/bin/sh\n", files["scripts/startup.sh"])
+
+	// The decorator: the base's sections, and the files it provides to every template.
+	deco, err := client.TemplateDecorator(ctx)
+	require.NoError(t, err)
+	require.True(t, deco.Enabled, deco.Error)
+	require.Equal(t, []string{"certificates"}, deco.Features)
+	require.Len(t, deco.GlobalFiles, 1)
+	require.Equal(t, ".platform/certificates.sh", deco.GlobalFiles[0].Path)
+	require.Equal(t, "#!/bin/sh\necho certificate\n", deco.GlobalFiles[0].Content)
+	require.Contains(t, deco.GlobalFiles[0].Reference, `templatefile("${path.module}/.platform/certificates.sh"`)
+
+	// The new template as it is provisioned: the certificate's section back in its main.tf.
+	mat, err := client.TemplateMaterialize(ctx, codersdk.TemplateMaterializeRequest{Files: files})
+	require.NoError(t, err)
+	require.True(t, mat.Enabled)
+	require.Equal(t, []string{"certificates"}, mat.Injected)
+	require.Contains(t, mat.MainTF, `resource "coder_script" "user_certificates"`)
+	require.Contains(t, mat.MainTF, ".platform/certificates.sh")
+	require.Equal(t, []string{".platform/certificates.sh"}, mat.Added)
+	// The base itself has it: nothing to inject.
+	mat, err = client.TemplateMaterialize(ctx, codersdk.TemplateMaterializeRequest{TemplateVersionID: version.ID})
+	require.NoError(t, err)
+	require.Empty(t, mat.Injected)
+	require.Equal(t, mainTF, mat.MainTF)
 
 	// The builder's own bases are not offered.
 	_, err = client.TemplateBuilderCompose(ctx, codersdk.TemplateBuilderComposeRequest{BaseTemplateID: "kubernetes"})

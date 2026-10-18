@@ -17,6 +17,7 @@ import type {
 } from "./wizardState";
 import {
 	type CustomizationsFormValues,
+	PLATFORM_BASE_ID,
 	toCreateTemplateRequest,
 	toSelectedBaseMeta,
 } from "./wizardState";
@@ -43,6 +44,10 @@ const TemplateBuilderPage: React.FC = () => {
 	// and removed from the URL before the wizard mounts.
 	const baseParam = searchParams.get("base");
 	const [preselectedBase, setPreselectedBase] = useState<SelectedBaseMeta>();
+	// The deployment's own base (the UBUNTU prototype): every new template's, chosen without a choice shown.
+	const platformBase = basesQuery.data?.bases?.find(
+		(b) => b.id === PLATFORM_BASE_ID,
+	);
 	useEffect(() => {
 		if (!baseParam || !basesQuery.data) {
 			return;
@@ -56,9 +61,9 @@ const TemplateBuilderPage: React.FC = () => {
 		setSearchParams(next, { replace: true });
 	}, [baseParam, basesQuery.data, searchParams, setSearchParams]);
 
-	// Hold the wizard until ?base= has been fully consumed so it mounts
-	// exactly once with its initial state settled.
-	if (isLoading || baseParam) {
+	// Hold the wizard until ?base= has been fully consumed, and the bases are known (the deployment's own is
+	// preselected), so it mounts exactly once with its initial state settled.
+	if (isLoading || baseParam || (wizardReady && basesQuery.isLoading)) {
 		return <Loader />;
 	}
 
@@ -93,7 +98,9 @@ const TemplateBuilderPage: React.FC = () => {
 			<TemplateBuilderPageView
 				error={error}
 				basesData={basesQuery.data}
-				preselectedBase={preselectedBase}
+				preselectedBase={
+					platformBase ? toSelectedBaseMeta(platformBase) : preselectedBase
+				}
 				onCreateTemplate={handleCreate}
 				createError={createMutation.error}
 				isCreating={createMutation.isPending || createMutation.isSuccess}

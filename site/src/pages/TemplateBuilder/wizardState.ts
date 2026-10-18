@@ -23,6 +23,23 @@ export type SelectedBaseMeta = {
 /**
  * Maps an API TemplateBuilderBase to the UI-only SelectedBaseMeta.
  */
+/**
+ * The deployment's own base template (Coder's TemplateBuilder.BaseTemplate, the "UBUNTU" prototype): when the
+ * deployment has one, it is the only base, chosen for every new template without a choice shown; its step is the
+ * workspace's apps (PlatformAppsStep).
+ */
+export const PLATFORM_BASE_ID = "platform";
+
+/** The prototype's app variables the builder sets (its desktop, file_browser and terminal), all in by default. */
+export const PLATFORM_APPS_DEFAULTS: Readonly<Record<string, string>> = {
+	desktop: "true",
+	file_browser: "true",
+	terminal: "true",
+};
+
+const baseVariableDefaults = (baseId: string): Record<string, string> =>
+	baseId === PLATFORM_BASE_ID ? { ...PLATFORM_APPS_DEFAULTS } : {};
+
 export function toSelectedBaseMeta(
 	base: TemplateBuilderBase,
 ): SelectedBaseMeta {
@@ -33,7 +50,8 @@ export function toSelectedBaseMeta(
 		iconUrl: base.icon,
 		os: base.os,
 		hasParameters:
-			base.variables?.length > 0 && base.variables?.some((v) => !v.sensitive),
+			base.id === PLATFORM_BASE_ID ||
+			(base.variables?.length > 0 && base.variables?.some((v) => !v.sensitive)),
 		hasPrerequisites: Boolean(base.prerequisites?.length),
 	};
 }
@@ -111,6 +129,7 @@ export function initWizardState(init: WizardInit): TemplateBuilderWizardState {
 		...state,
 		baseTemplateId: init.preselectedBase.id,
 		selectedBase: init.preselectedBase,
+		baseVariableValues: baseVariableDefaults(init.preselectedBase.id),
 		...baseCustomizationDefaults(init.preselectedBase),
 	};
 }
@@ -153,7 +172,7 @@ export function wizardReducer(
 				...state,
 				baseTemplateId: action.base.id,
 				selectedBase: action.base,
-				baseVariableValues: {},
+				baseVariableValues: baseVariableDefaults(action.base.id),
 				...baseCustomizationDefaults(action.base),
 			};
 		}

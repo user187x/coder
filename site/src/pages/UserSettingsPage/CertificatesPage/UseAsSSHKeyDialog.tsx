@@ -170,7 +170,9 @@ export const UseAsSSHKeyDialog: React.FC<UseAsSSHKeyDialogProps> = ({
 		>
 			<DialogContent className="max-w-xl">
 				<DialogHeader>
-					<DialogTitle>Use your certificate's key as your SSH key</DialogTitle>
+					<DialogTitle>
+						Create your SSH key from your certificate's key
+					</DialogTitle>
 					<DialogDescription>
 						Its private key becomes the SSH key your workspaces use for Git,
 						replacing the current one (as Regenerate does).
@@ -278,7 +280,7 @@ export const UseAsSSHKeyDialog: React.FC<UseAsSSHKeyDialogProps> = ({
 							}}
 						>
 							<Spinner loading={working} />
-							Use as SSH key
+							Create SSH Key
 						</Button>
 					</div>
 				</DialogFooter>

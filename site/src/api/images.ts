@@ -72,7 +72,7 @@ export type ReportSummary = {
 /**
  * What an image adds over its base (/usr/share/coder-workspace/addons.json,
  * written by the workspace image's build): each program with the version it
- * reports, the apt packages asked for, and marimo's Python packages.
+ * reports, the apt packages asked for, and the packages of a Python environment it ships, if any.
  */
 export type ImageAddons = {
 	base: string | null;

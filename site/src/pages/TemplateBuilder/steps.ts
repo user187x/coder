@@ -1,4 +1,7 @@
-import type { TemplateBuilderWizardState } from "./wizardState";
+import {
+	PLATFORM_BASE_ID,
+	type TemplateBuilderWizardState,
+} from "./wizardState";
 
 export type StepId =
 	| "base-infra"
@@ -35,7 +38,8 @@ export const WIZARD_STEPS: readonly WizardStep[] = [
 	{
 		id: "base-infra",
 		group: 1,
-		shouldSkip: () => false,
+		// The deployment's own base is the base of every new template: no choice to show.
+		shouldSkip: (state) => state.selectedBase?.id === PLATFORM_BASE_ID,
 	},
 	{
 		id: "base-parameters",

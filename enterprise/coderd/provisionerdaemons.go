@@ -348,6 +348,7 @@ func (api *API) provisionerDaemonServe(rw http.ResponseWriter, r *http.Request) 
 			Clock:               api.Clock,
 			KeyID:               authRes.keyID,
 			SessionCancel:       srvCancel,
+			TemplateDecorator:   api.AGPL.DecorateTemplateArchive,
 		},
 		api.NotificationsEnqueuer,
 		&api.AGPL.PrebuildsReconciler,

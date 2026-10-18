@@ -36,8 +36,8 @@ const addons: Addons = {
 		installed: 1300,
 	},
 	python: {
-		environment: "/opt/marimo",
-		packages: [{ name: "marimo", version: "0.24.2" }],
+		environment: "/opt/venv",
+		packages: [{ name: "numpy", version: "2.4.0" }],
 	},
 };
 

@@ -1,5 +1,6 @@
+import { cn } from "cn";
 import { ExternalLinkIcon } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "react-query";
 import {
 	Link as RouterLink,
@@ -17,6 +18,8 @@ import { Alert, AlertDescription, AlertTitle } from "#/components/Alert/Alert";
 import { Button } from "#/components/Button/Button";
 import { Loader } from "#/components/Loader/Loader";
 import { linkToTemplate, useLinks } from "#/modules/navigation";
+import { GlobalFiles } from "#/modules/templates/TemplateFiles/GlobalFiles";
+import { MaterializedTemplate } from "#/modules/templates/TemplateFiles/MaterializedTemplate";
 import { TemplateFiles } from "#/modules/templates/TemplateFiles/TemplateFiles";
 import { useTemplateLayoutContext } from "#/pages/TemplatePage/TemplateLayout";
 import { getTemplatePageTitle } from "../utils";
@@ -69,6 +72,8 @@ const TemplateFilesPage: React.FC = () => {
 	});
 	const shouldDisplayFiles =
 		currentFiles && (!hasPreviousVersion || previousFiles);
+	// Code: the template's own files; Materialized: its main.tf as it is provisioned (the platform's sections in).
+	const [view, setView] = useState<"code" | "materialized">("code");
 
 	return (
 		<>
@@ -131,13 +136,52 @@ const TemplateFilesPage: React.FC = () => {
 					currentFiles={currentFiles}
 					baseFiles={previousFiles}
 					actions={
-						permissions.canUpdateTemplate && (
-							<UploadTemplateFiles
-								template={template}
-								version={version}
-								folders={foldersOf(currentFiles)}
-							/>
-						)
+						<>
+							{permissions.canUpdateTemplate && (
+								<UploadTemplateFiles
+									template={template}
+									version={version}
+									folders={foldersOf(currentFiles)}
+								/>
+							)}
+							<GlobalFiles />
+						</>
+					}
+					tabs={
+						<div
+							className="flex gap-1 border-0 border-b border-solid border-border"
+							role="tablist"
+							aria-label="Source code view"
+						>
+							{(
+								[
+									["code", "Code"],
+									["materialized", "Materialized"],
+								] as const
+							).map(([id, label]) => (
+								<button
+									key={id}
+									type="button"
+									role="tab"
+									aria-selected={view === id}
+									data-testid={`source-view-${id}`}
+									onClick={() => setView(id)}
+									className={cn(
+										"-mb-px cursor-pointer border-0 border-b-2 border-solid bg-transparent px-3 py-2 text-sm",
+										view === id
+											? "border-content-link text-content-primary"
+											: "border-transparent text-content-secondary hover:text-content-primary",
+									)}
+								>
+									{label}
+								</button>
+							))}
+						</div>
+					}
+					content={
+						view === "materialized" ? (
+							<MaterializedTemplate versionId={version.id} />
+						) : undefined
 					}
 					sidebar={
 						<VersionsSidebar

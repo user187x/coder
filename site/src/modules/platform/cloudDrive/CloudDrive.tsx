@@ -156,6 +156,11 @@ export const CloudDrive: React.FC<{
 			? `${formatBytes(summary.usedBytes)} in ${summary.source?.name ?? "a workspace"}`
 			: `${formatBytes(summary.usedBytes)} of ${formatBytes(summary.quotaBytes)}`;
 	const encrypted = Boolean(summary.encrypted && !summary.source);
+	// How full it is (of its capacity; a workspace's folder as the source has none to measure against).
+	const fill =
+		summary.quotaBytes && summary.quotaBytes > 0
+			? Math.min(1, summary.usedBytes / summary.quotaBytes)
+			: null;
 
 	return (
 		<>
@@ -188,6 +193,30 @@ export const CloudDrive: React.FC<{
 					/>
 				)}
 				<span className="tabular-nums text-content-secondary">{usage}</span>
+				{fill !== null && (
+					<span
+						role="progressbar"
+						aria-label="How full the Cloud Drive is"
+						aria-valuemin={0}
+						aria-valuemax={100}
+						aria-valuenow={Math.round(fill * 100)}
+						title={`${Math.round(fill * 100)}% full`}
+						data-testid="cloud-drive-fill"
+						className="relative h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-surface-tertiary"
+					>
+						<span
+							className={cn(
+								"absolute inset-y-0 left-0 rounded-full transition-[width] duration-500",
+								fill >= 0.9
+									? "bg-content-destructive"
+									: fill >= 0.75
+										? "bg-content-warning"
+										: "bg-content-link",
+							)}
+							style={{ width: `${Math.max(fill > 0 ? 3 : 0, fill * 100)}%` }}
+						/>
+					</span>
+				)}
 				<StatusIndicator status={status} compact />
 			</Button>
 			<CloudDriveRopes

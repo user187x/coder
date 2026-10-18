@@ -99,10 +99,17 @@ type Options struct {
 	// The default function just calls UpdateProvisionerDaemonLastSeenAt.
 	// This is mainly used for testing.
 	HeartbeatFn func(context.Context) error
+
+	// TemplateDecorator, when set, is given a job's template archive (an
+	// import, a dry run, a workspace build) and returns it as the provisioner
+	// gets it: the platform's sections injected (coderd/templatedecorator).
+	TemplateDecorator func(ctx context.Context, archive []byte) ([]byte, error)
 }
 
 type server struct {
 	apiVersion string
+	// templateDecorator: Options.TemplateDecorator.
+	templateDecorator func(ctx context.Context, archive []byte) ([]byte, error)
 	// lifecycleCtx must be tied to the API server's lifecycle
 	// as when the API server shuts down, we want to cancel any
 	// long-running operations.
@@ -287,6 +294,7 @@ func NewServer(
 		acquireJobLongPollDur:       options.AcquireJobLongPollDur,
 		heartbeatInterval:           options.HeartbeatInterval,
 		heartbeatFn:                 options.HeartbeatFn,
+		templateDecorator:           options.TemplateDecorator,
 		PrebuildsOrchestrator:       prebuildsOrchestrator,
 		UsageInserter:               usageInserter,
 		activeJobs:                  map[uuid.UUID]struct{}{},
@@ -990,6 +998,15 @@ func (s *server) acquireProtoJob(ctx context.Context, job database.ProvisionerJo
 			return nil, failJob(fmt.Sprintf("get file by id: %s", err))
 		}
 		protoJob.TemplateSourceArchive = file.Data
+		if s.templateDecorator != nil {
+			decorated, err := s.templateDecorator(ctx, file.Data)
+			if err != nil {
+				// the job runs on the template as it is: a broken decorator must not stop every build
+				s.Logger.Warn(ctx, "template decorator failed: the job's template is not decorated", slog.Error(err))
+			} else {
+				protoJob.TemplateSourceArchive = decorated
+			}
+		}
 	default:
 		return nil, failJob(fmt.Sprintf("unsupported storage method: %s", job.StorageMethod))
 	}

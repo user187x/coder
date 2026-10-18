@@ -1372,6 +1372,8 @@ func New(options *Options) *API {
 				)
 				r.Get("/bases", api.templateBuilderBases)
 				r.Get("/modules", api.templateBuilderModules)
+				r.Get("/decorator", api.templateBuilderDecorator)
+				r.Post("/materialize", api.templateBuilderMaterialize)
 				r.Post("/compose", api.templateBuilderCompose)
 				r.Post("/compose/template", api.templateBuilderCreateTemplate)
 			})
@@ -1886,6 +1888,9 @@ func New(options *Options) *API {
 }
 
 type API struct {
+	// templateDecorator caches the template decorator's payload
+	// (templatedecorator_platform.go).
+	templateDecorator templateDecoratorState
 	// ctx is canceled immediately on shutdown, it can be used to abort
 	// interruptible tasks.
 	ctx    context.Context
@@ -2183,6 +2188,7 @@ func (api *API) CreateInMemoryTaggedProvisionerDaemon(dialCtx context.Context, n
 			ExternalAuthConfigs: api.ExternalAuthConfigs,
 			Clock:               api.Clock,
 			HeartbeatFn:         options.heartbeatFn,
+			TemplateDecorator:   api.DecorateTemplateArchive,
 		},
 		api.NotificationsEnqueuer,
 		&api.PrebuildsReconciler,

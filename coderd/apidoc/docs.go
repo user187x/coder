@@ -5734,6 +5734,70 @@ const docTemplate = `{
                 ]
             }
         },
+        "/api/v2/templatebuilder/decorator": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "TemplateBuilder"
+                ],
+                "summary": "The template decorator: the platform's sections and the files it provides",
+                "operationId": "get-template-decorator",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.TemplateDecorator"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ]
+            }
+        },
+        "/api/v2/templatebuilder/materialize": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "TemplateBuilder"
+                ],
+                "summary": "A template's Terraform as Coder provisions it (the decorator's sections injected)",
+                "operationId": "materialize-template",
+                "parameters": [
+                    {
+                        "description": "A template version, or files",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.TemplateMaterializeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.TemplateMaterializeResponse"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ]
+            }
+        },
         "/api/v2/templatebuilder/modules": {
             "get": {
                 "produces": [
@@ -20499,6 +20563,98 @@ const docTemplate = `{
                 "TemplateBuilderVariableTypeBool"
             ]
         },
+        "codersdk.TemplateDecorator": {
+            "type": "object",
+            "properties": {
+                "base_template": {
+                    "description": "BaseTemplate is the base template's name (TemplateBuilder.BaseTemplate).",
+                    "type": "string"
+                },
+                "base_version": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "error": {
+                    "description": "Error: the base template's sections could not be read.",
+                    "type": "string"
+                },
+                "features": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "global_files": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/codersdk.TemplateDecoratorFile"
+                    }
+                },
+                "sections": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/codersdk.TemplateDecoratorSection"
+                    }
+                }
+            }
+        },
+        "codersdk.TemplateDecoratorFile": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string"
+                },
+                "features": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "path": {
+                    "description": "Path in a decorated template (.platform/\u003cname\u003e).",
+                    "type": "string"
+                },
+                "reference": {
+                    "description": "Reference: how a template uses it (the base template's own use of it).",
+                    "type": "string"
+                },
+                "size": {
+                    "type": "integer"
+                }
+            }
+        },
+        "codersdk.TemplateDecoratorSection": {
+            "type": "object",
+            "properties": {
+                "feature": {
+                    "type": "string"
+                },
+                "placement": {
+                    "description": "Placement: top, agent, pod-metadata, pod-spec or container.",
+                    "type": "string"
+                },
+                "text": {
+                    "type": "string"
+                }
+            }
+        },
+        "codersdk.TemplateDecoratorSkip": {
+            "type": "object",
+            "properties": {
+                "feature": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                }
+            }
+        },
         "codersdk.TemplateExample": {
             "type": "object",
             "properties": {
@@ -20664,6 +20820,62 @@ const docTemplate = `{
                 },
                 "report": {
                     "$ref": "#/definitions/codersdk.TemplateInsightsReport"
+                }
+            }
+        },
+        "codersdk.TemplateMaterializeRequest": {
+            "type": "object",
+            "properties": {
+                "files": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "template_version_id": {
+                    "type": "string",
+                    "format": "uuid"
+                }
+            }
+        },
+        "codersdk.TemplateMaterializeResponse": {
+            "type": "object",
+            "properties": {
+                "added": {
+                    "description": "Added: the files the decorator adds (.platform/...).",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "changed": {
+                    "description": "Changed: every .tf file the decorator changed, as provisioned.",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "injected": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "main_tf": {
+                    "description": "MainTF is main.tf as it is provisioned (the file with the agent, when the\ntemplate has no main.tf).",
+                    "type": "string"
+                },
+                "main_tf_name": {
+                    "type": "string"
+                },
+                "skipped": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/codersdk.TemplateDecoratorSkip"
+                    }
                 }
             }
         },

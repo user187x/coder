@@ -219,13 +219,13 @@ const CertificatesPage: React.FC = () => {
 				actions={
 					<div className="flex flex-wrap gap-2">
 						<Button variant="outline" onClick={() => setSSHKeyFrom("choose")}>
-							Use as SSH key…
+							Create SSH Key
 						</Button>
 						<Button
 							disabled={!filePathsEnabled}
 							onClick={() => setUploading(true)}
 						>
-							{current ? "Replace certificate…" : "Upload certificate…"}
+							{current ? "Replace PFX" : "Upload PFX"}
 						</Button>
 					</div>
 				}
@@ -294,7 +294,7 @@ const CertificatesPage: React.FC = () => {
 							certificate is opened.
 						</li>
 						<li>
-							<span className="text-content-primary">Use as SSH key</span> makes
+							<span className="text-content-primary">Create SSH Key</span> makes
 							the certificate's private key your SSH key for Git in your
 							workspaces (Settings &gt; SSH keys). The key is decrypted in this
 							page, with the password if it has one, which is never sent or
@@ -448,7 +448,7 @@ const CertificatesTable: React.FC<CertificatesTableProps> = ({
 								<div className="flex justify-end gap-2">
 									{installed && (
 										<Button size="sm" variant="outline" onClick={onUseAsSSHKey}>
-											Use as SSH key…
+											Create SSH Key
 										</Button>
 									)}
 									{installed && (

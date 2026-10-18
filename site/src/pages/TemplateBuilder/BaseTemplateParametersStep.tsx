@@ -12,7 +12,9 @@ import {
 } from "#/pages/TemplateBuilder/TemplateBuilderHeader";
 import type { ConfigurationFieldDefinition } from "./ConfigurationField";
 import { defaultPlaceholder } from "./defaultPlaceholder";
+import { PlatformAppsStep } from "./PlatformAppsStep";
 import { TemplateConfiguration } from "./TemplateConfiguration";
+import { PLATFORM_BASE_ID } from "./wizardState";
 
 type BaseTemplateParametersStepProps = {
 	baseId: string;
@@ -98,6 +100,17 @@ export const BaseTemplateParametersStep: React.FC<
 	BaseTemplateParametersStepProps
 > = ({ baseId, values, onChangeValues, showErrors = false }) => {
 	const { data } = useQuery(templateBuilderBases());
+	if (baseId === PLATFORM_BASE_ID) {
+		const base = data?.bases.find((b) => b.id === baseId);
+		return (
+			<PlatformAppsStep
+				name={base?.name ?? "UBUNTU"}
+				iconUrl={base?.icon}
+				values={values}
+				onChangeValues={onChangeValues}
+			/>
+		);
+	}
 	const base = data?.bases.find((b) => b.id === baseId);
 	const variables = base?.variables.filter((v) => !v.sensitive) ?? [];
 	const prerequisites = base?.prerequisites ?? "";

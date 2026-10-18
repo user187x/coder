@@ -729,6 +729,19 @@ func (api *API) composeBuilderTemplate(ctx context.Context, orgID uuid.UUID, req
 	if err != nil {
 		return nil, nil, err
 	}
-	result, err := api.composePlatform(base, req.Modules)
-	return result, base.Variables, err
+	result, err := api.composePlatform(base, req.Modules, req.BaseVariableValues)
+	// the base's variable values, with the builder's choices
+	values := append([]codersdk.VariableValue{}, base.Variables...)
+	for name, value := range req.BaseVariableValues {
+		found := false
+		for i := range values {
+			if values[i].Name == name {
+				values[i].Value, found = value, true
+			}
+		}
+		if !found {
+			values = append(values, codersdk.VariableValue{Name: name, Value: value})
+		}
+	}
+	return result, values, err
 }

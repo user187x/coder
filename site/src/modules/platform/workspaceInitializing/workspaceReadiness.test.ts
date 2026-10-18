@@ -67,8 +67,8 @@ describe("apps still starting", () => {
 		apps: [
 			{
 				...MockWorkspaceAgent.apps[0],
-				slug: "marimo",
-				display_name: "marimo",
+				slug: "notebook",
+				display_name: "notebook",
 				hidden: false,
 				health,
 			},
@@ -82,7 +82,7 @@ describe("apps still starting", () => {
 		).toBe(true);
 		expect(initializingStep(withApps("initializing"))).toEqual({
 			step: "Starting the apps",
-			progress: { of: "apps", done: 0, total: 1, pending: ["marimo"] },
+			progress: { of: "apps", done: 0, total: 1, pending: ["notebook"] },
 		});
 	});
 

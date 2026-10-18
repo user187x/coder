@@ -2390,6 +2390,23 @@ class ApiMethods {
 		return response.data;
 	};
 
+	/** The template decorator: the platform's sections and the files it provides to every template. */
+	getTemplateDecorator = async (): Promise<TypesGen.TemplateDecorator> => {
+		const response = await this.axios.get("/api/v2/templatebuilder/decorator");
+		return response.data;
+	};
+
+	/** A template's Terraform as Coder provisions it: a version's, or the given files (the editor's). */
+	materializeTemplate = async (
+		req: TypesGen.TemplateMaterializeRequest,
+	): Promise<TypesGen.TemplateMaterializeResponse> => {
+		const response = await this.axios.post(
+			"/api/v2/templatebuilder/materialize",
+			req,
+		);
+		return response.data;
+	};
+
 	createTemplateFromBuilder = async (
 		req: TypesGen.TemplateBuilderCreateTemplateRequest,
 	): Promise<TypesGen.TemplateBuilderCreateTemplateResponse> => {

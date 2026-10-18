@@ -4,7 +4,7 @@ import JSZip from "jszip";
  * The icons a template uses: its own (Settings > Icon) and every `icon = "..."`
  * in its Terraform (apps, metadata, parameters and their options), served by
  * this deployment (paths such as /icon/ubuntu.svg, /emojis/1f4be.png,
- * /__icons/marimo.svg). Icons on other sites are left out: the export has to
+ * /__icons/cloud-drive.svg). Icons on other sites are left out: the export has to
  * work in an air-gapped network too.
  */
 export const templateIconPaths = (

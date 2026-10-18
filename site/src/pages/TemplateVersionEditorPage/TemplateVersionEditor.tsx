@@ -48,6 +48,7 @@ import {
 import { ProvisionerStatusAlert } from "#/modules/provisioners/ProvisionerStatusAlert";
 import { WildcardHostnameWarning } from "#/modules/resources/WildcardHostnameWarning";
 import { isBinaryData } from "#/modules/templates/TemplateFiles/isBinaryData";
+import { MaterializedTemplate } from "#/modules/templates/TemplateFiles/MaterializedTemplate";
 import { TemplateFileTree } from "#/modules/templates/TemplateFiles/TemplateFileTree";
 import { TemplateResourcesTable } from "#/modules/templates/TemplateResourcesTable/TemplateResourcesTable";
 import { WorkspaceBuildLogs } from "#/modules/workspaces/WorkspaceBuildLogs/WorkspaceBuildLogs";
@@ -60,6 +61,7 @@ import {
 	isFolder,
 	moveFile,
 	removeFile,
+	traverse,
 	updateFile,
 } from "#/utils/filetree";
 import {
@@ -73,7 +75,7 @@ import { ProvisionerTagsPopover } from "./ProvisionerTagsPopover";
 import { PublishTemplateVersionDialog } from "./PublishTemplateVersionDialog";
 import { TemplateVersionStatusBadge } from "./TemplateVersionStatusBadge";
 
-type Tab = "logs" | "resources" | undefined; // Undefined is to hide the tab
+type Tab = "logs" | "resources" | "materialized" | undefined; // Undefined is to hide the tab
 
 type TemplateVersionEditorProps = {
 	template: Template;
@@ -480,6 +482,17 @@ export const TemplateVersionEditor: React.FC<TemplateVersionEditorProps> = ({
 									>
 										Resources
 									</button>
+
+									<button
+										type="button"
+										className={tabClassName(selectedTab === "materialized")}
+										data-testid="editor-materialized-tab"
+										onClick={() => {
+											setSelectedTab("materialized");
+										}}
+									>
+										Materialized
+									</button>
 								</div>
 
 								{selectedTab === "logs" && gotBuildLogs && (
@@ -553,6 +566,15 @@ export const TemplateVersionEditor: React.FC<TemplateVersionEditorProps> = ({
 									{resources && (
 										<WildcardHostnameWarning resources={resources} />
 									)}
+								</div>
+							)}
+
+							{selectedTab === "materialized" && (
+								<div className="h-[280px] overflow-y-auto p-4">
+									<MaterializedTemplate
+										files={filesOf(fileTree)}
+										height={220}
+									/>
 								</div>
 							)}
 
@@ -644,3 +666,14 @@ const tabClassName = (isActive: boolean) =>
 			"after:content-[''] after:block after:w-full after:h-px after:bg-surface-invert-primary after:absolute after:-bottom-px",
 		],
 	);
+
+/** The editor's files as they are now, by path (the materialized view's input). */
+const filesOf = (tree: FileTree): Record<string, string> => {
+	const out: Record<string, string> = {};
+	traverse(tree, (content, _name, fullPath) => {
+		if (typeof content === "string") {
+			out[fullPath] = content;
+		}
+	});
+	return out;
+};

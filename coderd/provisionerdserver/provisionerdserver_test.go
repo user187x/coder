@@ -1050,6 +1050,46 @@ func TestAcquireJob_ModuleCache(t *testing.T) {
 	}
 }
 
+// The template decorator gets every job's archive (here an import's) and the provisioner gets its result; a
+// decorator that fails leaves the archive as it is.
+func TestAcquireJobTemplateDecorator(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		fail bool
+		want string
+	}{
+		{name: "Decorated", want: "decorated:original"},
+		{name: "DecoratorFails", fail: true, want: "original"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			srv, db, ps, pd := setup(t, true, &overrides{
+				templateDecorator: func(_ context.Context, archive []byte) ([]byte, error) {
+					if tc.fail {
+						return nil, xerrors.New("no payload")
+					}
+					return append([]byte("decorated:"), archive...), nil
+				},
+			})
+			ctx := testutil.Context(t, testutil.WaitShort)
+			user := dbgen.User(t, db, database.User{})
+			file := dbgen.File(t, db, database.File{CreatedBy: user.ID, Data: []byte("original")})
+			_ = dbgen.ProvisionerJob(t, db, ps, database.ProvisionerJob{
+				FileID:        file.ID,
+				InitiatorID:   user.ID,
+				Provisioner:   database.ProvisionerTypeEcho,
+				StorageMethod: database.ProvisionerStorageMethodFile,
+				Type:          database.ProvisionerJobTypeTemplateVersionImport,
+				Tags:          pd.Tags,
+			})
+			job, err := srv.AcquireJob(ctx, nil)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, string(job.TemplateSourceArchive))
+		})
+	}
+}
+
 func TestUpdateJob(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
@@ -4922,6 +4962,7 @@ type overrides struct {
 	provisionerdLogger          *slog.Logger
 	keyID                       uuid.UUID
 	sessionCancel               context.CancelFunc
+	templateDecorator           func(ctx context.Context, archive []byte) ([]byte, error)
 }
 
 func setup(t *testing.T, ignoreLogErrors bool, ov *overrides) (proto.DRPCProvisionerDaemonServer, database.Store, pubsub.Pubsub, database.ProvisionerDaemon) {
@@ -5074,6 +5115,7 @@ func setup(t *testing.T, ignoreLogErrors bool, ov *overrides) (proto.DRPCProvisi
 			HeartbeatFn:           ov.heartbeatFn,
 			KeyID:                 keyID,
 			SessionCancel:         ov.sessionCancel,
+			TemplateDecorator:     ov.templateDecorator,
 		},
 		notifEnq,
 		&op,

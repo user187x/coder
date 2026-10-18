@@ -116,6 +116,38 @@ describe("AgentNetworkPill", () => {
 		);
 	});
 
+	it("slides on its own, for as long as the page is open: with no new readings the bars move out of the 5 minutes, and the platform service is asked again", async () => {
+		vi.useFakeTimers({ shouldAdvanceTime: false });
+		try {
+			const network = vi
+				.spyOn(PlatformAPI, "getWorkspaceNetwork")
+				.mockResolvedValue({ windowSeconds: 300, agents: {} });
+			renderPill({ agentId: "sliding-agent", workspaceId: "ws-slide" });
+			act(() =>
+				publishAgentMetadata("sliding-agent", reading(1000, 500, ago(2000))),
+			);
+			act(() =>
+				publishAgentMetadata("sliding-agent", reading(21000, 10500, ago(0))),
+			);
+			const pill = screen.getByTestId("agent-network-pill");
+			expect(pill.querySelectorAll("rect")).toHaveLength(2);
+			const asked = network.mock.calls.length;
+			// two minutes without a reading: still there, sliding left; the service asked again (a stall)
+			await act(async () => {
+				await vi.advanceTimersByTimeAsync(120_000);
+			});
+			expect(pill.querySelectorAll("rect")).toHaveLength(2);
+			expect(network.mock.calls.length).toBeGreaterThan(asked);
+			// past the 5 minutes: gone from the window
+			await act(async () => {
+				await vi.advanceTimersByTimeAsync(200_000);
+			});
+			expect(pill.querySelectorAll("rect")).toHaveLength(0);
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
 	it("is grey and still once the card stopped (no contact with Coder)", () => {
 		renderPill({ stoppedAt: Date.now() });
 		act(() => publishAgentMetadata("pill-agent", reading(1, 1, ago(2000))));

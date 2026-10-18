@@ -1189,14 +1189,6 @@
 							"path": "./reference/api/general.md"
 						},
 						{
-							"title": "AI Gateway",
-							"path": "./reference/api/aigateway.md"
-						},
-						{
-							"title": "AI Providers",
-							"path": "./reference/api/aiproviders.md"
-						},
-						{
 							"title": "Agents",
 							"description": "REST endpoints for the workspace agent daemon (`coder_agent`).",
 							"path": "./reference/api/agents.md"
@@ -1222,11 +1214,6 @@
 							"path": "./reference/api/builds.md"
 						},
 						{
-							"title": "Chats",
-							"description": "REST endpoints for Coder Agents Chats API (programmatic agent sessions).",
-							"path": "./reference/api/chats.md"
-						},
-						{
 							"title": "Debug",
 							"path": "./reference/api/debug.md"
 						},
@@ -1249,10 +1236,6 @@
 						{
 							"title": "Insights",
 							"path": "./reference/api/insights.md"
-						},
-						{
-							"title": "MCP",
-							"path": "./reference/api/mcp.md"
 						},
 						{
 							"title": "Members",

@@ -15,7 +15,7 @@ const GROUP_ORDER = ["Apps", "Kubernetes", "Tools", "Fonts"];
  * What an image adds over its base, as the image itself records it
  * (addons.json, written when the workspace image is built): every program with
  * the version it reports, grouped; the apt packages someone asked for (their
- * dependencies counted); marimo's Python packages. So people know what they
+ * dependencies counted); the packages of a Python environment it ships. So people know what they
  * take into their enclave before using it.
  */
 export const ImageAddons: React.FC<{ addons: Addons }> = ({ addons }) => {
@@ -99,7 +99,7 @@ export const ImageAddons: React.FC<{ addons: Addons }> = ({ addons }) => {
 						{addons.python.packages.length} Python packages
 						<span className="font-normal text-content-secondary">
 							{" "}
-							(marimo's environment
+							(its Python environment
 							{addons.python.environment && (
 								<>
 									, <code>{addons.python.environment}</code>

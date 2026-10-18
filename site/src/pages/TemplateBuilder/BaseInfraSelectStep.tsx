@@ -9,16 +9,18 @@ import {
 } from "#/pages/TemplateBuilder/TemplateBuilderHeader";
 import { sortByPriority } from "./sortByPriority";
 import { TemplateCard } from "./TemplateCard";
-import { type SelectedBaseMeta, toSelectedBaseMeta } from "./wizardState";
+import {
+	PLATFORM_BASE_ID,
+	type SelectedBaseMeta,
+	toSelectedBaseMeta,
+} from "./wizardState";
 
 type BaseInfraSelectStepProps = {
 	selectedBaseId: string | null;
 	onSelectBase: (base: SelectedBaseMeta) => void;
 };
 
-// Platform: the deployment's own base template (Coder's TemplateBuilder.BaseTemplate) - its only base, so every new
-// template keeps what the platform builds into it (the Cloud Drive, Lock Down, the user's certificate, the metrics).
-export const PLATFORM_BASE_ID = "platform";
+export { PLATFORM_BASE_ID };
 
 function detailsUrl(baseId: string): string | undefined {
 	return baseId === PLATFORM_BASE_ID

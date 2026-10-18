@@ -13,7 +13,7 @@ import { AccordionPanel } from "./AccordionPanel";
 export { MAX_APP_HEIGHT, MIN_APP_HEIGHT } from "./AccordionPanel";
 
 /**
- * The apps that grow to fit their page. Not the desktop, code-server or marimo:
+ * The apps that grow to fit their page. Not the desktop or code-server:
  * they size themselves to the box (noVNC even resizes the remote desktop to
  * it), so growing the box to their page would never stop.
  */

@@ -6,8 +6,8 @@ import {
 } from "./templateExport";
 
 const MAIN_TF = `
-resource "coder_app" "marimo" {
-  icon = "/__icons/marimo.svg" # files/icons/marimo.svg
+resource "coder_app" "drive" {
+  icon = "/__icons/cloud-drive.svg" # files/icons/cloud-drive.svg
 }
 resource "coder_app" "files" { icon = "/icon/folder.svg" }
 data "coder_parameter" "size" {
@@ -27,7 +27,7 @@ describe("templateExport", () => {
 				"scripts/startup.sh": 'icon = "/icon/not-terraform.svg"',
 			}),
 		).toEqual([
-			"/__icons/marimo.svg",
+			"/__icons/cloud-drive.svg",
 			"/emojis/1f4be.png",
 			"/icon/folder.svg",
 			"/icon/memory.svg",
@@ -37,8 +37,8 @@ describe("templateExport", () => {
 
 	it("names each icon by where it is served", () => {
 		expect(iconFileName("/icon/ubuntu.svg")).toBe("icons/icon/ubuntu.svg");
-		expect(iconFileName("/__icons/marimo.svg")).toBe(
-			"icons/__icons/marimo.svg",
+		expect(iconFileName("/__icons/cloud-drive.svg")).toBe(
+			"icons/__icons/cloud-drive.svg",
 		);
 		expect(iconFileName("/icon/a%20b.svg")).toBe("icons/icon/a_b.svg");
 	});
@@ -67,7 +67,7 @@ describe("templateExport", () => {
 		);
 		const names = Object.keys(out.files).filter((n) => !out.files[n].dir);
 		expect(names.sort()).toEqual([
-			"icons/__icons/marimo.svg",
+			"icons/__icons/cloud-drive.svg",
 			"icons/icon/folder.svg",
 			"icons/icon/memory.svg",
 			"icons/icon/ubuntu.svg",
@@ -85,8 +85,8 @@ describe("templateExport", () => {
 			(await out.file("icons/index.json")?.async("string")) ?? "[]",
 		);
 		expect(index).toContainEqual({
-			url: "/__icons/marimo.svg",
-			file: "icons/__icons/marimo.svg",
+			url: "/__icons/cloud-drive.svg",
+			file: "icons/__icons/cloud-drive.svg",
 		});
 		expect(fetched).not.toContain("https://example.com/x.svg");
 	});

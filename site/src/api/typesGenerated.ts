@@ -6201,6 +6201,70 @@ export const TemplateBuiltinAppDisplayNameVSCode = "Visual Studio Code";
  */
 export const TemplateBuiltinAppDisplayNameWebTerminal = "Web Terminal";
 
+// From codersdk/templatebuilder.go
+/**
+ * TemplateDecorator is the template decorator (coderd/templatedecorator): the
+ * platform's sections of the deployment's base template, which Coder injects
+ * into every template that lacks them when it is provisioned, and the files
+ * they read - the global files, provided to every template under .platform/.
+ */
+export interface TemplateDecorator {
+	readonly enabled: boolean;
+	/**
+	 * BaseTemplate is the base template's name (TemplateBuilder.BaseTemplate).
+	 */
+	readonly base_template: string;
+	readonly base_version: string;
+	readonly features: readonly string[];
+	readonly sections: readonly TemplateDecoratorSection[];
+	readonly global_files: readonly TemplateDecoratorFile[];
+	/**
+	 * Error: the base template's sections could not be read.
+	 */
+	readonly error?: string;
+}
+
+// From codersdk/templatebuilder.go
+/**
+ * TemplateDecoratorFile is a file the decorator provides to every template.
+ */
+export interface TemplateDecoratorFile {
+	readonly name: string;
+	/**
+	 * Path in a decorated template (.platform/<name>).
+	 */
+	readonly path: string;
+	readonly size: number;
+	readonly content: string;
+	/**
+	 * Reference: how a template uses it (the base template's own use of it).
+	 */
+	readonly reference: string;
+	readonly features: readonly string[];
+}
+
+// From codersdk/templatebuilder.go
+/**
+ * TemplateDecoratorSection is one platform section of the base template.
+ */
+export interface TemplateDecoratorSection {
+	readonly feature: string;
+	/**
+	 * Placement: top, agent, pod-metadata, pod-spec or container.
+	 */
+	readonly placement: string;
+	readonly text: string;
+}
+
+// From codersdk/templatebuilder.go
+/**
+ * TemplateDecoratorSkip is a feature the decorator did not inject, and why.
+ */
+export interface TemplateDecoratorSkip {
+	readonly feature: string;
+	readonly reason: string;
+}
+
 // From codersdk/templates.go
 export interface TemplateExample {
 	readonly id: string;
@@ -6273,6 +6337,42 @@ export const TemplateInsightsSections: TemplateInsightsSection[] = [
 	"interval_reports",
 	"report",
 ];
+
+// From codersdk/templatebuilder.go
+/**
+ * TemplateMaterializeRequest is the request body for
+ * POST /api/v2/templatebuilder/materialize: a template version's files, or
+ * files as given (the editor's).
+ */
+export interface TemplateMaterializeRequest {
+	readonly template_version_id?: string;
+	readonly files?: Record<string, string>;
+}
+
+// From codersdk/templatebuilder.go
+/**
+ * TemplateMaterializeResponse is a template's Terraform as Coder provisions it:
+ * its own code with the decorator's sections injected.
+ */
+export interface TemplateMaterializeResponse {
+	/**
+	 * MainTF is main.tf as it is provisioned (the file with the agent, when the
+	 * template has no main.tf).
+	 */
+	readonly main_tf: string;
+	readonly main_tf_name: string;
+	/**
+	 * Changed: every .tf file the decorator changed, as provisioned.
+	 */
+	readonly changed: Record<string, string>;
+	/**
+	 * Added: the files the decorator adds (.platform/...).
+	 */
+	readonly added: readonly string[];
+	readonly injected: readonly string[];
+	readonly skipped: readonly TemplateDecoratorSkip[];
+	readonly enabled: boolean;
+}
 
 // From codersdk/insights.go
 /**

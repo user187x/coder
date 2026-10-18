@@ -9,7 +9,7 @@ const startupDone = (agent: WorkspaceAgent): boolean =>
 
 /**
  * Apps whose health check has not answered yet. Apps started in the
- * background by the startup script (marimo, code-server, File Browser) are
+ * background by the startup script (code-server, File Browser) are
  * still coming up when the script ends. An app that fails its checks is
  * "unhealthy", not "initializing", so it does not hold the others back.
  */

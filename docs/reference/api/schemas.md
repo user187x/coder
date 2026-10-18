@@ -8508,6 +8508,111 @@ Restarts will only happen on weekdays in this list on weeks which line up with W
 |----------------------------|
 | `bool`, `number`, `string` |
 
+## codersdk.TemplateDecorator
+
+```json
+{
+  "base_template": "string",
+  "base_version": "de452326-5067-4c70-a81d-2403dae6025f",
+  "enabled": true,
+  "error": "string",
+  "features": [
+    "string"
+  ],
+  "global_files": [
+    {
+      "content": "string",
+      "features": [
+        "string"
+      ],
+      "name": "string",
+      "path": "string",
+      "reference": "string",
+      "size": 0
+    }
+  ],
+  "sections": [
+    {
+      "feature": "string",
+      "placement": "string",
+      "text": "string"
+    }
+  ]
+}
+```
+
+### Properties
+
+| Name            | Type                                                                            | Required | Restrictions | Description                                                               |
+|-----------------|---------------------------------------------------------------------------------|----------|--------------|---------------------------------------------------------------------------|
+| `base_template` | string                                                                          | false    |              | Base template is the base template's name (TemplateBuilder.BaseTemplate). |
+| `base_version`  | string                                                                          | false    |              |                                                                           |
+| `enabled`       | boolean                                                                         | false    |              |                                                                           |
+| `error`         | string                                                                          | false    |              | Error: the base template's sections could not be read.                    |
+| `features`      | array of string                                                                 | false    |              |                                                                           |
+| `global_files`  | array of [codersdk.TemplateDecoratorFile](#codersdktemplatedecoratorfile)       | false    |              |                                                                           |
+| `sections`      | array of [codersdk.TemplateDecoratorSection](#codersdktemplatedecoratorsection) | false    |              |                                                                           |
+
+## codersdk.TemplateDecoratorFile
+
+```json
+{
+  "content": "string",
+  "features": [
+    "string"
+  ],
+  "name": "string",
+  "path": "string",
+  "reference": "string",
+  "size": 0
+}
+```
+
+### Properties
+
+| Name        | Type            | Required | Restrictions | Description                                                            |
+|-------------|-----------------|----------|--------------|------------------------------------------------------------------------|
+| `content`   | string          | false    |              |                                                                        |
+| `features`  | array of string | false    |              |                                                                        |
+| `name`      | string          | false    |              |                                                                        |
+| `path`      | string          | false    |              | Path in a decorated template (.platform/<name>).                       |
+| `reference` | string          | false    |              | Reference: how a template uses it (the base template's own use of it). |
+| `size`      | integer         | false    |              |                                                                        |
+
+## codersdk.TemplateDecoratorSection
+
+```json
+{
+  "feature": "string",
+  "placement": "string",
+  "text": "string"
+}
+```
+
+### Properties
+
+| Name        | Type   | Required | Restrictions | Description                                                 |
+|-------------|--------|----------|--------------|-------------------------------------------------------------|
+| `feature`   | string | false    |              |                                                             |
+| `placement` | string | false    |              | Placement: top, agent, pod-metadata, pod-spec or container. |
+| `text`      | string | false    |              |                                                             |
+
+## codersdk.TemplateDecoratorSkip
+
+```json
+{
+  "feature": "string",
+  "reason": "string"
+}
+```
+
+### Properties
+
+| Name      | Type   | Required | Restrictions | Description |
+|-----------|--------|----------|--------------|-------------|
+| `feature` | string | false    |              |             |
+| `reason`  | string | false    |              |             |
+
 ## codersdk.TemplateExample
 
 ```json
@@ -8749,6 +8854,65 @@ Restarts will only happen on weekdays in this list on weeks which line up with W
 |--------------------|---------------------------------------------------------------------------------------------|----------|--------------|-------------|
 | `interval_reports` | array of [codersdk.TemplateInsightsIntervalReport](#codersdktemplateinsightsintervalreport) | false    |              |             |
 | `report`           | [codersdk.TemplateInsightsReport](#codersdktemplateinsightsreport)                          | false    |              |             |
+
+## codersdk.TemplateMaterializeRequest
+
+```json
+{
+  "files": {
+    "property1": "string",
+    "property2": "string"
+  },
+  "template_version_id": "0ba39c92-1f1b-4c32-aa3e-9925d7713eb1"
+}
+```
+
+### Properties
+
+| Name                  | Type   | Required | Restrictions | Description |
+|-----------------------|--------|----------|--------------|-------------|
+| `files`               | object | false    |              |             |
+| » `[any property]`    | string | false    |              |             |
+| `template_version_id` | string | false    |              |             |
+
+## codersdk.TemplateMaterializeResponse
+
+```json
+{
+  "added": [
+    "string"
+  ],
+  "changed": {
+    "property1": "string",
+    "property2": "string"
+  },
+  "enabled": true,
+  "injected": [
+    "string"
+  ],
+  "main_tf": "string",
+  "main_tf_name": "string",
+  "skipped": [
+    {
+      "feature": "string",
+      "reason": "string"
+    }
+  ]
+}
+```
+
+### Properties
+
+| Name               | Type                                                                      | Required | Restrictions | Description                                                                                          |
+|--------------------|---------------------------------------------------------------------------|----------|--------------|------------------------------------------------------------------------------------------------------|
+| `added`            | array of string                                                           | false    |              | Added: the files the decorator adds (.platform/...).                                                 |
+| `changed`          | object                                                                    | false    |              | Changed: every .tf file the decorator changed, as provisioned.                                       |
+| » `[any property]` | string                                                                    | false    |              |                                                                                                      |
+| `enabled`          | boolean                                                                   | false    |              |                                                                                                      |
+| `injected`         | array of string                                                           | false    |              |                                                                                                      |
+| `main_tf`          | string                                                                    | false    |              | Main tf is main.tf as it is provisioned (the file with the agent, when the template has no main.tf). |
+| `main_tf_name`     | string                                                                    | false    |              |                                                                                                      |
+| `skipped`          | array of [codersdk.TemplateDecoratorSkip](#codersdktemplatedecoratorskip) | false    |              |                                                                                                      |
 
 ## codersdk.TemplateParameterUsage
 

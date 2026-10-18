@@ -26,6 +26,10 @@ const W = 104;
 const H = 16;
 /** What the pill shows: the last 5 minutes (the platform service keeps them, so a page opens with them). */
 export const PILL_WINDOW_MS = 300_000;
+/** How often the window slides on its own (readings or not). */
+export const PILL_TICK_MS = 1000;
+/** Live readings this late: the minutes are asked of the platform service again (and again, while it lasts). */
+export const PILL_STALL_MS = 20_000;
 
 /**
  * The bars of the last 5 minutes, as the metric graphs below draw theirs
@@ -72,8 +76,12 @@ export const pillBars = (samples: readonly NetworkSample[], now: number) => {
  * 5 minutes of its traffic as a tiny histogram drawn as the metric graphs are
  * - received in green above the line, sent in blue below - its rates on hover.
  * The page opens with the minutes before it (the platform service keeps them),
- * then goes on from the live readings. Locked down (Lock Down), a flat red
- * line; stopped (no contact with Coder, the agent gone), still and grey.
+ * then goes on from the live readings. The window slides every second for as
+ * long as the page is open - readings or none: old bars move out at the left -
+ * and when live readings stop coming (a dropped stream, a tab woken from
+ * sleep) the minutes are asked of the platform service again until they come
+ * back, so it never stops on a stale picture. Locked down (Lock Down), a flat
+ * red line; stopped (no contact with Coder, the agent gone), still and grey.
  * Nothing for a template that does not report the network.
  */
 export const AgentNetworkPill: React.FC<{
@@ -85,9 +93,20 @@ export const AgentNetworkPill: React.FC<{
 	const item = useAgentNetworkMetadata(agentId);
 	const locked = networkLocked(useWorkspaceLockdown(workspaceId));
 	const stopped = stoppedAt !== undefined;
-	const seed = useNetworkSeed(workspaceId, agentId, stopped);
 	const last = useRef<{ at: number; rx: number; tx: number } | null>(null);
 	const [history, setHistory] = useState<NetworkSample[]>([]);
+	// the window's clock: it slides every second, readings or not
+	const [clock, setClock] = useState(() => Date.now());
+	useEffect(() => {
+		if (stopped) {
+			return;
+		}
+		const id = setInterval(() => setClock(Date.now()), PILL_TICK_MS);
+		return () => clearInterval(id);
+	}, [stopped]);
+	const stalled =
+		!stopped && !locked && clock - (last.current?.at ?? 0) > PILL_STALL_MS;
+	const seed = useNetworkSeed(workspaceId, agentId, stopped, stalled);
 	const value = item?.result.value ?? "";
 	const collectedAt = item?.result.collected_at ?? "";
 
@@ -139,11 +158,20 @@ export const AgentNetworkPill: React.FC<{
 		}
 	}, [locked]);
 
+	// what slid out of the window is dropped (a page left open for days keeps 5 minutes, no more)
+	useEffect(() => {
+		setHistory((h) =>
+			h.length > 0 && h[0].t <= clock - PILL_WINDOW_MS
+				? h.filter((s) => s.t > clock - PILL_WINDOW_MS)
+				: h,
+		);
+	}, [clock]);
+
 	if (!(item && parse(value)) && !seed?.last) {
 		return null;
 	}
 	const now = history[history.length - 1];
-	const bars = locked ? [] : pillBars(history, stoppedAt ?? Date.now());
+	const bars = locked ? [] : pillBars(history, stoppedAt ?? clock);
 	const label = locked
 		? "Network locked down: nothing gets in or out but Coder's own connection"
 		: stopped

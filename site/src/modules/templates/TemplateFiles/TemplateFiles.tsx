@@ -23,6 +23,10 @@ type TemplateFilesProps = {
 	sidebar?: React.ReactNode;
 	/** Shown above the file tree (Source Code: Upload). */
 	actions?: React.ReactNode;
+	/** Shown above the files (Source Code: Code | Materialized). */
+	tabs?: React.ReactNode;
+	/** Shown in place of the files (Source Code: the materialized main.tf). */
+	content?: React.ReactNode;
 };
 
 export const TemplateFiles: React.FC<TemplateFilesProps> = ({
@@ -33,6 +37,8 @@ export const TemplateFiles: React.FC<TemplateFilesProps> = ({
 	baseFiles,
 	sidebar,
 	actions,
+	tabs,
+	content,
 }) => {
 	const getLink = useLinks();
 
@@ -106,57 +112,59 @@ export const TemplateFiles: React.FC<TemplateFilesProps> = ({
 					className="flex min-w-0 flex-1 flex-col gap-4"
 					data-testid="template-files-content"
 				>
-					{Object.keys(currentFiles)
-						.sort((a, b) => a.localeCompare(b))
-						.map((filename) => {
-							const TemplateFileIcon = getTemplateFileIcon(filename);
-							const info = fileInfo(filename);
+					{tabs}
+					{content ??
+						Object.keys(currentFiles)
+							.sort((a, b) => a.localeCompare(b))
+							.map((filename) => {
+								const TemplateFileIcon = getTemplateFileIcon(filename);
+								const info = fileInfo(filename);
 
-							return (
-								<div
-									key={filename}
-									id={filename}
-									className="overflow-hidden rounded-lg border border-solid border-surface-quaternary"
-								>
-									<header className="flex items-center gap-2 border-0 border-b border-solid border-surface-quaternary px-4 py-2 text-sm font-medium">
-										<div className="flex items-center gap-2">
-											<TemplateFileIcon className="text-content-secondary size-icon-xs" />
-											<span
-												className={cn({
-													"text-content-warning": info.hasDiff,
-												})}
-											>
-												{filename}
-											</span>
-										</div>
+								return (
+									<div
+										key={filename}
+										id={filename}
+										className="overflow-hidden rounded-lg border border-solid border-surface-quaternary"
+									>
+										<header className="flex items-center gap-2 border-0 border-b border-solid border-surface-quaternary px-4 py-2 text-sm font-medium">
+											<div className="flex items-center gap-2">
+												<TemplateFileIcon className="text-content-secondary size-icon-xs" />
+												<span
+													className={cn({
+														"text-content-warning": info.hasDiff,
+													})}
+												>
+													{filename}
+												</span>
+											</div>
 
-										<div className="ml-auto">
-											<RouterLink
-												to={`${versionLink}/edit?path=${filename}`}
-												className="flex items-center gap-1 text-sm no-underline text-content-secondary hover:text-content-primary"
-											>
-												<EditIcon className="text-inherit size-icon-xs" />
-												Edit
-											</RouterLink>
-										</div>
-									</header>
-									<SyntaxHighlighter
-										language={getLanguage(filename)}
-										value={info.value}
-										compareWith={info.previousValue}
-										editorProps={{
-											// 18 is the editor line height
-											height: Math.min(numberOfLines(info.value) * 18, 560),
-											onMount: (editor) => {
-												editor.updateOptions({
-													scrollBeyondLastLine: false,
-												});
-											},
-										}}
-									/>
-								</div>
-							);
-						})}
+											<div className="ml-auto">
+												<RouterLink
+													to={`${versionLink}/edit?path=${filename}`}
+													className="flex items-center gap-1 text-sm no-underline text-content-secondary hover:text-content-primary"
+												>
+													<EditIcon className="text-inherit size-icon-xs" />
+													Edit
+												</RouterLink>
+											</div>
+										</header>
+										<SyntaxHighlighter
+											language={getLanguage(filename)}
+											value={info.value}
+											compareWith={info.previousValue}
+											editorProps={{
+												// 18 is the editor line height
+												height: Math.min(numberOfLines(info.value) * 18, 560),
+												onMount: (editor) => {
+													editor.updateOptions({
+														scrollBeyondLastLine: false,
+													});
+												},
+											}}
+										/>
+									</div>
+								);
+							})}
 				</div>
 			</div>
 		</div>

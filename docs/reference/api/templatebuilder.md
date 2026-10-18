@@ -244,6 +244,130 @@ curl -X POST http://coder-server:8080/api/v2/templatebuilder/compose/template \
 
 To perform this operation, you must be authenticated. [Learn more](authentication.md).
 
+## The template decorator: the platform's sections and the files it provides
+
+### Code samples
+
+```sh
+# Example request using curl
+curl -X GET http://coder-server:8080/api/v2/templatebuilder/decorator \
+  -H 'Accept: application/json' \
+  -H 'Coder-Session-Token: API_KEY'
+```
+
+`GET /api/v2/templatebuilder/decorator`
+
+### Example responses
+
+> 200 Response
+
+```json
+{
+  "base_template": "string",
+  "base_version": "de452326-5067-4c70-a81d-2403dae6025f",
+  "enabled": true,
+  "error": "string",
+  "features": [
+    "string"
+  ],
+  "global_files": [
+    {
+      "content": "string",
+      "features": [
+        "string"
+      ],
+      "name": "string",
+      "path": "string",
+      "reference": "string",
+      "size": 0
+    }
+  ],
+  "sections": [
+    {
+      "feature": "string",
+      "placement": "string",
+      "text": "string"
+    }
+  ]
+}
+```
+
+### Responses
+
+| Status | Meaning                                                 | Description | Schema                                                             |
+|--------|---------------------------------------------------------|-------------|--------------------------------------------------------------------|
+| 200    | [OK](https://tools.ietf.org/html/rfc7231#section-6.3.1) | OK          | [codersdk.TemplateDecorator](schemas.md#codersdktemplatedecorator) |
+
+To perform this operation, you must be authenticated. [Learn more](authentication.md).
+
+## A template's Terraform as Coder provisions it (the decorator's sections injected)
+
+### Code samples
+
+```sh
+# Example request using curl
+curl -X POST http://coder-server:8080/api/v2/templatebuilder/materialize \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json' \
+  -H 'Coder-Session-Token: API_KEY'
+```
+
+`POST /api/v2/templatebuilder/materialize`
+
+> Body parameter
+
+```json
+{
+  "files": {
+    "property1": "string",
+    "property2": "string"
+  },
+  "template_version_id": "0ba39c92-1f1b-4c32-aa3e-9925d7713eb1"
+}
+```
+
+### Parameters
+
+| Name   | In   | Type                                                                                 | Required | Description                  |
+|--------|------|--------------------------------------------------------------------------------------|----------|------------------------------|
+| `body` | body | [codersdk.TemplateMaterializeRequest](schemas.md#codersdktemplatematerializerequest) | true     | A template version, or files |
+
+### Example responses
+
+> 200 Response
+
+```json
+{
+  "added": [
+    "string"
+  ],
+  "changed": {
+    "property1": "string",
+    "property2": "string"
+  },
+  "enabled": true,
+  "injected": [
+    "string"
+  ],
+  "main_tf": "string",
+  "main_tf_name": "string",
+  "skipped": [
+    {
+      "feature": "string",
+      "reason": "string"
+    }
+  ]
+}
+```
+
+### Responses
+
+| Status | Meaning                                                 | Description | Schema                                                                                 |
+|--------|---------------------------------------------------------|-------------|----------------------------------------------------------------------------------------|
+| 200    | [OK](https://tools.ietf.org/html/rfc7231#section-6.3.1) | OK          | [codersdk.TemplateMaterializeResponse](schemas.md#codersdktemplatematerializeresponse) |
+
+To perform this operation, you must be authenticated. [Learn more](authentication.md).
+
 ## List template builder modules
 
 ### Code samples
