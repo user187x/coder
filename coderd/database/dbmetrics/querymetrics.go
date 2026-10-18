@@ -69,6 +69,22 @@ type queryMetricsStore struct {
 	dbMetrics      *metricsStore
 }
 
+func (m queryMetricsStore) DeleteTemplateVersionByID(ctx context.Context, id uuid.UUID) error {
+	start := time.Now()
+	r0 := m.s.DeleteTemplateVersionByID(ctx, id)
+	m.queryLatencies.WithLabelValues("DeleteTemplateVersionByID").Observe(time.Since(start).Seconds())
+	m.queryCounts.WithLabelValues(httpmw.ExtractHTTPRoute(ctx), httpmw.ExtractHTTPMethod(ctx), "DeleteTemplateVersionByID").Inc()
+	return r0
+}
+
+func (m queryMetricsStore) GetWorkspaceNamesRunningTemplateVersion(ctx context.Context, templateVersionID uuid.UUID) ([]string, error) {
+	start := time.Now()
+	r0, r1 := m.s.GetWorkspaceNamesRunningTemplateVersion(ctx, templateVersionID)
+	m.queryLatencies.WithLabelValues("GetWorkspaceNamesRunningTemplateVersion").Observe(time.Since(start).Seconds())
+	m.queryCounts.WithLabelValues(httpmw.ExtractHTTPRoute(ctx), httpmw.ExtractHTTPMethod(ctx), "GetWorkspaceNamesRunningTemplateVersion").Inc()
+	return r0, r1
+}
+
 func (m queryMetricsStore) Wrappers() []string {
 	return append(m.s.Wrappers(), wrapname)
 }

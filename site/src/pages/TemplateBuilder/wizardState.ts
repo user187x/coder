@@ -153,6 +153,7 @@ export type WizardAction =
 			value: string;
 	  }
 	| { type: "SET_HAS_PROVISIONERS"; value: boolean | undefined }
+	| { type: "RENAME_BASE"; name: string }
 	| { type: "RESET_CUSTOMIZATIONS" }
 	| { type: "RESET" };
 
@@ -176,6 +177,19 @@ export function wizardReducer(
 				...baseCustomizationDefaults(action.base),
 			};
 		}
+		case "RENAME_BASE":
+			if (!state.selectedBase) {
+				return state;
+			}
+			// The new template's display name follows while it is still the base's.
+			return {
+				...state,
+				selectedBase: { ...state.selectedBase, name: action.name },
+				displayName:
+					state.displayName === state.selectedBase.name
+						? action.name
+						: state.displayName,
+			};
 		case "SET_BASE_VARIABLES":
 			return {
 				...state,

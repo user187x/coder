@@ -257,6 +257,10 @@ type sqlcQuerier interface {
 	DeleteStaleWorkspaceAgentContextResources(ctx context.Context, arg DeleteStaleWorkspaceAgentContextResourcesParams) error
 	DeleteTailnetPeer(ctx context.Context, arg DeleteTailnetPeerParams) (DeleteTailnetPeerRow, error)
 	DeleteTailnetTunnel(ctx context.Context, arg DeleteTailnetTunnelParams) (DeleteTailnetTunnelRow, error)
+	// Platform: a version deleted from its template's history (the handler refuses the active version, one still
+	// building, and one a workspace runs). Its parameters, variables, presets and tags go with it, and so do the builds
+	// that used it in workspaces' history (ON DELETE CASCADE).
+	DeleteTemplateVersionByID(ctx context.Context, id uuid.UUID) error
 	DeleteUnlinkedChatFilesByIDs(ctx context.Context, arg DeleteUnlinkedChatFilesByIDsParams) (int64, error)
 	DeleteUserAIBudgetOverride(ctx context.Context, userID uuid.UUID) (UserAIBudgetOverride, error)
 	DeleteUserAIProviderKey(ctx context.Context, arg DeleteUserAIProviderKeyParams) error
@@ -1140,6 +1144,9 @@ type sqlcQuerier interface {
 	GetWorkspaceByWorkspaceAppID(ctx context.Context, workspaceAppID uuid.UUID) (Workspace, error)
 	GetWorkspaceModulesByJobID(ctx context.Context, jobID uuid.UUID) ([]WorkspaceModule, error)
 	GetWorkspaceModulesCreatedAfter(ctx context.Context, createdAt time.Time) ([]WorkspaceModule, error)
+	// Platform: the workspaces (owner/name) whose latest build is on a template version - they run it, so it is not
+	// deleted. Deleted workspaces, and ones whose latest build deleted them, are not counted.
+	GetWorkspaceNamesRunningTemplateVersion(ctx context.Context, templateVersionID uuid.UUID) ([]string, error)
 	GetWorkspaceProxies(ctx context.Context) ([]WorkspaceProxy, error)
 	// Finds a workspace proxy that has an access URL or app hostname that matches
 	// the provided hostname. This is to check if a hostname matches any workspace

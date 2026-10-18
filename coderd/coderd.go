@@ -1336,6 +1336,7 @@ func New(options *Options) *API {
 			)
 			r.Get("/", api.templateVersion)
 			r.Patch("/", api.patchTemplateVersion)
+			r.Delete("/", api.deleteTemplateVersion)
 			r.Patch("/cancel", api.patchCancelTemplateVersion)
 			r.Post("/archive", api.postArchiveTemplateVersion())
 			r.Post("/unarchive", api.postUnarchiveTemplateVersion())
@@ -1486,6 +1487,7 @@ func New(options *Options) *API {
 								r.Get("/", api.getUserSecret)
 								r.Patch("/", api.patchUserSecret)
 								r.Delete("/", api.deleteUserSecret)
+								r.Get("/certificate", api.getUserCertificateFile)
 							})
 						})
 						r.Route("/notifications", func(r chi.Router) {

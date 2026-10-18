@@ -1,6 +1,7 @@
 import { cn } from "cn";
 import {
 	DatabaseBackupIcon,
+	PlugIcon,
 	ShieldAlertIcon,
 	ShieldCheckIcon,
 	ShieldIcon,
@@ -28,6 +29,7 @@ import {
 	DropdownMenuTrigger,
 } from "#/components/DropdownMenu/DropdownMenu";
 import { createDayString } from "#/utils/createDayString";
+import { SudoLockIcon } from "./SudoLockIcon";
 
 export const lockdownKey = (workspaceId: string) =>
 	["platform", "lockdown", workspaceId] as const;
@@ -52,52 +54,103 @@ export const modeOf = (
 export const networkLocked = (lock: WorkspaceLockdown | undefined) =>
 	Boolean(lock?.locked && lock.modes.includes("network"));
 
+/** What each lock is called (the toasts, the notice, the badge's title). */
 export const MODE_LABEL: Record<LockdownMode, string> = {
-	network: "Network",
-	sudo: "Sudo Command",
-	complete: "Complete",
-	freeze: "Freeze",
+	network: "Network Disconnected",
+	sudo: "Privilege Escalation Disabled",
+	complete: "Locked Down",
+	freeze: "Frozen",
 	off: "Off",
 };
 
-const MODE_HINT: Record<Exclude<LockdownMode, "off">, string> = {
-	network:
-		"Cut its network: only Coder stays reachable, so its terminal and apps still open for you",
-	sudo: "Take sudo away: nobody in it can become root",
-	complete: "Both: no network but Coder, no sudo",
-	freeze:
-		"Complete, and everything in it paused as it is now (no sessions open); its disk is snapshotted",
+/** The badge's word while a lock is on (short: it sits between a workspace's name and its template). */
+const BADGE_LABEL: Record<LockdownMode, string> = {
+	network: "Network",
+	sudo: "Privilege",
+	complete: "Locked",
+	freeze: "Frozen",
+	off: "Off",
 };
 
-const MODES = ["network", "sudo", "complete", "freeze"] as const;
+/** The lock that cuts the network, takes sudo away, both, or neither. */
+const lockFor = (network: boolean, sudo: boolean): LockdownMode =>
+	network && sudo ? "complete" : network ? "network" : sudo ? "sudo" : "off";
 
-/** Each mode's icon in the menu: Network a pulled plug, Sudo Command passport control (no way past it), Complete
- * the red shield, Freeze a snowflake. */
-const ModeIcon: React.FC<{ mode: (typeof MODES)[number] }> = ({ mode }) => {
-	switch (mode) {
-		case "network":
-			return (
-				<UnplugIcon
-					className="mt-0.5 text-content-destructive"
-					data-testid="lockdown-icon-network"
-				/>
-			);
-		case "sudo":
-			return (
-				<img
-					src="/emojis/1f6c2.png"
-					alt=""
-					aria-hidden
-					className="mt-0.5 size-4 shrink-0"
-					data-testid="lockdown-icon-sudo"
-				/>
-			);
-		case "freeze":
-			return <SnowflakeIcon className="mt-0.5 text-content-link" />;
-		default:
-			return <ShieldAlertIcon className="mt-0.5 text-content-destructive" />;
-	}
+type MenuItemSpec = {
+	key: "network" | "sudo" | "complete" | "freeze";
+	/** The item's lock is on now: its words undo it, and it is red (green while off). */
+	isOn: (current: LockdownMode) => boolean;
+	/** The lock after the item is chosen. */
+	next: (current: LockdownMode) => LockdownMode;
+	label: { off: string; on: string };
+	hint: { off: string; on: string };
+	icon: (on: boolean) => React.ReactNode;
 };
+
+const cutsNetwork = (m: LockdownMode) =>
+	m === "network" || m === "complete" || m === "freeze";
+const takesSudo = (m: LockdownMode) =>
+	m === "sudo" || m === "complete" || m === "freeze";
+
+/**
+ * The menu: each item turns one lock on or off and says which, red while its lock is on (the network disconnected,
+ * privilege escalation disabled, the workspace locked down or frozen) and green while it is off. Network and
+ * Privilege Escalation go together as Lock Down; while frozen, only Unfreeze.
+ */
+const MENU: readonly MenuItemSpec[] = [
+	{
+		key: "network",
+		isOn: cutsNetwork,
+		next: (m) => lockFor(!cutsNetwork(m), takesSudo(m)),
+		label: { off: "Disconnect Network", on: "Reconnect Network" },
+		hint: {
+			off: "Cut its network: only Coder stays reachable, so its terminal and apps still open for you",
+			on: "Give it its network back",
+		},
+		icon: (on) =>
+			on ? (
+				<PlugIcon data-testid="lockdown-icon-network" />
+			) : (
+				<UnplugIcon data-testid="lockdown-icon-network" />
+			),
+	},
+	{
+		key: "sudo",
+		isOn: takesSudo,
+		next: (m) => lockFor(cutsNetwork(m), !takesSudo(m)),
+		label: {
+			off: "Privilege Escalation Disable",
+			on: "Privilege Escalation Enable",
+		},
+		hint: {
+			off: "Take sudo away: nobody in it can become root",
+			on: "Let sudo work in it again",
+		},
+		icon: () => <SudoLockIcon data-testid="lockdown-icon-sudo" />,
+	},
+	{
+		key: "complete",
+		isOn: (m) => m === "complete" || m === "freeze",
+		next: (m) => (m === "complete" ? "off" : "complete"),
+		label: { off: "Lock Down", on: "Unlock" },
+		hint: {
+			off: "Both: no network but Coder, no privilege escalation",
+			on: "Lift the lock: its network and sudo back",
+		},
+		icon: (on) => (on ? <ShieldCheckIcon /> : <ShieldAlertIcon />),
+	},
+	{
+		key: "freeze",
+		isOn: (m) => m === "freeze",
+		next: (m) => (m === "freeze" ? "off" : "freeze"),
+		label: { off: "Freeze", on: "Unfreeze" },
+		hint: {
+			off: "Locked down, and everything in it paused as it is now (no sessions open); its disk is snapshotted",
+			on: "Resume everything in it and lift the lock",
+		},
+		icon: () => <SnowflakeIcon />,
+	},
+];
 
 const useLockdown = (workspaceId: string, enabled = true) =>
 	useQuery({
@@ -136,7 +189,7 @@ export const useAllLockdowns = () =>
  * The Lock Down badge, for admins: a small shield next to a workspace (in the
  * Workspaces list, between its name and its template; on its page, right of
  * Open Ports), red with the mode while a lock is on. Its menu locks the
- * workspace down - Network, Sudo Command, Complete (both) or Freeze - for
+ * workspace down - its network, privilege escalation, both or Freeze - for
  * instance when an agent in it runs away, or lifts the lock. A running
  * workspace is locked at once, without a restart: its processes keep running,
  * and its terminal and apps still open (they go through Coder), so admins can
@@ -226,7 +279,7 @@ export const LockdownBadge: React.FC<{
 					) : (
 						<ShieldIcon aria-hidden className="size-3.5" />
 					)}
-					{locked && <span className="pr-0.5">{MODE_LABEL[current]}</span>}
+					{locked && <span className="pr-0.5">{BADGE_LABEL[current]}</span>}
 				</button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent
@@ -238,39 +291,34 @@ export const LockdownBadge: React.FC<{
 				<DropdownMenuLabel>
 					Lock Down {workspace.owner_name}/{workspace.name}
 				</DropdownMenuLabel>
-				{MODES.map((mode) => (
-					<DropdownMenuItem
-						key={mode}
-						disabled={set.isPending || current === mode}
-						onSelect={() => set.mutate(mode)}
-						data-testid={`lockdown-${mode}`}
-						className="items-start"
-					>
-						<ModeIcon mode={mode} />
-						<span className="flex flex-col">
-							<span className="font-medium">
-								{MODE_LABEL[mode]}
-								{current === mode && " (on)"}
-							</span>
-							<span className="text-xs text-content-secondary">
-								{MODE_HINT[mode]}
-							</span>
-						</span>
-					</DropdownMenuItem>
-				))}
-				{locked && (
-					<>
-						<DropdownMenuSeparator />
+				{MENU.map((item) => {
+					const on = item.isOn(current);
+					return (
 						<DropdownMenuItem
-							disabled={set.isPending}
-							onSelect={() => set.mutate("off")}
-							data-testid="lockdown-off"
+							key={item.key}
+							disabled={
+								set.isPending || (current === "freeze" && item.key !== "freeze")
+							}
+							onSelect={() => set.mutate(item.next(current))}
+							data-testid={`lockdown-${item.key}`}
+							data-on={on}
+							className={cn(
+								"items-start [&_svg]:mt-0.5 [&_svg]:size-4 [&_svg]:shrink-0",
+								on ? "text-content-destructive" : "text-content-success",
+							)}
 						>
-							<ShieldCheckIcon />
-							Lift Lock Down
+							{item.icon(on)}
+							<span className="flex flex-col">
+								<span className="font-medium">
+									{on ? item.label.on : item.label.off}
+								</span>
+								<span className="text-xs text-content-secondary">
+									{on ? item.hint.on : item.hint.off}
+								</span>
+							</span>
 						</DropdownMenuItem>
-					</>
-				)}
+					);
+				})}
 				{snapshot && (
 					<>
 						<DropdownMenuSeparator />
@@ -328,7 +376,7 @@ export const LockdownBanner: React.FC<{ workspace: Workspace }> = ({
 	const parts = [
 		lock.modes.includes("freeze") && "everything paused",
 		lock.modes.includes("network") && "no network but Coder",
-		lock.modes.includes("sudo") && "no sudo",
+		lock.modes.includes("sudo") && "no privilege escalation",
 	].filter(Boolean);
 	const status = !lock.running
 		? "From the workspace's next start."
@@ -355,7 +403,10 @@ export const LockdownBanner: React.FC<{ workspace: Workspace }> = ({
 			{shield}
 			<div className="flex flex-col items-center gap-0.5">
 				<span className="font-semibold">
-					Locked down: {MODE_LABEL[mode]} ({parts.join(", ")})
+					{mode === "complete"
+						? "Locked down"
+						: `Locked down: ${MODE_LABEL[mode]}`}{" "}
+					({parts.join(", ")})
 				</span>
 				<span className="text-content-secondary">
 					{lock.by ? `By ${lock.by}` : "By an admin"}

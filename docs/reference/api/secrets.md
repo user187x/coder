@@ -336,3 +336,42 @@ curl -X PATCH http://coder-server:8080/api/v2/users/{user}/secrets/{name} \
 | 409    | [Conflict](https://tools.ietf.org/html/rfc7231#section-6.5.8)    | Conflict    | [codersdk.Response](schemas.md#codersdkresponse)     |
 
 To perform this operation, you must be authenticated. [Learn more](authentication.md).
+
+## Get the user's certificate file
+
+### Code samples
+
+```sh
+# Example request using curl
+curl -X GET http://coder-server:8080/api/v2/users/{user}/secrets/{name}/certificate \
+  -H 'Accept: application/json' \
+  -H 'Coder-Session-Token: API_KEY'
+```
+
+`GET /api/v2/users/{user}/secrets/{name}/certificate`
+
+### Parameters
+
+| Name   | In   | Type   | Required | Description              |
+|--------|------|--------|----------|--------------------------|
+| `user` | path | string | true     | User ID, username, or me |
+| `name` | path | string | true     | Secret name              |
+
+### Example responses
+
+> 200 Response
+
+```json
+{
+  "base64": "string",
+  "name": "string"
+}
+```
+
+### Responses
+
+| Status | Meaning                                                 | Description | Schema                                                                 |
+|--------|---------------------------------------------------------|-------------|------------------------------------------------------------------------|
+| 200    | [OK](https://tools.ietf.org/html/rfc7231#section-6.3.1) | OK          | [codersdk.UserCertificateFile](schemas.md#codersdkusercertificatefile) |
+
+To perform this operation, you must be authenticated. [Learn more](authentication.md).

@@ -598,7 +598,6 @@ const ParameterUsageLabel: React.FC<ParameterUsageLabelProps> = ({
 	if (usage.value.startsWith("http")) {
 		return (
 			<span className="break-all">
-				<span className="mr-0.5 text-content-secondary">&quot;</span>
 				<Link
 					href={usage.value}
 					target="_blank"
@@ -612,7 +611,6 @@ const ParameterUsageLabel: React.FC<ParameterUsageLabelProps> = ({
 				</Link>
 				{/* Manual icon because we want to support multi-line. */}
 				<SquareArrowOutUpRightIcon className="inline-flex align-text-bottom size-icon-sm p-0.5 text-content-link" />
-				<span className="ml-0.5 text-content-secondary">&quot;</span>
 			</span>
 		);
 	}
@@ -651,12 +649,8 @@ const ParameterUsageLabel: React.FC<ParameterUsageLabelProps> = ({
 		);
 	}
 
-	// Platform: a number shows as itself; the quotes of TextValue mark text.
-	if (parameter.type === "number") {
-		return <span className="break-all">{usage.value}</span>;
-	}
-
-	return <TextValue>{usage.value}</TextValue>;
+	// Platform: a value shows as itself, without quotes (a number, a Start folder, a Workspace image).
+	return <span className="break-all">{usage.value}</span>;
 };
 
 type PanelProps = React.ComponentProps<"div">;
@@ -740,16 +734,6 @@ const NoDataAvailable: React.FC<NoDataAvailableProps> = ({
 					getErrorMessage(error, "Unable to fetch insights")
 				: "No data available"}
 		</div>
-	);
-};
-
-const TextValue: React.FC<React.PropsWithChildren> = ({ children }) => {
-	return (
-		<span className="break-all">
-			<span className="mr-0.5 text-content-secondary">&quot;</span>
-			{children}
-			<span className="ml-0.5 text-content-secondary">&quot;</span>
-		</span>
 	);
 };
 

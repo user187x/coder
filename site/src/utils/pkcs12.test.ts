@@ -1,10 +1,12 @@
 import {
+	certificatePem,
 	checkPkcs12Password,
 	formatFingerprint,
 	inspectPkcs12,
 	Pkcs12Error,
 	pkcs12Certificates,
 	pkcs12PrivateKey,
+	pkcs12UserCertificate,
 	privateKeyPem,
 	sha256Hex,
 } from "./pkcs12";
@@ -119,5 +121,52 @@ describe("pkcs12PrivateKey", () => {
 		expect(pem.startsWith("-----BEGIN PRIVATE KEY-----\n")).toBe(true);
 		expect(pem.endsWith("\n-----END PRIVATE KEY-----\n")).toBe(true);
 		expect(pem.split("\n")[1]).toHaveLength(64);
+	});
+});
+
+describe("pkcs12UserCertificate", () => {
+	const file = (name: string) =>
+		Uint8Array.from(atob(P12[name]), (c) => c.charCodeAt(0));
+	const fingerprint = async (name: string, password: string) =>
+		formatFingerprint(
+			await sha256Hex((await pkcs12UserCertificate(file(name), password)).der),
+		);
+
+	// openssl pkcs12 -legacy -nokeys | openssl x509 -noout -fingerprint -sha256
+	it("opens RC2-40 certificates (an -legacy export)", async () => {
+		expect(await fingerprint("ec-legacy", "s3cret")).toBe(
+			"4E:6E:84:E5:7C:70:10:78:8F:CA:E1:E2:9E:AC:83:D0:CE:13:3B:01:BD:92:48:43:E0:B0:5A:7D:15:82:2C:2F",
+		);
+	});
+
+	it("opens 3DES certificates", async () => {
+		expect(await fingerprint("rsa-3des", "s3cret")).toBe(
+			"02:02:0D:FE:C3:F3:71:89:78:91:C7:B4:ED:EF:75:BD:9C:DC:1F:3B:C6:6C:5C:74:F2:7D:53:E5:A5:F4:B3:2F",
+		);
+	});
+
+	it("opens AES certificates, and picks the one paired with the key", async () => {
+		const cert = await pkcs12UserCertificate(file("ec-aes"), "s3cret");
+		expect(cert.subject).toBe("fixture-ec");
+		expect(cert.hasKey).toBe(true);
+	});
+
+	it("refuses a wrong password", async () => {
+		await expect(
+			pkcs12UserCertificate(file("ec-legacy"), "wrong"),
+		).rejects.toThrow(Pkcs12Error);
+	});
+
+	it("writes the certificate as PEM", async () => {
+		const cert = await pkcs12UserCertificate(file("rsa-3des"), "s3cret");
+		const pem = certificatePem(cert.der);
+		const lines = pem.trim().split("\n");
+		expect(lines[0]).toBe("-----BEGIN CERTIFICATE-----");
+		expect(lines.at(-1)).toBe("-----END CERTIFICATE-----");
+		expect(lines[1]).toHaveLength(64);
+		const body = Uint8Array.from(atob(lines.slice(1, -1).join("")), (c) =>
+			c.charCodeAt(0),
+		);
+		expect(body).toEqual(cert.der);
 	});
 });

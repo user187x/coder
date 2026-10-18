@@ -27296,6 +27296,51 @@ func (q *sqlQuerier) LockProvisionerKeyByIDForShare(ctx context.Context, id uuid
 	return id_2, err
 }
 
+const getWorkspaceNamesRunningTemplateVersion = `-- name: GetWorkspaceNamesRunningTemplateVersion :many
+SELECT
+	(users.username || '/' || workspaces.name)::text AS name
+FROM
+	workspaces
+	JOIN users ON users.id = workspaces.owner_id
+	JOIN LATERAL (
+		SELECT template_version_id, transition
+		FROM workspace_builds
+		WHERE workspace_builds.workspace_id = workspaces.id
+		ORDER BY build_number DESC
+		LIMIT 1
+	) latest ON true
+WHERE
+	NOT workspaces.deleted
+	AND latest.template_version_id = $1
+	AND latest.transition != 'delete'
+ORDER BY name
+`
+
+// Platform: the workspaces (owner/name) whose latest build is on a template version - they run it, so it is not
+// deleted. Deleted workspaces, and ones whose latest build deleted them, are not counted.
+func (q *sqlQuerier) GetWorkspaceNamesRunningTemplateVersion(ctx context.Context, templateVersionID uuid.UUID) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, getWorkspaceNamesRunningTemplateVersion, templateVersionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		items = append(items, name)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getWorkspaceProxies = `-- name: GetWorkspaceProxies :many
 SELECT
 	id, name, display_name, icon, url, wildcard_hostname, created_at, updated_at, deleted, token_hashed_secret, region_id, derp_enabled, derp_only, version
@@ -30685,6 +30730,18 @@ func (q *sqlQuerier) ArchiveUnusedTemplateVersions(ctx context.Context, arg Arch
 		return nil, err
 	}
 	return items, nil
+}
+
+const deleteTemplateVersionByID = `-- name: DeleteTemplateVersionByID :exec
+DELETE FROM template_versions WHERE id = $1
+`
+
+// Platform: a version deleted from its template's history (the handler refuses the active version, one still
+// building, and one a workspace runs). Its parameters, variables, presets and tags go with it, and so do the builds
+// that used it in workspaces' history (ON DELETE CASCADE).
+func (q *sqlQuerier) DeleteTemplateVersionByID(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.ExecContext(ctx, deleteTemplateVersionByID, id)
+	return err
 }
 
 const getPreviousTemplateVersion = `-- name: GetPreviousTemplateVersion :one

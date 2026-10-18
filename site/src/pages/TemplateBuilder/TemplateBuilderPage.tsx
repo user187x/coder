@@ -105,6 +105,7 @@ const TemplateBuilderPage: React.FC = () => {
 				createError={createMutation.error}
 				isCreating={createMutation.isPending || createMutation.isSuccess}
 				onClearCreateError={() => createMutation.reset()}
+				canRenameBase={permissions.updateAnyTemplate}
 			/>
 		</>
 	);

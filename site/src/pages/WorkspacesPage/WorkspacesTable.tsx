@@ -88,6 +88,7 @@ import { isStartingUp, markRestarting, useRestarting } from "./startingRows";
 import { WorkspaceSharingIndicator } from "./WorkspaceSharingIndicator";
 import { WorkspacesEmpty } from "./WorkspacesEmpty";
 import "./startingRows.css";
+import "#/modules/platform/workspaceUpdate/updatePulse.css";
 
 type WorkspacesTableProps = {
 	workspaces?: readonly Workspace[];
@@ -561,7 +562,10 @@ const WorkspaceActionsCell: React.FC<WorkspaceActionsCellProps> = ({
 							isLoading={workspaceUpdate.isUpdating}
 							label="Update and start workspace"
 						>
-							<RotateCcwIcon />
+							<RotateCcwIcon
+								className="workspace-update-pulse"
+								data-testid="workspace-update-pulse"
+							/>
 						</PrimaryAction>
 						<WorkspaceUpdateDialogs {...workspaceUpdate.dialogProps} />
 					</>
@@ -587,7 +591,10 @@ const WorkspaceActionsCell: React.FC<WorkspaceActionsCellProps> = ({
 							isLoading={workspaceUpdate.isUpdating}
 							label="Update and restart workspace"
 						>
-							<RotateCcwIcon />
+							<RotateCcwIcon
+								className="workspace-update-pulse"
+								data-testid="workspace-update-pulse"
+							/>
 						</PrimaryAction>
 						<WorkspaceUpdateDialogs {...workspaceUpdate.dialogProps} />
 					</>

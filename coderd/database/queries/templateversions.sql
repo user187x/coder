@@ -234,3 +234,30 @@ SET
 	updated_at = $3
 WHERE
 	job_id = $1;
+
+-- name: DeleteTemplateVersionByID :exec
+-- Platform: a version deleted from its template's history (the handler refuses the active version, one still
+-- building, and one a workspace runs). Its parameters, variables, presets and tags go with it, and so do the builds
+-- that used it in workspaces' history (ON DELETE CASCADE).
+DELETE FROM template_versions WHERE id = @id;
+
+-- name: GetWorkspaceNamesRunningTemplateVersion :many
+-- Platform: the workspaces (owner/name) whose latest build is on a template version - they run it, so it is not
+-- deleted. Deleted workspaces, and ones whose latest build deleted them, are not counted.
+SELECT
+	(users.username || '/' || workspaces.name)::text AS name
+FROM
+	workspaces
+	JOIN users ON users.id = workspaces.owner_id
+	JOIN LATERAL (
+		SELECT template_version_id, transition
+		FROM workspace_builds
+		WHERE workspace_builds.workspace_id = workspaces.id
+		ORDER BY build_number DESC
+		LIMIT 1
+	) latest ON true
+WHERE
+	NOT workspaces.deleted
+	AND latest.template_version_id = @template_version_id
+	AND latest.transition != 'delete'
+ORDER BY name;

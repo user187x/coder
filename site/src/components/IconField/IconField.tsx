@@ -1,10 +1,19 @@
 import { cn } from "cn";
-import { lazy, Suspense, useId, useState } from "react";
-import { useQuery } from "react-query";
-import { templateIconPath } from "#/api/platform";
-import { templateIcons } from "#/api/queries/platform";
+import { SmilePlusIcon, UploadIcon } from "lucide-react";
+import { lazy, Suspense, useId, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "react-query";
+import { toast } from "sonner";
+import { getErrorMessage } from "#/api/errors";
+import { PlatformAPI, templateIconPath } from "#/api/platform";
+import { templateIcons, templateIconsKey } from "#/api/queries/platform";
 import { ChevronDownIcon as AnimatedChevronDownIcon } from "#/components/AnimatedIcons/ChevronDown";
 import { Button } from "#/components/Button/Button";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "#/components/DropdownMenu/DropdownMenu";
 import { ExternalImage } from "#/components/ExternalImage/ExternalImage";
 import {
 	InputGroup,
@@ -15,9 +24,19 @@ import { Label } from "#/components/Label/Label";
 import { Loader } from "#/components/Loader/Loader";
 import {
 	Popover,
+	PopoverAnchor,
 	PopoverContent,
-	PopoverTrigger,
 } from "#/components/Popover/Popover";
+import { Spinner } from "#/components/Spinner/Spinner";
+import {
+	ICON_TARGET,
+	ImageNormalizeError,
+	normalizeImage,
+} from "#/modules/platform/normalizeImage";
+import { iconNameFromFile } from "#/modules/platform/templateIcons/TemplateIconsDialog";
+
+/** The pictures Upload image takes (as Templates > Icons). */
+const ICON_ACCEPT = ".png,.jpg,.jpeg,.svg,.webp,.gif,.avif,image/*";
 
 const EmojiPicker = lazy(() => import("./EmojiPicker"));
 
@@ -51,7 +70,41 @@ export const IconField: React.FC<IconFieldProps> = ({
 	const errorId = `${id}-error`;
 	const helperId = `${id}-helper`;
 	const [open, setOpen] = useState(false);
+	const [uploading, setUploading] = useState(false);
+	const fileRef = useRef<HTMLInputElement>(null);
+	const queryClient = useQueryClient();
 	const stringValue = value ?? "";
+
+	// Upload image: the picture goes to the icon library (Templates > Icons, owners and template admins), resized to
+	// fit 256 x 256, under a name from its file (a free one: an icon of that name is never replaced), and is used.
+	const upload = async (file: File) => {
+		setUploading(true);
+		try {
+			const image = await normalizeImage(file, ICON_TARGET);
+			const taken = new Set(
+				(
+					await queryClient.fetchQuery(templateIcons()).catch(() => undefined)
+				)?.icons.map((icon) => icon.name) ?? [],
+			);
+			const base = iconNameFromFile(file.name) || "icon";
+			let name = base;
+			for (let i = 2; taken.has(name); i++) {
+				name = `${base.slice(0, 60)}-${i}`;
+			}
+			await PlatformAPI.uploadTemplateIcon({ name, dataUrl: image.dataURL });
+			await queryClient.invalidateQueries({ queryKey: templateIconsKey });
+			onPickEmoji(templateIconPath(name));
+			toast.success(`Icon ${name} uploaded and chosen.`);
+		} catch (error) {
+			toast.error(
+				error instanceof ImageNormalizeError
+					? `${file.name}: ${error.message}`
+					: getErrorMessage(error, "The image was not uploaded."),
+			);
+		} finally {
+			setUploading(false);
+		}
+	};
 	const hasIcon = stringValue !== "";
 
 	return (
@@ -91,19 +144,43 @@ export const IconField: React.FC<IconFieldProps> = ({
 						</span>
 					)}
 					<Popover open={open} onOpenChange={setOpen}>
-						<PopoverTrigger asChild>
-							<Button
-								type="button"
-								variant="subtle"
-								size="sm"
-								className="group h-7 gap-1"
-								disabled={disabled}
-								aria-label="Pick an emoji or icon"
+						<DropdownMenu>
+							<PopoverAnchor asChild>
+								<DropdownMenuTrigger asChild>
+									<Button
+										type="button"
+										variant="subtle"
+										size="sm"
+										className="group h-7 gap-1"
+										disabled={disabled || uploading}
+										aria-label="Pick an emoji or icon"
+									>
+										{uploading ? <Spinner loading /> : null}
+										Emoji
+										<AnimatedChevronDownIcon />
+									</Button>
+								</DropdownMenuTrigger>
+							</PopoverAnchor>
+							<DropdownMenuContent
+								align="end"
+								onClick={(event) => event.stopPropagation()}
 							>
-								Emoji
-								<AnimatedChevronDownIcon />
-							</Button>
-						</PopoverTrigger>
+								<DropdownMenuItem
+									onSelect={() => setOpen(true)}
+									data-testid="icon-field-emoji"
+								>
+									<SmilePlusIcon />
+									Emoji or icon…
+								</DropdownMenuItem>
+								<DropdownMenuItem
+									onSelect={() => fileRef.current?.click()}
+									data-testid="icon-field-upload"
+								>
+									<UploadIcon />
+									Upload image…
+								</DropdownMenuItem>
+							</DropdownMenuContent>
+						</DropdownMenu>
 						<PopoverContent
 							side="bottom"
 							align="end"
@@ -121,6 +198,20 @@ export const IconField: React.FC<IconFieldProps> = ({
 							/>
 						</PopoverContent>
 					</Popover>
+					<input
+						ref={fileRef}
+						type="file"
+						accept={ICON_ACCEPT}
+						className="hidden"
+						data-testid="icon-field-file"
+						onChange={(event) => {
+							const file = event.target.files?.[0];
+							event.target.value = "";
+							if (file) {
+								void upload(file);
+							}
+						}}
+					/>
 				</InputGroupAddon>
 			</InputGroup>
 			{helperText ? (

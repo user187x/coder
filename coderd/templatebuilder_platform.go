@@ -201,6 +201,7 @@ func platformBuilderBaseSDK(base *platformBuilderBase) codersdk.TemplateBuilderB
 		OS:          string(templatebuilder.BaseOSLinux),
 		Variables:   []codersdk.TemplateBuilderModuleVariable{},
 		Agents:      []codersdk.TemplateBuilderBaseAgent{{Name: "main", Default: true}},
+		TemplateID:  &base.Template.ID,
 	}
 }
 

@@ -399,8 +399,8 @@ export const IsoLibrary: React.FC = () => (
 );
 
 /**
- * The model library: language models (GGUF) for the AI workspaces (UBUNTU LM STUDIO, UBUNTU OPENCODE), read-only at
- * ~/models in each, where LM Studio lists them and OpenCode can use them.
+ * The model library: language models (GGUF) for the AI workspaces (UBUNTU UNSLOTH, UBUNTU OPENCODE), read-only at
+ * ~/models in each, where Unsloth lists them and OpenCode can use them.
  */
 export const ModelLibrary: React.FC = () => (
 	<FileLibrary
@@ -415,9 +415,9 @@ export const ModelLibrary: React.FC = () => (
 		security
 		describe={(lib) => (
 			<>
-				Language models (GGUF) for the LM Studio and OpenCode workspaces:
-				read-only at <code>{homePath(lib.mountPath)}</code> in each, where LM
-				Studio lists them and OpenCode can use them. Your own go in your Cloud
+				Language models (GGUF) for the Unsloth and OpenCode workspaces:
+				read-only at <code>{homePath(lib.mountPath)}</code> in each, where
+				Unsloth lists them and OpenCode can use them. Your own go in your Cloud
 				Drive's <code>models</code> folder.
 			</>
 		)}

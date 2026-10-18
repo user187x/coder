@@ -1009,6 +1009,48 @@ export type ChatFocus = {
 /** Whether a conversation's peer id is a group chat's. */
 export const isChatGroupId = (id: string) => id.startsWith("g:");
 
+/** A Cloud Drive shared between users (drivepeers): asked for in chat, accepted by its owner, approved by an admin. */
+export type CloudDriveShare = {
+	id: string;
+	/** Who asked (the drive is mounted in their workspaces). */
+	from: string;
+	fromName: string;
+	/** Whose Cloud Drive it is. */
+	owner: string;
+	ownerName: string;
+	access: "read" | "write";
+	/** What was asked for (the owner may give read only instead of write). */
+	asked: "read" | "write";
+	state: "asked" | "approval" | "active" | "declined" | "denied" | "ended";
+	askedAt: number;
+	answeredAt?: number | null;
+	approvedBy?: string | null;
+	approvedAt?: number | null;
+	closedBy?: string | null;
+	closedAt?: number | null;
+};
+
+export type CloudDrivePeerSettings = {
+	enabled: boolean;
+	adminApproval: boolean;
+	updatedBy: string | null;
+	updatedAt: number | null;
+};
+
+export type CloudDrivePeers = {
+	settings: CloudDrivePeerSettings;
+	admin: boolean;
+	/** The caller's user id. */
+	me: string;
+	/** The shares the caller asked for (others' drives). */
+	asked: CloudDriveShare[];
+	/** The shares of the caller's own drive. */
+	ofMine: CloudDriveShare[];
+	/** Admins: every share, and those waiting for an admin. */
+	all?: CloudDriveShare[];
+	waiting?: CloudDriveShare[];
+};
+
 export type ChatMessage = {
 	id: number;
 	from: string;
@@ -1025,6 +1067,8 @@ export type ChatMessage = {
 	page: string | null;
 	/** A file attached to it: a picture shown in the conversation, anything else a download. */
 	file?: ChatFile | null;
+	/** A Cloud Drive share it is about (its card in the conversation). */
+	driveRequest?: string | null;
 };
 
 export type ChatFile = {
@@ -1780,6 +1824,36 @@ export const PlatformAPI = {
 
 	getCloudDriveEncryption: () =>
 		get<CloudDriveEncryption>(`${PLATFORM_BASE}/api/safe/encryption`),
+
+	getCloudDrivePeers: () =>
+		get<CloudDrivePeers>(`${PLATFORM_BASE}/api/safe/peers`),
+	saveCloudDrivePeerSettings: (
+		body: Partial<Pick<CloudDrivePeerSettings, "enabled" | "adminApproval">>,
+	) => post<CloudDrivePeers>(`${PLATFORM_BASE}/api/safe/peers/settings`, body),
+	requestCloudDrive: (owner: string, access: "read" | "write") =>
+		post<CloudDrivePeers & { share: CloudDriveShare }>(
+			`${PLATFORM_BASE}/api/safe/peers/request`,
+			{ owner, access },
+		),
+	answerCloudDriveShare: (
+		id: string,
+		accept: boolean,
+		access?: "read" | "write",
+	) =>
+		post<CloudDrivePeers & { share: CloudDriveShare }>(
+			`${PLATFORM_BASE}/api/safe/peers/${id}/answer`,
+			{ accept, ...(access ? { access } : {}) },
+		),
+	approveCloudDriveShare: (id: string, approve: boolean) =>
+		post<CloudDrivePeers & { share: CloudDriveShare }>(
+			`${PLATFORM_BASE}/api/safe/peers/${id}/approve`,
+			{ approve },
+		),
+	endCloudDriveShare: (id: string) =>
+		post<CloudDrivePeers & { share: CloudDriveShare }>(
+			`${PLATFORM_BASE}/api/safe/peers/${id}/end`,
+			{},
+		),
 
 	prepareCloudDriveEncryption: (
 		body:

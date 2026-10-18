@@ -8104,6 +8104,7 @@ Restarts will only happen on weekdays in this list on weeks which line up with W
   "name": "string",
   "os": "string",
   "prerequisites": "string",
+  "template_id": "c6d67e98-83ea-49f0-8812-e4abae2b68bc",
   "variables": [
     {
       "default": [
@@ -8121,16 +8122,17 @@ Restarts will only happen on weekdays in this list on weeks which line up with W
 
 ### Properties
 
-| Name            | Type                                                                                      | Required | Restrictions | Description |
-|-----------------|-------------------------------------------------------------------------------------------|----------|--------------|-------------|
-| `agents`        | array of [codersdk.TemplateBuilderBaseAgent](#codersdktemplatebuilderbaseagent)           | false    |              |             |
-| `description`   | string                                                                                    | false    |              |             |
-| `icon`          | string                                                                                    | false    |              |             |
-| `id`            | string                                                                                    | false    |              |             |
-| `name`          | string                                                                                    | false    |              |             |
-| `os`            | string                                                                                    | false    |              |             |
-| `prerequisites` | string                                                                                    | false    |              |             |
-| `variables`     | array of [codersdk.TemplateBuilderModuleVariable](#codersdktemplatebuildermodulevariable) | false    |              |             |
+| Name            | Type                                                                                      | Required | Restrictions | Description                                                                                                                                     |
+|-----------------|-------------------------------------------------------------------------------------------|----------|--------------|-------------------------------------------------------------------------------------------------------------------------------------------------|
+| `agents`        | array of [codersdk.TemplateBuilderBaseAgent](#codersdktemplatebuilderbaseagent)           | false    |              |                                                                                                                                                 |
+| `description`   | string                                                                                    | false    |              |                                                                                                                                                 |
+| `icon`          | string                                                                                    | false    |              |                                                                                                                                                 |
+| `id`            | string                                                                                    | false    |              |                                                                                                                                                 |
+| `name`          | string                                                                                    | false    |              |                                                                                                                                                 |
+| `os`            | string                                                                                    | false    |              |                                                                                                                                                 |
+| `prerequisites` | string                                                                                    | false    |              |                                                                                                                                                 |
+| `template_id`   | string                                                                                    | false    |              | Template ID is the Coder template behind the deployment's own base (the "platform" base): admins rename it from the builder (its display name). |
+| `variables`     | array of [codersdk.TemplateBuilderModuleVariable](#codersdktemplatebuildermodulevariable) | false    |              |                                                                                                                                                 |
 
 ## codersdk.TemplateBuilderBaseAgent
 
@@ -8169,6 +8171,7 @@ Restarts will only happen on weekdays in this list on weeks which line up with W
       "name": "string",
       "os": "string",
       "prerequisites": "string",
+      "template_id": "c6d67e98-83ea-49f0-8812-e4abae2b68bc",
       "variables": [
         {
           "default": [
@@ -10105,6 +10108,22 @@ If the schedule is empty, the user will be updated to use the default schedule.|
 | `theme_light`      | string                                                 | false    |              | Ignored when ThemeMode is "single"                                                                                                                                                                                                                                                                                                        |
 | `theme_mode`       | [codersdk.ThemeMode](#codersdkthememode)               | false    |              |                                                                                                                                                                                                                                                                                                                                           |
 | `theme_preference` | string                                                 | false    |              | Theme preference is the legacy single-field appearance setting. In "single" mode it mirrors the active theme. In "sync" mode modern clients normally mirror the active OS slot, but older clients can update only this field, so it may diverge from ThemeLight or ThemeDark until a modern client saves the full appearance state again. |
+
+## codersdk.UserCertificateFile
+
+```json
+{
+  "base64": "string",
+  "name": "string"
+}
+```
+
+### Properties
+
+| Name     | Type   | Required | Restrictions | Description |
+|----------|--------|----------|--------------|-------------|
+| `base64` | string | false    |              |             |
+| `name`   | string | false    |              |             |
 
 ## codersdk.UserLatency
 

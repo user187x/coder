@@ -1,0 +1,32 @@
+/*
+ * The Workspaces list's Update button (an outdated workspace's restart icon): the icon in the workspace page's Update
+ * orange (Coder's warning colour, --content-warning, as agentOutdated.css), glowing up slowly and fading again for two
+ * seconds, then resting for two, and so on. Still (the icon orange, no glow) with the user menu's Animations off, or
+ * reduced motion.
+ */
+.workspace-update-pulse {
+	color: hsl(var(--content-warning));
+	animation: workspace-update-pulse 4s ease-in-out infinite;
+}
+
+@keyframes workspace-update-pulse {
+	0%,
+	50%,
+	100% {
+		filter: drop-shadow(0 0 0 hsl(var(--content-warning) / 0));
+	}
+	25% {
+		filter: drop-shadow(0 0 3px hsl(var(--content-warning) / 0.75))
+			drop-shadow(0 0 6px hsl(var(--content-warning) / 0.35));
+	}
+}
+
+html[data-animations="off"] .workspace-update-pulse {
+	animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.workspace-update-pulse {
+		animation: none;
+	}
+}

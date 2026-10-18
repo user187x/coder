@@ -2,12 +2,15 @@ import { cn } from "cn";
 import {
 	CameraIcon,
 	ChevronUpIcon,
+	CloudIcon,
 	EllipsisVerticalIcon,
 	MinusIcon,
 	TrashIcon,
 	XIcon,
 } from "lucide-react";
 import { useRef, useState } from "react";
+import { useQuery } from "react-query";
+import { cloudDrivePeers } from "#/api/queries/platform";
 import { Button } from "#/components/Button/Button";
 import {
 	DropdownMenu,
@@ -15,6 +18,7 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "#/components/DropdownMenu/DropdownMenu";
+import { AskForCloudDriveDialog } from "#/modules/platform/cloudDrive/CloudDrivePeers";
 import { ChatAvatar } from "./ChatAvatar";
 import { ChatConversation, type ConversationActions } from "./ChatConversation";
 import {
@@ -74,6 +78,15 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ window: w, dock }) => {
 	const [shooting, setShooting] = useState(false);
 	const actions = useRef<ConversationActions>(null);
 	const bodyRef = useRef<HTMLDivElement>(null);
+	// Cloud Drives shared between users: asked for from here, while admins have it on (read when the menu opens).
+	const [menuOpen, setMenuOpen] = useState(false);
+	const [asking, setAsking] = useState(false);
+	const peers = useQuery({
+		...cloudDrivePeers(menuOpen && !peer.group),
+		refetchInterval: false,
+	});
+	const canAsk =
+		!peer.group && peer.id !== state.me?.id && peers.data?.settings.enabled;
 
 	const toggle = () => setMinimized(peer.id, !w.minimized);
 
@@ -128,7 +141,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ window: w, dock }) => {
 					<span className="min-w-0 flex-1 truncate">{name}</span>
 					{unread > 0 && <CountBadge count={unread} />}
 				</button>
-				<DropdownMenu>
+				<DropdownMenu onOpenChange={setMenuOpen}>
 					<DropdownMenuTrigger asChild>
 						<Button variant="subtle" size="icon" aria-label="More" title="More">
 							<EllipsisVerticalIcon />
@@ -148,6 +161,15 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ window: w, dock }) => {
 							<CameraIcon />
 							Screenshot
 						</DropdownMenuItem>
+						{canAsk && (
+							<DropdownMenuItem
+								onSelect={() => setAsking(true)}
+								data-testid="chat-ask-cloud-drive"
+							>
+								<CloudIcon />
+								Ask for their Cloud Drive
+							</DropdownMenuItem>
+						)}
 						<DropdownMenuItem
 							className="text-content-destructive"
 							onSelect={() => {
@@ -196,6 +218,12 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ window: w, dock }) => {
 						onShootingChange={setShooting}
 					/>
 				</div>
+			)}
+			{asking && (
+				<AskForCloudDriveDialog
+					owner={{ id: peer.id, name }}
+					onClose={() => setAsking(false)}
+				/>
 			)}
 		</section>
 	);

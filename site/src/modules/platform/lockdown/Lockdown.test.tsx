@@ -70,7 +70,7 @@ describe("Lock Down", () => {
 		expect(banner.firstElementChild).toBe(shields[0]);
 		expect(banner.lastElementChild).toBe(shields[1]);
 		expect(banner.textContent).toContain(
-			"Locked down: Freeze (everything paused, no network but Coder, no sudo)",
+			"Locked down: Frozen (everything paused, no network but Coder, no privilege escalation)",
 		);
 		expect(banner.textContent).toContain("stays frozen through restarts");
 	});
@@ -88,7 +88,7 @@ describe("Lock Down", () => {
 		renderWith(<LockdownBanner workspace={MockWorkspace} />);
 		const banner = await screen.findByTestId("workspace-lockdown-banner");
 		expect(banner.textContent).toContain(
-			"Locked down: Complete (no network but Coder, no sudo)",
+			"Locked down (no network but Coder, no privilege escalation)",
 		);
 		expect(banner.textContent).toContain("By admin");
 		expect(banner.textContent).toContain("In force in the running workspace.");
@@ -156,7 +156,7 @@ describe("Lock Down", () => {
 		);
 	});
 
-	it("shows each mode's icon: a pulled plug, passport control, the shield, a snowflake", async () => {
+	it("shows each item's icon: a pulled plug, the barred gate, the shield, a snowflake", async () => {
 		vi.spyOn(PlatformAPI, "getLockdown").mockResolvedValue(lock({}));
 		renderWith(<LockdownBadge workspace={MockWorkspace} />);
 		const button = await screen.findByTestId("workspace-lockdown");
@@ -164,8 +164,10 @@ describe("Lock Down", () => {
 		const network = await screen.findByTestId("lockdown-network");
 		expect(network.querySelector("svg.lucide-unplug")).not.toBeNull();
 		expect(
-			screen.getByTestId("lockdown-sudo").querySelector("img"),
-		).toHaveAttribute("src", "/emojis/1f6c2.png");
+			screen
+				.getByTestId("lockdown-sudo")
+				.querySelector('[data-testid="lockdown-icon-sudo"]'),
+		).not.toBeNull();
 		expect(
 			screen
 				.getByTestId("lockdown-complete")
@@ -222,5 +224,107 @@ describe("Lock Down", () => {
 		expect(snap.textContent).toContain("42 processes paused");
 		fireEvent.click(screen.getByTestId("lockdown-snapshot-delete"));
 		await waitFor(() => expect(del).toHaveBeenCalledWith(MockWorkspace.id));
+	});
+
+	it("names each item by what it does, green while its lock is off", async () => {
+		vi.spyOn(PlatformAPI, "getLockdown").mockResolvedValue(lock({}));
+		renderWith(<LockdownBadge workspace={MockWorkspace} />);
+		fireEvent.pointerDown(await screen.findByTestId("workspace-lockdown"), {
+			button: 0,
+			ctrlKey: false,
+		});
+		const items = {
+			network: await screen.findByTestId("lockdown-network"),
+			sudo: screen.getByTestId("lockdown-sudo"),
+			complete: screen.getByTestId("lockdown-complete"),
+			freeze: screen.getByTestId("lockdown-freeze"),
+		};
+		expect(items.network).toHaveTextContent("Disconnect Network");
+		expect(items.sudo).toHaveTextContent("Privilege Escalation Disable");
+		expect(items.complete).toHaveTextContent("Lock Down");
+		expect(items.freeze).toHaveTextContent("Freeze");
+		for (const item of Object.values(items)) {
+			expect(item.dataset.on).toBe("false");
+			expect(item.className).toContain("text-content-success");
+		}
+	});
+
+	it("while locked down, every item is red and undoes its part", async () => {
+		vi.spyOn(PlatformAPI, "getLockdown").mockResolvedValue(
+			lock({ locked: true, modes: ["network", "sudo"] }),
+		);
+		const set = vi.spyOn(PlatformAPI, "setLockdown").mockResolvedValue({
+			...lock({ locked: true, modes: ["sudo"] }),
+			applied: "now",
+			error: null,
+		});
+		renderWith(<LockdownBadge workspace={MockWorkspace} />);
+		fireEvent.pointerDown(await screen.findByTestId("workspace-lockdown"), {
+			button: 0,
+			ctrlKey: false,
+		});
+		const network = await screen.findByTestId("lockdown-network");
+		await waitFor(() => expect(network).toHaveTextContent("Reconnect Network"));
+		expect(network.className).toContain("text-content-destructive");
+		expect(screen.getByTestId("lockdown-sudo")).toHaveTextContent(
+			"Privilege Escalation Enable",
+		);
+		expect(screen.getByTestId("lockdown-complete")).toHaveTextContent("Unlock");
+		expect(screen.getByTestId("lockdown-freeze").dataset.on).toBe("false");
+		// Reconnect Network: privilege escalation stays disabled.
+		fireEvent.click(network);
+		await waitFor(() =>
+			expect(set).toHaveBeenCalledWith(MockWorkspace.id, "sudo"),
+		);
+	});
+
+	it("adds the network to a privilege lock (Lock Down), and Unlock lifts both", async () => {
+		const get = vi
+			.spyOn(PlatformAPI, "getLockdown")
+			.mockResolvedValue(lock({ locked: true, modes: ["sudo"] }));
+		const set = vi.spyOn(PlatformAPI, "setLockdown").mockResolvedValue({
+			...lock({ locked: true, modes: ["network", "sudo"] }),
+			applied: "now",
+			error: null,
+		});
+		renderWith(<LockdownBadge workspace={MockWorkspace} />);
+		const open = async () =>
+			fireEvent.pointerDown(await screen.findByTestId("workspace-lockdown"), {
+				button: 0,
+				ctrlKey: false,
+			});
+		await open();
+		await waitFor(() => expect(get).toHaveBeenCalled());
+		const network = await screen.findByTestId("lockdown-network");
+		await waitFor(() =>
+			expect(network).toHaveTextContent("Disconnect Network"),
+		);
+		fireEvent.click(network);
+		await waitFor(() =>
+			expect(set).toHaveBeenCalledWith(MockWorkspace.id, "complete"),
+		);
+		await open();
+		fireEvent.click(await screen.findByTestId("lockdown-complete"));
+		await waitFor(() =>
+			expect(set).toHaveBeenLastCalledWith(MockWorkspace.id, "off"),
+		);
+	});
+
+	it("while frozen, only Unfreeze", async () => {
+		vi.spyOn(PlatformAPI, "getLockdown").mockResolvedValue(
+			lock({ locked: true, modes: ["network", "sudo", "freeze"] }),
+		);
+		renderWith(<LockdownBadge workspace={MockWorkspace} />);
+		fireEvent.pointerDown(await screen.findByTestId("workspace-lockdown"), {
+			button: 0,
+			ctrlKey: false,
+		});
+		const freeze = await screen.findByTestId("lockdown-freeze");
+		await waitFor(() => expect(freeze).toHaveTextContent("Unfreeze"));
+		expect(freeze).not.toHaveAttribute("data-disabled");
+		expect(screen.getByTestId("lockdown-network")).toHaveAttribute(
+			"data-disabled",
+		);
+		expect(screen.getByTestId("lockdown-complete")).toHaveTextContent("Unlock");
 	});
 });

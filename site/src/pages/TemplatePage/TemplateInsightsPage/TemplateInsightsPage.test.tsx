@@ -47,10 +47,22 @@ describe("TemplateInsightsPageView parameters usage", () => {
 		expect(value.parentElement?.textContent).not.toContain('"');
 	});
 
-	it("keeps the quotes around a text parameter's value", () => {
-		renderParameters([parameter("region", "string", "us-east")]);
-		expect(screen.getByText("us-east").parentElement?.textContent).toBe(
-			'"us-east"',
-		);
+	it("shows a text parameter's value without quotes (a Start folder, a Workspace image)", () => {
+		renderParameters([
+			parameter("start_directory", "string", "/home/coder"),
+			parameter(
+				"workspace_image",
+				"string",
+				"ghcr.io/user187x/coder-workspace:1.8.7",
+			),
+		]);
+		expect(screen.getByText("/home/coder").textContent).toBe("/home/coder");
+		expect(
+			screen.getByText("/home/coder").parentElement?.textContent,
+		).not.toContain('"');
+		expect(
+			screen.getByText("ghcr.io/user187x/coder-workspace:1.8.7").parentElement
+				?.textContent,
+		).not.toContain('"');
 	});
 });

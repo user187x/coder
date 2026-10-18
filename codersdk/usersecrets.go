@@ -2,6 +2,7 @@ package codersdk
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -169,4 +170,25 @@ func (c *Client) DeleteUserSecret(ctx context.Context, user string, name string)
 		return ReadBodyAsError(res)
 	}
 	return nil
+}
+
+// UserCertificateFile is a user's own certificate secret (platform): their
+// PKCS#12 file, base64, still encrypted with their password.
+type UserCertificateFile struct {
+	Name   string `json:"name"`
+	Base64 string `json:"base64"`
+}
+
+// UserCertificateFile returns the user's own certificate file (platform).
+func (c *Client) UserCertificateFile(ctx context.Context, user string, name string) (UserCertificateFile, error) {
+	res, err := c.Request(ctx, http.MethodGet, fmt.Sprintf("/api/v2/users/%s/secrets/%s/certificate", user, name), nil)
+	if err != nil {
+		return UserCertificateFile{}, err
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		return UserCertificateFile{}, ReadBodyAsError(res)
+	}
+	var file UserCertificateFile
+	return file, json.NewDecoder(res.Body).Decode(&file)
 }

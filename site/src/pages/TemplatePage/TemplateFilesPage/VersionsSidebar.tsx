@@ -4,6 +4,7 @@ import {
 	CircleAlertIcon,
 	CombineIcon,
 	LoaderIcon,
+	Trash2Icon,
 	XIcon,
 } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -63,7 +64,8 @@ const squashMessage = (keep: TemplateVersion, folded: TemplateVersion[]) => {
  * right) makes a version the active one. Admins can squash a range of versions:
  * the newest of the range stays, with the others' messages folded into its
  * own, and the others are archived (Coder keeps any that a workspace still
- * uses, and the active version).
+ * uses, and the active version). Delete (the bin) removes a version from the
+ * history for good: not the active one, one building, or one a workspace runs.
  */
 export const VersionsSidebar: React.FC<VersionsSidebarProps> = ({
 	template,
@@ -76,6 +78,7 @@ export const VersionsSidebar: React.FC<VersionsSidebarProps> = ({
 	const [activeId, setActiveId] = useState(template.active_version_id);
 	const [toPromote, setToPromote] = useState<TemplateVersion>();
 	const [toArchive, setToArchive] = useState<TemplateVersion>();
+	const [toDelete, setToDelete] = useState<TemplateVersion>();
 	const [squashing, setSquashing] = useState(false);
 	const [range, setRange] = useState<{ from?: string; to?: string }>({});
 	const [confirmSquash, setConfirmSquash] = useState(false);
@@ -114,6 +117,21 @@ export const VersionsSidebar: React.FC<VersionsSidebarProps> = ({
 			toast.error(getErrorMessage(e, `"${v.name}" was not archived.`), {
 				description: getErrorDetail(e),
 			}),
+	});
+
+	const remove = useMutation({
+		mutationFn: (v: TemplateVersion) => API.deleteTemplateVersion(v.id),
+		onSuccess: async (_, v) => {
+			await refresh();
+			setToDelete(undefined);
+			toast.success(`Version "${v.name}" deleted.`);
+		},
+		onError: (e, v) => {
+			setToDelete(undefined);
+			toast.error(getErrorMessage(e, `"${v.name}" was not deleted.`), {
+				description: getErrorDetail(e),
+			});
+		},
 	});
 
 	// the range, newest first: everything between the two picked ends
@@ -353,6 +371,23 @@ export const VersionsSidebar: React.FC<VersionsSidebarProps> = ({
 											<ArchiveIcon className="size-3.5" />
 										</Button>
 									)}
+								{!squashing &&
+									canUpdate &&
+									!active &&
+									status !== "pending" &&
+									status !== "running" && (
+										<Button
+											size="icon"
+											variant="subtle"
+											className="size-6 shrink-0 opacity-60 group-hover:opacity-100"
+											onClick={() => setToDelete(v)}
+											aria-label={`Delete ${v.name}`}
+											title="Delete from the history"
+											data-testid="delete-version"
+										>
+											<Trash2Icon className="size-3.5" />
+										</Button>
+									)}
 							</div>
 						</li>
 					);
@@ -389,6 +424,30 @@ export const VersionsSidebar: React.FC<VersionsSidebarProps> = ({
 						Archive version <strong>{toArchive?.name}</strong>? This is
 						reversible. Archived versions cannot be used by workspaces.
 					</>
+				}
+			/>
+			<ConfirmDialog
+				type="delete"
+				hideCancel={false}
+				open={Boolean(toDelete)}
+				onConfirm={() => toDelete && remove.mutate(toDelete)}
+				onClose={() => setToDelete(undefined)}
+				title="Delete version"
+				confirmLoading={remove.isPending}
+				confirmText="Delete"
+				description={
+					<div className="flex flex-col gap-2">
+						<span>
+							Delete version <strong>{toDelete?.name}</strong> from the
+							template's history? This cannot be undone: its code, parameters
+							and variables go, and so do the builds that used it in workspaces'
+							history.
+						</span>
+						<span className="text-xs text-content-secondary">
+							A version a workspace runs cannot be deleted: update the workspace
+							first.
+						</span>
+					</div>
 				}
 			/>
 			<ConfirmDialog

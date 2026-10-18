@@ -1,5 +1,6 @@
 import { cn } from "cn";
 import {
+	CheckIcon,
 	ChevronRightIcon,
 	DownloadIcon,
 	FileIcon,
@@ -26,6 +27,10 @@ import {
 	validName,
 } from "./drivePaths";
 import { describe, download, type Transfer } from "./transfers";
+
+/** How long Refresh spins at least, and shows its check after. */
+const REFRESH_MIN_SPIN_MS = 700;
+const REFRESH_DONE_MS = 1200;
 
 const levelOf = (percent: number) =>
 	percent >= 90 ? "high" : percent >= 70 ? "mid" : "low";
@@ -55,6 +60,27 @@ export const CloudDriveBrowser: React.FC<{ summary: SafeSummary }> = ({
 	const [dragging, setDragging] = useState(false);
 	const fileInput = useRef<HTMLInputElement>(null);
 	const refresh = () => queryClient.invalidateQueries({ queryKey: safeKey });
+	// The Refresh button's feedback: spinning while it reads (at least a moment, so it shows), then a check.
+	const [refreshing, setRefreshing] = useState<"idle" | "busy" | "done">(
+		"idle",
+	);
+	const refreshNow = async () => {
+		if (refreshing === "busy") {
+			return;
+		}
+		setRefreshing("busy");
+		const started = Date.now();
+		try {
+			await refresh();
+		} finally {
+			const left = REFRESH_MIN_SPIN_MS - (Date.now() - started);
+			if (left > 0) {
+				await new Promise((resolve) => setTimeout(resolve, left));
+			}
+			setRefreshing("done");
+			setTimeout(() => setRefreshing("idle"), REFRESH_DONE_MS);
+		}
+	};
 
 	const patch = (id: number, change: Partial<Transfer>) =>
 		setTransfers((all) =>
@@ -251,10 +277,29 @@ export const CloudDriveBrowser: React.FC<{ summary: SafeSummary }> = ({
 				<Button
 					size="icon"
 					variant="subtle"
-					aria-label="Refresh"
-					onClick={() => void refresh()}
+					aria-label={
+						refreshing === "busy"
+							? "Refreshing"
+							: refreshing === "done"
+								? "Refreshed"
+								: "Refresh"
+					}
+					title={refreshing === "done" ? "Up to date" : "Refresh"}
+					aria-busy={refreshing === "busy"}
+					onClick={() => void refreshNow()}
+					data-testid="cloud-drive-refresh"
+					data-state={refreshing}
 				>
-					<RefreshCwIcon />
+					{refreshing === "done" ? (
+						<CheckIcon className="text-content-success" />
+					) : (
+						<RefreshCwIcon
+							className={cn(
+								"transition-transform",
+								refreshing === "busy" && "animate-spin",
+							)}
+						/>
+					)}
 				</Button>
 			</header>
 

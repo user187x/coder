@@ -504,4 +504,33 @@ describe("CloudDrive", () => {
 			).toBe(false);
 		});
 	});
+
+	it("Refresh spins while it reads the drive, then shows a check", async () => {
+		vi.spyOn(PlatformAPI, "getSafe").mockResolvedValue(summary);
+		vi.spyOn(PlatformAPI, "cloudDriveSettings").mockResolvedValue(settings());
+		const list = vi
+			.spyOn(PlatformAPI, "listSafe")
+			.mockResolvedValue(emptyListing);
+		renderDrive();
+		fireEvent.click(await screen.findByTestId("cloud-drive"));
+		const button = await screen.findByTestId("cloud-drive-refresh");
+		const before = list.mock.calls.length;
+		fireEvent.click(button);
+		expect(button.dataset.state).toBe("busy");
+		expect(button).toHaveAttribute("aria-busy", "true");
+		expect(button.querySelector("svg")?.getAttribute("class")).toContain(
+			"animate-spin",
+		);
+		await waitFor(() => expect(list.mock.calls.length).toBeGreaterThan(before));
+		await waitFor(
+			() =>
+				expect(screen.getByTestId("cloud-drive-refresh").dataset.state).toBe(
+					"done",
+				),
+			{ timeout: 3000 },
+		);
+		expect(screen.getByTestId("cloud-drive-refresh")).toHaveAccessibleName(
+			"Refreshed",
+		);
+	});
 });

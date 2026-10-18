@@ -16,6 +16,7 @@ import {
 } from "react";
 import { type ChatFile, type ChatMessage, PlatformAPI } from "#/api/platform";
 import { Button } from "#/components/Button/Button";
+import { CloudDriveShareCard } from "#/modules/platform/cloudDrive/CloudDrivePeers";
 import {
 	type ChatWindowState,
 	deleteConversation,
@@ -660,7 +661,7 @@ const MessageLog: React.FC<MessageLogProps> = ({ view: w, meId, name }) => {
 						{mine ? "You" : m.fromDisplay || m.fromName}
 					</div>
 				)}
-				<MessageBubble message={m} side={side} />
+				<MessageBubble message={m} side={side} meId={meId} />
 			</div>
 		);
 	});
@@ -669,9 +670,15 @@ const MessageLog: React.FC<MessageLogProps> = ({ view: w, meId, name }) => {
 type MessageBubbleProps = {
 	message: ChatMessage;
 	side: "admin" | "dev";
+	/** The viewer: a Cloud Drive request's card offers its owner the answer. */
+	meId?: string;
 };
 
-const MessageBubble: React.FC<MessageBubbleProps> = ({ message, side }) => (
+const MessageBubble: React.FC<MessageBubbleProps> = ({
+	message,
+	side,
+	meId,
+}) => (
 	<div
 		className={cn("flex", side === "dev" && "justify-end")}
 		title={formatWhen(message.at)}
@@ -708,6 +715,9 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, side }) => (
 			)}
 			{message.file && <FileAttachment file={message.file} />}
 			{message.text && <div>{message.text}</div>}
+			{message.driveRequest && meId && (
+				<CloudDriveShareCard shareId={message.driveRequest} meId={meId} />
+			)}
 		</div>
 	</div>
 );

@@ -50,6 +50,12 @@ export const OpenPicker: Story = {
 		});
 		await userEvent.click(button);
 		await expect(button).toHaveAttribute("aria-expanded", "true");
+		await expect(
+			await screen.findByRole("menuitem", { name: /Upload image/ }),
+		).toBeVisible();
+		await userEvent.click(
+			await screen.findByRole("menuitem", { name: /Emoji or icon/ }),
+		);
 		const dialog = await screen.findByRole("dialog");
 		await waitFor(() => {
 			expect(

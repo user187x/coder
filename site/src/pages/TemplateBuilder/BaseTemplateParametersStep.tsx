@@ -21,6 +21,9 @@ type BaseTemplateParametersStepProps = {
 	values: Record<string, string>;
 	onChangeValues: (values: Record<string, string>) => void;
 	showErrors?: boolean;
+	/** The deployment's base: admins may rename it (PlatformAppsStep). */
+	canRenameBase?: boolean;
+	onBaseRenamed?: (name: string) => void;
 };
 
 function detailsUrl(baseId: string): string {
@@ -98,7 +101,14 @@ export function baseParametersComplete(
 
 export const BaseTemplateParametersStep: React.FC<
 	BaseTemplateParametersStepProps
-> = ({ baseId, values, onChangeValues, showErrors = false }) => {
+> = ({
+	baseId,
+	values,
+	onChangeValues,
+	showErrors = false,
+	canRenameBase = false,
+	onBaseRenamed,
+}) => {
 	const { data } = useQuery(templateBuilderBases());
 	if (baseId === PLATFORM_BASE_ID) {
 		const base = data?.bases.find((b) => b.id === baseId);
@@ -108,6 +118,9 @@ export const BaseTemplateParametersStep: React.FC<
 				iconUrl={base?.icon}
 				values={values}
 				onChangeValues={onChangeValues}
+				templateId={base?.template_id}
+				canRename={canRenameBase}
+				onRenamed={onBaseRenamed}
 			/>
 		);
 	}

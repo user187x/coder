@@ -312,3 +312,18 @@ func (c *Client) UpdateTemplateVersion(ctx context.Context, versionID uuid.UUID,
 	var version TemplateVersion
 	return version, ReadBodyAsJSON(res, &version)
 }
+
+// DeleteTemplateVersion deletes a template version from its template's history
+// for good (platform): not the active one, one still building, or one a
+// workspace runs.
+func (c *Client) DeleteTemplateVersion(ctx context.Context, version uuid.UUID) error {
+	res, err := c.Request(ctx, http.MethodDelete, fmt.Sprintf("/api/v2/templateversions/%s", version), nil)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		return ReadBodyAsError(res)
+	}
+	return nil
+}

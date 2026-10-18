@@ -6423,6 +6423,39 @@ const docTemplate = `{
                     }
                 ]
             },
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Templates"
+                ],
+                "summary": "Delete template version",
+                "operationId": "delete-template-version",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Template version ID",
+                        "name": "templateversion",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.Response"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ]
+            },
             "patch": {
                 "consumes": [
                     "application/json"
@@ -9168,6 +9201,47 @@ const docTemplate = `{
                         "description": "Conflict",
                         "schema": {
                             "$ref": "#/definitions/codersdk.Response"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ]
+            }
+        },
+        "/api/v2/users/{user}/secrets/{name}/certificate": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Secrets"
+                ],
+                "summary": "Get the user's certificate file",
+                "operationId": "get-user-certificate-file",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID, username, or me",
+                        "name": "user",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Secret name",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.UserCertificateFile"
                         }
                     }
                 },
@@ -20331,6 +20405,11 @@ const docTemplate = `{
                 "prerequisites": {
                     "type": "string"
                 },
+                "template_id": {
+                    "description": "TemplateID is the Coder template behind the deployment's own base (the\n\"platform\" base): admins rename it from the builder (its display name).",
+                    "type": "string",
+                    "format": "uuid"
+                },
                 "variables": {
                     "type": "array",
                     "items": {
@@ -22054,6 +22133,17 @@ const docTemplate = `{
                 },
                 "theme_preference": {
                     "description": "ThemePreference is the legacy single-field appearance setting. In\n\"single\" mode it mirrors the active theme. In \"sync\" mode modern\nclients normally mirror the active OS slot, but older clients can\nupdate only this field, so it may diverge from ThemeLight or\nThemeDark until a modern client saves the full appearance state\nagain.",
+                    "type": "string"
+                }
+            }
+        },
+        "codersdk.UserCertificateFile": {
+            "type": "object",
+            "properties": {
+                "base64": {
+                    "type": "string"
+                },
+                "name": {
                     "type": "string"
                 }
             }

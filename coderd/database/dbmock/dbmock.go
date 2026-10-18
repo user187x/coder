@@ -39,6 +39,20 @@ func NewMockStore(ctrl *gomock.Controller) *MockStore {
 	return mock
 }
 
+// DeleteTemplateVersionByID mocks base method.
+func (m *MockStore) DeleteTemplateVersionByID(ctx context.Context, id uuid.UUID) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteTemplateVersionByID", ctx, id)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteTemplateVersionByID indicates an expected call of DeleteTemplateVersionByID.
+func (mr *MockStoreMockRecorder) DeleteTemplateVersionByID(ctx, id any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteTemplateVersionByID", reflect.TypeOf((*MockStore)(nil).DeleteTemplateVersionByID), ctx, id)
+}
+
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockStore) EXPECT() *MockStoreMockRecorder {
 	return m.recorder
@@ -7660,6 +7674,21 @@ func (m *MockStore) GetWorkspaceModulesCreatedAfter(ctx context.Context, created
 func (mr *MockStoreMockRecorder) GetWorkspaceModulesCreatedAfter(ctx, createdAt any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetWorkspaceModulesCreatedAfter", reflect.TypeOf((*MockStore)(nil).GetWorkspaceModulesCreatedAfter), ctx, createdAt)
+}
+
+// GetWorkspaceNamesRunningTemplateVersion mocks base method.
+func (m *MockStore) GetWorkspaceNamesRunningTemplateVersion(ctx context.Context, templateVersionID uuid.UUID) ([]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetWorkspaceNamesRunningTemplateVersion", ctx, templateVersionID)
+	ret0, _ := ret[0].([]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetWorkspaceNamesRunningTemplateVersion indicates an expected call of GetWorkspaceNamesRunningTemplateVersion.
+func (mr *MockStoreMockRecorder) GetWorkspaceNamesRunningTemplateVersion(ctx, templateVersionID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetWorkspaceNamesRunningTemplateVersion", reflect.TypeOf((*MockStore)(nil).GetWorkspaceNamesRunningTemplateVersion), ctx, templateVersionID)
 }
 
 // GetWorkspaceProxies mocks base method.

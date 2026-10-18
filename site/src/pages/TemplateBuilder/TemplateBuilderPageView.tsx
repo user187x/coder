@@ -60,6 +60,8 @@ type TemplateBuilderPageViewProps = {
 	createError: Error | null;
 	isCreating: boolean;
 	onClearCreateError?: () => void;
+	/** Admins may rename the deployment's base template from its step. */
+	canRenameBase?: boolean;
 };
 
 export const TemplateBuilderPageView: React.FC<
@@ -72,6 +74,7 @@ export const TemplateBuilderPageView: React.FC<
 	createError,
 	isCreating,
 	onClearCreateError,
+	canRenameBase = false,
 }) => {
 	const [state, dispatch] = useReducer(
 		wizardReducer,
@@ -311,6 +314,7 @@ export const TemplateBuilderPageView: React.FC<
 							registerModuleRef={registerModuleRef}
 							onCreate={handleCreate}
 							showValidationErrors={showContinueError}
+							canRenameBase={canRenameBase}
 						/>
 					</div>
 
@@ -381,6 +385,7 @@ type StepContentProps = {
 	registerModuleRef: (moduleId: string, node: HTMLDivElement | null) => void;
 	onCreate: (values: CustomizationsFormValues) => void;
 	showValidationErrors: boolean;
+	canRenameBase: boolean;
 };
 
 const StepContent: React.FC<StepContentProps> = ({
@@ -394,6 +399,7 @@ const StepContent: React.FC<StepContentProps> = ({
 	registerModuleRef,
 	onCreate,
 	showValidationErrors,
+	canRenameBase,
 }) => {
 	switch (stepId) {
 		case "base-infra":
@@ -413,6 +419,8 @@ const StepContent: React.FC<StepContentProps> = ({
 						dispatch({ type: "SET_BASE_VARIABLES", values })
 					}
 					showErrors={showValidationErrors}
+					canRenameBase={canRenameBase}
+					onBaseRenamed={(name) => dispatch({ type: "RENAME_BASE", name })}
 				/>
 			);
 		case "module-select":

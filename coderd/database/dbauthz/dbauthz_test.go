@@ -2551,6 +2551,19 @@ func (s *MethodTestSuite) TestProvisionerJob() {
 		dbm.EXPECT().UnarchiveTemplateVersion(gomock.Any(), arg).Return(nil).AnyTimes()
 		check.Args(arg).Asserts(tpl.RBACObject(), policy.ActionUpdate)
 	}))
+	s.Run("DeleteTemplateVersionByID", s.Mocked(func(dbm *dbmock.MockStore, faker *gofakeit.Faker, check *expects) {
+		tpl := testutil.Fake(s.T(), faker, database.Template{})
+		v := testutil.Fake(s.T(), faker, database.TemplateVersion{TemplateID: uuid.NullUUID{UUID: tpl.ID, Valid: true}})
+		dbm.EXPECT().GetTemplateVersionByID(gomock.Any(), v.ID).Return(v, nil).AnyTimes()
+		dbm.EXPECT().GetTemplateByID(gomock.Any(), tpl.ID).Return(tpl, nil).AnyTimes()
+		dbm.EXPECT().DeleteTemplateVersionByID(gomock.Any(), v.ID).Return(nil).AnyTimes()
+		check.Args(v.ID).Asserts(tpl.RBACObject(), policy.ActionUpdate)
+	}))
+	s.Run("GetWorkspaceNamesRunningTemplateVersion", s.Mocked(func(dbm *dbmock.MockStore, faker *gofakeit.Faker, check *expects) {
+		v := testutil.Fake(s.T(), faker, database.TemplateVersion{})
+		dbm.EXPECT().GetWorkspaceNamesRunningTemplateVersion(gomock.Any(), v.ID).Return([]string{"alice/dev"}, nil).AnyTimes()
+		check.Args(v.ID).Asserts(rbac.ResourceSystem, policy.ActionRead).Returns([]string{"alice/dev"})
+	}))
 	s.Run("Build/GetProvisionerJobByID", s.Mocked(func(dbm *dbmock.MockStore, faker *gofakeit.Faker, check *expects) {
 		ws := testutil.Fake(s.T(), faker, database.Workspace{})
 		j := testutil.Fake(s.T(), faker, database.ProvisionerJob{Type: database.ProvisionerJobTypeWorkspaceBuild})

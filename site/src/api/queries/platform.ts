@@ -293,6 +293,16 @@ export const cloudDriveEncryption = (enabled = true) => ({
 			: 30_000,
 });
 
+/** Cloud Drives shared between users: the settings, the caller's shares, and (admins) everyone's. */
+export const cloudDrivePeersKey = [...safeKey, "peers"] as const;
+export const cloudDrivePeers = (enabled = true) => ({
+	queryKey: cloudDrivePeersKey,
+	queryFn: PlatformAPI.getCloudDrivePeers,
+	enabled,
+	retry: false,
+	refetchInterval: 15_000,
+});
+
 /** After an encryption or source change: everything about the Cloud Drive read again. */
 export const invalidateCloudDrive = (queryClient: QueryClient) =>
 	queryClient.invalidateQueries({ queryKey: safeKey });

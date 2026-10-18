@@ -60,6 +60,9 @@ type TemplateBuilderBase struct {
 	Variables     []TemplateBuilderModuleVariable `json:"variables"`
 	Prerequisites string                          `json:"prerequisites"`
 	Agents        []TemplateBuilderBaseAgent      `json:"agents"`
+	// TemplateID is the Coder template behind the deployment's own base (the
+	// "platform" base): admins rename it from the builder (its display name).
+	TemplateID *uuid.UUID `json:"template_id,omitempty" format:"uuid"`
 }
 
 // TemplateBuilderBaseAgent is a coder_agent a base template declares. Modules

@@ -6039,6 +6039,11 @@ export interface TemplateBuilderBase {
 	readonly variables: readonly TemplateBuilderModuleVariable[];
 	readonly prerequisites: string;
 	readonly agents: readonly TemplateBuilderBaseAgent[];
+	/**
+	 * TemplateID is the Coder template behind the deployment's own base (the
+	 * "platform" base): admins rename it from the builder (its display name).
+	 */
+	readonly template_id?: string;
 }
 
 // From codersdk/templatebuilder.go
@@ -7100,6 +7105,16 @@ export interface UserAppearanceSettings {
 	 */
 	readonly theme_dark: string;
 	readonly terminal_font: TerminalFontName;
+}
+
+// From codersdk/usersecrets.go
+/**
+ * UserCertificateFile is a user's own certificate secret (platform): their
+ * PKCS#12 file, base64, still encrypted with their password.
+ */
+export interface UserCertificateFile {
+	readonly name: string;
+	readonly base64: string;
 }
 
 // From codersdk/insights.go

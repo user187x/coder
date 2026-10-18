@@ -131,6 +131,33 @@ func New(db database.Store, authorizer rbac.Authorizer, logger slog.Logger, acs 
 	}
 }
 
+func (q *querier) DeleteTemplateVersionByID(ctx context.Context, id uuid.UUID) error {
+	tv, err := q.db.GetTemplateVersionByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if tv.TemplateID.Valid {
+		tpl, err := q.db.GetTemplateByID(ctx, tv.TemplateID.UUID)
+		if err != nil {
+			return err
+		}
+		if err := q.authorizeContext(ctx, policy.ActionUpdate, tpl); err != nil {
+			return err
+		}
+	} else if err := q.authorizeContext(ctx, policy.ActionUpdate, rbac.ResourceTemplate.InOrg(tv.OrganizationID)); err != nil {
+		return err
+	}
+	return q.db.DeleteTemplateVersionByID(ctx, id)
+}
+
+func (q *querier) GetWorkspaceNamesRunningTemplateVersion(ctx context.Context, templateVersionID uuid.UUID) ([]string, error) {
+	// Every user's workspaces: the system's (the delete handler asks it, for a template it may update).
+	if err := q.authorizeContext(ctx, policy.ActionRead, rbac.ResourceSystem); err != nil {
+		return nil, err
+	}
+	return q.db.GetWorkspaceNamesRunningTemplateVersion(ctx, templateVersionID)
+}
+
 func (q *querier) Wrappers() []string {
 	return append(q.db.Wrappers(), wrapname)
 }

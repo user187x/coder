@@ -1097,6 +1097,12 @@ class ApiMethods {
 		);
 	};
 
+	/** Platform: a version deleted from its template's history for good (not the active one, one building, or one a
+	 * workspace runs). */
+	deleteTemplateVersion = async (templateVersionId: string): Promise<void> => {
+		await this.axios.delete(`/api/v2/templateversions/${templateVersionId}`);
+	};
+
 	unarchiveTemplateVersion = async (
 		templateVersionId: string,
 	): Promise<void> => {
@@ -1656,6 +1662,17 @@ class ApiMethods {
 			request,
 		);
 
+		return response.data;
+	};
+
+	/** Platform: the user's own certificate file (their .p12, base64, still encrypted with their password). */
+	getUserCertificateFile = async (
+		userId: string,
+		name: string,
+	): Promise<TypesGen.UserCertificateFile> => {
+		const response = await this.axios.get<TypesGen.UserCertificateFile>(
+			`/api/v2/users/${encodeURIComponent(userId)}/secrets/${encodeURIComponent(name)}/certificate`,
+		);
 		return response.data;
 	};
 

@@ -4,6 +4,7 @@ import {
 	ChevronDownIcon,
 	ChevronUpIcon,
 	ClockIcon,
+	CloudIcon,
 	KeyboardIcon,
 	PictureInPicture2Icon,
 	SearchIcon,
@@ -12,8 +13,11 @@ import {
 	XIcon,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useQuery } from "react-query";
 import type { ChatConversation as Conversation } from "#/api/platform";
+import { cloudDrivePeers } from "#/api/queries/platform";
 import { Button } from "#/components/Button/Button";
+import { AskForCloudDriveDialog } from "#/modules/platform/cloudDrive/CloudDrivePeers";
 import { ChatAvatar } from "./ChatAvatar";
 import { ChatConversation, type ConversationActions } from "./ChatConversation";
 import { ChatPeople } from "./ChatPeople";
@@ -137,6 +141,9 @@ export const ChatConsole: React.FC<ChatConsoleProps> = ({ dock }) => {
 	const searchRef = useRef<HTMLInputElement>(null);
 	const listRef = useRef<HTMLDivElement>(null);
 	const actions = useRef<ConversationActions>(null);
+	// Cloud Drives shared between users: the conversation's person asked for theirs, while admins have it on.
+	const [asking, setAsking] = useState(false);
+	const peers = useQuery({ ...cloudDrivePeers(), refetchInterval: 60_000 });
 
 	useEffect(() => {
 		const timer = window.setInterval(() => setNow(Date.now()), 30_000);
@@ -432,6 +439,26 @@ export const ChatConsole: React.FC<ChatConsoleProps> = ({ dock }) => {
 							>
 								<CameraIcon />
 							</Button>
+							{peers.data?.settings.enabled &&
+								!view.peer.group &&
+								view.peer.id !== meId && (
+									<Button
+										variant="subtle"
+										size="icon"
+										onClick={() => setAsking(true)}
+										aria-label="Ask for their Cloud Drive"
+										title="Ask for their Cloud Drive"
+										data-testid="chat-ask-cloud-drive"
+									>
+										<CloudIcon />
+									</Button>
+								)}
+							{asking && (
+								<AskForCloudDriveDialog
+									owner={{ id: view.peer.id, name: displayName(view.peer) }}
+									onClose={() => setAsking(false)}
+								/>
+							)}
 							<Button
 								variant="subtle"
 								size="icon"

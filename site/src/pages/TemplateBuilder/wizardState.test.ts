@@ -636,3 +636,35 @@ describe("initWizardState", () => {
 		expect(state.icon).toBe("/icon/docker.png");
 	});
 });
+
+describe("RENAME_BASE (admins rename the deployment's base)", () => {
+	const base = {
+		id: "platform",
+		name: "UBUNTU",
+		hasParameters: true,
+		hasPrerequisites: false,
+	};
+
+	it("renames the base, and the new template's display name while it is still the base's", () => {
+		const state = wizardReducer(initWizardState({ preselectedBase: base }), {
+			type: "RENAME_BASE",
+			name: "Workstation",
+		});
+		expect(state.selectedBase?.name).toBe("Workstation");
+		expect(state.displayName).toBe("Workstation");
+	});
+
+	it("keeps a display name the user typed", () => {
+		const typed = wizardReducer(initWizardState({ preselectedBase: base }), {
+			type: "SET_CUSTOMIZATION",
+			field: "displayName",
+			value: "My template",
+		});
+		const state = wizardReducer(typed, {
+			type: "RENAME_BASE",
+			name: "Workstation",
+		});
+		expect(state.selectedBase?.name).toBe("Workstation");
+		expect(state.displayName).toBe("My template");
+	});
+});

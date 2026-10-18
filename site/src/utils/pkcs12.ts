@@ -17,6 +17,7 @@
  */
 
 import { tripleDesCbcDecrypt } from "./des";
+import { rc2CbcDecrypt } from "./rc2";
 
 type Bytes = Uint8Array<ArrayBuffer>;
 
@@ -35,6 +36,9 @@ const OID = {
 	organization: "2.5.4.10",
 	pbeSha1TripleDes: "1.2.840.113549.1.12.1.3",
 	pbeSha1TwoKeyTripleDes: "1.2.840.113549.1.12.1.4",
+	pbeSha1Rc2_128: "1.2.840.113549.1.12.1.5",
+	pbeSha1Rc2_40: "1.2.840.113549.1.12.1.6",
+	localKeyId: "1.2.840.113549.1.9.21",
 	rsaEncryption: "1.2.840.113549.1.1.1",
 	ecPublicKey: "1.2.840.10045.2.1",
 	ed25519: "1.3.101.112",
@@ -408,6 +412,8 @@ export type Pkcs12Certificate = {
 	notAfter: Date | null;
 	/** The certificate's own DER encoding (what its x509 fingerprint is taken over). */
 	der: Bytes;
+	/** The file pairs it with its private key (a localKeyId): the owner's own, not a CA's. */
+	hasKey?: boolean;
 };
 
 const distinguishedName = (n: DerNode | undefined): Record<string, string> => {
@@ -472,7 +478,7 @@ const certificate = (der: Bytes): Pkcs12Certificate => {
 const certificatesIn = (contents: Bytes): Pkcs12Certificate[] => {
 	const out: Pkcs12Certificate[] = [];
 	for (const bag of children(node(contents, 0))) {
-		const [id, value] = sequence(bag, "SafeBag");
+		const [id, value, attributes] = sequence(bag, "SafeBag");
 		if (oid(id) !== OID.certBag) {
 			continue;
 		}
@@ -483,7 +489,15 @@ const certificatesIn = (contents: Bytes): Pkcs12Certificate[] => {
 		if (oid(certId) !== OID.x509Certificate) {
 			continue;
 		}
-		out.push(certificate(octets(firstChild(certValue, 0xa0, "certValue"))));
+		const hasKey =
+			attributes?.tag === 0x31 &&
+			children(attributes).some(
+				(a) => oid(sequence(a, "Attribute")[0]) === OID.localKeyId,
+			);
+		out.push({
+			...certificate(octets(firstChild(certValue, 0xa0, "certValue"))),
+			hasKey,
+		});
 	}
 	return out;
 };
@@ -563,12 +577,16 @@ export const pkcs12Certificates = async (
 				content.tag === 0x80
 					? contentOf(content)
 					: concat(children(content).map(contentOf));
-			if (algorithm !== OID.pbes2) {
+			if (algorithm !== OID.pbes2 && !LEGACY_PBE[algorithm]) {
 				legacy = LEGACY_CIPHERS[algorithm] ?? "unknown cipher";
 				continue;
 			}
 			out.push(
-				...certificatesIn(await pbes2Decrypt(params, encrypted, password)),
+				...certificatesIn(
+					algorithm === OID.pbes2
+						? await pbes2Decrypt(params, encrypted, password)
+						: await pbeDecrypt(eci[1], encrypted, password),
+				),
 			);
 		}
 	}
@@ -618,7 +636,15 @@ const describeKey = (pkcs8: Bytes): string => {
 	return algorithm === OID.ed25519 ? "Ed25519" : algorithm;
 };
 
-/** Decrypts a PKCS#12 password-based encryption: PBES2 (AES) or legacy 3DES. */
+/** The legacy PKCS#12 ciphers this page decrypts: key length (bytes), and RC2's effective key bits. */
+const LEGACY_PBE: Record<string, { keyLength: number; rc2Bits?: number }> = {
+	[OID.pbeSha1TripleDes]: { keyLength: 24 },
+	[OID.pbeSha1TwoKeyTripleDes]: { keyLength: 16 },
+	[OID.pbeSha1Rc2_128]: { keyLength: 16, rc2Bits: 128 },
+	[OID.pbeSha1Rc2_40]: { keyLength: 5, rc2Bits: 40 },
+};
+
+/** Decrypts a PKCS#12 password-based encryption: PBES2 (AES), or legacy 3DES or RC2. */
 const pbeDecrypt = async (
 	algorithmId: DerNode | undefined,
 	encrypted: Bytes,
@@ -629,15 +655,10 @@ const pbeDecrypt = async (
 	if (algorithm === OID.pbes2) {
 		return pbes2Decrypt(params, encrypted, password);
 	}
-	const keyLength =
-		algorithm === OID.pbeSha1TripleDes
-			? 24
-			: algorithm === OID.pbeSha1TwoKeyTripleDes
-				? 16
-				: 0;
-	if (!keyLength) {
+	const legacy = LEGACY_PBE[algorithm];
+	if (!legacy) {
 		throw new Pkcs12Error(
-			`The private key is encrypted with ${LEGACY_CIPHERS[algorithm] ?? "a cipher"} this page cannot decrypt; re-export the file with AES (openssl pkcs12 -export without -legacy).`,
+			`The file is encrypted with ${LEGACY_CIPHERS[algorithm] ?? "a cipher"} this page cannot decrypt; re-export it with AES (openssl pkcs12 -export without -legacy).`,
 		);
 	}
 	const [saltNode, iterationsNode] = sequence(params, "pbeParams");
@@ -656,7 +677,7 @@ const pbeDecrypt = async (
 			salt,
 			iterations,
 			1,
-			keyLength,
+			legacy.keyLength,
 		);
 		const iv = await pkcs12Kdf(
 			"SHA-1",
@@ -669,7 +690,9 @@ const pbeDecrypt = async (
 			8,
 		);
 		try {
-			return tripleDesCbcDecrypt(key, iv, encrypted);
+			return legacy.rc2Bits
+				? rc2CbcDecrypt(key, legacy.rc2Bits, iv, encrypted)
+				: tripleDesCbcDecrypt(key, iv, encrypted);
 		} catch {
 			// Try the next reading of the password, or report it wrong.
 		} finally {
@@ -765,4 +788,46 @@ export const privateKeyPem = (pkcs8: Bytes): string => {
 	}
 	const lines = btoa(binary).match(/.{1,64}/g) ?? [];
 	return `-----BEGIN PRIVATE KEY-----\n${lines.join("\n")}\n-----END PRIVATE KEY-----\n`;
+};
+
+/** A certificate in PEM (base64 of its DER, 64 characters a line). */
+export const certificatePem = (der: Uint8Array): string => {
+	let b64 = "";
+	for (let i = 0; i < der.length; i += 0x8000) {
+		b64 += String.fromCharCode(...der.subarray(i, i + 0x8000));
+	}
+	const lines = btoa(b64).match(/.{1,64}/g) ?? [];
+	return `-----BEGIN CERTIFICATE-----\n${lines.join("\n")}\n-----END CERTIFICATE-----\n`;
+};
+
+/**
+ * The owner's own certificate in the file, opened with `password` in this page: the one the file pairs with its
+ * private key, else the end of the chain (not the issuer of another one in the file), else the first. Throws a
+ * Pkcs12Error when the password is wrong or the file holds none this page can read.
+ */
+export const pkcs12UserCertificate = async (
+	bytes: Bytes,
+	password: string,
+): Promise<Pkcs12Certificate> => {
+	// The file's MAC tells a wrong password at once (null: no MAC to check, the decryption tells).
+	if ((await checkPkcs12Password(bytes, password)) === false) {
+		throw new Pkcs12Error("The password does not open this file.");
+	}
+	const found = await pkcs12Certificates(bytes, password);
+	if ("legacy" in found) {
+		throw new Pkcs12Error(
+			`Its certificate is encrypted with ${found.legacy}, which this page cannot decrypt; re-export the file with AES (openssl pkcs12 -export without -legacy).`,
+		);
+	}
+	if (!found.length) {
+		throw new Pkcs12Error("The file holds no certificate.");
+	}
+	const issuers = new Set(
+		found.filter((c) => c.subject !== c.issuer).map((c) => c.issuer),
+	);
+	return (
+		found.find((c) => c.hasKey) ??
+		found.find((c) => !issuers.has(c.subject)) ??
+		found[0]
+	);
 };

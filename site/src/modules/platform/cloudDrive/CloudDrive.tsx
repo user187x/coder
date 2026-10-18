@@ -7,6 +7,7 @@ import {
 	LockIcon,
 	PlugIcon,
 	SettingsIcon,
+	UsersIcon,
 	XIcon,
 } from "lucide-react";
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -31,6 +32,7 @@ import { CloudDriveBrowser } from "./CloudDriveBrowser";
 import { CloudDriveConnections } from "./CloudDriveConnections";
 import { CloudDriveEncryption } from "./CloudDriveEncryption";
 import { CloudDriveMount } from "./CloudDriveMount";
+import { CloudDrivePeersView } from "./CloudDrivePeers";
 import { CloudDriveRopes, ROPES_AREA } from "./CloudDriveRopes";
 import { CloudDriveSettings, StatusIndicator } from "./CloudDriveSettings";
 import { CloudDriveSource } from "./CloudDriveSource";
@@ -296,6 +298,14 @@ export const CloudDrive: React.FC<{
 							>
 								<FolderSymlinkIcon />
 							</ViewButton>
+							<ViewButton
+								view="sharing"
+								current={view}
+								label="Sharing: Cloud Drives between users"
+								onToggle={setView}
+							>
+								<UsersIcon />
+							</ViewButton>
 							<Button
 								size="icon"
 								variant="subtle"
@@ -332,6 +342,8 @@ export const CloudDrive: React.FC<{
 						<CloudDriveSource />
 					) : view === "mount" ? (
 						<CloudDriveMount />
+					) : view === "sharing" ? (
+						<CloudDrivePeersView />
 					) : settings.data ? (
 						<CloudDriveSettings settings={settings.data} />
 					) : (
@@ -364,6 +376,7 @@ type View =
 	| "encryption"
 	| "source"
 	| "mount"
+	| "sharing"
 	| "settings";
 
 const VIEW_TITLES: Record<View, string> = {
@@ -372,6 +385,7 @@ const VIEW_TITLES: Record<View, string> = {
 	encryption: "Encryption",
 	source: "Source",
 	mount: "Mount",
+	sharing: "Sharing",
 	settings: "Settings",
 };
 

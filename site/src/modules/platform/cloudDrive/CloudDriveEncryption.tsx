@@ -24,6 +24,7 @@ import { Input } from "#/components/Input/Input";
 import { Label } from "#/components/Label/Label";
 import { RadioGroup, RadioGroupItem } from "#/components/RadioGroup/RadioGroup";
 import { Spinner } from "#/components/Spinner/Spinner";
+import { CloudDrivePfxDialog } from "./CloudDrivePfx";
 
 /** The recovery kit saved as a file (a JSON document the owner keeps). */
 export const downloadKit = (kit: CloudDriveRecoveryKit, fileName: string) => {
@@ -100,19 +101,28 @@ const RunningWorkspaces: React.FC<{ enc: Encryption; doing: string }> = ({
 		</Alert>
 	) : null;
 
+/** How the recovery kit's key is wrapped: a password, a certificate pasted as PEM, or one read out of a PFX file. */
+type Method = "password" | "pem" | "pfx";
+
 const TurnOn: React.FC<{ enc: Encryption }> = ({ enc }) => {
 	const queryClient = useQueryClient();
-	const [method, setMethod] = useState<"password" | "pki">("password");
+	const [method, setMethod] = useState<Method>("password");
 	const [password, setPassword] = useState("");
 	const [again, setAgain] = useState("");
 	const [certificate, setCertificate] = useState("");
+	// PFX: its dialog (the assurance, then the file and its password), the method chosen before it, what it read.
+	const [pfxOpen, setPfxOpen] = useState(false);
+	const [beforePfx, setBeforePfx] = useState<Method>("password");
+	const [pfxSubject, setPfxSubject] = useState<string>();
 	const [prepared, setPrepared] = useState<Prepared>();
 	const [downloaded, setDownloaded] = useState(false);
 	const [kept, setKept] = useState(false);
 	const prepare = useMutation({
 		mutationFn: () =>
 			PlatformAPI.prepareCloudDriveEncryption(
-				method === "password" ? { method, password } : { method, certificate },
+				method === "password"
+					? { method, password }
+					: { method: "pki", certificate },
 			),
 		onSuccess: (out) => {
 			setPrepared(out);
@@ -221,19 +231,48 @@ const TurnOn: React.FC<{ enc: Encryption }> = ({ enc }) => {
 			</p>
 			<RadioGroup
 				value={method}
-				onValueChange={(v) => setMethod(v as "password" | "pki")}
+				onValueChange={(v) => {
+					const next = v as Method;
+					if (next === "pfx") {
+						setBeforePfx(method === "pfx" ? "password" : method);
+						setPfxOpen(true);
+					} else if (method === "pfx") {
+						setCertificate("");
+						setPfxSubject(undefined);
+					}
+					setMethod(next);
+				}}
 				className="flex gap-6"
 				aria-label="How the recovery kit's key is wrapped"
 			>
 				<div className="flex items-center gap-2">
 					<RadioGroupItem value="password" id="cd-enc-password" />
-					<Label htmlFor="cd-enc-password">A password</Label>
+					<Label htmlFor="cd-enc-password">Password</Label>
 				</div>
 				<div className="flex items-center gap-2">
-					<RadioGroupItem value="pki" id="cd-enc-pki" />
-					<Label htmlFor="cd-enc-pki">My certificate (PKI)</Label>
+					<RadioGroupItem value="pem" id="cd-enc-pem" />
+					<Label htmlFor="cd-enc-pem">PEM</Label>
+				</div>
+				<div className="flex items-center gap-2">
+					<RadioGroupItem value="pfx" id="cd-enc-pfx" />
+					<Label htmlFor="cd-enc-pfx">PFX</Label>
 				</div>
 			</RadioGroup>
+			{pfxOpen && (
+				<CloudDrivePfxDialog
+					onCertificate={({ pem, subject }) => {
+						setCertificate(pem);
+						setPfxSubject(subject);
+						setPfxOpen(false);
+					}}
+					onCancel={() => {
+						setPfxOpen(false);
+						if (!pfxSubject) {
+							setMethod(beforePfx);
+						}
+					}}
+				/>
+			)}
 			{method === "password" ? (
 				<div className="grid gap-3 sm:grid-cols-2">
 					<div className="flex flex-col gap-1">
@@ -265,6 +304,36 @@ const TurnOn: React.FC<{ enc: Encryption }> = ({ enc }) => {
 							</span>
 						)}
 					</div>
+				</div>
+			) : method === "pfx" ? (
+				<div className="flex flex-col gap-1">
+					<Label htmlFor="cd-enc-cert">
+						Your certificate, read out of your PFX
+					</Label>
+					<textarea
+						id="cd-enc-cert"
+						readOnly
+						className="min-h-28 rounded-md border border-solid border-border bg-transparent p-2 font-mono text-xs text-content-primary"
+						placeholder="Choose PFX and enter its password: the certificate comes here."
+						value={certificate}
+						data-testid="cd-enc-pfx-pem"
+					/>
+					<span className="flex flex-wrap items-center gap-2 text-xs text-content-secondary">
+						{pfxSubject
+							? `The public certificate of ${pfxSubject}; your private key and password stayed with you.`
+							: "Nothing read yet."}
+						<Button
+							type="button"
+							size="xs"
+							variant="outline"
+							onClick={() => {
+								setBeforePfx("pfx");
+								setPfxOpen(true);
+							}}
+						>
+							{pfxSubject ? "Read another PFX" : "Read my PFX"}
+						</Button>
+					</span>
 				</div>
 			) : (
 				<div className="flex flex-col gap-1">
@@ -298,11 +367,9 @@ const TurnOn: React.FC<{ enc: Encryption }> = ({ enc }) => {
 						}}
 					/>
 					<span className="text-xs text-content-secondary">
-						An RSA key of 2048 bits or more. From your PKCS#12 file:{" "}
-						<span className="font-mono">
-							openssl pkcs12 -in you.p12 -clcerts -nokeys -out you.crt
-						</span>
-						. Never your private key.
+						An RSA key of 2048 bits or more, the certificate only - never your
+						private key. Have a .pfx or .p12 file? Choose PFX above: the
+						certificate is read out of it for you.
 					</span>
 				</div>
 			)}
