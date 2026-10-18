@@ -1549,6 +1549,8 @@ export type CloudDriveConnections = {
 	sharedWithVolume?: string[];
 	/** Encrypted: its connected workspaces show a lock. */
 	encrypted?: boolean;
+	/** Running with a Cloud Drive volume that is not the one they would get now (the source changed): a restart. */
+	restart?: string[];
 	source?: CloudDriveSource | null;
 };
 

@@ -98,6 +98,18 @@ export const CloudDriveSource: React.FC = () => {
 						it has the folder itself at ~/cloud-drive. Your files on the S3
 						storage stay as they were until you go back to it.
 					</p>
+					{(connections.data?.restart ?? []).length > 0 && (
+						<Alert severity="info">
+							<AlertDescription>
+								Restart{" "}
+								{(list.data?.workspaces ?? [])
+									.filter((w) => connections.data?.restart?.includes(w.id))
+									.map((w) => w.name)
+									.join(", ") || "your other workspaces"}{" "}
+								to have the Cloud Drive as it is now.
+							</AlertDescription>
+						</Alert>
+					)}
 					<div>
 						<Button variant="outline" onClick={() => setConfirmClear(true)}>
 							<UndoIcon />
