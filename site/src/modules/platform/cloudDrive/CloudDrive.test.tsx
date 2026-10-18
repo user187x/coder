@@ -399,7 +399,7 @@ describe("CloudDrive", () => {
 		});
 		vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
 			function (this: HTMLElement) {
-				return this.dataset.testid === "cloud-drive"
+				return this.dataset.testid === "cloud-drive-container"
 					? rect(640, 20, 160, 32)
 					: rect(0, 0, 0, 0);
 			},

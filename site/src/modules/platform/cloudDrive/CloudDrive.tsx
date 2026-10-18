@@ -37,7 +37,8 @@ import { CloudDriveRopes, ROPES_AREA } from "./CloudDriveRopes";
 import { CloudDriveSettings, StatusIndicator } from "./CloudDriveSettings";
 import { CloudDriveSource } from "./CloudDriveSource";
 import { formatBytes } from "./drivePaths";
-import { SharedDriveClouds } from "./SharedDriveClouds";
+import { SharedWithYou } from "./SharedWithYou";
+import { room } from "./sharedWithYou";
 import "./cloudDrive.css";
 
 /**
@@ -49,10 +50,12 @@ import "./cloudDrive.css";
  * with the files (CloudDriveBrowser) and its Settings: where the files are
  * kept, and whether that answers; its Encryption (the owner's own key) and its
  * Source (a folder of one of their workspaces instead of S3). Only ever the
- * signed-in user's own drive; nothing where the deployment has none. As tall
- * as the "+ Workspace" button above it. Above it, a cloud for each drive
- * shared with the user, plugged into it (SharedDriveClouds): clicked, the
- * window opens on that drive.
+ * signed-in user's own drive; nothing where the deployment has none. Its
+ * readout on one line, its capacity bar on the next - the entire drives shared
+ * with the user read and write each a striped part of their own beside it,
+ * their room counted in. Two places to click: its leading cloud (SharedWithYou:
+ * a plus in it, glowing and pulsing, while something is shared with the user -
+ * a card for each, each opening the window on it), and the rest: the window.
  */
 export const CloudDrive: React.FC<{
 	/** The signed-in user's workspaces on the page: a cable to each connected one. */
@@ -67,14 +70,14 @@ export const CloudDrive: React.FC<{
 	const link = useMutation(setCloudDriveConnection(queryClient));
 	const [open, setOpen] = useState(false);
 	const [view, setView] = useState<View>("files");
-	// the drive the window opens on: the user's own (""), or one shared with them (from its cloud)
-	const [openDrive, setOpenDrive] = useState("");
-	const button = useRef<HTMLButtonElement>(null);
+	// where the window opens: the user's own drive (""), or what is shared with them (its owner) at a folder
+	const [openAt, setOpenAt] = useState({ drive: "", path: "" });
+	const container = useRef<HTMLDivElement>(null);
 	// Flush with the table's right edge (the toolbar it sits in may be wider than the table).
 	const [right, setRight] = useState(0);
 	const present = Boolean(summary?.enabled);
 	useLayoutEffect(() => {
-		const el = button.current;
+		const el = container.current;
 		const area = el?.closest(`[${ROPES_AREA}]`);
 		if (!el || !area || !present) {
 			return;
@@ -158,89 +161,73 @@ export const CloudDrive: React.FC<{
 		return null;
 	}
 	const status = settings.data?.status;
-	const usage =
-		summary.quotaBytes === null
-			? `${formatBytes(summary.usedBytes)} in ${summary.source?.name ?? "a workspace"}`
-			: `${formatBytes(summary.usedBytes)} of ${formatBytes(summary.quotaBytes)}`;
+	// The room the user has: their own, and each entire drive shared with them read and write (null: a workspace's
+	// folder is their Cloud Drive, no capacity to measure against).
+	const space = room(summary);
+	const usage = space
+		? `${formatBytes(space.usedBytes)} of ${formatBytes(space.quotaBytes)}`
+		: `${formatBytes(summary.usedBytes)} in ${summary.source?.name ?? "a workspace"}`;
 	const encrypted = Boolean(summary.encrypted && !summary.source);
-	// How full it is (of its capacity; a workspace's folder as the source has none to measure against).
-	const fill =
-		summary.quotaBytes && summary.quotaBytes > 0
-			? Math.min(1, summary.usedBytes / summary.quotaBytes)
-			: null;
+	const openFiles = (drive: string, path: string) => {
+		setOpenAt({ drive, path });
+		setView("files");
+		setOpen(true);
+	};
 
 	return (
 		<>
-			<Button
-				ref={button}
-				variant="outline"
-				// as tall as "+ Workspace" above it
-				size="lg"
+			<div
+				ref={container}
 				// The theme's accent for its border: it follows the theme the user picks.
 				className={cn(
-					"gap-2 border-content-link/60 font-normal hover:border-content-link",
+					"relative inline-flex shrink-0 rounded-md border border-solid border-content-link/60 bg-surface-primary text-sm transition-colors hover:border-content-link",
 					className,
 				)}
 				style={{ marginRight: right }}
-				data-testid="cloud-drive"
-				aria-haspopup="dialog"
-				aria-label={`Cloud Drive: ${usage} used${encrypted ? ", encrypted" : ""}${status?.connected === true ? ", connected" : status?.connected === false ? ", not connected" : ""}`}
-				onClick={() => {
-					setOpenDrive("");
-					setView("files");
-					setOpen(true);
-				}}
+				data-testid="cloud-drive-container"
 			>
-				<CloudIcon aria-hidden />
-				<span className="font-semibold">Cloud Drive</span>
-				{encrypted && (
-					<LockIcon
-						aria-hidden
-						className="text-content-link"
-						data-testid="cloud-drive-encrypted"
-					/>
-				)}
-				<span className="tabular-nums text-content-secondary">{usage}</span>
-				{fill !== null && (
-					<span
-						role="progressbar"
-						aria-label="How full the Cloud Drive is"
-						aria-valuemin={0}
-						aria-valuemax={100}
-						aria-valuenow={Math.round(fill * 100)}
-						title={`${Math.round(fill * 100)}% full`}
-						data-testid="cloud-drive-fill"
-						className="relative h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-surface-tertiary"
-					>
+				{/* its leading cloud: what is shared with the user (over the button's first line, where it leaves room) */}
+				<SharedWithYou
+					className="absolute left-2 top-[3px] z-[1]"
+					onOpen={openFiles}
+				/>
+				<button
+					type="button"
+					className="flex min-w-0 cursor-pointer flex-col gap-1 rounded-md border-0 bg-transparent px-3 py-1.5 text-left text-content-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-content-link"
+					data-testid="cloud-drive"
+					aria-haspopup="dialog"
+					aria-label={`Cloud Drive: ${usage} used${space && space.parts.length > 1 ? `, ${formatBytes(space.parts.slice(1).reduce((n, p) => n + p.quotaBytes, 0))} of it shared with you` : ""}${encrypted ? ", encrypted" : ""}${status?.connected === true ? ", connected" : status?.connected === false ? ", not connected" : ""}`}
+					onClick={() => openFiles("", "")}
+				>
+					<span className="flex w-full items-center gap-2 whitespace-nowrap leading-5">
+						<span aria-hidden className="w-5 shrink-0" />
+						<span className="font-semibold">Cloud Drive</span>
+						{encrypted && (
+							<LockIcon
+								aria-hidden
+								className="size-4 text-content-link"
+								data-testid="cloud-drive-encrypted"
+							/>
+						)}
 						<span
-							className={cn(
-								"absolute inset-y-0 left-0 rounded-full transition-[width] duration-500",
-								fill >= 0.9
-									? "bg-content-destructive"
-									: fill >= 0.75
-										? "bg-content-warning"
-										: "bg-content-link",
-							)}
-							style={{ width: `${Math.max(fill > 0 ? 3 : 0, fill * 100)}%` }}
-						/>
+							className="tabular-nums text-content-secondary"
+							data-testid="cloud-drive-usage"
+						>
+							{usage}
+						</span>
+						<span className="ml-auto pl-1">
+							<StatusIndicator status={status} compact />
+						</span>
 					</span>
-				)}
-				<StatusIndicator status={status} compact />
-			</Button>
+					{space && <CapacityBar space={space} />}
+				</button>
+			</div>
 			<CloudDriveRopes
-				anchor={button}
+				anchor={container}
 				workspaceIds={workspaceIds}
 				linked={linked}
 				onLink={onLink}
 				connected={status?.connected}
-			/>
-			<SharedDriveClouds
-				anchor={button}
-				onOpen={(owner) => {
-					setOpenDrive(owner);
-					setView("files");
-					setOpen(true);
-				}}
 			/>
 			<Dialog open={open} onOpenChange={setOpen}>
 				<DialogContent
@@ -347,7 +334,11 @@ export const CloudDrive: React.FC<{
 						</div>
 					</header>
 					{view === "files" ? (
-						<CloudDriveBrowser summary={summary} initialDrive={openDrive} />
+						<CloudDriveBrowser
+							summary={summary}
+							initialDrive={openAt.drive}
+							initialPath={openAt.path}
+						/>
 					) : view === "workspaces" ? (
 						<CloudDriveConnections />
 					) : view === "encryption" ? (
@@ -381,6 +372,83 @@ export const CloudDrive: React.FC<{
 				</DialogContent>
 			</Dialog>
 		</>
+	);
+};
+
+/**
+ * The capacity bar, a line of its own: the user's own drive (filled as full as it is), and beside it each entire drive
+ * shared with them read and write - striped, in the shared colour, as wide as its capacity - with what they add.
+ */
+const CapacityBar: React.FC<{
+	space: NonNullable<ReturnType<typeof room>>;
+}> = ({ space }) => {
+	const [own, ...shared] = space.parts;
+	const fillOf = (used: number, quota: number) =>
+		Math.min(1, quota > 0 ? used / quota : 0);
+	const fill = fillOf(own.usedBytes, own.quotaBytes);
+	const added = shared.reduce((n, p) => n + p.quotaBytes, 0);
+	return (
+		<span
+			className="flex w-full items-center gap-2"
+			data-testid="cloud-drive-capacity-bar"
+		>
+			<span className="flex h-1.5 min-w-0 flex-1 gap-[3px]">
+				<span
+					role="progressbar"
+					aria-label="How full the Cloud Drive is"
+					aria-valuemin={0}
+					aria-valuemax={100}
+					aria-valuenow={Math.round(fill * 100)}
+					title={`Your Cloud Drive: ${Math.round(fill * 100)}% full`}
+					data-testid="cloud-drive-fill"
+					className="relative h-full overflow-hidden rounded-full bg-surface-tertiary"
+					style={{ flex: `${own.quotaBytes} 1 0` }}
+				>
+					<span
+						className={cn(
+							"absolute inset-y-0 left-0 rounded-full transition-[width] duration-500",
+							fill >= 0.9
+								? "bg-content-destructive"
+								: fill >= 0.75
+									? "bg-content-warning"
+									: "bg-content-link",
+						)}
+						style={{ width: `${Math.max(fill > 0 ? 3 : 0, fill * 100)}%` }}
+					/>
+				</span>
+				{shared.map((p) => {
+					const f = fillOf(p.usedBytes, p.quotaBytes);
+					return (
+						<span
+							key={p.owner}
+							role="progressbar"
+							aria-label={`How full ${p.ownerName}'s Cloud Drive is (shared with you, read and write)`}
+							aria-valuemin={0}
+							aria-valuemax={100}
+							aria-valuenow={Math.round(f * 100)}
+							title={`${p.ownerName}'s Cloud Drive, shared with you read and write: ${formatBytes(p.usedBytes)} of ${formatBytes(p.quotaBytes)}`}
+							data-testid={`cloud-drive-fill-shared-${p.ownerName}`}
+							className="cd-capacity-shared relative h-full overflow-hidden rounded-full"
+							style={{ flex: `${p.quotaBytes} 1 0` }}
+						>
+							<span
+								className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-500"
+								style={{ width: `${Math.max(f > 0 ? 3 : 0, f * 100)}%` }}
+							/>
+						</span>
+					);
+				})}
+			</span>
+			{shared.length > 0 && (
+				<span
+					className="shrink-0 text-xs tabular-nums text-content-success"
+					data-testid="cloud-drive-shared-room"
+					title={`Shared with you read and write: ${shared.map((p) => `${p.ownerName}'s ${formatBytes(p.quotaBytes)}`).join(", ")}`}
+				>
+					+{formatBytes(added)} shared
+				</span>
+			)}
+		</span>
 	);
 };
 
