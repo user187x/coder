@@ -36,6 +36,7 @@ import {
 	DialogContent,
 	DialogTitle,
 } from "#/components/Dialog/Dialog";
+import { pendingAttachments } from "./attachment";
 import { CloudDriveBrowser } from "./CloudDriveBrowser";
 import { CloudDriveConnections } from "./CloudDriveConnections";
 import { CloudDriveEncryption } from "./CloudDriveEncryption";
@@ -140,6 +141,11 @@ export const CloudDrive: React.FC<{
 		]);
 		return workspaceIds.filter((id) => !off.has(id));
 	}, [connections.data, workspaceIds]);
+	// Of them, those whose drive is not attached in the workspace yet (it says so): their cables red until it is.
+	const unattached = useMemo(() => {
+		const waiting = new Set(pendingAttachments(connections.data));
+		return linked.filter((id) => waiting.has(id));
+	}, [connections.data, linked]);
 	const onLink = useCallback(
 		(workspaceId: string, connected: boolean) =>
 			link.mutate(
@@ -265,6 +271,7 @@ export const CloudDrive: React.FC<{
 				linked={linked}
 				onLink={onLink}
 				connected={status?.connected}
+				unattached={unattached}
 			/>
 			<Dialog open={open} onOpenChange={setOpen}>
 				<DialogContent

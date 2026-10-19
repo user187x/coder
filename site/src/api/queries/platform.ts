@@ -1,5 +1,6 @@
 import {
 	keepPreviousData,
+	type Query,
 	type QueryClient,
 	type UseQueryOptions,
 } from "react-query";
@@ -22,6 +23,10 @@ import {
 	type QuotaSettings,
 	type SchedulerSettings,
 } from "#/api/platform";
+import {
+	ATTACHMENT_REFRESH_MS,
+	pendingAttachments,
+} from "#/modules/platform/cloudDrive/attachment";
 
 const platformKey = ["platform"] as const;
 
@@ -215,13 +220,17 @@ export const cloudDriveSettings = () => ({
 });
 
 const cloudDriveConnectionsKey = [...safeKey, "connections"] as const;
-/** Which of the caller's workspaces are disconnected from their Cloud Drive. */
+/** Which of the caller's workspaces are disconnected from their Cloud Drive, and how it is in each started one: every
+ * two seconds while one of them waits for it to attach. */
 export const cloudDriveConnections = (enabled = true) => ({
 	queryKey: cloudDriveConnectionsKey,
 	queryFn: PlatformAPI.getCloudDriveConnections,
 	enabled,
 	retry: false,
-	refetchInterval: 30_000,
+	refetchInterval: (query: Query<CloudDriveConnections>) =>
+		pendingAttachments(query.state.data).length > 0
+			? ATTACHMENT_REFRESH_MS
+			: 30_000,
 });
 
 export const setCloudDriveConnection = (queryClient: QueryClient) => ({

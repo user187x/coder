@@ -15,6 +15,7 @@ import {
 	TooltipTrigger,
 } from "#/components/Tooltip/Tooltip";
 import {
+	isCloudDriveMetadata,
 	isNetworkMetadata,
 	publishAgentMetadata,
 } from "#/modules/platform/networkLeds/agentMetadataStore";
@@ -273,14 +274,17 @@ export const AgentMetadata: React.FC<AgentMetadataProps> = ({
 	}, [agent.id, initialMetadata]);
 
 	// Platform: every update for the rest of the page (the network lights in the agent's header), and the network
-	// reading kept out of the metric displays
+	// reading and the Cloud Drive's kept out of the metric displays
 	useEffect(() => {
 		if (activeMetadata) {
 			publishAgentMetadata(agent.id, activeMetadata);
 		}
 	}, [agent.id, activeMetadata]);
 	const shown = useMemo(
-		() => activeMetadata?.filter((m) => !isNetworkMetadata(m)),
+		() =>
+			activeMetadata?.filter(
+				(m) => !isNetworkMetadata(m) && !isCloudDriveMetadata(m),
+			),
 		[activeMetadata],
 	);
 

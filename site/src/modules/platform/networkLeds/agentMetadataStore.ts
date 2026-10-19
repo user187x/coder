@@ -24,6 +24,11 @@ export const publishAgentMetadata = (
 export const isNetworkMetadata = (m: WorkspaceAgentMetadata) =>
 	/(^|_)net_io$/.test(m.description.key);
 
+/** Whether the Cloud Drive is attached in the workspace (key ending in "cloud_drive"): the Workspaces page reads it
+ * through the platform service; not a metric display either. */
+export const isCloudDriveMetadata = (m: WorkspaceAgentMetadata) =>
+	/(^|_)cloud_drive$/.test(m.description.key);
+
 /** The agent's network traffic reading as it comes in, or undefined (none yet, or a template without one). */
 export const useAgentNetworkMetadata = (
 	agentId: string,

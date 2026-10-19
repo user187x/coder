@@ -1676,7 +1676,24 @@ export type CloudDriveConnections = {
 	/** Running with a Cloud Drive volume that is not the one they would get now (the source changed): a restart. */
 	restart?: string[];
 	source?: CloudDriveSource | null;
+	/** How the drive is in each started workspace whose template reports it (its agent's metadata): attached, or not
+	 * yet - absent for the others (stopped, or a template version from before it). */
+	attachment?: Record<string, CloudDriveAttachment>;
 };
+
+/** The Cloud Drive in a workspace (scripts/cloud-drive.sh status): attached (linked, its storage answers), or not yet -
+ * starting (no word from it yet), waiting (on its way), unanswered (linked, its storage does not answer), offline (no
+ * volume: its source workspace was not running at the start), stale (its agent went quiet); none there - shared (with
+ * others), detached (disconnected). */
+export type CloudDriveAttachment =
+	| "attached"
+	| "starting"
+	| "waiting"
+	| "unanswered"
+	| "offline"
+	| "stale"
+	| "shared"
+	| "detached";
 
 /** A folder of the Cloud Drive: its folders and files (path "" is the top). */
 export type SafeListing = {

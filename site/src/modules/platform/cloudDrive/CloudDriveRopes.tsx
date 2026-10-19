@@ -86,6 +86,15 @@ type Layout = {
 	origin: { left: number; top: number };
 };
 
+/** A cable plugged into a workspace whose drive is not attached there yet: data-attached="false" (red). */
+const markAttached = (g: SVGGElement, unattached: ReadonlySet<string>) => {
+	const id = g.dataset.workspace;
+	const attached = !id || !unattached.has(id) ? "true" : "false";
+	if (g.dataset.attached !== attached) {
+		g.dataset.attached = attached;
+	}
+};
+
 /**
  * The Cloud Drive's connections: a cable from a socket on the Cloud Drive's right side (flush with the table's right
  * edge, above it) to a plug in the right end of each of the account's workspace rows connected to it. Each cable
@@ -98,7 +107,7 @@ type Layout = {
  * vacuum cleaner's cord - and drags a new cable out of the socket onto a workspace that isn't connected to connect
  * it (or a plug from one row onto another, to move it). Nothing runs while they are still. Without animations (the
  * user menu's switch, or reduced motion) they are drawn at rest. Red and dashed while the Cloud Drive's storage does
- * not answer.
+ * not answer; a cable red while its workspace says the drive is not attached in it yet (attachment.ts).
  */
 export const CloudDriveRopes: React.FC<{
 	anchor: React.RefObject<HTMLElement | null>;
@@ -109,7 +118,9 @@ export const CloudDriveRopes: React.FC<{
 	/** The owner plugged a cable into a workspace (true), or pulled one out (false). */
 	onLink: (workspaceId: string, connected: boolean) => void;
 	connected: boolean | null | undefined;
-}> = ({ anchor, workspaceIds, linked, onLink, connected }) => {
+	/** Of the linked ones, those whose drive is not attached in the workspace yet: their cables red. */
+	unattached?: readonly string[];
+}> = ({ anchor, workspaceIds, linked, onLink, connected, unattached }) => {
 	const svg = useRef<SVGSVGElement>(null);
 	const socket = useRef<SVGGElement>(null);
 	const elements = useRef(new Map<string, SVGGElement>());
@@ -117,6 +128,7 @@ export const CloudDriveRopes: React.FC<{
 	const animations = useAnimationsEnabled();
 	const ids = workspaceIds.join(",");
 	const linkedRef = useRef(new Set(linked));
+	const unattachedRef = useRef(new Set(unattached));
 	const onLinkRef = useRef(onLink);
 	const kickRef = useRef<() => void>(() => {});
 	onLinkRef.current = onLink;
@@ -125,6 +137,15 @@ export const CloudDriveRopes: React.FC<{
 		linkedRef.current = new Set(linked);
 		kickRef.current();
 	}, [linked]);
+
+	// The cables whose drive is not attached yet: red, at once (nothing is drawn while they are still).
+	const waiting = (unattached ?? []).join(",");
+	useEffect(() => {
+		unattachedRef.current = new Set(waiting ? waiting.split(",") : []);
+		for (const g of elements.current.values()) {
+			markAttached(g, unattachedRef.current);
+		}
+	}, [waiting]);
 
 	useEffect(() => {
 		const root = svg.current;
@@ -319,6 +340,7 @@ export const CloudDriveRopes: React.FC<{
 				g.setAttribute("visibility", "visible");
 				g.dataset.phase = w.phase;
 				g.dataset.workspace = w.target ?? "";
+				markAttached(g, unattachedRef.current);
 				const d = cablePath(m.from, w, w.end, m.start);
 				for (const path of g.querySelectorAll("path")) {
 					path.setAttribute("d", d);

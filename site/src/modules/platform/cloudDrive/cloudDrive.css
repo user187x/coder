@@ -144,6 +144,43 @@ html.cd-dragging:has([data-cloud-drive-drop="taken"]) * {
 .cd-ropes[data-connected="false"] .cd-socket {
 	stroke: hsl(var(--content-destructive));
 }
+/* A cable into a workspace whose Cloud Drive is not attached in it yet (it says so: attachment.ts): red until it is,
+   like the orange cloud beside its status (CloudDriveAttachBadge). */
+.cd-ropes [data-attached="false"] .cd-cable,
+.cd-ropes [data-attached="false"] .cd-prong {
+	stroke: hsl(var(--content-destructive));
+}
+
+/* That orange cloud: an unplugged plug in it, glowing and pulsing until the drive is attached. Without animations
+   (the user menu's switch, or reduced motion) it glows still. */
+.cd-attaching {
+	display: inline-flex;
+	flex-shrink: 0;
+	color: hsl(var(--content-warning));
+	animation: cd-attaching 1.6s ease-in-out infinite;
+}
+@keyframes cd-attaching {
+	0%,
+	100% {
+		opacity: 0.7;
+		filter: drop-shadow(0 0 1px hsl(var(--content-warning) / 0.5));
+	}
+	50% {
+		opacity: 1;
+		filter: drop-shadow(0 0 5px hsl(var(--content-warning)))
+			drop-shadow(0 0 2px hsl(var(--content-warning)));
+	}
+}
+html[data-animations="off"] .cd-attaching {
+	animation: none;
+	filter: drop-shadow(0 0 3px hsl(var(--content-warning) / 0.8));
+}
+@media (prefers-reduced-motion: reduce) {
+	.cd-attaching {
+		animation: none;
+		filter: drop-shadow(0 0 3px hsl(var(--content-warning) / 0.8));
+	}
+}
 
 /* The Accounts table's cables (AccountShareCables): a share read and write has green prongs; pointing at a cable
    (its wide, unseen stroke) lights it up and marks its two rows. */

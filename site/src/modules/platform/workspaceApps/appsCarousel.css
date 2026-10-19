@@ -1,0 +1,98 @@
+/* AppsCarousel: a window of --apps-visible app buttons (the Buttons' icon-lg: 2.5rem, 0.25rem apart) sliding over the
+   row's apps, an arrow either side, a thin bar under it for where it is in the list. */
+.apps-carousel {
+	--apps-button: 2.5rem;
+	--apps-gap: 0.25rem;
+	display: flex;
+	align-items: center;
+	gap: 0.125rem;
+}
+.apps-carousel-window {
+	position: relative;
+	overflow: hidden;
+	/* the buttons' outline and focus ring inside it */
+	padding: 3px;
+	margin: -3px;
+	width: calc(
+		var(--apps-visible) *
+		var(--apps-button) +
+		(var(--apps-visible) - 1) *
+		var(--apps-gap) +
+		6px
+	);
+}
+.apps-carousel-track {
+	display: flex;
+	gap: var(--apps-gap);
+	transform: translateX(
+		calc(var(--apps-at) * -1 * (var(--apps-button) + var(--apps-gap)))
+	);
+	transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.apps-carousel-item {
+	flex: none;
+	transition: opacity 260ms ease;
+}
+.apps-carousel-out {
+	opacity: 0;
+}
+.apps-carousel-bar {
+	position: absolute;
+	left: 3px;
+	right: 3px;
+	bottom: -2px;
+	height: 2px;
+	border-radius: 1px;
+	background: hsl(var(--border-default) / 0.6);
+}
+.apps-carousel-thumb {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	border-radius: 1px;
+	background: hsl(var(--content-link));
+	transition:
+		left 260ms cubic-bezier(0.22, 1, 0.36, 1),
+		width 260ms ease;
+}
+.apps-carousel-arrow {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 1.25rem;
+	height: 2.5rem;
+	padding: 0;
+	border: 0;
+	border-radius: 0.375rem;
+	background: transparent;
+	color: hsl(var(--content-secondary));
+	cursor: pointer;
+	transition:
+		color 150ms,
+		background-color 150ms,
+		opacity 150ms;
+}
+.apps-carousel-arrow:hover:not(:disabled) {
+	color: hsl(var(--content-primary));
+	background: hsl(var(--surface-secondary));
+}
+.apps-carousel-arrow:focus-visible {
+	outline: 2px solid hsl(var(--content-link));
+	outline-offset: 1px;
+}
+.apps-carousel-arrow:disabled {
+	opacity: 0.3;
+	cursor: default;
+}
+html[data-animations="off"] .apps-carousel-track,
+html[data-animations="off"] .apps-carousel-item,
+html[data-animations="off"] .apps-carousel-thumb {
+	transition: none;
+}
+@media (prefers-reduced-motion: reduce) {
+	.apps-carousel-track,
+	.apps-carousel-item,
+	.apps-carousel-thumb {
+		transition: none;
+	}
+}

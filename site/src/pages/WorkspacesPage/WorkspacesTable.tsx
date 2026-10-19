@@ -67,11 +67,13 @@ import {
 import { useAppLink } from "#/modules/apps/useAppLink";
 import { findWorkspaceAppWithAgent } from "#/modules/apps/workspaceApps";
 import { useDashboard } from "#/modules/dashboard/useDashboard";
+import { CloudDriveAttachBadge } from "#/modules/platform/cloudDrive/CloudDriveAttachBadge";
 import { CloudDriveLockBadge } from "#/modules/platform/cloudDrive/CloudDriveLockBadge";
 import {
 	LockdownBadge,
 	useAllLockdowns,
 } from "#/modules/platform/lockdown/Lockdown";
+import { AppsCarousel } from "#/modules/platform/workspaceApps/AppsCarousel";
 import { agentAppsReady } from "#/modules/platform/workspaceInitializing/workspaceReadiness";
 import { abilitiesByWorkspaceStatus } from "#/modules/workspaces/actions";
 import { WorkspaceBuildCancelDialog } from "#/modules/workspaces/WorkspaceBuildCancelDialog/WorkspaceBuildCancelDialog";
@@ -305,7 +307,11 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 							</TableCell>
 
 							<TableCell>
-								<WorkspaceStatus workspace={workspace} />
+								{/* Platform: an orange cloud beside Running until its Cloud Drive is attached */}
+								<WorkspaceStatus
+									workspace={workspace}
+									after={<CloudDriveAttachBadge workspace={workspace} />}
+								/>
 							</TableCell>
 
 							<WorkspaceActionsCell
@@ -724,7 +730,7 @@ const PrimaryAction: React.FC<PrimaryActionProps> = ({
 	);
 };
 
-// The total number of apps that can be displayed in the workspace row
+// The apps shown at once in the workspace row; more: Platform's carousel slides over all of them (AppsCarousel)
 const WORKSPACE_APPS_SLOTS = 4;
 
 type WorkspaceAppsProps = {
@@ -760,13 +766,10 @@ const WorkspaceApps: React.FC<WorkspaceAppsProps> = ({ workspace }) => {
 	builtinApps.delete("port_forwarding_helper");
 	builtinApps.delete("ssh_helper");
 
-	const remainingSlots = WORKSPACE_APPS_SLOTS - builtinApps.size;
-	const userApps = agent.apps
-		.filter(
-			(app) =>
-				(app.health === "healthy" || app.health === "disabled") && !app.hidden,
-		)
-		.slice(0, remainingSlots);
+	const userApps = agent.apps.filter(
+		(app) =>
+			(app.health === "healthy" || app.health === "disabled") && !app.hidden,
+	);
 
 	const buttons: React.ReactNode[] = [];
 
@@ -830,9 +833,7 @@ const WorkspaceApps: React.FC<WorkspaceAppsProps> = ({ workspace }) => {
 		);
 	}
 
-	buttons.push();
-
-	return buttons;
+	return <AppsCarousel visible={WORKSPACE_APPS_SLOTS}>{buttons}</AppsCarousel>;
 };
 
 type WorkspaceAppStatusLinksProps = {

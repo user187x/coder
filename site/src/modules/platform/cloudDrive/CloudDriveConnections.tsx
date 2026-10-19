@@ -7,6 +7,7 @@ import {
 } from "#/api/queries/platform";
 import { workspaces } from "#/api/queries/workspaces";
 import { Switch } from "#/components/Switch/Switch";
+import { pendingAttachments } from "./attachment";
 
 /**
  * The Cloud Drive window's Workspaces: each of the account's workspaces with a switch, connected to the drive (it
@@ -24,6 +25,7 @@ export const CloudDriveConnections: React.FC = () => {
 	const shared = new Set(connections.data?.shared ?? []);
 	const stillMounted = new Set(connections.data?.sharedWithVolume ?? []);
 	const restart = new Set(connections.data?.restart ?? []);
+	const attaching = new Set(pendingAttachments(connections.data));
 
 	return (
 		<div className="flex max-h-[60vh] flex-col gap-3 overflow-y-auto px-6 py-5">
@@ -76,6 +78,9 @@ export const CloudDriveConnections: React.FC = () => {
 										{!isShared &&
 											older.has(w.id) &&
 											" · takes effect once it is updated to its template's latest version"}
+										{on &&
+											attaching.has(w.id) &&
+											" · not attached in the workspace yet"}
 										{!isShared &&
 											restart.has(w.id) &&
 											" · restart it to have the Cloud Drives as they are now (its source, or those shared with you, changed)"}
