@@ -310,6 +310,56 @@ export type ImageOnNode = {
 	entry: string | null;
 };
 
+/**
+ * What an image of ours (the Coder fork's: ghcr.io/user187x/) holds, as built: recorded by
+ * development/tools/image-contents.py from the image itself, shipped with the platform service.
+ */
+export type ImageContents = {
+	ref: string;
+	repository: string;
+	/** What images.txt pins. */
+	digest: string;
+	imageId: string;
+	/** images.txt's section, and its description. */
+	section: string;
+	description: string;
+	/** Where it is made in the repository. */
+	source: { folder: string; build: string };
+	created: string | null;
+	size: number | null;
+	platform: string;
+	config: {
+		user: string;
+		entrypoint: string[] | null;
+		cmd: string[] | null;
+		workdir: string;
+		ports: string[];
+		env: string[];
+		labels: Record<string, string>;
+	};
+	layers: number;
+	/** Every build step, oldest first, with what it added. */
+	steps: { step: string; size: string; comment: string }[];
+	/** The programs we put in it, each with the version it reports itself. */
+	programs: { name: string; what: string; version: string | null }[];
+	/** The workspace images' add-ons (addons.json). */
+	addons: ImageAddons | null;
+	packages: {
+		os: {
+			manager: "dpkg" | "apk";
+			count: number;
+			items: [name: string, version: string][];
+		} | null;
+		python: {
+			env: string;
+			count: number;
+			items: [name: string, version: string][];
+		}[];
+	};
+};
+
+export type ImageContentsCatalog = { images: Record<string, ImageContents> };
+
 /** An image workspaces run now, or a template runs: which, and its entry here if it has one. */
 export type ImageInUse = {
 	image: string;
@@ -354,7 +404,13 @@ export type Library = {
 	imports: LibraryImport[];
 	/** The model library: the models waiting for their security scan (or an admin) before workspaces have them. */
 	held?: HeldModel[];
-	scanner?: { enabled: boolean; releaseGrade: string; garak: string | null };
+	/** The model scanner (a plug-in): hooked up, or not (and then whether admins hid its section). */
+	scanner?: {
+		enabled: boolean;
+		releaseGrade?: string;
+		garak?: string | null;
+		hidden?: boolean;
+	};
 };
 
 const LIBRARY = (kind: LibraryKind) => `${base}/api/${kind}`;
@@ -436,8 +492,11 @@ export type ModelScannerProfile = {
 };
 
 export type ModelScanner = {
+	/** A scanner is hooked up (a plug-in: none ships with the platform). */
 	enabled: boolean;
 	canEdit: boolean;
+	/** Admins hid the section while no scanner is hooked up. */
+	hidden: boolean;
 	image: string;
 	defaultImage: string;
 	custom: boolean;
@@ -772,6 +831,8 @@ export const ImagesAPI = {
 		),
 	inUse: () => get<{ images: ImageInUse[] }>(`${IMAGES}/in-use`),
 	onNodes: () => get<{ images: ImageOnNode[] }>(`${IMAGES}/on-nodes`),
+	/** What each image of ours holds (the Coder fork's images, as built). */
+	contents: () => get<ImageContentsCatalog>(`${IMAGES}/contents`),
 	/** Any image scanned as it is (from the cluster's registry, else from a node that holds it): its entry and the scan. */
 	scan: (image: string) =>
 		post<{ id: string; build: number }>(`${IMAGES}/scan`, { image }),
@@ -796,6 +857,7 @@ export const ImagesAPI = {
 		profile?: string;
 		releaseGrade?: string;
 		image?: string;
+		hidden?: boolean;
 	}) => post<ModelScanner>(`${MODELS}/scanner`, body),
 	rescanAllModels: () =>
 		post<{ ok: true; queued: number }>(`${MODELS}/scanner/rescan-all`, {}),

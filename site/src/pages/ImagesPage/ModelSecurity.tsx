@@ -2,15 +2,18 @@ import {
 	CircleAlertIcon,
 	FileSearchIcon,
 	LockIcon,
+	PlugIcon,
 	RefreshCwIcon,
 	ScanSearchIcon,
 	SettingsIcon,
 	ShieldCheckIcon,
+	ShieldOffIcon,
 	TrashIcon,
 	UnlockIcon,
+	UploadIcon,
 	XIcon,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { toast } from "sonner";
 import { getErrorMessage } from "#/api/errors";
@@ -41,6 +44,7 @@ import {
 	SelectValue,
 } from "#/components/Select/Select";
 import { Spinner } from "#/components/Spinner/Spinner";
+import { Switch } from "#/components/Switch/Switch";
 import {
 	Table,
 	TableBody,
@@ -148,13 +152,20 @@ export const ModelScanCell: React.FC<{ scan?: ModelScan }> = ({ scan }) => {
 	return <span className="text-content-secondary text-sm">Not scanned</span>;
 };
 
-/** The scanner above the model library: garak's version, the profile and release grade; admins open its settings. */
+/**
+ * The scanner above the model library: garak's version, the profile and release grade; admins open its settings. A
+ * plug-in: with none hooked up (the platform ships none), it says models go in unscanned, admins import one - or hide
+ * the section.
+ */
 export const ModelScannerPanel: React.FC = () => {
 	const query = useModelScanner();
 	const [open, setOpen] = useState(false);
 	const s = query.data;
-	if (!s?.enabled) {
+	if (!s) {
 		return null;
+	}
+	if (!s.enabled) {
+		return s.hidden ? null : <ScannerAbsentPanel scanner={s} />;
 	}
 	const profile = s.profiles.find((p) => p.id === s.profile);
 	const newer =
@@ -231,6 +242,247 @@ export const ModelScannerPanel: React.FC = () => {
 				<ModelScannerDialog scanner={s} onClose={() => setOpen(false)} />
 			)}
 		</div>
+	);
+};
+
+/** Admins: a scanner's settings saved (hooked up, hidden, ...), the scanner and the library asked again. */
+const useSaveScanner = (done?: string) => {
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: (body: Parameters<typeof ImagesAPI.saveModelScanner>[0]) =>
+			ImagesAPI.saveModelScanner(body),
+		onSuccess: (_d, body) => {
+			if (done ?? body.image) {
+				toast.success(
+					done ?? "Checking the scanner image: it is used once it answers.",
+				);
+			}
+			void queryClient.invalidateQueries({ queryKey: scannerKey });
+			void queryClient.invalidateQueries({ queryKey: libraryKey("models") });
+		},
+		onError: (e) => toast.error(getErrorMessage(e, "Not saved.")),
+	});
+};
+
+/** No scanner hooked up: what that means, the one being checked, and (admins) Import scanner and Hide. */
+const ScannerAbsentPanel: React.FC<{ scanner: ModelScanner }> = ({
+	scanner: s,
+}) => {
+	const [importing, setImporting] = useState(false);
+	const hide = useSaveScanner();
+	return (
+		<div
+			className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-md border border-dashed border-border px-3 py-2 text-xs"
+			data-testid="model-scanner-absent"
+		>
+			<span className="flex items-center gap-1.5 font-medium">
+				<ShieldOffIcon className="size-4 text-content-secondary" />
+				LLM scanning (garak) is not hooked up
+			</span>
+			<span className="text-content-secondary">
+				models go straight into the library, unscanned
+			</span>
+			{s.candidate && (
+				<span className="flex items-center gap-1.5 text-content-link">
+					<Spinner loading size="sm" /> Checking {s.candidate}…
+				</span>
+			)}
+			{s.candidateError && (
+				<span className="text-content-destructive">{s.candidateError}</span>
+			)}
+			{s.canEdit && (
+				<span className="ml-auto flex items-center gap-3">
+					<span className="flex items-center gap-1.5 text-content-secondary">
+						<Switch
+							checked
+							disabled={hide.isPending}
+							onCheckedChange={() => hide.mutate({ hidden: true })}
+							aria-label="Show this section while no scanner is hooked up"
+							data-testid="model-scanner-hide"
+						/>
+						Shown
+					</span>
+					<Button
+						size="xs"
+						onClick={() => setImporting(true)}
+						data-testid="model-scanner-import"
+					>
+						<PlugIcon />
+						Import scanner
+					</Button>
+				</span>
+			)}
+			{importing && <ScannerImportDialog onClose={() => setImporting(false)} />}
+		</div>
+	);
+};
+
+/** The section hidden (admins, no scanner hooked up): a small button that shows it again. */
+export const ShowScannerButton: React.FC = () => {
+	const query = useModelScanner();
+	const show = useSaveScanner();
+	const s = query.data;
+	if (!s?.canEdit || s.enabled || !s.hidden) {
+		return null;
+	}
+	return (
+		<Button
+			size="xs"
+			variant="subtle"
+			disabled={show.isPending}
+			onClick={() => show.mutate({ hidden: false })}
+			data-testid="model-scanner-show"
+		>
+			<ShieldOffIcon />
+			Show LLM scanning
+		</Button>
+	);
+};
+
+/**
+ * Hooks the scanner up, as a plug-in: a docker save archive of development/tools/build-garak-image.sh (it lands in the
+ * Images view, then is chosen), an image the Images view holds already, or a registry's. The platform checks it (its
+ * info Job) before it scans with it.
+ */
+const ScannerImportDialog: React.FC<{ onClose: () => void }> = ({
+	onClose,
+}) => {
+	const save = useSaveScanner();
+	const [file, setFile] = useState<File | null>(null);
+	const [progress, setProgress] = useState<number | null>(null);
+	const [imported, setImported] = useState<string | null>(null);
+	const [ref, setRef] = useState("");
+	const images = useQuery({
+		queryKey: ["platform", "images", "list"],
+		queryFn: ImagesAPI.list,
+		// an archive uploaded: until its entry is ready (its image pushed to the registry)
+		refetchInterval: imported ? 3000 : false,
+	});
+	const ready = (images.data?.images ?? []).filter(
+		(i) => i.status === "ready" && i.pullRef,
+	);
+	const done = imported ? ready.find((i) => i.id === imported) : undefined;
+	const hooked = useRef(false);
+	useEffect(() => {
+		if (done?.pullRef && !hooked.current) {
+			hooked.current = true;
+			save.mutate({ image: done.pullRef });
+			onClose();
+		}
+	}, [done?.pullRef, save.mutate, onClose]);
+	const upload = useMutation({
+		mutationFn: (f: File) =>
+			ImagesAPI.importArchive(
+				"coder-garak",
+				"The Model Library's security scanner (garak), a plug-in",
+				f,
+				setProgress,
+			),
+		onSuccess: (r) => {
+			setImported(r.image);
+			toast.success(
+				"Uploaded: the scanner is hooked up once its image is ready.",
+			);
+		},
+		onError: (e) => {
+			setProgress(null);
+			toast.error(getErrorMessage(e, "Not uploaded."));
+		},
+	});
+	return (
+		<Dialog open onOpenChange={(o) => !o && onClose()}>
+			<DialogContent
+				className="max-w-xl"
+				data-testid="model-scanner-import-dialog"
+			>
+				<DialogHeader>
+					<DialogTitle className="flex items-center gap-2">
+						<PlugIcon className="size-5" />
+						Import the LLM scanner
+					</DialogTitle>
+					<DialogDescription>
+						garak, NVIDIA's LLM vulnerability scanner, with its detector models
+						and llama.cpp - a plug-in, none ships with the platform. Once it is
+						checked, every model added to the library is scanned before
+						workspaces have it.
+					</DialogDescription>
+				</DialogHeader>
+				<section className="flex flex-col gap-2">
+					<Label htmlFor="scanner-archive">
+						Its archive (docker save, .tar or .tar.gz)
+					</Label>
+					<span className="text-xs text-content-secondary">
+						development/tools/build-garak-image.sh writes it to dist/plugins/.
+					</span>
+					<span className="flex items-center gap-2">
+						<Input
+							id="scanner-archive"
+							type="file"
+							accept=".tar,.tar.gz,.tgz"
+							onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+							className="text-xs"
+							data-testid="model-scanner-archive"
+						/>
+						<Button
+							size="sm"
+							disabled={!file || upload.isPending || imported !== null}
+							onClick={() => file && upload.mutate(file)}
+						>
+							<UploadIcon />
+							Upload
+						</Button>
+					</span>
+					{progress !== null && (
+						<span className="text-xs text-content-secondary">
+							{imported
+								? "Uploaded: pushing its image to the registry…"
+								: `Uploading… ${Math.round(progress * 100)}%`}
+						</span>
+					)}
+				</section>
+				<section className="flex flex-col gap-2 border-0 border-t border-solid border-border pt-4">
+					<Label htmlFor="scanner-ref">
+						Or an image the Images view holds, or a registry's
+					</Label>
+					{ready.length > 0 && (
+						<Select value="" onValueChange={(v) => setRef(v)}>
+							<SelectTrigger aria-label="An imported image">
+								<SelectValue placeholder="An image of the Images view" />
+							</SelectTrigger>
+							<SelectContent>
+								{ready.map((i) => (
+									<SelectItem key={i.id} value={i.pullRef as string}>
+										{i.name} v{i.version}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					)}
+					<Input
+						id="scanner-ref"
+						placeholder="registry/coder-garak:0.17.1-2"
+						value={ref}
+						onChange={(e) => setRef(e.target.value)}
+						className="font-mono text-xs"
+					/>
+				</section>
+				<DialogFooter>
+					<Button variant="outline" onClick={onClose}>
+						Cancel
+					</Button>
+					<Button
+						disabled={!ref.trim() || save.isPending}
+						onClick={() => {
+							save.mutate({ image: ref.trim() });
+							onClose();
+						}}
+						data-testid="model-scanner-use"
+					>
+						Hook it up
+					</Button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
 	);
 };
 
@@ -470,7 +722,9 @@ const ModelScannerDialog: React.FC<{
 											save.mutate({ image: "" });
 										}}
 									>
-										Back to the chart's
+										{s.defaultImage
+											? "Back to the chart's"
+											: "Unhook the scanner"}
 									</Button>
 								)}
 								<Button

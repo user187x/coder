@@ -1,0 +1,607 @@
+/*
+ * The workspace settings page (WorkspaceSettingsCardsPage): its design tokens and the patterns it repeats.
+ *
+ * The dark values are the design's (ClaudeTask/workspace-settings.reference.html), exactly; the light theme maps the
+ * same tokens onto the dashboard's palette. The page's layout patterns sit in the components layer (a Tailwind
+ * utility on the same element still wins); its controls in ws-controls, after the utilities, because they restyle
+ * the dashboard's own components (Select's trigger, Autocomplete's input), which carry utilities of their own: a
+ * control's variant is a modifier class here, not a utility.
+ */
+
+@layer theme, base, components, utilities, ws-controls;
+
+.ws-settings {
+	/* light: the dashboard's palette */
+	--ws-page: hsl(var(--surface-secondary));
+	--ws-header: hsl(var(--surface-primary));
+	--ws-header-line: hsl(var(--border-default));
+	--ws-card: hsl(var(--surface-primary));
+	--ws-line: hsl(var(--border-default));
+	--ws-line-soft: hsl(var(--border-default));
+	--ws-row-line: hsl(var(--border-default) / 0.7);
+	--ws-well: hsl(var(--surface-primary));
+	--ws-well-line: hsl(var(--border-default));
+	--ws-raised: hsl(var(--surface-secondary));
+	--ws-raised-line: hsl(var(--border-default));
+	--ws-chip: hsl(var(--surface-secondary));
+	--ws-tile: hsl(var(--surface-secondary));
+	--ws-tile-text: hsl(var(--content-primary));
+	--ws-on: hsl(var(--content-link) / 0.1);
+	--ws-on-text: hsl(var(--content-primary));
+	--ws-on-sub: hsl(var(--content-link));
+	--ws-accent: hsl(var(--content-link));
+	--ws-accent-ink: hsl(var(--surface-primary));
+	--ws-soft: hsl(var(--content-link));
+	--ws-soft-hover: hsl(var(--content-primary));
+	--ws-icon-tile: hsl(var(--surface-sky));
+	--ws-text: hsl(var(--content-primary));
+	--ws-text-2: hsl(var(--content-primary));
+	--ws-text-3: hsl(var(--content-secondary));
+	--ws-muted: hsl(var(--content-secondary));
+	--ws-faint: hsl(var(--content-disabled));
+	--ws-switch-off: hsl(var(--surface-tertiary));
+	--ws-switch-off-line: hsl(var(--border-default));
+	--ws-radio-off: hsl(var(--border-secondary));
+	--ws-warn: hsl(var(--highlight-orange));
+	--ws-warn-bg: hsl(var(--surface-orange));
+	--ws-go: hsl(var(--highlight-green));
+	--ws-bar-line: hsl(var(--border-default));
+	--ws-bar-shadow: 0 12px 32px rgb(0 0 0 / 0.12);
+
+	--ws-r-xs: 7px;
+	--ws-r-sm: 9px;
+	--ws-r-md: 10px;
+	--ws-r-tile: 11px;
+	--ws-r-lg: 12px;
+	--ws-r-xl: 13px;
+	--ws-r-bar: 14px;
+	--ws-r-card: 16px;
+
+	--ws-control: 44px;
+	--ws-control-sm: 40px;
+	/* The design sizes its boxes without a box-sizing reset (content-box): its 1240px column has its 32px padding
+	   outside, its 44px tiles their border; here (border-box) the same boxes are that much bigger. */
+	--ws-content: 1304px;
+	--ws-bar: 1208px;
+}
+
+.dark .ws-settings {
+	/* the design */
+	--ws-page: #0b0d10;
+	--ws-header: #0e1014;
+	--ws-header-line: #1c2027;
+	--ws-card: #12151a;
+	--ws-line: #22262e;
+	--ws-line-soft: #1e222a;
+	--ws-row-line: #1b1f26;
+	--ws-well: #0e1014;
+	--ws-well-line: #262b33;
+	--ws-raised: #171b21;
+	--ws-raised-line: #2a2f38;
+	--ws-chip: #13161b;
+	--ws-tile: #161a20;
+	--ws-tile-text: #d5d9df;
+	--ws-on: #1a2440;
+	--ws-on-text: #e8eeff;
+	--ws-on-sub: #a9bef5;
+	--ws-accent: #7aa2ff;
+	--ws-accent-ink: #0b0d10;
+	--ws-soft: #9db8ff;
+	--ws-soft-hover: #c9d8ff;
+	--ws-icon-tile: #1a2133;
+	--ws-text: #e6e8eb;
+	--ws-text-2: #c3c8d0;
+	--ws-text-3: #a3aab5;
+	--ws-muted: #8b93a0;
+	--ws-faint: #6f7782;
+	--ws-switch-off: #1e232b;
+	--ws-switch-off-line: #333944;
+	--ws-radio-off: #4a515c;
+	--ws-warn: #f0b95a;
+	--ws-warn-bg: #2a2114;
+	--ws-go: #7fd1a8;
+	--ws-bar-line: #2e3440;
+	--ws-bar-shadow: 0 12px 32px rgb(0 0 0 / 0.45);
+}
+
+@layer components {
+	.ws-settings {
+		background: var(--ws-page);
+		color: var(--ws-text);
+		font-family: var(--font-sans);
+		font-size: 14px;
+		line-height: 1.5;
+	}
+
+	.ws-settings a {
+		color: var(--ws-soft);
+	}
+
+	.ws-settings a:hover {
+		color: var(--ws-soft-hover);
+	}
+
+	.ws-settings input::placeholder {
+		color: var(--ws-faint);
+	}
+
+	/* The design's buttons keep the browser's own line height (and 13.33px where it sets no size: the theme cards) */
+	.ws-settings button {
+		line-height: normal;
+	}
+
+	/* Anything drawn smaller than 44px still takes a 44px touch: an invisible hit area around it. */
+	.ws-hit {
+		position: relative;
+	}
+
+	.ws-hit::after {
+		content: "";
+		position: absolute;
+		inset-block: min(0px, calc(50% - 22px));
+		inset-inline: min(0px, calc(50% - 22px));
+	}
+
+	.ws-mono {
+		font-family: var(--font-mono);
+	}
+
+	.ws-eyebrow {
+		font-size: 11px;
+		font-weight: 600;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--ws-faint);
+	}
+
+	.ws-desc {
+		margin: 2px 0 0;
+		color: var(--ws-muted);
+		font-size: 13px;
+	}
+
+	.ws-help {
+		margin: 8px 0 0;
+		color: var(--ws-muted);
+		font-size: 12.5px;
+	}
+
+	.ws-error {
+		margin: 8px 0 0;
+		color: hsl(var(--content-destructive));
+		font-size: 12.5px;
+	}
+
+	.ws-small-label {
+		font-size: 12.5px;
+		color: var(--ws-text-3);
+	}
+
+	/* A card: General, Resources, Environment, Schedule, Sharing */
+	.ws-card {
+		background: var(--ws-card);
+		border: 1px solid var(--ws-line);
+		border-radius: var(--ws-r-card);
+		overflow: hidden;
+		scroll-margin-top: 24px;
+	}
+
+	.ws-card-head {
+		padding: 20px 24px;
+		border-bottom: 1px solid var(--ws-line-soft);
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: 14px;
+	}
+
+	.ws-icon-tile {
+		width: 36px;
+		height: 36px;
+		border-radius: var(--ws-r-md);
+		background: var(--ws-icon-tile);
+		color: var(--ws-soft);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+	}
+
+	/* A row of General: its label on the left, its control on the right */
+	.ws-row {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 12px 32px;
+		padding: 18px 0;
+		border-bottom: 1px solid var(--ws-row-line);
+	}
+
+	.ws-row:last-child {
+		border-bottom: 0;
+	}
+
+	.ws-row-label {
+		flex: 1 1 220px;
+		max-width: 280px;
+	}
+
+	.ws-row-control {
+		flex: 999 1 320px;
+		min-width: 0;
+	}
+
+	/* Option tiles (CPU, memory) */
+	.ws-tiles {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+		gap: 8px;
+	}
+
+	/* A strip of Resources (GPU, home disk) */
+	.ws-strip {
+		border-radius: var(--ws-r-lg);
+		background: var(--ws-well);
+		border: 1px solid var(--ws-line);
+		padding: 16px 18px;
+		display: flex;
+		align-items: center;
+		gap: 16px;
+	}
+
+	.ws-strip-icon {
+		width: 40px;
+		height: 40px;
+		border-radius: var(--ws-r-md);
+		background: var(--ws-raised);
+		color: var(--ws-text-2);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+	}
+
+	/* Autostart, Autostop */
+	.ws-subcard {
+		border-radius: var(--ws-r-xl);
+		background: var(--ws-well);
+		border: 1px solid var(--ws-line);
+		padding: 18px;
+		display: flex;
+		flex-direction: column;
+		gap: 16px;
+	}
+
+	/* The section list on the left */
+	.ws-settings .ws-nav-link {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		height: 40px;
+		padding: 0 12px;
+		border-radius: var(--ws-r-sm);
+		color: var(--ws-text-3);
+		text-decoration: none;
+	}
+
+	.ws-settings .ws-nav-link:hover {
+		color: var(--ws-text);
+	}
+
+	.ws-settings .ws-nav-link[aria-current="true"] {
+		background: var(--ws-tile);
+		color: var(--ws-text);
+		font-weight: 500;
+	}
+
+	/* a link drawn as plain text (the breadcrumb) */
+	.ws-settings .ws-quiet-link {
+		color: var(--ws-muted);
+		text-decoration: none;
+	}
+
+	.ws-settings .ws-quiet-link:hover {
+		color: var(--ws-text);
+	}
+
+	.ws-panel {
+		border-radius: var(--ws-r-lg);
+		background: var(--ws-card);
+		border: 1px solid var(--ws-line);
+	}
+}
+
+@layer ws-controls {
+	.ws-settings
+		:is(button, input, select, textarea, a, [role="combobox"]):focus-visible {
+		outline: 2px solid var(--ws-accent);
+		outline-offset: 2px;
+		box-shadow: none;
+	}
+
+	/* Inputs and selects (their trigger) */
+	.ws-input {
+		width: 100%;
+		box-sizing: border-box;
+		height: var(--ws-control);
+		padding: 0 14px;
+		border-radius: var(--ws-r-md);
+		border: 1px solid var(--ws-well-line);
+		background: var(--ws-well);
+		color: var(--ws-text);
+		font-size: 14px;
+		font-weight: 400;
+		box-shadow: none;
+	}
+
+	.ws-input:disabled {
+		color: var(--ws-muted);
+		opacity: 1;
+		cursor: not-allowed;
+	}
+
+	.ws-input[aria-invalid="true"] {
+		border-color: hsl(var(--border-destructive));
+	}
+
+	.ws-select {
+		padding: 0 12px;
+	}
+
+	.ws-select:disabled {
+		color: var(--ws-text);
+		opacity: 0.6;
+	}
+
+	/* the name, locked: room for the lock */
+	.ws-input-locked {
+		padding-right: 40px;
+	}
+
+	/* the search: room for its magnifier */
+	.ws-input-search {
+		padding-left: 40px;
+	}
+
+	/* a path, an image reference */
+	.ws-input-mono {
+		font-family: var(--font-mono);
+		font-size: 13px;
+	}
+
+	/* the schedule's: smaller, on the subcard's darker ground */
+	.ws-input-sm {
+		height: var(--ws-control-sm);
+		padding: 0 10px;
+		border-radius: var(--ws-r-sm);
+		background: var(--ws-card);
+		font-size: 13.5px;
+	}
+
+	/* off, the schedule's fields are dimmed as a whole (the subcard): not again */
+	.ws-input-sm:disabled {
+		color: var(--ws-text);
+	}
+
+	/* autostop's hours */
+	.ws-input-hours {
+		width: 96px;
+		font-family: var(--font-mono);
+		font-size: 14px;
+	}
+
+	/* Plain buttons */
+	.ws-btn {
+		height: var(--ws-control);
+		padding: 0 14px;
+		border-radius: var(--ws-r-md);
+		border: 1px solid var(--ws-raised-line);
+		background: var(--ws-raised);
+		color: var(--ws-text);
+		font-size: 13px;
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		cursor: pointer;
+	}
+
+	.ws-btn:disabled {
+		color: var(--ws-faint);
+		border-color: var(--ws-well-line);
+		cursor: not-allowed;
+	}
+
+	/* Expand disk… */
+	.ws-btn-sm {
+		height: var(--ws-control-sm);
+		font-weight: 500;
+	}
+
+	/* Add member */
+	.ws-btn-lg {
+		padding: 0 16px;
+		font-size: 14px;
+		font-weight: 500;
+		flex: none;
+	}
+
+	/* an icon alone (Remove) */
+	.ws-btn-icon {
+		width: var(--ws-control-sm);
+		height: var(--ws-control-sm);
+		padding: 0;
+		justify-content: center;
+	}
+
+	/* Weekdays, Every day, Clear */
+	.ws-link-btn {
+		height: 30px;
+		padding: 0 10px;
+		border-radius: var(--ws-r-xs);
+		border: 0;
+		background: transparent;
+		color: var(--ws-soft);
+		font-size: 12.5px;
+		cursor: pointer;
+	}
+
+	.ws-link-btn-quiet {
+		color: var(--ws-muted);
+	}
+
+	.ws-link-btn:disabled {
+		cursor: not-allowed;
+	}
+
+	/* An option tile: a number and its unit */
+	.ws-tile {
+		height: 56px;
+		border-radius: var(--ws-r-tile);
+		border: 1px solid var(--ws-well-line);
+		background: var(--ws-tile);
+		color: var(--ws-tile-text);
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		cursor: pointer;
+	}
+
+	.ws-tile[aria-pressed="true"] {
+		border-color: var(--ws-accent);
+		background: var(--ws-on);
+		color: var(--ws-on-text);
+	}
+
+	.ws-tile:disabled {
+		cursor: not-allowed;
+		opacity: 0.45;
+	}
+
+	.ws-tile-n {
+		font-size: 18px;
+		font-weight: 600;
+		font-family: var(--font-mono);
+	}
+
+	.ws-tile-unit {
+		font-size: 11px;
+		color: var(--ws-muted);
+	}
+
+	.ws-tile[aria-pressed="true"] .ws-tile-unit {
+		color: var(--ws-on-sub);
+	}
+
+	/* The switch: a button with aria-pressed */
+	.ws-switch {
+		width: 46px;
+		height: 28px;
+		border-radius: 999px;
+		border: 1px solid var(--ws-switch-off-line);
+		background: var(--ws-switch-off);
+		padding: 3px;
+		display: flex;
+		justify-content: flex-start;
+		align-items: center;
+		flex-shrink: 0;
+		cursor: pointer;
+	}
+
+	.ws-switch > span {
+		width: 20px;
+		height: 20px;
+		border-radius: 999px;
+		background: var(--ws-muted);
+	}
+
+	.ws-switch[aria-pressed="true"] {
+		border: 0;
+		background: var(--ws-accent);
+		justify-content: flex-end;
+	}
+
+	.ws-switch[aria-pressed="true"] > span {
+		width: 22px;
+		height: 22px;
+		background: var(--ws-accent-ink);
+	}
+
+	.ws-switch:disabled {
+		opacity: 0.45;
+		cursor: not-allowed;
+	}
+
+	/* A day of autostart (and a GPU count) */
+	.ws-day {
+		height: var(--ws-control-sm);
+		border-radius: var(--ws-r-sm);
+		border: 1px solid var(--ws-well-line);
+		background: var(--ws-card);
+		color: var(--ws-text-3);
+		font-size: 12.5px;
+		font-weight: 500;
+		cursor: pointer;
+	}
+
+	.ws-day[aria-pressed="true"] {
+		border-color: var(--ws-accent);
+		background: var(--ws-on);
+		color: var(--ws-on-text);
+		font-weight: 600;
+	}
+
+	.ws-day:disabled {
+		cursor: not-allowed;
+	}
+
+	/* The desktop theme's cards */
+	.ws-theme {
+		text-align: left;
+		font-size: 13.3333px;
+		padding: 0;
+		border-radius: var(--ws-r-xl);
+		border: 1px solid var(--ws-well-line);
+		background: var(--ws-tile);
+		color: var(--ws-text);
+		overflow: hidden;
+		cursor: pointer;
+	}
+
+	.ws-theme[aria-pressed="true"] {
+		border-color: var(--ws-accent);
+	}
+
+	.ws-theme:disabled {
+		cursor: not-allowed;
+		opacity: 0.6;
+	}
+
+	.ws-radio {
+		width: 18px;
+		height: 18px;
+		box-sizing: content-box;
+		border-radius: 999px;
+		border: 2px solid var(--ws-radio-off);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+		margin-top: 2px;
+	}
+
+	.ws-radio > span {
+		width: 8px;
+		height: 8px;
+		border-radius: 999px;
+		background: transparent;
+	}
+
+	.ws-theme[aria-pressed="true"] .ws-radio {
+		border-color: var(--ws-accent);
+	}
+
+	.ws-theme[aria-pressed="true"] .ws-radio > span {
+		background: var(--ws-accent);
+	}
+}

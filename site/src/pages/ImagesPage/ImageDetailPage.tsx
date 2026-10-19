@@ -39,6 +39,7 @@ import {
 import { createDayString } from "#/utils/createDayString";
 import { pageTitle } from "#/utils/page";
 import {
+	deleteDescription,
 	FipsBadge,
 	formatSize,
 	GradeBadge,
@@ -46,6 +47,12 @@ import {
 	StatusBadge,
 	TrackedBadge,
 } from "./badges";
+import {
+	CoderForkBadge,
+	ImageContentsTree,
+	ourImage,
+	useImageContents,
+} from "./CoderForkImages";
 import { ImageAddons } from "./ImageAddons";
 import { imageKey } from "./ImageEditorPage";
 import { ImageReport } from "./ImageReport";
@@ -55,7 +62,9 @@ import { ImportImageDialog } from "./ImportImageDialog";
 /**
  * Templates > Images > (an image): how to use it, its security report, its
  * add-ons, its builds, its backup. The workspace template's own image (tracked)
- * is read-only: its report and add-ons, rescans, a download.
+ * is read-only: its report and add-ons, rescans, a download; its entry can be
+ * deleted (back with the next workspace image). One of the Coder fork's images
+ * shows what it holds, in detail.
  */
 const ImageDetailPage: React.FC = () => {
 	const { image: id = "" } = useParams();
@@ -96,6 +105,11 @@ const ImageDetailView: React.FC<{ image: ImageDetail }> = ({ image }) => {
 		useQuery({ queryKey: imagesKey, queryFn: ImagesAPI.list }).data
 			?.templates ?? [];
 	const tag = tracked?.image.split(":").pop();
+	const asked =
+		tracked?.image ??
+		scanned?.image ??
+		(imported?.source === "registry" ? imported.from : null);
+	const ours = ourImage(useImageContents().data, asked);
 	const refresh = () => {
 		void queryClient.invalidateQueries({ queryKey: imageKey(image.id) });
 		void queryClient.invalidateQueries({ queryKey: imagesKey, exact: true });
@@ -155,6 +169,7 @@ const ImageDetailView: React.FC<{ image: ImageDetail }> = ({ image }) => {
 						status={image.status}
 						building={Boolean(image.activeBuild)}
 					/>
+					{ours && <CoderForkBadge ours={ours} />}
 					{tracked && <TrackedBadge />}
 					{imported && <ImportedBadge from={imported.from} />}
 					{tag && <span className="text-content-secondary">{tag}</span>}
@@ -197,12 +212,16 @@ const ImageDetailView: React.FC<{ image: ImageDetail }> = ({ image }) => {
 							Rescan
 						</Button>
 					)}
-					{scanned && image.canEdit && (
+					{(scanned || tracked) && image.canEdit && (
 						<Button
 							variant="outline"
 							size="icon"
 							aria-label={`Delete ${image.name}`}
-							title="Forget this scan (the image itself is not touched)"
+							title={
+								tracked
+									? "Delete this entry (the workspace image itself stays)"
+									: "Forget this scan (the image itself is not touched)"
+							}
 							disabled={Boolean(image.activeBuild)}
 							onClick={() => setDeleting(true)}
 						>
@@ -437,6 +456,18 @@ const ImageDetailView: React.FC<{ image: ImageDetail }> = ({ image }) => {
 				</section>
 			)}
 
+			{ours && (
+				<section className="flex flex-col gap-3" id="contents">
+					<h2 className="m-0 text-lg font-semibold">
+						What it holds
+						<span className="ml-2 text-sm font-normal text-content-secondary">
+							recorded from the image as the Coder fork built it
+						</span>
+					</h2>
+					<ImageContentsTree ours={ours} asked={asked ?? undefined} />
+				</section>
+			)}
+
 			{!tracked && (
 				<section className="flex flex-col gap-3" data-testid="s3">
 					<h2 className="m-0 text-lg font-semibold">S3 backup</h2>
@@ -555,7 +586,7 @@ const ImageDetailView: React.FC<{ image: ImageDetail }> = ({ image }) => {
 				type="delete"
 				open={deleting}
 				title={`Delete ${image.name}`}
-				description="The image, its files and every version in the registry go. Workspaces still running it keep running; new ones can't start from it."
+				description={deleteDescription(image)}
 				confirmText="Delete"
 				confirmLoading={remove.isPending}
 				onClose={() => setDeleting(false)}

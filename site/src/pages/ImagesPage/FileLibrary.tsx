@@ -33,6 +33,7 @@ import {
 	ModelScanActions,
 	ModelScanCell,
 	ModelScannerPanel,
+	ShowScannerButton,
 	scanActive,
 	useModelScanner,
 } from "./ModelSecurity";
@@ -89,6 +90,7 @@ const FileLibrary: React.FC<LibraryCopy> = ({
 					: 30_000,
 	});
 	const scanner = useModelScanner(!!security);
+	// A scanner hooked up (a plug-in): new models wait in the hold; none: they go straight in, unscanned.
 	const gated = !!security && !!query.data?.scanner?.enabled;
 	const fileInput = useRef<HTMLInputElement>(null);
 	const [upload, setUpload] = useState<{
@@ -160,10 +162,12 @@ const FileLibrary: React.FC<LibraryCopy> = ({
 						{formatSize(lib.usedBytes)}.
 						{gated &&
 							" Each one added is held, and scanned for security with garak, before workspaces have it."}
+						{security && !gated && " Unscanned: no LLM scanner is hooked up."}
 					</p>
 				</div>
 				{lib.canEdit && (
 					<div className="flex flex-wrap items-center gap-2">
+						{security && <ShowScannerButton />}
 						<input
 							ref={fileInput}
 							type="file"
@@ -253,8 +257,9 @@ const FileLibrary: React.FC<LibraryCopy> = ({
 						)}
 				</div>
 			)}
-			{gated && <ModelScannerPanel />}
-			{gated && (
+			{security && <ModelScannerPanel />}
+			{/* what waits in the hold: scanned, or from before the scanner was unhooked (to release or delete) */}
+			{security && (gated || (lib.held ?? []).length > 0) && (
 				<HeldModels
 					held={lib.held ?? []}
 					canEdit={lib.canEdit}

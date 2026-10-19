@@ -56,6 +56,24 @@ const firstFrame = async (url: string): Promise<string | undefined> => {
 	return canvas.toDataURL("image/png");
 };
 
+const stills = new Map<string, Promise<string | undefined>>();
+
+/**
+ * A still of a picture's first frame (a PNG data URL) when it is an animated GIF this page may copy; undefined
+ * otherwise (not a GIF, another origin's, not decodable). Once per URL. For pictures that are no <img>: the page
+ * background (PlatformBackground).
+ */
+export const stillFrame = (url: string): Promise<string | undefined> => {
+	let known = stills.get(url);
+	if (!known) {
+		known = isGif(url)
+			.then((gif) => (gif ? firstFrame(url) : undefined))
+			.catch(() => undefined);
+		stills.set(url, known);
+	}
+	return known;
+};
+
 export const freezeImage = async (img: HTMLImageElement) => {
 	const src = img.getAttribute("src");
 	if (!src || (img.dataset[ORIGINAL] && src.startsWith("data:image/png"))) {

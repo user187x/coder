@@ -471,11 +471,14 @@ export const purgeChats = (queryClient: QueryClient) => ({
 });
 
 const chatPairsKey = [...platformKey, "chat", "pairs"] as const;
-/** Which developers talk to each other (never what they wrote). */
-export const chatPairs = () => ({
-	queryKey: chatPairsKey,
-	queryFn: PlatformAPI.getChatPairs,
+/** How many pairs a page of Who talks to whom shows. */
+export const CHAT_PAIRS_PAGE = 25;
+/** Which developers talk to each other (never what they wrote): a page of them, newest first (page 1: the latest). */
+export const chatPairs = (page = 1) => ({
+	queryKey: [...chatPairsKey, page],
+	queryFn: () => PlatformAPI.getChatPairs((page - 1) * CHAT_PAIRS_PAGE),
 	refetchInterval: 30_000,
+	placeholderData: keepPreviousData,
 });
 
 /** The workspace's network traffic so far (the last minutes): read once, the page goes on from the live readings. */

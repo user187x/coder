@@ -23,6 +23,10 @@ type UserOrGroupAutocompleteProps = {
 	organizationId: string;
 	exclude: ExcludableOption[];
 	className?: string;
+	/** A plain search input (the workspace settings page) instead of a button that opens one. */
+	inlineSearch?: boolean;
+	placeholder?: string;
+	id?: string;
 };
 
 const normalizeMember = (
@@ -34,7 +38,16 @@ const normalizeMember = (
 
 export const UserOrGroupAutocomplete: React.FC<
 	UserOrGroupAutocompleteProps
-> = ({ value, onChange, organizationId, exclude, className = "w-80" }) => {
+> = ({
+	value,
+	onChange,
+	organizationId,
+	exclude,
+	className = "w-80",
+	inlineSearch,
+	placeholder = "Search for user or group",
+	id = "workspace-user-or-group-autocomplete",
+}) => {
 	const [inputValue, setInputValue] = useState("");
 	const [open, setOpen] = useState(false);
 
@@ -128,10 +141,11 @@ export const UserOrGroupAutocomplete: React.FC<
 			inputValue={inputValue}
 			onInputChange={setInputValue}
 			loading={membersQuery.isFetching || groupsQuery.isFetching}
-			placeholder="Search for user or group"
+			placeholder={placeholder}
 			noOptionsText="No users or groups found"
 			className={className}
-			id="workspace-user-or-group-autocomplete"
+			inlineSearch={inlineSearch}
+			id={id}
 		/>
 	);
 };

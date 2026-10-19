@@ -9,7 +9,7 @@ import {
 	SettingsIcon,
 	TrashIcon,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { Link as RouterLink, useNavigate } from "react-router";
 import { toast } from "sonner";
@@ -46,6 +46,7 @@ import { useClickableTableRow } from "#/hooks/useClickableTableRow";
 import { createDayString } from "#/utils/createDayString";
 import { pageTitle } from "#/utils/page";
 import {
+	deleteDescription,
 	FipsBadge,
 	formatSize,
 	GradeBadge,
@@ -53,6 +54,14 @@ import {
 	StatusBadge,
 	TrackedBadge,
 } from "./badges";
+import {
+	CoderForkBadge,
+	CoderForkImages,
+	ContentsToggle,
+	ImageContentsTree,
+	ourImage,
+	useImageContents,
+} from "./CoderForkImages";
 import { IsoLibrary, ModelLibrary } from "./FileLibrary";
 import { ImagesInUse, ImagesOnNodes } from "./ImagesInUse";
 import { ImagesSettingsDialog } from "./ImagesSettingsDialog";
@@ -73,7 +82,9 @@ type StatusFilter = "all" | "ready" | "building" | "draft" | "failed";
  * be named in a workspace template (localhost:5000/coder-images/<name>:<version>);
  * admins and template admins create, edit, build and delete them. First, the
  * image the workspace template runs (tracked, read-only): its security report
- * and add-ons, for everyone to see.
+ * and add-ons, for everyone to see. Every entry can be deleted (confirmed
+ * first). The Coder fork's own images carry a tag and open what they hold;
+ * Coder fork images lists them all.
  */
 const ImagesPage: React.FC = () => {
 	const query = useQuery({
@@ -237,6 +248,7 @@ const ImagesPage: React.FC = () => {
 				</TableBody>
 			</Table>
 
+			<CoderForkImages />
 			<ImagesInUse
 				canEdit={canEdit}
 				onImport={(initial) => setImporting(initial)}
@@ -265,6 +277,13 @@ const ImageRow: React.FC<{
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 	const [deleting, setDeleting] = useState(false);
+	const [showContents, setShowContents] = useState(false);
+	// one of the Coder fork's images (the workspace template's, or one imported or scanned as it is)
+	const asked =
+		image.tracked?.image ??
+		image.scanned?.image ??
+		(image.imported?.source === "registry" ? image.imported.from : null);
+	const ours = ourImage(useImageContents().data, asked);
 	const clickable = useClickableTableRow({
 		onClick: () => navigate(`/images/${image.id}`),
 	});
@@ -319,177 +338,208 @@ const ImageRow: React.FC<{
 		.join(" · ");
 
 	return (
-		<TableRow {...clickable} data-testid={`image-${image.id}`}>
-			<TableCell>
-				<div className="flex flex-col gap-0.5">
-					<span className="flex items-center gap-2 font-semibold">
-						{image.name}
-						<StatusBadge status={image.status} />
-						{tracked && <TrackedBadge />}
-						{image.imported && <ImportedBadge from={image.imported.from} />}
-						{image.version > 0 && (
-							<span className="text-xs font-normal text-content-secondary">
-								v{image.version}
-							</span>
-						)}
-					</span>
-					<span className="line-clamp-1 text-sm text-content-secondary">
-						{image.description ||
-							(image.base.kind === "image"
-								? `Based on ${image.base.id}`
-								: "Based on the workspace image")}
-					</span>
-					{image.pullRef && (
-						<span className="flex items-center gap-1 font-mono text-xs text-content-secondary">
-							{image.pullRef}
-							<CopyButton
-								text={image.pullRef}
-								label="Copy the image reference"
-								variant="subtle"
-								size="icon"
-								className="size-6"
-								onClick={(e) => e.stopPropagation()}
-							/>
+		<Fragment>
+			<TableRow {...clickable} data-testid={`image-${image.id}`}>
+				<TableCell>
+					<div className="flex flex-col gap-0.5">
+						<span className="flex flex-wrap items-center gap-2 font-semibold">
+							{ours && (
+								<ContentsToggle
+									open={showContents}
+									onToggle={() => setShowContents(!showContents)}
+									name={image.name}
+								/>
+							)}
+							{image.name}
+							<StatusBadge status={image.status} />
+							{ours && <CoderForkBadge ours={ours} />}
+							{tracked && <TrackedBadge />}
+							{image.imported && <ImportedBadge from={image.imported.from} />}
+							{image.version > 0 && (
+								<span className="text-xs font-normal text-content-secondary">
+									v{image.version}
+								</span>
+							)}
 						</span>
-					)}
-				</div>
-			</TableCell>
-			<TableCell className="text-sm text-content-secondary">
-				{contents || "–"}
-			</TableCell>
-			<TableCell className="text-sm tabular-nums">
-				{formatSize(image.size)}
-			</TableCell>
-			<TableCell>
-				<GradeBadge summary={image.summary} />
-			</TableCell>
-			<TableCell>
-				<FipsBadge status={image.summary?.fips} />
-			</TableCell>
-			<TableCell className="text-sm text-content-secondary">
-				{image.builtAt ? (
-					<>
-						{createDayString(image.builtAt)}
-						<div className="text-xs">
-							{tracked
-								? "deployed with the platform"
-								: image.builtBy && `by ${image.builtBy}`}
-						</div>
-					</>
-				) : (
-					"Never"
-				)}
-				{image.s3.enabled && (
-					<div
-						className="mt-0.5 flex items-center gap-1 text-xs"
-						title={image.s3.error ?? image.s3.key ?? ""}
-					>
-						<CloudUploadIcon className="size-3" />
-						S3{" "}
-						{image.s3.status === "uploading"
-							? "uploading…"
-							: image.s3.status === "failed"
-								? "failed"
-								: image.s3.status === "done"
-									? `v${image.s3.version}`
-									: "on"}
-					</div>
-				)}
-			</TableCell>
-			<TableCell onClick={(e) => e.stopPropagation()}>
-				<div className="flex items-center justify-end gap-1">
-					{image.pullRef && (
-						<Button
-							asChild
-							variant="outline"
-							size="icon"
-							title="Download (docker load)"
-						>
-							<a
-								href={ImagesAPI.downloadUrl(image.id)}
-								download
-								aria-label={`Download ${image.name}`}
-							>
-								<DownloadIcon />
-							</a>
-						</Button>
-					)}
-					{canEdit && !tracked && (
-						<DropdownMenu>
-							<DropdownMenuTrigger asChild>
-								<Button
+						<span className="line-clamp-1 text-sm text-content-secondary">
+							{image.description ||
+								(image.base.kind === "image"
+									? `Based on ${image.base.id}`
+									: "Based on the workspace image")}
+						</span>
+						{image.pullRef && (
+							<span className="flex items-center gap-1 font-mono text-xs text-content-secondary">
+								{image.pullRef}
+								<CopyButton
+									text={image.pullRef}
+									label="Copy the image reference"
 									variant="subtle"
 									size="icon"
-									aria-label={`${image.name}: more`}
-								>
-									<EllipsisVerticalIcon />
-								</Button>
-							</DropdownMenuTrigger>
-							<DropdownMenuContent align="end">
-								{image.imported ? (
-									<DropdownMenuItem
-										disabled={image.status === "building"}
-										onSelect={onImport}
-									>
-										<ImportIcon />
-										Import a new version
-									</DropdownMenuItem>
-								) : (
-									<>
-										<DropdownMenuItem asChild>
-											<RouterLink to={`/images/${image.id}/edit`}>
-												<PencilIcon />
-												Edit
-											</RouterLink>
-										</DropdownMenuItem>
-										<DropdownMenuItem
-											disabled={image.status === "building" || build.isPending}
-											onSelect={() => build.mutate()}
-										>
-											<HammerIcon />
-											{image.version ? "Rebuild" : "Build"}
-										</DropdownMenuItem>
-									</>
-								)}
-								<DropdownMenuSeparator />
-								<DropdownMenuItem onSelect={() => s3.mutate(!image.s3.enabled)}>
-									<CloudUploadIcon />
-									{image.s3.enabled
-										? "Turn S3 backup off"
-										: "Back up to S3 after every build"}
-								</DropdownMenuItem>
-								<DropdownMenuItem
-									disabled={!image.pullRef || image.s3.status === "uploading"}
-									onSelect={() => backup.mutate()}
-								>
-									<CloudUploadIcon />
-									Back up to S3 now
-								</DropdownMenuItem>
-								<DropdownMenuSeparator />
-								<DropdownMenuItem
-									className="text-content-destructive"
-									disabled={image.status === "building"}
-									onSelect={() => setDeleting(true)}
-								>
-									<TrashIcon />
-									Delete
-								</DropdownMenuItem>
-							</DropdownMenuContent>
-						</DropdownMenu>
+									className="size-6"
+									onClick={(e) => e.stopPropagation()}
+								/>
+							</span>
+						)}
+					</div>
+				</TableCell>
+				<TableCell className="text-sm text-content-secondary">
+					{contents || "–"}
+				</TableCell>
+				<TableCell className="text-sm tabular-nums">
+					{formatSize(image.size)}
+				</TableCell>
+				<TableCell>
+					<GradeBadge summary={image.summary} />
+				</TableCell>
+				<TableCell>
+					<FipsBadge status={image.summary?.fips} />
+				</TableCell>
+				<TableCell className="text-sm text-content-secondary">
+					{image.builtAt ? (
+						<>
+							{createDayString(image.builtAt)}
+							<div className="text-xs">
+								{tracked
+									? "deployed with the platform"
+									: image.builtBy && `by ${image.builtBy}`}
+							</div>
+						</>
+					) : (
+						"Never"
 					)}
-				</div>
-				<ConfirmDialog
-					type="delete"
-					open={deleting}
-					title={`Delete ${image.name}`}
-					description={`The image, its files and every version in the registry go. Workspaces still running it keep running; new ones can't start from it.`}
-					confirmText="Delete"
-					confirmLoading={remove.isPending}
-					onClose={() => setDeleting(false)}
-					onConfirm={() => remove.mutate()}
-				/>
-			</TableCell>
-		</TableRow>
+					{image.s3.enabled && (
+						<div
+							className="mt-0.5 flex items-center gap-1 text-xs"
+							title={image.s3.error ?? image.s3.key ?? ""}
+						>
+							<CloudUploadIcon className="size-3" />
+							S3{" "}
+							{image.s3.status === "uploading"
+								? "uploading…"
+								: image.s3.status === "failed"
+									? "failed"
+									: image.s3.status === "done"
+										? `v${image.s3.version}`
+										: "on"}
+						</div>
+					)}
+				</TableCell>
+				<TableCell onClick={(e) => e.stopPropagation()}>
+					<div className="flex items-center justify-end gap-1">
+						{image.pullRef && (
+							<Button
+								asChild
+								variant="outline"
+								size="icon"
+								title="Download (docker load)"
+							>
+								<a
+									href={ImagesAPI.downloadUrl(image.id)}
+									download
+									aria-label={`Download ${image.name}`}
+								>
+									<DownloadIcon />
+								</a>
+							</Button>
+						)}
+						{canEdit && (
+							<Button
+								variant="outline"
+								size="icon"
+								title={
+									tracked
+										? "Delete this entry (the workspace image itself stays)"
+										: image.scanned
+											? "Delete this scan (the image itself is not touched)"
+											: "Delete"
+								}
+								aria-label={`Delete ${image.name}`}
+								disabled={image.status === "building"}
+								onClick={() => setDeleting(true)}
+								data-testid="image-delete"
+							>
+								<TrashIcon />
+							</Button>
+						)}
+						{canEdit && !tracked && !image.scanned && (
+							<DropdownMenu>
+								<DropdownMenuTrigger asChild>
+									<Button
+										variant="subtle"
+										size="icon"
+										aria-label={`${image.name}: more`}
+									>
+										<EllipsisVerticalIcon />
+									</Button>
+								</DropdownMenuTrigger>
+								<DropdownMenuContent align="end">
+									{image.imported ? (
+										<DropdownMenuItem
+											disabled={image.status === "building"}
+											onSelect={onImport}
+										>
+											<ImportIcon />
+											Import a new version
+										</DropdownMenuItem>
+									) : (
+										<>
+											<DropdownMenuItem asChild>
+												<RouterLink to={`/images/${image.id}/edit`}>
+													<PencilIcon />
+													Edit
+												</RouterLink>
+											</DropdownMenuItem>
+											<DropdownMenuItem
+												disabled={
+													image.status === "building" || build.isPending
+												}
+												onSelect={() => build.mutate()}
+											>
+												<HammerIcon />
+												{image.version ? "Rebuild" : "Build"}
+											</DropdownMenuItem>
+										</>
+									)}
+									<DropdownMenuSeparator />
+									<DropdownMenuItem
+										onSelect={() => s3.mutate(!image.s3.enabled)}
+									>
+										<CloudUploadIcon />
+										{image.s3.enabled
+											? "Turn S3 backup off"
+											: "Back up to S3 after every build"}
+									</DropdownMenuItem>
+									<DropdownMenuItem
+										disabled={!image.pullRef || image.s3.status === "uploading"}
+										onSelect={() => backup.mutate()}
+									>
+										<CloudUploadIcon />
+										Back up to S3 now
+									</DropdownMenuItem>
+								</DropdownMenuContent>
+							</DropdownMenu>
+						)}
+					</div>
+					<ConfirmDialog
+						type="delete"
+						open={deleting}
+						title={`Delete ${image.name}`}
+						description={deleteDescription(image)}
+						confirmText="Delete"
+						confirmLoading={remove.isPending}
+						onClose={() => setDeleting(false)}
+						onConfirm={() => remove.mutate()}
+					/>
+				</TableCell>
+			</TableRow>
+			{ours && showContents && (
+				<TableRow className="hover:bg-transparent">
+					<TableCell colSpan={7} className="bg-surface-secondary/40">
+						<ImageContentsTree ours={ours} asked={asked ?? undefined} />
+					</TableCell>
+				</TableRow>
+			)}
+		</Fragment>
 	);
 };
 

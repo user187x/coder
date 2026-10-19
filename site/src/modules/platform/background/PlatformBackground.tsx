@@ -1,8 +1,13 @@
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import type { BackgroundImage, BackgroundSlot } from "#/api/platform";
 import { isEmbeddedFrame, usePlatformSnapshot } from "#/contexts/platformBoot";
-import { useBackgroundAnimated } from "../animations/animations";
+import {
+	animated,
+	useAnimationSettings,
+	useBackgroundAnimated,
+} from "../animations/animations";
+import { stillFrame } from "../animations/gifFreezer";
 import { dial, dialFilter, frameHash } from "./backgroundHtml";
 
 const size = (fit: BackgroundImage["fit"]) => (fit === "tile" ? "auto" : fit);
@@ -65,6 +70,43 @@ const UNDERLAY_PROPERTIES = [
 	"backgroundPosition",
 	"backgroundAttachment",
 ] as const;
+
+/**
+ * The picture as it may be shown now: an animated GIF stands still on its first frame while Animations' "Moving
+ * background" or "Animated GIFs" is off - it is no <img>, so the GIF freezer does not reach it. The moving picture
+ * until its still is ready (once per picture).
+ */
+const useStillWhenStopped = (
+	image: BackgroundImage | null,
+): BackgroundImage | null => {
+	const s = useAnimationSettings();
+	const stopped = !animated(s, "background") || !animated(s, "gifs");
+	const url = image && image.kind !== "html" ? image.url : null;
+	const [still, setStill] = useState<{ url: string; frame: string } | null>(
+		null,
+	);
+	useEffect(() => {
+		if (!stopped || !url) {
+			return;
+		}
+		let live = true;
+		void stillFrame(url).then((frame) => {
+			if (live && frame) {
+				setStill({ url, frame });
+			}
+		});
+		return () => {
+			live = false;
+		};
+	}, [stopped, url]);
+	return useMemo(
+		() =>
+			image && stopped && still && still.url === image.url
+				? { ...image, url: still.frame }
+				: image,
+		[image, stopped, still],
+	);
+};
 
 /** Lays the picture under the page's own background (body), following the theme; undone when it goes. */
 const useUnderlay = (image: BackgroundImage | null) => {
@@ -160,8 +202,9 @@ export const PlatformBackground: React.FC<{ slot: BackgroundSlot }> = ({
 	slot,
 }) => {
 	const image = usePlatformSnapshot().backgrounds[slot];
-	// A page in another page's frame: the page around it has the background.
-	const shown = image && !isEmbeddedFrame() ? image : null;
+	// A page in another page's frame: the page around it has the background. A GIF stands still while animations of
+	// the background or GIFs are off.
+	const shown = useStillWhenStopped(image && !isEmbeddedFrame() ? image : null);
 	const animations = useBackgroundAnimated();
 	useUnderlay(shown);
 	useRoomBeneath(shown?.kind === "html" && shown.layer === "under");

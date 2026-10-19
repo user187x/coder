@@ -17,6 +17,7 @@ import {
 	TableRow,
 } from "#/components/Table/Table";
 import { formatSize } from "./badges";
+import { CoderForkBadge, ourImage, useImageContents } from "./CoderForkImages";
 import { nameFrom } from "./ImportImageDialog";
 
 export const inUseKey = ["platform", "images", "in-use"] as const;
@@ -66,6 +67,7 @@ export const ImagesInUse: React.FC<{
 		queryFn: ImagesAPI.inUse,
 		refetchInterval: 30_000,
 	});
+	const catalog = useImageContents().data;
 	const images = query.data?.images ?? [];
 	if (!images.length) {
 		return null;
@@ -93,6 +95,7 @@ export const ImagesInUse: React.FC<{
 						<TableRow key={i.image}>
 							<TableCell className="break-all font-mono text-xs">
 								{i.image}
+								<OursTag catalog={catalog} image={i.image} />
 							</TableCell>
 							<TableCell className="text-sm text-content-secondary">
 								{i.workspaces.length ? (
@@ -139,6 +142,19 @@ export const ImagesInUse: React.FC<{
 	);
 };
 
+/** One of the Coder fork's images: its tag, which opens what it holds (Coder fork images). */
+const OursTag: React.FC<{
+	catalog: ReturnType<typeof useImageContents>["data"];
+	image: string;
+}> = ({ catalog, image }) => {
+	const ours = ourImage(catalog, image);
+	return ours ? (
+		<span className="ml-2 inline-flex align-middle font-sans">
+			<CoderForkBadge ours={ours} link />
+		</span>
+	) : null;
+};
+
 const NODE_IMAGES_SHOWN = 8;
 
 /**
@@ -154,6 +170,7 @@ export const ImagesOnNodes: React.FC<{ canEdit: boolean }> = ({ canEdit }) => {
 		queryFn: ImagesAPI.onNodes,
 		refetchInterval: 60_000,
 	});
+	const catalog = useImageContents().data;
 	const images = query.data?.images ?? [];
 	if (!images.length) {
 		return null;
@@ -183,6 +200,7 @@ export const ImagesOnNodes: React.FC<{ canEdit: boolean }> = ({ canEdit }) => {
 						<TableRow key={i.image} data-testid="image-on-node">
 							<TableCell className="break-all font-mono text-xs">
 								<span title={i.names.join("\n") || undefined}>{i.image}</span>
+								<OursTag catalog={catalog} image={i.image} />
 								{i.running && (
 									<Badge size="xs" className="ml-2 align-middle">
 										running

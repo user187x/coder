@@ -83,3 +83,44 @@ describe("PlatformBackground", () => {
 		expect(layer?.className).toContain("pointer-events-none");
 	});
 });
+
+describe("PlatformBackground: an animated GIF", () => {
+	afterEach(async () => {
+		const { setAnimationPart } = await import("../animations/animations");
+		setAnimationPart("background", true);
+		setAnimationPart("gifs", true);
+		setBackground("dashboard", null);
+		vi.restoreAllMocks();
+	});
+
+	it("stands still on its first frame while Moving background or Animated GIFs is off", async () => {
+		const freezer = await import("../animations/gifFreezer");
+		const still = vi
+			.spyOn(freezer, "stillFrame")
+			.mockResolvedValue("data:image/png;base64,STILL");
+		const { setAnimationPart } = await import("../animations/animations");
+		const { act, screen, waitFor } = await import("@testing-library/react");
+		render(<PlatformBackground slot="dashboard" />);
+		act(() =>
+			setBackground("dashboard", {
+				url: "/__coder-ui/background/dashboard?v=2",
+				opacity: 0.5,
+				fit: "cover",
+				layer: "over",
+			}),
+		);
+		const layer = () =>
+			(screen.getByTestId("platform-background") as HTMLElement).style
+				.backgroundImage;
+		expect(layer()).toContain("/__coder-ui/background/dashboard?v=2");
+		for (const part of ["gifs", "background"] as const) {
+			act(() => setAnimationPart(part, false));
+			await waitFor(() => expect(layer()).toContain("STILL"));
+			act(() => setAnimationPart(part, true));
+			await waitFor(() =>
+				expect(layer()).toContain("/__coder-ui/background/dashboard?v=2"),
+			);
+		}
+		expect(still).toHaveBeenCalledWith("/__coder-ui/background/dashboard?v=2");
+	});
+});

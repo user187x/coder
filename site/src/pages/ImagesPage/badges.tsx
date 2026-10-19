@@ -1,6 +1,6 @@
 import { cn } from "cn";
 import { ShieldAlertIcon, ShieldCheckIcon, ShieldIcon } from "lucide-react";
-import type { ImageStatus, ReportSummary } from "#/api/images";
+import type { ImageListItem, ImageStatus, ReportSummary } from "#/api/images";
 import { Badge } from "#/components/Badge/Badge";
 
 export const StatusBadge: React.FC<{
@@ -112,3 +112,15 @@ export const formatSize = (bytes: number | null | undefined) => {
 	}
 	return `${v.toFixed(v < 10 && i ? 1 : 0)} ${units[i]}`;
 };
+
+/** What deleting an entry of the Images view does (its confirm dialog says it before). */
+export const deleteDescription = (
+	image: Pick<ImageListItem, "tracked" | "scanned" | "imported">,
+) =>
+	image.tracked
+		? `Only this entry and its security report go: the workspace template keeps running ${image.tracked.image}, its workspaces keep running, and the registry keeps the copy new images build on. The entry comes back when the platform deploys another workspace image.`
+		: image.scanned
+			? `Only this scan goes: ${image.scanned.image} itself is not touched.`
+			: image.imported
+				? "The imported image, every version of it in the registry and its reports go. Workspaces still running it keep running; new ones can't start from it."
+				: "The image, its files and every version in the registry go. Workspaces still running it keep running; new ones can't start from it.";

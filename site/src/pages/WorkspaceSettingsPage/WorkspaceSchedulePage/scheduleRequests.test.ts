@@ -3,8 +3,8 @@ import {
 	formValuesToTTLRequest,
 } from "./formToRequest";
 import { scheduleToAutostart } from "./schedule";
+import type { WorkspaceScheduleFormValues } from "./scheduleForm";
 import { ttlMsToAutostop } from "./ttl";
-import type { WorkspaceScheduleFormValues } from "./WorkspaceScheduleForm";
 
 const validValues: WorkspaceScheduleFormValues = {
 	autostartEnabled: true,
@@ -21,7 +21,7 @@ const validValues: WorkspaceScheduleFormValues = {
 	ttl: 120,
 };
 
-describe("WorkspaceSchedulePage", () => {
+describe("the schedule's requests and values", () => {
 	describe("formValuesToAutostartRequest", () => {
 		it.each([
 			[

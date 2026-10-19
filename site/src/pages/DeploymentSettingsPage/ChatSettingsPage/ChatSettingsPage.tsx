@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { getErrorMessage } from "#/api/errors";
 import type { ChatPeer, ChatSettings } from "#/api/platform";
 import {
+	CHAT_PAIRS_PAGE,
 	chatPairs,
 	chatSettings,
 	purgeChats,
@@ -16,6 +17,8 @@ import { ConfirmDialog } from "#/components/Dialog/ConfirmDialog/ConfirmDialog";
 import { Input } from "#/components/Input/Input";
 import { Label } from "#/components/Label/Label";
 import { Loader } from "#/components/Loader/Loader";
+import { PaginationAmount } from "#/components/PaginationWidget/PaginationAmount";
+import { PaginationWidgetBase } from "#/components/PaginationWidget/PaginationWidgetBase";
 import {
 	SettingsHeader,
 	SettingsHeaderDescription,
@@ -276,9 +279,29 @@ const RetentionCard: React.FC<{ settings: ChatSettings }> = ({ settings }) => {
 	);
 };
 
-const PairsCard: React.FC = () => {
-	const pairsQuery = useQuery(chatPairs());
-	const pairs = pairsQuery.data?.pairs ?? [];
+/**
+ * Who talks to whom: the latest 25 pairs, then a page at a time (newest first), with how many there are in all.
+ */
+export const PairsCard: React.FC = () => {
+	const [page, setPage] = useState(1);
+	const pairsQuery = useQuery(chatPairs(page));
+	const data = pairsQuery.data;
+	// A service from before pages gives them all at once: shown a page at a time here.
+	const paged = data?.total !== undefined;
+	const total = data?.total ?? data?.pairs.length ?? 0;
+	const pairs = paged
+		? (data?.pairs ?? [])
+		: (data?.pairs ?? []).slice(
+				(page - 1) * CHAT_PAIRS_PAGE,
+				page * CHAT_PAIRS_PAGE,
+			);
+	const lastPage = Math.max(1, Math.ceil(total / CHAT_PAIRS_PAGE));
+	// Fewer pairs than before (a purge, a retention): back to a page that has some.
+	useEffect(() => {
+		if (data && page > lastPage) {
+			setPage(lastPage);
+		}
+	}, [data, page, lastPage]);
 	const person = (p: ChatPeer & { online: boolean }) => (
 		<span className="flex items-center gap-2">
 			<PresenceAvatar person={p} />
@@ -349,6 +372,22 @@ const PairsCard: React.FC = () => {
 						))}
 					</TableBody>
 				</Table>
+			)}
+			{total > 0 && (
+				<div className="flex flex-wrap items-center justify-between gap-2">
+					<PaginationAmount
+						paginationUnitLabel="pairs"
+						limit={CHAT_PAIRS_PAGE}
+						totalRecords={total}
+						currentOffsetStart={(page - 1) * CHAT_PAIRS_PAGE + 1}
+					/>
+					<PaginationWidgetBase
+						currentPage={page}
+						pageSize={CHAT_PAIRS_PAGE}
+						totalRecords={total}
+						onPageChange={setPage}
+					/>
+				</div>
 			)}
 		</section>
 	);

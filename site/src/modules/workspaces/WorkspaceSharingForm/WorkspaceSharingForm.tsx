@@ -45,7 +45,7 @@ type RoleSelectProps = {
 	onValueChange: (value: WorkspaceRole) => void;
 };
 
-const RoleSelect: React.FC<RoleSelectProps> = ({
+export const RoleSelect: React.FC<RoleSelectProps> = ({
 	value,
 	disabled,
 	onValueChange,

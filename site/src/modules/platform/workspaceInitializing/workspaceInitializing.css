@@ -111,29 +111,24 @@
 .ws-init-progress {
 	position: relative;
 	width: 16rem;
-	height: 8px;
+	height: 10px;
 	overflow: hidden;
 	border-radius: 999px;
 	background: rgb(255 255 255 / 0.12);
 	box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.6);
 }
 
+/* Construction tape: black and yellow stripes (the panel's own), moving like a barber pole. */
 .ws-init-progress-fill {
 	position: relative;
 	height: 100%;
 	overflow: hidden;
 	border-radius: inherit;
-	background:
-		repeating-linear-gradient(
-			-45deg,
-			rgb(255 255 255 / 0.22) 0 6px,
-			transparent 6px 12px
-		),
-		linear-gradient(90deg, #ffb703, #ffeb04);
-	background-size:
-		17px 17px,
-		100% 100%;
-	box-shadow: 0 0 8px rgb(255 235 4 / 0.55);
+	background: repeating-linear-gradient(-45deg, #ffeb04 0 6px, #111 6px 12px);
+	background-size: 17px 17px;
+	box-shadow:
+		0 0 8px rgb(255 235 4 / 0.45),
+		inset 0 0 0 1px rgb(255 235 4 / 0.6);
 	transition: width 0.8s cubic-bezier(0.22, 1, 0.36, 1);
 	animation: ws-init-stripes-move 1s linear infinite;
 }
@@ -146,7 +141,7 @@
 	background: linear-gradient(
 		90deg,
 		transparent,
-		rgb(255 255 255 / 0.45),
+		rgb(255 255 255 / 0.3),
 		transparent
 	);
 	transform: translateX(-100%);
@@ -155,9 +150,7 @@
 
 @keyframes ws-init-stripes-move {
 	to {
-		background-position:
-			17px 0,
-			0 0;
+		background-position: 17px 0;
 	}
 }
 

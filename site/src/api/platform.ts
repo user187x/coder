@@ -2266,7 +2266,11 @@ export const PlatformAPI = {
 			chat("purge"),
 			{},
 		),
-	getChatPairs: () => get<{ pairs: ChatPair[] }>(chat("pairs")),
+	/** A page of who talks to whom, newest first (the service gives 25 at a time), and how many pairs in all. */
+	getChatPairs: (offset = 0) =>
+		get<{ pairs: ChatPair[]; total?: number; offset?: number; limit?: number }>(
+			`${chat("pairs")}?offset=${offset}`,
+		),
 	getChatMessages: (peerId: string, before?: number) =>
 		get<{ messages: ChatMessage[]; readUpTo: number }>(
 			chat(
