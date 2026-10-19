@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"io"
 	"path"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -30,6 +31,26 @@ import (
 // deployment builds into its base (the Cloud Drive, Lock Down, the user's
 // certificate, the metrics) is then in every template made from it.
 const templateBuilderPlatformBaseID = "platform"
+
+// templateBuilderPlatformModules are the modules a template made on the
+// deployment's own base may add: the rest of the catalog (AI agents, other
+// IDEs, desktops) either duplicates what the base builds in or is not wanted
+// there.
+var templateBuilderPlatformModules = []string{
+	"git-clone",
+	"dotfiles",
+	"personalize",
+	"filebrowser",
+	"git-config",
+	"code-server",
+	"vscode-desktop",
+}
+
+// templateBuilderPlatformModule reports whether a template on the
+// deployment's own base may add the module.
+func templateBuilderPlatformModule(id string) bool {
+	return slices.Contains(templateBuilderPlatformModules, id)
+}
 
 // templateBuilderPlatformMaxFile bounds what is read of the base's files.
 const templateBuilderPlatformMaxFile = 10 << 20

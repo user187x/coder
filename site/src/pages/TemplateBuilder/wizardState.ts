@@ -57,6 +57,21 @@ export function toSelectedBaseMeta(
 }
 
 /**
+ * A template's name (its ID in URLs and the API) made from a display name: lower case letters and digits, joined by
+ * single dashes, at most 32 characters ("" when nothing is left).
+ */
+export const templateNameFrom = (displayName: string): string =>
+	displayName
+		.normalize("NFKD")
+		// the accents NFKD splits off their letters
+		.replace(/[\u0300-\u036f]/g, "")
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, "-")
+		.replace(/^-+|-+$/g, "")
+		.slice(0, 32)
+		.replace(/-+$/, "");
+
+/**
  * Derives editable customization defaults from the selected base template.
  * Empty base values fall through to the fields' existing placeholders.
  */
@@ -67,7 +82,12 @@ export function baseCustomizationDefaults(base: SelectedBaseMeta): {
 	icon: string;
 } {
 	return {
-		name: base.id,
+		// The deployment's base: from its display name - never its ID ("platform"), which the new template kept when
+		// only the display name was changed (a template called TEST whose delete asked for "platform").
+		name:
+			base.id === PLATFORM_BASE_ID
+				? templateNameFrom(base.name) || "template"
+				: base.id,
 		displayName: base.name,
 		description: base.description ?? "",
 		icon: base.iconUrl ?? "",
@@ -181,7 +201,7 @@ export function wizardReducer(
 			if (!state.selectedBase) {
 				return state;
 			}
-			// The new template's display name follows while it is still the base's.
+			// The new template's display name (and the name made from it) follow while they are still the base's.
 			return {
 				...state,
 				selectedBase: { ...state.selectedBase, name: action.name },
@@ -189,6 +209,11 @@ export function wizardReducer(
 					state.displayName === state.selectedBase.name
 						? action.name
 						: state.displayName,
+				name:
+					state.name === templateNameFrom(state.selectedBase.name) &&
+					templateNameFrom(action.name)
+						? templateNameFrom(action.name)
+						: state.name,
 			};
 		case "SET_BASE_VARIABLES":
 			return {

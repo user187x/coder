@@ -10,6 +10,7 @@ import (
 	"errors"
 	"net/http"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -178,9 +179,12 @@ func (api *API) templateBuilderModules(rw http.ResponseWriter, r *http.Request) 
 	var (
 		filterOS    templatebuilder.BaseOS
 		baseModules map[string]bool
+		// the deployment's own base offers its few modules only
+		platformOnly bool
 	)
 	if base := r.URL.Query().Get("base"); base == templateBuilderPlatformBaseID && api.templateBuilderPlatformBaseName() != "" {
 		filterOS = templatebuilder.BaseOSLinux
+		platformOnly = true
 	} else if base != "" {
 		filterOS = templatebuilder.BaseTemplateOS(base)
 		if filterOS == "" {
@@ -204,6 +208,9 @@ func (api *API) templateBuilderModules(rw http.ResponseWriter, r *http.Request) 
 		}
 		// Skip modules the base already includes (see BaseIncludedModules).
 		if baseModules[m.ID] {
+			continue
+		}
+		if platformOnly && !templateBuilderPlatformModule(m.ID) {
 			continue
 		}
 		modules = append(modules, m.ToSDK())
@@ -721,6 +728,11 @@ func (api *API) composeBuilderTemplate(ctx context.Context, orgID uuid.UUID, req
 	}
 	if req.BaseTemplateID != templateBuilderPlatformBaseID {
 		return nil, nil, xerrors.Errorf("only the deployment's base template (%q) can be the base", templateBuilderPlatformBaseID)
+	}
+	for _, m := range req.Modules {
+		if !templateBuilderPlatformModule(m.ID) {
+			return nil, nil, xerrors.Errorf("module %q is not offered on the deployment's base template (%s are)", m.ID, strings.Join(templateBuilderPlatformModules, ", "))
+		}
 	}
 	base, err := api.templateBuilderPlatformBase(ctx, orgID)
 	if xerrors.Is(err, errPlatformBaseMissing) && orgID != uuid.Nil {

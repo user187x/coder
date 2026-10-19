@@ -169,4 +169,18 @@ resource "coder_agent" "main" {
 	// The builder's own bases are not offered.
 	_, err = client.TemplateBuilderCompose(ctx, codersdk.TemplateBuilderComposeRequest{BaseTemplateID: "kubernetes"})
 	require.Error(t, err)
+
+	// Its modules: the seven it offers, no other.
+	modules, err := client.TemplateBuilderModules(ctx, "platform")
+	require.NoError(t, err)
+	ids := make([]string, 0, len(modules.Modules))
+	for _, m := range modules.Modules {
+		ids = append(ids, m.ID)
+	}
+	require.ElementsMatch(t, []string{"git-clone", "dotfiles", "personalize", "filebrowser", "git-config", "code-server", "vscode-desktop"}, ids)
+	_, err = client.TemplateBuilderCompose(ctx, codersdk.TemplateBuilderComposeRequest{
+		BaseTemplateID: "platform",
+		Modules:        []codersdk.TemplateBuilderComposeModule{{ID: "claude-code"}},
+	})
+	require.ErrorContains(t, err, "not offered")
 }

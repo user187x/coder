@@ -10,8 +10,6 @@ import { Alert, AlertDescription, AlertTitle } from "#/components/Alert/Alert";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { Loader } from "#/components/Loader/Loader";
 import { SearchField } from "#/components/SearchField/SearchField";
-import { Tabs, TabsList, TabsTrigger } from "#/components/Tabs/Tabs";
-import { useKebabMenu } from "#/components/Tabs/utils/useKebabMenu";
 import { useFuzzySearch } from "#/pages/TemplateBuilder/hooks/useFuzzySearch";
 import {
 	TemplateBuilderSubtitle,
@@ -73,23 +71,15 @@ const ConflictWarning: React.FC<ModuleConflict> = ({ moduleA, moduleB }) => {
 
 // Preferred display order for modules. Modules in this list appear first,
 // in this order. Unlisted modules appear after, in their original order.
+// Platform: the deployment's base offers these seven only (the server's list).
 const MODULE_PRIORITY: readonly string[] = [
-	"claude-code",
-	"codex",
-	"cursor",
-	"vscode-desktop",
-	"code-server",
-	"jetbrains",
-	"vscode-web",
-	"zed",
-	"antigravity",
-	"windsurf",
 	"git-clone",
 	"dotfiles",
-	"git-config",
 	"personalize",
 	"filebrowser",
-	"kasmvnc",
+	"git-config",
+	"code-server",
+	"vscode-desktop",
 ];
 
 export const ModuleSelectStep: React.FC<ModuleSelectStepProps> = ({
@@ -102,44 +92,13 @@ export const ModuleSelectStep: React.FC<ModuleSelectStepProps> = ({
 	const modules = data?.modules ?? [];
 	const doesBaseTemplateHaveModules = modules.length > 0;
 	const sortedModules = sortByPriority(modules, MODULE_PRIORITY);
-	const categories = [
-		...new Set(sortedModules.map((module) => module.category)),
-	].sort((a, b) => a.localeCompare(b));
 
-	const [selectedFilterTab, setSelectedFilterTab] = useState("All");
-
-	const searchedModules = useFuzzySearch({
+	// Platform: no category tabs - a handful of modules, searched or listed whole.
+	const visibleModules = useFuzzySearch({
 		allItems: sortedModules,
 		searchText: moduleSearchText,
 		searchProperties: ["display_name", "description"],
 	});
-
-	const searchedCategoryCounts = new Map<string, number>();
-	for (const module of searchedModules) {
-		searchedCategoryCounts.set(
-			module.category,
-			(searchedCategoryCounts.get(module.category) ?? 0) + 1,
-		);
-	}
-	const filterTabs = [
-		{ value: "All", count: searchedModules.length },
-		...categories.map((value) => ({
-			value,
-			count: searchedCategoryCounts.get(value) ?? 0,
-		})),
-	];
-	const { containerRef, visibleTabs: visibleFilterTabs } = useKebabMenu({
-		tabs: filterTabs,
-		enabled: true,
-		isActive: true,
-	});
-
-	const visibleModules =
-		selectedFilterTab === "All"
-			? searchedModules
-			: searchedModules.filter(
-					(module) => module.category === selectedFilterTab,
-				);
 
 	const selectedSet = useMemo(
 		() => new Set(selectedModuleIds),
@@ -216,20 +175,6 @@ export const ModuleSelectStep: React.FC<ModuleSelectStepProps> = ({
 				placeholder="Search modules..."
 				className="my-4"
 			/>
-
-			<Tabs
-				value={selectedFilterTab}
-				onValueChange={setSelectedFilterTab}
-				className="my-4"
-			>
-				<TabsList ref={containerRef}>
-					{visibleFilterTabs.map((tab) => (
-						<TabsTrigger key={tab.value} value={tab.value}>
-							{tab.value} ({tab.count})
-						</TabsTrigger>
-					))}
-				</TabsList>
-			</Tabs>
 
 			{/* Show three rows of cards (sized to the common 214px card height plus
 			    the row gaps) and let any extra rows scroll, so the Continue button

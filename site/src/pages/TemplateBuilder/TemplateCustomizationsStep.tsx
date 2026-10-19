@@ -25,10 +25,11 @@ import {
 	iconValidator,
 	nameValidator,
 } from "#/utils/formUtils";
-import type {
-	CustomizationsFormValues,
-	SelectedBaseMeta,
-	TemplateBuilderWizardState,
+import {
+	type CustomizationsFormValues,
+	type SelectedBaseMeta,
+	type TemplateBuilderWizardState,
+	templateNameFrom,
 } from "./wizardState";
 
 export const TEMPLATE_CUSTOMIZATIONS_FORM_ID = "template-customizations-form";
@@ -78,6 +79,13 @@ export const TemplateCustomizationsStep: React.FC<
 		onSubmit: (values) => onCreate(values),
 	});
 	const getFieldHelpers = getFormHelpers(form);
+	// The ID follows the display name until it is edited itself: a template whose display name was changed alone
+	// kept the base's ID, so its delete asked for a name it never showed.
+	const [idEdited, setIdEdited] = useState(false);
+	const displayNameField = getFieldHelpers("display_name");
+	const nameField = getFieldHelpers("name", {
+		helperText: "Used to identify the template in URLs and the API.",
+	});
 	const descriptionField = getFieldHelpers("description");
 	const iconField = getFieldHelpers("icon");
 	const organizationField = getFieldHelpers("organization_id");
@@ -133,7 +141,16 @@ export const TemplateCustomizationsStep: React.FC<
 				<div className="grid grid-cols-2 gap-x-6 gap-y-6 content-start">
 					{/* Left column */}
 					<FormField
-						field={getFieldHelpers("display_name")}
+						field={{
+							...displayNameField,
+							onChange: (event) => {
+								displayNameField.onChange(event);
+								const name = templateNameFrom(event.target.value);
+								if (!idEdited && name) {
+									void form.setFieldValue("name", name);
+								}
+							},
+						}}
 						label="Display name"
 						id="template-display-name"
 						placeholder="My Template"
@@ -201,9 +218,13 @@ export const TemplateCustomizationsStep: React.FC<
 
 					{/* Right column */}
 					<FormField
-						field={getFieldHelpers("name", {
-							helperText: "Used to identify the template in URLs and the API.",
-						})}
+						field={{
+							...nameField,
+							onChange: (event) => {
+								setIdEdited(true);
+								nameField.onChange(event);
+							},
+						}}
 						label="ID"
 						required
 						id="template-name"

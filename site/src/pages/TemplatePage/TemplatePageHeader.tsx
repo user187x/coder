@@ -178,6 +178,12 @@ const TemplateMenu: React.FC<TemplateMenuProps> = ({
 					onCancel={dialogState.cancelDeleteConfirmation}
 					entity="template"
 					name={templateName}
+					info={
+						// Platform: shown by its display name, it is deleted by its name (its ID)
+						template.display_name && template.display_name !== templateName
+							? `"${template.display_name}" is this template's display name; its name (its ID) is "${templateName}".`
+							: undefined
+					}
 				/>
 			) : (
 				<ConfirmDialog

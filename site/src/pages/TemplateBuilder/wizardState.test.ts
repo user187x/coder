@@ -5,8 +5,10 @@ import {
 	initialWizardState,
 	initWizardState,
 	moduleHasConfigurableVars,
+	PLATFORM_BASE_ID,
 	type SelectedBaseMeta,
 	type TemplateBuilderWizardState,
+	templateNameFrom,
 	toComposeRequest,
 	toCreateTemplateRequest,
 	toSelectedBaseMeta,
@@ -666,5 +668,53 @@ describe("RENAME_BASE (admins rename the deployment's base)", () => {
 		});
 		expect(state.selectedBase?.name).toBe("Workstation");
 		expect(state.displayName).toBe("My template");
+	});
+});
+
+describe("the new template's name (its ID)", () => {
+	it("is made from a display name", () => {
+		expect(templateNameFrom("TEST")).toBe("test");
+		expect(templateNameFrom("  My Ubuntu (GPU) 2  ")).toBe("my-ubuntu-gpu-2");
+		expect(templateNameFrom("Café déjà vu")).toBe("cafe-deja-vu");
+		expect(templateNameFrom("!!!")).toBe("");
+		expect(templateNameFrom("a".repeat(40))).toHaveLength(32);
+		expect(templateNameFrom(`${"a".repeat(31)} b`)).toBe("a".repeat(31));
+	});
+
+	it("is never the deployment's base ID: it comes from the base's display name", () => {
+		const base: SelectedBaseMeta = {
+			id: PLATFORM_BASE_ID,
+			name: "UBUNTU",
+			hasParameters: true,
+			hasPrerequisites: false,
+		};
+		expect(baseCustomizationDefaults(base)).toMatchObject({
+			name: "ubuntu",
+			displayName: "UBUNTU",
+		});
+		expect(baseCustomizationDefaults({ ...base, name: "!!!" }).name).toBe(
+			"template",
+		);
+	});
+
+	it("follows a renamed base while it is still the base's", () => {
+		const base: SelectedBaseMeta = {
+			id: PLATFORM_BASE_ID,
+			name: "UBUNTU",
+			hasParameters: true,
+			hasPrerequisites: false,
+		};
+		const renamed = reduce([
+			{ type: "SET_BASE", base },
+			{ type: "RENAME_BASE", name: "Ubuntu Desktop" },
+		]);
+		expect(renamed.name).toBe("ubuntu-desktop");
+		expect(renamed.displayName).toBe("Ubuntu Desktop");
+		const own = reduce([
+			{ type: "SET_BASE", base },
+			{ type: "SET_CUSTOMIZATION", field: "name", value: "mine" },
+			{ type: "RENAME_BASE", name: "Ubuntu Desktop" },
+		]);
+		expect(own.name).toBe("mine");
 	});
 });
