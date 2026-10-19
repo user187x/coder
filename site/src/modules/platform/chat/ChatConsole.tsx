@@ -5,28 +5,51 @@ import {
 	ChevronUpIcon,
 	ClockIcon,
 	CloudIcon,
+	CrosshairIcon,
 	KeyboardIcon,
+	ListChecksIcon,
+	MonitorIcon,
 	PictureInPicture2Icon,
 	SearchIcon,
 	SkipForwardIcon,
 	TrashIcon,
-	XIcon,
+	UsersIcon,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useQuery } from "react-query";
-import type { ChatConversation as Conversation } from "#/api/platform";
+import { useQuery, useQueryClient } from "react-query";
+import { useNavigate } from "react-router";
+import { toast } from "sonner";
+import { getErrorMessage } from "#/api/errors";
+import {
+	type ChatConversation as Conversation,
+	isChatGroupId,
+} from "#/api/platform";
 import { cloudDrivePeers } from "#/api/queries/platform";
 import { Button } from "#/components/Button/Button";
+import {
+	ContextMenu,
+	ContextMenuContent,
+	ContextMenuItem,
+	ContextMenuSeparator,
+	ContextMenuTrigger,
+} from "#/components/ContextMenu/ContextMenu";
+import { ConfirmDialog } from "#/components/Dialog/ConfirmDialog/ConfirmDialog";
 import { AskForCloudDriveDialog } from "#/modules/platform/cloudDrive/CloudDrivePeers";
+import {
+	userCloudDriveHref,
+	userWorkspaceHref,
+} from "#/modules/users/userPlaces";
 import { ChatAvatar } from "./ChatAvatar";
 import { ChatConversation, type ConversationActions } from "./ChatConversation";
 import { ChatPeople } from "./ChatPeople";
 import { CountBadge } from "./ChatWindow";
 import {
-	closeConsole,
+	deleteConversation,
 	displayName,
+	forceResponse,
 	popOutOfConsole,
 	selectInConsole,
+	startGroupChat,
 	useChatSnapshot,
 } from "./chatStore";
 import "./chatConsole.css";
@@ -39,7 +62,9 @@ const SHORTCUTS = [
 	"Alt+N: next waiting",
 	"/ or Ctrl+K: search",
 	"↑ ↓ Enter: move in the list, open",
-	"Escape: back to the list, close",
+	"Escape: back to the list",
+	"Ctrl+click: choose people for a group chat",
+	"Right-click a conversation: delete, workspace, Cloud Drive, Force Response",
 ].join("\n");
 
 export type ConsoleFilter = "waiting" | "unread" | "all";
@@ -107,8 +132,13 @@ const isTextField = (target: EventTarget | null) =>
 		target.isContentEditable);
 
 type ChatConsoleProps = {
-	/** The dock, left out of screenshots. */
-	dock: React.RefObject<HTMLElement | null>;
+	/** What screenshots leave out (the dock, or the console's own window). */
+	dock?: React.RefObject<HTMLElement | null>;
+	/** Where it is: the Chat page's card, or a window of its own (its links then open in the dashboard's tab). */
+	place: "card" | "window";
+	/** More buttons for its header (the card's Pop out, the window's Pop back in). */
+	actions?: React.ReactNode;
+	className?: string;
 };
 
 /**
@@ -122,9 +152,21 @@ type ChatConsoleProps = {
  *
  * Keys: Alt+↓ / Alt+↑ next and previous card, Alt+N next waiting, / or
  * Ctrl+K search, ↑ ↓ and Enter in the list, Escape back to the list (from the
- * message box) or closed.
+ * message box).
+ *
+ * It lives on the Chat page (a card at its top) or in a window of its own,
+ * popped out of it - not over the dashboard. Several people chosen (Select, or
+ * Ctrl+click) get one group chat; a conversation's right-click menu deletes it,
+ * goes to the person's workspace or Cloud Drive (read only), or forces a
+ * response (the newest admin message in front of everything for them).
  */
-export const ChatConsole: React.FC<ChatConsoleProps> = ({ dock }) => {
+export const ChatConsole: React.FC<ChatConsoleProps> = ({
+	dock,
+	place,
+	actions,
+	className,
+}) => {
+	const own = useRef<HTMLElement>(null);
 	const state = useChatSnapshot();
 	const me = state.me;
 	const view = state.consoleView;
@@ -140,7 +182,7 @@ export const ChatConsole: React.FC<ChatConsoleProps> = ({ dock }) => {
 	const [now, setNow] = useState(Date.now);
 	const searchRef = useRef<HTMLInputElement>(null);
 	const listRef = useRef<HTMLDivElement>(null);
-	const actions = useRef<ConversationActions>(null);
+	const conversation = useRef<ConversationActions>(null);
 	// Cloud Drives shared between users: the conversation's person asked for theirs, while admins have it on.
 	const [asking, setAsking] = useState(false);
 	const peers = useQuery({ ...cloudDrivePeers(), refetchInterval: 60_000 });
@@ -205,6 +247,71 @@ export const ChatConsole: React.FC<ChatConsoleProps> = ({ dock }) => {
 		go(waiting[0], "next", focus);
 	};
 
+	// Several people chosen: one group chat with them all.
+	const [selecting, setSelecting] = useState(false);
+	const [picked, setPicked] = useState<ReadonlySet<string>>(new Set());
+	const [grouping, setGrouping] = useState(false);
+	const stopSelecting = () => {
+		setSelecting(false);
+		setPicked(new Set());
+	};
+	const toggle = (c: Conversation) => {
+		if (isChatGroupId(c.peer.id)) {
+			return;
+		}
+		setSelecting(true);
+		setPicked((now) => {
+			const next = new Set(now);
+			if (next.has(c.peer.id)) {
+				next.delete(c.peer.id);
+			} else {
+				next.add(c.peer.id);
+			}
+			return next;
+		});
+	};
+	const chatWithPicked = async () => {
+		setGrouping(true);
+		try {
+			await startGroupChat([...picked]);
+			stopSelecting();
+		} catch (error) {
+			toast.error(getErrorMessage(error, "The group chat was not started."));
+		} finally {
+			setGrouping(false);
+		}
+	};
+
+	// A conversation's right-click menu.
+	const navigate = useNavigate();
+	const queryClient = useQueryClient();
+	const [deleting, setDeleting] = useState<Conversation | null>(null);
+	const visit = (href: string) => {
+		// From its own window: in the dashboard's tab (the window keeps the console).
+		const opener: Window | null = place === "window" ? window.opener : null;
+		if (opener && !opener.closed) {
+			opener.location.assign(href);
+			opener.focus();
+		} else {
+			navigate(href);
+		}
+	};
+	const menu: RowMenu = {
+		onDelete: setDeleting,
+		onWorkspace: (c) =>
+			void userWorkspaceHref(queryClient, c.peer.username).then(visit),
+		onCloudDrive: (c) =>
+			visit(userCloudDriveHref({ id: c.peer.id, username: c.peer.username })),
+		onForce: (c) =>
+			void forceResponse(c.peer.id).then(
+				() =>
+					toast.success(
+						`Your last message is in front of ${displayName(c.peer)}'s dashboard until they acknowledge it.`,
+					),
+				(error) => toast.error(getErrorMessage(error, "Not forced.")),
+			),
+	};
+
 	const onKeyDown = (event: React.KeyboardEvent) => {
 		if (
 			event.altKey &&
@@ -222,9 +329,13 @@ export const ChatConsole: React.FC<ChatConsoleProps> = ({ dock }) => {
 			event.preventDefault();
 			searchRef.current?.focus();
 			searchRef.current?.select();
-		} else if (event.key === "Escape" && !isTextField(event.target)) {
+		} else if (
+			event.key === "Escape" &&
+			selecting &&
+			!isTextField(event.target)
+		) {
 			event.preventDefault();
-			closeConsole();
+			stopSelecting();
 		}
 	};
 
@@ -234,12 +345,15 @@ export const ChatConsole: React.FC<ChatConsoleProps> = ({ dock }) => {
 
 	return (
 		<section
-			role="dialog"
+			ref={own}
 			aria-label="Chat console"
 			data-testid="chat-console"
+			data-place={place}
 			onKeyDown={onKeyDown}
-			className="chat-console flex w-[min(980px,calc(100vw-32px))] flex-col overflow-hidden rounded-lg border border-solid border-border bg-surface-primary shadow-[0_8px_28px_rgb(0_0_0/.35)]"
-			style={{ height: "min(640px, calc(var(--chat-room, 640px) - 4px))" }}
+			className={cn(
+				"chat-console flex min-h-0 w-full flex-col overflow-hidden rounded-lg border border-solid border-border bg-surface-primary",
+				className,
+			)}
 		>
 			<header className="flex items-center gap-3 border-0 border-b border-solid border-border bg-surface-secondary px-3 py-1.5">
 				<span className="text-[13px] font-semibold">Chat console</span>
@@ -284,15 +398,7 @@ export const ChatConsole: React.FC<ChatConsoleProps> = ({ dock }) => {
 				>
 					<KeyboardIcon className="size-4" />
 				</span>
-				<Button
-					variant="subtle"
-					size="icon"
-					onClick={closeConsole}
-					aria-label="Close the console"
-					title="Close (Escape)"
-				>
-					<XIcon />
-				</Button>
+				{actions}
 			</header>
 
 			<div className="grid min-h-0 flex-1 grid-cols-[minmax(220px,300px)_1fr]">
@@ -327,31 +433,51 @@ export const ChatConsole: React.FC<ChatConsoleProps> = ({ dock }) => {
 								className="h-8 min-w-0 flex-1 border-0 bg-transparent text-[13px] text-inherit outline-hidden"
 							/>
 						</label>
-						<div role="tablist" aria-label="Show" className="flex gap-1">
-							{(
-								[
-									["waiting", "Waiting", counts.waiting],
-									["unread", "Unread", counts.unread],
-									["all", "All", counts.all],
-								] as const
-							).map(([value, label, n]) => (
-								<button
-									key={value}
-									type="button"
-									role="tab"
-									aria-selected={filter === value}
-									onClick={() => setFilter(value)}
-									className={cn(
-										"flex flex-1 cursor-pointer items-center justify-center gap-1 rounded-md border border-solid px-1.5 py-1 text-xs",
-										filter === value
-											? "border-border bg-surface-tertiary font-semibold text-content-primary"
-											: "border-transparent bg-transparent text-content-secondary hover:text-content-primary",
-									)}
-								>
-									{label}
-									<span className="tabular-nums opacity-70">{n}</span>
-								</button>
-							))}
+						<div className="flex gap-1">
+							<div
+								role="tablist"
+								aria-label="Show"
+								className="flex flex-1 gap-1"
+							>
+								{(
+									[
+										["waiting", "Waiting", counts.waiting],
+										["unread", "Unread", counts.unread],
+										["all", "All", counts.all],
+									] as const
+								).map(([value, label, n]) => (
+									<button
+										key={value}
+										type="button"
+										role="tab"
+										aria-selected={filter === value}
+										onClick={() => setFilter(value)}
+										className={cn(
+											"flex flex-1 cursor-pointer items-center justify-center gap-1 rounded-md border border-solid px-1.5 py-1 text-xs",
+											filter === value
+												? "border-border bg-surface-tertiary font-semibold text-content-primary"
+												: "border-transparent bg-transparent text-content-secondary hover:text-content-primary",
+										)}
+									>
+										{label}
+										<span className="tabular-nums opacity-70">{n}</span>
+									</button>
+								))}
+							</div>
+							<Button
+								variant={selecting ? "outline" : "subtle"}
+								size="icon"
+								className="size-7 shrink-0"
+								onClick={() =>
+									selecting ? stopSelecting() : setSelecting(true)
+								}
+								aria-pressed={selecting}
+								aria-label="Choose people for a group chat"
+								title="Choose people for a group chat (or Ctrl+click them)"
+								data-testid="chat-console-select"
+							>
+								<ListChecksIcon />
+							</Button>
 						</div>
 					</div>
 					<RolodexList
@@ -361,9 +487,16 @@ export const ChatConsole: React.FC<ChatConsoleProps> = ({ dock }) => {
 						selectedId={selectedId}
 						typing={state.typing}
 						now={now}
-						onPick={(c) => go(c, list.indexOf(c) < index ? "prev" : "next")}
+						onPick={(c, event) =>
+							selecting || event?.ctrlKey || event?.metaKey
+								? toggle(c)
+								: go(c, list.indexOf(c) < index ? "prev" : "next")
+						}
+						selecting={selecting}
+						picked={picked}
+						menu={menu}
 						onStep={step}
-						onOpen={() => actions.current?.focus()}
+						onOpen={() => conversation.current?.focus()}
 						empty={
 							query
 								? "Nobody matches."
@@ -374,6 +507,30 @@ export const ChatConsole: React.FC<ChatConsoleProps> = ({ dock }) => {
 										: 'No conversations yet. Start one with "Chat" in Admin › Accounts.'
 						}
 					/>
+					{selecting && (
+						<div
+							className="flex shrink-0 items-center gap-2 border-0 border-t border-solid border-border px-2.5 py-2 text-xs"
+							data-testid="chat-console-selection"
+						>
+							<span className="flex-1 text-content-secondary">
+								{picked.size === 0
+									? "Choose people (not group chats)"
+									: `${picked.size} chosen`}
+							</span>
+							<Button size="xs" variant="outline" onClick={stopSelecting}>
+								Cancel
+							</Button>
+							<Button
+								size="xs"
+								disabled={picked.size === 0 || grouping}
+								onClick={() => void chatWithPicked()}
+								data-testid="chat-console-group"
+							>
+								<UsersIcon />
+								Chat with {picked.size === 1 ? "them" : "all"}
+							</Button>
+						</div>
+					)}
 					{/* Who is online now (grey when idle): a conversation with any of them, from here. */}
 					<ChatPeople
 						onOpen={(peer) => selectInConsole(peer)}
@@ -433,7 +590,7 @@ export const ChatConsole: React.FC<ChatConsoleProps> = ({ dock }) => {
 								variant="subtle"
 								size="icon"
 								disabled={shooting}
-								onClick={() => actions.current?.screenshot()}
+								onClick={() => conversation.current?.screenshot()}
 								aria-label="Screenshot"
 								title="Attach a screenshot of this page"
 							>
@@ -471,7 +628,7 @@ export const ChatConsole: React.FC<ChatConsoleProps> = ({ dock }) => {
 							<Button
 								variant="subtle"
 								size="icon"
-								onClick={() => actions.current?.askDelete()}
+								onClick={() => conversation.current?.askDelete()}
 								aria-label="Delete conversation"
 								title="Delete conversation"
 							>
@@ -484,9 +641,9 @@ export const ChatConsole: React.FC<ChatConsoleProps> = ({ dock }) => {
 							data-direction={direction}
 						>
 							<ChatConversation
-								ref={actions}
+								ref={conversation}
 								view={view}
-								dock={dock}
+								dock={dock ?? own}
 								className="min-h-0 flex-1"
 								onEscape={() => listRef.current?.focus()}
 								onSent={autoNext ? () => nextWaiting(true) : undefined}
@@ -504,8 +661,33 @@ export const ChatConsole: React.FC<ChatConsoleProps> = ({ dock }) => {
 					</div>
 				)}
 			</div>
+			{deleting && (
+				<ConfirmDialog
+					open
+					type="delete"
+					title={`Delete the conversation with ${displayName(deleting.peer)}?`}
+					description="Every message goes, for both of you."
+					confirmText="Delete"
+					onConfirm={() => {
+						const peer = deleting.peer;
+						setDeleting(null);
+						void deleteConversation(peer.id).catch((error) =>
+							toast.error(getErrorMessage(error, "Not deleted.")),
+						);
+					}}
+					onClose={() => setDeleting(null)}
+				/>
+			)}
 		</section>
 	);
+};
+
+/** A conversation's right-click menu: what each item does. */
+type RowMenu = {
+	onDelete: (c: Conversation) => void;
+	onWorkspace: (c: Conversation) => void;
+	onCloudDrive: (c: Conversation) => void;
+	onForce: (c: Conversation) => void;
 };
 
 const isWaitingSelected = (
@@ -525,9 +707,14 @@ type RolodexListProps = {
 	typing: ReadonlySet<string>;
 	now: number;
 	empty: string;
-	onPick: (c: Conversation) => void;
+	/** A row clicked (the click, for Ctrl / Cmd: choose it) or chosen with the keys. */
+	onPick: (c: Conversation, event?: React.MouseEvent) => void;
 	onStep: (by: 1 | -1) => void;
 	onOpen: () => void;
+	/** Choosing people for a group chat: a box on each row, and who is chosen. */
+	selecting: boolean;
+	picked: ReadonlySet<string>;
+	menu: RowMenu;
 };
 
 /**
@@ -545,6 +732,9 @@ const RolodexList: React.FC<RolodexListProps> = ({
 	onPick,
 	onStep,
 	onOpen,
+	selecting,
+	picked,
+	menu,
 }) => {
 	const [scrollTop, setScrollTop] = useState(0);
 	const [height, setHeight] = useState(400);
@@ -602,72 +792,119 @@ const RolodexList: React.FC<RolodexListProps> = ({
 						const preview =
 							c.last.text.replace(/\s+/g, " ") ||
 							(c.last.image ? "Screenshot" : "");
+						const group = isChatGroupId(c.peer.id);
+						const chosen = picked.has(c.peer.id);
 						return (
-							<div
-								key={c.peer.id}
-								id={`chat-console-row-${c.peer.id}`}
-								role="option"
-								aria-selected={selected}
-								tabIndex={-1}
-								data-testid="chat-console-row"
-								onClick={() => onPick(c)}
-								onKeyDown={(event) => {
-									if (event.key === "Enter" || event.key === " ") {
-										event.preventDefault();
-										onPick(c);
-									}
-								}}
-								className={cn(
-									"absolute right-0 left-0 flex cursor-pointer items-center gap-2.5 border-0 border-l-[3px] border-solid px-2.5",
-									selected
-										? "chat-row-selected border-l-content-link bg-surface-tertiary"
-										: "border-l-transparent hover:bg-surface-secondary",
-								)}
-								style={{ top, height: ROW_HEIGHT }}
-							>
-								<ChatAvatar peer={c.peer} />
-								<span className="flex min-w-0 flex-1 flex-col gap-0.5">
-									<span className="flex items-center gap-1.5">
-										<span
-											className={cn(
-												"min-w-0 flex-1 truncate text-[13px]",
-												c.unread ? "font-bold" : "font-semibold",
-											)}
-										>
-											{displayName(c.peer)}
-										</span>
-										<span
-											className={cn(
-												"flex shrink-0 items-center gap-0.5 text-[11px] tabular-nums",
-												waiting
-													? "text-highlight-orange"
-													: "text-content-secondary",
-											)}
-											title={
-												waiting
-													? `Waiting for an answer since ${new Date(c.last.at).toLocaleString()}`
-													: new Date(c.last.at).toLocaleString()
+							<ContextMenu key={c.peer.id}>
+								<ContextMenuTrigger asChild>
+									<div
+										id={`chat-console-row-${c.peer.id}`}
+										role="option"
+										aria-selected={selected}
+										tabIndex={-1}
+										data-testid="chat-console-row"
+										onClick={(event) => onPick(c, event)}
+										onKeyDown={(event) => {
+											if (event.key === "Enter" || event.key === " ") {
+												event.preventDefault();
+												onPick(c);
 											}
-										>
-											{waiting && <ClockIcon className="size-3" />}
-											{ago(c.last.at, now)}
+										}}
+										className={cn(
+											"absolute right-0 left-0 flex cursor-pointer items-center gap-2.5 border-0 border-l-[3px] border-solid px-2.5",
+											selected
+												? "chat-row-selected border-l-content-link bg-surface-tertiary"
+												: "border-l-transparent hover:bg-surface-secondary",
+										)}
+										style={{ top, height: ROW_HEIGHT }}
+										data-chosen={chosen || undefined}
+									>
+										{selecting && (
+											<input
+												type="checkbox"
+												checked={chosen}
+												disabled={group}
+												readOnly
+												tabIndex={-1}
+												aria-label={`Choose ${displayName(c.peer)}`}
+												title={
+													group ? "A group chat: choose people" : undefined
+												}
+												className="pointer-events-none shrink-0"
+											/>
+										)}
+										<ChatAvatar peer={c.peer} />
+										<span className="flex min-w-0 flex-1 flex-col gap-0.5">
+											<span className="flex items-center gap-1.5">
+												<span
+													className={cn(
+														"min-w-0 flex-1 truncate text-[13px]",
+														c.unread ? "font-bold" : "font-semibold",
+													)}
+												>
+													{displayName(c.peer)}
+												</span>
+												<span
+													className={cn(
+														"flex shrink-0 items-center gap-0.5 text-[11px] tabular-nums",
+														waiting
+															? "text-highlight-orange"
+															: "text-content-secondary",
+													)}
+													title={
+														waiting
+															? `Waiting for an answer since ${new Date(c.last.at).toLocaleString()}`
+															: new Date(c.last.at).toLocaleString()
+													}
+												>
+													{waiting && <ClockIcon className="size-3" />}
+													{ago(c.last.at, now)}
+												</span>
+											</span>
+											<span className="flex items-center gap-1.5">
+												<span className="min-w-0 flex-1 truncate text-xs text-content-secondary">
+													{typing.has(c.peer.id) ? (
+														<i className="text-content-link not-italic">
+															typing…
+														</i>
+													) : (
+														<>
+															{c.last.from === meId ? "You: " : ""}
+															{preview}
+														</>
+													)}
+												</span>
+												{c.unread > 0 && <CountBadge count={c.unread} />}
+											</span>
 										</span>
-									</span>
-									<span className="flex items-center gap-1.5">
-										<span className="min-w-0 flex-1 truncate text-xs text-content-secondary">
-											{typing.has(c.peer.id) ? (
-												<i className="text-content-link not-italic">typing…</i>
-											) : (
-												<>
-													{c.last.from === meId ? "You: " : ""}
-													{preview}
-												</>
-											)}
-										</span>
-										{c.unread > 0 && <CountBadge count={c.unread} />}
-									</span>
-								</span>
-							</div>
+									</div>
+								</ContextMenuTrigger>
+								<ContextMenuContent data-testid="chat-console-row-menu">
+									<ContextMenuItem
+										disabled={group}
+										onSelect={() => menu.onWorkspace(c)}
+									>
+										<MonitorIcon />
+										Workspace
+									</ContextMenuItem>
+									<ContextMenuItem
+										disabled={group}
+										onSelect={() => menu.onCloudDrive(c)}
+									>
+										<CloudIcon />
+										Cloud Drive
+									</ContextMenuItem>
+									<ContextMenuItem onSelect={() => menu.onForce(c)}>
+										<CrosshairIcon />
+										Force Response
+									</ContextMenuItem>
+									<ContextMenuSeparator />
+									<ContextMenuItem onSelect={() => menu.onDelete(c)}>
+										<TrashIcon />
+										Delete
+									</ContextMenuItem>
+								</ContextMenuContent>
+							</ContextMenu>
 						);
 					})}
 				</div>

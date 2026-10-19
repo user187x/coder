@@ -24,7 +24,7 @@ const DeploymentSettingsLayout: React.FC = () => {
 			<Navigate
 				to={
 					permissions.viewDeploymentConfig
-						? "/deployment/overview"
+						? "/deployment/network"
 						: "/deployment/users"
 				}
 				replace

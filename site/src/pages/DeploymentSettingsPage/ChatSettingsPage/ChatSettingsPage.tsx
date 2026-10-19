@@ -1,5 +1,5 @@
 import { MessageSquareIcon, Trash2Icon } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { toast } from "sonner";
 import { getErrorMessage } from "#/api/errors";
@@ -31,10 +31,12 @@ import {
 	TableHeader,
 	TableRow,
 } from "#/components/Table/Table";
+import { ChatConsoleCard } from "#/modules/platform/chat/ChatConsoleCard";
 import { ChatPeople, PresenceAvatar } from "#/modules/platform/chat/ChatPeople";
 import { displayName, openChatWith } from "#/modules/platform/chat/chatStore";
 import { formatBytes } from "#/modules/platform/images";
 import { pageTitle } from "#/utils/page";
+import { OnlineUsersCard } from "../OnlineUsersPage/OnlineUsersPage";
 
 const when = (iso: string | null) =>
 	iso
@@ -48,21 +50,32 @@ const card =
 	"flex flex-col gap-3 rounded-lg border border-solid border-border p-6";
 
 /**
- * Admin Controls > Chat: peer-to-peer chat (developers writing to each other,
- * from the People list of who is online or active today), how long chats are
- * kept and purging them, which developers talk to each other (never what they
- * wrote), and who is around now, the invisible too.
+ * Controls › Settings › Chat: admins' chat console (the first card: out of the
+ * dashboard's way, popped out into a window of its own when wanted), Online
+ * Users (once a category of its own), peer-to-peer chat (developers writing to
+ * each other, from the People list of who is online or active today), how long
+ * chats are kept and purging them, which developers talk to each other (never
+ * what they wrote), and who is around now, the invisible too.
  */
 const ChatSettingsPage: React.FC = () => {
 	const settingsQuery = useQuery(chatSettings());
+	// A link to one of its cards (#online-users, the quick link): there once the page is drawn.
+	const loaded = Boolean(settingsQuery.data);
+	useEffect(() => {
+		const id = window.location.hash.slice(1);
+		if (loaded && id) {
+			document.getElementById(id)?.scrollIntoView({ block: "start" });
+		}
+	}, [loaded]);
 	return (
 		<>
 			<title>{pageTitle("Chat")}</title>
 			<SettingsHeader>
 				<SettingsHeaderTitle>Chat</SettingsHeaderTitle>
 				<SettingsHeaderDescription>
-					Let developers chat with each other, decide how long chats are kept,
-					and see who talks to whom.
+					Answer chats in the console, see who is online, let developers chat
+					with each other, decide how long chats are kept, and see who talks to
+					whom.
 				</SettingsHeaderDescription>
 			</SettingsHeader>
 			{settingsQuery.isLoading ? (
@@ -71,6 +84,8 @@ const ChatSettingsPage: React.FC = () => {
 				<ErrorAlert error={settingsQuery.error} />
 			) : (
 				<div className="flex flex-col gap-6">
+					<ChatConsoleCard />
+					<OnlineUsersCard />
 					<PeersCard settings={settingsQuery.data} />
 					<RetentionCard settings={settingsQuery.data} />
 					<PairsCard />

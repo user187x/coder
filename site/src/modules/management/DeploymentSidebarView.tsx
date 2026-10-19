@@ -4,6 +4,7 @@ import {
 	SettingsSidebarNavItem as SidebarNavItem,
 } from "#/components/Sidebar/Sidebar";
 import type { Permissions } from "#/modules/permissions";
+import { ChatUnreadIndicator } from "#/modules/platform/chat/ChatUnreadIndicator";
 import { HealthIcon } from "#/pages/HealthPage/Content";
 import { AdminCategoryLabel } from "./AdminCategoryLabel";
 import {
@@ -62,8 +63,18 @@ export const DeploymentSidebarView: React.FC<DeploymentSidebarViewProps> = ({
 			item("accounts", "/deployment/users", "Accounts"),
 		permissions.editDeploymentConfig &&
 			item("announcement", "/deployment/announcement", "Announcement"),
-		permissions.editDeploymentConfig &&
-			item("chat", "/deployment/chat", "Chat"),
+		permissions.editDeploymentConfig && {
+			// unread chat messages at the entry's right (the row's, beyond its link)
+			...item("chat", "/deployment/chat", "Chat"),
+			node: (
+				<div className="relative">
+					<SidebarNavItem href="/deployment/chat">
+						<AdminCategoryLabel id="chat">Chat</AdminCategoryLabel>
+					</SidebarNavItem>
+					<ChatUnreadIndicator className="absolute top-1/2 right-2 -translate-y-1/2" />
+				</div>
+			),
+		},
 		permissions.viewDeploymentConfig &&
 			item(
 				"authentication",
@@ -95,10 +106,6 @@ export const DeploymentSidebarView: React.FC<DeploymentSidebarViewProps> = ({
 			),
 		permissions.viewDeploymentConfig &&
 			item("observability", "/deployment/observability", "Observability"),
-		permissions.editDeploymentConfig &&
-			item("online-users", "/deployment/online", "Online Users"),
-		permissions.viewDeploymentConfig &&
-			item("overview", "/deployment/overview", "Overview"),
 		permissions.viewDeploymentConfig &&
 			item("persistence", "/deployment/persistence", "Persistence"),
 		permissions.viewDeploymentConfig &&

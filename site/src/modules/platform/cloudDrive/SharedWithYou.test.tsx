@@ -1,5 +1,6 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "react-query";
+import { MemoryRouter } from "react-router";
 import {
 	type CloudDrivePeers,
 	type CloudDriveShare,
@@ -244,7 +245,11 @@ describe("CloudDrive's container", () => {
 		vi.spyOn(PlatformAPI, "getCloudDrivePeers").mockResolvedValue(
 			peers([share({ access: "write" })]),
 		);
-		wrap(<CloudDrive workspaceIds={[]} />);
+		wrap(
+			<MemoryRouter>
+				<CloudDrive workspaceIds={[]} />
+			</MemoryRouter>,
+		);
 		const button = await screen.findByTestId("cloud-drive");
 		expect(screen.getByTestId("cloud-drive-usage")).toHaveTextContent(
 			"1 GB of 20 GB",

@@ -5,6 +5,7 @@ import {
 	CloudIcon,
 	EllipsisVerticalIcon,
 	MinusIcon,
+	PanelsTopLeftIcon,
 	TrashIcon,
 	XIcon,
 } from "lucide-react";
@@ -27,6 +28,7 @@ import {
 	displayName,
 	isBlocked,
 	markRead,
+	openConsole,
 	setFocusedWindow,
 	setMinimized,
 	useChatSnapshot,
@@ -161,6 +163,15 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ window: w, dock }) => {
 							<CameraIcon />
 							Screenshot
 						</DropdownMenuItem>
+						{state.me?.admin && (
+							<DropdownMenuItem
+								onSelect={() => openConsole(peer)}
+								data-testid="chat-window-open-console"
+							>
+								<PanelsTopLeftIcon />
+								Open in the chat console
+							</DropdownMenuItem>
+						)}
 						{canAsk && (
 							<DropdownMenuItem
 								onSelect={() => setAsking(true)}

@@ -5,7 +5,6 @@ import {
 	DatabaseIcon,
 	HeartPulseIcon,
 	KeyRoundIcon,
-	LayoutDashboardIcon,
 	LockIcon,
 	type LucideIcon,
 	MegaphoneIcon,
@@ -14,7 +13,6 @@ import {
 	PaletteIcon,
 	TagIcon,
 	TelescopeIcon,
-	UserCheckIcon,
 	UsersIcon,
 } from "lucide-react";
 import { MaxAdminQuickLinks } from "#/api/typesGenerated";
@@ -126,20 +124,6 @@ const ADMIN_PAGES: readonly (AdminPage & {
 		label: "Observability",
 		icon: TelescopeIcon,
 		path: "/deployment/observability",
-		allowed: ({ permissions }) => permissions.viewDeploymentConfig,
-	},
-	{
-		id: "online-users",
-		label: "Online Users",
-		icon: UserCheckIcon,
-		path: "/deployment/online",
-		allowed: ({ permissions }) => permissions.editDeploymentConfig,
-	},
-	{
-		id: "overview",
-		label: "Overview",
-		icon: LayoutDashboardIcon,
-		path: "/deployment/overview",
 		allowed: ({ permissions }) => permissions.viewDeploymentConfig,
 	},
 	{

@@ -53,13 +53,16 @@ let nextTransfer = 1;
  * Share - the entire drive, a folder or a file of it (ShareDialog). Opened on
  * what is shared with the user (`initialDrive`: its owner's id, `initialPath`:
  * the folder) from the Workspaces page's shares: there, only what is shared is
- * reached, and written only where it is shared read and write.
+ * reached, and written only where it is shared read and write. An admin's look
+ * at another account's drive (`inspect`, from a link): all of it, read only -
+ * not one its owner encrypted (the service says so).
  */
 export const CloudDriveBrowser: React.FC<{
 	summary: SafeSummary;
 	initialDrive?: string;
 	initialPath?: string;
-}> = ({ summary, initialDrive = "", initialPath = "" }) => {
+	inspect?: { owner: string; ownerName: string };
+}> = ({ summary, initialDrive = "", initialPath = "", inspect }) => {
 	const queryClient = useQueryClient();
 	const [path, setPath] = useState(initialPath);
 	// Which Cloud Drive: the user's own (""), or one shared with them - all of it or parts (its owner's id) - open at
@@ -70,12 +73,13 @@ export const CloudDriveBrowser: React.FC<{
 	const fromOwner = incoming.filter((s) => s.owner === drive);
 	const owners = [...new Map(incoming.map((s) => [s.owner, s])).values()];
 	const shared = fromOwner[0];
+	const inspecting = Boolean(inspect && drive === inspect.owner && !shared);
 	useEffect(() => {
-		if (drive && peers.isSuccess && !shared) {
+		if (drive && peers.isSuccess && !shared && drive !== inspect?.owner) {
 			setDrive("");
 			setPath("");
 		}
-	}, [drive, peers.isSuccess, shared]);
+	}, [drive, peers.isSuccess, shared, inspect?.owner]);
 	const listing = useQuery(safeListing(path, true, drive));
 	// In a shared drive, the folder says what the user may do there (null: a folder on the way to what is shared).
 	const canWrite = !drive || listing.data?.access === "write";
@@ -265,7 +269,7 @@ export const CloudDriveBrowser: React.FC<{
 				}
 			}}
 		>
-			{owners.length > 0 && (
+			{(owners.length > 0 || inspect) && (
 				<div
 					className="flex flex-wrap items-center gap-1.5 border-0 border-b border-solid border-border px-4 py-2 text-xs"
 					role="tablist"
@@ -274,6 +278,14 @@ export const CloudDriveBrowser: React.FC<{
 				>
 					{[
 						{ owner: "", label: "Mine" },
+						...(inspect && !owners.some((s) => s.owner === inspect.owner)
+							? [
+									{
+										owner: inspect.owner,
+										label: `${inspect.ownerName}'s (admin view, read only)`,
+									},
+								]
+							: []),
 						...owners.map((s) => {
 							const parts = incoming.filter((x) => x.owner === s.owner);
 							const whole = parts.find((x) => x.kind === "drive");
@@ -316,7 +328,11 @@ export const CloudDriveBrowser: React.FC<{
 				>
 					{breadcrumbs(
 						path,
-						shared ? `${shared.ownerName}'s Cloud Drive` : "Cloud Drive",
+						shared
+							? `${shared.ownerName}'s Cloud Drive`
+							: inspecting && inspect
+								? `${inspect.ownerName}'s Cloud Drive`
+								: "Cloud Drive",
 					).map((crumb, i, all) => (
 						<span key={crumb.path} className="flex min-w-0 items-center gap-1">
 							{i > 0 && (

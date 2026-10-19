@@ -7,11 +7,6 @@ import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { Button } from "#/components/Button/Button";
 import { Loader } from "#/components/Loader/Loader";
 import {
-	SettingsHeader,
-	SettingsHeaderDescription,
-	SettingsHeaderTitle,
-} from "#/components/SettingsHeader/SettingsHeader";
-import {
 	Table,
 	TableBody,
 	TableCell,
@@ -25,7 +20,6 @@ import {
 	openChatWith,
 	useChatSnapshot,
 } from "#/modules/platform/chat/chatStore";
-import { pageTitle } from "#/utils/page";
 
 const card =
 	"flex flex-col gap-3 rounded-lg border border-solid border-border p-6";
@@ -58,73 +52,72 @@ export const sinceText = (iso: string | null, now: number) => {
 };
 
 /**
- * Admin Controls > Online Users: everyone with a Coder tab open now (active,
- * or idle: grey after 30 seconds without input), how many tabs, since when,
- * their last input and their running workspaces; then who Coder saw in the
- * last 15 minutes without a tab open (the CLI, SSH, an app). Asked again every
- * 3 seconds.
+ * Controls › Settings › Chat: Online Users, a card of its own (it was a category of its own) - everyone with a
+ * Coder tab open now (active, or idle: grey after 30 seconds without input), how many tabs, since when, their last
+ * input and their running workspaces; then who Coder saw in the last 15 minutes without a tab open (the CLI, SSH, an
+ * app). Asked again every 3 seconds.
  */
-const OnlineUsersPage: React.FC = () => {
+export const OnlineUsersCard: React.FC = () => {
 	const query = useQuery(onlineUsers());
 	const report = query.data;
 	const now = report ? new Date(report.generatedAt).getTime() : Date.now();
 	const active = report?.online.filter((u) => u.status === "active").length;
 	return (
-		<>
-			<title>{pageTitle("Online Users")}</title>
-			<SettingsHeader>
-				<SettingsHeaderTitle>Online Users</SettingsHeaderTitle>
-				<SettingsHeaderDescription>
-					Who is using Coder right now, live: active, or idle after{" "}
-					{report?.idleSeconds ?? 30} seconds without input.
-				</SettingsHeaderDescription>
-			</SettingsHeader>
+		<section
+			id="online-users"
+			aria-labelledby="online-users-title"
+			className={card}
+			data-testid="online-users-card"
+		>
+			<h2 id="online-users-title" className="m-0 text-base font-semibold">
+				Online Users
+			</h2>
+			<p className="m-0 text-sm text-content-secondary">
+				Who is using Coder right now, live: active, or idle after{" "}
+				{report?.idleSeconds ?? 30} seconds without input.
+			</p>
 			{query.isLoading ? (
 				<Loader />
 			) : !report ? (
 				<ErrorAlert error={query.error} />
 			) : (
-				<div className="flex flex-col gap-6">
+				<>
 					{query.isError && <ErrorAlert error={query.error} />}
-					<section aria-labelledby="online-now" className={card}>
-						<h2
-							id="online-now"
-							className="m-0 flex items-baseline gap-2 text-base font-semibold"
+					<h3
+						id="online-now"
+						className="m-0 mt-2 flex items-baseline gap-2 text-sm font-semibold"
+					>
+						Online now
+						<span
+							className="text-sm font-normal text-content-secondary"
+							data-testid="online-count"
 						>
-							Online now
-							<span
-								className="text-sm font-normal text-content-secondary"
-								data-testid="online-count"
-							>
-								{report.online.length} online · {active} active ·{" "}
-								{report.online.length - (active ?? 0)} idle
-							</span>
-						</h2>
-						{report.online.length === 0 ? (
-							<p className="m-0 text-sm text-content-secondary">
-								No one has Coder open right now.
-							</p>
-						) : (
-							<UsersTable users={report.online} now={now} live />
-						)}
-					</section>
-					<section aria-labelledby="online-recent" className={card}>
-						<h2 id="online-recent" className="m-0 text-base font-semibold">
-							Seen in the last 15 minutes
-						</h2>
+							{report.online.length} online · {active} active ·{" "}
+							{report.online.length - (active ?? 0)} idle
+						</span>
+					</h3>
+					{report.online.length === 0 ? (
 						<p className="m-0 text-sm text-content-secondary">
-							Without a Coder tab open: through the CLI, SSH, an IDE or a
-							workspace app.
+							No one has Coder open right now.
 						</p>
-						{report.recent.length === 0 ? (
-							<p className="m-0 text-sm text-content-secondary">No one else.</p>
-						) : (
-							<UsersTable users={report.recent} now={now} live={false} />
-						)}
-					</section>
-				</div>
+					) : (
+						<UsersTable users={report.online} now={now} live />
+					)}
+					<h3 id="online-recent" className="m-0 mt-2 text-sm font-semibold">
+						Seen in the last 15 minutes
+					</h3>
+					<p className="m-0 text-sm text-content-secondary">
+						Without a Coder tab open: through the CLI, SSH, an IDE or a
+						workspace app.
+					</p>
+					{report.recent.length === 0 ? (
+						<p className="m-0 text-sm text-content-secondary">No one else.</p>
+					) : (
+						<UsersTable users={report.recent} now={now} live={false} />
+					)}
+				</>
 			)}
-		</>
+		</section>
 	);
 };
 
@@ -267,4 +260,4 @@ const UsersTable: React.FC<UsersTableProps> = ({ users, now, live }) => {
 	);
 };
 
-export default OnlineUsersPage;
+export default OnlineUsersCard;

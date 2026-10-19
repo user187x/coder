@@ -28,7 +28,7 @@ type UsersPageViewProps = Omit<
 	filterProps: React.ComponentProps<typeof UsersFilter>;
 	usersQuery: PaginationResult<TypesGen.GetUsersResponse>;
 	canCreateUser?: boolean;
-	/** User Quota (UserQuotaSection), for admins: at the top, above the accounts. */
+	/** User Quota (UserQuotaSection), for admins: a card below the accounts'. */
 	quota?: React.ReactNode;
 };
 
@@ -74,6 +74,37 @@ export const UsersPageView: React.FC<UsersPageViewProps> = ({
 				</SettingsHeaderDescription>
 			</SettingsHeader>
 
+			{/* Platform: the accounts - their filter, the bulk actions and the table - in a card of their own, the first. */}
+			<section
+				aria-label="Accounts"
+				data-testid="accounts-card"
+				className="mb-6 flex flex-col gap-3 rounded-lg border border-solid border-border p-6"
+			>
+				<UsersFilter {...filterProps} />
+
+				{props.canEditUsers && (
+					<BulkUserActions
+						selected={selected}
+						me={props.me}
+						oidcRoleSyncEnabled={props.oidcRoleSyncEnabled}
+						onClear={() => setSelectedIds(new Set())}
+					/>
+				)}
+
+				<PaginationContainer query={usersQuery} paginationUnitLabel="accounts">
+					{/* Platform: who shares their Cloud Drive with whom, as the Cloud Drive's cables between the rows. */}
+					<AccountShareCables userIds={userIds}>
+						<UsersTable
+							{...props}
+							users={pageUsers}
+							onAction={setAction}
+							selected={props.canEditUsers ? selectedIds : undefined}
+							onSelect={setSelectedIds}
+						/>
+					</AccountShareCables>
+				</PaginationContainer>
+			</section>
+
 			{quota && (
 				<section
 					aria-label="User Quota"
@@ -83,30 +114,6 @@ export const UsersPageView: React.FC<UsersPageViewProps> = ({
 					{quota}
 				</section>
 			)}
-
-			<UsersFilter {...filterProps} />
-
-			{props.canEditUsers && (
-				<BulkUserActions
-					selected={selected}
-					me={props.me}
-					oidcRoleSyncEnabled={props.oidcRoleSyncEnabled}
-					onClear={() => setSelectedIds(new Set())}
-				/>
-			)}
-
-			<PaginationContainer query={usersQuery} paginationUnitLabel="accounts">
-				{/* Platform: who shares their Cloud Drive with whom, as the Cloud Drive's cables between the rows. */}
-				<AccountShareCables userIds={userIds}>
-					<UsersTable
-						{...props}
-						users={pageUsers}
-						onAction={setAction}
-						selected={props.canEditUsers ? selectedIds : undefined}
-						onSelect={setSelectedIds}
-					/>
-				</AccountShareCables>
-			</PaginationContainer>
 
 			<UserActionDialogs action={action} onClose={() => setAction(undefined)} />
 		</>

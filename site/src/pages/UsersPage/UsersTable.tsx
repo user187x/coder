@@ -5,7 +5,6 @@ import { useQuery, useQueryClient } from "react-query";
 import { useNavigate } from "react-router";
 import { PlatformAPI, type WorkspaceNote } from "#/api/platform";
 import type { GroupsByUserId } from "#/api/queries/groups";
-import { workspaces } from "#/api/queries/workspaces";
 import type * as TypesGen from "#/api/typesGenerated";
 import { AvatarData } from "#/components/Avatar/AvatarData";
 import { AvatarDataSkeleton } from "#/components/Avatar/AvatarDataSkeleton";
@@ -27,11 +26,13 @@ import {
 } from "#/components/TableLoader/TableLoader";
 import { useClickableTableRow } from "#/hooks/useClickableTableRow";
 import { ChatUserButton } from "#/modules/platform/chat/ChatUserButton";
+import { ShareApprovalButton } from "#/modules/platform/cloudDrive/ShareApprovalButton";
 import { UserNotesCell } from "#/modules/platform/workspaceNotes/UserNotesCell";
 import type { UserAdminAction } from "#/modules/users/UserActionDialogs";
 import { RolesHelpPopover } from "#/modules/users/UserHelpPopovers";
 import { UserMoreActions } from "#/modules/users/UserMoreActions";
 import { UserRoleCell } from "#/modules/users/UserRoleCell";
+import { userWorkspaceHref as workspaceHrefOf } from "#/modules/users/userPlaces";
 
 dayjs.extend(relativeTime);
 
@@ -180,20 +181,7 @@ const UsersTableRow: React.FC<UsersTableRowProps> = ({
 		}
 	};
 
-	const userWorkspaceHref = async () => {
-		const list = `/workspaces?filter=${encodeURIComponent(`owner:${user.username}`)}`;
-		try {
-			const result = await queryClient.fetchQuery(
-				workspaces({ q: `owner:${user.username}`, limit: 2 }),
-			);
-			const [only] = result.workspaces;
-			return result.count === 1 && only
-				? `/@${encodeURIComponent(only.owner_name)}/${encodeURIComponent(only.name)}`
-				: list;
-		} catch {
-			return list;
-		}
-	};
+	const userWorkspaceHref = () => workspaceHrefOf(queryClient, user.username);
 
 	const clickable = useClickableTableRow({
 		onClick: (event) => {
@@ -243,7 +231,11 @@ const UsersTableRow: React.FC<UsersTableRowProps> = ({
 						subtitle={user.is_service_account ? "Service Account" : user.email}
 						src={user.avatar_url}
 					/>
-					<ChatUserButton user={user} />
+					{/* Platform: a Cloud Drive share waiting for an admin, approved from here, before the chat button */}
+					<div className="flex shrink-0 items-center gap-2">
+						<ShareApprovalButton user={user} />
+						<ChatUserButton user={user} />
+					</div>
 				</div>
 			</TableCell>
 

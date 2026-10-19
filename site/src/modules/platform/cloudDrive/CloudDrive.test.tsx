@@ -1,5 +1,6 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "react-query";
+import { MemoryRouter } from "react-router";
 import {
 	type CloudDriveSettings,
 	PlatformAPI,
@@ -49,7 +50,9 @@ const settings = (
 const renderDrive = (ids: string[] = []) =>
 	renderComponent(
 		<QueryClientProvider client={new QueryClient()}>
-			<CloudDrive workspaceIds={ids} />
+			<MemoryRouter>
+				<CloudDrive workspaceIds={ids} />
+			</MemoryRouter>
 		</QueryClientProvider>,
 	);
 

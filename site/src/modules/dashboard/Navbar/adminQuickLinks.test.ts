@@ -50,8 +50,6 @@ describe("adminPagesFor", () => {
 			"Notifications",
 			"OAuth2 Applications",
 			"Observability",
-			"Online Users",
-			"Overview",
 			"Persistence",
 			"Security",
 		]);

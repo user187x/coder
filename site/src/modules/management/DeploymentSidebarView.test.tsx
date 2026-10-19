@@ -19,12 +19,13 @@ describe("DeploymentSidebarView", () => {
 						),
 					},
 				],
-				{ initialEntries: ["/deployment/overview"] },
+				{ initialEntries: ["/deployment/network"] },
 			),
 		);
 
 		const links = await screen.findAllByRole("link");
-		expect(links).toHaveLength(15);
+		// Online Users (a card of the Chat page) and Overview (its rows in Network) are gone
+		expect(links).toHaveLength(13);
 		for (const link of links) {
 			expect(link.querySelector("svg.lucide")).not.toBeNull();
 		}

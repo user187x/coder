@@ -10,8 +10,16 @@ import {
 	UsersIcon,
 	XIcon,
 } from "lucide-react";
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+	useCallback,
+	useEffect,
+	useLayoutEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
+import { useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { getErrorMessage } from "#/api/errors";
 import { PlatformError } from "#/api/platform";
@@ -72,6 +80,13 @@ export const CloudDrive: React.FC<{
 	const [view, setView] = useState<View>("files");
 	// where the window opens: the user's own drive (""), or what is shared with them (its owner) at a folder
 	const [openAt, setOpenAt] = useState({ drive: "", path: "" });
+	// An admin's look at another account's Cloud Drive (read only), from a link (?cloudDrive=<id>&cloudDriveUser=
+	// &cloudDrivePath=: Accounts' share approvals, the chat's share card and console): the window opens on it once.
+	const [searchParams, setSearchParams] = useSearchParams();
+	const [inspect, setInspect] = useState<{
+		owner: string;
+		ownerName: string;
+	} | null>(null);
 	const container = useRef<HTMLDivElement>(null);
 	// Flush with the table's right edge (the toolbar it sits in may be wider than the table).
 	const [right, setRight] = useState(0);
@@ -152,6 +167,28 @@ export const CloudDrive: React.FC<{
 			),
 		[link.mutate],
 	);
+
+	const linkedDrive = searchParams.get("cloudDrive");
+	useEffect(() => {
+		if (!linkedDrive || !summary?.enabled) {
+			return;
+		}
+		const ownerName = searchParams.get("cloudDriveUser") || "their";
+		const path = searchParams.get("cloudDrivePath") || "";
+		setInspect({ owner: linkedDrive, ownerName });
+		setOpenAt({ drive: linkedDrive, path });
+		setView("files");
+		setOpen(true);
+		setSearchParams(
+			(params) => {
+				params.delete("cloudDrive");
+				params.delete("cloudDriveUser");
+				params.delete("cloudDrivePath");
+				return params;
+			},
+			{ replace: true },
+		);
+	}, [linkedDrive, summary?.enabled, searchParams, setSearchParams]);
 
 	if (
 		!summary ||
@@ -338,6 +375,7 @@ export const CloudDrive: React.FC<{
 							summary={summary}
 							initialDrive={openAt.drive}
 							initialPath={openAt.path}
+							inspect={inspect ?? undefined}
 						/>
 					) : view === "workspaces" ? (
 						<CloudDriveConnections />

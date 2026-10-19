@@ -1000,10 +1000,14 @@ export type ChatPeer = {
 	members?: ChatPeer[];
 };
 
-/** A group chat's first message, the admin's: in front of everything until the member clicks it (once). */
+/**
+ * In front of everything until the user clicks it: a group chat's first message, the admin's (once); or a message an
+ * admin forced on them (Forced Focus, Force Response: `forced`), its conversation the admin's or the group chat's.
+ */
 export type ChatFocus = {
 	group: ChatPeer;
 	message: ChatMessage;
+	forced?: boolean;
 };
 
 /** Whether a conversation's peer id is a group chat's. */
@@ -1160,10 +1164,13 @@ export type ChatState = ChatAvailability & {
 	typing: string[];
 	clearVersion: number;
 	focus?: ChatFocus[];
+	/** Bumped when a message is forced on someone or acknowledged: the poll answers at once. */
+	focusVersion?: number;
 };
 
 type ChatPoll = ChatAvailability & {
 	focus?: ChatFocus[];
+	focusVersion?: number;
 	messages: ChatMessage[];
 	typing: string[];
 	cleared: string[];
@@ -1178,6 +1185,8 @@ type ChatPollRequest = {
 	/** This tab's id, and the presence version it knows: the poll answers as soon as someone comes or goes. */
 	tab?: string;
 	presenceVersion?: number;
+	/** The focus version it knows: the poll answers as soon as a message is forced on the user. */
+	focusVersion?: number;
 };
 
 type ChatSendRequest = {
@@ -1189,6 +1198,8 @@ type ChatSendRequest = {
 	clientId?: string;
 	/** A file uploaded for it (uploadChatFile). */
 	upload?: string;
+	/** Admins: Forced Focus - in front of everything on the user's screen until they acknowledge it. */
+	focus?: boolean;
 };
 
 /** The last minutes of a workspace's network traffic, each agent's (the platform service samples it all the time). */
@@ -1673,6 +1684,8 @@ export type SafeListing = {
 	/** In a Cloud Drive shared with the caller: what they may do in this folder (null: a folder on the way to what is
 	 * shared, listing just that); absent in their own. */
 	access?: "read" | "write" | null;
+	/** An admin reading another account's Cloud Drive (read only). */
+	adminView?: boolean;
 	/** In such a folder on the way, each entry's own access (null: a folder on the way). */
 	folders: { name: string; access?: "read" | "write" | null }[];
 	files: (SafeFile & { access?: "read" | "write" | null })[];
@@ -2273,6 +2286,9 @@ export const PlatformAPI = {
 		if (req.presenceVersion !== undefined) {
 			query.set("pv", String(req.presenceVersion));
 		}
+		if (req.focusVersion !== undefined) {
+			query.set("fv", String(req.focusVersion));
+		}
 		return get<ChatPoll>(chat(`poll?${query}`));
 	},
 	/** This tab's user went idle (no input for 30 s) or came back. */
@@ -2322,6 +2338,12 @@ export const PlatformAPI = {
 		post<{ peer: ChatPeer }>(chat("groups"), { members }),
 	acknowledgeChatFocus: (group: string) =>
 		post<{ ok: true }>(chat("focus/ack"), { group }),
+	/** A message an admin forced on the user, acknowledged. */
+	acknowledgeForcedChat: (message: number) =>
+		post<{ ok: true }>(chat("focus/ack"), { message }),
+	/** Admins: Force Response - the newest admin message in the conversation, forced on them again. */
+	forceChatResponse: (to: string) =>
+		post<{ message: ChatMessage }>(chat("focus/force"), { to }),
 	deleteChatConversation: (to: string) =>
 		post<{ ok: true; deleted: number }>(chat("delete"), { to }),
 	setChatAvailability: (enabled: boolean) =>

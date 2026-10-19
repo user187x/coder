@@ -1,12 +1,15 @@
 import { cn } from "cn";
-import { ChevronUpIcon, MessageSquareIcon } from "lucide-react";
+import {
+	ChevronUpIcon,
+	MessageSquareIcon,
+	PanelsTopLeftIcon,
+} from "lucide-react";
 import { useQuery } from "react-query";
 import { chatAdmins } from "#/api/queries/platform";
 import { ChatAvatar } from "./ChatAvatar";
 import { ChatPeople } from "./ChatPeople";
 import { CountBadge } from "./ChatWindow";
 import {
-	closeConsole,
 	displayName,
 	hasRecentConversation,
 	markRead,
@@ -28,8 +31,8 @@ const LISTED_CONVERSATIONS = 15;
  * listing the admins to write to, and, when the admins turn peer-to-peer chat
  * on, the People online or active today (ChatPeople) with their own visible /
  * invisible switch. Admins have an on/off switch beside the handle
- * (developers only write to admins with chat on), and their handle opens the
- * chat console (ChatConsole) instead of the short list.
+ * (developers only write to admins with chat on), and a button that opens the
+ * chat console (ChatConsole) on its page, Controls › Settings › Chat.
  */
 export const ChatPanel: React.FC = () => {
 	const state = useChatSnapshot();
@@ -37,7 +40,7 @@ export const ChatPanel: React.FC = () => {
 	if (!me) {
 		return null;
 	}
-	const open = me.admin ? state.consoleOpen : state.drawerOpen;
+	const open = state.drawerOpen;
 	const total = unreadTotal(state);
 	const none = noAdminAvailable(state);
 	const label = none
@@ -57,13 +60,13 @@ export const ChatPanel: React.FC = () => {
 			<div
 				className={cn(
 					"grid transition-[grid-template-rows] duration-250 motion-reduce:transition-none",
-					state.drawerOpen && !me.admin
+					state.drawerOpen
 						? "grid-rows-[1fr] border-0 border-b border-solid border-border"
 						: "grid-rows-[0fr]",
 				)}
 			>
 				<div className="min-h-0 overflow-hidden">
-					{state.drawerOpen && !me.admin && <ChatList />}
+					{state.drawerOpen && <ChatList />}
 				</div>
 			</div>
 			<div className="flex items-center bg-surface-secondary">
@@ -73,15 +76,7 @@ export const ChatPanel: React.FC = () => {
 					aria-disabled={none}
 					aria-label={total ? `Chats, ${total} unread` : label}
 					title={none ? "No admin is taking chats right now" : undefined}
-					onClick={() => {
-						if (!me.admin) {
-							setDrawerOpen(!open);
-						} else if (open) {
-							closeConsole();
-						} else {
-							openConsole();
-						}
-					}}
+					onClick={() => setDrawerOpen(!open)}
 					className={cn(
 						"flex h-9 min-w-0 flex-1 items-center gap-2 border-0 bg-surface-secondary px-2.5 text-left text-[13px] font-semibold text-inherit",
 						none
@@ -108,6 +103,18 @@ export const ChatPanel: React.FC = () => {
 						)}
 					/>
 				</button>
+				{me.admin && (
+					<button
+						type="button"
+						onClick={() => openConsole()}
+						aria-label="Open the chat console"
+						title="Open the chat console (Controls › Settings › Chat)"
+						data-testid="chat-open-console"
+						className="inline-flex h-9 shrink-0 cursor-pointer items-center border-0 bg-transparent px-1.5 text-content-secondary hover:text-content-primary"
+					>
+						<PanelsTopLeftIcon className="size-4" />
+					</button>
+				)}
 				{me.admin && (
 					<button
 						type="button"
@@ -198,7 +205,8 @@ const ChatList: React.FC = () => {
 			{me.admin ? (
 				!conversations.length && (
 					<p className="m-2 text-[13px] text-content-secondary">
-						No conversations yet. Start one with "Chat" in Admin › Accounts.
+						No conversations yet. Start one with "Chat" in Controls › Settings ›
+						Accounts.
 					</p>
 				)
 			) : (

@@ -1,10 +1,11 @@
 import { useEffect, useRef } from "react";
+import { useLocation, useNavigate } from "react-router";
 import { isEmbeddedFrame } from "#/contexts/platformBoot";
-import { ChatConsole } from "./ChatConsole";
 import { ChatFocusOverlay } from "./ChatFocusOverlay";
 import { ChatPanel } from "./ChatPanel";
 import { ChatWindow } from "./ChatWindow";
 import { setDrawerOpen, useChatConnection, useChatSnapshot } from "./chatStore";
+import { CHAT_CONSOLE_PAGE } from "./consolePlaces";
 
 // What may be fixed or sticky at the window's edges: the classification
 // marking, the deployment stats footer, the navbar.
@@ -108,7 +109,8 @@ const useDockMeasurements = (dock: React.RefObject<HTMLDivElement | null>) => {
  * Chat windows docked at the bottom right of every dashboard page, above the
  * Chats panel. An admin starts a conversation with "Chat" in Admin >
  * Accounts; the other person gets a window as soon as the message arrives, on
- * whatever page they have open.
+ * whatever page they have open. Admins' chat console is not here: asked for
+ * (the panel's console button, the bell), the dashboard goes to its page.
  */
 export const ChatDock: React.FC = () => {
 	const embedded = isEmbeddedFrame();
@@ -117,6 +119,20 @@ export const ChatDock: React.FC = () => {
 	useDockMeasurements(dock);
 
 	useChatConnection(!embedded);
+
+	// The console was asked for (openConsole): its page, the Chat page's first card.
+	const navigate = useNavigate();
+	const location = useLocation();
+	const consoleRequest = useRef(state.consoleRequest);
+	useEffect(() => {
+		if (state.consoleRequest === consoleRequest.current) {
+			return;
+		}
+		consoleRequest.current = state.consoleRequest;
+		if (location.pathname !== CHAT_CONSOLE_PAGE) {
+			navigate(CHAT_CONSOLE_PAGE);
+		}
+	}, [state.consoleRequest, location.pathname, navigate]);
 
 	// Clicking elsewhere or pressing Escape closes the panel.
 	useEffect(() => {
@@ -155,17 +171,12 @@ export const ChatDock: React.FC = () => {
 			className="pointer-events-none fixed right-4 z-[60] flex flex-col items-end gap-2 text-sm text-content-primary transition-[bottom] duration-200 motion-reduce:transition-none [&>*]:pointer-events-auto"
 			style={{ bottom: "var(--chat-bottom, 0px)" }}
 		>
-			{/* Admins' console takes the place of the windows while it is open. */}
-			{state.consoleOpen && state.me.admin ? (
-				<ChatConsole dock={dock} />
-			) : (
-				state.windows.length > 0 && (
-					<div className="pointer-events-none flex flex-row-reverse items-end gap-3 [&>*]:pointer-events-auto">
-						{state.windows.map((w) => (
-							<ChatWindow key={w.peer.id} window={w} dock={dock} />
-						))}
-					</div>
-				)
+			{state.windows.length > 0 && (
+				<div className="pointer-events-none flex flex-row-reverse items-end gap-3 [&>*]:pointer-events-auto">
+					{state.windows.map((w) => (
+						<ChatWindow key={w.peer.id} window={w} dock={dock} />
+					))}
+				</div>
 			)}
 			<ChatPanel />
 			<ChatFocusOverlay />

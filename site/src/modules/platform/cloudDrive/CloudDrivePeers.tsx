@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
+import { Link as RouterLink } from "react-router";
 import { toast } from "sonner";
 import { getErrorMessage } from "#/api/errors";
 import {
@@ -35,7 +36,9 @@ import { Label } from "#/components/Label/Label";
 import { RadioGroup, RadioGroupItem } from "#/components/RadioGroup/RadioGroup";
 import { Spinner } from "#/components/Spinner/Spinner";
 import { Switch } from "#/components/Switch/Switch";
+import { userCloudDriveHref } from "#/modules/users/userPlaces";
 import { createDayString } from "#/utils/createDayString";
+import { openPath } from "./sharedWithYou";
 
 const ACCESS_WORDS = { read: "read only", write: "read and write" } as const;
 
@@ -171,7 +174,9 @@ export const AnswerButtons: React.FC<{ share: CloudDriveShare }> = ({
 
 /**
  * A share's card in a chat message (ChatConversation): who asks for whose Cloud Drive, its state now, and - for its
- * owner while it waits for them - the answer buttons.
+ * owner while it waits for them - the answer buttons; for admins while it waits for one (the "Approve Cloud Drive
+ * share" message) Approve and Deny at once, and both people's names leading to their Cloud Drive (read only: the
+ * owner's at what is shared) to look before approving.
  */
 export const CloudDriveShareCard: React.FC<{
 	shareId: string;
@@ -188,6 +193,22 @@ export const CloudDriveShareCard: React.FC<{
 		return null;
 	}
 	const mineToAnswer = share.owner === meId && share.state === "asked";
+	const admin = Boolean(data?.admin);
+	const toApprove = admin && share.state === "approval";
+	// Admins: a name leads to that person's Cloud Drive (the owner's at what is shared), to look before approving.
+	const person = (id: string, username: string, path = "") =>
+		admin && id !== meId ? (
+			<RouterLink
+				to={userCloudDriveHref({ id, username }, path)}
+				className="font-semibold text-content-link underline-offset-2 hover:underline"
+				title={`Open ${username}'s Cloud Drive (read only)`}
+				data-testid={`cloud-drive-share-card-user-${username}`}
+			>
+				{username}
+			</RouterLink>
+		) : (
+			username
+		);
 	return (
 		<div
 			className="mt-1.5 flex flex-col gap-1.5 rounded-lg border border-solid border-border bg-surface-primary p-2 text-xs"
@@ -195,8 +216,20 @@ export const CloudDriveShareCard: React.FC<{
 		>
 			<span className="flex items-center gap-1.5 font-medium">
 				<CloudIcon aria-hidden className="size-3.5 text-content-link" />
-				{share.owner === meId ? "Your" : `${share.ownerName}'s`}{" "}
-				{sharedThing(share)} for {share.from === meId ? "you" : share.fromName}
+				{share.owner === meId ? (
+					"Your"
+				) : (
+					<>
+						{person(
+							share.owner,
+							share.ownerName,
+							share.kind === "drive" ? "" : openPath(share),
+						)}
+						's
+					</>
+				)}{" "}
+				{sharedThing(share)} for{" "}
+				{share.from === meId ? "you" : person(share.from, share.fromName)}
 				<span className="text-content-secondary">
 					({ACCESS_WORDS[share.access]})
 				</span>
@@ -205,7 +238,36 @@ export const CloudDriveShareCard: React.FC<{
 				<StateBadge share={share} />
 			</span>
 			{mineToAnswer && <AnswerButtons share={share} />}
+			{toApprove && <ApproveButtons share={share} />}
 		</div>
+	);
+};
+
+/** An admin's answer to a share waiting for one: approve or deny it, here in the chat. */
+const ApproveButtons: React.FC<{ share: CloudDriveShare }> = ({ share }) => {
+	const { approve } = useShareActions();
+	return (
+		<span className="flex flex-wrap gap-1.5">
+			<Button
+				size="xs"
+				disabled={approve.isPending}
+				onClick={() => approve.mutate({ id: share.id, approve: true })}
+				data-testid="share-card-approve"
+			>
+				<CheckIcon />
+				Approve
+			</Button>
+			<Button
+				size="xs"
+				variant="outline"
+				disabled={approve.isPending}
+				onClick={() => approve.mutate({ id: share.id, approve: false })}
+				data-testid="share-card-deny"
+			>
+				<XIcon />
+				Deny
+			</Button>
+		</span>
 	);
 };
 

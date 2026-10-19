@@ -100,9 +100,6 @@ const TemplateVersionsRedirect = lazy(() =>
 const CreateWorkspacePage = lazy(
 	() => import("./pages/CreateWorkspacePage/CreateWorkspacePage"),
 );
-const OverviewPage = lazy(
-	() => import("./pages/DeploymentSettingsPage/OverviewPage/OverviewPage"),
-);
 const SecuritySettingsPage = lazy(
 	() =>
 		import(
@@ -155,9 +152,8 @@ const ChatSettingsPage = lazy(
 	() =>
 		import("./pages/DeploymentSettingsPage/ChatSettingsPage/ChatSettingsPage"),
 );
-const OnlineUsersPage = lazy(
-	() =>
-		import("./pages/DeploymentSettingsPage/OnlineUsersPage/OnlineUsersPage"),
+const ChatConsoleWindowPage = lazy(
+	() => import("./pages/ChatConsoleWindowPage/ChatConsoleWindowPage"),
 );
 const AnnouncementSettingsPage = lazy(
 	() =>
@@ -534,7 +530,11 @@ export const router = createBrowserRouter(
 
 					<Route path="/deployment" element={<DeploymentSettingsLayout />}>
 						<Route element={<DeploymentConfigProvider />}>
-							<Route path="overview" element={<OverviewPage />} />
+							{/* Overview is gone: its rows lead Network's table */}
+							<Route
+								path="overview"
+								element={<Navigate to="/deployment/network" replace />}
+							/>
 							<Route path="security" element={<SecuritySettingsPage />} />
 							<Route
 								path="observability"
@@ -561,7 +561,11 @@ export const router = createBrowserRouter(
 						<Route path="appearance" element={<AppearanceSettingsPage />} />
 						<Route path="announcement" element={<AnnouncementSettingsPage />} />
 						<Route path="chat" element={<ChatSettingsPage />} />
-						<Route path="online" element={<OnlineUsersPage />} />
+						{/* Online Users is a card of the Chat page now */}
+						<Route
+							path="online"
+							element={<Navigate to="/deployment/chat#online-users" replace />}
+						/>
 						<Route
 							path="classification"
 							element={<ClassificationSettingsPage />}
@@ -684,6 +688,8 @@ export const router = createBrowserRouter(
 					path="/:username/:workspace/terminal"
 					element={<TerminalPage />}
 				/>
+				{/* Admins' chat console popped out of the Chat page: a window of its own, no dashboard */}
+				<Route path="/chat-console" element={<ChatConsoleWindowPage />} />
 				<Route path="/cli-auth" element={<CliAuthPage />} />
 				<Route path="/coder-cup" element={<CoderCupPage />} />
 				<Route path="/icons" element={<IconsPage />} />

@@ -78,3 +78,41 @@ describe("InboxPopover Clear all", () => {
 		expect(screen.getByTestId("inbox-clear-all")).toBeEnabled();
 	});
 });
+
+describe("searchNotifications (the Inbox's search box)", () => {
+	it("keeps the notifications whose title or text holds every word, case aside", async () => {
+		const { searchNotifications } = await import("./InboxPopover");
+		const n = (id: string, title: string, content: string) =>
+			({
+				id,
+				user_id: "u",
+				template_id: "t",
+				targets: [],
+				title,
+				content,
+				icon: "",
+				actions: [],
+				read_at: null,
+				created_at: "2026-10-18T00:00:00Z",
+			}) as const;
+		const all = [
+			n("1", "User account t75c has been deleted", "by admin"),
+			n("2", "Workspace build failed", "greg-workspace on node coder"),
+			n("3", "New user account greg", "created by admin"),
+		];
+		expect(searchNotifications(all, "").map((x) => x.id)).toEqual([
+			"1",
+			"2",
+			"3",
+		]);
+		expect(searchNotifications(all, "GREG").map((x) => x.id)).toEqual([
+			"2",
+			"3",
+		]);
+		expect(searchNotifications(all, "account admin").map((x) => x.id)).toEqual([
+			"1",
+			"3",
+		]);
+		expect(searchNotifications(all, "nothing here")).toEqual([]);
+	});
+});

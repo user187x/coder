@@ -9,9 +9,12 @@
  * remembered per tab (sessionStorage), so they survive reloads.
  *
  * Admins have the chat console besides (ChatConsole): every conversation in one
- * list, one open at a time. While it is open, or once the dock holds as many
- * windows as fit, a new message from someone else does not pop up a window:
- * it waits in the console's list, counted, so a busy hour stays orderly.
+ * list, one open at a time. It lives on the Chat page of Controls › Settings (or
+ * in a window of its own, popped out of it), not over the dashboard: opening it
+ * asks the dashboard to go there (consoleRequest). While it is open, or once the
+ * dock holds as many windows as fit, a new message from someone else does not
+ * pop up a window: it waits in the console's list, counted, so a busy hour
+ * stays orderly.
  */
 import { useEffect, useSyncExternalStore } from "react";
 import {
@@ -77,9 +80,11 @@ type ChatSnapshot = {
 	/** Peer-to-peer chat is on: developers see the People list and write to each other. */
 	peers: boolean;
 	drawerOpen: boolean;
-	/** Admins: the chat console, and the conversation open in it. */
+	/** Admins: the chat console (shown on the Chat page, or popped out), and the conversation open in it. */
 	consoleOpen: boolean;
 	consoleView: ChatWindowState | null;
+	/** Bumped to ask the dashboard to show the console's page (ChatDock follows it). */
+	consoleRequest: number;
 	/** Group chats' first messages this user has not clicked yet: in front of everything (ChatFocusOverlay). */
 	focus: readonly ChatFocus[];
 };
@@ -98,6 +103,7 @@ const initialSnapshot: ChatSnapshot = {
 	drawerOpen: false,
 	consoleOpen: false,
 	consoleView: null,
+	consoleRequest: 0,
 	focus: [],
 };
 
@@ -105,6 +111,9 @@ let snapshot = initialSnapshot;
 let cursor = 0;
 let clearVersion = 0;
 let purgeVersion = 0;
+let focusVersion: number | undefined;
+// The conversation the console shows once it is on screen (openConsole before the Chat page is there).
+let pendingConsolePeer: ChatPeer | null = null;
 let started: Promise<void> | null = null;
 // The chat runs while a dock shows it; its loops stop once none does (the
 // page left the dashboard), and start again with the next dock.
@@ -543,6 +552,7 @@ const signedOut = () => {
 	cursor = 0;
 	clearVersion = 0;
 	purgeVersion = 0;
+	focusVersion = undefined;
 	for (const listener of listeners) {
 		listener();
 	}
@@ -571,6 +581,7 @@ const poll = async () => {
 				availVersion: snapshot.availVersion,
 				tab: TAB_ID,
 				presenceVersion: snapshot.presenceVersion,
+				focusVersion,
 			});
 			backoff = 2000;
 			clearVersion = Math.max(clearVersion, result.clearVersion || 0);
@@ -581,6 +592,7 @@ const poll = async () => {
 			for (const message of result.messages) {
 				receive(message);
 			}
+			focusVersion = result.focusVersion ?? focusVersion;
 			update({ typing: new Set(result.typing), focus: result.focus ?? [] });
 		} catch (error) {
 			if (statusOf(error) === 401) {
@@ -612,6 +624,7 @@ const boot = async () => {
 	cursor = state.cursor;
 	clearVersion = state.clearVersion || 0;
 	purgeVersion = state.purgeVersion ?? 0;
+	focusVersion = state.focusVersion;
 	const conversations = state.conversations ?? [];
 	update({
 		me: state.me,
@@ -762,6 +775,7 @@ export const sendChatMessage = async (
 	text: string,
 	screenshot?: { dataURL: string; page: string },
 	upload?: string,
+	options: { focus?: boolean } = {},
 ) => {
 	const request = {
 		to: peerId,
@@ -769,6 +783,7 @@ export const sendChatMessage = async (
 		clientId: newClientId(),
 		...(screenshot ? { image: screenshot.dataURL, page: screenshot.page } : {}),
 		...(upload ? { upload } : {}),
+		...(options.focus ? { focus: true } : {}),
 	};
 	let result: { message: ChatMessage } | undefined;
 	for (let attempt = 0; !result; attempt++) {
@@ -813,8 +828,26 @@ export const loadOlderMessages = async (peerId: string) => {
 
 // ---------------------------------------------------------------- console (admins)
 
-/** Opens the console, on this conversation (else the one it showed, else the first waiting). */
+/**
+ * Shows the console, on this conversation (else the one it showed, else the newest): where it is on screen, at once;
+ * else the dashboard is asked to go to its page (the Chat page), where it opens on it (attachConsole).
+ */
 export const openConsole = (peer?: ChatPeer) => {
+	if (!snapshot.consoleOpen) {
+		pendingConsolePeer = peer ?? pendingConsolePeer;
+		update({ consoleRequest: snapshot.consoleRequest + 1, drawerOpen: false });
+		return;
+	}
+	update({ drawerOpen: false });
+	if (peer) {
+		selectInConsole(peer);
+	}
+};
+
+/** The console is on screen (the Chat page's card, or its own window): it shows what was asked for, else the newest. */
+export const attachConsole = () => {
+	const peer = pendingConsolePeer;
+	pendingConsolePeer = null;
 	update({ consoleOpen: true, drawerOpen: false });
 	if (peer) {
 		selectInConsole(peer);
@@ -830,6 +863,7 @@ export const openConsole = (peer?: ChatPeer) => {
 	}
 };
 
+/** The console left the screen (its page closed, or it went into a window of its own). */
 export const closeConsole = () => update({ consoleOpen: false });
 
 /** Shows this conversation in the console (its window, if one is open, keeps its own copy). */
@@ -856,9 +890,8 @@ export const selectInConsole = (peer: ChatPeer, focus = false) => {
 	markRead(peer.id, true);
 };
 
-/** Pops the console's conversation out into a window of its own. */
+/** The console's conversation in a chat window of its own too (the dock's, on every page). */
 export const popOutOfConsole = (peer: ChatPeer) => {
-	closeConsole();
 	openWindow(peer, { focus: true });
 	markRead(peer.id, true);
 };
@@ -901,13 +934,32 @@ export const startGroupChat = async (memberIds: readonly string[]) => {
 	return peer;
 };
 
-/** The member clicked a group chat's first message: it lets go of the page, and its conversation opens. */
-export const acknowledgeFocus = async (item: ChatFocus) => {
-	update({ focus: snapshot.focus.filter((f) => f.group.id !== item.group.id) });
+/**
+ * The user clicked what took their focus - a group chat's first message, or a message an admin forced on them: it
+ * lets go of the page, and (with `reply`, the default) its conversation opens to answer.
+ */
+export const acknowledgeFocus = async (item: ChatFocus, reply = true) => {
+	update({
+		focus: snapshot.focus.filter((f) =>
+			item.forced
+				? !(f.forced && f.message.id === item.message.id)
+				: f.forced || f.group.id !== item.group.id,
+		),
+	});
 	try {
-		await PlatformAPI.acknowledgeChatFocus(item.group.id);
+		if (item.forced) {
+			await PlatformAPI.acknowledgeForcedChat(item.message.id);
+		} else {
+			await PlatformAPI.acknowledgeChatFocus(item.group.id);
+		}
 	} catch {
 		// Shown again by the next poll if it was not recorded.
 	}
-	await openChatWith(item.group);
+	if (reply) {
+		await openChatWith(item.group);
+	}
 };
+
+/** Admins: Force Response - the newest admin message in the conversation comes up in front of everything for them. */
+export const forceResponse = (peerId: string) =>
+	PlatformAPI.forceChatResponse(peerId);
