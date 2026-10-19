@@ -436,7 +436,8 @@ const ImageRow: React.FC<{
 								className="text-xs text-content-success"
 								data-testid="image-projected"
 							>
-								{summary.fixable} fixable → {summary.projectedGrade}
+								{summary.fixableHere ?? summary.fixable} fixable →{" "}
+								{summary.projectedGrade}
 							</span>
 						) : (
 							fixableHigh > 0 && (

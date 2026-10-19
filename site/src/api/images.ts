@@ -67,9 +67,11 @@ export type ReportSummary = {
 	/** Programs the image adds over its base, and apt packages asked for (addons.json; 0 without one). */
 	addons?: number;
 	addonPackages?: number;
-	/** Findings of each severity with a fixed version. */
+	/** Findings of each severity Fix image can fix (OS and Python packages with a fixed version). */
 	fixableCounts?: Partial<Record<Severity, number>>;
-	/** The grade with every fixable finding fixed (null: not scanned). */
+	/** How many findings Fix image can fix (fixable: every one with a fixed version). */
+	fixableHere?: number;
+	/** The grade with every finding Fix image can fix fixed (null: not scanned). */
 	projectedGrade?: string | null;
 	/** Graded D or F, and fixing what has a fix would raise it: the list's Needs fixing and Fix CVEs. */
 	needsFixing?: boolean;
