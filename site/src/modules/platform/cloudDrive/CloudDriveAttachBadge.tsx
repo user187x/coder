@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { useQuery } from "react-query";
 import { cloudDriveConnections } from "#/api/queries/platform";
 import type { Workspace } from "#/api/typesGenerated";
@@ -46,14 +47,28 @@ export const CloudUnpluggedIcon: React.FC<{ className?: string }> = ({
  * pulsing, while the signed-in user's Cloud Drive is connected to the workspace but not attached in its container yet
  * (the workspace says so: its agent's metadata, the service's connections' attachment) - gone once it is. Its cable
  * stays red as long (CloudDriveRopes). Only the user's own workspaces (the drive is theirs alone); nothing for one whose
- * template does not report it.
+ * template does not report it. As one of them starts (its build, then each change of its status), the connections are
+ * read again at once: read before it started, they hold no word of it, and nothing would be waited for (the next read
+ * 30 seconds later) - read now, it is "starting", and they are read every two seconds until it is attached.
  */
 export const CloudDriveAttachBadge: React.FC<{ workspace: Workspace }> = ({
 	workspace,
 }) => {
 	const { user } = useAuthenticated();
 	const mine = workspace.owner_id === user.id;
-	const { data } = useQuery(cloudDriveConnections(mine));
+	const { data, refetch } = useQuery(cloudDriveConnections(mine));
+	const starting =
+		mine && workspace.latest_build.transition === "start"
+			? `${workspace.latest_build.id}:${workspace.latest_build.status}`
+			: "";
+	const phase = useRef(starting);
+	useEffect(() => {
+		// not on the page's first look (every row would read them): when it changes
+		if (starting && starting !== phase.current) {
+			void refetch();
+		}
+		phase.current = starting;
+	}, [starting, refetch]);
 	const word =
 		mine && workspace.latest_build.status === "running"
 			? attachmentPending(data, workspace.id)
