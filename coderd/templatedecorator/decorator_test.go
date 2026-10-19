@@ -156,6 +156,21 @@ func TestExtractRefusesSectionsThatUseResourcesOutsideThem(t *testing.T) {
 	require.ErrorContains(t, err, "no end")
 }
 
+// A for expression's own names are no references: [for p in local.x : p.claim] uses local.x, not a resource p.
+func TestExtractForExpressions(t *testing.T) {
+	t.Parallel()
+	withFor := strings.Replace(prototype, `script   = local.platform_lockdown_sh`,
+		`script   = join(" ", [for p in [local.platform_lockdown_sh, var.namespace] : p.claim if p.ok], { for k, v in {} : k => v.x }[""])`, 1)
+	p, err := templatedecorator.Extract([]byte(withFor), scripts, nil)
+	require.NoError(t, err)
+	require.Contains(t, p.Requires, "var.namespace") // what it iterates over is still required
+	// still refused: a resource outside the sections, inside a for expression
+	bad := strings.Replace(prototype, `script   = local.platform_lockdown_sh`,
+		`script   = join(" ", [for p in [1] : kubernetes_deployment_v1.main.id])`, 1)
+	_, err = templatedecorator.Extract([]byte(bad), scripts, nil)
+	require.ErrorContains(t, err, "kubernetes_deployment_v1.main")
+}
+
 func TestStrip(t *testing.T) {
 	t.Parallel()
 	out, only, err := templatedecorator.Strip([]byte(prototype))

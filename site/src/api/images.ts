@@ -342,9 +342,15 @@ export type ImageContents = {
 	steps: { step: string; size: string; comment: string }[];
 	/** The programs we put in it, each with the version it reports itself. */
 	programs: { name: string; what: string; version: string | null }[];
-	/** The workspace images' add-ons (addons.json). */
-	addons: ImageAddons | null;
-	packages: {
+	/** The workspace images' add-ons (addons.json): any part may be missing (an image without a Python environment). */
+	addons: {
+		base?: string | null;
+		builtAt?: string | null;
+		software?: ImageAddons["software"];
+		packages?: Partial<ImageAddons["packages"]>;
+		python?: Partial<ImageAddons["python"]>;
+	} | null;
+	packages?: {
 		os: {
 			manager: "dpkg" | "apk";
 			count: number;

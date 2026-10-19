@@ -130,8 +130,24 @@ const pairs = (items: [string, string][], prefix: string): Leaf[] =>
 		value: version,
 	}));
 
+/** Its add-ons and packages with every part there (an image's addons.json may have no Python part, an image no package manager). */
+const parts = (c: ImageContents) => ({
+	addons: c.addons
+		? {
+				software: c.addons.software ?? [],
+				added: c.addons.packages?.added ?? [],
+				dependencies: c.addons.packages?.dependencies ?? 0,
+				pythonEnvironment: c.addons.python?.environment ?? null,
+				python: c.addons.python?.packages ?? [],
+			}
+		: null,
+	os: c.packages?.os ?? null,
+	python: c.packages?.python ?? [],
+});
+
 /** An image's contents as a tree: overview, configuration, programs, add-ons, packages, environments, steps. */
 export const contentsTree = (c: ImageContents): Node[] => {
+	const { addons: a, os, python } = parts(c);
 	const nodes: Node[] = [
 		{
 			id: "overview",
@@ -226,7 +242,6 @@ export const contentsTree = (c: ImageContents): Node[] => {
 			})),
 		});
 	}
-	const a = c.addons;
 	if (a) {
 		const groups = [...new Set(a.software.map((s) => s.group ?? "Other"))];
 		nodes.push({
@@ -251,23 +266,23 @@ export const contentsTree = (c: ImageContents): Node[] => {
 				})),
 				{
 					id: "addons-apt",
-					label: `apt packages asked for (and ${a.packages.dependencies} they depend on)`,
-					count: a.packages.added.length,
+					label: `apt packages asked for (and ${a.dependencies} they depend on)`,
+					count: a.added.length,
 					columns: true,
-					leaves: a.packages.added.map((p) => ({
+					leaves: a.added.map((p) => ({
 						key: `apt-${p.name}`,
 						name: p.name,
 						value: p.version,
 					})),
 				},
-				...(a.python.packages.length
+				...(a.python.length
 					? [
 							{
 								id: "addons-python",
-								label: `Python packages${a.python.environment ? ` (${a.python.environment})` : ""}`,
-								count: a.python.packages.length,
+								label: `Python packages${a.pythonEnvironment ? ` (${a.pythonEnvironment})` : ""}`,
+								count: a.python.length,
 								columns: true,
-								leaves: a.python.packages.map((p) => ({
+								leaves: a.python.map((p) => ({
 									key: `addon-py-${p.name}`,
 									name: p.name,
 									value: p.version,
@@ -278,7 +293,6 @@ export const contentsTree = (c: ImageContents): Node[] => {
 			],
 		});
 	}
-	const os = c.packages.os;
 	if (os) {
 		nodes.push({
 			id: "os",
@@ -288,12 +302,12 @@ export const contentsTree = (c: ImageContents): Node[] => {
 			leaves: pairs(os.items, "os"),
 		});
 	}
-	if (c.packages.python.length) {
+	if (python.length) {
 		nodes.push({
 			id: "python",
 			label: "Python environments",
-			count: c.packages.python.reduce((n, e) => n + e.count, 0),
-			children: c.packages.python.map((e) => ({
+			count: python.reduce((n, e) => n + e.count, 0),
+			children: python.map((e) => ({
 				id: `python-${e.env}`,
 				label: e.env,
 				count: e.count,
@@ -489,17 +503,19 @@ export const ContentsToggle: React.FC<{
 	</Button>
 );
 
-const summary = (c: ImageContents) =>
-	[
+const summary = (c: ImageContents) => {
+	const { addons, os, python } = parts(c);
+	return [
 		c.programs.length &&
 			`${c.programs.length} program${c.programs.length === 1 ? "" : "s"}`,
-		c.addons?.software.length && `${c.addons.software.length} add-ons`,
-		c.packages.os && `${c.packages.os.count} OS packages`,
-		c.packages.python.length &&
-			`${c.packages.python.reduce((n, e) => n + e.count, 0)} Python packages`,
+		addons?.software.length && `${addons.software.length} add-ons`,
+		os && `${os.count} OS packages`,
+		python.length &&
+			`${python.reduce((n, e) => n + e.count, 0)} Python packages`,
 	]
 		.filter(Boolean)
 		.join(" · ");
+};
 
 /**
  * Coder fork images: every image the fork builds (images.txt's ghcr.io/user187x/), each with what it holds, read

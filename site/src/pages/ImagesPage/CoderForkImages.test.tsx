@@ -61,7 +61,7 @@ const workspace: ImageContents = {
 			upgraded: 3,
 			installed: 1300,
 		},
-		python: { environment: null, packages: [] },
+		// as the workspace images' addons.json has it: no "python" part
 	},
 	packages: {
 		os: {
@@ -214,6 +214,24 @@ describe("ImageContentsTree", () => {
 			target: { value: "nothing-like-it" },
 		});
 		expect(screen.getByText("Nothing matches.")).toBeInTheDocument();
+	});
+});
+
+describe("an image's parts missing", () => {
+	it("still opens: add-ons without packages or Python, no OS package manager", () => {
+		const sparse: ImageContents = {
+			...workspace,
+			addons: {
+				software: [
+					{ name: "code-server", what: null, group: null, version: "4.141.0" },
+				],
+			},
+			packages: undefined,
+		};
+		withQueries(<ImageContentsTree ours={{ contents: sparse, exact: true }} />);
+		expect(screen.getByTestId("contents-addons")).toHaveTextContent("Add-ons1");
+		expect(screen.queryByTestId("contents-os")).toBeNull();
+		expect(screen.queryByTestId("contents-python")).toBeNull();
 	});
 });
 

@@ -367,16 +367,22 @@ func references(text string, name string) ([]string, error) {
 		}
 		return nil
 	})
-	_ = hclsyntax.VisitAll(f.Body.(*hclsyntax.Body), func(n hclsyntax.Node) hcl.Diagnostics {
-		if e, ok := n.(hclsyntax.Expression); ok {
-			for _, t := range e.Variables() {
+	// Each attribute's whole expression: its Variables() leave out what a for expression declares ([for p in x :
+	// p.claim] refers to x, not to p.claim) - asked of the expressions inside it one by one, they would not.
+	var walk func(b *hclsyntax.Body)
+	walk = func(b *hclsyntax.Body) {
+		for _, a := range b.Attributes {
+			for _, t := range a.Expr.Variables() {
 				if ref := refOf(t); ref != "" && !iterators[t.RootName()] {
 					set[ref] = true
 				}
 			}
 		}
-		return nil
-	})
+		for _, blk := range b.Blocks {
+			walk(blk.Body)
+		}
+	}
+	walk(f.Body.(*hclsyntax.Body))
 	out := make([]string, 0, len(set))
 	for k := range set {
 		out = append(out, k)
