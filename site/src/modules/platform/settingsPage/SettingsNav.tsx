@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { cn } from "cn";
+import { Fragment, useEffect, useMemo, useState } from "react";
 
 export type SettingsNavLink = {
 	/** The card's id (its anchor). */
@@ -43,6 +44,15 @@ const useSectionInView = (ids: readonly string[]) => {
 	return current;
 };
 
+/** A value with a place to break after each _ and - (troubling_ / holmes10), not in the middle of a word. */
+const breakable = (value: string) =>
+	value.split(/(?<=[_-])/).map((part, i) => (
+		<Fragment key={i}>
+			{i > 0 && <wbr />}
+			{part}
+		</Fragment>
+	));
+
 /**
  * A settings page's left column: a link to each card (the one in view marked), and At a glance - what the page's
  * form holds now, changed or not.
@@ -84,9 +94,15 @@ export const SettingsNav: React.FC<{
 				<div className="ws-eyebrow">At a glance</div>
 				{glance.map((row) => (
 					<div key={row.label} className="flex justify-between gap-3">
-						<span className="text-(--ws-muted)">{row.label}</span>
-						<span className={row.mono ? "ws-mono text-right" : "text-right"}>
-							{row.value}
+						<span className="shrink-0 text-(--ws-muted)">{row.label}</span>
+						{/* A long value without spaces (a version's name) breaks inside the panel, not past it */}
+						<span
+							className={cn(
+								"min-w-0 text-right [overflow-wrap:anywhere]",
+								row.mono && "ws-mono",
+							)}
+						>
+							{breakable(row.value)}
 						</span>
 					</div>
 				))}

@@ -13,12 +13,14 @@ import {
 	insightsUserActivity,
 	insightsUserLatency,
 } from "#/api/queries/insights";
+import { richParameters } from "#/api/queries/templates";
 import type {
 	Template,
 	TemplateAppUsage,
 	TemplateInsightsResponse,
 	TemplateParameterUsage,
 	TemplateParameterValue,
+	TemplateVersionParameter,
 	UserActivityInsightsResponse,
 	UserLatencyInsightsResponse,
 } from "#/api/typesGenerated";
@@ -50,6 +52,10 @@ import {
 } from "#/utils/time";
 import { ActiveUserChart } from "./ActiveUserChart";
 import { type InsightsInterval, IntervalMenu } from "./IntervalMenu";
+import {
+	type MergedParameterUsage,
+	mergeParameterUsage,
+} from "./parameterUsage";
 import { lastWeeks } from "./utils";
 import { numberOfWeeksOptions, WeekPicker } from "./WeekPicker";
 
@@ -101,6 +107,11 @@ export default function TemplateDetailsSection() {
 		...insightsUserActivity(commonFilters),
 		enabled: canViewInsights,
 	});
+	// Platform: the active version's parameters name and order Parameters usage (one entry per parameter).
+	const currentParameters = useQuery({
+		...richParameters(template.active_version_id),
+		enabled: canViewInsights,
+	});
 
 	if (!canViewInsights) {
 		return null;
@@ -127,6 +138,7 @@ export default function TemplateDetailsSection() {
 				userLatency={userLatency}
 				userActivity={userActivity}
 				interval={interval}
+				currentParameters={currentParameters.data}
 			/>
 		</section>
 	);
@@ -229,11 +241,20 @@ type TemplateInsightsPageViewProps = {
 	};
 	controls: React.ReactNode;
 	interval: InsightsInterval;
+	/** The active version's parameters (Parameters usage names and orders by them). */
+	currentParameters?: readonly TemplateVersionParameter[];
 };
 
 export const TemplateInsightsPageView: React.FC<
 	TemplateInsightsPageViewProps
-> = ({ templateInsights, userLatency, userActivity, controls, interval }) => {
+> = ({
+	templateInsights,
+	userLatency,
+	userActivity,
+	controls,
+	interval,
+	currentParameters,
+}) => {
 	return (
 		<>
 			<div className="flex items-center gap-2 mb-8">{controls}</div>
@@ -257,6 +278,7 @@ export const TemplateInsightsPageView: React.FC<
 				<TemplateParametersUsagePanel
 					className="col-span-3"
 					data={templateInsights.data?.report?.parameters_usage}
+					current={currentParameters}
 					error={templateInsights.error}
 				/>
 			</div>
@@ -485,19 +507,22 @@ const TemplateUsagePanel: React.FC<TemplateUsagePanelProps> = ({
 
 type TemplateParametersUsagePanelProps = {
 	data: readonly TemplateParameterUsage[] | undefined;
+	/** The active version's parameters: one entry per parameter, named and ordered by them. */
+	current?: readonly TemplateVersionParameter[];
 	error: unknown;
 } & PanelProps;
 
 const TemplateParametersUsagePanel: React.FC<
 	TemplateParametersUsagePanelProps
-> = ({ data, error, ...panelProps }) => {
+> = ({ data, current, error, ...panelProps }) => {
+	const merged = data ? mergeParameterUsage(data, current) : undefined;
 	return (
 		<Panel {...panelProps}>
 			<PanelHeader>
 				<PanelTitle>Parameters usage</PanelTitle>
 			</PanelHeader>
-			<PanelContent error={error} data={data}>
-				{data?.map((parameter, parameterIndex) => {
+			<PanelContent error={error} data={merged}>
+				{merged?.map((parameter) => {
 					const label =
 						parameter.display_name !== ""
 							? parameter.display_name
@@ -506,9 +531,17 @@ const TemplateParametersUsagePanel: React.FC<
 						<div
 							key={parameter.name}
 							className="flex items-start gap-6 border-0 border-t border-solid border-surface-quaternary p-6 -mx-6 first:border-t-0"
+							data-testid="parameter-usage"
 						>
 							<div className="flex-1">
-								<div className="font-medium">{label}</div>
+								<div className="font-medium">
+									{label}
+									{parameter.removed && (
+										<span className="ml-2 text-xs font-normal text-content-secondary">
+											no longer in the template
+										</span>
+									)}
+								</div>
 								<p className="text-sm m-0 text-content-secondary max-w-[400px]">
 									{parameter.description}
 								</p>
@@ -527,22 +560,19 @@ const TemplateParametersUsagePanel: React.FC<
 										The number of workspaces using this value
 									</TooltipContent>
 								</Tooltip>
-								{[...parameter.values]
-									.sort((a, b) => b.count - a.count)
-									.filter((usage) => filterOrphanValues(usage, parameter))
-									.map((usage, usageIndex) => (
-										<Fragment key={`${parameterIndex}-${usageIndex}`}>
-											<div className="min-w-0 py-1">
-												<ParameterUsageLabel
-													usage={usage}
-													parameter={parameter}
-												/>
-											</div>
-											<div className="text-right py-1">
-												{usage.count.toLocaleString()}
-											</div>
-										</Fragment>
-									))}
+								{parameter.values.map((usage) => (
+									<Fragment key={usage.value}>
+										<div className="min-w-0 py-1">
+											<ParameterUsageLabel
+												usage={usage}
+												parameter={parameter}
+											/>
+										</div>
+										<div className="text-right py-1">
+											{usage.count.toLocaleString()}
+										</div>
+									</Fragment>
+								))}
 							</div>
 						</div>
 					);
@@ -552,19 +582,9 @@ const TemplateParametersUsagePanel: React.FC<
 	);
 };
 
-const filterOrphanValues = (
-	usage: TemplateParameterValue,
-	parameter: TemplateParameterUsage,
-) => {
-	if (parameter.options) {
-		return parameter.options.some((o) => o.value === usage.value);
-	}
-	return true;
-};
-
 type ParameterUsageLabelProps = {
 	usage: TemplateParameterValue;
-	parameter: TemplateParameterUsage;
+	parameter: MergedParameterUsage;
 };
 
 const ParameterUsageLabel: React.FC<ParameterUsageLabelProps> = ({
@@ -573,8 +593,16 @@ const ParameterUsageLabel: React.FC<ParameterUsageLabelProps> = ({
 }) => {
 	const ariaId = useId();
 
-	if (parameter.options) {
-		const option = parameter.options.find((o) => o.value === usage.value)!;
+	// The active version no longer offers it: said beside it, however it shows.
+	const retired = parameter.offered && !parameter.offered.has(usage.value);
+	const note = retired && (
+		<span className="ml-2 text-xs text-content-secondary">
+			no longer offered
+		</span>
+	);
+	// A value from a version that had no options for it (typed in) shows as itself, below.
+	const option = parameter.options?.find((o) => o.value === usage.value);
+	if (option) {
 		const icon = option.icon;
 		const label = option.name;
 
@@ -590,7 +618,10 @@ const ParameterUsageLabel: React.FC<ParameterUsageLabelProps> = ({
 						/>
 					</div>
 				)}
-				<span id={ariaId}>{label}</span>
+				<span id={ariaId}>
+					{label}
+					{note}
+				</span>
 			</div>
 		);
 	}
@@ -650,7 +681,12 @@ const ParameterUsageLabel: React.FC<ParameterUsageLabelProps> = ({
 	}
 
 	// Platform: a value shows as itself, without quotes (a number, a Start folder, a Workspace image).
-	return <span className="break-all">{usage.value}</span>;
+	return (
+		<span className="break-all">
+			{usage.value}
+			{note}
+		</span>
+	);
 };
 
 type PanelProps = React.ComponentProps<"div">;
