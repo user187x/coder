@@ -21,6 +21,7 @@ import { SetupPage } from "./pages/SetupPage/SetupPage";
 import { TemplateLayout } from "./pages/TemplatePage/TemplateLayout";
 import { TemplateRedirectController } from "./pages/TemplatePage/TemplateRedirectController";
 import { TemplateSettingsLayout } from "./pages/TemplateSettingsPage/TemplateSettingsLayout";
+import { TemplateSettingsSectionRedirect } from "./pages/TemplateSettingsPage/TemplateSettingsSectionRedirect";
 import TemplatesPage from "./pages/TemplatesPage/TemplatesPage";
 import UserSettingsLayout from "./pages/UserSettingsPage/Layout";
 import UsersPage from "./pages/UsersPage/UsersPage";
@@ -82,12 +83,6 @@ const WorkspaceBuildPage = lazy(
 );
 const WorkspacePage = lazy(() => import("./pages/WorkspacePage/WorkspacePage"));
 const TerminalPage = lazy(() => import("./pages/TerminalPage/TerminalPage"));
-const TemplatePermissionsPage = lazy(
-	() =>
-		import(
-			"./pages/TemplateSettingsPage/TemplatePermissionsPage/TemplatePermissionsPage"
-		),
-);
 const TemplateOverviewPage = lazy(
 	() =>
 		import("./pages/TemplatePage/TemplateOverviewPage/TemplateOverviewPage"),
@@ -226,12 +221,6 @@ const CreateTemplatePage = lazy(
 const TemplateBuilderPage = lazy(
 	() => import("./pages/TemplateBuilder/TemplateBuilderPage"),
 );
-const TemplateVariablesPage = lazy(
-	() =>
-		import(
-			"./pages/TemplateSettingsPage/TemplateVariablesPage/TemplateVariablesPage"
-		),
-);
 // Platform: the workspace's settings on one page of cards (General, Parameters, Schedule, Sharing).
 const WorkspaceSettingsCardsPage = lazy(
 	() => import("./pages/WorkspaceSettingsPage/WorkspaceSettingsCardsPage"),
@@ -242,23 +231,9 @@ const CreateTokenPage = lazy(
 const TemplateFilesPage = lazy(
 	() => import("./pages/TemplatePage/TemplateFilesPage/TemplateFilesPage"),
 );
-const TemplateSchedulePage = lazy(
-	() =>
-		import(
-			"./pages/TemplateSettingsPage/TemplateSchedulePage/TemplateSchedulePage"
-		),
-);
-const TemplateParametersPage = lazy(
-	() =>
-		import(
-			"./pages/TemplateSettingsPage/TemplateParametersPage/TemplateParametersPage"
-		),
-);
-const TemplateSettingsPage = lazy(
-	() =>
-		import(
-			"./pages/TemplateSettingsPage/TemplateGeneralSettingsPage/TemplateSettingsPage"
-		),
+// Platform: the template's settings on one page of cards, in the workspace settings page's look.
+const TemplateSettingsCardsPage = lazy(
+	() => import("./pages/TemplateSettingsPage/TemplateSettingsCardsPage"),
 );
 const LicensesSettingsPage = lazy(
 	() =>
@@ -405,11 +380,23 @@ const templateRouter = () => {
 				<Route path="workspace" element={<CreateWorkspacePage />} />
 
 				<Route path="settings" element={<TemplateSettingsLayout />}>
-					<Route index element={<TemplateSettingsPage />} />
-					<Route path="permissions" element={<TemplatePermissionsPage />} />
-					<Route path="variables" element={<TemplateVariablesPage />} />
-					<Route path="parameters" element={<TemplateParametersPage />} />
-					<Route path="schedule" element={<TemplateSchedulePage />} />
+					<Route index element={<TemplateSettingsCardsPage />} />
+					<Route
+						path="permissions"
+						element={<TemplateSettingsSectionRedirect section="permissions" />}
+					/>
+					<Route
+						path="variables"
+						element={<TemplateSettingsSectionRedirect section="variables" />}
+					/>
+					<Route
+						path="parameters"
+						element={<TemplateSettingsSectionRedirect section="parameters" />}
+					/>
+					<Route
+						path="schedule"
+						element={<TemplateSettingsSectionRedirect section="schedule" />}
+					/>
 				</Route>
 
 				<Route path="versions">

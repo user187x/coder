@@ -236,3 +236,58 @@ export const TargetGlyph = glyph(
 	</>,
 	{ size: 22, strokeWidth: 1.6 },
 );
+
+// The template settings page's sections, drawn the same way.
+export const ToggleGlyph = glyph(
+	<>
+		<rect x="2" y="4" width="20" height="7" rx="3.5" />
+		<circle cx="7.5" cy="7.5" r="1.5" />
+		<rect x="2" y="13" width="20" height="7" rx="3.5" />
+		<circle cx="16.5" cy="16.5" r="1.5" />
+	</>,
+	nav,
+);
+
+export const PortGlyph = glyph(
+	<>
+		<path d="M9 7V3M15 7V3" />
+		<path d="M6 7h12v4a6 6 0 0 1-12 0z" />
+		<path d="M12 17v4" />
+	</>,
+	nav,
+);
+
+export const ArchiveGlyph = glyph(
+	<>
+		<rect x="3" y="4" width="18" height="4" rx="1" />
+		<path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8" />
+		<path d="M10 12h4" />
+	</>,
+	nav,
+);
+
+export const BracesGlyph = glyph(
+	<>
+		<path d="M8 4H7a2 2 0 0 0-2 2v4a2 2 0 0 1-2 2 2 2 0 0 1 2 2v4a2 2 0 0 0 2 2h1" />
+		<path d="M16 4h1a2 2 0 0 1 2 2v4a2 2 0 0 0 2 2 2 2 0 0 0-2 2v4a2 2 0 0 1-2 2h-1" />
+	</>,
+	nav,
+);
+
+export const ShieldGlyph = glyph(
+	<>
+		<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z" />
+		<path d="M9 12l2 2 4-4" />
+	</>,
+	nav,
+);
+
+export const SlidersGlyph = glyph(
+	<>
+		<path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1" />
+		<circle cx="15" cy="6" r="2" />
+		<circle cx="9" cy="12" r="2" />
+		<circle cx="17" cy="18" r="2" />
+	</>,
+	nav,
+);

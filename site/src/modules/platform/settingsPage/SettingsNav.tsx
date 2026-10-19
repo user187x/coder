@@ -1,24 +1,18 @@
-import { useEffect, useState } from "react";
-import {
-	ChipGlyph,
-	ClockGlyph,
-	GearGlyph,
-	MonitorGlyph,
-	PeopleGlyph,
-} from "./settingsIcons";
-import type { Section } from "./settingsParts";
+import { useEffect, useMemo, useState } from "react";
 
-const LINKS: { id: Section; label: string; icon: React.ReactNode }[] = [
-	{ id: "general", label: "General", icon: <GearGlyph /> },
-	{ id: "resources", label: "Resources", icon: <ChipGlyph /> },
-	{ id: "environment", label: "Environment", icon: <MonitorGlyph /> },
-	{ id: "schedule", label: "Schedule", icon: <ClockGlyph /> },
-	{ id: "sharing", label: "Sharing", icon: <PeopleGlyph /> },
-];
+export type SettingsNavLink = {
+	/** The card's id (its anchor). */
+	id: string;
+	label: string;
+	icon: React.ReactNode;
+};
+
+/** A row of At a glance: what the page's form holds now, changed or not. */
+export type GlanceRow = { label: string; value: string; mono?: boolean };
 
 /** The section in view: the last one whose top has passed a third of the window (the first until then). */
-const useSectionInView = (ids: readonly Section[]) => {
-	const [current, setCurrent] = useState<Section>(ids[0]);
+const useSectionInView = (ids: readonly string[]) => {
+	const [current, setCurrent] = useState<string>(ids[0]);
 	useEffect(() => {
 		const update = () => {
 			const line = window.innerHeight / 3;
@@ -49,32 +43,17 @@ const useSectionInView = (ids: readonly Section[]) => {
 	return current;
 };
 
-export type Glance = {
-	cpu: string;
-	memory: string;
-	gpu: string;
-	disk: string;
-	theme: string;
-};
-
 /**
- * The page's left column: a link to each card (the one in view marked), and At a glance - the workspace's resources
- * and theme as the form holds them now, changed or not.
+ * A settings page's left column: a link to each card (the one in view marked), and At a glance - what the page's
+ * form holds now, changed or not.
  */
 export const SettingsNav: React.FC<{
-	sharing: boolean;
-	glance: Glance;
-}> = ({ sharing, glance }) => {
-	const links = sharing ? LINKS : LINKS.filter((l) => l.id !== "sharing");
-	const [ids] = useState(() => links.map((l) => l.id));
+	links: readonly SettingsNavLink[];
+	glance: readonly GlanceRow[];
+}> = ({ links, glance }) => {
+	const key = links.map((l) => l.id).join(" ");
+	const ids = useMemo(() => links.map((l) => l.id), [key]);
 	const current = useSectionInView(ids);
-	const rows: { label: string; value: string; mono: boolean }[] = [
-		{ label: "CPU", value: glance.cpu, mono: true },
-		{ label: "Memory", value: glance.memory, mono: true },
-		{ label: "GPU", value: glance.gpu, mono: false },
-		{ label: "Disk", value: glance.disk, mono: true },
-		{ label: "Theme", value: glance.theme, mono: false },
-	];
 
 	return (
 		<nav
@@ -101,10 +80,10 @@ export const SettingsNav: React.FC<{
 				data-testid="at-a-glance"
 			>
 				<div className="ws-eyebrow">At a glance</div>
-				{rows.map((row) => (
+				{glance.map((row) => (
 					<div key={row.label} className="flex justify-between gap-3">
 						<span className="text-(--ws-muted)">{row.label}</span>
-						<span className={row.mono ? "ws-mono" : undefined}>
+						<span className={row.mono ? "ws-mono text-right" : "text-right"}>
 							{row.value}
 						</span>
 					</div>

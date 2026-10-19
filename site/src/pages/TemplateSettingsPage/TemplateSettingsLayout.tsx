@@ -1,3 +1,4 @@
+import "#/modules/platform/settingsPage/settingsPage.css";
 import { createContext, Suspense, useContext } from "react";
 import { useQuery } from "react-query";
 import { Outlet, useParams } from "react-router";
@@ -5,19 +6,16 @@ import { checkAuthorization } from "#/api/queries/authCheck";
 import { templateByName } from "#/api/queries/templates";
 import type { AuthorizationResponse, Template } from "#/api/typesGenerated";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
-import { Avatar } from "#/components/Avatar/Avatar";
-import {
-	Breadcrumb,
-	BreadcrumbItem,
-	BreadcrumbLink,
-	BreadcrumbList,
-	BreadcrumbPage,
-	BreadcrumbSeparator,
-} from "#/components/Breadcrumb/Breadcrumb";
+import { ExternalImage } from "#/components/ExternalImage/ExternalImage";
 import { Loader } from "#/components/Loader/Loader";
 import { useDashboard } from "#/modules/dashboard/useDashboard";
+import { linkToTemplate, useLinks } from "#/modules/navigation";
+import {
+	type Crumb,
+	SettingsPageHeader,
+} from "#/modules/platform/settingsPage/SettingsPageHeader";
+import { TerminalGlyph } from "#/modules/platform/settingsPage/settingsIcons";
 import { pageTitle } from "#/utils/page";
-import { Sidebar } from "./Sidebar";
 
 const TemplateSettings = createContext<
 	{ template: Template; permissions: AuthorizationResponse } | undefined
@@ -32,8 +30,14 @@ export function useTemplateSettings() {
 	return value;
 }
 
+/**
+ * Platform: the template settings page's frame, in the workspace settings page's look (settingsPage.css) - its
+ * header (the way back to Templates and the template, the title, the active version) over the page
+ * (TemplateSettingsCardsPage).
+ */
 export const TemplateSettingsLayout: React.FC = () => {
 	const { showOrganizations } = useDashboard();
+	const getLink = useLinks();
 	const { organization: organizationName = "default", template: templateName } =
 		useParams() as { organization?: string; template: string };
 	const templateQuery = useQuery(
@@ -68,81 +72,60 @@ export const TemplateSettingsLayout: React.FC = () => {
 		...templateQuery.data,
 		organization_name: organizationName,
 	};
+	const crumbs: Crumb[] = [
+		{ label: "Templates", to: "/templates" },
+		...(showOrganizations
+			? [
+					{
+						label:
+							template.organization_display_name || template.organization_name,
+						to: `/organizations/${template.organization_name}`,
+					},
+				]
+			: []),
+		{
+			label: template.display_name || template.name,
+			to: getLink(linkToTemplate(template.organization_name, template.name)),
+		},
+	];
 
 	return (
-		<>
+		<div className="ws-settings min-h-full">
 			<title>
-				{pageTitle(template?.display_name ?? templateName, "Template Settings")}
+				{pageTitle(template.display_name || templateName, "Template Settings")}
 			</title>
-
-			<div>
-				<Breadcrumb>
-					<BreadcrumbList>
-						<BreadcrumbItem>
-							<BreadcrumbPage>Template Settings</BreadcrumbPage>
-						</BreadcrumbItem>
-						{template && (
-							<>
-								{showOrganizations && (
-									<>
-										<BreadcrumbSeparator />
-										<BreadcrumbItem>
-											<BreadcrumbPage className="flex items-center gap-2">
-												<Avatar
-													size="sm"
-													fallback={
-														template.organization_display_name ||
-														template.organization_name
-													}
-													src={template.organization_icon}
-												/>
-												{template.organization_display_name}
-											</BreadcrumbPage>
-										</BreadcrumbItem>
-									</>
-								)}
-								<BreadcrumbSeparator />
-								<BreadcrumbItem>
-									<BreadcrumbLink to="..">
-										<BreadcrumbPage className="flex items-center gap-2">
-											<Avatar
-												variant="icon"
-												size="sm"
-												fallback={template.display_name || template.name}
-												src={template.icon}
-											/>
-											{template.display_name || template.name}
-										</BreadcrumbPage>
-									</BreadcrumbLink>
-								</BreadcrumbItem>
-							</>
-						)}
-					</BreadcrumbList>
-				</Breadcrumb>
-				<div className="h-px border-none bg-border" />
-
-				<section className="px-4 sm:px-6 lg:px-10 max-w-(--breakpoint-2xl) mx-auto">
-					<div className="flex flex-col gap-8 py-6 lg:flex-row lg:gap-28 lg:py-10">
-						{error ? (
-							<ErrorAlert error={error} />
-						) : (
-							<TemplateSettings.Provider
-								value={{
-									template: templateQuery.data,
-									permissions: permissionsQuery.data,
-								}}
-							>
-								<Sidebar />
-								<div className="grow min-w-0">
-									<Suspense fallback={<Loader />}>
-										<Outlet />
-									</Suspense>
-								</div>
-							</TemplateSettings.Provider>
-						)}
-					</div>
-				</section>
-			</div>
-		</>
+			<SettingsPageHeader
+				icon={
+					template.icon ? (
+						<ExternalImage
+							src={template.icon}
+							alt=""
+							className="size-6 object-contain"
+						/>
+					) : (
+						<TerminalGlyph />
+					)
+				}
+				crumbs={crumbs}
+				title="Template settings"
+				versionId={template.active_version_id}
+			/>
+			{error ? (
+				<div className="mx-auto max-w-(--ws-content) p-8">
+					<ErrorAlert error={error} />
+				</div>
+			) : (
+				<TemplateSettings.Provider
+					value={{
+						template: templateQuery.data,
+						permissions: permissionsQuery.data,
+					}}
+				>
+					<Suspense fallback={<Loader />}>
+						<Outlet />
+					</Suspense>
+				</TemplateSettings.Provider>
+			)}
+		</div>
 	);
 };

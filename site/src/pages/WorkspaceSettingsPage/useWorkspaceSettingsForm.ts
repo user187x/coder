@@ -1,5 +1,5 @@
 import { type FormikProps, useFormik } from "formik";
-import { useEffect, useEffectEvent, useState } from "react";
+import { useState } from "react";
 import { useQuery, useQueryClient } from "react-query";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
@@ -14,6 +14,7 @@ import {
 	type Workspace,
 } from "#/api/typesGenerated";
 import { WorkspaceExtrasAPI, workspaceIconsKey } from "#/api/workspaceVolumes";
+import { useFollowWhileClean } from "#/modules/platform/settingsPage/useFollowWhileClean";
 import type { WorkspacePermissions } from "#/modules/workspaces/permissions";
 import { useWorkspaceIcons } from "#/modules/workspaces/WorkspaceIcon/useWorkspaceIcon";
 import { nameValidator } from "#/utils/formUtils";
@@ -43,19 +44,6 @@ const getAutostart = (workspace: Workspace) =>
 	scheduleToAutostart(workspace.autostart_schedule);
 
 const getAutostop = (workspace: Workspace) => ttlMsToAutostop(workspace.ttl_ms);
-
-/** A form follows what it was made from (the workspace refetched, the icons loaded) while nothing in it is changed. */
-const useFollowWhileClean = <T>(form: FormikProps<T>, initial: T) => {
-	const key = JSON.stringify(initial);
-	const follow = useEffectEvent(() => {
-		if (!form.dirty && JSON.stringify(form.initialValues) !== key) {
-			form.resetForm({ values: initial });
-		}
-	});
-	useEffect(() => {
-		follow();
-	}, [key]);
-};
 
 /** What a field's form has to say about it: its error once touched (or once a save was tried). */
 const fieldError = <T>(form: FormikProps<T>, name: keyof T & string) =>

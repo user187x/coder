@@ -8,9 +8,17 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "#/components/Select/Select";
+import {
+	FolderGlyph,
+	MonitorGlyph,
+	PackageGlyph,
+} from "#/modules/platform/settingsPage/settingsIcons";
+import {
+	CardLoader,
+	ParameterProblems,
+	SettingsCard,
+} from "#/modules/platform/settingsPage/settingsParts";
 import { DynamicParameter } from "#/modules/workspaces/DynamicParameter/DynamicParameter";
-import { FolderGlyph, MonitorGlyph, PackageGlyph } from "../settingsIcons";
-import { CardLoader, ParameterProblems, SettingsCard } from "../settingsParts";
 import type { BuildParameters } from "../useBuildParameters";
 import { editable, RESOURCE_PARAMETERS } from "./ResourcesCard";
 

@@ -22,6 +22,8 @@ type TemplateVariableFieldProps = {
 	helperText?: React.ReactNode;
 	name?: string;
 	onBlur?: React.FocusEventHandler<HTMLInputElement | HTMLTextAreaElement>;
+	/** On a page of many (the template settings): no focus taken, the input in the page's look. */
+	embedded?: boolean;
 };
 
 export const TemplateVariableField: React.FC<TemplateVariableFieldProps> = ({
@@ -33,6 +35,7 @@ export const TemplateVariableField: React.FC<TemplateVariableFieldProps> = ({
 	helperText,
 	name,
 	onBlur,
+	embedded = false,
 }) => {
 	const id = useId();
 	const [variableValue, setVariableValue] = useState(initialValue);
@@ -55,13 +58,21 @@ export const TemplateVariableField: React.FC<TemplateVariableFieldProps> = ({
 					}}
 				>
 					<div className="flex items-center gap-2">
-						<RadioGroupItem id={trueId} value="true" />
+						<RadioGroupItem
+							id={trueId}
+							value="true"
+							className={embedded ? "ws-hit" : undefined}
+						/>
 						<Label htmlFor={trueId} className="font-normal cursor-pointer">
 							True
 						</Label>
 					</div>
 					<div className="flex items-center gap-2">
-						<RadioGroupItem id={falseId} value="false" />
+						<RadioGroupItem
+							id={falseId}
+							value="false"
+							className={embedded ? "ws-hit" : undefined}
+						/>
 						<Label htmlFor={falseId} className="font-normal cursor-pointer">
 							False
 						</Label>
@@ -105,13 +116,13 @@ export const TemplateVariableField: React.FC<TemplateVariableFieldProps> = ({
 						: "text"
 			}
 			disabled={disabled}
-			autoFocus
+			autoFocus={!embedded}
 			placeholder={
 				templateVersionVariable.sensitive
 					? ""
 					: templateVersionVariable.default_value
 			}
-			className="w-full"
+			className={embedded ? "ws-input w-full" : "w-full"}
 		/>
 	);
 };

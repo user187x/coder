@@ -14,19 +14,22 @@ import {
 import { Spinner } from "#/components/Spinner/Spinner";
 import { getGroupSubtitle, isGroup } from "#/modules/groups";
 import {
-	UserOrGroupAutocomplete,
-	type UserOrGroupAutocompleteValue,
-} from "#/modules/workspaces/WorkspaceSharingForm/UserOrGroupAutocomplete";
-import { useWorkspaceSharing } from "#/modules/workspaces/WorkspaceSharingForm/useWorkspaceSharing";
-import { RoleSelect } from "#/modules/workspaces/WorkspaceSharingForm/WorkspaceSharingForm";
-import {
 	AddPersonGlyph,
 	PeopleGlyph,
 	PlusGlyph,
 	SearchGlyph,
 	TrashGlyph,
-} from "../settingsIcons";
-import { CardLoader, SettingsCard } from "../settingsParts";
+} from "#/modules/platform/settingsPage/settingsIcons";
+import {
+	CardLoader,
+	SettingsCard,
+} from "#/modules/platform/settingsPage/settingsParts";
+import {
+	UserOrGroupAutocomplete,
+	type UserOrGroupAutocompleteValue,
+} from "#/modules/workspaces/WorkspaceSharingForm/UserOrGroupAutocomplete";
+import { useWorkspaceSharing } from "#/modules/workspaces/WorkspaceSharingForm/useWorkspaceSharing";
+import { RoleSelect } from "#/modules/workspaces/WorkspaceSharingForm/WorkspaceSharingForm";
 
 /** A member of the workspace's sharing: who, their role (changed or removed at once, for those who may). */
 const MemberRow: React.FC<{

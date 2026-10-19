@@ -1,22 +1,22 @@
 import { useState } from "react";
 import type { PreviewParameter, Workspace } from "#/api/typesGenerated";
 import type { WorkspaceVolume } from "#/api/workspaceVolumes";
-import { DynamicParameter } from "#/modules/workspaces/DynamicParameter/DynamicParameter";
-import { ExpandDiskDialog } from "#/modules/workspaces/WorkspaceMoreActions/WorkspaceVolumeDialogs";
 import {
 	ChipGlyph,
 	DiskGlyph,
 	ExpandGlyph,
 	GpuGlyph,
 	RestartGlyph,
-} from "../settingsIcons";
+} from "#/modules/platform/settingsPage/settingsIcons";
 import {
 	CardLoader,
 	OptionTiles,
 	ParameterProblems,
 	PressSwitch,
 	SettingsCard,
-} from "../settingsParts";
+} from "#/modules/platform/settingsPage/settingsParts";
+import { DynamicParameter } from "#/modules/workspaces/DynamicParameter/DynamicParameter";
+import { ExpandDiskDialog } from "#/modules/workspaces/WorkspaceMoreActions/WorkspaceVolumeDialogs";
 import type { BuildParameters } from "../useBuildParameters";
 
 /** The template's parameters this card shows (the others: Environment, or its More settings). */

@@ -1,19 +1,14 @@
 import { cn } from "cn";
 import { Loader } from "#/components/Loader/Loader";
 
-/** The page's sections, in order: their card ids, the left nav's links. */
-export const SECTIONS = [
-	"general",
-	"resources",
-	"environment",
-	"schedule",
-	"sharing",
-] as const;
-export type Section = (typeof SECTIONS)[number];
+/**
+ * The settings pages' parts (a workspace's, a template's): one page of cards in the same look (settingsPage.css,
+ * under .ws-settings), a list of them on the left (SettingsNav), one save bar (SaveBar).
+ */
 
 /** A card of the page: its icon tile, title and line, something on the right, then its body. */
 export const SettingsCard: React.FC<{
-	id: Section;
+	id: string;
 	title: string;
 	description: string;
 	icon: React.ReactNode;
@@ -178,5 +173,48 @@ export const InputHitArea: React.FC<{
 		}}
 	>
 		{children}
+	</div>
+);
+
+/** An on/off setting in a card: its name and what it does on the left, its switch on the right (named by them). */
+export const ToggleRow: React.FC<{
+	id: string;
+	label: React.ReactNode;
+	description?: React.ReactNode;
+	pressed: boolean;
+	onChange: (pressed: boolean) => void;
+	disabled?: boolean;
+	/** Beside the name (a lock: set for the whole deployment). */
+	badge?: React.ReactNode;
+	/** Under the description: why it cannot change, what it affects. */
+	note?: React.ReactNode;
+}> = ({ id, label, description, pressed, onChange, disabled, badge, note }) => (
+	<div
+		className="flex items-start justify-between gap-6 border-0 border-b border-solid border-(--ws-row-line) py-[18px] last:border-b-0"
+		data-testid={`toggle-${id}`}
+	>
+		<div className="min-w-0">
+			<div
+				id={`${id}-label`}
+				className="flex flex-wrap items-center gap-2 font-medium"
+			>
+				{label}
+				{badge}
+			</div>
+			{description && (
+				<div id={`${id}-help`} className="ws-desc">
+					{description}
+				</div>
+			)}
+			{note && <div className="ws-help">{note}</div>}
+		</div>
+		<PressSwitch
+			pressed={pressed}
+			onChange={onChange}
+			disabled={disabled}
+			labelledBy={`${id}-label`}
+			describedBy={description ? `${id}-help` : undefined}
+			testId={`switch-${id}`}
+		/>
 	</div>
 );

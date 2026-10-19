@@ -1,5 +1,5 @@
 import type { UpdateTemplateMeta } from "#/api/typesGenerated";
-import { validationSchema } from "./TemplateSettingsForm";
+import { validationSchema } from "./templateMetaForm";
 
 type FormValues = Required<
 	Omit<
@@ -49,7 +49,7 @@ const validFormValues: FormValues = {
 	allow_workspace_renames: false,
 };
 
-describe("TemplateSettingsPage", () => {
+describe("the template's metadata form", () => {
 	it("allows a description of 128 chars", () => {
 		const values: UpdateTemplateMeta = {
 			...validFormValues,

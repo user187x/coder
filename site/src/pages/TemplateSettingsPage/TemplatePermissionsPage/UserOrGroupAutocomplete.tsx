@@ -16,11 +16,25 @@ type UserOrGroupAutocompleteProps = {
 	onChange: (value: UserOrGroupAutocompleteValue) => void;
 	templateID: string;
 	exclude: UserOrGroupAutocompleteValue[];
+	/** A plain search input (the template settings page) instead of a button that opens one. */
+	inlineSearch?: boolean;
+	placeholder?: string;
+	id?: string;
+	className?: string;
 };
 
 export const UserOrGroupAutocomplete: React.FC<
 	UserOrGroupAutocompleteProps
-> = ({ value, onChange, templateID, exclude }) => {
+> = ({
+	value,
+	onChange,
+	templateID,
+	exclude,
+	inlineSearch,
+	placeholder = "Search for user or group",
+	id = "user-or-group-autocomplete",
+	className = "w-[300px]",
+}) => {
 	const [inputValue, setInputValue] = useState("");
 	const [open, setOpen] = useState(false);
 
@@ -83,10 +97,11 @@ export const UserOrGroupAutocomplete: React.FC<
 			inputValue={inputValue}
 			onInputChange={setInputValue}
 			loading={aclAvailableQuery.isFetching}
-			placeholder="Search for user or group"
+			placeholder={placeholder}
 			noOptionsText="No users or groups found"
-			className="w-[300px]"
-			id="user-or-group-autocomplete"
+			className={className}
+			inlineSearch={inlineSearch}
+			id={id}
 		/>
 	);
 };

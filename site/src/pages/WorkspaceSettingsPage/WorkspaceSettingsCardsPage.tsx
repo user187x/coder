@@ -5,19 +5,39 @@ import { API } from "#/api/api";
 import { Alert } from "#/components/Alert/Alert";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { ConfirmDialog } from "#/components/Dialog/ConfirmDialog/ConfirmDialog";
+import { SaveBar } from "#/modules/platform/settingsPage/SaveBar";
+import {
+	type GlanceRow,
+	SettingsNav,
+	type SettingsNavLink,
+} from "#/modules/platform/settingsPage/SettingsNav";
+import {
+	ChipGlyph,
+	ClockGlyph,
+	GearGlyph,
+	MonitorGlyph,
+	PeopleGlyph,
+} from "#/modules/platform/settingsPage/settingsIcons";
 import { useWorkspaceVolume } from "#/modules/workspaces/WorkspaceMoreActions/WorkspaceVolumeDialogs";
 import { EnvironmentCard } from "./cards/EnvironmentCard";
 import { GeneralCard } from "./cards/GeneralCard";
 import { ResourcesCard } from "./cards/ResourcesCard";
 import { ScheduleCard } from "./cards/ScheduleCard";
 import { SharingCard } from "./cards/SharingCard";
-import { SaveBar } from "./SaveBar";
-import { type Glance, SettingsNav } from "./SettingsNav";
-import { SECTIONS } from "./settingsParts";
 import { useWorkspaceSettings } from "./useWorkspaceSettings";
 import { useWorkspaceSettingsForm } from "./useWorkspaceSettingsForm";
 
 const FORM_ID = "workspace-settings-form";
+
+/** The page's cards, in order: their ids (anchors), the left list's links. */
+const LINKS: SettingsNavLink[] = [
+	{ id: "general", label: "General", icon: <GearGlyph /> },
+	{ id: "resources", label: "Resources", icon: <ChipGlyph /> },
+	{ id: "environment", label: "Environment", icon: <MonitorGlyph /> },
+	{ id: "schedule", label: "Schedule", icon: <ClockGlyph /> },
+	{ id: "sharing", label: "Sharing", icon: <PeopleGlyph /> },
+];
+const SECTIONS = LINKS.map((link) => link.id);
 
 /** The former sections' names that still lead here (settings#parameters: the update dialog, the ⋮ menu). */
 const ALIASES: Record<string, string> = { parameters: "resources" };
@@ -49,7 +69,7 @@ const WorkspaceSettingsCardsPage: React.FC = () => {
 	useEffect(() => {
 		const raw = hash.replace(/^#/, "");
 		const id = ALIASES[raw] ?? raw;
-		if (!id || !(SECTIONS as readonly string[]).includes(id)) {
+		if (!id || !SECTIONS.includes(id)) {
 			return;
 		}
 		const scroll = () =>
@@ -66,17 +86,33 @@ const WorkspaceSettingsCardsPage: React.FC = () => {
 		return parameter?.options.find((o) => o.value.value === value)?.name;
 	};
 	const gpus = params.value("gpus");
-	const glance: Glance = {
-		cpu: params.value("cpu") ? `${params.value("cpu")} cores` : "–",
-		memory: params.value("memory") ? `${params.value("memory")} GB` : "–",
-		gpu: !gpus || gpus === "0" ? "Off" : gpus === "1" ? "On" : `On · ${gpus}`,
-		disk: volume
-			? `${volume.sizeGB} GB`
-			: params.value("home_disk_size")
-				? `${params.value("home_disk_size")} GB`
-				: "–",
-		theme: option("desktop_theme") ?? "–",
-	};
+	const glance: GlanceRow[] = [
+		{
+			label: "CPU",
+			value: params.value("cpu") ? `${params.value("cpu")} cores` : "–",
+			mono: true,
+		},
+		{
+			label: "Memory",
+			value: params.value("memory") ? `${params.value("memory")} GB` : "–",
+			mono: true,
+		},
+		{
+			label: "GPU",
+			value:
+				!gpus || gpus === "0" ? "Off" : gpus === "1" ? "On" : `On · ${gpus}`,
+		},
+		{
+			label: "Disk",
+			value: volume
+				? `${volume.sizeGB} GB`
+				: params.value("home_disk_size")
+					? `${params.value("home_disk_size")} GB`
+					: "–",
+			mono: true,
+		},
+		{ label: "Theme", value: option("desktop_theme") ?? "–" },
+	];
 
 	const canShare = Boolean(permissions?.shareWorkspace);
 	const canUpdate = permissions?.updateWorkspace !== false;
@@ -96,7 +132,12 @@ const WorkspaceSettingsCardsPage: React.FC = () => {
 	return (
 		<>
 			<div className="mx-auto flex max-w-(--ws-content) flex-wrap items-start gap-8 p-8">
-				<SettingsNav sharing={canShare} glance={glance} />
+				<SettingsNav
+					links={
+						canShare ? LINKS : LINKS.filter((link) => link.id !== "sharing")
+					}
+					glance={glance}
+				/>
 
 				<main className="flex min-w-0 flex-[999_1_560px] flex-col gap-6">
 					{params.error ? <ErrorAlert error={params.error} /> : null}

@@ -6,15 +6,20 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "#/components/Select/Select";
-import { humanDuration } from "#/utils/time";
-import { timeZones } from "#/utils/timeZones";
-import { ClockGlyph, InfoGlyph, PlayGlyph, StopGlyph } from "../settingsIcons";
+import {
+	ClockGlyph,
+	InfoGlyph,
+	PlayGlyph,
+	StopGlyph,
+} from "#/modules/platform/settingsPage/settingsIcons";
 import {
 	CardLoader,
 	InputHitArea,
 	PressSwitch,
 	SettingsCard,
-} from "../settingsParts";
+} from "#/modules/platform/settingsPage/settingsParts";
+import { humanDuration } from "#/utils/time";
+import { timeZones } from "#/utils/timeZones";
 import type { WorkspaceSettingsForm } from "../useWorkspaceSettingsForm";
 import {
 	defaultSchedule,

@@ -6,8 +6,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "#/components/Select/Select";
-import { InlineIconEditor } from "#/modules/platform/templateIcons/IconEditor";
-import { getFormHelpers } from "#/utils/formUtils";
 import {
 	IdCardGlyph,
 	LockGlyph,
@@ -15,8 +13,10 @@ import {
 	SmileGlyph,
 	TargetGlyph,
 	UploadGlyph,
-} from "../settingsIcons";
-import { SettingsCard } from "../settingsParts";
+} from "#/modules/platform/settingsPage/settingsIcons";
+import { SettingsCard } from "#/modules/platform/settingsPage/settingsParts";
+import { InlineIconEditor } from "#/modules/platform/templateIcons/IconEditor";
+import { getFormHelpers } from "#/utils/formUtils";
 import type { WorkspaceSettingsForm } from "../useWorkspaceSettingsForm";
 
 /** The update policies, as the design lists them. */

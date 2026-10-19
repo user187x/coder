@@ -61,7 +61,7 @@ type AutostartHelperTextProps = {
 	days: TemplateAutostartRequirementDaysValue[];
 };
 
-const AutostartHelperText: React.FC<AutostartHelperTextProps> = ({
+export const AutostartHelperText: React.FC<AutostartHelperTextProps> = ({
 	allowed,
 	days: unsortedDays,
 }) => {
