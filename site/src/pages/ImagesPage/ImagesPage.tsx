@@ -51,6 +51,7 @@ import {
 	formatSize,
 	GradeBadge,
 	ImportedBadge,
+	NeedsFixingBadge,
 	StatusBadge,
 	TrackedBadge,
 } from "./badges";
@@ -100,7 +101,12 @@ const ImagesPage: React.FC = () => {
 		ImportImageDialogProps["initial"] | null
 	>(null);
 	const [settings, setSettings] = useState(false);
+	// The header's "N images need fixing": the list narrowed to them
+	const [onlyNeedsFixing, setOnlyNeedsFixing] = useState(false);
 	const canEdit = query.data?.canEdit ?? false;
+	const needFixing = (query.data?.images ?? []).filter(
+		(i) => i.summary?.needsFixing,
+	).length;
 
 	const images = useMemo(() => {
 		const q = search.trim().toLowerCase();
@@ -108,10 +114,11 @@ const ImagesPage: React.FC = () => {
 			.filter(
 				(i) =>
 					(status === "all" || i.status === status) &&
+					(!onlyNeedsFixing || i.summary?.needsFixing) &&
 					(!q || i.name.includes(q) || i.description.toLowerCase().includes(q)),
 			)
 			.sort((a, b) => Number(Boolean(b.tracked)) - Number(Boolean(a.tracked)));
-	}, [query.data, search, status]);
+	}, [query.data, search, status, onlyNeedsFixing]);
 
 	return (
 		<Margins className="pb-12">
@@ -120,6 +127,28 @@ const ImagesPage: React.FC = () => {
 			<PageHeader
 				actions={
 					<div className="flex flex-wrap items-center gap-2">
+						{(needFixing > 0 || onlyNeedsFixing) && (
+							<Button
+								variant="outline"
+								size="lg"
+								aria-pressed={onlyNeedsFixing}
+								onClick={() => setOnlyNeedsFixing(!onlyNeedsFixing)}
+								title={
+									onlyNeedsFixing
+										? "Show every image again"
+										: "Show only the images that need fixing"
+								}
+								className="border-border-destructive/60 bg-surface-destructive/25 text-highlight-red aria-pressed:bg-surface-destructive/60"
+								data-testid="images-need-fixing"
+							>
+								<span
+									aria-hidden
+									className="size-2 rounded-full bg-border-destructive"
+								/>
+								{needFixing} image{needFixing === 1 ? "" : "s"} need
+								{needFixing === 1 ? "s" : ""} fixing
+							</Button>
+						)}
 						<SecurityDataBadge onOpen={() => setSettings(true)} />
 						<Button
 							variant="outline"
@@ -323,6 +352,11 @@ const ImageRow: React.FC<{
 		onError: (e) => toast.error(getErrorMessage(e, "Not deleted.")),
 	});
 	const tracked = image.tracked;
+	const summary = image.summary;
+	const fixableHigh =
+		(summary?.fixableCounts?.CRITICAL ?? 0) +
+		(summary?.fixableCounts?.HIGH ?? 0);
+	const fixHref = `/images/${image.id}/fix`;
 	const contents = [
 		tracked &&
 			image.summary?.addons &&
@@ -339,7 +373,13 @@ const ImageRow: React.FC<{
 
 	return (
 		<Fragment>
-			<TableRow {...clickable} data-testid={`image-${image.id}`}>
+			<TableRow
+				{...clickable}
+				data-testid={`image-${image.id}`}
+				className={
+					summary?.needsFixing ? "bg-surface-destructive/10" : undefined
+				}
+			>
 				<TableCell>
 					<div className="flex flex-col gap-0.5">
 						<span className="flex flex-wrap items-center gap-2 font-semibold">
@@ -352,6 +392,7 @@ const ImageRow: React.FC<{
 							)}
 							{image.name}
 							<StatusBadge status={image.status} />
+							{summary?.needsFixing && <NeedsFixingBadge />}
 							{ours && <CoderForkBadge ours={ours} />}
 							{tracked && <TrackedBadge />}
 							{image.imported && <ImportedBadge from={image.imported.from} />}
@@ -389,7 +430,26 @@ const ImageRow: React.FC<{
 					{formatSize(image.size)}
 				</TableCell>
 				<TableCell>
-					<GradeBadge summary={image.summary} />
+					<GradeBadge summary={summary}>
+						{summary?.needsFixing ? (
+							<span
+								className="text-xs text-content-success"
+								data-testid="image-projected"
+							>
+								{summary.fixable} fixable → {summary.projectedGrade}
+							</span>
+						) : (
+							fixableHigh > 0 && (
+								<RouterLink
+									to={fixHref}
+									onClick={(e) => e.stopPropagation()}
+									className="text-xs text-content-link no-underline hover:underline"
+								>
+									View fix →
+								</RouterLink>
+							)
+						)}
+					</GradeBadge>
 				</TableCell>
 				<TableCell>
 					<FipsBadge status={image.summary?.fips} />
@@ -426,6 +486,17 @@ const ImageRow: React.FC<{
 				</TableCell>
 				<TableCell onClick={(e) => e.stopPropagation()}>
 					<div className="flex items-center justify-end gap-1">
+						{summary?.needsFixing && (
+							<Button
+								asChild
+								size="sm"
+								className="whitespace-nowrap bg-content-link font-semibold text-surface-primary hover:bg-content-link/90"
+							>
+								<RouterLink to={fixHref} data-testid="image-fix">
+									Fix CVEs
+								</RouterLink>
+							</Button>
+						)}
 						{image.pullRef && (
 							<Button
 								asChild

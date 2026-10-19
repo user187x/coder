@@ -45,6 +45,13 @@
 	--ws-warn: hsl(var(--highlight-orange));
 	--ws-warn-bg: hsl(var(--surface-orange));
 	--ws-go: hsl(var(--highlight-green));
+	--ws-go-bg: hsl(var(--surface-green));
+	--ws-danger: hsl(var(--highlight-red));
+	--ws-danger-soft: hsl(var(--highlight-red));
+	--ws-danger-bg: hsl(var(--surface-red));
+	--ws-danger-row: hsl(var(--surface-red) / 0.35);
+	--ws-inset: hsl(var(--surface-secondary));
+	--ws-code: hsl(var(--surface-secondary));
 	--ws-bar-line: hsl(var(--border-default));
 	--ws-bar-shadow: 0 12px 32px rgb(0 0 0 / 0.12);
 
@@ -100,6 +107,13 @@
 	--ws-warn: #f0b95a;
 	--ws-warn-bg: #2a2114;
 	--ws-go: #7fd1a8;
+	--ws-go-bg: #14301f;
+	--ws-danger: #f06a6a;
+	--ws-danger-soft: #f0a0a0;
+	--ws-danger-bg: #3a1a1a;
+	--ws-danger-row: #15121a;
+	--ws-inset: #0f1216;
+	--ws-code: #0a0c0f;
 	--ws-bar-line: #2e3440;
 	--ws-bar-shadow: 0 12px 32px rgb(0 0 0 / 0.45);
 }

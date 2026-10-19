@@ -342,6 +342,7 @@ const ImageEditorPage = lazy(
 	() => import("./pages/ImagesPage/ImageEditorPage"),
 );
 const ImageBuildPage = lazy(() => import("./pages/ImagesPage/ImageBuildPage"));
+const FixImagePage = lazy(() => import("./pages/ImagesPage/FixImagePage"));
 
 const GlobalLayout = () => {
 	return (
@@ -470,6 +471,7 @@ export const router = createBrowserRouter(
 							<Route index element={<ImageDetailPage />} />
 							<Route path="edit" element={<ImageEditorPage />} />
 							<Route path="builds/:build" element={<ImageBuildPage />} />
+							<Route path="fix" element={<FixImagePage />} />
 						</Route>
 					</Route>
 

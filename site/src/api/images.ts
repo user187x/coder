@@ -67,6 +67,12 @@ export type ReportSummary = {
 	/** Programs the image adds over its base, and apt packages asked for (addons.json; 0 without one). */
 	addons?: number;
 	addonPackages?: number;
+	/** Findings of each severity with a fixed version. */
+	fixableCounts?: Partial<Record<Severity, number>>;
+	/** The grade with every fixable finding fixed (null: not scanned). */
+	projectedGrade?: string | null;
+	/** Graded D or F, and fixing what has a fix would raise it: the list's Needs fixing and Fix CVEs. */
+	needsFixing?: boolean;
 };
 
 /**
@@ -177,6 +183,12 @@ export type ImageVulnerability = {
 	severity: Severity;
 	title: string;
 	target: string;
+	/** How it was found (scans since 2.0.0-platform.83): "os-pkgs" or "lang-pkgs". */
+	class?: string;
+	/** The distribution (ubuntu) or the language's package type (python-pkg, node-pkg, gobinary, jar). */
+	type?: string;
+	/** Where a language's package is (scans since 2.0.0-platform.83): its environment. */
+	path?: string;
 };
 
 export type ImageReport = {

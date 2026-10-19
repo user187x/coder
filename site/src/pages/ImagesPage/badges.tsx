@@ -46,9 +46,11 @@ export const GRADE_STYLE: Record<string, string> = {
 };
 
 /** The security report's grade: A (clean) to F (critical findings, secrets or failed checks). */
-export const GradeBadge: React.FC<{ summary: ReportSummary | null }> = ({
-	summary,
-}) => {
+export const GradeBadge: React.FC<{
+	summary: ReportSummary | null;
+	/** A second line under the counts (the Images list's "31 fixable → B", View fix). */
+	children?: React.ReactNode;
+}> = ({ summary, children }) => {
 	if (!summary?.grade) {
 		return <span className="text-content-secondary text-sm">–</span>;
 	}
@@ -68,16 +70,31 @@ export const GradeBadge: React.FC<{ summary: ReportSummary | null }> = ({
 				{summary.grade}
 			</span>
 			{summary.grade !== "?" && (
-				<span className="text-xs text-content-secondary tabular-nums">
-					{(c.CRITICAL ?? 0) > 0 && (
-						<b className="text-highlight-red">{c.CRITICAL} crit · </b>
-					)}
-					{c.HIGH ?? 0} high
+				<span className="flex flex-col">
+					<span className="text-xs text-content-secondary tabular-nums">
+						{(c.CRITICAL ?? 0) > 0 && (
+							<b className="text-highlight-red">{c.CRITICAL} crit · </b>
+						)}
+						{c.HIGH ?? 0} high
+					</span>
+					{children}
 				</span>
 			)}
 		</span>
 	);
 };
+
+/** Graded D or F with fixes that would raise it (summary.needsFixing): the Images list's call to fix it. */
+export const NeedsFixingBadge: React.FC = () => (
+	<Badge
+		variant="destructive"
+		title="Graded D or F, and fixing what has a fix would raise the grade"
+		data-testid="needs-fixing"
+	>
+		<span aria-hidden className="size-1.5 rounded-full bg-current" />
+		Needs fixing
+	</Badge>
+);
 
 export const FipsBadge: React.FC<{
 	status: ReportSummary["fips"] | undefined;
