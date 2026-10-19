@@ -121,8 +121,9 @@ export const ChatConsoleCard: React.FC = () => {
 			<p className="m-0 text-sm text-content-secondary">
 				Every conversation in one place: what waits for an answer, what is
 				unread, everything. Right-click a conversation for its person's
-				workspace, Cloud Drive or Force Response; choose several people for one
-				group chat.
+				workspace, Cloud Drive or Force Response; choose several conversations
+				to delete them together (Select all for the whole list), or their people
+				for one group chat.
 			</p>
 			{poppedOut ? (
 				<div className="flex flex-col items-center gap-3 rounded-md border border-dashed border-border p-8 text-center text-sm text-content-secondary">

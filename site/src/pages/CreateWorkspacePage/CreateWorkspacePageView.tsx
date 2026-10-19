@@ -1,5 +1,6 @@
-import { type FormikContextType, useFormik } from "formik";
-import { ArrowLeftIcon, ExternalLinkIcon } from "lucide-react";
+import "#/modules/platform/settingsPage/settingsPage.css";
+import { type FormikContextType, getIn, useFormik } from "formik";
+import { ExternalLinkIcon } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Link as RouterLink } from "react-router";
 import * as Yup from "yup";
@@ -22,27 +23,48 @@ import {
 	ComboboxTrigger,
 } from "#/components/Combobox/Combobox";
 import { ExternalImage } from "#/components/ExternalImage/ExternalImage";
-import { InfoTooltip } from "#/components/InfoTooltip/InfoTooltip";
-import { Input } from "#/components/Input/Input";
-import { Label } from "#/components/Label/Label";
-import { Spinner } from "#/components/Spinner/Spinner";
-import { Switch } from "#/components/Switch/Switch";
-import { TooltipMessage } from "#/components/Tooltip/Tooltip";
 import { useDebouncedFunction } from "#/hooks/debounce";
 import type { ExternalAuthPollingState } from "#/hooks/useExternalAuth";
 import { useSyncFormParameters } from "#/modules/hooks/useSyncFormParameters";
+import { linkToTemplate, useLinks } from "#/modules/navigation";
+import { SaveBar } from "#/modules/platform/settingsPage/SaveBar";
+import {
+	type GlanceRow,
+	SettingsNav,
+	type SettingsNavLink,
+} from "#/modules/platform/settingsPage/SettingsNav";
+import { SettingsPageHeader } from "#/modules/platform/settingsPage/SettingsPageHeader";
+import {
+	ChipGlyph,
+	ClockGlyph,
+	GearGlyph,
+	IdCardGlyph,
+	MonitorGlyph,
+	ShieldGlyph,
+} from "#/modules/platform/settingsPage/settingsIcons";
+import {
+	SettingsCard,
+	ToggleRow,
+} from "#/modules/platform/settingsPage/settingsParts";
 import {
 	Diagnostics,
-	DynamicParameter,
 	getInitialParameterValues,
 	useValidationSchemaForDynamicParameters,
 } from "#/modules/workspaces/DynamicParameter/DynamicParameter";
 import { generateWorkspaceName } from "#/modules/workspaces/generateWorkspaceName";
+import { EnvironmentCard } from "#/pages/WorkspaceSettingsPage/cards/EnvironmentCard";
+import {
+	RESOURCE_PARAMETERS,
+	ResourcesCard,
+} from "#/pages/WorkspaceSettingsPage/cards/ResourcesCard";
+import type { ParameterControls } from "#/pages/WorkspaceSettingsPage/useBuildParameters";
 import { nameValidator } from "#/utils/formUtils";
 import type { AutofillBuildParameter } from "#/utils/richParameters";
 import type { CreateWorkspaceMode } from "./CreateWorkspacePage";
 import { ExternalAuthButton } from "./ExternalAuthButton";
 import type { CreateWorkspacePermissions } from "./permissions";
+
+const FORM_ID = "create-workspace-form";
 
 type CreateWorkspacePageViewProps = {
 	autofillParameters: AutofillBuildParameter[];
@@ -76,8 +98,8 @@ type CreateWorkspacePageViewProps = {
 	startPollingExternalAuth: (providerId: string) => void;
 	owner: TypesGen.MinimalUser;
 	setOwner: (user: TypesGen.MinimalUser) => void;
-	/** Shown above the submit button (the Global Workspace Scheduler's schedule fields). */
-	scheduleSection?: React.ReactNode;
+	/** The Global Workspace Scheduler's, where it applies: its Schedule card's line and the user's fields. */
+	scheduleCard?: { description: string; fields: React.ReactNode } | null;
 	/** The schedule is not valid yet: the workspace cannot be created. */
 	scheduleBlocked?: boolean;
 };
@@ -113,12 +135,13 @@ export const CreateWorkspacePageView: React.FC<
 	startPollingExternalAuth,
 	owner,
 	setOwner,
-	scheduleSection,
+	scheduleCard,
 	scheduleBlocked,
 }) => {
 	const [suggestedName, setSuggestedName] = useState(generateWorkspaceName);
 	const [showPresetParameters, setShowPresetParameters] = useState(false);
 	const id = useId();
+	const getLink = useLinks();
 	const workspaceNameInputRef = useRef<HTMLInputElement>(null);
 	const rerollSuggestedName = useCallback(() => {
 		setSuggestedName(() => generateWorkspaceName());
@@ -393,65 +416,188 @@ export const CreateWorkspacePageView: React.FC<
 	// the requester cannot authenticate on their behalf.
 	const isCreatingForSelf = owner.id === defaultOwner.id;
 
+	// The parameters as the page's Resources and Environment cards take them (the workspace settings page's cards).
+	const values = form.values.rich_parameter_values ?? [];
+	const lockedByLink = (name: string) =>
+		Boolean(disabledParams?.includes(name.toLowerCase().replace(/ /g, "_")));
+	// A preset's are held, and out of sight unless asked for (or something is wrong with them).
+	const shown = parameters.filter(
+		(p) =>
+			showPresetParameters ||
+			!presetParameterNames.includes(p.name) ||
+			p.diagnostics.length > 0,
+	);
+	const controls: ParameterControls = {
+		ready: true,
+		parameters: shown,
+		parameter: (name) => shown.find((p) => p.name === name),
+		value: (name) => values.find((v) => v.name === name)?.value ?? "",
+		fieldError: (name) => {
+			const index = values.findIndex((v) => v.name === name);
+			const message =
+				index < 0
+					? undefined
+					: getIn(form.errors, `rich_parameter_values.${index}.value`);
+			return getIn(form.touched, name) && typeof message === "string"
+				? message
+				: undefined;
+		},
+		change: async (parameter, value) => {
+			const index = values.findIndex((v) => v.name === parameter.name);
+			await handleChange(
+				parameter,
+				`rich_parameter_values.${index < 0 ? values.length : index}`,
+				value,
+			);
+		},
+		disabled: false,
+		creating: true,
+		locked: (name) => presetParameterNames.includes(name) || lockedByLink(name),
+	};
+	const hasResources = RESOURCE_PARAMETERS.some((name) =>
+		controls.parameter(name),
+	);
+	const hasEnvironment = shown.some(
+		(p) => !RESOURCE_PARAMETERS.includes(p.name),
+	);
+	const ownEnvironment = [
+		"desktop_theme",
+		"workspace_image",
+		"start_directory",
+	].some((name) => controls.parameter(name));
+
+	const links: SettingsNavLink[] = [
+		{ id: "general", label: "General", icon: <GearGlyph /> },
+		...(externalAuth.length > 0
+			? [
+					{
+						id: "external-auth",
+						label: "External authentication",
+						icon: <ShieldGlyph />,
+					},
+				]
+			: []),
+		...(hasResources
+			? [{ id: "resources", label: "Resources", icon: <ChipGlyph /> }]
+			: []),
+		...(hasEnvironment
+			? [
+					{
+						id: "environment",
+						label: ownEnvironment ? "Environment" : "Parameters",
+						icon: <MonitorGlyph />,
+					},
+				]
+			: []),
+		...(scheduleCard
+			? [{ id: "schedule", label: "Schedule", icon: <ClockGlyph /> }]
+			: []),
+	];
+	const option = (name: string) => {
+		const parameter = controls.parameter(name);
+		return parameter?.options.find(
+			(o) => o.value.value === controls.value(name),
+		)?.name;
+	};
+	const gpus = controls.value("gpus");
+	const templateName = template.display_name || template.name;
+	const glance: GlanceRow[] = [
+		{ label: "Template", value: templateName },
+		{ label: "Owner", value: owner.username },
+		...(presets.length > 0
+			? [
+					{
+						label: "Preset",
+						value: presetOptions[selectedPresetIndex]?.label ?? "None",
+					},
+				]
+			: []),
+		...(controls.parameter("cpu")
+			? [{ label: "CPU", value: `${controls.value("cpu")} cores`, mono: true }]
+			: []),
+		...(controls.parameter("memory")
+			? [
+					{
+						label: "Memory",
+						value: `${controls.value("memory")} GB`,
+						mono: true,
+					},
+				]
+			: []),
+		...(controls.parameter("gpus")
+			? [
+					{
+						label: "GPU",
+						value:
+							!gpus || gpus === "0"
+								? "Off"
+								: gpus === "1"
+									? "On"
+									: `On · ${gpus}`,
+					},
+				]
+			: []),
+		...(controls.parameter("home_disk_size")
+			? [
+					{
+						label: "Disk",
+						value: `${controls.value("home_disk_size")} GB`,
+						mono: true,
+					},
+				]
+			: []),
+		...(controls.parameter("desktop_theme")
+			? [{ label: "Theme", value: option("desktop_theme") ?? "–" }]
+			: []),
+	];
+	const nameField = `${id}-workspace-name`;
+
 	return (
-		<section className="px-4 sm:px-6 lg:px-10 py-6 lg:py-10 grid grid-cols-1 lg:grid-cols-[1fr_minmax(0,800px)_1fr] gap-x-4 gap-y-6">
-			<div>
-				<Button variant="subtle" onClick={onCancel} className="-ml-3">
-					<ArrowLeftIcon />
-					<span>Go back</span>
-				</Button>
-			</div>
-			<div className="flex flex-col gap-6 w-full max-w-(--breakpoint-md) mx-auto pb-96">
-				<header className="flex flex-col items-start gap-3 mt-10">
-					<div className="flex items-center gap-2 justify-between w-full">
-						<span className="flex items-center gap-2">
-							<Avatar
-								variant="icon"
-								size="md"
-								src={template.icon}
-								fallback={template.name}
-							/>
-							<p className="text-base font-medium m-0">
-								{template.display_name.length > 0
-									? template.display_name
-									: template.name}
-							</p>
-							{template.deprecated && (
-								<Badge variant="warning" size="sm">
-									Deprecated
-								</Badge>
-							)}
-						</span>
-						{canUpdateTemplate && versionName && (
-							<Button asChild size="sm" variant="outline">
-								<RouterLink
-									to={`/templates/${template.organization_name}/${template.name}/versions/${versionName}/edit`}
-								>
-									<ExternalLinkIcon />
-									View source
-								</RouterLink>
-							</Button>
+		<div className="ws-settings min-h-full">
+			<SettingsPageHeader
+				icon={
+					<Avatar
+						variant="icon"
+						size="md"
+						src={template.icon}
+						fallback={template.name}
+					/>
+				}
+				crumbs={[
+					{ label: "Templates", to: "/templates" },
+					{
+						label: templateName,
+						to: getLink(
+							linkToTemplate(template.organization_name, template.name),
+						),
+					},
+				]}
+				title="New workspace"
+				versionId={versionId}
+				actions={
+					<>
+						{template.deprecated && (
+							<Badge variant="warning" size="sm">
+								Deprecated
+							</Badge>
 						)}
-					</div>
-					<span className="flex flex-row items-center gap-2">
-						<h1 className="text-3xl font-semibold m-0">New workspace</h1>
+						{canUpdateTemplate && versionName && (
+							<RouterLink
+								className="ws-btn ws-hit no-underline"
+								to={`/templates/${template.organization_name}/${template.name}/versions/${versionName}/edit`}
+							>
+								<ExternalLinkIcon className="size-4" />
+								View source
+							</RouterLink>
+						)}
+					</>
+				}
+			/>
 
-						<InfoTooltip>
-							<TooltipMessage>
-								Dynamic Parameters enhances Coder's existing parameter system
-								with real-time validation, conditional parameter behavior, and
-								richer input types.
-							</TooltipMessage>
-						</InfoTooltip>
-					</span>
-				</header>
+			<div className="mx-auto flex max-w-(--ws-content) flex-wrap items-start gap-8 p-8">
+				<SettingsNav links={links} glance={glance} heading="New workspace" />
 
-				<form
-					onSubmit={form.handleSubmit}
-					aria-label="Create workspace form"
-					className="flex flex-col gap-10 w-full border border-border-default border-solid rounded-lg p-6"
-					data-testid="form"
-				>
+				<main className="flex min-w-0 flex-[999_1_560px] flex-col gap-6">
 					{Boolean(error) && <ErrorAlert error={error} />}
 
 					{template.use_classic_parameter_flow && (
@@ -462,7 +608,7 @@ export const CreateWorkspacePageView: React.FC<
 								canUpdateTemplate && (
 									<Button asChild size="sm">
 										<RouterLink
-											to={`/templates/${template.organization_name}/${template.name}/settings/parameters`}
+											to={`/templates/${template.organization_name}/${template.name}/settings#parameters`}
 										>
 											Open template settings
 										</RouterLink>
@@ -504,145 +650,141 @@ export const CreateWorkspacePageView: React.FC<
 						</Alert>
 					)}
 
-					<section className="flex flex-col gap-4">
-						<hgroup>
-							<h2 className="text-xl font-semibold m-0">General</h2>
-							<p className="text-sm text-content-secondary mt-0">
-								{permissions.createWorkspaceForAny
-									? "Only admins can create workspaces for other users."
-									: "The name of your new workspace."}
-							</p>
-						</hgroup>
-						<div>
-							{versionId && versionId !== template.active_version_id && (
-								<div className="flex flex-col gap-2 pb-4">
-									<Label className="text-sm" htmlFor={`${id}-version-id`}>
-										Version ID
-									</Label>
-									<Input id={`${id}-version-id`} value={versionId} disabled />
-									<span className="text-xs text-content-secondary">
-										This parameter has been preset, and cannot be modified.
-									</span>
-								</div>
-							)}
-							<div className="flex gap-4 flex-wrap">
-								<div className="flex flex-col gap-2 flex-1">
-									<Label className="text-sm" htmlFor={`${id}-workspace-name`}>
-										Workspace name
-									</Label>
-									<div className="flex flex-col">
-										<Input
-											id={`${id}-workspace-name`}
+					{diagnostics.length > 0 && <Diagnostics diagnostics={diagnostics} />}
+
+					<form
+						id={FORM_ID}
+						onSubmit={form.handleSubmit}
+						aria-label="Create workspace form"
+						className="contents"
+						data-testid="form"
+						noValidate
+					>
+						<SettingsCard
+							id="general"
+							title="General"
+							description={
+								permissions.createWorkspaceForAny
+									? "Its name, and whose it is"
+									: "The name of your new workspace"
+							}
+							icon={<IdCardGlyph />}
+						>
+							<div className="px-6 py-2">
+								<div className="ws-row">
+									<div className="ws-row-label">
+										<label htmlFor={nameField} className="block font-medium">
+											Workspace name
+										</label>
+										<p className="ws-desc">
+											Shown in the workspace list and URL.
+										</p>
+									</div>
+									<div className="ws-row-control">
+										<input
+											id={nameField}
 											ref={workspaceNameInputRef}
+											type="text"
+											className="ws-input max-w-[420px]"
 											value={form.values.name}
+											spellCheck={false}
+											aria-invalid={Boolean(
+												form.touched.name && form.errors.name,
+											)}
 											onChange={(e) => {
 												form.setFieldValue("name", e.target.value.trim());
 												resetMutation();
 											}}
+											onBlur={() => void form.setFieldTouched("name", true)}
 											disabled={creatingWorkspace}
 										/>
-										{form.touched.name && form.errors.name && (
-											<div className="text-content-destructive text-xs mt-2">
-												{form.errors.name}
-											</div>
+										{form.touched.name && form.errors.name ? (
+											<p className="ws-error">{form.errors.name}</p>
+										) : (
+											<p className="ws-help flex flex-wrap items-center gap-1">
+												Need a suggestion?
+												<button
+													type="button"
+													className="ws-link-btn ws-hit ws-mono"
+													disabled={creatingWorkspace}
+													onClick={async () => {
+														await form.setFieldValue("name", suggestedName);
+														rerollSuggestedName();
+													}}
+												>
+													{suggestedName}
+												</button>
+											</p>
 										)}
-										<div className="flex gap-2 text-xs text-content-secondary items-center">
-											Need a suggestion?
-											<Button
-												variant="subtle"
-												size="sm"
-												onClick={async () => {
-													await form.setFieldValue("name", suggestedName);
-													rerollSuggestedName();
-												}}
-											>
-												{suggestedName}
-											</Button>
-										</div>
 									</div>
 								</div>
+
 								{permissions.createWorkspaceForAny && (
-									<div className="flex flex-col gap-2 flex-1">
-										<Label className="text-sm" htmlFor={`${id}-workspace-name`}>
-											Owner
-										</Label>
-										<WorkspaceUserAutocomplete
-											organizationId={template.organization_id}
-											value={owner}
-											onChange={(user) => {
-												handleOwnerChange(user ?? defaultOwner);
-											}}
-										/>
+									<div className="ws-row">
+										<div className="ws-row-label">
+											<div className="font-medium" id={`${id}-owner-label`}>
+												Owner
+											</div>
+											<p className="ws-desc">
+												Only admins can create workspaces for other users.
+											</p>
+										</div>
+										<div
+											className="ws-row-control ws-combo max-w-[420px]"
+											role="group"
+											aria-labelledby={`${id}-owner-label`}
+										>
+											<WorkspaceUserAutocomplete
+												organizationId={template.organization_id}
+												value={owner}
+												onChange={(user) => {
+													handleOwnerChange(user ?? defaultOwner);
+												}}
+											/>
+										</div>
 									</div>
 								)}
-							</div>
-						</div>
-					</section>
 
-					{externalAuth && externalAuth.length > 0 && (
-						<section>
-							<hgroup>
-								<h2 className="text-xl font-semibold m-0">
-									External Authentication
-								</h2>
-								<p className="text-sm text-content-secondary mt-0">
-									This template uses external services for authentication.
-								</p>
-							</hgroup>
-							<div className="flex flex-col gap-4">
-								{Boolean(error) && !hasAllRequiredExternalAuth && (
-									<Alert severity="error" prominent>
-										To create a workspace using this template, please connect to
-										all required external authentication providers listed below.
-									</Alert>
-								)}
-								{!isCreatingForSelf && (
-									<Alert severity="info">
-										This shows the external authentication state for{" "}
-										{owner.username}. They must connect any required providers
-										themselves; you can't authenticate on their behalf.
-									</Alert>
-								)}
-								{externalAuth.map((auth) => (
-									<ExternalAuthButton
-										key={auth.id}
-										error={error}
-										auth={auth}
-										canAuthenticate={isCreatingForSelf}
-										isLoading={externalAuthPollingState[auth.id] === "polling"}
-										onStartPolling={() => startPollingExternalAuth(auth.id)}
-										displayRetry={
-											externalAuthPollingState[auth.id] === "abandoned"
-										}
-									/>
-								))}
-							</div>
-						</section>
-					)}
-
-					{parameters.length === 0 && diagnostics.length > 0 && (
-						<Diagnostics diagnostics={diagnostics} />
-					)}
-
-					{parameters.length > 0 && (
-						<section className="flex flex-col gap-9">
-							<hgroup>
-								<h2 className="text-xl font-semibold m-0">Parameters</h2>
-								<p className="text-sm text-content-secondary m-0">
-									These are the settings used by your template. Immutable
-									parameters cannot be modified once the workspace is created.
-								</p>
-							</hgroup>
-							{diagnostics.length > 0 && (
-								<Diagnostics diagnostics={diagnostics} />
-							)}
-							{presets.length > 0 && (
-								<div className="flex flex-col gap-2">
-									<div className="flex gap-2 items-center">
-										<Label className="text-sm">Preset</Label>
+								{versionId && versionId !== template.active_version_id && (
+									<div className="ws-row">
+										<div className="ws-row-label">
+											<label
+												htmlFor={`${id}-version-id`}
+												className="block font-medium"
+											>
+												Version ID
+											</label>
+											<p className="ws-desc">
+												Set by the link that opened this page: it cannot be
+												changed here.
+											</p>
+										</div>
+										<div className="ws-row-control">
+											<input
+												id={`${id}-version-id`}
+												className="ws-input ws-input-mono max-w-[420px]"
+												value={versionId}
+												disabled
+											/>
+										</div>
 									</div>
-									<div className="flex flex-col gap-4">
-										<div className="max-w-lg">
+								)}
+
+								{presets.length > 0 && (
+									<div className="ws-row">
+										<div className="ws-row-label">
+											<div className="font-medium" id={`${id}-preset-label`}>
+												Preset
+											</div>
+											<p className="ws-desc">
+												Parameters the template has chosen together.
+											</p>
+										</div>
+										<div
+											className="ws-row-control ws-combo flex max-w-[420px] flex-col gap-3"
+											role="group"
+											aria-labelledby={`${id}-preset-label`}
+										>
 											<Combobox
 												value={presetOptions[selectedPresetIndex]?.value}
 												onValueChange={(value) => {
@@ -694,92 +836,104 @@ export const CreateWorkspacePageView: React.FC<
 												</ComboboxContent>
 											</Combobox>
 										</div>
-										{/* Only show the preset parameter visibility toggle if preset parameters are actually being modified, otherwise it is ineffectual */}
-										{presetParameterNames.length > 0 && (
-											<span className="flex items-center gap-3">
-												<Switch
-													id="show-preset-parameters"
-													checked={showPresetParameters}
-													onCheckedChange={setShowPresetParameters}
-												/>
-												<Label htmlFor="show-preset-parameters">
-													Show preset parameters
-												</Label>
-											</span>
-										)}
 									</div>
-								</div>
-							)}
-
-							<div className="flex flex-col gap-9">
-								{parameters.map((parameter, index) => {
-									const currentParameterValueIndex =
-										form.values.rich_parameter_values?.findIndex(
-											(p) => p.name === parameter.name,
-										);
-									const parameterFieldIndex =
-										currentParameterValueIndex !== undefined
-											? currentParameterValueIndex
-											: index;
-									// Get the form value by parameter name to ensure correct value mapping
-									const formValue =
-										currentParameterValueIndex !== undefined
-											? form.values?.rich_parameter_values?.[
-													currentParameterValueIndex
-												]?.value || ""
-											: "";
-									const parameterField = `rich_parameter_values.${parameterFieldIndex}`;
-									const isPresetParameter = presetParameterNames.includes(
-										parameter.name,
-									);
-									const isDisabled =
-										disabledParams?.includes(
-											parameter.name.toLowerCase().replace(/ /g, "_"),
-										) ||
-										parameter.styling?.disabled ||
-										creatingWorkspace ||
-										isPresetParameter;
-
-									// Always show preset parameters if they have any diagnostics
-									if (
-										!showPresetParameters &&
-										isPresetParameter &&
-										parameter.diagnostics.length === 0
-									) {
-										return null;
-									}
-
-									return (
-										<DynamicParameter
-											key={parameter.name}
-											parameter={parameter}
-											onChange={(value) =>
-												handleChange(parameter, parameterField, value)
-											}
-											disabled={isDisabled}
-											isPreset={isPresetParameter}
-											autofill={
-												!isPresetParameter &&
-												autofillByName[parameter.name] !== undefined
-											}
-											value={formValue}
-										/>
-									);
-								})}
+								)}
+								{/* Only when the preset sets parameters: otherwise it would show nothing more */}
+								{presets.length > 0 && presetParameterNames.length > 0 && (
+									<ToggleRow
+										id="show-preset-parameters"
+										label="Show preset parameters"
+										description="The parameters the preset sets, held as it sets them."
+										pressed={showPresetParameters}
+										onChange={setShowPresetParameters}
+									/>
+								)}
 							</div>
-						</section>
-					)}
+						</SettingsCard>
 
-					{scheduleSection}
+						{externalAuth.length > 0 && (
+							<SettingsCard
+								id="external-auth"
+								title="External authentication"
+								description="This template uses external services for authentication"
+								icon={<ShieldGlyph size={18} />}
+							>
+								<div className="flex flex-col gap-4 p-6">
+									{Boolean(error) && !hasAllRequiredExternalAuth && (
+										<Alert severity="error" prominent>
+											To create a workspace using this template, please connect
+											to all required external authentication providers listed
+											below.
+										</Alert>
+									)}
+									{!isCreatingForSelf && (
+										<Alert severity="info">
+											This shows the external authentication state for{" "}
+											{owner.username}. They must connect any required providers
+											themselves; you can't authenticate on their behalf.
+										</Alert>
+									)}
+									{externalAuth.map((auth) => (
+										<ExternalAuthButton
+											key={auth.id}
+											error={error}
+											auth={auth}
+											canAuthenticate={isCreatingForSelf}
+											isLoading={
+												externalAuthPollingState[auth.id] === "polling"
+											}
+											onStartPolling={() => startPollingExternalAuth(auth.id)}
+											displayRetry={
+												externalAuthPollingState[auth.id] === "abandoned"
+											}
+										/>
+									))}
+								</div>
+							</SettingsCard>
+						)}
 
-					<div className="flex flex-row justify-end">
-						<Button type="submit" disabled={disabled || scheduleBlocked}>
-							<Spinner loading={creatingWorkspace} />
-							Create workspace
-						</Button>
-					</div>
-				</form>
+						{hasResources && (
+							<ResourcesCard params={controls} saving={creatingWorkspace} />
+						)}
+						{hasEnvironment && (
+							<EnvironmentCard params={controls} saving={creatingWorkspace} />
+						)}
+
+						{scheduleCard && (
+							<SettingsCard
+								id="schedule"
+								title="Schedule"
+								description="When it runs"
+								icon={<ClockGlyph size={18} />}
+							>
+								<div className="flex flex-col gap-4 p-6">
+									<p className="m-0 text-[13px] text-(--ws-muted)">
+										{scheduleCard.description}
+									</p>
+									{scheduleCard.fields}
+								</div>
+							</SettingsCard>
+						)}
+
+						<SaveBar
+							form={FORM_ID}
+							title="New workspace"
+							tone="ready"
+							note={
+								isCreatingForSelf
+									? `From ${templateName}`
+									: `From ${templateName}, for ${owner.username}`
+							}
+							label="Create workspace"
+							discardLabel="Cancel"
+							saving={creatingWorkspace}
+							disabled={disabled || Boolean(scheduleBlocked)}
+							onDiscard={onCancel}
+							className="px-0"
+						/>
+					</form>
+				</main>
 			</div>
-		</section>
+		</div>
 	);
 };

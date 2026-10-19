@@ -477,13 +477,14 @@ const CreateWorkspacePage: React.FC = () => {
 						onCancel={() => {
 							navigate(-1);
 						}}
-						scheduleSection={schedule.section}
+						scheduleCard={schedule.card}
 						scheduleBlocked={schedule.blocked}
 						onSubmit={async (request, owner) => {
 							let workspaceRequest = schedule.withSchedule(request);
 							if (realizedVersionId) {
 								workspaceRequest = {
-									...request,
+									// The request with its schedule (the Global Workspace Scheduler's), not without it.
+									...workspaceRequest,
 									template_id: undefined,
 									template_version_id: realizedVersionId,
 								};

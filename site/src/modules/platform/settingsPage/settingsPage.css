@@ -390,6 +390,19 @@
 		font-size: 14px;
 	}
 
+	/* A library combobox's trigger (a preset, an owner) drawn as an input */
+	.ws-combo button[aria-haspopup] {
+		width: 100%;
+		height: var(--ws-control);
+		padding: 0 8px 0 14px;
+		border-radius: var(--ws-r-md);
+		border: 1px solid var(--ws-well-line);
+		background: var(--ws-well);
+		color: var(--ws-text);
+		font-size: 14px;
+		font-weight: 400;
+	}
+
 	/* Plain buttons */
 	.ws-btn {
 		height: var(--ws-control);

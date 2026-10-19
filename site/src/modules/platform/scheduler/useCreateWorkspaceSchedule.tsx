@@ -1,4 +1,3 @@
-import { CalendarClockIcon } from "lucide-react";
 import { useState } from "react";
 import { useQuery } from "react-query";
 import { schedulerMe } from "#/api/queries/platform";
@@ -15,7 +14,7 @@ import {
 
 /**
  * The create-workspace form's part of the Global Workspace Scheduler: where it
- * applies, a "Schedule" section (the user's start and stop times, or the
+ * applies, its Schedule card (the user's start and stop times, or the
  * administrator's schedule that will be applied), whether the form may be
  * submitted, and the request with the schedule added.
  */
@@ -33,39 +32,32 @@ export const useCreateWorkspaceSchedule = () => {
 		? scheduleProblem(value, me?.maxActiveHours ?? null)
 		: "";
 
-	const section = enforced ? (
-		<section
-			className="flex flex-col gap-4"
-			aria-labelledby="create-schedule-title"
-		>
-			<div>
-				<h2
-					id="create-schedule-title"
-					className="m-0 flex items-center gap-2 text-xl font-semibold"
-				>
-					<CalendarClockIcon aria-hidden className="size-5" />
-					Schedule
-				</h2>
-				<p className="m-0 mt-1 text-sm text-content-secondary">
-					{userSets
-						? `Your administrator requires a start and a stop time for every workspace${
-								me?.maxActiveHours
-									? ` (at most ${formatHours(me.maxActiveHours)} apart)`
-									: ""
-							}.`
-						: me?.fixed
-							? `This workspace runs on the schedule your administrator set: ${describeSchedule(me.fixed)}.`
-							: "This workspace runs on the schedule your administrator set."}
-				</p>
-			</div>
-			{userSets && (
-				<ScheduleFields value={value} onChange={setValue} problem={problem} />
-			)}
-		</section>
-	) : null;
+	const description = !enforced
+		? ""
+		: userSets
+			? `Your administrator requires a start and a stop time for every workspace${
+					me?.maxActiveHours
+						? ` (at most ${formatHours(me.maxActiveHours)} apart)`
+						: ""
+				}.`
+			: me?.fixed
+				? `This workspace runs on the schedule your administrator set: ${describeSchedule(me.fixed)}.`
+				: "This workspace runs on the schedule your administrator set.";
 
 	return {
-		section,
+		/** The page's Schedule card, where the scheduler applies: what it says, and the user's fields (theirs to set). */
+		card: enforced
+			? {
+					description,
+					fields: userSets ? (
+						<ScheduleFields
+							value={value}
+							onChange={setValue}
+							problem={problem}
+						/>
+					) : null,
+				}
+			: null,
 		blocked: Boolean(problem),
 		/** The request with the user's schedule (the server applies the administrator's itself). */
 		withSchedule: (request: CreateWorkspaceRequest): CreateWorkspaceRequest => {

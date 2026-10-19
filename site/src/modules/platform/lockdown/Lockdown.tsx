@@ -119,8 +119,8 @@ const MENU: readonly MenuItemSpec[] = [
 		isOn: takesSudo,
 		next: (m) => lockFor(cutsNetwork(m), !takesSudo(m)),
 		label: {
-			off: "Privilege Escalation Disable",
-			on: "Privilege Escalation Enable",
+			off: "Disable Privilege Escalation",
+			on: "Enable Privilege Escalation",
 		},
 		hint: {
 			off: "Take sudo away: nobody in it can become root",

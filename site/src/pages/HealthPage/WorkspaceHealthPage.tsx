@@ -11,7 +11,6 @@ import {
 	TableHeader,
 	TableRow,
 } from "#/components/Table/Table";
-import { TableEmpty } from "#/components/TableEmpty/TableEmpty";
 import { TableLoader } from "#/components/TableLoader/TableLoader";
 import { useClickableTableRow } from "#/hooks/useClickableTableRow";
 import {
@@ -73,29 +72,43 @@ const WorkspaceHealthPage: React.FC = () => {
 
 			<Main>
 				{error ? <ErrorAlert error={error} /> : null}
-				<Table aria-label="Unhealthy or failed workspaces">
-					<TableHeader>
-						<TableRow>
-							<TableHead>Workspace</TableHead>
-							<TableHead>Problem</TableHead>
-							<TableHead>Template</TableHead>
-							<TableHead>Last build</TableHead>
-						</TableRow>
-					</TableHeader>
-					<TableBody>
-						{!unhealthy && !error ? (
-							<TableLoader />
-						) : unhealthy?.length ? (
-							unhealthy.map((w) => (
-								<WorkspaceHealthRow key={w.id} workspace={w} />
-							))
-						) : (
-							<TableEmpty message="Nothing to triage: no workspace has failed or become unhealthy." />
-						)}
-					</TableBody>
-				</Table>
+				{unhealthy?.length === 0 ? (
+					// Nothing to triage: one line, not an empty table.
+					<div
+						role="status"
+						className="flex items-center gap-2.5 rounded-lg border border-solid border-border px-4 py-3 text-sm text-content-secondary"
+						data-testid="workspace-health-clear"
+					>
+						<CircleCheckIcon
+							aria-hidden
+							className="size-4 shrink-0 text-content-link"
+						/>
+						Nothing to triage: no workspace has failed or become unhealthy.
+					</div>
+				) : unhealthy || !error ? (
+					<Table aria-label="Unhealthy or failed workspaces">
+						<TableHeader>
+							<TableRow>
+								<TableHead>Workspace</TableHead>
+								<TableHead>Problem</TableHead>
+								<TableHead>Template</TableHead>
+								<TableHead>Last build</TableHead>
+							</TableRow>
+						</TableHeader>
+						<TableBody>
+							{unhealthy ? (
+								unhealthy.map((w) => (
+									<WorkspaceHealthRow key={w.id} workspace={w} />
+								))
+							) : (
+								<TableLoader />
+							)}
+						</TableBody>
+					</Table>
+				) : null}
 				<p className="m-0 text-xs text-content-secondary" data-pixel="ignore">
-					Select a workspace to open it. Checked every 30 seconds
+					{unhealthy?.length ? "Select a workspace to open it. " : ""}
+					Checked every 30 seconds
 					{dataUpdatedAt
 						? `, last at ${new Date(dataUpdatedAt).toLocaleTimeString("en-US")}`
 						: ""}

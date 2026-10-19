@@ -2,6 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { act } from "react";
 import { API } from "#/api/api";
+import { PlatformAPI } from "#/api/platform";
 import type { Preset, PreviewParameter } from "#/api/typesGenerated";
 import {
 	MockDropdownParameter,
@@ -1008,6 +1009,94 @@ describe("CreateWorkspacePage", () => {
 					`/@${MockWorkspace.owner_name}/${MockWorkspace.name}`,
 				);
 			});
+		});
+	});
+	describe("Platform: the settings page's look", () => {
+		const option = (name: string, value: string) => ({
+			name,
+			description: "",
+			value: { value, valid: true },
+			icon: "",
+		});
+		// CPU as the platform's templates have it: tiles, and immutable (set when the workspace is made).
+		const cpu: PreviewParameter = {
+			...MockDropdownParameter,
+			name: "cpu",
+			display_name: "CPU",
+			mutable: false,
+			value: { value: "2", valid: true },
+			default_value: { value: "2", valid: true },
+			options: [option("2 Cores", "2"), option("4 Cores", "4")],
+			order: 1,
+		};
+		const theme: PreviewParameter = {
+			...MockDropdownParameter,
+			name: "desktop_theme",
+			display_name: "Desktop theme",
+			value: { value: "classic", valid: true },
+			default_value: { value: "classic", valid: true },
+			options: [option("Classic", "classic"), option("Serenade", "serenade")],
+			order: 2,
+		};
+
+		it("shows the parameters as the workspace settings page's cards, immutable ones settable", async () => {
+			const { mockPublisher, mockSocket } = await renderPageWithSocket();
+			await expectSocketHandshake({ mockPublisher, parameters: [cpu, theme] });
+			await waitForLoaderToBeRemoved();
+
+			for (const card of ["general", "resources", "environment"]) {
+				expect(
+					screen.getByTestId(`workspace-settings-${card}`),
+				).toBeInTheDocument();
+			}
+			expect(screen.getByTestId("at-a-glance")).toHaveTextContent("2 cores");
+			const four = screen.getByRole("button", { name: "4 Cores" });
+			expect(four).toBeEnabled();
+			await userEvent.click(four);
+			await waitFor(() =>
+				expect(mockSocket.send).toHaveBeenCalledWith(
+					expect.stringContaining('"cpu":"4"'),
+				),
+			);
+			expect(screen.getByTestId("at-a-glance")).toHaveTextContent("4 cores");
+			expect(screen.getByRole("button", { name: /Serenade/ })).toBeEnabled();
+		});
+
+		it("keeps the user's schedule in the request (the Global Workspace Scheduler)", async () => {
+			vi.spyOn(PlatformAPI, "getSchedulerMe").mockResolvedValue({
+				enforced: true,
+				reason: "",
+				mode: "user",
+				maxActiveHours: null,
+				workspaces: [],
+			});
+			const { mockPublisher } = await renderPageWithSocket();
+			await expectSocketHandshake({ mockPublisher, parameters: [] });
+			await waitForLoaderToBeRemoved();
+			expect(
+				await screen.findByTestId("workspace-settings-schedule"),
+			).toBeInTheDocument();
+
+			await userEvent.type(
+				screen.getByRole("textbox", { name: /workspace name/i }),
+				"scheduled",
+			);
+			await userEvent.click(
+				screen.getByRole("button", { name: /create workspace/i }),
+			);
+			await waitFor(() =>
+				expect(API.createWorkspace).toHaveBeenCalledWith(
+					"test-user",
+					expect.objectContaining({
+						name: "scheduled",
+						template_version_id: MockTemplate.active_version_id,
+						autostart_schedule: expect.stringMatching(
+							/^CRON_TZ=\S+ 0 9 \* \* 1,2,3,4,5$/,
+						),
+						ttl_ms: 8 * 3600_000,
+					}),
+				),
+			);
 		});
 	});
 });

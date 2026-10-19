@@ -50,7 +50,9 @@ const useSectionInView = (ids: readonly string[]) => {
 export const SettingsNav: React.FC<{
 	links: readonly SettingsNavLink[];
 	glance: readonly GlanceRow[];
-}> = ({ links, glance }) => {
+	/** Over the links. */
+	heading?: string;
+}> = ({ links, glance, heading = "Settings" }) => {
 	const key = links.map((l) => l.id).join(" ");
 	const ids = useMemo(() => links.map((l) => l.id), [key]);
 	const current = useSectionInView(ids);
@@ -60,7 +62,7 @@ export const SettingsNav: React.FC<{
 			aria-label="Settings sections"
 			className="flex max-w-[220px] flex-[1_1_200px] flex-col gap-0.5 lg:sticky lg:top-6"
 		>
-			<div className="ws-eyebrow px-3 pb-2">Settings</div>
+			<div className="ws-eyebrow px-3 pb-2">{heading}</div>
 			{links.map((link) => (
 				<a
 					key={link.id}

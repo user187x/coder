@@ -19,7 +19,7 @@ import {
 	SettingsCard,
 } from "#/modules/platform/settingsPage/settingsParts";
 import { DynamicParameter } from "#/modules/workspaces/DynamicParameter/DynamicParameter";
-import type { BuildParameters } from "../useBuildParameters";
+import type { ParameterControls } from "../useBuildParameters";
 import { editable, RESOURCE_PARAMETERS } from "./ResourcesCard";
 
 /** The template's parameters this card shows as its own controls. */
@@ -73,7 +73,7 @@ const ThemePreview: React.FC<{ theme: string }> = ({ theme }) =>
 	);
 
 const DesktopTheme: React.FC<{
-	params: BuildParameters;
+	params: ParameterControls;
 	parameter: PreviewParameter;
 	saving: boolean;
 }> = ({ params, parameter, saving }) => {
@@ -86,7 +86,9 @@ const DesktopTheme: React.FC<{
 			<legend className="mb-3 flex w-full flex-wrap items-baseline justify-between gap-1 p-0">
 				<span className="font-medium">Desktop theme</span>
 				<span className="text-[13px] text-(--ws-muted)">
-					Applies at the next start
+					{params.creating
+						? "Can be changed later"
+						: "Applies at the next start"}
 				</span>
 			</legend>
 			<div className="grid grid-cols-[repeat(auto-fit,minmax(min(240px,100%),1fr))] gap-3">
@@ -125,7 +127,7 @@ const imageLabel = (option: PreviewParameter["options"][number]) =>
 		: option.name;
 
 const WorkspaceImage: React.FC<{
-	params: BuildParameters;
+	params: ParameterControls;
 	parameter: PreviewParameter;
 	saving: boolean;
 }> = ({ params, parameter, saving }) => {
@@ -207,7 +209,7 @@ const WorkspaceImage: React.FC<{
 };
 
 const StartFolder: React.FC<{
-	params: BuildParameters;
+	params: ParameterControls;
 	parameter: PreviewParameter;
 	saving: boolean;
 }> = ({ params, parameter, saving }) => {
@@ -248,7 +250,7 @@ const StartFolder: React.FC<{
  * (More from the template), as its own field. Applied with a restart.
  */
 export const EnvironmentCard: React.FC<{
-	params: BuildParameters;
+	params: ParameterControls;
 	saving: boolean;
 }> = ({ params, saving }) => {
 	const theme = params.parameter("desktop_theme");
@@ -259,11 +261,17 @@ export const EnvironmentCard: React.FC<{
 			!RESOURCE_PARAMETERS.includes(p.name) &&
 			!ENVIRONMENT_PARAMETERS.includes(p.name),
 	);
+	// A template with none of the platform's own: its parameters, as they are.
+	const own = Boolean(theme || image || folder);
 	return (
 		<SettingsCard
 			id="environment"
-			title="Environment"
-			description="Desktop look, image and where you land"
+			title={own ? "Environment" : "Parameters"}
+			description={
+				own
+					? "Desktop look, image and where you land"
+					: "What the template asks for"
+			}
 			icon={<MonitorGlyph size={18} />}
 		>
 			{params.ready ? (
@@ -290,8 +298,14 @@ export const EnvironmentCard: React.FC<{
 						</div>
 					)}
 					{more.length > 0 && (
-						<div className="flex flex-col gap-6 border-0 border-t border-solid border-(--ws-row-line) pt-6">
-							<div className="ws-eyebrow">More from the template</div>
+						<div
+							className={
+								own
+									? "flex flex-col gap-6 border-0 border-t border-solid border-(--ws-row-line) pt-6"
+									: "flex flex-col gap-6"
+							}
+						>
+							{own && <div className="ws-eyebrow">More from the template</div>}
 							{more.map((parameter) => (
 								<DynamicParameter
 									key={parameter.name}
@@ -303,7 +317,7 @@ export const EnvironmentCard: React.FC<{
 							))}
 						</div>
 					)}
-					{!theme && !image && !folder && more.length === 0 && (
+					{!own && more.length === 0 && (
 						<p className="m-0 text-[13px] text-(--ws-muted)">
 							This template has nothing to set here.
 						</p>

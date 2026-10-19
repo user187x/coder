@@ -399,3 +399,24 @@ export const useBuildParameters = ({
 };
 
 export type BuildParameters = ReturnType<typeof useBuildParameters>;
+
+/**
+ * What the Resources and Environment cards need of a form of build parameters: a workspace's (useBuildParameters, on
+ * its settings page), or a new one's (the create workspace page).
+ */
+export type ParameterControls = {
+	/** The form holds its values (until then the cards wait). */
+	ready: boolean;
+	/** The ones shown. */
+	parameters: readonly PreviewParameter[];
+	parameter: (name: string) => PreviewParameter | undefined;
+	value: (name: string) => string;
+	fieldError: (name: string) => string | undefined;
+	change: (parameter: PreviewParameter, value: string) => Promise<void>;
+	/** Every one held (the template requires an update first). */
+	disabled: boolean;
+	/** A new workspace's: the immutable ones are set now too. */
+	creating?: boolean;
+	/** Held by what opened the page (a preset, the link). */
+	locked?: (name: string) => boolean;
+};

@@ -913,6 +913,29 @@ export const deleteConversation = async (peerId: string) => {
 	cleared(peerId, true);
 };
 
+const DELETE_AT_ONCE = 4;
+
+/** Deletes these conversations, a few at a time: the ones deleted, and why each other one was not. */
+export const deleteConversations = async (peerIds: readonly string[]) => {
+	const deleted: string[] = [];
+	const failed: { id: string; error: unknown }[] = [];
+	const queue = [...peerIds];
+	const worker = async () => {
+		for (let id = queue.shift(); id !== undefined; id = queue.shift()) {
+			try {
+				await deleteConversation(id);
+				deleted.push(id);
+			} catch (error) {
+				failed.push({ id, error });
+			}
+		}
+	};
+	await Promise.all(
+		Array.from({ length: Math.min(DELETE_AT_ONCE, queue.length) }, worker),
+	);
+	return { deleted, failed };
+};
+
 /** An admin's own switch: off = developers can't write to them. */
 export const setChatOn = async (on: boolean) => {
 	const me = snapshot.me;

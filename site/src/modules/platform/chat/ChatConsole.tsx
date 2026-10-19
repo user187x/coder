@@ -21,6 +21,7 @@ import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { getErrorMessage } from "#/api/errors";
 import {
+	type ChatPeer,
 	type ChatConversation as Conversation,
 	isChatGroupId,
 } from "#/api/platform";
@@ -44,7 +45,7 @@ import { ChatConversation, type ConversationActions } from "./ChatConversation";
 import { ChatPeople } from "./ChatPeople";
 import { CountBadge } from "./ChatWindow";
 import {
-	deleteConversation,
+	deleteConversations,
 	displayName,
 	forceResponse,
 	popOutOfConsole,
@@ -56,6 +57,8 @@ import "./chatConsole.css";
 
 const ROW_HEIGHT = 60;
 const OVERSCAN = 6;
+// How many names a confirmation of several deletes lists (and how many more).
+const DELETE_NAMES = 6;
 const AUTO_NEXT_KEY = "coder-ui-chat-auto-next";
 const SHORTCUTS = [
 	"Alt+↓ / Alt+↑: next / previous conversation",
@@ -63,7 +66,7 @@ const SHORTCUTS = [
 	"/ or Ctrl+K: search",
 	"↑ ↓ Enter: move in the list, open",
 	"Escape: back to the list",
-	"Ctrl+click: choose people for a group chat",
+	"Ctrl+click: choose conversations (delete them, or a group chat)",
 	"Right-click a conversation: delete, workspace, Cloud Drive, Force Response",
 ].join("\n");
 
@@ -155,8 +158,9 @@ type ChatConsoleProps = {
  * message box).
  *
  * It lives on the Chat page (a card at its top) or in a window of its own,
- * popped out of it - not over the dashboard. Several people chosen (Select, or
- * Ctrl+click) get one group chat; a conversation's right-click menu deletes it,
+ * popped out of it - not over the dashboard. Several conversations chosen
+ * (Select, or Ctrl+click; Select all takes the whole list) are deleted together,
+ * or their people get one group chat; a conversation's right-click menu deletes it,
  * goes to the person's workspace or Cloud Drive (read only), or forces a
  * response (the newest admin message in front of everything for them).
  */
@@ -247,18 +251,36 @@ export const ChatConsole: React.FC<ChatConsoleProps> = ({
 		go(waiting[0], "next", focus);
 	};
 
-	// Several people chosen: one group chat with them all.
+	// Several conversations chosen: deleted together, or one group chat with their people.
 	const [selecting, setSelecting] = useState(false);
 	const [picked, setPicked] = useState<ReadonlySet<string>>(new Set());
 	const [grouping, setGrouping] = useState(false);
+	const chosen = useMemo(
+		() =>
+			[...state.conversations.values()].filter((c) => picked.has(c.peer.id)),
+		[state.conversations, picked],
+	);
+	const people = chosen.filter((c) => !isChatGroupId(c.peer.id));
+	const shownChosen = list.filter((c) => picked.has(c.peer.id)).length;
+	const allChosen = list.length > 0 && shownChosen === list.length;
 	const stopSelecting = () => {
 		setSelecting(false);
 		setPicked(new Set());
 	};
+	/** Select all: every conversation in the list as it is (its tab and search) - or none of them, when all are. */
+	const toggleAll = () =>
+		setPicked((now) => {
+			const next = new Set(now);
+			for (const c of list) {
+				if (allChosen) {
+					next.delete(c.peer.id);
+				} else {
+					next.add(c.peer.id);
+				}
+			}
+			return next;
+		});
 	const toggle = (c: Conversation) => {
-		if (isChatGroupId(c.peer.id)) {
-			return;
-		}
 		setSelecting(true);
 		setPicked((now) => {
 			const next = new Set(now);
@@ -273,7 +295,7 @@ export const ChatConsole: React.FC<ChatConsoleProps> = ({
 	const chatWithPicked = async () => {
 		setGrouping(true);
 		try {
-			await startGroupChat([...picked]);
+			await startGroupChat(people.map((c) => c.peer.id));
 			stopSelecting();
 		} catch (error) {
 			toast.error(getErrorMessage(error, "The group chat was not started."));
@@ -285,7 +307,42 @@ export const ChatConsole: React.FC<ChatConsoleProps> = ({
 	// A conversation's right-click menu.
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
-	const [deleting, setDeleting] = useState<Conversation | null>(null);
+	// What Delete asks about: the open conversation, a right-clicked one, or every chosen one.
+	const [deleting, setDeleting] = useState<readonly ChatPeer[] | null>(null);
+	const [removing, setRemoving] = useState(false);
+	/** Delete on a conversation: all the chosen ones when it is one of them, else just it. */
+	const deleteTarget = (peer: ChatPeer) =>
+		selecting && picked.has(peer.id) && chosen.length > 1
+			? chosen.map((c) => c.peer)
+			: [peer];
+	const remove = async (peers: readonly ChatPeer[]) => {
+		setRemoving(true);
+		try {
+			const { deleted, failed } = await deleteConversations(
+				peers.map((p) => p.id),
+			);
+			setPicked((now) => {
+				const next = new Set(now);
+				for (const id of deleted) {
+					next.delete(id);
+				}
+				return next;
+			});
+			if (failed.length > 0) {
+				toast.error(
+					peers.length === 1
+						? "Not deleted."
+						: `${failed.length} of ${peers.length} conversations not deleted.`,
+					{ description: getErrorMessage(failed[0].error, "") },
+				);
+			} else if (peers.length > 1) {
+				toast.success(`${deleted.length} conversations deleted.`);
+			}
+		} finally {
+			setRemoving(false);
+			setDeleting(null);
+		}
+	};
 	const visit = (href: string) => {
 		// From its own window: in the dashboard's tab (the window keeps the console).
 		const opener: Window | null = place === "window" ? window.opener : null;
@@ -296,8 +353,16 @@ export const ChatConsole: React.FC<ChatConsoleProps> = ({
 			navigate(href);
 		}
 	};
+	// The conversation's trash: while some are chosen, it deletes those (the open one only when chosen).
+	const ticked = selecting && chosen.length > 0;
+	const trashLabel = !ticked
+		? "Delete conversation"
+		: chosen.length === 1
+			? `Delete the chosen conversation (${displayName(chosen[0].peer)})`
+			: `Delete the ${chosen.length} chosen conversations`;
 	const menu: RowMenu = {
-		onDelete: setDeleting,
+		deleteCount: (c) => deleteTarget(c.peer).length,
+		onDelete: (c) => setDeleting(deleteTarget(c.peer)),
 		onWorkspace: (c) =>
 			void userWorkspaceHref(queryClient, c.peer.username).then(visit),
 		onCloudDrive: (c) =>
@@ -472,14 +537,57 @@ export const ChatConsole: React.FC<ChatConsoleProps> = ({
 									selecting ? stopSelecting() : setSelecting(true)
 								}
 								aria-pressed={selecting}
-								aria-label="Choose people for a group chat"
-								title="Choose people for a group chat (or Ctrl+click them)"
+								aria-label="Choose conversations"
+								title="Choose conversations - delete them, or chat with their people in one group chat (or Ctrl+click them)"
 								data-testid="chat-console-select"
 							>
 								<ListChecksIcon />
 							</Button>
 						</div>
 					</div>
+					{selecting && (
+						<div
+							className="flex shrink-0 items-center gap-2 border-0 border-t border-solid border-border py-1.5 pr-2.5 pl-[13px] text-xs"
+							data-testid="chat-console-select-all-bar"
+						>
+							<label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 text-content-secondary">
+								<input
+									type="checkbox"
+									ref={(box) => {
+										if (box) {
+											box.indeterminate = shownChosen > 0 && !allChosen;
+										}
+									}}
+									checked={allChosen}
+									disabled={list.length === 0 || removing}
+									onChange={toggleAll}
+									className="m-0 shrink-0"
+									data-testid="chat-console-select-all"
+								/>
+								<span className="truncate">
+									Select all
+									<span className="ml-1 tabular-nums opacity-70">
+										{list.length}
+									</span>
+								</span>
+							</label>
+							<Button
+								size="xs"
+								variant="destructive"
+								className="[&>svg]:size-3.5"
+								disabled={chosen.length === 0 || removing}
+								onClick={() => setDeleting(chosen.map((c) => c.peer))}
+								title="Delete the chosen conversations, for everyone in them"
+								data-testid="chat-console-delete-chosen"
+							>
+								<TrashIcon />
+								Delete
+								{chosen.length > 0 && (
+									<span className="tabular-nums">{chosen.length}</span>
+								)}
+							</Button>
+						</div>
+					)}
 					<RolodexList
 						listRef={listRef}
 						list={list}
@@ -513,21 +621,27 @@ export const ChatConsole: React.FC<ChatConsoleProps> = ({
 							data-testid="chat-console-selection"
 						>
 							<span className="flex-1 text-content-secondary">
-								{picked.size === 0
-									? "Choose people (not group chats)"
-									: `${picked.size} chosen`}
+								{chosen.length === 0
+									? "Choose conversations"
+									: `${chosen.length} chosen`}
 							</span>
 							<Button size="xs" variant="outline" onClick={stopSelecting}>
 								Cancel
 							</Button>
 							<Button
 								size="xs"
-								disabled={picked.size === 0 || grouping}
+								className="[&>svg]:size-3.5"
+								disabled={people.length === 0 || grouping}
 								onClick={() => void chatWithPicked()}
+								title={
+									people.length < chosen.length
+										? "A group chat with the people chosen (group chats are left out)"
+										: "A group chat with the people chosen"
+								}
 								data-testid="chat-console-group"
 							>
 								<UsersIcon />
-								Chat with {picked.size === 1 ? "them" : "all"}
+								Chat with {people.length === 1 ? "them" : "all"}
 							</Button>
 						</div>
 					)}
@@ -628,9 +742,13 @@ export const ChatConsole: React.FC<ChatConsoleProps> = ({
 							<Button
 								variant="subtle"
 								size="icon"
-								onClick={() => conversation.current?.askDelete()}
-								aria-label="Delete conversation"
-								title="Delete conversation"
+								disabled={removing}
+								onClick={() =>
+									setDeleting(ticked ? chosen.map((c) => c.peer) : [view.peer])
+								}
+								aria-label={trashLabel}
+								title={trashLabel}
+								data-testid="chat-console-delete"
 							>
 								<TrashIcon />
 							</Button>
@@ -665,17 +783,42 @@ export const ChatConsole: React.FC<ChatConsoleProps> = ({
 				<ConfirmDialog
 					open
 					type="delete"
-					title={`Delete the conversation with ${displayName(deleting.peer)}?`}
-					description="Every message goes, for both of you."
-					confirmText="Delete"
-					onConfirm={() => {
-						const peer = deleting.peer;
-						setDeleting(null);
-						void deleteConversation(peer.id).catch((error) =>
-							toast.error(getErrorMessage(error, "Not deleted.")),
-						);
+					title={
+						deleting.length === 1
+							? `Delete the conversation with ${displayName(deleting[0])}?`
+							: `Delete ${deleting.length} conversations?`
+					}
+					description={
+						deleting.length === 1 ? (
+							isChatGroupId(deleting[0].id) ? (
+								"Every message goes, for everyone in it."
+							) : (
+								"Every message goes, for both of you."
+							)
+						) : (
+							<>
+								<p>
+									{deleting
+										.slice(0, DELETE_NAMES)
+										.map((p) => displayName(p))
+										.join(" · ")}
+									{deleting.length > DELETE_NAMES &&
+										` and ${deleting.length - DELETE_NAMES} more`}
+								</p>
+								<p>Every message in them goes, for everyone in them.</p>
+							</>
+						)
+					}
+					confirmText={
+						deleting.length === 1 ? "Delete" : `Delete ${deleting.length}`
+					}
+					confirmLoading={removing}
+					onConfirm={() => void remove(deleting)}
+					onClose={() => {
+						if (!removing) {
+							setDeleting(null);
+						}
 					}}
-					onClose={() => setDeleting(null)}
 				/>
 			)}
 		</section>
@@ -684,6 +827,8 @@ export const ChatConsole: React.FC<ChatConsoleProps> = ({
 
 /** A conversation's right-click menu: what each item does. */
 type RowMenu = {
+	/** How many conversations its Delete deletes: the chosen ones, when it is one of them. */
+	deleteCount: (c: Conversation) => number;
 	onDelete: (c: Conversation) => void;
 	onWorkspace: (c: Conversation) => void;
 	onCloudDrive: (c: Conversation) => void;
@@ -823,14 +968,10 @@ const RolodexList: React.FC<RolodexListProps> = ({
 											<input
 												type="checkbox"
 												checked={chosen}
-												disabled={group}
 												readOnly
 												tabIndex={-1}
 												aria-label={`Choose ${displayName(c.peer)}`}
-												title={
-													group ? "A group chat: choose people" : undefined
-												}
-												className="pointer-events-none shrink-0"
+												className="pointer-events-none m-0 shrink-0"
 											/>
 										)}
 										<ChatAvatar peer={c.peer} />
@@ -901,7 +1042,9 @@ const RolodexList: React.FC<RolodexListProps> = ({
 									<ContextMenuSeparator />
 									<ContextMenuItem onSelect={() => menu.onDelete(c)}>
 										<TrashIcon />
-										Delete
+										{menu.deleteCount(c) > 1
+											? `Delete the ${menu.deleteCount(c)} chosen`
+											: "Delete"}
 									</ContextMenuItem>
 								</ContextMenuContent>
 							</ContextMenu>

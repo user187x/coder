@@ -240,7 +240,7 @@ describe("Lock Down", () => {
 			freeze: screen.getByTestId("lockdown-freeze"),
 		};
 		expect(items.network).toHaveTextContent("Disconnect Network");
-		expect(items.sudo).toHaveTextContent("Privilege Escalation Disable");
+		expect(items.sudo).toHaveTextContent("Disable Privilege Escalation");
 		expect(items.complete).toHaveTextContent("Lock Down");
 		expect(items.freeze).toHaveTextContent("Freeze");
 		for (const item of Object.values(items)) {
@@ -267,7 +267,7 @@ describe("Lock Down", () => {
 		await waitFor(() => expect(network).toHaveTextContent("Reconnect Network"));
 		expect(network.className).toContain("text-content-destructive");
 		expect(screen.getByTestId("lockdown-sudo")).toHaveTextContent(
-			"Privilege Escalation Enable",
+			"Enable Privilege Escalation",
 		);
 		expect(screen.getByTestId("lockdown-complete")).toHaveTextContent("Unlock");
 		expect(screen.getByTestId("lockdown-freeze").dataset.on).toBe("false");

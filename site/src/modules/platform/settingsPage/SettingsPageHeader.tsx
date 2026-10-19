@@ -35,15 +35,16 @@ const VersionChip: React.FC<{ id: string }> = ({ id }) => {
 export type Crumb = { label: string; to: string };
 
 /**
- * A settings page's header (a workspace's, a template's): its tile, the way back (crumbs; the last one the thing
- * whose settings these are), the title, and the version the settings belong to.
+ * A settings page's header (a workspace's, a template's, a new workspace's): its tile, the way back (crumbs; the last
+ * one the thing whose settings these are), the title, and the version the settings belong to (actions beside it).
  */
 export const SettingsPageHeader: React.FC<{
 	icon: React.ReactNode;
 	crumbs: readonly Crumb[];
 	title: string;
 	versionId?: string;
-}> = ({ icon, crumbs, title, versionId }) => (
+	actions?: React.ReactNode;
+}> = ({ icon, crumbs, title, versionId, actions }) => (
 	<header className="border-0 border-b border-solid border-(--ws-header-line) bg-(--ws-header)">
 		<div className="mx-auto flex max-w-(--ws-content) flex-wrap items-center justify-between gap-4 px-8 py-5">
 			<div className="flex min-w-0 items-center gap-3.5">
@@ -76,9 +77,10 @@ export const SettingsPageHeader: React.FC<{
 					</h1>
 				</div>
 			</div>
-			{versionId && (
+			{(versionId || actions) && (
 				<div className="flex flex-wrap items-center gap-2.5">
-					<VersionChip id={versionId} />
+					{actions}
+					{versionId && <VersionChip id={versionId} />}
 				</div>
 			)}
 		</div>

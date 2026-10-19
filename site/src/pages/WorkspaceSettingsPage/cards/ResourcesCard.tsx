@@ -17,20 +17,24 @@ import {
 } from "#/modules/platform/settingsPage/settingsParts";
 import { DynamicParameter } from "#/modules/workspaces/DynamicParameter/DynamicParameter";
 import { ExpandDiskDialog } from "#/modules/workspaces/WorkspaceMoreActions/WorkspaceVolumeDialogs";
-import type { BuildParameters } from "../useBuildParameters";
+import type { ParameterControls } from "../useBuildParameters";
 
 /** The template's parameters this card shows (the others: Environment, or its More settings). */
 export const RESOURCE_PARAMETERS = ["cpu", "memory", "gpus", "home_disk_size"];
 
-/** A parameter can be changed here: mutable, not disabled by its template, the form not held. */
+/**
+ * A parameter can be changed here: mutable (or the workspace being created), not disabled by its template nor held by
+ * what opened the page, the form not held.
+ */
 export const editable = (
-	params: BuildParameters,
+	params: ParameterControls,
 	parameter: PreviewParameter,
 	saving: boolean,
 ) =>
-	parameter.mutable &&
+	(parameter.mutable || Boolean(params.creating)) &&
 	!parameter.styling?.disabled &&
 	!params.disabled &&
+	!params.locked?.(parameter.name) &&
 	!saving;
 
 const hasOptions = (parameter: PreviewParameter | undefined) =>
@@ -38,7 +42,7 @@ const hasOptions = (parameter: PreviewParameter | undefined) =>
 
 /** A choice of the template's options as tiles; anything else the template's own field. */
 const TilesOrField: React.FC<{
-	params: BuildParameters;
+	params: ParameterControls;
 	name: string;
 	legend: string;
 	hint: string;
@@ -78,7 +82,7 @@ const TilesOrField: React.FC<{
 };
 
 /** GPUs: on or off - the template's GPU parameter (none: the CPU); greyed where the template disables it. */
-const GpuStrip: React.FC<{ params: BuildParameters; saving: boolean }> = ({
+const GpuStrip: React.FC<{ params: ParameterControls; saving: boolean }> = ({
 	params,
 	saving,
 }) => {
@@ -207,11 +211,73 @@ const DiskStrip: React.FC<{
 	);
 };
 
-/** Resources: CPU and memory (tiles of the template's options), the GPU, the home disk. Applied with a restart. */
+/** A new workspace's home disk: the size it is made with (its template's choices as tiles, else a number). */
+const NewDiskStrip: React.FC<{
+	params: ParameterControls;
+	parameter: PreviewParameter;
+	saving: boolean;
+}> = ({ params, parameter, saving }) => {
+	if (hasOptions(parameter)) {
+		return (
+			<TilesOrField
+				params={params}
+				name={parameter.name}
+				legend="Home disk"
+				hint="Size in GB"
+				saving={saving}
+			/>
+		);
+	}
+	const error = params.fieldError(parameter.name);
+	return (
+		<div
+			className="ws-strip flex-wrap"
+			data-testid={`parameter-field-${parameter.name}`}
+		>
+			<div className="ws-strip-icon">
+				<DiskGlyph />
+			</div>
+			<div className="min-w-0 flex-[1_1_240px]">
+				<label htmlFor="ws-disk-size" className="block font-medium">
+					Home disk
+				</label>
+				<p className="ws-desc">
+					Where your home folder is kept. It can be expanded later, from the
+					workspace's settings.
+				</p>
+				{error && <p className="ws-error">{error}</p>}
+				<ParameterProblems problems={parameter.diagnostics} />
+			</div>
+			<div className="flex items-center gap-2">
+				<input
+					id="ws-disk-size"
+					type="number"
+					inputMode="numeric"
+					className="ws-input ws-input-mono w-24 text-right"
+					min={parameter.validations[0]?.validation_min ?? undefined}
+					max={parameter.validations[0]?.validation_max ?? undefined}
+					value={params.value(parameter.name)}
+					disabled={!editable(params, parameter, saving)}
+					aria-invalid={Boolean(error)}
+					onChange={(event) =>
+						void params.change(parameter, event.target.value)
+					}
+				/>
+				<span className="text-(--ws-muted)">GB</span>
+			</div>
+		</div>
+	);
+};
+
+/**
+ * Resources: CPU and memory (tiles of the template's options), the GPU, the home disk. A workspace's are applied with a
+ * restart, and its disk is expanded here; a new one's disk is its size to start with.
+ */
 export const ResourcesCard: React.FC<{
-	workspace: Workspace;
-	params: BuildParameters;
-	volume: WorkspaceVolume["volume"] | undefined;
+	/** The workspace's (its settings); none: a new one. */
+	workspace?: Workspace;
+	params: ParameterControls;
+	volume?: WorkspaceVolume["volume"];
 	saving: boolean;
 }> = ({ workspace, params, volume, saving }) => {
 	const disk = params.parameter("home_disk_size");
@@ -222,10 +288,12 @@ export const ResourcesCard: React.FC<{
 			description="Compute and storage for this workspace"
 			icon={<ChipGlyph size={18} />}
 			aside={
-				<span className="inline-flex h-[26px] items-center gap-1.5 rounded-full bg-(--ws-warn-bg) px-2.5 text-xs font-medium text-(--ws-warn)">
-					<RestartGlyph />
-					Changes apply on restart
-				</span>
+				workspace && (
+					<span className="inline-flex h-[26px] items-center gap-1.5 rounded-full bg-(--ws-warn-bg) px-2.5 text-xs font-medium text-(--ws-warn)">
+						<RestartGlyph />
+						Changes apply on restart
+					</span>
+				)
 			}
 		>
 			{params.ready ? (
@@ -244,14 +312,25 @@ export const ResourcesCard: React.FC<{
 						hint="Amount in GB"
 						saving={saving}
 					/>
-					<GpuStrip params={params} saving={saving} />
-					{(disk || volume) && (
-						<DiskStrip
-							workspace={workspace}
-							volume={volume}
-							sizeGB={params.value("home_disk_size") || "–"}
-						/>
+					{/* A new workspace's: only when its template has one */}
+					{(workspace || params.parameter("gpus")) && (
+						<GpuStrip params={params} saving={saving} />
 					)}
+					{!workspace
+						? disk && (
+								<NewDiskStrip
+									params={params}
+									parameter={disk}
+									saving={saving}
+								/>
+							)
+						: (disk || volume) && (
+								<DiskStrip
+									workspace={workspace}
+									volume={volume}
+									sizeGB={params.value("home_disk_size") || "–"}
+								/>
+							)}
 				</div>
 			) : (
 				<CardLoader />
