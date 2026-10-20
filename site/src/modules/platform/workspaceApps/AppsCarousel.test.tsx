@@ -58,4 +58,31 @@ describe("AppsCarousel", () => {
 		expect(row).not.toHaveBeenCalled();
 		expect(shown()).toEqual(["app 2", "app 3", "app 4", "app 5"]);
 	});
+
+	it("framed: always the frame and its arrows, the side with more apps marked", () => {
+		const { unmount } = render(
+			<AppsCarousel visible={4} framed>
+				{apps(3)}
+			</AppsCarousel>,
+		);
+		const fits = screen.getByTestId("workspace-apps-carousel");
+		expect(fits).toHaveAttribute("data-fits");
+		expect(screen.getByTestId("workspace-apps-previous")).toBeDisabled();
+		expect(screen.getByTestId("workspace-apps-next")).toBeDisabled();
+		expect(fits).not.toHaveAttribute("data-more-after");
+		unmount();
+
+		render(
+			<AppsCarousel visible={4} framed>
+				{apps(6)}
+			</AppsCarousel>,
+		);
+		const group = screen.getByTestId("workspace-apps-carousel");
+		expect(group).toHaveAttribute("data-more-after");
+		expect(group).not.toHaveAttribute("data-more-before");
+		fireEvent.click(screen.getByTestId("workspace-apps-next"));
+		fireEvent.click(screen.getByTestId("workspace-apps-next"));
+		expect(group).toHaveAttribute("data-more-before");
+		expect(group).not.toHaveAttribute("data-more-after");
+	});
 });

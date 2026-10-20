@@ -50,12 +50,6 @@ import {
 	TableLoaderSkeleton,
 	TableRowSkeleton,
 } from "#/components/TableLoader/TableLoader";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipProvider,
-	TooltipTrigger,
-} from "#/components/Tooltip/Tooltip";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { useClickableTableRow } from "#/hooks/useClickableTableRow";
 import {
@@ -69,6 +63,10 @@ import { findWorkspaceAppWithAgent } from "#/modules/apps/workspaceApps";
 import { useDashboard } from "#/modules/dashboard/useDashboard";
 import { CloudDriveAttachBadge } from "#/modules/platform/cloudDrive/CloudDriveAttachBadge";
 import { CloudDriveLockBadge } from "#/modules/platform/cloudDrive/CloudDriveLockBadge";
+import {
+	CloudDriveSocket,
+	useCloudDriveLinks,
+} from "#/modules/platform/cloudDrive/CloudDriveSocket";
 import {
 	LockdownBadge,
 	useAllLockdowns,
@@ -90,6 +88,7 @@ import { isStartingUp, markRestarting, useRestarting } from "./startingRows";
 import { WorkspaceSharingIndicator } from "./WorkspaceSharingIndicator";
 import { WorkspacesEmpty } from "./WorkspacesEmpty";
 import "./startingRows.css";
+import "./workspacesTable.css";
 import "#/modules/platform/workspaceUpdate/updatePulse.css";
 
 type WorkspacesTableProps = {
@@ -120,62 +119,76 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 }) => {
 	const { data: icons } = useWorkspaceIcons();
 	const dashboard = useDashboard();
+	const { user: me } = useAuthenticated();
 	const isLoading = !workspaces;
 	const isEmpty = workspaces && workspaces.length === 0;
 	const hideHeaders = isLoading || isEmpty;
-	// Platform: admins' Lock Down badges, in a column of their own between Name and Template (no heading).
+	// Platform: admins' Lock Down badges, in a column of their own before Name (no heading).
 	const locks = useAllLockdowns();
+	// Platform: the Cloud Drive's socket on each row, its own column at the end (none without a Cloud Drive).
+	const drive = useCloudDriveLinks();
 
 	return (
 		<Table>
 			<TableHeader>
 				<TableRow>
-					<TableHead className="w-1/3">
+					<TableHead className="w-0 pr-0">
 						{isLoading ? (
-							<Skeleton className="h-4 w-40" />
+							<Skeleton className="size-4" />
 						) : (
-							<div
-								className={cn(
-									"flex items-center gap-5",
-									isEmpty && "invisible",
-								)}
-							>
-								<Checkbox
-									disabled={isEmpty}
-									checked={
-										!isEmpty && checkedWorkspaces.length === workspaces.length
+							<Checkbox
+								className={cn("my-0", isEmpty && "invisible")}
+								disabled={isEmpty}
+								checked={
+									!isEmpty && checkedWorkspaces.length === workspaces.length
+								}
+								onCheckedChange={(checked) => {
+									if (!checked) {
+										onCheckChange([]);
+									} else {
+										onCheckChange(workspaces);
 									}
-									onCheckedChange={(checked) => {
-										if (!checked) {
-											onCheckChange([]);
-										} else {
-											onCheckChange(workspaces);
-										}
-									}}
-									aria-label="Select all workspaces"
-									className="my-0"
-								/>
-								Name
-							</div>
+								}}
+								aria-label="Select all workspaces"
+							/>
 						)}
 					</TableHead>
 					{locks.isSuccess && (
-						<TableHead className="w-0 px-0">
+						<TableHead className="w-0 px-1">
 							<span className="sr-only">Lock Down</span>
 						</TableHead>
 					)}
-					<TableHead className={cn("w-1/3", hideHeaders && "invisible")}>
+					<TableHead className={cn("w-[30%]", hideHeaders && "invisible")}>
+						Name
+					</TableHead>
+					<TableHead className={cn("w-[18%]", hideHeaders && "invisible")}>
 						Template
 					</TableHead>
-					<TableHead className={cn("w-1/3", hideHeaders && "invisible")}>
+					<TableHead
+						className={cn("w-[14%] text-center", hideHeaders && "invisible")}
+					>
 						Status
 					</TableHead>
-					<TableHead className="w-0">
-						<span className="sr-only">Actions</span>
+					<TableHead
+						className={cn("w-0 text-center", hideHeaders && "invisible")}
+					>
+						Apps
 					</TableHead>
+					<TableHead
+						className={cn("w-0 text-center", hideHeaders && "invisible")}
+					>
+						Controls
+					</TableHead>
+					{drive.enabled && (
+						<TableHead
+							className={cn("w-0 text-center", hideHeaders && "invisible")}
+						>
+							Drive
+						</TableHead>
+					)}
 				</TableRow>
 			</TableHeader>
-			<TableBody className="[&_td]:h-[72px]">
+			<TableBody className="[&_td]:h-[78px]">
 				{isLoading && <TableLoader />}
 				{isEmpty && (
 					<TableRow>
@@ -196,6 +209,7 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 						(o) => o.id === workspace.organization_id,
 					);
 					const workspacePageLink = `/@${workspace.owner_name}/${workspace.name}`;
+					const templateName = getDisplayWorkspaceTemplateName(workspace);
 
 					return (
 						<WorkspacesRow
@@ -204,93 +218,86 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 							key={workspace.id}
 							checked={checked}
 						>
-							<TableCell>
-								<div className="flex items-center gap-5">
-									<Checkbox
-										data-testid={`checkbox-${workspace.id}`}
-										disabled={cantBeChecked(workspace)}
-										checked={checked}
-										onClick={(e) => {
-											e.stopPropagation();
-										}}
-										onCheckedChange={(checked) => {
-											if (checked) {
-												onCheckChange([...checkedWorkspaces, workspace]);
-											} else {
-												onCheckChange(
-													checkedWorkspaces.filter(
-														(w) => w.id !== workspace.id,
-													),
-												);
-											}
-										}}
-										aria-label={`Select workspace ${workspace.name}`}
-									/>
-									<AvatarData
-										title={
-											<div className="flex items-center gap-1">
-												<Link
-													to={workspacePageLink}
-													className="whitespace-nowrap select-none"
-												>
-													{workspace.name}
-												</Link>
-												{workspace.outdated && (
-													<WorkspaceOutdatedTooltip workspace={workspace} />
-												)}
-											</div>
+							<TableCell className="pr-0">
+								<Checkbox
+									data-testid={`checkbox-${workspace.id}`}
+									disabled={cantBeChecked(workspace)}
+									checked={checked}
+									onClick={(e) => {
+										e.stopPropagation();
+									}}
+									onCheckedChange={(checked) => {
+										if (checked) {
+											onCheckChange([...checkedWorkspaces, workspace]);
+										} else {
+											onCheckChange(
+												checkedWorkspaces.filter((w) => w.id !== workspace.id),
+											);
 										}
-										subtitle={
-											<div className="flex items-center gap-1">
-												<span className="sr-only">Owner: </span>
-												<div className="flex gap-2">
-													{workspace.owner_name}
-													{workspace.shared_with &&
-														workspace.shared_with.length > 0 && (
-															<WorkspaceSharingIndicator
-																sharedWith={workspace.shared_with}
-																settingsPath={`/@${workspace.owner_name}/${workspace.name}/settings/sharing`}
-															/>
-														)}
-												</div>
-											</div>
-										}
-										avatar={
-											<Avatar
-												src={workspace.owner_avatar_url}
-												fallback={workspace.owner_name}
-												size="lg"
-											/>
-										}
-									/>
-								</div>
+									}}
+									aria-label={`Select workspace ${workspace.name}`}
+								/>
 							</TableCell>
 
 							{locks.isSuccess && (
-								<TableCell className="w-0 px-0">
+								<TableCell className="w-0 px-1">
 									<LockdownBadge
 										workspace={workspace}
 										modes={locks.data.workspaces[workspace.id]?.modes ?? []}
+										className="h-8 min-w-8 justify-center"
 									/>
 								</TableCell>
 							)}
+
 							<TableCell>
 								<AvatarData
 									title={
-										<span className="whitespace-nowrap block max-w-52 text-ellipsis overflow-hidden">
-											{getDisplayWorkspaceTemplateName(workspace)}
-										</span>
+										<div className="flex items-center gap-1">
+											<Link
+												to={workspacePageLink}
+												className="whitespace-nowrap select-none"
+											>
+												{workspace.name}
+											</Link>
+											{workspace.outdated && (
+												<WorkspaceOutdatedTooltip workspace={workspace} />
+											)}
+										</div>
 									}
 									subtitle={
-										dashboard.showOrganizations && (
-											<>
-												<span className="sr-only">Organization:</span>{" "}
-												{activeOrg?.display_name || workspace.organization_name}
-											</>
-										)
+										<div className="flex items-center gap-1">
+											<span className="sr-only">Owner: </span>
+											<div className="flex gap-2">
+												{workspace.owner_name}
+												{workspace.shared_with &&
+													workspace.shared_with.length > 0 && (
+														<WorkspaceSharingIndicator
+															sharedWith={workspace.shared_with}
+															settingsPath={`/@${workspace.owner_name}/${workspace.name}/settings/sharing`}
+														/>
+													)}
+											</div>
+										</div>
 									}
 									avatar={
-										// Platform: a lock over it while its Cloud Drive is encrypted.
+										<Avatar
+											src={workspace.owner_avatar_url}
+											fallback={workspace.owner_name}
+											size="lg"
+											className="rounded-[10px]"
+										/>
+									}
+								/>
+							</TableCell>
+
+							<TableCell>
+								{/* Platform: the template as a pill, its icon in a tile */}
+								<div className="flex flex-col items-start gap-1">
+									<span
+										className="inline-flex max-w-56 items-center gap-2 rounded-[10px] border border-solid border-border bg-surface-primary py-1 pl-1 pr-2.5"
+										data-hint={`Made from the ${templateName} template`}
+									>
+										{/* Platform: a lock over it while its Cloud Drive is encrypted. */}
 										<CloudDriveLockBadge
 											workspaceId={workspace.id}
 											ownerId={workspace.owner_id}
@@ -298,18 +305,29 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 											<Avatar
 												variant="icon"
 												src={icons?.[workspace.id] || workspace.template_icon}
-												fallback={getDisplayWorkspaceTemplateName(workspace)}
-												size="lg"
+												fallback={templateName}
+												size="md"
+												className="rounded-[7px]"
 											/>
 										</CloudDriveLockBadge>
-									}
-								/>
+										<span className="truncate text-[13px] font-semibold text-content-primary">
+											{templateName}
+										</span>
+									</span>
+									{dashboard.showOrganizations && (
+										<span className="pl-1 text-xs text-content-secondary">
+											<span className="sr-only">Organization:</span>{" "}
+											{activeOrg?.display_name || workspace.organization_name}
+										</span>
+									)}
+								</div>
 							</TableCell>
 
-							<TableCell>
+							<TableCell className="text-center">
 								{/* Platform: an orange cloud beside Running until its Cloud Drive is attached */}
 								<WorkspaceStatus
 									workspace={workspace}
+									pill
 									after={<CloudDriveAttachBadge workspace={workspace} />}
 								/>
 							</TableCell>
@@ -319,6 +337,19 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 								onActionSuccess={onActionSuccess}
 								onActionError={onActionError}
 							/>
+
+							{drive.enabled && (
+								<TableCell
+									className="text-center"
+									onClick={(e) => e.stopPropagation()}
+								>
+									<CloudDriveSocket
+										workspace={workspace}
+										links={drive}
+										mine={workspace.owner_id === me.id}
+									/>
+								</TableCell>
+							)}
 						</WorkspacesRow>
 					);
 				})}
@@ -367,6 +398,7 @@ const WorkspacesRow: React.FC<WorkspacesRowProps> = ({
 		<TableRow
 			{...clickableProps}
 			data-testid={`workspace-${workspace.id}`}
+			data-hint={`Open ${workspace.name} (a middle-click or Ctrl-click: in a new tab)`}
 			data-starting={starting || undefined}
 			aria-busy={starting || undefined}
 			className={cn([
@@ -384,21 +416,24 @@ const TableLoader: React.FC = () => {
 	return (
 		<TableLoaderSkeleton>
 			<TableRowSkeleton>
-				<TableCell className="w-2/6">
-					<div className="flex items-center gap-5">
-						<Checkbox disabled />
-						<AvatarDataSkeleton />
-					</div>
+				<TableCell className="w-0 pr-0">
+					<Checkbox disabled />
 				</TableCell>
-				<TableCell className="w-2/6">
+				<TableCell>
 					<AvatarDataSkeleton />
 				</TableCell>
-				<TableCell className="w-2/6">
-					<Skeleton className="h-4 w-1/2" />
+				<TableCell>
+					<AvatarDataSkeleton />
 				</TableCell>
-				<TableCell className="w-0 ">
-					<div className="flex gap-1 justify-end">
-						<Skeleton className="size-10" />
+				<TableCell>
+					<Skeleton className="mx-auto h-6 w-24 rounded-full" />
+				</TableCell>
+				<TableCell>
+					<Skeleton className="h-12 w-[200px] rounded-[14px]" />
+				</TableCell>
+				<TableCell className="w-0">
+					<div className="flex gap-1 justify-center">
+						<Skeleton className="size-9 rounded-[10px]" />
 						<Button size="icon-lg" variant="subtle" disabled>
 							<EllipsisVerticalIcon aria-hidden="true" />
 						</Button>
@@ -536,165 +571,181 @@ const WorkspaceActionsCell: React.FC<WorkspaceActionsCellProps> = ({
 		}
 	};
 
+	// Platform: the apps in a column of their own, the actions in Controls (the update and restart button never
+	// among the apps)
 	return (
-		<TableCell
-			onClick={(e) => {
-				// Prevent the click in the actions to trigger the row click
-				e.stopPropagation();
-			}}
-		>
-			<div className="flex gap-1 justify-end">
-				{workspace.latest_build.status === "running" &&
-					(workspace.latest_app_status ? (
-						<WorkspaceAppStatusLinks workspace={workspace} />
-					) : (
-						<WorkspaceApps workspace={workspace} />
-					))}
-
-				{abilities.actions.includes("start") && (
-					<PrimaryAction
-						onClick={() => startWorkspaceMutation.mutate({})}
-						isLoading={startWorkspaceMutation.isPending}
-						label="Start workspace"
-					>
-						<PlayIcon />
-					</PrimaryAction>
-				)}
-
-				{abilities.actions.includes("updateAndStart") && (
-					<>
+		<>
+			<TableCell
+				className="w-0"
+				onClick={(e) => {
+					// Prevent the click in the apps to trigger the row click
+					e.stopPropagation();
+				}}
+			>
+				<div className="flex justify-center">
+					{workspace.latest_build.status === "running" &&
+						(workspace.latest_app_status ? (
+							<WorkspaceAppStatusLinks workspace={workspace} />
+						) : (
+							<WorkspaceApps workspace={workspace} />
+						))}
+				</div>
+			</TableCell>
+			<TableCell
+				className="w-0"
+				onClick={(e) => {
+					// Prevent the click in the actions to trigger the row click
+					e.stopPropagation();
+				}}
+			>
+				<div className="workspace-controls flex gap-1.5 justify-center">
+					{abilities.actions.includes("start") && (
 						<PrimaryAction
-							onClick={workspaceUpdate.update}
-							isLoading={workspaceUpdate.isUpdating}
-							label="Update and start workspace"
-						>
-							<RotateCcwIcon
-								className="workspace-update-pulse"
-								data-testid="workspace-update-pulse"
-							/>
-						</PrimaryAction>
-						<WorkspaceUpdateDialogs {...workspaceUpdate.dialogProps} />
-					</>
-				)}
-
-				{abilities.actions.includes("updateAndStartRequireActiveVersion") && (
-					<>
-						<PrimaryAction
-							onClick={workspaceUpdate.update}
-							isLoading={workspaceUpdate.isUpdating}
-							label="This template requires automatic updates on workspace startup. Contact your administrator if you want to preserve the template version."
+							onClick={() => startWorkspaceMutation.mutate({})}
+							isLoading={startWorkspaceMutation.isPending}
+							label="Start workspace"
 						>
 							<PlayIcon />
 						</PrimaryAction>
-						<WorkspaceUpdateDialogs {...workspaceUpdate.dialogProps} />
-					</>
-				)}
+					)}
 
-				{abilities.actions.includes("updateAndRestart") && (
-					<>
+					{abilities.actions.includes("updateAndStart") && (
+						<>
+							<PrimaryAction
+								onClick={workspaceUpdate.update}
+								isLoading={workspaceUpdate.isUpdating}
+								label="Update and start workspace"
+							>
+								<RotateCcwIcon
+									className="workspace-update-pulse"
+									data-testid="workspace-update-pulse"
+								/>
+							</PrimaryAction>
+							<WorkspaceUpdateDialogs {...workspaceUpdate.dialogProps} />
+						</>
+					)}
+
+					{abilities.actions.includes("updateAndStartRequireActiveVersion") && (
+						<>
+							<PrimaryAction
+								onClick={workspaceUpdate.update}
+								isLoading={workspaceUpdate.isUpdating}
+								label="This template requires automatic updates on workspace startup. Contact your administrator if you want to preserve the template version."
+							>
+								<PlayIcon />
+							</PrimaryAction>
+							<WorkspaceUpdateDialogs {...workspaceUpdate.dialogProps} />
+						</>
+					)}
+
+					{abilities.actions.includes("updateAndRestart") && (
+						<>
+							<PrimaryAction
+								onClick={workspaceUpdate.update}
+								isLoading={workspaceUpdate.isUpdating}
+								label="Update and restart workspace"
+							>
+								<RotateCcwIcon
+									className="workspace-update-pulse"
+									data-testid="workspace-update-pulse"
+								/>
+							</PrimaryAction>
+							<WorkspaceUpdateDialogs {...workspaceUpdate.dialogProps} />
+						</>
+					)}
+
+					{abilities.actions.includes(
+						"updateAndRestartRequireActiveVersion",
+					) && (
+						<>
+							<PrimaryAction
+								onClick={workspaceUpdate.update}
+								isLoading={workspaceUpdate.isUpdating}
+								label="This template requires automatic updates on workspace restart. Contact your administrator if you want to preserve the template version."
+							>
+								<PlayIcon />
+							</PrimaryAction>
+							<WorkspaceUpdateDialogs {...workspaceUpdate.dialogProps} />
+						</>
+					)}
+
+					{abilities.canCancel && (
 						<PrimaryAction
-							onClick={workspaceUpdate.update}
-							isLoading={workspaceUpdate.isUpdating}
-							label="Update and restart workspace"
+							onClick={() => setIsCancelConfirmOpen(true)}
+							isLoading={cancelBuildMutation.isPending}
+							label="Cancel build"
 						>
-							<RotateCcwIcon
-								className="workspace-update-pulse"
-								data-testid="workspace-update-pulse"
-							/>
+							<BanIcon />
 						</PrimaryAction>
-						<WorkspaceUpdateDialogs {...workspaceUpdate.dialogProps} />
-					</>
-				)}
+					)}
 
-				{abilities.actions.includes("updateAndRestartRequireActiveVersion") && (
-					<>
+					{abilities.actions.includes("retry") && (
 						<PrimaryAction
-							onClick={workspaceUpdate.update}
-							isLoading={workspaceUpdate.isUpdating}
-							label="This template requires automatic updates on workspace restart. Contact your administrator if you want to preserve the template version."
+							onClick={retry}
+							isLoading={isRetrying}
+							label="Retry build"
 						>
-							<PlayIcon />
+							<RefreshCcwIcon />
 						</PrimaryAction>
-						<WorkspaceUpdateDialogs {...workspaceUpdate.dialogProps} />
-					</>
-				)}
+					)}
 
-				{abilities.canCancel && (
-					<PrimaryAction
-						onClick={() => setIsCancelConfirmOpen(true)}
-						isLoading={cancelBuildMutation.isPending}
-						label="Cancel build"
-					>
-						<BanIcon />
-					</PrimaryAction>
-				)}
-
-				{abilities.actions.includes("retry") && (
-					<PrimaryAction
-						onClick={retry}
-						isLoading={isRetrying}
-						label="Retry build"
-					>
-						<RefreshCcwIcon />
-					</PrimaryAction>
-				)}
-
-				<WorkspaceMoreActions
-					workspace={workspace}
-					disabled={!abilities.canAcceptJobs}
-					onStop={
-						abilities.actions.includes("stop")
-							? () => setIsStopConfirmOpen(true)
-							: undefined
-					}
-					isStopping={stopWorkspaceMutation.isPending}
-					onRestart={
-						abilities.actions.includes("restart")
-							? () => setIsRestartConfirmOpen(true)
-							: undefined
-					}
-					isRestarting={restartWorkspaceMutation.isPending}
-					onActionSuccess={onActionSuccess}
+					<WorkspaceMoreActions
+						workspace={workspace}
+						disabled={!abilities.canAcceptJobs}
+						onStop={
+							abilities.actions.includes("stop")
+								? () => setIsStopConfirmOpen(true)
+								: undefined
+						}
+						isStopping={stopWorkspaceMutation.isPending}
+						onRestart={
+							abilities.actions.includes("restart")
+								? () => setIsRestartConfirmOpen(true)
+								: undefined
+						}
+						isRestarting={restartWorkspaceMutation.isPending}
+						onActionSuccess={onActionSuccess}
+					/>
+				</div>
+				{/* Stop workspace confirmation dialog */}
+				<ConfirmDialog
+					open={isStopConfirmOpen}
+					title="Stop workspace"
+					description={`Are you sure you want to stop the workspace "${workspace.name}"? This will terminate all running processes and disconnect any active sessions.`}
+					confirmText="Stop"
+					onClose={() => setIsStopConfirmOpen(false)}
+					onConfirm={() => {
+						stopWorkspaceMutation.mutate({});
+						setIsStopConfirmOpen(false);
+					}}
+					type="delete"
 				/>
-			</div>
-			{/* Stop workspace confirmation dialog */}
-			<ConfirmDialog
-				open={isStopConfirmOpen}
-				title="Stop workspace"
-				description={`Are you sure you want to stop the workspace "${workspace.name}"? This will terminate all running processes and disconnect any active sessions.`}
-				confirmText="Stop"
-				onClose={() => setIsStopConfirmOpen(false)}
-				onConfirm={() => {
-					stopWorkspaceMutation.mutate({});
-					setIsStopConfirmOpen(false);
-				}}
-				type="delete"
-			/>
 
-			{/* Restart workspace confirmation dialog */}
-			<ConfirmDialog
-				open={isRestartConfirmOpen}
-				title="Restart workspace"
-				description={`Are you sure you want to restart the workspace "${workspace.name}"? This will stop all running processes and delete non-persistent data.`}
-				confirmText="Restart"
-				onClose={() => setIsRestartConfirmOpen(false)}
-				onConfirm={() => {
-					restartWorkspaceMutation.mutate({ workspace });
-					setIsRestartConfirmOpen(false);
-				}}
-				type="info"
-			/>
+				{/* Restart workspace confirmation dialog */}
+				<ConfirmDialog
+					open={isRestartConfirmOpen}
+					title="Restart workspace"
+					description={`Are you sure you want to restart the workspace "${workspace.name}"? This will stop all running processes and delete non-persistent data.`}
+					confirmText="Restart"
+					onClose={() => setIsRestartConfirmOpen(false)}
+					onConfirm={() => {
+						restartWorkspaceMutation.mutate({ workspace });
+						setIsRestartConfirmOpen(false);
+					}}
+					type="info"
+				/>
 
-			<WorkspaceBuildCancelDialog
-				open={isCancelConfirmOpen}
-				onClose={() => setIsCancelConfirmOpen(false)}
-				onConfirm={() => {
-					cancelBuildMutation.mutate();
-					setIsCancelConfirmOpen(false);
-				}}
-				workspace={workspace}
-			/>
-		</TableCell>
+				<WorkspaceBuildCancelDialog
+					open={isCancelConfirmOpen}
+					onClose={() => setIsCancelConfirmOpen(false)}
+					onConfirm={() => {
+						cancelBuildMutation.mutate();
+						setIsCancelConfirmOpen(false);
+					}}
+					workspace={workspace}
+				/>
+			</TableCell>
+		</>
 	);
 };
 
@@ -710,23 +761,18 @@ const PrimaryAction: React.FC<PrimaryActionProps> = ({
 	label,
 	children,
 }) => {
+	// Platform: what it does in the table's footer (TableCard), not a tooltip of its own
 	return (
-		<TooltipProvider>
-			<Tooltip>
-				<TooltipTrigger asChild>
-					<Button
-						variant="outline"
-						size="icon-lg"
-						onClick={onClick}
-						disabled={isLoading}
-					>
-						<Spinner loading={isLoading}>{children}</Spinner>
-						<span className="sr-only">{label}</span>
-					</Button>
-				</TooltipTrigger>
-				<TooltipContent>{label}</TooltipContent>
-			</Tooltip>
-		</TooltipProvider>
+		<Button
+			variant="outline"
+			size="icon-lg"
+			onClick={onClick}
+			disabled={isLoading}
+			data-hint={label}
+		>
+			<Spinner loading={isLoading}>{children}</Spinner>
+			<span className="sr-only">{label}</span>
+		</Button>
 	);
 };
 
@@ -833,7 +879,11 @@ const WorkspaceApps: React.FC<WorkspaceAppsProps> = ({ workspace }) => {
 		);
 	}
 
-	return <AppsCarousel visible={WORKSPACE_APPS_SLOTS}>{buttons}</AppsCarousel>;
+	return (
+		<AppsCarousel visible={WORKSPACE_APPS_SLOTS} framed>
+			{buttons}
+		</AppsCarousel>
+	);
 };
 
 type WorkspaceAppStatusLinksProps = {
@@ -997,48 +1047,37 @@ const BaseIconLink: React.FC<BaseIconLinkProps> = ({
 }) => {
 	const loadingClass = isLoading ? "animate-pulse" : "";
 
-	return (
-		<TooltipProvider>
-			<Tooltip>
-				<TooltipTrigger asChild>
-					{rest.href !== undefined ? (
-						<Button
-							variant="outline"
-							size="icon-lg"
-							asChild
-							disabled={isLoading}
-						>
-							<a
-								target={rest.target}
-								className={loadingClass}
-								href={rest.href}
-								onClick={(e) => {
-									e.stopPropagation();
-									rest.onClick?.(e);
-								}}
-							>
-								{children}
-								<span className="sr-only">{label}</span>
-							</a>
-						</Button>
-					) : (
-						<Button
-							variant="outline"
-							size="icon-lg"
-							className={loadingClass}
-							onClick={(e) => {
-								e.stopPropagation();
-								rest.onClick(e);
-							}}
-							disabled={isLoading}
-						>
-							{children}
-							<span className="sr-only">{label}</span>
-						</Button>
-					)}
-				</TooltipTrigger>
-				<TooltipContent>{label}</TooltipContent>
-			</Tooltip>
-		</TooltipProvider>
+	// Platform: what it opens in the table's footer (TableCard), not a tooltip of its own
+	return rest.href !== undefined ? (
+		<Button variant="outline" size="icon-lg" asChild disabled={isLoading}>
+			<a
+				target={rest.target}
+				className={loadingClass}
+				href={rest.href}
+				data-hint={label}
+				onClick={(e) => {
+					e.stopPropagation();
+					rest.onClick?.(e);
+				}}
+			>
+				{children}
+				<span className="sr-only">{label}</span>
+			</a>
+		</Button>
+	) : (
+		<Button
+			variant="outline"
+			size="icon-lg"
+			className={loadingClass}
+			data-hint={label}
+			onClick={(e) => {
+				e.stopPropagation();
+				rest.onClick(e);
+			}}
+			disabled={isLoading}
+		>
+			{children}
+			<span className="sr-only">{label}</span>
+		</Button>
 	);
 };

@@ -25,6 +25,7 @@ import { ProxyMenu } from "./ProxyMenu";
 import { SupportIcon } from "./SupportIcon";
 import { UserDropdown } from "./UserDropdown/UserDropdown";
 import { WorkspacesDropdown } from "./WorkspacesDropdown";
+import "./navbarSoft.css";
 
 type NavbarViewProps = {
 	user: TypesGen.User;
@@ -62,7 +63,8 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 	return (
 		<div
 			className={cn(
-				"sticky top-0 bg-surface-primary z-40 border-0 border-b border-solid h-[72px] min-h-[72px] flex items-center leading-none px-6",
+				// Platform: navbar-soft - its buttons rounder (navbarSoft.css)
+				"navbar-soft sticky top-0 bg-surface-primary z-40 border-0 border-b border-solid h-[72px] min-h-[72px] flex items-center leading-none px-6",
 				prerelease &&
 					cn(
 						"[&:before]:content-[''] [&:before]:absolute [&:before]:left-0",
@@ -93,17 +95,22 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 						</nav>
 					),
 					banner: <AnnouncementBanner placement="navbar" />,
+					// the HUD joined to the latency menu as one split button (both, admins); either alone otherwise
 					latency: proxyContextValue ? (
-						<ProxyMenu proxyContextValue={proxyContextValue} />
+						<ProxyMenu
+							proxyContextValue={proxyContextValue}
+							hud={adminPermissions.canViewDeployment}
+						/>
 					) : null,
-					hud: adminPermissions.canViewDeployment ? (
-						<Button asChild variant="outline" size="lg">
-							<NavLink to="/hud" title="HUD: the platform at a glance">
-								<GaugeIcon aria-hidden />
-								HUD
-							</NavLink>
-						</Button>
-					) : null,
+					hud:
+						adminPermissions.canViewDeployment && !proxyContextValue ? (
+							<Button asChild variant="outline" size="lg">
+								<NavLink to="/hud" title="HUD: the platform at a glance">
+									<GaugeIcon aria-hidden />
+									HUD
+								</NavLink>
+							</Button>
+						) : null,
 				}}
 			/>
 

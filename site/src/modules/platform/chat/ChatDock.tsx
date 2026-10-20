@@ -169,7 +169,8 @@ export const ChatDock: React.FC = () => {
 			aria-label="Chats"
 			role="region"
 			className="pointer-events-none fixed right-4 z-[60] flex flex-col items-end gap-2 text-sm text-content-primary transition-[bottom] duration-200 motion-reduce:transition-none [&>*]:pointer-events-auto"
-			style={{ bottom: "var(--chat-bottom, 0px)" }}
+			// Platform: floating 10px clear of what it rests on (GUI-UPDATES)
+			style={{ bottom: "calc(var(--chat-bottom, 0px) + 10px)" }}
 		>
 			{state.windows.length > 0 && (
 				<div className="pointer-events-none flex flex-row-reverse items-end gap-3 [&>*]:pointer-events-auto">

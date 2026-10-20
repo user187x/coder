@@ -20,6 +20,7 @@ import {
 	TableRow,
 } from "#/components/Table/Table";
 import { useClickableTableRow } from "#/hooks/useClickableTableRow";
+import { TableCard } from "#/modules/platform/tableCard/TableCard";
 import { createDayString } from "#/utils/createDayString";
 import { formatSize } from "./badges";
 
@@ -558,28 +559,33 @@ export const CoderForkImages: React.FC = () => {
 				as built: every program and the version it reports, every OS and Python
 				package, its configuration and every build step.
 			</p>
-			<Table data-testid="coder-fork-images">
-				<TableHeader>
-					<TableRow>
-						<TableHead className="w-[40%]">Image</TableHead>
-						<TableHead className="w-[30%]">Contents</TableHead>
-						<TableHead className="w-[10%]">Size</TableHead>
-						<TableHead className="w-[20%]">Built</TableHead>
-					</TableRow>
-				</TableHeader>
-				<TableBody>
-					{images.map((c) => (
-						<ForkImageRow
-							key={c.ref}
-							contents={c}
-							open={open === c.repository}
-							onToggle={() =>
-								setOpen(open === c.repository ? null : c.repository)
-							}
-						/>
-					))}
-				</TableBody>
-			</Table>
+			<TableCard
+				summary={`${images.length} ${images.length === 1 ? "image" : "images"} the Coder fork builds`}
+				hint="Point at anything in the table to read what it does"
+			>
+				<Table data-testid="coder-fork-images">
+					<TableHeader>
+						<TableRow>
+							<TableHead className="w-[40%]">Image</TableHead>
+							<TableHead className="w-[30%]">Contents</TableHead>
+							<TableHead className="w-[10%]">Size</TableHead>
+							<TableHead className="w-[20%]">Built</TableHead>
+						</TableRow>
+					</TableHeader>
+					<TableBody>
+						{images.map((c) => (
+							<ForkImageRow
+								key={c.ref}
+								contents={c}
+								open={open === c.repository}
+								onToggle={() =>
+									setOpen(open === c.repository ? null : c.repository)
+								}
+							/>
+						))}
+					</TableBody>
+				</Table>
+			</TableCard>
 		</section>
 	);
 };

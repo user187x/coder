@@ -425,9 +425,12 @@ describe("the pit stop", () => {
 			"Box, box - pit stop for 2 findings",
 		);
 		await user.click(screen.getByTestId("pit-libraries"));
-		expect(screen.getByText("4 findings selected")).toBeInTheDocument();
+		// requests (pip) joins; lodash (npm) does not: Copa's Node.js patching is left out
+		expect(screen.getByText("3 findings selected")).toBeInTheDocument();
 		await user.click(screen.getByRole("radio", { name: /Major/ }));
 		await user.click(screen.getByRole("radio", { name: "3" }));
+		// the page's refetch held: what shows comes from the start's answer
+		vi.spyOn(ImagesAPI, "get").mockImplementation(() => new Promise(() => {}));
 		await user.click(screen.getByTestId("pit-start"));
 		await waitFor(() =>
 			expect(start).toHaveBeenCalledWith("tool", {
@@ -435,13 +438,17 @@ describe("the pit stop", () => {
 					{ id: "CVE-2026-0001", pkg: "openssl" },
 					{ id: "CVE-2026-1180", pkg: "glibc" },
 					{ id: "CVE-2025-9120", pkg: "requests" },
-					{ id: "CVE-2026-7000", pkg: "lodash" },
 				],
 				libraries: true,
 				level: "patch",
 				maxLevel: "major",
 				laps: 3,
 			}),
+		);
+		// the new pit stop shows at once
+		expect(await screen.findByTestId("pit-lane")).toHaveAttribute(
+			"data-outcome",
+			"running",
 		);
 	});
 

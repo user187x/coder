@@ -1,0 +1,15 @@
+/* Platform: a dropdown's chevron, played down - smaller and fainter than its trigger's text, a little clearer on
+   hover and while open. Not in a layer: over the buttons' own icon sizes. */
+svg.dropdown-chevron {
+	width: 14px;
+	height: 14px;
+	opacity: 0.5;
+	transition:
+		transform 150ms,
+		opacity 150ms;
+}
+:hover > svg.dropdown-chevron,
+[data-state="open"] > svg.dropdown-chevron,
+[data-state="open"] svg.dropdown-chevron {
+	opacity: 0.8;
+}

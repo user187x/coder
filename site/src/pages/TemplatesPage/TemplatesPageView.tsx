@@ -39,6 +39,7 @@ import { TooltipMessage, TooltipTitle } from "#/components/Tooltip/Tooltip";
 import { useClickableTableRow } from "#/hooks/useClickableTableRow";
 import { linkToTemplate, useLinks } from "#/modules/navigation";
 import type { WorkspacePermissions } from "#/modules/permissions/workspaces";
+import { TableCard } from "#/modules/platform/tableCard/TableCard";
 import { TemplateAccessMenu } from "#/modules/platform/templateAccess/TemplateAccessMenu";
 import { ResourceTabs } from "#/pages/ImagesPage/ResourceTabs";
 import { createDayString } from "#/utils/createDayString";
@@ -182,6 +183,7 @@ const TemplateRow: React.FC<TemplateRowProps> = ({
 		<TableRow
 			key={template.id}
 			data-testid={`template-${template.id}`}
+			data-hint={`Open ${template.display_name || template.name}`}
 			{...clickableRow}
 			className={cn("group", clickableRow.className)}
 		>
@@ -209,6 +211,7 @@ const TemplateRow: React.FC<TemplateRowProps> = ({
 							variant="icon"
 							src={template.icon}
 							fallback={template.display_name || template.name}
+							className="rounded-[10px]"
 						/>
 					}
 				/>
@@ -346,46 +349,76 @@ export const TemplatesPageView: React.FC<TemplatesPageViewProps> = ({
 				<ErrorAlert error={error} />
 			)}
 
-			<Table>
-				<TableHeader>
-					<TableRow>
-						<TableHead className="w-[35%]">Name</TableHead>
-						<TableHead className="w-[15%]">
-							{showOrganizations ? "Organization" : "Used by"}
-						</TableHead>
-						<TableHead className="w-[10%]">Build time</TableHead>
-						<TableHead className="w-[15%]">Last updated</TableHead>
-						{/* Platform: who may see and use each template (its access list) */}
-						{showAccess && <TableHead className="w-[1%]">Access</TableHead>}
-						<TableHead className="w-[1%]" />
-					</TableRow>
-				</TableHeader>
-				<TableBody>
-					{isLoading ? (
-						<TableLoader />
-					) : isEmpty ? (
-						<EmptyTemplates
-							canCreateTemplates={canCreateTemplates}
-							templateBuilderEnabled={templateBuilderEnabled}
-							examples={examples ?? []}
-							isUsingFilter={filterState.filter.used}
-						/>
-					) : (
-						templates.map((template) => (
-							<TemplateRow
-								key={template.id}
-								canUpdateTemplate={
-									templateUpdatePermissions[template.organization_id] ?? false
-								}
-								showAccess={showAccess}
-								showOrganizations={showOrganizations}
-								template={template}
-								workspacePermissions={workspacePermissions}
+			{/* Platform: in a rounded card, its footer saying what it holds and what anything in it does */}
+			<TableCard
+				data-testid="templates-card"
+				summary={
+					templates && templates.length > 0 ? (
+						<span data-testid="templates-summary">
+							Showing{" "}
+							<strong className="font-semibold text-content-primary">
+								{templates.length}
+							</strong>
+							{filterState.filter.used ? (
+								` ${templates.length === 1 ? "template" : "templates"} (filtered)`
+							) : (
+								<>
+									{" "}
+									of{" "}
+									<strong className="font-semibold text-content-primary">
+										{templates.length}
+									</strong>{" "}
+									{templates.length === 1 ? "template" : "templates"}
+								</>
+							)}{" "}
+							· {templates.reduce((n, t) => n + t.active_user_count, 0)} using
+							them
+						</span>
+					) : undefined
+				}
+				hint="Point at anything in the table to read what it does"
+			>
+				<Table>
+					<TableHeader>
+						<TableRow>
+							<TableHead className="w-[35%]">Name</TableHead>
+							<TableHead className="w-[15%]">
+								{showOrganizations ? "Organization" : "Used by"}
+							</TableHead>
+							<TableHead className="w-[10%]">Build time</TableHead>
+							<TableHead className="w-[15%]">Last updated</TableHead>
+							{/* Platform: who may see and use each template (its access list) */}
+							{showAccess && <TableHead className="w-[1%]">Access</TableHead>}
+							<TableHead className="w-[1%]" />
+						</TableRow>
+					</TableHeader>
+					<TableBody>
+						{isLoading ? (
+							<TableLoader />
+						) : isEmpty ? (
+							<EmptyTemplates
+								canCreateTemplates={canCreateTemplates}
+								templateBuilderEnabled={templateBuilderEnabled}
+								examples={examples ?? []}
+								isUsingFilter={filterState.filter.used}
 							/>
-						))
-					)}
-				</TableBody>
-			</Table>
+						) : (
+							templates.map((template) => (
+								<TemplateRow
+									key={template.id}
+									canUpdateTemplate={
+										templateUpdatePermissions[template.organization_id] ?? false
+									}
+									showAccess={showAccess}
+									showOrganizations={showOrganizations}
+									template={template}
+									workspacePermissions={workspacePermissions}
+								/>
+							))
+						)}
+					</TableBody>
+				</Table>
+			</TableCard>
 		</Margins>
 	);
 };

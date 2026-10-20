@@ -26,12 +26,16 @@ import {
 	PageHeader,
 	PageHeaderTitle,
 } from "#/components/PageHeader/PageHeader";
-import { PaginationAmount } from "#/components/PaginationWidget/PaginationAmount";
 import { PaginationWidgetBase } from "#/components/PaginationWidget/PaginationWidgetBase";
 import { Spinner } from "#/components/Spinner/Spinner";
 import { TableToolbar } from "#/components/TableToolbar/TableToolbar";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { CloudDrive } from "#/modules/platform/cloudDrive/CloudDrive";
+import {
+	isLinked,
+	useCloudDriveLinks,
+} from "#/modules/platform/cloudDrive/CloudDriveSocket";
+import { TableCard } from "#/modules/platform/tableCard/TableCard";
 import { ResourceTabs } from "#/pages/ImagesPage/ResourceTabs";
 import { WorkspacesTable } from "#/pages/WorkspacesPage/WorkspacesTable";
 import { mustUpdateWorkspace } from "#/utils/workspace";
@@ -98,6 +102,28 @@ export const WorkspacesPageView: React.FC<WorkspacesPageViewProps> = ({
 			(workspaces ?? []).filter((w) => w.owner_id === me.id).map((w) => w.id),
 		[workspaces, me.id],
 	);
+	// Platform: the table's footer - what the page shows, how many run, how many have the Cloud Drive
+	const drive = useCloudDriveLinks();
+	const shown = workspaces?.length ?? 0;
+	const running = (workspaces ?? []).filter(
+		(w) => w.latest_build.status === "running",
+	).length;
+	const mounted = mine.filter((id) => isLinked(drive, id)).length;
+	const first = (page - 1) * limit + 1;
+	const summary =
+		workspaces && shown > 0 && count !== undefined ? (
+			<span data-testid="workspaces-summary">
+				Showing{" "}
+				<strong className="font-semibold text-content-primary">
+					{count > shown ? `${first}–${first + shown - 1}` : shown}
+				</strong>{" "}
+				of{" "}
+				<strong className="font-semibold text-content-primary">{count}</strong>{" "}
+				{count === 1 ? "workspace" : "workspaces"}
+				{filter.query.trim() !== "" && " (filtered)"} · {running} running
+				{drive.enabled && ` · ${mounted} with Cloud Drive mounted`}
+			</span>
+		) : undefined;
 
 	return (
 		// Platform: relative for the Cloud Drive's ropes over the table.
@@ -196,17 +222,7 @@ export const WorkspacesPageView: React.FC<WorkspacesPageViewProps> = ({
 							</DropdownMenuContent>
 						</DropdownMenu>
 					</>
-				) : (
-					!pageNumberIsInvalid && (
-						<PaginationAmount
-							paginationUnitLabel="workspaces"
-							limit={limit}
-							totalRecords={count}
-							currentOffsetStart={(page - 1) * limit + 1}
-							isFiltered={filter.query.trim() !== ""}
-						/>
-					)
-				)}
+				) : null}
 				{/* Platform: the account's Cloud Drive, once, above the rows' apps. */}
 				<CloudDrive
 					workspaceIds={mine}
@@ -230,18 +246,29 @@ export const WorkspacesPageView: React.FC<WorkspacesPageViewProps> = ({
 					}
 				/>
 			) : (
-				<WorkspacesTable
-					canCreateTemplate={canCreateTemplate}
-					canCreateWorkspace={canCreateWorkspace}
-					workspaces={workspaces}
-					isUsingFilter={filter.used}
-					onClearFilter={() => filter.update("")}
-					checkedWorkspaces={checkedWorkspaces}
-					onCheckChange={onCheckChange}
-					templates={templates}
-					onActionSuccess={onActionSuccess}
-					onActionError={onActionError}
-				/>
+				// Platform: in a rounded card, its footer saying what it holds and what anything in it does
+				<TableCard
+					data-testid="workspaces-card"
+					summary={summary}
+					hint={
+						drive.enabled && mine.length > 0
+							? "Drag the Cloud Drive plug onto a row to mount it, or pull a plug off a row to unmount"
+							: "Point at anything in the table to read what it does"
+					}
+				>
+					<WorkspacesTable
+						canCreateTemplate={canCreateTemplate}
+						canCreateWorkspace={canCreateWorkspace}
+						workspaces={workspaces}
+						isUsingFilter={filter.used}
+						onClearFilter={() => filter.update("")}
+						checkedWorkspaces={checkedWorkspaces}
+						onCheckChange={onCheckChange}
+						templates={templates}
+						onActionSuccess={onActionSuccess}
+						onActionError={onActionError}
+					/>
+				</TableCard>
 			)}
 
 			{count !== undefined && (

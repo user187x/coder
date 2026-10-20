@@ -102,9 +102,9 @@ export const BannerLcd: React.FC<BannerLcdProps> = ({
 	</div>
 );
 
-// The navbar's card is rounded 10px; full-width banners are square, their screen a little rounded.
+// The navbar's card is rounded 14px; full-width banners are square, their screen a little rounded.
 const CARD_RADIUS: Record<Placement, number> = {
-	navbar: 10,
+	navbar: 14,
 	page: 0,
 	login: 0,
 };
@@ -214,7 +214,7 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 			className={cn(
 				"flex items-center gap-1",
 				placement === "navbar"
-					? "ml-3 min-h-9 min-w-0 flex-1 rounded-[10px] p-1 text-[13px] leading-[18px] shadow-[0_1px_3px_rgb(0_0_0/.2),inset_0_0_0_1px_rgb(255_255_255/.14)]"
+					? "ml-3 min-h-9 min-w-0 flex-1 gap-1.5 rounded-[14px] py-1 pl-1 pr-1.5 text-[13px] leading-[18px] shadow-[0_1px_3px_rgb(0_0_0/.2),inset_0_0_0_1px_rgb(255_255_255/.14)]"
 					: "w-full p-1 text-center text-sm",
 				wasPushed(banner.id) &&
 					openEffect === "none" &&
@@ -237,8 +237,6 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 		>
 			{banner.countdown && <BannerCountdown to={banner.countdown} />}
 			<BannerLcd bg={bg} fg={fg} radius={CARD_RADIUS[placement]}>
-				{/* Scroll mode: the whole message at once, without waiting for its effect. */}
-				<BannerScrollView banner={banner} anchor={card} />
 				<BannerText
 					banner={banner}
 					animate
@@ -249,6 +247,8 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 					)}
 				/>
 			</BannerLcd>
+			{/* Scroll mode: the whole message at once, without waiting for its effect - at the right, by the close */}
+			<BannerScrollView banner={banner} anchor={card} />
 			{opening && <OpenLayers effect={openEffect} />}
 			{close.closing && <CloseLayers effect={closeEffect} />}
 			{receipts && signedIn && viewedAt && <ViewedStamp viewedAt={viewedAt} />}
@@ -279,7 +279,7 @@ const DismissButton: React.FC<{ onDismiss: () => void }> = ({ onDismiss }) => (
 		aria-label="Dismiss this announcement"
 		title="Dismiss"
 		data-testid="announcement-dismiss"
-		className="flex size-[30px] shrink-0 cursor-pointer items-center justify-center rounded-[7px] border border-solid border-white/60 bg-white/15 p-0 text-inherit hover:brightness-110"
+		className="flex size-[28px] shrink-0 cursor-pointer items-center justify-center rounded-[9px] border border-solid border-white/30 bg-white/10 p-0 text-inherit hover:bg-white/20"
 	>
 		<XIcon aria-hidden className="size-4" />
 	</button>
@@ -333,7 +333,7 @@ export const viewedTooltip = (
 
 // The Viewed box and the Confirm button: the same size, side by side at the right.
 const RECEIPT_BOX =
-	"flex h-[30px] w-[6.75rem] shrink-0 items-center justify-center rounded-[7px] border border-solid";
+	"flex h-[28px] w-[6.75rem] shrink-0 items-center justify-center rounded-[9px] border border-solid";
 
 /**
  * When this user first saw the announcement, as the admins' report records it:

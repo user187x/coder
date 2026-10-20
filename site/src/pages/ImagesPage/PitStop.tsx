@@ -37,12 +37,16 @@ const LEVELS: { value: CopaLevel; label: string; hint: string }[] = [
 	{ value: "major", label: "Major", hint: "any newer" },
 ];
 
-/** A finding Copa can fix: an OS package with a fixed version always; Python and Node.js ones with library patching. */
+/**
+ * A finding Copa can fix: an OS package with a fixed version always; a Python one with library patching. (Node.js
+ * ones Copa patches through a tooling image, and on the AI image that failed the whole patch: the service leaves
+ * them out.)
+ */
 export const pitApplicable = (f: Finding, libraries: boolean) =>
 	Boolean(f.to) &&
 	(f.source === "apt" ||
 		f.source === "base image" ||
-		(libraries && (f.source === "pip" || f.source === "npm")));
+		(libraries && f.source === "pip"));
 
 /** The pit stop's options and its start, in Fix plan (the findings chosen come from the page). */
 export const PitStopPanel: React.FC<{
@@ -54,6 +58,11 @@ export const PitStopPanel: React.FC<{
 	const queryClient = useQueryClient();
 	const [maxLevel, setMaxLevel] = useState<CopaLevel>("minor");
 	const [laps, setLaps] = useState(2);
+	// a lap after the first only goes a library level further: as many laps as levels up to the most allowed
+	const useful = libraries
+		? LEVELS.findIndex((l) => l.value === maxLevel) + 1
+		: 1;
+	const lapsTaken = Math.min(laps, useful);
 	const running = image.pit?.outcome === "running";
 	const n = chosen.length;
 	const start = useMutation({
@@ -63,9 +72,14 @@ export const PitStopPanel: React.FC<{
 				libraries,
 				level: "patch",
 				maxLevel: libraries ? maxLevel : "patch",
-				laps,
+				laps: lapsTaken,
 			}),
-		onSuccess: () => {
+		onSuccess: ({ pit }) => {
+			// the new pit stop on the page at once (not the last one's lane until the refetch)
+			queryClient.setQueryData<{ image: ImageDetail }>(
+				[...imagesKey, image.id],
+				(old) => (old ? { image: { ...old.image, pit } } : old),
+			);
 			void queryClient.invalidateQueries({ queryKey: imagesKey });
 		},
 		onError: (e) =>
@@ -94,12 +108,12 @@ export const PitStopPanel: React.FC<{
 					data-testid="pit-libraries"
 				/>
 				<span>
-					Python and Node.js packages too{" "}
+					Python packages too{" "}
 					<span className="ml-1 rounded-full border border-solid border-(--ws-line) px-1.5 text-[10.5px] uppercase tracking-[0.05em] text-(--ws-muted)">
 						experimental
 					</span>
 					<span className="block text-xs text-(--ws-muted)">
-						OS packages always; libraries from PyPI and npm in their own
+						OS packages always; Python libraries from PyPI, in their own
 						environments.
 					</span>
 				</span>
@@ -155,11 +169,19 @@ export const PitStopPanel: React.FC<{
 							key={k}
 							type="button"
 							role="radio"
-							aria-checked={laps === k}
+							aria-checked={lapsTaken === k}
+							disabled={k > useful}
+							title={
+								k > useful
+									? libraries
+										? "Each lap after the first goes a library level further: allow minor or major updates for more"
+										: "Without library updates one lap does all Copa can"
+									: undefined
+							}
 							onClick={() => setLaps(k)}
 							className={cn(
-								"ws-hit h-8 w-10 cursor-pointer rounded-lg border-0 text-[13px]",
-								laps === k
+								"ws-hit h-8 w-10 cursor-pointer rounded-lg border-0 text-[13px] disabled:cursor-not-allowed disabled:opacity-40",
+								lapsTaken === k
 									? "bg-(--ws-switch-off) font-semibold text-(--ws-text)"
 									: "bg-transparent text-(--ws-muted)",
 							)}
@@ -187,9 +209,8 @@ export const PitStopPanel: React.FC<{
 							: `Box, box - pit stop for ${n} finding${n === 1 ? "" : "s"}`}
 			</button>
 			<p className="m-0 text-xs text-(--ws-muted)">
-				Copa updates packages from the distribution's repositories (and PyPI,
-				npm for libraries): the cluster must reach them or the mirrors the image
-				names.
+				Copa updates packages from the distribution's repositories (and PyPI for
+				libraries): the cluster must reach them or the mirrors the image names.
 			</p>
 		</div>
 	);

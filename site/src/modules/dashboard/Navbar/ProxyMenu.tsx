@@ -1,5 +1,6 @@
-import { RadioIcon } from "lucide-react";
+import { GaugeIcon, RadioIcon } from "lucide-react";
 import { useState } from "react";
+import { NavLink } from "react-router";
 import { toast } from "sonner";
 import type * as TypesGen from "#/api/typesGenerated";
 import { Abbr } from "#/components/Abbr/Abbr";
@@ -21,12 +22,21 @@ import type { ProxyContextValue } from "#/contexts/ProxyContext";
 import { WorkspacesLatencyMenu } from "#/modules/platform/workspaceLatency/WorkspacesLatencyMenu";
 import { getLatencyColor } from "#/utils/latency";
 import { sortProxiesByLatency } from "./proxyUtils";
+import "./navbarSoft.css";
 
 type ProxyMenuProps = {
 	proxyContextValue: ProxyContextValue;
+	/**
+	 * Platform: the HUD's link joined on its left (admins): one split button - HUD, then the latency and its menu's
+	 * chevron - in the place of two.
+	 */
+	hud?: boolean;
 };
 
-export const ProxyMenu: React.FC<ProxyMenuProps> = ({ proxyContextValue }) => {
+export const ProxyMenu: React.FC<ProxyMenuProps> = ({
+	proxyContextValue,
+	hud = false,
+}) => {
 	const [open, setOpen] = useState(false);
 	const [refetchDate, setRefetchDate] = useState<Date>();
 	const selectedProxy = proxyContextValue.proxy.proxy;
@@ -63,49 +73,82 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({ proxyContextValue }) => {
 	if (isLoading) {
 		return (
 			<Skeleton
-				width="110px"
+				width={hud ? "170px" : "110px"}
 				height={40}
-				className="rounded-[6px] transform-none"
+				className="rounded-[10px] transform-none"
 			/>
 		);
 	}
 
+	const reading = (
+		<>
+			<span className="sr-only">
+				Latency for {selectedProxy?.display_name ?? "your region"}
+			</span>
+
+			{selectedProxy ? (
+				<>
+					<RadioIcon
+						aria-hidden="true"
+						className={getLatencyColor(
+							proxyLatencyLoading(selectedProxy)
+								? undefined
+								: latencies?.[selectedProxy.id]?.latencyMS,
+						)}
+					/>
+
+					<Latency
+						className={
+							latencies?.[selectedProxy.id]?.latencyMS
+								? "text-content-primary"
+								: undefined
+						}
+						latency={latencies?.[selectedProxy.id]?.latencyMS}
+						isLoading={proxyLatencyLoading(selectedProxy)}
+					/>
+				</>
+			) : (
+				"Select Proxy"
+			)}
+
+			<ChevronDownIcon className="text-content-primary" />
+		</>
+	);
+
 	return (
 		<DropdownMenu open={open} onOpenChange={setOpen}>
-			<DropdownMenuTrigger asChild>
-				<Button variant="outline" size="lg">
-					<span className="sr-only">
-						Latency for {selectedProxy?.display_name ?? "your region"}
-					</span>
-
-					{selectedProxy ? (
-						<>
-							<RadioIcon
-								aria-hidden="true"
-								className={getLatencyColor(
-									proxyLatencyLoading(selectedProxy)
-										? undefined
-										: latencies?.[selectedProxy.id]?.latencyMS,
-								)}
-							/>
-
-							<Latency
-								className={
-									latencies?.[selectedProxy.id]?.latencyMS
-										? "text-content-primary"
-										: undefined
-								}
-								latency={latencies?.[selectedProxy.id]?.latencyMS}
-								isLoading={proxyLatencyLoading(selectedProxy)}
-							/>
-						</>
-					) : (
-						"Select Proxy"
-					)}
-
-					<ChevronDownIcon className="text-content-primary" />
-				</Button>
-			</DropdownMenuTrigger>
+			{hud ? (
+				<div
+					role="group"
+					aria-label="HUD and latency"
+					className="navbar-split"
+					data-testid="navbar-hud-latency"
+				>
+					<NavLink
+						to="/hud"
+						className="navbar-split-main"
+						title="HUD: the platform at a glance"
+					>
+						<GaugeIcon aria-hidden />
+						HUD
+					</NavLink>
+					<DropdownMenuTrigger asChild>
+						<button
+							type="button"
+							className="navbar-split-menu"
+							title={`Latency to ${selectedProxy?.display_name ?? "your region"}, and to your workspaces`}
+						>
+							{reading}
+						</button>
+					</DropdownMenuTrigger>
+				</div>
+			) : (
+				<DropdownMenuTrigger asChild>
+					<Button variant="outline" size="lg">
+						{reading}
+					</Button>
+				</DropdownMenuTrigger>
+			)}
 			<DropdownMenuContent align="end" className="w-80">
 				{proxyContextValue.proxies && proxyContextValue.proxies.length > 1 && (
 					<DropdownMenuItem

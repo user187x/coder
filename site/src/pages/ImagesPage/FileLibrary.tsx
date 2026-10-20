@@ -26,6 +26,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "#/components/Table/Table";
+import { TableCard } from "#/modules/platform/tableCard/TableCard";
 import { createDayString } from "#/utils/createDayString";
 import { formatSize } from "./badges";
 import {
@@ -266,92 +267,98 @@ const FileLibrary: React.FC<LibraryCopy> = ({
 					canRelease={!!scanner.data?.canEdit}
 				/>
 			)}
-			<Table className="mt-3" data-testid={`${kind}-table`}>
-				<TableHeader>
-					<TableRow>
-						<TableHead className={gated ? "w-[42%]" : "w-[60%]"}>
-							{noun[0]}
-						</TableHead>
-						<TableHead className="w-[12%]">Size</TableHead>
-						{gated && <TableHead className="w-[22%]">Security</TableHead>}
-						<TableHead className={gated ? "w-[14%]" : "w-[20%]"}>
-							Added
-						</TableHead>
-						<TableHead className={gated ? "w-[10%]" : "w-[5%]"} />
-					</TableRow>
-				</TableHeader>
-				<TableBody>
-					{lib.files.length === 0 ? (
+			<TableCard
+				className="mt-3"
+				summary={`${lib.files.length} ${lib.files.length === 1 ? noun[0] : noun[1]}`}
+				hint="Point at anything in the table to read what it does"
+			>
+				<Table data-testid={`${kind}-table`}>
+					<TableHeader>
 						<TableRow>
-							<TableCell
-								colSpan={gated ? 5 : 4}
-								className="text-sm text-content-secondary"
-							>
-								No {noun[1]} yet.
-								{lib.canEdit &&
-									" Upload one, or fetch one from an address the cluster reaches."}
-							</TableCell>
+							<TableHead className={gated ? "w-[42%]" : "w-[60%]"}>
+								{noun[0]}
+							</TableHead>
+							<TableHead className="w-[12%]">Size</TableHead>
+							{gated && <TableHead className="w-[22%]">Security</TableHead>}
+							<TableHead className={gated ? "w-[14%]" : "w-[20%]"}>
+								Added
+							</TableHead>
+							<TableHead className={gated ? "w-[10%]" : "w-[5%]"} />
 						</TableRow>
-					) : (
-						lib.files.map((f) => (
-							<TableRow key={f.name}>
-								<TableCell className="break-all font-mono text-xs">
-									{homePath(lib.mountPath)}/{f.name}
-								</TableCell>
-								<TableCell className="text-sm tabular-nums">
-									{formatSize(f.size)}
-								</TableCell>
-								{gated && (
-									<TableCell>
-										<ModelScanCell scan={f.scan} />
-										{f.scan?.newerHeld && (
-											<span className="block text-xs text-content-secondary">
-												a newer version is held
-											</span>
-										)}
-									</TableCell>
-								)}
-								<TableCell className="text-sm text-content-secondary">
-									{createDayString(f.modified)}
-								</TableCell>
-								<TableCell className="text-right">
-									<span className="flex items-center justify-end gap-1">
-										{gated && (
-											<ModelScanActions
-												name={f.name}
-												scan={f.scan}
-												held={false}
-												canScan={lib.canEdit}
-												canRelease={!!scanner.data?.canEdit}
-											/>
-										)}
-										{lib.canEdit &&
-											(confirming === f.name ? (
-												<Button
-													size="xs"
-													variant="destructive"
-													disabled={remove.isPending}
-													onClick={() => remove.mutate(f.name)}
-												>
-													Delete?
-												</Button>
-											) : (
-												<Button
-													size="icon"
-													variant="subtle"
-													aria-label={`Delete ${f.name}`}
-													onClick={() => setConfirming(f.name)}
-												>
-													<TrashIcon />
-												</Button>
-											))}
-									</span>
+					</TableHeader>
+					<TableBody>
+						{lib.files.length === 0 ? (
+							<TableRow>
+								<TableCell
+									colSpan={gated ? 5 : 4}
+									className="text-sm text-content-secondary"
+								>
+									No {noun[1]} yet.
+									{lib.canEdit &&
+										" Upload one, or fetch one from an address the cluster reaches."}
 								</TableCell>
 							</TableRow>
-						))
-					)}
-				</TableBody>
-			</Table>
+						) : (
+							lib.files.map((f) => (
+								<TableRow key={f.name}>
+									<TableCell className="break-all font-mono text-xs">
+										{homePath(lib.mountPath)}/{f.name}
+									</TableCell>
+									<TableCell className="text-sm tabular-nums">
+										{formatSize(f.size)}
+									</TableCell>
+									{gated && (
+										<TableCell>
+											<ModelScanCell scan={f.scan} />
+											{f.scan?.newerHeld && (
+												<span className="block text-xs text-content-secondary">
+													a newer version is held
+												</span>
+											)}
+										</TableCell>
+									)}
+									<TableCell className="text-sm text-content-secondary">
+										{createDayString(f.modified)}
+									</TableCell>
+									<TableCell className="text-right">
+										<span className="flex items-center justify-end gap-1">
+											{gated && (
+												<ModelScanActions
+													name={f.name}
+													scan={f.scan}
+													held={false}
+													canScan={lib.canEdit}
+													canRelease={!!scanner.data?.canEdit}
+												/>
+											)}
+											{lib.canEdit &&
+												(confirming === f.name ? (
+													<Button
+														size="xs"
+														variant="destructive"
+														disabled={remove.isPending}
+														onClick={() => remove.mutate(f.name)}
+													>
+														Delete?
+													</Button>
+												) : (
+													<Button
+														size="icon"
+														variant="subtle"
+														aria-label={`Delete ${f.name}`}
+														onClick={() => setConfirming(f.name)}
+													>
+														<TrashIcon />
+													</Button>
+												))}
+										</span>
+									</TableCell>
+								</TableRow>
+							))
+						)}
+					</TableBody>
+				</Table>
+			</TableCard>
 		</section>
 	);
 };

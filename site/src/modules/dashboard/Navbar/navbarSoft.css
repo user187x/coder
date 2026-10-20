@@ -1,0 +1,53 @@
+/* Platform: the top bar's controls rounder (GUI-UPDATES), the banner's own buttons aside; and the HUD and latency
+   split button (ProxyMenu hud): the HUD's link on the left, the latency and its menu's chevron on the right, one
+   outline round both. Not in a layer: over the buttons' utilities. */
+.navbar-soft button:not(#coder-system-banner button, .navbar-split-menu),
+.navbar-soft a.inline-flex:not(#coder-system-banner a) {
+	border-radius: 10px;
+}
+.navbar-split {
+	display: inline-flex;
+	align-items: stretch;
+	height: 2.5rem;
+	border: 1px solid hsl(var(--border-default));
+	border-radius: 10px;
+	background: hsl(var(--surface-primary));
+	font-size: 0.875rem;
+	font-weight: 500;
+	white-space: nowrap;
+}
+.navbar-split-main,
+.navbar-split-menu {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0 0.75rem;
+	border: 0;
+	background: transparent;
+	color: hsl(var(--content-primary));
+	text-decoration: none;
+	cursor: pointer;
+	transition: background-color 120ms;
+}
+.navbar-soft .navbar-split-main {
+	border-radius: 9px 0 0 9px;
+}
+.navbar-soft .navbar-split-menu {
+	padding-right: 0.625rem;
+	border-left: 1px solid hsl(var(--border-default));
+	border-radius: 0 9px 9px 0;
+}
+.navbar-split-main:hover,
+.navbar-split-menu:hover,
+.navbar-split-menu[data-state="open"] {
+	background: hsl(var(--surface-secondary));
+}
+.navbar-split-main:focus-visible,
+.navbar-split-menu:focus-visible {
+	outline: 2px solid hsl(var(--content-link));
+	outline-offset: -2px;
+}
+.navbar-split svg:not(.dropdown-chevron) {
+	width: 1.125rem;
+	height: 1.125rem;
+}

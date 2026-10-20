@@ -16,6 +16,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "#/components/Table/Table";
+import { TableCard } from "#/modules/platform/tableCard/TableCard";
 import { formatSize } from "./badges";
 import { CoderForkBadge, ourImage, useImageContents } from "./CoderForkImages";
 import { nameFrom } from "./ImportImageDialog";
@@ -81,63 +82,71 @@ export const ImagesInUse: React.FC<{
 				The images workspaces run now, and the ones the templates run. Any of
 				them can be scanned, wherever it comes from.
 			</p>
-			<Table data-testid="images-in-use">
-				<TableHeader>
-					<TableRow>
-						<TableHead className="w-[42%]">Image</TableHead>
-						<TableHead className="w-[20%]">Workspaces</TableHead>
-						<TableHead className="w-[18%]">Templates</TableHead>
-						<TableHead className="w-[20%]" />
-					</TableRow>
-				</TableHeader>
-				<TableBody>
-					{images.map((i) => (
-						<TableRow key={i.image}>
-							<TableCell className="break-all font-mono text-xs">
-								{i.image}
-								<OursTag catalog={catalog} image={i.image} />
-							</TableCell>
-							<TableCell className="text-sm text-content-secondary">
-								{i.workspaces.length ? (
-									<span title={i.workspaces.join(", ")}>
-										{i.workspaces.length}{" "}
-										{i.workspaces.length === 1 ? "workspace" : "workspaces"}
-									</span>
-								) : (
-									"none running"
-								)}
-							</TableCell>
-							<TableCell className="text-sm text-content-secondary">
-								{i.templates.join(", ") || "–"}
-							</TableCell>
-							<TableCell>
-								<div className="flex justify-end gap-2">
-									{i.entry ? (
-										<Button asChild variant="outline" size="sm">
-											<RouterLink to={`/images/${i.entry}`}>Open</RouterLink>
-										</Button>
-									) : (
-										canEdit && (
-											<>
-												<ScanButton image={i.image} />
-												<Button
-													variant="outline"
-													size="sm"
-													onClick={() =>
-														onImport({ name: nameFrom(i.image), ref: i.image })
-													}
-												>
-													Import
-												</Button>
-											</>
-										)
-									)}
-								</div>
-							</TableCell>
+			<TableCard
+				summary={`${images.length} ${images.length === 1 ? "image" : "images"} in use`}
+				hint="Point at anything in the table to read what it does"
+			>
+				<Table data-testid="images-in-use">
+					<TableHeader>
+						<TableRow>
+							<TableHead className="w-[42%]">Image</TableHead>
+							<TableHead className="w-[20%]">Workspaces</TableHead>
+							<TableHead className="w-[18%]">Templates</TableHead>
+							<TableHead className="w-[20%]" />
 						</TableRow>
-					))}
-				</TableBody>
-			</Table>
+					</TableHeader>
+					<TableBody>
+						{images.map((i) => (
+							<TableRow key={i.image}>
+								<TableCell className="break-all font-mono text-xs">
+									{i.image}
+									<OursTag catalog={catalog} image={i.image} />
+								</TableCell>
+								<TableCell className="text-sm text-content-secondary">
+									{i.workspaces.length ? (
+										<span title={i.workspaces.join(", ")}>
+											{i.workspaces.length}{" "}
+											{i.workspaces.length === 1 ? "workspace" : "workspaces"}
+										</span>
+									) : (
+										"none running"
+									)}
+								</TableCell>
+								<TableCell className="text-sm text-content-secondary">
+									{i.templates.join(", ") || "–"}
+								</TableCell>
+								<TableCell>
+									<div className="flex justify-end gap-2">
+										{i.entry ? (
+											<Button asChild variant="outline" size="sm">
+												<RouterLink to={`/images/${i.entry}`}>Open</RouterLink>
+											</Button>
+										) : (
+											canEdit && (
+												<>
+													<ScanButton image={i.image} />
+													<Button
+														variant="outline"
+														size="sm"
+														onClick={() =>
+															onImport({
+																name: nameFrom(i.image),
+																ref: i.image,
+															})
+														}
+													>
+														Import
+													</Button>
+												</>
+											)
+										)}
+									</div>
+								</TableCell>
+							</TableRow>
+						))}
+					</TableBody>
+				</Table>
+			</TableCard>
 		</section>
 	);
 };
@@ -186,52 +195,57 @@ export const ImagesOnNodes: React.FC<{ canEdit: boolean }> = ({ canEdit }) => {
 				{images.length}). A scan reads it from a node that holds it: no registry
 				needed.
 			</p>
-			<Table data-testid="images-on-nodes">
-				<TableHeader>
-					<TableRow>
-						<TableHead className="w-[52%]">Image</TableHead>
-						<TableHead className="w-[12%]">Size</TableHead>
-						<TableHead className="w-[18%]">Nodes</TableHead>
-						<TableHead className="w-[18%]" />
-					</TableRow>
-				</TableHeader>
-				<TableBody>
-					{shown.map((i) => (
-						<TableRow key={i.image} data-testid="image-on-node">
-							<TableCell className="break-all font-mono text-xs">
-								<span title={i.names.join("\n") || undefined}>{i.image}</span>
-								<OursTag catalog={catalog} image={i.image} />
-								{i.running && (
-									<Badge size="xs" className="ml-2 align-middle">
-										running
-									</Badge>
-								)}
-							</TableCell>
-							<TableCell className="text-sm tabular-nums text-content-secondary">
-								{formatSize(i.sizeBytes)}
-							</TableCell>
-							<TableCell className="text-sm text-content-secondary">
-								<span title={i.nodes.join(", ")}>
-									{i.nodes.length === 1
-										? i.nodes[0]
-										: `${i.nodes.length} nodes`}
-								</span>
-							</TableCell>
-							<TableCell>
-								<div className="flex justify-end gap-2">
-									{i.entry ? (
-										<Button asChild variant="outline" size="sm">
-											<RouterLink to={`/images/${i.entry}`}>Open</RouterLink>
-										</Button>
-									) : (
-										canEdit && <ScanButton image={i.image} />
-									)}
-								</div>
-							</TableCell>
+			<TableCard
+				summary={`Showing ${shown.length} of ${images.length} ${images.length === 1 ? "image" : "images"} on the nodes`}
+				hint="Point at anything in the table to read what it does"
+			>
+				<Table data-testid="images-on-nodes">
+					<TableHeader>
+						<TableRow>
+							<TableHead className="w-[52%]">Image</TableHead>
+							<TableHead className="w-[12%]">Size</TableHead>
+							<TableHead className="w-[18%]">Nodes</TableHead>
+							<TableHead className="w-[18%]" />
 						</TableRow>
-					))}
-				</TableBody>
-			</Table>
+					</TableHeader>
+					<TableBody>
+						{shown.map((i) => (
+							<TableRow key={i.image} data-testid="image-on-node">
+								<TableCell className="break-all font-mono text-xs">
+									<span title={i.names.join("\n") || undefined}>{i.image}</span>
+									<OursTag catalog={catalog} image={i.image} />
+									{i.running && (
+										<Badge size="xs" className="ml-2 align-middle">
+											running
+										</Badge>
+									)}
+								</TableCell>
+								<TableCell className="text-sm tabular-nums text-content-secondary">
+									{formatSize(i.sizeBytes)}
+								</TableCell>
+								<TableCell className="text-sm text-content-secondary">
+									<span title={i.nodes.join(", ")}>
+										{i.nodes.length === 1
+											? i.nodes[0]
+											: `${i.nodes.length} nodes`}
+									</span>
+								</TableCell>
+								<TableCell>
+									<div className="flex justify-end gap-2">
+										{i.entry ? (
+											<Button asChild variant="outline" size="sm">
+												<RouterLink to={`/images/${i.entry}`}>Open</RouterLink>
+											</Button>
+										) : (
+											canEdit && <ScanButton image={i.image} />
+										)}
+									</div>
+								</TableCell>
+							</TableRow>
+						))}
+					</TableBody>
+				</Table>
+			</TableCard>
 			{images.length > NODE_IMAGES_SHOWN && (
 				<Button
 					variant="subtle"

@@ -3,10 +3,10 @@ import {
 	AppWindowIcon,
 	BlocksIcon,
 	CircleAlertIcon,
+	ClockIcon,
 	CloudDownloadIcon,
 	CloudUploadIcon,
 	GaugeIcon,
-	GitCompareArrowsIcon,
 	RocketIcon,
 	RotateCwIcon,
 	SquareTerminalIcon,
@@ -239,12 +239,16 @@ export const DeploymentBannerView: React.FC<DeploymentBannerViewProps> = ({
 
 			<ActiveConnections sessionCount={stats?.session_count} />
 
-			<div className="ml-auto flex mr-3 items-center gap-8 pl-8 text-content-primary">
+			<div className="ml-auto flex mr-3 items-center gap-3 pl-8 text-content-primary">
 				<TooltipProvider delayDuration={100}>
 					<Tooltip>
 						<TooltipTrigger asChild>
-							<div className="flex items-center gap-1">
-								<GitCompareArrowsIcon className="size-icon-xs" />
+							{/* Platform: in a pill (GUI-UPDATES) */}
+							<div
+								className="flex h-7 items-center gap-1.5 rounded-full border border-solid border-border bg-surface-primary px-3 text-content-secondary"
+								data-testid="deployment-banner-aggregated"
+							>
+								<ClockIcon className="size-icon-xs" />
 								{lastAggregated}
 							</div>
 						</TooltipTrigger>
@@ -262,7 +266,7 @@ export const DeploymentBannerView: React.FC<DeploymentBannerViewProps> = ({
 					<Tooltip>
 						<TooltipTrigger asChild>
 							<Button
-								className="font-mono [&_svg]:mr-1"
+								className="h-7 w-auto rounded-[8px] border border-solid border-border px-2.5 font-mono [&_svg]:mr-1"
 								onClick={() => {
 									if (fetchStats) {
 										fetchStats();

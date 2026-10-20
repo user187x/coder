@@ -82,13 +82,15 @@ const RunningLight: React.FC<{
 type WorkspaceStatusIndicatorProps = {
 	workspace: Workspace;
 	children?: React.ReactNode;
+	/** Platform: on the indicator (the Workspaces table's pill). */
+	className?: string;
 	/** Platform: a running, healthy workspace shows the running light instead of the dot. */
 	runningLight?: boolean;
 };
 
 export const WorkspaceStatusIndicator: React.FC<
 	WorkspaceStatusIndicatorProps
-> = ({ workspace, children, runningLight = false }) => {
+> = ({ workspace, children, runningLight = false, className }) => {
 	let { text, type } = getDisplayWorkspaceStatus(
 		workspace.latest_build.status,
 		workspace.latest_build.job,
@@ -116,7 +118,7 @@ export const WorkspaceStatusIndicator: React.FC<
 		);
 
 	const statusIndicator = (
-		<StatusIndicator variant={variantByStatusType[type]}>
+		<StatusIndicator variant={variantByStatusType[type]} className={className}>
 			{dot}
 			<span className="sr-only">Workspace status:</span> {text}
 			{children}
@@ -130,7 +132,10 @@ export const WorkspaceStatusIndicator: React.FC<
 	return (
 		<Tooltip>
 			<TooltipTrigger asChild>
-				<StatusIndicator variant={variantByStatusType[type]}>
+				<StatusIndicator
+					variant={variantByStatusType[type]}
+					className={className}
+				>
 					{dot}
 					<span className="sr-only">Workspace status:</span> {text}
 					{children}

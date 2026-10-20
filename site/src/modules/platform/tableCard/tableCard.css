@@ -1,0 +1,80 @@
+/* TableCard: the table (components/Table) in a rounded card, its header inside, a footer under it. Not in a layer, so
+   it wins over the Table's own utilities (its body's outline and rounded corners: the card has them now). */
+.table-card {
+	position: relative;
+	overflow: hidden;
+	border: 1px solid hsl(var(--border-default));
+	border-radius: 18px;
+	background: hsl(var(--surface-primary));
+	box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
+}
+.table-card thead th {
+	height: 46px;
+	padding-top: 0;
+	padding-bottom: 0;
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.07em;
+	text-transform: uppercase;
+	color: hsl(var(--content-secondary));
+	border-bottom: 1px solid hsl(var(--border-default));
+	white-space: nowrap;
+}
+.table-card thead th:first-child {
+	padding-left: 20px;
+}
+.table-card tbody > tr > * {
+	border-left-width: 0;
+	border-right-width: 0;
+	border-radius: 0;
+}
+.table-card tbody > tr > *:first-child {
+	padding-left: 20px;
+}
+.table-card tbody > tr > *:last-child {
+	padding-right: 20px;
+}
+.table-card tbody > tr:first-of-type > * {
+	border-top-width: 0;
+}
+.table-card tbody > tr:last-child > * {
+	border-bottom-width: 0;
+}
+.table-card tbody > tr {
+	transition: background-color 120ms;
+}
+.table-card tbody > tr:hover,
+.table-card tbody > tr:focus-visible {
+	outline: none;
+	background: hsl(var(--surface-secondary) / 0.55);
+}
+.table-card tbody > tr:focus-visible {
+	box-shadow: inset 3px 0 0 hsl(var(--content-link));
+}
+.table-card-footer {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	min-height: 46px;
+	padding: 10px 20px;
+	border-top: 1px solid hsl(var(--border-default));
+	background: hsl(var(--surface-secondary) / 0.45);
+	font-size: 12.5px;
+	color: hsl(var(--content-secondary));
+}
+.table-card-summary {
+	flex: none;
+	white-space: nowrap;
+}
+.table-card-hint {
+	min-width: 0;
+	overflow: hidden;
+	text-align: right;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	transition: color 120ms;
+}
+.table-card-hint-on {
+	color: hsl(var(--content-primary));
+}

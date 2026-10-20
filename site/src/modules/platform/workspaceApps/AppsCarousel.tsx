@@ -8,28 +8,40 @@ import "./appsCarousel.css";
  * window that slides an app at a time - its arrows either side (one gone dim at either end), the arrow keys and a
  * sideways swipe or scroll - with a thin bar under it telling where in the list it is. The buttons out of the window
  * are inert (no tabbing to an app that cannot be seen). What follows it in the row (the update and restart buttons)
- * stays outside: never in it. As many as fit, or fewer: just the buttons.
+ * stays outside: never in it. As many as fit, or fewer: just the buttons - unless `framed`: then always in a frame of
+ * the same width (each row's apps line up), its arrows in it, the side with more apps to see lit faintly.
  */
 export const AppsCarousel: React.FC<{
 	children: ReactNode;
 	/** The apps shown at once. */
 	visible?: number;
-}> = ({ children, visible = 4 }) => {
+	/** In a frame of its own, as wide as `visible` apps, whatever their number. */
+	framed?: boolean;
+}> = ({ children, visible = 4, framed = false }) => {
 	const items = Children.toArray(children);
 	const [start, setStart] = useState(0);
-	if (items.length <= visible) {
+	if (items.length <= visible && !framed) {
 		return <>{items}</>;
 	}
-	const last = items.length - visible;
+	const last = Math.max(0, items.length - visible);
 	const at = Math.min(start, last);
 	const go = (to: number) => setStart(Math.max(0, Math.min(last, to)));
+	const fits = items.length <= visible;
 
 	return (
 		<div
 			role="group"
 			aria-roledescription="carousel"
-			aria-label={`Apps ${at + 1} to ${at + visible} of ${items.length}`}
+			aria-label={
+				fits
+					? `Apps (${items.length})`
+					: `Apps ${at + 1} to ${at + visible} of ${items.length}`
+			}
 			data-testid="workspace-apps-carousel"
+			data-framed={framed || undefined}
+			data-fits={fits || undefined}
+			data-more-before={at > 0 || undefined}
+			data-more-after={at < last || undefined}
 			className="apps-carousel"
 			style={{ "--apps-visible": visible } as React.CSSProperties}
 			onClick={(e) => e.stopPropagation()}
@@ -71,15 +83,17 @@ export const AppsCarousel: React.FC<{
 						);
 					})}
 				</div>
-				<span aria-hidden className="apps-carousel-bar">
-					<span
-						className="apps-carousel-thumb"
-						style={{
-							width: `${(visible / items.length) * 100}%`,
-							left: `${(at / items.length) * 100}%`,
-						}}
-					/>
-				</span>
+				{!fits && (
+					<span aria-hidden className="apps-carousel-bar">
+						<span
+							className="apps-carousel-thumb"
+							style={{
+								width: `${(visible / items.length) * 100}%`,
+								left: `${(at / items.length) * 100}%`,
+							}}
+						/>
+					</span>
+				)}
 			</div>
 			<CarouselArrow
 				side="next"

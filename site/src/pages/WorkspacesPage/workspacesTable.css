@@ -1,0 +1,19 @@
+/* Platform: the Workspaces table's Controls (its row's actions): tiles like the apps', the update and restart one
+   tinted amber, the row's menu outlined. */
+.workspace-controls > button,
+.workspace-controls > a {
+	width: 2.25rem;
+	height: 2.25rem;
+	border-radius: 10px;
+}
+.workspace-controls > button:has(.workspace-update-pulse) {
+	border-color: hsl(var(--border-warning) / 0.45);
+	background: hsl(var(--surface-orange));
+	color: hsl(var(--content-warning));
+}
+.workspace-controls [data-testid="workspace-options-button"] {
+	width: 2.25rem;
+	height: 2.25rem;
+	border: 1px solid hsl(var(--border-default));
+	border-radius: 10px;
+}

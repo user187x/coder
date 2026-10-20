@@ -1,5 +1,6 @@
 import { cn } from "cn";
 import { ChevronDownIcon as LucideChevronDown } from "lucide-react";
+import "./dropdownChevron.css";
 
 type ChevronDownIconProps = React.ComponentProps<typeof LucideChevronDown> & {
 	/**
@@ -17,7 +18,8 @@ export const ChevronDownIcon: React.FC<ChevronDownIconProps> = ({
 }) => (
 	<LucideChevronDown
 		className={cn(
-			"transition-transform",
+			// Platform: played down - smaller and fainter than the trigger's text (dropdownChevron.css)
+			"dropdown-chevron transition-transform",
 			open !== undefined
 				? open && "rotate-180"
 				: "group-data-[state=open]:rotate-180",

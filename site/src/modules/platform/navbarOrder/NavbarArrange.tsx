@@ -28,7 +28,8 @@ import {
 const LABELS: Record<NavbarItem, string> = {
 	workspaces: "Workspaces",
 	banner: "Announcement banner",
-	latency: "Latency",
+	// admins': the HUD joined to it (one split button)
+	latency: "Latency and HUD",
 	hud: "HUD",
 };
 

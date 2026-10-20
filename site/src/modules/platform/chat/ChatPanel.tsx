@@ -55,7 +55,8 @@ export const ChatPanel: React.FC = () => {
 	return (
 		<div
 			data-chat-panel=""
-			className="flex w-[min(328px,calc(100vw-32px))] flex-col overflow-hidden rounded-t-lg border border-b-0 border-solid border-border bg-surface-primary shadow-[0_-4px_20px_rgb(0_0_0/.18)]"
+			// Platform: a card floating clear of the page's bottom bar (ChatDock lifts it), rounded all round
+			className="flex w-[min(340px,calc(100vw-32px))] flex-col overflow-hidden rounded-[14px] border border-solid border-border bg-surface-primary shadow-[0_8px_28px_rgb(0_0_0/.16),0_1px_3px_rgb(0_0_0/.08)]"
 		>
 			<div
 				className={cn(
@@ -69,7 +70,7 @@ export const ChatPanel: React.FC = () => {
 					{state.drawerOpen && <ChatList />}
 				</div>
 			</div>
-			<div className="flex items-center bg-surface-secondary">
+			<div className="flex items-center bg-surface-primary">
 				<button
 					type="button"
 					aria-expanded={open}
@@ -78,7 +79,7 @@ export const ChatPanel: React.FC = () => {
 					title={none ? "No admin is taking chats right now" : undefined}
 					onClick={() => setDrawerOpen(!open)}
 					className={cn(
-						"flex h-9 min-w-0 flex-1 items-center gap-2 border-0 bg-surface-secondary px-2.5 text-left text-[13px] font-semibold text-inherit",
+						"flex h-11 min-w-0 flex-1 items-center gap-2 border-0 bg-transparent pl-3.5 pr-2 text-left text-[13px] font-semibold text-inherit",
 						none
 							? "cursor-not-allowed opacity-50 grayscale"
 							: "cursor-pointer hover:bg-surface-tertiary",
@@ -95,7 +96,18 @@ export const ChatPanel: React.FC = () => {
 					>
 						{label}
 					</span>
-					{total > 0 && <CountBadge count={total} />}
+					{total > 0 ? (
+						<CountBadge count={total} />
+					) : (
+						!none && (
+							<span
+								className="text-xs font-normal text-content-secondary"
+								data-testid="chat-unread"
+							>
+								0 unread
+							</span>
+						)
+					)}
 					<ChevronUpIcon
 						className={cn(
 							"size-3.5 text-content-secondary transition-transform duration-250 motion-reduce:transition-none",
@@ -110,7 +122,7 @@ export const ChatPanel: React.FC = () => {
 						aria-label="Open the chat console"
 						title="Open the chat console (Controls › Settings › Chat)"
 						data-testid="chat-open-console"
-						className="inline-flex h-9 shrink-0 cursor-pointer items-center border-0 bg-transparent px-1.5 text-content-secondary hover:text-content-primary"
+						className="inline-flex h-11 shrink-0 cursor-pointer items-center border-0 bg-transparent px-1.5 text-content-secondary hover:text-content-primary"
 					>
 						<PanelsTopLeftIcon className="size-4" />
 					</button>
@@ -125,7 +137,7 @@ export const ChatPanel: React.FC = () => {
 						onClick={() => {
 							void setChatOn(!me.chatOn);
 						}}
-						className="inline-flex h-9 shrink-0 cursor-pointer items-center border-0 bg-transparent pr-2.5 pl-1.5"
+						className="inline-flex h-11 shrink-0 cursor-pointer items-center border-0 bg-transparent pr-3.5 pl-1.5"
 					>
 						<span
 							className={cn(
