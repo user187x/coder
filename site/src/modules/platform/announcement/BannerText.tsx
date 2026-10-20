@@ -328,7 +328,7 @@ const imagesOf = (nodes: InlineNode[]): { src: string; alt: string }[] =>
 	);
 
 /** A picture on the banner's screen, behind the text, and how it fills the screen. */
-type ScreenPicture = { src: string; alt: string; fit: PictureFit };
+export type ScreenPicture = { src: string; alt: string; fit: PictureFit };
 
 /**
  * A Markdown message's pictures: its images given a fit (Insert picture),
@@ -381,7 +381,7 @@ const cssUrl = (src: string) => `url("${src.replace(/["\\\n\r]/g, "")}")`;
  * screen, its middle showing. Stretch: squeezed to the screen's size. The
  * banner keeps its size whatever the fit (bannerRoll.css).
  */
-const PictureScreen: React.FC<{ pictures: ScreenPicture[] }> = ({
+export const PictureScreen: React.FC<{ pictures: ScreenPicture[] }> = ({
 	pictures,
 }) => {
 	const lead = pictures[0];

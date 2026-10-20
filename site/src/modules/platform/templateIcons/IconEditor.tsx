@@ -1,6 +1,7 @@
 import { cn } from "cn";
 import {
 	ImageOffIcon,
+	ImagesIcon,
 	RotateCcwIcon,
 	SmileIcon,
 	UploadIcon,
@@ -22,6 +23,8 @@ import {
 	PopoverTrigger,
 } from "#/components/Popover/Popover";
 import { Spinner } from "#/components/Spinner/Spinner";
+import { ImageStoreMenu } from "../imageStore/ImageStoreMenu";
+import { fetchStoreImage } from "../imageStore/imageStore";
 import {
 	ICON_TARGET,
 	ImageNormalizeError,
@@ -182,6 +185,11 @@ export const IconEditor: React.FC<IconEditorProps> = ({
 								</Spinner>
 								Upload
 							</Button>
+							{/* Platform: or one from the image store, resized like an upload */}
+							<ImageStoreMenu
+								disabled={disabled || upload.isPending}
+								onChoose={(image) => void fetchStoreImage(image).then(onFile)}
+							/>
 						</>
 					)}
 					<Popover open={picking} onOpenChange={setPicking}>
@@ -388,6 +396,21 @@ export const InlineIconEditor: React.FC<InlineIconEditorProps> = ({
 						{upload.isPending ? <Spinner loading size="sm" /> : uploadIcon}
 						Upload
 					</button>
+					<ImageStoreMenu
+						disabled={disabled || upload.isPending}
+						onChoose={(image) => void fetchStoreImage(image).then(onFile)}
+						trigger={
+							<button
+								type="button"
+								className={buttonClassName}
+								disabled={disabled || upload.isPending}
+								data-testid="image-store-menu"
+							>
+								<ImagesIcon className="size-4" />
+								Image store
+							</button>
+						}
+					/>
 				</>
 			)}
 			<Popover open={picking} onOpenChange={setPicking}>

@@ -1425,6 +1425,21 @@ export type BannerPicture = {
 	bytes: number;
 };
 
+/**
+ * A picture of the image store (GET /api/image-store): baked into the platform service's image (store: the pictures
+ * of development/image-store, with an animated preview, thumb), the gallery's, or uploaded for the announcement; the
+ * dashboard adds the pictures baked into itself (dashboard). Every picture chooser offers them all.
+ */
+export type StoreImage = {
+	name: string;
+	url: string;
+	/** A small animated preview (the store's pictures run to tens of MB); none: the picture itself. */
+	thumb?: string | null;
+	type: string;
+	bytes?: number;
+	source: "store" | "gallery" | "uploaded" | "dashboard";
+};
+
 export type GalleryImage = {
 	name: string;
 	type: string;
@@ -2091,6 +2106,9 @@ export const PlatformAPI = {
 		}),
 	getGallery: () =>
 		get<{ images: GalleryImage[] }>(`${PLATFORM_BASE}/api/gallery`),
+	/** Every picture a chooser offers but the dashboard's own: the image store's, the gallery's, the uploaded ones. */
+	getImageStore: () =>
+		get<{ images: StoreImage[] }>(`${PLATFORM_BASE}/api/image-store`),
 	/** Admins: a picture for the announcement (stored as it is: an animated GIF keeps its frames). */
 	uploadBannerPicture: (name: string, dataUrl: string) =>
 		post<BannerPicture>(`${PLATFORM_BASE}/api/banner-pictures`, {

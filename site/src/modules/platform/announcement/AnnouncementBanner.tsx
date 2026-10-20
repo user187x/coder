@@ -248,7 +248,7 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 				/>
 			</BannerLcd>
 			{/* Scroll mode: the whole message at once, without waiting for its effect - at the right, by the close */}
-			<BannerScrollView banner={banner} anchor={card} />
+			<BannerScrollView banner={banner} anchor={card} colors={{ bg, fg }} />
 			{opening && <OpenLayers effect={openEffect} />}
 			{close.closing && <CloseLayers effect={closeEffect} />}
 			{receipts && signedIn && viewedAt && <ViewedStamp viewedAt={viewedAt} />}

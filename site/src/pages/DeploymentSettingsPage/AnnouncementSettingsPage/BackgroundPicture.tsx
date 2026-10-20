@@ -14,13 +14,6 @@ import { getErrorMessage } from "#/api/errors";
 import { PICTURE_FITS, type PictureFit, PlatformAPI } from "#/api/platform";
 import { Button } from "#/components/Button/Button";
 import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuLabel,
-	DropdownMenuTrigger,
-} from "#/components/DropdownMenu/DropdownMenu";
-import {
 	Select,
 	SelectContent,
 	SelectItem,
@@ -28,6 +21,7 @@ import {
 	SelectValue,
 } from "#/components/Select/Select";
 import { Spinner } from "#/components/Spinner/Spinner";
+import { ImageStoreMenu } from "#/modules/platform/imageStore/ImageStoreMenu";
 import { BANNER_PRESET_PICTURES } from "#/modules/platform/pictures";
 
 /** How the background image fills the banner's screen, as the menu offers it. */
@@ -92,7 +86,8 @@ type UploadImageButtonProps = {
  * Platform: the announcement's background image. Upload image opens the file
  * chooser straight away (PNG, JPEG, GIF - animated too -, WebP or AVIF, up to
  * 8 MB; the platform service keeps it as it is and serves it on the Coder
- * site); its arrow offers the preset images baked into the dashboard.
+ * site); its arrow opens the image store (every picture: baked in - the
+ * provided ones - or uploaded before).
  */
 export const UploadImageButton: React.FC<UploadImageButtonProps> = ({
 	onChange,
@@ -139,39 +134,24 @@ export const UploadImageButton: React.FC<UploadImageButtonProps> = ({
 					{uploading ? <Spinner loading /> : <ImagePlusIcon />}
 					Upload image
 				</Button>
-				<DropdownMenu>
-					<DropdownMenuTrigger asChild>
+				{/* Platform: the arrow opens the image store - every picture there is, baked in or uploaded */}
+				<ImageStoreMenu
+					extra={BANNER_PRESET_PICTURES}
+					label="Image store"
+					onChoose={(image) => onChange(image.url)}
+					trigger={
 						<Button
 							size="sm"
 							variant="outline"
 							className="-ml-px min-w-0 rounded-l-none px-2"
-							aria-label="Preset images"
-							title="Preset images"
+							aria-label="Image store"
+							title="Choose one from the image store"
 							data-testid="announcement-preset-menu"
 						>
 							<ChevronDownIcon />
 						</Button>
-					</DropdownMenuTrigger>
-					<DropdownMenuContent align="start">
-						<DropdownMenuLabel>Preset images</DropdownMenuLabel>
-						{BANNER_PRESET_PICTURES.map((preset) => (
-							<DropdownMenuItem
-								key={preset.name}
-								data-testid={`announcement-preset-${preset.name}`}
-								onSelect={() => onChange(preset.url)}
-							>
-								<span className="flex h-6 w-10 shrink-0 items-center justify-center overflow-hidden rounded-sm bg-[#09090b]">
-									<img
-										src={preset.url}
-										alt=""
-										className="max-h-full max-w-full object-contain"
-									/>
-								</span>
-								{preset.name}
-							</DropdownMenuItem>
-						))}
-					</DropdownMenuContent>
-				</DropdownMenu>
+					}
+				/>
 			</div>
 			<input
 				ref={input}

@@ -28,6 +28,22 @@
 	animation: banner-scroll-down 0.22s cubic-bezier(0.2, 0.9, 0.3, 1) both;
 }
 
+/* Platform: in the banner's colours (--banner-scroll-screen and -ink, set from the banner): its bar a little darker,
+   its edge a little lighter, whatever the colour. */
+.banner-scroll {
+	--banner-scroll-bar: color-mix(
+		in srgb,
+		var(--banner-scroll-screen) 80%,
+		#000
+	);
+	--banner-scroll-edge: color-mix(
+		in srgb,
+		var(--banner-scroll-screen) 72%,
+		#fff
+	);
+	isolation: isolate;
+}
+
 /* It has the focus while open (its prompt takes typing): the blinking cursor shows it, not an outline. */
 .banner-scroll:focus {
 	outline: none;
@@ -240,4 +256,31 @@ html[data-animations="off"] .banner-scroll-ahh span {
 html.platform-sparks-cursor,
 html.platform-sparks-cursor * {
 	cursor: none !important;
+}
+
+/* The banner's background picture across the whole screen, as the banner shows it (its fit: span rolls it, an
+   animated GIF moving), under a veil of the screen's colour so the text stays readable. */
+.banner-scroll-picture {
+	position: absolute;
+	inset: 0;
+	z-index: 0;
+	isolation: isolate;
+	pointer-events: none;
+}
+.banner-scroll-picture::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	background: color-mix(in srgb, var(--banner-scroll-screen) 45%, transparent);
+}
+.banner-scroll[data-picture] > :not(.banner-scroll-picture) {
+	position: relative;
+	z-index: 1;
+}
+.banner-scroll[data-picture] .banner-scroll-bar {
+	background: color-mix(in srgb, var(--banner-scroll-bar) 85%, transparent);
+}
+.banner-scroll[data-picture] .banner-scroll-body {
+	background: transparent;
+	text-shadow: 0 0 3px rgb(0 0 0 / 0.85);
 }

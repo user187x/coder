@@ -1,6 +1,19 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+	fireEvent,
+	render as rtlRender,
+	screen,
+	waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { QueryClient, QueryClientProvider } from "react-query";
 import { PlatformAPI } from "#/api/platform";
+
+// the arrow reads the image store (a query)
+const render = (ui: React.ReactElement) =>
+	rtlRender(
+		<QueryClientProvider client={new QueryClient()}>{ui}</QueryClientProvider>,
+	);
+
 import {
 	ChosenImage,
 	PictureFitSelect,
@@ -55,20 +68,50 @@ describe("UploadImageButton", () => {
 		expect(upload).not.toHaveBeenCalled();
 	});
 
-	it("offers the preset images under its arrow, without uploading anything", async () => {
+	it("offers the image store under its arrow - the presets, the provided pictures, the uploaded ones - without uploading anything", async () => {
+		vi.spyOn(PlatformAPI, "getImageStore").mockResolvedValue({
+			images: [
+				{
+					name: "synthsun.gif",
+					url: "/__coder-ui/image-store/synthsun.gif?v=1",
+					thumb: "/__coder-ui/image-store/thumbs/synthsun.gif?v=1",
+					type: "image/gif",
+					source: "store",
+				},
+				{
+					name: "flag.png",
+					url: "/__coder-ui/banner-picture/0123456789abcdef",
+					type: "image/png",
+					source: "uploaded",
+				},
+			],
+		});
 		const upload = vi.spyOn(PlatformAPI, "uploadBannerPicture");
 		const onChange = vi.fn();
 		render(<UploadImageButton onChange={onChange} onProblem={vi.fn()} />);
 		await userEvent.click(screen.getByTestId("announcement-preset-menu"));
-		await userEvent.click(
-			await screen.findByTestId("announcement-preset-usa.gif"),
+		await screen.findByRole("radio", { name: "synthsun.gif" });
+		const names = screen
+			.getAllByTestId("image-store-item")
+			.map((el) => el.getAttribute("aria-label"));
+		// the announcement's presets first, then the provided pictures, the rest baked in, the uploaded ones
+		expect(names.slice(0, 3)).toEqual([
+			"usa.gif",
+			"background.gif",
+			"synthsun.gif",
+		]);
+		expect(names.at(-1)).toBe("flag.png");
+		// the provided picture's tile shows its small preview, not the picture itself
+		expect(
+			screen.getByRole("radio", { name: "synthsun.gif" }).querySelector("img"),
+		).toHaveAttribute("src", "/__coder-ui/image-store/thumbs/synthsun.gif?v=1");
+		await userEvent.click(screen.getByRole("radio", { name: "synthsun.gif" }));
+		expect(onChange).toHaveBeenCalledWith(
+			"/__coder-ui/image-store/synthsun.gif?v=1",
 		);
-		expect(onChange).toHaveBeenCalledWith("/pictures/usa.gif");
 		expect(upload).not.toHaveBeenCalled();
 	});
-});
 
-describe("ChosenImage", () => {
 	it("shows the image chosen, and takes it away", async () => {
 		const onRemove = vi.fn();
 		render(<ChosenImage picture="/pictures/usa.gif" onRemove={onRemove} />);

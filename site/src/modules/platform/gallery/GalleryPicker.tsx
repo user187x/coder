@@ -1,8 +1,12 @@
-import { cn } from "cn";
 import { useState } from "react";
-import { useQuery } from "react-query";
-import { type GalleryImage, PlatformAPI } from "#/api/platform";
-import { PREBAKED_GALLERY, type PrebakedPicture } from "../pictures";
+import { ImageStoreGrid } from "../imageStore/ImageStoreGrid";
+import {
+	fetchStoreImage,
+	isBaked,
+	referenceOf,
+	useImageStore,
+} from "../imageStore/imageStore";
+import type { PrebakedPicture } from "../pictures";
 
 type GalleryPickerProps = {
 	/** Called with the picture as a file, exactly as if it had been chosen. */
@@ -17,17 +21,16 @@ type GalleryPickerProps = {
 	/** Platform: pictures baked into the dashboard, offered first (the backgrounds' prebaked ones). */
 	extra?: readonly PrebakedPicture[];
 	/**
-	 * A picture baked into the dashboard (extra, and the gallery's own: PREBAKED_GALLERY) chosen: given as it is,
-	 * for a caller that stores its path rather than the file. Without it, it comes as a file like the others.
+	 * A baked-in picture chosen (the image store's own, or one baked into the dashboard): given as its address, for a
+	 * caller that stores a reference rather than the file. Without it, it comes as a file like the others.
 	 */
 	onPickBuiltin?: (picture: PrebakedPicture) => void;
 };
 
 /**
- * The pictures to choose from next to "choose your own" (the logo, avatar and
- * background editors): those baked into the dashboard (extra, then
- * PREBAKED_GALLERY: there with every install), then any the platform service
- * has (helm-chart/defaults/gallery/, which install.sh installs).
+ * The image store next to "choose your own" (the logo, avatar and background editors): every picture there is -
+ * the chooser's own presets (extra), the pictures baked into the platform service's image and into the dashboard
+ * (there with every install), the gallery's and the ones uploaded for the announcement - as tiles to choose from.
  */
 export const GalleryPicker: React.FC<GalleryPickerProps> = ({
 	onPick,
@@ -35,91 +38,45 @@ export const GalleryPicker: React.FC<GalleryPickerProps> = ({
 	onSelect,
 	tile = "dark",
 	disabled,
-	label = "Or use one of the provided pictures:",
+	label = "Or use one from the image store:",
 	extra = [],
 	onPickBuiltin,
 }) => {
-	const query = useQuery({
-		queryKey: ["platform", "gallery"],
-		queryFn: PlatformAPI.getGallery,
-		staleTime: 60_000,
-	});
+	const { images } = useImageStore(extra);
 	const [loading, setLoading] = useState<string>();
-	const builtins = [
-		...extra,
-		...PREBAKED_GALLERY.filter((p) => !extra.some((e) => e.name === p.name)),
-	];
-	const images: GalleryImage[] = [
-		...builtins.map((p) => ({ ...p, bytes: 0 })),
-		...(query.data?.images ?? []).filter(
-			(image) => !builtins.some((p) => p.name === image.name),
-		),
-	];
 	if (images.length === 0) {
 		return null;
 	}
 
-	const choose = async (image: GalleryImage) => {
-		const builtin = builtins.find((p) => p.name === image.name);
-		if (builtin && onPickBuiltin) {
-			onSelect?.(image.name);
-			onPickBuiltin(builtin);
-			return;
-		}
-		setLoading(image.name);
-		try {
-			const blob = await (
-				await fetch(image.url, { credentials: "same-origin" })
-			).blob();
-			onSelect?.(image.name);
-			onPick(new File([blob], image.name, { type: image.type }));
-		} finally {
-			setLoading(undefined);
-		}
-	};
-
 	return (
 		<div className="flex flex-col gap-2" data-testid="gallery-picker">
 			<span className="text-sm text-content-secondary">{label}</span>
-			<div
-				role="radiogroup"
-				aria-label="Provided pictures"
-				className="flex flex-wrap gap-2.5"
-			>
-				{images.map((image) => (
-					<button
-						key={image.name}
-						type="button"
-						role="radio"
-						aria-checked={selected === image.name}
-						aria-label={image.name}
-						title={image.name}
-						disabled={disabled || loading !== undefined}
-						onClick={() => void choose(image)}
-						className={cn(
-							"flex cursor-pointer items-center justify-center overflow-hidden border border-solid border-border p-1.5 transition-colors",
-							"hover:border-content-link focus-visible:border-content-link focus-visible:outline-none disabled:cursor-wait",
-							tile === "round"
-								? "size-16 rounded-full bg-surface-secondary"
-								: "h-16 w-24 rounded-md bg-[#09090b]",
-							selected === image.name &&
-								"border-content-link ring-2 ring-content-link",
-							loading === image.name && "opacity-60",
-						)}
-					>
-						<img
-							src={image.url}
-							alt=""
-							className={cn(
-								"max-h-full max-w-full",
-								tile === "round"
-									? "size-full rounded-full object-cover"
-									: "object-contain",
-							)}
-						/>
-					</button>
-				))}
-			</div>
+			<ImageStoreGrid
+				images={images}
+				selected={selected}
+				tile={tile}
+				disabled={disabled}
+				loading={loading}
+				onChoose={async (image) => {
+					if (isBaked(image) && onPickBuiltin) {
+						onSelect?.(image.name);
+						onPickBuiltin({
+							name: image.name,
+							url: referenceOf(image),
+							type: image.type,
+						});
+						return;
+					}
+					setLoading(image.name);
+					try {
+						const file = await fetchStoreImage(image);
+						onSelect?.(image.name);
+						onPick(file);
+					} finally {
+						setLoading(undefined);
+					}
+				}}
+			/>
 		</div>
 	);
 };

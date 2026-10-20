@@ -9,9 +9,10 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import type { Banner } from "#/api/platform";
-import { BannerBlocks } from "./BannerText";
+import { BannerBlocks, PictureScreen } from "./BannerText";
 import { BrokenScreenOverlay } from "./BrokenScreenOverlay";
 import { bannerFontStack } from "./bannerFonts";
+import { safeHref } from "./bannerTokens";
 import { SkynetOverlay } from "./SkynetOverlay";
 import { startSparks } from "./sparksCursor";
 import "./bannerScrollView.css";
@@ -60,7 +61,12 @@ const NoNoResponse: React.FC = () => (
 type Rect = { top: number; left: number; width: number };
 
 type BannerScrollViewProps = {
-	banner: Pick<Banner, "id" | "message" | "font" | "markdown">;
+	banner: Pick<
+		Banner,
+		"id" | "message" | "font" | "markdown" | "picture" | "pictureFit"
+	>;
+	/** The banner's colours: the terminal's screen in them too (else its own dark screen). */
+	colors?: { bg: string; fg: string };
 	/** The banner card: the view opens just under it, at least as wide. */
 	anchor: React.RefObject<HTMLElement | null>;
 };
@@ -84,7 +90,10 @@ type BannerScrollViewProps = {
 export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 	banner,
 	anchor,
+	colors,
 }) => {
+	// Platform: the banner's background picture (an animated GIF too) across the terminal's screen as well
+	const picture = safeHref(banner.picture ?? "");
 	const [open, setOpen] = useState(false);
 	const [closing, setClosing] = useState(false);
 	const [rect, setRect] = useState<Rect>();
@@ -240,8 +249,38 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 						tabIndex={-1}
 						onKeyDown={onPromptKey}
 						className="banner-scroll"
-						style={{ top: rect.top, left: rect.left, width: rect.width }}
+						data-picture={picture ? "" : undefined}
+						style={
+							{
+								top: rect.top,
+								left: rect.left,
+								width: rect.width,
+								...(colors
+									? {
+											"--banner-scroll-screen": colors.bg,
+											"--banner-scroll-ink": colors.fg,
+										}
+									: {}),
+							} as React.CSSProperties
+						}
 					>
+						{picture && (
+							<div
+								className="banner-scroll-picture"
+								aria-hidden
+								data-testid="announcement-scroll-picture"
+							>
+								<PictureScreen
+									pictures={[
+										{
+											src: picture,
+											alt: "",
+											fit: banner.pictureFit ?? "span",
+										},
+									]}
+								/>
+							</div>
+						)}
 						<div className="banner-scroll-bar" aria-hidden>
 							<span />
 							<span />

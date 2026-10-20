@@ -163,6 +163,39 @@ describe("BannerScrollView", () => {
 		expect(document.documentElement).not.toHaveClass(SPARKS_CLASS);
 	});
 
+	it("is in the banner's colours, its background picture across the screen too", () => {
+		const Colored: React.FC = () => {
+			const anchor = useRef<HTMLDivElement>(null);
+			return (
+				<div ref={anchor}>
+					<BannerScrollView
+						banner={{
+							id: "x",
+							message,
+							font: "default",
+							picture: "/__coder-ui/image-store/synthsun.gif",
+							pictureFit: "fill",
+						}}
+						anchor={anchor}
+						colors={{ bg: "#3a0ca3", fg: "#fefefe" }}
+					/>
+				</div>
+			);
+		};
+		render(<Colored />);
+		fireEvent.click(screen.getByTestId("announcement-scroll-toggle"));
+		const view = screen.getByTestId("announcement-scroll-view");
+		expect(view.style.getPropertyValue("--banner-scroll-screen")).toBe(
+			"#3a0ca3",
+		);
+		expect(view.style.getPropertyValue("--banner-scroll-ink")).toBe("#fefefe");
+		const picture = screen.getByTestId("announcement-scroll-picture");
+		expect(view).toHaveAttribute("data-picture");
+		expect(picture.querySelector('[data-fit="fill"]')).toHaveStyle({
+			backgroundImage: 'url("/__coder-ui/image-store/synthsun.gif")',
+		});
+	});
+
 	it("knows rm -rf * and its kin, not other commands", () => {
 		for (const ok of [
 			"rm -rf *",
