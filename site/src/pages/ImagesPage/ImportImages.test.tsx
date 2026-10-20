@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from "react-query";
 import { MemoryRouter } from "react-router";
 import { ImagesAPI, type Library } from "#/api/images";
 import { renderComponent } from "#/testHelpers/renderHelpers";
-import { IsoLibrary, ModelLibrary } from "./FileLibrary";
+import { IsoLibrary } from "./FileLibrary";
 import { ImagesInUse } from "./ImagesInUse";
 import { nameFrom } from "./ImportImageDialog";
 
@@ -129,44 +129,5 @@ describe("IsoLibrary", () => {
 		expect(del).not.toHaveBeenCalled();
 		fireEvent.click(screen.getByRole("button", { name: "Delete?" }));
 		await waitFor(() => expect(del).toHaveBeenCalledWith("isos", "ubuntu.iso"));
-	});
-});
-
-describe("ModelLibrary", () => {
-	afterEach(() => vi.restoreAllMocks());
-
-	it("lists the GGUF models where the AI workspaces have them, and uploads one", async () => {
-		const get = vi.spyOn(ImagesAPI, "library").mockResolvedValue({
-			enabled: true,
-			canEdit: true,
-			mountPath: "/home/coder/models",
-			maxBytes: 100 * 1024 ** 3,
-			files: [
-				{
-					name: "Qwen2.5-Coder-7B-Instruct-Q4_K_M.gguf",
-					size: 4.7 * 1024 ** 3,
-					modified: "2026-10-17T05:00:00Z",
-				},
-			],
-			usedBytes: 4.7 * 1024 ** 3,
-			imports: [],
-		});
-		const upload = vi
-			.spyOn(ImagesAPI, "uploadToLibrary")
-			.mockResolvedValue({ ok: true, name: "tiny.gguf", size: 1 });
-		withQueries(<ModelLibrary />);
-		expect(
-			await screen.findByText("~/models/Qwen2.5-Coder-7B-Instruct-Q4_K_M.gguf"),
-		).toBeInTheDocument();
-		expect(get).toHaveBeenCalledWith("models");
-		expect(
-			screen.getByRole("heading", { name: "Model library" }),
-		).toBeInTheDocument();
-		const file = new File(["GGUF"], "tiny.gguf");
-		fireEvent.change(screen.getByTestId("models-file-input"), {
-			target: { files: [file] },
-		});
-		await waitFor(() => expect(upload).toHaveBeenCalled());
-		expect(upload.mock.calls[0].slice(0, 2)).toEqual(["models", file]);
 	});
 });

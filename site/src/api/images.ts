@@ -467,19 +467,11 @@ export type ImageInUse = {
 	entry: string | null;
 };
 
-/**
- * The shared libraries: files every workspace (or every AI workspace) has read-only - the ISO library's disk images
- * at ~/isos, the model library's GGUF language models at ~/models.
- */
-export type LibraryKind = "isos" | "models";
+/** The shared libraries: files every workspace has read-only - the ISO library's disk images at ~/isos. */
+export type LibraryKind = "isos";
 
-/** A file of a library (a model's: its security scan too). */
-export type LibraryFile = {
-	name: string;
-	size: number;
-	modified: string;
-	scan?: ModelScan;
-};
+/** A file of a library. */
+export type LibraryFile = { name: string; size: number; modified: string };
 
 /** A file the service downloads into a library. */
 export type LibraryImport = {
@@ -501,232 +493,9 @@ export type Library = {
 	files: LibraryFile[];
 	usedBytes: number;
 	imports: LibraryImport[];
-	/** The model library: the models waiting for their security scan (or an admin) before workspaces have them. */
-	held?: HeldModel[];
-	/** The model scanner (a plug-in): hooked up, or not (and then whether admins hid its section). */
-	scanner?: {
-		enabled: boolean;
-		releaseGrade?: string;
-		garak?: string | null;
-		hidden?: boolean;
-	};
 };
 
 const LIBRARY = (kind: LibraryKind) => `${base}/api/${kind}`;
-/** A library's react-query key (the Images view's libraries and the model scanner refresh it). */
-export const libraryKey = (kind: LibraryKind) =>
-	["platform", "library", kind] as const;
-const MODELS = `${base}/api/models`;
-
-/**
- * The model library's security gate (modelscan.py): every model added is scanned with garak, NVIDIA's LLM
- * vulnerability scanner, before it is released into the library; its report is graded like an image's.
- */
-export type ModelScanStatus =
-	| "queued"
-	| "starting"
-	| "fetching"
-	| "running"
-	| "done"
-	| "failed"
-	| "cancelled"
-	| "none";
-
-export type ModelSeverity = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "PASS";
-
-export type ModelScanSummary = {
-	scanId: string;
-	grade: string;
-	counts: Record<ModelSeverity, number>;
-	/** garak's own tier-based security aggregate, 1.0 (worst) to 5.0. */
-	tbsa: number | null;
-	checks: { pass: number; warn: number; fail: number };
-	profile: string | null;
-	garak: string | null;
-	scannedAt: number;
-	error: string | null;
-	probes: number | null;
-};
-
-export type ModelScanProgress = {
-	phase: "starting" | "fetching" | "checking" | "loading" | "probing";
-	bytes?: number;
-	total?: number;
-	probesTotal?: number;
-	probesDone?: number;
-	probe?: string | null;
-	prompts?: number;
-};
-
-export type ModelScan = {
-	status: ModelScanStatus;
-	profile?: string | null;
-	progress?: ModelScanProgress | null;
-	startedAt?: number | null;
-	error?: string | null;
-	last: ModelScanSummary | null;
-	position?: number | null;
-	releasedBy?: { by: string; at: number; override: boolean } | null;
-	heldBy?: { by: string; at: number } | null;
-	/** Why a held model stays held. */
-	reason?: string | null;
-	/** A released model with a newer version held: this is its earlier report. */
-	newerHeld?: boolean;
-};
-
-export type HeldModel = LibraryFile & {
-	scan: ModelScan;
-	alsoReleased: boolean;
-};
-
-export type ModelScannerProfile = {
-	id: string;
-	title: string;
-	spec?: string;
-	cap?: number;
-	generations?: number;
-	hours: number;
-	description?: string;
-	probes?: number;
-};
-
-export type ModelScanner = {
-	/** A scanner is hooked up (a plug-in: none ships with the platform). */
-	enabled: boolean;
-	canEdit: boolean;
-	/** Admins hid the section while no scanner is hooked up. */
-	hidden: boolean;
-	image: string;
-	defaultImage: string;
-	custom: boolean;
-	candidate: string | null;
-	candidateError: string | null;
-	checking: boolean;
-	error: string | null;
-	garak: string | null;
-	llamaCpp: { version?: string; build?: string; commit?: string };
-	python: string | null;
-	builtAt: string | null;
-	calibration: { date: string; models: number } | null;
-	detectorModels: string[];
-	datasets: string[];
-	probes: { active: number; total: number };
-	profiles: ModelScannerProfile[];
-	profile: string;
-	releaseGrade: string;
-	latest: {
-		version?: string | null;
-		checkedAt?: number;
-		error?: string | null;
-	};
-	queue: string[];
-	running: {
-		name: string;
-		status: ModelScanStatus;
-		progress: ModelScanProgress | null;
-		profile: string;
-		startedAt: number;
-	}[];
-};
-
-export type ModelFinding = {
-	probe: string;
-	group: string;
-	detector: string;
-	defcon: number | null;
-	severity: ModelSeverity;
-	passRate: number;
-	passed: number;
-	failed: number;
-	total: number;
-	relative: number | null;
-	relativeComment: string | null;
-	absoluteComment: string | null;
-	tier: number | null;
-	owasp: string[];
-	description: string;
-	goal: string;
-	detectorDescription: string;
-	examples: {
-		prompt: string;
-		output: string;
-		score: number | null;
-		triggers: string[] | null;
-	}[];
-};
-
-export type ModelCheck = {
-	id: string;
-	title: string;
-	status: "pass" | "warn" | "fail" | "info";
-	detail: string;
-};
-
-export type ModelFileInfo = {
-	sha256?: string;
-	size?: number;
-	ggufVersion?: number;
-	tensors?: number;
-	parameters?: number;
-	architecture?: string;
-	name?: string;
-	sizeLabel?: string;
-	license?: string;
-	quantizedBy?: string;
-	fileType?: string;
-	contextLength?: number | null;
-	layers?: number | null;
-	tokenizer?: string;
-	chatTemplates?: Record<string, { chars: number; sha256: string }>;
-};
-
-export type ModelReport = {
-	name: string;
-	stage: "held" | "released";
-	scanId: string;
-	profile: string;
-	profileTitle: string;
-	image: string;
-	garak: string;
-	llamaCpp: { version?: string; build?: string };
-	scannedAt: number;
-	startedAt: number | null;
-	error: string | null;
-	grade: string;
-	counts: Record<ModelSeverity, number>;
-	tbsa: { score: number; hash?: string; pairs?: number } | null;
-	calibration: { date: string; models: number } | null;
-	runId: string | null;
-	findings: ModelFinding[];
-	groups: {
-		group: string;
-		score: number | null;
-		defcon: number | null;
-		link: string;
-	}[];
-	owasp: {
-		id: string;
-		title: string;
-		pairs: number;
-		counts: Record<string, number>;
-	}[];
-	checks: ModelCheck[];
-	file: ModelFileInfo;
-	server: {
-		context?: number;
-		parallel?: number;
-		threads?: number;
-		jinja?: boolean;
-	};
-	prompts: number | null;
-	probes: number;
-	releasedBy: { by: string; at: number; override: boolean } | null;
-	heldBy: { by: string; at: number } | null;
-	holdReason: string | null;
-	releaseGrade: string;
-};
-
-export type ModelRawFile = "report.jsonl" | "hitlog.jsonl" | "report.html";
 
 export type BuildSummary = {
 	id: number;
@@ -957,29 +726,8 @@ export const ImagesAPI = {
 		),
 	importToLibrary: (kind: LibraryKind, url: string, name: string) =>
 		post<{ ok: true; name: string }>(`${LIBRARY(kind)}/import`, { url, name }),
-	/** held: the model waiting in the hold (not the library's file of the name). */
-	deleteFromLibrary: (kind: LibraryKind, name: string, held = false) =>
-		post<{ ok: true }>(`${LIBRARY(kind)}/delete`, { name, held }),
-	modelScanner: () => get<ModelScanner>(`${MODELS}/scanner`),
-	saveModelScanner: (body: {
-		profile?: string;
-		releaseGrade?: string;
-		image?: string;
-		hidden?: boolean;
-	}) => post<ModelScanner>(`${MODELS}/scanner`, body),
-	rescanAllModels: () =>
-		post<{ ok: true; queued: number }>(`${MODELS}/scanner/rescan-all`, {}),
-	scanModel: (name: string, profile?: string) =>
-		post<{ ok: true }>(`${MODELS}/scan`, { name, profile }),
-	cancelModelScan: (name: string) =>
-		post<{ ok: true }>(`${MODELS}/cancel`, { name }),
-	releaseModel: (name: string) =>
-		post<{ ok: true }>(`${MODELS}/release`, { name }),
-	holdModel: (name: string) => post<{ ok: true }>(`${MODELS}/hold`, { name }),
-	modelReport: (name: string) =>
-		get<ModelReport>(`${MODELS}/report?name=${enc(name)}`),
-	modelReportFileUrl: (name: string, file: ModelRawFile) =>
-		`${MODELS}/report/raw?name=${enc(name)}&file=${enc(file)}`,
+	deleteFromLibrary: (kind: LibraryKind, name: string) =>
+		post<{ ok: true }>(`${LIBRARY(kind)}/delete`, { name }),
 };
 
 /** The Terraform a workspace template uses to run on the image. */

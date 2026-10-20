@@ -68,7 +68,7 @@ import {
 	ourImage,
 	useImageContents,
 } from "./CoderForkImages";
-import { IsoLibrary, ModelLibrary } from "./FileLibrary";
+import { IsoLibrary } from "./FileLibrary";
 import { ImagesInUse, ImagesOnNodes } from "./ImagesInUse";
 import { ImagesSettingsDialog } from "./ImagesSettingsDialog";
 import {
@@ -316,7 +316,6 @@ const ImagesPage: React.FC = () => {
 			/>
 			<ImagesOnNodes canEdit={canEdit} />
 			<IsoLibrary />
-			<ModelLibrary />
 			{creating && <NewImageDialog onClose={() => setCreating(false)} />}
 			{importing && (
 				<ImportImageDialog
