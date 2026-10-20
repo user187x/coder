@@ -13,6 +13,7 @@ import { BannerBlocks } from "./BannerText";
 import { BrokenScreenOverlay } from "./BrokenScreenOverlay";
 import { bannerFontStack } from "./bannerFonts";
 import { SkynetOverlay } from "./SkynetOverlay";
+import { startSparks } from "./sparksCursor";
 import "./bannerScrollView.css";
 
 const CLOSE_MS = 220;
@@ -24,6 +25,8 @@ const SKYNET = "skynet";
 /** Run at the prompt (Enter): the screen breaks (BrokenScreenOverlay) - "rm -rf *", and its kin (/, ~, ., sudo). */
 export const RM_RF =
 	/^(sudo\s+)?rm\s+-(rf|fr|Rf|fR)\s+(\*|\/\*?|~\/?\*?|\.\/?\*?)$/;
+/** Run at the prompt: the mouse pointer becomes sparks (sparksCursor) until a key is pressed. */
+export const MOUSE = "/dev/mouse";
 /** Any other command's answer (site/static/no-no.gif), then this, typed out. */
 const NO_NO_SRC = "/no-no.gif";
 const NO_NO_TEXT = "ahh ahh ahh...";
@@ -75,7 +78,8 @@ type BannerScrollViewProps = {
  * terminal would: Backspace, and Enter runs the line - every command is
  * answered with a wagging finger and "ahh ahh ahh..." (NoNoResponse). Typing
  * "skynet" rolls the view up and fades the whole screen into Skynet; running "rm -rf *" rolls it up and breaks the
- * screen (BrokenScreenOverlay) until its Restore screen button is clicked.
+ * screen (BrokenScreenOverlay) until its Restore screen button is clicked; running "/dev/mouse" rolls it up and
+ * turns the mouse pointer into sparks (sparksCursor) until any key is pressed.
  */
 export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 	banner,
@@ -152,6 +156,10 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 			if (RM_RF.test(command)) {
 				setBroken(true);
 				close();
+			} else if (command === MOUSE) {
+				close();
+				// after this Enter: the sparks stop at the next key
+				window.setTimeout(startSparks, 0);
 			}
 		} else if (event.key.length === 1) {
 			const next = (typed + event.key).slice(0, MAX_TYPED);
@@ -256,7 +264,7 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 							{history.map((command, i) => (
 								<div key={i} className="banner-scroll-prompt" aria-hidden>
 									<i>root@platform</i>:<em>~</em># {command}
-									{command && <NoNoResponse />}
+									{command && command !== MOUSE && <NoNoResponse />}
 								</div>
 							))}
 							<div

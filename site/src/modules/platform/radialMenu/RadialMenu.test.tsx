@@ -63,6 +63,10 @@ describe("escapeOpensWheel", () => {
 		document.querySelector("textarea")?.focus();
 		expect(escapeOpensWheel(escapeKey())).toBe(false);
 		expect(escapeOpensWheel(escapeKey({ shiftKey: true }))).toBe(true);
+		// Ghostty's terminal, in the dashboard's terminal
+		shown('<div class="workspace-terminal"><textarea></textarea></div>');
+		document.querySelector("textarea")?.focus();
+		expect(escapeOpensWheel(escapeKey())).toBe(false);
 	});
 });
 

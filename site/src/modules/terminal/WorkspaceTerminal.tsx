@@ -108,6 +108,8 @@ export const WorkspaceTerminal = ({
 	const terminalWrapperRef = useRef<HTMLDivElement>(null);
 	const fitAddonRef = useRef<FitAddon | undefined>(undefined);
 	const websocketRef = useRef<Websocket | undefined>(undefined);
+	// Platform: whether the session has written output yet (Ghostty's emulator: in place of onWriteParsed)
+	const outputWrittenRef = useRef(false);
 	const handleOpenLink = useEffectEvent((uri: string) => {
 		onOpenLink ? onOpenLink(uri) : window.open(uri, "_blank", "noopener");
 	});
@@ -244,132 +246,186 @@ export const WorkspaceTerminal = ({
 			return;
 		}
 
-		const nextTerminal = new Terminal({
-			allowProposedApi: true,
-			allowTransparency: true,
-			// Use the selected terminal font for block element, box drawing,
-			// quadrant, and powerline glyphs. xterm's custom glyph renderer helps
-			// when fonts lack powerline glyphs, but it changes block and quadrant
-			// shapes and breaks TUIs that use them for pixel art, like Claude
-			// Code's logo.
-			customGlyphs: false,
-			disableStdin: false,
-			fontFamily: terminalFontFamily,
-			fontSize: currentFontSize(),
-			...(backgroundColor ? { theme: { background: backgroundColor } } : {}),
-		});
+		let disposed = false;
+		let created: Terminal | undefined;
+		let tearDown: (() => void) | undefined;
 
-		if (renderer === "webgl") {
-			nextTerminal.loadAddon(new WebglAddon());
-		} else if (renderer === "canvas") {
-			nextTerminal.loadAddon(new CanvasAddon());
-		}
+		// The session's terminal, from whichever emulator draws it: its handlers, then into the page.
+		// ghostty: Ghostty's emulator, which reads a custom key handler's answer the other way round (true: handled).
+		const setUp = (
+			nextTerminal: Terminal,
+			fitAddon: Pick<FitAddon, "fit">,
+			ghostty = false,
+		) => {
+			created = nextTerminal;
+			fitAddonRef.current = fitAddon as FitAddon;
+			// OSC 52 clipboard support. Programs like tmux send this escape
+			// sequence to copy text to the host's system clipboard.
+			// (Platform: Ghostty's terminal has no parser hooks; it leaves OSC 52 out.)
+			nextTerminal.parser?.registerOscHandler(52, (data) => {
+				const separatorIndex = data.indexOf(";");
+				if (separatorIndex === -1) {
+					return false;
+				}
+				const payload = data.slice(separatorIndex + 1);
+				// A "?" payload is a clipboard read query. Responding would
+				// require writing back to the PTY, which is not supported.
+				if (!payload || payload === "?") {
+					return false;
+				}
+				try {
+					const bytes = Uint8Array.from(atob(payload), (c) => c.charCodeAt(0));
+					const decoded = new TextDecoder().decode(bytes);
+					void copyToClipboard(decoded);
+				} catch {
+					// Invalid base64; ignore.
+					return false;
+				}
+				return true;
+			});
 
-		const fitAddon = new FitAddon();
-		fitAddonRef.current = fitAddon;
-		nextTerminal.loadAddon(fitAddon);
-		nextTerminal.loadAddon(new Unicode11Addon());
-		nextTerminal.unicode.activeVersion = "11";
-		nextTerminal.loadAddon(
-			new WebLinksAddon((_, uri) => {
-				handleOpenLink(uri);
-			}),
-		);
+			const copySelection = () => {
+				const selection = nextTerminal.getSelection();
+				if (selection) {
+					copyToClipboard(selection);
+				}
+			};
 
-		// OSC 52 clipboard support. Programs like tmux send this escape
-		// sequence to copy text to the host's system clipboard.
-		nextTerminal.parser.registerOscHandler(52, (data) => {
-			const separatorIndex = data.indexOf(";");
-			if (separatorIndex === -1) {
-				return false;
-			}
-			const payload = data.slice(separatorIndex + 1);
-			// A "?" payload is a clipboard read query. Responding would
-			// require writing back to the PTY, which is not supported.
-			if (!payload || payload === "?") {
-				return false;
-			}
-			try {
-				const bytes = Uint8Array.from(atob(payload), (c) => c.charCodeAt(0));
-				const decoded = new TextDecoder().decode(bytes);
-				void copyToClipboard(decoded);
-			} catch {
-				// Invalid base64; ignore.
-				return false;
-			}
-			return true;
-		});
+			// There is no way to remove this handler, so we must attach it once and
+			// rely on a ref to send it to the current socket.
+			const keyHandler = (event: KeyboardEvent) => {
+				// Make shift+enter send ^[^M (escaped carriage return). Applications
+				// typically take this to mean to insert a literal newline.
+				if (event.shiftKey && event.key === "Enter") {
+					if (event.type === "keydown") {
+						websocketRef.current?.send(
+							encodeTerminalPayload({ data: ESCAPED_CARRIAGE_RETURN }),
+						);
+					}
+					return false;
+				}
 
-		const copySelection = () => {
-			const selection = nextTerminal.getSelection();
-			if (selection) {
-				copyToClipboard(selection);
-			}
+				// Make ctrl+shift+c (command+shift+c on macOS) copy the selected text.
+				// By default this usually launches the browser dev tools, but users
+				// expect this keybinding to copy when in the context of the web terminal.
+				if (
+					(isMac() ? event.metaKey : event.ctrlKey) &&
+					event.shiftKey &&
+					event.key === "C"
+				) {
+					event.preventDefault();
+					if (event.type === "keydown") {
+						copySelection();
+					}
+					return false;
+				}
+
+				return true;
+			};
+			nextTerminal.attachCustomKeyEventHandler(
+				ghostty ? (event) => !keyHandler(event) : keyHandler,
+			);
+
+			// Browsers don't support automatic copy to the X11 primary
+			// selection (highlighted text that can be pasted with
+			// middle-click). Instead, copy-on-select writes to the
+			// system clipboard. This means users can't middle-click
+			// paste in the terminal after selecting, but this tradeoff
+			// is necessary because web browsers don't expose primary
+			// selection APIs. Most web terminal users expect Ctrl+V or
+			// right-click paste anyway.
+			nextTerminal.onSelectionChange(() => {
+				copySelection();
+			});
+
+			nextTerminal.open(mountNode);
+			refit();
+
+			window.addEventListener("resize", refit);
+
+			const resizeObserver = new ResizeObserver(() => {
+				refit();
+			});
+			resizeObserver.observe(mountNode);
+
+			setTerminal(nextTerminal);
+			tearDown = () => {
+				window.removeEventListener("resize", refit);
+				resizeObserver.disconnect();
+			};
 		};
 
-		// There is no way to remove this handler, so we must attach it once and
-		// rely on a ref to send it to the current socket.
-		nextTerminal.attachCustomKeyEventHandler((event) => {
-			// Make shift+enter send ^[^M (escaped carriage return). Applications
-			// typically take this to mean to insert a literal newline.
-			if (event.shiftKey && event.key === "Enter") {
-				if (event.type === "keydown") {
-					websocketRef.current?.send(
-						encodeTerminalPayload({ data: ESCAPED_CARRIAGE_RETURN }),
+		if (renderer === "ghostty") {
+			// Platform: Ghostty's terminal emulator (ghostty-web: Ghostty's own VT engine in WebAssembly, xterm.js'
+			// API), loaded only for the terminals that use it - the DATAFLOW template's Ghostty app.
+			void import("ghostty-web")
+				.then(async (ghostty) => {
+					await ghostty.init();
+					if (disposed) {
+						return;
+					}
+					const ghosttyTerminal = new ghostty.Terminal({
+						allowTransparency: true,
+						disableStdin: false,
+						fontFamily: terminalFontFamily,
+						fontSize: currentFontSize(),
+						...(backgroundColor
+							? { theme: { background: backgroundColor } }
+							: {}),
+					});
+					const fitAddon = new ghostty.FitAddon();
+					ghosttyTerminal.loadAddon(fitAddon);
+					setUp(ghosttyTerminal as unknown as Terminal, fitAddon, true);
+				})
+				.catch((error: unknown) => {
+					reportTerminalError(
+						error instanceof Error ? error : new Error(String(error)),
 					);
-				}
-				return false;
+				});
+		} else {
+			const nextTerminal = new Terminal({
+				allowProposedApi: true,
+				allowTransparency: true,
+				// Use the selected terminal font for block element, box drawing,
+				// quadrant, and powerline glyphs. xterm's custom glyph renderer helps
+				// when fonts lack powerline glyphs, but it changes block and quadrant
+				// shapes and breaks TUIs that use them for pixel art, like Claude
+				// Code's logo.
+				customGlyphs: false,
+				disableStdin: false,
+				fontFamily: terminalFontFamily,
+				fontSize: currentFontSize(),
+				...(backgroundColor ? { theme: { background: backgroundColor } } : {}),
+			});
+
+			if (renderer === "webgl") {
+				nextTerminal.loadAddon(new WebglAddon());
+			} else if (renderer === "canvas") {
+				nextTerminal.loadAddon(new CanvasAddon());
 			}
 
-			// Make ctrl+shift+c (command+shift+c on macOS) copy the selected text.
-			// By default this usually launches the browser dev tools, but users
-			// expect this keybinding to copy when in the context of the web terminal.
-			if (
-				(isMac() ? event.metaKey : event.ctrlKey) &&
-				event.shiftKey &&
-				event.key === "C"
-			) {
-				event.preventDefault();
-				if (event.type === "keydown") {
-					copySelection();
-				}
-				return false;
-			}
+			const fitAddon = new FitAddon();
+			fitAddonRef.current = fitAddon;
+			nextTerminal.loadAddon(fitAddon);
+			nextTerminal.loadAddon(new Unicode11Addon());
+			nextTerminal.unicode.activeVersion = "11";
+			nextTerminal.loadAddon(
+				new WebLinksAddon((_, uri) => {
+					handleOpenLink(uri);
+				}),
+			);
 
-			return true;
-		});
-
-		// Browsers don't support automatic copy to the X11 primary
-		// selection (highlighted text that can be pasted with
-		// middle-click). Instead, copy-on-select writes to the
-		// system clipboard. This means users can't middle-click
-		// paste in the terminal after selecting, but this tradeoff
-		// is necessary because web browsers don't expose primary
-		// selection APIs. Most web terminal users expect Ctrl+V or
-		// right-click paste anyway.
-		nextTerminal.onSelectionChange(() => {
-			copySelection();
-		});
-
-		nextTerminal.open(mountNode);
-		refit();
-
-		window.addEventListener("resize", refit);
-
-		const resizeObserver = new ResizeObserver(() => {
-			refit();
-		});
-		resizeObserver.observe(mountNode);
-
-		setTerminal(nextTerminal);
+			setUp(nextTerminal, fitAddon);
+		}
 
 		return () => {
-			window.removeEventListener("resize", refit);
-			resizeObserver.disconnect();
+			disposed = true;
+			tearDown?.();
 			fitAddonRef.current = undefined;
 			setTerminal(undefined);
 			// xterm queues its initial viewport synchronization in a timer.
-			window.setTimeout(() => nextTerminal.dispose(), 0);
+			const done = created;
+			window.setTimeout(() => done?.dispose(), 0);
 		};
 	}, [
 		isVisible,
@@ -408,22 +464,23 @@ export const WorkspaceTerminal = ({
 			return;
 		}
 		let hasParsedOutput = false;
-		const writeParsed = terminal.onWriteParsed(() => {
+		// Platform: Ghostty's emulator has no onWriteParsed - output written to it (outputWrittenRef) stands for it
+		const writeParsed = terminal.onWriteParsed?.(() => {
 			hasParsedOutput = true;
 		});
 		// onWriteParsed fires before xterm paints; gate on the next onRender so
 		// pixels are present before the terminal is revealed. clear()/refresh
 		// fire onRender without a parse and are intentionally ignored.
 		const rendered = terminal.onRender(() => {
-			if (!hasParsedOutput) {
+			if (!hasParsedOutput && (writeParsed || !outputWrittenRef.current)) {
 				return;
 			}
-			writeParsed.dispose();
+			writeParsed?.dispose();
 			rendered.dispose();
 			handleContentReady();
 		});
 		return () => {
-			writeParsed.dispose();
+			writeParsed?.dispose();
 			rendered.dispose();
 		};
 	}, [terminal]);
@@ -559,6 +616,7 @@ export const WorkspaceTerminal = ({
 					if (disposed) {
 						return;
 					}
+					outputWrittenRef.current = true;
 					if (typeof event.data === "string") {
 						// This exclusively occurs when testing.
 						// "jest-websocket-mock" doesn't support ArrayBuffer.

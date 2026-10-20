@@ -21,7 +21,10 @@ import { useProxy } from "#/contexts/ProxyContext";
 import { ThemeOverride } from "#/contexts/ThemeProvider";
 import { useEmbeddedMetadata } from "#/hooks/useEmbeddedMetadata";
 import { getTerminalHref, openAppInNewWindow } from "#/modules/apps/apps";
-import { getTerminalConfig } from "#/modules/terminal/terminalConfig";
+import {
+	getTerminalConfig,
+	terminalRenderer,
+} from "#/modules/terminal/terminalConfig";
 import type { ConnectionStatus } from "#/modules/terminal/types";
 import { WorkspaceTerminal } from "#/modules/terminal/WorkspaceTerminal";
 import themes from "#/theme";
@@ -308,7 +311,7 @@ export const AgentTerminalSection: React.FC<AgentTerminalSectionProps> = ({
 						terminalFontFamily={terminalConfig.fontFamily}
 						fontSize={fontSize}
 						onResize={(cols, rows) => setDimensions({ cols, rows })}
-						renderer={terminalConfig.renderer}
+						renderer={terminalRenderer(terminalConfig.renderer, agent)}
 						loading={config.isLoading || appearance.isLoading}
 						autoFocus
 						onOpenLink={(uri) =>

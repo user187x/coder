@@ -226,3 +226,18 @@ html[data-animations="off"] .banner-scroll-ahh span {
 		animation: none !important;
 	}
 }
+
+/* "/dev/mouse" (sparksCursor.ts): the sparks over everything on a see-through canvas the pointer passes through,
+   the system pointer hidden everywhere while they are it. */
+.platform-sparks {
+	position: fixed;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	z-index: 2147483000;
+	pointer-events: none;
+}
+html.platform-sparks-cursor,
+html.platform-sparks-cursor * {
+	cursor: none !important;
+}

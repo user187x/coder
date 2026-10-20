@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { useRef } from "react";
 import { BannerScrollView, RM_RF } from "./BannerScrollView";
+import { SPARKS_CLASS } from "./sparksCursor";
 
 const message =
 	"# Maintenance tonight\nThe cluster restarts at 22:00.\n\n- save your work\n- push your branches\n\n![diagram](/icon/desktop.svg) 🚀 **Thanks!**";
@@ -140,6 +141,26 @@ describe("BannerScrollView", () => {
 		act(() => vi.advanceTimersByTime(1000));
 		expect(screen.queryByTestId("broken-screen")).toBeNull();
 		expect(document.documentElement.dataset.screenBroken).toBeUndefined();
+	});
+
+	it("turns the mouse pointer into sparks on /dev/mouse, until any key", () => {
+		render(<Harness />);
+		fireEvent.click(screen.getByTestId("announcement-scroll-toggle"));
+		type("/dev/mouse");
+		fireEvent.keyDown(screen.getByTestId("announcement-scroll-view"), {
+			key: "Enter",
+		});
+		act(() => vi.advanceTimersByTime(300));
+		// the view rolled up; the sparks over the page, the pointer passing through, the system pointer hidden
+		expect(screen.queryByTestId("announcement-scroll-view")).toBeNull();
+		const sparks = document.querySelector('[data-testid="sparks-cursor"]');
+		expect(sparks?.parentElement).toBe(document.body);
+		expect(sparks).toHaveClass("platform-sparks");
+		expect(document.documentElement).toHaveClass(SPARKS_CLASS);
+		expect(screen.queryByTestId("announcement-scroll-nono")).toBeNull();
+		fireEvent.keyDown(window, { key: "a" });
+		expect(document.querySelector('[data-testid="sparks-cursor"]')).toBeNull();
+		expect(document.documentElement).not.toHaveClass(SPARKS_CLASS);
 	});
 
 	it("knows rm -rf * and its kin, not other commands", () => {

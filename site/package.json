@@ -73,6 +73,7 @@
 		"file-saver": "2.0.5",
 		"formik": "2.4.9",
 		"front-matter": "4.0.2",
+		"ghostty-web": "0.4.0",
 		"gifenc": "1.0.3",
 		"html2canvas-pro": "2.4.5",
 		"humanize-duration": "3.34.0",

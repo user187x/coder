@@ -95,7 +95,10 @@ export const escapeOpensWheel = (
 	) {
 		return false;
 	}
-	return event.shiftKey || !doc.activeElement?.closest(".xterm");
+	// a terminal: xterm's, or any the dashboard's terminal holds (Ghostty's has no .xterm)
+	return (
+		event.shiftKey || !doc.activeElement?.closest(".xterm, .workspace-terminal")
+	);
 };
 
 /** Whether something is open over the page that closes on this Escape too (so the Escape is left to it as well). */

@@ -10,7 +10,10 @@ import {
 import { useProxy } from "#/contexts/ProxyContext";
 import { ThemeOverride } from "#/contexts/ThemeProvider";
 import { useEmbeddedMetadata } from "#/hooks/useEmbeddedMetadata";
-import { getTerminalConfig } from "#/modules/terminal/terminalConfig";
+import {
+	getTerminalConfig,
+	terminalRenderer,
+} from "#/modules/terminal/terminalConfig";
 import type { ConnectionStatus } from "#/modules/terminal/types";
 import {
 	WorkspaceTerminal,
@@ -127,6 +130,12 @@ const TerminalPage: React.FC = () => {
 		appearanceSettingsQuery.data,
 		proxy.preferredPathAppURL,
 	);
+	// Platform: Ghostty's terminal where the template gives it in place of the web terminal (DATAFLOW)
+	const renderer = terminalRenderer(
+		terminalConfig.renderer,
+		workspaceAgent,
+		searchParams.get("renderer"),
+	);
 	const terminalErrorMessage =
 		workspace.error instanceof Error
 			? `Unable to fetch workspace: ${workspace.error.message}`
@@ -155,7 +164,7 @@ const TerminalPage: React.FC = () => {
 			{workspace.data && (
 				<title>
 					{pageTitle(
-						"Terminal",
+						renderer === "ghostty" ? "Ghostty" : "Terminal",
 						`${workspace.data.owner_name}/${workspace.data.name}`,
 					)}
 				</title>
@@ -182,7 +191,7 @@ const TerminalPage: React.FC = () => {
 					sessionId={sessionId}
 					baseUrl={terminalConfig.baseUrl}
 					terminalFontFamily={terminalConfig.fontFamily}
-					renderer={terminalConfig.renderer}
+					renderer={renderer}
 					onOpenLink={handleWebLink}
 					loading={
 						workspace.isLoading ||
