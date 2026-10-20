@@ -7,6 +7,7 @@ import {
 	type ImageListItem,
 	ImagesAPI,
 	type ImageVulnerability,
+	type PitStop,
 } from "#/api/images";
 import { renderComponent } from "#/testHelpers/renderHelpers";
 import FixImagePage from "./FixImagePage";
@@ -268,6 +269,7 @@ describe("FixImagePage", () => {
 		expect(screen.getByTestId("fix-group-upgrade")).toHaveTextContent(
 			"2 findings",
 		);
+		await user.click(screen.getByRole("tab", { name: "Dockerfile" }));
 		expect(screen.getByText("3 findings selected")).toBeInTheDocument();
 		expect(screen.getByTestId("fix-diff")).toHaveTextContent(
 			"apt-get install -y --only-upgrade 'openssl' 'glibc'",
@@ -291,6 +293,7 @@ describe("FixImagePage", () => {
 			.mockResolvedValue({ image: detail() });
 		const build = vi.spyOn(ImagesAPI, "build").mockResolvedValue({ build: 3 });
 		renderPage(detail());
+		await user.click(await screen.findByRole("tab", { name: "Dockerfile" }));
 		await user.click(
 			await screen.findByRole("button", {
 				name: "Apply 3 fixes, rebuild and rescan",
@@ -320,6 +323,7 @@ describe("FixImagePage", () => {
 		vi.spyOn(ImagesAPI, "save").mockResolvedValue({ image: detail() });
 		const build = vi.spyOn(ImagesAPI, "build").mockResolvedValue({ build: 1 });
 		renderPage(imported);
+		await user.click(await screen.findByRole("tab", { name: "Dockerfile" }));
 		await user.click(
 			await screen.findByRole("button", {
 				name: /Build a fixed copy with 3 fixes/,
@@ -338,12 +342,13 @@ describe("FixImagePage", () => {
 		expect(
 			await screen.findByRole("button", { name: "Accept risk…" }),
 		).toBeDisabled();
+		await user.click(screen.getByRole("tab", { name: "Dockerfile" }));
 		expect(
 			screen.getByRole("checkbox", {
 				name: "Open as a pull request instead of committing",
 			}),
 		).toBeDisabled();
-		await user.click(screen.getByRole("tab", { name: "Hand to an agent" }));
+		await user.click(screen.getByRole("tab", { name: "Agent" }));
 		expect(
 			screen.getByRole("button", { name: "Hand 3 findings to the agent" }),
 		).toBeDisabled();
@@ -351,7 +356,9 @@ describe("FixImagePage", () => {
 	});
 
 	it("cannot build on an image scanned in place: it says to import it", async () => {
+		const user = userEvent.setup();
 		renderPage(detail({ scanned: { image: "registry:3" }, ref: null }));
+		await user.click(await screen.findByRole("tab", { name: "Dockerfile" }));
 		const button = await screen.findByTestId("fix-apply");
 		expect(button).toBeDisabled();
 		expect(button).toHaveTextContent("Import the image to build a fixed copy");
@@ -361,6 +368,141 @@ describe("FixImagePage", () => {
 		expect(
 			within(screen.getByTestId("fix-activity")).getByText(/scanned as it is/),
 		).toBeInTheDocument();
+	});
+});
+
+describe("the pit stop", () => {
+	afterEach(() => vi.restoreAllMocks());
+
+	const pit = (over: Partial<PitStop> = {}): PitStop => ({
+		build: 4,
+		source: "tool",
+		sourceEntry: "tool",
+		target: "tool",
+		version: 3,
+		libraries: false,
+		level: "patch",
+		maxLevel: "patch",
+		laps: 2,
+		lap: 1,
+		pairs: [
+			["CVE-2026-0001", "openssl"],
+			["CVE-2026-1180", "glibc"],
+		],
+		chosen: 2,
+		before: { grade: "F" },
+		outcome: "running",
+		by: "admin",
+		status: "building",
+		stage: "patch",
+		progress: 40,
+		message: "Copa patching 2 packages",
+		error: null,
+		startedAt: new Date(Date.now() - 65_000).toISOString(),
+		finishedAt: null,
+		steps: [
+			{ key: "pit-in", label: "Pit in", state: "done" },
+			{ key: "report", label: "Report", state: "done" },
+			{ key: "patch", label: "Copa patch", state: "active" },
+			{ key: "rescan", label: "Rescan", state: "pending" },
+			{ key: "pit-out", label: "Back on track", state: "pending" },
+		],
+		log: "[pit] patch\n#12 DONE 4.1s",
+		...over,
+	});
+
+	it("is the first way in: the OS packages, the libraries with library patching, and the laps", async () => {
+		const user = userEvent.setup();
+		const start = vi
+			.spyOn(ImagesAPI, "pitStop")
+			.mockResolvedValue({ target: "tool", build: 4, pit: pit() });
+		renderPage(detail());
+		expect(
+			await screen.findByRole("tab", { name: "Pit stop" }),
+		).toHaveAttribute("aria-selected", "true");
+		expect(screen.getByText("2 findings selected")).toBeInTheDocument();
+		expect(screen.getByTestId("pit-start")).toHaveTextContent(
+			"Box, box - pit stop for 2 findings",
+		);
+		await user.click(screen.getByTestId("pit-libraries"));
+		expect(screen.getByText("4 findings selected")).toBeInTheDocument();
+		await user.click(screen.getByRole("radio", { name: /Major/ }));
+		await user.click(screen.getByRole("radio", { name: "3" }));
+		await user.click(screen.getByTestId("pit-start"));
+		await waitFor(() =>
+			expect(start).toHaveBeenCalledWith("tool", {
+				keys: [
+					{ id: "CVE-2026-0001", pkg: "openssl" },
+					{ id: "CVE-2026-1180", pkg: "glibc" },
+					{ id: "CVE-2025-9120", pkg: "requests" },
+					{ id: "CVE-2026-7000", pkg: "lodash" },
+				],
+				libraries: true,
+				level: "patch",
+				maxLevel: "major",
+				laps: 3,
+			}),
+		);
+	});
+
+	it("shows the car at its station and the laps while it is in the pit", async () => {
+		renderPage(
+			detail({
+				pit: pit({
+					lap: 2,
+					history: [
+						{
+							lap: 1,
+							level: "patch",
+							status: "done",
+							startedAt: "",
+							grade: "D",
+							remaining: 1,
+						},
+						{ lap: 2, level: "minor", status: "patching", startedAt: "" },
+					],
+				}),
+			}),
+		);
+		const lane = await screen.findByTestId("pit-lane");
+		expect(lane).toHaveTextContent("In the pit · lap 2 of 2");
+		expect(within(lane).getByText("Copa patch").closest("li")).toHaveAttribute(
+			"aria-current",
+			"step",
+		);
+		const laps = screen.getAllByTestId("pit-lap");
+		expect(laps[0]).toHaveTextContent("Lap 1patchgrade D1/2 fixed");
+		expect(laps[1]).toHaveTextContent("patching…");
+		expect(screen.getByTestId("pit-log")).toHaveTextContent("#12 DONE");
+		expect(screen.getByTestId("pit-start")).toBeDisabled();
+		expect(screen.getByTestId("pit-cancel")).toBeInTheDocument();
+	});
+
+	it("puts a scanned image's patched copy back on the track", async () => {
+		renderPage(
+			detail({
+				scanned: { image: "ghcr.io/x/tool:2" },
+				ref: null,
+				pit: pit({
+					target: "tool-patched",
+					outcome: "on-track",
+					status: "ready",
+					after: { grade: "B" },
+					fixed: 2,
+					ref: "coder-image-registry.coder.svc:5000/coder-images/tool-patched:1",
+					finishedAt: new Date().toISOString(),
+				}),
+			}),
+		);
+		const lane = await screen.findByTestId("pit-lane");
+		expect(lane).toHaveTextContent("Back on the track");
+		expect(lane).toHaveTextContent("Grade F → B");
+		expect(lane).toHaveTextContent("2 of 2 findings fixed");
+		expect(lane).toHaveTextContent("coder-images/tool-patched:1");
+		expect(
+			within(lane).getByRole("link", { name: "Open tool-patched →" }),
+		).toHaveAttribute("href", "/images/tool-patched");
+		expect(screen.queryByTestId("pit-cancel")).toBeNull();
 	});
 });
 
@@ -461,5 +603,62 @@ describe("the Images list's ways in", () => {
 		expect(filter).toHaveAttribute("aria-pressed", "true");
 		expect(screen.queryByTestId("image-ws")).toBeNull();
 		expect(screen.getByTestId("image-ai")).toBeInTheDocument();
+	});
+
+	it("shows an image in the pit, and the patched copy Copa put back on the track", async () => {
+		const never = () => new Promise<never>(() => {});
+		for (const name of [
+			"contents",
+			"inUse",
+			"onNodes",
+			"library",
+			"securityData",
+			"modelScanner",
+		] as const) {
+			vi.spyOn(ImagesAPI, name).mockImplementation(never);
+		}
+		vi.spyOn(ImagesAPI, "list").mockResolvedValue({
+			canEdit: true,
+			baseImage: "coder-workspace",
+			images: [
+				item({
+					id: "ai",
+					name: "ai",
+					pit: {
+						build: 2,
+						lap: 2,
+						laps: 3,
+						stage: "patch",
+						target: "ai-patched",
+						source: "ai",
+					},
+				}),
+				item({
+					id: "ai-patched",
+					name: "ai-patched",
+					imported: {
+						source: "copa",
+						entry: "ai",
+						from: "ghcr.io/x/ai:2",
+						at: "",
+						by: "admin",
+					},
+				}),
+			],
+		} as Awaited<ReturnType<typeof ImagesAPI.list>>);
+		renderComponent(
+			<QueryClientProvider client={new QueryClient()}>
+				<MemoryRouter>
+					<ImagesPage />
+				</MemoryRouter>
+			</QueryClientProvider>,
+		);
+		const ai = await screen.findByTestId("image-ai");
+		expect(within(ai).getByTestId("image-in-the-pit")).toHaveTextContent(
+			"In the pit · lap 2/3",
+		);
+		const patched = screen.getByTestId("image-ai-patched");
+		expect(within(patched).getByText("Patched")).toBeInTheDocument();
+		expect(within(patched).queryByText("Imported")).toBeNull();
 	});
 });

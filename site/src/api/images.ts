@@ -301,11 +301,90 @@ export type ImageListItem = {
 	imported?: ImportedImage | null;
 	/** Set for an image scanned as it is (in a registry, or on a node that holds it): read-only, only its report. */
 	scanned?: { image: string } | null;
+	/** Its pit stop in progress (the list's "In the pit" badge), else null. */
+	pit?: PitBadge | null;
+};
+
+/** An image in the pit now: its lap of the laps allowed, the step, and where the patched image goes. */
+export type PitBadge = {
+	build: number;
+	lap: number;
+	laps: number;
+	stage: string | null;
+	target: string;
+	source: string;
+};
+
+/** Copa's library updates: how far a version may move (1.2.3 to 1.2.x, 1.x or anything newer). */
+export type CopaLevel = "patch" | "minor" | "major";
+
+/** A pit stop's lap: Copa's patch at its library level, then the rescan. */
+export type PitLap = {
+	lap: number;
+	level: CopaLevel | null;
+	status: "patching" | "done" | "failed";
+	startedAt: string;
+	finishedAt?: string;
+	summary?: { total: number; patched: number; skipped: number } | null;
+	vex?: { fixed: string[]; statements: number } | null;
+	grade?: string;
+	counts?: Partial<Record<Severity, number>>;
+	/** Of the findings worked on, how many the rescan still has. */
+	remaining?: number;
+	error?: string;
+};
+
+/**
+ * A pit stop (Fix image › Pit stop): Copa patches the image in place, rescans it, patches again while it can do
+ * better (laps), and puts it back on the track as the next version of the image (or of its patched copy).
+ */
+export type PitStop = {
+	build: number;
+	source: string;
+	sourceEntry: string;
+	target: string;
+	version: number;
+	libraries: boolean;
+	level: CopaLevel;
+	maxLevel: CopaLevel;
+	laps: number;
+	lap: number;
+	pairs: [string, string][];
+	chosen: number;
+	before: { grade?: string; counts?: Partial<Record<Severity, number>> };
+	after?: { grade?: string; counts?: Partial<Record<Severity, number>> };
+	history?: PitLap[];
+	/** The patched image, where workspaces pull it. */
+	ref?: string;
+	fixed?: number;
+	outcome: "running" | "on-track" | "failed" | "cancelled";
+	by: string;
+	status: BuildSummary["status"];
+	stage: string | null;
+	progress: number;
+	message: string | null;
+	error: string | null;
+	startedAt: string;
+	finishedAt: string | null;
+	steps: BuildStep[];
+	log: string;
+};
+
+export type PitStopOptions = {
+	/** The findings chosen; none: every one with a fixed version. */
+	keys?: { id: string; pkg: string }[];
+	/** Python and Node.js packages too (Copa's experimental library patching). */
+	libraries: boolean;
+	level: CopaLevel;
+	maxLevel: CopaLevel;
+	laps: number;
 };
 
 /** Where an imported image came from, and its last import. */
 export type ImportedImage = {
-	source: "registry" | "upload";
+	/** copa: a patched copy of an image only scanned here (a pit stop's), entry the image it was patched from. */
+	source: "registry" | "upload" | "copa";
+	entry?: string;
 	/** The registry reference, or the archive's file name. */
 	from: string;
 	at: string;
@@ -675,6 +754,8 @@ export type ImageDetail = ImageListItem & {
 	builds: BuildSummary[];
 	activeBuild: number | null;
 	canEdit: boolean;
+	/** Its latest pit stop (as the image patched, or as the patched copy), else null. */
+	pit?: PitStop | null;
 };
 
 export type BuildStep = {
@@ -759,6 +840,13 @@ export const ImagesAPI = {
 		}>(`${IMAGES}/${enc(id)}/builds/${build}?log=${logLines}`),
 	cancelBuild: (id: string, build: number) =>
 		post<{ ok: true }>(`${IMAGES}/${enc(id)}/builds/${build}/cancel`, {}),
+	/** A pit stop: Copa patches the image in place (the patched image goes to the target entry). */
+	pitStop: (id: string, options: PitStopOptions) =>
+		post<{ target: string; build: number; pit: PitStop }>(
+			`${IMAGES}/${enc(id)}/pit`,
+			options,
+		),
+	pit: (id: string) => get<{ pit: PitStop | null }>(`${IMAGES}/${enc(id)}/pit`),
 	uploadFile: (
 		id: string,
 		kind: "deb" | "install" | "dotfile",

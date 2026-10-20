@@ -8,6 +8,7 @@ import {
 	PlusIcon,
 	SettingsIcon,
 	TrashIcon,
+	WrenchIcon,
 } from "lucide-react";
 import { Fragment, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
@@ -51,10 +52,13 @@ import {
 	formatSize,
 	GradeBadge,
 	ImportedBadge,
+	InThePitBadge,
 	NeedsFixingBadge,
+	PatchedBadge,
 	StatusBadge,
 	TrackedBadge,
 } from "./badges";
+import "./pitStop.css";
 import {
 	CoderForkBadge,
 	CoderForkImages,
@@ -268,7 +272,10 @@ const ImagesPage: React.FC = () => {
 											image.imported?.source === "registry"
 												? image.imported.from
 												: undefined,
-										source: image.imported?.source,
+										source:
+											image.imported?.source === "copa"
+												? undefined
+												: image.imported?.source,
 									})
 								}
 							/>
@@ -395,7 +402,14 @@ const ImageRow: React.FC<{
 							{summary?.needsFixing && <NeedsFixingBadge />}
 							{ours && <CoderForkBadge ours={ours} />}
 							{tracked && <TrackedBadge />}
-							{image.imported && <ImportedBadge from={image.imported.from} />}
+							{image.pit && (
+								<InThePitBadge lap={image.pit.lap} laps={image.pit.laps} />
+							)}
+							{image.imported?.source === "copa" ? (
+								<PatchedBadge from={image.imported.from} />
+							) : (
+								image.imported && <ImportedBadge from={image.imported.from} />
+							)}
 							{image.version > 0 && (
 								<span className="text-xs font-normal text-content-secondary">
 									v{image.version}
@@ -545,7 +559,15 @@ const ImageRow: React.FC<{
 									</Button>
 								</DropdownMenuTrigger>
 								<DropdownMenuContent align="end">
-									{image.imported ? (
+									{image.imported?.source === "copa" ? (
+										// a patched copy: its next version is another pit stop
+										<DropdownMenuItem
+											onSelect={() => navigate(`/images/${image.id}/fix`)}
+										>
+											<WrenchIcon />
+											Pit stop
+										</DropdownMenuItem>
+									) : image.imported ? (
 										<DropdownMenuItem
 											disabled={image.status === "building"}
 											onSelect={onImport}

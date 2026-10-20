@@ -8,6 +8,7 @@ import {
 	PencilIcon,
 	ScanSearchIcon,
 	TrashIcon,
+	WrenchIcon,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
@@ -230,7 +231,15 @@ const ImageDetailView: React.FC<{ image: ImageDetail }> = ({ image }) => {
 					)}
 					{editable && (
 						<>
-							{imported ? (
+							{imported?.source === "copa" ? (
+								// a patched copy: its next version is another pit stop
+								<Button asChild>
+									<RouterLink to={`/images/${image.id}/fix`}>
+										<WrenchIcon />
+										Pit stop
+									</RouterLink>
+								</Button>
+							) : imported ? (
 								<Button
 									onClick={() => setImporting(true)}
 									disabled={Boolean(image.activeBuild)}
@@ -300,6 +309,11 @@ const ImageDetailView: React.FC<{ image: ImageDetail }> = ({ image }) => {
 							Deployed with the platform
 							{image.builtAt &&
 								` · current since ${createDayString(image.builtAt)}`}
+						</>
+					) : imported?.source === "copa" ? (
+						<>
+							Patched by Copa {createDayString(imported.at)} by {imported.by}{" "}
+							from <span className="font-mono">{imported.from}</span>
 						</>
 					) : imported ? (
 						<>
@@ -577,7 +591,7 @@ const ImageDetailView: React.FC<{ image: ImageDetail }> = ({ image }) => {
 					initial={{
 						name: image.id,
 						ref: imported.source === "registry" ? imported.from : undefined,
-						source: imported.source,
+						source: imported.source === "copa" ? undefined : imported.source,
 					}}
 					onClose={() => setImporting(false)}
 				/>

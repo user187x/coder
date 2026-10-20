@@ -1,0 +1,56 @@
+/* The pit lane (PitStop.tsx): a track between the stations, green as far as the image got; the station it is at holds
+   the car, which idles (a small bounce) while it is worked on. Still without animations (the user menu's switch, or
+   reduced motion). */
+.pit-track {
+	background-image: repeating-linear-gradient(
+		90deg,
+		var(--ws-radio-off) 0 8px,
+		transparent 8px 14px
+	);
+}
+.pit-track-done {
+	background: var(--ws-go);
+}
+.pit-here {
+	box-shadow: 0 0 0 4px color-mix(in srgb, var(--ws-accent) 22%, transparent);
+}
+.pit-car {
+	width: 18px;
+	height: 9px;
+	animation: pit-idle 0.9s ease-in-out infinite;
+}
+@keyframes pit-idle {
+	0%,
+	100% {
+		transform: translateY(0);
+	}
+	50% {
+		transform: translateY(-1.5px);
+	}
+}
+html[data-animations="off"] .pit-car {
+	animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+	.pit-car {
+		animation: none;
+	}
+}
+
+/* The Images list's "In the pit" badge: a slow pulse while Copa works. */
+.pit-badge {
+	animation: pit-badge 1.8s ease-in-out infinite;
+}
+@keyframes pit-badge {
+	50% {
+		opacity: 0.65;
+	}
+}
+html[data-animations="off"] .pit-badge {
+	animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+	.pit-badge {
+		animation: none;
+	}
+}

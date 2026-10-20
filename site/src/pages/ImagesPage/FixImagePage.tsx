@@ -26,6 +26,7 @@ import {
 } from "./fixPlan";
 import { imagesKey } from "./ImagesPage";
 import { ImportImageDialog, nameFrom } from "./ImportImageDialog";
+import { PitLane, PitStopPanel, pitApplicable } from "./PitStop";
 
 /** Where the proposed APIs (an agent run, a pull request, accepting a risk) are written down for review. */
 const PROPOSAL = "docs/fix-image-api.md";
@@ -131,15 +132,20 @@ const copyName = (name: string, taken: ReadonlySet<string>) => {
  * upgrades them - added to the image's own spec and built (an image built here), or to a fixed copy built on it (an
  * image imported or tracked) - built and scanned again; the new version is picked by whoever uses it (Promote). Handing
  * the fixes to an agent, opening a pull request and accepting a risk need APIs this deployment does not have yet: they
- * are proposed (docs/fix-image-api.md) and shown, off, until they exist.
+ * are proposed (docs/fix-image-api.md) and shown, off, until they exist. First of all, a pit stop: Copa patches the
+ * image in place, rescans it and puts it back on the track (PitStop.tsx), its pit lane above the findings.
  */
 const FixImagePage: React.FC = () => {
 	const { image: id = "" } = useParams();
 	const query = useQuery({
 		queryKey: [...imagesKey, id],
 		queryFn: () => ImagesAPI.get(id),
+		// while it builds, scans or is in the pit (a pit stop of an image only scanned here builds its patched copy)
 		refetchInterval: (q) =>
-			q.state.data?.image.activeBuild != null ? 3000 : false,
+			q.state.data?.image.activeBuild != null ||
+			q.state.data?.image.pit?.outcome === "running"
+				? 3000
+				: false,
 	});
 	const image = query.data?.image;
 
@@ -159,11 +165,29 @@ const FixImagePage: React.FC = () => {
 const FixImage: React.FC<{ image: ImageDetail }> = ({ image }) => {
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
-	const findings = useMemo(() => classify(image), [image]);
-	const [selected, setSelected] = useState<ReadonlySet<string>>(
-		() => new Set(findings.filter((f) => f.applicable).map((f) => f.key)),
+	const classified = useMemo(() => classify(image), [image]);
+	const [mode, setMode] = useState<"pit" | "manual" | "agent">("pit");
+	// Copa's library patching: on to start where only libraries have fixes (the OS has none to patch)
+	const [libraries, setLibraries] = useState(
+		() =>
+			!classified.some((f) => pitApplicable(f, false)) &&
+			classified.some((f) => pitApplicable(f, true)),
 	);
-	const [mode, setMode] = useState<"manual" | "agent">("manual");
+	// What can be fixed depends on how: a pit stop patches OS packages (and libraries, with library patching); the
+	// Dockerfile upgrades OS and Python packages
+	const findings = useMemo(
+		() =>
+			mode === "pit"
+				? classified.map((f) => ({
+						...f,
+						applicable: pitApplicable(f, libraries),
+					}))
+				: classified,
+		[classified, mode, libraries],
+	);
+	const [selected, setSelected] = useState<ReadonlySet<string>>(
+		() => new Set(classified.filter((f) => f.to).map((f) => f.key)),
+	);
 	const list = useQuery({ queryKey: imagesKey, queryFn: ImagesAPI.list });
 
 	const chosen = findings.filter((f) => f.applicable && selected.has(f.key));
@@ -230,15 +254,22 @@ const FixImage: React.FC<{ image: ImageDetail }> = ({ image }) => {
 			return next;
 		});
 
-	// The pipeline as it stands: a fix build running is at Rebuild (its scan: Rescan); else the plan.
+	// The pipeline as it stands: a pit stop's station (no rebuild: Copa patches in place); a fix build running is at
+	// Rebuild (its scan: Rescan); else the plan.
 	const active = image.builds.find((b) => b.id === image.activeBuild);
-	const stage = !active
-		? 0
-		: active.status === "scanning"
-			? 3
-			: active.status === "ready"
-				? 4
-				: 2;
+	const pitStation = image.pit?.steps.find((x) => x.state === "active")?.key;
+	const stage =
+		image.pit?.outcome === "running"
+			? ({ "pit-in": 0, report: 0, patch: 1, rescan: 3, "pit-out": 4 }[
+					pitStation ?? "pit-in"
+				] ?? 1)
+			: !active
+				? 0
+				: active.status === "scanning"
+					? 3
+					: active.status === "ready"
+						? 4
+						: 2;
 
 	const manualCta = !image.canEdit
 		? "Only admins and template admins fix images"
@@ -356,6 +387,7 @@ const FixImage: React.FC<{ image: ImageDetail }> = ({ image }) => {
 			</header>
 
 			<div className="mx-auto flex max-w-[1304px] flex-wrap items-start gap-6 px-8 py-7">
+				{image.pit && <PitLane pit={image.pit} imageId={image.id} />}
 				<section
 					aria-labelledby="h-findings"
 					className="min-w-0 flex-[999_1_560px] overflow-hidden rounded-(--ws-r-card) border border-solid border-(--ws-line) bg-(--ws-card)"
@@ -493,13 +525,14 @@ const FixImage: React.FC<{ image: ImageDetail }> = ({ image }) => {
 						<div className="px-[22px] pt-4">
 							<div
 								role="tablist"
-								aria-label="Who applies the fixes"
-								className="grid grid-cols-2 gap-1 rounded-[11px] border border-solid border-(--ws-line) bg-(--ws-well) p-1"
+								aria-label="How the fixes are applied"
+								className="grid grid-cols-3 gap-1 rounded-[11px] border border-solid border-(--ws-line) bg-(--ws-well) p-1"
 							>
 								{(
 									[
-										["manual", "Fix it myself"],
-										["agent", "Hand to an agent"],
+										["pit", "Pit stop"],
+										["manual", "Dockerfile"],
+										["agent", "Agent"],
 									] as const
 								).map(([value, label]) => (
 									<button
@@ -521,7 +554,14 @@ const FixImage: React.FC<{ image: ImageDetail }> = ({ image }) => {
 							</div>
 						</div>
 
-						{mode === "manual" ? (
+						{mode === "pit" ? (
+							<PitStopPanel
+								image={image}
+								chosen={chosen}
+								libraries={libraries}
+								onLibraries={setLibraries}
+							/>
+						) : mode === "manual" ? (
 							<div className="flex flex-col gap-3.5 px-[22px] pb-[22px] pt-4">
 								<p className="m-0 text-[13px] text-(--ws-text-3)">
 									The changes below are generated from your selection:{" "}

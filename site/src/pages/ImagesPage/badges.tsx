@@ -26,6 +26,31 @@ export const ImportedBadge: React.FC<{ from: string }> = ({ from }) => (
 	</Badge>
 );
 
+/** A patched copy a pit stop made (Copa, Fix image) of an image only scanned here. */
+export const PatchedBadge: React.FC<{ from: string }> = ({ from }) => (
+	<Badge
+		variant="green"
+		title={`${from}, patched in place by Copa (a pit stop)`}
+	>
+		Patched
+	</Badge>
+);
+
+/** An image in the pit now: Copa patching it (lap n of the laps allowed). */
+export const InThePitBadge: React.FC<{ lap: number; laps: number }> = ({
+	lap,
+	laps,
+}) => (
+	<Badge
+		variant="warning"
+		className="pit-badge"
+		title="A pit stop: Copa is patching it, then it is rescanned"
+		data-testid="image-in-the-pit"
+	>
+		In the pit · lap {lap}/{laps}
+	</Badge>
+);
+
 /** The workspace template's own image (tracked here, read-only). */
 export const TrackedBadge: React.FC = () => (
 	<Badge
