@@ -337,7 +337,7 @@ curl -X PATCH http://coder-server:8080/api/v2/users/{user}/secrets/{name} \
 
 To perform this operation, you must be authenticated. [Learn more](authentication.md).
 
-## Get the user's certificate file
+## Get user certificate file
 
 ### Code samples
 

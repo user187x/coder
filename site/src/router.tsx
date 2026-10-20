@@ -83,14 +83,10 @@ const WorkspaceBuildPage = lazy(
 );
 const WorkspacePage = lazy(() => import("./pages/WorkspacePage/WorkspacePage"));
 const TerminalPage = lazy(() => import("./pages/TerminalPage/TerminalPage"));
-const TemplateOverviewPage = lazy(
-	() =>
-		import("./pages/TemplatePage/TemplateOverviewPage/TemplateOverviewPage"),
-);
-const TemplateVersionsRedirect = lazy(() =>
-	import("./pages/TemplatePage/TemplateOverviewPage/TemplateOverviewPage").then(
-		(m) => ({ default: m.TemplateVersionsRedirect }),
-	),
+const TemplateHomeRedirect = lazy(() =>
+	import("./pages/TemplatePage/TemplateRedirects").then((m) => ({
+		default: m.TemplateHomeRedirect,
+	})),
 );
 const CreateWorkspacePage = lazy(
 	() => import("./pages/CreateWorkspacePage/CreateWorkspacePage"),
@@ -358,23 +354,20 @@ const templateRouter = () => {
 		<Route path=":template">
 			<Route element={<TemplateRedirectController />}>
 				<Route element={<TemplateLayout />}>
-					<Route index element={<Navigate to="overview" replace />} />
-					<Route path="overview" element={<TemplateOverviewPage />} />
-					{/* Docs and Resources are Overview now, Versions part of Source Code */}
-					<Route path="docs" element={<Navigate to="../overview" replace />} />
-					<Route
-						path="resources"
-						element={<Navigate to="../overview" replace />}
-					/>
+					{/* Platform: no Overview (nor its old tabs): Source Code for editors, New workspace for the others */}
+					<Route index element={<TemplateHomeRedirect from="index" />} />
+					{["overview", "docs", "resources", "versions", "insights"].map(
+						(tab) => (
+							<Route
+								key={tab}
+								path={tab}
+								element={<TemplateHomeRedirect from="tab" />}
+							/>
+						),
+					)}
 					<Route path="files" element={<TemplateFilesPage />} />
-					<Route path="versions" element={<TemplateVersionsRedirect />} />
-					{/* Platform: no Embed tab any more; old links land on the overview */}
+					{/* Platform: no Embed tab any more */}
 					<Route path="embed" element={<Navigate to=".." replace />} />
-					{/* Details (Insights) is part of Overview now */}
-					<Route
-						path="insights"
-						element={<Navigate to="../overview#details" replace />}
-					/>
 					<Route path="prebuilds" element={<TemplatePrebuildsPage />} />
 				</Route>
 

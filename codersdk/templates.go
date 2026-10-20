@@ -215,6 +215,13 @@ type TemplateACL struct {
 	Groups []TemplateGroup `json:"group"`
 }
 
+// TemplateAccessList is the platform's whitelist of a template's users: only
+// they may see the template and create workspaces from it (those who may edit
+// it always may). Empty: everyone who may otherwise.
+type TemplateAccessList struct {
+	UserIDs []uuid.UUID `json:"user_ids" format:"uuid"`
+}
+
 type TemplateGroup struct {
 	Group
 	Role TemplateRole `json:"role" enums:"admin,use"`
@@ -451,6 +458,34 @@ func (c *Client) TemplateACL(ctx context.Context, templateID uuid.UUID) (Templat
 	}
 	var acl TemplateACL
 	return acl, ReadBodyAsJSON(res, &acl)
+}
+
+// TemplateAccessList is the template's access list (the platform's whitelist).
+func (c *Client) TemplateAccessList(ctx context.Context, templateID uuid.UUID) (TemplateAccessList, error) {
+	res, err := c.Request(ctx, http.MethodGet, fmt.Sprintf("/api/v2/templates/%s/access", templateID), nil)
+	if err != nil {
+		return TemplateAccessList{}, err
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		return TemplateAccessList{}, ReadBodyAsError(res)
+	}
+	var list TemplateAccessList
+	return list, ReadBodyAsJSON(res, &list)
+}
+
+// SetTemplateAccessList sets the template's access list; an empty one lets everyone use it.
+func (c *Client) SetTemplateAccessList(ctx context.Context, templateID uuid.UUID, list TemplateAccessList) (TemplateAccessList, error) {
+	res, err := c.Request(ctx, http.MethodPut, fmt.Sprintf("/api/v2/templates/%s/access", templateID), list)
+	if err != nil {
+		return TemplateAccessList{}, err
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		return TemplateAccessList{}, ReadBodyAsError(res)
+	}
+	var out TemplateAccessList
+	return out, ReadBodyAsJSON(res, &out)
 }
 
 // UpdateActiveTemplateVersion updates the active template version to the ID provided.

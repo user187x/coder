@@ -2,7 +2,7 @@
 // template's Terraform when it is provisioned: the decorator pattern applied to
 // templates.
 //
-// The platform's base template (the "UBUNTU" prototype the chart pushes, named
+// The platform's base template (the "DEFAULT" prototype the chart pushes, named
 // by TemplateBuilder.BaseTemplate) marks its platform sections with comments:
 //
 //	# platform:begin <feature>

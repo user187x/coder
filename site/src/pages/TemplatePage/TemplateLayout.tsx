@@ -98,6 +98,8 @@ export const TemplateLayout: React.FC<React.PropsWithChildren> = ({
 			: (templateNamePath as string);
 	const { workspace_prebuilds: isWorkspacePrebuildsEnabled } =
 		useFeatureVisibility();
+	const showPrebuilds =
+		isWorkspacePrebuildsEnabled && Boolean(data?.permissions.canUpdateTemplate);
 
 	if (error || workspacePermissionsQuery.error) {
 		return (
@@ -125,26 +127,23 @@ export const TemplateLayout: React.FC<React.PropsWithChildren> = ({
 				}}
 			/>
 
-			<LinkTabs active={activeTab} className="mb-10 -mt-3">
-				<Margins>
-					<LinkTabsList>
-						<TabLink to="overview" value="overview">
-							Overview
-						</TabLink>
-						{data.permissions.canUpdateTemplate && (
+			{/* Platform: Source Code is the template page's one view (Overview is gone); tabs only with Prebuilds beside it */}
+			{showPrebuilds ? (
+				<LinkTabs active={activeTab} className="mb-10 -mt-3">
+					<Margins>
+						<LinkTabsList>
 							<TabLink to="files" value="files">
 								Source Code
 							</TabLink>
-						)}
-						{isWorkspacePrebuildsEnabled &&
-							data.permissions.canUpdateTemplate && (
-								<TabLink to="prebuilds" value="prebuilds">
-									Prebuilds
-								</TabLink>
-							)}
-					</LinkTabsList>
-				</Margins>
-			</LinkTabs>
+							<TabLink to="prebuilds" value="prebuilds">
+								Prebuilds
+							</TabLink>
+						</LinkTabsList>
+					</Margins>
+				</LinkTabs>
+			) : (
+				<div className="mt-1" />
+			)}
 
 			<Margins>
 				<TemplateLayoutContext.Provider value={data}>

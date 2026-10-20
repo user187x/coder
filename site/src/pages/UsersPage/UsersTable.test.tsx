@@ -77,4 +77,66 @@ describe("UsersTable", () => {
 
 		expect(getWorkspaces).not.toHaveBeenCalled();
 	});
+
+	it("shows each user's latency and activity over the last seven days", async () => {
+		vi.spyOn(API, "getInsightsUserLatency").mockResolvedValue({
+			report: {
+				start_time: "",
+				end_time: "",
+				template_ids: [],
+				users: [
+					{
+						user_id: MockUserMember.id,
+						username: MockUserMember.username,
+						avatar_url: "",
+						template_ids: [],
+						latency_ms: { p50: 42.4, p95: 120 },
+					},
+				],
+			},
+		});
+		vi.spyOn(API, "getInsightsUserActivity").mockResolvedValue({
+			report: {
+				start_time: "",
+				end_time: "",
+				template_ids: [],
+				users: [
+					{
+						user_id: MockUserMember.id,
+						username: MockUserMember.username,
+						avatar_url: "",
+						template_ids: [],
+						seconds: 3 * 3600 + 5 * 60,
+					},
+				],
+			},
+		});
+		renderUsersTable();
+		expect(await screen.findByTestId("user-latency")).toHaveTextContent(
+			"42 ms",
+		);
+		expect(screen.getByTestId("user-activity")).toHaveTextContent("3h 05m");
+		expect(
+			screen.getByRole("columnheader", { name: /Latency/ }),
+		).toBeInTheDocument();
+	});
+
+	it("leaves the columns out when the insights are refused", async () => {
+		const refused = Object.assign(new Error("Forbidden"), {
+			isAxiosError: true,
+			response: { status: 403, data: { message: "Forbidden" } },
+		});
+		const latency = vi
+			.spyOn(API, "getInsightsUserLatency")
+			.mockRejectedValue(refused);
+		vi.spyOn(API, "getInsightsUserActivity").mockRejectedValue(refused);
+		renderUsersTable();
+		await waitFor(() => expect(latency).toHaveBeenCalled());
+		await waitFor(() =>
+			expect(
+				screen.queryByRole("columnheader", { name: /Latency/ }),
+			).toBeNull(),
+		);
+		expect(screen.queryByTestId("user-latency")).toBeNull();
+	});
 });

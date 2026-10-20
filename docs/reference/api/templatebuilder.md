@@ -245,7 +245,7 @@ curl -X POST http://coder-server:8080/api/v2/templatebuilder/compose/template \
 
 To perform this operation, you must be authenticated. [Learn more](authentication.md).
 
-## The template decorator: the platform's sections and the files it provides
+## Get template decorator
 
 ### Code samples
 
@@ -257,6 +257,8 @@ curl -X GET http://coder-server:8080/api/v2/templatebuilder/decorator \
 ```
 
 `GET /api/v2/templatebuilder/decorator`
+
+The platform's sections and the files it provides.
 
 ### Example responses
 
@@ -301,7 +303,7 @@ curl -X GET http://coder-server:8080/api/v2/templatebuilder/decorator \
 
 To perform this operation, you must be authenticated. [Learn more](authentication.md).
 
-## A template's Terraform as Coder provisions it (the decorator's sections injected)
+## Materialize template
 
 ### Code samples
 
@@ -314,6 +316,8 @@ curl -X POST http://coder-server:8080/api/v2/templatebuilder/materialize \
 ```
 
 `POST /api/v2/templatebuilder/materialize`
+
+A template's Terraform as Coder provisions it (the decorator's sections injected).
 
 > Body parameter
 

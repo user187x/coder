@@ -14,7 +14,6 @@ import (
 
 	"cdr.dev/slog/v3"
 
-	"github.com/coder/coder/v2/coderd/database"
 	"github.com/coder/coder/v2/coderd/database/dbauthz"
 	"github.com/coder/coder/v2/coderd/httpapi"
 	"github.com/coder/coder/v2/coderd/rbac"
@@ -52,11 +51,7 @@ func (api *API) templateDecoratorPayload(ctx context.Context) (*templatedecorato
 	if err != nil {
 		return nil, uuid.Nil, xerrors.Errorf("default organization: %w", err)
 	}
-	tmpl, err := api.Database.GetTemplateByOrganizationAndName(sys, database.GetTemplateByOrganizationAndNameParams{
-		OrganizationID: org.ID,
-		Name:           name,
-		Deleted:        false,
-	})
+	tmpl, err := api.platformBaseTemplate(sys, org.ID, name)
 	if xerrors.Is(err, sql.ErrNoRows) {
 		return nil, uuid.Nil, nil
 	}
@@ -102,7 +97,8 @@ func (api *API) DecorateTemplateArchive(ctx context.Context, archive []byte) ([]
 	return out, nil
 }
 
-// @Summary The template decorator: the platform's sections and the files it provides
+// @Summary Get template decorator
+// @Description The platform's sections and the files it provides.
 // @ID get-template-decorator
 // @Security CoderSessionToken
 // @Produce json
@@ -155,7 +151,8 @@ func (api *API) templateBuilderDecorator(rw http.ResponseWriter, r *http.Request
 	httpapi.Write(ctx, rw, http.StatusOK, resp)
 }
 
-// @Summary A template's Terraform as Coder provisions it (the decorator's sections injected)
+// @Summary Materialize template
+// @Description A template's Terraform as Coder provisions it (the decorator's sections injected).
 // @ID materialize-template
 // @Security CoderSessionToken
 // @Accept json

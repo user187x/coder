@@ -13,6 +13,7 @@ import (
 	"github.com/coder/coder/v2/coderd/database"
 	"github.com/coder/coder/v2/coderd/database/dbgen"
 	"github.com/coder/coder/v2/coderd/database/dbtestutil"
+	"github.com/coder/coder/v2/coderd/util/ptr"
 	"github.com/coder/coder/v2/codersdk"
 	"github.com/coder/coder/v2/testutil"
 )
@@ -112,10 +113,10 @@ resource "coder_agent" "main" {
 		Name:              "user_storage",
 		Value:             "true",
 	})
-	dbgen.Template(t, db, database.Template{
+	base := dbgen.Template(t, db, database.Template{
 		OrganizationID:  owner.OrganizationID,
 		Name:            "ubuntu-base",
-		DisplayName:     "UBUNTU",
+		DisplayName:     "DEFAULT",
 		ActiveVersionID: version.ID,
 		CreatedBy:       owner.UserID,
 	})
@@ -127,7 +128,7 @@ resource "coder_agent" "main" {
 	require.NoError(t, err)
 	require.Len(t, bases.Bases, 1)
 	require.Equal(t, "platform", bases.Bases[0].ID)
-	require.Equal(t, "UBUNTU", bases.Bases[0].Name)
+	require.Equal(t, "DEFAULT", bases.Bases[0].Name)
 
 	// A new template: the base's own logic, without the Desktop.
 	data, err := client.TemplateBuilderCompose(ctx, codersdk.TemplateBuilderComposeRequest{
@@ -183,4 +184,16 @@ resource "coder_agent" "main" {
 		Modules:        []codersdk.TemplateBuilderComposeModule{{ID: "claude-code"}},
 	})
 	require.ErrorContains(t, err, "not offered")
+
+	// Renamed in the dashboard: still the base (by the ID recorded under its name), for the builder and the decorator.
+	_, err = client.UpdateTemplateMeta(ctx, base.ID, codersdk.UpdateTemplateMeta{Name: ptr.Ref("default")})
+	require.NoError(t, err)
+	bases, err = client.TemplateBuilderBases(ctx)
+	require.NoError(t, err)
+	require.Len(t, bases.Bases, 1)
+	require.Equal(t, base.ID, *bases.Bases[0].TemplateID)
+	deco, err = client.TemplateDecorator(ctx)
+	require.NoError(t, err)
+	require.True(t, deco.Enabled, deco.Error)
+	require.Equal(t, []string{"certificates"}, deco.Features)
 }

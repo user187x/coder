@@ -1315,7 +1315,11 @@ func New(options *Options) *API {
 			r.Route("/{template}", func(r chi.Router) {
 				r.Use(
 					httpmw.ExtractTemplateParam(options.Database),
+					// Platform: a template whose access list leaves the user out is not there for them.
+					api.templateAccessMW,
 				)
+				r.Get("/access", api.templateAccessList)
+				r.Put("/access", api.putTemplateAccessList)
 				r.Get("/daus", api.templateDAUs)
 				r.Get("/", api.template)
 				r.Delete("/", api.deleteTemplate)
@@ -1893,6 +1897,12 @@ type API struct {
 	// templateDecorator caches the template decorator's payload
 	// (templatedecorator_platform.go).
 	templateDecorator templateDecoratorState
+	// templateAccess caches the templates' access lists by template ID
+	// (templateaccess_platform.go).
+	templateAccess sync.Map
+	// platformBaseIDs: by organization, the base template's ID as last
+	// recorded (templatebuilder_platform.go: a rename is followed by it).
+	platformBaseIDs sync.Map
 	// ctx is canceled immediately on shutdown, it can be used to abort
 	// interruptible tasks.
 	ctx    context.Context

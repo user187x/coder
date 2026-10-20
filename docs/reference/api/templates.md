@@ -1275,6 +1275,101 @@ curl -X PATCH http://coder-server:8080/api/v2/templates/{template} \
 
 To perform this operation, you must be authenticated. [Learn more](authentication.md).
 
+## Get template access list
+
+### Code samples
+
+```sh
+# Example request using curl
+curl -X GET http://coder-server:8080/api/v2/templates/{template}/access \
+  -H 'Accept: application/json' \
+  -H 'Coder-Session-Token: API_KEY'
+```
+
+`GET /api/v2/templates/{template}/access`
+
+The platform's whitelist of the users who may see and use the template; empty: everyone.
+
+### Parameters
+
+| Name       | In   | Type         | Required | Description |
+|------------|------|--------------|----------|-------------|
+| `template` | path | string(uuid) | true     | Template ID |
+
+### Example responses
+
+> 200 Response
+
+```json
+{
+  "user_ids": [
+    "497f6eca-6276-4993-bfeb-53cbbbba6f08"
+  ]
+}
+```
+
+### Responses
+
+| Status | Meaning                                                 | Description | Schema                                                               |
+|--------|---------------------------------------------------------|-------------|----------------------------------------------------------------------|
+| 200    | [OK](https://tools.ietf.org/html/rfc7231#section-6.3.1) | OK          | [codersdk.TemplateAccessList](schemas.md#codersdktemplateaccesslist) |
+
+To perform this operation, you must be authenticated. [Learn more](authentication.md).
+
+## Set template access list
+
+### Code samples
+
+```sh
+# Example request using curl
+curl -X PUT http://coder-server:8080/api/v2/templates/{template}/access \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json' \
+  -H 'Coder-Session-Token: API_KEY'
+```
+
+`PUT /api/v2/templates/{template}/access`
+
+Only the users given may see the template and create workspaces from it (its editors always may);
+none: everyone.
+
+> Body parameter
+
+```json
+{
+  "user_ids": [
+    "497f6eca-6276-4993-bfeb-53cbbbba6f08"
+  ]
+}
+```
+
+### Parameters
+
+| Name       | In   | Type                                                                 | Required | Description |
+|------------|------|----------------------------------------------------------------------|----------|-------------|
+| `template` | path | string(uuid)                                                         | true     | Template ID |
+| `body`     | body | [codersdk.TemplateAccessList](schemas.md#codersdktemplateaccesslist) | true     | The users   |
+
+### Example responses
+
+> 200 Response
+
+```json
+{
+  "user_ids": [
+    "497f6eca-6276-4993-bfeb-53cbbbba6f08"
+  ]
+}
+```
+
+### Responses
+
+| Status | Meaning                                                 | Description | Schema                                                               |
+|--------|---------------------------------------------------------|-------------|----------------------------------------------------------------------|
+| 200    | [OK](https://tools.ietf.org/html/rfc7231#section-6.3.1) | OK          | [codersdk.TemplateAccessList](schemas.md#codersdktemplateaccesslist) |
+
+To perform this operation, you must be authenticated. [Learn more](authentication.md).
+
 ## Get template DAUs by ID
 
 ### Code samples

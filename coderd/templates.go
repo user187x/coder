@@ -604,7 +604,8 @@ func (api *API) fetchTemplates(mutate func(r *http.Request, arg *database.GetTem
 			return
 		}
 
-		httpapi.Write(ctx, rw, http.StatusOK, api.convertTemplates(templates))
+		// Platform: the templates whose access list leaves the user out are not listed for them.
+		httpapi.Write(ctx, rw, http.StatusOK, api.convertTemplates(api.templatesVisible(r, templates)))
 	}
 }
 
@@ -635,6 +636,11 @@ func (api *API) templateByOrganizationAndName(rw http.ResponseWriter, r *http.Re
 			Message: "Internal error fetching template.",
 			Detail:  err.Error(),
 		})
+		return
+	}
+	// Platform: not there for a user its access list leaves out.
+	if !api.templateVisible(r, template) {
+		httpapi.ResourceNotFound(rw)
 		return
 	}
 

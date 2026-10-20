@@ -1034,6 +1034,11 @@ func (api *API) preflightWorkspaceCreate(ctx context.Context, ownerID uuid.UUID,
 		})
 	}
 
+	// Platform: the template's access list, for the workspace's owner.
+	if err := api.templateAccessForOwner(ctx, template, ownerID); err != nil {
+		return database.Template{}, err
+	}
+
 	templateAccessControl := (*(api.AccessControlStore.Load())).GetTemplateAccessControl(template)
 	if templateAccessControl.IsDeprecated() {
 		return database.Template{}, httperror.NewResponseError(http.StatusBadRequest, codersdk.Response{

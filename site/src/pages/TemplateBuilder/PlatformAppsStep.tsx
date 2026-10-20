@@ -46,7 +46,7 @@ const APPS = [
 ] as const;
 
 type PlatformAppsStepProps = {
-	/** The base's name (the deployment's UBUNTU template). */
+	/** The base's name (the deployment's DEFAULT template). */
 	name: string;
 	iconUrl?: string;
 	values: Record<string, string>;
@@ -169,7 +169,7 @@ const BaseName: React.FC<{
 };
 
 /**
- * The deployment's base template's step (the UBUNTU prototype, chosen for every new template without a choice
+ * The deployment's base template's step (the DEFAULT prototype, chosen for every new template without a choice
  * shown): which of its apps the new template has - the Desktop, File Browser and the Terminal, each included or
  * excluded (the template's desktop, file_browser and terminal variables). What the platform adds to every workspace
  * (the certificate, Lock Down, the Cloud Drive, the metrics) is not the template's to choose: it comes with every

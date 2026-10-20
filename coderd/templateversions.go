@@ -1050,6 +1050,11 @@ func (api *API) templateVersionByOrganizationTemplateAndName(rw http.ResponseWri
 		})
 		return
 	}
+	// Platform: not there for a user the template's access list leaves out.
+	if !api.templateVisible(r, template) {
+		httpapi.ResourceNotFound(rw)
+		return
+	}
 
 	templateVersionName := chi.URLParam(r, "templateversionname")
 	templateVersion, err := api.Database.GetTemplateVersionByTemplateIDAndName(ctx, database.GetTemplateVersionByTemplateIDAndNameParams{
@@ -1132,6 +1137,11 @@ func (api *API) previousTemplateVersionByOrganizationTemplateAndName(rw http.Res
 			Message: "Internal error fetching template.",
 			Detail:  err.Error(),
 		})
+		return
+	}
+	// Platform: not there for a user the template's access list leaves out.
+	if !api.templateVisible(r, template) {
+		httpapi.ResourceNotFound(rw)
 		return
 	}
 

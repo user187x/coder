@@ -60,6 +60,11 @@ type TemplateFilesProps = {
 	tabs?: React.ReactNode;
 	/** Shown in place of the files (Source Code: the materialized main.tf). */
 	content?: React.ReactNode;
+	/**
+	 * Platform: the page has no tabs above it (Source Code, the template page's one view): the file tree sticks just
+	 * under the navigation and both columns take the height the tabs had, the files a taller view each.
+	 */
+	fill?: boolean;
 };
 
 export const TemplateFiles: React.FC<TemplateFilesProps> = ({
@@ -72,6 +77,7 @@ export const TemplateFiles: React.FC<TemplateFilesProps> = ({
 	actions,
 	tabs,
 	content,
+	fill = false,
 }) => {
 	const getLink = useLinks();
 	// The file just picked in the tree: outlined for a moment, so the eye finds it.
@@ -109,8 +115,16 @@ export const TemplateFiles: React.FC<TemplateFilesProps> = ({
 	return (
 		<div>
 			<div className="flex items-start gap-8">
-				{/* top-28 (112px) is a sum of nav height (72px) and TemplateLayout's LinkTabs' mb-10 (40px) */}
-				<div className="sticky top-28 flex max-h-[calc(100vh-8rem)] w-[240px] shrink-0 flex-col gap-3">
+				{/* top-28 (112px) is a sum of nav height (72px) and TemplateLayout's LinkTabs' mb-10 (40px); without
+				    the tabs (fill), the nav and a 16px gap */}
+				<div
+					className={cn(
+						"sticky flex w-[240px] shrink-0 flex-col gap-3",
+						fill
+							? "top-[88px] max-h-[calc(100vh-6rem)]"
+							: "top-28 max-h-[calc(100vh-8rem)]",
+					)}
+				>
 					{actions}
 					<div
 						className={cn(
@@ -198,8 +212,16 @@ export const TemplateFiles: React.FC<TemplateFilesProps> = ({
 											value={info.value}
 											compareWith={info.previousValue}
 											editorProps={{
-												// 18 is the editor line height
-												height: Math.min(numberOfLines(info.value) * 18, 560),
+												// 18 is the editor line height; filling the page, up to most of the window
+												height: Math.min(
+													numberOfLines(info.value) * 18,
+													fill
+														? Math.max(
+																560,
+																Math.round(window.innerHeight * 0.72),
+															)
+														: 560,
+												),
 												onMount: (editor) => {
 													editor.updateOptions({
 														scrollBeyondLastLine: false,

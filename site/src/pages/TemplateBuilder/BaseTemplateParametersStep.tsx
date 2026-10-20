@@ -114,7 +114,7 @@ export const BaseTemplateParametersStep: React.FC<
 		const base = data?.bases.find((b) => b.id === baseId);
 		return (
 			<PlatformAppsStep
-				name={base?.name ?? "UBUNTU"}
+				name={base?.name ?? "DEFAULT"}
 				iconUrl={base?.icon}
 				values={values}
 				onChangeValues={onChangeValues}

@@ -5736,13 +5736,14 @@ const docTemplate = `{
         },
         "/api/v2/templatebuilder/decorator": {
             "get": {
+                "description": "The platform's sections and the files it provides.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "TemplateBuilder"
                 ],
-                "summary": "The template decorator: the platform's sections and the files it provides",
+                "summary": "Get template decorator",
                 "operationId": "get-template-decorator",
                 "responses": {
                     "200": {
@@ -5761,6 +5762,7 @@ const docTemplate = `{
         },
         "/api/v2/templatebuilder/materialize": {
             "post": {
+                "description": "A template's Terraform as Coder provisions it (the decorator's sections injected).",
                 "consumes": [
                     "application/json"
                 ],
@@ -5770,7 +5772,7 @@ const docTemplate = `{
                 "tags": [
                     "TemplateBuilder"
                 ],
-                "summary": "A template's Terraform as Coder provisions it (the decorator's sections injected)",
+                "summary": "Materialize template",
                 "operationId": "materialize-template",
                 "parameters": [
                     {
@@ -5991,6 +5993,88 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/codersdk.Template"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ]
+            }
+        },
+        "/api/v2/templates/{template}/access": {
+            "get": {
+                "description": "The platform's whitelist of the users who may see and use the template; empty: everyone.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Templates"
+                ],
+                "summary": "Get template access list",
+                "operationId": "get-template-access-list",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Template ID",
+                        "name": "template",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.TemplateAccessList"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ]
+            },
+            "put": {
+                "description": "Only the users given may see the template and create workspaces from it (its editors always may);\nnone: everyone.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Templates"
+                ],
+                "summary": "Set template access list",
+                "operationId": "set-template-access-list",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Template ID",
+                        "name": "template",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "The users",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.TemplateAccessList"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.TemplateAccessList"
                         }
                     }
                 },
@@ -9219,7 +9303,7 @@ const docTemplate = `{
                 "tags": [
                     "Secrets"
                 ],
-                "summary": "Get the user's certificate file",
+                "summary": "Get user certificate file",
                 "operationId": "get-user-certificate-file",
                 "parameters": [
                     {
@@ -20272,6 +20356,18 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/codersdk.TemplateUser"
+                    }
+                }
+            }
+        },
+        "codersdk.TemplateAccessList": {
+            "type": "object",
+            "properties": {
+                "user_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "uuid"
                     }
                 }
             }

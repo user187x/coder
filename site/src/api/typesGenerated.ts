@@ -5969,6 +5969,16 @@ export interface TemplateACL {
 	readonly group: readonly TemplateGroup[];
 }
 
+// From codersdk/templates.go
+/**
+ * TemplateAccessList is the platform's whitelist of a template's users: only
+ * they may see the template and create workspaces from it (those who may edit
+ * it always may). Empty: everyone who may otherwise.
+ */
+export interface TemplateAccessList {
+	readonly user_ids: readonly string[];
+}
+
 // From codersdk/insights.go
 /**
  * TemplateAppUsage shows the usage of an app for one or more templates.

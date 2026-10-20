@@ -7989,6 +7989,22 @@ Git clone makes use of this by parsing the URL from: 'Username for "https://gith
 | `group` | array of [codersdk.TemplateGroup](#codersdktemplategroup) | false    |              |             |
 | `users` | array of [codersdk.TemplateUser](#codersdktemplateuser)   | false    |              |             |
 
+## codersdk.TemplateAccessList
+
+```json
+{
+  "user_ids": [
+    "497f6eca-6276-4993-bfeb-53cbbbba6f08"
+  ]
+}
+```
+
+### Properties
+
+| Name       | Type            | Required | Restrictions | Description |
+|------------|-----------------|----------|--------------|-------------|
+| `user_ids` | array of string | false    |              |             |
+
 ## codersdk.TemplateAppUsage
 
 ```json

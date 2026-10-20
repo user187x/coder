@@ -39,7 +39,7 @@ describe("ImagesInUse", () => {
 				{
 					image: "ghcr.io/x/dataflow:1.1.0",
 					workspaces: [],
-					templates: ["UBUNTU DATAFLOW"],
+					templates: ["DATAFLOW"],
 					entry: null,
 				},
 			],

@@ -15,6 +15,7 @@ import type {
 	ProvisionerJob,
 	ProvisionerJobStatus,
 	Template,
+	TemplateAccessList,
 	TemplateRole,
 	TemplateVersion,
 	UpdateTemplateMeta,
@@ -90,6 +91,40 @@ export const updateTemplateMeta = (queryClient: QueryClient) =>
 			]);
 		},
 	});
+
+/** Platform: the template's access list (its whitelist of users). */
+export const templateAccessList = (templateId: string) => ({
+	queryKey: ["templateAccess", templateId],
+	queryFn: () => API.getTemplateAccessList(templateId),
+});
+
+/** Sets it, the menu showing the change at once (back as it was if refused). */
+export const setTemplateAccessList = (
+	queryClient: QueryClient,
+	templateId: string,
+) => ({
+	mutationFn: (userIds: readonly string[]) =>
+		API.setTemplateAccessList(templateId, userIds),
+	onMutate: async (userIds: readonly string[]) => {
+		const key = ["templateAccess", templateId];
+		await queryClient.cancelQueries({ queryKey: key });
+		const before = queryClient.getQueryData<TemplateAccessList>(key);
+		queryClient.setQueryData<TemplateAccessList>(key, {
+			user_ids: [...userIds],
+		});
+		return { before };
+	},
+	onError: (
+		_error: unknown,
+		_userIds: readonly string[],
+		context?: { before?: TemplateAccessList },
+	) => {
+		queryClient.setQueryData(["templateAccess", templateId], context?.before);
+	},
+	onSuccess: (list: TemplateAccessList) => {
+		queryClient.setQueryData(["templateAccess", templateId], list);
+	},
+});
 
 export const templateACL = (templateId: string) => {
 	return {

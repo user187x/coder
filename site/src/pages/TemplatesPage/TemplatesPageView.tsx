@@ -39,6 +39,7 @@ import { TooltipMessage, TooltipTitle } from "#/components/Tooltip/Tooltip";
 import { useClickableTableRow } from "#/hooks/useClickableTableRow";
 import { linkToTemplate, useLinks } from "#/modules/navigation";
 import type { WorkspacePermissions } from "#/modules/permissions/workspaces";
+import { TemplateAccessMenu } from "#/modules/platform/templateAccess/TemplateAccessMenu";
 import { ResourceTabs } from "#/pages/ImagesPage/ResourceTabs";
 import { createDayString } from "#/utils/createDayString";
 import {
@@ -149,6 +150,8 @@ const TemplateActions: React.FC<TemplateActionsProps> = ({
 
 type TemplateRowProps = {
 	canUpdateTemplate: boolean;
+	/** Platform: the Access column is shown (the user may edit some template). */
+	showAccess: boolean;
 	showOrganizations: boolean;
 	template: Template;
 	workspacePermissions: Record<string, WorkspacePermissions> | undefined;
@@ -156,6 +159,7 @@ type TemplateRowProps = {
 
 const TemplateRow: React.FC<TemplateRowProps> = ({
 	canUpdateTemplate,
+	showAccess,
 	showOrganizations,
 	template,
 	workspacePermissions,
@@ -230,6 +234,16 @@ const TemplateRow: React.FC<TemplateRowProps> = ({
 				{createDayString(template.updated_at)}
 			</TableCell>
 
+			{showAccess && (
+				<TableCell className="whitespace-nowrap">
+					{canUpdateTemplate && !template.deleted ? (
+						<TemplateAccessMenu template={template} />
+					) : (
+						<span className="text-content-disabled">—</span>
+					)}
+				</TableCell>
+			)}
+
 			<TableCell className="whitespace-nowrap">
 				<TemplateActions
 					template={template}
@@ -269,6 +283,8 @@ export const TemplatesPageView: React.FC<TemplatesPageViewProps> = ({
 }) => {
 	const isLoading = !templates;
 	const isEmpty = !isLoading && templates.length === 0;
+	// Platform: the Access column, for those who may edit a template (its access list)
+	const showAccess = Object.values(templateUpdatePermissions).some(Boolean);
 	const compatibilityModeTemplates =
 		templates?.filter(
 			(template) =>
@@ -339,6 +355,8 @@ export const TemplatesPageView: React.FC<TemplatesPageViewProps> = ({
 						</TableHead>
 						<TableHead className="w-[10%]">Build time</TableHead>
 						<TableHead className="w-[15%]">Last updated</TableHead>
+						{/* Platform: who may see and use each template (its access list) */}
+						{showAccess && <TableHead className="w-[1%]">Access</TableHead>}
 						<TableHead className="w-[1%]" />
 					</TableRow>
 				</TableHeader>
@@ -359,6 +377,7 @@ export const TemplatesPageView: React.FC<TemplatesPageViewProps> = ({
 								canUpdateTemplate={
 									templateUpdatePermissions[template.organization_id] ?? false
 								}
+								showAccess={showAccess}
 								showOrganizations={showOrganizations}
 								template={template}
 								workspacePermissions={workspacePermissions}

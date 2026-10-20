@@ -9,6 +9,7 @@ import type * as TypesGen from "#/api/typesGenerated";
 import { AvatarData } from "#/components/Avatar/AvatarData";
 import { AvatarDataSkeleton } from "#/components/Avatar/AvatarDataSkeleton";
 import { Checkbox } from "#/components/Checkbox/Checkbox";
+import { InfoTooltip } from "#/components/InfoTooltip/InfoTooltip";
 import { LastSeen } from "#/components/LastSeen/LastSeen";
 import { Skeleton } from "#/components/Skeleton/Skeleton";
 import {
@@ -24,15 +25,24 @@ import {
 	TableLoaderSkeleton,
 	TableRowSkeleton,
 } from "#/components/TableLoader/TableLoader";
+import { TooltipMessage, TooltipTitle } from "#/components/Tooltip/Tooltip";
 import { useClickableTableRow } from "#/hooks/useClickableTableRow";
 import { ChatUserButton } from "#/modules/platform/chat/ChatUserButton";
 import { ShareApprovalButton } from "#/modules/platform/cloudDrive/ShareApprovalButton";
+import {
+	formatActivity,
+	formatLatency,
+	INSIGHTS_DAYS,
+	type UserInsight,
+	useUserInsights,
+} from "#/modules/platform/userInsights/userInsights";
 import { UserNotesCell } from "#/modules/platform/workspaceNotes/UserNotesCell";
 import type { UserAdminAction } from "#/modules/users/UserActionDialogs";
 import { RolesHelpPopover } from "#/modules/users/UserHelpPopovers";
 import { UserMoreActions } from "#/modules/users/UserMoreActions";
 import { UserRoleCell } from "#/modules/users/UserRoleCell";
 import { userWorkspaceHref as workspaceHrefOf } from "#/modules/users/userPlaces";
+import { getLatencyColor } from "#/utils/latency";
 
 dayjs.extend(relativeTime);
 
@@ -57,6 +67,8 @@ export type UsersTableProps = {
 
 export const UsersTable: React.FC<UsersTableProps> = (props) => {
 	const { users = [], selected, onSelect } = props;
+	// Platform: each user's latency and activity over the last seven days (what a template's Overview showed)
+	const insights = useUserInsights(true);
 	const choosable = users.filter((u) => u.id !== props.me);
 	const all =
 		choosable.length > 0 && choosable.every((u) => selected?.has(u.id));
@@ -88,18 +100,44 @@ export const UsersTable: React.FC<UsersTableProps> = (props) => {
 					</TableHead>
 					{/* Platform: admins' post-it notes on the user's workspaces, instead of Groups. */}
 					<TableHead className="w-1/6">Notes</TableHead>
+					{/* Platform: how the user's connections to their workspaces went, beside when they were last seen */}
+					{insights.shown && (
+						<>
+							<TableHead className="w-[1%] whitespace-nowrap">
+								<span className="flex items-center gap-1">
+									Latency
+									<InfoTooltip size="small">
+										<TooltipTitle>Latency</TooltipTitle>
+										<TooltipMessage>{`The median round trip of the user's connections to their workspaces over the last ${INSIGHTS_DAYS} days, every template.`}</TooltipMessage>
+									</InfoTooltip>
+								</span>
+							</TableHead>
+							<TableHead className="w-[1%] whitespace-nowrap">
+								<span className="flex items-center gap-1">
+									Activity
+									<InfoTooltip size="small">
+										<TooltipTitle>Activity</TooltipTitle>
+										<TooltipMessage>{`How long the user was connected to their workspaces (apps, the terminal, SSH) over the last ${INSIGHTS_DAYS} days, every template.`}</TooltipMessage>
+									</InfoTooltip>
+								</span>
+							</TableHead>
+						</>
+					)}
 					<TableHead className="w-1/6">Status</TableHead>
 				</TableRow>
 			</TableHeader>
 
 			<TableBody>
-				<UsersTableBody {...props} />
+				<UsersTableBody {...props} insights={insights} />
 			</TableBody>
 		</Table>
 	);
 };
 
-const UsersTableBody: React.FC<UsersTableProps> = ({
+const UsersTableBody: React.FC<
+	UsersTableProps & { insights: ReturnType<typeof useUserInsights> }
+> = ({
+	insights,
 	isLoading,
 	users,
 	me,
@@ -117,7 +155,12 @@ const UsersTableBody: React.FC<UsersTableProps> = ({
 		retry: false,
 	});
 	if (isLoading) {
-		return <UsersTableSkeleton canEditUsers={canEditUsers} />;
+		return (
+			<UsersTableSkeleton
+				canEditUsers={canEditUsers}
+				insights={insights.shown}
+			/>
+		);
 	}
 
 	if (!users || users.length === 0) {
@@ -131,6 +174,10 @@ const UsersTableBody: React.FC<UsersTableProps> = ({
 			selected={selected}
 			onSelect={onSelect}
 			notes={notesQuery.data?.users[user.id]}
+			insight={
+				insights.shown ? (insights.byUser.get(user.id) ?? {}) : undefined
+			}
+			most={insights.most}
 			me={me}
 			canEditUsers={canEditUsers}
 			canViewActivity={canViewActivity}
@@ -151,6 +198,10 @@ type UsersTableRowProps = Omit<
 > & {
 	user: TypesGen.User;
 	notes: readonly WorkspaceNote[] | undefined;
+	/** Platform: their latency and activity (undefined: the columns are not shown). */
+	insight?: UserInsight;
+	/** The most time any user connected: the activity bars' scale. */
+	most?: number;
 };
 
 /**
@@ -161,6 +212,8 @@ type UsersTableRowProps = Omit<
 const UsersTableRow: React.FC<UsersTableRowProps> = ({
 	user,
 	notes,
+	insight,
+	most = 0,
 	me,
 	canEditUsers,
 	canViewActivity,
@@ -243,6 +296,48 @@ const UsersTableRow: React.FC<UsersTableRowProps> = ({
 
 			<UserNotesCell username={user.username} notes={notes} />
 
+			{insight && (
+				<>
+					<TableCell className="whitespace-nowrap" data-testid="user-latency">
+						{insight.latency ? (
+							<span
+								className={cn(
+									"text-sm font-medium tabular-nums",
+									getLatencyColor(insight.latency.p50),
+								)}
+								title={`Median ${formatLatency(insight.latency.p50)}, 95th percentile ${formatLatency(insight.latency.p95)}`}
+							>
+								{formatLatency(insight.latency.p50)}
+							</span>
+						) : (
+							<span className="text-sm text-content-disabled">—</span>
+						)}
+					</TableCell>
+					<TableCell className="whitespace-nowrap" data-testid="user-activity">
+						{insight.seconds ? (
+							<div className="flex min-w-20 flex-col gap-1">
+								<span className="text-sm tabular-nums text-content-primary">
+									{formatActivity(insight.seconds)}
+								</span>
+								<span
+									aria-hidden
+									className="h-1 w-full overflow-hidden rounded-full bg-surface-tertiary"
+								>
+									<span
+										className="block h-full rounded-full bg-content-link"
+										style={{
+											width: `${Math.max(4, (insight.seconds / Math.max(most, 1)) * 100)}%`,
+										}}
+									/>
+								</span>
+							</div>
+						) : (
+							<span className="text-sm text-content-disabled">—</span>
+						)}
+					</TableCell>
+				</>
+			)}
+
 			<TableCell
 				className={cn(
 					"capitalize",
@@ -274,10 +369,12 @@ const UsersTableRow: React.FC<UsersTableRowProps> = ({
 
 type UsersTableSkeletonProps = {
 	canEditUsers: boolean;
+	insights?: boolean;
 };
 
 const UsersTableSkeleton: React.FC<UsersTableSkeletonProps> = ({
 	canEditUsers,
+	insights,
 }) => {
 	return (
 		<TableLoaderSkeleton>
@@ -297,6 +394,17 @@ const UsersTableSkeleton: React.FC<UsersTableSkeletonProps> = ({
 				<TableCell>
 					<Skeleton variant="text" width="25%" />
 				</TableCell>
+
+				{insights && (
+					<>
+						<TableCell>
+							<Skeleton variant="text" width="40px" />
+						</TableCell>
+						<TableCell>
+							<Skeleton variant="text" width="60px" />
+						</TableCell>
+					</>
+				)}
 
 				{canEditUsers && (
 					<TableCell className="w-px whitespace-nowrap text-right">

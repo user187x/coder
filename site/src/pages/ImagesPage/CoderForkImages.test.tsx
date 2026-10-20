@@ -131,7 +131,7 @@ const tracked = (tag: string): ImageListItem => ({
 	tracked: {
 		image: `ghcr.io/user187x/coder-workspace:${tag}`,
 		ref: `localhost:5000/coder-images/base/coder-workspace:${tag}`,
-		template: "UBUNTU",
+		template: "DEFAULT",
 	},
 });
 

@@ -13,7 +13,7 @@ import {
 
 const base: SelectedBaseMeta = {
 	id: PLATFORM_BASE_ID,
-	name: "UBUNTU",
+	name: "DEFAULT",
 	hasParameters: true,
 	hasPrerequisites: false,
 };
@@ -46,7 +46,7 @@ describe("TemplateCustomizationsStep: the template's ID", () => {
 		renderStep();
 		const id = await screen.findByLabelText(/^ID/);
 		const displayName = screen.getByLabelText("Display name");
-		expect(id).toHaveValue("ubuntu");
+		expect(id).toHaveValue("default");
 
 		await user.clear(displayName);
 		await user.type(displayName, "TEST");

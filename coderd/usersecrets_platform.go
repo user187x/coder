@@ -26,7 +26,7 @@ var certificateSecretPath = regexp.MustCompile(`^~/\.cert/\.[A-Za-z0-9_@+-][A-Za
 // admin (Coder's roles keep users' secrets to them; a request for anyone else's is refused here too), and only a
 // certificate secret, never another one.
 //
-// @Summary Get the user's certificate file
+// @Summary Get user certificate file
 // @ID get-user-certificate-file
 // @Security CoderSessionToken
 // @Produce json

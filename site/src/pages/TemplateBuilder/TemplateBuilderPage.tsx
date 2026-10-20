@@ -44,7 +44,7 @@ const TemplateBuilderPage: React.FC = () => {
 	// and removed from the URL before the wizard mounts.
 	const baseParam = searchParams.get("base");
 	const [preselectedBase, setPreselectedBase] = useState<SelectedBaseMeta>();
-	// The deployment's own base (the UBUNTU prototype): every new template's, chosen without a choice shown.
+	// The deployment's own base (the DEFAULT prototype): every new template's, chosen without a choice shown.
 	const platformBase = basesQuery.data?.bases?.find(
 		(b) => b.id === PLATFORM_BASE_ID,
 	);

@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"cdr.dev/slog/v3"
 	"github.com/google/uuid"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclwrite"
@@ -74,6 +75,54 @@ func (api *API) templateBuilderPlatformBaseName() string {
 	return strings.TrimSpace(api.DeploymentValues.TemplateBuilder.BaseTemplate.String())
 }
 
+// platformBaseTemplateKey is the runtime config key of the base template's ID
+// in an organization: the deployment names its base template, and a rename of
+// it in the dashboard is followed by the ID recorded while it had that name.
+func platformBaseTemplateKey(orgID uuid.UUID) string {
+	return "platform-template-builder-base:" + orgID.String()
+}
+
+// platformBaseTemplate is the deployment's base template in the organization:
+// the template of the configured name (its ID recorded), else the one last
+// recorded, renamed since. sql.ErrNoRows when there is neither. sys reads and
+// writes as the system.
+func (api *API) platformBaseTemplate(sys context.Context, orgID uuid.UUID, name string) (database.Template, error) {
+	tmpl, err := api.Database.GetTemplateByOrganizationAndName(sys, database.GetTemplateByOrganizationAndNameParams{
+		OrganizationID: orgID,
+		Name:           name,
+		Deleted:        false,
+	})
+	if err == nil {
+		if seen, ok := api.platformBaseIDs.Load(orgID); !ok || seen != tmpl.ID {
+			if err := api.Database.UpsertRuntimeConfig(sys, database.UpsertRuntimeConfigParams{
+				Key:   platformBaseTemplateKey(orgID),
+				Value: tmpl.ID.String(),
+			}); err != nil {
+				api.Logger.Warn(sys, "template builder: record the base template", slog.Error(err))
+			} else {
+				api.platformBaseIDs.Store(orgID, tmpl.ID)
+			}
+		}
+		return tmpl, nil
+	}
+	if !xerrors.Is(err, sql.ErrNoRows) {
+		return database.Template{}, err
+	}
+	raw, rerr := api.Database.GetRuntimeConfig(sys, platformBaseTemplateKey(orgID))
+	if rerr != nil {
+		return database.Template{}, err
+	}
+	id, perr := uuid.Parse(raw)
+	if perr != nil {
+		return database.Template{}, err
+	}
+	renamed, gerr := api.Database.GetTemplateByID(sys, id)
+	if gerr != nil || renamed.Deleted || renamed.OrganizationID != orgID {
+		return database.Template{}, err
+	}
+	return renamed, nil
+}
+
 // templateBuilderPlatformBase reads the deployment's base template in the
 // organization (the default one when orgID is uuid.Nil). It reads as the
 // system: the caller was authorized to read or create templates already.
@@ -91,11 +140,7 @@ func (api *API) templateBuilderPlatformBase(ctx context.Context, orgID uuid.UUID
 		}
 		orgID = org.ID
 	}
-	tmpl, err := api.Database.GetTemplateByOrganizationAndName(sys, database.GetTemplateByOrganizationAndNameParams{
-		OrganizationID: orgID,
-		Name:           name,
-		Deleted:        false,
-	})
+	tmpl, err := api.platformBaseTemplate(sys, orgID, name)
 	if xerrors.Is(err, sql.ErrNoRows) {
 		return nil, errPlatformBaseMissing
 	}

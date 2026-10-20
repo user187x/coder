@@ -8,7 +8,7 @@ const renderStep = (canRename: boolean, onRenamed = vi.fn()) => {
 	renderComponent(
 		<QueryClientProvider client={new QueryClient()}>
 			<PlatformAppsStep
-				name="UBUNTU"
+				name="DEFAULT"
 				iconUrl="/icon/ubuntu.svg"
 				values={{}}
 				onChangeValues={() => {}}
@@ -45,7 +45,7 @@ describe("PlatformAppsStep", () => {
 	it("shows no Rename to others", () => {
 		renderStep(false);
 		expect(screen.getByTestId("platform-base-name")).toHaveTextContent(
-			"UBUNTU",
+			"DEFAULT",
 		);
 		expect(screen.queryByTestId("platform-base-rename")).toBeNull();
 	});

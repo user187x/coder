@@ -2065,6 +2065,27 @@ class ApiMethods {
 		return response.data;
 	};
 
+	/** Platform: the template's access list (its whitelist of users; none: everyone). */
+	getTemplateAccessList = async (
+		templateId: string,
+	): Promise<TypesGen.TemplateAccessList> => {
+		const response = await this.axios.get(
+			`/api/v2/templates/${templateId}/access`,
+		);
+		return response.data;
+	};
+
+	setTemplateAccessList = async (
+		templateId: string,
+		userIds: readonly string[],
+	): Promise<TypesGen.TemplateAccessList> => {
+		const response = await this.axios.put(
+			`/api/v2/templates/${templateId}/access`,
+			{ user_ids: userIds },
+		);
+		return response.data;
+	};
+
 	getWorkspaceACL = async (
 		workspaceId: string,
 	): Promise<TypesGen.WorkspaceACL> => {

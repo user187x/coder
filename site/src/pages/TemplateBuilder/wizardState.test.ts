@@ -642,7 +642,7 @@ describe("initWizardState", () => {
 describe("RENAME_BASE (admins rename the deployment's base)", () => {
 	const base = {
 		id: "platform",
-		name: "UBUNTU",
+		name: "DEFAULT",
 		hasParameters: true,
 		hasPrerequisites: false,
 	};
@@ -684,13 +684,13 @@ describe("the new template's name (its ID)", () => {
 	it("is never the deployment's base ID: it comes from the base's display name", () => {
 		const base: SelectedBaseMeta = {
 			id: PLATFORM_BASE_ID,
-			name: "UBUNTU",
+			name: "DEFAULT",
 			hasParameters: true,
 			hasPrerequisites: false,
 		};
 		expect(baseCustomizationDefaults(base)).toMatchObject({
-			name: "ubuntu",
-			displayName: "UBUNTU",
+			name: "default",
+			displayName: "DEFAULT",
 		});
 		expect(baseCustomizationDefaults({ ...base, name: "!!!" }).name).toBe(
 			"template",
@@ -700,7 +700,7 @@ describe("the new template's name (its ID)", () => {
 	it("follows a renamed base while it is still the base's", () => {
 		const base: SelectedBaseMeta = {
 			id: PLATFORM_BASE_ID,
-			name: "UBUNTU",
+			name: "DEFAULT",
 			hasParameters: true,
 			hasPrerequisites: false,
 		};

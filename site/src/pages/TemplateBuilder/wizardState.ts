@@ -24,7 +24,7 @@ export type SelectedBaseMeta = {
  * Maps an API TemplateBuilderBase to the UI-only SelectedBaseMeta.
  */
 /**
- * The deployment's own base template (Coder's TemplateBuilder.BaseTemplate, the "UBUNTU" prototype): when the
+ * The deployment's own base template (Coder's TemplateBuilder.BaseTemplate, the "DEFAULT" prototype): when the
  * deployment has one, it is the only base, chosen for every new template without a choice shown; its step is the
  * workspace's apps (PlatformAppsStep).
  */
