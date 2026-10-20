@@ -3,7 +3,7 @@ import { WorkspaceTerminal } from "./WorkspaceTerminal";
 
 // jsdom draws no canvas: a stand-in for ghostty-web that records how the terminal is made and opened
 const made = vi.hoisted(() => ({
-	init: vi.fn(async () => {}),
+	load: vi.fn(async (_path: string) => ({ vt: true })),
 	terminals: [] as {
 		options: Record<string, unknown>;
 		opened?: HTMLElement;
@@ -58,8 +58,11 @@ vi.mock("ghostty-web", () => {
 		paste() {}
 		dispose() {}
 	}
-	return { init: made.init, Terminal, FitAddon };
+	return { Ghostty: { load: made.load }, Terminal, FitAddon };
 });
+vi.mock("ghostty-web/ghostty-vt.wasm?url", () => ({
+	default: "/assets/ghostty-vt.wasm",
+}));
 
 describe("WorkspaceTerminal with Ghostty", () => {
 	it("draws the terminal with Ghostty's emulator, fitted to its place", async () => {
@@ -74,9 +77,11 @@ describe("WorkspaceTerminal with Ghostty", () => {
 			/>,
 		);
 		await waitFor(() => expect(made.terminals).toHaveLength(1));
-		expect(made.init).toHaveBeenCalled();
+		// its WebAssembly from the dashboard's own file (the CSP allows no data: URL for it), once
+		expect(made.load).toHaveBeenCalledWith("/assets/ghostty-vt.wasm");
 		const [terminal] = made.terminals;
 		expect(terminal.options).toMatchObject({
+			ghostty: { vt: true },
 			fontFamily: "JetBrains Mono",
 			fontSize: 16,
 		});

@@ -92,6 +92,8 @@ func TestCSP(t *testing.T) {
 	expected := []string{
 		"frame-src 'self' *.test.com *.coder.com *.coder2.com",
 		"media-src 'self' " + strings.Join(expectedMedia, " "),
+		// Platform: WebAssembly compiles (Ghostty's terminal emulator); JavaScript's eval stays off
+		"script-src 'self' 'wasm-unsafe-eval'",
 		strings.Join([]string{
 			"connect-src", "'self'",
 			// Added from host header.

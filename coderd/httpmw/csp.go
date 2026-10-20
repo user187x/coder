@@ -72,7 +72,9 @@ func CSPHeaders(proxyHosts func() []*proxyhealth.ProxyHost, staticAdditions map[
 				CSPDirectiveConnectSrc: {"'self'"},
 				CSPDirectiveChildSrc:   {"'self'"},
 				// https://github.com/suren-atoyan/monaco-react/issues/168
-				CSPDirectiveScriptSrc: {"'self'"},
+				// Platform: 'wasm-unsafe-eval' lets WebAssembly modules compile (not JavaScript's eval): Ghostty's
+				// terminal emulator (ghostty-web) in the web terminal.
+				CSPDirectiveScriptSrc: {"'self' 'wasm-unsafe-eval'"},
 				CSPDirectiveStyleSrc:  {"'self' 'unsafe-inline'"},
 				// data: is used by monaco editor on FE for Syntax Highlight
 				CSPDirectiveFontSrc:   {"'self' data:"},

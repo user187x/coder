@@ -72,6 +72,8 @@ type WorkspaceTerminalProps = {
 };
 
 const DEFAULT_TERMINAL_FONT_FAMILY = "monospace";
+// Platform: Ghostty's VT engine, loaded once (ghostty-web's WebAssembly) for every Ghostty terminal of the page.
+let ghosttyVt: Promise<import("ghostty-web").Ghostty> | undefined;
 const ESCAPED_CARRIAGE_RETURN = "\x1b\r";
 
 const encodeTerminalPayload = (payload: Record<string, number | string>) => {
@@ -358,13 +360,24 @@ export const WorkspaceTerminal = ({
 		if (renderer === "ghostty") {
 			// Platform: Ghostty's terminal emulator (ghostty-web: Ghostty's own VT engine in WebAssembly, xterm.js'
 			// API), loaded only for the terminals that use it - the DATAFLOW template's Ghostty app.
-			void import("ghostty-web")
-				.then(async (ghostty) => {
-					await ghostty.init();
+			// Its WebAssembly as a file of the dashboard's (same origin; the CSP's 'wasm-unsafe-eval' lets it compile),
+			// not the package's inlined data: URL, which the CSP's connect-src does not allow.
+			void Promise.all([
+				import("ghostty-web"),
+				import("ghostty-web/ghostty-vt.wasm?url"),
+			])
+				.then(async ([ghostty, wasm]) => {
+					// (a failed load is tried again by the next terminal)
+					ghosttyVt ??= ghostty.Ghostty.load(wasm.default).catch((error) => {
+						ghosttyVt = undefined;
+						throw error;
+					});
+					const vt = await ghosttyVt;
 					if (disposed) {
 						return;
 					}
 					const ghosttyTerminal = new ghostty.Terminal({
+						ghostty: vt,
 						allowTransparency: true,
 						disableStdin: false,
 						fontFamily: terminalFontFamily,
