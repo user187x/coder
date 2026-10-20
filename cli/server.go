@@ -819,8 +819,10 @@ func (r *RootCmd) Server(newAPI func(context.Context, *coderd.Options) (*coderd.
 			if err != nil {
 				return xerrors.Errorf("platform HA: %w", err)
 			}
+			var haRegistry *platformha.Registry
+			var haLostActive <-chan struct{} // nil (never ready) without activeStandby
 			if haConfig.Enabled() {
-				haRegistry := platformha.NewRegistry(sqlDB, haConfig, logger.Named("platformha"), options.PrometheusRegistry)
+				haRegistry = platformha.NewRegistry(sqlDB, haConfig, logger.Named("platformha"), options.PrometheusRegistry)
 				if err := haRegistry.Start(ctx); err != nil {
 					return xerrors.Errorf("platform HA: %w", err)
 				}
@@ -832,6 +834,33 @@ func (r *RootCmd) Server(newAPI func(context.Context, *coderd.Options) (*coderd.
 						logger.Warn(ctx, "platform HA: leave the replica registry", slog.Error(err))
 					}
 				}()
+				if haConfig.Leadership() {
+					// activeStandby: probes and status from now on (a standby serves no Coder port), the pod
+					// labeled with its role (the Service selects the active one), and Coder starts only on
+					// this replica's turn - the active lease, or a handover's successor.
+					stopHealth, err := haRegistry.ServeHealth(ctx)
+					if err != nil {
+						return xerrors.Errorf("platform HA: %w", err)
+					}
+					defer stopHealth()
+					haRegistry.StartPodLabeler(ctx)
+					haLostActive = haRegistry.LostActive()
+					waitCtx, cancelWait := context.WithCancel(ctx)
+					go func() {
+						select {
+						case <-stopCtx.Done():
+						case <-interruptCtx.Done():
+						case <-waitCtx.Done():
+						}
+						cancelWait()
+					}()
+					err = haRegistry.WaitForTurn(waitCtx)
+					cancelWait()
+					if err != nil {
+						logger.Info(ctx, "platform HA: stopped as a standby")
+						return nil
+					}
+				}
 			}
 
 			experiments := coderd.ReadExperiments(options.Logger, options.DeploymentValues.Experiments.Value())
@@ -1229,6 +1258,11 @@ func (r *RootCmd) Server(newAPI func(context.Context, *coderd.Options) (*coderd.
 				default:
 				}
 			}()
+			if haRegistry != nil {
+				// Coder serves here: an active-lease holder's pod is labeled active now; a handover's
+				// successor tells the leader it is ready.
+				haRegistry.MarkServing()
+			}
 
 			// Updates the systemd status from activating to activated.
 			_, err = daemon.SdNotify(false, daemon.SdNotifyReady)
@@ -1267,6 +1301,8 @@ func (r *RootCmd) Server(newAPI func(context.Context, *coderd.Options) (*coderd.
 				exitErr = xerrors.New("pubsub Watchdog timed out")
 			case exitErr = <-errCh:
 			case exitErr = <-oidcRestart:
+			case <-haLostActive:
+				exitErr = xerrors.New("platform HA: lost the active lease; this replica comes back as a standby")
 			}
 			if exitErr != nil && !xerrors.Is(exitErr, context.Canceled) {
 				cliui.Errorf(inv.Stderr, "Unexpected error, shutting down server: %s\n", exitErr)

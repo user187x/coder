@@ -42,6 +42,7 @@ func TestConfigFromEnv(t *testing.T) {
 	require.Equal(t, platformha.Config{
 		Mode: platformha.ModeRegistry, Cell: "b", PodName: "coder-0", PodIP: "10.0.0.7",
 		LeaseTTL: 20 * time.Second, RenewInterval: 5 * time.Second, Version: "v1",
+		HealthAddress: platformha.DefaultHealthAddress, HandoverTimeout: platformha.DefaultHandoverTimeout,
 	}, c)
 
 	for _, bad := range []map[string]string{

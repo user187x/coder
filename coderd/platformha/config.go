@@ -25,12 +25,27 @@ const (
 	// ModeRegistry runs the replica registry only: leases, fencing, metrics.
 	// Nothing else changes.
 	ModeRegistry Mode = "registry"
+	// ModeActiveStandby runs one Coder at a time: the replica holding the
+	// "coder-active" lease serves (its pod labeled active, which the Service
+	// selects); the others wait, warm, without starting Coder, and take over
+	// when the lease lapses - or, on a rolling update, by a handover that starts
+	// the successor before the leader lets go.
+	ModeActiveStandby Mode = "activeStandby"
 )
+
+// ActiveLease is the lease of the replica that serves in activeStandby.
+const ActiveLease = "coder-active"
 
 const (
 	DefaultCell          = "a"
 	DefaultLeaseTTL      = 10 * time.Second
 	DefaultRenewInterval = 3 * time.Second
+	// DefaultHealthAddress serves the replica's probes and status in the HA
+	// modes, from the start (a standby does not serve Coder's own port).
+	DefaultHealthAddress = ":2113"
+	// DefaultHandoverTimeout bounds a handover: the leader waits this long for
+	// its successor to serve before it lets go anyway.
+	DefaultHandoverTimeout = 60 * time.Second
 )
 
 // Config is Platform HA's configuration, read from the environment
@@ -50,26 +65,35 @@ type Config struct {
 	RenewInterval time.Duration
 	// Version is the replica's build, shown in the registry.
 	Version string
+	// HealthAddress serves /livez, /readyz, /status and /handover (activeStandby).
+	HealthAddress string
+	// HandoverTimeout bounds a handover (activeStandby).
+	HandoverTimeout time.Duration
 }
 
 // ConfigFromEnv reads the configuration; getenv is os.Getenv outside tests.
 func ConfigFromEnv(getenv func(string) string, version string) (Config, error) {
 	c := Config{
-		Mode:          Mode(strings.TrimSpace(getenv("CODER_PLATFORM_HA_MODE"))),
-		Cell:          strings.TrimSpace(getenv("CODER_PLATFORM_HA_CELL")),
-		PodName:       strings.TrimSpace(getenv("CODER_PLATFORM_HA_POD_NAME")),
-		PodIP:         strings.TrimSpace(getenv("CODER_PLATFORM_HA_POD_IP")),
-		LeaseTTL:      DefaultLeaseTTL,
-		RenewInterval: DefaultRenewInterval,
-		Version:       version,
+		Mode:            Mode(strings.TrimSpace(getenv("CODER_PLATFORM_HA_MODE"))),
+		Cell:            strings.TrimSpace(getenv("CODER_PLATFORM_HA_CELL")),
+		PodName:         strings.TrimSpace(getenv("CODER_PLATFORM_HA_POD_NAME")),
+		PodIP:           strings.TrimSpace(getenv("CODER_PLATFORM_HA_POD_IP")),
+		LeaseTTL:        DefaultLeaseTTL,
+		RenewInterval:   DefaultRenewInterval,
+		Version:         version,
+		HealthAddress:   strings.TrimSpace(getenv("CODER_PLATFORM_HA_HEALTH_ADDRESS")),
+		HandoverTimeout: DefaultHandoverTimeout,
+	}
+	if c.HealthAddress == "" {
+		c.HealthAddress = DefaultHealthAddress
 	}
 	if c.Mode == "" {
 		c.Mode = ModeOff
 	}
 	switch c.Mode {
-	case ModeOff, ModeRegistry:
+	case ModeOff, ModeRegistry, ModeActiveStandby:
 	default:
-		return Config{}, xerrors.Errorf("CODER_PLATFORM_HA_MODE %q: off or registry (the other modes come in later phases)", c.Mode)
+		return Config{}, xerrors.Errorf("CODER_PLATFORM_HA_MODE %q: off, registry or activeStandby (activeActive comes in a later phase)", c.Mode)
 	}
 	if c.Cell == "" {
 		c.Cell = DefaultCell
@@ -78,8 +102,9 @@ func ConfigFromEnv(getenv func(string) string, version string) (Config, error) {
 		c.PodName, _ = os.Hostname()
 	}
 	for name, d := range map[string]*time.Duration{
-		"CODER_PLATFORM_HA_LEASE_TTL":      &c.LeaseTTL,
-		"CODER_PLATFORM_HA_RENEW_INTERVAL": &c.RenewInterval,
+		"CODER_PLATFORM_HA_LEASE_TTL":        &c.LeaseTTL,
+		"CODER_PLATFORM_HA_RENEW_INTERVAL":   &c.RenewInterval,
+		"CODER_PLATFORM_HA_HANDOVER_TIMEOUT": &c.HandoverTimeout,
 	} {
 		v := strings.TrimSpace(getenv(name))
 		if v == "" {
@@ -102,4 +127,9 @@ func ConfigFromEnv(getenv func(string) string, version string) (Config, error) {
 // Enabled reports whether any of Platform HA runs.
 func (c Config) Enabled() bool {
 	return c.Mode != ModeOff
+}
+
+// Leadership reports whether replicas take turns serving (one active at a time).
+func (c Config) Leadership() bool {
+	return c.Mode == ModeActiveStandby
 }

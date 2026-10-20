@@ -84,6 +84,8 @@ type Registry struct {
 	safeUntil time.Time // lastRenew + LeaseTTL - RenewInterval: past it, the lease cannot be trusted
 	members   []Replica
 	onFence   []func(fenced bool)
+	lead      leadership  // activeStandby only
+	kube      *kubeClient // the pod's Kubernetes API (activeStandby), or nil
 
 	cancel context.CancelFunc
 	done   chan struct{}
@@ -132,6 +134,7 @@ func NewRegistry(db DB, cfg Config, logger slog.Logger, reg prometheus.Registere
 		now:     time.Now,
 		self:    Replica{ID: uuid.New(), Pod: cfg.PodName, PodIP: cfg.PodIP, Cell: cfg.Cell, Version: cfg.Version},
 		state:   StateReady,
+		lead:    newLeadership(),
 		metrics: newMetrics(reg),
 	}
 }
@@ -159,6 +162,9 @@ func (r *Registry) Close(ctx context.Context) error {
 	if r.cancel != nil {
 		r.cancel()
 		<-r.done
+	}
+	if r.cfg.Leadership() {
+		r.releaseLease(ctx)
 	}
 	r.mu.Lock()
 	self := r.self
@@ -220,7 +226,7 @@ func ensureSchema(ctx context.Context, db DB) error {
 	if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(hashtext('platform_ha.schema'))`); err != nil {
 		return err
 	}
-	if _, err := tx.ExecContext(ctx, schemaSQL); err != nil {
+	if _, err := tx.ExecContext(ctx, schemaSQL+leaseSQL); err != nil {
 		return err
 	}
 	return tx.Commit()
@@ -355,6 +361,10 @@ func (r *Registry) fence(ctx context.Context, why string) {
 	for _, fn := range callbacks {
 		fn(true)
 	}
+	if r.cfg.Leadership() {
+		r.stepDown(ctx, "fenced: "+why)
+		r.updateRole(ctx)
+	}
 }
 
 // unfence: this replica holds a lease again (a new epoch).
@@ -386,6 +396,9 @@ func (r *Registry) round(ctx context.Context, n int) {
 		if r.safeUntil.Before(deadline) {
 			deadline = r.safeUntil
 		}
+		if r.lead.holding && r.lead.safeUntil.Before(deadline) {
+			deadline = r.lead.safeUntil
+		}
 		r.mu.Unlock()
 	}
 	opCtx, cancel := context.WithDeadline(ctx, deadline)
@@ -397,11 +410,17 @@ func (r *Registry) round(ctx context.Context, n int) {
 			return
 		}
 		r.unfence(ctx)
+		if r.cfg.Leadership() {
+			r.leadRound(opCtx)
+		}
 	} else {
 		err := r.renew(opCtx)
 		switch {
 		case err == nil:
 			r.metrics.renewals.WithLabelValues("ok").Inc()
+			if r.cfg.Leadership() {
+				r.leadRound(opCtx)
+			}
 		case xerrors.Is(err, errLost):
 			r.metrics.renewals.WithLabelValues("lost").Inc()
 			r.fence(ctx, err.Error())
@@ -441,8 +460,10 @@ func (r *Registry) loop(ctx context.Context) {
 				since := r.now().Sub(r.lastRenew)
 				r.mu.Unlock()
 				r.fence(ctx, "no renewal for "+since.Round(time.Millisecond).String())
+			} else if left, holding := r.untilLeaderSafe(); holding && left <= 0 {
+				r.stepDown(ctx, "the active lease could not be renewed in time")
 			}
-			fenceTimer.Reset(r.cfg.RenewInterval)
+			fenceTimer.Reset(r.nextDeadline())
 		case <-ticker.C:
 			r.round(ctx, n)
 			if !fenceTimer.Stop() {
@@ -451,13 +472,26 @@ func (r *Registry) loop(ctx context.Context) {
 				default:
 				}
 			}
-			if r.Fenced() {
-				fenceTimer.Reset(r.cfg.RenewInterval)
-			} else {
-				fenceTimer.Reset(r.untilSafe())
-			}
+			fenceTimer.Reset(r.nextDeadline())
 		}
 	}
+}
+
+// nextDeadline is when the fence timer must look again: the nearer of the
+// registry lease's and the active lease's safe deadlines (an interval when
+// fenced).
+func (r *Registry) nextDeadline() time.Duration {
+	if r.Fenced() {
+		return r.cfg.RenewInterval
+	}
+	d := r.untilSafe()
+	if left, holding := r.untilLeaderSafe(); holding && left < d {
+		d = left
+	}
+	if d < time.Millisecond {
+		d = time.Millisecond
+	}
+	return d
 }
 
 // untilSafe is the time left before the lease cannot be trusted (<= 0: past).
