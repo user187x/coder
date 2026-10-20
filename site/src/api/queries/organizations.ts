@@ -4,6 +4,7 @@ import {
 	type GetProvisionerDaemonsParams,
 	type GetProvisionerJobsParams,
 } from "#/api/api";
+import { isApiError } from "#/api/errors";
 import type {
 	AuthorizationCheck,
 	CreateOrganizationRequest,
@@ -14,6 +15,7 @@ import type {
 	UpdateOrganizationRequest,
 	UpdateWorkspaceSharingSettingsRequest,
 	UsersRequest,
+	WorkspaceSharingSettings,
 } from "#/api/typesGenerated";
 import type { MetadataState } from "#/hooks/useEmbeddedMetadata";
 import type { UsePaginatedQueryOptions } from "#/hooks/usePaginatedQuery";
@@ -258,10 +260,28 @@ export const getWorkspaceSharingSettingsKey = (organization: string) => [
 	"workspaceSharingSettings",
 ];
 
+// The platform runs Coder's open-source build, which has no workspace-sharing
+// settings route (an Enterprise one): sharing then works as the organization's
+// own setting allows, everyone by default (coderd's allowWorkspaceSharing).
+const openSourceSharingSettings: WorkspaceSharingSettings = {
+	sharing_globally_disabled: false,
+	sharing_disabled: false,
+	shareable_workspace_owners: "everyone",
+};
+
 export const workspaceSharingSettings = (organization: string) => {
 	return {
 		queryKey: getWorkspaceSharingSettingsKey(organization),
-		queryFn: () => API.getWorkspaceSharingSettings(organization),
+		queryFn: async (): Promise<WorkspaceSharingSettings> => {
+			try {
+				return await API.getWorkspaceSharingSettings(organization);
+			} catch (error) {
+				if (isApiError(error) && error.response.status === 404) {
+					return openSourceSharingSettings;
+				}
+				throw error;
+			}
+		},
 	};
 };
 

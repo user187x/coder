@@ -21,6 +21,9 @@ import {
 	type NotificationMethod,
 } from "#/modules/notifications/utils";
 
+/** The platform's Coder is the open-source build (no per-template delivery method). */
+const OPEN_SOURCE_BUILD = true;
+
 type NotificationEventsProps = {
 	defaultMethod: NotificationMethod;
 	availableMethods: NotificationMethod[];
@@ -94,7 +97,10 @@ export const NotificationEvents: React.FC<NotificationEventsProps> = ({
 									templateName={tpl.name}
 									options={availableMethods}
 									value={value}
-									canEdit={canEdit}
+									// The platform runs Coder's open-source build: a template's
+									// delivery method is its default (setting it per template is
+									// an Enterprise route).
+									canEdit={canEdit && !OPEN_SOURCE_BUILD}
 								/>
 							</div>
 						);

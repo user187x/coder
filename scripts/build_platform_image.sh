@@ -85,6 +85,11 @@ done
 dependencies docker make
 # Coder reports the image tag as its version, and the build artifacts are named after it.
 export CODER_FORCE_VERSION="$tag"
+# The open-source (AGPL) build: no Enterprise code in the image, so no licence gate - the platform's own high
+# availability runs several Coder replicas without the unlicensed Enterprise binary's "multiple replicas" error
+# (docs/adr/0001-platform-ha.md in the deployment repository; the owner's choice, 2026-10-20). CODER_BUILD_AGPL=0 builds
+# the Enterprise binary as before.
+export CODER_BUILD_AGPL="${CODER_BUILD_AGPL:-1}"
 version="$(./scripts/version.sh)"
 
 arch_images=()
