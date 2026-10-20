@@ -104,14 +104,25 @@
 .radial-item-off .radial-text {
 	opacity: 0.35;
 }
+/* The hub: the pointed-at wedge's icon over its name (and why it is closed), centred both ways. */
 .radial-center {
 	position: absolute;
 	top: 50%;
 	left: 50%;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
 	width: 140px;
 	transform: translate(-50%, -50%);
 	text-align: center;
 	pointer-events: none;
+}
+.radial-center-icon {
+	width: 40px;
+	height: 40px;
+	flex-shrink: 0;
 }
 .radial-center-name {
 	font-size: 24px;
@@ -119,7 +130,6 @@
 	line-height: 1.2;
 }
 .radial-center-note {
-	margin-top: 4px;
 	font-size: 12px;
 	color: rgb(255 255 255 / 0.6);
 }

@@ -148,6 +148,35 @@ describe("RadialMenu", () => {
 		expect(await screen.findByText("HUD page")).toBeInTheDocument();
 	});
 
+	it("shows the wedge pointed at in the hub: its icon above its name, centred", async () => {
+		renderWheel();
+		press();
+		// the hub's icon is the pointed-at wedge's (a new element per icon)
+		const hub = () => screen.getByTestId("radial-center-icon");
+		await waitFor(() =>
+			expect(hub()).toHaveAttribute("data-wedge", "workspaces"),
+		);
+		fireEvent.mouseEnter(screen.getByTestId("radial-templates"));
+		expect(hub()).toHaveAttribute("data-wedge", "templates");
+		expect(hub()).toHaveAttribute("aria-hidden", "true");
+		expect(hub().tagName.toLowerCase()).toBe("svg");
+		const center = hub().parentElement as HTMLElement;
+		expect(center).toHaveClass("radial-center");
+		expect(center.firstElementChild).toBe(hub());
+		expect(center.querySelector(".radial-center-name")).toHaveTextContent(
+			"Templates",
+		);
+		// nothing pointed at: the wheel's own icon and "Menu"
+		fireEvent.mouseLeave(screen.getByTestId("radial-templates"));
+		fireEvent.blur(screen.getByTestId("radial-workspaces"));
+		await waitFor(() => expect(hub()).toHaveAttribute("data-wedge", ""));
+		expect(
+			screen
+				.getByTestId("radial-center-icon")
+				.parentElement?.querySelector(".radial-center-name"),
+		).toHaveTextContent("Menu");
+	});
+
 	it("says which pages are admins' to a member, and does not go there", async () => {
 		auth.permissions = MockNoPermissions;
 		renderWheel();

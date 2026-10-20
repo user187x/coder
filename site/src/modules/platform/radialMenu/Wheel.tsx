@@ -1,9 +1,9 @@
 import { cn } from "cn";
-import type { LucideIcon } from "lucide-react";
+import { CompassIcon, type LucideIcon } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import "./radialMenu.css";
 
-// The wheel (radial-menu.html): wedges round a centre that names the one pointed at.
+// The wheel (radial-menu.html): wedges round a centre that shows the one pointed at, its icon and name.
 const SIZE = 600;
 const CENTER = SIZE / 2;
 const OUTER = 280;
@@ -113,6 +113,7 @@ export const Wheel: React.FC<WheelProps> = ({
 
 	const shown = hovered ?? chosen;
 	const label = shown === null ? "Menu" : (items[shown]?.name ?? "Menu");
+	const ShownIcon = (shown !== null && items[shown]?.icon) || CompassIcon;
 	const note =
 		shown !== null && items[shown] && !items[shown].allowed
 			? items[shown].why
@@ -215,6 +216,12 @@ export const Wheel: React.FC<WheelProps> = ({
 				})}
 			</svg>
 			<div className="radial-center" aria-live="polite">
+				<ShownIcon
+					aria-hidden
+					className="radial-center-icon"
+					data-testid="radial-center-icon"
+					data-wedge={shown === null ? "" : items[shown]?.id}
+				/>
 				<div className="radial-center-name">{label}</div>
 				{note && <div className="radial-center-note">{note}</div>}
 			</div>
