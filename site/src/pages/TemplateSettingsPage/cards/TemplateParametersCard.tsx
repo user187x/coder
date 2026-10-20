@@ -30,8 +30,9 @@ import {
 import { formatDate } from "#/utils/time";
 
 /**
- * Parameters: how the template's parameters are resolved (dynamic, or the deprecated compatibility mode), and its
- * cached data refreshed with a new version. Both act at once, as on the former Parameters page.
+ * Parameters: how the template's parameters are resolved (dynamic parameters on, or off: the deprecated compatibility
+ * mode, the only case that shows a warning), and its cached data refreshed with a new version. Both act at once, as on
+ * the former Parameters page.
  */
 export const TemplateParametersCard: React.FC<{
 	template: Template;
@@ -97,30 +98,39 @@ export const TemplateParametersCard: React.FC<{
 						settings.
 					</p>
 				)}
+				{/* On is the default and what the templates here use; off is the deprecated compatibility mode, which
+				    only then shows its warning */}
 				<ToggleRow
 					id="use_classic_parameter_flow"
-					label="Use parameter compatibility mode for workspace builds"
+					label="Dynamic parameters"
 					badge={
 						<>
-							<Badge size="sm" variant="warning">
-								Deprecated
-							</Badge>
+							{template.use_classic_parameter_flow && (
+								<Badge size="sm" variant="warning">
+									Compatibility mode (deprecated)
+								</Badge>
+							)}
 							{compatibility.isPending && (
 								<Spinner loading size="sm" label="Saving" />
 							)}
 						</>
 					}
-					description='Only if this template does not work with dynamic parameters: workspace builds fall back to the older "Rich parameters" strategy, which is deprecated and will be removed. Dynamic parameters (the default since Coder 2.25) bring more form types, identity-aware values, conditional parameters and data sources; some templates need their data refreshed for them to work.'
-					pressed={template.use_classic_parameter_flow}
+					description="Workspace builds resolve this template's parameters with dynamic parameters, the default since Coder 2.25: more form types, identity-aware values, conditional parameters and data sources. Some templates need their data refreshed for them to work."
+					note={
+						template.use_classic_parameter_flow
+							? 'This template uses parameter compatibility mode: the older "Rich parameters" strategy, which is deprecated and will be removed. Turn dynamic parameters on unless the template does not work with them.'
+							: undefined
+					}
+					pressed={!template.use_classic_parameter_flow}
 					disabled={!canUpdate || compatibility.isPending}
-					onChange={(pressed) => {
+					onChange={(dynamic) => {
 						compatibility.reset();
-						compatibility.mutate(pressed, {
+						compatibility.mutate(!dynamic, {
 							onSuccess: () =>
 								toast.success(
-									pressed
-										? `${template.display_name} will use parameter compatibility mode.`
-										: `${template.display_name} will use dynamic parameters.`,
+									dynamic
+										? `${template.display_name} will use dynamic parameters.`
+										: `${template.display_name} will use parameter compatibility mode.`,
 								),
 						});
 					}}
