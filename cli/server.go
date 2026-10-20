@@ -78,6 +78,7 @@ import (
 	"github.com/coder/coder/v2/coderd/notifications"
 	"github.com/coder/coder/v2/coderd/notifications/reports"
 	"github.com/coder/coder/v2/coderd/oauthpki"
+	"github.com/coder/coder/v2/coderd/platformha"
 	"github.com/coder/coder/v2/coderd/pproflabel"
 	"github.com/coder/coder/v2/coderd/prometheusmetrics"
 	"github.com/coder/coder/v2/coderd/prometheusmetrics/insights"
@@ -811,6 +812,28 @@ func (r *RootCmd) Server(newAPI func(context.Context, *coderd.Options) (*coderd.
 			}
 
 			options.Database = database.New(sqlDB)
+
+			// Platform HA (the deployment repository's docs/adr/0001-platform-ha.md): the replica registry - this
+			// replica's lease in PostgreSQL, fenced when it cannot renew. Off unless CODER_PLATFORM_HA_MODE is set.
+			haConfig, err := platformha.ConfigFromEnv(os.Getenv, buildinfo.Version())
+			if err != nil {
+				return xerrors.Errorf("platform HA: %w", err)
+			}
+			if haConfig.Enabled() {
+				haRegistry := platformha.NewRegistry(sqlDB, haConfig, logger.Named("platformha"), options.PrometheusRegistry)
+				if err := haRegistry.Start(ctx); err != nil {
+					return xerrors.Errorf("platform HA: %w", err)
+				}
+				defer func() {
+					// Leave the registry before the database pool closes (deferred above).
+					leaveCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					defer cancel()
+					if err := haRegistry.Close(leaveCtx); err != nil {
+						logger.Warn(ctx, "platform HA: leave the replica registry", slog.Error(err))
+					}
+				}()
+			}
+
 			experiments := coderd.ReadExperiments(options.Logger, options.DeploymentValues.Experiments.Value())
 
 			// Build a single shared pubsub metrics instance, registered once
