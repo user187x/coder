@@ -2,9 +2,9 @@ import { cn } from "cn";
 import {
 	BriefcaseIcon,
 	CircleUserIcon,
+	ContainerIcon,
 	EyeIcon,
 	FileTextIcon,
-	ImageIcon,
 	type LucideIcon,
 	MegaphoneIcon,
 	MessagesSquareIcon,
@@ -61,53 +61,59 @@ const motionless = () =>
 	document.documentElement.dataset.animations === "off" ||
 	(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false);
 
-const OVERLAYS =
-	'[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"], [data-radix-popper-content-wrapper], [data-chat-panel] [aria-expanded="true"]';
+// What is open over the page and closes on Escape: it still does (its Escape is not taken from it), under the wheel.
+// Tooltips, static lists and docked chat windows are not it.
+const POPUPS = [
+	"[data-radix-popper-content-wrapper]",
+	'[role="dialog"][data-state="open"]',
+	'[role="listbox"][data-state="open"]',
+	'[role="alertdialog"]',
+	'[aria-modal="true"]',
+	".MuiPopover-root",
+	".MuiModal-root",
+	'[data-testid="announcement-scroll-view"]',
+	'[data-chat-panel] [aria-expanded="true"]',
+].join(", ");
 
 /**
- * Whether an Escape opens the quick access wheel: only when nothing else on the page has a use for it - no dialog,
- * menu, list or popover open (Escape closes those), not typing in a field or a terminal, no modifier keys.
+ * Whether an Escape opens the quick access wheel: always - on every page, from a field too, with a menu or dialog
+ * open (that closes as it would) - but in a terminal, whose programs need Escape (vim, less): there Shift+Escape.
  */
 export const escapeOpensWheel = (
 	event: Pick<
 		KeyboardEvent,
-		| "key"
-		| "repeat"
-		| "defaultPrevented"
-		| "ctrlKey"
-		| "altKey"
-		| "metaKey"
-		| "shiftKey"
+		"key" | "repeat" | "ctrlKey" | "altKey" | "metaKey" | "shiftKey"
 	>,
 	doc: Document = document,
 ): boolean => {
 	if (
 		event.key !== "Escape" ||
 		event.repeat ||
-		event.defaultPrevented ||
 		event.ctrlKey ||
 		event.altKey ||
-		event.metaKey ||
-		event.shiftKey
+		event.metaKey
 	) {
 		return false;
 	}
-	const active = doc.activeElement as HTMLElement | null;
-	if (
-		active &&
-		(active.matches(
-			"input, textarea, select, iframe, [contenteditable=''], [contenteditable='true']",
-		) ||
-			active.isContentEditable ||
-			active.closest(".xterm, [role='textbox']"))
-	) {
-		return false;
-	}
-	// (the wheel itself, fading out, aside)
-	return ![...doc.querySelectorAll(OVERLAYS)].some(
-		(el) => !el.closest("[data-radial-menu]"),
-	);
+	return event.shiftKey || !doc.activeElement?.closest(".xterm");
 };
+
+/** Whether something is open over the page that closes on this Escape too (so the Escape is left to it as well). */
+export const popupOpen = (doc: Document = document): boolean =>
+	[...doc.querySelectorAll(POPUPS)].some(
+		(el) =>
+			// the wheel itself, fading out, and a tooltip do not count
+			!el.closest("[data-radial-menu]") &&
+			!el.querySelector('[role="tooltip"]') &&
+			el.getClientRects().length > 0,
+	);
+
+declare global {
+	interface Window {
+		/** Opens the wheel of the page this one is embedded in (a dashboard page in a frame of the dashboard). */
+		__platformRadialOpen?: () => void;
+	}
+}
 
 type Wedge = {
 	name: string;
@@ -120,11 +126,12 @@ type Wedge = {
 };
 
 /**
- * Platform: the quick access wheel (radial-menu.html). Escape opens it over the page - everything behind it under a
- * see-through Gaussian blur - and each wedge goes straight to its part of the dashboard: Workspaces, Templates,
- * Images, Users, Account, Chat (the console for admins, the Chats panel for the others), Announcement, HUD. Pages a
- * user may not open show dimmed and say why. Escape again, or a click off the wheel, closes it; the arrow keys go
- * round it, Enter opens. Opens only when the Escape is not someone else's (escapeOpensWheel).
+ * Platform: the quick access wheel (radial-menu.html), on every signed-in page (RequireAuth mounts it). Escape
+ * opens it over the page - everything behind it under a see-through Gaussian blur - and each wedge goes straight to
+ * its part of the dashboard: Workspaces, Templates, Images, Users, Account, Chat (the console for admins, the Chats
+ * panel for the others), Announcement, HUD. Pages a user may not open show dimmed and say why. Escape again, or a
+ * click off the wheel, closes it; the arrow keys go round it, Enter opens. A menu or dialog open closes on the same
+ * Escape, under it; a terminal keeps its Escape (Shift+Escape there) - escapeOpensWheel.
  */
 export const RadialMenu: React.FC = () => {
 	const navigate = useNavigate();
@@ -150,7 +157,8 @@ export const RadialMenu: React.FC = () => {
 			allowed: true,
 		},
 		{ name: "Templates", icon: FileTextIcon, to: "/templates", allowed: true },
-		{ name: "Images", icon: ImageIcon, to: "/images", allowed: true },
+		// the Resources menu's icon for it
+		{ name: "Images", icon: ContainerIcon, to: "/images", allowed: true },
 		{
 			name: "Users",
 			icon: UsersIcon,
@@ -167,11 +175,20 @@ export const RadialMenu: React.FC = () => {
 		{
 			name: "Chat",
 			icon: MessagesSquareIcon,
-			...(chat.me?.admin
+			...((chat.me?.admin ?? admin)
 				? { to: CHAT_CONSOLE_PAGE }
-				: { act: () => setDrawerOpen(true) }),
-			allowed: Boolean(chat.me),
-			why: "Chat is not connected",
+				: {
+						act: () => {
+							setDrawerOpen(true);
+							// a page without the Chats panel (the editor, a terminal): to one that has it, open
+							if (
+								!document.querySelector('[role="region"][aria-label="Chats"]')
+							) {
+								navigate("/workspaces");
+							}
+						},
+					}),
+			allowed: true,
 		},
 		{
 			name: "Announcement",
@@ -198,10 +215,16 @@ export const RadialMenu: React.FC = () => {
 	}, []);
 
 	useEffect(() => {
-		if (isEmbeddedFrame()) {
-			return;
+		const embedded = isEmbeddedFrame();
+		const openHere = () => {
+			before.current = document.activeElement as HTMLElement | null;
+			setPhase("open");
+		};
+		if (!embedded) {
+			window.__platformRadialOpen = openHere;
 		}
-		// in the capture phase, ahead of the page's own Escape handlers: they see the page as it is
+		// in the capture phase, ahead of the page's own Escape handlers: they see the page as it is, and an Escape
+		// that opens or closes the wheel goes no further
 		const onKey = (event: KeyboardEvent) => {
 			if (event.key !== "Escape") {
 				return;
@@ -215,20 +238,50 @@ export const RadialMenu: React.FC = () => {
 			if (!escapeOpensWheel(event)) {
 				return;
 			}
+			const show = () => {
+				if (!embedded) {
+					openHere();
+					return;
+				}
+				// a page in a frame of the dashboard: the wheel opens over the whole window, the frame's page included
+				try {
+					window.parent.__platformRadialOpen?.();
+				} catch {
+					// a parent of another origin: no wheel
+				}
+			};
+			// a menu or dialog open: it closes on this Escape as it would (its focus and all), then the wheel opens
+			if (popupOpen()) {
+				window.setTimeout(show, 0);
+				return;
+			}
 			event.preventDefault();
-			before.current = document.activeElement as HTMLElement | null;
-			setPhase("open");
+			event.stopPropagation();
+			show();
 		};
 		window.addEventListener("keydown", onKey, true);
-		return () => window.removeEventListener("keydown", onKey, true);
+		return () => {
+			window.removeEventListener("keydown", onKey, true);
+			if (!embedded && window.__platformRadialOpen === openHere) {
+				window.__platformRadialOpen = undefined;
+			}
+		};
 	}, [close]);
 
-	// the first wedge that opens, focused as the wheel appears
+	// the first wedge that opens, focused as the wheel appears - and again once a menu that closed on the same Escape
+	// has given its trigger the focus back
 	useEffect(() => {
-		if (open) {
-			const first = items.findIndex((i) => i.allowed);
-			wedges.current[first]?.focus();
+		if (!open) {
+			return;
 		}
+		const first = () => wedges.current[items.findIndex((i) => i.allowed)];
+		first()?.focus();
+		const again = window.setTimeout(() => {
+			if (!document.activeElement?.closest("[data-radial-menu]")) {
+				first()?.focus();
+			}
+		}, 80);
+		return () => window.clearTimeout(again);
 	}, [open]);
 
 	const choose = (index: number) => {

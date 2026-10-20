@@ -5,6 +5,7 @@ import { isApiError } from "#/api/errors";
 import { Loader } from "#/components/Loader/Loader";
 import { ProxyProvider as ProductionProxyProvider } from "#/contexts/ProxyContext";
 import { DashboardProvider as ProductionDashboardProvider } from "#/modules/dashboard/DashboardProvider";
+import { RadialMenu } from "#/modules/platform/radialMenu/RadialMenu";
 import { embedRedirect } from "#/utils/redirect";
 import { useAuthContext } from "./AuthProvider";
 
@@ -77,6 +78,8 @@ export const RequireAuth: React.FC<RequireAuthProps> = ({
 		<DashboardProvider>
 			<ProxyProvider>
 				<Outlet />
+				{/* Platform: the quick access wheel (Escape) on every signed-in page, the dashboard's and the full-page ones */}
+				<RadialMenu />
 			</ProxyProvider>
 		</DashboardProvider>
 	);

@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { MockNoPermissions, MockPermissions } from "#/testHelpers/entities";
-import { escapeOpensWheel, RadialMenu } from "./RadialMenu";
+import { escapeOpensWheel, popupOpen, RadialMenu } from "./RadialMenu";
 
 const auth = { permissions: MockPermissions };
 vi.mock("#/hooks/useAuthenticated", () => ({
@@ -12,7 +12,6 @@ const escapeKey = (over: Partial<KeyboardEvent> = {}) =>
 	({
 		key: "Escape",
 		repeat: false,
-		defaultPrevented: false,
 		ctrlKey: false,
 		altKey: false,
 		metaKey: false,
@@ -38,26 +37,68 @@ describe("escapeOpensWheel", () => {
 	afterEach(() => {
 		document.body.innerHTML = "";
 	});
+	// jsdom lays nothing out: an element counts as shown when it has boxes
+	const shown = (html: string) => {
+		document.body.innerHTML = html;
+		for (const el of document.body.querySelectorAll("*")) {
+			(el as HTMLElement).getClientRects = () => [{}] as unknown as DOMRectList;
+		}
+	};
 
-	it("opens on a plain Escape with nothing else open", () => {
+	it("opens on Escape always: a field focused, a menu or dialog open", () => {
 		expect(escapeOpensWheel(escapeKey())).toBe(true);
-		expect(escapeOpensWheel(escapeKey({ shiftKey: true }))).toBe(false);
+		expect(escapeOpensWheel(escapeKey({ shiftKey: true }))).toBe(true);
 		expect(escapeOpensWheel(escapeKey({ repeat: true }))).toBe(false);
+		expect(escapeOpensWheel(escapeKey({ ctrlKey: true }))).toBe(false);
 		expect(escapeOpensWheel(escapeKey({ key: "Enter" }))).toBe(false);
+		shown(
+			'<input /><div role="dialog" data-state="open"></div><div data-radix-popper-content-wrapper><div role="menu"></div></div>',
+		);
+		document.querySelector("input")?.focus();
+		expect(escapeOpensWheel(escapeKey())).toBe(true);
 	});
 
-	it("leaves the Escape to a dialog, a menu or a field", () => {
-		document.body.innerHTML = '<div role="menu"></div>';
+	it("leaves a terminal its Escape (vim, less); Shift+Escape opens it there", () => {
+		shown('<div class="xterm"><textarea></textarea></div>');
+		document.querySelector("textarea")?.focus();
 		expect(escapeOpensWheel(escapeKey())).toBe(false);
-		document.body.innerHTML = '<div role="dialog"></div>';
-		expect(escapeOpensWheel(escapeKey())).toBe(false);
-		document.body.innerHTML = "<input />";
-		document.querySelector("input")?.focus();
-		expect(escapeOpensWheel(escapeKey())).toBe(false);
-		// the wheel itself, fading out, does not count
-		document.body.innerHTML =
-			'<div role="dialog" data-radial-menu><div role="menu"></div></div>';
-		expect(escapeOpensWheel(escapeKey())).toBe(true);
+		expect(escapeOpensWheel(escapeKey({ shiftKey: true }))).toBe(true);
+	});
+});
+
+describe("popupOpen", () => {
+	afterEach(() => {
+		document.body.innerHTML = "";
+	});
+	const shown = (html: string) => {
+		document.body.innerHTML = html;
+		for (const el of document.body.querySelectorAll("*")) {
+			(el as HTMLElement).getClientRects = () => [{}] as unknown as DOMRectList;
+		}
+	};
+
+	it("sees a menu, dialog or popover open over the page (they close on the same Escape)", () => {
+		for (const html of [
+			'<div data-radix-popper-content-wrapper><div role="menu"></div></div>',
+			'<div role="dialog" data-state="open"></div>',
+			'<div role="alertdialog"></div>',
+		]) {
+			shown(html);
+			expect(popupOpen()).toBe(true);
+		}
+	});
+
+	it("does not count what is simply on the page, a tooltip, or the wheel", () => {
+		shown(
+			'<div role="listbox"></div><div role="menu"></div><div role="dialog" aria-label="Chat with greg"></div><input role="combobox" aria-expanded="true" cmdk-input />',
+		);
+		expect(popupOpen()).toBe(false);
+		shown(
+			'<div data-radix-popper-content-wrapper><div role="tooltip">Hi</div></div>',
+		);
+		expect(popupOpen()).toBe(false);
+		shown('<div role="dialog" aria-modal="true" data-radial-menu></div>');
+		expect(popupOpen()).toBe(false);
 	});
 });
 
