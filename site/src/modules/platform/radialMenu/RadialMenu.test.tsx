@@ -1,5 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "react-query";
 import { MemoryRouter, Route, Routes } from "react-router";
+import { PlatformAPI } from "#/api/platform";
 import { MockNoPermissions, MockPermissions } from "#/testHelpers/entities";
 import { escapeOpensWheel, popupOpen, RadialMenu } from "./RadialMenu";
 
@@ -21,14 +23,16 @@ const escapeKey = (over: Partial<KeyboardEvent> = {}) =>
 
 const renderWheel = () =>
 	render(
-		<MemoryRouter initialEntries={["/workspaces"]}>
-			<Routes>
-				<Route path="/workspaces" element={<div>Workspaces page</div>} />
-				<Route path="/templates" element={<div>Templates page</div>} />
-				<Route path="/hud" element={<div>HUD page</div>} />
-			</Routes>
-			<RadialMenu />
-		</MemoryRouter>,
+		<QueryClientProvider client={new QueryClient()}>
+			<MemoryRouter initialEntries={["/workspaces"]}>
+				<Routes>
+					<Route path="/workspaces" element={<div>Workspaces page</div>} />
+					<Route path="/templates" element={<div>Templates page</div>} />
+					<Route path="/hud" element={<div>HUD page</div>} />
+				</Routes>
+				<RadialMenu />
+			</MemoryRouter>
+		</QueryClientProvider>,
 	);
 
 const press = () => fireEvent.keyDown(window, { key: "Escape" });
@@ -110,6 +114,11 @@ describe("RadialMenu", () => {
 	beforeEach(() => {
 		document.documentElement.dataset.animations = "off";
 		auth.permissions = MockPermissions;
+		// no wedges arranged: the default wheel
+		vi.spyOn(PlatformAPI, "getQuickMenu").mockResolvedValue({
+			items: null,
+			wedges: [3, 12],
+		});
 	});
 	afterEach(() => {
 		delete document.documentElement.dataset.animations;
@@ -151,6 +160,25 @@ describe("RadialMenu", () => {
 		fireEvent.click(hud);
 		expect(screen.getByText("Workspaces page")).toBeInTheDocument();
 		expect(screen.getByTestId("radial-menu")).toBeInTheDocument();
+	});
+
+	it("has the wedges admins arranged (Admin Settings > Quick Menu)", async () => {
+		vi.spyOn(PlatformAPI, "getQuickMenu").mockResolvedValue({
+			items: ["security", "images", "health"],
+			wedges: [3, 12],
+		});
+		renderWheel();
+		await waitFor(() => expect(PlatformAPI.getQuickMenu).toHaveBeenCalled());
+		await new Promise((r) => setTimeout(r, 0));
+		press();
+		await screen.findByTestId("radial-menu");
+		await waitFor(() =>
+			expect(
+				screen
+					.getAllByRole("menuitem")
+					.map((m) => m.getAttribute("data-testid")),
+			).toEqual(["radial-security", "radial-images", "radial-health"]),
+		);
 	});
 
 	it("closes on a click off the wheel", async () => {

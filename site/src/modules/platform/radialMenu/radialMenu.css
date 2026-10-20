@@ -155,3 +155,9 @@ html[data-animations="off"] .radial-text {
 		transition: none;
 	}
 }
+
+/* Admin Settings > Quick Menu: the wheel as its preview, the size of its card. */
+.radial-wheel.quick-menu-preview-wheel {
+	width: 100%;
+	animation: none;
+}

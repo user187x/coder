@@ -49,6 +49,7 @@ describe("adminPagesFor", () => {
 			"Network",
 			"Notifications",
 			"OAuth2 Applications",
+			"Quick Menu",
 			"Observability",
 			"Persistence",
 			"Security",

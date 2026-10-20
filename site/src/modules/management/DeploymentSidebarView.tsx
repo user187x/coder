@@ -104,6 +104,9 @@ export const DeploymentSidebarView: React.FC<DeploymentSidebarViewProps> = ({
 				"/deployment/oauth2-provider/apps",
 				"OAuth2 Applications",
 			),
+		// Platform: the quick access wheel's wedges (Escape, on every page)
+		permissions.editDeploymentConfig &&
+			item("quick-menu", "/deployment/quick-menu", "Quick Menu"),
 		permissions.viewDeploymentConfig &&
 			item("observability", "/deployment/observability", "Observability"),
 		permissions.viewDeploymentConfig &&

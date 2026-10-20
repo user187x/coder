@@ -170,6 +170,12 @@ const PersistenceSettingsPage = lazy(
 			"./pages/DeploymentSettingsPage/PersistenceSettingsPage/PersistenceSettingsPage"
 		),
 );
+const QuickMenuSettingsPage = lazy(
+	() =>
+		import(
+			"./pages/DeploymentSettingsPage/QuickMenuSettingsPage/QuickMenuSettingsPage"
+		),
+);
 const CustomizeSettingsPage = lazy(
 	() =>
 		import(
@@ -554,6 +560,8 @@ export const router = createBrowserRouter(
 						/>
 						<Route path="keycloak" element={<KeycloakSettingsPage />} />
 						<Route path="customize" element={<CustomizeSettingsPage />} />
+						{/* Platform: the quick access wheel's wedges */}
+						<Route path="quick-menu" element={<QuickMenuSettingsPage />} />
 						<Route path="monitoring" element={<MonitoringSettingsPage />} />
 						<Route path="persistence" element={<PersistenceSettingsPage />} />
 						<Route path="workspace-proxies" element={<WorkspaceProxyPage />} />

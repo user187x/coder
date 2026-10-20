@@ -5,6 +5,7 @@ import {
 	DatabaseIcon,
 	HeartPulseIcon,
 	KeyRoundIcon,
+	LifeBuoyIcon,
 	LockIcon,
 	type LucideIcon,
 	MegaphoneIcon,
@@ -120,6 +121,13 @@ const ADMIN_PAGES: readonly (AdminPage & {
 			permissions.viewDeploymentConfig && oauth2Provider,
 	},
 	{
+		id: "quick-menu",
+		label: "Quick Menu",
+		icon: LifeBuoyIcon,
+		path: "/deployment/quick-menu",
+		allowed: ({ permissions }) => permissions.editDeploymentConfig,
+	},
+	{
 		id: "observability",
 		label: "Observability",
 		icon: TelescopeIcon,
@@ -141,6 +149,16 @@ const ADMIN_PAGES: readonly (AdminPage & {
 		allowed: ({ permissions }) => permissions.viewDeploymentConfig,
 	},
 ];
+
+/**
+ * Platform: every category of General with who may open it - the choices the quick access wheel's admin wedges are
+ * made of (Admin Settings > Quick Menu), each dimmed on the wheel for those who may not.
+ */
+export const adminPageChoices = (): readonly (AdminPage & {
+	allowed: (access: AdminPageAccess) => boolean;
+})[] => ADMIN_PAGES;
+
+export type { AdminPageAccess };
 
 /** The admin pages this user can open, in the order the add menu lists them. */
 export const adminPagesFor = (access: AdminPageAccess): AdminPage[] =>

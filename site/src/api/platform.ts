@@ -141,6 +141,15 @@ export const platformRequest = { get, post, upload, base: PLATFORM_BASE };
 /** The sign-in page (where signing out lands too): its title's text and effect, and a message for each. */
 export const LOGIN_EFFECTS = ["wireframe", "neon", "plain"] as const;
 export type LoginEffect = (typeof LOGIN_EFFECTS)[number];
+/** The quick access wheel's wedges (Admin Settings > Quick Menu): choices' IDs in order; null: the default wheel. */
+export type QuickMenuSettings = {
+	items: string[] | null;
+	updatedBy?: string | null;
+	updatedAt?: string | null;
+	/** The fewest and the most wedges the wheel takes. */
+	wedges: [number, number];
+};
+
 export type LoginPageSettings = {
 	/** "": the deployment's name (Coder, or the one set in Appearance). */
 	title: string;
@@ -2058,6 +2067,11 @@ export const PlatformAPI = {
 		}),
 
 	getLoginPage: () => get<LoginPageSettings>(`${PLATFORM_BASE}/api/login-page`),
+	getQuickMenu: () => get<QuickMenuSettings>(`${PLATFORM_BASE}/api/quick-menu`),
+	saveQuickMenu: (items: string[]) =>
+		post<QuickMenuSettings>(`${PLATFORM_BASE}/api/quick-menu`, { items }),
+	resetQuickMenu: () =>
+		post<QuickMenuSettings>(`${PLATFORM_BASE}/api/quick-menu/reset`, {}),
 	updateLoginPage: (settings: LoginPageSettings) =>
 		post<LoginPageSettings>(`${PLATFORM_BASE}/api/login-page`, {
 			title: settings.title.trim(),
