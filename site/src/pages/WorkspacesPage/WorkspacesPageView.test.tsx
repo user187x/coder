@@ -174,4 +174,24 @@ describe("WorkspacesPageView", () => {
 		const other = screen.getByTestId(`workspace-${MockStoppedWorkspace.id}`);
 		expect(other).not.toHaveAttribute("data-starting");
 	});
+
+	it("puts the search in the bar above the table, and says what the table shows in its footer", async () => {
+		renderWithAuth(
+			<WorkspacesPageView
+				{...defaultProps}
+				workspaces={[MockStoppedWorkspace]}
+				count={1}
+			/>,
+		);
+		const bar = await screen.findByTestId("workspaces-bar");
+		expect(within(bar).getByRole("combobox")).toBeInTheDocument();
+		expect(await screen.findByTestId("workspaces-summary")).toHaveTextContent(
+			"Showing 1 of 1 workspace · 0 running",
+		);
+		// the bar comes before the table
+		expect(
+			bar.compareDocumentPosition(screen.getByTestId("workspaces-card")) &
+				Node.DOCUMENT_POSITION_FOLLOWING,
+		).toBeTruthy();
+	});
 });

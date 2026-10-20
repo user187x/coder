@@ -28,7 +28,6 @@ import {
 } from "#/components/PageHeader/PageHeader";
 import { PaginationWidgetBase } from "#/components/PaginationWidget/PaginationWidgetBase";
 import { Spinner } from "#/components/Spinner/Spinner";
-import { TableToolbar } from "#/components/TableToolbar/TableToolbar";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { CloudDrive } from "#/modules/platform/cloudDrive/CloudDrive";
 import {
@@ -152,17 +151,24 @@ export const WorkspacesPageView: React.FC<WorkspacesPageViewProps> = ({
 				</PageHeaderTitle>
 			</PageHeader>
 
-			<div className="mb-4 flex flex-col gap-4">
-				{hasError(error) && !isApiValidationError(error) && (
+			{hasError(error) && !isApiValidationError(error) && (
+				<div className="mb-4">
 					<ErrorAlert error={error} />
-				)}
-				<WorkspacesFilter filter={filter} error={error} />
-			</div>
+				</div>
+			)}
 
-			<TableToolbar>
+			{/* Platform: the search and the Cloud Drive (and, with rows selected, their bulk actions) in one rounded
+			    bar right above the table, padded as far as the Chats card floats above the page's bottom bar */}
+			<div
+				className="mb-2.5 flex flex-wrap items-center gap-3 rounded-[18px] border border-solid border-border bg-surface-primary p-2.5 text-sm text-content-secondary shadow-[0_1px_2px_rgb(0_0_0/0.04)]"
+				data-testid="workspaces-bar"
+			>
+				<div className="min-w-0 flex-1">
+					<WorkspacesFilter filter={filter} error={error} />
+				</div>
 				{checkedWorkspaces.length > 0 ? (
 					<>
-						<div>
+						<div className="whitespace-nowrap">
 							Selected <strong>{checkedWorkspaces.length}</strong> of{" "}
 							<strong>{workspaces?.length}</strong>{" "}
 							{workspaces?.length === 1 ? "workspace" : "workspaces"}
@@ -174,7 +180,6 @@ export const WorkspacesPageView: React.FC<WorkspacesPageViewProps> = ({
 									disabled={isRunningBatchAction}
 									variant="outline"
 									size="sm"
-									className="ml-auto"
 								>
 									Bulk actions
 									<Spinner loading={isRunningBatchAction}>
@@ -224,11 +229,8 @@ export const WorkspacesPageView: React.FC<WorkspacesPageViewProps> = ({
 					</>
 				) : null}
 				{/* Platform: the account's Cloud Drive, once, above the rows' apps. */}
-				<CloudDrive
-					workspaceIds={mine}
-					className={checkedWorkspaces.length > 0 ? "ml-2" : "ml-auto"}
-				/>
-			</TableToolbar>
+				<CloudDrive workspaceIds={mine} className="ml-auto" />
+			</div>
 
 			{pageNumberIsInvalid ? (
 				<EmptyState
