@@ -125,7 +125,9 @@ func TestLeadershipHandoverWithoutAGap(t *testing.T) {
 	testutil.Eventually(ctx, t, func(context.Context) bool { return turned(t, next, testutil.IntervalFast) },
 		testutil.IntervalFast, "the successor gets its turn during the handover")
 	require.Equal(t, platformha.RoleActive, leader.Role(), "the leader still serves while its successor starts")
+	require.Equal(t, platformha.RoleStandby, next.Role(), "no traffic for the successor before Coder serves there")
 	next.MarkServing()
+	require.Equal(t, platformha.RoleActive, next.Role(), "the successor takes traffic as soon as Coder serves there")
 
 	select {
 	case err := <-done:

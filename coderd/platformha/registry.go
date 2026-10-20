@@ -86,6 +86,7 @@ type Registry struct {
 	onFence   []func(fenced bool)
 	lead      leadership  // activeStandby only
 	kube      *kubeClient // the pod's Kubernetes API (activeStandby), or nil
+	kick      chan struct{}
 
 	cancel context.CancelFunc
 	done   chan struct{}
@@ -135,6 +136,7 @@ func NewRegistry(db DB, cfg Config, logger slog.Logger, reg prometheus.Registere
 		self:    Replica{ID: uuid.New(), Pod: cfg.PodName, PodIP: cfg.PodIP, Cell: cfg.Cell, Version: cfg.Version},
 		state:   StateReady,
 		lead:    newLeadership(),
+		kick:    make(chan struct{}, 1),
 		metrics: newMetrics(reg),
 	}
 }
@@ -450,6 +452,25 @@ func (r *Registry) loop(ctx context.Context) {
 	// The fence timer: armed for the lease's safe deadline after every renewal.
 	fenceTimer := time.NewTimer(r.untilSafe())
 	defer fenceTimer.Stop()
+	roundNow := func(n int) {
+		r.round(ctx, n)
+		if !fenceTimer.Stop() {
+			select {
+			case <-fenceTimer.C:
+			default:
+			}
+		}
+		fenceTimer.Reset(r.nextDeadline())
+	}
+	// activeStandby: a standby looks at the active lease between rounds and
+	// runs one at once when it changed (a handover marked, the lease let go or
+	// lapsed), so a handover or a takeover does not wait for the next round.
+	var watch <-chan time.Time
+	if r.cfg.Leadership() {
+		w := time.NewTicker(leaseWatchInterval)
+		defer w.Stop()
+		watch = w.C
+	}
 	for n := 1; ; n++ {
 		select {
 		case <-ctx.Done():
@@ -465,15 +486,22 @@ func (r *Registry) loop(ctx context.Context) {
 			}
 			fenceTimer.Reset(r.nextDeadline())
 		case <-ticker.C:
-			r.round(ctx, n)
-			if !fenceTimer.Stop() {
-				select {
-				case <-fenceTimer.C:
-				default:
-				}
+			roundNow(n)
+		case <-r.kick:
+			roundNow(n)
+		case <-watch:
+			if r.leaseChanged(ctx) {
+				roundNow(n)
 			}
-			fenceTimer.Reset(r.nextDeadline())
 		}
+	}
+}
+
+// kickRound asks the loop for a round now (it does not wait for it).
+func (r *Registry) kickRound() {
+	select {
+	case r.kick <- struct{}{}:
+	default:
 	}
 }
 

@@ -11,6 +11,10 @@ import (
 	"cdr.dev/slog/v3"
 )
 
+// leaseWatchInterval is how often a standby looks at the active lease between
+// rounds (one small read).
+const leaseWatchInterval = 250 * time.Millisecond
+
 // Roles a replica plays in activeStandby.
 const (
 	RoleActive  = "active"
@@ -47,6 +51,7 @@ type leadership struct {
 	lostSent   bool
 	role       string
 	onRole     []func(role string)
+	seen       string // the active lease as leaseChanged last read it
 }
 
 func newLeadership() leadership {
@@ -78,6 +83,8 @@ func (r *Registry) MarkServing() {
 	r.lead.serving = true
 	r.mu.Unlock()
 	r.updateRole(context.Background())
+	// a successor tells its leader now, not at the next round
+	r.kickRound()
 }
 
 // LostActive is closed when this replica, serving as the active one, loses the
@@ -89,7 +96,9 @@ func (r *Registry) LostActive() <-chan struct{} {
 	return r.lead.lost
 }
 
-// Role is "active" while this replica holds the lease and serves, else "standby".
+// Role is "active" while Coder serves here and this replica holds the lease or
+// is a handover's successor (it takes traffic before the leader lets go: the
+// leader's pod, terminating, has none), else "standby".
 func (r *Registry) Role() string {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -117,12 +126,11 @@ func (r *Registry) openTurn(ctx context.Context, why string) {
 	r.logger.Info(ctx, "this replica's turn to start Coder", slog.F("why", why))
 }
 
-// updateRole derives the role (active: holding and serving) and tells the
-// callbacks when it changed.
+// updateRole derives the role (Role) and tells the callbacks when it changed.
 func (r *Registry) updateRole(ctx context.Context) {
 	r.mu.Lock()
 	role := RoleStandby
-	if r.lead.holding && r.lead.serving && !r.fenced {
+	if (r.lead.holding || r.lead.successor) && r.lead.serving && !r.fenced {
 		role = RoleActive
 	}
 	if role == r.lead.role {
@@ -153,6 +161,36 @@ func (r *Registry) loseTurn(ctx context.Context, why string) {
 	if !sent {
 		r.logger.Warn(ctx, "lost its place as the successor: Coder stops here", slog.F("why", why))
 	}
+	r.updateRole(ctx)
+}
+
+// leaseChanged reads the active lease (a standby, between rounds) and reports
+// whether it changed since the last read: a handover marked or claimed, the
+// lease let go, or its end passed.
+func (r *Registry) leaseChanged(ctx context.Context) bool {
+	r.mu.Lock()
+	skip := r.lead.holding || r.lead.handedOver || r.fenced
+	r.mu.Unlock()
+	if skip {
+		return false
+	}
+	qctx, cancel := context.WithTimeout(ctx, leaseWatchInterval*4)
+	defer cancel()
+	rows, err := r.db.QueryContext(qctx, `SELECT (holder, holder_epoch, handover, successor, successor_ready,
+		expires < now())::text FROM platform_ha.leases WHERE name = $1`, ActiveLease)
+	if err != nil {
+		return false
+	}
+	defer rows.Close()
+	now := ""
+	if rows.Next() {
+		_ = rows.Scan(&now)
+	}
+	r.mu.Lock()
+	changed := now != r.lead.seen
+	r.lead.seen = now
+	r.mu.Unlock()
+	return changed
 }
 
 // stepDown: this replica no longer holds the active lease. Unless it handed it
@@ -333,7 +371,9 @@ func (r *Registry) Handover(ctx context.Context) error {
 	if !holding {
 		r.mu.Lock()
 		r.lead.handedOver = true
+		r.lead.successor, r.lead.ready = false, false
 		r.mu.Unlock()
+		r.updateRole(ctx)
 		if successor {
 			if _, err := r.db.ExecContext(ctx, `UPDATE platform_ha.leases SET successor = NULL, successor_ready = false
 				WHERE name = $1 AND successor = $2`, ActiveLease, self.ID); err != nil {

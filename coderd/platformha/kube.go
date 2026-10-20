@@ -102,9 +102,22 @@ func (k *kubeClient) podPath(pod string) string {
 	return fmt.Sprintf("/api/v1/namespaces/%s/pods/%s", url.PathEscape(k.namespace), url.PathEscape(pod))
 }
 
-// labelPod sets one label on a pod (a merge patch: the others stay).
-func (k *kubeClient) labelPod(ctx context.Context, pod, key, value string) error {
-	patch, _ := json.Marshal(map[string]any{"metadata": map[string]any{"labels": map[string]string{key: value}}})
+// deletionCostAnnotation ranks a ReplicaSet's pods for removal: lower goes
+// first. The active pod gets a higher cost, so a rolling update or a scale-down
+// removes the standbys before it (one handover, not one per old standby).
+const deletionCostAnnotation = "controller.kubernetes.io/pod-deletion-cost"
+
+// labelPod sets the pod's role label and its deletion cost (a merge patch: the
+// other labels and annotations stay).
+func (k *kubeClient) labelPod(ctx context.Context, pod, role string) error {
+	cost := "0"
+	if role == RoleActive {
+		cost = "100"
+	}
+	patch, _ := json.Marshal(map[string]any{"metadata": map[string]any{
+		"labels":      map[string]string{RoleLabel: role},
+		"annotations": map[string]string{deletionCostAnnotation: cost},
+	}})
 	return k.do(ctx, http.MethodPatch, k.podPath(pod), "application/merge-patch+json", patch, nil)
 }
 
@@ -150,7 +163,7 @@ func (l *podLabeler) run(ctx context.Context) {
 		want := l.want
 		l.mu.Unlock()
 		if want != applied {
-			if err := l.kube.labelPod(ctx, l.pod, RoleLabel, want); err != nil {
+			if err := l.kube.labelPod(ctx, l.pod, want); err != nil {
 				l.logger.Warn(ctx, "label the pod with its role", slog.F("role", want), slog.Error(err))
 				select {
 				case <-ctx.Done():
