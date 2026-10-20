@@ -8,10 +8,11 @@ import {
 } from "#/contexts/platformBoot";
 import { PlatformBackground } from "./background/PlatformBackground";
 import { ChatDock } from "./chat/ChatDock";
+import { RadialMenu } from "./radialMenu/RadialMenu";
 
 /**
  * What the platform adds to every signed-in dashboard page: the chat, the
- * background image, the list of users who get the default avatar, and
+ * quick access wheel (Escape), the background image, the list of users who get the default avatar, and
  * navigation for dashboard pages embedded in this one (they navigate this
  * page, not their frame).
  */
@@ -42,6 +43,7 @@ export const DashboardAddons: React.FC = () => {
 		<>
 			<PlatformBackground slot="dashboard" />
 			<ChatDock />
+			<RadialMenu />
 		</>
 	);
 };

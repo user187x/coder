@@ -1,0 +1,157 @@
+/* The quick access wheel (RadialMenu, from radial-menu.html): over everything, the page behind it under a
+   see-through Gaussian blur; dark wedges, emerald where pointed at, white once chosen. Its own colours whatever the
+   theme (it floats over the blur). Still without animations (the user menu's switch, or reduced motion). */
+.radial-overlay {
+	position: fixed;
+	inset: 0;
+	z-index: 1000;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: rgb(8 10 14 / 0.42);
+	-webkit-backdrop-filter: blur(12px) saturate(1.1);
+	backdrop-filter: blur(12px) saturate(1.1);
+	color: #fff;
+	animation: radial-fade-in 260ms ease both;
+}
+.radial-overlay-closing {
+	animation: radial-fade-out 200ms ease both;
+}
+@keyframes radial-fade-in {
+	from {
+		opacity: 0;
+	}
+}
+@keyframes radial-fade-out {
+	to {
+		opacity: 0;
+	}
+}
+.radial-wheel {
+	position: relative;
+	width: min(600px, 92vw, 78vh);
+	aspect-ratio: 1;
+	animation: radial-pop 320ms cubic-bezier(0.2, 0.9, 0.3, 1.15) both;
+}
+@keyframes radial-pop {
+	from {
+		opacity: 0;
+		transform: scale(0.86);
+	}
+}
+.radial-wheel > svg {
+	display: block;
+	width: 100%;
+	height: 100%;
+	overflow: visible;
+}
+.radial-wedge {
+	fill: rgb(31 41 55 / 0.85);
+	stroke: rgb(255 255 255 / 0.1);
+	stroke-width: 2;
+	cursor: pointer;
+	outline: none;
+	transition:
+		fill 200ms cubic-bezier(0.4, 0, 0.2, 1),
+		stroke 200ms cubic-bezier(0.4, 0, 0.2, 1),
+		filter 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.radial-item-lit .radial-wedge {
+	fill: rgb(16 185 129 / 0.9);
+	stroke: rgb(16 185 129);
+	filter: drop-shadow(0 0 10px rgb(16 185 129 / 0.5));
+}
+.radial-item-chosen .radial-wedge {
+	fill: #fff;
+}
+.radial-icon {
+	color: rgb(156 163 175);
+	pointer-events: none;
+	transition: color 200ms;
+}
+.radial-item-lit .radial-icon {
+	color: #fff;
+	filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.4));
+}
+.radial-item-chosen .radial-icon {
+	color: rgb(16 185 129);
+}
+.radial-text {
+	fill: rgb(255 255 255 / 0.5);
+	font-size: 13px;
+	font-weight: 600;
+	letter-spacing: 2px;
+	text-transform: uppercase;
+	pointer-events: none;
+	transition: fill 200ms;
+}
+.radial-item-lit .radial-text {
+	fill: #fff;
+}
+.radial-item-chosen .radial-text {
+	fill: rgb(17 24 39);
+}
+.radial-item-off .radial-wedge {
+	fill: rgb(31 41 55 / 0.5);
+	cursor: not-allowed;
+}
+.radial-item-off.radial-item-lit .radial-wedge {
+	fill: rgb(55 65 81 / 0.7);
+	stroke: rgb(255 255 255 / 0.15);
+	filter: none;
+}
+.radial-item-off .radial-icon,
+.radial-item-off .radial-text {
+	opacity: 0.35;
+}
+.radial-center {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	width: 140px;
+	transform: translate(-50%, -50%);
+	text-align: center;
+	pointer-events: none;
+}
+.radial-center-name {
+	font-size: 24px;
+	font-weight: 800;
+	line-height: 1.2;
+}
+.radial-center-note {
+	margin-top: 4px;
+	font-size: 12px;
+	color: rgb(255 255 255 / 0.6);
+}
+.radial-hint {
+	position: absolute;
+	right: 0;
+	bottom: 40px;
+	left: 0;
+	margin: 0;
+	text-align: center;
+	font-size: 14px;
+	letter-spacing: 0.05em;
+	color: rgb(156 163 175);
+	pointer-events: none;
+}
+html[data-animations="off"] .radial-overlay,
+html[data-animations="off"] .radial-wheel {
+	animation: none;
+}
+html[data-animations="off"] .radial-wedge,
+html[data-animations="off"] .radial-icon,
+html[data-animations="off"] .radial-text {
+	transition: none;
+}
+@media (prefers-reduced-motion: reduce) {
+	.radial-overlay,
+	.radial-wheel {
+		animation: none;
+	}
+	.radial-wedge,
+	.radial-icon,
+	.radial-text {
+		transition: none;
+	}
+}
