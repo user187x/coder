@@ -258,6 +258,10 @@ func (r *Registry) leadRound(ctx context.Context) {
 	// Standby: take the lease when it lapsed (or was never held); the take resets
 	// any handover marks. A lease let go in a handover is its successor's for one
 	// more lease (it serves already), anyone's after that (the successor died).
+	// Otherwise the longest-running ready standby (the lowest epoch among the live
+	// ready replicas, the lapsed holder aside) takes it first, so a crashed
+	// leader's container, restarted in place, does not win it straight back (a
+	// crash-looping pod would keep retaking it); anyone may after one more lease.
 	began := r.now()
 	rows, err := r.db.QueryContext(ctx, `
 		INSERT INTO platform_ha.leases (name, holder, holder_epoch, expires, acquired_at)
@@ -268,7 +272,11 @@ func (r *Registry) leadRound(ctx context.Context) {
 		WHERE platform_ha.leases.expires < now() AND (NOT platform_ha.leases.handover
 			OR platform_ha.leases.successor IS NULL OR platform_ha.leases.successor = EXCLUDED.holder
 			OR platform_ha.leases.expires < now() - make_interval(secs => $4))
-		RETURNING holder`, ActiveLease, self.ID, self.Epoch, ttl)
+		AND ((platform_ha.leases.handover AND platform_ha.leases.successor = EXCLUDED.holder)
+			OR platform_ha.leases.expires < now() - make_interval(secs => $4)
+			OR NOT EXISTS (SELECT 1 FROM platform_ha.replicas o WHERE o.lease_expires > now() AND o.state = $5
+				AND o.epoch < EXCLUDED.holder_epoch AND o.id IS DISTINCT FROM platform_ha.leases.holder))
+		RETURNING holder`, ActiveLease, self.ID, self.Epoch, ttl, StateReady)
 	if err != nil {
 		r.logger.Debug(ctx, "take the active lease", slog.Error(err))
 		return
@@ -364,6 +372,7 @@ func (r *Registry) Handover(ctx context.Context) error {
 	r.mu.Lock()
 	self, holding, successor, ready := r.self, r.lead.holding, r.lead.successor, r.lead.ready
 	r.mu.Unlock()
+	r.markDraining(ctx)
 	if !holding && successor && ready {
 		// Its Coder serves and the leader lets go: it takes the lease at its next round.
 		holding = r.waitHolding(ctx, 2*r.cfg.RenewInterval)
@@ -432,6 +441,20 @@ wait:
 	}
 	r.stepDown(ctx, "handed over")
 	return nil
+}
+
+// markDraining reports this replica as leaving (StateDraining), at once and at
+// every renewal from now on: it no longer counts as the senior standby a lapsed
+// lease waits for.
+func (r *Registry) markDraining(ctx context.Context) {
+	r.SetState(StateDraining)
+	r.mu.Lock()
+	self := r.self
+	r.mu.Unlock()
+	if _, err := r.db.ExecContext(ctx, `UPDATE platform_ha.replicas SET state = $3 WHERE id = $1 AND epoch = $2`,
+		self.ID, self.Epoch, StateDraining); err != nil {
+		r.logger.Debug(ctx, "report draining", slog.Error(err))
+	}
 }
 
 // waitHolding waits up to d for this replica to hold the active lease.

@@ -131,33 +131,6 @@ platform:
     limits:
       memory: 256Mi
 
-# The announcement banner service (/__banner/): what the dashboard's banner shows and the admin page saves.
-banner:
-  enabled: true
-  image: docker.io/library/python:3.13-alpine
-  adminRoles: [owner]
-  live:
-    enabled: true                 # open tabs get changes at once over a WebSocket (/__banner/live)
-    maxConnections: 5000
-    heartbeatSeconds: 20
-  # Shown until an admin publishes a banner.
-  defaults:
-    enabled: false
-    level: info                   # info | success | warning | critical
-    title: ""
-    message: ""
-    linkText: ""
-    linkUrl: ""
-    dismissible: true
-    showOnLoginPage: true
-    refreshSeconds: 60
-  resources:
-    requests:
-      cpu: 10m
-      memory: 32Mi
-    limits:
-      memory: 128Mi
-
 # A Kubernetes Ingress to Coder: for accessURL's host (and wildcardAccessURL), or any host when accessURL is empty.
 # Any controller that supports WebSockets works. Argo CD reports an Ingress as healthy once the controller publishes
 # its address.

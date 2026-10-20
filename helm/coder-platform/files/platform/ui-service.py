@@ -55,7 +55,7 @@
   POST /__coder-ui/api/keycloak/apply     {"fixes": [...], "settings": {...}}  apply approved fixes
   POST /__coder-ui/api/keycloak/undo      put Coder's previous Argo CD values back
 
-An announcement "event" is one announcement as coder-banner identifies it: its id changes when the text changes or an
+An announcement "event" is one announcement as the banner (Coder's /__banner) identifies it: its id changes when the text changes or an
 admin uses "Show again to everyone". Only the live announcement (or one already recorded) is accepted.
 
 Users are identified by their Coder session (the coder_session_token cookie the browser already sends), checked against
@@ -91,7 +91,7 @@ CODER_URL = os.environ.get("CODER_URL", "http://coder").rstrip("/")            #
 CODER_ACCESS_URL = os.environ.get("CODER_ACCESS_URL", "").rstrip("/")           # what browsers use
 CODER_NAMESPACE = os.environ.get("CODER_NAMESPACE", "coder")
 CODER_DEPLOYMENT = os.environ.get("CODER_DEPLOYMENT", "coder")
-BANNER_URL = os.environ.get("BANNER_URL", "http://coder-banner").rstrip("/")
+BANNER_URL = os.environ.get("BANNER_URL", "http://coder").rstrip("/")
 ADMIN_ROLES = {r.strip() for r in os.environ.get("ADMIN_ROLES", "owner").split(",") if r.strip()}
 CA_FILE = os.environ.get("CA_FILE", "")                                          # extra trusted CA (local PKI)
 KEYCLOAK_NAMESPACE = os.environ.get("KEYCLOAK_NAMESPACE", "keycloak")

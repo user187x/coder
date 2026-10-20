@@ -1,6 +1,6 @@
 {{- /*
 Optional ways in besides the Service (port-forward, LoadBalancer, NodePort). Everything goes to Coder, which forwards
-/__coder-ui and /__banner to the platform services itself. Without accessURL the rules match any host.
+/__coder-ui to the platform service itself (and serves /__banner). Without accessURL the rules match any host.
 */ -}}
 {{- $ns := .Release.Namespace }}
 {{- $host := include "cp.host" . }}

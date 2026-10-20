@@ -162,8 +162,15 @@ export default defineConfig({
 						target: process.env.CODER_HOST || "http://localhost:3000",
 						secure: process.env.NODE_ENV === "production",
 					},
-					// The platform services that run next to Coder in a deployment
-					// (dashboard add-ons and the announcement banner). Set
+					// The announcement banner is Coder's own (coderd/platformbanner),
+					// its live channel a WebSocket.
+					"/__banner": {
+						target: process.env.CODER_HOST || "http://localhost:3000",
+						secure: process.env.NODE_ENV === "production",
+						ws: true,
+					},
+					// The platform service that runs next to Coder in a deployment
+					// (the dashboard's add-ons). Set
 					// CODER_PLATFORM_HOST to develop against them or a mock of them
 					// (scripts/platform-preview.sh). The Host header is passed on
 					// unchanged: the services reject a POST whose Origin differs
@@ -171,10 +178,6 @@ export default defineConfig({
 					...(process.env.CODER_PLATFORM_HOST
 						? {
 								"/__coder-ui": {
-									changeOrigin: false,
-									target: process.env.CODER_PLATFORM_HOST,
-								},
-								"/__banner": {
 									changeOrigin: false,
 									target: process.env.CODER_PLATFORM_HOST,
 								},

@@ -14,15 +14,14 @@ upgrades, replacing an existing Coder, and troubleshooting.
 
 | Component                       | Objects                                                        | Purpose                                                                                                                         |
 |---------------------------------|----------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------|
-| Coder (this repository's image) | Deployment `coder`, Service, ConfigMap `coder-platform-config` | Coder; it also forwards `/__coder-ui` and `/__banner` to the services below                                                     |
+| Coder (this repository's image) | Deployment `coder`, Service, ConfigMap `coder-platform-config` | Coder; it serves the announcement banner (`/__banner`) and forwards `/__coder-ui` to the service below                           |
 | PostgreSQL (optional)           | StatefulSet `coder-db`, Service                                | Coder's database, including uploaded logos, avatars and template icons                                                          |
 | Platform service                | Deployment `coder-ui-updates`, Service, PVC                    | Logo, avatars, template icons, classification, announcements, chat, and the Keycloak, Network, Monitoring and Persistence pages |
-| Banner service                  | Deployment `coder-banner`, Service                             | The announcement banner and its live updates                                                                                    |
 | Setup Jobs                      | Hook Jobs                                                      | Generate the database and first-admin passwords, then create the first admin                                                    |
 | Routing (optional)              | Ingress, Gateway API HTTPRoute                                 | `accessURL` and `wildcardAccessURL`                                                                                             |
 
-The platform and banner services are standard-library Python
-(`files/platform`, `files/banner`), mounted from ConfigMaps into a stock
+The platform service is standard-library Python
+(`files/platform`), mounted from ConfigMaps into a stock
 `python` image. Coder forwards their paths
 (`CODER_PLATFORM_SERVICE_ROUTES`), so browsers only ever talk to Coder.
 

@@ -71,6 +71,7 @@ import (
 	"github.com/coder/coder/v2/coderd/metricscache"
 	"github.com/coder/coder/v2/coderd/notifications"
 	"github.com/coder/coder/v2/coderd/oauth2provider"
+	"github.com/coder/coder/v2/coderd/platformbanner"
 	"github.com/coder/coder/v2/coderd/portsharing"
 	"github.com/coder/coder/v2/coderd/pproflabel"
 	"github.com/coder/coder/v2/coderd/prebuilds"
@@ -1879,7 +1880,15 @@ func New(options *Options) *API {
 	}
 	cspMW := httpmw.CSPHeaders(cspProxyHosts, additionalCSPHeaders)
 
+	// The announcement banner is Coder's own now (it was a service of its own
+	// behind Traefik body rewrites); a route to that service is ignored.
+	api.mountPlatformBanner(r, apiKeyMiddlewareOptional)
 	for _, route := range options.PlatformServiceRoutes {
+		if route.PathPrefix == platformBannerPrefix {
+			api.Logger.Warn(ctx, "platform service route ignored: Coder serves the banner itself",
+				slog.F("prefix", route.PathPrefix), slog.F("target", route.Target.String()))
+			continue
+		}
 		r.Mount(route.PathPrefix, platformServiceProxy(api.Logger.Named("platform_services"), route.Target))
 	}
 
@@ -1996,6 +2005,9 @@ type API struct {
 	// dbRolluper rolls up template usage stats from raw agent and app
 	// stats. This is used to provide insights in the WebUI.
 	dbRolluper *dbrollup.Rolluper
+	// platformBannerHub pushes the announcement banner to this replica's
+	// open tabs (coderd/platformbanner).
+	platformBannerHub *platformbanner.Hub
 
 	// ProfileCollector abstracts the runtime/pprof and runtime/trace
 	// calls used by the /debug/profile endpoint. Tests override this
@@ -2038,6 +2050,9 @@ func (api *API) Close() error {
 	}
 	api.dbRolluper.Close()
 	api.metricsCache.Close()
+	if api.platformBannerHub != nil {
+		api.platformBannerHub.Close()
+	}
 	_ = api.workspaceAppServer.Close()
 	_ = api.agentProvider.Close()
 	if api.derpCloseFunc != nil {

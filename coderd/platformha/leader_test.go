@@ -299,3 +299,53 @@ func TestLeadershipVoidClaimStopsCoder(t *testing.T) {
 	require.NoError(t, leader.Close(ctx))
 	require.NoError(t, next.Close(ctx))
 }
+
+func TestLeadershipTheSeniorStandbyTakesALapsedLease(t *testing.T) {
+	t.Parallel()
+	ctx := testutil.Context(t, testutil.WaitLong)
+	db := openDB(t)
+	flakyA := &flakyDB{DB: db}
+	flakyB := &flakyDB{DB: db}
+	a := startStandby(t, flakyA, "coder-0")
+	b := startStandby(t, flakyB, "coder-1")
+	active, senior := startActive(ctx, t, a, b)
+	flaky := flakyA
+	if active == b {
+		flaky = flakyB
+	}
+	// the leader crashes; its pod's container comes back at once as a fresh
+	// replica (a higher epoch) - it must not win the lapsed lease back
+	flaky.broken.Store(true)
+	restarted := startStandby(t, db, "coder-restarted")
+	testutil.Eventually(ctx, t, func(context.Context) bool { return turned(t, senior, testutil.IntervalFast) },
+		testutil.IntervalFast, "the senior standby takes the lapsed lease")
+	require.False(t, turned(t, restarted, testutil.IntervalSlow), "the restarted replica waits")
+	senior.MarkServing()
+	require.Equal(t, platformha.RoleActive, senior.Role())
+	require.NoError(t, senior.Close(ctx))
+	require.NoError(t, restarted.Close(ctx))
+}
+
+func TestLeadershipAnyoneTakesALeaseLapsedTooLong(t *testing.T) {
+	t.Parallel()
+	ctx := testutil.Context(t, testutil.WaitLong)
+	db := openDB(t)
+	flakyA := &flakyDB{DB: db}
+	flakyB := &flakyDB{DB: db}
+	a := startStandby(t, flakyA, "coder-0")
+	b := startStandby(t, flakyB, "coder-1")
+	active, senior := startActive(ctx, t, a, b)
+	broken := flakyA
+	if senior == b {
+		broken = flakyB
+	}
+	// the leader crashes and the senior standby is stuck (its database calls
+	// fail, though its registry row is still live for a while): a younger
+	// replica takes the lease once it has been lapsed a whole lease
+	(map[bool]*flakyDB{true: flakyA, false: flakyB})[active == a].broken.Store(true)
+	broken.broken.Store(true)
+	younger := startStandby(t, db, "coder-2")
+	testutil.Eventually(ctx, t, func(context.Context) bool { return turned(t, younger, testutil.IntervalFast) },
+		testutil.IntervalFast, "a younger replica takes the lease in the end")
+	require.NoError(t, younger.Close(ctx))
+}

@@ -39,7 +39,7 @@ python3 scripts/platform-mock.py "${mock_port}" &
 mock_pid=$!
 trap 'kill "${mock_pid}" 2>/dev/null || true' EXIT INT TERM
 
-# The dashboard's dev server proxies /__coder-ui and /__banner here (site/vite.config.mts).
+# The dashboard's dev server proxies /__coder-ui here (site/vite.config.mts; the banner, /__banner, is Coder's own).
 export CODER_PLATFORM_HOST="http://127.0.0.1:${mock_port}"
 
 ./scripts/develop.sh "$@"

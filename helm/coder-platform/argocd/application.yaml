@@ -4,7 +4,7 @@
 #
 #   kubectl apply -n argocd -f application.yaml
 #
-# What it installs, in namespace coder-platform: Coder, PostgreSQL, the dashboard's platform and banner services,
+# What it installs, in namespace coder-platform: Coder, PostgreSQL, the dashboard's platform service,
 # and the first admin. Full guide: https://github.com/user187x/coder/blob/main/helm/coder-platform/DEPLOY.md
 #
 # Needs: Argo CD 2.10 or newer deploying to its own cluster, a default StorageClass (or set the two storageClass

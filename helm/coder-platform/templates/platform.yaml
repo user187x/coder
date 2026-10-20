@@ -88,7 +88,8 @@ spec:
             - {name: CODER_ACCESS_URL, value: {{ include "cp.accessURL" . | quote }}}
             - {name: CODER_NAMESPACE, value: {{ $ns | quote }}}
             - {name: CODER_DEPLOYMENT, value: coder}
-            - {name: BANNER_URL, value: {{ ternary (printf "http://coder-banner.%s.svc.cluster.local:80" $ns) "" .Values.banner.enabled | quote }}}
+            # the announcement banner is Coder's own (/__banner, coderd/platformbanner)
+            - {name: BANNER_URL, value: {{ printf "http://coder.%s.svc.cluster.local:80" $ns | quote }}}
             - {name: ADMIN_ROLES, value: {{ join "," $p.adminRoles | quote }}}
             - {name: KEYCLOAK_NAMESPACE, value: {{ $p.keycloakNamespace | quote }}}
             - {name: KEYCLOAK_ADMIN_SECRET, value: {{ $p.keycloakAdminSecret | quote }}}

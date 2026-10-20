@@ -43,10 +43,6 @@ helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" }}
 {{- $ns := .Release.Namespace }}
 {{- $routes := list }}
 {{- if .Values.platform.enabled }}{{ $routes = append $routes (printf "/__coder-ui=http://coder-ui-updates.%s.svc.cluster.local" $ns) }}{{ end }}
-{{- if .Values.banner.enabled }}
-{{- $routes = append $routes (printf "/__banner=http://coder-banner.%s.svc.cluster.local" $ns) }}
-{{- if .Values.banner.live.enabled }}{{ $routes = append $routes (printf "/__banner/live=http://coder-banner.%s.svc.cluster.local:8081" $ns) }}{{ end }}
-{{- end }}
 {{- join "," $routes }}
 {{- end }}
 

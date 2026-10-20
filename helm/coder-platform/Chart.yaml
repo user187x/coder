@@ -3,7 +3,7 @@ name: coder-platform
 description: >-
   This repository's Coder (its dashboard and server changes built in) with everything the dashboard's
   platform pages need: PostgreSQL, the platform service (logo, avatars, template icons, classification,
-  announcements, chat, Keycloak, Network, Monitoring, Persistence), the announcement banner service, the
+  announcements, chat, Keycloak, Network, Monitoring, Persistence; Coder serves the banner itself), the
   first admin, and optional Ingress or Gateway API routing. Works with no values set (open Coder with
   kubectl port-forward). One release per namespace; no other charts required.
 type: application

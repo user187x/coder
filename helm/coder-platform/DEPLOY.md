@@ -16,11 +16,10 @@ Everything lands in namespace `coder-platform`:
 | PostgreSQL              | StatefulSet `coder-db`, Service, 10Gi volume                           | Coder's database, including uploaded logos, avatars, template icons and admin quick links                                       |
 | Platform service        | Deployment `coder-ui-updates`, Service, 1Gi volume                     | Logo, avatars, template icons, classification, announcements, chat, and the Keycloak, Network, Monitoring and Persistence pages |
 | Monitoring log database | Deployment `coder-ui-logs-db`                                          | Buffers workspace logs for the Monitoring page                                                                                  |
-| Banner service          | Deployment `coder-banner`, Service                                     | The announcement banner and its live updates                                                                                    |
 | Setup Jobs              | PreSync and PostSync hook Jobs                                         | Generate passwords, then create the first admin                                                                                 |
 
-Browsers only ever talk to Coder. Coder forwards `/__coder-ui` and `/__banner`
-to the platform and banner services itself, so any way of reaching Coder
+Browsers only ever talk to Coder. Coder serves the announcement banner (`/__banner`)
+and forwards `/__coder-ui` to the platform service itself, so any way of reaching Coder
 works: `kubectl port-forward`, a LoadBalancer or NodePort Service, an Ingress,
 or a Gateway API route.
 
@@ -48,7 +47,7 @@ Argo CD then:
    (database password and connection URL) and Secret `coder-first-user`
    (admin password). Neither Secret is part of the release, so later syncs
    never change them.
-2. **Sync:** creates PostgreSQL, Coder, the platform and banner services, and
+2. **Sync:** creates PostgreSQL, Coder, the platform service, and
    any route you configured. Coder migrates its schema on first start.
 3. **PostSync:** Job `coder-platform-first-user` waits for Coder and creates the
    first admin, unless one exists.
@@ -211,7 +210,6 @@ To stay on a version instead of following `main`, set the Application's
 | Open Coder locally    | `kubectl -n coder-platform port-forward svc/coder 8080:80`                                          |
 | Coder logs            | `kubectl -n coder-platform logs deploy/coder`                                                       |
 | Platform service logs | `kubectl -n coder-platform logs deploy/coder-ui-updates`                                            |
-| Banner service logs   | `kubectl -n coder-platform logs deploy/coder-banner`                                                |
 | Setup Job logs        | `kubectl -n coder-platform logs job/coder-platform-first-user`                                      |
 | Database shell        | `kubectl -n coder-platform exec -it coder-db-0 -- psql -U coder coder`                              |
 | Database backup       | `kubectl -n coder-platform exec coder-db-0 -- pg_dump -U coder -Fc coder > coder.dump`              |
@@ -223,7 +221,7 @@ To stay on a version instead of following `main`, set the Application's
 |--------------------------------------------------------------------------------|------------------------------------------------------------|----------------------------------------------|
 | Users, templates, workspaces, logo, avatars, template icons, admin quick links | PostgreSQL volume `data-coder-db-0`                        | Restarts, upgrades, deleting the Application |
 | Announcement receipts, chat                                                    | Volume `coder-ui-updates-data`                             | Restarts, upgrades, deleting the Application |
-| Published banner                                                               | ConfigMap `coder-banner-state`                             | Restarts and upgrades                        |
+| Published banner                                                               | PostgreSQL (Coder's runtime config)                              | Restarts, upgrades, deleting the Application |
 | Passwords                                                                      | Secrets `coder-db`, `coder-first-user`, `coder-ui-logs-db` | Everything; delete them yourself             |
 
 Deleting the Application removes the workloads but keeps the volumes and the
@@ -238,7 +236,7 @@ delete the Application, then `kubectl delete namespace coder-platform`.
 | Pods in `ImagePullBackOff`                                      | The cluster can't reach `ghcr.io` or `docker.io`, or Docker Hub's anonymous pull limit was hit. Check `kubectl -n coder-platform describe pod <pod>`          |
 | `coder` restarts a few times on the first sync                  | It started before PostgreSQL accepted connections, and settles once it does                                                                                   |
 | Application stays `Progressing`; the admin Job never runs       | Something isn't healthy yet: a pod that isn't ready, or an Ingress or LoadBalancer without an address. Check `kubectl -n coder-platform get pods,ingress,svc` |
-| Dashboard pages show "platform service is not reachable"        | `coder-ui-updates` or `coder-banner` isn't running: check their pods and logs                                                                                 |
+| Dashboard pages show "platform service is not reachable"        | `coder-ui-updates` isn't running: check its pods and logs                                                                                                     |
 | Keycloak sign-in fails with a certificate error                 | Keycloak's certificate is signed by a CA Coder doesn't trust: set `tls.caPem`                                                                                 |
 | Keycloak says "Invalid redirect URI"                            | Add `<accessURL>/api/v2/users/oidc/callback` to the client                                                                                                    |
 | `coder` pod in `CreateContainerConfigError` after enabling OIDC | Secret `keycloaking-coder-oidc` is missing in `coder-platform`                                                                                                |
