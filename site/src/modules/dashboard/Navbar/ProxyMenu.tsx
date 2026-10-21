@@ -55,7 +55,7 @@ type ProxyMenuProps = {
  * Platform: the top bar's latency and Controls menu, one button where there were two. The button shows the latency
  * to the selected region in a pill (the antenna in the latency's colour), then "Controls" and the chevron. The menu
  * holds the Workspaces row, which shows the latency to each workspace while it is pressed (WorkspacesLatencyMenu),
- * and under it the whole Controls menu, its graphs last. With more than one region, a Region row comes first
+ * and under it the whole Controls menu, its graphs last, in a rounded box. With more than one region, a Region row comes first
  * (Coder's region picker). Each opening measures the latency again. The workspaces chosen in the locked Workspaces
  * list open here together, in the workspace grid (the menu closes for it).
  */
@@ -274,17 +274,19 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 						}}
 					/>
 
+					{/* Platform: the whole Controls menu, its graphs last, in a rounded box of its own */}
 					{controls && (
-						<>
-							<DropdownMenuSeparator />
-							<nav aria-label="Controls">
-								<AdminSettingsItems
-									permissions={controls.permissions}
-									quickLinks={controls.quickLinks}
-									quickLinksEditor={controls.quickLinksEditor}
-								/>
-							</nav>
-						</>
+						<nav
+							aria-label="Controls"
+							data-testid="controls-group"
+							className="mx-1 mt-2 mb-1 rounded-lg border border-solid border-border p-1"
+						>
+							<AdminSettingsItems
+								permissions={controls.permissions}
+								quickLinks={controls.quickLinks}
+								quickLinksEditor={controls.quickLinksEditor}
+							/>
+						</nav>
 					)}
 				</DropdownMenuContent>
 			</DropdownMenu>

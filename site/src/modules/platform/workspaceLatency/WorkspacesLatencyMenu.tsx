@@ -18,6 +18,8 @@ import "./workspacesLatency.css";
 export const REFRESH_MS = 3000;
 /** How long a press lasts before the list locks open (the ring round the pill drawn all the way). */
 export const HOLD_MS = 800;
+/** The widest a name gets (px) before it is cut short: the template pills line up after the widest name up to this. */
+const NAME_MAX = 120;
 /** Where this browser keeps the workspaces last chosen for the grid. */
 const GRID_SELECTION_KEY = "platform.workspaceGrid.selected";
 
@@ -147,6 +149,25 @@ export const WorkspacesLatencyMenu: React.FC<{
 	}, [selected]);
 	// Chosen and still there, in the list's order.
 	const chosen = list.filter((w) => selected.includes(w.id));
+	// Every name as wide as the widest (up to NAME_MAX), so the template pills after them line up in one column.
+	const [nameWidth, setNameWidth] = useState<number>();
+	const names = list.map((w) => w.name).join("\n");
+	useLayoutEffect(() => {
+		const spans = listRef.current?.querySelectorAll<HTMLElement>(
+			"[data-workspace-name]",
+		);
+		if (!names || !spans?.length) {
+			return;
+		}
+		let widest = 0;
+		for (const span of spans) {
+			const set = span.style.width;
+			span.style.width = "max-content";
+			widest = Math.max(widest, span.offsetWidth);
+			span.style.width = set;
+		}
+		setNameWidth(widest > 0 ? Math.min(widest, NAME_MAX) : undefined);
+	}, [names, selecting]);
 	const toggle = (id: string) =>
 		setSelected((ids) =>
 			ids.includes(id) ? ids.filter((i) => i !== id) : [...ids, id],
@@ -357,10 +378,13 @@ export const WorkspacesLatencyMenu: React.FC<{
 										)}
 									/>
 									<span
+										data-workspace-name
+										title={w.name}
 										className={cn(
-											"min-w-0 truncate",
+											"min-w-0 shrink-0 truncate",
 											!up && "text-content-secondary",
 										)}
+										style={{ width: nameWidth }}
 									>
 										{w.name}
 									</span>
