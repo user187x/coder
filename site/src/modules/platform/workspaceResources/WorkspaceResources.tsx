@@ -21,7 +21,7 @@ import type { OneWayWebSocket } from "#/utils/OneWayWebSocket";
 
 /** How many readings the CPU and RAM graphs show, the newest on the right. */
 export const GRAPH_BARS = 12;
-const GRAPH_W = 44;
+const GRAPH_W = 52;
 const GRAPH_H = 22;
 // the longest wait between attempts to watch the readings again (ms)
 const MAX_RETRY_MS = 30_000;
@@ -173,8 +173,8 @@ export const WorkspaceResources: React.FC<{ workspace: Workspace }> = ({
 	if (!metadata) {
 		return (
 			<div className="flex items-end gap-3" aria-busy>
-				<Skeleton className="h-[38px] w-11 rounded-md" />
-				<Skeleton className="h-[38px] w-11 rounded-md" />
+				<Skeleton className="h-[38px] w-[52px] rounded-md" />
+				<Skeleton className="h-[38px] w-[52px] rounded-md" />
 				<Skeleton className="h-[38px] w-28 rounded-md" />
 			</div>
 		);
@@ -217,6 +217,7 @@ const BarGraph: React.FC<{
 			data-testid={`workspace-resources-${label.toLowerCase()}`}
 			title={reading ? `${label}: ${reading.text}` : `${label}: no reading`}
 			className="flex flex-col gap-1"
+			style={{ width: GRAPH_W }}
 		>
 			<div className="flex items-baseline justify-between gap-1.5 text-[11px] leading-none">
 				<span className="text-content-secondary">{label}</span>
@@ -229,6 +230,15 @@ const BarGraph: React.FC<{
 				viewBox={`0 0 ${GRAPH_W} ${GRAPH_H}`}
 				className="block overflow-visible"
 			>
+				{/* the graph's ground, faint, so it reads as one even while the bars are low */}
+				<rect
+					x={0}
+					y={0}
+					width={GRAPH_W}
+					height={GRAPH_H}
+					rx={3}
+					className="fill-surface-secondary"
+				/>
 				<line
 					x1={0}
 					x2={GRAPH_W}

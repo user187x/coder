@@ -176,7 +176,9 @@ const GridBody: React.FC<GridBodyProps> = ({ shown, loading, navigate }) => {
 		Math.floor((size.h - GAP * (inViewRows - 1)) / inViewRows),
 	);
 	const pannable = cols > IN_VIEW || rows > IN_VIEW;
-	const frameH = Math.max(0, cellH - BAR_HEIGHT);
+	// inside the cell's 1px border
+	const frameW = Math.max(0, cellW - 2);
+	const frameH = Math.max(0, cellH - BAR_HEIGHT - 2);
 
 	// Each dashboard's height, as it tells it (its page in the frame: useReportEmbeddedSize).
 	const frames = useRef(new Map<string, HTMLIFrameElement>());
@@ -333,7 +335,7 @@ const GridBody: React.FC<GridBodyProps> = ({ shown, loading, navigate }) => {
 						{shown.map((w) => {
 							const up = w.latest_build.status === "running";
 							const inUse = !pannable || active === w.id;
-							const fit = frameFit(cellW, frameH, heights[w.id]);
+							const fit = frameFit(frameW, frameH, heights[w.id]);
 							return (
 								<section
 									key={w.id}

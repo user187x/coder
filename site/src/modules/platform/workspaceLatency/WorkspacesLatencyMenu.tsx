@@ -49,18 +49,20 @@ export const workspaceLatency = (workspace: Workspace): number | undefined => {
 	return values.length ? Math.min(...values) : undefined;
 };
 
-/** The template pills' colours: each template keeps one, wherever it shows (DEFAULT's is green). */
+/**
+ * The template pills' colours: each template keeps one, wherever it shows. DEFAULT's is green; the others' are
+ * none of green's neighbours (no lime or teal), to tell them from it at a glance.
+ */
 export const TEMPLATE_COLOURS = [
 	"#22c55e",
 	"#38bdf8",
 	"#a78bfa",
 	"#f59e0b",
 	"#f472b6",
-	"#2dd4bf",
 	"#fb923c",
 	"#818cf8",
-	"#a3e635",
 	"#e879f9",
+	"#f87171",
 ] as const;
 
 /** A template's colour, from its name: the same every time, everywhere; DEFAULT green, the others picked from the rest. */
