@@ -22,7 +22,7 @@ import { TemplatePill } from "#/modules/platform/workspaceLatency/WorkspacesLate
 /** Columns and rows in view at most: four dashboards; with more, the grid is dragged round to reach the others. */
 export const IN_VIEW = 2;
 /** A dashboard is drawn at least this wide and scaled down to its cell, so the page keeps its wide layout. */
-export const FRAME_WIDTH = 1280;
+export const FRAME_WIDTH = 1024;
 /** How often the workspaces' names and states are asked again while the grid is open. */
 export const REFRESH_MS = 5000;
 const GAP = 12;

@@ -140,16 +140,22 @@ const EMBED_ATTRIBUTE = "platformEmbed";
 
 /**
  * True for a dashboard page shown inside another dashboard page's frame (the
- * Agents view in General, for example). The page around it already shows the
- * classification marking, the announcement and the chat.
+ * workspace grid's dashboards, for example). The page around it already shows
+ * the navigation bar, the classification marking, the announcement and the chat.
  */
-export const isEmbeddedFrame = (): boolean => {
+export const isEmbeddedFrame = (): boolean =>
+	embeddingFrame()?.dataset[EMBED_ATTRIBUTE] !== undefined;
+
+/**
+ * The frame this page is shown in, when the page around it is of this origin. Known by its tag: the frame is an
+ * element of that page, so not an instance of this window's HTMLIFrameElement.
+ */
+const embeddingFrame = (): HTMLIFrameElement | null => {
 	try {
-		return window.frameElement instanceof HTMLIFrameElement
-			? window.frameElement.dataset[EMBED_ATTRIBUTE] !== undefined
-			: false;
+		const frame = window.frameElement;
+		return frame?.tagName === "IFRAME" ? (frame as HTMLIFrameElement) : null;
 	} catch {
-		return false;
+		return null;
 	}
 };
 
@@ -164,8 +170,8 @@ export const embedFrameAttributes = (homePath: string) => ({
  * React Router's own click handling.
  */
 const installEmbeddedNavigation = () => {
-	const frame = window.frameElement;
-	if (!(frame instanceof HTMLIFrameElement)) {
+	const frame = embeddingFrame();
+	if (!frame) {
 		return;
 	}
 	const home = frame.dataset[EMBED_ATTRIBUTE] || "/";
