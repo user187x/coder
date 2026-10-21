@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { watchAgentMetadata } from "#/api/api";
 import type {
 	ServerSentEvent,
@@ -25,6 +25,8 @@ export const GRAPH_BARS = 12;
 export const DISK_SEGMENTS = 16;
 const GRAPH_W = 52;
 const GRAPH_H = 22;
+/** The graphs' corners (px): the bars are cut to them. */
+const GRAPH_R = 5;
 // the longest wait between attempts to watch the readings again (ms)
 const MAX_RETRY_MS = 30_000;
 
@@ -216,6 +218,7 @@ const BarGraph: React.FC<{
 }> = ({ label, reading, shares }) => {
 	const bar = GRAPH_W / GRAPH_BARS;
 	const shown = shares.length ? shares : reading ? [reading.share] : [];
+	const clip = `workspace-resources-clip-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
 	return (
 		<div
 			data-testid={`workspace-resources-${label.toLowerCase()}`}
@@ -234,39 +237,48 @@ const BarGraph: React.FC<{
 				viewBox={`0 0 ${GRAPH_W} ${GRAPH_H}`}
 				className="block overflow-visible"
 			>
-				{/* the graph's ground, faint, so it reads as one even while the bars are low */}
+				<defs>
+					<clipPath id={clip}>
+						<rect x={0} y={0} width={GRAPH_W} height={GRAPH_H} rx={GRAPH_R} />
+					</clipPath>
+				</defs>
+				{/* the graph's ground, faint, so it reads as one even while the bars are low; its corners rounded, and
+				    the bars cut to them */}
 				<rect
+					data-testid="workspace-resources-ground"
 					x={0}
 					y={0}
 					width={GRAPH_W}
 					height={GRAPH_H}
-					rx={3}
+					rx={GRAPH_R}
 					className="fill-surface-secondary"
 				/>
-				<line
-					x1={0}
-					x2={GRAPH_W}
-					y1={GRAPH_H - 0.5}
-					y2={GRAPH_H - 0.5}
-					className="stroke-border"
-					strokeWidth={1}
-				/>
-				{shown.map((share, i) => {
-					const h = Math.max(1.5, (share / 100) * GRAPH_H);
-					const x = GRAPH_W - (shown.length - i) * bar;
-					return (
-						<rect
-							key={i}
-							data-testid="workspace-resources-bar"
-							x={x + 0.5}
-							y={GRAPH_H - h}
-							width={Math.max(1, bar - 1.5)}
-							height={h}
-							rx={0.75}
-							fill={levelColor(share)}
-						/>
-					);
-				})}
+				<g clipPath={`url(#${clip})`}>
+					<line
+						x1={0}
+						x2={GRAPH_W}
+						y1={GRAPH_H - 0.5}
+						y2={GRAPH_H - 0.5}
+						className="stroke-border"
+						strokeWidth={1}
+					/>
+					{shown.map((share, i) => {
+						const h = Math.max(1.5, (share / 100) * GRAPH_H);
+						const x = GRAPH_W - (shown.length - i) * bar;
+						return (
+							<rect
+								key={i}
+								data-testid="workspace-resources-bar"
+								x={x + 0.5}
+								y={GRAPH_H - h}
+								width={Math.max(1, bar - 1.5)}
+								height={h}
+								rx={1.25}
+								fill={levelColor(share)}
+							/>
+						);
+					})}
+				</g>
 			</svg>
 		</div>
 	);
@@ -315,7 +327,8 @@ const DiskBar: React.FC<{ reading: Reading | null }> = ({ reading }) => {
 				aria-valuemin={0}
 				aria-valuemax={100}
 				aria-valuenow={reading ? Math.round(reading.share) : undefined}
-				className="flex h-2 w-full gap-[2px]"
+				// its ends rounded, the segments cut to them
+				className="flex h-2 w-full gap-[2px] overflow-hidden rounded-full"
 			>
 				{Array.from({ length: DISK_SEGMENTS }, (_, i) => (
 					<span

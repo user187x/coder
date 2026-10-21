@@ -123,6 +123,24 @@ describe("WorkspaceResources", () => {
 		expect(segments.filter((s) => s.dataset.lit)).toHaveLength(1);
 		expect(segments[0]).toHaveClass("bg-content-success");
 		expect(segments[1]).toHaveClass("bg-surface-tertiary");
+		// rounded edges: the disk bar's ends, the graphs' corners (their bars cut to them)
+		expect(screen.getByRole("meter")).toHaveClass(
+			"rounded-full",
+			"overflow-hidden",
+		);
+		const ground = cpu.querySelector(
+			'[data-testid="workspace-resources-ground"]',
+		);
+		expect(Number(ground?.getAttribute("rx"))).toBeGreaterThanOrEqual(4);
+		const clipped = cpu.querySelector("g[clip-path]");
+		expect(
+			clipped?.querySelector('[data-testid="workspace-resources-bar"]'),
+		).not.toBeNull();
+		expect(
+			cpu.querySelector(
+				clipped?.getAttribute("clip-path")?.slice(4, -1) ?? "#none",
+			),
+		).not.toBeNull();
 
 		// a new reading adds a bar; the same one again does not
 		sockets[0].send(readings("2026-10-21T06:00:01Z", "1.2/2 cores (60%)"));
