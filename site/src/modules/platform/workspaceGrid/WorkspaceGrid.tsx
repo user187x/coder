@@ -18,11 +18,14 @@ import {
 } from "#/components/Dialog/Dialog";
 import { embedFrameAttributes } from "#/contexts/platformBoot";
 import { TemplatePill } from "#/modules/platform/workspaceLatency/WorkspacesLatencyMenu";
+import { isEmbedSizeMessage } from "./embeddedSize";
 
 /** Columns and rows in view at most: four dashboards; with more, the grid is dragged round to reach the others. */
 export const IN_VIEW = 2;
 /** A dashboard is drawn at least this wide and scaled down to its cell, so the page keeps its wide layout. */
 export const FRAME_WIDTH = 1024;
+/** The least a dashboard is scaled to fit its cell's height; a taller one scrolls in its frame instead. */
+export const MIN_SCALE = 0.4;
 /** How often the workspaces' names and states are asked again while the grid is open. */
 export const REFRESH_MS = 5000;
 const GAP = 12;
@@ -48,6 +51,41 @@ export const gridLayout = (n: number): { cols: number; rows: number } => {
 
 const workspacePath = (w: Workspace) => `/@${w.owner_name}/${w.name}`;
 
+/**
+ * Where a dashboard sits in its cell (frameH: the cell below its bar): drawn FRAME_WIDTH wide (the cell's width,
+ * when wider), scaled to the cell's width - and to its height too, once the dashboard has told its own (contentH),
+ * though not below MIN_SCALE - and centred in it.
+ */
+export const frameFit = (
+	cellW: number,
+	frameH: number,
+	contentH?: number,
+): {
+	width: number;
+	height: number;
+	scale: number;
+	left: number;
+	top: number;
+} => {
+	const width = Math.max(cellW, FRAME_WIDTH);
+	const byWidth = cellW > 0 ? cellW / width : 1;
+	const scale =
+		contentH && frameH > 0
+			? Math.min(byWidth, Math.max(MIN_SCALE, frameH / contentH))
+			: byWidth;
+	// its own height, a pixel or two over so it never scrolls for rounding; taller than the cell, the cell's
+	const height = contentH
+		? Math.min(Math.ceil(contentH) + 2, frameH / scale)
+		: frameH / scale;
+	return {
+		width,
+		height,
+		scale,
+		left: Math.max(0, (cellW - width * scale) / 2),
+		top: Math.max(0, (frameH - height * scale) / 2),
+	};
+};
+
 type WorkspaceGridProps = {
 	/** The workspaces to show (their ids), in this order. */
 	ids: readonly string[];
@@ -57,9 +95,10 @@ type WorkspaceGridProps = {
 
 /**
  * Platform: several workspaces' dashboards at once (the Workspaces list's "View in a grid", ProxyMenu), in a window
- * over the page, the page blurred behind it. Each cell is the workspace's own page, live, in a frame of its own
- * (an embedded dashboard page: no navigation bar, classification bars or chat of its own; a link out of it goes to
- * this page), scaled to fit. Up to four fill the window; with more, the cells keep that size and the grid is grabbed
+ * over the page, the page blurred behind it. Each cell is the workspace's dashboard, live, in a frame of its own (an
+ * embedded dashboard page: Workspace shows its dashboard alone, the rest of its page left behind, and tells its
+ * height; a link out of it goes to this page), scaled to fit its cell's width and height and centred in it. Up to
+ * four fill the window; with more, the cells keep that size and the grid is grabbed
  * and dragged round to reach the others (or scrolled) - the dashboards are then pictures to drag by until one is
  * clicked, which makes that one usable, the others still dragging the grid. Leaving to another page closes it.
  */
@@ -143,7 +182,28 @@ const GridBody: React.FC<GridBodyProps> = ({ shown, loading, navigate }) => {
 	);
 	const pannable = cols > IN_VIEW || rows > IN_VIEW;
 	const frameH = Math.max(0, cellH - BAR_HEIGHT);
-	const scale = cellW > 0 ? Math.min(1, cellW / FRAME_WIDTH) : 1;
+
+	// Each dashboard's height, as it tells it (its page in the frame: useReportEmbeddedSize).
+	const frames = useRef(new Map<string, HTMLIFrameElement>());
+	const [heights, setHeights] = useState<Record<string, number>>({});
+	useEffect(() => {
+		const onMessage = (event: MessageEvent) => {
+			if (
+				event.origin !== window.location.origin ||
+				!isEmbedSizeMessage(event.data)
+			) {
+				return;
+			}
+			const { height } = event.data;
+			for (const [id, frame] of frames.current) {
+				if (frame.contentWindow === event.source) {
+					setHeights((h) => (h[id] === height ? h : { ...h, [id]: height }));
+				}
+			}
+		};
+		window.addEventListener("message", onMessage);
+		return () => window.removeEventListener("message", onMessage);
+	}, []);
 
 	// The dashboard in use while the grid drags (the others are pictures to drag by), and the drag itself.
 	const [active, setActive] = useState<string | null>(null);
@@ -154,6 +214,8 @@ const GridBody: React.FC<GridBodyProps> = ({ shown, loading, navigate }) => {
 		left: number;
 		top: number;
 		moved: boolean;
+		/** The dashboard pressed on (its id), if any: the release goes to the viewport, which holds the pointer. */
+		shield: string | null;
 	} | null>(null);
 
 	const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -172,6 +234,11 @@ const GridBody: React.FC<GridBodyProps> = ({ shown, loading, navigate }) => {
 			left: viewport.scrollLeft,
 			top: viewport.scrollTop,
 			moved: false,
+			shield:
+				e.target instanceof Element
+					? (e.target.closest<HTMLElement>("[data-grid-shield]")?.dataset
+							.gridShield ?? null)
+					: null,
 		};
 		viewport.setPointerCapture?.(e.pointerId);
 	};
@@ -193,7 +260,7 @@ const GridBody: React.FC<GridBodyProps> = ({ shown, loading, navigate }) => {
 		viewport.scrollLeft = d.left - dx;
 		viewport.scrollTop = d.top - dy;
 	};
-	const onPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+	const onPointerUp = () => {
 		const d = drag.current;
 		drag.current = null;
 		setPanning(false);
@@ -201,11 +268,7 @@ const GridBody: React.FC<GridBodyProps> = ({ shown, loading, navigate }) => {
 			return;
 		}
 		// A click: on a dashboard, that one is used; anywhere else, none is.
-		const cell =
-			e.target instanceof Element
-				? e.target.closest<HTMLElement>("[data-grid-shield]")
-				: null;
-		setActive(cell?.dataset.gridShield ?? null);
+		setActive(d.shield);
 	};
 
 	return (
@@ -275,6 +338,7 @@ const GridBody: React.FC<GridBodyProps> = ({ shown, loading, navigate }) => {
 						{shown.map((w) => {
 							const up = w.latest_build.status === "running";
 							const inUse = !pannable || active === w.id;
+							const fit = frameFit(cellW, frameH, heights[w.id]);
 							return (
 								<section
 									key={w.id}
@@ -317,18 +381,28 @@ const GridBody: React.FC<GridBodyProps> = ({ shown, loading, navigate }) => {
 									</div>
 									<div className="relative min-h-0 flex-1 overflow-hidden">
 										<iframe
+											ref={(frame) => {
+												if (frame) {
+													frames.current.set(w.id, frame);
+												} else {
+													frames.current.delete(w.id);
+												}
+											}}
 											title={`${w.name} dashboard`}
 											data-testid={`workspace-grid-frame-${w.name}`}
 											src={workspacePath(w)}
 											{...embedFrameAttributes(workspacePath(w))}
 											className={cn(
-												"absolute left-0 top-0 origin-top-left border-0 bg-surface-primary",
+												"absolute origin-top-left border-0 bg-transparent",
 												(panning || !inUse) && "pointer-events-none",
 											)}
 											style={{
-												width: cellW / scale,
-												height: frameH / scale,
-												transform: scale < 1 ? `scale(${scale})` : undefined,
+												left: fit.left,
+												top: fit.top,
+												width: fit.width,
+												height: fit.height,
+												transform:
+													fit.scale < 1 ? `scale(${fit.scale})` : undefined,
 											}}
 										/>
 										{!inUse && (

@@ -22,6 +22,7 @@ import {
 	ConfirmDialog,
 	type ConfirmDialogProps,
 } from "#/components/Dialog/ConfirmDialog/ConfirmDialog";
+import { isEmbeddedFrame } from "#/contexts/platformBoot";
 import { useWorkspaceBuildLogs } from "#/hooks/useWorkspaceBuildLogs";
 import { WorkspaceNotes } from "#/modules/platform/workspaceNotes/WorkspaceNotes";
 import { EphemeralParametersDialog } from "#/modules/workspaces/EphemeralParametersDialog/EphemeralParametersDialog";
@@ -286,8 +287,8 @@ export const WorkspaceReadyPage: React.FC<WorkspaceReadyPageProps> = ({
 	return (
 		<>
 			<title>{pageTitle(`${workspace.owner_name}/${workspace.name}`)}</title>
-			{/* Platform: admins' post-it notes on this workspace's page. */}
-			<WorkspaceNotes workspace={workspace} />
+			{/* Platform: admins' post-it notes on this workspace's page (not on its dashboard in the workspace grid). */}
+			{!isEmbeddedFrame() && <WorkspaceNotes workspace={workspace} />}
 			<link
 				rel="alternate icon"
 				type="image/png"

@@ -1,9 +1,12 @@
 import { BlocksIcon, HistoryIcon } from "lucide-react";
+import { useRef } from "react";
 import type * as TypesGen from "#/api/typesGenerated";
 import { SidebarIconButton } from "#/components/FullPageLayout/Sidebar";
+import { isEmbeddedFrame } from "#/contexts/platformBoot";
 import { useSearchParamsKey } from "#/hooks/useSearchParamsKey";
 import { linkToTemplate, useLinks } from "#/modules/navigation";
 import { LockdownBanner } from "#/modules/platform/lockdown/Lockdown";
+import { useReportEmbeddedSize } from "#/modules/platform/workspaceGrid/embeddedSize";
 import { WorkspaceNotesButton } from "#/modules/platform/workspaceNotes/WorkspaceNotesButton";
 import { ProvisionerStatusAlert } from "#/modules/provisioners/ProvisionerStatusAlert";
 import { AgentRow } from "#/modules/resources/AgentRow";
@@ -64,6 +67,11 @@ export const Workspace: React.FC<WorkspaceProps> = ({
 	handleDebug,
 }) => {
 	const getLink = useLinks();
+	// Platform: in the workspace grid's frame, the dashboard alone (no top bar, side bar or resource strip), its
+	// size told to the grid, which fits it to its cell
+	const embedded = isEmbeddedFrame();
+	const dashboardRef = useRef<HTMLDivElement>(null);
+	useReportEmbeddedSize(dashboardRef, embedded);
 	const createWorkspaceLink = `${getLink(
 		linkToTemplate(workspace.organization_name, workspace.template_name),
 	)}/workspace`;
@@ -115,6 +123,90 @@ export const Workspace: React.FC<WorkspaceProps> = ({
 		(workspace.latest_build.matched_provisioners?.available ?? 1) > 0;
 	const shouldShowProvisionerAlert =
 		workspacePending && !haveBuildLogs && !provisionersHealthy && !isRestarting;
+
+	const dashboard = (
+		<div className="flex flex-col gap-6 max-w-[1200px] m-auto">
+			{/* Platform: the notice while an admin has the workspace locked down */}
+			<LockdownBanner workspace={workspace} />
+			{workspace.latest_build.status === "deleted" && (
+				<WorkspaceDeletedBanner
+					createWorkspaceLink={createWorkspaceLink}
+					templateName={templateName}
+				/>
+			)}
+
+			{shouldShowProvisionerAlert && (
+				<ProvisionerStatusAlert
+					matchingProvisioners={
+						workspace.latest_build.matched_provisioners?.count
+					}
+					availableProvisioners={
+						workspace.latest_build.matched_provisioners?.available ?? 0
+					}
+					tags={workspace.latest_build.job.tags}
+				/>
+			)}
+
+			{workspace.latest_build.job.error && (
+				<WorkspaceBuildFailedAlert build={workspace.latest_build} />
+			)}
+
+			{transitionStats !== undefined && (
+				<WorkspaceBuildProgress
+					workspace={workspace}
+					transitionStats={transitionStats}
+				/>
+			)}
+
+			{shouldShowBuildLogs && <WorkspaceBuildLogsSection logs={buildLogs} />}
+
+			{selectedResource && (
+				<section className="flex flex-col gap-6 grow min-w-0">
+					{topAgents.map((agent, i) => (
+						<AgentRow
+							key={agent.id}
+							agent={agent}
+							subAgents={selectedResource.agents?.filter(
+								(a) => a.parent_id === agent.id,
+							)}
+							workspace={workspace}
+							template={template}
+							onUpdateAgent={handleUpdate} // On updating the workspace the agent version is also updated
+							// Platform: the Build timeline is the last card's footer, under its last panel
+							footer={
+								i === topAgents.length - 1 ? buildTimeline(true) : undefined
+							}
+						/>
+					))}
+
+					{(!selectedResource.agents ||
+						selectedResource.agents?.length === 0) && (
+						<div className="flex justify-center items-center w-full h-full">
+							<div>
+								<h4 className="text-base font-medium">
+									No agents are currently assigned to this resource.
+								</h4>
+							</div>
+						</div>
+					)}
+				</section>
+			)}
+
+			{topAgents.length === 0 && buildTimeline(false)}
+		</div>
+	);
+
+	if (embedded) {
+		return (
+			<div
+				ref={dashboardRef}
+				data-testid="workspace-dashboard-only"
+				className="p-3"
+			>
+				{dashboard}
+			</div>
+		);
+	}
 
 	return (
 		<div className="flex flex-col flex-1 min-h-0">
@@ -182,79 +274,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
 								className="-mx-4 -mt-4 mb-6 md:-mx-8 md:-mt-8"
 							/>
 						)}
-						<div className="flex flex-col gap-6 max-w-[1200px] m-auto">
-							{/* Platform: the notice while an admin has the workspace locked down */}
-							<LockdownBanner workspace={workspace} />
-							{workspace.latest_build.status === "deleted" && (
-								<WorkspaceDeletedBanner
-									createWorkspaceLink={createWorkspaceLink}
-									templateName={templateName}
-								/>
-							)}
-
-							{shouldShowProvisionerAlert && (
-								<ProvisionerStatusAlert
-									matchingProvisioners={
-										workspace.latest_build.matched_provisioners?.count
-									}
-									availableProvisioners={
-										workspace.latest_build.matched_provisioners?.available ?? 0
-									}
-									tags={workspace.latest_build.job.tags}
-								/>
-							)}
-
-							{workspace.latest_build.job.error && (
-								<WorkspaceBuildFailedAlert build={workspace.latest_build} />
-							)}
-
-							{transitionStats !== undefined && (
-								<WorkspaceBuildProgress
-									workspace={workspace}
-									transitionStats={transitionStats}
-								/>
-							)}
-
-							{shouldShowBuildLogs && (
-								<WorkspaceBuildLogsSection logs={buildLogs} />
-							)}
-
-							{selectedResource && (
-								<section className="flex flex-col gap-6 grow min-w-0">
-									{topAgents.map((agent, i) => (
-										<AgentRow
-											key={agent.id}
-											agent={agent}
-											subAgents={selectedResource.agents?.filter(
-												(a) => a.parent_id === agent.id,
-											)}
-											workspace={workspace}
-											template={template}
-											onUpdateAgent={handleUpdate} // On updating the workspace the agent version is also updated
-											// Platform: the Build timeline is the last card's footer, under its last panel
-											footer={
-												i === topAgents.length - 1
-													? buildTimeline(true)
-													: undefined
-											}
-										/>
-									))}
-
-									{(!selectedResource.agents ||
-										selectedResource.agents?.length === 0) && (
-										<div className="flex justify-center items-center w-full h-full">
-											<div>
-												<h4 className="text-base font-medium">
-													No agents are currently assigned to this resource.
-												</h4>
-											</div>
-										</div>
-									)}
-								</section>
-							)}
-
-							{topAgents.length === 0 && buildTimeline(false)}
-						</div>
+						{dashboard}
 					</div>
 				</div>
 			</div>

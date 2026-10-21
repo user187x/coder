@@ -456,4 +456,44 @@ describe("WorkspacePage", () => {
 			);
 		});
 	});
+
+	describe("in the workspace grid's frame", () => {
+		afterEach(() =>
+			Object.defineProperty(window, "frameElement", {
+				value: null,
+				configurable: true,
+			}),
+		);
+
+		it("shows the dashboard alone, the rest of the page left behind", async () => {
+			// the frame as the page in it sees it: the grid's element (another window's)
+			Object.defineProperty(window, "frameElement", {
+				value: {
+					tagName: "IFRAME",
+					dataset: {
+						platformEmbed: `/@${MockWorkspace.owner_name}/${MockWorkspace.name}`,
+					},
+				},
+				configurable: true,
+			});
+			vi.spyOn(API, "getWorkspaceByOwnerAndName").mockResolvedValue(
+				MockWorkspace,
+			);
+			vi.spyOn(API, "getTemplate").mockResolvedValueOnce(MockTemplate);
+			vi.spyOn(API, "getDeploymentConfig").mockResolvedValueOnce(
+				MockDeploymentConfig,
+			);
+			vi.spyOn(apiModule, "watchWorkspaceAgentLogs");
+			renderWithAuth(<WorkspacePage />, {
+				route: `/@${MockWorkspace.owner_name}/${MockWorkspace.name}`,
+				path: "/:username/:workspace",
+			});
+			const dashboard = await screen.findByTestId("workspace-dashboard-only");
+			expect(dashboard).toBeInTheDocument();
+			// no top bar (its actions), no side bar (Resources, History)
+			expect(screen.queryByRole("button", { name: /restart/i })).toBeNull();
+			expect(screen.queryByText("Resources")).toBeNull();
+			expect(screen.queryByText("History")).toBeNull();
+		});
+	});
 });

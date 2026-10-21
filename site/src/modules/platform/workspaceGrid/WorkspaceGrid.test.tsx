@@ -4,7 +4,14 @@ import { MemoryRouter, useLocation } from "react-router";
 import { API } from "#/api/api";
 import type { Workspace } from "#/api/typesGenerated";
 import { MockWorkspace } from "#/testHelpers/entities";
-import { gridLayout, WorkspaceGrid } from "./WorkspaceGrid";
+import { EMBED_SIZE_MESSAGE } from "./embeddedSize";
+import {
+	FRAME_WIDTH,
+	frameFit,
+	gridLayout,
+	MIN_SCALE,
+	WorkspaceGrid,
+} from "./WorkspaceGrid";
 
 const named = (name: string): Workspace => ({
 	...MockWorkspace,
@@ -38,7 +45,10 @@ const renderGrid = (names: string[], onOpenChange = vi.fn()) => {
 };
 
 describe("WorkspaceGrid", () => {
-	afterEach(() => vi.restoreAllMocks());
+	afterEach(() => {
+		vi.restoreAllMocks();
+		vi.unstubAllGlobals();
+	});
 
 	it("fits up to four together, and lays more out as square as can be", () => {
 		expect(gridLayout(1)).toEqual({ cols: 1, rows: 1 });
@@ -48,6 +58,71 @@ describe("WorkspaceGrid", () => {
 		expect(gridLayout(5)).toEqual({ cols: 3, rows: 2 });
 		expect(gridLayout(9)).toEqual({ cols: 3, rows: 3 });
 		expect(gridLayout(10)).toEqual({ cols: 4, rows: 3 });
+	});
+
+	it("fits a dashboard to its cell's width, then its height once told, centred", () => {
+		// a 2x2 cell: 690 wide, 400 high below its bar; drawn FRAME_WIDTH wide, at 690/1024 until its height is told
+		const before = frameFit(690, 400);
+		expect(before.width).toBe(FRAME_WIDTH);
+		expect(before.scale).toBeCloseTo(690 / FRAME_WIDTH);
+		expect(before.left).toBe(0);
+		expect(before.height * before.scale).toBeCloseTo(400);
+		// short: the width decides, and it sits in the middle of the cell's height
+		const short = frameFit(690, 400, 300);
+		expect(short.scale).toBeCloseTo(690 / FRAME_WIDTH);
+		expect(short.height).toBe(302);
+		expect(short.top).toBeCloseTo((400 - 302 * short.scale) / 2);
+		// tall: the height decides, and it sits in the middle of the cell's width
+		const tall = frameFit(690, 400, 800);
+		expect(tall.scale).toBeCloseTo(0.5);
+		expect(tall.left).toBeCloseTo((690 - FRAME_WIDTH * 0.5) / 2);
+		expect(tall.top).toBeCloseTo(0, 0);
+		// very tall: no smaller than MIN_SCALE, scrolling in its frame
+		const huge = frameFit(690, 400, 4000);
+		expect(huge.scale).toBe(MIN_SCALE);
+		expect(huge.height).toBeCloseTo(400 / MIN_SCALE);
+		// one alone, wider than FRAME_WIDTH: drawn the cell's width, unscaled
+		expect(frameFit(1400, 800, 500)).toMatchObject({ width: 1400, scale: 1 });
+	});
+
+	it("takes each dashboard's height from its own frame", async () => {
+		// a window to measure (jsdom lays nothing out): 1400 x 900, two side by side
+		vi.stubGlobal(
+			"ResizeObserver",
+			class {
+				observe() {}
+				disconnect() {}
+			},
+		);
+		vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(1412);
+		vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(900);
+		renderGrid(["one", "two"]);
+		const frame = (await screen.findByTestId(
+			"workspace-grid-frame-one",
+		)) as HTMLIFrameElement;
+		const other = screen.getByTestId(
+			"workspace-grid-frame-two",
+		) as HTMLIFrameElement;
+		const tell = (source: Window | null, height: number) =>
+			window.dispatchEvent(
+				new MessageEvent("message", {
+					data: { type: EMBED_SIZE_MESSAGE, width: 1000, height },
+					origin: window.location.origin,
+					source,
+				}),
+			);
+		tell(frame.contentWindow, 321);
+		await waitFor(() => expect(frame.style.height).toBe("323px"));
+		expect(other.style.height).not.toBe("323px");
+		// another origin's word is not taken
+		window.dispatchEvent(
+			new MessageEvent("message", {
+				data: { type: EMBED_SIZE_MESSAGE, width: 1000, height: 99 },
+				origin: "https://elsewhere.example",
+				source: other.contentWindow,
+			}),
+		);
+		expect(other.style.height).not.toBe("101px");
 	});
 
 	it("shows each workspace's own page, embedded, with its name and template", async () => {
