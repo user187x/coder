@@ -157,7 +157,7 @@ export const metricRank = (m: WorkspaceAgentMetadata) => {
 const inMetricOrder = (items: readonly WorkspaceAgentMetadata[]) =>
 	[...items].sort((a, b) => metricRank(a) - metricRank(b)); // stable: the rest keep the template's order
 
-const isHostMetric = (m: WorkspaceAgentMetadata) =>
+export const isHostMetric = (m: WorkspaceAgentMetadata) =>
 	/_host$/i.test(m.description.key) ||
 	/\((host|cluster)\)\s*$/i.test(m.description.display_name);
 

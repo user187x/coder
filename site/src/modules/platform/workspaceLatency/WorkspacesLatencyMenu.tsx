@@ -49,7 +49,34 @@ export const workspaceLatency = (workspace: Workspace): number | undefined => {
 	return values.length ? Math.min(...values) : undefined;
 };
 
-/** The template a workspace was made from (its display name, else its name), in a pill. */
+/** The template pills' colours: each template keeps one, wherever it shows (DEFAULT's is green). */
+export const TEMPLATE_COLOURS = [
+	"#22c55e",
+	"#38bdf8",
+	"#a78bfa",
+	"#f59e0b",
+	"#f472b6",
+	"#2dd4bf",
+	"#fb923c",
+	"#818cf8",
+	"#a3e635",
+	"#e879f9",
+] as const;
+
+/** A template's colour, from its name: the same every time, everywhere; DEFAULT green, the others picked from the rest. */
+export const templateColour = (name: string): string => {
+	const key = name.trim().toUpperCase();
+	if (key === "DEFAULT") {
+		return TEMPLATE_COLOURS[0];
+	}
+	let hash = 0;
+	for (const c of key) {
+		hash = (hash * 31 + c.charCodeAt(0)) >>> 0;
+	}
+	return TEMPLATE_COLOURS[1 + (hash % (TEMPLATE_COLOURS.length - 1))];
+};
+
+/** The template a workspace was made from (its display name, else its name), in a pill of the template's colour. */
 export const TemplatePill: React.FC<{ workspace: Workspace }> = ({
 	workspace,
 }) => {
@@ -57,11 +84,17 @@ export const TemplatePill: React.FC<{ workspace: Workspace }> = ({
 	if (!name) {
 		return null;
 	}
+	const colour = templateColour(name);
 	return (
 		<span
 			data-testid="workspace-template-pill"
 			title={`Template: ${name}`}
-			className="max-w-[9rem] shrink-0 truncate rounded-full border border-solid border-border bg-surface-secondary px-2 text-[11px] leading-4 text-content-secondary"
+			className="max-w-[9rem] shrink-0 truncate rounded-full border border-solid px-2 text-[11px] font-semibold leading-4"
+			style={{
+				color: colour,
+				borderColor: `${colour}66`,
+				backgroundColor: `${colour}1a`,
+			}}
 		>
 			{name}
 		</span>
@@ -148,7 +181,9 @@ export const WorkspacesLatencyMenu: React.FC<{
 	}, [open]);
 	useEffect(() => stopHold, []);
 
-	// Locked: a press anywhere but the list (and the pill, which unlocks it itself) lets go of it.
+	// Locked: a press anywhere but the list (and the pill, which unlocks it itself) lets go of it - in the menu, once
+	// the press ends: the list sliding shut under it would otherwise bring another item under the pointer, which its
+	// release would choose.
 	useEffect(() => {
 		if (!locked) {
 			return;
@@ -159,6 +194,13 @@ export const WorkspacesLatencyMenu: React.FC<{
 				target &&
 				(listRef.current?.contains(target) || rowRef.current?.contains(target))
 			) {
+				return;
+			}
+			if (target instanceof Element && target.closest("[role='menu']")) {
+				document.addEventListener("pointerup", () => setLocked(false), {
+					capture: true,
+					once: true,
+				});
 				return;
 			}
 			setLocked(false);

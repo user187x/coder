@@ -90,6 +90,7 @@ import { WorkspacesEmpty } from "./WorkspacesEmpty";
 import "./startingRows.css";
 import "./workspacesTable.css";
 import "#/modules/platform/workspaceUpdate/updatePulse.css";
+import { WorkspaceResources } from "#/modules/platform/workspaceResources/WorkspaceResources";
 
 type WorkspacesTableProps = {
 	workspaces?: readonly Workspace[];
@@ -158,8 +159,12 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 							<span className="sr-only">Lock Down</span>
 						</TableHead>
 					)}
-					<TableHead className={cn("w-[30%]", hideHeaders && "invisible")}>
+					<TableHead className={cn("w-[24%]", hideHeaders && "invisible")}>
 						Name
+					</TableHead>
+					{/* Platform: CPU and RAM as live graphs, the disk used of what it was given */}
+					<TableHead className={cn("w-[16%]", hideHeaders && "invisible")}>
+						Resources
 					</TableHead>
 					<TableHead className={cn("w-[18%]", hideHeaders && "invisible")}>
 						Template
@@ -288,6 +293,10 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 										/>
 									}
 								/>
+							</TableCell>
+
+							<TableCell>
+								<WorkspaceResources workspace={workspace} />
 							</TableCell>
 
 							<TableCell>
@@ -421,6 +430,9 @@ const TableLoader: React.FC = () => {
 				</TableCell>
 				<TableCell>
 					<AvatarDataSkeleton />
+				</TableCell>
+				<TableCell>
+					<Skeleton className="h-[38px] w-[200px] rounded-md" />
 				</TableCell>
 				<TableCell>
 					<AvatarDataSkeleton />

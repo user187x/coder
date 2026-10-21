@@ -24,8 +24,6 @@ import { isEmbedSizeMessage } from "./embeddedSize";
 export const IN_VIEW = 2;
 /** A dashboard is drawn at least this wide and scaled down to its cell, so the page keeps its wide layout. */
 export const FRAME_WIDTH = 1024;
-/** The least a dashboard is scaled to fit its cell's height; a taller one scrolls in its frame instead. */
-export const MIN_SCALE = 0.4;
 /** How often the workspaces' names and states are asked again while the grid is open. */
 export const REFRESH_MS = 5000;
 const GAP = 12;
@@ -53,8 +51,8 @@ const workspacePath = (w: Workspace) => `/@${w.owner_name}/${w.name}`;
 
 /**
  * Where a dashboard sits in its cell (frameH: the cell below its bar): drawn FRAME_WIDTH wide (the cell's width,
- * when wider), scaled to the cell's width - and to its height too, once the dashboard has told its own (contentH),
- * though not below MIN_SCALE - and centred in it.
+ * when wider), scaled to the cell's width - and to its height too, once the dashboard has told its own (contentH):
+ * it always fits whole, no scrollbar - and centred in it.
  */
 export const frameFit = (
 	cellW: number,
@@ -69,14 +67,10 @@ export const frameFit = (
 } => {
 	const width = Math.max(cellW, FRAME_WIDTH);
 	const byWidth = cellW > 0 ? cellW / width : 1;
-	const scale =
-		contentH && frameH > 0
-			? Math.min(byWidth, Math.max(MIN_SCALE, frameH / contentH))
-			: byWidth;
-	// its own height, a pixel or two over so it never scrolls for rounding; taller than the cell, the cell's
-	const height = contentH
-		? Math.min(Math.ceil(contentH) + 2, frameH / scale)
-		: frameH / scale;
+	// its own height, a pixel or two over so it never scrolls for rounding
+	const tall = contentH ? Math.ceil(contentH) + 2 : 0;
+	const scale = tall && frameH > 0 ? Math.min(byWidth, frameH / tall) : byWidth;
+	const height = tall || frameH / scale;
 	return {
 		width,
 		height,
@@ -136,9 +130,10 @@ export const WorkspaceGrid: React.FC<WorkspaceGridProps> = ({
 			<DialogContent
 				data-testid="workspace-grid"
 				aria-describedby={undefined}
-				overlayClassName="backdrop-blur-md"
+				// over the floating chat bar too (z-60): it goes under the blur with the rest of the page
+				overlayClassName="z-[70] backdrop-blur-md"
 				className={cn(
-					"flex max-h-none max-w-none flex-col gap-0 overflow-hidden p-0",
+					"z-[70] flex max-h-none max-w-none flex-col gap-0 overflow-hidden p-0",
 					"w-[calc(100vw-48px)] h-[calc(100vh-2*var(--coder-classification-h,0px)-48px)]",
 				)}
 			>

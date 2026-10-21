@@ -9,7 +9,6 @@ import {
 	FRAME_WIDTH,
 	frameFit,
 	gridLayout,
-	MIN_SCALE,
 	WorkspaceGrid,
 } from "./WorkspaceGrid";
 
@@ -73,14 +72,14 @@ describe("WorkspaceGrid", () => {
 		expect(short.height).toBe(302);
 		expect(short.top).toBeCloseTo((400 - 302 * short.scale) / 2);
 		// tall: the height decides, and it sits in the middle of the cell's width
-		const tall = frameFit(690, 400, 800);
+		const tall = frameFit(690, 400, 798);
 		expect(tall.scale).toBeCloseTo(0.5);
 		expect(tall.left).toBeCloseTo((690 - FRAME_WIDTH * 0.5) / 2);
 		expect(tall.top).toBeCloseTo(0, 0);
-		// very tall: no smaller than MIN_SCALE, scrolling in its frame
-		const huge = frameFit(690, 400, 4000);
-		expect(huge.scale).toBe(MIN_SCALE);
-		expect(huge.height).toBeCloseTo(400 / MIN_SCALE);
+		// however tall, it fits whole: never a scrollbar
+		const huge = frameFit(690, 400, 3998);
+		expect(huge.scale).toBeCloseTo(0.1);
+		expect(huge.height * huge.scale).toBeCloseTo(400);
 		// one alone, wider than FRAME_WIDTH: drawn the cell's width, unscaled
 		expect(frameFit(1400, 800, 500)).toMatchObject({ width: 1400, scale: 1 });
 	});

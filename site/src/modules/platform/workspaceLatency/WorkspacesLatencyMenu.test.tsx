@@ -19,6 +19,8 @@ import {
 import { MockWorkspace, MockWorkspaceAgent } from "#/testHelpers/entities";
 import {
 	HOLD_MS,
+	TEMPLATE_COLOURS,
+	templateColour,
 	WorkspacesLatencyMenu,
 	workspaceLatency,
 } from "./WorkspacesLatencyMenu";
@@ -85,6 +87,14 @@ describe("WorkspacesLatencyMenu", () => {
 	afterEach(() => {
 		vi.restoreAllMocks();
 		localStorage.clear();
+	});
+
+	it("gives each template one colour, the same every time (DEFAULT green)", () => {
+		expect(templateColour("DEFAULT")).toBe("#22c55e");
+		expect(templateColour("default")).toBe("#22c55e");
+		expect(templateColour("DATAFLOW")).toBe(templateColour("DATAFLOW"));
+		expect(templateColour("DATAFLOW")).not.toBe("#22c55e");
+		expect(TEMPLATE_COLOURS).toContain(templateColour("anything else"));
 	});
 
 	it("takes a workspace's latency from its agents' preferred region", () => {
@@ -209,8 +219,16 @@ describe("WorkspacesLatencyMenu", () => {
 		expect(isOpen(list)).toBe(true);
 		expect(row).toHaveAttribute("data-locked", "true");
 
-		// a press inside the list keeps it; a press elsewhere lets go
+		// a press inside the list keeps it; a press elsewhere lets go - in the menu, once it ends (nothing slides
+		// under it meanwhile)
 		fireEvent.pointerDown(list, { button: 0, pointerId: 1 });
+		expect(isOpen(list)).toBe(true);
+		const other = screen.getByRole("menuitem", { name: "Other" });
+		fireEvent.pointerDown(other, { button: 0, pointerId: 1 });
+		expect(isOpen(list)).toBe(true);
+		fireEvent.pointerUp(other, { button: 0, pointerId: 1 });
+		expect(isOpen(list)).toBe(false);
+		fireEvent.doubleClick(row);
 		expect(isOpen(list)).toBe(true);
 		fireEvent.pointerDown(document.body, { button: 0, pointerId: 1 });
 		expect(isOpen(list)).toBe(false);

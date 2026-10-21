@@ -203,6 +203,12 @@ export const Workspace: React.FC<WorkspaceProps> = ({
 				data-testid="workspace-dashboard-only"
 				className="p-3"
 			>
+				{/* the grid fits it whole: never a scrollbar, even while it grows (before the grid has fitted it) */}
+				<style>
+					{
+						"html{scrollbar-width:none;overflow:hidden}html::-webkit-scrollbar{display:none}"
+					}
+				</style>
 				{dashboard}
 			</div>
 		);
