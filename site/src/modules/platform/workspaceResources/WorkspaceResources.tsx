@@ -21,6 +21,8 @@ import type { OneWayWebSocket } from "#/utils/OneWayWebSocket";
 
 /** How many readings the CPU and RAM graphs show, the newest on the right. */
 export const GRAPH_BARS = 12;
+/** The disk's bar, in segments. */
+export const DISK_SEGMENTS = 16;
 const GRAPH_W = 52;
 const GRAPH_H = 22;
 // the longest wait between attempts to watch the readings again (ms)
@@ -162,17 +164,19 @@ export const WorkspaceResources: React.FC<{ workspace: Workspace }> = ({
 
 	if (!agent) {
 		return (
-			<span
-				data-testid="workspace-resources-none"
-				className="text-xs text-content-disabled"
-			>
-				—
-			</span>
+			<div className="text-center">
+				<span
+					data-testid="workspace-resources-none"
+					className="text-xs text-content-disabled"
+				>
+					—
+				</span>
+			</div>
 		);
 	}
 	if (!metadata) {
 		return (
-			<div className="flex items-end gap-3" aria-busy>
+			<div className="flex items-center justify-center gap-3" aria-busy>
 				<Skeleton className="h-[38px] w-[52px] rounded-md" />
 				<Skeleton className="h-[38px] w-[52px] rounded-md" />
 				<Skeleton className="h-[38px] w-28 rounded-md" />
@@ -185,7 +189,7 @@ export const WorkspaceResources: React.FC<{ workspace: Workspace }> = ({
 	return (
 		<div
 			data-testid="workspace-resources"
-			className="flex items-end gap-3"
+			className="flex items-center justify-center gap-3"
 			// the row opens the workspace; the readings are only to look at
 		>
 			<BarGraph label="CPU" reading={cpu} shares={series.cpu} />
@@ -268,9 +272,33 @@ const BarGraph: React.FC<{
 	);
 };
 
-/** The disk: what is used of what the workspace was given, as a bar, with the two below it. */
+/**
+ * The theme's colour of a disk segment by where it sits along the bar: success up to 70 %, warning to 90 %,
+ * destructive beyond.
+ */
+export const segmentTone = (position: number) =>
+	position > 90
+		? "bg-content-destructive"
+		: position > 70
+			? "bg-content-warning"
+			: "bg-content-success";
+
+/**
+ * The disk: what is used of what the workspace was given, as a bar of DISK_SEGMENTS segments - as many lit as the
+ * share used (one at least, when anything is), each in the theme's colour for where it sits, the rest the theme's
+ * empty surface - with the two figures below it.
+ */
 const DiskBar: React.FC<{ reading: Reading | null }> = ({ reading }) => {
 	const text = reading?.text.replace(/\s*\/\s*/, " / ");
+	const lit = reading
+		? Math.min(
+				DISK_SEGMENTS,
+				Math.max(
+					reading.share > 0 ? 1 : 0,
+					Math.round((reading.share / 100) * DISK_SEGMENTS),
+				),
+			)
+		: 0;
 	return (
 		<div
 			data-testid="workspace-resources-disk"
@@ -287,15 +315,22 @@ const DiskBar: React.FC<{ reading: Reading | null }> = ({ reading }) => {
 				aria-valuemin={0}
 				aria-valuemax={100}
 				aria-valuenow={reading ? Math.round(reading.share) : undefined}
-				className="h-1.5 w-full overflow-hidden rounded-full bg-surface-tertiary"
+				className="flex h-2 w-full gap-[2px]"
 			>
-				<div
-					className={cn("h-full rounded-full", !reading && "hidden")}
-					style={{
-						width: `${Math.max(reading?.share ?? 0, reading ? 2 : 0)}%`,
-						backgroundColor: levelColor(reading?.share ?? null),
-					}}
-				/>
+				{Array.from({ length: DISK_SEGMENTS }, (_, i) => (
+					<span
+						// a segment is its place along the bar
+						key={i}
+						data-testid="workspace-resources-segment"
+						data-lit={i < lit || undefined}
+						className={cn(
+							"h-full flex-1 rounded-[1.5px]",
+							i < lit
+								? segmentTone(((i + 1) / DISK_SEGMENTS) * 100)
+								: "bg-surface-tertiary",
+						)}
+					/>
+				))}
 			</div>
 			<span className="truncate text-[11px] leading-none tabular-nums text-content-secondary">
 				{text ?? "–"}

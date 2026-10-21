@@ -6,7 +6,12 @@ import {
 	MockWorkspaceAgent,
 } from "#/testHelpers/entities";
 import { renderComponent } from "#/testHelpers/renderHelpers";
-import { readingOf, WorkspaceResources } from "./WorkspaceResources";
+import {
+	DISK_SEGMENTS,
+	readingOf,
+	segmentTone,
+	WorkspaceResources,
+} from "./WorkspaceResources";
 
 const metric = (
 	key: string,
@@ -76,6 +81,12 @@ describe("WorkspaceResources", () => {
 		expect(readingOf(metric("x", "X", "n/a"))).toBeNull();
 	});
 
+	it("colours a disk segment by where it sits along the bar, in the theme's colours", () => {
+		expect(segmentTone(50)).toBe("bg-content-success");
+		expect(segmentTone(80)).toBe("bg-content-warning");
+		expect(segmentTone(100)).toBe("bg-content-destructive");
+	});
+
 	it("shows a dash for a workspace that is not running", () => {
 		renderComponent(<WorkspaceResources workspace={MockStoppedWorkspace} />);
 		expect(screen.getByTestId("workspace-resources-none")).toHaveTextContent(
@@ -106,6 +117,12 @@ describe("WorkspaceResources", () => {
 			"Disk: 0.1 / 10.0 GB (used / allocated)",
 		);
 		expect(screen.getByRole("meter")).toHaveAttribute("aria-valuenow", "1");
+		// a segmented bar: one segment lit for 1 % (anything used shows), the rest empty
+		const segments = screen.getAllByTestId("workspace-resources-segment");
+		expect(segments).toHaveLength(DISK_SEGMENTS);
+		expect(segments.filter((s) => s.dataset.lit)).toHaveLength(1);
+		expect(segments[0]).toHaveClass("bg-content-success");
+		expect(segments[1]).toHaveClass("bg-surface-tertiary");
 
 		// a new reading adds a bar; the same one again does not
 		sockets[0].send(readings("2026-10-21T06:00:01Z", "1.2/2 cores (60%)"));

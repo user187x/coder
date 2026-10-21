@@ -159,11 +159,16 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 							<span className="sr-only">Lock Down</span>
 						</TableHead>
 					)}
-					<TableHead className={cn("w-[24%]", hideHeaders && "invisible")}>
+					{/* Platform: as wide as the names, the Resources right beside them */}
+					<TableHead
+						className={cn("w-0 whitespace-nowrap", hideHeaders && "invisible")}
+					>
 						Name
 					</TableHead>
 					{/* Platform: CPU and RAM as live graphs, the disk used of what it was given */}
-					<TableHead className={cn("w-[16%]", hideHeaders && "invisible")}>
+					<TableHead
+						className={cn("w-0 px-6 text-center", hideHeaders && "invisible")}
+					>
 						Resources
 					</TableHead>
 					<TableHead className={cn("w-[18%]", hideHeaders && "invisible")}>
@@ -295,7 +300,7 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 								/>
 							</TableCell>
 
-							<TableCell>
+							<TableCell className="px-6">
 								<WorkspaceResources workspace={workspace} />
 							</TableCell>
 
