@@ -374,11 +374,16 @@ const MetadataItem: React.FC<MetadataItemProps> = ({
 	// could be buggy. But, how common is that anyways?
 	const value =
 		status === "loading" ? (
-			<Skeleton width={65} height={12} variant="text" className="mt-[6px]" />
+			<Skeleton
+				width={65}
+				height={12}
+				variant="text"
+				className="mx-auto mt-[6px]"
+			/>
 		) : status === "stale" ? (
 			<Tooltip>
 				<TooltipTrigger asChild>
-					<StaticWidth className="text-ellipsis overflow-hidden whitespace-nowrap max-w-full text-[13px] text-content-disabled cursor-pointer">
+					<StaticWidth className="mx-auto text-center text-ellipsis overflow-hidden whitespace-nowrap max-w-full text-[13px] text-content-disabled cursor-pointer">
 						{reading.text}
 					</StaticWidth>
 				</TooltipTrigger>
@@ -388,10 +393,11 @@ const MetadataItem: React.FC<MetadataItemProps> = ({
 			</Tooltip>
 		) : (
 			// Platform: never wider than its column (StaticWidth only grows): a long reading - a script's error - is cut
-			// short, whole on hover, instead of widening its group and pushing the next one aside for good
+			// short, whole on hover, instead of widening its group and pushing the next one aside for good; centred
+			// under the graph
 			<StaticWidth
 				className={cn(
-					"text-ellipsis overflow-hidden whitespace-nowrap max-w-full text-[13px] text-content-success",
+					"mx-auto text-center text-ellipsis overflow-hidden whitespace-nowrap max-w-full text-[13px] text-content-success",
 					item.result.error.length > 0 && "text-content-destructive",
 				)}
 				title={reading.text}
@@ -426,7 +432,10 @@ const MetadataItem: React.FC<MetadataItemProps> = ({
 					pausedAt={pausedAt}
 				/>
 			)}
-			<div>{value}</div>
+			{/* Platform: the reading centred under its graph */}
+			<div data-testid="metadata-value" className="text-center">
+				{value}
+			</div>
 		</div>
 	);
 };

@@ -92,3 +92,19 @@ describe("AgentMetadataView: a long reading", () => {
 		expect(value).toHaveAttribute("title", error);
 	});
 });
+
+describe("AgentMetadataView: a reading", () => {
+	it("is centred under its graph", () => {
+		renderComponent(
+			<AgentMetadataView metadata={OLD_TEMPLATE} historyScope="centred" />,
+		);
+		const values = within(
+			screen.getByTestId("metrics-group-workspace"),
+		).getAllByTestId("metadata-value");
+		expect(values.length).toBeGreaterThan(0);
+		for (const value of values) {
+			expect(value).toHaveClass("text-center");
+			expect(value.firstElementChild).toHaveClass("mx-auto", "text-center");
+		}
+	});
+});
