@@ -116,6 +116,8 @@ type AgentRowProps = {
 	initialMetadata?: WorkspaceAgentMetadata[];
 	agentScriptTimings?: readonly AgentScriptTiming[];
 	onUpdateAgent: () => void;
+	/** Platform: under the card's last panel, inside it (the workspace's Build timeline). */
+	footer?: React.ReactNode;
 };
 
 const statusBorderClassByStatus: Partial<
@@ -173,6 +175,7 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 	template,
 	onUpdateAgent,
 	initialMetadata,
+	footer,
 }) => {
 	const { browser_only, workspace_external_agent } = useFeatureVisibility();
 	const appSections = organizeAgentApps(agent.apps);
@@ -1071,6 +1074,7 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 						}),
 					]}
 				/>
+				{footer}
 			</div>
 		</AgentBorderFx>
 	);

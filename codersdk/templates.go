@@ -215,11 +215,13 @@ type TemplateACL struct {
 	Groups []TemplateGroup `json:"group"`
 }
 
-// TemplateAccessList is the platform's whitelist of a template's users: only
-// they may see the template and create workspaces from it (those who may edit
-// it always may). Empty: everyone who may otherwise.
+// TemplateAccessList is the platform's whitelist of a template's users: while
+// it is restricted only they may see the template and create workspaces from
+// it (those who may edit it always may), none listed: only its editors. Not
+// restricted: everyone who may otherwise. Setting users restricts it too.
 type TemplateAccessList struct {
-	UserIDs []uuid.UUID `json:"user_ids" format:"uuid"`
+	UserIDs    []uuid.UUID `json:"user_ids" format:"uuid"`
+	Restricted bool        `json:"restricted"`
 }
 
 type TemplateGroup struct {
@@ -474,7 +476,7 @@ func (c *Client) TemplateAccessList(ctx context.Context, templateID uuid.UUID) (
 	return list, ReadBodyAsJSON(res, &list)
 }
 
-// SetTemplateAccessList sets the template's access list; an empty one lets everyone use it.
+// SetTemplateAccessList sets the template's access list; neither restricted nor any users lets everyone use it.
 func (c *Client) SetTemplateAccessList(ctx context.Context, templateID uuid.UUID, list TemplateAccessList) (TemplateAccessList, error) {
 	res, err := c.Request(ctx, http.MethodPut, fmt.Sprintf("/api/v2/templates/%s/access", templateID), list)
 	if err != nil {

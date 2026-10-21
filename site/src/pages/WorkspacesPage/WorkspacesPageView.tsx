@@ -158,10 +158,11 @@ export const WorkspacesPageView: React.FC<WorkspacesPageViewProps> = ({
 			)}
 
 			{/* Platform: the search and the Cloud Drive (and, with rows selected, their bulk actions) in one rounded
-			    bar right above the table, no border lines and see-through, padded as far as the Chats card floats above the page's
-			    bottom bar */}
+			    bar right above the table, no border lines and see-through, padded above and below as far as the Chats card
+			    floats above the page's bottom bar - not at its sides: the search's left edge and the Cloud Drive's right
+			    edge on the table card's */}
 			<div
-				className="mb-2.5 flex flex-wrap items-center gap-3 rounded-[18px] bg-transparent p-2.5 text-sm text-content-secondary"
+				className="mb-2.5 flex flex-wrap items-center gap-3 rounded-[18px] bg-transparent py-2.5 text-sm text-content-secondary"
 				data-testid="workspaces-bar"
 			>
 				<div className="min-w-0 flex-1">

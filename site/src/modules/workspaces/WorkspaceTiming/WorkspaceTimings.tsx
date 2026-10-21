@@ -1,6 +1,7 @@
+import { cn } from "cn";
 import sortBy from "lodash/sortBy";
 import uniqBy from "lodash/uniqBy";
-import { useState } from "react";
+import { useId, useState } from "react";
 import type {
 	AgentConnectionTiming,
 	AgentScriptTiming,
@@ -14,6 +15,7 @@ import {
 	CollapsibleTrigger,
 } from "#/components/Collapsible/Collapsible";
 import { Skeleton } from "#/components/Skeleton/Skeleton";
+import { BuildFooterBar } from "#/modules/platform/buildFooter/BuildFooterBar";
 import {
 	calcDuration,
 	formatTime,
@@ -43,6 +45,8 @@ type TimingView =
 
 type WorkspaceTimingsProps = {
 	defaultIsOpen?: boolean;
+	/** Platform: the workspace card's footer (BuildFooterBar) instead of a card of its own. */
+	footer?: boolean;
 	provisionerTimings: readonly ProvisionerTiming[] | undefined;
 	agentScriptTimings: readonly AgentScriptTiming[] | undefined;
 	agentConnectionTimings: readonly AgentConnectionTiming[] | undefined;
@@ -53,9 +57,11 @@ export const WorkspaceTimings: React.FC<WorkspaceTimingsProps> = ({
 	agentScriptTimings = [],
 	agentConnectionTimings = [],
 	defaultIsOpen = false,
+	footer = false,
 }) => {
 	const [view, setView] = useState<TimingView>({ name: "default" });
 	const [isOpen, setIsOpen] = useState(defaultIsOpen);
+	const bodyId = useId();
 
 	// If any of the timings are empty, we are still loading the data. They can be
 	// filled in different moments.
@@ -102,6 +108,139 @@ export const WorkspaceTimings: React.FC<WorkspaceTimingsProps> = ({
 		return formatTime(totalDuration);
 	};
 
+	const total = isLoading ? (
+		<Skeleton variant="text" width={40} height={16} />
+	) : (
+		displayProvisioningTime()
+	);
+	const body = (
+		<div
+			className={cn(
+				"flex flex-col",
+				!footer && "border-solid border-0 border-t",
+			)}
+			style={{
+				height: "var(--collapse-body-height, 420px)",
+			}}
+		>
+			{view.name === "default" && (
+				<StagesChart
+					timings={stages.map((s) => {
+						const stageTimings = s.agentId
+							? agentTimings.filter(
+									(t) =>
+										t.stage === s.name && t.workspace_agent_id === s.agentId,
+								)
+							: provisionerTimings.filter((t) => t.stage === s.name);
+						const stageRange =
+							stageTimings.length === 0
+								? undefined
+								: mergeTimeRanges(stageTimings.map(toTimeRange));
+
+						// Prevent users from inspecting internal coder resources in
+						// provisioner timings because they were not useful to the
+						// user and would add noise.
+						const visibleResources = stageTimings.filter((t) => {
+							const isProvisionerTiming = "resource" in t;
+
+							// StageBoundaries are being drawn on the total timeline.
+							// Do not show them as discrete resources inside the stage view.
+							if (isProvisionerTiming && isStageBoundary(t.resource)) {
+								return false;
+							}
+
+							return isProvisionerTiming ? !isCoderResource(t.resource) : true;
+						});
+
+						return {
+							stage: s,
+							range: stageRange,
+							visibleResources: visibleResources.length,
+							error: stageTimings.some(
+								(t) => "status" in t && t.status === "exit_failure",
+							),
+						};
+					})}
+					onSelectStage={(stage) => {
+						setView({
+							stage,
+							name: "detailed",
+							filter: "",
+						});
+					}}
+				/>
+			)}
+			{view.name === "detailed" && (
+				<>
+					{view.stage.section === "provisioning" && (
+						<ResourcesChart
+							timings={provisionerTimings
+								.filter((t) => t.stage === view.stage.name)
+								.map((t) => ({
+									range: toTimeRange(t),
+									name: t.resource,
+									source: t.source,
+									action: t.action,
+								}))}
+							stage={view.stage}
+							onBack={() => {
+								setView({ name: "default" });
+							}}
+						/>
+					)}
+
+					{view.stage.name === "start" && (
+						<ScriptsChart
+							timings={uniqScriptTimings
+								.filter(
+									(t) =>
+										t.stage === view.stage.name &&
+										t.workspace_agent_id === view.stage.agentId,
+								)
+								.map((t) => {
+									return {
+										range: toTimeRange(t),
+										name: t.display_name,
+										status: t.status,
+										exitCode: t.exit_code,
+									};
+								})}
+							stage={view.stage}
+							onBack={() => {
+								setView({ name: "default" });
+							}}
+						/>
+					)}
+				</>
+			)}
+		</div>
+	);
+
+	// Platform: the workspace card's footer - a grip pulls the timeline down out of it (BuildFooterBar).
+	if (footer) {
+		return (
+			<Collapsible
+				open={isOpen}
+				onOpenChange={setIsOpen}
+				className="build-footer"
+				data-testid="build-timeline-footer"
+			>
+				<BuildFooterBar
+					open={isOpen}
+					onOpenChange={setIsOpen}
+					disabled={isLoading}
+					total={total}
+					controls={bodyId}
+				/>
+				{!isLoading && (
+					<CollapsibleContent id={bodyId} className="build-footer-body">
+						{body}
+					</CollapsibleContent>
+				)}
+			</Collapsible>
+		);
+	}
+
 	return (
 		<Collapsible
 			open={isOpen}
@@ -120,117 +259,10 @@ export const WorkspaceTimings: React.FC<WorkspaceTimingsProps> = ({
 					</Button>
 				</CollapsibleTrigger>
 				<span className="ml-auto text-sm text-content-secondary pr-2">
-					{isLoading ? (
-						<Skeleton variant="text" width={40} height={16} />
-					) : (
-						displayProvisioningTime()
-					)}
+					{total}
 				</span>
 			</div>
-			{!isLoading && (
-				<CollapsibleContent>
-					<div
-						className="border-solid border-0 border-t flex flex-col"
-						style={{
-							height: "var(--collapse-body-height, 420px)",
-						}}
-					>
-						{view.name === "default" && (
-							<StagesChart
-								timings={stages.map((s) => {
-									const stageTimings = s.agentId
-										? agentTimings.filter(
-												(t) =>
-													t.stage === s.name &&
-													t.workspace_agent_id === s.agentId,
-											)
-										: provisionerTimings.filter((t) => t.stage === s.name);
-									const stageRange =
-										stageTimings.length === 0
-											? undefined
-											: mergeTimeRanges(stageTimings.map(toTimeRange));
-
-									// Prevent users from inspecting internal coder resources in
-									// provisioner timings because they were not useful to the
-									// user and would add noise.
-									const visibleResources = stageTimings.filter((t) => {
-										const isProvisionerTiming = "resource" in t;
-
-										// StageBoundaries are being drawn on the total timeline.
-										// Do not show them as discrete resources inside the stage view.
-										if (isProvisionerTiming && isStageBoundary(t.resource)) {
-											return false;
-										}
-
-										return isProvisionerTiming
-											? !isCoderResource(t.resource)
-											: true;
-									});
-
-									return {
-										stage: s,
-										range: stageRange,
-										visibleResources: visibleResources.length,
-										error: stageTimings.some(
-											(t) => "status" in t && t.status === "exit_failure",
-										),
-									};
-								})}
-								onSelectStage={(stage) => {
-									setView({
-										stage,
-										name: "detailed",
-										filter: "",
-									});
-								}}
-							/>
-						)}
-						{view.name === "detailed" && (
-							<>
-								{view.stage.section === "provisioning" && (
-									<ResourcesChart
-										timings={provisionerTimings
-											.filter((t) => t.stage === view.stage.name)
-											.map((t) => ({
-												range: toTimeRange(t),
-												name: t.resource,
-												source: t.source,
-												action: t.action,
-											}))}
-										stage={view.stage}
-										onBack={() => {
-											setView({ name: "default" });
-										}}
-									/>
-								)}
-
-								{view.stage.name === "start" && (
-									<ScriptsChart
-										timings={uniqScriptTimings
-											.filter(
-												(t) =>
-													t.stage === view.stage.name &&
-													t.workspace_agent_id === view.stage.agentId,
-											)
-											.map((t) => {
-												return {
-													range: toTimeRange(t),
-													name: t.display_name,
-													status: t.status,
-													exitCode: t.exit_code,
-												};
-											})}
-										stage={view.stage}
-										onBack={() => {
-											setView({ name: "default" });
-										}}
-									/>
-								)}
-							</>
-						)}
-					</div>
-				</CollapsibleContent>
-			)}
+			{!isLoading && <CollapsibleContent>{body}</CollapsibleContent>}
 		</Collapsible>
 	);
 };

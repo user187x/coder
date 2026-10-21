@@ -98,25 +98,26 @@ export const templateAccessList = (templateId: string) => ({
 	queryFn: () => API.getTemplateAccessList(templateId),
 });
 
-/** Sets it, the menu showing the change at once (back as it was if refused). */
+/** Sets it, the menu and the Permissions card showing the change at once (back as it was if refused). */
 export const setTemplateAccessList = (
 	queryClient: QueryClient,
 	templateId: string,
 ) => ({
-	mutationFn: (userIds: readonly string[]) =>
-		API.setTemplateAccessList(templateId, userIds),
-	onMutate: async (userIds: readonly string[]) => {
+	mutationFn: (list: TemplateAccessList) =>
+		API.setTemplateAccessList(templateId, list),
+	onMutate: async (list: TemplateAccessList) => {
 		const key = ["templateAccess", templateId];
 		await queryClient.cancelQueries({ queryKey: key });
 		const before = queryClient.getQueryData<TemplateAccessList>(key);
 		queryClient.setQueryData<TemplateAccessList>(key, {
-			user_ids: [...userIds],
+			user_ids: [...list.user_ids],
+			restricted: list.restricted || list.user_ids.length > 0,
 		});
 		return { before };
 	},
 	onError: (
 		_error: unknown,
-		_userIds: readonly string[],
+		_list: TemplateAccessList,
 		context?: { before?: TemplateAccessList },
 	) => {
 		queryClient.setQueryData(["templateAccess", templateId], context?.before);

@@ -26,7 +26,9 @@ import (
 
 // The platform's template access list: a template's whitelist of the users
 // who may see it and create workspaces from it, set in the Templates table's
-// Access menu. None (the default): everyone who may otherwise. Coder's own
+// Access menu or the template settings' Permissions card. Not restricted (the
+// default): everyone who may otherwise. Restricted with nobody listed: only
+// its editors (the template is locked down). Coder's own
 // template permissions (its template ACLs) are a Premium feature this
 // deployment is not licensed for, so the list is the platform's own: kept in
 // the runtime config and checked here - the templates lists, a template read
@@ -41,49 +43,53 @@ func templateAccessKey(templateID uuid.UUID) string {
 }
 
 type templateAccessEntry struct {
-	users []uuid.UUID
-	at    time.Time
+	users      []uuid.UUID
+	restricted bool
+	at         time.Time
 }
 
+// templateAccessValue is what is kept: a template is restricted while its
+// key exists (its users may be none).
 type templateAccessValue struct {
 	Users []uuid.UUID `json:"users"`
 }
 
-// templateAccessUsers is the template's list (empty: none, everyone), read
-// at most every templateAccessTTL by each replica.
-func (api *API) templateAccessUsers(ctx context.Context, templateID uuid.UUID) ([]uuid.UUID, error) {
+// templateAccessUsers is the template's list and whether it applies (not
+// restricted: everyone), read at most every templateAccessTTL by each replica.
+func (api *API) templateAccessUsers(ctx context.Context, templateID uuid.UUID) ([]uuid.UUID, bool, error) {
 	if v, ok := api.templateAccess.Load(templateID); ok {
 		if e, _ := v.(templateAccessEntry); time.Since(e.at) < templateAccessTTL {
-			return e.users, nil
+			return e.users, e.restricted, nil
 		}
 	}
 	//nolint:gocritic // The list is read for every template a user sees: as the system, after their own checks.
 	raw, err := api.Database.GetRuntimeConfig(dbauthz.AsSystemRestricted(ctx), templateAccessKey(templateID))
 	var users []uuid.UUID
+	restricted := false
 	switch {
 	case err == nil:
 		var v templateAccessValue
 		if err := json.Unmarshal([]byte(raw), &v); err != nil {
-			return nil, xerrors.Errorf("template %s's access list: %w", templateID, err)
+			return nil, false, xerrors.Errorf("template %s's access list: %w", templateID, err)
 		}
-		users = v.Users
+		users, restricted = v.Users, true
 	case xerrors.Is(err, sql.ErrNoRows):
 	default:
-		return nil, xerrors.Errorf("template %s's access list: %w", templateID, err)
+		return nil, false, xerrors.Errorf("template %s's access list: %w", templateID, err)
 	}
-	api.templateAccess.Store(templateID, templateAccessEntry{users: users, at: time.Now()})
-	return users, nil
+	api.templateAccess.Store(templateID, templateAccessEntry{users: users, restricted: restricted, at: time.Now()})
+	return users, restricted, nil
 }
 
-// templateAccessAllows: the user is on the template's list, or it has none.
-// A list that cannot be read keeps everyone out but its editors.
+// templateAccessAllows: the template is not restricted, or the user is on its
+// list. A list that cannot be read keeps everyone out but its editors.
 func (api *API) templateAccessAllows(ctx context.Context, templateID, userID uuid.UUID) bool {
-	users, err := api.templateAccessUsers(ctx, templateID)
+	users, restricted, err := api.templateAccessUsers(ctx, templateID)
 	if err != nil {
 		api.Logger.Warn(ctx, "template access list", slog.Error(err))
 		return false
 	}
-	return len(users) == 0 || slices.Contains(users, userID)
+	return !restricted || slices.Contains(users, userID)
 }
 
 // templateVisible: the request's user may see the template - on its list (or
@@ -129,7 +135,7 @@ func (api *API) templateAccessForOwner(ctx context.Context, template database.Te
 }
 
 // @Summary Get template access list
-// @Description The platform's whitelist of the users who may see and use the template; empty: everyone.
+// @Description The platform's whitelist of the users who may see and use the template; not restricted: everyone.
 // @ID get-template-access-list
 // @Security CoderSessionToken
 // @Produce json
@@ -144,17 +150,17 @@ func (api *API) templateAccessList(rw http.ResponseWriter, r *http.Request) {
 		httpapi.Forbidden(rw)
 		return
 	}
-	users, err := api.templateAccessUsers(ctx, template.ID)
+	users, restricted, err := api.templateAccessUsers(ctx, template.ID)
 	if err != nil {
 		httpapi.InternalServerError(rw, err)
 		return
 	}
-	httpapi.Write(ctx, rw, http.StatusOK, codersdk.TemplateAccessList{UserIDs: accessIDs(users)})
+	httpapi.Write(ctx, rw, http.StatusOK, codersdk.TemplateAccessList{UserIDs: accessIDs(users), Restricted: restricted})
 }
 
 // @Summary Set template access list
-// @Description Only the users given may see the template and create workspaces from it (its editors always may);
-// @Description none: everyone.
+// @Description Restricted (or any users given): only those users may see the template and create workspaces from
+// @Description it (its editors always may). Neither: everyone.
 // @ID set-template-access-list
 // @Security CoderSessionToken
 // @Accept json
@@ -178,19 +184,23 @@ func (api *API) putTemplateAccessList(rw http.ResponseWriter, r *http.Request) {
 	users := slices.Compact(slices.SortedFunc(slices.Values(req.UserIDs), func(a, b uuid.UUID) int {
 		return slices.Compare(a[:], b[:])
 	}))
+	// Users given restrict it too: clients from before the flag send only them.
+	restricted := req.Restricted || len(users) > 0
 	//nolint:gocritic // The list is the platform's: kept in the runtime config, as the system (its editor checked above).
 	sys := dbauthz.AsSystemRestricted(ctx)
-	if len(users) > 0 {
-		found, err := api.Database.GetUsersByIDs(sys, users)
-		if err != nil {
-			httpapi.InternalServerError(rw, err)
-			return
+	if restricted {
+		if len(users) > 0 {
+			found, err := api.Database.GetUsersByIDs(sys, users)
+			if err != nil {
+				httpapi.InternalServerError(rw, err)
+				return
+			}
+			if len(found) != len(users) || slices.ContainsFunc(found, func(u database.User) bool { return u.Deleted }) {
+				httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{Message: "Every user must be an account here."})
+				return
+			}
 		}
-		if len(found) != len(users) || slices.ContainsFunc(found, func(u database.User) bool { return u.Deleted }) {
-			httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{Message: "Every user must be an account here."})
-			return
-		}
-		raw, err := json.Marshal(templateAccessValue{Users: users})
+		raw, err := json.Marshal(templateAccessValue{Users: accessIDs(users)})
 		if err != nil {
 			httpapi.InternalServerError(rw, err)
 			return
@@ -207,10 +217,10 @@ func (api *API) putTemplateAccessList(rw http.ResponseWriter, r *http.Request) {
 		httpapi.InternalServerError(rw, err)
 		return
 	}
-	api.templateAccess.Store(template.ID, templateAccessEntry{users: users, at: time.Now()})
-	api.Logger.Info(ctx, "template access list", slog.F("template", template.Name), slog.F("users", len(users)),
-		slog.F("by", httpmw.APIKey(r).UserID))
-	httpapi.Write(ctx, rw, http.StatusOK, codersdk.TemplateAccessList{UserIDs: accessIDs(users)})
+	api.templateAccess.Store(template.ID, templateAccessEntry{users: users, restricted: restricted, at: time.Now()})
+	api.Logger.Info(ctx, "template access list", slog.F("template", template.Name), slog.F("restricted", restricted),
+		slog.F("users", len(users)), slog.F("by", httpmw.APIKey(r).UserID))
+	httpapi.Write(ctx, rw, http.StatusOK, codersdk.TemplateAccessList{UserIDs: accessIDs(users), Restricted: restricted})
 }
 
 func accessIDs(ids []uuid.UUID) []uuid.UUID {

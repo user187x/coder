@@ -92,6 +92,20 @@ export const Workspace: React.FC<WorkspaceProps> = ({
 	const selectedResource = resources.find(
 		(r) => resourceOptionValue(r) === resourcesNav.value,
 	);
+	// If an agent has a `parent_id`, that means it is child of another agent. We
+	// do not want these agents to be displayed at the top-level on this page. We
+	// want them to display _as children_ of their parents.
+	const topAgents =
+		selectedResource?.agents?.filter((agent) => agent.parent_id === null) ?? [];
+	// Platform: the Build timeline, the last agent card's footer - or, with no agent card, a card of its own.
+	const buildTimeline = (footer: boolean) => (
+		<WorkspaceTimings
+			footer={footer}
+			provisionerTimings={timings?.provisioner_timings}
+			agentScriptTimings={timings?.agent_script_timings}
+			agentConnectionTimings={timings?.agent_connection_timings}
+		/>
+	);
 
 	const workspaceRunning = workspace.latest_build.status === "running";
 	const workspacePending = workspace.latest_build.status === "pending";
@@ -207,24 +221,24 @@ export const Workspace: React.FC<WorkspaceProps> = ({
 
 							{selectedResource && (
 								<section className="flex flex-col gap-6 grow min-w-0">
-									{selectedResource.agents
-										// If an agent has a `parent_id`, that means it is
-										// child of another agent. We do not want these agents
-										// to be displayed at the top-level on this page. We
-										// want them to display _as children_ of their parents.
-										?.filter((agent) => agent.parent_id === null)
-										.map((agent) => (
-											<AgentRow
-												key={agent.id}
-												agent={agent}
-												subAgents={selectedResource.agents?.filter(
-													(a) => a.parent_id === agent.id,
-												)}
-												workspace={workspace}
-												template={template}
-												onUpdateAgent={handleUpdate} // On updating the workspace the agent version is also updated
-											/>
-										))}
+									{topAgents.map((agent, i) => (
+										<AgentRow
+											key={agent.id}
+											agent={agent}
+											subAgents={selectedResource.agents?.filter(
+												(a) => a.parent_id === agent.id,
+											)}
+											workspace={workspace}
+											template={template}
+											onUpdateAgent={handleUpdate} // On updating the workspace the agent version is also updated
+											// Platform: the Build timeline is the last card's footer, under its last panel
+											footer={
+												i === topAgents.length - 1
+													? buildTimeline(true)
+													: undefined
+											}
+										/>
+									))}
 
 									{(!selectedResource.agents ||
 										selectedResource.agents?.length === 0) && (
@@ -239,11 +253,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
 								</section>
 							)}
 
-							<WorkspaceTimings
-								provisionerTimings={timings?.provisioner_timings}
-								agentScriptTimings={timings?.agent_script_timings}
-								agentConnectionTimings={timings?.agent_connection_timings}
-							/>
+							{topAgents.length === 0 && buildTimeline(false)}
 						</div>
 					</div>
 				</div>

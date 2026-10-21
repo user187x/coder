@@ -6005,7 +6005,7 @@ const docTemplate = `{
         },
         "/api/v2/templates/{template}/access": {
             "get": {
-                "description": "The platform's whitelist of the users who may see and use the template; empty: everyone.",
+                "description": "The platform's whitelist of the users who may see and use the template; not restricted: everyone.",
                 "produces": [
                     "application/json"
                 ],
@@ -6039,7 +6039,7 @@ const docTemplate = `{
                 ]
             },
             "put": {
-                "description": "Only the users given may see the template and create workspaces from it (its editors always may);\nnone: everyone.",
+                "description": "Restricted (or any users given): only those users may see the template and create workspaces from\nit (its editors always may). Neither: everyone.",
                 "consumes": [
                     "application/json"
                 ],
@@ -20363,6 +20363,9 @@ const docTemplate = `{
         "codersdk.TemplateAccessList": {
             "type": "object",
             "properties": {
+                "restricted": {
+                    "type": "boolean"
+                },
                 "user_ids": {
                     "type": "array",
                     "items": {

@@ -15,6 +15,10 @@
  * dock holds as many windows as fit, a new message from someone else does not
  * pop up a window: it waits in the console's list, counted, so a busy hour
  * stays orderly.
+ *
+ * The dock shows the chat one of four ways (DockMode): the Chats bar, raised
+ * into a small window, attached to the right side, or full screen. Attached or
+ * full screen, conversations open in it (panelView) rather than in windows.
  */
 import { useEffect, useSyncExternalStore } from "react";
 import {
@@ -36,6 +40,10 @@ import {
 } from "./chatPresence";
 
 const OPEN_KEY = "coder-ui-chat-windows";
+const PANEL_KEY = "coder-ui-chat-panel";
+const MODE_KEY = "coder-ui-chat-dock";
+/** From Tailwind's md up, the dock's windows sit beside the Chats panel (ChatDock); below it, above it. */
+const WINDOWS_BESIDE_FROM = 768;
 const TYPING_EVERY_MS = 2500;
 const SIGNED_OUT_RETRY_MS = 30_000;
 const UNAVAILABLE_RETRY_MS = 10_000;
@@ -64,6 +72,14 @@ export type ChatWindowState = {
 	olderDone: boolean;
 };
 
+/**
+ * How the dock shows the chat: "bar", its handle at the bottom right;
+ * "window", raised from it into a small window (Gmail's chat); "side",
+ * attached to the right side, from the navbar down; "full", over the page
+ * below the navbar.
+ */
+export type DockMode = "bar" | "window" | "side" | "full";
+
 type ChatSnapshot = {
 	me: ChatState["me"] | null;
 	conversations: ReadonlyMap<string, ChatConversation>;
@@ -79,7 +95,11 @@ type ChatSnapshot = {
 	maxFileMb: number;
 	/** Peer-to-peer chat is on: developers see the People list and write to each other. */
 	peers: boolean;
-	drawerOpen: boolean;
+	dockMode: DockMode;
+	/** What full screen goes back to. */
+	fullFrom: "window" | "side";
+	/** The conversation open in the side panel or full screen (null: their list). */
+	panelView: ChatWindowState | null;
 	/** Admins: the chat console (shown on the Chat page, or popped out), and the conversation open in it. */
 	consoleOpen: boolean;
 	consoleView: ChatWindowState | null;
@@ -87,6 +107,29 @@ type ChatSnapshot = {
 	consoleRequest: number;
 	/** Group chats' first messages this user has not clicked yet: in front of everything (ChatFocusOverlay). */
 	focus: readonly ChatFocus[];
+};
+
+/**
+ * How the dock starts on a page load: attached to the right side when it was
+ * left attached - a layout chosen for every page, like a pinned sidebar - and
+ * at the bar otherwise: a raised window or full screen would cover the page
+ * just opened. Without storage, at the bar.
+ */
+export const initialDockMode = (): DockMode => {
+	try {
+		return localStorage.getItem(MODE_KEY) === "side" ? "side" : "bar";
+	} catch {
+		return "bar";
+	}
+};
+
+/** Full screen is remembered as what it goes back to. */
+const rememberDockMode = (mode: DockMode, fullFrom: "window" | "side") => {
+	try {
+		localStorage.setItem(MODE_KEY, mode === "full" ? fullFrom : mode);
+	} catch {
+		// For this page only.
+	}
 };
 
 const initialSnapshot: ChatSnapshot = {
@@ -100,7 +143,9 @@ const initialSnapshot: ChatSnapshot = {
 	presenceVersion: 0,
 	maxFileMb: 25,
 	peers: false,
-	drawerOpen: false,
+	dockMode: initialDockMode(),
+	fullFrom: "window",
+	panelView: null,
 	consoleOpen: false,
 	consoleView: null,
 	consoleRequest: 0,
@@ -233,26 +278,66 @@ const loadOpenWindows = () => {
 	}
 };
 
-/** Changes the conversation's window and, if it is the one there, the console's view of it. */
+/** The side panel's (or full screen's) conversation, remembered per tab like the windows. */
+const setPanelView = (view: ChatWindowState | null) => {
+	update({ panelView: view });
+	try {
+		if (view) {
+			const { id, username, name } = view.peer;
+			sessionStorage.setItem(PANEL_KEY, JSON.stringify({ id, username, name }));
+		} else {
+			sessionStorage.removeItem(PANEL_KEY);
+		}
+	} catch {
+		// Not remembered.
+	}
+};
+
+const loadPanelPeer = () => {
+	try {
+		const parsed: unknown = JSON.parse(
+			sessionStorage.getItem(PANEL_KEY) ?? "null",
+		);
+		return isSavedWindow(parsed) ? parsed : null;
+	} catch {
+		return null;
+	}
+};
+
+/** Changes the conversation's window and, if it is the one there, the console's and the side panel's view of it. */
 const updateWindow = (
 	peerId: string,
 	change: (w: ChatWindowState) => ChatWindowState,
 ) => {
 	const view = snapshot.consoleView;
+	const panel = snapshot.panelView;
 	update({
 		windows: snapshot.windows.map((w) =>
 			w.peer.id === peerId ? change(w) : w,
 		),
 		consoleView: view && view.peer.id === peerId ? change(view) : view,
+		panelView: panel && panel.peer.id === peerId ? change(panel) : panel,
 	});
 };
 
 const findWindow = (peerId: string) =>
 	snapshot.windows.find((w) => w.peer.id === peerId);
 
-/** The conversation's window, or the console's view of it while the console shows it. */
+/** Attached to the right side or full screen: conversations open in it, and the windows are put away. */
+const attached = () =>
+	snapshot.dockMode === "side" || snapshot.dockMode === "full";
+
+/**
+ * The conversation where it is on screen: its window (while attached, the
+ * side panel's view instead, the windows being put away), or the console's
+ * view of it while the console shows it.
+ */
 const findView = (peerId: string) =>
-	findWindow(peerId) ??
+	(attached()
+		? snapshot.panelView?.peer.id === peerId
+			? snapshot.panelView
+			: undefined
+		: findWindow(peerId)) ??
 	(snapshot.consoleOpen && snapshot.consoleView?.peer.id === peerId
 		? snapshot.consoleView
 		: undefined);
@@ -272,9 +357,18 @@ const newView = (peer: ChatPeer, minimized: boolean, focus: boolean) => ({
 	olderDone: false,
 });
 
-/** As many windows as fit side by side (at most three); the oldest gives way. */
+/** The dock's windows sit beside the Chats panel, Gmail style (on a narrow screen they stack above it). */
+export const windowsBeside = () => window.innerWidth >= WINDOWS_BESIDE_FROM;
+
+/** As many windows as fit side by side, beside the panel (at most three); the oldest gives way. */
 const maxOpenWindows = () =>
-	Math.max(1, Math.min(3, Math.floor((window.innerWidth - 32) / 340)));
+	Math.max(
+		1,
+		Math.min(
+			3,
+			Math.floor((window.innerWidth - 32 - (windowsBeside() ? 372 : 0)) / 340),
+		),
+	);
 
 /**
  * The messages of `incoming` not shown yet, each once. A message can come
@@ -423,9 +517,11 @@ export const markRead = (peerId: string, used: boolean) => {
 
 // ---------------------------------------------------------------- messages
 
+/** Attached or full screen, nothing pops up: the message is counted in its list. */
 const popsUp = () =>
-	!snapshot.me?.admin ||
-	(!snapshot.consoleOpen && snapshot.windows.length < maxOpenWindows());
+	!attached() &&
+	(!snapshot.me?.admin ||
+		(!snapshot.consoleOpen && snapshot.windows.length < maxOpenWindows()));
 
 const receive = (m: ChatMessage) => {
 	const me = snapshot.me;
@@ -479,6 +575,9 @@ const cleared = (peerId: string, byMe: boolean) => {
 		if (snapshot.consoleView?.peer.id === peerId) {
 			update({ consoleView: null });
 		}
+		if (snapshot.panelView?.peer.id === peerId) {
+			setPanelView(null);
+		}
 		return;
 	}
 	updateWindow(peerId, (w) => ({
@@ -504,6 +603,9 @@ const purged = () => {
 		})),
 		consoleView: snapshot.consoleView
 			? { ...snapshot.consoleView, messages: [], pending: [] }
+			: null,
+		panelView: snapshot.panelView
+			? { ...snapshot.panelView, messages: [], pending: [] }
 			: null,
 	});
 };
@@ -538,17 +640,20 @@ const applyAvailability = (availability: ChatAvailability) => {
 		maxFileMb: availability.maxFileMb ?? snapshot.maxFileMb,
 		peers: availability.peers ?? snapshot.peers,
 		me: me && chatOn !== undefined ? { ...me, chatOn } : me,
-		drawerOpen:
-			noneAvailable && !(availability.peers ?? snapshot.peers)
-				? false
-				: snapshot.drawerOpen,
+		// Nobody to write to: a raised window lowers (attached, its list says so).
+		dockMode:
+			noneAvailable &&
+			!(availability.peers ?? snapshot.peers) &&
+			snapshot.dockMode === "window"
+				? "bar"
+				: snapshot.dockMode,
 	});
 };
 
 // ---------------------------------------------------------------- lifecycle
 
 const signedOut = () => {
-	snapshot = initialSnapshot;
+	snapshot = { ...initialSnapshot, dockMode: initialDockMode() };
 	cursor = 0;
 	clearVersion = 0;
 	purgeVersion = 0;
@@ -558,6 +663,7 @@ const signedOut = () => {
 	}
 	try {
 		sessionStorage.removeItem(OPEN_KEY);
+		sessionStorage.removeItem(PANEL_KEY);
 	} catch {
 		// Nothing kept.
 	}
@@ -651,6 +757,16 @@ const boot = async () => {
 			);
 		}
 	}
+	// Attached: the side panel shows what it showed before the reload.
+	const panelPeer = attached() ? loadPanelPeer() : null;
+	if (panelPeer && panelPeer.id !== state.me.id) {
+		selectInPanel({
+			id: panelPeer.id,
+			username: panelPeer.username,
+			name: panelPeer.name ?? "",
+			group: isChatGroupId(panelPeer.id),
+		});
+	}
 	// Unread conversations come up minimized, with their count (for admins as
 	// many as fit; the console has the rest).
 	for (const conversation of conversations) {
@@ -689,6 +805,9 @@ const onVisibilityChange = () => {
 	for (const w of snapshot.windows) {
 		markRead(w.peer.id, false);
 	}
+	if (snapshot.panelView) {
+		markRead(snapshot.panelView.peer.id, false);
+	}
 };
 document.addEventListener("visibilitychange", onVisibilityChange);
 
@@ -704,11 +823,18 @@ export const openChatWith = async (peer: ChatPeer) => {
 		selectInConsole(peer, true);
 		return;
 	}
+	if (attached()) {
+		selectInPanel(peer, true);
+		return;
+	}
 	openWindow(peer, { focus: true });
 	markRead(peer.id, true);
 };
 
-/** Every conversation with unread messages, expanded; else the Chats panel. Admins: the console, at the first. */
+/**
+ * Every conversation with unread messages, expanded; else the Chats panel. Admins: the console, at the first.
+ * Attached or full screen: the one waiting longest, in it.
+ */
 export const openUnreadChats = async () => {
 	await startChat();
 	if (snapshot.me?.admin) {
@@ -721,8 +847,14 @@ export const openUnreadChats = async () => {
 	const unread = [...snapshot.conversations.values()]
 		.filter((c) => c.unread)
 		.sort((a, b) => a.last.id - b.last.id);
+	if (attached()) {
+		if (unread[0]) {
+			selectInPanel(unread[0].peer, true);
+		}
+		return;
+	}
 	if (!unread.length) {
-		setDrawerOpen(true);
+		setDockMode("window");
 		return;
 	}
 	unread.forEach((c, i) =>
@@ -750,12 +882,120 @@ export const setInvisible = async (invisible: boolean) => {
 	}
 };
 
-export const setDrawerOpen = (open: boolean) => {
-	if (open && noAdminAvailable(snapshot)) {
+// ---------------------------------------------------------------- the dock's modes
+
+/** The window in use (it holds the focus), else the first one expanded, else the first. */
+const windowInUse = () =>
+	snapshot.windows.find((w) => w.peer.id === focusedPeer) ??
+	snapshot.windows.find((w) => !w.minimized) ??
+	snapshot.windows[0];
+
+/** The panel's conversation goes on in a window of the dock's, its messages as they are. */
+const windowFromPanel = (view: ChatWindowState) => {
+	if (findWindow(view.peer.id)) {
+		openWindow(view.peer, { focus: true });
 		return;
 	}
-	update({ drawerOpen: open });
+	update({
+		windows: [
+			{ ...view, minimized: false, focusRequest: 1 },
+			...snapshot.windows,
+		].slice(0, maxOpenWindows()),
+	});
+	saveOpenWindows();
 };
+
+/**
+ * Shows the chat another way (DockMode), remembered in this browser
+ * (initialDockMode). Attached or full screen, the windows are put away - they
+ * come back when the chat floats again - and the window in use goes on in it;
+ * back in the raised window, the conversation open in it goes on in a window.
+ * A developer with no one to write to stays at the bar.
+ */
+export const setDockMode = (mode: DockMode) => {
+	const from = snapshot.dockMode;
+	const next = mode === "window" && noAdminAvailable(snapshot) ? "bar" : mode;
+	if (next === from) {
+		return;
+	}
+	const wasAttached = attached();
+	const attaching = next === "side" || next === "full";
+	const fullFrom =
+		next === "full" ? (from === "side" ? "side" : "window") : snapshot.fullFrom;
+	if (attaching && !wasAttached) {
+		const w = windowInUse();
+		focusedPeer = null;
+		setPanelView(w ? { ...w, minimized: false, focusRequest: 0 } : null);
+	}
+	const leaving = wasAttached && !attaching ? snapshot.panelView : null;
+	update({ dockMode: next, fullFrom });
+	if (wasAttached && !attaching) {
+		focusedPeer = null;
+		setPanelView(null);
+		if (leaving && next === "window") {
+			windowFromPanel(leaving);
+		}
+	}
+	rememberDockMode(next, fullFrom);
+};
+
+/** Raises the Chats bar into its window, or lowers it (the quick access wheel's Chat); attached or full screen, the chat shows already. */
+export const setDrawerOpen = (open: boolean) => {
+	if (!attached()) {
+		setDockMode(open ? "window" : "bar");
+	}
+};
+
+/** Full screen ends: back to the raised window or the side panel, whichever it came from. */
+export const exitFullScreen = () => {
+	if (snapshot.dockMode === "full") {
+		setDockMode(snapshot.fullFrom);
+	}
+};
+
+/** The chat console comes up: a raised window lowers to the bar and full screen ends (the side panel stays). */
+const makeWayForConsole = () => {
+	const mode = snapshot.dockMode;
+	if (
+		mode === "window" ||
+		(mode === "full" && snapshot.fullFrom === "window")
+	) {
+		setDockMode("bar");
+	} else if (mode === "full") {
+		setDockMode("side");
+	}
+};
+
+/** Shows this conversation in the side panel or full screen (its window, put away, keeps its own copy). */
+export const selectInPanel = (peer: ChatPeer, focus = false) => {
+	const current = snapshot.panelView;
+	if (current?.peer.id === peer.id) {
+		if (focus) {
+			update({
+				panelView: { ...current, focusRequest: current.focusRequest + 1 },
+			});
+		}
+		markRead(peer.id, true);
+		return;
+	}
+	const open =
+		findWindow(peer.id) ??
+		(snapshot.consoleView?.peer.id === peer.id
+			? snapshot.consoleView
+			: undefined);
+	setPanelView(
+		open
+			? { ...open, minimized: false, focusRequest: focus ? 1 : 0 }
+			: newView(peer, false, focus),
+	);
+	if (!open) {
+		void loadHistory(peer.id);
+	}
+	markRead(peer.id, true);
+};
+
+/** The side panel (or full screen) goes back to its list. */
+export const closePanelView = () => setPanelView(null);
 
 const newClientId = () =>
 	typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -833,12 +1073,12 @@ export const loadOlderMessages = async (peerId: string) => {
  * else the dashboard is asked to go to its page (the Chat page), where it opens on it (attachConsole).
  */
 export const openConsole = (peer?: ChatPeer) => {
+	makeWayForConsole();
 	if (!snapshot.consoleOpen) {
 		pendingConsolePeer = peer ?? pendingConsolePeer;
-		update({ consoleRequest: snapshot.consoleRequest + 1, drawerOpen: false });
+		update({ consoleRequest: snapshot.consoleRequest + 1 });
 		return;
 	}
-	update({ drawerOpen: false });
 	if (peer) {
 		selectInConsole(peer);
 	}
@@ -848,7 +1088,8 @@ export const openConsole = (peer?: ChatPeer) => {
 export const attachConsole = () => {
 	const peer = pendingConsolePeer;
 	pendingConsolePeer = null;
-	update({ consoleOpen: true, drawerOpen: false });
+	update({ consoleOpen: true });
+	makeWayForConsole();
 	if (peer) {
 		selectInConsole(peer);
 	} else if (!snapshot.consoleView) {
@@ -878,7 +1119,9 @@ export const selectInConsole = (peer: ChatPeer, focus = false) => {
 		markRead(peer.id, true);
 		return;
 	}
-	const open = findWindow(peer.id);
+	const open =
+		findWindow(peer.id) ??
+		(snapshot.panelView?.peer.id === peer.id ? snapshot.panelView : undefined);
 	update({
 		consoleView: open
 			? { ...open, minimized: false, focusRequest: focus ? 1 : 0 }
@@ -890,8 +1133,12 @@ export const selectInConsole = (peer: ChatPeer, focus = false) => {
 	markRead(peer.id, true);
 };
 
-/** The console's conversation in a chat window of its own too (the dock's, on every page). */
+/** The console's conversation in a chat window of its own too (the dock's, on every page; attached, in the side panel). */
 export const popOutOfConsole = (peer: ChatPeer) => {
+	if (attached()) {
+		selectInPanel(peer, true);
+		return;
+	}
 	openWindow(peer, { focus: true });
 	markRead(peer.id, true);
 };

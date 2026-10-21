@@ -1,7 +1,8 @@
 /**
  * What other users share with the signed-in user: each active share - an entire Cloud Drive, or a folder or a file of
  * one (the Cloud Drive window's drives, CloudDriveBrowser); a card for each owner's (the Cloud Drive's leading cloud,
- * SharedWithYou); and the room the entire drives shared read and write add to the user's own (its capacity bar).
+ * SharedWithYou); and the room the entire drives shared read and write add to the user's own (its capacity bar). And
+ * the other way round: whom the user's own is shared with (that leading cloud's dotted outline).
  */
 import type {
 	CloudDrivePeers,
@@ -112,6 +113,23 @@ export const sharedDrives = (
 				a.ownerName.localeCompare(b.ownerName) ||
 				a.owner.localeCompare(b.owner),
 		);
+};
+
+/**
+ * Whom the user's own Cloud Drive - all of it, or a folder or a file of it - is shared with now (its active shares,
+ * however they came about: shared by the user, or asked for and accepted, and approved by an admin where admins
+ * approve them; none while sharing is off), by name, each once: the Cloud Drive's leading cloud says so.
+ */
+export const mineSharedWith = (
+	peers: CloudDrivePeers | undefined,
+): string[] => {
+	if (!peers?.settings.enabled) {
+		return [];
+	}
+	const names = peers.ofMine
+		.filter((s) => s.state === "active" && s.from !== peers.me)
+		.map((s) => s.fromName);
+	return [...new Set(names)].sort((a, b) => a.localeCompare(b));
 };
 
 /** The folder the Cloud Drive window opens on for a part: the shared folder, a shared file's folder. */

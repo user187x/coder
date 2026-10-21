@@ -15,7 +15,8 @@ import (
 )
 
 // The platform's template access list: only the users on it see the template
-// and create workspaces from it; its editors always do; none: everyone.
+// and create workspaces from it; its editors always do; restricted with
+// nobody on it: only its editors; not restricted: everyone.
 func TestTemplateAccessList(t *testing.T) {
 	t.Parallel()
 
@@ -58,6 +59,7 @@ func TestTemplateAccessList(t *testing.T) {
 	got, err := client.TemplateAccessList(ctx, template.ID)
 	require.NoError(t, err)
 	require.Empty(t, got.UserIDs)
+	require.False(t, got.Restricted)
 	require.True(t, sees(member))
 	require.True(t, sees(other))
 
@@ -65,6 +67,7 @@ func TestTemplateAccessList(t *testing.T) {
 	got, err = templateAdmin.SetTemplateAccessList(ctx, template.ID, codersdk.TemplateAccessList{UserIDs: []uuid.UUID{memberUser.ID}})
 	require.NoError(t, err)
 	require.Equal(t, []uuid.UUID{memberUser.ID}, got.UserIDs)
+	require.True(t, got.Restricted, "users given restrict it")
 	require.True(t, sees(member))
 	require.False(t, sees(other))
 	require.NoError(t, creates(member))
@@ -86,10 +89,25 @@ func TestTemplateAccessList(t *testing.T) {
 	require.ErrorAs(t, err, &sdkErr)
 	require.Equal(t, http.StatusBadRequest, sdkErr.StatusCode())
 
+	// Locked down with nobody on it: only its editors.
+	got, err = client.SetTemplateAccessList(ctx, template.ID, codersdk.TemplateAccessList{Restricted: true})
+	require.NoError(t, err)
+	require.True(t, got.Restricted)
+	require.Empty(t, got.UserIDs)
+	got, err = templateAdmin.TemplateAccessList(ctx, template.ID)
+	require.NoError(t, err)
+	require.True(t, got.Restricted)
+	require.False(t, sees(member))
+	require.False(t, sees(other))
+	require.ErrorAs(t, creates(member), &sdkErr)
+	require.True(t, sees(templateAdmin))
+	require.NoError(t, creates(templateAdmin))
+
 	// Cleared: everyone again.
 	got, err = client.SetTemplateAccessList(ctx, template.ID, codersdk.TemplateAccessList{})
 	require.NoError(t, err)
 	require.Empty(t, got.UserIDs)
+	require.False(t, got.Restricted)
 	require.True(t, sees(other))
 	require.NoError(t, creates(other))
 }

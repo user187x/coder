@@ -1,0 +1,8 @@
+/* Platform: the chat attached to the right side (ChatSidePanel, 380px wide) takes its room from the page, which
+   narrows beside it instead of going on underneath - on a wide screen; a narrower one keeps the whole page and the
+   panel lies over its right edge. The navbar and the bottom bars keep the full width. */
+@media (min-width: 1024px) {
+	html[data-chat-side] #main-content {
+		margin-right: 380px;
+	}
+}

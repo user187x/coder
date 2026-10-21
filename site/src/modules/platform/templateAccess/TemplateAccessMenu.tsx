@@ -28,9 +28,11 @@ import {
 
 /**
  * Platform: who may see and use a template (the Templates table's Access column, for those who may edit it): a menu
- * with a search over every account and a tick for each one on the template's access list. A pick is saved at once;
- * none picked: everyone. The template's editors (owners, template admins) always may - they set the list. Coder's
- * own template permissions are a Premium feature: this list is the platform's (the fork's /templates/{id}/access).
+ * with a search over every account and a tick for each one on the template's access list. A pick is saved at once
+ * and restricts the template to those picked; unticking the last one leaves it locked down (its editors only) until
+ * "Allow everyone". The template's editors (owners, template admins) always may - they set the list. Coder's own
+ * template permissions are a Premium feature: this list is the platform's (the fork's /templates/{id}/access), also
+ * set in the template's settings (TemplatePermissionsCard).
  */
 export const TemplateAccessMenu: React.FC<{ template: Template }> = ({
 	template,
@@ -47,7 +49,7 @@ export const TemplateAccessMenu: React.FC<{ template: Template }> = ({
 		onError: (error) => toast.error(getErrorMessage(error, "Not changed.")),
 	});
 	const chosen = new Set(list.data?.user_ids ?? []);
-	const everyone = chosen.size === 0;
+	const everyone = !list.data?.restricted;
 	const name = template.display_name || template.name;
 
 	const toggle = (user: User) => {
@@ -57,7 +59,7 @@ export const TemplateAccessMenu: React.FC<{ template: Template }> = ({
 		} else {
 			next.add(user.id);
 		}
-		save.mutate([...next]);
+		save.mutate({ user_ids: [...next], restricted: true });
 	};
 
 	// the users on the list first, then the others, each by name
@@ -88,7 +90,9 @@ export const TemplateAccessMenu: React.FC<{ template: Template }> = ({
 							? "Unknown"
 							: everyone
 								? "Everyone"
-								: `${chosen.size} ${chosen.size === 1 ? "user" : "users"}`}
+								: chosen.size === 0
+									? "Admins only"
+									: `${chosen.size} ${chosen.size === 1 ? "user" : "users"}`}
 					</span>
 					<ChevronDownIcon aria-hidden className="text-content-secondary" />
 				</Button>
@@ -106,7 +110,9 @@ export const TemplateAccessMenu: React.FC<{ template: Template }> = ({
 					<div className="text-xs text-content-secondary">
 						{everyone
 							? "Everyone. Pick users to allow only them."
-							: `Only ${picked.map((u) => u.username).join(", ") || `${chosen.size} users`} - and template admins.`}
+							: chosen.size === 0
+								? "Locked down: template admins only. Pick users to let them in."
+								: `Only ${picked.map((u) => u.username).join(", ") || `${chosen.size} users`} - and template admins.`}
 					</div>
 				</div>
 				<Command>
@@ -165,7 +171,7 @@ export const TemplateAccessMenu: React.FC<{ template: Template }> = ({
 						variant="subtle"
 						size="sm"
 						disabled={everyone || save.isPending}
-						onClick={() => save.mutate([])}
+						onClick={() => save.mutate({ user_ids: [], restricted: false })}
 						data-testid="template-access-everyone"
 					>
 						Allow everyone

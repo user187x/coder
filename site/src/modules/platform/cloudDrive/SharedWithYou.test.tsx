@@ -10,7 +10,7 @@ import {
 import { renderComponent } from "#/testHelpers/renderHelpers";
 import { CloudDrive } from "./CloudDrive";
 import { SharedWithYou } from "./SharedWithYou";
-import { openPath, room, sharedDrives } from "./sharedWithYou";
+import { mineSharedWith, openPath, room, sharedDrives } from "./sharedWithYou";
 
 const ME = "me-id";
 const GB = 1024 ** 3;
@@ -218,6 +218,47 @@ describe("SharedWithYou", () => {
 		);
 		expect(icon).not.toHaveAttribute("data-shares");
 		expect(icon.querySelector(".cd-shares-plus")).toBeNull();
+		expect(icon).not.toHaveAttribute("data-shared");
+		expect(screen.getByTestId("cloud-drive-icon")).toHaveAttribute(
+			"data-shared",
+			"false",
+		);
+	});
+
+	it("marches dotted and glows while the user's own drive is shared with someone, active only", async () => {
+		const mine = (over: Partial<CloudDriveShare>) =>
+			share({ owner: ME, ownerName: "me", ...over });
+		const ofMine = [
+			mine({ id: "1", from: "bob-id", fromName: "bob" }),
+			mine({
+				id: "2",
+				from: "ann-id",
+				fromName: "ann",
+				kind: "folder",
+				path: "docs",
+			}),
+			mine({ id: "3", from: "cy-id", fromName: "cy", state: "approval" }),
+			mine({ id: "4", from: "di-id", fromName: "di", state: "ended" }),
+		];
+		vi.spyOn(PlatformAPI, "getCloudDrivePeers").mockResolvedValue({
+			...peers([]),
+			ofMine,
+		});
+		wrap(<SharedWithYou onOpen={vi.fn()} />);
+		const icon = await screen.findByTestId("cloud-drive-shares");
+		await waitFor(() => expect(icon).toHaveAttribute("data-shared", "true"));
+		expect(screen.getByTestId("cloud-drive-icon")).toHaveAttribute(
+			"data-shared",
+			"true",
+		);
+		// nothing shared with the user: no plus, no incoming glow
+		expect(icon).not.toHaveAttribute("data-shares");
+		expect(icon).toHaveAccessibleName(
+			"Shared with you: nothing yet. Your Cloud Drive is shared with ann and bob",
+		);
+		expect(mineSharedWith({ ...peers([]), ofMine })).toEqual(["ann", "bob"]);
+		// sharing turned off: nothing is mounted, nothing to show
+		expect(mineSharedWith({ ...peers([], false), ofMine })).toEqual([]);
 	});
 });
 

@@ -39,6 +39,7 @@ import {
 import { pendingAttachments } from "./attachment";
 import { CloudDriveBrowser } from "./CloudDriveBrowser";
 import { CloudDriveConnections } from "./CloudDriveConnections";
+import { DropHint, DropProgress, useCloudDriveDrop } from "./CloudDriveDrop";
 import { CloudDriveEncryption } from "./CloudDriveEncryption";
 import { CloudDriveMount } from "./CloudDriveMount";
 import { CloudDrivePeersView } from "./CloudDrivePeers";
@@ -60,11 +61,14 @@ import "./cloudDrive.css";
  * kept, and whether that answers; its Encryption (the owner's own key) and its
  * Source (a folder of one of their workspaces instead of S3). Only ever the
  * signed-in user's own drive; nothing where the deployment has none. Its
- * readout on one line, its capacity bar on the next - the entire drives shared
- * with the user read and write each a striped part of their own beside it,
- * their room counted in. Two places to click: its leading cloud (SharedWithYou:
- * a plus in it, glowing and pulsing, while something is shared with the user -
- * a card for each, each opening the window on it), and the rest: the window.
+ * readout on one line (how much of how much, in a pill), its capacity bar on
+ * the next - the entire drives shared with the user read and write each a
+ * striped part of their own beside it, their room counted in. Two places to
+ * click: its leading cloud (SharedWithYou: a plus in it, glowing and pulsing,
+ * while something is shared with the user - a card for each, each opening the
+ * window on it; its outline marching blue dots while the user's own is shared),
+ * and the rest: the window. Files dropped on it from the computer go up to it
+ * (CloudDriveDrop).
  */
 export const CloudDrive: React.FC<{
 	/** The signed-in user's workspaces on the page: a cable to each connected one. */
@@ -89,6 +93,16 @@ export const CloudDrive: React.FC<{
 		ownerName: string;
 	} | null>(null);
 	const container = useRef<HTMLDivElement>(null);
+	const openFiles = useCallback((drive: string, path: string) => {
+		setOpenAt({ drive, path });
+		setView("files");
+		setOpen(true);
+	}, []);
+	const drop = useCloudDriveDrop(
+		summary,
+		settings.data?.status?.connected,
+		() => openFiles("", ""),
+	);
 	// Flush with the table's right edge (the toolbar it sits in may be wider than the table).
 	const [right, setRight] = useState(0);
 	const present = Boolean(summary?.enabled);
@@ -105,13 +119,15 @@ export const CloudDrive: React.FC<{
 				return;
 			}
 			const margin = Number.parseFloat(getComputedStyle(el).marginRight) || 0;
-			// where its right edge would be with no margin, less the table's
+			// where its right edge would be with no margin, less the table's - its rounded card's (TableCard), the edge
+			// seen, where it has one
 			const next = Math.max(
 				0,
 				Math.round(
 					el.getBoundingClientRect().right +
 						margin -
-						table.getBoundingClientRect().right,
+						(table.closest(".table-card") ?? table).getBoundingClientRect()
+							.right,
 				),
 			);
 			setRight((r) => (Math.abs(next - r) > 1 ? next : r));
@@ -211,11 +227,6 @@ export const CloudDrive: React.FC<{
 		? `${formatBytes(space.usedBytes)} of ${formatBytes(space.quotaBytes)}`
 		: `${formatBytes(summary.usedBytes)} in ${summary.source?.name ?? "a workspace"}`;
 	const encrypted = Boolean(summary.encrypted && !summary.source);
-	const openFiles = (drive: string, path: string) => {
-		setOpenAt({ drive, path });
-		setView("files");
-		setOpen(true);
-	};
 
 	return (
 		<>
@@ -223,12 +234,15 @@ export const CloudDrive: React.FC<{
 				ref={container}
 				// The theme's accent for its border: it follows the theme the user picks.
 				className={cn(
-					"relative inline-flex shrink-0 rounded-md border border-solid border-content-link/60 bg-surface-primary text-sm transition-colors hover:border-content-link",
+					"cd-drive relative inline-flex shrink-0 rounded-md border border-solid border-content-link/60 bg-surface-primary text-sm transition-colors hover:border-content-link",
 					className,
 				)}
 				style={{ marginRight: right }}
 				data-testid="cloud-drive-container"
+				data-drop={drop.over ? (drop.refusal ? "refused" : "on") : undefined}
+				{...drop.handlers}
 			>
+				{drop.over && <DropHint refusal={drop.refusal} />}
 				{/* its leading cloud: what is shared with the user (over the button's first line, where it leaves room) */}
 				<SharedWithYou
 					className="absolute left-2 top-[3px] z-[1]"
@@ -253,7 +267,7 @@ export const CloudDrive: React.FC<{
 							/>
 						)}
 						<span
-							className="tabular-nums text-content-secondary"
+							className="inline-flex items-center rounded-full border border-solid border-border bg-surface-secondary px-2 text-xs leading-[18px] tabular-nums text-content-secondary"
 							data-testid="cloud-drive-usage"
 						>
 							{usage}
@@ -262,7 +276,11 @@ export const CloudDrive: React.FC<{
 							<StatusIndicator status={status} compact />
 						</span>
 					</span>
-					{space && <CapacityBar space={space} />}
+					{drop.progress ? (
+						<DropProgress progress={drop.progress} />
+					) : (
+						space && <CapacityBar space={space} />
+					)}
 				</button>
 			</div>
 			<CloudDriveRopes

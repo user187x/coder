@@ -7993,6 +7993,7 @@ Git clone makes use of this by parsing the URL from: 'Username for "https://gith
 
 ```json
 {
+  "restricted": true,
   "user_ids": [
     "497f6eca-6276-4993-bfeb-53cbbbba6f08"
   ]
@@ -8001,9 +8002,10 @@ Git clone makes use of this by parsing the URL from: 'Username for "https://gith
 
 ### Properties
 
-| Name       | Type            | Required | Restrictions | Description |
-|------------|-----------------|----------|--------------|-------------|
-| `user_ids` | array of string | false    |              |             |
+| Name         | Type            | Required | Restrictions | Description |
+|--------------|-----------------|----------|--------------|-------------|
+| `restricted` | boolean         | false    |              |             |
+| `user_ids`   | array of string | false    |              |             |
 
 ## codersdk.TemplateAppUsage
 

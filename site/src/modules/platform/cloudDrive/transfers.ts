@@ -1,4 +1,5 @@
-import { formatBytes } from "./drivePaths";
+import { PlatformAPI } from "#/api/platform";
+import { formatBytes, joinPath, validName } from "./drivePaths";
 
 /** A file going up to the Cloud Drive or coming down from it, as its window shows it. */
 export type Transfer = {
@@ -12,6 +13,56 @@ export type Transfer = {
 	done?: boolean;
 	/** Handed to the browser's own download (a file too large to hold in memory). */
 	browser?: boolean;
+};
+
+let nextTransfer = 1;
+
+/** A new transfer's id, one of its own on the page. */
+export const transferId = () => nextTransfer++;
+
+/**
+ * Files up to a folder of a Cloud Drive (`drive`: its owner's id, "" the user's own), one after another - its window's
+ * Upload and drop, and a drop on the Cloud Drive above the Workspaces table (CloudDriveDrop) - each reported as it
+ * starts (a name the drive does not take: with its error, not sent), as it goes, and done or failed.
+ */
+export const upload = async (
+	files: readonly File[],
+	folder: string,
+	drive: string,
+	report: {
+		start: (transfer: Transfer) => void;
+		progress: (id: number, loaded: number) => void;
+		done: (id: number, size: number) => void;
+		failed: (id: number, error: string) => void;
+	},
+): Promise<void> => {
+	for (const file of files) {
+		const id = transferId();
+		const bad = validName(file.name);
+		report.start({
+			id,
+			kind: "upload",
+			name: file.name,
+			loaded: 0,
+			total: file.size,
+			startedAt: Date.now(),
+			error: bad ?? undefined,
+		});
+		if (bad) {
+			continue;
+		}
+		try {
+			await PlatformAPI.uploadToSafe(
+				joinPath(folder, file.name),
+				file,
+				(f) => report.progress(id, Math.round(f * file.size)),
+				drive || undefined,
+			);
+			report.done(id, file.size);
+		} catch (e) {
+			report.failed(id, e instanceof Error ? e.message : "The upload failed.");
+		}
+	}
 };
 
 /** Without a way to write a download to disk as it comes, files up to this are held in memory, then saved. */

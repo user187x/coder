@@ -1,7 +1,7 @@
 /*
- * The Cloud Drive (CloudDrive): its button above the Workspaces table, on the dashboard's own surfaces; its
- * window's usage meter, upload progress and drop ring; and the ropes from it to each of the owner's workspaces
- * (CloudDriveRopes), drawn over the table without catching the pointer.
+ * The Cloud Drive (CloudDrive): its button above the Workspaces table, on the dashboard's own surfaces, and the drop
+ * ring and line over it while files are held over it; its window's usage meter, upload progress and drop ring; and the
+ * ropes from it to each of the owner's workspaces (CloudDriveRopes), drawn over the table without catching the pointer.
  */
 .cd-meter {
 	display: block;
@@ -27,6 +27,37 @@
 .cd-drop {
 	outline: 2px dashed hsl(var(--content-link));
 	outline-offset: -8px;
+}
+
+/* Files from the computer held over the Cloud Drive above the Workspaces table (CloudDriveDrop): a dashed ring round
+   it, and over it a line saying a drop uploads them - red, saying why, where it takes none now. */
+.cd-drive[data-drop] {
+	outline: 2px dashed hsl(var(--content-link));
+	outline-offset: 2px;
+}
+.cd-drive[data-drop="refused"] {
+	outline-color: hsl(var(--content-destructive));
+}
+.cd-drop-hint {
+	position: absolute;
+	inset: 0;
+	z-index: 2;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	min-width: 0;
+	padding: 0 12px;
+	border-radius: inherit;
+	background: hsl(var(--surface-primary) / 0.94);
+	color: hsl(var(--content-link));
+	font-size: 12px;
+	font-weight: 600;
+	white-space: nowrap;
+	pointer-events: none;
+}
+.cd-drop-hint[data-refused] {
+	color: hsl(var(--content-destructive));
 }
 
 .cd-progress {
@@ -273,6 +304,51 @@ html[data-animations="off"] .cd-attaching {
 html[data-animations="off"] .cd-shares-icon::before,
 html[data-animations="off"] .cd-shares-icon > svg {
 	animation: none !important;
+}
+
+/* The other way round: while the user's own Cloud Drive (or a part of it) is shared with someone, that cloud's outline
+   is a line of blue dots marching round it (the path's length is 60: twelve dots, seamless), and it breathes a blue
+   glow - over the shared-with-you glow when both are so. Without animations (the user menu's switch, or reduced
+   motion) its dots stand still and it glows still. */
+.cd-shares-icon[data-shared] .cd-shares-cloud {
+	stroke: hsl(var(--content-link));
+	stroke-width: 2.25;
+	stroke-dasharray: 0 5;
+	animation: cd-shared-march 0.7s linear infinite;
+}
+.cd-shares-icon[data-shared] > svg {
+	animation: cd-shared-glow 2.4s ease-in-out infinite;
+}
+@keyframes cd-shared-march {
+	to {
+		stroke-dashoffset: -5;
+	}
+}
+@keyframes cd-shared-glow {
+	0%,
+	100% {
+		filter: drop-shadow(0 0 1px hsl(var(--content-link) / 0.5));
+	}
+	50% {
+		filter: drop-shadow(0 0 6px hsl(var(--content-link)))
+			drop-shadow(0 0 2px hsl(var(--content-link) / 0.8));
+	}
+}
+html[data-animations="off"] .cd-shares-icon[data-shared] .cd-shares-cloud,
+html[data-animations="off"] .cd-shares-icon[data-shared] > svg {
+	animation: none !important;
+}
+html[data-animations="off"] .cd-shares-icon[data-shared] > svg {
+	filter: drop-shadow(0 0 3px hsl(var(--content-link) / 0.8));
+}
+@media (prefers-reduced-motion: reduce) {
+	.cd-shares-icon[data-shared] .cd-shares-cloud,
+	.cd-shares-icon[data-shared] > svg {
+		animation: none !important;
+	}
+	.cd-shares-icon[data-shared] > svg {
+		filter: drop-shadow(0 0 3px hsl(var(--content-link) / 0.8));
+	}
 }
 
 /* A share's card's avatar (the owner's picture, or their initials). */

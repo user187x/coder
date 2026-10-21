@@ -2065,7 +2065,7 @@ class ApiMethods {
 		return response.data;
 	};
 
-	/** Platform: the template's access list (its whitelist of users; none: everyone). */
+	/** Platform: the template's access list (its whitelist of users; not restricted: everyone). */
 	getTemplateAccessList = async (
 		templateId: string,
 	): Promise<TypesGen.TemplateAccessList> => {
@@ -2077,11 +2077,11 @@ class ApiMethods {
 
 	setTemplateAccessList = async (
 		templateId: string,
-		userIds: readonly string[],
+		list: TypesGen.TemplateAccessList,
 	): Promise<TypesGen.TemplateAccessList> => {
 		const response = await this.axios.put(
 			`/api/v2/templates/${templateId}/access`,
-			{ user_ids: userIds },
+			list,
 		);
 		return response.data;
 	};

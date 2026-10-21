@@ -1288,7 +1288,7 @@ curl -X GET http://coder-server:8080/api/v2/templates/{template}/access \
 
 `GET /api/v2/templates/{template}/access`
 
-The platform's whitelist of the users who may see and use the template; empty: everyone.
+The platform's whitelist of the users who may see and use the template; not restricted: everyone.
 
 ### Parameters
 
@@ -1302,6 +1302,7 @@ The platform's whitelist of the users who may see and use the template; empty: e
 
 ```json
 {
+  "restricted": true,
   "user_ids": [
     "497f6eca-6276-4993-bfeb-53cbbbba6f08"
   ]
@@ -1330,13 +1331,14 @@ curl -X PUT http://coder-server:8080/api/v2/templates/{template}/access \
 
 `PUT /api/v2/templates/{template}/access`
 
-Only the users given may see the template and create workspaces from it (its editors always may);
-none: everyone.
+Restricted (or any users given): only those users may see the template and create workspaces from
+it (its editors always may). Neither: everyone.
 
 > Body parameter
 
 ```json
 {
+  "restricted": true,
   "user_ids": [
     "497f6eca-6276-4993-bfeb-53cbbbba6f08"
   ]
@@ -1356,6 +1358,7 @@ none: everyone.
 
 ```json
 {
+  "restricted": true,
   "user_ids": [
     "497f6eca-6276-4993-bfeb-53cbbbba6f08"
   ]

@@ -14,7 +14,6 @@ import type {
 	TemplateRole,
 } from "#/api/typesGenerated";
 import { Avatar } from "#/components/Avatar/Avatar";
-import { FeatureUnavailable } from "#/components/FeatureUnavailable/FeatureUnavailable";
 import {
 	Select,
 	SelectContent,
@@ -36,6 +35,7 @@ import {
 	CardLoader,
 	SettingsCard,
 } from "#/modules/platform/settingsPage/settingsParts";
+import { TemplateLockdown } from "#/modules/platform/templateAccess/TemplateLockdown";
 import {
 	UserOrGroupAutocomplete,
 	type UserOrGroupAutocompleteValue,
@@ -137,7 +137,8 @@ const MemberRow: React.FC<{
 
 /**
  * Permissions: who may use the template, or administer it. Adding, changing a role and removing take effect at once
- * (not through the save bar), as on the former Permissions page.
+ * (not through the save bar), as on the former Permissions page. Platform: without Coder's template permissions (a
+ * Premium feature; the platform runs the open-source build), the template's lock down instead (TemplateLockdown).
  */
 export const TemplatePermissionsCard: React.FC<{
 	template: Template;
@@ -183,13 +184,15 @@ export const TemplatePermissionsCard: React.FC<{
 		<SettingsCard
 			id="permissions"
 			title="Permissions"
-			description="Which members and groups can use this template"
+			description={
+				rbac
+					? "Which members and groups can use this template"
+					: "Lock it down to the members who may use it"
+			}
 			icon={<ShieldGlyph size={18} />}
 		>
 			{!rbac ? (
-				<div className="p-6">
-					<FeatureUnavailable feature="Template permissions" />
-				</div>
+				<TemplateLockdown template={template} canUpdate={canUpdate} />
 			) : (
 				<div className="flex flex-col gap-4 p-6">
 					{canUpdate && (

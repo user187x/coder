@@ -5971,12 +5971,14 @@ export interface TemplateACL {
 
 // From codersdk/templates.go
 /**
- * TemplateAccessList is the platform's whitelist of a template's users: only
- * they may see the template and create workspaces from it (those who may edit
- * it always may). Empty: everyone who may otherwise.
+ * TemplateAccessList is the platform's whitelist of a template's users: while
+ * it is restricted only they may see the template and create workspaces from
+ * it (those who may edit it always may), none listed: only its editors. Not
+ * restricted: everyone who may otherwise. Setting users restricts it too.
  */
 export interface TemplateAccessList {
 	readonly user_ids: readonly string[];
+	readonly restricted: boolean;
 }
 
 // From codersdk/insights.go

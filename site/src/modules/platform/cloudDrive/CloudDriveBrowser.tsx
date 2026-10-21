@@ -30,7 +30,13 @@ import {
 } from "./drivePaths";
 import { ShareDialog } from "./ShareDialog";
 import { incomingShares, shareWhat } from "./sharedWithYou";
-import { describe, download, type Transfer } from "./transfers";
+import {
+	describe,
+	download,
+	type Transfer,
+	transferId,
+	upload,
+} from "./transfers";
 
 /** How long Refresh spins at least, and shows its check after. */
 const REFRESH_MIN_SPIN_MS = 700;
@@ -42,8 +48,6 @@ const levelOf = (percent: number) =>
 /** Where the workspaces mount it, as their users see it: ~/cloud-drive. */
 export const homePath = (path: string) =>
 	path.replace(/^\/home\/coder(?=\/|$)/, "~");
-
-let nextTransfer = 1;
 
 /**
  * The Cloud Drive's files (in its window): folders and files with their size
@@ -137,43 +141,17 @@ export const CloudDriveBrowser: React.FC<{
 
 	const uploadFiles = async (files: File[]) => {
 		setProblem(null);
-		for (const file of files) {
-			const id = nextTransfer++;
-			const bad = validName(file.name);
-			setTransfers((all) => [
-				...all,
-				{
-					id,
-					kind: "upload",
-					name: file.name,
-					loaded: 0,
-					total: file.size,
-					startedAt: Date.now(),
-					error: bad ?? undefined,
-				},
-			]);
-			if (bad) {
-				continue;
-			}
-			try {
-				await PlatformAPI.uploadToSafe(
-					joinPath(path, file.name),
-					file,
-					(f) => patch(id, { loaded: Math.round(f * file.size) }),
-					drive || undefined,
-				);
-				finish(id, { loaded: file.size });
-			} catch (e) {
-				patch(id, {
-					error: e instanceof Error ? e.message : "The upload failed.",
-				});
-			}
-		}
+		await upload(files, path, drive, {
+			start: (t) => setTransfers((all) => [...all, t]),
+			progress: (id, loaded) => patch(id, { loaded }),
+			done: (id, size) => finish(id, { loaded: size }),
+			failed: (id, error) => patch(id, { error }),
+		});
 		await refresh();
 	};
 
 	const downloadFile = async (target: string, name: string, size: number) => {
-		const id = nextTransfer++;
+		const id = transferId();
 		setTransfers((all) => [
 			...all,
 			{

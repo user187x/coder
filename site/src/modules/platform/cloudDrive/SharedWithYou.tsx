@@ -26,6 +26,7 @@ import {
 import { formatBytes } from "./drivePaths";
 import {
 	baseName,
+	mineSharedWith,
 	openPath,
 	type SharedDrive,
 	sharedDrives,
@@ -40,7 +41,9 @@ const LISTED = 6;
  * something with the user - their entire Cloud Drive, or folders and files of it. Clicked, a window lists them, a card
  * for each owner's (the HUD the floating clouds once had): whose, what (a drive shared only in parts: its first part,
  * how many more, and that part's access), how many files and how much, the newest of them, where the workspaces have
- * it; each opens the Cloud Drive window on it (onOpen: its owner and the folder to show).
+ * it; each opens the Cloud Drive window on it (onOpen: its owner and the folder to show). The other way round, while
+ * the user's own Cloud Drive (or a part of it) is shared with someone (mineSharedWith): its outline a line of blue
+ * dots marching round it, the cloud breathing a blue glow (data-shared) - dotted and still without animations.
  */
 export const SharedWithYou: React.FC<{
 	onOpen: (owner: string, path: string) => void;
@@ -51,6 +54,9 @@ export const SharedWithYou: React.FC<{
 	const [open, setOpen] = useState(false);
 	const n = drives.length;
 	const write = drives.some((d) => d.access === "write");
+	const out = mineSharedWith(peers.data);
+	const yours =
+		out.length > 0 ? `Your Cloud Drive is shared with ${names(out)}` : "";
 	return (
 		<>
 			<button
@@ -58,21 +64,22 @@ export const SharedWithYou: React.FC<{
 				className={cn("cd-shares-icon", className)}
 				data-shares={n > 0 || undefined}
 				data-access={n > 0 ? (write ? "write" : "read") : undefined}
+				data-shared={out.length > 0 || undefined}
 				data-testid="cloud-drive-shares"
 				aria-haspopup="dialog"
-				aria-label={
+				aria-label={`${
 					n > 0
-						? `Shared with you: ${n} ${n === 1 ? "Cloud Drive" : "Cloud Drives"}. Show them`
+						? `Shared with you: ${n} ${n === 1 ? "Cloud Drive" : "Cloud Drives"}`
 						: "Shared with you: nothing yet"
-				}
-				title={
+				}${yours ? `. ${yours}` : ""}${n > 0 ? ". Show them" : ""}`}
+				title={`${
 					n > 0
 						? `Shared with you: ${n} ${n === 1 ? "Cloud Drive" : "Cloud Drives"}`
 						: "Nothing is shared with you"
-				}
+				}${yours ? ` · ${yours}` : ""}`}
 				onClick={() => setOpen(true)}
 			>
-				<CloudGlyph plus={n > 0} />
+				<CloudGlyph plus={n > 0} shared={out.length > 0} />
 			</button>
 			<Dialog open={open} onOpenChange={setOpen}>
 				<DialogContent
@@ -112,8 +119,25 @@ export const SharedWithYou: React.FC<{
 	);
 };
 
-/** Lucide's cloud, with a plus in it when something is shared with the user. */
-const CloudGlyph: React.FC<{ plus: boolean }> = ({ plus }) => (
+/** Up to three names, then how many more: "ann", "ann and bob", "ann, bob, cy and 2 more". */
+const names = (all: readonly string[]) =>
+	all.length > 3
+		? `${all.slice(0, 3).join(", ")} and ${all.length - 3} more`
+		: all.length > 1
+			? `${all.slice(0, -1).join(", ")} and ${all.at(-1)}`
+			: (all[0] ?? "");
+
+/** The cloud's outline in path units: a whole number of its dots' spacing (cloudDrive.css, .cd-shares-cloud). */
+const CLOUD_LENGTH = 60;
+
+/**
+ * Lucide's cloud, with a plus in it when something is shared with the user; its outline a line of dots when the
+ * user's own drive is shared (its path's length set, so the dots are evenly spaced and march round it seamlessly).
+ */
+const CloudGlyph: React.FC<{ plus: boolean; shared: boolean }> = ({
+	plus,
+	shared,
+}) => (
 	<svg
 		aria-hidden
 		width={20}
@@ -124,8 +148,14 @@ const CloudGlyph: React.FC<{ plus: boolean }> = ({ plus }) => (
 		strokeWidth={2}
 		strokeLinecap="round"
 		strokeLinejoin="round"
+		data-testid="cloud-drive-icon"
+		data-shared={shared ? "true" : "false"}
 	>
-		<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" />
+		<path
+			className="cd-shares-cloud"
+			pathLength={CLOUD_LENGTH}
+			d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"
+		/>
 		{plus && <path className="cd-shares-plus" d="M12.5 11.5v5M10 14h5" />}
 	</svg>
 );
