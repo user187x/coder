@@ -114,6 +114,7 @@ describe("peer-to-peer chat", () => {
 			fullFrom: "window" as const,
 			panelView: null,
 			consoleOpen: false,
+			consoleOverlay: false,
 			consoleView: null,
 			consoleRequest: 0,
 			focus: [],

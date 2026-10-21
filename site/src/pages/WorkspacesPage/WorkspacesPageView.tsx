@@ -35,7 +35,6 @@ import {
 	useCloudDriveLinks,
 } from "#/modules/platform/cloudDrive/CloudDriveSocket";
 import { TableCard } from "#/modules/platform/tableCard/TableCard";
-import { ResourceTabs } from "#/pages/ImagesPage/ResourceTabs";
 import { WorkspacesTable } from "#/pages/WorkspacesPage/WorkspacesTable";
 import { mustUpdateWorkspace } from "#/utils/workspace";
 import { WorkspacesFilter } from "./filter/WorkspacesFilter";
@@ -128,7 +127,6 @@ export const WorkspacesPageView: React.FC<WorkspacesPageViewProps> = ({
 		// Platform: relative for the Cloud Drive's ropes over the table.
 		<Margins className="relative pb-12" data-cloud-drive-area>
 			{/* Platform: Workspaces | Templates | Images. */}
-			<ResourceTabs active="workspaces" />
 			<PageHeader
 				actions={
 					canCreateWorkspace && (

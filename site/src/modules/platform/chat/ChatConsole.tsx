@@ -135,11 +135,14 @@ const isTextField = (target: EventTarget | null) =>
 		target.isContentEditable);
 
 type ChatConsoleProps = {
-	/** What screenshots leave out (the dock, or the console's own window). */
+	/** What screenshots leave out (the dock, the overlay it is in, or the console's own window). */
 	dock?: React.RefObject<HTMLElement | null>;
-	/** Where it is: the Chat page's card, or a window of its own (its links then open in the dashboard's tab). */
-	place: "card" | "window";
-	/** More buttons for its header (the card's Pop out, the window's Pop back in). */
+	/**
+	 * Where it is: the Chat page's card, over the page (ChatConsoleOverlay), or a window of its own (its links then
+	 * open in the dashboard's tab).
+	 */
+	place: "card" | "overlay" | "window";
+	/** More buttons for its header (the card's Pop out, the overlay's page link and Close, the window's Pop back in). */
 	actions?: React.ReactNode;
 	className?: string;
 };
@@ -158,7 +161,8 @@ type ChatConsoleProps = {
  * message box).
  *
  * It lives on the Chat page (a card at its top) or in a window of its own,
- * popped out of it - not over the dashboard. Several conversations chosen
+ * popped out of it - and comes over whatever page is open from the chat's own
+ * console buttons (ChatConsoleOverlay). Several conversations chosen
  * (Select, or Ctrl+click; Select all takes the whole list) are deleted together,
  * or their people get one group chat; a conversation's right-click menu deletes it,
  * goes to the person's workspace or Cloud Drive (read only), or forces a

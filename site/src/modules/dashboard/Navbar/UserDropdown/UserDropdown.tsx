@@ -5,6 +5,7 @@ import {
 	DropdownMenuContent,
 	DropdownMenuTrigger,
 } from "#/components/DropdownMenu/DropdownMenu";
+import { navbarTileTriggerClass } from "../NavbarLogo";
 import { UserDropdownContent } from "./UserDropdownContent";
 
 type UserDropdownProps = {
@@ -23,10 +24,11 @@ export const UserDropdown: React.FC<UserDropdownProps> = ({
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>
+				{/* Platform: the same trigger as the logo's tile (NavbarLogo). */}
 				<button
 					type="button"
 					aria-label="User menu"
-					className="relative bg-transparent border-0 cursor-pointer p-0"
+					className={navbarTileTriggerClass}
 				>
 					<Avatar fallback={user.username} src={user.avatar_url} size="lg" />
 				</button>

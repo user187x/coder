@@ -10,11 +10,12 @@
  *
  * Admins have the chat console besides (ChatConsole): every conversation in one
  * list, one open at a time. It lives on the Chat page of Controls › Settings (or
- * in a window of its own, popped out of it), not over the dashboard: opening it
- * asks the dashboard to go there (consoleRequest). While it is open, or once the
- * dock holds as many windows as fit, a new message from someone else does not
- * pop up a window: it waits in the console's list, counted, so a busy hour
- * stays orderly.
+ * in a window of its own, popped out of it): opening it asks the dashboard to go
+ * there (consoleRequest) - but for the chat's own console buttons, which bring it
+ * up over whatever page is open (consoleOverlay, ChatConsoleOverlay). While it is
+ * on screen, or once the dock holds as many windows as fit, a new message from
+ * someone else does not pop up a window: it waits in the console's list, counted,
+ * so a busy hour stays orderly.
  *
  * The dock shows the chat one of four ways (DockMode): the Chats bar, raised
  * into a small window, attached to the right side, or full screen. Attached or
@@ -102,6 +103,8 @@ type ChatSnapshot = {
 	panelView: ChatWindowState | null;
 	/** Admins: the chat console (shown on the Chat page, or popped out), and the conversation open in it. */
 	consoleOpen: boolean;
+	/** Admins: the console over the page open (ChatConsoleOverlay), from the chat's own console buttons. */
+	consoleOverlay: boolean;
 	consoleView: ChatWindowState | null;
 	/** Bumped to ask the dashboard to show the console's page (ChatDock follows it). */
 	consoleRequest: number;
@@ -147,6 +150,7 @@ const initialSnapshot: ChatSnapshot = {
 	fullFrom: "window",
 	panelView: null,
 	consoleOpen: false,
+	consoleOverlay: false,
 	consoleView: null,
 	consoleRequest: 0,
 	focus: [],
@@ -327,20 +331,31 @@ const findWindow = (peerId: string) =>
 const attached = () =>
 	snapshot.dockMode === "side" || snapshot.dockMode === "full";
 
+/** The console is on screen: on the Chat page (or popped out), or over the page (consoleOverlay). */
+const consoleShown = () => snapshot.consoleOpen || snapshot.consoleOverlay;
+
 /**
  * The conversation where it is on screen: its window (while attached, the
  * side panel's view instead, the windows being put away), or the console's
- * view of it while the console shows it.
+ * view of it while the console shows it - first, over the page, where the
+ * dock's windows are hidden under it.
  */
-const findView = (peerId: string) =>
-	(attached()
-		? snapshot.panelView?.peer.id === peerId
-			? snapshot.panelView
-			: undefined
-		: findWindow(peerId)) ??
-	(snapshot.consoleOpen && snapshot.consoleView?.peer.id === peerId
-		? snapshot.consoleView
-		: undefined);
+const findView = (peerId: string) => {
+	const inConsole =
+		consoleShown() && snapshot.consoleView?.peer.id === peerId
+			? snapshot.consoleView
+			: undefined;
+	if (snapshot.consoleOverlay && inConsole) {
+		return inConsole;
+	}
+	return (
+		(attached()
+			? snapshot.panelView?.peer.id === peerId
+				? snapshot.panelView
+				: undefined
+			: findWindow(peerId)) ?? inConsole
+	);
+};
 
 const newView = (peer: ChatPeer, minimized: boolean, focus: boolean) => ({
 	peer,
@@ -521,7 +536,7 @@ export const markRead = (peerId: string, used: boolean) => {
 const popsUp = () =>
 	!attached() &&
 	(!snapshot.me?.admin ||
-		(!snapshot.consoleOpen && snapshot.windows.length < maxOpenWindows()));
+		(!consoleShown() && snapshot.windows.length < maxOpenWindows()));
 
 const receive = (m: ChatMessage) => {
 	const me = snapshot.me;
@@ -819,7 +834,7 @@ export const openChatWith = async (peer: ChatPeer) => {
 	if (!snapshot.me || peer.id === snapshot.me.id) {
 		return;
 	}
-	if (snapshot.consoleOpen && snapshot.me.admin) {
+	if (consoleShown() && snapshot.me.admin) {
 		selectInConsole(peer, true);
 		return;
 	}
@@ -1069,12 +1084,13 @@ export const loadOlderMessages = async (peerId: string) => {
 // ---------------------------------------------------------------- console (admins)
 
 /**
- * Shows the console, on this conversation (else the one it showed, else the newest): where it is on screen, at once;
- * else the dashboard is asked to go to its page (the Chat page), where it opens on it (attachConsole).
+ * Shows the console, on this conversation (else the one it showed, else the newest): where it is on screen (its page,
+ * or over the page), at once; else the dashboard is asked to go to its page (the Chat page), where it opens on it
+ * (attachConsole).
  */
 export const openConsole = (peer?: ChatPeer) => {
 	makeWayForConsole();
-	if (!snapshot.consoleOpen) {
+	if (!consoleShown()) {
 		pendingConsolePeer = peer ?? pendingConsolePeer;
 		update({ consoleRequest: snapshot.consoleRequest + 1 });
 		return;
@@ -1084,28 +1100,69 @@ export const openConsole = (peer?: ChatPeer) => {
 	}
 };
 
+/** The console on screen shows this conversation, else the one it showed, else the newest; `focus`: its message box. */
+const showInConsole = (peer: ChatPeer | null | undefined, focus: boolean) => {
+	makeWayForConsole();
+	const newest = () =>
+		[...snapshot.conversations.values()].sort(
+			(a, b) => b.last.id - a.last.id,
+		)[0]?.peer;
+	const shown = peer ?? snapshot.consoleView?.peer ?? newest();
+	if (shown) {
+		selectInConsole(shown, focus);
+	}
+};
+
 /** The console is on screen (the Chat page's card, or its own window): it shows what was asked for, else the newest. */
 export const attachConsole = () => {
 	const peer = pendingConsolePeer;
 	pendingConsolePeer = null;
 	update({ consoleOpen: true });
-	makeWayForConsole();
-	if (peer) {
-		selectInConsole(peer);
-	} else if (!snapshot.consoleView) {
-		const first = [...snapshot.conversations.values()].sort(
-			(a, b) => b.last.id - a.last.id,
-		)[0];
-		if (first) {
-			selectInConsole(first.peer);
-		}
-	} else {
-		markRead(snapshot.consoleView.peer.id, true);
-	}
+	showInConsole(peer, false);
 };
 
 /** The console left the screen (its page closed, or it went into a window of its own). */
 export const closeConsole = () => update({ consoleOpen: false });
+
+/**
+ * The chat's own console buttons (the Chats bar's, the raised window's, the side panel's and full screen's): the
+ * console over whatever page is open (ChatConsoleOverlay), on this conversation - else the one it showed, else the
+ * newest - its message box focused. Where the console is on screen already (the Chat page's card), it is that one,
+ * focused.
+ */
+export const openConsoleOverlay = (peer?: ChatPeer) => {
+	if (!consoleShown()) {
+		update({ consoleOverlay: true });
+	}
+	showInConsole(peer, true);
+};
+
+/** The console over the page goes (Escape, a click off it, its close button, another page). */
+export const closeConsoleOverlay = () => {
+	if (snapshot.consoleOverlay) {
+		update({ consoleOverlay: false });
+	}
+};
+
+// Escape puts the console over the page away, and goes no further. The quick access wheel (RadialMenu) listens for
+// Escape on the window in the capture phase too, and opens on every one - over an open dialog as well, once that has
+// closed on it. Listeners on one target run in the order they were added: this one is added as the store loads, ahead
+// of the wheel's, which RadialMenu (importing this store) adds when it mounts. Whatever is open in the console (a
+// menu, a confirmation) goes with it; an Escape that ends an input method's composition is only that.
+window.addEventListener(
+	"keydown",
+	(event) => {
+		if (event.key !== "Escape" || !snapshot.consoleOverlay) {
+			return;
+		}
+		event.stopImmediatePropagation();
+		if (!event.isComposing) {
+			event.preventDefault();
+			closeConsoleOverlay();
+		}
+	},
+	true,
+);
 
 /** Shows this conversation in the console (its window, if one is open, keeps its own copy). */
 export const selectInConsole = (peer: ChatPeer, focus = false) => {

@@ -151,6 +151,32 @@ describe("TerminalPage", () => {
 		});
 	});
 
+	// Platform: an `exit` closes the window (or, kept open by the browser, says so) instead of reconnecting.
+	it("ends instead of reconnecting when the shell exits", async () => {
+		const close = vi.spyOn(window, "close").mockImplementation(() => {});
+		const ws = createWorkspaceTerminalWebSocket();
+		await renderTerminal();
+		ws.send("admin@look:~$ exit\r\n");
+		ws.close({ code: 1000, reason: "", wasClean: true });
+		await waitFor(() => expect(close).toHaveBeenCalled());
+		expect(await screen.findByTestId("terminal-ended")).toHaveTextContent(
+			"This terminal session has ended.",
+		);
+		close.mockRestore();
+	});
+
+	it("reconnects as before when the connection drops", async () => {
+		const close = vi.spyOn(window, "close").mockImplementation(() => {});
+		const ws = createWorkspaceTerminalWebSocket();
+		await renderTerminal();
+		ws.send("admin@look:~$ ls\r\n");
+		ws.close({ code: 1006, reason: "", wasClean: false });
+		await new Promise((resolve) => setTimeout(resolve, 500));
+		expect(close).not.toHaveBeenCalled();
+		expect(screen.queryByTestId("terminal-ended")).toBeNull();
+		close.mockRestore();
+	});
+
 	it("renders data from the backend", async () => {
 		const ws = createWorkspaceTerminalWebSocket();
 		const text = "something to render";

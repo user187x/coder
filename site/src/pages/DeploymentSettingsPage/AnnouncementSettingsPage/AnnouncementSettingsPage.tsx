@@ -218,6 +218,8 @@ const AnnouncementEditor: React.FC<{ state: BannerState }> = ({ state }) => {
 	// few seconds, so a refetch never discards them.
 	const [draft, setDraft] = useState<BannerFields | null>(null);
 	const [problem, setProblem] = useState<string | null>(null);
+	// The Show banner switch was turned on with nothing to show: said beside it until a message is written.
+	const [triedEmpty, setTriedEmpty] = useState(false);
 	const [confirm, setConfirm] = useState<ConfirmKind | null>(null);
 	// The preview: replayed (its effect again) by changing its key; "Try it"
 	// plays its close transition, then it comes back.
@@ -232,6 +234,8 @@ const AnnouncementEditor: React.FC<{ state: BannerState }> = ({ state }) => {
 	const form = draft ?? editableFields(state.banner);
 	const dirty = !sameFields(form, published);
 	const live = state.banner.enabled && hasContent(state.banner);
+	const nothingToShow =
+		triedEmpty && !live && !hasContent(state.banner) && !hasContent(form);
 	const busy = publish.isPending || reshow.isPending || reset.isPending;
 
 	const onError = (error: unknown) => {
@@ -271,10 +275,25 @@ const AnnouncementEditor: React.FC<{ state: BannerState }> = ({ state }) => {
 							checked={live}
 							disabled={busy}
 							onCheckedChange={(enabled) => {
+								// Platform: nothing published to show - the draft is published, showing; with no draft
+								// either, the switch says so beside it and the message box is brought into view.
 								if (enabled && !hasContent(state.banner)) {
-									setProblem("Write and publish an announcement first.");
+									if (hasContent(form)) {
+										doPublish();
+										return;
+									}
+									setTriedEmpty(true);
+									const message = document.querySelector<HTMLElement>(
+										"[data-banner-message]",
+									);
+									message?.scrollIntoView({
+										behavior: "smooth",
+										block: "center",
+									});
+									message?.focus({ preventScroll: true });
 									return;
 								}
+								setTriedEmpty(false);
 								publish.mutate(
 									{ ...published, enabled },
 									{
@@ -290,8 +309,24 @@ const AnnouncementEditor: React.FC<{ state: BannerState }> = ({ state }) => {
 							}}
 						/>
 						<Label htmlFor="announcement-visible">Show banner</Label>
-						<span className="text-sm text-content-secondary">
-							{live ? "On: developers see it" : "Off: hidden from everyone"}
+						<span
+							className={
+								nothingToShow
+									? "text-sm font-medium text-content-warning"
+									: "text-sm text-content-secondary"
+							}
+							data-testid="announcement-visibility-state"
+							role={nothingToShow ? "status" : undefined}
+						>
+							{live
+								? "On: developers see it"
+								: nothingToShow
+									? "Nothing to show yet: write a message below, then turn it on (or press Publish changes)"
+									: hasContent(state.banner)
+										? "Off: hidden from everyone"
+										: hasContent(form)
+											? "Off: turn it on to publish your message and show it"
+											: "Off: write a message below to show one"}
 						</span>
 					</div>
 					<Button

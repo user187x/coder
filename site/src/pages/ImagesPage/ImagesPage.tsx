@@ -76,7 +76,6 @@ import {
 	type ImportImageDialogProps,
 } from "./ImportImageDialog";
 import { NewImageDialog } from "./NewImageDialog";
-import { ResourceTabs } from "./ResourceTabs";
 import { SecurityDataBadge } from "./SecurityData";
 
 export const imagesKey = ["platform", "images"] as const;
@@ -128,7 +127,6 @@ const ImagesPage: React.FC = () => {
 	return (
 		<Margins className="pb-12">
 			<title>{pageTitle("Images")}</title>
-			<ResourceTabs active="images" />
 			<PageHeader
 				actions={
 					<div className="flex flex-wrap items-center gap-2">

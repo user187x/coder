@@ -48,6 +48,11 @@ type WorkspaceTerminalProps = {
 	containerName?: string;
 	containerUser?: string;
 	onStatusChange?: (status: ConnectionStatus) => void;
+	/**
+	 * Platform: the shell exited (`exit`, `logout`, Ctrl-D): called instead of reconnecting, which would start a new
+	 * shell. Without it the terminal reconnects as it always has.
+	 */
+	onExit?: () => void;
 	onError?: (error: Error) => void;
 	onContentReady?: () => void;
 	reconnectionToken: string;
@@ -76,6 +81,30 @@ const DEFAULT_TERMINAL_FONT_FAMILY = "monospace";
 let ghosttyVt: Promise<import("ghostty-web").Ghostty> | undefined;
 const ESCAPED_CARRIAGE_RETURN = "\x1b\r";
 
+/** Platform: how much of the session's latest output is kept, to tell an exit from a dropped connection. */
+const OUTPUT_TAIL_LENGTH = 512;
+// ESC and BEL, by code: escape sequences start with ESC; an OSC one may end with BEL.
+const ESC = String.fromCharCode(27);
+const BEL = String.fromCharCode(7);
+const ANSI_SEQUENCE = new RegExp(
+	`${ESC}(?:\\[[0-9;?]*[ -/]*[@-~]|\\][^${BEL}${ESC}]*(?:${BEL}|${ESC}\\\\)|[()][0-9A-Za-z]|[=>78])`,
+	"g",
+);
+
+/**
+ * Platform: whether the shell exited - its last line of output ends in `exit` or `logout` (the command typed and
+ * echoed, or what the shell prints on Ctrl-D) - rather than the connection dropping. Both close the socket; only a
+ * drop should reconnect.
+ */
+export const shellExited = (tail: string): boolean => {
+	const lines = tail
+		.replace(ANSI_SEQUENCE, "")
+		.split(/\r\n|\r|\n/)
+		.map((line) => line.trim())
+		.filter(Boolean);
+	return /(?:^|[\s$#%>])(?:exit|logout)$/.test(lines.at(-1) ?? "");
+};
+
 const encodeTerminalPayload = (payload: Record<string, number | string>) => {
 	return new TextEncoder().encode(JSON.stringify(payload));
 };
@@ -91,6 +120,7 @@ export const WorkspaceTerminal = ({
 	containerName,
 	containerUser,
 	onStatusChange,
+	onExit,
 	onError,
 	onContentReady,
 	reconnectionToken,
@@ -117,6 +147,11 @@ export const WorkspaceTerminal = ({
 	});
 	const handleStatusChange = useEffectEvent((status: ConnectionStatus) => {
 		onStatusChange?.(status);
+	});
+	// Platform: whether an exit is handled (onExit given), and the hand-off itself.
+	const exitHandled = useEffectEvent(() => Boolean(onExit));
+	const handleExit = useEffectEvent(() => {
+		onExit?.();
 	});
 	const handleContentReady = useEffectEvent(() => {
 		onContentReady?.();
@@ -595,6 +630,9 @@ export const WorkspaceTerminal = ({
 				};
 				websocket.binaryType = "arraybuffer";
 				websocketRef.current = websocket;
+				// Platform: the session's latest output, decoded, to tell an exit from a drop when it closes.
+				const decoder = new TextDecoder();
+				let tail = "";
 				websocket.addEventListener(WebsocketEvent.open, () => {
 					if (disposed) {
 						return;
@@ -618,11 +656,19 @@ export const WorkspaceTerminal = ({
 					terminal.options.disableStdin = true;
 					handleStatusChange("disconnected");
 				});
-				websocket.addEventListener(WebsocketEvent.close, () => {
+				websocket.addEventListener(WebsocketEvent.close, (_, event) => {
 					if (disposed) {
 						return;
 					}
 					terminal.options.disableStdin = true;
+					// Platform: the shell exited - the server closed normally after its last words - so no reconnect
+					// (it would start a new shell): closing it here cancels the retry.
+					if (exitHandled() && event.code === 1000 && shellExited(tail)) {
+						websocket?.close(1000);
+						handleStatusChange("disconnected");
+						handleExit();
+						return;
+					}
 					handleStatusChange("disconnected");
 				});
 				websocket.addEventListener(WebsocketEvent.message, (_, event) => {
@@ -634,8 +680,13 @@ export const WorkspaceTerminal = ({
 						// This exclusively occurs when testing.
 						// "jest-websocket-mock" doesn't support ArrayBuffer.
 						terminal.write(event.data);
+						tail = (tail + event.data).slice(-OUTPUT_TAIL_LENGTH);
 					} else {
-						terminal.write(new Uint8Array(event.data));
+						const bytes = new Uint8Array(event.data);
+						terminal.write(bytes);
+						tail = (tail + decoder.decode(bytes, { stream: true })).slice(
+							-OUTPUT_TAIL_LENGTH,
+						);
 					}
 				});
 				websocket.addEventListener(WebsocketEvent.reconnect, () => {

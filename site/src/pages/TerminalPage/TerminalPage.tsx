@@ -7,6 +7,7 @@ import {
 	workspaceByOwnerAndName,
 	workspaceUsage,
 } from "#/api/queries/workspaces";
+import { Button } from "#/components/Button/Button";
 import { useProxy } from "#/contexts/ProxyContext";
 import { ThemeOverride } from "#/contexts/ThemeProvider";
 import { useEmbeddedMetadata } from "#/hooks/useEmbeddedMetadata";
@@ -40,6 +41,16 @@ const TerminalPage: React.FC = () => {
 	const [connectionStatus, setConnectionStatus] =
 		useState<ConnectionStatus>("initializing");
 	const [commandConfirmed, setCommandConfirmed] = useState(false);
+	// Platform: the shell exited. The window closes; one the browser keeps open (not opened by a script) says so.
+	const [ended, setEnded] = useState(false);
+	const endSession = useCallback(() => {
+		window.close();
+		window.setTimeout(() => {
+			if (!window.closed) {
+				setEnded(true);
+			}
+		}, 300);
+	}, []);
 	const [searchParams] = useSearchParams();
 	const isDebugging = searchParams.has("debug");
 	// The reconnection token is a unique token that identifies
@@ -170,7 +181,32 @@ const TerminalPage: React.FC = () => {
 				</title>
 			)}
 
-			<div className="flex flex-col h-screen" data-status={connectionStatus}>
+			<div
+				className="relative flex flex-col h-screen"
+				data-status={connectionStatus}
+			>
+				{ended && (
+					// Platform: the session ended and the browser kept the window: no reconnect into a new shell.
+					<div
+						className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-surface-primary/90 text-content-primary"
+						data-testid="terminal-ended"
+						role="status"
+					>
+						<p className="m-0 text-base">This terminal session has ended.</p>
+						<div className="flex gap-2">
+							<Button onClick={() => window.close()}>Close window</Button>
+							<Button
+								variant="outline"
+								onClick={() => {
+									searchParams.delete("reconnect");
+									window.location.search = searchParams.toString();
+								}}
+							>
+								New session
+							</Button>
+						</div>
+					</div>
+				)}
 				<WorkspaceTerminalAlerts
 					agent={workspaceAgent}
 					status={connectionStatus}
@@ -186,6 +222,7 @@ const TerminalPage: React.FC = () => {
 					containerName={containerName}
 					containerUser={containerUser}
 					onStatusChange={setConnectionStatus}
+					onExit={endSession}
 					onError={handleTerminalError}
 					reconnectionToken={reconnectionToken}
 					sessionId={sessionId}

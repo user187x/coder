@@ -3,10 +3,12 @@ import { useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { isEmbeddedFrame } from "#/contexts/platformBoot";
 import { ChatFullScreen, ChatSidePanel } from "./ChatAttached";
+import { ChatConsoleOverlay } from "./ChatConsoleOverlay";
 import { ChatFocusOverlay } from "./ChatFocusOverlay";
 import { ChatPanel } from "./ChatPanel";
 import { ChatWindow } from "./ChatWindow";
 import {
+	closeConsoleOverlay,
 	exitFullScreen,
 	setDockMode,
 	useChatConnection,
@@ -134,8 +136,10 @@ const useDockMeasurements = (dock: React.RefObject<HTMLDivElement | null>) => {
  * screen (ChatAttached); there the conversations open inside it. An admin
  * starts a conversation with "Chat" in Admin > Accounts; the other person gets
  * a window as soon as the message arrives, on whatever page they have open.
- * Admins' chat console is not here: asked for (the panel's console button, the
- * bell), the dashboard goes to its page.
+ * Admins' chat console comes over the page from the chat's own console buttons
+ * (ChatConsoleOverlay) - the conversation windows hidden meanwhile, each
+ * conversation shown once, in it, and the dock under its blur; asked for
+ * elsewhere (the bell, Accounts' Chat), the dashboard goes to its page.
  */
 export const ChatDock: React.FC = () => {
 	const embedded = isEmbeddedFrame();
@@ -161,12 +165,14 @@ export const ChatDock: React.FC = () => {
 		}
 	}, [state.consoleRequest, location.pathname, navigate]);
 
-	// Another page asked for (the navbar, a link): full screen gives way to it.
+	// Another page asked for (the navbar, a link, the console's): full screen and the console over the page give way
+	// to it.
 	const path = useRef(location.pathname);
 	useEffect(() => {
 		if (path.current !== location.pathname) {
 			path.current = location.pathname;
 			exitFullScreen();
+			closeConsoleOverlay();
 		}
 	}, [location.pathname]);
 
@@ -223,6 +229,9 @@ export const ChatDock: React.FC = () => {
 		return null;
 	}
 	const floating = mode === "bar" || mode === "window";
+	// The console over the page: every conversation is in it, so the windows (a second copy of one) wait hidden -
+	// as they were, drafts and all - and the dock goes under its blur with the rest of the page.
+	const overlaid = state.consoleOverlay;
 
 	return (
 		<div
@@ -232,15 +241,22 @@ export const ChatDock: React.FC = () => {
 			data-mode={mode}
 			className={cn(
 				"pointer-events-none fixed right-4 flex flex-col items-end gap-2 text-sm text-content-primary transition-[bottom] duration-200 motion-reduce:transition-none md:flex-row md:gap-3 [&>*]:pointer-events-auto",
-				// Floating, in front of everything but the chat's own overlays; attached or full screen, a part of
-				// the page: above it and its navbar, below its dialogs (the ones opened from the chat too).
-				floating ? "z-[60]" : "z-[45]",
+				// Floating, in front of everything but the chat's own overlays; attached or full screen (or under the
+				// console over the page), a part of the page: above it and its navbar, below its dialogs (the ones
+				// opened from the chat too).
+				floating && !overlaid ? "z-[60]" : "z-[45]",
 			)}
 			// Platform: floating 10px clear of what it rests on (GUI-UPDATES)
 			style={{ bottom: "calc(var(--chat-bottom, 0px) + 10px)" }}
 		>
 			{floating && state.windows.length > 0 && (
-				<div className="pointer-events-none flex flex-row-reverse items-end gap-3 [&>*]:pointer-events-auto">
+				<div
+					className={cn(
+						"pointer-events-none flex flex-row-reverse items-end gap-3 [&>*]:pointer-events-auto",
+						overlaid && "hidden",
+					)}
+					data-testid="chat-windows"
+				>
 					{state.windows.map((w) => (
 						<ChatWindow key={w.peer.id} window={w} dock={dock} />
 					))}
@@ -249,6 +265,7 @@ export const ChatDock: React.FC = () => {
 			{floating && <ChatPanel />}
 			{mode === "side" && <ChatSidePanel dock={dock} />}
 			{mode === "full" && <ChatFullScreen dock={dock} />}
+			<ChatConsoleOverlay />
 			<ChatFocusOverlay />
 		</div>
 	);

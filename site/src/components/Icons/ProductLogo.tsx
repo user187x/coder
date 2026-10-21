@@ -4,6 +4,16 @@ import { getApplicationName, getLogoURL } from "#/utils/appearance";
 import { ExternalImage } from "../ExternalImage/ExternalImage";
 
 /**
+ * The logo's address: the one uploaded in General > Customize, else the custom
+ * logo of the deployment's appearance settings, else the default logo (brix).
+ * Shared with the navbar's tile (NavbarLogo).
+ */
+export const useProductLogoURL = (): string => {
+	const { logoURL: uploadedLogoURL } = usePlatformSnapshot();
+	return uploadedLogoURL || getLogoURL() || DEFAULT_LOGO_URL;
+};
+
+/**
  * The logo uploaded in General > Customize, else the custom logo of the
  * deployment's appearance settings, else the default logo (brix), everywhere.
  */
@@ -11,8 +21,7 @@ export const ProductLogo: React.FC<{ className?: string }> = ({
 	className,
 }) => {
 	const applicationName = getApplicationName();
-	const { logoURL: uploadedLogoURL } = usePlatformSnapshot();
-	const logoURL = uploadedLogoURL || getLogoURL() || DEFAULT_LOGO_URL;
+	const logoURL = useProductLogoURL();
 
 	return logoURL ? (
 		<ExternalImage

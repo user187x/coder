@@ -1,12 +1,9 @@
 import { cn } from "cn";
-import { GaugeIcon } from "lucide-react";
-import { NavLink } from "react-router";
 import { API } from "#/api/api";
 import { PlatformAPI } from "#/api/platform";
 import type * as TypesGen from "#/api/typesGenerated";
 import { Badge } from "#/components/Badge/Badge";
 import { Button } from "#/components/Button/Button";
-import { ProductLogo } from "#/components/Icons/ProductLogo";
 import type { ProxyContextValue } from "#/contexts/ProxyContext";
 import { NotificationsInbox } from "#/modules/notifications/NotificationsInbox/NotificationsInbox";
 import { AnnouncementBanner } from "#/modules/platform/announcement/AnnouncementBanner";
@@ -19,8 +16,8 @@ import {
 	canViewAdminSettings,
 } from "./AdminSettings";
 import { addableAdminPages } from "./adminQuickLinks";
-import { AdminSettingsDropdown } from "./DeploymentDropdown";
 import { MobileMenu } from "./MobileMenu";
+import { NavbarLogo } from "./NavbarLogo";
 import { ProxyMenu } from "./ProxyMenu";
 import { SupportIcon } from "./SupportIcon";
 import { UserDropdown } from "./UserDropdown/UserDropdown";
@@ -81,9 +78,8 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 							: undefined,
 			}}
 		>
-			<NavLink to="/workspaces">
-				<ProductLogo className="h-7" />
-			</NavLink>
+			{/* Platform: the logo in a tile like the user's avatar. */}
+			<NavbarLogo />
 
 			{/* Platform: Workspaces, the banner, latency and HUD, in the user's order (NavbarArrange). */}
 			<NavbarArrange
@@ -95,22 +91,24 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 						</nav>
 					),
 					banner: <AnnouncementBanner placement="navbar" />,
-					// the HUD joined to the latency menu as one split button (both, admins); either alone otherwise
-					latency: proxyContextValue ? (
+					// the latency and the Controls in one menu, the HUD joined on as one split button (admins)
+					latency: (
 						<ProxyMenu
 							proxyContextValue={proxyContextValue}
 							hud={adminPermissions.canViewDeployment}
+							controls={
+								canViewAdminSettings(adminPermissions)
+									? {
+											permissions: adminPermissions,
+											quickLinks: adminQuickLinks?.links,
+											quickLinksEditor,
+										}
+									: undefined
+							}
 						/>
-					) : null,
-					hud:
-						adminPermissions.canViewDeployment && !proxyContextValue ? (
-							<Button asChild variant="outline" size="lg">
-								<NavLink to="/hud" title="HUD: the platform at a glance">
-									<GaugeIcon aria-hidden />
-									HUD
-								</NavLink>
-							</Button>
-						) : null,
+					),
+					// never alone: always joined to the latency menu
+					hud: null,
 				}}
 			/>
 
@@ -141,16 +139,6 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 						/>
 					</div>
 				))}
-
-				{canViewAdminSettings(adminPermissions) && (
-					<div className="hidden md:block">
-						<AdminSettingsDropdown
-							permissions={adminPermissions}
-							quickLinks={adminQuickLinks?.links}
-							quickLinksEditor={quickLinksEditor}
-						/>
-					</div>
-				)}
 
 				<div className="relative">
 					<NotificationsInbox

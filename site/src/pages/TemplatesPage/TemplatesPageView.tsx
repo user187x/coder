@@ -41,7 +41,6 @@ import { linkToTemplate, useLinks } from "#/modules/navigation";
 import type { WorkspacePermissions } from "#/modules/permissions/workspaces";
 import { TableCard } from "#/modules/platform/tableCard/TableCard";
 import { TemplateAccessMenu } from "#/modules/platform/templateAccess/TemplateAccessMenu";
-import { ResourceTabs } from "#/pages/ImagesPage/ResourceTabs";
 import { createDayString } from "#/utils/createDayString";
 import {
 	formatTemplateActiveDevelopersLabel,
@@ -303,8 +302,6 @@ export const TemplatesPageView: React.FC<TemplatesPageViewProps> = ({
 			{showCompatibilityModeAlert && (
 				<CompatibilityModeAlert templates={compatibilityModeTemplates} />
 			)}
-
-			<ResourceTabs active="templates" />
 
 			<PageHeader
 				actions={

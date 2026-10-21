@@ -1,12 +1,13 @@
 import { cn } from "cn";
+import { TriangleAlertIcon } from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
 import { useQuery } from "react-query";
 import type {
-	ClusterNode,
-	CoderPod,
-	NetworkReport,
-	NetworkWorkspace,
-} from "#/api/platform";
+	ClusterNetworkReport,
+	ComponentKind,
+	MapService,
+} from "#/api/clusterNetwork";
+import type { ClusterNode, NetworkWorkspace } from "#/api/platform";
 import { networkReport } from "#/api/queries/platform";
 import { Badge } from "#/components/Badge/Badge";
 import { Button } from "#/components/Button/Button";
@@ -28,20 +29,24 @@ import { TableEmpty } from "#/components/TableEmpty/TableEmpty";
 import {
 	ago,
 	bytes,
-	LegendChip,
 	LiveStatus,
 	Meter,
 	StatusDot,
 	Tile,
 	useNow,
 } from "#/modules/platform/ClusterVisuals";
-
-const cores = (c: number | null | undefined) =>
-	c == null || !Number.isFinite(c)
-		? "N/A"
-		: c < 1
-			? `${Math.round(c * 1000)}m`
-			: `${+c.toFixed(c < 10 ? 2 : 1)}`;
+import { CodeServerHACard } from "./CodeServerHACard";
+import { cores } from "./clusterFormat";
+import {
+	componentIcon,
+	groupByKind,
+	KINDS,
+	KindLegend,
+	kindOf,
+} from "./componentKinds";
+import { EntityProvider, useOpenEntity } from "./EntityDetails";
+import { MeshCard } from "./MeshCard";
+import { NodesTopologyCard } from "./NodesTopologyCard";
 
 const agentOk = (w: NetworkWorkspace) =>
 	w.agents.length > 0 && w.agents.every((a) => a.status === "connected");
@@ -74,66 +79,82 @@ const nodeStatus = (n: ClusterNode): ["error" | "warn" | "ok", string] =>
  * General > Network (top of the page): a live map of the Kubernetes cluster
  * Coder runs on. Every node with its addresses, pod CIDR, CPU and memory
  * (live usage when metrics-server runs, else the pods' requests) and the
- * Coder pods and workspaces placed on it; lines show the way in (access URL
- * to Coder) and each workspace agent's connection. Re-read every 5 seconds.
+ * platform's pods and workspaces placed on it, each coloured by its kind, and
+ * the Services; lines show the way in (access URL to Coder) and each
+ * workspace agent's connection. Any pod, Service, node or line opens its
+ * details. Under the map: code-server HA and the storage, the mesh of
+ * measured latencies, and the nodes' topology. Re-read every 5 seconds (the
+ * cards every 10); Pause stops them all.
  */
 export const ClusterMap: React.FC = () => {
 	const [paused, setPaused] = useState(false);
 	const query = useQuery(networkReport(paused));
+	// The service adds kinds, roles, requests and Services to the report (clusternet.py).
+	const report = query.data as ClusterNetworkReport | undefined;
 
 	return (
-		<section>
-			<SettingsHeader>
-				<SettingsHeaderTitle>Cluster Network</SettingsHeaderTitle>
-				<SettingsHeaderDescription>
-					A live map of the Kubernetes cluster Coder runs on: nodes, their
-					addresses and load, and the workspaces on each. Refreshes every 5
-					seconds.
-				</SettingsHeaderDescription>
-			</SettingsHeader>
-			{query.isLoading ? (
-				<Loader />
-			) : (
-				<div className="flex flex-col gap-6">
-					<section
-						aria-labelledby="cluster-map"
-						className="flex flex-col gap-5 rounded-lg border border-solid border-border p-6"
-					>
-						<div className="flex flex-wrap items-center justify-between gap-3">
-							<h2 id="cluster-map" className="m-0 text-base font-semibold">
-								Cluster map
-							</h2>
-							<div className="flex items-center gap-3">
-								<LiveStatus paused={paused} updatedAt={query.dataUpdatedAt} />
-								<Button
-									size="sm"
-									variant="outline"
-									aria-pressed={paused}
-									onClick={() => setPaused(!paused)}
-								>
-									{paused ? "Resume" : "Pause"}
-								</Button>
+		<EntityProvider>
+			<section>
+				<SettingsHeader>
+					<SettingsHeaderTitle>Cluster Network</SettingsHeaderTitle>
+					<SettingsHeaderDescription>
+						A live map of the Kubernetes cluster Coder runs on: nodes, their
+						addresses and load, the platform's pods and the workspaces on each.
+						Click any pod, Service, node or line for its details. Refreshes
+						every 5 seconds.
+					</SettingsHeaderDescription>
+				</SettingsHeader>
+				{query.isLoading ? (
+					<Loader />
+				) : (
+					<div className="flex flex-col gap-6">
+						<section
+							aria-labelledby="cluster-map"
+							className="flex flex-col gap-5 rounded-lg border border-solid border-border p-6"
+							data-testid="cluster-map"
+						>
+							<div className="flex flex-wrap items-center justify-between gap-3">
+								<h2 id="cluster-map" className="m-0 text-base font-semibold">
+									Cluster map
+								</h2>
+								<div className="flex items-center gap-3">
+									<LiveStatus paused={paused} updatedAt={query.dataUpdatedAt} />
+									<Button
+										size="sm"
+										variant="outline"
+										aria-pressed={paused}
+										onClick={() => setPaused(!paused)}
+									>
+										{paused ? "Resume" : "Pause"}
+									</Button>
+								</div>
 							</div>
-						</div>
-						{query.error ? (
-							<p role="alert" className="m-0 text-sm text-content-destructive">
-								The cluster could not be read:{" "}
-								{query.error instanceof Error
-									? query.error.message
-									: "unknown error"}
-							</p>
-						) : null}
-						{query.data && <Topology report={query.data} />}
-					</section>
-					{query.data && <WorkspacesTable report={query.data} />}
-					{query.data && <NodesTable report={query.data} />}
-				</div>
-			)}
-		</section>
+							{query.error ? (
+								<p
+									role="alert"
+									className="m-0 text-sm text-content-destructive"
+								>
+									The cluster could not be read:{" "}
+									{query.error instanceof Error
+										? query.error.message
+										: "unknown error"}
+								</p>
+							) : null}
+							{report && <Topology report={report} />}
+						</section>
+						<CodeServerHACard paused={paused} />
+						<MeshCard paused={paused} />
+						{report && <NodesTopologyCard report={report} />}
+						{report && <WorkspacesTable report={report} />}
+						{report && <NodesTable report={report} />}
+					</div>
+				)}
+			</section>
+		</EntityProvider>
 	);
 };
 
-const Tiles: React.FC<{ report: NetworkReport }> = ({ report: d }) => {
+const Tiles: React.FC<{ report: ClusterNetworkReport }> = ({ report: d }) => {
 	const sum = (pick: (n: ClusterNode) => number | null | undefined) =>
 		d.nodes.reduce((total, n) => total + (pick(n) ?? 0), 0);
 	const ready = d.nodes.filter((n) => n.ready).length;
@@ -196,7 +217,15 @@ const Tiles: React.FC<{ report: NetworkReport }> = ({ report: d }) => {
 	);
 };
 
-type LinkPath = { kind: "entry" | "ok" | "bad"; d: string };
+type LinkPath = {
+	kind: "entry" | "ok" | "bad";
+	d: string;
+	/** The connection a click opens: the mesh's way in, or a workspace's agents (agent:<id>). */
+	id: string;
+	/** Unique per line (one way-in line per Coder server). */
+	testId: string;
+	label: string;
+};
 
 /**
  * Curves from the way in to each Coder server, and from a Coder server to
@@ -204,7 +233,7 @@ type LinkPath = { kind: "entry" | "ok" | "bad"; d: string };
  */
 const useLinks = (
 	container: React.RefObject<HTMLDivElement | null>,
-	report: NetworkReport,
+	report: ClusterNetworkReport,
 ) => {
 	const [paths, setPaths] = useState<LinkPath[]>([]);
 	const [box, setBox] = useState({ width: 0, height: 0 });
@@ -226,7 +255,9 @@ const useLinks = (
 			};
 			const next: LinkPath[] = [];
 			const entry = root.querySelector("[data-entry]");
-			const servers = [...root.querySelectorAll("[data-coder-server]")];
+			const servers = [
+				...root.querySelectorAll<HTMLElement>("[data-coder-server]"),
+			];
 			if (entry) {
 				for (const server of servers) {
 					const [x1, y1] = at(entry, "right");
@@ -235,6 +266,9 @@ const useLinks = (
 					next.push({
 						kind: "entry",
 						d: `M${x1},${y1} C${x1 + dx},${y1} ${x2 - dx},${y2} ${x2},${y2}`,
+						id: "gateway-coder",
+						testId: `gateway-coder-${server.dataset.coderServer ?? ""}`,
+						label: `The way in → ${server.dataset.coderServer ?? "Coder"}`,
 					});
 				}
 			}
@@ -249,6 +283,9 @@ const useLinks = (
 					next.push({
 						kind: ws.dataset.workspace === "ok" ? "ok" : "bad",
 						d: `M${hx},${hy} C${hx},${lift} ${wx},${lift} ${wx},${wy}`,
+						id: `agent:${ws.dataset.workspaceId}`,
+						testId: `agent-${ws.dataset.workspaceId}`,
+						label: `Coder → ${ws.dataset.label ?? "workspace"}`,
 					});
 				}
 			}
@@ -264,9 +301,10 @@ const useLinks = (
 	return { paths, box };
 };
 
-const Topology: React.FC<{ report: NetworkReport }> = ({ report }) => {
+const Topology: React.FC<{ report: ClusterNetworkReport }> = ({ report }) => {
 	const container = useRef<HTMLDivElement>(null);
 	const { paths, box } = useLinks(container, report);
+	const open = useOpenEntity();
 	const now = useNow();
 	let host = report.accessUrl;
 	try {
@@ -274,6 +312,13 @@ const Topology: React.FC<{ report: NetworkReport }> = ({ report }) => {
 	} catch {
 		// Keep it as it is.
 	}
+	const services = report.services ?? [];
+	const gateway = services.find((s) => s.kind === "gateway");
+	const kinds: ComponentKind[] = [
+		...report.coder.map((p) => kindOf(p)),
+		...services.map((s) => s.kind),
+		...(report.workspaces.length ? ["workspace" as const] : []),
+	];
 
 	return (
 		<>
@@ -283,30 +328,54 @@ const Topology: React.FC<{ report: NetworkReport }> = ({ report }) => {
 				className="relative grid items-start gap-14 md:grid-cols-[minmax(180px,220px)_minmax(0,1fr)]"
 			>
 				<svg
-					aria-hidden
 					className="pointer-events-none absolute inset-0 z-0 size-full overflow-visible"
 					viewBox={`0 0 ${box.width} ${box.height}`}
+					role="group"
+					aria-label="Connections on the map"
 				>
 					{paths.map((path, i) => (
-						<path
-							key={i}
-							d={path.d}
-							fill="none"
-							strokeWidth={2}
-							strokeDasharray={path.kind === "bad" ? "5 5" : undefined}
-							className={cn(
-								path.kind === "entry"
-									? "stroke-content-link/60"
-									: path.kind === "ok"
-										? "stroke-content-success/70"
-										: "stroke-content-warning/80",
-							)}
-						/>
+						<g key={i}>
+							<path
+								aria-hidden
+								d={path.d}
+								fill="none"
+								strokeWidth={2}
+								strokeDasharray={path.kind === "bad" ? "5 5" : undefined}
+								className={cn(
+									path.kind === "entry"
+										? "stroke-content-link/60"
+										: path.kind === "ok"
+											? "stroke-content-success/70"
+											: "stroke-content-warning/80",
+								)}
+							/>
+							{/* The same line, invisible and wider, to click (the cards stay above it). */}
+							<path
+								d={path.d}
+								fill="none"
+								stroke="transparent"
+								strokeWidth={14}
+								role="button"
+								tabIndex={0}
+								aria-label={path.label}
+								className="pointer-events-[stroke] cursor-pointer outline-none focus-visible:stroke-content-link/30"
+								onClick={() => open({ type: "link", id: path.id })}
+								onKeyDown={(ev) => {
+									if (ev.key === "Enter" || ev.key === " ") {
+										ev.preventDefault();
+										open({ type: "link", id: path.id });
+									}
+								}}
+								data-testid={`cluster-map-link-${path.testId}`}
+							>
+								<title>{path.label}</title>
+							</path>
+						</g>
 					))}
 				</svg>
 				<div
 					data-entry=""
-					className="relative z-[1] grid gap-2.5 rounded-lg border border-dashed border-border p-3.5"
+					className="relative z-[1] grid grid-cols-[minmax(0,1fr)] gap-2.5 rounded-lg border border-dashed border-border p-3.5"
 				>
 					<div className="text-[11px] font-semibold uppercase tracking-wider text-content-secondary">
 						Way in
@@ -316,6 +385,19 @@ const Topology: React.FC<{ report: NetworkReport }> = ({ report }) => {
 						Browsers and CLIs reach Coder here (Gateway → Service). Workspace
 						agents dial back to Coder the same way.
 					</div>
+					{gateway && (
+						<ServiceChip
+							svc={gateway}
+							testId="cluster-map-way-in-service"
+							onOpen={() =>
+								open({
+									type: "service",
+									namespace: gateway.namespace,
+									name: gateway.name,
+								})
+							}
+						/>
+					)}
 				</div>
 				<div className="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-5">
 					{report.nodes.map((node) => (
@@ -323,11 +405,14 @@ const Topology: React.FC<{ report: NetworkReport }> = ({ report }) => {
 					))}
 				</div>
 			</div>
-			<div className="flex flex-wrap gap-x-4.5 gap-y-1.5 text-xs text-content-secondary">
-				<LegendChip className="bg-content-link" label="Coder server" />
-				<LegendChip className="bg-content-warning" label="Database" />
-				<LegendChip className="bg-content-secondary" label="Add-on" />
-				<LegendChip className="bg-content-success" label="Workspace" />
+			{services.length > 0 && <ServicesStrip services={services} />}
+			{report.servicesError && (
+				<p className="m-0 text-xs text-content-warning">
+					Some Services could not be read: {report.servicesError}
+				</p>
+			)}
+			<div className="flex flex-wrap items-center gap-x-4.5 gap-y-1.5 text-xs text-content-secondary">
+				<KindLegend kinds={kinds} />
 				<span className="inline-flex items-center gap-1.5">
 					<i className="w-5.5 border-0 border-t-2 border-solid border-content-success/70" />
 					Agent connected
@@ -336,58 +421,160 @@ const Topology: React.FC<{ report: NetworkReport }> = ({ report }) => {
 					<i className="w-5.5 border-0 border-t-2 border-dashed border-content-warning/80" />
 					Agent not connected
 				</span>
+				<span className="inline-flex items-center gap-1.5">
+					<TriangleAlertIcon className="size-3 text-content-warning" />
+					Not ready
+				</span>
 			</div>
 		</>
 	);
 };
 
 type ChipProps = {
-	kind: CoderPod["role"] | "workspace-bad";
+	kind: ComponentKind;
 	name: string;
 	sub?: string | null;
 	title: string;
-	dimmed?: boolean;
-} & React.ComponentProps<"div">;
-
-const CHIP_COLORS: Record<ChipProps["kind"], string> = {
-	coder: "before:bg-content-link",
-	database: "before:bg-content-warning",
-	"add-on": "before:bg-content-secondary",
-	workspace: "before:bg-content-success",
-	"workspace-bad": "before:bg-content-destructive",
-};
+	/** Not ok: a warning sign beside the name (the colour is the kind's, never the state's). */
+	status?: "ok" | "warn" | "error";
+	onOpen: () => void;
+} & Omit<React.ComponentProps<"button">, "title" | "onClick">;
 
 const Chip: React.FC<ChipProps> = ({
 	kind,
 	name,
 	sub,
 	title,
-	dimmed,
+	status = "ok",
+	onOpen,
+	className,
 	...attrs
-}) => (
-	<div
-		title={title}
-		className={cn(
-			"relative inline-flex min-w-0 max-w-full flex-col gap-px rounded-md border border-solid border-border bg-surface-secondary py-1.5 pr-2.5 pl-3 text-xs leading-tight",
-			"before:absolute before:top-1 before:bottom-1 before:left-0 before:w-[3px] before:rounded-sm before:content-['']",
-			CHIP_COLORS[kind],
-			dimmed && "opacity-60",
-		)}
-		{...attrs}
-	>
-		<b className="truncate font-semibold">{name}</b>
-		{sub && (
-			<small className="whitespace-nowrap font-mono text-[11px] text-content-secondary">
-				{sub}
-			</small>
-		)}
-	</div>
+}) => {
+	const Icon = componentIcon(kind, name);
+	return (
+		<button
+			type="button"
+			title={title}
+			onClick={onOpen}
+			className={cn(
+				"relative inline-flex min-w-0 max-w-full cursor-pointer items-center gap-2 rounded-md border border-solid border-border bg-surface-secondary py-1.5 pr-2.5 pl-3 text-left text-xs leading-tight text-content-primary hover:bg-surface-tertiary",
+				"before:absolute before:top-1 before:bottom-1 before:left-0 before:w-[3px] before:rounded-sm before:bg-(--kind) before:content-['']",
+				KINDS[kind].color,
+				status !== "ok" && "border-dashed",
+				className,
+			)}
+			data-kind={kind}
+			{...attrs}
+		>
+			{/* Platform: what it is at a glance, just right of its colour mark (componentIcon) */}
+			<Icon
+				aria-hidden
+				className="size-4 shrink-0 text-(--kind)"
+				data-testid="component-icon"
+				data-icon={Icon.displayName}
+			/>
+			<span className="flex min-w-0 flex-1 flex-col gap-px">
+				<b className="flex w-full min-w-0 max-w-full items-center gap-1 font-semibold">
+					<span className="truncate">{name}</span>
+					{status !== "ok" && (
+						<TriangleAlertIcon
+							aria-label={status === "error" ? "failing" : "not ready"}
+							className={cn(
+								"size-3 shrink-0",
+								status === "error"
+									? "text-content-destructive"
+									: "text-content-warning",
+							)}
+						/>
+					)}
+				</b>
+				{sub && (
+					// Platform: as wide as the chip at most (a button's flex item keeps its text's width otherwise), so it
+					// truncates
+					<small className="w-full min-w-0 max-w-full truncate font-mono text-[11px] text-content-secondary">
+						{sub}
+					</small>
+				)}
+			</span>
+		</button>
+	);
+};
+
+const serviceStatus = (s: MapService): "ok" | "warn" | "error" =>
+	s.endpoints == null || s.ready == null
+		? "ok"
+		: s.ready === 0
+			? "error"
+			: s.ready < s.endpoints
+				? "warn"
+				: "ok";
+
+const ServiceChip: React.FC<{
+	svc: MapService;
+	onOpen: () => void;
+	testId?: string;
+}> = ({ svc: s, onOpen, testId }) => (
+	<Chip
+		kind={s.kind}
+		name={s.name}
+		sub={[
+			s.clusterIP && s.clusterIP !== "None" ? s.clusterIP : null,
+			s.ports.join(" "),
+		]
+			.filter(Boolean)
+			.join(" · ")}
+		status={serviceStatus(s)}
+		onOpen={onOpen}
+		title={`Service ${s.namespace}/${s.name} (${s.type}, ${KINDS[s.kind].label})\n${s.ports.join(", ")}${s.external.length ? `\nexternal ${s.external.join(", ")}` : ""}\n${s.endpoints == null ? "endpoints not readable" : `${s.ready} of ${s.endpoints} endpoints ready`}`}
+		data-testid={testId ?? `cluster-map-service-${s.namespace}-${s.name}`}
+	/>
 );
 
-type NodeCardProps = { node: ClusterNode; report: NetworkReport; now: number };
+/** The Services, grouped by the kind of what they select. */
+const ServicesStrip: React.FC<{ services: MapService[] }> = ({ services }) => {
+	const open = useOpenEntity();
+	return (
+		<div className="flex flex-col gap-2" data-testid="cluster-map-services">
+			<p className="m-0 text-[11px] font-semibold uppercase tracking-wider text-content-secondary">
+				Services ({services.length})
+			</p>
+			<div className="flex flex-wrap gap-x-5 gap-y-2.5">
+				{groupByKind(services, (s) => s.kind).map(([kind, list]) => (
+					<div key={kind} className="flex min-w-0 flex-col gap-1">
+						<span className="text-[11px] text-content-secondary">
+							{KINDS[kind].plural}
+						</span>
+						<div className="flex flex-wrap gap-1.5">
+							{list.map((s) => (
+								<ServiceChip
+									key={`${s.namespace}/${s.name}`}
+									svc={s}
+									onOpen={() =>
+										open({
+											type: "service",
+											namespace: s.namespace,
+											name: s.name,
+										})
+									}
+								/>
+							))}
+						</div>
+					</div>
+				))}
+			</div>
+		</div>
+	);
+};
+
+type NodeCardProps = {
+	node: ClusterNode;
+	report: ClusterNetworkReport;
+	now: number;
+};
 
 const NodeCard: React.FC<NodeCardProps> = ({ node: n, report, now }) => {
-	const coder = report.coder.filter((p) => p.node === n.name);
+	const open = useOpenEntity();
+	const platform = report.coder.filter((p) => p.node === n.name);
 	const workspaces = report.workspaces.filter((w) => w.pod.node === n.name);
 	const [status, statusLabel] = nodeStatus(n);
 	const meta: [string, string][] = [
@@ -407,7 +594,14 @@ const NodeCard: React.FC<NodeCardProps> = ({ node: n, report, now }) => {
 			)}
 		>
 			<div className="flex flex-wrap items-center justify-between gap-2">
-				<span className="text-[15px] font-semibold">{n.name}</span>
+				<button
+					type="button"
+					onClick={() => open({ type: "node", name: n.name })}
+					className="cursor-pointer border-0 bg-transparent p-0 text-[15px] font-semibold text-content-primary hover:underline"
+					data-testid={`cluster-map-node-${n.name}`}
+				>
+					{n.name}
+				</button>
 				<Badge
 					size="xs"
 					variant={
@@ -454,24 +648,40 @@ const NodeCard: React.FC<NodeCardProps> = ({ node: n, report, now }) => {
 				format={bytes}
 				title={`Memory: ${bytes(n.usage?.memory)} in use, ${bytes(n.requests.memory)} requested by pods, ${bytes(n.allocatable.memory)} allocatable`}
 			/>
-			{coder.length > 0 && (
-				<div>
-					<p className="m-0 mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-content-secondary">
-						Coder ({report.coderNamespace})
+			{platform.length > 0 && (
+				<div className="flex flex-col gap-2">
+					<p className="m-0 text-[11px] font-semibold uppercase tracking-wider text-content-secondary">
+						Coder and the platform ({platform.length})
 					</p>
-					<div className="flex flex-wrap gap-1.5">
-						{coder.map((pod) => (
-							<Chip
-								key={pod.name}
-								kind={pod.role}
-								name={pod.name}
-								sub={pod.podIP}
-								dimmed={!pod.ready}
-								data-coder-server={pod.role === "coder" ? "" : undefined}
-								title={`${pod.role} · ${pod.name}\nIP ${pod.podIP ?? "N/A"} · ${pod.ready ? "ready" : "not ready"} · ${pod.restarts} restarts · up ${ago(pod.started, now)}`}
-							/>
-						))}
-					</div>
+					{groupByKind(platform, (p) => kindOf(p)).map(([kind, pods]) => (
+						<div key={kind} className="flex flex-col gap-1">
+							<span className="text-[11px] text-content-secondary">
+								{KINDS[kind].plural}
+							</span>
+							<div className="flex flex-wrap gap-1.5">
+								{pods.map((pod) => (
+									<Chip
+										key={`${pod.namespace}/${pod.name}`}
+										kind={kind}
+										name={pod.name}
+										sub={[pod.podIP, pod.haRole].filter(Boolean).join(" · ")}
+										status={pod.ready ? "ok" : "warn"}
+										className={pod.ready ? undefined : "opacity-75"}
+										onOpen={() =>
+											open({
+												type: "pod",
+												namespace: pod.namespace,
+												name: pod.name,
+											})
+										}
+										data-coder-server={kind === "coder" ? pod.name : undefined}
+										data-testid={`cluster-map-pod-${pod.name}`}
+										title={`${KINDS[kind].label}${pod.haRole ? ` (${pod.haRole})` : ""} · ${pod.namespace}/${pod.name}\nIP ${pod.podIP ?? "N/A"} · ${pod.ready ? "ready" : "not ready"} · ${pod.restarts} restarts · up ${ago(pod.started, now)}`}
+									/>
+								))}
+							</div>
+						</div>
+					))}
 				</div>
 			)}
 			<div>
@@ -486,10 +696,21 @@ const NodeCard: React.FC<NodeCardProps> = ({ node: n, report, now }) => {
 							return (
 								<Chip
 									key={w.id}
-									kind={ok ? "workspace" : "workspace-bad"}
+									kind="workspace"
 									name={`${w.owner}/${w.name}`}
 									sub={w.pod.podIP}
+									status={ok ? "ok" : "warn"}
+									onOpen={() =>
+										open({
+											type: "pod",
+											namespace: w.pod.namespace,
+											name: w.pod.name,
+										})
+									}
 									data-workspace={ok ? "ok" : "bad"}
+									data-workspace-id={w.id}
+									data-label={`${w.owner}/${w.name}`}
+									data-testid={`cluster-map-pod-${w.pod.name}`}
 									title={`${w.owner}/${w.name} (${w.template ?? "N/A"})\npod ${w.pod.name} · IP ${w.pod.podIP ?? "N/A"}\nagent: ${agentLabel(w)}${agent?.latencyMs != null ? ` · ${agent.latencyMs.toFixed(0)} ms` : ""}`}
 								/>
 							);
@@ -505,7 +726,9 @@ const NodeCard: React.FC<NodeCardProps> = ({ node: n, report, now }) => {
 	);
 };
 
-const WorkspacesTable: React.FC<{ report: NetworkReport }> = ({ report }) => {
+const WorkspacesTable: React.FC<{ report: ClusterNetworkReport }> = ({
+	report,
+}) => {
 	const now = useNow();
 	return (
 		<section
@@ -592,7 +815,7 @@ const WorkspacesTable: React.FC<{ report: NetworkReport }> = ({ report }) => {
 	);
 };
 
-const NodesTable: React.FC<{ report: NetworkReport }> = ({ report }) => {
+const NodesTable: React.FC<{ report: ClusterNetworkReport }> = ({ report }) => {
 	const now = useNow();
 	return (
 		<section

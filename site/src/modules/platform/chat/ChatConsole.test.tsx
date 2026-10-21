@@ -64,6 +64,7 @@ const renderConsole = () => {
 		fullFrom: "window",
 		panelView: null,
 		consoleOpen: true,
+		consoleOverlay: false,
 		consoleView: null,
 		consoleRequest: 0,
 		focus: [],

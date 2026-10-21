@@ -544,8 +544,6 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 								>
 									<AgentLatency agent={agent} />
 								</span>
-								{/* Platform: connected to its owner's Cloud Drive (a HUD of it on hover) */}
-								<CloudDriveGlyph workspace={workspace} />
 							</>
 						)}
 						{agent.status === "connecting" && (
@@ -603,7 +601,9 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 								workspaceId={workspace.id}
 								stoppedAt={stoppedAt}
 							/>
-							<span className="ml-auto empty:hidden">
+							<span className="ml-auto flex items-center gap-2 empty:hidden">
+								{/* Platform: connected to its owner's Cloud Drive (a HUD of it on hover), left of the uptime */}
+								<CloudDriveGlyph workspace={workspace} />
 								{/* Platform: no contact with Coder - not counting on as if it ran, greyed */}
 								<span
 									className={cn(

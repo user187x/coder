@@ -2,7 +2,6 @@ import { GaugeIcon, RadioIcon } from "lucide-react";
 import { useState } from "react";
 import { NavLink } from "react-router";
 import { toast } from "sonner";
-import type * as TypesGen from "#/api/typesGenerated";
 import { Abbr } from "#/components/Abbr/Abbr";
 import { ChevronDownIcon } from "#/components/AnimatedIcons/ChevronDown";
 import { Button } from "#/components/Button/Button";
@@ -13,114 +12,133 @@ import {
 	DropdownMenuRadioGroup,
 	DropdownMenuRadioItem,
 	DropdownMenuSeparator,
+	DropdownMenuSub,
+	DropdownMenuSubContent,
+	DropdownMenuSubTrigger,
 	DropdownMenuTrigger,
 } from "#/components/DropdownMenu/DropdownMenu";
 import { ExternalImage } from "#/components/ExternalImage/ExternalImage";
 import { Latency } from "#/components/Latency/Latency";
-import { Skeleton } from "#/components/Skeleton/Skeleton";
 import type { ProxyContextValue } from "#/contexts/ProxyContext";
 import { WorkspacesLatencyMenu } from "#/modules/platform/workspaceLatency/WorkspacesLatencyMenu";
 import { getLatencyColor } from "#/utils/latency";
+import {
+	type AdminQuickLinksEditor,
+	AdminSettingsItems,
+	type AdminSettingsPermissions,
+} from "./AdminSettings";
+import type { AdminPage } from "./adminQuickLinks";
 import { sortProxiesByLatency } from "./proxyUtils";
 import "./navbarSoft.css";
 
-type ProxyMenuProps = {
-	proxyContextValue: ProxyContextValue;
-	/**
-	 * Platform: the HUD's link joined on its left (admins): one split button - HUD, then the latency and its menu's
-	 * chevron - in the place of two.
-	 */
-	hud?: boolean;
+/** Platform: the Controls menu's items, as its own button had them (AdminSettingsItems). */
+type ProxyMenuControls = {
+	permissions: AdminSettingsPermissions;
+	quickLinks?: readonly AdminPage[];
+	quickLinksEditor?: AdminQuickLinksEditor;
 };
 
+type ProxyMenuProps = {
+	/** The regions and the latency to them; without it (or when it cannot be had) the button has no latency pill. */
+	proxyContextValue?: ProxyContextValue;
+	/**
+	 * Platform: the HUD's link joined on its left (admins): one split button - HUD, then the latency, "Controls" and
+	 * the menu's chevron - in the place of three buttons.
+	 */
+	hud?: boolean;
+	/** Platform: the Controls menu, under the Workspaces row; the button then says "Controls". */
+	controls?: ProxyMenuControls;
+};
+
+/**
+ * Platform: the top bar's latency and Controls menu, one button where there were two. The button shows the latency
+ * to the selected region in a pill (the antenna in the latency's colour), then "Controls" and the chevron. The menu
+ * holds the Workspaces row, which shows the latency to each workspace while it is pressed (WorkspacesLatencyMenu),
+ * and under it the whole Controls menu, its graphs last. With more than one region, a Region row comes first
+ * (Coder's region picker). Each opening measures the latency again.
+ */
 export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 	proxyContextValue,
 	hud = false,
+	controls,
 }) => {
 	const [open, setOpen] = useState(false);
-	const [refetchDate, setRefetchDate] = useState<Date>();
-	const selectedProxy = proxyContextValue.proxy.proxy;
-	const refreshLatencies = proxyContextValue.refetchProxyLatencies;
 	const closeMenu = () => setOpen(false);
-	const latencies = proxyContextValue.proxyLatencies;
-	const isLoadingLatencies = Object.keys(latencies).length === 0;
-	const isLoading = proxyContextValue.isLoading || isLoadingLatencies;
+	// The regions' endpoint answers 404 without enterprise: no latency then, but the menu stays.
+	const proxy = proxyContextValue?.error ? undefined : proxyContextValue;
+	const selectedProxy = proxy?.proxy.proxy;
+	const latencies = proxy?.proxyLatencies ?? {};
+	const isLoading =
+		proxy !== undefined &&
+		(proxy.isLoading || Object.keys(latencies).length === 0);
+	const selectedLatency = selectedProxy
+		? latencies[selectedProxy.id]?.latencyMS
+		: undefined;
+	const regions =
+		proxy?.proxies && proxy.proxies.length > 1 ? proxy.proxies : undefined;
 
-	const proxyLatencyLoading = (proxy: TypesGen.Region): boolean => {
-		if (!refetchDate) {
-			// Only show loading if the user manually requested a refetch
-			return false;
-		}
-
-		// Only show a loading spinner if:
-		//  - A latency exists. This means the latency was fetched at some point, so
-		//    the loader *should* be resolved.
-		//  - The proxy is healthy. If it is not, the loader might never resolve.
-		//  - The latency reported is older than the refetch date. This means the
-		//    latency is stale and we should show a loading spinner until the new
-		//    latency is fetched.
-		const latency = latencies[proxy.id];
-		return proxy.healthy && latency !== undefined && latency.at < refetchDate;
-	};
-
-	// This endpoint returns a 404 when not using enterprise.
-	// If we don't return null, then it looks like this is
-	// loading forever!
-	if (proxyContextValue.error) {
-		return null;
-	}
-
-	if (isLoading) {
-		return (
-			<Skeleton
-				width={hud ? "170px" : "110px"}
-				height={40}
-				className="rounded-[10px] transform-none"
-			/>
-		);
-	}
-
-	const reading = (
-		<>
+	const pill = proxy && (
+		<span
+			data-testid="navbar-latency-pill"
+			className="inline-flex items-center gap-1.5 h-7 pl-2 pr-2.5 rounded-full border border-solid border-border bg-surface-secondary"
+		>
 			<span className="sr-only">
 				Latency for {selectedProxy?.display_name ?? "your region"}
 			</span>
 
-			{selectedProxy ? (
+			{selectedProxy || isLoading ? (
 				<>
 					<RadioIcon
 						aria-hidden="true"
-						className={getLatencyColor(
-							proxyLatencyLoading(selectedProxy)
-								? undefined
-								: latencies?.[selectedProxy.id]?.latencyMS,
-						)}
+						className={getLatencyColor(isLoading ? undefined : selectedLatency)}
 					/>
 
 					<Latency
-						className={
-							latencies?.[selectedProxy.id]?.latencyMS
-								? "text-content-primary"
-								: undefined
-						}
-						latency={latencies?.[selectedProxy.id]?.latencyMS}
-						isLoading={proxyLatencyLoading(selectedProxy)}
+						className={selectedLatency ? "text-content-primary" : undefined}
+						latency={selectedLatency}
+						isLoading={isLoading}
 					/>
 				</>
 			) : (
 				"Select Proxy"
 			)}
+		</span>
+	);
 
+	const reading = (
+		<>
+			{pill}
+			{/* Without the pill or the Controls, the menu is the workspaces' latency. */}
+			{controls ? "Controls" : !pill && "Workspaces"}
 			<ChevronDownIcon className="text-content-primary" />
 		</>
 	);
 
+	const title = [
+		selectedProxy && `Latency to ${selectedProxy.display_name}`,
+		"your workspaces",
+		controls && "the Controls",
+	]
+		.filter(Boolean)
+		.join(", ");
+
 	return (
-		<DropdownMenu open={open} onOpenChange={setOpen}>
+		<DropdownMenu
+			open={open}
+			onOpenChange={(next) => {
+				setOpen(next);
+				// The menu's old "Refresh latencies" row, now each time it opens.
+				if (next) {
+					proxy?.refetchProxyLatencies();
+				}
+			}}
+		>
 			{hud ? (
 				<div
 					role="group"
-					aria-label="HUD and latency"
+					aria-label={
+						controls ? "HUD, latency and Controls" : "HUD and latency"
+					}
 					className="navbar-split"
 					data-testid="navbar-hud-latency"
 				>
@@ -136,7 +154,8 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 						<button
 							type="button"
 							className="navbar-split-menu"
-							title={`Latency to ${selectedProxy?.display_name ?? "your region"}, and to your workspaces`}
+							title={title}
+							data-testid="navbar-latency-controls"
 						>
 							{reading}
 						</button>
@@ -144,99 +163,117 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 				</div>
 			) : (
 				<DropdownMenuTrigger asChild>
-					<Button variant="outline" size="lg">
+					<Button
+						variant="outline"
+						size="lg"
+						title={title}
+						data-testid="navbar-latency-controls"
+					>
 						{reading}
 					</Button>
 				</DropdownMenuTrigger>
 			)}
-			<DropdownMenuContent align="end" className="w-80">
-				{proxyContextValue.proxies && proxyContextValue.proxies.length > 1 && (
-					<DropdownMenuItem
-						disabled
-						className="flex flex-col gap-1 items-start data-disabled:opacity-100"
-					>
-						<div className="text-content-primary font-semibold text-left">
-							Select a region nearest to you
-						</div>
-						<div className="text-xs text-content-secondary leading-relaxed">
-							Workspace proxies improve terminal and web app connections.{" "}
-							<Abbr title="Command-Line Interface" pronunciation="initialism">
-								CLI
-							</Abbr>{" "}
-							connections are unaffected. If no region is selected, the primary
-							region will be used.
-						</div>
-					</DropdownMenuItem>
-				)}
-
-				{proxyContextValue.proxies && proxyContextValue.proxies.length > 1 && (
-					<DropdownMenuSeparator />
-				)}
-
-				{proxyContextValue.proxies && (
-					<div className="max-h-[calc(100vh-22rem)] -mr-2 pr-2 overflow-y-auto scrollbar-thin [scrollbar-color:hsl(var(--surface-quaternary))_transparent]">
-						<DropdownMenuRadioGroup value={selectedProxy?.id}>
-							{sortProxiesByLatency(proxyContextValue.proxies, latencies).map(
-								(proxy) => (
-									<DropdownMenuRadioItem
-										value={proxy.id}
-										key={proxy.id}
-										onClick={(e) => {
-											e.preventDefault();
-											if (!proxy.healthy) {
-												toast.error(
-													`Failed to select proxy "${proxy.display_name}".`,
-													{
-														description:
-															"Please select a healthy workspace proxy.",
-													},
-												);
-												closeMenu();
-												return;
-											}
-
-											proxyContextValue.setProxy(proxy);
-											closeMenu();
-										}}
+			<DropdownMenuContent
+				align="end"
+				data-testid="navbar-latency-controls-menu"
+				// The Controls menu's widths; a long one scrolls rather than leave its graphs off the screen.
+				className="w-[240px] has-[[data-cluster-gauge]]:w-[300px] max-h-(--radix-dropdown-menu-content-available-height) overflow-y-auto scrollbar-thin [scrollbar-color:hsl(var(--surface-quaternary))_transparent]"
+			>
+				{regions && proxy && (
+					<DropdownMenuSub>
+						<DropdownMenuSubTrigger data-testid="navbar-region">
+							<RadioIcon aria-hidden />
+							Region
+							<span className="ml-auto truncate text-xs text-content-secondary">
+								{selectedProxy?.display_name}
+							</span>
+						</DropdownMenuSubTrigger>
+						<DropdownMenuSubContent className="w-80">
+							<DropdownMenuItem
+								disabled
+								className="flex flex-col gap-1 items-start data-disabled:opacity-100"
+							>
+								<div className="text-content-primary font-semibold text-left">
+									Select a region nearest to you
+								</div>
+								<div className="text-xs text-content-secondary leading-relaxed">
+									Workspace proxies improve terminal and web app connections.{" "}
+									<Abbr
+										title="Command-Line Interface"
+										pronunciation="initialism"
 									>
-										<div className="flex gap-3 items-center w-full">
-											<div className="leading-none size-4">
-												<ExternalImage
-													src={proxy.icon_url}
-													alt=""
-													className="object-contain size-full"
+										CLI
+									</Abbr>{" "}
+									connections are unaffected. If no region is selected, the
+									primary region will be used.
+								</div>
+							</DropdownMenuItem>
+
+							<DropdownMenuSeparator />
+
+							<div className="max-h-[calc(100vh-22rem)] -mr-2 pr-2 overflow-y-auto scrollbar-thin [scrollbar-color:hsl(var(--surface-quaternary))_transparent]">
+								<DropdownMenuRadioGroup value={selectedProxy?.id}>
+									{sortProxiesByLatency(regions, latencies).map((region) => (
+										<DropdownMenuRadioItem
+											value={region.id}
+											key={region.id}
+											onClick={(e) => {
+												e.preventDefault();
+												if (!region.healthy) {
+													toast.error(
+														`Failed to select proxy "${region.display_name}".`,
+														{
+															description:
+																"Please select a healthy workspace proxy.",
+														},
+													);
+													closeMenu();
+													return;
+												}
+
+												proxy.setProxy(region);
+												closeMenu();
+											}}
+										>
+											<div className="flex gap-3 items-center w-full">
+												<div className="leading-none size-4">
+													<ExternalImage
+														src={region.icon_url}
+														alt=""
+														className="object-contain size-full"
+													/>
+												</div>
+
+												{region.display_name}
+
+												<Latency
+													className="ml-auto"
+													latency={latencies[region.id]?.latencyMS}
 												/>
 											</div>
-
-											{proxy.display_name}
-
-											<Latency
-												className="ml-auto"
-												latency={latencies?.[proxy.id]?.latencyMS}
-												isLoading={proxyLatencyLoading(proxy)}
-											/>
-										</div>
-									</DropdownMenuRadioItem>
-								),
-							)}
-						</DropdownMenuRadioGroup>
-					</div>
+										</DropdownMenuRadioItem>
+									))}
+								</DropdownMenuRadioGroup>
+							</div>
+						</DropdownMenuSubContent>
+					</DropdownMenuSub>
 				)}
 
-				<DropdownMenuSeparator />
-
-				{/* Platform: the latency to each of your workspaces, live. */}
+				{/* Platform: the latency to each of your workspaces, live, while it is pressed. */}
 				<WorkspacesLatencyMenu open={open} />
 
-				<DropdownMenuItem
-					onClick={(e) => {
-						e.preventDefault();
-						const refetchDate = refreshLatencies();
-						setRefetchDate(refetchDate);
-					}}
-				>
-					Refresh latencies
-				</DropdownMenuItem>
+				{controls && (
+					<>
+						<DropdownMenuSeparator />
+						<nav aria-label="Controls">
+							<AdminSettingsItems
+								permissions={controls.permissions}
+								quickLinks={controls.quickLinks}
+								quickLinksEditor={controls.quickLinksEditor}
+							/>
+						</nav>
+					</>
+				)}
 			</DropdownMenuContent>
 		</DropdownMenu>
 	);

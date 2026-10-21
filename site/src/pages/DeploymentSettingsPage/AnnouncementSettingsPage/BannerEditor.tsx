@@ -330,6 +330,8 @@ export const BannerEditor: React.FC<BannerEditorProps> = ({
 					<Textarea
 						id={`${id}-message`}
 						ref={messageRef}
+						// Platform: the Show banner switch takes the admin here when there is nothing to show
+						data-banner-message=""
 						rows={3}
 						maxLength={MESSAGE_MAX_LENGTH}
 						placeholder="What do developers need to know?"

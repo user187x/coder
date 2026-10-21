@@ -1,10 +1,11 @@
-import { act, screen, waitFor, within } from "@testing-library/react";
+import { act, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, Outlet } from "react-router";
 import { type ChatMessage, type ChatState, PlatformAPI } from "#/api/platform";
 import { renderWithRouter } from "#/testHelpers/renderHelpers";
 import { ChatDock } from "./ChatDock";
 import {
+	closeConsoleOverlay,
 	closePanelView,
 	closeWindow,
 	initialDockMode,
@@ -54,6 +55,14 @@ const renderDock = () => {
 		messages: [message(1, peer, ME)],
 		readUpTo: 1,
 	}));
+	// The console, over the page.
+	vi.spyOn(PlatformAPI, "getCloudDrivePeers").mockReturnValue(
+		new Promise(() => {}),
+	);
+	vi.spyOn(PlatformAPI, "getChatPeople").mockResolvedValue({
+		enabled: true,
+		people: [],
+	});
 	const router = createMemoryRouter(
 		[
 			{
@@ -84,6 +93,7 @@ const raise = async (user: ReturnType<typeof userEvent.setup>) => {
 describe("ChatDock: the bar, the raised window, the side panel and full screen", () => {
 	afterEach(() => {
 		act(() => {
+			closeConsoleOverlay();
 			setDockMode("bar");
 			closePanelView();
 			for (const id of PEERS) {
@@ -195,21 +205,19 @@ describe("ChatDock: the bar, the raised window, the side panel and full screen",
 		screen.getByTestId("chat-window-raised");
 	});
 
-	it("an admin's console control opens the chat console's page (openConsole)", async () => {
+	it("an admin's console control brings the chat console over the page, not to its page (ChatConsoleOverlay)", async () => {
 		const user = userEvent.setup();
 		const router = renderDock();
 		const raised = await raise(user);
 		await user.click(
 			within(raised).getByRole("button", { name: "Open in the chat console" }),
 		);
-		await waitFor(() =>
-			expect(router.state.location.pathname).toBe(CHAT_CONSOLE_PAGE),
-		);
-		// The raised window made way for it.
-		expect(screen.getByRole("button", { name: "Chats" })).toHaveAttribute(
-			"aria-expanded",
-			"false",
-		);
+		await screen.findByRole("dialog", { name: "Chat console" });
+		expect(router.state.location.pathname).toBe("/");
+		// The raised window made way for it (the dock is under the overlay: hidden from the accessibility tree).
+		expect(
+			screen.getByRole("button", { name: "Chats", hidden: true }),
+		).toHaveAttribute("aria-expanded", "false");
 	});
 
 	it("full screen gives way to another page", async () => {

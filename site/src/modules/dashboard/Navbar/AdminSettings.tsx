@@ -12,7 +12,8 @@ import type { AdminPage } from "./adminQuickLinks";
 
 /**
  * Permissions that determine which items appear in the Admin menu.
- * Shared by the desktop `DeploymentDropdown` and the mobile `MobileMenu` so
+ * Shared by the desktop latency and Controls menu (`ProxyMenu`; Platform: the
+ * Controls button's own menu, merged into it) and the mobile `MobileMenu` so
  * both surfaces render the same set of items from a single source of truth.
  */
 type AdminSettingsItemsProps = {

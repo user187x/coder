@@ -1,0 +1,44 @@
+/* The Workspaces pill of the latency and Controls menu (WorkspacesLatencyMenu): hold to confirm - while a press lasts
+   a ring is drawn round its border (HOLD_MS, linear), let go early and it snaps back; drawn all the way, the list is
+   locked open and the ring turns green. The ring is the pill's own outline, 2px over its 1px border (its size in
+   pixels, from the pill's: WorkspacesLatencyMenu). */
+.workspaces-pill-ring {
+	/* the pill's border box (it is positioned in the padding box, inside the 1px border) */
+	position: absolute;
+	top: -1px;
+	left: -1px;
+	width: calc(100% + 2px);
+	height: calc(100% + 2px);
+	overflow: visible;
+	pointer-events: none;
+}
+.workspaces-pill-ring rect {
+	fill: none;
+	stroke: hsl(var(--content-link));
+	stroke-width: 2;
+	stroke-linecap: round;
+	stroke-dasharray: 100;
+	stroke-dashoffset: 100;
+	transition:
+		stroke-dashoffset 0.2s ease-out,
+		stroke 0.2s ease;
+}
+.workspaces-pill[data-hold="holding"] .workspaces-pill-ring rect {
+	stroke-dashoffset: 0;
+	transition: stroke-dashoffset 0.8s linear;
+}
+.workspaces-pill[data-hold="locked"] .workspaces-pill-ring rect {
+	stroke-dashoffset: 0;
+	stroke: hsl(var(--content-success));
+}
+.workspaces-pill[data-hold="locked"] {
+	border-color: transparent;
+}
+html[data-animations="off"] .workspaces-pill-ring rect {
+	transition: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+	.workspaces-pill-ring rect {
+		transition: none !important;
+	}
+}

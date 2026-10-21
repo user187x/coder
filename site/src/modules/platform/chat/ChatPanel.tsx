@@ -20,7 +20,7 @@ import {
 	markRead,
 	noAdminAvailable,
 	openChatWith,
-	openConsole,
+	openConsoleOverlay,
 	setChatOn,
 	setDockMode,
 	unreadTotal,
@@ -43,8 +43,8 @@ const BAR_HEIGHT = "46px";
  * admins to write to, and, when the admins turn peer-to-peer chat on, the
  * People online or active today (ChatPeople) with their own visible /
  * invisible switch. Admins have an on/off switch beside the title (developers
- * only write to admins with chat on), and a button that opens the chat console
- * (ChatConsole) on its page, Controls › Settings › Chat.
+ * only write to admins with chat on), and a button that brings the chat console
+ * (ChatConsole) up over the page, the rest blurred (ChatConsoleOverlay).
  */
 export const ChatPanel: React.FC = () => {
 	const state = useChatSnapshot();
@@ -134,9 +134,9 @@ export const ChatPanel: React.FC = () => {
 						{me.admin && (
 							<button
 								type="button"
-								onClick={() => openConsole()}
+								onClick={() => openConsoleOverlay()}
 								aria-label="Open the chat console"
-								title="Open the chat console (Controls › Settings › Chat)"
+								title="Open the chat console over this page"
 								data-testid="chat-open-console"
 								className="inline-flex h-11 shrink-0 cursor-pointer items-center border-0 bg-transparent px-1.5 text-content-secondary hover:text-content-primary"
 							>
@@ -265,13 +265,16 @@ export const DockButton: React.FC<DockButtonProps> = ({
 	</Button>
 );
 
-/** Admins: the chat console on its page (Controls › Settings › Chat), on this conversation when one is open. */
+/**
+ * Admins: the chat console over the page (ChatConsoleOverlay), on this conversation when one is open - on the Chat
+ * page, the console there, focused.
+ */
 export const ConsoleButton: React.FC<{ peer?: ChatPeer }> = ({ peer }) => (
 	<DockButton
 		label="Open in the chat console"
-		title="Open in the chat console (Controls › Settings › Chat)"
+		title="Open in the chat console, over this page"
 		testId="chat-open-console"
-		onClick={() => openConsole(peer)}
+		onClick={() => openConsoleOverlay(peer)}
 	>
 		<PanelsTopLeftIcon />
 	</DockButton>

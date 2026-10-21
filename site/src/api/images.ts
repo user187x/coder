@@ -515,6 +515,8 @@ export type BuildSummary = {
 	finishedAt: string | null;
 	by: string | null;
 	error: string | null;
+	/** Only a scan (a rescan, or a scan of an image as it is): nothing built, so its record can be deleted on its own. */
+	scanOnly?: boolean;
 };
 
 export type ImageDetail = ImageListItem & {
@@ -609,6 +611,9 @@ export const ImagesAPI = {
 		}>(`${IMAGES}/${enc(id)}/builds/${build}?log=${logLines}`),
 	cancelBuild: (id: string, build: number) =>
 		post<{ ok: true }>(`${IMAGES}/${enc(id)}/builds/${build}/cancel`, {}),
+	/** A finished scan's record, its log and its report (the image's report goes back to its newest scan left). */
+	deleteScan: (id: string, build: number) =>
+		post<{ ok: true }>(`${IMAGES}/${enc(id)}/builds/${build}/delete`, {}),
 	/** A pit stop: Copa patches the image in place (the patched image goes to the target entry). */
 	pitStop: (id: string, options: PitStopOptions) =>
 		post<{ target: string; build: number; pit: PitStop }>(

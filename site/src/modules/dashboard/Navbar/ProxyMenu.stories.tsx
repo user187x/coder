@@ -184,5 +184,8 @@ export const ManyProxiesOpened: Story = {
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
 		await userEvent.click(canvas.getByRole("button"));
+		// Platform: the regions are in the Region row's submenu.
+		const body = within(canvasElement.ownerDocument.body);
+		await userEvent.click(await body.findByTestId("navbar-region"));
 	},
 };

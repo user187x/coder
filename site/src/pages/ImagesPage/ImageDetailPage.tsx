@@ -7,6 +7,7 @@ import {
 	MonitorPlayIcon,
 	PencilIcon,
 	ScanSearchIcon,
+	Trash2Icon,
 	TrashIcon,
 	WrenchIcon,
 } from "lucide-react";
@@ -20,7 +21,12 @@ import {
 } from "react-router";
 import { toast } from "sonner";
 import { getErrorMessage } from "#/api/errors";
-import { type ImageDetail, ImagesAPI, terraformSnippet } from "#/api/images";
+import {
+	type BuildSummary,
+	type ImageDetail,
+	ImagesAPI,
+	terraformSnippet,
+} from "#/api/images";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { Button } from "#/components/Button/Button";
 import { CodeExample } from "#/components/CodeExample/CodeExample";
@@ -96,6 +102,7 @@ const ImageDetailView: React.FC<{ image: ImageDetail }> = ({ image }) => {
 	const location = useLocation();
 	const queryClient = useQueryClient();
 	const [deleting, setDeleting] = useState(false);
+	const [deletingScan, setDeletingScan] = useState<BuildSummary | null>(null);
 	const tracked = image.tracked;
 	const imported = image.imported;
 	const scanned = image.scanned;
@@ -146,6 +153,34 @@ const ImageDetailView: React.FC<{ image: ImageDetail }> = ({ image }) => {
 			navigate("/images");
 		},
 		onError: (e) => toast.error(getErrorMessage(e, "Not deleted.")),
+	});
+	// A scan's record (Scans, the trash can): out of the table at once, back if the service refuses
+	const removeScan = useMutation({
+		mutationFn: (b: BuildSummary) => ImagesAPI.deleteScan(image.id, b.id),
+		onMutate: async (b) => {
+			await queryClient.cancelQueries({ queryKey: imageKey(image.id) });
+			const before = queryClient.getQueryData<{ image: ImageDetail }>(
+				imageKey(image.id),
+			);
+			if (before) {
+				queryClient.setQueryData(imageKey(image.id), {
+					image: {
+						...before.image,
+						builds: before.image.builds.filter((x) => x.id !== b.id),
+					},
+				});
+			}
+			return { before };
+		},
+		onError: (e, b, context) => {
+			if (context?.before) {
+				queryClient.setQueryData(imageKey(image.id), context.before);
+			}
+			toast.error(getErrorMessage(e, `Scan #${b.id} was not deleted.`));
+		},
+		onSuccess: (_, b) => toast.success(`Scan #${b.id} deleted.`),
+		// its report may have been the image's: the one shown now, and the list's grade
+		onSettled: refresh,
 	});
 	// /images/<id>#report (from the build page): scrolled to the report
 	useEffect(() => {
@@ -530,12 +565,12 @@ const ImageDetailView: React.FC<{ image: ImageDetail }> = ({ image }) => {
 
 			<section className="flex flex-col gap-3">
 				<h2 className="m-0 text-lg font-semibold">
-					{tracked ? "Scans" : "Builds"}
+					{tracked || scanned ? "Scans" : "Builds"}
 				</h2>
 				{image.builds.length === 0 ? (
 					<p className="m-0 text-sm text-content-secondary">None yet.</p>
 				) : (
-					<Table>
+					<Table data-testid="image-builds">
 						<TableHeader>
 							<TableRow>
 								<TableHead>Build</TableHead>
@@ -544,6 +579,7 @@ const ImageDetailView: React.FC<{ image: ImageDetail }> = ({ image }) => {
 								<TableHead>Started</TableHead>
 								<TableHead>Took</TableHead>
 								<TableHead>By</TableHead>
+								{image.canEdit && <TableHead className="w-[1%]" />}
 							</TableRow>
 						</TableHeader>
 						<TableBody>
@@ -552,6 +588,7 @@ const ImageDetailView: React.FC<{ image: ImageDetail }> = ({ image }) => {
 									key={b.id}
 									className="cursor-pointer"
 									onClick={() => navigate(`/images/${image.id}/builds/${b.id}`)}
+									data-testid={`image-build-${b.id}`}
 								>
 									<TableCell>
 										<RouterLink
@@ -579,6 +616,31 @@ const ImageDetailView: React.FC<{ image: ImageDetail }> = ({ image }) => {
 									<TableCell className="text-sm text-content-secondary">
 										{b.by ?? "–"}
 									</TableCell>
+									{image.canEdit && (
+										<TableCell
+											className="py-0"
+											onClick={(e) => e.stopPropagation()}
+										>
+											{/* a scan's record goes on its own; a build's is its version's, and goes with the image */}
+											{b.scanOnly && (
+												<Button
+													variant="subtle"
+													size="icon"
+													aria-label={`Delete the scan #${b.id} of ${image.name}`}
+													title={
+														RUNNING.has(b.status)
+															? "Still running: delete it once it has finished"
+															: "Delete this scan: its record, log and report"
+													}
+													disabled={RUNNING.has(b.status)}
+													onClick={() => setDeletingScan(b)}
+													data-testid={`scan-delete-${b.id}`}
+												>
+													<Trash2Icon />
+												</Button>
+											)}
+										</TableCell>
+									)}
 								</TableRow>
 							))}
 						</TableBody>
@@ -606,9 +668,31 @@ const ImageDetailView: React.FC<{ image: ImageDetail }> = ({ image }) => {
 				onClose={() => setDeleting(false)}
 				onConfirm={() => remove.mutate()}
 			/>
+			<ConfirmDialog
+				type="delete"
+				open={deletingScan !== null}
+				title={`Delete scan #${deletingScan?.id ?? ""}`}
+				description={`Its record, log and report go; ${scanned?.image ?? tracked?.image ?? image.name} itself is not touched. If its report is the one shown above, the newest scan left takes its place (none left: no report until the next scan).`}
+				confirmText="Delete"
+				onClose={() => setDeletingScan(null)}
+				onConfirm={() => {
+					if (deletingScan) {
+						removeScan.mutate(deletingScan);
+					}
+					setDeletingScan(null);
+				}}
+			/>
 		</Margins>
 	);
 };
+
+/** A build or scan still under way: its record is not deleted yet. */
+const RUNNING = new Set<BuildSummary["status"]>([
+	"queued",
+	"building",
+	"pushing",
+	"scanning",
+]);
 
 const took = (from: string, to: string) => {
 	const s = Math.max(0, Math.round((Date.parse(to) - Date.parse(from)) / 1000));
