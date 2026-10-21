@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { useRef } from "react";
 import { BannerScrollView, RM_RF } from "./BannerScrollView";
+import { timeText } from "./DotMatrixTime";
 import { SPARKS_CLASS } from "./sparksCursor";
 
 const message =
@@ -48,6 +49,47 @@ describe("BannerScrollView", () => {
 		);
 		act(() => vi.advanceTimersByTime(300));
 		expect(screen.queryByTestId("announcement-scroll-view")).toBeNull();
+	});
+
+	it("titles the terminal Broadcast Announcement, the message then the one prompt", () => {
+		render(<Harness />);
+		fireEvent.click(screen.getByTestId("announcement-scroll-toggle"));
+		const title = screen.getByTestId("announcement-scroll-title");
+		// the title alone: no window buttons, no file name
+		expect(title.textContent).toBe("Broadcast Announcement");
+		expect(title.children).toHaveLength(1);
+		const view = screen.getByTestId("announcement-scroll-view");
+		expect(view.textContent).not.toContain("cat broadcast.md");
+		expect(view.textContent).not.toContain("broadcast.md");
+		const prompts = view.querySelectorAll(".banner-scroll-prompt");
+		expect(prompts).toHaveLength(1);
+		// the message comes first, the prompt after it
+		const heading = view.querySelector("h2");
+		expect(
+			heading &&
+				heading.compareDocumentPosition(prompts[0]) &
+					Node.DOCUMENT_POSITION_FOLLOWING,
+		).toBeTruthy();
+	});
+
+	it("prints the time on a dot-matrix display for time, ticking", () => {
+		vi.setSystemTime(new Date(2026, 9, 21, 14, 5, 9));
+		render(<Harness />);
+		fireEvent.click(screen.getByTestId("announcement-scroll-toggle"));
+		const view = screen.getByTestId("announcement-scroll-view");
+		type("time");
+		fireEvent.keyDown(view, { key: "Enter" });
+		const clock = screen.getByTestId("announcement-scroll-time");
+		expect(screen.queryByTestId("announcement-scroll-nono")).toBeNull();
+		const display = clock.querySelector("svg");
+		expect(display).toHaveAttribute("data-time", "14:05:09");
+		expect(display).toHaveAttribute("aria-label", "The time: 14:05:09");
+		// every dot of 6 digits (5 wide) and 2 colons (1 wide), with 7 blank columns between: 39 columns of 7
+		expect(clock.querySelectorAll("circle")).toHaveLength(39 * 7);
+		expect(clock.querySelectorAll(".dot-matrix-on").length).toBeGreaterThan(40);
+		act(() => vi.advanceTimersByTime(2000));
+		expect(display).toHaveAttribute("data-time", "14:05:11");
+		expect(timeText(new Date(2026, 0, 2, 3, 4, 5).getTime())).toBe("03:04:05");
 	});
 
 	const type = (text: string) => {

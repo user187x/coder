@@ -13,6 +13,7 @@ import { BannerBlocks, PictureScreen } from "./BannerText";
 import { BrokenScreenOverlay } from "./BrokenScreenOverlay";
 import { bannerFontStack } from "./bannerFonts";
 import { safeHref } from "./bannerTokens";
+import { DotMatrixTime } from "./DotMatrixTime";
 import { SkynetOverlay } from "./SkynetOverlay";
 import { startSparks } from "./sparksCursor";
 import "./bannerScrollView.css";
@@ -28,6 +29,8 @@ export const RM_RF =
 	/^(sudo\s+)?rm\s+-(rf|fr|Rf|fR)\s+(\*|\/\*?|~\/?\*?|\.\/?\*?)$/;
 /** Run at the prompt: the mouse pointer becomes sparks (sparksCursor) until a key is pressed. */
 export const MOUSE = "/dev/mouse";
+/** Run at the prompt: the time now, on a dot-matrix display (DotMatrixTime). */
+export const TIME = "time";
 /** Any other command's answer (site/static/no-no.gif), then this, typed out. */
 const NO_NO_SRC = "/no-no.gif";
 const NO_NO_TEXT = "ahh ahh ahh...";
@@ -36,7 +39,7 @@ const NO_NO_LEAD_MS = 700;
 const NO_NO_PER_MS = 110;
 
 /**
- * The terminal's answer to any command but "skynet": a picture printed inline,
+ * The terminal's answer to any command it does not know: a picture printed inline,
  * as image-capable terminals show one (imgcat), then "ahh ahh ahh..." typed out
  * a letter at a time, with the banner's typewriter effect (announce-appear).
  */
@@ -77,15 +80,15 @@ type BannerScrollViewProps = {
  * of the whole message down over the page (above everything else), about a
  * quarter of the page tall and scrollable when the message is longer; rich
  * text (headings, lists, links, code, emoji, images) in the banner's font,
- * on a terminal's dark, monospaced, faintly scan-lined screen. A click outside
- * it, Escape or the arrow rolls it back up.
+ * on a terminal's dark, monospaced, faintly scan-lined screen, under a title bar that says "Broadcast
+ * Announcement". A click outside it, Escape or the arrow rolls it back up.
  *
- * The last prompt takes typing while the view is open (it has the focus), as a
- * terminal would: Backspace, and Enter runs the line - every command is
- * answered with a wagging finger and "ahh ahh ahh..." (NoNoResponse). Typing
- * "skynet" rolls the view up and fades the whole screen into Skynet; running "rm -rf *" rolls it up and breaks the
- * screen (BrokenScreenOverlay) until its Restore screen button is clicked; running "/dev/mouse" rolls it up and
- * turns the mouse pointer into sparks (sparksCursor) until any key is pressed.
+ * The message is followed by the one prompt, which takes typing while the view is open (it has the focus), as a
+ * terminal would: Backspace, and Enter runs the line - every command it does not know is answered with a wagging
+ * finger and "ahh ahh ahh..." (NoNoResponse). Hidden ones: "time" prints the time now on a dot-matrix display
+ * (DotMatrixTime, ticking); typing "skynet" rolls the view up and fades the whole screen into Skynet; running
+ * "rm -rf *" rolls it up and breaks the screen (BrokenScreenOverlay) until any key; running "/dev/mouse" rolls it up
+ * and turns the mouse pointer into sparks (sparksCursor) until any key is pressed.
  */
 export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 	banner,
@@ -281,16 +284,14 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 								/>
 							</div>
 						)}
-						<div className="banner-scroll-bar" aria-hidden>
-							<span />
-							<span />
-							<span />
-							<b>announcement — broadcast.md</b>
+						<div
+							className="banner-scroll-bar"
+							data-testid="announcement-scroll-title"
+							aria-hidden
+						>
+							<b>Broadcast Announcement</b>
 						</div>
 						<div ref={body} className="banner-scroll-body">
-							<div className="banner-scroll-prompt" aria-hidden>
-								<i>root@platform</i>:<em>~</em># cat broadcast.md
-							</div>
 							<div
 								className="banner-scroll-text"
 								style={{ fontFamily: bannerFontStack(banner.font) }}
@@ -303,7 +304,11 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 							{history.map((command, i) => (
 								<div key={i} className="banner-scroll-prompt" aria-hidden>
 									<i>root@platform</i>:<em>~</em># {command}
-									{command && command !== MOUSE && <NoNoResponse />}
+									{command === TIME ? (
+										<DotMatrixTime />
+									) : (
+										command && command !== MOUSE && <NoNoResponse />
+									)}
 								</div>
 							))}
 							<div

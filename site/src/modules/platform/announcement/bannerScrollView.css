@@ -70,6 +70,7 @@
 	display: flex;
 	flex: none;
 	align-items: center;
+	justify-content: center;
 	gap: 6px;
 	padding: 6px 10px;
 	border-bottom: 1px solid var(--banner-scroll-edge);
@@ -78,20 +79,7 @@
 	color: rgb(228 228 231 / 0.6);
 }
 
-.banner-scroll-bar span {
-	width: 9px;
-	height: 9px;
-	border-radius: 50%;
-	background: #ff5f57;
-}
-.banner-scroll-bar span:nth-child(2) {
-	background: #febc2e;
-}
-.banner-scroll-bar span:nth-child(3) {
-	background: #28c840;
-}
 .banner-scroll-bar b {
-	margin-left: 6px;
 	font-weight: 500;
 }
 
@@ -234,13 +222,13 @@ html[data-animations="off"] .banner-scroll-cursor {
 	white-space: pre;
 }
 
-html[data-animations="off"] .banner-scroll-ahh span {
-	animation: none !important;
-}
 @media (prefers-reduced-motion: reduce) {
 	.banner-scroll-ahh span {
 		animation: none !important;
 	}
+}
+html[data-animations="off"] .banner-scroll-ahh span {
+	animation: none !important;
 }
 
 /* "/dev/mouse" (sparksCursor.ts): the sparks over everything on a see-through canvas the pointer passes through,
