@@ -72,6 +72,22 @@ describe("Cloud Drive glyph", () => {
 		expect(hud).toHaveTextContent("and 2 more");
 	});
 
+	it("opens the Cloud Drive's window when clicked, the page behind blurred", async () => {
+		vi.spyOn(PlatformAPI, "getSafe").mockResolvedValue(summary);
+		vi.spyOn(PlatformAPI, "getCloudDriveConnections").mockResolvedValue({
+			disconnected: [],
+			older: [],
+		});
+		vi.spyOn(PlatformAPI, "listSafe").mockResolvedValue({
+			path: "",
+			folders: [],
+			files: [],
+		});
+		render(<CloudDriveGlyph workspace={mine} />);
+		fireEvent.click(await screen.findByTestId("cloud-drive-glyph"));
+		expect(await screen.findByTestId("cloud-drive-dialog")).toBeVisible();
+	});
+
 	it("frowns, its edge pulsing red, on a disconnected workspace; is not there on someone else's", async () => {
 		vi.spyOn(PlatformAPI, "getCloudDriveConnections").mockResolvedValue({
 			disconnected: [mine.id],

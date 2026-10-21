@@ -1,15 +1,5 @@
 import { cn } from "cn";
-import {
-	ChevronRightIcon,
-	CloudIcon,
-	FolderInputIcon,
-	FolderSymlinkIcon,
-	LockIcon,
-	PlugIcon,
-	SettingsIcon,
-	UsersIcon,
-	XIcon,
-} from "lucide-react";
+import { LockIcon } from "lucide-react";
 import {
 	useCallback,
 	useEffect,
@@ -29,23 +19,11 @@ import {
 	safe,
 	setCloudDriveConnection,
 } from "#/api/queries/platform";
-import { Button } from "#/components/Button/Button";
-import {
-	Dialog,
-	DialogClose,
-	DialogContent,
-	DialogTitle,
-} from "#/components/Dialog/Dialog";
 import { pendingAttachments } from "./attachment";
-import { CloudDriveBrowser } from "./CloudDriveBrowser";
-import { CloudDriveConnections } from "./CloudDriveConnections";
 import { DropHint, DropProgress, useCloudDriveDrop } from "./CloudDriveDrop";
-import { CloudDriveEncryption } from "./CloudDriveEncryption";
-import { CloudDriveMount } from "./CloudDriveMount";
-import { CloudDrivePeersView } from "./CloudDrivePeers";
 import { CloudDriveRopes, ROPES_AREA } from "./CloudDriveRopes";
-import { CloudDriveSettings, StatusIndicator } from "./CloudDriveSettings";
-import { CloudDriveSource } from "./CloudDriveSource";
+import { StatusIndicator } from "./CloudDriveSettings";
+import { CloudDriveWindow, type View } from "./CloudDriveWindow";
 import { formatBytes } from "./drivePaths";
 import { SharedWithYou } from "./SharedWithYou";
 import { room } from "./sharedWithYou";
@@ -291,149 +269,15 @@ export const CloudDrive: React.FC<{
 				connected={status?.connected}
 				unattached={unattached}
 			/>
-			<Dialog open={open} onOpenChange={setOpen}>
-				<DialogContent
-					className="max-w-3xl gap-0 overflow-hidden p-0"
-					aria-describedby={undefined}
-					data-testid="cloud-drive-dialog"
-				>
-					<header className="flex items-center gap-3 border-0 border-b border-solid border-border px-4 py-3">
-						<CloudIcon aria-hidden className="size-5 text-content-secondary" />
-						<DialogTitle className="flex items-center gap-1.5 text-base">
-							{view !== "files" ? (
-								<>
-									<button
-										type="button"
-										className="cursor-pointer border-0 bg-transparent p-0 text-base font-semibold text-content-secondary hover:text-content-primary"
-										onClick={() => setView("files")}
-									>
-										Cloud Drive
-									</button>
-									<ChevronRightIcon
-										aria-hidden
-										className="size-4 text-content-secondary"
-									/>
-									{VIEW_TITLES[view]}
-								</>
-							) : (
-								"Cloud Drive"
-							)}
-						</DialogTitle>
-						<StatusIndicator status={status} />
-						<div className="ml-auto flex items-center gap-1">
-							<Button
-								size="icon"
-								variant="subtle"
-								aria-label="Workspaces: which are connected"
-								title="Workspaces: which are connected"
-								aria-pressed={view === "workspaces"}
-								className={cn(
-									view === "workspaces" &&
-										"bg-surface-secondary text-content-primary",
-								)}
-								onClick={() =>
-									setView((v) => (v === "workspaces" ? "files" : "workspaces"))
-								}
-							>
-								<PlugIcon />
-							</Button>
-							<ViewButton
-								view="encryption"
-								current={view}
-								label="Encryption: your own key"
-								onToggle={setView}
-							>
-								<LockIcon />
-							</ViewButton>
-							<ViewButton
-								view="source"
-								current={view}
-								label="Source: a workspace's folder as the Cloud Drive"
-								onToggle={setView}
-							>
-								<FolderInputIcon />
-							</ViewButton>
-							<ViewButton
-								view="mount"
-								current={view}
-								label="Mount: the Cloud Drive in a folder of a workspace"
-								onToggle={setView}
-							>
-								<FolderSymlinkIcon />
-							</ViewButton>
-							<ViewButton
-								view="sharing"
-								current={view}
-								label="Sharing: Cloud Drives between users"
-								onToggle={setView}
-							>
-								<UsersIcon />
-							</ViewButton>
-							<Button
-								size="icon"
-								variant="subtle"
-								aria-label="Settings"
-								aria-pressed={view === "settings"}
-								className={cn(
-									view === "settings" &&
-										"bg-surface-secondary text-content-primary",
-								)}
-								onClick={() => {
-									// Opened: what the service has now.
-									if (view !== "settings") {
-										void settings.refetch();
-									}
-									setView((v) => (v === "settings" ? "files" : "settings"));
-								}}
-							>
-								<SettingsIcon />
-							</Button>
-							<DialogClose asChild>
-								<Button size="icon" variant="subtle" aria-label="Close">
-									<XIcon />
-								</Button>
-							</DialogClose>
-						</div>
-					</header>
-					{view === "files" ? (
-						<CloudDriveBrowser
-							summary={summary}
-							initialDrive={openAt.drive}
-							initialPath={openAt.path}
-							inspect={inspect ?? undefined}
-						/>
-					) : view === "workspaces" ? (
-						<CloudDriveConnections />
-					) : view === "encryption" ? (
-						<CloudDriveEncryption />
-					) : view === "source" ? (
-						<CloudDriveSource />
-					) : view === "mount" ? (
-						<CloudDriveMount />
-					) : view === "sharing" ? (
-						<CloudDrivePeersView />
-					) : settings.data ? (
-						<CloudDriveSettings settings={settings.data} />
-					) : (
-						<p
-							role={settings.error ? "alert" : undefined}
-							className={cn(
-								"m-0 px-6 py-8 text-center text-sm",
-								settings.error
-									? "text-content-destructive"
-									: "text-content-secondary",
-							)}
-						>
-							{settings.error
-								? getErrorMessage(
-										settings.error,
-										"The Cloud Drive's settings could not be read.",
-									)
-								: "Opening…"}
-						</p>
-					)}
-				</DialogContent>
-			</Dialog>
+			<CloudDriveWindow
+				open={open}
+				onOpenChange={setOpen}
+				view={view}
+				onView={setView}
+				summary={summary}
+				openAt={openAt}
+				inspect={inspect ?? undefined}
+			/>
 		</>
 	);
 };
@@ -514,44 +358,3 @@ const CapacityBar: React.FC<{
 		</span>
 	);
 };
-
-type View =
-	| "files"
-	| "workspaces"
-	| "encryption"
-	| "source"
-	| "mount"
-	| "sharing"
-	| "settings";
-
-const VIEW_TITLES: Record<View, string> = {
-	files: "Files",
-	workspaces: "Workspaces",
-	encryption: "Encryption",
-	source: "Source",
-	mount: "Mount",
-	sharing: "Sharing",
-	settings: "Settings",
-};
-
-const ViewButton: React.FC<{
-	view: View;
-	current: View;
-	label: string;
-	onToggle: (next: View) => void;
-	children: React.ReactNode;
-}> = ({ view, current, label, onToggle, children }) => (
-	<Button
-		size="icon"
-		variant="subtle"
-		aria-label={label}
-		title={label}
-		aria-pressed={current === view}
-		className={cn(
-			current === view && "bg-surface-secondary text-content-primary",
-		)}
-		onClick={() => onToggle(current === view ? "files" : view)}
-	>
-		{children}
-	</Button>
-);

@@ -1,5 +1,10 @@
 import { cn } from "cn";
-import { MonitorIcon } from "lucide-react";
+import {
+	ArrowUpRightIcon,
+	CheckIcon,
+	LayoutGridIcon,
+	MonitorIcon,
+} from "lucide-react";
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { useQuery } from "react-query";
 import { Link } from "react-router";
@@ -13,6 +18,21 @@ import "./workspacesLatency.css";
 export const REFRESH_MS = 3000;
 /** How long a press lasts before the list locks open (the ring round the pill drawn all the way). */
 export const HOLD_MS = 800;
+/** Where this browser keeps the workspaces last chosen for the grid. */
+const GRID_SELECTION_KEY = "platform.workspaceGrid.selected";
+
+const readGridSelection = (): string[] => {
+	try {
+		const ids: unknown = JSON.parse(
+			localStorage.getItem(GRID_SELECTION_KEY) ?? "[]",
+		);
+		return Array.isArray(ids)
+			? ids.filter((id): id is string => typeof id === "string")
+			: [];
+	} catch {
+		return [];
+	}
+};
 
 /** An agent's latency as the workspace page shows it: its preferred region's, else the first. */
 export const agentLatency = (agent: WorkspaceAgent): number | undefined => {
@@ -29,6 +49,25 @@ export const workspaceLatency = (workspace: Workspace): number | undefined => {
 	return values.length ? Math.min(...values) : undefined;
 };
 
+/** The template a workspace was made from (its display name, else its name), in a pill. */
+export const TemplatePill: React.FC<{ workspace: Workspace }> = ({
+	workspace,
+}) => {
+	const name = workspace.template_display_name || workspace.template_name;
+	if (!name) {
+		return null;
+	}
+	return (
+		<span
+			data-testid="workspace-template-pill"
+			title={`Template: ${name}`}
+			className="max-w-[9rem] shrink-0 truncate rounded-full border border-solid border-border bg-surface-secondary px-2 text-[11px] leading-4 text-content-secondary"
+		>
+			{name}
+		</span>
+	);
+};
+
 /**
  * The navigation bar's latency and Controls menu (ProxyMenu) starts with this: a Workspaces row - its icon, the word
  * and the number of the signed-in user's workspaces in one pill as wide as the menu, the number in a pill of its own.
@@ -37,11 +76,18 @@ export const workspaceLatency = (workspace: Workspace): number | undefined => {
  * again; letting go on a workspace opens its page. While the press lasts a ring is drawn round the pill's border (hold
  * to confirm); drawn all the way (HOLD_MS) it turns green and the list stays locked open until a press anywhere else
  * (or on the pill again). A double click locks it too. From the keyboard, Enter or Space opens and closes the list,
- * and the arrow keys walk into it. The list is asked again every few seconds while the menu is open.
+ * and the arrow keys walk into it. The list is asked again every few seconds while the menu is open. Each workspace
+ * carries its template's name in a pill beside its own.
+ *
+ * Locked open, the list chooses workspaces for the grid (onOpenGrid, ProxyMenu's WorkspaceGrid): a workspace's row
+ * ticks it (its arrow, at the end, still opens its page), and "View in a grid" under the list shows those chosen,
+ * together. This browser remembers the choice.
  */
-export const WorkspacesLatencyMenu: React.FC<{ open: boolean }> = ({
-	open,
-}) => {
+export const WorkspacesLatencyMenu: React.FC<{
+	open: boolean;
+	/** Shows the chosen workspaces (their ids) together: without it, the locked list chooses none. */
+	onOpenGrid?: (ids: string[]) => void;
+}> = ({ open, onOpenGrid }) => {
 	const query = useQuery({
 		...workspaces({ q: "owner:me" }),
 		enabled: open,
@@ -55,6 +101,21 @@ export const WorkspacesLatencyMenu: React.FC<{ open: boolean }> = ({
 	const [locked, setLocked] = useState(false);
 	const [keyboard, setKeyboard] = useState(false);
 	const expanded = pressed || locked || keyboard;
+	const selecting = locked && onOpenGrid !== undefined;
+	const [selected, setSelected] = useState<string[]>(readGridSelection);
+	useEffect(() => {
+		try {
+			localStorage.setItem(GRID_SELECTION_KEY, JSON.stringify(selected));
+		} catch {
+			// a private window or blocked storage: the choice lasts this page only
+		}
+	}, [selected]);
+	// Chosen and still there, in the list's order.
+	const chosen = list.filter((w) => selected.includes(w.id));
+	const toggle = (id: string) =>
+		setSelected((ids) =>
+			ids.includes(id) ? ids.filter((i) => i !== id) : [...ids, id],
+		);
 	const listId = useId();
 	const listRef = useRef<HTMLDivElement>(null);
 	const rowRef = useRef<HTMLDivElement>(null);
@@ -241,44 +302,124 @@ export const WorkspacesLatencyMenu: React.FC<{ open: boolean }> = ({
 						{list.map((w) => {
 							const up = w.latest_build.status === "running";
 							const ms = up ? workspaceLatency(w) : undefined;
+							const path = `/@${w.owner_name}/${w.name}`;
+							const row = (
+								<>
+									<span
+										aria-hidden
+										className={cn(
+											"size-2 shrink-0 rounded-full",
+											up ? "bg-content-success" : "bg-content-disabled",
+										)}
+									/>
+									<span
+										className={cn(
+											"min-w-0 truncate",
+											!up && "text-content-secondary",
+										)}
+									>
+										{w.name}
+									</span>
+									<TemplatePill workspace={w} />
+									<span
+										className={cn(
+											"ml-auto shrink-0 text-xs tabular-nums",
+											up ? getLatencyColor(ms) : "text-content-secondary",
+										)}
+									>
+										{!up
+											? w.latest_build.status
+											: ms === undefined
+												? "…"
+												: `${Math.round(ms)}ms`}
+									</span>
+								</>
+							);
+							if (!selecting) {
+								return (
+									<DropdownMenuItem key={w.id} asChild>
+										<Link
+											to={path}
+											data-testid={`workspace-latency-${w.name}`}
+											className="flex items-center gap-2"
+										>
+											{row}
+										</Link>
+									</DropdownMenuItem>
+								);
+							}
+							const ticked = selected.includes(w.id);
 							return (
-								<DropdownMenuItem key={w.id} asChild>
-									<Link
-										to={`/@${w.owner_name}/${w.name}`}
+								<div key={w.id} className="flex items-center gap-0.5">
+									<DropdownMenuItem
+										role="menuitemcheckbox"
+										aria-checked={ticked}
 										data-testid={`workspace-latency-${w.name}`}
-										className="flex items-center gap-2"
+										className="flex min-w-0 flex-1 items-center gap-2"
+										// Ticks it; the menu stays open.
+										onSelect={(e) => {
+											e.preventDefault();
+											toggle(w.id);
+										}}
 									>
 										<span
 											aria-hidden
+											data-testid="workspace-grid-tick"
 											className={cn(
-												"size-2 shrink-0 rounded-full",
-												up ? "bg-content-success" : "bg-content-disabled",
-											)}
-										/>
-										<span
-											className={cn(
-												"truncate",
-												!up && "text-content-secondary",
+												"flex size-4 shrink-0 items-center justify-center rounded-xs border border-solid",
+												ticked
+													? "border-surface-invert-primary bg-surface-invert-primary text-content-invert"
+													: "border-border bg-surface-primary",
 											)}
 										>
-											{w.name}
-										</span>
-										<span
-											className={cn(
-												"ml-auto shrink-0 text-xs tabular-nums",
-												up ? getLatencyColor(ms) : "text-content-secondary",
+											{ticked && (
+												<CheckIcon className="size-3" strokeWidth={3} />
 											)}
-										>
-											{!up
-												? w.latest_build.status
-												: ms === undefined
-													? "…"
-													: `${Math.round(ms)}ms`}
 										</span>
-									</Link>
-								</DropdownMenuItem>
+										{row}
+									</DropdownMenuItem>
+									<DropdownMenuItem asChild className="shrink-0 px-1.5">
+										<Link
+											to={path}
+											title={`Open ${w.name}`}
+											aria-label={`Open ${w.name}`}
+											data-testid={`workspace-open-${w.name}`}
+										>
+											<ArrowUpRightIcon aria-hidden className="size-4" />
+										</Link>
+									</DropdownMenuItem>
+								</div>
 							);
 						})}
+						{selecting && list.length > 0 && (
+							<div className="mt-1 flex items-center gap-1 border-0 border-t border-solid border-border pt-1">
+								<DropdownMenuItem
+									data-testid="workspace-grid-all"
+									className="text-xs text-content-secondary"
+									onSelect={(e) => {
+										e.preventDefault();
+										setSelected(
+											chosen.length === list.length
+												? []
+												: list.map((w) => w.id),
+										);
+									}}
+								>
+									{chosen.length === list.length ? "Clear" : "Select all"}
+								</DropdownMenuItem>
+								<DropdownMenuItem
+									data-testid="workspace-grid-view"
+									disabled={chosen.length === 0}
+									className="ml-auto gap-1.5 font-medium"
+									onSelect={() => onOpenGrid?.(chosen.map((w) => w.id))}
+								>
+									<LayoutGridIcon aria-hidden className="size-4" />
+									{chosen.length === 0
+										? "Tick workspaces to view together"
+										: `View ${chosen.length} in a grid`}
+								</DropdownMenuItem>
+							</div>
+						)}
 					</div>
 				</div>
 			</div>

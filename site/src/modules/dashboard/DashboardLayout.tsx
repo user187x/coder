@@ -2,6 +2,7 @@ import { cn } from "cn";
 import { Suspense } from "react";
 import { Outlet } from "react-router";
 import { Loader } from "#/components/Loader/Loader";
+import { isEmbeddedFrame } from "#/contexts/platformBoot";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { AnnouncementBanners } from "#/modules/dashboard/AnnouncementBanners/AnnouncementBanners";
 import { LicenseBanner } from "#/modules/dashboard/LicenseBanner/LicenseBanner";
@@ -17,11 +18,14 @@ export const DashboardLayout: React.FC = () => {
 	const { permissions } = useAuthenticated();
 	const updateCheck = useUpdateCheck(permissions.viewDeploymentConfig);
 	const canViewDeployment = Boolean(permissions.viewDeploymentConfig);
+	// Platform: a page in another dashboard page's frame (the workspace grid) is that page alone - the page round it
+	// has the navigation bar, the banners and the deployment's bar.
+	const embedded = isEmbeddedFrame();
 
 	return (
 		<>
-			{canViewDeployment && <LicenseBanner />}
-			<AnnouncementBanners />
+			{canViewDeployment && !embedded && <LicenseBanner />}
+			{!embedded && <AnnouncementBanners />}
 			<WorkspaceScheduleGate />
 
 			<div className="flex flex-col min-h-screen justify-between">
@@ -37,7 +41,7 @@ export const DashboardLayout: React.FC = () => {
 				>
 					Skip to main content
 				</a>
-				<Navbar />
+				{!embedded && <Navbar />}
 				{/* On narrow screens the announcement is not docked in the navbar. */}
 				<div className="md:hidden sticky top-[calc(72px+var(--coder-classification-h,0px))] z-39 empty:hidden">
 					<AnnouncementBanner placement="page" />
@@ -60,9 +64,9 @@ export const DashboardLayout: React.FC = () => {
 					</Suspense>
 				</main>
 
-				<DeploymentBanner />
+				{!embedded && <DeploymentBanner />}
 
-				{updateCheck.isVisible && updateCheck.data && (
+				{!embedded && updateCheck.isVisible && updateCheck.data && (
 					<UpdateCheckNotice
 						version={updateCheck.data.version}
 						releaseNotesUrl={updateCheck.data.url}

@@ -53,17 +53,21 @@ const dialogVariants = cva(
 );
 
 type DialogContentProps = React.ComponentProps<typeof DialogPrimitive.Content> &
-	VariantProps<typeof dialogVariants>;
+	VariantProps<typeof dialogVariants> & {
+		/** Platform: the overlay's own classes (e.g. a blur of the page behind it). */
+		overlayClassName?: string;
+	};
 
 export const DialogContent: React.FC<DialogContentProps> = ({
 	className,
 	variant,
 	children,
+	overlayClassName,
 	...props
 }) => {
 	return (
 		<DialogPortal>
-			<DialogOverlay />
+			<DialogOverlay className={overlayClassName} />
 			<DialogPrimitive.Content
 				className={cn(dialogVariants({ variant }), className)}
 				{...props}

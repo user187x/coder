@@ -20,6 +20,7 @@ import {
 import { ExternalImage } from "#/components/ExternalImage/ExternalImage";
 import { Latency } from "#/components/Latency/Latency";
 import type { ProxyContextValue } from "#/contexts/ProxyContext";
+import { WorkspaceGrid } from "#/modules/platform/workspaceGrid/WorkspaceGrid";
 import { WorkspacesLatencyMenu } from "#/modules/platform/workspaceLatency/WorkspacesLatencyMenu";
 import { getLatencyColor } from "#/utils/latency";
 import {
@@ -55,7 +56,8 @@ type ProxyMenuProps = {
  * to the selected region in a pill (the antenna in the latency's colour), then "Controls" and the chevron. The menu
  * holds the Workspaces row, which shows the latency to each workspace while it is pressed (WorkspacesLatencyMenu),
  * and under it the whole Controls menu, its graphs last. With more than one region, a Region row comes first
- * (Coder's region picker). Each opening measures the latency again.
+ * (Coder's region picker). Each opening measures the latency again. The workspaces chosen in the locked Workspaces
+ * list open here together, in the workspace grid (the menu closes for it).
  */
 export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 	proxyContextValue,
@@ -64,6 +66,8 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 }) => {
 	const [open, setOpen] = useState(false);
 	const closeMenu = () => setOpen(false);
+	// The workspaces in the grid (their ids), while it is open.
+	const [gridIds, setGridIds] = useState<string[] | null>(null);
 	// The regions' endpoint answers 404 without enterprise: no latency then, but the menu stays.
 	const proxy = proxyContextValue?.error ? undefined : proxyContextValue;
 	const selectedProxy = proxy?.proxy.proxy;
@@ -123,158 +127,176 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 		.join(", ");
 
 	return (
-		<DropdownMenu
-			open={open}
-			onOpenChange={(next) => {
-				setOpen(next);
-				// The menu's old "Refresh latencies" row, now each time it opens.
-				if (next) {
-					proxy?.refetchProxyLatencies();
-				}
-			}}
-		>
-			{hud ? (
-				<div
-					role="group"
-					aria-label={
-						controls ? "HUD, latency and Controls" : "HUD and latency"
+		<>
+			<DropdownMenu
+				open={open}
+				onOpenChange={(next) => {
+					setOpen(next);
+					// The menu's old "Refresh latencies" row, now each time it opens.
+					if (next) {
+						proxy?.refetchProxyLatencies();
 					}
-					className="navbar-split"
-					data-testid="navbar-hud-latency"
-				>
-					<NavLink
-						to="/hud"
-						className="navbar-split-main"
-						title="HUD: the platform at a glance"
+				}}
+			>
+				{hud ? (
+					<div
+						role="group"
+						aria-label={
+							controls ? "HUD, latency and Controls" : "HUD and latency"
+						}
+						className="navbar-split"
+						data-testid="navbar-hud-latency"
 					>
-						<GaugeIcon aria-hidden />
-						HUD
-					</NavLink>
+						<NavLink
+							to="/hud"
+							className="navbar-split-main"
+							title="HUD: the platform at a glance"
+						>
+							<GaugeIcon aria-hidden />
+							HUD
+						</NavLink>
+						<DropdownMenuTrigger asChild>
+							<button
+								type="button"
+								className="navbar-split-menu"
+								title={title}
+								data-testid="navbar-latency-controls"
+							>
+								{reading}
+							</button>
+						</DropdownMenuTrigger>
+					</div>
+				) : (
 					<DropdownMenuTrigger asChild>
-						<button
-							type="button"
-							className="navbar-split-menu"
+						<Button
+							variant="outline"
+							size="lg"
 							title={title}
 							data-testid="navbar-latency-controls"
 						>
 							{reading}
-						</button>
+						</Button>
 					</DropdownMenuTrigger>
-				</div>
-			) : (
-				<DropdownMenuTrigger asChild>
-					<Button
-						variant="outline"
-						size="lg"
-						title={title}
-						data-testid="navbar-latency-controls"
-					>
-						{reading}
-					</Button>
-				</DropdownMenuTrigger>
-			)}
-			<DropdownMenuContent
-				align="end"
-				data-testid="navbar-latency-controls-menu"
-				// The Controls menu's widths; a long one scrolls rather than leave its graphs off the screen.
-				className="w-[240px] has-[[data-cluster-gauge]]:w-[300px] max-h-(--radix-dropdown-menu-content-available-height) overflow-y-auto scrollbar-thin [scrollbar-color:hsl(var(--surface-quaternary))_transparent]"
-			>
-				{regions && proxy && (
-					<DropdownMenuSub>
-						<DropdownMenuSubTrigger data-testid="navbar-region">
-							<RadioIcon aria-hidden />
-							Region
-							<span className="ml-auto truncate text-xs text-content-secondary">
-								{selectedProxy?.display_name}
-							</span>
-						</DropdownMenuSubTrigger>
-						<DropdownMenuSubContent className="w-80">
-							<DropdownMenuItem
-								disabled
-								className="flex flex-col gap-1 items-start data-disabled:opacity-100"
-							>
-								<div className="text-content-primary font-semibold text-left">
-									Select a region nearest to you
-								</div>
-								<div className="text-xs text-content-secondary leading-relaxed">
-									Workspace proxies improve terminal and web app connections.{" "}
-									<Abbr
-										title="Command-Line Interface"
-										pronunciation="initialism"
-									>
-										CLI
-									</Abbr>{" "}
-									connections are unaffected. If no region is selected, the
-									primary region will be used.
-								</div>
-							</DropdownMenuItem>
-
-							<DropdownMenuSeparator />
-
-							<div className="max-h-[calc(100vh-22rem)] -mr-2 pr-2 overflow-y-auto scrollbar-thin [scrollbar-color:hsl(var(--surface-quaternary))_transparent]">
-								<DropdownMenuRadioGroup value={selectedProxy?.id}>
-									{sortProxiesByLatency(regions, latencies).map((region) => (
-										<DropdownMenuRadioItem
-											value={region.id}
-											key={region.id}
-											onClick={(e) => {
-												e.preventDefault();
-												if (!region.healthy) {
-													toast.error(
-														`Failed to select proxy "${region.display_name}".`,
-														{
-															description:
-																"Please select a healthy workspace proxy.",
-														},
-													);
-													closeMenu();
-													return;
-												}
-
-												proxy.setProxy(region);
-												closeMenu();
-											}}
+				)}
+				<DropdownMenuContent
+					align="end"
+					data-testid="navbar-latency-controls-menu"
+					// The Controls menu's widths; a long one scrolls rather than leave its graphs off the screen.
+					className="w-[240px] has-[[data-cluster-gauge]]:w-[300px] max-h-(--radix-dropdown-menu-content-available-height) overflow-y-auto scrollbar-thin [scrollbar-color:hsl(var(--surface-quaternary))_transparent]"
+				>
+					{regions && proxy && (
+						<DropdownMenuSub>
+							<DropdownMenuSubTrigger data-testid="navbar-region">
+								<RadioIcon aria-hidden />
+								Region
+								<span className="ml-auto truncate text-xs text-content-secondary">
+									{selectedProxy?.display_name}
+								</span>
+							</DropdownMenuSubTrigger>
+							<DropdownMenuSubContent className="w-80">
+								<DropdownMenuItem
+									disabled
+									className="flex flex-col gap-1 items-start data-disabled:opacity-100"
+								>
+									<div className="text-content-primary font-semibold text-left">
+										Select a region nearest to you
+									</div>
+									<div className="text-xs text-content-secondary leading-relaxed">
+										Workspace proxies improve terminal and web app connections.{" "}
+										<Abbr
+											title="Command-Line Interface"
+											pronunciation="initialism"
 										>
-											<div className="flex gap-3 items-center w-full">
-												<div className="leading-none size-4">
-													<ExternalImage
-														src={region.icon_url}
-														alt=""
-														className="object-contain size-full"
+											CLI
+										</Abbr>{" "}
+										connections are unaffected. If no region is selected, the
+										primary region will be used.
+									</div>
+								</DropdownMenuItem>
+
+								<DropdownMenuSeparator />
+
+								<div className="max-h-[calc(100vh-22rem)] -mr-2 pr-2 overflow-y-auto scrollbar-thin [scrollbar-color:hsl(var(--surface-quaternary))_transparent]">
+									<DropdownMenuRadioGroup value={selectedProxy?.id}>
+										{sortProxiesByLatency(regions, latencies).map((region) => (
+											<DropdownMenuRadioItem
+												value={region.id}
+												key={region.id}
+												onClick={(e) => {
+													e.preventDefault();
+													if (!region.healthy) {
+														toast.error(
+															`Failed to select proxy "${region.display_name}".`,
+															{
+																description:
+																	"Please select a healthy workspace proxy.",
+															},
+														);
+														closeMenu();
+														return;
+													}
+
+													proxy.setProxy(region);
+													closeMenu();
+												}}
+											>
+												<div className="flex gap-3 items-center w-full">
+													<div className="leading-none size-4">
+														<ExternalImage
+															src={region.icon_url}
+															alt=""
+															className="object-contain size-full"
+														/>
+													</div>
+
+													{region.display_name}
+
+													<Latency
+														className="ml-auto"
+														latency={latencies[region.id]?.latencyMS}
 													/>
 												</div>
+											</DropdownMenuRadioItem>
+										))}
+									</DropdownMenuRadioGroup>
+								</div>
+							</DropdownMenuSubContent>
+						</DropdownMenuSub>
+					)}
 
-												{region.display_name}
+					{/* Platform: the latency to each of your workspaces, live, while it is pressed; locked, the grid's choice. */}
+					<WorkspacesLatencyMenu
+						open={open}
+						onOpenGrid={(ids) => {
+							setOpen(false);
+							// after the menu has handed the focus back, so the grid keeps it
+							window.setTimeout(() => setGridIds(ids));
+						}}
+					/>
 
-												<Latency
-													className="ml-auto"
-													latency={latencies[region.id]?.latencyMS}
-												/>
-											</div>
-										</DropdownMenuRadioItem>
-									))}
-								</DropdownMenuRadioGroup>
-							</div>
-						</DropdownMenuSubContent>
-					</DropdownMenuSub>
-				)}
-
-				{/* Platform: the latency to each of your workspaces, live, while it is pressed. */}
-				<WorkspacesLatencyMenu open={open} />
-
-				{controls && (
-					<>
-						<DropdownMenuSeparator />
-						<nav aria-label="Controls">
-							<AdminSettingsItems
-								permissions={controls.permissions}
-								quickLinks={controls.quickLinks}
-								quickLinksEditor={controls.quickLinksEditor}
-							/>
-						</nav>
-					</>
-				)}
-			</DropdownMenuContent>
-		</DropdownMenu>
+					{controls && (
+						<>
+							<DropdownMenuSeparator />
+							<nav aria-label="Controls">
+								<AdminSettingsItems
+									permissions={controls.permissions}
+									quickLinks={controls.quickLinks}
+									quickLinksEditor={controls.quickLinksEditor}
+								/>
+							</nav>
+						</>
+					)}
+				</DropdownMenuContent>
+			</DropdownMenu>
+			<WorkspaceGrid
+				ids={gridIds ?? []}
+				open={gridIds !== null}
+				onOpenChange={(next) => {
+					if (!next) {
+						setGridIds(null);
+					}
+				}}
+			/>
+		</>
 	);
 };

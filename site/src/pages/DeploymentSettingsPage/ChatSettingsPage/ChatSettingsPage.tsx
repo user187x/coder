@@ -1,4 +1,4 @@
-import { MessageSquareIcon, Trash2Icon } from "lucide-react";
+import { DownloadIcon, MessageSquareIcon, Trash2Icon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { toast } from "sonner";
@@ -242,7 +242,18 @@ const RetentionCard: React.FC<{ settings: ChatSettings }> = ({ settings }) => {
 					</span>
 				)}
 			</p>
-			<div>
+			<div className="flex flex-wrap gap-2">
+				{/* Platform: every record (messages, groups, read marks, settings) as a JSON file to save */}
+				<Button variant="outline" asChild>
+					<a
+						href="/__coder-ui/api/chat/export"
+						download
+						data-testid="chat-export"
+					>
+						<DownloadIcon />
+						Export
+					</a>
+				</Button>
 				<Button
 					variant="destructive"
 					disabled={purge.isPending || stats.messages === 0}

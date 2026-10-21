@@ -53,14 +53,18 @@ const withLatency = (
 	},
 });
 
-const renderMenu = (onOpenChange = vi.fn(), onOther = vi.fn()) =>
+const renderMenu = (
+	onOpenChange = vi.fn(),
+	onOther = vi.fn(),
+	onOpenGrid?: (ids: string[]) => void,
+) =>
 	render(
 		<QueryClientProvider client={new QueryClient()}>
 			<MemoryRouter>
 				<DropdownMenu open onOpenChange={onOpenChange}>
 					<DropdownMenuTrigger>menu</DropdownMenuTrigger>
 					<DropdownMenuContent>
-						<WorkspacesLatencyMenu open />
+						<WorkspacesLatencyMenu open onOpenGrid={onOpenGrid} />
 						<DropdownMenuItem onSelect={onOther}>Other</DropdownMenuItem>
 					</DropdownMenuContent>
 				</DropdownMenu>
@@ -78,7 +82,10 @@ const isOpen = (list: HTMLElement) =>
 	list.getAttribute("data-state") === "open" && !list.hasAttribute("inert");
 
 describe("WorkspacesLatencyMenu", () => {
-	afterEach(() => vi.restoreAllMocks());
+	afterEach(() => {
+		vi.restoreAllMocks();
+		localStorage.clear();
+	});
 
 	it("takes a workspace's latency from its agents' preferred region", () => {
 		expect(workspaceLatency(withLatency("a", 12.4))).toBe(12.4);
@@ -123,6 +130,12 @@ describe("WorkspacesLatencyMenu", () => {
 			"href",
 			`/@${MockWorkspace.owner_name}/ggg`,
 		);
+		// its template, in a pill beside its name
+		expect(
+			within(within(list).getByTestId("workspace-latency-ggg")).getByTestId(
+				"workspace-template-pill",
+			),
+		).toHaveTextContent(MockWorkspace.template_display_name);
 
 		// let go anywhere: it slides closed, and the menu stays
 		fireEvent.pointerUp(document.body, { button: 0, pointerId: 1 });
@@ -210,5 +223,49 @@ describe("WorkspacesLatencyMenu", () => {
 		fireEvent.pointerDown(row, { button: 0, pointerId: 1 });
 		fireEvent.pointerUp(row, { button: 0, pointerId: 1 });
 		expect(isOpen(list)).toBe(false);
+	});
+
+	it("locked, chooses workspaces for the grid and opens them together", async () => {
+		mockWorkspaces();
+		const onOpenChange = vi.fn();
+		const onOpenGrid = vi.fn();
+		renderMenu(onOpenChange, vi.fn(), onOpenGrid);
+		const row = await screen.findByTestId("workspaces-latency");
+		const list = screen.getByTestId("workspaces-latency-list");
+
+		// only while it is pressed: no ticks
+		fireEvent.pointerDown(row, { button: 0, pointerId: 1 });
+		await within(list).findByTestId("workspace-latency-ggg");
+		expect(within(list).queryByTestId("workspace-grid-view")).toBeNull();
+		fireEvent.pointerUp(document.body, { button: 0, pointerId: 1 });
+
+		fireEvent.doubleClick(row);
+		const view = within(list).getByTestId("workspace-grid-view");
+		expect(view).toHaveAttribute("aria-disabled", "true");
+		const ggg = within(list).getByTestId("workspace-latency-ggg");
+		expect(ggg).toHaveAttribute("role", "menuitemcheckbox");
+		expect(ggg).toHaveAttribute("aria-checked", "false");
+		// its page is still a click away, on its arrow
+		expect(within(list).getByTestId("workspace-open-ggg")).toHaveAttribute(
+			"href",
+			`/@${MockWorkspace.owner_name}/ggg`,
+		);
+
+		fireEvent.click(ggg);
+		expect(ggg).toHaveAttribute("aria-checked", "true");
+		expect(isOpen(list)).toBe(true);
+		expect(onOpenChange).not.toHaveBeenCalled();
+		expect(view).toHaveTextContent("View 1 in a grid");
+
+		fireEvent.click(within(list).getByTestId("workspace-grid-all"));
+		expect(view).toHaveTextContent("View 2 in a grid");
+		fireEvent.click(view);
+		expect(onOpenGrid).toHaveBeenCalledWith(["ggg", "old"]);
+		// remembered in this browser
+		expect(
+			JSON.parse(
+				localStorage.getItem("platform.workspaceGrid.selected") ?? "[]",
+			),
+		).toEqual(["ggg", "old"]);
 	});
 });
