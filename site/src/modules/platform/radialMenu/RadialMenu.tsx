@@ -47,6 +47,10 @@ export const escapeOpensWheel = (
 	>,
 	doc: Document = document,
 ): boolean => {
+	// the announcement terminal's broken screen takes every key (any key restores it)
+	if (doc.documentElement.dataset.screenBroken) {
+		return false;
+	}
 	if (
 		event.key !== "Escape" ||
 		event.repeat ||

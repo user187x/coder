@@ -20,7 +20,7 @@ import { Button } from "#/components/Button/Button";
 import { Loader } from "#/components/Loader/Loader";
 import { Spinner } from "#/components/Spinner/Spinner";
 import { setBackground } from "#/contexts/platformBoot";
-import { GalleryPicker } from "../gallery/GalleryPicker";
+import { ImageUploadSplit } from "../imageStore/ImageUploadSplit";
 import { formatBytes } from "../images";
 import { sniffImageType } from "../normalizeImage";
 import { PREBAKED_BACKGROUNDS } from "../pictures";
@@ -392,14 +392,33 @@ const BackgroundCard: React.FC<{
 			/>
 
 			<div className="flex flex-wrap items-center gap-3">
-				<Button
-					variant="outline"
+				{/* Platform: Upload, its arrow the image store in a dialog (its animated previews only while open) */}
+				<ImageUploadSplit
+					testId={`background-${slot}-image`}
+					title={`${SLOT_TEXT[slot].title} background: the image store`}
+					onUpload={() => inputRef.current?.click()}
 					disabled={busy || !state.available}
-					onClick={() => inputRef.current?.click()}
-				>
-					<Spinner loading={preparing} />
-					Choose an image…
-				</Button>
+					busy={preparing}
+					gallery={{
+						extra: PREBAKED_BACKGROUNDS,
+						selected: draft.source === "image" ? galleryPick : undefined,
+						onSelect: setGalleryPick,
+						disabled: busy,
+						onPick: (file) => void pick(file, file.name),
+						// The dashboard's own pictures are saved as their path: no upload, nothing to go missing.
+						onPickBuiltin: (picture) => {
+							setProblem(undefined);
+							setGalleryPick(picture.name);
+							change({
+								source: "image",
+								picture: picture.url,
+								dataURL: undefined,
+								bytes: undefined,
+								name: picture.name,
+							});
+						},
+					}}
+				/>
 				<input
 					ref={inputRef}
 					type="file"
@@ -424,26 +443,6 @@ const BackgroundCard: React.FC<{
 								: "No image."}
 				</span>
 			</div>
-			<GalleryPicker
-				label="Or use one of the provided pictures:"
-				extra={PREBAKED_BACKGROUNDS}
-				selected={draft.source === "image" ? galleryPick : undefined}
-				onSelect={setGalleryPick}
-				disabled={busy}
-				onPick={(file) => void pick(file, file.name)}
-				// The dashboard's own pictures are saved as their path: no upload, nothing to go missing.
-				onPickBuiltin={(picture) => {
-					setProblem(undefined);
-					setGalleryPick(picture.name);
-					change({
-						source: "image",
-						picture: picture.url,
-						dataURL: undefined,
-						bytes: undefined,
-						name: picture.name,
-					});
-				}}
-			/>
 			<HtmlSourcePicker
 				selected={isHtml ? (draft.source as HtmlSource) : undefined}
 				disabled={busy}

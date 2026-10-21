@@ -11,7 +11,8 @@ const SOURCE_LABEL: Record<StoreImage["source"], string> = {
 /**
  * Platform: the image store's pictures as tiles to choose from - their small animated previews where the store has
  * them (its pictures run to tens of MB), each loaded as it scrolls into view - in a box that scrolls past a few
- * rows. Dark tiles suit logos and backgrounds, round ones avatars.
+ * rows. Dark tiles suit logos and backgrounds, round ones avatars. The "grid" layout (ImageUploadSplit's dialog):
+ * five columns, four rows in view, larger tiles.
  */
 export const ImageStoreGrid: React.FC<{
 	images: readonly StoreImage[];
@@ -23,6 +24,7 @@ export const ImageStoreGrid: React.FC<{
 	loading?: string;
 	label?: string;
 	className?: string;
+	layout?: "wrap" | "grid";
 }> = ({
 	images,
 	selected,
@@ -32,13 +34,17 @@ export const ImageStoreGrid: React.FC<{
 	loading,
 	label = "Image store",
 	className,
+	layout = "wrap",
 }) => (
 	<div
 		role="radiogroup"
 		aria-label={label}
 		data-testid="image-store-grid"
+		data-layout={layout}
 		className={cn(
-			"flex max-h-[232px] flex-wrap content-start gap-2.5 overflow-y-auto p-0.5",
+			layout === "grid"
+				? "grid max-h-[min(66vh,448px)] grid-cols-3 content-start gap-3 overflow-y-auto p-0.5 sm:grid-cols-5"
+				: "flex max-h-[232px] flex-wrap content-start gap-2.5 overflow-y-auto p-0.5",
 			className,
 		)}
 	>
@@ -59,7 +65,9 @@ export const ImageStoreGrid: React.FC<{
 					"hover:border-content-link focus-visible:border-content-link focus-visible:outline-none disabled:cursor-wait",
 					tile === "round"
 						? "size-16 rounded-full bg-surface-secondary"
-						: "h-16 w-24 rounded-md bg-[#09090b]",
+						: layout === "grid"
+							? "aspect-[3/2] w-full rounded-md bg-[#09090b]"
+							: "h-16 w-24 rounded-md bg-[#09090b]",
 					selected === image.name &&
 						"border-content-link ring-2 ring-content-link",
 					loading === image.name && "opacity-60",

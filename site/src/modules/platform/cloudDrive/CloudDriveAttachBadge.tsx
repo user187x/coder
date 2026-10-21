@@ -11,7 +11,10 @@ import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { attachmentMessage, attachmentPending } from "./attachment";
 import "./cloudDrive.css";
 
-/** A cloud with an unplugged plug in it: the plug, on its cord, pulled out of its socket. */
+/**
+ * A cloud with an unplugged plug in it: the plug, on its cord, pulled out of its socket - drawn large and bold enough
+ * to read at the size it is shown (the Workspaces table: 32px).
+ */
 export const CloudUnpluggedIcon: React.FC<{ className?: string }> = ({
 	className,
 }) => (
@@ -19,7 +22,7 @@ export const CloudUnpluggedIcon: React.FC<{ className?: string }> = ({
 		viewBox="0 0 24 24"
 		fill="none"
 		stroke="currentColor"
-		strokeWidth={1.8}
+		strokeWidth={1.6}
 		strokeLinecap="round"
 		strokeLinejoin="round"
 		aria-hidden
@@ -27,18 +30,21 @@ export const CloudUnpluggedIcon: React.FC<{ className?: string }> = ({
 	>
 		<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" />
 		{/* the plug: its cord, its body, its two prongs */}
-		<path d="M4.6 14.6h2" strokeWidth={1.3} />
+		<path d="M3.9 14.4h2" strokeWidth={1.5} />
 		<rect
-			x="6.6"
-			y="12.8"
-			width="2.6"
-			height="3.6"
-			rx="0.6"
-			strokeWidth={1.2}
+			x="5.9"
+			y="11.8"
+			width="3.8"
+			height="5.2"
+			rx="0.9"
+			strokeWidth={1.5}
+			fill="currentColor"
+			fillOpacity={0.25}
 		/>
-		<path d="M9.2 13.8h1.2M9.2 15.4h1.2" strokeWidth={1} />
-		{/* the socket it came out of, apart */}
-		<path d="M13.8 12.8v3.6M13.8 14.6h3.4" strokeWidth={1.3} />
+		<path d="M9.7 13.1h1.7M9.7 15.7h1.7" strokeWidth={1.4} />
+		{/* the socket it came out of, apart: its two holes */}
+		<path d="M14.4 11.8v5.2" strokeWidth={1.5} />
+		<path d="M14.4 13.1h1.4M14.4 15.7h1.4" strokeWidth={1.3} />
 	</svg>
 );
 
@@ -87,7 +93,7 @@ export const CloudDriveAttachBadge: React.FC<{ workspace: Workspace }> = ({
 					data-testid="cloud-drive-attaching"
 					data-attachment={word}
 				>
-					<CloudUnpluggedIcon className="size-5" />
+					<CloudUnpluggedIcon className="size-8" />
 				</span>
 			</TooltipTrigger>
 			<TooltipContent>{message}</TooltipContent>

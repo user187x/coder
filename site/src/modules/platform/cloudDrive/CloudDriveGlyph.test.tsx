@@ -53,7 +53,12 @@ describe("Cloud Drive glyph", () => {
 		});
 		render(<CloudDriveGlyph workspace={mine} />);
 		const glyph = await screen.findByTestId("cloud-drive-glyph");
-		expect(glyph).toHaveAccessibleName("Cloud Drive: 3 GB of 10 GB used");
+		expect(glyph).toHaveAccessibleName(
+			"Cloud Drive connected: 3 GB of 10 GB used",
+		);
+		// grey like Open ports' text, a green glow sweeping across it (cloudDrive.css)
+		expect(glyph).toHaveAttribute("data-state", "connected");
+		expect(glyph).toHaveClass("text-content-secondary");
 		fireEvent.focus(glyph);
 		const hud = await screen.findByTestId("cloud-drive-hud");
 		expect(
@@ -67,14 +72,18 @@ describe("Cloud Drive glyph", () => {
 		expect(hud).toHaveTextContent("and 2 more");
 	});
 
-	it("is not there on a disconnected workspace, nor on someone else's", async () => {
-		const connections = vi
-			.spyOn(PlatformAPI, "getCloudDriveConnections")
-			.mockResolvedValue({ disconnected: [mine.id], older: [] });
+	it("frowns, its edge pulsing red, on a disconnected workspace; is not there on someone else's", async () => {
+		vi.spyOn(PlatformAPI, "getCloudDriveConnections").mockResolvedValue({
+			disconnected: [mine.id],
+			older: [],
+		});
 		vi.spyOn(PlatformAPI, "getSafe").mockResolvedValue(summary);
 		const { unmount } = render(<CloudDriveGlyph workspace={mine} />);
-		await waitFor(() => expect(connections).toHaveBeenCalled());
-		expect(screen.queryByTestId("cloud-drive-glyph")).toBeNull();
+		const glyph = await screen.findByTestId("cloud-drive-glyph");
+		expect(glyph).toHaveAttribute("data-state", "disconnected");
+		expect(glyph).toHaveAccessibleName(
+			"Cloud Drive disconnected: 3 GB of 10 GB used",
+		);
 		unmount();
 		render(
 			<CloudDriveGlyph workspace={{ ...mine, owner_id: "someone-else" }} />,

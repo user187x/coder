@@ -17,7 +17,7 @@ import {
 } from "#/components/Table/Table";
 import { ago, LiveStatus, useNow } from "#/modules/platform/ClusterVisuals";
 import { formatMs } from "./clusterFormat";
-import { KINDS, KindLegend } from "./componentKinds";
+import { componentIcon, KINDS, KindLegend } from "./componentKinds";
 import { useOpenEntity } from "./EntityDetails";
 import { layoutMesh, NODE_H, NODE_W, PLATFORM_W } from "./meshLayout";
 
@@ -247,6 +247,7 @@ const MeshNodeBox: React.FC<{
 }> = ({ node, x, y, onOpen }) => {
 	const count = node.pods.length;
 	const w = node.id === "platform" ? PLATFORM_W : NODE_W;
+	const Icon = componentIcon(node.kind, `${node.id} ${node.label}`);
 	const sub =
 		count > 0
 			? `${node.ready}/${count} ready${node.sub ? ` · ${node.sub}` : ""}`
@@ -277,20 +278,30 @@ const MeshNodeBox: React.FC<{
 				rx={1.5}
 				className={cn("fill-(--kind)", KINDS[node.kind].color)}
 			/>
+			{/* Platform: what it is at a glance, right of its colour strip (componentIcon), as on the map */}
+			<Icon
+				x={x - w / 2 + 13}
+				y={y - 7}
+				width={14}
+				height={14}
+				aria-hidden
+				data-testid="component-icon"
+				className={cn("text-(--kind)", KINDS[node.kind].color)}
+			/>
 			<text
-				x={x - w / 2 + 14}
+				x={x - w / 2 + 32}
 				y={y - 5}
 				className="fill-content-primary text-[12px] font-semibold"
 			>
 				{node.label}
 			</text>
 			<text
-				x={x - w / 2 + 14}
+				x={x - w / 2 + 32}
 				y={y + 11}
 				className="fill-content-secondary text-[10px]"
 			>
-				{sub.length > (w - 20) / 5.6
-					? `${sub.slice(0, Math.floor((w - 20) / 5.6) - 1)}…`
+				{sub.length > (w - 38) / 5.6
+					? `${sub.slice(0, Math.floor((w - 38) / 5.6) - 1)}…`
 					: sub}
 			</text>
 		</>

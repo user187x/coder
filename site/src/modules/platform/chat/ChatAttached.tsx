@@ -64,8 +64,8 @@ export const ChatSidePanel: React.FC<AttachedProps> = ({ dock }) => {
 		<section
 			aria-label="Chats side panel"
 			data-testid="chat-side-panel"
-			className="fixed right-0 flex w-[min(380px,100vw)] flex-col border-0 border-l border-solid border-border bg-surface-primary shadow-[-8px_0_28px_rgb(0_0_0/.12)] animate-in slide-in-from-right duration-200 motion-reduce:animate-none"
-			style={BELOW_NAVBAR}
+			// Platform: its top and the navbar beside it in chatDock.css (.chat-side-panel)
+			className="chat-side-panel fixed right-0 flex w-[min(380px,100vw)] flex-col border-0 border-l border-solid border-border bg-surface-primary shadow-[-8px_0_28px_rgb(0_0_0/.12)] animate-in slide-in-from-right duration-200 motion-reduce:animate-none"
 		>
 			<header className={headerClass}>
 				<ChatHeading />

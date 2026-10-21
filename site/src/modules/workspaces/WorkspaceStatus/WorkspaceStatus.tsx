@@ -27,19 +27,12 @@ export const WorkspaceStatus: React.FC<WorkspaceStatusProps> = ({
 			{workspace.dormant_at && <WorkspaceDormantBadge workspace={workspace} />}
 		</WorkspaceStatusIndicator>
 	);
-	return (
+	const status = (
 		<div
 			className={cn("flex flex-col", pill && "items-center gap-1")}
 			data-hint={pill ? `Last used: ${lastUsed}` : undefined}
 		>
-			{after ? (
-				<div className="flex items-center gap-2">
-					{indicator}
-					{after}
-				</div>
-			) : (
-				indicator
-			)}
+			{indicator}
 			<time
 				dateTime={workspace.last_used_at}
 				className={cn(
@@ -50,5 +43,15 @@ export const WorkspaceStatus: React.FC<WorkspaceStatusProps> = ({
 				{lastUsed}
 			</time>
 		</div>
+	);
+	// Platform: what goes beside it (the Cloud Drive attaching), centred on the whole status - its pill and when it
+	// was last used - so in the middle of the table's row
+	return after ? (
+		<div className="inline-flex items-center gap-2">
+			{status}
+			{after}
+		</div>
+	) : (
+		status
 	);
 };

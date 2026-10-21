@@ -19,10 +19,36 @@ import { formatBytes } from "./drivePaths";
 /** How many of the drive's top folders and files the HUD lists. */
 const LISTED = 6;
 
+/** A cloud with a frown and crossed-out eyes: the workspace's Cloud Drive disconnected. */
+export const CloudFrownIcon: React.FC<{ className?: string }> = ({
+	className,
+}) => (
+	<svg
+		viewBox="0 0 24 24"
+		fill="none"
+		stroke="currentColor"
+		strokeWidth={2}
+		strokeLinecap="round"
+		strokeLinejoin="round"
+		aria-hidden
+		className={className}
+	>
+		<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" />
+		{/* crossed-out eyes and a frown */}
+		<path
+			d="M8 11.4l1.6 1.6M9.6 11.4 8 13M13.4 11.4l1.6 1.6M15 11.4 13.4 13"
+			strokeWidth={1.4}
+		/>
+		<path d="M9 16.6c1.6-1.3 3.9-1.3 5.5 0" strokeWidth={1.4} />
+	</svg>
+);
+
 /**
- * The workspace page's Cloud Drive glyph, right of the latency: shown while the workspace is connected to its owner's
- * Cloud Drive (the owner's own workspace; the Workspaces page's cables connect and disconnect them). Pointed at (or
- * focused), a HUD: how much of the drive is used of its capacity, and the first of its folders and files.
+ * The workspace page's Cloud Drive glyph, left of the uptime: in a grey circle, grey like Metrics Interval's and Open
+ * ports' text. Connected to its owner's Cloud Drive (the owner's own workspace; the Workspaces page's cables connect
+ * and disconnect them), a green glow sweeps across it every 2 seconds; disconnected, its edge pulses red and the cloud
+ * frowns, crossed out. Pointed at (or focused), a HUD: how much of the drive is used of its capacity, and the first of
+ * its folders and files. Nothing for a workspace shared with others (the drive is its owner's alone).
  */
 export const CloudDriveGlyph: React.FC<{ workspace: Workspace }> = ({
 	workspace,
@@ -39,11 +65,11 @@ export const CloudDriveGlyph: React.FC<{ workspace: Workspace }> = ({
 		!enabled ||
 		!summary ||
 		!connections.data ||
-		connections.data.disconnected.includes(workspace.id) ||
 		connections.data.shared?.includes(workspace.id)
 	) {
 		return null;
 	}
+	const connected = !connections.data.disconnected.includes(workspace.id);
 	const used = summary.usedBytes;
 	const quota = summary.quotaBytes;
 	const percent = quota ? Math.min(100, (used / quota) * 100) : 0;
@@ -59,12 +85,17 @@ export const CloudDriveGlyph: React.FC<{ workspace: Workspace }> = ({
 			<TooltipTrigger asChild>
 				<button
 					type="button"
-					aria-label={`Cloud Drive: ${formatBytes(used)}${quota === null ? "" : ` of ${formatBytes(quota)}`} used`}
+					aria-label={`Cloud Drive ${connected ? "connected" : "disconnected"}: ${formatBytes(used)}${quota === null ? "" : ` of ${formatBytes(quota)}`} used`}
 					data-testid="cloud-drive-glyph"
-					// in a grey circle, as Metrics Interval's and Open ports' numbers beside it
-					className="flex h-5 min-w-5 cursor-default items-center justify-center rounded-full border-0 bg-surface-tertiary p-0 px-1 text-content-link"
+					data-state={connected ? "connected" : "disconnected"}
+					// in a grey circle, as Metrics Interval's and Open ports' numbers beside it; its glow: cloudDrive.css
+					className="cd-glyph relative flex h-5 min-w-5 cursor-default items-center justify-center rounded-full border-0 bg-surface-tertiary p-0 px-1 text-content-secondary"
 				>
-					<CloudIcon aria-hidden className="size-3.5" />
+					{connected ? (
+						<CloudIcon aria-hidden className="relative size-3.5" />
+					) : (
+						<CloudFrownIcon className="relative size-3.5" />
+					)}
 				</button>
 			</TooltipTrigger>
 			<TooltipContent

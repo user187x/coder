@@ -1,8 +1,19 @@
 /* Platform: the chat attached to the right side (ChatSidePanel, 380px wide) takes its room from the page, which
-   narrows beside it instead of going on underneath - on a wide screen; a narrower one keeps the whole page and the
-   panel lies over its right edge. The navbar and the bottom bars keep the full width. */
+   narrows beside it instead of going on underneath - on a wide screen: there the panel runs up to the classification
+   bar (the top of the window without one), and the navbar narrows beside it too, its items sizing to what is left.
+   A narrower screen keeps the whole page: the panel lies over its right edge, from below the navbar. The bottom
+   bars keep the full width; the panel stops above them. */
+.chat-side-panel {
+	top: var(--chat-top, 0px);
+	bottom: var(--chat-bottom, 0px);
+}
 @media (min-width: 1024px) {
-	html[data-chat-side] #main-content {
-		margin-right: 380px;
+	.chat-side-panel {
+		top: var(--coder-classification-h, 0px);
+	}
+	/* 380px less the scrollbar's width (100vw - 100%): the panel lies over it, flush with the window's edge */
+	html[data-chat-side] #main-content,
+	html[data-chat-side] .navbar-soft {
+		margin-right: calc(380px - (100vw - 100%));
 	}
 }

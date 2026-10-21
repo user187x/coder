@@ -8,7 +8,7 @@ import {
 } from "../imageStore/imageStore";
 import type { PrebakedPicture } from "../pictures";
 
-type GalleryPickerProps = {
+export type GalleryPickerProps = {
 	/** Called with the picture as a file, exactly as if it had been chosen. */
 	onPick: (file: File) => void;
 	/** Clears the highlighted picture when the user picks a file of their own. */
@@ -20,6 +20,10 @@ type GalleryPickerProps = {
 	label?: string;
 	/** Platform: pictures baked into the dashboard, offered first (the backgrounds' prebaked ones). */
 	extra?: readonly PrebakedPicture[];
+	/** Platform: the tiles' layout (ImageStoreGrid): "grid" in ImageUploadSplit's dialog. */
+	layout?: "wrap" | "grid";
+	/** Platform: called once a picture has been chosen (the dialog closes). */
+	onChosen?: () => void;
 	/**
 	 * A baked-in picture chosen (the image store's own, or one baked into the dashboard): given as its address, for a
 	 * caller that stores a reference rather than the file. Without it, it comes as a file like the others.
@@ -41,6 +45,8 @@ export const GalleryPicker: React.FC<GalleryPickerProps> = ({
 	label = "Or use one from the image store:",
 	extra = [],
 	onPickBuiltin,
+	layout,
+	onChosen,
 }) => {
 	const { images } = useImageStore(extra);
 	const [loading, setLoading] = useState<string>();
@@ -50,8 +56,9 @@ export const GalleryPicker: React.FC<GalleryPickerProps> = ({
 
 	return (
 		<div className="flex flex-col gap-2" data-testid="gallery-picker">
-			<span className="text-sm text-content-secondary">{label}</span>
+			{label && <span className="text-sm text-content-secondary">{label}</span>}
 			<ImageStoreGrid
+				layout={layout}
 				images={images}
 				selected={selected}
 				tile={tile}
@@ -65,6 +72,7 @@ export const GalleryPicker: React.FC<GalleryPickerProps> = ({
 							url: referenceOf(image),
 							type: image.type,
 						});
+						onChosen?.();
 						return;
 					}
 					setLoading(image.name);
@@ -72,6 +80,7 @@ export const GalleryPicker: React.FC<GalleryPickerProps> = ({
 						const file = await fetchStoreImage(image);
 						onSelect?.(image.name);
 						onPick(file);
+						onChosen?.();
 					} finally {
 						setLoading(undefined);
 					}

@@ -99,52 +99,6 @@
 }
 
 /* What happened, and the way back. */
-.broken-screen-note {
-	position: absolute;
-	left: 50%;
-	top: 50%;
-	transform: translate(-50%, -50%);
-	width: min(440px, calc(100vw - 32px));
-	padding: 18px 20px;
-	border: 1px solid #3f3f46;
-	border-radius: 8px;
-	background: rgba(9, 9, 11, 0.94);
-	color: #e4e4e7;
-	font-family: "JetBrains Mono", ui-monospace, monospace;
-	font-size: 12px;
-	box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
-	cursor: default;
-	animation: broken-screen-note 0.4s ease-out both;
-}
-.broken-screen-note pre {
-	margin: 0 0 10px;
-	white-space: pre-wrap;
-	color: #f87171;
-	font: inherit;
-}
-.broken-screen-note p {
-	margin: 0 0 14px;
-	color: #a1a1aa;
-}
-.broken-screen-note button {
-	border: 0;
-	border-radius: 6px;
-	padding: 7px 14px;
-	background: #fafafa;
-	color: #09090b;
-	font:
-		600 13px / 1 system-ui,
-		sans-serif;
-	cursor: pointer;
-}
-.broken-screen-note button:hover {
-	background: #e4e4e7;
-}
-.broken-screen-note button:focus-visible {
-	outline: 2px solid #38bdf8;
-	outline-offset: 2px;
-}
-
 /* The page behind: one hard shake as it is struck (half a second: the only time it moves). */
 html[data-screen-broken] #root {
 	animation: broken-screen-shake 0.5s linear;
@@ -227,16 +181,6 @@ html[data-animations="off"][data-screen-broken] #root {
 	}
 	71% {
 		opacity: 0.5;
-	}
-}
-@keyframes broken-screen-note {
-	from {
-		opacity: 0;
-		transform: translate(-50%, calc(-50% + 8px));
-	}
-	to {
-		opacity: 1;
-		transform: translate(-50%, -50%);
 	}
 }
 @keyframes broken-screen-restore {

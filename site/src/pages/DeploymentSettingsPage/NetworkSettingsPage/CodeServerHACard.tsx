@@ -27,6 +27,7 @@ import {
 	Tile,
 	useNow,
 } from "#/modules/platform/ClusterVisuals";
+import { CodeServerHASwitches } from "./CodeServerHASwitches";
 import { seconds } from "./clusterFormat";
 import { KindSwatch } from "./componentKinds";
 import { useOpenEntity } from "./EntityDetails";
@@ -156,6 +157,13 @@ const HAPart: React.FC<{ ha: CodeServerHA }> = ({ ha }) => {
 	return (
 		<div className="flex flex-col gap-4">
 			<Sub id="ha-code-server">code-server HA</Sub>
+			{/* Platform: switched on or off per template, here (CodeServerHASwitches) */}
+			<div className="flex flex-col gap-2">
+				<span className="text-xs font-medium text-content-secondary">
+					Templates (code-server HA on for their workspaces)
+				</span>
+				<CodeServerHASwitches />
+			</div>
 			{ha.error && (
 				<p role="alert" className="m-0 text-sm text-content-warning">
 					{ha.error}
@@ -492,7 +500,7 @@ const Instances: React.FC<{ ha: CodeServerHA }> = ({ ha }) => {
 							<TableEmpty
 								message={
 									ha.schema
-										? "No workspace runs code-server HA now (a template turns it on)."
+										? "No workspace runs code-server HA now: switch it on for a template above (its workspaces follow at their next start)."
 										: "The replicator has not created its schema yet."
 								}
 							/>

@@ -116,7 +116,7 @@ describe("BannerScrollView", () => {
 		expect(screen.queryByTestId("skynet")).toBeNull();
 	});
 
-	it("breaks the screen on rm -rf *, and puts it back with Restore screen", () => {
+	it("breaks the screen on rm -rf *, and puts it back on any key", () => {
 		render(<Harness />);
 		fireEvent.click(screen.getByTestId("announcement-scroll-toggle"));
 		type("rm  -rf *");
@@ -133,10 +133,19 @@ describe("BannerScrollView", () => {
 		).toBeGreaterThan(12);
 		act(() => vi.advanceTimersByTime(300));
 		expect(screen.queryByTestId("announcement-scroll-view")).toBeNull();
-		// The way back comes once it has broken.
-		expect(screen.queryByRole("button", { name: "Restore screen" })).toBeNull();
+		// No note and no button: any key restores it (and goes no further).
 		act(() => vi.advanceTimersByTime(3000));
-		fireEvent.click(screen.getByRole("button", { name: "Restore screen" }));
+		expect(broken.querySelector(".broken-screen-note")).toBeNull();
+		expect(broken.querySelector("button")).toBeNull();
+		const key = new KeyboardEvent("keydown", {
+			key: "a",
+			bubbles: true,
+			cancelable: true,
+		});
+		act(() => {
+			document.body.dispatchEvent(key);
+		});
+		expect(key.defaultPrevented).toBe(true);
 		expect(broken.dataset.restoring).toBe("true");
 		act(() => vi.advanceTimersByTime(1000));
 		expect(screen.queryByTestId("broken-screen")).toBeNull();

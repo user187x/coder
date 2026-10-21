@@ -3,8 +3,7 @@ import { createPortal } from "react-dom";
 import { breakScreen } from "./brokenScreen";
 import "./brokenScreen.css";
 
-/** How long the screen takes to break (brokenScreen.css), and to come back. */
-export const BREAK_MS = 2600;
+/** How long the screen takes to come back (brokenScreen.css). */
 export const RESTORE_MS = 700;
 
 const motionless = () =>
@@ -14,46 +13,51 @@ const motionless = () =>
 /**
  * The announcement terminal's other easter egg (BannerScrollView: "rm -rf *"): the screen breaks like a struck LCD
  * panel - a white flash and a shake, glass cracks running out from the impact to the edges, then black ink bleeding
- * from it and dead pixel columns down the panel, the page behind flickering. A console note says what happened, and
- * its button (Restore screen) puts everything back as it was: nothing was removed. Nothing on the page can be used
- * meanwhile. Without animations (the setting, or reduced motion) the screen is simply broken, and simply restored.
+ * from it and dead pixel columns down the panel, the page behind flickering. Any key (or a click) puts everything back
+ * as it was: nothing was removed. The key goes no further (the quick access wheel stays shut: RadialMenu), and
+ * nothing on the page can be used meanwhile. Without animations (the setting, or reduced motion) the screen is simply
+ * broken, and simply restored.
  */
 export const BrokenScreenOverlay: React.FC<{ onDone: () => void }> = ({
 	onDone,
 }) => {
 	const [restoring, setRestoring] = useState(false);
-	const button = useRef<HTMLButtonElement>(null);
+	const restoringRef = useRef(false);
 	const still = useMemo(motionless, []);
 	const screen = useMemo(
 		() => breakScreen(window.innerWidth, window.innerHeight),
 		[],
 	);
-	const [broken, setBroken] = useState(still);
 
-	// The page behind it shakes and flickers while it breaks (a class on the root, removed after).
+	// The page behind it shakes and flickers while it breaks (a flag on the root, removed after: the quick access
+	// wheel reads it too, and takes no key meanwhile).
 	useEffect(() => {
 		const root = document.documentElement;
 		root.dataset.screenBroken = "true";
-		const done = window.setTimeout(() => setBroken(true), still ? 0 : BREAK_MS);
 		return () => {
-			window.clearTimeout(done);
 			delete root.dataset.screenBroken;
 		};
-	}, [still]);
+	}, []);
 
+	// Any key, or a click, restores it; the key goes no further.
 	useEffect(() => {
-		if (broken) {
-			button.current?.focus({ preventScroll: true });
-		}
-	}, [broken]);
-
-	const restore = () => {
-		if (restoring) {
-			return;
-		}
-		setRestoring(true);
-		window.setTimeout(onDone, still ? 0 : RESTORE_MS);
-	};
+		const restore = (event: Event) => {
+			event.preventDefault();
+			event.stopPropagation();
+			if (restoringRef.current) {
+				return;
+			}
+			restoringRef.current = true;
+			setRestoring(true);
+			window.setTimeout(onDone, still ? 0 : RESTORE_MS);
+		};
+		window.addEventListener("keydown", restore, true);
+		window.addEventListener("pointerdown", restore, true);
+		return () => {
+			window.removeEventListener("keydown", restore, true);
+			window.removeEventListener("pointerdown", restore, true);
+		};
+	}, [onDone, still]);
 
 	return createPortal(
 		<div
@@ -63,7 +67,7 @@ export const BrokenScreenOverlay: React.FC<{ onDone: () => void }> = ({
 			data-restoring={restoring || undefined}
 			role="alertdialog"
 			aria-modal="true"
-			aria-label="The screen is broken"
+			aria-label="The screen is broken: press any key to restore it"
 		>
 			<div className="broken-screen-flash" aria-hidden />
 			{screen.lines.map((line, i) => (
@@ -127,19 +131,6 @@ export const BrokenScreenOverlay: React.FC<{ onDone: () => void }> = ({
 					className="broken-screen-impact"
 				/>
 			</svg>
-			{broken && (
-				<div className="broken-screen-note">
-					<pre>
-						{`root@platform:~# rm -rf *
-rm: removing everything... done.
-Segmentation fault (screen dumped)`}
-					</pre>
-					<p>Just kidding: nothing was removed.</p>
-					<button ref={button} type="button" onClick={restore}>
-						Restore screen
-					</button>
-				</div>
-			)}
 		</div>,
 		document.body,
 	);
