@@ -107,7 +107,9 @@ const markAttached = (g: SVGGElement, unattached: ReadonlySet<string>) => {
  * vacuum cleaner's cord - and drags a new cable out of the socket onto a workspace that isn't connected to connect
  * it (or a plug from one row onto another, to move it). Nothing runs while they are still. Without animations (the
  * user menu's switch, or reduced motion) they are drawn at rest. Red and dashed while the Cloud Drive's storage does
- * not answer; a cable red while its workspace says the drive is not attached in it yet (attachment.ts).
+ * not answer; a cable red while its workspace says the drive is not attached in it yet (attachment.ts). A workspace
+ * being deleted lets go of its cable at once - the plug pops off its row, hangs a moment and reels back into the
+ * Cloud Drive like a retractable cord - while its row is still there (going, shining).
  */
 export const CloudDriveRopes: React.FC<{
 	anchor: React.RefObject<HTMLElement | null>;
@@ -120,7 +122,17 @@ export const CloudDriveRopes: React.FC<{
 	connected: boolean | null | undefined;
 	/** Of the linked ones, those whose drive is not attached in the workspace yet: their cables red. */
 	unattached?: readonly string[];
-}> = ({ anchor, workspaceIds, linked, onLink, connected, unattached }) => {
+	/** Being deleted: their cables pop off and reel in before their rows go. */
+	deleting?: readonly string[];
+}> = ({
+	anchor,
+	workspaceIds,
+	linked,
+	onLink,
+	connected,
+	unattached,
+	deleting,
+}) => {
 	const svg = useRef<SVGSVGElement>(null);
 	const socket = useRef<SVGGElement>(null);
 	const elements = useRef(new Map<string, SVGGElement>());
@@ -129,6 +141,7 @@ export const CloudDriveRopes: React.FC<{
 	const ids = workspaceIds.join(",");
 	const linkedRef = useRef(new Set(linked));
 	const unattachedRef = useRef(new Set(unattached));
+	const deletingRef = useRef(new Set(deleting));
 	const onLinkRef = useRef(onLink);
 	const kickRef = useRef<() => void>(() => {});
 	onLinkRef.current = onLink;
@@ -137,6 +150,12 @@ export const CloudDriveRopes: React.FC<{
 		linkedRef.current = new Set(linked);
 		kickRef.current();
 	}, [linked]);
+
+	const going = (deleting ?? []).join(",");
+	useEffect(() => {
+		deletingRef.current = new Set(going ? going.split(",") : []);
+		kickRef.current();
+	}, [going]);
 
 	// The cables whose drive is not attached yet: red, at once (nothing is drawn while they are still).
 	const waiting = (unattached ?? []).join(",");
@@ -304,6 +323,9 @@ export const CloudDriveRopes: React.FC<{
 						w.phase = "reeling";
 						w.length = cableLength(m.start, w, w.end);
 						w.since = performance.now();
+					} else if (deletingRef.current.has(w.target)) {
+						// its workspace is being deleted: the plug pops off, up and out, and the cord reels in
+						unplug(m, w, { x: 140, y: -120 });
 					} else if (!isLinked(w.target)) {
 						// disconnected elsewhere (another tab, a failed save): it comes out
 						unplug(m, w, { x: 90, y: -60 });
@@ -313,7 +335,10 @@ export const CloudDriveRopes: React.FC<{
 				}
 			}
 			const missing = [...m.rows.entries()]
-				.filter(([id]) => isLinked(id) && !covered.has(id))
+				.filter(
+					([id]) =>
+						isLinked(id) && !covered.has(id) && !deletingRef.current.has(id),
+				)
 				.sort((p, q) => p[1].end.y - q[1].end.y);
 			missing.forEach(([id], i) => {
 				spawn(m, id, first ? i * STAGGER_MS : 0);

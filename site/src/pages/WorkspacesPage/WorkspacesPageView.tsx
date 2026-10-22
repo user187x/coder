@@ -38,6 +38,7 @@ import { TableCard } from "#/modules/platform/tableCard/TableCard";
 import { WorkspacesTable } from "#/pages/WorkspacesPage/WorkspacesTable";
 import { mustUpdateWorkspace } from "#/utils/workspace";
 import { WorkspacesFilter } from "./filter/WorkspacesFilter";
+import { isDeleting } from "./startingRows";
 import { WorkspaceHelpPopover } from "./WorkspaceHelpPopover";
 import { WorkspacesButton } from "./WorkspacesButton";
 
@@ -99,6 +100,11 @@ export const WorkspacesPageView: React.FC<WorkspacesPageViewProps> = ({
 		() =>
 			(workspaces ?? []).filter((w) => w.owner_id === me.id).map((w) => w.id),
 		[workspaces, me.id],
+	);
+	// Platform: being deleted - a cable to one pops off its row and reels back into the Cloud Drive before the row goes
+	const deleting = useMemo(
+		() => (workspaces ?? []).filter(isDeleting).map((w) => w.id),
+		[workspaces],
 	);
 	// Platform: the table's footer - what the page shows, how many run, how many have the Cloud Drive
 	const drive = useCloudDriveLinks();
@@ -229,7 +235,11 @@ export const WorkspacesPageView: React.FC<WorkspacesPageViewProps> = ({
 					</>
 				) : null}
 				{/* Platform: the account's Cloud Drive, once, above the rows' apps. */}
-				<CloudDrive workspaceIds={mine} className="ml-auto" />
+				<CloudDrive
+					workspaceIds={mine}
+					deleting={deleting}
+					className="ml-auto"
+				/>
 			</div>
 
 			{pageNumberIsInvalid ? (

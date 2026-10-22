@@ -55,8 +55,10 @@ const ACTIVE_WITHIN_S = 1.5;
 export const CloudDrive: React.FC<{
 	/** The signed-in user's workspaces on the page: a cable to each connected one. */
 	workspaceIds: readonly string[];
+	/** Of them, those being deleted: their cables pop off and reel in (CloudDriveRopes). */
+	deleting?: readonly string[];
 	className?: string;
-}> = ({ workspaceIds, className }) => {
+}> = ({ workspaceIds, deleting, className }) => {
 	const { data: summary, error } = useQuery(safe());
 	const enabled = Boolean(summary?.enabled);
 	const settings = useQuery({ ...cloudDriveSettings(), enabled });
@@ -273,6 +275,7 @@ export const CloudDrive: React.FC<{
 			<CloudDriveRopes
 				anchor={container}
 				workspaceIds={workspaceIds}
+				deleting={deleting}
 				linked={linked}
 				onLink={onLink}
 				connected={status?.connected}
