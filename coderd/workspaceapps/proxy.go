@@ -366,7 +366,21 @@ func (s *Server) workspaceAppsProxyPath(rw http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	// Platform: the app learns where it is served from (X-Forwarded-Prefix: its path under Coder, without the trailing
+	// slash), so an app that builds its own links (Apache NiFi) needs no route of its own to be told. Always Coder's
+	// value: whatever a client sent is replaced.
+	r.Header.Set(forwardedPrefixHeader, forwardedPrefix(basePath))
+
 	s.proxyWorkspaceApp(rw, r, *token, chiPath, appurl.ApplicationURL{})
+}
+
+// forwardedPrefixHeader carries a path-based app's base path to the app (Platform).
+const forwardedPrefixHeader = "X-Forwarded-Prefix"
+
+// forwardedPrefix is a path-based app's base path as X-Forwarded-Prefix carries it: "/@u/w.agent/apps/nifi/" ->
+// "/@u/w.agent/apps/nifi" (Platform).
+func forwardedPrefix(basePath string) string {
+	return strings.TrimRight(basePath, "/")
 }
 
 // determineCORSBehavior examines the given token and conditionally applies
