@@ -21,7 +21,9 @@ import { WorkspacesPageView } from "./WorkspacesPageView";
 // To reduce the number of fetches, we reduce the fetch interval if there are no
 // active workspace builds.
 const ACTIVE_BUILDS_REFRESH_INTERVAL = 5_000;
-const NO_ACTIVE_BUILDS_REFRESH_INTERVAL = 30_000;
+// Platform: 10 s (was 30): a build started elsewhere (a delete from the workspace's page, another tab) shows on its row
+// - the deleting shine, the starting pole - before it is over.
+const NO_ACTIVE_BUILDS_REFRESH_INTERVAL = 10_000;
 
 function useSafeSearchParams() {
 	// Have to wrap setSearchParams because React Router doesn't guarantee
