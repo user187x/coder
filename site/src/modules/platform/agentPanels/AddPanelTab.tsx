@@ -54,7 +54,7 @@ export const AddPanelTab: React.FC<AddPanelTabProps> = ({
 									? "Opens when the workspace is ready"
 									: "Add a panel with an app"
 							}
-							className="relative z-10 flex size-[15px] translate-y-[7px] cursor-pointer items-center justify-center rounded-full border-0 bg-content-link p-0 text-content-invert shadow-[0_0_0_2px_hsl(var(--content-link)/0.18)] transition-[filter,box-shadow] hover:brightness-110 hover:shadow-[0_0_0_3px_hsl(var(--content-link)/0.28)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-content-link disabled:cursor-not-allowed disabled:opacity-50"
+							className="relative z-10 flex size-[15px] translate-y-[7px] cursor-pointer items-center justify-center rounded-full border-0 bg-content-success p-0 text-content-invert shadow-[0_0_0_2px_hsl(var(--content-success)/0.18)] transition-[filter,box-shadow] hover:brightness-110 hover:shadow-[0_0_0_3px_hsl(var(--content-success)/0.28)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-content-success disabled:cursor-not-allowed disabled:opacity-50"
 							data-testid="add-panel-button"
 						>
 							<PlusIcon className="size-[11px]" strokeWidth={3} aria-hidden />
