@@ -1,6 +1,7 @@
 import { cn } from "cn";
 import {
 	ArchiveIcon,
+	ArchiveRestoreIcon,
 	CopyIcon,
 	DownloadIcon,
 	EllipsisVerticalIcon,
@@ -44,6 +45,7 @@ import { WorkspaceErrorDialog } from "../ErrorDialog/WorkspaceErrorDialog";
 import { UpdateBuildParametersDialog } from "../WorkspaceUpdateDialogs";
 import { ChangeWorkspaceVersionDialog } from "./ChangeWorkspaceVersionDialog";
 import { DownloadLogsDialog } from "./DownloadLogsDialog";
+import { RestoreWorkspaceDialog } from "./RestoreWorkspaceDialog";
 import { ShareWorkspaceDialog } from "./ShareWorkspaceDialog";
 import { useWorkspaceDuplication } from "./useWorkspaceDuplication";
 import { WorkspaceDeleteDialog } from "./WorkspaceDeleteDialog";
@@ -108,9 +110,9 @@ export const WorkspaceMoreActions: React.FC<WorkspaceMoreActionsProps> = ({
 	// Workspace Sharing
 	const [isSharing, setIsSharing] = useState(false);
 	// Home volume: back up, expand
-	const [volumeDialog, setVolumeDialog] = useState<"backup" | "expand" | null>(
-		null,
-	);
+	const [volumeDialog, setVolumeDialog] = useState<
+		"backup" | "restore" | "expand" | null
+	>(null);
 
 	// Change version
 	const [changeVersionDialogOpen, setChangeVersionDialogOpen] = useState(false);
@@ -272,6 +274,13 @@ export const WorkspaceMoreActions: React.FC<WorkspaceMoreActionsProps> = ({
 								Back up home&hellip;
 							</DropdownMenuItem>
 							<DropdownMenuItem
+								onClick={() => setVolumeDialog("restore")}
+								data-testid="restore-workspace-item"
+							>
+								<ArchiveRestoreIcon />
+								Restore workspace&hellip;
+							</DropdownMenuItem>
+							<DropdownMenuItem
 								disabled={jobsBlocked}
 								title={afterBuild}
 								onClick={() => setVolumeDialog("expand")}
@@ -317,6 +326,11 @@ export const WorkspaceMoreActions: React.FC<WorkspaceMoreActionsProps> = ({
 			<BackupHomeDialog
 				workspace={workspace}
 				open={volumeDialog === "backup"}
+				onClose={() => setVolumeDialog(null)}
+			/>
+			<RestoreWorkspaceDialog
+				workspace={workspace}
+				open={volumeDialog === "restore"}
 				onClose={() => setVolumeDialog(null)}
 			/>
 			<ExpandDiskDialog
