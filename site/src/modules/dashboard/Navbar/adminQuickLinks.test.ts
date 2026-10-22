@@ -43,6 +43,7 @@ describe("adminPagesFor", () => {
 			"Chat",
 			"Authentication",
 			"Classification",
+			"Cloud Drive",
 			"Appearance",
 			"Health",
 			"Monitoring",

@@ -28,7 +28,9 @@ const ago = (unixSeconds: number | null) => {
 export const StatusIndicator: React.FC<{
 	status: CloudDriveStatus | undefined;
 	compact?: boolean;
-}> = ({ status, compact = false }) => {
+	/** The drive transfers now (uploading or downloading): the green light flashes like an LED. */
+	active?: boolean;
+}> = ({ status, compact = false, active = false }) => {
 	const state =
 		status?.connected === true
 			? "connected"
@@ -56,8 +58,11 @@ export const StatusIndicator: React.FC<{
 		>
 			<span
 				aria-hidden
+				data-testid="cloud-drive-status-light"
+				data-active={(active && state === "connected") || undefined}
 				className={cn(
 					"size-2 rounded-full",
+					active && state === "connected" && "cd-led-active",
 					state === "connected"
 						? "bg-content-success"
 						: state === "disconnected"

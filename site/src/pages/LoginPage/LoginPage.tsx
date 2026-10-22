@@ -52,24 +52,28 @@ const LoginPage: React.FC = () => {
 	return (
 		<>
 			<title>Sign in to {applicationName}</title>
-			{/* Shown when the admin allowed it on the sign-in page. */}
-			<AnnouncementBanner placement="login" />
-			<LoginPageView
-				authMethods={authMethodsQuery.data}
-				error={signInError ?? redirectError}
-				isLoading={isLoading || authMethodsQuery.isLoading}
-				buildInfo={buildInfoQuery.data}
-				isSigningIn={isSigningIn}
-				onSignIn={async ({ email, password }) => {
-					await signIn(email, password);
-					// Use a hard reload instead of React Router navigation
-					// so the server re-renders the HTML with all metadata
-					// tags populated (userAppearance, user, permissions,
-					// etc.) using the new session cookie.
-					location.href = sanitizeRedirect(redirectTo);
-				}}
-				redirectTo={redirectTo}
-			/>
+			{/* Platform: the banner and the sign-in in one column the window's height - the sign-in taking what the
+			    banner leaves, so the page never scrolls (its scrollbar clipped the banner's right end). */}
+			<div className="flex min-h-screen flex-col">
+				{/* Shown when the admin allowed it on the sign-in page. */}
+				<AnnouncementBanner placement="login" />
+				<LoginPageView
+					authMethods={authMethodsQuery.data}
+					error={signInError ?? redirectError}
+					isLoading={isLoading || authMethodsQuery.isLoading}
+					buildInfo={buildInfoQuery.data}
+					isSigningIn={isSigningIn}
+					onSignIn={async ({ email, password }) => {
+						await signIn(email, password);
+						// Use a hard reload instead of React Router navigation
+						// so the server re-renders the HTML with all metadata
+						// tags populated (userAppearance, user, permissions,
+						// etc.) using the new session cookie.
+						location.href = sanitizeRedirect(redirectTo);
+					}}
+					redirectTo={redirectTo}
+				/>
+			</div>
 		</>
 	);
 };

@@ -35,7 +35,7 @@ export const LoginPageView: React.FC<LoginPageViewProps> = ({
 		authMethods?.terms_of_service_url && !tosAccepted;
 
 	return (
-		<div className="p-6 flex items-center justify-center min-h-full text-center">
+		<div className="p-6 flex flex-1 items-center justify-center min-h-0 text-center">
 			{/* Platform: the sign-in page's background image (Customize). */}
 			<PlatformBackground slot="login" />
 			<div className="w-full max-w-xs flex flex-col items-center gap-4">

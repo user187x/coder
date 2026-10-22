@@ -1779,6 +1779,9 @@ export type CloudDriveSettings = {
 	status: CloudDriveStatus;
 	/** Every account's capacity: an admin's, else the chart's (userStorage.quotaGiB). */
 	quota: CloudDriveQuota;
+	/** On for everyone, unless an admin turned it off (Admin Settings > Cloud Drive): who, and when (seconds). */
+	enabled?: boolean;
+	turnedOff?: { by: string; at: number } | null;
 };
 
 export type CloudDriveBackend = {
@@ -1886,6 +1889,16 @@ export const PlatformAPI = {
 	/** Admins: another S3 service (saved once it answers), or { reset: true } for the chart's. */
 	saveCloudDriveSettings: (backend: CloudDriveBackend | { reset: true }) =>
 		post<CloudDriveSettings>(`${PLATFORM_BASE}/api/safe/settings`, backend),
+	/** Seconds since the caller's own drive last uploaded and downloaded (null: not since the service started). */
+	getCloudDriveActivity: () =>
+		get<{ up: number | null; down: number | null }>(
+			`${PLATFORM_BASE}/api/safe/activity`,
+		),
+	/** Admins: the Cloud Drive on or off for everyone (off: every workspace's drive unlinked, users shown none). */
+	setCloudDriveEnabled: (enabled: boolean) =>
+		post<CloudDriveSettings>(`${PLATFORM_BASE}/api/safe/settings/enabled`, {
+			enabled,
+		}),
 	/** Admins: every account's capacity (GiB), or { reset: true } for the chart's. */
 	saveCloudDriveQuota: (body: { quotaGiB: number } | { reset: true }) =>
 		post<CloudDriveQuota>(`${PLATFORM_BASE}/api/safe/settings/quota`, body),

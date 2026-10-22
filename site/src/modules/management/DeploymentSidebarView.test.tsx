@@ -25,7 +25,7 @@ describe("DeploymentSidebarView", () => {
 
 		const links = await screen.findAllByRole("link");
 		// Online Users (a card of the Chat page) and Overview (its rows in Network) are gone; Quick Menu is new
-		expect(links).toHaveLength(14);
+		expect(links).toHaveLength(15);
 		expect(
 			links.find((link) => link.textContent?.includes("Quick Menu")),
 		).toHaveAttribute("href", "/deployment/quick-menu");

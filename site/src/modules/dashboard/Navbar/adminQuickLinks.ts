@@ -2,6 +2,7 @@ import {
 	ActivityIcon,
 	AppWindowIcon,
 	BellIcon,
+	CloudIcon,
 	DatabaseIcon,
 	HeartPulseIcon,
 	KeyRoundIcon,
@@ -75,6 +76,13 @@ const ADMIN_PAGES: readonly (AdminPage & {
 		label: "Classification",
 		icon: TagIcon,
 		path: "/deployment/classification",
+		allowed: ({ permissions }) => permissions.editDeploymentConfig,
+	},
+	{
+		id: "cloud-drive",
+		label: "Cloud Drive",
+		icon: CloudIcon,
+		path: "/deployment/cloud-drive",
 		allowed: ({ permissions }) => permissions.editDeploymentConfig,
 	},
 	{

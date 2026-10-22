@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { getErrorMessage } from "#/api/errors";
 import { PlatformError } from "#/api/platform";
 import {
+	cloudDriveActivity,
 	cloudDriveConnections,
 	cloudDriveSettings,
 	safe,
@@ -48,6 +49,9 @@ import "./cloudDrive.css";
  * and the rest: the window. Files dropped on it from the computer go up to it
  * (CloudDriveDrop).
  */
+/** How recent a transfer keeps the pill's light flashing (seconds). */
+const ACTIVE_WITHIN_S = 1.5;
+
 export const CloudDrive: React.FC<{
 	/** The signed-in user's workspaces on the page: a cable to each connected one. */
 	workspaceIds: readonly string[];
@@ -57,6 +61,11 @@ export const CloudDrive: React.FC<{
 	const enabled = Boolean(summary?.enabled);
 	const settings = useQuery({ ...cloudDriveSettings(), enabled });
 	const connections = useQuery(cloudDriveConnections(enabled));
+	// Its transfers (MinIO's trace): within the last 1.5 s, uploading or downloading - the light flashes.
+	const activity = useQuery(cloudDriveActivity(enabled));
+	const transferring = [activity.data?.up, activity.data?.down].some(
+		(ago) => typeof ago === "number" && ago <= ACTIVE_WITHIN_S,
+	);
 	const queryClient = useQueryClient();
 	const link = useMutation(setCloudDriveConnection(queryClient));
 	const [open, setOpen] = useState(false);
@@ -251,7 +260,7 @@ export const CloudDrive: React.FC<{
 							{usage}
 						</span>
 						<span className="ml-auto pl-1">
-							<StatusIndicator status={status} compact />
+							<StatusIndicator status={status} compact active={transferring} />
 						</span>
 					</span>
 					{drop.progress ? (

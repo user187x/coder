@@ -139,6 +139,12 @@ const NetworkSettingsPage = lazy(
 			"./pages/DeploymentSettingsPage/NetworkSettingsPage/NetworkSettingsPage"
 		),
 );
+const CloudDriveSettingsPage = lazy(
+	() =>
+		import(
+			"./pages/DeploymentSettingsPage/CloudDriveSettingsPage/CloudDriveSettingsPage"
+		),
+);
 const ChatSettingsPage = lazy(
 	() =>
 		import("./pages/DeploymentSettingsPage/ChatSettingsPage/ChatSettingsPage"),
@@ -549,6 +555,7 @@ export const router = createBrowserRouter(
 						<Route path="appearance" element={<AppearanceSettingsPage />} />
 						<Route path="announcement" element={<AnnouncementSettingsPage />} />
 						<Route path="chat" element={<ChatSettingsPage />} />
+						<Route path="cloud-drive" element={<CloudDriveSettingsPage />} />
 						{/* Online Users is a card of the Chat page now */}
 						<Route
 							path="online"

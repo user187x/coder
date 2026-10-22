@@ -507,3 +507,31 @@ html[data-animations="off"] .cd-progress > i {
 		animation: none;
 	}
 }
+
+/* The pill's light while the drive transfers (StatusIndicator active): flashing like an LED, a hard on and off with a
+   glow when on. Still without animations. */
+.cd-led-active {
+	animation: cd-led 0.22s steps(1, end) infinite;
+}
+@keyframes cd-led {
+	0% {
+		opacity: 1;
+		box-shadow:
+			0 0 4px 1px hsl(var(--content-success)),
+			0 0 8px 2px hsl(var(--content-success) / 0.5);
+	}
+	50% {
+		opacity: 0.25;
+		box-shadow: none;
+	}
+}
+:root[data-animations="off"] .cd-led-active {
+	animation: none;
+	box-shadow: 0 0 4px 1px hsl(var(--content-success));
+}
+@media (prefers-reduced-motion: reduce) {
+	.cd-led-active {
+		animation: none;
+		box-shadow: 0 0 4px 1px hsl(var(--content-success));
+	}
+}

@@ -219,6 +219,15 @@ export const cloudDriveSettings = () => ({
 	refetchInterval: 30_000,
 });
 
+/** The caller's own drive's transfers, asked every second (the pill's light flashing while it transfers). */
+export const cloudDriveActivity = (enabled: boolean) => ({
+	queryKey: [...safeKey, "activity"],
+	queryFn: PlatformAPI.getCloudDriveActivity,
+	enabled,
+	retry: false,
+	refetchInterval: 1000,
+});
+
 const cloudDriveConnectionsKey = [...safeKey, "connections"] as const;
 /** Which of the caller's workspaces are disconnected from their Cloud Drive, and how it is in each started one: every
  * two seconds while one of them waits for it to attach. */

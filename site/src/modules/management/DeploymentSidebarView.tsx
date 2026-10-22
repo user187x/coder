@@ -88,6 +88,9 @@ export const DeploymentSidebarView: React.FC<DeploymentSidebarViewProps> = ({
 			),
 		permissions.editDeploymentConfig &&
 			item("classification", "/deployment/classification", "Classification"),
+		// Platform: the Cloud Drive for everyone (on or off), where it keeps files, every account's capacity
+		permissions.editDeploymentConfig &&
+			item("cloud-drive", "/deployment/cloud-drive", "Cloud Drive"),
 		permissions.editDeploymentConfig &&
 			item("customize", "/deployment/customize", "Appearance"),
 		Boolean(health) && { id: "health", label: "Health", node: health },

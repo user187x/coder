@@ -637,10 +637,10 @@ export const WorkspaceTerminal = ({
 					if (disposed) {
 						return;
 					}
-					terminal.options = {
-						disableStdin: false,
-						windowsMode: operatingSystem === "windows",
-					};
+					// Platform: one option at a time - xterm merges a new options object, but Ghostty's emulator would take
+					// it in place of its own (which applies each change), and a later text size change went nowhere.
+					terminal.options.disableStdin = false;
+					terminal.options.windowsMode = operatingSystem === "windows";
 					refit();
 					scheduleTerminalResize();
 					handleStatusChange("connected");
