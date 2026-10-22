@@ -286,4 +286,25 @@ describe("WorkspacesLatencyMenu", () => {
 			),
 		).toEqual(["ggg", "old"]);
 	});
+
+	it("counts the hold with chevrons each side of its words, three at most, in step with the ring", async () => {
+		mockWorkspaces();
+		renderMenu();
+		const pill = await screen.findByTestId("workspaces-latency-pill");
+		for (const side of ["left", "right"]) {
+			const chevrons = within(pill).getByTestId(
+				`workspaces-pill-chevrons-${side}`,
+			);
+			expect(
+				chevrons.querySelectorAll(".workspaces-pill-chevron"),
+			).toHaveLength(3);
+			// each a third of the hold later than the one before (workspacesLatency.css: --n)
+			expect(
+				[
+					...chevrons.querySelectorAll<SVGElement>(".workspaces-pill-chevron"),
+				].map((c) => c.style.getPropertyValue("--n")),
+			).toEqual(["1", "2", "3"]);
+		}
+		expect(pill.style.getPropertyValue("--hold")).toBe(`${HOLD_MS}ms`);
+	});
 });

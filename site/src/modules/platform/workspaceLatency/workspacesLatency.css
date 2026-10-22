@@ -34,6 +34,31 @@
 .workspaces-pill[data-hold="locked"] {
 	border-color: transparent;
 }
+/* The chevrons each side of the words (HoldChevrons): unseen until held, then one more each third of the hold (--hold,
+   the ring's HOLD_MS), the outermost first; all three as it locks, green with the ring; gone when let go or closed. */
+.workspaces-pill-chevron {
+	opacity: 0;
+	color: hsl(var(--content-link));
+	transition: opacity 0.15s ease-out;
+}
+.workspaces-pill[data-hold="holding"] .workspaces-pill-chevron {
+	animation: workspaces-pill-chevron-in 0.12s ease-out both;
+	animation-delay: calc(var(--hold, 800ms) * var(--n) / 3 - 0.12s);
+}
+.workspaces-pill[data-hold="locked"] .workspaces-pill-chevron {
+	opacity: 1;
+	color: hsl(var(--content-success));
+}
+@keyframes workspaces-pill-chevron-in {
+	from {
+		opacity: 0;
+		transform: scale(0.6);
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
 html[data-animations="off"] .workspaces-pill-ring rect {
 	transition: none !important;
 }

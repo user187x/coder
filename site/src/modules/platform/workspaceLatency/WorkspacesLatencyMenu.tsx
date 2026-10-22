@@ -2,6 +2,8 @@ import { cn } from "cn";
 import {
 	ArrowUpRightIcon,
 	CheckIcon,
+	ChevronLeftIcon,
+	ChevronRightIcon,
 	LayoutGridIcon,
 	MonitorIcon,
 } from "lucide-react";
@@ -49,6 +51,38 @@ export const workspaceLatency = (workspace: Workspace): number | undefined => {
 		.map(agentLatency)
 		.filter((v): v is number => typeof v === "number");
 	return values.length ? Math.min(...values) : undefined;
+};
+
+/** At most this many chevrons each side of the pill's words while it is held (workspacesLatency.css). */
+export const HOLD_CHEVRONS = 3;
+
+/**
+ * Hold to confirm, counted: chevrons each side of the pill's words, pointing at them, one more each third of the hold -
+ * in step with the ring - so all three show as it locks; they stay while it is locked, and go when it is let go or
+ * closed (workspacesLatency.css: the pill's data-hold).
+ */
+const HoldChevrons: React.FC<{ side: "left" | "right" }> = ({ side }) => {
+	const Chevron = side === "left" ? ChevronRightIcon : ChevronLeftIcon;
+	// the outermost first, so they close in on the words
+	const order = Array.from({ length: HOLD_CHEVRONS }, (_, i) => i + 1);
+	return (
+		<span
+			aria-hidden
+			data-testid={`workspaces-pill-chevrons-${side}`}
+			className={cn(
+				"workspaces-pill-chevrons flex shrink-0 items-center",
+				side === "right" && "flex-row-reverse",
+			)}
+		>
+			{order.map((n) => (
+				<Chevron
+					key={n}
+					className="workspaces-pill-chevron -mx-1 size-3.5"
+					style={{ "--n": n } as React.CSSProperties}
+				/>
+			))}
+		</span>
+	);
 };
 
 /**
@@ -310,6 +344,8 @@ export const WorkspacesLatencyMenu: React.FC<{
 					data-testid="workspaces-latency-pill"
 					data-hold={locked ? "locked" : pressed ? "holding" : undefined}
 					className="workspaces-pill relative flex w-full items-center justify-center gap-2 h-8 pl-3 pr-1.5 rounded-full border border-solid border-border bg-surface-primary text-content-primary"
+					// the chevrons' timing, the ring's (HOLD_MS)
+					style={{ "--hold": `${HOLD_MS}ms` } as React.CSSProperties}
 				>
 					{/* Hold to confirm: the ring drawn round the border while the press lasts, green once locked. */}
 					<svg
@@ -330,6 +366,7 @@ export const WorkspacesLatencyMenu: React.FC<{
 							/>
 						)}
 					</svg>
+					<HoldChevrons side="left" />
 					<MonitorIcon aria-hidden className="size-4 shrink-0" />
 					Workspaces
 					<span
@@ -342,6 +379,7 @@ export const WorkspacesLatencyMenu: React.FC<{
 					{query.data && (
 						<span className="sr-only">, {running.length} running</span>
 					)}
+					<HoldChevrons side="right" />
 				</span>
 			</DropdownMenuItem>
 			<div
