@@ -137,7 +137,9 @@ export const WorkspaceTopbar: React.FC<WorkspaceTopbarProps> = ({
 				<TooltipContent side="bottom">Back to workspaces</TooltipContent>
 			</Tooltip>
 
-			{navigation}
+			<div className="[&_[role=group]]:!rounded-md [&_button]:!rounded-sm">
+				{navigation}
+			</div>
 
 			<div className="flex items-center gap-y-6 gap-x-2 flex-wrap px-3 py-2 mr-auto">
 				<TopbarData className="flex-wrap">
