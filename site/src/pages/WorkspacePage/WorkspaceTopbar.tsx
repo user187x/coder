@@ -119,10 +119,11 @@ export const WorkspaceTopbar: React.FC<WorkspaceTopbarProps> = ({
 	);
 
 	return (
-		// Platform: a floating oval pill as wide as the dashboard under it, all its parts kept; it stays in view as the
-		// dashboard scrolls (sticky), and the Resources / History lists drop from it
+		// Platform: a floating bar - a smoothly rounded rectangle, the main dashboards' cards' 18px - as wide as the
+		// dashboard under it, all its parts kept; it stays in view as the dashboard scrolls (sticky), and the Resources /
+		// History lists drop from it
 		<Topbar
-			className="[grid-area:topbar] sticky top-0 z-30 mx-auto mb-4 max-w-[1200px] md:mb-6 flex-wrap gap-y-2 rounded-full border border-solid border-border bg-surface-primary/85 px-2 shadow-lg backdrop-blur-md max-md:rounded-3xl"
+			className="[grid-area:topbar] sticky top-0 z-30 mx-auto mb-4 max-w-[1200px] md:mb-6 flex-wrap gap-y-2 rounded-[18px] border border-solid border-border bg-surface-primary/85 px-2 shadow-lg backdrop-blur-md"
 			data-testid="workspace-topbar"
 		>
 			<Tooltip>
