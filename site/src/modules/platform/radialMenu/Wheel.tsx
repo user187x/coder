@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { CompassIcon, type LucideIcon } from "lucide-react";
+import { type LucideIcon, MenuIcon } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import "./radialMenu.css";
 
@@ -52,6 +52,32 @@ export type WheelItem = {
 	/** The user may go there; else the wedge is dimmed and says why. */
 	allowed: boolean;
 	why?: string;
+};
+
+/**
+ * Each wedge's own colour, pointed at (or focused) and chosen, round the wheel in this order: emerald first, as it
+ * always was, then the rest, so neighbours never share one.
+ */
+export const PETAL_COLOURS = [
+	"#10b981",
+	"#38bdf8",
+	"#a78bfa",
+	"#f59e0b",
+	"#f472b6",
+	"#2dd4bf",
+	"#fb923c",
+	"#818cf8",
+	"#facc15",
+	"#f87171",
+] as const;
+
+/** A wedge's colour by its place round the wheel; the last never repeats the first (the wheel is a circle). */
+export const petalColour = (index: number, count: number) => {
+	const n = PETAL_COLOURS.length;
+	const colour = PETAL_COLOURS[index % n];
+	return index === count - 1 && index % n === 0 && count > 1
+		? PETAL_COLOURS[(index + 1) % n]
+		: colour;
 };
 
 type WheelProps = {
@@ -113,7 +139,8 @@ export const Wheel: React.FC<WheelProps> = ({
 
 	const shown = hovered ?? chosen;
 	const label = shown === null ? "Menu" : (items[shown]?.name ?? "Menu");
-	const ShownIcon = (shown !== null && items[shown]?.icon) || CompassIcon;
+	// nothing pointed at: the menu's own icon, a hamburger
+	const ShownIcon = (shown !== null && items[shown]?.icon) || MenuIcon;
 	const note =
 		shown !== null && items[shown] && !items[shown].allowed
 			? items[shown].why
@@ -148,6 +175,13 @@ export const Wheel: React.FC<WheelProps> = ({
 								chosen === i && "radial-item-chosen",
 								!item.allowed && "radial-item-off",
 							)}
+							// its own colour when pointed at or chosen (radialMenu.css)
+							style={
+								{
+									"--petal": petalColour(i, items.length),
+								} as React.CSSProperties
+							}
+							data-petal={petalColour(i, items.length)}
 						>
 							<path
 								ref={(el) => {
@@ -215,7 +249,18 @@ export const Wheel: React.FC<WheelProps> = ({
 					);
 				})}
 			</svg>
-			<div className="radial-center" aria-live="polite">
+			<div
+				className="radial-center"
+				aria-live="polite"
+				// the hub's icon in the colour of the wedge pointed at
+				style={
+					shown !== null && items[shown]?.allowed
+						? ({
+								"--petal": petalColour(shown, items.length),
+							} as React.CSSProperties)
+						: undefined
+				}
+			>
 				<ShownIcon
 					aria-hidden
 					className="radial-center-icon"

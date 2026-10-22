@@ -1,6 +1,7 @@
 /* The quick access wheel (RadialMenu, from radial-menu.html): over everything, the page behind it under a
-   see-through Gaussian blur; dark wedges, emerald where pointed at, white once chosen. Its own colours whatever the
-   theme (it floats over the blur). Still without animations (the user menu's switch, or reduced motion). */
+   see-through Gaussian blur; dark wedges, each lit in its own colour where pointed at (--petal, Wheel's
+   PETAL_COLOURS), white once chosen, its icon in that colour. Its own colours whatever the theme (it floats over the
+   blur). Still without animations (the user menu's switch, or reduced motion). */
 .radial-overlay {
 	position: fixed;
 	inset: 0;
@@ -57,9 +58,11 @@
 		filter 200ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 .radial-item-lit .radial-wedge {
-	fill: rgb(16 185 129 / 0.9);
-	stroke: rgb(16 185 129);
-	filter: drop-shadow(0 0 10px rgb(16 185 129 / 0.5));
+	fill: color-mix(in srgb, var(--petal, #10b981) 90%, transparent);
+	stroke: var(--petal, #10b981);
+	filter: drop-shadow(
+		0 0 10px color-mix(in srgb, var(--petal, #10b981) 50%, transparent)
+	);
 }
 .radial-item-chosen .radial-wedge {
 	fill: #fff;
@@ -74,7 +77,7 @@
 	filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.4));
 }
 .radial-item-chosen .radial-icon {
-	color: rgb(16 185 129);
+	color: var(--petal, #10b981);
 }
 .radial-text {
 	fill: rgb(255 255 255 / 0.5);
