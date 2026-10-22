@@ -35,6 +35,7 @@ import {
 	useCloudDriveLinks,
 } from "#/modules/platform/cloudDrive/CloudDriveSocket";
 import { TableCard } from "#/modules/platform/tableCard/TableCard";
+import { WorkspaceQuotaPill } from "#/modules/platform/workspaceQuota/WorkspaceQuotaPill";
 import { WorkspacesTable } from "#/pages/WorkspacesPage/WorkspacesTable";
 import { mustUpdateWorkspace } from "#/utils/workspace";
 import { WorkspacesFilter } from "./filter/WorkspacesFilter";
@@ -165,6 +166,8 @@ export const WorkspacesPageView: React.FC<WorkspacesPageViewProps> = ({
 			    bar right above the table, no border lines and see-through, padded above and below as far as the Chats card
 			    floats above the page's bottom bar - not at its sides: the search's left edge and the Cloud Drive's right
 			    edge on the table card's */}
+			{/* Platform: the user's quota, where an admin set one for them (Health > User Quota) */}
+			<WorkspaceQuotaPill workspaceCount={workspaces?.length} />
 			<div
 				className="mb-2.5 flex flex-wrap items-center gap-3 rounded-[18px] bg-transparent py-2.5 text-sm text-content-secondary"
 				data-testid="workspaces-bar"

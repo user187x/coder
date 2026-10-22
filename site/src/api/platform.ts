@@ -717,6 +717,17 @@ export type QuotaSettings = {
 	exemptAdmins: boolean;
 };
 
+/** The signed-in user's own quota (the Workspaces page's pill); limited false = no limit applies to them. */
+export type QuotaMe = {
+	limited: boolean;
+	exempt: boolean;
+	limits: QuotaLimits;
+	usage?: Record<QuotaKey, number>;
+	/** What is left under each limit (null where there is none). */
+	left?: QuotaLimits;
+	atLimit?: boolean;
+};
+
 type QuotaWorkspace = {
 	id: string;
 	name: string;
@@ -2274,6 +2285,7 @@ export const PlatformAPI = {
 			`${PLATFORM_BASE}/api/scheduler`,
 			settings,
 		),
+	getQuotaMe: () => get<QuotaMe>(`${PLATFORM_BASE}/api/quota/me`),
 	getSchedulerMe: () => get<SchedulerMe>(`${PLATFORM_BASE}/api/scheduler/me`),
 	getHud: () => get<HudReport>(`${PLATFORM_BASE}/api/hud`),
 	getHudHistory: (range: HudRange) =>

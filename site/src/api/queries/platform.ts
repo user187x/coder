@@ -46,6 +46,7 @@ export const persistenceReportKey = [...platformKey, "persistence"] as const;
 export const templateIconsKey = [...platformKey, "icons"] as const;
 const keycloakStatusKey = [...platformKey, "keycloak", "status"] as const;
 const quotaReportKey = [...platformKey, "quota"] as const;
+export const quotaMeKey = [...platformKey, "quota", "me"] as const;
 const schedulerReportKey = [...platformKey, "scheduler"] as const;
 export const schedulerMeKey = [...platformKey, "scheduler", "me"] as const;
 const certificatesKey = [...platformKey, "certificates"] as const;
@@ -627,6 +628,14 @@ export const quotaReport = () => ({
 	refetchInterval: QUOTA_REFRESH_MS,
 });
 
+/** The signed-in user's own limits and what their workspaces take (the Workspaces page's quota pill). */
+export const quotaMe = () => ({
+	queryKey: quotaMeKey,
+	queryFn: PlatformAPI.getQuotaMe,
+	refetchInterval: QUOTA_REFRESH_MS,
+	retry: false,
+});
+
 const provisionersKey = [...platformKey, "provisioners"] as const;
 
 /** Coder's provisioner daemons, their jobs and terraform processes, refreshed while shown. */
@@ -654,6 +663,7 @@ export const updateQuota = (queryClient: QueryClient) => ({
 	mutationFn: (settings: QuotaSettings) => PlatformAPI.updateQuota(settings),
 	onSuccess: async () => {
 		await queryClient.invalidateQueries({ queryKey: quotaReportKey });
+		await queryClient.invalidateQueries({ queryKey: quotaMeKey });
 	},
 });
 
