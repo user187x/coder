@@ -98,7 +98,6 @@ html { --coder-classification-h: ${height}px;
 body { padding-top: ${height}px !important; padding-bottom: ${height}px !important; box-sizing: border-box; }
 div.sticky.top-0 { top: ${height}px !important; }
 .sticky.bottom-0, .fixed.bottom-0 { bottom: ${height}px !important; }
-[data-sonner-toaster][data-y-position=bottom] { bottom: calc(${height}px + 24px) !important; }
 .h-screen { height: calc(100vh - ${2 * height}px) !important; }
 .min-h-screen { min-height: calc(100vh - ${2 * height}px) !important; }
 .max-h-screen { max-height: calc(100vh - ${2 * height}px) !important; }`;

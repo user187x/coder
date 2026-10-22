@@ -6,14 +6,44 @@ import {
 	TriangleAlertIcon,
 	XIcon,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Toaster as Sonner, type ToasterProps as SonnerProps } from "sonner";
 import { Spinner } from "#/components/Spinner/Spinner";
+import { bottomBarsHeight } from "#/modules/platform/bottomBars";
 
-// Platform: toasts in the bottom left corner (clear of the chat bar on the right), and smaller.
+/** How far (px) the toasts float above the bars along the bottom, and from the window's left edge. */
+const TOAST_GAP = 12;
+const TOAST_LEFT = 24;
+const MEASURE_EVERY_MS = 500;
+
+/**
+ * Platform: the height of the bars along the window's bottom (the deployment's bar, the classification bar), kept
+ * measured - on resize and twice a second, as the chat dock does - so the toasts rise above whatever is there.
+ */
+const useBottomBars = () => {
+	const [bottom, setBottom] = useState(0);
+	useEffect(() => {
+		const measure = () => setBottom(bottomBarsHeight());
+		window.addEventListener("resize", measure);
+		const interval = window.setInterval(measure, MEASURE_EVERY_MS);
+		measure();
+		return () => {
+			window.removeEventListener("resize", measure);
+			window.clearInterval(interval);
+		};
+	}, []);
+	return bottom;
+};
+
+// Platform: toasts in the bottom left corner (clear of the chat bar on the right), smaller, and just above the bars
+// along the bottom, whichever are there.
 export const Toaster = ({ ...props }: SonnerProps) => {
+	const bars = useBottomBars();
 	return (
 		<Sonner
 			position="bottom-left"
+			offset={{ bottom: bars + TOAST_GAP, left: TOAST_LEFT }}
+			mobileOffset={{ bottom: bars + TOAST_GAP }}
 			style={{ "--width": "288px" } as React.CSSProperties}
 			icons={{
 				success: <CheckIcon className="text-content-success" />,

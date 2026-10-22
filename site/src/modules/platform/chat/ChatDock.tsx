@@ -17,11 +17,10 @@ import {
 } from "./chatStore";
 import { CHAT_CONSOLE_PAGE } from "./consolePlaces";
 import "./chatDock.css";
+import { bottomBarsHeight } from "#/modules/platform/bottomBars";
 
 // What may be fixed or sticky at the window's edges: the classification
 // marking, the deployment stats footer, the navbar.
-const BOTTOM_BARS =
-	"#coder-classification-bottom, div.sticky.bottom-0, div.fixed.bottom-0";
 const TOP_BARS = "#coder-classification-top, div.sticky.top-0";
 const MEASURE_EVERY_MS = 500;
 // Menus opened from the dock (a window's More) are portalled out of it: clicking them is not clicking elsewhere.
@@ -51,25 +50,7 @@ const useDockMeasurements = (dock: React.RefObject<HTMLDivElement | null>) => {
 				return;
 			}
 			const height = window.innerHeight;
-			const bars = [...document.querySelectorAll(BOTTOM_BARS)]
-				.filter((bar) => !element.contains(bar))
-				.map((bar) => bar.getBoundingClientRect())
-				.filter(
-					(r) =>
-						r.width > 0 &&
-						r.height > 0 &&
-						r.top < height &&
-						r.height < height / 3,
-				)
-				.sort((a, b) => b.bottom - a.bottom);
-			let occupied = 0;
-			for (const r of bars) {
-				// Stacked on the window's edge, or on a bar already counted.
-				if (height - r.bottom <= occupied + 2) {
-					occupied = Math.max(occupied, height - r.top);
-				}
-			}
-			const bottom = Math.round(occupied);
+			const bottom = bottomBarsHeight(element);
 			set(element, "--chat-bottom", bottom);
 
 			let top = 0;
