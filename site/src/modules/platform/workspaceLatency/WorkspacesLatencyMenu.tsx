@@ -127,7 +127,8 @@ export const TemplatePill: React.FC<{ workspace: Workspace }> = ({
 		<span
 			data-testid="workspace-template-pill"
 			title={`Template: ${name}`}
-			className="max-w-[9rem] shrink-0 truncate rounded-full border border-solid px-2 text-[11px] font-semibold leading-4"
+			// cut short (whole on hover) rather than run past a narrow menu's edge
+			className="min-w-0 max-w-[9rem] shrink truncate rounded-full border border-solid px-2 text-[11px] font-semibold leading-4"
 			style={{
 				color: colour,
 				borderColor: `${colour}66`,
@@ -419,7 +420,9 @@ export const WorkspacesLatencyMenu: React.FC<{
 										data-workspace-name
 										title={w.name}
 										className={cn(
-											"min-w-0 shrink-0 truncate",
+											// as wide as the widest name, but giving way in a narrow menu (a member's: no
+											// Controls), every name alike, so the pills stay in one column
+											"min-w-0 shrink truncate",
 											!up && "text-content-secondary",
 										)}
 										style={{ width: nameWidth }}
@@ -447,7 +450,7 @@ export const WorkspacesLatencyMenu: React.FC<{
 										<Link
 											to={path}
 											data-testid={`workspace-latency-${w.name}`}
-											className="flex items-center gap-2"
+											className="flex min-w-0 items-center gap-2"
 										>
 											{row}
 										</Link>
