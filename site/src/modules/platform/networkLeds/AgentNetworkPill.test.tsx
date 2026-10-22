@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from "react-query";
 import { PlatformAPI } from "#/api/platform";
 import type { WorkspaceAgentMetadata } from "#/api/typesGenerated";
 import { renderComponent } from "#/testHelpers/renderHelpers";
-import { AgentNetworkPill, pillBars } from "./AgentNetworkPill";
+import { AgentNetworkPill, pillBars, spanText } from "./AgentNetworkPill";
 import { publishAgentMetadata } from "./agentMetadataStore";
 
 const reading = (
@@ -154,5 +154,14 @@ describe("AgentNetworkPill", () => {
 		const pill = screen.getByTestId("agent-network-pill");
 		expect(pill).toHaveAttribute("data-stopped", "true");
 		expect(pill).toHaveClass("grayscale");
+	});
+});
+
+describe("spanText", () => {
+	it("gives the graph's span, its first bar's time to its last's", () => {
+		const to = new Date(2026, 9, 22, 8, 15, 12).getTime();
+		const { short, long } = spanText(to - 300_000, to);
+		expect(short).toBe("08:10–08:15");
+		expect(long).toMatch(/22, 08:10:12 – 08:15:12$/);
 	});
 });

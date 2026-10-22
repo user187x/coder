@@ -1,5 +1,6 @@
 import { HistoryIcon } from "lucide-react";
-import { useRef } from "react";
+import { useContext, useRef } from "react";
+import { BuildFooterEnd } from "./footerEnd";
 import "./buildFooter.css";
 
 /** How far (px) the grip is pulled or pushed before the timeline opens or closes. */
@@ -9,7 +10,8 @@ const FOLLOW_PX = 6;
 
 /**
  * Platform: the Build timeline as the workspace card's footer, made like the table cards' footer (TableCard): what it
- * is on the left, the build's time on the right, and in the middle a grip - a pill with jimping, the notches of a
+ * is on the left with the build's time just after it, at the far right what the card puts there (its Uptime pill:
+ * BuildFooterEnd), and in the middle a grip - a pill with jimping, the notches of a
  * handle - that pulls the timeline down out of the card's bottom, or pushes it back up. A click (or Enter, Space)
  * anywhere on the bar does the same. Collapsed at first, on every page load.
  */
@@ -22,6 +24,7 @@ export const BuildFooterBar: React.FC<{
 	total: React.ReactNode;
 	controls?: string;
 }> = ({ open, onOpenChange, disabled, total, controls }) => {
+	const end = useContext(BuildFooterEnd);
 	const drag = useRef<{ y: number; moved: boolean } | null>(null);
 	const pulled = useRef(false);
 	const grip = useRef<HTMLSpanElement>(null);
@@ -36,6 +39,7 @@ export const BuildFooterBar: React.FC<{
 			<span className="build-footer-label">
 				<HistoryIcon aria-hidden className="size-3.5" />
 				Build timeline
+				<span className="build-footer-total">{total}</span>
 			</span>
 			<button
 				type="button"
@@ -89,7 +93,9 @@ export const BuildFooterBar: React.FC<{
 			>
 				<span ref={grip} className="build-footer-grip" aria-hidden />
 			</button>
-			<span className="build-footer-total">{total}</span>
+			<span className="build-footer-end" data-testid="build-timeline-end">
+				{end}
+			</span>
 		</div>
 	);
 };

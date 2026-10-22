@@ -23,10 +23,20 @@
 	justify-self: start;
 	white-space: nowrap;
 }
+/* the build's time, just after "Build timeline", a little apart and quieter */
 .build-footer-total {
-	justify-self: end;
+	margin-left: 4px;
 	font-variant-numeric: tabular-nums;
 	white-space: nowrap;
+	color: hsl(var(--content-secondary));
+}
+/* the far right: the card's Uptime pill (BuildFooterEnd) */
+.build-footer-end {
+	display: inline-flex;
+	justify-self: end;
+	align-items: center;
+	position: relative;
+	z-index: 1; /* above the bar's hit area (the handle's ::after): the pill keeps its own hover */
 }
 
 /* The grip: the whole bar is its hit area (::after), pulled down or pushed up. */

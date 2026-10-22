@@ -69,6 +69,7 @@ import { AgentPanels } from "#/modules/platform/agentPanels/AgentPanels";
 import { useAgentPanels } from "#/modules/platform/agentPanels/agentPanelsStore";
 import { AgentTerminalSection } from "#/modules/platform/agentTerminal/AgentTerminalSection";
 import { useAnimationsEnabled } from "#/modules/platform/animations/animations";
+import { BuildFooterEnd } from "#/modules/platform/buildFooter/footerEnd";
 import { CloudDriveGlyph } from "#/modules/platform/cloudDrive/CloudDriveGlyph";
 import { LockdownBadge } from "#/modules/platform/lockdown/Lockdown";
 import { AgentNetworkLeds } from "#/modules/platform/networkLeds/AgentNetworkLeds";
@@ -526,6 +527,14 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 									stoppedAt={stoppedAt}
 								/>
 							)}
+							{/* Platform: the network's last minutes as a graph, with their time span, before the latency */}
+							{agent.status === "connected" && (
+								<AgentNetworkPill
+									agentId={agent.id}
+									workspaceId={workspace.id}
+									stoppedAt={stoppedAt}
+								/>
+							)}
 						</div>
 						{agent.status === "connected" && (
 							<>
@@ -586,40 +595,16 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 									template={template}
 								/>
 							)}
+						{/* Platform: connected to its owner's Cloud Drive (a HUD of it on hover), left of the Lock Down shield */}
+						{agent.status === "connected" && (
+							<CloudDriveGlyph workspace={workspace} />
+						)}
 						{/* Platform: admins' Lock Down badge and its menu, right of Open Ports */}
 						<LockdownBadge workspace={workspace} />
 					</div>
 				</header>
 
 				<div className="flex flex-col gap-8 px-8 pt-8 pb-12">
-					{/* Platform: under the header, above the apps: the network's last minute under the workspace's name, how long
-					    the workspace has been on under Open Ports; two pills of one size */}
-					{agent.status === "connected" && (
-						<div className="-my-4 flex items-center justify-between gap-3 empty:hidden">
-							<AgentNetworkPill
-								agentId={agent.id}
-								workspaceId={workspace.id}
-								stoppedAt={stoppedAt}
-							/>
-							<span className="ml-auto flex items-center gap-2 empty:hidden">
-								{/* Platform: connected to its owner's Cloud Drive (a HUD of it on hover), left of the uptime */}
-								<CloudDriveGlyph workspace={workspace} />
-								{/* Platform: no contact with Coder - not counting on as if it ran, greyed */}
-								<span
-									className={cn(
-										"inline-flex",
-										contactLost && "opacity-60 grayscale",
-									)}
-									data-stale={contactLost || undefined}
-								>
-									<WorkspaceUptime
-										workspace={workspace}
-										stoppedAt={contactLostAt ?? undefined}
-									/>
-								</span>
-							</span>
-						</div>
-					)}
 					{workspace.latest_app_status?.agent_id === agent.id && (
 						<section>
 							<h3 className="sr-only">App statuses</h3>
@@ -1074,7 +1059,28 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 						}),
 					]}
 				/>
-				{footer}
+				{/* Platform: the Uptime pill at the far right of the Build timeline footer (BuildFooterEnd) */}
+				<BuildFooterEnd.Provider
+					value={
+						agent.status === "connected" && (
+							// no contact with Coder - not counting on as if it ran, greyed
+							<span
+								className={cn(
+									"inline-flex",
+									contactLost && "opacity-60 grayscale",
+								)}
+								data-stale={contactLost || undefined}
+							>
+								<WorkspaceUptime
+									workspace={workspace}
+									stoppedAt={contactLostAt ?? undefined}
+								/>
+							</span>
+						)
+					}
+				>
+					{footer}
+				</BuildFooterEnd.Provider>
 			</div>
 		</AgentBorderFx>
 	);

@@ -24,6 +24,31 @@ const parse = (value: string): [number, number] | null => {
 const MIN_PEAK = 1024;
 const W = 104;
 const H = 16;
+/** "08:10–08:15" on the pill; "Oct 22, 08:10:12 – 08:15:12" in its tooltip (this browser's time). */
+export const spanText = (from: number, to: number) => {
+	const hm = (t: number) =>
+		new Date(t).toLocaleTimeString(undefined, {
+			hour: "2-digit",
+			minute: "2-digit",
+			hour12: false,
+		});
+	const hms = (t: number) =>
+		new Date(t).toLocaleTimeString(undefined, {
+			hour: "2-digit",
+			minute: "2-digit",
+			second: "2-digit",
+			hour12: false,
+		});
+	const day = new Date(from).toLocaleDateString(undefined, {
+		month: "short",
+		day: "numeric",
+	});
+	return {
+		short: `${hm(from)}–${hm(to)}`,
+		long: `${day}, ${hms(from)} – ${hms(to)}`,
+	};
+};
+
 /** What the pill shows: the last 5 minutes (the platform service keeps them, so a page opens with them). */
 export const PILL_WINDOW_MS = 300_000;
 /** How often the window slides on its own (readings or not). */
@@ -171,13 +196,16 @@ export const AgentNetworkPill: React.FC<{
 		return null;
 	}
 	const now = history[history.length - 1];
-	const bars = locked ? [] : pillBars(history, stoppedAt ?? clock);
+	const end = stoppedAt ?? clock;
+	const bars = locked ? [] : pillBars(history, end);
+	// the graph's span, as it is: from its first bar's time to its last's
+	const span = spanText(end - PILL_WINDOW_MS, end);
 	const label = locked
 		? "Network locked down: nothing gets in or out but Coder's own connection"
 		: stopped
-			? "Network: no live readings (no contact with the workspace) - the last 5 minutes as they were"
+			? `Network: no live readings (no contact with the workspace) - ${span.long} as it was`
 			: now
-				? `Network, the last 5 minutes: now ↓ ${formatRate(now.rx)} received · ↑ ${formatRate(now.tx)} sent`
+				? `Network, ${span.long}: now ↓ ${formatRate(now.rx)} received · ↑ ${formatRate(now.tx)} sent`
 				: "Network: waiting for the second reading";
 
 	return (
@@ -191,14 +219,14 @@ export const AgentNetworkPill: React.FC<{
 					data-stopped={stopped || undefined}
 					className={cn(
 						WORKSPACE_PILL,
-						"px-3 transition-[filter,opacity] duration-500",
+						"w-auto gap-2 px-3 transition-[filter,opacity] duration-500",
 						stopped && "opacity-60 grayscale",
 					)}
 				>
 					<svg
 						viewBox={`0 0 ${W} ${H}`}
 						preserveAspectRatio="none"
-						className="block h-4 w-full overflow-visible"
+						className="block h-4 w-[110px] shrink-0 overflow-visible"
 						aria-hidden
 					>
 						<line
@@ -235,6 +263,14 @@ export const AgentNetworkPill: React.FC<{
 							</g>
 						))}
 					</svg>
+					{!locked && (
+						<span
+							data-testid="agent-network-span"
+							className="shrink-0 text-[10px] leading-none tabular-nums"
+						>
+							{span.short}
+						</span>
+					)}
 				</span>
 			</TooltipTrigger>
 			<TooltipContent>{label}</TooltipContent>
