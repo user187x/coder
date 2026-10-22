@@ -22,6 +22,8 @@ export const REFRESH_MS = 3000;
 export const HOLD_MS = 800;
 /** The widest a name gets (px) before it is cut short: the template pills line up after the widest name up to this. */
 const NAME_MAX = 120;
+/** ... and the narrowest it is made to give room to the pills (px). */
+const NAME_MIN = 40;
 /** Where this browser keeps the workspaces last chosen for the grid. */
 const GRID_SELECTION_KEY = "platform.workspaceGrid.selected";
 
@@ -195,13 +197,35 @@ export const WorkspacesLatencyMenu: React.FC<{
 			return;
 		}
 		let widest = 0;
+		// the room a name has: its row's width less everything else in it (the widest such), so that in a narrow
+		// menu (a member's) every name gives way alike and the pills stay in one column
+		let room = Number.POSITIVE_INFINITY;
 		for (const span of spans) {
 			const set = span.style.width;
 			span.style.width = "max-content";
 			widest = Math.max(widest, span.offsetWidth);
 			span.style.width = set;
+			const row = span.parentElement;
+			if (row && row.clientWidth > 0) {
+				const style = window.getComputedStyle(row);
+				const others = [...row.children].filter((c) => c !== span);
+				const gap = (Number.parseFloat(style.columnGap) || 0) * others.length;
+				const used = others.reduce(
+					(sum, c) =>
+						sum + Math.max(c.scrollWidth, (c as HTMLElement).offsetWidth),
+					0,
+				);
+				const padding =
+					(Number.parseFloat(style.paddingLeft) || 0) +
+					(Number.parseFloat(style.paddingRight) || 0);
+				room = Math.min(room, row.clientWidth - padding - used - gap);
+			}
 		}
-		setNameWidth(widest > 0 ? Math.min(widest, NAME_MAX) : undefined);
+		setNameWidth(
+			widest > 0
+				? Math.max(NAME_MIN, Math.min(widest, NAME_MAX, room))
+				: undefined,
+		);
 	}, [names, selecting]);
 	const toggle = (id: string) =>
 		setSelected((ids) =>
@@ -420,9 +444,9 @@ export const WorkspacesLatencyMenu: React.FC<{
 										data-workspace-name
 										title={w.name}
 										className={cn(
-											// as wide as the widest name, but giving way in a narrow menu (a member's: no
-											// Controls), every name alike, so the pills stay in one column
-											"min-w-0 shrink truncate",
+											// as wide as the widest name, or the room every row has for it (a member's
+											// narrower menu): every name alike, so the pills stay in one column
+											"min-w-0 shrink-0 truncate",
 											!up && "text-content-secondary",
 										)}
 										style={{ width: nameWidth }}

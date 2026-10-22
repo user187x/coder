@@ -1,8 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import type {
-	WorkspaceAgentListeningPort,
-	WorkspaceApp,
-} from "#/api/typesGenerated";
+import type { WorkspaceApp } from "#/api/typesGenerated";
 import {
 	MockWorkspace,
 	MockWorkspaceAgent,
@@ -124,55 +121,31 @@ describe("any app in a panel", () => {
 		expect(page.getAttribute("sandbox")).not.toMatch(/allow-same-origin/);
 	});
 
-	it("adds an app, a port or a web address from the + tab", () => {
+	it("adds an app from the + tab - apps only, no ports or web addresses", () => {
 		const onAdd = vi.fn();
-		const ports: WorkspaceAgentListeningPort[] = [
-			{ port: 8080, process_name: "vite", network: "tcp" },
-		];
 		render(
 			<AddPanelTab
 				apps={[
 					app({ id: "a", slug: "code-server", display_name: "code-server" }),
 					app({ id: "b", slug: "htop", display_name: "htop", command: "htop" }),
 				]}
-				ports={ports}
-				protocol="https"
 				disabled={false}
 				onAdd={onAdd}
 			/>,
 		);
-		const open = () =>
-			fireEvent.pointerDown(
-				screen.getByRole("button", { name: "Add a panel" }),
-				{
-					button: 0,
-					ctrlKey: false,
-				},
-			);
-		open();
+		fireEvent.pointerDown(screen.getByRole("button", { name: "Add a panel" }), {
+			button: 0,
+			ctrlKey: false,
+		});
 		expect(
 			screen.getByRole("menuitem", { name: /htop.*terminal/ }),
 		).toBeVisible();
-		fireEvent.click(screen.getByRole("menuitem", { name: /8080/ }));
+		expect(screen.queryByText("Open ports")).toBeNull();
+		expect(screen.queryByRole("menuitem", { name: /web address/ })).toBeNull();
+		fireEvent.click(screen.getByRole("menuitem", { name: /code-server/ }));
 		expect(onAdd).toHaveBeenLastCalledWith({
-			kind: "port",
-			port: 8080,
-			protocol: "https",
-			process: "vite",
-		});
-		open();
-		fireEvent.click(screen.getByRole("menuitem", { name: /A web address/ }));
-		fireEvent.change(screen.getByLabelText("Address"), {
-			target: { value: "https://grafana.example.com/d/abc" },
-		});
-		fireEvent.change(screen.getByLabelText("Name (optional)"), {
-			target: { value: "Grafana" },
-		});
-		fireEvent.click(screen.getByRole("button", { name: "Add the panel" }));
-		expect(onAdd).toHaveBeenLastCalledWith({
-			kind: "web",
-			url: "https://grafana.example.com/d/abc",
-			name: "Grafana",
+			kind: "app",
+			slug: "code-server",
 		});
 	});
 });

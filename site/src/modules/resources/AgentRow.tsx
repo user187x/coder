@@ -88,7 +88,6 @@ import {
 } from "#/modules/workspaces/health";
 import { AgentAlert } from "#/pages/WorkspacePage/AgentAlert";
 import { AppStatuses } from "#/pages/WorkspacePage/AppStatuses";
-import { getWorkspaceListeningPortsProtocol } from "#/utils/portForward";
 import { AgentApps, organizeAgentApps } from "./AgentApps/AgentApps";
 import { AgentDevcontainerCard } from "./AgentDevcontainerCard";
 import { AgentExternal } from "./AgentExternal";
@@ -105,7 +104,7 @@ import { AgentSSHButton } from "./SSHButton/SSHButton";
 import { TerminalLink } from "./TerminalLink/TerminalLink";
 import { useAgentContainers } from "./useAgentContainers";
 import { useAgentLogs } from "./useAgentLogs";
-import { canShowPortForwarding, usePortsData } from "./usePortsData";
+import { canShowPortForwarding } from "./usePortsData";
 import { VSCodeDesktopButton } from "./VSCodeDesktopButton/VSCodeDesktopButton";
 import { WildcardHostnameWarning } from "./WildcardHostnameWarning";
 
@@ -331,17 +330,6 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 	const panels = useAgentPanels(workspace.id, agent.name);
 	const [justAdded, setJustAdded] = useState<string>();
 	const panelApps = agent.apps.filter(canBePanel);
-	// Any app goes in a panel: the listening ports too, where port forwarding is offered (as Open ports).
-	const portsOffered = canShowPortForwarding(
-		agent,
-		proxy.preferredWildcardHostname,
-	);
-	const { listeningPorts } = usePortsData(
-		workspace,
-		agent,
-		portsOffered && agent.status === "connected",
-	);
-	const portProtocol = getWorkspaceListeningPortsProtocol(workspace.id);
 	const [selectedLogTab, setSelectedLogTab] = useState("all");
 	const hasAutoSelectedLogTabRef = useRef(false);
 	// Auto-select the first log tab whose script failed and has rendered output.
@@ -705,8 +693,6 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 					addTab={
 						<AddPanelTab
 							apps={panelApps}
-							ports={portsOffered ? (listeningPorts ?? []) : []}
-							protocol={portProtocol}
 							disabled={!appsReady}
 							onAdd={(content) => setJustAdded(panels.add(content))}
 						/>
