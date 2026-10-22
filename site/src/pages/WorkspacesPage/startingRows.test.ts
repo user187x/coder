@@ -10,7 +10,7 @@ import {
 	MockWorkspaceApp,
 	MockWorkspaceResource,
 } from "#/testHelpers/entities";
-import { isStartingUp, markRestarting } from "./startingRows";
+import { isDeleting, isStartingUp, markRestarting } from "./startingRows";
 
 const withBuild = (
 	build: Partial<WorkspaceBuild>,
@@ -152,6 +152,29 @@ describe("isStartingUp", () => {
 		markRestarting("w1", false);
 		expect(
 			isStartingUp(withBuild({ transition: "stop", status: "stopping" })),
+		).toBe(false);
+	});
+});
+
+describe("isDeleting", () => {
+	it("is a delete queued or running, not one done or failed, nor another build", () => {
+		expect(
+			isDeleting(withBuild({ transition: "delete", status: "pending" })),
+		).toBe(true);
+		expect(
+			isDeleting(withBuild({ transition: "delete", status: "deleting" })),
+		).toBe(true);
+		expect(
+			isDeleting(withBuild({ transition: "delete", status: "deleted" })),
+		).toBe(false);
+		expect(
+			isDeleting(withBuild({ transition: "delete", status: "failed" })),
+		).toBe(false);
+		expect(
+			isDeleting(withBuild({ transition: "stop", status: "stopping" })),
+		).toBe(false);
+		expect(
+			isDeleting(withBuild({ transition: "start", status: "running" })),
 		).toBe(false);
 	});
 });

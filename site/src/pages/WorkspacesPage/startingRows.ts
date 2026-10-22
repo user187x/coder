@@ -88,3 +88,15 @@ export const isStartingUp = (
 		),
 	);
 };
+
+/**
+ * Being deleted: its delete build queued or running (startingRows.css: a shine sweeps across its row until it is
+ * gone, or its delete failed).
+ */
+export const isDeleting = (workspace: Workspace): boolean => {
+	const build = workspace.latest_build;
+	return (
+		build.transition === "delete" &&
+		(build.status === "pending" || build.status === "deleting")
+	);
+};

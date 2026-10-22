@@ -84,7 +84,12 @@ import {
 	WorkspaceUpdateDialogs,
 } from "#/modules/workspaces/WorkspaceUpdateDialogs";
 import { getDisplayWorkspaceTemplateName } from "#/utils/workspace";
-import { isStartingUp, markRestarting, useRestarting } from "./startingRows";
+import {
+	isDeleting,
+	isStartingUp,
+	markRestarting,
+	useRestarting,
+} from "./startingRows";
 import { WorkspaceSharingIndicator } from "./WorkspaceSharingIndicator";
 import { WorkspacesEmpty } from "./WorkspacesEmpty";
 import "./startingRows.css";
@@ -407,6 +412,8 @@ const WorkspacesRow: React.FC<WorkspacesRowProps> = ({
 
 	// Started, updated or restarted: a barber pole across the row until it is up or failed (startingRows.ts).
 	const starting = isStartingUp(workspace, useRestarting(workspace.id));
+	// Being deleted: a shine sweeps across the row until it is gone.
+	const deleting = isDeleting(workspace);
 
 	return (
 		<TableRow
@@ -414,10 +421,12 @@ const WorkspacesRow: React.FC<WorkspacesRowProps> = ({
 			data-testid={`workspace-${workspace.id}`}
 			data-hint={`Open ${workspace.name} (a middle-click or Ctrl-click: in a new tab)`}
 			data-starting={starting || undefined}
+			data-deleting={deleting || undefined}
 			aria-busy={starting || undefined}
 			className={cn([
 				checked ? "bg-surface-secondary hover:bg-surface-secondary" : undefined,
 				starting && "workspace-row-starting",
+				deleting && "workspace-row-deleting",
 				clickableProps.className,
 			])}
 		>

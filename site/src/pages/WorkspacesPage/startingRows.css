@@ -38,3 +38,58 @@ tr.workspace-row-starting {
 		animation: none;
 	}
 }
+
+/* A workspace being deleted (startingRows.ts isDeleting): a shine sweeping across its whole row, again and again, over
+   a faint tint of the theme's destructive colour - the shine in the text's colour (light on dark, dark on light), so
+   it shows in either theme. */
+tr.workspace-row-deleting {
+	--workspace-shine: color-mix(
+		in srgb,
+		var(--color-content-primary) 16%,
+		transparent
+	);
+	--workspace-doomed: color-mix(
+		in srgb,
+		var(--color-content-destructive) 8%,
+		transparent
+	);
+	background-image:
+		linear-gradient(
+			to right,
+			transparent 0%,
+			var(--workspace-shine) 50%,
+			transparent 100%
+		),
+		linear-gradient(var(--workspace-doomed), var(--workspace-doomed));
+	background-repeat: no-repeat;
+	background-size:
+		50% 100%,
+		100% 100%;
+	background-position:
+		-100% 0,
+		0 0;
+	animation: workspace-row-shine 1.2s linear infinite;
+}
+
+/* The shine from just off the row's left to just off its right (a 50% wide image: -100% to 200%). */
+@keyframes workspace-row-shine {
+	from {
+		background-position:
+			-100% 0,
+			0 0;
+	}
+	to {
+		background-position:
+			200% 0,
+			0 0;
+	}
+}
+
+:root[data-animations="off"] tr.workspace-row-deleting {
+	animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+	tr.workspace-row-deleting {
+		animation: none;
+	}
+}
