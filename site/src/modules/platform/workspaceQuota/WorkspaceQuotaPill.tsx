@@ -84,13 +84,16 @@ export const WorkspaceQuotaPillView: FC<{ quota: QuotaMe }> = ({ quota }) => {
 	);
 };
 
-/** workspaceCount: the table's - a workspace made or deleted refreshes the pill at once. */
-export const WorkspaceQuotaPill: FC<{ workspaceCount?: number }> = ({
-	workspaceCount,
+/**
+ * workspacesKey: the table's workspaces and their latest builds - one made, deleted, rebuilt (other parameters) or
+ * started refreshes the pill at once; between those it polls (an admin's change to the limits).
+ */
+export const WorkspaceQuotaPill: FC<{ workspacesKey?: string }> = ({
+	workspacesKey,
 }) => {
 	const { data, refetch } = useQuery(quotaMe());
 	useEffect(() => {
 		void refetch();
-	}, [workspaceCount, refetch]);
+	}, [workspacesKey, refetch]);
 	return data ? <WorkspaceQuotaPillView quota={data} /> : null;
 };

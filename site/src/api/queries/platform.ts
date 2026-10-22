@@ -632,7 +632,7 @@ export const quotaReport = () => ({
 export const quotaMe = () => ({
 	queryKey: quotaMeKey,
 	queryFn: PlatformAPI.getQuotaMe,
-	refetchInterval: QUOTA_REFRESH_MS,
+	refetchInterval: 10_000, // the Workspaces table's own idle refresh
 	retry: false,
 });
 
