@@ -44,10 +44,10 @@ export const WorkspaceNav: FC<{
 				onClose();
 			}
 		};
-		document.addEventListener("keydown", onKey);
+		document.addEventListener("keydown", onKey, true);   // before a tooltip takes Escape
 		document.addEventListener("pointerdown", onDown);
 		return () => {
-			document.removeEventListener("keydown", onKey);
+			document.removeEventListener("keydown", onKey, true);
 			document.removeEventListener("pointerdown", onDown);
 		};
 	}, [open, onClose]);
