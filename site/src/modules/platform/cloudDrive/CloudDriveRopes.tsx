@@ -138,7 +138,8 @@ export const CloudDriveRopes: React.FC<{
 	const elements = useRef(new Map<string, SVGGElement>());
 	const [keys, setKeys] = useState<readonly string[]>([]);
 	const animations = useAnimationsEnabled();
-	const ids = workspaceIds.join(",");
+	// the same workspaces in another order (the list re-sorted: one began deleting) are the same cables
+	const ids = [...workspaceIds].sort().join(",");
 	const linkedRef = useRef(new Set(linked));
 	const unattachedRef = useRef(new Set(unattached));
 	const deletingRef = useRef(new Set(deleting));

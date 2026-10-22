@@ -422,6 +422,33 @@ export const WorkspaceTerminal = ({
 							: {}),
 					});
 					const fitAddon = new ghostty.FitAddon();
+					// Platform: the whole width - Ghostty draws its scrollbar over the text, fading, yet its fit keeps 15px
+					// free for one at the right: an empty strip down the panel's right side.
+					const propose = fitAddon.proposeDimensions?.bind(fitAddon);
+					fitAddon.proposeDimensions = () => {
+						if (!propose) {
+							return undefined;
+						}
+						const proposed = propose();
+						const metrics = (
+							ghosttyTerminal as unknown as {
+								renderer?: { getMetrics?: () => { width: number } };
+							}
+						).renderer?.getMetrics?.();
+						const element = ghosttyTerminal.element;
+						if (!proposed || !metrics?.width || !element) {
+							return proposed;
+						}
+						const style = window.getComputedStyle(element);
+						const width =
+							element.clientWidth -
+							(Number.parseInt(style.paddingLeft) || 0) -
+							(Number.parseInt(style.paddingRight) || 0);
+						return {
+							...proposed,
+							cols: Math.max(proposed.cols, Math.floor(width / metrics.width)),
+						};
+					};
 					ghosttyTerminal.loadAddon(fitAddon);
 					setUp(ghosttyTerminal as unknown as Terminal, fitAddon, true);
 				})

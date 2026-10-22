@@ -18,6 +18,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { cn } from "cn";
 import { GripVerticalIcon } from "lucide-react";
 import { useState } from "react";
+import "./agentPanels.css";
 
 // Panels differ a lot in height (an embedded app is hundreds of pixels tall), so
 // the panel under the pointer is the target, not the nearest centre.
@@ -129,7 +130,8 @@ export const AgentPanels: React.FC<AgentPanelsProps> = ({
 	return (
 		<div
 			className={cn(
-				"relative flex flex-col",
+				// Platform: no scrollbars in the panels (they still scroll by wheel, keys and touch): agentPanels.css
+				"agent-panels relative flex flex-col",
 				// The pointer must not disappear into an embedded app while dragging.
 				dragging && "select-none [&_iframe]:pointer-events-none",
 			)}

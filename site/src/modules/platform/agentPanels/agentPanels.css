@@ -1,0 +1,10 @@
+/* The workspace dashboard's panels (Logs, Terminal, apps, ports): no scrollbars in them - a panel's contents still
+   scroll by the wheel, the keys and touch - so nothing narrows or offsets what they show. (An app's own page, in its
+   frame, keeps its own.) */
+.agent-panels,
+.agent-panels * {
+	scrollbar-width: none;
+}
+.agent-panels ::-webkit-scrollbar {
+	display: none;
+}
