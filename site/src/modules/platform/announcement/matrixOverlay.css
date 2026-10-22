@@ -1,0 +1,37 @@
+/* The announcement terminal's "matrix" (MatrixOverlay): the rain over everything, fading in, and out on a key. */
+.matrix-overlay {
+	position: fixed;
+	inset: 0;
+	z-index: 2147483600;
+	background: #000;
+	cursor: none;
+	animation: matrix-in 0.5s ease-out both;
+}
+.matrix-overlay canvas {
+	display: block;
+	width: 100%;
+	height: 100%;
+}
+.matrix-overlay[data-leaving] {
+	animation: matrix-out 0.7s ease-in both;
+}
+@keyframes matrix-in {
+	from {
+		opacity: 0;
+	}
+}
+@keyframes matrix-out {
+	to {
+		opacity: 0;
+	}
+}
+html[data-animations="off"] .matrix-overlay,
+html[data-animations="off"] .matrix-overlay[data-leaving] {
+	animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+	.matrix-overlay,
+	.matrix-overlay[data-leaving] {
+		animation: none;
+	}
+}

@@ -272,3 +272,16 @@ html.platform-sparks-cursor * {
 	background: transparent;
 	text-shadow: 0 0 3px rgb(0 0 0 / 0.85);
 }
+
+/* A command's printed answer (TerminalAnswers): ls's columns, date, whoami, not found. */
+.banner-scroll-out {
+	margin: 2px 0 8px;
+	white-space: pre;
+	color: var(--banner-scroll-ink);
+}
+/* The rm answer's picture and words, gone after 1.5 s (NoNoResponse). */
+@keyframes banner-scroll-fade-out {
+	to {
+		opacity: 0;
+	}
+}

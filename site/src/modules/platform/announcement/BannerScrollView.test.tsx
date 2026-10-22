@@ -104,12 +104,12 @@ describe("BannerScrollView", () => {
 		fireEvent.click(screen.getByTestId("announcement-scroll-toggle"));
 		const view = screen.getByTestId("announcement-scroll-view");
 		expect(document.activeElement).toBe(view);
-		type("lsx");
+		type("rm xx");
 		fireEvent.keyDown(view, { key: "Backspace" });
 		const prompt = screen.getByTestId("announcement-scroll-prompt");
-		expect(prompt.textContent).toBe("root@platform:~# ls");
+		expect(prompt.textContent).toBe("root@platform:~# rm x");
 		fireEvent.keyDown(view, { key: "Enter" });
-		// Every command is answered with the wagging finger, then "ahh ahh ahh..." typed out.
+		// An rm is answered with the wagging finger, then "ahh ahh ahh..." typed out - gone after 1.5 s.
 		const answer = screen.getByTestId("announcement-scroll-nono");
 		expect(answer.querySelector("img")?.getAttribute("src")).toBe("/no-no.gif");
 		const letters = [...answer.querySelectorAll(".banner-scroll-ahh span")];
@@ -123,6 +123,52 @@ describe("BannerScrollView", () => {
 		// An empty line gets no answer.
 		fireEvent.keyDown(view, { key: "Enter" });
 		expect(screen.getAllByTestId("announcement-scroll-nono")).toHaveLength(1);
+		act(() => vi.advanceTimersByTime(2000));
+		expect(screen.queryByTestId("announcement-scroll-nono")).toBeNull();
+	});
+
+	it("answers whoami, date and an unknown command; clear empties the screen", () => {
+		vi.setSystemTime(new Date(2026, 9, 22, 8, 30, 12));
+		render(<Harness />);
+		fireEvent.click(screen.getByTestId("announcement-scroll-toggle"));
+		const view = screen.getByTestId("announcement-scroll-view");
+		const run = (text: string) => {
+			type(text);
+			fireEvent.keyDown(view, { key: "Enter" });
+		};
+		run("whoami");
+		expect(screen.getByTestId("announcement-scroll-whoami")).toHaveTextContent(
+			"Skynet",
+		);
+		run("date");
+		expect(screen.getByTestId("announcement-scroll-date").textContent).toMatch(
+			/^Thu Oct 22 08:30:12 \S+ 2026$/,
+		);
+		run("data");
+		expect(screen.getAllByTestId("announcement-scroll-date")).toHaveLength(2);
+		run("cowsay hi");
+		expect(
+			screen.getByTestId("announcement-scroll-notfound"),
+		).toHaveTextContent("bash: cowsay: command not found");
+		expect(screen.queryByTestId("announcement-scroll-nono")).toBeNull();
+		run("clear");
+		expect(view.querySelectorAll(".banner-scroll-prompt")).toHaveLength(1);
+		expect(view.querySelector("h2")).toBeNull();
+	});
+
+	it("pours the Matrix's rain over the screen for matrix, gone on a key", () => {
+		render(<Harness />);
+		fireEvent.click(screen.getByTestId("announcement-scroll-toggle"));
+		const view = screen.getByTestId("announcement-scroll-view");
+		type("matrix");
+		fireEvent.keyDown(view, { key: "Enter" });
+		act(() => vi.advanceTimersByTime(300));
+		const rain = screen.getByTestId("matrix-overlay");
+		expect(rain.parentElement).toBe(document.body);
+		fireEvent.keyDown(window, { key: "x" });
+		expect(rain).toHaveAttribute("data-leaving", "true");
+		act(() => vi.advanceTimersByTime(800));
+		expect(screen.queryByTestId("matrix-overlay")).toBeNull();
 	});
 
 	it("fades the screen into Skynet when someone types skynet, and glitches out on a key", () => {

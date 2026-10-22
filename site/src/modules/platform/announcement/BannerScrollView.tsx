@@ -14,8 +14,11 @@ import { BrokenScreenOverlay } from "./BrokenScreenOverlay";
 import { bannerFontStack } from "./bannerFonts";
 import { safeHref } from "./bannerTokens";
 import { DotMatrixTime } from "./DotMatrixTime";
+import { enterFullscreen, leaveFullscreen } from "./fullscreen";
+import { MatrixOverlay } from "./MatrixOverlay";
 import { SkynetOverlay } from "./SkynetOverlay";
 import { startSparks } from "./sparksCursor";
+import { type Answer, isRm, TerminalAnswer } from "./TerminalAnswers";
 import "./bannerScrollView.css";
 
 const CLOSE_MS = 220;
@@ -31,36 +34,38 @@ export const RM_RF =
 export const MOUSE = "/dev/mouse";
 /** Run at the prompt: the time now, on a dot-matrix display (DotMatrixTime). */
 export const TIME = "time";
-/** Any other command's answer (site/static/no-no.gif), then this, typed out. */
-const NO_NO_SRC = "/no-no.gif";
-const NO_NO_TEXT = "ahh ahh ahh...";
-/** The typing starts once the picture is up, a letter at a time (the typewriter effect's 45 ms, slowed down). */
-const NO_NO_LEAD_MS = 700;
-const NO_NO_PER_MS = 110;
+/** Run at the prompt: the Matrix's rain over the screen (MatrixOverlay) until a key or the mouse. */
+export const MATRIX = "matrix";
 
-/**
- * The terminal's answer to any command it does not know: a picture printed inline,
- * as image-capable terminals show one (imgcat), then "ahh ahh ahh..." typed out
- * a letter at a time, with the banner's typewriter effect (announce-appear).
- */
-const NoNoResponse: React.FC = () => (
-	<div className="banner-scroll-nono" data-testid="announcement-scroll-nono">
-		<img src={NO_NO_SRC} alt="" width={120} height={120} draggable={false} />
-		<div className="banner-scroll-ahh">
-			{Array.from(NO_NO_TEXT).map((ch, i) => (
-				<span
-					key={i}
-					style={{
-						animation: `announce-appear 1ms linear ${NO_NO_LEAD_MS + i * NO_NO_PER_MS}ms 1 both`,
-					}}
-				>
-					{ch}
-				</span>
-			))}
-		</div>
-	</div>
-);
-
+/** What a command run at the prompt is answered with (TerminalAnswers); "clear" and the effects print nothing. */
+export const answerFor = (command: string): Answer => {
+	const word = command.split(" ")[0];
+	if (
+		!command ||
+		command === MOUSE ||
+		command === MATRIX ||
+		command === "clear" ||
+		RM_RF.test(command)
+	) {
+		return "none";
+	}
+	if (isRm(command)) {
+		return "nono";
+	}
+	if (command === TIME) {
+		return "time";
+	}
+	if (word === "date" || word === "data") {
+		return "date";
+	}
+	if (command === "whoami") {
+		return "whoami";
+	}
+	if (word === "ls") {
+		return "ls";
+	}
+	return "notfound";
+};
 type Rect = { top: number; left: number; width: number };
 
 type BannerScrollViewProps = {
@@ -84,11 +89,14 @@ type BannerScrollViewProps = {
  * Announcement". A click outside it, Escape or the arrow rolls it back up.
  *
  * The message is followed by the one prompt, which takes typing while the view is open (it has the focus), as a
- * terminal would: Backspace, and Enter runs the line - every command it does not know is answered with a wagging
- * finger and "ahh ahh ahh..." (NoNoResponse). Hidden ones: "time" prints the time now on a dot-matrix display
- * (DotMatrixTime, ticking); typing "skynet" rolls the view up and fades the whole screen into Skynet; running
- * "rm -rf *" rolls it up and breaks the screen (BrokenScreenOverlay) until any key; running "/dev/mouse" rolls it up
- * and turns the mouse pointer into sparks (sparksCursor) until any key is pressed.
+ * terminal would: Backspace, and Enter runs the line (TerminalAnswers): "ls" lists the user's workspaces with their
+ * state and uptime, "date" says the date, "whoami" says "Skynet", "clear" empties the screen, "time" prints the time
+ * on a dot-matrix display (DotMatrixTime, ticking); anything starting with "rm" is answered with a wagging finger and
+ * "ahh ahh ahh..." that fade away after 1.5 s (NoNoResponse); anything else is not found. The effects take the whole
+ * screen (fullscreen.ts) while they last: typing "skynet" rolls the view up and fades the screen into Skynet; running
+ * "rm -rf *" breaks the screen (BrokenScreenOverlay) until any key; "matrix" pours the Matrix's rain over it
+ * (MatrixOverlay) until a key or the mouse; "/dev/mouse" turns the mouse pointer into sparks (sparksCursor) until any
+ * key is pressed.
  */
 export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 	banner,
@@ -101,14 +109,30 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 	const [closing, setClosing] = useState(false);
 	const [rect, setRect] = useState<Rect>();
 	const [typed, setTyped] = useState("");
-	const [history, setHistory] = useState<string[]>([]);
+	const [history, setHistory] = useState<{ command: string; answer: Answer }[]>(
+		[],
+	);
+	// "clear": the screen empty, the message too, until the view is opened again
+	const [cleared, setCleared] = useState(false);
 	const [skynet, setSkynet] = useState(false);
 	const [broken, setBroken] = useState(false);
+	const [matrix, setMatrix] = useState(false);
 	const panel = useRef<HTMLDivElement>(null);
 	const body = useRef<HTMLDivElement>(null);
 	const toggle = useRef<HTMLButtonElement>(null);
-	const endSkynet = useCallback(() => setSkynet(false), []);
-	const endBroken = useCallback(() => setBroken(false), []);
+	// Platform: each effect over the whole screen while it lasts (fullscreen.ts)
+	const endSkynet = useCallback(() => {
+		setSkynet(false);
+		leaveFullscreen();
+	}, []);
+	const endBroken = useCallback(() => {
+		setBroken(false);
+		leaveFullscreen();
+	}, []);
+	const endMatrix = useCallback(() => {
+		setMatrix(false);
+		leaveFullscreen();
+	}, []);
 
 	const place = () => {
 		const r = anchor.current?.getBoundingClientRect();
@@ -145,6 +169,7 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 		if (!open) {
 			setTyped("");
 			setHistory([]);
+			setCleared(false);
 		}
 	}, [open, rect]);
 
@@ -163,10 +188,22 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 			setTyped((t) => t.slice(0, -1));
 		} else if (event.key === "Enter") {
 			const command = typed.trim().replace(/\s+/g, " ");
-			setHistory((h) => [...h, command].slice(-MAX_HISTORY));
 			setTyped("");
+			if (command === "clear") {
+				setHistory([]);
+				setCleared(true);
+			} else {
+				setHistory((h) =>
+					[...h, { command, answer: answerFor(command) }].slice(-MAX_HISTORY),
+				);
+			}
 			if (RM_RF.test(command)) {
+				enterFullscreen();
 				setBroken(true);
+				close();
+			} else if (command === MATRIX) {
+				enterFullscreen();
+				setMatrix(true);
 				close();
 			} else if (command === MOUSE) {
 				close();
@@ -177,6 +214,7 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 			const next = (typed + event.key).slice(0, MAX_TYPED);
 			if (next.trim().toLowerCase() === SKYNET) {
 				setTyped("");
+				enterFullscreen();
 				setSkynet(true);
 				close();
 			} else {
@@ -292,23 +330,25 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 							<b>Broadcast Announcement</b>
 						</div>
 						<div ref={body} className="banner-scroll-body">
-							<div
-								className="banner-scroll-text"
-								style={{ fontFamily: bannerFontStack(banner.font) }}
-							>
-								<BannerBlocks
-									message={banner.message}
-									markdown={banner.markdown !== false}
-								/>
-							</div>
-							{history.map((command, i) => (
+							{!cleared && (
+								<div
+									className="banner-scroll-text"
+									style={{ fontFamily: bannerFontStack(banner.font) }}
+								>
+									<BannerBlocks
+										message={banner.message}
+										markdown={banner.markdown !== false}
+									/>
+								</div>
+							)}
+							{history.map(({ command, answer }, i) => (
 								<div key={i} className="banner-scroll-prompt" aria-hidden>
 									<i>root@platform</i>:<em>~</em># {command}
-									{command === TIME ? (
-										<DotMatrixTime />
-									) : (
-										command && command !== MOUSE && <NoNoResponse />
-									)}
+									<TerminalAnswer
+										answer={answer}
+										command={command}
+										time={<DotMatrixTime />}
+									/>
 								</div>
 							))}
 							<div
@@ -325,6 +365,7 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 				)}
 			{skynet && <SkynetOverlay onDone={endSkynet} />}
 			{broken && <BrokenScreenOverlay onDone={endBroken} />}
+			{matrix && <MatrixOverlay onDone={endMatrix} />}
 		</>
 	);
 };
