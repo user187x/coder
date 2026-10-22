@@ -31,7 +31,8 @@ export type Theme = {
 	externalImages: ExternalImageModeStyles;
 };
 
-export const DEFAULT_THEME = "dark";
+// Platform: the install's colour theme (the reference deployment's), for everyone who has not chosen one
+export const DEFAULT_THEME = "dark-tritan";
 
 export const CONCRETE_THEMES = [
 	"dark",
