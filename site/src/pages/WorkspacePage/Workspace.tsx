@@ -1,12 +1,11 @@
-import { BlocksIcon, HistoryIcon } from "lucide-react";
 import { useRef } from "react";
 import type * as TypesGen from "#/api/typesGenerated";
-import { SidebarIconButton } from "#/components/FullPageLayout/Sidebar";
 import { isEmbeddedFrame } from "#/contexts/platformBoot";
 import { useSearchParamsKey } from "#/hooks/useSearchParamsKey";
 import { linkToTemplate, useLinks } from "#/modules/navigation";
 import { LockdownBanner } from "#/modules/platform/lockdown/Lockdown";
 import { useReportEmbeddedSize } from "#/modules/platform/workspaceGrid/embeddedSize";
+import { WorkspaceNav } from "#/modules/platform/workspaceNav/WorkspaceNav";
 import { WorkspaceNotesButton } from "#/modules/platform/workspaceNotes/WorkspaceNotesButton";
 import { ProvisionerStatusAlert } from "#/modules/provisioners/ProvisionerStatusAlert";
 import { AgentRow } from "#/modules/resources/AgentRow";
@@ -216,72 +215,57 @@ export const Workspace: React.FC<WorkspaceProps> = ({
 
 	return (
 		<div className="flex flex-col flex-1 min-h-0">
-			<WorkspaceTopbar
-				workspace={workspace}
-				template={template}
-				permissions={permissions}
-				latestVersion={latestVersion}
-				isUpdating={isUpdating}
-				isRestarting={isRestarting}
-				handleStart={handleStart}
-				handleStop={handleStop}
-				handleRestart={handleRestart}
-				handleUpdate={handleUpdate}
-				handleCancel={handleCancel}
-				handleRetry={handleRetry}
-				handleDebug={handleDebug}
-				handleDormantActivate={handleDormantActivate}
-			/>
+			{/* Platform: no left sidebar - its Resources and History open from the top pill (WorkspaceNav), which floats
+			    over the dashboard as wide as it, staying in view as the dashboard scrolls */}
+			<div className="relative flex-1 min-h-0 w-full overflow-y-auto bg-[radial-gradient(circle_at_1px_1px,hsl(var(--content-disabled))_0,transparent_1px)] bg-position-[-2px_-2px] bg-size-[16px_16px] p-4 pt-3 md:p-8 md:pt-4">
+				<div className="absolute top-0 left-0 right-0 h-32 bg-linear-to-b from-surface-primary to-transparent"></div>
 
-			<div className="flex flex-1 min-h-0">
-				<div className="flex">
-					<div className="flex flex-col h-full overflow-y-auto border-solid border-0 border-r border-r-border">
-						<SidebarIconButton
-							isActive={sidebarOption.value === "resources"}
-							onClick={() => {
-								setSidebarOption("resources");
-							}}
-						>
-							<BlocksIcon className="size-icon-sm" />
-							<span className="sr-only">Resources</span>
-						</SidebarIconButton>
-						<SidebarIconButton
-							isActive={sidebarOption.value === "history"}
-							onClick={() => {
-								setSidebarOption("history");
-							}}
-						>
-							<HistoryIcon className="size-icon-sm" />
-							<span className="sr-only">History</span>
-						</SidebarIconButton>
-						<WorkspaceNotesButton workspace={workspace} />
-					</div>
-
-					{sidebarOption.value === "resources" && (
-						<ResourcesSidebar
-							failed={workspace.latest_build.status === "failed"}
-							resources={resources}
-							isSelected={resourcesNav.isSelected}
-							onChange={resourcesNav.select}
+				<div className="relative z-10">
+					<WorkspaceTopbar
+						workspace={workspace}
+						template={template}
+						permissions={permissions}
+						latestVersion={latestVersion}
+						isUpdating={isUpdating}
+						isRestarting={isRestarting}
+						handleStart={handleStart}
+						handleStop={handleStop}
+						handleRestart={handleRestart}
+						handleUpdate={handleUpdate}
+						handleCancel={handleCancel}
+						handleRetry={handleRetry}
+						handleDebug={handleDebug}
+						handleDormantActivate={handleDormantActivate}
+						navigation={
+							<WorkspaceNav
+								value={sidebarOption.value}
+								onToggle={setSidebarOption}
+								onClose={sidebarOption.deleteValue}
+								extra={<WorkspaceNotesButton workspace={workspace} />}
+								panels={{
+									resources: (
+										<ResourcesSidebar
+											failed={workspace.latest_build.status === "failed"}
+											resources={resources}
+											isSelected={resourcesNav.isSelected}
+											onChange={(r) => {
+												resourcesNav.select(r);
+												sidebarOption.deleteValue();
+											}}
+										/>
+									),
+									history: <HistorySidebar workspace={workspace} />,
+								}}
+							/>
+						}
+					/>
+					{selectedResource && (
+						<ResourceMetadata
+							resource={selectedResource}
+							className="mb-6 overflow-hidden rounded-2xl"
 						/>
 					)}
-					{sidebarOption.value === "history" && (
-						<HistorySidebar workspace={workspace} />
-					)}
-				</div>
-
-				<div className="relative w-full overflow-y-auto bg-[radial-gradient(circle_at_1px_1px,hsl(var(--content-disabled))_0,transparent_1px)] bg-position-[-2px_-2px] bg-size-[16px_16px] p-4 md:p-8">
-					<div className="absolute top-0 left-0 right-0 h-32 bg-linear-to-b from-surface-primary to-transparent"></div>
-
-					<div className="relative z-10">
-						{selectedResource && (
-							<ResourceMetadata
-								resource={selectedResource}
-								className="-mx-4 -mt-4 mb-6 md:-mx-8 md:-mt-8"
-							/>
-						)}
-						{dashboard}
-					</div>
+					{dashboard}
 				</div>
 			</div>
 		</div>

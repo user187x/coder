@@ -58,6 +58,8 @@ type WorkspaceTopbarProps = {
 	handleDormantActivate: () => void;
 	handleRetry: (buildParameters?: TypesGen.WorkspaceBuildParameter[]) => void;
 	handleDebug: (buildParameters?: TypesGen.WorkspaceBuildParameter[]) => void;
+	/** Platform: the page's Resources / History toggles (the former left sidebar), at the pill's start. */
+	navigation?: React.ReactNode;
 };
 
 export const WorkspaceTopbar: React.FC<WorkspaceTopbarProps> = ({
@@ -75,6 +77,7 @@ export const WorkspaceTopbar: React.FC<WorkspaceTopbarProps> = ({
 	handleDormantActivate,
 	handleRetry,
 	handleDebug,
+	navigation,
 }) => {
 	const workspaceIcon = useWorkspaceIcon(workspace);
 	const { entitlements, organizations, showOrganizations } = useDashboard();
@@ -116,7 +119,12 @@ export const WorkspaceTopbar: React.FC<WorkspaceTopbarProps> = ({
 	);
 
 	return (
-		<Topbar className="[grid-area:topbar] flex-wrap gap-y-2">
+		// Platform: a floating oval pill as wide as the dashboard under it, all its parts kept; it stays in view as the
+		// dashboard scrolls (sticky), and the Resources / History lists drop from it
+		<Topbar
+			className="[grid-area:topbar] sticky top-3 z-30 mb-5 flex-wrap gap-y-2 rounded-full border border-solid border-border bg-surface-primary/85 px-2 shadow-lg backdrop-blur-md max-md:rounded-3xl"
+			data-testid="workspace-topbar"
+		>
 			<Tooltip>
 				<TooltipTrigger asChild>
 					<TopbarIconButton asChild>
@@ -127,6 +135,8 @@ export const WorkspaceTopbar: React.FC<WorkspaceTopbarProps> = ({
 				</TooltipTrigger>
 				<TooltipContent side="bottom">Back to workspaces</TooltipContent>
 			</Tooltip>
+
+			{navigation}
 
 			<div className="flex items-center gap-y-6 gap-x-2 flex-wrap px-3 py-2 mr-auto">
 				<TopbarData className="flex-wrap">
