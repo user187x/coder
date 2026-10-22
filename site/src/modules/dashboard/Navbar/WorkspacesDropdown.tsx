@@ -16,7 +16,10 @@ import {
  * selected theme (black on light, white on dark), and the word "Resources";
  * each item has its icon before it.
  */
-export const WorkspacesDropdown: React.FC = () => {
+/** Platform: images - the admins' Images (only they see it). */
+export const WorkspacesDropdown: React.FC<{ images?: boolean }> = ({
+	images = false,
+}) => {
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>
@@ -50,12 +53,14 @@ export const WorkspacesDropdown: React.FC = () => {
 							Templates
 						</Link>
 					</DropdownMenuItem>
-					<DropdownMenuItem asChild>
-						<Link to="/images">
-							<ContainerIcon aria-hidden />
-							Images
-						</Link>
-					</DropdownMenuItem>
+					{images && (
+						<DropdownMenuItem asChild>
+							<Link to="/images">
+								<ContainerIcon aria-hidden />
+								Images
+							</Link>
+						</DropdownMenuItem>
+					)}
 				</nav>
 			</DropdownMenuContent>
 		</DropdownMenu>

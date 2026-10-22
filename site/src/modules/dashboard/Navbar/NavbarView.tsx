@@ -87,7 +87,9 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 				items={{
 					workspaces: (
 						<nav className="flex items-center h-full">
-							<WorkspacesDropdown />
+							<WorkspacesDropdown
+								images={Boolean(adminPermissions.canEditDeployment)}
+							/>
 						</nav>
 					),
 					banner: <AnnouncementBanner placement="navbar" />,

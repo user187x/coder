@@ -63,6 +63,7 @@ export const Navbar: React.FC = () => {
 				canViewAuditLog,
 				canViewConnectionLog,
 				canViewHealth,
+				canEditDeployment: permissions.editDeploymentConfig,
 			}}
 			adminQuickLinks={{
 				pages: adminPages,

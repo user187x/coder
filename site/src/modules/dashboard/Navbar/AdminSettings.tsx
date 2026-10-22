@@ -50,6 +50,8 @@ export type AdminSettingsPermissions = {
 	canViewAuditLog?: boolean;
 	canViewConnectionLog?: boolean;
 	canViewHealth?: boolean;
+	/** Platform: may change the deployment's settings - the admins, who alone see Images. */
+	canEditDeployment?: boolean;
 };
 
 /**

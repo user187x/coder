@@ -343,6 +343,9 @@ const ProvisionerJobsPage = lazy(
 
 const CoderCupPage = lazy(() => import("./pages/CoderCupPage/CoderCupPage"));
 const ImagesPage = lazy(() => import("./pages/ImagesPage/ImagesPage"));
+
+import { RequireImagesAccess } from "./pages/ImagesPage/imagesAccess";
+
 const ImageDetailPage = lazy(
 	() => import("./pages/ImagesPage/ImageDetailPage"),
 );
@@ -470,7 +473,8 @@ export const router = createBrowserRouter(
 						{templateRouter()}
 					</Route>
 
-					<Route path="/images">
+					{/* Platform: admins only */}
+					<Route path="/images" element={<RequireImagesAccess />}>
 						<Route index element={<ImagesPage />} />
 						<Route path=":image">
 							<Route index element={<ImageDetailPage />} />

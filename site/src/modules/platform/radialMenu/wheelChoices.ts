@@ -56,7 +56,8 @@ const DASHBOARD: readonly WheelChoice[] = [
 		icon: ContainerIcon,
 		to: "/images",
 		group: "dashboard",
-		allowed: everyone,
+		// Platform: the admins' alone
+		allowed: ({ permissions }) => Boolean(permissions.editDeploymentConfig),
 	},
 	{
 		id: "account",
