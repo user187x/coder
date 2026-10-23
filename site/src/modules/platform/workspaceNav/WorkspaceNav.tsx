@@ -7,8 +7,8 @@ import {
 	TooltipTrigger,
 } from "#/components/Tooltip/Tooltip";
 
-// Platform: the workspace page's former left sidebar, folded into its top pill - Resources and History as a toggle
-// pair at the pill's start, each opening its list as a card that drops from the pill (over the dashboard, not beside
+// Platform: the workspace page's former left sidebar, folded into its top bar - Resources and History as a toggle
+// pair at the bar's start (rounded rectangles, like the bar), each opening its list as a card that drops from it (over the dashboard, not beside
 // it); the admin's note button after them. The page's ?sidebar= link still opens one.
 
 export type WorkspaceNavOption = "resources" | "history";
@@ -44,7 +44,7 @@ export const WorkspaceNav: FC<{
 				onClose();
 			}
 		};
-		document.addEventListener("keydown", onKey, true);   // before a tooltip takes Escape
+		document.addEventListener("keydown", onKey, true); // before a tooltip takes Escape
 		document.addEventListener("pointerdown", onDown);
 		return () => {
 			document.removeEventListener("keydown", onKey, true);
@@ -57,7 +57,7 @@ export const WorkspaceNav: FC<{
 			<div
 				role="group"
 				aria-label="Workspace panels"
-				className="flex items-center gap-0.5 rounded-full bg-surface-secondary p-0.5"
+				className="flex items-center gap-0.5 rounded-md bg-surface-secondary p-0.5"
 			>
 				{OPTIONS.map(({ value: v, label, icon: Icon }) => (
 					<Tooltip key={v}>
@@ -69,7 +69,7 @@ export const WorkspaceNav: FC<{
 								data-testid={`workspace-nav-${v}`}
 								onClick={() => onToggle(v)}
 								className={cn(
-									"flex size-7 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 text-content-secondary transition-colors hover:text-content-primary",
+									"flex size-7 cursor-pointer items-center justify-center rounded-sm border-0 bg-transparent p-0 text-content-secondary transition-colors hover:text-content-primary",
 									value === v &&
 										"bg-surface-primary text-content-primary shadow-sm",
 								)}
