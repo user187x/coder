@@ -1,0 +1,16 @@
+PASS admin signs in - 201
+PASS apt check answers offline (no mirror: nothing available) without hanging - 200 in 138s
+PASS image created (base: the bundled workspace image) - 200 {'image': {'id': 'e2e-offline-76766', 'name': 'e2e-offline-76766', 'description': 'air-gap e2e', 'createdBy': 'admin', 'createdAt': '2026-10-13T07:32:46Z', 'updatedBy': 'admin', 'updatedAt': '2026-10-
+PASS a .deb uploaded - 200 {'file': {'name': 'e2e-hello_1.0_all.deb', 'size': 556, 'sha256': 'ab364507e164d684a94413f896f50e17b26e6703600c829cd3daca5c33465849'}}
+PASS spec saved - 200 {'image': {'id': 'e2e-offline-76766', 'name': 'e2e-offline-76766', 'description': 'air-gap e2e', 'createdBy': 'admin', 'createdAt': '2026-10-13T07:32:46Z', 'updatedBy': 'admin', 'updatedAt': '2026-10-13T07:32:46Z', 'version': 0, 'status': 'draft', 'ref': None, 'digest': None, 'size': None, 'builtAt'
+PASS build started - 200 {'build': 3}
+PASS build finished: built, pushed, scanned, checked - all offline - ready Ready: localhost:5000/coder-images/e2e-offline-76766:1 
+INFO steps: prepare=None, base=None, debs=None, install-hello=None, config=None, fips=None, harden=None, finish=None, push=None, scan=None, checks=None
+PASS scan report made offline (vulnerabilities graded with the bundled database) - {"vulnerabilities": {"counts": {"CRITICAL": 1, "HIGH": 67, "MEDIUM": 2917, "LOW": 130, "UNKNOWN": 43}, "total": 3158, "fixable": 187, "top": [{"id": "CVE-2026-102422", "pkg": "shell-quote", "installed": "1.10.0", "fixed": "1.11.0", "severity": "CRITICAL", "title": "shell-quote: shell-quote: Arbitrar {}
+PASS pull reference for templates - localhost:5000/coder-images/e2e-offline-76766:1
+PASS GNOME without an apt mirror is refused up front, with the reason - 400 {'error': 'The GNOME desktop needs packages that are not in the apt sources (gnome-session-flashback, gnome-panel, metacity, gnome-terminal, nautilus, gnome-settings-daemon, dbus-x11, adwaita-icon-theme): set your apt mirror in Images > Settings, or keep the XFCE desktop (it needs no download).'}
+PASS an apt package without a mirror is refused up front - 400 {'error': "'htop' is not in the apt sources: upload its .deb or install it manually."}
+PULLREF=localhost:5000/coder-images/e2e-offline-76766:1
+
+11/11 checks passed
+PASS the node pulled and ran the built image (localhost:5000/coder-images/e2e-offline-76766:1): built image content ok

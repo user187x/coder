@@ -1,0 +1,34 @@
+{{- include "coder-workspace.platform.values" . -}}
+{{- /*
+The Cloud Drive's state for the workspace templates (files/main.tf: data.kubernetes_config_map_v1.cloud_drive): Coder's
+provisioner, which runs as Coder's service account, reads the ConfigMap the platform service keeps (coder-cloud-drive:
+the workspaces shared with others, which mount no Cloud Drive; each account's source workspace) when a workspace starts.
+*/ -}}
+{{- with (.Values.global.userStorage | default dict) }}{{ if eq (toString .enabled) "true" }}
+{{- $ns := $.Values.namespace | default $.Release.Namespace }}
+{{- $name := printf "%s-cloud-drive" (include "coder-workspace.prefix" $) }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $name }}
+  namespace: {{ $ns }}
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    resourceNames: ["coder-cloud-drive"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $name }}
+  namespace: {{ $ns }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $name }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $.Values.nifiRoute.coderServiceAccount }}
+    namespace: {{ $ns }}
+{{- end }}{{ end }}

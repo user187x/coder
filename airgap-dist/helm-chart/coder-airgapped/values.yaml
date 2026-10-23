@@ -1,0 +1,723 @@
+# coder-airgapped. The defaults follow the reference cluster (captured 2026-10-09) except where CHANGELOG.md says
+# otherwise (e.g. public image sources, the default admin, a blank banner).
+# Any release name, any namespace: e.g. helm install coder-fork <chart> -n coder-fork --create-namespace -f values.yaml.
+#
+# For another cluster set `global:` (domain, registry, OIDC, secret names, first user, gateway) - from -f my-values.yaml
+# or from an Argo CD Application (../argocd/coder-airgapped-application.yaml). String values anywhere below may hold
+# templates such as 'coder.{{ .Values.global.domain }}' (rendered by the chart; plain strings inside lists are not).
+
+# ---------------------------------------------------------------------------------------------------------------
+# Shared settings: every component reads these (Helm passes `global` to all subcharts).
+# ---------------------------------------------------------------------------------------------------------------
+global:
+  # The Argo CD decorator install (../argocd/coder-decorated-application.yaml) uses two charts packaged from this one
+  # (../mirror-images.sh decorator-charts): coder-airgapped-base, a plain Coder, and coder-airgapped-layer, the
+  # customizations decorating it, which can be removed again. This chart, coder-airgapped, is both in one.
+  decorator:
+    # Set by the packaging (leave it): all = this chart; base = Coder, its database and its first owner; layer = the
+    # rest (the platform service, workspace template and icons, image builder, metrics-server, admins' kubectl).
+    part: all
+    # Read by the base only: the layer is installed alongside it, so Coder runs the fork's image with the platform's
+    # settings. false: upstream Coder (coderImages.upstream), which is what remains when the layer is removed.
+    layer: true
+  # Coder's server image: the fork's (this chart, and the base with the layer), or upstream Coder at the fork's base
+  # (the base without the layer; also the rollback image). Both are "-airgap": the image plus a Terraform provider
+  # mirror (development/airgap-image), without which templates cannot be pushed or built offline.
+  coderImages:
+    fork:
+      # The fork's 2.0.0-platform.108 (development/coder-fork/FORK.md)
+      repo: ghcr.io/user187x/coder-platform
+      tag: 2.0.0-platform.108-airgap
+    upstream:
+      repo: ghcr.io/user187x/coder-upstream
+      tag: 2.38.0-main.70bc2e554-airgap
+  # Base domain. Coder: https://coder.<domain>, workspace apps: *.<domain>, OIDC default: https://keycloak.<domain>/...
+  domain: grey-marshall.com
+  coderHost: ""                # "" = coder.<domain>
+  wildcardHost: ""             # "" = *.<domain>   (CODER_WILDCARD_ACCESS_URL and the HTTPRoute's second hostname)
+  # Registry every image is pulled from, laid out as ../mirror-images.sh push leaves it (<registry>/<path without the
+  # source host>, e.g. <registry>/user187x/coder-platform). "" = each image's own registry (as on the reference cluster).
+  registry: ""
+  imagePullSecrets: []         # e.g. [{name: registry-pull}]; used wherever a component sets none of its own
+  # Platform HA (../../docs/adr/0001-platform-ha.md): the platform's own high availability for Coder's control plane,
+  # without the Enterprise license. "off" (default): none of it runs. "registry": each Coder replica holds a lease in
+  # PostgreSQL (schema platform_ha) under an epoch and fences itself when it cannot renew it; nothing else changes.
+  # "activeStandby" (coder.coder.replicaCount >= 2): one Coder serves at a time - the pod holding the active lease,
+  # which the Service selects by its label coder-airgapped/ha-role=active; the others wait, warm, without starting
+  # Coder, and take over when its lease lapses (a crash: about a lease, 10 s) or by a handover in its preStop (a
+  # rolling update: the successor starts Coder and takes traffic before the leader lets go). Probes then use the
+  # replica's health port, 2113; Coder may read and label its own pods (Role coder-platform-ha). Switching an
+  # install that runs to activeStandby costs one Coder start of downtime (the Service moves to the label before a pod
+  # has it). The active/active mode comes in a later phase.
+  platformHA:
+    mode: "off"
+    # The replicas' cell (one DERP region in active/active).
+    cell: "a"
+    # A lease's length unrenewed, and how often it is renewed (under half of it): a replica that cannot renew fences
+    # itself a full interval before its lease can end.
+    leaseTTL: 10s
+    renewInterval: 3s
+    # activeStandby: how long a leader leaving (a rolling update's preStop) waits for its successor to serve before it
+    # lets go anyway - inside the pod's 60 s grace period, with room for Coder's own shutdown.
+    handoverTimeout: 40s
+  # Gateway API Gateway with an HTTPS listener for coder.<domain> and *.<domain>.
+  gateway:
+    name: traefik-gateway
+    namespace: ""                # "" = this namespace with global.bundled.traefik, else traefik
+  # The prerequisites the chart installs itself - for one `helm install` on a bare cluster. Leave them off where the
+  # cluster has its own (a second CloudNativePG operator would fight the first one over the database).
+  bundled:
+    traefik: false               # Traefik + the Gateway API CRDs; its Gateway here, on secrets.wildcardTls (values `traefik:`)
+    cloudnativePG: false         # the CloudNativePG operator + its CRDs (values `cloudnative-pg:`)
+  # A cluster with no DNS for the platform's names (minikube, kind, bare metal): true adds rewrite rules for Coder's
+  # host and the wildcard host to the cluster's CoreDNS (kube-system/coredns), pointing at the Gateway's Service, so
+  # pods reach Coder by its URL (workspace agents, Coder's own tailnet); helm uninstall takes them out. Leave it off
+  # where the domain resolves in the cluster.
+  inClusterDNS:
+    enabled: false
+    target: ""                   # "" = the bundled Traefik's Service (bundled.traefik), else traefik.traefik.svc.<clusterDomain>
+    clusterDomain: cluster.local
+  oidc:
+    issuerUrl: ""              # "" = https://keycloak.<domain>/realms/master
+    clientId: coder
+    scopes: openid,profile,email
+    usernameField: preferred_username
+    emailField: email
+    ignoreEmailVerified: "true"
+    allowSignups: "true"
+    signInText: Sign in with your certificate
+    iconUrl: /icon/keycloak.svg
+  # Admins' kubectl and k9s on this cluster, each signed in as themselves. Their workspaces get a kubeconfig whose first
+  # command prints a Keycloak device-login link; the admin signs in in their own browser (with their certificate) and
+  # the cluster sees the person: "<prefix><Keycloak username>", in group "<prefix><group>" (an API server audit log,
+  # where one is turned on, records it). The workspace holds no long-lived credential.
+  # Needs, besides enabled: true,
+  #   - in Keycloak (the realm of oidc.issuerUrl): a public client <clientId> with the OAuth 2.0 device authorization
+  #     grant, a "groups" claim (group membership mapper, plain names), and the group <group>;
+  #   - the cluster's API server trusting that issuer for audience <clientId>, with the username claim
+  #     preferred_username and the groups claim groups, both prefixed with <prefix>.
+  # ./make --deploy does both on Minikube with its development Keycloak; DEPLOY.md shows them for EKS and other
+  # clusters. The chart binds the group to <clusterRole> (ClusterRoleBinding coder-cluster-admins).
+  clusterAccess:
+    enabled: false
+    clientId: kubernetes
+    group: coder-cluster-admins
+    prefix: "keycloak:"
+    clusterRole: cluster-admin
+    # Coder roles that count as admins: their workspaces get the kubeconfig, and (syncGroup) the platform service
+    # keeps the Keycloak group's members equal to the Coder users with one of these roles, whether they sign in to
+    # Coder with Keycloak or a password: each as the Keycloak account with the same email, else the same username
+    # (checked every minute). kubectl signs in with Keycloak either way. Members added in Keycloak by hand are removed.
+    adminRoles: owner
+    syncGroup: true
+  # "false": the admin below signs in with its password, everyone else with Keycloak (they have no password).
+  # "true": Keycloak sign-in only. Coder then refuses every password login (owners too), so the admin is linked to the
+  # Keycloak account with firstUser.email instead and signs in with Keycloak.
+  disablePasswordAuth: "false"
+  # The first owner (admin). On a fresh database the bootstrap Job creates it with this password; change the password
+  # after the first sign-in (Account > Security). Later syncs never reset it.
+  firstUser:
+    username: admin
+    email: admin@admin.com     # "" = <username>@<domain>
+    password: admin
+  database:
+    name: coder-db             # CloudNativePG Cluster; Coder reads Secret <name>-app, the add-ons <name>-ca
+  # Names of the Secrets the components read. The chart creates initAuth and logsDb; the others must exist
+  # (../install.sh --prepare-only makes them from files) unless secrets.<x>.create is true.
+  secretNames:
+    initAuth: coder-init-auth          # email, username, password
+    logsDb: coder-ui-logs-db           # password
+    tlsCa: tls-ca                      # ca.crt: CA of the Gateway certificate (Coder, add-ons, workspaces trust it)
+    oidcCa: keycloaking-coder-ca       # ca.crt: CA of the OIDC provider
+    oidcClient: keycloaking-coder-oidc # client-secret
+    wildcardTls: tls-wild-cert         # kubernetes.io/tls, mounted into Coder
+  # The Cloud Drive: each account's own files on S3, mounted at mountPath in all of its workspaces and opened from
+  # the Workspaces page (userStorage below has the storage itself; admins can point it elsewhere in the dashboard). Here for both charts: the workspace template mounts it.
+  userStorage:
+    enabled: true
+    mountPath: /home/coder/cloud-drive
+
+# ---------------------------------------------------------------------------------------------------------------
+# Coder server: the upstream coder chart 2.37.3 (+ platform patch) running the fork's image. (Argo CD app argocd/coder)
+# ---------------------------------------------------------------------------------------------------------------
+coder:
+  enabled: true
+  coder:
+    image:
+      # global.coderImages: the fork's, or upstream Coder's on a base without the layer (global.decorator)
+      repo: '{{ include "platform.coderImage" (list . "repo") }}'
+      tag: '{{ include "platform.coderImage" (list . "tag") }}'
+      pullSecrets: []
+    # Coder waits for its database first: on a fresh install CloudNativePG is still creating it, and Coder would give
+    # up after its retries and restart once. Its host and port come from the database's app Secret (whose absence
+    # holds the pod back too); the read-write Service takes connections once the primary is up.
+    initContainers:
+      - name: wait-for-database
+        image: '{{ include "platform.image" (list . "docker.io/library/python:3.13-alpine") }}'
+        command:
+          - python3
+          - -c
+          - |
+            import os, socket, time
+            host, port = os.environ["DB_HOST"], int(os.environ["DB_PORT"])
+            while True:
+                try:
+                    socket.create_connection((host, port), 3).close()
+                    break
+                except OSError as e:
+                    print("waiting for the database at %s:%d: %s" % (host, port, e), flush=True)
+                    time.sleep(3)
+        env:
+          - name: DB_HOST
+            valueFrom: {secretKeyRef: {name: '{{ .Values.global.database.name }}-app', key: host}}
+          - name: DB_PORT
+            valueFrom: {secretKeyRef: {name: '{{ .Values.global.database.name }}-app', key: port}}
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 65534
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities: {drop: [ALL]}
+        resources:
+          requests: {cpu: 10m, memory: 16Mi}
+          limits: {memory: 64Mi}
+    # Coder's replicas. More than one is Coder's high availability: the replicas find each other through the database,
+    # relay workspace connections to each other (the chart gives each its pod IP as CODER_DERP_SERVER_RELAY_URL and
+    # CODER_CLUSTER_HOST; they reach each other on TCP 8080 and 6222), and any one of them serves any user. It needs a
+    # Coder license with the high_availability feature: without it, several replicas cannot reach each other's
+    # workspaces. Above 1 the chart adds a PodDisruptionBudget (one replica down at a time). ../values-ha.example.yaml
+    # has the rest (3 replicas across zones, their size, the database's) and DEPLOY.md "High availability" the why.
+    replicaCount: 1
+    # No gap during rollouts. A new pod starts first and must be ready before an old one stops (the defaults: maxSurge
+    # 25% rounds up to 1, maxUnavailable 25% down to 0, with one replica or three). The old pod then keeps serving for
+    # 15 s after it is taken out of the Service, so Traefik stops sending it requests before Coder closes its server
+    # (otherwise those requests get a 502). Well inside terminationGracePeriodSeconds (60).
+    lifecycle:
+      preStop:
+        exec:
+          command: ["/bin/sleep", "15"]
+    # Extra environment appended to `env` (platform patch), so overrides need not repeat the list below, e.g.
+    #   [{name: CODER_TELEMETRY_ENABLE, value: "false"}, {name: CODER_UPDATE_CHECK, value: "false"}]
+    extraEnv: []
+    env:
+    # The platform build asks the add-on service (Health > User Quota) before creating a workspace. This and the next
+    # are the fork's own settings: empty (unset) for upstream Coder, on a base without the layer.
+    - name: CODER_PLATFORM_SERVICE_ROUTES
+      value: '{{ if include "platform.decorated" . }}/__coder-ui=http://coder-ui-updates.{{ .Release.Namespace }}.svc.cluster.local{{ end }}'
+    # The bootstrap Job creates the first owner (firstUser): until it has, Keycloak sign-ins are refused, so nobody
+    # becomes the owner by signing in first.
+    - name: CODER_PLATFORM_FIRST_OWNER
+      value: '{{ if include "platform.decorated" . }}bootstrap{{ end }}'
+    # Templates > Create template starts every new template from the base template (the coder-workspace chart's,
+    # template.name), so each keeps what the platform builds into it: the Cloud Drive, Lock Down, the certificate, the
+    # metrics. The fork's own setting, as the two above.
+    - name: CODER_TEMPLATE_BUILDER_BASE_TEMPLATE
+      value: '{{ if include "platform.decorated" . }}{{ (index .Values "coder-workspace").template.name | default "default" }}{{ end }}'
+    - name: CODER_BOOTSTRAP_INITIAL_USER_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: '{{ .Values.global.secretNames.initAuth }}'
+          key: password
+    - name: CODER_ACCESS_URL
+      value: '{{ include "platform.accessUrl" . }}'
+    - name: CODER_WILDCARD_ACCESS_URL
+      value: '{{ include "platform.wildcardHost" . }}'
+    - name: CODER_NOTIFICATIONS_METHOD
+      value: 'webhook'
+    - name: CODER_NOTIFICATIONS_WEBHOOK_ENDPOINT
+      value: '{{ include "platform.accessUrl" . }}/webhook'
+    - name: CODER_PG_CONNECTION_URL
+      valueFrom:
+        secretKeyRef:
+          name: '{{ .Values.global.database.name }}-app'
+          key: uri
+    # Platform HA (global.platformHA; ../../docs/adr/0001-platform-ha.md): off unless its mode says otherwise.
+    - name: CODER_PLATFORM_HA_MODE
+      value: '{{ .Values.global.platformHA.mode }}'
+    - name: CODER_PLATFORM_HA_CELL
+      value: '{{ .Values.global.platformHA.cell }}'
+    - name: CODER_PLATFORM_HA_LEASE_TTL
+      value: '{{ .Values.global.platformHA.leaseTTL }}'
+    - name: CODER_PLATFORM_HA_RENEW_INTERVAL
+      value: '{{ .Values.global.platformHA.renewInterval }}'
+    - name: CODER_PLATFORM_HA_HANDOVER_TIMEOUT
+      value: '{{ .Values.global.platformHA.handoverTimeout }}'
+    - name: CODER_PLATFORM_HA_POD_NAME
+      valueFrom:
+        fieldRef: {fieldPath: metadata.name}
+    - name: CODER_PLATFORM_HA_POD_IP
+      valueFrom:
+        fieldRef: {fieldPath: status.podIP}
+    - name: CODER_TLS_CA_CERT
+      value: /etc/ssl/certs/ca.crt
+    - name: CODER_OIDC_ISSUER_URL
+      value: '{{ include "platform.oidcIssuer" . }}'
+    - name: CODER_OIDC_CLIENT_ID
+      value: '{{ .Values.global.oidc.clientId }}'
+    # optional: Coder starts before Keycloak is set up (password sign-in only until then); it reads the secret when
+    # it next starts, which ./make --deploy (or install.sh) does once the secret exists.
+    - name: CODER_OIDC_CLIENT_SECRET
+      valueFrom:
+        secretKeyRef:
+          name: '{{ .Values.global.secretNames.oidcClient }}'
+          key: client-secret
+          optional: true
+    - name: CODER_OIDC_SCOPES
+      value: '{{ .Values.global.oidc.scopes }}'
+    - name: CODER_OIDC_USERNAME_FIELD
+      value: '{{ .Values.global.oidc.usernameField }}'
+    - name: CODER_OIDC_EMAIL_FIELD
+      value: '{{ .Values.global.oidc.emailField }}'
+    - name: CODER_OIDC_IGNORE_EMAIL_VERIFIED
+      value: '{{ .Values.global.oidc.ignoreEmailVerified }}'
+    - name: CODER_OIDC_SIGN_IN_TEXT
+      value: '{{ .Values.global.oidc.signInText }}'
+    - name: CODER_OIDC_ICON_URL
+      value: '{{ .Values.global.oidc.iconUrl }}'
+    - name: CODER_OIDC_ALLOW_SIGNUPS
+      value: '{{ .Values.global.oidc.allowSignups }}'
+    - name: SSL_CERT_DIR
+      value: /etc/ssl/certs:/etc/keycloaking/ca
+    - name: CODER_DISABLE_PASSWORD_AUTH
+      value: '{{ .Values.global.disablePasswordAuth }}'
+    - name: CODER_OAUTH2_GITHUB_DEFAULT_PROVIDER_ENABLE
+      value: 'false'
+    volumeMounts:
+    - name: tls-coder-wildcard-tls
+      mountPath: /etc/ssl/certs/coder/coder-wildcard-tls
+      readOnly: true
+    - name: ca-bundle
+      mountPath: /etc/ssl/certs/ca.crt
+      subPath: ca.crt
+    - name: keycloaking-ca
+      mountPath: /etc/keycloaking/ca
+      readOnly: true
+    volumes:
+    - name: tls-coder-wildcard-tls
+      secret:
+        secretName: '{{ .Values.global.secretNames.wildcardTls }}'
+    - name: ca-bundle
+      secret:
+        secretName: '{{ .Values.global.secretNames.tlsCa }}'
+        items:
+        - key: ca.crt
+          path: ca.crt
+    - name: keycloaking-ca
+      secret:
+        secretName: '{{ .Values.global.secretNames.oidcCa }}'
+        optional: true
+    service:
+      type: ClusterIP
+    httproute:
+      enable: true
+      host: '{{ include "platform.coderHost" . }}'
+      wildcardHost: '{{ include "platform.wildcardHost" . }}'
+      parentRefs:
+      - name: '{{ .Values.global.gateway.name }}'
+        namespace: '{{ include "platform.gatewayNamespace" . }}'
+        kind: Gateway
+        group: gateway.networking.k8s.io
+
+# ---------------------------------------------------------------------------------------------------------------
+# Coder's PostgreSQL: a CloudNativePG Cluster (the operator must already be installed). Was an extraTemplate of
+# the Argo CD Application. Coder reads Secret <name>-app (key uri), which the operator creates.
+# ---------------------------------------------------------------------------------------------------------------
+database:
+  enabled: true
+  name: '{{ .Values.global.database.name }}'
+  instances: 2
+  # Explicit so an air-gapped cluster pulls it from its own registry (live: the operator's default, this image).
+  imageName: '{{ include "platform.image" (list . "ghcr.io/cloudnative-pg/postgresql:18.4-system-trixie") }}'
+  primaryUpdateStrategy: unsupervised
+  storage:
+    size: 10Gi
+    # Empty: the cluster's default class (an existing database keeps its own: a Cluster's class cannot change).
+    storageClass: ""
+  # The Cluster's own spec.affinity and spec.resources, as given (empty: the operator's defaults, which keep the
+  # instances on separate nodes when they can). E.g. one instance per zone: {topologyKey: topology.kubernetes.io/zone}.
+  affinity: {}
+  resources: {}
+  # Synchronous replication (the Cluster's spec.postgresql.synchronous), e.g. {method: any, number: 1,
+  # dataDurability: required}: a commit waits for a standby, so a failover loses no committed transaction (needs
+  # instances >= 2; with "required" writes wait while no standby is up, so run 3). Empty: off (asynchronous).
+  synchronous: {}
+  # PgBouncer in front of the database (a CloudNativePG Pooler: <name>-pooler-rw, transaction mode) for the platform's
+  # short clients - code-server HA's relays - so their connections stop counting against max_connections. Coder and
+  # the replicator (its advisory lock) keep connecting to <name>-rw. Its name is added to the database's server
+  # certificate (the relays verify it). Off: as before.
+  pooler:
+    enabled: false
+    instances: 2
+    image: '{{ include "platform.image" (list . "ghcr.io/cloudnative-pg/pgbouncer:1.25.1") }}'
+    # PgBouncer's settings (strings): a pool per user and database; named prepared statements kept per connection.
+    parameters:
+      max_client_conn: "2000"
+      default_pool_size: "20"
+      max_prepared_statements: "200"
+  # Kept on `helm uninstall` / Argo CD prune: the database holds every user, template and workspace.
+  keep: true
+
+# ---------------------------------------------------------------------------------------------------------------
+# Secrets. Names come from global.secretNames. "generated" ones are created with random values on first install
+# and kept afterwards (Helm: lookup; Argo CD: see ignoreDifferences in ../argocd/); the others are created only
+# when `create: true` (otherwise they must exist: ../install.sh --prepare-only makes them from files).
+# ---------------------------------------------------------------------------------------------------------------
+secrets:
+  # First owner (email, username, password) from global.firstUser. The bootstrap Job creates Coder's first user from it.
+  # The password is only usable while global.disablePasswordAuth is "false"; otherwise this owner signs in with
+  # Keycloak (by email).
+  initAuth:
+    name: '{{ .Values.global.secretNames.initAuth }}'
+    create: true
+    email: '{{ include "platform.firstUserEmail" . }}'
+    username: '{{ .Values.global.firstUser.username }}'
+    password: '{{ .Values.global.firstUser.password }}'   # empty = random on first install, then kept
+  # Password of the add-on service's log buffer database.
+  logsDb:
+    name: '{{ .Values.global.secretNames.logsDb }}'
+    create: true
+    password: ""            # empty = random on first install, then kept
+  tlsCa:
+    name: '{{ .Values.global.secretNames.tlsCa }}'
+    create: false
+    caCrt: ""
+  oidcCa:
+    name: '{{ .Values.global.secretNames.oidcCa }}'
+    create: false
+    caCrt: ""
+  oidcClient:
+    name: '{{ .Values.global.secretNames.oidcClient }}'
+    create: false
+    clientSecret: ""
+  wildcardTls:
+    name: '{{ .Values.global.secretNames.wildcardTls }}'
+    create: false
+    tlsCrt: ""
+    tlsKey: ""
+  # No CA and wildcard certificate of yours (tlsCa.caCrt, wildcardTls.tlsCrt/tlsKey empty)? true: the chart makes a CA
+  # and a certificate for the domain, Coder's host and the wildcard host, once, and keeps them (a test install; tell
+  # browsers to trust the CA: kubectl get secret <tlsCa> -o jsonpath='{.data.ca\.crt}' | base64 -d).
+  generateTls: false
+
+# ---------------------------------------------------------------------------------------------------------------
+# First user. On a fresh database nothing else creates it (Coder does not read CODER_BOOTSTRAP_INITIAL_USER_*).
+# A post-install Job creates it from secrets.initAuth before the template is pushed; it does nothing once a
+# user exists.
+# ---------------------------------------------------------------------------------------------------------------
+bootstrap:
+  enabled: true
+  # Any image with python3 (the add-on services' image is reused so there is nothing extra to mirror).
+  image: '{{ include "platform.image" (list . "docker.io/library/python:3.13-alpine") }}'
+  timeoutSeconds: 900
+
+# ---------------------------------------------------------------------------------------------------------------
+# metrics-server: live CPU and memory for the HUD, Health and quotas (templates/metrics-server.yaml). "auto" installs it
+# only where the cluster has no metrics API yet (an existing one, such as the EKS add-on, is left alone); true / false.
+# ---------------------------------------------------------------------------------------------------------------
+metricsServer:
+  enabled: auto
+  image: '{{ include "platform.image" (list . "registry.k8s.io/metrics-server/metrics-server:v0.8.1") }}'
+  # Kubelets with self-signed serving certificates (Minikube, kind; ./make sets it there). Keep false on EKS.
+  kubeletInsecureTLS: false
+  # Its replicas: 2 for high availability (upstream's HA layout: on separate nodes, one down at a time).
+  replicas: 1
+
+# ---------------------------------------------------------------------------------------------------------------
+# Images view (Templates > Images): workspace images built in the cluster (templates/image-builder.yaml). Builds run as
+# Jobs with BuildKit rootless (its pods need seccomp and AppArmor unconfined, nothing more); built images are kept in
+# coder-image-registry and pulled by workspace pods as localhost:<localPort>/coder-images/<name>:<version>.
+# ---------------------------------------------------------------------------------------------------------------
+imageBuilder:
+  enabled: true
+  buildkitImage: '{{ include "platform.image" (list . "docker.io/moby/buildkit:v0.33.0-rootless") }}'
+  # The node proxy's image: any image with python3 (the add-on services' is reused).
+  proxyImage: '{{ include "platform.image" (list . "docker.io/library/python:3.13-alpine") }}'
+  registry:
+    deploy: true
+    image: '{{ include "platform.image" (list . "ghcr.io/user187x/coder-registry:3.1.2-1") }}'
+    size: 50Gi
+    storageClass: ""
+    localPort: 5000
+  # Uploads (.deb files, installation files) and build contexts.
+  files:
+    size: 20Gi
+    storageClass: ""
+  # Each build Job's resources and time limit.
+  build:
+    cpu: "4"
+    memory: 8Gi
+    timeoutMinutes: 60
+  # Where apt packages come from (deb822), for the package check and for the builds themselves. In an air-gapped
+  # network: your internal mirror (it can also be set in the Images view). These are the workspace image's own
+  # (Ubuntu 26.04 "resolute").
+  aptSources: |
+    Types: deb
+    URIs: http://archive.ubuntu.com/ubuntu/
+    Suites: resolute resolute-updates resolute-backports
+    Components: main universe restricted multiverse
+
+    Types: deb
+    URIs: http://security.ubuntu.com/ubuntu/
+    Suites: resolute-security
+    Components: main universe restricted multiverse
+
+# ---------------------------------------------------------------------------------------------------------------
+# code-server high availability (templates/code-server-ha.yaml, files/ui-updates/csha.py). A template turns it on for
+# its workspaces (its code_server_ha variable; off by default): their code-server no longer runs inside the workspace
+# but as a global singleton - one instance per workspace across every cluster that shares Coder's database - which the
+# code-server-replicator of each cluster keeps (replaced when it fails; taken over by another connected, healthy
+# cluster when the workspace's own stops answering), reached through a relay in the workspace's pod; every bit of its
+# state in Coder's database (schema code_server_ha).
+# ---------------------------------------------------------------------------------------------------------------
+codeServerHA:
+  enabled: true
+  # This cluster's name among those that share Coder's database (each runs this chart with a name of its own).
+  cluster: primary
+  # How another cluster's workspaces reach this cluster's code-server instances (a pattern of {service}, {namespace},
+  # {workspace} and {port}: a multi-cluster Service name, a gateway's TCP route). Empty: this cluster takes over no
+  # other cluster's workspaces.
+  endpointExternal: ""
+  # How long an instance's lease lasts unrenewed; another cluster waits as long again before it takes over.
+  leaseSeconds: 30
+  # The operator's replicas in this cluster: one works, the others wait (a lock in PostgreSQL).
+  replicas: 2
+
+# ---------------------------------------------------------------------------------------------------------------
+# The workspace pods' admission webhook (ADR-0002): Lock Down, the cluster's CA, the Cloud Drive and the code-server
+# relay added to ANY workspace's pod as Kubernetes creates it (Coder's own Kubernetes example too) - not spliced into
+# the template's Terraform. The platform service's image (/app/webhook.py), its own Deployment. What a pod already
+# has is left alone, so it runs beside the template decorator until the bake-in replaces it.
+# ---------------------------------------------------------------------------------------------------------------
+platformWebhook:
+  enabled: false
+  replicas: 2
+  # Fail: while no replica answers, workspace pods are refused and their Deployment retries - none starts without
+  # Lock Down. (Ignore would start them without it.)
+  failurePolicy: Fail
+  timeoutSeconds: 5
+  resources:
+    requests: {cpu: 10m, memory: 32Mi}
+    limits: {memory: 96Mi}
+
+# ---------------------------------------------------------------------------------------------------------------
+# The Cloud Drive (global.userStorage.enabled): each account's own storage, a prefix users/<user id>/ in one S3 bucket. The
+# platform service makes every account's volume (a PersistentVolume of the CSI driver below, its claim coder-safe-<id>)
+# and serves the Workspaces page's Cloud Drive; every workspace of the account mounts it (ReadWriteMany). The files are on the
+# chart's MinIO (minio.enabled), or on an S3 service of yours (s3). templates/user-storage.yaml.
+# ---------------------------------------------------------------------------------------------------------------
+userStorage:
+  bucket: coder-user-storage
+  # Each account's limit for what is uploaded on the Workspaces page (files written in a workspace count towards what
+  # it shows, but S3 has no per-prefix quota: the mount is not stopped there).
+  quotaGiB: 10
+  # The largest single upload on the Workspaces page.
+  maxUploadGiB: 5
+  # MinIO in the cluster (one instance on a ReadWriteOnce volume; its credentials: Secret coder-user-storage-s3,
+  # generated). For high availability or more room use an S3 service of yours instead (s3 below).
+  minio:
+    enabled: true
+    # cgr.dev/chainguard/minio (the MinIO project publishes no images since 2025) with its MinIO version as the tag
+    # (development/tools/build-minio-image.sh).
+    image: '{{ include "platform.image" (list . "ghcr.io/user187x/coder-minio:RELEASE.2026-09-22T19-25-18Z") }}'
+    size: 50Gi
+    storageClass: ""
+    resources:
+      requests: {cpu: 50m, memory: 256Mi}
+      limits: {memory: 1Gi}
+  # With minio.enabled false: an S3 service (AWS S3, Ceph, another MinIO...). The bucket must exist or the keys may
+  # create it; existingSecret holds accessKeyID and secretAccessKey.
+  s3:
+    endpoint: ""            # e.g. https://s3.us-east-1.amazonaws.com
+    region: ""
+    existingSecret: ""
+  # The CSI driver that mounts the Cloud Drives on the nodes (k8s-csi-s3 with GeeseFS, Apache-2.0): a privileged DaemonSet
+  # (FUSE), running GeeseFS as a systemd unit of the node so mounts outlive the driver's restarts. Off when the cluster
+  # has the driver (ru.yandex.s3.csi) already.
+  csi:
+    enabled: true
+    image: '{{ include "platform.image" (list . "cr.yandex/crp9ftr22d26age3hulg/yandex-cloud/csi-s3/csi-s3-driver:0.43.7") }}'
+    registrarImage: '{{ include "platform.image" (list . "cr.yandex/crp9ftr22d26age3hulg/yandex-cloud/csi-s3/csi-node-driver-registrar:v2.16.0") }}'
+    kubeletPath: /var/lib/kubelet
+    # GeeseFS per mounted Cloud Drive: its memory (MB, on the node), the files as the workspace user (coder, 1000), and how long
+    # it trusts its listing (files uploaded on the Workspaces page show in workspaces within that).
+    mountOptions: "--memory-limit 256 --dir-mode 0750 --file-mode 0640 --uid 1000 --gid 1000 --stat-cache-ttl 10s"
+    tolerations: []
+    nodeSelector: {}
+
+# ---------------------------------------------------------------------------------------------------------------
+# coder-ui-updates: the platform service under /__coder-ui/ (General, Health, Certificates, Chat, Network,
+# Monitoring, Keycloak, logo, avatars...). Its code: files/ui-updates/, in its image (not in the chart).
+# The platform image renders the UI natively, so no Traefik rewrite middleware is involved for these.
+# ---------------------------------------------------------------------------------------------------------------
+uiUpdates:
+  enabled: true
+  # The service's code (files/ui-updates) in /app of the tools image - the bundled Python with shellcheck, shfmt, trivy
+  # (+ its database) and regctl (development/image-tools), which the Images view lints, formats and scans with -
+  # tagged with the code's hash (development/tools/build-ui-image.sh builds and pins it). The chart carries no code:
+  # Helm keeps each release in a Secret of at most 1 MiB.
+  image: &platformServiceImage '{{ include "platform.image" (list . "ghcr.io/user187x/coder-ui-updates:code-af032ac7b386") }}'
+  imagePullPolicy: IfNotPresent
+  imagePullSecrets: []
+  hostname: '{{ include "platform.coderHost" . }}'
+  accessUrl: '{{ include "platform.accessUrl" . }}'
+  gateway:
+    name: '{{ .Values.global.gateway.name }}'
+    namespace: '{{ include "platform.gatewayNamespace" . }}'
+  adminRoles: owner
+  # Image the Monitoring view's temporary PostgreSQL and CNPG checks use.
+  pgImage: '{{ include "platform.image" (list . "ghcr.io/cloudnative-pg/postgresql:18.4-system-trixie") }}'
+  persistence:
+    size: 1Gi
+    # Empty: the cluster's default class (an existing volume keeps its own: a claim's class cannot change).
+    storageClass: ""
+  resources:
+    requests: {cpu: 10m, memory: 32Mi}
+    limits: {memory: 512Mi}  # the Images builder: apt package lists, streamed image downloads
+  # The Keycloak view reads Keycloak's admin Secret and repairs the client. Disable where Keycloak is elsewhere.
+  keycloak:
+    enabled: true
+    namespace: keycloak
+    adminSecret: keycloak-initial-admin
+  # The Keycloak view reads Coder's Argo CD Application (and edits it only when it uses helm.values with an env
+  # block, i.e. the reference cluster's layout; with helm.valuesObject it reports and changes nothing).
+  argocd:
+    enabled: true
+    namespace: argocd
+    app: '{{ .Release.Name }}'                 # the Application named after the release
+  # The install's look: its backgrounds, each one of the image store's pictures (development/image-store), set once on
+  # a fresh install in the slots no one has set (an admin's change or Reset stays). The default logo and avatar are
+  # ../defaults/logo.* and avatar.*, in the service's image (build-ui-image.sh), the ConfigMaps below over them.
+  appearanceDefaults:
+    backgrounds:
+      login: {picture: minecraft-cube.gif, opacity: 0.09, fit: cover, layer: over}
+      dashboard: {picture: spiral.gif, opacity: 0.03, fit: cover, layer: under}
+  # Default logo / avatar ConfigMaps (binaryData), created by ../install.sh from ../defaults/ (kept out of the
+  # chart: Helm's release record is limited to 1 MiB). Optional mounts: missing ConfigMaps are fine.
+  defaults:
+    logoConfigMap: coder-ui-updates-default-logo
+    avatarConfigMap: coder-ui-updates-default-avatar
+    # Pictures to choose from in the logo and avatar editors (../defaults/gallery/, one ConfigMap each, made by
+    # ../install.sh: <prefix>-1, -2, ...). Slots without a ConfigMap are skipped.
+    galleryConfigMapPrefix: coder-ui-updates-gallery
+    gallerySlots: 8
+  # The workspace template's icons ConfigMap (coder-workspace, <namePrefix>-icons). This service serves them at
+  # https://<coder host>/__icons/<file>; the route is coder-workspace's (icons.backend below points here).
+  templateIconsConfigMap: '{{ index .Values "coder-workspace" "namePrefix" }}-icons'
+  # Buffer database for streamed workspace logs (Monitoring), on an emptyDir.
+  logsDb:
+    image: '{{ include "platform.image" (list . "ghcr.io/cloudnative-pg/postgresql:18.4-system-trixie") }}'
+    resources:
+      requests: {cpu: 20m, memory: 64Mi}
+      limits: {memory: 256Mi}
+
+# ---------------------------------------------------------------------------------------------------------------
+# Workspace template DEFAULT (default) + /__icons/ server (Helm release coder/coder-workspace).
+# ---------------------------------------------------------------------------------------------------------------
+coder-workspace:
+  enabled: true
+  # The Images view's registry as workspace pods pull it (imageBuilder.registry.localPort): the templates' Workspace
+  # image parameter offers its images. "" with imageBuilder.enabled false.
+  imagesRegistry: localhost:5000/coder-images
+  namePrefix: coder-workspace
+  namespace: '{{ .Release.Namespace }}'
+  coder:
+    url: '{{ include "platform.accessUrl" . }}'
+    tokenSecret: coder-workspace-push-token
+    # Push through the in-cluster Service (live pushed via the public URL).
+    internalUrl: 'http://coder.{{ .Release.Namespace }}.svc.cluster.local'
+  # The template push's CLI: the fork's own image (the same coder binary as the server it pushes to; the template is
+  # the layer's, so Coder runs the fork's image whenever this runs), not a separate floating tag.
+  cliImage: '{{ include "platform.image" (list . (printf "%s:%s" .Values.global.coderImages.fork.repo .Values.global.coderImages.fork.tag)) }}'
+  loginImage: '{{ include "platform.image" (list . "docker.io/library/python:3.13-alpine") }}'
+  # The workspace image (development/workspace-image): desktop, JetBrains Mono Nerd Font and tmux preinstalled.
+  # code-server HA (codeServerHA above): the relay a template's workspaces run when it turns code_server_ha on - the
+  # platform service's image - and the Secret with the CA of Coder's database, which the relay checks.
+  codeServerHA:
+    image: *platformServiceImage
+    dbCaSecret: '{{ .Values.global.database.name }}-ca'
+  workspaceImage: '{{ include "platform.image" (list . "ghcr.io/user187x/coder-workspace:1.9.4") }}'
+  imagePullSecrets: []
+  secrets:
+    tlsCa: '{{ .Values.global.secretNames.tlsCa }}'
+    initAuth: '{{ .Values.global.secretNames.initAuth }}'
+  template:
+    name: default
+    displayName: DEFAULT     # where the template has none (one set in the dashboard is kept)
+    icon: /icon/ubuntu.svg
+  # The same workspace with Apache NiFi and Apache Airflow in place of code-server, on its own image.
+  dataflowTemplate:
+    enabled: true
+    name: ubuntu-dataflow
+    displayName: DATAFLOW
+    icon: /icon/ubuntu.svg
+    # Its web terminal: ghostty (the Ghostty app in the Terminal's place, drawn by Ghostty's emulator) or web.
+    terminal: ghostty
+  dataflowImage: '{{ include "platform.image" (list . "ghcr.io/user187x/coder-workspace-dataflow:1.1.4") }}'
+
+  icons:
+    host: ""
+    # Served by the platform service (coder-ui-updates); Traefik routes /__icons/ there - on the platform's own route,
+    # coder-enhanced (templates/ui-updates.yaml), not one of this chart's. No separate web server.
+    httpRoute: false
+    backend:
+      name: coder-ui-updates
+      port: 80
+    gateway:
+      name: '{{ .Values.global.gateway.name }}'
+      namespace: '{{ include "platform.gatewayNamespace" . }}'
+
+# ---------------------------------------------------------------------------------------------------------------
+# The bundled prerequisites (global.bundled): Traefik and the CloudNativePG operator, for one `helm install` on a bare
+# cluster. Off by default; values for their own charts (vendored in charts/). Leave them off where the cluster runs its
+# own Traefik/Gateway or CloudNativePG.
+# ---------------------------------------------------------------------------------------------------------------
+traefik:
+  image:
+    registry: '{{ include "platform.registryHost" (list . "docker.io") }}'
+    repository: traefik
+    tag: v3.7.12
+  # The Gateway the chart's routes attach to (global.gateway.name), in this namespace: HTTP and HTTPS for every host,
+  # on the chart's own wildcard certificate (secrets.wildcardTls - yours, or the one secrets.generateTls makes).
+  gateway:
+    enabled: true
+    name: traefik-gateway
+    listeners:
+      web:
+        port: 8000
+        protocol: HTTP
+        namespacePolicy: {from: All}
+      websecure:
+        port: 8443
+        protocol: HTTPS
+        namespacePolicy: {from: All}
+        certificateRefs:
+          - kind: Secret
+            name: '{{ .Values.global.secretNames.wildcardTls }}'
+  gatewayClass:
+    enabled: true
+    name: traefik
+  # the Gateway API only: the chart uses no Traefik CRD (IngressRoute, Middleware - nothing rewrites a response) and no
+  # Ingress, so neither provider runs and the chart ships no traefik.io CRDs
+  providers:
+    kubernetesGateway:
+      enabled: true
+    kubernetesCRD:
+      enabled: false
+    kubernetesIngress:
+      enabled: false
+  # no IngressClass: it would claim to be the cluster's default
+  ingressClass:
+    enabled: false
+  # How users reach it: LoadBalancer (the cloud's), or NodePort on a cluster without one (minikube, bare metal) - the
+  # HTTPS port is then service.nodePorts / `kubectl get svc`. Pin the NodePorts with ports.websecure.nodePort.
+  service:
+    type: LoadBalancer
+
+cloudnative-pg:
+  image:
+    repository: '{{ include "platform.registryHost" (list . "ghcr.io") }}/cloudnative-pg/cloudnative-pg'
+    tag: "1.30.0"
+  # its CRDs come from its crds/ (Helm installs them first); the database is made once its webhook answers (the
+  # database hook, templates/database-apply.yaml)
+  crds:
+    create: false

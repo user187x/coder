@@ -1,0 +1,15 @@
+NAME                                                          CPU(cores)   MEMORY(bytes)   
+coder-397e492d-1bb8-4d26-9376-5903f1990691-75d456779c-87jlf   51m          414Mi           
+coder-545c76f4c8-r52pq                                        5m           115Mi           
+coder-banner-6f98b44c94-g2nj6                                 3m           20Mi            
+coder-db-1                                                    18m          113Mi           
+coder-db-2                                                    5m           74Mi            
+coder-f77881ea-e42a-4614-ae60-4094cb707c7c-576c95b8b6-6g5bf   51m          392Mi           
+coder-ui-updates-866798b4d7-lb5lq                             2m           42Mi            
+coder-397e492d-1bb8-4d26-9376-5903f1990691-75d456779c-87jlf   0
+coder-545c76f4c8-r52pq                                        0
+coder-banner-6f98b44c94-g2nj6                                 0
+coder-db-1                                                    0
+coder-db-2                                                    0
+coder-f77881ea-e42a-4614-ae60-4094cb707c7c-576c95b8b6-6g5bf   0
+coder-ui-updates-866798b4d7-lb5lq                             0

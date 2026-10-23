@@ -1,0 +1,12 @@
+=== Keycloak stopped, Coder's Keycloak Secrets removed, Coder restarted
+PASS Coder starts without Keycloak and without its Secrets - Running/true Running/true 
+probe: {"login": 201, "oidc": true, "redirect": "https://keycloak.airgap.test/realms/master/protocol/openid-connect/auth?access_t"}
+PASS the admin signs in with the password while Keycloak is down
+=== Secrets back, Keycloak back
+Logging into http://localhost:8080 as user admin of realm master
+Created new client with id '801efdba-9a30-4ab0-832f-01ec6f9300a9'
+Created new user with id 'e35aa2a3-c331-45ff-b11d-36bac90db3d2'
+probe: {"login": 201, "oidc": true, "redirect": "https://keycloak.airgap.test/realms/master/protocol/openid-connect/auth?access_t"}
+PASS with Keycloak back: password sign-in, and the Keycloak sign-in redirects to Keycloak
+
+0 failed

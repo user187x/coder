@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The Serenade desktop theme's panel: Miserable_Xfce's floating dock at the bottom (its panel profile) - applications
+     (rofi), the sidebar (eww), the open windows (docklike), the tray, System stats (eww), notifications and the clock.
+     Its volume control is left out: the workspace image has no sound (nothing reaches the browser over VNC). -->
+<channel name="xfce4-panel" version="1.0">
+  <property name="configver" type="int" value="2"/>
+  <property name="panels" type="array">
+    <value type="int" value="1"/>
+    <property name="dark-mode" type="bool" value="true"/>
+    <property name="panel-1" type="empty">
+      <property name="position" type="string" value="p=10;x=0;y=0"/>
+      <property name="position-locked" type="bool" value="true"/>
+      <property name="length" type="double" value="91.6875"/>
+      <property name="length-adjust" type="bool" value="false"/>
+      <property name="mode" type="uint" value="0"/>
+      <property name="nrows" type="uint" value="1"/>
+      <property name="size" type="uint" value="45"/>
+      <property name="icon-size" type="uint" value="25"/>
+      <property name="enable-struts" type="bool" value="true"/>
+      <property name="autohide-behavior" type="uint" value="0"/>
+      <property name="border-width" type="uint" value="0"/>
+      <property name="enter-opacity" type="uint" value="100"/>
+      <property name="leave-opacity" type="uint" value="100"/>
+      <property name="background-style" type="uint" value="1"/>
+      <property name="background-rgba" type="array">
+        <value type="double" value="0.10196078431372549"/>
+        <value type="double" value="0.10588235294117647"/>
+        <value type="double" value="0.14901960784313725"/>
+        <value type="double" value="1"/>
+      </property>
+      <property name="plugin-ids" type="array">
+        <value type="int" value="1"/>
+        <value type="int" value="2"/>
+        <value type="int" value="3"/>
+        <value type="int" value="4"/>
+        <value type="int" value="5"/>
+        <value type="int" value="6"/>
+        <value type="int" value="7"/>
+        <value type="int" value="8"/>
+      </property>
+    </property>
+  </property>
+  <property name="plugins" type="empty">
+    <property name="plugin-1" type="string" value="launcher">
+      <property name="items" type="array">
+        <value type="string" value="rofi.desktop"/>
+      </property>
+    </property>
+    <property name="plugin-2" type="string" value="launcher">
+      <property name="items" type="array">
+        <value type="string" value="sidebar.desktop"/>
+      </property>
+    </property>
+    <property name="plugin-3" type="string" value="docklike"/>
+    <property name="plugin-4" type="string" value="separator">
+      <property name="expand" type="bool" value="true"/>
+      <property name="style" type="uint" value="0"/>
+    </property>
+    <property name="plugin-5" type="string" value="systray">
+      <property name="icon-size" type="int" value="22"/>
+      <property name="square-icons" type="bool" value="true"/>
+      <property name="single-row" type="bool" value="false"/>
+      <property name="symbolic-icons" type="bool" value="false"/>
+      <property name="menu-is-primary" type="bool" value="true"/>
+    </property>
+    <property name="plugin-6" type="string" value="launcher">
+      <property name="items" type="array">
+        <value type="string" value="sysstat.desktop"/>
+      </property>
+    </property>
+    <property name="plugin-7" type="string" value="notification-plugin"/>
+    <property name="plugin-8" type="string" value="clock">
+      <property name="mode" type="uint" value="2"/>
+      <property name="digital-layout" type="uint" value="3"/>
+      <property name="digital-time-font" type="string" value="Overpass Bold 11"/>
+      <property name="digital-time-format" type="string" value="%H:%M"/>
+    </property>
+  </property>
+</channel>

@@ -1,0 +1,10 @@
+# Terminator's defaults for a home without its own config (/etc/xdg/terminator/config): the workspace's Nerd Font.
+# The desktop themes put their own config in the home (desktop/serenade, desktop/classic), with the same font.
+[global_config]
+  title_hide_sizetext = True
+[profiles]
+  [[default]]
+    font = JetBrainsMono Nerd Font Light 11
+    use_system_font = False
+    show_titlebar = False
+    scrollback_lines = 10000

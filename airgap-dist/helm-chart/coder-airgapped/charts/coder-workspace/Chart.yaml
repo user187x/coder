@@ -1,0 +1,9 @@
+apiVersion: v2
+name: coder-workspace
+description: A Helm chart to deploy a Coder Terraform template
+type: application
+# 0.1.1: 0.1.0 as deployed (release coder/coder-workspace rev 13) plus namePrefix, cliImage, workspaceImage,
+# imagePullSecrets, coder.internalUrl, secrets.{tlsCa,initAuth}, templated values (platform patch), and the push Job's sign-in moved to a python3 init container (loginImage):
+# 0.1.0 used curl + jq, which the coder image does not have, so it only worked with a pre-made token Secret.
+version: 0.1.1-platform.1
+appVersion: "1.0.0"

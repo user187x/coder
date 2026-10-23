@@ -1,0 +1,14 @@
+{{- include "ca.values" . -}}
+coder-airgapped {{ .Chart.Version }} (Coder image {{ .Values.coder.coder.image.repo }}:{{ .Values.coder.coder.image.tag }}) in namespace {{ .Release.Namespace }}.
+
+Open:            {{ .Values.uiUpdates.accessUrl }}
+{{- if eq (toString .Values.global.disablePasswordAuth) "true" }}
+Sign in:         Keycloak (OIDC) only. Owner: the Keycloak account with email {{ .Values.secrets.initAuth.email }}
+{{- else }}
+Sign in:         owner {{ .Values.secrets.initAuth.username }} / {{ .Values.secrets.initAuth.email }} with the password in Secret {{ .Values.secrets.initAuth.name }}
+                 (change it after the first sign-in); everyone else with Keycloak (OIDC)
+{{- end }}
+Database:        kubectl -n {{ .Release.Namespace }} get cluster {{ .Values.database.name }}
+Templates:       pushed by hook Jobs, which are deleted once they succeed: the templates are listed in Coder
+                 (Templates). A push that failed is kept for an hour: kubectl -n {{ .Release.Namespace }} get jobs, then
+                 kubectl -n {{ .Release.Namespace }} logs job/<its name> ({{ index .Values "coder-workspace" "namePrefix" | default .Release.Name }}-push-template...)

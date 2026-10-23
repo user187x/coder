@@ -1,0 +1,322 @@
+{{- include "ca.values" . -}}
+{{- /* The Cloud Drive (global.userStorage.enabled, values userStorage): each account's own files, a prefix users/<user id>/ in
+     one S3 bucket. Here: the bucket's credentials, the chart's MinIO, and the CSI driver that mounts the Cloud Drives into
+     workspace pods. The platform service makes each account's PersistentVolume and claim (files/ui-updates/safe.py). */ -}}
+{{- $g := .Values.global.userStorage | default dict -}}
+{{- $u := .Values.userStorage -}}
+{{- if and (eq (toString $g.enabled) "true") (include "platform.hasLayer" .) .Values.uiUpdates.enabled }}
+{{- $ns := .Release.Namespace }}
+{{- if $u.minio.enabled }}
+{{- /* Its TLS: a CA and a certificate for its Service's names, made once and kept (as the password). MinIO takes an
+     encrypted Cloud Drive's key (SSE-C) over TLS only. */ -}}
+{{- $tlsName := "coder-user-storage-minio-tls" }}
+{{- $tls := lookup "v1" "Secret" $ns $tlsName }}
+{{- $tlsData := dict }}
+{{- if and $tls $tls.data (hasKey $tls.data "tls.crt") (hasKey $tls.data "tls.key") (hasKey $tls.data "ca.crt") }}
+{{- $tlsData = $tls.data }}
+{{- else }}
+{{- $ca := genCA "coder-user-storage CA" 3650 }}
+{{- $svc := "coder-user-storage-minio" }}
+{{- $cert := genSignedCert $svc (list "127.0.0.1") (list $svc (printf "%s.%s" $svc $ns) (printf "%s.%s.svc" $svc $ns) (printf "%s.%s.svc.cluster.local" $svc $ns) "localhost") 3650 $ca }}
+{{- $tlsData = dict "ca.crt" ($ca.Cert | b64enc) "tls.crt" ($cert.Cert | b64enc) "tls.key" ($cert.Key | b64enc) }}
+{{- end }}
+# MinIO's TLS (the platform service checks it with ca.crt; the nodes' mounts of encrypted Cloud Drives reach MinIO by
+# its ClusterIP, which the certificate cannot name, and do not check it). Made on the first install and kept (Argo CD:
+# ignoreDifferences on its /data).
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ $tlsName }}
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.labels" . | nindent 4 }}
+    app.kubernetes.io/name: coder-user-storage
+  annotations:
+    helm.sh/resource-policy: keep
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+type: Opaque
+data:
+  {{- range $k, $v := $tlsData }}
+  {{ $k }}: {{ $v }}
+  {{- end }}
+---
+# The chart's MinIO: its root credentials (the platform service and the CSI driver use them). The password is generated
+# once and kept (Argo CD: ignoreDifferences on /data/password).
+apiVersion: v1
+kind: Secret
+metadata:
+  name: coder-user-storage-s3
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.labels" . | nindent 4 }}
+    app.kubernetes.io/name: coder-user-storage
+  annotations:
+    helm.sh/resource-policy: keep
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+type: Opaque
+stringData:
+  username: coder-user-storage
+  password: {{ include "ca.secretValue" (list "" . "coder-user-storage-s3" "password") | quote }}
+---
+# The files: kept when the chart is removed (helm.sh/resource-policy).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: coder-user-storage-minio
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.labels" . | nindent 4 }}
+    app.kubernetes.io/name: coder-user-storage-minio
+  annotations:
+    helm.sh/resource-policy: keep
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  accessModes: [ReadWriteOnce]
+  {{- with $u.minio.storageClass }}
+  storageClassName: {{ . }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ $u.minio.size }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coder-user-storage-minio
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.labels" . | nindent 4 }}
+    app.kubernetes.io/name: coder-user-storage-minio
+spec:
+  replicas: 1
+  # One volume (ReadWriteOnce): the old pod goes before the new one starts.
+  strategy: {type: Recreate}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: coder-user-storage-minio
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: coder-user-storage-minio
+        app.kubernetes.io/part-of: coder
+    spec:
+      {{- with $.Values.uiUpdates.imagePullSecrets }}
+      imagePullSecrets: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: minio
+          image: {{ $u.minio.image }}
+          # TLS only (an encrypted Cloud Drive's key: SSE-C), on 9443; the bridge below keeps plain HTTP on 9000.
+          args: [server, /data, --address, ":9443", --console-address, ":9001", --certs-dir, /certs]
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom: {secretKeyRef: {name: coder-user-storage-s3, key: username}}
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom: {secretKeyRef: {name: coder-user-storage-s3, key: password}}
+            # Nothing leaves the cluster.
+            - name: MINIO_BROWSER
+              value: "off"
+            - name: MINIO_UPDATE
+              value: "off"
+          ports:
+            - {name: s3-tls, containerPort: 9443}
+          readinessProbe:
+            httpGet: {path: /minio/health/ready, port: s3-tls, scheme: HTTPS}
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /minio/health/live, port: s3-tls, scheme: HTTPS}
+            periodSeconds: 20
+            failureThreshold: 6
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          resources:
+            {{- toYaml $u.minio.resources | nindent 12 }}
+          volumeMounts:
+            - {name: data, mountPath: /data}
+            - {name: tmp, mountPath: /tmp}
+            - {name: certs, mountPath: /certs, readOnly: true}
+        # The plain-HTTP bridge to MinIO's TLS port (port 9000, as before MinIO had TLS): the nodes' unencrypted mounts
+        # and the libraries reach it; bytes both ways, nothing read. An encrypted Cloud Drive's key never takes it.
+        - name: s3-bridge
+          image: {{ $.Values.uiUpdates.image }}
+          imagePullPolicy: {{ $.Values.uiUpdates.imagePullPolicy }}
+          # the platform service's image: its s3-bridge.py (files/ui-updates)
+          command: [python3, /app/s3-bridge.py]
+          env:
+            - {name: BRIDGE_PORT, value: "9000"}
+            - {name: BRIDGE_TARGET_PORT, value: "9443"}
+            - {name: BRIDGE_CA, value: /certs/CAs/ca.crt}
+          ports:
+            - {name: s3, containerPort: 9000}
+          readinessProbe:
+            tcpSocket: {port: s3}
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket: {port: s3}
+            periodSeconds: 20
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          resources:
+            requests: {cpu: 20m, memory: 32Mi}
+            limits: {memory: 128Mi}
+          volumeMounts:
+            - {name: certs, mountPath: /certs, readOnly: true}
+      volumes:
+        - name: data
+          persistentVolumeClaim: {claimName: coder-user-storage-minio}
+        - name: tmp
+          emptyDir: {}
+        # MinIO's --certs-dir layout: public.crt, private.key, CAs/.
+        - name: certs
+          secret:
+            secretName: {{ $tlsName }}
+            defaultMode: 0440
+            items:
+              - {key: tls.crt, path: public.crt}
+              - {key: tls.key, path: private.key}
+              - {key: ca.crt, path: CAs/ca.crt}
+---
+# The nodes reach it by its ClusterIP (GeeseFS runs on the node, outside the cluster's DNS): the platform service writes
+# that address into the mount Secrets the safes' volumes name (coder-user-storage-mount: plain, port 9000, through the
+# bridge; coder-user-storage-mount-tls: MinIO's TLS, 9443, for the encrypted Cloud Drives).
+apiVersion: v1
+kind: Service
+metadata:
+  name: coder-user-storage-minio
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.labels" . | nindent 4 }}
+    app.kubernetes.io/name: coder-user-storage-minio
+spec:
+  selector:
+    app.kubernetes.io/name: coder-user-storage-minio
+  ports:
+    - {name: s3, port: 9000, targetPort: s3}
+    - {name: s3-tls, port: 9443, targetPort: s3-tls}
+{{- else }}
+{{- if not (and $u.s3.endpoint $u.s3.existingSecret) }}
+{{- fail "userStorage: without minio.enabled, s3.endpoint and s3.existingSecret (accessKeyID, secretAccessKey) are required" }}
+{{- end }}
+{{- end }}
+{{- if $u.csi.enabled }}
+---
+# The CSI driver for S3 (k8s-csi-s3, Apache-2.0, https://github.com/yandex-cloud/k8s-csi-s3; this is its chart's node
+# plugin, without the provisioner: the safes' volumes are made by the platform service). Its GeeseFS mounts run as
+# systemd units of the node, as nobody, with the files shown as the workspace user (userStorage.csi.mountOptions).
+apiVersion: storage.k8s.io/v1
+kind: CSIDriver
+metadata:
+  name: ru.yandex.s3.csi
+  labels:
+    {{- include "ca.labels" . | nindent 4 }}
+    app.kubernetes.io/name: coder-user-storage-csi
+spec:
+  attachRequired: false
+  podInfoOnMount: true
+  fsGroupPolicy: File
+  volumeLifecycleModes: [Persistent]
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: coder-user-storage-csi
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.labels" . | nindent 4 }}
+    app.kubernetes.io/name: coder-user-storage-csi
+automountServiceAccountToken: false
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: coder-user-storage-csi
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.labels" . | nindent 4 }}
+    app.kubernetes.io/name: coder-user-storage-csi
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: coder-user-storage-csi
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: coder-user-storage-csi
+        app.kubernetes.io/part-of: coder
+    spec:
+      serviceAccountName: coder-user-storage-csi
+      priorityClassName: system-node-critical
+      {{- with $.Values.uiUpdates.imagePullSecrets }}
+      imagePullSecrets: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $u.csi.nodeSelector }}
+      nodeSelector: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      tolerations:
+        - {key: CriticalAddonsOnly, operator: Exists}
+        - {operator: Exists, effect: NoExecute, tolerationSeconds: 300}
+        {{- with $u.csi.tolerations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      containers:
+        - name: driver-registrar
+          image: {{ $u.csi.registrarImage }}
+          args: ["--kubelet-registration-path=$(DRIVER_REG_SOCK_PATH)", "--v=2", "--csi-address=$(ADDRESS)"]
+          env:
+            - {name: ADDRESS, value: /csi/csi.sock}
+            - {name: DRIVER_REG_SOCK_PATH, value: "{{ $u.csi.kubeletPath }}/plugins/ru.yandex.s3.csi/csi.sock"}
+            - name: KUBE_NODE_NAME
+              valueFrom: {fieldRef: {fieldPath: spec.nodeName}}
+          resources:
+            requests: {cpu: 5m, memory: 16Mi}
+            limits: {memory: 64Mi}
+          volumeMounts:
+            - {name: plugin-dir, mountPath: /csi}
+            - {name: registration-dir, mountPath: /registration/}
+        - name: csi-s3
+          image: {{ $u.csi.image }}
+          imagePullPolicy: IfNotPresent
+          args: ["--endpoint=$(CSI_ENDPOINT)", "--nodeid=$(NODE_ID)", "--v=2"]
+          env:
+            - {name: CSI_ENDPOINT, value: "unix:///csi/csi.sock"}
+            - name: NODE_ID
+              valueFrom: {fieldRef: {fieldPath: spec.nodeName}}
+          # FUSE mounts into the kubelet's pod directories: privileged, mounts propagated back to the node.
+          securityContext:
+            privileged: true
+            capabilities: {add: [SYS_ADMIN]}
+            allowPrivilegeEscalation: true
+          resources:
+            requests: {cpu: 10m, memory: 32Mi}
+            limits: {memory: 256Mi}
+          volumeMounts:
+            - {name: plugin-dir, mountPath: /csi}
+            - {name: stage-dir, mountPath: "{{ $u.csi.kubeletPath }}/plugins/kubernetes.io/csi", mountPropagation: Bidirectional}
+            - {name: pods-mount-dir, mountPath: "{{ $u.csi.kubeletPath }}/pods", mountPropagation: Bidirectional}
+            - {name: fuse-device, mountPath: /dev/fuse}
+            - {name: systemd-control, mountPath: /run/systemd}
+      volumes:
+        - name: registration-dir
+          hostPath: {path: "{{ $u.csi.kubeletPath }}/plugins_registry/", type: DirectoryOrCreate}
+        - name: plugin-dir
+          hostPath: {path: "{{ $u.csi.kubeletPath }}/plugins/ru.yandex.s3.csi", type: DirectoryOrCreate}
+        - name: stage-dir
+          hostPath: {path: "{{ $u.csi.kubeletPath }}/plugins/kubernetes.io/csi", type: DirectoryOrCreate}
+        - name: pods-mount-dir
+          hostPath: {path: "{{ $u.csi.kubeletPath }}/pods", type: Directory}
+        - name: fuse-device
+          hostPath: {path: /dev/fuse}
+        - name: systemd-control
+          hostPath: {path: /run/systemd, type: DirectoryOrCreate}
+{{- end }}
+{{- end }}

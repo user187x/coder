@@ -1,0 +1,190 @@
+{{- include "ca.values" . -}}
+{{- /* code-server high availability (values codeServerHA; files/ui-updates/csha.py): the code-server-replicator of this
+     cluster, the relay role's credentials, and what workspace pods' relays read. A template turns it on for its
+     workspaces (its code_server_ha variable): their code-server then runs as a global singleton - one instance per
+     workspace across every cluster that shares Coder's database - kept by the operators, every bit of its state in
+     that database (schema code_server_ha). */ -}}
+{{- $h := .Values.codeServerHA }}
+{{- if and $h.enabled .Values.uiUpdates.enabled .Values.database.enabled (include "platform.hasLayer" .) }}
+{{- $ns := .Release.Namespace }}
+{{- $ui := .Values.uiUpdates }}
+{{- $db := .Values.database.name }}
+{{- $relayName := "coder-code-server-ha-relay" }}
+{{- $old := lookup "v1" "Secret" $ns $relayName }}
+{{- $pw := "" }}
+{{- if and $old $old.data (hasKey $old.data "password") }}
+{{- $pw = index $old.data "password" | b64dec }}
+{{- else }}
+{{- $pw = randAlphaNum 40 }}
+{{- end }}
+# The relays' login (the role code_server_relay, which CloudNativePG makes from this Secret: the database Cluster's
+# managed roles): it may only call the schema code_server_ha's functions, which check every caller. Made on the first
+# install and kept (Argo CD: ignoreDifferences on its /data).
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ $relayName }}
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.labels" . | nindent 4 }}
+    app.kubernetes.io/name: coder-code-server-ha
+    cnpg.io/reload: "true"
+  annotations:
+    helm.sh/resource-policy: keep
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+type: kubernetes.io/basic-auth
+stringData:
+  username: code_server_relay
+  password: {{ $pw | quote }}
+  # The relays' short calls go through the database's pooler when it has one (database.pooler), else to -rw.
+  uri: {{ printf "postgresql://code_server_relay:%s@%s-%s.%s.svc:5432/app?sslmode=require" $pw $db (ternary "pooler-rw" "rw" (and .Values.database.enabled .Values.database.pooler.enabled)) $ns | quote }}
+---
+# What a workspace pod's relay reads: the name of the cluster it runs in.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coder-code-server-ha
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.labels" . | nindent 4 }}
+    app.kubernetes.io/name: coder-code-server-ha
+data:
+  cluster: {{ $h.cluster | quote }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: coder-code-server-replicator
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.labels" . | nindent 4 }}
+    app.kubernetes.io/name: coder-code-server-replicator
+---
+# The operator runs each workspace's code-server instance (a pod and its Service) and sees whether the workspace's own
+# pod is still there: nothing else.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: coder-code-server-replicator
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [get, list, create, delete]
+  - apiGroups: [""]
+    resources: [services]
+    verbs: [get, create, delete]
+  # read only: a workspace's home volume being deleted means the workspace is (its instance goes at once)
+  - apiGroups: [""]
+    resources: [persistentvolumeclaims]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: coder-code-server-replicator
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: coder-code-server-replicator
+subjects:
+  - kind: ServiceAccount
+    name: coder-code-server-replicator
+    namespace: {{ $ns }}
+---
+# The code-server-replicator of this cluster (codeServerHA.cluster). Two replicas: one works (a PostgreSQL advisory lock
+# per cluster), the other waits to take over; the singleton itself is held in PostgreSQL (a lease per workspace).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coder-code-server-replicator
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.labels" . | nindent 4 }}
+    app.kubernetes.io/name: coder-code-server-replicator
+spec:
+  replicas: {{ $h.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: coder-code-server-replicator
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: coder-code-server-replicator
+        app.kubernetes.io/part-of: coder
+    spec:
+      serviceAccountName: coder-code-server-replicator
+      {{- with $ui.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile: {type: RuntimeDefault}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels: {app.kubernetes.io/name: coder-code-server-replicator}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels: {app.kubernetes.io/name: coder-code-server-replicator}
+      containers:
+        - name: operator
+          image: {{ $ui.image }}
+          imagePullPolicy: IfNotPresent
+          command: [python3, /app/csha.py, operator]
+          env:
+            - {name: CSHA_CLUSTER, value: {{ $h.cluster | quote }}}
+            - {name: CSHA_NAMESPACE, value: {{ $ns | quote }}}
+            - {name: CSHA_ENDPOINT_EXTERNAL, value: {{ $h.endpointExternal | quote }}}
+            - {name: CSHA_LEASE_SECONDS, value: {{ $h.leaseSeconds | quote }}}
+            - {name: CSHA_RELAY_IMAGE, value: {{ $ui.image | quote }}}
+            - {name: CSHA_DB_CA, value: /etc/coder-db-ca/ca.crt}
+            # Coder's database as its owner (the app user): the operator makes the schema code_server_ha and its
+            # functions, and grants the relay role their use.
+            - name: CSHA_DB
+              valueFrom: {secretKeyRef: {name: {{ printf "%s-app" $db }}, key: uri}}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+            readOnlyRootFilesystem: true
+          resources:
+            requests: {cpu: 10m, memory: 48Mi}
+            limits: {memory: 192Mi}
+          volumeMounts:
+            - {name: db-ca, mountPath: /etc/coder-db-ca, readOnly: true}
+      volumes:
+        - name: db-ca
+          secret:
+            secretName: {{ printf "%s-ca" $db }}
+            items: [{key: ca.crt, path: ca.crt}]
+{{- if gt (int $h.replicas) 1 }}
+---
+# Drains and upgrades take one replicator down at a time: the other holds the lock and keeps the leases.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: coder-code-server-replicator
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.labels" . | nindent 4 }}
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels: {app.kubernetes.io/name: coder-code-server-replicator}
+{{- end }}
+{{- end }}

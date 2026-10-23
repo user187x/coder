@@ -1,0 +1,167 @@
+# Argo CD Application for the coder-airgapped chart, pulled from the air-gapped registry's OCI chart repository.
+#
+# Before applying (README.md > "Argo CD"):
+#   1. Images:  ../mirror-images.sh push <REGISTRY>
+#   2. Chart:   ../mirror-images.sh chart <REGISTRY>/charts      (helm package + helm push oci://<REGISTRY>/charts)
+#   3. Secrets and default images the chart does not create (names = global.secretNames below):
+#        ../install.sh --prepare-only --ca ca.crt --oidc-ca keycloak-ca.crt --oidc-secret-file oidc-client-secret.txt \
+#                      --tls-crt wildcard.crt --tls-key wildcard.key
+#      (add --secret-name tlsCa=<name> ... when you rename them below)
+#   4. Edit every "CHANGE-ME", then:  kubectl apply -f coder-airgapped-application.yaml
+#
+# Everything under helm.valuesObject is a chart value (../coder-airgapped/values.yaml documents them all). The
+# `global` block drives every component: hostnames, routes, OIDC, image registry, Secret names, first user.
+---
+# Credentials for the OCI chart repository. Remove this document if Argo CD already has the repository (or a
+# matching credential template). Amazon ECR: username "AWS", password from `aws ecr get-login-password`; that token
+# expires after 12 hours, so refresh this Secret on a schedule (or use an ECR credential helper) - Argo CD cannot.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: coder-airgapped-charts
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+type: Opaque
+stringData:
+  name: coder-airgapped-charts
+  type: helm
+  enableOCI: "true"
+  url: 123456789012.dkr.ecr.us-east-1.amazonaws.com/charts       # CHANGE-ME: <REGISTRY>/charts, no oci:// prefix
+  username: AWS                                                   # CHANGE-ME
+  password: CHANGE-ME
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  # Keep in step with uiUpdates.argocd.app below (the Keycloak view reads this Application).
+  name: coder
+  namespace: argocd
+  annotations:
+    # Compare with a server-side dry run, so fields the API server and Gateway controller fill in (HTTPRoute defaults)
+    # are not reported as drift. Without it, three HTTPRoutes stay OutOfSync and self-heal keeps re-syncing.
+    argocd.argoproj.io/compare-options: ServerSideDiff=true
+spec:
+  project: default
+  source:
+    repoURL: 123456789012.dkr.ecr.us-east-1.amazonaws.com/charts  # CHANGE-ME: same as the repository url above
+    chart: coder-airgapped
+    targetRevision: 1.46.0
+    helm:
+      releaseName: coder
+      valuesObject:
+        global:
+          domain: example.com                       # CHANGE-ME: Coder at https://coder.example.com, apps at *.example.com
+          coderHost: ""                             # "" = coder.<domain>
+          wildcardHost: ""                          # "" = *.<domain>
+          # Where ../mirror-images.sh pushed the images ("" = their public registries).
+          registry: 123456789012.dkr.ecr.us-east-1.amazonaws.com   # CHANGE-ME
+          imagePullSecrets: []                      # EKS + ECR: none needed (node role); else [{name: registry-pull}]
+          gateway:
+            name: traefik-gateway                   # CHANGE-ME: Gateway with an HTTPS listener for both hostnames
+            namespace: traefik
+          oidc:
+            issuerUrl: https://keycloak.example.com/realms/master  # CHANGE-ME ("" = https://keycloak.<domain>/realms/master)
+            clientId: coder
+            scopes: openid,profile,email
+            usernameField: preferred_username
+            emailField: email
+            ignoreEmailVerified: "true"
+            allowSignups: "true"
+            signInText: Sign in with your certificate
+            iconUrl: /icon/keycloak.svg
+          # "false": the admin signs in with its password, everyone else with Keycloak. "true": Keycloak only (the
+          # admin is then the Keycloak account with firstUser.email).
+          disablePasswordAuth: "false"
+          # The first owner, created on a fresh database. Change its password after the first sign-in (later syncs
+          # never reset it).
+          firstUser:
+            username: admin
+            email: admin@admin.com
+            password: admin
+          database:
+            name: coder-db
+          secretNames:
+            initAuth: coder-init-auth               # created by the chart (firstUser)
+            logsDb: coder-ui-logs-db                # created by the chart (random password)
+            tlsCa: tls-ca                           # must exist (step 3)
+            oidcCa: keycloaking-coder-ca            # must exist (step 3)
+            oidcClient: keycloaking-coder-oidc      # must exist (step 3)
+            wildcardTls: tls-wild-cert              # must exist (step 3)
+
+        coder:
+          coder:
+            # 3 for high availability, with the rest of ../values-ha.example.yaml (DEPLOY.md › High availability).
+            replicaCount: 1
+            # Appended to the chart's Coder environment. Air gap: no telemetry, update check or public STUN.
+            extraEnv:
+            - name: CODER_TELEMETRY_ENABLE
+              value: "false"
+            - name: CODER_UPDATE_CHECK
+              value: "false"
+            - name: CODER_DERP_SERVER_STUN_ADDRESSES
+              value: "disable"
+
+        database:
+          instances: 2
+          storage:
+            size: 10Gi
+            storageClass: gp3                       # CHANGE-ME
+
+        imageBuilder:                               # Templates > Images: its registry and files volumes
+          registry:
+            storageClass: gp3                       # CHANGE-ME
+          files:
+            storageClass: gp3                       # CHANGE-ME
+
+        coder-workspace:
+          storageClass: gp3                         # CHANGE-ME: workspaces' home volumes (new ones)
+          template:
+            name: default                           # DEFAULT (it took over ubuntu-vnc-desktop)
+
+        uiUpdates:
+          adminRoles: owner
+          persistence:
+            storageClass: gp3                       # CHANGE-ME
+          keycloak:
+            enabled: false                          # true when Keycloak runs in this cluster (namespace below)
+            namespace: keycloak
+            adminSecret: keycloak-initial-admin
+          argocd:
+            enabled: true
+            namespace: argocd
+            app: coder                              # = metadata.name
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: coder                                # the workspace template only accepts "coder"
+
+  ignoreDifferences:
+  # Generated passwords: Argo CD renders without cluster access, so each render has a new random value. Keep the one
+  # created on the first sync (with RespectIgnoreDifferences below, syncs never overwrite it).
+  - kind: Secret
+    jsonPointers:
+    - /data/password
+    - /stringData/password
+  # The chart's MinIO's TLS (a CA and certificate made on the first sync, as the passwords).
+  - kind: Secret
+    name: coder-user-storage-minio-tls
+    jsonPointers:
+    - /data
+  # code-server HA's relay login (a password made on the first sync).
+  - kind: Secret
+    name: coder-code-server-ha-relay
+    jsonPointers:
+    - /stringData
+    - /data
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
+    - RespectIgnoreDifferences=true
+    # Required: the coder-ui-updates ConfigMap (~600 KB) is too large for client-side apply's
+    # last-applied-configuration annotation (256 KB).
+    - ServerSideApply=true

@@ -1,0 +1,283 @@
+# shellcheck shell=bash
+# harbor-support: `./make --push-images HARBOR[/PROJECT]`, sourced by ./make (its ask/choose/yes_no/say/step/warn/die).
+#
+# Takes every image the solution needs (images.txt, from the bundle's archives) and its Helm charts into your Harbor:
+#   1. reaches Harbor (its API); a private CA: the file is asked for, and docker (/etc/docker/certs.d/<host>/ca.crt,
+#      with sudo, asked first) and helm (--ca-file) are set up to trust it
+#   2. logs your docker and helm in to Harbor (a user, or a robot account: robot$<name>), and on request to Docker Hub
+#      (docker.io: the public images the bundle does not carry are pulled from there, and Docker Hub limits anonymous
+#      pulls). Passwords and tokens go to docker / helm on stdin: never on a command line, never written by this script
+#   3. checks the Harbor project (the images go to <harbor>/<project>/<path>), and offers to create it
+#   4. pushes the images (mirror-images.sh push), then the charts: coder-airgapped and the prerequisites' (CloudNativePG,
+#      Traefik) to oci://<harbor>/<project>/charts
+#   5. checks every image and chart is there, and remembers the registry for `./make --deploy` (EKS)
+#
+# Answers (remembered, never a password): HARBOR_PROJECT HARBOR_USER HARBOR_CA DOCKERHUB_LOGIN DOCKERHUB_USER PUSH_GROUPS
+# Secrets (only from the environment, for --yes): HARBOR_PASSWORD DOCKERHUB_TOKEN
+# HARBOR_API: Harbor's API, when it is not at https://<host>/api/v2.0 (e.g. behind another name)
+# A target given as http://host:port/project: plain HTTP (a lab registry; docker must list it in insecure-registries,
+# except on 127.0.0.1).
+
+PUSH_GROUP_CHOICES=("default|Ours, and the public images the chart and its prerequisites run (the default)"
+	"all|...and the reference Argo CD + Keycloak images (images.txt [reference])"
+	"ours|Only ours (the public ones are in this registry already)")
+# Answers remembered before images.txt had a section per part (custom, chart, prereqs, platform)
+push_groups_now() {
+	case "${PUSH_GROUPS:-}" in
+	"custom chart prereqs platform") PUSH_GROUPS=all ;;
+	"custom chart prereqs" | "") PUSH_GROUPS=default ;;
+	custom) PUSH_GROUPS=ours ;;
+	esac
+}
+
+harbor_split() { # TARGET -> HARBOR_HOST HARBOR_PROJECT PLAIN
+	local t="$1"
+	PLAIN=0
+	case "$t" in
+	http://*) PLAIN=1 t="${t#http://}" ;;
+	https://*) t="${t#https://}" ;;
+	esac
+	t="${t%/}"
+	HARBOR_HOST="${t%%/*}"
+	[[ "$t" == */* ]] && HARBOR_PROJECT="${t#*/}"
+	[[ "$HARBOR_HOST" =~ ^[A-Za-z0-9.-]+(:[0-9]+)?$ ]] || die "'$1': expected a registry host, e.g. harbor.example.com[/project]"
+	return 0
+}
+valid_project() { # Harbor's rule: lowercase letters, digits, . _ - (starting with a letter or digit), at most 255
+	[[ "$1" =~ ^[a-z0-9][a-z0-9._-]{0,254}$ ]] || { say "a Harbor project name: lowercase letters, digits, '.', '_', '-'"; return 1; }
+}
+
+# harbor_api METHOD PATH [JSON]: Harbor's REST API, with the Harbor login when there is one (given to curl on stdin,
+# not on its command line). Sets HTTP_BODY, and HTTP_STATUS (000: not reached; 060: certificate). Not in $(...).
+harbor_api() {
+	local m="$1" p="$2" d="${3:-}" out rc
+	local args=(-sS -m 30 -X "$m" -H "Content-Type: application/json" -w '\n%{http_code}')
+	[[ -n "${HARBOR_CA:-}" ]] && args+=(--cacert "$HARBOR_CA")
+	[[ -n "$d" ]] && args+=(--data "$d")
+	local base="${HARBOR_API:-$([[ $PLAIN == 1 ]] && echo http || echo https)://${HARBOR_HOST}/api/v2.0}"
+	set +e
+	if [[ -n "${HARBOR_PASSWORD:-}" ]]; then
+		local u="${HARBOR_USER}:${HARBOR_PASSWORD}"
+		u="${u//\\/\\\\}"; u="${u//\"/\\\"}"
+		out=$(printf 'user = "%s"\n' "$u" | curl -K - "${args[@]}" "${base}${p}" 2>/dev/null)
+	else
+		out=$(curl "${args[@]}" "${base}${p}" 2>/dev/null)
+	fi
+	rc=$?
+	set -e
+	HTTP_BODY=""
+	if ((rc == 60 || rc == 35 || rc == 77)); then HTTP_STATUS=060; return 0; fi
+	((rc == 0)) || { HTTP_STATUS=000; return 0; }
+	HTTP_STATUS="${out##*$'\n'}"
+	HTTP_BODY="${out%$'\n'*}"
+}
+
+docker_config() { echo "${DOCKER_CONFIG:-$HOME/.docker}/config.json"; }
+helm_config() { echo "${HELM_REGISTRY_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/helm/registry/config.json}"; }
+# has_login FILE HOST: the docker / helm config has credentials for HOST (in it, or in its credential store)
+has_login() {
+	[[ -f "$1" ]] || return 1
+	python3 - "$1" "$2" <<'PY'
+import json, subprocess, sys
+cfg, host = json.load(open(sys.argv[1])), sys.argv[2]
+names = {host, "https://" + host, "http://" + host}
+if host in ("docker.io", "registry-1.docker.io", "index.docker.io"):
+    names |= {"https://index.docker.io/v1/", "registry-1.docker.io", "index.docker.io"}
+if names & set(cfg.get("auths") or {}) and any((cfg["auths"][n] or {}).get("auth") for n in names & set(cfg["auths"])):
+    sys.exit(0)
+store = (cfg.get("credHelpers") or {}).get(host) or cfg.get("credsStore")
+if store:
+    try:
+        known = json.loads(subprocess.run(["docker-credential-" + store, "list"], capture_output=True, text=True,
+                                          timeout=10).stdout or "{}")
+        if names & set(known):
+            sys.exit(0)
+    except Exception:
+        pass
+sys.exit(1)
+PY
+}
+
+# login_both HOST HELM_HOST USER SECRET: docker login and helm registry login, the secret on stdin
+login_both() {
+	local host="$1" helm_host="$2" user="$3" secret="$4" hargs=()
+	[[ -n "${HARBOR_CA:-}" && "$host" == "$HARBOR_HOST" ]] && hargs+=(--ca-file "$HARBOR_CA")
+	[[ "$PLAIN" == 1 && "$host" == "$HARBOR_HOST" ]] && hargs+=(--plain-http)
+	if printf '%s' "$secret" | docker login "$host" -u "$user" --password-stdin >/dev/null 2>"${STATE_ROOT}/login.err"; then
+		say "docker: logged in to $host as $user"
+	else
+		warn "$(tail -1 "${STATE_ROOT}/login.err")"; return 1
+	fi
+	if printf '%s' "$secret" | helm registry login "$helm_host" -u "$user" --password-stdin "${hargs[@]}" >/dev/null 2>"${STATE_ROOT}/login.err"; then
+		say "helm:   logged in to $helm_host as $user"
+	else
+		warn "$(tail -1 "${STATE_ROOT}/login.err")"; return 1
+	fi
+}
+
+harbor_trust() { # Harbor's certificate: trusted already, or the CA file for curl, helm and docker
+	harbor_api GET /ping
+	if [[ "$HTTP_STATUS" == 060 && -z "${HARBOR_CA:-}" ]]; then
+		say "Harbor's certificate is not signed by a CA this machine trusts."
+		ask HARBOR_CA "The CA certificate (PEM) that signed it" "" readable
+		harbor_api GET /ping
+	fi
+	case "$HTTP_STATUS" in
+	060) die "Harbor's certificate does not verify against ${HARBOR_CA:-the system CAs}" ;;
+	000) die "${HARBOR_HOST} does not answer (DNS, firewall, proxy?)" ;;
+	esac
+	if [[ "$HTTP_BODY" == *Pong* ]]; then HARBOR_IS=1; say "Harbor at ${HARBOR_HOST}: answering"
+	else HARBOR_IS=0; warn "${HARBOR_HOST} does not answer as Harbor ($HTTP_STATUS): treated as a plain registry (no project checks)"; fi
+	[[ -n "${HARBOR_CA:-}" && "$PLAIN" != 1 ]] || return 0
+	# docker trusts a registry's CA from /etc/docker/certs.d/<host:port>/ca.crt (no daemon restart needed)
+	local dest="/etc/docker/certs.d/${HARBOR_HOST}/ca.crt"
+	if [[ -f "$dest" ]] && cmp -s "$dest" "$HARBOR_CA"; then say "docker: trusts the CA ($dest)"; return 0; fi
+	local inst=y
+	yes_no inst "docker trusts this CA only from $dest: install it there now (sudo)?" y
+	if [[ "$inst" == y ]]; then
+		sudo install -D -m 0644 "$HARBOR_CA" "$dest" && say "docker: trusts the CA ($dest)"
+	else
+		warn "docker will refuse ${HARBOR_HOST}'s certificate until: sudo install -D -m 0644 $HARBOR_CA $dest"
+		warn "(Docker Desktop: add the CA to the system's keychain / certificate store instead, then restart it)"
+	fi
+}
+
+harbor_logins() {
+	step "Logins (docker and helm)"
+	local have_docker=0 have_helm=0 again=y
+	has_login "$(docker_config)" "$HARBOR_HOST" && have_docker=1
+	has_login "$(helm_config)" "$HARBOR_HOST" && have_helm=1
+	if ((have_docker && have_helm)) && [[ -z "${HARBOR_PASSWORD:-}" ]]; then
+		say "docker and helm are logged in to ${HARBOR_HOST} already"
+		again=n; yes_no again "Log in again (another user or robot account)?" n
+	fi
+	if [[ "$again" == y ]]; then
+		say "A Harbor user, or a robot account of the project (its name starts with robot\$; it needs push rights)."
+		ask HARBOR_USER "Harbor username for ${HARBOR_HOST}" "" nonempty
+		[[ -n "${HARBOR_PASSWORD:-}" ]] || ask_secret HARBOR_PASSWORD "Password (or the robot account's secret)"
+		if ((HARBOR_IS)); then
+			harbor_api GET "/projects?page_size=1"
+			[[ "$HTTP_STATUS" != 401 ]] || die "Harbor refused ${HARBOR_USER}'s password"
+		fi
+		login_both "$HARBOR_HOST" "$HARBOR_HOST" "$HARBOR_USER" "$HARBOR_PASSWORD" || die "logging in to ${HARBOR_HOST} failed (see above)"
+	fi
+
+	# Docker Hub: the public images the bundle does not carry are pulled, and anonymous pulls are rate-limited.
+	local hub
+	# shellcheck disable=SC2086
+	hub=$(grep -xFf <("${here}/mirror-images.sh" images $PUSH_GROUPS) <("${here}/mirror-images.sh" list | awk '$2 == "absent" && $3 ~ /^docker\.io\// {print $3}') || true)
+	if [[ -n "$hub" ]]; then
+		say "Not in this bundle, so pulled from Docker Hub:"; printf '      %s\n' $hub
+	fi
+	if has_login "$(docker_config)" docker.io; then
+		say "docker: logged in to Docker Hub already"
+		[[ -n "${DOCKERHUB_LOGIN:-}" ]] || DOCKERHUB_LOGIN=n
+	fi
+	yes_no DOCKERHUB_LOGIN "Log docker and helm in to Docker Hub (docker.io) too?" "$([[ -n "$hub" ]] && echo y || echo n)"
+	[[ "$DOCKERHUB_LOGIN" == y ]] || return 0
+	ask DOCKERHUB_USER "Docker Hub username" "" nonempty
+	[[ -n "${DOCKERHUB_TOKEN:-}" ]] || ask_secret DOCKERHUB_TOKEN "Docker Hub password or access token (hub.docker.com > Account settings > Personal access tokens)"
+	login_both docker.io registry-1.docker.io "$DOCKERHUB_USER" "$DOCKERHUB_TOKEN" || die "logging in to Docker Hub failed (see above)"
+}
+
+harbor_project() {
+	((HARBOR_IS)) || return 0
+	step "Harbor project '${HARBOR_PROJECT}'"
+	harbor_api GET "/projects?name=${HARBOR_PROJECT}&page_size=100"
+	local body="$HTTP_BODY"
+	if [[ "$HTTP_STATUS" == 200 ]] && python3 -c 'import json,sys; sys.exit(0 if any(p.get("name")==sys.argv[1] for p in json.loads(sys.stdin.read() or "[]")) else 1)' "$HARBOR_PROJECT" <<<"$body"; then
+		local public
+		public=$(python3 -c 'import json,sys; print(next(p for p in json.loads(sys.stdin.read()) if p["name"]==sys.argv[1]).get("metadata",{}).get("public","false"))' "$HARBOR_PROJECT" <<<"$body")
+		say "exists ($([[ "$public" == true ]] && echo public || echo private))"
+		HARBOR_PUBLIC="$public"; return 0
+	fi
+	if [[ -z "${HARBOR_PASSWORD:-}" ]]; then
+		# logged in already, so no password here: Harbor shows anonymous callers public projects only
+		say "not visible without a login here (a private project?): the push uses docker's and helm's login"
+		HARBOR_PUBLIC=unknown; return 0
+	fi
+	say "There is no project '${HARBOR_PROJECT}' (that ${HARBOR_USER:-this login} can see)."
+	local make=y; yes_no make "Create it?" y
+	[[ "$make" == y ]] || die "create the project in Harbor (Projects > New Project), then run this again"
+	say "Public: anyone who reaches Harbor can pull (no pull secrets anywhere). Private: the cluster needs a pull secret,"
+	say "and the workspace pods have none of their own: the nodes need Harbor credentials (EKS: a credential provider)."
+	local vis=public
+	choose vis "Its visibility:" public "public|Public (pulls need no login; pushes still do)" "private|Private"
+	harbor_api POST /projects "{\"project_name\": \"${HARBOR_PROJECT}\", \"metadata\": {\"public\": \"$([[ $vis == public ]] && echo true || echo false)\"}}"
+	case "$HTTP_STATUS" in
+	201) say "created (${vis})"; HARBOR_PUBLIC=$([[ $vis == public ]] && echo true || echo false) ;;
+	403) die "${HARBOR_USER:-this login} may not create projects: ask a Harbor admin for '${HARBOR_PROJECT}' (with push rights)" ;;
+	409) say "it exists already (another user's)"; HARBOR_PUBLIC=unknown ;;
+	*) die "Harbor answered ${HTTP_STATUS} creating the project" ;;
+	esac
+}
+
+harbor_push() {
+	local reg="${HARBOR_HOST}/${HARBOR_PROJECT}" helm_args=() n=0 bad=0 dst line
+	[[ -n "${HARBOR_CA:-}" ]] && helm_args+=(--ca-file "$HARBOR_CA")
+	[[ "$PLAIN" == 1 ]] && helm_args+=(--plain-http)
+	step "Images -> ${reg} (${PUSH_GROUPS}; the large ones take minutes)"
+	# shellcheck disable=SC2086
+	# (grep finds nothing when a layer bundle carries no image: every line is "in <registry> since ...", shown too)
+	"${here}/mirror-images.sh" push "$reg" $PUSH_GROUPS 2>&1 | { grep -E '^(loading|using|pulling|push failed|ERROR|in .* since |.* -> )' || true; } | sed 's/^/    /'
+	((PIPESTATUS[0] == 0)) || die "pushing the images failed (see above)"
+
+	step "Charts -> oci://${reg}/charts"
+	HELM_PUSH_ARGS="${helm_args[*]}" "${here}/mirror-images.sh" charts "${reg}/charts" 2>&1 | sed 's/^/    /'
+	((PIPESTATUS[0] == 0)) || die "pushing the charts failed (see above)"
+
+	step "Checking"
+	local margs=(); [[ "$PLAIN" == 1 ]] && margs+=(--insecure)
+	while read -r line; do
+		dst=${line##* }
+		if docker manifest inspect "${margs[@]}" "$dst" >/dev/null 2>&1; then n=$((n + 1)); else bad=$((bad + 1)); warn "missing: $dst"; fi
+	done < <("${here}/mirror-images.sh" list "$reg" | awk 'NR == FNR {want[$1] = 1; next} ($3 in want) {print $3, $5}' \
+		<("${here}/mirror-images.sh" images $PUSH_GROUPS) -)
+	say "images: ${n} in ${reg}$( ((bad)) && echo ", ${bad} missing")"
+	((bad == 0)) || die "some images are not in ${reg} (see above)"
+	local c v
+	while read -r c v; do
+		if helm show chart "oci://${reg}/charts/${c}" --version "$v" "${helm_args[@]}" >/dev/null 2>&1; then say "chart:  ${c} ${v}"
+		else die "chart ${c} ${v} is not in oci://${reg}/charts"; fi
+	done < <("${here}/mirror-images.sh" charts-list)
+}
+
+push_images() {
+	local target="${1:-}"
+	[[ -n "$target" ]] || die "usage: ./make --push-images HARBOR[/PROJECT]   e.g. harbor.example.com/coder"
+	need docker helm curl python3
+	mkdir -p "$STATE_ROOT"; chmod 700 "$STATE_ROOT"
+	# answers given as environment variables are fixed; remembered answers are only defaults (as for --deploy)
+	local v; for v in "${VARS[@]}"; do [[ -n "${!v:-}" ]] && FIXED[$v]=1; done
+	if [[ -f "$ANSWERS" ]]; then
+		while IFS='=' read -r v _; do [[ -n "${FIXED[$v]:-}" ]] || eval "$(grep "^${v}=" "$ANSWERS")"; done <"$ANSWERS"
+	fi
+	HARBOR_IS=0 HARBOR_PUBLIC=""
+	harbor_split "$target"   # a project in the target is the answer
+	[[ "${target#*://}" == */* ]] && FIXED[HARBOR_PROJECT]=1
+
+	bold "Push the images and charts to ${HARBOR_HOST}"
+	step "Harbor"
+	ask HARBOR_PROJECT "Harbor project for the images and charts" "${HARBOR_PROJECT:-coder-airgapped}" valid_project
+	harbor_trust
+	push_groups_now
+	choose PUSH_GROUPS "Which images" "$PUSH_GROUPS" "${PUSH_GROUP_CHOICES[@]}"
+	harbor_logins
+	harbor_project
+	save_answers
+	harbor_push
+
+	REGISTRY="${HARBOR_HOST}/${HARBOR_PROJECT}" PUSH_IMAGES=n
+	save_answers
+	step "Done"
+	say "Everything is in ${REGISTRY}. ./make --deploy (EKS) offers it as the registry, or set it yourself:"
+	say "  global.registry: ${REGISTRY}"
+	if [[ "${HARBOR_PUBLIC}" != true ]]; then
+		say "$([[ "${HARBOR_PUBLIC}" == false ]] && echo "A private project" || echo "If the project is private"): give the cluster a pull secret (a robot account with pull rights), e.g."
+		say "  kubectl -n coder create secret docker-registry harbor-pull --docker-server=${HARBOR_HOST} \\"
+		say "    --docker-username='robot\$...' --docker-password=..."
+		say "  global.imagePullSecrets: [{name: harbor-pull}]"
+		say "and the nodes credentials for ${HARBOR_HOST}: the workspace pods have no pull secret of their own."
+	fi
+	say "Argo CD: the chart is oci://${REGISTRY}/charts/coder-airgapped (argocd/coder-airgapped-application.yaml)."
+}

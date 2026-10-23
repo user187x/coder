@@ -1,0 +1,9 @@
+# shellcheck shell=sh
+# The workspace image's Chromium flags (/etc/chromium.d/coder-workspace, read by /usr/bin/chromium).
+# Its sandbox needs user namespaces, which a workspace pod may not allow (its seccomp profile, or the node's
+# AppArmor): there Chromium runs without it rather than not at all (its policies hide the flag's warning). Passwords
+# in its own store: a VNC desktop has no keyring to unlock.
+if ! unshare --user --map-root-user true 2>/dev/null; then
+	CHROMIUM_FLAGS="$CHROMIUM_FLAGS --no-sandbox"
+fi
+CHROMIUM_FLAGS="$CHROMIUM_FLAGS --password-store=basic --no-first-run"

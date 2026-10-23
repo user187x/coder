@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workspace Initializing</title>
+
+    <style>
+        body {
+            background-color: black;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        /* Base positioning for the background animation */
+        .background-anim {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1;
+        }
+
+        /* --- IMAGE COLOR OPTIONS --- */
+
+        /* Option 1: Keep it exactly as it is */
+        .anim-default {
+            opacity: 0.8;
+            filter: none;
+        }
+
+        /* Option 2: Subtle Orange Tint */
+        .anim-orange {
+            opacity: 0.8;
+            /* Sepia makes it warm, hue-rotate shifts it to orange, saturate makes it pop slightly */
+            filter: sepia(100%) saturate(250%) hue-rotate(345deg);
+        }
+
+        /* --------------------------- */
+
+        .stripes {
+            background: repeating-linear-gradient( 45deg, #000000, #000000 10px, #ffeb04 10px, #ffeb04 20px );
+            height: 40px;
+            width: 100%;
+        }
+
+        .main {
+            z-index: 4;
+            margin: 0;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            width: 100%;
+        }
+
+        .main h2 {
+            margin: 0;
+            font-family: sans-serif;
+            letter-spacing: 1px;
+        }
+
+        /* --- TEXT COLOR/ANIMATION OPTIONS --- */
+
+        .ripple-white {
+            background: linear-gradient(to right, #555 20%, #888 35%, #fff 40%, #999 44%, #fff 48%, #bbb 52%, #fff 58%, #888 65%, #555 80%);
+            background-size: 300% auto;
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: unevenRipple 25s linear infinite;
+        }
+
+        .ripple-green {
+            background: linear-gradient(to right, #555 20%, #1b5e20 35%, #00ff00 40%, #4caf50 44%, #00ff00 48%, #81c784 52%, #00ff00 58%, #1b5e20 65%, #555 80%);
+            background-size: 300% auto;
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: unevenRipple 25s linear infinite;
+        }
+
+        .ripple-reveal {
+            background: linear-gradient(to right, transparent 25%, rgba(255, 255, 255, 0.2) 35%, #ffffff 40%, rgba(255, 255, 255, 0.7) 44%, #ffffff 48%, rgba(255, 255, 255, 0.5) 52%, #ffffff 58%, rgba(255, 255, 255, 0.2) 65%, transparent 75%);
+            background-size: 300% auto;
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: unevenRipple 25s linear infinite;
+        }
+
+        /* Simple Fade In and Out */
+        .ripple-hide {
+            color: #ffffff;
+            animation: fadeOutIn 6s ease-in-out infinite;
+        }
+
+        /* --------------------------- */
+
+        @keyframes unevenRipple {
+            0% { background-position: 300% center; }
+            100% { background-position: -300% center; }
+        }
+
+        @keyframes fadeOutIn {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        .footer {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <!--
+      You can now swap "anim-orange" to "anim-default"
+      to remove the orange tint from the GIF!
+    -->
+    <img src="loading-brix.gif" alt="Loading Animation" class="background-anim anim-orange">
+
+    <div>
+        <div class="stripes"></div>
+        <div class="main">
+            <!-- Text fading slowly in and out -->
+            <h2 class="ripple-hide">WORKSPACE INITIALIZING</h2>
+        </div>
+        <div class="footer">
+            <div class="stripes"></div>
+        </div>
+    </div>
+</body>
+</html>

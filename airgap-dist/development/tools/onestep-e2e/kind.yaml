@@ -1,0 +1,18 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: onestep
+# containerd reads per-registry hosts (certs.d/<registry>/hosts.toml): the site registry is plain HTTP
+containerdConfigPatches:
+- |-
+  [plugins."io.containerd.cri.v1.images".registry]
+    config_path = "/etc/containerd/certs.d"
+nodes:
+- role: control-plane
+  # etcd in memory (the node's /tmp is a tmpfs): a busy development machine's disk made etcd miss its deadlines
+  kubeadmConfigPatches:
+  - |
+    kind: ClusterConfiguration
+    etcd:
+      local:
+        dataDir: /tmp/etcd
+- role: worker

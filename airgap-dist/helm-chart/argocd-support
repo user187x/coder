@@ -1,0 +1,251 @@
+# shellcheck shell=bash
+# argocd-support: `./make --argocd HARBOR[/PROJECT] [--plain] [--yes]`, sourced by ./make (its ask/choose/yes_no/
+# say/step/warn/die, its certificates and prerequisites, and harbor-support's Harbor steps).
+#
+# Coder on Argo CD, decorated by the customization layer (argocd/coder-decorated-application.yaml): the Coder
+# installation (chart coder-airgapped-base) and the customization layer (coder-airgapped-layer) in one Application.
+#   1. Harbor: every image and chart into <harbor>/<project> (as ./make --push-images: logins, project, push, checks)
+#   2. the cluster (kubectl's current context, with Argo CD): the Gateway API CRDs (v1.6.0), a Gateway (Traefik) and
+#      the CloudNativePG operator, each installed from prereqs/ only when missing (asked first)
+#   3. the domain, the certificates, the OIDC provider (Keycloak) and the storage class; the Secrets the charts read
+#      (install.sh --prepare-only), and a pull secret when the Harbor project is private
+#   4. Argo CD: the chart repository's credentials (a Secret; the password goes to kubectl on stdin, never into a
+#      file), Harbor's CA when it has a private one, and the Application filled in (.deploy/argocd-<domain>/)
+#   5. applies it (asked; or prints how), waits until it is Synced and Healthy, then seeds the image builder
+# --plain: the same Application without the layer (argocd/coder-plain-application.yaml). Applied to a decorated
+# install it takes the layer off: Argo CD prunes what the layer added and Coder restarts as upstream Coder; the data
+# stays. ./make --argocd again (without --plain) puts the layer back.
+#
+# Answers (remembered, never a password): those of --push-images and --deploy, plus ARGOCD_USER ARGOCD_APPLY
+# METRICS_INSECURE_TLS PULL_USER, and ARGOCD_REPO (only from the environment: where Argo CD reaches the charts when
+# not at <harbor>/<project>/charts, e.g. Harbor through an internal name). Secrets (only from the environment, for --yes): HARBOR_PASSWORD (pushing), ARGOCD_PASSWORD
+# (Argo CD's chart reads; default: the Harbor login's), PULL_PASSWORD (the cluster's image pulls from a private
+# project, user PULL_USER; default: Argo CD's).
+
+argocd_kube_ok() {
+	local ctx; ctx=$(kube config current-context 2>/dev/null) || die "kubectl has no current context"
+	local go=y; yes_no go "Install into kubectl context '$ctx' (where Argo CD runs)?" y
+	[[ "$go" == y ]] || die "switch first: kubectl config use-context <name>"
+	kube version --request-timeout=10s >/dev/null 2>&1 || die "kubectl cannot reach '$ctx'"
+	NO_ARGOCD=0
+	if kube get crd applications.argoproj.io >/dev/null 2>&1 && kube get ns argocd >/dev/null 2>&1; then
+		say "Argo CD: installed (namespace argocd)"
+	else
+		NO_ARGOCD=1
+		warn "Argo CD is not installed here (no namespace argocd / Application CRD): the Application is written, not applied"
+	fi
+}
+
+argocd_prereqs() {
+	step "Prerequisites"
+	gateway_crds
+	if kube -n traefik get gateway traefik-gateway >/dev/null 2>&1; then
+		say "Gateway traefik/traefik-gateway: present (its HTTPS certificate must cover coder.${DOMAIN} and *.${DOMAIN})"
+	else
+		local t=y; yes_no t "No Gateway traefik/traefik-gateway. Install Traefik from prereqs/ (LoadBalancer Service)?" y
+		[[ "$t" == y ]] && traefik || warn "Coder needs a Gateway traefik/traefik-gateway with an HTTPS listener"
+	fi
+	CNPG=0
+	if kube get crd clusters.postgresql.cnpg.io >/dev/null 2>&1; then say "CloudNativePG: present"
+	else say "CloudNativePG: will be installed (prereqs/, with the Secrets below)"; CNPG=1; fi
+}
+
+# The chart repository's credentials for Argo CD (a labelled Secret in namespace argocd), from JSON on stdin.
+argocd_repo_secret() {
+	local url="$1" user="$2" pass="$3"
+	ARGOCD_REPO_URL="$url" ARGOCD_REPO_USER="$user" ARGOCD_REPO_PLAIN="$PLAIN" python3 -c '
+import json, os, sys
+d = {"name": "coder-airgapped-charts", "type": "helm", "enableOCI": "true", "url": os.environ["ARGOCD_REPO_URL"],
+     "username": os.environ["ARGOCD_REPO_USER"], "password": sys.stdin.read()}
+if os.environ.get("ARGOCD_REPO_PLAIN") == "1":
+    d["insecureOCIForceHttp"] = "true"  # a lab registry without TLS
+print(json.dumps({"apiVersion": "v1", "kind": "Secret", "type": "Opaque",
+                  "metadata": {"name": "coder-airgapped-charts", "namespace": "argocd",
+                               "labels": {"argocd.argoproj.io/secret-type": "repository"}},
+                  "stringData": d}))' <<<"$pass" | kube apply -f - >/dev/null
+	say "Argo CD: credentials for oci://${url} (Secret argocd/coder-airgapped-charts, user ${user})"
+	[[ -n "${HARBOR_CA:-}" && "$PLAIN" != 1 ]] || return 0
+	# Harbor's private CA: Argo CD's repo server trusts the certificates in argocd-tls-certs-cm, by host name
+	python3 -c 'import json, sys; print(json.dumps({"data": {sys.argv[1]: open(sys.argv[2]).read()}}))' \
+		"${HARBOR_HOST%%:*}" "$HARBOR_CA" | kube -n argocd patch configmap argocd-tls-certs-cm --type merge --patch-file /dev/stdin >/dev/null
+	say "Argo CD: trusts Harbor's CA (argocd-tls-certs-cm, ${HARBOR_HOST%%:*})"
+}
+
+# Waits until Argo CD has synced the Application as applied: it compared it after SINCE, with the sources applied,
+# no sync is running, every object is in sync and everything Healthy. An object still to be pruned counts only when
+# it may not be pruned (Prune=false: the layer's data after --plain); with DETACH those are taken out of the
+# Application (their tracking annotation removed), kept as they are, and adopted again when the layer comes back.
+argocd_wait() {
+	local since="$1" detach="${2:-}" out="" i r kind ns name opts pending
+	say "waiting until Argo CD has synced it and it is Healthy (a fresh install takes up to 20 minutes)"
+	for i in $(seq 360); do
+		out=$(kube -n argocd get application coder -o json 2>/dev/null | python3 -c '
+import json, sys
+a = json.load(sys.stdin); st = a.get("status", {}); since = sys.argv[1]
+want = [(s.get("chart"), s.get("targetRevision")) for s in a["spec"].get("sources", [])]
+got = [(s.get("chart"), s.get("targetRevision")) for s in st.get("sync", {}).get("comparedTo", {}).get("sources", [])]
+op, health = st.get("operationState", {}), st.get("health", {}).get("status")
+prune = [r for r in st.get("resources", []) if r.get("requiresPruning")]
+busy = [r for r in st.get("resources", []) if r.get("status") != "Synced" and not r.get("requiresPruning")]
+errors = [c.get("message", "") for c in st.get("conditions", []) if c.get("type", "").endswith("Error")]
+sync = st.get("sync", {}).get("status")
+if errors:
+    print("wait %s/%s: %s" % (sync, health, errors[0][:300]))
+elif got != want or (st.get("reconciledAt") or "") < since or op.get("phase") == "Running" or health != "Healthy" \
+        or busy or sync not in ("Synced", "OutOfSync"):
+    print("wait %s/%s" % (sync, health))
+else:
+    print("ready " + " ".join("%s/%s/%s" % (r["kind"], r.get("namespace", ""), r["name"]) for r in prune))' "$since" 2>/dev/null || echo "wait not reported yet")
+		if [[ "$out" == ready* ]]; then
+			pending=0   # still to be pruned, unless it may not be
+			for r in ${out#ready}; do
+				IFS=/ read -r kind ns name <<<"$r"
+				opts=$(kube -n "${ns:-coder}" get "$kind" "$name" -o jsonpath='{.metadata.annotations.argocd\.argoproj\.io/sync-options}' 2>/dev/null || true)
+				[[ "$opts" == *Prune=false* ]] || pending=1
+			done
+			((pending)) || break
+			out="wait pruning"
+		fi
+		((i % 12 == 0)) && say "  ... ${out#wait } ($((i * 5 / 60)) min)"
+		sleep 5
+	done
+	if [[ "$out" != ready* ]]; then
+		warn "not synced and Healthy after 30 minutes (${out#wait }): kubectl -n argocd get application coder -o yaml"
+		return 1
+	fi
+	say "Argo CD: synced, Healthy"
+	for r in ${out#ready}; do
+		IFS=/ read -r kind ns name <<<"$r"
+		if [[ -n "$detach" ]]; then
+			kube -n "${ns:-coder}" annotate "$kind" "$name" argocd.argoproj.io/tracking-id- >/dev/null &&
+				say "kept, out of the Application: ${kind} ${name} (the layer's data; adopted again when it comes back)"
+		else
+			say "kept (Argo CD may not prune it): ${kind} ${name}"
+		fi
+	done
+	[[ -z "$detach" || -z "${out#ready}" ]] || kube -n argocd annotate application coder argocd.argoproj.io/refresh=normal --overwrite >/dev/null
+	return 0
+}
+
+argocd_install() {
+	local target="${1:-}" plain="${2:-0}"
+	[[ -n "$target" ]] || die "usage: ./make --argocd HARBOR[/PROJECT] [--plain] [--yes]   e.g. harbor.example.com/coder"
+	need docker helm kubectl curl openssl python3
+	# a layer bundle continues an earlier install: its settings (.deploy) come from that install's folder
+	((LAYER == 0)) || import_previous
+	start_log
+	trap 'on_err $LINENO' ERR
+	trap on_exit EXIT
+	local v; for v in "${VARS[@]}"; do [[ -n "${!v:-}" ]] && FIXED[$v]=1; done
+	if [[ -f "$ANSWERS" ]]; then
+		while IFS='=' read -r v _; do [[ -n "${FIXED[$v]:-}" ]] || eval "$(grep "^${v}=" "$ANSWERS")"; done <"$ANSWERS"
+	fi
+	local version; version=$(sed -n 's/^version: *//p' "${here}/coder-airgapped/Chart.yaml")
+	bold "coder-airgapped ${version} on Argo CD - $( ((plain)) && echo "plain Coder (without the customization layer)" || echo "Coder decorated by the customization layer")"
+	say "Log: ${LOG}"
+	TARGET=eks   # any cluster kubectl reaches (the values and checks of ./make --deploy's EKS path)
+
+	step "Harbor"
+	HARBOR_IS=0 HARBOR_PUBLIC=""
+	harbor_split "$target"
+	[[ "${target#*://}" == */* ]] && FIXED[HARBOR_PROJECT]=1
+	ask HARBOR_PROJECT "Harbor project for the images and charts" "${HARBOR_PROJECT:-coder-airgapped}" valid_project
+	REGISTRY="${HARBOR_HOST}/${HARBOR_PROJECT}"
+	harbor_trust
+	# offered every time (an update brings new charts), unless the environment says
+	[[ -n "${FIXED[PUSH_IMAGES]:-}" ]] || PUSH_IMAGES=y
+	yes_no PUSH_IMAGES "Push the images and charts to ${REGISTRY} now? (no: they are there already)" y
+	if [[ "$PUSH_IMAGES" == y ]]; then
+		choose PUSH_GROUPS "Which images" "${PUSH_GROUPS:-custom chart prereqs}" "${PUSH_GROUP_CHOICES[@]}"
+		harbor_logins
+		harbor_project
+		save_answers
+		harbor_push
+	fi
+
+	step "Cluster"
+	argocd_kube_ok
+	ask DOMAIN "Domain (Coder at coder.<domain>)" "${DOMAIN:-example.com}" valid_domain
+	STATE="${STATE_ROOT}/argocd-${DOMAIN}"; mkdir -p "$STATE"; chmod 700 "$STATE_ROOT" "$STATE"
+	save_answers
+	certificates
+	TLS_CRT_PEM="${TLS_CRT_PEM:-$TLS_CRT}" TLS_KEY_PEM="${TLS_KEY_PEM:-$TLS_KEY}" CA_PEM="${CA_PEM:-$CA_BUNDLE}"
+	save_answers
+	argocd_prereqs
+	local def_sc; def_sc=$(kube get sc -o jsonpath='{range .items[?(@.metadata.annotations.storageclass\.kubernetes\.io/is-default-class=="true")]}{.metadata.name}{end}' 2>/dev/null)
+	ask STORAGE_CLASS "Storage class for the database and add-on volumes" "${def_sc:-gp3}" nonempty
+	step "Keycloak / OIDC (sign-in for everyone except the admin)"
+	KEYCLOAK=existing; oidc_existing
+	local provider; provider=$(kube get nodes -o jsonpath='{.items[0].spec.providerID}' 2>/dev/null || true)
+	yes_no METRICS_INSECURE_TLS "Kubelets with self-signed serving certificates (kind, Minikube; no on EKS)?" \
+		"$([[ "$provider" == kind://* || "$provider" == minikube://* ]] && echo y || echo n)"
+	save_answers
+
+	step "Secrets the charts read (namespace coder)"
+	secret_args
+	local pull_args=() pull_secret=""
+	if ((HARBOR_IS)) && [[ "${HARBOR_PUBLIC}" == true ]]; then
+		say "the Harbor project is public: the cluster pulls without a secret"
+	else
+		local want=n; yes_no want "Does the cluster need credentials to pull from ${HARBOR_HOST} (a private project)?" "$( ((HARBOR_IS)) && echo y || echo n)"
+		if [[ "$want" == y ]]; then
+			ask PULL_USER "Pull user (a robot account with pull rights)" "${PULL_USER:-${ARGOCD_USER:-${HARBOR_USER:-}}}" nonempty
+			[[ -n "${PULL_PASSWORD:-}" ]] || ask_secret PULL_PASSWORD "Its password (or the robot account's secret)"
+			pull_args=(--pull-secret "$HARBOR_HOST") pull_secret=registry-pull
+		fi
+	fi
+	[[ -z "$REGISTRY" ]] || export CNPG_IMAGE="${REGISTRY}/cloudnative-pg/cloudnative-pg:1.30.0"
+	REGISTRY_USERNAME="${PULL_USER:-}" REGISTRY_PASSWORD="${PULL_PASSWORD:-}" \
+		"${here}/install.sh" --prepare-only "${SECRET_ARGS[@]}" "${pull_args[@]}" | sed 's/^/    /'
+
+	step "Argo CD"
+	local app="${STATE}/coder-$( ((plain)) && echo plain || echo decorated)-application.yaml" kc_view=false
+	kube -n keycloak get secret keycloak-initial-admin >/dev/null 2>&1 && kc_view=true
+	ARGOCD_REPO="${ARGOCD_REPO:-${REGISTRY}/charts}"
+	local fill=(--no-credentials --set "chartRepo=${ARGOCD_REPO}" --set "registry=${REGISTRY}" --set "revision=${version}" --set "domain=${DOMAIN}"
+		--set "issuer=${OIDC_ISSUER}" --set "storageClass=${STORAGE_CLASS}" --set "pullSecret=${pull_secret}"
+		--set "keycloakView=${kc_view}" --set "kubeletInsecureTLS=$([[ "$METRICS_INSECURE_TLS" == y ]] && echo true || echo false)")
+	local tmpl="${here}/argocd/coder-decorated-application.yaml"
+	# both, so the other is at hand: the plain one takes the layer off, the decorated one puts it back
+	python3 "${here}/argocd/application.py" "${fill[@]}" "$tmpl" "${STATE}/coder-decorated-application.yaml"
+	python3 "${here}/argocd/application.py" --plain "${fill[@]}" "$tmpl" "${STATE}/coder-plain-application.yaml"
+	say "Application: ${app}"
+	if ((NO_ARGOCD)); then ARGOCD_APPLY=n
+	else yes_no ARGOCD_APPLY "Apply it to Argo CD now (kubectl apply)?" y; save_answers; fi
+	if [[ "$ARGOCD_APPLY" != y ]]; then
+		step "Done (not applied)"
+		say "Argo CD reads the charts from oci://${ARGOCD_REPO}: give it credentials (a robot account with pull rights),"
+		say "then add the Application (Argo CD > New App > Edit as YAML, or kubectl apply -f):"
+		say "  ${app}"
+		say "The repository credentials: the first document of argocd/coder-decorated-application.yaml (fill it in)."
+		return 0
+	fi
+	ask ARGOCD_USER "Argo CD reads the charts as (a Harbor user or robot account with pull rights)" "${ARGOCD_USER:-${HARBOR_USER:-}}" nonempty
+	if [[ -z "${ARGOCD_PASSWORD:-}" ]]; then
+		if [[ -n "${HARBOR_PASSWORD:-}" && "$ARGOCD_USER" == "${HARBOR_USER:-}" ]]; then ARGOCD_PASSWORD="$HARBOR_PASSWORD"
+		else ask_secret ARGOCD_PASSWORD "${ARGOCD_USER}'s password (or the robot account's secret)"; fi
+	fi
+	argocd_repo_secret "$ARGOCD_REPO" "$ARGOCD_USER" "$ARGOCD_PASSWORD"
+	# the charts the Application installs must be in the registry at this version (else Argo CD cannot render it)
+	local c hargs=(); [[ -n "${HARBOR_CA:-}" ]] && hargs+=(--ca-file "$HARBOR_CA"); [[ "$PLAIN" == 1 ]] && hargs+=(--plain-http)
+	for c in coder-airgapped-base $( ((plain)) || echo coder-airgapped-layer); do
+		helm show chart "oci://${REGISTRY}/charts/${c}" --version "$version" "${hargs[@]}" >/dev/null 2>&1 ||
+			die "chart ${c} ${version} is not in oci://${REGISTRY}/charts: push it (answer yes to the push, or ./mirror-images.sh charts ${REGISTRY}/charts)"
+	done
+	say "charts: coder-airgapped-base$( ((plain)) || echo " and coder-airgapped-layer") ${version} are in oci://${REGISTRY}/charts"
+	local since; since=$(date -u +%FT%TZ)
+	kube apply -f "$app" >/dev/null
+	kube -n argocd annotate application coder argocd.argoproj.io/refresh=normal --overwrite >/dev/null   # compare now
+	say "applied: Application argocd/coder ($( ((plain)) && echo "coder-airgapped-base only" || echo "coder-airgapped-base + coder-airgapped-layer"))"
+	argocd_wait "$since" "$( ((plain)) && echo detach)" || true
+	if ! ((plain)); then
+		step "Images view: the workspace image as a build base"
+		"${here}/mirror-images.sh" seed-builder coder || warn "the image builder's base was not seeded: run ./mirror-images.sh seed-builder"
+	fi
+	step "Done"
+	bold "    Coder:    https://coder.${DOMAIN}"
+	say "Admin:    admin@admin.com / admin   (change the password: avatar > Account > Security)"
+	say "Application: ${app}"
+	if ((plain)); then say "Decorate it again: ./make --argocd ${target}   (or kubectl apply -f ${STATE}/coder-decorated-application.yaml)"
+	else say "Take the layer off: ./make --argocd ${target} --plain   (or kubectl apply -f ${STATE}/coder-plain-application.yaml)"; fi
+}

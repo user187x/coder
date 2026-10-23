@@ -1,0 +1,63 @@
+# Overrides for an air-gapped EKS cluster (plain Helm / ./install.sh). For Argo CD use
+# argocd/coder-airgapped-application.yaml instead; it carries the same values.
+#
+# Copy to my-values.yaml, replace every CHANGE-ME, then:
+#   ./install.sh -f my-values.yaml --ca ca.crt --oidc-ca oidc-ca.crt --oidc-secret-file oidc-client-secret.txt \
+#                --tls-crt wildcard.crt --tls-key wildcard.key
+#
+# `global` drives every component (all chart values are documented in coder-airgapped/values.yaml).
+
+global:
+  domain: example.com                                     # CHANGE-ME: Coder at https://coder.example.com, apps at *.example.com
+  coderHost: ""                                           # "" = coder.<domain>
+  wildcardHost: ""                                        # "" = *.<domain>
+  registry: 123456789012.dkr.ecr.us-east-1.amazonaws.com  # CHANGE-ME: where push-images.sh (release) or ./mirror-images.sh push (bundle) put the images
+  imagePullSecrets: []                                    # EKS + ECR: none (node role)
+  gateway:
+    name: traefik-gateway
+    namespace: traefik
+  oidc:
+    issuerUrl: https://keycloak.example.com/realms/master # CHANGE-ME
+    clientId: coder
+  disablePasswordAuth: "false"                            # "true" = Keycloak only (admin = Keycloak account with firstUser.email)
+  firstUser:                                              # first owner; change the password after the first sign-in
+    username: admin
+    email: admin@admin.com
+    password: admin
+  secretNames:                                            # rename here and pass --secret-name KEY=NAME to install.sh
+    tlsCa: tls-ca
+    oidcCa: keycloaking-coder-ca
+    oidcClient: keycloaking-coder-oidc
+    wildcardTls: tls-wild-cert
+
+coder:
+  coder:
+    # Air gap: no telemetry, no update check, no public STUN (appended to the chart's environment).
+    extraEnv:
+    - name: CODER_TELEMETRY_ENABLE
+      value: "false"
+    - name: CODER_UPDATE_CHECK
+      value: "false"
+    - name: CODER_DERP_SERVER_STUN_ADDRESSES
+      value: "disable"
+
+database:
+  storage:
+    storageClass: gp3                                     # CHANGE-ME (EBS CSI StorageClass)
+
+uiUpdates:
+  persistence:
+    storageClass: gp3                                     # CHANGE-ME
+  # Keycloak on another cluster (hub/spoke): there is no Keycloak namespace here.
+  keycloak:
+    enabled: false
+  # Installed with Helm, not Argo CD.
+  argocd:
+    enabled: false
+imageBuilder:                                             # Templates > Images: its registry and files volumes
+  registry:
+    storageClass: gp3                                     # CHANGE-ME
+  files:
+    storageClass: gp3                                     # CHANGE-ME
+coder-workspace:
+  storageClass: gp3                                       # CHANGE-ME: workspaces' home volumes (EKS may have no default class)

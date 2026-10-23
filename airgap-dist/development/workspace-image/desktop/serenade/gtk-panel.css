@@ -1,0 +1,21 @@
+
+/* The workspace image's panel (desktop/serenade/xfconf/xfce4-panel.xml) numbers its plugins its own way; the rules
+   above name the theme author's. The same looks, here: the applications launcher on a blue circle (as the theme's
+   menu button), System stats on a green one, the separator unseen. */
+#launcher-1 button {
+	background-color: #7aa2f7;
+	border-radius: 999px;
+	margin: 10px;
+	padding: 0px 4px;
+	box-shadow: none;
+}
+#launcher-6 button {
+	background-color: #9ece6a;
+	border-radius: 999px;
+	margin: 10px;
+	padding: 0px 4px;
+	box-shadow: none;
+}
+#separator-4 {
+	color: #2a2b36;
+}

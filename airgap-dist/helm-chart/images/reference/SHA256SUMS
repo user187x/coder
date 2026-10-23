@@ -1,0 +1,6 @@
+ed913baa6f54257a9af2c40008a9d18fee03deb3552c1e0686e23cd080f8508e  ecr-public.aws.com_docker_library_redis_8.6.4-alpine.tar.gz
+e14281c0878140c56d5a5ee88f3c5ab845cef8d2fb687976094bcc64fd93b68a  ghcr.io_cloudnative-pg_postgresql_17.tar.gz
+24acce0f960e14e119609627cdeae8d2a22ab1aaadc1dae8e922675c2d213a3d  ghcr.io_dexidp_dex_v2.45.1.tar.gz
+fa6e2573de3f7cfd2ab04d7026da889cc9fd199e71f438c16d1ee68497fdca46  quay.io_argoproj_argocd_v3.5.2.tar.gz
+7af857a331a032808d9684d24b163fa2bcb6e671ae8aa89d1cc43832a4d56e84  quay.io_keycloak_keycloak_26.7.3.tar.gz
+55e12e5fcf8a83ace931a07a0cbdef362623e3a96f6f73b1a4581d25da84bfdd  quay.io_keycloak_keycloak-operator_26.7.3.tar.gz

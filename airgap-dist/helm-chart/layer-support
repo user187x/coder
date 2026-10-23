@@ -1,0 +1,618 @@
+#!/usr/bin/env python3
+"""The layer bundle: coder-airgapped-<version>-layer.tar.gz, the customization layer alone, for a cluster that already
+runs an earlier release (the base) installed from a full bundle. It carries this chart, its installers and only the
+images that changed since the base; the third-party pieces (Traefik, CloudNativePG, the Gateway API CRDs, Keycloak,
+the public images) must already be in the cluster at the versions this release uses, and are checked first.
+
+A changed image of ours is carried thin when the base had the same repository: only the layers the base image does
+not have (images/<section>/<image>.thin.tar.gz); the rest comes from the base image, which is in the cluster already (a
+Minikube node, the registry) or in the installing machine's docker, and every layer taken from it is checked by its
+digest. LAYER.json at the bundle's top describes the layer; its presence makes ./make --deploy a layer install.
+
+Build side (development/tools/build-bundle.sh):
+    layer-support build BASE_VERSION STAGING_DIR      LAYER.json and the layer's image archives, in STAGING_DIR
+Install side (./make --deploy runs these):
+    layer-support info                                what the layer is, carries and needs
+    layer-support check minikube PROFILE              the cluster has what the layer needs (exit 1: what is missing)
+    layer-support check registry REGISTRY [CONTEXT]
+    layer-support restore minikube PROFILE TMPDIR     the thin images, whole again, in this machine's docker
+    layer-support restore registry REGISTRY TMPDIR
+    layer-support delivered                           the images the layer carries (one per line)
+    layer-support carries FILE                        exit 0 when the layer carries FILE (relative to the bundle)
+"""
+
+import gzip
+import hashlib
+import io
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tarfile
+import tempfile
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+LAYER_FILE = os.path.join(HERE, "LAYER.json")
+CHUNK = 1 << 20
+
+
+def die(msg):
+    print(f"\033[31mERROR: {msg}\033[0m", file=sys.stderr)
+    sys.exit(1)
+
+
+def say(msg):
+    print(f"    {msg}", flush=True)
+
+
+def warn(msg):
+    print(f"\033[33m    {msg}\033[0m", file=sys.stderr, flush=True)
+
+
+def run(cmd, check=True, **kw):
+    p = subprocess.run(cmd, capture_output=True, text=True, **kw)
+    if check and p.returncode != 0:
+        die(f"{' '.join(cmd)}: {(p.stderr or p.stdout).strip()}")
+    return p
+
+
+# --------------------------------------------------------------------------------------------- images.txt
+def parse_images(text):
+    """[(group, image, digest, folder)] from an images.txt: a "[group] folder ..." line starts a section, its folder in
+    the bundle (also in an earlier release's images.txt, whose sections were custom, chart, prereqs, platform)."""
+    out, group, folder = [], "", ""
+    for line in text.splitlines():
+        parts = line.split()
+        if not parts or parts[0].startswith("#"):
+            continue
+        if parts[0].startswith("[") and parts[0].endswith("]"):
+            group, folder = parts[0][1:-1], parts[1].rstrip("/") if len(parts) > 1 else ""
+            continue
+        out.append((group, parts[0], parts[1] if len(parts) > 1 else "", folder))
+    return out
+
+
+def archive_name(image):
+    return re.sub(r"[/:@]", "_", image)
+
+
+def ours(image):
+    """Built here, on no public registry."""
+    return image.startswith("ghcr.io/user187x/")
+
+
+def repository(image):
+    return image.rsplit(":", 1)[0] if ":" in image.split("/")[-1] else image
+
+
+def target(image, registry):
+    """REGISTRY/<path>: the source registry host stripped (as mirror-images.sh pushes it)."""
+    first = image.split("/", 1)[0]
+    ref = image.split("/", 1)[1] if ("." in first or ":" in first) and "/" in image else image
+    return f"{registry}/{ref}"
+
+
+# ------------------------------------------------------------------------------------------ docker images
+def tar_members(stream):
+    """Members of a tar read from a stream, in order, with a reader for each regular file."""
+    with tarfile.open(fileobj=stream, mode="r|") as t:
+        for m in t:
+            yield m, (t.extractfile(m) if m.isfile() else None)
+
+
+def open_layer(path):
+    """The layer's tar bytes: gzip blobs (the containerd image store's) decompressed."""
+    f = open(path, "rb")
+    magic = f.read(2)
+    f.seek(0)
+    if magic == b"\x1f\x8b":
+        return gzip.GzipFile(fileobj=f)
+    return f
+
+
+def spool_save(cmd, tmp):
+    """Runs a `docker save` command into TMP/blobs (every file, by its path in the archive); returns the manifest."""
+    os.makedirs(tmp, exist_ok=True)
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    files = {}
+    try:
+        for m, f in tar_members(p.stdout):
+            if f is None:
+                continue
+            dst = os.path.join(tmp, "f%05d" % len(files))
+            with open(dst, "wb") as out:
+                shutil.copyfileobj(f, out, CHUNK)
+            files[m.name] = dst
+    except tarfile.TarError as e:
+        p.kill()
+        p.wait()
+        return None, f"{' '.join(cmd)}: {e}"
+    err = p.stderr.read().decode(errors="replace").strip()
+    if p.wait() != 0 or "manifest.json" not in files:
+        return None, f"{' '.join(cmd)}: {err or 'no manifest.json'}"
+    manifest = json.load(open(files["manifest.json"]))[0]
+    config = json.load(open(files[manifest["Config"]]))
+    layers = [files[path] for path in manifest["Layers"]]
+    return {"config_path": files[manifest["Config"]], "config": config, "layers": layers,
+            "diff_ids": config["rootfs"]["diff_ids"]}, None
+
+
+def sha256_of(stream):
+    h = hashlib.sha256()
+    for chunk in iter(lambda: stream.read(CHUNK), b""):
+        h.update(chunk)
+    return "sha256:" + h.hexdigest()
+
+
+def build_of(config):
+    return {"created": config.get("created", ""), "diff_ids": config["rootfs"]["diff_ids"]}
+
+
+def local_layers(image):
+    p = run(["docker", "image", "inspect", "--format", "{{json .RootFS.Layers}}", image], check=False)
+    return json.loads(p.stdout) if p.returncode == 0 else None
+
+
+def minikube_nodes(profile):
+    p = run(["kubectl", "--context", profile, "get", "nodes", "-o", "jsonpath={.items[*].metadata.name}"], check=False)
+    return p.stdout.split() if p.returncode == 0 else []
+
+
+def node_layers(profile, node, image):
+    p = run(["minikube", "-p", profile, "ssh", "-n", node, "--", "docker", "image", "inspect", "--format",
+             "'{{json .RootFS.Layers}}'", image], check=False, stdin=subprocess.DEVNULL)
+    try:
+        return json.loads(p.stdout.strip()) if p.returncode == 0 else None
+    except ValueError:
+        return None
+
+
+# ----------------------------------------------------------------------------------------------- build side
+def git_show(ref, path):
+    top = os.path.dirname(HERE)
+    p = run(["git", "-C", top, "show", f"{ref}:{path}"], check=False)
+    return p.stdout if p.returncode == 0 else None
+
+
+def base_layers_for(image, profile):
+    """The base image's layer digests: from this docker, else from a Minikube node of PROFILE."""
+    layers = local_layers(image)
+    if layers is None and profile and shutil.which("minikube"):
+        for node in minikube_nodes(profile):
+            layers = node_layers(profile, node, image)
+            if layers:
+                break
+    return layers
+
+
+def make_thin(image, base, base_ids, out, tmp):
+    """images/<section>/<image>.thin.tar.gz: config, manifest, the layers BASE does not have (uncompressed tars,
+    checked), and coder-thin.json naming the rest. Returns (bytes, layers carried, layers from the base)."""
+    saved, err = spool_save(["docker", "save", "--platform", "linux/amd64", image], tmp)
+    if saved is None:
+        die(err)
+    have = set(base_ids)
+    diff_ids = saved["diff_ids"]
+    with open(saved["config_path"], "rb") as f:
+        config_bytes = f.read()
+    config_name = hashlib.sha256(config_bytes).hexdigest() + ".json"
+    carried, from_base = [], []
+    zip_cmd = ["pigz", "-6"] if shutil.which("pigz") else ["gzip", "-6"]
+    with open(out, "wb") as fout:
+        z = subprocess.Popen(zip_cmd, stdin=subprocess.PIPE, stdout=fout)
+        with tarfile.open(fileobj=z.stdin, mode="w|", format=tarfile.PAX_FORMAT) as t:
+            def add_bytes(name, data):
+                info = tarfile.TarInfo(name)
+                info.size = len(data)
+                info.mtime = 0
+                t.addfile(info, io.BytesIO(data))
+
+            add_bytes(config_name, config_bytes)
+            for path, did in zip(saved["layers"], diff_ids):
+                if did in have:
+                    from_base.append(did)
+                    continue
+                plain = os.path.join(tmp, "plain.tar")
+                with open_layer(path) as src, open(plain, "wb") as dst:
+                    shutil.copyfileobj(src, dst, CHUNK)
+                with open(plain, "rb") as f:
+                    if sha256_of(f) != did:
+                        die(f"{image}: a layer does not match its digest {did}")
+                info = t.gettarinfo(plain, arcname=f"layers/{did.split(':')[1]}.tar")
+                info.mtime, info.uid, info.gid, info.uname, info.gname = 0, 0, 0, "", ""
+                with open(plain, "rb") as f:
+                    t.addfile(info, f)
+                os.remove(plain)
+                carried.append(did)
+            manifest = [{"Config": config_name, "RepoTags": [image],
+                         "Layers": [f"layers/{d.split(':')[1]}.tar" for d in diff_ids]}]
+            add_bytes("manifest.json", json.dumps(manifest).encode())
+            add_bytes("coder-thin.json", json.dumps({"image": image, "base": base, "fromBase": from_base,
+                                                     "build": build_of(saved["config"])}, indent=1).encode())
+        z.stdin.close()
+        if z.wait() != 0:
+            die(f"compressing {out} failed")
+    shutil.rmtree(tmp, ignore_errors=True)
+    return os.path.getsize(out), carried, from_base
+
+
+def cmd_build(base_version, staging):
+    """LAYER.json + the archives of the images that changed since BASE_VERSION, under STAGING/."""
+    cur_text = open(os.path.join(HERE, "images.txt")).read()
+    base_text = git_show(f"v{base_version}", "helm-chart/images.txt")
+    if base_text is None:
+        die(f"no release v{base_version} in git (git tag -l 'v*')")
+    current, base = parse_images(cur_text), parse_images(base_text)
+    base_refs = {img for _, img, _, _ in base}
+    base_by_repo = {repository(img): img for _, img, _, _ in base if ours(img)}
+    version = re.search(r"^version: *(\S+)", open(os.path.join(HERE, "coder-airgapped/Chart.yaml")).read(), re.M)[1]
+    profile = os.environ.get("LAYER_PROFILE", "coder")
+    # Images left out altogether (LAYER_SKIP_IMAGES), by a regular expression.
+    skip = re.compile(os.environ["LAYER_SKIP_IMAGES"]) if os.environ.get("LAYER_SKIP_IMAGES") else None
+    entries, sums = [], {}
+    for group, image, digest, folder in current:
+        if skip and skip.search(image):
+            print(f"left out {image}")
+            continue
+        entry = {"group": group, "image": image, "digest": digest}
+        src = os.path.join(HERE, folder, archive_name(image) + ".tar.gz")
+        if image in base_refs:
+            entry["carried"] = "no"  # the cluster has it from the base
+        elif ours(image) and repository(image) in base_by_repo and \
+                (ids := base_layers_for(base_by_repo[repository(image)], profile)):
+            entry["carried"], entry["base"] = "thin", base_by_repo[repository(image)]
+            name = archive_name(image) + ".thin.tar.gz"
+            out_dir = os.path.join(staging, folder)
+            os.makedirs(out_dir, exist_ok=True)
+            size, carried, from_base = make_thin(image, entry["base"], ids, os.path.join(out_dir, name),
+                                                 os.path.join(staging, ".tmp"))
+            entry["archive"] = f"{folder}/{name}"
+            sums.setdefault(out_dir, []).append(name)
+            print(f"thin     {image}: {size / 1e6:.0f} MB, {len(carried)} new layers, "
+                  f"{len(from_base)} from {entry['base']}")
+        else:
+            if not os.path.isfile(src):
+                die(f"{image}: changed since {base_version} but its archive is missing ({os.path.relpath(src, HERE)})")
+            out_dir = os.path.join(staging, folder)
+            os.makedirs(out_dir, exist_ok=True)
+            try:
+                os.link(src, os.path.join(out_dir, os.path.basename(src)))
+            except OSError:
+                shutil.copy2(src, os.path.join(out_dir, os.path.basename(src)))
+            entry["carried"], entry["archive"] = "full", f"{folder}/{os.path.basename(src)}"
+            sums.setdefault(out_dir, []).append(os.path.basename(src))
+            why = "new since the base" if not ours(image) or repository(image) not in base_by_repo else \
+                f"its base {base_by_repo[repository(image)]} is not in this docker or Minikube"
+            print(f"full     {image}: {os.path.getsize(src) / 1e6:.0f} MB ({why})")
+        if entry["carried"] == "no":
+            print(f"needed   {image} (in the cluster since {base_version})")
+        entries.append(entry)
+    for d, names in sums.items():
+        with open(os.path.join(d, "SHA256SUMS"), "w") as f:
+            for n in sorted(names):
+                with open(os.path.join(d, n), "rb") as a:
+                    f.write(f"{sha256_of(a).split(':')[1]}  {n}\n")
+    # The third-party charts: the cluster must run these versions; a prerequisite changed since the base is carried.
+    prereqs = sorted(os.listdir(os.path.join(HERE, "prereqs")))
+    base_prereqs = (git_show(f"v{base_version}", "helm-chart/prereqs") or "").split()
+    carried_prereqs = [f for f in prereqs if f not in base_prereqs]
+    gateway = next((re.search(r"v[\d.]+", f)[0] for f in prereqs if f.startswith("gateway-api-")), "")
+    chart_version = lambda prefix: next((f[len(prefix):-4] for f in prereqs if f.startswith(prefix) and f.endswith(".tgz")), "")
+    keycloak = next((img.rsplit(":", 1)[1] for _, img, _, _ in current if img.startswith("quay.io/keycloak/keycloak:")), "")
+    layer = {"version": version, "base": base_version, "images": entries,
+             "charts": {"traefik": chart_version("traefik-"), "cloudnative-pg": chart_version("cloudnative-pg-"),
+                        "gateway-api": gateway},
+             "keycloak": keycloak, "prereqs": carried_prereqs}
+    with open(os.path.join(staging, "LAYER.json"), "w") as f:
+        json.dump(layer, f, indent=1)
+    shutil.rmtree(os.path.join(staging, ".tmp"), ignore_errors=True)
+    print(f"layer {version} on {base_version}: {sum(e['carried'] != 'no' for e in entries)} image(s) carried, "
+          f"{sum(e['carried'] == 'no' for e in entries)} needed in the cluster; prerequisites carried: "
+          f"{', '.join(carried_prereqs) or 'none'}")
+
+
+# --------------------------------------------------------------------------------------------- install side
+def layer():
+    if not os.path.isfile(LAYER_FILE):
+        die("this is not a layer bundle (no LAYER.json)")
+    return json.load(open(LAYER_FILE))
+
+
+def cmd_info():
+    L = layer()
+    print(f"coder-airgapped {L['version']}: the layer on {L['base']}")
+    for e in L["images"]:
+        how = {"no": "needed in the cluster", "full": "carried", "thin": f"carried thin (rest from {e.get('base')})"}
+        note = ""
+        if e["carried"] == "no" and e["group"] == "reference":
+            note = " (if you run it: Argo CD, Keycloak)"
+        elif e["carried"] == "no" and e["group"] == "prereqs":
+            note = " (if installed from this bundle)"
+        print(f"  {e['group']:<13} {e['image']:<60} {how[e['carried']]}{note}")
+    c = L["charts"]
+    print(f"  needs Traefik chart {c['traefik']}, CloudNativePG chart {c['cloudnative-pg']}, Gateway API "
+          f"{c['gateway-api']}, Keycloak {L['keycloak']} (Minikube's development Keycloak), coder-airgapped installed")
+
+
+def cmd_delivered():
+    for e in layer()["images"]:
+        if e["carried"] != "no":
+            print(e["image"])
+
+
+def cmd_carries(path):
+    L = layer()
+    files = {e.get("archive") for e in L["images"]} | {f"prereqs/{f}" for f in L["prereqs"]}
+    sys.exit(0 if path in files else 1)
+
+
+def helm_releases(context):
+    cmd = ["helm", "list", "-A", "-o", "json"] + (["--kube-context", context] if context else [])
+    p = run(cmd, check=False)
+    return json.loads(p.stdout or "[]") if p.returncode == 0 else []
+
+
+def kubectl(context, *args):
+    return run(["kubectl"] + (["--context", context] if context else []) + list(args), check=False)
+
+
+def check_cluster(context, minikube, problems, notes):
+    L = layer()
+    rel = {r["name"] + "/" + r["namespace"]: r["chart"] for r in helm_releases(context)}
+    by_chart = {}
+    for key, chart in rel.items():
+        name, _, ver = chart.rpartition("-")
+        by_chart.setdefault(name, []).append((key, ver))
+    coder = rel.get("coder/coder")
+    if not coder:
+        problems.append("coder-airgapped is not installed (Helm release coder in namespace coder): install the full "
+                        "bundle first; the layer only goes on top of it")
+    else:
+        notes.append(f"installed: {coder}")
+        if coder.rpartition("-")[2] != L["base"]:
+            notes.append(f"this layer was made for clusters at {L['base']}; every piece it needs is checked one by one")
+    for chart, want, fallback in (("traefik", L["charts"]["traefik"], ("-n", "traefik", "get", "gateway", "traefik-gateway")),
+                                  ("cloudnative-pg", L["charts"]["cloudnative-pg"], ("get", "crd", "clusters.postgresql.cnpg.io"))):
+        found = by_chart.get(chart)
+        if found:
+            bad = [f"{k} ({v})" for k, v in found if v != want]
+            if bad and f"prereqs/{chart}-{want}.tgz" not in {f"prereqs/{f}" for f in L["prereqs"]}:
+                problems.append(f"{chart} chart {want} needed, the cluster runs {', '.join(bad)}")
+            else:
+                notes.append(f"{chart} chart {want}: OK" if not bad else f"{chart}: upgraded to {want} from the layer")
+        elif kubectl(context, *fallback).returncode == 0:
+            notes.append(f"{chart}: present (not installed by this bundle; left as it is)")
+        else:
+            problems.append(f"{chart} is not installed (chart {want} needed)")
+    p = kubectl(context, "get", "crd", "httproutes.gateway.networking.k8s.io", "-o",
+                "jsonpath={.metadata.annotations.gateway\\.networking\\.k8s\\.io/bundle-version}")
+    if p.returncode != 0:
+        problems.append(f"the Gateway API CRDs are not installed ({L['charts']['gateway-api']} needed)")
+    elif p.stdout.strip() != L["charts"]["gateway-api"]:
+        notes.append(f"Gateway API CRDs {p.stdout.strip() or '(no version)'} (this release uses {L['charts']['gateway-api']})")
+    else:
+        notes.append(f"Gateway API CRDs {p.stdout.strip()}: OK")
+    if minikube and kubectl(context, "-n", "keycloak", "get", "deploy", "keycloak").returncode == 0:
+        img = kubectl(context, "-n", "keycloak", "get", "deploy", "keycloak", "-o",
+                      "jsonpath={.spec.template.spec.containers[0].image}").stdout.strip()
+        want = f"quay.io/keycloak/keycloak:{L['keycloak']}"
+        (notes.append(f"Keycloak {L['keycloak']}: OK") if img == want else
+         problems.append(f"Keycloak {L['keycloak']} needed ({want}), the cluster runs {img}"))
+
+
+def needed_images(minikube):
+    """The images that must already be where the cluster pulls from: those the layer does not carry. On Minikube only
+    Keycloak of the reference images runs (as minikube-support loads them); elsewhere the prerequisites' images
+    (Traefik, CloudNativePG) are not asked for: those run already when their charts are there (checked above), and
+    may come from anywhere."""
+    L = layer()
+    out = []
+    for e in L["images"]:
+        if e["group"] == "reference" and (not minikube or not e["image"].startswith("quay.io/keycloak/keycloak:")):
+            continue
+        if e["group"] == "prereqs" and not minikube:
+            continue
+        if e["carried"] == "no":
+            out.append(e["image"])
+    return out
+
+
+def short_ref(image):
+    """An image as docker lists it: Docker Hub's without docker.io/ (and library/)."""
+    for prefix in ("docker.io/library/", "docker.io/"):
+        if image.startswith(prefix):
+            return image[len(prefix):]
+    return image
+
+
+def node_images(profile):
+    have = {}
+    for node in minikube_nodes(profile):
+        p = run(["minikube", "-p", profile, "ssh", "-n", node, "--", "docker", "image", "ls", "--format",
+                 "'{{.Repository}}:{{.Tag}}'"], check=False, stdin=subprocess.DEVNULL)
+        have[node] = {short_ref(i) for i in p.stdout.split()} if p.returncode == 0 else set()
+    return have
+
+
+def online():
+    """Docker Hub answers (as minikube-support decides): the nodes pull public images themselves then."""
+    if os.environ.get("MK_OFFLINE") == "1":
+        return False
+    p = run(["curl", "-s", "-o", "/dev/null", "--max-time", "6", "https://registry-1.docker.io/v2/"], check=False)
+    return p.returncode == 0
+
+
+def in_registry(ref):
+    """The registry has REF. docker manifest inspect reaches a plain-HTTP registry (e.g. one on 127.0.0.1) only with
+    --insecure, and says "no such manifest" without it: the second try."""
+    msg = ""
+    for extra in ([], ["--insecure"]):
+        p = run(["docker", "manifest", "inspect"] + extra + [ref], check=False)
+        if p.returncode == 0 and p.stdout.strip().startswith("{"):
+            return True, ""
+        msg = ((p.stderr or p.stdout).strip().splitlines()[-1:] or [""])[0]
+    return False, msg
+
+
+def cmd_check(kind, where, context=None):
+    problems, notes = [], []
+    minikube = kind == "minikube"
+    check_cluster(where if minikube else context, minikube, problems, notes)
+    need = needed_images(minikube)
+    if minikube:
+        have = node_images(where)
+        if not have:
+            problems.append(f"cannot list the images of Minikube profile {where}'s nodes")
+        # With internet the nodes pull the public images themselves (the full bundle loads them only without);
+        # ours are on no public registry: those must be on every node.
+        pulls = online()
+        if pulls:
+            notes.append("internet: the nodes pull the public images themselves (only ours are checked on them)")
+        need = [img for img in need if not pulls or ours(img)]
+        for img in need:
+            missing = [n for n, s in have.items() if short_ref(img) not in s]
+            if missing:
+                problems.append(f"image {img} is not on node(s) {', '.join(missing)}")
+    else:
+        for img in need:
+            ok, why = in_registry(target(img, where))
+            if not ok:
+                problems.append(f"image {target(img, where)} is not in the registry ({why})")
+    for e in layer()["images"]:
+        if e["carried"] != "thin":
+            continue
+        # the base of a thin image: on a node (or this machine's docker), or in the registry
+        if minikube:
+            ok = local_layers(e["base"]) is not None or any(short_ref(e["base"]) in s for s in have.values())
+        else:
+            ok = local_layers(e["base"]) is not None or in_registry(target(e["base"], where))[0]
+        if ok:
+            notes.append(f"{e['image']}: carried thin, the rest from {e['base']} (each layer checked when restored)")
+        else:
+            problems.append(f"{e['base']} (the base of the thin {e['image']}) is neither in the cluster nor here")
+    for n in notes:
+        say(n)
+    if problems:
+        print("\033[31m    The cluster lacks what this layer needs:\033[0m", file=sys.stderr)
+        for p in problems:
+            print(f"\033[31m      - {p}\033[0m", file=sys.stderr)
+        print("\033[31m    Install the full bundle (coder-airgapped-<version>.tar.gz) instead, or a layer made for "
+              "this cluster's release.\033[0m", file=sys.stderr)
+        sys.exit(1)
+    say(f"the cluster has everything this layer needs ({len(need)} image(s) checked)")
+
+
+def base_sources(kind, where, base):
+    """Commands that write `docker save` of the base image, in the order to try them."""
+    srcs = []
+    if local_layers(base) is not None:
+        srcs.append(("this machine's docker", ["docker", "save", base]))
+    if kind == "minikube":
+        for node in minikube_nodes(where):
+            if run(["docker", "inspect", node], check=False).returncode == 0:  # docker driver: the node is a container
+                srcs.append((f"node {node}", ["docker", "exec", node, "docker", "save", base]))
+            else:
+                srcs.append((f"node {node}", ["minikube", "-p", where, "ssh", "-n", node, "--", "docker", "save", base]))
+    else:
+        srcs.append((f"the registry ({target(base, where)})", ["sh", "-c",
+                    f"docker pull -q '{target(base, where)}' >/dev/null && docker save '{target(base, where)}'"]))
+    return srcs
+
+
+def restore_one(entry, kind, where, tmp):
+    path = os.path.join(HERE, entry["archive"])
+    with tarfile.open(path, "r:*") as t:
+        thin = json.load(t.extractfile("coder-thin.json"))
+    want = set(thin["fromBase"])
+    have = local_layers(entry["image"])
+    if have == thin["build"]["diff_ids"]:
+        say(f"{entry['image']}: in this machine's docker already")
+        return
+    for label, cmd in base_sources(kind, where, thin["base"]):
+        say(f"{entry['image']}: taking {len(want)} layers of {thin['base']} from {label}")
+        work = tempfile.mkdtemp(prefix="layer-", dir=tmp)
+        try:
+            saved, err = spool_save(cmd, os.path.join(work, "base"))
+            if saved is None:
+                warn(f"{label}: {err}")
+                continue
+            found = {did: path for path, did in zip(saved["layers"], saved["diff_ids"]) if did in want}
+            if set(found) != want:
+                warn(f"{label}: {thin['base']} there is another build ({len(want - set(found))} layers differ)")
+                continue
+            if load_whole(path, found, work, entry["image"]):
+                after = local_layers(entry["image"])
+                if after != thin["build"]["diff_ids"]:
+                    die(f"{entry['image']}: loaded, but not the build the layer carries")
+                say(f"{entry['image']}: restored and checked ({len(thin['build']['diff_ids'])} layers)")
+                return
+        finally:
+            shutil.rmtree(work, ignore_errors=True)
+    die(f"{entry['image']}: none of the places tried has {thin['base']} (the build the layer was made for)")
+
+
+def load_whole(thin_path, found, work, image):
+    """docker load of the thin archive plus the base's layers (each checked by its digest)."""
+    load = subprocess.Popen(["docker", "load", "-q"], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE)
+    with tarfile.open(fileobj=load.stdin, mode="w|", format=tarfile.PAX_FORMAT) as out:
+        with tarfile.open(thin_path, "r:*") as t:
+            for m in t:
+                if m.name == "coder-thin.json":
+                    continue
+                out.addfile(m, t.extractfile(m) if m.isfile() else None)
+        for did, path in found.items():
+            plain = os.path.join(work, "plain.tar")
+            with open_layer(path) as src, open(plain, "wb") as dst:
+                shutil.copyfileobj(src, dst, CHUNK)
+            with open(plain, "rb") as f:
+                if sha256_of(f) != did:
+                    die(f"{image}: the base's layer {did} does not match its digest")
+            info = out.gettarinfo(plain, arcname=f"layers/{did.split(':')[1]}.tar")
+            info.mtime, info.uid, info.gid, info.uname, info.gname = 0, 0, 0, "", ""
+            with open(plain, "rb") as f:
+                out.addfile(info, f)
+            os.remove(plain)
+    load.stdin.close()
+    out_text, err = load.stdout.read().decode(), load.stderr.read().decode()
+    if load.wait() != 0:
+        warn(f"docker load: {err.strip() or out_text.strip()}")
+        return False
+    return True
+
+
+def cmd_restore(kind, where, tmp):
+    os.makedirs(tmp, exist_ok=True)
+    thin = [e for e in layer()["images"] if e["carried"] == "thin"]
+    if not thin:
+        say("no thin images in this layer")
+    for e in thin:
+        restore_one(e, kind, where, tmp)
+
+
+def main(argv):
+    if not argv or argv[0] in ("-h", "--help"):
+        print(__doc__)
+        return
+    cmd, args = argv[0], argv[1:]
+    if cmd == "build" and len(args) == 2:
+        cmd_build(*args)
+    elif cmd == "info":
+        cmd_info()
+    elif cmd == "delivered":
+        cmd_delivered()
+    elif cmd == "carries" and len(args) == 1:
+        cmd_carries(args[0])
+    elif cmd == "check" and len(args) in (2, 3) and args[0] in ("minikube", "registry"):
+        cmd_check(*args)
+    elif cmd == "restore" and len(args) == 3 and args[0] in ("minikube", "registry"):
+        cmd_restore(*args)
+    else:
+        print(__doc__, file=sys.stderr)
+        sys.exit(2)
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])

@@ -1,0 +1,35 @@
+api:
+  dashboard: true
+  insecure: false
+gateway:
+  enabled: true
+  listeners:
+    http:
+      namespacePolicy:
+        from: All
+      port: 8080
+      protocol: HTTP
+    https:
+      certificateRefs:
+      - kind: Secret
+        name: grey-marshall-tls
+      namespacePolicy:
+        from: All
+      port: 8443
+      protocol: HTTPS
+    web: null
+  name: traefik-gateway
+gatewayClass:
+  enabled: true
+  name: traefik
+ports:
+  traefik:
+    expose:
+      default: true
+providers:
+  kubernetesCRD:
+    allowCrossNamespace: true
+  kubernetesGateway:
+    enabled: true
+  kubernetesIngress:
+    enabled: false

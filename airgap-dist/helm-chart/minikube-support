@@ -1,0 +1,551 @@
+#!/usr/bin/env bash
+# minikube-support: the minikube-only steps of `./make --deploy`, kept apart from the general install.
+# minikube-expose-services and minikube-sync-hosts are profile-aware versions of the ones in
+# ~/devbox/data/util/minikube/minikube-functions (same approach: `minikube tunnel` in the background, then the
+# LoadBalancer IP + route hostnames into /etc/hosts), made non-interactive so a deploy can call them.
+#
+#   ./minikube-support ensure PROFILE                  start the profile, or create it (MK_* below); makes
+#                                                      local-path (node-local volumes) the default storage class
+#   ./minikube-support load-images PROFILE             our images (always) + the bundled public ones (offline)
+#                                                      when there is no internet (MK_OFFLINE=1 forces it)
+#   ./minikube-support pin-ip DOMAIN                   print the in-cluster IP DOMAIN already resolves to, if any
+#   ./minikube-support dns PROFILE DOMAIN              CoreDNS: *.DOMAIN -> Traefik, so pods reach coder./keycloak.
+#   ./minikube-support keycloak PROFILE DOMAIN OUT     dev Keycloak at https://keycloak.DOMAIN, client "coder";
+#                                                      writes the client secret to OUT
+#   ./minikube-support cluster-signin PROFILE DOMAIN CA  admins' kubectl sign-in: Keycloak client "kubernetes"
+#                                                      (device login, "groups" claim) and group coder-cluster-admins;
+#                                                      the API server trusts Keycloak's tokens (CA: its TLS CA)
+#   ./minikube-support seed-registry PROFILE IMAGE      Images view: pushes IMAGE (in the nodes' Docker) into the in-cluster
+#                                                      registry as coder-images/base/<name:tag>: the base of builds, and what
+#                                                      pit stops (Images > Fix image) patch
+#   ./minikube-support minikube-expose-services PROFILE   `minikube tunnel` in the background (asks for sudo once)
+#   ./minikube-support minikube-sync-hosts PROFILE DOMAIN /etc/hosts block for the cluster's hostnames (sudo)
+#   ./minikube-support expose PROFILE DOMAIN           both of the above - run it again after a reboot
+#   ./minikube-support trust-ca CA                     trust CA on this machine (system store + browsers' NSS dbs,
+#                                                      snap/flatpak Chromium, Brave and Chrome included)
+#   ./minikube-support ca-trusted CA                   exit 0 when CA is trusted already (no sudo)
+#   ./minikube-support tunnel-pid PROFILE              PID of the profile's running tunnel, if any (no sudo)
+#   ./minikube-support status PROFILE
+#
+# New profiles: MK_NODES (3) MK_CPUS (8) MK_MEMORY (24576) MK_DISK (20000mb) MK_K8S (v1.35.1)
+#               MK_EXTRA_CONFIG (kubelet.system-reserved=cpu=16500m,memory=73Gi), docker driver, kindnet.
+set -euo pipefail
+
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+HOSTS_FILE="${MINIKUBE_HOSTS_FILE:-/etc/hosts}"
+KEYCLOAK_IMAGE="${KEYCLOAK_IMAGE:-quay.io/keycloak/keycloak:26.7.3}"
+
+say() { printf '    %s\n' "$*"; }
+warn() { printf '\033[33m    %s\033[0m\n' "$*" >&2; }
+die() { printf '\033[31mERROR: %s\033[0m\n' "$*" >&2; exit 1; }
+kc() { kubectl --context "$PROFILE" "$@"; }
+
+# ---- profile -----------------------------------------------------------------------------------------------
+mk_exists() { minikube profile list -o json 2>/dev/null | grep -q "\"Name\":\"$1\""; }
+mk_running() { [[ "$(minikube -p "$1" status --format '{{.APIServer}}' 2>/dev/null | head -n1)" == Running ]]; }
+
+mk_ensure() {
+	if mk_running "$PROFILE"; then say "minikube profile $PROFILE is running"
+	elif mk_exists "$PROFILE"; then say "starting minikube profile $PROFILE"; minikube start -p "$PROFILE" >/dev/null
+	else
+		say "creating minikube profile $PROFILE (${MK_NODES:-3} nodes; takes a few minutes)"
+		minikube start -p "$PROFILE" --driver=docker --container-runtime=docker --cni=kindnet \
+			--kubernetes-version="${MK_K8S:-v1.35.1}" --nodes="${MK_NODES:-3}" --cpus="${MK_CPUS:-8}" \
+			--memory="${MK_MEMORY:-24576}" --disk-size="${MK_DISK:-20000mb}" \
+			--extra-config="${MK_EXTRA_CONFIG:-kubelet.system-reserved=cpu=16500m,memory=73Gi}" >/dev/null
+	fi
+	kubectl config use-context "$PROFILE" >/dev/null
+	kc wait --for=condition=Ready nodes --all --timeout=300s >/dev/null
+	mk_storage
+}
+
+# minikube's default "standard" class (hostpath) does not work across nodes: it creates every volume's directory on
+# the control-plane node only, so a pod on another node gets an empty root-owned directory (CloudNativePG's replica
+# join fails with "could not create directory .../pgdata") and data does not follow a rescheduled pod. local-path
+# (addon storage-provisioner-rancher) creates the volume on the pod's node and pins the pod to it.
+mk_storage() {
+	if ! kc get storageclass local-path >/dev/null 2>&1; then
+		say "storage: enabling the local-path provisioner (addon storage-provisioner-rancher)"
+		minikube -p "$PROFILE" addons enable storage-provisioner-rancher >/dev/null
+		kc -n local-path-storage rollout status deploy/local-path-provisioner --timeout=180s >/dev/null
+	fi
+	local sc
+	for sc in $(kc get storageclass -o jsonpath='{.items[*].metadata.name}'); do
+		[[ "$sc" == local-path ]] && continue
+		kc patch storageclass "$sc" -p '{"metadata":{"annotations":{"storageclass.kubernetes.io/is-default-class":"false"}}}' >/dev/null
+	done
+	kc patch storageclass local-path -p '{"metadata":{"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}' >/dev/null
+	say "storage: local-path is the default storage class"
+}
+
+# ---- images -------------------------------------------------------------------------------------------------
+online() { [[ "${MK_OFFLINE:-0}" != 1 ]] && curl -s -o /dev/null --max-time 6 https://registry-1.docker.io/v2/; }
+
+# images.txt entries, "section image": ours (built here, ghcr.io/user187x/...), public (the others) or all
+images_of() {
+	local g="" a
+	while read -r a _; do
+		[[ -z "$a" || "$a" == \#* ]] && continue
+		if [[ "$a" == \[*\] ]]; then g="${a:1:-1}"; continue; fi
+		case "$1" in
+		ours) [[ "$a" == ghcr.io/user187x/* ]] || continue ;;
+		public) [[ "$a" != ghcr.io/user187x/* ]] || continue ;;
+		esac
+		echo "$g $a"
+	done <"${here}/images.txt"
+}
+archive_of() { # section image: its archive in the bundle (images/<section's folder>/)
+	echo "${here}/$("${here}/mirror-images.sh" path "$2")"
+}
+
+# Which build an image is: its creation time and layer digests. Not the image ID: with the containerd image store
+# (Docker's default) the host's ID is the manifest's digest, a node's (classic store) the config's.
+BUILD_FORMAT='{{.Created}}{{range .RootFS.Layers}},{{.}}{{end}}'
+on_every_node() { # image [build]: present in every node's container runtime (that build, when given)
+	local n id
+	for n in $(kc get nodes -o jsonpath='{.items[*].metadata.name}'); do
+		# </dev/null: minikube ssh reads stdin, which in mk_load_images is the rest of the image list.
+		id=$(minikube -p "$PROFILE" ssh -n "$n" -- docker image inspect --format "'${BUILD_FORMAT}'" "$1" </dev/null 2>/dev/null | tr -d '\r') || return 1
+		[[ -n "$id" && ( -z "${2:-}" || "$id" == "$2" ) ]] || return 1
+	done
+}
+
+# Loads the image unless every node has exactly this build. A rebuild under the same tag (one of ours) is
+# reloaded, and its name is appended to $MK_RELOADED_FILE (if set) so the caller restarts the pods that run it.
+mk_load_image() { # group image
+	local g="$1" img="$2" f want
+	f=$(archive_of "$g" "$img")
+	# The bundle's archive is the build to run: load it when docker has another build (or none) of this tag.
+	if [[ -f "$f" ]] && ! docker image inspect "$img" >/dev/null 2>&1; then docker load -q -i "$f" >/dev/null; fi
+	want=$(docker image inspect --format "$BUILD_FORMAT" "$img" 2>/dev/null || true)
+	[[ -n "$want" ]] || { warn "image $img: not in docker and $(basename "$f") is not in the bundle - skipped"; return 0; }
+	if on_every_node "$img" "$want"; then say "image $img: already on every node"; return 0; fi
+	local had=0; on_every_node "$img" && had=1
+	say "image $img: loading into every node"
+	minikube -p "$PROFILE" image load --overwrite=true "$img" </dev/null >/dev/null
+	# minikube leaves a node alone whose running containers use the old build of the tag: stream the image into
+	# each node that still has another build (docker load re-tags it; the old build stays until unused).
+	local n id
+	for n in $(kc get nodes -o jsonpath='{.items[*].metadata.name}'); do
+		id=$(minikube -p "$PROFILE" ssh -n "$n" -- docker image inspect --format "'${BUILD_FORMAT}'" "$img" </dev/null 2>/dev/null | tr -d '\r') || true
+		[[ "$id" == "$want" ]] && continue
+		say "image $img: loading into node $n directly"
+		if docker inspect "$n" >/dev/null 2>&1; then
+			# docker driver: the node is a container of this docker.
+			docker save "$img" | docker exec -i "$n" docker load -q >/dev/null
+		else
+			local tar; tar="$(mktemp --suffix=.tar)"
+			docker save -o "$tar" "$img" && minikube -p "$PROFILE" cp "$tar" "$n:/tmp/coder-image.tar" </dev/null >/dev/null &&
+				minikube -p "$PROFILE" ssh -n "$n" -- "docker load -q -i /tmp/coder-image.tar; rm -f /tmp/coder-image.tar" </dev/null >/dev/null
+			rm -f "$tar"
+		fi
+	done
+	on_every_node "$img" "$want" || warn "image $img: not on every node after loading"
+	# minikube image load leaves its copy of the archive in each node (/var/lib/minikube/images/<name>_<tag>), and
+	# every earlier tag's too: about 2 GB a node for each workspace image, until the disk fills. The image is in the
+	# node's Docker now, so its copies (any tag) go.
+	local cache="${img##*/}"; cache="${cache%%:*}_"
+	for n in $(kc get nodes -o jsonpath='{.items[*].metadata.name}'); do
+		minikube -p "$PROFILE" ssh -n "$n" -- \
+			"sudo find /var/lib/minikube/images -maxdepth 1 -type f -name '${cache}*' -delete" </dev/null >/dev/null 2>&1 || true
+	done
+	if ((had)) && [[ -n "${MK_RELOADED_FILE:-}" ]]; then echo "$img" >>"$MK_RELOADED_FILE"; fi
+}
+
+mk_load_images() {
+	local g img which=ours
+	if [[ -f "${here}/LAYER.json" ]]; then # a layer: only what it carries (the rest is on the nodes, checked)
+		local carried; carried=$("${here}/layer-support" delivered)
+		[[ -n "$carried" ]] || { say "images: the layer carries none (every image is on the nodes already)"; return 0; }
+		while read -r g img; do
+			grep -qxF "$img" <<<"$carried" && mk_load_image "$g" "$img"
+		done < <(images_of all)
+		return 0
+	fi
+	online || { say "no internet: loading the bundled public images too"; which=all; }
+	while read -r g img; do
+		[[ "$g" != reference || "$img" == "$KEYCLOAK_IMAGE" ]] || continue   # of the reference images only Keycloak runs here
+		mk_load_image "$g" "$img"
+	done < <(images_of "$which")
+}
+
+# ---- networking ---------------------------------------------------------------------------------------------
+# An IP inside minikube's service range (10.96.0.0/12) that coder.DOMAIN already resolves to (DNS or /etc/hosts):
+# Traefik gets it as its ClusterIP, so existing name resolution keeps working unchanged.
+mk_pin_ip() {
+	local ip a b
+	ip=$({ getent ahostsv4 "coder.$1" 2>/dev/null || true; } | awk 'NR==1{print $1}')
+	[[ -n "$ip" ]] || return 0
+	IFS=. read -r a b _ <<<"$ip"
+	((a == 10 && b >= 96 && b <= 111)) && echo "$ip" || true
+}
+
+mk_dns() {
+	local domain="$1" re cf
+	re="$(sed 's/\./\\\\./g' <<<"$domain")"
+	cf=$(kc -n kube-system get configmap coredns -o jsonpath='{.data.Corefile}' | grep -v '# coder-airgapped$')
+	# anchored: the domain's names and only those (a short domain must not catch vmware.com or *.vm.svc names)
+	cf=$(awk -v line="    rewrite name regex ^(.+)\\\\.${re}\\\\.?\$ traefik.traefik.svc.cluster.local answer auto # coder-airgapped" \
+		'{print} /^\.:53 \{/ && !done {print line; done=1}' <<<"$cf")
+	kc -n kube-system create configmap coredns --from-literal=Corefile="$cf" --dry-run=client -o yaml | kc apply -f - >/dev/null 2>&1
+	kc -n kube-system rollout restart deploy/coredns >/dev/null && kc -n kube-system rollout status deploy/coredns --timeout=120s >/dev/null
+	say "CoreDNS: *.${domain} -> Traefik inside the cluster"
+}
+
+# ---- Keycloak (development) ---------------------------------------------------------------------------------
+mk_keycloak() {
+	local domain="$1" out="$2" pw secret
+	kc create namespace keycloak --dry-run=client -o yaml | kc apply -f - >/dev/null
+	if ! kc -n keycloak get secret keycloak-initial-admin >/dev/null 2>&1; then
+		pw=$(openssl rand -base64 18 | tr -dc 'A-Za-z0-9' | head -c 20)
+		kc -n keycloak create secret generic keycloak-initial-admin --from-literal=username=admin --from-literal=password="$pw" >/dev/null
+	fi
+	kc apply -f - >/dev/null <<EOF
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: {name: keycloak-data, namespace: keycloak}
+spec: {accessModes: [ReadWriteOnce], resources: {requests: {storage: 1Gi}}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: keycloak, namespace: keycloak, labels: {app: keycloak}}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector: {matchLabels: {app: keycloak}}
+  template:
+    metadata: {labels: {app: keycloak}}
+    spec:
+      securityContext: {fsGroup: 1000}
+      containers:
+      - name: keycloak
+        image: ${KEYCLOAK_IMAGE}
+        args: [start-dev]
+        env:
+        - {name: KC_BOOTSTRAP_ADMIN_USERNAME, valueFrom: {secretKeyRef: {name: keycloak-initial-admin, key: username}}}
+        - {name: KC_BOOTSTRAP_ADMIN_PASSWORD, valueFrom: {secretKeyRef: {name: keycloak-initial-admin, key: password}}}
+        - {name: KC_HOSTNAME, value: "https://keycloak.${domain}"}
+        - {name: KC_HTTP_ENABLED, value: "true"}
+        - {name: KC_PROXY_HEADERS, value: xforwarded}
+        ports: [{name: http, containerPort: 8080}]
+        readinessProbe: {httpGet: {path: /realms/master, port: http}, periodSeconds: 5, failureThreshold: 60}
+        volumeMounts: [{name: data, mountPath: /opt/keycloak/data}]
+      volumes: [{name: data, persistentVolumeClaim: {claimName: keycloak-data}}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: keycloak, namespace: keycloak}
+spec:
+  selector: {app: keycloak}
+  ports: [{name: http, port: 8080, targetPort: http}]
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata: {name: keycloak, namespace: keycloak}
+spec:
+  hostnames: [keycloak.${domain}]
+  parentRefs: [{name: traefik-gateway, namespace: traefik}]
+  rules: [{backendRefs: [{name: keycloak, port: 8080}]}]
+EOF
+	say "Keycloak: waiting until it is ready (first start takes a minute)"
+	kc -n keycloak rollout status deploy/keycloak --timeout=600s >/dev/null
+	# Client "coder" (kept when it exists); its secret goes to OUT for the Secret Coder reads.
+	secret=$(kc -n keycloak exec -i deploy/keycloak -c keycloak -- env HOME=/tmp DOMAIN="$domain" sh -s <<'EOF'
+set -e
+K=/opt/keycloak/bin/kcadm.sh
+$K config credentials --server http://localhost:8080 --realm master --user "$KC_BOOTSTRAP_ADMIN_USERNAME" \
+  --password "$KC_BOOTSTRAP_ADMIN_PASSWORD" >/dev/null 2>&1
+id=$($K get clients -r master -q clientId=coder --fields id --format csv --noquotes)
+if [ -z "$id" ]; then
+  id=$($K create clients -r master -i -s clientId=coder -s enabled=true -s publicClient=false \
+    -s standardFlowEnabled=true -s directAccessGrantsEnabled=false \
+    -s "redirectUris=[\"https://coder.$DOMAIN/api/v2/users/oidc/callback\"]" -s "webOrigins=[\"https://coder.$DOMAIN\"]")
+fi
+$K get "clients/$id/client-secret" --fields value --format csv --noquotes
+EOF
+)
+	[[ -n "$secret" ]] || die "could not read the Keycloak client secret"
+	(umask 077; printf '%s\n' "$secret" >"$out")
+	say "Keycloak: https://keycloak.${domain} (admin password: kubectl -n keycloak get secret keycloak-initial-admin -o jsonpath='{.data.password}' | base64 -d)"
+}
+
+# ---- admins' kubectl: Keycloak device login, trusted by the API server ------------------------------------
+# The chart's global.clusterAccess (values.yaml) gives the Keycloak group coder-cluster-admins cluster-admin and writes
+# admins' kubeconfigs; this makes the two ends meet on Minikube with the development Keycloak.
+#   - Keycloak (realm master): public client "kubernetes" with only the OAuth 2.0 device grant (kubelogin in a
+#     workspace prints a link; the admin signs in in their own browser, with the same login flow as Coder's client,
+#     and confirms the grant the first time - Keycloak remembers it),
+#     a "groups" claim with plain group names, short tokens (10 minutes; the sign-in lasts 30 minutes idle, 8 hours at most),
+#     and the group coder-cluster-admins (the platform service keeps its members equal to Coder's admins);
+#   - the API server: a structured authentication configuration (--authentication-config) trusting that issuer for
+#     audience "kubernetes": users "keycloak:<username>", groups "keycloak:<group>". The file is in
+#     /var/lib/minikube/certs (mounted into the API server, kept across restarts) and reloaded when it changes; the
+#     flag is added to the static pod once (the API server restarts, about half a minute) and recorded in the
+#     profile's extra options, so `minikube start` keeps it. If the API server does not come back, the flag is taken
+#     out again.
+SIGNIN_CONFIG=/var/lib/minikube/certs/coder-authentication.yaml
+APISERVER_MANIFEST=/etc/kubernetes/manifests/kube-apiserver.yaml
+
+# The API server's authentication configuration: Keycloak's tokens for audience "kubernetes" (ISSUER, CA file).
+signin_conf() {
+	local issuer="$1" ca="$2"
+	cat <<EOF
+# Written by ./minikube-support cluster-signin: Keycloak sign-in for kubectl (admins) (coder-airgapped).
+apiVersion: apiserver.config.k8s.io/v1
+kind: AuthenticationConfiguration
+jwt:
+- issuer:
+    url: ${issuer}
+    audiences: [kubernetes]
+    certificateAuthority: |
+$(sed 's/^/      /' "$ca")
+  claimMappings:
+    username: {claim: preferred_username, prefix: "keycloak:"}
+    groups: {claim: groups, prefix: "keycloak:"}
+EOF
+}
+
+mk_cluster_signin() {
+	local domain="$1" ca="$2" issuer conf have
+	[[ -r "$ca" ]] || die "cannot read the CA $ca"
+	issuer="https://keycloak.${domain}/realms/master"
+	kc -n keycloak exec -i deploy/keycloak -c keycloak -- env HOME=/tmp sh -s >/dev/null <<'EOF'
+set -e
+K=/opt/keycloak/bin/kcadm.sh
+$K config credentials --server http://localhost:8080 --realm master --user "$KC_BOOTSTRAP_ADMIN_USERNAME" \
+  --password "$KC_BOOTSTRAP_ADMIN_PASSWORD" >/dev/null 2>&1
+settings='"name": "Kubernetes (kubectl sign-in)", "enabled": true, "publicClient": true,
+  "standardFlowEnabled": false, "directAccessGrantsEnabled": false, "implicitFlowEnabled": false,
+  "serviceAccountsEnabled": false, "consentRequired": true,
+  "attributes": {"oauth2.device.authorization.grant.enabled": "true", "access.token.lifespan": "600",
+    "client.session.idle.timeout": "1800", "client.session.max.lifespan": "28800"}'
+id=$($K get clients -r master -q clientId=kubernetes --fields id --format csv --noquotes)
+if [ -z "$id" ]; then
+  id=$(printf '{"clientId": "kubernetes", %s}' "$settings" | $K create clients -r master -i -f -)
+else
+  printf '{%s}' "$settings" | $K update "clients/$id" -r master -f -
+fi
+if ! $K get "clients/$id/protocol-mappers/models" -r master | grep -q '"name" : "groups"'; then
+  $K create "clients/$id/protocol-mappers/models" -r master -f - <<'JSON'
+{"name": "groups", "protocol": "openid-connect", "protocolMapper": "oidc-group-membership-mapper",
+ "config": {"claim.name": "groups", "full.path": "false", "id.token.claim": "true", "access.token.claim": "true",
+  "userinfo.token.claim": "true"}}
+JSON
+fi
+# The same login as Coder's client (e.g. the certificate flow), when it has its own.
+coder=$($K get clients -r master -q clientId=coder --fields id --format csv --noquotes)
+flow=$([ -n "$coder" ] && $K get "clients/$coder" -r master --fields authenticationFlowBindingOverrides |
+  sed -n 's/.*"browser" *: *"\([^"]*\)".*/\1/p')
+[ -n "$flow" ] && $K update "clients/$id" -r master -s "authenticationFlowBindingOverrides.browser=$flow"
+$K get groups -r master -q search=coder-cluster-admins -q exact=true --fields name --format csv --noquotes |
+  grep -qx coder-cluster-admins || $K create groups -r master -s name=coder-cluster-admins
+EOF
+	say "Keycloak: client \"kubernetes\" (device login) and group coder-cluster-admins"
+
+	conf=$(signin_conf "$issuer" "$ca")
+	# The control-plane node is the docker container named after the profile (docker driver).
+	have=$(docker exec "$PROFILE" cat "$SIGNIN_CONFIG" 2>/dev/null || true)
+	if [[ "$have" != "$conf" ]]; then
+		printf '%s\n' "$conf" | docker exec -i "$PROFILE" sh -c "umask 077 && cat > $SIGNIN_CONFIG.tmp && mv $SIGNIN_CONFIG.tmp $SIGNIN_CONFIG"
+		say "API server: authentication configuration written ($SIGNIN_CONFIG)"
+	fi
+	mk_signin_extra_option
+	if docker exec "$PROFILE" grep -q -- "--authentication-config=" "$APISERVER_MANIFEST"; then
+		say "API server: trusts Keycloak (${issuer}) for kubectl sign-in"
+		return 0
+	fi
+	say "API server: turning the Keycloak sign-in on (it restarts; about half a minute)"
+	docker exec "$PROFILE" sh -c "cp $APISERVER_MANIFEST /var/lib/minikube/kube-apiserver.yaml.before-signin && sed -i '/^    - --authorization-mode=/a\    - --authentication-config=$SIGNIN_CONFIG' $APISERVER_MANIFEST"
+	sleep 20
+	local i
+	for i in $(seq 60); do
+		if [[ "$(kc get --raw /readyz 2>/dev/null)" == ok ]] &&
+			kc -n kube-system get pod -l component=kube-apiserver -o jsonpath='{.items[0].spec.containers[0].command}' 2>/dev/null |
+			grep -q -- --authentication-config=; then
+			say "API server: back, trusting Keycloak (${issuer}) for kubectl sign-in"
+			return 0
+		fi
+		sleep 3
+	done
+	warn "the API server did not come back with the sign-in configuration: taking the flag out again"
+	docker exec "$PROFILE" cp /var/lib/minikube/kube-apiserver.yaml.before-signin "$APISERVER_MANIFEST"
+	mk_signin_extra_option remove
+	die "API server: the Keycloak sign-in could not be turned on (see: minikube -p $PROFILE ssh -- sudo crictl ps -a)"
+}
+
+# The flag in the profile's extra options (what `minikube start` passes to kubeadm), so a restart keeps it.
+mk_signin_extra_option() {
+	local cfg="${MINIKUBE_HOME:-$HOME/.minikube}/profiles/${PROFILE}/config.json"
+	[[ -f "$cfg" ]] || return 0
+	python3 - "$cfg" "$SIGNIN_CONFIG" "${1:-add}" <<'EOF'
+import json, os, sys
+path, value, mode = sys.argv[1:4]
+c = json.load(open(path))
+opts = c["KubernetesConfig"].get("ExtraOptions") or []
+keep = [o for o in opts if not (o.get("Component") == "apiserver" and o.get("Key") == "authentication-config")]
+if mode == "add":
+    keep.append({"Component": "apiserver", "Key": "authentication-config", "Value": value})
+if keep != opts:
+    c["KubernetesConfig"]["ExtraOptions"] = keep
+    tmp = path + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(c, f, indent="\t")
+    os.chmod(tmp, os.stat(path).st_mode & 0o777)
+    os.replace(tmp, path)
+EOF
+}
+
+# ---- Images view: the workspace image as the base of builds ---------------------------------------------------
+# The workspace image is in every node's Docker (load-images), not in a registry; BuildKit pulls bases from one. It is
+# pushed once from the control-plane node through the registry's node proxy (localhost:5000, which Docker trusts).
+mk_seed_registry() {
+	local image="$1" name="${1##*/}" i
+	kc -n coder rollout status deploy/coder-image-registry --timeout=300s >/dev/null 2>&1 || { warn "coder-image-registry is not ready: skipped"; return 0; }
+	kc -n coder rollout status ds/coder-image-registry-proxy --timeout=300s >/dev/null 2>&1 || { warn "coder-image-registry-proxy is not ready: skipped"; return 0; }
+	for i in $(seq 30); do docker exec "$PROFILE" curl -fs -o /dev/null http://localhost:5000/v2/ && break; sleep 2; done
+	if docker exec "$PROFILE" curl -fs "http://localhost:5000/v2/coder-images/base/${name%%:*}/manifests/${name##*:}" \
+		-H "Accept: application/vnd.docker.distribution.manifest.v2+json" -o /dev/null; then
+		say "registry: coder-images/base/${name} is there"; return 0
+	fi
+	if ! docker exec "$PROFILE" docker image inspect "$image" >/dev/null 2>&1; then
+		say "registry: ${name} is not in the node: not seeded"; return 0
+	fi
+	say "registry: pushing ${name} as coder-images/base/${name} (a few minutes the first time)"
+	docker exec "$PROFILE" docker tag "$image" "localhost:5000/coder-images/base/${name}"
+	docker exec "$PROFILE" docker push -q "localhost:5000/coder-images/base/${name}" >/dev/null
+	docker exec "$PROFILE" docker rmi "localhost:5000/coder-images/base/${name}" >/dev/null 2>&1 || true
+	say "registry: coder-images/base/${name} pushed"
+}
+
+# ---- exposing the cluster on this machine -------------------------------------------------------------------
+tunnel_pid() { { pgrep -f "minikube.* tunnel" -a 2>/dev/null || true; } | awk -v p="$1" '$0 ~ ("(-p|--profile)[ =]" p "( |$)") {print $1; exit}'; }
+
+minikube_expose_services() {
+	local pid other log="${XDG_RUNTIME_DIR:-/tmp}/minikube-tunnel-${PROFILE}.log" ip
+	pid=$(tunnel_pid "$PROFILE")
+	if [[ -n "$pid" ]]; then say "minikube tunnel for $PROFILE is running (PID $pid)"
+	else
+		# One tunnel at a time: another profile's tunnel routes the same service range.
+		for other in $(pgrep -f "minikube.* tunnel" || true); do warn "stopping another minikube tunnel (PID $other)"; kill "$other" 2>/dev/null || sudo kill "$other"; done
+		say "starting minikube tunnel for $PROFILE (it adds a route, so sudo asks for your password once)"
+		sudo -v
+		nohup minikube -p "$PROFILE" tunnel --cleanup >"$log" 2>&1 &
+		disown || true
+	fi
+	for _ in $(seq 60); do
+		ip=$(kc -n traefik get svc traefik -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || true)
+		[[ -n "$ip" ]] && { say "Traefik is reachable at $ip"; return 0; }
+		sleep 2
+	done
+	die "Traefik got no LoadBalancer IP (tunnel log: $log)"
+}
+
+minikube_sync_hosts() {
+	local domain="$1" ip names beg end tmp line
+	ip=$(kc -n traefik get svc traefik -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+	[[ -n "$ip" ]] || die "no LoadBalancer IP yet: run minikube-expose-services first"
+	names=$( { echo "coder.$domain"; echo "keycloak.$domain"
+		kc get httproute -A -o jsonpath='{range .items[*]}{range .spec.hostnames[*]}{@}{"\n"}{end}{end}' 2>/dev/null; } |
+		{ grep -v '[*]' || true; } | { grep -E "(^|\.)${domain//./\\.}$" || true; } | sort -u)
+	beg="# --- coder-airgapped minikube:${PROFILE} (minikube-support) ---"; end="# --- end coder-airgapped minikube:${PROFILE} ---"
+	tmp=$(mktemp); trap 'rm -f "$tmp"' RETURN
+	awk -v b="$beg" -v e="$end" '$0==b{skip=1;next} $0==e{skip=0;next} !skip' "$HOSTS_FILE" >"$tmp"
+	{ echo "$beg"; for line in $names; do echo "$ip $line"; done; echo "$end"; } >>"$tmp"
+	# /etc/hosts uses the first match: say so when an older entry for these names points elsewhere.
+	for line in $names; do
+		awk -v b="$beg" -v n="$line" -v ip="$ip" '$0==b{exit} $1!~/^#/ {for(i=2;i<=NF;i++) if($i==n && $1!=ip) print "    note: line \"" $0 "\" comes first and wins"}' "$tmp"
+	done
+	if ! cmp -s "$tmp" "$HOSTS_FILE"; then
+		say "updating $HOSTS_FILE (sudo)"
+		sudo cp "$tmp" "$HOSTS_FILE" && sudo chmod 644 "$HOSTS_FILE"
+	fi
+	for line in $names; do say "$ip  $line"; done
+}
+
+# The browsers' NSS certificate databases on this machine: Chrome/Chromium, Firefox profiles, and the sandboxed
+# snap and flatpak builds of Chromium, Brave and Chrome (each with databases of its own - ~/.pki/nssdb or
+# ~/.local/share/pki/nssdb under the sandbox's home - not the system store). With "create", an installed flatpak
+# browser without a database gets an empty one, so it trusts the CA from its first start. (Recent snap builds of
+# Chromium and Brave ignore trust set in their NSS database: see mk_trust_ca.)
+browser_nssdbs() {
+	local create="${1:-}" d app
+	for d in "$HOME/.pki/nssdb" "$HOME"/.mozilla/firefox/*.default* "$HOME"/snap/firefox/common/.mozilla/firefox/*.default*; do
+		[[ -d "$d" ]] && echo "$d"
+	done
+	for app in "$HOME"/snap/chromium/[0-9]* "$HOME"/snap/brave/[0-9]* "$HOME"/snap/google-chrome/[0-9]* \
+		"$HOME"/.var/app/org.chromium.Chromium "$HOME"/.var/app/com.brave.Browser "$HOME"/.var/app/com.google.Chrome; do
+		[[ -d "$app" ]] || continue
+		for d in "$app/.pki/nssdb" "$app/.local/share/pki/nssdb"; do
+			[[ -f "$d/cert9.db" ]] && echo "$d"
+		done
+		if [[ -n "$create" && "$app" == "$HOME/.var/app/"* && ! -d "$app/.pki/nssdb" && ! -d "$app/.local/share/pki/nssdb" ]]; then
+			mkdir -p "$app/.pki/nssdb" && certutil -d "sql:$app/.pki/nssdb" -N --empty-password </dev/null >/dev/null 2>&1 && echo "$app/.pki/nssdb"
+		fi
+	done
+}
+
+# Is CA trusted here already? System store, and every browser NSS database (sandboxed browsers' included).
+mk_ca_trusted() {
+	local ca="$1" name db
+	name="coder-airgapped-$(openssl x509 -in "$ca" -noout -hash)"
+	openssl verify -CApath /etc/ssl/certs "$ca" >/dev/null 2>&1 || return 1
+	command -v certutil >/dev/null || return 0
+	while read -r db; do
+		certutil -d "sql:$db" -L -n "$name" </dev/null >/dev/null 2>&1 || return 1
+	done < <(browser_nssdbs)
+	# An installed flatpak browser without a database yet does not trust the CA either.
+	local app
+	for app in "$HOME"/.var/app/org.chromium.Chromium "$HOME"/.var/app/com.brave.Browser "$HOME"/.var/app/com.google.Chrome; do
+		[[ -d "$app" && ! -d "$app/.pki/nssdb" && ! -d "$app/.local/share/pki/nssdb" ]] && return 1
+	done
+	return 0
+}
+
+mk_trust_ca() {
+	local ca="$1" name
+	name="coder-airgapped-$(openssl x509 -in "$1" -noout -hash)"
+	if [[ -d /usr/local/share/ca-certificates ]]; then
+		sudo cp "$ca" "/usr/local/share/ca-certificates/${name}.crt" && sudo update-ca-certificates >/dev/null && say "trusted by this machine (system store)"
+	fi
+	if command -v certutil >/dev/null; then
+		local db
+		while read -r db; do
+			certutil -d "sql:$db" -A -t "C,," -n "$name" -i "$ca" </dev/null 2>/dev/null && say "trusted by the browser profile $db"
+		done < <(browser_nssdbs create)
+		say "restart open browsers so they pick it up"
+		if compgen -G "$HOME/snap/chromium/[0-9]*" >/dev/null || compgen -G "$HOME/snap/brave/[0-9]*" >/dev/null; then
+			# Their certificate verifier finds the CA in NSS but does not take its trust from there.
+			say "snap Chromium/Brave: import $ca once in the browser's Settings > Privacy and security > Security >"
+			say "  Manage certificates > Local certificates > Custom > Import (trust it for websites); without it their"
+			say "  pages load only past a warning and the dashboard's live connections (notifications, workspace forms) fail"
+		fi
+	else
+		say "browsers: import $ca as a trusted authority (or install libnss3-tools and run trust-ca again)"
+	fi
+}
+
+mk_status() {
+	minikube -p "$PROFILE" status 2>/dev/null | sed 's/^/    /' || true
+	local pid; pid=$(tunnel_pid "$PROFILE")
+	if [[ -n "$pid" ]]; then say "tunnel: running (PID $pid)"; else say "tunnel: not running"; fi
+	say "traefik: $(kc -n traefik get svc traefik -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo -)"
+}
+
+cmd="${1:-}"; shift || true
+case "$cmd" in
+ensure) PROFILE="${1:?profile}"; mk_ensure ;;
+load-images) PROFILE="${1:?profile}"; mk_load_images ;;
+pin-ip) mk_pin_ip "${1:?domain}" ;;
+dns) PROFILE="${1:?profile}"; mk_dns "${2:?domain}" ;;
+keycloak) PROFILE="${1:?profile}"; mk_keycloak "${2:?domain}" "${3:?output file for the client secret}" ;;
+cluster-signin) PROFILE="${1:?profile}"; mk_cluster_signin "${2:?domain}" "${3:?CA file of the Keycloak TLS certificate}" ;;
+seed-registry) PROFILE="${1:?profile}"; mk_seed_registry "${2:?image}" ;;
+minikube-expose-services) PROFILE="${1:?profile}"; minikube_expose_services ;;
+minikube-sync-hosts) PROFILE="${1:?profile}"; minikube_sync_hosts "${2:?domain}" ;;
+expose) PROFILE="${1:?profile}"; minikube_expose_services; minikube_sync_hosts "${2:?domain}" ;;
+trust-ca) mk_trust_ca "${1:?CA file}" ;;
+ca-trusted) mk_ca_trusted "${1:?CA file}" ;;
+tunnel-pid) PROFILE="${1:?profile}"; tunnel_pid "$PROFILE" ;;
+status) PROFILE="${1:?profile}"; mk_status ;;
+*) sed -n '2,/^set -euo/p' "$0" | sed '$d'; exit 2 ;;
+esac

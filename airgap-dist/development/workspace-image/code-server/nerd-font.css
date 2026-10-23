@@ -1,0 +1,8 @@
+/* The workspace's monospace font for code-server's terminal, which the browser draws: served by code-server itself
+   (/_static/src/browser/media/fonts/), so it needs nothing on the computer. Its one face, Light, stands for every
+   weight (the browser emboldens it for bold). */
+@font-face {
+	font-family: "JetBrainsMono Nerd Font";
+	src: url("JetBrainsMonoNerdFont-Light.ttf") format("truetype");
+	font-display: block;
+}

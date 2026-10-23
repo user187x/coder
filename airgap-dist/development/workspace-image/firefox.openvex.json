@@ -1,0 +1,218 @@
+{
+  "@context": "https://openvex.dev/ns/v0.2.0",
+  "@id": "urn:uuid:4f0d6c3e-8a51-4c7e-9b1e-3d2a7f6e5c10",
+  "author": "user187x (coder-workspace image)",
+  "role": "Image maintainer",
+  "timestamp": "2026-10-20T09:12:16Z",
+  "version": 1,
+  "statements": [
+    {
+      "vulnerability": {
+        "name": "CVE-2021-45960"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/firefox?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "The image's firefox is Mozilla's own deb (packages.mozilla.org; Firefox 158 in coder-workspace 1.9.4), not Ubuntu's firefox package: Ubuntu's fixed version 1:1snap1-0ubuntu1 is its transitional package that installs the snap, not a code fix. Firefox 158 bundles libexpat 2.8.4 (parser/expat/moz.yaml at FIREFOX_158_0_RELEASE), which carries this fix (libexpat 2.4.3); every Firefox since 138 vendors upstream libexpat 2.6.4 or later (bug 1950575). Fixed in Firefox 98 and ESR 91.7: Mozilla cherry-picked the fixes into its expat (bug 1754724)."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2021-46143"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/firefox?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "The image's firefox is Mozilla's own deb (packages.mozilla.org; Firefox 158 in coder-workspace 1.9.4), not Ubuntu's firefox package: Ubuntu's fixed version 1:1snap1-0ubuntu1 is its transitional package that installs the snap, not a code fix. Firefox 158 bundles libexpat 2.8.4 (parser/expat/moz.yaml at FIREFOX_158_0_RELEASE), which carries this fix (libexpat 2.4.3); every Firefox since 138 vendors upstream libexpat 2.6.4 or later (bug 1950575). Fixed in Firefox 98 and ESR 91.7: Mozilla cherry-picked the fixes into its expat (bug 1754724)."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2022-22822"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/firefox?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "The image's firefox is Mozilla's own deb (packages.mozilla.org; Firefox 158 in coder-workspace 1.9.4), not Ubuntu's firefox package: Ubuntu's fixed version 1:1snap1-0ubuntu1 is its transitional package that installs the snap, not a code fix. Firefox 158 bundles libexpat 2.8.4 (parser/expat/moz.yaml at FIREFOX_158_0_RELEASE), which carries this fix (libexpat 2.4.3); every Firefox since 138 vendors upstream libexpat 2.6.4 or later (bug 1950575). Fixed in Firefox 98 and ESR 91.7: Mozilla cherry-picked the fixes into its expat (bug 1754724)."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2022-22823"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/firefox?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "The image's firefox is Mozilla's own deb (packages.mozilla.org; Firefox 158 in coder-workspace 1.9.4), not Ubuntu's firefox package: Ubuntu's fixed version 1:1snap1-0ubuntu1 is its transitional package that installs the snap, not a code fix. Firefox 158 bundles libexpat 2.8.4 (parser/expat/moz.yaml at FIREFOX_158_0_RELEASE), which carries this fix (libexpat 2.4.3); every Firefox since 138 vendors upstream libexpat 2.6.4 or later (bug 1950575). Fixed in Firefox 98 and ESR 91.7: Mozilla cherry-picked the fixes into its expat (bug 1754724)."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2022-22824"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/firefox?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "The image's firefox is Mozilla's own deb (packages.mozilla.org; Firefox 158 in coder-workspace 1.9.4), not Ubuntu's firefox package: Ubuntu's fixed version 1:1snap1-0ubuntu1 is its transitional package that installs the snap, not a code fix. Firefox 158 bundles libexpat 2.8.4 (parser/expat/moz.yaml at FIREFOX_158_0_RELEASE), which carries this fix (libexpat 2.4.3); every Firefox since 138 vendors upstream libexpat 2.6.4 or later (bug 1950575). Fixed in Firefox 98 and ESR 91.7: Mozilla cherry-picked the fixes into its expat (bug 1754724)."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2022-22825"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/firefox?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "The image's firefox is Mozilla's own deb (packages.mozilla.org; Firefox 158 in coder-workspace 1.9.4), not Ubuntu's firefox package: Ubuntu's fixed version 1:1snap1-0ubuntu1 is its transitional package that installs the snap, not a code fix. Firefox 158 bundles libexpat 2.8.4 (parser/expat/moz.yaml at FIREFOX_158_0_RELEASE), which carries this fix (libexpat 2.4.3); every Firefox since 138 vendors upstream libexpat 2.6.4 or later (bug 1950575). Fixed in Firefox 98 and ESR 91.7: Mozilla cherry-picked the fixes into its expat (bug 1754724)."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2022-22826"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/firefox?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "The image's firefox is Mozilla's own deb (packages.mozilla.org; Firefox 158 in coder-workspace 1.9.4), not Ubuntu's firefox package: Ubuntu's fixed version 1:1snap1-0ubuntu1 is its transitional package that installs the snap, not a code fix. Firefox 158 bundles libexpat 2.8.4 (parser/expat/moz.yaml at FIREFOX_158_0_RELEASE), which carries this fix (libexpat 2.4.3); every Firefox since 138 vendors upstream libexpat 2.6.4 or later (bug 1950575). Fixed in Firefox 98 and ESR 91.7: Mozilla cherry-picked the fixes into its expat (bug 1754724)."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2022-22827"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/firefox?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "The image's firefox is Mozilla's own deb (packages.mozilla.org; Firefox 158 in coder-workspace 1.9.4), not Ubuntu's firefox package: Ubuntu's fixed version 1:1snap1-0ubuntu1 is its transitional package that installs the snap, not a code fix. Firefox 158 bundles libexpat 2.8.4 (parser/expat/moz.yaml at FIREFOX_158_0_RELEASE), which carries this fix (libexpat 2.4.3); every Firefox since 138 vendors upstream libexpat 2.6.4 or later (bug 1950575). Fixed in Firefox 98 and ESR 91.7: Mozilla cherry-picked the fixes into its expat (bug 1754724)."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2022-23639"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/firefox?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "The image's firefox is Mozilla's own deb (packages.mozilla.org; Firefox 158 in coder-workspace 1.9.4), not Ubuntu's firefox package: Ubuntu's fixed version 1:1snap1-0ubuntu1 is its transitional package that installs the snap, not a code fix. The flaw is in the Rust crate crossbeam-utils before 0.8.7. Firefox 158 vendors only crossbeam-utils 0.8.21 (Cargo.lock at FIREFOX_158_0_RELEASE); fixed in Firefox 113, since when every copy is 0.8.7 or later. It also only affects targets where u64 is less aligned than AtomicU64 (32-bit ones), not x86-64."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2022-23852"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/firefox?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "The image's firefox is Mozilla's own deb (packages.mozilla.org; Firefox 158 in coder-workspace 1.9.4), not Ubuntu's firefox package: Ubuntu's fixed version 1:1snap1-0ubuntu1 is its transitional package that installs the snap, not a code fix. Firefox 158 bundles libexpat 2.8.4 (parser/expat/moz.yaml at FIREFOX_158_0_RELEASE), which carries this fix (libexpat 2.4.4); every Firefox since 138 vendors upstream libexpat 2.6.4 or later (bug 1950575). Mozilla assessed its earlier expat not affected (bug 1754724, Firefox 98: XML_CONTEXT_BYTES is zero; no element declaration handler is set); fixed in Firefox 138 with the upstream libexpat."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2022-23990"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/firefox?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "The image's firefox is Mozilla's own deb (packages.mozilla.org; Firefox 158 in coder-workspace 1.9.4), not Ubuntu's firefox package: Ubuntu's fixed version 1:1snap1-0ubuntu1 is its transitional package that installs the snap, not a code fix. Firefox 158 bundles libexpat 2.8.4 (parser/expat/moz.yaml at FIREFOX_158_0_RELEASE), which carries this fix (libexpat 2.4.4); every Firefox since 138 vendors upstream libexpat 2.6.4 or later (bug 1950575). Mozilla assessed its earlier expat not affected (bug 1754724, Firefox 98: XML_CONTEXT_BYTES is zero; no element declaration handler is set); fixed in Firefox 138 with the upstream libexpat."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2022-25235"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/firefox?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "The image's firefox is Mozilla's own deb (packages.mozilla.org; Firefox 158 in coder-workspace 1.9.4), not Ubuntu's firefox package: Ubuntu's fixed version 1:1snap1-0ubuntu1 is its transitional package that installs the snap, not a code fix. Firefox 158 bundles libexpat 2.8.4 (parser/expat/moz.yaml at FIREFOX_158_0_RELEASE), which carries this fix (libexpat 2.4.5); every Firefox since 138 vendors upstream libexpat 2.6.4 or later (bug 1950575). Mozilla assessed its earlier expat not affected (bug 1754724, Firefox 98: not used in UTF-8 mode; its namespace separator never reaches parsed data); fixed in Firefox 138 with the upstream libexpat."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2022-25236"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/firefox?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "The image's firefox is Mozilla's own deb (packages.mozilla.org; Firefox 158 in coder-workspace 1.9.4), not Ubuntu's firefox package: Ubuntu's fixed version 1:1snap1-0ubuntu1 is its transitional package that installs the snap, not a code fix. Firefox 158 bundles libexpat 2.8.4 (parser/expat/moz.yaml at FIREFOX_158_0_RELEASE), which carries this fix (libexpat 2.4.5); every Firefox since 138 vendors upstream libexpat 2.6.4 or later (bug 1950575). Mozilla assessed its earlier expat not affected (bug 1754724, Firefox 98: not used in UTF-8 mode; its namespace separator never reaches parsed data); fixed in Firefox 138 with the upstream libexpat."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2022-25313"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/firefox?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "The image's firefox is Mozilla's own deb (packages.mozilla.org; Firefox 158 in coder-workspace 1.9.4), not Ubuntu's firefox package: Ubuntu's fixed version 1:1snap1-0ubuntu1 is its transitional package that installs the snap, not a code fix. Firefox 158 bundles libexpat 2.8.4 (parser/expat/moz.yaml at FIREFOX_158_0_RELEASE), which carries this fix (libexpat 2.4.5); every Firefox since 138 vendors upstream libexpat 2.6.4 or later (bug 1950575). Fixed in Firefox 138 with the upstream libexpat."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2022-25314"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/firefox?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "The image's firefox is Mozilla's own deb (packages.mozilla.org; Firefox 158 in coder-workspace 1.9.4), not Ubuntu's firefox package: Ubuntu's fixed version 1:1snap1-0ubuntu1 is its transitional package that installs the snap, not a code fix. Firefox 158 bundles libexpat 2.8.4 (parser/expat/moz.yaml at FIREFOX_158_0_RELEASE), which carries this fix (libexpat 2.4.5); every Firefox since 138 vendors upstream libexpat 2.6.4 or later (bug 1950575). The flaw came with expat 2.2.2, which Mozilla's earlier 2.2.1-based copy predated (bug 1754724); fixed in Firefox 138 with the upstream libexpat."
+    },
+    {
+      "vulnerability": {
+        "name": "CVE-2022-25315"
+      },
+      "products": [
+        {
+          "@id": "pkg:deb/ubuntu/firefox?arch=amd64&distro=ubuntu-26.04"
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "The image's firefox is Mozilla's own deb (packages.mozilla.org; Firefox 158 in coder-workspace 1.9.4), not Ubuntu's firefox package: Ubuntu's fixed version 1:1snap1-0ubuntu1 is its transitional package that installs the snap, not a code fix. Firefox 158 bundles libexpat 2.8.4 (parser/expat/moz.yaml at FIREFOX_158_0_RELEASE), which carries this fix (libexpat 2.4.5); every Firefox since 138 vendors upstream libexpat 2.6.4 or later (bug 1950575). Mozilla assessed its earlier expat not affected (bug 1754724, Firefox 98: not used in UTF-8 mode; its namespace separator never reaches parsed data); fixed in Firefox 138 with the upstream libexpat."
+    }
+  ]
+}

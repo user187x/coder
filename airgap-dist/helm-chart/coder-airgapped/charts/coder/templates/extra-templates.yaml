@@ -1,0 +1,5 @@
+{{- include "coder.platform.values" . -}}
+{{- range .Values.extraTemplates }}
+---
+{{ include "coder.renderTemplate" (dict "value" . "context" $) }}
+{{- end }}

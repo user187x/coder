@@ -1,0 +1,35 @@
+{{- include "ca.values" . -}}
+{{- /* Platform HA activeStandby (global.platformHA, ADR-0001 phase 2): each Coder replica labels its own pod with its
+     role (coder-airgapped/ha-role: active | standby; the coder Service selects the active one) and its preStop hook
+     reads its own pod to see that it is terminating before it hands the active lease over. Its own Role, so it does
+     not hang on coder.serviceAccount.workspacePerms. */ -}}
+{{- $ha := .Values.global.platformHA | default dict }}
+{{- if and .Values.coder.enabled (include "platform.hasBase" .) (eq (toString ($ha.mode | default "off")) "activeStandby") }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: coder-platform-ha
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "ca.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: coder-platform-ha
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "ca.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: coder-platform-ha
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Values.coder.coder.serviceAccount.name | default "coder" }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}

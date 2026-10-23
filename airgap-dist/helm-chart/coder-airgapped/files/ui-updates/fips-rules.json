@@ -1,0 +1,23 @@
+{
+  "format": 1,
+  "version": "2026.10",
+  "published": "2026-10-12",
+  "standard": "FIPS 140-3",
+  "summary": "Approved algorithms for SSH and TLS, the TLS floor, and which OpenSSL providers come from validated modules: what the image builder's FIPS-aligned crypto applies and its FIPS check grades.",
+  "sources": [
+    "FIPS 140-3: Security Requirements for Cryptographic Modules",
+    "NIST SP 800-140C: CMVP approved security functions",
+    "NIST SP 800-131A Rev. 2: transitioning the use of cryptographic algorithms and key lengths",
+    "NIST SP 800-52 Rev. 2: guidelines for TLS implementations (TLS 1.2 or later)",
+    "CMVP validated modules: Canonical's Ubuntu Pro FIPS packages (OpenSSL FIPS provider)"
+  ],
+  "ssh": {
+    "ciphers": ["aes256-gcm@openssh.com", "aes128-gcm@openssh.com", "aes256-ctr", "aes192-ctr", "aes128-ctr"],
+    "macs": ["hmac-sha2-512", "hmac-sha2-256"],
+    "kex": ["ecdh-sha2-nistp521", "ecdh-sha2-nistp384", "ecdh-sha2-nistp256", "diffie-hellman-group14-sha256"]
+  },
+  "tls": {"minProtocol": "TLSv1.2"},
+  "providerPath": "usr/lib/[^/]+/ossl-modules/fips\\.so$",
+  "validatedPackages": ["openssl-fips-module-3", "ubuntu-fips", "libssl3-fips", "fips-initramfs"],
+  "nonFipsLibraries": ["libgnutls", "libgcrypt"]
+}

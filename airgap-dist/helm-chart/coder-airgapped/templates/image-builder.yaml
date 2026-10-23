@@ -1,0 +1,289 @@
+{{- /*
+Images view (Templates > Images): admins build workspace images in the cluster.
+  - coder-image-registry: where built images are kept (a registry with its own volume). Builds push to it over its
+    Service; workspace pods pull them as localhost:<localPort>/coder-images/<name>:<version> through
+    coder-image-registry-proxy, a tiny TCP forwarder on every node's loopback (Docker and containerd treat a
+    localhost registry as trusted, so nodes need no certificate or DNS name for it).
+  - coder-image-builder: uploads (.deb files, installation files) and the build contexts, mounted into the platform
+    service; build Jobs fetch their context from the service.
+  - build Jobs (created by the platform service): BuildKit rootless, then a scan Job (trivy + image checks).
+*/ -}}
+{{- include "ca.values" . -}}
+{{- $ib := .Values.imageBuilder }}
+{{- if and .Values.uiUpdates.enabled $ib.enabled (include "platform.hasLayer" .) }}
+{{- $ns := .Release.Namespace }}
+{{- $ui := .Values.uiUpdates }}
+{{- if $ib.registry.deploy }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: coder-image-registry
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.labels" . | nindent 4 }}
+    app.kubernetes.io/name: coder-image-registry
+  annotations:
+    # The built workspace images (workspaces pull them from here): kept by helm uninstall and by Argo CD alike.
+    helm.sh/resource-policy: keep
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  accessModes: [ReadWriteOnce]
+  {{- with $ib.registry.storageClass }}
+  storageClassName: {{ . }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ $ib.registry.size }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coder-image-registry
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.labels" . | nindent 4 }}
+    app.kubernetes.io/name: coder-image-registry
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app.kubernetes.io/name: coder-image-registry}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: coder-image-registry
+        app.kubernetes.io/part-of: coder
+    spec:
+      {{- with $ui.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile: {type: RuntimeDefault}
+      initContainers:
+        # The space of deleted images comes back here, at each start: the registry only frees blobs in a garbage
+        # collection, and one is safe only while nothing pushes (before the registry serves).
+        - name: garbage-collect
+          image: {{ $ib.registry.image }}
+          imagePullPolicy: IfNotPresent
+          # A new (empty) volume has nothing to collect, and garbage-collect fails on it ("Path not found"): skipped.
+          command: [/bin/sh, -c]
+          args:
+            - |
+              if [ -d /var/lib/registry/docker/registry/v2/repositories ]; then
+                exec registry garbage-collect --delete-untagged /etc/distribution/config.yml
+              fi
+              echo "empty registry: nothing to collect"
+          env:
+            - {name: REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY, value: /var/lib/registry}
+            - {name: REGISTRY_STORAGE_DELETE_ENABLED, value: "true"}
+            - {name: OTEL_TRACES_EXPORTER, value: none}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+            readOnlyRootFilesystem: true
+          resources:
+            requests: {cpu: 50m, memory: 64Mi}
+            limits: {memory: 1Gi}
+          volumeMounts:
+            - {name: data, mountPath: /var/lib/registry}
+      containers:
+        - name: registry
+          image: {{ $ib.registry.image }}
+          imagePullPolicy: IfNotPresent
+          env:
+            - {name: REGISTRY_HTTP_ADDR, value: ":5000"}
+            - {name: REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY, value: /var/lib/registry}
+            # Deleting an image in the Images view removes it from here too.
+            - {name: REGISTRY_STORAGE_DELETE_ENABLED, value: "true"}
+            - {name: OTEL_TRACES_EXPORTER, value: none}
+          ports:
+            - {name: registry, containerPort: 5000}
+          readinessProbe:
+            httpGet: {path: /v2/, port: registry}
+            periodSeconds: 5
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+            readOnlyRootFilesystem: true
+          resources:
+            requests: {cpu: 50m, memory: 64Mi}
+            limits: {memory: 1Gi}
+          volumeMounts:
+            - {name: data, mountPath: /var/lib/registry}
+      volumes:
+        - name: data
+          persistentVolumeClaim: {claimName: coder-image-registry}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: coder-image-registry
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.labels" . | nindent 4 }}
+    app.kubernetes.io/name: coder-image-registry
+spec:
+  selector: {app.kubernetes.io/name: coder-image-registry}
+  ports:
+    - {name: registry, port: 5000, targetPort: registry}
+---
+# Every node's 127.0.0.1:<localPort> forwards to the registry, so the container runtime pulls
+# localhost:<localPort>/coder-images/... without TLS or a DNS name. Loopback only: nothing else on the node's network
+# can reach it.
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: coder-image-registry-proxy
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.labels" . | nindent 4 }}
+    app.kubernetes.io/name: coder-image-registry-proxy
+spec:
+  selector:
+    matchLabels: {app.kubernetes.io/name: coder-image-registry-proxy}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: coder-image-registry-proxy
+        app.kubernetes.io/part-of: coder
+    spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      tolerations: [{operator: Exists}]
+      {{- with $ui.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: proxy
+          image: {{ $ib.proxyImage }}
+          imagePullPolicy: IfNotPresent
+          command: [python3, -c]
+          args:
+            - |
+              import asyncio
+              TARGET = ("coder-image-registry.{{ $ns }}.svc.cluster.local", 5000)
+              async def pipe(r, w):
+                  try:
+                      while data := await r.read(65536):
+                          w.write(data)
+                          await w.drain()
+                  except Exception:
+                      pass
+                  finally:
+                      w.close()
+              async def handle(cr, cw):
+                  try:
+                      ur, uw = await asyncio.open_connection(*TARGET)
+                  except Exception:
+                      cw.close()
+                      return
+                  await asyncio.gather(pipe(cr, uw), pipe(ur, cw))
+              async def main():
+                  server = await asyncio.start_server(handle, "127.0.0.1", {{ $ib.registry.localPort }}, backlog=512)
+                  async with server:
+                      await server.serve_forever()
+              asyncio.run(main())
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+            readOnlyRootFilesystem: true
+          resources:
+            requests: {cpu: 10m, memory: 24Mi}
+            limits: {memory: 128Mi}
+{{- end }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: coder-image-builder
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.uiLabels" . | nindent 4 }}
+  annotations:
+    # Uploads (.deb files, installation files) and build contexts: kept by helm uninstall and by Argo CD alike.
+    helm.sh/resource-policy: keep
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  accessModes: [ReadWriteOnce]
+  {{- with $ib.files.storageClass }}
+  storageClassName: {{ . }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ $ib.files.size }}
+---
+# BuildKit (rootless, in each build Job): the in-cluster registry is plain HTTP on its Service.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coder-image-builder
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.uiLabels" . | nindent 4 }}
+data:
+  buildkitd.toml: |
+    [registry."coder-image-registry.{{ $ns }}.svc:5000"]
+      http = true
+      insecure = true
+    # the same registry in a pit stop's Job (Images > Fix image), through its own forwarder on localhost
+    [registry."localhost:5000"]
+      http = true
+      insecure = true
+---
+# The platform service runs builds and scans as Jobs, and follows their logs.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: coder-ui-updates-builder
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.uiLabels" . | nindent 4 }}
+rules:
+  - apiGroups: [batch]
+    resources: [jobs]
+    verbs: [create, get, list, watch, delete]
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [get, list, watch]
+  - apiGroups: [""]
+    resources: [pods/log]
+    verbs: [get]
+  # Workspace volumes (a workspace's ⋮ menu): backups mount the home volume read-only; a disk expansion grows it, or
+  # (on a storage class that cannot grow volumes) copies it onto a bigger one under the same name.
+  - apiGroups: [""]
+    resources: [persistentvolumeclaims]
+    verbs: [get, list, create, patch, delete]
+  # The workspace templates' Workspace image choices: the ConfigMap coder-workspace-images, which the service makes and
+  # keeps (the built and imported images, the platform's workspace images the nodes keep).
+  - apiGroups: [""]
+    resources: [configmaps]
+    verbs: [create]
+  - apiGroups: [""]
+    resources: [configmaps]
+    resourceNames: [coder-workspace-images]
+    verbs: [get, update]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: coder-ui-updates-builder
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.uiLabels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: coder-ui-updates-builder
+subjects:
+  - {kind: ServiceAccount, name: coder-ui-updates, namespace: {{ $ns }}}
+{{- end }}

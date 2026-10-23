@@ -1,0 +1,14 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  finalizers:
+  - cnpg.io/deleteDatabase
+  name: coder-db-object
+  namespace: coder
+spec:
+  cluster:
+    name: coder-db
+  databaseReclaimPolicy: retain
+  ensure: present
+  name: coder
+  owner: coder

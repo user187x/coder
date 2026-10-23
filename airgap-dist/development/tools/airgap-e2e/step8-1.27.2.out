@@ -1,0 +1,28 @@
+PASS Coder answers over HTTPS through the Gateway (CA-verified) - 200
+PASS Coder version is the fork's - v2.0.0-platform.23+0eb2896
+PASS Keycloak (OIDC) sign-in is on
+PASS password sign-in is on
+PASS a wrong admin password is refused - 401
+FAIL admin@admin.com / admin signs in - 401
+FAIL ...as username admin, an owner, with a password login - 401
+PASS Coder redirects to Keycloak - https://keycloak.airgap.test/realms/master/protocol/openid-connect/auth
+PASS Keycloak shows its login form
+PASS Keycloak accepts the credentials and sends the browser back to Coder - https://coder.airgap.test/
+PASS a Keycloak user signs in to Coder - as tester <tester@airgap.test> (oidc)
+FAIL ...with a normal account (not an owner) - ['owner']
+FAIL template ubuntu-vnc-desktop was pushed - []
+PASS platform service /__coder-ui/ through the Gateway - 200
+PASS icon server /__icons/ through the Gateway - 200
+Traceback (most recent call last):
+  File "/t/step8.py", line 87, in <module>
+    banner = json.loads(b) if s == 200 else {}
+             ~~~~~~~~~~^^^
+  File "/usr/local/lib/python3.13/json/__init__.py", line 352, in loads
+    return _default_decoder.decode(s)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^
+  File "/usr/local/lib/python3.13/json/decoder.py", line 345, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.13/json/decoder.py", line 363, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)

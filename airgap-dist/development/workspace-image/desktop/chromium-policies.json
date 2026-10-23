@@ -1,0 +1,21 @@
+{
+  "DefaultBrowserSettingEnabled": false,
+  "MetricsReportingEnabled": false,
+  "BackgroundModeEnabled": false,
+  "PromotionalTabsEnabled": false,
+  "BrowserSignin": 0,
+  "SyncDisabled": true,
+  "SearchSuggestEnabled": false,
+  "SpellCheckServiceEnabled": false,
+  "TranslateEnabled": false,
+  "UrlKeyedAnonymizedDataCollectionEnabled": false,
+  "ShoppingListEnabled": false,
+  "PrivacySandboxPromptEnabled": false,
+  "CommandLineFlagSecurityWarningsEnabled": false,
+  "SafeBrowsingProtectionLevel": 0,
+  "DnsOverHttpsMode": "off",
+  "RestoreOnStartup": 5,
+  "NewTabPageLocation": "about:blank",
+  "HomepageIsNewTabPage": true,
+  "ShowHomeButton": false
+}

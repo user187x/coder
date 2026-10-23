@@ -1,0 +1,155 @@
+apiVersion: v1
+data:
+  agent-audit.tf: "# Agent action monitoring: records what runs inside the workspace \u2014 every command/process an LLM agent (or anyone)\n# executes, with its full argument list, working directory and\
+    \ parent process \u2014 and ships those records off the\n# workspace to the coder-ui-updates service, which keeps them in Coder's CloudNativePG database for admins to review\n# under Observability >\
+    \ Agent Activity.\n#\n# What this captures and why it fits an LLM agent: a coding agent acts by RUNNING THINGS \u2014 shell commands, git, curl,\n# python, package installs, file tools. Process-exec\
+    \ audit records exactly those actions (auditd / snoopy class of\n# control, standard in hardened Linux baselines). It is host/runtime audit of program executions, not keystroke\n# capture of a person\
+    \ typing. Records leave the workspace immediately, so a process in the workspace cannot rewrite\n# its own history after the fact.\n#\n# Attribution: every exec is stamped with pid/ppid and session\
+    \ id, so the subtree under a known agent process is\n# identifiable as that agent's actions. The workspace owner and id come from Coder, and the record is tied to the\n# workspace by its Coder agent\
+    \ token (validated by the service against Coder), so records cannot be forged for another\n# workspace.\n#\n# Drop this file next to a template's main.tf. It needs a `coder_agent` named \"main\"; change\
+    \ agent_id if yours differs.\n# Turn it off for a template by removing this file. AGENT_AUDIT_DISABLE=1 in the workspace disables it at runtime.\n\nresource \"coder_script\" \"agent_audit\" {\n  agent_id\
+    \           = coder_agent.main.id\n  display_name       = \"Agent activity monitor\"\n  icon               = \"/icon/lock.svg\"\n  run_on_start       = true\n  start_blocks_login = false # auditing\
+    \ must not keep a user out if the store is briefly unreachable\n  script             = <<-EOT\n    #!/usr/bin/env bash\n    # Best-effort: never fail a workspace start because auditing could not be\
+    \ set up.\n    set -u\n    if [ \"$${AGENT_AUDIT_DISABLE:-0}\" = \"1\" ]; then echo \"Agent activity monitor disabled (AGENT_AUDIT_DISABLE=1)\"; exit 0; fi\n\n    ACCESS_URL='${data.coder_workspace.me.access_url}'\n\
+    \    OWNER='${data.coder_workspace_owner.me.name}'\n    OWNER_ID='${data.coder_workspace_owner.me.id}'\n    WS='${data.coder_workspace.me.name}'\n    WS_ID='${data.coder_workspace.me.id}'\n    LOGDIR=\"\
+    $HOME/.agent-audit\"\n    LOG=\"$LOGDIR/exec.log\"\n    SNOOPY_INI=/etc/snoopy.ini\n    mkdir -p \"$LOGDIR\"; chmod 700 \"$LOGDIR\"\n\n    # 1. Install the execve logger (snoopy: an ld.so.preload shim\
+    \ that records every execve through libc). Ubuntu\n    #    universe packages it; snoopy-enable adds it to /etc/ld.so.preload so it covers processes started afterwards,\n    #    the workspace's agents\
+    \ included.\n    if [ ! -f /etc/ld.so.preload ] || ! grep -q snoopy /etc/ld.so.preload 2>/dev/null; then\n      sudo DEBIAN_FRONTEND=noninteractive apt-get update -qq || true\n      sudo DEBIAN_FRONTEND=noninteractive\
+    \ apt-get install -y snoopy >/dev/null 2>&1 || true\n      sudo snoopy-enable >/dev/null 2>&1 || true\n    fi\n\n    # 2. Snoopy writes JSON lines to our file (not syslog: containers have no syslogd).\
+    \ One line per exec, with the\n    #    fields that describe an action: when, who, where, the parent, the session, and the full command line.\n    if command -v snoopy-enable >/dev/null 2>&1 && [ !\
+    \ -f \"$SNOOPY_INI.agent-audit\" ]; then\n      sudo tee \"$SNOOPY_INI\" >/dev/null <<'INI'\n[snoopy]\nerror_logging = disabled\nmessage = {\"ts\":\"%{timestamp_utc}\",\"uid\":\"%{uid}\",\"user\":\"\
+    %{username}\",\"cwd\":\"%{cwd}\",\"tty\":\"%{tty}\",\"sid\":\"%{sid}\",\"pid\":\"%{pid}\",\"ppid\":\"%{ppid}\",\"login\":\"%{login}\",\"cmd\":%{cmdline_json}}\noutput = file:HERE_LOG\nINI\n      sudo\
+    \ sed -i \"s#HERE_LOG#$LOG#\" \"$SNOOPY_INI\"\n      sudo touch \"$LOG\"; sudo chown \"$(id -u):$(id -g)\" \"$LOG\"; sudo chmod 640 \"$LOG\"\n      sudo touch \"$SNOOPY_INI.agent-audit\"\n    fi\n \
+    \   # snoopy older than 2.4 has no %{cmdline_json}: fall back to a quoted cmdline so the line still parses.\n    if ! snoopy-test 2>/dev/null | grep -q cmdline_json; then\n      sudo sed -i 's#,\"cmd\"\
+    :%{cmdline_json}}#,\"cmd\":\"%{cmdline}\"}#' \"$SNOOPY_INI\" 2>/dev/null || true\n    fi\n\n    # 3. Forwarder: tail the log, batch new lines, and POST them to the service. Progress is remembered by\
+    \ byte\n    #    offset so a restart never re-sends or drops. The workspace's Coder agent token authenticates the post; the\n    #    service validates it against Coder and attaches the verified owner/workspace,\
+    \ so records can't be spoofed.\n    cat > \"$LOGDIR/forward.py\" <<PY\n    import json, os, time, urllib.request, urllib.error\n    BASE = os.environ[\"ACCESS_URL\"].rstrip(\"/\") + \"/__coder-ui/api/agent-audit\"\
+    \n    TOKEN = os.environ.get(\"CODER_AGENT_TOKEN\", \"\")\n    LOG = os.environ[\"LOG\"]; OFF = LOG + \".offset\"\n    META = {k: os.environ[k] for k in (\"OWNER\", \"OWNER_ID\", \"WS\", \"WS_ID\")}\n\
+    \    def offset():\n        try: return int(open(OFF).read().strip())\n        except Exception: return 0\n    def save(o):\n        try: open(OFF, \"w\").write(str(o))\n        except Exception: pass\n\
+    \    def post(events):\n        body = json.dumps({\"workspace\": META, \"events\": events}).encode()\n        req = urllib.request.Request(BASE, data=body, method=\"POST\",\n            headers={\"\
+    Content-Type\": \"application/json\", \"Coder-Agent-Token\": TOKEN, \"X-Requested-With\": \"coder-ui\"})\n        with urllib.request.urlopen(req, timeout=15) as r: return r.status\n    while True:\n\
+    \        try:\n            size = os.path.getsize(LOG) if os.path.exists(LOG) else 0\n            o = offset()\n            if o > size: o = 0  # log was rotated/truncated\n            if size > o:\n\
+    \                with open(LOG) as f:\n                    f.seek(o)\n                    lines = f.readlines()\n                    new = f.tell()\n                batch = []\n                for ln\
+    \ in lines:\n                    ln = ln.strip()\n                    if not ln: continue\n                    try: batch.append(json.loads(ln))\n                    except Exception: batch.append({\"\
+    raw\": ln[:4000]})\n                    if len(batch) >= 200:\n                        post(batch); batch = []\n                if batch: post(batch)\n                save(new)\n                # keep\
+    \ the local file bounded: once forwarded past 8 MB, trim to what is unsent\n                if new > 8 * 1024 * 1024:\n                    rest = open(LOG).read()[new:]\n                    open(LOG,\
+    \ \"w\").write(rest); save(0)\n        except urllib.error.URLError:\n            pass  # store unreachable: keep the local log, retry next tick\n        except Exception:\n            pass\n      \
+    \  time.sleep(2)\n    PY\n    sed -i 's/^    //' \"$LOGDIR/forward.py\"\n\n    # One forwarder per workspace. Probe by a marker file's pid; snoopy would log a pgrep of our own name.\n    if [ -f \"\
+    $LOGDIR/forward.pid\" ] && kill -0 \"$(cat \"$LOGDIR/forward.pid\" 2>/dev/null)\" 2>/dev/null; then\n      echo \"Agent activity monitor already running.\"\n    else\n      ACCESS_URL=\"$ACCESS_URL\"\
+    \ OWNER=\"$OWNER\" OWNER_ID=\"$OWNER_ID\" WS=\"$WS\" WS_ID=\"$WS_ID\" LOG=\"$LOG\" \\\n        nohup python3 \"$LOGDIR/forward.py\" >\"$LOGDIR/forward.out\" 2>&1 &\n      echo $! > \"$LOGDIR/forward.pid\"\
+    \n      echo \"Agent activity monitor started; execs are recorded and forwarded to Observability > Agent Activity.\"\n    fi\n  EOT\n}\n"
+  certificates.tf: "# Installs the owner's PKCS#12 certificate into the workspace as ~/.cert/<owner>.p12, where <owner> is the Coder\n# username (for user jdoe: /home/coder/.cert/jdoe.p12). Nothing else\
+    \ is left in ~/.cert.\n#\n# Drop this file next to a template's main.tf (Terraform reads every .tf file in the template directory). It needs a\n# `coder_agent` named \"main\"; change agent_id below\
+    \ if yours is called something else.\n#\n# Where the certificate comes from: each user uploads theirs in Coder > Settings > Certificates. The page stores the\n# file as one of the user's own Coder secrets\
+    \ (base64, because secret values are text), with the file path\n# ~/.cert/.<owner>.p12.b64. When a workspace starts, Coder's agent writes the owner's secrets (and only the owner's) to\n# those paths,\
+    \ directory 0700 and files 0600, before any startup script runs. This script decodes it to\n# ~/.cert/<owner>.p12 (0600) and removes the encoded copy. An upload saved under another name (by an earlier\
+    \ version\n# of the page, or before the user was renamed) is installed under the owner's name all the same. When the owner\n# deletes the certificate in Coder, it is removed from ~/.cert on the next\
+    \ start (only a file this script installed).\nresource \"coder_script\" \"user_certificates\" {\n  agent_id           = coder_agent.main.id\n  display_name       = \"Certificates\"\n  icon         \
+    \      = \"/icon/lock.svg\"\n  run_on_start       = true\n  start_blocks_login = true # nobody gets a shell before the certificate is in place\n  script             = <<-EOT\n    #!/bin/sh\n    set\
+    \ -eu\n    umask 077\n    owner='${data.coder_workspace_owner.me.name}'\n    case \"$owner\" in\n      \"\"|*/*|.*|*[!A-Za-z0-9._@+-]*) echo \"Unexpected workspace owner name: $owner\" >&2; exit 1 ;;\n\
+    \    esac\n    dir=\"$HOME/.cert\"\n    target=\"$dir/$owner.p12\"\n    state=\"$${XDG_STATE_HOME:-$HOME/.local/state}/coder-certificates\"\n    mkdir -p \"$dir\" \"$state\"\n    chmod 700 \"$dir\"\
+    \ \"$state\"\n    installed=\"$state/installed\" # names this script installed on earlier starts (kept out of ~/.cert)\n    if [ -f \"$dir/.installed-by-coder\" ]; then # the earlier version kept that\
+    \ list in ~/.cert itself\n      cat \"$dir/.installed-by-coder\" >> \"$installed\"\n      rm -f \"$dir/.installed-by-coder\"\n    fi\n\n    # The owner's upload, or failing that the first one saved\
+    \ under another name. Only one is installed.\n    source=\"\"\n    if [ -f \"$dir/.$owner.p12.b64\" ]; then source=\"$dir/.$owner.p12.b64\"; fi\n    for encoded in \"$dir\"/.*.p12.b64; do\n      [ -f\
+    \ \"$encoded\" ] || continue\n      if [ -z \"$source\" ]; then\n        source=\"$encoded\"\n      elif [ \"$encoded\" != \"$source\" ]; then\n        echo \"Ignoring $(basename \"$encoded\"): only\
+    \ one certificate is installed, as ~/.cert/$owner.p12\" >&2\n        rm -f \"$encoded\"\n      fi\n    done\n\n    ok=\"\"\n    if [ -n \"$source\" ]; then\n      tmp=$(mktemp \"$dir/.install.XXXXXX\"\
+    )\n      if base64 -d < \"$source\" > \"$tmp\" 2>/dev/null && [ -s \"$tmp\" ]; then\n        chmod 600 \"$tmp\"\n        mv -f \"$tmp\" \"$target\"\n        ok=1\n        echo \"Installed ~/.cert/$owner.p12\"\
+    \n      else\n        rm -f \"$tmp\"\n        echo \"Skipping $(basename \"$source\"): not a valid upload\" >&2\n      fi\n      rm -f \"$source\" # the agent writes it again on the next start; the\
+    \ installed .p12 is the only copy kept\n    fi\n\n    # Files installed on earlier starts under other names, and this one if the owner has deleted it in Coder.\n    if [ -f \"$installed\" ]; then\n\
+    \      while IFS= read -r old; do\n        case \"$old\" in \"\"|*/*|.*) continue ;; esac\n        if [ \"$old\" = \"$owner\" ] && [ -n \"$ok\" ]; then continue; fi\n        if [ -f \"$dir/$old.p12\"\
+    \ ]; then rm -f \"$dir/$old.p12\" && echo \"Removed ~/.cert/$old.p12\"; fi\n      done < \"$installed\"\n    fi\n    # An empty ~/.cert/<owner>.p12 left behind by the template's former paste-a-certificate\
+    \ parameter.\n    if [ -f \"$target\" ] && [ ! -s \"$target\" ]; then rm -f \"$target\"; fi\n\n    if [ -n \"$ok\" ]; then echo \"$owner\" > \"$installed\"; else rm -f \"$installed\"; fi\n  EOT\n}\n"
+  main.tf: "terraform {\n  required_providers {\n    coder = {\n      source = \"coder/coder\"\n    }\n    kubernetes = {\n      source = \"hashicorp/kubernetes\"\n    }\n  }\n}\n\nprovider \"coder\" {}\n\
+    \nvariable \"use_kubeconfig\" {\n  type        = bool\n  description = \"Use host kubeconfig? (true/false)\"\n  default     = false\n}\n\nvariable \"namespace\" {\n  type        = string\n  description\
+    \ = \"The Kubernetes namespace to create workspaces in. Workspaces run only in the coder namespace.\"\n  default     = \"coder\"\n  validation {\n    condition     = var.namespace == \"coder\"\n   \
+    \ error_message = \"Workspaces are created only in the coder namespace.\"\n  }\n}\n\ndata \"coder_parameter\" \"cpu\" {\n  name         = \"cpu\"\n  display_name = \"CPU\"\n  description  = \"The number\
+    \ of CPU cores\"\n  default      = \"2\"\n  icon         = \"/icon/memory.svg\"\n  mutable      = true\n  option {\n    name  = \"2 Cores\"\n    value = \"2\"\n  }\n  option {\n    name  = \"4 Cores\"\
+    \n    value = \"4\"\n  }\n  option {\n    name  = \"6 Cores\"\n    value = \"6\"\n  }\n  option {\n    name  = \"8 Cores\"\n    value = \"8\"\n  }\n}\n\ndata \"coder_parameter\" \"memory\" {\n  name\
+    \         = \"memory\"\n  display_name = \"Memory\"\n  description  = \"The amount of memory in GB\"\n  default      = \"2\"\n  icon         = \"/icon/memory.svg\"\n  mutable      = true\n  option {\n\
+    \    name  = \"2 GB\"\n    value = \"2\"\n  }\n  option {\n    name  = \"4 GB\"\n    value = \"4\"\n  }\n  option {\n    name  = \"6 GB\"\n    value = \"6\"\n  }\n  option {\n    name  = \"8 GB\"\n\
+    \    value = \"8\"\n  }\n}\n\ndata \"coder_parameter\" \"home_disk_size\" {\n  name         = \"home_disk_size\"\n  display_name = \"Home disk size\"\n  description  = \"The size of the home disk in\
+    \ GB\"\n  default      = \"10\"\n  type         = \"number\"\n  icon         = \"/emojis/1f4be.png\"\n  mutable      = false\n  validation {\n    min = 1\n    max = 99999\n  }\n}\n\nprovider \"kubernetes\"\
+    \ {\n  config_path = var.use_kubeconfig == true ? \"~/.kube/config\" : null\n}\n\ndata \"coder_workspace\" \"me\" {}\ndata \"coder_workspace_owner\" \"me\" {}\n\nresource \"coder_agent\" \"main\" {\n\
+    \  os             = \"linux\"\n  arch           = \"amd64\"\n\n  display_apps {\n    web_terminal = true\n    vscode       = false\n    ssh_helper   = false\n  }\n\n  startup_script = <<-EOT\n    set\
+    \ -e\n\n    # ~/.cert/<owner>.p12 is installed by the \"Certificates\" script (certificates.tf) from Settings > Certificates.\n\n    # 1. Install & Start code-server\n    if [ ! -d \"/tmp/code-server\"\
+    \ ]; then\n      curl -fsSL https://code-server.dev/install.sh | sh -s -- --method=standalone --prefix=/tmp/code-server\n    fi\n    # Probe the port rather than pgrep -f: the agent runs this script\
+    \ as `sh -c '<script>'`,\n    # so `pgrep -f` matches the script's own command line and never starts anything.\n    if ! curl -fs http://localhost:13337/healthz > /dev/null; then\n      /tmp/code-server/bin/code-server\
+    \ --auth none --port 13337 >/tmp/code-server.log 2>&1 &\n    fi\n\n    # 2. Install & Start Filebrowser\n    if ! command -v filebrowser >/dev/null; then\n      curl -fsSL https://raw.githubusercontent.com/filebrowser/get/master/get.sh\
+    \ | sudo bash\n    fi\n    # Path-based apps are proxied with their full /@user/workspace.agent/apps/<slug> prefix\n    # intact, so filebrowser must serve under it or its assets 404 (endless spinner).\n\
+    \    # The agent name (\"main\") is hardcoded: referencing coder_agent.main here would be a cycle.\n    if ! pgrep -x filebrowser > /dev/null; then\n      filebrowser --noauth --root /home/coder --port\
+    \ 13339 \\\n        --baseurl \"/@${data.coder_workspace_owner.me.name}/${data.coder_workspace.me.name}.main/apps/filebrowser\" \\\n        >/tmp/filebrowser.log 2>&1 &\n    fi\n\n    # 3. Install &\
+    \ Start marimo (Python notebooks). The venv lives on the home PVC, so it is\n    # installed once per workspace and again only when MARIMO_VERSION changes.\n    MARIMO_VERSION=0.24.2\n    MARIMO_VENV=/home/coder/.marimo-venv\n\
+    \    MARIMO_BASE=\"/@${data.coder_workspace_owner.me.name}/${data.coder_workspace.me.name}.main/apps/marimo\"\n    if [ \"$($MARIMO_VENV/bin/marimo --version 2>/dev/null)\" != \"$MARIMO_VERSION\" ];\
+    \ then\n      python3 -m venv $MARIMO_VENV\n      $MARIMO_VENV/bin/pip install --quiet --upgrade \"marimo==$MARIMO_VERSION\"\n    fi\n    # marimo has no setting for its home page \"Resources\" section\
+    \ (external links): hide it\n    # with a CSS rule in marimo's own index.html (the column whose 3-column grid holds\n    # target=_blank cards; nothing else matches).\n    MARIMO_INDEX=$($MARIMO_VENV/bin/python\
+    \ -c 'import marimo, os; print(os.path.join(os.path.dirname(marimo.__file__), \"_static\", \"index.html\"))')\n    if ! grep -q marimo-hide-resources \"$MARIMO_INDEX\"; then\n      sed -i 's#</head>#<style\
+    \ id=\"marimo-hide-resources\">div.flex.flex-col.gap-2:has(> div.grid.gap-3.lg\\\\:grid-cols-3 > a[target=\"_blank\"]){display:none !important}</style></head>#' \"$MARIMO_INDEX\"\n    fi\n    mkdir\
+    \ -p /home/coder/notebooks\n    # --no-token: no marimo login page. marimo listens on 127.0.0.1 only, so the Coder agent's\n    # proxy is the only way in, and the app is share = \"owner\": Coder decides\
+    \ who gets in.\n    if ! curl -fs \"http://localhost:2718$MARIMO_BASE/health\" > /dev/null; then\n      $MARIMO_VENV/bin/marimo edit --headless --host 127.0.0.1 --port 2718 --no-token \\\n        --skip-update-check\
+    \ --base-url \"$MARIMO_BASE\" /home/coder/notebooks \\\n        >/tmp/marimo.log 2>&1 &\n    fi\n\n    # 4. Install Desktop Environment & noVNC\n    if [ ! -f /usr/bin/vncserver ]; then\n      sudo\
+    \ apt-get update\n      sudo DEBIAN_FRONTEND=noninteractive apt-get install -y xfce4 xfce4-goodies dbus-x11 tigervnc-standalone-server novnc websockify\n    fi\n\n    # Serve the noVNC client as the\
+    \ directory index so the bare app URL loads it.\n    sudo ln -sf /usr/share/novnc/vnc.html /usr/share/novnc/index.html\n\n    # Configure XFCE to start on VNC launch\n    # TigerVNC >= 1.14 reads ~/.config/tigervnc\
+    \ (the legacy ~/.vnc fails to migrate),\n    # and the session ends when xstartup returns, so xfce must be exec'd in the foreground.\n    mkdir -p ~/.config/tigervnc\n    cat << 'VNC_SCRIPT' > ~/.config/tigervnc/xstartup\n\
+    #!/bin/sh\nxrdb $HOME/.Xresources 2>/dev/null\nexec startxfce4\nVNC_SCRIPT\n    chmod +x ~/.config/tigervnc/xstartup\n\n    # Start TigerVNC server on display :1. Bound to localhost only: websockify\
+    \ below\n    # runs in the same pod, and TigerVNC refuses unauthenticated non-local listeners.\n    if ! pgrep -x Xtigervnc > /dev/null; then\n      vncserver :1 -geometry 1280x800 -depth 24 -localhost\
+    \ yes -SecurityTypes None\n    fi\n\n    # Start websockify proxy for noVNC. Coder strips the /@user/workspace.agent/apps/novnc\n    # prefix before proxying, so the stock web root works as-is.\n  \
+    \  if ! pgrep -x websockify > /dev/null; then\n      websockify --web=/usr/share/novnc/ 6901 localhost:5901 > /tmp/novnc.log 2>&1 &\n    fi\n  EOT\n\n  metadata {\n    display_name = \"CPU Usage\"\n\
+    \    key          = \"0_cpu_usage\"\n    script       = \"coder stat cpu\"\n    interval     = 10\n    timeout      = 1\n  }\n\n  metadata {\n    display_name = \"RAM Usage\"\n    key          = \"\
+    1_ram_usage\"\n    script       = \"coder stat mem\"\n    interval     = 10\n    timeout      = 1\n  }\n\n  metadata {\n    display_name = \"Home Disk\"\n    key          = \"3_home_disk\"\n    script\
+    \       = \"coder stat disk --path $${HOME}\"\n    interval     = 60\n    timeout      = 1\n  }\n\n  metadata {\n    display_name = \"CPU Usage (Host)\"\n    key          = \"4_cpu_usage_host\"\n  \
+    \  script       = \"coder stat cpu --host\"\n    interval     = 10\n    timeout      = 1\n  }\n\n  metadata {\n    display_name = \"Memory Usage (Host)\"\n    key          = \"5_mem_usage_host\"\n \
+    \   script       = \"coder stat mem --host\"\n    interval     = 10\n    timeout      = 1\n  }\n\n  metadata {\n    display_name = \"Load Average (Host)\"\n    key          = \"6_load_host\"\n    script\
+    \       = <<EOT\n      echo \"`cat /proc/loadavg | awk '{ print $1 }'` `nproc`\" | awk '{ printf \"%0.2f\", $1/$2 }'\n    EOT\n    interval = 60\n    timeout  = 1\n  }\n}\n\nresource \"coder_app\" \"\
+    marimo\" {\n  agent_id     = coder_agent.main.id\n  slug         = \"marimo\"\n  display_name = \"marimo\"\n  icon         = \"/__icons/marimo.svg\"   # files/icons/marimo.svg, served by templates/icons.yaml\n\
+    \  # Path-based, like the other apps. marimo serves under the full app path (--base-url in the\n  # startup script), so the URL carries it too (\"main\" = agent name).\n  url          = \"http://localhost:2718/@${data.coder_workspace_owner.me.name}/${data.coder_workspace.me.name}.main/apps/marimo/\"\
+    \n  subdomain    = false\n  share        = \"owner\"\n\n  healthcheck {\n    url       = \"http://localhost:2718/@${data.coder_workspace_owner.me.name}/${data.coder_workspace.me.name}.main/apps/marimo/health\"\
+    \n    interval  = 5\n    threshold = 60\n  }\n}\n\nresource \"coder_app\" \"novnc\" {\n  agent_id     = coder_agent.main.id\n  slug         = \"novnc\"\n  display_name = \"Desktop (noVNC)\"\n  icon\
+    \         = \"https://upload.wikimedia.org/wikipedia/commons/0/0f/NoVNC_logo.png\"\n  # Path-based (no wildcard DNS/route needed). noVNC opens its websocket relative to the host\n  # root, so pass the\
+    \ prefixed path explicitly (\"main\" = agent name, as in filebrowser above).\n  url          = \"http://localhost:6901?autoconnect=true&resize=remote&path=@${data.coder_workspace_owner.me.name}/${data.coder_workspace.me.name}.main/apps/novnc/websockify\"\
+    \n  subdomain    = false\n  share        = \"owner\"\n\n  healthcheck {\n    url       = \"http://localhost:6901/\"\n    interval  = 5\n    threshold = 3\n  }\n}\n\nresource \"coder_app\" \"filebrowser\"\
+    \ {\n  agent_id     = coder_agent.main.id\n  slug         = \"filebrowser\"\n  display_name = \"File Browser\"\n  icon         = \"/icon/folder.svg\"\n  url          = \"http://localhost:13339\"\n \
+    \ subdomain    = false\n  share        = \"owner\"\n\n  healthcheck {\n    url       = \"http://localhost:13339/health\"\n    interval  = 5\n    threshold = 3\n  }\n}\n\nresource \"coder_app\" \"code-server\"\
+    \ {\n  agent_id     = coder_agent.main.id\n  slug         = \"code-server\"\n  display_name = \"code-server\"\n  icon         = \"/icon/code.svg\"\n  url          = \"http://localhost:13337?folder=/home/coder\"\
+    \n  subdomain    = false\n  share        = \"owner\"\n\n  healthcheck {\n    url       = \"http://localhost:13337/healthz\"\n    interval  = 3\n    threshold = 10\n  }\n}\n\nresource \"kubernetes_persistent_volume_claim_v1\"\
+    \ \"home\" {\n  metadata {\n    name      = \"coder-${data.coder_workspace.me.id}-home\"\n    namespace = var.namespace\n    labels = {\n      \"app.kubernetes.io/name\"     = \"coder-pvc\"\n      \"\
+    app.kubernetes.io/instance\" = \"coder-pvc-${data.coder_workspace.me.id}\"\n      \"app.kubernetes.io/part-of\"  = \"coder\"\n      \"com.coder.resource\"         = \"true\"\n      \"com.coder.workspace.id\"\
+    \     = data.coder_workspace.me.id\n      \"com.coder.workspace.name\"   = data.coder_workspace.me.name\n      \"com.coder.user.id\"          = data.coder_workspace_owner.me.id\n      \"com.coder.user.username\"\
+    \    = data.coder_workspace_owner.me.name\n    }\n    annotations = {\n      \"com.coder.user.email\" = data.coder_workspace_owner.me.email\n    }\n  }\n  wait_until_bound = false\n\n  spec {\n    access_modes\
+    \ = [\"ReadWriteOnce\"]\n    resources {\n      requests = {\n        storage = \"${data.coder_parameter.home_disk_size.value}Gi\"\n      }\n    }\n  }\n}\n\nresource \"kubernetes_deployment_v1\" \"\
+    main\" {\n  count = data.coder_workspace.me.start_count\n  depends_on = [\n    kubernetes_persistent_volume_claim_v1.home\n  ]\n  wait_for_rollout = false\n  metadata {\n    name      = \"coder-${data.coder_workspace.me.id}\"\
+    \n    namespace = var.namespace\n    labels = {\n      \"app.kubernetes.io/name\"     = \"coder-workspace\"\n      \"app.kubernetes.io/instance\" = \"coder-workspace-${data.coder_workspace.me.id}\"\n\
+    \      \"app.kubernetes.io/part-of\"  = \"coder\"\n      \"com.coder.resource\"         = \"true\"\n      \"com.coder.workspace.id\"     = data.coder_workspace.me.id\n      \"com.coder.workspace.name\"\
+    \   = data.coder_workspace.me.name\n      \"com.coder.user.id\"          = data.coder_workspace_owner.me.id\n      \"com.coder.user.username\"    = data.coder_workspace_owner.me.name\n    }\n    annotations\
+    \ = {\n      \"com.coder.user.email\" = data.coder_workspace_owner.me.email\n    }\n  }\n\n  spec {\n    replicas = 1\n    selector {\n      match_labels = {\n        \"app.kubernetes.io/name\"    \
+    \ = \"coder-workspace\"\n        \"app.kubernetes.io/instance\" = \"coder-workspace-${data.coder_workspace.me.id}\"\n        \"app.kubernetes.io/part-of\"  = \"coder\"\n        \"com.coder.resource\"\
+    \         = \"true\"\n        \"com.coder.workspace.id\"     = data.coder_workspace.me.id\n        \"com.coder.workspace.name\"   = data.coder_workspace.me.name\n        \"com.coder.user.id\"      \
+    \    = data.coder_workspace_owner.me.id\n        \"com.coder.user.username\"    = data.coder_workspace_owner.me.name\n      }\n    }\n    strategy {\n      type = \"Recreate\"\n    }\n\n    template\
+    \ {\n      metadata {\n        labels = {\n          \"app.kubernetes.io/name\"     = \"coder-workspace\"\n          \"app.kubernetes.io/instance\" = \"coder-workspace-${data.coder_workspace.me.id}\"\
+    \n          \"app.kubernetes.io/part-of\"  = \"coder\"\n          \"com.coder.resource\"         = \"true\"\n          \"com.coder.workspace.id\"     = data.coder_workspace.me.id\n          \"com.coder.workspace.name\"\
+    \   = data.coder_workspace.me.name\n          \"com.coder.user.id\"          = data.coder_workspace_owner.me.id\n          \"com.coder.user.username\"    = data.coder_workspace_owner.me.name\n     \
+    \   }\n      }\n      spec {\n        security_context {\n          run_as_user     = 1000\n          fs_group        = 1000\n          run_as_non_root = true\n        }\n\n        # Trust the local\
+    \ PKI: append the cluster root CA (secret \"tls-ca\") to the\n        # image's stock bundle so curl, the agent, git and apt can reach\n        # https://coder.xxx.com while public sites still verify.\n\
+    \        init_container {\n          name              = \"trust-local-ca\"\n          image             = \"codercom/enterprise-base:ubuntu\"\n          image_pull_policy = \"IfNotPresent\"\n     \
+    \     command = [\n            \"sh\", \"-c\",\n            \"cat /etc/ssl/certs/ca-certificates.crt /local-ca/ca.crt > /ca-bundle/ca-certificates.crt\",\n          ]\n          volume_mount {\n   \
+    \         name       = \"local-ca\"\n            mount_path = \"/local-ca\"\n            read_only  = true\n          }\n          volume_mount {\n            name       = \"ca-bundle\"\n          \
+    \  mount_path = \"/ca-bundle\"\n          }\n        }\n\n        container {\n          name              = \"dev\"\n          image             = \"codercom/enterprise-base:ubuntu\"\n          image_pull_policy\
+    \ = \"Always\"\n          command           = [\"sh\", \"-c\", coder_agent.main.init_script]\n          security_context {\n            run_as_user = \"1000\"\n          }\n          volume_mount {\n\
+    \            name       = \"ca-bundle\"\n            mount_path = \"/etc/ssl/certs/ca-certificates.crt\"\n            sub_path   = \"ca-certificates.crt\"\n            read_only  = true\n          }\n\
+    \          env {\n            name  = \"CODER_AGENT_TOKEN\"\n            value = coder_agent.main.token\n          }\n          resources {\n            requests = {\n              \"cpu\"    = \"250m\"\
+    \n              \"memory\" = \"512Mi\"\n            }\n            limits = {\n              \"cpu\"    = \"${data.coder_parameter.cpu.value}\"\n              \"memory\" = \"${data.coder_parameter.memory.value}Gi\"\
+    \n            }\n          }\n          volume_mount {\n            mount_path = \"/home/coder\"\n            name       = \"home\"\n            read_only  = false\n          }\n        }\n\n      \
+    \  volume {\n          name = \"home\"\n          persistent_volume_claim {\n            claim_name = kubernetes_persistent_volume_claim_v1.home.metadata.0.name\n            read_only  = false\n   \
+    \       }\n        }\n\n        volume {\n          name = \"local-ca\"\n          secret {\n            secret_name = \"tls-ca\"\n            items {\n              key  = \"ca.crt\"\n            \
+    \  path = \"ca.crt\"\n            }\n          }\n        }\n\n        volume {\n          name = \"ca-bundle\"\n          empty_dir {}\n        }\n\n        affinity {\n          pod_anti_affinity\
+    \ {\n            preferred_during_scheduling_ignored_during_execution {\n              weight = 1\n              pod_affinity_term {\n                topology_key = \"kubernetes.io/hostname\"\n    \
+    \            label_selector {\n                  match_expressions {\n                    key      = \"app.kubernetes.io/name\"\n                    operator = \"In\"\n                    values   =\
+    \ [\"coder-workspace\"]\n                  }\n                }\n              }\n            }\n          }\n        }\n      }\n    }\n  }\n}\n"
+kind: ConfigMap
+metadata:
+  annotations:
+    meta.helm.sh/release-name: coder-workspace
+    meta.helm.sh/release-namespace: coder
+  labels:
+    app.kubernetes.io/managed-by: Helm
+  name: coder-workspace-terraform
+  namespace: coder

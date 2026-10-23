@@ -1,0 +1,284 @@
+{{- include "coder-workspace.platform.values" . -}}
+{{- $url := .Values.coder.internalUrl | default (required "CODER_URL must be provided!" .Values.coder.url) }}
+{{- /* The templates this chart pushes, each by its own Job: default (DEFAULT: files/main.tf and its scripts) and
+(dataflowTemplate) the same plus files/dataflow/ - Apache NiFi and Apache Airflow in place of code-server - on its own
+image. Each push's message is its own: the login step
+finds a template renamed in the dashboard by it. A template a job replaces (its "replaces") is taken over: renamed, with
+its workspaces and history - default takes over ubuntu-vnc-desktop (UBUNTU), its name before. */}}
+{{- $jobs := list (dict "suffix" "" "template" .Values.template "dataflow" false "image" ""
+    "message" (printf "Deployed via Helm release %s" .Release.Name)
+    "replaces" (dict "name" "ubuntu-vnc-desktop" "message" (printf "Deployed via Helm release %s" .Release.Name)
+                     "displayName" "UBUNTU" "icon" "/icon/ubuntu.svg")) }}
+{{- if .Values.dataflowTemplate.enabled }}
+{{- $jobs = append $jobs (dict "suffix" "-dataflow" "template" .Values.dataflowTemplate "dataflow" true
+    "image" .Values.dataflowImage "message" (printf "Deployed via Helm release %s (dataflow)" .Release.Name)) }}
+{{- end }}
+{{- range $n, $j := $jobs }}
+{{- if $n }}
+---
+{{- end }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "coder-workspace.prefix" $ }}-push-template{{ $j.suffix }}
+  namespace: {{ $.Values.namespace | default $.Release.Namespace }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    # Removed once it has pushed the template; a failed run stays for its logs until the next install, or an hour.
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+    # Argo CD: right after the bootstrap (wave 3), which writes the token this uses.
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+spec:
+  ttlSecondsAfterFinished: 3600
+  backoffLimit: 1
+  template:
+    spec:
+      {{- with $.Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      # The session token comes from a Secret (install-workspace-chart creates it for the duration of the install),
+      # never from Helm values: those are stored in the release record. Without that Secret this init container
+      # signs in with coder-init-auth. (0.1.0 did that with curl + jq in the coder image, which has neither.)
+      initContainers:
+        - name: login
+          image: {{ $.Values.loginImage }}
+          command: ["python3", "-c"]
+          args:
+            - |
+              import json, os, ssl, sys, urllib.request
+              base = os.environ["CODER_URL"].rstrip("/")
+              ctx = ssl.create_default_context(cafile="/etc/ssl/certs/coder/ca.crt") if os.path.exists("/etc/ssl/certs/coder/ca.crt") else None
+              token = os.environ.get("CODER_SESSION_TOKEN")
+              if not token:
+                  print("No token Secret. Logging in with coder-init-auth...")
+                  body = json.dumps({"email": os.environ.get("CODER_EMAIL", ""), "password": os.environ.get("CODER_PASSWORD", "")}).encode()
+                  req = urllib.request.Request(base + "/api/v2/users/login", data=body,
+                                               method="POST", headers={"Content-Type": "application/json"})
+                  try:
+                      token = json.load(urllib.request.urlopen(req, timeout=30, context=ctx)).get("session_token")
+                  except Exception as e:
+                      sys.exit(f"Authentication failed: {e}")
+                  if not token:
+                      sys.exit("Authentication failed.")
+              open("/shared/token", "w").write(token)
+
+              # The template to push to: the configured name, or, when it was renamed in the dashboard, the template
+              # this release deployed (its versions' message), under its new name. Without this a rename made the
+              # next install create a second, empty template, leaving the workspaces and their history on the first.
+              name = os.environ["TEMPLATE_NAME"]
+              mark = os.environ["PUSH_MESSAGE"]
+              def get(path):
+                  r = urllib.request.Request(base + path, headers={"Coder-Session-Token": token})
+                  return json.load(urllib.request.urlopen(r, timeout=30, context=ctx))
+              def patch(path, body):
+                  r = urllib.request.Request(base + path, data=json.dumps(body).encode(), method="PATCH",
+                                             headers={"Coder-Session-Token": token, "Content-Type": "application/json"})
+                  return json.load(urllib.request.urlopen(r, timeout=30, context=ctx))
+              templates = None
+              try:
+                  templates = get("/api/v2/templates")
+                  # The template this one replaces (REPLACES_*: under its old name, or holding the old pushes'
+                  # versions): taken over - renamed (unless an admin renamed it), its old default display name and
+                  # icon replaced - so its workspaces and history carry on; they are offered the new version.
+                  old_name, old_mark = os.environ.get("REPLACES_NAME", ""), os.environ.get("REPLACES_MESSAGE", "")
+                  if old_name and not any(t["name"] == name for t in templates):
+                      old = [t for t in templates if t["name"] == old_name] or [
+                          t for t in templates
+                          if any((v.get("message") or "") == old_mark for v in get("/api/v2/templates/%s/versions" % t["id"]))]
+                      if len(old) == 1:
+                          t = old[0]
+                          change = {}
+                          if t["name"] == old_name:
+                              change["name"] = name
+                          if t.get("display_name") == os.environ.get("REPLACES_DISPLAY_NAME") and os.environ.get("TEMPLATE_DISPLAY_NAME"):
+                              change["display_name"] = os.environ["TEMPLATE_DISPLAY_NAME"]
+                          if t.get("icon") == os.environ.get("REPLACES_ICON") and os.environ.get("TEMPLATE_ICON"):
+                              change["icon"] = os.environ["TEMPLATE_ICON"]
+                          if change:
+                              patch("/api/v2/templates/%s" % t["id"], change)
+                          print(f"The template {t['name']} is replaced by {name}: taken over ({', '.join(change) or 'as it is'}).")
+                          name = change.get("name", t["name"])
+                          templates = get("/api/v2/templates")
+                  if not any(t["name"] == name for t in templates):
+                      ours = [t for t in templates
+                              if any((v.get("message") or "") == mark for v in get("/api/v2/templates/%s/versions" % t["id"]))]
+                      if len(ours) == 1:
+                          print(f"The template {name} was renamed to {ours[0]['name']} in the dashboard: pushing to it.")
+                          name = ours[0]["name"]
+                      elif len(ours) > 1:
+                          print("More than one template holds this release's versions (%s): creating %s."
+                                % (", ".join(t["name"] for t in ours), name))
+              except Exception as e:
+                  print(f"Could not look for a renamed template ({e}): pushing to {name}.")
+              open("/shared/template", "w").write(name)
+
+              # The display name and icon (template.displayName / template.icon): set on a new template, and on one
+              # that has none yet. One set in the dashboard is kept. Left alone when the templates could not be read.
+              current = next((t for t in templates if t["name"] == name), {}) if templates is not None else None
+              for field, key, path in (("display_name", "TEMPLATE_DISPLAY_NAME", "/shared/display-name"),
+                                       ("icon", "TEMPLATE_ICON", "/shared/icon")):
+                  value = os.environ.get(key, "") if current is not None and not current.get(field) else ""
+                  open(path, "w").write(value)
+
+              # code-server HA (the template's code_server_ha, switched in Settings > Network > code-server HA): kept as
+              # the template has it - a push with the variable's default would switch it off at every upgrade.
+              ha = "false"
+              try:
+                  if current and current.get("active_version_id"):
+                      for v in get("/api/v2/templateversions/%s/variables" % current["active_version_id"]):
+                          if v.get("name") == "code_server_ha" and str(v.get("value", "")).lower() == "true":
+                              ha = "true"
+              except Exception as e:
+                  print(f"Could not read the template's code_server_ha ({e}): pushing it off.")
+              open("/shared/code-server-ha", "w").write(ha)
+          env:
+            - name: CODER_URL
+              value: {{ $url | quote }}
+            - name: TEMPLATE_NAME
+              value: {{ $j.template.name | quote }}
+            - name: TEMPLATE_DISPLAY_NAME
+              value: {{ $j.template.displayName | default "" | quote }}
+            - name: TEMPLATE_ICON
+              value: {{ $j.template.icon | default "" | quote }}
+            - name: PUSH_MESSAGE
+              value: {{ $j.message | quote }}
+            {{- with $j.replaces }}
+            - {name: REPLACES_NAME, value: {{ .name | quote }}}
+            - {name: REPLACES_MESSAGE, value: {{ .message | quote }}}
+            - {name: REPLACES_DISPLAY_NAME, value: {{ .displayName | quote }}}
+            - {name: REPLACES_ICON, value: {{ .icon | quote }}}
+            {{- end }}
+            - name: CODER_SESSION_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.coder.tokenSecret | quote }}
+                  key: token
+                  optional: true
+            - name: CODER_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.secrets.initAuth | quote }}
+                  key: email
+                  optional: true
+            - name: CODER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.secrets.initAuth | quote }}
+                  key: password
+                  optional: true
+          volumeMounts:
+            - name: shared
+              mountPath: /shared
+            - name: tls-ca
+              mountPath: /etc/ssl/certs/coder
+              readOnly: true
+      containers:
+        - name: coder-cli
+          image: {{ $.Values.cliImage }}
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -e
+              CODER_URL={{ $url | quote }}
+              CODER_SESSION_TOKEN="$(cat /shared/token)"
+
+              export CODER_SESSION_TOKEN
+              export CODER_URL
+              export SSL_CERT_FILE="/etc/ssl/certs/coder/ca.crt"
+              export WORKSPACE="/tmp/workspace"
+
+              # Create the target workspace directory
+              mkdir -p "${WORKSPACE}"
+
+              # Copy the ConfigMap's files as physical files: the .tf files, and their scripts in scripts/
+              cp /tmp/tf-code/*.tf "${WORKSPACE}"/
+              mkdir -p "${WORKSPACE}/scripts"
+              cp /tmp/tf-code/*.sh /tmp/tf-code/*.py /tmp/tf-code/*.c "${WORKSPACE}/scripts"/
+              {{- if $j.dataflow }}
+              # This template's own part: dataflow.tf, and NiFi's and Airflow's scripts
+              cp /tmp/tf-dataflow/*.tf "${WORKSPACE}"/
+              cp /tmp/tf-dataflow/*.sh "${WORKSPACE}/scripts"/
+              {{- end }}
+
+              # Push the physical directory
+              # The configured name, or the template it was renamed to (the login step looks it up)
+              TEMPLATE="$(cat /shared/template)"
+              coder templates push "${TEMPLATE}" \
+                --directory "${WORKSPACE}" \
+                --variable code_server_ha="$(cat /shared/code-server-ha 2>/dev/null || echo false)" \
+                --message {{ $j.message | quote }} \
+                {{- with $j.image }}
+                --variable workspace_image="{{ . }}" \
+                {{- end }}
+                --variable namespace="{{ $.Values.namespace | default $.Release.Namespace }}" \
+                {{- if $j.dataflow }}
+                --variable terminal_app="{{ $j.template.terminal | default "web" }}" \
+                {{- if eq ($j.template.terminal | default "web") "ghostty" }}
+                --variable terminal=false \
+                {{- end }}
+                --variable code_server=false \
+                --variable default_memory=6 \
+                {{- end }}
+                --variable home_storage_class="{{ $.Values.storageClass | default "" }}" \
+                {{- with $.Values.codeServerHA }}{{ if .image }}
+                --variable code_server_ha_image="{{ .image }}" \
+                --variable code_server_ha_db_ca_secret="{{ .dbCaSecret }}" \
+                {{- end }}{{ end }}
+                {{- with $.Values.imagesRegistry }}
+                --variable images_registry="{{ . }}" \
+                {{- end }}
+                {{- /* The owner's safe (global user storage, the parent chart's userStorage): their PersistentVolumeClaim
+                     coder-safe-<owner id>, which the platform service makes for every account. */}}
+                {{- with ($.Values.global.userStorage | default dict) }}{{ if eq (toString .enabled) "true" }}
+                --variable user_storage=true \
+                --variable user_storage_path="{{ .mountPath | default "/home/coder/cloud-drive" }}" \
+                {{- end }}{{ end }}
+                {{- with $.Values.global.clusterAccess }}{{ if .enabled }}
+                --variable cluster_oidc_issuer="{{ $.Values.global.oidc.issuerUrl | default (printf "https://keycloak.%s/realms/master" $.Values.global.domain) }}" \
+                --variable cluster_oidc_client_id="{{ .clientId }}" \
+                --variable cluster_admin_roles="{{ .adminRoles }}" \
+                {{- end }}{{ end }}
+                --yes
+
+              # The display name and icon, where the template has none yet (the login step decided).
+              DISPLAY_NAME="$(cat /shared/display-name)"
+              ICON="$(cat /shared/icon)"
+              set --
+              if [ -n "${DISPLAY_NAME}" ]; then set -- "$@" --display-name "${DISPLAY_NAME}"; fi
+              if [ -n "${ICON}" ]; then set -- "$@" --icon "${ICON}"; fi
+              if [ "$#" -gt 0 ]; then
+                coder templates edit "${TEMPLATE}" "$@" --yes
+              fi
+          volumeMounts:
+            - name: shared
+              mountPath: /shared
+              readOnly: true
+            - name: tf-code
+              mountPath: /tmp/tf-code
+            {{- if $j.dataflow }}
+            - name: tf-dataflow
+              mountPath: /tmp/tf-dataflow
+            {{- end }}
+            - name: tls-ca
+              mountPath: /etc/ssl/certs/coder
+              readOnly: true
+      restartPolicy: Never
+      volumes:
+        - name: shared
+          emptyDir:
+            medium: Memory
+        - name: tf-code
+          configMap:
+            name: {{ include "coder-workspace.prefix" $ }}-terraform
+        {{- if $j.dataflow }}
+        - name: tf-dataflow
+          configMap:
+            name: {{ include "coder-workspace.prefix" $ }}-terraform-dataflow
+        {{- end }}
+        - name: tls-ca
+          secret:
+            secretName: {{ $.Values.secrets.tlsCa | quote }}
+{{- end }}

@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  annotations:
+    argocd.argoproj.io/tracking-id: coder:/ServiceAccount:coder/coder
+  labels:
+    app.kubernetes.io/instance: coder
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: coder
+    app.kubernetes.io/part-of: coder
+    app.kubernetes.io/version: 2.37.3
+    helm.sh/chart: coder-2.37.3
+  name: coder
+  namespace: coder

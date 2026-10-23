@@ -1,0 +1,27 @@
+{{- include "ca.values" . -}}
+{{- if and .Values.database.enabled (include "platform.hasBase" .) }}
+{{- $db := .Values.database }}
+{{- if not (include "platform.dbByJob" .) }}
+{{ include "platform.dbCluster" . }}
+{{- if $db.pooler.enabled }}
+---
+{{ include "platform.dbPooler" . }}
+{{- end }}
+{{- end }}
+{{- if $db.pooler.enabled }}
+{{- if gt (int $db.pooler.instances) 1 }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $db.name }}-pooler-rw
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "ca.labels" . | nindent 4 }}
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels: {app.kubernetes.io/name: coder-db-pooler}
+{{- end }}
+{{- end }}
+{{- end }}

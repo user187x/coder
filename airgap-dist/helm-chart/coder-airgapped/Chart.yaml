@@ -1,0 +1,42 @@
+apiVersion: v2
+name: coder-airgapped
+description: >-
+  The forked Coder platform exactly as it runs on the reference cluster (minikube, namespace coder, captured
+  2026-10-09): Coder 2.37.3 chart with the ghcr.io/user187x/coder-platform image, its CloudNativePG database,
+  the coder-ui-updates platform service (+ its log buffer database; the announcement banner is Coder's own),
+  the DEFAULT workspace template and its icon server. Every dependency is vendored in charts/,
+  so the chart installs with no network access.
+type: application
+version: 1.46.0
+appVersion: "2.0.0-platform.108"
+kubeVersion: ">=1.27.0-0"
+keywords:
+  - coder
+  - airgap
+  - eks
+sources:
+  - https://github.com/user187x/coder
+dependencies:
+  # Upstream Coder chart 2.37.3 (https://helm.coder.com/v2) + the platform patch (templated values, coder.extraEnv,
+  # global.imagePullSecrets): development/tools/apply-platform-patch.py. Values under `coder:`.
+  - name: coder
+    version: 2.37.3-platform.1
+    repository: file://charts/coder
+    condition: coder.enabled
+  # The prerequisites, for one `helm install` on a bare cluster (global.bundled; off where the cluster has its own):
+  # Traefik 41.4.0 with the Gateway API v1.6.0 CRDs (in its crds/), its Gateway on the chart's wildcard certificate, and
+  # the CloudNativePG operator 0.29.0 (its CRDs in crds/). Vendored + the platform patch (--platform-templates-only).
+  - name: traefik
+    version: 41.4.0-platform.1
+    repository: file://charts/traefik
+    condition: global.bundled.traefik
+  - name: cloudnative-pg
+    version: 0.29.0-platform.1
+    repository: file://charts/cloudnative-pg
+    condition: global.bundled.cloudnativePG
+  # Workspace template + icon server (charts/coder-workspace, source: devbox workspaces/workspace-chart).
+  # The subcharts are vendored as directories: do not run `helm dependency update/build` (nothing to fetch).
+  - name: coder-workspace
+    version: 0.1.1-platform.1
+    repository: file://charts/coder-workspace
+    condition: coder-workspace.enabled

@@ -1,0 +1,193 @@
+# Argo CD Application: Coder, decorated by the coder-airgapped customization layer - two charts in one Application,
+# pulled from your registry's OCI chart repository (Harbor: <harbor>/<project>/charts).
+#
+#   source 1  coder-airgapped-base   the Coder installation: plain Coder (upstream, at the fork's base), its
+#                                    CloudNativePG database and its first owner
+#   source 2  coder-airgapped-layer  the customization layer: the platform service (HUD, Health, quotas, Lock Down,
+#                                    Images, ...), the announcement banner, the DEFAULT workspace template
+#                                    and its icons, the image builder, metrics-server, admins' kubectl
+#
+# A decorator: the layer adds to Coder without changing its installation. Its one hook into the base is
+# global.decorator.layer: true (the shared block below, written once and reused by source 2 as *global): with it
+# the base runs the fork's Coder image with the platform's settings, without it upstream Coder.
+#
+# Take the layer off: delete source 2 and set layer: false - or apply coder-plain-application.yaml, which is exactly
+# that. Argo CD prunes everything the layer added and restarts Coder as upstream Coder; the data stays (database,
+# users, templates, workspaces and their homes). Put the layer back by applying this file again.
+#
+# ./make --argocd <harbor>/<project> does every step below for you (and fills this file in: .deploy/argocd/). By hand:
+#   1. Images and charts:  ./make --push-images <harbor>/<project>   (images, both charts, the prerequisites' charts)
+#                          or ./mirror-images.sh push <registry> and ./mirror-images.sh charts <registry>/charts
+#   2. Prerequisites in the cluster: Gateway API CRDs (v1.6.0: prereqs/), a Gateway with an HTTPS listener for
+#      coder.<domain> and *.<domain> (Traefik: prereqs/), the CloudNativePG operator (install.sh --cnpg)
+#   3. Secrets and default images the charts do not create (names = global.secretNames below):
+#        ./install.sh --prepare-only --ca ca.crt --oidc-ca keycloak-ca.crt --oidc-secret-file oidc-client-secret.txt \
+#                     --tls-crt wildcard.crt --tls-key wildcard.key
+#   4. Edit every "CHANGE-ME", then:  kubectl apply -f coder-decorated-application.yaml
+#   5. Once Synced and Healthy: ./mirror-images.sh seed-builder   (the Images view's build base)
+#
+# Everything under helm.valuesObject is a chart value (coder-airgapped/values.yaml documents them all).
+---
+# Credentials for the OCI chart repository. Remove this document if Argo CD already has the repository (or a
+# matching credential template). Harbor: a robot account with pull rights is enough. Harbor with a private CA: add
+# it to Argo CD (argocd-tls-certs-cm, key = the Harbor host name), which ./make --argocd does.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: coder-airgapped-charts
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+type: Opaque
+stringData:
+  name: coder-airgapped-charts
+  type: helm
+  enableOCI: "true"
+  url: harbor.example.com/coder-airgapped/charts                  # CHANGE-ME: <registry>/charts, no oci:// prefix
+  username: robot$coder-airgapped+argocd                          # CHANGE-ME
+  password: CHANGE-ME
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  # Keep in step with uiUpdates.argocd.app below (the Keycloak view reads this Application).
+  name: coder
+  namespace: argocd
+  annotations:
+    # Compare with a server-side dry run, so fields the API server and Gateway controller fill in (HTTPRoute defaults)
+    # are not reported as drift.
+    argocd.argoproj.io/compare-options: ServerSideDiff=true
+spec:
+  project: default
+  sources:
+  # ---- 1. The Coder installation -------------------------------------------------------------------------------
+  - repoURL: harbor.example.com/coder-airgapped/charts                # CHANGE-ME: same as the repository url above
+    chart: coder-airgapped-base
+    targetRevision: 1.46.0
+    helm:
+      releaseName: coder
+      valuesObject:
+        global: &global
+          decorator:
+            # The customization layer (source 2) decorates this Coder. false once you remove source 2.
+            layer: true
+          domain: example.com                       # CHANGE-ME: Coder at https://coder.example.com, apps at *.example.com
+          coderHost: ""                             # "" = coder.<domain>
+          wildcardHost: ""                          # "" = *.<domain>
+          # Where the images were pushed (./make --push-images: <harbor>/<project>).
+          registry: harbor.example.com/coder-airgapped   # CHANGE-ME
+          imagePullSecrets: []                      # a private Harbor project: [{name: registry-pull}] (install.sh --pull-secret)
+          gateway:
+            name: traefik-gateway                   # CHANGE-ME: Gateway with an HTTPS listener for both hostnames
+            namespace: traefik
+          oidc:
+            issuerUrl: https://keycloak.example.com/realms/master  # CHANGE-ME ("" = https://keycloak.<domain>/realms/master)
+            clientId: coder
+            scopes: openid,profile,email
+            usernameField: preferred_username
+            emailField: email
+            ignoreEmailVerified: "true"
+            allowSignups: "true"
+            signInText: Sign in with your certificate
+            iconUrl: /icon/keycloak.svg
+          # "false": the admin signs in with its password, everyone else with Keycloak. "true": Keycloak only (the
+          # admin is then the Keycloak account with firstUser.email).
+          disablePasswordAuth: "false"
+          # The first owner, created on a fresh database. Change its password after the first sign-in (later syncs
+          # never reset it).
+          firstUser:
+            username: admin
+            email: admin@admin.com
+            password: admin
+          database:
+            name: coder-db
+          secretNames:
+            initAuth: coder-init-auth               # created by the base chart (firstUser)
+            logsDb: coder-ui-logs-db                # created by the layer chart (random password)
+            tlsCa: tls-ca                           # must exist (step 3)
+            oidcCa: keycloaking-coder-ca            # must exist (step 3)
+            oidcClient: keycloaking-coder-oidc      # must exist (step 3)
+            wildcardTls: tls-wild-cert              # must exist (step 3)
+        coder:
+          coder:
+            # 3 for high availability, with the rest of ../values-ha.example.yaml (DEPLOY.md › High availability).
+            replicaCount: 1
+            # Appended to the chart's Coder environment. Air gap: no telemetry, update check or public STUN.
+            extraEnv:
+            - name: CODER_TELEMETRY_ENABLE
+              value: "false"
+            - name: CODER_UPDATE_CHECK
+              value: "false"
+            - name: CODER_DERP_SERVER_STUN_ADDRESSES
+              value: "disable"
+        database:
+          instances: 2
+          storage:
+            size: 10Gi
+            storageClass: gp3                       # CHANGE-ME
+  # ---- 2. The customization layer: delete this source (and set layer: false above) for plain Coder ----------------
+  - repoURL: harbor.example.com/coder-airgapped/charts                # CHANGE-ME: same as above
+    chart: coder-airgapped-layer
+    targetRevision: 1.46.0
+    helm:
+      releaseName: coder
+      valuesObject:
+        global: *global
+        imageBuilder:                               # Templates > Images: its registry and files volumes
+          registry:
+            storageClass: gp3                       # CHANGE-ME
+          files:
+            storageClass: gp3                       # CHANGE-ME
+        metricsServer:
+          enabled: auto                             # installed only where the cluster has no metrics API yet
+          kubeletInsecureTLS: false                 # true on kind / Minikube (self-signed kubelet certificates)
+        uiUpdates:
+          adminRoles: owner
+          persistence:
+            storageClass: gp3                       # CHANGE-ME
+          keycloak:
+            enabled: false                          # true when Keycloak runs in this cluster (namespace below)
+            namespace: keycloak
+            adminSecret: keycloak-initial-admin
+          argocd:
+            enabled: true
+            namespace: argocd
+            app: coder                              # = metadata.name
+        coder-workspace:
+          storageClass: gp3                         # CHANGE-ME: workspaces' home volumes (new ones)
+          template:
+            name: default                           # DEFAULT (it took over ubuntu-vnc-desktop)
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: coder                                # the workspace template only accepts "coder"
+
+  ignoreDifferences:
+  # Generated passwords: Argo CD renders without cluster access, so each render has a new random value. Keep the one
+  # created on the first sync (with RespectIgnoreDifferences below, syncs never overwrite it).
+  - kind: Secret
+    jsonPointers:
+    - /data/password
+    - /stringData/password
+  # The chart's MinIO's TLS (a CA and certificate made on the first sync, as the passwords).
+  - kind: Secret
+    name: coder-user-storage-minio-tls
+    jsonPointers:
+    - /data
+  # code-server HA's relay login (a password made on the first sync).
+  - kind: Secret
+    name: coder-code-server-ha-relay
+    jsonPointers:
+    - /stringData
+    - /data
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
+    - RespectIgnoreDifferences=true
+    # Required: the coder-ui-updates ConfigMap (~600 KB) is too large for client-side apply's
+    # last-applied-configuration annotation (256 KB).
+    - ServerSideApply=true

@@ -1,0 +1,19 @@
+{{- include "ca.values" . -}}
+{{- /* Coder with more than one replica (coder.coder.replicaCount, high availability): node drains and cluster
+     upgrades take its replicas down one at a time, so the others keep serving. One replica gets none: a budget would
+     only block the drain. */ -}}
+{{- if and .Values.coder.enabled (include "platform.hasBase" .) (gt (int (.Values.coder.coder.replicaCount | default 1)) 1) }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: coder
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "ca.labels" . | nindent 4 }}
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: coder
+      app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}

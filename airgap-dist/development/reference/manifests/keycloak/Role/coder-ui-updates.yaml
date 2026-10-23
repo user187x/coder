@@ -1,0 +1,25 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: coder-ui-updates
+    app.kubernetes.io/name: coder-ui-updates
+    app.kubernetes.io/part-of: coder
+  name: coder-ui-updates
+  namespace: keycloak
+rules:
+- apiGroups:
+  - ''
+  resourceNames:
+  - keycloak-initial-admin
+  resources:
+  - secrets
+  verbs:
+  - get
+- apiGroups:
+  - k8s.keycloak.org
+  resources:
+  - keycloaks
+  verbs:
+  - get
+  - list

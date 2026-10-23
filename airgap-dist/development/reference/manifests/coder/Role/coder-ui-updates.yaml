@@ -1,0 +1,90 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: coder-ui-updates
+    app.kubernetes.io/name: coder-ui-updates
+    app.kubernetes.io/part-of: coder
+  name: coder-ui-updates
+  namespace: coder
+rules:
+- apiGroups:
+  - ''
+  resourceNames:
+  - tls-ca
+  - keycloaking-coder-oidc
+  - keycloaking-coder-ca
+  - keycloaking-coder-oidc
+  resources:
+  - secrets
+  verbs:
+  - get
+  - update
+  - patch
+- apiGroups:
+  - ''
+  resourceNames:
+  - coder-ui-logs-db
+  - coder-db-app
+  - coder-db-ca
+  resources:
+  - secrets
+  verbs:
+  - get
+- apiGroups:
+  - ''
+  resources:
+  - secrets
+  verbs:
+  - create
+- apiGroups:
+  - ''
+  resourceNames:
+  - keycloaking-coder-ca
+  - tls-ca
+  - tls-wild-cert
+  resources:
+  - secrets
+  verbs:
+  - get
+- apiGroups:
+  - apps
+  resourceNames:
+  - coder
+  resources:
+  - deployments
+  verbs:
+  - get
+- apiGroups:
+  - ''
+  resourceNames:
+  - coder-platform-config
+  resources:
+  - configmaps
+  verbs:
+  - get
+- apiGroups:
+  - postgresql.cnpg.io
+  resources:
+  - clusters
+  verbs:
+  - get
+  - list
+  - create
+  - patch
+- apiGroups:
+  - postgresql.cnpg.io
+  resources:
+  - backups
+  - scheduledbackups
+  verbs:
+  - get
+  - list
+  - create
+- apiGroups:
+  - ''
+  resources:
+  - persistentvolumeclaims
+  verbs:
+  - get
+  - list

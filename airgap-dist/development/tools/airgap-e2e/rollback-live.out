@@ -1,0 +1,9 @@
+fork:     {"login": 201, "version": "v2.0.0-platform.24+fafe531", "workspaces": ["e2e", "sched"], "agent": "connected", "apps": {"novnc": "healthy", "filebrowser": "healthy", "code-server": "healthy", "marimo": "healthy", "marimo-windows": "disabled"}}
+upstream: {"login": 201, "version": "v2.38.0-main.70bc2e554", "workspaces": ["e2e", "sched"], "agent": "connected", "apps": {"novnc": "healthy", "filebrowser": "healthy", "code-server": "healthy", "marimo": "healthy", "marimo-windows": "disabled"}}
+PASS rolled back: pure upstream Coder serves, the admin signs in
+PASS rolled back: the workspace is there and its agent (the fork's) connected to upstream
+PASS rolled back: the workspace's apps healthy
+fork:     {"login": 201, "version": "v2.0.0-platform.24+fafe531", "workspaces": ["e2e", "sched"], "agent": "connected", "apps": {"novnc": "healthy", "filebrowser": "healthy", "code-server": "healthy", "marimo": "healthy", "marimo-windows": "disabled"}}
+PASS rolled forward: the fork serves again, the workspace connected
+
+0 failed

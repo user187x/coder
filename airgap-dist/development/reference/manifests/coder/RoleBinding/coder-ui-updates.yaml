@@ -1,0 +1,17 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: coder-ui-updates
+    app.kubernetes.io/name: coder-ui-updates
+    app.kubernetes.io/part-of: coder
+  name: coder-ui-updates
+  namespace: coder
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: coder-ui-updates
+subjects:
+- kind: ServiceAccount
+  name: coder-ui-updates
+  namespace: coder

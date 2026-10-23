@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- /etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfwm4.xml, the workspace image default: no compositor. Over VNC every composited effect (shadows, transparency) is extra
+     drawing to encode and send; without it the desktop and the pointer respond faster. -->
+<channel name="xfwm4" version="1.0">
+  <property name="general" type="empty">
+    <property name="use_compositing" type="bool" value="false"/>
+  </property>
+</channel>

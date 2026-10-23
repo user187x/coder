@@ -1,0 +1,173 @@
+#!/usr/bin/env bash
+# The desktop's look, in the user's home: the workspace's Desktop theme parameter (the template's startup.sh runs
+# `coder-desktop-theme apply <theme>` before the desktop starts).
+#   serenade  Miserable_Xfce's Serenade (github.com/mehedirm6244/Miserable_Xfce): Tokyo Night colours, a floating
+#             dock (rofi, a sidebar and System stats in eww), the Lavanda GTK theme, cirkles window borders, Zafiro
+#             icons, and picom's animations, rounded corners and shadows - more drawing to send over VNC
+#   classic   the workspace image's own (/etc/xdg): XFCE with its compositor off, the lightest over a slow connection
+# Applied once per choice: the files a theme sets are put in place when the choice changes (or the theme's profile
+# does, PROFILE), and left alone after, so the user's own changes stay. Serenade puts the user's earlier ones aside
+# (~/.config/coder-desktop/before-serenade) and Classic puts them back. Either way, once: Chromium the web browser and
+# Terminator the terminal (XFCE's preferred applications, the default for web links), and Chromium trusting the
+# system's certificates (the cluster's CA among them) through p11-kit.
+#   coder-desktop-theme apply THEME   (serenade | classic)
+#   coder-desktop-theme current       the theme this home has
+#   coder-desktop-theme compositor    picom, while the theme is serenade (XFCE's autostart runs it), started again
+#                                     when it crashes
+set -eu
+SHARE=/usr/share/coder-desktop
+STATE="$HOME/.config/coder-desktop"
+ASIDE="$STATE/before-serenade"
+# The profile's version: a change brings it to homes that have the theme already.
+PROFILE=2
+# What Serenade sets, from the home (files and folders).
+FILES=(
+ .config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml
+ .config/xfce4/xfconf/xfce-perchannel-xml/xfwm4.xml
+ .config/xfce4/xfconf/xfce-perchannel-xml/xfce4-panel.xml
+ .config/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml
+ .config/xfce4/panel
+ .config/gtk-3.0/gtk.css
+ .config/gtk-4.0/gtk.css
+ .config/picom.conf
+ .config/rofi/config.rasi
+ .config/eww
+ .config/terminator/config
+ .Xresources
+)
+
+current() {
+ local had
+ had="$(cat "$STATE/theme" 2>/dev/null || true)"
+ echo "${had%% *}"
+}
+
+# Chromium and Terminator, XFCE's preferred web browser and terminal, and the default for web links: once.
+default_apps() {
+ local rc="$HOME/.config/xfce4/helpers.rc" list="$HOME/.config/mimeapps.list" type
+ [ -e "$STATE/apps" ] && return 0
+ mkdir -p "$(dirname "$rc")"
+ touch "$rc"
+ sed -i '/^WebBrowser=/d; /^TerminalEmulator=/d' "$rc"
+ printf 'WebBrowser=chromium\nTerminalEmulator=terminator\n' >>"$rc"
+ if [ -f "$list" ]; then
+  for type in text/html x-scheme-handler/http x-scheme-handler/https x-scheme-handler/about x-scheme-handler/unknown \
+   application/xhtml+xml; do
+   sed -i "\|^$type=|d" "$list"
+  done
+  grep -q '^\[Default Applications\]' "$list" || printf '[Default Applications]\n' >>"$list"
+  sed -i '/^\[Default Applications\]/a text/html=chromium.desktop\nx-scheme-handler/http=chromium.desktop\nx-scheme-handler/https=chromium.desktop\nx-scheme-handler/about=chromium.desktop\nx-scheme-handler/unknown=chromium.desktop\napplication/xhtml+xml=chromium.desktop' "$list"
+ fi
+ touch "$STATE/apps"
+}
+
+# Chromium reads its trusted certificates from the user's NSS database, not the system's store: the system's
+# (p11-kit's trust module, which the cluster's CA is in) added to it, once.
+nss_trust() {
+ local db="$HOME/.pki/nssdb" module=/usr/lib/x86_64-linux-gnu/pkcs11/p11-kit-trust.so
+ command -v modutil >/dev/null && [ -f "$module" ] || return 0
+ mkdir -p "$db"
+ [ -f "$db/cert9.db" ] || certutil -N -d "sql:$db" --empty-password >/dev/null 2>&1 || return 0
+ modutil -dbdir "sql:$db" -list 2>/dev/null | grep -q 'p11-kit-trust' && return 0
+ modutil -dbdir "sql:$db" -add p11-kit-trust -libfile "$module" -force >/dev/null 2>&1 || true
+}
+
+serenade() {
+ local f stamp
+ # the user's own, put aside once (a later Classic puts them back)
+ if [ ! -d "$ASIDE" ]; then
+  mkdir -p "$ASIDE"
+  for f in "${FILES[@]}"; do
+   if [ -e "$HOME/$f" ] || [ -L "$HOME/$f" ]; then
+    mkdir -p "$ASIDE/$(dirname "$f")"
+    mv "$HOME/$f" "$ASIDE/$f"
+   fi
+  done
+ else
+  # already Serenade (an older profile): replaced
+  for f in "${FILES[@]}"; do
+   rm -rf "${HOME:?}/$f"
+  done
+ fi
+ # its files into the home, the home itself as it is (in a workspace it is root's, open to all: its owner or mode
+ # copied onto it would fail), folders that are there kept
+ tar -C "$SHARE/serenade/home" -cf - . | tar -C "$HOME" -xf - --no-same-owner --no-overwrite-dir
+ stamp="$(date +%s)"
+ echo "serenade $PROFILE $stamp" >"$STATE/theme"
+}
+
+classic() {
+ local f
+ if [ -d "$ASIDE" ]; then
+  for f in "${FILES[@]}"; do
+   rm -rf "${HOME:?}/$f"
+   if [ -e "$ASIDE/$f" ] || [ -L "$ASIDE/$f" ]; then
+    mkdir -p "$HOME/$(dirname "$f")"
+    mv "$ASIDE/$f" "$HOME/$f"
+   fi
+  done
+  rm -rf "$ASIDE"
+ fi
+ # Terminator in the classic colours, unless the user has a configuration of their own
+ if [ ! -e "$HOME/.config/terminator/config" ]; then
+  mkdir -p "$HOME/.config/terminator"
+  cp "$SHARE/classic/terminator.conf" "$HOME/.config/terminator/config"
+ fi
+ echo "classic $PROFILE" >"$STATE/theme"
+}
+
+case "${1:-}" in
+apply)
+ theme="${2:-}"
+ case "$theme" in serenade | classic) ;; *)
+  echo "Desktop theme: $theme is not one (serenade, classic)" >&2
+  exit 2
+  ;;
+ esac
+ mkdir -p "$STATE"
+ default_apps
+ nss_trust
+ had="$(cat "$STATE/theme" 2>/dev/null || true)"
+ if [ "${had%% *}" = "$theme" ] && [ "$(echo "$had" | cut -d' ' -f2)" = "$PROFILE" ]; then
+  echo "Desktop theme: $theme (as it was)"
+ elif [ "$theme" = classic ] && [ -z "$had" ] && [ ! -d "$ASIDE" ]; then
+  # a home from before the themes is Classic already: nothing to change
+  classic
+  echo "Desktop theme: classic"
+ else
+  "$theme"
+  echo "Desktop theme: $theme (set)"
+ fi
+ ;;
+current)
+ current
+ ;;
+compositor)
+ # picom, started again when it crashes (fdev31's fork now and then dies on a window it is drawing; the desktop then
+ # lost its rounded corners, shadows and animations until the next start), at most 10 times in a row within a
+ # minute each; it ends with the session (the X server gone) or on a clean exit. Its log: /tmp/coder-picom.log.
+ if [ "$(current)" = serenade ] && [ -f "$HOME/.config/picom.conf" ] && command -v picom >/dev/null; then
+  crashes=0
+  while :; do
+   started=$(date +%s)
+   rc=0
+   picom --config "$HOME/.config/picom.conf" >>/tmp/coder-picom.log 2>&1 || rc=$?
+   case $rc in
+   134 | 135 | 136 | 139) ;; # SIGABRT, SIGBUS, SIGFPE, SIGSEGV: a crash
+   *) exit 0 ;;
+   esac
+   [ $(($(date +%s) - started)) -lt 60 ] && crashes=$((crashes + 1)) || crashes=1
+   if [ "$crashes" -gt 10 ]; then
+    echo "coder-desktop-theme: picom keeps crashing, not started again" >>/tmp/coder-picom.log
+    exit 1
+   fi
+   echo "coder-desktop-theme: picom crashed (exit $rc), starting it again" >>/tmp/coder-picom.log
+   sleep 1
+  done
+ fi
+ ;;
+*)
+ sed -n '2,/^set /p' "$0" | sed '$d'
+ exit 2
+ ;;
+esac

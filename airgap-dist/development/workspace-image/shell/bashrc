@@ -1,0 +1,143 @@
+#!/bin/bash
+
+export RED=$'\e[1;91m'
+export GREEN=$'\e[1;92m'
+export YELLOW=$'\e[1;93m'
+export BLUE=$'\e[1;94m'
+export GRAY=$'\e[3;90m'
+export END=$'\e[0m'
+export HIGH_WHITE=$'\e[1;97m'
+export LIGHT_GRAY=$'\e[0;37m'
+
+export INFO=" (${HIGH_WHITE}i${END}) "
+export ERROR=" (${RED}!${END}) "
+export FAIL=" (${RED}X${END}) "
+export WARN=" (${YELLOW}⚠${END}) "
+export SUCCESS=" (${GREEN}✓${END}) "
+
+# Set system config location
+CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+mkdir -p "${CONFIG_HOME}" &>/dev/null
+CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
+mkdir -p "${CACHE_HOME}" &>/dev/null
+DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
+mkdir -p "${DATA_HOME}" &>/dev/null
+BIN_HOME="${XDG_BIN_HOME:-$HOME/.local/bin}"
+mkdir -p "${BIN_HOME}" &>/dev/null
+
+export XDG_CONFIG_HOME="${CONFIG_HOME}"
+export XDG_CACHE_HOME="${CACHE_HOME}"
+export XDG_DATA_HOME="${DATA_HOME}"
+export XDG_BIN_HOME="${BIN_HOME}"
+
+# Set default editors and pagers
+export EDITOR=vim
+export VISUAL=vim
+export PAGER="bat -p" # 'bat --plain' to act like a standard pager
+export KUBE_EDITOR=vim
+export SYSTEMD_EDITOR=vim
+export VIMINIT="set nocp | source ${CONFIG_HOME}/vim/vimrc"
+
+# Set fzf search to select multiple with spacebar
+export FZF_DEFAULT_OPTS="--bind 'space:toggle-in'"
+
+# Set K9s NodeShell Active
+export K9S_FEATURE_GATE_NODE_SHELL=true
+export K9S_CONFIG_DIR="${CONFIG_HOME}/k9s"
+
+###########################################
+#        Bash History Control             #
+###########################################
+
+# Append to the history file, don't overwrite it
+shopt -s histappend
+
+# Ignore duplicate commands and commands starting with a space
+export HISTCONTROL=ignoreboth
+export HISTSIZE=10000
+
+# Add a timestamp to your history records (Format: YYYY-MM-DD HH:MM:SS)
+export HISTTIMEFORMAT="%F %T "
+
+# Set less history to save location
+export LESSHISTFILE="${CONFIG_HOME}/.less_history"
+export HISTFILE="${CONFIG_HOME}/.bash_history"
+
+###########################################
+#        Shell Configuruation             #
+###########################################
+
+# resize terminal after user adjusts it
+shopt -s checkwinsize
+
+# make less more friendly for non-text input
+[ -x /usr/bin/lesspipe ] && eval "$(SHELL=/bin/sh lesspipe)"
+
+############################################
+#           TERMINAL FUNCTIONS             #
+############################################
+
+function prompt_string_one {
+
+ local EXIT_CODE=$?
+ local SUCCESS=0
+
+ local RED="\e[38;5;196m"
+ local GREEN="\e[1;38;5;46m"
+ local END="\e[0m"
+
+ if [[ "$EXIT_CODE" -eq "$SUCCESS" ]]; then
+  PS1="\[${GREEN}\] ➤  \[${END}\]"
+ else
+  PS1="\[${RED}\] ➤💥  \[${END}\]"
+ fi
+}
+
+# Bash terminal prompt session
+export PS1='\[${GREEN}\] ➤  \[${END}\]'
+
+# Execute the dynamic prompt update
+export PROMPT_COMMAND=prompt_string_one
+
+# Prepend custom bin directories so they override system defaults
+export PATH="${BIN_HOME}:/usr/local/bin:${PATH}"
+
+############################################
+#           TERMINAL ALIASES               #
+############################################
+
+EZA_FLAGS="--color=always --icons=always --group-directories-first"
+DATE_FORMAT='--time-style=+"%b-%d-%Y %I:%M:%S %p"'
+
+alias ls="ls --color=always ${DATE_FORMAT}"
+alias ll='ls -alF --color=always'
+alias la='ls -A --color=always'
+alias lh='ls -ld .* --color=always'
+alias l='\ls --color=always -CA'
+
+alias dir='dir --color=always'
+alias vdir='vdir --color=always'
+
+if command -v eza >/dev/null 2>&1; then
+ alias ls="eza -Al --header ${EZA_FLAGS} ${DATE_FORMAT}"
+fi
+
+if command -v grc >/dev/null 2>&1; then
+ alias watch-ports='watch -n 1 -tc "grc --colour=on ss -tulpn"'
+ alias show-ports='grc --colour=on ss -tulpn'
+fi
+
+alias gr='cd $(git rev-parse --show-toplevel)'
+
+alias grep='grep --color=always'
+alias fgrep='fgrep --color=always'
+alias egrep='egrep --color=always'
+alias tree='tree -C'
+
+for batcmd in bat batcat; do
+ if command -v "$batcmd" >/dev/null 2>&1; then
+  alias bat="$batcmd --style=full"
+  break
+ fi
+done
+unset batcmd

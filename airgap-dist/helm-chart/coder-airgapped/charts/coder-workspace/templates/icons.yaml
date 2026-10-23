@@ -1,0 +1,50 @@
+{{- include "coder-workspace.platform.values" . -}}
+{{- /*
+Custom app icons for the workspace template, served at https://<coder host>/__icons/<file>.
+Coder's own /icon/* set is built into the server and coder_app.icon is limited to 256 characters
+(no inline data: URLs), so the files in files/icons/ go into this ConfigMap and Traefik routes /__icons/ to the
+Service in icons.backend - in coder-airgapped the platform service (coder-ui-updates), which mounts the ConfigMap
+and serves the files. No separate web server.
+The HTTPRoute below is separate from Coder's own routes and only matches /__icons/ - with icons.httpRoute; in
+coder-airgapped it is off, and the platform's own route (coder-enhanced) carries /__icons/ instead.
+Every file goes in as binaryData (base64): any image, SVG or PNG alike, byte for byte - a ConfigMap's data carries
+text only. The platform service mounts the whole ConfigMap as a folder, so each key is a file there either way; it
+serves the extensions in ui-service.py's TEMPLATE_ICON_TYPES (chart_checks.py checks every icon here against them).
+The mount is optional: a ConfigMap that fails to render or apply leaves EVERY /__icons/ icon a 404.
+*/ -}}
+{{- $ns := .Values.namespace | default .Release.Namespace }}
+{{- $name := printf "%s-icons" (include "coder-workspace.prefix" .) }}
+{{- $host := .Values.icons.host | default (trimPrefix "https://" .Values.coder.url) }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}
+  namespace: {{ $ns }}
+binaryData:
+  {{- range $path, $_ := .Files.Glob "files/icons/*" }}
+  {{ base $path }}: {{ $.Files.Get $path | b64enc }}
+  {{- end }}
+{{- if .Values.icons.httpRoute }}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ $name }}
+  namespace: {{ $ns }}
+spec:
+  hostnames:
+    - {{ $host }}
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: {{ .Values.icons.gateway.name }}
+      namespace: {{ .Values.icons.gateway.namespace }}
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /__icons/
+      backendRefs:
+        - name: {{ .Values.icons.backend.name }}
+          port: {{ .Values.icons.backend.port }}
+{{- end }}

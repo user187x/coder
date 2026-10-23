@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Desktop theme's compositor
+Comment=picom, for the Serenade desktop theme (coder-desktop-theme)
+Exec=/usr/local/bin/coder-desktop-theme compositor
+OnlyShowIn=XFCE;
+NoDisplay=true
+X-XFCE-Autostart-Override=true

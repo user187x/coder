@@ -1,0 +1,43 @@
+{{- include "coder-workspace.platform.values" . -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "coder-workspace.prefix" . }}-terraform
+  namespace: {{ .Values.namespace | default .Release.Namespace }}
+data:
+  # The workspace template, files/main.tf, as pushed to Coder: the platform's base template too (its sections marked
+  # "# platform:begin" - the certificate, Lock Down, the Cloud Drive, the metrics - are what Coder's template decorator
+  # injects into the templates that lack them).
+  main.tf: |
+{{ .Files.Get "files/main.tf" | replace "codercom/enterprise-base:ubuntu" .Values.workspaceImage | replace "secret_name = \"tls-ca\"" (printf "secret_name = %q" .Values.secrets.tlsCa) | indent 4 }}
+  {{- if .Values.agentAudit }}
+  # agent-audit.tf records what runs in the workspace (every command/process, i.e. an LLM agent's actions) and
+  # forwards it to coder-ui-updates for Observability > Agent Activity.
+  agent-audit.tf: |
+{{ .Files.Get "files/agent-audit.tf" | indent 4 }}
+  {{- end }}
+  # The template's scripts (files/scripts/, read by the .tf files with file() / templatefile()): the push Job puts
+  # them in scripts/ next to the .tf files. cloud-drive-cli.py is the workspace's `cloud-drive` command (a link to
+  # files/ui-updates/clouddrive_cli.py, which the platform service also runs in workspaces).
+  {{- range $path, $_ := .Files.Glob "files/scripts/*.{sh,py,c}" }}
+  {{- $name := base $path }}
+  {{- if or $.Values.agentAudit (ne $name "agent-audit.sh") }}
+  {{ $name }}: |
+{{ $.Files.Get $path | indent 4 }}
+  {{- end }}
+  {{- end }}
+{{- if .Values.dataflowTemplate.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "coder-workspace.prefix" . }}-terraform-dataflow
+  namespace: {{ .Values.namespace | default .Release.Namespace }}
+data:
+  # The DATAFLOW template's own part (files/dataflow/), pushed beside the files above for that template only:
+  # dataflow.tf (Apache NiFi and Apache Airflow, NiFi's route) and their scripts, which go in scripts/.
+  {{- range $path, $_ := .Files.Glob "files/dataflow/*.{tf,sh}" }}
+  {{ base $path }}: |
+{{ $.Files.Get $path | indent 4 }}
+  {{- end }}
+{{- end }}

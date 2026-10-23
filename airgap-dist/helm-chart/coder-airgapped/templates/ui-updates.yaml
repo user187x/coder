@@ -1,0 +1,410 @@
+{{- include "ca.values" . -}}
+{{- if and .Values.uiUpdates.enabled (include "platform.hasLayer" .) }}
+{{- $ui := .Values.uiUpdates }}
+{{- $ns := .Release.Namespace }}
+{{- /* The service's code is in its image (uiUpdates.image: development/tools/build-ui-image.sh puts
+     files/ui-updates/ in /app of the tools image, tagged with the code's hash), not in a ConfigMap: Helm keeps each
+     release in a Secret of at most 1 MiB, and the code - kept twice there, as the chart's files and as the rendered
+     ConfigMap - had nearly filled it. */}}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: coder-ui-updates-data
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.uiLabels" . | nindent 4 }}
+  annotations:
+    # Chat history and announcement receipts (SQLite).
+    helm.sh/resource-policy: keep
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  accessModes: [ReadWriteOnce]
+  {{- /* an existing claim keeps its storage class (it cannot change); a new one takes the value, empty: the default */}}
+  {{- $sc := $ui.persistence.storageClass }}
+  {{- with (lookup "v1" "PersistentVolumeClaim" $ns "coder-ui-updates-data") }}
+  {{- $sc = .spec.storageClassName | default $sc }}
+  {{- end }}
+  {{- with $sc }}
+  storageClassName: {{ . }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ $ui.persistence.size }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coder-ui-updates
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.uiLabels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: coder-ui-updates
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: coder-ui-updates
+        app.kubernetes.io/part-of: coder
+    spec:
+      serviceAccountName: coder-ui-updates
+      {{- with $ui.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        fsGroup: 65534
+        runAsGroup: 65534
+        runAsNonRoot: true
+        runAsUser: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: ui
+          image: {{ $ui.image }}
+          imagePullPolicy: {{ $ui.imagePullPolicy }}
+          command: [python3, /app/ui-service.py]
+          env:
+            - {name: PORT, value: "8080"}
+            - {name: DB_PATH, value: /data/receipts.sqlite}
+            # Kubelets' serving certificates not checked (self-signed: Minikube, kind), as for metrics-server.
+            - {name: KUBELET_INSECURE_TLS, value: {{ .Values.metricsServer.kubeletInsecureTLS | default false | quote }}}
+            - {name: CODER_URL, value: {{ include "ca.svcUrl" (list "coder" . 80) | quote }}}
+            # the announcement banner (/__banner/banner.json, for its receipts) is Coder's own
+            - {name: BANNER_URL, value: {{ include "ca.svcUrl" (list "coder" . 80) | quote }}}
+            - {name: ADMIN_ROLES, value: {{ $ui.adminRoles | quote }}}
+            # the Gateway every user reaches the dashboard through: its addresses answer the announcement's `ip`
+            - {name: GATEWAY_NAME, value: {{ $ui.gateway.name | quote }}}
+            - {name: GATEWAY_NAMESPACE, value: {{ $ui.gateway.namespace | quote }}}
+            - {name: CODER_ACCESS_URL, value: {{ $ui.accessUrl | quote }}}
+            - {name: CODER_NAMESPACE, value: {{ $ns | quote }}}
+            # Lock Down > Freeze of a stopped workspace: the image that copies its home volume (the snapshot)
+            - {name: LOCKDOWN_COPY_IMAGE, value: {{ tpl (index $.Values "coder-workspace" "workspaceImage") $ | quote }}}
+            - {name: CODER_DEPLOYMENT, value: coder}
+            - {name: CODER_RELEASE, value: {{ .Release.Name | quote }}}
+            - {name: ATTACHED, value: "false"}
+            - {name: KEYCLOAK_NAMESPACE, value: {{ ternary $ui.keycloak.namespace "" $ui.keycloak.enabled | quote }}}
+            - {name: KEYCLOAK_ADMIN_SECRET, value: {{ ternary $ui.keycloak.adminSecret "" $ui.keycloak.enabled | quote }}}
+            - {name: ARGOCD_NAMESPACE, value: {{ ternary $ui.argocd.namespace "" $ui.argocd.enabled | quote }}}
+            - {name: ARGOCD_APP, value: {{ ternary $ui.argocd.app "" $ui.argocd.enabled | quote }}}
+            {{- with .Values.imageBuilder }}{{ if .enabled }}
+            # Images view (templates/image-builder.yaml)
+            - {name: IMAGE_BUILDER, value: "true"}
+            - {name: BUILDER_NAMESPACE, value: {{ $ns | quote }}}
+            - {name: BUILDER_FILES, value: /builder}
+            - {name: BUILDER_REGISTRY, value: {{ printf "coder-image-registry.%s.svc:5000" $ns | quote }}}
+            - {name: BUILDER_PULL_PREFIX, value: {{ printf "localhost:%v" .registry.localPort | quote }}}
+            - {name: BUILDER_BUILDKIT_IMAGE, value: {{ .buildkitImage | quote }}}
+            - {name: BUILDER_TOOLS_IMAGE, value: {{ $ui.image | quote }}}
+            {{- $ws := tpl (index $.Values "coder-workspace" "workspaceImage") $ }}
+            {{- /* The base of "Workspace image" builds: from your registry when there is one, else the copy that
+              ./make --deploy pushes into the in-cluster registry (Minikube). */}}
+            # The base of builds: the workspace image in the builder's own registry (seeded by `make --deploy` or
+            # `mirror-images.sh seed-builder`), so BuildKit needs no access to your registry. Until it is seeded,
+            # builds fall back to the workspace image in global.registry (that registry's pull secret, if any).
+            - {name: BUILDER_BASE_IMAGE, value: {{ printf "coder-image-registry.%s.svc:5000/coder-images/base/%s" $ns ($ws | splitList "/" | last) | quote }}}
+            - {name: BUILDER_BASE_FALLBACK, value: {{ ternary $ws "" (ne $.Values.global.registry "") | quote }}}
+            # The image the workspace template runs: an entry of its own in the Images view (scanned from the copy above).
+            {{- $tpl := index $.Values "coder-workspace" "template" }}
+            - {name: BUILDER_WORKSPACE_IMAGE, value: {{ $ws | quote }}}
+            - {name: BUILDER_WORKSPACE_TEMPLATE, value: {{ $tpl.displayName | default $tpl.name | quote }}}
+            # The templates the chart pushes, with their images: the Images view's In use list, and its "Create a
+            # workspace on it" (their Workspace image parameter).
+            {{- $templates := list (dict "name" $tpl.name "displayName" ($tpl.displayName | default $tpl.name) "image" $ws) }}
+            {{- $df := index $.Values "coder-workspace" "dataflowTemplate" }}
+            {{- if $df.enabled }}
+            {{- $templates = append $templates (dict "name" $df.name "displayName" ($df.displayName | default $df.name) "image" (tpl (index $.Values "coder-workspace" "dataflowImage") $)) }}
+            {{- end }}
+            - {name: BUILDER_TEMPLATES, value: {{ toJson $templates | quote }}}
+            - {name: BUILDER_SERVICE_URL, value: {{ printf "http://coder-ui-updates.%s.svc" $ns | quote }}}
+            - {name: BUILDER_CPU, value: {{ .build.cpu | quote }}}
+            - {name: BUILDER_MEMORY, value: {{ .build.memory | quote }}}
+            - {name: BUILDER_TIMEOUT_MINUTES, value: {{ .build.timeoutMinutes | quote }}}
+            - {name: BUILDER_APT_SOURCES, value: {{ .aptSources | quote }}}
+            {{- with $ui.imagePullSecrets }}
+            - {name: BUILDER_PULL_SECRETS, value: {{ toJson . | quote }}}
+            {{- end }}
+            {{- end }}{{ end }}
+            {{- with .Values.global.clusterAccess }}{{ if and .enabled .syncGroup }}
+            # Keeps the Keycloak group of the admins' cluster sign-in equal to Coder's admins (values.yaml).
+            - {name: CLUSTER_ACCESS_GROUP, value: {{ .group | quote }}}
+            - {name: CLUSTER_ACCESS_ROLES, value: {{ .adminRoles | quote }}}
+            - {name: CLUSTER_ACCESS_ISSUER, value: {{ include "platform.oidcIssuer" $ | trim | quote }}}
+            {{- end }}{{ end }}
+            {{- /* The Cloud Drive (global.userStorage): its bucket, the keys, and where the nodes mount it from (safe.py). */}}
+            {{- $us := .Values.userStorage }}
+            {{- if eq (toString (.Values.global.userStorage | default dict).enabled) "true" }}
+            - {name: SAFE_ENABLED, value: "true"}
+            - {name: SAFE_BUCKET, value: {{ $us.bucket | quote }}}
+            - {name: SAFE_MOUNT_PATH, value: {{ .Values.global.userStorage.mountPath | default "/home/coder/cloud-drive" | quote }}}
+            - {name: SAFE_QUOTA_GIB, value: {{ $us.quotaGiB | quote }}}
+            - {name: SAFE_MAX_UPLOAD_GIB, value: {{ $us.maxUploadGiB | quote }}}
+            - {name: SAFE_NAMESPACE, value: {{ $ns | quote }}}
+            - {name: SAFE_MOUNT_OPTIONS, value: {{ $us.csi.mountOptions | quote }}}
+            {{- if $us.minio.enabled }}
+            # MinIO's TLS port, its certificate checked (an encrypted Cloud Drive's key goes over TLS only); the nodes'
+            # mounts: plain through its bridge (9000), encrypted ones on 9443.
+            - {name: S3_ENDPOINT, value: {{ printf "https://coder-user-storage-minio.%s.svc:9443" $ns | quote }}}
+            - {name: S3_CA_FILE, value: /etc/coder-user-storage/ca.crt}
+            - {name: SAFE_NODE_SERVICE, value: coder-user-storage-minio}
+            - {name: SAFE_NODE_TLS_PORT, value: "9443"}
+            - name: S3_ACCESS_KEY
+              valueFrom: {secretKeyRef: {name: coder-user-storage-s3, key: username}}
+            - name: S3_SECRET_KEY
+              valueFrom: {secretKeyRef: {name: coder-user-storage-s3, key: password}}
+            {{- else }}
+            - {name: S3_ENDPOINT, value: {{ $us.s3.endpoint | quote }}}
+            - {name: S3_REGION, value: {{ $us.s3.region | quote }}}
+            - name: S3_ACCESS_KEY
+              valueFrom: {secretKeyRef: {name: {{ $us.s3.existingSecret | quote }}, key: accessKeyID}}
+            - name: S3_SECRET_KEY
+              valueFrom: {secretKeyRef: {name: {{ $us.s3.existingSecret | quote }}, key: secretAccessKey}}
+            {{- end }}
+            {{- end }}
+            - {name: CA_SOURCE_SECRET, value: {{ .Values.secrets.tlsCa.name | quote }}}
+            - {name: OIDC_SECRET, value: {{ .Values.secrets.oidcClient.name | quote }}}
+            - {name: OIDC_CA_SECRET, value: {{ .Values.secrets.oidcCa.name | quote }}}
+            - {name: CODER_DB_CLUSTER, value: {{ .Values.database.name | quote }}}
+            - {name: CA_FILE, value: /etc/coder-ui/ca/ca.crt}
+            - {name: WORKSPACE_NAMESPACE, value: {{ $ns | quote }}}
+            - {name: PG_IMAGE, value: {{ $ui.pgImage | quote }}}
+            - name: CODER_DB_URI
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.database.name }}-app
+                  key: uri
+                  optional: true
+            - {name: CODER_DB_CA, value: /etc/coder-ui/db-ca/ca.crt}
+            - {name: CODER_DB_SECRET, value: {{ printf "%s-app" .Values.database.name | quote }}}
+            - {name: CODER_DB_SECRET_KEY, value: uri}
+            - {name: CODER_DB_CA_SECRET, value: {{ printf "%s-ca" .Values.database.name | quote }}}
+            - {name: LOGS_DB_SECRET, value: {{ .Values.secrets.logsDb.name | quote }}}
+            - {name: LOGS_DB_URL, value: {{ printf "postgresql://logs:{password}@coder-ui-logs-db.%s.svc.cluster.local:5432/logs?sslmode=disable" $ns | quote }}}
+            - {name: DEFAULTS_DIR, value: /app/defaults}
+            # the install's backgrounds, set once in the slots no one set (values: uiUpdates.appearanceDefaults)
+            - {name: BACKGROUND_DEFAULTS, value: {{ (.Values.uiUpdates.appearanceDefaults | default dict).backgrounds | default dict | toJson | quote }}}
+            - {name: TEMPLATE_ICONS_DIR, value: /app/template-icons}
+            - {name: PYTHONDONTWRITEBYTECODE, value: "1"}
+            - {name: PYTHONUNBUFFERED, value: "1"}
+          ports:
+            - {name: http, containerPort: 8080, protocol: TCP}
+          livenessProbe:
+            httpGet: {path: /__coder-ui/healthz, port: http}
+            periodSeconds: 30
+          readinessProbe:
+            httpGet: {path: /__coder-ui/healthz, port: http}
+            periodSeconds: 10
+          resources:
+            {{- toYaml $ui.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - {name: data, mountPath: /data}
+            - {name: ca, mountPath: /etc/coder-ui/ca, readOnly: true}
+            - {name: db-ca, mountPath: /etc/coder-ui/db-ca, readOnly: true}
+            - {name: default-logo, mountPath: /app/defaults/logo, readOnly: true}
+            - {name: default-avatar, mountPath: /app/defaults/avatar, readOnly: true}
+            - {name: gallery, mountPath: /app/defaults/gallery, readOnly: true}
+            - {name: template-icons, mountPath: /app/template-icons, readOnly: true}
+            {{- if .Values.imageBuilder.enabled }}
+            - {name: builder, mountPath: /builder}
+            - {name: tmp, mountPath: /tmp}
+            {{- end }}
+            {{- if and (eq (toString (.Values.global.userStorage | default dict).enabled) "true") .Values.userStorage.minio.enabled }}
+            - {name: user-storage-ca, mountPath: /etc/coder-user-storage, readOnly: true}
+            {{- end }}
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: coder-ui-updates-data
+        {{- if and (eq (toString (.Values.global.userStorage | default dict).enabled) "true") .Values.userStorage.minio.enabled }}
+        # The chart's MinIO's CA (templates/user-storage.yaml).
+        - name: user-storage-ca
+          secret:
+            secretName: coder-user-storage-minio-tls
+            items: [{key: ca.crt, path: ca.crt}]
+        {{- end }}
+        - name: ca
+          secret:
+            secretName: {{ .Values.secrets.tlsCa.name }}
+            optional: true
+            items: [{key: ca.crt, path: ca.crt}]
+        - name: db-ca
+          secret:
+            secretName: {{ .Values.database.name }}-ca
+            optional: true
+            items: [{key: ca.crt, path: ca.crt}]
+        - name: default-logo
+          configMap: {name: {{ $ui.defaults.logoConfigMap }}, optional: true}
+        - name: default-avatar
+          configMap: {name: {{ $ui.defaults.avatarConfigMap }}, optional: true}
+        # The pictures the logo and avatar editors offer (defaults/gallery/): one optional ConfigMap per picture
+        # (<galleryConfigMapPrefix>-1 ... -<gallerySlots>; ../install.sh makes them), all in one folder.
+        - name: gallery
+          projected:
+            sources:
+              {{- range $i := until (int $ui.defaults.gallerySlots) }}
+              - configMap: {name: {{ printf "%s-%d" $ui.defaults.galleryConfigMapPrefix (add1 $i) }}, optional: true}
+              {{- end }}
+        {{- if .Values.imageBuilder.enabled }}
+        - name: builder
+          persistentVolumeClaim: {claimName: coder-image-builder}
+        - name: tmp
+          emptyDir: {sizeLimit: 2Gi}
+        {{- end }}
+        # The workspace template's icons (charts/coder-workspace/files/icons/), served at /__icons/.
+        - name: template-icons
+          configMap: {name: {{ $ui.templateIconsConfigMap }}, optional: true}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: coder-ui-updates
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.uiLabels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: coder-ui-updates
+  ports:
+    - {name: http, port: 80, protocol: TCP, targetPort: http}
+---
+# coder-enhanced: the platform's one route beside Coder's own. /__coder-ui/ goes to the service, and so does /__icons/
+# (the workspace template's icons, from coder-workspace's ConfigMap: that chart's own route is off here,
+# coder-workspace.icons.httpRoute); Coder's entry chunk and HTML pages are routed to Coder explicitly so this route
+# (more specific than Coder's own) owns them (native mode: the platform image renders the add-ons itself).
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: coder-enhanced
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.uiLabels" . | nindent 4 }}
+spec:
+  hostnames:
+    - {{ $ui.hostname }}
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: {{ $ui.gateway.name }}
+      namespace: {{ $ui.gateway.namespace }}
+  rules:
+    - matches:
+        - path: {type: PathPrefix, value: /__coder-ui/}
+        - path: {type: PathPrefix, value: /__icons/}
+      backendRefs:
+        - {group: "", kind: Service, name: coder-ui-updates, port: 80, weight: 1}
+    - matches:
+        - path: {type: RegularExpression, value: '^/assets/index-[A-Za-z0-9_-]{4,64}\.js$'}
+      backendRefs:
+        - {group: "", kind: Service, name: coder, port: 80, weight: 1}
+    - matches:
+        - headers:
+            - {name: Accept, type: RegularExpression, value: '.*text/html.*'}
+          path: {type: RegularExpression, value: '^/([^@_].*)?$'}
+        - headers:
+            - {name: Accept, type: RegularExpression, value: '.*text/html.*'}
+          path: {type: RegularExpression, value: '^/@[^/]+/[^/]+(/builds/[0-9]+|/settings(/[a-z-]+)?|/terminal)?/?$'}
+      backendRefs:
+        - {group: "", kind: Service, name: coder, port: 80, weight: 1}
+---
+# Buffer for streamed workspace logs (Monitoring): a throw-away PostgreSQL on an emptyDir.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coder-ui-logs-db
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.uiLabels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: coder-ui-logs-db
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: coder-ui-logs-db
+        app.kubernetes.io/part-of: coder
+    spec:
+      automountServiceAccountToken: false
+      {{- with $ui.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        fsGroup: 26
+        runAsGroup: 26
+        runAsNonRoot: true
+        runAsUser: 26
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: postgres
+          image: {{ $ui.logsDb.image }}
+          imagePullPolicy: IfNotPresent
+          command: [/bin/sh, -ec]
+          args:
+            - |
+              BIN=$(ls -d /usr/lib/postgresql/*/bin | sort -V | tail -n1)
+              if [ ! -s /data/pg/PG_VERSION ]; then
+                printf '%s' "$POSTGRES_PASSWORD" > /tmp/pw
+                "$BIN/initdb" -D /data/pg -U logs --auth-local=trust --auth-host=scram-sha-256 --pwfile=/tmp/pw -E UTF8 >/dev/null
+                rm -f /tmp/pw
+                echo "host all all 0.0.0.0/0 scram-sha-256" >> /data/pg/pg_hba.conf
+                echo "CREATE DATABASE logs;" | "$BIN/postgres" --single -D /data/pg postgres >/dev/null
+              fi
+              exec "$BIN/postgres" -D /data/pg -c listen_addresses='*' -c unix_socket_directories=/tmp \
+                -c max_connections=30 -c shared_buffers=32MB -c fsync=off -c synchronous_commit=off \
+                -c full_page_writes=off -c log_min_messages=warning
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef: {name: {{ .Values.secrets.logsDb.name }}, key: password}
+          ports:
+            - {name: postgres, containerPort: 5432, protocol: TCP}
+          readinessProbe:
+            tcpSocket: {port: postgres}
+            periodSeconds: 5
+          resources:
+            {{- toYaml $ui.logsDb.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - {name: data, mountPath: /data}
+            - {name: tmp, mountPath: /tmp}
+            - {name: run, mountPath: /var/run/postgresql}
+      volumes:
+        - name: data
+          emptyDir: {sizeLimit: 1Gi}
+        - name: tmp
+          emptyDir: {}
+        - name: run
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: coder-ui-logs-db
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.uiLabels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: coder-ui-logs-db
+  ports:
+    - {name: postgres, port: 5432, protocol: TCP, targetPort: postgres}
+{{- end }}

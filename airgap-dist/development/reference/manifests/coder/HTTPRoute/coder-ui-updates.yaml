@@ -1,0 +1,59 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: coder-ui-updates
+    app.kubernetes.io/name: coder-ui-updates
+    app.kubernetes.io/part-of: coder
+  name: coder-ui-updates
+  namespace: coder
+spec:
+  hostnames:
+  - coder.grey-marshall.com
+  parentRefs:
+  - group: gateway.networking.k8s.io
+    kind: Gateway
+    name: traefik-gateway
+    namespace: traefik
+  rules:
+  - backendRefs:
+    - group: ''
+      kind: Service
+      name: coder-ui-updates
+      port: 80
+      weight: 1
+    matches:
+    - path:
+        type: PathPrefix
+        value: /__coder-ui/
+  - backendRefs:
+    - group: ''
+      kind: Service
+      name: coder
+      port: 80
+      weight: 1
+    matches:
+    - path:
+        type: RegularExpression
+        value: ^/assets/index-[A-Za-z0-9_-]{4,64}\.js$
+  - backendRefs:
+    - group: ''
+      kind: Service
+      name: coder
+      port: 80
+      weight: 1
+    matches:
+    - headers:
+      - name: Accept
+        type: RegularExpression
+        value: .*text/html.*
+      path:
+        type: RegularExpression
+        value: ^/([^@_].*)?$
+    - headers:
+      - name: Accept
+        type: RegularExpression
+        value: .*text/html.*
+      path:
+        type: RegularExpression
+        value: ^/@[^/]+/[^/]+(/builds/[0-9]+|/settings(/[a-z-]+)?|/terminal)?/?$

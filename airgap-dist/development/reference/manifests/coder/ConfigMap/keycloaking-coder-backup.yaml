@@ -1,0 +1,20 @@
+apiVersion: v1
+data:
+  original.json: "{\n  \"saved_at\": \"2026-09-27T10:46:19-04:00\",\n  \"driver\": \"argocd\",\n  \"source\": \"ArgoCD Application argocd/coder (Helm source, values)\",\n  \"values\": {\n    \"coder\":\
+    \ {\n      \"env\": [\n        {\n          \"name\": \"CODER_BOOTSTRAP_INITIAL_USER_PASSWORD\",\n          \"valueFrom\": {\n            \"secretKeyRef\": {\n              \"name\": \"coder-init-auth\"\
+    ,\n              \"key\": \"password\"\n            }\n          }\n        },\n        {\n          \"name\": \"CODER_ACCESS_URL\",\n          \"value\": \"https://coder.grey-marshall.com\"\n     \
+    \   },\n        {\n          \"name\": \"CODER_WILDCARD_ACCESS_URL\",\n          \"value\": \"*.grey-marshall.com\"\n        },\n        {\n          \"name\": \"CODER_PG_CONNECTION_URL\",\n       \
+    \   \"valueFrom\": {\n            \"secretKeyRef\": {\n              \"name\": \"coder-db-app\",\n              \"key\": \"uri\"\n            }\n          }\n        },\n        {\n          \"name\"\
+    : \"CODER_TLS_CA_CERT\",\n          \"value\": \"/etc/ssl/certs/ca.crt\"\n        }\n      ],\n      \"volumeMounts\": [\n        {\n          \"name\": \"tls-coder-wildcard-tls\",\n          \"mountPath\"\
+    : \"/etc/ssl/certs/coder/coder-wildcard-tls\",\n          \"readOnly\": true\n        },\n        {\n          \"name\": \"ca-bundle\",\n          \"mountPath\": \"/etc/ssl/certs/ca.crt\",\n       \
+    \   \"subPath\": \"ca.crt\"\n        }\n      ],\n      \"volumes\": [\n        {\n          \"name\": \"tls-coder-wildcard-tls\",\n          \"secret\": {\n            \"secretName\": \"tls-wild-cert\"\
+    \n          }\n        },\n        {\n          \"name\": \"ca-bundle\",\n          \"secret\": {\n            \"secretName\": \"tls-ca\",\n            \"items\": [\n              {\n              \
+    \  \"key\": \"ca.crt\",\n                \"path\": \"ca.crt\"\n              }\n            ]\n          }\n        }\n      ],\n      \"service\": {\n        \"type\": \"ClusterIP\"\n      },\n   \
+    \   \"httproute\": {\n        \"enable\": true,\n        \"host\": \"coder.grey-marshall.com\",\n        \"wildcardHost\": \"*.grey-marshall.com\",\n        \"parentRefs\": [\n          {\n        \
+    \    \"name\": \"traefik-gateway\",\n            \"namespace\": \"traefik\",\n            \"kind\": \"Gateway\",\n            \"group\": \"gateway.networking.k8s.io\"\n          }\n        ]\n     \
+    \ }\n    },\n    \"extraTemplates\": [\n      \"apiVersion: postgresql.cnpg.io/v1\\nkind: Cluster\\nmetadata:\\n  name: coder-db\\nspec:\\n  instances: 2\\n  primaryUpdateStrategy: unsupervised\\n \
+    \ storage:\\n    size: 10Gi\\n    storageClass: standard-k8s\\n\"\n    ]\n  }\n}\n"
+kind: ConfigMap
+metadata:
+  name: keycloaking-coder-backup
+  namespace: coder

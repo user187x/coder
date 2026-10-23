@@ -1,0 +1,11 @@
+airgap:
+  enabled: false
+certificates:
+  existingSecret: keycloaking-sneakernet-certs
+excalidraw:
+  proxyImage: harbor.grey-marshall.com/library/oauth2-proxy:v7.8.1
+image:
+  pullPolicy: IfNotPresent
+  registry: harbor.grey-marshall.com/library
+  tag: 1.0.3
+serverCa: system

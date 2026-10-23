@@ -1,0 +1,109 @@
+{{- include "ca.values" . -}}
+{{- /* global.inClusterDNS: for a cluster with no DNS for the platform's names (minikube, kind, bare metal). Pods must
+     resolve Coder's host and the wildcard host - workspace agents reach Coder by its URL, and so does Coder's own
+     tailnet - so a Job adds rewrite rules for them to the cluster's CoreDNS, pointing at the Gateway's Service
+     (files/hooks/coredns_rewrite.py); helm uninstall takes them out again. Off where the domain resolves. */ -}}
+{{- $d := .Values.global.inClusterDNS | default dict }}
+{{- if and $d.enabled (include "platform.hasBase" .) }}
+{{- $ns := .Release.Namespace }}
+{{- $name := printf "%s-%s-coder-dns" $ns .Release.Name | trunc 63 | trimSuffix "-" }}
+{{- $traefik := ternary .Release.Name (printf "%s-traefik" .Release.Name) (contains "traefik" .Release.Name) }}
+{{- $bundled := (.Values.global.bundled | default dict).traefik }}
+{{- $target := $d.target | default (ternary (printf "%s.%s.svc.%s" $traefik $ns ($d.clusterDomain | default "cluster.local")) (printf "traefik.traefik.svc.%s" ($d.clusterDomain | default "cluster.local")) (eq (toString $bundled) "true")) }}
+{{- $coder := include "platform.coderHost" . | trim }}
+{{- $base := include "platform.wildcardHost" . | trim | trimPrefix "*." }}
+{{- $rules := list (printf "rewrite name regex ^%s\\.?$ %s answer auto" (regexQuoteMeta $coder) $target) (printf "rewrite name regex ^(.+)\\.%s\\.?$ %s answer auto" (regexQuoteMeta $base) $target) }}
+{{- $hash := printf "%s%s" (join "\n" $rules) (.Files.Get "files/hooks/coredns_rewrite.py") | sha256sum | trunc 8 }}
+{{- $dnsNs := $d.namespace | default "kube-system" }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: coder-dns
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.labels" . | nindent 4 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $name }}
+  namespace: {{ $dnsNs }}
+  labels:
+    {{- include "ca.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: [configmaps]
+    resourceNames: [{{ $d.configMap | default "coredns" }}]
+    verbs: [get, update]
+  - apiGroups: [apps]
+    resources: [deployments]
+    resourceNames: [{{ $d.deployment | default "coredns" }}]
+    verbs: [get, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $name }}
+  namespace: {{ $dnsNs }}
+  labels:
+    {{- include "ca.labels" . | nindent 4 }}
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: Role, name: {{ $name }}}
+subjects:
+  - {kind: ServiceAccount, name: coder-dns, namespace: {{ $ns }}}
+{{- range $mode := list "apply" "remove" }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ ternary (printf "coder-dns-%s" $hash) "coder-dns-remove" (eq $mode "apply") }}
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.labels" $ | nindent 4 }}
+  {{- if eq $mode "remove" }}
+  annotations:
+    "helm.sh/hook": pre-delete
+    "helm.sh/hook-weight": "1"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+    argocd.argoproj.io/hook: PreDelete
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+  {{- end }}
+spec:
+  backoffLimit: {{ ternary 4 0 (eq $mode "apply") }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: coder-dns
+    spec:
+      restartPolicy: Never
+      serviceAccountName: coder-dns
+      {{- with $.Values.uiUpdates.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: {{ $mode }}
+          image: {{ $.Values.bootstrap.image }}
+          command: ["python3", "-c", {{ $.Files.Get "files/hooks/coredns_rewrite.py" | quote }}, {{ $mode | quote }}]
+          env:
+            - {name: NAMESPACE, value: {{ $ns | quote }}}
+            - {name: RELEASE, value: {{ $.Release.Name | quote }}}
+            - {name: RULES, value: {{ join "\n" $rules | quote }}}
+            - {name: COREDNS_NAMESPACE, value: {{ $dnsNs | quote }}}
+            - {name: COREDNS_CONFIGMAP, value: {{ $d.configMap | default "coredns" | quote }}}
+            - {name: COREDNS_DEPLOYMENT, value: {{ $d.deployment | default "coredns" | quote }}}
+            - {name: PYTHONDONTWRITEBYTECODE, value: "1"}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          resources:
+            requests: {cpu: 10m, memory: 32Mi}
+            limits: {memory: 64Mi}
+{{- end }}
+{{- end }}

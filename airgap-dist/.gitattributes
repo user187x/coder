@@ -1,0 +1,8 @@
+*.sh    text eol=lf
+*.py    text eol=lf
+*.tf    text eol=lf
+*.yaml  text eol=lf
+*.gif   binary
+*.png   binary
+*.svg   text eol=lf
+*.tgz   binary

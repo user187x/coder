@@ -1,0 +1,42 @@
+PASS Coder answers over HTTPS through the Gateway (CA-verified) - 200
+PASS Coder version is the fork's - v2.0.0-platform.24+fafe531
+PASS Keycloak (OIDC) sign-in is on
+PASS password sign-in is on
+PASS a wrong admin password is refused - 401
+PASS admin@admin.com / admin signs in - 201
+PASS ...as username admin, an owner, with a password login - admin ['owner'] password
+PASS Coder redirects to Keycloak - https://keycloak.airgap.test/realms/master/protocol/openid-connect/auth
+PASS Keycloak shows its login form
+PASS Keycloak accepts the credentials and sends the browser back to Coder - https://coder.airgap.test/
+PASS a Keycloak user signs in to Coder - as tester <tester@airgap.test> (oidc)
+PASS ...with a normal account (not an owner) - []
+PASS template ubuntu-vnc-desktop was pushed - ['ubuntu-vnc-desktop']
+PASS platform service /__coder-ui/ through the Gateway - 200
+PASS icon server /__icons/ through the Gateway - 200
+PASS banner service /__banner/ through the Gateway - 200
+PASS the banner starts blank (hidden, no message) - enabled=False message=''
+PASS banner admin page loads - 403
+PASS dashboard HTML loads - 200
+PASS workspace created
+PASS workspace build succeeded - succeeded
+PASS workspace agent connected to Coder - connected
+INFO agent lifecycle: ready; apps: code-server=healthy, filebrowser=healthy, marimo=healthy, marimo-windows=disabled, novnc=healthy
+PASS workspace startup finished (lifecycle ready) - ready
+PASS workspace app code-server healthy with no internet - healthy
+PASS workspace app filebrowser healthy with no internet - healthy
+PASS workspace app novnc healthy with no internet - healthy
+PASS workspace app marimo healthy with no internet - healthy
+FAIL app code-server answers through Coder's proxy - 404
+FAIL app filebrowser answers through Coder's proxy - 404
+FAIL app novnc answers through Coder's proxy - 404
+PASS HUD: every requested metric - missing []
+PASS Monitoring: security posture (identity, exposure, runtime, signals) - ['Exposure', 'Identity', 'Runtime', 'Signals'], {'critical': 0, 'warning': 2, 'info': 1, 'ok': 9, 'unknown': 1}
+PASS HUD: top CPU / memory name an account and link to its workspace - top-cpu=2.0 /@admin/e2e; top-memory=2.0 /@admin/e2e
+PASS HUD is for admins only - 403
+PASS Scheduler: enabled by the admin - 200
+PASS Scheduler: a workspace without a schedule is refused - 403 {'message': "Every workspace needs a start time and a stop time (up to 10 hours apart): it has no start time. Set them in the workspace's schedule.", 'detail': 
+PASS Scheduler: a workspace with a valid schedule is created - 201 {'id': 'f77881ea-e42a-4614-ae60-4094cb707c7c', 'created_at': '2026-10-13T06:55:05.095531Z', 'updated_at': '2026-10-13T06:55:05.095531Z', 'owner_id': '83508e6a-a
+PASS Scheduler: a stop time over the maximum is refused - 403
+PASS Scheduler: the user's status - {'enforced': True, 'reason': '', 'mode': 'user', 'maxActiveHours': 10.0, 'workspaces': [{'id': 'f77881ea-e42a-4614-ae60-4094cb707c7c', 'name': 'sched', 'owner': 'tester', 'autostart_schedule': 'CRON_T
+
+36/39 checks passed

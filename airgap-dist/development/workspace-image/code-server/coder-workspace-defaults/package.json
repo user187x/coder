@@ -1,0 +1,16 @@
+{
+	"name": "coder-workspace-defaults",
+	"displayName": "Workspace defaults",
+	"description": "The workspace image's defaults: the Nerd Font in the terminal (a user's own setting wins).",
+	"publisher": "coder-airgapped",
+	"version": "1.0.0",
+	"license": "MIT",
+	"engines": {
+		"vscode": "^1.80.0"
+	},
+	"contributes": {
+		"configurationDefaults": {
+			"terminal.integrated.fontFamily": "'JetBrainsMono Nerd Font', 'Noto Color Emoji', monospace"
+		}
+	}
+}

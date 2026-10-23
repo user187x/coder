@@ -1,0 +1,40 @@
+# Build output
+/dist/
+*.part
+# Image archives (pinned by images.txt + SHA256SUMS; rebuilt with mirror-images.sh save / tools/build-airgap-image.sh)
+/helm-chart/images/**/*.tar
+/helm-chart/images/**/*.tar.gz
+# Our charts, packaged from helm-chart/coder-airgapped by tools/build-bundle.sh (coder-airgapped, and the Argo CD
+# decorator install's base and layer: mirror-images.sh decorator-charts); the bundles ship them in charts/
+/helm-chart/charts/
+# Filled by tools/build-airgap-image.sh
+/development/airgap-image/template/
+# Never commit private material (it lives in ~/coder-airgapped-private/)
+*.dump
+*.bundle
+*.key
+*.pem
+/development/tools/airgap-e2e/kubeconfig
+/development/tools/airgap-e2e/pki/
+/development/tools/airgap-e2e/harbor/
+/development/tools/airgap-e2e/*.log
+/development/tools/airgap-e2e/helm/
+/development/tools/airgap-e2e/helm-registry.json
+/development/tools/airgap-e2e/connected/
+/development/tools/airgap-e2e/airgap/
+# Local
+__pycache__/
+*.pyc
+*.swp
+.DS_Store
+# ./make --deploy state: generated certificates, keys, client secret, answers
+/helm-chart/.deploy/
+/development/tools/airgap-e2e/inpod-out/
+# NiFi archive and Airflow constraints downloaded by tools/build-dataflow-image.sh
+/development/workspace-image-dataflow/nifi-*-bin.zip*
+/development/workspace-image-dataflow/airflow-constraints.txt
+# Third-party binaries the images are built from, kept untracked at the root (the build scripts check their SHA-256):
+# FileBrowser Quantum (build-workspace-image.sh); and its copy beside the Dockerfile during a build. (Obsidian's
+# package, from before: no image uses it, never in git.)
+/filebrowser-quantum
+/obsidian.deb

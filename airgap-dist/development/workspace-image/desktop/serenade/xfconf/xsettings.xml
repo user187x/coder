@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The Serenade desktop theme's (coder-desktop-theme): Miserable_Xfce's Lavanda GTK theme in Tokyo Night colours and
+     the Zafiro icons; Overpass for the desktop, JetBrains Mono for monospace. -->
+<channel name="xsettings" version="1.0">
+  <property name="Net" type="empty">
+    <property name="ThemeName" type="string" value="Lavanda-Dark-Compact-Tokyonight"/>
+    <property name="IconThemeName" type="string" value="Zafiro"/>
+    <property name="EnableEventSounds" type="bool" value="false"/>
+    <property name="EnableInputFeedbackSounds" type="bool" value="false"/>
+  </property>
+  <property name="Xft" type="empty">
+    <property name="DPI" type="int" value="96"/>
+    <property name="Antialias" type="int" value="1"/>
+    <property name="HintStyle" type="string" value="hintslight"/>
+    <property name="RGBA" type="string" value="none"/>
+  </property>
+  <property name="Gtk" type="empty">
+    <property name="FontName" type="string" value="Overpass 10"/>
+    <property name="MonospaceFontName" type="string" value="JetBrainsMono Nerd Font Light 10"/>
+    <property name="DecorationLayout" type="string" value="menu:minimize,maximize,close"/>
+    <property name="DialogsUseHeader" type="bool" value="false"/>
+    <property name="CursorThemeName" type="string" value=""/>
+  </property>
+</channel>

@@ -1,0 +1,16 @@
+admin:
+  roles:
+  - owner
+coder:
+  host: coder.grey-marshall.com
+  service:
+    name: coder
+    port: 80
+gateway:
+  name: traefik-gateway
+  namespace: traefik
+image:
+  registry: harbor.grey-marshall.com
+  repository: library/python
+  tag: 3.13-alpine
+

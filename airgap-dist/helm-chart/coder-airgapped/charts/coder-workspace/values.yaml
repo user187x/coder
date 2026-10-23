@@ -1,0 +1,83 @@
+# Workspaces, the template push and every resource of this chart live here ("" = the release's namespace).
+namespace: ""
+
+# Prefix of every object name (<prefix>-terraform, <prefix>-icons, <prefix>-push-template). Empty = the release name.
+namePrefix: ""
+
+coder:
+  url: "https://coder.grey-marshall.com"
+  # Secret (in `namespace`, key "token") with a Coder session token for the template push. install-workspace-chart
+  # creates it for the install and deletes it afterwards. Without it the Job logs in with Secret coder-init-auth.
+  tokenSecret: "coder-workspace-push-token"
+  # URL the push Job uses instead of `url` (e.g. the in-cluster Service, so the push needs no Gateway or DNS).
+  internalUrl: ""
+
+# Image of the template-push Job's coder CLI.
+cliImage: "ghcr.io/user187x/coder-platform:2.0.0-platform.45-airgap"
+# Any image with python3: signs in with coder-init-auth when there is no token Secret.
+loginImage: "docker.io/library/python:3.13-alpine"
+
+# Container image of the workspace pods, substituted for "codercom/enterprise-base:ubuntu" in files/main.tf.
+workspaceImage: "ghcr.io/user187x/coder-workspace:1.9.4"
+# StorageClass of workspaces' home volumes ("" = the cluster's default; EKS may have none: e.g. gp3). New volumes only.
+storageClass: ""
+
+imagePullSecrets: []    # e.g. [{name: registry-pull}], for the push Job and the icons Deployment
+
+# Secrets the template and the push Job read (they must exist in `namespace`).
+secrets:
+  tlsCa: tls-ca              # key ca.crt; also substituted for "tls-ca" in files/main.tf (workspace trust store)
+  initAuth: coder-init-auth  # keys email, password: the push Job's sign-in when there is no token Secret
+
+template:
+  name: "default"                 # the template's name (its URL: /templates/<name>); a rename in the dashboard is followed
+  # Shown in the dashboard instead of the name, and its icon (one of Coder's, /icon/*.svg). Set when the template has
+  # none: on a new install, or on a template that never had one. A display name or icon set in the dashboard is kept.
+  displayName: "DEFAULT"
+  icon: "/icon/ubuntu.svg"
+
+# A second template: the same workspace with Apache NiFi and Apache Airflow in place of code-server (files/main.tf
+# plus files/dataflow/, which only this template gets), on its own image (development/workspace-image-dataflow).
+# Pushed by its own Job (<prefix>-push-template-dataflow). Its display name and icon as for template above.
+dataflowTemplate:
+  enabled: false
+  name: "ubuntu-dataflow"
+  displayName: "DATAFLOW"
+  icon: "/icon/ubuntu.svg"
+  # Its web terminal: Ghostty's (the Ghostty app in the Terminal's place, drawn by Ghostty's emulator), or web.
+  terminal: "ghostty"
+# Its image: the workspace image + NiFi, a Java runtime and Airflow.
+dataflowImage: "ghcr.io/user187x/coder-workspace-dataflow:1.1.4"
+# Its NiFi under Coder's app path: ONE HTTPRoute for every dataflow workspace, coder-enhanced-nifi
+# (templates/nifi-route.yaml), on the Gateway in icons.gateway, to Coder's Service, setting the proxy headers NiFi reads
+# (scheme, host, port; its path is Coder's X-Forwarded-Prefix). Coder's service account may still manage HTTPRoutes
+# (templates/nifi-routes-rbac.yaml): workspaces from before 1.46.0 delete their own route at their next build.
+nifiRoute:
+  coderService:
+    name: coder
+    port: 80
+  coderServiceAccount: coder
+
+# The Images view's registry as workspace pods pull from it (the parent chart's imageBuilder: localhost:<localPort>/
+# coder-images): the templates then offer a Workspace image parameter, the template's image or one built or imported
+# there. Empty: no such choice.
+imagesRegistry: ""
+
+# Add files/agent-audit.tf (Observability > Agent Activity: every command run in a workspace) to the template.
+# Off by default: the reference cluster's active template is main.tf only.
+agentAudit: false
+
+# Custom app icons (files/icons/*), served at https://<host>/__icons/<file> (templates/icons.yaml)
+icons:
+  host: ""            # default: coder.url without https://
+  # This chart's own HTTPRoute for /__icons/ (to icons.backend). Off in coder-airgapped: its platform route,
+  # coder-enhanced, carries /__icons/ with /__coder-ui/.
+  httpRoute: true
+  # The Service that serves files/icons/ (mounted from the ConfigMap below) at /__icons/<file>. In coder-airgapped
+  # that is the platform service, coder-ui-updates.
+  backend:
+    name: coder-ui-updates
+    port: 80
+  gateway:
+    name: traefik-gateway
+    namespace: traefik

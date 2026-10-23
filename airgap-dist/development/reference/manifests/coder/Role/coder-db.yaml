@@ -1,0 +1,182 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  annotations:
+    cnpg.io/operatorVersion: 1.30.0
+  labels:
+    app.kubernetes.io/managed-by: cloudnative-pg
+    cnpg.io/cluster: coder-db
+  name: coder-db
+  namespace: coder
+  ownerReferences:
+  - apiVersion: postgresql.cnpg.io/v1
+    controller: true
+    kind: Cluster
+    name: coder-db
+    uid: 54243ed9-df37-4b24-acb8-88a154956198
+rules:
+- apiGroups:
+  - ''
+  resourceNames:
+  - cnpg-default-monitoring
+  - coder-db
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - watch
+- apiGroups:
+  - ''
+  resourceNames:
+  - coder-db-app
+  - coder-db-ca
+  - coder-db-replication
+  - coder-db-server
+  - coder-db-superuser
+  resources:
+  - secrets
+  verbs:
+  - get
+  - watch
+- apiGroups:
+  - postgresql.cnpg.io
+  resourceNames:
+  - coder-db
+  resources:
+  - clusters
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - postgresql.cnpg.io
+  resourceNames:
+  - coder-db
+  resources:
+  - clusters/status
+  verbs:
+  - get
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - postgresql.cnpg.io
+  resources:
+  - backups
+  verbs:
+  - list
+  - get
+  - delete
+- apiGroups:
+  - postgresql.cnpg.io
+  resources:
+  - backups/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - ''
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+- apiGroups:
+  - postgresql.cnpg.io
+  resources:
+  - databases
+  verbs:
+  - get
+  - update
+  - list
+  - watch
+- apiGroups:
+  - postgresql.cnpg.io
+  resources:
+  - databases/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - postgresql.cnpg.io
+  resources:
+  - publications
+  verbs:
+  - get
+  - update
+  - list
+  - watch
+- apiGroups:
+  - postgresql.cnpg.io
+  resources:
+  - publications/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - postgresql.cnpg.io
+  resources:
+  - subscriptions
+  verbs:
+  - get
+  - update
+  - list
+  - watch
+- apiGroups:
+  - postgresql.cnpg.io
+  resources:
+  - subscriptions/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - coordination.k8s.io
+  resourceNames:
+  - coder-db
+  resources:
+  - leases
+  verbs:
+  - get
+  - update
+- apiGroups:
+  - postgresql.cnpg.io
+  resourceNames:
+  - coder-db
+  resources:
+  - failoverquorums
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - postgresql.cnpg.io
+  resourceNames:
+  - coder-db
+  resources:
+  - failoverquorums/status
+  verbs:
+  - get
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - postgresql.cnpg.io
+  resources:
+  - databaseroles
+  verbs:
+  - get
+  - update
+  - list
+  - watch
+- apiGroups:
+  - postgresql.cnpg.io
+  resources:
+  - databaseroles/status
+  verbs:
+  - get
+  - patch
+  - update

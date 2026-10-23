@@ -1,0 +1,35 @@
+{{- include "coder-workspace.platform.values" . -}}
+{{- /*
+The Workspace image parameter's choices (files/main.tf: data.kubernetes_config_map_v1.workspace_images): Coder's
+provisioner, which runs as Coder's service account, reads the ConfigMap the platform service keeps
+(coder-workspace-images: the images built or imported in Templates > Images, the platform's workspace images the nodes
+keep) when a workspace's parameters are shown or it starts.
+*/ -}}
+{{- if .Values.imagesRegistry }}
+{{- $ns := .Values.namespace | default .Release.Namespace }}
+{{- $name := printf "%s-workspace-images" (include "coder-workspace.prefix" .) }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $name }}
+  namespace: {{ $ns }}
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    resourceNames: ["coder-workspace-images"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $name }}
+  namespace: {{ $ns }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $name }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Values.nifiRoute.coderServiceAccount }}
+    namespace: {{ $ns }}
+{{- end }}

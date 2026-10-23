@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Applications
+Comment=Find and open an application
+Exec=rofi -show drun
+Icon=/usr/share/coder-desktop/serenade/assets/ghost.svg
+Terminal=false
+StartupNotify=false

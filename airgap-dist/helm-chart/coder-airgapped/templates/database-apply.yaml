@@ -1,0 +1,114 @@
+{{- include "ca.values" . -}}
+{{- /* With the chart's own CloudNativePG (global.bundled.cloudnativePG) the database cannot be one of this release's
+     objects: Helm would create the Cluster in the same instant as the operator, whose webhook is not up yet, and the
+     one `helm install` would fail. A Job of the release applies it instead, retrying until the webhook answers
+     (files/hooks/apply_database.py); its name follows the manifests, so an upgrade that changes the database runs a new
+     one. helm uninstall deletes the database first (a pre-delete hook), while the operator still runs. */ -}}
+{{- if and .Values.database.enabled (include "platform.hasBase" .) (include "platform.dbByJob" .) }}
+{{- $db := .Values.database }}
+{{- $ns := .Release.Namespace }}
+{{- $name := printf "%s-apply" $db.name }}
+{{- $cluster := include "platform.dbCluster" . | fromYaml | toJson }}
+{{- $pooler := ternary (include "platform.dbPooler" . | fromYaml | toJson) "" $db.pooler.enabled }}
+{{- $hash := printf "%s%s%s" $cluster $pooler (.Files.Get "files/hooks/apply_database.py") | sha256sum | trunc 8 }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $db.name }}-manifests
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.labels" . | nindent 4 }}
+data:
+  cluster.json: {{ $cluster | quote }}
+  {{- if $pooler }}
+  pooler.json: {{ $pooler | quote }}
+  {{- end }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $name }}
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.labels" . | nindent 4 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $name }}
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [postgresql.cnpg.io]
+    resources: [clusters, poolers]
+    verbs: [get, create, patch, delete]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $name }}
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.labels" . | nindent 4 }}
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: Role, name: {{ $name }}}
+subjects:
+  - {kind: ServiceAccount, name: {{ $name }}, namespace: {{ $ns }}}
+{{- range $mode := list "apply" "delete" }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ ternary (printf "%s-%s" $name $hash) (printf "%s-delete" $db.name) (eq $mode "apply") }}
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.labels" $ | nindent 4 }}
+  {{- if eq $mode "delete" }}
+  annotations:
+    "helm.sh/hook": pre-delete
+    "helm.sh/hook-weight": "5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+    argocd.argoproj.io/hook: PreDelete
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+  {{- end }}
+spec:
+  backoffLimit: {{ ternary 3 0 (eq $mode "apply") }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ $db.name }}-{{ $mode }}
+    spec:
+      restartPolicy: Never
+      serviceAccountName: {{ $name }}
+      {{- with $.Values.uiUpdates.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: {{ $mode }}
+          image: {{ $.Values.bootstrap.image }}
+          command: ["python3", "-c", {{ $.Files.Get "files/hooks/apply_database.py" | quote }}, {{ $mode | quote }}]
+          env:
+            - {name: NAMESPACE, value: {{ $ns | quote }}}
+            - {name: TIMEOUT, value: {{ ternary "900" "240" (eq $mode "apply") | quote }}}
+            - {name: PYTHONDONTWRITEBYTECODE, value: "1"}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          resources:
+            requests: {cpu: 10m, memory: 32Mi}
+            limits: {memory: 64Mi}
+          volumeMounts:
+            - {name: manifests, mountPath: /manifests, readOnly: true}
+      volumes:
+        - name: manifests
+          configMap: {name: {{ $db.name }}-manifests}
+{{- end }}
+{{- end }}

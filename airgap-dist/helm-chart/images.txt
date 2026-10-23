@@ -1,0 +1,44 @@
+# Every image this solution runs, as on the reference cluster 2026-10-09 (linux/amd64).
+# The bundle carries all of them as docker-save archives, one folder per part of the solution (images/README.md).
+# A [section] line: the group's name, its folder in the bundle, push (pushed by default) or reference (only when
+# asked), and what it is. Then one line per image: <image as referenced>  <digest saved and tested>  <used by>.
+# Ours (ghcr.io/user187x/...) are on no public registry: always keep them in the bundle.
+# mirror-images.sh pulls the public ones by that digest (save) and pushes every image under its tag (push).
+
+[ui]            images/ui/             push      the user interface: Coder (the fork - the dashboard and its server) and the platform service (coder-ui-updates), what they run on, and their databases
+ghcr.io/user187x/coder-platform:2.0.0-platform.108-airgap  sha256:a4c4ec61744fd1b3680d30303128df73549458d3758c42ceb35f729ecb4ed772   coder (server); = the fork's platform.108 (866faf2ff) + Terraform provider mirror
+ghcr.io/user187x/coder-ui-updates:code-af032ac7b386       sha256:fd7a4980e1a0be92c1e4b98be47e7c8c000c11cb05c1b766587787f347789e91   coder-ui-updates (the platform service) and the Images builder's scans: its code (helm-chart/coder-airgapped/files/ui-updates, development/tools/build-ui-image.sh) on coder-image-tools 1.2.0 - the bundled Python + shellcheck, shfmt, trivy (+ vulnerability DB), regctl, copa (development/image-tools)
+docker.io/library/python:3.13-alpine                      sha256:2d9aefe2fef018a7eb2c13064c89c71929800fd2e5dccdbf52ea5da5bb8d929a   coder-ui-updates, bootstrap Job, push-Job login (reference cluster: same tag via its Harbor)
+ghcr.io/cloudnative-pg/postgresql:18.4-system-trixie      sha256:42708a75345b7a48fdd9257b071830783a97fd228529196b6313187a7198e185   database, uiUpdates.logsDb, uiUpdates.pgImage
+ghcr.io/cloudnative-pg/pgbouncer:1.25.1                   sha256:e6ddfe22d845e603825e235dd8334b21ecd125abea2a2172478f556b8dee2bb8   the database's PgBouncer pooler (database.pooler, values-ha.example.yaml); CloudNativePG 1.30's own default
+
+[workspaces]    images/workspaces/     push      the workspace templates' images
+ghcr.io/user187x/coder-workspace:1.9.4                    sha256:4cf68da666f8696d4d40910bfea08a60ad05f4cbf50fa65a75e5cc35c9a4d510   workspace pods (default: DEFAULT): enterprise-base + desktop (no light-locker) with its Classic and Serenade themes (picom, eww, rofi), noVNC's clipboard shared with the computer, Chromium (default), Terminator, Firefox, JetBrains Mono Nerd Font in every terminal (code-server's too) and Noto Color Emoji, tmux, CLI tools, k9s/kubectl/kubelogin, Python venv, code-server, FileBrowser Quantum 2.1.2-coder.1 (symlinked folders), default ~/.bashrc and desktop background (development/workspace-image)
+ghcr.io/user187x/coder-workspace-dataflow:1.1.4           sha256:eee275f6f75fd40be2a45eeeac26bd1c6333bd36b0cce9239b9bf9243d134432   workspace pods (ubuntu-dataflow): the workspace image + Java 21, Apache NiFi 2.12.0 (NARs unpacked), Apache Airflow 3.3.2 (development/workspace-image-dataflow)
+
+[cloud-drive]   images/cloud-drive/    push      the Cloud Drive: its storage (MinIO) and its CSI driver
+ghcr.io/user187x/coder-minio:RELEASE.2026-09-22T19-25-18Z sha256:c93745c56fccdaf0e5dcb88999a96a65a136428beb045ef5d546255a80d747a7   the Cloud Drive's storage (userStorage.minio): cgr.dev/chainguard/minio retagged with its MinIO release (development/tools/build-minio-image.sh)
+cr.yandex/crp9ftr22d26age3hulg/yandex-cloud/csi-s3/csi-s3-driver:0.43.7 sha256:8e4259545a065be3c21362ddeb5739f499d980a9c3d97f71dd8c1efd0d8629ea   the Cloud Drive's CSI driver (userStorage.csi; k8s-csi-s3 + GeeseFS, Apache-2.0)
+cr.yandex/crp9ftr22d26age3hulg/yandex-cloud/csi-s3/csi-node-driver-registrar:v2.16.0 sha256:080b91dd6672ad452697775546c86193c818c7ba6b4cd05dbd41a026b6213bff   the Cloud Drive's CSI driver: kubelet registration
+
+[image-builder] images/image-builder/  push      Templates > Images: the build Jobs (BuildKit) and the registry built images are kept in
+docker.io/moby/buildkit:v0.33.0-rootless                  sha256:80b15f0735e87bab7bf59ec4d695dfb4a7cfb25521cf56dc75d6f256285b63ef   Images view: the build Jobs (BuildKit rootless)
+ghcr.io/user187x/coder-registry:3.1.2-1                   sha256:18fa9d5d6a6fd299e6e421038eb41154833b4a86bcbfded96023db77eaa9b466   Images view: coder-image-registry, where built images are kept - distribution built from source with Go's and its modules' fixes, as a regular user (development/registry-image)
+
+[cluster]       images/cluster/        push      what the chart adds to the cluster: metrics-server, where it has none
+registry.k8s.io/metrics-server/metrics-server:v0.8.1     sha256:b2d2efaf5ac3b366ed0f839d2412a2c4279d4fc2a2a733f12c52133faed36c41   metrics-server (live CPU / memory for the HUD, Health, quotas; metricsServer.enabled: auto)
+
+[prereqs]       images/prereqs/        push      only if you install these from prereqs/: the CloudNativePG operator, Traefik
+ghcr.io/cloudnative-pg/cloudnative-pg:1.30.0              sha256:a2701eb97cdd2a34b1fdb2cb51987f544b706e40bec72ae7146cd8580efefebb   CloudNativePG operator (prereqs/cloudnative-pg-0.29.0.tgz, install.sh --cnpg)
+docker.io/traefik:v3.7.12                                 sha256:9c2a54d87f76f5c2f5f2682c68394af92fb12c0a2686798d6462a3f84bd78eaf   Traefik (prereqs/traefik-41.4.0.tgz)
+
+[rollback]      images/rollback/       push      plain upstream Coder: the decorator install's base without the layer, and rollback
+ghcr.io/user187x/coder-upstream:2.38.0-main.70bc2e554-airgap sha256:075fdbdd195a5b7649ce6e341f496653615a2e8785cedb46dda08660a2793410   plain base (Argo CD decorator install without the layer) and rollback: pure upstream Coder at the fork's base (70bc2e554) + the same Terraform provider mirror (development/coder-fork/ROLLBACK.md)
+
+[reference]     images/reference/      reference Argo CD + Keycloak as the reference cluster runs them - not pushed unless asked
+quay.io/argoproj/argocd:v3.5.2                            sha256:e2aadfae709d904e87f46ba4aa49601d827b3022db22cd4d03aae816a2e7097b   Argo CD (server, repo-server, controller, applicationset)
+ghcr.io/dexidp/dex:v2.45.1                                sha256:8499afd690c437f52301efd2b05b2455da5bd2dfc20332cd697dc9937f808462   Argo CD dex
+ecr-public.aws.com/docker/library/redis:8.6.4-alpine      sha256:2cc044fc5a07c9b701f8f1255a309ae9ad7856e694ac03513bf3648c01e40763   Argo CD redis
+quay.io/keycloak/keycloak-operator:26.7.3                 sha256:3172bf49511c60ca59df3a9d93945415ed35d2af51a775a0d723d766d0437d5c   Keycloak operator
+quay.io/keycloak/keycloak:26.7.3                          sha256:29be7252db0a106f1cd2ac17b9a56ff2668073da645638a38b9fc67deeb2d6c4   Keycloak
+ghcr.io/cloudnative-pg/postgresql:17                      sha256:70664ebcfa1100361b5bdc28bbf06fdbe08db2dc4ad7bd14de33c5e05fe8ea8e   Keycloak's database (CNPG Cluster keycloak-db)

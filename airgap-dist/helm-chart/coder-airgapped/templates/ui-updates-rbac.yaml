@@ -1,0 +1,326 @@
+{{- include "ca.values" . -}}
+{{- if and .Values.uiUpdates.enabled (include "platform.hasLayer" .) }}
+{{- $ui := .Values.uiUpdates }}
+{{- $ns := .Release.Namespace }}
+{{- $s := .Values.secrets }}
+{{- $db := .Values.database.name }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: coder-ui-updates
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.uiLabels" . | nindent 4 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: coder-ui-updates
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.uiLabels" . | nindent 4 }}
+rules:
+  # Keycloak view: repairs the CA and OIDC Secrets Coder reads.
+  - apiGroups: [""]
+    resources: [secrets]
+    resourceNames: [{{ $s.tlsCa.name }}, {{ $s.oidcClient.name }}, {{ $s.oidcCa.name }}]
+    verbs: [get, update, patch]
+  - apiGroups: [""]
+    resources: [secrets]
+    resourceNames: [{{ $s.logsDb.name }}, {{ $db }}-app, {{ $db }}-ca]
+    verbs: [get]
+  - apiGroups: [""]
+    resources: [secrets]
+    verbs: [create]
+  # Settings > Certificates overview.
+  - apiGroups: [""]
+    resources: [secrets]
+    resourceNames: [{{ $s.oidcCa.name }}, {{ $s.tlsCa.name }}, {{ $s.wildcardTls.name }}]
+    verbs: [get]
+  - apiGroups: [apps]
+    resources: [deployments]
+    resourceNames: [coder]
+    verbs: [get]
+  - apiGroups: [""]
+    resources: [configmaps]
+    resourceNames: [coder-platform-config]
+    verbs: [get]
+  # Persistence view (CloudNativePG backups).
+  - apiGroups: [postgresql.cnpg.io]
+    resources: [clusters]
+    verbs: [get, list, create, patch]
+  - apiGroups: [postgresql.cnpg.io]
+    resources: [backups, scheduledbackups]
+    verbs: [get, list, create]
+  - apiGroups: [""]
+    resources: [persistentvolumeclaims]
+    verbs: [get, list]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: coder-ui-updates
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.uiLabels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: coder-ui-updates
+subjects:
+  - {kind: ServiceAccount, name: coder-ui-updates, namespace: {{ $ns }}}
+---
+# Monitoring view: workspace pods and their logs.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: coder-ui-updates-workspaces
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.uiLabels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [get, list]
+  - apiGroups: [""]
+    resources: [pods/log]
+    verbs: [get]
+  # Lock Down (lockdown.py): a running workspace pod gets the setting from an ephemeral container (no restart), and
+  # an annotation of what is in force; the settings are the ConfigMap coder-lockdown, which the service makes.
+  - apiGroups: [""]
+    resources: [pods/ephemeralcontainers]
+    verbs: [patch]
+  # Provisioner Daemons (provisioners.py): the terraform processes in Coder's own pods read and, on a re-kick, stopped
+  # (exec in the coder container); a pod whose daemon a re-kick did not free restarted (deleted; its Deployment starts
+  # another).
+  - apiGroups: [""]
+    resources: [pods/exec]
+    verbs: [create, get]
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [delete]
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [patch]
+  - apiGroups: [""]
+    resources: [configmaps]
+    resourceNames: [coder-lockdown]
+    verbs: [get, update]
+  - apiGroups: [""]
+    resources: [configmaps]
+    verbs: [create]
+  # Lock Down > Freeze: the snapshot of the workspace's home volume, a VolumeSnapshot where the cluster has the API,
+  # else a copy in a new volume by a Job (both named coder-freeze-*); deleted by admins or by the next freeze.
+  - apiGroups: [""]
+    resources: [persistentvolumeclaims]
+    verbs: [get, create, delete]
+  - apiGroups: [batch]
+    resources: [jobs]
+    verbs: [get, create, delete]
+  - apiGroups: [snapshot.storage.k8s.io]
+    resources: [volumesnapshots]
+    verbs: [get, create, delete]
+  # Monitoring > Security posture: are workspaces segmented?
+  - apiGroups: [networking.k8s.io]
+    resources: [networkpolicies]
+    verbs: [get, list]
+  {{- if eq (toString ($.Values.global.userStorage | default dict).enabled) "true" }}
+  # The safe (safe.py): every account's claim coder-safe-<id> (made above: persistentvolumeclaims create), the
+  # Secrets its volume mounts with (plain and TLS), the encrypted Cloud Drives' data keys (coder-cloud-drive-keys), the
+  # chart's MinIO's address for the nodes; a workspace folder as an account's Cloud Drive: its Service, mount Secret
+  # and volume (coder-drive-src-<id>, named per account, so Secrets and Services by any name - exec in Coder's pods,
+  # above, reaches as much already); and the ConfigMap the workspace templates read (coder-cloud-drive).
+  - apiGroups: [""]
+    resources: [secrets]
+    verbs: [get, create, update, delete]
+  - apiGroups: [""]
+    resources: [services]
+    verbs: [get, create, patch, delete]
+  - apiGroups: [""]
+    resources: [configmaps]
+    resourceNames: [coder-cloud-drive]
+    verbs: [get, update]
+  {{- end }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: coder-ui-updates-workspaces
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.uiLabels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: coder-ui-updates-workspaces
+subjects:
+  - {kind: ServiceAccount, name: coder-ui-updates, namespace: {{ $ns }}}
+---
+# Network view (cluster map), Admin menu gauge, Persistence view.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: coder-ui-updates-{{ $ns }}
+  labels:
+    {{- include "ca.uiLabels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: [nodes, pods]
+    verbs: [get, list]
+  {{- if eq (toString ($.Values.global.userStorage | default dict).enabled) "true" }}
+  # The safe: every account's PersistentVolume coder-safe-<id> (static, its S3 prefix; Retain), and its source's
+  # (coder-drive-src-<id>); replaced when what it mounts changes (encryption, another backend), once unused; one kept
+  # (Retain) from an earlier install adopted by this install's claim (patch: its claimRef).
+  - apiGroups: [""]
+    resources: [persistentvolumes]
+    verbs: [get, list, create, delete, patch]
+  {{- end }}
+  # The Settings menu's network graph: each node's traffic counters from its kubelet's /stats/summary, read on the
+  # kubelet's port as metrics-server does (nodes/stats; not nodes/proxy, which reaches far more).
+  - apiGroups: [""]
+    resources: [nodes/stats]
+    verbs: [get]
+  - apiGroups: [metrics.k8s.io]
+    resources: [nodes, pods]
+    verbs: [get, list]
+  - apiGroups: [storage.k8s.io]
+    resources: [storageclasses]
+    verbs: [get, list]
+  - apiGroups: [snapshot.storage.k8s.io]
+    resources: [volumesnapshotclasses]
+    verbs: [get, list]
+  # Lock Down > Freeze: the home volume's CSI driver, for a VolumeSnapshotClass that fits it.
+  - apiGroups: [""]
+    resources: [persistentvolumes]
+    verbs: [get]
+  - apiGroups: [apiextensions.k8s.io]
+    resources: [customresourcedefinitions]
+    resourceNames: [clusters.postgresql.cnpg.io]
+    verbs: [get]
+  - apiGroups: [apps]
+    resources: [deployments]
+    verbs: [list]
+  # Cluster Network view (clusternet.py), read only: the Services on the map with their endpoints (Coder's namespace,
+  # and Traefik's and the other platform pods' wherever they run), the events of what a click opens, every volume by
+  # storage class and the CSI drivers (the code-server HA and storage card).
+  - apiGroups: [""]
+    resources: [services, events, persistentvolumes]
+    verbs: [get, list]
+  - apiGroups: [discovery.k8s.io]
+    resources: [endpointslices]
+    verbs: [get, list]
+  - apiGroups: [storage.k8s.io]
+    resources: [csidrivers]
+    verbs: [get, list]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: coder-ui-updates-{{ $ns }}
+  labels:
+    {{- include "ca.uiLabels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: coder-ui-updates-{{ $ns }}
+subjects:
+  - {kind: ServiceAccount, name: coder-ui-updates, namespace: {{ $ns }}}
+{{- /* The Keycloak and Argo CD views' Roles live in those namespaces: only where they exist (a cluster without
+     them installs as well; `helm template`, which sees no cluster, renders them as configured). */ -}}
+{{- $live := lookup "v1" "Namespace" "" "kube-system" }}
+{{- $hasNs := dict }}
+{{- range $n := list $ui.keycloak.namespace $ui.argocd.namespace $ui.gateway.namespace }}
+{{- $_ := set $hasNs $n (or (not $live) (lookup "v1" "Namespace" "" $n)) }}
+{{- end }}
+{{- if and $ui.keycloak.enabled (index $hasNs $ui.keycloak.namespace) }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: coder-ui-updates
+  namespace: {{ $ui.keycloak.namespace }}
+  labels:
+    {{- include "ca.uiLabels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: [secrets]
+    resourceNames: [{{ $ui.keycloak.adminSecret }}]
+    verbs: [get]
+  - apiGroups: [k8s.keycloak.org]
+    resources: [keycloaks]
+    verbs: [get, list]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: coder-ui-updates
+  namespace: {{ $ui.keycloak.namespace }}
+  labels:
+    {{- include "ca.uiLabels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: coder-ui-updates
+subjects:
+  - {kind: ServiceAccount, name: coder-ui-updates, namespace: {{ $ns }}}
+{{- end }}
+{{- if and $ui.argocd.enabled (index $hasNs $ui.argocd.namespace) }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: coder-ui-updates
+  namespace: {{ $ui.argocd.namespace }}
+  labels:
+    {{- include "ca.uiLabels" . | nindent 4 }}
+rules:
+  - apiGroups: [argoproj.io]
+    resources: [applications]
+    resourceNames: [{{ $ui.argocd.app }}]
+    verbs: [get, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: coder-ui-updates
+  namespace: {{ $ui.argocd.namespace }}
+  labels:
+    {{- include "ca.uiLabels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: coder-ui-updates
+subjects:
+  - {kind: ServiceAccount, name: coder-ui-updates, namespace: {{ $ns }}}
+{{- end }}
+{{- /* The Gateway the dashboard is reached through: its addresses (the announcement's `ip`) - that one, read only. */}}
+{{- if index $hasNs $ui.gateway.namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: coder-ui-updates-gateway
+  namespace: {{ $ui.gateway.namespace }}
+  labels:
+    {{- include "ca.uiLabels" . | nindent 4 }}
+rules:
+  - apiGroups: [gateway.networking.k8s.io]
+    resources: [gateways]
+    resourceNames: [{{ $ui.gateway.name }}]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: coder-ui-updates-gateway
+  namespace: {{ $ui.gateway.namespace }}
+  labels:
+    {{- include "ca.uiLabels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: coder-ui-updates-gateway
+subjects:
+  - {kind: ServiceAccount, name: coder-ui-updates, namespace: {{ $ns }}}
+{{- end }}
+{{- end }}

@@ -1,0 +1,68 @@
+;; The Serenade desktop theme's sidebar (coder-desktop-theme): Miserable_Xfce's, with what works in a workspace - who
+;; and how long, the processor and memory, the applications at hand and the calendar (its weather, battery, Wi-Fi,
+;; Gmail, updates and Spotify need the internet or hardware a workspace has not).
+
+;; **** Structures *****************************************
+(include "sidebar/struct/statusbox.yuck")
+(include "sidebar/struct/smallbox.yuck")
+
+;; **** Widgets ********************************************
+(include "sidebar/profile.yuck")
+
+;; **** Sidebar ********************************************
+(defwidget sidebar []
+
+	(eventbox	:onhoverlost "eww close sidebar"
+		(box :class "container"
+			 :orientation "v"
+			 :space-evenly false
+
+			(profile)
+			(box :height 85
+				 :width 340
+				(statusbox  :classes "cpu"
+							:icon ""
+							:header "${CPU}%"
+							:description "Processor"
+				)
+				(statusbox  :classes "memory"
+							:icon ""
+							:header "${MEM}%"
+							:description "Memory: ${MEM_VALUE}"
+				)
+			)
+
+			(box :orientation "h"
+				 :space-evenly "false"
+				(button :onclick "./scripts/launch.sh --filemanager"
+						:tooltip "Files"
+					(box :height 85 :width 85 (smallbox :icon "" :description ""))
+				)
+				(button :onclick "./scripts/launch.sh --webbrowser"
+						:tooltip "Web browser"
+					(box :height 85 :width 85 (smallbox :icon "" :description ""))
+				)
+				(button :onclick "./scripts/launch.sh --terminal"
+						:tooltip "Terminal"
+					(box :height 85 :width 85 (smallbox :icon "" :description ""))
+				)
+				(button :onclick "./scripts/launch.sh --taskmanager"
+						:tooltip "Task manager"
+					(box :height 85 :width 85 (smallbox :icon "" :description ""))
+				)
+			)
+
+			(cal)
+		)
+	)
+)
+
+;; **** Sidebar Window ************************************
+(defwindow sidebar :stacking "fg"
+				  :focusable false
+				  :monitor 0
+	    		  :geometry (geometry   :x 26
+	    								:y -57
+	    								:anchor "left bottom")
+					(sidebar)
+)

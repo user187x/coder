@@ -1,0 +1,72 @@
+# coder-fork on any air-gapped Kubernetes cluster, in one step:
+#
+#   ./push-images.sh $REGISTRY                 # every image of the release, to where the chart pulls them
+#   cp values.example.yaml values.yaml         # change every CHANGE-ME
+#   helm install coder-fork coder-airgapped-<version>.tgz -n coder-fork --create-namespace -f values.yaml
+#
+# Nothing else: the chart brings its own Traefik (with the Gateway API CRDs) and the CloudNativePG operator unless the
+# cluster has them (global.bundled), makes its CA and wildcard certificate unless you give yours (secrets.generateTls),
+# and every input is in this file. Every chart value: coder-airgapped/values.yaml in the chart.
+
+global:
+  domain: example.com                       # CHANGE-ME: Coder at https://coder.example.com, workspace apps at *.example.com
+  coderHost: ""                             # "" = coder.<domain>
+  wildcardHost: ""                          # "" = *.<domain>; a domain of one label (vm, lab) needs "*.coder.<domain>"
+  registry: registry.example.com/coder      # CHANGE-ME: what you gave push-images.sh (host[:port][/prefix])
+  imagePullSecrets: []                      # e.g. [{name: registry-pull}] for a registry that needs a login
+  # The prerequisites the chart installs itself. Set one to false where the cluster already runs it (a second
+  # CloudNativePG operator would fight the first one over the database); with your own Traefik, also set gateway.
+  bundled:
+    traefik: true
+    cloudnativePG: true
+  gateway:
+    name: traefik-gateway
+    namespace: ""                           # "" = this namespace with bundled.traefik, else traefik
+  oidc:
+    issuerUrl: ""                           # "" = https://keycloak.<domain>/realms/master; unreachable: password sign-in only
+    clientId: coder
+  disablePasswordAuth: "false"              # "true" = Keycloak only
+  firstUser:                                # the first owner; change the password after the first sign-in
+    username: admin
+    email: admin@admin.com
+    password: ""                            # "" = random, kept in the Secret coder-init-auth (key password)
+
+secrets:
+  # true: the chart makes a CA and a certificate for the domain, Coder's host and the wildcard host (a test install;
+  # users' browsers must trust the CA - the Secret tls-ca, key ca.crt). false: give yours below.
+  generateTls: true
+  tlsCa:                                    # the CA that signed the wildcard certificate (Coder and workspaces trust it)
+    create: false                           # true + caCrt with generateTls: false
+    caCrt: ""
+  wildcardTls:                              # the certificate for coder.<domain> and the wildcard host
+    create: false
+    tlsCrt: ""                              # PEM: |
+    tlsKey: ""                              #   -----BEGIN ...
+  oidcCa:                                   # the CA of Keycloak's certificate (when another CA signed it)
+    create: false
+    caCrt: ""
+  oidcClient:                               # Keycloak's confidential client "coder" (redirect URI
+    create: false                           # https://coder.<domain>/api/v2/users/oidc/callback)
+    clientSecret: ""
+
+coder:
+  coder:
+    # Air gap: no telemetry, no update check, no public STUN.
+    extraEnv:
+      - {name: CODER_TELEMETRY_ENABLE, value: "false"}
+      - {name: CODER_UPDATE_CHECK, value: "false"}
+      - {name: CODER_DERP_SERVER_STUN_ADDRESSES, value: "disable"}
+
+# Storage: "" everywhere = the cluster's default StorageClass.
+
+traefik:
+  # How users reach Coder: LoadBalancer (the cloud's), or NodePort where there is none (bare metal, minikube): then
+  # https://coder.<domain>:<the websecure NodePort> - pin it with ports.websecure.nodePort.
+  service:
+    type: LoadBalancer
+
+uiUpdates:
+  keycloak:
+    enabled: false                          # no Keycloak in this cluster to manage
+  argocd:
+    enabled: false                          # installed with Helm

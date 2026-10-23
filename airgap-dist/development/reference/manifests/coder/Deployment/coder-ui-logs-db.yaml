@@ -1,0 +1,94 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: coder-ui-updates
+    app.kubernetes.io/name: coder-ui-updates
+    app.kubernetes.io/part-of: coder
+  name: coder-ui-logs-db
+  namespace: coder
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: coder-ui-logs-db
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: coder-ui-logs-db
+        app.kubernetes.io/part-of: coder
+    spec:
+      automountServiceAccountToken: false
+      containers:
+      - args:
+        - "BIN=$(ls -d /usr/lib/postgresql/*/bin | sort -V | tail -n1)\nif [ ! -s /data/pg/PG_VERSION ]; then\n  printf '%s' \"$POSTGRES_PASSWORD\" > /tmp/pw\n  \"$BIN/initdb\" -D /data/pg -U logs --auth-local=trust\
+          \ --auth-host=scram-sha-256 --pwfile=/tmp/pw -E UTF8 >/dev/null\n  rm -f /tmp/pw\n  echo \"host all all 0.0.0.0/0 scram-sha-256\" >> /data/pg/pg_hba.conf\n  echo \"CREATE DATABASE logs;\" | \"\
+          $BIN/postgres\" --single -D /data/pg postgres >/dev/null\nfi\nexec \"$BIN/postgres\" -D /data/pg -c listen_addresses='*' -c unix_socket_directories=/tmp \\\n  -c max_connections=30 -c shared_buffers=32MB\
+          \ -c fsync=off -c synchronous_commit=off \\\n  -c full_page_writes=off -c log_min_messages=warning\n"
+        command:
+        - /bin/sh
+        - -ec
+        env:
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: password
+              name: coder-ui-logs-db
+        image: ghcr.io/cloudnative-pg/postgresql:18.4-system-trixie
+        imagePullPolicy: IfNotPresent
+        name: postgres
+        ports:
+        - containerPort: 5432
+          name: postgres
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 3
+          periodSeconds: 5
+          successThreshold: 1
+          tcpSocket:
+            port: postgres
+          timeoutSeconds: 1
+        resources:
+          limits:
+            memory: 256Mi
+          requests:
+            cpu: 20m
+            memory: 64Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /data
+          name: data
+        - mountPath: /tmp
+          name: tmp
+        - mountPath: /var/run/postgresql
+          name: run
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext:
+        fsGroup: 26
+        runAsGroup: 26
+        runAsNonRoot: true
+        runAsUser: 26
+        seccompProfile:
+          type: RuntimeDefault
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - emptyDir:
+          sizeLimit: 1Gi
+        name: data
+      - emptyDir: {}
+        name: tmp
+      - emptyDir: {}
+        name: run

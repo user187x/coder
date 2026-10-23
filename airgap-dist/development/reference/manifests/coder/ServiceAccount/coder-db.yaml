@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  annotations:
+    cnpg.io/managedSecrets: '[]'
+    cnpg.io/operatorVersion: 1.30.0
+  labels:
+    app.kubernetes.io/managed-by: cloudnative-pg
+    cnpg.io/cluster: coder-db
+  name: coder-db
+  namespace: coder
+  ownerReferences:
+  - apiVersion: postgresql.cnpg.io/v1
+    controller: true
+    kind: Cluster
+    name: coder-db
+    uid: 54243ed9-df37-4b24-acb8-88a154956198

@@ -1,0 +1,4 @@
+# The monospace font GNOME's settings name (Terminator's "system font", and any program that asks for it): the
+# workspace's Nerd Font, as XFCE's own MonospaceFontName (xfce/xfconf).
+[org.gnome.desktop.interface]
+monospace-font-name='JetBrainsMono Nerd Font Light 11'

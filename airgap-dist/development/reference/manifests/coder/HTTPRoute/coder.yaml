@@ -1,0 +1,34 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  annotations:
+    argocd.argoproj.io/tracking-id: coder:gateway.networking.k8s.io/HTTPRoute:coder/coder
+  labels:
+    app.kubernetes.io/instance: coder
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: coder
+    app.kubernetes.io/part-of: coder
+    app.kubernetes.io/version: 2.37.3
+    helm.sh/chart: coder-2.37.3
+  name: coder
+  namespace: coder
+spec:
+  hostnames:
+  - coder.grey-marshall.com
+  - '*.grey-marshall.com'
+  parentRefs:
+  - group: gateway.networking.k8s.io
+    kind: Gateway
+    name: traefik-gateway
+    namespace: traefik
+  rules:
+  - backendRefs:
+    - group: ''
+      kind: Service
+      name: coder
+      port: 80
+      weight: 1
+    matches:
+    - path:
+        type: PathPrefix
+        value: /

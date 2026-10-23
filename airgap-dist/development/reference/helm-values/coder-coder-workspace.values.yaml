@@ -1,0 +1,12 @@
+coder:
+  tokenSecret: coder-workspace-push-token
+  url: https://coder.grey-marshall.com
+icons:
+  gateway:
+    name: traefik-gateway
+    namespace: traefik
+  host: ""
+  image: nginxinc/nginx-unprivileged:1.30.5-alpine
+namespace: coder
+template:
+  name: ubuntu-vnc-desktop

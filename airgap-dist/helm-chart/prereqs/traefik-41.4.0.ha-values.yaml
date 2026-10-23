@@ -1,0 +1,24 @@
+# High availability for the Traefik Gateway (a prerequisite, not part of the chart): pass it after the reference
+# values, e.g. helm upgrade --install traefik prereqs/traefik-41.4.0.tgz -n traefik \
+#   -f prereqs/traefik-41.4.0.reference-values.yaml -f prereqs/traefik-41.4.0.ha-values.yaml
+# Two replicas on separate nodes, spread over the zones, one down at a time during drains and upgrades; the Gateway's
+# load balancer then has a target in every zone it spans.
+deployment:
+  replicas: 2
+podDisruptionBudget:
+  enabled: true
+  maxUnavailable: 1
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          topologyKey: kubernetes.io/hostname
+          labelSelector:
+            matchLabels: {app.kubernetes.io/name: traefik}
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: ScheduleAnyway
+    labelSelector:
+      matchLabels: {app.kubernetes.io/name: traefik}

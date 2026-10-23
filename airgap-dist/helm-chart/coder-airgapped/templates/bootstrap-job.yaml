@@ -1,0 +1,139 @@
+{{- include "ca.values" . -}}
+{{- if and .Values.bootstrap.enabled (include "platform.hasBase" .) }}
+{{- $auth := .Values.secrets.initAuth }}
+{{- $tokenSecret := index .Values "coder-workspace" "coder" "tokenSecret" }}
+{{- $ns := .Release.Namespace }}
+# First user + (with password sign-in off) the owner's Keycloak link and a short-lived template-push token.
+# See files/bootstrap/bootstrap.py.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coder-bootstrap
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.labels" . | nindent 4 }}
+data:
+  bootstrap.py: {{ .Files.Get "files/bootstrap/bootstrap.py" | toJson }}
+  pgwire.py: {{ .Files.Get "files/bootstrap/pgwire.py" | toJson }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: coder-bootstrap
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.labels" . | nindent 4 }}
+---
+# Only the template-push token Secret.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: coder-bootstrap
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: [secrets]
+    verbs: [create]
+  - apiGroups: [""]
+    resources: [secrets]
+    resourceNames: [{{ $tokenSecret }}]
+    verbs: [get, update, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: coder-bootstrap
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: coder-bootstrap
+subjects:
+  - {kind: ServiceAccount, name: coder-bootstrap, namespace: {{ $ns }}}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-bootstrap-first-user
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.labels" . | nindent 4 }}
+  annotations:
+    # Before coder-workspace's push-template hook (weight 0), which uses the token this writes.
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "-10"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+    # Argo CD: a Sync hook in wave 3, once Coder and its database (wave 0) are healthy, not a PostSync hook that waits
+    # for every resource (an unready metrics-server, wave 5, held it up: no admin, no template).
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/sync-wave: "3"
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+spec:
+  ttlSecondsAfterFinished: 3600
+  backoffLimit: 2
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: coder-bootstrap
+      annotations:
+        checksum/script: {{ printf "%s%s" (.Files.Get "files/bootstrap/bootstrap.py") (.Files.Get "files/bootstrap/pgwire.py") | sha256sum | trunc 16 | quote }}
+    spec:
+      restartPolicy: Never
+      serviceAccountName: coder-bootstrap
+      {{- with .Values.uiUpdates.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: bootstrap
+          image: {{ .Values.bootstrap.image }}
+          command: ["python3", "/bootstrap/bootstrap.py"]
+          env:
+            - name: CODER_URL
+              value: {{ include "ca.svcUrl" (list "coder" . 80) | quote }}
+            - name: TIMEOUT
+              value: {{ .Values.bootstrap.timeoutSeconds | quote }}
+            - name: FIRST_USER_EMAIL
+              valueFrom: {secretKeyRef: {name: {{ $auth.name }}, key: email}}
+            - name: FIRST_USER_USERNAME
+              valueFrom: {secretKeyRef: {name: {{ $auth.name }}, key: username, optional: true}}
+            - name: FIRST_USER_PASSWORD
+              valueFrom: {secretKeyRef: {name: {{ $auth.name }}, key: password}}
+            - name: DISABLE_PASSWORD_AUTH
+              value: {{ .Values.global.disablePasswordAuth | toString | quote }}
+            - name: TOKEN_SECRET
+              value: {{ $tokenSecret | quote }}
+            - name: CODER_DB_URI
+              valueFrom: {secretKeyRef: {name: {{ .Values.database.name }}-app, key: uri}}
+            - name: CODER_DB_CA
+              value: /etc/coder-db-ca/ca.crt
+            - {name: PYTHONDONTWRITEBYTECODE, value: "1"}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          resources:
+            requests: {cpu: 10m, memory: 32Mi}
+            limits: {memory: 64Mi}
+          volumeMounts:
+            - {name: script, mountPath: /bootstrap, readOnly: true}
+            - {name: db-ca, mountPath: /etc/coder-db-ca, readOnly: true}
+      volumes:
+        - name: script
+          configMap: {name: coder-bootstrap}
+        - name: db-ca
+          secret:
+            secretName: {{ .Values.database.name }}-ca
+            optional: true
+            items: [{key: ca.crt, path: ca.crt}]
+{{- end }}

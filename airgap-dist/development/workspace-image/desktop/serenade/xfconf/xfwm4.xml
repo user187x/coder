@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The Serenade desktop theme's: cirkles window borders. XFCE's own compositor stays off: picom draws the rounded
+     corners, shadows and animations (coder-desktop-theme compositor). -->
+<channel name="xfwm4" version="1.0">
+  <property name="general" type="empty">
+    <property name="theme" type="string" value="cirkles"/>
+    <property name="title_font" type="string" value="Overpass Bold 10"/>
+    <property name="title_alignment" type="string" value="center"/>
+    <property name="use_compositing" type="bool" value="false"/>
+  </property>
+</channel>

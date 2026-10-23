@@ -1,0 +1,159 @@
+#!/usr/bin/env bash
+# x509-support: a small self-signed PKI for coder-airgapped, plus checks for certificates you bring yourself.
+# Adapted from ~/devbox/data/util/x509/pki-toolkit (same CA / leaf / SAN-file approach), with what this deployment
+# needs: a CA that strict TLS clients accept (keyUsage set; Python's ssl rejects a CA without it), a wildcard server
+# certificate for <domain> + *.<domain>, a CA bundle, optional client (user) certificates, and validation.
+#
+# Use as a command:
+#   ./x509-support create DOMAIN [DIR]         CA + wildcard server cert in DIR (default ./pki-DOMAIN); reuses an
+#                                              existing CA in DIR, so re-running only renews the server cert
+#   ./x509-support client NAME [EMAIL] [DIR]   client (mTLS / "sign in with your certificate") cert + .p12
+#   ./x509-support check CERT KEY CA HOST...   the checks the deploy runs (pair, chain, names, expiry)
+#   ./x509-support info FILE                   subject, issuer, SANs, validity
+# or source it and call the x509_* functions.
+#
+# Files written by `create` (PEM): ca.crt ca.key  tls.crt tls.key (server, SANs DOMAIN and *.DOMAIN)  ca-bundle.pem
+# Env: X509_CA_DAYS (3650), X509_DAYS (825), X509_CA_BITS (4096), X509_BITS (2048), X509_ORG (coder-airgapped)
+set -o pipefail
+
+X509_CA_DAYS="${X509_CA_DAYS:-3650}"
+X509_DAYS="${X509_DAYS:-825}"
+X509_CA_BITS="${X509_CA_BITS:-4096}"
+X509_BITS="${X509_BITS:-2048}"
+X509_ORG="${X509_ORG:-coder-airgapped}"
+
+_x509_say() { printf '    %s\n' "$*"; }
+_x509_err() { printf '\033[31m    %s\033[0m\n' "$*" >&2; }
+
+# x509_ext FILE KIND DNS... : extension file; KIND server | client
+x509_ext() {
+	local file="$1" kind="$2" i=1 san; shift 2
+	{
+		echo "basicConstraints = critical, CA:FALSE"
+		echo "subjectKeyIdentifier = hash"
+		echo "authorityKeyIdentifier = keyid,issuer"
+		echo "keyUsage = critical, digitalSignature, keyEncipherment"
+		if [[ "$kind" == client ]]; then echo "extendedKeyUsage = clientAuth, emailProtection"; else echo "extendedKeyUsage = serverAuth, clientAuth"; fi
+		(($#)) && echo "subjectAltName = @alt_names" && echo "[alt_names]"
+	} >"$file"
+	for san in "$@"; do
+		if [[ "$san" == email:* ]]; then echo "email.$i = ${san#email:}" >>"$file"
+		elif [[ "$san" =~ ^[0-9.]+$ ]]; then echo "IP.$i = $san" >>"$file"
+		else echo "DNS.$i = $san" >>"$file"; fi
+		i=$((i + 1))
+	done
+}
+
+# x509_create_ca DIR NAME : ca.key + ca.crt (kept when they already exist)
+x509_create_ca() {
+	local dir="$1" name="$2"
+	mkdir -p "$dir"
+	if [[ -s "$dir/ca.crt" && -s "$dir/ca.key" ]]; then _x509_say "CA: reusing $dir/ca.crt"; return 0; fi
+	(umask 077; openssl genrsa -out "$dir/ca.key" "$X509_CA_BITS" 2>/dev/null) || return 1
+	openssl req -x509 -new -key "$dir/ca.key" -sha256 -days "$X509_CA_DAYS" -out "$dir/ca.crt" \
+		-subj "/O=${X509_ORG}/CN=${name} Root CA" \
+		-addext "basicConstraints = critical, CA:TRUE" \
+		-addext "keyUsage = critical, keyCertSign, cRLSign" \
+		-addext "subjectKeyIdentifier = hash" || return 1
+	_x509_say "CA: created $dir/ca.crt (${X509_CA_DAYS} days)"
+}
+
+# x509_create_leaf DIR BASENAME CN KIND SAN... : BASENAME.key + BASENAME.crt signed by DIR/ca.*
+x509_create_leaf() {
+	local dir="$1" base="$2" cn="$3" kind="$4"; shift 4
+	(umask 077; openssl genrsa -out "$dir/$base.key" "$X509_BITS" 2>/dev/null) || return 1
+	openssl req -new -key "$dir/$base.key" -subj "/O=${X509_ORG}/CN=${cn}" -out "$dir/$base.csr" || return 1
+	x509_ext "$dir/$base.ext" "$kind" "$@"
+	openssl x509 -req -in "$dir/$base.csr" -CA "$dir/ca.crt" -CAkey "$dir/ca.key" -CAcreateserial \
+		-days "$X509_DAYS" -sha256 -extfile "$dir/$base.ext" -out "$dir/$base.crt" 2>/dev/null || return 1
+	rm -f "$dir/$base.csr" "$dir/$base.ext"
+}
+
+# x509_create DOMAIN DIR : the deployment's PKI
+x509_create() {
+	local domain="$1" dir="${2:-./pki-$1}"
+	command -v openssl >/dev/null || { _x509_err "openssl not found"; return 1; }
+	x509_create_ca "$dir" "$domain" || return 1
+	x509_create_leaf "$dir" tls "*.${domain}" server "*.${domain}" "$domain" || return 1
+	cp "$dir/ca.crt" "$dir/ca-bundle.pem"
+	_x509_say "server: $dir/tls.crt + tls.key (${domain}, *.${domain}; ${X509_DAYS} days)"
+	_x509_say "bundle: $dir/ca-bundle.pem"
+}
+
+# x509_create_client NAME EMAIL DIR : client cert + .p12 (asks for its export password) for a browser / keystore
+x509_create_client() {
+	local name="$1" email="${2:-}" dir="${3:-.}" sans=()
+	[[ -s "$dir/ca.key" ]] || { _x509_err "no CA in $dir (run: create DOMAIN $dir)"; return 1; }
+	[[ -n "$email" ]] && sans=("email:$email")
+	x509_create_leaf "$dir" "client-$name" "$name" client "${sans[@]}" || return 1
+	openssl pkcs12 -export -in "$dir/client-$name.crt" -inkey "$dir/client-$name.key" -certfile "$dir/ca.crt" \
+		-name "$name" -out "$dir/client-$name.p12" || return 1
+	_x509_say "client: $dir/client-$name.crt / .key / .p12"
+}
+
+# ---- reading what the user brings ---------------------------------------------------------------------------
+# x509_to_pem IN OUT KIND(cert|key): copies IN as PEM (converts DER; decrypts an encrypted key, asking once)
+x509_to_pem() {
+	local in="$1" out="$2" kind="$3"
+	[[ -r "$in" ]] || { _x509_err "cannot read $in"; return 1; }
+	if [[ "$kind" == cert ]]; then
+		if grep -q -- '-----BEGIN CERTIFICATE-----' "$in"; then cp "$in" "$out"
+		else openssl x509 -inform DER -in "$in" -out "$out" 2>/dev/null || { _x509_err "$in is not a certificate (PEM or DER)"; return 1; }; fi
+		return 0
+	fi
+	if grep -q 'ENCRYPTED' "$in"; then
+		_x509_say "$in is passphrase-protected; Kubernetes needs it unencrypted (the decrypted copy stays local)."
+		local pass=(); [[ -n "${X509_KEY_PASS:-}" ]] && pass=(-passin env:X509_KEY_PASS)   # else openssl asks
+		(umask 077; openssl pkey -in "$in" "${pass[@]}" -out "$out") || { _x509_err "could not decrypt $in (wrong passphrase?)"; return 1; }
+	elif grep -q -- '-----BEGIN .*PRIVATE KEY-----' "$in"; then (umask 077; cp "$in" "$out")
+	else (umask 077; openssl pkey -inform DER -in "$in" -out "$out" 2>/dev/null) || { _x509_err "$in is not a private key (PEM or DER)"; return 1; }; fi
+}
+
+x509_is_ca() { openssl x509 -in "$1" -noout -ext basicConstraints 2>/dev/null | grep -q 'CA:TRUE'; }
+x509_pair_ok() { # CERT KEY
+	[[ "$(openssl x509 -in "$1" -noout -pubkey 2>/dev/null | openssl sha256)" == "$(openssl pkey -in "$2" -pubout 2>/dev/null | openssl sha256)" ]]
+}
+x509_chain_ok() { openssl verify -CAfile "$2" -untrusted "$1" "$1" >/dev/null 2>&1; } # CERT CA-BUNDLE
+x509_names() { openssl x509 -in "$1" -noout -ext subjectAltName 2>/dev/null | tr ',' '\n' | sed -n 's/^ *DNS://p'; }
+x509_covers() { # CERT HOST : does a SAN match HOST (one-label wildcards)
+	local san host="$2"
+	while read -r san; do
+		[[ "$san" == "$host" ]] && return 0
+		[[ "$san" == \*.* && "$host" == *."${san#\*.}" && "${host%."${san#\*.}"}" != *.* ]] && return 0
+	done < <(x509_names "$1")
+	return 1
+}
+x509_days_left() { echo $(( ($(date -d "$(openssl x509 -in "$1" -noout -enddate | cut -d= -f2)" +%s) - $(date +%s)) / 86400 )); }
+
+# x509_check CERT KEY CA HOST... : every check, with a plain message per problem
+x509_check() {
+	local cert="$1" key="$2" ca="$3" host ok=0; shift 3
+	openssl x509 -in "$cert" -noout 2>/dev/null || { _x509_err "$cert: not a PEM certificate"; return 1; }
+	openssl pkey -in "$key" -noout 2>/dev/null || { _x509_err "$key: not an unencrypted PEM key"; return 1; }
+	x509_pair_ok "$cert" "$key" || { _x509_err "the key does not belong to the certificate"; ok=1; }
+	if ! x509_is_ca "$ca"; then _x509_err "$ca is not a CA certificate"; ok=1
+	elif ! x509_chain_ok "$cert" "$ca"; then _x509_err "the certificate is not signed by $ca (or the bundle misses an intermediate)"; ok=1; fi
+	openssl x509 -in "$ca" -noout -ext keyUsage 2>/dev/null | grep -q 'Certificate Sign' ||
+		echo "    note: the CA has no keyUsage extension; Python clients with strict verification may reject it"
+	for host in "$@"; do x509_covers "$cert" "$host" || { _x509_err "the certificate does not cover $host (SANs: $(x509_names "$cert" | paste -sd' '))"; ok=1; }; done
+	local days; days=$(x509_days_left "$cert")
+	((days > 0)) || { _x509_err "the certificate expired"; ok=1; }
+	((days > 30)) || echo "    note: the certificate expires in $days days"
+	return "$ok"
+}
+
+x509_info() {
+	openssl x509 -in "$1" -noout -subject -issuer -enddate -ext subjectAltName,basicConstraints,keyUsage 2>/dev/null | sed 's/^/    /'
+}
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+	set -eu
+	cmd="${1:-}"; shift || true
+	case "$cmd" in
+	create) x509_create "${1:?usage: create DOMAIN [DIR]}" "${2:-./pki-${1}}" ;;
+	client) x509_create_client "${1:?usage: client NAME [EMAIL] [DIR]}" "${2:-}" "${3:-.}" ;;
+	check) (($# >= 3)) || { echo "usage: check CERT KEY CA [HOST...]" >&2; exit 2; }; x509_check "$@" && echo "    all checks passed" ;;
+	info) x509_info "${1:?usage: info FILE}" ;;
+	*) sed -n '2,/^set -o/p' "$0" | sed '$d'; exit 2 ;;
+	esac
+fi

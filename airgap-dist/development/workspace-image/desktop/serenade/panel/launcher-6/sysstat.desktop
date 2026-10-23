@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=System stats
+Comment=The workspace's processor, memory and disks
+Exec=sh -c 'eww daemon 2>/dev/null; eww open --toggle sysstat'
+Icon=/usr/share/coder-desktop/serenade/assets/activity.svg
+Terminal=false
+StartupNotify=false

@@ -1,0 +1,5 @@
+{{- include "traefik.platform.values" . -}}
+{{- range .Values.extraObjects }}
+---
+{{ include "traefik.render" (dict "value" . "context" $) }}
+{{- end }}

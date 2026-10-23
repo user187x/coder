@@ -1,0 +1,8 @@
+# Newer releases than Airflow's constraints (airflow-constraints.txt) pin, for vulnerabilities fixed in them: each
+# line replaces the constraint of the same package (the Dockerfile adds it when the constraints have none, as for pip,
+# which the virtual environment brings: the install's own pip, removed from the environment afterwards). `pip check`
+# must still pass.
+pip==26.2.1
+Mako==1.4.3
+PyJWT==2.15.1
+urllib3==2.8.0

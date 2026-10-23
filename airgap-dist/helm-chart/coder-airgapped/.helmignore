@@ -1,0 +1,12 @@
+.git/
+*.swp
+*.bak
+*.orig
+*~
+.DS_Store
+# Python bytecode (e.g. from importing ui-service.py in a test): never part of the chart
+__pycache__/
+*.pyc
+# The platform service's code is in its image (development/tools/build-ui-image.sh), not in the chart: Helm keeps each
+# release in a Secret of at most 1 MiB. pgwire.py stays: the bootstrap Job runs it from its ConfigMap.
+files/ui-updates/*

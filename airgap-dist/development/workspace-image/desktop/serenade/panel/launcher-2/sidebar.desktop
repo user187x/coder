@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Sidebar
+Comment=You, the time, the calendar and the applications at hand
+Exec=sh -c 'eww daemon 2>/dev/null; eww open --toggle sidebar'
+Icon=/usr/share/coder-desktop/serenade/assets/Menu.svg
+Terminal=false
+StartupNotify=false

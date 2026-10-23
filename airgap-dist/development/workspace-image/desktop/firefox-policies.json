@@ -1,0 +1,69 @@
+{
+  "policies": {
+    "DisableAppUpdate": true,
+    "DisableTelemetry": true,
+    "DisableFirefoxStudies": true,
+    "DisablePocket": true,
+    "DisableFeedbackCommands": true,
+    "DisableProfileImport": true,
+    "DontCheckDefaultBrowser": true,
+    "NoDefaultBookmarks": true,
+    "OverrideFirstRunPage": "",
+    "OverridePostUpdatePage": "",
+    "CaptivePortal": false,
+    "NetworkPrediction": false,
+    "SearchSuggestEnabled": false,
+    "ExtensionUpdate": false,
+    "FirefoxHome": {
+      "Search": true,
+      "TopSites": false,
+      "SponsoredTopSites": false,
+      "Highlights": false,
+      "Pocket": false,
+      "SponsoredPocket": false,
+      "Snippets": false,
+      "Locked": false
+    },
+    "UserMessaging": {
+      "ExtensionRecommendations": false,
+      "FeatureRecommendations": false,
+      "UrlbarInterventions": false,
+      "SkipOnboarding": true,
+      "MoreFromMozilla": false,
+      "Locked": false
+    },
+    "SecurityDevices": {
+      "Add": {
+        "System trust store (p11-kit)": "/usr/lib/x86_64-linux-gnu/pkcs11/p11-kit-trust.so"
+      }
+    },
+    "SkipTermsOfUse": true,
+    "Preferences": {
+      "datareporting.policy.dataSubmissionPolicyBypassNotification": {
+        "Value": true,
+        "Status": "default"
+      },
+      "browser.aboutwelcome.enabled": {
+        "Value": false,
+        "Status": "default"
+      },
+      "browser.startup.homepage_override.mstone": {
+        "Value": "ignore",
+        "Status": "default"
+      },
+      "trailhead.firstrun.didSeeAboutWelcome": {
+        "Value": true,
+        "Status": "default"
+      },
+      "browser.sessionstore.resume_from_crash": {
+        "Value": false,
+        "Status": "default"
+      }
+    },
+    "NewTabPage": false,
+    "Homepage": {
+      "StartPage": "none",
+      "Locked": false
+    }
+  }
+}

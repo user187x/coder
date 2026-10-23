@@ -1,0 +1,46 @@
+{{- include "coder-workspace.platform.values" . -}}
+{{- /*
+coder-enhanced-nifi: ONE HTTPRoute for the NiFi of every dataflow workspace (it was an HTTPRoute per workspace). A
+regular expression matches any workspace's NiFi path (/@<owner>/<workspace>[.<agent>]/apps/nifi...) on Coder's host and
+sends it to Coder's Service, as Coder's own route does; Coder's app proxy then sends it on to that workspace's NiFi, as
+for any app (and decides who may open it). NiFi builds its links from proxy headers: the scheme, host and port, the
+same for every workspace, set here; its path, each workspace's own, comes from Coder (the fork's app proxy sends
+X-Forwarded-Prefix, the app's base path). A client's own context-path headers are removed, so only Coder's counts.
+*/ -}}
+{{- if .Values.dataflowTemplate.enabled }}
+{{- $ns := .Values.namespace | default .Release.Namespace }}
+{{- $https := hasPrefix "https://" .Values.coder.url }}
+{{- $host := regexReplaceAll ":[0-9]+$" (.Values.icons.host | default (trimPrefix "http://" (trimPrefix "https://" .Values.coder.url))) "" }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: coder-enhanced-nifi
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/name: coder-workspace
+    app.kubernetes.io/part-of: coder
+spec:
+  hostnames:
+    - {{ $host }}
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: {{ .Values.icons.gateway.name }}
+      namespace: {{ .Values.icons.gateway.namespace }}
+  rules:
+    - matches:
+        - path:
+            type: RegularExpression
+            value: '^/@[^/]+/[^/]+/apps/nifi(/.*)?$'
+      filters:
+        - type: RequestHeaderModifier
+          requestHeaderModifier:
+            set:
+              - {name: X-ProxyScheme, value: {{ ternary "https" "http" $https }}}
+              - {name: X-ProxyHost, value: {{ $host | quote }}}
+              - {name: X-ProxyPort, value: {{ ternary "443" "80" $https | quote }}}
+            remove: [X-ProxyContextPath, X-Forwarded-Context]
+      backendRefs:
+        - name: {{ .Values.nifiRoute.coderService.name }}
+          port: {{ .Values.nifiRoute.coderService.port }}
+{{- end }}

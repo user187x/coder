@@ -1,0 +1,56 @@
+{{- include "coder-workspace.platform.values" . -}}
+{{- /*
+The dataflow template's old per-workspace NiFi route (before 1.46.0, kubernetes_manifest nifi_route; now one route
+for all, templates/nifi-route.yaml): Coder's provisioner, which runs as Coder's service account, deletes each old
+workspace's HTTPRoute at its next build - HTTPRoutes in this namespace, and reading the cluster's CRDs, where
+Terraform's kubernetes_manifest looks up the HTTPRoute's type first. Kept until every workspace has been rebuilt.
+*/ -}}
+{{- if .Values.dataflowTemplate.enabled }}
+{{- $ns := .Values.namespace | default .Release.Namespace }}
+{{- $name := printf "%s-nifi-routes" (include "coder-workspace.prefix" .) }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $name }}
+  namespace: {{ $ns }}
+rules:
+  - apiGroups: ["gateway.networking.k8s.io"]
+    resources: ["httproutes"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $name }}
+  namespace: {{ $ns }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $name }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Values.nifiRoute.coderServiceAccount }}
+    namespace: {{ $ns }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ $name }}-{{ $ns }}
+rules:
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ $name }}-{{ $ns }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ $name }}-{{ $ns }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Values.nifiRoute.coderServiceAccount }}
+    namespace: {{ $ns }}
+{{- end }}

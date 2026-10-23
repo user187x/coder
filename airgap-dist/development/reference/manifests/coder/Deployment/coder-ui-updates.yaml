@@ -1,0 +1,305 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: coder-ui-updates
+    app.kubernetes.io/name: coder-ui-updates
+    app.kubernetes.io/part-of: coder
+  name: coder-ui-updates
+  namespace: coder
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: coder-ui-updates
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        checksum/files: d037b6a6c852d269
+      labels:
+        app.kubernetes.io/name: coder-ui-updates
+        app.kubernetes.io/part-of: coder
+    spec:
+      containers:
+      - command:
+        - python3
+        - /app/ui-service.py
+        env:
+        - name: PORT
+          value: '8080'
+        - name: STATIC_DIR
+          value: /app/static
+        - name: DB_PATH
+          value: /data/receipts.sqlite
+        - name: CODER_URL
+          value: http://coder.coder.svc.cluster.local:80
+        - name: BANNER_URL
+          value: http://coder-banner.coder.svc.cluster.local:80
+        - name: ADMIN_ROLES
+          value: owner
+        - name: CODER_ACCESS_URL
+          value: https://coder.grey-marshall.com
+        - name: CODER_NAMESPACE
+          value: coder
+        - name: CODER_DEPLOYMENT
+          value: coder
+        - name: ATTACHED
+          value: 'false'
+        - name: KEYCLOAK_NAMESPACE
+          value: keycloak
+        - name: KEYCLOAK_ADMIN_SECRET
+          value: keycloak-initial-admin
+        - name: ARGOCD_NAMESPACE
+          value: argocd
+        - name: ARGOCD_APP
+          value: coder
+        - name: CA_SOURCE_SECRET
+          value: tls-ca
+        - name: CA_FILE
+          value: /etc/coder-ui/ca/ca.crt
+        - name: WORKSPACE_NAMESPACE
+          value: coder
+        - name: PG_IMAGE
+          value: ghcr.io/cloudnative-pg/postgresql:18.4-system-trixie
+        - name: CODER_DB_URI
+          valueFrom:
+            secretKeyRef:
+              key: uri
+              name: coder-db-app
+              optional: true
+        - name: CODER_DB_CA
+          value: /etc/coder-ui/db-ca/ca.crt
+        - name: CODER_DB_SECRET
+          value: coder-db-app
+        - name: CODER_DB_SECRET_KEY
+          value: uri
+        - name: CODER_DB_CA_SECRET
+          value: coder-db-ca
+        - name: LOGS_DB_SECRET
+          value: coder-ui-logs-db
+        - name: LOGS_DB_URL
+          value: postgresql://logs:{password}@coder-ui-logs-db.coder.svc.cluster.local:5432/logs?sslmode=disable
+        - name: DEFAULTS_DIR
+          value: /app/defaults
+        - name: PYTHONDONTWRITEBYTECODE
+          value: '1'
+        - name: PYTHONUNBUFFERED
+          value: '1'
+        image: harbor.grey-marshall.com/library/python:3.13-alpine
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /__coder-ui/healthz
+            port: http
+            scheme: HTTP
+          periodSeconds: 30
+          successThreshold: 1
+          timeoutSeconds: 1
+        name: ui
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /__coder-ui/healthz
+            port: http
+            scheme: HTTP
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        resources:
+          limits:
+            memory: 192Mi
+          requests:
+            cpu: 10m
+            memory: 32Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /app/ui-service.py
+          name: code
+          subPath: ui-service.py
+        - mountPath: /app/pgwire.py
+          name: code
+          subPath: pgwire.py
+        - mountPath: /app/certinfo.py
+          name: code
+          subPath: certinfo.py
+        - mountPath: /app/static
+          name: static
+        - mountPath: /data
+          name: data
+        - mountPath: /etc/coder-ui/ca
+          name: ca
+          readOnly: true
+        - mountPath: /etc/coder-ui/db-ca
+          name: db-ca
+          readOnly: true
+        - mountPath: /app/defaults/logo
+          name: default-logo
+          readOnly: true
+        - mountPath: /app/defaults/avatar
+          name: default-avatar
+          readOnly: true
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext:
+        fsGroup: 65534
+        runAsGroup: 65534
+        runAsNonRoot: true
+        runAsUser: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      serviceAccount: coder-ui-updates
+      serviceAccountName: coder-ui-updates
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - configMap:
+          defaultMode: 420
+          items:
+          - key: ui-service.py
+            path: ui-service.py
+          - key: pgwire.py
+            path: pgwire.py
+          - key: certinfo.py
+            path: certinfo.py
+          name: coder-ui-updates
+        name: code
+      - configMap:
+          defaultMode: 420
+          items:
+          - key: dashboard.js
+            path: dashboard.js
+          - key: dashboard.css
+            path: dashboard.css
+          - key: classification.js
+            path: classification.js
+          - key: ack.js
+            path: ack.js
+          - key: banner-enhance.js
+            path: banner-enhance.js
+          - key: banner-dock.js
+            path: banner-dock.js
+          - key: views.js
+            path: views.js
+          - key: admin-embed.js
+            path: admin-embed.js
+          - key: announcement-embed.css
+            path: announcement-embed.css
+          - key: view.css
+            path: view.css
+          - key: classification.html
+            path: classification.html
+          - key: classification.css
+            path: classification.css
+          - key: classification-view.js
+            path: classification-view.js
+          - key: keycloak.html
+            path: keycloak.html
+          - key: keycloak.css
+            path: keycloak.css
+          - key: keycloak-view.js
+            path: keycloak-view.js
+          - key: logo.html
+            path: logo.html
+          - key: logo.css
+            path: logo.css
+          - key: logo-view.js
+            path: logo-view.js
+          - key: monitoring.html
+            path: monitoring.html
+          - key: monitoring.css
+            path: monitoring.css
+          - key: monitoring-view.js
+            path: monitoring-view.js
+          - key: workspace-health.js
+            path: workspace-health.js
+          - key: workspace-health.html
+            path: workspace-health.html
+          - key: workspace-health.css
+            path: workspace-health.css
+          - key: workspace-health-view.js
+            path: workspace-health-view.js
+          - key: pkcs12.js
+            path: pkcs12.js
+          - key: certificates.html
+            path: certificates.html
+          - key: certificates.css
+            path: certificates.css
+          - key: certificates-view.js
+            path: certificates-view.js
+          - key: network.html
+            path: network.html
+          - key: network.css
+            path: network.css
+          - key: network-view.js
+            path: network-view.js
+          - key: theme-toggle.js
+            path: theme-toggle.js
+          - key: avatar.js
+            path: avatar.js
+          - key: avatar.css
+            path: avatar.css
+          - key: agent-terminal.js
+            path: agent-terminal.js
+          - key: agent-terminal.css
+            path: agent-terminal.css
+          - key: chat.js
+            path: chat.js
+          - key: chat.css
+            path: chat.css
+          - key: users-row.js
+            path: users-row.js
+          - key: html2canvas.min.js
+            path: html2canvas.min.js
+          - key: cluster-gauge.js
+            path: cluster-gauge.js
+          - key: account-avatar.js
+            path: account-avatar.js
+          - key: workspaces-icon.png
+            path: workspaces-icon.png
+          name: coder-ui-updates
+        name: static
+      - name: data
+        persistentVolumeClaim:
+          claimName: coder-ui-updates-data
+      - name: ca
+        secret:
+          defaultMode: 420
+          items:
+          - key: ca.crt
+            path: ca.crt
+          optional: true
+          secretName: tls-ca
+      - name: db-ca
+        secret:
+          defaultMode: 420
+          items:
+          - key: ca.crt
+            path: ca.crt
+          optional: true
+          secretName: coder-db-ca
+      - configMap:
+          defaultMode: 420
+          name: coder-ui-updates-default-logo
+          optional: true
+        name: default-logo
+      - configMap:
+          defaultMode: 420
+          name: coder-ui-updates-default-avatar
+          optional: true
+        name: default-avatar

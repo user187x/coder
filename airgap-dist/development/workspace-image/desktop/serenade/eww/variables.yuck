@@ -1,0 +1,39 @@
+;; The Serenade desktop theme's eww variables (coder-desktop-theme): Miserable_Xfce's, but those that need the
+;; internet or hardware a workspace has not (weather, Spotify, Gmail, battery, Wi-Fi, pacman's updates) left out.
+
+;; ***** DISK USAGE ********************************************
+
+(defpoll DISK_ROOT_TOTAL :interval "5s"  "./scripts/disk / --total")
+(defpoll DISK_ROOT_USED :interval "5s"  "./scripts/disk / --used_value")
+(defpoll DISK_ROOT_USED_PERC :interval "5s"  "./scripts/disk / --used_perc")
+(defpoll DISK_HOME_TOTAL :interval "5s"  "./scripts/disk ~/ --total")
+(defpoll DISK_HOME_USED :interval "5s"  "./scripts/disk ~/ --used_value")
+(defpoll DISK_HOME_USED_PERC :interval "5s"  "./scripts/disk ~/ --used_perc")
+
+
+;; ***** CPU MEMORY AND SWAP ***********************************
+
+(defpoll CPU :interval "1s" "./scripts/cpu")
+(defpoll MEM :interval "1s" "./scripts/mem")
+(defpoll MEM_VALUE :interval "2s" "./scripts/mem --value")
+(defpoll PROC :interval "2s" "./scripts/processes")
+(defpoll SWAP_TOTAL :interval "5s"  "./scripts/swap --total")
+(defpoll SWAP_USED :interval "5s"  "./scripts/swap --used")
+(defpoll SWAP_PERC :interval "5s"  "./scripts/swap --perc")
+
+
+;; ***** CALENDAR VARIABLES ************************************
+
+(defpoll calendar_day :interval "10m" "date '+%d'")
+(defpoll calendar_weekday :interval "10m" "date '+%A'")
+(defpoll calendar_month :interval "10m" "date '+%m'")
+(defpoll calendar_month2 :interval "10m" "date '+%B'")
+(defpoll calendar_year :interval "10m" "date '+%Y'")
+(defpoll month_year :interval "10m" "date '+%B %Y'")
+
+
+;; ***** USER PROFILE VARS *************************************
+
+(defpoll username :interval "69420s" `whoami`)
+(defpoll host :interval "69420s" `hostname`)
+(defpoll uptime :interval "10s" `./scripts/uptime`)

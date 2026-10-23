@@ -1,0 +1,18 @@
+users: 100 developers, 5 admins (speed x10 = about 1050 tabs), 8 minutes
+
+endpoint         requests    p50 s    p95 s    p99 s    max s  errors
+acks                 1524    0.046    0.060    0.083    0.156  
+banner               8349    0.043    0.054    0.068    0.137  
+banner-state         1525    0.043    0.057    0.088    0.190  
+classification      16545    0.045    0.059    0.075    0.136  
+cluster-usage        6674    0.045    0.066    0.092    0.194  
+hud                  2267    0.005    0.206    0.344    0.474  
+hud-history          2269    0.007    0.027    0.046    0.088  
+me                  16554    0.020    0.098    0.153    0.434  
+quota                 763    0.113    0.284    0.380    0.535  
+schedule-me          8335    0.046    0.069    0.106    0.216  
+scheduler             762    0.075    0.254    0.341    0.495  
+workspaces          92059    0.036    0.109    0.160    0.438  
+
+157626 requests in 480s (328.4/s), 0 failed (0.00%), worst p95 0.284s
+LOAD PASS (limits: error rate 1.00%, p95 2.0s)

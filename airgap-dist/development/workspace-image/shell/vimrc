@@ -1,0 +1,7 @@
+" Default Vim configuration of the workspace image: ~/.bashrc sets VIMINIT to load ~/.config/vim/vimrc (this file,
+" copied there when missing), which replaces Vim's usual ~/.vimrc lookup. So: Vim's defaults, then ~/.vimrc if any.
+unlet! skip_defaults_vim
+source $VIMRUNTIME/defaults.vim
+if filereadable(expand("~/.vimrc"))
+  source ~/.vimrc
+endif

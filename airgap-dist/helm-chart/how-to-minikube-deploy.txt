@@ -1,0 +1,80 @@
+HOW TO DEPLOY CODER (AIR-GAPPED) ON MINIKUBE
+============================================
+
+Everything the install needs is in this bundle, every container image included.
+Nothing is downloaded while it runs.
+
+
+BEFORE YOU START
+----------------
+The machine needs these installed:  docker, minikube, helm, kubectl
+
+
+1. UNPACK THE BUNDLE
+--------------------
+    tar -xzf coder-airgapped-<version>.tar.gz
+    cd coder-airgapped-<version>
+
+(The bundle is built from the repository: development/tools/build-bundle.sh writes it
+to dist/. A GitHub release is the slim folder instead - only our images and the chart,
+for a cluster whose registry has the public images: see its INSTALL.md.)
+
+
+2. RUN THE INSTALLER
+--------------------
+    ./make --deploy
+
+It asks a few questions. Press Enter to take the default:
+
+    Where                 Minikube
+    Domain                e.g. example.com
+                          -> Coder at https://coder.example.com
+                          -> Keycloak at https://keycloak.example.com
+    Certificates          create new self-signed ones (a private CA you trust once),
+                          or point it at your own certificate, key and CA
+    Minikube profile      coder  (created if it does not exist: 3 nodes)
+    Keycloak              deploy a development Keycloak in the cluster
+    kubectl for admins    yes  (restarts the cluster's API server once)
+
+
+3. SUDO (ASKED ONCE)
+--------------------
+Reaching the cluster from this machine needs root for up to three things:
+the minikube tunnel, entries in /etc/hosts, and trusting the CA.
+The script lists only the ones still needed and asks once.
+Say no and it prints the exact commands for you to run instead.
+
+
+4. SIGN IN
+----------
+When it finishes it prints the URL. Open https://coder.<your-domain>
+
+    Admin           admin@admin.com / admin
+                    Change this password at once: avatar > Account > Security
+    Everyone else   the Keycloak logo on the sign-in page (their certificate)
+
+
+LATER
+-----
+    Run it again without questions (it remembers your answers):
+        ./make --deploy --yes
+
+    After a reboot (brings back the tunnel and the host names):
+        ./minikube-support expose coder <your-domain>
+
+    Watch the progress from another terminal:
+        tail -F .deploy/deploy.log
+
+
+GOOD TO KNOW
+------------
+  - One tunnel at a time: only one minikube profile can have a tunnel.
+    Keep other minikube profiles stopped.
+
+  - A browser installed as a snap (e.g. Chromium) may ignore the system's
+    trusted CA. If it shows a certificate warning, import this file in that
+    browser's certificate settings (Authorities):
+        .deploy/minikube-<your-domain>/pki/ca.crt
+
+  - The manual install, EKS and Argo CD are in DEPLOY.md; README.md is the
+    reference; images/README.md lists every bundled image.

@@ -1,0 +1,17 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: airgap-test
+containerdConfigPatches:
+- |-
+  [plugins."io.containerd.cri.v1.images".registry]
+    config_path = "/etc/containerd/certs.d"
+nodes:
+- role: control-plane
+  # etcd in memory (the node's /tmp is a tmpfs): on a busy development machine a slow disk made etcd miss its
+  # deadlines, the controller manager lose its lease and crash-loop, and the test fail for reasons of its own.
+  kubeadmConfigPatches:
+  - |
+    kind: ClusterConfiguration
+    etcd:
+      local:
+        dataDir: /tmp/etcd

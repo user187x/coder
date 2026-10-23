@@ -1,0 +1,193 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    argocd.argoproj.io/tracking-id: coder:apps/Deployment:coder/coder
+  labels:
+    app.kubernetes.io/instance: coder
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: coder
+    app.kubernetes.io/part-of: coder
+    app.kubernetes.io/version: 2.37.3
+    helm.sh/chart: coder-2.37.3
+  name: coder
+  namespace: coder
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: coder
+      app.kubernetes.io/name: coder
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        app.kubernetes.io/component: coderd
+        kubectl.kubernetes.io/restartedAt: '2026-09-09T23:40:37-04:00'
+      labels:
+        app.kubernetes.io/instance: coder
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: coder
+        app.kubernetes.io/part-of: coder
+        app.kubernetes.io/version: 2.37.3
+        helm.sh/chart: coder-2.37.3
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app.kubernetes.io/instance
+                  operator: In
+                  values:
+                  - coder
+              topologyKey: kubernetes.io/hostname
+            weight: 1
+      containers:
+      - args:
+        - server
+        command:
+        - /opt/coder
+        env:
+        - name: CODER_HTTP_ADDRESS
+          value: 0.0.0.0:8080
+        - name: CODER_PROMETHEUS_ADDRESS
+          value: 0.0.0.0:2112
+        - name: CODER_PPROF_ADDRESS
+          value: 0.0.0.0:6060
+        - name: KUBE_POD_IP
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: status.podIP
+        - name: CODER_DERP_SERVER_RELAY_URL
+          value: http://$(KUBE_POD_IP):8080
+        - name: CODER_CLUSTER_HOST
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: status.podIP
+        - name: CODER_PLATFORM_SERVICE_ROUTES
+          value: /__coder-ui=http://coder-ui-updates.coder.svc.cluster.local
+        - name: CODER_BOOTSTRAP_INITIAL_USER_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: password
+              name: coder-init-auth
+        - name: CODER_ACCESS_URL
+          value: https://coder.grey-marshall.com
+        - name: CODER_WILDCARD_ACCESS_URL
+          value: '*.grey-marshall.com'
+        - name: CODER_NOTIFICATIONS_METHOD
+          value: webhook
+        - name: CODER_NOTIFICATIONS_WEBHOOK_ENDPOINT
+          value: https://coder.grey-marshall.com/webhook
+        - name: CODER_PG_CONNECTION_URL
+          valueFrom:
+            secretKeyRef:
+              key: uri
+              name: coder-db-app
+        - name: CODER_TLS_CA_CERT
+          value: /etc/ssl/certs/ca.crt
+        - name: CODER_OIDC_ISSUER_URL
+          value: https://keycloak.grey-marshall.com/realms/master
+        - name: CODER_OIDC_CLIENT_ID
+          value: coder
+        - name: CODER_OIDC_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              key: client-secret
+              name: keycloaking-coder-oidc
+        - name: CODER_OIDC_SCOPES
+          value: openid,profile,email
+        - name: CODER_OIDC_USERNAME_FIELD
+          value: preferred_username
+        - name: CODER_OIDC_EMAIL_FIELD
+          value: email
+        - name: CODER_OIDC_IGNORE_EMAIL_VERIFIED
+          value: 'true'
+        - name: CODER_OIDC_SIGN_IN_TEXT
+          value: Sign in with your certificate
+        - name: CODER_OIDC_ICON_URL
+          value: /icon/keycloak.svg
+        - name: CODER_OIDC_ALLOW_SIGNUPS
+          value: 'true'
+        - name: SSL_CERT_DIR
+          value: /etc/ssl/certs:/etc/keycloaking/ca
+        - name: CODER_DISABLE_PASSWORD_AUTH
+          value: 'true'
+        - name: CODER_OAUTH2_GITHUB_DEFAULT_PROVIDER_ENABLE
+          value: 'false'
+        image: ghcr.io/user187x/coder-platform:2.0.0-platform.4
+        imagePullPolicy: IfNotPresent
+        lifecycle: {}
+        name: coder
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /healthz
+            port: http
+            scheme: HTTP
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        resources:
+          limits:
+            cpu: '2'
+            memory: 4Gi
+          requests:
+            cpu: '2'
+            memory: 4Gi
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsGroup: 1000
+          runAsNonRoot: true
+          runAsUser: 1000
+          seccompProfile:
+            type: RuntimeDefault
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /etc/ssl/certs/coder/coder-wildcard-tls
+          name: tls-coder-wildcard-tls
+          readOnly: true
+        - mountPath: /etc/ssl/certs/ca.crt
+          name: ca-bundle
+          subPath: ca.crt
+        - mountPath: /etc/keycloaking/ca
+          name: keycloaking-ca
+          readOnly: true
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      serviceAccount: coder
+      serviceAccountName: coder
+      terminationGracePeriodSeconds: 60
+      volumes:
+      - name: tls-coder-wildcard-tls
+        secret:
+          defaultMode: 420
+          secretName: tls-wild-cert
+      - name: ca-bundle
+        secret:
+          defaultMode: 420
+          items:
+          - key: ca.crt
+            path: ca.crt
+          secretName: tls-ca
+      - name: keycloaking-ca
+        secret:
+          defaultMode: 420
+          secretName: keycloaking-coder-ca

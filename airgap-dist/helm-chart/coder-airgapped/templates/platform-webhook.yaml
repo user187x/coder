@@ -1,0 +1,226 @@
+{{- include "ca.values" . -}}
+{{- if and .Values.platformWebhook.enabled .Values.uiUpdates.enabled (include "platform.hasLayer" .) }}
+{{- $wh := .Values.platformWebhook }}
+{{- $ui := .Values.uiUpdates }}
+{{- $ns := .Release.Namespace }}
+{{- $name := "coder-platform-webhook" }}
+{{- $userStorage := eq (toString (.Values.global.userStorage | default dict).enabled) "true" }}
+{{- /* The workspace pods' admission webhook (ADR-0002, files/ui-updates/webhook.py): Lock Down, the cluster's CA, the
+     Cloud Drive and the code-server relay added to any workspace's pod as Kubernetes creates it - not in the
+     template's Terraform. Its TLS: a CA and a serving certificate of the chart's own, made once (an upgrade finds and
+     keeps them), the CA in the configuration's caBundle. */}}
+{{- $host := printf "%s.%s.svc" $name $ns }}
+{{- $old := (lookup "v1" "Secret" $ns (printf "%s-tls" $name)).data | default dict }}
+{{- $tls := dict }}
+{{- if and (index $old "ca.crt") (index $old "tls.crt") (index $old "tls.key") }}
+{{- $tls = dict "ca" (index $old "ca.crt" | b64dec) "crt" (index $old "tls.crt" | b64dec) "key" (index $old "tls.key" | b64dec) }}
+{{- else }}
+{{- $ca := genCA (printf "%s %s CA" $name $ns) 3650 }}
+{{- $crt := genSignedCert $host nil (list $host (printf "%s.%s" $name $ns) $name) 3650 $ca }}
+{{- $tls = dict "ca" $ca.Cert "crt" $crt.Cert "key" $crt.Key }}
+{{- end }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ $name }}-tls
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.labels" . | nindent 4 }}
+    app.kubernetes.io/name: {{ $name }}
+type: kubernetes.io/tls
+data:
+  ca.crt: {{ $tls.ca | b64enc }}
+  tls.crt: {{ $tls.crt | b64enc }}
+  tls.key: {{ $tls.key | b64enc }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $name }}
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.labels" . | nindent 4 }}
+    app.kubernetes.io/name: {{ $name }}
+---
+# It reads what a pod needs and writes nothing: the Cloud Drive's state, a workspace's home claim (its size).
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $name }}
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.labels" . | nindent 4 }}
+    app.kubernetes.io/name: {{ $name }}
+rules:
+  - apiGroups: [""]
+    resources: [configmaps]
+    resourceNames: [coder-cloud-drive]
+    verbs: [get]
+  - apiGroups: [""]
+    resources: [persistentvolumeclaims]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $name }}
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.labels" . | nindent 4 }}
+    app.kubernetes.io/name: {{ $name }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $name }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $name }}
+    namespace: {{ $ns }}
+---
+# Stateless, two replicas on different nodes where they can be: with failurePolicy Fail a workspace pod waits while
+# none answers, so one is always up (the PodDisruptionBudget) - and the platform service's own restarts never block a
+# workspace's start.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.labels" . | nindent 4 }}
+    app.kubernetes.io/name: {{ $name }}
+spec:
+  replicas: {{ $wh.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ $name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ $name }}
+        app.kubernetes.io/part-of: coder
+      annotations:
+        # a new certificate (a fresh install's) restarts it
+        checksum/tls: {{ $tls.crt | sha256sum | trunc 16 }}
+    spec:
+      serviceAccountName: {{ $name }}
+      {{- with $ui.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: {{ $name }}
+      containers:
+        - name: webhook
+          image: {{ $ui.image }}
+          imagePullPolicy: {{ $ui.imagePullPolicy }}
+          command: [python3, /app/webhook.py]
+          env:
+            - {name: PORT, value: "8443"}
+            - {name: WEBHOOK_TLS_DIR, value: /etc/webhook-tls}
+            - {name: WORKSPACE_NAMESPACE, value: {{ $ns | quote }}}
+            - {name: CODER_ACCESS_URL, value: {{ $ui.accessUrl | quote }}}
+            - {name: TLS_CA_SECRET, value: {{ .Values.global.secretNames.tlsCa | quote }}}
+            - {name: USER_STORAGE, value: {{ ternary "1" "" $userStorage | quote }}}
+            - {name: SAFE_MOUNT_PATH, value: {{ .Values.global.userStorage.mountPath | default "/home/coder/cloud-drive" | quote }}}
+            {{- with (index .Values "coder-workspace" "codeServerHA") }}
+            - {name: CODE_SERVER_HA_IMAGE, value: {{ tpl .image $ | quote }}}
+            - {name: CODE_SERVER_HA_DB_CA_SECRET, value: {{ tpl .dbCaSecret $ | quote }}}
+            {{- end }}
+          ports:
+            - {name: https, containerPort: 8443}
+          readinessProbe:
+            httpGet: {path: /healthz, port: https, scheme: HTTPS}
+            periodSeconds: 5
+          resources:
+            {{- toYaml $wh.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - {name: tls, mountPath: /etc/webhook-tls, readOnly: true}
+      volumes:
+        - name: tls
+          secret:
+            secretName: {{ $name }}-tls
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $name }}
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.labels" . | nindent 4 }}
+    app.kubernetes.io/name: {{ $name }}
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ $name }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.labels" . | nindent 4 }}
+    app.kubernetes.io/name: {{ $name }}
+spec:
+  selector:
+    app.kubernetes.io/name: {{ $name }}
+  ports:
+    - {name: https, port: 443, targetPort: https}
+---
+# Only the workspace pods of this release's namespace (Coder's Kubernetes example labels them so, and our templates):
+# never the webhook's own pods, Coder's or the platform service's.
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: {{ $name }}-{{ $ns }}
+  labels:
+    {{- include "ca.labels" . | nindent 4 }}
+    app.kubernetes.io/name: {{ $name }}
+webhooks:
+  - name: workspace-pods.platform.coder
+    admissionReviewVersions: [v1]
+    sideEffects: None
+    failurePolicy: {{ $wh.failurePolicy }}
+    timeoutSeconds: {{ $wh.timeoutSeconds }}
+    reinvocationPolicy: Never
+    clientConfig:
+      service:
+        name: {{ $name }}
+        namespace: {{ $ns }}
+        path: /mutate
+        port: 443
+      caBundle: {{ $tls.ca | b64enc }}
+    rules:
+      - operations: [CREATE]
+        apiGroups: [""]
+        apiVersions: [v1]
+        resources: [pods]
+        scope: Namespaced
+    namespaceSelector:
+      matchLabels:
+        kubernetes.io/metadata.name: {{ $ns }}
+    objectSelector:
+      matchLabels:
+        app.kubernetes.io/name: coder-workspace
+      matchExpressions:
+        - {key: com.coder.workspace.id, operator: Exists}
+{{- end }}

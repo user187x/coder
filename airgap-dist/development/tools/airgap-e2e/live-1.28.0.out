@@ -1,0 +1,78 @@
+PASS [upstream] build info - v2.0.0-platform.24+fafe531
+PASS [upstream] sign-in methods: password - {"password": {"enabled": true}, "oidc": {"enabled": true, "signInText": "Sign in with your certificate", "iconUrl": "/icon/keycloak.svg"}}
+PASS [upstream] a wrong password is refused - 401
+PASS [upstream] owner signs in with a password - 201
+PASS [upstream] the owner has the owner role - [{'name': 'owner', 'display_name': 'Owner'}]
+PASS [upstream] organizations - 200
+PASS [upstream] an owner creates a user - 201
+PASS [upstream] the new user signs in - 201
+PASS [upstream] a suspended user is locked out - 200 401
+PASS [upstream] a reactivated user signs in again - 201
+PASS [upstream] API token: created and used - 201 200
+PASS [upstream] API token: deleted and refused - 204 401
+PASS [upstream] template ubuntu-vnc-desktop present - ['ubuntu-vnc-desktop']
+PASS [upstream] the active template version built - succeeded
+PASS [upstream] template version resources - 3
+PASS [upstream] template parameters - ['cpu', 'home_disk_size', 'memory']
+PASS [upstream] template source archive downloads - 200
+PASS [upstream] a new template version builds (terraform init offline: provider mirror) - succeeded
+PASS [upstream] workspace created - 201 {'id': '0a625993-7691-4742-a3dc-d1c6b9ff2f9a', 'created_at': '2026-10-13T08:00:17.799074Z', 'updated_at': '2026-10-13T08:00:17.799074Z', 'owner_id': '7c56f367-825b-4126-8953-1d246e374304', 'owner_name': 'admin', 'owner_avatar_url': '', 'organization_id': '815d317d-9d5c-4809-9a79-744b5c00f942', 'orga
+PASS [upstream] workspace build succeeded - succeeded
+PASS [upstream] agent connected - connected
+PASS [upstream] startup finished (lifecycle ready) - ready
+PASS [upstream] build logs - 90
+PASS [upstream] app code-server healthy - healthy
+PASS [upstream] app code-server answers through Coder's proxy - 200
+PASS [upstream] app filebrowser healthy - healthy
+PASS [upstream] app filebrowser answers through Coder's proxy - 200
+PASS [upstream] app marimo healthy - healthy
+PASS [upstream] app marimo answers through Coder's proxy - 200
+PASS [upstream] app marimo-windows healthy - disabled
+PASS [upstream] app marimo-windows answers through Coder's proxy - 200
+PASS [upstream] app novnc healthy - healthy
+PASS [upstream] app novnc answers through Coder's proxy - 200
+PASS [upstream] web terminal: a command runs in the workspace (reconnecting PTY over websocket)
+PASS [upstream] listening ports (port forwarding API) - []
+PASS [fork] post-it notes: the workspace's notes - 200
+PASS [fork] post-it notes: an admin adds one - 200 {'note': {'id': 'b6ab738827aa432c', 'workspaceId': '0a625993-7691-4742-a3dc-d1c6b9ff2f9a', 'text': 'verify 1193', 'color': 'yellow', 'x': 0.5, 'y': 0.5, 'tilt': -3.1, 'author': 'admin', 'createdAt': '
+PASS [fork] workspace volume: size and state - {'volume': {'name': 'coder-0a625993-7691-4742-a3dc-d1c6b9ff2f9a-home', 'sizeGB': 5.0, 'requestedGB': 5.0, 'storageClass': 'standard', 'expandable': False, 'phase': 'Bound', 'conditions': ['Unused']}, 
+PASS [fork] home backup (download) - {'id': 2, 'kind': 'backup', 'target': 'download', 'status': 'done', 'message': 'Ready to download (kept 24 hours)', 'error': None, 'bytes': 8396733, 'bucket': None, 'key': None, 'mode': None, 'by': 'admin', 'created_at': '2026-10-13T08:00:46Z', 'finished_at': '2026-10-13T08:00:48Z', 'fromGB': None, 
+PASS [fork] home backup downloads (a gzip archive) - 200
+PASS [fork] workspace icons - 200
+PASS [upstream] workspace stop - stopped
+PASS [upstream] workspace start - running
+PASS [upstream] audit log records the workspace - 200
+PASS [upstream] insights: templates - 200
+PASS [upstream] insights: user-activity - 200
+PASS [upstream] insights: user-latency - 200
+PASS [upstream] deployment health report - ok
+PASS [upstream] provisioner daemons - 3
+PASS [upstream] notification templates - 31
+PASS [fork] /__coder-ui/api/classification as member -> 200 - 200
+PASS [fork] /__banner/banner.json as member -> 200 - 200
+PASS [fork] /__banner/api/state as owner -> 200 - 200
+PASS [fork] /__banner/api/state as member -> 403 - 403
+PASS [fork] /__coder-ui/api/hud as owner -> 200 - 200
+PASS [fork] /__coder-ui/api/hud as member -> 403 - 403
+PASS [fork] /__coder-ui/api/hud/history as owner -> 200 - 200
+PASS [fork] /__coder-ui/api/cluster/usage as owner -> 200 - 200
+PASS [fork] /__coder-ui/api/monitoring/posture as owner -> 200 - 200
+PASS [fork] /__coder-ui/api/scheduler as owner -> 200 - 200
+PASS [fork] /__coder-ui/api/scheduler/me as member -> 200 - 200
+PASS [fork] /__coder-ui/api/quota as owner -> 200 - 200
+PASS [fork] /__coder-ui/api/certificates as owner -> 200 - 200
+PASS [fork] /__coder-ui/api/certificates as member -> 403 - 403
+PASS [fork] /__coder-ui/api/logo as member -> 200 - 200
+PASS [fork] /__coder-ui/api/avatar/defaults as member -> 200 - 200
+PASS [fork] /__coder-ui/api/keycloak/status as owner -> 200 - 200
+PASS [fork] /__coder-ui/api/images as member -> 200 - 200
+PASS [fork] /__coder-ui/api/images/settings as owner -> 200 - 200
+PASS [fork] /__coder-ui/api/images/security-data as owner -> 200 - 200
+PASS [fork] /__coder-ui/api/acks as owner -> 200 - 200
+PASS [fork] /__coder-ui/api/notes/users as owner -> 200 - 200
+PASS [fork] /__coder-ui/api/persistence as owner -> 200 - 200
+PASS [fork] platform service health - 200
+PASS [upstream] workspace deleted - deleted
+PASS [upstream] user deleted - 200
+
+76/76 checks passed
