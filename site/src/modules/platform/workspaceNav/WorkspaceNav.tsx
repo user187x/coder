@@ -85,6 +85,8 @@ export const WorkspaceNav: FC<{
 			{open && (
 				<div
 					role="dialog"
+					// an open popup to the quick access wheel: its Escape is left to close this card (RadialMenu's popupOpen)
+					data-state="open"
 					aria-label={open.label}
 					data-testid="workspace-nav-panel"
 					className="absolute left-3 top-full z-40 mt-2 flex max-h-[min(70vh,640px)] w-72 flex-col overflow-y-auto rounded-2xl border border-solid border-border bg-surface-primary shadow-xl [&>div]:h-auto [&>div]:w-full [&>div]:border-r-0"
