@@ -24,6 +24,8 @@ import {
 	parseColors,
 } from "./bannerTokens";
 import "./bannerLcd.css";
+import { bannerAlpha, withBannerAlpha } from "./bannerAlpha";
+import { attachHoverAutoScroll } from "./hoverAutoScroll";
 import { useBannerLive, wasPushed } from "./useBannerLive";
 import {
 	type CertificateFingerprints,
@@ -68,6 +70,8 @@ export const bannerColors = (banner: Pick<Banner, "title" | "level">) =>
 	parseColors(banner.title) ?? LEVEL_COLORS[banner.level] ?? LEVEL_COLORS.info;
 
 type BannerLcdProps = {
+	/** The banner's opacity (percent): the glass fades with the card. */
+	opacity?: number;
 	/** The banner's colours: the screen is tinted with bg, the message lit in lcdInk. */
 	bg: string;
 	fg: string;
@@ -81,6 +85,7 @@ const LCD_BEZEL = 4;
 
 /** The banner's screen (bannerLcd.css): a long LCD set into the banner, holding the message. */
 export const BannerLcd: React.FC<BannerLcdProps> = ({
+	opacity,
 	bg,
 	fg,
 	radius,
@@ -92,6 +97,7 @@ export const BannerLcd: React.FC<BannerLcdProps> = ({
 		style={
 			{
 				"--banner-bg": bg,
+				"--banner-alpha": bannerAlpha(opacity),
 				"--banner-lcd-ink": lcdInk(bg, fg),
 				"--banner-outline": outlineColor(lcdInk(bg, fg)),
 				"--banner-lcd-radius": `${Math.max(2, radius - LCD_BEZEL)}px`,
@@ -176,6 +182,15 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 	const { bg, fg } = bannerColors(banner);
 	const { mutate: reportView } = markViewed;
 	const card = useRef<HTMLDivElement>(null);
+	// A message longer than the banner shows reads itself on hover: down slowly, back up when the pointer leaves.
+	useEffect(() => {
+		const el = card.current;
+		return el
+			? attachHoverAutoScroll(el, () =>
+					el.querySelector<HTMLElement>("[data-banner-text]"),
+				)
+			: undefined;
+	}, []);
 
 	useEffect(() => {
 		if (signedIn && !viewed.has(banner.id)) {
@@ -220,30 +235,30 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 					openEffect === "none" &&
 					"animate-in fade-in slide-in-from-top-2 duration-300",
 			)}
-			style={{ background: bg, color: fg }}
-			onMouseEnter={(event) => {
-				// The full text on hover, but only when it is cut short.
-				const text =
-					event.currentTarget.querySelector<HTMLElement>("[data-banner-text]");
-				if (!text) {
-					return;
-				}
-				if (text.scrollHeight > text.clientHeight + 1) {
-					text.title = text.textContent?.replace(/\s+/g, " ").trim() ?? "";
-				} else {
-					text.removeAttribute("title");
-				}
+			style={{
+				background: withBannerAlpha(bg, banner.opacity),
+				color: fg,
+				// Transparent: what shows through is blurred, so the text keeps reading
+				...(bannerAlpha(banner.opacity) < 1
+					? { backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)" }
+					: {}),
 			}}
 		>
 			{banner.countdown && <BannerCountdown to={banner.countdown} />}
-			<BannerLcd bg={bg} fg={fg} radius={CARD_RADIUS[placement]}>
+			<BannerLcd
+				bg={bg}
+				fg={fg}
+				radius={CARD_RADIUS[placement]}
+				opacity={banner.opacity}
+			>
 				<BannerText
 					banner={banner}
 					animate
 					className={cn(
 						"min-w-0 flex-1 text-center",
+						// two lines tall; a longer message scrolls itself on hover (hoverAutoScroll)
 						placement === "navbar" &&
-							"overflow-hidden [overflow-wrap:anywhere] line-clamp-2",
+							"max-h-[36px] overflow-hidden [overflow-wrap:anywhere]",
 					)}
 				/>
 			</BannerLcd>

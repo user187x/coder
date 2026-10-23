@@ -58,6 +58,9 @@ type Fields struct {
 	PictureFit string `json:"pictureFit"`
 	// The countdown shown as a watch at the banner's left ("" none).
 	Countdown string `json:"countdown"`
+	// How opaque the banner's background is, in percent (20-100): lower lets
+	// the page show through; its text stays solid.
+	Opacity int `json:"opacity"`
 }
 
 // Banner is what every page reads: the fields and the banner's id, which the
@@ -86,6 +89,7 @@ func FieldDefaults() Fields {
 		Markdown:        true,
 		Align:           "center",
 		PictureFit:      "span",
+		Opacity:         100,
 	}
 }
 
@@ -230,6 +234,7 @@ func Clean(raw []byte) (Fields, error) {
 	}{
 		{"crawlSpeed", crawlDefault, 4, 60, "The crawl's speed", &out.CrawlSpeed},
 		{"crawlTilt", FieldDefaults().CrawlTilt, 0, 100, "The crawl's convergence", &out.CrawlTilt},
+		{"opacity", FieldDefaults().Opacity, 20, 100, "The banner's opacity", &out.Opacity},
 	} {
 		value := n.fallback
 		if v, ok := payload[n.key]; ok {

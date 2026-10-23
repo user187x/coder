@@ -1,6 +1,7 @@
 import { screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { API } from "#/api/api";
+import { PlatformAPI } from "#/api/platform";
 import type { Workspace } from "#/api/typesGenerated";
 import { MockWorkspace } from "#/testHelpers/entities";
 import { renderComponent } from "#/testHelpers/renderHelpers";
@@ -34,6 +35,8 @@ describe("TerminalAnswers", () => {
 		expect(answerFor("time")).toBe("time");
 		expect(answerFor("clear")).toBe("none");
 		expect(answerFor("matrix")).toBe("none");
+		expect(answerFor("ip")).toBe("ip");
+		expect(answerFor("ip addr")).toBe("ip");
 		expect(answerFor("pwd")).toBe("notfound");
 	});
 
@@ -75,5 +78,21 @@ describe("TerminalAnswers", () => {
 			"look running 1h 5m",
 			"old stopped -",
 		]);
+	});
+
+	it("ip: the Gateway's addresses and the dashboard's host name", async () => {
+		vi.spyOn(PlatformAPI, "getDashboardAddress").mockResolvedValue({
+			host: "coder.example.com",
+			addresses: ["10.0.0.7"],
+			gateway: "traefik/traefik-gateway",
+		});
+		renderComponent(
+			<QueryClientProvider client={new QueryClient()}>
+				<TerminalAnswer answer="ip" command="ip" time={null} />
+			</QueryClientProvider>,
+		);
+		const out = await screen.findByTestId("announcement-scroll-ip");
+		await screen.findByText("inet 10.0.0.7");
+		expect(out).toHaveTextContent("host coder.example.com");
 	});
 });

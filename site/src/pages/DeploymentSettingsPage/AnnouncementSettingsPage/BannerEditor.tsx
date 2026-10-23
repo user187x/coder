@@ -315,6 +315,17 @@ export const BannerEditor: React.FC<BannerEditorProps> = ({
 							onRemove={() => onChange({ picture: "" })}
 						/>
 					)}
+					<CrawlSlider
+						label="Transparency"
+						value={100 - (form.opacity || 100)}
+						min={0}
+						max={100 - MIN_OPACITY}
+						unit="%"
+						hint="How much of the page shows through the banner's background (and its scroll view's); the text stays solid."
+						onChange={(transparency) =>
+							onChange({ opacity: 100 - transparency })
+						}
+					/>
 				</div>
 				<CountdownField
 					value={form.countdown ?? ""}
@@ -525,6 +536,9 @@ const OutlineButton: React.FC<{
 		<TypeOutlineIcon />
 	</Button>
 );
+
+// The banner's least opacity (the banner service's floor): it never fades away entirely.
+const MIN_OPACITY = 20;
 
 // The crawl's pace before it had a slider of its own (announcements with only a speed).
 const LEGACY_CRAWL_SPEED: Record<BannerSpeed, number> = {

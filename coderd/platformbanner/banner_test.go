@@ -64,6 +64,7 @@ func TestCleanFillsAndChecks(t *testing.T) {
 		{map[string]any{"message": "x", "crawlSpeed": 15.5}, "The crawl's speed must be a whole number from 4 to 60."},
 		{map[string]any{"message": "x", "crawlSpeed": true}, "The crawl's speed must be a whole number from 4 to 60."},
 		{map[string]any{"message": "x", "crawlTilt": 101}, "The crawl's convergence must be a whole number from 0 to 100."},
+		{map[string]any{"message": "x", "opacity": 10}, "The banner's opacity must be a whole number from 20 to 100."},
 		{map[string]any{"message": "x", "picture": "//evil.test/p.png"}, "The picture's address must start with https://, http:// or /."},
 		{map[string]any{"message": "x", "countdown": "tomorrow"}, "The countdown must be a UTC time such as 2026-10-20T18:00:00Z."},
 		{map[string]any{"message": "x", "refreshSeconds": 14}, "Check interval must be between 15 and 3600 seconds."},

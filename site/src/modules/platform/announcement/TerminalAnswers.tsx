@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "react-query";
+import { PlatformAPI } from "#/api/platform";
 import { workspaces } from "#/api/queries/workspaces";
 import type { Workspace } from "#/api/typesGenerated";
 
@@ -11,7 +12,8 @@ export type Answer =
 	| "time"
 	| "date"
 	| "whoami"
-	| "ls";
+	| "ls"
+	| "ip";
 
 /** "rm" and anything after it (rm, rm file, rmdir...): the wagging finger. */
 export const isRm = (command: string) => /^rm/.test(command);
@@ -133,6 +135,35 @@ const LsResponse: React.FC = () => {
 	);
 };
 
+/** "ip": where the dashboard is reached - the Gateway's addresses, and its host name. */
+const IpResponse: React.FC = () => {
+	const query = useQuery({
+		queryKey: ["platform", "dashboard-address"],
+		queryFn: PlatformAPI.getDashboardAddress,
+		staleTime: 60_000,
+		retry: false,
+	});
+	if (query.isLoading) {
+		return <div className="banner-scroll-out">…</div>;
+	}
+	const data = query.data;
+	const lines = data
+		? [
+				...data.addresses.map((a) => `inet ${a}`),
+				...(data.host ? [`host ${data.host}`] : []),
+			]
+		: [];
+	return (
+		<div className="banner-scroll-out" data-testid="announcement-scroll-ip">
+			{lines.length === 0 ? (
+				<div>ip: the dashboard's address is not known</div>
+			) : (
+				lines.map((line) => <div key={line}>{line}</div>)
+			)}
+		</div>
+	);
+};
+
 /** The terminal's answers that print something (the effects run from BannerScrollView itself). */
 export const TerminalAnswer: React.FC<{
 	answer: Answer;
@@ -173,6 +204,8 @@ export const TerminalAnswer: React.FC<{
 			);
 		case "ls":
 			return <LsResponse />;
+		case "ip":
+			return <IpResponse />;
 		default:
 			return null;
 	}

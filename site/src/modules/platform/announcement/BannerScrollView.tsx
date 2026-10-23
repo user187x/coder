@@ -11,10 +11,12 @@ import { createPortal } from "react-dom";
 import type { Banner } from "#/api/platform";
 import { BannerBlocks, PictureScreen } from "./BannerText";
 import { BrokenScreenOverlay } from "./BrokenScreenOverlay";
+import { withBannerAlpha } from "./bannerAlpha";
 import { bannerFontStack } from "./bannerFonts";
 import { safeHref } from "./bannerTokens";
 import { DotMatrixTime } from "./DotMatrixTime";
 import { enterFullscreen, leaveFullscreen } from "./fullscreen";
+import { attachHoverAutoScroll } from "./hoverAutoScroll";
 import { MatrixOverlay } from "./MatrixOverlay";
 import { SkynetOverlay } from "./SkynetOverlay";
 import { startSparks } from "./sparksCursor";
@@ -64,6 +66,9 @@ export const answerFor = (command: string): Answer => {
 	if (word === "ls") {
 		return "ls";
 	}
+	if (word === "ip") {
+		return "ip";
+	}
 	return "notfound";
 };
 type Rect = { top: number; left: number; width: number };
@@ -90,7 +95,7 @@ type BannerScrollViewProps = {
  *
  * The message is followed by the one prompt, which takes typing while the view is open (it has the focus), as a
  * terminal would: Backspace, and Enter runs the line (TerminalAnswers): "ls" lists the user's workspaces with their
- * state and uptime, "date" says the date, "whoami" says "Skynet", "clear" empties the screen, "time" prints the time
+ * state and uptime, "date" says the date, "whoami" says "Skynet", "ip" the dashboard's address, "clear" empties the screen, "time" prints the time
  * on a dot-matrix display (DotMatrixTime, ticking); anything starting with "rm" is answered with a wagging finger and
  * "ahh ahh ahh..." that fade away after 1.5 s (NoNoResponse); anything else is not found. The effects take the whole
  * screen (fullscreen.ts) while they last: typing "skynet" rolls the view up and fades the screen into Skynet; running
@@ -172,6 +177,12 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 			setCleared(false);
 		}
 	}, [open, rect]);
+
+	// A message longer than the window reads itself on hover: down slowly, back up when the pointer leaves.
+	useEffect(() => {
+		const el = body.current;
+		return open && el ? attachHoverAutoScroll(el) : undefined;
+	}, [open]);
 
 	// Typing shows at the bottom, where the prompt is.
 	useLayoutEffect(() => {
@@ -298,7 +309,10 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 								width: rect.width,
 								...(colors
 									? {
-											"--banner-scroll-screen": colors.bg,
+											"--banner-scroll-screen": withBannerAlpha(
+												colors.bg,
+												banner.opacity,
+											),
 											"--banner-scroll-ink": colors.fg,
 										}
 									: {}),

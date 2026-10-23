@@ -717,6 +717,13 @@ export type QuotaSettings = {
 	exemptAdmins: boolean;
 };
 
+/** Where users reach the dashboard: its host name and the addresses of the Gateway in front of it. */
+export type DashboardAddress = {
+	host: string;
+	addresses: string[];
+	gateway: string;
+};
+
 /** The signed-in user's own quota (the Workspaces page's pill); limited false = no limit applies to them. */
 export type QuotaMe = {
 	limited: boolean;
@@ -1368,6 +1375,8 @@ export type Banner = {
 	crawlSpeed?: number;
 	/** The crawl's convergence (effect "starwars"), 0 to 100 (CRAWL_TILT). Missing: 100, the opening crawl. */
 	crawlTilt?: number;
+	/** How opaque the banner's background is, in percent (20-100; none: 100). Its text stays solid. */
+	opacity?: number;
 	/** Missing in announcements saved before it existed: "default". */
 	font?: BannerFont;
 	/**
@@ -2286,6 +2295,8 @@ export const PlatformAPI = {
 			settings,
 		),
 	getQuotaMe: () => get<QuotaMe>(`${PLATFORM_BASE}/api/quota/me`),
+	getDashboardAddress: () =>
+		get<DashboardAddress>(`${PLATFORM_BASE}/api/dashboard-address`),
 	getSchedulerMe: () => get<SchedulerMe>(`${PLATFORM_BASE}/api/scheduler/me`),
 	getHud: () => get<HudReport>(`${PLATFORM_BASE}/api/hud`),
 	getHudHistory: (range: HudRange) =>

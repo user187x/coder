@@ -4,6 +4,7 @@ import type { BannerFields } from "#/api/platform";
 import { BannerLcd, bannerColors } from "./AnnouncementBanner";
 import { BannerCountdown } from "./BannerCountdown";
 import { BannerText } from "./BannerText";
+import { withBannerAlpha } from "./bannerAlpha";
 import { CloseLayers, useCloseTransition } from "./bannerClose";
 import { OpenLayers, useOpenTransition } from "./bannerOpen";
 
@@ -41,7 +42,7 @@ export const BannerPreview: React.FC<BannerPreviewProps> = ({
 	return (
 		<div
 			className="flex w-full items-center gap-1 rounded-md p-1 text-center text-sm"
-			style={{ background: bg, color: fg }}
+			style={{ background: withBannerAlpha(bg, banner.opacity), color: fg }}
 			data-closing={close.props["data-closing"]}
 			data-opening={opening ? openEffect : undefined}
 			onAnimationEnd={(event) => {
@@ -50,7 +51,7 @@ export const BannerPreview: React.FC<BannerPreviewProps> = ({
 			}}
 		>
 			{banner.countdown && <BannerCountdown to={banner.countdown} />}
-			<BannerLcd bg={bg} fg={fg} radius={6}>
+			<BannerLcd bg={bg} fg={fg} radius={6} opacity={banner.opacity}>
 				<BannerText
 					banner={banner}
 					animate={animate}
