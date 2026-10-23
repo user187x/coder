@@ -95,7 +95,6 @@ import { AgentLatency } from "./AgentLatency";
 import { AGENT_LOG_LINE_HEIGHT } from "./AgentLogs/AgentLogLine";
 import { AgentLogs } from "./AgentLogs/AgentLogs";
 import { AgentMetadata } from "./AgentMetadata";
-import { AgentStatus } from "./AgentStatus";
 import { AgentVersion } from "./AgentVersion";
 import { DownloadSelectedAgentLogsButton } from "./DownloadSelectedAgentLogsButton";
 import { MetricsIntervalButton } from "./MetricsIntervalButton";
@@ -481,67 +480,51 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 				<header className="flex flex-wrap items-center justify-between gap-4 px-8 pt-4 leading-normal md:gap-6 [&:has(+_[role='alert'])]:pb-4">
 					<div className="flex min-w-0 items-center gap-6 text-sm text-content-secondary">
 						<div className="flex min-w-0 w-full items-center gap-4 md:w-auto">
-							<span
-								className={cn(
-									"inline-flex",
-									contactLost && "opacity-60 grayscale",
-								)}
-								title={
-									contactLost
-										? "No contact with Coder: the agent's status as last seen"
-										: undefined
-								}
-							>
-								<AgentStatus agent={agent} />
-							</span>
-							{/* Platform: the workspace's name (its agent's, after it, when it has several). */}
-							<span
-								className="block max-w-[260px] overflow-hidden text-ellipsis whitespace-nowrap text-base font-semibold text-content-primary"
-								title={`Workspace ${workspace.name}, agent ${agent.name}`}
-							>
-								{workspace.name}
-								{agentCount > 1 && (
-									<span className="font-normal text-content-secondary">
-										{" "}
-										/ {agent.name}
-									</span>
-								)}
-							</span>
-							{/* Platform: the workspace's network lights (RX / TX), between its name and the latency */}
+							{/* Platform: no status dot and no name here (the bar above names the workspace): the latency
+							    leads - with no contact with Coder, the last one, greyed */}
 							{agent.status === "connected" && (
-								<AgentNetworkLeds
-									agentId={agent.id}
-									workspaceId={workspace.id}
-									stoppedAt={stoppedAt}
-								/>
-							)}
-							{/* Platform: the network's last minutes as a graph, with their time span, before the latency */}
-							{agent.status === "connected" && (
-								<AgentNetworkPill
-									agentId={agent.id}
-									workspaceId={workspace.id}
-									stoppedAt={stoppedAt}
-								/>
-							)}
-						</div>
-						{agent.status === "connected" && (
-							<>
-								<AgentVersion
-									agent={agent}
-									onUpdate={onUpdateAgent}
-									workspaceOutdated={workspace.outdated}
-								/>
-								{/* Platform: no contact with Coder - the last latency, greyed */}
 								<span
 									className={cn(
 										"inline-flex",
 										contactLost && "opacity-60 grayscale",
 									)}
 									data-stale={contactLost || undefined}
+									title={
+										agentCount > 1
+											? `Agent ${agent.name}`
+											: contactLost
+												? "No contact with Coder: the latency as last seen"
+												: undefined
+									}
 								>
 									<AgentLatency agent={agent} />
 								</span>
-							</>
+							)}
+							{/* Platform: the workspace's network - its lights (RX / TX) and its last minutes as a graph, with
+							    their time span - in one pill */}
+							{agent.status === "connected" && (
+								<span
+									className="inline-flex shrink-0 items-center gap-1 rounded-full border border-solid border-border p-0.5 [&>[data-testid]]:border-0 [&>[data-testid]]:bg-transparent"
+									data-testid="agent-network-group"
+								>
+									<AgentNetworkLeds
+										agentId={agent.id}
+										workspaceId={workspace.id}
+										stoppedAt={stoppedAt}
+									/>
+									<span aria-hidden className="h-4 w-px shrink-0 bg-border" />
+									<AgentNetworkPill
+										agentId={agent.id}
+										workspaceId={workspace.id}
+										stoppedAt={stoppedAt}
+									/>
+								</span>
+							)}
+						</div>
+						{agent.status === "connected" && (
+							// Platform: the agent's own Update pill (an older agent, another build); a newer template's
+							// is the workspace bar's Update
+							<AgentVersion agent={agent} onUpdate={onUpdateAgent} />
 						)}
 						{agent.status === "connecting" && (
 							<>

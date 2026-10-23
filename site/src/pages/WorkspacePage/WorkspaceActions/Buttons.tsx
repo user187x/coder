@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import type { Workspace, WorkspaceBuildParameter } from "#/api/typesGenerated";
 import { TopbarButton } from "#/components/FullPageLayout/Topbar";
+import "#/modules/platform/agentOutdated/agentOutdated.css";
 import {
 	Tooltip,
 	TooltipContent,
@@ -22,6 +23,10 @@ export type ActionButtonProps = {
 	requireActiveVersion?: boolean;
 };
 
+/**
+ * Platform: the workspace bar's Update - the agent card's animated Update pill (agentOutdated.css: rimmed in the
+ * warning colour, glowing, a pulsing refresh icon in its groove), with the bar's action and its explanation.
+ */
 export const UpdateButton: React.FC<ActionButtonProps> = ({
 	handleAction,
 	loading,
@@ -32,20 +37,28 @@ export const UpdateButton: React.FC<ActionButtonProps> = ({
 	return (
 		<Tooltip>
 			<TooltipTrigger asChild>
-				<TopbarButton
+				<button
+					type="button"
+					className="agent-update mx-1 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
 					data-testid="workspace-update-button"
 					disabled={loading || disabled}
 					onClick={() => handleAction()}
+					aria-label={
+						loading
+							? "Updating"
+							: isRunning
+								? "Update and restart"
+								: "Update and start"
+					}
 				>
-					{requireActiveVersion ? <PlayIcon /> : <RotateCcwIcon />}
-					{loading ? (
-						<>Updating&hellip;</>
-					) : isRunning ? (
-						<>Update and restart&hellip;</>
-					) : (
-						<>Update and start&hellip;</>
-					)}
-				</TopbarButton>
+					<span className="agent-update-groove" aria-hidden="true">
+						<svg className="agent-update-icon" viewBox="0 0 24 24">
+							<path d="M21 12a9 9 0 11-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
+							<path d="M21 3v5h-5" />
+						</svg>
+					</span>
+					{loading ? <>Updating&hellip;</> : "Update"}
+				</button>
 			</TooltipTrigger>
 			<TooltipContent side="bottom" className="max-w-xs">
 				{requireActiveVersion
