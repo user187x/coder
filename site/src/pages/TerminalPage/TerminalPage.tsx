@@ -11,6 +11,7 @@ import { Button } from "#/components/Button/Button";
 import { useProxy } from "#/contexts/ProxyContext";
 import { ThemeOverride } from "#/contexts/ThemeProvider";
 import { useEmbeddedMetadata } from "#/hooks/useEmbeddedMetadata";
+import { TERMINAL_EXITED } from "#/modules/platform/agentPanels/terminalExited";
 import {
 	getTerminalConfig,
 	terminalRenderer,
@@ -41,9 +42,20 @@ const TerminalPage: React.FC = () => {
 	const [connectionStatus, setConnectionStatus] =
 		useState<ConnectionStatus>("initializing");
 	const [commandConfirmed, setCommandConfirmed] = useState(false);
-	// Platform: the shell exited. The window closes; one the browser keeps open (not opened by a script) says so.
+	// Platform: the shell exited. The window closes; one the browser keeps open (not opened by a script) says so. In a
+	// dashboard panel (a frame) or popped out of one (a window it opened), the panel is told: it rolls up and starts
+	// over, as the Terminal drop-down does (TERMINAL_EXITED, AccordionPanel).
 	const [ended, setEnded] = useState(false);
 	const endSession = useCallback(() => {
+		for (const host of [window.parent, window.opener as Window | null]) {
+			if (host && host !== window) {
+				try {
+					host.postMessage({ type: TERMINAL_EXITED }, window.location.origin);
+				} catch {
+					// another origin: nothing to tell
+				}
+			}
+		}
 		window.close();
 		window.setTimeout(() => {
 			if (!window.closed) {

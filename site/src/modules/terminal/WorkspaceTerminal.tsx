@@ -31,6 +31,7 @@ import {
 import { useClipboard } from "#/hooks/useClipboard";
 import { isMac } from "#/utils/platform";
 import { terminalWebsocketUrl } from "#/utils/terminal";
+import { attachGhosttyMouse } from "./ghosttyMouse";
 import type { ConnectionStatus } from "./types";
 
 export type WorkspaceTerminalHandle = {
@@ -385,10 +386,18 @@ export const WorkspaceTerminal = ({
 			});
 			resizeObserver.observe(mountNode);
 
+			// Platform: Ghostty has no mouse reporting of its own - a program that tracks the mouse gets its clicks
+			const detachMouse = ghostty
+				? attachGhosttyMouse(
+						nextTerminal as unknown as Parameters<typeof attachGhosttyMouse>[0],
+					)
+				: () => {};
+
 			setTerminal(nextTerminal);
 			tearDown = () => {
 				window.removeEventListener("resize", refit);
 				resizeObserver.disconnect();
+				detachMouse();
 			};
 		};
 

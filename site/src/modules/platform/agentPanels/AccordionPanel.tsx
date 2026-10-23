@@ -8,6 +8,7 @@ import {
 	Collapsible,
 	CollapsibleTrigger,
 } from "#/components/Collapsible/Collapsible";
+import { isTerminalExit } from "./terminalExited";
 
 const DEFAULT_HEIGHT = 640;
 export const MIN_APP_HEIGHT = 200;
@@ -98,6 +99,24 @@ export const AccordionPanel: React.FC<AccordionPanelProps> = ({
 			}
 		}, 500);
 		return () => window.clearInterval(timer);
+	}, [popup]);
+	// A terminal in it (or popped out of it) whose shell exits: it rolls up and starts over - the next open is a new
+	// session, as the agent's Terminal drop-down does; a popped-out one closes and stays closed.
+	useEffect(() => {
+		const onMessage = (event: MessageEvent) => {
+			const frame = box.current?.querySelector("iframe")?.contentWindow;
+			if (!isTerminalExit(event, [frame, popup])) {
+				return;
+			}
+			if (popup && event.source === popup) {
+				popup.close();
+				setPopup(null);
+			}
+			setOpen(false);
+			setLoaded(false);
+		};
+		window.addEventListener("message", onMessage);
+		return () => window.removeEventListener("message", onMessage);
 	}, [popup]);
 	const bringBack = () => {
 		popup?.close();

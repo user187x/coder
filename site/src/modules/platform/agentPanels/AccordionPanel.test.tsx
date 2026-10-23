@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import type { WorkspaceApp } from "#/api/typesGenerated";
 import {
 	MockWorkspace,
@@ -9,6 +9,7 @@ import { AccordionPanel } from "./AccordionPanel";
 import { AddPanelTab } from "./AddPanelTab";
 import { canBePanel } from "./AgentAppPanel";
 import { AgentPortPanel, AgentWebPanel, webAddress } from "./AgentLinkPanels";
+import { TERMINAL_EXITED } from "./terminalExited";
 
 const base = {
 	id: "app:x",
@@ -37,6 +38,46 @@ describe("the accordion panel", () => {
 			screen.getByRole("button", { name: "Remove the Anything panel" }),
 		);
 		expect(base.onRemove).toHaveBeenCalled();
+	});
+
+	it("its terminal's shell exiting rolls it up and starts over (unmounted: the next open is a new session)", () => {
+		render(
+			<AccordionPanel
+				{...base}
+				initiallyOpen
+				title="Ghostty"
+				kind="app"
+				slug="ghostty"
+			>
+				<iframe title="terminal" />
+			</AccordionPanel>,
+		);
+		const frame = screen.getByTitle("terminal") as HTMLIFrameElement;
+		// another window's message is not its terminal's
+		act(() => {
+			window.dispatchEvent(
+				new MessageEvent("message", {
+					data: { type: TERMINAL_EXITED },
+					origin: window.location.origin,
+					source: window,
+				}),
+			);
+		});
+		expect(screen.getByTitle("terminal")).toBeInTheDocument();
+		act(() => {
+			window.dispatchEvent(
+				new MessageEvent("message", {
+					data: { type: TERMINAL_EXITED },
+					origin: window.location.origin,
+					source: frame.contentWindow,
+				}),
+			);
+		});
+		expect(screen.queryByTitle("terminal")).toBeNull();
+		expect(screen.getByRole("button", { name: "Ghostty" })).toHaveAttribute(
+			"aria-expanded",
+			"false",
+		);
 	});
 
 	it("does not open while it can't, and says why", () => {
