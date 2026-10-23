@@ -353,17 +353,7 @@ func (api *API) RequireFeatureMW(feat codersdk.FeatureName) func(http.Handler) h
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 			// Entitlement must be enabled.
-			feature, _ := api.Entitlements.Feature(feat)
-			if !feature.Enabled {
-				// A licensed feature can still be turned off by deployment
-				// configuration, so only send unlicensed callers to sales.
-				if feature.Entitlement.Entitled() {
-					httpapi.Write(r.Context(), rw, http.StatusForbidden, codersdk.Response{
-						Message: fmt.Sprintf("%s is not enabled on this deployment.", feat.Humanize()),
-						Detail:  "Your license includes this feature, but it is turned off in the deployment configuration.",
-					})
-					return
-				}
+			if !api.Entitlements.Enabled(feat) {
 				// All feature warnings should be "Premium", not "Enterprise".
 				httpapi.Write(r.Context(), rw, http.StatusForbidden, codersdk.Response{
 					Message: fmt.Sprintf("%s is a Premium feature. Contact sales!", feat.Humanize()),
