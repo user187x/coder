@@ -1,8 +1,10 @@
 import { Fragment, useState } from "react";
 import { useQuery } from "react-query";
+import { buildInfo } from "#/api/queries/buildInfo";
 import { deploymentConfig } from "#/api/queries/deployment";
 import type { Workspace, WorkspaceBuildParameter } from "#/api/typesGenerated";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
+import { useEmbeddedMetadata } from "#/hooks/useEmbeddedMetadata";
 import {
 	type ActionType,
 	abilitiesByWorkspaceStatus,
@@ -10,6 +12,7 @@ import {
 import { buildRow } from "#/modules/workspaces/buildRow";
 import type { WorkspacePermissions } from "#/modules/workspaces/permissions";
 import { WorkspaceMoreActions } from "#/modules/workspaces/WorkspaceMoreActions/WorkspaceMoreActions";
+import { workspaceAgentNeedsUpdate } from "#/utils/workspace";
 import {
 	ActivateButton,
 	CancelButton,
@@ -59,12 +62,27 @@ export const WorkspaceActions: React.FC<WorkspaceActionsProps> = ({
 		...deploymentConfig(),
 		enabled: viewDeploymentConfig,
 	});
+	const { metadata } = useEmbeddedMetadata();
+	const { data: build } = useQuery(buildInfo(metadata["build-info"]));
+	const agentUpdateAvailable = workspace.latest_build.resources.some(
+		(resource) =>
+			resource.agents?.some((agent) =>
+				workspaceAgentNeedsUpdate(
+					agent,
+					build?.version ?? "",
+					build?.agent_api_version ?? "",
+				),
+			),
+	);
+	const actionWorkspace = agentUpdateAvailable
+		? { ...workspace, outdated: true }
+		: workspace;
 	const abilityPermissions = {
 		canDebug: Boolean(deployment?.config.enable_terraform_debug_mode),
 		isOwner: user.roles.some((role) => role.name === "owner"),
 	};
 	const { actions, canCancel, canAcceptJobs } = abilitiesByWorkspaceStatus(
-		workspace,
+		actionWorkspace,
 		abilityPermissions,
 	);
 	const { status, transition } = workspace.latest_build;
@@ -80,7 +98,10 @@ export const WorkspaceActions: React.FC<WorkspaceActionsProps> = ({
 	}
 	const actionsWhen = (as: "running" | "stopped") =>
 		abilitiesByWorkspaceStatus(
-			{ ...workspace, latest_build: { ...workspace.latest_build, status: as } },
+			{
+				...actionWorkspace,
+				latest_build: { ...workspace.latest_build, status: as },
+			},
 			abilityPermissions,
 		).actions;
 	const row = workspace.latest_build.has_external_agent

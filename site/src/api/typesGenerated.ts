@@ -2570,6 +2570,46 @@ export interface GitSSHKey {
 	readonly public_key: string;
 }
 
+// From codersdk/global_lockdown.go
+/**
+ * GlobalLockdownAgent describes whether an agent has enforced the current policy.
+ */
+export interface GlobalLockdownAgent {
+	readonly id: string;
+	readonly name: string;
+	readonly state: string;
+}
+
+// From codersdk/global_lockdown.go
+/**
+ * GlobalLockdownState reports the deployment's workspace access restriction.
+ */
+export interface GlobalLockdownState {
+	readonly enabled: boolean;
+	readonly revision: string;
+	readonly updated_by: string;
+	readonly updated_at: string;
+	readonly admin: boolean;
+	readonly confirmed: boolean;
+	readonly users?: readonly GlobalLockdownUser[];
+	readonly agents_total: number;
+	readonly agents_pending: number;
+	readonly agents?: readonly GlobalLockdownAgent[];
+}
+
+// From codersdk/global_lockdown.go
+/**
+ * GlobalLockdownUser describes one account's Coder workspace access.
+ */
+export interface GlobalLockdownUser {
+	readonly id: string;
+	readonly username: string;
+	readonly avatar_url: string;
+	readonly admin: boolean;
+	readonly connected: boolean;
+	readonly disconnected: boolean;
+}
+
 // From codersdk/groups.go
 export interface Group {
 	readonly id: string;
@@ -6634,6 +6674,16 @@ export interface UpdateCheckResponse {
 	 * URL to download the latest release of Coder.
 	 */
 	readonly url: string;
+}
+
+// From codersdk/global_lockdown.go
+/**
+ * UpdateGlobalLockdownRequest changes Coder workspace access. Enabling it
+ * requires Confirmation to contain the literal word "agree".
+ */
+export interface UpdateGlobalLockdownRequest {
+	readonly enabled: boolean;
+	readonly confirmation: string;
 }
 
 // From healthsdk/healthsdk.go

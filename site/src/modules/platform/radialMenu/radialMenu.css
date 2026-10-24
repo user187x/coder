@@ -174,3 +174,7 @@ html[data-animations="off"] .radial-text {
 	width: 100%;
 	animation: none;
 }
+
+.quick-menu-preview-wheel .radial-center-note {
+	color: var(--color-content-secondary);
+}

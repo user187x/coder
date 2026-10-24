@@ -14,11 +14,12 @@ type SecuritySettingsPageViewProps = {
 	options: SerpentOption[];
 	/** The certificate overview, at the top of the page (admins only). */
 	certificates?: React.ReactNode;
+	lockdown?: React.ReactNode;
 };
 
 export const SecuritySettingsPageView: React.FC<
 	SecuritySettingsPageViewProps
-> = ({ options, certificates }) => {
+> = ({ options, certificates, lockdown }) => {
 	const tlsOptions = options.filter((o) =>
 		deploymentGroupHasParent(o.group, "TLS"),
 	);
@@ -33,6 +34,7 @@ export const SecuritySettingsPageView: React.FC<
 					</SettingsHeaderDescription>
 				</SettingsHeader>
 
+				{lockdown && <div className="mb-12">{lockdown}</div>}
 				{certificates && <div className="mb-12">{certificates}</div>}
 
 				<OptionsTable

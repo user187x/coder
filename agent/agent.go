@@ -1027,6 +1027,14 @@ func (a *agent) run() (retErr error) {
 
 	connMan.startAgentAPI("create or update network", gracefulShutdownBehaviorStop,
 		a.createOrUpdateNetwork(manifestOK, networkOK))
+	if client, supported := a.client.(workspaceAccessClient); supported {
+		connMan.startAgentAPI("workspace access policy", gracefulShutdownBehaviorStop, func(ctx context.Context, _ proto.DRPCAgentClient28) error {
+			if err := networkOK.wait(ctx); err != nil {
+				return err
+			}
+			return workspaceAccessLoop(ctx, a.clock, client, a.network.SetPeerAllowlist, a.logger.Named("workspace-access"))
+		})
+	}
 
 	connMan.startTailnetAPI("coordination", gracefulShutdownBehaviorStop,
 		func(ctx context.Context, tAPI tailnetproto.DRPCTailnetClient24) error {

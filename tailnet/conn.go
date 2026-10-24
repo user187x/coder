@@ -565,6 +565,19 @@ func (c *Conn) UpdatePeers(updates []*proto.CoordinateResponse_PeerUpdate) error
 	return nil
 }
 
+// SetPeerAllowlist restricts installed peers to allowed while enabled and waits
+// for the WireGuard engine to apply that restriction. Disabling restores fresh,
+// non-lost coordinator updates buffered while blocked and discards stale nodes.
+// An error or canceled context never implies that revocation was confirmed.
+// An engine reconfiguration failure requires a new connection before subsequent
+// allowlist changes can be confirmed, because the engine caches failed attempts.
+func (c *Conn) SetPeerAllowlist(ctx context.Context, enabled bool, allowed []uuid.UUID) error {
+	if c.isClosed() {
+		return ErrConnClosed
+	}
+	return c.configMaps.setPeerAllowlist(ctx, enabled, allowed)
+}
+
 // SetAllPeersLost marks all peers lost; typically used when we disconnect from a coordinator.
 func (c *Conn) SetAllPeersLost() {
 	c.configMaps.setAllPeersLost()

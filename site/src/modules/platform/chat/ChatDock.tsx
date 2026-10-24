@@ -209,7 +209,7 @@ export const ChatDock: React.FC = () => {
 	if (!shown) {
 		return null;
 	}
-	const floating = mode === "bar" || mode === "window";
+	const floating = mode === "bar" || mode === "window" || mode === "compact";
 	// The console over the page: every conversation is in it, so the windows (a second copy of one) wait hidden -
 	// as they were, drafts and all - and the dock goes under its blur with the rest of the page.
 	const overlaid = state.consoleOverlay;
@@ -234,7 +234,7 @@ export const ChatDock: React.FC = () => {
 				<div
 					className={cn(
 						"pointer-events-none flex flex-row-reverse items-end gap-3 [&>*]:pointer-events-auto",
-						overlaid && "hidden",
+						(overlaid || mode === "compact") && "hidden",
 					)}
 					data-testid="chat-windows"
 				>

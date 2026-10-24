@@ -253,7 +253,7 @@ export const VersionsSidebar: React.FC<VersionsSidebarProps> = ({
 					</Button>
 				</div>
 			)}
-			<ol className="m-0 max-h-[min(52vh,30rem)] list-none overflow-y-auto p-0 py-0.5">
+			<ol className="m-0 min-h-52 max-h-[min(52vh,30rem)] list-none overflow-y-auto p-0 py-0.5">
 				{!data && (
 					<li className="flex justify-center p-3">
 						<Spinner loading size="sm" />
@@ -268,7 +268,7 @@ export const VersionsSidebar: React.FC<VersionsSidebarProps> = ({
 						<li key={v.id} data-testid={`sidebar-version-${v.name}`}>
 							<div
 								className={cn(
-									"group flex items-center gap-1.5 py-1 pl-2 pr-1.5 text-xs",
+									"group flex min-h-10 items-center gap-1.5 py-1 pl-2 pr-1.5 text-xs",
 									shown && !squashing && "bg-surface-secondary",
 									inRange && "bg-surface-sky",
 								)}

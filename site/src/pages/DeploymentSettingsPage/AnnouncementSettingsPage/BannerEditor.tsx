@@ -275,6 +275,18 @@ export const BannerEditor: React.FC<BannerEditorProps> = ({
 						onChange={(outline) => onChange({ outline })}
 					/>
 					<EffectPicker form={form} onChange={onChange} />
+					<Button
+						size="sm"
+						variant={form.loopText !== false ? "default" : "outline"}
+						className="h-8 text-xs"
+						aria-pressed={form.loopText !== false}
+						aria-label="Loop text continuously"
+						title="Keep overflowing text moving from the end back to the beginning. Hold the banner to pause."
+						onClick={() => onChange({ loopText: form.loopText === false })}
+					>
+						<Repeat2Icon aria-hidden />
+						Loop text
+					</Button>
 					<ColorButton
 						label="Text color"
 						short="Text"

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "react-query";
-import { PlatformAPI } from "#/api/platform";
+import { dashboardAddress } from "#/api/queries/platform";
 import { workspaces } from "#/api/queries/workspaces";
 import type { Workspace } from "#/api/typesGenerated";
 
@@ -138,10 +138,7 @@ const LsResponse: React.FC = () => {
 /** "ip": where the dashboard is reached - the Gateway's addresses, and its host name. */
 const IpResponse: React.FC = () => {
 	const query = useQuery({
-		queryKey: ["platform", "dashboard-address"],
-		queryFn: PlatformAPI.getDashboardAddress,
-		staleTime: 60_000,
-		retry: false,
+		...dashboardAddress(),
 	});
 	if (query.isLoading) {
 		return <div className="banner-scroll-out">…</div>;

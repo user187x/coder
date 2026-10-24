@@ -1,80 +1,91 @@
-// Platform: an announcement too long to see at once reads itself on hover - the pointer resting on it scrolls it down
-// slowly, at a reading pace, to its end; the pointer leaving brings it back up to its beginning, quickly. Turning the
-// wheel while it scrolls hands it to the reader (it stops following).
+/** A line takes several seconds, leaving time to read it before it moves away. */
+export const READ_PX_PER_SECOND = 4;
+export const READ_DELAY_MS = 2000;
 
-/** Pixels a second, down: about a line every second. */
-export const READ_PX_PER_SECOND = 20;
-/** A moment to start reading before it moves. */
-export const READ_DELAY_MS = 600;
-/** Back up to the beginning. */
-export const BACK_MS = 350;
-
-/**
- * On `hover` (the element the pointer rests on), scrolls `scroller()` (the element that overflows: the same one, or
- * one inside it, found when the pointer arrives). The function it returns takes it off.
- */
-export const attachHoverAutoScroll = (
+/** Reads overflowing announcements automatically; holding the pointer pauses at the current position. */
+export const attachAnnouncementAutoScroll = (
 	hover: HTMLElement,
 	scroller: () => HTMLElement | null = () => hover,
+	loop = false,
 ): (() => void) => {
 	let frame = 0;
 	let delay = 0;
-	let target: HTMLElement | null = null;
+	let held = false;
+	let manual = false;
+	const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)");
+	const enabled = () =>
+		document.documentElement.dataset.animations !== "off" &&
+		!reducedMotion?.matches;
 	const stop = () => {
 		cancelAnimationFrame(frame);
 		window.clearTimeout(delay);
 		frame = 0;
 	};
 	const down = () => {
-		const el = target;
-		if (!el) {
+		const el = scroller();
+		if (!el || !enabled() || held || manual) {
 			return;
 		}
 		let last = performance.now();
 		let position = el.scrollTop;
 		const step = (now: number) => {
-			position += (READ_PX_PER_SECOND * (now - last)) / 1000;
+			position += (READ_PX_PER_SECOND * Math.min(now - last, 100)) / 1000;
 			last = now;
-			const end = el.scrollHeight - el.clientHeight;
-			el.scrollTop = Math.min(position, end);
-			frame = position < end ? requestAnimationFrame(step) : 0;
+			const end = Math.max(0, el.scrollHeight - el.clientHeight);
+			const source = loop
+				? el.querySelector<HTMLElement>("[data-banner-loop-source]")
+				: null;
+			const period = source?.getBoundingClientRect().height ?? 0;
+			const cycling = loop && period > el.clientHeight;
+			if (cycling) position %= period;
+			el.scrollTop = cycling ? position : Math.min(position, end);
+			frame = cycling || position < end ? requestAnimationFrame(step) : 0;
 		};
 		frame = requestAnimationFrame(step);
 	};
-	const up = () => {
-		const el = target;
-		if (!el || el.scrollTop <= 0) {
-			return;
-		}
-		const from = el.scrollTop;
-		const start = performance.now();
-		const step = (now: number) => {
-			const t = Math.min((now - start) / BACK_MS, 1);
-			el.scrollTop = from * (1 - (1 - (1 - t) ** 3)); // ease out
-			frame = t < 1 ? requestAnimationFrame(step) : 0;
-		};
-		frame = requestAnimationFrame(step);
-	};
-	const onEnter = () => {
+	const resume = () => {
 		stop();
-		target = scroller();
-		if (!target || target.scrollHeight - target.clientHeight <= 2) {
-			return; // it all shows: nothing to read further
+		if (enabled() && !held && !manual) {
+			delay = window.setTimeout(down, READ_DELAY_MS);
 		}
-		delay = window.setTimeout(down, READ_DELAY_MS);
 	};
-	const onLeave = () => {
+	const pause = () => {
+		held = true;
 		stop();
-		up();
 	};
-	const onWheel = () => stop();
-	hover.addEventListener("pointerenter", onEnter);
-	hover.addEventListener("pointerleave", onLeave);
-	hover.addEventListener("wheel", onWheel, { passive: true });
+	const release = () => {
+		if (held) {
+			held = false;
+			resume();
+		}
+	};
+	const wheel = () => {
+		manual = true;
+		stop();
+	};
+	const preferenceChanged = () => resume();
+	const observer = new MutationObserver(preferenceChanged);
+	observer.observe(document.documentElement, {
+		attributes: true,
+		attributeFilter: ["data-animations"],
+	});
+	hover.addEventListener("pointerdown", pause);
+	hover.addEventListener("wheel", wheel, { passive: true });
+	hover.addEventListener("keydown", wheel);
+	window.addEventListener("pointerup", release);
+	window.addEventListener("pointercancel", release);
+	window.addEventListener("blur", release);
+	reducedMotion?.addEventListener?.("change", preferenceChanged);
+	resume();
 	return () => {
 		stop();
-		hover.removeEventListener("pointerenter", onEnter);
-		hover.removeEventListener("pointerleave", onLeave);
-		hover.removeEventListener("wheel", onWheel);
+		observer.disconnect();
+		hover.removeEventListener("pointerdown", pause);
+		hover.removeEventListener("wheel", wheel);
+		hover.removeEventListener("keydown", wheel);
+		window.removeEventListener("pointerup", release);
+		window.removeEventListener("pointercancel", release);
+		window.removeEventListener("blur", release);
+		reducedMotion?.removeEventListener?.("change", preferenceChanged);
 	};
 };

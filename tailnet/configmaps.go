@@ -67,13 +67,23 @@ type phased struct {
 
 type configMaps struct {
 	phased
-	netmapDirty  bool
-	derpMapDirty bool
-	filterDirty  bool
-	closing      bool
+	netmapDirty     bool
+	derpMapDirty    bool
+	filterDirty     bool
+	closing         bool
+	configClosed    chan struct{}
+	policyUpdate    chan struct{}
+	reconfigWaiters []*reconfigWaiter
+
+	peerAllowlistEnabled bool
+	peerAllowlist        map[uuid.UUID]struct{}
+	blockedPeers         map[uuid.UUID]*peerLifecycle
 
 	engine engineConfigurable
 	static netmap.NetworkMap
+	// Only configLoop accesses this. The engine can cache a failed attempt's
+	// desired configuration and subsequently return ErrNoChanges for it.
+	lastEngineError error
 
 	hosts          map[dnsname.FQDN][]netip.Addr
 	peers          map[uuid.UUID]*peerLifecycle
@@ -85,6 +95,11 @@ type configMaps struct {
 
 	// for testing
 	clock quartz.Clock
+}
+
+type reconfigWaiter struct {
+	done chan struct{}
+	err  error
 }
 
 func newConfigMaps(
@@ -134,10 +149,14 @@ func newConfigMaps(
 				Caps: []filter.CapMatch{},
 			}},
 		},
-		peers:       make(map[uuid.UUID]*peerLifecycle),
-		matchDomain: matchDomain,
-		clock:       quartz.NewReal(),
+		peers:        make(map[uuid.UUID]*peerLifecycle),
+		blockedPeers: make(map[uuid.UUID]*peerLifecycle),
+		configClosed: make(chan struct{}),
+		policyUpdate: make(chan struct{}, 1),
+		matchDomain:  matchDomain,
+		clock:        quartz.NewReal(),
 	}
+	c.policyUpdate <- struct{}{}
 	go c.configLoop()
 	return c
 }
@@ -149,6 +168,11 @@ func (c *configMaps) configLoop() {
 	defer c.L.Unlock()
 	defer func() {
 		c.phase = closed
+		for _, waiter := range c.reconfigWaiters {
+			waiter.err = ErrConnClosed
+			close(waiter.done)
+		}
+		close(c.configClosed)
 		c.Broadcast()
 	}()
 	for {
@@ -163,28 +187,32 @@ func (c *configMaps) configLoop() {
 		// queue up the reconfiguration actions we will take while we have
 		// the configMaps locked. We will execute them while unlocked to avoid
 		// blocking during reconfig.
-		actions := make([]func(), 0, 3)
+		actions := make([]func() error, 0, 3)
+		var waiters []*reconfigWaiter
 		if c.derpMapDirty {
 			derpMap := c.derpMapLocked()
-			actions = append(actions, func() {
+			actions = append(actions, func() error {
 				c.logger.Debug(context.Background(), "updating engine DERP map", slog.F("derp_map", (*derpMapStringer)(derpMap)))
 				c.engine.SetDERPMap(derpMap)
+				return nil
 			})
 		}
 		if c.netmapDirty {
 			nm := c.netMapLocked()
 			hosts := c.hostsLocked()
-			actions = append(actions, func() {
+			waiters, c.reconfigWaiters = c.reconfigWaiters, nil
+			actions = append(actions, func() error {
 				c.logger.Debug(context.Background(), "updating engine network map", slog.F("network_map", nm))
 				c.engine.SetNetworkMap(nm)
-				c.reconfig(nm, hosts)
+				return c.reconfig(nm, hosts)
 			})
 		}
 		if c.filterDirty {
 			f := c.filterLocked()
-			actions = append(actions, func() {
+			actions = append(actions, func() error {
 				c.logger.Debug(context.Background(), "updating engine filter", slog.F("filter", f))
 				c.engine.SetFilter(f)
+				return nil
 			})
 		}
 
@@ -195,10 +223,15 @@ func (c *configMaps) configLoop() {
 		c.Broadcast()
 
 		c.L.Unlock()
+		var configErr error
 		for _, a := range actions {
-			a()
+			configErr = errors.Join(configErr, a())
 		}
 		c.L.Lock()
+		for _, waiter := range waiters {
+			waiter.err = configErr
+			close(waiter.done)
+		}
 	}
 }
 
@@ -242,6 +275,11 @@ func (c *configMaps) hostsLocked() map[dnsname.FQDN][]netip.Addr {
 func (c *configMaps) peerConfigLocked() []*tailcfg.Node {
 	out := make([]*tailcfg.Node, 0, len(c.peers))
 	for _, p := range c.peers {
+		if c.peerAllowlistEnabled {
+			if _, allowed := c.peerAllowlist[p.peerID]; !allowed {
+				continue
+			}
+		}
 		// Don't add nodes that we havent received a READY_FOR_HANDSHAKE for
 		// yet, if they're a destination. If we received a READY_FOR_HANDSHAKE
 		// for a peer before we receive their node, the node will be nil.
@@ -260,13 +298,14 @@ func (c *configMaps) peerConfigLocked() []*tailcfg.Node {
 func (c *configMaps) setTunnelDestination(id uuid.UUID) {
 	c.L.Lock()
 	defer c.L.Unlock()
-	lc, ok := c.peers[id]
+	peers := c.peerMapLocked(id)
+	lc, ok := peers[id]
 	if !ok {
 		lc = &peerLifecycle{
 			peerID: id,
 		}
 		c.logger.Debug(context.Background(), "setting peer tunnel destination", slog.F("peer_id", id))
-		c.peers[id] = lc
+		peers[id] = lc
 	}
 	lc.isDestination = true
 }
@@ -342,7 +381,7 @@ func (c *configMaps) derpMapLocked() *tailcfg.DERPMap {
 // reconfig computes the correct wireguard config and calls the engine.Reconfig
 // with the config we have.  It is not intended for this to be called outside of
 // the updateLoop()
-func (c *configMaps) reconfig(nm *netmap.NetworkMap, hosts map[dnsname.FQDN][]netip.Addr) {
+func (c *configMaps) reconfig(nm *netmap.NetworkMap, hosts map[dnsname.FQDN][]netip.Addr) error {
 	dnsCfg := &dns.Config{}
 	if len(hosts) > 0 {
 		dnsCfg.Hosts = hosts
@@ -356,7 +395,7 @@ func (c *configMaps) reconfig(nm *netmap.NetworkMap, hosts map[dnsname.FQDN][]ne
 		// WGCfg never returns an error at the time this code was written.  If it starts, returning
 		// errors if/when we upgrade tailscale, we'll need to deal.
 		c.logger.Critical(context.Background(), "update wireguard config failed", slog.Error(err))
-		return
+		return fmt.Errorf("build wireguard configuration: %w", err)
 	}
 
 	rc := &router.Config{
@@ -366,9 +405,102 @@ func (c *configMaps) reconfig(nm *netmap.NetworkMap, hosts map[dnsname.FQDN][]ne
 	err = c.engine.Reconfig(cfg, rc, dnsCfg, &tailcfg.Debug{})
 	if err != nil {
 		if errors.Is(err, wgengine.ErrNoChanges) {
-			return
+			if c.lastEngineError != nil {
+				return fmt.Errorf("previous wireguard configuration remains unconfirmed: %w", c.lastEngineError)
+			}
+			return nil
 		}
 		c.logger.Error(context.Background(), "failed to reconfigure wireguard engine", slog.Error(err))
+		c.lastEngineError = fmt.Errorf("reconfigure wireguard engine: %w", err)
+		return c.lastEngineError
+	}
+	if c.lastEngineError != nil {
+		return fmt.Errorf("wireguard engine restart required after an unconfirmed reconfiguration: %w", c.lastEngineError)
+	}
+	return nil
+}
+
+func (c *configMaps) peerMapLocked(id uuid.UUID) map[uuid.UUID]*peerLifecycle {
+	if c.peerAllowlistEnabled {
+		if _, allowed := c.peerAllowlist[id]; !allowed {
+			return c.blockedPeers
+		}
+	}
+	return c.peers
+}
+
+func (c *configMaps) setPeerAllowlist(ctx context.Context, enabled bool, allowed []uuid.UUID) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-c.configClosed:
+		return ErrConnClosed
+	case <-c.policyUpdate:
+	}
+	defer func() { c.policyUpdate <- struct{}{} }()
+	c.L.Lock()
+	if c.closing || c.phase == closed {
+		c.L.Unlock()
+		return ErrConnClosed
+	}
+	if err := ctx.Err(); err != nil {
+		c.L.Unlock()
+		return err
+	}
+	c.peerAllowlistEnabled = enabled
+	c.peerAllowlist = make(map[uuid.UUID]struct{}, len(allowed))
+	for _, id := range allowed {
+		c.peerAllowlist[id] = struct{}{}
+	}
+	if enabled {
+		for id, peer := range c.peers {
+			if _, ok := c.peerAllowlist[id]; ok {
+				continue
+			}
+			peer.resetLostTimer()
+			peer.refreshedWhileBlocked = false
+			if peer.readyForHandshakeTimer != nil {
+				peer.readyForHandshakeTimer.Stop()
+			}
+			c.blockedPeers[id] = peer
+			delete(c.peers, id)
+		}
+	}
+	for id, peer := range c.blockedPeers {
+		_, allowed := c.peerAllowlist[id]
+		if enabled && !allowed {
+			continue
+		}
+		if !enabled && (!peer.refreshedWhileBlocked || peer.lost || peer.node == nil) {
+			continue
+		}
+		c.peers[id] = peer
+		delete(c.blockedPeers, id)
+		peer.refreshedWhileBlocked = false
+		if peer.lost {
+			peer.setLostTimer(c)
+		}
+		if peer.node != nil && peer.isDestination && !peer.readyForHandshake {
+			peer.setReadyForHandshakeTimer(c)
+		}
+	}
+	if !enabled {
+		// A reconnect can reach the coordinator before this agent polls unlock.
+		// Only fresh NODE updates survive; pre-lock detached sessions stay revoked.
+		clear(c.blockedPeers)
+	}
+	waiter := &reconfigWaiter{done: make(chan struct{})}
+	c.reconfigWaiters = append(c.reconfigWaiters, waiter)
+	c.netmapDirty = true
+	c.Broadcast()
+	c.L.Unlock()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-c.configClosed:
+		return ErrConnClosed
+	case <-waiter.done:
+		return waiter.err
 	}
 }
 
@@ -435,7 +567,15 @@ func (c *configMaps) updatePeerLocked(update *proto.CoordinateResponse_PeerUpdat
 		return false
 	}
 	logger := c.logger.With(slog.F("peer_id", id))
-	lc, peerOk := c.peers[id]
+	peers := c.peerMapLocked(id)
+	lc, peerOk := peers[id]
+	blocked := c.peerAllowlistEnabled
+	if _, allowed := c.peerAllowlist[id]; allowed {
+		blocked = false
+	}
+	if blocked {
+		defer func() { dirty = false }()
+	}
 	var node *tailcfg.Node
 	if update.Kind == proto.CoordinateResponse_PeerUpdate_NODE {
 		// If no preferred DERP is provided, we can't reach the node.
@@ -459,12 +599,13 @@ func (c *configMaps) updatePeerLocked(update *proto.CoordinateResponse_PeerUpdat
 			lastHandshake = ps.LastHandshake
 		}
 		lc = &peerLifecycle{
-			peerID:        id,
-			node:          node,
-			lastHandshake: lastHandshake,
-			lost:          false,
+			peerID:                id,
+			node:                  node,
+			lastHandshake:         lastHandshake,
+			lost:                  false,
+			refreshedWhileBlocked: blocked,
 		}
-		c.peers[id] = lc
+		peers[id] = lc
 		logger.Debug(context.Background(), "adding new peer")
 		return lc.validForWireguard()
 	case peerOk && update.Kind == proto.CoordinateResponse_PeerUpdate_NODE:
@@ -478,8 +619,9 @@ func (c *configMaps) updatePeerLocked(update *proto.CoordinateResponse_PeerUpdat
 		// called after we update the node.
 		dirty = dirty && lc.validForWireguard()
 		lc.lost = false
+		lc.refreshedWhileBlocked = blocked
 		lc.resetLostTimer()
-		if lc.isDestination && !lc.readyForHandshake {
+		if !blocked && lc.isDestination && !lc.readyForHandshake {
 			// We received the node of a destination peer before we've received
 			// their READY_FOR_HANDSHAKE. Set a timer
 			lc.setReadyForHandshakeTimer(c)
@@ -511,7 +653,7 @@ func (c *configMaps) updatePeerLocked(update *proto.CoordinateResponse_PeerUpdat
 			peerID:            id,
 			readyForHandshake: true,
 		}
-		c.peers[id] = lc
+		peers[id] = lc
 		return false
 	case !peerOk:
 		// disconnected or lost, but we don't have the node. No op
@@ -519,12 +661,15 @@ func (c *configMaps) updatePeerLocked(update *proto.CoordinateResponse_PeerUpdat
 		return false
 	case update.Kind == proto.CoordinateResponse_PeerUpdate_DISCONNECTED:
 		lc.resetLostTimer()
-		delete(c.peers, id)
+		delete(peers, id)
 		logger.Debug(context.Background(), "disconnected peer")
 		return true
 	case update.Kind == proto.CoordinateResponse_PeerUpdate_LOST:
 		lc.lost = true
-		lc.setLostTimer(c)
+		lc.refreshedWhileBlocked = false
+		if !blocked {
+			lc.setLostTimer(c)
+		}
 		logger.Debug(context.Background(), "marked peer lost")
 		// marking a node lost doesn't change anything right now, so dirty=false
 		return false
@@ -540,6 +685,10 @@ func (c *configMaps) updatePeerLocked(update *proto.CoordinateResponse_PeerUpdat
 func (c *configMaps) setAllPeersLost() {
 	c.L.Lock()
 	defer c.L.Unlock()
+	for _, lc := range c.blockedPeers {
+		lc.lost = true
+		lc.refreshedWhileBlocked = false
+	}
 	for _, lc := range c.peers {
 		if lc.lost {
 			// skip processing already lost nodes, as this just results in timer churn
@@ -719,6 +868,8 @@ type peerLifecycle struct {
 	lostTimer              *quartz.Timer
 	readyForHandshake      bool
 	readyForHandshakeTimer *quartz.Timer
+	// A coordinator NODE received while blocked may be an early unlock reconnect.
+	refreshedWhileBlocked bool
 }
 
 func (l *peerLifecycle) resetLostTimer() {

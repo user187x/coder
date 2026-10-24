@@ -19,6 +19,8 @@ loginImage: "docker.io/library/python:3.13-alpine"
 
 # Container image of the workspace pods, substituted for "codercom/enterprise-base:ubuntu" in files/main.tf.
 workspaceImage: "ghcr.io/user187x/coder-workspace:1.9.4"
+# Platform service image containing the private networking helper. Empty disables the sidecar.
+workspaceTunnelImage: ""
 # StorageClass of workspaces' home volumes ("" = the cluster's default; EKS may have none: e.g. gp3). New volumes only.
 storageClass: ""
 

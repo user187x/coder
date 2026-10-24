@@ -214,6 +214,7 @@ spec:
                 --variable workspace_image="{{ . }}" \
                 {{- end }}
                 --variable namespace="{{ $.Values.namespace | default $.Release.Namespace }}" \
+                --variable workspace_tunnel_image="{{ $.Values.workspaceTunnelImage | default "" }}" \
                 {{- if $j.dataflow }}
                 --variable terminal_app="{{ $j.template.terminal | default "web" }}" \
                 {{- if eq ($j.template.terminal | default "web") "ghostty" }}

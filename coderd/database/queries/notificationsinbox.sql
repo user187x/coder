@@ -58,6 +58,30 @@ SET
 WHERE
     id = $2;
 
+-- name: InsertInboxNotificationAndNotify :exec
+-- A durable external event uses the same notification UUID on retries. Insert
+-- and live notification commit together, and disabled preferences remain honored.
+WITH inserted AS (
+    INSERT INTO inbox_notifications (
+        id, user_id, template_id, targets, title, content, icon, actions, created_at
+    )
+    SELECT
+        @id::uuid, @user_id::uuid, @template_id::uuid, @targets::uuid[],
+        @title::text, @content::text, @icon::text, @actions::jsonb, @created_at::timestamptz
+    FROM users
+    WHERE users.id = @user_id::uuid AND NOT users.deleted AND users.status = 'active'
+        AND EXISTS (
+            SELECT 1 FROM notification_templates template
+            LEFT JOIN notification_preferences preference
+                ON preference.notification_template_id = template.id AND preference.user_id = @user_id::uuid
+            WHERE template.id = @template_id::uuid
+                AND NOT coalesce(preference.disabled, NOT template.enabled_by_default)
+        )
+    ON CONFLICT (id) DO NOTHING
+    RETURNING id
+)
+SELECT pg_notify(@channel::text, @event::text) FROM inserted;
+
 -- name: MarkAllInboxNotificationsAsRead :exec
 UPDATE
 	inbox_notifications

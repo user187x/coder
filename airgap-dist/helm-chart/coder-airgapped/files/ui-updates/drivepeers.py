@@ -25,6 +25,7 @@ PEERS_FILE on the service's volume.
   POST /__coder-ui/api/safe/peers/<id>/answer {accept, access?}    the owner (access: read only instead of asked write)
   POST /__coder-ui/api/safe/peers/<id>/approve {approve}           admins
   POST /__coder-ui/api/safe/peers/<id>/end                         the owner, the requester or an admin
+  POST /__coder-ui/api/safe/peers/<id>/connection {connected}       admins: disconnect or restore an approved grant
 """
 import json
 import os
@@ -92,6 +93,7 @@ def _public(s):
                                  "askedAt", "answeredAt", "approvedBy", "approvedAt", "closedBy", "closedAt")}
     # a share from before parts of a drive could be shared: the entire drive, asked for
     out.update(path=s.get("path") or "", kind=s.get("kind") or "drive", by=s.get("by") or "request")
+    out["reconnectable"] = s.get("state") == "ended" and bool(s.get("wasActive") or s.get("approvedAt"))
     return out
 
 
@@ -406,7 +408,7 @@ def end(user, sid):
             raise PermissionError("Only its owner, the user it is shared with, or an admin ends a share.")
         if s["state"] not in OPEN:
             raise ValueError("It has ended already.")
-        s.update(state="ended", closedBy=user["username"], closedAt=int(time.time()))
+        s.update(wasActive=s["state"] == "active", state="ended", closedBy=user["username"], closedAt=int(time.time()))
         _save(data)
         share = dict(s)
     LOG(event="cloud-drive-peers-end", share=sid, by=user["username"])
@@ -415,6 +417,52 @@ def end(user, sid):
         what = "%s's Cloud Drive" % share["ownerName"] if (share.get("kind") or "drive") == "drive" else \
             "%s's %s %s" % (share["ownerName"], share["kind"], share["path"])
         _post(user, other, "Ended the share of %s: it leaves the workspaces at their next restart." % what, sid)
+    _changed()
+    return {**view(user), "share": _public(share)}
+
+
+def connection(user, sid, body):
+    """Admins disconnect or restore an existing grant without changing its scope."""
+    if not _admin(user):
+        raise PermissionError("Only admins connect or disconnect account shares.")
+    connected = body.get("connected")
+    if not isinstance(connected, bool):
+        raise ValueError("connected: true or false.")
+    with _lock:
+        data = _load()
+        s = _get(data, sid)
+        if connected:
+            if not data["settings"]["enabled"]:
+                raise PermissionError("Sharing Cloud Drives between users is off.")
+            for uid in (s["owner"], s["from"]):
+                account = USER_BY_ID(uid) if USER_BY_ID else None
+                if not account or account.get("status", "active") != "active":
+                    raise PermissionError("Both accounts must be active to connect their Cloud Drives.")
+        if connected == (s["state"] == "active"):
+            if connected or _public(s)["reconnectable"]:
+                return {**view(user), "share": _public(s)}
+        if connected:
+            if not _public(s)["reconnectable"]:
+                raise ValueError("Only a previously active connection can be restored.")
+            if any(other["id"] != sid and other["state"] in OPEN and
+                   all(other.get(k) == s.get(k) for k in ("owner", "from")) and
+                   (other.get("kind") or "drive") == (s.get("kind") or "drive") and
+                   (other.get("path") or "") == (s.get("path") or "")
+                   for other in data["shares"].values()):
+                raise ValueError("These accounts already have a connection for this share.")
+            s.update(state="active", approvedBy=user["username"], approvedAt=int(time.time()),
+                     closedBy=None, closedAt=None)
+        else:
+            if s["state"] != "active":
+                raise ValueError("Only an active connection can be disconnected.")
+            s.update(wasActive=True, state="ended", closedBy=user["username"], closedAt=int(time.time()))
+        _save(data)
+        share = dict(s)
+    LOG(event="cloud-drive-peers-connection", share=sid, by=user["username"], connected=connected)
+    for uid in {share["owner"], share["from"]} - {user["id"]}:
+        _post(user, uid, "%s the connection of %s's %s (%s). Workspace mounts may need a restart." % (
+            "Reconnected" if connected else "Disconnected", share["ownerName"],
+            _what(share.get("kind") or "drive", share.get("path") or ""), _access_words(share["access"])), sid)
     _changed()
     return {**view(user), "share": _public(share)}
 
@@ -432,12 +480,14 @@ def handle(h, method, path, user, read_json):
         return h.send_json(200, share(user, read_json(h)))
     if method == "GET" and rest == "/people":
         return h.send_json(200, people(user))
-    m = re.match(r"^/([0-9a-f]{32})/(answer|approve|end)$", rest)
+    m = re.match(r"^/([0-9a-f]{32})/(answer|approve|end|connection)$", rest)
     if method == "POST" and m:
         sid, what = m.groups()
         if what == "answer":
             return h.send_json(200, answer(user, sid, read_json(h)))
         if what == "approve":
             return h.send_json(200, approve(user, sid, read_json(h)))
+        if what == "connection":
+            return h.send_json(200, connection(user, sid, read_json(h)))
         return h.send_json(200, end(user, sid))
     return h.send_json(404, {"error": "not found"})

@@ -2,6 +2,33 @@
 {{- if and .Values.uiUpdates.enabled (include "platform.hasLayer" .) }}
 {{- $ui := .Values.uiUpdates }}
 {{- $ns := .Release.Namespace }}
+{{- $audit := and (eq (toString (.Values.global.userStorage | default dict).enabled) "true") .Values.userStorage.audit.enabled }}
+{{- if $audit }}
+{{- $name := "coder-drive-audit-tls" }}
+{{- $current := lookup "v1" "Secret" $ns $name }}
+{{- $data := dict }}
+{{- if and $current $current.data }}
+{{- $data = $current.data }}
+{{- else }}
+{{- $ca := genCA "coder-drive-audit CA" 3650 }}
+{{- $cert := genSignedCert "coder-ui-updates" (list "127.0.0.1") (list "coder-ui-updates" (printf "coder-ui-updates.%s.svc" $ns) "localhost") 3650 $ca }}
+{{- $data = dict "tls.crt" ($cert.Cert | b64enc) "tls.key" ($cert.Key | b64enc) "ca.crt" ($ca.Cert | b64enc) }}
+{{- end }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ $name }}
+  namespace: {{ $ns }}
+  annotations:
+    helm.sh/resource-policy: keep
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+type: Opaque
+data:
+  {{- range $key, $value := $data }}
+  {{ $key }}: {{ $value }}
+  {{- end }}
+{{- end }}
 {{- /* The service's code is in its image (uiUpdates.image: development/tools/build-ui-image.sh puts
      files/ui-updates/ in /app of the tools image, tagged with the code's hash), not in a ConfigMap: Helm keeps each
      release in a Secret of at most 1 MiB, and the code - kept twice there, as the chart's files and as the rendered
@@ -70,6 +97,7 @@ spec:
           imagePullPolicy: {{ $ui.imagePullPolicy }}
           command: [python3, /app/ui-service.py]
           env:
+            - {name: SAFE_AUDIT_ENABLED, value: {{ $audit | quote }}}
             - {name: PORT, value: "8080"}
             - {name: DB_PATH, value: /data/receipts.sqlite}
             # Kubelets' serving certificates not checked (self-signed: Minikube, kind), as for metrics-server.
@@ -193,6 +221,9 @@ spec:
             - {name: PYTHONUNBUFFERED, value: "1"}
           ports:
             - {name: http, containerPort: 8080, protocol: TCP}
+            {{- if $audit }}
+            - {name: drive-audit, containerPort: 9444, protocol: TCP}
+            {{- end }}
           livenessProbe:
             httpGet: {path: /__coder-ui/healthz, port: http}
             periodSeconds: 30
@@ -206,6 +237,9 @@ spec:
             capabilities: {drop: [ALL]}
             readOnlyRootFilesystem: true
           volumeMounts:
+            {{- if $audit }}
+            - {name: drive-audit-tls, mountPath: /etc/coder-drive-audit, readOnly: true}
+            {{- end }}
             - {name: data, mountPath: /data}
             - {name: ca, mountPath: /etc/coder-ui/ca, readOnly: true}
             - {name: db-ca, mountPath: /etc/coder-ui/db-ca, readOnly: true}
@@ -221,6 +255,11 @@ spec:
             - {name: user-storage-ca, mountPath: /etc/coder-user-storage, readOnly: true}
             {{- end }}
       volumes:
+        {{- if $audit }}
+        - name: drive-audit-tls
+          secret:
+            secretName: coder-drive-audit-tls
+        {{- end }}
         - name: data
           persistentVolumeClaim:
             claimName: coder-ui-updates-data
@@ -276,6 +315,9 @@ spec:
     app.kubernetes.io/name: coder-ui-updates
   ports:
     - {name: http, port: 80, protocol: TCP, targetPort: http}
+    {{- if $audit }}
+    - {name: drive-audit, port: 9444, protocol: TCP, targetPort: drive-audit}
+    {{- end }}
 ---
 # coder-enhanced: the platform's one route beside Coder's own. /__coder-ui/ goes to the service, and so does /__icons/
 # (the workspace template's icons, from coder-workspace's ConfigMap: that chart's own route is off here,

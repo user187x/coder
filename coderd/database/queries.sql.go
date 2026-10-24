@@ -22136,6 +22136,62 @@ func (q *sqlQuerier) InsertInboxNotification(ctx context.Context, arg InsertInbo
 	return i, err
 }
 
+const insertInboxNotificationAndNotify = `-- name: InsertInboxNotificationAndNotify :exec
+WITH inserted AS (
+    INSERT INTO inbox_notifications (
+        id, user_id, template_id, targets, title, content, icon, actions, created_at
+    )
+    SELECT
+        $3::uuid, $4::uuid, $5::uuid, $6::uuid[],
+        $7::text, $8::text, $9::text, $10::jsonb, $11::timestamptz
+    FROM users
+    WHERE users.id = $4::uuid AND NOT users.deleted AND users.status = 'active'
+        AND EXISTS (
+            SELECT 1 FROM notification_templates template
+            LEFT JOIN notification_preferences preference
+                ON preference.notification_template_id = template.id AND preference.user_id = $4::uuid
+            WHERE template.id = $5::uuid
+                AND NOT coalesce(preference.disabled, NOT template.enabled_by_default)
+        )
+    ON CONFLICT (id) DO NOTHING
+    RETURNING id
+)
+SELECT pg_notify($1::text, $2::text) FROM inserted
+`
+
+type InsertInboxNotificationAndNotifyParams struct {
+	Channel    string          `db:"channel" json:"channel"`
+	Event      string          `db:"event" json:"event"`
+	ID         uuid.UUID       `db:"id" json:"id"`
+	UserID     uuid.UUID       `db:"user_id" json:"user_id"`
+	TemplateID uuid.UUID       `db:"template_id" json:"template_id"`
+	Targets    []uuid.UUID     `db:"targets" json:"targets"`
+	Title      string          `db:"title" json:"title"`
+	Content    string          `db:"content" json:"content"`
+	Icon       string          `db:"icon" json:"icon"`
+	Actions    json.RawMessage `db:"actions" json:"actions"`
+	CreatedAt  time.Time       `db:"created_at" json:"created_at"`
+}
+
+// A durable external event uses the same notification UUID on retries. Insert
+// and live notification commit together, and disabled preferences remain honored.
+func (q *sqlQuerier) InsertInboxNotificationAndNotify(ctx context.Context, arg InsertInboxNotificationAndNotifyParams) error {
+	_, err := q.db.ExecContext(ctx, insertInboxNotificationAndNotify,
+		arg.Channel,
+		arg.Event,
+		arg.ID,
+		arg.UserID,
+		arg.TemplateID,
+		pq.Array(arg.Targets),
+		arg.Title,
+		arg.Content,
+		arg.Icon,
+		arg.Actions,
+		arg.CreatedAt,
+	)
+	return err
+}
+
 const markAllInboxNotificationsAsRead = `-- name: MarkAllInboxNotificationsAsRead :exec
 UPDATE
 	inbox_notifications
@@ -27296,51 +27352,6 @@ func (q *sqlQuerier) LockProvisionerKeyByIDForShare(ctx context.Context, id uuid
 	return id_2, err
 }
 
-const getWorkspaceNamesRunningTemplateVersion = `-- name: GetWorkspaceNamesRunningTemplateVersion :many
-SELECT
-	(users.username || '/' || workspaces.name)::text AS name
-FROM
-	workspaces
-	JOIN users ON users.id = workspaces.owner_id
-	JOIN LATERAL (
-		SELECT template_version_id, transition
-		FROM workspace_builds
-		WHERE workspace_builds.workspace_id = workspaces.id
-		ORDER BY build_number DESC
-		LIMIT 1
-	) latest ON true
-WHERE
-	NOT workspaces.deleted
-	AND latest.template_version_id = $1
-	AND latest.transition != 'delete'
-ORDER BY name
-`
-
-// Platform: the workspaces (owner/name) whose latest build is on a template version - they run it, so it is not
-// deleted. Deleted workspaces, and ones whose latest build deleted them, are not counted.
-func (q *sqlQuerier) GetWorkspaceNamesRunningTemplateVersion(ctx context.Context, templateVersionID uuid.UUID) ([]string, error) {
-	rows, err := q.db.QueryContext(ctx, getWorkspaceNamesRunningTemplateVersion, templateVersionID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []string
-	for rows.Next() {
-		var name string
-		if err := rows.Scan(&name); err != nil {
-			return nil, err
-		}
-		items = append(items, name)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const getWorkspaceProxies = `-- name: GetWorkspaceProxies :many
 SELECT
 	id, name, display_name, icon, url, wildcard_hostname, created_at, updated_at, deleted, token_hashed_secret, region_id, derp_enabled, derp_only, version
@@ -31092,6 +31103,50 @@ func (q *sqlQuerier) GetTemplateVersionsCreatedAfter(ctx context.Context, create
 	return items, nil
 }
 
+const getWorkspaceNamesRunningTemplateVersion = `-- name: GetWorkspaceNamesRunningTemplateVersion :many
+SELECT
+	(users.username || '/' || workspaces.name)::text AS name
+FROM
+	workspaces
+	JOIN users ON users.id = workspaces.owner_id
+	JOIN workspace_builds latest ON latest.workspace_id = workspaces.id
+		AND latest.build_number = (
+			SELECT max(build_number)
+			FROM workspace_builds
+			WHERE workspace_builds.workspace_id = workspaces.id
+		)
+WHERE
+	NOT workspaces.deleted
+	AND latest.template_version_id = $1
+	AND latest.transition != 'delete'
+ORDER BY (users.username || '/' || workspaces.name)::text
+`
+
+// Platform: the workspaces (owner/name) whose latest build is on a template version - they run it, so it is not
+// deleted. Deleted workspaces, and ones whose latest build deleted them, are not counted.
+func (q *sqlQuerier) GetWorkspaceNamesRunningTemplateVersion(ctx context.Context, templateVersionID uuid.UUID) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, getWorkspaceNamesRunningTemplateVersion, templateVersionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		items = append(items, name)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const insertTemplateVersion = `-- name: InsertTemplateVersion :exec
 INSERT INTO
 	template_versions (
@@ -33400,6 +33455,13 @@ WHERE
 	AND key = 'preference_admin_quick_links'
 `
 
+func (q *sqlQuerier) GetUserAdminQuickLinks(ctx context.Context, userID uuid.UUID) (string, error) {
+	row := q.db.QueryRowContext(ctx, getUserAdminQuickLinks, userID)
+	var admin_quick_links string
+	err := row.Scan(&admin_quick_links)
+	return admin_quick_links, err
+}
+
 const getUserAdminSidebarOrder = `-- name: GetUserAdminSidebarOrder :one
 SELECT
 	value AS admin_sidebar_order
@@ -33409,13 +33471,6 @@ WHERE
 	user_id = $1
 	AND key = 'preference_admin_sidebar_order'
 `
-
-func (q *sqlQuerier) GetUserAdminQuickLinks(ctx context.Context, userID uuid.UUID) (string, error) {
-	row := q.db.QueryRowContext(ctx, getUserAdminQuickLinks, userID)
-	var admin_quick_links string
-	err := row.Scan(&admin_quick_links)
-	return admin_quick_links, err
-}
 
 func (q *sqlQuerier) GetUserAdminSidebarOrder(ctx context.Context, userID uuid.UUID) (string, error) {
 	row := q.db.QueryRowContext(ctx, getUserAdminSidebarOrder, userID)
@@ -34198,6 +34253,18 @@ WHERE user_configs.user_id = $1
 RETURNING value AS admin_quick_links
 `
 
+type UpdateUserAdminQuickLinksParams struct {
+	UserID          uuid.UUID `db:"user_id" json:"user_id"`
+	AdminQuickLinks string    `db:"admin_quick_links" json:"admin_quick_links"`
+}
+
+func (q *sqlQuerier) UpdateUserAdminQuickLinks(ctx context.Context, arg UpdateUserAdminQuickLinksParams) (string, error) {
+	row := q.db.QueryRowContext(ctx, updateUserAdminQuickLinks, arg.UserID, arg.AdminQuickLinks)
+	var admin_quick_links string
+	err := row.Scan(&admin_quick_links)
+	return admin_quick_links, err
+}
+
 const updateUserAdminSidebarOrder = `-- name: UpdateUserAdminSidebarOrder :one
 INSERT INTO
 	user_configs (user_id, key, value)
@@ -34213,21 +34280,9 @@ WHERE user_configs.user_id = $1
 RETURNING value AS admin_sidebar_order
 `
 
-type UpdateUserAdminQuickLinksParams struct {
-	UserID          uuid.UUID `db:"user_id" json:"user_id"`
-	AdminQuickLinks string    `db:"admin_quick_links" json:"admin_quick_links"`
-}
-
 type UpdateUserAdminSidebarOrderParams struct {
 	UserID            uuid.UUID `db:"user_id" json:"user_id"`
 	AdminSidebarOrder string    `db:"admin_sidebar_order" json:"admin_sidebar_order"`
-}
-
-func (q *sqlQuerier) UpdateUserAdminQuickLinks(ctx context.Context, arg UpdateUserAdminQuickLinksParams) (string, error) {
-	row := q.db.QueryRowContext(ctx, updateUserAdminQuickLinks, arg.UserID, arg.AdminQuickLinks)
-	var admin_quick_links string
-	err := row.Scan(&admin_quick_links)
-	return admin_quick_links, err
 }
 
 func (q *sqlQuerier) UpdateUserAdminSidebarOrder(ctx context.Context, arg UpdateUserAdminSidebarOrderParams) (string, error) {

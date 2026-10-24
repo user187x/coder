@@ -787,6 +787,11 @@ export const WorkspaceTerminal = ({
 	return (
 		<>
 			<style>{`
+				${terminalScopeSelector}[data-terminal-renderer="ghostty"],
+				${terminalScopeSelector}[data-terminal-renderer="ghostty"] * {
+					cursor: pointer !important;
+				}
+
 				${terminalScopeSelector} .xterm {
 					padding: 4px;
 					width: 100%;
@@ -821,6 +826,7 @@ export const WorkspaceTerminal = ({
 						)}
 						ref={terminalWrapperRef}
 						data-terminal-scope={scopeId}
+						data-terminal-renderer={renderer}
 						data-testid={testId}
 					/>
 				</ContextMenuTrigger>

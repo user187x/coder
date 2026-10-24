@@ -23,6 +23,7 @@ import (
 	"github.com/coder/coder/v2/coderd/database/dbtime"
 	"github.com/coder/coder/v2/coderd/httpapi"
 	"github.com/coder/coder/v2/coderd/httpmw"
+	"github.com/coder/coder/v2/coderd/platformlockdown"
 	"github.com/coder/coder/v2/coderd/rbac/policy"
 	"github.com/coder/coder/v2/coderd/workspaceapps"
 	"github.com/coder/coder/v2/coderd/workspaceapps/appurl"
@@ -352,20 +353,29 @@ func (api *API) postWorkspaceProxy(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	proxy, err := api.Database.InsertWorkspaceProxy(ctx, database.InsertWorkspaceProxyParams{
-		ID:                id,
-		Name:              req.Name,
-		DisplayName:       req.DisplayName,
-		Icon:              req.Icon,
-		TokenHashedSecret: hashedSecret,
-		// Enabled by default, but will be disabled on register if the proxy has
-		// it disabled.
-		DerpEnabled: true,
-		// Disabled by default, but blah blah blah.
-		DerpOnly:  false,
-		CreatedAt: dbtime.Now(),
-		UpdatedAt: dbtime.Now(),
+	var proxy database.WorkspaceProxy
+	err = api.AGPL.WithGlobalLockdownProxyRegistration(ctx, func(db database.Store) error {
+		var err error
+		proxy, err = db.InsertWorkspaceProxy(ctx, database.InsertWorkspaceProxyParams{
+			ID:                id,
+			Name:              req.Name,
+			DisplayName:       req.DisplayName,
+			Icon:              req.Icon,
+			TokenHashedSecret: hashedSecret,
+			// Enabled by default, but will be disabled on register if the proxy has
+			// it disabled.
+			DerpEnabled: true,
+			// Disabled by default, but blah blah blah.
+			DerpOnly:  false,
+			CreatedAt: dbtime.Now(),
+			UpdatedAt: dbtime.Now(),
+		})
+		return err
 	})
+	if xerrors.Is(err, platformlockdown.ErrLocked) {
+		httpapi.Write(ctx, rw, http.StatusLocked, codersdk.Response{Message: "External workspace app proxies cannot be created during Global Lock Down."})
+		return
+	}
 	if database.IsUniqueViolation(err, database.UniqueWorkspaceProxiesLowerNameIndex) {
 		httpapi.Write(ctx, rw, http.StatusConflict, codersdk.Response{
 			Message: fmt.Sprintf("Workspace proxy with name %q already exists.", req.Name),
@@ -622,7 +632,7 @@ func (api *API) workspaceProxyRegister(rw http.ResponseWriter, r *http.Request) 
 	// #nosec G115 - Safe conversion as DERP region IDs are small integers expected to be within int32 range
 	regionID := int32(startingRegionID) + proxy.RegionID
 
-	err := api.Database.InTx(func(db database.Store) error {
+	register := func(db database.Store) error {
 		// First, update the proxy's values in the database.
 		_, err := db.RegisterWorkspaceProxy(ctx, database.RegisterWorkspaceProxyParams{
 			ID:               proxy.ID,
@@ -692,7 +702,17 @@ func (api *API) workspaceProxyRegister(rw http.ResponseWriter, r *http.Request) 
 		}
 
 		return nil
-	}, nil)
+	}
+	var err error
+	if req.DerpOnly {
+		err = api.Database.InTx(register, nil)
+	} else {
+		err = api.AGPL.WithGlobalLockdownProxyRegistration(ctx, register)
+	}
+	if xerrors.Is(err, platformlockdown.ErrLocked) {
+		httpapi.Write(ctx, rw, http.StatusLocked, codersdk.Response{Message: "External workspace app proxies cannot register during Global Lock Down."})
+		return
+	}
 	if httpapi.Is404Error(err) {
 		httpapi.ResourceNotFound(rw)
 		return

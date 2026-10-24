@@ -80,6 +80,7 @@ import {
 	agentInitializing,
 } from "#/modules/platform/workspaceInitializing/workspaceReadiness";
 import { useWorkspaceContactLost } from "#/modules/platform/workspaceLiveness/liveness";
+import { WorkspaceTunnelGlyph } from "#/modules/platform/workspaceTunnels/WorkspaceTunnelGlyph";
 import { WorkspaceUptime } from "#/modules/platform/workspaceUptime/WorkspaceUptime";
 import {
 	agentConnectionMessages,
@@ -95,7 +96,6 @@ import { AgentLatency } from "./AgentLatency";
 import { AGENT_LOG_LINE_HEIGHT } from "./AgentLogs/AgentLogLine";
 import { AgentLogs } from "./AgentLogs/AgentLogs";
 import { AgentMetadata } from "./AgentMetadata";
-import { AgentVersion } from "./AgentVersion";
 import { DownloadSelectedAgentLogsButton } from "./DownloadSelectedAgentLogsButton";
 import { MetricsIntervalButton } from "./MetricsIntervalButton";
 import { PortForwardButton } from "./PortForwardButton";
@@ -172,7 +172,6 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 	subAgents,
 	workspace,
 	template,
-	onUpdateAgent,
 	initialMetadata,
 	footer,
 }) => {
@@ -521,11 +520,6 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 								</span>
 							)}
 						</div>
-						{agent.status === "connected" && (
-							// Platform: the agent's own Update pill (an older agent, another build); a newer template's
-							// is the workspace bar's Update
-							<AgentVersion agent={agent} onUpdate={onUpdateAgent} />
-						)}
 						{agent.status === "connecting" && (
 							<>
 								<Skeleton width={160} variant="text" />
@@ -570,6 +564,7 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 						{agent.status === "connected" && (
 							<CloudDriveGlyph workspace={workspace} />
 						)}
+						<WorkspaceTunnelGlyph workspace={workspace} />
 						{/* Platform: admins' Lock Down badge and its menu, right of Open Ports */}
 						<LockdownBadge workspace={workspace} />
 					</div>

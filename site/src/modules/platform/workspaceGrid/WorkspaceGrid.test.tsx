@@ -2,9 +2,9 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { MemoryRouter, useLocation } from "react-router";
 import { API } from "#/api/api";
+import { PlatformAPI } from "#/api/platform";
 import type { Workspace } from "#/api/typesGenerated";
 import { MockWorkspace } from "#/testHelpers/entities";
-import { EMBED_SIZE_MESSAGE } from "./embeddedSize";
 import {
 	FRAME_WIDTH,
 	frameFit,
@@ -24,6 +24,9 @@ const Where: React.FC = () => (
 );
 
 const renderGrid = (names: string[], onOpenChange = vi.fn()) => {
+	vi.spyOn(PlatformAPI, "getWorkspaceTunnels").mockResolvedValue({
+		tunnels: [],
+	});
 	vi.spyOn(API, "getWorkspaces").mockResolvedValue({
 		workspaces: names.map(named),
 		count: names.length,
@@ -67,61 +70,39 @@ describe("WorkspaceGrid", () => {
 		expect(before.left).toBe(0);
 		expect(before.height * before.scale).toBeCloseTo(400);
 		// short: the width decides, and it sits in the middle of the cell's height
-		const short = frameFit(690, 400, 300);
+		const short = frameFit(690, 400, [300]);
 		expect(short.scale).toBeCloseTo(690 / FRAME_WIDTH);
 		expect(short.height).toBe(302);
 		expect(short.top).toBeCloseTo((400 - 302 * short.scale) / 2);
 		// tall: the height decides, and it sits in the middle of the cell's width
-		const tall = frameFit(690, 400, 798);
+		const tall = frameFit(690, 400, [798]);
 		expect(tall.scale).toBeCloseTo(0.5);
 		expect(tall.left).toBeCloseTo((690 - FRAME_WIDTH * 0.5) / 2);
 		expect(tall.top).toBeCloseTo(0, 0);
 		// however tall, it fits whole: never a scrollbar
-		const huge = frameFit(690, 400, 3998);
+		const huge = frameFit(690, 400, [3998]);
 		expect(huge.scale).toBeCloseTo(0.1);
 		expect(huge.height * huge.scale).toBeCloseTo(400);
 		// one alone, wider than FRAME_WIDTH: drawn the cell's width, unscaled
-		expect(frameFit(1400, 800, 500)).toMatchObject({ width: 1400, scale: 1 });
+		expect(frameFit(1400, 800, [500])).toMatchObject({ width: 1400, scale: 1 });
 	});
 
-	it("takes each dashboard's height from its own frame", async () => {
-		// a window to measure (jsdom lays nothing out): 1400 x 900, two side by side
-		vi.stubGlobal(
-			"ResizeObserver",
-			class {
-				observe() {}
-				disconnect() {}
-			},
+	it("uses the tallest visible dashboard for one shared fit", () => {
+		expect(frameFit(690, 400, [300, undefined, 798])).toEqual(
+			frameFit(690, 400, [798]),
 		);
-		vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(1412);
-		vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(900);
-		renderGrid(["one", "two"]);
-		const frame = (await screen.findByTestId(
-			"workspace-grid-frame-one",
-		)) as HTMLIFrameElement;
-		const other = screen.getByTestId(
-			"workspace-grid-frame-two",
-		) as HTMLIFrameElement;
-		const tell = (source: Window | null, height: number) =>
-			window.dispatchEvent(
-				new MessageEvent("message", {
-					data: { type: EMBED_SIZE_MESSAGE, width: 1000, height },
-					origin: window.location.origin,
-					source,
-				}),
-			);
-		tell(frame.contentWindow, 321);
-		await waitFor(() => expect(frame.style.height).toBe("323px"));
-		expect(other.style.height).not.toBe("323px");
-		// another origin's word is not taken
-		window.dispatchEvent(
-			new MessageEvent("message", {
-				data: { type: EMBED_SIZE_MESSAGE, width: 1000, height: 99 },
-				origin: "https://elsewhere.example",
-				source: other.contentWindow,
-			}),
+		expect(frameFit(690, 400, [798, 300])).toEqual(
+			frameFit(690, 400, [300, 798]),
 		);
-		expect(other.style.height).not.toBe("101px");
+		expect(
+			frameFit(690, 400, [
+				undefined,
+				Number.NaN,
+				Number.POSITIVE_INFINITY,
+				-10,
+				0,
+			]),
+		).toEqual(frameFit(690, 400));
 	});
 
 	it("shows each workspace's own page, embedded, with its name and template", async () => {

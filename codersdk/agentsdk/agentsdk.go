@@ -57,6 +57,7 @@ func New(serverURL *url.URL, setup SessionTokenSetup, opts ...codersdk.ClientOpt
 	return &Client{
 		SDK:                             c,
 		RefreshableSessionTokenProvider: provider,
+		workspaceAccessSession:          uuid.NewString(),
 	}
 }
 
@@ -64,7 +65,8 @@ func New(serverURL *url.URL, setup SessionTokenSetup, opts ...codersdk.ClientOpt
 // scoped to a workspace agent.
 type Client struct {
 	RefreshableSessionTokenProvider
-	SDK *codersdk.Client
+	SDK                    *codersdk.Client
+	workspaceAccessSession string
 }
 
 type GitSSHKey struct {
@@ -401,6 +403,9 @@ func (c *Client) connectRPCVersion(ctx context.Context, version *apiversion.APIV
 	q.Add("version", version.String())
 	if role != "" {
 		q.Add("role", role)
+	}
+	if role == "agent" && c.workspaceAccessSession != "" {
+		q.Add("workspace_access_session", c.workspaceAccessSession)
 	}
 	rpcURL.RawQuery = q.Encode()
 

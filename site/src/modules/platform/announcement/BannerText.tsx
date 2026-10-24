@@ -667,6 +667,7 @@ type BannerTextProps = {
 	>;
 	/** Plays the banner's text effect (a remount plays it again). */
 	animate?: boolean;
+	loop?: boolean;
 	className?: string;
 };
 
@@ -680,6 +681,7 @@ type BannerTextProps = {
 export const BannerText: React.FC<BannerTextProps> = ({
 	banner,
 	animate = false,
+	loop = false,
 	className,
 }) => {
 	const plain = banner.markdown === false;
@@ -748,6 +750,25 @@ export const BannerText: React.FC<BannerTextProps> = ({
 			)}
 		</>
 	);
+
+	const loopViewport = useRef<HTMLSpanElement>(null);
+	const loopSource = useRef<HTMLSpanElement>(null);
+	const [overflowing, setOverflowing] = useState(false);
+	useLayoutEffect(() => {
+		const viewport = loopViewport.current;
+		const source = loopSource.current;
+		if (!loop || !viewport || !source) return;
+		const measure = () =>
+			setOverflowing(
+				source.getBoundingClientRect().height > viewport.clientHeight,
+			);
+		measure();
+		const observer = new ResizeObserver(measure);
+		observer.observe(viewport);
+		observer.observe(source);
+		return () => observer.disconnect();
+	}, [loop, banner.message, banner.font, crawl, crawlDone]);
+
 	if (crawl && animate && !crawlDone && !prefersReducedMotion()) {
 		return (
 			<>
@@ -791,6 +812,7 @@ export const BannerText: React.FC<BannerTextProps> = ({
 				/>
 			)}
 			<span
+				ref={loopViewport}
 				data-banner-text=""
 				data-over-picture={roll ? "" : undefined}
 				data-outline={banner.outline ? "" : undefined}
@@ -816,7 +838,20 @@ export const BannerText: React.FC<BannerTextProps> = ({
 						: undefined
 				}
 			>
-				{content}
+				{loop ? (
+					<>
+						<span ref={loopSource} data-banner-loop-source="" className="block">
+							{content}
+						</span>
+						{overflowing && (
+							<span aria-hidden inert className="block">
+								{content}
+							</span>
+						)}
+					</>
+				) : (
+					content
+				)}
 			</span>
 		</>
 	);

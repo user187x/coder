@@ -5,6 +5,8 @@ import { getWorkspaceQuotaQueryKey } from "#/api/queries/workspaceQuota";
 import type { Workspace, WorkspaceQuota } from "#/api/typesGenerated";
 import {
 	MockOrganization,
+	MockStartingWorkspace,
+	MockStoppingWorkspace,
 	MockTemplate,
 	MockTemplateVersion,
 	MockUserOwner,
@@ -61,6 +63,18 @@ export const Example: Story = {
 		await expect(backLink).toBeVisible();
 		await expect(backLink).toHaveAttribute("aria-label", "Back to workspaces");
 	},
+};
+
+export const Starting: Story = {
+	args: { workspace: MockStartingWorkspace },
+};
+
+export const Stopping: Story = {
+	args: { workspace: MockStoppingWorkspace },
+};
+
+export const Restarting: Story = {
+	args: { workspace: baseWorkspace, isRestarting: true },
 };
 
 export const Outdated: Story = {

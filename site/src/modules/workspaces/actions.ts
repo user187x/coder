@@ -14,7 +14,7 @@ const actionTypes = [
 	"stopping",
 	"restart",
 	"restarting",
-	// Appears beside restart when an update is available.
+	// Replaces restart when an update is available.
 	"updateAndRestart",
 	// Replaces restart when an update is required.
 	"updateAndRestartRequireActiveVersion",
@@ -84,17 +84,13 @@ export const abilitiesByWorkspaceStatus = (
 		case "running": {
 			const actions: ActionType[] = ["stop"];
 
-			if (workspace.template_require_active_version && workspace.outdated) {
-				actions.push("updateAndRestartRequireActiveVersion");
-			} else if (
-				workspace.automatic_updates === "always" &&
-				workspace.outdated
-			) {
-				actions.unshift("updateAndRestart");
+			if (workspace.outdated) {
+				actions.push(
+					workspace.template_require_active_version
+						? "updateAndRestartRequireActiveVersion"
+						: "updateAndRestart",
+				);
 			} else {
-				if (workspace.outdated) {
-					actions.unshift("updateAndRestart");
-				}
 				actions.push("restart");
 			}
 

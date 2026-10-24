@@ -129,6 +129,77 @@ func TestClientService_ServeClient_V2(t *testing.T) {
 	require.True(t, xerrors.Is(err, io.EOF) || xerrors.Is(err, io.ErrClosedPipe))
 }
 
+func TestClientService_ServerRevocationDisconnectsPeer(t *testing.T) {
+	t.Parallel()
+	ctx := testutil.Context(t, testutil.WaitShort)
+	fake := tailnettest.NewFakeCoordinator()
+	var coord tailnet.Coordinator = fake
+	var pointer atomic.Pointer[tailnet.Coordinator]
+	pointer.Store(&coord)
+	logger := testutil.Logger(t)
+	service, err := tailnet.NewClientService(tailnet.ClientServiceOptions{
+		Logger: logger, CoordPtr: &pointer,
+		DERPMapUpdateFrequency: time.Second,
+		DERPMapFn:              func() *tailcfg.DERPMap { return nil },
+		ResumeTokenProvider:    tailnet.NewInsecureTestResumeTokenProvider(),
+	})
+	require.NoError(t, err)
+	clientConn, serverConn := net.Pipe()
+	defer clientConn.Close()
+	defer serverConn.Close()
+	revoked := make(chan struct{})
+	served := make(chan error, 1)
+	go func() {
+		served <- service.ServeClient(ctx, "2.0", serverConn, tailnet.StreamID{
+			Name: "client", ID: uuid.New(), Auth: tailnet.SingleTailnetCoordinateeAuth{}, Revoked: revoked,
+		})
+	}()
+	client, err := tailnet.NewDRPCClient(clientConn, logger)
+	require.NoError(t, err)
+	stream, err := client.Coordinate(ctx)
+	require.NoError(t, err)
+	defer stream.Close()
+	require.NoError(t, stream.Send(&proto.CoordinateRequest{}))
+	call := testutil.TryReceive(ctx, t, fake.CoordinateCalls)
+	_ = testutil.TryReceive(ctx, t, call.Reqs)
+	close(revoked)
+	disconnect := testutil.TryReceive(ctx, t, call.Reqs)
+	require.NotNil(t, disconnect.Disconnect, "revocation must remove peers rather than leave them LOST")
+	close(call.Resps)
+	_, err = stream.Recv()
+	require.Error(t, err)
+	_ = testutil.TryReceive(ctx, t, served)
+}
+
+func TestClientService_ServerRevocationClosesIdleConnection(t *testing.T) {
+	t.Parallel()
+	ctx := testutil.Context(t, testutil.WaitShort)
+	var coordinator tailnet.Coordinator = tailnettest.NewFakeCoordinator()
+	var pointer atomic.Pointer[tailnet.Coordinator]
+	pointer.Store(&coordinator)
+	logger := testutil.Logger(t)
+	service, err := tailnet.NewClientService(tailnet.ClientServiceOptions{
+		Logger: logger, CoordPtr: &pointer, DERPMapUpdateFrequency: time.Second,
+		DERPMapFn:           func() *tailcfg.DERPMap { return nil },
+		ResumeTokenProvider: tailnet.NewInsecureTestResumeTokenProvider(),
+	})
+	require.NoError(t, err)
+	clientConn, serverConn := net.Pipe()
+	defer clientConn.Close()
+	defer serverConn.Close()
+	revoked := make(chan struct{})
+	served := make(chan error, 1)
+	go func() {
+		served <- service.ServeClient(ctx, "2.0", serverConn, tailnet.StreamID{
+			Name: "client", ID: uuid.New(), Auth: tailnet.SingleTailnetCoordinateeAuth{}, Revoked: revoked,
+		})
+	}()
+	_, err = tailnet.NewDRPCClient(clientConn, logger)
+	require.NoError(t, err)
+	close(revoked)
+	_ = testutil.TryReceive(ctx, t, served)
+}
+
 func TestClientService_ServeClient_V1(t *testing.T) {
 	t.Parallel()
 	fCoord := tailnettest.NewFakeCoordinator()

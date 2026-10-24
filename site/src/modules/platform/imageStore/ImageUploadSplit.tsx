@@ -17,7 +17,7 @@ import {
 /**
  * Platform: Upload with an arrow beside it (the Appearance backgrounds: the dashboard's and the sign-in page's).
  * Upload chooses a file of one's own; the arrow opens a centred dialog with every picture of the image store
- * (GalleryPicker) - five columns, four rows in view, scrolling - picked with a click, the dialog then closing. The
+ * (GalleryPicker) in a responsive, scrolling grid, picked with a click, the dialog then closing. The
  * pictures' animated previews load only while the dialog is open: nothing animates on the page meanwhile.
  */
 export const ImageUploadSplit: React.FC<{

@@ -49,3 +49,53 @@ export const ConfirmedAndKept: Story = {
 export const SignInPage: Story = {
 	args: { placement: "login" },
 };
+
+export const ContinuousLongText: Story = {
+	args: { placement: "navbar" },
+	decorators: [
+		(Story) => (
+			<div className="flex w-[560px]">
+				<Story />
+			</div>
+		),
+	],
+	parameters: {
+		queries: [
+			{
+				key: bannerKey,
+				data: {
+					...MockBanner,
+					loopText: true,
+					effect: "none",
+					message:
+						"Scheduled maintenance: save your files and finish active jobs before the maintenance window. The administrators are available in chat if you need help. Your workspace will return after maintenance completes. Thank you for your patience.",
+				},
+			},
+			{
+				key: announcementStatusKey(MockBanner.id),
+				data: { signedIn: true, username: "admin", acked: false },
+			},
+		],
+	},
+};
+export const ReadLongTextOnce: Story = {
+	...ContinuousLongText,
+	parameters: {
+		queries: [
+			{
+				key: bannerKey,
+				data: {
+					...MockBanner,
+					loopText: false,
+					effect: "none",
+					message:
+						"Scheduled maintenance: save your files and finish active jobs before the maintenance window. The administrators are available in chat if you need help. Your workspace will return after maintenance completes. Thank you for your patience.",
+				},
+			},
+			{
+				key: announcementStatusKey(MockBanner.id),
+				data: { signedIn: true, username: "admin", acked: false },
+			},
+		],
+	},
+};

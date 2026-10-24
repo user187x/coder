@@ -150,6 +150,15 @@ const TemplateFilesPage: React.FC = () => {
 					actions={
 						<>
 							{permissions.canUpdateTemplate && (
+								<Button asChild variant="outline" size="sm">
+									<RouterLink
+										to={`${getLink(linkToTemplate(template.organization_name, template.name))}/versions/${version.name}/edit`}
+									>
+										Developer mode
+									</RouterLink>
+								</Button>
+							)}
+							{permissions.canUpdateTemplate && (
 								<UploadTemplateFiles
 									template={template}
 									version={version}

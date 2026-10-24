@@ -37,6 +37,8 @@ import { WorkspaceActions } from "./WorkspaceActions/WorkspaceActions";
 import { WorkspaceNotifications } from "./WorkspaceNotifications/WorkspaceNotifications";
 import { WorkspaceScheduleControls } from "./WorkspaceScheduleControls";
 
+import "#/modules/workspaces/workspaceBarberPole.css";
+
 const BREADCRUMB_SEGMENT_CLASS = cn(
 	"flex items-center flex-row flex-nowrap gap-2",
 	"max-w-40 whitespace-nowrap cursor-default",
@@ -118,12 +120,22 @@ export const WorkspaceTopbar: React.FC<WorkspaceTopbarProps> = ({
 		linkToTemplate(workspace.organization_name, workspace.template_name),
 	);
 
+	const buildStatus = workspace.latest_build.status;
+	const transitioning =
+		(["pending", "starting", "stopping", "canceling"].includes(buildStatus) &&
+			workspace.latest_build.transition !== "delete") ||
+		((isRestarting || isUpdating) &&
+			["running", "stopped"].includes(buildStatus));
+
 	return (
 		// Platform: a floating bar - a smoothly rounded rectangle, the main dashboards' cards' 18px - as wide as the
 		// dashboard under it, all its parts kept; it stays in view as the dashboard scrolls (sticky), and the Resources /
 		// History lists drop from it
 		<Topbar
-			className="[grid-area:topbar] sticky top-0 z-30 mx-auto mb-4 max-w-[1200px] md:mb-6 flex-wrap gap-y-2 rounded-[18px] border border-solid border-border bg-surface-primary/85 px-2 shadow-lg backdrop-blur-md"
+			className={cn(
+				"[grid-area:topbar] sticky top-0 z-30 mx-auto mb-4 max-w-[1200px] md:mb-6 flex-wrap gap-y-2 rounded-[18px] border border-solid border-border bg-surface-primary/85 px-2 shadow-lg backdrop-blur-md",
+				transitioning && "workspace-barber-pole",
+			)}
 			data-testid="workspace-topbar"
 		>
 			<Tooltip>
@@ -244,7 +256,11 @@ export const WorkspaceTopbar: React.FC<WorkspaceTopbarProps> = ({
 					/>
 
 					{/* Platform: an animated light while it runs. */}
-					<WorkspaceStatusIndicator workspace={workspace} runningLight />
+					<WorkspaceStatusIndicator
+						workspace={workspace}
+						runningLight
+						className="gap-1.5 rounded-full border border-solid border-current/20 bg-surface-secondary px-2 py-1 text-xs"
+					/>
 
 					<WorkspaceActions
 						workspace={workspace}

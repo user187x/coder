@@ -6192,6 +6192,12 @@ func (s *MethodTestSuite) TestNotifications() {
 		check.Args(arg).Asserts(rbac.ResourceInboxNotification.WithOwner(u.ID.String()), policy.ActionCreate)
 	}))
 
+	s.Run("InsertInboxNotificationAndNotify", s.Mocked(func(dbm *dbmock.MockStore, faker *gofakeit.Faker, check *expects) {
+		arg := testutil.Fake(s.T(), faker, database.InsertInboxNotificationAndNotifyParams{})
+		dbm.EXPECT().InsertInboxNotificationAndNotify(gomock.Any(), arg).Return(nil).AnyTimes()
+		check.Args(arg).Asserts(rbac.ResourceSystem, policy.ActionCreate)
+	}))
+
 	s.Run("UpdateInboxNotificationReadStatus", s.Mocked(func(dbm *dbmock.MockStore, faker *gofakeit.Faker, check *expects) {
 		u := testutil.Fake(s.T(), faker, database.User{})
 		notif := testutil.Fake(s.T(), faker, database.InboxNotification{UserID: u.ID})

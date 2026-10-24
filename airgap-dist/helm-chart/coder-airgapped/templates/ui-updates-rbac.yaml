@@ -85,6 +85,13 @@ rules:
   - apiGroups: [""]
     resources: [pods/log]
     verbs: [get]
+  # Workspace force-stop fences reviewed Deployment controllers before requesting pod removal.
+  - apiGroups: [apps]
+    resources: [deployments]
+    verbs: [get, list, patch]
+  - apiGroups: [apps]
+    resources: [replicasets]
+    verbs: [get]
   # Lock Down (lockdown.py): a running workspace pod gets the setting from an ephemeral container (no restart), and
   # an annotation of what is in force; the settings are the ConfigMap coder-lockdown, which the service makes.
   - apiGroups: [""]

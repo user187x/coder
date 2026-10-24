@@ -9,6 +9,9 @@ SRC = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                     "../../../helm-chart/coder-airgapped/files/ui-updates"))
 sys.path.insert(0, SRC)
 
+from audit_gateway_test import AuditGatewayTest, AuditOutboxTest
+from source_audit_test import SourceAuditAPITest, SourceAuditTest
+
 
 def load(name, file):
     spec = importlib.util.spec_from_file_location(name, os.path.join(SRC, file))
@@ -2365,6 +2368,41 @@ class WorkspaceRestoreTest(unittest.TestCase):
         self.assertFalse(os.path.exists(os.path.join(dst, ".coder-backup.json")))
 
 
+class DashboardAddressTest(unittest.TestCase):
+    def setUp(self):
+        self.cache = mock.Mock()
+        self.cache.get.return_value = None
+        self.kube = mock.Mock()
+        self.patches = mock.patch.multiple(ui, CACHE=self.cache, KUBE=self.kube,
+                                           CODER_ACCESS_URL="https://coder.example.com",
+                                           GATEWAY_NAME="front", GATEWAY_NAMESPACE="ingress")
+        self.patches.start()
+        self.addCleanup(self.patches.stop)
+
+    def test_reads_the_configured_gateways_addresses(self):
+        self.kube.call.return_value = (200, {"status": {"addresses": [{"value": "10.0.0.7"}, {}]}})
+        self.assertEqual(ui.dashboard_address(), {
+            "host": "coder.example.com", "addresses": ["10.0.0.7"], "gateway": "ingress/front"})
+        self.kube.call.assert_called_once_with(
+            "GET", "/apis/gateway.networking.k8s.io/v1/namespaces/ingress/gateways/front")
+        self.cache.put.assert_called_once()
+
+    def test_reuses_the_cached_address(self):
+        self.cache.get.return_value = {"host": "cached", "addresses": ["10.0.0.8"]}
+        self.assertEqual(ui.dashboard_address(), self.cache.get.return_value)
+        self.kube.call.assert_not_called()
+
+    def test_does_not_invent_an_ip_when_gateway_access_is_denied(self):
+        self.kube.call.return_value = (403, {})
+        self.assertEqual(ui.dashboard_address()["addresses"], [])
+
+    def test_no_gateway_configuration_does_not_query_kubernetes(self):
+        with mock.patch.object(ui, "GATEWAY_NAME", ""):
+            self.assertEqual(ui.dashboard_address(), {
+                "host": "coder.example.com", "addresses": [], "gateway": ""})
+        self.kube.call.assert_not_called()
+
+
 class QuotaMeTest(unittest.TestCase):
     """The Workspaces page's quota pill: a user's own limits, usage and what is left; nothing for no limit or an
     exempt admin."""
@@ -3506,6 +3544,72 @@ class CloudDrivePeersTest(unittest.TestCase):
 
     def tearDown(self):
         self.dir.cleanup()
+
+    def test_admin_connection_preserves_grant_and_revokes_gateway_access(self):
+        p, safe = self.peers, self.safe
+        p.save_settings(self.ADMIN, {"enabled": True})
+        sid = p.request(self.ANN, {"owner": self.BOB["id"], "access": "write"})["share"]["id"]
+        p.answer(self.BOB, sid, {"accept": True, "access": "read"})
+        p.approve(self.ADMIN, sid, {"approve": True})
+        safe._audit_account = lambda uid: {**p.USER_BY_ID(uid), "status": "active"}
+        with mock.patch.object(safe, "turned_off", return_value=None):
+            self.assertTrue(safe.audit_permission(self.ANN["id"], self.BOB["id"], "file.txt"))
+            with self.assertRaises(PermissionError):
+                p.connection(self.ANN, sid, {"connected": False})
+            out = p.connection(self.ADMIN, sid, {"connected": False})
+            self.assertEqual(out["share"]["state"], "ended")
+            self.assertTrue(out["share"]["reconnectable"])
+            self.assertFalse(safe.audit_permission(self.ANN["id"], self.BOB["id"], "file.txt"))
+            out = p.connection(self.ADMIN, sid, {"connected": True, "access": "write", "path": "other"})
+            self.assertEqual((out["share"]["access"], out["share"]["kind"], out["share"]["path"]),
+                             ("read", "drive", ""))
+            self.assertTrue(safe.audit_permission(self.ANN["id"], self.BOB["id"], "file.txt"))
+            self.assertFalse(safe.audit_permission(self.ANN["id"], self.BOB["id"], "file.txt", True))
+        self.assertGreaterEqual(len(self.changes), 4)
+        self.assertTrue(any("Disconnected" in row[2] for row in self.chat))
+        self.assertTrue(any("Reconnected" in row[2] for row in self.chat))
+
+    def test_admin_connection_cannot_bypass_consent_or_disabled_accounts(self):
+        p = self.peers
+        p.save_settings(self.ADMIN, {"enabled": True})
+        sid = p.request(self.ANN, {"owner": self.BOB["id"], "access": "read"})["share"]["id"]
+        for connected in (True, False):
+            with self.assertRaises(ValueError):
+                p.connection(self.ADMIN, sid, {"connected": connected})
+        p.answer(self.BOB, sid, {"accept": True})
+        with self.assertRaises(ValueError):
+            p.connection(self.ADMIN, sid, {"connected": True})
+        p.approve(self.ADMIN, sid, {"approve": True})
+        p.connection(self.ADMIN, sid, {"connected": False})
+        with self.assertRaises(PermissionError):
+            p.connection(self.BOB, sid, {"connected": True})
+        with self.assertRaises(ValueError):
+            p.connection(self.ADMIN, sid, {"connected": "true"})
+        p.save_settings(self.ADMIN, {"enabled": False})
+        with self.assertRaises(PermissionError):
+            p.connection(self.ADMIN, sid, {"connected": True})
+        p.save_settings(self.ADMIN, {"enabled": True})
+        with mock.patch.object(p, "USER_BY_ID", return_value=None):
+            with self.assertRaises(PermissionError):
+                p.connection(self.ADMIN, sid, {"connected": True})
+        with mock.patch.object(p, "USER_BY_ID", return_value={"status": "suspended"}):
+            with self.assertRaises(PermissionError):
+                p.connection(self.ADMIN, sid, {"connected": True})
+        self.assertEqual(p.view(self.ADMIN)["all"][0]["state"], "ended")
+
+    def test_admin_connection_rejects_duplicate_open_grant(self):
+        p = self.peers
+        p.save_settings(self.ADMIN, {"enabled": True, "adminApproval": False})
+        sid = p.request(self.ANN, {"owner": self.BOB["id"], "access": "read"})["share"]["id"]
+        p.answer(self.BOB, sid, {"accept": True})
+        p.connection(self.ADMIN, sid, {"connected": False})
+        data = p._load()
+        data["shares"][sid].pop("kind")
+        data["shares"][sid].pop("path")
+        p._save(data)
+        p.request(self.ANN, {"owner": self.BOB["id"], "access": "read"})
+        with self.assertRaises(ValueError):
+            p.connection(self.ADMIN, sid, {"connected": True})
 
     def test_ask_accept_approve_mount_end(self):
         p = self.peers

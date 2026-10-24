@@ -18,6 +18,7 @@ import {
 } from "#/components/Dialog/Dialog";
 import { embedFrameAttributes } from "#/contexts/platformBoot";
 import { TemplatePill } from "#/modules/platform/workspaceLatency/WorkspacesLatencyMenu";
+import { WorkspaceTunnelPorts } from "../workspaceTunnels/WorkspaceTunnelPorts";
 import { isEmbedSizeMessage } from "./embeddedSize";
 
 /** Columns and rows in view at most: four dashboards; with more, the grid is dragged round to reach the others. */
@@ -50,14 +51,13 @@ export const gridLayout = (n: number): { cols: number; rows: number } => {
 const workspacePath = (w: Workspace) => `/@${w.owner_name}/${w.name}`;
 
 /**
- * Where a dashboard sits in its cell (frameH: the cell below its bar): drawn FRAME_WIDTH wide (the cell's width,
- * when wider), scaled to the cell's width - and to its height too, once the dashboard has told its own (contentH):
- * it always fits whole, no scrollbar - and centred in it.
+ * Fit all dashboards to the same viewport and scale, using the tallest reported
+ * content height so every dashboard fits whole and remains evenly sized.
  */
 export const frameFit = (
 	cellW: number,
 	frameH: number,
-	contentH?: number,
+	contentHeights: readonly (number | undefined)[] = [],
 ): {
 	width: number;
 	height: number;
@@ -67,7 +67,14 @@ export const frameFit = (
 } => {
 	const width = Math.max(cellW, FRAME_WIDTH);
 	const byWidth = cellW > 0 ? cellW / width : 1;
-	// its own height, a pixel or two over so it never scrolls for rounding
+	const contentH = contentHeights.reduce<number>(
+		(tallest, height) =>
+			height !== undefined && Number.isFinite(height) && height > tallest
+				? height
+				: tallest,
+		0,
+	);
+	// Leave room for rounding without introducing a scrollbar.
 	const tall = contentH ? Math.ceil(contentH) + 2 : 0;
 	const scale = tall && frameH > 0 ? Math.min(byWidth, frameH / tall) : byWidth;
 	const height = tall || frameH / scale;
@@ -151,6 +158,7 @@ type GridBodyProps = {
 
 const GridBody: React.FC<GridBodyProps> = ({ shown, loading, navigate }) => {
 	const viewportRef = useRef<HTMLDivElement>(null);
+	const [connecting, setConnecting] = useState(false);
 	const [size, setSize] = useState({ w: 0, h: 0 });
 	useLayoutEffect(() => {
 		const el = viewportRef.current;
@@ -183,6 +191,11 @@ const GridBody: React.FC<GridBodyProps> = ({ shown, loading, navigate }) => {
 	// Each dashboard's height, as it tells it (its page in the frame: useReportEmbeddedSize).
 	const frames = useRef(new Map<string, HTMLIFrameElement>());
 	const [heights, setHeights] = useState<Record<string, number>>({});
+	const fit = frameFit(
+		frameW,
+		frameH,
+		shown.map((w) => heights[w.id]),
+	);
 	useEffect(() => {
 		const onMessage = (event: MessageEvent) => {
 			if (
@@ -324,7 +337,7 @@ const GridBody: React.FC<GridBodyProps> = ({ shown, loading, navigate }) => {
 				{shown.length > 0 && (
 					<div
 						data-testid="workspace-grid-board"
-						className="grid"
+						className="relative grid"
 						style={{
 							gridTemplateColumns: `repeat(${cols}, ${cellW}px)`,
 							gridAutoRows: `${cellH}px`,
@@ -332,10 +345,17 @@ const GridBody: React.FC<GridBodyProps> = ({ shown, loading, navigate }) => {
 							width: cols * cellW + (cols - 1) * GAP,
 						}}
 					>
+						<WorkspaceTunnelPorts
+							shown={shown}
+							cols={cols}
+							cellW={cellW}
+							cellH={cellH}
+							gap={GAP}
+							onDragging={setConnecting}
+						/>
 						{shown.map((w) => {
 							const up = w.latest_build.status === "running";
 							const inUse = !pannable || active === w.id;
-							const fit = frameFit(frameW, frameH, heights[w.id]);
 							return (
 								<section
 									key={w.id}
@@ -391,7 +411,8 @@ const GridBody: React.FC<GridBodyProps> = ({ shown, loading, navigate }) => {
 											{...embedFrameAttributes(workspacePath(w))}
 											className={cn(
 												"absolute origin-top-left border-0 bg-transparent",
-												(panning || !inUse) && "pointer-events-none",
+												(panning || connecting || !inUse) &&
+													"pointer-events-none",
 											)}
 											style={{
 												left: fit.left,
@@ -402,7 +423,7 @@ const GridBody: React.FC<GridBodyProps> = ({ shown, loading, navigate }) => {
 													fit.scale < 1 ? `scale(${fit.scale})` : undefined,
 											}}
 										/>
-										{!inUse && (
+										{(connecting || !inUse) && (
 											<div
 												data-grid-shield={w.id}
 												data-testid={`workspace-grid-shield-${w.name}`}

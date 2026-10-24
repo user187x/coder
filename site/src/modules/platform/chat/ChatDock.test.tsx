@@ -1,4 +1,4 @@
-import { act, screen, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, Outlet } from "react-router";
 import { type ChatMessage, type ChatState, PlatformAPI } from "#/api/platform";
@@ -9,6 +9,8 @@ import {
 	closePanelView,
 	closeWindow,
 	initialDockMode,
+	markRead,
+	openChatWith,
 	setDockMode,
 } from "./chatStore";
 import { CHAT_CONSOLE_PAGE } from "./consolePlaces";
@@ -123,6 +125,50 @@ describe("ChatDock: the bar, the raised window, the side panel and full screen",
 			"aria-expanded",
 			"false",
 		);
+	});
+
+	it("hides the bar into a remembered squircle and restores its conversation draft", async () => {
+		const user = userEvent.setup();
+		const send = vi.spyOn(PlatformAPI, "sendChatMessage").mockResolvedValue({
+			message: message(9, ME, "ann"),
+		});
+		vi.spyOn(PlatformAPI, "sendChatTyping").mockResolvedValue({ ok: true });
+		renderDock();
+		const raised = await raise(user);
+		await user.click(within(raised).getByRole("button", { name: /ann/ }));
+		await user.type(
+			await screen.findByRole("textbox", { name: "Message ann" }),
+			"draft kept",
+		);
+		await user.click(within(raised).getByRole("button", { name: "Chats" }));
+		await user.click(screen.getByRole("button", { name: "Hide chat bar" }));
+		expect(initialDockMode()).toBe("compact");
+		await user.click(screen.getByRole("button", { name: "Restore chat bar" }));
+		expect(initialDockMode()).toBe("bar");
+		await user.click(
+			within(screen.getByRole("dialog", { name: "Chat with ann" })).getByRole(
+				"button",
+				{ name: "Send" },
+			),
+		);
+		await waitFor(() =>
+			expect(send).toHaveBeenCalledWith(
+				expect.objectContaining({ to: "ann", text: "draft kept" }),
+			),
+		);
+	});
+
+	it("does not mark hidden compact conversations as read", async () => {
+		const user = userEvent.setup();
+		renderDock();
+		await user.click(
+			await screen.findByRole("button", { name: "Hide chat bar" }),
+		);
+		const read = vi.mocked(PlatformAPI.markChatRead);
+		read.mockClear();
+		await act(() => openChatWith({ id: "bob", username: "bob", name: "" }));
+		act(() => markRead("bob", true));
+		expect(read).not.toHaveBeenCalled();
 	});
 
 	it("the window's controls attach it to the right side and go full screen, and back", async () => {

@@ -343,3 +343,17 @@ export const lastUsedMessage = (lastUsedAt: string | Date): string => {
 
 	return message;
 };
+
+/** Includes rebuilt releases whose build metadata does not affect semver ordering. */
+export const workspaceAgentNeedsUpdate = (
+	agent: TypesGen.WorkspaceAgent,
+	serverVersion: string,
+	serverAPIVersion: string,
+): boolean =>
+	getDisplayVersionStatus(
+		agent.version,
+		serverVersion,
+		agent.api_version,
+		serverAPIVersion,
+	).status !== agentVersionStatus.Updated ||
+	Boolean(agent.version && serverVersion && agent.version !== serverVersion);

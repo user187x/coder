@@ -23,10 +23,7 @@ export type ActionButtonProps = {
 	requireActiveVersion?: boolean;
 };
 
-/**
- * Platform: the workspace bar's Update - the agent card's animated Update pill (agentOutdated.css: rimmed in the
- * warning colour, glowing, a pulsing refresh icon in its groove), with the bar's action and its explanation.
- */
+/** Updates the workspace and its agent through the existing build confirmation. */
 export const UpdateButton: React.FC<ActionButtonProps> = ({
 	handleAction,
 	loading,

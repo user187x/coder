@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"net"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -33,6 +34,16 @@ type StreamID struct {
 	Name string
 	ID   uuid.UUID
 	Auth CoordinateeAuth
+	// Revoked requests a graceful disconnect, removing the peer from agents'
+	// WireGuard configurations instead of leaving an established peer LOST.
+	Revoked    <-chan struct{}
+	revocation *streamRevocation
+}
+
+type streamRevocation struct {
+	mu       sync.Mutex
+	revoking bool
+	active   sync.WaitGroup
 }
 
 func WithStreamID(ctx context.Context, streamID StreamID) context.Context {
@@ -126,7 +137,26 @@ func (s ClientService) ServeConnV2(ctx context.Context, conn net.Conn, streamID 
 	if err != nil {
 		return xerrors.Errorf("yamux init failed: %w", err)
 	}
+	streamID.revocation = &streamRevocation{}
 	ctx = WithStreamID(ctx, streamID)
+	finished := make(chan struct{})
+	defer close(finished)
+	go func() {
+		select {
+		case <-streamID.Revoked:
+			streamID.revocation.mu.Lock()
+			streamID.revocation.revoking = true
+			streamID.revocation.mu.Unlock()
+			// Each Coordinate stream sends Disconnect and waits for its
+			// coordinator response channel to close before completing. Closing
+			// yamux sooner could leave a direct peer LOST instead of removed.
+			streamID.revocation.active.Wait()
+			_ = session.Close()
+			_ = conn.Close()
+		case <-ctx.Done():
+		case <-finished:
+		}
+	}()
 	s.Logger.Debug(ctx, "serving dRPC tailnet v2 API session",
 		slog.F("peer_id", streamID.ID.String()))
 	return s.drpc.Serve(ctx, session)
@@ -206,15 +236,32 @@ func (s *DRPCService) Coordinate(stream proto.DRPCTailnet_CoordinateStream) erro
 		_ = stream.Close()
 		return xerrors.New("no Stream ID")
 	}
+	if streamID.revocation != nil {
+		streamID.revocation.mu.Lock()
+		revoked := streamID.revocation.revoking
+		select {
+		case <-streamID.Revoked:
+			revoked = true
+		default:
+		}
+		if revoked {
+			streamID.revocation.mu.Unlock()
+			return xerrors.New("workspace access revoked")
+		}
+		streamID.revocation.active.Add(1)
+		streamID.revocation.mu.Unlock()
+		defer streamID.revocation.active.Done()
+	}
 	logger := s.Logger.With(slog.F("peer_id", streamID.ID.String()), slog.F("name", streamID.Name))
 	logger.Debug(ctx, "starting tailnet Coordinate")
 	coord := *(s.CoordPtr.Load())
 	reqs, resps := coord.Coordinate(ctx, streamID.ID, streamID.Name, streamID.Auth)
 	c := communicator{
-		logger: logger,
-		stream: stream,
-		reqs:   reqs,
-		resps:  resps,
+		logger:  logger,
+		stream:  stream,
+		reqs:    reqs,
+		resps:   resps,
+		revoked: streamID.Revoked,
 	}
 	c.communicate()
 	return nil
@@ -260,10 +307,11 @@ func (s *DRPCService) WorkspaceUpdates(req *proto.WorkspaceUpdatesRequest, strea
 }
 
 type communicator struct {
-	logger slog.Logger
-	stream proto.DRPCTailnet_CoordinateStream
-	reqs   chan<- *proto.CoordinateRequest
-	resps  <-chan *proto.CoordinateResponse
+	logger  slog.Logger
+	stream  proto.DRPCTailnet_CoordinateStream
+	reqs    chan<- *proto.CoordinateRequest
+	resps   <-chan *proto.CoordinateResponse
+	revoked <-chan struct{}
 }
 
 func (c communicator) communicate() {
@@ -274,16 +322,42 @@ func (c communicator) communicate() {
 func (c communicator) loopReq() {
 	ctx := c.stream.Context()
 	defer close(c.reqs)
-	for {
-		req, err := c.stream.Recv()
-		if err != nil {
-			c.logger.Debug(ctx, "error receiving requests from DRPC stream", slog.Error(err))
-			return
+	type received struct {
+		req *proto.CoordinateRequest
+		err error
+	}
+	requests := make(chan received)
+	done := make(chan struct{})
+	defer close(done)
+	go func() {
+		for {
+			req, err := c.stream.Recv()
+			select {
+			case requests <- received{req: req, err: err}:
+			case <-done:
+				return
+			}
+			if err != nil {
+				return
+			}
 		}
-		err = SendCtx(ctx, c.reqs, req)
-		if err != nil {
-			c.logger.Debug(ctx, "context done while sending coordinate request", slog.Error(ctx.Err()))
+	}()
+	for {
+		select {
+		case <-c.revoked:
+			_ = SendCtx(ctx, c.reqs, &proto.CoordinateRequest{Disconnect: &proto.CoordinateRequest_Disconnect{}})
 			return
+		case <-ctx.Done():
+			return
+		case got := <-requests:
+			if got.err != nil {
+				c.logger.Debug(ctx, "error receiving requests from DRPC stream", slog.Error(got.err))
+				return
+			}
+			if err := SendCtx(ctx, c.reqs, got.req); err != nil {
+				c.logger.Debug(ctx, "context done while sending coordinate request", slog.Error(ctx.Err()))
+				return
+			}
 		}
 	}
 }

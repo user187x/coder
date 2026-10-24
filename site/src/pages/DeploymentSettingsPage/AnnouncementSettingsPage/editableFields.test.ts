@@ -23,6 +23,7 @@ describe("editableFields", () => {
 		// Saved before the newer settings existed: their defaults.
 		expect(editableFields(custom)).toEqual({
 			...fields,
+			loopText: true,
 			speed: "normal",
 			crawlSpeed: 15,
 			crawlTilt: 100,

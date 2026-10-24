@@ -1,43 +1,4 @@
-/* A workspace on its way up (startingRows.ts): diagonal stripes moving across its whole row, a barber pole -
-   semi-transparent, in the theme's accent colour, so the row's text reads as usual. */
-tr.workspace-row-starting {
-	--workspace-pole: color-mix(
-		in srgb,
-		var(--color-content-link) 16%,
-		transparent
-	);
-	background-image: linear-gradient(
-		45deg,
-		var(--workspace-pole) 25%,
-		transparent 25%,
-		transparent 50%,
-		var(--workspace-pole) 50%,
-		var(--workspace-pole) 75%,
-		transparent 75%,
-		transparent
-	);
-	background-size: 40px 40px;
-	animation: workspace-row-pole 1.4s linear infinite;
-}
-
-@keyframes workspace-row-pole {
-	from {
-		background-position: 40px 0;
-	}
-	to {
-		background-position: 0 0;
-	}
-}
-
-/* Animations off (the user's setting, or the system's reduced motion): the stripes stay still. */
-:root[data-animations="off"] tr.workspace-row-starting {
-	animation: none;
-}
-@media (prefers-reduced-motion: reduce) {
-	tr.workspace-row-starting {
-		animation: none;
-	}
-}
+@import "../../modules/workspaces/workspaceBarberPole.css";
 
 /* A workspace being deleted (startingRows.ts isDeleting): a shine sweeping across its whole row, again and again, over
    a faint tint of the theme's destructive colour - the shine in the text's colour (light on dark, dark on light), so

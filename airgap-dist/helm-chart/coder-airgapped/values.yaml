@@ -543,6 +543,10 @@ userStorage:
     mountOptions: "--memory-limit 256 --dir-mode 0750 --file-mode 0640 --uid 1000 --gid 1000 --stat-cache-ttl 10s"
     tolerations: []
     nodeSelector: {}
+  # Enable after reviewing the audited-mount migration. Existing claims and
+  # files are retained; workspaces must restart onto per-account audit mounts.
+  audit:
+    enabled: false
 
 # ---------------------------------------------------------------------------------------------------------------
 # coder-ui-updates: the platform service under /__coder-ui/ (General, Health, Certificates, Chat, Network,
@@ -555,7 +559,7 @@ uiUpdates:
   # (+ its database) and regctl (development/image-tools), which the Images view lints, formats and scans with -
   # tagged with the code's hash (development/tools/build-ui-image.sh builds and pins it). The chart carries no code:
   # Helm keeps each release in a Secret of at most 1 MiB.
-  image: &platformServiceImage '{{ include "platform.image" (list . "ghcr.io/user187x/coder-ui-updates:code-af032ac7b386") }}'
+  image: &platformServiceImage '{{ include "platform.image" (list . "ghcr.io/user187x/coder-ui-updates:code-d8dde4baf727") }}'
   imagePullPolicy: IfNotPresent
   imagePullSecrets: []
   hostname: '{{ include "platform.coderHost" . }}'
@@ -636,6 +640,7 @@ coder-workspace:
     image: *platformServiceImage
     dbCaSecret: '{{ .Values.global.database.name }}-ca'
   workspaceImage: '{{ include "platform.image" (list . "ghcr.io/user187x/coder-workspace:1.9.4") }}'
+  workspaceTunnelImage: *platformServiceImage
   imagePullSecrets: []
   secrets:
     tlsCa: '{{ .Values.global.secretNames.tlsCa }}'

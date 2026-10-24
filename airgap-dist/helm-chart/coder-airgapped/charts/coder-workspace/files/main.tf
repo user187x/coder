@@ -106,6 +106,12 @@ variable "user_storage_path" {
   default     = "/home/coder/cloud-drive"
 }
 
+variable "workspace_tunnel_image" {
+  type        = string
+  description = "Platform image containing the private workspace overlay helper; empty disables it."
+  default     = ""
+}
+
 # The workspace image; empty: the chart's (substituted for "codercom/enterprise-base:ubuntu" below).
 variable "workspace_image" {
   type        = string
@@ -478,8 +484,9 @@ locals {
   cloud_drive_is_source = try(local.cloud_drive_source.workspace, "") == data.coder_workspace.me.id
   cloud_drive_mode = (!var.user_storage ? "" : local.cloud_drive_shared ? "shared" : local.cloud_drive_is_source ? "source"
   : local.cloud_drive_source == null || try(local.cloud_drive_source.running, false) ? "mount" : "offline")
-  cloud_drive_claim = local.cloud_drive_mode != "mount" ? "" : (local.cloud_drive_source == null
-  ? "coder-safe-${data.coder_workspace_owner.me.id}" : "coder-drive-src-${data.coder_workspace_owner.me.id}")
+  cloud_drive_claim = local.cloud_drive_mode != "mount" ? "" : try(local.cloud_drive_state.auditClaims[data.coder_workspace_owner.me.id], (local.cloud_drive_source == null
+    ? "coder-safe-${data.coder_workspace_owner.me.id}" : "coder-drive-src-${data.coder_workspace_owner.me.id}")
+  )
   # What other users shared with the owner (Cloud Drive > Sharing: asked for in chat and accepted, or shared by its
   # owner; approved by an admin): [{id, owner, name, claim, readOnly, kind, path, item}] - an entire drive (kind
   # "drive") mounted at /mnt/cloud-drive-peers/<name> and linked at ~/cloud-drive-shared/<name>; a folder or file of
@@ -939,6 +946,63 @@ resource "kubernetes_deployment_v1" "main" {
           }
         }
         # platform:end lockdown
+
+        volume {
+          name = "workspace-tunnel-run"
+          empty_dir {
+            medium = "Memory"
+          }
+        }
+
+        dynamic "container" {
+          for_each = var.workspace_tunnel_image != "" ? [1] : []
+          content {
+            name              = "workspace-tunnel"
+            image             = var.workspace_tunnel_image
+            image_pull_policy = "IfNotPresent"
+            command           = ["/usr/local/bin/workspace-tunnel"]
+            security_context {
+              run_as_user                = 0
+              run_as_non_root            = false
+              allow_privilege_escalation = false
+              read_only_root_filesystem  = true
+              capabilities {
+                drop = ["ALL"]
+                add  = ["NET_ADMIN"]
+              }
+            }
+            env {
+              name  = "CODER_AGENT_TOKEN"
+              value = coder_agent.main.token
+            }
+            env {
+              name  = "WORKSPACE_TUNNEL_URL"
+              value = "${trimsuffix(data.coder_workspace.me.access_url, "/")}/__coder-ui/api/workspace-tunnels/agent/sync"
+            }
+            env {
+              name = "POD_IP"
+              value_from {
+                field_ref {
+                  field_path = "status.podIP"
+                }
+              }
+            }
+            volume_mount {
+              name       = "workspace-tunnel-run"
+              mount_path = "/run"
+            }
+            volume_mount {
+              name       = "ca-bundle"
+              mount_path = "/etc/ssl/certs/ca-certificates.crt"
+              sub_path   = "ca-certificates.crt"
+              read_only  = true
+            }
+            resources {
+              requests = { cpu = "10m", memory = "24Mi" }
+              limits   = { memory = "96Mi" }
+            }
+          }
+        }
 
         container {
           name  = "dev"

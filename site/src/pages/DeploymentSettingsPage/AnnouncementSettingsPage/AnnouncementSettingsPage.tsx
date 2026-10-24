@@ -53,6 +53,7 @@ const FIELDS = [
 	"refreshSeconds",
 	"effect",
 	"repeat",
+	"loopText",
 	"speed",
 	"crawlSpeed",
 	"crawlTilt",
@@ -78,6 +79,7 @@ const fieldsOf = ({ id: _id, ...banner }: Banner): BannerFields => {
 		...banner,
 		effect: banner.effect ?? "none",
 		repeat: banner.repeat ?? false,
+		loopText: banner.loopText ?? true,
 		speed: banner.speed ?? "normal",
 		crawlSpeed:
 			banner.crawlSpeed ?? LEGACY_CRAWL_SPEED[banner.speed ?? "normal"],

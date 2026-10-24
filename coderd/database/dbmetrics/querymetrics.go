@@ -69,22 +69,6 @@ type queryMetricsStore struct {
 	dbMetrics      *metricsStore
 }
 
-func (m queryMetricsStore) DeleteTemplateVersionByID(ctx context.Context, id uuid.UUID) error {
-	start := time.Now()
-	r0 := m.s.DeleteTemplateVersionByID(ctx, id)
-	m.queryLatencies.WithLabelValues("DeleteTemplateVersionByID").Observe(time.Since(start).Seconds())
-	m.queryCounts.WithLabelValues(httpmw.ExtractHTTPRoute(ctx), httpmw.ExtractHTTPMethod(ctx), "DeleteTemplateVersionByID").Inc()
-	return r0
-}
-
-func (m queryMetricsStore) GetWorkspaceNamesRunningTemplateVersion(ctx context.Context, templateVersionID uuid.UUID) ([]string, error) {
-	start := time.Now()
-	r0, r1 := m.s.GetWorkspaceNamesRunningTemplateVersion(ctx, templateVersionID)
-	m.queryLatencies.WithLabelValues("GetWorkspaceNamesRunningTemplateVersion").Observe(time.Since(start).Seconds())
-	m.queryCounts.WithLabelValues(httpmw.ExtractHTTPRoute(ctx), httpmw.ExtractHTTPMethod(ctx), "GetWorkspaceNamesRunningTemplateVersion").Inc()
-	return r0, r1
-}
-
 func (m queryMetricsStore) Wrappers() []string {
 	return append(m.s.Wrappers(), wrapname)
 }
@@ -942,6 +926,14 @@ func (m queryMetricsStore) DeleteTailnetTunnel(ctx context.Context, arg database
 	m.queryLatencies.WithLabelValues("DeleteTailnetTunnel").Observe(time.Since(start).Seconds())
 	m.queryCounts.WithLabelValues(httpmw.ExtractHTTPRoute(ctx), httpmw.ExtractHTTPMethod(ctx), "DeleteTailnetTunnel").Inc()
 	return r0, r1
+}
+
+func (m queryMetricsStore) DeleteTemplateVersionByID(ctx context.Context, id uuid.UUID) error {
+	start := time.Now()
+	r0 := m.s.DeleteTemplateVersionByID(ctx, id)
+	m.queryLatencies.WithLabelValues("DeleteTemplateVersionByID").Observe(time.Since(start).Seconds())
+	m.queryCounts.WithLabelValues(httpmw.ExtractHTTPRoute(ctx), httpmw.ExtractHTTPMethod(ctx), "DeleteTemplateVersionByID").Inc()
+	return r0
 }
 
 func (m queryMetricsStore) DeleteUnlinkedChatFilesByIDs(ctx context.Context, arg database.DeleteUnlinkedChatFilesByIDsParams) (int64, error) {
@@ -4088,6 +4080,14 @@ func (m queryMetricsStore) GetWorkspaceModulesCreatedAfter(ctx context.Context, 
 	return r0, r1
 }
 
+func (m queryMetricsStore) GetWorkspaceNamesRunningTemplateVersion(ctx context.Context, templateVersionID uuid.UUID) ([]string, error) {
+	start := time.Now()
+	r0, r1 := m.s.GetWorkspaceNamesRunningTemplateVersion(ctx, templateVersionID)
+	m.queryLatencies.WithLabelValues("GetWorkspaceNamesRunningTemplateVersion").Observe(time.Since(start).Seconds())
+	m.queryCounts.WithLabelValues(httpmw.ExtractHTTPRoute(ctx), httpmw.ExtractHTTPMethod(ctx), "GetWorkspaceNamesRunningTemplateVersion").Inc()
+	return r0, r1
+}
+
 func (m queryMetricsStore) GetWorkspaceProxies(ctx context.Context) ([]database.WorkspaceProxy, error) {
 	start := time.Now()
 	r0, r1 := m.s.GetWorkspaceProxies(ctx)
@@ -4526,6 +4526,14 @@ func (m queryMetricsStore) InsertInboxNotification(ctx context.Context, arg data
 	m.queryLatencies.WithLabelValues("InsertInboxNotification").Observe(time.Since(start).Seconds())
 	m.queryCounts.WithLabelValues(httpmw.ExtractHTTPRoute(ctx), httpmw.ExtractHTTPMethod(ctx), "InsertInboxNotification").Inc()
 	return r0, r1
+}
+
+func (m queryMetricsStore) InsertInboxNotificationAndNotify(ctx context.Context, arg database.InsertInboxNotificationAndNotifyParams) error {
+	start := time.Now()
+	r0 := m.s.InsertInboxNotificationAndNotify(ctx, arg)
+	m.queryLatencies.WithLabelValues("InsertInboxNotificationAndNotify").Observe(time.Since(start).Seconds())
+	m.queryCounts.WithLabelValues(httpmw.ExtractHTTPRoute(ctx), httpmw.ExtractHTTPMethod(ctx), "InsertInboxNotificationAndNotify").Inc()
+	return r0
 }
 
 func (m queryMetricsStore) InsertLicense(ctx context.Context, arg database.InsertLicenseParams) (database.License, error) {

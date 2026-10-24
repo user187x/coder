@@ -59,6 +59,16 @@ export const Example: Story = {
 	},
 };
 
+export const FileSidebarCollapsed: Story = {
+	play: async ({ canvasElement }) => {
+		await userEvent.click(
+			within(canvasElement).getByRole("button", {
+				name: "Collapse file sidebar",
+			}),
+		);
+	},
+};
+
 export const UndefinedLogs: Story = {
 	args: {
 		defaultTab: "logs",

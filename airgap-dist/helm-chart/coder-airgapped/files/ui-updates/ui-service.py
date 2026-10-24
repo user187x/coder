@@ -170,6 +170,8 @@ import lockdown  # noqa: E402  (Lock Down: admins jail a workspace's network and
 import safe  # noqa: E402  (the safe: each account's own files on S3, on the Workspaces page and in its workspaces)
 import provisioners  # noqa: E402  (Provisioner Daemons: stuck jobs, their terraform processes, a re-kick)
 import dr  # noqa: E402  (Persistence > Disaster recovery: Coder's database dumped or copied outside the cluster)
+import workspacetunnels
+import workspacepower
 import drivepeers  # noqa: E402  (Cloud Drives shared between users: asked for in chat, approved by admins)
 import clusternet  # noqa: E402  (the Cluster Network view in depth: entity details, code-server HA, the mesh)
 from http.cookies import SimpleCookie
@@ -8251,6 +8253,10 @@ class Handler(BaseHTTPRequestHandler):
             return
         if provisioners.handle(self, "GET", path, url.query):
             return
+        if workspacepower.handle(self, "GET", path, url.query):
+            return
+        if workspacetunnels.handle(self, "GET", path, url.query):
+            return
         if lockdown.handle(self, "GET", path, url.query):
             return
         if safe.handle(self, "GET", path, url.query) or safe.handle_libraries(self, "GET", path, url.query):
@@ -9355,6 +9361,11 @@ class Handler(BaseHTTPRequestHandler):
         log(event="inbox-cleared", user=user["username"], count=len(rows))
         return self.send_json(200, {"cleared": len(rows)})
 
+    def do_DELETE(self):
+        url = urllib.parse.urlsplit(self.path)
+        if not workspacetunnels.handle(self, "DELETE", url.path, url.query):
+            self.send(404, "not found\n")
+
     def do_POST(self):
         self.close_connection = True
         url = urllib.parse.urlsplit(self.path)
@@ -9368,6 +9379,10 @@ class Handler(BaseHTTPRequestHandler):
         if provisioners.handle(self, "POST", path, url.query):
             return
         if dr.handle(self, "POST", path, url.query):
+            return
+        if workspacepower.handle(self, "POST", path, url.query):
+            return
+        if workspacetunnels.handle(self, "POST", path, url.query):
             return
         if lockdown.handle(self, "POST", path, url.query):
             return
@@ -9820,6 +9835,16 @@ def safe_shared_workspaces():
         "AND (user_acl <> '{}'::jsonb OR group_acl <> '{}'::jsonb)")}
 
 
+def tunnel_live_workspaces():
+    """Workspace IDs whose owners still have active accounts, for peer revocation."""
+    pool = LOGOS.pool if LOGOS else None
+    if not pool:
+        raise RuntimeError("Coder database is not reachable yet.")
+    return [r[0] for r in pool.query(
+        "SELECT w.id::text FROM workspaces w JOIN users u ON u.id = w.owner_id "
+        "WHERE NOT w.deleted AND NOT u.deleted AND u.status = 'active'")]
+
+
 def safe_cloud_drive_attachment(owner_id):
     """How an account's Cloud Drive is in each of its started workspaces (Coder's database): [(workspace id, value,
     collected at (epoch seconds; 0 or less: never), job status)] of the latest builds that start them, whose agent has
@@ -9845,14 +9870,22 @@ def safe_user(user_id):
     pool = LOGOS.pool if LOGOS else None
     if not pool:
         return None
-    rows = pool.query("SELECT id::text, username, name, rbac_roles FROM users WHERE id = $1::uuid AND deleted = false",
+    rows = pool.query("SELECT id::text, username, name, rbac_roles, status::text FROM users WHERE id = $1::uuid AND deleted = false",
                       [user_id])
     if not rows:
         return None
     roles = rows[0][3] or []
     if isinstance(roles, str):
         roles = [r for r in roles.strip("{}").split(",") if r]
-    return {"id": rows[0][0], "username": rows[0][1], "name": rows[0][2] or "", "admin": bool(set(roles) & ADMIN_ROLES)}
+    return {"id": rows[0][0], "username": rows[0][1], "name": rows[0][2] or "", "admin": bool(set(roles) & ADMIN_ROLES),
+            "status": rows[0][4]}
+
+
+def drive_inbox_send(notification_id, recipient, item):
+    pool = LOGOS.pool if LOGOS else None
+    if not pool:
+        raise RuntimeError("Coder's notification database is unavailable.")
+    safe.driveaudit.send_inbox(pool, safe_user, notification_id, recipient, item, safe.driveaudit.inbox_query())
 
 
 def drive_chat_post(user, to_id, text, share_id):
@@ -9901,6 +9934,8 @@ def main():
     workspacevolumes.QUOTA_CHECK = quota_check   # a restore asks the user quota before it creates a workspace
     workspacevolumes.CODER_URL = CODER_URL
     workspacevolumes.start()
+    workspacepower.setup(http_json, workspace_info, KUBE, CODER_URL, ADMIN_ROLES, log)
+    workspacetunnels.setup(workspace_info, http_json, KUBE, CODER_URL, ADMIN_ROLES, tunnel_live_workspaces)
     lockdown.setup(log, KUBE, workspace_info, ADMIN_ROLES, CODER_ACCESS_URL)
     provisioners.setup(log, KUBE, ADMIN_ROLES, _coder_get, _coder_send)
     clusternet.setup(log, KUBE, _coder_get, cluster_snapshot, lambda: LOGOS.pool if LOGOS else None, quantity,
@@ -9915,6 +9950,7 @@ def main():
     drivepeers.setup(log, lambda user: bool(set(user.get("roles") or []) & ADMIN_ROLES), safe_user,
                      drive_chat_post, safe.publish_now, people=lambda: list(chat_people().values()),
                      item=lambda owner, path: safe.item_kind(owner, path, fresh=True), admins=chat_admins)
+    safe.setup_audit(safe_user, drive_inbox_send)
     safe.start()
     if imagebuilder.ENABLED:
         # the apt indices for the package check, ready before anyone opens the builder

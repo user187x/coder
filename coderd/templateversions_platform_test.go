@@ -47,6 +47,10 @@ func TestDeleteTemplateVersion(t *testing.T) {
 	// A workspace runs v1; v2 becomes active: v1 stays while the workspace is on it.
 	workspace := coderdtest.CreateWorkspace(t, client, template.ID)
 	coderdtest.AwaitWorkspaceBuildJobCompleted(t, client, workspace.LatestBuild.ID)
+	deletedWorkspace := coderdtest.CreateWorkspace(t, client, template.ID)
+	coderdtest.AwaitWorkspaceBuildJobCompleted(t, client, deletedWorkspace.LatestBuild.ID)
+	deletedBuild := coderdtest.CreateWorkspaceBuild(t, client, deletedWorkspace, "delete")
+	coderdtest.AwaitWorkspaceBuildJobCompleted(t, client, deletedBuild.ID)
 	require.NoError(t, client.UpdateActiveTemplateVersion(ctx, template.ID, codersdk.UpdateActiveTemplateVersion{ID: v2.ID}))
 	err := client.DeleteTemplateVersion(ctx, v1.ID)
 	require.Equal(t, http.StatusBadRequest, status(err))

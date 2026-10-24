@@ -176,7 +176,9 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 					>
 						Resources
 					</TableHead>
-					<TableHead className={cn("w-[18%]", hideHeaders && "invisible")}>
+					<TableHead
+						className={cn("w-[18%] text-center", hideHeaders && "invisible")}
+					>
 						Template
 					</TableHead>
 					<TableHead
@@ -309,9 +311,9 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 								<WorkspaceResources workspace={workspace} />
 							</TableCell>
 
-							<TableCell>
+							<TableCell className="text-center">
 								{/* Platform: the template as a pill, its icon in a tile */}
-								<div className="flex flex-col items-start gap-1">
+								<div className="flex flex-col items-center gap-1">
 									<span
 										className="inline-flex max-w-56 items-center gap-2 rounded-[10px] border border-solid border-border bg-surface-primary py-1 pl-1 pr-2.5"
 										data-hint={`Made from the ${templateName} template`}

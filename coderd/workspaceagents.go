@@ -1303,6 +1303,11 @@ func (api *API) derpMapUpdates(rw http.ResponseWriter, r *http.Request) {
 // @Router /api/v2/workspaceagents/{workspaceagent}/coordinate [get]
 func (api *API) workspaceAgentClientCoordinate(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	session, allowed := api.beginGlobalLockdownSession(rw, r)
+	if !allowed {
+		return
+	}
+	defer session.End()
 
 	// Ensure the database is reachable before proceeding.
 	_, err := api.Database.Ping(ctx)
@@ -1352,6 +1357,9 @@ func (api *API) workspaceAgentClientCoordinate(rw http.ResponseWriter, r *http.R
 		// handleResumeToken has already written the response.
 		return
 	}
+	if !api.trackGlobalLockdownPeer(rw, r, peerID) {
+		return
+	}
 
 	api.WebsocketWaitMutex.Lock()
 	api.WebsocketWaitGroup.Add(1)
@@ -1378,9 +1386,10 @@ func (api *API) workspaceAgentClientCoordinate(rw http.ResponseWriter, r *http.R
 		Auditor: api.tunnelAuditor(r),
 	}
 	err = api.TailnetClientService.ServeClient(ctx, version, wsNetConn, tailnet.StreamID{
-		Name: "client",
-		ID:   peerID,
-		Auth: auth,
+		Name:    "client",
+		ID:      peerID,
+		Auth:    auth,
+		Revoked: session.Revoked,
 	})
 	if err != nil && !xerrors.Is(err, io.EOF) && !xerrors.Is(err, context.Canceled) {
 		_ = conn.Close(websocket.StatusInternalError, err.Error())
@@ -2462,6 +2471,11 @@ func (api *API) workspaceAgentsExternalAuthListen(ctx context.Context, rw http.R
 // @Router /api/v2/tailnet [get]
 func (api *API) tailnetRPCConn(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	session, allowed := api.beginGlobalLockdownSession(rw, r)
+	if !allowed {
+		return
+	}
+	defer session.End()
 
 	// This is used by Enterprise code to control the functionality of this route.
 	// Namely, disabling the route using `CODER_BROWSER_ONLY`.
@@ -2491,6 +2505,9 @@ func (api *API) tailnetRPCConn(rw http.ResponseWriter, r *http.Request) {
 	peerID, err := api.handleResumeToken(ctx, rw, r)
 	if err != nil {
 		// handleResumeToken has already written the response.
+		return
+	}
+	if !api.trackGlobalLockdownPeer(rw, r, peerID) {
 		return
 	}
 
@@ -2532,9 +2549,10 @@ func (api *API) tailnetRPCConn(rw http.ResponseWriter, r *http.Request) {
 		Auditor: api.tunnelAuditor(r),
 	}
 	err = api.TailnetClientService.ServeClient(ctx, version, wsNetConn, tailnet.StreamID{
-		Name: "client",
-		ID:   peerID,
-		Auth: auth,
+		Name:    "client",
+		ID:      peerID,
+		Auth:    auth,
+		Revoked: session.Revoked,
 	})
 	if err != nil && !xerrors.Is(err, io.EOF) && !xerrors.Is(err, context.Canceled) {
 		_ = conn.Close(websocket.StatusInternalError, err.Error())

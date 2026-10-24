@@ -74,6 +74,13 @@ func (api *API) workspaceAgentRPC(rw http.ResponseWriter, r *http.Request) {
 	defer api.WebsocketWaitGroup.Done()
 	workspaceAgent := httpmw.WorkspaceAgent(r)
 	build := httpmw.LatestBuild(r)
+	accessSession := r.URL.Query().Get("workspace_access_session")
+	if accessSession != "" {
+		if _, err := uuid.Parse(accessSession); err != nil {
+			httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{Message: "Invalid workspace access session."})
+			return
+		}
+	}
 
 	workspace, err := api.Database.GetWorkspaceByID(ctx, build.WorkspaceID)
 	if err != nil {
@@ -89,6 +96,12 @@ func (api *API) workspaceAgentRPC(rw http.ResponseWriter, r *http.Request) {
 		slog.F("workspace_name", workspace.Name),
 		slog.F("agent_name", workspaceAgent.Name),
 	)
+	if monitorConnection {
+		if err := api.globalLockdown.AgentConnected(ctx, workspaceAgent.ID, accessSession); err != nil {
+			httpapi.Write(ctx, rw, http.StatusServiceUnavailable, codersdk.Response{Message: "Workspace access policy cannot be initialized."})
+			return
+		}
+	}
 
 	conn, err := websocket.Accept(rw, r, nil)
 	if err != nil {

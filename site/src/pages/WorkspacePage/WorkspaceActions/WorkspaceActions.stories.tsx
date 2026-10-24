@@ -50,6 +50,26 @@ export const Running: Story = {
 	},
 };
 
+export const RunningAgentUpdateAvailable: Story = {
+	args: {
+		workspace: {
+			...Mocks.MockWorkspace,
+			latest_build: {
+				...Mocks.MockWorkspace.latest_build,
+				resources: Mocks.MockWorkspace.latest_build.resources.map(
+					(resource) => ({
+						...resource,
+						agents: resource.agents?.map((agent) => ({
+							...agent,
+							version: `${Mocks.MockBuildInfo.version}+old`,
+						})),
+					}),
+				),
+			},
+		},
+	},
+};
+
 export const RunningUpdateAvailable: Story = {
 	name: "Running (Update available)",
 	args: {

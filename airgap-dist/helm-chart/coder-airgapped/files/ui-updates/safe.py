@@ -106,6 +106,7 @@ import urllib.parse
 import urllib.request
 
 import drivepeers
+import driveaudit
 import kexec
 import kitcrypto
 import s3client
@@ -131,6 +132,14 @@ MOUNT_SECRET = "coder-user-storage-mount"
 MOUNT_SECRET_TLS = "coder-user-storage-mount-tls"
 CSI_DRIVER = "ru.yandex.s3.csi"
 CLAIM_PREFIX = "coder-safe-"
+AUDIT_ENABLED = os.environ.get("SAFE_AUDIT_ENABLED", "false").lower() == "true"
+AUDIT_PREFIX = "coder-drive-audit-"
+AUDIT_DB = os.environ.get("SAFE_AUDIT_DB", "/data/cloud-drive-audit.sqlite")
+AUDIT_CERT = os.environ.get("SAFE_AUDIT_CERT", "/etc/coder-drive-audit/tls.crt")
+AUDIT_KEY = os.environ.get("SAFE_AUDIT_KEY", "/etc/coder-drive-audit/tls.key")
+_audit = None
+_audit_account = None
+_audit_gateway = None
 RECONCILE_EVERY = int(os.environ.get("SAFE_RECONCILE_SECONDS", "30"))
 CSRF_HEADER = ("X-Requested-With", "coder-ui")
 MAX_PATH = 900
@@ -211,6 +220,113 @@ def setup(log, kube, users, can_edit=None, is_admin=None, workspace_info=None, s
     global LOG, KUBE, USERS, CAN_EDIT, IS_ADMIN, WORKSPACE_INFO, SHARED, WORKSPACES, ATTACHMENT
     LOG, KUBE, USERS, CAN_EDIT, IS_ADMIN, WORKSPACE_INFO, SHARED, WORKSPACES, ATTACHMENT = (
         log, kube, users, can_edit, is_admin, workspace_info, shared, workspaces, attachment)
+
+
+def setup_audit(account, send):
+    """Starts only after an explicit audited-mount rollout; existing claims stay retained."""
+    global _audit, _audit_account, _audit_gateway
+    if not AUDIT_ENABLED:
+        return
+    _audit_account = account
+    _audit = driveaudit.Store(AUDIT_DB)
+    _audit_gateway = driveaudit.Gateway(_audit, drive_of, audit_permission, lambda owner: owner in sources(),
+                                      MAX_UPLOAD_BYTES, LOG)
+    driveaudit.serve(_audit_gateway, "0.0.0.0", 9444, AUDIT_CERT, AUDIT_KEY)
+
+    def loop():
+        while True:
+            for owner, src in sources().items():
+                try:
+                    if not (_sources_seen.get(owner) or {}).get("running"):
+                        continue
+                    client = source_client(src)
+                    response = client.request("GET", "__events", query=[("limit", "100")])
+                    try:
+                        records = json.loads(response.read()).get("events") or []
+                    finally:
+                        response.close()
+                        response.conn.close()
+                    ids = collect_source_events(owner, records)
+                    if ids:
+                        client._done(client.request("POST", "__events/ack", body=json.dumps({"ids": ids}).encode(),
+                                                    headers={"Content-Type": "application/json"}))
+                except Exception as error:
+                    LOG(event="cloud-drive-source-audit-failed", owner=owner, error=str(error)[:250])
+            try:
+                with _audit_gateway.mutations:
+                    _audit.recover_intents()
+                _audit.deliver(audit_recipients, send)
+            except Exception as error:
+                LOG(event="cloud-drive-audit-delivery-failed", error=str(error)[:250])
+            time.sleep(2)
+
+    threading.Thread(target=loop, name="drive-audit-delivery", daemon=True).start()
+
+
+def collect_source_events(owner, records):
+    ids = []
+    for record in records:
+        try:
+            item = {**record, "actor": owner, "owner": owner, "source": True, "at": record.get("observedAt")}
+            _audit.record(item)
+        except (ValueError, TypeError, AttributeError, KeyError) as error:
+            raw = json.dumps(record, sort_keys=True, ensure_ascii=False)
+            event_id = str(driveaudit.uuid.uuid5(driveaudit.uuid.NAMESPACE_URL, owner + ":" + raw))
+            item = driveaudit.event(owner, owner, "gap", "", 0, source=True, event_id=event_id)
+            item["message"] = "A source filesystem event had unsupported metadata and could not be represented: %s" % str(error)[:200]
+            _audit.record(item)
+            LOG(event="cloud-drive-source-audit-invalid-event", owner=owner, error=str(error)[:200])
+        if isinstance(record, dict) and driveaudit.account_id(record.get("id")):
+            ids.append(record["id"])
+    return ids
+
+
+def audit_mutation(user, path, operation):
+    """Console mutations share the gateway's serialization and write-ahead audit intent."""
+    owner = user["id"]
+    if not _audit_gateway or owner in sources() or path in ("", "/"):
+        return operation()
+    with _audit_gateway.mutations:
+        client, bucket_name, root, sse = drive_of(owner)
+        before = _audit_gateway.metadata(client, bucket_name, root + path, sse)
+        intent = _audit.begin(user.get("auditActor", owner), owner, path, before)
+        result = operation()
+        after = _audit_gateway.metadata(client, bucket_name, root + path, sse)
+        _audit.complete(intent, after)
+        return result
+
+
+def audit_permission(actor, owner, path, write=False):
+    if turned_off() is not None:
+        return False
+    user = _audit_account(actor) if _audit_account else None
+    if not user or user.get("status") != "active":
+        return False
+    owner_account = user if actor == owner else _audit_account(owner)
+    if not owner_account or owner_account.get("status") != "active":
+        return False
+    if actor == owner:
+        return True
+    shares = drivepeers.shares_of(actor, owner)
+    if any(drivepeers.covers(share, path) and (not write or share["access"] == "write") for share in shares):
+        return True
+    # A partial share's ancestors must be traversable by the node mount. The
+    # gateway filters their listings so siblings outside the share stay private.
+    return not write and any(not path or share["path"].startswith(path + "/") for share in shares)
+
+
+def audit_recipients(item):
+    if item["action"] == "gap":
+        return [item["owner"]]
+    owner, actor, path = item["owner"], item["actor"], item["path"]
+    recipients = {owner}
+    for viewer, shares in drivepeers.active().items():
+        if any(share["owner"] == owner and drivepeers.covers(share, path) for share in shares):
+            recipients.add(viewer)
+    # An unshared drive has no shared-file recipients.
+    if len(recipients) == 1:
+        return []
+    return sorted(recipients - ({actor} if not item["source"] else set()))
 
 
 # ---------------------------------------------------------------------------------------------------- the backend
@@ -600,7 +716,7 @@ def peer_mounts():
                 continue
             if p["kind"] != "drive" and item_kind(p["owner"], p["path"]) != p["kind"]:
                 continue
-            claim = (SOURCE_PREFIX if src else CLAIM_PREFIX) + p["owner"]
+            claim = audit_claim(p["owner"], requester) if AUDIT_ENABLED else (SOURCE_PREFIX if src else CLAIM_PREFIX) + p["owner"]
             mounts = out.setdefault(requester, [])
             twin = next((m for m in mounts if m["kind"] == "drive" == p["kind"] and m["owner"] == p["owner"]), None)
             if twin:  # the entire drive asked for and shared too: mounted once, the wider way
@@ -621,7 +737,9 @@ def publish_state(shared):
                         "sources": {owner: {"workspace": src["workspace"], "path": src["path"],
                                             "running": bool((_sources_seen.get(owner) or {}).get("running"))}
                                     for owner, src in sorted(sources().items())},
-                        "peers": peer_mounts()}, sort_keys=True)
+                        "peers": peer_mounts(),
+                        "auditClaims": {uid: audit_claim(uid, uid) for uid, _ in (USERS() or [])}
+                        if AUDIT_ENABLED else {}}, sort_keys=True)
     if state == _published["state"]:
         return
     path = "/api/v1/namespaces/%s/configmaps/%s" % (NAMESPACE, STATE_CONFIGMAP)
@@ -667,7 +785,7 @@ def claim_holders(user_id):
         NAMESPACE, urllib.parse.quote("com.coder.user.id=" + user_id)))
     if status != 200 or not isinstance(pods, dict):
         raise RuntimeError("pods: HTTP %s" % status)
-    claims = {CLAIM_PREFIX + user_id, SOURCE_PREFIX + user_id}
+    claims = {CLAIM_PREFIX + user_id, SOURCE_PREFIX + user_id, audit_claim(user_id, user_id)}
     return {((p.get("metadata") or {}).get("labels") or {}).get("com.coder.workspace.id") for p in pods.get("items") or []
             if (p.get("status") or {}).get("phase") not in ("Succeeded", "Failed")
             and any((v.get("persistentVolumeClaim") or {}).get("claimName") in claims
@@ -736,14 +854,24 @@ def stale_mounts(user_id, src, shared):
         if has_peers != want_peers:
             out.append(wid)
             continue
-        has = (SOURCE_PREFIX + user_id) if (SOURCE_PREFIX + user_id) in claims else \
+        if AUDIT_ENABLED and wid not in shared:
+            peer_names = {m.get("name") for c in (p.get("spec") or {}).get("containers") or []
+                          for m in c.get("volumeMounts") or []
+                          if (m.get("mountPath") or "").startswith(PEER_MOUNT_DIRS)}
+            mounted_claims = {(v.get("persistentVolumeClaim") or {}).get("claimName")
+                              for v in (p.get("spec") or {}).get("volumes") or [] if v.get("name") in peer_names}
+            if mounted_claims != {m["claim"] for m in peers_now}:
+                out.append(wid)
+                continue
+        has = audit_claim(user_id, user_id) if audit_claim(user_id, user_id) in claims else \
+              (SOURCE_PREFIX + user_id) if (SOURCE_PREFIX + user_id) in claims else \
               (CLAIM_PREFIX + user_id) if (CLAIM_PREFIX + user_id) in claims else None
         if wid in shared or (src and src["workspace"] == wid):
             want = None
         elif src:
-            want = (SOURCE_PREFIX + user_id) if running else None
+            want = (audit_claim(user_id, user_id) if AUDIT_ENABLED else SOURCE_PREFIX + user_id) if running else None
         else:
-            want = CLAIM_PREFIX + user_id
+            want = audit_claim(user_id, user_id) if AUDIT_ENABLED else CLAIM_PREFIX + user_id
         if has != want and want is not None:
             out.append(wid)
     return sorted(set(out))
@@ -922,6 +1050,26 @@ def volume_objects(user_id, username=""):
                         labels, username)
 
 
+def audit_claim(owner, actor):
+    return AUDIT_PREFIX + owner.replace("-", "") + "-" + actor.replace("-", "")
+
+
+def audit_volume_objects(owner, actor, username=""):
+    """A viewer has its own staging handle and signing identity, even on the owner's node."""
+    if _audit is None:
+        raise RuntimeError("Cloud Drive audit has not started.")
+    credentials = _audit.credentials(actor)
+    secret = AUDIT_PREFIX + actor
+    ensure_secret(secret, {"accessKeyID": credentials["accessKey"], "secretAccessKey": credentials["secretKey"],
+                           "endpoint": "https://%s:9444" % service_ip("coder-ui-updates"), "region": "us-east-1"})
+    labels = {"app.kubernetes.io/name": "coder-drive-audit", "app.kubernetes.io/part-of": "coder",
+              "platform.coder/user-id": owner, "platform.coder/viewer-id": actor}
+    # As with the existing encrypted CSI mounts, nodes connect by ClusterIP;
+    # the generated service certificate cannot name that allocated address.
+    return _volume_pair(audit_claim(owner, actor), "%s%s/%s" % (driveaudit.BUCKET_PREFIX, owner, actor),
+                        secret, MOUNT_OPTIONS + " --no-verify-ssl", labels, username)
+
+
 def source_volume_objects(user_id, username=""):
     """The account's volume on its source workspace's directory (that workspace's server, by its Service)."""
     labels = {"app.kubernetes.io/name": "coder-drive-source", "app.kubernetes.io/part-of": "coder",
@@ -1077,6 +1225,12 @@ def reconcile():
                 _volumes[user_id] = now
         except Exception as e:  # noqa: BLE001 - this account's turn comes again next round
             LOG(event="safe-volume-failed", user=username, error=str(e)[:300])
+    if AUDIT_ENABLED:
+        pairs = {(uid, uid) for uid, _ in (USERS() or [])}
+        for viewer, peers in drivepeers.active().items():
+            pairs.update((peer["owner"], viewer) for peer in peers)
+        for owner, viewer in sorted(pairs):
+            ensure_volume(owner, objects=audit_volume_objects(owner, viewer), in_use=in_use)
 
 
 def _loop():
@@ -1528,6 +1682,8 @@ def source_config(owner, src):
     """What the source's server runs with, and its id (a change restarts it)."""
     cfg = {"root": src["path"], "bucket": SOURCE_BUCKET, "prefix": owner + "/", "accessKey": src["accessKey"],
            "secretKey": src["secretKey"], "region": "us-east-1", "port": SOURCE_PORT}
+    if AUDIT_ENABLED:
+        cfg.update(auditEnabled=True, auditOwner=owner, auditVersion=2)
     cfg["id"] = hashlib.sha256(json.dumps(cfg, sort_keys=True).encode()).hexdigest()[:16]
     return cfg
 
@@ -1541,6 +1697,17 @@ def source_view(owner, src):
     seen = _sources_seen.get(owner) or {}
     return {"workspace": src["workspace"], "name": src.get("name"), "path": src["path"], "since": src.get("since"),
             "running": bool(seen.get("running")), "error": seen.get("error"), "pod": seen.get("pod")}
+
+
+def source_audit_error(health):
+    if not AUDIT_ENABLED:
+        return None
+    audit = health.get("audit")
+    if not isinstance(audit, dict):
+        return "This source server has no Cloud Drive observer; update its source configuration."
+    if audit.get("error"):
+        return "Cloud Drive observations are unavailable: %s" % str(audit["error"])[:200]
+    return None
 
 
 def _source_pod(workspace_id):
@@ -1581,6 +1748,11 @@ home = os.environ.get("HOME") if os.environ.get("HOME", "/") != "/" else "/home/
 d = os.path.join(home, ".cache", "coder-cloud-drive")
 os.makedirs(d, mode=0o700, exist_ok=True)
 os.chmod(d, 0o700)
+if (msg.get("config") or {}).get("auditEnabled"):
+    root = os.path.realpath(msg["config"]["root"])
+    control = os.path.realpath(d)
+    if os.path.commonpath([root, control]) == root:
+        sys.exit("The source contains its server control-state directory. Choose a source subfolder outside ~/.cache/coder-cloud-drive; existing files are retained.")
 pidf = os.path.join(d, "server.pid")
 try:
     pid = int(open(pidf).read())
@@ -1653,7 +1825,7 @@ def sources_once():
         if health and health.get("ok") and health.get("config") == cfg["id"]:
             if not seen.get("running"):
                 LOG(event="cloud-drive-source", action="serving", owner=owner, workspace=src.get("name"), pod=pod)
-            seen.update(running=True, pod=pod, error=None)
+            seen.update(running=True, pod=pod, error=source_audit_error(health))
             continue
         seen.update(running=False, pod=pod)
         if time.time() - seen.get("tried", 0) < SOURCE_RETRY:
@@ -1666,7 +1838,7 @@ def sources_once():
                 time.sleep(0.5)
                 health = _health(ip)
                 if health and health.get("config") == cfg["id"]:
-                    seen.update(running=True, error=None)
+                    seen.update(running=True, error=source_audit_error(health))
                     break
             else:
                 seen["error"] = "Its server did not answer (see ~/.cache/coder-cloud-drive/server.log in the workspace)."
@@ -1908,7 +2080,7 @@ def summary(user):
     except DriveUnavailable as e:
         used, files, offline = 0, 0, str(e)
     src = sources().get(user["id"])
-    claim = (SOURCE_PREFIX if src else CLAIM_PREFIX) + user["id"]
+    claim = audit_claim(user["id"], user["id"]) if AUDIT_ENABLED else (SOURCE_PREFIX if src else CLAIM_PREFIX) + user["id"]
     status, pvc = KUBE.call("GET", "/api/v1/namespaces/%s/persistentvolumeclaims/%s" % (NAMESPACE, claim)) \
         if KUBE and KUBE.ok else (0, None)
     bound = status == 200 and ((pvc or {}).get("status") or {}).get("phase") == "Bound"
@@ -2059,6 +2231,10 @@ def download(h, user, path):
 
 
 def upload(h, user, path):
+    return audit_mutation(user, clean_path(path), lambda: _upload(h, user, path))
+
+
+def _upload(h, user, path):
     path = clean_path(path)
     if not path:
         raise ValueError("Name the file.")
@@ -2089,6 +2265,10 @@ def upload(h, user, path):
 
 
 def make_folder(user, path):
+    return audit_mutation(user, clean_path(path) + "/", lambda: _make_folder(user, path))
+
+
+def _make_folder(user, path):
     path = clean_path(path)
     if not path:
         raise ValueError("Name the folder.")
@@ -2098,6 +2278,10 @@ def make_folder(user, path):
 
 
 def delete(user, path):
+    return audit_mutation(user, clean_path(path) + ("/" if path.endswith("/") else ""), lambda: _delete(user, path))
+
+
+def _delete(user, path):
     """A file, or a folder (path ending in "/") and everything under it."""
     folder = (path or "").endswith("/")
     path = clean_path(path)
@@ -2436,6 +2620,8 @@ def handle(h, method, path, query):
                         raise PermissionError("That is what is shared with you: only its owner removes it.")
             user = {"id": owner_id, "username": "%s (shared)" % user["username"]}
             shared = True
+        if path in FILE_ROUTES:
+            user = {**user, "auditActor": viewer["id"]}
         if method == "GET" and path == BASE + "/api/safe":
             h.send_json(200, summary(user))
         elif method == "GET" and path == BASE + "/api/safe/list":

@@ -51,11 +51,18 @@ func TestCleanFillsAndChecks(t *testing.T) {
 	want := platformbanner.FieldDefaults()
 	want.Message, want.Speed, want.CrawlSpeed = "hello", "fast", 26 // the legacy pace for "fast"
 	require.Equal(t, want, f)
+	require.True(t, f.LoopText)
+	for _, loop := range []bool{false, true} {
+		configured, err := clean(t, map[string]any{"message": "hello", "loopText": loop})
+		require.NoError(t, err)
+		require.Equal(t, loop, configured.LoopText)
+	}
 
 	for _, c := range []struct {
 		payload any
 		err     string
 	}{
+		{map[string]any{"message": "x", "loopText": "true"}, "loopText must be true or false."},
 		{map[string]any{"message": 5}, "message must be text."},
 		{map[string]any{"title": strings.Repeat("é", 81), "message": "x"}, "title is too long (max 80 characters)."},
 		{map[string]any{"message": "x", "dismissible": "yes"}, "dismissible must be true or false."},

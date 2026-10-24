@@ -1,11 +1,4 @@
-/*
- * The workspace card's "agent outdated" indicator (AgentOutdatedTooltip), after workspace-update.html at the root of
- * the coder-airgapped repository: a pill rimmed in Coder's own warning orange (--content-warning, as Coder marks an
- * outdated workspace) that glows, a recessed groove on its left holding a refresh
- * icon with a ring pulsing out of it, and the word "Update". HTML and CSS, no image; sized for the agent row. The
- * light theme is the default here and the dark one comes with the dashboard's .dark class. Still with the user
- * menu's Animations off, or reduced motion.
- */
+/* Workspace action Update indicator; respects reduced motion and animation preferences. */
 .agent-update {
 	--agent-update-bg: #ffffff;
 	--agent-update-border: hsl(var(--content-warning));

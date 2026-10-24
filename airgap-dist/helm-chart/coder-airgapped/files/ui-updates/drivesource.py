@@ -17,6 +17,7 @@ GET /__health (unsigned) answers {"ok": true, "version", "config"}: the platform
 its current configuration.
 """
 import base64
+import ctypes
 import datetime
 import email.utils
 import hashlib
@@ -26,8 +27,11 @@ import json
 import mimetypes
 import os
 import shutil
+import select
 import socketserver
+import sqlite3
 import stat
+import struct
 import sys
 import threading
 import time
@@ -36,7 +40,7 @@ import uuid
 import xml.etree.ElementTree as ET
 from xml.sax.saxutils import escape
 
-VERSION = "1"
+VERSION = "2"
 NS = "http://s3.amazonaws.com/doc/2006-03-01/"
 TMP = ".cloud-drive-tmp-"  # a write in progress (hidden from listings)
 CHUNK = 1024 * 1024
@@ -46,6 +50,362 @@ MAX_KEYS = 1000
 CFG = {}
 UPLOADS = ""
 CONFIG_ID = ""
+AUDIT = None
+
+
+class SourceAudit:
+    """A durable, at-least-once filesystem observation queue. Snapshot recovery
+    reports its observation gap: inotify cannot recover transient operations
+    that happened while the process was stopped or its kernel queue overflowed.
+    """
+
+    CREATE, DELETE, MODIFY, ATTRIB = 0x100, 0x200, 0x2, 0x4
+    MOVED_FROM, MOVED_TO, CLOSE_WRITE = 0x40, 0x80, 0x8
+    DELETE_SELF, MOVE_SELF, OVERFLOW, IGNORED = 0x400, 0x800, 0x4000, 0x8000
+    ISDIR, ONLYDIR, DONT_FOLLOW = 0x40000000, 0x1000000, 0x2000000
+    MASK = CREATE | DELETE | MODIFY | ATTRIB | MOVED_FROM | MOVED_TO | CLOSE_WRITE | DELETE_SELF | MOVE_SELF
+
+    def __init__(self, root, state_file):
+        self.root, self.state_file = os.path.realpath(root), state_file
+        self.lock = threading.RLock()
+        self.stopped = threading.Event()
+        self.fd, self.watches, self.paths = -1, {}, {}
+        self.ready, self.error = False, None
+        self.libc = ctypes.CDLL(None, use_errno=True)
+        self.libc.inotify_init1.argtypes = [ctypes.c_int]
+        self.libc.inotify_init1.restype = ctypes.c_int
+        self.libc.inotify_add_watch.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_uint32]
+        self.libc.inotify_add_watch.restype = ctypes.c_int
+        self.libc.inotify_rm_watch.argtypes = [ctypes.c_int, ctypes.c_int]
+        self.libc.inotify_rm_watch.restype = ctypes.c_int
+        state_dir = os.path.realpath(os.path.dirname(state_file) or ".")
+        if os.path.commonpath([state_dir, self.root]) == self.root:
+            raise ValueError("The source contains its server control-state directory. Choose a source subfolder outside ~/.cache/coder-cloud-drive; existing files are retained.")
+        os.makedirs(os.path.dirname(state_file) or ".", mode=0o700, exist_ok=True)
+        fd = os.open(state_file, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+        os.close(fd)
+        os.chmod(state_file, 0o600)
+        self.db = sqlite3.connect(state_file, check_same_thread=False)
+        self.db.row_factory = sqlite3.Row
+        self.db.execute("PRAGMA journal_mode=WAL")
+        self.db.execute("PRAGMA synchronous=FULL")
+        self.db.executescript("""
+            CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS tree (
+                path TEXT PRIMARY KEY, kind TEXT NOT NULL, device INTEGER NOT NULL,
+                inode INTEGER NOT NULL, size INTEGER NOT NULL, mtime INTEGER NOT NULL,
+                announced INTEGER NOT NULL);
+            CREATE TABLE IF NOT EXISTS outbox (
+                seq INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT UNIQUE NOT NULL, payload TEXT NOT NULL);
+        """)
+        self.db.commit()
+
+    def _queue(self, action, path="", row=None, message=None):
+        event = {"id": str(uuid.uuid4()), "action": action, "observedAt": iso(time.time())}
+        if row is not None:
+            event.update(path=path, kind=row["kind"], size=int(row["size"]))
+        if message:
+            event["message"] = message
+        self.db.execute("INSERT INTO outbox(id,payload) VALUES (?,?)", (event["id"], json.dumps(event)))
+
+    def _watch(self, path, directory_fd):
+        # The descriptor pins the directory: replacing a parent with a symlink
+        # cannot redirect this watch outside the source.
+        full = "/proc/self/fd/%d" % directory_fd
+        wd = self.libc.inotify_add_watch(self.fd, os.fsencode(full), self.MASK | self.ONLYDIR)
+        if wd < 0:
+            code = ctypes.get_errno()
+            raise OSError(code, os.strerror(code), full)
+        previous = self.paths.get(path)
+        if previous is not None and previous != wd:
+            self.libc.inotify_rm_watch(self.fd, previous)
+            self.watches.pop(previous, None)
+        self.watches[wd] = path
+        self.paths[path] = wd
+
+    @staticmethod
+    def _ancestors(path):
+        parts = path.split("/")[:-1]
+        return ["/".join(parts[:i]) for i in range(1, len(parts) + 1)]
+
+    @staticmethod
+    def _record(st, announced=True):
+        return {"kind": "directory" if stat.S_ISDIR(st.st_mode) else "file", "device": st.st_dev,
+                "inode": st.st_ino, "size": 0 if stat.S_ISDIR(st.st_mode) else st.st_size,
+                "mtime": st.st_mtime_ns, "announced": int(announced)}
+
+    def _scan_directory(self, directory_fd, path):
+        st = os.fstat(directory_fd)
+        out = {path: self._record(st)} if path else {}
+        self._watch(path, directory_fd)
+        with os.scandir(directory_fd) as children:
+            for child in children:
+                try:
+                    cs = os.stat(child.name, dir_fd=directory_fd, follow_symlinks=False)
+                    if not visible(child.name, cs):
+                        continue
+                    rel = (path + "/" if path else "") + child.name
+                    if stat.S_ISDIR(cs.st_mode):
+                        fd = os.open(child.name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=directory_fd)
+                        try:
+                            subtree = self._scan_directory(fd, rel)
+                        finally:
+                            os.close(fd)
+                    else:
+                        subtree = {rel: self._record(cs)}
+                    out.update(subtree)
+                    if path:
+                        out[path]["size"] += subtree[rel]["size"]
+                except FileNotFoundError:
+                    continue
+        return out
+
+    def _scan(self, path=""):
+        flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+        fd = os.open(os.sep, flags)
+        try:
+            for component in self.root.split(os.sep):
+                if component:
+                    child_fd = os.open(component, flags, dir_fd=fd)
+                    os.close(fd)
+                    fd = child_fd
+            if not path:
+                return self._scan_directory(fd, "")
+            parts = path.split("/")
+            for parent in parts[:-1]:
+                child_fd = os.open(parent, flags, dir_fd=fd)
+                os.close(fd)
+                fd = child_fd
+            st = os.stat(parts[-1], dir_fd=fd, follow_symlinks=False)
+            if not visible(parts[-1], st):
+                return {}
+            if not stat.S_ISDIR(st.st_mode):
+                return {path: self._record(st)}
+            directory_fd = os.open(parts[-1], flags, dir_fd=fd)
+            try:
+                return self._scan_directory(directory_fd, path)
+            finally:
+                os.close(directory_fd)
+        finally:
+            os.close(fd)
+
+    def _row(self, path):
+        row = self.db.execute("SELECT * FROM tree WHERE path=?", (path,)).fetchone()
+        return dict(row) if row else None
+
+    def _subtree(self, path):
+        prefix = path + "/"
+        return {row["path"]: dict(row) for row in self.db.execute(
+            "SELECT * FROM tree WHERE path=? OR substr(path,1,?)=?", (path, len(prefix), prefix))}
+
+    def _save(self, path, row):
+        self.db.execute("INSERT OR REPLACE INTO tree VALUES (?,?,?,?,?,?,?)", (
+            path, row["kind"], row["device"], row["inode"], row["size"], row["mtime"], row["announced"]))
+
+    def _parent_sizes(self, path, delta):
+        for parent in self._ancestors(path):
+            self.db.execute("UPDATE tree SET size=max(0,size+?) WHERE path=?", (delta, parent))
+
+    def reconcile(self, reason=None):
+        """Rebuild after a restart/overflow, retaining already queued event IDs."""
+        with self.lock, self.db:
+            previous_root = self.db.execute("SELECT value FROM meta WHERE key='root'").fetchone()
+            old = {row["path"]: dict(row) for row in self.db.execute("SELECT * FROM tree")}
+            try:
+                current = self._scan()
+            except FileNotFoundError:
+                current = {}
+            for wd, watched in list(self.watches.items()):
+                if watched and (watched not in current or current[watched]["kind"] != "directory"):
+                    self.libc.inotify_rm_watch(self.fd, wd)
+                    self.watches.pop(wd, None)
+                    self.paths.pop(watched, None)
+            if previous_root and previous_root["value"] == self.root:
+                if reason:
+                    self._queue("gap", message=reason)
+                for path in sorted(old.keys() - current.keys(), key=lambda p: (-p.count("/"), p)):
+                    if old[path]["announced"]:
+                        self._queue("removed", path, old[path])
+                    else:
+                        self._queue("gap", message="%s disappeared before a completed size was observed." % path)
+                for path in sorted(current.keys() - old.keys(), key=lambda p: (p.count("/"), p)):
+                    self._queue("added", path, current[path])
+                for path in old.keys() & current.keys():
+                    if old[path]["kind"] != current[path]["kind"]:
+                        if old[path]["announced"]:
+                            self._queue("removed", path, old[path])
+                        self._queue("added", path, current[path])
+                    elif not old[path]["announced"]:
+                        self._queue("added", path, current[path])
+            elif previous_root:
+                self._queue("gap", message="The source directory changed. Its new contents became the observation baseline.")
+            self.db.execute("DELETE FROM tree")
+            for path, row in current.items():
+                self._save(path, row)
+            self.db.execute("INSERT OR REPLACE INTO meta VALUES ('root',?)", (self.root,))
+            self.ready, self.error = True, None
+
+    def start_watching(self):
+        self.fd = self.libc.inotify_init1(os.O_NONBLOCK | os.O_CLOEXEC)
+        if self.fd < 0:
+            code = ctypes.get_errno()
+            raise OSError(code, os.strerror(code))
+        self.reconcile("The source observer resumed. Changes during its downtime were reconciled from cached metadata; transient operations may be missing.")
+
+    def _add(self, path, complete):
+        snapshot = self._scan(path)
+        if not snapshot:
+            return
+        old = self._row(path)
+        top = snapshot[path]
+        if top["kind"] == "file":
+            top["announced"] = int(complete or bool(old and old["announced"]))
+        old_subtree = self._subtree(path)
+        for missing in old_subtree.keys() - snapshot.keys():
+            self._queue("removed", missing, old_subtree[missing])
+            self.db.execute("DELETE FROM tree WHERE path=?", (missing,))
+        for child, row in snapshot.items():
+            before = old_subtree.get(child)
+            if before and before["kind"] != row["kind"]:
+                self._queue("removed", child, before)
+                before = None
+            if row["announced"] and (not before or not before["announced"]):
+                self._queue("added", child, row)
+            self._save(child, row)
+        self._parent_sizes(path, top["size"] - (old["size"] if old else 0))
+
+    def _remove(self, path, removed):
+        rows = self._subtree(path)
+        if not rows:
+            self._queue("gap", message="%s disappeared before its size and identity could be observed." % path)
+            return
+        top_size = rows[path]["size"]
+        for child in sorted(rows, key=lambda p: (-p.count("/"), p)):
+            row = rows[child]
+            if row["kind"] == "directory":
+                row["size"] += removed.get(child, 0)
+            if row["announced"]:
+                self._queue("removed", child, row)
+            else:
+                self._queue("gap", message="%s was removed before its completed size could be observed." % child)
+            self.db.execute("DELETE FROM tree WHERE path=?", (child,))
+        self._parent_sizes(path, -top_size)
+        for parent in self._ancestors(path):
+            removed[parent] = removed.get(parent, 0) + top_size
+        for wd, watched in list(self.watches.items()):
+            if watched == path or watched.startswith(path + "/"):
+                self.libc.inotify_rm_watch(self.fd, wd)
+                self.watches.pop(wd, None)
+                self.paths.pop(watched, None)
+
+    def process(self, events):
+        """Apply one kernel event batch and its outbox entries in one transaction."""
+        with self.lock, self.db:
+            removed = {}
+            for wd, mask, name in events:
+                if mask & self.OVERFLOW:
+                    self.reconcile("The source observer's kernel event queue overflowed. Cached metadata was reconciled; transient operations may be missing.")
+                    return
+                if mask & self.IGNORED:
+                    previous = self.watches.pop(wd, None)
+                    if previous is not None and self.paths.get(previous) == wd:
+                        self.paths.pop(previous, None)
+                    continue
+                base = self.watches.get(wd)
+                if base is None:
+                    continue
+                if mask & (self.DELETE_SELF | self.MOVE_SELF):
+                    if not base:
+                        self.reconcile("The source root moved or was removed. Its configured path was reconciled.")
+                        return
+                    continue
+                try:
+                    name.encode("utf-8")
+                except UnicodeEncodeError:
+                    continue
+                if not name or name.startswith(TMP) or "/" in name or name in (".", ".."):
+                    continue
+                path = (base + "/" if base else "") + name
+                if mask & (self.DELETE | self.MOVED_FROM):
+                    self._remove(path, removed)
+                elif mask & (self.CREATE | self.MOVED_TO | self.MODIFY | self.ATTRIB | self.CLOSE_WRITE):
+                    try:
+                        if mask & self.CREATE:
+                            for prior in list(removed):
+                                if prior == path or prior.startswith(path + "/"):
+                                    removed.pop(prior)
+                        self._add(path, bool(mask & (self.MOVED_TO | self.CLOSE_WRITE | self.ISDIR)))
+                    except FileNotFoundError:
+                        self._queue("gap", message="%s changed before its size and identity could be observed." % path)
+
+    def poll(self, timeout=1):
+        if not select.select([self.fd], [], [], timeout)[0]:
+            return False
+        events = []
+        while True:
+            try:
+                data = os.read(self.fd, 65536)
+            except BlockingIOError:
+                break
+            offset = 0
+            while offset < len(data):
+                wd, mask, _, length = struct.unpack_from("iIII", data, offset)
+                name = os.fsdecode(data[offset + 16:offset + 16 + length].split(b"\0", 1)[0])
+                events.append((wd, mask, name))
+                offset += 16 + length
+        self.process(events)
+        return bool(events)
+
+    def events(self, limit=100):
+        with self.lock:
+            return [json.loads(row[0]) for row in self.db.execute(
+                "SELECT payload FROM outbox ORDER BY seq LIMIT ?", (max(1, min(1000, limit)),))]
+
+    def acknowledge(self, ids):
+        if not isinstance(ids, list) or len(ids) > 1000 or any(not isinstance(value, str) for value in ids):
+            raise ValueError("ids must be a list of at most 1000 event IDs")
+        with self.lock, self.db:
+            self.db.executemany("DELETE FROM outbox WHERE id=?", ((value,) for value in ids))
+
+    def health(self):
+        if not self.lock.acquire(blocking=False):
+            return {"ready": self.ready, "error": self.error, "pending": None}
+        try:
+            return {"ready": self.ready, "error": self.error,
+                    "pending": self.db.execute("SELECT count(*) FROM outbox").fetchone()[0]}
+        finally:
+            self.lock.release()
+
+    def run(self):
+        while not self.stopped.is_set():
+            try:
+                self.start_watching()
+                last_scan = time.monotonic()
+                while not self.stopped.is_set():
+                    self.poll()
+                    if time.monotonic() - last_scan >= 60:
+                        self.reconcile()
+                        last_scan = time.monotonic()
+            except Exception as exc:
+                if self.stopped.is_set():
+                    return
+                with self.lock:
+                    self.ready, self.error = False, str(exc)
+                sys.stderr.write("drivesource audit failed: %s\n" % exc)
+                if self.fd >= 0:
+                    os.close(self.fd)
+                    self.fd = -1
+                self.watches.clear()
+                self.paths.clear()
+                self.stopped.wait(5)
+
+    def close(self):
+        self.stopped.set()
+        if self.fd >= 0:
+            os.close(self.fd)
+            self.fd = -1
+        with self.lock:
+            self.db.close()
 
 
 class S3Fail(Exception):
@@ -148,8 +508,9 @@ def _quote(text):
     return urllib.parse.quote(text, safe="-_.~")
 
 
-def check_signature(h, raw_path, raw_query):
+def check_signature(h, raw_path, raw_query, config=None):
     """The request's Signature Version 4 (headers), else S3Fail; the signed payload hash."""
+    config = CFG if config is None else config
     auth = h.headers.get("Authorization", "")
     if not auth.startswith("AWS4-HMAC-SHA256 "):
         raise S3Fail(403, "AccessDenied", "Signed requests only (AWS Signature Version 4).")
@@ -163,7 +524,7 @@ def check_signature(h, raw_path, raw_query):
         signature = fields["Signature"]
     except (KeyError, ValueError):
         raise S3Fail(400, "AuthorizationHeaderMalformed") from None
-    if not hmac.compare_digest(access, CFG["accessKey"]):
+    if not hmac.compare_digest(access, config["accessKey"]):
         raise S3Fail(403, "InvalidAccessKeyId")
     amz_date = h.headers.get("x-amz-date", "")
     try:
@@ -188,7 +549,7 @@ def check_signature(h, raw_path, raw_query):
     canonical = "\n".join([h.command, raw_path, canonical_query, canonical_headers, ";".join(signed), payload])
     scope = "%s/%s/%s/%s" % (day, region, service, term)
     to_sign = "\n".join(["AWS4-HMAC-SHA256", amz_date, scope, hashlib.sha256(canonical.encode()).hexdigest()])
-    key = ("AWS4" + CFG["secretKey"]).encode()
+    key = ("AWS4" + config["secretKey"]).encode()
     for part in (day, region, service, term):
         key = hmac.new(key, part.encode(), hashlib.sha256).digest()
     if not hmac.compare_digest(hmac.new(key, to_sign.encode(), hashlib.sha256).hexdigest(), signature):
@@ -292,11 +653,33 @@ class Handler(http.server.BaseHTTPRequestHandler):
         raw_path, _, raw_query = self.path.partition("?")
         try:
             if raw_path == "/__health" and self.command == "GET":
-                self.reply(200, json.dumps({"ok": True, "version": VERSION, "config": CONFIG_ID}).encode(),
+                self.reply(200, json.dumps({"ok": True, "version": VERSION, "config": CONFIG_ID,
+                                           "audit": AUDIT.health() if AUDIT else None}).encode(),
                            "application/json")
                 return
             payload = check_signature(self, raw_path, raw_query)
             query = dict(urllib.parse.parse_qsl(raw_query, keep_blank_values=True))
+            if raw_path in ("/__events", "/__events/ack"):
+                if AUDIT is None:
+                    raise S3Fail(503, "ServiceUnavailable", "Source audit is not enabled.")
+                if raw_path == "/__events" and self.command == "GET":
+                    try:
+                        limit = int(query.get("limit") or 100)
+                    except ValueError:
+                        raise S3Fail(400, "InvalidArgument", "limit must be an integer") from None
+                    self.reply(200, json.dumps({"events": AUDIT.events(limit)}).encode(), "application/json")
+                    return
+                if raw_path == "/__events/ack" and self.command == "POST":
+                    if payload == "UNSIGNED-PAYLOAD":
+                        raise S3Fail(400, "InvalidRequest", "Event acknowledgement needs a signed payload.")
+                    try:
+                        body = json.loads(self.body_bytes(payload, limit=65536))
+                        AUDIT.acknowledge(body.get("ids"))
+                    except (ValueError, AttributeError):
+                        raise S3Fail(400, "InvalidArgument", "ids must be a list of event IDs") from None
+                    self.reply(200, b'{"ok":true}', "application/json")
+                    return
+                raise S3Fail(405, "MethodNotAllowed")
             parts = urllib.parse.unquote(raw_path).lstrip("/").split("/", 1)
             bucket, key = parts[0], parts[1] if len(parts) > 1 else ""
             if not bucket:
@@ -767,7 +1150,7 @@ def clean_uploads():
 
 
 def load(path):
-    global CFG, UPLOADS, CONFIG_ID
+    global CFG, UPLOADS, CONFIG_ID, AUDIT
     with open(path) as f:
         cfg = json.load(f)
     root = os.path.realpath(cfg["root"])
@@ -779,12 +1162,16 @@ def load(path):
     CONFIG_ID = cfg.get("id", "")
     UPLOADS = os.path.join(os.path.dirname(os.path.abspath(path)), "uploads")
     os.makedirs(UPLOADS, mode=0o700, exist_ok=True)
+    AUDIT = SourceAudit(root, os.path.join(os.path.dirname(os.path.abspath(path)), "source-audit.sqlite")) \
+        if cfg.get("auditEnabled") else None
 
 
 def main():
     load(sys.argv[1])
     server = Server(("0.0.0.0", CFG["port"]), Handler)
     threading.Thread(target=clean_uploads, daemon=True).start()
+    if AUDIT:
+        threading.Thread(target=AUDIT.run, name="source-audit", daemon=True).start()
     sys.stderr.write("drivesource %s: serving %s on :%d\n" % (VERSION, CFG["root"], CFG["port"]))
     sys.stderr.flush()
     server.serve_forever()

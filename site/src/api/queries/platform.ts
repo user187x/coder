@@ -12,6 +12,7 @@ import {
 	type ClassificationSettings,
 	type CloudDriveConnections,
 	type CloudDriveEncryption,
+	type CloudDrivePeers,
 	type HudRange,
 	type KeycloakFix,
 	type KeycloakReport,
@@ -29,6 +30,13 @@ import {
 } from "#/modules/platform/cloudDrive/attachment";
 
 const platformKey = ["platform"] as const;
+
+export const dashboardAddress = () => ({
+	queryKey: [...platformKey, "dashboard-address"],
+	queryFn: PlatformAPI.getDashboardAddress,
+	staleTime: 60_000,
+	retry: false,
+});
 
 export const classificationKey = [...platformKey, "classification"] as const;
 const logoKey = [...platformKey, "logo"] as const;
@@ -320,6 +328,15 @@ export const cloudDrivePeers = (enabled = true) => ({
 	enabled,
 	retry: false,
 	refetchInterval: 15_000,
+});
+
+export const setCloudDriveShareConnection = (queryClient: QueryClient) => ({
+	mutationFn: ({ id, connected }: { id: string; connected: boolean }) =>
+		PlatformAPI.setCloudDriveShareConnection(id, connected),
+	onSuccess: (result: CloudDrivePeers) => {
+		queryClient.setQueryData(cloudDrivePeersKey, result);
+	},
+	onSettled: () => queryClient.invalidateQueries({ queryKey: safeKey }),
 });
 
 /** After an encryption or source change: everything about the Cloud Drive read again. */

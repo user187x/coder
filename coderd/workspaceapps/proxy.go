@@ -113,6 +113,9 @@ type ServerOptions struct {
 	AgentProvider  AgentProvider
 	StatsCollector *StatsCollector
 	WSWatcher      *httpapi.WSWatcher
+	// GuardSession checks deployment access and returns a context canceled when
+	// that access is revoked. End is called after the proxied session closes.
+	GuardSession func(context.Context, uuid.UUID) (context.Context, func(), error)
 }
 
 // Server serves workspace apps endpoints, including:
@@ -582,6 +585,16 @@ func (s *Server) parseHostname(rw http.ResponseWriter, r *http.Request, next htt
 
 func (s *Server) proxyWorkspaceApp(rw http.ResponseWriter, r *http.Request, appToken SignedToken, path string, app appurl.ApplicationURL) {
 	ctx := r.Context()
+	if s.GuardSession != nil {
+		guard, end, err := s.GuardSession(ctx, appToken.UserID)
+		if err != nil {
+			httpapi.Write(ctx, rw, http.StatusLocked, codersdk.Response{Message: "System Lockdown Enabled"})
+			return
+		}
+		defer end()
+		ctx = guard
+		r = r.WithContext(ctx)
+	}
 
 	// Filter IP headers from untrusted origins.
 	httpmw.FilterUntrustedOriginHeaders(s.RealIPConfig, r)
@@ -769,6 +782,16 @@ func (s *Server) workspaceAgentPTY(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	clientSessionID := tracing.ClientSessionID(r)
+	if s.GuardSession != nil {
+		guard, end, err := s.GuardSession(ctx, appToken.UserID)
+		if err != nil {
+			httpapi.Write(ctx, rw, http.StatusLocked, codersdk.Response{Message: "System Lockdown Enabled"})
+			return
+		}
+		defer end()
+		ctx = guard
+		r = r.WithContext(ctx)
+	}
 
 	log := s.Logger.With(
 		slog.F("agent_id", appToken.AgentID),

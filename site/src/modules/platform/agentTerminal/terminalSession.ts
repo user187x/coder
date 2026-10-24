@@ -82,7 +82,8 @@ export const newSession = (
 // v3: btop inside a shared tmux session by default (v2: plain btop; v1: off); a new key,
 // so the new default reaches everyone once.
 const CUSTOM_COMMAND_KEY = "coder-ui-terminal-custom-command-v3";
-export const DEFAULT_CUSTOM_COMMAND = 'tmux new-session -A -s monitor "btop"';
+const PREVIOUS_DEFAULT_COMMAND = 'tmux new-session -A -s monitor "btop"';
+export const DEFAULT_CUSTOM_COMMAND = `${PREVIOUS_DEFAULT_COMMAND} \\; set-option -w pane-border-status top`;
 export const MAX_CUSTOM_COMMAND_LENGTH = 1000;
 
 type CustomCommand = { enabled: boolean; command: string };
@@ -106,7 +107,10 @@ export const readCustomCommand = (): CustomCommand => {
 		) {
 			return {
 				enabled: parsed.enabled,
-				command: parsed.command.slice(0, MAX_CUSTOM_COMMAND_LENGTH),
+				command:
+					parsed.command === PREVIOUS_DEFAULT_COMMAND
+						? DEFAULT_CUSTOM_COMMAND
+						: parsed.command.slice(0, MAX_CUSTOM_COMMAND_LENGTH),
 			};
 		}
 	} catch {

@@ -93,18 +93,16 @@ class S3:
             return http.client.HTTPSConnection(self.host, self.port, timeout=self.timeout, context=self.ctx)
         return http.client.HTTPConnection(self.host, self.port, timeout=self.timeout)
 
-    def request(self, method, bucket, key="", query=(), body=None, length=None, headers=None):
+    def request(self, method, bucket, key="", query=(), body=None, length=None, headers=None, payload_hash=None):
         """The open response (the caller reads and closes it); S3Error for an error answer. body: bytes, or a
         file-like object streamed with its length (unsigned payload)."""
         path = self.base_path + "/" + bucket + ("/" + key if key else "")
         h = {k.lower(): v for k, v in (headers or {}).items()}
-        if body is None:
-            payload_hash = EMPTY_SHA256
-        elif isinstance(body, (bytes, bytearray)):
-            payload_hash = hashlib.sha256(body).hexdigest()
+        if isinstance(body, (bytes, bytearray)):
             length = len(body)
-        else:
-            payload_hash = UNSIGNED
+        if payload_hash is None:
+            payload_hash = (EMPTY_SHA256 if body is None else hashlib.sha256(body).hexdigest()
+                            if isinstance(body, (bytes, bytearray)) else UNSIGNED)
         if length is not None:
             h["content-length"] = str(length)
         h["authorization"] = self._sign(method, path, list(query), h, payload_hash)

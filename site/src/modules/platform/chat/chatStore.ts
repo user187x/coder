@@ -17,8 +17,8 @@
  * someone else does not pop up a window: it waits in the console's list, counted,
  * so a busy hour stays orderly.
  *
- * The dock shows the chat one of four ways (DockMode): the Chats bar, raised
- * into a small window, attached to the right side, or full screen. Attached or
+ * The dock shows a compact restore button, the Chats bar, a raised window,
+ * an attached right panel, or full screen. Attached or
  * full screen, conversations open in it (panelView) rather than in windows.
  */
 import { useEffect, useSyncExternalStore } from "react";
@@ -75,11 +75,12 @@ export type ChatWindowState = {
 
 /**
  * How the dock shows the chat: "bar", its handle at the bottom right;
+ * "compact", a small restore button with the unread count;
  * "window", raised from it into a small window (Gmail's chat); "side",
  * attached to the right side, from the navbar down; "full", over the page
  * below the navbar.
  */
-export type DockMode = "bar" | "window" | "side" | "full";
+export type DockMode = "bar" | "compact" | "window" | "side" | "full";
 
 type ChatSnapshot = {
 	me: ChatState["me"] | null;
@@ -114,13 +115,14 @@ type ChatSnapshot = {
 
 /**
  * How the dock starts on a page load: attached to the right side when it was
- * left attached - a layout chosen for every page, like a pinned sidebar - and
+ * left attached or compact - a layout chosen for every page - and
  * at the bar otherwise: a raised window or full screen would cover the page
  * just opened. Without storage, at the bar.
  */
 export const initialDockMode = (): DockMode => {
 	try {
-		return localStorage.getItem(MODE_KEY) === "side" ? "side" : "bar";
+		const saved = localStorage.getItem(MODE_KEY);
+		return saved === "side" || saved === "compact" ? saved : "bar";
 	} catch {
 		return "bar";
 	}
@@ -509,7 +511,12 @@ export const setFocusedWindow = (peerId: string | null) => {
  */
 export const markRead = (peerId: string, used: boolean) => {
 	const w = findView(peerId);
-	if (!w || w.minimized || document.visibilityState !== "visible") {
+	if (
+		snapshot.dockMode === "compact" ||
+		!w ||
+		w.minimized ||
+		document.visibilityState !== "visible"
+	) {
 		return;
 	}
 	if (!used && focusedPeer !== peerId) {
@@ -534,6 +541,7 @@ export const markRead = (peerId: string, used: boolean) => {
 
 /** Attached or full screen, nothing pops up: the message is counted in its list. */
 const popsUp = () =>
+	snapshot.dockMode !== "compact" &&
 	!attached() &&
 	(!snapshot.me?.admin ||
 		(!consoleShown() && snapshot.windows.length < maxOpenWindows()));

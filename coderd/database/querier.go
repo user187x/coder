@@ -1261,6 +1261,9 @@ type sqlcQuerier interface {
 	InsertGroup(ctx context.Context, arg InsertGroupParams) (Group, error)
 	InsertGroupMember(ctx context.Context, arg InsertGroupMemberParams) error
 	InsertInboxNotification(ctx context.Context, arg InsertInboxNotificationParams) (InboxNotification, error)
+	// A durable external event uses the same notification UUID on retries. Insert
+	// and live notification commit together, and disabled preferences remain honored.
+	InsertInboxNotificationAndNotify(ctx context.Context, arg InsertInboxNotificationAndNotifyParams) error
 	InsertLicense(ctx context.Context, arg InsertLicenseParams) (License, error)
 	InsertMCPServerConfig(ctx context.Context, arg InsertMCPServerConfigParams) (MCPServerConfig, error)
 	InsertMemoryResourceMonitor(ctx context.Context, arg InsertMemoryResourceMonitorParams) (WorkspaceAgentMemoryResourceMonitor, error)

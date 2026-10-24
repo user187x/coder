@@ -1570,6 +1570,74 @@ const docTemplate = `{
                 ]
             }
         },
+        "/api/v2/global-lockdown": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Deployment"
+                ],
+                "summary": "Get global workspace lockdown",
+                "operationId": "get-global-lockdown",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.GlobalLockdownState"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ],
+                "x-apidocgen": {
+                    "skip": true
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Deployment"
+                ],
+                "summary": "Change global workspace lockdown",
+                "operationId": "update-global-lockdown",
+                "parameters": [
+                    {
+                        "description": "Lockdown setting",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.UpdateGlobalLockdownRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.GlobalLockdownState"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ],
+                "x-apidocgen": {
+                    "skip": true
+                }
+            }
+        },
         "/api/v2/groups": {
             "get": {
                 "produces": [
@@ -10007,6 +10075,48 @@ const docTemplate = `{
                 ]
             }
         },
+        "/api/v2/workspaceagents/me/global-lockdown": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Agents"
+                ],
+                "summary": "Synchronize workspace access enforcement",
+                "operationId": "sync-workspace-agent-access",
+                "parameters": [
+                    {
+                        "description": "Applied policy acknowledgement",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/agentsdk.SyncWorkspaceAccessRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/agentsdk.WorkspaceAccessPolicy"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ],
+                "x-apidocgen": {
+                    "skip": true
+                }
+            }
+        },
         "/api/v2/workspaceagents/me/log-source": {
             "post": {
                 "consumes": [
@@ -10140,6 +10250,34 @@ const docTemplate = `{
                 "responses": {
                     "101": {
                         "description": "Switching Protocols"
+                    }
+                },
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ],
+                "x-apidocgen": {
+                    "skip": true
+                }
+            }
+        },
+        "/api/v2/workspaceagents/me/tunnel-identity": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Agents"
+                ],
+                "summary": "Get authenticated workspace tunnel identity",
+                "operationId": "get-workspace-agent-tunnel-identity",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/agentsdk.TunnelIdentity"
+                        }
                     }
                 },
                 "security": [
@@ -13265,6 +13403,58 @@ const docTemplate = `{
             "x-enum-varnames": [
                 "ReinitializeReasonPrebuildClaimed"
             ]
+        },
+        "agentsdk.SyncWorkspaceAccessRequest": {
+            "type": "object",
+            "properties": {
+                "applied_policy": {
+                    "type": "string"
+                },
+                "session": {
+                    "type": "string"
+                }
+            }
+        },
+        "agentsdk.TunnelIdentity": {
+            "type": "object",
+            "properties": {
+                "agent_id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "build_id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "organization_id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "workspace_id": {
+                    "type": "string",
+                    "format": "uuid"
+                }
+            }
+        },
+        "agentsdk.WorkspaceAccessPolicy": {
+            "type": "object",
+            "properties": {
+                "allowed_peers": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "fingerprint": {
+                    "type": "string"
+                },
+                "revision": {
+                    "type": "string"
+                }
+            }
         },
         "coderd.cspViolation": {
             "type": "object",
@@ -16473,6 +16663,84 @@ const docTemplate = `{
                 "user_id": {
                     "type": "string",
                     "format": "uuid"
+                }
+            }
+        },
+        "codersdk.GlobalLockdownAgent": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "state": {
+                    "type": "string"
+                }
+            }
+        },
+        "codersdk.GlobalLockdownState": {
+            "type": "object",
+            "properties": {
+                "admin": {
+                    "type": "boolean"
+                },
+                "agents": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/codersdk.GlobalLockdownAgent"
+                    }
+                },
+                "agents_pending": {
+                    "type": "integer"
+                },
+                "agents_total": {
+                    "type": "integer"
+                },
+                "confirmed": {
+                    "type": "boolean"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "revision": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "updated_by": {
+                    "type": "string"
+                },
+                "users": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/codersdk.GlobalLockdownUser"
+                    }
+                }
+            }
+        },
+        "codersdk.GlobalLockdownUser": {
+            "type": "object",
+            "properties": {
+                "admin": {
+                    "type": "boolean"
+                },
+                "avatar_url": {
+                    "type": "string"
+                },
+                "connected": {
+                    "type": "boolean"
+                },
+                "disconnected": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
                 }
             }
         },
@@ -21584,6 +21852,17 @@ const docTemplate = `{
                 "version": {
                     "description": "Version is the semantic version for the latest release of Coder.",
                     "type": "string"
+                }
+            }
+        },
+        "codersdk.UpdateGlobalLockdownRequest": {
+            "type": "object",
+            "properties": {
+                "confirmation": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
                 }
             }
         },

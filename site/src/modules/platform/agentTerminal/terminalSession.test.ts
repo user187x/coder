@@ -56,9 +56,25 @@ describe("custom command setting", () => {
 			command: DEFAULT_CUSTOM_COMMAND,
 		});
 		expect(DEFAULT_CUSTOM_COMMAND).toBe(
-			'tmux new-session -A -s monitor "btop"',
+			'tmux new-session -A -s monitor "btop" \\; set-option -w pane-border-status top',
 		);
 		writeCustomCommand({ enabled: false, command: "htop" });
 		expect(readCustomCommand()).toEqual({ enabled: false, command: "htop" });
+	});
+
+	it("updates the former default without replacing a custom command or enabling it", () => {
+		writeCustomCommand({
+			enabled: false,
+			command: 'tmux new-session -A -s monitor "btop"',
+		});
+		expect(readCustomCommand()).toEqual({
+			enabled: false,
+			command: DEFAULT_CUSTOM_COMMAND,
+		});
+		writeCustomCommand({ enabled: true, command: "tmux attach -t my-session" });
+		expect(readCustomCommand()).toEqual({
+			enabled: true,
+			command: "tmux attach -t my-session",
+		});
 	});
 });

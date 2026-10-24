@@ -314,6 +314,13 @@ html[data-animations="off"] .cd-attaching {
 	pointer-events: stroke;
 	cursor: help;
 }
+.cd-share[data-interactive="true"] .cd-share-hit {
+	cursor: pointer;
+}
+.cd-share:focus-visible .cd-cable {
+	stroke: hsl(var(--content-link));
+	stroke-width: 3;
+}
 .cd-share:hover .cd-cable {
 	stroke: hsl(var(--content-link));
 }

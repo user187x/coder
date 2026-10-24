@@ -277,8 +277,8 @@ func (p *DBTokenProvider) authorizeRequest(ctx context.Context, roles *rbac.Subj
 	// force the sharing level to be "owner" so that the user can only access
 	// their own apps.
 	//
-	// Site owners are blocked from accessing path-based apps unless the
-	// Dangerous.AllowPathAppSiteOwnerAccess flag is enabled in the check below.
+	// File Browser permits deployment-owner administration; other path apps
+	// retain the cross-owner restriction unless explicitly enabled below.
 	sharingLevel := dbReq.AppSharingLevel
 	if isPathApp && !p.DeploymentValues.Dangerous.AllowPathAppSharing.Value() {
 		if dbReq.AppSharingLevel != database.AppSharingLevelOwner {
@@ -299,16 +299,18 @@ func (p *DBTokenProvider) authorizeRequest(ctx context.Context, roles *rbac.Subj
 		return sharingLevel == database.AppSharingLevelPublic, warnings, nil
 	}
 
-	// Block anyone from accessing workspaces they don't own in path-based apps
-	// unless the admin disables this security feature. This blocks site-owners
-	// from accessing any apps from any user's workspaces.
+	// File Browser administration still requires the application-connect RBAC
+	// check below, including the API token's scope.
+	adminFileBrowser := dbReq.App.Slug == "filebrowser" && slices.Contains(roles.Roles.Names(), rbac.RoleOwner())
+
+	// Block other owner-only path apps across workspace owners unless enabled.
 	//
-	// When the Dangerous.AllowPathAppSharing flag is not enabled, the sharing
-	// level will be forced to "owner", so this check will always be true for
-	// workspaces owned by different users.
+	// With path-app sharing disabled, configured sharing levels also pass
+	// through this cross-owner check as owner-only apps.
 	if isPathApp &&
 		sharingLevel == database.AppSharingLevelOwner &&
 		dbReq.Workspace.OwnerID.String() != roles.ID &&
+		!adminFileBrowser &&
 		!p.DeploymentValues.Dangerous.AllowPathAppSiteOwnerAccess.Value() {
 		// This is not ideal to check for the 'owner' role, but we are only checking
 		// to determine whether to show a warning for debugging reasons. This does

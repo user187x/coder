@@ -72,6 +72,7 @@ import (
 	"github.com/coder/coder/v2/coderd/notifications"
 	"github.com/coder/coder/v2/coderd/oauth2provider"
 	"github.com/coder/coder/v2/coderd/platformbanner"
+	"github.com/coder/coder/v2/coderd/platformlockdown"
 	"github.com/coder/coder/v2/coderd/portsharing"
 	"github.com/coder/coder/v2/coderd/pproflabel"
 	"github.com/coder/coder/v2/coderd/prebuilds"
@@ -677,6 +678,15 @@ func New(options *Options) *API {
 		options.WorkspaceAppAuditSessionTimeout,
 		options.AppSigningKeyCache,
 	)
+	api.globalLockdown = platformlockdown.New(options.Database, api.ID, options.Clock)
+	if err := api.globalLockdown.Register(ctx); err != nil {
+		options.Logger.Error(ctx, "register global lockdown replica", slog.Error(err))
+	}
+	api.globalLockdownDone = make(chan struct{})
+	go func() {
+		defer close(api.globalLockdownDone)
+		api.globalLockdown.Run(api.ctx)
+	}()
 
 	f := appearance.NewDefaultFetcher(options.Database, api.DeploymentValues.DocsURL.String())
 	api.AppearanceFetcher.Store(&f)
@@ -779,6 +789,9 @@ func New(options *Options) *API {
 		ClientID:            uuid.New(),
 		DatabaseHealthCheck: api.Database,
 	}
+	if err := api.globalLockdown.TrackSystemPeer(ctx, dialer.ClientID); err != nil {
+		options.Logger.Error(ctx, "register workspace access server peer", slog.Error(err))
+	}
 	stn, err := NewServerTailnet(api.ctx,
 		options.Logger,
 		options.DERPServer,
@@ -865,6 +878,7 @@ func New(options *Options) *API {
 		AgentProvider:       api.agentProvider,
 		StatsCollector:      workspaceapps.NewStatsCollector(options.WorkspaceAppsStatsCollectorOptions),
 		WSWatcher:           api.wsWatcher,
+		GuardSession:        api.guardGlobalLockdownSession,
 
 		DisablePathApps:          options.DeploymentValues.DisablePathApps.Value(),
 		CookiesConfig:            options.DeploymentValues.HTTPCookies,
@@ -976,6 +990,7 @@ func New(options *Options) *API {
 			Logger:                      options.Logger,
 		}),
 		httpmw.HTTPRoute, // NB: prometheusMW depends on this middleware.
+		api.globalLockdownMiddleware(apiKeyMiddlewareOptional),
 		prometheusMW,
 		// Build-Version is helpful for debugging.
 		func(next http.Handler) http.Handler {
@@ -1539,6 +1554,8 @@ func New(options *Options) *API {
 				r.Get("/gitsshkey", api.agentGitSSHKey)
 				r.Post("/log-source", api.workspaceAgentPostLogSource)
 				r.Get("/reinit", api.workspaceAgentReinit)
+				r.Post("/global-lockdown", api.syncAgentWorkspaceAccess)
+				r.Get("/tunnel-identity", api.workspaceAgentTunnelIdentity)
 			})
 			r.Route("/{workspaceagent}", func(r chi.Router) {
 				r.Use(
@@ -1883,6 +1900,7 @@ func New(options *Options) *API {
 	// The announcement banner is Coder's own now (it was a service of its own
 	// behind Traefik body rewrites); a route to that service is ignored.
 	api.mountPlatformBanner(r, apiKeyMiddlewareOptional)
+	api.mountGlobalLockdown(r, apiKeyMiddleware)
 	for _, route := range options.PlatformServiceRoutes {
 		if route.PathPrefix == platformBannerPrefix {
 			api.Logger.Warn(ctx, "platform service route ignored: Coder serves the banner itself",
@@ -2007,7 +2025,9 @@ type API struct {
 	dbRolluper *dbrollup.Rolluper
 	// platformBannerHub pushes the announcement banner to this replica's
 	// open tabs (coderd/platformbanner).
-	platformBannerHub *platformbanner.Hub
+	platformBannerHub  *platformbanner.Hub
+	globalLockdown     *platformlockdown.Manager
+	globalLockdownDone chan struct{}
 
 	// ProfileCollector abstracts the runtime/pprof and runtime/trace
 	// calls used by the /debug/profile endpoint. Tests override this
@@ -2054,6 +2074,15 @@ func (api *API) Close() error {
 		api.platformBannerHub.Close()
 	}
 	_ = api.workspaceAppServer.Close()
+	if api.globalLockdown != nil {
+		retireCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		select {
+		case <-api.globalLockdownDone:
+			api.globalLockdown.Retire(retireCtx)
+		case <-retireCtx.Done():
+		}
+		cancel()
+	}
 	_ = api.agentProvider.Close()
 	if api.derpCloseFunc != nil {
 		api.derpCloseFunc()

@@ -1064,6 +1064,8 @@ export type CloudDriveShare = {
 	approvedAt?: number | null;
 	closedBy?: string | null;
 	closedAt?: number | null;
+	/** This ended share previously granted access and can be restored by an admin. */
+	reconnectable?: boolean;
 };
 
 export type CloudDrivePeerSettings = {
@@ -1369,6 +1371,8 @@ export type Banner = {
 	refreshSeconds: number;
 	effect: BannerEffect;
 	repeat: boolean;
+	/** Continuously reads overflowing banner text; missing means enabled. */
+	loopText?: boolean;
 	/** Missing in announcements saved before it existed: "normal". */
 	speed?: BannerSpeed;
 	/** The crawl's pace (effect "starwars"), pixels per second (CRAWL_SPEED). Missing: from speed. */
@@ -1871,7 +1875,116 @@ export type ProvisionersRekickResult = {
 	stillRunning: string[];
 };
 
+/** A reviewed organization-scoped bulk workspace power operation. */
+export type WorkspacePowerOperation = {
+	id: string;
+	organization_id: string;
+	action: "shutdown" | "terminate";
+	status: "running" | "completed" | "partial" | "interrupted";
+	created_at: number;
+	finished_at?: number;
+	workspaces: {
+		id: string;
+		name: string;
+		owner_name: string;
+		status:
+			| "pending"
+			| "stopping"
+			| "stopped"
+			| "skipped"
+			| "unsupported"
+			| "error";
+		coder_status: string;
+		physical_verified: boolean | null;
+		force_requested: boolean;
+		runtime_objects_removed: boolean | null;
+		error?: string;
+	}[];
+	completed: number;
+	total: number;
+};
+
+/** Network activity observed at one endpoint of a private workspace tunnel. */
+export type WorkspaceTunnelStats = {
+	ports_available?: boolean;
+	updated_at: number;
+	stale: boolean;
+	series: {
+		timestamp: number;
+		rx_bytes_per_second: number;
+		tx_bytes_per_second: number;
+	}[];
+	ports: { protocol: "tcp" | "udp"; local_port: number; remote_port: number }[];
+};
+
+/** An organization-scoped private network connection between two workspaces. */
+export type WorkspaceTunnel = {
+	source_workspace_name?: string;
+	target_workspace_name?: string;
+	source_stats?: WorkspaceTunnelStats | null;
+	target_stats?: WorkspaceTunnelStats | null;
+	source_side?: "left" | "right";
+	target_side?: "left" | "right";
+	id: string;
+	organization_id: string;
+	source_workspace_id: string;
+	target_workspace_id: string;
+	status: "pending" | "ready" | "error" | "disconnecting";
+	error?: string;
+	source_address?: string;
+	target_address?: string;
+};
+
 export const PlatformAPI = {
+	getWorkspacePowerHistory: (organizationId: string) =>
+		get<{ operations: WorkspacePowerOperation[] }>(
+			`${PLATFORM_BASE}/api/organizations/${encodeURIComponent(organizationId)}/workspace-power`,
+		),
+	getWorkspacePowerOperation: (organizationId: string, id: string) =>
+		get<WorkspacePowerOperation>(
+			`${PLATFORM_BASE}/api/organizations/${encodeURIComponent(organizationId)}/workspace-power/operation/${encodeURIComponent(id)}`,
+		),
+	startWorkspacePower: (
+		organizationId: string,
+		action: WorkspacePowerOperation["action"],
+		workspace_ids: string[],
+	) =>
+		post<WorkspacePowerOperation>(
+			`${PLATFORM_BASE}/api/organizations/${encodeURIComponent(organizationId)}/workspace-power`,
+			{ action, workspace_ids, confirmation: action },
+		),
+	getWorkspaceTunnels: (organizationId: string) =>
+		get<{ tunnels: WorkspaceTunnel[] }>(
+			`${PLATFORM_BASE}/api/organizations/${encodeURIComponent(organizationId)}/workspace-tunnels`,
+		),
+	createWorkspaceTunnel: (
+		organizationId: string,
+		source_workspace_id: string,
+		target_workspace_id: string,
+		source_side: "left" | "right" = "right",
+		target_side: "left" | "right" = "left",
+	) =>
+		post<{ tunnel: WorkspaceTunnel }>(
+			`${PLATFORM_BASE}/api/organizations/${encodeURIComponent(organizationId)}/workspace-tunnels`,
+			{ source_workspace_id, target_workspace_id, source_side, target_side },
+		),
+	deleteWorkspaceTunnel: async (organizationId: string, id: string) => {
+		try {
+			const result = await platformAxios.delete<{ tunnel: WorkspaceTunnel }>(
+				`${PLATFORM_BASE}/api/organizations/${encodeURIComponent(organizationId)}/workspace-tunnels/${encodeURIComponent(id)}`,
+				withSession({
+					data: {},
+					headers: {
+						"Content-Type": "application/json",
+						"X-Requested-With": PLATFORM_REQUESTED_WITH,
+					},
+				}),
+			);
+			return result.data;
+		} catch (error) {
+			throw toPlatformError(error);
+		}
+	},
 	/** The caller's Cloud Drive; PlatformError 404 where the deployment has none. */
 	getSafe: () => get<SafeSummary>(`${PLATFORM_BASE}/api/safe`),
 	/** drive: a Cloud Drive shared with the caller (its owner's id) - every file route takes it. */
@@ -1989,6 +2102,11 @@ export const PlatformAPI = {
 		post<CloudDrivePeers & { share: CloudDriveShare }>(
 			`${PLATFORM_BASE}/api/safe/peers/${id}/approve`,
 			{ approve },
+		),
+	setCloudDriveShareConnection: (id: string, connected: boolean) =>
+		post<CloudDrivePeers & { share: CloudDriveShare }>(
+			`${PLATFORM_BASE}/api/safe/peers/${encodeURIComponent(id)}/connection`,
+			{ connected },
 		),
 	endCloudDriveShare: (id: string) =>
 		post<CloudDrivePeers & { share: CloudDriveShare }>(

@@ -39,20 +39,6 @@ func NewMockStore(ctrl *gomock.Controller) *MockStore {
 	return mock
 }
 
-// DeleteTemplateVersionByID mocks base method.
-func (m *MockStore) DeleteTemplateVersionByID(ctx context.Context, id uuid.UUID) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteTemplateVersionByID", ctx, id)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// DeleteTemplateVersionByID indicates an expected call of DeleteTemplateVersionByID.
-func (mr *MockStoreMockRecorder) DeleteTemplateVersionByID(ctx, id any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteTemplateVersionByID", reflect.TypeOf((*MockStore)(nil).DeleteTemplateVersionByID), ctx, id)
-}
-
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockStore) EXPECT() *MockStoreMockRecorder {
 	return m.recorder
@@ -1613,6 +1599,20 @@ func (m *MockStore) DeleteTailnetTunnel(ctx context.Context, arg database.Delete
 func (mr *MockStoreMockRecorder) DeleteTailnetTunnel(ctx, arg any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteTailnetTunnel", reflect.TypeOf((*MockStore)(nil).DeleteTailnetTunnel), ctx, arg)
+}
+
+// DeleteTemplateVersionByID mocks base method.
+func (m *MockStore) DeleteTemplateVersionByID(ctx context.Context, id uuid.UUID) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteTemplateVersionByID", ctx, id)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteTemplateVersionByID indicates an expected call of DeleteTemplateVersionByID.
+func (mr *MockStoreMockRecorder) DeleteTemplateVersionByID(ctx, id any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteTemplateVersionByID", reflect.TypeOf((*MockStore)(nil).DeleteTemplateVersionByID), ctx, id)
 }
 
 // DeleteUnlinkedChatFilesByIDs mocks base method.
@@ -6530,6 +6530,12 @@ func (m *MockStore) GetUserAdminQuickLinks(ctx context.Context, userID uuid.UUID
 	return ret0, ret1
 }
 
+// GetUserAdminQuickLinks indicates an expected call of GetUserAdminQuickLinks.
+func (mr *MockStoreMockRecorder) GetUserAdminQuickLinks(ctx, userID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserAdminQuickLinks", reflect.TypeOf((*MockStore)(nil).GetUserAdminQuickLinks), ctx, userID)
+}
+
 // GetUserAdminSidebarOrder mocks base method.
 func (m *MockStore) GetUserAdminSidebarOrder(ctx context.Context, userID uuid.UUID) (string, error) {
 	m.ctrl.T.Helper()
@@ -6537,12 +6543,6 @@ func (m *MockStore) GetUserAdminSidebarOrder(ctx context.Context, userID uuid.UU
 	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
-}
-
-// GetUserAdminQuickLinks indicates an expected call of GetUserAdminQuickLinks.
-func (mr *MockStoreMockRecorder) GetUserAdminQuickLinks(ctx, userID any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserAdminQuickLinks", reflect.TypeOf((*MockStore)(nil).GetUserAdminQuickLinks), ctx, userID)
 }
 
 // GetUserAdminSidebarOrder indicates an expected call of GetUserAdminSidebarOrder.
@@ -8523,6 +8523,20 @@ func (m *MockStore) InsertInboxNotification(ctx context.Context, arg database.In
 func (mr *MockStoreMockRecorder) InsertInboxNotification(ctx, arg any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertInboxNotification", reflect.TypeOf((*MockStore)(nil).InsertInboxNotification), ctx, arg)
+}
+
+// InsertInboxNotificationAndNotify mocks base method.
+func (m *MockStore) InsertInboxNotificationAndNotify(ctx context.Context, arg database.InsertInboxNotificationAndNotifyParams) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "InsertInboxNotificationAndNotify", ctx, arg)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// InsertInboxNotificationAndNotify indicates an expected call of InsertInboxNotificationAndNotify.
+func (mr *MockStoreMockRecorder) InsertInboxNotificationAndNotify(ctx, arg any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertInboxNotificationAndNotify", reflect.TypeOf((*MockStore)(nil).InsertInboxNotificationAndNotify), ctx, arg)
 }
 
 // InsertLicense mocks base method.
@@ -11460,6 +11474,12 @@ func (m *MockStore) UpdateUserAdminQuickLinks(ctx context.Context, arg database.
 	return ret0, ret1
 }
 
+// UpdateUserAdminQuickLinks indicates an expected call of UpdateUserAdminQuickLinks.
+func (mr *MockStoreMockRecorder) UpdateUserAdminQuickLinks(ctx, arg any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateUserAdminQuickLinks", reflect.TypeOf((*MockStore)(nil).UpdateUserAdminQuickLinks), ctx, arg)
+}
+
 // UpdateUserAdminSidebarOrder mocks base method.
 func (m *MockStore) UpdateUserAdminSidebarOrder(ctx context.Context, arg database.UpdateUserAdminSidebarOrderParams) (string, error) {
 	m.ctrl.T.Helper()
@@ -11467,12 +11487,6 @@ func (m *MockStore) UpdateUserAdminSidebarOrder(ctx context.Context, arg databas
 	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
-}
-
-// UpdateUserAdminQuickLinks indicates an expected call of UpdateUserAdminQuickLinks.
-func (mr *MockStoreMockRecorder) UpdateUserAdminQuickLinks(ctx, arg any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateUserAdminQuickLinks", reflect.TypeOf((*MockStore)(nil).UpdateUserAdminQuickLinks), ctx, arg)
 }
 
 // UpdateUserAdminSidebarOrder indicates an expected call of UpdateUserAdminSidebarOrder.

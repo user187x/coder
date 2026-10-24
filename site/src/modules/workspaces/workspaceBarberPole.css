@@ -1,0 +1,42 @@
+/* Theme-accent stripes keep workspace text readable during transitions. */
+tr.workspace-row-starting,
+.workspace-barber-pole {
+	--workspace-pole: color-mix(
+		in srgb,
+		var(--color-content-link) 16%,
+		transparent
+	);
+	background-image: linear-gradient(
+		45deg,
+		var(--workspace-pole) 25%,
+		transparent 25%,
+		transparent 50%,
+		var(--workspace-pole) 50%,
+		var(--workspace-pole) 75%,
+		transparent 75%,
+		transparent
+	);
+	background-size: 40px 40px;
+	animation: workspace-row-pole 1.4s linear infinite;
+}
+
+@keyframes workspace-row-pole {
+	from {
+		background-position: 40px 0;
+	}
+	to {
+		background-position: 0 0;
+	}
+}
+
+/* Animations off (the user's setting, or the system's reduced motion): the stripes stay still. */
+:root[data-animations="off"] tr.workspace-row-starting,
+:root[data-animations="off"] .workspace-barber-pole {
+	animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+	tr.workspace-row-starting,
+	.workspace-barber-pole {
+		animation: none;
+	}
+}

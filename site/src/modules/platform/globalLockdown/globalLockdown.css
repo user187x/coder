@@ -1,0 +1,46 @@
+.global-lockdown-stripe,
+.global-lockdown-notice {
+	background: repeating-linear-gradient(135deg, #111 0 8px, #facc15 8px 16px);
+}
+
+.global-lockdown-notice {
+	display: flex;
+	justify-content: center;
+	padding: 6px;
+	background-size: 22.6274px 22.6274px;
+	animation: global-lockdown-stripes 2s linear infinite;
+}
+
+.global-lockdown-message {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 4px 12px;
+	border-radius: 4px;
+	background: #111;
+	color: #facc15;
+	font-weight: 700;
+}
+
+.global-lockdown-label {
+	animation: global-lockdown-blink 1.5s ease-in-out infinite;
+}
+
+@keyframes global-lockdown-stripes {
+	to {
+		background-position: 22.6274px 0;
+	}
+}
+
+@keyframes global-lockdown-blink {
+	50% {
+		opacity: 0.6;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.global-lockdown-notice,
+	.global-lockdown-label {
+		animation: none;
+	}
+}

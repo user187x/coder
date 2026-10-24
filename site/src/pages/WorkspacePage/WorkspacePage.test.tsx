@@ -17,7 +17,6 @@ import {
 	MockEntitlements,
 	MockFailedWorkspace,
 	MockOrganization,
-	MockOutdatedWorkspace,
 	MockPendingWorkspace,
 	MockStartingWorkspace,
 	MockStoppedWorkspace,
@@ -275,30 +274,54 @@ describe("WorkspacePage", () => {
 		);
 	});
 
-	it("requests an update when the user presses Update", async () => {
-		// Mocks
-		vi.spyOn(API, "getWorkspaceByOwnerAndName").mockResolvedValueOnce(
-			MockOutdatedWorkspace,
-		);
+	it.each(["template", "agent", "build"])(
+		"requests an update for an outdated %s",
+		async (reason) => {
+			const workspace =
+				reason === "template"
+					? { ...MockWorkspace, outdated: true }
+					: {
+							...MockWorkspace,
+							latest_build: {
+								...MockWorkspace.latest_build,
+								resources: MockWorkspace.latest_build.resources.map(
+									(resource) => ({
+										...resource,
+										agents: resource.agents?.map((agent) => ({
+											...agent,
+											version:
+												reason === "agent"
+													? "v1.0.0"
+													: `${MockBuildInfo.version}+old`,
+										})),
+									}),
+								),
+							},
+						};
 
-		const updateWorkspaceMock = vi
-			.spyOn(API, "updateWorkspace")
-			.mockResolvedValueOnce(MockWorkspaceBuild);
+			const updateWorkspaceMock = vi
+				.spyOn(API, "updateWorkspace")
+				.mockResolvedValueOnce(MockWorkspaceBuild);
 
-		// Render
-		await renderWorkspacePage(MockWorkspace);
+			// Render
+			await renderWorkspacePage(workspace);
 
-		// Actions
-		const user = userEvent.setup();
-		await user.click(screen.getByTestId("workspace-update-button"));
-		const confirmButton = await screen.findByTestId("confirm-button");
-		await user.click(confirmButton);
+			// Actions
+			const user = userEvent.setup();
+			await user.click(
+				within(screen.getByTestId("workspace-actions")).getByRole("button", {
+					name: "Update and restart",
+				}),
+			);
+			const confirmButton = await screen.findByTestId("confirm-button");
+			await user.click(confirmButton);
 
-		// Assertions
-		await waitFor(() => {
-			expect(updateWorkspaceMock).toBeCalled();
-		});
-	});
+			// Assertions
+			await waitFor(() => {
+				expect(updateWorkspaceMock).toBeCalled();
+			});
+		},
+	);
 
 	describe("Retrying failed workspaces", () => {
 		const retryButtonRe = /^Retry$/i;

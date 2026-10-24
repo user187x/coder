@@ -10,8 +10,12 @@ import type {
 import { permissionChecks } from "#/modules/permissions";
 import * as M from "./entities";
 import { MockGroup, MockWorkspaceQuota } from "./entities";
+import { MockGlobalLockdownState } from "./globalLockdown";
 
 export const handlers = [
+	http.get("/api/v2/global-lockdown", () =>
+		HttpResponse.json(MockGlobalLockdownState),
+	),
 	http.get("/api/v2/templates/:templateId/daus", () => {
 		return HttpResponse.json(M.MockTemplateDAUResponse);
 	}),

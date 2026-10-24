@@ -37,6 +37,7 @@ type Fields struct {
 	RefreshSeconds  int    `json:"refreshSeconds"`
 	Effect          string `json:"effect"`
 	Repeat          bool   `json:"repeat"`
+	LoopText        bool   `json:"loopText"`
 	Speed           string `json:"speed"`
 	CrawlSpeed      int    `json:"crawlSpeed"`
 	CrawlTilt       int    `json:"crawlTilt"`
@@ -79,6 +80,7 @@ func FieldDefaults() Fields {
 		ShowOnLoginPage: true,
 		RefreshSeconds:  60,
 		Effect:          "none",
+		LoopText:        true,
 		Speed:           "normal",
 		CrawlSpeed:      15,
 		CrawlTilt:       100,
@@ -177,6 +179,7 @@ func Clean(raw []byte) (Fields, error) {
 		{"dismissible", &out.Dismissible},
 		{"showOnLoginPage", &out.ShowOnLoginPage},
 		{"repeat", &out.Repeat},
+		{"loopText", &out.LoopText},
 		{"receipts", &out.Receipts},
 		{"markdown", &out.Markdown},
 		{"outline", &out.Outline},

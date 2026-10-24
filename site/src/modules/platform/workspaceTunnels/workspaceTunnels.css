@@ -1,0 +1,11 @@
+.workspace-tunnel-cord[data-state="error"] .cd-cable {
+	stroke: hsl(var(--content-destructive));
+}
+.workspace-tunnel-cord[data-state="pending"] .cd-cable,
+.workspace-tunnel-cord[data-state="disconnecting"] .cd-cable {
+	stroke: hsl(var(--content-warning));
+}
+.workspace-tunnel-cord [role="button"]:focus-visible {
+	outline: none;
+	stroke: hsl(var(--content-link));
+}

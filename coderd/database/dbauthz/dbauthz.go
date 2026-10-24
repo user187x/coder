@@ -131,33 +131,6 @@ func New(db database.Store, authorizer rbac.Authorizer, logger slog.Logger, acs 
 	}
 }
 
-func (q *querier) DeleteTemplateVersionByID(ctx context.Context, id uuid.UUID) error {
-	tv, err := q.db.GetTemplateVersionByID(ctx, id)
-	if err != nil {
-		return err
-	}
-	if tv.TemplateID.Valid {
-		tpl, err := q.db.GetTemplateByID(ctx, tv.TemplateID.UUID)
-		if err != nil {
-			return err
-		}
-		if err := q.authorizeContext(ctx, policy.ActionUpdate, tpl); err != nil {
-			return err
-		}
-	} else if err := q.authorizeContext(ctx, policy.ActionUpdate, rbac.ResourceTemplate.InOrg(tv.OrganizationID)); err != nil {
-		return err
-	}
-	return q.db.DeleteTemplateVersionByID(ctx, id)
-}
-
-func (q *querier) GetWorkspaceNamesRunningTemplateVersion(ctx context.Context, templateVersionID uuid.UUID) ([]string, error) {
-	// Every user's workspaces: the system's (the delete handler asks it, for a template it may update).
-	if err := q.authorizeContext(ctx, policy.ActionRead, rbac.ResourceSystem); err != nil {
-		return nil, err
-	}
-	return q.db.GetWorkspaceNamesRunningTemplateVersion(ctx, templateVersionID)
-}
-
 func (q *querier) Wrappers() []string {
 	return append(q.db.Wrappers(), wrapname)
 }
@@ -2665,6 +2638,25 @@ func (q *querier) DeleteTailnetTunnel(ctx context.Context, arg database.DeleteTa
 		return database.DeleteTailnetTunnelRow{}, err
 	}
 	return q.db.DeleteTailnetTunnel(ctx, arg)
+}
+
+func (q *querier) DeleteTemplateVersionByID(ctx context.Context, id uuid.UUID) error {
+	tv, err := q.db.GetTemplateVersionByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if tv.TemplateID.Valid {
+		tpl, err := q.db.GetTemplateByID(ctx, tv.TemplateID.UUID)
+		if err != nil {
+			return err
+		}
+		if err := q.authorizeContext(ctx, policy.ActionUpdate, tpl); err != nil {
+			return err
+		}
+	} else if err := q.authorizeContext(ctx, policy.ActionUpdate, rbac.ResourceTemplate.InOrg(tv.OrganizationID)); err != nil {
+		return err
+	}
+	return q.db.DeleteTemplateVersionByID(ctx, id)
 }
 
 func (q *querier) DeleteUnlinkedChatFilesByIDs(ctx context.Context, arg database.DeleteUnlinkedChatFilesByIDsParams) (int64, error) {
@@ -6050,6 +6042,14 @@ func (q *querier) GetWorkspaceModulesCreatedAfter(ctx context.Context, createdAt
 	return q.db.GetWorkspaceModulesCreatedAfter(ctx, createdAt)
 }
 
+func (q *querier) GetWorkspaceNamesRunningTemplateVersion(ctx context.Context, templateVersionID uuid.UUID) ([]string, error) {
+	// Every user's workspaces: the system's (the delete handler asks it, for a template it may update).
+	if err := q.authorizeContext(ctx, policy.ActionRead, rbac.ResourceSystem); err != nil {
+		return nil, err
+	}
+	return q.db.GetWorkspaceNamesRunningTemplateVersion(ctx, templateVersionID)
+}
+
 func (q *querier) GetWorkspaceProxies(ctx context.Context) ([]database.WorkspaceProxy, error) {
 	return fetchWithPostFilter(q.auth, policy.ActionRead, func(ctx context.Context, _ interface{}) ([]database.WorkspaceProxy, error) {
 		return q.db.GetWorkspaceProxies(ctx)
@@ -6564,6 +6564,13 @@ func (q *querier) InsertGroupMember(ctx context.Context, arg database.InsertGrou
 
 func (q *querier) InsertInboxNotification(ctx context.Context, arg database.InsertInboxNotificationParams) (database.InboxNotification, error) {
 	return insert(q.log, q.auth, rbac.ResourceInboxNotification.WithOwner(arg.UserID.String()), q.db.InsertInboxNotification)(ctx, arg)
+}
+
+func (q *querier) InsertInboxNotificationAndNotify(ctx context.Context, arg database.InsertInboxNotificationAndNotifyParams) error {
+	if err := q.authorizeContext(ctx, policy.ActionCreate, rbac.ResourceSystem); err != nil {
+		return err
+	}
+	return q.db.InsertInboxNotificationAndNotify(ctx, arg)
 }
 
 func (q *querier) InsertLicense(ctx context.Context, arg database.InsertLicenseParams) (database.License, error) {

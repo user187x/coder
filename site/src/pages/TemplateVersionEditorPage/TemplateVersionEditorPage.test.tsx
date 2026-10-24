@@ -253,7 +253,7 @@ test("The file is uploaded with the correct content type", async () => {
 	);
 });
 
-test("Preserves the currently open file path when building a template version", async () => {
+test("Preserves the open file when building with the sidebar collapsed", async () => {
 	const user = userEvent.setup();
 	const { router } = renderWithAuth(<TemplateVersionEditorPage />, {
 		route: `/templates/${MockTemplate.name}/versions/${MockTemplateVersion.name}/edit?path=myfile.tf`,
@@ -274,6 +274,10 @@ test("Preserves the currently open file path when building a template version", 
 		name: "new-version",
 	};
 
+	await user.click(
+		screen.getByRole("button", { name: "Collapse file sidebar" }),
+	);
+
 	await typeOnEditor("new content", user);
 	await buildTemplateVersion(newTemplateVersion, user, topbar);
 
@@ -286,7 +290,7 @@ test("Preserves the currently open file path when building a template version", 
 	expect(router.state.location.search).toBe("?path=myfile.tf");
 });
 
-test("Creating a new file opens it in the editor", async () => {
+test("Creating a file after toggling the sidebar by keyboard opens it in the editor", async () => {
 	const user = userEvent.setup();
 	const { router } = renderWithAuth(<TemplateVersionEditorPage />, {
 		route: `/templates/${MockTemplate.name}/versions/${MockTemplateVersion.name}/edit`,
@@ -298,6 +302,11 @@ test("Creating a new file opens it in the editor", async () => {
 	await waitFor(() => {
 		expect(editor).not.toHaveValue("");
 	});
+
+	await user.click(
+		screen.getByRole("button", { name: "Collapse file sidebar" }),
+	);
+	await user.keyboard("{Enter}");
 
 	const createButton = await screen.findByRole("button", {
 		name: "Create File",

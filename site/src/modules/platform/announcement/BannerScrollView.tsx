@@ -16,7 +16,7 @@ import { bannerFontStack } from "./bannerFonts";
 import { safeHref } from "./bannerTokens";
 import { DotMatrixTime } from "./DotMatrixTime";
 import { enterFullscreen, leaveFullscreen } from "./fullscreen";
-import { attachHoverAutoScroll } from "./hoverAutoScroll";
+import { attachAnnouncementAutoScroll } from "./hoverAutoScroll";
 import { MatrixOverlay } from "./MatrixOverlay";
 import { SkynetOverlay } from "./SkynetOverlay";
 import { startSparks } from "./sparksCursor";
@@ -66,7 +66,7 @@ export const answerFor = (command: string): Answer => {
 	if (word === "ls") {
 		return "ls";
 	}
-	if (word === "ip") {
+	if (word.toLowerCase() === "ip") {
 		return "ip";
 	}
 	return "notfound";
@@ -76,7 +76,13 @@ type Rect = { top: number; left: number; width: number };
 type BannerScrollViewProps = {
 	banner: Pick<
 		Banner,
-		"id" | "message" | "font" | "markdown" | "picture" | "pictureFit"
+		| "id"
+		| "message"
+		| "font"
+		| "markdown"
+		| "picture"
+		| "pictureFit"
+		| "opacity"
 	>;
 	/** The banner's colours: the terminal's screen in them too (else its own dark screen). */
 	colors?: { bg: string; fg: string };
@@ -178,11 +184,13 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 		}
 	}, [open, rect]);
 
-	// A message longer than the window reads itself on hover: down slowly, back up when the pointer leaves.
+	// The reader can hold the message still without losing their place.
 	useEffect(() => {
-		const el = body.current;
-		return open && el ? attachHoverAutoScroll(el) : undefined;
-	}, [open]);
+		const el = panel.current;
+		return open && el
+			? attachAnnouncementAutoScroll(el, () => body.current)
+			: undefined;
+	}, [open, rect, banner.message]);
 
 	// Typing shows at the bottom, where the prompt is.
 	useLayoutEffect(() => {

@@ -1,8 +1,10 @@
-import { CableIcon } from "lucide-react";
+import { CableIcon, PlugIcon } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "react-query";
 import { cloudDrivePeers } from "#/api/queries/platform";
+import { Button } from "#/components/Button/Button";
 import { useAnimationsEnabled } from "#/modules/platform/animations/animations";
+import { AccountShareConnectionsDialog } from "./AccountShareConnectionsDialog";
 import { motionless } from "./CloudDriveRopes";
 import {
 	type Cable,
@@ -73,6 +75,12 @@ export const AccountShareCables: React.FC<{
 	children: ReactNode;
 }> = ({ userIds, children }) => {
 	const peers = useQuery(cloudDrivePeers());
+	const [manageOpen, setManageOpen] = useState(false);
+	const [selectedShare, setSelectedShare] = useState<string>();
+	const manage = (id?: string) => {
+		setSelectedShare(id);
+		setManageOpen(true);
+	};
 	const ids = userIds.join(",");
 	const { edges, offPage } = useMemo(() => {
 		const data = peers.data;
@@ -87,6 +95,13 @@ export const AccountShareCables: React.FC<{
 
 	return (
 		<>
+			{peers.data?.admin && (
+				<div className="mb-2 flex justify-end">
+					<Button size="sm" variant="outline" onClick={() => manage()}>
+						<PlugIcon /> Manage connections
+					</Button>
+				</div>
+			)}
 			{(edges.length > 0 || offPage > 0) && (
 				<p
 					className="m-0 mb-2 flex items-start gap-2 text-xs text-content-secondary"
@@ -96,13 +111,33 @@ export const AccountShareCables: React.FC<{
 					<span>
 						Cables: Cloud Drives shared between accounts, from the socket of its
 						owner to the plug of whom it is shared with - green prongs read and
-						write, blue read only. Point at one for who and how.
+						write, blue read only.{" "}
+						{peers.data?.admin
+							? "Select a cable to manage its connection."
+							: "Point at one for who and how."}
 						{offPage > 0 &&
 							` ${offPage} more with an account not on this page.`}
 					</span>
 				</p>
 			)}
-			<ShareCablesArea edges={edges}>{children}</ShareCablesArea>
+			<ShareCablesArea
+				edges={edges}
+				onManage={peers.data?.admin ? manage : undefined}
+			>
+				{children}
+			</ShareCablesArea>
+			{peers.data?.admin && (
+				<AccountShareConnectionsDialog
+					open={manageOpen}
+					onOpenChange={setManageOpen}
+					shares={(peers.data.all ?? []).filter(
+						(share) =>
+							userIds.includes(share.owner) || userIds.includes(share.from),
+					)}
+					shareId={selectedShare}
+					sharingEnabled={peers.data.settings.enabled}
+				/>
+			)}
 		</>
 	);
 };
@@ -110,7 +145,8 @@ export const AccountShareCables: React.FC<{
 const ShareCablesArea: React.FC<{
 	edges: readonly ShareEdge[];
 	children: ReactNode;
-}> = ({ edges, children }) => {
+	onManage?: (shareId: string) => void;
+}> = ({ edges, children, onManage }) => {
 	const area = useRef<HTMLDivElement>(null);
 	const svg = useRef<SVGSVGElement>(null);
 	const elements = useRef(new Map<string, SVGGElement>());
@@ -450,7 +486,7 @@ const ShareCablesArea: React.FC<{
 			{children}
 			<svg
 				ref={svg}
-				aria-hidden
+				aria-hidden={onManage ? undefined : true}
 				className="cd-ropes"
 				data-testid="account-share-cables"
 			>
@@ -464,6 +500,23 @@ const ShareCablesArea: React.FC<{
 							data-to={edge?.to}
 							data-access={edge?.access}
 							className="cd-share"
+							data-interactive={Boolean(onManage && edge)}
+							role={onManage && edge ? "button" : undefined}
+							tabIndex={onManage && edge ? 0 : undefined}
+							aria-label={onManage && edge ? `Manage ${edge.label}` : undefined}
+							onClick={() => edge && onManage?.(edge.key)}
+							onKeyDown={(event) => {
+								if (
+									edge &&
+									onManage &&
+									(event.key === "Enter" || event.key === " ")
+								) {
+									event.preventDefault();
+									onManage(edge.key);
+								}
+							}}
+							onFocus={() => hover(edge ?? null)}
+							onBlur={() => hover(null)}
 							visibility="hidden"
 							ref={(el) => {
 								if (el) {

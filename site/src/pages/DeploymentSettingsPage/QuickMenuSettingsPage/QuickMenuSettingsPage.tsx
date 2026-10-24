@@ -114,7 +114,7 @@ const QuickMenuSettingsPage: React.FC = () => {
 				<div className="flex flex-wrap items-start gap-8">
 					<section
 						aria-label="Preview"
-						className="flex w-full max-w-[380px] flex-col items-center gap-2 rounded-2xl border border-solid border-border bg-[#0b0d12] p-4"
+						className="flex w-full max-w-[380px] flex-col items-center gap-2 rounded-2xl border border-solid border-border bg-surface-secondary p-4"
 						data-testid="quick-menu-preview"
 					>
 						<Wheel
@@ -128,7 +128,7 @@ const QuickMenuSettingsPage: React.FC = () => {
 							testIdPrefix="quick-menu-preview"
 							className="quick-menu-preview-wheel"
 						/>
-						<span className="text-xs text-[#9ca3af]">
+						<span className="text-xs text-content-secondary">
 							Preview: point at a wedge
 						</span>
 					</section>

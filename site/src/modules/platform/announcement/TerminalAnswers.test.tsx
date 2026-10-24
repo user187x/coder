@@ -37,6 +37,7 @@ describe("TerminalAnswers", () => {
 		expect(answerFor("matrix")).toBe("none");
 		expect(answerFor("ip")).toBe("ip");
 		expect(answerFor("ip addr")).toBe("ip");
+		expect(answerFor("IP")).toBe("ip");
 		expect(answerFor("pwd")).toBe("notfound");
 	});
 

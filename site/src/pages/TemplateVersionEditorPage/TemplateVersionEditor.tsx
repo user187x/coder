@@ -2,12 +2,14 @@ import { cn } from "cn";
 import {
 	ChevronLeftIcon,
 	ExternalLinkIcon,
+	PanelLeftCloseIcon,
+	PanelLeftOpenIcon,
 	PlayIcon,
 	PlusIcon,
 	TriangleAlertIcon,
 	XIcon,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import {
 	Link as RouterLink,
 	useNavigate,
@@ -136,6 +138,8 @@ export const TemplateVersionEditor: React.FC<TemplateVersionEditorProps> = ({
 }) => {
 	const navigate = useNavigate();
 	const getLink = useLinks();
+	const [filesCollapsed, setFilesCollapsed] = useState(false);
+	const filesSidebarId = useId();
 	const [selectedTab, setSelectedTab] = useState<Tab>(defaultTab);
 	const [createFileOpen, setCreateFileOpen] = useState(false);
 	const [deleteFileOpen, setDeleteFileOpen] = useState<string>();
@@ -221,7 +225,7 @@ export const TemplateVersionEditor: React.FC<TemplateVersionEditorProps> = ({
 		<>
 			<div className="h-full flex flex-col">
 				<Topbar className="grid grid-cols-[1fr_2fr_1fr]" data-testid="topbar">
-					<div>
+					<div className="flex items-center">
 						<Tooltip>
 							<TooltipTrigger asChild>
 								<TopbarIconButton asChild>
@@ -237,6 +241,16 @@ export const TemplateVersionEditor: React.FC<TemplateVersionEditorProps> = ({
 								Back to the template
 							</TooltipContent>
 						</Tooltip>
+						<TopbarIconButton
+							aria-label={
+								filesCollapsed ? "Expand file sidebar" : "Collapse file sidebar"
+							}
+							aria-expanded={!filesCollapsed}
+							aria-controls={filesSidebarId}
+							onClick={() => setFilesCollapsed((collapsed) => !collapsed)}
+						>
+							{filesCollapsed ? <PanelLeftOpenIcon /> : <PanelLeftCloseIcon />}
+						</TopbarIconButton>
 					</div>
 
 					<TopbarData>
@@ -257,20 +271,6 @@ export const TemplateVersionEditor: React.FC<TemplateVersionEditorProps> = ({
 					</TopbarData>
 
 					<div className="flex items-center justify-end gap-2 pr-4">
-						<span className="mr-2">
-							<Button asChild size="sm" variant="outline">
-								<a
-									href="https://registry.coder.com"
-									target="_blank"
-									rel="noopener noreferrer"
-									className="flex items-center"
-								>
-									Browse the Coder Registry
-									<ExternalLinkIcon className="size-icon-sm ml-1" />
-								</a>
-							</Button>
-						</span>
-
 						<TemplateVersionStatusBadge version={templateVersion} />
 
 						<div className="flex gap-1 items-center">
@@ -327,7 +327,11 @@ export const TemplateVersionEditor: React.FC<TemplateVersionEditorProps> = ({
 						</div>
 					)}
 
-					<Sidebar>
+					<Sidebar
+						id={filesSidebarId}
+						hidden={filesCollapsed}
+						style={{ display: filesCollapsed ? "none" : undefined }}
+					>
 						<div className="h-[42px] py-0 pr-2 pl-4 flex items-center">
 							<span className="text-content-primary text-sm">Files</span>
 
@@ -417,7 +421,7 @@ export const TemplateVersionEditor: React.FC<TemplateVersionEditorProps> = ({
 						/>
 					</Sidebar>
 
-					<div className="flex flex-col w-full min-h-full overflow-hidden">
+					<div className="flex min-w-0 flex-1 flex-col min-h-full overflow-hidden">
 						<div className="flex-1 overflow-y-auto" data-pixel="ignore">
 							{activePath ? (
 								isEditorValueBinary ? (

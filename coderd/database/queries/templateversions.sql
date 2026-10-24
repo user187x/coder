@@ -249,15 +249,14 @@ SELECT
 FROM
 	workspaces
 	JOIN users ON users.id = workspaces.owner_id
-	JOIN LATERAL (
-		SELECT template_version_id, transition
-		FROM workspace_builds
-		WHERE workspace_builds.workspace_id = workspaces.id
-		ORDER BY build_number DESC
-		LIMIT 1
-	) latest ON true
+	JOIN workspace_builds latest ON latest.workspace_id = workspaces.id
+		AND latest.build_number = (
+			SELECT max(build_number)
+			FROM workspace_builds
+			WHERE workspace_builds.workspace_id = workspaces.id
+		)
 WHERE
 	NOT workspaces.deleted
 	AND latest.template_version_id = @template_version_id
 	AND latest.transition != 'delete'
-ORDER BY name;
+ORDER BY (users.username || '/' || workspaces.name)::text;

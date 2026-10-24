@@ -1,6 +1,8 @@
 import { cn } from "cn";
 import { Suspense } from "react";
+import { useQuery } from "react-query";
 import { Outlet } from "react-router";
+import { globalLockdown } from "#/api/queries/globalLockdown";
 import { Loader } from "#/components/Loader/Loader";
 import { isEmbeddedFrame } from "#/contexts/platformBoot";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
@@ -8,6 +10,7 @@ import { AnnouncementBanners } from "#/modules/dashboard/AnnouncementBanners/Ann
 import { LicenseBanner } from "#/modules/dashboard/LicenseBanner/LicenseBanner";
 import { AnnouncementBanner } from "#/modules/platform/announcement/AnnouncementBanner";
 import { DashboardAddons } from "#/modules/platform/DashboardAddons";
+import { GlobalLockdownGate } from "#/modules/platform/globalLockdown/GlobalLockdown";
 import { WorkspaceScheduleGate } from "#/modules/platform/scheduler/WorkspaceScheduleGate";
 import { DeploymentBanner } from "./DeploymentBanner/DeploymentBanner";
 import { Navbar } from "./Navbar/Navbar";
@@ -16,6 +19,7 @@ import { useUpdateCheck } from "./useUpdateCheck";
 
 export const DashboardLayout: React.FC = () => {
 	const { permissions } = useAuthenticated();
+	const { data: lockdown } = useQuery(globalLockdown());
 	const updateCheck = useUpdateCheck(permissions.viewDeploymentConfig);
 	const canViewDeployment = Boolean(permissions.viewDeploymentConfig);
 	// Platform: a page in another dashboard page's frame (the workspace grid) is that page alone - the page round it
@@ -26,7 +30,7 @@ export const DashboardLayout: React.FC = () => {
 		<>
 			{canViewDeployment && !embedded && <LicenseBanner />}
 			{!embedded && <AnnouncementBanners />}
-			<WorkspaceScheduleGate />
+			{(!lockdown?.enabled || lockdown.admin) && <WorkspaceScheduleGate />}
 
 			<div className="flex flex-col min-h-screen justify-between">
 				{/* biome-ignore lint/a11y/useValidAnchor: Skip links use fragment anchors by design. */}
@@ -60,7 +64,9 @@ export const DashboardLayout: React.FC = () => {
 					)}
 				>
 					<Suspense fallback={<Loader />}>
-						<Outlet />
+						<GlobalLockdownGate>
+							<Outlet />
+						</GlobalLockdownGate>
 					</Suspense>
 				</main>
 

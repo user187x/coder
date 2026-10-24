@@ -3,6 +3,7 @@ import { XIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import type { Banner } from "#/api/platform";
+import { globalLockdown } from "#/api/queries/globalLockdown";
 import {
 	announcementStatus,
 	banner as bannerQuery,
@@ -10,6 +11,7 @@ import {
 	markAnnouncementViewed,
 } from "#/api/queries/platform";
 import { isEmbeddedFrame } from "#/contexts/platformBoot";
+import { GlobalLockdownNotice } from "#/modules/platform/globalLockdown/GlobalLockdown";
 import { BannerCountdown } from "./BannerCountdown";
 import { BannerScrollView } from "./BannerScrollView";
 import { BannerText } from "./BannerText";
@@ -25,7 +27,7 @@ import {
 } from "./bannerTokens";
 import "./bannerLcd.css";
 import { bannerAlpha, withBannerAlpha } from "./bannerAlpha";
-import { attachHoverAutoScroll } from "./hoverAutoScroll";
+import { attachAnnouncementAutoScroll } from "./hoverAutoScroll";
 import { useBannerLive, wasPushed } from "./useBannerLive";
 import {
 	type CertificateFingerprints,
@@ -127,6 +129,25 @@ export const AnnouncementBanner: React.FC<AnnouncementBannerProps> = ({
 	const live = useBannerLive(enabled);
 	const { data: banner } = useQuery({ ...bannerQuery(live), enabled });
 	const [dismissedId, setDismissedId] = useState(readDismissed);
+	const lockdown = useQuery({
+		...globalLockdown(),
+		enabled: enabled && placement !== "login",
+	});
+
+	if (lockdown.data?.enabled) {
+		return (
+			<div
+				className={cn(
+					"overflow-hidden",
+					placement === "navbar"
+						? "ml-3 min-w-0 flex-1 rounded-[14px]"
+						: "w-full",
+				)}
+			>
+				<GlobalLockdownNotice />
+			</div>
+		);
+	}
 
 	const shown =
 		banner?.enabled &&
@@ -182,15 +203,17 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 	const { bg, fg } = bannerColors(banner);
 	const { mutate: reportView } = markViewed;
 	const card = useRef<HTMLDivElement>(null);
-	// A message longer than the banner shows reads itself on hover: down slowly, back up when the pointer leaves.
+	// Overflow reads slowly; holding the pointer pauses without resetting the reader.
 	useEffect(() => {
 		const el = card.current;
 		return el
-			? attachHoverAutoScroll(el, () =>
-					el.querySelector<HTMLElement>("[data-banner-text]"),
+			? attachAnnouncementAutoScroll(
+					el,
+					() => el.querySelector<HTMLElement>("[data-banner-text]"),
+					placement === "navbar" && banner.loopText !== false,
 				)
 			: undefined;
-	}, []);
+	}, [banner.message, banner.loopText, placement]);
 
 	useEffect(() => {
 		if (signedIn && !viewed.has(banner.id)) {
@@ -254,9 +277,10 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 				<BannerText
 					banner={banner}
 					animate
+					loop={placement === "navbar" && banner.loopText !== false}
 					className={cn(
 						"min-w-0 flex-1 text-center",
-						// two lines tall; a longer message scrolls itself on hover (hoverAutoScroll)
+						// Keep the navbar compact while longer messages read themselves.
 						placement === "navbar" &&
 							"max-h-[36px] overflow-hidden [overflow-wrap:anywhere]",
 					)}

@@ -271,6 +271,50 @@ func TestWorkspaceProxyCRUD(t *testing.T) {
 	})
 }
 
+func TestGlobalLockdownWorkspaceProxyBoundary(t *testing.T) {
+	t.Parallel()
+	client, _ := coderdenttest.New(t, &coderdenttest.Options{
+		LicenseOptions: &coderdenttest.LicenseOptions{Features: license.Features{codersdk.FeatureWorkspaceProxy: 1}},
+	})
+	ctx := testutil.Context(t, testutil.WaitLong)
+	status := func(err error) int {
+		t.Helper()
+		var sdkErr *codersdk.Error
+		require.ErrorAs(t, err, &sdkErr)
+		return sdkErr.StatusCode()
+	}
+	created, err := client.CreateWorkspaceProxy(ctx, codersdk.CreateWorkspaceProxyRequest{Name: testutil.GetRandomName(t)})
+	require.NoError(t, err)
+	_, err = client.UpdateGlobalLockdown(ctx, codersdk.UpdateGlobalLockdownRequest{Enabled: true, Confirmation: "agree"})
+	require.Equal(t, http.StatusConflict, status(err), "an unregistered app-capable proxy is still an enforcement boundary")
+	proxy := wsproxysdk.New(client.URL, created.ProxyToken)
+	req := wsproxysdk.RegisterWorkspaceProxyRequest{
+		AccessURL: "https://proxy.coder.test", DerpEnabled: true, DerpOnly: true,
+		ReplicaID: uuid.New(), ReplicaHostname: "lockdown-test", ReplicaRelayAddress: "http://127.0.0.1:8080",
+		Version: buildinfo.Version(),
+	}
+	_, err = proxy.RegisterWorkspaceProxy(ctx, req)
+	require.NoError(t, err)
+	_, err = client.UpdateGlobalLockdown(ctx, codersdk.UpdateGlobalLockdownRequest{Enabled: true, Confirmation: "agree"})
+	require.NoError(t, err)
+	_, err = client.CreateWorkspaceProxy(ctx, codersdk.CreateWorkspaceProxyRequest{Name: testutil.GetRandomName(t)})
+	require.Equal(t, http.StatusLocked, status(err))
+	req.DerpOnly = false
+	_, err = proxy.RegisterWorkspaceProxy(ctx, req)
+	require.Equal(t, http.StatusLocked, status(err))
+	stored, err := client.WorkspaceProxyByID(ctx, created.Proxy.ID)
+	require.NoError(t, err)
+	require.True(t, stored.DerpOnly)
+	req.DerpOnly = true
+	_, err = proxy.RegisterWorkspaceProxy(ctx, req)
+	require.NoError(t, err, "existing DERP-only proxies must keep renewing")
+	_, err = client.UpdateGlobalLockdown(ctx, codersdk.UpdateGlobalLockdownRequest{Enabled: false})
+	require.NoError(t, err)
+	req.DerpOnly = false
+	_, err = proxy.RegisterWorkspaceProxy(ctx, req)
+	require.NoError(t, err)
+}
+
 func TestProxyRegisterDeregister(t *testing.T) {
 	t.Parallel()
 

@@ -3,6 +3,7 @@ import {
 	ChevronUpIcon,
 	Maximize2Icon,
 	MessageSquareIcon,
+	Minimize2Icon,
 	MinusIcon,
 	PanelRightIcon,
 	PanelsTopLeftIcon,
@@ -55,6 +56,28 @@ export const ChatPanel: React.FC = () => {
 	const raised = state.dockMode === "window";
 	const total = unreadTotal(state);
 	const none = noAdminAvailable(state);
+
+	if (state.dockMode === "compact") {
+		return (
+			<Button
+				variant="outline"
+				size="icon"
+				className="relative size-11 rounded-2xl bg-surface-primary shadow-lg"
+				aria-label={
+					total ? `Restore chat bar, ${total} unread` : "Restore chat bar"
+				}
+				title="Restore chat bar"
+				onClick={() => setDockMode("bar")}
+			>
+				<MessageSquareIcon />
+				{total > 0 && (
+					<span className="absolute -right-1 -top-1">
+						<CountBadge count={total} />
+					</span>
+				)}
+			</Button>
+		);
+	}
 
 	// Beside the raised window when there is room; on a narrow screen above the bar, the window lowered.
 	const open = (peer: ChatPeer) => {
@@ -144,6 +167,13 @@ export const ChatPanel: React.FC = () => {
 							</button>
 						)}
 						{me.admin && <ChatOnSwitch className="pr-3.5 pl-1.5" />}
+						<DockButton
+							label="Hide chat bar"
+							testId="chat-mode-compact"
+							onClick={() => setDockMode("compact")}
+						>
+							<Minimize2Icon />
+						</DockButton>
 					</>
 				)}
 			</div>
