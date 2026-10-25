@@ -78,7 +78,6 @@ const EditUserPage: React.FC = () => {
 							<UserMoreActions
 								user={userData}
 								me={me.id}
-								showEdit={false}
 								canViewActivity={entitlements.features.audit_log.enabled}
 								oidcRoleSyncEnabled={oidcRoleSyncEnabled}
 								onAction={setAction}

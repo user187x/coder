@@ -116,7 +116,7 @@ export const GlobalWorkspaceActionsView: React.FC<Props> = ({
 	return (
 		<div className="flex max-w-sm flex-col items-stretch gap-2">
 			<Button
-				variant="outline"
+				variant="destructive"
 				disabled={
 					disabled ||
 					loading ||

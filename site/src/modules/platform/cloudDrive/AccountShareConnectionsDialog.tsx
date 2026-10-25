@@ -19,13 +19,25 @@ export const AccountShareConnectionsDialog: React.FC<{
 	onOpenChange: (open: boolean) => void;
 	shares: readonly CloudDriveShare[];
 	shareId?: string;
+	ownerId?: string;
+	recipientId?: string;
 	sharingEnabled: boolean;
-}> = ({ open, onOpenChange, shares, shareId, sharingEnabled }) => {
+}> = ({
+	open,
+	onOpenChange,
+	shares,
+	shareId,
+	ownerId,
+	recipientId,
+	sharingEnabled,
+}) => {
 	const queryClient = useQueryClient();
 	const change = useMutation(setCloudDriveShareConnection(queryClient));
 	const connections = shares.filter(
 		(share) =>
 			(!shareId || share.id === shareId) &&
+			(!ownerId || share.owner === ownerId) &&
+			(!recipientId || share.from === recipientId) &&
 			(share.state === "active" || share.reconnectable),
 	);
 	return (
@@ -48,7 +60,9 @@ export const AccountShareConnectionsDialog: React.FC<{
 				)}
 				{connections.length === 0 ? (
 					<p className="m-0 text-sm text-content-secondary">
-						No existing connections on this page.
+						{ownerId && recipientId
+							? "No existing share between these accounts. Create or approve the share in Cloud Drive before connecting it."
+							: "No existing connections on this page."}
 					</p>
 				) : (
 					<ul className="m-0 flex list-none flex-col gap-3 p-0">

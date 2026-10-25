@@ -83,13 +83,15 @@ export const frameFit = (
 		height,
 		scale,
 		left: Math.max(0, (cellW - width * scale) / 2),
-		top: Math.max(0, (frameH - height * scale) / 2),
+		top: 0,
 	};
 };
 
 type WorkspaceGridProps = {
 	/** The workspaces to show (their ids), in this order. */
 	ids: readonly string[];
+	canManageTunnels?: boolean;
+	tunnelActorId?: string;
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 };
@@ -105,6 +107,8 @@ type WorkspaceGridProps = {
  */
 export const WorkspaceGrid: React.FC<WorkspaceGridProps> = ({
 	ids,
+	canManageTunnels = false,
+	tunnelActorId,
 	open,
 	onOpenChange,
 }) => {
@@ -144,7 +148,13 @@ export const WorkspaceGrid: React.FC<WorkspaceGridProps> = ({
 					"w-[calc(100vw-48px)] h-[calc(100vh-2*var(--coder-classification-h,0px)-48px)]",
 				)}
 			>
-				<GridBody shown={shown} loading={query.isLoading} navigate={navigate} />
+				<GridBody
+					shown={shown}
+					canManageTunnels={canManageTunnels}
+					tunnelActorId={tunnelActorId}
+					loading={query.isLoading}
+					navigate={navigate}
+				/>
 			</DialogContent>
 		</Dialog>
 	);
@@ -152,11 +162,19 @@ export const WorkspaceGrid: React.FC<WorkspaceGridProps> = ({
 
 type GridBodyProps = {
 	shown: readonly Workspace[];
+	canManageTunnels: boolean;
+	tunnelActorId?: string;
 	loading: boolean;
 	navigate: (to: string) => void;
 };
 
-const GridBody: React.FC<GridBodyProps> = ({ shown, loading, navigate }) => {
+const GridBody: React.FC<GridBodyProps> = ({
+	shown,
+	canManageTunnels,
+	tunnelActorId,
+	loading,
+	navigate,
+}) => {
 	const viewportRef = useRef<HTMLDivElement>(null);
 	const [connecting, setConnecting] = useState(false);
 	const [size, setSize] = useState({ w: 0, h: 0 });
@@ -351,6 +369,8 @@ const GridBody: React.FC<GridBodyProps> = ({ shown, loading, navigate }) => {
 							cellW={cellW}
 							cellH={cellH}
 							gap={GAP}
+							canManage={canManageTunnels}
+							actorId={tunnelActorId}
 							onDragging={setConnecting}
 						/>
 						{shown.map((w) => {

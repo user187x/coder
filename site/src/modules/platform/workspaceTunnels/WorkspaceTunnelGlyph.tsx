@@ -1,4 +1,3 @@
-import { CableIcon } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { useQuery } from "react-query";
 import type { WorkspaceTunnel } from "#/api/platform";
@@ -10,6 +9,7 @@ import {
 	PopoverContent,
 	PopoverTrigger,
 } from "#/components/Popover/Popover";
+import "./workspaceTunnels.css";
 import {
 	NetworkHistogram,
 	type NetworkSample,
@@ -73,7 +73,7 @@ export const WorkspaceTunnelGlyph: React.FC<{ workspace: Workspace }> = ({
 			<PopoverTrigger asChild>
 				<button
 					type="button"
-					className="flex h-5 min-w-5 cursor-pointer items-center justify-center rounded-full border-0 bg-surface-tertiary p-0 px-1"
+					className="flex size-5 cursor-pointer items-center justify-center rounded-full border-0 bg-surface-tertiary p-0"
 					aria-label={`Workspace tunnels: ${tunnels.length} connected`}
 					aria-controls={open ? contentId : undefined}
 					onMouseEnter={show}
@@ -84,7 +84,10 @@ export const WorkspaceTunnelGlyph: React.FC<{ workspace: Workspace }> = ({
 						show();
 					}}
 				>
-					<CableIcon aria-hidden className="size-3.5 text-content-success" />
+					<span
+						aria-hidden
+						className="workspace-tunnel-icon size-5 text-content-success"
+					/>
 				</button>
 			</PopoverTrigger>
 			<PopoverContent

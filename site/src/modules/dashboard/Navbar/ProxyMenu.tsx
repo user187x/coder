@@ -42,6 +42,8 @@ type ProxyMenuControls = {
 type ProxyMenuProps = {
 	/** The regions and the latency to them; without it (or when it cannot be had) the button has no latency pill. */
 	proxyContextValue?: ProxyContextValue;
+	canManageTunnels?: boolean;
+	tunnelActorId?: string;
 	/**
 	 * Platform: the HUD's link joined on its left (admins): one split button - HUD, then the latency, "Controls" and
 	 * the menu's chevron - in the place of three buttons.
@@ -61,6 +63,8 @@ type ProxyMenuProps = {
  */
 export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 	proxyContextValue,
+	canManageTunnels = false,
+	tunnelActorId,
 	hud = false,
 	controls,
 }) => {
@@ -292,6 +296,8 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 			</DropdownMenu>
 			<WorkspaceGrid
 				ids={gridIds ?? []}
+				canManageTunnels={canManageTunnels}
+				tunnelActorId={tunnelActorId}
 				open={gridIds !== null}
 				onOpenChange={(next) => {
 					if (!next) {

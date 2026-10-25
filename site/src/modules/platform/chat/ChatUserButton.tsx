@@ -38,11 +38,11 @@ export const ChatUserButton: React.FC<ChatUserButtonProps> = ({ user }) => {
 	const peer = { id: user.id, username: user.username, name: user.name ?? "" };
 
 	return (
-		<span className="inline-flex">
+		<span className="inline-flex h-7 shrink-0 items-stretch rounded-md border border-solid border-border-default bg-transparent focus-within:ring-2 focus-within:ring-content-link">
 			<Button
 				size="sm"
-				variant="outline"
-				className="rounded-r-none"
+				variant="subtle"
+				className="h-full min-w-0 rounded-r-none px-2"
 				aria-label={`Chat with ${user.username}`}
 				onClick={(event) => {
 					// The row itself opens the user's workspace.
@@ -56,8 +56,8 @@ export const ChatUserButton: React.FC<ChatUserButtonProps> = ({ user }) => {
 				<DropdownMenuTrigger asChild>
 					<Button
 						size="sm"
-						variant="outline"
-						className="-ml-px rounded-l-none px-1.5"
+						variant="subtle"
+						className="h-full w-6 min-w-0 rounded-l-none border-0 border-l border-solid border-border-default px-1"
 						aria-label={`More ways to message ${user.username}`}
 						onClick={(event) => event.stopPropagation()}
 						data-testid={`chat-more-${user.username}`}

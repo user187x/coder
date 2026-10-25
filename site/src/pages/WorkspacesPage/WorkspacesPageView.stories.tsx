@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import dayjs from "dayjs";
 import uniqueId from "lodash/uniqueId";
 import { expect, fn, userEvent, within } from "storybook/test";
+import { workspaceTunnels } from "#/api/queries/workspaceTunnels";
 import {
 	type Workspace,
 	type WorkspaceStatus,
@@ -19,6 +20,7 @@ import {
 	MockWorkspace,
 	MockWorkspaceAgent,
 	MockWorkspaceApp,
+	MockWorkspaceResource,
 	MockWorkspaceSubAgent,
 	mockApiError,
 } from "#/testHelpers/entities";
@@ -169,6 +171,10 @@ const meta: Meta<typeof WorkspacesPageView> = {
 	parameters: {
 		queries: [
 			{
+				key: workspaceTunnels(MockWorkspace.organization_id).queryKey,
+				data: { tunnels: [] },
+			},
+			{
 				key: ["buildInfo"],
 				data: MockBuildInfo,
 			},
@@ -180,6 +186,27 @@ const meta: Meta<typeof WorkspacesPageView> = {
 
 export default meta;
 type Story = StoryObj<typeof WorkspacesPageView>;
+
+export const AgentUpdateAvailable: Story = {
+	args: {
+		workspaces: [
+			{
+				...MockWorkspace,
+				outdated: false,
+				latest_build: {
+					...MockWorkspace.latest_build,
+					resources: [
+						{
+							...MockWorkspaceResource,
+							agents: [{ ...MockWorkspaceAgent, version: "1.0.0" }],
+						},
+					],
+				},
+			},
+		],
+		count: 1,
+	},
+};
 
 export const FilteredPaginationSummary: Story = {
 	args: {
@@ -631,5 +658,36 @@ export const WithFilterError: Story = {
 		expect(input).toHaveAttribute("aria-invalid", "true");
 		const alert = canvas.getByRole("alert");
 		expect(input).toHaveAttribute("aria-errormessage", alert.id);
+	},
+};
+
+export const AgentUpdateActionsMenu: Story = {
+	args: AgentUpdateAvailable.args,
+	play: async ({ canvasElement }) => {
+		await userEvent.click(
+			within(canvasElement).getByRole("button", { name: "Workspace actions" }),
+		);
+	},
+};
+
+export const AgentUpdateRestartConfirmation: Story = {
+	args: AgentUpdateAvailable.args,
+	play: async ({ canvasElement }) => {
+		await userEvent.click(
+			within(canvasElement).getByRole("button", {
+				name: /Running\. Restart .*; update available/,
+			}),
+		);
+	},
+};
+
+export const TemplateUpdateRestartConfirmation: Story = {
+	args: { workspaces: [{ ...MockWorkspace, outdated: true }], count: 1 },
+	play: async ({ canvasElement }) => {
+		await userEvent.click(
+			within(canvasElement).getByRole("button", {
+				name: /Running\. Restart .*; update available/,
+			}),
+		);
 	},
 };

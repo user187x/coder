@@ -96,6 +96,10 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 					// the latency and the Controls in one menu, the HUD joined on as one split button (admins)
 					latency: (
 						<ProxyMenu
+							tunnelActorId={user.id}
+							canManageTunnels={user.roles.some(
+								(role) => role.name === "owner",
+							)}
 							proxyContextValue={proxyContextValue}
 							hud={adminPermissions.canViewDeployment}
 							controls={

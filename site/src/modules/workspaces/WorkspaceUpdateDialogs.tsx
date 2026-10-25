@@ -45,6 +45,7 @@ export const useWorkspaceUpdate = ({
 	const updateWorkspaceOptions = updateWorkspace(workspace, queryClient);
 	const updateWorkspaceMutation = useMutation({
 		...updateWorkspaceOptions,
+		meta: { workspaceId: workspace.id },
 		onSuccess: (build: WorkspaceBuild) => {
 			updateWorkspaceOptions.onSuccess(build);
 			onSuccess?.(build);

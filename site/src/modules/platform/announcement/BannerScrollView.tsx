@@ -11,7 +11,7 @@ import { createPortal } from "react-dom";
 import type { Banner } from "#/api/platform";
 import { BannerBlocks, PictureScreen } from "./BannerText";
 import { BrokenScreenOverlay } from "./BrokenScreenOverlay";
-import { withBannerAlpha } from "./bannerAlpha";
+import { bannerAlpha, withBannerAlpha } from "./bannerAlpha";
 import { bannerFontStack } from "./bannerFonts";
 import { safeHref } from "./bannerTokens";
 import { DotMatrixTime } from "./DotMatrixTime";
@@ -312,6 +312,7 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 						data-picture={picture ? "" : undefined}
 						style={
 							{
+								"--banner-alpha": bannerAlpha(banner.opacity),
 								top: rect.top,
 								left: rect.left,
 								width: rect.width,

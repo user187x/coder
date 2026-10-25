@@ -542,3 +542,17 @@ html[data-animations="off"] .cd-progress > i {
 		box-shadow: 0 0 4px 1px hsl(var(--content-success));
 	}
 }
+
+.cd-account-drag-layer {
+	z-index: 31;
+}
+.cd-account-drag-target {
+	pointer-events: all;
+	cursor: grab;
+}
+.cd-account-drag-target:focus-visible {
+	outline: 2px solid hsl(var(--content-link));
+}
+.cd-share[data-dragging="true"] {
+	opacity: 0.2;
+}

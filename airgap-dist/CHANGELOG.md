@@ -1,5 +1,15 @@
 # Changelog
 
+## UI checkpoint 2026-10-25
+
+* Workspace grids align embedded dashboards at the top and stretch their frames to a shared height, including when app buttons wrap onto different rows.
+* Workspace tables align with their search controls. Tunnel ports use green inputs, blue outputs, corrugated cables, moving direction chevrons, adjustable arcs, and inward-facing grid connections. Members can connect their own workspaces within one organization.
+* Update status pills open the existing restart confirmation. Restart menu items use the matching update styling. Lock Down shield artwork uses gold outlines.
+* Accounts use aligned responsive rows, compact chat controls, resource detail dropdowns, expandable workspace controls, and a combined profile and roles editor. Share cables reuse the Cloud Drive plugs and connection review flow.
+* Announcement image transparency updates previews and marks drafts as changed. Versions stay enclosed in their card, network statistics align at the top, and the collapsed chat control matches the avatar container.
+* The supplied tunnel icon replaces the dashboard tunnel glyph. Metrics show compact values with at most one decimal place and responsive containers.
+* Runtime isolation, GPU passthrough, and the default-disabled N.eko integration remain separate work in progress. This checkpoint does not enable or migrate those runtimes.
+
 ## 1.46.0 – unreleased
 
 Coder `2.0.0-platform.108` (fork `866faf2ff`).

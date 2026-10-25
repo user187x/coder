@@ -50,3 +50,28 @@ export const TwoVersions: Story = {
 		],
 	},
 };
+
+export const ConstrainedSidebar: Story = {
+	decorators: [
+		(Story) => (
+			<div className="flex max-h-[360px] w-60 flex-col gap-3">
+				<div className="min-h-0 max-h-[40vh] overflow-auto rounded border border-solid border-border">
+					<div className="h-64 p-2 text-sm">Template files</div>
+				</div>
+				<Story />
+			</div>
+		),
+	],
+	parameters: {
+		queries: [
+			{
+				key: templateVersionsQueryKey(MockTemplate.id),
+				data: Array.from({ length: 20 }, (_, index) => ({
+					...MockTemplateVersion,
+					id: `version-${index}`,
+					name: `version-${index}`,
+				})),
+			},
+		],
+	},
+};

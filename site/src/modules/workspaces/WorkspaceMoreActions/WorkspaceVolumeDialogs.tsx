@@ -79,7 +79,7 @@ type DialogProps = { workspace: Workspace; open: boolean; onClose: () => void };
 /**
  * ⋮ › Back up home: the workspace's home volume as a .tar.gz, to S3 (Images ›
  * Settings) or to a file to download. The copy is taken while the workspace
- * runs; files being written at that moment may be caught half-way.
+ * runs for native volumes; VM disks require a stopped workspace.
  */
 export const BackupHomeDialog: React.FC<DialogProps> = ({
 	workspace,
@@ -98,6 +98,8 @@ export const BackupHomeDialog: React.FC<DialogProps> = ({
 	});
 	const data = query.data;
 	const latest = data?.backups[0];
+	const vm = data?.volume?.runtime === "vm";
+	const stopFirst = vm && data.running;
 
 	return (
 		<Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -105,9 +107,11 @@ export const BackupHomeDialog: React.FC<DialogProps> = ({
 				<DialogHeader>
 					<DialogTitle>Back up the home volume</DialogTitle>
 					<DialogDescription>
-						Everything in /home/coder of {workspace.name}, as a .tar.gz. It is
-						copied while the workspace runs, so stop it first if files are being
-						written.
+						Everything in /home/coder of {workspace.name}, as a .tar.gz.
+						{data &&
+							(vm
+								? " The VM must be stopped first. Its retained HOME files are archived offline without changing the disk or deleting data."
+								: " It is copied while the workspace runs, so stop it first if files are being written.")}
 					</DialogDescription>
 				</DialogHeader>
 				{query.error ? (
@@ -177,6 +181,11 @@ export const BackupHomeDialog: React.FC<DialogProps> = ({
 								</button>
 							))}
 						</div>
+						{stopFirst && (
+							<p role="status" className="m-0 text-sm text-content-secondary">
+								Stop the workspace first to back up its VM home disk.
+							</p>
+						)}
 						{data.backups.length > 0 && (
 							<div className="flex flex-col gap-2">
 								<span className="text-xs font-semibold uppercase tracking-wide text-content-secondary">
@@ -230,8 +239,12 @@ export const BackupHomeDialog: React.FC<DialogProps> = ({
 						Close
 					</Button>
 					<Button
-						onClick={() => start.mutate()}
-						disabled={!data?.volume || data.busy || start.isPending}
+						onClick={() => {
+							if (!stopFirst) start.mutate();
+						}}
+						disabled={
+							!data?.volume || data.busy || start.isPending || stopFirst
+						}
 						data-testid="backup-start"
 					>
 						<Spinner
@@ -275,7 +288,9 @@ export const ExpandDiskDialog: React.FC<DialogProps> = ({
 			}),
 	});
 	const last = data?.disk[0];
-	const copy = data?.volume && !data.volume.expandable;
+	const vm = data?.volume?.runtime === "vm";
+	const stopFirst = vm && data.running;
+	const copy = data?.volume && !vm && !data.volume.expandable;
 
 	return (
 		<Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -302,7 +317,7 @@ export const ExpandDiskDialog: React.FC<DialogProps> = ({
 						data-testid="expand-dialog"
 						onSubmit={(e) => {
 							e.preventDefault();
-							if (valid) {
+							if (valid && !stopFirst && !data.busy && !expand.isPending) {
 								expand.mutate();
 							}
 						}}
@@ -327,14 +342,16 @@ export const ExpandDiskDialog: React.FC<DialogProps> = ({
 						<p
 							className={cn(
 								"m-0 rounded-md border border-solid p-3 text-sm",
-								copy && data.running
+								stopFirst || (copy && data.running)
 									? "border-border-warning bg-surface-orange text-highlight-orange"
 									: "border-border bg-surface-secondary text-content-secondary",
 							)}
 						>
-							{copy
-								? `${data.volume.storageClass || "This storage class"} cannot grow volumes, so the home is copied onto a bigger one.${data.running ? " The workspace is stopped while it is copied, then started again: save your work first." : ""}`
-								: "The volume grows in place. If its file system needs it, the workspace restarts once."}
+							{vm
+								? `The VM disk grows in place offline, preserving its existing files. The workspace remains stopped after expansion.${data.running ? " Stop the workspace first to expand it." : ""}`
+								: copy
+									? `${data.volume.storageClass || "This storage class"} cannot grow volumes, so the home is copied onto a bigger one.${data.running ? " The workspace is stopped while it is copied, then started again: save your work first." : ""}`
+									: "The volume grows in place. If its file system needs it, the workspace restarts once."}
 						</p>
 						{last && (
 							<div className="flex flex-col gap-1">
@@ -361,7 +378,7 @@ export const ExpandDiskDialog: React.FC<DialogProps> = ({
 							</Button>
 							<Button
 								type="submit"
-								disabled={!valid || data.busy || expand.isPending}
+								disabled={!valid || data.busy || expand.isPending || stopFirst}
 								data-testid="expand-start"
 							>
 								<Spinner loading={expand.isPending || data.busy} />

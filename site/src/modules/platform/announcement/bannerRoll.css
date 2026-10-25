@@ -81,3 +81,9 @@ html[data-animations="off"] .banner-roll-strip {
 	background-repeat: repeat-x;
 	background-position: left center;
 }
+
+
+.banner-roll,
+.banner-picture {
+	opacity: var(--banner-alpha, 1);
+}

@@ -589,7 +589,7 @@ const NodeCard: React.FC<NodeCardProps> = ({ node: n, report, now }) => {
 		<article
 			aria-label={`Node ${n.name}`}
 			className={cn(
-				"relative z-[1] grid min-w-0 gap-3 rounded-[10px] border border-solid px-4 py-3.5",
+				"relative z-[1] grid min-w-0 content-start gap-3 rounded-[10px] border border-solid px-4 py-3.5",
 				n.ready ? "border-border" : "border-content-destructive",
 			)}
 		>

@@ -226,6 +226,7 @@ export const ChatDock: React.FC = () => {
 				// console over the page), a part of the page: above it and its navbar, below its dialogs (the ones
 				// opened from the chat too).
 				floating && !overlaid ? "z-[60]" : "z-[45]",
+				mode === "compact" && "right-6",
 			)}
 			// Platform: floating 10px clear of what it rests on (GUI-UPDATES)
 			style={{ bottom: "calc(var(--chat-bottom, 0px) + 10px)" }}

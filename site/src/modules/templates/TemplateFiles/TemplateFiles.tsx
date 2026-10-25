@@ -121,15 +121,15 @@ export const TemplateFiles: React.FC<TemplateFilesProps> = ({
 					className={cn(
 						"sticky flex w-[240px] shrink-0 flex-col gap-3",
 						fill
-							? "top-[88px] max-h-[calc(100vh-6rem)]"
-							: "top-28 max-h-[calc(100vh-8rem)]",
+							? "top-[calc(88px+var(--coder-classification-h,0px))] max-h-[calc(100dvh-104px-var(--coder-classification-h,0px))]"
+							: "top-[calc(112px+var(--coder-classification-h,0px))] max-h-[calc(100dvh-128px-var(--coder-classification-h,0px))]",
 					)}
 				>
 					{actions}
 					<div
 						className={cn(
 							"min-h-0 overflow-auto rounded-lg border border-solid border-surface-quaternary py-1",
-							sidebar && "max-h-[40vh] shrink-0",
+							sidebar && "max-h-[40vh]",
 						)}
 					>
 						<TemplateFileTree

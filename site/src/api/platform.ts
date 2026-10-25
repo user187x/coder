@@ -100,6 +100,8 @@ const post = async <T>(
 	}
 };
 
+export { get as platformGet, post as platformPost };
+
 /**
  * A file sent as the request body (PUT), with upload progress (0-1). The
  * service's cross-site check for uploads wants the same X-Requested-With.
@@ -726,6 +728,12 @@ export type DashboardAddress = {
 
 /** The signed-in user's own quota (the Workspaces page's pill); limited false = no limit applies to them. */
 export type QuotaMe = {
+	baseLimits?: QuotaLimits;
+	bonus?: Record<QuotaKey, number>;
+	effectiveLimits?: QuotaLimits;
+	bonusScope?: "global";
+	activeGrantCount?: number;
+
 	limited: boolean;
 	exempt: boolean;
 	limits: QuotaLimits;
@@ -759,6 +767,12 @@ type QuotaUsage = {
 };
 
 export type QuotaUser = {
+	baseLimits?: QuotaLimits;
+	bonus?: Record<QuotaKey, number>;
+	effectiveLimits?: QuotaLimits;
+	bonusScope?: "global";
+	activeGrantCount?: number;
+
 	id: string;
 	username: string;
 	name: string;

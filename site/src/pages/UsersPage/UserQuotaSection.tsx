@@ -1,6 +1,6 @@
 import { cn } from "cn";
 import { CircleCheckIcon, TriangleAlertIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { createContext, useContext, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { toast } from "sonner";
 import { getErrorMessage } from "#/api/errors";
@@ -9,28 +9,21 @@ import type {
 	QuotaLimits,
 	QuotaReport,
 	QuotaSettings,
-	QuotaUser,
 } from "#/api/platform";
 import { quotaReport, updateQuota } from "#/api/queries/platform";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
-import { Avatar } from "#/components/Avatar/Avatar";
 import { Badge } from "#/components/Badge/Badge";
 import { Button } from "#/components/Button/Button";
 import { Input } from "#/components/Input/Input";
 import { Label } from "#/components/Label/Label";
 import { Loader } from "#/components/Loader/Loader";
 import { Switch } from "#/components/Switch/Switch";
-import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from "#/components/Table/Table";
-import { TableEmpty } from "#/components/TableEmpty/TableEmpty";
+import { TableCell } from "#/components/Table/Table";
+import { QuotaAdjustments } from "#/modules/platform/quotaRequests/QuotaAdjustments";
 import { Header, HeaderTitle, Main } from "#/pages/HealthPage/Content";
 import { WorkspaceSchedulerSection } from "#/pages/HealthPage/WorkspaceSchedulerSection";
+import { QuotaClusterLoad } from "./QuotaClusterLoad";
+import { formatQuotaNumber, quotaUserColor } from "./quotaFormatting";
 
 const KEYS: readonly QuotaKey[] = ["workspaces", "cpu", "memory"];
 
@@ -54,19 +47,6 @@ type Draft = {
 	/** Per user: "" = the default, NO_LIMIT = no limit, else a number. */
 	users: Record<string, Record<QuotaKey, string>>;
 	exemptAdmins: boolean;
-};
-
-const trim = (value: number): string => {
-	if (!Number.isFinite(value)) {
-		return "0";
-	}
-	const fixed =
-		value >= 100
-			? value.toFixed(0)
-			: value >= 10
-				? value.toFixed(1)
-				: value.toFixed(2);
-	return fixed.replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "");
 };
 
 const emptyRow = (): Record<QuotaKey, string> => ({
@@ -134,9 +114,6 @@ const loadColor = (fraction: number) =>
 			? "bg-content-warning"
 			: "bg-content-success";
 
-/** Distinct, stable colours for each user's share of the cluster. */
-const userColor = (index: number) => `hsl(${(index * 137.508) % 360} 65% 55%)`;
-
 /**
  * Health > User Quota: how many workspaces each developer may have, and how
  * many CPU cores and GiB of memory those workspaces may be built with in all
@@ -150,51 +127,112 @@ const userColor = (index: number) => `hsl(${(index * 137.508) % 360} 65% 55%)`;
  * each one's overrides, their usage, the cluster's load and the workspace
  * scheduler.
  */
-export const UserQuotaSection: React.FC = () => {
-	const queryClient = useQueryClient();
-	const { data: report, error } = useQuery(quotaReport());
-	const save = useMutation(updateQuota(queryClient));
-	// What is stored, and the admin's edits to it. The draft follows what is
-	// stored (the report refreshes) until the admin edits something.
-	const [form, setForm] = useState<{ draft: Draft; saved: QuotaSettings }>();
-	useEffect(() => {
-		if (!report) {
-			return;
-		}
-		setForm((f) => ({
-			saved: report.settings,
-			draft:
-				!f || sameSettings(toSettings(f.draft), f.saved)
-					? toDraft(report.settings)
-					: f.draft,
-		}));
-	}, [report]);
-	const draft = form?.draft;
-	const saved = form?.saved;
-	const setDraft = (next: Draft) => setForm((f) => f && { ...f, draft: next });
+type QuotaEditorState = {
+	report?: QuotaReport;
+	error: unknown;
+	draft?: Draft;
+	saved?: QuotaSettings;
+	dirty: boolean;
+	saving: boolean;
+	setDraft: (draft: Draft) => void;
+	onSave: () => void;
+	onDiscard: () => void;
+};
+export const QuotaEditorContext = createContext<QuotaEditorState | undefined>(
+	undefined,
+);
 
+/** Shares one quota draft between account rows and their default controls. */
+export const UserQuotaProvider: React.FC<{
+	enabled: boolean;
+	children: React.ReactNode;
+}> = ({ enabled, children }) => {
+	const queryClient = useQueryClient();
+	const { data: report, error } = useQuery({ ...quotaReport(), enabled });
+	const save = useMutation(updateQuota(queryClient));
+	const [edited, setEdited] = useState<Draft>();
+	const draft = edited ?? (report ? toDraft(report.settings) : undefined);
+	const saved = report?.settings;
 	const dirty = Boolean(
 		draft && saved && !sameSettings(toSettings(draft), saved),
 	);
+	const onSave = () => {
+		if (draft) {
+			const rows = [draft.default, ...Object.values(draft.users)];
+			for (const row of rows)
+				for (const key of KEYS) {
+					const value = row[key].trim();
+					if (
+						value !== "" &&
+						value.toLowerCase() !== NO_LIMIT &&
+						(!Number.isFinite(Number(value)) ||
+							Number(value) < 0 ||
+							(key === "workspaces" && !Number.isInteger(Number(value))))
+					) {
+						toast.error(
+							"Quota values must be non-negative numbers; workspace counts must be whole numbers.",
+						);
+						return;
+					}
+				}
+		}
+		if (draft)
+			save.mutate(toSettings(draft), {
+				onSuccess: (result) => {
+					queryClient.setQueryData<QuotaReport>(
+						quotaReport().queryKey,
+						(before) =>
+							before ? { ...before, settings: result.settings } : before,
+					);
+					setEdited(undefined);
+					toast.success("User quota saved.");
+				},
+				onError: (error) =>
+					toast.error(getErrorMessage(error, "The quota could not be saved.")),
+			});
+	};
+	const value = enabled
+		? {
+				report,
+				error,
+				draft,
+				saved,
+				dirty,
+				saving: save.isPending,
+				setDraft: setEdited,
+				onSave,
+				onDiscard: () => setEdited(undefined),
+			}
+		: undefined;
+	return (
+		<QuotaEditorContext.Provider value={value}>
+			{children}
+		</QuotaEditorContext.Provider>
+	);
+};
+
+export const UserQuotaSection: React.FC<{
+	quotaAdjustments?: React.ReactNode;
+}> = ({ quotaAdjustments }) => {
+	const quota = useContext(QuotaEditorContext);
+	if (!quota) return null;
+	const {
+		report,
+		error,
+		draft,
+		saved,
+		dirty,
+		saving,
+		setDraft,
+		onSave,
+		onDiscard,
+	} = quota;
 	const atLimit = report?.users.filter((u) => u.atLimit) ?? [];
 	const anyLimit = Boolean(
 		saved &&
 			(KEYS.some((k) => saved.default[k] !== null) ||
 				Object.keys(saved.users).length > 0),
 	);
-
-	const onSave = async () => {
-		if (!draft) {
-			return;
-		}
-		try {
-			const result = await save.mutateAsync(toSettings(draft));
-			setForm({ saved: result.settings, draft: toDraft(result.settings) });
-			toast.success("User quota saved.");
-		} catch (e) {
-			toast.error(getErrorMessage(e, "The quota could not be saved."));
-		}
-	};
 
 	return (
 		<>
@@ -230,16 +268,17 @@ export const UserQuotaSection: React.FC = () => {
 				{!report && !error && <Loader />}
 				{report && draft && (
 					<>
-						<ClusterLoad report={report} />
+						<QuotaClusterLoad report={report} />
 
 						<section className="flex flex-col gap-4">
 							<div>
 								<h3 className="m-0 text-base font-medium">Default quota</h3>
 								<p className="m-0 mt-1 text-sm text-content-secondary">
 									What every developer may provision in all, across their
-									workspaces. Leave a field empty for no limit. Once a limit is
-									reached, Coder refuses new workspaces until one is deleted or
-									the quota is raised.
+									workspaces. Leave a field empty for no limit. Coder refuses
+									new workspaces and increased allocations that exceed a limit.
+									Existing workspaces may restart unchanged or with fewer
+									resources.
 								</p>
 							</div>
 							<div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -275,61 +314,21 @@ export const UserQuotaSection: React.FC = () => {
 							</div>
 						</section>
 
-						<section className="flex flex-col gap-4">
-							<div>
-								<h3 className="m-0 text-base font-medium">
-									Developers and what they consume
-								</h3>
-								<p className="m-0 mt-1 text-sm text-content-secondary">
-									Each bar is what a developer's workspaces are built with
-									against their limit (or, without one, against the cluster).
-									The darker part is what is running now. Override a limit for
-									one developer in their row: empty uses the default,{" "}
-									<code>{NO_LIMIT}</code> lifts it.
-								</p>
-							</div>
-							<Table aria-label="Developers' quota and usage">
-								<TableHeader>
-									<TableRow>
-										<TableHead className="w-[22%]">Developer</TableHead>
-										{KEYS.map((k) => (
-											<TableHead key={k}>{LABELS[k]}</TableHead>
-										))}
-									</TableRow>
-								</TableHeader>
-								<TableBody>
-									{report.users.length ? (
-										report.users.map((u, i) => (
-											<QuotaRow
-												key={u.id}
-												user={u}
-												color={userColor(i)}
-												report={report}
-												draft={draft}
-												onChange={(row) =>
-													setDraft({
-														...draft,
-														users: { ...draft.users, [u.username]: row },
-													})
-												}
-											/>
-										))
-									) : (
-										<TableEmpty message="No active users." />
-									)}
-								</TableBody>
-							</Table>
-						</section>
+						<p className="m-0 text-sm text-content-secondary">
+							Open an account’s Resources panel above to see allocations against
+							its effective quota, with darker bars for running workspaces and
+							live usage. Empty overrides use the default;{" "}
+							<code>{NO_LIMIT}</code> removes the limit. Approved additions
+							apply globally until revoked.
+						</p>
+						{quotaAdjustments ?? <QuotaAdjustments />}
 
 						<div className="flex items-center gap-3">
-							<Button disabled={!dirty || save.isPending} onClick={onSave}>
-								{save.isPending ? "Saving…" : "Save quota"}
+							<Button disabled={!dirty || saving} onClick={onSave}>
+								{saving ? "Saving…" : "Save quota"}
 							</Button>
 							{dirty && (
-								<Button
-									variant="outline"
-									onClick={() => saved && setDraft(toDraft(saved))}
-								>
+								<Button variant="outline" onClick={onDiscard}>
 									Discard changes
 								</Button>
 							)}
@@ -350,150 +349,31 @@ export const UserQuotaSection: React.FC = () => {
 	);
 };
 
-/**
- * How taxed the cluster is: for CPU and memory, each developer's provisioned
- * share as a coloured segment of the cluster's capacity, with what running
- * pods requested and what is in use (metrics-server) marked on it.
- */
-const ClusterLoad: React.FC<{ report: QuotaReport }> = ({ report }) => {
-	const { cluster, users } = report;
-	if (cluster.error !== undefined) {
+/** The account table's allocation, running usage, live usage and editable quota. */
+export const QuotaUsageCells: React.FC<{ userId: string }> = ({ userId }) => {
+	const quota = useContext(QuotaEditorContext);
+	const user = quota?.report?.users.find((u) => u.id === userId);
+	if (!quota?.report || !quota.draft || !user)
 		return (
-			<p className="m-0 text-sm text-content-secondary">
-				The cluster's capacity is not readable: {cluster.error}
-			</p>
+			<>
+				{KEYS.map((k) => (
+					<TableCell
+						key={k}
+						data-label={LABELS[k]}
+						className="text-xs text-content-secondary"
+					>
+						{quota?.error
+							? "Quota unavailable"
+							: quota?.report
+								? "No resource data"
+								: "Loading quota…"}
+					</TableCell>
+				))}
+			</>
 		);
-	}
-	const rows = [
-		{
-			kind: "cpu" as const,
-			label: "CPU",
-			unit: "cores",
-			total: cluster.cpu,
-			requested: cluster.requestedCpu,
-			used: cluster.usedCpu,
-		},
-		{
-			kind: "memory" as const,
-			label: "Memory",
-			unit: "GiB",
-			total: cluster.memory,
-			requested: cluster.requestedMemory,
-			used: cluster.usedMemory,
-		},
-	];
-
-	return (
-		<section className="flex flex-col gap-4">
-			<div>
-				<h3 className="m-0 text-base font-medium">Cluster load</h3>
-				<p className="m-0 mt-1 text-sm text-content-secondary">
-					What developers' workspaces are built with, each in their colour,
-					against the cluster's {cluster.nodes}{" "}
-					{cluster.nodes === 1 ? "node" : "nodes"}. The dashed line is what all
-					pods reserve; the solid line what is in use
-					{cluster.live ? "" : " (no metrics-server: reservations shown)"}.
-				</p>
-			</div>
-			{rows.map((r) => {
-				const provisioned = users.reduce((sum, u) => sum + u.usage[r.kind], 0);
-				const scale = Math.max(r.total, provisioned, r.requested, 1e-9);
-				const pct = (v: number) => `${Math.min((v / scale) * 100, 100)}%`;
-				const share = r.total ? provisioned / r.total : 0;
-				return (
-					<div key={r.kind} className="flex flex-col gap-1.5">
-						<div className="flex items-baseline justify-between text-sm">
-							<span className="font-medium">{r.label}</span>
-							<span className="text-content-secondary">
-								{trim(provisioned)} of {trim(r.total)} {r.unit} provisioned (
-								<span
-									className={cn(
-										share >= 1
-											? "text-content-destructive"
-											: share >= 0.75
-												? "text-content-warning"
-												: "text-content-success",
-									)}
-								>
-									{Math.round(share * 100)}%
-								</span>
-								) · {trim(r.used)} in use · {trim(r.requested)} reserved
-							</span>
-						</div>
-						<div
-							role="img"
-							aria-label={`${r.label}: ${trim(provisioned)} of ${trim(r.total)} ${r.unit} provisioned`}
-							className="relative h-5 overflow-hidden rounded bg-surface-tertiary"
-						>
-							<div className="absolute inset-0 flex">
-								{users.map((u, i) =>
-									u.usage[r.kind] > 0 ? (
-										<div
-											key={u.id}
-											title={`${u.username}: ${trim(u.usage[r.kind])} ${r.unit} in ${u.usage.workspaces} ${u.usage.workspaces === 1 ? "workspace" : "workspaces"}`}
-											className="h-full border-0 border-r border-solid border-surface-primary"
-											style={{
-												width: pct(u.usage[r.kind]),
-												background: userColor(i),
-											}}
-										/>
-									) : null,
-								)}
-							</div>
-							{r.total < scale && (
-								<div
-									title="The cluster's capacity: beyond this line it is overcommitted"
-									className="absolute inset-y-0 w-0.5 bg-content-destructive"
-									style={{ left: pct(r.total) }}
-								/>
-							)}
-							<div
-								title={`Reserved by all pods: ${trim(r.requested)} ${r.unit}`}
-								className="absolute inset-y-0 w-0 border-0 border-l-2 border-dashed border-content-primary"
-								style={{ left: pct(r.requested) }}
-							/>
-							<div
-								title={`In use: ${trim(r.used)} ${r.unit}`}
-								className="absolute inset-y-0 w-0.5 bg-content-primary"
-								style={{ left: pct(r.used) }}
-							/>
-						</div>
-					</div>
-				);
-			})}
-			<div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-content-secondary">
-				{users.map((u, i) =>
-					u.usage.workspaces ? (
-						<span key={u.id} className="inline-flex items-center gap-1.5">
-							<span
-								aria-hidden
-								className="size-2.5 rounded-sm"
-								style={{ background: userColor(i) }}
-							/>
-							{u.username}
-						</span>
-					) : null,
-				)}
-			</div>
-		</section>
-	);
-};
-
-type QuotaRowProps = {
-	user: QuotaUser;
-	color: string;
-	report: QuotaReport;
-	draft: Draft;
-	onChange: (row: Record<QuotaKey, string>) => void;
-};
-
-const QuotaRow: React.FC<QuotaRowProps> = ({
-	user,
-	color,
-	report,
-	draft,
-	onChange,
-}) => {
+	const { report, draft, setDraft } = quota;
+	const onChange = (row: Record<QuotaKey, string>) =>
+		setDraft({ ...draft, users: { ...draft.users, [user.username]: row } });
 	const row = draft.users[user.username] ?? emptyRow();
 	const cluster = report.cluster.error === undefined ? report.cluster : null;
 	const capacity: Record<QuotaKey, number | null> = {
@@ -514,30 +394,11 @@ const QuotaRow: React.FC<QuotaRowProps> = ({
 	const exempt = user.admin && draft.exemptAdmins;
 
 	return (
-		<TableRow>
-			<TableCell>
-				<div className="flex items-center gap-3">
-					<span
-						aria-hidden
-						className="h-8 w-1 shrink-0 rounded-full"
-						style={{ background: color }}
-					/>
-					<Avatar size="sm" src={user.avatar} fallback={user.username} />
-					<div className="flex min-w-0 flex-col">
-						<span className="truncate font-semibold">{user.username}</span>
-						<span className="flex gap-1.5 text-xs text-content-secondary">
-							{exempt ? "admin · exempt" : user.admin ? "admin" : "developer"}
-							{user.atLimit && !exempt && (
-								<span className="text-content-destructive">· at limit</span>
-							)}
-						</span>
-					</div>
-				</div>
-			</TableCell>
+		<>
 			{KEYS.map((k) => {
 				const own = row[k].trim();
 				const fallback = draft.default[k].trim();
-				const effective =
+				const base =
 					exempt || own.toLowerCase() === NO_LIMIT
 						? null
 						: own !== ""
@@ -545,6 +406,8 @@ const QuotaRow: React.FC<QuotaRowProps> = ({
 							: fallback !== ""
 								? Number(fallback)
 								: null;
+				const bonus = user.bonus?.[k] ?? 0;
+				const effective = base === null ? null : base + bonus;
 				const used = user.usage[k];
 				const scale =
 					effective !== null && Number.isFinite(effective) && effective > 0
@@ -553,20 +416,31 @@ const QuotaRow: React.FC<QuotaRowProps> = ({
 				const fraction = scale ? used / scale : 0;
 				const liveValue = live[k];
 				return (
-					<TableCell key={k}>
+					<TableCell key={k} data-label={LABELS[k]}>
 						<div className="flex flex-col gap-1.5">
 							<div className="flex items-baseline justify-between gap-2 text-xs">
 								<span className="font-medium text-content-primary">
-									{trim(used)}
+									{k === "workspaces" && (
+										<span
+											aria-hidden
+											className="mr-1.5 inline-block size-2 rounded-sm"
+											style={{
+												background: quotaUserColor(
+													report.users.findIndex((u) => u.id === user.id),
+												),
+											}}
+										/>
+									)}
+									{formatQuotaNumber(used)}
 									{effective !== null && Number.isFinite(effective)
-										? ` / ${trim(effective)}`
+										? ` / ${formatQuotaNumber(effective)}`
 										: ""}{" "}
 									{UNITS[k]}
 								</span>
 								<span className="text-content-secondary">
-									{running[k] ? `${trim(running[k])} running` : ""}
+									{running[k] ? `${formatQuotaNumber(running[k])} running` : ""}
 									{liveValue !== null && liveValue !== undefined
-										? ` · ${trim(liveValue)} live`
+										? ` · ${formatQuotaNumber(liveValue)} live`
 										: ""}
 								</span>
 							</div>
@@ -598,7 +472,24 @@ const QuotaRow: React.FC<QuotaRowProps> = ({
 										width: `${Math.min(scale ? running[k] / scale : 0, 1) * 100}%`,
 									}}
 								/>
+								{base !== null && Number.isFinite(base) && bonus > 0 && (
+									<div
+										aria-hidden
+										className="absolute inset-y-0 border border-dotted border-content-link bg-[radial-gradient(hsl(var(--content-link)/0.6)_0.6px,transparent_0.6px)] bg-size-[4px_4px]"
+										style={{
+											left: `${Math.min(base / scale, 1) * 100}%`,
+											width: `${Math.max(0, Math.min(bonus / scale, 1 - base / scale)) * 100}%`,
+										}}
+									/>
+								)}
 							</div>
+							<span className="text-[10px] text-content-secondary">
+								{exempt
+									? "Administrator exempt"
+									: `Base ${base === null ? "unlimited" : Number.isFinite(base) ? formatQuotaNumber(base) : "invalid"}${bonus > 0 ? ` + ${formatQuotaNumber(bonus)} approved globally` : ""}`}
+								{user.atLimit && !exempt ? " · at limit" : ""}
+							</span>
+
 							<Input
 								aria-label={`${LABELS[k]} for ${user.username}`}
 								className="h-7 text-xs"
@@ -618,6 +509,6 @@ const QuotaRow: React.FC<QuotaRowProps> = ({
 					</TableCell>
 				);
 			})}
-		</TableRow>
+		</>
 	);
 };

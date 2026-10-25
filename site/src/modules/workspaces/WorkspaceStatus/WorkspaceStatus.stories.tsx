@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { WorkspaceStatuses } from "#/api/typesGenerated";
 import { MockDormantWorkspace, MockWorkspace } from "#/testHelpers/entities";
 import { WorkspaceStatus } from "./WorkspaceStatus";
 
@@ -19,4 +20,24 @@ export const Dormant: Story = {
 	args: {
 		workspace: MockDormantWorkspace,
 	},
+};
+
+export const StatusPills: Story = {
+	render: () => (
+		<div className="flex flex-wrap gap-6 p-4">
+			{WorkspaceStatuses.map((status) => (
+				<WorkspaceStatus
+					key={status}
+					pill
+					workspace={{
+						...MockWorkspace,
+						latest_build: { ...MockWorkspace.latest_build, status },
+					}}
+				/>
+			))}
+		</div>
+	),
+};
+export const AgentUpdateAvailable: Story = {
+	args: { pill: true, agentUpdateAvailable: true },
 };

@@ -1,8 +1,13 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { fn } from "storybook/test";
 import type {
 	WorkspaceAgentMetadataDescription,
 	WorkspaceAgentMetadataResult,
 } from "#/api/typesGenerated";
+import {
+	MockWorkspaceInfrastructureMetrics,
+	MockWorkspaceMetricMetadata,
+} from "#/testHelpers/workspaceMetrics";
 import { AgentMetadataView } from "./AgentMetadata";
 
 const meta: Meta<typeof AgentMetadataView> = {
@@ -107,3 +112,204 @@ const Example: Story = {
 };
 
 export { Example as AgentMetadata };
+
+export const WorkspaceAndNode: Story = {
+	args: {
+		metadata: MockWorkspaceMetricMetadata,
+		workspaceName: "my-workspace",
+		infrastructure: MockWorkspaceInfrastructureMetrics,
+		scope: "node",
+		onScopeChange: fn(),
+		historyScope: "story-node",
+		now: Date.parse(MockWorkspaceInfrastructureMetrics.generatedAt),
+		pausedAt: Date.parse(MockWorkspaceInfrastructureMetrics.generatedAt),
+	},
+};
+export const WorkspaceAndCluster: Story = {
+	args: {
+		metadata: MockWorkspaceMetricMetadata,
+		workspaceName: "my-workspace",
+		infrastructure: MockWorkspaceInfrastructureMetrics,
+		scope: "cluster",
+		onScopeChange: fn(),
+		historyScope: "story-cluster",
+		now: Date.parse(MockWorkspaceInfrastructureMetrics.generatedAt),
+		pausedAt: Date.parse(MockWorkspaceInfrastructureMetrics.generatedAt),
+	},
+};
+export const InfrastructureLoading: Story = {
+	args: {
+		metadata: MockWorkspaceMetricMetadata,
+		workspaceName: "my-workspace",
+		infrastructureLoading: true,
+		onScopeChange: fn(),
+		historyScope: "story-loading",
+		now: Date.parse(MockWorkspaceInfrastructureMetrics.generatedAt),
+		pausedAt: Date.parse(MockWorkspaceInfrastructureMetrics.generatedAt),
+	},
+};
+export const InfrastructureUnavailable: Story = {
+	args: {
+		metadata: MockWorkspaceMetricMetadata,
+		workspaceName: "my-workspace",
+		infrastructureError: new Error("Workspace node could not be located"),
+		onScopeChange: fn(),
+		historyScope: "story-error",
+		now: Date.parse(MockWorkspaceInfrastructureMetrics.generatedAt),
+		pausedAt: Date.parse(MockWorkspaceInfrastructureMetrics.generatedAt),
+	},
+};
+export const InfrastructureRefetchError: Story = {
+	args: {
+		metadata: MockWorkspaceMetricMetadata,
+		workspaceName: "my-workspace",
+		infrastructure: MockWorkspaceInfrastructureMetrics,
+		infrastructureError: new Error(
+			"Node metrics refresh failed; showing previous readings",
+		),
+		onScopeChange: fn(),
+		historyScope: "story-refetch",
+		now: Date.parse(MockWorkspaceInfrastructureMetrics.generatedAt),
+		pausedAt: Date.parse(MockWorkspaceInfrastructureMetrics.generatedAt),
+	},
+};
+
+export const NoWorkspaceReadings: Story = {
+	args: {
+		metadata: [],
+		workspaceName: "my-workspace",
+		infrastructure: MockWorkspaceInfrastructureMetrics,
+		scope: "node",
+		onScopeChange: fn(),
+		historyScope: "story-empty",
+		now: Date.parse(MockWorkspaceInfrastructureMetrics.generatedAt),
+		pausedAt: Date.parse(MockWorkspaceInfrastructureMetrics.generatedAt),
+	},
+};
+
+export const CompactCapacities: Story = {
+	args: {
+		metadata: MockWorkspaceMetricMetadata,
+		workspaceName: "my-workspace",
+		infrastructure: {
+			...MockWorkspaceInfrastructureMetrics,
+			allocation: {
+				...MockWorkspaceInfrastructureMetrics.allocation,
+				cpu: 0.25,
+				memory: 6 * 1024 ** 3,
+				disk: 20000000000,
+				diskEnforced: false,
+				source: {
+					cpu: "container-limit",
+					memory: "container-limit",
+					disk: "pvc-capacity",
+				},
+			},
+			node: {
+				...MockWorkspaceInfrastructureMetrics.node,
+				cpu: { ...MockWorkspaceInfrastructureMetrics.node.cpu, total: 7.5 },
+				memory: {
+					...MockWorkspaceInfrastructureMetrics.node.memory,
+					total: 20171026432,
+				},
+				disk: {
+					...MockWorkspaceInfrastructureMetrics.node.disk,
+					total: 1003736440832,
+				},
+			},
+		},
+		scope: "node",
+		onScopeChange: fn(),
+		historyScope: "story-compact",
+		now: Date.parse(MockWorkspaceInfrastructureMetrics.generatedAt),
+		pausedAt: Date.parse(MockWorkspaceInfrastructureMetrics.generatedAt),
+	},
+};
+
+export const NarrowWorkspaceMetrics: Story = {
+	args: {
+		metadata: MockWorkspaceMetricMetadata,
+		workspaceName: "long-workspace-name-to-check-container-sizing",
+		infrastructure: MockWorkspaceInfrastructureMetrics,
+		scope: "node",
+		onScopeChange: fn(),
+		historyScope: "story-narrow",
+		now: Date.parse(MockWorkspaceInfrastructureMetrics.generatedAt),
+		pausedAt: Date.parse(MockWorkspaceInfrastructureMetrics.generatedAt),
+	},
+	decorators: [
+		(Story) => (
+			<div className="w-[320px] max-w-full">
+				<Story />
+			</div>
+		),
+	],
+};
+export const ConstrainedWorkspaceMetrics: Story = {
+	args: {
+		metadata: MockWorkspaceMetricMetadata,
+		workspaceName: "my-workspace",
+		infrastructure: MockWorkspaceInfrastructureMetrics,
+		scope: "cluster",
+		onScopeChange: fn(),
+		historyScope: "story-constrained",
+		now: Date.parse(MockWorkspaceInfrastructureMetrics.generatedAt),
+		pausedAt: Date.parse(MockWorkspaceInfrastructureMetrics.generatedAt),
+	},
+	decorators: [
+		(Story) => (
+			<div className="w-[560px] max-w-full">
+				<Story />
+			</div>
+		),
+	],
+};
+
+export const RestrictedInfrastructure: Story = {
+	args: {
+		metadata: MockWorkspaceMetricMetadata,
+		workspaceName: "my-workspace",
+		infrastructure: {
+			...MockWorkspaceInfrastructureMetrics,
+			infrastructureRestricted: true,
+			nodeName: null,
+			node: null,
+			cluster: null,
+			nodeCount: null,
+		},
+		historyScope: "story-restricted",
+		now: Date.parse(MockWorkspaceInfrastructureMetrics.generatedAt),
+		pausedAt: Date.parse(MockWorkspaceInfrastructureMetrics.generatedAt),
+	},
+};
+
+export const VMWorkspaceAllocation: Story = {
+	args: {
+		metadata: MockWorkspaceMetricMetadata,
+		workspaceName: "isolated-vm",
+		infrastructure: {
+			...MockWorkspaceInfrastructureMetrics,
+			infrastructureRestricted: true,
+			nodeName: null,
+			node: null,
+			cluster: null,
+			nodeCount: null,
+			allocation: {
+				cpu: 2,
+				memory: 2147483648,
+				memoryReserved: 268435456,
+				memoryUsable: 1879048192,
+				disk: 20000000000,
+				diskEnforced: true,
+				source: {
+					cpu: "vm-topology",
+					memory: "vm-memory",
+					disk: "guest-block-capacity",
+				},
+			},
+		},
+		historyScope: "story-vm-assignment",
+		now: Date.parse(MockWorkspaceInfrastructureMetrics.generatedAt),
+		pausedAt: Date.parse(MockWorkspaceInfrastructureMetrics.generatedAt),
+	},
+};

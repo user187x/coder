@@ -205,7 +205,8 @@ export const LockdownBadge: React.FC<{
 	/** The modes already known (the Workspaces list): no request of its own until the menu opens. */
 	modes?: WorkspaceLockdown["modes"];
 	className?: string;
-}> = ({ workspace, modes, className }) => {
+	goldIcon?: boolean;
+}> = ({ workspace, modes, className, goldIcon = false }) => {
 	const [open, setOpen] = useState(false);
 	const queryClient = useQueryClient();
 	const query = useLockdown(workspace.id, modes === undefined || open);
@@ -271,13 +272,20 @@ export const LockdownBadge: React.FC<{
 						locked
 							? "border-border-destructive bg-surface-destructive/50 text-content-destructive hover:bg-surface-destructive"
 							: "border-border bg-transparent text-content-secondary opacity-70 hover:text-content-primary hover:opacity-100",
+						goldIcon && "border-border",
 						className,
 					)}
 				>
 					{locked ? (
-						<ShieldAlertIcon aria-hidden className="size-3.5" />
+						<ShieldAlertIcon
+							aria-hidden
+							className={cn("size-3.5", goldIcon && "text-[#d4af37]")}
+						/>
 					) : (
-						<ShieldIcon aria-hidden className="size-3.5" />
+						<ShieldIcon
+							aria-hidden
+							className={cn("size-3.5", goldIcon && "text-[#d4af37]")}
+						/>
 					)}
 					{locked && <span className="pr-0.5">{BADGE_LABEL[current]}</span>}
 				</button>

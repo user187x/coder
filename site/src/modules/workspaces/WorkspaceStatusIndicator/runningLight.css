@@ -126,3 +126,7 @@
 		animation: none;
 	}
 }
+
+.workspace-topbar-running-status .ws-running-light {
+	transform: scale(0.75);
+}

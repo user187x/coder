@@ -16,9 +16,11 @@ import { ConfirmDialog } from "#/components/Dialog/ConfirmDialog/ConfirmDialog";
 import { DeleteDialog } from "#/components/Dialog/DeleteDialog/DeleteDialog";
 import { RoleSelectorDialog } from "#/modules/roles/RoleSelectorDialog";
 import { generateRandomBase64String } from "#/utils/random";
+import { EditAccountDialog } from "./EditAccountDialog";
 import { ResetPasswordDialog } from "./ResetPasswordDialog";
 
 export type UserAdminAction =
+	| { type: "edit"; user: User; rolesReadOnly?: boolean }
 	| { type: "editRoles"; user: User }
 	| { type: "resetPassword"; user: User }
 	| { type: "suspend"; user: User }
@@ -60,6 +62,14 @@ export const UserActionDialogs: React.FC<UserActionDialogsProps> = ({
 
 	return (
 		<>
+			{action.type === "edit" && (
+				<EditAccountDialog
+					key={user.id}
+					user={user}
+					rolesReadOnly={action.rolesReadOnly}
+					onClose={onClose}
+				/>
+			)}
 			{action.type === "editRoles" && (
 				<RoleSelectorDialog
 					user={user}

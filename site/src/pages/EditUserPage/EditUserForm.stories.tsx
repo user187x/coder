@@ -160,7 +160,6 @@ export const WithActionsMenu: Story = {
 			<UserMoreActions
 				user={MockUserMember}
 				me={MockUserOwner.id}
-				showEdit={false}
 				canViewActivity
 				onAction={action("action")}
 			/>
@@ -173,10 +172,10 @@ export const WithActionsMenu: Story = {
 		).toBeVisible();
 		await userEvent.click(canvas.getByRole("button", { name: /open menu/i }));
 		const menu = within(document.body);
-		await menu.findByRole("menuitem", { name: "View workspaces" });
+		await menu.findByRole("menuitem", { name: "Workspaces" });
 		await expect(
 			menu.queryByRole("menuitem", { name: "Edit" }),
 		).not.toBeInTheDocument();
-		await menu.findByRole("menuitem", { name: "Suspend…" });
+		await menu.findByRole("menuitem", { name: "Suspend" });
 	},
 };

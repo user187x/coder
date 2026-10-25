@@ -1,4 +1,13 @@
-import { EllipsisVerticalIcon, TrashIcon } from "lucide-react";
+import {
+	ActivityIcon,
+	EllipsisVerticalIcon,
+	KeyRoundIcon,
+	LayoutGridIcon,
+	PencilIcon,
+	TrashIcon,
+	UserCheckIcon,
+	UserXIcon,
+} from "lucide-react";
 import { Link } from "react-router";
 import type { User } from "#/api/typesGenerated";
 import { Button } from "#/components/Button/Button";
@@ -17,7 +26,6 @@ type UserMoreActionsProps = {
 	onAction: (action: UserAdminAction) => void;
 	canViewActivity?: boolean;
 	oidcRoleSyncEnabled?: boolean;
-	showEdit?: boolean;
 };
 
 export const UserMoreActions: React.FC<UserMoreActionsProps> = ({
@@ -26,7 +34,6 @@ export const UserMoreActions: React.FC<UserMoreActionsProps> = ({
 	onAction,
 	canViewActivity,
 	oidcRoleSyncEnabled,
-	showEdit = true,
 }) => {
 	return (
 		<DropdownMenu>
@@ -45,7 +52,8 @@ export const UserMoreActions: React.FC<UserMoreActionsProps> = ({
 					<Link
 						to={`/workspaces?filter=${encodeURIComponent(`owner:${user.username}`)}`}
 					>
-						View workspaces
+						<LayoutGridIcon aria-hidden />
+						Workspaces
 					</Link>
 				</DropdownMenuItem>
 
@@ -54,22 +62,23 @@ export const UserMoreActions: React.FC<UserMoreActionsProps> = ({
 						<Link
 							to={`/audit?filter=${encodeURIComponent(`username:${user.username}`)}`}
 						>
+							<ActivityIcon aria-hidden />
 							View activity
 						</Link>
 					</DropdownMenuItem>
 				)}
 
-				{showEdit && (
-					<DropdownMenuItem asChild>
-						<Link to={user.username}>Edit</Link>
-					</DropdownMenuItem>
-				)}
-
 				<DropdownMenuItem
-					disabled={user.login_type === "oidc" && oidcRoleSyncEnabled}
-					onClick={() => onAction({ type: "editRoles", user })}
+					onClick={() =>
+						onAction({
+							type: "edit",
+							user,
+							rolesReadOnly: user.login_type === "oidc" && oidcRoleSyncEnabled,
+						})
+					}
 				>
-					Edit roles
+					<PencilIcon aria-hidden />
+					Edit
 				</DropdownMenuItem>
 
 				{user.status !== "suspended" && (
@@ -77,18 +86,21 @@ export const UserMoreActions: React.FC<UserMoreActionsProps> = ({
 						disabled={user.login_type !== "password"}
 						onClick={() => onAction({ type: "resetPassword", user })}
 					>
-						Reset password&hellip;
+						<KeyRoundIcon aria-hidden />
+						Password Reset
 					</DropdownMenuItem>
 				)}
 
 				{user.status === "active" || user.status === "dormant" ? (
 					<DropdownMenuItem onClick={() => onAction({ type: "suspend", user })}>
-						Suspend&hellip;
+						<UserXIcon aria-hidden />
+						Suspend
 					</DropdownMenuItem>
 				) : (
 					<DropdownMenuItem
 						onClick={() => onAction({ type: "activate", user })}
 					>
+						<UserCheckIcon aria-hidden />
 						Activate&hellip;
 					</DropdownMenuItem>
 				)}
@@ -97,10 +109,12 @@ export const UserMoreActions: React.FC<UserMoreActionsProps> = ({
 
 				<DropdownMenuItem
 					className="text-content-destructive focus:text-content-destructive"
-					onClick={() => onAction({ type: "delete", user })}
+					onClick={() => {
+						if (user.id !== me) onAction({ type: "delete", user });
+					}}
 					disabled={user.id === me}
 				>
-					<TrashIcon className="size-icon-xs" />
+					<TrashIcon aria-hidden className="size-icon-xs" />
 					Delete&hellip;
 				</DropdownMenuItem>
 			</DropdownMenuContent>

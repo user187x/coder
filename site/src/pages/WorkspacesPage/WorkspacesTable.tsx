@@ -11,8 +11,13 @@ import {
 	SquareTerminalIcon,
 } from "lucide-react";
 import type React from "react";
-import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "react-query";
+import { createContext, useContext, useState } from "react";
+import {
+	useIsMutating,
+	useMutation,
+	useQuery,
+	useQueryClient,
+} from "react-query";
 import { Link, useNavigate } from "react-router";
 import { API } from "#/api/api";
 import { templateVersion } from "#/api/queries/templates";
@@ -83,7 +88,10 @@ import {
 	useWorkspaceUpdate,
 	WorkspaceUpdateDialogs,
 } from "#/modules/workspaces/WorkspaceUpdateDialogs";
-import { getDisplayWorkspaceTemplateName } from "#/utils/workspace";
+import {
+	getDisplayWorkspaceTemplateName,
+	workspaceAgentNeedsUpdate,
+} from "#/utils/workspace";
 import {
 	isDeleting,
 	isStartingUp,
@@ -96,6 +104,7 @@ import "./startingRows.css";
 import "./workspacesTable.css";
 import "#/modules/platform/workspaceUpdate/updatePulse.css";
 import { WorkspaceResources } from "#/modules/platform/workspaceResources/WorkspaceResources";
+import { WorkspaceTunnelStatus } from "#/modules/platform/workspaceTunnels/WorkspaceTableTunnels";
 
 type WorkspacesTableProps = {
 	workspaces?: readonly Workspace[];
@@ -134,7 +143,7 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 	// Platform: the Cloud Drive's socket on each row, its own column at the end (none without a Cloud Drive).
 	const drive = useCloudDriveLinks();
 
-	return (
+	const table = (
 		<Table>
 			<TableHeader>
 				<TableRow>
@@ -227,6 +236,16 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 					);
 					const workspacePageLink = `/@${workspace.owner_name}/${workspace.name}`;
 					const templateName = getDisplayWorkspaceTemplateName(workspace);
+					const agentUpdateAvailable = workspace.latest_build.resources.some(
+						(resource) =>
+							resource.agents?.some((agent) =>
+								workspaceAgentNeedsUpdate(
+									agent,
+									dashboard.buildInfo.version,
+									dashboard.buildInfo.agent_api_version,
+								),
+							),
+					);
 
 					return (
 						<WorkspacesRow
@@ -259,6 +278,7 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 							{locks.isSuccess && (
 								<TableCell className="w-0 px-1">
 									<LockdownBadge
+										goldIcon
 										workspace={workspace}
 										modes={locks.data.workspaces[workspace.id]?.modes ?? []}
 										className="h-8 min-w-8 justify-center"
@@ -346,15 +366,18 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 
 							<TableCell className="text-center">
 								{/* Platform: an orange cloud beside Running until its Cloud Drive is attached */}
-								<WorkspaceStatus
+								<WorkspaceRowStatus
 									workspace={workspace}
+									agentUpdateAvailable={agentUpdateAvailable}
 									pill
 									after={<CloudDriveAttachBadge workspace={workspace} />}
 								/>
+								<WorkspaceTunnelStatus workspaceId={workspace.id} />
 							</TableCell>
 
 							<WorkspaceActionsCell
 								workspace={workspace}
+								agentUpdateAvailable={agentUpdateAvailable}
 								onActionSuccess={onActionSuccess}
 								onActionError={onActionError}
 							/>
@@ -377,6 +400,26 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 			</TableBody>
 		</Table>
 	);
+	return table;
+};
+
+const RestartDialogContext = createContext({
+	open: false,
+	setOpen: (_open: boolean) => {},
+	canRestart: false,
+});
+
+const WorkspaceRowStatus: React.FC<
+	React.ComponentProps<typeof WorkspaceStatus>
+> = (props) => {
+	const restart = useContext(RestartDialogContext);
+	return (
+		<WorkspaceStatus
+			{...props}
+			onUpdate={() => restart.setOpen(true)}
+			updateDisabled={!restart.canRestart}
+		/>
+	);
 };
 
 type WorkspacesRowProps = {
@@ -393,6 +436,16 @@ const WorkspacesRow: React.FC<WorkspacesRowProps> = ({
 	checked,
 }) => {
 	const navigate = useNavigate();
+	const [restartOpen, setRestartOpen] = useState(false);
+	const restartBusy = useIsMutating({
+		predicate: (mutation) =>
+			mutation.options.meta?.workspaceId === workspace.id,
+	});
+	const { user } = useAuthenticated();
+	const abilities = abilitiesByWorkspaceStatus(workspace, {
+		canDebug: false,
+		isOwner: user.roles.some((role) => role.name === "owner"),
+	});
 
 	const openLinkInNewTab = () => window.open(workspacePageLink, "_blank");
 	const { role, hover, ...clickableProps } = useClickableTableRow({
@@ -418,22 +471,43 @@ const WorkspacesRow: React.FC<WorkspacesRowProps> = ({
 	const deleting = isDeleting(workspace);
 
 	return (
-		<TableRow
-			{...clickableProps}
-			data-testid={`workspace-${workspace.id}`}
-			data-hint={`Open ${workspace.name} (a middle-click or Ctrl-click: in a new tab)`}
-			data-starting={starting || undefined}
-			data-deleting={deleting || undefined}
-			aria-busy={starting || undefined}
-			className={cn([
-				checked ? "bg-surface-secondary hover:bg-surface-secondary" : undefined,
-				starting && "workspace-row-starting",
-				deleting && "workspace-row-deleting",
-				clickableProps.className,
-			])}
+		<RestartDialogContext.Provider
+			value={{
+				open: restartOpen,
+				setOpen: setRestartOpen,
+				canRestart:
+					abilities.canAcceptJobs &&
+					abilities.actions.some((action) =>
+						[
+							"restart",
+							"updateAndRestart",
+							"updateAndRestartRequireActiveVersion",
+						].includes(action),
+					) &&
+					!starting &&
+					!restartBusy,
+			}}
 		>
-			{children}
-		</TableRow>
+			<TableRow
+				{...clickableProps}
+				data-testid={`workspace-${workspace.id}`}
+				data-workspace-tunnel-row={workspace.id}
+				data-hint={`Open ${workspace.name} (a middle-click or Ctrl-click: in a new tab)`}
+				data-starting={starting || undefined}
+				data-deleting={deleting || undefined}
+				aria-busy={starting || undefined}
+				className={cn([
+					checked
+						? "bg-surface-secondary hover:bg-surface-secondary"
+						: undefined,
+					starting && "workspace-row-starting",
+					deleting && "workspace-row-deleting",
+					clickableProps.className,
+				])}
+			>
+				{children}
+			</TableRow>
+		</RestartDialogContext.Provider>
 	);
 };
 
@@ -478,12 +552,14 @@ const cantBeChecked = (workspace: Workspace) => {
 
 type WorkspaceActionsCellProps = {
 	workspace: Workspace;
+	agentUpdateAvailable: boolean;
 	onActionSuccess: () => Promise<void>;
 	onActionError: (error: unknown) => void;
 };
 
 const WorkspaceActionsCell: React.FC<WorkspaceActionsCellProps> = ({
 	workspace,
+	agentUpdateAvailable,
 	onActionSuccess,
 	onActionError,
 }) => {
@@ -517,6 +593,7 @@ const WorkspaceActionsCell: React.FC<WorkspaceActionsCellProps> = ({
 
 	const restartWorkspaceMutation = useMutation({
 		mutationFn: API.restartWorkspace,
+		meta: { workspaceId: workspace.id },
 		// restartWorkspace resolves only after the full stop/start sequence and
 		// the list has no live updates, so optimistically show the row as
 		// stopping. This reflects the restart immediately and flips the list to
@@ -577,7 +654,8 @@ const WorkspaceActionsCell: React.FC<WorkspaceActionsCellProps> = ({
 	});
 
 	const [isStopConfirmOpen, setIsStopConfirmOpen] = useState(false);
-	const [isRestartConfirmOpen, setIsRestartConfirmOpen] = useState(false);
+	const { open: isRestartConfirmOpen, setOpen: setIsRestartConfirmOpen } =
+		useContext(RestartDialogContext);
 	const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
 
 	const isRetrying =
@@ -719,6 +797,7 @@ const WorkspaceActionsCell: React.FC<WorkspaceActionsCellProps> = ({
 
 					<WorkspaceMoreActions
 						workspace={workspace}
+						agentUpdateAvailable={agentUpdateAvailable}
 						disabled={!abilities.canAcceptJobs}
 						onStop={
 							abilities.actions.includes("stop")
@@ -752,12 +831,33 @@ const WorkspaceActionsCell: React.FC<WorkspaceActionsCellProps> = ({
 				{/* Restart workspace confirmation dialog */}
 				<ConfirmDialog
 					open={isRestartConfirmOpen}
-					title="Restart workspace"
-					description={`Are you sure you want to restart the workspace "${workspace.name}"? This will stop all running processes and delete non-persistent data.`}
-					confirmText="Restart"
+					title={
+						workspace.outdated
+							? "Update and restart workspace"
+							: "Restart workspace"
+					}
+					description={
+						workspace.outdated
+							? `Update "${workspace.name}" to the latest template version and restart it? This will stop all running processes and delete non-persistent data.`
+							: `Are you sure you want to restart the workspace "${workspace.name}"? This will stop all running processes and delete non-persistent data.`
+					}
+					confirmText={workspace.outdated ? "Update and restart" : "Restart"}
+					disabled={
+						restartWorkspaceMutation.isPending ||
+						workspaceUpdate.isUpdating ||
+						!abilities.canAcceptJobs
+					}
 					onClose={() => setIsRestartConfirmOpen(false)}
 					onConfirm={() => {
-						restartWorkspaceMutation.mutate({ workspace });
+						if (
+							restartWorkspaceMutation.isPending ||
+							workspaceUpdate.isUpdating ||
+							!abilities.canAcceptJobs
+						)
+							return;
+						if (workspace.outdated)
+							workspaceUpdate.dialogProps.confirmUpdateDialogProps.onConfirm();
+						else restartWorkspaceMutation.mutate({ workspace });
 						setIsRestartConfirmOpen(false);
 					}}
 					type="info"

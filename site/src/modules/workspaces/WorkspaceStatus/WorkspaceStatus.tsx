@@ -1,4 +1,6 @@
 import { cn } from "cn";
+import { Button } from "#/components/Button/Button";
+import "#/modules/platform/workspaceUpdate/updatePulse.css";
 import type { Workspace } from "#/api/typesGenerated";
 import { lastUsedMessage } from "#/utils/workspace";
 import { WorkspaceDormantBadge } from "../WorkspaceDormantBadge/WorkspaceDormantBadge";
@@ -11,17 +13,26 @@ type WorkspaceStatusProps = {
 	after?: React.ReactNode;
 	/** Platform: the status in a tinted pill, when it was last used centred under it (the Workspaces table). */
 	pill?: boolean;
+	agentUpdateAvailable?: boolean;
+	onUpdate?: () => void;
+	updateDisabled?: boolean;
 };
 
 export const WorkspaceStatus: React.FC<WorkspaceStatusProps> = ({
 	workspace,
 	after,
 	pill = false,
+	agentUpdateAvailable = false,
+	onUpdate,
+	updateDisabled = false,
 }) => {
+	const needsUpdate = agentUpdateAvailable || workspace.outdated;
 	const lastUsed = lastUsedMessage(workspace.last_used_at);
 	const indicator = (
 		<WorkspaceStatusIndicator
 			workspace={workspace}
+			listPill={pill}
+			agentUpdateAvailable={pill && needsUpdate}
 			className={pill ? "workspace-status-pill" : undefined}
 		>
 			{workspace.dormant_at && <WorkspaceDormantBadge workspace={workspace} />}
@@ -32,7 +43,23 @@ export const WorkspaceStatus: React.FC<WorkspaceStatusProps> = ({
 			className={cn("flex flex-col", pill && "items-center gap-1")}
 			data-hint={pill ? `Last used: ${lastUsed}` : undefined}
 		>
-			{indicator}
+			{pill && needsUpdate && workspace.latest_build.status === "running" ? (
+				<Button
+					variant="subtle"
+					disabled={updateDisabled || !onUpdate}
+					aria-label={`Running. Restart ${workspace.name}; update available`}
+					title="Review a restart for available workspace updates"
+					className="h-auto min-w-0 rounded-full p-0 hover:bg-transparent"
+					onClick={(event) => {
+						event.stopPropagation();
+						onUpdate?.();
+					}}
+				>
+					{indicator}
+				</Button>
+			) : (
+				indicator
+			)}
 			<time
 				dateTime={workspace.last_used_at}
 				className={cn(

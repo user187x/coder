@@ -25,10 +25,11 @@ const PAPER: Record<NoteColor, string> = {
 export const UserNotesCell: React.FC<{
 	username: string;
 	notes: readonly WorkspaceNote[] | undefined;
-}> = ({ username, notes }) => {
+	className?: string;
+}> = ({ username, notes, className }) => {
 	if (!notes || notes.length === 0) {
 		return (
-			<TableCell>
+			<TableCell className={className}>
 				<span className="text-content-disabled">
 					<span aria-hidden>–</span>
 					<span className="sr-only">No notes</span>
@@ -37,7 +38,7 @@ export const UserNotesCell: React.FC<{
 		);
 	}
 	return (
-		<TableCell>
+		<TableCell className={className}>
 			<Popover>
 				<PopoverTrigger asChild>
 					<button

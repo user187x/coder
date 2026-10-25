@@ -113,3 +113,12 @@ export const Pending: Story = {
 		workspace: createWorkspaceWithStatus("pending"),
 	},
 };
+
+export const TopbarRunning: Story = {
+	args: {
+		workspace: MockWorkspace,
+		runningLight: true,
+		className:
+			"workspace-topbar-running-status gap-1.5 rounded-full border border-solid border-current/20 bg-surface-secondary px-2 py-1 text-xs",
+	},
+};

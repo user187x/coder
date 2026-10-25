@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useAnimationsEnabled } from "#/modules/platform/animations/animations";
+import { CloudDriveMalePlug } from "./CloudDriveMalePlug";
 import {
 	type Cable,
 	cableLength,
@@ -724,28 +725,7 @@ export const CloudDriveRopes: React.FC<{
 					<path className="cd-cable-shine" />
 					{/* The plug: the cable joins its body at (0, 0); its prongs point on along +x (into the row's edge). */}
 					<g className="cd-plug">
-						<line
-							className="cd-prong"
-							x1={PLUG - 1}
-							y1={-2}
-							x2={PLUG + GAP + 4}
-							y2={-2}
-						/>
-						<line
-							className="cd-prong"
-							x1={PLUG - 1}
-							y1={2}
-							x2={PLUG + GAP + 4}
-							y2={2}
-						/>
-						<rect
-							className="cd-plug-body"
-							x={0}
-							y={-4.5}
-							width={PLUG}
-							height={9}
-							rx={2}
-						/>
+						<CloudDriveMalePlug />
 						<rect
 							className="cd-grab"
 							data-grab="plug"

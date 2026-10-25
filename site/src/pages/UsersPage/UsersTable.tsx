@@ -1,12 +1,12 @@
 import { cn } from "cn";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
-import { useQuery, useQueryClient } from "react-query";
-import { useNavigate } from "react-router";
-import { PlatformAPI, type WorkspaceNote } from "#/api/platform";
+import { useContext, useId, useState } from "react";
+import { useQuery } from "react-query";
+import type { WorkspaceNote } from "#/api/platform";
 import type { GroupsByUserId } from "#/api/queries/groups";
+import { notesByUser } from "#/api/queries/platform";
 import type * as TypesGen from "#/api/typesGenerated";
-import { AvatarData } from "#/components/Avatar/AvatarData";
 import { AvatarDataSkeleton } from "#/components/Avatar/AvatarDataSkeleton";
 import { Checkbox } from "#/components/Checkbox/Checkbox";
 import { InfoTooltip } from "#/components/InfoTooltip/InfoTooltip";
@@ -26,7 +26,7 @@ import {
 	TableRowSkeleton,
 } from "#/components/TableLoader/TableLoader";
 import { TooltipMessage, TooltipTitle } from "#/components/Tooltip/Tooltip";
-import { useClickableTableRow } from "#/hooks/useClickableTableRow";
+
 import { ChatUserButton } from "#/modules/platform/chat/ChatUserButton";
 import { ShareApprovalButton } from "#/modules/platform/cloudDrive/ShareApprovalButton";
 import {
@@ -41,8 +41,13 @@ import type { UserAdminAction } from "#/modules/users/UserActionDialogs";
 import { RolesHelpPopover } from "#/modules/users/UserHelpPopovers";
 import { UserMoreActions } from "#/modules/users/UserMoreActions";
 import { UserRoleCell } from "#/modules/users/UserRoleCell";
-import { userWorkspaceHref as workspaceHrefOf } from "#/modules/users/userPlaces";
 import { getLatencyColor } from "#/utils/latency";
+import { AccountIdentity } from "./AccountIdentity";
+import { AccountResourcesCell } from "./AccountResourcesCell";
+import { AccountWorkspaceActions } from "./AccountWorkspaceActions";
+import { AccountWorkspacePanel } from "./AccountWorkspacePanel";
+import "./usersTable.css";
+import { QuotaEditorContext } from "./UserQuotaSection";
 
 dayjs.extend(relativeTime);
 
@@ -56,6 +61,7 @@ export type UsersTableProps = {
 	 */
 	me: string;
 	canEditUsers: boolean;
+	canManageWorkspaces?: boolean;
 	canViewActivity?: boolean;
 	/** User roles cannot be edited if OIDC Role Sync is enabled. */
 	oidcRoleSyncEnabled?: boolean;
@@ -67,6 +73,17 @@ export type UsersTableProps = {
 
 export const UsersTable: React.FC<UsersTableProps> = (props) => {
 	const { users = [], selected, onSelect } = props;
+	const quota = useContext(QuotaEditorContext);
+	const [selectedWorkspaces, setSelectedWorkspaces] = useState<
+		ReadonlyMap<string, TypesGen.Workspace>
+	>(new Map());
+	const onWorkspaceSelect = (workspace: TypesGen.Workspace, checked: boolean) =>
+		setSelectedWorkspaces((before) => {
+			const next = new Map(before);
+			if (checked) next.set(workspace.id, workspace);
+			else next.delete(workspace.id);
+			return next;
+		});
 	// Platform: each user's latency and activity over the last seven days (what a template's Overview showed)
 	const insights = useUserInsights(true);
 	const choosable = users.filter((u) => u.id !== props.me);
@@ -74,70 +91,123 @@ export const UsersTable: React.FC<UsersTableProps> = (props) => {
 		choosable.length > 0 && choosable.every((u) => selected?.has(u.id));
 	const some = choosable.some((u) => selected?.has(u.id));
 	return (
-		<Table data-testid="users-table" aria-label="Accounts">
-			<TableHeader>
-				<TableRow>
-					{selected && onSelect && (
-						<TableHead className="w-px pr-0">
-							<Checkbox
-								aria-label="Choose every account on this page"
-								checked={all ? true : some ? "indeterminate" : false}
-								disabled={choosable.length === 0}
-								onCheckedChange={(v) =>
-									onSelect(
-										new Set(v === true ? choosable.map((u) => u.id) : []),
-									)
-								}
-							/>
-						</TableHead>
-					)}
-					<TableHead className="w-max">User</TableHead>
-					<TableHead className="w-1/6">
-						<div className="flex flex-row gap-2 items-center">
-							<span>Roles</span>
-							<RolesHelpPopover />
-						</div>
-					</TableHead>
-					{/* Platform: admins' post-it notes on the user's workspaces, instead of Groups. */}
-					<TableHead className="w-1/6">Notes</TableHead>
-					{/* Platform: how the user's connections to their workspaces went, beside when they were last seen */}
+		<>
+			{props.canManageWorkspaces && selectedWorkspaces.size > 0 && (
+				<AccountWorkspaceActions
+					targets={[...selectedWorkspaces.values()]}
+					onClear={() => setSelectedWorkspaces(new Map())}
+				/>
+			)}
+			<Table
+				data-testid="users-table"
+				aria-label="Accounts"
+				className="accounts-table"
+				wrapperClassName="accounts-table-surface"
+			>
+				<colgroup>
+					{selected && onSelect && <col style={{ width: "3%" }} />}
+					<col
+						style={{
+							width: `${100 - 12 - 5 - 12 - (quota ? 18 : 0) - (insights.shown ? 14 : 0) - (props.canEditUsers ? 6 : 0) - (selected && onSelect ? 3 : 0)}%`,
+						}}
+					/>
+					<col style={{ width: "12%" }} />
+					<col style={{ width: "5%" }} />
+					{quota && <col style={{ width: "18%" }} />}
 					{insights.shown && (
 						<>
-							<TableHead className="w-[1%] whitespace-nowrap">
-								<span className="flex items-center gap-1">
-									Latency
-									<InfoTooltip size="small">
-										<TooltipTitle>Latency</TooltipTitle>
-										<TooltipMessage>{`The median round trip of the user's connections to their workspaces over the last ${INSIGHTS_DAYS} days, every template.`}</TooltipMessage>
-									</InfoTooltip>
-								</span>
-							</TableHead>
-							<TableHead className="w-[1%] whitespace-nowrap">
-								<span className="flex items-center gap-1">
-									Activity
-									<InfoTooltip size="small">
-										<TooltipTitle>Activity</TooltipTitle>
-										<TooltipMessage>{`How long the user was connected to their workspaces (apps, the terminal, SSH) over the last ${INSIGHTS_DAYS} days, every template.`}</TooltipMessage>
-									</InfoTooltip>
-								</span>
-							</TableHead>
+							<col style={{ width: "7%" }} />
+							<col style={{ width: "7%" }} />
 						</>
 					)}
-					<TableHead className="w-1/6">Status</TableHead>
-				</TableRow>
-			</TableHeader>
+					<col style={{ width: "12%" }} />
+					{props.canEditUsers && <col style={{ width: "6%" }} />}
+				</colgroup>
+				<TableHeader>
+					<TableRow>
+						{selected && onSelect && (
+							<TableHead className="w-px pr-0">
+								<Checkbox
+									aria-label="Choose every account on this page"
+									checked={all ? true : some ? "indeterminate" : false}
+									disabled={choosable.length === 0}
+									onCheckedChange={(v) =>
+										onSelect(
+											new Set(v === true ? choosable.map((u) => u.id) : []),
+										)
+									}
+								/>
+							</TableHead>
+						)}
+						<TableHead className="w-max">User</TableHead>
+						<TableHead className="w-1/6">
+							<div className="flex flex-row gap-2 items-center">
+								<span>Roles</span>
+								<RolesHelpPopover />
+							</div>
+						</TableHead>
+						{/* Platform: admins' post-it notes on the user's workspaces, instead of Groups. */}
+						<TableHead className="w-1/6">Notes</TableHead>
+						{quota && <TableHead>Resources</TableHead>}
+						{/* Platform: how the user's connections to their workspaces went, beside when they were last seen */}
+						{insights.shown && (
+							<>
+								<TableHead className="w-[1%] whitespace-nowrap">
+									<span className="flex items-center gap-1">
+										Latency
+										<InfoTooltip size="small">
+											<TooltipTitle>Latency</TooltipTitle>
+											<TooltipMessage>{`The median round trip of the user's connections to their workspaces over the last ${INSIGHTS_DAYS} days, every template.`}</TooltipMessage>
+										</InfoTooltip>
+									</span>
+								</TableHead>
+								<TableHead className="w-[1%] whitespace-nowrap">
+									<span className="flex items-center gap-1">
+										Activity
+										<InfoTooltip size="small">
+											<TooltipTitle>Activity</TooltipTitle>
+											<TooltipMessage>{`How long the user was connected to their workspaces (apps, the terminal, SSH) over the last ${INSIGHTS_DAYS} days, every template.`}</TooltipMessage>
+										</InfoTooltip>
+									</span>
+								</TableHead>
+							</>
+						)}
+						<TableHead className="w-1/6">Status</TableHead>
+						{props.canEditUsers && (
+							<TableHead>
+								<span className="sr-only">Account actions</span>
+							</TableHead>
+						)}
+					</TableRow>
+				</TableHeader>
 
-			<TableBody>
-				<UsersTableBody {...props} insights={insights} />
-			</TableBody>
-		</Table>
+				<TableBody>
+					<UsersTableBody
+						{...props}
+						insights={insights}
+						selectedWorkspaces={selectedWorkspaces}
+						onWorkspaceSelect={onWorkspaceSelect}
+					/>
+				</TableBody>
+			</Table>
+		</>
 	);
 };
 
 const UsersTableBody: React.FC<
-	UsersTableProps & { insights: ReturnType<typeof useUserInsights> }
+	UsersTableProps & {
+		insights: ReturnType<typeof useUserInsights>;
+		selectedWorkspaces: ReadonlyMap<string, TypesGen.Workspace>;
+		onWorkspaceSelect: (
+			workspace: TypesGen.Workspace,
+			checked: boolean,
+		) => void;
+	}
 > = ({
 	insights,
+	selectedWorkspaces,
+	onWorkspaceSelect,
+	canManageWorkspaces,
 	isLoading,
 	users,
 	me,
@@ -148,16 +218,12 @@ const UsersTableBody: React.FC<
 	selected,
 	onSelect,
 }) => {
-	const notesQuery = useQuery({
-		queryKey: ["platform", "notes", "by-user"],
-		queryFn: PlatformAPI.getNotesByUser,
-		refetchInterval: 60_000,
-		retry: false,
-	});
+	const notesQuery = useQuery(notesByUser());
 	if (isLoading) {
 		return (
 			<UsersTableSkeleton
 				canEditUsers={canEditUsers}
+				selectable={Boolean(selected && onSelect)}
 				insights={insights.shown}
 			/>
 		);
@@ -172,6 +238,9 @@ const UsersTableBody: React.FC<
 			key={user.id}
 			user={user}
 			selected={selected}
+			selectedWorkspaces={selectedWorkspaces}
+			onWorkspaceSelect={onWorkspaceSelect}
+			canManageWorkspaces={canManageWorkspaces}
 			onSelect={onSelect}
 			notes={notesQuery.data?.users[user.id]}
 			insight={
@@ -197,6 +266,8 @@ type UsersTableRowProps = Omit<
 	"isLoading" | "users" | "groupsByUserId"
 > & {
 	user: TypesGen.User;
+	selectedWorkspaces: ReadonlyMap<string, TypesGen.Workspace>;
+	onWorkspaceSelect: (workspace: TypesGen.Workspace, checked: boolean) => void;
 	notes: readonly WorkspaceNote[] | undefined;
 	/** Platform: their latency and activity (undefined: the columns are not shown). */
 	insight?: UserInsight;
@@ -205,12 +276,13 @@ type UsersTableRowProps = Omit<
 };
 
 /**
- * A click on a user's row opens their workspace when they have exactly one,
- * else their workspaces list (what the row menu's "View workspaces" opens).
- * Ctrl / Cmd-click opens it in a new tab.
+ * A user row expands in place; workspace dashboards remain explicit links.
  */
 const UsersTableRow: React.FC<UsersTableRowProps> = ({
 	user,
+	selectedWorkspaces,
+	onWorkspaceSelect,
+	canManageWorkspaces,
 	notes,
 	insight,
 	most = 0,
@@ -222,179 +294,204 @@ const UsersTableRow: React.FC<UsersTableRowProps> = ({
 	selected,
 	onSelect,
 }) => {
-	const queryClient = useQueryClient();
-	const navigate = useNavigate();
-
-	const open = async (href: () => Promise<string>, newTab: boolean) => {
-		const target = await href();
-		if (newTab) {
-			window.open(target, "_blank", "noopener");
-		} else {
-			navigate(target);
-		}
+	const [expanded, setExpanded] = useState(false);
+	const panelId = useId();
+	const quota = useContext(QuotaEditorContext);
+	const columns =
+		4 +
+		(insight ? 2 : 0) +
+		(quota ? 1 : 0) +
+		(canEditUsers ? 1 : 0) +
+		(selected && onSelect ? 1 : 0);
+	const toggle = (event: React.MouseEvent<HTMLTableRowElement>) => {
+		const target = event.target;
+		if (
+			target instanceof Element &&
+			(!event.currentTarget.contains(target) || target.closest(ROW_CONTROLS))
+		)
+			return;
+		if (window.getSelection()?.toString().trim()) return;
+		setExpanded((value) => !value);
 	};
 
-	const userWorkspaceHref = () => workspaceHrefOf(queryClient, user.username);
-
-	const clickable = useClickableTableRow({
-		onClick: (event) => {
-			const target = event.target;
-			if (
-				target instanceof Element &&
-				target !== event.currentTarget &&
-				target.closest(ROW_CONTROLS)
-			) {
-				return;
-			}
-			if (window.getSelection()?.toString().trim()) {
-				return;
-			}
-			void open(userWorkspaceHref, event.ctrlKey || event.metaKey);
-		},
-		onMiddleClick: () => {
-			void open(userWorkspaceHref, true);
-		},
-	});
-
 	return (
-		<TableRow {...clickable} data-testid={`user-${user.id}`}>
-			{selected && onSelect && (
-				<TableCell className="w-px pr-0">
-					<Checkbox
-						aria-label={`Choose ${user.username}`}
-						data-testid={`choose-${user.username}`}
-						checked={selected.has(user.id)}
-						disabled={user.id === me}
-						onCheckedChange={(v) => {
-							const next = new Set(selected);
-							if (v === true) {
-								next.add(user.id);
-							} else {
-								next.delete(user.id);
-							}
-							onSelect(next);
-						}}
-					/>
-				</TableCell>
-			)}
-			<TableCell>
-				<div className="flex items-center justify-between gap-3">
-					<AvatarData
-						title={user.username}
-						subtitle={user.is_service_account ? "Service Account" : user.email}
-						src={user.avatar_url}
-					/>
-					{/* Platform: a Cloud Drive share waiting for an admin, approved from here, before the chat button */}
-					<div className="flex shrink-0 items-center gap-2">
+		<>
+			<TableRow
+				onClick={toggle}
+				className="cursor-pointer"
+				data-testid={`user-${user.id}`}
+			>
+				{selected && onSelect && (
+					<TableCell data-account-field="selection" className="w-px pr-0">
+						<Checkbox
+							aria-label={`Choose ${user.username}`}
+							data-testid={`choose-${user.username}`}
+							checked={selected.has(user.id)}
+							disabled={user.id === me}
+							onCheckedChange={(v) => {
+								const next = new Set(selected);
+								if (v === true) {
+									next.add(user.id);
+								} else {
+									next.delete(user.id);
+								}
+								onSelect(next);
+							}}
+						/>
+					</TableCell>
+				)}
+				<TableCell data-account-field="identity">
+					<AccountIdentity
+						user={user}
+						expanded={expanded}
+						panelId={panelId}
+						onToggle={() => setExpanded((value) => !value)}
+					>
 						<ShareApprovalButton user={user} />
 						<ChatUserButton user={user} />
-					</div>
-				</div>
-			</TableCell>
-
-			<UserRoleCell roles={user.roles} />
-
-			<UserNotesCell username={user.username} notes={notes} />
-
-			{insight && (
-				<>
-					<TableCell className="whitespace-nowrap" data-testid="user-latency">
-						{insight.latency ? (
-							<span
-								className={cn(
-									"text-sm font-medium tabular-nums",
-									getLatencyColor(insight.latency.p50),
-								)}
-								title={`Median ${formatLatency(insight.latency.p50)}, 95th percentile ${formatLatency(insight.latency.p95)}`}
-							>
-								{formatLatency(insight.latency.p50)}
-							</span>
-						) : (
-							<span className="text-sm text-content-disabled">—</span>
-						)}
-					</TableCell>
-					<TableCell className="whitespace-nowrap" data-testid="user-activity">
-						{insight.seconds ? (
-							<div className="flex min-w-20 flex-col gap-1">
-								<span className="text-sm tabular-nums text-content-primary">
-									{formatActivity(insight.seconds)}
-								</span>
-								<span
-									aria-hidden
-									className="h-1 w-full overflow-hidden rounded-full bg-surface-tertiary"
-								>
-									<span
-										className="block h-full rounded-full bg-content-link"
-										style={{
-											width: `${Math.max(4, (insight.seconds / Math.max(most, 1)) * 100)}%`,
-										}}
-									/>
-								</span>
-							</div>
-						) : (
-							<span className="text-sm text-content-disabled">—</span>
-						)}
-					</TableCell>
-				</>
-			)}
-
-			<TableCell
-				className={cn(
-					"capitalize",
-					user.status === "suspended" && "text-content-secondary",
-				)}
-			>
-				<div>{user.status}</div>
-				{(user.status === "active" || user.status === "dormant") && (
-					<LastSeen at={user.last_seen_at} exactDays className="text-xs" />
-				)}
-			</TableCell>
-
-			{canEditUsers && (
-				<TableCell className="w-px whitespace-nowrap text-right">
-					<div className="flex justify-end">
-						<UserMoreActions
-							user={user}
-							me={me}
-							canViewActivity={canViewActivity}
-							oidcRoleSyncEnabled={oidcRoleSyncEnabled}
-							onAction={onAction}
-						/>
-					</div>
+					</AccountIdentity>
 				</TableCell>
+
+				<UserRoleCell roles={user.roles} className="account-roles" />
+
+				<UserNotesCell
+					username={user.username}
+					notes={notes}
+					className="account-notes"
+				/>
+				{quota && <AccountResourcesCell user={user} />}
+
+				{insight && (
+					<>
+						<TableCell
+							className="whitespace-nowrap"
+							data-testid="user-latency"
+							data-label="Latency"
+						>
+							{insight.latency ? (
+								<span
+									className={cn(
+										"text-sm font-medium tabular-nums",
+										getLatencyColor(insight.latency.p50),
+									)}
+									title={`Median ${formatLatency(insight.latency.p50)}, 95th percentile ${formatLatency(insight.latency.p95)}`}
+								>
+									{formatLatency(insight.latency.p50)}
+								</span>
+							) : (
+								<span className="text-sm text-content-disabled">—</span>
+							)}
+						</TableCell>
+						<TableCell
+							className="whitespace-nowrap"
+							data-testid="user-activity"
+							data-label="Activity"
+						>
+							{insight.seconds ? (
+								<div className="flex min-w-0 flex-col gap-1">
+									<span className="text-sm tabular-nums text-content-primary">
+										{formatActivity(insight.seconds)}
+									</span>
+									<span
+										aria-hidden
+										className="h-1 w-full overflow-hidden rounded-full bg-surface-tertiary"
+									>
+										<span
+											className="block h-full rounded-full bg-content-link"
+											style={{
+												width: `${Math.max(4, (insight.seconds / Math.max(most, 1)) * 100)}%`,
+											}}
+										/>
+									</span>
+								</div>
+							) : (
+								<span className="text-sm text-content-disabled">—</span>
+							)}
+						</TableCell>
+					</>
+				)}
+
+				<TableCell
+					data-label="Status"
+					className={cn(
+						"capitalize",
+						user.status === "suspended" && "text-content-secondary",
+					)}
+				>
+					<div>{user.status}</div>
+					{(user.status === "active" || user.status === "dormant") && (
+						<LastSeen at={user.last_seen_at} exactDays className="text-xs" />
+					)}
+				</TableCell>
+
+				{canEditUsers && (
+					<TableCell
+						data-account-field="actions"
+						className="w-px whitespace-nowrap text-right"
+					>
+						<div className="flex justify-end">
+							<UserMoreActions
+								user={user}
+								me={me}
+								canViewActivity={canViewActivity}
+								oidcRoleSyncEnabled={oidcRoleSyncEnabled}
+								onAction={onAction}
+							/>
+						</div>
+					</TableCell>
+				)}
+			</TableRow>
+			{expanded && (
+				<TableRow className="account-workspaces-expanded">
+					<TableCell colSpan={columns} className="bg-surface-secondary/50 p-0">
+						<div id={panelId}>
+							<AccountWorkspacePanel
+								user={user}
+								canManage={Boolean(canManageWorkspaces)}
+								selected={selectedWorkspaces}
+								onSelect={onWorkspaceSelect}
+							/>
+						</div>
+					</TableCell>
+				</TableRow>
 			)}
-		</TableRow>
+		</>
 	);
 };
 
 type UsersTableSkeletonProps = {
 	canEditUsers: boolean;
 	insights?: boolean;
+	selectable?: boolean;
 };
-
 const UsersTableSkeleton: React.FC<UsersTableSkeletonProps> = ({
 	canEditUsers,
 	insights,
+	selectable,
 }) => {
+	const quota = useContext(QuotaEditorContext);
 	return (
 		<TableLoaderSkeleton>
 			<TableRowSkeleton>
+				{selectable && (
+					<TableCell>
+						<Skeleton variant="text" width="20px" />
+					</TableCell>
+				)}
 				<TableCell>
 					<AvatarDataSkeleton />
 				</TableCell>
-
 				<TableCell>
 					<Skeleton variant="text" width="25%" />
 				</TableCell>
-
 				<TableCell>
 					<Skeleton variant="text" width="25%" />
 				</TableCell>
-
-				<TableCell>
-					<Skeleton variant="text" width="25%" />
-				</TableCell>
-
+				{quota && (
+					<TableCell>
+						<Skeleton variant="text" width="140px" />
+					</TableCell>
+				)}
 				{insights && (
 					<>
 						<TableCell>
@@ -405,12 +502,12 @@ const UsersTableSkeleton: React.FC<UsersTableSkeletonProps> = ({
 						</TableCell>
 					</>
 				)}
-
+				<TableCell>
+					<Skeleton variant="text" width="25%" />
+				</TableCell>
 				{canEditUsers && (
-					<TableCell className="w-px whitespace-nowrap text-right">
-						<div className="flex justify-end">
-							<Skeleton variant="text" width="25%" />
-						</div>
+					<TableCell className="w-px text-right">
+						<Skeleton variant="text" width="25%" />
 					</TableCell>
 				)}
 			</TableRowSkeleton>

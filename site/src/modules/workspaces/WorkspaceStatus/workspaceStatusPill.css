@@ -1,6 +1,10 @@
 /* Platform: the Workspaces table's status (WorkspaceStatus pill): a pill tinted with the status's own colour, its dot
    small and plain. Not in a layer: over the indicator's utilities. */
 .workspace-status-pill {
+	transition:
+		color 240ms ease,
+		background-color 240ms ease,
+		border-color 240ms ease;
 	gap: 6px;
 	padding: 3px 10px 3px 8px;
 	border-radius: 999px;
@@ -14,4 +18,37 @@
 	width: 7px;
 	height: 7px;
 	border-width: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.workspace-status-pill {
+		transition: none;
+	}
+}
+html[data-animations="off"] .workspace-status-pill {
+	transition: none;
+}
+
+.workspace-status-pill:is(
+	[data-workspace-pill-state="pending"],
+	[data-workspace-pill-state="starting"],
+	[data-workspace-pill-state="stopping"],
+	[data-workspace-pill-state="canceling"],
+	[data-workspace-pill-state="deleting"]
+) {
+	color: #facc15;
+}
+.workspace-status-pill > div:first-child {
+	background-color: currentColor;
+}
+
+:is(.light, .light-protan-deuter, .light-tritan)
+	.workspace-status-pill:is(
+		[data-workspace-pill-state="pending"],
+		[data-workspace-pill-state="starting"],
+		[data-workspace-pill-state="stopping"],
+		[data-workspace-pill-state="canceling"],
+		[data-workspace-pill-state="deleting"]
+	) {
+	color: #a16207;
 }

@@ -30,10 +30,14 @@ export const useReportEmbeddedSize = (
 			return;
 		}
 		const report = () => {
+			// Measure intrinsic content without the viewport stretch used to equalize grid cards.
+			el.setAttribute("data-measuring", "");
+			const height = el.offsetHeight;
+			el.removeAttribute("data-measuring");
 			const message: EmbedSizeMessage = {
 				type: EMBED_SIZE_MESSAGE,
 				width: el.scrollWidth,
-				height: el.offsetHeight,
+				height,
 			};
 			try {
 				window.parent.postMessage(message, window.location.origin);

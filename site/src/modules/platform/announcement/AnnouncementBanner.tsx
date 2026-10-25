@@ -134,7 +134,7 @@ export const AnnouncementBanner: React.FC<AnnouncementBannerProps> = ({
 		enabled: enabled && placement !== "login",
 	});
 
-	if (lockdown.data?.enabled) {
+	if (placement !== "login" && lockdown.data?.enabled) {
 		return (
 			<div
 				className={cn(
@@ -189,6 +189,7 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 	// Receipts (who viewed it, Confirm): not on the sign-in page, and only when
 	// the announcement asks for them (a greeting need not).
 	const receipts = placement !== "login" && banner.receipts !== false;
+	const compact = placement !== "page";
 	const statusQuery = useQuery({
 		...announcementStatus(banner.id),
 		enabled: receipts,
@@ -210,25 +211,25 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 			? attachAnnouncementAutoScroll(
 					el,
 					() => el.querySelector<HTMLElement>("[data-banner-text]"),
-					placement === "navbar" && banner.loopText !== false,
+					compact && banner.loopText !== false,
 				)
 			: undefined;
-	}, [banner.message, banner.loopText, placement]);
+	}, [banner.message, banner.loopText, compact]);
 
 	useEffect(() => {
-		if (signedIn && !viewed.has(banner.id)) {
+		if (receipts && signedIn && !viewed.has(banner.id)) {
 			viewed.add(banner.id);
 			reportView(banner.id);
 		}
-	}, [signedIn, banner.id, reportView]);
+	}, [receipts, signedIn, banner.id, reportView]);
 
 	// Confirmed already (maybe in another browser): a dismissible announcement
 	// goes away here too.
 	useEffect(() => {
-		if (acked && banner.dismissible) {
+		if (receipts && acked && banner.dismissible) {
 			onDismiss();
 		}
-	}, [acked, banner.dismissible, onDismiss]);
+	}, [receipts, acked, banner.dismissible, onDismiss]);
 
 	// Dismissed here (the close button, or Confirm): it goes with its close transition.
 	const closeEffect = banner.closeEffect ?? "fade";
@@ -277,17 +278,18 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 				<BannerText
 					banner={banner}
 					animate
-					loop={placement === "navbar" && banner.loopText !== false}
+					loop={compact && banner.loopText !== false}
 					className={cn(
 						"min-w-0 flex-1 text-center",
-						// Keep the navbar compact while longer messages read themselves.
-						placement === "navbar" &&
-							"max-h-[36px] overflow-hidden [overflow-wrap:anywhere]",
+						// Long announcements must leave room for the sign-in form.
+						compact && "max-h-[36px] overflow-hidden [overflow-wrap:anywhere]",
 					)}
 				/>
 			</BannerLcd>
 			{/* Scroll mode: the whole message at once, without waiting for its effect - at the right, by the close */}
-			<BannerScrollView banner={banner} anchor={card} colors={{ bg, fg }} />
+			{placement !== "login" && (
+				<BannerScrollView banner={banner} anchor={card} colors={{ bg, fg }} />
+			)}
 			{opening && <OpenLayers effect={openEffect} />}
 			{close.closing && <CloseLayers effect={closeEffect} />}
 			{receipts && signedIn && viewedAt && <ViewedStamp viewedAt={viewedAt} />}

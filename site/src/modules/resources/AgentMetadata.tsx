@@ -1,19 +1,18 @@
-import { cn } from "cn";
-import dayjs from "dayjs";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "react-query";
 import { toast } from "sonner";
 import { watchAgentMetadata } from "#/api/api";
+import { getErrorMessage } from "#/api/errors";
+import { workspaceInfrastructureMetrics } from "#/api/queries/workspaceMetrics";
 import type {
 	ServerSentEvent,
+	Workspace,
 	WorkspaceAgent,
 	WorkspaceAgentMetadata,
 } from "#/api/typesGenerated";
+import type { WorkspaceInfrastructureMetrics } from "#/api/workspaceMetrics";
 import { Skeleton } from "#/components/Skeleton/Skeleton";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipTrigger,
-} from "#/components/Tooltip/Tooltip";
+import { Switch } from "#/components/Switch/Switch";
 import {
 	isCloudDriveMetadata,
 	isNetworkMetadata,
@@ -21,28 +20,37 @@ import {
 } from "#/modules/platform/networkLeds/agentMetadataStore";
 import type { OneWayWebSocket } from "#/utils/OneWayWebSocket";
 import {
-	levelColor,
-	MetadataHistogram,
-	metadataNumber,
-	oneDecimal,
-	shareOf,
-	splitPercent,
-	useMetadataHistory,
-} from "./MetadataHistogram";
+	type InfrastructureScope,
+	infrastructureMaximum,
+	infrastructureMetadata,
+	workspaceMaximum,
+} from "./infrastructureMetrics";
+import { metadataNumber, useMetadataHistory } from "./MetadataHistogram";
+import { MetadataItem } from "./MetadataItem";
 import {
-	type GraphEvery,
-	publishIntervals,
-	useGraphEvery,
-} from "./metricGraphSettings";
+	groupMetadata,
+	inMetricOrder,
+	isHostMetric,
+	metricName,
+	metricRank,
+} from "./metadataGroups";
+import { publishIntervals, useGraphEvery } from "./metricGraphSettings";
+
+export { isHostMetric, metricName, metricRank } from "./metadataGroups";
 
 /** A metric the graphs can draw: its value holds a number. */
 const shareOrNumber = (m: WorkspaceAgentMetadata) =>
 	metadataNumber(m.result.value) !== null;
 
-type ItemStatus = "stale" | "valid" | "loading";
-
 type AgentMetadataViewProps = {
+	now?: number;
 	metadata: WorkspaceAgentMetadata[];
+	workspaceName?: string;
+	infrastructure?: WorkspaceInfrastructureMetrics;
+	infrastructureLoading?: boolean;
+	infrastructureError?: unknown;
+	scope?: InfrastructureScope;
+	onScopeChange?: (scope: InfrastructureScope) => void;
 	/** Whose readings the graphs keep (the agent's ID); one page can show several agents. */
 	historyScope?: string;
 	/** Stopped at (ms): the graphs stay as they were then, not advancing. */
@@ -51,17 +59,39 @@ type AgentMetadataViewProps = {
 
 export const AgentMetadataView: React.FC<AgentMetadataViewProps> = ({
 	metadata,
+	now,
+	workspaceName,
+	infrastructure,
+	infrastructureLoading = false,
+	infrastructureError,
+	scope = "node",
+	onScopeChange,
 	historyScope = "",
 	pausedAt,
 }) => {
 	const every = useGraphEvery();
-	const historyOf = useMetadataHistory(historyScope, metadata, every !== "off");
+	const scoped = Boolean(workspaceName || infrastructure);
+	const restricted = infrastructure?.infrastructureRestricted === true;
+	const host = scoped
+		? infrastructure?.[scope] && !restricted
+			? infrastructureMetadata(
+					infrastructure[scope],
+					scope,
+					infrastructure.nodeName,
+					now,
+				)
+			: []
+		: metadata.filter(isHostMetric);
+	const shown = scoped
+		? [...metadata.filter((m) => !isHostMetric(m)), ...host]
+		: metadata;
+	const historyOf = useMetadataHistory(historyScope, shown, every !== "off");
 	// for the agent's Metrics Interval menu (beside Open ports): how often each metric is reported
 	const intervals = JSON.stringify(
-		metadata
+		shown
 			.filter((m) => m.description.interval > 0 && shareOrNumber(m))
 			.map((m) => ({
-				name: `${isHostMetric(m) ? "Cluster" : "Workspace"} ${metricName(m)}`,
+				name: `${isHostMetric(m) ? (scope === "node" ? "Node" : "Cluster") : "Workspace"} ${metricName(m)}`,
 				s: m.description.interval,
 			})),
 	);
@@ -84,24 +114,78 @@ export const AgentMetadataView: React.FC<AgentMetadataViewProps> = ({
 		const id = window.setInterval(() => tick((n) => n + 1), every * 1000);
 		return () => window.clearInterval(id);
 	}, [every, pausedAt]);
-	if (metadata.length === 0) {
+	if (metadata.length === 0 && !scoped) {
 		return null;
 	}
-	const groups = groupMetadata(metadata);
+	const groups = scoped
+		? [
+				{
+					id: "workspace",
+					title: "Workspace",
+					hint: "This workspace: its own resource metrics",
+					items: inMetricOrder(metadata.filter((m) => !isHostMetric(m))),
+				},
+				{
+					id: "cluster",
+					title: scope === "node" ? "Node" : "Cluster",
+					hint:
+						scope === "node"
+							? "The actual node running this workspace"
+							: "Aggregate metrics across the cluster",
+					items: inMetricOrder(host),
+				},
+			].filter((group) => !restricted || group.id === "workspace")
+		: groupMetadata(metadata);
+	const maximum = (m: WorkspaceAgentMetadata) => {
+		if (!scoped) return undefined;
+		if (!isHostMetric(m))
+			return workspaceMaximum(m, infrastructure?.allocation);
+		const rank = metricRank(m);
+		const value =
+			infrastructure?.[scope]?.[
+				rank === 0
+					? "cpu"
+					: rank === 1
+						? "memory"
+						: rank === 2
+							? "disk"
+							: "load"
+			];
+		return value
+			? infrastructureMaximum(
+					value.total,
+					value.unit,
+					"Capacity",
+					rank === 0
+						? "cpu"
+						: rank === 1
+							? "memory"
+							: rank === 2
+								? "disk"
+								: "load",
+				)
+			: null;
+	};
 	const item = (m: WorkspaceAgentMetadata) => (
 		<MetadataItem
 			key={m.description.key}
 			item={m}
+			maximum={maximum(m)}
+			maximumUnavailableLabel={
+				isHostMetric(m)
+					? "Capacity unavailable"
+					: "Assigned maximum unavailable"
+			}
 			history={historyOf(m.description.key)}
 			every={every}
 			pausedAt={pausedAt}
 		/>
 	);
-	// Platform: the workspace's own metrics and the cluster's (the node it runs on), each in its own squircle
+	// Workspace metrics stay separate from trusted node or cluster observations.
 	if (groups.length === 1 && groups[0].id === "other") {
 		return (
 			<section
-				className="flex items-baseline flex-wrap gap-8 gap-y-4"
+				className="grid w-full min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,6.5rem),1fr))] gap-4"
 				data-metrics
 			>
 				{metadata.map(item)}
@@ -110,7 +194,7 @@ export const AgentMetadataView: React.FC<AgentMetadataViewProps> = ({
 	}
 	return (
 		<section
-			className="flex min-w-0 flex-nowrap items-stretch gap-3 overflow-x-auto pb-1"
+			className="grid w-full min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,27rem),1fr))] items-stretch gap-3 pb-1"
 			data-metrics
 		>
 			{groups.map((g) => (
@@ -119,14 +203,100 @@ export const AgentMetadataView: React.FC<AgentMetadataViewProps> = ({
 					role="group"
 					aria-label={g.title}
 					title={g.hint}
-					className="flex min-w-fit flex-1 flex-col gap-2 rounded-2xl border border-solid border-border bg-surface-secondary/40 px-3.5 pt-3 pb-4"
+					className="flex w-full min-w-0 flex-col gap-2 rounded-2xl border border-solid border-border bg-surface-secondary/40 px-3.5 pt-3 pb-4"
 					data-testid={`metrics-group-${g.id}`}
 				>
-					<div className="text-center text-xs font-semibold uppercase tracking-wide text-content-secondary">
-						{g.title}
+					<div className="flex min-w-0 items-start justify-start text-xs font-semibold tracking-wide text-content-secondary">
+						{g.id === "workspace" && workspaceName && (
+							<span
+								className="min-w-0 max-w-[min(100%,12rem)] truncate rounded-full bg-surface-tertiary px-2 py-0.5 text-[9px] font-medium normal-case"
+								title={workspaceName}
+							>
+								{workspaceName}
+							</span>
+						)}
+						{g.id === "cluster" && scoped && scope === "node" && (
+							<span
+								className="min-w-0 max-w-[min(100%,12rem)] truncate rounded-full bg-surface-tertiary px-2 py-0.5 text-[9px] font-medium normal-case"
+								title={
+									infrastructure?.nodeName ??
+									"No single workspace node is available"
+								}
+							>
+								{infrastructure?.nodeName ??
+									(infrastructureLoading
+										? "Locating node…"
+										: "Node unavailable")}
+							</span>
+						)}
 					</div>
+					<div className="flex min-h-9 min-w-0 flex-col items-center justify-center gap-1 text-center text-xs font-semibold uppercase tracking-wide text-content-secondary">
+						{g.id === "cluster" && scoped ? (
+							<div className="flex min-w-0 flex-wrap items-center justify-center gap-2 normal-case">
+								<span
+									className={
+										scope === "node" ? "text-content-primary" : undefined
+									}
+								>
+									Node
+								</span>
+								<Switch
+									size="sm"
+									aria-label="Show cluster metrics"
+									checked={scope === "cluster"}
+									disabled={!onScopeChange}
+									onCheckedChange={(checked) =>
+										onScopeChange?.(checked ? "cluster" : "node")
+									}
+								/>
+								<span
+									className={
+										scope === "cluster" ? "text-content-primary" : undefined
+									}
+								>
+									Cluster
+								</span>
+							</div>
+						) : (
+							g.title
+						)}
+					</div>
+					{g.id === "cluster" && infrastructureError ? (
+						<p
+							role="alert"
+							className="m-0 max-w-full break-words text-center text-xs text-content-destructive"
+						>
+							{getErrorMessage(
+								infrastructureError,
+								"Infrastructure metrics could not be refreshed.",
+							)}
+						</p>
+					) : null}
+					{g.id === "workspace" && restricted && (
+						<p className="m-0 text-center text-xs text-content-secondary">
+							Node and cluster metrics are available only to deployment owners.
+						</p>
+					)}
+					{g.id === "workspace" && g.items.length === 0 && (
+						<p
+							role="status"
+							className="m-0 text-center text-xs text-content-secondary"
+						>
+							No workspace metrics reported.
+						</p>
+					)}
+					{g.id === "cluster" && g.items.length === 0 && (
+						<p
+							role="status"
+							className="m-0 text-center text-xs text-content-secondary"
+						>
+							{infrastructureLoading
+								? "Loading infrastructure metrics…"
+								: "Infrastructure metrics unavailable."}
+						</p>
+					)}
 					{/* Platform: the group fills its share of the row; its metrics spread across it, each a little wider */}
-					<div className="flex items-baseline flex-nowrap justify-evenly gap-4">
+					<div className="grid w-full min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,6.5rem),1fr))] items-start gap-3">
 						{g.items.map(item)}
 					</div>
 				</div>
@@ -135,74 +305,8 @@ export const AgentMetadataView: React.FC<AgentMetadataViewProps> = ({
 	);
 };
 
-/**
- * "CPU Usage (Host)" → "CPU Usage": the Cluster group says it (templates from before the grouping); a load average
- * ("Load Avg", "Load Average") is "Ø Load", as the template names it now.
- */
-export const metricName = (m: WorkspaceAgentMetadata) => {
-	const name = m.description.display_name.replace(
-		/\s*\((host|cluster)\)\s*$/i,
-		"",
-	);
-	return /^load(\s+av(g|erage)\.?)?$/i.test(name) ? "Ø Load" : name;
-};
-
-/** The order of the metrics in both groups: CPU, RAM, Disk, Ø Load, then anything else as the template has it. */
-const METRIC_ORDER = [/cpu/i, /ram|mem/i, /disk/i, /load/i] as const;
-export const metricRank = (m: WorkspaceAgentMetadata) => {
-	const text = `${m.description.key} ${m.description.display_name}`;
-	const i = METRIC_ORDER.findIndex((re) => re.test(text));
-	return i === -1 ? METRIC_ORDER.length : i;
-};
-const inMetricOrder = (items: readonly WorkspaceAgentMetadata[]) =>
-	[...items].sort((a, b) => metricRank(a) - metricRank(b)); // stable: the rest keep the template's order
-
-export const isHostMetric = (m: WorkspaceAgentMetadata) =>
-	/_host$/i.test(m.description.key) ||
-	/\((host|cluster)\)\s*$/i.test(m.description.display_name);
-
-type MetricGroup = {
-	id: "workspace" | "cluster" | "other";
-	title: string;
-	hint: string;
-	items: WorkspaceAgentMetadata[];
-};
-
-/**
- * The agent's metrics in two groups: Cluster (the host's: keys ending in
- * "_host", or names ending "(Host)") and Workspace (the rest), each in the
- * same order: CPU, RAM, Disk, Ø Load. A template with no host metrics keeps
- * the plain row.
- */
-const groupMetadata = (
-	metadata: readonly WorkspaceAgentMetadata[],
-): MetricGroup[] => {
-	const cluster = metadata.filter(isHostMetric);
-	const workspace = metadata.filter((m) => !isHostMetric(m));
-	if (cluster.length === 0) {
-		return [{ id: "other", title: "", hint: "", items: [...metadata] }];
-	}
-	return [
-		...(workspace.length
-			? [
-					{
-						id: "workspace" as const,
-						title: "Workspace",
-						hint: "This workspace: its own CPU, memory, disk and load",
-						items: inMetricOrder(workspace),
-					},
-				]
-			: []),
-		{
-			id: "cluster" as const,
-			title: "Cluster",
-			hint: "The cluster node this workspace runs on",
-			items: inMetricOrder(cluster),
-		},
-	];
-};
-
 type AgentMetadataProps = {
+	workspace?: Pick<Workspace, "id" | "name" | "organization_id">;
 	agent: WorkspaceAgent;
 	initialMetadata?: WorkspaceAgentMetadata[];
 	/** Platform: stopped at (ms) - no contact with the workspace: the graphs stay as they were then. */
@@ -214,10 +318,19 @@ const maxRetryDelayMs = 30_000;
 
 export const AgentMetadata: React.FC<AgentMetadataProps> = ({
 	agent,
+	workspace,
 	initialMetadata,
 	pausedAt,
 }) => {
 	const [activeMetadata, setActiveMetadata] = useState(initialMetadata);
+	const [scope, setScope] = useState<InfrastructureScope>("node");
+	const infrastructure = useQuery({
+		...workspaceInfrastructureMetrics(
+			workspace?.organization_id ?? "",
+			workspace?.id ?? "",
+		),
+		enabled: Boolean(workspace) && pausedAt === undefined,
+	});
 	useEffect(() => {
 		// This is an unfortunate pitfall with this component's testing setup,
 		// but even though we use the value of initialMetadata as the initial
@@ -290,7 +403,7 @@ export const AgentMetadata: React.FC<AgentMetadataProps> = ({
 
 	if (shown === undefined) {
 		return (
-			<section className="flex items-baseline flex-wrap gap-8 gap-y-4">
+			<section className="grid w-full min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,6.5rem),1fr))] gap-4">
 				<AgentMetadataSkeleton />
 			</section>
 		);
@@ -299,6 +412,12 @@ export const AgentMetadata: React.FC<AgentMetadataProps> = ({
 	return (
 		<AgentMetadataView
 			metadata={shown}
+			workspaceName={workspace?.name}
+			infrastructure={infrastructure.data}
+			infrastructureLoading={infrastructure.isLoading}
+			infrastructureError={infrastructure.error}
+			scope={scope}
+			onScopeChange={setScope}
 			historyScope={agent.id}
 			pausedAt={pausedAt}
 		/>
@@ -307,189 +426,21 @@ export const AgentMetadata: React.FC<AgentMetadataProps> = ({
 
 const AgentMetadataSkeleton: React.FC = () => {
 	return (
-		<div className="flex flex-row items-baseline gap-12">
-			<div className="leading-relaxed flex flex-col overflow-visible shrink-0">
-				<Skeleton width={40} height={6} variant="text" />
-				<Skeleton width={65} height={8} variant="text" />
+		<div className="grid w-full min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,4rem),1fr))] gap-4">
+			<div className="leading-relaxed flex min-w-0 flex-col">
+				<Skeleton width={40} height={6} variant="text" className="max-w-full" />
+				<Skeleton width={65} height={8} variant="text" className="max-w-full" />
 			</div>
 
-			<div className="leading-relaxed flex flex-col overflow-visible shrink-0">
-				<Skeleton width={40} height={6} variant="text" />
-				<Skeleton width={65} height={8} variant="text" />
+			<div className="leading-relaxed flex min-w-0 flex-col">
+				<Skeleton width={40} height={6} variant="text" className="max-w-full" />
+				<Skeleton width={65} height={8} variant="text" className="max-w-full" />
 			</div>
 
-			<div className="leading-relaxed flex flex-col overflow-visible shrink-0">
-				<Skeleton width={40} height={6} variant="text" />
-				<Skeleton width={65} height={8} variant="text" />
+			<div className="leading-relaxed flex min-w-0 flex-col">
+				<Skeleton width={40} height={6} variant="text" className="max-w-full" />
+				<Skeleton width={65} height={8} variant="text" className="max-w-full" />
 			</div>
-		</div>
-	);
-};
-
-type MetadataItemProps = {
-	item: WorkspaceAgentMetadata;
-	/** Its readings so far, for the live graph above the value. */
-	history: React.ComponentProps<typeof MetadataHistogram>["samples"];
-	/** Seconds per bar (0: one per reading); "off": no graph. */
-	every: GraphEvery;
-	/** Stopped at (ms): its graph stays as it was then. */
-	pausedAt?: number;
-};
-
-const MetadataItem: React.FC<MetadataItemProps> = ({
-	item,
-	history,
-	every,
-	pausedAt,
-}) => {
-	const staleThreshold = Math.max(
-		item.description.interval + item.description.timeout * 2,
-		// In case there is intense backpressure, we give a little bit of slack.
-		5,
-	);
-
-	const status: ItemStatus = (() => {
-		const year = dayjs(item.result.collected_at).year();
-		if (year <= 1970 || Number.isNaN(year)) {
-			return "loading";
-		}
-		// There is a special circumstance for metadata with `interval: 0`. It is
-		// expected that they run once and never again, so never display them as
-		// stale.
-		if (item.result.age > staleThreshold && item.description.interval > 0) {
-			return "stale";
-		}
-		return "valid";
-	})();
-
-	// Platform: the percentage goes in a chip by the name, the rest stays below the graph
-	const reading = splitPercent(oneDecimal(item.result.value));
-	const percent =
-		status === "loading" || item.result.error.length > 0
-			? null
-			: reading.percent;
-
-	// Stale data is as good as no data. Plus, we want to build confidence in our
-	// users that what's shown is real. If times aren't correctly synced this
-	// could be buggy. But, how common is that anyways?
-	const value =
-		status === "loading" ? (
-			<Skeleton
-				width={65}
-				height={12}
-				variant="text"
-				className="mx-auto mt-[6px]"
-			/>
-		) : status === "stale" ? (
-			<Tooltip>
-				<TooltipTrigger asChild>
-					<StaticWidth className="mx-auto text-center text-ellipsis overflow-hidden whitespace-nowrap max-w-full text-[13px] text-content-disabled cursor-pointer">
-						{reading.text}
-					</StaticWidth>
-				</TooltipTrigger>
-				<TooltipContent side="bottom">
-					This data is stale and no longer up to date
-				</TooltipContent>
-			</Tooltip>
-		) : (
-			// Platform: never wider than its column (StaticWidth only grows): a long reading - a script's error - is cut
-			// short, whole on hover, instead of widening its group and pushing the next one aside for good; centred
-			// under the graph
-			<StaticWidth
-				className={cn(
-					"mx-auto text-center text-ellipsis overflow-hidden whitespace-nowrap max-w-full text-[13px] text-content-success",
-					item.result.error.length > 0 && "text-content-destructive",
-				)}
-				title={reading.text}
-			>
-				{reading.text}
-			</StaticWidth>
-		);
-
-	return (
-		<div className="leading-relaxed flex min-w-[104px] max-w-[136px] flex-1 flex-col overflow-visible">
-			<div className="flex items-center justify-between gap-3">
-				<div className="text-content-secondary text-ellipsis overflow-hidden whitespace-nowrap text-[13px]">
-					{metricName(item)}
-				</div>
-				{percent !== null && (
-					<PercentChip percent={percent} stale={status === "stale"} />
-				)}
-			</div>
-			{/* Platform: the readings so far, as a live bar graph above the value */}
-			{every !== "off" && history.length > 0 && (
-				<MetadataHistogram
-					samples={history}
-					share={shareOf(item)}
-					every={every}
-					hold={
-						every > 0 && every < item.description.interval
-							? item.description.interval * 1.5 + item.description.timeout
-							: 0
-					}
-					stale={status === "stale"}
-					label={metricName(item)}
-					pausedAt={pausedAt}
-				/>
-			)}
-			{/* Platform: the reading centred under its graph */}
-			<div data-testid="metadata-value" className="text-center">
-				{value}
-			</div>
-		</div>
-	);
-};
-
-/** The reading's percentage, tinted like its graph (levelColor). */
-const PercentChip: React.FC<{ percent: number; stale: boolean }> = ({
-	percent,
-	stale,
-}) => {
-	const color = levelColor(percent);
-	return (
-		<span
-			className={cn(
-				"shrink-0 rounded-md border border-solid px-1.5 text-[11px] font-semibold leading-[18px] tabular-nums",
-				stale && "border-border text-content-disabled",
-			)}
-			style={
-				stale
-					? undefined
-					: {
-							color,
-							borderColor: `${color}66`,
-							backgroundColor: `${color}1a`,
-						}
-			}
-			data-testid="metadata-percent"
-		>
-			{Math.round(percent)}%
-		</span>
-	);
-};
-
-const StaticWidth: React.FC<Omit<React.ComponentProps<"div">, "ref">> = ({
-	children,
-	...attrs
-}) => {
-	const ref = useRef<HTMLDivElement>(null);
-
-	useLayoutEffect(() => {
-		// Ignore this in storybook
-		if (!ref.current || process.env.STORYBOOK === "true") {
-			return;
-		}
-
-		const currentWidth = ref.current.getBoundingClientRect().width;
-		ref.current.style.width = "auto";
-		const autoWidth = ref.current.getBoundingClientRect().width;
-		ref.current.style.width =
-			autoWidth > currentWidth ? `${autoWidth}px` : `${currentWidth}px`;
-	}, [children]);
-
-	return (
-		<div ref={ref} {...attrs}>
-			{children}
 		</div>
 	);
 };

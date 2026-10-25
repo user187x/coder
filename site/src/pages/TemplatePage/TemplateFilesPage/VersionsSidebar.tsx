@@ -200,10 +200,10 @@ export const VersionsSidebar: React.FC<VersionsSidebarProps> = ({
 	return (
 		<section
 			aria-label="Versions"
-			className="flex min-h-0 flex-col rounded-lg border border-solid border-surface-quaternary"
+			className="flex min-h-60 max-h-[min(56vh,32rem)] flex-col overflow-hidden rounded-lg border border-solid border-surface-quaternary"
 			data-testid="versions-sidebar"
 		>
-			<header className="flex items-center gap-1.5 border-0 border-b border-solid border-surface-quaternary px-2.5 py-1.5">
+			<header className="flex shrink-0 items-center gap-1.5 border-0 border-b border-solid border-surface-quaternary px-2.5 py-1.5">
 				<span className="text-xs font-semibold uppercase tracking-wide text-content-secondary">
 					Versions
 				</span>
@@ -228,7 +228,7 @@ export const VersionsSidebar: React.FC<VersionsSidebarProps> = ({
 				)}
 			</header>
 			{squashing && (
-				<div className="flex flex-col gap-1.5 border-0 border-b border-solid border-surface-quaternary bg-surface-secondary px-2.5 py-2 text-xs">
+				<div className="flex shrink-0 flex-col gap-1.5 border-0 border-b border-solid border-surface-quaternary bg-surface-secondary px-2.5 py-2 text-xs">
 					<span className="text-content-secondary">
 						{!range.from
 							? "Pick the first version of the range…"
@@ -253,7 +253,7 @@ export const VersionsSidebar: React.FC<VersionsSidebarProps> = ({
 					</Button>
 				</div>
 			)}
-			<ol className="m-0 min-h-52 max-h-[min(52vh,30rem)] list-none overflow-y-auto p-0 py-0.5">
+			<ol className="m-0 min-h-0 flex-1 list-none overflow-y-auto p-0 py-0.5">
 				{!data && (
 					<li className="flex justify-center p-3">
 						<Spinner loading size="sm" />

@@ -1,4 +1,6 @@
 import { cn } from "cn";
+import "#/modules/platform/workspaceUpdate/updatePulse.css";
+import "../WorkspaceStatus/workspaceStatusPill.css";
 import {
 	ArchiveIcon,
 	ArchiveRestoreIcon,
@@ -58,6 +60,7 @@ type WorkspaceMoreActionsProps = {
 	isStopping?: boolean;
 	onRestart?: () => void;
 	isRestarting?: boolean;
+	agentUpdateAvailable?: boolean;
 	onActionSuccess?: () => Promise<void> | void;
 	/**
 	 * Platform: "arrow" on the workspace page - the arrow beside Start or
@@ -86,6 +89,7 @@ export const WorkspaceMoreActions: React.FC<WorkspaceMoreActionsProps> = ({
 	isStopping,
 	onRestart,
 	isRestarting,
+	agentUpdateAvailable = false,
 	onActionSuccess,
 	variant = "ellipsis",
 	jobsBlocked = false,
@@ -226,8 +230,20 @@ export const WorkspaceMoreActions: React.FC<WorkspaceMoreActionsProps> = ({
 
 					{onRestart && (
 						<DropdownMenuItem onClick={onRestart} disabled={isRestarting}>
-							<RotateCcwIcon />
-							Restart&hellip;
+							{agentUpdateAvailable || workspace.outdated || isRestarting ? (
+								<span className="workspace-status-pill inline-flex items-center text-content-warning">
+									<RotateCcwIcon
+										aria-hidden
+										className="size-3.5 workspace-update-pulse"
+									/>
+									Restart&hellip;
+								</span>
+							) : (
+								<>
+									<RotateCcwIcon />
+									Restart&hellip;
+								</>
+							)}
 						</DropdownMenuItem>
 					)}
 

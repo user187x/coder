@@ -368,3 +368,63 @@ export const changePasswordWithOTP = () => {
 		mutationFn: API.changePasswordWithOTP,
 	};
 };
+
+export type AccountEditRequest = {
+	profile?: UpdateUserProfileRequest;
+	roles?: string[];
+};
+export type AccountEditStep =
+	| { state: "skipped" }
+	| { state: "saved"; user: User }
+	| { state: "failed"; error: unknown };
+export type AccountEditResult = {
+	profile: AccountEditStep;
+	roles: AccountEditStep;
+};
+
+/** Profile and role endpoints report independent outcomes and refresh every affected account cache. */
+export const updateAccount = (target: User, queryClient: QueryClient) => ({
+	mutationFn: async (
+		request: AccountEditRequest,
+	): Promise<AccountEditResult> => {
+		const result: AccountEditResult = {
+			profile: { state: "skipped" },
+			roles: { state: "skipped" },
+		};
+		if (request.profile) {
+			try {
+				result.profile = {
+					state: "saved",
+					user: await API.updateProfile(target.id, request.profile),
+				};
+			} catch (error) {
+				result.profile = { state: "failed", error };
+			}
+		}
+		if (request.roles) {
+			try {
+				result.roles = {
+					state: "saved",
+					user: await API.updateUserRoles(request.roles, target.id),
+				};
+			} catch (error) {
+				result.roles = { state: "failed", error };
+			}
+		}
+		return result;
+	},
+	onSuccess: (result: AccountEditResult) => {
+		for (const step of [result.profile, result.roles]) {
+			if (step.state !== "saved") continue;
+			queryClient.setQueryData(userKey(step.user.id), step.user);
+			queryClient.setQueryData(userKey(step.user.username), step.user);
+		}
+	},
+	onSettled: async () => {
+		await Promise.all([
+			queryClient.invalidateQueries({ queryKey: usersQueryKey }),
+			queryClient.invalidateQueries({ queryKey: userKey(target.id) }),
+			queryClient.invalidateQueries({ queryKey: userKey(target.username) }),
+		]);
+	},
+});

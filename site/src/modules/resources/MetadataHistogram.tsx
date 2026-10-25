@@ -261,7 +261,7 @@ export const MetadataHistogram: React.FC<MetadataHistogramProps> = ({
 	return (
 		<div
 			className={cn(
-				"my-1 flex flex-col gap-1",
+				"my-1 flex w-full min-w-0 max-w-full flex-col gap-1",
 				stale && "opacity-40 grayscale",
 			)}
 		>
@@ -288,7 +288,7 @@ export const MetadataHistogram: React.FC<MetadataHistogramProps> = ({
 				preserveAspectRatio="none"
 				role="img"
 				aria-label={`${label}: ${shown} ${every ? `periods of ${every} s` : "readings"}`}
-				className="block overflow-visible"
+				className="block w-full min-w-0 max-w-full overflow-hidden"
 				data-testid="metadata-histogram"
 			>
 				<line

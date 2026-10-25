@@ -1,7 +1,11 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { QueryClient, QueryClientProvider } from "react-query";
+import * as Preview from "#/modules/platform/announcement/BannerPreview";
+import { bannerAlpha } from "#/modules/platform/announcement/bannerAlpha";
 import { MockBanner } from "#/testHelpers/platform";
+import { editableFields, sameFields } from "./AnnouncementSettingsPage";
 import { BannerEditor } from "./BannerEditor";
 
 it.each([true, false])(
@@ -30,5 +34,82 @@ it.each([true, false])(
 			}),
 		);
 		expect(onChange).toHaveBeenCalledWith({ loopText: !loopText });
+	},
+);
+
+afterEach(() => vi.restoreAllMocks());
+
+it.each(["keyboard", "pointer"])(
+	"publishes a transparency-only change via %s",
+	async (interaction) => {
+		const published = editableFields({
+			...MockBanner,
+			opacity: 100,
+			picture: "/pictures/creeper.gif",
+			pictureFit: "span",
+		});
+		const preview = vi.spyOn(Preview, "BannerPreview").mockReturnValue(null);
+		const onPublish = vi.fn();
+		const Editor = () => {
+			const [form, setForm] = useState(published);
+			return (
+				<>
+					<Preview.BannerPreview banner={form} />
+					<BannerEditor
+						form={form}
+						dirty={!sameFields(form, published)}
+						isPublishing={false}
+						problem={null}
+						onChange={(patch) =>
+							setForm((current) => ({ ...current, ...patch }))
+						}
+						onProblem={vi.fn()}
+						onPublish={() => onPublish(form)}
+						onDiscard={vi.fn()}
+						onTryOpen={vi.fn()}
+						onTryClose={vi.fn()}
+					/>
+				</>
+			);
+		};
+		render(
+			<QueryClientProvider client={new QueryClient()}>
+				<Editor />
+			</QueryClientProvider>,
+		);
+		const user = userEvent.setup();
+		if (interaction === "keyboard") {
+			screen.getByRole("slider").focus();
+			await user.keyboard("{ArrowRight}");
+		} else {
+			const track = screen.getByLabelText("Transparency");
+			vi.spyOn(track, "getBoundingClientRect").mockReturnValue(
+				new DOMRect(0, 0, 100, 8),
+			);
+			vi.spyOn(HTMLElement.prototype, "hasPointerCapture").mockReturnValue(
+				true,
+			);
+			await user.pointer([
+				{
+					keys: "[MouseLeft>]",
+					target: track,
+					coords: { clientX: 25, clientY: 4 },
+				},
+				{ target: track, coords: { clientX: 75, clientY: 4 } },
+				{
+					keys: "[/MouseLeft]",
+					target: track,
+					coords: { clientX: 75, clientY: 4 },
+				},
+			]);
+		}
+		await user.click(screen.getByRole("button", { name: "Publish changes" }));
+		const opacity = interaction === "keyboard" ? 99 : 40;
+		expect(onPublish).toHaveBeenCalledWith({ ...published, opacity });
+		expect(preview.mock.lastCall?.[0].banner).toEqual({
+			...published,
+			opacity,
+		});
+		expect(bannerAlpha(opacity)).toBe(interaction === "keyboard" ? 0.99 : 0.4);
 	},
 );

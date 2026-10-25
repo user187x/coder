@@ -106,3 +106,24 @@ export const WithoutCodeServerHA: Story = {
 		],
 	},
 };
+
+export const UnevenNodeContents: Story = {
+	parameters: {
+		queries: [
+			{
+				key: networkReportKey,
+				data: {
+					...MockClusterNetworkReport,
+					coder: MockClusterNetworkReport.coder.filter(
+						(pod) => pod.node === MockClusterNetworkReport.nodes[0]?.name,
+					),
+					workspaces: MockClusterNetworkReport.workspaces.filter(
+						(workspace) =>
+							workspace.pod.node === MockClusterNetworkReport.nodes[0]?.name,
+					),
+				},
+			},
+			...cards,
+		],
+	},
+};

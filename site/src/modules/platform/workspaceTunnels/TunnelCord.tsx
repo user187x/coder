@@ -13,28 +13,42 @@ export const tunnelHandles = (
 	to: Point,
 	fromSide: "left" | "right",
 	toSide: "left" | "right",
+	arc?: number,
 ): [Point, Point] => {
-	const reach = Math.min(100, Math.max(30, Math.abs(to.x - from.x) / 2));
+	const reach = arc ?? Math.min(100, Math.max(30, Math.abs(to.x - from.x) / 2));
 	return [
 		{ x: from.x + (fromSide === "left" ? -reach : reach), y: from.y + 4 },
 		{ x: to.x + (toSide === "left" ? -reach : reach), y: to.y },
 	];
 };
 
-/** Uses the overview's spring motion and cable material with side-facing sockets. */
+/** Keeps the overview spring motion while drawing a narrow ribbed tunnel conduit. */
 export const TunnelCord: React.FC<{
 	from: Point;
 	to: Point;
 	fromSide: "left" | "right";
 	toSide: "left" | "right";
 	pending?: boolean;
-}> = ({ from, to, fromSide, toSide, pending }) => {
+	arc?: number;
+}> = ({ from, to, fromSide, toSide, pending, arc }) => {
 	const cable = useRef(makeCable(from, to));
 	const line = useRef<SVGPathElement>(null);
 	const shine = useRef<SVGPathElement>(null);
+	const ridges = useRef<SVGPathElement>(null);
 	const animations = useAnimationsEnabled();
-	const rest = tunnelHandles(from, to, fromSide, toSide);
+	const rest = tunnelHandles(from, to, fromSide, toSide, arc);
 	const d = cablePath(from, restingCable(rest), to);
+	const midpoint = {
+		x: (from.x + 3 * rest[0].x + 3 * rest[1].x + to.x) / 8,
+		y: (from.y + 3 * rest[0].y + 3 * rest[1].y + to.y) / 8,
+	};
+	const direction =
+		(Math.atan2(
+			to.y - from.y + rest[1].y - rest[0].y,
+			to.x - from.x + rest[1].x - rest[0].x,
+		) *
+			180) /
+		Math.PI;
 	useEffect(() => {
 		if (
 			!animations ||
@@ -50,6 +64,7 @@ export const TunnelCord: React.FC<{
 			const path = cablePath(from, cable.current, to);
 			line.current?.setAttribute("d", path);
 			shine.current?.setAttribute("d", path);
+			ridges.current?.setAttribute("d", path);
 			if (moving) frame = requestAnimationFrame(draw);
 		};
 		frame = requestAnimationFrame(draw);
@@ -60,10 +75,32 @@ export const TunnelCord: React.FC<{
 			<path
 				ref={line}
 				d={d}
-				className="cd-cable"
+				className="workspace-tunnel-conduit"
 				strokeDasharray={pending ? "5 4" : undefined}
 			/>
-			<path ref={shine} d={d} className="cd-cable-shine" />
+			<path ref={ridges} d={d} className="workspace-tunnel-ridges" />
+			<path ref={shine} d={d} className="workspace-tunnel-flow" />
+			<g
+				className="workspace-tunnel-chevron-static"
+				aria-hidden
+				transform={`translate(${midpoint.x} ${midpoint.y}) rotate(${direction})`}
+			>
+				<path d="M -4 -3 L 0 0 L -4 3" />
+			</g>
+			{[0, 1, 2].map((index) => (
+				<g key={index} className="workspace-tunnel-chevron" aria-hidden>
+					<path d="M -4 -3 L 0 0 L -4 3" />
+					{animations && (
+						<animateMotion
+							dur="3s"
+							begin={`${-index}s`}
+							repeatCount="indefinite"
+							rotate="auto"
+							path={d}
+						/>
+					)}
+				</g>
+			))}
 		</>
 	);
 };

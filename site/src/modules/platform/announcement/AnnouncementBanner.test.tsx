@@ -1,7 +1,8 @@
-import { screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 import type { Banner } from "#/api/platform";
+import { announcementStatusKey } from "#/api/queries/platform";
 import { render } from "#/testHelpers/renderHelpers";
 import { server } from "#/testHelpers/server";
 import { AnnouncementBanner } from "./AnnouncementBanner";
@@ -54,6 +55,22 @@ afterEach(() => {
 });
 
 describe("AnnouncementBanner", () => {
+	it("does not record or dismiss a sign-in announcement using cached authenticated receipts", async () => {
+		const banner = { ...MockBanner, id: "login-cache", showOnLoginPage: true };
+		const receipts = useBanner(banner);
+		const { queryClient } = render(<AnnouncementBanner placement="login" />);
+		await screen.findByText("Maintenance");
+		await act(async () => {
+			queryClient.setQueryData(announcementStatusKey(banner.id), {
+				signedIn: true,
+				username: "admin",
+				acked: true,
+			});
+		});
+		expect(receipts).toEqual([]);
+		expect(localStorage.getItem("coder-banner-dismissed")).toBeNull();
+	});
+
 	it("records that the signed-in user saw the announcement", async () => {
 		const receipts = useBanner(MockBanner);
 		render(<AnnouncementBanner placement="navbar" />);

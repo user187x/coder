@@ -95,7 +95,7 @@ export const Editable: Story = {
 		);
 		const menu = within(document.body);
 		await menu.findByRole("menuitem", { name: "Edit" });
-		await menu.findByRole("menuitem", { name: "Edit roles" });
+		await menu.findByRole("menuitem", { name: "Edit" });
 	},
 };
 

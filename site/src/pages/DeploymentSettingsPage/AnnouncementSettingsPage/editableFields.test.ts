@@ -1,5 +1,5 @@
 import type { Banner } from "#/api/platform";
-import { editableFields } from "./AnnouncementSettingsPage";
+import { editableFields, sameFields } from "./AnnouncementSettingsPage";
 
 const banner: Banner = {
 	id: "abc",
@@ -37,6 +37,7 @@ describe("editableFields", () => {
 			picture: "",
 			pictureFit: "span",
 			countdown: "",
+			opacity: 100,
 		});
 	});
 
@@ -92,4 +93,11 @@ describe("editableFields", () => {
 			align: "left",
 		});
 	});
+});
+
+it("marks a transparency-only draft dirty and clean again when reverted", () => {
+	const published = editableFields(banner);
+	expect(sameFields(published, { ...published, opacity: 55 })).toBe(false);
+	expect(sameFields(published, { ...published, opacity: 100 })).toBe(true);
+	expect(editableFields({ ...banner, opacity: 55 }).opacity).toBe(55);
 });

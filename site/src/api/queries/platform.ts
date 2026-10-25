@@ -53,7 +53,7 @@ export const keycloakReportKey = [...platformKey, "keycloak"] as const;
 export const persistenceReportKey = [...platformKey, "persistence"] as const;
 export const templateIconsKey = [...platformKey, "icons"] as const;
 const keycloakStatusKey = [...platformKey, "keycloak", "status"] as const;
-const quotaReportKey = [...platformKey, "quota"] as const;
+export const quotaReportKey = [...platformKey, "quota"] as const;
 export const quotaMeKey = [...platformKey, "quota", "me"] as const;
 const schedulerReportKey = [...platformKey, "scheduler"] as const;
 export const schedulerMeKey = [...platformKey, "scheduler", "me"] as const;
@@ -746,4 +746,12 @@ export const refreshCertificates = (queryClient: QueryClient) => ({
 	) => {
 		queryClient.setQueryData(certificatesKey, data);
 	},
+});
+
+export const notesByUserKey = [...platformKey, "notes", "by-user"] as const;
+export const notesByUser = () => ({
+	queryKey: notesByUserKey,
+	queryFn: PlatformAPI.getNotesByUser,
+	refetchInterval: 60_000,
+	retry: false,
 });

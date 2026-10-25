@@ -1,11 +1,15 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { API } from "#/api/api";
+import { PlatformAPI } from "#/api/platform";
 import type { UseFilterResult } from "#/components/Filter/Filter";
 import {
 	MockStoppedWorkspace,
 	MockTemplate,
+	MockTemplateVersion,
 	MockWorkspace,
+	MockWorkspaceAgent,
+	MockWorkspaceResource,
 } from "#/testHelpers/entities";
 import { renderWithAuth } from "#/testHelpers/renderHelpers";
 import { WorkspacesPageView } from "./WorkspacesPageView";
@@ -44,6 +48,11 @@ const defaultProps = {
 };
 
 describe("WorkspacesPageView", () => {
+	beforeEach(() =>
+		vi
+			.spyOn(PlatformAPI, "getWorkspaceTunnels")
+			.mockResolvedValue({ tunnels: [] }),
+	);
 	it("hides the New workspace button and explains the missing permission", async () => {
 		renderWithAuth(
 			<WorkspacesPageView {...defaultProps} canCreateWorkspace={false} />,
@@ -195,3 +204,60 @@ describe("WorkspacesPageView", () => {
 		).toBeTruthy();
 	});
 });
+
+it.each([false, true])(
+	"reviews update-required Running before any build action (template update: %s)",
+	async (outdated) => {
+		const restart = vi
+			.spyOn(API, "restartWorkspace")
+			.mockResolvedValue(undefined);
+		const update = vi
+			.spyOn(API, "updateWorkspace")
+			.mockResolvedValue(MockWorkspace.latest_build);
+		vi.spyOn(API, "getTemplateVersion").mockResolvedValue(MockTemplateVersion);
+		vi.spyOn(PlatformAPI, "getWorkspaceTunnels").mockResolvedValue({
+			tunnels: [],
+		});
+		const workspace = {
+			...MockWorkspace,
+			outdated,
+			latest_build: {
+				...MockWorkspace.latest_build,
+				resources: [
+					{
+						...MockWorkspaceResource,
+						agents: [{ ...MockWorkspaceAgent, version: "1.0.0" }],
+					},
+				],
+			},
+		};
+		renderWithAuth(
+			<WorkspacesPageView
+				{...defaultProps}
+				workspaces={[workspace]}
+				count={1}
+			/>,
+		);
+		const user = userEvent.setup();
+		const trigger = await screen.findByRole("button", {
+			name: `Running. Restart ${workspace.name}; update available`,
+		});
+		if (outdated) await user.click(trigger);
+		else {
+			trigger.focus();
+			await user.keyboard("{Enter}");
+		}
+		expect(restart).not.toHaveBeenCalled();
+		expect(update).not.toHaveBeenCalled();
+		const dialog = await screen.findByRole("dialog", {
+			name: outdated ? "Update and restart workspace" : "Restart workspace",
+		});
+		await user.click(
+			within(dialog).getByRole("button", {
+				name: outdated ? "Update and restart" : "Restart",
+			}),
+		);
+		await waitFor(() => expect(outdated ? update : restart).toHaveBeenCalled());
+		expect(outdated ? restart : update).not.toHaveBeenCalled();
+	},
+);

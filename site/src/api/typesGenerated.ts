@@ -7016,6 +7016,15 @@ export interface UpdateWorkspaceProxyResponse {
 	readonly proxy_token: string;
 }
 
+// From codersdk/workspace_quarantine.go
+/**
+ * UpdateWorkspaceQuarantineRequest changes policy without starting the workspace.
+ */
+export interface UpdateWorkspaceQuarantineRequest {
+	readonly enabled: boolean;
+	readonly reason: string;
+}
+
 // From codersdk/workspaces.go
 export interface UpdateWorkspaceRequest {
 	readonly name?: string;
@@ -8254,6 +8263,21 @@ export interface WorkspaceProxyStatus {
 	 */
 	readonly report?: ProxyHealthReport;
 	readonly checked_at: string;
+}
+
+// From codersdk/workspace_quarantine.go
+/**
+ * WorkspaceQuarantine is containment intent, not a claim of physical enforcement.
+ */
+export interface WorkspaceQuarantine {
+	readonly organization_id: string;
+	readonly workspace_id: string;
+	readonly enabled: boolean;
+	readonly revision: string;
+	readonly reason: string;
+	readonly updated_by: string;
+	readonly updated_at: string;
+	readonly manual_start_required: boolean;
 }
 
 // From codersdk/workspaces.go

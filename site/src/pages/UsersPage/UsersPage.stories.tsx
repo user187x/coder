@@ -95,7 +95,7 @@ export const SuspendUserSuccess: Story = {
 		});
 
 		await openUserMenu(canvas, user);
-		await user.click(await body.findByRole("menuitem", { name: "Suspend…" }));
+		await user.click(await body.findByRole("menuitem", { name: "Suspend" }));
 
 		const dialog = await body.findByRole("dialog");
 		await user.click(within(dialog).getByRole("button", { name: "Suspend" }));
@@ -111,7 +111,7 @@ export const SuspendUserError: Story = {
 		spyOn(API, "suspendUser").mockRejectedValue(undefined);
 
 		await openUserMenu(canvas, user);
-		await user.click(await body.findByRole("menuitem", { name: "Suspend…" }));
+		await user.click(await body.findByRole("menuitem", { name: "Suspend" }));
 
 		const dialog = await body.findByRole("dialog");
 		await user.click(within(dialog).getByRole("button", { name: "Suspend" }));
@@ -250,7 +250,7 @@ export const ResetUserPasswordSuccess: Story = {
 
 		await openUserMenu(canvas, user);
 		await user.click(
-			await body.findByRole("menuitem", { name: "Reset password…" }),
+			await body.findByRole("menuitem", { name: "Password Reset" }),
 		);
 
 		const dialog = await body.findByRole("dialog");
@@ -271,7 +271,7 @@ export const ResetUserPasswordError: Story = {
 
 		await openUserMenu(canvas, user);
 		await user.click(
-			await body.findByRole("menuitem", { name: "Reset password…" }),
+			await body.findByRole("menuitem", { name: "Password Reset" }),
 		);
 
 		const dialog = await body.findByRole("dialog");
@@ -325,13 +325,13 @@ export const UpdateUserRoleSuccess: Story = {
 		});
 
 		await openUserMenu(canvas, user);
-		await user.click(await body.findByRole("menuitem", { name: "Edit roles" }));
+		await user.click(await body.findByRole("menuitem", { name: "Edit" }));
 		const dialog = await body.findByRole("dialog");
 		await user.click(
 			within(dialog).getByLabelText("Auditor", { exact: false }),
 		);
-		await user.click(within(dialog).getByRole("button", { name: "Confirm" }));
-		await body.findByText(/roles updated successfully/);
+		await user.click(within(dialog).getByRole("button", { name: "Save" }));
+		await body.findByText(/Account updated successfully/);
 	},
 };
 
@@ -344,13 +344,13 @@ export const UpdateUserRoleError: Story = {
 		spyOn(API, "updateUserRoles").mockRejectedValue({});
 
 		await openUserMenu(canvas, user);
-		await user.click(await body.findByRole("menuitem", { name: "Edit roles" }));
+		await user.click(await body.findByRole("menuitem", { name: "Edit" }));
 		const dialog = await body.findByRole("dialog");
 		await user.click(
 			within(dialog).getByLabelText("Auditor", { exact: false }),
 		);
-		await user.click(within(dialog).getByRole("button", { name: "Confirm" }));
-		await body.findByText(/Error updating user roles/);
+		await user.click(within(dialog).getByRole("button", { name: "Save" }));
+		await body.findByText(/Roles were not saved/);
 	},
 };
 

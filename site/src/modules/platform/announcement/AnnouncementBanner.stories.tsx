@@ -99,3 +99,60 @@ export const ReadLongTextOnce: Story = {
 		],
 	},
 };
+
+export const SignInPageLongText: Story = {
+	...ContinuousLongText,
+	args: { placement: "login" },
+	decorators: [
+		(Story) => (
+			<div className="w-[360px]">
+				<Story />
+			</div>
+		),
+	],
+};
+
+export const SignInPageReadOnce: Story = {
+	...ReadLongTextOnce,
+	args: { placement: "login" },
+};
+
+export const TransparentRollingPicture: Story = {
+	parameters: {
+		queries: [
+			{
+				key: bannerKey,
+				data: {
+					...MockBanner,
+					opacity: 30,
+					picture: "/pictures/creeper.gif",
+					pictureFit: "span",
+				},
+			},
+			{
+				key: announcementStatusKey(MockBanner.id),
+				data: { signedIn: true, username: "admin", acked: false },
+			},
+		],
+	},
+};
+
+export const TransparentStaticPicture: Story = {
+	parameters: {
+		queries: [
+			{
+				key: bannerKey,
+				data: {
+					...MockBanner,
+					opacity: 30,
+					picture: "/pictures/creeper.gif",
+					pictureFit: "fill",
+				},
+			},
+			{
+				key: announcementStatusKey(MockBanner.id),
+				data: { signedIn: true, username: "admin", acked: false },
+			},
+		],
+	},
+};

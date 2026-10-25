@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, spyOn, userEvent, waitFor, within } from "storybook/test";
 import { API } from "#/api/api";
+import { workspaceInfrastructureMetrics } from "#/api/queries/workspaceMetrics";
 import { workspaceAgentContainersKey } from "#/api/queries/workspaces";
 import type { WorkspaceAgentLogSource } from "#/api/typesGenerated";
 import { getPreferredProxy } from "#/contexts/ProxyContext";
@@ -10,6 +11,7 @@ import {
 	withProxyProvider,
 	withWebSocket,
 } from "#/testHelpers/storybook";
+import { MockWorkspaceInfrastructureMetrics } from "#/testHelpers/workspaceMetrics";
 import { AgentRow } from "./AgentRow";
 
 const defaultAgentMetadata = [
@@ -135,6 +137,13 @@ const meta: Meta<typeof AgentRow> = {
 	decorators: [withProxyProvider(), withDashboardProvider, withWebSocket],
 	parameters: {
 		queries: [
+			{
+				key: workspaceInfrastructureMetrics(
+					M.MockWorkspace.organization_id,
+					M.MockWorkspace.id,
+				).queryKey,
+				data: MockWorkspaceInfrastructureMetrics,
+			},
 			{
 				key: ["portForward", M.MockWorkspaceAgent.id],
 				data: M.MockListeningPortsResponse,

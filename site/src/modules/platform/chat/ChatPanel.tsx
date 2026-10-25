@@ -11,7 +11,9 @@ import {
 import { useQuery } from "react-query";
 import type { ChatPeer } from "#/api/platform";
 import { chatAdmins } from "#/api/queries/platform";
+import { Avatar } from "#/components/Avatar/Avatar";
 import { Button } from "#/components/Button/Button";
+import { navbarTileTriggerClass } from "#/modules/dashboard/Navbar/NavbarLogo";
 import { ChatAvatar } from "./ChatAvatar";
 import { ChatPeople } from "./ChatPeople";
 import { CountBadge } from "./ChatWindow";
@@ -59,23 +61,7 @@ export const ChatPanel: React.FC = () => {
 
 	if (state.dockMode === "compact") {
 		return (
-			<Button
-				variant="outline"
-				size="icon"
-				className="relative size-11 rounded-2xl bg-surface-primary shadow-lg"
-				aria-label={
-					total ? `Restore chat bar, ${total} unread` : "Restore chat bar"
-				}
-				title="Restore chat bar"
-				onClick={() => setDockMode("bar")}
-			>
-				<MessageSquareIcon />
-				{total > 0 && (
-					<span className="absolute -right-1 -top-1">
-						<CountBadge count={total} />
-					</span>
-				)}
-			</Button>
+			<RestoreChatButton total={total} onRestore={() => setDockMode("bar")} />
 		);
 	}
 
@@ -416,5 +402,34 @@ export const ChatList: React.FC<ChatListProps> = ({
 				</>
 			)}
 		</nav>
+	);
+};
+
+export const RestoreChatButton: React.FC<{
+	total: number;
+	onRestore: () => void;
+}> = ({ total, onRestore }) => {
+	return (
+		<button
+			type="button"
+			className={cn(
+				navbarTileTriggerClass,
+				"rounded-[10px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-content-link",
+			)}
+			aria-label={
+				total ? `Restore chat bar, ${total} unread` : "Restore chat bar"
+			}
+			title="Restore chat bar"
+			onClick={onRestore}
+		>
+			<Avatar size="lg" className="items-center justify-center">
+				<MessageSquareIcon aria-hidden className="size-5" />
+			</Avatar>
+			{total > 0 && (
+				<span className="absolute -right-1 -top-1">
+					<CountBadge count={total} />
+				</span>
+			)}
+		</button>
 	);
 };

@@ -35,6 +35,10 @@ type EditUserFormProps = {
 	/** Hidden for login types whose avatar is synced from an identity provider. */
 	canEditAvatar: boolean;
 	headerActions?: React.ReactNode;
+	embedded?: boolean;
+	children?: React.ReactNode;
+	submitLabel?: string;
+	submitDisabled?: boolean;
 	onSubmit: (values: UpdateUserProfileRequest) => void;
 	onCancel: () => void;
 };
@@ -45,6 +49,10 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
 	initialValues,
 	canEditAvatar,
 	headerActions,
+	embedded = false,
+	children,
+	submitLabel = "Save",
+	submitDisabled = false,
 	onSubmit,
 	onCancel,
 }) => {
@@ -63,25 +71,33 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
 
 	return (
 		<div>
-			<div className="flex items-center justify-between">
-				<Button variant="subtle" asChild className="-ml-3">
-					<Link to="/deployment/users">
-						<ArrowLeftIcon />
-						<span>Back to users</span>
-					</Link>
-				</Button>
-				{headerActions}
-			</div>
+			{!embedded && (
+				<div className="flex items-center justify-between">
+					<Button variant="subtle" asChild className="-ml-3">
+						<Link to="/deployment/users">
+							<ArrowLeftIcon />
+							<span>Back to users</span>
+						</Link>
+					</Button>
+					{headerActions}
+				</div>
+			)}
 
-			<div className="pt-6">
-				<SettingsHeader>
-					<SettingsHeaderTitle>Edit {heading}</SettingsHeaderTitle>
-					<SettingsHeaderDescription>
-						Change how this user appears across Coder.
-					</SettingsHeaderDescription>
-				</SettingsHeader>
+			<div className={embedded ? undefined : "pt-6"}>
+				{!embedded && (
+					<SettingsHeader>
+						<SettingsHeaderTitle>Edit {heading}</SettingsHeaderTitle>
+						<SettingsHeaderDescription>
+							Change how this user appears across Coder.
+						</SettingsHeaderDescription>
+					</SettingsHeader>
+				)}
 
-				<div className="border border-solid p-6 rounded-lg">
+				<div
+					className={
+						embedded ? undefined : "border border-solid p-6 rounded-lg"
+					}
+				>
 					<form
 						onSubmit={form.handleSubmit}
 						autoComplete="off"
@@ -125,14 +141,15 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
 								/>
 							)}
 						</FormFields>
+						{children}
 
 						<FormFooter className="mt-0">
 							<Button onClick={onCancel} variant="outline">
 								Cancel
 							</Button>
-							<Button type="submit" disabled={isLoading}>
+							<Button type="submit" disabled={isLoading || submitDisabled}>
 								<Spinner loading={isLoading} />
-								Save
+								{submitLabel}
 							</Button>
 						</FormFooter>
 					</form>

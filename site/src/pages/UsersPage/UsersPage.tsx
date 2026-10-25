@@ -9,7 +9,7 @@ import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { usePaginatedQuery } from "#/hooks/usePaginatedQuery";
 import { useDashboard } from "#/modules/dashboard/useDashboard";
 import { pageTitle } from "#/utils/page";
-import { UserQuotaSection } from "./UserQuotaSection";
+import { UserQuotaProvider, UserQuotaSection } from "./UserQuotaSection";
 import { UsersPageView } from "./UsersPageView";
 
 const UsersPage: React.FC = () => {
@@ -57,24 +57,27 @@ const UsersPage: React.FC = () => {
 		<>
 			<title>{pageTitle("Accounts")}</title>
 
-			<UsersPageView
-				isLoading={isLoading}
-				filterProps={{
-					filter: useFilterResult,
-					error: usersQuery.error,
-					menus: { status: statusMenu },
-				}}
-				usersQuery={usersQuery}
-				groupsByUserId={groupsByUserIdQuery.data}
-				me={me.id}
-				canCreateUser={canCreateUser}
-				canEditUsers={canEditUsers}
-				canViewActivity={entitlements.features.audit_log.enabled}
-				oidcRoleSyncEnabled={oidcRoleSyncEnabled}
-				quota={
-					permissions.editDeploymentConfig ? <UserQuotaSection /> : undefined
-				}
-			/>
+			<UserQuotaProvider enabled={permissions.editDeploymentConfig}>
+				<UsersPageView
+					isLoading={isLoading}
+					filterProps={{
+						filter: useFilterResult,
+						error: usersQuery.error,
+						menus: { status: statusMenu },
+					}}
+					usersQuery={usersQuery}
+					groupsByUserId={groupsByUserIdQuery.data}
+					me={me.id}
+					canCreateUser={canCreateUser}
+					canEditUsers={canEditUsers}
+					canManageWorkspaces={permissions.editDeploymentConfig}
+					canViewActivity={entitlements.features.audit_log.enabled}
+					oidcRoleSyncEnabled={oidcRoleSyncEnabled}
+					quota={
+						permissions.editDeploymentConfig ? <UserQuotaSection /> : undefined
+					}
+				/>
+			</UserQuotaProvider>
 		</>
 	);
 };

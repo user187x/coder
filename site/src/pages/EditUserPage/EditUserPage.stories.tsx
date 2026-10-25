@@ -63,7 +63,7 @@ export const Ready: Story = {
 		).toBeVisible();
 		await userEvent.click(canvas.getByRole("button", { name: /open menu/i }));
 		const menu = within(document.body);
-		await menu.findByRole("menuitem", { name: "View workspaces" });
+		await menu.findByRole("menuitem", { name: "Workspaces" });
 		await menu.findByRole("menuitem", { name: "View activity" });
 		await expect(
 			menu.queryByRole("menuitem", { name: "Edit" }),
@@ -153,7 +153,7 @@ export const KeepsDraftWhenUserRefetches: Story = {
 		await userEvent.click(canvas.getByRole("button", { name: /open menu/i }));
 		const body = within(document.body);
 		await userEvent.click(
-			await body.findByRole("menuitem", { name: "Suspend…" }),
+			await body.findByRole("menuitem", { name: "Suspend" }),
 		);
 		const dialog = await body.findByRole("dialog");
 		await userEvent.click(

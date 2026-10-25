@@ -5,6 +5,11 @@ import { cloudDrivePeers } from "#/api/queries/platform";
 import { Button } from "#/components/Button/Button";
 import { useAnimationsEnabled } from "#/modules/platform/animations/animations";
 import { AccountShareConnectionsDialog } from "./AccountShareConnectionsDialog";
+import {
+	AccountShareDragLayer,
+	type AccountShareReview,
+} from "./AccountShareDragLayer";
+import { CloudDriveMalePlug } from "./CloudDriveMalePlug";
 import { motionless } from "./CloudDriveRopes";
 import {
 	type Cable,
@@ -23,7 +28,6 @@ import "./cloudDrive.css";
 import {
 	GAP,
 	loopsRoom,
-	PLUG,
 	type ShareEdge,
 	type ShareEnds,
 	type ShareRow,
@@ -72,13 +76,15 @@ type Layout = {
 export const AccountShareCables: React.FC<{
 	/** The accounts on the page (their rows: data-testid="user-<id>"). */
 	userIds: readonly string[];
+	accounts?: readonly { id: string; username: string }[];
 	children: ReactNode;
-}> = ({ userIds, children }) => {
+}> = ({ userIds, accounts, children }) => {
 	const peers = useQuery(cloudDrivePeers());
 	const [manageOpen, setManageOpen] = useState(false);
-	const [selectedShare, setSelectedShare] = useState<string>();
-	const manage = (id?: string) => {
-		setSelectedShare(id);
+	const [review, setReview] = useState<AccountShareReview>({});
+	const [draggedShare, setDraggedShare] = useState<string>();
+	const manage = (next: AccountShareReview = {}) => {
+		setReview(next);
 		setManageOpen(true);
 	};
 	const ids = userIds.join(",");
@@ -113,7 +119,7 @@ export const AccountShareCables: React.FC<{
 						owner to the plug of whom it is shared with - green prongs read and
 						write, blue read only.{" "}
 						{peers.data?.admin
-							? "Select a cable to manage its connection."
+							? "Drag a socket or plug to review a connection. Changes apply only after Connect or Disconnect."
 							: "Point at one for who and how."}
 						{offPage > 0 &&
 							` ${offPage} more with an account not on this page.`}
@@ -122,7 +128,17 @@ export const AccountShareCables: React.FC<{
 			)}
 			<ShareCablesArea
 				edges={edges}
-				onManage={peers.data?.admin ? manage : undefined}
+				onManage={
+					peers.data?.admin ? (shareId) => manage({ shareId }) : undefined
+				}
+				draggedShare={draggedShare}
+				accounts={
+					peers.data?.admin
+						? (accounts ?? userIds.map((id) => ({ id, username: id })))
+						: undefined
+				}
+				onReview={manage}
+				onDragging={setDraggedShare}
 			>
 				{children}
 			</ShareCablesArea>
@@ -134,7 +150,9 @@ export const AccountShareCables: React.FC<{
 						(share) =>
 							userIds.includes(share.owner) || userIds.includes(share.from),
 					)}
-					shareId={selectedShare}
+					shareId={review.shareId}
+					ownerId={review.ownerId}
+					recipientId={review.recipientId}
 					sharingEnabled={peers.data.settings.enabled}
 				/>
 			)}
@@ -146,7 +164,19 @@ const ShareCablesArea: React.FC<{
 	edges: readonly ShareEdge[];
 	children: ReactNode;
 	onManage?: (shareId: string) => void;
-}> = ({ edges, children, onManage }) => {
+	draggedShare?: string;
+	accounts?: readonly { id: string; username: string }[];
+	onReview: (review: AccountShareReview) => void;
+	onDragging: (shareId?: string) => void;
+}> = ({
+	edges,
+	children,
+	onManage,
+	draggedShare,
+	accounts,
+	onReview,
+	onDragging,
+}) => {
 	const area = useRef<HTMLDivElement>(null);
 	const svg = useRef<SVGSVGElement>(null);
 	const elements = useRef(new Map<string, SVGGElement>());
@@ -196,17 +226,17 @@ const ShareCablesArea: React.FC<{
 				wanted.add(w.edge.to);
 			}
 			for (const id of wanted) {
-				const el = document.querySelector(
-					`[data-testid="user-${CSS.escape(id)}"]`,
-				);
+				const el = box.querySelector(`[data-testid="user-${CSS.escape(id)}"]`);
 				const r = el?.getBoundingClientRect();
 				if (!el || !r || r.height === 0) {
 					continue;
 				}
-				const table = el.closest("table")?.getBoundingClientRect();
-				right = Math.max(right, table?.right ?? r.right);
+				const table = (
+					el.closest('[data-testid="accounts-card"]') ?? el.closest("table")
+				)?.getBoundingClientRect();
+				right = Math.max(right, table?.width ? table.right : r.right);
 				rows.set(id, {
-					right: r.right - b.left,
+					right: (table?.width ? table.right : r.right) - b.left,
 					mid: r.top + r.height / 2 - b.top,
 				});
 			}
@@ -449,6 +479,7 @@ const ShareCablesArea: React.FC<{
 		resize.observe(box);
 		const mutations = new MutationObserver(kick);
 		mutations.observe(box, { childList: true, subtree: true });
+		box.addEventListener("scroll", kick, true);
 		window.addEventListener("resize", kick);
 		const poll = window.setInterval(kick, 1000);
 		return () => {
@@ -456,6 +487,7 @@ const ShareCablesArea: React.FC<{
 			kickRef.current = () => {};
 			resize.disconnect();
 			mutations.disconnect();
+			box.removeEventListener("scroll", kick, true);
 			window.removeEventListener("resize", kick);
 			window.clearInterval(poll);
 			box.style.paddingRight = "";
@@ -482,7 +514,11 @@ const ShareCablesArea: React.FC<{
 
 	const byKey = new Map(edges.map((e) => [e.key, e]));
 	return (
-		<div ref={area} className="relative" data-testid="account-shares-area">
+		<div
+			ref={area}
+			className="relative min-w-0"
+			data-testid="account-shares-area"
+		>
 			{children}
 			<svg
 				ref={svg}
@@ -496,6 +532,7 @@ const ShareCablesArea: React.FC<{
 						<g
 							key={key}
 							data-share={key}
+							data-dragging={draggedShare === key || undefined}
 							data-owner={edge?.owner}
 							data-to={edge?.to}
 							data-access={edge?.access}
@@ -534,28 +571,7 @@ const ShareCablesArea: React.FC<{
 								{edge && <title>{edge.label}</title>}
 							</path>
 							<g className="cd-plug">
-								<line
-									className="cd-prong"
-									x1={PLUG - 1}
-									y1={-2}
-									x2={PLUG + GAP + 4}
-									y2={-2}
-								/>
-								<line
-									className="cd-prong"
-									x1={PLUG - 1}
-									y1={2}
-									x2={PLUG + GAP + 4}
-									y2={2}
-								/>
-								<rect
-									className="cd-plug-body"
-									x={0}
-									y={-4.5}
-									width={PLUG}
-									height={9}
-									rx={2}
-								/>
+								<CloudDriveMalePlug />
 							</g>
 						</g>
 					);
@@ -585,6 +601,15 @@ const ShareCablesArea: React.FC<{
 					</g>
 				))}
 			</svg>
+			{accounts && onManage && (
+				<AccountShareDragLayer
+					area={area}
+					accounts={accounts}
+					edges={edges}
+					onReview={onReview}
+					onDragging={onDragging}
+				/>
+			)}
 		</div>
 	);
 };

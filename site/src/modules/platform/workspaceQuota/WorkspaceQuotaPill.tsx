@@ -3,9 +3,9 @@ import { type FC, useEffect } from "react";
 import { useQuery } from "react-query";
 import type { QuotaKey, QuotaMe } from "#/api/platform";
 import { quotaMe } from "#/api/queries/platform";
+import { QuotaRequestButton } from "../quotaRequests/QuotaRequestButton";
 
-// Platform: the signed-in user's quota (Health > User Quota) in a pill above the Workspaces search - each limit set for
-// them, what their workspaces take of it and what is left. Nothing when no limit applies (none set, or an exempt admin).
+// Approved extras extend finite base limits until an administrator revokes them.
 
 const PARTS: { key: QuotaKey; label: string; unit: string }[] = [
 	{ key: "workspaces", label: "Workspaces", unit: "" },
@@ -21,7 +21,12 @@ export const quotaLevel = (used: number, limit: number) =>
 
 export const WorkspaceQuotaPillView: FC<{ quota: QuotaMe }> = ({ quota }) => {
 	if (!quota.limited || !quota.usage) {
-		return null;
+		return !quota.limited && quota.activeGrantCount ? (
+			<span className="rounded-full border border-dotted border-content-link px-3 py-1 text-xs">
+				{quota.activeGrantCount} approved extra quota grants · No finite cap
+				applies
+			</span>
+		) : null;
 	}
 	const parts = PARTS.flatMap((p) => {
 		const limit = quota.limits[p.key];
@@ -64,11 +69,27 @@ export const WorkspaceQuotaPillView: FC<{ quota: QuotaMe }> = ({ quota }) => {
 								)}
 								style={{ width: `${pct}%` }}
 							/>
+							{(quota.bonus?.[p.key] ?? 0) > 0 && (
+								<span
+									className="absolute inset-y-0 right-0 box-border border border-dotted border-content-link"
+									style={{
+										width: `${p.limit > 0 ? Math.min((quota.bonus?.[p.key] ?? 0) / p.limit, 1) * 100 : 0}%`,
+									}}
+								/>
+							)}
 						</span>
 						<span className="text-content-primary">
 							{num(p.used)}/{num(p.limit)}
 							{p.unit}
 						</span>
+						{(quota.bonus?.[p.key] ?? 0) > 0 && (
+							<span
+								className="rounded border border-dotted border-content-link px-1"
+								title={`Base ${num(quota.baseLimits?.[p.key] ?? p.limit)}${p.unit}; approved extras remain until revoked`}
+							>
+								+{num(quota.bonus?.[p.key] ?? 0)} approved
+							</span>
+						)}
 						<span
 							className={cn(
 								level === "full" && "text-content-destructive",
@@ -95,5 +116,10 @@ export const WorkspaceQuotaPill: FC<{ workspacesKey?: string }> = ({
 	useEffect(() => {
 		void refetch();
 	}, [workspacesKey, refetch]);
-	return data ? <WorkspaceQuotaPillView quota={data} /> : null;
+	return (
+		<div className="flex flex-wrap items-center gap-2">
+			{data && <WorkspaceQuotaPillView quota={data} />}
+			<QuotaRequestButton />
+		</div>
+	);
 };

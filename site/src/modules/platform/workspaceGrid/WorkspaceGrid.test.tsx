@@ -62,18 +62,18 @@ describe("WorkspaceGrid", () => {
 		expect(gridLayout(10)).toEqual({ cols: 4, rows: 3 });
 	});
 
-	it("fits a dashboard to its cell's width, then its height once told, centred", () => {
+	it("fits a dashboard to its cell's width, then its height once told, aligned at the top", () => {
 		// a 2x2 cell: 690 wide, 400 high below its bar; drawn FRAME_WIDTH wide, at 690/1024 until its height is told
 		const before = frameFit(690, 400);
 		expect(before.width).toBe(FRAME_WIDTH);
 		expect(before.scale).toBeCloseTo(690 / FRAME_WIDTH);
 		expect(before.left).toBe(0);
 		expect(before.height * before.scale).toBeCloseTo(400);
-		// short: the width decides, and it sits in the middle of the cell's height
+		// Short content stays at the top while every frame shares the tallest content height.
 		const short = frameFit(690, 400, [300]);
 		expect(short.scale).toBeCloseTo(690 / FRAME_WIDTH);
 		expect(short.height).toBe(302);
-		expect(short.top).toBeCloseTo((400 - 302 * short.scale) / 2);
+		expect(short.top).toBe(0);
 		// tall: the height decides, and it sits in the middle of the cell's width
 		const tall = frameFit(690, 400, [798]);
 		expect(tall.scale).toBeCloseTo(0.5);

@@ -27,3 +27,10 @@ export const SharingDisabled: Story = {
 	args: { ...Disconnected.args, sharingEnabled: false },
 };
 export const Empty: Story = { args: { shares: [] } };
+
+export const ReviewUnsharedPair: Story = {
+	args: {
+		ownerId: MockAccountCloudDriveShare.owner,
+		recipientId: "unshared-account",
+	},
+};

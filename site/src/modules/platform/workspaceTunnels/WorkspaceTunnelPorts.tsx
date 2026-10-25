@@ -9,19 +9,27 @@ import {
 import type { Workspace } from "#/api/typesGenerated";
 import { Button } from "#/components/Button/Button";
 import { Dialog, DialogContent, DialogTitle } from "#/components/Dialog/Dialog";
+import { CloudDriveMalePlug } from "../cloudDrive/CloudDriveMalePlug";
 import { cablePath, type Point, restingCable } from "../cloudDrive/cables";
 import "../cloudDrive/cloudDrive.css";
 import "./workspaceTunnels.css";
 import { LooseTunnelCord, type ReleasedTunnelCord } from "./LooseTunnelCord";
 import { TunnelCord, tunnelHandles } from "./TunnelCord";
 
-type Port = Point & { workspace: Workspace; side: "left" | "right" };
+export type TableTunnelAnchor = Point & { workspaceId: string };
+
+type Port = Point & {
+	workspace: Workspace;
+	side: "left" | "right";
+	terminal?: "input" | "output";
+};
 type Drag = {
 	from: Port;
 	at: Point;
 	origin: Point;
 	pointer: number;
 	target?: Port;
+	movingSource?: boolean;
 	tunnel?: WorkspaceTunnel;
 	velocity?: Point;
 	sampled?: number;
@@ -34,10 +42,11 @@ export const tunnelPath = (
 	to: Point,
 	fromSide: "left" | "right",
 	toSide: "left" | "right",
+	arc?: number,
 ) => {
 	return cablePath(
 		from,
-		restingCable(tunnelHandles(from, to, fromSide, toSide)),
+		restingCable(tunnelHandles(from, to, fromSide, toSide, arc)),
 		to,
 	);
 };
@@ -49,7 +58,34 @@ export const WorkspaceTunnelPorts: React.FC<{
 	cellH: number;
 	gap: number;
 	onDragging: (dragging: boolean) => void;
-}> = ({ shown, cols, cellW, cellH, gap, onDragging }) => {
+	tableAnchors?: readonly TableTunnelAnchor[];
+	canManage?: boolean;
+	actorId?: string;
+}> = ({
+	shown,
+	cols,
+	cellW,
+	cellH,
+	gap,
+	onDragging,
+	tableAnchors,
+	canManage = true,
+	actorId,
+}) => {
+	const manages = (workspace: Workspace) =>
+		canManage || Boolean(actorId && workspace.owner_id === actorId);
+	const managesPair = (a: Workspace, b: Workspace) =>
+		a.organization_id === b.organization_id && manages(a) && manages(b);
+	const managesTunnel = (tunnel: WorkspaceTunnel) => {
+		if (canManage) return true;
+		const source = shown.find(
+			(workspace) => workspace.id === tunnel.source_workspace_id,
+		);
+		const target = shown.find(
+			(workspace) => workspace.id === tunnel.target_workspace_id,
+		);
+		return Boolean(source && target && managesPair(source, target));
+	};
 	const svg = useRef<SVGSVGElement>(null);
 	const moved = useRef(false);
 	const looseId = useRef(0);
@@ -57,30 +93,108 @@ export const WorkspaceTunnelPorts: React.FC<{
 	const [drag, setDrag] = useState<Drag>();
 	const dragRef = useRef<Drag | undefined>(undefined);
 	const [selected, setSelected] = useState<Workspace>();
+	const [selectedTerminal, setSelectedTerminal] = useState<"input" | "output">(
+		"output",
+	);
+	const [selectedSide, setSelectedSide] = useState<"left" | "right">("right");
+	const [arcs, setArcs] = useState<Record<string, number>>({});
+	const [replacements, setReplacements] = useState<
+		{ old: WorkspaceTunnel; next: string }[]
+	>([]);
 	const [error, setError] = useState<string>();
 	const client = useQueryClient();
 	const create = useMutation(createWorkspaceTunnel(client));
 	const remove = useMutation(deleteWorkspaceTunnel(client));
 	const organizations = [...new Set(shown.map((w) => w.organization_id))];
 	const results = useQueries({ queries: organizations.map(workspaceTunnels) });
-	const tunnels = results.flatMap((r) => r.data?.tunnels ?? []);
-	const ports: Port[] = shown.flatMap((workspace, index) =>
-		["left", "right"].map((side) => ({
-			workspace,
-			side: side === "left" ? "left" : "right",
-			x: (index % cols) * (cellW + gap) + (side === "left" ? 8 : cellW - 8),
-			y: Math.floor(index / cols) * (cellH + gap) + 18,
-		})),
+	const tunnels = results.flatMap((r) =>
+		r.isError ? [] : (r.data?.tunnels ?? []),
 	);
+	const gridPorts: Port[] = shown.flatMap((workspace, index) =>
+		(["left", "right"] as const)
+			.filter((side) => {
+				if (cols === 1) return side === "left";
+				return side === "left" ? index % cols > 0 : index % cols < cols - 1;
+			})
+			.flatMap((side) =>
+				(["input", "output"] as const).map((terminal) => ({
+					workspace,
+					side,
+					terminal,
+					x:
+						cols === 1
+							? Math.min(128, Math.max(24, cellW / 3))
+							: (index % cols) * (cellW + gap) +
+								(side === "left" ? 8 : cellW - 8),
+					y:
+						Math.floor(index / cols) * (cellH + gap) +
+						cellH / 2 +
+						(terminal === "input" ? -12 : 12),
+				})),
+			),
+	);
+	const ports: Port[] = tableAnchors
+		? tableAnchors.flatMap((anchor) => {
+				const workspace = shown.find((w) => w.id === anchor.workspaceId);
+				return workspace
+					? (["input", "output"] as const).map((terminal) => ({
+							...anchor,
+							workspace,
+							side: "left" as const,
+							terminal,
+							y: anchor.y + (terminal === "input" ? -12 : 12),
+						}))
+					: [];
+			})
+		: gridPorts;
+	const portFor = (
+		id: string,
+		side: "left" | "right",
+		terminal: "input" | "output",
+	) => {
+		const candidates = ports.filter(
+			(p) => p.workspace.id === id && p.terminal === terminal,
+		);
+		return (
+			candidates.find((p) => tableAnchors || p.side === side) ?? candidates[0]
+		);
+	};
+	const maxArc = (tunnel: WorkspaceTunnel) => {
+		if (tableAnchors) return 112;
+		const from = portFor(
+			tunnel.source_workspace_id,
+			tunnel.source_side ?? "right",
+			"output",
+		);
+		const to = portFor(
+			tunnel.target_workspace_id,
+			tunnel.target_side ?? "left",
+			"input",
+		);
+		if (!from || !to) return 112;
+		const width = cols * cellW + (cols - 1) * gap;
+		return Math.max(
+			0,
+			Math.min(
+				112,
+				(from.side === "left" ? from.x : width - from.x) - 8,
+				(to.side === "left" ? to.x : width - to.x) - 8,
+			),
+		);
+	};
+	const arcFor = (tunnel: WorkspaceTunnel, index: number) =>
+		Math.min(maxArc(tunnel), arcs[tunnel.id] ?? 40 + (index % 5) * 12);
+
 	const fail = (e: unknown) =>
 		setError(e instanceof Error ? e.message : "Tunnel request failed");
 	const connect = (
 		a: Workspace,
 		b: Workspace,
 		replace?: WorkspaceTunnel,
-		sourceSide: "left" | "right" = "right",
+		sourceSide: "left" | "right" = tableAnchors ? "left" : "right",
 		targetSide: "left" | "right" = "left",
 	) => {
+		if (!managesPair(a, b) || (replace && !managesTunnel(replace))) return;
 		if (replace && samePair(replace, a.id, b.id)) return;
 		setError(undefined);
 		create.mutate(
@@ -93,18 +207,37 @@ export const WorkspaceTunnelPorts: React.FC<{
 			},
 			{
 				onError: fail,
-				onSuccess: () => {
-					if (replace) disconnect(replace);
+				onSuccess: ({ tunnel }) => {
+					if (replace)
+						setReplacements((current) => [
+							...current,
+							{ old: replace, next: tunnel.id },
+						]);
 				},
 			},
 		);
 	};
-	const disconnect = (t: WorkspaceTunnel) =>
-		remove.mutate(
+	const disconnect = (t: WorkspaceTunnel) => {
+		if (!managesTunnel(t)) return;
+		return remove.mutate(
 			{ organizationId: t.organization_id, id: t.id },
 			{ onError: fail },
 		);
+	};
+	useEffect(() => {
+		for (const replacement of replacements) {
+			const next = tunnels.find((t) => t.id === replacement.next);
+			if (next?.status === "ready" || next?.status === "error") {
+				setReplacements((current) =>
+					current.filter((r) => r.next !== replacement.next),
+				);
+				if (next.status === "ready") disconnect(replacement.old);
+			}
+		}
+	});
 	const valid = (from: Port, to: Port) =>
+		managesPair(from.workspace, to.workspace) &&
+		from.terminal !== to.terminal &&
 		from.workspace.id !== to.workspace.id &&
 		from.workspace.organization_id === to.workspace.organization_id &&
 		to.workspace.latest_build.status === "running" &&
@@ -152,11 +285,15 @@ export const WorkspaceTunnelPorts: React.FC<{
 			if (!current || cancelled) return;
 			if (current.target)
 				connect(
-					current.from.workspace,
-					current.target.workspace,
+					current.movingSource
+						? current.target.workspace
+						: current.from.workspace,
+					current.movingSource
+						? current.from.workspace
+						: current.target.workspace,
 					current.tunnel,
-					current.from.side,
-					current.target.side,
+					current.movingSource ? current.target.side : current.from.side,
+					current.movingSource ? current.from.side : current.target.side,
 				);
 			else {
 				if (moved.current) {
@@ -203,8 +340,16 @@ export const WorkspaceTunnelPorts: React.FC<{
 		e: React.PointerEvent,
 		from: Port,
 		tunnel?: WorkspaceTunnel,
+		movingSource = false,
 	) => {
-		if (e.button !== 0) return;
+		if (
+			e.button !== 0 ||
+			!manages(from.workspace) ||
+			(tunnel && !managesTunnel(tunnel)) ||
+			tunnel?.status === "disconnecting" ||
+			tunnel?.status === "pending"
+		)
+			return;
 		e.preventDefault();
 		e.stopPropagation();
 		moved.current = false;
@@ -220,6 +365,7 @@ export const WorkspaceTunnelPorts: React.FC<{
 					: { x: from.x, y: from.y },
 			pointer: e.pointerId,
 			tunnel,
+			movingSource: movingSource || (!tunnel && from.terminal === "input"),
 		};
 		dragRef.current = next;
 		setDrag(next);
@@ -241,19 +387,20 @@ export const WorkspaceTunnelPorts: React.FC<{
 						}
 					/>
 				))}
-				{tunnels.map((t) => {
-					const from = ports.find(
-						(p) =>
-							p.workspace.id === t.source_workspace_id &&
-							p.side === (t.source_side ?? "right"),
+				{tunnels.map((t, index) => {
+					const from = portFor(
+						t.source_workspace_id,
+						t.source_side ?? "right",
+						"output",
 					);
-					const to = ports.find(
-						(p) =>
-							p.workspace.id === t.target_workspace_id &&
-							p.side === (t.target_side ?? "left"),
+					const to = portFor(
+						t.target_workspace_id,
+						t.target_side ?? "left",
+						"input",
 					);
 					if (!from || !to || drag?.tunnel?.id === t.id) return null;
-					const d = tunnelPath(from, to, from.side, to.side);
+					const arc = arcFor(t, index);
+					const d = tunnelPath(from, to, from.side, to.side, arc);
 					return (
 						<g
 							key={t.id}
@@ -266,6 +413,7 @@ export const WorkspaceTunnelPorts: React.FC<{
 								fromSide={from.side}
 								toSide={to.side}
 								pending={t.status !== "ready"}
+								arc={arc}
 							/>
 							<path
 								d={d}
@@ -276,11 +424,17 @@ export const WorkspaceTunnelPorts: React.FC<{
 								role="button"
 								tabIndex={0}
 								aria-label={`Manage tunnel ${from.workspace.name} to ${to.workspace.name}: ${t.status}`}
-								onClick={() => setSelected(from.workspace)}
+								onClick={() => {
+									setSelected(from.workspace);
+									setSelectedTerminal("output");
+									setSelectedSide(from.side);
+								}}
 								onKeyDown={(e) => {
 									if (e.key === "Enter" || e.key === " ") {
 										e.preventDefault();
 										setSelected(from.workspace);
+										setSelectedTerminal("output");
+										setSelectedSide(from.side);
 									}
 								}}
 							/>
@@ -295,103 +449,108 @@ export const WorkspaceTunnelPorts: React.FC<{
 							fromSide={drag.from.side}
 							toSide={drag.target?.side ?? "left"}
 						/>
-						<rect
-							x={drag.at.x - 6}
-							y={drag.at.y - 5}
-							width={12}
-							height={10}
-							rx={2}
-							className="cd-plug-body"
-						/>
+						<g
+							transform={`translate(${drag.at.x} ${drag.at.y}) scale(${(drag.target?.side ?? "left") === "left" ? 1 : -1} 1)`}
+						>
+							<CloudDriveMalePlug />
+						</g>
 					</g>
 				)}
 				{ports.map((p) => (
-					<g key={`${p.workspace.id}-${p.side}`}>
+					<g key={`${p.workspace.id}-${p.side}-${p.terminal}`}>
 						<rect
-							x={p.x - 4}
+							x={p.x - 4 + (p.side === "left" ? 15 : -15)}
 							y={p.y - 5}
 							width={8}
 							height={10}
 							rx={2}
-							className="cd-socket"
+							className={`cd-socket ${p.terminal ? `workspace-tunnel-${p.terminal}` : ""}`}
 						/>
 						<rect
-							x={p.x - 8}
+							x={p.x + (p.side === "left" ? 12 : -32)}
 							y={p.y - 13}
-							width={16}
+							width={20}
 							height={26}
 							fill="transparent"
 							className="pointer-events-auto cursor-grab"
 							role="button"
 							tabIndex={0}
-							aria-label={`Connect ${p.workspace.name} ${p.side} tunnel port`}
-							aria-disabled={p.workspace.latest_build.status !== "running"}
+							aria-label={`Connect ${p.workspace.name} ${tableAnchors ? "" : `${p.side} `}${p.terminal} tunnel port`}
+							aria-disabled={
+								!manages(p.workspace) ||
+								p.workspace.latest_build.status !== "running"
+							}
 							onPointerDown={(e) => {
-								const attached = tunnels.find(
-									(t) =>
-										t.target_workspace_id === p.workspace.id &&
-										(t.target_side ?? "left") === p.side,
-								);
-								const anchor = attached
-									? ports.find(
-											(candidate) =>
-												candidate.workspace.id ===
-													attached.source_workspace_id &&
-												candidate.side === (attached.source_side ?? "right"),
-										)
-									: undefined;
-								if (attached && anchor) start(e, anchor, attached);
-								else if (p.workspace.latest_build.status === "running")
-									start(e, p);
+								if (p.workspace.latest_build.status === "running") start(e, p);
 							}}
 							onClick={() => {
-								if (!moved.current) setSelected(p.workspace);
+								if (!moved.current) {
+									setSelected(p.workspace);
+									setSelectedTerminal(p.terminal ?? "output");
+									setSelectedSide(p.side);
+								}
 							}}
 							onKeyDown={(e) => {
 								if (e.key === "Enter" || e.key === " ") {
 									e.preventDefault();
 									setSelected(p.workspace);
+									setSelectedTerminal(p.terminal ?? "output");
+									setSelectedSide(p.side);
 								}
 							}}
 						/>
 					</g>
 				))}
-				{tunnels.map((t) => {
-					const from = ports.find(
-						(p) =>
-							p.workspace.id === t.source_workspace_id &&
-							p.side === (t.source_side ?? "right"),
+				{tunnels.flatMap((t) => {
+					const from = portFor(
+						t.source_workspace_id,
+						t.source_side ?? "right",
+						"output",
 					);
-					const to = ports.find(
-						(p) =>
-							p.workspace.id === t.target_workspace_id &&
-							p.side === (t.target_side ?? "left"),
+					const to = portFor(
+						t.target_workspace_id,
+						t.target_side ?? "left",
+						"input",
 					);
-					if (!from || !to || drag?.tunnel?.id === t.id) return null;
-					return (
-						<rect
-							key={t.id}
-							x={to.x - 6}
-							y={to.y - 5}
-							width={12}
-							height={10}
-							rx={2}
-							className="cd-plug-body pointer-events-auto cursor-grab"
-							role="button"
-							tabIndex={0}
-							aria-label={`Disconnect tunnel ${from.workspace.name} to ${to.workspace.name}`}
-							onPointerDown={(e) => start(e, from, t)}
-							onClick={() => {
-								if (!moved.current) setSelected(to.workspace);
-							}}
-							onKeyDown={(e) => {
-								if (e.key === "Enter" || e.key === " ") {
-									e.preventDefault();
-									setSelected(to.workspace);
-								}
-							}}
-						/>
-					);
+					if (!from || !to || drag?.tunnel?.id === t.id) return [];
+					return [
+						{ at: from, fixed: to, source: true },
+						{ at: to, fixed: from, source: false },
+					].map(({ at, fixed, source }) => (
+						<g
+							key={`${t.id}-${source}`}
+							transform={`translate(${at.x} ${at.y}) scale(${at.side === "left" ? 1 : -1} 1)`}
+						>
+							<CloudDriveMalePlug />
+							<rect
+								x={-4}
+								y={-9}
+								width={16}
+								height={18}
+								fill="transparent"
+								className="pointer-events-auto cursor-grab"
+								role="button"
+								tabIndex={0}
+								aria-label={`Disconnect tunnel ${from.workspace.name} to ${to.workspace.name}${source ? " source plug" : ""}`}
+								onPointerDown={(event) => start(event, fixed, t, source)}
+								onClick={() => {
+									if (!moved.current) {
+										setSelected(at.workspace);
+										setSelectedTerminal(source ? "output" : "input");
+										setSelectedSide(at.side);
+									}
+								}}
+								onKeyDown={(event) => {
+									if (event.key === "Enter" || event.key === " ") {
+										event.preventDefault();
+										setSelected(at.workspace);
+										setSelectedTerminal(source ? "output" : "input");
+										setSelectedSide(at.side);
+									}
+								}}
+							/>
+						</g>
+					));
 				})}
 			</svg>
 			{error && (
@@ -414,7 +573,8 @@ export const WorkspaceTunnelPorts: React.FC<{
 					</DialogTitle>
 					<p className="text-sm text-content-secondary">
 						Connect running workspaces in the same organization. Tunnels carry
-						private TCP and UDP traffic.
+						private TCP and UDP traffic in both directions. Blue output and
+						green input indicate the visual connection direction.
 					</p>
 					{error && (
 						<p role="alert" className="text-content-destructive">
@@ -425,6 +585,44 @@ export const WorkspaceTunnelPorts: React.FC<{
 					{results.some((r) => r.isError) && (
 						<p role="alert">Could not load workspace tunnels. Try again.</p>
 					)}
+					{selected &&
+						tunnels
+							.filter((t) => {
+								const other =
+									t.source_workspace_id === selected.id
+										? t.target_workspace_id
+										: t.target_workspace_id === selected.id
+											? t.source_workspace_id
+											: undefined;
+								return other && !shown.some((w) => w.id === other);
+							})
+							.map((t) => (
+								<div
+									key={t.id}
+									className="flex items-center justify-between gap-3 border-0 border-t border-solid border-border py-2"
+								>
+									<span>
+										{t.source_workspace_id === selected.id
+											? (t.target_workspace_name ?? t.target_workspace_id)
+											: (t.source_workspace_name ?? t.source_workspace_id)}
+										<small className="block text-content-secondary">
+											{t.error ?? t.status} · Not on this page
+										</small>
+									</span>
+									<Button
+										size="sm"
+										variant="outline"
+										disabled={
+											!managesTunnel(t) ||
+											remove.isPending ||
+											t.status === "disconnecting"
+										}
+										onClick={() => disconnect(t)}
+									>
+										Disconnect
+									</Button>
+								</div>
+							))}
 					{selected &&
 						shown
 							.filter(
@@ -452,6 +650,7 @@ export const WorkspaceTunnelPorts: React.FC<{
 											size="sm"
 											variant="outline"
 											disabled={
+												!managesPair(selected, w) ||
 												create.isPending ||
 												remove.isPending ||
 												t?.status === "disconnecting" ||
@@ -459,11 +658,65 @@ export const WorkspaceTunnelPorts: React.FC<{
 													(w.latest_build.status !== "running" ||
 														selected.latest_build.status !== "running"))
 											}
-											onClick={() => (t ? disconnect(t) : connect(selected, w))}
+											onClick={() =>
+												t
+													? disconnect(t)
+													: selectedTerminal === "input"
+														? connect(
+																w,
+																selected,
+																undefined,
+																tableAnchors ? "left" : "right",
+																selectedSide,
+															)
+														: connect(
+																selected,
+																w,
+																undefined,
+																selectedSide,
+																"left",
+															)
+											}
 										>
 											{t ? "Disconnect" : "Connect"}
 										</Button>
 									</div>
+								);
+							})}
+					{selected &&
+						tunnels
+							.filter(
+								(t) =>
+									t.source_workspace_id === selected.id ||
+									t.target_workspace_id === selected.id,
+							)
+							.map((t) => {
+								const index = tunnels.findIndex((item) => item.id === t.id);
+								const from =
+									shown.find((w) => w.id === t.source_workspace_id)?.name ??
+									t.source_workspace_name ??
+									t.source_workspace_id;
+								const to =
+									shown.find((w) => w.id === t.target_workspace_id)?.name ??
+									t.target_workspace_name ??
+									t.target_workspace_id;
+								return (
+									<label key={t.id} className="flex flex-col gap-2 text-sm">
+										Cable arc: {from} to {to}
+										<input
+											type="range"
+											min={Math.min(24, maxArc(t))}
+											max={maxArc(t)}
+											step={4}
+											value={arcFor(t, index)}
+											onChange={(event) =>
+												setArcs((current) => ({
+													...current,
+													[t.id]: event.target.valueAsNumber,
+												}))
+											}
+										/>
+									</label>
 								);
 							})}
 				</DialogContent>

@@ -36,6 +36,7 @@ import {
 } from "#/modules/platform/cloudDrive/CloudDriveSocket";
 import { TableCard } from "#/modules/platform/tableCard/TableCard";
 import { WorkspaceQuotaPill } from "#/modules/platform/workspaceQuota/WorkspaceQuotaPill";
+import { WorkspaceTableTunnels } from "#/modules/platform/workspaceTunnels/WorkspaceTableTunnels";
 import { WorkspacesTable } from "#/pages/WorkspacesPage/WorkspacesTable";
 import { mustUpdateWorkspace } from "#/utils/workspace";
 import { WorkspacesFilter } from "./filter/WorkspacesFilter";
@@ -266,28 +267,34 @@ export const WorkspacesPageView: React.FC<WorkspacesPageViewProps> = ({
 				/>
 			) : (
 				// Platform: in a rounded card, its footer saying what it holds and what anything in it does
-				<TableCard
-					data-testid="workspaces-card"
-					summary={summary}
-					hint={
-						drive.enabled && mine.length > 0
-							? "Drag the Cloud Drive plug onto a row to mount it, or pull a plug off a row to unmount"
-							: "Point at anything in the table to read what it does"
-					}
+				<WorkspaceTableTunnels
+					actorId={me.id}
+					shown={workspaces ?? []}
+					canManage={me.roles.some((role) => role.name === "owner")}
 				>
-					<WorkspacesTable
-						canCreateTemplate={canCreateTemplate}
-						canCreateWorkspace={canCreateWorkspace}
-						workspaces={workspaces}
-						isUsingFilter={filter.used}
-						onClearFilter={() => filter.update("")}
-						checkedWorkspaces={checkedWorkspaces}
-						onCheckChange={onCheckChange}
-						templates={templates}
-						onActionSuccess={onActionSuccess}
-						onActionError={onActionError}
-					/>
-				</TableCard>
+					<TableCard
+						data-testid="workspaces-card"
+						summary={summary}
+						hint={
+							drive.enabled && mine.length > 0
+								? "Drag the Cloud Drive plug onto a row to mount it, or pull a plug off a row to unmount"
+								: "Point at anything in the table to read what it does"
+						}
+					>
+						<WorkspacesTable
+							canCreateTemplate={canCreateTemplate}
+							canCreateWorkspace={canCreateWorkspace}
+							workspaces={workspaces}
+							isUsingFilter={filter.used}
+							onClearFilter={() => filter.update("")}
+							checkedWorkspaces={checkedWorkspaces}
+							onCheckChange={onCheckChange}
+							templates={templates}
+							onActionSuccess={onActionSuccess}
+							onActionError={onActionError}
+						/>
+					</TableCard>
+				</WorkspaceTableTunnels>
 			)}
 
 			{count !== undefined && (

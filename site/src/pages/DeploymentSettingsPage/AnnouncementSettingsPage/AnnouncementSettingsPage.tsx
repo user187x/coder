@@ -67,6 +67,7 @@ const FIELDS = [
 	"picture",
 	"pictureFit",
 	"countdown",
+	"opacity",
 ] as const;
 
 /**
@@ -94,6 +95,7 @@ const fieldsOf = ({ id: _id, ...banner }: Banner): BannerFields => {
 		picture: banner.picture ?? "",
 		pictureFit: banner.pictureFit ?? "span",
 		countdown: banner.countdown ?? "",
+		opacity: banner.opacity ?? 100,
 	};
 	if (fields.markdown) {
 		const plain = fromMarkdown(fields.message);
@@ -108,7 +110,7 @@ const fieldsOf = ({ id: _id, ...banner }: Banner): BannerFields => {
 	return fields;
 };
 
-const sameFields = (a: BannerFields, b: BannerFields) =>
+export const sameFields = (a: BannerFields, b: BannerFields) =>
 	FIELDS.every((field) => a[field] === b[field]);
 
 /**

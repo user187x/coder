@@ -17,8 +17,8 @@ export type VolumeOp = {
 	bytes: number | null;
 	bucket: string | null;
 	key: string | null;
-	/** A disk change's (online, copy) or a restore's (new, replace). */
-	mode: "online" | "copy" | "new" | "replace" | null;
+	/** A disk change (online, copy, vm-block) or a restore (new, replace). */
+	mode: "online" | "copy" | "vm-block" | "new" | "replace" | null;
 	/** owner/workspace: for a restore, the one restored into. */
 	label: string | null;
 	by: string | null;
@@ -39,6 +39,8 @@ export type WorkspaceVolume = {
 		expandable: boolean;
 		phase: string;
 		conditions: string[];
+		runtime?: "vm";
+		offlineExpansion?: boolean;
 	} | null;
 	running: boolean;
 	busy: boolean;

@@ -17,17 +17,19 @@ import {
 type UserRoleCellProps = {
 	globalRoles?: readonly SlimRole[];
 	roles: readonly SlimRole[];
+	className?: string;
 };
 
 export const UserRoleCell: React.FC<UserRoleCellProps> = ({
 	globalRoles = [],
 	roles,
+	className,
 }) => {
 	const mergedRoles = combineGlobalAndOrgRoles(globalRoles, roles);
 	const [mainDisplayRole = memberRole, ...extraRoles] = sortRoles(mergedRoles);
 
 	return (
-		<TableCell>
+		<TableCell className={className}>
 			<div className="flex flex-row gap-1 items-center">
 				<RoleBadge role={mainDisplayRole} />
 

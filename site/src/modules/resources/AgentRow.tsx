@@ -566,7 +566,7 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 						)}
 						<WorkspaceTunnelGlyph workspace={workspace} />
 						{/* Platform: admins' Lock Down badge and its menu, right of Open Ports */}
-						<LockdownBadge workspace={workspace} />
+						<LockdownBadge workspace={workspace} goldIcon />
 					</div>
 				</header>
 
@@ -633,6 +633,7 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 							data-stale={!live || undefined}
 						>
 							<AgentMetadata
+								workspace={workspace}
 								initialMetadata={initialMetadata}
 								agent={agent}
 								pausedAt={stoppedAt}

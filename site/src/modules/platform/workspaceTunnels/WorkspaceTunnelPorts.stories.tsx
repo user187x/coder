@@ -16,6 +16,7 @@ const shown = [
 		id: MockWorkspaceTunnel.target_workspace_id,
 		name: "Beta",
 	},
+	{ ...MockWorkspace, id: "third-workspace", name: "Gamma" },
 ];
 const meta: Meta<typeof WorkspaceTunnelPorts> = {
 	title: "modules/platform/WorkspaceTunnelPorts",
@@ -29,9 +30,19 @@ const meta: Meta<typeof WorkspaceTunnelPorts> = {
 		onDragging: () => {},
 	},
 	decorators: [
-		(Story) => (
-			<div className="relative grid h-[260px] w-[712px] grid-cols-2 gap-3">
-				{shown.map((w) => (
+		(Story, { args }) => (
+			<div
+				className="relative grid"
+				style={{
+					gridTemplateColumns: `repeat(${args.cols ?? 2}, ${args.cellW ?? 350}px)`,
+					gridAutoRows: `${args.cellH ?? 260}px`,
+					gap: args.gap ?? 12,
+					width:
+						(args.cols ?? 2) * (args.cellW ?? 350) +
+						((args.cols ?? 2) - 1) * (args.gap ?? 12),
+				}}
+			>
+				{(args.shown ?? shown).map((w) => (
 					<div
 						key={w.id}
 						className="rounded-lg border border-solid border-border bg-surface-primary"
@@ -87,7 +98,7 @@ export const Failed: Story = {
 	},
 	play: async ({ canvasElement }) => {
 		within(canvasElement)
-			.getByRole("button", { name: "Connect Alpha left tunnel port" })
+			.getByRole("button", { name: "Connect Alpha right output tunnel port" })
 			.focus();
 		await userEvent.keyboard("{Enter}");
 	},
@@ -101,4 +112,49 @@ export const Empty: Story = {
 			},
 		],
 	},
+};
+
+export const MultipleConnections: Story = {
+	parameters: {
+		queries: [
+			{
+				key: workspaceTunnels(MockWorkspace.organization_id).queryKey,
+				data: {
+					tunnels: [
+						MockWorkspaceTunnel,
+						{
+							...MockWorkspaceTunnel,
+							id: "second-tunnel",
+							target_workspace_id: "third-workspace",
+						},
+					],
+				},
+			},
+		],
+	},
+};
+
+export const SingleColumnInset: Story = {
+	args: { cols: 1, cellW: 240 },
+	parameters: {
+		queries: [
+			{
+				key: workspaceTunnels(MockWorkspace.organization_id).queryKey,
+				data: {
+					tunnels: [
+						{
+							...MockWorkspaceTunnel,
+							source_side: "right",
+							target_side: "right",
+						},
+					],
+				},
+			},
+		],
+	},
+};
+
+export const MemberOwnWorkspaces: Story = {
+	args: { canManage: false, actorId: MockWorkspace.owner_id },
+	parameters: Connected.parameters,
 };

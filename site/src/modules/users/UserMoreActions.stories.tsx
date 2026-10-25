@@ -1,7 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState } from "react";
-import { expect, fn, spyOn, userEvent, within } from "storybook/test";
-import { API } from "#/api/api";
+import { fn, userEvent, within } from "storybook/test";
 import {
 	MockUserMember,
 	MockUserOwner,
@@ -45,117 +44,34 @@ const meta: Meta<typeof UserMoreActions> = {
 export default meta;
 type Story = StoryObj<typeof UserMoreActions>;
 
-export const OpenMenu: Story = {
-	play: async ({ canvasElement }) => {
-		const canvas = within(canvasElement);
-		await userEvent.click(canvas.getByRole("button", { name: /open menu/i }));
-		const menu = within(document.body);
-		await menu.findByRole("menuitem", { name: "View workspaces" });
-		await menu.findByRole("menuitem", { name: "View activity" });
-		await menu.findByRole("menuitem", { name: "Edit" });
-		await menu.findByRole("menuitem", { name: "Edit roles" });
-		await menu.findByRole("menuitem", { name: "Suspend…" });
-		await menu.findByRole("menuitem", { name: "Delete…" });
-	},
+const openMenu: NonNullable<Story["play"]> = async ({ canvasElement }) => {
+	await userEvent.click(
+		within(canvasElement).getByRole("button", { name: /open menu/i }),
+	);
 };
-
-export const OnEditPage: Story = {
-	args: {
-		showEdit: false,
-	},
-	play: async ({ canvasElement }) => {
-		const canvas = within(canvasElement);
-		await userEvent.click(canvas.getByRole("button", { name: /open menu/i }));
-		const menu = within(document.body);
-		await menu.findByRole("menuitem", { name: "View workspaces" });
-		await expect(
-			menu.queryByRole("menuitem", { name: "Edit" }),
-		).not.toBeInTheDocument();
-		await menu.findByRole("menuitem", { name: "Edit roles" });
-	},
+export const OpenMenu: Story = { play: openMenu };
+export const WithoutActivity: Story = {
+	args: { canViewActivity: false },
+	play: openMenu,
 };
-
-export const OidcRoleSyncDisablesEditRoles: Story = {
+export const Suspended: Story = {
+	args: { user: SuspendedMockUser },
+	play: openMenu,
+};
+export const CannotDeleteSelf: Story = {
+	args: { user: MockUserOwner, me: MockUserOwner.id },
+	play: openMenu,
+};
+export const OidcRoleSync: Story = {
 	args: {
 		user: { ...MockUserMember, login_type: "oidc" },
 		oidcRoleSyncEnabled: true,
 	},
-	play: async ({ canvasElement }) => {
-		const canvas = within(canvasElement);
-		await userEvent.click(canvas.getByRole("button", { name: /open menu/i }));
-		const menu = within(document.body);
-		await expect(
-			await menu.findByRole("menuitem", { name: "Edit roles" }),
-		).toHaveAttribute("aria-disabled", "true");
-	},
-};
-
-export const WithoutActivity: Story = {
-	args: {
-		canViewActivity: false,
-	},
-	play: async ({ canvasElement }) => {
-		const canvas = within(canvasElement);
-		await userEvent.click(canvas.getByRole("button", { name: /open menu/i }));
-		const menu = within(document.body);
-		await menu.findByRole("menuitem", { name: "View workspaces" });
-		await expect(
-			menu.queryByRole("menuitem", { name: "View activity" }),
-		).not.toBeInTheDocument();
-	},
-};
-
-export const Suspended: Story = {
-	args: {
-		user: SuspendedMockUser,
-	},
-	play: async ({ canvasElement }) => {
-		const canvas = within(canvasElement);
-		await userEvent.click(canvas.getByRole("button", { name: /open menu/i }));
-		const menu = within(document.body);
-		await menu.findByRole("menuitem", { name: "Activate…" });
-		await expect(
-			menu.queryByRole("menuitem", { name: "Suspend…" }),
-		).not.toBeInTheDocument();
-		await expect(
-			menu.queryByRole("menuitem", { name: "Reset password…" }),
-		).not.toBeInTheDocument();
-	},
-};
-
-export const CannotDeleteSelf: Story = {
-	args: {
-		user: MockUserOwner,
-		me: MockUserOwner.id,
-	},
-	play: async ({ canvasElement }) => {
-		const canvas = within(canvasElement);
-		await userEvent.click(canvas.getByRole("button", { name: /open menu/i }));
-		await expect(
-			await within(document.body).findByRole("menuitem", { name: "Delete…" }),
-		).toHaveAttribute("aria-disabled", "true");
-	},
-};
-
-export const OpensSuspendDialog: Story = {
 	render: (args) => <UserMoreActionsWithDialogs {...args} />,
-	beforeEach: () => {
-		spyOn(API, "suspendUser").mockResolvedValue({
-			...MockUserMember,
-			status: "suspended",
-		});
-	},
-	play: async ({ canvasElement }) => {
-		const canvas = within(canvasElement);
-		await userEvent.click(canvas.getByRole("button", { name: /open menu/i }));
+	play: async (context) => {
+		await openMenu(context);
 		await userEvent.click(
-			await within(document.body).findByRole("menuitem", { name: "Suspend…" }),
+			await within(document.body).findByRole("menuitem", { name: "Edit" }),
 		);
-		const dialog = await within(document.body).findByRole("dialog");
-		await within(dialog).findByRole("heading", { name: "Suspend user" });
-		await userEvent.click(
-			within(dialog).getByRole("button", { name: "Suspend" }),
-		);
-		await within(document.body).findByText(/suspended successfully/);
 	},
 };

@@ -127,7 +127,7 @@ export const GlobalLockdownCardView: React.FC<GlobalLockdownCardViewProps> = ({
 		>
 			<div className="global-lockdown-stripe h-3" aria-hidden />
 			<div className="flex flex-col gap-5 p-6">
-				<div className="flex flex-col items-start justify-between gap-4 lg:flex-row">
+				<div className="flex flex-col items-start justify-between gap-4 lg:flex-row lg:items-center">
 					<div className="min-w-0 max-w-xl flex-1">
 						<h2 className="m-0 flex items-center gap-2 text-lg font-semibold">
 							<ShieldAlertIcon aria-hidden className="size-5" />
@@ -138,7 +138,7 @@ export const GlobalLockdownCardView: React.FC<GlobalLockdownCardViewProps> = ({
 							access. Workspaces keep running, and chat stays available.
 						</p>
 					</div>
-					<div className="flex shrink-0 flex-col items-stretch gap-2 self-end lg:self-auto">
+					<div className="flex shrink-0 flex-col items-stretch gap-2 self-end lg:self-center">
 						<Button
 							ref={trigger}
 							variant={state?.enabled ? "outline" : "destructive"}

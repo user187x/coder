@@ -1,3 +1,4 @@
+import { RefreshCcwIcon } from "lucide-react";
 import type React from "react";
 import type { Workspace } from "#/api/typesGenerated";
 import {
@@ -86,11 +87,20 @@ type WorkspaceStatusIndicatorProps = {
 	className?: string;
 	/** Platform: a running, healthy workspace shows the running light instead of the dot. */
 	runningLight?: boolean;
+	listPill?: boolean;
+	agentUpdateAvailable?: boolean;
 };
 
 export const WorkspaceStatusIndicator: React.FC<
 	WorkspaceStatusIndicatorProps
-> = ({ workspace, children, runningLight = false, className }) => {
+> = ({
+	workspace,
+	children,
+	runningLight = false,
+	className,
+	listPill = false,
+	agentUpdateAvailable = false,
+}) => {
 	let { text, type } = getDisplayWorkspaceStatus(
 		workspace.latest_build.status,
 		workspace.latest_build.job,
@@ -108,17 +118,46 @@ export const WorkspaceStatusIndicator: React.FC<
 		type = "inactive";
 	}
 
-	const dot =
-		runningLight &&
+	const update =
+		agentUpdateAvailable &&
+		workspace.latest_build.status === "running" &&
+		!lostWhileRunning;
+	const variant =
+		listPill && !lostWhileRunning
+			? workspace.latest_build.status === "running"
+				? update || !workspace.health.healthy
+					? "warning"
+					: "success"
+				: workspace.latest_build.status === "failed"
+					? "failed"
+					: ["stopped", "deleted", "canceled"].includes(
+								workspace.latest_build.status,
+							)
+						? "inactive"
+						: "warning"
+			: variantByStatusType[type];
+	const dot = update ? (
+		<RefreshCcwIcon aria-hidden className="size-3.5 workspace-update-pulse" />
+	) : runningLight &&
 		(type === "success" || lostWhileRunning) &&
 		workspace.latest_build.status === "running" ? (
-			<RunningLight started={workspaceStartedAt(workspace)} lostAt={lostAt} />
-		) : (
-			<StatusIndicatorDot />
-		);
+		<RunningLight started={workspaceStartedAt(workspace)} lostAt={lostAt} />
+	) : (
+		<StatusIndicatorDot />
+	);
 
 	const statusIndicator = (
-		<StatusIndicator variant={variantByStatusType[type]} className={className}>
+		<StatusIndicator
+			variant={variant}
+			className={className}
+			data-workspace-pill-state={
+				listPill
+					? update
+						? "update"
+						: workspace.latest_build.status
+					: undefined
+			}
+		>
 			{dot}
 			<span className="sr-only">Workspace status:</span> {text}
 			{children}
@@ -133,8 +172,15 @@ export const WorkspaceStatusIndicator: React.FC<
 		<Tooltip>
 			<TooltipTrigger asChild>
 				<StatusIndicator
-					variant={variantByStatusType[type]}
+					variant={variant}
 					className={className}
+					data-workspace-pill-state={
+						listPill
+							? update
+								? "update"
+								: workspace.latest_build.status
+							: undefined
+					}
 				>
 					{dot}
 					<span className="sr-only">Workspace status:</span> {text}

@@ -4,6 +4,7 @@ import { isEmbeddedFrame } from "#/contexts/platformBoot";
 import { useSearchParamsKey } from "#/hooks/useSearchParamsKey";
 import { linkToTemplate, useLinks } from "#/modules/navigation";
 import { LockdownBanner } from "#/modules/platform/lockdown/Lockdown";
+import { WorkspaceQuarantineControl } from "#/modules/platform/quarantine/WorkspaceQuarantine";
 import { useReportEmbeddedSize } from "#/modules/platform/workspaceGrid/embeddedSize";
 import { WorkspaceNav } from "#/modules/platform/workspaceNav/WorkspaceNav";
 import { WorkspaceNotesButton } from "#/modules/platform/workspaceNotes/WorkspaceNotesButton";
@@ -127,6 +128,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
 		<div className="flex flex-col gap-6 max-w-[1200px] m-auto">
 			{/* Platform: the notice while an admin has the workspace locked down */}
 			<LockdownBanner workspace={workspace} />
+			<WorkspaceQuarantineControl workspace={workspace} />
 			{workspace.latest_build.status === "deleted" && (
 				<WorkspaceDeletedBanner
 					createWorkspaceLink={createWorkspaceLink}
@@ -200,13 +202,17 @@ export const Workspace: React.FC<WorkspaceProps> = ({
 			<div
 				ref={dashboardRef}
 				data-testid="workspace-dashboard-only"
-				className="p-3"
+				className="workspace-embedded-dashboard p-3"
 			>
 				{/* the grid fits it whole: never a scrollbar, even while it grows (before the grid has fitted it) */}
 				<style>
-					{
-						"html{scrollbar-width:none;overflow:hidden}html::-webkit-scrollbar{display:none}"
-					}
+					{`html{scrollbar-width:none;overflow:hidden}html::-webkit-scrollbar{display:none}
+.workspace-embedded-dashboard{display:flex;flex-direction:column;min-height:100vh}
+.workspace-embedded-dashboard>div{flex:1;width:100%}
+.workspace-embedded-dashboard>div>section{flex:1}
+.workspace-embedded-dashboard .agent-fx{display:flex;flex-direction:column;flex:1}
+.workspace-embedded-dashboard .agent-fx>div:first-child{flex:1}
+.workspace-embedded-dashboard[data-measuring]{min-height:0}`}
 				</style>
 				{dashboard}
 			</div>

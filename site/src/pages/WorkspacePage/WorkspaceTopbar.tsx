@@ -259,7 +259,7 @@ export const WorkspaceTopbar: React.FC<WorkspaceTopbarProps> = ({
 					<WorkspaceStatusIndicator
 						workspace={workspace}
 						runningLight
-						className="gap-1.5 rounded-full border border-solid border-current/20 bg-surface-secondary px-2 py-1 text-xs"
+						className="workspace-topbar-running-status gap-1.5 rounded-full border border-solid border-current/20 bg-surface-secondary px-2 py-1 text-xs"
 					/>
 
 					<WorkspaceActions

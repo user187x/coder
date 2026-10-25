@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useAnimationsEnabled } from "#/modules/platform/animations/animations";
+import { CloudDriveMalePlug } from "../cloudDrive/CloudDriveMalePlug";
 import {
 	cableLength,
 	cablePath,
@@ -88,12 +89,10 @@ export const LooseTunnelCord: React.FC<{
 	}, [cord, animations]);
 	return (
 		<g aria-hidden>
-			<path ref={line} className="cd-cable" />
-			<path ref={shine} className="cd-cable-shine" />
+			<path ref={line} className="workspace-tunnel-conduit" />
+			<path ref={shine} className="workspace-tunnel-ridges" />
 			<g ref={plug} visibility="hidden">
-				<line className="cd-prong" x1={11} y1={-2} x2={19} y2={-2} />
-				<line className="cd-prong" x1={11} y1={2} x2={19} y2={2} />
-				<rect className="cd-plug-body" width={12} height={9} y={-4.5} rx={2} />
+				<CloudDriveMalePlug />
 			</g>
 		</g>
 	);
