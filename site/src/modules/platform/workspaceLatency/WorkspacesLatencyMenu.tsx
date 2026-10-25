@@ -492,7 +492,7 @@ export const WorkspacesLatencyMenu: React.FC<{
 									</span>
 									<DropdownMenuItem
 										data-testid="workspace-grid-clear"
-										className="min-h-0 rounded-full px-2 py-0.5 text-[10px]"
+										className="min-h-0 rounded-full border border-solid border-border px-2 py-0.5 text-[10px]"
 										onSelect={(e) => {
 											e.preventDefault();
 											setSelected([]);
@@ -502,7 +502,7 @@ export const WorkspacesLatencyMenu: React.FC<{
 									</DropdownMenuItem>
 									<DropdownMenuItem
 										data-testid="workspace-grid-all"
-										className="min-h-0 rounded-full px-2 py-0.5 text-[10px]"
+										className="min-h-0 rounded-full border border-solid border-border px-2 py-0.5 text-[10px]"
 										onSelect={(e) => {
 											e.preventDefault();
 											setSelected(list.map((w) => w.id));
@@ -514,7 +514,7 @@ export const WorkspacesLatencyMenu: React.FC<{
 								<DropdownMenuItem
 									data-testid="workspace-grid-view"
 									disabled={chosen.length === 0}
-									className="min-h-10 w-full justify-center gap-2 rounded-full bg-surface-secondary px-4 py-2 font-medium"
+									className="min-h-10 w-full justify-center gap-2 rounded-full border border-solid border-border bg-surface-secondary px-4 py-2 font-medium"
 									onSelect={() => onOpenGrid?.(chosen.map((w) => w.id))}
 								>
 									<LayoutGridIcon aria-hidden className="size-4" />
