@@ -37,3 +37,13 @@ export const Focused: Story = {
 		);
 	},
 };
+
+export const List: Story = {
+	play: async () => {
+		const body = within(document.body);
+		await userEvent.click(
+			await body.findByRole("button", { name: "Workspace layout: Grid" }),
+		);
+		await userEvent.click(body.getByRole("menuitemradio", { name: "List" }));
+	},
+};

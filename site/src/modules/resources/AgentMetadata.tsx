@@ -206,60 +206,63 @@ export const AgentMetadataView: React.FC<AgentMetadataViewProps> = ({
 					className="flex w-full min-w-0 flex-col gap-2 rounded-2xl border border-solid border-border bg-surface-secondary/40 px-3.5 pt-3 pb-4"
 					data-testid={`metrics-group-${g.id}`}
 				>
-					<div className="flex min-w-0 items-start justify-start text-xs font-semibold tracking-wide text-content-secondary">
-						{g.id === "workspace" && workspaceName && (
-							<span
-								className="min-w-0 max-w-[min(100%,12rem)] truncate rounded-full bg-surface-tertiary px-2 py-0.5 text-[9px] font-medium normal-case"
-								title={workspaceName}
-							>
-								{workspaceName}
-							</span>
-						)}
-						{g.id === "cluster" && scoped && scope === "node" && (
-							<span
-								className="min-w-0 max-w-[min(100%,12rem)] truncate rounded-full bg-surface-tertiary px-2 py-0.5 text-[9px] font-medium normal-case"
-								title={
-									infrastructure?.nodeName ??
-									"No single workspace node is available"
-								}
-							>
-								{infrastructure?.nodeName ??
-									(infrastructureLoading
-										? "Locating node…"
-										: "Node unavailable")}
-							</span>
-						)}
-					</div>
-					<div className="flex min-h-9 min-w-0 flex-col items-center justify-center gap-1 text-center text-xs font-semibold uppercase tracking-wide text-content-secondary">
-						{g.id === "cluster" && scoped ? (
-							<div className="flex min-w-0 flex-wrap items-center justify-center gap-2 normal-case">
+					<div className="grid min-h-9 min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-2 text-xs font-semibold tracking-wide text-content-secondary">
+						<div className="min-w-0">
+							{g.id === "workspace" && workspaceName && (
 								<span
-									className={
-										scope === "node" ? "text-content-primary" : undefined
+									className="inline-block min-w-0 max-w-[min(100%,12rem)] truncate rounded-full bg-surface-tertiary px-2 py-0.5 text-[9px] font-medium normal-case"
+									title={workspaceName}
+								>
+									{workspaceName}
+								</span>
+							)}
+							{g.id === "cluster" && scoped && scope === "node" && (
+								<span
+									className="inline-block min-w-0 max-w-[min(100%,12rem)] truncate rounded-full bg-surface-tertiary px-2 py-0.5 text-[9px] font-medium normal-case"
+									title={
+										infrastructure?.nodeName ??
+										"No single workspace node is available"
 									}
 								>
-									Node
+									{infrastructure?.nodeName ??
+										(infrastructureLoading
+											? "Locating node…"
+											: "Node unavailable")}
 								</span>
-								<Switch
-									size="sm"
-									aria-label="Show cluster metrics"
-									checked={scope === "cluster"}
-									disabled={!onScopeChange}
-									onCheckedChange={(checked) =>
-										onScopeChange?.(checked ? "cluster" : "node")
-									}
-								/>
-								<span
-									className={
-										scope === "cluster" ? "text-content-primary" : undefined
-									}
-								>
-									Cluster
-								</span>
-							</div>
-						) : (
-							g.title
-						)}
+							)}
+						</div>
+						<div className="py-0.5 text-center uppercase">
+							{g.id === "cluster" && scoped ? (
+								<div className="flex min-w-0 flex-wrap items-center justify-center gap-2 normal-case">
+									<span
+										className={
+											scope === "node" ? "text-content-primary" : undefined
+										}
+									>
+										Node
+									</span>
+									<Switch
+										size="sm"
+										aria-label="Show cluster metrics"
+										checked={scope === "cluster"}
+										disabled={!onScopeChange}
+										onCheckedChange={(checked) =>
+											onScopeChange?.(checked ? "cluster" : "node")
+										}
+									/>
+									<span
+										className={
+											scope === "cluster" ? "text-content-primary" : undefined
+										}
+									>
+										Cluster
+									</span>
+								</div>
+							) : (
+								g.title
+							)}
+						</div>
+						<span aria-hidden />
 					</div>
 					{g.id === "cluster" && infrastructureError ? (
 						<p
@@ -272,11 +275,6 @@ export const AgentMetadataView: React.FC<AgentMetadataViewProps> = ({
 							)}
 						</p>
 					) : null}
-					{g.id === "workspace" && restricted && (
-						<p className="m-0 text-center text-xs text-content-secondary">
-							Node and cluster metrics are available only to deployment owners.
-						</p>
-					)}
 					{g.id === "workspace" && g.items.length === 0 && (
 						<p
 							role="status"

@@ -2,6 +2,10 @@
 
 ## UI checkpoint 2026-10-25
 
+* Metrics headers put the workspace or node name pill and centered Workspace title or Node/Cluster selector on one line. The owners-only informational notice is removed; metric access controls remain enforced.
+* Idle blue tunnel outputs show the shared male plug end. An unconnected Cloud Drive source shows the same plug; connected sockets and cables retain their existing rendering and interactions.
+* Chat conversations now stay inside the floating dock. A compact vertical People/Chat icon rail separate contacts from the active conversation; switching tabs or collapsing the dock preserves drafts. The contact list no longer stops at15 conversations.
+* The workspace viewer centers its title and circular count badge. Its layout menu switches between Grid and List; List stacks equal-size dashboards with right-side connector terminals and a72px cable gutter.
 * Dashboard card spacing: the gap below metrics now matches the app-to-metrics gap, bringing the Logs/Terminal card closer.
 * Healthy current workspaces show text-only green Running pills; orange restart pills require an update and a healthy running state. Workspace dropdowns grow with names up to25 character-widths while retaining full template badges. Logs, Terminal, build timeline and uptime now share a rounded panel card matching the apps and metrics.
 * Grid cards end just below their scaled dashboards. Headers place status beside the light, center the workspace name, and align the template and outlined focus/open controls on the right. Focus opens the selected dashboard in a centered dialog over a blurred grid.
@@ -2538,3 +2542,5 @@ workspace checks).
 
 * First capture of the deployment running on minikube (Argo CD `coder` + `coder-banner`, Helm `coder-workspace`,
   `coder-ui-updates`) as one umbrella chart, render-verified against the live objects.
+
+- Point unconnected tunnel output plug prongs outward and align their drag targets; retain seated plugs for existing connections.

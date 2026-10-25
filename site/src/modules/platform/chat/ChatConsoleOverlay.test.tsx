@@ -126,7 +126,17 @@ describe("ChatConsoleOverlay: the chat bar's console button", () => {
 	it("opens the console over the page, centred, instead of going to its page", async () => {
 		const user = userEvent.setup();
 		const router = renderDashboard();
+		vi.mocked(PlatformAPI.getChatMessages).mockImplementation(async (peer) => ({
+			messages: [message(1, peer, ME)],
+			readUpTo: 0,
+		}));
 		const dialog = await openOverlay(user);
+		await user.click(
+			await within(dialog).findByRole("textbox", { name: "Message bob" }),
+		);
+		await waitFor(() =>
+			expect(PlatformAPI.markChatRead).toHaveBeenCalledWith("bob", 1),
+		);
 
 		expect(router.state.location.pathname).toBe("/");
 		expect(dialog).toHaveAttribute("aria-modal", "true");
@@ -162,8 +172,12 @@ describe("ChatConsoleOverlay: the chat bar's console button", () => {
 		expect(first).toHaveFocus();
 	});
 
-	it("hides the dock's windows meanwhile: each conversation shows once, in the console", async () => {
+	it("preserves the dock draft while using the console overlay", async () => {
 		const user = userEvent.setup();
+		const send = vi
+			.spyOn(PlatformAPI, "sendChatMessage")
+			.mockResolvedValue({ message: message(9, ME, "bob") });
+		vi.spyOn(PlatformAPI, "sendChatTyping").mockResolvedValue({ ok: true });
 		renderDashboard();
 		await user.click(await screen.findByRole("button", { name: "Chats" }));
 		await user.click(
@@ -171,17 +185,24 @@ describe("ChatConsoleOverlay: the chat bar's console button", () => {
 				name: /bob/,
 			}),
 		);
-		await screen.findByRole("dialog", { name: "Chat with bob" });
-		expect(screen.getByTestId("chat-windows")).not.toHaveClass("hidden");
-
-		const dialog = await openOverlay(user);
-		await within(dialog).findByRole("log", { name: "Messages with bob" });
-		expect(screen.getByTestId("chat-windows")).toHaveClass("hidden");
-
+		await user.type(
+			await screen.findByRole("textbox", { name: "Message bob" }),
+			"draft survives console",
+		);
+		await openOverlay(user);
 		await user.keyboard("{Escape}");
 		await closed();
-		expect(screen.getByTestId("chat-windows")).not.toHaveClass("hidden");
-		screen.getByRole("dialog", { name: "Chat with bob" });
+		await user.click(screen.getByRole("button", { name: "Chats" }));
+		await user.click(
+			within(screen.getByTestId("chat-window-raised")).getByRole("button", {
+				name: "Send",
+			}),
+		);
+		await waitFor(() =>
+			expect(send).toHaveBeenCalledWith(
+				expect.objectContaining({ to: "bob", text: "draft survives console" }),
+			),
+		);
 	});
 
 	it("closes on a click outside the panel, the focus back on the button", async () => {

@@ -6,7 +6,6 @@ import { ChatFullScreen, ChatSidePanel } from "./ChatAttached";
 import { ChatConsoleOverlay } from "./ChatConsoleOverlay";
 import { ChatFocusOverlay } from "./ChatFocusOverlay";
 import { ChatPanel } from "./ChatPanel";
-import { ChatWindow } from "./ChatWindow";
 import {
 	closeConsoleOverlay,
 	exitFullScreen,
@@ -110,17 +109,9 @@ const useDockMeasurements = (dock: React.RefObject<HTMLDivElement | null>) => {
 };
 
 /**
- * The chat on every dashboard page, Gmail style: the Chats bar at the bottom
- * right, which rises into a small window (ChatPanel), with a window for each
- * open conversation beside it (above it on a narrow screen). From the raised
- * window the chat attaches to the right side, below the navbar, or goes full
- * screen (ChatAttached); there the conversations open inside it. An admin
- * starts a conversation with "Chat" in Admin > Accounts; the other person gets
- * a window as soon as the message arrives, on whatever page they have open.
- * Admins' chat console comes over the page from the chat's own console buttons
- * (ChatConsoleOverlay) - the conversation windows hidden meanwhile, each
- * conversation shown once, in it, and the dock under its blur; asked for
- * elsewhere (the bell, Accounts' Chat), the dashboard goes to its page.
+ * The dashboard chat dock contains contacts and conversations in one raised panel.
+ * It can also attach beside the page or expand to full screen. Administrator
+ * console and focus overlays retain the dock's conversations underneath them.
  */
 export const ChatDock: React.FC = () => {
 	const embedded = isEmbeddedFrame();
@@ -160,7 +151,7 @@ export const ChatDock: React.FC = () => {
 	// The raised window lowers on a click elsewhere or Escape; full screen ends
 	// on Escape. The side panel stays.
 	useEffect(() => {
-		if (mode !== "window" && mode !== "full") {
+		if (state.consoleOverlay || (mode !== "window" && mode !== "full")) {
 			return;
 		}
 		const onKey = (event: KeyboardEvent) => {
@@ -189,7 +180,7 @@ export const ChatDock: React.FC = () => {
 			document.removeEventListener("pointerdown", onPointer);
 			document.removeEventListener("keydown", onKey);
 		};
-	}, [mode]);
+	}, [mode, state.consoleOverlay]);
 
 	// Attached, the chat takes its room from the page (chatDock.css), under full screen too.
 	const sideways =
@@ -231,20 +222,7 @@ export const ChatDock: React.FC = () => {
 			// Platform: floating 10px clear of what it rests on (GUI-UPDATES)
 			style={{ bottom: "calc(var(--chat-bottom, 0px) + 10px)" }}
 		>
-			{floating && state.windows.length > 0 && (
-				<div
-					className={cn(
-						"pointer-events-none flex flex-row-reverse items-end gap-3 [&>*]:pointer-events-auto",
-						(overlaid || mode === "compact") && "hidden",
-					)}
-					data-testid="chat-windows"
-				>
-					{state.windows.map((w) => (
-						<ChatWindow key={w.peer.id} window={w} dock={dock} />
-					))}
-				</div>
-			)}
-			{floating && <ChatPanel />}
+			<ChatPanel dock={dock} />
 			{mode === "side" && <ChatSidePanel dock={dock} />}
 			{mode === "full" && <ChatFullScreen dock={dock} />}
 			<ChatConsoleOverlay />

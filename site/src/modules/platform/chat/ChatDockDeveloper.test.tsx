@@ -59,7 +59,7 @@ describe("ChatDock: a developer's", () => {
 		await user.click(
 			await within(raised).findByRole("button", { name: /Ada/ }),
 		);
-		await screen.findByRole("dialog", { name: "Chat with Ada" });
+		await within(raised).findByRole("textbox", { name: "Message Ada" });
 
 		await user.click(within(raised).getByTestId("chat-mode-attach"));
 		const side = screen.getByTestId("chat-side-panel");

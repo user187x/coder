@@ -158,3 +158,33 @@ export const MemberOwnWorkspaces: Story = {
 	args: { canManage: false, actorId: MockWorkspace.owner_id },
 	parameters: Connected.parameters,
 };
+
+export const ListConnected: Story = {
+	args: {
+		shown: shown.slice(0, 2),
+		cols: 1,
+		cellW: 500,
+		cellH: 260,
+		gap: 24,
+		listMode: true,
+	},
+	parameters: Connected.parameters,
+	decorators: [
+		(Story) => (
+			<div className="pr-[72px]">
+				<Story />
+			</div>
+		),
+	],
+};
+
+export const IdleRetractableOutputs: Story = {
+	parameters: {
+		queries: [
+			{
+				key: workspaceTunnels(MockWorkspace.organization_id).queryKey,
+				data: { tunnels: [] },
+			},
+		],
+	},
+};

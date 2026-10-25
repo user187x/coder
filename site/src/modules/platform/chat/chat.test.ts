@@ -111,6 +111,7 @@ describe("peer-to-peer chat", () => {
 			presenceVersion: 0,
 			maxFileMb: 25,
 			dockMode: "bar" as const,
+			dockTab: "people" as const,
 			fullFrom: "window" as const,
 			panelView: null,
 			consoleOpen: false,

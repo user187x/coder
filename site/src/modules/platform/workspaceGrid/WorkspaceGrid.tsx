@@ -3,6 +3,7 @@ import {
 	ArrowUpRightIcon,
 	HandIcon,
 	LayoutGridIcon,
+	ListIcon,
 	SquareIcon,
 	XIcon,
 } from "lucide-react";
@@ -18,6 +19,13 @@ import {
 	DialogContent,
 	DialogTitle,
 } from "#/components/Dialog/Dialog";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuRadioGroup,
+	DropdownMenuRadioItem,
+	DropdownMenuTrigger,
+} from "#/components/DropdownMenu/DropdownMenu";
 import { embedFrameAttributes } from "#/contexts/platformBoot";
 import { TemplatePill } from "#/modules/platform/workspaceLatency/WorkspacesLatencyMenu";
 import { WorkspaceTunnelPorts } from "../workspaceTunnels/WorkspaceTunnelPorts";
@@ -179,6 +187,8 @@ const GridBody: React.FC<GridBodyProps> = ({
 	navigate,
 	allowFocus = true,
 }) => {
+	const [layout, setLayout] = useState<"grid" | "list">("grid");
+	const spacing = layout === "list" ? 24 : GAP;
 	const [focusedId, setFocusedId] = useState<string | null>(null);
 	const focused = shown.find((workspace) => workspace.id === focusedId);
 	const viewportRef = useRef<HTMLDivElement>(null);
@@ -196,18 +206,24 @@ const GridBody: React.FC<GridBodyProps> = ({
 		return () => observer.disconnect();
 	}, []);
 
-	const { cols, rows } = gridLayout(shown.length);
+	const { cols, rows } =
+		layout === "list"
+			? { cols: 1, rows: shown.length }
+			: gridLayout(shown.length);
 	const inViewCols = Math.min(cols, IN_VIEW);
-	const inViewRows = Math.min(rows, IN_VIEW);
+	const inViewRows = layout === "list" ? 1 : Math.min(rows, IN_VIEW);
 	const cellW = Math.max(
 		0,
-		Math.floor((size.w - GAP * (inViewCols - 1)) / inViewCols),
+		Math.floor(
+			(size.w - (layout === "list" ? GAP : 0) - spacing * (inViewCols - 1)) /
+				inViewCols,
+		),
 	);
 	const availableCellH = Math.max(
 		0,
-		Math.floor((size.h - GAP * (inViewRows - 1)) / inViewRows),
+		Math.floor((size.h - spacing * (inViewRows - 1)) / inViewRows),
 	);
-	const pannable = cols > IN_VIEW || rows > IN_VIEW;
+	const pannable = layout === "grid" && (cols > IN_VIEW || rows > IN_VIEW);
 	// inside the cell's 1px border
 	const frameW = Math.max(0, cellW - 2);
 	const frameH = Math.max(0, availableCellH - BAR_HEIGHT - 14);
@@ -316,23 +332,59 @@ const GridBody: React.FC<GridBodyProps> = ({
 
 	return (
 		<>
-			<header className="flex items-center gap-3 border-0 border-b border-solid border-border px-4 py-3">
-				<LayoutGridIcon aria-hidden className="size-5 text-content-secondary" />
-				<DialogTitle className="text-base">
+			<header className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 border-0 border-b border-solid border-border px-4 py-3">
+				<div className="flex min-w-0 items-center gap-3">
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button
+								variant="subtle"
+								size="icon"
+								aria-label={`Workspace layout: ${layout === "grid" ? "Grid" : "List"}`}
+							>
+								{layout === "grid" ? (
+									<LayoutGridIcon aria-hidden />
+								) : (
+									<ListIcon aria-hidden />
+								)}
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="start">
+							<DropdownMenuRadioGroup
+								value={layout}
+								onValueChange={(value) => {
+									if (value === "grid" || value === "list") {
+										setLayout(value);
+										setActive(null);
+									}
+								}}
+							>
+								<DropdownMenuRadioItem value="grid">
+									<LayoutGridIcon aria-hidden className="mr-2 size-4" />
+									Grid
+								</DropdownMenuRadioItem>
+								<DropdownMenuRadioItem value="list">
+									<ListIcon aria-hidden className="mr-2 size-4" />
+									List
+								</DropdownMenuRadioItem>
+							</DropdownMenuRadioGroup>
+						</DropdownMenuContent>
+					</DropdownMenu>
+					{pannable && (
+						<span
+							data-testid="workspace-grid-hint"
+							className="hidden min-w-0 items-center gap-1.5 truncate text-sm text-content-secondary lg:flex"
+						>
+							<HandIcon aria-hidden className="size-4 shrink-0" />
+							Drag to see them all; click one to use it
+						</span>
+					)}
+				</div>
+				<DialogTitle className="flex items-center gap-2 text-base">
 					Workspaces
-					<span className="ml-2 text-sm font-normal text-content-secondary tabular-nums">
+					<span className="inline-flex size-5 items-center justify-center rounded-full bg-surface-tertiary text-xs font-medium text-content-secondary tabular-nums">
 						{shown.length}
 					</span>
 				</DialogTitle>
-				{pannable && (
-					<span
-						data-testid="workspace-grid-hint"
-						className="flex items-center gap-1.5 text-sm text-content-secondary"
-					>
-						<HandIcon aria-hidden className="size-4" />
-						Drag to see them all; click one to use it
-					</span>
-				)}
 				<DialogClose
 					aria-label="Close"
 					className="ml-auto flex size-8 cursor-pointer items-center justify-center rounded-md border-0 bg-transparent text-content-secondary hover:bg-surface-secondary hover:text-content-primary"
@@ -374,8 +426,11 @@ const GridBody: React.FC<GridBodyProps> = ({
 						style={{
 							gridTemplateColumns: `repeat(${cols}, ${cellW}px)`,
 							gridAutoRows: `${cellH}px`,
-							gap: GAP,
-							width: cols * cellW + (cols - 1) * GAP,
+							gap: spacing,
+							width:
+								cols * cellW +
+								(cols - 1) * spacing +
+								(layout === "list" ? GAP : 0),
 						}}
 					>
 						{allowFocus && (
@@ -384,7 +439,8 @@ const GridBody: React.FC<GridBodyProps> = ({
 								cols={cols}
 								cellW={cellW}
 								cellH={cellH}
-								gap={GAP}
+								gap={spacing}
+								listMode={layout === "list"}
 								portCenterY={
 									BAR_HEIGHT + 1 + fit.top + (fit.height * fit.scale) / 2
 								}

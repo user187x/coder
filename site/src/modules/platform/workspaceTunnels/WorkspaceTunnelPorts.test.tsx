@@ -593,3 +593,47 @@ it("does not let a member detach a shared peer owned by someone else", async () 
 	await user.click(await screen.findByRole("button", { name: "Disconnect" }));
 	expect(remove).not.toHaveBeenCalled();
 });
+
+it("list remaps persisted endpoints to right ports without rewriting the connection", async () => {
+	const create = vi.spyOn(PlatformAPI, "createWorkspaceTunnel");
+	const remove = vi
+		.spyOn(PlatformAPI, "deleteWorkspaceTunnel")
+		.mockResolvedValue({ tunnel });
+	const user = setup(
+		[{ ...tunnel, source_side: "left", target_side: "left" }],
+		vi.fn(),
+		{ cols: 1, listMode: true },
+	);
+	await user.click(
+		screen.getByRole("button", {
+			name: "Connect Alpha right output tunnel port",
+		}),
+	);
+	expect(create).not.toHaveBeenCalled();
+	expect(remove).not.toHaveBeenCalled();
+	await user.click(await screen.findByRole("button", { name: "Disconnect" }));
+	await waitFor(() =>
+		expect(remove).toHaveBeenCalledWith(source.organization_id, tunnel.id),
+	);
+});
+it("creates a list connection from the visible right-side terminals", async () => {
+	const create = vi
+		.spyOn(PlatformAPI, "createWorkspaceTunnel")
+		.mockResolvedValue({ tunnel });
+	const user = setup([], vi.fn(), { cols: 1, listMode: true });
+	await user.click(
+		screen.getByRole("button", {
+			name: "Connect Alpha right output tunnel port",
+		}),
+	);
+	await user.click(await screen.findByRole("button", { name: "Connect" }));
+	await waitFor(() =>
+		expect(create).toHaveBeenCalledWith(
+			source.organization_id,
+			source.id,
+			target.id,
+			"right",
+			"right",
+		),
+	);
+});

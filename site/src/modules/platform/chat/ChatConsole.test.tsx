@@ -61,6 +61,7 @@ const renderConsole = () => {
 		maxFileMb: 25,
 		peers: false,
 		dockMode: "bar",
+		dockTab: "people",
 		fullFrom: "window",
 		panelView: null,
 		consoleOpen: true,

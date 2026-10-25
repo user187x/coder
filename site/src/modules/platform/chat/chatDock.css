@@ -17,3 +17,23 @@
 		margin-right: calc(380px - (100vw - 100%));
 	}
 }
+
+.chat-dock-section-tab {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 32px;
+	height: 32px;
+	padding: 0;
+	margin: 0;
+	border-radius: 8px;
+	color: hsl(var(--content-secondary));
+}
+.chat-dock-section-tab:hover {
+	background: hsl(var(--surface-secondary));
+	color: hsl(var(--content-primary));
+}
+.chat-dock-section-tab[data-state="active"] {
+	background: hsl(var(--surface-tertiary));
+	color: hsl(var(--content-primary));
+}

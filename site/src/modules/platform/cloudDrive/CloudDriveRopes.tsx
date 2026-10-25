@@ -740,14 +740,18 @@ export const CloudDriveRopes: React.FC<{
 				</g>
 			))}
 			<g ref={socket} className="cd-socket-group" visibility="hidden">
-				<rect
-					className="cd-socket"
-					x={-1}
-					y={-5}
-					width={SOCKET + 1}
-					height={10}
-					rx={2}
-				/>
+				{linked.length === 0 ? (
+					<CloudDriveMalePlug />
+				) : (
+					<rect
+						className="cd-socket"
+						x={-1}
+						y={-5}
+						width={SOCKET + 1}
+						height={10}
+						rx={2}
+					/>
+				)}
 				<rect
 					className="cd-grab"
 					data-grab="socket"

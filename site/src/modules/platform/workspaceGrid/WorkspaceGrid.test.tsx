@@ -181,3 +181,20 @@ describe("WorkspaceGrid", () => {
 		await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
 	});
 });
+
+it("switches to list and back without changing established tunnel intents", async () => {
+	const create = vi.spyOn(PlatformAPI, "createWorkspaceTunnel");
+	const remove = vi.spyOn(PlatformAPI, "deleteWorkspaceTunnel");
+	renderGrid(["one", "two"]);
+	const user = userEvent.setup();
+	await user.click(
+		await screen.findByRole("button", { name: "Workspace layout: Grid" }),
+	);
+	await user.click(screen.getByRole("menuitemradio", { name: "List" }));
+	await user.click(
+		screen.getByRole("button", { name: "Workspace layout: List" }),
+	);
+	await user.click(screen.getByRole("menuitemradio", { name: "Grid" }));
+	expect(create).not.toHaveBeenCalled();
+	expect(remove).not.toHaveBeenCalled();
+});

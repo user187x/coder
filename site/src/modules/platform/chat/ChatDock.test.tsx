@@ -140,16 +140,18 @@ describe("ChatDock: the bar, the raised window, the side panel and full screen",
 			await screen.findByRole("textbox", { name: "Message ann" }),
 			"draft kept",
 		);
+		await user.click(within(raised).getByRole("tab", { name: "People" }));
+		await user.click(within(raised).getByRole("tab", { name: "Chat" }));
 		await user.click(within(raised).getByRole("button", { name: "Chats" }));
 		await user.click(screen.getByRole("button", { name: "Hide chat bar" }));
 		expect(initialDockMode()).toBe("compact");
 		await user.click(screen.getByRole("button", { name: "Restore chat bar" }));
 		expect(initialDockMode()).toBe("bar");
+		await user.click(screen.getByRole("button", { name: "Chats" }));
 		await user.click(
-			within(screen.getByRole("dialog", { name: "Chat with ann" })).getByRole(
-				"button",
-				{ name: "Send" },
-			),
+			within(screen.getByTestId("chat-window-raised")).getByRole("button", {
+				name: "Send",
+			}),
 		);
 		await waitFor(() =>
 			expect(send).toHaveBeenCalledWith(
@@ -239,7 +241,10 @@ describe("ChatDock: the bar, the raised window, the side panel and full screen",
 		renderDock();
 		const raised = await raise(user);
 		await user.click(within(raised).getByRole("button", { name: /bob/ }));
-		await screen.findByRole("dialog", { name: "Chat with bob" });
+		await within(screen.getByTestId("chat-window-raised")).findByRole(
+			"textbox",
+			{ name: "Message bob" },
+		);
 
 		await user.click(within(raised).getByTestId("chat-mode-attach"));
 		const side = screen.getByTestId("chat-side-panel");
@@ -247,7 +252,10 @@ describe("ChatDock: the bar, the raised window, the side panel and full screen",
 		expect(screen.queryByRole("dialog", { name: "Chat with bob" })).toBeNull();
 
 		await user.click(within(side).getByTestId("chat-mode-detach"));
-		await screen.findByRole("dialog", { name: "Chat with bob" });
+		await within(screen.getByTestId("chat-window-raised")).findByRole(
+			"textbox",
+			{ name: "Message bob" },
+		);
 		screen.getByTestId("chat-window-raised");
 	});
 

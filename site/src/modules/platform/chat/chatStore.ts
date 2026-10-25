@@ -98,6 +98,7 @@ type ChatSnapshot = {
 	/** Peer-to-peer chat is on: developers see the People list and write to each other. */
 	peers: boolean;
 	dockMode: DockMode;
+	dockTab: "people" | "chat";
 	/** What full screen goes back to. */
 	fullFrom: "window" | "side";
 	/** The conversation open in the side panel or full screen (null: their list). */
@@ -149,6 +150,7 @@ const initialSnapshot: ChatSnapshot = {
 	maxFileMb: 25,
 	peers: false,
 	dockMode: initialDockMode(),
+	dockTab: "people",
 	fullFrom: "window",
 	panelView: null,
 	consoleOpen: false,
@@ -484,6 +486,11 @@ const openWindow = (
 		void loadHistory(peer.id);
 	}
 	saveOpenWindows();
+	if (focus) {
+		selectInPanel(peer, true);
+		update({ dockTab: "chat" });
+		if (snapshot.dockMode !== "compact") setDockMode("window");
+	}
 };
 
 export const closeWindow = (peerId: string) => {
@@ -511,8 +518,13 @@ export const setFocusedWindow = (peerId: string | null) => {
  */
 export const markRead = (peerId: string, used: boolean) => {
 	const w = findView(peerId);
-	if (
+	const inConsole = consoleShown() && snapshot.consoleView?.peer.id === peerId;
+	const hiddenDock =
 		snapshot.dockMode === "compact" ||
+		snapshot.dockMode === "bar" ||
+		(snapshot.dockMode === "window" && snapshot.dockTab === "people");
+	if (
+		(hiddenDock && !inConsole) ||
 		!w ||
 		w.minimized ||
 		document.visibilityState !== "visible"
@@ -883,8 +895,10 @@ export const openUnreadChats = async () => {
 	unread.forEach((c, i) =>
 		openWindow(c.peer, { focus: i === unread.length - 1 }),
 	);
-	for (const c of unread) {
-		markRead(c.peer.id, true);
+	if (unread[0]) {
+		selectInPanel(unread[0].peer, true);
+		update({ dockTab: "chat" });
+		setDockMode("window");
 	}
 };
 
@@ -1018,7 +1032,10 @@ export const selectInPanel = (peer: ChatPeer, focus = false) => {
 };
 
 /** The side panel (or full screen) goes back to its list. */
-export const closePanelView = () => setPanelView(null);
+export const closePanelView = () => {
+	setPanelView(null);
+	update({ dockTab: "people" });
+};
 
 const newClientId = () =>
 	typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -1298,3 +1315,9 @@ export const acknowledgeFocus = async (item: ChatFocus, reply = true) => {
 /** Admins: Force Response - the newest admin message in the conversation comes up in front of everything for them. */
 export const forceResponse = (peerId: string) =>
 	PlatformAPI.forceChatResponse(peerId);
+
+/** Selects the dock content without discarding conversation drafts. */
+export const setDockTab = (dockTab: "people" | "chat") => {
+	focusedPeer = null;
+	update({ dockTab });
+};

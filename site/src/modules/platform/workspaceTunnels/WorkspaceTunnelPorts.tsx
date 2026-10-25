@@ -60,6 +60,7 @@ export const WorkspaceTunnelPorts: React.FC<{
 	portCenterY?: number;
 	onDragging: (dragging: boolean) => void;
 	tableAnchors?: readonly TableTunnelAnchor[];
+	listMode?: boolean;
 	canManage?: boolean;
 	actorId?: string;
 }> = ({
@@ -71,6 +72,7 @@ export const WorkspaceTunnelPorts: React.FC<{
 	portCenterY = cellH / 2,
 	onDragging,
 	tableAnchors,
+	listMode = false,
 	canManage = true,
 	actorId,
 }) => {
@@ -115,6 +117,7 @@ export const WorkspaceTunnelPorts: React.FC<{
 	const gridPorts: Port[] = shown.flatMap((workspace, index) =>
 		(["left", "right"] as const)
 			.filter((side) => {
+				if (listMode) return side === "right";
 				if (cols === 1) return side === "left";
 				return side === "left" ? index % cols > 0 : index % cols < cols - 1;
 			})
@@ -123,8 +126,9 @@ export const WorkspaceTunnelPorts: React.FC<{
 					workspace,
 					side,
 					terminal,
-					x:
-						cols === 1
+					x: listMode
+						? cellW + 8
+						: cols === 1
 							? Math.min(128, Math.max(24, cellW / 3))
 							: (index % cols) * (cellW + gap) +
 								(side === "left" ? -8 : cellW + 8),
@@ -163,6 +167,7 @@ export const WorkspaceTunnelPorts: React.FC<{
 	};
 	const maxArc = (tunnel: WorkspaceTunnel) => {
 		if (tableAnchors) return 112;
+		if (listMode) return 52;
 		const from = portFor(
 			tunnel.source_workspace_id,
 			tunnel.source_side ?? "right",
@@ -458,51 +463,82 @@ export const WorkspaceTunnelPorts: React.FC<{
 						</g>
 					</g>
 				)}
-				{ports.map((p) => (
-					<g key={`${p.workspace.id}-${p.side}-${p.terminal}`}>
-						<rect
-							x={p.x - 4 + (p.side === "left" ? 15 : -15)}
-							y={p.y - 5}
-							width={8}
-							height={10}
-							rx={2}
-							className={`cd-socket ${p.terminal ? `workspace-tunnel-${p.terminal}` : ""}`}
-						/>
-						<rect
-							x={p.x + (p.side === "left" ? 12 : -32)}
-							y={p.y - 13}
-							width={20}
-							height={26}
-							fill="transparent"
-							className="pointer-events-auto cursor-grab"
-							role="button"
-							tabIndex={0}
-							aria-label={`Connect ${p.workspace.name} ${tableAnchors ? "" : `${p.side} `}${p.terminal} tunnel port`}
-							aria-disabled={
-								!manages(p.workspace) ||
-								p.workspace.latest_build.status !== "running"
-							}
-							onPointerDown={(e) => {
-								if (p.workspace.latest_build.status === "running") start(e, p);
-							}}
-							onClick={() => {
-								if (!moved.current) {
-									setSelected(p.workspace);
-									setSelectedTerminal(p.terminal ?? "output");
-									setSelectedSide(p.side);
+				{ports.map((p) => {
+					const connectedOutput = tunnels.some(
+						(t) =>
+							portFor(
+								t.source_workspace_id,
+								t.source_side ?? "right",
+								"output",
+							) === p,
+					);
+					const idleOutput = p.terminal === "output" && !connectedOutput;
+					return (
+						<g key={`${p.workspace.id}-${p.side}-${p.terminal}`}>
+							{idleOutput ? (
+								<g
+									aria-hidden
+									transform={`translate(${p.x} ${p.y}) scale(${p.side === "left" ? -1 : 1} 1)`}
+									className="[&_.cd-plug-body]:fill-[#1e3a8a] [&_.cd-plug-body]:stroke-[#60a5fa] [&_.cd-prong]:stroke-[#60a5fa]"
+								>
+									<CloudDriveMalePlug />
+								</g>
+							) : (
+								<rect
+									x={p.x - 4 + (p.side === "left" ? 15 : -15)}
+									y={p.y - 5}
+									width={8}
+									height={10}
+									rx={2}
+									className={`cd-socket ${p.terminal ? `workspace-tunnel-${p.terminal}` : ""}`}
+								/>
+							)}
+							<rect
+								x={
+									p.x +
+									(idleOutput
+										? p.side === "left"
+											? -22
+											: -2
+										: p.side === "left"
+											? 12
+											: -32)
 								}
-							}}
-							onKeyDown={(e) => {
-								if (e.key === "Enter" || e.key === " ") {
-									e.preventDefault();
-									setSelected(p.workspace);
-									setSelectedTerminal(p.terminal ?? "output");
-									setSelectedSide(p.side);
+								y={p.y - 13}
+								width={idleOutput ? 24 : 20}
+								height={26}
+								fill="transparent"
+								className="pointer-events-auto cursor-grab"
+								role="button"
+								tabIndex={0}
+								aria-label={`Connect ${p.workspace.name} ${tableAnchors ? "" : `${p.side} `}${p.terminal} tunnel port`}
+								aria-disabled={
+									!manages(p.workspace) ||
+									p.workspace.latest_build.status !== "running"
 								}
-							}}
-						/>
-					</g>
-				))}
+								onPointerDown={(e) => {
+									if (p.workspace.latest_build.status === "running")
+										start(e, p);
+								}}
+								onClick={() => {
+									if (!moved.current) {
+										setSelected(p.workspace);
+										setSelectedTerminal(p.terminal ?? "output");
+										setSelectedSide(p.side);
+									}
+								}}
+								onKeyDown={(e) => {
+									if (e.key === "Enter" || e.key === " ") {
+										e.preventDefault();
+										setSelected(p.workspace);
+										setSelectedTerminal(p.terminal ?? "output");
+										setSelectedSide(p.side);
+									}
+								}}
+							/>
+						</g>
+					);
+				})}
 				{tunnels.flatMap((t) => {
 					const from = portFor(
 						t.source_workspace_id,
@@ -676,7 +712,7 @@ export const WorkspaceTunnelPorts: React.FC<{
 																w,
 																undefined,
 																selectedSide,
-																"left",
+																listMode ? "right" : "left",
 															)
 											}
 										>

@@ -7,12 +7,19 @@ import {
 	MinusIcon,
 	PanelRightIcon,
 	PanelsTopLeftIcon,
+	UsersRoundIcon,
 } from "lucide-react";
 import { useQuery } from "react-query";
 import type { ChatPeer } from "#/api/platform";
 import { chatAdmins } from "#/api/queries/platform";
 import { Avatar } from "#/components/Avatar/Avatar";
 import { Button } from "#/components/Button/Button";
+import {
+	Tabs,
+	TabsContent,
+	TabsList,
+	TabsTrigger,
+} from "#/components/Tabs/Tabs";
 import { navbarTileTriggerClass } from "#/modules/dashboard/Navbar/NavbarLogo";
 import { ChatAvatar } from "./ChatAvatar";
 import { ChatPeople } from "./ChatPeople";
@@ -20,36 +27,26 @@ import { CountBadge } from "./ChatWindow";
 import {
 	displayName,
 	hasRecentConversation,
-	markRead,
 	noAdminAvailable,
 	openChatWith,
 	openConsoleOverlay,
 	setChatOn,
 	setDockMode,
+	setDockTab,
 	unreadTotal,
 	useChatSnapshot,
-	windowsBeside,
 } from "./chatStore";
+import { PanelConversation } from "./PanelConversation";
 
-const LISTED_CONVERSATIONS = 15;
 /** The raised window: Gmail's chat window, within the room under the navbar (ChatDock measures it). */
 const RAISED_HEIGHT = "min(520px, var(--chat-space, 520px))";
 /** The bar alone: its 44 px and the card's border. */
 const BAR_HEIGHT = "46px";
 
-/**
- * The "Chats" panel at the far right, Gmail style: a bar at the bottom of the
- * window that rises into a small chat window (and back down), listing the
- * recent conversations to open one in a window beside it. From the window the
- * chat attaches to the right side or goes full screen (ChatAttached). For
- * everyone who is not an admin it is also their line to support, listing the
- * admins to write to, and, when the admins turn peer-to-peer chat on, the
- * People online or active today (ChatPeople) with their own visible /
- * invisible switch. Admins have an on/off switch beside the title (developers
- * only write to admins with chat on), and a button that brings the chat console
- * (ChatConsole) up over the page, the rest blurred (ChatConsoleOverlay).
- */
-export const ChatPanel: React.FC = () => {
+/** The floating chat dock, with persistent People and Chat panels and optional attached/full-screen views. */
+export const ChatPanel: React.FC<{
+	dock: React.RefObject<HTMLElement | null>;
+}> = ({ dock }) => {
 	const state = useChatSnapshot();
 	const me = state.me;
 	if (!me) {
@@ -59,112 +56,191 @@ export const ChatPanel: React.FC = () => {
 	const total = unreadTotal(state);
 	const none = noAdminAvailable(state);
 
-	if (state.dockMode === "compact") {
-		return (
-			<RestoreChatButton total={total} onRestore={() => setDockMode("bar")} />
-		);
-	}
-
-	// Beside the raised window when there is room; on a narrow screen above the bar, the window lowered.
+	const compact = state.dockMode === "compact";
+	const floating = ["bar", "window", "compact"].includes(state.dockMode);
+	const view =
+		state.panelView ?? state.windows.find((window) => !window.minimized);
+	const views =
+		state.panelView &&
+		!state.windows.some((window) => window.peer.id === state.panelView?.peer.id)
+			? [...state.windows, state.panelView]
+			: state.windows;
 	const open = (peer: ChatPeer) => {
-		if (!windowsBeside()) {
-			setDockMode("bar");
-		}
-		void openChatWith(peer).then(() => markRead(peer.id, true));
+		void openChatWith(peer);
 	};
 
 	return (
-		<div
-			data-chat-panel=""
-			data-testid={raised ? "chat-window-raised" : "chat-bar"}
-			// Platform: a card floating clear of the page's bottom bar (ChatDock lifts it), rounded all round; it rises from its bottom edge
-			className="flex w-[min(360px,calc(100vw-32px))] flex-col overflow-hidden rounded-[14px] border border-solid border-border bg-surface-primary shadow-[0_8px_28px_rgb(0_0_0/.16),0_1px_3px_rgb(0_0_0/.08)] transition-[height] duration-250 ease-out motion-reduce:transition-none"
-			style={{ height: raised ? RAISED_HEIGHT : BAR_HEIGHT }}
-		>
+		<>
+			{compact && (
+				<RestoreChatButton total={total} onRestore={() => setDockMode("bar")} />
+			)}
 			<div
+				data-chat-panel=""
+				hidden={!floating || compact || state.consoleOverlay}
+				data-testid={raised ? "chat-window-raised" : "chat-bar"}
+				// Platform: a card floating clear of the page's bottom bar (ChatDock lifts it), rounded all round; it rises from its bottom edge
 				className={cn(
-					"flex shrink-0 items-center bg-surface-primary",
-					raised && "border-0 border-b border-solid border-border pr-1",
+					"flex w-[min(420px,calc(100vw-32px))] flex-col overflow-hidden rounded-[14px] border border-solid border-border bg-surface-primary shadow-[0_8px_28px_rgb(0_0_0/.16),0_1px_3px_rgb(0_0_0/.08)] transition-[height] duration-250 ease-out motion-reduce:transition-none",
+					(!floating || compact || state.consoleOverlay) && "hidden",
 				)}
+				style={{ height: raised ? RAISED_HEIGHT : BAR_HEIGHT }}
 			>
-				<button
-					type="button"
-					aria-expanded={raised}
-					aria-disabled={none}
-					aria-label={total ? `Chats, ${total} unread` : panelTitle(state)}
-					title={
-						none
-							? "No admin is taking chats right now"
-							: raised
-								? "Minimize"
-								: undefined
-					}
-					onClick={() => setDockMode(raised ? "bar" : "window")}
+				<div
 					className={cn(
-						"flex h-11 min-w-0 flex-1 items-center gap-2 border-0 bg-transparent pl-3.5 pr-2 text-left text-[13px] font-semibold text-inherit",
-						none
-							? "cursor-not-allowed opacity-50 grayscale"
-							: "cursor-pointer hover:bg-surface-tertiary",
+						"flex shrink-0 items-center bg-surface-primary",
+						raised && "border-0 border-b border-solid border-border pr-1",
 					)}
 				>
-					<ChatHeading />
-					{!raised && (
-						<ChevronUpIcon className="size-3.5 shrink-0 text-content-secondary" />
-					)}
-				</button>
-				{raised ? (
-					<>
-						{me.admin && <ChatOnSwitch className="px-1.5" />}
-						{me.admin && <ConsoleButton />}
-						<DockButton
-							label="Attach to the right side"
-							testId="chat-mode-attach"
-							onClick={() => setDockMode("side")}
-						>
-							<PanelRightIcon />
-						</DockButton>
-						<DockButton
-							label="Full screen"
-							testId="chat-mode-fullscreen"
-							onClick={() => setDockMode("full")}
-						>
-							<Maximize2Icon />
-						</DockButton>
-						<DockButton
-							label="Minimize"
-							testId="chat-mode-minimize"
-							onClick={() => setDockMode("bar")}
-						>
-							<MinusIcon />
-						</DockButton>
-					</>
-				) : (
-					<>
-						{me.admin && (
-							<button
-								type="button"
-								onClick={() => openConsoleOverlay()}
-								aria-label="Open the chat console"
-								title="Open the chat console over this page"
-								data-testid="chat-open-console"
-								className="inline-flex h-11 shrink-0 cursor-pointer items-center border-0 bg-transparent px-1.5 text-content-secondary hover:text-content-primary"
-							>
-								<PanelsTopLeftIcon className="size-4" />
-							</button>
+					<button
+						type="button"
+						aria-expanded={raised}
+						aria-disabled={none}
+						aria-label={total ? `Chats, ${total} unread` : panelTitle(state)}
+						title={
+							none
+								? "No admin is taking chats right now"
+								: raised
+									? "Minimize"
+									: undefined
+						}
+						onClick={() => setDockMode(raised ? "bar" : "window")}
+						className={cn(
+							"flex h-11 min-w-0 flex-1 items-center gap-2 border-0 bg-transparent pl-3.5 pr-2 text-left text-[13px] font-semibold text-inherit",
+							none
+								? "cursor-not-allowed opacity-50 grayscale"
+								: "cursor-pointer hover:bg-surface-tertiary",
 						)}
-						{me.admin && <ChatOnSwitch className="pr-3.5 pl-1.5" />}
-						<DockButton
-							label="Hide chat bar"
-							testId="chat-mode-compact"
-							onClick={() => setDockMode("compact")}
+					>
+						<ChatHeading />
+						{!raised && (
+							<ChevronUpIcon className="size-3.5 shrink-0 text-content-secondary" />
+						)}
+					</button>
+					{raised ? (
+						<>
+							{me.admin && <ChatOnSwitch className="px-1.5" />}
+							{me.admin && <ConsoleButton />}
+							<DockButton
+								label="Attach to the right side"
+								testId="chat-mode-attach"
+								onClick={() => setDockMode("side")}
+							>
+								<PanelRightIcon />
+							</DockButton>
+							<DockButton
+								label="Full screen"
+								testId="chat-mode-fullscreen"
+								onClick={() => setDockMode("full")}
+							>
+								<Maximize2Icon />
+							</DockButton>
+							<DockButton
+								label="Minimize"
+								testId="chat-mode-minimize"
+								onClick={() => setDockMode("bar")}
+							>
+								<MinusIcon />
+							</DockButton>
+						</>
+					) : (
+						<>
+							{me.admin && (
+								<button
+									type="button"
+									onClick={() => openConsoleOverlay()}
+									aria-label="Open the chat console"
+									title="Open the chat console over this page"
+									data-testid="chat-open-console"
+									className="inline-flex h-11 shrink-0 cursor-pointer items-center border-0 bg-transparent px-1.5 text-content-secondary hover:text-content-primary"
+								>
+									<PanelsTopLeftIcon className="size-4" />
+								</button>
+							)}
+							{me.admin && <ChatOnSwitch className="pr-3.5 pl-1.5" />}
+							<DockButton
+								label="Hide chat bar"
+								testId="chat-mode-compact"
+								onClick={() => setDockMode("compact")}
+							>
+								<Minimize2Icon />
+							</DockButton>
+						</>
+					)}
+				</div>
+				<Tabs
+					hidden={!raised}
+					orientation="vertical"
+					value={state.dockTab}
+					onValueChange={(tab) => {
+						if (tab === "people" || tab === "chat") setDockTab(tab);
+					}}
+					className={cn("flex min-h-0 flex-1", !raised && "hidden")}
+				>
+					<TabsList
+						aria-label="Chat sections"
+						className="flex w-12 shrink-0 flex-col items-center gap-2 border-0 border-r border-solid border-border bg-surface-secondary/30 py-2"
+					>
+						<TabsTrigger
+							value="people"
+							title="People"
+							className="chat-dock-section-tab"
 						>
-							<Minimize2Icon />
-						</DockButton>
-					</>
-				)}
+							<UsersRoundIcon aria-hidden className="size-4" />
+							<span className="sr-only">People</span>
+						</TabsTrigger>
+						<TabsTrigger
+							value="chat"
+							title="Chat"
+							className="chat-dock-section-tab"
+						>
+							<MessageSquareIcon aria-hidden className="size-4" />
+							<span className="sr-only">Chat</span>
+						</TabsTrigger>
+					</TabsList>
+					<TabsContent
+						value="people"
+						hidden={state.dockTab !== "people"}
+						forceMount
+						className="flex min-h-0 min-w-0 flex-1 flex-col data-[state=inactive]:hidden"
+					>
+						<ChatList onOpen={open} className="min-h-0 flex-1" />
+					</TabsContent>
+					<TabsContent
+						value="chat"
+						hidden={state.dockTab !== "chat"}
+						forceMount
+						className="flex min-h-0 min-w-0 flex-1 flex-col data-[state=inactive]:hidden"
+					>
+						{views.map((window) => (
+							<div
+								key={window.peer.id}
+								hidden={view?.peer.id !== window.peer.id}
+								className={cn(
+									"flex min-h-0 flex-1 flex-col",
+									view?.peer.id !== window.peer.id && "hidden",
+								)}
+							>
+								<PanelConversation
+									view={
+										state.panelView?.peer.id === window.peer.id
+											? state.panelView
+											: window
+									}
+									dock={dock}
+									onBack={() => setDockTab("people")}
+									onEscape={() => setDockTab("people")}
+								/>
+							</div>
+						))}
+						{!view && (
+							<p className="p-4 text-sm text-content-secondary">
+								Select someone in People to open a conversation.
+							</p>
+						)}
+					</TabsContent>
+				</Tabs>
 			</div>
-			{raised && <ChatList onOpen={open} className="min-h-0 flex-1" />}
-		</div>
+		</>
 	);
 };
 
@@ -321,9 +397,9 @@ export const ChatList: React.FC<ChatListProps> = ({
 	if (!me) {
 		return null;
 	}
-	const conversations = [...state.conversations.values()]
-		.sort((a, b) => b.last.id - a.last.id)
-		.slice(0, LISTED_CONVERSATIONS);
+	const conversations = [...state.conversations.values()].sort(
+		(a, b) => b.last.id - a.last.id,
+	);
 
 	return (
 		<nav
@@ -369,9 +445,17 @@ export const ChatList: React.FC<ChatListProps> = ({
 					{state.peers && (
 						<ChatPeople onOpen={onOpen} withoutAdmins onlineOnly />
 					)}
-					<div className="px-2 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-content-secondary">
-						Need help? Message an admin
-					</div>
+					{(!adminsQuery.data ||
+						adminsQuery.data.some(
+							(admin) =>
+								!conversations.some(
+									(conversation) => conversation.peer.id === admin.id,
+								),
+						)) && (
+						<div className="px-2 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-content-secondary">
+							Need help? Message an admin
+						</div>
+					)}
 					{adminsQuery.isLoading && (
 						<p className="m-2 text-[13px] text-content-secondary">Loading…</p>
 					)}
@@ -380,25 +464,32 @@ export const ChatList: React.FC<ChatListProps> = ({
 							No admin can be reached right now.
 						</p>
 					) : null}
-					{adminsQuery.data?.map((admin) => (
-						<button
-							key={admin.id}
-							type="button"
-							className={listItemClass}
-							aria-current={admin.id === selectedId || undefined}
-							onClick={() => onOpen(admin)}
-						>
-							<ChatAvatar peer={admin} />
-							<span className="flex min-w-0 flex-1 flex-col gap-0.5">
-								<span className="truncate font-semibold">
-									{displayName(admin)}
+					{adminsQuery.data
+						?.filter(
+							(admin) =>
+								!conversations.some(
+									(conversation) => conversation.peer.id === admin.id,
+								),
+						)
+						.map((admin) => (
+							<button
+								key={admin.id}
+								type="button"
+								className={listItemClass}
+								aria-current={admin.id === selectedId || undefined}
+								onClick={() => onOpen(admin)}
+							>
+								<ChatAvatar peer={admin} />
+								<span className="flex min-w-0 flex-1 flex-col gap-0.5">
+									<span className="truncate font-semibold">
+										{displayName(admin)}
+									</span>
+									<span className="truncate text-xs text-content-secondary">
+										@{admin.username} · admin
+									</span>
 								</span>
-								<span className="truncate text-xs text-content-secondary">
-									@{admin.username} · admin
-								</span>
-							</span>
-						</button>
-					))}
+							</button>
+						))}
 				</>
 			)}
 		</nav>
