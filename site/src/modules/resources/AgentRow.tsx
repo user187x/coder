@@ -570,7 +570,7 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 					</div>
 				</header>
 
-				<div className="flex flex-col gap-8 px-8 pt-8 pb-12">
+				<div className="flex flex-col gap-8 px-8 pt-8 pb-3">
 					{workspace.latest_app_status?.agent_id === agent.id && (
 						<section>
 							<h3 className="sr-only">App statuses</h3>

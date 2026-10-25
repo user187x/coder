@@ -2,6 +2,7 @@
 
 ## UI checkpoint 2026-10-25
 
+* Dashboard card spacing: the gap below metrics now matches the app-to-metrics gap, bringing the Logs/Terminal card closer.
 * Healthy current workspaces show text-only green Running pills; orange restart pills require an update and a healthy running state. Workspace dropdowns grow with names up to25 character-widths while retaining full template badges. Logs, Terminal, build timeline and uptime now share a rounded panel card matching the apps and metrics.
 * Grid cards end just below their scaled dashboards. Headers place status beside the light, center the workspace name, and align the template and outlined focus/open controls on the right. Focus opens the selected dashboard in a centered dialog over a blurred grid.
 * Grid connector follow-up: input/output terminals track the visible scaled dashboard midpoint rather than the full tile midpoint. A 72px grid gutter keeps inward-facing controls outside the dashboard with room to drag cables.
