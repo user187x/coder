@@ -398,3 +398,7 @@ All follow-up requests are complete and live: Coder image coder-local:claude-res
 ### Outward idle tunnel plugs
 
 Unconnected blue output plugs now point away from the workspace on either side. Their pointer targets follow the outward glyph. Occupied outputs retain a socket behind the connected plug, avoiding overlapping prongs. The idle Cloud Drive source already points outward. All 25 tunnel interaction tests passed.
+
+### Connector terminal correction
+
+Per the final user correction, green input terminals use outward-facing idle male plugs and blue output terminals use female sockets. Connection direction, existing cables, and keyboard actions remain unchanged. This supersedes the blue idle male plug appearance noted above.

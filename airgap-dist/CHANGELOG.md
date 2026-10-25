@@ -2544,3 +2544,4 @@ workspace checks).
   `coder-ui-updates`) as one umbrella chart, render-verified against the live objects.
 
 - Point unconnected tunnel output plug prongs outward and align their drag targets; retain seated plugs for existing connections.
+- Use green male input plugs and blue female output sockets, with idle male prongs facing outward.

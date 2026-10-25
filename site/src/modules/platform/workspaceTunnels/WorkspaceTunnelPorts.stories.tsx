@@ -178,7 +178,7 @@ export const ListConnected: Story = {
 	],
 };
 
-export const IdleRetractableOutputs: Story = {
+export const IdleRetractableInputs: Story = {
 	parameters: {
 		queries: [
 			{

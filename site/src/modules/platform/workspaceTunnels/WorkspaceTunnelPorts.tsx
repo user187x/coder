@@ -464,22 +464,22 @@ export const WorkspaceTunnelPorts: React.FC<{
 					</g>
 				)}
 				{ports.map((p) => {
-					const connectedOutput = tunnels.some(
+					const connectedInput = tunnels.some(
 						(t) =>
 							portFor(
-								t.source_workspace_id,
-								t.source_side ?? "right",
-								"output",
+								t.target_workspace_id,
+								t.target_side ?? "left",
+								"input",
 							) === p,
 					);
-					const idleOutput = p.terminal === "output" && !connectedOutput;
+					const idleInput = p.terminal === "input" && !connectedInput;
 					return (
 						<g key={`${p.workspace.id}-${p.side}-${p.terminal}`}>
-							{idleOutput ? (
+							{idleInput ? (
 								<g
 									aria-hidden
 									transform={`translate(${p.x} ${p.y}) scale(${p.side === "left" ? -1 : 1} 1)`}
-									className="[&_.cd-plug-body]:fill-[#1e3a8a] [&_.cd-plug-body]:stroke-[#60a5fa] [&_.cd-prong]:stroke-[#60a5fa]"
+									className="[&_.cd-plug-body]:fill-[#14532d] [&_.cd-plug-body]:stroke-[#4ade80] [&_.cd-prong]:stroke-[#4ade80]"
 								>
 									<CloudDriveMalePlug />
 								</g>
@@ -496,7 +496,7 @@ export const WorkspaceTunnelPorts: React.FC<{
 							<rect
 								x={
 									p.x +
-									(idleOutput
+									(idleInput
 										? p.side === "left"
 											? -22
 											: -2
@@ -505,7 +505,7 @@ export const WorkspaceTunnelPorts: React.FC<{
 											: -32)
 								}
 								y={p.y - 13}
-								width={idleOutput ? 24 : 20}
+								width={idleInput ? 24 : 20}
 								height={26}
 								fill="transparent"
 								className="pointer-events-auto cursor-grab"
