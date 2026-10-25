@@ -11,6 +11,7 @@ import {
 	getMatchingAgentOrFirst,
 	getWorkspaceAgents,
 	isWorkspaceOn,
+	workspaceAgentNeedsUpdate,
 } from "./workspace";
 
 function buildWorkspace(
@@ -236,4 +237,37 @@ describe("util > workspace", () => {
 			expect(getMatchingAgentOrFirst(workspace, "missing")).toBeUndefined();
 		});
 	});
+});
+
+describe("workspaceAgentNeedsUpdate", () => {
+	it.each([
+		[
+			"v2.0.0-devel+agent-build",
+			"v2.0.0-devel+server-build",
+			"2.12",
+			"2.12",
+			false,
+		],
+		[
+			"v2.0.0-platform.108-resume.3+old",
+			"v2.0.0-devel+claude-resume.51",
+			"2.12",
+			"2.12",
+			false,
+		],
+		["v2.0.1", "v2.0.0", "2.12", "2.12", false],
+		["v1.9.0", "v2.0.0", "2.12", "2.12", true],
+		["v2.0.0", "v2.0.0", "1.0", "2.12", true],
+	])(
+		"compares %s with %s using API %s/%s",
+		(version, server, api, serverAPI, expected) => {
+			expect(
+				workspaceAgentNeedsUpdate(
+					{ ...Mocks.MockWorkspaceAgent, version, api_version: api },
+					server,
+					serverAPI,
+				),
+			).toBe(expected);
+		},
+	);
 });

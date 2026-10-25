@@ -408,3 +408,7 @@ Per the final user correction, green input terminals use outward-facing idle mal
 Aligned each idle green male plug's cable join with the corresponding female socket centerline at the workspace edge, instead of the cable-routing anchor 15 pixels outside it. Moved the pointer target with the glyph. Existing cables and connection anchors retain their positions.
 
 Checked all shared male-plug consumers: workspace table, grid, and list terminals share the corrected WorkspaceTunnelPorts renderer. Cloud Drive's idle source is anchored at the drive's right edge; account-sharing sockets and seated plugs already use row-edge geometry. Drag-layer and retracting-cord plugs intentionally follow their free endpoints. The additional 8 workspace grid interaction tests passed.
+
+### Correct workspace update detection
+
+Removed exact version-string inequality from the shared agent-update predicate. Semantic version precedence and agent API compatibility now determine whether an agent update is needed, so build metadata differences and newer agent releases do not produce a false amber restart status. Template outdated flags remain authoritative. Added regressions for deployed development-build versions, metadata-only differences, newer agents, older releases, and incompatible APIs. All 59 targeted workspace utility/status/table tests passed.

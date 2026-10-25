@@ -344,7 +344,7 @@ export const lastUsedMessage = (lastUsedAt: string | Date): string => {
 	return message;
 };
 
-/** Includes rebuilt releases whose build metadata does not affect semver ordering. */
+/** Reports older agent releases and incompatible agent API versions. */
 export const workspaceAgentNeedsUpdate = (
 	agent: TypesGen.WorkspaceAgent,
 	serverVersion: string,
@@ -355,5 +355,4 @@ export const workspaceAgentNeedsUpdate = (
 		serverVersion,
 		agent.api_version,
 		serverAPIVersion,
-	).status !== agentVersionStatus.Updated ||
-	Boolean(agent.version && serverVersion && agent.version !== serverVersion);
+	).status !== agentVersionStatus.Updated;
