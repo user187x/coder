@@ -422,3 +422,7 @@ Live validation also exposed the layout menu portal behind the z-70 viewer. Rais
 ### Workspace dropdown selection footer
 
 Replaced the compact toggle/action footer with a large centered Grid View pill and prefixed grid icon. Added a compact count row showing selected : selectable, with separate Clear and Select all pills. Each menu session starts with all available workspaces selected; manual changes survive refetches until the menu closes. Updated the existing selection test to verify the default-all, cleared/subset, and select-all callback payloads. Nine dropdown tests, type checking, and production build passed.
+
+### Inward add-panel notch
+
+Changed the Add a panel enclosure from a raised semicircle above the card to an inward rounded cutout along its top edge, with the circular plus centered inside. Kept the app picker, keyboard actions, and ready-state behavior unchanged.
