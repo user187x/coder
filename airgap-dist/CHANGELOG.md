@@ -2547,3 +2547,4 @@ workspace checks).
 - Use green male input plugs and blue female output sockets, with idle male prongs facing outward.
 - Seat idle green tunnel plugs flush against the workspace edge and move their drag targets with them.
 - Fix false workspace update indicators caused by build metadata or newer agent versions; preserve genuine template, older agent release, and API compatibility update indicators.
+- Add a visible dropdown arrow to the workspace viewer's Grid/List selector.

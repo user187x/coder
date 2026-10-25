@@ -1,6 +1,7 @@
 import { cn } from "cn";
 import {
 	ArrowUpRightIcon,
+	ChevronDownIcon,
 	HandIcon,
 	LayoutGridIcon,
 	ListIcon,
@@ -338,7 +339,7 @@ const GridBody: React.FC<GridBodyProps> = ({
 						<DropdownMenuTrigger asChild>
 							<Button
 								variant="subtle"
-								size="icon"
+								size="sm"
 								aria-label={`Workspace layout: ${layout === "grid" ? "Grid" : "List"}`}
 							>
 								{layout === "grid" ? (
@@ -346,6 +347,7 @@ const GridBody: React.FC<GridBodyProps> = ({
 								) : (
 									<ListIcon aria-hidden />
 								)}
+								<ChevronDownIcon aria-hidden className="size-3.5" />
 							</Button>
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="start">

@@ -412,3 +412,7 @@ Checked all shared male-plug consumers: workspace table, grid, and list terminal
 ### Correct workspace update detection
 
 Removed exact version-string inequality from the shared agent-update predicate. Semantic version precedence and agent API compatibility now determine whether an agent update is needed, so build metadata differences and newer agent releases do not produce a false amber restart status. Template outdated flags remain authoritative. Added regressions for deployed development-build versions, metadata-only differences, newer agents, older releases, and incompatible APIs. All 59 targeted workspace utility/status/table tests passed.
+
+### Make viewer layout menu discoverable
+
+Added the missing visible dropdown chevron beside the Grid/List icon and widened the shared button to fit both. The existing List radio menu item continues to stack selected workspaces and route connectors on the right. Existing layout-switching coverage verifies no tunnel mutations occur when changing layout.
