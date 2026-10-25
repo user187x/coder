@@ -27,7 +27,7 @@ export const IN_VIEW = 2;
 export const FRAME_WIDTH = 1024;
 /** How often the workspaces' names and states are asked again while the grid is open. */
 export const REFRESH_MS = 5000;
-const GAP = 12;
+const GAP = 72;
 /** A cell's own bar: the workspace's name, its state and the way to its page. */
 const BAR_HEIGHT = 36;
 /** A press that moves less than this is a click (it picks the dashboard to use); further, it drags the grid. */
@@ -369,6 +369,9 @@ const GridBody: React.FC<GridBodyProps> = ({
 							cellW={cellW}
 							cellH={cellH}
 							gap={GAP}
+							portCenterY={
+								BAR_HEIGHT + 1 + fit.top + (fit.height * fit.scale) / 2
+							}
 							canManage={canManageTunnels}
 							actorId={tunnelActorId}
 							onDragging={setConnecting}

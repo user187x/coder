@@ -57,6 +57,7 @@ export const WorkspaceTunnelPorts: React.FC<{
 	cellW: number;
 	cellH: number;
 	gap: number;
+	portCenterY?: number;
 	onDragging: (dragging: boolean) => void;
 	tableAnchors?: readonly TableTunnelAnchor[];
 	canManage?: boolean;
@@ -67,6 +68,7 @@ export const WorkspaceTunnelPorts: React.FC<{
 	cellW,
 	cellH,
 	gap,
+	portCenterY = cellH / 2,
 	onDragging,
 	tableAnchors,
 	canManage = true,
@@ -125,10 +127,10 @@ export const WorkspaceTunnelPorts: React.FC<{
 						cols === 1
 							? Math.min(128, Math.max(24, cellW / 3))
 							: (index % cols) * (cellW + gap) +
-								(side === "left" ? 8 : cellW - 8),
+								(side === "left" ? -8 : cellW + 8),
 					y:
 						Math.floor(index / cols) * (cellH + gap) +
-						cellH / 2 +
+						portCenterY +
 						(terminal === "input" ? -12 : 12),
 				})),
 			),

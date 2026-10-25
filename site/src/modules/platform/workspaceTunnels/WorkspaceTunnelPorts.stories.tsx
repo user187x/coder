@@ -26,7 +26,7 @@ const meta: Meta<typeof WorkspaceTunnelPorts> = {
 		cols: 2,
 		cellW: 350,
 		cellH: 260,
-		gap: 12,
+		gap: 72,
 		onDragging: () => {},
 	},
 	decorators: [
@@ -36,10 +36,10 @@ const meta: Meta<typeof WorkspaceTunnelPorts> = {
 				style={{
 					gridTemplateColumns: `repeat(${args.cols ?? 2}, ${args.cellW ?? 350}px)`,
 					gridAutoRows: `${args.cellH ?? 260}px`,
-					gap: args.gap ?? 12,
+					gap: args.gap ?? 72,
 					width:
 						(args.cols ?? 2) * (args.cellW ?? 350) +
-						((args.cols ?? 2) - 1) * (args.gap ?? 12),
+						((args.cols ?? 2) - 1) * (args.gap ?? 72),
 				}}
 			>
 				{(args.shown ?? shown).map((w) => (
