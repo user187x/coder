@@ -2548,3 +2548,4 @@ workspace checks).
 - Seat idle green tunnel plugs flush against the workspace edge and move their drag targets with them.
 - Fix false workspace update indicators caused by build metadata or newer agent versions; preserve genuine template, older agent release, and API compatibility update indicators.
 - Add a visible dropdown arrow to the workspace viewer's Grid/List selector.
+- Display the Grid/List menu above the workspace viewer modal instead of behind it.

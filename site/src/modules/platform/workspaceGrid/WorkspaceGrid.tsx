@@ -350,7 +350,7 @@ const GridBody: React.FC<GridBodyProps> = ({
 								<ChevronDownIcon aria-hidden className="size-3.5" />
 							</Button>
 						</DropdownMenuTrigger>
-						<DropdownMenuContent align="start">
+						<DropdownMenuContent align="start" className="z-[90]">
 							<DropdownMenuRadioGroup
 								value={layout}
 								onValueChange={(value) => {
