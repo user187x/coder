@@ -406,3 +406,5 @@ Per the final user correction, green input terminals use outward-facing idle mal
 ### Flush idle input plugs
 
 Aligned each idle green male plug's cable join with the corresponding female socket centerline at the workspace edge, instead of the cable-routing anchor 15 pixels outside it. Moved the pointer target with the glyph. Existing cables and connection anchors retain their positions.
+
+Checked all shared male-plug consumers: workspace table, grid, and list terminals share the corrected WorkspaceTunnelPorts renderer. Cloud Drive's idle source is anchored at the drive's right edge; account-sharing sockets and seated plugs already use row-edge geometry. Drag-layer and retracting-cord plugs intentionally follow their free endpoints. The additional 8 workspace grid interaction tests passed.
