@@ -26,7 +26,8 @@ export const WorkspaceStatus: React.FC<WorkspaceStatusProps> = ({
 	onUpdate,
 	updateDisabled = false,
 }) => {
-	const needsUpdate = agentUpdateAvailable || workspace.outdated;
+	const needsUpdate =
+		workspace.health.healthy && (agentUpdateAvailable || workspace.outdated);
 	const lastUsed = lastUsedMessage(workspace.last_used_at);
 	const indicator = (
 		<WorkspaceStatusIndicator

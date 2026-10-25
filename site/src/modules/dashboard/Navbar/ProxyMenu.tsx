@@ -186,7 +186,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 					align="end"
 					data-testid="navbar-latency-controls-menu"
 					// The Controls menu's widths; a long one scrolls rather than leave its graphs off the screen.
-					className="w-[240px] has-[[data-cluster-gauge]]:w-[300px] max-h-(--radix-dropdown-menu-content-available-height) overflow-y-auto scrollbar-thin [scrollbar-color:hsl(var(--surface-quaternary))_transparent]"
+					className="w-max min-w-[240px] max-w-[calc(100vw-32px)] has-[[data-cluster-gauge]]:min-w-[300px] max-h-(--radix-dropdown-menu-content-available-height) overflow-y-auto scrollbar-thin [scrollbar-color:hsl(var(--surface-quaternary))_transparent]"
 				>
 					{regions && proxy && (
 						<DropdownMenuSub>

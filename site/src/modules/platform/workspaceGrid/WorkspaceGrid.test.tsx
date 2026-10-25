@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { MemoryRouter, useLocation } from "react-router";
 import { API } from "#/api/api";
@@ -161,6 +162,14 @@ describe("WorkspaceGrid", () => {
 		);
 		expect(screen.queryByTestId("workspace-grid-shield-a")).toBeNull();
 		expect(screen.getByTestId("workspace-grid-shield-b")).toBeInTheDocument();
+	});
+
+	it("opens the selected workspace from its focused view", async () => {
+		const user = userEvent.setup();
+		const onOpenChange = renderGrid(["one", "two"]);
+		await user.click(await screen.findByRole("button", { name: "Focus two" }));
+		await user.click(screen.getByRole("button", { name: "Open two" }));
+		await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
 	});
 
 	it("opens a workspace's page from its bar, and makes way for it", async () => {

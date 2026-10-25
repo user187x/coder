@@ -120,6 +120,7 @@ export const WorkspaceStatusIndicator: React.FC<
 
 	const update =
 		agentUpdateAvailable &&
+		workspace.health.healthy &&
 		workspace.latest_build.status === "running" &&
 		!lostWhileRunning;
 	const variant =
@@ -138,7 +139,10 @@ export const WorkspaceStatusIndicator: React.FC<
 			: variantByStatusType[type];
 	const dot = update ? (
 		<RefreshCcwIcon aria-hidden className="size-3.5 workspace-update-pulse" />
-	) : runningLight &&
+	) : listPill &&
+		workspace.latest_build.status === "running" &&
+		workspace.health.healthy &&
+		!lostWhileRunning ? null : runningLight &&
 		(type === "success" || lostWhileRunning) &&
 		workspace.latest_build.status === "running" ? (
 		<RunningLight started={workspaceStartedAt(workspace)} lostAt={lostAt} />

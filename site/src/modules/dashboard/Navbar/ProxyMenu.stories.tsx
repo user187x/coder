@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn, userEvent, within } from "storybook/test";
 import { getAuthorizationKey } from "#/api/queries/authCheck";
+import { workspaces } from "#/api/queries/workspaces";
 import type * as TypesGen from "#/api/typesGenerated";
 import { AuthProvider } from "#/contexts/auth/AuthProvider";
 import { getPreferredProxy } from "#/contexts/ProxyContext";
@@ -10,6 +11,7 @@ import {
 	MockPermissions,
 	MockProxyLatencies,
 	MockUserOwner,
+	MockWorkspace,
 	MockWorkspaceProxies,
 } from "#/testHelpers/entities";
 import { withDesktopViewport } from "#/testHelpers/storybook";
@@ -187,5 +189,38 @@ export const ManyProxiesOpened: Story = {
 		// Platform: the regions are in the Region row's submenu.
 		const body = within(canvasElement.ownerDocument.body);
 		await userEvent.click(await body.findByTestId("navbar-region"));
+	},
+};
+
+export const LongWorkspaceNames: Story = {
+	parameters: {
+		queries: [
+			...(meta.parameters?.queries ?? []),
+			{
+				key: workspaces({ q: "owner:me" }).queryKey,
+				data: {
+					workspaces: [
+						{
+							...MockWorkspace,
+							name: "amethyst-sparrow-workspace",
+							template_display_name: "DATAFLOW",
+						},
+						{
+							...MockWorkspace,
+							id: "short-workspace",
+							name: "ahh",
+							template_display_name: "DEFAULT",
+						},
+					],
+					count: 2,
+				},
+			},
+		],
+	},
+	play: async ({ canvasElement }) => {
+		await userEvent.click(within(canvasElement).getByRole("button"));
+		const trigger = within(document.body).getByTestId("workspaces-latency");
+		trigger.focus();
+		await userEvent.keyboard("{Enter}");
 	},
 };

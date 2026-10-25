@@ -41,3 +41,15 @@ export const StatusPills: Story = {
 export const AgentUpdateAvailable: Story = {
 	args: { pill: true, agentUpdateAvailable: true },
 };
+
+export const RunningUpToDate: Story = {
+	args: {
+		pill: true,
+		agentUpdateAvailable: false,
+		workspace: {
+			...MockWorkspace,
+			outdated: false,
+			health: { healthy: true, failing_agents: [] },
+		},
+	},
+};

@@ -3,6 +3,7 @@ import {
 	ArrowUpRightIcon,
 	HandIcon,
 	LayoutGridIcon,
+	SquareIcon,
 	XIcon,
 } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -10,6 +11,7 @@ import { useQuery } from "react-query";
 import { useLocation, useNavigate } from "react-router";
 import { workspaces } from "#/api/queries/workspaces";
 import type { Workspace } from "#/api/typesGenerated";
+import { Button } from "#/components/Button/Button";
 import {
 	Dialog,
 	DialogClose,
@@ -29,7 +31,7 @@ export const FRAME_WIDTH = 1024;
 export const REFRESH_MS = 5000;
 const GAP = 72;
 /** A cell's own bar: the workspace's name, its state and the way to its page. */
-const BAR_HEIGHT = 36;
+const BAR_HEIGHT = 44;
 /** A press that moves less than this is a click (it picks the dashboard to use); further, it drags the grid. */
 const DRAG_PX = 4;
 
@@ -166,6 +168,7 @@ type GridBodyProps = {
 	tunnelActorId?: string;
 	loading: boolean;
 	navigate: (to: string) => void;
+	allowFocus?: boolean;
 };
 
 const GridBody: React.FC<GridBodyProps> = ({
@@ -174,7 +177,10 @@ const GridBody: React.FC<GridBodyProps> = ({
 	tunnelActorId,
 	loading,
 	navigate,
+	allowFocus = true,
 }) => {
+	const [focusedId, setFocusedId] = useState<string | null>(null);
+	const focused = shown.find((workspace) => workspace.id === focusedId);
 	const viewportRef = useRef<HTMLDivElement>(null);
 	const [connecting, setConnecting] = useState(false);
 	const [size, setSize] = useState({ w: 0, h: 0 });
@@ -197,14 +203,14 @@ const GridBody: React.FC<GridBodyProps> = ({
 		0,
 		Math.floor((size.w - GAP * (inViewCols - 1)) / inViewCols),
 	);
-	const cellH = Math.max(
+	const availableCellH = Math.max(
 		0,
 		Math.floor((size.h - GAP * (inViewRows - 1)) / inViewRows),
 	);
 	const pannable = cols > IN_VIEW || rows > IN_VIEW;
 	// inside the cell's 1px border
 	const frameW = Math.max(0, cellW - 2);
-	const frameH = Math.max(0, cellH - BAR_HEIGHT - 2);
+	const frameH = Math.max(0, availableCellH - BAR_HEIGHT - 14);
 
 	// Each dashboard's height, as it tells it (its page in the frame: useReportEmbeddedSize).
 	const frames = useRef(new Map<string, HTMLIFrameElement>());
@@ -213,6 +219,15 @@ const GridBody: React.FC<GridBodyProps> = ({
 		frameW,
 		frameH,
 		shown.map((w) => heights[w.id]),
+	);
+	const focusFit = frameFit(
+		Math.min(size.w, 1168),
+		Math.max(0, size.h - 2 * BAR_HEIGHT - 40),
+		[focused ? heights[focused.id] : undefined],
+	);
+	const cellH = Math.min(
+		availableCellH,
+		BAR_HEIGHT + 14 + Math.ceil(fit.height * fit.scale),
 	);
 	useEffect(() => {
 		const onMessage = (event: MessageEvent) => {
@@ -363,19 +378,21 @@ const GridBody: React.FC<GridBodyProps> = ({
 							width: cols * cellW + (cols - 1) * GAP,
 						}}
 					>
-						<WorkspaceTunnelPorts
-							shown={shown}
-							cols={cols}
-							cellW={cellW}
-							cellH={cellH}
-							gap={GAP}
-							portCenterY={
-								BAR_HEIGHT + 1 + fit.top + (fit.height * fit.scale) / 2
-							}
-							canManage={canManageTunnels}
-							actorId={tunnelActorId}
-							onDragging={setConnecting}
-						/>
+						{allowFocus && (
+							<WorkspaceTunnelPorts
+								shown={shown}
+								cols={cols}
+								cellW={cellW}
+								cellH={cellH}
+								gap={GAP}
+								portCenterY={
+									BAR_HEIGHT + 1 + fit.top + (fit.height * fit.scale) / 2
+								}
+								canManage={canManageTunnels}
+								actorId={tunnelActorId}
+								onDragging={setConnecting}
+							/>
+						)}
 						{shown.map((w) => {
 							const up = w.latest_build.status === "running";
 							const inUse = !pannable || active === w.id;
@@ -391,33 +408,46 @@ const GridBody: React.FC<GridBodyProps> = ({
 									)}
 								>
 									<div
-										className="flex shrink-0 items-center gap-2 border-0 border-b border-solid border-border px-3 text-sm"
+										className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-2 border-0 border-b border-solid border-border px-3 text-sm"
 										style={{ height: BAR_HEIGHT }}
 									>
-										<span
-											aria-hidden
-											className={cn(
-												"size-2 shrink-0 rounded-full",
-												up ? "bg-content-success" : "bg-content-disabled",
-											)}
-										/>
-										<span className="truncate font-medium text-content-primary">
+										<span className="flex min-w-0 items-center gap-2 text-xs text-content-secondary">
+											<span
+												aria-hidden
+												className={cn(
+													"size-2 shrink-0 rounded-full",
+													up ? "bg-content-success" : "bg-content-disabled",
+												)}
+											/>
+											<span className="truncate">{w.latest_build.status}</span>
+										</span>
+										<span className="min-w-0 truncate font-medium text-content-primary">
 											{w.name}
 										</span>
-										<TemplatePill workspace={w} />
-										<span className="shrink-0 text-xs text-content-secondary">
-											{w.latest_build.status}
-										</span>
-										<button
-											type="button"
-											data-testid={`workspace-grid-open-${w.name}`}
-											title={`Open ${w.name}`}
-											aria-label={`Open ${w.name}`}
-											className="ml-auto flex size-7 cursor-pointer items-center justify-center rounded-md border-0 bg-transparent text-content-secondary hover:bg-surface-secondary hover:text-content-primary"
-											onClick={() => navigate(workspacePath(w))}
-										>
-											<ArrowUpRightIcon aria-hidden className="size-4" />
-										</button>
+										<div className="flex min-w-0 items-center justify-end gap-2">
+											<TemplatePill workspace={w} />
+											{allowFocus && (
+												<Button
+													variant="outline"
+													size="icon"
+													aria-label={`Focus ${w.name}`}
+													title={`Focus ${w.name}`}
+													onClick={() => setFocusedId(w.id)}
+												>
+													<SquareIcon aria-hidden />
+												</Button>
+											)}
+											<Button
+												variant="outline"
+												size="icon"
+												data-testid={`workspace-grid-open-${w.name}`}
+												title={`Open ${w.name}`}
+												aria-label={`Open ${w.name}`}
+												onClick={() => navigate(workspacePath(w))}
+											>
+												<ArrowUpRightIcon aria-hidden />
+											</Button>
+										</div>
 									</div>
 									<div className="relative min-h-0 flex-1 overflow-hidden">
 										<iframe
@@ -461,6 +491,39 @@ const GridBody: React.FC<GridBodyProps> = ({
 					</div>
 				)}
 			</div>
+			{allowFocus && (
+				<Dialog
+					open={Boolean(focused)}
+					onOpenChange={(open) => {
+						if (!open) setFocusedId(null);
+					}}
+				>
+					<DialogContent
+						aria-describedby={undefined}
+						overlayClassName="z-[80] backdrop-blur-md"
+						className="z-[80] flex max-h-none w-[calc(100vw-80px)] max-w-[1200px] flex-col gap-0 overflow-hidden p-0"
+						style={{
+							height: Math.min(
+								size.h,
+								2 * BAR_HEIGHT +
+									40 +
+									Math.ceil(focusFit.height * focusFit.scale),
+							),
+						}}
+					>
+						{focused && (
+							<GridBody
+								shown={[focused]}
+								canManageTunnels={canManageTunnels}
+								tunnelActorId={tunnelActorId}
+								loading={false}
+								navigate={navigate}
+								allowFocus={false}
+							/>
+						)}
+					</DialogContent>
+				</Dialog>
+			)}
 		</>
 	);
 };

@@ -20,10 +20,6 @@ import "./workspacesLatency.css";
 export const REFRESH_MS = 3000;
 /** How long a press lasts before the list locks open (the ring round the pill drawn all the way). */
 export const HOLD_MS = 800;
-/** The widest a name gets (px) before it is cut short: the template pills line up after the widest name up to this. */
-const NAME_MAX = 120;
-/** ... and the narrowest it is made to give room to the pills (px). */
-const NAME_MIN = 40;
 /** Where this browser keeps the workspaces last chosen for the grid. */
 const GRID_SELECTION_KEY = "platform.workspaceGrid.selected";
 
@@ -117,9 +113,10 @@ export const templateColour = (name: string): string => {
 };
 
 /** The template a workspace was made from (its display name, else its name), in a pill of the template's colour. */
-export const TemplatePill: React.FC<{ workspace: Workspace }> = ({
-	workspace,
-}) => {
+export const TemplatePill: React.FC<{
+	workspace: Workspace;
+	className?: string;
+}> = ({ workspace, className }) => {
 	const name = workspace.template_display_name || workspace.template_name;
 	if (!name) {
 		return null;
@@ -130,7 +127,10 @@ export const TemplatePill: React.FC<{ workspace: Workspace }> = ({
 			data-testid="workspace-template-pill"
 			title={`Template: ${name}`}
 			// cut short (whole on hover) rather than run past a narrow menu's edge
-			className="min-w-0 max-w-[9rem] shrink truncate rounded-full border border-solid px-2 text-[11px] font-semibold leading-4"
+			className={cn(
+				"min-w-0 max-w-[9rem] shrink truncate rounded-full border border-solid px-2 text-[11px] font-semibold leading-4",
+				className,
+			)}
 			style={{
 				color: colour,
 				borderColor: `${colour}66`,
@@ -186,7 +186,7 @@ export const WorkspacesLatencyMenu: React.FC<{
 	}, [selected]);
 	// Chosen and still there, in the list's order.
 	const chosen = list.filter((w) => selected.includes(w.id));
-	// Every name as wide as the widest (up to NAME_MAX), so the template pills after them line up in one column.
+	// Align template badges after the longest name, capped at 25 characters.
 	const [nameWidth, setNameWidth] = useState<number>();
 	const names = list.map((w) => w.name).join("\n");
 	useLayoutEffect(() => {
@@ -197,35 +197,13 @@ export const WorkspacesLatencyMenu: React.FC<{
 			return;
 		}
 		let widest = 0;
-		// the room a name has: its row's width less everything else in it (the widest such), so that in a narrow
-		// menu (a member's) every name gives way alike and the pills stay in one column
-		let room = Number.POSITIVE_INFINITY;
 		for (const span of spans) {
-			const set = span.style.width;
+			const width = span.style.width;
 			span.style.width = "max-content";
 			widest = Math.max(widest, span.offsetWidth);
-			span.style.width = set;
-			const row = span.parentElement;
-			if (row && row.clientWidth > 0) {
-				const style = window.getComputedStyle(row);
-				const others = [...row.children].filter((c) => c !== span);
-				const gap = (Number.parseFloat(style.columnGap) || 0) * others.length;
-				const used = others.reduce(
-					(sum, c) =>
-						sum + Math.max(c.scrollWidth, (c as HTMLElement).offsetWidth),
-					0,
-				);
-				const padding =
-					(Number.parseFloat(style.paddingLeft) || 0) +
-					(Number.parseFloat(style.paddingRight) || 0);
-				room = Math.min(room, row.clientWidth - padding - used - gap);
-			}
+			span.style.width = width;
 		}
-		setNameWidth(
-			widest > 0
-				? Math.max(NAME_MIN, Math.min(widest, NAME_MAX, room))
-				: undefined,
-		);
+		setNameWidth(widest > 0 ? widest : undefined);
 	}, [names, selecting]);
 	const toggle = (id: string) =>
 		setSelected((ids) =>
@@ -444,16 +422,15 @@ export const WorkspacesLatencyMenu: React.FC<{
 										data-workspace-name
 										title={w.name}
 										className={cn(
-											// as wide as the widest name, or the room every row has for it (a member's
-											// narrower menu): every name alike, so the pills stay in one column
-											"min-w-0 shrink-0 truncate",
+											// Keep template badges aligned while bounding long workspace names.
+											"min-w-0 max-w-[25ch] shrink-0 truncate",
 											!up && "text-content-secondary",
 										)}
 										style={{ width: nameWidth }}
 									>
 										{w.name}
 									</span>
-									<TemplatePill workspace={w} />
+									<TemplatePill workspace={w} className="max-w-none shrink-0" />
 									<span
 										className={cn(
 											"ml-auto shrink-0 text-xs tabular-nums",
