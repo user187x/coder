@@ -478,7 +478,7 @@ export const WorkspaceTunnelPorts: React.FC<{
 							{idleInput ? (
 								<g
 									aria-hidden
-									transform={`translate(${p.x} ${p.y}) scale(${p.side === "left" ? -1 : 1} 1)`}
+									transform={`translate(${p.x + (p.side === "left" ? 15 : -15)} ${p.y}) scale(${p.side === "left" ? -1 : 1} 1)`}
 									className="[&_.cd-plug-body]:fill-[#14532d] [&_.cd-plug-body]:stroke-[#4ade80] [&_.cd-prong]:stroke-[#4ade80]"
 								>
 									<CloudDriveMalePlug />
@@ -498,8 +498,8 @@ export const WorkspaceTunnelPorts: React.FC<{
 									p.x +
 									(idleInput
 										? p.side === "left"
-											? -22
-											: -2
+											? -7
+											: -17
 										: p.side === "left"
 											? 12
 											: -32)

@@ -402,3 +402,7 @@ Unconnected blue output plugs now point away from the workspace on either side. 
 ### Connector terminal correction
 
 Per the final user correction, green input terminals use outward-facing idle male plugs and blue output terminals use female sockets. Connection direction, existing cables, and keyboard actions remain unchanged. This supersedes the blue idle male plug appearance noted above.
+
+### Flush idle input plugs
+
+Aligned each idle green male plug's cable join with the corresponding female socket centerline at the workspace edge, instead of the cable-routing anchor 15 pixels outside it. Moved the pointer target with the glyph. Existing cables and connection anchors retain their positions.

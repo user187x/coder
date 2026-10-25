@@ -2545,3 +2545,4 @@ workspace checks).
 
 - Point unconnected tunnel output plug prongs outward and align their drag targets; retain seated plugs for existing connections.
 - Use green male input plugs and blue female output sockets, with idle male prongs facing outward.
+- Seat idle green tunnel plugs flush against the workspace edge and move their drag targets with them.
