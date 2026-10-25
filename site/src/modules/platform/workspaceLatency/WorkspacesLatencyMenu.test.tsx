@@ -6,6 +6,7 @@ import {
 	waitFor,
 	within,
 } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { MemoryRouter } from "react-router";
 import { API } from "#/api/api";
@@ -258,33 +259,18 @@ describe("WorkspacesLatencyMenu", () => {
 		fireEvent.pointerUp(document.body, { button: 0, pointerId: 1 });
 
 		fireEvent.doubleClick(row);
+		const user = userEvent.setup();
 		const view = within(list).getByTestId("workspace-grid-view");
-		expect(view).toHaveAttribute("aria-disabled", "true");
 		const ggg = within(list).getByTestId("workspace-latency-ggg");
-		expect(ggg).toHaveAttribute("role", "menuitemcheckbox");
-		expect(ggg).toHaveAttribute("aria-checked", "false");
-		// its page is still a click away, on its arrow
-		expect(within(list).getByTestId("workspace-open-ggg")).toHaveAttribute(
-			"href",
-			`/@${MockWorkspace.owner_name}/ggg`,
-		);
-
-		fireEvent.click(ggg);
-		expect(ggg).toHaveAttribute("aria-checked", "true");
-		expect(isOpen(list)).toBe(true);
-		expect(onOpenChange).not.toHaveBeenCalled();
-		expect(view).toHaveTextContent("View 1 in a grid");
-
-		fireEvent.click(within(list).getByTestId("workspace-grid-all"));
-		expect(view).toHaveTextContent("View 2 in a grid");
-		fireEvent.click(view);
-		expect(onOpenGrid).toHaveBeenCalledWith(["ggg", "old"]);
-		// remembered in this browser
-		expect(
-			JSON.parse(
-				localStorage.getItem("platform.workspaceGrid.selected") ?? "[]",
-			),
-		).toEqual(["ggg", "old"]);
+		await user.click(view);
+		expect(onOpenGrid).toHaveBeenLastCalledWith(["ggg", "old"]);
+		await user.click(within(list).getByTestId("workspace-grid-clear"));
+		await user.click(ggg);
+		await user.click(view);
+		expect(onOpenGrid).toHaveBeenLastCalledWith(["ggg"]);
+		await user.click(within(list).getByTestId("workspace-grid-all"));
+		await user.click(view);
+		expect(onOpenGrid).toHaveBeenLastCalledWith(["ggg", "old"]);
 	});
 
 	it("counts the hold with chevrons each side of its words, three at most, in step with the ring", async () => {

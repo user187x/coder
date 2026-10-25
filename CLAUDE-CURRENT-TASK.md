@@ -418,3 +418,7 @@ Removed exact version-string inequality from the shared agent-update predicate. 
 Added the missing visible dropdown chevron beside the Grid/List icon and widened the shared button to fit both. The existing List radio menu item continues to stack selected workspaces and route connectors on the right. Existing layout-switching coverage verifies no tunnel mutations occur when changing layout.
 
 Live validation also exposed the layout menu portal behind the z-70 viewer. Raised this menu to z-90 so its Grid/List options display above the modal rather than opening invisibly behind it.
+
+### Workspace dropdown selection footer
+
+Replaced the compact toggle/action footer with a large centered Grid View pill and prefixed grid icon. Added a compact count row showing selected : selectable, with separate Clear and Select all pills. Each menu session starts with all available workspaces selected; manual changes survive refetches until the menu closes. Updated the existing selection test to verify the default-all, cleared/subset, and select-all callback payloads. Nine dropdown tests, type checking, and production build passed.

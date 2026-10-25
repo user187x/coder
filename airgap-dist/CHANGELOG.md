@@ -2549,3 +2549,4 @@ workspace checks).
 - Fix false workspace update indicators caused by build metadata or newer agent versions; preserve genuine template, older agent release, and API compatibility update indicators.
 - Add a visible dropdown arrow to the workspace viewer's Grid/List selector.
 - Display the Grid/List menu above the workspace viewer modal instead of behind it.
+- Redesign the workspace dropdown footer with a full-width Grid View pill, selected/total counts, separate Clear and Select all controls, and all workspaces selected by default.
