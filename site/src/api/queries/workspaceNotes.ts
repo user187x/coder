@@ -8,7 +8,8 @@ export const workspaceNotes = (id: string) => ({
 	queryKey: workspaceNotesKey(id),
 	queryFn: () => PlatformAPI.getWorkspaceNotes(id),
 	retry: false,
-	refetchInterval: 30_000,
+	refetchInterval: 1000,
+	refetchIntervalInBackground: true,
 });
 const refresh = (client: QueryClient, id: string) =>
 	Promise.all([

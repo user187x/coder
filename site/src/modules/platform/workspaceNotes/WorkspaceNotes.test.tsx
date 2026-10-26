@@ -20,7 +20,24 @@ const renderNotes = () =>
 	);
 
 describe("WorkspaceNotes", () => {
-	afterEach(() => vi.restoreAllMocks());
+	afterEach(() => {
+		vi.useRealTimers();
+		vi.restoreAllMocks();
+	});
+
+	it("refreshes notes within a second without remounting the page", async () => {
+		const getNotes = vi
+			.spyOn(PlatformAPI, "getWorkspaceNotes")
+			.mockResolvedValue({ notes: [], canEdit: false });
+		vi.useFakeTimers();
+		const view = renderNotes();
+		await vi.waitFor(() => expect(getNotes).toHaveBeenCalledTimes(1));
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(1000);
+		});
+		expect(getNotes).toHaveBeenCalledTimes(2);
+		view.unmount();
+	});
 
 	it("shows the owner the note, crooked and over the page, with only Dismiss", async () => {
 		vi.spyOn(PlatformAPI, "getWorkspaceNotes").mockResolvedValue({
