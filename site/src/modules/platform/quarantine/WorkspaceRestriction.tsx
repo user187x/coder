@@ -73,3 +73,28 @@ export const RestrictedWorkspaceRow: React.FC<
 		</TableRow>
 	);
 };
+
+export const WorkspaceRestrictedActions: React.FC<{
+	workspace: Workspace;
+	children: React.ReactNode;
+	className?: string;
+}> = ({ workspace, children, className }) => {
+	const restricted = useWorkspaceRestricted(workspace);
+	return (
+		<fieldset
+			key={restricted ? "locked" : "available"}
+			disabled={restricted}
+			inert={restricted}
+			aria-label="Workspace power and actions"
+			className={[
+				"m-0 min-w-0 border-0 p-0",
+				className,
+				restricted ? "grayscale opacity-40 pointer-events-none" : "",
+			]
+				.filter(Boolean)
+				.join(" ")}
+		>
+			{children}
+		</fieldset>
+	);
+};

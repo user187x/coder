@@ -170,6 +170,7 @@ import lockdown  # noqa: E402  (Lock Down: admins jail a workspace's network and
 import safe  # noqa: E402  (the safe: each account's own files on S3, on the Workspaces page and in its workspaces)
 import provisioners  # noqa: E402  (Provisioner Daemons: stuck jobs, their terraform processes, a re-kick)
 import dr  # noqa: E402  (Persistence > Disaster recovery: Coder's database dumped or copied outside the cluster)
+import workspaceconnections
 import workspacetunnels
 import workspacepower
 import math
@@ -10098,6 +10099,11 @@ def main():
     drivepeers.setup(log, lambda user: bool(set(user.get("roles") or []) & ADMIN_ROLES), safe_user,
                      drive_chat_post, safe.publish_now, people=lambda: list(chat_people().values()),
                      item=lambda owner, path: safe.item_kind(owner, path, fresh=True), admins=chat_admins)
+    connection_restrictions = workspaceconnections.Restrictions(lambda: LOGOS.pool if LOGOS else None,
+        lockdown.settings, safe, workspacetunnels, log)
+    safe.CONNECTION_RESTRICTED = connection_restrictions.restricted
+    workspacetunnels.CONNECTION_RESTRICTED = connection_restrictions.restricted
+    connection_restrictions.start()
     safe.setup_audit(safe_user, drive_inbox_send)
     safe.start()
     if imagebuilder.ENABLED:

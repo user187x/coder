@@ -82,6 +82,7 @@ import {
 import {
 	RestrictedWorkspaceRow,
 	useWorkspaceRestricted,
+	WorkspaceRestrictedActions,
 	WorkspaceRestrictionAvatar,
 } from "#/modules/platform/quarantine/WorkspaceRestriction";
 import { AppsCarousel } from "#/modules/platform/workspaceApps/AppsCarousel";
@@ -445,6 +446,7 @@ const WorkspacesRow: React.FC<WorkspacesRowProps> = ({
 	children,
 	checked,
 }) => {
+	const restricted = useWorkspaceRestricted(workspace);
 	const navigate = useNavigate();
 	const [restartOpen, setRestartOpen] = useState(false);
 	const restartBusy = useIsMutating({
@@ -483,9 +485,10 @@ const WorkspacesRow: React.FC<WorkspacesRowProps> = ({
 	return (
 		<RestartDialogContext.Provider
 			value={{
-				open: restartOpen,
+				open: restartOpen && !restricted,
 				setOpen: setRestartOpen,
 				canRestart:
+					!restricted &&
 					abilities.canAcceptJobs &&
 					abilities.actions.some((action) =>
 						[
@@ -715,7 +718,10 @@ const WorkspaceActionsCell: React.FC<WorkspaceActionsCellProps> = ({
 					e.stopPropagation();
 				}}
 			>
-				<div className="workspace-controls flex gap-1.5 justify-center">
+				<WorkspaceRestrictedActions
+					workspace={workspace}
+					className="workspace-controls flex gap-1.5 justify-center"
+				>
 					{abilities.actions.includes("start") && (
 						<PrimaryAction
 							onClick={() => startWorkspaceMutation.mutate({})}
@@ -824,7 +830,7 @@ const WorkspaceActionsCell: React.FC<WorkspaceActionsCellProps> = ({
 						isRestarting={restartWorkspaceMutation.isPending}
 						onActionSuccess={onActionSuccess}
 					/>
-				</div>
+				</WorkspaceRestrictedActions>
 				{/* Stop workspace confirmation dialog */}
 				<ConfirmDialog
 					open={isStopConfirmOpen}

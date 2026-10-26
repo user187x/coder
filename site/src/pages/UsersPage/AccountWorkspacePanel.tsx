@@ -18,6 +18,7 @@ import {
 import { linkToTemplate, useLinks } from "#/modules/navigation";
 import {
 	RestrictedWorkspaceRow,
+	WorkspaceRestrictedActions,
 	WorkspaceRestrictionAvatar,
 } from "#/modules/platform/quarantine/WorkspaceRestriction";
 import { QuotaAdjustments } from "#/modules/platform/quotaRequests/QuotaAdjustments";
@@ -228,23 +229,25 @@ export const AccountWorkspacePanelView: React.FC<
 								</TableCell>
 								<TableCell data-label="Actions">
 									{canManage && !w.is_prebuild ? (
-										<AccountWorkspaceActions targets={[w]} compact>
-											<Button
-												asChild
-												size="icon"
-												variant="outline"
-												className="size-7 shrink-0"
-											>
-												<Link
-													to={`/@${encodeURIComponent(w.owner_name)}/${encodeURIComponent(w.name)}`}
-													aria-label={`View ${w.name}`}
-													title="View workspace"
+										<WorkspaceRestrictedActions workspace={w}>
+											<AccountWorkspaceActions targets={[w]} compact>
+												<Button
+													asChild
+													size="icon"
+													variant="outline"
+													className="size-7 shrink-0"
 												>
-													<ArrowUpRightIcon aria-hidden />
-												</Link>
-											</Button>
-											<AccountWorkspaceUpdate workspace={w} />
-										</AccountWorkspaceActions>
+													<Link
+														to={`/@${encodeURIComponent(w.owner_name)}/${encodeURIComponent(w.name)}`}
+														aria-label={`View ${w.name}`}
+														title="View workspace"
+													>
+														<ArrowUpRightIcon aria-hidden />
+													</Link>
+												</Button>
+												<AccountWorkspaceUpdate workspace={w} />
+											</AccountWorkspaceActions>
+										</WorkspaceRestrictedActions>
 									) : (
 										<span className="text-xs text-content-secondary">
 											View only

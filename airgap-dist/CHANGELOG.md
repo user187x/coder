@@ -3,6 +3,7 @@
 ## Workspace restrictions and app cleanup 2026-10-26
 
 * Restricted dashboards disable app and panel interaction, show a hazard topbar, and display the workspace-specific contact-administrator notice. Accounts and workspace rows share hazard stripes and avatar shields.
+* Restricted workspaces also disable power/update actions and ellipsis menus. Their Cloud Drive and tunnel connections are withdrawn independently of VM reconciliation and cannot be reconnected while restricted.
 * Only male tunnel plugs can originate cord drags.
 * User menus expose the two existing color variants under each dark/light mode.
 * Chromium is removed as a standalone workspace app while remaining installed in Desktop images. DATAFLOW uses the built-in Terminal instead of its Ghostty app.

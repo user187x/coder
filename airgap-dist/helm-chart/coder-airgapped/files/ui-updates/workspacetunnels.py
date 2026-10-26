@@ -22,6 +22,7 @@ NETWORK = ipaddress.ip_network(os.environ.get("WORKSPACE_TUNNELS_CIDR", "10.253.
 LEASE_SECONDS = 15
 NAMESPACE = os.environ.get("CODER_NAMESPACE", "coder")
 WORKSPACE_INFO = HTTP_JSON = KUBE = LIVE_WORKSPACES = None
+CONNECTION_RESTRICTED = None
 CODER_URL = ""
 ADMIN_ROLES = set()
 _LOCK = threading.Lock()
@@ -239,6 +240,8 @@ def create(token, user, organization_id, body):
     if source == target:
         raise ValueError("Choose two different workspaces.")
     known = {wid: authorize(token, user, organization_id, wid) for wid in (source, target)}
+    if CONNECTION_RESTRICTED and any(CONNECTION_RESTRICTED(wid) for wid in (source, target)):
+        raise PermissionError("Locked workspaces cannot establish tunnels.")
     with state() as data:
         for wid, ws in known.items():
             workspace(data, organization_id, wid)["name"] = ws.get("name", wid)

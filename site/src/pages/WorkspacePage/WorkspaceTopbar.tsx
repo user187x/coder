@@ -34,7 +34,10 @@ import {
 import { useDashboard } from "#/modules/dashboard/useDashboard";
 import { linkToTemplate, useLinks } from "#/modules/navigation";
 import { LockdownBadge } from "#/modules/platform/lockdown/Lockdown";
-import { useWorkspaceRestricted } from "#/modules/platform/quarantine/WorkspaceRestriction";
+import {
+	useWorkspaceRestricted,
+	WorkspaceRestrictedActions,
+} from "#/modules/platform/quarantine/WorkspaceRestriction";
 import { useWorkspaceIcon } from "#/modules/workspaces/WorkspaceIcon/useWorkspaceIcon";
 import { WorkspaceStatusIndicator } from "#/modules/workspaces/WorkspaceStatusIndicator/WorkspaceStatusIndicator";
 import { displayDormantDeletion } from "#/utils/dormant";
@@ -284,20 +287,22 @@ export const WorkspaceTopbar: React.FC<WorkspaceTopbarProps> = ({
 						/>
 					)}
 
-					<WorkspaceActions
-						workspace={workspace}
-						permissions={permissions}
-						isUpdating={isUpdating}
-						isRestarting={isRestarting}
-						handleStart={handleStart}
-						handleStop={handleStop}
-						handleRestart={handleRestart}
-						handleUpdate={handleUpdate}
-						handleCancel={handleCancel}
-						handleRetry={handleRetry}
-						handleDebug={handleDebug}
-						handleDormantActivate={handleDormantActivate}
-					/>
+					<WorkspaceRestrictedActions workspace={workspace}>
+						<WorkspaceActions
+							workspace={workspace}
+							permissions={permissions}
+							isUpdating={isUpdating}
+							isRestarting={isRestarting}
+							handleStart={handleStart}
+							handleStop={handleStop}
+							handleRestart={handleRestart}
+							handleUpdate={handleUpdate}
+							handleCancel={handleCancel}
+							handleRetry={handleRetry}
+							handleDebug={handleDebug}
+							handleDormantActivate={handleDormantActivate}
+						/>
+					</WorkspaceRestrictedActions>
 				</div>
 			)}
 		</Topbar>

@@ -94,6 +94,9 @@ ReadOnlyMany); everyone sees it, admins and template admins add and remove its f
   POST /__coder-ui/api/isos/delete {name}
 """
 import base64
+import contextlib
+import fcntl
+import tempfile
 import hashlib
 import hmac
 import json
@@ -207,6 +210,9 @@ _published = {"state": None}  # the ConfigMap's state as last written
 _wanted = {}  # pod name -> the annotation as last set here (a retried push gives way to a newer one)
 _attach_seen = {}  # workspace id -> (its status word, time): its answer to the last push
 _sources_seen = {}  # owner id -> {running, pod, started, tried, error}
+
+
+CONNECTION_RESTRICTED = None
 
 
 def setup(log, kube, users, can_edit=None, is_admin=None, workspace_info=None, shared=None, workspaces=None,
@@ -889,6 +895,8 @@ def set_connected(h, user, wid, body):
         raise ValueError("There is no such workspace.")
     if ws.get("owner_id") != user["id"]:
         raise PermissionError
+    if want and CONNECTION_RESTRICTED and CONNECTION_RESTRICTED(wid):
+        raise PermissionError("Locked workspaces cannot reconnect Cloud Drive.")
     if want and wid in shared_now():
         raise ValueError("This workspace is shared with others: your Cloud Drive stays out of it while it is shared.")
     with _links_lock:
@@ -1335,12 +1343,87 @@ def _read_json(path):
         return {}
 
 
+def _read_state(path):
+    try:
+        with open(path) as source:
+            data = json.load(source)
+    except FileNotFoundError:
+        return {}
+    except (OSError, ValueError):
+        raise RuntimeError('Cloud Drive connection state is unavailable.') from None
+    if not isinstance(data, dict):
+        raise RuntimeError('Cloud Drive connection state is invalid.')
+    return data
+
+
+@contextlib.contextmanager
+def local_lock(path):
+    """Serialize state changes across replicas sharing the platform state volume."""
+    fd = os.open(path + '.lock', os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        yield
+    finally:
+        os.close(fd)
+
+
+def source_generation(src):
+    return src.get('generation') or hashlib.sha256(json.dumps(src, sort_keys=True).encode()).hexdigest()[:32]
+
+
+def source_endpoint_snapshot(owner):
+    name = SOURCE_PREFIX + owner
+    endpoints = []
+    for resource in ('services', 'secrets'):
+        path = '/api/v1/namespaces/%s/%s/%s' % (NAMESPACE, resource, name)
+        status, obj = KUBE.call('GET', path)
+        if status == 404:
+            continue
+        metadata = obj.get('metadata') or {}
+        if status != 200 or metadata.get('labels', {}).get('platform.coder/user-id') != owner or not all(
+                metadata.get(key) for key in ('uid', 'resourceVersion')):
+            raise RuntimeError('Cloud Drive source endpoint identity could not be verified.')
+        endpoints.append((path, metadata['uid'], metadata['resourceVersion']))
+    return endpoints
+
+
+def delete_source_endpoints(endpoints):
+    for path, uid, version in endpoints:
+        status, _ = KUBE.call('DELETE', path, {'apiVersion': 'v1', 'kind': 'DeleteOptions',
+            'preconditions': {'uid': uid, 'resourceVersion': version}})
+        if status not in (200, 202, 404):
+            raise RuntimeError('Cloud Drive source endpoint changed; withdrawal will retry.')
+
+
+def withdraw_source_endpoint(owner, expected):
+    """Delete captured endpoint generations only while the source remains suspended."""
+    endpoints = source_endpoint_snapshot(owner)
+    with local_lock(SOURCES_FILE):
+        current = sources().get(owner)
+        if not current or current != expected or not current.get('suspended'):
+            return False
+    delete_source_endpoints(endpoints)
+    return True
+
+
 def _write_json(path, data):
-    tmp = path + ".tmp"
-    with open(tmp, "w") as f:
-        os.fchmod(f.fileno(), 0o600)
-        json.dump(data, f)
-    os.replace(tmp, path)
+    directory = os.path.dirname(os.path.abspath(path))
+    fd, tmp = tempfile.mkstemp(prefix='.' + os.path.basename(path) + '.', dir=directory)
+    try:
+        with os.fdopen(fd, 'w') as source:
+            os.fchmod(source.fileno(), 0o600)
+            json.dump(data, source)
+            source.flush()
+            os.fsync(source.fileno())
+        os.replace(tmp, path)
+        parent = os.open(directory, os.O_RDONLY | os.O_DIRECTORY)
+        try:
+            os.fsync(parent)
+        finally:
+            os.close(parent)
+    finally:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
 
 
 def encryption_records():
@@ -1675,11 +1758,13 @@ def _crypt(uid, username, action):
 def sources():
     """{owner id: {workspace, name, path, since, by, accessKey, secretKey}}: the accounts whose Cloud Drive is a
     folder of one of their workspaces."""
-    return _read_json(SOURCES_FILE)
+    return _read_state(SOURCES_FILE)
 
 
 def source_config(owner, src):
     """What the source's server runs with, and its id (a change restarts it)."""
+    if src.get("suspended") or (CONNECTION_RESTRICTED and CONNECTION_RESTRICTED(src["workspace"])):
+        raise ValueError("This Cloud Drive source is suspended by workspace lockdown.")
     cfg = {"root": src["path"], "bucket": SOURCE_BUCKET, "prefix": owner + "/", "accessKey": src["accessKey"],
            "secretKey": src["secretKey"], "region": "us-east-1", "port": SOURCE_PORT}
     if AUDIT_ENABLED:
@@ -1800,6 +1885,10 @@ def sources_once():
     the templates."""
     for owner, src in sources().items():
         seen = _sources_seen.setdefault(owner, {"running": False, "tried": 0, "error": None, "checked": 0})
+        if src.get("suspended") or (CONNECTION_RESTRICTED and CONNECTION_RESTRICTED(src["workspace"])):
+            withdraw_source_endpoint(owner, src)
+            seen.update(running=False, pod=None, error="Source suspended by workspace lockdown; reconnect it explicitly after release.")
+            continue
         if WORKSPACES and time.time() - seen.get("checked", 0) > SOURCE_RETRY:
             seen["checked"] = time.time()
             try:
@@ -1930,6 +2019,8 @@ def set_source(h, user, body):
         raise ValueError("There is no such workspace.")
     if ws.get("owner_id") != uid:
         raise PermissionError
+    if CONNECTION_RESTRICTED and CONNECTION_RESTRICTED(wid):
+        raise PermissionError("Locked workspaces cannot reconnect Cloud Drive.")
     if wid in shared_now():
         raise ValueError("That workspace is shared with others: it cannot hold your Cloud Drive.")
     if encryption_on(uid):
@@ -2470,6 +2561,8 @@ def _mount_workspace(h, user, wid):
         raise ValueError("There is no such workspace.")
     if ws.get("owner_id") != user["id"]:
         raise PermissionError
+    if CONNECTION_RESTRICTED and CONNECTION_RESTRICTED(wid):
+        raise PermissionError("Locked workspaces cannot reconnect Cloud Drive.")
     if wid in shared_now():
         raise ValueError("That workspace is shared with others: your Cloud Drive is not in it.")
     found = _source_pod(wid)
