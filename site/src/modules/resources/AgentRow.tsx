@@ -53,7 +53,10 @@ import {
 } from "#/components/Tooltip/Tooltip";
 import { useProxy } from "#/contexts/ProxyContext";
 import { useClipboard } from "#/hooks/useClipboard";
-import { normalizeWorkspaceApps } from "#/modules/apps/workspaceApps";
+import {
+	isRetiredWorkspaceApp,
+	normalizeWorkspaceApps,
+} from "#/modules/apps/workspaceApps";
 import { useFeatureVisibility } from "#/modules/dashboard/useFeatureVisibility";
 import { AgentBorderFx } from "#/modules/platform/agentBorder/AgentBorderFx";
 import { agentBorderState } from "#/modules/platform/agentBorder/agentBorderState";
@@ -976,7 +979,7 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 								...panels.apps
 									.filter(
 										(panel) =>
-											panel.kind !== "app" || panel.slug !== "chromium",
+											panel.kind !== "app" || !isRetiredWorkspaceApp(panel),
 									)
 									.map((panel) => {
 										const common = {
@@ -1020,19 +1023,6 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 												),
 											};
 										}
-										if (panel.slug === "ghostty")
-											return {
-												id: panel.id,
-												label: "Terminal",
-												render: (handle: React.ReactNode) => (
-													<AgentTerminalSection
-														agent={agent}
-														workspace={workspace}
-														ready={appsReady}
-														handle={handle}
-													/>
-												),
-											};
 										const app = agent.apps.find((a) => a.slug === panel.slug);
 										return {
 											id: panel.id,
