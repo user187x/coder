@@ -114,6 +114,9 @@ export const WorkspaceTunnelPorts: React.FC<{
 	);
 	const [selectedSide, setSelectedSide] = useState<"left" | "right">("right");
 	const [arcs, setArcs] = useState<Record<string, number>>({});
+	const [stubs, setStubs] = useState<
+		Record<string, { length: number; bend: number }>
+	>({});
 	const [replacements, setReplacements] = useState<
 		{ old: WorkspaceTunnel; next: string }[]
 	>([]);
@@ -454,7 +457,9 @@ export const WorkspaceTunnelPorts: React.FC<{
 							setSelectedTerminal(visible.terminal ?? "output");
 							setSelectedSide(visible.side);
 						};
-						const end = visible.x + (visible.side === "left" ? -26 : 26);
+						const stub = stubs[t.id] ?? { length: 26, bend: 0 };
+						const direction = visible.side === "left" ? -1 : 1;
+						const end = visible.x + direction * stub.length;
 						return (
 							<g
 								key={t.id}
@@ -472,7 +477,7 @@ export const WorkspaceTunnelPorts: React.FC<{
 							>
 								<title>{label}</title>
 								<path
-									d={`M ${visible.x + (visible.side === "left" ? 15 : -15)} ${visible.y} H ${end}`}
+									d={`M ${visible.x - direction * 15} ${visible.y} C ${visible.x + (direction * stub.length) / 3} ${visible.y + stub.bend}, ${end - (direction * stub.length) / 3} ${visible.y - stub.bend}, ${end} ${visible.y}`}
 									className="workspace-tunnel-conduit"
 								/>
 								<circle
@@ -869,6 +874,70 @@ export const WorkspaceTunnelPorts: React.FC<{
 									shown.find((w) => w.id === t.target_workspace_id)?.name ??
 									t.target_workspace_name ??
 									t.target_workspace_id;
+								if (
+									!shown.some((w) => w.id === t.source_workspace_id) ||
+									!shown.some((w) => w.id === t.target_workspace_id)
+								) {
+									const stub = stubs[t.id] ?? { length: 26, bend: 0 };
+									return (
+										<fieldset
+											key={t.id}
+											className="m-0 flex flex-col gap-3 border-0 p-0"
+										>
+											<legend className="mb-2 text-sm">
+												Cable to{" "}
+												{t.source_workspace_id === selected.id ? to : from}
+											</legend>
+											<label className="flex flex-col gap-2 text-sm">
+												Cable length: {stub.length} px
+												<input
+													type="range"
+													min={20}
+													max={160}
+													step={2}
+													value={stub.length}
+													onChange={(e) =>
+														setStubs((current) => ({
+															...current,
+															[t.id]: {
+																...stub,
+																length: e.target.valueAsNumber,
+															},
+														}))
+													}
+												/>
+											</label>
+											<label className="flex flex-col gap-2 text-sm">
+												Cable bend: {stub.bend} px
+												<input
+													type="range"
+													min={-80}
+													max={80}
+													step={2}
+													value={stub.bend}
+													onChange={(e) =>
+														setStubs((current) => ({
+															...current,
+															[t.id]: { ...stub, bend: e.target.valueAsNumber },
+														}))
+													}
+												/>
+											</label>
+											<Button
+												variant="outline"
+												size="sm"
+												onClick={() =>
+													setStubs((current) => ({
+														...current,
+														[t.id]: { length: 26, bend: 0 },
+													}))
+												}
+											>
+												Reset cable shape
+											</Button>
+										</fieldset>
+									);
+								}
 								return (
 									<label key={t.id} className="flex flex-col gap-2 text-sm">
 										Cable arc: {from} to {to}
