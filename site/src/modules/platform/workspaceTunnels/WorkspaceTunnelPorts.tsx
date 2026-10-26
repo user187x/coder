@@ -25,6 +25,7 @@ import { cablePath, type Point, restingCable } from "../cloudDrive/cables";
 import { EditableTunnelCable } from "./EditableTunnelCable";
 import { TunnelConnectionHead } from "./TunnelConnectionHead";
 import { TunnelDetails } from "./TunnelDetails";
+import { TunnelOverview, TunnelOverviewTooltip } from "./TunnelOverview";
 import { readTunnelLayout, saveTunnelLayout } from "./tunnelLayout";
 import type { TunnelRoute } from "./tunnelRouting";
 import "../cloudDrive/cloudDrive.css";
@@ -125,10 +126,10 @@ export const WorkspaceTunnelPorts: React.FC<{
 	const [heads, setHeads] = useState<Record<string, { x: number; y: number }>>(
 		saved.heads,
 	);
-	const [arcs, setArcs] = useState<Record<string, number>>(saved.arcs);
-	const [stubs, setStubs] = useState<
-		Record<string, { length: number; bend: number }>
-	>(saved.stubs);
+	const [arcs] = useState<Record<string, number>>(saved.arcs);
+	const [stubs] = useState<Record<string, { length: number; bend: number }>>(
+		saved.stubs,
+	);
 	useEffect(() => {
 		saveTunnelLayout(layoutKey, { routes, heads, arcs, stubs });
 	}, [layoutKey, routes, heads, arcs, stubs]);
@@ -479,20 +480,7 @@ export const WorkspaceTunnelPorts: React.FC<{
 						const endY = visible.y + head.y;
 						const route = routes[t.id] ?? { points: [], orthogonal: false };
 						const angle = (from ? direction : -direction) === 1 ? 0 : 180;
-						const peerAddress = from ? t.target_address : t.source_address;
-						const peerStats = from ? t.target_stats : t.source_stats;
-						const ports = t.ports
-							?.map((p) => `${p.protocol.toUpperCase()} ${p.port}`)
-							.join(", ");
-						const observed = peerStats?.ports_available
-							? peerStats.ports
-									.map(
-										(p) =>
-											`${p.protocol.toUpperCase()} ${p.local_port} → ${p.remote_port}`,
-									)
-									.join(", ") || "None observed"
-							: "Not reported";
-						const headDescription = `Connected workspace: ${peer || (from ? t.target_workspace_id : t.source_workspace_id)}\nSource: ${t.source_workspace_name ?? t.source_workspace_id} → Destination: ${t.target_workspace_name ?? t.target_workspace_id}\nAddress / IP: ${peerAddress || "Not reported"}\nAllowed ports: ${t.ports ? ports || "None" : "All ports"}\nObserved ports (local → remote): ${observed}`;
+
 						return (
 							<EditableTunnelCable
 								key={t.id}
@@ -509,7 +497,7 @@ export const WorkspaceTunnelPorts: React.FC<{
 								}
 								defaultPath={`M ${visible.x - direction * 15} ${visible.y} C ${visible.x + (direction * stub.length) / 3} ${visible.y + stub.bend}, ${end - (direction * stub.length) / 3} ${endY - stub.bend}, ${end} ${endY}`}
 								route={route}
-								headDescription={headDescription}
+								headOverview={<TunnelOverview tunnel={t} peerSource={!from} />}
 								onChange={(route) =>
 									setRoutes((current) => ({ ...current, [t.id]: route }))
 								}
@@ -685,40 +673,44 @@ export const WorkspaceTunnelPorts: React.FC<{
 						{ at: to, fixed: from, source: false },
 					].map(({ at, fixed, source }) => (
 						<ContextMenu key={`${t.id}-${source}`}>
-							<ContextMenuTrigger asChild>
-								<g
-									transform={`translate(${at.x} ${at.y}) scale(${at.side === "left" ? 1 : -1} 1)`}
-								>
-									<CloudDriveMalePlug />
-									<rect
-										x={-4}
-										y={-9}
-										width={16}
-										height={18}
-										fill="transparent"
-										className="pointer-events-auto cursor-grab"
-										role="button"
-										tabIndex={0}
-										aria-label={`Disconnect tunnel ${from.workspace.name} to ${to.workspace.name}${source ? " source plug" : ""}`}
-										onPointerDown={(event) => start(event, fixed, t, source)}
-										onClick={() => {
-											if (!moved.current) {
-												setSelected(at.workspace);
-												setSelectedTerminal(source ? "output" : "input");
-												setSelectedSide(at.side);
-											}
-										}}
-										onKeyDown={(event) => {
-											if (event.key === "Enter" || event.key === " ") {
-												event.preventDefault();
-												setSelected(at.workspace);
-												setSelectedTerminal(source ? "output" : "input");
-												setSelectedSide(at.side);
-											}
-										}}
-									/>
-								</g>
-							</ContextMenuTrigger>
+							<TunnelOverviewTooltip
+								overview={<TunnelOverview tunnel={t} peerSource={!source} />}
+							>
+								<ContextMenuTrigger asChild>
+									<g
+										transform={`translate(${at.x} ${at.y}) scale(${at.side === "left" ? 1 : -1} 1)`}
+									>
+										<CloudDriveMalePlug />
+										<rect
+											x={-4}
+											y={-9}
+											width={16}
+											height={18}
+											fill="transparent"
+											className="pointer-events-auto cursor-grab"
+											role="button"
+											tabIndex={0}
+											aria-label={`Disconnect tunnel ${from.workspace.name} to ${to.workspace.name}${source ? " source plug" : ""}`}
+											onPointerDown={(event) => start(event, fixed, t, source)}
+											onClick={() => {
+												if (!moved.current) {
+													setSelected(at.workspace);
+													setSelectedTerminal(source ? "output" : "input");
+													setSelectedSide(at.side);
+												}
+											}}
+											onKeyDown={(event) => {
+												if (event.key === "Enter" || event.key === " ") {
+													event.preventDefault();
+													setSelected(at.workspace);
+													setSelectedTerminal(source ? "output" : "input");
+													setSelectedSide(at.side);
+												}
+											}}
+										/>
+									</g>
+								</ContextMenuTrigger>
+							</TunnelOverviewTooltip>
 							<ContextMenuContent className="z-[100]">
 								<ContextMenuItem onSelect={() => setDetailsId(t.id)}>
 									View connection
@@ -866,106 +858,6 @@ export const WorkspaceTunnelPorts: React.FC<{
 											{t ? "Disconnect" : "Connect"}
 										</Button>
 									</div>
-								);
-							})}
-					{selected &&
-						tunnels
-							.filter(
-								(t) =>
-									t.source_workspace_id === selected.id ||
-									t.target_workspace_id === selected.id,
-							)
-							.map((t) => {
-								const index = tunnels.findIndex((item) => item.id === t.id);
-								const from =
-									shown.find((w) => w.id === t.source_workspace_id)?.name ??
-									t.source_workspace_name ??
-									t.source_workspace_id;
-								const to =
-									shown.find((w) => w.id === t.target_workspace_id)?.name ??
-									t.target_workspace_name ??
-									t.target_workspace_id;
-								if (
-									!shown.some((w) => w.id === t.source_workspace_id) ||
-									!shown.some((w) => w.id === t.target_workspace_id)
-								) {
-									const stub = stubs[t.id] ?? { length: 26, bend: 0 };
-									return (
-										<fieldset
-											key={t.id}
-											className="m-0 flex flex-col gap-3 border-0 p-0"
-										>
-											<legend className="mb-2 text-sm">
-												Cable to{" "}
-												{t.source_workspace_id === selected.id ? to : from}
-											</legend>
-											<label className="flex flex-col gap-2 text-sm">
-												Cable length: {stub.length} px
-												<input
-													type="range"
-													min={20}
-													max={160}
-													step={2}
-													value={stub.length}
-													onChange={(e) =>
-														setStubs((current) => ({
-															...current,
-															[t.id]: {
-																...stub,
-																length: e.target.valueAsNumber,
-															},
-														}))
-													}
-												/>
-											</label>
-											<label className="flex flex-col gap-2 text-sm">
-												Cable bend: {stub.bend} px
-												<input
-													type="range"
-													min={-80}
-													max={80}
-													step={2}
-													value={stub.bend}
-													onChange={(e) =>
-														setStubs((current) => ({
-															...current,
-															[t.id]: { ...stub, bend: e.target.valueAsNumber },
-														}))
-													}
-												/>
-											</label>
-											<Button
-												variant="outline"
-												size="sm"
-												onClick={() =>
-													setStubs((current) => ({
-														...current,
-														[t.id]: { length: 26, bend: 0 },
-													}))
-												}
-											>
-												Reset cable shape
-											</Button>
-										</fieldset>
-									);
-								}
-								return (
-									<label key={t.id} className="flex flex-col gap-2 text-sm">
-										Cable arc: {from} to {to}
-										<input
-											type="range"
-											min={Math.min(24, maxArc(t))}
-											max={maxArc(t)}
-											step={4}
-											value={arcFor(t, index)}
-											onChange={(event) =>
-												setArcs((current) => ({
-													...current,
-													[t.id]: event.target.valueAsNumber,
-												}))
-											}
-										/>
-									</label>
 								);
 							})}
 				</DialogContent>

@@ -8,6 +8,7 @@ import {
 } from "#/components/ContextMenu/ContextMenu";
 import { useAnimationsEnabled } from "#/modules/platform/animations/animations";
 import type { Point } from "../cloudDrive/cables";
+import { TunnelOverviewTooltip } from "./TunnelOverview";
 import {
 	insertTunnelBend,
 	routedTunnelPath,
@@ -23,7 +24,7 @@ type Props = {
 	label: string;
 	onOpen: () => void;
 	onMoveHead?: (point: Point) => void;
-	headDescription?: string;
+	headOverview?: ReactNode;
 	children?: ReactNode;
 	defaultCable?: ReactNode;
 	actions?: ReactNode;
@@ -41,7 +42,7 @@ export const EditableTunnelCable = ({
 	label,
 	onOpen,
 	onMoveHead,
-	headDescription,
+	headOverview,
 	children,
 	defaultCable,
 	actions,
@@ -243,52 +244,55 @@ export const EditableTunnelCable = ({
 						</title>
 					</g>
 					{onMoveHead && (
-						<g
-							role="button"
-							tabIndex={0}
-							aria-label={`Move cable head: ${label.replace(/^Manage /, "")}`}
-							className="pointer-events-auto cursor-move"
-							onClick={(e) => {
-								e.stopPropagation();
-								if (!suppressClick.current && !e.ctrlKey) onOpen();
-								suppressClick.current = false;
-							}}
-							onPointerDown={(e) => {
-								suppressClick.current = false;
-								if (e.button !== 0 || !e.ctrlKey) return;
-								e.preventDefault();
-								e.stopPropagation();
-								moving.current = { pointerId: e.pointerId, index: -1, route };
-								suppressClick.current = true;
-								group.current?.setPointerCapture?.(e.pointerId);
-							}}
-							onKeyDown={(e) => {
-								const step = e.shiftKey ? 10 : 2;
-								const offsets: Record<string, Point> = {
-									ArrowLeft: { x: -step, y: 0 },
-									ArrowRight: { x: step, y: 0 },
-									ArrowUp: { x: 0, y: -step },
-									ArrowDown: { x: 0, y: step },
-								};
-								if (offsets[e.key]) {
+						<TunnelOverviewTooltip overview={headOverview}>
+							<g
+								role="button"
+								tabIndex={0}
+								aria-label={`Move cable head: ${label.replace(/^Manage /, "")}`}
+								className="pointer-events-auto cursor-move"
+								onClick={(e) => {
+									e.stopPropagation();
+									if (!suppressClick.current && !e.ctrlKey) onOpen();
+									suppressClick.current = false;
+								}}
+								onPointerDown={(e) => {
+									suppressClick.current = false;
+									if (e.button !== 0 || !e.ctrlKey) return;
 									e.preventDefault();
-									onMoveHead({
-										x: to.x + offsets[e.key].x,
-										y: to.y + offsets[e.key].y,
-									});
-								} else if (e.key === "Enter" || e.key === " ") {
-									e.preventDefault();
-									onOpen();
-								}
-							}}
-						>
-							{children}
-							<title>
-								{headDescription ? `${headDescription}\n` : ""}
-								Ctrl+drag to move the cable head. Arrow keys adjust its
-								position.
-							</title>
-						</g>
+									e.stopPropagation();
+									moving.current = { pointerId: e.pointerId, index: -1, route };
+									suppressClick.current = true;
+									group.current?.setPointerCapture?.(e.pointerId);
+								}}
+								onKeyDown={(e) => {
+									const step = e.shiftKey ? 10 : 2;
+									const offsets: Record<string, Point> = {
+										ArrowLeft: { x: -step, y: 0 },
+										ArrowRight: { x: step, y: 0 },
+										ArrowUp: { x: 0, y: -step },
+										ArrowDown: { x: 0, y: step },
+									};
+									if (offsets[e.key]) {
+										e.preventDefault();
+										onMoveHead({
+											x: to.x + offsets[e.key].x,
+											y: to.y + offsets[e.key].y,
+										});
+									} else if (e.key === "Enter" || e.key === " ") {
+										e.preventDefault();
+										onOpen();
+									}
+								}}
+							>
+								{children}
+								{!headOverview && (
+									<title>
+										Ctrl+drag to move the cable head. Arrow keys adjust its
+										position.
+									</title>
+								)}
+							</g>
+						</TunnelOverviewTooltip>
 					)}
 					{route.points.map((point, index) => (
 						<circle

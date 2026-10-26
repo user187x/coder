@@ -1,7 +1,9 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState } from "react";
+import { MockWorkspaceTunnel } from "#/testHelpers/workspaceTunnels";
 import { EditableTunnelCable } from "./EditableTunnelCable";
 import { TunnelConnectionHead } from "./TunnelConnectionHead";
+import { TunnelOverview } from "./TunnelOverview";
 import type { TunnelRoute } from "./tunnelRouting";
 import "./workspaceTunnels.css";
 
@@ -54,8 +56,9 @@ export const Menu: Story = {
 export const MovableHead: Story = {
 	args: {
 		onMoveHead: () => {},
-		headDescription:
-			"Connected workspace: example\nAddress / IP: 10.42.0.25\nAllowed ports: TCP 443\nObserved ports (local → remote): TCP 443 → 54000",
+		headOverview: (
+			<TunnelOverview tunnel={MockWorkspaceTunnel} peerSource={false} />
+		),
 		children: <TunnelConnectionHead x={300} y={150} angle={0} ready />,
 	},
 };
@@ -69,5 +72,17 @@ export const PendingHead: Story = {
 	args: {
 		...MovableHead.args,
 		children: <TunnelConnectionHead x={300} y={150} angle={0} ready={false} />,
+	},
+};
+
+export const HeadOverview: Story = {
+	args: MovableHead.args,
+	play: async ({ canvasElement }) => {
+		const { within, userEvent } = await import("storybook/test");
+		await userEvent.hover(
+			within(canvasElement).getByRole("button", {
+				name: "Move cable head: example tunnel",
+			}),
+		);
 	},
 };
