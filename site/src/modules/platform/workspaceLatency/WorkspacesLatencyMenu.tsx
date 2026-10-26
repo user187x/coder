@@ -13,6 +13,7 @@ import { Link } from "react-router";
 import { workspaces } from "#/api/queries/workspaces";
 import type { Workspace, WorkspaceAgent } from "#/api/typesGenerated";
 import { DropdownMenuItem } from "#/components/DropdownMenu/DropdownMenu";
+import { ANNOUNCEMENT_ACTION_SURFACE } from "#/modules/platform/announcement/bannerTokens";
 import { getLatencyColor } from "#/utils/latency";
 import "./workspacesLatency.css";
 
@@ -514,7 +515,10 @@ export const WorkspacesLatencyMenu: React.FC<{
 								<DropdownMenuItem
 									data-testid="workspace-grid-view"
 									disabled={chosen.length === 0}
-									className="min-h-10 w-full justify-center gap-2 rounded-full border border-solid border-border bg-surface-secondary px-4 py-2 font-medium"
+									className={cn(
+										"min-h-10 w-full justify-center gap-2 px-4 py-2 font-medium",
+										ANNOUNCEMENT_ACTION_SURFACE,
+									)}
 									onSelect={() => onOpenGrid?.(chosen.map((w) => w.id))}
 								>
 									<LayoutGridIcon aria-hidden className="size-4" />
