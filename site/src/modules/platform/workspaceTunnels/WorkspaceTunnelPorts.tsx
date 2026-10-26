@@ -482,14 +482,23 @@ export const WorkspaceTunnelPorts: React.FC<{
 									fill="hsl(var(--surface-primary))"
 									stroke="currentColor"
 								/>
-								<text
-									x={end}
-									y={visible.y + 3}
-									textAnchor="middle"
-									className="fill-current text-[10px]"
-								>
-									…
-								</text>
+								{t.status === "ready" ? (
+									<path
+										aria-hidden
+										d="M 2 -5 L -3 0 L 1 0 L -2 5 M -1 -2 L 4 1 M 0 2 L -4 3"
+										transform={`translate(${end} ${visible.y})`}
+										className="workspace-tunnel-electric"
+									/>
+								) : (
+									<text
+										x={end}
+										y={visible.y + 3}
+										textAnchor="middle"
+										className="fill-current text-[10px]"
+									>
+										…
+									</text>
+								)}
 							</g>
 						);
 					}

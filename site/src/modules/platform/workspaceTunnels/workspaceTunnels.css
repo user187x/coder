@@ -88,3 +88,39 @@ html[data-animations="off"] .workspace-tunnel-chevron-static {
 	mask: url("/icon/workspace-tunnel.svg") center / contain no-repeat;
 	-webkit-mask: url("/icon/workspace-tunnel.svg") center / contain no-repeat;
 }
+
+.workspace-tunnel-electric {
+	fill: none;
+	stroke: hsl(var(--content-link));
+	stroke-width: 1.2;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+	pointer-events: none;
+	animation: workspace-tunnel-electric 1.7s steps(1, end) infinite;
+}
+@keyframes workspace-tunnel-electric {
+	0%,
+	18%,
+	26%,
+	64%,
+	72%,
+	100% {
+		opacity: 1;
+	}
+	20%,
+	68% {
+		opacity: 0.25;
+	}
+	24%,
+	70% {
+		opacity: 0.65;
+	}
+}
+html[data-animations="off"] .workspace-tunnel-electric {
+	animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+	.workspace-tunnel-electric {
+		animation: none;
+	}
+}
