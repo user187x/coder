@@ -128,14 +128,16 @@ export const WorkspaceTunnelStatus: React.FC<{ workspaceId: string }> = ({
 					.filter(Boolean)
 					.join("; ") || undefined
 			}
-			className="mt-1 inline-flex items-center gap-1 text-[10px] text-content-secondary"
+			className="mt-1 inline-flex items-start gap-1 text-[10px] leading-[15px] text-content-secondary"
 		>
 			<span
 				aria-hidden
-				className={`size-1.5 rounded-full ${unavailable || error ? "bg-content-destructive" : pending || removing ? "bg-content-warning" : "bg-content-success"} ${animations && (pending || removing) ? "motion-safe:animate-pulse" : ""}`}
+				className={`mt-1 size-1.5 shrink-0 rounded-full ${unavailable || error ? "bg-content-destructive" : pending || removing ? "bg-content-warning" : "bg-content-success"} ${animations && (pending || removing) ? "motion-safe:animate-pulse" : ""}`}
 			/>
-			{label}
-			{outside > 0 && ` · ${outside} outside this view`}
+			<span>
+				{label}
+				{outside > 0 && ` · ${outside} outside this view`}
+			</span>
 		</span>
 	);
 };

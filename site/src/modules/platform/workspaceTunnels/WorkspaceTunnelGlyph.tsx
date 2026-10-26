@@ -73,7 +73,7 @@ export const WorkspaceTunnelGlyph: React.FC<{ workspace: Workspace }> = ({
 			<PopoverTrigger asChild>
 				<button
 					type="button"
-					className="workspace-tunnel-status flex size-5 cursor-pointer items-center justify-center rounded-full border-0 bg-surface-tertiary p-0"
+					className="workspace-tunnel-status flex size-5 cursor-pointer items-center justify-center border-0 bg-transparent p-0"
 					aria-label={`Workspace tunnels: ${tunnels.length} connected`}
 					aria-controls={open ? contentId : undefined}
 					onMouseEnter={show}
