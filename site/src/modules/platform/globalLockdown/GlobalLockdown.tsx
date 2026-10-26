@@ -152,7 +152,7 @@ export const GlobalLockdownCardView: React.FC<GlobalLockdownCardViewProps> = ({
 			<div className="global-lockdown-stripe h-3" aria-hidden />
 			<div className="flex flex-col gap-5 p-6">
 				<div className="flex flex-col items-stretch justify-between gap-8 lg:flex-row lg:items-center">
-					<div className="min-w-0 max-w-xl flex-1">
+					<div className="min-w-0 max-w-xl flex-1 lg:self-start">
 						<h2 className="m-0 flex items-center gap-2 text-lg font-semibold">
 							<ShieldAlertIcon aria-hidden className="size-5" />
 							Global Command & Control
