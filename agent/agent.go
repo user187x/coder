@@ -41,6 +41,7 @@ import (
 	"github.com/coder/coder/v2/agent/agentcontainers"
 	"github.com/coder/coder/v2/agent/agentexec"
 	"github.com/coder/coder/v2/agent/agentfiles"
+	"github.com/coder/coder/v2/agent/agentpki"
 	"github.com/coder/coder/v2/agent/agentscripts"
 	"github.com/coder/coder/v2/agent/agentsocket"
 	"github.com/coder/coder/v2/agent/agentssh"
@@ -1142,6 +1143,21 @@ func (a *agent) handleManifest(manifestOK *checkpoint) func(ctx context.Context,
 			return xerrors.Errorf("update workspace agent startup: %w", err)
 		}
 
+		homeDir, homeErr := a.envInfo.HomeDir()
+		fileSecrets := secrets
+		if homeErr == nil && homeDir != "" && manifest.OwnerName != "" {
+			certificates, certErr := agentpki.Sync(a.filesystem, homeDir, manifest.OwnerName, secrets)
+			if certErr != nil {
+				return xerrors.Errorf("synchronize workspace certificate: %w", certErr)
+			}
+			fileSecrets = make([]agentsdk.WorkspaceSecret, 0, len(secrets))
+			for _, secret := range secrets {
+				if !slices.Contains(certificates.Handled, secret.FilePath) {
+					fileSecrets = append(fileSecrets, secret)
+				}
+			}
+			manifest.Scripts = nativeCertificateScripts(manifest.Scripts)
+		}
 		a.secrets.Store(&secrets)
 		oldManifest := a.manifest.Swap(&manifest)
 		manifestOK.complete(nil)
@@ -1156,11 +1172,10 @@ func (a *agent) handleManifest(manifestOK *checkpoint) func(ctx context.Context,
 		// longer than file writes. Startup scripts still wait because they run
 		// sequentially below. Env var injection is unaffected because it
 		// happens lazily per-command in updateCommandEnv.
-		homeDir, err := a.envInfo.HomeDir()
-		if err != nil {
-			a.logger.Warn(ctx, "failed to resolve home directory for secret files", slog.Error(err))
+		if homeErr != nil {
+			a.logger.Warn(ctx, "failed to resolve home directory for secret files", slog.Error(homeErr))
 		}
-		writeSecretFiles(ctx, a.logger, a.filesystem, homeDir, secrets)
+		writeSecretFiles(ctx, a.logger, a.filesystem, homeDir, fileSecrets)
 
 		// The startup script should only execute on the first run!
 		if oldManifest == nil {
@@ -2456,4 +2471,16 @@ func SSHKeySeed(userName, workspaceName, agentName string) (int64, error) {
 
 	// #nosec G115 - Safe conversion to generate int64 hash from Sum64, data loss acceptable
 	return int64(h.Sum64()), nil
+}
+
+// Preserve legacy script log sources and completion reporting without running
+// certificate installation twice after an agent upgrade.
+func nativeCertificateScripts(scripts []codersdk.WorkspaceAgentScript) []codersdk.WorkspaceAgentScript {
+	scripts = slices.Clone(scripts)
+	for i, script := range scripts {
+		if script.DisplayName == "Certificates" && strings.Contains(script.Script, "coder-certificates") && strings.Contains(script.Script, ".p12.b64") && strings.Contains(script.Script, "installed-by-coder") {
+			scripts[i].Script = "echo Certificates are managed by the Coder agent."
+		}
+	}
+	return scripts
 }

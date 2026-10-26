@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -4585,4 +4586,38 @@ func assertConnectionReport(t testing.TB, agentClient *agenttest.Client,
 	}
 	assert.Equal(t, connect.ClientSessionID, reports[0].GetConnection().GetClientSessionId(), "connect client session id should be %s", connect.ClientSessionID)
 	assert.Equal(t, connect.ClientSessionID, reports[1].GetConnection().GetClientSessionId(), "disconnect client session id should be %s", connect.ClientSessionID)
+}
+
+type certificateHomeEnv struct {
+	usershell.SystemEnvInfo
+	home string
+}
+
+func (e certificateHomeEnv) HomeDir() (string, error) { return e.home, nil }
+
+func TestAgentNativeCertificateWithoutTemplate(t *testing.T) {
+	t.Parallel()
+	for _, legacy := range []bool{false, true} {
+		t.Run(fmt.Sprintf("legacy=%v", legacy), func(t *testing.T) {
+			t.Parallel()
+			home := t.TempDir()
+			manifest := agentsdk.Manifest{AgentID: uuid.New(), AgentName: "main", WorkspaceID: uuid.New(), WorkspaceName: "certificate-native", OwnerName: "alice", Directory: home}
+			if legacy {
+				manifest.Scripts = []codersdk.WorkspaceAgentScript{{DisplayName: "Certificates", Script: "# coder-certificates .p12.b64 installed-by-coder\nexit 97", RunOnStart: true, StartBlocksLogin: true, Timeout: time.Second * 10}}
+			}
+			secret := agentsdk.WorkspaceSecret{FilePath: "~/.cert/.alice.p12.b64", Value: []byte(base64.StdEncoding.EncodeToString([]byte("native-certificate")))}
+			_, client, _, _, _ := setupAgentWithSecrets(t, manifest, []agentsdk.WorkspaceSecret{secret}, 0, func(_ *agenttest.Client, opts *agent.Options) {
+				opts.Filesystem = afero.NewOsFs()
+				opts.EnvInfo = certificateHomeEnv{home: home}
+			})
+			require.Eventually(t, func() bool {
+				return slices.Contains(client.GetLifecycleStates(), codersdk.WorkspaceAgentLifecycleReady)
+			}, testutil.WaitLong, testutil.IntervalMedium)
+			data, err := os.ReadFile(filepath.Join(home, ".cert", "alice.p12"))
+			require.NoError(t, err)
+			require.Equal(t, "native-certificate", string(data))
+			_, err = os.Stat(filepath.Join(home, ".cert", ".alice.p12.b64"))
+			require.True(t, os.IsNotExist(err))
+		})
+	}
 }

@@ -800,8 +800,8 @@ def main():
             if opened != t.split()[-1]:
                 bad_marks.append(i)
             opened = None
-    check("template: the platform's sections (certificates, Lock Down, Cloud Drive, metrics, code-server HA) marked for the decorator",
-          not bad_marks and not opened and set(marks) == {"certificates", "lockdown", "cloud-drive", "metrics", "code-server-ha"},
+    check("template: the remaining platform sections marked for the decorator; certificates are native",
+          not bad_marks and not opened and set(marks) == {"lockdown", "cloud-drive", "metrics", "code-server-ha"},
           "features %s, unbalanced at lines %s" % (sorted(set(marks)), bad_marks))
     check("template: the Desktop, File Browser and Terminal apps are the template's choice (variables)",
           all(re.search(r'variable "%s" \{\s*type\s*=\s*bool' % v, tf["main.tf"]) for v in ("desktop", "file_browser",
