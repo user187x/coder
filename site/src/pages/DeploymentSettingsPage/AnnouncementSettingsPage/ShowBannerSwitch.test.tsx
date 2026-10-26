@@ -1,4 +1,5 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { PlatformAPI } from "#/api/platform";
 import {
 	MockAnnouncementReport,
@@ -65,4 +66,34 @@ describe("the Show banner switch", () => {
 			),
 		);
 	});
+});
+
+it("retains edits through preview and publishes only on request", async () => {
+	vi.spyOn(PlatformAPI, "getBannerState").mockResolvedValue(MockBannerState);
+	vi.spyOn(PlatformAPI, "getAnnouncementReport").mockResolvedValue(
+		MockAnnouncementReport,
+	);
+	const publish = vi
+		.spyOn(PlatformAPI, "publishBanner")
+		.mockResolvedValue(MockBannerState);
+	const user = userEvent.setup();
+	renderWithAuth(<AnnouncementSettingsPage />);
+	const message = await screen.findByRole("textbox", { name: "Text" });
+	await user.clear(message);
+	await user.type(message, "Scheduled maintenance tonight.");
+	await user.click(screen.getByRole("button", { name: "Preview" }));
+	expect(publish).not.toHaveBeenCalled();
+	await user.click(screen.getByRole("button", { name: "Edit message" }));
+	await user.type(
+		screen.getByRole("textbox", { name: "Text" }),
+		" Please save your work.",
+	);
+	await user.click(screen.getByRole("button", { name: "Publish changes" }));
+	await waitFor(() =>
+		expect(publish).toHaveBeenCalledWith(
+			expect.objectContaining({
+				message: "Scheduled maintenance tonight. Please save your work.",
+			}),
+		),
+	);
 });

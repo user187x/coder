@@ -1,5 +1,5 @@
 import { PlayIcon } from "lucide-react";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { toast } from "sonner";
 import { getErrorMessage } from "#/api/errors";
@@ -230,7 +230,7 @@ const AnnouncementEditor: React.FC<{ state: BannerState }> = ({ state }) => {
 	const [run, setRun] = useState(0);
 	const [closing, setClosing] = useState(false);
 	const [gone, setGone] = useState(false);
-	const preview = useRef<HTMLElement>(null);
+	const [previewing, setPreviewing] = useState(false);
 	const reducedMotion =
 		window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 
@@ -286,6 +286,7 @@ const AnnouncementEditor: React.FC<{ state: BannerState }> = ({ state }) => {
 										doPublish();
 										return;
 									}
+									setPreviewing(false);
 									setTriedEmpty(true);
 									const message = document.querySelector<HTMLElement>(
 										"[data-banner-message]",
@@ -352,75 +353,85 @@ const AnnouncementEditor: React.FC<{ state: BannerState }> = ({ state }) => {
 				</p>
 			</section>
 
-			<section
-				ref={preview}
-				aria-labelledby="announcement-preview"
-				className="flex scroll-mt-6 flex-col gap-3 rounded-lg border border-solid border-border p-6"
-			>
-				<div className="flex flex-wrap items-center justify-between gap-3">
-					<h2 id="announcement-preview" className="m-0 text-base font-semibold">
-						What developers see
-					</h2>
-					<div className="flex items-center gap-3">
-						<Button
-							size="sm"
-							variant="outline"
-							disabled={
-								(form.effect === "none" &&
-									(form.openEffect ?? "none") === "none") ||
-								!hasContent(form) ||
-								closing
-							}
-							title="Play the open transition and the text effect again"
-							onClick={() => setRun((n) => n + 1)}
-						>
-							<PlayIcon />
-							Replay
-						</Button>
-						<Badge variant={live ? "green" : "default"} role="status">
-							{live
-								? `Live for all developers${tabsText(state, " · ", " connected")}`
-								: "Hidden"}
-						</Badge>
-					</div>
-				</div>
-				<div
-					className="min-h-[62px] rounded-md bg-surface-secondary p-3"
-					data-testid="announcement-preview"
-				>
-					{hasContent(form) ? (
-						!gone && (
-							<BannerPreview
-								// A new effect (or its speed, or repeat), or open transition, plays from the start.
-								key={`${run}:${form.effect}:${form.speed}:${form.repeat}:${form.openEffect}`}
-								banner={form}
-								animate
-								closing={closing}
-								onClosed={() => {
-									setGone(true);
-									window.setTimeout(() => {
-										setGone(false);
-										setClosing(false);
-										setRun((n) => n + 1);
-									}, 700);
-								}}
-							/>
-						)
-					) : (
-						<p className="m-0 text-sm text-content-secondary">
-							Type a message (or choose a background image) to see a preview.
-						</p>
-					)}
-				</div>
-				<p className="m-0 text-sm text-content-secondary">
-					Live preview of your draft below, its text effect playing. Nothing is
-					published until you press <strong>Publish changes</strong>.
-					{reducedMotion &&
-						" This device asks for reduced motion, so effects are not played here, or for anyone with that setting."}
-				</p>
-			</section>
-
 			<BannerEditor
+				previewing={previewing}
+				onPreviewChange={(next) => {
+					setClosing(false);
+					setGone(false);
+					setPreviewing(next);
+				}}
+				preview={
+					<section
+						aria-labelledby="announcement-preview"
+						className="flex min-h-40 flex-col gap-3"
+					>
+						<div className="flex flex-wrap items-center justify-between gap-3">
+							<h2
+								id="announcement-preview"
+								className="m-0 text-base font-semibold"
+							>
+								What developers see
+							</h2>
+							<div className="flex items-center gap-3">
+								<Button
+									size="sm"
+									variant="outline"
+									disabled={
+										(form.effect === "none" &&
+											(form.openEffect ?? "none") === "none") ||
+										!hasContent(form) ||
+										closing
+									}
+									title="Play the open transition and the text effect again"
+									onClick={() => setRun((n) => n + 1)}
+								>
+									<PlayIcon />
+									Replay
+								</Button>
+								<Badge variant={live ? "green" : "default"} role="status">
+									{live
+										? `Live for all developers${tabsText(state, " · ", " connected")}`
+										: "Hidden"}
+								</Badge>
+							</div>
+						</div>
+						<div
+							className="min-h-[62px] rounded-md bg-surface-secondary p-3"
+							data-testid="announcement-preview"
+						>
+							{hasContent(form) ? (
+								!gone && (
+									<BannerPreview
+										// A new effect (or its speed, or repeat), or open transition, plays from the start.
+										key={`${run}:${form.effect}:${form.speed}:${form.repeat}:${form.openEffect}`}
+										banner={form}
+										animate
+										closing={closing}
+										onClosed={() => {
+											setGone(true);
+											window.setTimeout(() => {
+												setGone(false);
+												setClosing(false);
+												setRun((n) => n + 1);
+											}, 700);
+										}}
+									/>
+								)
+							) : (
+								<p className="m-0 text-sm text-content-secondary">
+									Type a message (or choose a background image) to see a
+									preview.
+								</p>
+							)}
+						</div>
+						<p className="m-0 text-sm text-content-secondary">
+							Preview of your draft with its text effect playing. Nothing is
+							published until you press <strong>Publish changes</strong>.
+							{reducedMotion &&
+								" This device asks for reduced motion, so effects are not played here, or for anyone with that setting."}
+						</p>
+					</section>
+				}
 				form={form}
 				dirty={dirty}
 				isPublishing={publish.isPending}
@@ -432,17 +443,13 @@ const AnnouncementEditor: React.FC<{ state: BannerState }> = ({ state }) => {
 				onProblem={setProblem}
 				onPublish={doPublish}
 				onTryOpen={() => {
-					preview.current?.scrollIntoView({
-						block: "nearest",
-						behavior: "smooth",
-					});
+					setClosing(false);
+					setGone(false);
+					setPreviewing(true);
 					setRun((n) => n + 1);
 				}}
 				onTryClose={() => {
-					preview.current?.scrollIntoView({
-						block: "nearest",
-						behavior: "smooth",
-					});
+					setPreviewing(true);
 					setClosing(true);
 				}}
 				onDiscard={() => {

@@ -3,7 +3,9 @@ import {
 	AlignLeftIcon,
 	AlignRightIcon,
 	ChevronDownIcon,
+	EyeIcon,
 	type LucideIcon,
+	PencilIcon,
 	PlayIcon,
 	Repeat2Icon,
 	TimerIcon,
@@ -195,6 +197,9 @@ const nextHour = (): string => {
 };
 
 type BannerEditorProps = {
+	preview?: React.ReactNode;
+	previewing?: boolean;
+	onPreviewChange?: (previewing: boolean) => void;
 	form: BannerFields;
 	dirty: boolean;
 	isPublishing: boolean;
@@ -203,20 +208,17 @@ type BannerEditorProps = {
 	onProblem: (problem: string) => void;
 	onPublish: () => void;
 	onDiscard: () => void;
-	/** Plays the open transition on the preview above ("What developers see"). */
+	/** Plays the open transition on the draft preview. */
 	onTryOpen: () => void;
-	/** Plays the close transition on the preview above ("What developers see"). */
+	/** Plays the close transition on the draft preview. */
 	onTryClose: () => void;
 };
 
-/**
- * The announcement, written like a document: Compose (its font, text effect,
- * colours, emoji and alignment; its background image and how it fills the
- * banner; a countdown; the text itself, plain as typed) and Controls (who may
- * dismiss it, where it shows, receipts, how it opens and closes). The preview is the
- * page's "What developers see". Nothing is published until "Publish changes".
- */
+/** Edits remain local until Publish changes; the preview uses the same draft. */
 export const BannerEditor: React.FC<BannerEditorProps> = ({
+	preview,
+	previewing = false,
+	onPreviewChange,
 	form,
 	dirty,
 	isPublishing,
@@ -253,21 +255,24 @@ export const BannerEditor: React.FC<BannerEditorProps> = ({
 	return (
 		<section
 			aria-labelledby={`${id}-heading`}
-			className="flex flex-col gap-6 rounded-lg border border-solid border-border p-6"
+			className="relative flex flex-col gap-6 rounded-xl border border-solid border-border bg-surface-primary p-4 shadow-sm sm:p-6"
 		>
-			<h2 id={`${id}-heading`} className="m-0 text-base font-semibold">
+			<h2
+				id={`${id}-heading`}
+				className="m-0 border-0 border-b border-solid border-border pb-4 text-base font-semibold"
+			>
 				Message
 			</h2>
 
 			<fieldset
-				className="m-0 flex flex-col gap-3 border-0 p-0"
+				className="m-0 min-w-0 overflow-hidden rounded-lg border border-solid border-border bg-surface-primary p-0 focus-within:border-content-secondary"
 				data-testid="announcement-compose"
 			>
-				<legend className="mb-2 p-0 text-sm font-semibold">Compose</legend>
+				<legend className="sr-only">Compose</legend>
 				<div
 					role="toolbar"
 					aria-label="Text"
-					className="flex flex-wrap items-center gap-2"
+					className="flex flex-wrap items-center gap-2 border-0 border-b border-solid border-border bg-surface-secondary p-3"
 				>
 					<FontPicker form={form} onChange={onChange} />
 					<OutlineButton
@@ -310,7 +315,7 @@ export const BannerEditor: React.FC<BannerEditorProps> = ({
 				<div
 					role="toolbar"
 					aria-label="Background image"
-					className="flex flex-wrap items-center gap-2"
+					className="flex flex-wrap items-center gap-2 border-0 border-b border-solid border-border bg-surface-secondary p-3"
 				>
 					<UploadImageButton
 						onChange={(picture) => onChange({ picture })}
@@ -339,44 +344,66 @@ export const BannerEditor: React.FC<BannerEditorProps> = ({
 						}
 					/>
 				</div>
-				<CountdownField
-					value={form.countdown ?? ""}
-					onChange={(countdown) => onChange({ countdown })}
-				/>
-				<div className="flex flex-col gap-2">
+				<div className="border-0 border-b border-solid border-border bg-surface-secondary p-3">
+					<CountdownField
+						value={form.countdown ?? ""}
+						onChange={(countdown) => onChange({ countdown })}
+					/>
+				</div>
+				<div className="flex flex-col gap-3 p-4">
 					<div className="flex items-baseline justify-between">
-						<Label htmlFor={`${id}-message`}>Text</Label>
+						<Label htmlFor={previewing ? undefined : `${id}-message`}>
+							{previewing ? "Preview" : "Text"}
+						</Label>
+						{preview && (
+							<Button
+								variant="subtle"
+								size="sm"
+								className="ml-auto mr-3"
+								aria-pressed={previewing}
+								onClick={() => onPreviewChange?.(!previewing)}
+							>
+								{previewing ? <PencilIcon /> : <EyeIcon />}
+								{previewing ? "Edit message" : "Preview"}
+							</Button>
+						)}
 						<span className="text-xs text-content-secondary tabular-nums">
 							{form.message.length} / {MESSAGE_MAX_LENGTH}
 						</span>
 					</div>
-					<Textarea
-						id={`${id}-message`}
-						ref={messageRef}
-						// Platform: the Show banner switch takes the admin here when there is nothing to show
-						data-banner-message=""
-						rows={3}
-						maxLength={MESSAGE_MAX_LENGTH}
-						placeholder="What do developers need to know?"
-						value={form.message}
-						// As it will look: in the banner's font, lined up as chosen.
-						style={{
-							fontFamily: bannerFontStack(form.font),
-							textAlign: form.align ?? "center",
-						}}
-						onChange={(event) => onChange({ message: event.target.value })}
-						onKeyUp={rememberCaret}
-						onClick={rememberCaret}
-						onBlur={rememberCaret}
-					/>
+					{previewing ? (
+						preview
+					) : (
+						<Textarea
+							id={`${id}-message`}
+							ref={messageRef}
+							// Platform: the Show banner switch takes the admin here when there is nothing to show
+							data-banner-message=""
+							rows={6}
+							className="min-h-40 resize-y border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
+							maxLength={MESSAGE_MAX_LENGTH}
+							placeholder="What do developers need to know?"
+							value={form.message}
+							// As it will look: in the banner's font, lined up as chosen.
+							style={{
+								fontFamily: bannerFontStack(form.font),
+								textAlign: form.align ?? "center",
+							}}
+							onChange={(event) => onChange({ message: event.target.value })}
+							onKeyUp={rememberCaret}
+							onClick={rememberCaret}
+							onBlur={rememberCaret}
+						/>
+					)}
 				</div>
 			</fieldset>
 
 			<fieldset
-				className="m-0 flex flex-col gap-3 border-0 p-0"
+				className="m-0 flex min-w-0 flex-col gap-4 rounded-lg border border-solid border-border bg-surface-secondary p-4 sm:p-6"
 				data-testid="announcement-controls"
 			>
-				<legend className="mb-2 p-0 text-sm font-semibold">Controls</legend>
+				<legend className="sr-only">Controls</legend>
+				<h3 className="m-0 text-sm font-semibold">Controls</h3>
 				<div className="flex items-center gap-2 text-sm">
 					<Checkbox
 						id={`${id}-dismissible`}
@@ -386,7 +413,7 @@ export const BannerEditor: React.FC<BannerEditorProps> = ({
 						}
 					/>
 					<Label htmlFor={`${id}-dismissible`} className="font-normal">
-						Let people dismiss it
+						Let people dismiss it{" "}
 						<span className="text-content-secondary">
 							(untick for urgent notices)
 						</span>
@@ -413,49 +440,51 @@ export const BannerEditor: React.FC<BannerEditorProps> = ({
 						}
 					/>
 					<Label htmlFor={`${id}-receipts`} className="font-normal">
-						Record who viewed it, and let them confirm it
+						Record who viewed it, and let them confirm it{" "}
 						<span className="text-content-secondary">
 							(the Viewed box and Confirm; untick for a greeting)
 						</span>
 					</Label>
 				</div>
-				<OpenField form={form} onChange={onChange} onTry={onTryOpen} />
-				<CloseField form={form} onChange={onChange} onTry={onTryClose} />
-			</fieldset>
+				<div className="grid gap-6 border-0 border-t border-solid border-border pt-4 xl:grid-cols-2">
+					<OpenField form={form} onChange={onChange} onTry={onTryOpen} />
+					<CloseField form={form} onChange={onChange} onTry={onTryClose} />
+				</div>
 
-			<Collapsible>
-				<CollapsibleTrigger asChild>
-					<Button variant="subtle" size="sm" className="self-start">
-						Advanced
-					</Button>
-				</CollapsibleTrigger>
-				<CollapsibleContent>
-					<div className="mt-3 flex flex-col gap-2">
-						<Label htmlFor={`${id}-refresh`}>
-							Open tabs check for changes every (seconds)
-						</Label>
-						<Input
-							id={`${id}-refresh`}
-							type="number"
-							min={15}
-							max={3600}
-							step={5}
-							className="w-32"
-							value={form.refreshSeconds}
-							onChange={(event) => {
-								const seconds = Number.parseInt(event.target.value, 10);
-								onChange({
-									refreshSeconds: Number.isFinite(seconds) ? seconds : 60,
-								});
-							}}
-						/>
-						<p className="m-0 text-sm text-content-secondary">
-							Lower is faster to reach people who already have Coder open
-							(minimum 15). Tabs with a live connection update instantly.
-						</p>
-					</div>
-				</CollapsibleContent>
-			</Collapsible>
+				<Collapsible>
+					<CollapsibleTrigger asChild>
+						<Button variant="subtle" size="sm" className="self-start">
+							Advanced
+						</Button>
+					</CollapsibleTrigger>
+					<CollapsibleContent>
+						<div className="mt-3 flex flex-col gap-2">
+							<Label htmlFor={`${id}-refresh`}>
+								Open tabs check for changes every (seconds)
+							</Label>
+							<Input
+								id={`${id}-refresh`}
+								type="number"
+								min={15}
+								max={3600}
+								step={5}
+								className="w-32"
+								value={form.refreshSeconds}
+								onChange={(event) => {
+									const seconds = Number.parseInt(event.target.value, 10);
+									onChange({
+										refreshSeconds: Number.isFinite(seconds) ? seconds : 60,
+									});
+								}}
+							/>
+							<p className="m-0 text-sm text-content-secondary">
+								Lower is faster to reach people who already have Coder open
+								(minimum 15). Tabs with a live connection update instantly.
+							</p>
+						</div>
+					</CollapsibleContent>
+				</Collapsible>
+			</fieldset>
 
 			{problem && (
 				<p role="alert" className="m-0 text-sm text-content-destructive">
@@ -463,7 +492,7 @@ export const BannerEditor: React.FC<BannerEditorProps> = ({
 				</p>
 			)}
 
-			<div className="flex flex-wrap items-center gap-3">
+			<div className="sticky bottom-10 z-10 -mx-4 -mb-4 flex flex-wrap items-center gap-3 rounded-b-xl border-0 border-t border-solid border-border bg-surface-primary p-4 sm:-mx-6 sm:-mb-6 sm:px-6">
 				<Button
 					disabled={isPublishing || !dirty || !hasContent(form)}
 					onClick={onPublish}
@@ -629,7 +658,7 @@ const CrawlControls: React.FC<FieldProps> = ({ form, onChange }) => (
 	</span>
 );
 
-/** The text effect; the crawl's pace and convergence, the Knight Rider sweep's speed; whether it repeats. It plays on the preview above. */
+/** The text effect; the crawl's pace and convergence, the Knight Rider sweep's speed; whether it repeats. It plays on the draft preview. */
 const EffectPicker: React.FC<FieldProps> = ({ form, onChange }) => (
 	<div className="flex items-center gap-1">
 		<Select
@@ -906,7 +935,7 @@ const OpenField: React.FC<FieldProps & { onTry: () => void }> = ({
 
 /**
  * Platform: how the banner goes away when someone dismisses it, and "Try
- * it", which plays it on the preview above (that then comes back).
+ * it", which plays it on the draft preview (that then comes back).
  */
 const CloseField: React.FC<FieldProps & { onTry: () => void }> = ({
 	form,

@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { userEvent, within } from "storybook/test";
 import { announcementReportKey, bannerStateKey } from "#/api/queries/platform";
 import {
 	MockAnnouncementReport,
@@ -60,5 +61,16 @@ export const CustomColors: Story = {
 			},
 			{ key: announcementReportKey, data: MockAnnouncementReport },
 		],
+	},
+};
+
+export const PreviewDraft: Story = {
+	...Live,
+	play: async ({ canvasElement }) => {
+		await userEvent.click(
+			within(canvasElement).getByRole("button", {
+				name: "Preview",
+			}),
+		);
 	},
 };
