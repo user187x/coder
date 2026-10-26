@@ -338,6 +338,10 @@ path)
 	rel "$(archive "$(index_of "${1:?usage: path IMAGE}")")"
 	;;
 store)
+	if [[ "${CODER_SKIP_IMAGE_ARCHIVES:-0}" == 1 ]]; then
+		echo "Archive export skipped; image remains in Docker: ${1:?IMAGE}"
+		exit 0
+	fi
 	img="${1:?usage: store IMAGE}"; sec=""
 	for i in "${!images[@]}"; do [[ "${images[$i]%:*}" != "${img%:*}" ]] || { sec=${groups[$i]}; break; }; done
 	[[ -n "$sec" ]] || { echo "ERROR: no section of images.txt has ${img%:*}: add the image there first" >&2; exit 1; }

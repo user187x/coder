@@ -67,5 +67,26 @@ class ReleaseInstallTest(unittest.TestCase):
             self.assertNotEqual(failed.returncode, 0)
 
 
+class SourceBuildTest(unittest.TestCase):
+    def test_plan_defaults_to_required_images_only(self):
+        script = ROOT / "development/tools/build-source-release.sh"
+        result = subprocess.check_output([str(script), "private.example/coder", "--plan"], text=True)
+        self.assertIn("DATAFLOW: 0", result)
+        self.assertIn("Push: 0", result)
+        self.assertIn("registry, MinIO", result)
+
+    def test_plan_accepts_optional_dataflow_and_push(self):
+        script = ROOT / "development/tools/build-source-release.sh"
+        result = subprocess.check_output([str(script), "private.example/coder", "--dataflow", "--push", "--plan"], text=True)
+        self.assertIn("DATAFLOW: 1", result)
+        self.assertIn("Push: 1", result)
+
+    def test_rejects_registry_url_before_building(self):
+        script = ROOT / "development/tools/build-source-release.sh"
+        result = subprocess.run([str(script), "https://private.example", "--plan"], text=True, capture_output=True)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("without https://", result.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()
