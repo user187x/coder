@@ -18,6 +18,10 @@ import {
 	type PictureFit,
 } from "#/api/platform";
 
+/** Shared inset surface for announcement actions. */
+export const ANNOUNCEMENT_ACTION_SURFACE =
+	"rounded-[9px] border border-solid border-white/60 bg-white/15 hover:brightness-110";
+
 export const LEVEL_COLORS: Record<BannerLevel, { bg: string; fg: string }> = {
 	info: { bg: "#1e40af", fg: "#ffffff" },
 	success: { bg: "#166534", fg: "#ffffff" },

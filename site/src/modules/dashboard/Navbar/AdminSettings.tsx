@@ -1,3 +1,4 @@
+import { cn } from "cn";
 import {
 	Building2Icon,
 	CableIcon,
@@ -6,6 +7,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router";
 import { DropdownMenuItem } from "#/components/DropdownMenu/DropdownMenu";
+import { ANNOUNCEMENT_ACTION_SURFACE } from "#/modules/platform/announcement/bannerTokens";
 import { ClusterGauge } from "#/modules/platform/ClusterGauge";
 import { AdminQuickLinksMenu } from "./AdminQuickLinksMenu";
 import type { AdminPage } from "./adminQuickLinks";
@@ -88,7 +90,14 @@ export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
 				/>
 			) : (
 				quickLinks.map((page) => (
-					<DropdownMenuItem key={page.id} asChild className={itemClassName}>
+					<DropdownMenuItem
+						key={page.id}
+						asChild
+						className={cn(
+							itemClassName,
+							page.id === "announcement" && ANNOUNCEMENT_ACTION_SURFACE,
+						)}
+					>
 						<Link to={page.path}>
 							<page.icon aria-hidden />
 							{page.label}
