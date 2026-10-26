@@ -470,26 +470,7 @@ export const WorkspaceTunnelPorts: React.FC<{
 						const end = visible.x + direction * stub.length + head.x;
 						const endY = visible.y + head.y;
 						const route = routes[t.id] ?? { points: [], orthogonal: false };
-						const last = route.points.at(-1);
-						const origin = last
-							? {
-									x: visible.x - direction * 15 + last.x,
-									y: visible.y + last.y,
-								}
-							: visible;
-						const dx =
-							route.orthogonal && endY !== origin.y
-								? 0
-								: last || route.orthogonal
-									? end - origin.x
-									: (direction * stub.length) / 3;
-						const dy = route.orthogonal
-							? endY - origin.y
-							: last
-								? endY - origin.y
-								: stub.bend;
-						const angle =
-							(Math.atan2(dy, dx) * 180) / Math.PI + (from ? 0 : 180);
+						const angle = (from ? direction : -direction) === 1 ? 0 : 180;
 						const peerAddress = from ? t.target_address : t.source_address;
 						const peerStats = from ? t.target_stats : t.source_stats;
 						const ports = t.ports
