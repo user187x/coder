@@ -479,7 +479,6 @@ export const WorkspaceTunnelPorts: React.FC<{
 						const end = visible.x + direction * stub.length + head.x;
 						const endY = visible.y + head.y;
 						const route = routes[t.id] ?? { points: [], orthogonal: false };
-						const angle = (from ? direction : -direction) === 1 ? 0 : 180;
 
 						return (
 							<EditableTunnelCable
@@ -507,7 +506,7 @@ export const WorkspaceTunnelPorts: React.FC<{
 								<TunnelConnectionHead
 									x={end}
 									y={endY}
-									angle={angle}
+									outgoing={Boolean(from)}
 									ready={t.status === "ready"}
 								/>
 							</EditableTunnelCable>

@@ -59,19 +59,19 @@ export const MovableHead: Story = {
 		headOverview: (
 			<TunnelOverview tunnel={MockWorkspaceTunnel} peerSource={false} />
 		),
-		children: <TunnelConnectionHead x={300} y={150} angle={0} ready />,
+		children: <TunnelConnectionHead x={300} y={150} outgoing ready />,
 	},
 };
 export const IncomingHead: Story = {
 	args: {
 		...MovableHead.args,
-		children: <TunnelConnectionHead x={300} y={150} angle={180} ready />,
+		children: <TunnelConnectionHead x={300} y={150} outgoing={false} ready />,
 	},
 };
 export const PendingHead: Story = {
 	args: {
 		...MovableHead.args,
-		children: <TunnelConnectionHead x={300} y={150} angle={0} ready={false} />,
+		children: <TunnelConnectionHead x={300} y={150} outgoing ready={false} />,
 	},
 };
 
