@@ -50,3 +50,17 @@ export const Menu: Story = {
 		});
 	},
 };
+export const MovableHead: Story = {
+	args: {
+		onMoveHead: () => {},
+		children: (
+			<circle
+				cx={300}
+				cy={150}
+				r={8}
+				fill="hsl(var(--surface-primary))"
+				stroke="currentColor"
+			/>
+		),
+	},
+};
