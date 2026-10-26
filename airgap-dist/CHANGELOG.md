@@ -2551,3 +2551,4 @@ workspace checks).
 - Display the Grid/List menu above the workspace viewer modal instead of behind it.
 - Redesign the workspace dropdown footer with a full-width Grid View pill, selected/total counts, separate Clear and Select all controls, and all workspaces selected by default.
 - Place the circular Add a panel control inside an inward panel-edge cutout instead of a raised tab.
+- Refine the Add a panel cutout into a concentric semicircle around a floating circular plus, matching the supplied reference.

@@ -426,3 +426,7 @@ Replaced the compact toggle/action footer with a large centered Grid View pill a
 ### Inward add-panel notch
 
 Changed the Add a panel enclosure from a raised semicircle above the card to an inward rounded cutout along its top edge, with the circular plus centered inside. Kept the app picker, keyboard actions, and ready-state behavior unchanged.
+
+### Circular add-panel cutout refinement
+
+Matched the reference with a 24-pixel circular plus centered on the panel's top edge and a concentric 32-pixel semicircular cutout beneath it, giving a consistent 4-pixel radial gap. Removed the deeper tab-like enclosure and enlarged the plus to fit its circle.

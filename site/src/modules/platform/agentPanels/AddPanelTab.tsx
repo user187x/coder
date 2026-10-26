@@ -34,7 +34,7 @@ export const AddPanelTab: React.FC<AddPanelTabProps> = ({
 			className="pointer-events-none absolute right-6 top-0 z-20 -translate-y-px"
 			data-testid="add-panel-tab"
 		>
-			<div className="pointer-events-auto flex h-[22px] w-[38px] items-center justify-center rounded-b-full border border-t-0 border-solid border-border bg-surface-primary">
+			<div className="pointer-events-auto relative h-4 w-8 rounded-b-full border border-t-0 border-solid border-border bg-surface-primary">
 				<DropdownMenu>
 					<DropdownMenuTrigger asChild>
 						<button
@@ -46,10 +46,10 @@ export const AddPanelTab: React.FC<AddPanelTabProps> = ({
 									? "Opens when the workspace is ready"
 									: "Add a panel with an app"
 							}
-							className="relative z-10 flex size-[15px] cursor-pointer items-center justify-center rounded-full border-0 bg-content-success p-0 text-content-invert shadow-[0_0_0_2px_hsl(var(--content-success)/0.18)] transition-[filter,box-shadow] hover:brightness-110 hover:shadow-[0_0_0_3px_hsl(var(--content-success)/0.28)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-content-success disabled:cursor-not-allowed disabled:opacity-50"
+							className="absolute left-1/2 top-0 z-10 flex size-6 -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border-0 bg-content-success p-0 text-content-invert shadow-[0_0_0_2px_hsl(var(--content-success)/0.18)] transition-[filter,box-shadow] hover:brightness-110 hover:shadow-[0_0_0_3px_hsl(var(--content-success)/0.28)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-content-success disabled:cursor-not-allowed disabled:opacity-50"
 							data-testid="add-panel-button"
 						>
-							<PlusIcon className="size-[11px]" strokeWidth={3} aria-hidden />
+							<PlusIcon className="size-4" strokeWidth={3} aria-hidden />
 						</button>
 					</DropdownMenuTrigger>
 					<DropdownMenuContent
