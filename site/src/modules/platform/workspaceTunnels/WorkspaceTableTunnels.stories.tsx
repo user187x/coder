@@ -166,3 +166,45 @@ export const MultipleConnections: Story = {
 export const ConnectionOutsideView: Story = {
 	args: { shown: [shown[0]] },
 };
+
+export const TwoIncomingOneOutgoing: Story = {
+	parameters: {
+		queries: [
+			{
+				key: workspaceTunnels(MockWorkspace.organization_id).queryKey,
+				data: {
+					tunnels: [
+						MockWorkspaceTunnel,
+						{
+							...MockWorkspaceTunnel,
+							id: "incoming-one",
+							source_workspace_id: shown[1].id,
+							target_workspace_id: shown[0].id,
+							source_workspace_name: "Beta",
+							target_workspace_name: "Alpha",
+						},
+						{
+							...MockWorkspaceTunnel,
+							id: "incoming-two",
+							source_workspace_id: shown[2].id,
+							target_workspace_id: shown[0].id,
+							source_workspace_name: "Gamma",
+							target_workspace_name: "Alpha",
+						},
+					],
+				},
+			},
+		],
+	},
+};
+export const FlowOverview: Story = {
+	...TwoIncomingOneOutgoing,
+	play: async ({ canvasElement }) => {
+		const { userEvent } = await import("storybook/test");
+		await userEvent.hover(
+			within(canvasElement).getByRole("button", {
+				name: "3 tunnels connected. 2 incoming, 1 outgoing",
+			}),
+		);
+	},
+};

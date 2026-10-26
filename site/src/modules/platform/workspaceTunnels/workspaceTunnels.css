@@ -109,3 +109,9 @@ html[data-animations="off"] .workspace-tunnel-head-flow {
 		animation: none;
 	}
 }
+
+.tunnel-flow-reduced { display: none; }
+@media (prefers-reduced-motion: reduce) {
+ .tunnel-flow-animated { display: none; }
+ .tunnel-flow-reduced { display: inline; }
+}
