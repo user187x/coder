@@ -2552,3 +2552,4 @@ workspace checks).
 - Redesign the workspace dropdown footer with a full-width Grid View pill, selected/total counts, separate Clear and Select all controls, and all workspaces selected by default.
 - Place the circular Add a panel control inside an inward panel-edge cutout instead of a raised tab.
 - Refine the Add a panel cutout into a concentric semicircle around a floating circular plus, matching the supplied reference.
+- Render the tunnel indicator in gray with a theme-colored pulsing border, respecting reduced-motion and animation preferences.

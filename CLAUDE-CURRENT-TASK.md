@@ -430,3 +430,7 @@ Changed the Add a panel enclosure from a raised semicircle above the card to an 
 ### Circular add-panel cutout refinement
 
 Matched the reference with a 24-pixel circular plus centered on the panel's top edge and a concentric 32-pixel semicircular cutout beneath it, giving a consistent 4-pixel radial gap. Removed the deeper tab-like enclosure and enlarged the plus to fit its circle.
+
+### Tunnel indicator outline and pulse
+
+Changed the workspace tunnel indicator to a muted gray glyph with a pulsing circular border glow using the theme's success-border token. The icon remains still; only its surrounding glow varies. User-disabled animations and reduced motion retain a static border. Connection visibility and telemetry behavior are unchanged.
