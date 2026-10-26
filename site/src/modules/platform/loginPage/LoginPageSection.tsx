@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { toast } from "sonner";
 import { getErrorMessage } from "#/api/errors";
@@ -27,6 +27,8 @@ import { Spinner } from "#/components/Spinner/Spinner";
 import { Textarea } from "#/components/Textarea/Textarea";
 import { ColorField } from "#/modules/platform/ColorField";
 import { getApplicationName } from "#/utils/appearance";
+import { ImageUploadSplit } from "../imageStore/ImageUploadSplit";
+import { PREBAKED_BACKGROUNDS } from "../pictures";
 import { SignInTitle } from "./SignInTitle";
 
 const EFFECT_LABEL: Record<LoginEffect, { name: string; hint: string }> = {
@@ -65,6 +67,7 @@ export const LoginPageSection: React.FC = () => {
 	const [draft, setDraft] = useState<LoginPageSettings | null>(null);
 	const [preview, setPreview] = useState<"in" | "out">("in");
 	const ids = useId();
+	const imageInput = useRef<HTMLInputElement>(null);
 	const applicationName = getApplicationName();
 
 	useEffect(() => {
@@ -93,6 +96,24 @@ export const LoginPageSection: React.FC = () => {
 			onError: (e) =>
 				toast.error(getErrorMessage(e, "The sign-in page was not saved.")),
 		});
+
+	const pickImage = (file: File) => {
+		if (file.size > 256 * 1024) {
+			toast.error("The heading image must be smaller than 256 KB.");
+			return;
+		}
+		const reader = new FileReader();
+		reader.onload = () => {
+			if (typeof reader.result === "string") {
+				const headingImage = reader.result;
+				setDraft((current) =>
+					current ? { ...current, headingImage } : current,
+				);
+			}
+		};
+		reader.onerror = () => toast.error("The heading image could not be read.");
+		reader.readAsDataURL(file);
+	};
 
 	return (
 		<section
@@ -128,39 +149,35 @@ export const LoginPageSection: React.FC = () => {
 						</Select>
 						{draft.headingMode === "image" && (
 							<>
-								<Label htmlFor={`${ids}-heading-image`}>
+								<Label className="sr-only" htmlFor={`${ids}-heading-image`}>
 									Upload heading image
 								</Label>
 								<Input
 									id={`${ids}-heading-image`}
+									ref={imageInput}
+									className="hidden"
 									type="file"
 									accept="image/png,image/jpeg,image/gif,image/webp,image/avif"
 									onChange={(event) => {
 										const file = event.target.files?.[0];
-										if (!file) return;
-										if (file.size > 256 * 1024) {
-											toast.error(
-												"The heading image must be smaller than 256 KB.",
-											);
-											return;
-										}
-										const reader = new FileReader();
-										reader.onload = () => {
-											if (typeof reader.result === "string") {
-												const headingImage = reader.result;
-												setDraft((current) =>
-													current ? { ...current, headingImage } : current,
-												);
-											}
-										};
-										reader.onerror = () =>
-											toast.error("The heading image could not be read.");
-										reader.readAsDataURL(file);
+										if (file) pickImage(file);
+										event.target.value = "";
+									}}
+								/>
+								<ImageUploadSplit
+									title="Heading image: the image store"
+									onUpload={() => imageInput.current?.click()}
+									disabled={save.isPending}
+									gallery={{
+										extra: PREBAKED_BACKGROUNDS,
+										onPick: pickImage,
+										onPickBuiltin: (picture) =>
+											set({ headingImage: picture.url }),
 									}}
 								/>
 								<span className="text-xs text-content-secondary">
-									PNG, JPEG, GIF, WebP or AVIF, up to 256 KB. The title supplies
-									alternative text.
+									Upload PNG, JPEG, GIF, WebP or AVIF up to 256 KB, or choose an
+									image from the store. The title supplies alternative text.
 								</span>
 							</>
 						)}

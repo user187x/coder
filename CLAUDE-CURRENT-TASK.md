@@ -607,3 +607,9 @@ Validation: 39 frontend tests passed; platformbanner Go suite passed; 3 Python h
 Deployed server resume.82 and UI service resume.35, ready 2/2 and 1/1. Server digest sha256:2c6572fd8e809fac612d07e5b01daddafb8c2ff8fdaf7e65c597b66cb1276ddf. UI service overlay was built from deployed resume.34 with only heading and background validation changes, excluding unrelated working-tree runtime changes.
 
 Evidence: /mnt/data/coder-ui-evidence-20261025/announcement-controls-server82.png, announcement-modal-server82.png, image-heading-server82.png, background-options-server82.png.
+
+## Heading image picker follow-up (2026-10-26)
+
+Replaced the visible file input with shared ImageUploadSplit: upload on the primary button and the image store on its arrow. Includes the built-in backgrounds and platform images. A baked image updates the draft preview and saves its validated local reference, without the inline-upload size limit. Other uploads retain validation. Existing branding was preserved; browser verification selected synthsun.gif only in a discarded draft.
+
+Validation: 3 heading frontend tests and 4 Python settings tests passed; TypeScript, targeted Biome/Oxlint, frontend/Go builds passed. Scoped FE1-FE10 review passed with shared picker reuse and recipient callback/save coverage. Live resume.83 server and resume.36 UI service rollouts succeeded. Evidence: /mnt/data/coder-ui-evidence-20261025/heading-image-store-server83.png and heading-image-preview-server83.png.

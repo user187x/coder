@@ -1409,7 +1409,9 @@ def clean_login_page(p):
         raise ValueError("Choose Text or Image for the heading.")
     if not isinstance(image, str) or len(image) > 350000:
         raise ValueError("The heading image must be smaller than 256 KB.")
-    if image:
+    if image.startswith("/"):
+        parse_background_picture(image)
+    elif image:
         if not re.match(r"^data:image/(png|jpeg|gif|webp|avif);base64,", image):
             raise ValueError("Upload a PNG, JPEG, GIF, WebP or AVIF heading image.")
         _, image_data = parse_logo(image)

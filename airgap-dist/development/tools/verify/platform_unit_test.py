@@ -1240,6 +1240,16 @@ class LoginPageSettingsTest(unittest.TestCase):
         image = "data:image/png;base64," + base64.b64encode(ui.PNG + b"test").decode()
         self.assertEqual(ui.clean_login_page(dict(base, headingImage=image))["headingImage"], image)
 
+    def test_heading_image_store_reference(self):
+        with mock.patch.object(ui, "STORE_IMAGES") as store:
+            store.items.return_value = {"synthsun.gif": {"bytes": 4000000}}
+            value = ui.clean_login_page({"color": "#ffffff", "headingMode": "image", "headingImage": "/__coder-ui/image-store/synthsun.gif"})
+            self.assertEqual(value["headingImage"], "/__coder-ui/image-store/synthsun.gif")
+            with self.assertRaises(ValueError):
+                ui.clean_login_page(dict(value, headingImage="/__coder-ui/image-store/missing.gif"))
+            with self.assertRaises(ValueError):
+                ui.clean_login_page(dict(value, headingImage="//example.com/image.png"))
+
     def test_clean(self):
         v = ui.clean_login_page({"title": " Mission Control ", "effect": "neon", "color": "#FF00AA", "speed": 2,
                                  "message": "Authorised users only.", "signedOutMessage": "Bye."})
