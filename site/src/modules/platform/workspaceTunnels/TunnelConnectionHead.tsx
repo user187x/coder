@@ -6,20 +6,26 @@ import { useAnimationsEnabled } from "#/modules/platform/animations/animations";
 export const TunnelConnectionHead = ({
 	x,
 	y,
-	angle,
+	outgoing,
 	ready,
 }: {
 	x: number;
 	y: number;
-	angle: number;
+	outgoing: boolean;
 	ready: boolean;
 }) => {
+	const angle = outgoing ? 180 : 0;
+	const color = outgoing ? "#4ade80" : "#60a5fa";
 	const id = useId().replace(/:/g, "");
 	const animations = useAnimationsEnabled();
 	const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
 	return (
 		<g transform={`translate(${x} ${y}) rotate(${angle})`} aria-hidden>
-			<circle r={10} fill="hsl(var(--surface-primary))" stroke="currentColor" />
+			<circle
+				r={10}
+				fill="hsl(var(--surface-primary))"
+				stroke={ready ? color : "currentColor"}
+			/>
 			{ready ? (
 				<>
 					<defs>
@@ -36,7 +42,7 @@ export const TunnelConnectionHead = ({
 							<path
 								d="M1 3 L6 8 L1 13"
 								fill="none"
-								stroke="hsl(var(--content-link))"
+								stroke={color}
 								strokeWidth={2}
 								strokeLinecap="round"
 								strokeLinejoin="round"
