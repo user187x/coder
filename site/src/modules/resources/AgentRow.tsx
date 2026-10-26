@@ -53,6 +53,7 @@ import {
 } from "#/components/Tooltip/Tooltip";
 import { useProxy } from "#/contexts/ProxyContext";
 import { useClipboard } from "#/hooks/useClipboard";
+import { normalizeWorkspaceApps } from "#/modules/apps/workspaceApps";
 import { useFeatureVisibility } from "#/modules/dashboard/useFeatureVisibility";
 import { AgentBorderFx } from "#/modules/platform/agentBorder/AgentBorderFx";
 import { agentBorderState } from "#/modules/platform/agentBorder/agentBorderState";
@@ -168,13 +169,14 @@ const isScriptFailed = (script: WorkspaceAgentScript | undefined): boolean =>
 	Boolean(script?.exit_code || (script?.status && script.status !== "ok"));
 
 export const AgentRow: React.FC<AgentRowProps> = ({
-	agent,
+	agent: originalAgent,
 	subAgents,
 	workspace,
 	template,
 	initialMetadata,
 	footer,
 }) => {
+	const agent = normalizeWorkspaceApps(originalAgent);
 	const { browser_only, workspace_external_agent } = useFeatureVisibility();
 	const appSections = organizeAgentApps(agent.apps);
 	const hasAppsToDisplay =
@@ -971,65 +973,83 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 										/>
 									),
 								},
-								...panels.apps.map((panel) => {
-									const common = {
-										id: panel.id,
-										initiallyOpen: panel.id === justAdded,
-										height: panel.height,
-										onHeightChange: (height: number) =>
-											panels.setHeight(panel.id, height),
-										onRemove: () => panels.remove(panel.id),
-									};
-									if (panel.kind === "port") {
+								...panels.apps
+									.filter(
+										(panel) =>
+											panel.kind !== "app" || panel.slug !== "chromium",
+									)
+									.map((panel) => {
+										const common = {
+											id: panel.id,
+											initiallyOpen: panel.id === justAdded,
+											height: panel.height,
+											onHeightChange: (height: number) =>
+												panels.setHeight(panel.id, height),
+											onRemove: () => panels.remove(panel.id),
+										};
+										if (panel.kind === "port") {
+											return {
+												id: panel.id,
+												label: `Port ${panel.port}`,
+												render: (handle: React.ReactNode) => (
+													<AgentPortPanel
+														{...common}
+														handle={handle}
+														workspace={workspace}
+														agent={agent}
+														ready={appsReady}
+														host={proxy.preferredWildcardHostname}
+														port={panel.port}
+														protocol={panel.protocol}
+														process={panel.process}
+													/>
+												),
+											};
+										}
+										if (panel.kind === "web") {
+											return {
+												id: panel.id,
+												label: panel.name || panel.url,
+												render: (handle: React.ReactNode) => (
+													<AgentWebPanel
+														{...common}
+														handle={handle}
+														url={panel.url}
+														name={panel.name}
+													/>
+												),
+											};
+										}
+										if (panel.slug === "ghostty")
+											return {
+												id: panel.id,
+												label: "Terminal",
+												render: (handle: React.ReactNode) => (
+													<AgentTerminalSection
+														agent={agent}
+														workspace={workspace}
+														ready={appsReady}
+														handle={handle}
+													/>
+												),
+											};
+										const app = agent.apps.find((a) => a.slug === panel.slug);
 										return {
 											id: panel.id,
-											label: `Port ${panel.port}`,
+											label: app?.display_name || panel.slug,
 											render: (handle: React.ReactNode) => (
-												<AgentPortPanel
+												<AgentAppPanel
 													{...common}
-													handle={handle}
 													workspace={workspace}
 													agent={agent}
-													ready={appsReady}
-													host={proxy.preferredWildcardHostname}
-													port={panel.port}
-													protocol={panel.protocol}
-													process={panel.process}
-												/>
-											),
-										};
-									}
-									if (panel.kind === "web") {
-										return {
-											id: panel.id,
-											label: panel.name || panel.url,
-											render: (handle: React.ReactNode) => (
-												<AgentWebPanel
-													{...common}
+													app={app}
+													slug={panel.slug}
 													handle={handle}
-													url={panel.url}
-													name={panel.name}
+													ready={appsReady}
 												/>
 											),
 										};
-									}
-									const app = agent.apps.find((a) => a.slug === panel.slug);
-									return {
-										id: panel.id,
-										label: app?.display_name || panel.slug,
-										render: (handle: React.ReactNode) => (
-											<AgentAppPanel
-												{...common}
-												workspace={workspace}
-												agent={agent}
-												app={app}
-												slug={panel.slug}
-												handle={handle}
-												ready={appsReady}
-											/>
-										),
-									};
-								}),
+									}),
 							]}
 						/>
 						{/* Platform: the Uptime pill at the far right of the Build timeline footer (BuildFooterEnd) */}

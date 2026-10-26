@@ -1,5 +1,10 @@
 import { cn } from "cn";
-import { ChevronLeftIcon, CircleDollarSignIcon, TrashIcon } from "lucide-react";
+import {
+	ChevronLeftIcon,
+	CircleDollarSignIcon,
+	ShieldBanIcon,
+	TrashIcon,
+} from "lucide-react";
 import { useQuery } from "react-query";
 import { Link as RouterLink } from "react-router";
 import { workspaceQuota } from "#/api/queries/workspaceQuota";
@@ -28,6 +33,8 @@ import {
 } from "#/components/Tooltip/Tooltip";
 import { useDashboard } from "#/modules/dashboard/useDashboard";
 import { linkToTemplate, useLinks } from "#/modules/navigation";
+import { LockdownBadge } from "#/modules/platform/lockdown/Lockdown";
+import { useWorkspaceRestricted } from "#/modules/platform/quarantine/WorkspaceRestriction";
 import { useWorkspaceIcon } from "#/modules/workspaces/WorkspaceIcon/useWorkspaceIcon";
 import { WorkspaceStatusIndicator } from "#/modules/workspaces/WorkspaceStatusIndicator/WorkspaceStatusIndicator";
 import { displayDormantDeletion } from "#/utils/dormant";
@@ -81,6 +88,7 @@ export const WorkspaceTopbar: React.FC<WorkspaceTopbarProps> = ({
 	handleDebug,
 	navigation,
 }) => {
+	const restricted = useWorkspaceRestricted(workspace);
 	const workspaceIcon = useWorkspaceIcon(workspace);
 	const { entitlements, organizations, showOrganizations } = useDashboard();
 	const getLink = useLinks();
@@ -134,7 +142,8 @@ export const WorkspaceTopbar: React.FC<WorkspaceTopbarProps> = ({
 		<Topbar
 			className={cn(
 				"[grid-area:topbar] sticky top-0 z-30 mx-auto mb-4 max-w-[1200px] md:mb-6 flex-wrap gap-y-2 rounded-[18px] border border-solid border-border bg-surface-primary/85 px-2 shadow-lg backdrop-blur-md",
-				transitioning && "workspace-barber-pole",
+				transitioning && !restricted && "workspace-barber-pole",
+				restricted && "workspace-restricted-pole",
 			)}
 			data-testid="workspace-topbar"
 		>
@@ -256,11 +265,24 @@ export const WorkspaceTopbar: React.FC<WorkspaceTopbarProps> = ({
 					/>
 
 					{/* Platform: an animated light while it runs. */}
-					<WorkspaceStatusIndicator
-						workspace={workspace}
-						runningLight
-						className="workspace-topbar-running-status gap-1.5 rounded-full border border-solid border-current/20 bg-surface-secondary px-2 py-1 text-xs"
-					/>
+					{restricted ? (
+						<>
+							<span
+								role="status"
+								className="inline-flex items-center gap-1.5 rounded-full border border-solid border-content-warning/40 bg-surface-primary px-2 py-1 text-xs text-content-warning"
+							>
+								<ShieldBanIcon className="size-3.5" aria-hidden />
+								Access locked
+							</span>
+							<LockdownBadge workspace={workspace} goldIcon />
+						</>
+					) : (
+						<WorkspaceStatusIndicator
+							workspace={workspace}
+							runningLight
+							className="workspace-topbar-running-status gap-1.5 rounded-full border border-solid border-current/20 bg-surface-secondary px-2 py-1 text-xs"
+						/>
+					)}
 
 					<WorkspaceActions
 						workspace={workspace}

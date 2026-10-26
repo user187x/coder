@@ -717,26 +717,6 @@ resource "coder_app" "novnc" {
   }
 }
 
-# Chromium on its own: a maximized browser window (its tabs and address bar) on an X display of its own (:2, with a
-# window manager and nothing else), shown through noVNC like the desktop - so it fits a dashboard panel, sized to it.
-# It comes with the Desktop app, whose VNC server, noVNC and window manager it uses (scripts/startup.sh starts it).
-resource "coder_app" "chromium" {
-  count        = var.desktop ? 1 : 0
-  agent_id     = coder_agent.main.id
-  slug         = "chromium"
-  display_name = "Chromium"
-  icon         = "/__icons/chromium.svg" # files/icons/chromium.svg, served by templates/icons.yaml
-  url          = "http://localhost:6902?autoconnect=true&resize=remote&compression=0&path=@${data.coder_workspace_owner.me.name}/${data.coder_workspace.me.name}.main/apps/chromium/websockify"
-  subdomain    = false
-  share        = "owner"
-
-  healthcheck {
-    url       = "http://localhost:6902/"
-    interval  = 5
-    threshold = 3
-  }
-}
-
 # FileBrowser Quantum (scripts/startup.sh starts it under the app's path, which its health check is under too). Coder
 # strips the app's path from a request and joins the rest to this URL's path, so the URL carries the full path back
 # (FileBrowser Quantum redirects anything outside it there: with a bare URL, an endless redirect).

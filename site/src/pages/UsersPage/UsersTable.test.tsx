@@ -3,7 +3,12 @@ import userEvent from "@testing-library/user-event";
 import { createMemoryRouter } from "react-router";
 import { API } from "#/api/api";
 import { PlatformAPI } from "#/api/platform";
+import { DashboardContext } from "#/modules/dashboard/DashboardProvider";
 import {
+	MockAppearanceConfig,
+	MockBuildInfo,
+	MockDefaultOrganization,
+	MockEntitlements,
 	MockUserMember,
 	MockUserOwner,
 	MockWorkspace,
@@ -18,15 +23,27 @@ const renderUsersTable = (props: Partial<UsersTableProps> = {}) => {
 			{
 				path: "/deployment/users",
 				element: (
-					<UsersTable
-						isLoading={false}
-						users={[MockUserMember]}
-						groupsByUserId={undefined}
-						me={MockUserOwner.id}
-						canEditUsers
-						onAction={vi.fn()}
-						{...props}
-					/>
+					<DashboardContext.Provider
+						value={{
+							appearance: MockAppearanceConfig,
+							buildInfo: MockBuildInfo,
+							entitlements: MockEntitlements,
+							experiments: [],
+							organizations: [MockDefaultOrganization],
+							showOrganizations: false,
+							canViewOrganizationSettings: true,
+						}}
+					>
+						<UsersTable
+							isLoading={false}
+							users={[MockUserMember]}
+							groupsByUserId={undefined}
+							me={MockUserOwner.id}
+							canEditUsers
+							onAction={vi.fn()}
+							{...props}
+						/>
+					</DashboardContext.Provider>
 				),
 			},
 			{ path: "*", element: <div /> },

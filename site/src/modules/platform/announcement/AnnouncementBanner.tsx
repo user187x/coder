@@ -2,6 +2,7 @@ import { cn } from "cn";
 import { XIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
+import { useLocation } from "react-router";
 import type { Banner } from "#/api/platform";
 import { globalLockdown } from "#/api/queries/globalLockdown";
 import {
@@ -10,8 +11,13 @@ import {
 	confirmAnnouncement,
 	markAnnouncementViewed,
 } from "#/api/queries/platform";
+import { workspaceByOwnerAndName } from "#/api/queries/workspaces";
 import { isEmbeddedFrame } from "#/contexts/platformBoot";
 import { GlobalLockdownNotice } from "#/modules/platform/globalLockdown/GlobalLockdown";
+import {
+	useWorkspaceRestricted,
+	WorkspaceRestrictionNotice,
+} from "../quarantine/WorkspaceRestriction";
 import { BannerCountdown } from "./BannerCountdown";
 import { BannerScrollView } from "./BannerScrollView";
 import { BannerText } from "./BannerText";
@@ -125,6 +131,16 @@ type AnnouncementBannerProps = {
 export const AnnouncementBanner: React.FC<AnnouncementBannerProps> = ({
 	placement,
 }) => {
+	const { pathname } = useLocation();
+	const match = pathname.match(/^\/@([^/]+)\/([^/]+)\/?$/);
+	const viewed = useQuery({
+		...workspaceByOwnerAndName(
+			match ? decodeURIComponent(match[1]) : "",
+			match ? decodeURIComponent(match[2]) : "",
+		),
+		enabled: Boolean(match) && placement !== "login",
+	});
+	const restricted = useWorkspaceRestricted(match ? viewed.data : undefined);
 	const enabled = !isEmbeddedFrame();
 	const live = useBannerLive(enabled);
 	const { data: banner } = useQuery({ ...bannerQuery(live), enabled });
@@ -148,6 +164,15 @@ export const AnnouncementBanner: React.FC<AnnouncementBannerProps> = ({
 			</div>
 		);
 	}
+
+	if (placement !== "login" && restricted && viewed.data)
+		return (
+			<div
+				className={placement === "navbar" ? "ml-3 min-w-0 flex-1" : "w-full"}
+			>
+				<WorkspaceRestrictionNotice name={viewed.data.name} />
+			</div>
+		);
 
 	const shown =
 		banner?.enabled &&

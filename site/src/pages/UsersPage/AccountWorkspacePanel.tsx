@@ -16,6 +16,10 @@ import {
 	TableRow,
 } from "#/components/Table/Table";
 import { linkToTemplate, useLinks } from "#/modules/navigation";
+import {
+	RestrictedWorkspaceRow,
+	WorkspaceRestrictionAvatar,
+} from "#/modules/platform/quarantine/WorkspaceRestriction";
 import { QuotaAdjustments } from "#/modules/platform/quotaRequests/QuotaAdjustments";
 import { WorkspaceStatusIndicator } from "#/modules/workspaces/WorkspaceStatusIndicator/WorkspaceStatusIndicator";
 import { AccountWorkspaceActions } from "./AccountWorkspaceActions";
@@ -147,7 +151,7 @@ export const AccountWorkspacePanelView: React.FC<
 					</TableHeader>
 					<TableBody>
 						{list.map((w) => (
-							<TableRow key={w.id}>
+							<RestrictedWorkspaceRow workspace={w} key={w.id}>
 								{canManage && (
 									<TableCell data-account-field="selection">
 										<Checkbox
@@ -171,6 +175,13 @@ export const AccountWorkspacePanelView: React.FC<
 											to={`/@${encodeURIComponent(w.owner_name)}/${encodeURIComponent(w.name)}`}
 											aria-label={`Open dashboard for ${w.name}`}
 										>
+											<WorkspaceRestrictionAvatar workspace={w}>
+												<Avatar
+													src={w.owner_avatar_url}
+													fallback={w.owner_name}
+													size="sm"
+												/>
+											</WorkspaceRestrictionAvatar>
 											<span className="truncate">{w.name}</span>
 											<ArrowUpRightIcon aria-hidden />
 										</Link>
@@ -240,7 +251,7 @@ export const AccountWorkspacePanelView: React.FC<
 										</span>
 									)}
 								</TableCell>
-							</TableRow>
+							</RestrictedWorkspaceRow>
 						))}
 					</TableBody>
 				</Table>

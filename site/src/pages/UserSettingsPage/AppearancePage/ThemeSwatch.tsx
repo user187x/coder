@@ -25,10 +25,7 @@ export const ThemeSwatch: React.FC<ThemeSwatchProps> = ({
 	onPreviewEnd,
 }) => {
 	const copy = THEME_COPY[theme];
-	const isDefaultTheme = theme === "light" || theme === "dark";
-	const accentClass = theme.includes("protan-deuter")
-		? "bg-[#bf8700]"
-		: "bg-[#cf222e]";
+
 	return (
 		<Tooltip delayDuration={1000}>
 			<TooltipTrigger asChild>
@@ -54,31 +51,7 @@ export const ThemeSwatch: React.FC<ThemeSwatchProps> = ({
 						aria-label={copy.title}
 						className="sr-only"
 					/>
-					<span
-						className={cn(
-							baseModeFor(theme),
-							theme,
-							"block size-full rounded-full overflow-hidden",
-							"bg-surface-primary relative",
-						)}
-					>
-						{!isDefaultTheme && (
-							<>
-								<span
-									className="absolute inset-0 bg-[#0969da]"
-									style={{
-										clipPath: "polygon(0 100%, 50% 50%, 100% 100%)",
-									}}
-								/>
-								<span
-									className={cn("absolute inset-0", accentClass)}
-									style={{
-										clipPath: "polygon(100% 0, 100% 100%, 50% 50%)",
-									}}
-								/>
-							</>
-						)}
-					</span>
+					<ThemeColorCircle theme={theme} />
 				</label>
 			</TooltipTrigger>
 			<TooltipContent
@@ -89,5 +62,41 @@ export const ThemeSwatch: React.FC<ThemeSwatchProps> = ({
 				{copy.title}
 			</TooltipContent>
 		</Tooltip>
+	);
+};
+
+export const ThemeColorCircle: React.FC<{ theme: ConcreteThemeName }> = ({
+	theme,
+}) => {
+	const isDefaultTheme = theme === "light" || theme === "dark";
+	const accentClass = theme.includes("protan-deuter")
+		? "bg-[#bf8700]"
+		: "bg-[#cf222e]";
+	return (
+		<span
+			className={cn(
+				baseModeFor(theme),
+				theme,
+				"block size-full rounded-full overflow-hidden",
+				"bg-surface-primary relative",
+			)}
+		>
+			{!isDefaultTheme && (
+				<>
+					<span
+						className="absolute inset-0 bg-[#0969da]"
+						style={{
+							clipPath: "polygon(0 100%, 50% 50%, 100% 100%)",
+						}}
+					/>
+					<span
+						className={cn("absolute inset-0", accentClass)}
+						style={{
+							clipPath: "polygon(100% 0, 100% 100%, 50% 50%)",
+						}}
+					/>
+				</>
+			)}
+		</span>
 	);
 };

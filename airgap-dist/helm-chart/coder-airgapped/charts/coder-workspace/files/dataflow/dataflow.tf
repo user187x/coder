@@ -1,20 +1,6 @@
 # The DATAFLOW template's own part (the chart pushes it beside main.tf, and with scripts/apache_nifi.sh and
 # scripts/apache_airflow.sh, for that template only): Apache NiFi and Apache Airflow in place of code-server (main.tf's
-# code_server = false), each started by a script of its own, NiFi's route on the cluster's Gateway, and Ghostty in
-# place of the web terminal.
-
-# Ghostty in place of the web terminal (the chart's dataflowTemplate.terminal; its push then sets main.tf's terminal
-# to false) - the Ghostty app where the Terminal was, opening the same session in Coder's terminal page, drawn by
-# Ghostty's terminal emulator (ghostty-web, in the dashboard).
-variable "terminal_app" {
-  type        = string
-  description = "The web terminal: web (Coder's own) or ghostty (Ghostty's, as the Ghostty app in its place)."
-  default     = "web"
-  validation {
-    condition     = contains(["web", "ghostty"], var.terminal_app)
-    error_message = "terminal_app: web or ghostty."
-  }
-}
+# code_server = false), with the built-in web terminal and each app started by its own script.
 
 # The Gateway that serves Coder (the NiFi route below attaches to it), and Coder's Service behind it.
 
@@ -94,19 +80,6 @@ resource "coder_app" "airflow" {
     interval  = 5
     threshold = 60
   }
-}
-
-# The Ghostty app (terminal_app ghostty): a terminal app, so it opens where and as the Terminal did - Coder's terminal
-# page, in its own window, a login shell in the Start folder - and the dashboard draws an agent's terminals with
-# Ghostty's emulator wherever the agent has this app (slug "ghostty").
-resource "coder_app" "ghostty" {
-  count        = var.terminal_app == "ghostty" ? 1 : 0
-  agent_id     = coder_agent.main.id
-  slug         = "ghostty"
-  display_name = "Ghostty"
-  icon         = "/__icons/ghostty.png" # files/icons/ghostty.png (Ghostty's app icon, MIT), served by templates/icons.yaml
-  command      = "cd ${jsonencode(data.coder_parameter.start_directory.value)} 2>/dev/null; exec \"$SHELL\" -l"
-  share        = "owner"
 }
 
 # Before 1.40.1 these were in main.tf with a count (one per DATAFLOW workspace): the same objects.

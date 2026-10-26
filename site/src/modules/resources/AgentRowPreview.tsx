@@ -2,6 +2,7 @@ import { cn } from "cn";
 import { SquareTerminalIcon } from "lucide-react";
 import type { WorkspaceAgent } from "#/api/typesGenerated";
 import { ExternalImage } from "#/components/ExternalImage/ExternalImage";
+import { normalizeWorkspaceApps } from "#/modules/apps/workspaceApps";
 import { DisplayAppNameMap } from "./AppLink/AppLink";
 import { AppPreview } from "./AppLink/AppPreview";
 import { BaseIcon } from "./AppLink/BaseIcon";
@@ -16,9 +17,10 @@ type AgentRowPreviewProps = AgentRowPreviewStyles & {
 };
 
 export const AgentRowPreview: React.FC<AgentRowPreviewProps> = ({
-	agent,
+	agent: originalAgent,
 	alignValues,
 }) => {
+	const agent = normalizeWorkspaceApps(originalAgent);
 	return (
 		<div
 			key={agent.id}

@@ -277,43 +277,6 @@ if [ "$IMAGE_DESKTOP" != none ] && ! curl -s -o /dev/null http://127.0.0.1:6901/
  log "Desktop app (noVNC): started"
 fi
 
-# The Chromium app: Chromium alone on display :2 - its own VNC server (a socket beside the desktop's), xfwm4 so its
-# window is maximized and follows the size noVNC asks for, and websockify on 6902. Its own profile in the home
-# (~/.config/chromium-panel: the desktop's Chromium keeps its own, and two cannot share one). Closed, it comes back.
-BROWSER_SOCK=/tmp/coder-vnc/browser.sock
-if [ "$IMAGE_DESKTOP" = none ]; then
- :
-elif ! command -v chromium >/dev/null || ! command -v xfwm4 >/dev/null || ! command -v dbus-run-session >/dev/null; then
- log "Chromium app: no Chromium, xfwm4 or dbus-run-session in this image (the Chromium app stays down)"
-elif ! pgrep -f "^Xtigervnc :2 " >/dev/null; then
- rm -f "$BROWSER_SOCK" /tmp/.X2-lock /tmp/.X11-unix/X2
- xauth -f ~/.Xauthority add :2 MIT-MAGIC-COOKIE-1 "$(mcookie)"
- Xtigervnc :2 -auth ~/.Xauthority -geometry 1280x800 -depth 24 -rfbport -1 -rfbunixpath "$BROWSER_SOCK" \
-  -SecurityTypes None -AlwaysShared -FrameRate 60 -SendPrimary=0 -desktop Chromium >/tmp/xvnc-browser.log 2>&1 &
- for i in $(seq 1 50); do
-  [ -S "$BROWSER_SOCK" ] && break
-  sleep 0.2
- done
- # xfwm4 settings of its own (on a bus of its own: the desktop's settings daemon would answer with the desktop's
- # theme): a maximized window has no title bar, so Chromium's own tab strip is the top of the panel
- WM_CONF=/tmp/coder-vnc/browser-wm
- mkdir -p "$WM_CONF/xfce4/xfconf/xfce-perchannel-xml"
- printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>' '<channel name="xfwm4" version="1.0">' \
-  ' <property name="general" type="empty">' '  <property name="titleless_maximize" type="bool" value="true"/>' \
-  '  <property name="theme" type="string" value="Default"/>' ' </property>' '</channel>' \
-  >"$WM_CONF/xfce4/xfconf/xfce-perchannel-xml/xfwm4.xml"
- DISPLAY=:2 XAUTHORITY=~/.Xauthority XDG_CONFIG_HOME="$WM_CONF" setsid dbus-run-session -- \
-  xfwm4 --compositor=off --sm-client-disable >/tmp/browser-wm.log 2>&1 </dev/null &
- DISPLAY=:2 XAUTHORITY=~/.Xauthority setsid sh -c 'while [ -S "$1" ]; do
-  chromium --start-maximized --user-data-dir="$HOME/.config/chromium-panel"; sleep 1; done' sh "$BROWSER_SOCK" \
-  >/tmp/browser.log 2>&1 </dev/null &
- log "Chromium app: started (display :2)"
-fi
-if [ "$IMAGE_DESKTOP" != none ] && [ -S "$BROWSER_SOCK" ] && ! curl -s -o /dev/null http://127.0.0.1:6902/; then
- websockify --web=/usr/share/novnc/ --unix-target="$BROWSER_SOCK" 127.0.0.1:6902 >/tmp/novnc-browser.log 2>&1 &
- log "Chromium app (noVNC): started"
-fi
-
 # 2. code-server: the workspace image's (1.8.0 and later), so it works without internet. Downloaded only on an
 # image without it, which needs internet (it is skipped, with a note in the log, when there is none). With code-server
 # HA (CODER_CODE_SERVER_HA, the template's code_server_ha) it runs elsewhere: the relay in this pod answers instead.

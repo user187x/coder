@@ -511,3 +511,15 @@ FE8 PASS
 FE9 PASS
 FE10 PASS
 ```
+
+## Workspace restriction and app/menu cleanup, 2026-10-26
+
+Workspace dashboards now derive a shared restricted state from full Lock Down/Freeze or quarantine policy, including its explicit-start hold after release. Their app/metrics/panel fieldset is grayscale, disabled and inert; workspace-table app links are inert too. Restricted topbars use animated yellow/black hazard stripes and an Access locked label, with the administrator's lockdown menu kept outside disabled content. The user's announcement area shows the workspace-specific contact-administrator message. Workspace rows in Accounts and Workspaces use the same hazard animation and place a shield over the workspace owner's avatar. Reduced-motion and animations-off preferences retain static stripes. Partial network-only or privilege-only policies remain distinct.
+
+Idle female tunnel sockets no longer start cable drags; male input plugs still do, with connected plug reconnection and keyboard management preserved. Existing drag tests now originate at the male end, and a regression test rejects female-origin drags.
+
+The user menu's Theme colors disclosure shows the two existing protan/deuter and tritan color variants for each light/dark mode. It reuses Appearance's theme-circle renderer and persists the actual appearance setting; the default Dark Mode switch remains available. Circles are labeled keyboard-accessible menu radio items.
+
+Removed the dedicated Chromium coder_app and display :2/noVNC/browser restart loop from template sources. Chromium remains installed for the normal Desktop. Removed DATAFLOW's Ghostty app and terminal_app option, publishing it with the built-in Terminal instead. Existing workspace metadata is normalized for app lists/previews and retained panels, so Chromium disappears and legacy Ghostty entries use Terminal without a forced restart. Ghostty's app-slug renderer override is removed; the deployment's existing terminal configuration is retained.
+
+Checks: 58 frontend tests across seven affected suites pass; TypeScript and changed-file Biome/Oxlint pass; production frontend build, shell syntax and Helm rendering pass. The Accounts test harness now supplies its missing dashboard context. Full-site checks retain unrelated terminal radix/CSS specificity/config-format findings. Frontend-review FE1-FE10 pass for this diff: interaction outcomes and visual stories; generated entity types; shared swatches/query primitives; substantive comments; loading/refetch behavior; inert/disabled content and keyboard labels; query-backed requests; no new derived-state effects; shared fixtures; semantic test queries. Existing runtime/quarantine/Neko work remains outside this commit.

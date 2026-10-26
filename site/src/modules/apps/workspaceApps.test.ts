@@ -11,6 +11,7 @@ import {
 import {
 	findWorkspaceAppWithAgent,
 	getAllAppsWithAgent,
+	normalizeWorkspaceApps,
 } from "./workspaceApps";
 
 describe("workspaceApps", () => {
@@ -98,3 +99,18 @@ function buildApp(
 		...overrides,
 	};
 }
+
+it("retires Chromium and replaces the Ghostty app with the built-in terminal", () => {
+	const agent = normalizeWorkspaceApps({
+		...MockWorkspaceAgent,
+		apps: [
+			{ ...MockWorkspaceApp, slug: "chromium" },
+			{ ...MockWorkspaceApp, slug: "ghostty" },
+			{ ...MockWorkspaceApp, slug: "nifi" },
+		],
+		display_apps: [],
+	});
+	expect(agent.apps.map((app) => app.slug)).toEqual(["nifi"]);
+	expect(agent.display_apps).toEqual(["web_terminal"]);
+	expect(normalizeWorkspaceApps(agent).display_apps).toEqual(["web_terminal"]);
+});

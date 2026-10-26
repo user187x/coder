@@ -364,6 +364,7 @@ export const WorkspaceTunnelPorts: React.FC<{
 	) => {
 		if (
 			e.button !== 0 ||
+			(!tunnel && from.terminal !== "input") ||
 			!manages(from.workspace) ||
 			(tunnel && !managesTunnel(tunnel)) ||
 			tunnel?.status === "disconnecting" ||
@@ -558,7 +559,7 @@ export const WorkspaceTunnelPorts: React.FC<{
 								width={idleInput ? 24 : 20}
 								height={26}
 								fill="transparent"
-								className="pointer-events-auto cursor-grab"
+								className={`pointer-events-auto ${p.terminal === "input" ? "cursor-grab" : "cursor-pointer"}`}
 								role="button"
 								tabIndex={0}
 								aria-label={`Connect ${p.workspace.name} ${tableAnchors ? "" : `${p.side} `}${p.terminal} tunnel port`}

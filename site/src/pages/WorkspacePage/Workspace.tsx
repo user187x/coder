@@ -5,6 +5,7 @@ import { useSearchParamsKey } from "#/hooks/useSearchParamsKey";
 import { linkToTemplate, useLinks } from "#/modules/navigation";
 import { LockdownBanner } from "#/modules/platform/lockdown/Lockdown";
 import { WorkspaceQuarantineControl } from "#/modules/platform/quarantine/WorkspaceQuarantine";
+import { useWorkspaceRestricted } from "#/modules/platform/quarantine/WorkspaceRestriction";
 import { useReportEmbeddedSize } from "#/modules/platform/workspaceGrid/embeddedSize";
 import { WorkspaceNav } from "#/modules/platform/workspaceNav/WorkspaceNav";
 import { WorkspaceNotesButton } from "#/modules/platform/workspaceNotes/WorkspaceNotesButton";
@@ -66,6 +67,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
 	handleRetry,
 	handleDebug,
 }) => {
+	const restricted = useWorkspaceRestricted(workspace);
 	const getLink = useLinks();
 	// Platform: in the workspace grid's frame, the dashboard alone (no top bar, side bar or resource strip), its
 	// size told to the grid, which fits it to its cell
@@ -162,7 +164,12 @@ export const Workspace: React.FC<WorkspaceProps> = ({
 			{shouldShowBuildLogs && <WorkspaceBuildLogsSection logs={buildLogs} />}
 
 			{selectedResource && (
-				<section className="flex flex-col gap-6 grow min-w-0">
+				<fieldset
+					aria-label="Workspace apps and panels"
+					inert={restricted}
+					disabled={restricted}
+					className={`m-0 border-0 p-0 flex flex-col gap-6 grow min-w-0 ${restricted ? "grayscale opacity-40 pointer-events-none select-none" : ""}`}
+				>
 					{topAgents.map((agent, i) => (
 						<AgentRow
 							key={agent.id}
@@ -190,7 +197,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
 							</div>
 						</div>
 					)}
-				</section>
+				</fieldset>
 			)}
 
 			{topAgents.length === 0 && buildTimeline(false)}

@@ -111,3 +111,10 @@ export const InstallCoderDesktopHiddenOniPadOS: Story = {
 };
 
 export { Example as UserDropdown };
+
+export const ThemeColors: Story = {
+	play: async ({ canvasElement }) => {
+		const menu = await openDropdown(canvasElement);
+		await userEvent.click(menu.getByRole("menuitem", { name: "Theme colors" }));
+	},
+};

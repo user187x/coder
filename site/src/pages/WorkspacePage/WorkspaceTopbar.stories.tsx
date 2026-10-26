@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import dayjs from "dayjs";
 import { expect, screen, userEvent, waitFor, within } from "storybook/test";
+import { workspaceQuarantineKey } from "#/api/queries/workspaceQuarantine";
 import { getWorkspaceQuotaQueryKey } from "#/api/queries/workspaceQuota";
 import type { Workspace, WorkspaceQuota } from "#/api/typesGenerated";
 import {
@@ -16,6 +17,7 @@ import {
 	withAuthProvider,
 	withDashboardProvider,
 } from "#/testHelpers/storybook";
+import { MockWorkspaceQuarantine } from "#/testHelpers/workspaceQuarantine";
 import { WorkspaceTopbar } from "./WorkspaceTopbar";
 
 // We want a workspace without a deadline to not pollute the screenshot. Also
@@ -365,5 +367,19 @@ export const TemplateInfoPopoverWithoutDisplayName: Story = {
 				expect(screen.getByRole("dialog")).toHaveTextContent(MockTemplate.name),
 			);
 		});
+	},
+};
+
+export const Quarantined: Story = {
+	parameters: {
+		queries: [
+			{
+				key: workspaceQuarantineKey(
+					baseWorkspace.organization_id,
+					baseWorkspace.id,
+				),
+				data: MockWorkspaceQuarantine,
+			},
+		],
 	},
 };

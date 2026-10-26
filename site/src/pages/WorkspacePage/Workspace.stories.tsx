@@ -1,13 +1,19 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { action } from "storybook/actions";
-import { userEvent, within } from "storybook/test";
+import { spyOn, userEvent, within } from "storybook/test";
+import { workspaceQuarantineKey } from "#/api/queries/workspaceQuarantine";
 import type { ProvisionerJobLog } from "#/api/typesGenerated";
+import { WorkspaceQuarantineAPI } from "#/api/workspaceQuarantine";
 import * as Mocks from "#/testHelpers/entities";
 import {
 	withAuthProvider,
 	withDashboardProvider,
 	withProxyProvider,
 } from "#/testHelpers/storybook";
+import {
+	MockQuarantineEnforcement,
+	MockWorkspaceQuarantine,
+} from "#/testHelpers/workspaceQuarantine";
 import type { WorkspacePermissions } from "../../modules/workspaces/permissions";
 import { Workspace } from "./Workspace";
 import { defaultPermissions } from "./WorkspaceNotifications/WorkspaceNotifications.stories";
@@ -960,3 +966,26 @@ function makeFailedBuildLogs(): ProvisionerJobLog[] {
 		},
 	];
 }
+
+export const Quarantined: Story = {
+	...Running,
+	beforeEach: () => {
+		spyOn(WorkspaceQuarantineAPI, "get").mockResolvedValue(
+			MockWorkspaceQuarantine,
+		);
+		spyOn(WorkspaceQuarantineAPI, "enforcement").mockResolvedValue(
+			MockQuarantineEnforcement,
+		);
+	},
+	parameters: {
+		queries: [
+			{
+				key: workspaceQuarantineKey(
+					Mocks.MockWorkspace.organization_id,
+					Mocks.MockWorkspace.id,
+				),
+				data: MockWorkspaceQuarantine,
+			},
+		],
+	},
+};

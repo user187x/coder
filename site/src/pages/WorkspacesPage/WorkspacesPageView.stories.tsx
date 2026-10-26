@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import dayjs from "dayjs";
 import uniqueId from "lodash/uniqueId";
 import { expect, fn, userEvent, within } from "storybook/test";
+import { workspaceQuarantineKey } from "#/api/queries/workspaceQuarantine";
 import { workspaceTunnels } from "#/api/queries/workspaceTunnels";
 import {
 	type Workspace,
@@ -29,6 +30,7 @@ import {
 	withDashboardProvider,
 	withProxyProvider,
 } from "#/testHelpers/storybook";
+import { MockWorkspaceQuarantine } from "#/testHelpers/workspaceQuarantine";
 import { WorkspacesPageView } from "./WorkspacesPageView";
 
 const createWorkspace = (
@@ -689,5 +691,20 @@ export const TemplateUpdateRestartConfirmation: Story = {
 				name: /Running\. Restart .*; update available/,
 			}),
 		);
+	},
+};
+
+export const QuarantinedWorkspace: Story = {
+	args: { workspaces: [MockWorkspace], count: 1 },
+	parameters: {
+		queries: [
+			{
+				key: workspaceQuarantineKey(
+					MockWorkspace.organization_id,
+					MockWorkspace.id,
+				),
+				data: MockWorkspaceQuarantine,
+			},
+		],
 	},
 };

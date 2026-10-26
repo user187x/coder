@@ -13,7 +13,7 @@ export function getAllAppsWithAgent(
 	workspace: Workspace,
 ): WorkspaceAppWithAgent[] {
 	return getWorkspaceAgents(workspace).flatMap((agent) =>
-		agent.apps.map((app) => ({
+		normalizeWorkspaceApps(agent).apps.map((app) => ({
 			...app,
 			agent,
 		})),
@@ -34,4 +34,19 @@ export function findWorkspaceAppWithAgent(
 		return undefined;
 	}
 	return { ...app, agent };
+}
+
+/** Retires old template app entries without requiring a running workspace rebuild. */
+export function normalizeWorkspaceApps(agent: WorkspaceAgent): WorkspaceAgent {
+	const replacedTerminal = agent.apps.some((app) => app.slug === "ghostty");
+	return {
+		...agent,
+		apps: agent.apps.filter(
+			(app) => app.slug !== "chromium" && app.slug !== "ghostty",
+		),
+		display_apps:
+			replacedTerminal && !agent.display_apps.includes("web_terminal")
+				? [...agent.display_apps, "web_terminal"]
+				: agent.display_apps,
+	};
 }

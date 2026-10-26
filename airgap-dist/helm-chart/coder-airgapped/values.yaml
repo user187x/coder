@@ -655,8 +655,6 @@ coder-workspace:
     name: ubuntu-dataflow
     displayName: DATAFLOW
     icon: /icon/ubuntu.svg
-    # Its web terminal: ghostty (the Ghostty app in the Terminal's place, drawn by Ghostty's emulator) or web.
-    terminal: ghostty
   dataflowImage: '{{ include "platform.image" (list . "ghcr.io/user187x/coder-workspace-dataflow:1.1.4") }}'
 
   icons:

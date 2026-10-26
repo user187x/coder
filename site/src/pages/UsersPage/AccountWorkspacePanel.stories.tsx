@@ -1,8 +1,10 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
 import { workspacePowerHistory } from "#/api/queries/workspacePower";
+import { workspaceQuarantineKey } from "#/api/queries/workspaceQuarantine";
 import { MockUserMember, MockWorkspace } from "#/testHelpers/entities";
 import { withAuthProvider } from "#/testHelpers/storybook";
+import { MockWorkspaceQuarantine } from "#/testHelpers/workspaceQuarantine";
 import { AccountWorkspacePanelView } from "./AccountWorkspacePanel";
 
 const meta: Meta<typeof AccountWorkspacePanelView> = {
@@ -60,6 +62,20 @@ export const LongNames: Story = {
 				...MockWorkspace,
 				name: "a-workspace-with-a-long-name",
 				template_display_name: "A template with a long display name",
+			},
+		],
+	},
+};
+
+export const Quarantined: Story = {
+	parameters: {
+		queries: [
+			{
+				key: workspaceQuarantineKey(
+					MockWorkspace.organization_id,
+					MockWorkspace.id,
+				),
+				data: MockWorkspaceQuarantine,
 			},
 		],
 	},

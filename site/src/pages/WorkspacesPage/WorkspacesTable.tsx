@@ -64,7 +64,10 @@ import {
 	openAppInNewWindow,
 } from "#/modules/apps/apps";
 import { useAppLink } from "#/modules/apps/useAppLink";
-import { findWorkspaceAppWithAgent } from "#/modules/apps/workspaceApps";
+import {
+	findWorkspaceAppWithAgent,
+	normalizeWorkspaceApps,
+} from "#/modules/apps/workspaceApps";
 import { useDashboard } from "#/modules/dashboard/useDashboard";
 import { CloudDriveAttachBadge } from "#/modules/platform/cloudDrive/CloudDriveAttachBadge";
 import { CloudDriveLockBadge } from "#/modules/platform/cloudDrive/CloudDriveLockBadge";
@@ -76,6 +79,11 @@ import {
 	LockdownBadge,
 	useAllLockdowns,
 } from "#/modules/platform/lockdown/Lockdown";
+import {
+	RestrictedWorkspaceRow,
+	useWorkspaceRestricted,
+	WorkspaceRestrictionAvatar,
+} from "#/modules/platform/quarantine/WorkspaceRestriction";
 import { AppsCarousel } from "#/modules/platform/workspaceApps/AppsCarousel";
 import { agentAppsReady } from "#/modules/platform/workspaceInitializing/workspaceReadiness";
 import { abilitiesByWorkspaceStatus } from "#/modules/workspaces/actions";
@@ -317,12 +325,14 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 										</div>
 									}
 									avatar={
-										<Avatar
-											src={workspace.owner_avatar_url}
-											fallback={workspace.owner_name}
-											size="lg"
-											className="rounded-[10px]"
-										/>
+										<WorkspaceRestrictionAvatar workspace={workspace}>
+											<Avatar
+												src={workspace.owner_avatar_url}
+												fallback={workspace.owner_name}
+												size="lg"
+												className="rounded-[10px]"
+											/>
+										</WorkspaceRestrictionAvatar>
 									}
 								/>
 							</TableCell>
@@ -488,7 +498,8 @@ const WorkspacesRow: React.FC<WorkspacesRowProps> = ({
 					!restartBusy,
 			}}
 		>
-			<TableRow
+			<RestrictedWorkspaceRow
+				workspace={workspace}
 				{...clickableProps}
 				data-testid={`workspace-${workspace.id}`}
 				data-workspace-tunnel-row={workspace.id}
@@ -506,7 +517,7 @@ const WorkspacesRow: React.FC<WorkspacesRowProps> = ({
 				])}
 			>
 				{children}
-			</TableRow>
+			</RestrictedWorkspaceRow>
 		</RestartDialogContext.Provider>
 	);
 };
@@ -912,6 +923,7 @@ type WorkspaceAppsProps = {
 };
 
 const WorkspaceApps: React.FC<WorkspaceAppsProps> = ({ workspace }) => {
+	const restricted = useWorkspaceRestricted(workspace);
 	/**
 	 * Coder is pretty flexible and allows an enormous variety of use cases, such
 	 * as having multiple resources with many agents, but they are not common. The
@@ -927,10 +939,13 @@ const WorkspaceApps: React.FC<WorkspaceAppsProps> = ({ workspace }) => {
 	 * When a workspace has multiple parent-level agents we show the apps from the
 	 * first one only; aggregating apps across agents is tracked separately.
 	 */
-	const agent = workspace.latest_build.resources
+	const originalAgent = workspace.latest_build.resources
 		.filter((r) => !r.hide)
 		.at(0)
 		?.agents?.find((a) => a.parent_id === null);
+	const agent = originalAgent
+		? normalizeWorkspaceApps(originalAgent)
+		: undefined;
 	// Platform: no app buttons until the workspace is ready.
 	if (!agent || !agentAppsReady(agent)) {
 		return null;
@@ -1008,9 +1023,16 @@ const WorkspaceApps: React.FC<WorkspaceAppsProps> = ({ workspace }) => {
 	}
 
 	return (
-		<AppsCarousel visible={WORKSPACE_APPS_SLOTS} framed>
-			{buttons}
-		</AppsCarousel>
+		<div
+			inert={restricted}
+			className={
+				restricted ? "grayscale opacity-40 pointer-events-none" : undefined
+			}
+		>
+			<AppsCarousel visible={WORKSPACE_APPS_SLOTS} framed>
+				{buttons}
+			</AppsCarousel>
+		</div>
 	);
 };
 

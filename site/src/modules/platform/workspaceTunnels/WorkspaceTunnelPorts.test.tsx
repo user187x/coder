@@ -102,22 +102,22 @@ it("keeps the selected port sides when connecting by dragging", async () => {
 		expect(PlatformAPI.getWorkspaceTunnels).toHaveBeenCalled(),
 	);
 	const from = screen.getByRole("button", {
-		name: "Connect Alpha right output tunnel port",
+		name: "Connect Beta left input tunnel port",
 	});
 	const to = screen.getByRole("button", {
-		name: "Connect Beta left input tunnel port",
+		name: "Connect Alpha right output tunnel port",
 	});
 	await user.pointer([
 		{
 			keys: "[MouseLeft>]",
 			target: from,
-			coords: { clientX: 392, clientY: 162 },
+			coords: { clientX: 420, clientY: 138 },
 		},
-		{ target: to, coords: { clientX: 420, clientY: 138 } },
+		{ target: to, coords: { clientX: 392, clientY: 162 } },
 		{
 			keys: "[/MouseLeft]",
 			target: to,
-			coords: { clientX: 420, clientY: 138 },
+			coords: { clientX: 392, clientY: 162 },
 		},
 	]);
 	await waitFor(() =>
@@ -161,13 +161,13 @@ it("releases an unconnected cable without creating a tunnel", async () => {
 	const onDragging = vi.fn();
 	const user = setup([], onDragging);
 	const from = screen.getByRole("button", {
-		name: "Connect Alpha right output tunnel port",
+		name: "Connect Alpha right input tunnel port",
 	});
 	await user.pointer([
 		{
 			keys: "[MouseLeft>]",
 			target: from,
-			coords: { clientX: 392, clientY: 162 },
+			coords: { clientX: 392, clientY: 138 },
 		},
 		{ target: from, coords: { clientX: 200, clientY: 150 } },
 		{
@@ -668,4 +668,25 @@ it("does not allow another owner's connection to be deleted from the context men
 	});
 	await user.click(screen.getByRole("menuitem", { name: "Delete connection" }));
 	expect(remove).not.toHaveBeenCalled();
+});
+
+it("does not pull a cord out of an idle female output", async () => {
+	const dragging = vi.fn();
+	const create = vi
+		.spyOn(PlatformAPI, "createWorkspaceTunnel")
+		.mockResolvedValue({ tunnel });
+	const user = setup([], dragging);
+	await user.pointer([
+		{
+			keys: "[MouseLeft>]",
+			target: screen.getByRole("button", {
+				name: "Connect Alpha right output tunnel port",
+			}),
+			coords: { clientX: 392, clientY: 162 },
+		},
+		{ target: document.body, coords: { clientX: 500, clientY: 200 } },
+		{ keys: "[/MouseLeft]", target: document.body },
+	]);
+	expect(dragging).not.toHaveBeenCalledWith(true);
+	expect(create).not.toHaveBeenCalled();
 });

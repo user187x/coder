@@ -99,3 +99,25 @@ describe("UserDropdownContent", () => {
 		).toBeInTheDocument();
 	});
 });
+
+it("saves a color variant selected from the theme circles", async () => {
+	const update = vi.spyOn(API, "updateAppearanceSettings").mockResolvedValue({
+		...MockUserAppearanceSettings,
+		theme_preference: "light-tritan",
+	});
+	renderUserDropdownContent({ onSignOut: vi.fn() });
+	await waitForLoaderToBeRemoved();
+	await userEvent.click(screen.getByRole("menuitem", { name: "Theme colors" }));
+	await userEvent.click(
+		screen.getByRole("menuitemradio", { name: "Light tritanopia" }),
+	);
+	await waitFor(() =>
+		expect(update).toHaveBeenCalledWith(
+			expect.objectContaining({
+				theme_preference: "light-tritan",
+				theme_mode: "single",
+			}),
+		),
+	);
+	vi.restoreAllMocks();
+});

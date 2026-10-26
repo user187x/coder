@@ -1,0 +1,34 @@
+.workspace-restricted-pole {
+	background-image: repeating-linear-gradient(
+		135deg,
+		rgb(250 204 21 / 14%) 0 12px,
+		rgb(0 0 0 / 32%) 12px 24px
+	);
+	background-size: 34px 34px;
+	animation: workspace-restriction-pole 1.4s linear infinite;
+}
+.workspace-restriction-notice {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	padding: 8px 12px;
+	border: 1px solid #eab308;
+	border-radius: 12px;
+	background: #18160b;
+	color: #fde047;
+	font-size: 12px;
+}
+@keyframes workspace-restriction-pole {
+	to {
+		background-position: 34px 0;
+	}
+}
+:root[data-animations="off"] .workspace-restricted-pole {
+	animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+	.workspace-restricted-pole {
+		animation: none;
+	}
+}

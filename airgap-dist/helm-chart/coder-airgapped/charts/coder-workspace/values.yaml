@@ -47,7 +47,6 @@ dataflowTemplate:
   displayName: "DATAFLOW"
   icon: "/icon/ubuntu.svg"
   # Its web terminal: Ghostty's (the Ghostty app in the Terminal's place, drawn by Ghostty's emulator), or web.
-  terminal: "ghostty"
 # Its image: the workspace image + NiFi, a Java runtime and Airflow.
 dataflowImage: "ghcr.io/user187x/coder-workspace-dataflow:1.1.4"
 # Its NiFi under Coder's app path: ONE HTTPRoute for every dataflow workspace, coder-enhanced-nifi
