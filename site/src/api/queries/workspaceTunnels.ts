@@ -1,5 +1,5 @@
 import type { QueryClient } from "react-query";
-import { PlatformAPI } from "#/api/platform";
+import { PlatformAPI, type WorkspaceTunnelPort } from "#/api/platform";
 
 export const workspaceTunnelsKey = ["platform", "workspace-tunnels"] as const;
 export const workspaceTunnels = (organizationId: string) => ({
@@ -29,5 +29,21 @@ export const createWorkspaceTunnel = (client: QueryClient) => ({
 export const deleteWorkspaceTunnel = (client: QueryClient) => ({
 	mutationFn: (v: { organizationId: string; id: string }) =>
 		PlatformAPI.deleteWorkspaceTunnel(v.organizationId, v.id),
+	onSettled: () => client.invalidateQueries({ queryKey: workspaceTunnelsKey }),
+});
+
+export const updateWorkspaceTunnelPorts = (client: QueryClient) => ({
+	mutationFn: (value: {
+		organizationId: string;
+		id: string;
+		revision: number;
+		ports: WorkspaceTunnelPort[] | null;
+	}) =>
+		PlatformAPI.updateWorkspaceTunnelPorts(
+			value.organizationId,
+			value.id,
+			value.revision,
+			value.ports,
+		),
 	onSettled: () => client.invalidateQueries({ queryKey: workspaceTunnelsKey }),
 });

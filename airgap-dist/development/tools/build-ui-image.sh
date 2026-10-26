@@ -57,6 +57,7 @@ RUN apk add --no-cache iptables
 COPY image-store/ /image-store/
 COPY defaults/ /defaults/
 COPY app/ /app/
+COPY --chmod=755 workspace-tunnel /usr/local/bin/workspace-tunnel-native
 COPY --chmod=755 workspace-tunnel /usr/local/bin/workspace-tunnel
 LABEL org.opencontainers.image.title="coder-ui-updates" org.opencontainers.image.revision="code-${hash}"
 EOF

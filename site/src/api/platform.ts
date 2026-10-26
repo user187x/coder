@@ -1977,7 +1977,11 @@ export type WorkspaceTunnelStats = {
 };
 
 /** An organization-scoped private network connection between two workspaces. */
+export type WorkspaceTunnelPort = { protocol: "tcp" | "udp"; port: number };
 export type WorkspaceTunnel = {
+	ports?: WorkspaceTunnelPort[] | null;
+	revision?: number;
+	port_settings_supported?: boolean;
 	source_workspace_name?: string;
 	target_workspace_name?: string;
 	source_stats?: WorkspaceTunnelStats | null;
@@ -2044,6 +2048,16 @@ export const PlatformAPI = {
 		post<{ tunnel: WorkspaceTunnel }>(
 			`${PLATFORM_BASE}/api/organizations/${encodeURIComponent(organizationId)}/workspace-tunnels`,
 			{ source_workspace_id, target_workspace_id, source_side, target_side },
+		),
+	updateWorkspaceTunnelPorts: (
+		organizationId: string,
+		id: string,
+		revision: number,
+		ports: WorkspaceTunnelPort[] | null,
+	) =>
+		post<{ tunnel: WorkspaceTunnel }>(
+			`${PLATFORM_BASE}/api/organizations/${encodeURIComponent(organizationId)}/workspace-tunnels/${encodeURIComponent(id)}`,
+			{ revision, ports },
 		),
 	deleteWorkspaceTunnel: async (organizationId: string, id: string) => {
 		try {

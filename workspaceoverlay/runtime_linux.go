@@ -18,30 +18,39 @@ import (
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
 
+// PortRule permits one TCP or UDP service port in both directions.
+type PortRule struct {
+	Protocol string `json:"protocol"`
+	Port     uint16 `json:"port"`
+}
+
 // Peer is a single authorized workspace endpoint. AllowedIP must be a host route.
 type Peer struct {
-	WorkspaceID string `json:"workspace_id"`
-	PublicKey   string `json:"public_key"`
-	Endpoint    string `json:"endpoint"`
-	AllowedIP   string `json:"allowed_ip"`
+	Ports       []PortRule `json:"ports"`
+	WorkspaceID string     `json:"workspace_id"`
+	PublicKey   string     `json:"public_key"`
+	Endpoint    string     `json:"endpoint"`
+	AllowedIP   string     `json:"allowed_ip"`
 }
 
 // Policy is the server's leased desired configuration.
 type Policy struct {
-	Revision     int64  `json:"revision"`
-	Address      string `json:"address"`
-	Peers        []Peer `json:"peers"`
-	LeaseSeconds int    `json:"lease_seconds"`
+	PortPolicyVersion int    `json:"port_policy_version"`
+	Revision          int64  `json:"revision"`
+	Address           string `json:"address"`
+	Peers             []Peer `json:"peers"`
+	LeaseSeconds      int    `json:"lease_seconds"`
 }
 
 // SyncRequest registers the ephemeral public key and acknowledges installed policy.
 type SyncRequest struct {
-	PublicKey        string      `json:"public_key"`
-	Endpoint         string      `json:"endpoint"`
-	AppliedRevision  int64       `json:"applied_revision"`
-	Error            string      `json:"error,omitempty"`
-	EstablishedPeers []string    `json:"established_peers"`
-	PeerStats        []PeerStats `json:"peer_stats,omitempty"`
+	PortPolicyVersion int         `json:"port_policy_version"`
+	PublicKey         string      `json:"public_key"`
+	Endpoint          string      `json:"endpoint"`
+	AppliedRevision   int64       `json:"applied_revision"`
+	Error             string      `json:"error,omitempty"`
+	EstablishedPeers  []string    `json:"established_peers"`
+	PeerStats         []PeerStats `json:"peer_stats,omitempty"`
 }
 
 // Device applies a complete policy or removes all overlay connectivity.
@@ -54,15 +63,16 @@ type Device interface {
 
 // Runtime reconciles server policy with the local network device.
 type Runtime struct {
-	Client    *http.Client
-	URL       string
-	Token     string
-	PublicKey string
-	Endpoint  string
-	Device    Device
-	applied   int64
-	lastError string
-	installed *Policy
+	PortPolicyVersion int
+	Client            *http.Client
+	URL               string
+	Token             string
+	PublicKey         string
+	Endpoint          string
+	Device            Device
+	applied           int64
+	lastError         string
+	installed         *Policy
 }
 
 // Validate rejects prefixes, duplicate identities and unsafe endpoints.
@@ -77,6 +87,18 @@ func (p Policy) Validate() error {
 	seenIPs := map[netip.Addr]bool{own.Addr(): true}
 	seenKeys := map[wgtypes.Key]bool{}
 	for _, peer := range p.Peers {
+		if peer.Ports != nil {
+			if p.PortPolicyVersion != 1 || len(peer.Ports) > 32 {
+				return fmt.Errorf("unsupported port policy")
+			}
+			seenPorts := map[PortRule]bool{}
+			for _, rule := range peer.Ports {
+				if rule.Port == 0 || rule.Protocol != "tcp" && rule.Protocol != "udp" || seenPorts[rule] {
+					return fmt.Errorf("invalid or duplicate peer port")
+				}
+				seenPorts[rule] = true
+			}
+		}
 		ip, err := hostPrefix(peer.AllowedIP)
 		if err != nil {
 			return err
@@ -111,7 +133,7 @@ func (r *Runtime) Sync(ctx context.Context) error {
 	if r.installed == nil {
 		r.applied = -1
 	}
-	request := SyncRequest{PublicKey: r.PublicKey, Endpoint: r.Endpoint, AppliedRevision: r.applied, Error: r.lastError, EstablishedPeers: r.Device.EstablishedPeers(), PeerStats: r.Device.PeerStats()}
+	request := SyncRequest{PortPolicyVersion: r.PortPolicyVersion, PublicKey: r.PublicKey, Endpoint: r.Endpoint, AppliedRevision: r.applied, Error: r.lastError, EstablishedPeers: r.Device.EstablishedPeers(), PeerStats: r.Device.PeerStats()}
 	body, err := json.Marshal(request)
 	if err != nil {
 		return err

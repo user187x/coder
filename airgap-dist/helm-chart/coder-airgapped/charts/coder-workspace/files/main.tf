@@ -940,7 +940,7 @@ resource "kubernetes_deployment_v1" "main" {
             name              = "workspace-tunnel"
             image             = var.workspace_tunnel_image
             image_pull_policy = "IfNotPresent"
-            command           = ["/usr/local/bin/workspace-tunnel"]
+            command           = ["/usr/local/bin/workspace-tunnel-native"]
             security_context {
               run_as_user                = 0
               run_as_non_root            = false

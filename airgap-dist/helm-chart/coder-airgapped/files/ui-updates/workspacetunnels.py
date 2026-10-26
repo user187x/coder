@@ -124,6 +124,7 @@ def public(data, tunnel):
                   target_workspace_name=b.get("name", tunnel["target_workspace_id"]),
                   source_stats=public_stats(a, tunnel["target_workspace_id"]),
                   target_stats=public_stats(b, tunnel["source_workspace_id"]))
+    result.update(ports=tunnel.get("ports"), revision=tunnel["revision"], port_settings_supported=all(w.get("port_policy_version") == 1 for w in (a, b)))
     result.update(status=status, source_address=a["address"], target_address=b["address"],
                   source_side=tunnel.get("source_side", "right"), target_side=tunnel.get("target_side", "left"))
     if errors:
@@ -232,7 +233,56 @@ def invalidate(data):
             tunnel.update(deleted=True, revision=revision)
 
 
+def clean_ports(value):
+    if value is None:
+        return None
+    if not isinstance(value, list) or not 1 <= len(value) <= 32:
+        raise ValueError('Choose between one and 32 service ports, or all ports.')
+    result = []
+    for rule in value:
+        if not isinstance(rule, dict) or rule.get('protocol') not in ('tcp', 'udp'):
+            raise ValueError('Each service port needs TCP or UDP.')
+        port = rule.get('port')
+        if isinstance(port, bool) or not isinstance(port, int) or not 1 <= port <= 65535:
+            raise ValueError('Service ports must be integers from 1 through 65535.')
+        result.append((rule['protocol'], port))
+    if len(set(result)) != len(result):
+        raise ValueError('Duplicate service port.')
+    return [dict(protocol=protocol, port=port) for protocol, port in sorted(result)]
+
+def port_helpers(data, endpoints):
+    if any(data['workspaces'].get(wid, {}).get('port_policy_version', 0) != 1 for wid in endpoints):
+        raise ValueError('Update both workspaces to a tunnel helper that supports port restrictions.')
+
+def configure_ports(token, user, organization_id, tunnel_id, body):
+    with state(write=False) as data:
+        snapshot = dict(data['tunnels'].get(tunnel_id) or {})
+    if not snapshot or snapshot['organization_id'] != organization_id or snapshot.get('deleted'):
+        raise LookupError('Workspace tunnel not found.')
+    endpoints = (snapshot['source_workspace_id'], snapshot['target_workspace_id'])
+    for wid in endpoints:
+        authorize(token, user, organization_id, wid)
+    if 'ports' not in body:
+        raise ValueError('Specify service ports or all ports.')
+    ports = clean_ports(body['ports'])
+    if isinstance(body.get('revision'), bool) or not isinstance(body.get('revision'), int):
+        raise ValueError('Expected a reviewed connection revision.')
+    with contextlib.nullcontext():
+        if CONNECTION_RESTRICTED and any(CONNECTION_RESTRICTED(wid) for wid in endpoints):
+            raise PermissionError('Restricted workspaces cannot configure tunnels.')
+        with state() as data:
+            current = data['tunnels'].get(tunnel_id)
+            if not current or current.get('deleted') or current['revision'] != body.get('revision'):
+                raise ValueError('The connection changed. Reload and review port settings again.')
+            if ports is not None:
+                port_helpers(data, endpoints)
+            if current.get('ports') != ports:
+                current.update(ports=ports, revision=changed(data))
+            return public(data, current)
+
+
 def create(token, user, organization_id, body):
+    ports = clean_ports(body.get("ports"))
     source, target = (identifier(body.get(k)) for k in ("source_workspace_id", "target_workspace_id"))
     source_side, target_side = body.get("source_side", "right"), body.get("target_side", "left")
     if source_side not in ("left", "right") or target_side not in ("left", "right"):
@@ -254,11 +304,13 @@ def create(token, user, organization_id, body):
                 return public(data, tunnel)
         for wid in (source, target):
             workspace(data, organization_id, wid)
+        if ports is not None:
+            port_helpers(data, (source, target))
         tid = str(uuid.uuid4())
         tunnel = {"id": tid, "organization_id": organization_id,
                   "source_workspace_id": source, "target_workspace_id": target,
                   "revision": changed(data), "created_by": user["id"],
-                  "source_side": source_side, "target_side": target_side}
+                  "source_side": source_side, "target_side": target_side, "ports": ports}
         data["tunnels"][tid] = tunnel
         return public(data, tunnel)
 
@@ -360,6 +412,9 @@ def sync(token, body):
     error = body.get("error")
     if error is not None and not isinstance(error, str):
         raise ValueError("Expected a helper error string.")
+    capability = body.get('port_policy_version', 0)
+    if isinstance(capability, bool) or capability not in (0, 1):
+        raise ValueError('Unsupported port policy capability.')
     measurements = peer_stats(body)
     established = body.get("established_peers", [])
     if not isinstance(established, list) or len(established) > 4096:
@@ -371,9 +426,9 @@ def sync(token, body):
         if any(w.get("public_key") == key for other, w in data["workspaces"].items() if other != wid):
             raise ValueError("WireGuard public key already belongs to another workspace.")
         if any(current.get(k) != value for k, value in (
-            ("public_key", key), ("endpoint", body["endpoint"]), ("agent_id", aid)
+            ("public_key", key), ("endpoint", body["endpoint"]), ("agent_id", aid), ("port_policy_version", capability)
         )):
-            current.update(public_key=key, endpoint=body["endpoint"], agent_id=aid, ack=-1, established_peers=[], stats={})
+            current.update(public_key=key, endpoint=body["endpoint"], agent_id=aid, port_policy_version=capability, ack=-1, established_peers=[], stats={})
             for other in data["workspaces"].values():
                 other.get("stats", {}).pop(wid, None)
             changed(data)
@@ -389,9 +444,11 @@ def sync(token, body):
                 continue
             other = ends[1] if ends[0] == wid else ends[0]
             peer = data["workspaces"][other]
+            if tunnel.get('ports') is not None and (current.get('port_policy_version') != 1 or peer.get('port_policy_version') != 1):
+                continue
             if peer.get("public_key") and peer.get("endpoint"):
                 peers.append({"workspace_id": other, "public_key": peer["public_key"],
-                              "endpoint": peer["endpoint"], "allowed_ip": peer["address"] + "/32"})
+                              "endpoint": peer["endpoint"], "allowed_ip": peer["address"] + "/32", "ports": tunnel.get("ports")})
         epoch = {"public_key": key, "peers": sorted(peers, key=lambda p: p["workspace_id"])}
         if current.get("stats_policy") != epoch:
             current.update(stats={}, stats_policy=epoch)
@@ -399,7 +456,7 @@ def sync(token, body):
         observed = measurements if ack == data["revision"] and not error else {}
         record_stats(current, observed, {p["workspace_id"] for p in peers})
         prune(data)
-        return {"revision": data["revision"], "address": current["address"] + "/32",
+        return {"revision": data["revision"], "address": current["address"] + "/32", "port_policy_version": 1,
                 "peers": sorted(peers, key=lambda p: p["workspace_id"]), "lease_seconds": LEASE_SECONDS}
 
 
@@ -436,6 +493,8 @@ def handle(h, method, path, query=""):
             h.send_json(200, {"tunnels": listing(h.token(), user, oid)})
         elif method == "POST" and not tid:
             h.send_json(200, {"tunnel": create(h.token(), user, oid, read_json(h))})
+        elif method == "POST" and tid:
+            h.send_json(200, {"tunnel": configure_ports(h.token(), user, oid, identifier(tid), read_json(h))})
         elif method == "DELETE" and tid:
             h.send_json(200, {"tunnel": remove(h.token(), user, oid, identifier(tid))})
         else:

@@ -46,5 +46,6 @@ func run() error {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 	runtime := &workspaceoverlay.Runtime{Client: &http.Client{Timeout: 4 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}, URL: service, Token: token, PublicKey: key.PublicKey().String(), Endpoint: podIP + ":51871", Device: device}
+	runtime.PortPolicyVersion = 1
 	return runtime.Run(ctx, func(err error) { fmt.Fprintln(os.Stderr, err) })
 }

@@ -5,8 +5,10 @@ import { Link as RouterLink, useNavigate } from "react-router";
 import { toast } from "sonner";
 import { getErrorMessage } from "#/api/errors";
 import { ImagesAPI } from "#/api/images";
+import { nodeImages } from "#/api/queries/nodeImageCleanup";
 import { Badge } from "#/components/Badge/Badge";
 import { Button } from "#/components/Button/Button";
+import { Checkbox } from "#/components/Checkbox/Checkbox";
 import { Spinner } from "#/components/Spinner/Spinner";
 import {
 	Table,
@@ -20,9 +22,9 @@ import { TableCard } from "#/modules/platform/tableCard/TableCard";
 import { formatSize } from "./badges";
 import { CoderForkBadge, ourImage, useImageContents } from "./CoderForkImages";
 import { nameFrom } from "./ImportImageDialog";
+import { NodeImageCleanup } from "./NodeImageCleanup";
 
 export const inUseKey = ["platform", "images", "in-use"] as const;
-export const onNodesKey = ["platform", "images", "on-nodes"] as const;
 
 /**
  * Scan, for an image that has no entry here: scanned as it is (from the
@@ -174,17 +176,18 @@ const NODE_IMAGES_SHOWN = 8;
  */
 export const ImagesOnNodes: React.FC<{ canEdit: boolean }> = ({ canEdit }) => {
 	const [all, setAll] = useState(false);
-	const query = useQuery({
-		queryKey: onNodesKey,
-		queryFn: ImagesAPI.onNodes,
-		refetchInterval: 60_000,
-	});
+	const query = useQuery(nodeImages());
+	const [selected, setSelected] = useState<string[]>([]);
 	const catalog = useImageContents().data;
 	const images = query.data?.images ?? [];
 	if (!images.length) {
 		return null;
 	}
 	const shown = all ? images : images.slice(0, NODE_IMAGES_SHOWN);
+	const eligible = images.filter((image) => image.purgeBlocked === "");
+	const chosen = selected.filter((ref) =>
+		eligible.some((image) => image.image === ref),
+	);
 	return (
 		<section className="mt-10" aria-labelledby="images-on-nodes">
 			<h2 id="images-on-nodes" className="m-0 text-lg font-semibold">
@@ -195,11 +198,34 @@ export const ImagesOnNodes: React.FC<{ canEdit: boolean }> = ({ canEdit }) => {
 				{images.length}). A scan reads it from a node that holds it: no registry
 				needed.
 			</p>
+			{canEdit && (
+				<div className="mb-3 flex flex-wrap items-center gap-2">
+					<Button
+						variant="subtle"
+						size="sm"
+						onClick={() =>
+							setSelected(eligible.slice(0, 100).map((image) => image.image))
+						}
+					>
+						Select unused (up to 100)
+					</Button>
+					<Button variant="subtle" size="sm" onClick={() => setSelected([])}>
+						Clear selection
+					</Button>
+					<NodeImageCleanup
+						images={chosen}
+						label={`Review cleanup (${chosen.length})`}
+					/>
+				</div>
+			)}
 			<TableCard
 				summary={`Showing ${shown.length} of ${images.length} ${images.length === 1 ? "image" : "images"} on the nodes`}
 				hint="Point at anything in the table to read what it does"
 			>
-				<Table data-testid="images-on-nodes">
+				<Table
+					data-testid="images-on-nodes"
+					aria-label="Images cached on nodes"
+				>
 					<TableHeader>
 						<TableRow>
 							<TableHead className="w-[52%]">Image</TableHead>
@@ -212,6 +238,22 @@ export const ImagesOnNodes: React.FC<{ canEdit: boolean }> = ({ canEdit }) => {
 						{shown.map((i) => (
 							<TableRow key={i.image} data-testid="image-on-node">
 								<TableCell className="break-all font-mono text-xs">
+									{canEdit && (
+										<Checkbox
+											aria-label={`Select ${i.image} for cleanup`}
+											checked={chosen.includes(i.image)}
+											disabled={i.purgeBlocked !== ""}
+											title={i.purgeBlocked || undefined}
+											className="mr-2"
+											onCheckedChange={(checked) =>
+												setSelected((previous) =>
+													checked
+														? [...previous, i.image]
+														: previous.filter((ref) => ref !== i.image),
+												)
+											}
+										/>
+									)}
 									<span title={i.names.join("\n") || undefined}>{i.image}</span>
 									<OursTag catalog={catalog} image={i.image} />
 									{i.running && (
@@ -238,6 +280,9 @@ export const ImagesOnNodes: React.FC<{ canEdit: boolean }> = ({ canEdit }) => {
 											</Button>
 										) : (
 											canEdit && <ScanButton image={i.image} />
+										)}
+										{canEdit && i.purgeBlocked === "" && (
+											<NodeImageCleanup images={[i.image]} label="Purge" />
 										)}
 									</div>
 								</TableCell>

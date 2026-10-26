@@ -53,6 +53,7 @@ the registry still has - and "nodes": [refs] - the platform's workspace images (
 template offers its own image, these (the nodes' of its own image's repository only) and any other image entered.
 """
 
+import nodeimagepurge
 import base64
 import datetime
 import gzip
@@ -1584,7 +1585,7 @@ def node_image_groups():
             g = groups.setdefault(names, {"names": list(names), "sizeBytes": img.get("sizeBytes") or 0, "nodes": []})
             if name not in g["nodes"]:
                 g["nodes"].append(name)
-    by_name = {n: g for g in groups.values() for n in g["names"]}
+    by_name = {nodeimagepurge.normalize(n): g for g in groups.values() for n in g["names"]}
     status, pods = kube_call("GET", "/api/v1/pods?fieldSelector=" + urllib.parse.quote("status.phase=Running"))
     for pod in (pods.get("items") or []) if status == 200 and isinstance(pods, dict) else []:
         node = (pod.get("spec") or {}).get("nodeName")
@@ -1595,13 +1596,13 @@ def node_image_groups():
             names = [n for n in (ref, c.get("imageID") or "") if n and not n.startswith("sha256:")]
             if not node or not names:
                 continue
-            g = next((by_name[n] for n in names if n in by_name), None)
+            g = next((by_name[nodeimagepurge.normalize(n)] for n in names if nodeimagepurge.normalize(n) in by_name), None)
             if g is None:
                 g = groups.setdefault(tuple(sorted(names)), {"names": sorted(names), "sizeBytes": 0, "nodes": []})
             for n in names:
                 if n not in g["names"]:
                     g["names"].append(n)
-                by_name[n] = g
+                by_name[nodeimagepurge.normalize(n)] = g
             if node not in g["nodes"]:
                 g["nodes"].append(node)
     return list(groups.values())
@@ -2533,7 +2534,7 @@ def import_upload(h, q_, user):
 
 
 def images_in_use():
-    """The images workspaces run now (their pods' first container), with which workspaces, and the ones the templates
+    """The images workspaces run now (their dev container, or the first legacy container), with which workspaces, and the ones the templates
     run; each with its entry here when it has one."""
     found = {}
     status, pods = kube_call("GET", "/api/v1/namespaces/%s/pods?labelSelector=%s" % (
@@ -2544,7 +2545,8 @@ def images_in_use():
             continue
         labels = (pod.get("metadata") or {}).get("labels") or {}
         ws = "%s/%s" % (labels.get("com.coder.user.username", "?"), labels.get("com.coder.workspace.name", "?"))
-        found.setdefault(containers[0]["image"], {"workspaces": [], "templates": []})["workspaces"].append(ws)
+        main = next((container for container in containers if container.get("name") == "dev"), containers[0])
+        found.setdefault(main["image"], {"workspaces": [], "templates": []})["workspaces"].append(ws)
     for t in TEMPLATES:
         if t.get("image"):
             found.setdefault(t["image"], {"workspaces": [], "templates": []})["templates"].append(
@@ -2557,7 +2559,7 @@ def images_in_use():
             entries[img["tracked"]["image"]] = img["id"]
         if (img.get("scanned") or {}).get("image"):
             entries[img["scanned"]["image"]] = img["id"]
-    return sorted(({"image": k, "workspaces": sorted(v["workspaces"]), "templates": sorted(v["templates"]),
+    return sorted(({"image": k, "workspaces": sorted(set(v["workspaces"])), "templates": sorted(v["templates"]),
                     "entry": entries.get(k)} for k, v in found.items()),
                   key=lambda x: (-len(x["workspaces"]), x["image"]))
 
@@ -3351,7 +3353,33 @@ def route(h, method, rest, query, user, editor, admin):
         if rest == "/contents" and method == "GET":
             return h.send_json(200, image_contents()) or True
         if rest == "/on-nodes" and method == "GET":
-            return h.send_json(200, {"images": images_on_nodes()}) or True
+            return h.send_json(200, {"images": nodeimagepurge.annotate(kube_call, images_on_nodes(), [entry["image"] for entry in images_in_use()])}) or True
+        if rest == "/on-nodes/cleanup" and method == "POST":
+            need(admin and editor)
+            body = read_json(h)
+            extra = [entry["image"] for entry in images_in_use()]
+            reviewed = nodeimagepurge.plan(kube_call, node_image_groups(), body.get("images"), extra)
+            if body.get("action") == "preview":
+                return h.send_json(200, reviewed) or True
+            if body.get("action") != "purge" or body.get("review") != reviewed["review"]:
+                raise ValueError("Image references changed. Review cleanup again before purging.")
+            code, pod = kube_call("GET", "/api/v1/namespaces/%s/pods/%s" % (NAMESPACE, os.environ.get("HOSTNAME", "")))
+            if code != 200:
+                raise ValueError("Cannot identify the cleanup worker image.")
+            image = next((c["image"] for c in pod["spec"]["containers"] if c["name"] == "ui"), None)
+            if not image:
+                raise ValueError("Cannot identify the cleanup worker image.")
+            if '@sha256:' not in image:
+                image = next((c.get('imageID', '').removeprefix('docker-pullable://') for c in pod.get('status', {}).get('containerStatuses', []) if c['name'] == 'ui'), '')
+            if not re.fullmatch(r'[^\s]+@sha256:[a-f0-9]{64}', image):
+                raise ValueError('Cleanup requires the service worker image pinned by digest.')
+            result = nodeimagepurge.start(kube_call, NAMESPACE, image, reviewed, user["username"],
+                                          pod["spec"].get("serviceAccountName", "default"), extra)
+            LOG(event="node-image-cleanup-started", by=user["username"], images=reviewed["images"], operation=result["id"])
+            return h.send_json(200, result) or True
+        if rest.startswith("/on-nodes/cleanup/") and method == "GET":
+            need(admin)
+            return h.send_json(200, nodeimagepurge.status(kube_call, NAMESPACE, rest.rsplit("/", 1)[-1])) or True
         if rest == "/scan" and method == "POST":
             need(editor)
             image_id, build_id = start_ref_scan(str(read_json(h).get("image") or ""), user["username"])

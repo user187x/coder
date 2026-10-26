@@ -1,6 +1,7 @@
 import type { WorkspaceTunnel, WorkspaceTunnelStats } from "#/api/platform";
 import { formatBytes } from "../images";
 import { NetworkHistogram } from "../networkLeds/NetworkHistogram";
+import { TunnelPortSettings } from "./TunnelPortSettings";
 
 /** Measurements are helper counters since its last reset, rather than lifetime totals. */
 export const TunnelDetails: React.FC<{ tunnel: WorkspaceTunnel }> = ({
@@ -19,6 +20,7 @@ export const TunnelDetails: React.FC<{ tunnel: WorkspaceTunnel }> = ({
 			<dt>Certificates</dt>
 			<dd className="m-0">Certificate details are not reported</dd>
 		</dl>
+		<TunnelPortSettings key={tunnel.id} tunnel={tunnel} />
 		<Endpoint
 			name={tunnel.source_workspace_name ?? tunnel.source_workspace_id}
 			address={tunnel.source_address}

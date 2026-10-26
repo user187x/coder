@@ -88,6 +88,15 @@ func (d *KernelDevice) Apply(ctx context.Context, p Policy) (err error) {
 			}
 		}
 	}
+	if err = d.portPolicy(p, func(args ...string) error {
+		output, runErr := exec.CommandContext(ctx, "iptables", args...).CombinedOutput()
+		if runErr != nil {
+			return fmt.Errorf("%w: %s", runErr, output)
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
 	// Installing a conntrack match activates UDP flow observation, including
 	// sendto sockets. Returning from a dedicated chain preserves later rules.
 	// Observation is optional; lack of conntrack must not break transport.

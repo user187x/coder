@@ -392,7 +392,26 @@ export type ImportedImage = {
 };
 
 /** An image a node of the cluster holds (preloaded, loaded or pulled): its names there, size, nodes, entry here. */
+export type NodeImageCleanupPlan = {
+	images: string[];
+	review: string;
+	nodes: { node: string; images: string[] }[];
+};
+export type NodeImageCleanupResult = {
+	id: string;
+	status: "running" | "complete" | "failed";
+	jobs: {
+		name: string;
+		node?: string;
+		status?: string;
+		error?: string;
+		removed?: number;
+		absent?: number;
+	}[];
+};
+
 export type ImageOnNode = {
+	purgeBlocked?: string;
 	image: string;
 	/** Its other names on the nodes (digests). */
 	names: string[];
@@ -713,6 +732,19 @@ export const ImagesAPI = {
 		),
 	inUse: () => get<{ images: ImageInUse[] }>(`${IMAGES}/in-use`),
 	onNodes: () => get<{ images: ImageOnNode[] }>(`${IMAGES}/on-nodes`),
+	previewNodeImageCleanup: (images: string[]) =>
+		post<NodeImageCleanupPlan>(`${IMAGES}/on-nodes/cleanup`, {
+			action: "preview",
+			images,
+		}),
+	purgeNodeImages: (plan: NodeImageCleanupPlan) =>
+		post<NodeImageCleanupResult>(`${IMAGES}/on-nodes/cleanup`, {
+			action: "purge",
+			images: plan.images,
+			review: plan.review,
+		}),
+	nodeImageCleanup: (id: string) =>
+		get<NodeImageCleanupResult>(`${IMAGES}/on-nodes/cleanup/${enc(id)}`),
 	/** What each image of ours holds (the Coder fork's images, as built). */
 	contents: () => get<ImageContentsCatalog>(`${IMAGES}/contents`),
 	/** Any image scanned as it is (from the cluster's registry, else from a node that holds it): its entry and the scan. */
