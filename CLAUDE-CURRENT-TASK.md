@@ -631,3 +631,13 @@ Branch native-platform starts after released 1.1.1 (main 2c3b810f30). Added agen
 Removed the Certificates coder_script block and scripts/certificates.sh from DEFAULT so the Terraform decorator does not reintroduce it. Other feature scripts remain until their native replacements are implemented. Native PKI helper and agent integration tests, including a manifest with no template scripts and a legacy script, passed; targeted race tests passed. Full native migration of Cloud Drive/tunnel control plane/PKI service APIs/platform controls is still pending. Current changes are not in 1.1.1.
 
 Release 1.1.1 published with all 18 assets; each uploaded size and SHA-256 digest matched local release folder. https://github.com/user187x/coder/releases/tag/1.1.1 . Fresh test cluster and sessions remain under /tmp/coder-release-preparation; isolate all commands from live kubecontext.
+
+## Native PKI live proof and isolation
+
+The user switched the shared checkout back to main. Continued native work in managed worktree /home/xxx/.codex/worktrees/native-platform/coder on native-platform. Main remains the release/UI-fix branch. Temporary navbar-hotfix worktree uses virtualization snapshot only to preserve the live server's existing backend while rebuilding the UI-only badge removal; do not merge that snapshot into main.
+
+Native PKI live test initially discovered stale embedded agent downloads: server was native but /bin supplied an older agent. Added build-agent-archive.sh to build all seven supported agents from matching source/version before server embedding. Actual build of all seven platforms succeeded. In isolated kind QA, 1.2.0-native.2 server plus freshly rebuilt linux/amd64 agent produced a running DEFAULT workspace with no Certificates script in its manifest. Agent version v1.2.0-native.2 connected; ~/.cert/admin.p12 exists at 0600 and encoded .admin.p12.b64 is absent. Proof uses a dummy certificate secret only in fresh namespace, not live user data. Added legacy-script-state cleanup regression test; targeted race tests pass.
+
+The native certificate changes remain experimental on native-platform. Chart default image pins still describe release 1.1.1 and must be updated to a matching native image before publishing a native release. Cloud Drive and tunnel/control-plane migration remains pending; do not remove their DEFAULT scripts yet.
+
+Cleanup user explicitly approved permanent removal of reviewed archive /mnt/data/archive/coder-builds-2026-10-26. Rechecked /proc descriptors/cwd/maps and mounts, then deleted only that archive, reclaiming 59.92 GiB. Manifest retained at /mnt/data/cleanup-records/2026-10-26-coder-builds-manifest.json. All active native/release/evidence/VM/runtime directories retained.

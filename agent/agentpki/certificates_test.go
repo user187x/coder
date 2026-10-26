@@ -73,3 +73,16 @@ func TestRejectSymlinkDirectory(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, entries)
 }
+
+func TestLegacyCertificateRemoval(t *testing.T) {
+	t.Parallel()
+	files := afero.NewMemMapFs()
+	require.NoError(t, files.MkdirAll("/home/coder/.cert", 0o700))
+	require.NoError(t, files.MkdirAll("/home/coder/.local/state/coder-certificates", 0o700))
+	require.NoError(t, afero.WriteFile(files, "/home/coder/.cert/alice.p12", []byte("legacy"), 0o600))
+	require.NoError(t, afero.WriteFile(files, "/home/coder/.local/state/coder-certificates/installed", []byte("alice\n"), 0o600))
+	_, err := agentpki.Sync(files, "/home/coder", "alice", nil)
+	require.NoError(t, err)
+	_, err = files.Stat("/home/coder/.cert/alice.p12")
+	require.True(t, os.IsNotExist(err))
+}
