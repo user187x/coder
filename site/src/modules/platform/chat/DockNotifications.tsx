@@ -19,6 +19,7 @@ import {
 } from "#/components/ContextMenu/ContextMenu";
 import { ConfirmDialog } from "#/components/Dialog/ConfirmDialog/ConfirmDialog";
 import { InboxItem } from "#/modules/notifications/NotificationsInbox/InboxItem";
+import { parseColors } from "../announcement/bannerTokens";
 import { CloudDriveShareCard } from "../cloudDrive/CloudDrivePeers";
 import { useChatSnapshot } from "./chatStore";
 import type { DockListActions } from "./dockActions";
@@ -110,6 +111,7 @@ export const DockNotifications: React.FC<{
 					</p>
 				) : (
 					items.map((item) => {
+						const title = parseColors(item.title) ? "Announcement" : item.title;
 						const action = item.actions.find((a) =>
 							a.url.startsWith("/workspaces?driveShare="),
 						);
@@ -122,7 +124,7 @@ export const DockNotifications: React.FC<{
 							<ContextMenu key={item.id}>
 								<ContextMenuTrigger asChild>
 									<article
-										aria-label={item.title}
+										aria-label={title}
 										className="border-0 border-b border-solid border-border"
 									>
 										<label
@@ -141,7 +143,7 @@ export const DockNotifications: React.FC<{
 													})
 												}
 											/>
-											Select {item.title}
+											Select {title}
 										</label>
 										<InboxItem
 											notification={item}

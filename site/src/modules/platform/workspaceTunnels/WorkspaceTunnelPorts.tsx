@@ -460,7 +460,7 @@ export const WorkspaceTunnelPorts: React.FC<{
 										fill="none"
 										stroke="transparent"
 										strokeWidth={14}
-										className="pointer-events-stroke cursor-pointer"
+										className="pointer-events-auto cursor-pointer"
 										role="button"
 										tabIndex={0}
 										aria-label={`Manage tunnel ${from.workspace.name} to ${to.workspace.name}: ${t.status}`}

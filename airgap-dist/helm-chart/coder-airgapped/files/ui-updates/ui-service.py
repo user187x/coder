@@ -10177,7 +10177,10 @@ def publish_announcement_notification(user, banner=None):
         url = str(banner.get("linkUrl") or "")
         actions = [{"label": banner.get("linkText") or "Read announcement", "url": url}] if (
             url.startswith("/") and not url.startswith("//") or urllib.parse.urlsplit(url).scheme in ("http", "https")) else []
-        publish_inbox_notification(user["id"], notification_id, banner.get("title") or "Announcement",
+        title = str(banner.get("title") or "")
+        if re.fullmatch(r"\{\{colors bg=#[0-9a-fA-F]{6} fg=#[0-9a-fA-F]{6}\}\}", title):
+            title = ""
+        publish_inbox_notification(user["id"], notification_id, title or "Announcement",
                                    re.sub(r"<[^>]*>", "", str(banner.get("message") or "")), actions)
         STORE.put_setting(key, (delivered + [banner["id"]])[-1000:])
     except Exception as error:

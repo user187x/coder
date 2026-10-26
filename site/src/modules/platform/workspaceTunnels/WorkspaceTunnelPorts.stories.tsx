@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { userEvent, within } from "storybook/test";
+import { spyOn, userEvent, within } from "storybook/test";
+import { PlatformAPI, type WorkspaceTunnel } from "#/api/platform";
 import { workspaceTunnels } from "#/api/queries/workspaceTunnels";
 import { MockWorkspace } from "#/testHelpers/entities";
 import {
@@ -192,24 +193,26 @@ export const IdleRetractableInputs: Story = {
 	},
 };
 
+const DetailedTunnel: WorkspaceTunnel = {
+	...MockWorkspaceTunnel,
+	source_stats: {
+		...MockWorkspaceTunnelStats,
+		rx_bytes: 1048576,
+		tx_bytes: 524288,
+	},
+	target_stats: MockWorkspaceTunnelStats,
+};
 export const ConnectionDetails: Story = {
+	beforeEach: () => {
+		spyOn(PlatformAPI, "getWorkspaceTunnels").mockResolvedValue({
+			tunnels: [DetailedTunnel],
+		});
+	},
 	parameters: {
 		queries: [
 			{
 				key: workspaceTunnels(MockWorkspace.organization_id).queryKey,
-				data: {
-					tunnels: [
-						{
-							...MockWorkspaceTunnel,
-							source_stats: {
-								...MockWorkspaceTunnelStats,
-								rx_bytes: 1048576,
-								tx_bytes: 524288,
-							},
-							target_stats: MockWorkspaceTunnelStats,
-						},
-					],
-				},
+				data: { tunnels: [DetailedTunnel] },
 			},
 		],
 	},

@@ -84,6 +84,8 @@ class ChatNotificationsTest(unittest.TestCase):
             ui.publish_announcement_notification(self.ann, banner)
             ui.publish_announcement_notification(self.ann, banner)
             self.assertEqual(publish.call_count, 1)
+            ui.publish_announcement_notification(self.ann, {**banner, "id": "colored", "title": "{{colors bg=#111111 fg=#ffffff}}"})
+            self.assertEqual(publish.call_args.args[2], "Announcement")
 
     def test_discovery_does_not_enable_peer_messaging(self):
         self.chat.put_settings({"discoverAll": True}, "boss")
