@@ -89,27 +89,6 @@ html[data-animations="off"] .workspace-tunnel-chevron-static {
 	-webkit-mask: url("/icon/workspace-tunnel.svg") center / contain no-repeat;
 }
 
-.workspace-tunnel-head-flow {
-	animation: workspace-tunnel-head-flow 1.5s linear infinite;
-	pointer-events: none;
-}
-@keyframes workspace-tunnel-head-flow {
-	from {
-		transform: translateX(-9px);
-	}
-	to {
-		transform: translateX(0);
-	}
-}
-html[data-animations="off"] .workspace-tunnel-head-flow {
-	animation: none;
-}
-@media (prefers-reduced-motion: reduce) {
-	.workspace-tunnel-head-flow {
-		animation: none;
-	}
-}
-
 .tunnel-flow-reduced { display: none; }
 @media (prefers-reduced-motion: reduce) {
  .tunnel-flow-animated { display: none; }

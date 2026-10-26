@@ -1,4 +1,6 @@
 import { useId } from "react";
+import { useMediaQuery } from "#/hooks/useMediaQuery";
+import { useAnimationsEnabled } from "#/modules/platform/animations/animations";
 
 /** Clips a seamless directional flow pattern inside the free tunnel connector. */
 export const TunnelConnectionHead = ({
@@ -13,6 +15,8 @@ export const TunnelConnectionHead = ({
 	ready: boolean;
 }) => {
 	const id = useId().replace(/:/g, "");
+	const animations = useAnimationsEnabled();
+	const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
 	return (
 		<g transform={`translate(${x} ${y}) rotate(${angle})`} aria-hidden>
 			<circle r={10} fill="hsl(var(--surface-primary))" stroke="currentColor" />
@@ -37,10 +41,20 @@ export const TunnelConnectionHead = ({
 								strokeLinecap="round"
 								strokeLinejoin="round"
 							/>
+							{animations && !reducedMotion && (
+								<animateTransform
+									attributeName="patternTransform"
+									type="translate"
+									from="-9 0"
+									to="0 0"
+									dur="1.5s"
+									repeatCount="indefinite"
+								/>
+							)}
 						</pattern>
 					</defs>
 					<g clipPath={`url(#${id}-clip)`}>
-						<g className="workspace-tunnel-head-flow">
+						<g>
 							<rect
 								x={-18}
 								y={-8}
