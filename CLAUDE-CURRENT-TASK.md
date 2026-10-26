@@ -546,3 +546,14 @@ Queued next, at the user's explicit request: HUD disk/volume graphs and summary 
 - Verification: 54 targeted frontend tests across six files, six storage/history tests, three existing network/history tests, TypeScript, and targeted Oxlint passed. Frontend review FE1-FE10 passed for the scoped diff; existing broad-check baseline failures remain documented above.
 - Immutable rollout images: coder sha256:a2de08af11e3ae787461fd0adaa01e5bb4356556bb2966df277eceb927b61ec3; ui-updates sha256:8aae209c711f31b7594fbf3a6a5fcdae5ec8d79b6ca627de0a264a2ea80988dc.
 - Unrelated native quarantine/VM/runtime work remains unstaged. ui-service.py and RBAC changes were staged from HEAD with only the HUD additions; the deployed UI image overlays only those additions onto resume.29.
+
+
+## Tunnel ports, live proof, and image cleanup, 2026-10-26
+
+- Commit 9c32259605 adds TCP/UDP service-port policies to the shared tunnel connection modal, revision checks, helper capability negotiation, and INPUT/OUTPUT firewall enforcement that returns through existing lockdown rules. Both peer helpers must support the policy; a downgrade withdraws restricted peers.
+- Repaired missing helper wiring in the live DEFAULT and DATAFLOW publications. Restarted skibbity, xrp, and xxx through Coder with their existing parameters and persistent volumes. Native helpers use a separate binary path so unrelated VM runtime work remains intact.
+- Live terminal proof marker CODER_TUNNEL_PROOF_20261026_23a6c585 traveled skibbity -> xrp -> xxx on TCP 27182 and returned its acknowledgement. TCP 27183 timed out despite an active xrp listener. All proof listeners exited. The two requested connections remain ready with TCP 27182 allowed.
+- Evidence: /mnt/data/coder-ui-evidence-20261025/tunnel-proof-skibbity.png, tunnel-proof-xrp.png, tunnel-proof-xxx.png, and tunnel-port-settings-live.png. The three terminal previews remain available to the user.
+- Node-image cleanup supports selection, workload-reference review, protected aliases, digest-pinned workers, and non-forced Docker removal. A disposable image created for this test was removed successfully; no user image was purged. Unsupported runtimes are blocked.
+- Server resume.73 and UI service resume.32 are deployed. Tests: 44 frontend tests, TypeScript, targeted lint, 10 cleanup backend tests, 24 tests against the staged tunnel service, and Go port-policy tests pass. Frontend-review FE1 through FE10 pass for this scope.
+- Image switching and Keycloak GitOps orchestration remain pending. Only the coder kubeconfig context is currently available. The future AWS EKS hub context and desired-source mapping have not been supplied, so no Argo CD/Crossplane ownership or Keycloak rollout has been changed. An untracked workspaceimages.py draft is not wired or deployed.

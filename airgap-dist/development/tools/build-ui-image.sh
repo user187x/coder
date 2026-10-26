@@ -32,6 +32,7 @@ for p in "${pictures[@]}"; do
 done
 mapfile -t baked < <(cd "$defaults" && find . -maxdepth 1 -type f \( -name 'logo.*' -o -name 'avatar.*' \) -printf '%P\n' | LC_ALL=C sort)
 hash=$({ (cd "$src" && sha256sum "${files[@]}"); (cd "$store" && sha256sum "${pictures[@]}");
+	sha256sum "$here/build-ui-image.sh";
 	(cd "${top}/.." && sha256sum coderd/database/queries/notificationsinbox.sql);
 	(cd "$ctx" && sha256sum workspace-tunnel);
 	(cd "$defaults" && sha256sum "${baked[@]}"); } | sha256sum | cut -c1-12)
@@ -53,7 +54,7 @@ else
 	chmod -R a+rX,go-w "$ctx/app" "$ctx/image-store" "$ctx/defaults"
 	cat >"$ctx/Dockerfile" <<EOF
 FROM ${base}
-RUN apk add --no-cache iptables
+RUN apk add --no-cache iptables e2fsprogs e2fsprogs-extra util-linux coreutils
 COPY image-store/ /image-store/
 COPY defaults/ /defaults/
 COPY app/ /app/
@@ -76,6 +77,8 @@ print(\"modules import\")"
 		copa --version >/dev/null
 		shellcheck --version >/dev/null && shfmt --version >/dev/null
 		iptables --version >/dev/null
+		command -v e2fsck >/dev/null && command -v resize2fs >/dev/null
+		command -v losetup >/dev/null && command -v blockdev >/dev/null
 		test "$(ls /image-store/pictures | wc -l)" -gt 0 && test "$(ls /image-store/thumbs | wc -l)" -gt 0
 		test -s /defaults/logo/logo.gif && test -s /defaults/avatar/avatar.gif'
 	echo "built $img"
