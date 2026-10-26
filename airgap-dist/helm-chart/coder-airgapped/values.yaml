@@ -10,6 +10,25 @@
 # Shared settings: every component reads these (Helm passes `global` to all subcharts).
 # ---------------------------------------------------------------------------------------------------------------
 global:
+  # Enable only after qualifying the fixed guest image and LAN/VPN media path.
+  nekoMedia:
+    enabled: false
+    descriptorKeySecretName: ""
+    advertiseIP: ""
+    clientCIDRs: []
+    peerCIDRs: []
+    relayCIDRs: []
+    guestImages: []
+    portMin: 30100
+    portMax: 30115
+    maxLeases: 8
+    packetsPerSecond: 10000
+    lifetimeMilliseconds: 3000
+    clientDirectory: /opt/coder/neko-client
+    clientManifestSHA256: ""
+    service:
+      type: NodePort
+      annotations: {}
   # The Argo CD decorator install (../argocd/coder-decorated-application.yaml) uses two charts packaged from this one
   # (../mirror-images.sh decorator-charts): coder-airgapped-base, a plain Coder, and coder-airgapped-layer, the
   # customizations decorating it, which can be removed again. This chart, coder-airgapped, is both in one.
@@ -489,6 +508,37 @@ codeServerHA:
 # has is left alone, so it runs beside the template decorator until the bake-in replaces it.
 # ---------------------------------------------------------------------------------------------------------------
 platformWebhook:
+  # Enable only after the selected VM/Sysbox worker and retained HOME recovery are qualified.
+  runtimeIsolation:
+    enabled: false
+    # VM mode is mandatory for raw hardware-total privacy; native is opt-in baseline only.
+    mode: vm-sysbox
+    vm:
+      reconcileEnabled: false
+      # Preparation only: no GPU hardware/guest profile is qualified, even when requested.
+      gpu:
+        enabled: false
+        profiles: []
+      growImage: ""
+      allowedRootImages: []
+      cpuModels: [Haswell-noTSX]
+      controllerUsers: ["system:serviceaccount:kubevirt:kubevirt-controller"]
+    # Stage an external backend while retaining the current backend and routing.
+    prepareBackend: false
+    serviceNamespace: coder-runtime-system
+    trustedAdminGroups: ["system:masters", "kubeadm:cluster-admins"]
+    platformControllers:
+      - Deployment:coder
+      - Deployment:coder-code-server-replicator
+      - Deployment:coder-image-registry
+      - Deployment:coder-platform-webhook
+      - Deployment:coder-ui-logs-db
+      - Deployment:coder-ui-updates
+      - Deployment:coder-user-storage-minio
+      - Deployment:metrics-server
+      - DaemonSet:coder-image-registry-proxy
+      - DaemonSet:coder-user-storage-csi
+      - Cluster:coder-db
   enabled: false
   replicas: 2
   # Fail: while no replica answers, workspace pods are refused and their Deployment retries - none starts without
@@ -554,12 +604,18 @@ userStorage:
 # The platform image renders the UI natively, so no Traefik rewrite middleware is involved for these.
 # ---------------------------------------------------------------------------------------------------------------
 uiUpdates:
+  # Enable after qualifying host process visibility on approved VM workers.
+  quarantineObserver:
+    enabled: false
+  # Trusted host observations; workspace containers never collect physical node load.
+  nodeLoad:
+    enabled: true
   enabled: true
   # The service's code (files/ui-updates) in /app of the tools image - the bundled Python with shellcheck, shfmt, trivy
   # (+ its database) and regctl (development/image-tools), which the Images view lints, formats and scans with -
   # tagged with the code's hash (development/tools/build-ui-image.sh builds and pins it). The chart carries no code:
   # Helm keeps each release in a Secret of at most 1 MiB.
-  image: &platformServiceImage '{{ include "platform.image" (list . "ghcr.io/user187x/coder-ui-updates:code-d8dde4baf727") }}'
+  image: &platformServiceImage '{{ include "platform.image" (list . "ghcr.io/user187x/coder-ui-updates:code-6c98feb6965c") }}'
   imagePullPolicy: IfNotPresent
   imagePullSecrets: []
   hostname: '{{ include "platform.coderHost" . }}'
@@ -640,6 +696,15 @@ coder-workspace:
     image: *platformServiceImage
     dbCaSecret: '{{ .Values.global.database.name }}-ca'
   workspaceImage: '{{ include "platform.image" (list . "ghcr.io/user187x/coder-workspace:1.9.4") }}'
+  # Opt-in canonical DEFAULT/Dataflow VM versions; does not convert custom templates.
+  # Requires an approved immutable guest root, target organization, and explicit drive/tunnel opt-out.
+  # Public Coder CA is read from the existing mounted CA file, never from a private key.
+  vmPublication:
+    enabled: false
+    rootImage: ""
+    organizationId: ""
+    nodeName: ""
+  appsWildcardHost: '{{ include "platform.wildcardHost" . }}'
   workspaceTunnelImage: *platformServiceImage
   imagePullSecrets: []
   secrets:

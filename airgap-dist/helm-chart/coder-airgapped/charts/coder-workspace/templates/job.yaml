@@ -1,4 +1,19 @@
 {{- include "coder-workspace.platform.values" . -}}
+{{- $vm := .Values.vmPublication | default dict }}
+{{- if $vm.enabled }}
+{{- if not (regexMatch "^[a-zA-Z0-9][a-zA-Z0-9._:/-]*@sha256:[a-f0-9]{64}$" ($vm.rootImage | default "")) }}
+{{- fail "coder-workspace.vmPublication.rootImage must be an approved immutable guest image digest" }}
+{{- end }}
+{{- if not (regexMatch "^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$" ($vm.organizationId | default "")) }}
+{{- fail "coder-workspace.vmPublication.organizationId must be the target organization UUID" }}
+{{- end }}
+{{- if and ($vm.nodeName | default "") (not (regexMatch "^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$" $vm.nodeName)) }}
+{{- fail "coder-workspace.vmPublication.nodeName must be a Kubernetes node name" }}
+{{- end }}
+{{- if or (.Values.workspaceTunnelImage | default "") (eq (toString ((.Values.global.userStorage | default dict).enabled)) "true") }}
+{{- fail "VM template publication requires explicit Cloud Drive and tunnel opt-out until guest adapters qualify" }}
+{{- end }}
+{{- end }}
 {{- $url := .Values.coder.internalUrl | default (required "CODER_URL must be provided!" .Values.coder.url) }}
 {{- /* The templates this chart pushes, each by its own Job: default (DEFAULT: files/main.tf and its scripts) and
 (dataflowTemplate) the same plus files/dataflow/ - Apache NiFi and Apache Airflow in place of code-server - on its own
@@ -10,6 +25,9 @@ its workspaces and history - default takes over ubuntu-vnc-desktop (UBUNTU), its
     "replaces" (dict "name" "ubuntu-vnc-desktop" "message" (printf "Deployed via Helm release %s" .Release.Name)
                      "displayName" "UBUNTU" "icon" "/icon/ubuntu.svg")) }}
 {{- if .Values.dataflowTemplate.enabled }}
+{{- if not (regexMatch "^\\*\\.[a-z0-9]([a-z0-9.-]*[a-z0-9])?$" (.Values.appsWildcardHost | default "")) }}
+{{- fail "coder-workspace.appsWildcardHost must match the configured Coder wildcard app hostname" }}
+{{- end }}
 {{- $jobs = append $jobs (dict "suffix" "-dataflow" "template" .Values.dataflowTemplate "dataflow" true
     "image" .Values.dataflowImage "message" (printf "Deployed via Helm release %s (dataflow)" .Release.Name)) }}
 {{- end }}
@@ -80,6 +98,9 @@ spec:
               templates = None
               try:
                   templates = get("/api/v2/templates")
+                  organization = os.environ.get("TEMPLATE_ORGANIZATION_ID", "")
+                  if organization:
+                      templates = [t for t in templates if t.get("organization_id") == organization]
                   # The template this one replaces (REPLACES_*: under its old name, or holding the old pushes'
                   # versions): taken over - renamed (unless an admin renamed it), its old default display name and
                   # icon replaced - so its workspaces and history carry on; they are offered the new version.
@@ -102,6 +123,9 @@ spec:
                           print(f"The template {t['name']} is replaced by {name}: taken over ({', '.join(change) or 'as it is'}).")
                           name = change.get("name", t["name"])
                           templates = get("/api/v2/templates")
+                  organization = os.environ.get("TEMPLATE_ORGANIZATION_ID", "")
+                  if organization:
+                      templates = [t for t in templates if t.get("organization_id") == organization]
                   if not any(t["name"] == name for t in templates):
                       ours = [t for t in templates
                               if any((v.get("message") or "") == mark for v in get("/api/v2/templates/%s/versions" % t["id"]))]
@@ -137,6 +161,8 @@ spec:
           env:
             - name: CODER_URL
               value: {{ $url | quote }}
+            - name: TEMPLATE_ORGANIZATION_ID
+              value: {{ ternary ($vm.organizationId | default "") "" ($vm.enabled | default false) | quote }}
             - name: TEMPLATE_NAME
               value: {{ $j.template.name | quote }}
             - name: TEMPLATE_DISPLAY_NAME
@@ -187,6 +213,9 @@ spec:
 
               export CODER_SESSION_TOKEN
               export CODER_URL
+              {{- if $vm.enabled }}
+              export CODER_ORGANIZATION={{ $vm.organizationId | quote }}
+              {{- end }}
               export SSL_CERT_FILE="/etc/ssl/certs/coder/ca.crt"
               export WORKSPACE="/tmp/workspace"
 
@@ -208,7 +237,16 @@ spec:
               TEMPLATE="$(cat /shared/template)"
               coder templates push "${TEMPLATE}" \
                 --directory "${WORKSPACE}" \
+                {{- if $vm.enabled }}
+                --variable code_server_ha=false \
+                --variable workspace_vm_enabled=true \
+                --variable workspace_vm_root_image={{ $vm.rootImage | quote }} \
+                --variable workspace_vm_organization_id={{ $vm.organizationId | quote }} \
+                --variable workspace_vm_node={{ $vm.nodeName | default "" | quote }} \
+                --variable workspace_vm_ca_pem="$(cat /etc/ssl/certs/coder/ca.crt)" \
+                {{- else }}
                 --variable code_server_ha="$(cat /shared/code-server-ha 2>/dev/null || echo false)" \
+                {{- end }}
                 --message {{ $j.message | quote }} \
                 {{- with $j.image }}
                 --variable workspace_image="{{ . }}" \
@@ -216,6 +254,8 @@ spec:
                 --variable namespace="{{ $.Values.namespace | default $.Release.Namespace }}" \
                 --variable workspace_tunnel_image="{{ $.Values.workspaceTunnelImage | default "" }}" \
                 {{- if $j.dataflow }}
+                --variable neko_browser="{{ ternary "true" "false" ($j.template.nekoBrowser | default false) }}" \
+                --variable apps_wildcard_host={{ $.Values.appsWildcardHost | quote }} \
                 --variable terminal=true \
                 --variable code_server=false \
                 --variable default_memory=6 \

@@ -18,6 +18,7 @@ import (
 // AuditableResources map (below) as our documentation - generated in scripts/auditdocgen/main.go -
 // depends upon it.
 var AuditActionMap = map[string][]codersdk.AuditAction{
+	"WorkspaceQuarantine":           {codersdk.AuditActionWrite},
 	"GitSSHKey":                     {codersdk.AuditActionCreate},
 	"Template":                      {codersdk.AuditActionWrite, codersdk.AuditActionDelete},
 	"TemplateVersion":               {codersdk.AuditActionCreate, codersdk.AuditActionWrite},
@@ -68,6 +69,17 @@ type Table map[string]map[string]Action
 var AuditableResources = auditMap(auditableResourcesTypes)
 
 var auditableResourcesTypes = map[any]map[string]Action{
+	&database.WorkspaceQuarantine{}: {
+		"workspace_id":          ActionIgnore,
+		"organization_id":       ActionIgnore,
+		"enabled":               ActionTrack,
+		"revision":              ActionIgnore,
+		"reason":                ActionTrack,
+		"updated_by":            ActionTrack,
+		"updated_at":            ActionIgnore,
+		"manual_start_required": ActionTrack,
+		"release_prepared":      ActionIgnore,
+	},
 	&database.AuditableOrganizationMember{}: {
 		"username":        ActionTrack,
 		"user_id":         ActionTrack,

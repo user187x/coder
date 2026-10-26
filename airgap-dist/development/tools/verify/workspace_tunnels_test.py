@@ -1,5 +1,6 @@
 """Policy lifecycle and authorization tests without a Kubernetes cluster."""
 import base64
+import contextlib
 from concurrent.futures import ThreadPoolExecutor
 import io
 import json
@@ -25,7 +26,8 @@ class WorkspaceTunnelsTest(unittest.TestCase):
         self.addCleanup(self.file.stop)
         self.org, self.other_org, self.a, self.b, self.c = [str(uuid.uuid4()) for _ in range(5)]
         self.user = {"id": "owner", "roles": []}
-        self.ws = {wid: {"id": wid, "owner_id": "owner", "organization_id": self.org}
+        self.ws = {wid: {"id": wid, "owner_id": "owner", "organization_id": self.org,
+                         "latest_build": {"status": "running", "resources": [{"agents": [{"status": "connected"}]}]}}
                    for wid in (self.a, self.b, self.c)}
         tunnels.setup(lambda token, wid: self.ws.get(wid), mock.Mock(return_value=(200, {"update": True})), mock.Mock(), "http://coder", {"owner"})
         self.identity = mock.patch.object(tunnels, "agent_identity", side_effect=lambda token, endpoint:
@@ -67,6 +69,19 @@ class WorkspaceTunnelsTest(unittest.TestCase):
         self.sync(self.b, policy["revision"] - 1)
         self.assertEqual(tunnels.listing("session", self.user, self.org)[0]["status"], "pending")
         self.sync(self.b, policy["revision"])
+        self.assertEqual(tunnels.listing("session", self.user, self.org)[0]["status"], "ready")
+
+    def test_fresh_helper_acks_do_not_mask_workspace_restart_or_agent_disconnect(self):
+        self.ready()
+        build = self.ws[self.b]["latest_build"]
+        for status in ("stopping", "stopped", "starting", "failed"):
+            with self.subTest(status=status):
+                build["status"] = status
+                self.assertEqual(tunnels.listing("session", self.user, self.org)[0]["status"], "pending")
+        build["status"] = "running"
+        build["resources"][0]["agents"][0]["status"] = "disconnected"
+        self.assertEqual(tunnels.listing("session", self.user, self.org)[0]["status"], "pending")
+        build["resources"][0]["agents"][0]["status"] = "connected"
         self.assertEqual(tunnels.listing("session", self.user, self.org)[0]["status"], "ready")
 
     def test_disconnect_waits_for_both_peer_removals(self):
@@ -148,6 +163,31 @@ class WorkspaceTunnelsTest(unittest.TestCase):
         tunnels.HTTP_JSON.return_value = (401, {})
         with self.assertRaises(PermissionError):
             tunnels.agent_identity("browser-token", "192.168.1.1:51871")
+
+    def test_vm_endpoint_requires_current_instance_controller_org_and_agent(self):
+        self.identity.stop()
+        tunnels.HTTP_JSON.return_value = (200, {"workspace_id": self.a, "organization_id": self.org, "agent_id": self.b, "build_id": "build"})
+        name = "coder-vm-" + self.a
+        pod = {"metadata": {"ownerReferences": [{"kind": "VirtualMachineInstance", "controller": True,
+            "name": name, "uid": "instance"}]}, "status": {"podIP": "192.168.1.1", "phase": "Running"}}
+        instance = {"metadata": {"uid": "instance", "ownerReferences": [
+            {"kind": "VirtualMachine", "controller": True, "uid": "vm"}]}}
+        vm = {"metadata": {"uid": "vm", "labels": {"com.coder.workspace.id": self.a,
+            "com.coder.organization.id": self.org}, "annotations": {"platform.coder/build-id": "build"}},
+            "spec": {"runStrategy": "Always"}}
+        def call(method, path):
+            if "/pods?" in path:
+                return 200, {"items": [pod]}
+            return (200, instance) if "/virtualmachineinstances/" in path else (200, vm)
+        tunnels.KUBE.call.side_effect = call
+        self.assertEqual(tunnels.agent_identity("agent", "192.168.1.1:51871"), (self.a, self.org, self.b))
+        vm["metadata"]["annotations"]["platform.coder/build-id"] = "stale"
+        with self.assertRaises(PermissionError):
+            tunnels.agent_identity("agent", "192.168.1.1:51871")
+        vm["metadata"]["annotations"]["platform.coder/build-id"] = "build"
+        instance["metadata"]["ownerReferences"][0]["uid"] = "foreign"
+        with self.assertRaises(PermissionError):
+            tunnels.agent_identity("agent", "192.168.1.1:51871")
 
     def test_missing_handshake_stays_pending(self):
         self.ready()
@@ -260,6 +300,19 @@ class WorkspaceTunnelsTest(unittest.TestCase):
                 self.assertEqual(tunnels.remove("session", self.user, self.org, link["id"])["status"],
                                  "disconnecting")
 
+    def test_live_workspace_lookup_does_not_hold_tunnel_policy_lock(self):
+        self.ready()
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            def live():
+                def read_state():
+                    with tunnels.state(write=False) as data:
+                        return list(data['workspaces'])
+                return executor.submit(read_state).result(timeout=2)
+            with mock.patch.object(tunnels,'LIVE_WORKSPACES',side_effect=live):
+                self.assertEqual(len(tunnels.listing('session',self.user,self.org)),1)
+                self.sync(self.a)
+
+
     def test_listing_checks_each_distinct_workspace_once(self):
         self.create()
         self.create(self.a, self.c)
@@ -292,6 +345,51 @@ class WorkspaceTunnelsTest(unittest.TestCase):
     def test_state_file_is_private(self):
         self.create()
         self.assertEqual(os.stat(tunnels.STATE_FILE).st_mode & 0o777, 0o600)
+
+    def test_quarantined_endpoint_cannot_create_connection(self):
+        with mock.patch.object(tunnels, 'QUARANTINE', return_value={'enabled': True, 'manual_start_required': True}):
+            with self.assertRaises(PermissionError):
+                self.create()
+        self.assertFalse(os.path.exists(tunnels.STATE_FILE))
+
+    def test_shared_policy_guard_precedes_local_file_lock(self):
+        @contextlib.contextmanager
+        def guard(ids):
+            self.assertEqual(set(ids), {self.a, self.b})
+            self.assertFalse(tunnels._LOCK.locked())
+            yield
+        with mock.patch.object(tunnels, 'QUARANTINE_GUARD', mock.Mock(many=guard)):
+            self.assertEqual(self.create()['status'], 'pending')
+
+    def test_late_policy_restriction_aborts_before_local_write(self):
+        guard = mock.Mock()
+        guard.many.side_effect = PermissionError('quarantine changed')
+        with mock.patch.object(tunnels, 'QUARANTINE_GUARD', guard):
+            with self.assertRaises(PermissionError):
+                self.create()
+        self.assertFalse(os.path.exists(tunnels.STATE_FILE))
+
+    def test_withdrawal_waits_for_surviving_peer_acknowledgement(self):
+        link, _ = self.ready()
+        result = tunnels.withdraw_quarantine({'workspace_id': self.a})
+        self.assertEqual(result['state'], 'revoking')
+        with tunnels.state(write=False) as data:
+            revision = data['revision']
+            self.assertTrue(data['tunnels'][link['id']]['deleted'])
+        self.sync(self.b, revision)
+        self.assertEqual(tunnels.withdraw_quarantine({'workspace_id': self.a})['state'], 'revoked')
+
+    def test_stale_controller_cannot_withdraw_reconnected_intent(self):
+        self.create()
+        with tunnels.state(write=False) as data:
+            before = json.dumps(data, sort_keys=True)
+        guard = mock.Mock()
+        guard.restrict.side_effect = PermissionError('policy changed')
+        with mock.patch.object(tunnels, 'QUARANTINE_GUARD', guard):
+            with self.assertRaises(PermissionError):
+                tunnels.withdraw_quarantine({'workspace_id': self.a})
+        with tunnels.state(write=False) as data:
+            self.assertEqual(json.dumps(data, sort_keys=True), before)
 
     def test_corrupt_state_fails_closed(self):
         self.create()

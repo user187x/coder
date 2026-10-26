@@ -1,0 +1,101 @@
+{{- include "ca.values" . -}}
+{{- if and .Values.uiUpdates.enabled .Values.uiUpdates.quarantineObserver.enabled (include "platform.hasLayer" .) }}
+{{- if not (and .Values.platformWebhook.enabled (or .Values.platformWebhook.runtimeIsolation.enabled .Values.platformWebhook.runtimeIsolation.prepareBackend)) }}
+{{- fail "quarantine observer requires the protected runtime backend" }}
+{{- end }}
+{{- $ns := .Values.platformWebhook.runtimeIsolation.serviceNamespace }}
+{{- if eq $ns .Release.Namespace }}
+{{- fail "quarantine observer namespace must differ from the protected release namespace" }}
+{{- end }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: coder-quarantine-observer
+  namespace: {{ $ns }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: coder-quarantine-observer
+  namespace: {{ $ns }}
+rules:
+  - apiGroups: [""]
+    resources: [configmaps]
+    resourceNames: [coder-workspace-quarantine-targets]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: coder-quarantine-observer
+  namespace: {{ $ns }}
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: Role, name: coder-quarantine-observer}
+subjects:
+  - {kind: ServiceAccount, name: coder-quarantine-observer, namespace: {{ $ns }}}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Release.Name }}-{{ .Release.Namespace }}-quarantine-observer
+rules:
+  - apiGroups: [""]
+    resources: [nodes]
+    verbs: [get, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Release.Name }}-{{ .Release.Namespace }}-quarantine-observer
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ .Release.Name }}-{{ .Release.Namespace }}-quarantine-observer
+subjects:
+  - {kind: ServiceAccount, name: coder-quarantine-observer, namespace: {{ $ns }}}
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: coder-quarantine-observer
+  namespace: {{ $ns }}
+spec:
+  selector:
+    matchLabels: {app: coder-quarantine-observer}
+  template:
+    metadata:
+      labels: {app: coder-quarantine-observer}
+    spec:
+      serviceAccountName: coder-quarantine-observer
+      hostPID: true
+      nodeSelector:
+        kubernetes.io/os: linux
+        platform.coder/vm-ready: "true"
+      {{- with .Values.uiUpdates.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      tolerations:
+        - {operator: Exists}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: observer
+          image: {{ .Values.uiUpdates.image }}
+          command: [python3, /app/vmquarantineobserver.py]
+          env:
+            - name: NODE_NAME
+              valueFrom: {fieldRef: {fieldPath: spec.nodeName}}
+            - {name: RUNTIME_NAMESPACE, value: {{ $ns | quote }}}
+            - {name: WORKSPACE_NAMESPACE, value: {{ .Release.Namespace | quote }}}
+            - {name: PYTHONDONTWRITEBYTECODE, value: "1"}
+          resources:
+            requests: {cpu: 10m, memory: 32Mi}
+            limits: {cpu: 100m, memory: 96Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+{{- end }}

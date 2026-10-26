@@ -174,8 +174,17 @@ import hudstorage
 import workspaceconnections
 import workspacetunnels
 import workspacepower
-import math
+import vmreconcile
+import quarantine
+import quarantineguard
+import nekomedia
+
+QUARANTINE_ENFORCER = None
+NEKO_MEDIA = None
+import vmusercommand
 import quotaextras
+import workspacenodemetrics
+import math
 import drivepeers  # noqa: E402  (Cloud Drives shared between users: asked for in chat, approved by admins)
 import clusternet  # noqa: E402  (the Cluster Network view in depth: entity details, code-server HA, the mesh)
 from http.cookies import SimpleCookie
@@ -4265,12 +4274,15 @@ def cluster_snapshot():
             "/api/v1/pods?fieldSelector="
             + urllib.parse.quote("status.phase!=Succeeded,status.phase!=Failed"),
         )
+        pods_available = status == 200 and isinstance(pods, dict)
         pods = (
             (pods.get("items") or [])
             if status == 200 and isinstance(pods, dict)
             else []
         )
         status, usage = KUBE.call("GET", "/apis/metrics.k8s.io/v1beta1/nodes")
+        usage_times = {(u.get("metadata") or {}).get("name"): u.get("timestamp")
+                       for u in (usage.get("items") or [])} if status == 200 and isinstance(usage, dict) else {}
         usage = (
             {
                 (u.get("metadata") or {}).get("name"): u.get("usage") or {}
@@ -4283,7 +4295,9 @@ def cluster_snapshot():
         hit = {
             "nodes": nodes.get("items") or [],
             "pods": pods,
+            "podsAvailable": pods_available,
             "usage": usage,
+            "usageTimes": usage_times,
             "version": (
                 version.get("gitVersion")
                 if status == 200 and isinstance(version, dict)
@@ -6501,7 +6515,6 @@ class ChatStore:
             self.changed.notify_all()
         return removed
 
-
     def delete(self, user_id, peer_id):
         """Removes the whole conversation between the two, for both of them (either may do it). The number deleted.
         A group chat: its admin removes it for everyone."""
@@ -6579,7 +6592,6 @@ class ChatStore:
 
     def last_clear(self, user_id):
         return max([v for v, _ in self.cleared.get(user_id, []) + self.message_removed.get(user_id, [])] or [0])
-
 
     def mark_read(self, user_id, peer_id, last_id):
         with self.lock, self.connect() as db:
@@ -6693,7 +6705,6 @@ def quota_settings():
             "exemptAdmins": s.get("exemptAdmins", True) is not False, "resourceModes": quota_resource_modes(s)}
 
 
-
 def _quota_number(v, what, integer=False):
     if v in (None, ""):
         return None
@@ -6704,7 +6715,6 @@ def _quota_number(v, what, integer=False):
     if isinstance(v, bool) or not math.isfinite(n) or n < 0 or n > 1e6 or (integer and n != int(n)):
         raise ValueError("%s must be a %s between 0 and 1,000,000." % (what, "whole number" if integer else "number"))
     return int(n) if integer else round(n, 3)
-
 
 
 def clean_quota(raw):
@@ -6719,7 +6729,6 @@ def clean_quota(raw):
         users[str(name)] = limits(o, name)
     d = limits(raw.get("default") or {}, "Default")
     return {"default": {k: d.get(k) for k in QUOTA_KEYS}, "users": users, "exemptAdmins": raw.get("exemptAdmins", True) is not False, "resourceModes": quota_resource_modes(raw)}
-
 
 
 def quota_limits(settings, username):
@@ -6750,7 +6759,6 @@ def _param_resources(params):
             raise ValueError("Workspace resource parameters must be finite numbers.")
         out.append(max(value, 0.0))
     return tuple(out)
-
 
 
 def quota_workspaces(token, owner=None):
@@ -6785,7 +6793,6 @@ def quota_workspaces(token, owner=None):
                     "organizationId": w.get("organization_id"),
                     "status": build.get("status"), "running": build.get("status") == "running" and build.get("transition") == "start"})
     return out
-
 
 
 def _pod_usage_by_owner():
@@ -6859,7 +6866,6 @@ def quota_report(token):
             "parameters": dict(QUOTA_PARAMS), "generatedAt": now()}
 
 
-
 GATEWAY_NAME = os.environ.get("GATEWAY_NAME", "")
 GATEWAY_NAMESPACE = os.environ.get("GATEWAY_NAMESPACE", "")
 
@@ -6897,7 +6903,6 @@ def quota_me(token, user):
     left = {k: (None if limits[k] is None else max(limits[k] - usage[k], 0)) for k in QUOTA_KEYS}
     return {"limited": True, "exempt": False, **addition, "usage": usage, "left": left, "resourceModes": modes,
             "atLimit": any(left[k] is not None and left[k] <= 0 for k in QUOTA_KEYS)}
-
 
 def quota_check(token, user, body):
     """Before Coder creates a workspace: would it pass the owner's limits? {"allowed", "message", ...}. Asked by Coder
@@ -6960,7 +6965,6 @@ def quota_check(token, user, body):
                 "message": "%s workspace quota is reached (%s). Delete or shrink a workspace, or ask an admin to raise the "
                            "quota in Health > User Quota." % (who, "; ".join(over))}
     return {"allowed": True, "message": "within quota", **addition, "usage": usage, "request": {"cpu": want_cpu, "memory": want_mem}}
-
 
 
 # --------------------------------------------------------------------------- Global Workspace Scheduler (Health > User Quota)
@@ -7722,14 +7726,6 @@ def node_summaries():
     return out
 
 
-def hud_storage():
-    cached = CACHE.get("hud-storage")
-    if cached is None:
-        cached = hudstorage.collect(KUBE, cluster_snapshot()["nodes"], node_summaries(), quantity)
-        CACHE.put("hud-storage", cached, 10)
-    return cached
-
-
 def node_network_counters():
     out = {}
     for name, summary in node_summaries().items():
@@ -7737,6 +7733,14 @@ def node_network_counters():
         ifaces = net.get("interfaces") or [net]
         out[name] = (sum(i.get("rxBytes") or 0 for i in ifaces), sum(i.get("txBytes") or 0 for i in ifaces))
     return out
+
+
+def hud_storage():
+    cached = CACHE.get("hud-storage")
+    if cached is None:
+        cached = hudstorage.collect(KUBE, cluster_snapshot()["nodes"], node_summaries(), quantity)
+        CACHE.put("hud-storage", cached, 10)
+    return cached
 
 
 HUD_SAMPLE_EVERY = int(os.environ.get("HUD_SAMPLE_EVERY", "15"))
@@ -8151,7 +8155,6 @@ def chat_people_for(user, admin):
     return out[:500]
 
 
-
 def presence_report(token):
     """Admin Controls > Online Users: everyone with a Coder tab open now - active, or idle (no input for
     CHAT_IDLE_SECONDS) - with how many tabs, since when, their last input and their running workspaces; then who Coder
@@ -8396,6 +8399,8 @@ class Handler(BaseHTTPRequestHandler):
         path = url.path
         if path == BASE + "/healthz":
             return self.send(200, "ok\n")
+        if nekomedia.handle(self, 'GET', path, url.query, NEKO_MEDIA):
+            return
         if path.startswith(BASE + "/internal/") and imagebuilder.handle_internal(self, "GET", path):
             return
         if path.startswith(BASE + "/internal/") and workspacevolumes.handle_internal(self, "GET", path):
@@ -8408,11 +8413,15 @@ class Handler(BaseHTTPRequestHandler):
             return
         if provisioners.handle(self, "GET", path, url.query):
             return
+        if workspacenodemetrics.handle(self, "GET", path, url.query):
+            return
         if quotaextras.handle(self, "GET", path, url.query):
             return
         if workspacepower.handle(self, "GET", path, url.query):
             return
         if workspacetunnels.handle(self, "GET", path, url.query):
+            return
+        if quarantine.handle(self, "GET", path, QUARANTINE_ENFORCER, workspace_info):
             return
         if lockdown.handle(self, "GET", path, url.query):
             return
@@ -9544,8 +9553,6 @@ class Handler(BaseHTTPRequestHandler):
         log(event="inbox-cleared", user=user["username"], count=len(rows))
         return self.send_json(200, {"cleared": len(rows)})
 
-
-
     def do_DELETE(self):
         url = urllib.parse.urlsplit(self.path)
         if not workspacetunnels.handle(self, "DELETE", url.path, url.query):
@@ -10026,6 +10033,72 @@ def safe_shared_workspaces():
         "AND (user_acl <> '{}'::jsonb OR group_acl <> '{}'::jsonb)")}
 
 
+def workspace_quarantine_policy(workspace_id):
+    """Read authoritative policy directly; missing database access is never release."""
+    workspace_id = quarantine.identifier(workspace_id)
+    pool = LOGOS.pool if LOGOS else None
+    if not pool:
+        raise RuntimeError('Workspace quarantine policy is unavailable.')
+    rows = pool.query(
+        "SELECT w.id::text, w.organization_id::text, w.owner_id::text, COALESCE(q.enabled, false), "
+        "COALESCE(q.revision, '00000000-0000-0000-0000-000000000000'::uuid)::text, "
+        "COALESCE(q.manual_start_required, false), COALESCE(q.release_prepared, false) FROM workspaces w "
+        "LEFT JOIN workspace_quarantines q ON q.workspace_id = w.id AND q.organization_id = w.organization_id "
+        "WHERE w.id = $1::uuid", [workspace_id])
+    if len(rows) != 1:
+        raise RuntimeError('Workspace quarantine identity is unavailable.')
+    return quarantineguard.policy_row(rows[0], ('workspace_id', 'organization_id', 'owner_id', 'enabled', 'revision', 'manual_start_required', 'release_prepared'))
+
+
+def withdraw_workspace_quarantine(current):
+    result = {}
+    for name, withdraw in (('tunnels', workspacetunnels.withdraw_quarantine), ('cloud_drive', safe.withdraw_quarantine)):
+        try:
+            result[name] = withdraw(current)
+        except Exception:
+            result[name] = quarantine.component('unverified', 'Managed connection withdrawal could not be verified.')
+    return result
+
+
+def pending_quarantine_releases():
+    pool = LOGOS.pool if LOGOS else None
+    if not pool:
+        raise RuntimeError('Workspace quarantine policy is unavailable.')
+    rows = pool.query(
+        "SELECT w.id::text, w.organization_id::text, w.owner_id::text, q.enabled, q.revision::text, "
+        "q.manual_start_required, q.release_prepared FROM workspace_quarantines q "
+        "JOIN workspaces w ON w.id = q.workspace_id AND w.organization_id = q.organization_id "
+        "WHERE NOT q.enabled AND q.manual_start_required AND NOT q.release_prepared LIMIT 1000")
+    fields = ('workspace_id', 'organization_id', 'owner_id', 'enabled', 'revision', 'manual_start_required', 'release_prepared')
+    return [quarantineguard.policy_row(row, fields) for row in rows]
+
+
+def acknowledge_quarantine_release(current):
+    pool = LOGOS.pool if LOGOS else None
+    if not pool:
+        raise RuntimeError('Workspace quarantine policy is unavailable.')
+    return bool(pool.query(
+        "UPDATE workspace_quarantines SET release_prepared = true "
+        "WHERE workspace_id = $1::uuid AND organization_id = $2::uuid AND revision = $3::uuid "
+        "AND NOT enabled AND manual_start_required RETURNING workspace_id::text",
+        [current['workspace_id'], current['organization_id'], current['revision']]))
+
+
+def vm_build_intent(workspace_id, build_id, allow_current=False):
+    """Resolve a captured current VM build without requiring its not-yet-inserted agent."""
+    pool = LOGOS.pool if LOGOS else None
+    if not pool or not workspace_id or (not build_id and not allow_current):
+        return None
+    rows = pool.query(
+        "SELECT w.id::text, w.organization_id::text, w.owner_id::text, b.id::text, b.transition::text, j.job_status::text "
+        "FROM workspaces w JOIN users u ON u.id = w.owner_id "
+        "JOIN LATERAL (SELECT wb.* FROM workspace_builds wb WHERE wb.workspace_id = w.id "
+        "ORDER BY wb.build_number DESC LIMIT 1) b ON true JOIN provisioner_jobs j ON j.id = b.job_id "
+        "WHERE w.id = $1::uuid AND ($2::uuid IS NULL OR b.id = $2::uuid) AND NOT w.deleted AND NOT u.deleted AND u.status = 'active'",
+        [workspace_id, build_id])
+    return dict(zip(("workspace_id", "organization_id", "owner_id", "build_id", "transition", "job_status"), rows[0])) if rows else None
+
+
 def tunnel_live_workspaces():
     """Workspace IDs whose owners still have active accounts, for peer revocation."""
     pool = LOGOS.pool if LOGOS else None
@@ -10033,7 +10106,9 @@ def tunnel_live_workspaces():
         raise RuntimeError("Coder database is not reachable yet.")
     return [r[0] for r in pool.query(
         "SELECT w.id::text FROM workspaces w JOIN users u ON u.id = w.owner_id "
-        "WHERE NOT w.deleted AND NOT u.deleted AND u.status = 'active'")]
+        "LEFT JOIN workspace_quarantines q ON q.workspace_id = w.id AND q.organization_id = w.organization_id "
+        "WHERE NOT w.deleted AND NOT u.deleted AND u.status = 'active' "
+        "AND NOT COALESCE(q.enabled OR q.manual_start_required, false)")]
 
 
 def safe_cloud_drive_attachment(owner_id):
@@ -10084,97 +10159,11 @@ def drive_chat_post(user, to_id, text, share_id):
     publish_drive_notification(user["id"], to_id, text, share_id, event_id=str(uuid.uuid4()))
 
 
-
-def safe_owner_workspaces(owner_id):
-    """An account's workspaces (Coder's database): [{id, name}]; None before the database is up."""
-    pool = LOGOS.pool if LOGOS else None
-    if not pool:
-        return None
-    return [{"id": r[0], "name": r[1]} for r in pool.query(
-        "SELECT id::text, name FROM workspaces WHERE deleted = false AND owner_id = $1::uuid ORDER BY name",
-        [owner_id])]
-
-
-def main():
-    global STORE, LOGOS, MONITOR, AVATARS, DEFAULTS, CHAT, ICONS, GALLERY, BACKGROUNDS, BANNER_PICTURES, HUD_HISTORY
-    global STORE_IMAGES
-    global NET_HISTORY
-    STORE = Store(DB_PATH)
-    CHAT = ChatStore(DB_PATH)
-    DEFAULTS = Defaults(
-        DEFAULTS_DIR
-    )  # before the logo store, which installs the default logo on a fresh database
-    GALLERY = Gallery(os.path.join(DEFAULTS_DIR, "gallery"))
-    STORE_IMAGES = ImageStore(IMAGE_STORE_DIR)
-    LOGOS = LogoStore()
-    AVATARS = AvatarStore(LOGOS)
-    BACKGROUNDS = BackgroundStore(LOGOS)
-    threading.Thread(target=seed_background_defaults, name="background-defaults", daemon=True).start()
-    BANNER_PICTURES = BannerPictureStore(LOGOS)
-    ICONS = IconStore(LOGOS)
-    MONITOR = Monitor()
-    HUD_HISTORY = HudHistory(os.path.join(os.path.dirname(DB_PATH) or "/data", "hud.sqlite"))
-    HUD_HISTORY.start()
-    NET_HISTORY = AgentNetHistory()
-    NET_HISTORY.start()
-    imagebuilder.setup(log, http_json, KUBE)
-    imagebuilder.start()
-    workspacevolumes.setup(log, http_json, KUBE)
-    workspacevolumes.QUOTA_CHECK = quota_check   # a restore asks the user quota before it creates a workspace
-    workspacevolumes.CODER_URL = CODER_URL
-    workspacevolumes.start()
-    workspacepower.setup(http_json, workspace_info, KUBE, CODER_URL, ADMIN_ROLES, log)
-    quotaextras.setup(_coder_send, log, publish_quota_notification)
-    workspacetunnels.setup(workspace_info, http_json, KUBE, CODER_URL, ADMIN_ROLES, tunnel_live_workspaces)
-    lockdown.setup(log, KUBE, workspace_info, ADMIN_ROLES, CODER_ACCESS_URL)
-    provisioners.setup(log, KUBE, ADMIN_ROLES, _coder_get, _coder_send)
-    clusternet.setup(log, KUBE, _coder_get, cluster_snapshot, lambda: LOGOS.pool if LOGOS else None, quantity,
-                     safe=safe, tls=TLS)
-    dr.setup(log, KUBE)
-    dr.start()
-    lockdown.start()
-    safe.setup(log, KUBE, safe_accounts, lambda user: imagebuilder.can_edit(user, ADMIN_ROLES),
-               lambda user: bool(set(user.get("roles") or []) & ADMIN_ROLES), workspace_info,
-               shared=safe_shared_workspaces, workspaces=safe_owner_workspaces,
-               attachment=safe_cloud_drive_attachment)
-    drivepeers.setup(log, lambda user: bool(set(user.get("roles") or []) & ADMIN_ROLES), safe_user,
-                     drive_chat_post, safe.publish_now, people=lambda: list(chat_people().values()),
-                     item=lambda owner, path: safe.item_kind(owner, path, fresh=True), admins=chat_admins)
-    connection_restrictions = workspaceconnections.Restrictions(lambda: LOGOS.pool if LOGOS else None,
-        lockdown.settings, safe, workspacetunnels, log)
-    safe.CONNECTION_RESTRICTED = connection_restrictions.restricted
-    workspacetunnels.CONNECTION_RESTRICTED = connection_restrictions.restricted
-    connection_restrictions.start()
-    safe.setup_audit(safe_user, drive_inbox_send)
-    safe.start()
-    if imagebuilder.ENABLED:
-        # the apt indices for the package check, ready before anyone opens the builder
-        threading.Thread(target=lambda: imagebuilder.APT.load(), daemon=True).start()
-    if CLUSTER_ACCESS_GROUP:
-        ClusterAdminSync().start()
-    server = Server(("0.0.0.0", PORT), Handler)
-    server.daemon_threads = True
-    log(
-        event="listening",
-        port=PORT,
-        coder=CODER_URL,
-        banner=BANNER_URL,
-        admin_roles=sorted(ADMIN_ROLES),
-        db=DB_PATH,
-        argocd_app=ARGOCD_APP or None,
-        kube=KUBE.ok,
-    )
-    server.serve_forever()
-
-
-
-
 def publish_drive_notification(actor_id, recipient, text, share_id, event_id=None, created_at=None):
     notification_id = str(uuid.uuid5(uuid.NAMESPACE_URL, "drive-share:%s:%s:%s:%s" % (
         share_id, recipient, event_id or "", text)))
     actions = [{"label": "Review Cloud Drive share", "url": "/workspaces?driveShare=" + urllib.parse.quote(share_id, safe="")}]
     publish_inbox_notification(recipient, notification_id, "Cloud Drive notification", text, actions, created_at)
-
 
 
 def publish_inbox_notification(recipient, notification_id, title, content, actions, created_at=None):
@@ -10191,23 +10180,6 @@ def publish_inbox_notification(recipient, notification_id, title, content, actio
     pool.query(statement, [values[name] for name in names])
     if not pool.query("SELECT id FROM inbox_notifications WHERE id = $1::uuid AND user_id = $2::uuid", [notification_id, recipient]):
         raise RuntimeError("The notification was not stored in the recipient inbox.")
-
-
-
-def publish_quota_notification(record):
-    if record["status"] == "pending":
-        recipients = [p["id"] for p in chat_people().values() if
-                      "owner" in ((safe_user(p["id"]) or {}).get("roles") or [])]
-        title = "Quota approval requested"
-    else:
-        recipients = [record["user_id"]]
-        title = "Quota request " + record["status"]
-    for recipient in recipients:
-        notification_id = str(uuid.uuid5(uuid.NAMESPACE_URL, "quota:%s:%s:%s" % (record["id"], record["status"], recipient)))
-        publish_inbox_notification(recipient, notification_id, title,
-                                   "%s: %s" % (record["username"], record.get("review_reason") or record["reason"]),
-                                   [{"label": "Review quota requests" if record["status"] == "pending" else "View quota", "url": "/deployment/users" if record["status"] == "pending" else "/workspaces"}])
-
 
 
 def publish_announcement_notification(user, banner=None):
@@ -10234,6 +10206,20 @@ def publish_announcement_notification(user, banner=None):
         log(event="announcement-inbox-failed", user=user["id"], error=str(error)[:200])
 
 
+def publish_quota_notification(record):
+    if record["status"] == "pending":
+        recipients = [p["id"] for p in chat_people().values() if
+                      "owner" in ((safe_user(p["id"]) or {}).get("roles") or [])]
+        title = "Quota approval requested"
+    else:
+        recipients = [record["user_id"]]
+        title = "Quota request " + record["status"]
+    for recipient in recipients:
+        notification_id = str(uuid.uuid5(uuid.NAMESPACE_URL, "quota:%s:%s:%s" % (record["id"], record["status"], recipient)))
+        publish_inbox_notification(recipient, notification_id, title,
+                                   "%s: %s" % (record["username"], record.get("review_reason") or record["reason"]),
+                                   [{"label": "Review quota requests" if record["status"] == "pending" else "View quota", "url": "/deployment/users" if record["status"] == "pending" else "/workspaces"}])
+
 
 def migrate_drive_chat_notifications(user_id):
     """Move only explicitly tagged system share messages after both inbox inserts succeed."""
@@ -10250,6 +10236,106 @@ def migrate_drive_chat_notifications(user_id):
             log(event="drive-notification-migration-failed", error=str(error)[:200])
             break
 
+
+def safe_owner_workspaces(owner_id):
+    """An account's workspaces (Coder's database): [{id, name}]; None before the database is up."""
+    pool = LOGOS.pool if LOGOS else None
+    if not pool:
+        return None
+    return [{"id": r[0], "name": r[1]} for r in pool.query(
+        "SELECT id::text, name FROM workspaces WHERE deleted = false AND owner_id = $1::uuid ORDER BY name",
+        [owner_id])]
+
+
+def main():
+    global STORE, LOGOS, MONITOR, AVATARS, DEFAULTS, CHAT, ICONS, GALLERY, BACKGROUNDS, BANNER_PICTURES, HUD_HISTORY
+    global STORE_IMAGES
+    global NET_HISTORY, QUARANTINE_ENFORCER, NEKO_MEDIA
+    STORE = Store(DB_PATH)
+    CHAT = ChatStore(DB_PATH)
+    DEFAULTS = Defaults(
+        DEFAULTS_DIR
+    )  # before the logo store, which installs the default logo on a fresh database
+    GALLERY = Gallery(os.path.join(DEFAULTS_DIR, "gallery"))
+    STORE_IMAGES = ImageStore(IMAGE_STORE_DIR)
+    LOGOS = LogoStore()
+    AVATARS = AvatarStore(LOGOS)
+    BACKGROUNDS = BackgroundStore(LOGOS)
+    threading.Thread(target=seed_background_defaults, name="background-defaults", daemon=True).start()
+    BANNER_PICTURES = BannerPictureStore(LOGOS)
+    ICONS = IconStore(LOGOS)
+    MONITOR = Monitor()
+    HUD_HISTORY = HudHistory(os.path.join(os.path.dirname(DB_PATH) or "/data", "hud.sqlite"))
+    HUD_HISTORY.start()
+    NET_HISTORY = AgentNetHistory()
+    NET_HISTORY.start()
+    imagebuilder.setup(log, http_json, KUBE)
+    imagebuilder.start()
+    workspacevolumes.setup(log, http_json, KUBE)
+    workspacevolumes.QUOTA_CHECK = quota_check   # a restore asks the user quota before it creates a workspace
+    workspacevolumes.CODER_URL = CODER_URL
+    workspacevolumes.start()
+    workspacenodemetrics.setup(workspace_info, cluster_snapshot, quantity, KUBE, KUBELET_INSECURE_TLS,
+        infrastructure_access=lambda token: http_json(CODER_URL + "/api/v2/authcheck", method="POST",
+            body={"checks": {"deployment_stats": {"action": "read", "object": {"resource_type": "deployment_stats"}}}},
+            headers={"Coder-Session-Token": token}, timeout=5))
+    quotaextras.setup(_coder_send, log, publish_quota_notification)
+    workspacepower.setup(http_json, workspace_info, KUBE, CODER_URL, ADMIN_ROLES, log)
+    connection_guard = quarantineguard.Guard(lambda: LOGOS.pool if LOGOS else None)
+    workspacetunnels.setup(workspace_info, http_json, KUBE, CODER_URL, ADMIN_ROLES, tunnel_live_workspaces,
+                          quarantine=workspace_quarantine_policy, quarantine_guard=connection_guard)
+    lockdown.setup(log, KUBE, workspace_info, ADMIN_ROLES, CODER_ACCESS_URL)
+    provisioners.setup(log, KUBE, ADMIN_ROLES, _coder_get, _coder_send)
+    clusternet.setup(log, KUBE, _coder_get, cluster_snapshot, lambda: LOGOS.pool if LOGOS else None, quantity,
+                     safe=safe, tls=TLS)
+    dr.setup(log, KUBE)
+    dr.start()
+    lockdown.start()
+    safe.setup(log, KUBE, safe_accounts, lambda user: imagebuilder.can_edit(user, ADMIN_ROLES),
+               lambda user: bool(set(user.get("roles") or []) & ADMIN_ROLES), workspace_info,
+               shared=safe_shared_workspaces, workspaces=safe_owner_workspaces,
+               attachment=safe_cloud_drive_attachment, quarantine=workspace_quarantine_policy,
+               quarantine_guard=connection_guard)
+    drivepeers.setup(log, lambda user: bool(set(user.get("roles") or []) & ADMIN_ROLES), safe_user,
+                     drive_chat_post, safe.publish_now, people=lambda: list(chat_people().values()),
+                     item=lambda owner, path: safe.item_kind(owner, path, fresh=True), admins=chat_admins)
+    connection_restrictions = workspaceconnections.Restrictions(lambda: LOGOS.pool if LOGOS else None,
+        lockdown.settings, safe, workspacetunnels, log)
+    safe.CONNECTION_RESTRICTED = connection_restrictions.restricted
+    workspacetunnels.CONNECTION_RESTRICTED = connection_restrictions.restricted
+    connection_restrictions.start()
+    safe.setup_audit(safe_user, drive_inbox_send)
+    safe.start()
+    vmusercommand.BUILD_INTENT = vm_build_intent
+    NEKO_MEDIA = nekomedia.Service.from_env(KUBE, lambda: LOGOS.pool if LOGOS else None, CODER_NAMESPACE,
+        os.environ.get('WORKSPACE_VM_RUNTIME_NAMESPACE', 'coder-runtime-system'))
+    QUARANTINE_ENFORCER = quarantine.Enforcer(KUBE, CODER_NAMESPACE, workspace_quarantine_policy,
+        withdraw_workspace_quarantine, quarantine.HostObservation(KUBE, CODER_NAMESPACE,
+            os.environ.get('WORKSPACE_VM_RUNTIME_NAMESPACE', 'coder-runtime-system')))
+    release_preparer = quarantine.ReleasePreparer(pending_quarantine_releases, withdraw_workspace_quarantine,
+                                                 acknowledge_quarantine_release, log)
+    threading.Thread(target=release_preparer.run, name='workspace-quarantine-release', daemon=True).start()
+    vmreconcile.start(KUBE, http_json, CODER_URL, CODER_NAMESPACE, log, safe, vm_build_intent,
+                      lambda wid: vm_build_intent(wid, None, allow_current=True), QUARANTINE_ENFORCER,
+                      workspace_quarantine_policy, NEKO_MEDIA.settings)
+    if imagebuilder.ENABLED:
+        # the apt indices for the package check, ready before anyone opens the builder
+        threading.Thread(target=lambda: imagebuilder.APT.load(), daemon=True).start()
+    if CLUSTER_ACCESS_GROUP:
+        ClusterAdminSync().start()
+    server = Server(("0.0.0.0", PORT), Handler)
+    server.daemon_threads = True
+    log(
+        event="listening",
+        port=PORT,
+        coder=CODER_URL,
+        banner=BANNER_URL,
+        admin_roles=sorted(ADMIN_ROLES),
+        db=DB_PATH,
+        argocd_app=ARGOCD_APP or None,
+        kube=KUBE.ok,
+    )
+    server.serve_forever()
 
 
 if __name__ == "__main__":

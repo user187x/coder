@@ -1,0 +1,21 @@
+{{- include "ca.values" . -}}
+{{- if and .Values.uiUpdates.enabled (include "platform.hasLayer" .) }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Release.Name }}-{{ .Release.Namespace }}-vm-provenance-read
+rules:
+  # The fixed ledger remains readable even while its namespace/controller is staged off.
+  - apiGroups: [""]
+    resources: [configmaps]
+    resourceNames: [coder-vm-home-provenance]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Release.Name }}-{{ .Release.Namespace }}-vm-provenance-read
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: {{ .Release.Name }}-{{ .Release.Namespace }}-vm-provenance-read}
+subjects:
+  - {kind: ServiceAccount, name: coder-ui-updates, namespace: {{ .Release.Namespace }}}
+{{- end }}

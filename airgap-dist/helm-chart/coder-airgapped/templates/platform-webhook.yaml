@@ -1,32 +1,185 @@
 {{- include "ca.values" . -}}
+{{- if and (or .Values.platformWebhook.runtimeIsolation.enabled .Values.platformWebhook.runtimeIsolation.prepareBackend) (not (and .Values.platformWebhook.enabled .Values.uiUpdates.enabled (include "platform.hasLayer" .))) }}
+{{- fail "runtime isolation requires the platform webhook and UI platform layer to be enabled" }}
+{{- end }}
 {{- if and .Values.platformWebhook.enabled .Values.uiUpdates.enabled (include "platform.hasLayer" .) }}
 {{- $wh := .Values.platformWebhook }}
 {{- $ui := .Values.uiUpdates }}
 {{- $ns := .Release.Namespace }}
 {{- $name := "coder-platform-webhook" }}
+{{- $runtime := $wh.runtimeIsolation }}
+{{- if or (not (kindIs "bool" $runtime.vm.gpu.enabled)) (not (kindIs "slice" $runtime.vm.gpu.profiles)) }}
+{{- fail "runtimeIsolation.vm.gpu requires a boolean enabled switch and a profiles array" }}
+{{- end }}
+{{- $external := $runtime.serviceNamespace | default "coder-runtime-system" }}
+{{- if and $runtime.enabled (not (has $runtime.mode (list "vm-sysbox" "native-sysbox"))) }}
+{{- fail "runtimeIsolation.mode must be vm-sysbox or explicitly selected native-sysbox" }}
+{{- end }}
+{{- if and $runtime.enabled (eq $runtime.mode "vm-sysbox") (empty $runtime.vm.allowedRootImages) }}
+{{- fail "mandatory VM mode requires approved immutable guest root images" }}
+{{- end }}
+{{- $staged := or $runtime.enabled $runtime.prepareBackend }}
+{{- if and $staged (eq $external $ns) }}
+{{- fail "runtimeIsolation.serviceNamespace must differ from the protected release namespace" }}
+{{- end }}
+{{- $activeNs := ternary $external $ns $runtime.enabled }}
+{{- $backendNamespaces := list $activeNs }}
+{{- if and $runtime.prepareBackend (not $runtime.enabled) }}
+{{- $backendNamespaces = list $ns $external }}
+{{- end }}
 {{- $userStorage := eq (toString (.Values.global.userStorage | default dict).enabled) "true" }}
 {{- /* The workspace pods' admission webhook (ADR-0002, files/ui-updates/webhook.py): Lock Down, the cluster's CA, the
      Cloud Drive and the code-server relay added to any workspace's pod as Kubernetes creates it - not in the
      template's Terraform. Its TLS: a CA and a serving certificate of the chart's own, made once (an upgrade finds and
      keeps them), the CA in the configuration's caBundle. */}}
-{{- $host := printf "%s.%s.svc" $name $ns }}
-{{- $old := (lookup "v1" "Secret" $ns (printf "%s-tls" $name)).data | default dict }}
+{{- $host := printf "%s.%s.svc" $name $activeNs }}
+{{- $old := (lookup "v1" "Secret" $activeNs (printf "%s-tls" $name)).data | default dict }}
 {{- $tls := dict }}
 {{- if and (index $old "ca.crt") (index $old "tls.crt") (index $old "tls.key") }}
 {{- $tls = dict "ca" (index $old "ca.crt" | b64dec) "crt" (index $old "tls.crt" | b64dec) "key" (index $old "tls.key" | b64dec) }}
 {{- else }}
-{{- $ca := genCA (printf "%s %s CA" $name $ns) 3650 }}
-{{- $crt := genSignedCert $host nil (list $host (printf "%s.%s" $name $ns) $name) 3650 $ca }}
+{{- $ca := genCA (printf "%s %s CA" $name $activeNs) 3650 }}
+{{- $crt := genSignedCert $host nil (list $host (printf "%s.%s" $name $activeNs) $name) 3650 $ca }}
 {{- $tls = dict "ca" $ca.Cert "crt" $crt.Cert "key" $crt.Key }}
+{{- end }}
+{{- if $staged }}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ $external }}
+  annotations:
+    helm.sh/resource-policy: keep
+{{- end }}
+{{- if and $staged (eq $runtime.mode "vm-sysbox") }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $name }}-home-provenance
+  namespace: {{ $external }}
+rules:
+  - apiGroups: [""]
+    resources: [configmaps]
+    resourceNames: [coder-vm-home-provenance]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $name }}-home-provenance
+  namespace: {{ $external }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $name }}-home-provenance
+subjects:
+  {{- range $backendNs := $backendNamespaces }}
+  - kind: ServiceAccount
+    name: {{ $name }}
+    namespace: {{ $backendNs }}
+  {{- end }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ $name }}-home-provenance-{{ $ns }}
+rules:
+  - apiGroups: [""]
+    resources: [persistentvolumes, nodes]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ $name }}-home-provenance-{{ $ns }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ $name }}-home-provenance-{{ $ns }}
+subjects:
+  {{- range $backendNs := $backendNamespaces }}
+  - kind: ServiceAccount
+    name: {{ $name }}
+    namespace: {{ $backendNs }}
+  {{- end }}
+{{- end }}
+---
+# It reads what a pod needs and writes nothing: the Cloud Drive's state, a workspace's home claim (its size).
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $name }}
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.labels" $ | nindent 4 }}
+    app.kubernetes.io/name: {{ $name }}
+rules:
+  - apiGroups: [""]
+    resources: [configmaps]
+    resourceNames: [coder-cloud-drive]
+    verbs: [get]
+  - apiGroups: [""]
+    resources: [persistentvolumeclaims]
+    verbs: [get]
+  {{- if $staged }}
+  - apiGroups: [""]
+    resources: [secrets]
+    verbs: [get]
+  - apiGroups: [kubevirt.io]
+    resources: [virtualmachines, virtualmachineinstances]
+    verbs: [get]
+  {{- end }}
+  {{- if $staged }}
+  - apiGroups: [apps]
+    resources: [deployments, replicasets, daemonsets, statefulsets]
+    verbs: [get]
+  - apiGroups: [postgresql.cnpg.io]
+    resources: [clusters]
+    verbs: [get]
+  {{- end }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $name }}
+  namespace: {{ $ns }}
+  labels:
+    {{- include "ca.labels" $ | nindent 4 }}
+    app.kubernetes.io/name: {{ $name }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $name }}
+subjects:
+  {{- range $backendNs := $backendNamespaces }}
+  - kind: ServiceAccount
+    name: {{ $name }}
+    namespace: {{ $backendNs }}
+  {{- end }}
+{{- range $backendNs := $backendNamespaces }}
+{{- $activeTls := $tls }}
+{{- $host := printf "%s.%s.svc" $name $backendNs }}
+{{- $old := (lookup "v1" "Secret" $backendNs (printf "%s-tls" $name)).data | default dict }}
+{{- $tls := dict }}
+{{- if and (index $old "ca.crt") (index $old "tls.crt") (index $old "tls.key") }}
+{{- $tls = dict "ca" (index $old "ca.crt" | b64dec) "crt" (index $old "tls.crt" | b64dec) "key" (index $old "tls.key" | b64dec) }}
+{{- else }}
+{{- $ca := genCA (printf "%s %s CA" $name $backendNs) 3650 }}
+{{- $crt := genSignedCert $host nil (list $host (printf "%s.%s" $name $backendNs) $name) 3650 $ca }}
+{{- $tls = dict "ca" $ca.Cert "crt" $crt.Cert "key" $crt.Key }}
+{{- end }}
+{{- if eq $backendNs $activeNs }}
+{{- $tls = $activeTls }}
 {{- end }}
 ---
 apiVersion: v1
 kind: Secret
 metadata:
   name: {{ $name }}-tls
-  namespace: {{ $ns }}
+  namespace: {{ $backendNs }}
   labels:
-    {{- include "ca.labels" . | nindent 4 }}
+    {{- include "ca.labels" $ | nindent 4 }}
     app.kubernetes.io/name: {{ $name }}
 type: kubernetes.io/tls
 data:
@@ -38,45 +191,10 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: {{ $name }}
-  namespace: {{ $ns }}
+  namespace: {{ $backendNs }}
   labels:
-    {{- include "ca.labels" . | nindent 4 }}
+    {{- include "ca.labels" $ | nindent 4 }}
     app.kubernetes.io/name: {{ $name }}
----
-# It reads what a pod needs and writes nothing: the Cloud Drive's state, a workspace's home claim (its size).
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  name: {{ $name }}
-  namespace: {{ $ns }}
-  labels:
-    {{- include "ca.labels" . | nindent 4 }}
-    app.kubernetes.io/name: {{ $name }}
-rules:
-  - apiGroups: [""]
-    resources: [configmaps]
-    resourceNames: [coder-cloud-drive]
-    verbs: [get]
-  - apiGroups: [""]
-    resources: [persistentvolumeclaims]
-    verbs: [get]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: {{ $name }}
-  namespace: {{ $ns }}
-  labels:
-    {{- include "ca.labels" . | nindent 4 }}
-    app.kubernetes.io/name: {{ $name }}
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: {{ $name }}
-subjects:
-  - kind: ServiceAccount
-    name: {{ $name }}
-    namespace: {{ $ns }}
 ---
 # Stateless, two replicas on different nodes where they can be: with failurePolicy Fail a workspace pod waits while
 # none answers, so one is always up (the PodDisruptionBudget) - and the platform service's own restarts never block a
@@ -85,9 +203,9 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ $name }}
-  namespace: {{ $ns }}
+  namespace: {{ $backendNs }}
   labels:
-    {{- include "ca.labels" . | nindent 4 }}
+    {{- include "ca.labels" $ | nindent 4 }}
     app.kubernetes.io/name: {{ $name }}
 spec:
   replicas: {{ $wh.replicas }}
@@ -131,12 +249,23 @@ spec:
           env:
             - {name: PORT, value: "8443"}
             - {name: WEBHOOK_TLS_DIR, value: /etc/webhook-tls}
+            {{- if $staged }}
+            - {name: WORKSPACE_RUNTIME_ENFORCE, value: "true"}
+            - {name: WORKSPACE_RUNTIME_MODE, value: {{ $runtime.mode | quote }}}
+            - {name: WORKSPACE_VM_HOME_REGISTRY_NAMESPACE, value: {{ $external | quote }}}
+            - {name: WORKSPACE_VM_ROOT_IMAGES, value: {{ $runtime.vm.allowedRootImages | toJson | quote }}}
+            - {name: WORKSPACE_VM_GPU_CONFIG, value: {{ $runtime.vm.gpu | toJson | quote }}}
+            - {name: WORKSPACE_VM_CPU_MODELS, value: {{ $runtime.vm.cpuModels | toJson | quote }}}
+            - {name: WORKSPACE_VM_CONTROLLER_USERS, value: {{ $runtime.vm.controllerUsers | toJson | quote }}}
+            - {name: WORKSPACE_RUNTIME_ADMIN_GROUPS, value: {{ $runtime.trustedAdminGroups | toJson | quote }}}
+            - {name: WORKSPACE_RUNTIME_PLATFORM_CONTROLLERS, value: {{ $wh.runtimeIsolation.platformControllers | toJson | quote }}}
+            {{- end }}
             - {name: WORKSPACE_NAMESPACE, value: {{ $ns | quote }}}
             - {name: CODER_ACCESS_URL, value: {{ $ui.accessUrl | quote }}}
-            - {name: TLS_CA_SECRET, value: {{ .Values.global.secretNames.tlsCa | quote }}}
+            - {name: TLS_CA_SECRET, value: {{ $.Values.global.secretNames.tlsCa | quote }}}
             - {name: USER_STORAGE, value: {{ ternary "1" "" $userStorage | quote }}}
-            - {name: SAFE_MOUNT_PATH, value: {{ .Values.global.userStorage.mountPath | default "/home/coder/cloud-drive" | quote }}}
-            {{- with (index .Values "coder-workspace" "codeServerHA") }}
+            - {name: SAFE_MOUNT_PATH, value: {{ $.Values.global.userStorage.mountPath | default "/home/coder/cloud-drive" | quote }}}
+            {{- with (index $.Values "coder-workspace" "codeServerHA") }}
             - {name: CODE_SERVER_HA_IMAGE, value: {{ tpl .image $ | quote }}}
             - {name: CODE_SERVER_HA_DB_CA_SECRET, value: {{ tpl .dbCaSecret $ | quote }}}
             {{- end }}
@@ -162,9 +291,9 @@ apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
   name: {{ $name }}
-  namespace: {{ $ns }}
+  namespace: {{ $backendNs }}
   labels:
-    {{- include "ca.labels" . | nindent 4 }}
+    {{- include "ca.labels" $ | nindent 4 }}
     app.kubernetes.io/name: {{ $name }}
 spec:
   minAvailable: 1
@@ -176,15 +305,16 @@ apiVersion: v1
 kind: Service
 metadata:
   name: {{ $name }}
-  namespace: {{ $ns }}
+  namespace: {{ $backendNs }}
   labels:
-    {{- include "ca.labels" . | nindent 4 }}
+    {{- include "ca.labels" $ | nindent 4 }}
     app.kubernetes.io/name: {{ $name }}
 spec:
   selector:
     app.kubernetes.io/name: {{ $name }}
   ports:
     - {name: https, port: 443, targetPort: https}
+{{- end }}
 ---
 # Only the workspace pods of this release's namespace (Coder's Kubernetes example labels them so, and our templates):
 # never the webhook's own pods, Coder's or the platform service's.
@@ -193,7 +323,7 @@ kind: MutatingWebhookConfiguration
 metadata:
   name: {{ $name }}-{{ $ns }}
   labels:
-    {{- include "ca.labels" . | nindent 4 }}
+    {{- include "ca.labels" $ | nindent 4 }}
     app.kubernetes.io/name: {{ $name }}
 webhooks:
   - name: workspace-pods.platform.coder
@@ -205,7 +335,7 @@ webhooks:
     clientConfig:
       service:
         name: {{ $name }}
-        namespace: {{ $ns }}
+        namespace: {{ $activeNs }}
         path: /mutate
         port: 443
       caBundle: {{ $tls.ca | b64enc }}
@@ -223,4 +353,55 @@ webhooks:
         app.kubernetes.io/name: coder-workspace
       matchExpressions:
         - {key: com.coder.workspace.id, operator: Exists}
+{{- if $wh.runtimeIsolation.enabled }}
+{{- range $mode := list "mutate" "validate" }}
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: {{ ternary "MutatingWebhookConfiguration" "ValidatingWebhookConfiguration" (eq $mode "mutate") }}
+metadata:
+  name: {{ $name }}-runtime-{{ $mode }}-{{ $ns }}
+webhooks:
+  - name: workspace-runtime-{{ $mode }}.platform.coder
+    admissionReviewVersions: [v1]
+    sideEffects: None
+    failurePolicy: Fail
+    timeoutSeconds: {{ $wh.timeoutSeconds }}
+    {{- if eq $mode "mutate" }}
+    reinvocationPolicy: IfNeeded
+    {{- end }}
+    clientConfig:
+      service:
+        name: {{ $name }}
+        namespace: {{ $activeNs }}
+        path: /runtime-{{ $mode }}
+        port: 443
+      caBundle: {{ $tls.ca | b64enc }}
+    rules:
+      - operations: [CREATE, UPDATE]
+        apiGroups: [""]
+        apiVersions: [v1]
+        resources: [pods, pods/ephemeralcontainers, pods/resize]
+        scope: Namespaced
+      - operations: [CREATE, UPDATE]
+        apiGroups: [apps]
+        apiVersions: [v1]
+        resources: [deployments, replicasets, daemonsets, statefulsets]
+        scope: Namespaced
+      {{- if eq $runtime.mode "vm-sysbox" }}
+      - operations: [CREATE, UPDATE]
+        apiGroups: [kubevirt.io]
+        apiVersions: [v1]
+        resources: [virtualmachines, virtualmachineinstances]
+        scope: Namespaced
+      - operations: [CREATE, UPDATE]
+        apiGroups: [""]
+        apiVersions: [v1]
+        resources: [secrets]
+        scope: Namespaced
+      {{- end }}
+    namespaceSelector:
+      matchLabels:
+        kubernetes.io/metadata.name: {{ $ns }}
+{{- end }}
+{{- end }}
 {{- end }}

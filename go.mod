@@ -219,6 +219,8 @@ require (
 	github.com/natefinch/atomic v1.0.1
 	github.com/open-policy-agent/opa v1.20.1
 	github.com/ory/dockertest/v3 v3.12.0
+	github.com/pion/stun/v3 v3.1.6
+	github.com/pion/turn/v5 v5.0.12
 	github.com/pion/udp v0.1.4
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
 	github.com/pkg/diff v0.0.0-20210226163009-20ebb0f2a09e
@@ -552,6 +554,11 @@ require (
 	github.com/aymanbagabas/go-udiff v0.4.1 // indirect
 	github.com/dgraph-io/ristretto/v2 v2.4.0 // indirect
 	github.com/go-openapi/swag/pools v0.28.0 // indirect
+	github.com/pion/dtls/v3 v3.1.4 // indirect
+	github.com/pion/logging v0.2.4 // indirect
+	github.com/pion/randutil v0.1.0 // indirect
+	github.com/pion/transport/v4 v4.0.2 // indirect
+	github.com/wlynxg/anet v0.0.5 // indirect
 	golang.org/x/image v0.45.0 // indirect
 )
 

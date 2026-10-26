@@ -111,6 +111,17 @@ spec:
             - {name: GATEWAY_NAMESPACE, value: {{ $ui.gateway.namespace | quote }}}
             - {name: CODER_ACCESS_URL, value: {{ $ui.accessUrl | quote }}}
             - {name: CODER_NAMESPACE, value: {{ $ns | quote }}}
+            - {name: WORKSPACE_VM_GPU_CONFIG, value: {{ .Values.platformWebhook.runtimeIsolation.vm.gpu | toJson | quote }}}
+            - {name: WORKSPACE_VM_ENABLED, value: {{ .Values.platformWebhook.runtimeIsolation.vm.reconcileEnabled | quote }}}
+            - {name: WORKSPACE_VM_GROW_IMAGE, value: {{ .Values.platformWebhook.runtimeIsolation.vm.growImage | quote }}}
+            - {name: WORKSPACE_VM_RUNTIME_NAMESPACE, value: {{ .Values.platformWebhook.runtimeIsolation.serviceNamespace | quote }}}
+            {{- if .Values.global.nekoMedia.enabled }}
+            - {name: NEKO_MEDIA_ENABLED, value: "true"}
+            - {name: NEKO_MEDIA_DESCRIPTOR_KEY_FILE, value: /run/coder-neko/descriptor-key}
+            - {name: NEKO_MEDIA_GUEST_IMAGES, value: {{ .Values.global.nekoMedia.guestImages | toJson | quote }}}
+            - {name: NEKO_MEDIA_RELAY_CIDRS, value: {{ .Values.global.nekoMedia.relayCIDRs | toJson | quote }}}
+            - {name: NEKO_MEDIA_CPU_MODELS, value: {{ .Values.platformWebhook.runtimeIsolation.vm.cpuModels | toJson | quote }}}
+            {{- end }}
             # Lock Down > Freeze of a stopped workspace: the image that copies its home volume (the snapshot)
             - {name: LOCKDOWN_COPY_IMAGE, value: {{ tpl (index $.Values "coder-workspace" "workspaceImage") $ | quote }}}
             - {name: CODER_DEPLOYMENT, value: coder}
@@ -237,6 +248,9 @@ spec:
             capabilities: {drop: [ALL]}
             readOnlyRootFilesystem: true
           volumeMounts:
+            {{- if .Values.global.nekoMedia.enabled }}
+            - {name: neko-media-key, mountPath: /run/coder-neko, readOnly: true}
+            {{- end }}
             {{- if $audit }}
             - {name: drive-audit-tls, mountPath: /etc/coder-drive-audit, readOnly: true}
             {{- end }}
@@ -255,6 +269,12 @@ spec:
             - {name: user-storage-ca, mountPath: /etc/coder-user-storage, readOnly: true}
             {{- end }}
       volumes:
+        {{- if .Values.global.nekoMedia.enabled }}
+        - name: neko-media-key
+          secret:
+            secretName: {{ .Values.global.nekoMedia.descriptorKeySecretName }}
+            defaultMode: 0400
+        {{- end }}
         {{- if $audit }}
         - name: drive-audit-tls
           secret:

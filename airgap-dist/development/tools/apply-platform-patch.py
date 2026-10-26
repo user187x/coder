@@ -66,6 +66,9 @@ EXTRA_ENV = r'''{{- if and .Values.coder.extraEnv (not (hasKey .Values.coder "pl
 {{- $_ := set .Values.coder "env" (concat (.Values.coder.env | default list) .Values.coder.extraEnv) -}}
 {{- $_ := set .Values.coder "platformExtraEnvMerged" true -}}
 {{- end -}}
+{{- if dig "nekoMedia" "enabled" false $g -}}
+{{- include "platform.nekoCoderValues" . -}}
+{{- end -}}
 '''
 
 HEADER = '''{{/*

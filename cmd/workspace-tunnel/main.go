@@ -39,13 +39,19 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	device := &workspaceoverlay.KernelDevice{Name: "coderwg", PrivateKey: key, Port: 51871}
+	device := &workspaceoverlay.KernelDevice{Name: "coderwg", PrivateKey: key, Port: 51871, ForwardChain: os.Getenv("WORKSPACE_TUNNEL_FORWARD_CHAIN")}
+	device.SocketScope, err = workspaceoverlay.ParseSocketScope(os.Getenv("WORKSPACE_TUNNEL_APP_PID"), os.Getenv("WORKSPACE_TUNNEL_APP_NETNS"), os.Getenv("WORKSPACE_TUNNEL_APP_ADDRESS"))
+	if err != nil || device.SocketScope != nil && device.ForwardChain != "CODER_VM_TUNNEL" {
+		return fmt.Errorf("invalid root-provided application socket scope")
+	}
 	if err = device.Clear(); err != nil {
 		return fmt.Errorf("clear previous overlay: %w", err)
 	}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 	runtime := &workspaceoverlay.Runtime{Client: &http.Client{Timeout: 4 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}, URL: service, Token: token, PublicKey: key.PublicKey().String(), Endpoint: podIP + ":51871", Device: device}
-	runtime.PortPolicyVersion = 1
+	if device.SocketScope == nil {
+		runtime.PortPolicyVersion = 1
+	}
 	return runtime.Run(ctx, func(err error) { fmt.Fprintln(os.Stderr, err) })
 }

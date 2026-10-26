@@ -5,7 +5,7 @@ package workspaceoverlay
 import (
 	"bufio"
 	"encoding/binary"
-	"golang.org/x/sys/unix"
+	"fmt"
 	"io"
 	"net/netip"
 	"os"
@@ -15,9 +15,43 @@ import (
 	"time"
 
 	"github.com/vishvananda/netlink"
+	"golang.org/x/sys/unix"
 	"golang.zx2c4.com/wireguard/wgctrl"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
+
+// SocketScope identifies a guest supervisor's verified application process.
+type SocketScope struct {
+	PID       int
+	Namespace string
+	Address   netip.Addr
+}
+
+// ParseSocketScope validates an optional root-provided application socket scope.
+func ParseSocketScope(pid, namespace, address string) (*SocketScope, error) {
+	if pid == "" && namespace == "" && address == "" {
+		return nil, nil
+	}
+	process, err := strconv.ParseInt(pid, 10, 32)
+	if err != nil || process <= 1 || strconv.FormatInt(process, 10) != pid {
+		return nil, fmt.Errorf("invalid application socket process")
+	}
+	inode := strings.TrimSuffix(strings.TrimPrefix(namespace, "net:["), "]")
+	number, err := strconv.ParseUint(inode, 10, 64)
+	if err != nil || number == 0 || namespace != "net:["+strconv.FormatUint(number, 10)+"]" {
+		return nil, fmt.Errorf("invalid application network namespace")
+	}
+	ip, err := netip.ParseAddr(address)
+	if err != nil || !ip.Is4() || !ip.IsPrivate() || ip.IsLoopback() || ip.String() != address {
+		return nil, fmt.Errorf("invalid application socket address")
+	}
+	return &SocketScope{PID: int(process), Namespace: namespace, Address: ip}, nil
+}
+
+func (s *SocketScope) current() bool {
+	actual, err := os.Readlink(fmt.Sprintf("/proc/%d/ns/net", s.PID))
+	return err == nil && actual == s.Namespace
+}
 
 // ObservedPort describes an established TCP socket or recently observed UDP flow.
 type ObservedPort struct {
@@ -53,33 +87,54 @@ func (d *KernelDevice) PeerStats() []PeerStats {
 	}
 	ports := map[string]map[ObservedPort]bool{}
 	portsAvailable := true
-	for _, table := range []struct{ path, protocol string }{{"/proc/net/tcp", "tcp"}, {"/proc/net/udp", "udp"}} {
+	base, own := "/proc/net", d.address
+	if d.SocketScope != nil {
+		if !d.SocketScope.current() {
+			return peerSnapshots(device.Peers, d.peers, nil, false)
+		}
+		base, own = fmt.Sprintf("/proc/%d/net", d.SocketScope.PID), d.SocketScope.Address
+	}
+	for _, table := range []struct{ path, protocol string }{{base + "/tcp", "tcp"}, {base + "/udp", "udp"}} {
 		file, err := os.Open(table.path)
 		if err != nil {
 			portsAvailable = false
 			continue
 		}
-		mergePorts(ports, socketPorts(file, table.protocol, d.address, d.peerAddresses))
+		mergePorts(ports, socketPorts(file, table.protocol, own, d.peerAddresses))
 		_ = file.Close()
+	}
+	if d.SocketScope != nil && !d.SocketScope.current() {
+		return peerSnapshots(device.Peers, d.peers, nil, false)
 	}
 	// Conntrack observes UDP sendto/recvfrom, which have no remote socket address
 	// in /proc/net/udp. Entries remain visible until the kernel flow timeout.
 	if flows, err := conntrackFlows(); err == nil {
 		for _, flow := range flows {
-			if flow.Forward.Protocol != 17 || flow.TimeOut == 0 {
-				continue
-			}
-			src, srcOK := netip.AddrFromSlice(flow.Forward.SrcIP)
-			dst, dstOK := netip.AddrFromSlice(flow.Forward.DstIP)
-			if !srcOK || !dstOK {
-				continue
-			}
-			addFlow(ports, "udp", src.Unmap(), dst.Unmap(), flow.Forward.SrcPort, flow.Forward.DstPort, d.address, d.peerAddresses)
+			addUDPConntrackFlow(ports, flow, d.address, d.peerAddresses)
 		}
 	} else {
 		portsAvailable = false
 	}
 	return peerSnapshots(device.Peers, d.peers, ports, portsAvailable)
+}
+
+func addUDPConntrackFlow(ports map[string]map[ObservedPort]bool, flow *netlink.ConntrackFlow, own netip.Addr, peers map[netip.Addr]string) {
+	if flow == nil || flow.Forward.Protocol != 17 || flow.TimeOut == 0 {
+		return
+	}
+	// A VM's outbound flow has the application address before source NAT;
+	// the reverse tuple contains its overlay address and authorized peer.
+	for _, reverse := range []bool{false, true} {
+		tuple := flow.Forward
+		if reverse {
+			tuple = flow.Reverse
+		}
+		src, srcOK := netip.AddrFromSlice(tuple.SrcIP)
+		dst, dstOK := netip.AddrFromSlice(tuple.DstIP)
+		if srcOK && dstOK {
+			addFlow(ports, "udp", src.Unmap(), dst.Unmap(), tuple.SrcPort, tuple.DstPort, own, peers)
+		}
+	}
 }
 
 func peerSnapshots(peers []wgtypes.Peer, authorized map[wgtypes.Key]string, ports map[string]map[ObservedPort]bool, portsAvailable bool) []PeerStats {

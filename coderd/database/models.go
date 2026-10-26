@@ -7247,6 +7247,21 @@ type WorkspaceProxy struct {
 	Version  string `db:"version" json:"version"`
 }
 
+// Persistent workspace containment intent. Enabled does not establish physical enforcement.
+type WorkspaceQuarantine struct {
+	WorkspaceID    uuid.UUID `db:"workspace_id" json:"workspace_id"`
+	OrganizationID uuid.UUID `db:"organization_id" json:"organization_id"`
+	Enabled        bool      `db:"enabled" json:"enabled"`
+	Revision       uuid.UUID `db:"revision" json:"revision"`
+	Reason         string    `db:"reason" json:"reason"`
+	UpdatedBy      uuid.UUID `db:"updated_by" json:"updated_by"`
+	UpdatedAt      time.Time `db:"updated_at" json:"updated_at"`
+	// A released workspace requires a new explicit user Start before automatic starts are permitted.
+	ManualStartRequired bool `db:"manual_start_required" json:"manual_start_required"`
+	// Internal acknowledgement that durable connection withdrawal completed for this released policy revision.
+	ReleasePrepared bool `db:"release_prepared" json:"release_prepared"`
+}
+
 type WorkspaceResource struct {
 	ID           uuid.UUID           `db:"id" json:"id"`
 	CreatedAt    time.Time           `db:"created_at" json:"created_at"`

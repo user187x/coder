@@ -832,6 +832,25 @@ Actions: `start`, `stop`
 </tbody>
 </table>
 
+### WorkspaceQuarantine
+
+Actions: `write`
+
+<table width="100%">
+<thead><tr><th width="75%">Field</th><th width="25%">Tracked</th></tr></thead>
+<tbody>
+<tr><td><code>enabled</code></td><td>Yes</td></tr>
+<tr><td><code>manual_start_required</code></td><td>Yes</td></tr>
+<tr><td><code>organization_id</code></td><td>No</td></tr>
+<tr><td><code>reason</code></td><td>Yes</td></tr>
+<tr><td><code>release_prepared</code></td><td>No</td></tr>
+<tr><td><code>revision</code></td><td>No</td></tr>
+<tr><td><code>updated_at</code></td><td>No</td></tr>
+<tr><td><code>updated_by</code></td><td>Yes</td></tr>
+<tr><td><code>workspace_id</code></td><td>No</td></tr>
+</tbody>
+</table>
+
 ### WorkspaceTable
 
 <table width="100%">

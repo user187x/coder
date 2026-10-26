@@ -1,0 +1,98 @@
+{
+  "apiVersion": "kubevirt.io/v1",
+  "kind": "VirtualMachineInstance",
+  "metadata": {
+    "name": "fixture-vmi",
+    "uid": "fixture-vmi-uid",
+    "labels": {},
+    "annotations": {}
+  },
+  "spec": {
+    "architecture": "amd64",
+    "domain": {
+      "cpu": {
+        "cores": 2,
+        "maxSockets": 1,
+        "model": "Haswell-noTSX",
+        "sockets": 1,
+        "threads": 1
+      },
+      "devices": {
+        "disks": [
+          {
+            "disk": {
+              "bus": "virtio"
+            },
+            "name": "root"
+          },
+          {
+            "disk": {
+              "bus": "virtio"
+            },
+            "name": "home",
+            "serial": "coder-home"
+          },
+          {
+            "disk": {
+              "bus": "virtio"
+            },
+            "name": "cloudinit"
+          }
+        ],
+        "interfaces": [
+          {
+            "masquerade": {},
+            "name": "default"
+          }
+        ]
+      },
+      "features": {
+        "acpi": {
+          "enabled": true
+        }
+      },
+      "firmware": {
+        "serial": "00000000-0000-4000-8000-000000000005",
+        "uuid": "00000000-0000-4000-8000-000000000005"
+      },
+      "machine": {
+        "type": "q35"
+      },
+      "memory": {
+        "guest": "2147483648",
+        "maxGuest": "2147483648"
+      },
+      "resources": {
+        "limits": {
+          "cpu": "2",
+          "memory": "2147483648"
+        },
+        "requests": {
+          "cpu": "2",
+          "memory": "2147483648"
+        }
+      }
+    },
+    "evictionStrategy": "None",
+    "networks": [
+      {
+        "name": "default",
+        "pod": {}
+      }
+    ],
+    "nodeSelector": {
+      "platform.coder/vm-ready": "true",
+      "kubernetes.io/hostname": "worker"
+    },
+    "terminationGracePeriodSeconds": 30,
+    "tolerations": [
+      {
+        "effect": "NoSchedule",
+        "key": "platform.coder/workspace-vm-host",
+        "operator": "Equal",
+        "value": "preparing"
+      }
+    ],
+    "volumes": []
+  }
+}

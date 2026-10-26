@@ -26,6 +26,30 @@ ld = load("lockdown", "lockdown.py")
 pv = load("provisioners", "provisioners.py")
 
 
+class QuarantineDatabasePolicyTest(unittest.TestCase):
+    def test_pgwire_policy_flags_are_decoded_before_enforcement(self):
+        wid = '11111111-1111-4111-8111-111111111111'
+        fields = (wid, wid, wid, 'f', wid, 'f', 'f')
+        logos = mock.Mock()
+        logos.pool.query.return_value = [fields]
+        with mock.patch.object(ui, 'LOGOS', logos):
+            current = ui.workspace_quarantine_policy(wid)
+        self.assertIs(current['enabled'], False)
+        self.assertIs(current['manual_start_required'], False)
+        self.assertIs(current['release_prepared'], False)
+        ui.quarantine.policy(current, wid, wid)
+
+    def test_pgwire_pending_release_preserves_manual_latch(self):
+        wid = '11111111-1111-4111-8111-111111111111'
+        logos = mock.Mock()
+        logos.pool.query.return_value = [(wid, wid, wid, 'f', wid, 't', 'f')]
+        with mock.patch.object(ui, 'LOGOS', logos):
+            current, = ui.pending_quarantine_releases()
+        self.assertIs(current['enabled'], False)
+        self.assertIs(current['manual_start_required'], True)
+        self.assertIs(current['release_prepared'], False)
+
+
 class NodeScanTest(unittest.TestCase):
     """Images: any image can be scanned - from the builder's registry, else from a node that holds it (air-gapped,
     preloaded), with the image's files copied out by the tools image's busybox run through musl's loader."""
@@ -2318,7 +2342,7 @@ class WorkspaceRestoreTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "outside the home"):
             self.wv.check_archive(bad)
 
-    def plan(self, allowed, mode="new", name="restored"):
+    def plan(self, allowed, mode="new", name="restored", disk_definition=None):
         calls = {}
 
         def coder(token, method, path, body=None, timeout=20):
@@ -2327,7 +2351,7 @@ class WorkspaceRestoreTest(unittest.TestCase):
             if path == "/api/v2/templates/t1":
                 return 200, {"id": "t1", "display_name": "DEFAULT", "active_version_id": "v2"}
             if path == "/api/v2/templateversions/v2/rich-parameters":
-                return 200, [{"name": "cpu"}, {"name": "memory"}]
+                return 200, [{"name": "cpu"}, {"name": "memory"}] + ([disk_definition] if disk_definition else [])
             raise AssertionError(path)
 
         def quota(token, user, body):
@@ -2337,6 +2361,66 @@ class WorkspaceRestoreTest(unittest.TestCase):
             plan = self.wv.restore_plan("t", {"username": "dev"}, {"owner_name": "dev", "template_id": "t9"},
                                         self.meta, mode, name)
         return plan, calls
+
+    def test_grown_backup_allocation_is_reviewed_and_created_without_shrinking(self):
+        self.meta.update(homeGB=2,homeBytes=2000000000)
+        self.meta['parameters'].append({'name':'home_disk_size','value':'1'})
+        definition={'name':'home_disk_size','default_value':'1','validation_min':1,'validation_max':99999}
+        plan,calls=self.plan(True,disk_definition=definition)
+        self.assertIn({'name':'home_disk_size','value':'2'},plan['parameters'])
+        self.assertEqual(calls['quota']['rich_parameter_values'],plan['parameters'])
+        with mock.patch.object(self.wv,'coder',return_value=(201,{'id':'new','latest_build':{'id':'build'}})) as create,mock.patch.object(self.wv,'wait_build'),mock.patch.object(self.wv,'workspace',return_value={'id':'new'}):
+            self.wv.create_workspace('token',{'owner_name':'dev'},plan,'restored')
+        self.assertIn({'name':'home_disk_size','value':'2'},create.call_args.args[3]['rich_parameter_values'])
+        self.meta['parameters'][-1]['value']='3'
+        plan,_=self.plan(True,disk_definition=definition)
+        self.assertIn({'name':'home_disk_size','value':'3'},plan['parameters'])
+        plan,_=self.plan(True,disk_definition={**definition,'validation_min':4})
+        self.assertIn({'name':'home_disk_size','value':'4'},plan['parameters'])
+        self.meta['parameters'] = [p for p in self.meta['parameters'] if p['name'] != 'home_disk_size']
+        plan,_=self.plan(True,disk_definition={**definition,'default_value':'6'})
+        self.assertIn({'name':'home_disk_size','value':'6'},plan['parameters'])
+
+    def test_exact_native_bytes_and_legacy_rounding_never_shrink_home(self):
+        definition={'name':'home_disk_size','default_value':'1','validation_min':1,'validation_max':99999}
+        self.meta.update(homeGB=21.5,homeBytes=20*1024**3)
+        plan,_=self.plan(True,disk_definition=definition)
+        self.assertIn({'name':'home_disk_size','value':'22'},plan['parameters'])
+        self.meta.pop('homeBytes')
+        plan,_=self.plan(True,disk_definition=definition)
+        self.assertIn({'name':'home_disk_size','value':'22'},plan['parameters'])
+        self.meta['homeGB']=2.0
+        plan,_=self.plan(True,disk_definition=definition)
+        self.assertIn({'name':'home_disk_size','value':'3'},plan['parameters'])
+        for value in (True,2.5,0,-1,float('nan'),float('inf'),100000000000000):
+            self.meta.update(homeGB=2,homeBytes=value)
+            with self.subTest(bytes=value),self.assertRaises(ValueError):
+                self.plan(True,disk_definition=definition)
+
+    def test_new_backup_records_unrounded_native_and_vm_allocation(self):
+        ws={'id':'workspace','latest_build':{}}
+        with mock.patch.object(self.wv,'build_parameters',return_value=[]),mock.patch.object(self.wv,'volume_info',return_value={'name':'home','sizeGB':21.5}),mock.patch.object(self.wv.vmgrow,'runtime',return_value=None),mock.patch.object(self.wv,'get_pvc',return_value={'status':{'capacity':{'storage':'20Gi'}}}):
+            meta=self.wv.backup_meta('token',ws)
+        self.assertEqual(meta['homeBytes'],20*1024**3)
+        with mock.patch.object(self.wv,'build_parameters',return_value=[]),mock.patch.object(self.wv,'volume_info',return_value={'sizeGB':2}),mock.patch.object(self.wv.vmgrow,'runtime',return_value={'size':2000000000}):
+            meta=self.wv.backup_meta('token',ws)
+        self.assertEqual(meta['homeBytes'],2000000000)
+
+    def test_invalid_recorded_capacity_or_unsupported_template_refuses_new_restore(self):
+        definition={'name':'home_disk_size','validation_min':1,'validation_max':99999}
+        for value in (None,True,'2',0,-1,float('nan'),float('inf'),100000):
+            with self.subTest(capacity=value):
+                self.meta['homeGB']=value
+                with self.assertRaises(ValueError):
+                    self.plan(True,disk_definition=definition)
+                plan,calls=self.plan(True,mode='replace')
+                self.assertEqual(plan['parameters'],self.meta['parameters'])
+                self.assertNotIn('quota',calls)
+        self.meta['homeGB']=2
+        with self.assertRaisesRegex(ValueError,'cannot request'):
+            self.plan(True)
+        with self.assertRaisesRegex(ValueError,'cannot retain'):
+            self.plan(True,disk_definition={**definition,'validation_max':1})
 
     def test_the_quota_is_asked_with_the_backups_template_and_parameters(self):
         plan, calls = self.plan(False)
@@ -2353,7 +2437,8 @@ class WorkspaceRestoreTest(unittest.TestCase):
     def test_an_s3_restore_over_quota_downloads_nothing(self):
         head = self.wv.meta_member(self.meta)
         fetched = []
-        with mock.patch.object(self.wv, "s3_key_ok", lambda ws, key: {"bucket": "b"}), \
+        with mock.patch.object(self.wv.vmgrow, "runtime", return_value=None), \
+                mock.patch.object(self.wv, "s3_key_ok", lambda ws, key: {"bucket": "b"}), \
                 mock.patch.object(self.wv, "s3_head", lambda cfg, key: head), \
                 mock.patch.object(self.wv, "fetch_s3", lambda *a: fetched.append(a)), \
                 mock.patch.object(self.wv, "restore_plan", lambda *a: {"quota": {"allowed": False, "message": "over"},
@@ -2987,6 +3072,39 @@ class DriveSourceTest(unittest.TestCase):
             bad.list("drive", prefix="u1/")
         self.assertEqual(e.exception.code, "SignatureDoesNotMatch")
 
+    def test_filesystem_etag_is_opaque_and_conditional_reads_track_changes(self):
+        import re
+        path = os.path.join(self.root, 'a.txt')
+        before = os.stat(path)
+        tag = self.s3.head('drive', 'u1/a.txt').headers['ETag']
+        self.assertTrue(tag.startswith('"fs-'))
+        self.assertIsNone(re.fullmatch(r'"[a-f0-9]{32}"', tag))
+        for method, header in (('GET', tag), ('HEAD', 'W/' + tag), ('GET', '*')):
+            with self.subTest(method=method, header=header):
+                response = self.s3.request(method, 'drive', 'u1/a.txt', headers={'If-None-Match': header})
+                self.assertEqual(response.status, 304)
+                self.assertEqual(response.read(), b'')
+                self.assertEqual(response.headers['ETag'], tag)
+                response.close()
+                response.conn.close()
+        response = self.s3.request('GET', 'drive', 'u1/a.txt', headers={'If-Match': tag})
+        self.assertEqual(response.read(), b'hello')
+        response.close()
+        response.conn.close()
+        with open(path, 'wb') as output:
+            output.write(b'other')
+        os.utime(path, ns=(before.st_atime_ns, before.st_mtime_ns))
+        fresh = self.s3.head('drive', 'u1/a.txt').headers['ETag']
+        self.assertNotEqual(fresh, tag)
+        with self.assertRaises(self.s3c.S3Error) as hit:
+            self.s3.request('GET', 'drive', 'u1/a.txt', headers={'If-Match': tag})
+        self.assertEqual(hit.exception.status, 412)
+        response = self.s3.request('GET', 'drive', 'u1/a.txt', headers={'If-None-Match': tag})
+        self.assertEqual(response.read(), b'other')
+        self.assertEqual(response.headers['ETag'], fresh)
+        response.close()
+        response.conn.close()
+
 
 class CloudDriveSourceTest(unittest.TestCase):
     """A workspace folder as the Cloud Drive (safe.py): only a folder of the home, and deleting the source workspace
@@ -3245,6 +3363,7 @@ class CloudDriveMountTest(unittest.TestCase):
         safe.WORKSPACE_INFO = lambda token, w: {"id": w, "owner_id": "u1", "name": "dev"}
         safe.shared_now = lambda: {}
         safe._source_pod = lambda w: ("ws-pod", "10.0.0.1")
+        safe._source_is_vm = lambda pod: False
         calls = []
 
         def exec_in(kube, ns, pod, container, command, timeout=0, stdin=b""):

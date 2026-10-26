@@ -2017,6 +2017,20 @@ func (q *querier) ConsumeChatAutomationWebhookByID(ctx context.Context, arg data
 	return q.db.ConsumeChatAutomationWebhookByID(ctx, arg)
 }
 
+func (q *querier) ConsumeWorkspaceQuarantineManualStart(ctx context.Context, arg database.ConsumeWorkspaceQuarantineManualStartParams) error {
+	workspace, err := q.db.GetWorkspaceByID(ctx, arg.WorkspaceID)
+	if err != nil {
+		return err
+	}
+	if workspace.OrganizationID != arg.OrganizationID {
+		return xerrors.New("workspace quarantine organization mismatch")
+	}
+	if err := q.authorizeContext(ctx, policy.ActionWorkspaceStart, workspace); err != nil {
+		return err
+	}
+	return q.db.ConsumeWorkspaceQuarantineManualStart(ctx, arg)
+}
+
 func (q *querier) CountAIBridgeSessions(ctx context.Context, arg database.CountAIBridgeSessionsParams) (int64, error) {
 	prep, err := prepareSQLFilter(ctx, q.auth, policy.ActionRead, rbac.ResourceAibridgeInterception.Type)
 	if err != nil {
@@ -6071,6 +6085,17 @@ func (q *querier) GetWorkspaceProxyByName(ctx context.Context, name string) (dat
 	return fetch(q.log, q.auth, q.db.GetWorkspaceProxyByName)(ctx, name)
 }
 
+func (q *querier) GetWorkspaceQuarantineByWorkspaceID(ctx context.Context, workspaceID uuid.UUID) (database.WorkspaceQuarantine, error) {
+	// Persisted restrictions outlive metadata views, including a deleted owner.
+	if actor, ok := ActorFromContext(ctx); ok && actor.Type == rbac.SubjectTypeSystemRestricted {
+		return q.db.GetWorkspaceQuarantineByWorkspaceID(ctx, workspaceID)
+	}
+	if _, err := q.GetWorkspaceByID(ctx, workspaceID); err != nil {
+		return database.WorkspaceQuarantine{}, err
+	}
+	return q.db.GetWorkspaceQuarantineByWorkspaceID(ctx, workspaceID)
+}
+
 func (q *querier) GetWorkspaceResourceByID(ctx context.Context, id uuid.UUID) (database.WorkspaceResource, error) {
 	// TODO: Optimize this
 	resource, err := q.db.GetWorkspaceResourceByID(ctx, id)
@@ -7416,6 +7441,13 @@ func (q *querier) PopNextQueuedMessage(ctx context.Context, chatID uuid.UUID) (d
 	return q.db.PopNextQueuedMessage(ctx, chatID)
 }
 
+func (q *querier) PrepareWorkspaceQuarantineRelease(ctx context.Context, arg database.PrepareWorkspaceQuarantineReleaseParams) (int64, error) {
+	if err := q.authorizeContext(ctx, policy.ActionUpdate, rbac.ResourceSystem); err != nil {
+		return 0, err
+	}
+	return q.db.PrepareWorkspaceQuarantineRelease(ctx, arg)
+}
+
 func (q *querier) ReduceWorkspaceAgentShareLevelToAuthenticatedByTemplate(ctx context.Context, templateID uuid.UUID) error {
 	template, err := q.db.GetTemplateByID(ctx, templateID)
 	if err != nil {
@@ -7607,6 +7639,13 @@ func (q *querier) TouchChatDebugStepAndRun(ctx context.Context, arg database.Tou
 		return err
 	}
 	return q.db.TouchChatDebugStepAndRun(ctx, arg)
+}
+
+func (q *querier) TouchWorkspaceQuarantineLock(ctx context.Context, id uuid.UUID) (int64, error) {
+	if err := q.authorizeContext(ctx, policy.ActionUpdate, rbac.ResourceSystem); err != nil {
+		return 0, err
+	}
+	return q.db.TouchWorkspaceQuarantineLock(ctx, id)
 }
 
 func (q *querier) TryAcquireLock(ctx context.Context, id int64) (bool, error) {
@@ -9729,6 +9768,20 @@ func (q *querier) UpsertWorkspaceAppAuditSession(ctx context.Context, arg databa
 		return false, err
 	}
 	return q.db.UpsertWorkspaceAppAuditSession(ctx, arg)
+}
+
+func (q *querier) UpsertWorkspaceQuarantine(ctx context.Context, arg database.UpsertWorkspaceQuarantineParams) (database.WorkspaceQuarantine, error) {
+	workspace, err := q.db.GetWorkspaceByID(ctx, arg.WorkspaceID)
+	if err != nil {
+		return database.WorkspaceQuarantine{}, err
+	}
+	if workspace.OrganizationID != arg.OrganizationID {
+		return database.WorkspaceQuarantine{}, xerrors.New("workspace quarantine organization mismatch")
+	}
+	if err := q.authorizeContext(ctx, policy.ActionUpdate, workspace); err != nil {
+		return database.WorkspaceQuarantine{}, err
+	}
+	return q.db.UpsertWorkspaceQuarantine(ctx, arg)
 }
 
 func (q *querier) UsageEventExistsByID(ctx context.Context, id string) (bool, error) {

@@ -91,6 +91,7 @@ import (
 	"github.com/coder/coder/v2/coderd/workspaceapps"
 	"github.com/coder/coder/v2/coderd/workspaceapps/appurl"
 	"github.com/coder/coder/v2/coderd/workspaceconnwatcher"
+	"github.com/coder/coder/v2/coderd/workspacequarantine"
 	"github.com/coder/coder/v2/coderd/workspacestats"
 	"github.com/coder/coder/v2/coderd/wsbuilder"
 	"github.com/coder/coder/v2/coderd/wsbuildorchestrator"
@@ -179,6 +180,10 @@ type Options struct {
 	// PlatformServiceRoutes forward path prefixes (/__coder-ui, /__banner)
 	// to the dashboard's platform services.
 	PlatformServiceRoutes []PlatformServiceRoute
+	// NekoMedia is explicit operator-owned LAN relay configuration, disabled by default.
+	NekoMedia *NekoMediaConfig
+	// NekoMediaContext returns the current infrastructure serving epoch.
+	NekoMediaContext func() context.Context
 	// PlatformFirstOwnerByBootstrap: while Coder has no user, OIDC sign-ins are refused, so the installer's bootstrap
 	// creates the first owner (else whoever signs in first with OIDC becomes the owner).
 	PlatformFirstOwnerByBootstrap bool
@@ -678,6 +683,8 @@ func New(options *Options) *API {
 		options.WorkspaceAppAuditSessionTimeout,
 		options.AppSigningKeyCache,
 	)
+	api.workspaceQuarantine = workspacequarantine.New(options.Database, options.Clock)
+	go api.workspaceQuarantine.Run(api.ctx)
 	api.globalLockdown = platformlockdown.New(options.Database, api.ID, options.Clock)
 	if err := api.globalLockdown.Register(ctx); err != nil {
 		options.Logger.Error(ctx, "register global lockdown replica", slog.Error(err))
@@ -865,8 +872,13 @@ func New(options *Options) *API {
 	wsMetrics := httpmw.NewWSMetrics(options.PrometheusRegistry)
 	api.wsWatcher = httpapi.NewWSWatcher(options.Clock, wsMetrics.RecordProbe)
 
+	nekoMedia, err := api.configureNekoMedia(options.NekoMedia)
+	if err != nil {
+		api.Logger.Fatal(context.Background(), "invalid Neko media configuration", slog.Error(err))
+	}
 	api.workspaceAppServer = workspaceapps.NewServer(workspaceapps.ServerOptions{
-		Logger: workspaceAppsLogger,
+		NekoMedia: nekoMedia,
+		Logger:    workspaceAppsLogger,
 
 		DashboardURL:  api.AccessURL,
 		AccessURL:     api.AccessURL,
@@ -874,11 +886,12 @@ func New(options *Options) *API {
 		HostnameRegex: api.AppHostnameRegex,
 		RealIPConfig:  options.RealIPConfig,
 
-		SignedTokenProvider: api.WorkspaceAppsProvider,
-		AgentProvider:       api.agentProvider,
-		StatsCollector:      workspaceapps.NewStatsCollector(options.WorkspaceAppsStatsCollectorOptions),
-		WSWatcher:           api.wsWatcher,
-		GuardSession:        api.guardGlobalLockdownSession,
+		SignedTokenProvider:   api.WorkspaceAppsProvider,
+		AgentProvider:         api.agentProvider,
+		StatsCollector:        workspaceapps.NewStatsCollector(options.WorkspaceAppsStatsCollectorOptions),
+		WSWatcher:             api.wsWatcher,
+		GuardSession:          api.guardGlobalLockdownSession,
+		GuardWorkspaceSession: api.guardWorkspaceQuarantineSession,
 
 		DisablePathApps:          options.DeploymentValues.DisablePathApps.Value(),
 		CookiesConfig:            options.DeploymentValues.HTTPCookies,
@@ -1267,6 +1280,8 @@ func New(options *Options) *API {
 					httpmw.ExtractOrganizationParam(options.Database),
 				)
 				r.Get("/", api.organization)
+				r.With(httpmw.ExtractWorkspaceParam(options.Database)).Get("/workspaces/{workspace}/quarantine", api.getWorkspaceQuarantine)
+				r.With(httpmw.ExtractWorkspaceParam(options.Database)).Put("/workspaces/{workspace}/quarantine", api.putWorkspaceQuarantine)
 				r.Post("/templateversions", api.postTemplateVersionsByOrganization)
 				r.Route("/templates", func(r chi.Router) {
 					r.Post("/", api.postTemplateByOrganization)
@@ -1567,6 +1582,7 @@ func New(options *Options) *API {
 					}),
 					httpmw.RequireAPIKeyOrWorkspaceProxyAuth(),
 					httpmw.ExtractWorkspaceAgentAndWorkspaceParam(options.Database),
+					api.workspaceQuarantineAgentMiddleware,
 				)
 				r.Get("/", api.workspaceAgent)
 				r.Get("/watch-metadata", api.watchWorkspaceAgentMetadataSSE)
@@ -2025,9 +2041,10 @@ type API struct {
 	dbRolluper *dbrollup.Rolluper
 	// platformBannerHub pushes the announcement banner to this replica's
 	// open tabs (coderd/platformbanner).
-	platformBannerHub  *platformbanner.Hub
-	globalLockdown     *platformlockdown.Manager
-	globalLockdownDone chan struct{}
+	platformBannerHub   *platformbanner.Hub
+	workspaceQuarantine *workspacequarantine.Manager
+	globalLockdown      *platformlockdown.Manager
+	globalLockdownDone  chan struct{}
 
 	// ProfileCollector abstracts the runtime/pprof and runtime/trace
 	// calls used by the /debug/profile endpoint. Tests override this

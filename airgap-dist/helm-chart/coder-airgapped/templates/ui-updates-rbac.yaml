@@ -85,6 +85,13 @@ rules:
   - apiGroups: [""]
     resources: [pods/log]
     verbs: [get]
+  # VM force-stop retains the VM and its independent storage, fencing the instance UID.
+  - apiGroups: [kubevirt.io]
+    resources: [virtualmachines]
+    verbs: [get, list, patch]
+  - apiGroups: [kubevirt.io]
+    resources: [virtualmachineinstances]
+    verbs: [get, patch, delete]
   # Workspace force-stop fences reviewed Deployment controllers before requesting pod removal.
   - apiGroups: [apps]
     resources: [deployments]

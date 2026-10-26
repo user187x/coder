@@ -36,10 +36,14 @@ The Jobs run this file: `python3 workspacevolumes.py archive SRC URL` (a .tar.gz
 `python3 workspacevolumes.py restore DST URL` (DST emptied, then the .tar.gz at URL unpacked into it).
 """
 import datetime
+from decimal import Decimal
+import vmgrow
+import vmbackup
 import gzip
 import io
 import http.client
 import json
+import math
 import os
 import re
 import secrets
@@ -227,6 +231,9 @@ def ib_quantity(q):
 
 
 def volume_info(wid):
+    vm = vmgrow.info(ib.kube_call, wid)
+    if vm:
+        return vm
     pvc = get_pvc(pvc_name(wid))
     if not pvc:
         return None
@@ -316,6 +323,7 @@ def tools_container(name, command, mounts, root=False):
 
 # --------------------------------------------------------------------------- backups
 def start_backup(token, ws, target, user):
+    prepared = vmbackup.prepare(ib.kube_call, ws)
     wid = ws["id"]
     if target == "s3":
         cfg = ib.s3_settings(True)
@@ -323,16 +331,16 @@ def start_backup(token, ws, target, user):
             raise ValueError("S3 is not set up (Templates > Images > Settings).")
     elif target != "download":
         raise ValueError("A backup goes to S3 or to a download.")
-    if not get_pvc(pvc_name(wid)):
+    if not prepared and not get_pvc(pvc_name(wid)):
         raise ValueError("This workspace has no home volume.")
     with OPS_LOCK:
         if wid in OPS:
             raise ValueError("Another backup, restore or disk change of this workspace is running.")
         tok = secrets.token_urlsafe(32)
-        op_id = STORE.new_op(wid, "backup", user, target=target, token=tok, message="Starting the copy",
+        op_id = STORE.new_op(wid, "backup", user, target=target, token=tok, mode="vm-block" if prepared else None, message="Starting the copy",
                              label="%s/%s" % (ws["owner_name"], ws["name"]), meta=json.dumps(backup_meta(token, ws)))
         OPS[wid] = op_id
-    threading.Thread(target=run_backup, args=(ws, op_id, tok), daemon=True).start()
+    threading.Thread(target=run_backup, args=(ws, op_id, tok, prepared), daemon=True).start()
     LOG(event="workspace-backup", workspace=ws["name"], owner=ws["owner_name"], target=target, by=user)
     return op_id
 
@@ -348,11 +356,21 @@ def backup_meta(token, ws):
     """What a backup is taken from: a restore makes a workspace like it, and asks the quota first."""
     b = ws.get("latest_build") or {}
     info = volume_info(ws["id"]) or {}
+    current = vmgrow.runtime(ib.kube_call, ws['id'], ws)
+    if current:
+        home_bytes = current['size']
+    else:
+        from workspace_runtime import quantity
+        pvc = get_pvc(info.get('name') or pvc_name(ws['id'])) or {}
+        storage = (pvc.get('status', {}).get('capacity') or {}).get('storage') or (pvc.get('spec', {}).get('resources', {}).get('requests') or {}).get('storage')
+        home_bytes = math.ceil(quantity(storage))
+    if type(home_bytes) is not int or home_bytes <= 0:
+        raise ValueError('The backup requires an exact positive HOME allocation.')
     return {"version": 1, "workspace": ws.get("name"), "owner": ws.get("owner_name"),
             "template": {"id": ws.get("template_id"), "name": ws.get("template_name"),
                          "displayName": ws.get("template_display_name") or ws.get("template_name")},
             "templateVersionId": b.get("template_version_id"), "parameters": build_parameters(token, ws),
-            "homeGB": info.get("sizeGB"), "takenAt": now()}
+            "homeGB": info.get("sizeGB"), "homeBytes": home_bytes, "takenAt": now()}
 
 
 def meta_member(meta):
@@ -379,10 +397,18 @@ def read_meta(head):
         return None
 
 
-def run_backup(ws, op_id, tok):
+def run_backup(ws, op_id, tok, prepared=None):
     wid = ws["id"]
     try:
         url = "%s%s/internal/volumes/%s/archive" % (ib.SERVICE_URL, BASE, tok)
+        if prepared:
+            STORE.update(op_id, message="Backing up the stopped VM HOME disk")
+            vmbackup.run(ib.kube_call, prepared, "backup", url)
+            received = STORE.op(op_id)
+            if received.get("status") == "failed" or not (received.get("path") or (received.get("bucket") and received.get("key"))):
+                raise RuntimeError("The VM HOME archive did not arrive.")
+            STORE.update(op_id, status="done", finished_at=now(), message="In S3" if received.get("target") == "s3" else "Ready to download (kept %d hours)" % (KEEP_DOWNLOADS // 3600))
+            return
         body = job_body("coder-home-backup-%d" % op_id, op_id, [tools_container(
             "archive", ["python3", "/app/workspacevolumes.py", "archive", "/home/coder", url],
             [{"name": "home", "mountPath": "/home/coder", "readOnly": True}])],
@@ -448,6 +474,7 @@ def receive_archive(h, op):
 
     stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     total = 0
+    vm = op.get("mode") == "vm-block"
     meta = json.loads(op.get("meta") or "null")
 
     def with_meta():
@@ -471,8 +498,8 @@ def receive_archive(h, op):
             except Exception:
                 up.abort()
                 raise
-            STORE.update(op["id"], status="done", bytes=total, bucket=cfg["bucket"], key=key, finished_at=now(),
-                         message="In S3")
+            STORE.update(op["id"], status="running" if vm else "done", bytes=total, bucket=cfg["bucket"], key=key, finished_at=None if vm else now(),
+                         message="Archive received; finalizing VM HOME" if vm else "In S3")
         else:
             folder = os.path.join(ib.FILES, "workspace-backups")
             os.makedirs(folder, exist_ok=True)
@@ -484,8 +511,8 @@ def receive_archive(h, op):
                     if total % (256 * 1024 * 1024) < len(d):
                         STORE.update(op["id"], bytes=total)
             os.replace(path + ".part", path)
-            STORE.update(op["id"], status="done", bytes=total, path=path, finished_at=now(),
-                         message="Ready to download (kept %d hours)" % (KEEP_DOWNLOADS // 3600))
+            STORE.update(op["id"], status="running" if vm else "done", bytes=total, path=path, finished_at=None if vm else now(),
+                         message="Archive received; finalizing VM HOME" if vm else "Ready to download (kept %d hours)" % (KEEP_DOWNLOADS // 3600))
         h.send_json(200, {"ok": True, "bytes": total})
     except OSError as e:
         STORE.update(op["id"], status="failed", error=("No room left for the download: %s" % e
@@ -516,7 +543,10 @@ def start_expand(token, ws, size, user):
         raise ValueError("This workspace has no home volume.")
     if not isinstance(size, int) or size <= info["sizeGB"] or size > MAX_DISK_GB:
         raise ValueError("A whole number of GB larger than now (%g GB), up to %d GB." % (info["sizeGB"], MAX_DISK_GB))
-    mode = "online" if info["expandable"] else "copy"
+    prepared = vmgrow.prepare(ib.kube_call, ws, size) if info.get("runtime") == "vm" else None
+    mode = "vm-block" if prepared else "online" if info["expandable"] else "copy"
+    if prepared:
+        info["vmGrow"] = prepared
     with OPS_LOCK:
         if wid in OPS:
             raise ValueError("Another backup, restore or disk change of this workspace is running.")
@@ -531,7 +561,9 @@ def start_expand(token, ws, size, user):
 def run_expand(token, ws, op_id, info, size, mode):
     wid = ws["id"]
     try:
-        if mode == "online":
+        if mode == "vm-block":
+            vmgrow.run(ib.kube_call, info["vmGrow"])
+        elif mode == "online":
             expand_online(token, ws, op_id, info, size)
         else:
             expand_by_copy(token, ws, op_id, info, size)
@@ -703,6 +735,57 @@ def s3_head(cfg, key):
         return r.read(HEAD_BYTES)
 
 
+def restored_disk_parameters(parameters, meta, rich):
+    """Retain recorded allocation when rebuilding from stale rich parameters."""
+    if not isinstance(meta, dict) or not any(key in meta for key in ('homeGB', 'homeBytes')):
+        return parameters
+    if 'homeBytes' in meta:
+        actual = meta['homeBytes']
+        if type(actual) is not int or not 0 < actual <= MAX_DISK_GB * 1000000000:
+            raise ValueError('The backup must record exact positive HOME bytes within the disk limit.')
+        allocated = (actual + 999999999) // 1000000000
+        approximate = meta.get('homeGB')
+        if approximate is not None and (type(approximate) not in (int, float) or not 0 <= approximate <= MAX_DISK_GB or not math.isfinite(approximate) or abs(approximate - actual / 1000000000) > 0.050000001):
+            raise ValueError('The backup HOME capacities are inconsistent.')
+    else:
+        approximate = meta['homeGB']
+        if type(approximate) not in (int, float) or not 0 < approximate <= MAX_DISK_GB or not math.isfinite(approximate):
+            raise ValueError('The legacy backup must record a finite positive HOME capacity within the disk limit.')
+        # Old native backups rounded to one decimal, including integral values.
+        allocated = math.ceil(Decimal(str(approximate)) + Decimal('0.05'))
+        if allocated > MAX_DISK_GB:
+            raise ValueError('The legacy rounded HOME capacity cannot safely fit the disk limit; restore into an existing workspace instead.')
+    definition = next((p for p in rich if p.get('name') == 'home_disk_size'), None)
+    if definition is None:
+        raise ValueError('The current template cannot request the backup HOME capacity; restore into a sufficiently large existing workspace instead.')
+    minimum = definition.get('validation_min')
+    maximum = definition.get('validation_max')
+    lower, upper = 1, MAX_DISK_GB
+    for value, boundary in ((minimum, 'minimum'), (maximum, 'maximum')):
+        if value is None:
+            continue
+        if type(value) not in (int, float) or not math.isfinite(value):
+            raise ValueError('The current template has an invalid HOME capacity policy.')
+        if boundary == 'minimum':
+            lower = max(lower, math.ceil(value))
+        else:
+            upper = min(upper, math.floor(value))
+    original = next((p for p in parameters if p.get('name') == 'home_disk_size'), None)
+    requested = original.get('value') if original else definition.get('default_value')
+    size = max(int(allocated), lower)
+    if requested not in (None, ''):
+        try:
+            value = float(requested)
+        except (TypeError, ValueError, OverflowError) as error:
+            raise ValueError('The restore HOME parameter is invalid.') from error
+        if not math.isfinite(value) or not 0 < value <= MAX_DISK_GB or value != int(value):
+            raise ValueError('The restore HOME parameter must be a whole positive capacity within the disk limit.')
+        size = max(size, int(value))
+    if size > upper:
+        raise ValueError('The current template cannot retain the backup HOME capacity within its disk limit.')
+    return [p for p in parameters if p.get('name') != 'home_disk_size'] + [{'name': 'home_disk_size', 'value': str(size)}]
+
+
 def restore_plan(token, user, ws, meta, mode, name):
     """What a restore would do, and the quota's answer - before anything is downloaded or created.
     mode new: a workspace `name` from the backup's template and parameters (a backup without them: this workspace's);
@@ -733,6 +816,7 @@ def restore_plan(token, user, ws, meta, mode, name):
     st, rich = coder(token, "GET", "/api/v2/templateversions/%s/rich-parameters" % t.get("active_version_id"))
     names = {p.get("name") for p in rich} if st == 200 and isinstance(rich, list) else set()
     plan["parameters"] = [p for p in plan["parameters"] if p.get("name") in names]
+    plan["parameters"] = restored_disk_parameters(plan["parameters"], meta, rich if st == 200 and isinstance(rich, list) else [])
     plan["quota"] = QUOTA_CHECK(token, user, {"owner": ws["owner_name"], "template_id": t["id"],
                                               "rich_parameter_values": plan["parameters"]}) if QUOTA_CHECK else \
         {"allowed": True, "message": "no quota service"}
@@ -802,15 +886,17 @@ def receive_upload(h, path, on_head):
     return total
 
 
-def fetch_s3(cfg, key, path):
+def fetch_s3(cfg, key, path, maximum=None):
     total = 0
     with ib.s3_open(cfg, "GET", key) as r, open(path + ".part", "wb") as f:
         while True:
             d = r.read(1024 * 1024)
             if not d:
                 break
-            f.write(d)
             total += len(d)
+            if maximum is not None and total > maximum:
+                raise ValueError("The VM backup exceeds its HOME capacity budget.")
+            f.write(d)
     os.replace(path + ".part", path)
     return total
 
@@ -818,8 +904,9 @@ def fetch_s3(cfg, key, path):
 def start_restore(token, ws, user, mode, name, h=None, key=None):
     """From the file in the PUT `h` or the S3 backup `key`: the quota asked first (from the backup's first bytes),
     then checked and restored in the background."""
+    current_vm = vmgrow.runtime(ib.kube_call, ws["id"], ws)
     wid = ws["id"]
-    if mode == "replace" and not get_pvc(pvc_name(wid)):
+    if mode == "replace" and not current_vm and not get_pvc(pvc_name(wid)):
         raise ValueError("This workspace has no home volume.")
     cfg = s3_key_ok(ws, key) if key is not None else None
     plan = None
@@ -842,6 +929,8 @@ def start_restore(token, ws, user, mode, name, h=None, key=None):
                 plan = restore_plan(token, user, ws, read_meta(head), mode, name)
                 if not plan["quota"].get("allowed"):
                     raise Refused(plan["quota"].get("message") or "Over your quota.")
+                if current_vm and int(h.headers.get("Content-Length") or 0) > vmbackup.restore_capacity(current_vm, plan, MAX_DISK_GB) + vmbackup.METADATA_BUDGET:
+                    raise ValueError("The VM backup exceeds its HOME capacity budget.")
             STORE.update(op_id, bytes=receive_upload(h, path, on_head))
     except Exception as e:
         STORE.update(op_id, status="failed", error=str(e)[:1000], finished_at=now())
@@ -890,10 +979,12 @@ def create_workspace(token, ws, plan, name):
 def run_restore(token, ws, op_id, path, cfg, key, plan, name):
     target = ws
     try:
+        current_vm = vmgrow.runtime(ib.kube_call, ws["id"], ws)
+        capacity = vmbackup.restore_capacity(current_vm, plan, MAX_DISK_GB) if current_vm else None
         if key:
-            STORE.update(op_id, bytes=fetch_s3(cfg, key, path))
+            STORE.update(op_id, bytes=fetch_s3(cfg, key, path, capacity + vmbackup.METADATA_BUDGET if capacity else None))
         STORE.update(op_id, message="Checking the backup")
-        entries = check_archive(path)
+        entries = vmbackup.check_archive(path, capacity) if capacity else check_archive(path)
         if plan["mode"] == "new":
             STORE.update(op_id, message="Creating the workspace %s" % name)
             target = create_workspace(token, ws, plan, name)
@@ -901,13 +992,24 @@ def run_restore(token, ws, op_id, path, cfg, key, plan, name):
         if is_running(fresh):
             STORE.update(op_id, message="Stopping %s" % target["name"])
             build(token, fresh, "stop")
-        wait_no_pods(target["id"])
-        if not get_pvc(pvc_name(target["id"])):
+        stopped = workspace(token, target["id"])
+        target_vm = vmgrow.runtime(ib.kube_call, target["id"], stopped)
+        if target_vm:
+            stopped = vmbackup.wait_stopped(ib.kube_call, stopped,
+                lambda: workspace(token, target["id"]), current=target_vm)
+        else:
+            wait_no_pods(target["id"])
+        prepared = vmbackup.prepare(ib.kube_call, stopped)
+        if not prepared and not get_pvc(pvc_name(target["id"])):
             raise RuntimeError("%s has no home volume." % target["name"])
         tok = secrets.token_urlsafe(32)
         STORE.update(op_id, token=tok, path=path, message="Restoring the home (%d files and folders)" % entries)
-        err = run_job(restore_job(op_id, target["id"], "%s%s/internal/volumes/%s/restore" % (ib.SERVICE_URL, BASE,
-                                                                                          tok)))
+        restore_url = "%s%s/internal/volumes/%s/restore" % (ib.SERVICE_URL, BASE, tok)
+        if prepared:
+            vmbackup.run(ib.kube_call, prepared, "restore", restore_url)
+            err = None
+        else:
+            err = run_job(restore_job(op_id, target["id"], restore_url))
         STORE.update(op_id, token=None)
         if err:
             raise RuntimeError("The restore did not finish (%s stays stopped): %s" % (target["name"], err))
@@ -1059,7 +1161,7 @@ def route(h, method, path, user, token, query=""):
         return h.send_json(200, {"restore": op_id}) or True
     if sub == "/expand" and method == "POST":
         size = read_json(h).get("size")
-        op_id = start_expand(token, ws, int(size) if isinstance(size, (int, float)) else None, user["username"])
+        op_id = start_expand(token, ws, int(size) if type(size) is int or (type(size) is float and size.is_integer()) else None, user["username"])
         return h.send_json(200, {"disk": op_id}) or True
     mb = re.match(r"^/backups/(\d+)/download$", sub)
     if mb and method == "GET":

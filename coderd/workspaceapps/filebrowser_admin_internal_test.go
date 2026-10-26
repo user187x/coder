@@ -51,6 +51,16 @@ func TestFileBrowserDeploymentOwnerAccess(t *testing.T) {
 			})
 			require.NoError(t, err)
 			require.Equal(t, tc.want, allowed)
+			if tc.app == "filebrowser" {
+				allowed, _, err = provider.authorizeRequest(testutil.Context(t, testutil.WaitShort), subject, &databaseRequest{
+					Request:         Request{AccessMethod: AccessMethodSubdomain, AppSlugOrPort: tc.app},
+					Workspace:       database.WorkspaceTable{ID: uuid.New(), OwnerID: ownerID, OrganizationID: orgID},
+					App:             database.WorkspaceApp{Slug: tc.app},
+					AppSharingLevel: database.AppSharingLevelOwner,
+				})
+				require.NoError(t, err)
+				require.Equal(t, tc.want, allowed)
+			}
 		})
 	}
 }

@@ -2,6 +2,7 @@ package coderd
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"sync"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/coder/coder/v2/coderd/database/pubsub"
 	"github.com/coder/coder/v2/coderd/rbac"
 	"github.com/coder/coder/v2/coderd/util/slice"
+	"github.com/coder/coder/v2/coderd/workspacequarantine"
 	"github.com/coder/coder/v2/coderd/wspubsub"
 	"github.com/coder/coder/v2/codersdk"
 	"github.com/coder/coder/v2/tailnet"
@@ -24,6 +26,7 @@ type UpdatesQuerier interface {
 	// GetAuthorizedWorkspacesAndAgentsByOwnerID requires a context with an actor set
 	GetWorkspacesAndAgentsByOwnerID(ctx context.Context, ownerID uuid.UUID) ([]database.GetWorkspacesAndAgentsByOwnerIDRow, error)
 	GetWorkspaceByAgentID(ctx context.Context, agentID uuid.UUID) (database.Workspace, error)
+	GetWorkspaceQuarantineByWorkspaceID(ctx context.Context, workspaceID uuid.UUID) (database.WorkspaceQuarantine, error)
 }
 
 type workspacesByID = map[uuid.UUID]ownedWorkspace
@@ -303,6 +306,13 @@ func (r *rbacAuthorizer) AuthorizeTunnel(ctx context.Context, agentID uuid.UUID)
 	ws, err := r.db.GetWorkspaceByAgentID(ctx, agentID)
 	if err != nil {
 		return xerrors.Errorf("get workspace by agent ID: %w", err)
+	}
+	current, err := r.db.GetWorkspaceQuarantineByWorkspaceID(ctx, ws.ID)
+	if err != nil && !xerrors.Is(err, sql.ErrNoRows) {
+		return xerrors.Errorf("verify workspace quarantine: %w", err)
+	}
+	if workspacequarantine.Blocked(current) {
+		return workspacequarantine.ErrQuarantined
 	}
 	// Authorizes against `ActionSSH`
 	return r.sshPrep.Authorize(ctx, ws.RBACObject())

@@ -459,8 +459,9 @@ def _make_dirs(rel_dir):
 
 
 def etag(st):
-    """An entity tag that changes with the file (its content's MD5 would cost a read of every file listed)."""
-    return '"%s"' % hashlib.md5(("%d:%d:%d" % (st.st_size, st.st_mtime_ns, st.st_ino)).encode()).hexdigest()
+    """Return an opaque version fingerprint, never a claimed content checksum."""
+    fingerprint = '%d:%d:%d:%d:%d' % (st.st_dev, st.st_ino, st.st_size, st.st_mtime_ns, st.st_ctime_ns)
+    return '"fs-%s"' % hashlib.sha256(fingerprint.encode()).hexdigest()
 
 
 def iso(ts):
@@ -869,6 +870,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
         full, st = self.stat_key(key)
         headers = {"ETag": etag(st), "Last-Modified": email.utils.formatdate(st.st_mtime, usegmt=True),
                    "Accept-Ranges": "bytes"}
+        match = self.headers.get('If-Match')
+        if match is not None and '*' not in [value.strip() for value in match.split(',')] and headers['ETag'] not in [value.strip() for value in match.split(',')]:
+            raise S3Fail(412, 'PreconditionFailed')
+        none = self.headers.get('If-None-Match')
+        if none is not None and any(value.strip() == '*' or value.strip().removeprefix('W/') == headers['ETag'] for value in none.split(',')):
+            self.reply(304, headers=headers)
+            return
         if stat.S_ISDIR(st.st_mode):
             self.reply(200, b"", "application/x-directory", headers)
             return

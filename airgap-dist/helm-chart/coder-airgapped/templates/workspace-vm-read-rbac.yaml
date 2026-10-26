@@ -1,0 +1,26 @@
+{{- include "ca.values" . -}}
+{{- if and .Values.uiUpdates.enabled (include "platform.hasLayer" .) }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: coder-ui-vm-metrics
+  namespace: {{ .Release.Namespace }}
+rules:
+  # Lookup is safe before the KubeVirt API is installed; no VM creation or mutation.
+  - apiGroups: [kubevirt.io]
+    resources: [virtualmachines, virtualmachineinstances]
+    verbs: [get]
+  # Metrics extract only allocation from an ownership-verified, sealed boot profile.
+  - apiGroups: [""]
+    resources: [secrets]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: coder-ui-vm-metrics
+  namespace: {{ .Release.Namespace }}
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: Role, name: coder-ui-vm-metrics}
+subjects:
+  - {kind: ServiceAccount, name: coder-ui-updates, namespace: {{ .Release.Namespace }}}
+{{- end }}

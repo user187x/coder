@@ -1,0 +1,37 @@
+{{- include "platform.nekoValidate" . -}}
+{{- $media := .Values.global.nekoMedia -}}
+{{- if $media.enabled }}
+{{- if not (and (include "platform.hasLayer" .) .Values.coder.enabled .Values.uiUpdates.enabled .Values.platformWebhook.enabled .Values.platformWebhook.runtimeIsolation.vm.reconcileEnabled (or .Values.platformWebhook.runtimeIsolation.enabled .Values.platformWebhook.runtimeIsolation.prepareBackend)) }}
+{{- fail "Neko media requires Coder, the platform service, and the protected VM runtime backend" }}
+{{- end }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: coder-neko-media
+  namespace: {{ .Release.Namespace }}
+  {{- with $media.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ $media.service.type }}
+  externalTrafficPolicy: Local
+  {{- if eq $media.service.type "LoadBalancer" }}
+  loadBalancerSourceRanges:
+    {{- toYaml $media.clientCIDRs | nindent 4 }}
+  {{- end }}
+  selector:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/name: coder
+    {{- if eq .Values.global.platformHA.mode "activeStandby" }}
+    coder-airgapped/ha-role: active
+    {{- end }}
+  ports:
+    {{- range $port := untilStep (int $media.portMin) (add1 (int $media.portMax) | int) 1 }}
+    - name: media-{{ $port }}
+      port: {{ $port }}
+      targetPort: {{ $port }}
+      nodePort: {{ $port }}
+      protocol: UDP
+    {{- end }}
+{{- end }}

@@ -197,8 +197,90 @@ def resources(wid):
     return objects
 
 
-def force_runtime(wid):
+
+def vm_stopped(wid, oid):
+    """Return whether a managed VM has no current instance; legacy runtimes pass through."""
+    base = "/apis/kubevirt.io/v1/namespaces/" + NAMESPACE
+    name = "coder-vm-" + wid
+    status, vm = KUBE.call("GET", base + "/virtualmachines/" + name)
+    if status == 404:
+        return True
+    if status != 200:
+        raise RuntimeError("Could not verify workspace VM shutdown (Kubernetes HTTP %s)." % status)
+    labels = vm.get("metadata", {}).get("labels", {})
+    if labels.get("com.coder.workspace.id") != wid or labels.get("com.coder.organization.id") != oid:
+        raise Unsupported("Workspace VM ownership does not match the reviewed workspace.")
+    status, _ = KUBE.call("GET", base + "/virtualmachineinstances/" + name)
+    if status not in (200, 404):
+        raise RuntimeError("Could not verify workspace VM instance shutdown (Kubernetes HTTP %s)." % status)
+    return vm.get("spec", {}).get("runStrategy") == "Halted" and status == 404
+
+
+def force_vm_runtime(wid, oid=None):
+    """Halt an owned VM and remove only its current UID-fenced VMI, retaining disks."""
+    base = "/apis/kubevirt.io/v1/namespaces/" + NAMESPACE
+    name = "coder-vm-" + wid
+    status, vm = KUBE.call("GET", base + "/virtualmachines/" + name)
+    if status == 404:
+        return None
+    if status != 200 or not isinstance(vm, dict):
+        raise RuntimeError("Could not inspect workspace VM (Kubernetes HTTP %s)." % status)
+    metadata = vm.get("metadata", {})
+    labels = metadata.get("labels", {})
+    if labels.get("com.coder.workspace.id") != wid or (oid and labels.get("com.coder.organization.id") != oid):
+        raise Unsupported("Workspace VM ownership does not match the reviewed workspace.")
+    if "running" in vm.get("spec", {}):
+        raise Unsupported("Workspace VM must use the managed runStrategy lifecycle.")
+    status, instance = KUBE.call("GET", base + "/virtualmachineinstances/" + name)
+    if status not in (200, 404):
+        raise RuntimeError("Could not inspect workspace VM instance (Kubernetes HTTP %s)." % status)
+    if status == 200:
+        if not any(owner.get("controller") and owner.get("kind") == "VirtualMachine" and
+                   owner.get("uid") == metadata.get("uid") for owner in instance.get("metadata", {}).get("ownerReferences", [])):
+            raise Unsupported("Workspace VM instance does not belong to the reviewed VM.")
+    else:
+        instance = None
+    patch = [{"op": "test", "path": "/metadata/uid", "value": metadata["uid"]},
+             {"op": "test", "path": "/metadata/resourceVersion", "value": metadata["resourceVersion"]},
+             {"op": "add", "path": "/metadata/annotations/platform.coder~1desired-run-strategy", "value": "Halted"},
+             {"op": "add", "path": "/spec/runStrategy", "value": "Halted"}]
+    status, _ = KUBE.call("PATCH", base + "/virtualmachines/" + name, patch, "application/json-patch+json")
+    if status != 200:
+        raise RuntimeError("Workspace VM changed or refused halt (Kubernetes HTTP %s)." % status)
+    reachable = True
+    if instance:
+        node = instance.get("status", {}).get("nodeName")
+        if node:
+            status, result = KUBE.call("GET", "/api/v1/nodes/" + urllib.parse.quote(node, safe=""))
+            reachable = status == 200 and any(c.get("type") == "Ready" and c.get("status") == "True"
+                                             for c in result.get("status", {}).get("conditions", []))
+        else:
+            reachable = False
+        im = instance["metadata"]
+        # KubeVirt reads this grace period when stopping the domain. UID/RV tests
+        # and DeleteOptions preconditions avoid stopping a replacement VMI.
+        patch = [{"op": "test", "path": "/metadata/uid", "value": im["uid"]},
+                 {"op": "test", "path": "/metadata/resourceVersion", "value": im["resourceVersion"]},
+                 {"op": "add", "path": "/spec/terminationGracePeriodSeconds", "value": 0}]
+        status, _ = KUBE.call("PATCH", base + "/virtualmachineinstances/" + name, patch, "application/json-patch+json")
+        if status not in (200, 404):
+            raise RuntimeError("Workspace VM instance changed or refused force stop (Kubernetes HTTP %s)." % status)
+        status, _ = KUBE.call("DELETE", base + "/virtualmachineinstances/" + name,
+                             {"apiVersion": "v1", "kind": "DeleteOptions", "gracePeriodSeconds": 0,
+                              "preconditions": {"uid": im["uid"]}})
+        if status not in (200, 202, 404):
+            raise RuntimeError("Workspace VM instance refused removal (Kubernetes HTTP %s)." % status)
+    status, _ = KUBE.call("GET", base + "/virtualmachineinstances/" + name)
+    if status not in (200, 404):
+        raise RuntimeError("Could not verify workspace VM removal (Kubernetes HTTP %s)." % status)
+    return status == 404, reachable
+
+
+def force_runtime(wid, oid=None):
     """Fence only UUID-labeled Deployments and their verified ReplicaSet pods."""
+    vm = force_vm_runtime(wid, oid)
+    if vm is not None:
+        return vm
     deployments, pods = resources(wid)
     if not deployments and pods:
         raise Unsupported("Force termination supports labeled Kubernetes Deployments only.")
@@ -266,7 +348,7 @@ def stop_one(token, operation, target):
             permissions(token, [target], "update")
             update(operation["id"], wid, coder_status=build["status"], status="stopping")
             if action == "terminate":
-                outcome = force_runtime(wid)
+                outcome = force_runtime(wid, oid)
                 if outcome is None and build["status"] != "stopped" and physical is None:
                     raise Unsupported("No supported Kubernetes Deployment runtime was found for force termination.")
                 if outcome is None and physical is not None:
@@ -279,6 +361,9 @@ def stop_one(token, operation, target):
                     update(operation["id"], wid, force_requested=True, runtime_objects_removed=removed,
                            physical_verified=False)
             if build["status"] == "stopped":
+                if action == "shutdown" and not vm_stopped(wid, oid):
+                    time.sleep(1)
+                    continue
                 status = "skipped" if stop_id is None and physical is None else "stopped"
                 if action == "terminate" and (unreachable or removed is False):
                     raise RuntimeError("Coder stopped, but Kubernetes runtime removal or node reachability is unverified.")

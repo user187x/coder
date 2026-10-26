@@ -149,6 +149,7 @@ def mutated(pod, state, lockdown_sh):
             m.get("mountPath") == "/etc/ssl/certs/ca-certificates.crt" for m in mounts):
         inits.insert(0, {
             "name": "trust-local-ca", "image": image, "imagePullPolicy": "IfNotPresent",
+            "resources": {"requests": {"cpu": "1", "memory": "64Mi"}, "limits": {"cpu": "1", "memory": "64Mi"}},
             "command": ["sh", "-c",
                         "cat /etc/ssl/certs/ca-certificates.crt /local-ca/ca.crt > /ca-bundle/ca-certificates.crt"],
             "volumeMounts": [{"name": "local-ca", "mountPath": "/local-ca", "readOnly": True},
@@ -166,6 +167,7 @@ def mutated(pod, state, lockdown_sh):
         at = next((i + 1 for i, c in enumerate(inits) if c.get("name") == "trust-local-ca"), 0)
         inits.insert(at, {
             "name": "lockdown", "image": image, "imagePullPolicy": "IfNotPresent",
+            "resources": {"requests": {"cpu": "1", "memory": "64Mi"}, "limits": {"cpu": "1", "memory": "64Mi"}},
             "command": ["sh", "-c", lockdown_sh, "lockdown", "file:/etc/coder-lockdown/%s" % workspace_id, CODER_HOST, ""],
             "securityContext": {"runAsUser": 0, "runAsNonRoot": False,
                                 "capabilities": {"add": ["NET_ADMIN", "NET_RAW"]}},
@@ -229,7 +231,7 @@ def mutated(pod, state, lockdown_sh):
                     {"name": "CSHA_DB", "valueFrom": {"secretKeyRef": {"name": "coder-code-server-ha-relay", "key": "uri"}}},
                     {"name": "CSHA_DB_CA", "value": "/etc/coder-db-ca/ca.crt"},
                 ],
-                "resources": {"requests": {"cpu": "10m", "memory": "32Mi"}, "limits": {"memory": "128Mi"}},
+                "resources": {"requests": {"cpu": "1", "memory": "128Mi"}, "limits": {"cpu": "1", "memory": "128Mi"}},
                 "volumeMounts": [{"name": "coder-db-ca", "mountPath": "/etc/coder-db-ca", "readOnly": True}],
             })
             volume({"name": "coder-db-ca", "secret": {"secretName": CSHA_DB_CA_SECRET,
@@ -330,7 +332,7 @@ def review(body, state_of, lockdown_sh):
             "response": response}
 
 
-def server(state_of, lockdown_sh, port=PORT, tls_dir=TLS_DIR):
+def server(state_of, lockdown_sh, port=PORT, tls_dir=TLS_DIR, runtime_review=None):
     """The HTTPS server: POST /mutate (the API server adds ?timeout=...), GET /healthz. tls_dir None: plain HTTP (tests)."""
 
     class Handler(http.server.BaseHTTPRequestHandler):
@@ -346,13 +348,24 @@ def server(state_of, lockdown_sh, port=PORT, tls_dir=TLS_DIR):
             self.end_headers()
 
         def do_POST(self):
-            if self.route() != "/mutate":
+            if self.route() not in ("/mutate", "/runtime-mutate", "/runtime-validate"):
                 self.send_response(404)
                 self.end_headers()
                 return
             try:
-                body = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)))
-                out = review(body, state_of, lockdown_sh)
+                length = int(self.headers.get("Content-Length") or 0)
+                if length <= 0 or length > 4 * 1024 * 1024:
+                    self.send_response(413)
+                    self.end_headers()
+                    return
+                self.connection.settimeout(10)
+                body = json.loads(self.rfile.read(length))
+                if self.route() == "/mutate":
+                    out = review(body, state_of, lockdown_sh)
+                elif runtime_review is not None:
+                    out = runtime_review(body, self.route() == "/runtime-mutate")
+                else:
+                    raise ValueError("runtime admission is not configured")
             except Exception as e:  # refused: failurePolicy Fail keeps the pod out, the Deployment retries
                 log(event="webhook-error", error=str(e)[:300])
                 self.send_response(500)
@@ -376,7 +389,23 @@ def server(state_of, lockdown_sh, port=PORT, tls_dir=TLS_DIR):
 
 def main():
     kube = Kube()
-    srv = server(kube.state, lockdown_script())
+    runtime_review = None
+    if os.environ.get("WORKSPACE_RUNTIME_ENFORCE") == "true":
+        from workspace_runtime import admission_review
+        trusted = {tuple(value.split(":", 1)) for value in json.loads(os.environ.get("WORKSPACE_RUNTIME_PLATFORM_CONTROLLERS", "[]"))}
+        def fetch(path):
+            status, value = kube.get(path)
+            if status != 200:
+                raise ValueError("runtime admission owner lookup failed")
+            return value
+        admin_groups = json.loads(os.environ.get("WORKSPACE_RUNTIME_ADMIN_GROUPS", '["system:masters","kubeadm:cluster-admins"]'))
+        mode = os.environ.get("WORKSPACE_RUNTIME_MODE", "vm-sysbox")
+        images = json.loads(os.environ.get("WORKSPACE_VM_ROOT_IMAGES", "[]"))
+        models = json.loads(os.environ.get("WORKSPACE_VM_CPU_MODELS", '["Haswell-noTSX"]'))
+        controllers = json.loads(os.environ.get("WORKSPACE_VM_CONTROLLER_USERS", '["system:serviceaccount:kubevirt:kubevirt-controller"]'))
+        registry_namespace = os.environ.get("WORKSPACE_VM_HOME_REGISTRY_NAMESPACE", "coder-runtime-system")
+        runtime_review = lambda body, mutate: admission_review(body, fetch, trusted, NAMESPACE, mutate, admin_groups, mode, images, models, controllers, registry_namespace)
+    srv = server(kube.state, lockdown_script(), runtime_review=runtime_review)
     log(event="webhook-start", port=PORT, namespace=NAMESPACE, userStorage=USER_STORAGE)
     srv.serve_forever()
 

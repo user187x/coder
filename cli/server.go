@@ -91,6 +91,7 @@ import (
 	stringutil "github.com/coder/coder/v2/coderd/util/strings"
 	"github.com/coder/coder/v2/coderd/webpush"
 	"github.com/coder/coder/v2/coderd/workspaceapps/appurl"
+	"github.com/coder/coder/v2/coderd/workspaceapps/medialease"
 	"github.com/coder/coder/v2/coderd/workspacestats"
 	"github.com/coder/coder/v2/coderd/wsbuilder"
 	"github.com/coder/coder/v2/coderd/x/nats"
@@ -770,6 +771,10 @@ func (r *RootCmd) Server(newAPI func(context.Context, *coderd.Options) (*coderd.
 
 			// Platform: the installer's bootstrap creates the first owner (refuse OIDC sign-ins until then).
 			options.PlatformFirstOwnerByBootstrap = os.Getenv("CODER_PLATFORM_FIRST_OWNER") == "bootstrap"
+			options.NekoMedia, err = coderd.NekoMediaConfigFromEnv(os.Getenv)
+			if err != nil {
+				return xerrors.Errorf("configure Neko media: %w", err)
+			}
 
 			if vals.StrictTransportSecurity > 0 {
 				options.StrictTransportSecurityCfg, err = httpmw.HSTSConfigOptions(
@@ -861,6 +866,22 @@ func (r *RootCmd) Server(newAPI func(context.Context, *coderd.Options) (*coderd.
 						return nil
 					}
 				}
+			}
+
+			if haRegistry != nil && options.NekoMedia != nil {
+				mediaFence := medialease.NewFence()
+				defer mediaFence.SetServing(false)
+				var mediaUpdateMu sync.Mutex
+				updateMediaServing := func() {
+					mediaUpdateMu.Lock()
+					defer mediaUpdateMu.Unlock()
+					status := haRegistry.Status()
+					mediaFence.SetServing(!status.Fenced && (!haConfig.Leadership() || status.Role == platformha.RoleActive))
+				}
+				haRegistry.OnFenceChange(func(bool) { updateMediaServing() })
+				haRegistry.OnRoleChange(func(string) { updateMediaServing() })
+				updateMediaServing()
+				options.NekoMediaContext = mediaFence.Context
 			}
 
 			experiments := coderd.ReadExperiments(options.Logger, options.DeploymentValues.Experiments.Value())

@@ -14,6 +14,7 @@ import (
 	tfjson "github.com/hashicorp/terraform-json"
 	"github.com/mitchellh/mapstructure"
 	"golang.org/x/xerrors"
+	"sigs.k8s.io/yaml"
 
 	"cdr.dev/slog/v3"
 	"github.com/coder/coder/v2/coderd/util/slice"
@@ -394,23 +395,7 @@ func ConvertState(ctx context.Context, modules []*tfjson.StateModule, rawGraph s
 			return nil, xerrors.Errorf("couldn't find node on graph: %q", agentLabel)
 		}
 
-		var agentResource *graphResource
-		for _, resource := range findResourcesInGraph(graph, tfResourcesByLabel, agentNode.Name, 0, true) {
-			if agentResource == nil {
-				// Default to the first resource because we have nothing to compare!
-				agentResource = resource
-				continue
-			}
-			if resource.Depth < agentResource.Depth {
-				// There's a closer resource!
-				agentResource = resource
-				continue
-			}
-			if resource.Depth == agentResource.Depth && resource.Label < agentResource.Label {
-				agentResource = resource
-				continue
-			}
-		}
+		agentResource := selectAgentResource(findResourcesInGraph(graph, tfResourcesByLabel, agentNode.Name, 0, true), tfResourcesByLabel, agent.Id)
 
 		if agentResource == nil {
 			continue
@@ -1266,6 +1251,45 @@ func applyAutomaticInstanceID(resource *tfjson.StateResource, agents []*proto.Ag
 			InstanceId: instanceID,
 		}
 	}
+}
+
+// selectAgentResource preserves nearest-resource inference unless a reachable
+// KubeVirt VM explicitly identifies its agent. Its boot Secret necessarily
+// references the token first, so graph distance alone selects the Secret.
+func selectAgentResource(candidates []*graphResource, resources map[string]map[string]*tfjson.StateResource, agentID string) *graphResource {
+	var selected *graphResource
+	selectedExplicit := false
+	for _, candidate := range candidates {
+		explicit := false
+		for _, resource := range resources[candidate.Label] {
+			// Inference groups counted instances by label. Do not move an agent
+			// onto a group containing other independently configured VMs.
+			if len(resources[candidate.Label]) != 1 {
+				continue
+			}
+			if resource.Type != "kubectl_manifest" || agentID == "" {
+				continue
+			}
+			body, ok := resource.AttributeValues["yaml_body"].(string)
+			if !ok || len(body) > 1<<20 {
+				continue
+			}
+			var manifest struct {
+				APIVersion string `json:"apiVersion"`
+				Kind       string `json:"kind"`
+				Metadata   struct {
+					Annotations map[string]string `json:"annotations"`
+				} `json:"metadata"`
+			}
+			if yaml.Unmarshal([]byte(body), &manifest) == nil && manifest.APIVersion == "kubevirt.io/v1" && manifest.Kind == "VirtualMachine" && manifest.Metadata.Annotations["com.coder.agent.id"] == agentID {
+				explicit = true
+			}
+		}
+		if selected == nil || explicit && !selectedExplicit || explicit == selectedExplicit && (candidate.Depth < selected.Depth || candidate.Depth == selected.Depth && candidate.Label < selected.Label) {
+			selected, selectedExplicit = candidate, explicit
+		}
+	}
+	return selected
 }
 
 // findResourcesInGraph traverses directionally in a graph until a resource is found,

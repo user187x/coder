@@ -129,7 +129,8 @@ class S3:
         except Exception:
             conn.close()
             raise
-        if resp.status >= 300:
+        not_modified = resp.status == 304 and method in ('GET', 'HEAD') and 'if-none-match' in h
+        if resp.status >= 300 and not not_modified:
             raw = resp.read()
             conn.close()
             code = message = ""

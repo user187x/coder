@@ -24,6 +24,7 @@ import drivesource
 import s3client
 
 BUCKET_PREFIX = "audit-"
+ISO_LIBRARY_OWNER = "library-isos"
 NS = "{http://s3.amazonaws.com/doc/2006-03-01/}"
 MAX_XML = 4 * 1024 * 1024
 CUSTOM_TEMPLATE = "39b1e189-c857-4b0c-877a-511144c18516"
@@ -246,7 +247,7 @@ class Gateway:
             return token
 
     def path(self, actor, owner, key, write=False):
-        if not account_id(owner) or not key.startswith(actor + "/"):
+        if (not account_id(owner) and owner != ISO_LIBRARY_OWNER) or not key.startswith(actor + "/"):
             raise drivesource.S3Fail(403, "AccessDenied")
         path = key[len(actor) + 1:]
         trailing = path.endswith("/")
@@ -295,7 +296,7 @@ class Handler(drivesource.Handler):
             if not owner_bucket.startswith(BUCKET_PREFIX):
                 raise drivesource.S3Fail(404, "NoSuchBucket")
             owner = owner_bucket[len(BUCKET_PREFIX):]
-            if not account_id(owner):
+            if not account_id(owner) and owner != ISO_LIBRARY_OWNER:
                 raise drivesource.S3Fail(404, "NoSuchBucket")
             query = dict(urllib.parse.parse_qsl(raw_query, keep_blank_values=True))
             write = self.command not in ("GET", "HEAD")

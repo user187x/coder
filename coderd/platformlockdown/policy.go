@@ -11,6 +11,7 @@ import (
 	"golang.org/x/xerrors"
 
 	"github.com/coder/coder/v2/coderd/database"
+	"github.com/coder/coder/v2/coderd/workspacequarantine"
 	"github.com/coder/coder/v2/codersdk/agentsdk"
 )
 
@@ -88,18 +89,69 @@ func policyFor(ctx context.Context, db database.Store, s State) agentsdk.Workspa
 		}
 		slices.SortFunc(p.AllowedPeers, func(a, b uuid.UUID) int { return slices.Compare(a[:], b[:]) })
 	}
+	return fingerprintPolicy(p)
+}
+
+func fingerprintPolicy(p agentsdk.WorkspaceAccessPolicy) agentsdk.WorkspaceAccessPolicy {
+	p.Fingerprint = ""
 	raw, _ := json.Marshal(p)
 	hash := sha256.Sum256(raw)
 	p.Fingerprint = hex.EncodeToString(hash[:])
 	return p
 }
 
+// PolicyForWorkspace combines deployment policy with workspace containment.
+// Quarantined targets retain only trusted server transports, never human peers.
+func (m *Manager) PolicyForWorkspace(ctx context.Context, s State, workspaceID uuid.UUID) (agentsdk.WorkspaceAccessPolicy, error) {
+	return policyForWorkspace(ctx, m.db, s, workspaceID)
+}
+
+func policyForWorkspace(ctx context.Context, db database.Store, s State, workspaceID uuid.UUID) (agentsdk.WorkspaceAccessPolicy, error) {
+	p := policyFor(ctx, db, s)
+	if workspaceID == uuid.Nil {
+		return p, nil
+	}
+	q, err := workspacequarantine.Load(ctx, db, workspaceID)
+	if err != nil {
+		return p, err
+	}
+	if !workspacequarantine.Blocked(q) {
+		return p, nil
+	}
+	p.Enabled = true
+	p.Revision = s.Revision + ":" + q.Revision.String()
+	p.AllowedPeers = []uuid.UUID{}
+	for peer, grant := range s.PeerGrants {
+		if grant.ReplicaID == "" {
+			continue
+		}
+		if _, ok := s.Replicas[grant.ReplicaID]; !ok {
+			continue
+		}
+		id, err := uuid.Parse(peer)
+		if err == nil {
+			p.AllowedPeers = append(p.AllowedPeers, id)
+		}
+	}
+	slices.SortFunc(p.AllowedPeers, func(a, b uuid.UUID) int { return slices.Compare(a[:], b[:]) })
+	return fingerprintPolicy(p), nil
+}
+
 // SyncAgent accepts an acknowledgement only for the policy currently in force.
 // Acknowledging an old revision or an outdated allowlist cannot confirm a lock.
 func (m *Manager) SyncAgent(ctx context.Context, id uuid.UUID, session, applied string) (agentsdk.WorkspaceAccessPolicy, error) {
+	return m.SyncAgentForWorkspace(ctx, id, uuid.Nil, session, applied)
+}
+
+// SyncAgentForWorkspace acknowledges only the combined policy for this target.
+func (m *Manager) SyncAgentForWorkspace(ctx context.Context, id, workspaceID uuid.UUID, session, applied string) (agentsdk.WorkspaceAccessPolicy, error) {
 	var policy agentsdk.WorkspaceAccessPolicy
 	_, err := m.changeDB(ctx, func(s *State, tx database.Store) error {
-		policy = policyFor(ctx, tx, *s)
+		var err error
+		policy, err = policyForWorkspace(ctx, tx, *s, workspaceID)
+		if err != nil {
+			return err
+		}
 		if s.AgentAcks == nil {
 			s.AgentAcks = make(map[string]AgentAck)
 		}

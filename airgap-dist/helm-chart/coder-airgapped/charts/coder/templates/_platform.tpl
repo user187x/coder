@@ -42,4 +42,7 @@ Also appends coder.extraEnv (not an upstream value) to coder.env.
 {{- $_ := set .Values.coder "env" (concat (.Values.coder.env | default list) .Values.coder.extraEnv) -}}
 {{- $_ := set .Values.coder "platformExtraEnvMerged" true -}}
 {{- end -}}
+{{- if dig "nekoMedia" "enabled" false $g -}}
+{{- include "platform.nekoCoderValues" . -}}
+{{- end -}}
 {{- end -}}

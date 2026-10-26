@@ -2,14 +2,15 @@
 # Apache Airflow in the workspace (coder_script.airflow in ../main.tf: the ubuntu-dataflow template's, in place of
 # code-server, with no network). Its own script, beside the startup script and the others (the workspace's Logs show it
 # as Apache Airflow). Runs at every start; each step is safe to repeat.
-# Standalone (its API server, scheduler, DAG processor and triggerer; SQLite in ~/airflow) under the full app path
+# Standalone (API server, scheduler, DAG processor and triggerer; SQLite in ~/airflow) on its app origin
 # (base_url), every user an admin (the app is its owner's alone), with Airflow's example DAGs. The same settings in
 # ~/.airflowrc, which ~/.bashrc reads, for the airflow command in terminals.
 # main.tf renders this with templatefile(): path and access_host are the template's values (a shell variable in braces
 # is written with two dollar signs).
 set -e
-AIRFLOW_BASE='${path}'       # the app's path: /@<owner>/<workspace>.main/apps/airflow
-ACCESS_HOST='${access_host}' # Coder's host, as browsers reach it (Airflow makes its links with it)
+AIRFLOW_BASE='${path}'       # empty for an isolated app origin
+ACCESS_HOST='${access_host}'
+ACCESS_SCHEME='${scheme}' # this app's host, as browsers reach it
 
 if [ ! -x /opt/airflow/bin/airflow ]; then
  echo "Apache Airflow is not in this image (/opt/airflow): skipped"
@@ -20,7 +21,7 @@ export AIRFLOW_HOME=/home/coder/airflow
 export AIRFLOW__API__HOST=127.0.0.1
 export AIRFLOW__API__PORT=8090
 export AIRFLOW__API__WORKERS=1
-export AIRFLOW__API__BASE_URL=https://$ACCESS_HOST$AIRFLOW_BASE
+export AIRFLOW__API__BASE_URL=$ACCESS_SCHEME://$ACCESS_HOST$AIRFLOW_BASE
 export AIRFLOW__CORE__EXECUTION_API_SERVER_URL=http://127.0.0.1:8090$AIRFLOW_BASE/execution/
 export AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_ALL_ADMINS=True
 export AIRFLOW__CORE__LOAD_EXAMPLES=True

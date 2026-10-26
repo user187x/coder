@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -15,6 +16,8 @@ import (
 	"github.com/coder/coder/v2/coderd"
 	"github.com/coder/coder/v2/coderd/coderdtest"
 	"github.com/coder/coder/v2/codersdk"
+	"github.com/coder/coder/v2/provisioner/echo"
+	"github.com/coder/coder/v2/provisionersdk/proto"
 	"github.com/coder/coder/v2/testutil"
 )
 
@@ -194,6 +197,9 @@ func TestPlatformWorkspaceQuota(t *testing.T) {
 	require.Equal(t, client.SessionToken(), got.token)
 	require.Equal(t, template.ID.String(), got.body["template_id"])
 	require.Equal(t, version.ID.String(), got.body["template_version_id"])
+	require.Equal(t, first.UserID.String(), got.body["owner_id"])
+	require.Equal(t, first.OrganizationID.String(), got.body["organization_id"])
+	require.NotContains(t, got.body, "current_workspace_id")
 
 	// Allowed.
 	reply(http.StatusOK, `{"allowed": true}`)
@@ -310,4 +316,81 @@ func TestPlatformWorkspaceScheduler(t *testing.T) {
 	short := int64(4 * 3600 * 1000)
 	require.NoError(t, client.UpdateWorkspaceTTL(ctx, ws.ID, codersdk.UpdateWorkspaceTTLRequest{TTLMillis: &short}))
 	<-checks
+}
+
+func TestPlatformWorkspaceQuotaStartResize(t *testing.T) {
+	t.Parallel()
+	var allowed atomic.Bool
+	allowed.Store(true)
+	checks := make(chan map[string]any, 20)
+	srv := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/__coder-ui/api/quota/check" {
+			http.NotFound(rw, r)
+			return
+		}
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			rw.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		checks <- body
+		rw.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(rw).Encode(map[string]any{"allowed": allowed.Load(), "message": "Allocation exceeds the remaining quota"})
+	}))
+	t.Cleanup(srv.Close)
+	target, err := url.Parse(srv.URL)
+	require.NoError(t, err)
+	client := coderdtest.New(t, &coderdtest.Options{IncludeProvisionerDaemon: true, PlatformServiceRoutes: []coderd.PlatformServiceRoute{{PathPrefix: "/__coder-ui", Target: target}}})
+	first := coderdtest.CreateFirstUser(t, client)
+	response := func(cpu, memory string) *echo.Responses {
+		return &echo.Responses{Parse: echo.ParseComplete, ProvisionInit: echo.InitComplete, ProvisionGraph: []*proto.Response{{Type: &proto.Response_Graph{Graph: &proto.GraphComplete{Parameters: []*proto.RichParameter{{Name: "cpu", Type: "number", DefaultValue: cpu, Mutable: true}, {Name: "memory", Type: "number", DefaultValue: memory, Mutable: true}}}}}}, ProvisionPlan: echo.PlanComplete, ProvisionApply: echo.ApplyComplete}
+	}
+	version := coderdtest.CreateTemplateVersion(t, client, first.OrganizationID, response("2", "4"))
+	coderdtest.AwaitTemplateVersionJobCompleted(t, client, version.ID)
+	template := coderdtest.CreateTemplate(t, client, first.OrganizationID, version.ID)
+	ctx := testutil.Context(t, testutil.WaitLong)
+	workspace, err := client.CreateUserWorkspace(ctx, codersdk.Me, codersdk.CreateWorkspaceRequest{TemplateID: template.ID, Name: coderdtest.RandomUsername(t), RichParameterValues: []codersdk.WorkspaceBuildParameter{{Name: "cpu", Value: "3"}}})
+	require.NoError(t, err)
+	<-checks
+	coderdtest.AwaitWorkspaceBuildJobCompleted(t, client, workspace.LatestBuild.ID)
+	updated := coderdtest.CreateTemplateVersion(t, client, first.OrganizationID, response("6", "16"), func(r *codersdk.CreateTemplateVersionRequest) { r.TemplateID = template.ID })
+	coderdtest.AwaitTemplateVersionJobCompleted(t, client, updated.ID)
+	require.NoError(t, client.UpdateActiveTemplateVersion(ctx, template.ID, codersdk.UpdateActiveTemplateVersion{ID: updated.ID}))
+	allowed.Store(false)
+	_, err = client.CreateWorkspaceBuild(ctx, workspace.ID, codersdk.CreateWorkspaceBuildRequest{Transition: codersdk.WorkspaceTransitionStart, RichParameterValues: []codersdk.WorkspaceBuildParameter{{Name: "cpu", Value: "4"}}})
+	var sdkErr *codersdk.Error
+	require.ErrorAs(t, err, &sdkErr)
+	require.Equal(t, http.StatusForbidden, sdkErr.StatusCode())
+	check := <-checks
+	require.Equal(t, workspace.ID.String(), check["current_workspace_id"])
+	require.Equal(t, first.UserID.String(), check["owner_id"])
+	require.Equal(t, first.OrganizationID.String(), check["organization_id"])
+	require.Equal(t, version.ID.String(), check["template_version_id"], "an unpinned start uses the previous build version")
+	require.ElementsMatch(t, []any{map[string]any{"name": "cpu", "value": "4"}, map[string]any{"name": "memory", "value": "4"}}, check["rich_parameter_values"])
+	for _, params := range [][]codersdk.WorkspaceBuildParameter{nil, {{Name: "cpu", Value: "2"}}} {
+		build, err := client.CreateWorkspaceBuild(ctx, workspace.ID, codersdk.CreateWorkspaceBuildRequest{Transition: codersdk.WorkspaceTransitionStart, RichParameterValues: params})
+		require.NoError(t, err)
+		coderdtest.AwaitWorkspaceBuildJobCompleted(t, client, build.ID)
+	}
+	require.Empty(t, checks, "unchanged and reduced allocations must remain restartable")
+	allowed.Store(true)
+	build, err := client.CreateWorkspaceBuild(ctx, workspace.ID, codersdk.CreateWorkspaceBuildRequest{Transition: codersdk.WorkspaceTransitionStart, RichParameterValues: []codersdk.WorkspaceBuildParameter{{Name: "cpu", Value: "4"}}})
+	require.NoError(t, err)
+	coderdtest.AwaitWorkspaceBuildJobCompleted(t, client, build.ID)
+	<-checks
+	allowed.Store(false)
+	_, err = client.CreateWorkspaceBuild(ctx, workspace.ID, codersdk.CreateWorkspaceBuildRequest{Transition: codersdk.WorkspaceTransitionStart, TemplateVersionID: updated.ID, RichParameterValues: []codersdk.WorkspaceBuildParameter{{Name: "memory", Value: "8"}}})
+	require.ErrorAs(t, err, &sdkErr)
+	require.Equal(t, http.StatusForbidden, sdkErr.StatusCode())
+	check = <-checks
+	require.Equal(t, updated.ID.String(), check["template_version_id"])
+	other, _ := coderdtest.CreateAnotherUser(t, client, first.OrganizationID)
+	_, err = other.CreateWorkspaceBuild(ctx, workspace.ID, codersdk.CreateWorkspaceBuildRequest{Transition: codersdk.WorkspaceTransitionStart, RichParameterValues: []codersdk.WorkspaceBuildParameter{{Name: "cpu", Value: "100"}}})
+	require.Error(t, err)
+	for _, transition := range []codersdk.WorkspaceTransition{codersdk.WorkspaceTransitionStop, codersdk.WorkspaceTransitionDelete} {
+		build, err := client.CreateWorkspaceBuild(ctx, workspace.ID, codersdk.CreateWorkspaceBuildRequest{Transition: transition})
+		require.NoError(t, err)
+		coderdtest.AwaitWorkspaceBuildJobCompleted(t, client, build.ID)
+	}
+	require.Empty(t, checks, "unauthorized starts, stop and delete must not call the quota service")
 }

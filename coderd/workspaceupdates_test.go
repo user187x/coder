@@ -2,6 +2,7 @@ package coderd_test
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"slices"
 	"strings"
@@ -322,6 +323,10 @@ func (m *mockWorkspaceStore) GetWorkspacesAndAgentsByOwnerID(context.Context, uu
 // GetWorkspaceByAgentID implements coderd.UpdatesQuerier.
 func (*mockWorkspaceStore) GetWorkspaceByAgentID(context.Context, uuid.UUID) (database.Workspace, error) {
 	return database.Workspace{}, nil
+}
+
+func (*mockWorkspaceStore) GetWorkspaceQuarantineByWorkspaceID(context.Context, uuid.UUID) (database.WorkspaceQuarantine, error) {
+	return database.WorkspaceQuarantine{}, sql.ErrNoRows
 }
 
 var _ coderd.UpdatesQuerier = (*mockWorkspaceStore)(nil)

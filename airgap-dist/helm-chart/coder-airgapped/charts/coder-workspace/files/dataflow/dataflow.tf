@@ -1,13 +1,9 @@
 # The DATAFLOW template's own part (the chart pushes it beside main.tf, and with scripts/apache_nifi.sh and
 # scripts/apache_airflow.sh, for that template only): Apache NiFi and Apache Airflow in place of code-server (main.tf's
-# code_server = false), with the built-in web terminal and each app started by its own script.
+# code_server = false), each started on its own app origin, with the built-in web terminal.
 
-# The Gateway that serves Coder (the NiFi route below attaches to it), and Coder's Service behind it.
-
-# Its apps, in place of code-server: path-based like the others, so they open in the
-# dashboard's panels (same origin). Each started by a script of its own (coder_script.nifi and coder_script.airflow
-# below, beside the startup script). NiFi learns its path from the headers the cluster's Gateway adds (the HTTPRoute
-# nifi_route below).
+# Each app has a separate origin. Coder authenticates the proxy request and
+# replaces forwarding headers before passing requests to the local service.
 resource "coder_app" "nifi" {
   agent_id     = coder_agent.main.id
   slug         = "nifi"
@@ -16,8 +12,14 @@ resource "coder_app" "nifi" {
   # The root: Coder joins the app URL's path to every request, and NiFi serves at /nifi and /nifi-api (its root
   # redirects to its UI, under the app's path).
   url       = "http://127.0.0.1:8080"
-  subdomain = false
-  share     = "owner"
+  subdomain = true
+  lifecycle {
+    precondition {
+      condition     = var.apps_wildcard_host != ""
+      error_message = "Dataflow subdomain apps require the configured apps_wildcard_host."
+    }
+  }
+  share = "owner"
 
   # The dashboard's panel shows the port and protocol it is checked on.
   healthcheck {
@@ -27,30 +29,34 @@ resource "coder_app" "nifi" {
   }
 }
 
-# NiFi under Coder's app path: NiFi builds its pages' links and API calls from the proxy headers it is sent. Its path
-# comes from Coder (the fork's app proxy sends every path-based app X-Forwarded-Prefix, its base path); the scheme, host
-# and port from ONE HTTPRoute for every DATAFLOW workspace, the chart's coder-enhanced-nifi (templates/nifi-route.yaml):
-# a regular expression on any workspace's NiFi path, to Coder, which proxies to the right workspace as for any app.
-# Before 1.46.0 each workspace had an HTTPRoute of its own (kubernetes_manifest.nifi_route): gone, its next build
-# deletes it. Nothing else in front of NiFi; Coder still decides who may open the app.
+# Application origins use the configured wildcard, which may differ from Coder's dashboard host.
+variable "apps_wildcard_host" {
+  type        = string
+  description = "The configured Coder wildcard app hostname, including its leading *."
+  default     = ""
+  validation {
+    condition     = var.apps_wildcard_host == "" || can(regex("^\\*\\.[a-z0-9]([a-z0-9.-]*[a-z0-9])?$", var.apps_wildcard_host))
+    error_message = "The app wildcard must be a hostname beginning with *. and must not contain a scheme, port or path."
+  }
+}
+
 locals {
-  nifi_path    = "/@${data.coder_workspace_owner.me.name}/${data.coder_workspace.me.name}.main/apps/nifi"
-  airflow_path = "/@${data.coder_workspace_owner.me.name}/${data.coder_workspace.me.name}.main/apps/airflow"
-  coder_https  = startswith(data.coder_workspace.me.access_url, "https://")
-  # Coder's host as browsers reach it, with its port if it has one (NiFi and Airflow make their links with it)
-  access_host = replace(replace(data.coder_workspace.me.access_url, "https://", ""), "http://", "")
+  app_port            = try(regex("^https?://[^/]+(:[0-9]+)(?:/|$)", data.coder_workspace.me.access_url)[0], "")
+  app_scheme          = startswith(data.coder_workspace.me.access_url, "https://") ? "https" : "http"
+  nifi_access_host    = replace(var.apps_wildcard_host, "*", "nifi--main--${data.coder_workspace.me.name}--${data.coder_workspace_owner.me.name}")
+  airflow_access_host = replace(var.apps_wildcard_host, "*", "airflow--main--${data.coder_workspace.me.name}--${data.coder_workspace_owner.me.name}")
 }
 
 # NiFi and Airflow at every start, each in a script of its own (the workspace's Logs show them by name): their homes
-# in ~/.nifi and ~/airflow, their app paths and Coder's host.
+# in ~/.nifi and ~/airflow and their isolated public app hosts.
 resource "coder_script" "nifi" {
   agent_id     = coder_agent.main.id
   display_name = "Apache NiFi"
   icon         = "/__icons/nifi.svg" # files/icons/nifi.svg, served by templates/icons.yaml
   run_on_start = true
   script = templatefile("${path.module}/scripts/apache_nifi.sh", {
-    path        = local.nifi_path
-    access_host = local.access_host
+    path        = ""
+    access_host = local.nifi_access_host
   })
 }
 
@@ -60,8 +66,9 @@ resource "coder_script" "airflow" {
   icon         = "/icon/airflow.svg" # Coder's own icon
   run_on_start = true
   script = templatefile("${path.module}/scripts/apache_airflow.sh", {
-    path        = local.airflow_path
-    access_host = local.access_host
+    path        = ""
+    access_host = "${local.airflow_access_host}${local.app_port}"
+    scheme      = local.app_scheme
   })
 }
 
@@ -70,13 +77,13 @@ resource "coder_app" "airflow" {
   slug         = "airflow"
   display_name = "Apache Airflow"
   icon         = "/icon/airflow.svg" # Coder's own icon
-  # Airflow serves under the full app path (its base_url, in scripts/apache_airflow.sh), so the URL carries it too.
-  url       = "http://localhost:8090/@${data.coder_workspace_owner.me.name}/${data.coder_workspace.me.name}.main/apps/airflow/"
-  subdomain = false
+  # Airflow owns the root of its isolated application origin.
+  url       = "http://localhost:8090/"
+  subdomain = true
   share     = "owner"
 
   healthcheck {
-    url       = "http://localhost:8090/@${data.coder_workspace_owner.me.name}/${data.coder_workspace.me.name}.main/apps/airflow/api/v2/monitor/health"
+    url       = "http://localhost:8090/api/v2/monitor/health"
     interval  = 5
     threshold = 60
   }
@@ -101,4 +108,27 @@ moved {
 moved {
   from = coder_app.airflow[0]
   to   = coder_app.airflow
+}
+
+# Media is relayed by Coder; the guest serves only the authenticated signaling backend.
+resource "coder_app" "neko" {
+  count        = var.neko_browser ? 1 : 0
+  agent_id     = coder_agent.main.id
+  slug         = "neko"
+  display_name = "N.eko"
+  icon         = "/__icons/chromium.svg"
+  url          = "http://127.0.0.1:9080"
+  subdomain    = true
+  share        = "owner"
+  lifecycle {
+    precondition {
+      condition     = var.apps_wildcard_host != ""
+      error_message = "N.eko requires the configured apps_wildcard_host."
+    }
+  }
+  healthcheck {
+    url       = "http://127.0.0.1:9080/health"
+    interval  = 10
+    threshold = 3
+  }
 }

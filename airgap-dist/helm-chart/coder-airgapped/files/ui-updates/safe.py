@@ -212,20 +212,34 @@ _attach_seen = {}  # workspace id -> (its status word, time): its answer to the 
 _sources_seen = {}  # owner id -> {running, pod, started, tried, error}
 
 
+QUARANTINE = None
+QUARANTINE_GUARD = None
 CONNECTION_RESTRICTED = None
+SOURCE_GENERATION = "platform.coder/source-generation"
+
+
+def restricted_workspace(workspace_id):
+    if CONNECTION_RESTRICTED and CONNECTION_RESTRICTED(workspace_id):
+        return True
+    if QUARANTINE is None:
+        return False
+    current = QUARANTINE(workspace_id)
+    return current['enabled'] or current['manual_start_required']
 
 
 def setup(log, kube, users, can_edit=None, is_admin=None, workspace_info=None, shared=None, workspaces=None,
-          attachment=None):
+          attachment=None, quarantine=None, quarantine_guard=None):
     """users(): [(id, username)] of every account (Coder's database); can_edit(user): may change the ISO library;
     is_admin(user): may change the backend; workspace_info(token, id): the workspace (Coder's API), if the session may
     see it; shared(): {workspace id: owner id} of the workspaces shared with other users or groups (Coder's
     database), None while it cannot be read; workspaces(owner id): [{id, name}] of the account's workspaces;
     attachment(owner id): [(workspace id, value, collected at, job status)] of the account's started workspaces whose
     agent reports its Cloud Drive (metadata cloud_drive, Coder's database), None while it cannot be read."""
-    global LOG, KUBE, USERS, CAN_EDIT, IS_ADMIN, WORKSPACE_INFO, SHARED, WORKSPACES, ATTACHMENT
+    global LOG, KUBE, USERS, CAN_EDIT, IS_ADMIN, WORKSPACE_INFO, SHARED, WORKSPACES, ATTACHMENT, QUARANTINE, QUARANTINE_GUARD
     LOG, KUBE, USERS, CAN_EDIT, IS_ADMIN, WORKSPACE_INFO, SHARED, WORKSPACES, ATTACHMENT = (
         log, kube, users, can_edit, is_admin, workspace_info, shared, workspaces, attachment)
+    QUARANTINE = quarantine
+    QUARANTINE_GUARD = quarantine_guard
 
 
 def setup_audit(account, send):
@@ -303,10 +317,12 @@ def audit_mutation(user, path, operation):
 
 
 def audit_permission(actor, owner, path, write=False):
-    if turned_off() is not None:
-        return False
     user = _audit_account(actor) if _audit_account else None
     if not user or user.get("status") != "active":
+        return False
+    if owner == driveaudit.ISO_LIBRARY_OWNER:
+        return not write
+    if turned_off() is not None:
         return False
     owner_account = user if actor == owner else _audit_account(owner)
     if not owner_account or owner_account.get("status") != "active":
@@ -536,12 +552,7 @@ def capacity():
 # ---------------------------------------------------------------------------------------------------- connections
 def disconnected():
     """{workspace id: {owner, by, at}}: the workspaces their owners disconnected from their Cloud Drive."""
-    try:
-        with open(LINKS_FILE) as f:
-            data = json.load(f)
-        return data if isinstance(data, dict) else {}
-    except (OSError, ValueError):
-        return {}
+    return _read_state(LINKS_FILE)
 
 
 def link_pods(wid=None):
@@ -890,25 +901,23 @@ def set_connected(h, user, wid, body):
     want = body.get("connected")
     if not isinstance(want, bool):
         raise ValueError("connected: true or false.")
+    if want and restricted_workspace(wid):
+        raise PermissionError('Quarantined workspaces cannot reconnect Cloud Drive.')
     ws = WORKSPACE_INFO(h.token(), wid) if WORKSPACE_INFO else None
     if not ws:
         raise ValueError("There is no such workspace.")
     if ws.get("owner_id") != user["id"]:
         raise PermissionError
-    if want and CONNECTION_RESTRICTED and CONNECTION_RESTRICTED(wid):
-        raise PermissionError("Locked workspaces cannot reconnect Cloud Drive.")
     if want and wid in shared_now():
         raise ValueError("This workspace is shared with others: your Cloud Drive stays out of it while it is shared.")
-    with _links_lock:
-        data = disconnected()
-        if want:
-            data.pop(wid, None)
-        else:
-            data[wid] = {"owner": user["id"], "by": user["username"], "at": int(time.time())}
-        tmp = LINKS_FILE + ".tmp"
-        with open(tmp, "w") as f:
-            json.dump(data, f)
-        os.replace(tmp, LINKS_FILE)
+    with reconnect_guard(wid) if want else contextlib.nullcontext():
+        with local_lock(LINKS_FILE):
+            data = disconnected()
+            if want:
+                data.pop(wid, None)
+            else:
+                data[wid] = {"owner": user["id"], "by": user["username"], "at": int(time.time())}
+            _write_json(LINKS_FILE, data)
     applied = False
     if KUBE and KUBE.ok:
         src = {v["workspace"]: v["path"] for v in sources().values()}.get(wid)
@@ -999,8 +1008,10 @@ def ensure_secret(name, want, labels=None):
         if status not in (200, 201):
             raise RuntimeError("Secret %s: HTTP %s %s" % (name, status, str(out)[:200]))
         return True
-    if status == 200 and (cur.get("data") or {}) != data:
+    if status == 200 and ((cur.get("data") or {}) != data or (labels and any(
+            (cur.get("metadata", {}).get("labels") or {}).get(key) != value for key, value in labels.items()))):
         body["metadata"]["resourceVersion"] = cur["metadata"]["resourceVersion"]
+        body["metadata"]["labels"] = {**cur.get("metadata", {}).get("labels", {}), **body["metadata"]["labels"]}
         status, out = KUBE.call("PUT", path, body)
         if status != 200:
             raise RuntimeError("Secret %s: HTTP %s %s" % (name, status, str(out)[:200]))
@@ -1211,7 +1222,7 @@ def reconcile():
             if ensure_volume("", lib["title"], objects=library_volume_objects(kind), in_use=in_use):
                 _volumes[lib["claim"]] = now
     srcs = sources()
-    # Former sources' volumes, once no workspace uses them.
+    # Former sources' endpoints; retained volumes require operator cleanup.
     status, pvs = KUBE.call("GET", "/api/v1/persistentvolumes?labelSelector=%s" % urllib.parse.quote(
         "app.kubernetes.io/name=coder-drive-source"))
     for pv in (pvs.get("items") or []) if status == 200 and isinstance(pvs, dict) else []:
@@ -1367,43 +1378,17 @@ def local_lock(path):
         os.close(fd)
 
 
-def source_generation(src):
-    return src.get('generation') or hashlib.sha256(json.dumps(src, sort_keys=True).encode()).hexdigest()[:32]
-
-
-def source_endpoint_snapshot(owner):
-    name = SOURCE_PREFIX + owner
-    endpoints = []
-    for resource in ('services', 'secrets'):
-        path = '/api/v1/namespaces/%s/%s/%s' % (NAMESPACE, resource, name)
-        status, obj = KUBE.call('GET', path)
-        if status == 404:
-            continue
-        metadata = obj.get('metadata') or {}
-        if status != 200 or metadata.get('labels', {}).get('platform.coder/user-id') != owner or not all(
-                metadata.get(key) for key in ('uid', 'resourceVersion')):
-            raise RuntimeError('Cloud Drive source endpoint identity could not be verified.')
-        endpoints.append((path, metadata['uid'], metadata['resourceVersion']))
-    return endpoints
-
-
-def delete_source_endpoints(endpoints):
-    for path, uid, version in endpoints:
-        status, _ = KUBE.call('DELETE', path, {'apiVersion': 'v1', 'kind': 'DeleteOptions',
-            'preconditions': {'uid': uid, 'resourceVersion': version}})
-        if status not in (200, 202, 404):
-            raise RuntimeError('Cloud Drive source endpoint changed; withdrawal will retry.')
-
-
-def withdraw_source_endpoint(owner, expected):
-    """Delete captured endpoint generations only while the source remains suspended."""
-    endpoints = source_endpoint_snapshot(owner)
-    with local_lock(SOURCES_FILE):
-        current = sources().get(owner)
-        if not current or current != expected or not current.get('suspended'):
-            return False
-    delete_source_endpoints(endpoints)
-    return True
+@contextlib.contextmanager
+def reconnect_guard(workspace_id):
+    if CONNECTION_RESTRICTED and CONNECTION_RESTRICTED(workspace_id):
+        raise PermissionError("Locked workspaces cannot reconnect Cloud Drive.")
+    if QUARANTINE_GUARD is not None:
+        with QUARANTINE_GUARD(workspace_id):
+            yield
+    else:
+        if restricted_workspace(workspace_id):
+            raise PermissionError('Quarantined workspaces cannot reconnect Cloud Drive.')
+        yield
 
 
 def _write_json(path, data):
@@ -1761,10 +1746,12 @@ def sources():
     return _read_state(SOURCES_FILE)
 
 
+def source_generation(src):
+    return src.get('generation') or hashlib.sha256(json.dumps(src, sort_keys=True).encode()).hexdigest()[:32]
+
+
 def source_config(owner, src):
     """What the source's server runs with, and its id (a change restarts it)."""
-    if src.get("suspended") or (CONNECTION_RESTRICTED and CONNECTION_RESTRICTED(src["workspace"])):
-        raise ValueError("This Cloud Drive source is suspended by workspace lockdown.")
     cfg = {"root": src["path"], "bucket": SOURCE_BUCKET, "prefix": owner + "/", "accessKey": src["accessKey"],
            "secretKey": src["secretKey"], "region": "us-east-1", "port": SOURCE_PORT}
     if AUDIT_ENABLED:
@@ -1774,6 +1761,8 @@ def source_config(owner, src):
 
 
 def source_client(src):
+    if src.get('suspended') or restricted_workspace(src.get('workspace')):
+        raise ValueError('This Cloud Drive source is suspended by workspace quarantine.')
     return s3client.S3("http://%s%s.%s.svc:9000" % (SOURCE_PREFIX, src["owner"], NAMESPACE), "us-east-1",
                        src["accessKey"], src["secretKey"], timeout=20)
 
@@ -1795,15 +1784,50 @@ def source_audit_error(health):
     return None
 
 
+def _vm_source_pod(pod):
+    """Whether a launcher belongs to the canonical current workspace VM."""
+    metadata = pod.get("metadata") or {}
+    owner = next((o for o in metadata.get("ownerReferences", []) if o.get("controller")), {})
+    if owner.get("kind") != "VirtualMachineInstance":
+        return False
+    wid = (metadata.get("labels") or {}).get("com.coder.workspace.id", "")
+    name = "coder-vm-" + wid
+    if not WORKSPACE_ID_RE.fullmatch(wid) or owner.get("name") != name:
+        raise RuntimeError("Cloud Drive launcher has an invalid workspace owner.")
+    base = "/apis/kubevirt.io/v1/namespaces/" + NAMESPACE
+    status, instance = KUBE.call("GET", base + "/virtualmachineinstances/" + name)
+    if status != 200 or instance.get("metadata", {}).get("uid") != owner.get("uid"):
+        raise RuntimeError("Cloud Drive launcher no longer has its current VM instance.")
+    status, vm = KUBE.call("GET", base + "/virtualmachines/" + name)
+    labels = (vm.get("metadata") or {}).get("labels") or {} if isinstance(vm, dict) else {}
+    if status != 200 or vm.get("spec", {}).get("runStrategy") != "Always" or labels.get("com.coder.workspace.id") != wid or not any(
+            o.get("controller") and o.get("kind") == "VirtualMachine" and o.get("uid") == vm.get("metadata", {}).get("uid")
+            for o in instance.get("metadata", {}).get("ownerReferences", [])):
+        raise RuntimeError("Cloud Drive launcher does not belong to the current workspace VM.")
+    for label in ("com.coder.organization.id", "com.coder.user.id"):
+        if not labels.get(label) or labels.get(label) != metadata.get("labels", {}).get(label):
+            raise RuntimeError("Cloud Drive launcher organization or account does not match its VM.")
+    return True
+
+
+def _source_is_vm(name):
+    status, pod = KUBE.call("GET", "/api/v1/namespaces/%s/pods/%s" % (NAMESPACE, urllib.parse.quote(name, safe="")))
+    if status != 200:
+        raise RuntimeError("Cloud Drive source runtime is unavailable.")
+    return _vm_source_pod(pod)
+
+
 def _source_pod(workspace_id):
     """The source workspace's running pod (name, IP), or None."""
+    if restricted_workspace(workspace_id):
+        return None
     status, pods = KUBE.call("GET", "/api/v1/namespaces/%s/pods?labelSelector=%s" % (
         NAMESPACE, urllib.parse.quote("com.coder.workspace.id=" + workspace_id)))
     for p in (pods.get("items") or []) if status == 200 and isinstance(pods, dict) else []:
         st = p.get("status") or {}
         if st.get("phase") == "Running" and not p["metadata"].get("deletionTimestamp") and st.get("podIP"):
             ready = {c.get("name"): c.get("ready") for c in st.get("containerStatuses") or []}
-            if ready.get(SOURCE_CONTAINER):
+            if ready.get(SOURCE_CONTAINER) or (ready.get("compute") and _vm_source_pod(p)):
                 return p["metadata"]["name"], st["podIP"]
     return None
 
@@ -1885,9 +1909,9 @@ def sources_once():
     the templates."""
     for owner, src in sources().items():
         seen = _sources_seen.setdefault(owner, {"running": False, "tried": 0, "error": None, "checked": 0})
-        if src.get("suspended") or (CONNECTION_RESTRICTED and CONNECTION_RESTRICTED(src["workspace"])):
+        if src.get('suspended') or restricted_workspace(src['workspace']):
             withdraw_source_endpoint(owner, src)
-            seen.update(running=False, pod=None, error="Source suspended by workspace lockdown; reconnect it explicitly after release.")
+            seen.update(running=False, pod=None, error='Source suspended by workspace quarantine; reconnect it explicitly after release.')
             continue
         if WORKSPACES and time.time() - seen.get("checked", 0) > SOURCE_RETRY:
             seen["checked"] = time.time()
@@ -1897,9 +1921,12 @@ def sources_once():
                 alive = None
             if alive is not None and src["workspace"] not in {w["id"] for w in alive}:
                 # deleted past the dashboard's guard (the CLI, the API): the Cloud Drive goes back to S3
-                data = sources()
-                data.pop(owner, None)
-                _write_json(SOURCES_FILE, data)
+                with local_lock(SOURCES_FILE):
+                    data = sources()
+                    if data.get(owner) != src:
+                        continue
+                    data.pop(owner, None)
+                    _write_json(SOURCES_FILE, data)
                 _sources_seen.pop(owner, None)
                 _wake.set()
                 LOG(event="cloud-drive-source", action="workspace-deleted", owner=owner, workspace=src.get("name"))
@@ -1921,6 +1948,9 @@ def sources_once():
             continue
         seen["tried"] = time.time()
         try:
+            if _source_is_vm(pod):
+                seen["error"] = "Waiting for the workspace guest to apply its private source configuration."
+                continue
             pid = _launch(pod, {"server": _server_text(), "config": cfg})
             LOG(event="cloud-drive-source", action="started", owner=owner, workspace=src.get("name"), pod=pod, pid=pid)
             for _ in range(10):
@@ -1939,9 +1969,12 @@ def sources_once():
 def ensure_source_objects(owner, username, src, in_use):
     """The source's Service (its workspace's pod, port 9000 -> the server), the Secret its volume mounts with (the
     Service's ClusterIP: the nodes have no cluster DNS) and the volume itself."""
+    if src.get('suspended') or restricted_workspace(src['workspace']):
+        withdraw_source_endpoint(owner, src)
+        return True
     name = SOURCE_PREFIX + owner
     labels = {"app.kubernetes.io/name": "coder-drive-source", "app.kubernetes.io/part-of": "coder",
-              "platform.coder/user-id": owner}
+              "platform.coder/user-id": owner, SOURCE_GENERATION: source_generation(src)}
     svc = {"apiVersion": "v1", "kind": "Service",
            "metadata": {"name": name, "namespace": NAMESPACE, "labels": labels},
            "spec": {"selector": {"com.coder.workspace.id": src["workspace"]},
@@ -1952,9 +1985,11 @@ def ensure_source_objects(owner, username, src, in_use):
         status, out = KUBE.call("POST", "/api/v1/namespaces/%s/services" % NAMESPACE, svc)
         if status not in (200, 201):
             raise RuntimeError("Service %s: HTTP %s %s" % (name, status, str(out)[:200]))
-    elif status == 200 and (cur.get("spec") or {}).get("selector") != svc["spec"]["selector"]:
-        status, out = KUBE.call("PATCH", path, {"spec": {"selector": svc["spec"]["selector"]}},
-                                patch_type="application/merge-patch+json")
+    elif status == 200 and ((cur.get("spec") or {}).get("selector") != svc["spec"]["selector"] or
+            (cur.get("metadata", {}).get("labels") or {}).get(SOURCE_GENERATION) != labels[SOURCE_GENERATION]):
+        status, out = KUBE.call("PATCH", path, {"metadata": {"uid": cur["metadata"]["uid"],
+            "resourceVersion": cur["metadata"]["resourceVersion"], "labels": labels},
+            "spec": {"selector": svc["spec"]["selector"]}}, patch_type="application/merge-patch+json")
         if status != 200:
             raise RuntimeError("Service %s: HTTP %s" % (name, status))
     elif status != 200:
@@ -1964,17 +1999,81 @@ def ensure_source_objects(owner, username, src, in_use):
     return ensure_volume(owner, username, objects=source_volume_objects(owner, username), in_use=in_use)
 
 
-def remove_source_objects(owner, in_use=None):
-    """A former source's Service and Secret, and its volume once no workspace uses it; True when all are gone."""
+def source_endpoint_snapshot(owner):
     name = SOURCE_PREFIX + owner
-    for path in ("/api/v1/namespaces/%s/services/%s" % (NAMESPACE, name),
-                 "/api/v1/namespaces/%s/secrets/%s" % (NAMESPACE, name)):
-        KUBE.call("DELETE", path)
-    if KUBE.call("GET", "/api/v1/persistentvolumes/" + name)[0] == 404:
-        return True
-    if name in (in_use if in_use is not None else claims_in_use()):
-        return False
-    remove_volume(name)
+    endpoints = []
+    for resource in ('services', 'secrets'):
+        path = '/api/v1/namespaces/%s/%s/%s' % (NAMESPACE, resource, name)
+        status, obj = KUBE.call('GET', path)
+        if status == 404:
+            continue
+        metadata = obj.get('metadata') or {}
+        if status != 200 or metadata.get('labels', {}).get('platform.coder/user-id') != owner or not all(
+                metadata.get(key) for key in ('uid', 'resourceVersion')):
+            raise RuntimeError('Cloud Drive source endpoint identity could not be verified.')
+        endpoints.append((path, metadata['uid'], metadata['resourceVersion']))
+    return endpoints
+
+
+def delete_source_endpoints(endpoints):
+    for path, uid, version in endpoints:
+        status, _ = KUBE.call('DELETE', path, {'apiVersion': 'v1', 'kind': 'DeleteOptions',
+            'preconditions': {'uid': uid, 'resourceVersion': version}})
+        if status not in (200, 202, 404):
+            raise RuntimeError('Cloud Drive source endpoint changed; withdrawal will retry.')
+
+
+def withdraw_source_endpoint(owner, expected):
+    """Delete captured endpoint generations only while the source remains suspended."""
+    endpoints = source_endpoint_snapshot(owner)
+    with local_lock(SOURCES_FILE):
+        current = sources().get(owner)
+        if not current or current != expected or not current.get('suspended'):
+            return False
+    delete_source_endpoints(endpoints)
+    return True
+
+
+def withdraw_quarantine(current):
+    """Persist a disconnected mount and suspend only this workspace's source."""
+    wid, owner = current['workspace_id'], current['owner_id']
+    guard = QUARANTINE_GUARD.restrict(current) if QUARANTINE_GUARD is not None else contextlib.nullcontext()
+    with guard:
+        endpoints = source_endpoint_snapshot(owner) if sources().get(owner, {}).get("workspace") == wid else []
+        with local_lock(LINKS_FILE):
+            links = disconnected()
+            if (links.get(wid) or {}).get('quarantine_revision') != current['revision']:
+                links[wid] = {'owner': owner, 'by': 'quarantine', 'at': int(time.time()),
+                              'quarantine_revision': current['revision']}
+                _write_json(LINKS_FILE, links)
+        suspended = False
+        with local_lock(SOURCES_FILE):
+            data = sources()
+            src = data.get(owner)
+            if src and src.get('workspace') == wid:
+                if src.get('quarantine_revision') != current['revision']:
+                    src.update(generation=source_generation(src), suspended=True, quarantine_revision=current['revision'],
+                               accessKey='src' + secrets.token_hex(8), secretKey=secrets.token_urlsafe(32))
+                    _write_json(SOURCES_FILE, data)
+                suspended = True
+        if suspended:
+            with local_lock(SOURCES_FILE):
+                still_suspended = sources().get(owner) == src
+            if still_suspended:
+                delete_source_endpoints(endpoints)
+            _sources_seen[owner] = {'running': False, 'tried': 0, 'checked': 0,
+                                   'error': 'Source suspended by workspace quarantine.'}
+    _wake.set()
+    return {'state': 'revoked', 'detail': 'Managed mount intent and source endpoints withdrawn; runtime shutdown is verified separately.'}
+
+
+def remove_source_objects(owner, in_use=None):
+    """Withdraw orphan endpoints; retained source PVs/PVCs require operator cleanup."""
+    endpoints = source_endpoint_snapshot(owner)
+    with local_lock(SOURCES_FILE):
+        if owner in sources():
+            return False
+    delete_source_endpoints(endpoints)
     return True
 
 
@@ -2014,13 +2113,13 @@ def set_source(h, user, body):
     wid = str(body.get("workspace") or "")
     if not WORKSPACE_ID_RE.match(wid):
         raise ValueError("Choose one of your workspaces.")
+    if restricted_workspace(wid):
+        raise PermissionError('Quarantined workspaces cannot become a Cloud Drive source.')
     ws = WORKSPACE_INFO(h.token(), wid) if WORKSPACE_INFO else None
     if not ws:
         raise ValueError("There is no such workspace.")
     if ws.get("owner_id") != uid:
         raise PermissionError
-    if CONNECTION_RESTRICTED and CONNECTION_RESTRICTED(wid):
-        raise PermissionError("Locked workspaces cannot reconnect Cloud Drive.")
     if wid in shared_now():
         raise ValueError("That workspace is shared with others: it cannot hold your Cloud Drive.")
     if encryption_on(uid):
@@ -2029,19 +2128,26 @@ def set_source(h, user, body):
         raise ValueError("Your Cloud Drive is being re-encrypted: wait for it to end.")
     path = clean_source_path(body.get("path"))
     found = _source_pod(wid)
-    if found:
+    if found and _source_is_vm(found[0]):
+        import vmusercommand
+        _, checked = vmusercommand.run(KUBE, NAMESPACE, found[0], ["check-source", path])
+        if not checked.get("ok"):
+            raise ValueError("Choose a real source subfolder under /home/coder outside the Cloud Drive control directory.")
+    elif found:
         code, out, err = kexec.exec_in(KUBE, NAMESPACE, found[0], SOURCE_CONTAINER, ["python3", "-c", CHECK_DIR, path],
                                        timeout=15)
         if out.strip() != "ok":
             raise ValueError("%s cannot be a folder in %s: something else is there, or a link on the way." % (
                 path, ws.get("name")))
-    data = sources()
-    old = data.get(uid)
-    data[uid] = {"owner": uid, "workspace": wid, "name": ws.get("name"), "path": path, "since": int(time.time()),
-                 "by": user["username"],
-                 "accessKey": (old or {}).get("accessKey") or "src" + secrets.token_hex(8),
-                 "secretKey": (old or {}).get("secretKey") or secrets.token_urlsafe(32)}
-    _write_json(SOURCES_FILE, data)
+    with reconnect_guard(wid):
+        with local_lock(SOURCES_FILE):
+            data = sources()
+            old = data.get(uid)
+            data[uid] = {"owner": uid, "workspace": wid, "name": ws.get("name"), "path": path, "since": int(time.time()),
+                         "by": user["username"], "generation": secrets.token_hex(16),
+                         "accessKey": (old or {}).get("accessKey") or "src" + secrets.token_hex(8),
+                         "secretKey": (old or {}).get("secretKey") or secrets.token_urlsafe(32)}
+            _write_json(SOURCES_FILE, data)
     if old and old["workspace"] != wid:
         _stop_source_server(old["workspace"])
     _sources_seen.pop(uid, None)
@@ -2056,6 +2162,8 @@ def _stop_source_server(workspace_id):
     found = _source_pod(workspace_id)
     if found:
         try:
+            if _source_is_vm(found[0]):
+                return  # The private guest reconciler stops the server after the source record is removed.
             _launch(found[0], {"stop": True})
         except Exception as e:  # noqa: BLE001 - the workspace's next start has no server anyway
             LOG(event="cloud-drive-source-stop-failed", workspace=workspace_id, error=str(e)[:200])
@@ -2065,13 +2173,14 @@ def clear_source(user, disconnect=()):
     """The caller's Cloud Drive back on its S3 storage (each workspace from its next start); the workspaces named
     disconnected from it on the way (the source's delete guard)."""
     uid = user["id"]
-    data = sources()
-    old = data.pop(uid, None)
-    if not old:
-        raise ValueError("Your Cloud Drive is not a workspace's folder.")
-    _write_json(SOURCES_FILE, data)
+    with local_lock(SOURCES_FILE):
+        data = sources()
+        old = data.pop(uid, None)
+        if not old:
+            raise ValueError("Your Cloud Drive is not a workspace's folder.")
+        _write_json(SOURCES_FILE, data)
     if disconnect:
-        with _links_lock:
+        with local_lock(LINKS_FILE):
             links = disconnected()
             for wid in disconnect:
                 links[wid] = {"owner": uid, "by": user["username"], "at": int(time.time()), "why": "source-deleted"}
@@ -2081,7 +2190,7 @@ def clear_source(user, disconnect=()):
     publish_now()
     try:
         remove_source_objects(uid)
-    except Exception as e:  # noqa: BLE001 - the reconcile loop takes the volume away once unused
+    except Exception as e:  # noqa: BLE001 - endpoint generations are retried; retained storage is not removed
         LOG(event="cloud-drive-source-cleanup-failed", user=user["username"], error=str(e)[:200])
     _wake.set()
     LOG(event="cloud-drive-source", action="cleared", user=user["username"], workspace=old.get("name"),
@@ -2130,6 +2239,8 @@ class DriveUnavailable(RuntimeError):
 def drive_of(user_id):
     """Where the account's files are now: (S3 client, bucket, its root prefix, its SSE-C key or None) - its source
     workspace's server, or the S3 storage (with its key when encrypted)."""
+    if user_id == driveaudit.ISO_LIBRARY_OWNER:
+        return client(), bucket(), LIBRARIES["isos"]["prefix"], None
     src = sources().get(user_id)
     if src:
         if not (_sources_seen.get(user_id) or {}).get("running"):
@@ -2553,6 +2664,8 @@ def _cli_text():
 
 
 def _mount_workspace(h, user, wid):
+    if restricted_workspace(wid):
+        raise PermissionError('Quarantined workspaces cannot change Cloud Drive mounts.')
     """(workspace, pod) of one of the caller's running workspaces that has their Cloud Drive."""
     if not WORKSPACE_ID_RE.match(wid or ""):
         raise ValueError("Choose one of your workspaces.")
@@ -2561,8 +2674,6 @@ def _mount_workspace(h, user, wid):
         raise ValueError("There is no such workspace.")
     if ws.get("owner_id") != user["id"]:
         raise PermissionError
-    if CONNECTION_RESTRICTED and CONNECTION_RESTRICTED(wid):
-        raise PermissionError("Locked workspaces cannot reconnect Cloud Drive.")
     if wid in shared_now():
         raise ValueError("That workspace is shared with others: your Cloud Drive is not in it.")
     found = _source_pod(wid)
@@ -2573,6 +2684,9 @@ def _mount_workspace(h, user, wid):
 
 def run_cli(pod, args, stdin=b"", timeout=180):
     """The workspace's cloud-drive command: (exit code, its JSON answer)."""
+    if _source_is_vm(pod):
+        import vmusercommand
+        return vmusercommand.run(KUBE, NAMESPACE, pod, args, stdin, timeout)
     code = _cli_text()
     rc, out, err = kexec.exec_in(KUBE, NAMESPACE, pod, SOURCE_CONTAINER,
                                  ["python3", "-c", CLI_BOOT, str(len(code))] + args + ["--json"],

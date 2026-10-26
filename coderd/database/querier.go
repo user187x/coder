@@ -103,6 +103,7 @@ type sqlcQuerier interface {
 	// when the automation is not a single-use webhook or was already
 	// consumed, so callers can refuse the delivery.
 	ConsumeChatAutomationWebhookByID(ctx context.Context, arg ConsumeChatAutomationWebhookByIDParams) (int64, error)
+	ConsumeWorkspaceQuarantineManualStart(ctx context.Context, arg ConsumeWorkspaceQuarantineManualStartParams) error
 	CountAIBridgeSessions(ctx context.Context, arg CountAIBridgeSessionsParams) (int64, error)
 	CountAuditLogs(ctx context.Context, arg CountAuditLogsParams) (int64, error)
 	// Counts the automations owner_id owns across all organizations.
@@ -1158,6 +1159,7 @@ type sqlcQuerier interface {
 	GetWorkspaceProxyByHostname(ctx context.Context, arg GetWorkspaceProxyByHostnameParams) (WorkspaceProxy, error)
 	GetWorkspaceProxyByID(ctx context.Context, id uuid.UUID) (WorkspaceProxy, error)
 	GetWorkspaceProxyByName(ctx context.Context, name string) (WorkspaceProxy, error)
+	GetWorkspaceQuarantineByWorkspaceID(ctx context.Context, workspaceID uuid.UUID) (WorkspaceQuarantine, error)
 	GetWorkspaceResourceByID(ctx context.Context, id uuid.UUID) (WorkspaceResource, error)
 	GetWorkspaceResourceMetadataByResourceIDs(ctx context.Context, ids []uuid.UUID) ([]WorkspaceResourceMetadatum, error)
 	GetWorkspaceResourceMetadataCreatedAfter(ctx context.Context, createdAt time.Time) ([]WorkspaceResourceMetadatum, error)
@@ -1460,6 +1462,7 @@ type sqlcQuerier interface {
 	// sequence, so this is acceptable.
 	PinChatByID(ctx context.Context, id uuid.UUID) error
 	PopNextQueuedMessage(ctx context.Context, chatID uuid.UUID) (ChatQueuedMessage, error)
+	PrepareWorkspaceQuarantineRelease(ctx context.Context, arg PrepareWorkspaceQuarantineReleaseParams) (int64, error)
 	ReduceWorkspaceAgentShareLevelToAuthenticatedByTemplate(ctx context.Context, templateID uuid.UUID) error
 	RegisterWorkspaceProxy(ctx context.Context, arg RegisterWorkspaceProxyParams) (WorkspaceProxy, error)
 	ReindexStaleChatMessagesSearchTsv(ctx context.Context, batchSize int32) (int64, error)
@@ -1547,6 +1550,9 @@ type sqlcQuerier interface {
 	// mismatched (run_id, step_id) pair cannot silently refresh an
 	// unrelated step.
 	TouchChatDebugStepAndRun(ctx context.Context, arg TouchChatDebugStepAndRunParams) error
+	// The unchanged value still updates the MVCC version, making stale
+	// RepeatableRead start transactions retry after a concurrent policy change.
+	TouchWorkspaceQuarantineLock(ctx context.Context, id uuid.UUID) (int64, error)
 	// Non blocking lock. Returns true if the lock was acquired, false otherwise.
 	//
 	// This must be called from within a transaction. The lock will be automatically
@@ -1877,6 +1883,7 @@ type sqlcQuerier interface {
 	// was started. This means that a new row was inserted (no previous session) or
 	// the updated_at is older than stale interval.
 	UpsertWorkspaceAppAuditSession(ctx context.Context, arg UpsertWorkspaceAppAuditSessionParams) (bool, error)
+	UpsertWorkspaceQuarantine(ctx context.Context, arg UpsertWorkspaceQuarantineParams) (WorkspaceQuarantine, error)
 	UsageEventExistsByID(ctx context.Context, id string) (bool, error)
 	ValidateGroupIDs(ctx context.Context, groupIds []uuid.UUID) (ValidateGroupIDsRow, error)
 	ValidateUserIDs(ctx context.Context, userIds []uuid.UUID) (ValidateUserIDsRow, error)

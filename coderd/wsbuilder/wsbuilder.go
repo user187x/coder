@@ -33,6 +33,7 @@ import (
 	"github.com/coder/coder/v2/coderd/tracing"
 	"github.com/coder/coder/v2/coderd/util/ptr"
 	"github.com/coder/coder/v2/coderd/util/slice"
+	"github.com/coder/coder/v2/coderd/workspacequarantine"
 	"github.com/coder/coder/v2/codersdk"
 	"github.com/coder/coder/v2/provisioner/terraform/tfparse"
 	"github.com/coder/coder/v2/provisionersdk"
@@ -61,6 +62,7 @@ type Builder struct {
 	usageChecker     UsageChecker
 
 	richParameterValues     []codersdk.WorkspaceBuildParameter
+	manualStart             bool
 	initiator               uuid.UUID
 	reason                  database.BuildReason
 	templateVersionPresetID uuid.UUID
@@ -196,6 +198,12 @@ func (b Builder) Experiments(exp codersdk.Experiments) Builder {
 func (b Builder) Initiator(u uuid.UUID) Builder {
 	// nolint: revive
 	b.initiator = u
+	return b
+}
+
+// ManualStart marks a new explicit user Start, rather than a scheduler or queued follow-up.
+func (b Builder) ManualStart() Builder {
+	b.manualStart = true
 	return b
 }
 
@@ -414,6 +422,10 @@ func (b *Builder) buildTx(authFunc func(action policy.Action, object rbac.Object
 			return nil, nil, nil, err
 		}
 	}
+	if err := b.checkQuarantine(); err != nil {
+		return nil, nil, nil, err
+	}
+
 	err := b.checkTemplateVersionMatchesTemplate()
 	if err != nil {
 		return nil, nil, nil, err
@@ -1248,6 +1260,38 @@ func (b *Builder) getPresetParameterValues() ([]database.TemplateVersionPresetPa
 	}
 	b.templateVersionPresetParameterValues = ptr.Ref(presetParameters)
 	return *b.templateVersionPresetParameterValues, nil
+}
+
+func (b *Builder) checkQuarantine() error {
+	if b.trans != database.WorkspaceTransitionStart && b.trans != database.WorkspaceTransitionDelete {
+		return nil
+	}
+	if err := workspacequarantine.Acquire(b.ctx, b.store, b.workspace.ID); err != nil {
+		return BuildError{http.StatusInternalServerError, "Cannot verify workspace quarantine", err}
+	}
+	current, err := workspacequarantine.Load(b.ctx, b.store, b.workspace.ID)
+	if err != nil {
+		return BuildError{http.StatusInternalServerError, "Cannot verify workspace quarantine", err}
+	}
+	if current.Enabled {
+		return BuildError{http.StatusLocked, "Workspace is quarantined", workspacequarantine.ErrQuarantined}
+	}
+	if b.trans == database.WorkspaceTransitionDelete {
+		return nil
+	}
+	if current.ManualStartRequired {
+		if !current.ReleasePrepared {
+			return BuildError{http.StatusConflict, "Workspace release preparation is pending", workspacequarantine.ErrQuarantined}
+		}
+		if !b.manualStart {
+			return BuildError{http.StatusLocked, "Released workspace requires a new explicit Start", workspacequarantine.ErrQuarantined}
+		}
+		if current.OrganizationID != b.workspace.OrganizationID {
+			return BuildError{http.StatusInternalServerError, "Workspace quarantine organization mismatch", workspacequarantine.ErrQuarantined}
+		}
+		return b.store.ConsumeWorkspaceQuarantineManualStart(b.ctx, database.ConsumeWorkspaceQuarantineManualStartParams{WorkspaceID: b.workspace.ID, OrganizationID: b.workspace.OrganizationID})
+	}
+	return nil
 }
 
 // authorize performs build authorization pre-checks using the provided authFunc

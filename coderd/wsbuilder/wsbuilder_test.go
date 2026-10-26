@@ -1168,6 +1168,9 @@ func expectDB(t *testing.T, opts ...txExpect) *dbmock.MockStore {
 	ctrl := gomock.NewController(t)
 	mDB := dbmock.NewMockStore(ctrl)
 	mTx := dbmock.NewMockStore(ctrl)
+	mTx.EXPECT().AcquireLock(gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
+	mTx.EXPECT().TouchWorkspaceQuarantineLock(gomock.Any(), gomock.Any()).AnyTimes().Return(int64(1), nil)
+	mTx.EXPECT().GetWorkspaceQuarantineByWorkspaceID(gomock.Any(), gomock.Any()).AnyTimes().Return(database.WorkspaceQuarantine{}, sql.ErrNoRows)
 
 	// we expect to be run in a transaction; we use mTx to record the
 	// "in transaction" calls.

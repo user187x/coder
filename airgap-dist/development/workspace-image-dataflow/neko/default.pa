@@ -1,0 +1,6 @@
+load-module module-null-sink sink_name=audio_output sink_properties=device.description="Neko_Audio_Output"
+load-module module-null-sink sink_name=audio_input sink_properties=device.description="Neko_Audio_Input"
+load-module module-virtual-source source_name=microphone master=audio_input.monitor
+load-module module-always-sink
+set-default-sink audio_output
+set-default-source microphone

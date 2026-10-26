@@ -38,53 +38,63 @@ func (p cachedLockdownToken) FromRequest(*http.Request) (*SignedToken, bool) {
 
 func TestSessionGuardRejectsCachedTokens(t *testing.T) {
 	t.Parallel()
-	userID, agentID := uuid.New(), uuid.New()
-	for _, method := range []AccessMethod{AccessMethodPath, AccessMethodSubdomain, AccessMethodTerminal} {
-		t.Run(string(method), func(t *testing.T) {
-			t.Parallel()
-			base := &url.URL{Scheme: "http", Host: "coder.test"}
-			token := &SignedToken{UserID: userID, AgentID: agentID, AppURL: "http://127.0.0.1:8080"}
-			token.Request = Request{
-				AccessMethod: method, BasePath: "/", UsernameOrID: "alice", WorkspaceNameOrID: "workspace",
-				AppSlugOrPort: "editor",
-			}
-			hostname := "*--apps.coder.test"
-			hostnameRegex, err := appurl.CompileHostnamePattern(hostname)
-			require.NoError(t, err)
-			guarded := false
-			s := NewServer(ServerOptions{
-				Logger: testutil.Logger(t), DashboardURL: base, AccessURL: base,
-				Hostname: hostname, HostnameRegex: hostnameRegex, RealIPConfig: &httpmw.RealIPConfig{},
-				SignedTokenProvider: cachedLockdownToken{token: token, t: t},
-				GuardSession: func(ctx context.Context, id uuid.UUID) (context.Context, func(), error) {
-					require.Equal(t, userID, id)
-					guarded = true
-					return ctx, nil, errors.New("locked")
-				},
+	userID, agentID, workspaceID := uuid.New(), uuid.New(), uuid.New()
+	for _, scope := range []string{"global", "workspace"} {
+		for _, method := range []AccessMethod{AccessMethodPath, AccessMethodSubdomain, AccessMethodTerminal} {
+			t.Run(scope+"/"+string(method), func(t *testing.T) {
+				t.Parallel()
+				base := &url.URL{Scheme: "http", Host: "coder.test"}
+				token := &SignedToken{UserID: userID, AgentID: agentID, WorkspaceID: workspaceID, AppURL: "http://127.0.0.1:8080"}
+				token.Request = Request{
+					AccessMethod: method, BasePath: "/", UsernameOrID: "alice", WorkspaceNameOrID: "workspace",
+					AppSlugOrPort: "editor",
+				}
+				hostname := "*--apps.coder.test"
+				hostnameRegex, err := appurl.CompileHostnamePattern(hostname)
+				require.NoError(t, err)
+				guarded := false
+				s := NewServer(ServerOptions{
+					Logger: testutil.Logger(t), DashboardURL: base, AccessURL: base,
+					Hostname: hostname, HostnameRegex: hostnameRegex, RealIPConfig: &httpmw.RealIPConfig{},
+					SignedTokenProvider: cachedLockdownToken{token: token, t: t},
+					GuardSession: func(ctx context.Context, id uuid.UUID) (context.Context, func(), error) {
+						require.Equal(t, userID, id)
+						guarded = true
+						return ctx, nil, errors.New("locked")
+					},
+				})
+				if scope == "workspace" {
+					s.GuardSession = nil
+					s.GuardWorkspaceSession = func(ctx context.Context, id uuid.UUID) (context.Context, func(), error) {
+						require.Equal(t, workspaceID, id)
+						guarded = true
+						return ctx, nil, errors.New("quarantined")
+					}
+				}
+				router := chi.NewRouter()
+				router.Use(tracing.StatusWriterMiddleware)
+				router.Use(tracing.Middleware(nil, tracing.DefaultRoutePatterns, "test"))
+				s.Attach(router)
+				var target string
+				var handler http.Handler = router
+				switch method {
+				case AccessMethodPath:
+					token.BasePath = "/@alice/workspace/apps/editor/"
+					target = base.String() + token.BasePath
+				case AccessMethodTerminal:
+					token.Request = Request{AccessMethod: method, BasePath: "/api/v2/workspaceagents/" + agentID.String() + "/pty", AgentNameOrID: agentID.String()}
+					target = base.String() + token.BasePath
+				case AccessMethodSubdomain:
+					app := appurl.ApplicationURL{AppSlugOrPort: "editor", WorkspaceName: "workspace", Username: "alice"}
+					target = "http://" + app.String() + "--apps.coder.test/"
+					handler = s.HandleSubdomain()(router)
+				}
+				response := httptest.NewRecorder()
+				handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, target, nil))
+				require.True(t, guarded, "cached tickets must still pass through the session guard")
+				require.Equal(t, http.StatusLocked, response.Code)
 			})
-			router := chi.NewRouter()
-			router.Use(tracing.StatusWriterMiddleware)
-			router.Use(tracing.Middleware(nil, tracing.DefaultRoutePatterns, "test"))
-			s.Attach(router)
-			var target string
-			var handler http.Handler = router
-			switch method {
-			case AccessMethodPath:
-				token.BasePath = "/@alice/workspace/apps/editor/"
-				target = base.String() + token.BasePath
-			case AccessMethodTerminal:
-				token.Request = Request{AccessMethod: method, BasePath: "/api/v2/workspaceagents/" + agentID.String() + "/pty", AgentNameOrID: agentID.String()}
-				target = base.String() + token.BasePath
-			case AccessMethodSubdomain:
-				app := appurl.ApplicationURL{AppSlugOrPort: "editor", WorkspaceName: "workspace", Username: "alice"}
-				target = "http://" + app.String() + "--apps.coder.test/"
-				handler = s.HandleSubdomain()(router)
-			}
-			response := httptest.NewRecorder()
-			handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, target, nil))
-			require.True(t, guarded, "cached tickets must still pass through the session guard")
-			require.Equal(t, http.StatusLocked, response.Code)
-		})
+		}
 	}
 }
 
@@ -95,6 +105,13 @@ func (lockdownProxyAgent) ReverseProxy(target, _ *url.URL, _ uuid.UUID, _ appurl
 }
 
 func TestSessionGuardClosesActiveAppWebsocket(t *testing.T) {
+	t.Parallel()
+	for _, scope := range []string{"global", "workspace"} {
+		t.Run(scope, func(t *testing.T) { testSessionGuardClosesActiveAppWebsocket(t, scope) })
+	}
+}
+
+func testSessionGuardClosesActiveAppWebsocket(t *testing.T, scope string) {
 	t.Parallel()
 	ctx := testutil.Context(t, testutil.WaitShort)
 	backendClosed := make(chan error, 1)
@@ -122,6 +139,10 @@ func TestSessionGuardClosesActiveAppWebsocket(t *testing.T) {
 			return guard, func() { cancel(); close(ended) }, nil
 		},
 	})
+	if scope == "workspace" {
+		s.GuardWorkspaceSession = s.GuardSession
+		s.GuardSession = nil
+	}
 	token := SignedToken{UserID: uuid.New(), AgentID: uuid.New(), WorkspaceID: uuid.New(), AppURL: backend.URL,
 		Request: Request{AccessMethod: AccessMethodPath, AppSlugOrPort: "editor"}}
 	proxy := httptest.NewServer(httpmw.ExtractRealIP(&httpmw.RealIPConfig{})(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {

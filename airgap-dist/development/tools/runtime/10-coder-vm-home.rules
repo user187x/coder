@@ -1,0 +1,2 @@
+# Managed raw HOME disks are interpreted only inside the maintenance appliance.
+SUBSYSTEM=="block", KERNEL=="loop[0-9]*", ATTR{loop/backing_file}=="/var/lib/coder-vm-homes/*", ENV{UDEV_DISABLE_PERSISTENT_STORAGE_RULES_FLAG}="1", ENV{UDEV_DISABLE_PERSISTENT_STORAGE_BLKID_FLAG}="1", ENV{UDISKS_IGNORE}="1", ENV{SYSTEMD_READY}="0", ENV{CODER_VM_HOME_DEVICE}="1", OPTIONS+="nowatch"

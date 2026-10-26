@@ -116,6 +116,10 @@ type ServerOptions struct {
 	// GuardSession checks deployment access and returns a context canceled when
 	// that access is revoked. End is called after the proxied session closes.
 	GuardSession func(context.Context, uuid.UUID) (context.Context, func(), error)
+	// GuardWorkspaceSession checks workspace containment, including signed app tokens.
+	GuardWorkspaceSession func(context.Context, uuid.UUID) (context.Context, func(), error)
+	// NekoMedia is disabled unless a trusted client and relay are configured.
+	NekoMedia *NekoMedia
 }
 
 // Server serves workspace apps endpoints, including:
@@ -141,6 +145,10 @@ func NewServer(options ServerOptions) *Server {
 // Close waits for all reconnecting-pty WebSocket connections to drain before
 // returning.
 func (s *Server) Close() error {
+	var mediaErr error
+	if s.NekoMedia != nil {
+		mediaErr = s.NekoMedia.Close()
+	}
 	s.websocketWaitMutex.Lock()
 	s.websocketWaitGroup.Wait()
 	s.websocketWaitMutex.Unlock()
@@ -152,7 +160,7 @@ func (s *Server) Close() error {
 	// The caller must close the SignedTokenProvider and the AgentProvider (if
 	// necessary).
 
-	return nil
+	return mediaErr
 }
 
 func (s *Server) Attach(r chi.Router) {
@@ -417,6 +425,45 @@ func (s *Server) determineCORSBehavior(token *SignedToken, app appurl.Applicatio
 	}
 }
 
+var appProxyHostPattern = regexp.MustCompile(`^[a-zA-Z0-9](?:[a-zA-Z0-9.-]*[a-zA-Z0-9])?$`)
+
+// setAppProxyHeaders replaces client proxy metadata after app-host validation.
+// NiFi requires a single trusted external host and no dashboard context prefix.
+func setAppProxyHeaders(r *http.Request, scheme string) bool {
+	if scheme != "https" && scheme != "http" {
+		return false
+	}
+	origin, err := url.Parse("//" + r.Host)
+	if err != nil || origin.Host != r.Host || origin.User != nil || origin.Path != "" || origin.RawQuery != "" || origin.Fragment != "" || strings.HasSuffix(r.Host, ":") {
+		return false
+	}
+	host := origin.Hostname()
+	if len(host) > 253 || !appProxyHostPattern.MatchString(host) {
+		return false
+	}
+	port := origin.Port()
+	if port != "" {
+		value, err := strconv.Atoi(port)
+		if err != nil || value < 1 || value > 65535 {
+			return false
+		}
+	} else if scheme == "https" {
+		port = "443"
+	} else {
+		port = "80"
+	}
+	for _, key := range []string{"X-ProxyContextPath", "X-Forwarded-Context", forwardedPrefixHeader, "Forwarded"} {
+		r.Header.Del(key)
+	}
+	r.Header.Set("X-ProxyScheme", scheme)
+	r.Header.Set("X-ProxyHost", host)
+	r.Header.Set("X-ProxyPort", port)
+	r.Header.Set("X-Forwarded-Proto", scheme)
+	r.Header.Set("X-Forwarded-Host", r.Host)
+	r.Header.Set("X-Forwarded-Port", port)
+	return true
+}
+
 // HandleSubdomain handles subdomain-based application proxy requests (aka.
 // DevURLs in Coder V1).
 //
@@ -517,6 +564,11 @@ func (s *Server) HandleSubdomain(middlewares ...func(http.Handler) http.Handler)
 				return
 			}
 
+			if (app.AppSlugOrPort == "nifi" || app.AppSlugOrPort == "airflow") && !setAppProxyHeaders(r, s.AccessURL.Scheme) {
+				httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{Message: "Invalid application origin."})
+				return
+			}
+
 			// Proxy the request (possibly with the CORS middleware).
 			mws := chi.Middlewares(append(middlewares, s.determineCORSBehavior(token, app)))
 			mws.Handler(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
@@ -589,6 +641,16 @@ func (s *Server) proxyWorkspaceApp(rw http.ResponseWriter, r *http.Request, appT
 		guard, end, err := s.GuardSession(ctx, appToken.UserID)
 		if err != nil {
 			httpapi.Write(ctx, rw, http.StatusLocked, codersdk.Response{Message: "System Lockdown Enabled"})
+			return
+		}
+		defer end()
+		ctx = guard
+		r = r.WithContext(ctx)
+	}
+	if s.GuardWorkspaceSession != nil {
+		guard, end, err := s.GuardWorkspaceSession(ctx, appToken.WorkspaceID)
+		if err != nil {
+			httpapi.Write(ctx, rw, http.StatusLocked, codersdk.Response{Message: "Workspace access is restricted."})
 			return
 		}
 		defer end()
@@ -739,6 +801,10 @@ func (s *Server) proxyWorkspaceApp(rw http.ResponseWriter, r *http.Request, appT
 		s.collectStats(report)
 	}()
 
+	if appToken.AppSlugOrPort == "neko" {
+		s.serveNeko(rw, r, appToken, proxy)
+		return
+	}
 	proxy.ServeHTTP(rw, r)
 }
 
@@ -786,6 +852,16 @@ func (s *Server) workspaceAgentPTY(rw http.ResponseWriter, r *http.Request) {
 		guard, end, err := s.GuardSession(ctx, appToken.UserID)
 		if err != nil {
 			httpapi.Write(ctx, rw, http.StatusLocked, codersdk.Response{Message: "System Lockdown Enabled"})
+			return
+		}
+		defer end()
+		ctx = guard
+		r = r.WithContext(ctx)
+	}
+	if s.GuardWorkspaceSession != nil {
+		guard, end, err := s.GuardWorkspaceSession(ctx, appToken.WorkspaceID)
+		if err != nil {
+			httpapi.Write(ctx, rw, http.StatusLocked, codersdk.Response{Message: "Workspace access is restricted."})
 			return
 		}
 		defer end()

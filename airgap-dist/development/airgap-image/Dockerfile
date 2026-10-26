@@ -13,6 +13,11 @@ COPY template/ /template/
 RUN terraform -chdir=/template providers mirror -platform=linux_amd64 /mirror
 COPY extra-providers/ /extra/
 RUN if ls /extra/*.tf >/dev/null 2>&1; then terraform -chdir=/extra providers mirror -platform=linux_amd64 /mirror; fi
+# Verify the approved third-party artifact independently of registry signatures.
+RUN printf '%s  %s\n' \
+    'a347aebd398769c35ed2d3169025a7a11c1937d94efead7a7bee212aabba1c73' \
+    '/mirror/registry.terraform.io/alekc/kubectl/terraform-provider-kubectl_2.4.1_linux_amd64.zip' \
+    | sha256sum -c -
 
 FROM ${GO_IMAGE} AS terraform
 ARG TERRAFORM_VERSION

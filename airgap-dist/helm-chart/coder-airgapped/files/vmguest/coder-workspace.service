@@ -1,0 +1,18 @@
+[Unit]
+Description=Coder workspace inside mandatory Sysbox runtime
+Requires=coder-vm-registry.service docker.service sysbox-mgr.service sysbox-fs.service lxcfs.service
+After=coder-vm-registry.service network-online.target docker.service sysbox-mgr.service sysbox-fs.service lxcfs.service
+Wants=network-online.target
+ConditionPathExists=/etc/coder-workspace/runtime.json
+
+[Service]
+Type=simple
+ExecStart=/usr/local/sbin/coder-vm-guest
+ExecStop=/usr/bin/docker stop --time 15 coder-workspace
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=25
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

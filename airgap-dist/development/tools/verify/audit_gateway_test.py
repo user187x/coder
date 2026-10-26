@@ -69,6 +69,35 @@ class AuditGatewayTest(unittest.TestCase):
         keys = self.store.credentials(actor)
         return s3client.S3(self.endpoint, "us-east-1", keys["accessKey"], keys["secretKey"])
 
+    def test_opaque_filesystem_etag_conditions_and_ranges_survive_the_gateway(self):
+        path = ALICE + '/conditional.txt'
+        self.alice.put(self.bucket, path, b'initial content')
+        tag = self.alice.head(self.bucket, path).headers['ETag']
+        self.assertTrue(tag.startswith('"fs-'))
+        response = self.alice.request('GET', self.bucket, path, headers={'If-Match': tag, 'Range': 'bytes=1-3'})
+        self.assertEqual(response.status, 206)
+        self.assertEqual(response.read(), b'nit')
+        self.assertEqual(response.headers['ETag'], tag)
+        self.assertEqual(response.headers['Content-Range'], 'bytes 1-3/15')
+        response.close()
+        response.conn.close()
+        response = self.alice.request('GET', self.bucket, path, headers={'If-None-Match': tag})
+        self.assertEqual(response.status, 304)
+        self.assertEqual(response.read(), b'')
+        self.assertEqual(response.headers['ETag'], tag)
+        response.close()
+        response.conn.close()
+        self.bob.put(self.bucket, BOB + '/conditional.txt', b'updated content')
+        with self.assertRaises(s3client.S3Error) as hit:
+            self.alice.request('GET', self.bucket, path, headers={'If-Match': tag})
+        self.assertEqual(hit.exception.status, 412)
+        response = self.alice.request('GET', self.bucket, path, headers={'If-None-Match': tag})
+        self.assertEqual(response.status, 200)
+        self.assertEqual(response.read(), b'updated content')
+        self.assertNotEqual(response.headers['ETag'], tag)
+        response.close()
+        response.conn.close()
+
     def test_account_identity_add_overwrite_delete_and_prior_size(self):
         self.alice.put(self.bucket, ALICE + "/hello.txt", b"hello")
         self.bob.put(self.bucket, BOB + "/hello.txt", b"a longer replacement")

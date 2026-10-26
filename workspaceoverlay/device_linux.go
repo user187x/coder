@@ -17,9 +17,15 @@ import (
 
 // KernelDevice owns one WireGuard interface inside the workspace pod namespace.
 type KernelDevice struct {
-	Name          string
-	PrivateKey    wgtypes.Key
-	Port          int
+	Name       string
+	PrivateKey wgtypes.Key
+	Port       int
+	// ForwardChain is a root-owned adapter chain evaluated before transit guards.
+	// An empty value permits only traffic terminating in this network namespace.
+	ForwardChain string
+	// SocketScope selects the supervisor-verified application network namespace.
+	// Nil uses this process's namespace for ordinary workspace sidecars.
+	SocketScope   *SocketScope
 	peers         map[wgtypes.Key]string
 	address       netip.Addr
 	peerAddresses map[netip.Addr]string
@@ -78,15 +84,14 @@ func (d *KernelDevice) Apply(ctx context.Context, p Policy) (err error) {
 			}
 		}
 	}
-	// Peers must not forward packets through this workspace to other networks.
-	for _, direction := range []string{"-i", "-o"} {
-		args := []string{"-w", "5", "-C", "FORWARD", direction, d.Name, "-j", "DROP"}
-		if exec.CommandContext(ctx, "iptables", args...).Run() != nil {
-			args[2] = "-I"
-			if output, e := exec.CommandContext(ctx, "iptables", args...).CombinedOutput(); e != nil {
-				return fmt.Errorf("install overlay forwarding guard: %w: %s", e, output)
-			}
+	if err = d.forwardingGuards(func(args ...string) error {
+		output, runErr := exec.CommandContext(ctx, "iptables", args...).CombinedOutput()
+		if runErr != nil {
+			return fmt.Errorf("%w: %s", runErr, output)
 		}
+		return nil
+	}); err != nil {
+		return err
 	}
 	if err = d.portPolicy(p, func(args ...string) error {
 		output, runErr := exec.CommandContext(ctx, "iptables", args...).CombinedOutput()
@@ -191,6 +196,43 @@ func (d *KernelDevice) observeUDP(ctx context.Context) error {
 				return err
 			}
 		}
+	}
+	return nil
+}
+
+// forwardingGuards keeps unmatched traffic behind unconditional transit guards.
+// The optional root-owned adapter is installed first and must already exist.
+func (d *KernelDevice) forwardingGuards(run func(...string) error) error {
+	if d.ForwardChain != "" && (d.ForwardChain != "CODER_VM_TUNNEL") {
+		return fmt.Errorf("invalid overlay adapter chain")
+	}
+	if d.ForwardChain != "" {
+		if err := run("-w", "5", "-S", d.ForwardChain); err != nil {
+			return fmt.Errorf("inspect overlay adapter chain: %w", err)
+		}
+	}
+	for _, direction := range []string{"-i", "-o"} {
+		args := []string{"-w", "5", "-C", "FORWARD", direction, d.Name, "-j", "DROP"}
+		if run(args...) != nil {
+			args[2] = "-I"
+			if err := run(args...); err != nil {
+				return fmt.Errorf("install overlay forwarding guard: %w", err)
+			}
+		}
+	}
+	if d.ForwardChain == "" {
+		return nil
+	}
+	args := []string{"-w", "5", "-C", "FORWARD", "-j", d.ForwardChain}
+	if run(args...) == nil {
+		args[2] = "-D"
+		if err := run(args...); err != nil {
+			return fmt.Errorf("reorder overlay adapter: %w", err)
+		}
+	}
+	args[2] = "-I"
+	if err := run(args...); err != nil {
+		return fmt.Errorf("install overlay adapter: %w", err)
 	}
 	return nil
 }

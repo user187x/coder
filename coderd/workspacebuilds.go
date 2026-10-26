@@ -33,6 +33,7 @@ import (
 	"github.com/coder/coder/v2/coderd/provisionerdserver"
 	"github.com/coder/coder/v2/coderd/rbac"
 	"github.com/coder/coder/v2/coderd/rbac/policy"
+	"github.com/coder/coder/v2/coderd/workspacequarantine"
 	"github.com/coder/coder/v2/coderd/wsbuilder"
 	"github.com/coder/coder/v2/coderd/wspubsub"
 	"github.com/coder/coder/v2/codersdk"
@@ -76,11 +77,6 @@ func (api *API) workspaceBuild(rw http.ResponseWriter, r *http.Request) {
 			Message: "Internal error getting workspace build data.",
 			Detail:  "No template version found for workspace build.",
 		})
-		return
-	}
-
-	if err := api.checkPlatformStartQuota(ctx, httpmw.APITokenFromRequest(r), apiKey.UserID, workspace, createBuild, func(action policy.Action, object rbac.Objecter) bool { return api.Authorize(r, action, object) }); err != nil {
-		httperror.WriteWorkspaceBuildError(ctx, rw, err)
 		return
 	}
 
@@ -355,6 +351,11 @@ func (api *API) postWorkspaceBuilds(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := api.checkPlatformStartQuota(ctx, httpmw.APITokenFromRequest(r), apiKey.UserID, workspace, createBuild, func(action policy.Action, object rbac.Objecter) bool { return api.Authorize(r, action, object) }); err != nil {
+		httperror.WriteWorkspaceBuildError(ctx, rw, err)
+		return
+	}
+
 	apiBuild, err := api.postWorkspaceBuildsInternal(
 		ctx,
 		apiKey,
@@ -413,6 +414,7 @@ func (api *API) postWorkspaceBuildsInternal(
 
 	transition := database.WorkspaceTransition(createBuild.Transition)
 	builder := wsbuilder.New(workspace, transition, *api.BuildUsageChecker.Load()).
+		ManualStart().
 		Initiator(apiKey.UserID).
 		RichParameterValues(createBuild.RichParameterValues).
 		LogLevel(string(createBuild.LogLevel)).
@@ -1031,6 +1033,16 @@ func (api *API) workspaceBuildState(rw http.ResponseWriter, r *http.Request) {
 // @Success 204
 // @Router /api/v2/workspacebuilds/{workspacebuild}/state [put]
 func (api *API) workspaceBuildUpdateState(rw http.ResponseWriter, r *http.Request) {
+	quarantine, err := workspacequarantine.Load(r.Context(), api.Database, httpmw.WorkspaceParam(r).ID)
+	if err != nil {
+		httpapi.InternalServerError(rw, err)
+		return
+	}
+	if quarantine.Enabled {
+		httpapi.Write(r.Context(), rw, http.StatusLocked, codersdk.Response{Message: "Workspace state cannot be replaced while quarantine is enabled."})
+		return
+	}
+
 	ctx := r.Context()
 	workspaceBuild := httpmw.WorkspaceBuildParam(r)
 	workspace, err := api.Database.GetWorkspaceByID(ctx, workspaceBuild.WorkspaceID)

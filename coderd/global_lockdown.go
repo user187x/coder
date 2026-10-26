@@ -2,6 +2,7 @@ package coderd
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"net/http"
@@ -55,11 +56,22 @@ func (api *API) globalLockdownResponse(r *http.Request, s platformlockdown.State
 		if !agent.FirstConnectedAt.Valid && !ack.Supported {
 			continue
 		}
+		agentPolicy := policy
+		//nolint:gocritic // Enforcement status needs the target policy, including quarantined workspaces.
+		workspace, lookupErr := api.Database.GetWorkspaceByAgentID(dbauthz.AsSystemRestricted(r.Context()), agent.ID)
+		if lookupErr == nil {
+			agentPolicy, err = api.globalLockdown.PolicyForWorkspace(r.Context(), s, workspace.ID)
+			if err != nil {
+				return out, err
+			}
+		} else if !errors.Is(lookupErr, sql.ErrNoRows) {
+			return out, lookupErr
+		}
 		out.AgentsTotal++
 		status := "confirmed"
 		if !ack.Supported {
 			status = "update_required"
-		} else if ack.Fingerprint != policy.Fingerprint {
+		} else if ack.Fingerprint != agentPolicy.Fingerprint {
 			status = "waiting"
 		}
 		if status != "confirmed" {
@@ -115,7 +127,7 @@ func (api *API) syncAgentWorkspaceAccess(rw http.ResponseWriter, r *http.Request
 		return
 	}
 	agent := httpmw.WorkspaceAgent(r)
-	policy, err := api.globalLockdown.SyncAgent(r.Context(), agent.ID, req.Session, req.AppliedPolicy)
+	policy, err := api.globalLockdown.SyncAgentForWorkspace(r.Context(), agent.ID, httpmw.LatestBuild(r).WorkspaceID, req.Session, req.AppliedPolicy)
 	if errors.Is(err, platformlockdown.ErrAgentSession) {
 		httpapi.Write(r.Context(), rw, http.StatusConflict, codersdk.Response{Message: err.Error()})
 		return

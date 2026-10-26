@@ -40706,6 +40706,126 @@ func (q *sqlQuerier) InsertWorkspaceModule(ctx context.Context, arg InsertWorksp
 	return i, err
 }
 
+const consumeWorkspaceQuarantineManualStart = `-- name: ConsumeWorkspaceQuarantineManualStart :exec
+UPDATE workspace_quarantines SET manual_start_required = false
+WHERE workspace_id = $1 AND organization_id = $2 AND enabled = false AND release_prepared = true
+`
+
+type ConsumeWorkspaceQuarantineManualStartParams struct {
+	WorkspaceID    uuid.UUID `db:"workspace_id" json:"workspace_id"`
+	OrganizationID uuid.UUID `db:"organization_id" json:"organization_id"`
+}
+
+func (q *sqlQuerier) ConsumeWorkspaceQuarantineManualStart(ctx context.Context, arg ConsumeWorkspaceQuarantineManualStartParams) error {
+	_, err := q.db.ExecContext(ctx, consumeWorkspaceQuarantineManualStart, arg.WorkspaceID, arg.OrganizationID)
+	return err
+}
+
+const getWorkspaceQuarantineByWorkspaceID = `-- name: GetWorkspaceQuarantineByWorkspaceID :one
+SELECT workspace_id, organization_id, enabled, revision, reason, updated_by, updated_at, manual_start_required, release_prepared FROM workspace_quarantines WHERE workspace_id = $1
+`
+
+func (q *sqlQuerier) GetWorkspaceQuarantineByWorkspaceID(ctx context.Context, workspaceID uuid.UUID) (WorkspaceQuarantine, error) {
+	row := q.db.QueryRowContext(ctx, getWorkspaceQuarantineByWorkspaceID, workspaceID)
+	var i WorkspaceQuarantine
+	err := row.Scan(
+		&i.WorkspaceID,
+		&i.OrganizationID,
+		&i.Enabled,
+		&i.Revision,
+		&i.Reason,
+		&i.UpdatedBy,
+		&i.UpdatedAt,
+		&i.ManualStartRequired,
+		&i.ReleasePrepared,
+	)
+	return i, err
+}
+
+const prepareWorkspaceQuarantineRelease = `-- name: PrepareWorkspaceQuarantineRelease :execrows
+UPDATE workspace_quarantines SET release_prepared = true
+WHERE workspace_id = $1 AND organization_id = $2 AND revision = $3
+AND enabled = false AND manual_start_required = true
+`
+
+type PrepareWorkspaceQuarantineReleaseParams struct {
+	WorkspaceID    uuid.UUID `db:"workspace_id" json:"workspace_id"`
+	OrganizationID uuid.UUID `db:"organization_id" json:"organization_id"`
+	Revision       uuid.UUID `db:"revision" json:"revision"`
+}
+
+func (q *sqlQuerier) PrepareWorkspaceQuarantineRelease(ctx context.Context, arg PrepareWorkspaceQuarantineReleaseParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, prepareWorkspaceQuarantineRelease, arg.WorkspaceID, arg.OrganizationID, arg.Revision)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const touchWorkspaceQuarantineLock = `-- name: TouchWorkspaceQuarantineLock :execrows
+UPDATE workspaces SET updated_at = updated_at WHERE id = $1
+`
+
+// The unchanged value still updates the MVCC version, making stale
+// RepeatableRead start transactions retry after a concurrent policy change.
+func (q *sqlQuerier) TouchWorkspaceQuarantineLock(ctx context.Context, id uuid.UUID) (int64, error) {
+	result, err := q.db.ExecContext(ctx, touchWorkspaceQuarantineLock, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const upsertWorkspaceQuarantine = `-- name: UpsertWorkspaceQuarantine :one
+INSERT INTO workspace_quarantines (workspace_id, organization_id, enabled, revision, reason, updated_by, updated_at, manual_start_required)
+VALUES ($1, $2, $3, $4, $5, $6, $7, true)
+ON CONFLICT (workspace_id) DO UPDATE SET
+    enabled = EXCLUDED.enabled,
+    revision = EXCLUDED.revision,
+    reason = EXCLUDED.reason,
+    updated_by = EXCLUDED.updated_by,
+    updated_at = EXCLUDED.updated_at,
+    manual_start_required = true,
+    release_prepared = false
+WHERE workspace_quarantines.organization_id = EXCLUDED.organization_id
+RETURNING workspace_id, organization_id, enabled, revision, reason, updated_by, updated_at, manual_start_required, release_prepared
+`
+
+type UpsertWorkspaceQuarantineParams struct {
+	WorkspaceID    uuid.UUID `db:"workspace_id" json:"workspace_id"`
+	OrganizationID uuid.UUID `db:"organization_id" json:"organization_id"`
+	Enabled        bool      `db:"enabled" json:"enabled"`
+	Revision       uuid.UUID `db:"revision" json:"revision"`
+	Reason         string    `db:"reason" json:"reason"`
+	UpdatedBy      uuid.UUID `db:"updated_by" json:"updated_by"`
+	UpdatedAt      time.Time `db:"updated_at" json:"updated_at"`
+}
+
+func (q *sqlQuerier) UpsertWorkspaceQuarantine(ctx context.Context, arg UpsertWorkspaceQuarantineParams) (WorkspaceQuarantine, error) {
+	row := q.db.QueryRowContext(ctx, upsertWorkspaceQuarantine,
+		arg.WorkspaceID,
+		arg.OrganizationID,
+		arg.Enabled,
+		arg.Revision,
+		arg.Reason,
+		arg.UpdatedBy,
+		arg.UpdatedAt,
+	)
+	var i WorkspaceQuarantine
+	err := row.Scan(
+		&i.WorkspaceID,
+		&i.OrganizationID,
+		&i.Enabled,
+		&i.Revision,
+		&i.Reason,
+		&i.UpdatedBy,
+		&i.UpdatedAt,
+		&i.ManualStartRequired,
+		&i.ReleasePrepared,
+	)
+	return i, err
+}
+
 const getWorkspaceResourceByID = `-- name: GetWorkspaceResourceByID :one
 SELECT
 	id, created_at, job_id, transition, type, name, hide, icon, instance_type, daily_cost, module_path

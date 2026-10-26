@@ -10,6 +10,8 @@ data:
   # injects into the templates that lack them).
   main.tf: |
 {{ .Files.Get "files/main.tf" | replace "codercom/enterprise-base:ubuntu" .Values.workspaceImage | replace "secret_name = \"tls-ca\"" (printf "secret_name = %q" .Values.secrets.tlsCa) | indent 4 }}
+  workspace-vm.tf: |
+{{ .Files.Get "files/workspace-vm.tf" | indent 4 }}
   {{- if .Values.agentAudit }}
   # agent-audit.tf records what runs in the workspace (every command/process, i.e. an LLM agent's actions) and
   # forwards it to coder-ui-updates for Observability > Agent Activity.

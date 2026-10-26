@@ -1,0 +1,31 @@
+{
+  "version": "v1.8.4",
+  "architecture": "amd64",
+  "images": {
+    "virt-operator": {
+      "source": "quay.io/kubevirt/virt-operator@sha256:e9491c7901c1c30e8e54e69d64ad1dbb2d4f80bff9425a3eb09ef7f1d6c4b76a",
+      "digest": "sha256:e9491c7901c1c30e8e54e69d64ad1dbb2d4f80bff9425a3eb09ef7f1d6c4b76a",
+      "index_digest": "sha256:65d23c9ad91707a4fb5f0103e04c12d02343437ac44e3a31608d7a1fff003d55"
+    },
+    "virt-api": {
+      "source": "quay.io/kubevirt/virt-api@sha256:98b28f5615684aec3819c55092496e5a88e7a382086ea5c809a021069b56d19c",
+      "digest": "sha256:98b28f5615684aec3819c55092496e5a88e7a382086ea5c809a021069b56d19c",
+      "index_digest": "sha256:8df9c3b10cafbca3bbd8d42f005f12abed14ec70c9f1feea209d5785618db028"
+    },
+    "virt-controller": {
+      "source": "quay.io/kubevirt/virt-controller@sha256:e4d976ab873062423d9c6a888fc79421fe08e9d2ded55d0fcf9b3675ff268a02",
+      "digest": "sha256:e4d976ab873062423d9c6a888fc79421fe08e9d2ded55d0fcf9b3675ff268a02",
+      "index_digest": "sha256:4135c3f1284aadb60b914b50cbf3be6be3d2d14a050ada2397cc89b47c525e4e"
+    },
+    "virt-handler": {
+      "source": "quay.io/kubevirt/virt-handler@sha256:391b434bad12c7813046a611d086902ec09826da61dca2efed0622f029c49b11",
+      "digest": "sha256:391b434bad12c7813046a611d086902ec09826da61dca2efed0622f029c49b11",
+      "index_digest": "sha256:d6b8f966f7f8cc032821d8c5d62507056381c739c886e3aa547482fb1ac6f6b0"
+    },
+    "virt-launcher": {
+      "source": "quay.io/kubevirt/virt-launcher@sha256:40e429d741a69fc8a53cb79ecd975702e8c9224206e2260ffc965cd758cd3d5c",
+      "digest": "sha256:40e429d741a69fc8a53cb79ecd975702e8c9224206e2260ffc965cd758cd3d5c",
+      "index_digest": "sha256:c89f733b1fdcc810d0b4326bbfc652a4cf3d25bc56cc8545f124d5cb71a1ce20"
+    }
+  }
+}

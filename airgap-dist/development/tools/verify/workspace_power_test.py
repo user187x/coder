@@ -29,6 +29,7 @@ class WorkspacePowerTest(unittest.TestCase):
         self.user = {"id": "owner", "roles": ["owner"]}
         power.setup(mock.Mock(return_value=(200, {self.wid: True})), lambda token, wid: self.ws,
                     mock.Mock(), "http://coder", {"owner"}, mock.Mock())
+        power.KUBE.call.return_value = (404, {})
 
     def operation(self, action="shutdown"):
         with mock.patch.object(power.threading, "Thread"):
@@ -216,6 +217,78 @@ class WorkspacePowerTest(unittest.TestCase):
                      "/workspace-power/operation/" + operation["id"])
         self.assertEqual(handler.send_json.call_args.args[0], 404)
 
+    def vm_fixture(self, owner=True, organization=None):
+        vm = {"metadata": {"uid": "vm-uid", "resourceVersion": "1", "labels": {
+            "com.coder.workspace.id": self.wid, "com.coder.organization.id": organization or self.org}},
+            "spec": {"runStrategy": "Always"}}
+        instance = {"metadata": {"uid": "instance-uid", "resourceVersion": "2", "ownerReferences": [
+            {"kind": "VirtualMachine", "controller": True, "uid": "vm-uid" if owner else "other"}]},
+            "status": {"nodeName": "node"}}
+        live = [instance]
+        calls = []
+        def call(method, path, body=None, patch_type=None):
+            calls.append((method, path, body))
+            if method == "GET" and "/virtualmachines/" in path:
+                return 200, copy.deepcopy(vm)
+            if method == "GET" and "/virtualmachineinstances/" in path:
+                return (200, copy.deepcopy(live[0])) if live else (404, {})
+            if method == "GET" and "/nodes/" in path:
+                return 200, {"status": {"conditions": [{"type": "Ready", "status": "True"}]}}
+            if method == "PATCH":
+                self.assertEqual(patch_type, "application/json-patch+json")
+                expected = "vm-uid" if "/virtualmachines/" in path else "instance-uid"
+                self.assertEqual(body[0], {"op": "test", "path": "/metadata/uid", "value": expected})
+                if expected == "vm-uid":
+                    vm["spec"]["runStrategy"] = "Halted"
+                else:
+                    self.assertEqual(vm["spec"]["runStrategy"], "Halted")
+                    self.assertEqual(body[-1]["value"], 0)
+                return 200, {}
+            if method == "DELETE":
+                self.assertIn("/virtualmachineinstances/", path)
+                self.assertEqual(vm["spec"]["runStrategy"], "Halted")
+                self.assertEqual(body["preconditions"], {"uid": "instance-uid"})
+                live.clear()
+                return 200, {}
+            raise AssertionError((method, path))
+        power.KUBE.call.side_effect = call
+        return vm, calls
+
+    def test_graceful_vm_shutdown_waits_for_halted_and_instance_removal(self):
+        operation = self.operation()
+        with mock.patch.object(power, "vm_stopped", side_effect=[False, True]) as stopped:
+            result, _ = self.execute(operation, [self.build_state("running"),
+                self.build_state("stopped", "stop", "stop-build"),
+                self.build_state("stopped", "stop", "stop-build")])
+        self.assertEqual(result["status"], "stopped")
+        self.assertEqual(stopped.call_count, 2)
+
+    def test_vm_force_fences_then_removes_only_instance_preserving_vm_and_storage(self):
+        vm, calls = self.vm_fixture()
+        self.assertEqual(power.force_runtime(self.wid, self.org), (True, True))
+        self.assertEqual(vm["spec"]["runStrategy"], "Halted")
+        self.assertEqual(len([c for c in calls if c[0] == "DELETE"]), 1)
+        self.assertFalse(any("persistentvolume" in path or "/pods/" in path for _, path, _ in calls))
+
+    def test_vm_force_refuses_foreign_instance_or_organization_before_mutating(self):
+        for owner, org in ((False, self.org), (True, str(uuid.uuid4()))):
+            _, calls = self.vm_fixture(owner, org)
+            with self.assertRaises(power.Unsupported):
+                power.force_runtime(self.wid, self.org)
+            self.assertTrue(all(method == "GET" for method, _, _ in calls))
+
+    def test_vm_force_refuses_replacement_uid_conflict(self):
+        self.vm_fixture()
+        original = power.KUBE.call.side_effect
+        def call(method, path, *args):
+            if method == "PATCH":
+                return 409, {}
+            return original(method, path, *args)
+        power.KUBE.call.side_effect = call
+        with self.assertRaises(RuntimeError):
+            power.force_runtime(self.wid, self.org)
+        self.assertFalse(any(c.args[0] == "DELETE" for c in power.KUBE.call.call_args_list))
+
     def kube_fixture(self, controller="ReplicaSet", ready=True):
         deployment = {"metadata": {"uid": "deployment-uid", "name": "fixture", "resourceVersion": "1"},
                       "spec": {"replicas": 1}}
@@ -226,6 +299,8 @@ class WorkspacePowerTest(unittest.TestCase):
             {"kind": "Deployment", "uid": "deployment-uid", "controller": True}]}}
         pods = [pod]
         def call(method, path, body=None, patch_type=None):
+            if method == "GET" and "/virtualmachines/" in path:
+                return 404, {}
             if method == "GET" and "/deployments?" in path:
                 self.assertIn(self.wid, path)
                 return 200, {"items": [copy.deepcopy(deployment)]}

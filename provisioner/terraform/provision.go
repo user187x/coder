@@ -377,6 +377,8 @@ func provisionEnv(
 		"CODER_WORKSPACE_TEMPLATE_NAME="+metadata.GetTemplateName(),
 		"CODER_WORKSPACE_TEMPLATE_VERSION="+metadata.GetTemplateVersion(),
 		"CODER_WORKSPACE_BUILD_ID="+metadata.GetWorkspaceBuildId(),
+		// VM provisioning must identify its build before agents are persisted.
+		"TF_VAR_workspace_vm_build_id="+metadata.GetWorkspaceBuildId(),
 		awsSDKUserAgentEnv(safeEnvironValue(env, awsSDKUserAgentEnvKey)),
 	)
 	if metadata.GetPrebuiltWorkspaceBuildStage().IsPrebuild() {

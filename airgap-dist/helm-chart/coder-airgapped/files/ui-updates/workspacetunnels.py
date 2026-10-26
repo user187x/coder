@@ -22,6 +22,8 @@ NETWORK = ipaddress.ip_network(os.environ.get("WORKSPACE_TUNNELS_CIDR", "10.253.
 LEASE_SECONDS = 15
 NAMESPACE = os.environ.get("CODER_NAMESPACE", "coder")
 WORKSPACE_INFO = HTTP_JSON = KUBE = LIVE_WORKSPACES = None
+QUARANTINE = None
+QUARANTINE_GUARD = None
 CONNECTION_RESTRICTED = None
 CODER_URL = ""
 ADMIN_ROLES = set()
@@ -29,11 +31,42 @@ _LOCK = threading.Lock()
 ROUTE = re.compile(r"^" + BASE + r"/organizations/([0-9a-f-]{36})/workspace-tunnels(?:/([0-9a-f-]{36}))?$")
 
 
-def setup(workspace_info, http_json, kube, coder_url, admin_roles, live_workspaces=None):
-    global WORKSPACE_INFO, HTTP_JSON, KUBE, CODER_URL, ADMIN_ROLES, LIVE_WORKSPACES
+def setup(workspace_info, http_json, kube, coder_url, admin_roles, live_workspaces=None, quarantine=None, quarantine_guard=None):
+    global WORKSPACE_INFO, HTTP_JSON, KUBE, CODER_URL, ADMIN_ROLES, LIVE_WORKSPACES, QUARANTINE, QUARANTINE_GUARD
     WORKSPACE_INFO, HTTP_JSON, KUBE = workspace_info, http_json, kube
     CODER_URL, ADMIN_ROLES = coder_url.rstrip("/"), set(admin_roles)
     LIVE_WORKSPACES = live_workspaces
+    QUARANTINE = quarantine
+    QUARANTINE_GUARD = quarantine_guard
+
+
+def quarantined(workspace_id):
+    if CONNECTION_RESTRICTED and CONNECTION_RESTRICTED(workspace_id):
+        return True
+    if QUARANTINE is None:
+        return False
+    current = QUARANTINE(workspace_id)
+    return current['enabled'] or current['manual_start_required']
+
+
+def withdraw_quarantine(current):
+    """Tombstone incident links and wait for surviving endpoints to remove peers."""
+    wid = current['workspace_id']
+    with QUARANTINE_GUARD.restrict(current) if QUARANTINE_GUARD else contextlib.nullcontext():
+        with state() as data:
+            incident = [t for t in data['tunnels'].values() if wid in (
+                t['source_workspace_id'], t['target_workspace_id'])]
+            if any(not tunnel.get('deleted') for tunnel in incident):
+                revision = changed(data)
+                for tunnel in incident:
+                    if not tunnel.get('deleted'):
+                        tunnel.update(deleted=True, revision=revision)
+            complete = all(data['workspaces'][peer].get('ack', -1) >= tunnel['revision']
+                           for tunnel in incident for peer in (tunnel['source_workspace_id'], tunnel['target_workspace_id'])
+                           if peer != wid)
+            return {'state': 'revoked' if complete else 'revoking',
+                    'detail': 'Tunnel intents are removed; waiting for peer removal acknowledgements.' if not complete else
+                              'Surviving endpoints acknowledged removal; runtime isolation is verified separately.'}
 
 
 @contextlib.contextmanager
@@ -219,11 +252,10 @@ def prune(data):
             del data["tunnels"][key]
 
 
-def invalidate(data):
+def invalidate(data, valid):
     """Revoke links when workspaces or their owners cease to be active."""
-    if LIVE_WORKSPACES is None:
+    if valid is None:
         return
-    valid = set(LIVE_WORKSPACES())
     invalid = [t for t in data["tunnels"].values() if not t.get("deleted") and any(
         t[side] not in valid for side in ("source_workspace_id", "target_workspace_id")
     )]
@@ -231,6 +263,7 @@ def invalidate(data):
         revision = changed(data)
         for tunnel in invalid:
             tunnel.update(deleted=True, revision=revision)
+
 
 
 def clean_ports(value):
@@ -250,9 +283,11 @@ def clean_ports(value):
         raise ValueError('Duplicate service port.')
     return [dict(protocol=protocol, port=port) for protocol, port in sorted(result)]
 
+
 def port_helpers(data, endpoints):
     if any(data['workspaces'].get(wid, {}).get('port_policy_version', 0) != 1 for wid in endpoints):
         raise ValueError('Update both workspaces to a tunnel helper that supports port restrictions.')
+
 
 def configure_ports(token, user, organization_id, tunnel_id, body):
     with state(write=False) as data:
@@ -267,8 +302,8 @@ def configure_ports(token, user, organization_id, tunnel_id, body):
     ports = clean_ports(body['ports'])
     if isinstance(body.get('revision'), bool) or not isinstance(body.get('revision'), int):
         raise ValueError('Expected a reviewed connection revision.')
-    with contextlib.nullcontext():
-        if CONNECTION_RESTRICTED and any(CONNECTION_RESTRICTED(wid) for wid in endpoints):
+    with QUARANTINE_GUARD.many(endpoints) if QUARANTINE_GUARD else contextlib.nullcontext():
+        if any(quarantined(wid) for wid in endpoints):
             raise PermissionError('Restricted workspaces cannot configure tunnels.')
         with state() as data:
             current = data['tunnels'].get(tunnel_id)
@@ -280,7 +315,6 @@ def configure_ports(token, user, organization_id, tunnel_id, body):
                 current.update(ports=ports, revision=changed(data))
             return public(data, current)
 
-
 def create(token, user, organization_id, body):
     ports = clean_ports(body.get("ports"))
     source, target = (identifier(body.get(k)) for k in ("source_workspace_id", "target_workspace_id"))
@@ -290,29 +324,30 @@ def create(token, user, organization_id, body):
     if source == target:
         raise ValueError("Choose two different workspaces.")
     known = {wid: authorize(token, user, organization_id, wid) for wid in (source, target)}
-    if CONNECTION_RESTRICTED and any(CONNECTION_RESTRICTED(wid) for wid in (source, target)):
-        raise PermissionError("Locked workspaces cannot establish tunnels.")
-    with state() as data:
-        for wid, ws in known.items():
-            workspace(data, organization_id, wid)["name"] = ws.get("name", wid)
-        for tunnel in data["tunnels"].values():
-            if tunnel["organization_id"] == organization_id and {source, target} == {
-                tunnel["source_workspace_id"], tunnel["target_workspace_id"]
-            }:
-                if tunnel.get("deleted"):
-                    raise ValueError("Wait for this connection to finish disconnecting.")
-                return public(data, tunnel)
-        for wid in (source, target):
-            workspace(data, organization_id, wid)
-        if ports is not None:
-            port_helpers(data, (source, target))
-        tid = str(uuid.uuid4())
-        tunnel = {"id": tid, "organization_id": organization_id,
-                  "source_workspace_id": source, "target_workspace_id": target,
-                  "revision": changed(data), "created_by": user["id"],
-                  "source_side": source_side, "target_side": target_side, "ports": ports}
-        data["tunnels"][tid] = tunnel
-        return public(data, tunnel)
+    if any(quarantined(wid) for wid in (source, target)):
+        raise PermissionError('Quarantined workspaces cannot establish tunnels.')
+    with QUARANTINE_GUARD.many((source, target)) if QUARANTINE_GUARD else contextlib.nullcontext():
+        with state() as data:
+            for wid, ws in known.items():
+                workspace(data, organization_id, wid)["name"] = ws.get("name", wid)
+            for tunnel in data["tunnels"].values():
+                if tunnel["organization_id"] == organization_id and {source, target} == {
+                    tunnel["source_workspace_id"], tunnel["target_workspace_id"]
+                }:
+                    if tunnel.get("deleted"):
+                        raise ValueError("Wait for this connection to finish disconnecting.")
+                    return public(data, tunnel)
+            for wid in (source, target):
+                workspace(data, organization_id, wid)
+            if ports is not None:
+                port_helpers(data, (source, target))
+            tid = str(uuid.uuid4())
+            tunnel = {"id": tid, "organization_id": organization_id,
+                      "source_workspace_id": source, "target_workspace_id": target,
+                      "revision": changed(data), "created_by": user["id"],
+                      "source_side": source_side, "target_side": target_side, "ports": ports}
+            data["tunnels"][tid] = tunnel
+            return public(data, tunnel)
 
 
 def remove(token, user, organization_id, tunnel_id):
@@ -348,8 +383,9 @@ def listing(token, user, organization_id):
                     known[wid] = authorize(token, user, organization_id, wid, update=False)
                 except (LookupError, PermissionError):
                     known[wid] = None
+    valid = set(LIVE_WORKSPACES()) if LIVE_WORKSPACES is not None else None
     with state() as data:
-        invalidate(data)
+        invalidate(data, valid)
         prune(data)
         visible = []
         for tid, snapshot in snapshots.items():
@@ -363,7 +399,17 @@ def listing(token, user, organization_id):
                 continue
             for wid in endpoints:
                 data["workspaces"][wid]["name"] = known[wid].get("name", wid)
-            visible.append(public(data, tunnel))
+            result = public(data, tunnel)
+            available = all(
+                known[wid].get("latest_build", {}).get("status") == "running"
+                and any(agent.get("status") == "connected"
+                        for resource in known[wid].get("latest_build", {}).get("resources", [])
+                        for agent in resource.get("agents", []))
+                for wid in endpoints
+            )
+            if result["status"] == "ready" and not available:
+                result.update(status="pending", error="Waiting for both workspaces to be running and connected.")
+            visible.append(result)
         return visible
 
 
@@ -394,6 +440,25 @@ def agent_identity(token, endpoint):
             and not p.get("metadata", {}).get("deletionTimestamp")]
     if not pods:
         raise PermissionError("Endpoint does not belong to this running workspace.")
+    for pod in pods:
+        owner = next((o for o in pod.get("metadata", {}).get("ownerReferences", []) if o.get("controller")), {})
+        if owner.get("kind") != "VirtualMachineInstance":
+            continue
+        name = "coder-vm-" + wid
+        if owner.get("name") != name:
+            raise PermissionError("Endpoint belongs to another workspace VM.")
+        base = "/apis/kubevirt.io/v1/namespaces/" + NAMESPACE
+        status, instance = KUBE.call("GET", base + "/virtualmachineinstances/" + name)
+        if status != 200 or instance.get("metadata", {}).get("uid") != owner.get("uid"):
+            raise PermissionError("Endpoint VM instance is no longer current.")
+        status, vm = KUBE.call("GET", base + "/virtualmachines/" + name)
+        labels = vm.get("metadata", {}).get("labels", {}) if isinstance(vm, dict) else {}
+        if status != 200 or labels.get("com.coder.workspace.id") != wid or labels.get("com.coder.organization.id") != oid or \
+                vm.get("metadata", {}).get("annotations", {}).get("platform.coder/build-id") != identity.get("build_id") or \
+                vm.get("spec", {}).get("runStrategy") != "Always" or not any(
+                    o.get("controller") and o.get("kind") == "VirtualMachine" and o.get("uid") == vm["metadata"]["uid"]
+                    for o in instance.get("metadata", {}).get("ownerReferences", [])):
+            raise PermissionError("Endpoint does not belong to the current workspace VM profile.")
     return wid, oid, aid
 
 
@@ -420,8 +485,9 @@ def sync(token, body):
     if not isinstance(established, list) or len(established) > 4096:
         raise ValueError("Expected established workspace peer IDs.")
     established = [identifier(peer) for peer in established]
+    valid = set(LIVE_WORKSPACES()) if LIVE_WORKSPACES is not None else None
     with state() as data:
-        invalidate(data)
+        invalidate(data, valid)
         current = workspace(data, oid, wid)
         if any(w.get("public_key") == key for other, w in data["workspaces"].items() if other != wid):
             raise ValueError("WireGuard public key already belongs to another workspace.")

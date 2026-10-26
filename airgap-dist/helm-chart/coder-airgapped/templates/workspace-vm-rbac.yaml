@@ -1,0 +1,180 @@
+{{- $runtime := .Values.platformWebhook.runtimeIsolation }}
+{{- if and .Values.uiUpdates.enabled $runtime.vm.reconcileEnabled }}
+{{- $workspaces := .Release.Namespace }}
+{{- $external := $runtime.serviceNamespace }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: coder-vm-template
+  namespace: {{ $workspaces }}
+rules:
+  - apiGroups: [kubevirt.io]
+    resources: [virtualmachines]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [""]
+    resources: [secrets]
+    verbs: [get, create, update, patch, delete]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: coder-vm-template
+  namespace: {{ $workspaces }}
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: Role, name: coder-vm-template}
+subjects:
+  - kind: ServiceAccount
+    name: {{ (index .Values "coder-workspace").nifiRoute.coderServiceAccount }}
+    namespace: {{ $workspaces }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Release.Name }}-vm-home-inspect
+rules:
+  - apiGroups: [""]
+    resources: [persistentvolumes]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Release.Name }}-vm-home-inspect
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: {{ .Release.Name }}-vm-home-inspect}
+subjects:
+  - {kind: ServiceAccount, name: coder-ui-updates, namespace: {{ $workspaces }}}
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: coder-vm-home
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: Immediate
+reclaimPolicy: Retain
+allowVolumeExpansion: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: coder-vm-boot-profiles
+  namespace: {{ $workspaces }}
+rules:
+  - apiGroups: [""]
+    resources: [secrets]
+    verbs: [get]
+  - apiGroups: [""]
+    resources: [persistentvolumeclaims]
+    verbs: [get, list]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: coder-vm-boot-profiles
+  namespace: {{ $workspaces }}
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: Role, name: coder-vm-boot-profiles}
+subjects:
+  - {kind: ServiceAccount, name: coder-ui-updates, namespace: {{ $workspaces }}}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: coder-vm-home-manager
+  namespace: {{ $external }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: coder-vm-home-jobs
+  namespace: {{ $external }}
+rules:
+  - apiGroups: [batch]
+    resources: [jobs]
+    verbs: [get, create, delete]
+  - apiGroups: [""]
+    resources: [configmaps]
+    resourceNames: [coder-vm-home-provenance]
+    verbs: [get]
+  - apiGroups: [""]
+    resources: [configmaps]
+    resourceNames: [coder-workspace-quarantine-targets]
+    verbs: [get, patch]
+  - apiGroups: [""]
+    resources: [configmaps]
+    verbs: [create]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: coder-vm-home-jobs
+  namespace: {{ $external }}
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: Role, name: coder-vm-home-jobs}
+subjects:
+  - {kind: ServiceAccount, name: coder-ui-updates, namespace: {{ $workspaces }}}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: coder-vm-home-provenance
+  namespace: {{ $external }}
+rules:
+  - apiGroups: [""]
+    resources: [configmaps]
+    resourceNames: [coder-vm-home-provenance]
+    verbs: [get, patch]
+  - apiGroups: [""]
+    resources: [configmaps]
+    verbs: [create]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: coder-vm-home-provenance
+  namespace: {{ $external }}
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: Role, name: coder-vm-home-provenance}
+subjects:
+  - {kind: ServiceAccount, name: coder-vm-home-manager, namespace: {{ $external }}}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: coder-vm-home-workspaces
+  namespace: {{ $workspaces }}
+rules:
+  - apiGroups: [kubevirt.io]
+    resources: [virtualmachines, virtualmachineinstances]
+    verbs: [get, list]
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [get, list]
+  - apiGroups: [""]
+    resources: [persistentvolumeclaims]
+    verbs: [get, create, patch, delete]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: coder-vm-home-workspaces
+  namespace: {{ $workspaces }}
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: Role, name: coder-vm-home-workspaces}
+subjects:
+  - {kind: ServiceAccount, name: coder-vm-home-manager, namespace: {{ $external }}}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Release.Name }}-vm-home-volumes
+rules:
+  - apiGroups: [""]
+    resources: [persistentvolumes]
+    verbs: [get, create, patch]
+  - apiGroups: [""]
+    resources: [nodes]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Release.Name }}-vm-home-volumes
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: {{ .Release.Name }}-vm-home-volumes}
+subjects:
+  - {kind: ServiceAccount, name: coder-vm-home-manager, namespace: {{ $external }}}
+{{- end }}

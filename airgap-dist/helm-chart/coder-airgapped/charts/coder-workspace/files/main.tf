@@ -3,8 +3,13 @@ terraform {
     coder = {
       source = "coder/coder"
     }
+    kubectl = {
+      source  = "alekc/kubectl"
+      version = "=2.4.1"
+    }
     kubernetes = {
-      source = "hashicorp/kubernetes"
+      source  = "hashicorp/kubernetes"
+      version = "=3.4.0"
     }
   }
 }
@@ -77,6 +82,16 @@ variable "desktop" {
   type        = bool
   description = "The Desktop app: the workspace's desktop in the browser (noVNC)."
   default     = true
+}
+
+variable "neko_browser" {
+  type        = bool
+  description = "Use the platform-controlled N.eko browser in Dataflow workspaces."
+  default     = false
+  validation {
+    condition     = !var.neko_browser || fileexists("${path.module}/dataflow.tf")
+    error_message = "N.eko is supported only by the Dataflow template."
+  }
 }
 
 variable "file_browser" {
@@ -538,6 +553,10 @@ resource "coder_script" "cloud_drive" {
 # platform:end cloud-drive
 
 # platform:begin code-server-ha
+variable "workspace_vm_enabled" {
+  type    = bool
+  default = false
+}
 # code-server as a global singleton (the chart's codeServerHA): not in the workspace, but one instance per workspace
 # across every cluster that shares Coder's database, kept by the code-server-replicator; a relay in this pod
 # (127.0.0.1:13337, where code-server's app looks) takes its connections there. Off unless a template turns it on.
@@ -560,7 +579,7 @@ variable "code_server_ha_db_ca_secret" {
 }
 
 locals {
-  code_server_ha = var.code_server_ha && var.code_server_ha_image != ""
+  code_server_ha = !var.workspace_vm_enabled && var.code_server_ha && var.code_server_ha_image != ""
 }
 # platform:end code-server-ha
 
@@ -589,6 +608,7 @@ resource "coder_agent" "main" {
     cluster_oidc_client_id = var.cluster_oidc_client_id
     code_server            = var.code_server
     start_directory        = data.coder_parameter.start_directory.value
+    neko_browser           = var.neko_browser
     desktop                = var.desktop
     desktop_theme          = var.desktop ? data.coder_parameter.desktop_theme[0].value : "classic"
     file_browser           = var.file_browser
@@ -704,10 +724,9 @@ resource "coder_app" "novnc" {
   display_name = "Desktop"
   # Coder's own icon (served by the dashboard; the noVNC logo was on the internet)
   icon = "/icon/desktop.svg"
-  # Path-based (no wildcard DNS/route needed). noVNC opens its websocket relative to the host
-  # root, so pass the prefixed path explicitly ("main" = agent name, as in filebrowser above).
-  url       = "http://localhost:6901?autoconnect=true&resize=remote&compression=0&path=@${data.coder_workspace_owner.me.name}/${data.coder_workspace.me.name}.main/apps/novnc/websockify"
-  subdomain = false
+  # Serve workspace HTML on an isolated origin; noVNC connects relative to that app host.
+  url       = "http://localhost:6901?autoconnect=true&resize=remote&compression=0&path=websockify"
+  subdomain = true
   share     = "owner"
 
   healthcheck {
@@ -727,7 +746,7 @@ resource "coder_app" "filebrowser" {
   display_name = "File Browser"
   icon         = "/__icons/filebrowser-quantum.png" # files/icons/filebrowser-quantum.png, served by templates/icons.yaml
   url          = "http://localhost:13339/@${data.coder_workspace_owner.me.name}/${data.coder_workspace.me.name}.main/apps/filebrowser/"
-  subdomain    = false
+  subdomain    = true
   share        = "owner"
 
   healthcheck {
@@ -744,7 +763,7 @@ resource "coder_app" "code-server" {
   display_name = "code-server"
   icon         = "/icon/code.svg"
   url          = "http://localhost:13337?folder=/home/coder"
-  subdomain    = false
+  subdomain    = true
   share        = "owner"
 
   healthcheck {
@@ -754,7 +773,13 @@ resource "coder_app" "code-server" {
   }
 }
 
+moved {
+  from = kubernetes_persistent_volume_claim_v1.home
+  to   = kubernetes_persistent_volume_claim_v1.home[0]
+}
+
 resource "kubernetes_persistent_volume_claim_v1" "home" {
+  count = var.workspace_vm_enabled ? 0 : 1
   metadata {
     name      = "coder-${data.coder_workspace.me.id}-home"
     namespace = var.namespace
@@ -799,7 +824,7 @@ locals {
 }
 
 resource "kubernetes_deployment_v1" "main" {
-  count = data.coder_workspace.me.start_count
+  count = var.workspace_vm_enabled ? 0 : data.coder_workspace.me.start_count
   depends_on = [
     kubernetes_persistent_volume_claim_v1.home
   ]
@@ -875,6 +900,10 @@ resource "kubernetes_deployment_v1" "main" {
           name              = "trust-local-ca"
           image             = local.workspace_image
           image_pull_policy = "IfNotPresent"
+          resources {
+            requests = { cpu = "1", memory = "64Mi" }
+            limits   = { cpu = "1", memory = "64Mi" }
+          }
           command = [
             "sh", "-c",
             "cat /etc/ssl/certs/ca-certificates.crt /local-ca/ca.crt > /ca-bundle/ca-certificates.crt",
@@ -899,6 +928,10 @@ resource "kubernetes_deployment_v1" "main" {
           name              = "lockdown"
           image             = local.workspace_image
           image_pull_policy = "IfNotPresent"
+          resources {
+            requests = { cpu = "1", memory = "64Mi" }
+            limits   = { cpu = "1", memory = "64Mi" }
+          }
           command = [
             "sh", "-c", local.platform_lockdown_sh, "lockdown",
             "file:/etc/coder-lockdown/${data.coder_workspace.me.id}", local.coder_host, "",
@@ -978,8 +1011,8 @@ resource "kubernetes_deployment_v1" "main" {
               read_only  = true
             }
             resources {
-              requests = { cpu = "10m", memory = "24Mi" }
-              limits   = { memory = "96Mi" }
+              requests = { cpu = "25m", memory = "64Mi" }
+              limits   = { cpu = "500m", memory = "128Mi" }
             }
           }
         }
@@ -1007,12 +1040,12 @@ resource "kubernetes_deployment_v1" "main" {
           # The home volume's size as Kubernetes has it (it can grow after creation), for the Home Disk metric.
           env {
             name  = "CODER_HOME_DISK_SIZE"
-            value = kubernetes_persistent_volume_claim_v1.home.spec[0].resources[0].requests["storage"]
+            value = kubernetes_persistent_volume_claim_v1.home[0].spec[0].resources[0].requests["storage"]
           }
           resources {
             requests = {
-              "cpu"    = "250m"
-              "memory" = "512Mi"
+              "cpu"    = "${data.coder_parameter.cpu.value}"
+              "memory" = "${data.coder_parameter.memory.value}Gi"
             }
             limits = {
               "cpu"    = "${data.coder_parameter.cpu.value}"
@@ -1107,7 +1140,7 @@ resource "kubernetes_deployment_v1" "main" {
         volume {
           name = "home"
           persistent_volume_claim {
-            claim_name = kubernetes_persistent_volume_claim_v1.home.metadata.0.name
+            claim_name = kubernetes_persistent_volume_claim_v1.home[0].metadata.0.name
             read_only  = false
           }
         }
@@ -1196,10 +1229,11 @@ resource "kubernetes_deployment_v1" "main" {
             }
             resources {
               requests = {
-                cpu    = "10m"
-                memory = "32Mi"
+                cpu    = "1"
+                memory = "128Mi"
               }
               limits = {
+                cpu    = "1"
                 memory = "128Mi"
               }
             }

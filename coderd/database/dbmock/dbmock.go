@@ -452,6 +452,20 @@ func (mr *MockStoreMockRecorder) ConsumeChatAutomationWebhookByID(ctx, arg any) 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ConsumeChatAutomationWebhookByID", reflect.TypeOf((*MockStore)(nil).ConsumeChatAutomationWebhookByID), ctx, arg)
 }
 
+// ConsumeWorkspaceQuarantineManualStart mocks base method.
+func (m *MockStore) ConsumeWorkspaceQuarantineManualStart(ctx context.Context, arg database.ConsumeWorkspaceQuarantineManualStartParams) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ConsumeWorkspaceQuarantineManualStart", ctx, arg)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// ConsumeWorkspaceQuarantineManualStart indicates an expected call of ConsumeWorkspaceQuarantineManualStart.
+func (mr *MockStoreMockRecorder) ConsumeWorkspaceQuarantineManualStart(ctx, arg any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ConsumeWorkspaceQuarantineManualStart", reflect.TypeOf((*MockStore)(nil).ConsumeWorkspaceQuarantineManualStart), ctx, arg)
+}
+
 // CountAIBridgeSessions mocks base method.
 func (m *MockStore) CountAIBridgeSessions(ctx context.Context, arg database.CountAIBridgeSessionsParams) (int64, error) {
 	m.ctrl.T.Helper()
@@ -7751,6 +7765,21 @@ func (mr *MockStoreMockRecorder) GetWorkspaceProxyByName(ctx, name any) *gomock.
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetWorkspaceProxyByName", reflect.TypeOf((*MockStore)(nil).GetWorkspaceProxyByName), ctx, name)
 }
 
+// GetWorkspaceQuarantineByWorkspaceID mocks base method.
+func (m *MockStore) GetWorkspaceQuarantineByWorkspaceID(ctx context.Context, workspaceID uuid.UUID) (database.WorkspaceQuarantine, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetWorkspaceQuarantineByWorkspaceID", ctx, workspaceID)
+	ret0, _ := ret[0].(database.WorkspaceQuarantine)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetWorkspaceQuarantineByWorkspaceID indicates an expected call of GetWorkspaceQuarantineByWorkspaceID.
+func (mr *MockStoreMockRecorder) GetWorkspaceQuarantineByWorkspaceID(ctx, workspaceID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetWorkspaceQuarantineByWorkspaceID", reflect.TypeOf((*MockStore)(nil).GetWorkspaceQuarantineByWorkspaceID), ctx, workspaceID)
+}
+
 // GetWorkspaceResourceByID mocks base method.
 func (m *MockStore) GetWorkspaceResourceByID(ctx context.Context, id uuid.UUID) (database.WorkspaceResource, error) {
 	m.ctrl.T.Helper()
@@ -9951,6 +9980,21 @@ func (mr *MockStoreMockRecorder) PopNextQueuedMessage(ctx, chatID any) *gomock.C
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PopNextQueuedMessage", reflect.TypeOf((*MockStore)(nil).PopNextQueuedMessage), ctx, chatID)
 }
 
+// PrepareWorkspaceQuarantineRelease mocks base method.
+func (m *MockStore) PrepareWorkspaceQuarantineRelease(ctx context.Context, arg database.PrepareWorkspaceQuarantineReleaseParams) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PrepareWorkspaceQuarantineRelease", ctx, arg)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// PrepareWorkspaceQuarantineRelease indicates an expected call of PrepareWorkspaceQuarantineRelease.
+func (mr *MockStoreMockRecorder) PrepareWorkspaceQuarantineRelease(ctx, arg any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PrepareWorkspaceQuarantineRelease", reflect.TypeOf((*MockStore)(nil).PrepareWorkspaceQuarantineRelease), ctx, arg)
+}
+
 // ReduceWorkspaceAgentShareLevelToAuthenticatedByTemplate mocks base method.
 func (m *MockStore) ReduceWorkspaceAgentShareLevelToAuthenticatedByTemplate(ctx context.Context, templateID uuid.UUID) error {
 	m.ctrl.T.Helper()
@@ -10237,6 +10281,21 @@ func (m *MockStore) TouchChatDebugStepAndRun(ctx context.Context, arg database.T
 func (mr *MockStoreMockRecorder) TouchChatDebugStepAndRun(ctx, arg any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TouchChatDebugStepAndRun", reflect.TypeOf((*MockStore)(nil).TouchChatDebugStepAndRun), ctx, arg)
+}
+
+// TouchWorkspaceQuarantineLock mocks base method.
+func (m *MockStore) TouchWorkspaceQuarantineLock(ctx context.Context, id uuid.UUID) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "TouchWorkspaceQuarantineLock", ctx, id)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// TouchWorkspaceQuarantineLock indicates an expected call of TouchWorkspaceQuarantineLock.
+func (mr *MockStoreMockRecorder) TouchWorkspaceQuarantineLock(ctx, id any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TouchWorkspaceQuarantineLock", reflect.TypeOf((*MockStore)(nil).TouchWorkspaceQuarantineLock), ctx, id)
 }
 
 // TryAcquireLock mocks base method.
@@ -13097,6 +13156,21 @@ func (m *MockStore) UpsertWorkspaceAppAuditSession(ctx context.Context, arg data
 func (mr *MockStoreMockRecorder) UpsertWorkspaceAppAuditSession(ctx, arg any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpsertWorkspaceAppAuditSession", reflect.TypeOf((*MockStore)(nil).UpsertWorkspaceAppAuditSession), ctx, arg)
+}
+
+// UpsertWorkspaceQuarantine mocks base method.
+func (m *MockStore) UpsertWorkspaceQuarantine(ctx context.Context, arg database.UpsertWorkspaceQuarantineParams) (database.WorkspaceQuarantine, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpsertWorkspaceQuarantine", ctx, arg)
+	ret0, _ := ret[0].(database.WorkspaceQuarantine)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UpsertWorkspaceQuarantine indicates an expected call of UpsertWorkspaceQuarantine.
+func (mr *MockStoreMockRecorder) UpsertWorkspaceQuarantine(ctx, arg any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpsertWorkspaceQuarantine", reflect.TypeOf((*MockStore)(nil).UpsertWorkspaceQuarantine), ctx, arg)
 }
 
 // UsageEventExistsByID mocks base method.

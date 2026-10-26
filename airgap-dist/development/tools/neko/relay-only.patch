@@ -1,0 +1,18 @@
+diff --git a/client/src/neko/base.ts b/client/src/neko/base.ts
+--- a/client/src/neko/base.ts
++++ b/client/src/neko/base.ts
+@@ -265,9 +265,13 @@ export default class Base extends EventEmitter {
+     if (lite !== true) {
+       this._peer = new RTCPeerConnection({
+         iceServers: servers,
++        iceTransportPolicy: 'relay',
+       })
+     } else {
+-      this._peer = new RTCPeerConnection()
++      this._peer = new RTCPeerConnection({
++        iceServers: servers,
++        iceTransportPolicy: 'relay',
++      })
+     }
+ 
+     this._peer.onconnectionstatechange = () => {

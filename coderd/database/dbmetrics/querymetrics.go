@@ -328,6 +328,14 @@ func (m queryMetricsStore) ConsumeChatAutomationWebhookByID(ctx context.Context,
 	return r0, r1
 }
 
+func (m queryMetricsStore) ConsumeWorkspaceQuarantineManualStart(ctx context.Context, arg database.ConsumeWorkspaceQuarantineManualStartParams) error {
+	start := time.Now()
+	r0 := m.s.ConsumeWorkspaceQuarantineManualStart(ctx, arg)
+	m.queryLatencies.WithLabelValues("ConsumeWorkspaceQuarantineManualStart").Observe(time.Since(start).Seconds())
+	m.queryCounts.WithLabelValues(httpmw.ExtractHTTPRoute(ctx), httpmw.ExtractHTTPMethod(ctx), "ConsumeWorkspaceQuarantineManualStart").Inc()
+	return r0
+}
+
 func (m queryMetricsStore) CountAIBridgeSessions(ctx context.Context, arg database.CountAIBridgeSessionsParams) (int64, error) {
 	start := time.Now()
 	r0, r1 := m.s.CountAIBridgeSessions(ctx, arg)
@@ -4120,6 +4128,14 @@ func (m queryMetricsStore) GetWorkspaceProxyByName(ctx context.Context, name str
 	return r0, r1
 }
 
+func (m queryMetricsStore) GetWorkspaceQuarantineByWorkspaceID(ctx context.Context, workspaceID uuid.UUID) (database.WorkspaceQuarantine, error) {
+	start := time.Now()
+	r0, r1 := m.s.GetWorkspaceQuarantineByWorkspaceID(ctx, workspaceID)
+	m.queryLatencies.WithLabelValues("GetWorkspaceQuarantineByWorkspaceID").Observe(time.Since(start).Seconds())
+	m.queryCounts.WithLabelValues(httpmw.ExtractHTTPRoute(ctx), httpmw.ExtractHTTPMethod(ctx), "GetWorkspaceQuarantineByWorkspaceID").Inc()
+	return r0, r1
+}
+
 func (m queryMetricsStore) GetWorkspaceResourceByID(ctx context.Context, id uuid.UUID) (database.WorkspaceResource, error) {
 	start := time.Now()
 	r0, r1 := m.s.GetWorkspaceResourceByID(ctx, id)
@@ -5240,6 +5256,14 @@ func (m queryMetricsStore) PopNextQueuedMessage(ctx context.Context, chatID uuid
 	return r0, r1
 }
 
+func (m queryMetricsStore) PrepareWorkspaceQuarantineRelease(ctx context.Context, arg database.PrepareWorkspaceQuarantineReleaseParams) (int64, error) {
+	start := time.Now()
+	r0, r1 := m.s.PrepareWorkspaceQuarantineRelease(ctx, arg)
+	m.queryLatencies.WithLabelValues("PrepareWorkspaceQuarantineRelease").Observe(time.Since(start).Seconds())
+	m.queryCounts.WithLabelValues(httpmw.ExtractHTTPRoute(ctx), httpmw.ExtractHTTPMethod(ctx), "PrepareWorkspaceQuarantineRelease").Inc()
+	return r0, r1
+}
+
 func (m queryMetricsStore) ReduceWorkspaceAgentShareLevelToAuthenticatedByTemplate(ctx context.Context, templateID uuid.UUID) error {
 	start := time.Now()
 	r0 := m.s.ReduceWorkspaceAgentShareLevelToAuthenticatedByTemplate(ctx, templateID)
@@ -5398,6 +5422,14 @@ func (m queryMetricsStore) TouchChatDebugStepAndRun(ctx context.Context, arg dat
 	m.queryLatencies.WithLabelValues("TouchChatDebugStepAndRun").Observe(time.Since(start).Seconds())
 	m.queryCounts.WithLabelValues(httpmw.ExtractHTTPRoute(ctx), httpmw.ExtractHTTPMethod(ctx), "TouchChatDebugStepAndRun").Inc()
 	return r0
+}
+
+func (m queryMetricsStore) TouchWorkspaceQuarantineLock(ctx context.Context, id uuid.UUID) (int64, error) {
+	start := time.Now()
+	r0, r1 := m.s.TouchWorkspaceQuarantineLock(ctx, id)
+	m.queryLatencies.WithLabelValues("TouchWorkspaceQuarantineLock").Observe(time.Since(start).Seconds())
+	m.queryCounts.WithLabelValues(httpmw.ExtractHTTPRoute(ctx), httpmw.ExtractHTTPMethod(ctx), "TouchWorkspaceQuarantineLock").Inc()
+	return r0, r1
 }
 
 func (m queryMetricsStore) TryAcquireLock(ctx context.Context, pgTryAdvisoryXactLock int64) (bool, error) {
@@ -6974,6 +7006,14 @@ func (m queryMetricsStore) UpsertWorkspaceAppAuditSession(ctx context.Context, a
 	r0, r1 := m.s.UpsertWorkspaceAppAuditSession(ctx, arg)
 	m.queryLatencies.WithLabelValues("UpsertWorkspaceAppAuditSession").Observe(time.Since(start).Seconds())
 	m.queryCounts.WithLabelValues(httpmw.ExtractHTTPRoute(ctx), httpmw.ExtractHTTPMethod(ctx), "UpsertWorkspaceAppAuditSession").Inc()
+	return r0, r1
+}
+
+func (m queryMetricsStore) UpsertWorkspaceQuarantine(ctx context.Context, arg database.UpsertWorkspaceQuarantineParams) (database.WorkspaceQuarantine, error) {
+	start := time.Now()
+	r0, r1 := m.s.UpsertWorkspaceQuarantine(ctx, arg)
+	m.queryLatencies.WithLabelValues("UpsertWorkspaceQuarantine").Observe(time.Since(start).Seconds())
+	m.queryCounts.WithLabelValues(httpmw.ExtractHTTPRoute(ctx), httpmw.ExtractHTTPMethod(ctx), "UpsertWorkspaceQuarantine").Inc()
 	return r0, r1
 }
 

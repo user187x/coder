@@ -17,6 +17,7 @@ CLUSTER_KUBECONFIG='${cluster_kubeconfig}'
 CLUSTER_OIDC_ISSUER='${cluster_oidc_issuer}'
 CLUSTER_OIDC_CLIENT_ID='${cluster_oidc_client_id}'
 CODE_SERVER_APP='${code_server}' # true: the code-server app (main.tf's code_server)
+NEKO_BROWSER='${neko_browser}'
 DESKTOP='${desktop}'             # true: the desktop (noVNC's Desktop app)
 DESKTOP_THEME='${desktop_theme}' # the Desktop theme parameter: serenade or classic (coder-desktop-theme)
 FILE_BROWSER='${file_browser}'   # true: File Browser
@@ -275,6 +276,15 @@ fi
 if [ "$IMAGE_DESKTOP" != none ] && ! curl -s -o /dev/null http://127.0.0.1:6901/; then
  websockify --web=/usr/share/novnc/ --unix-target="$VNC_SOCK" 127.0.0.1:6901 >/tmp/novnc.log 2>&1 &
  log "Desktop app (noVNC): started"
+fi
+
+if [ "$NEKO_BROWSER" = true ]; then
+ if [ -x /usr/local/bin/coder-neko ]; then
+  setsid /usr/local/bin/coder-neko >/dev/null 2>&1 </dev/null &
+  log "N.eko: waiting for platform media configuration"
+ else
+  log "N.eko: this image does not include the platform browser supervisor"
+ fi
 fi
 
 # 2. code-server: the workspace image's (1.8.0 and later), so it works without internet. Downloaded only on an

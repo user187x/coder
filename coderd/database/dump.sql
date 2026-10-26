@@ -4363,6 +4363,24 @@ CREATE SEQUENCE workspace_proxies_region_id_seq
 
 ALTER SEQUENCE workspace_proxies_region_id_seq OWNED BY workspace_proxies.region_id;
 
+CREATE TABLE workspace_quarantines (
+    workspace_id uuid NOT NULL,
+    organization_id uuid NOT NULL,
+    enabled boolean NOT NULL,
+    revision uuid NOT NULL,
+    reason text NOT NULL,
+    updated_by uuid NOT NULL,
+    updated_at timestamp with time zone NOT NULL,
+    manual_start_required boolean DEFAULT true NOT NULL,
+    release_prepared boolean DEFAULT false NOT NULL
+);
+
+COMMENT ON TABLE workspace_quarantines IS 'Persistent workspace containment intent. Enabled does not establish physical enforcement.';
+
+COMMENT ON COLUMN workspace_quarantines.manual_start_required IS 'A released workspace requires a new explicit user Start before automatic starts are permitted.';
+
+COMMENT ON COLUMN workspace_quarantines.release_prepared IS 'Internal acknowledgement that durable connection withdrawal completed for this released policy revision.';
+
 CREATE TABLE workspace_resource_metadata (
     workspace_resource_id uuid NOT NULL,
     key character varying(1024) NOT NULL,
@@ -4873,6 +4891,9 @@ ALTER TABLE ONLY workspace_proxies
 ALTER TABLE ONLY workspace_proxies
     ADD CONSTRAINT workspace_proxies_region_id_unique UNIQUE (region_id);
 
+ALTER TABLE ONLY workspace_quarantines
+    ADD CONSTRAINT workspace_quarantines_pkey PRIMARY KEY (workspace_id);
+
 ALTER TABLE ONLY workspace_resource_metadata
     ADD CONSTRAINT workspace_resource_metadata_name UNIQUE (workspace_resource_id, key);
 
@@ -5222,6 +5243,8 @@ CREATE INDEX workspace_modules_created_at_idx ON workspace_modules USING btree (
 CREATE INDEX workspace_next_start_at_idx ON workspaces USING btree (next_start_at) WHERE (deleted = false);
 
 CREATE UNIQUE INDEX workspace_proxies_lower_name_idx ON workspace_proxies USING btree (lower(name)) WHERE (deleted = false);
+
+CREATE INDEX workspace_quarantines_organization_id_idx ON workspace_quarantines USING btree (organization_id);
 
 CREATE INDEX workspace_resources_job_id_idx ON workspace_resources USING btree (job_id);
 
@@ -5830,6 +5853,15 @@ ALTER TABLE ONLY workspace_builds
 
 ALTER TABLE ONLY workspace_modules
     ADD CONSTRAINT workspace_modules_job_id_fkey FOREIGN KEY (job_id) REFERENCES provisioner_jobs(id) ON DELETE CASCADE;
+
+ALTER TABLE ONLY workspace_quarantines
+    ADD CONSTRAINT workspace_quarantines_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES organizations(id);
+
+ALTER TABLE ONLY workspace_quarantines
+    ADD CONSTRAINT workspace_quarantines_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES users(id);
+
+ALTER TABLE ONLY workspace_quarantines
+    ADD CONSTRAINT workspace_quarantines_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES workspaces(id);
 
 ALTER TABLE ONLY workspace_resource_metadata
     ADD CONSTRAINT workspace_resource_metadata_workspace_resource_id_fkey FOREIGN KEY (workspace_resource_id) REFERENCES workspace_resources(id) ON DELETE CASCADE;
