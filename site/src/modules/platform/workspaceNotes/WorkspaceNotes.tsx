@@ -11,7 +11,10 @@ import {
 	PlatformAPI,
 	type WorkspaceNote,
 } from "#/api/platform";
-import { workspaceNotesKey as notesKey } from "#/api/queries/workspaceNotes";
+import {
+	workspaceNotes,
+	workspaceNotesKey as notesKey,
+} from "#/api/queries/workspaceNotes";
 import type { Workspace } from "#/api/typesGenerated";
 import { useNoteDraftRequests } from "./noteDraftStore";
 import "./workspaceNotes.css";
@@ -38,12 +41,7 @@ export const WorkspaceNotes: React.FC<{ workspace: Workspace }> = ({
 }) => {
 	const queryClient = useQueryClient();
 	const key = notesKey(workspace.id);
-	const query = useQuery({
-		queryKey: key,
-		queryFn: () => PlatformAPI.getWorkspaceNotes(workspace.id),
-		refetchInterval: 30_000,
-		retry: false,
-	});
+	const query = useQuery(workspaceNotes(workspace.id));
 	const [draft, setDraft] = useState<Draft | null>(null);
 	// The sidebar button asks for a new note.
 	const draftRequests = useNoteDraftRequests();
