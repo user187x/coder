@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useImperativeHandle, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { toast } from "sonner";
 import { getErrorMessage } from "#/api/errors";
@@ -14,11 +14,26 @@ import {
 	type BackgroundsState,
 	PlatformAPI,
 } from "#/api/platform";
+import { backgrounds, backgroundsKey } from "#/api/queries/backgrounds";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { Badge } from "#/components/Badge/Badge";
 import { Button } from "#/components/Button/Button";
+import { Label } from "#/components/Label/Label";
 import { Loader } from "#/components/Loader/Loader";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "#/components/Select/Select";
 import { Spinner } from "#/components/Spinner/Spinner";
+import {
+	Tabs,
+	TabsContent,
+	TabsList,
+	TabsTrigger,
+} from "#/components/Tabs/Tabs";
 import { setBackground } from "#/contexts/platformBoot";
 import { ImageUploadSplit } from "../imageStore/ImageUploadSplit";
 import { formatBytes } from "../images";
@@ -30,7 +45,6 @@ import {
 	DialControls,
 	HtmlPreviewFrame,
 	type HtmlSource,
-	HtmlSourcePicker,
 	ParticlesControls,
 } from "./HtmlBackgroundControls";
 import { backgroundStyle } from "./PlatformBackground";
@@ -40,7 +54,6 @@ import {
 	particlesSettings,
 } from "./particles";
 
-const QUERY_KEY = ["platform", "backgrounds"] as const;
 const MAX_WIDTH = 1920;
 const MAX_HEIGHT = 1200;
 const MAX_BYTES = 4 * 1024 * 1024;
@@ -114,36 +127,89 @@ export const prepareBackground = async (
  * fit and layer. It is an extra layer on the page; none of Coder's own styles
  * change, and at the default strength it is barely there.
  */
+type BackgroundEditorHandle = {
+	dirty: boolean;
+	ready: boolean;
+	save: () => Promise<unknown>;
+};
+
 export const BackgroundSection: React.FC = () => {
-	const query = useQuery({
-		queryKey: QUERY_KEY,
-		queryFn: PlatformAPI.getBackgrounds,
+	const [active, setActive] = useState<BackgroundSlot>("dashboard");
+	const editors = useRef<
+		Partial<Record<BackgroundSlot, BackgroundEditorHandle>>
+	>({});
+	const saveAll = useMutation({
+		mutationFn: async () => {
+			for (const slot of BACKGROUND_SLOTS) {
+				const editor = editors.current[slot];
+				if (editor?.dirty && !editor.ready)
+					throw new Error(
+						`${SLOT_TEXT[slot].title}: finish choosing a background before saving.`,
+					);
+			}
+			for (const slot of BACKGROUND_SLOTS) {
+				const editor = editors.current[slot];
+				if (editor?.dirty) await editor.save();
+			}
+		},
 	});
+	const query = useQuery(backgrounds());
 
 	return (
 		<section
 			aria-labelledby="customize-background"
 			className="mt-10 border-0 border-t border-solid border-border pt-8"
 		>
-			<h2 id="customize-background" className="m-0 mb-2 text-2xl font-semibold">
+			<h2 id="customize-background" className="m-0 mb-2 text-lg font-semibold">
 				Background image
 			</h2>
-			<p className="m-0 mb-6 max-w-3xl text-sm font-medium text-content-secondary">
-				A faint picture behind the sign-in page and the dashboard. By default it
-				lies beneath everything on the page, mixed into the page's own
-				background colour, so the pages keep their look and their text stays
-				readable; it can also lie over the page as a watermark. Either way the
-				mouse never notices it.
+			<p className="m-0 mb-4 text-sm text-content-secondary">
+				Edit both backgrounds before saving. Switching views keeps your unsaved
+				changes.
 			</p>
+
 			{query.isLoading ? (
 				<Loader />
 			) : !query.data ? (
 				<ErrorAlert error={query.error} />
 			) : (
-				<div className="grid gap-6 lg:grid-cols-2">
-					{BACKGROUND_SLOTS.map((slot) => (
-						<BackgroundCard key={slot} slot={slot} state={query.data} />
-					))}
+				<div>
+					<Tabs
+						value={active}
+						onValueChange={(value) => {
+							if (value === "login" || value === "dashboard") setActive(value);
+						}}
+					>
+						<TabsList aria-label="Background to edit">
+							<TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+							<TabsTrigger value="login">Sign-in / sign-out</TabsTrigger>
+						</TabsList>
+						{BACKGROUND_SLOTS.map((slot) => (
+							<TabsContent
+								key={slot}
+								value={slot}
+								forceMount
+								className="data-[state=inactive]:hidden"
+							>
+								<BackgroundCard
+									slot={slot}
+									state={query.data}
+									managed
+									ref={(handle) => {
+										editors.current[slot] = handle ?? undefined;
+									}}
+								/>
+							</TabsContent>
+						))}
+					</Tabs>
+					{saveAll.error && <ErrorAlert error={saveAll.error} />}
+					<Button
+						className="mt-3"
+						disabled={saveAll.isPending || !query.data.available}
+						onClick={() => saveAll.mutate()}
+					>
+						Save backgrounds
+					</Button>
 				</div>
 			)}
 		</section>
@@ -151,6 +217,7 @@ export const BackgroundSection: React.FC = () => {
 };
 
 type Draft = {
+	removed?: boolean;
 	/** A picture, the Particles preset, or HTML of one's own. */
 	source: "image" | HtmlSource;
 	dataURL?: string;
@@ -189,7 +256,9 @@ const savedHtml = async (url: string) =>
 const BackgroundCard: React.FC<{
 	slot: BackgroundSlot;
 	state: BackgroundsState;
-}> = ({ slot, state }) => {
+	managed?: boolean;
+	ref?: React.Ref<BackgroundEditorHandle>;
+}> = ({ slot, state, managed, ref }) => {
 	const queryClient = useQueryClient();
 	const current = state[slot];
 	const limits = state.limits.opacity;
@@ -214,18 +283,17 @@ const BackgroundCard: React.FC<{
 	};
 	const [draft, setDraft] = useState<Draft>(fresh);
 	const change = (patch: Partial<Draft>) =>
-		setDraft((d) => ({ ...d, ...patch, dirty: true }));
+		setDraft((d) => ({ ...d, removed: false, ...patch, dirty: true }));
 	const [galleryPick, setGalleryPick] = useState<string>();
 	const [problem, setProblem] = useState<string>();
 	const [preparing, setPreparing] = useState(false);
 	const [loadingHtml, setLoadingHtml] = useState(false);
 	const inputRef = useRef<HTMLInputElement>(null);
 
-	// A save elsewhere (or the first load) resets the draft; a refetch of the same values does not.
+	// Saving the other slot or refetching must not discard this slot's unsaved edits.
 	const savedParams = JSON.stringify(current?.params ?? {});
 	useEffect(() => {
-		setDraft(fresh());
-		setGalleryPick(undefined);
+		setDraft((previous) => (previous.dirty ? previous : fresh()));
 	}, [
 		current?.url,
 		current?.opacity,
@@ -295,8 +363,9 @@ const BackgroundCard: React.FC<{
 				layer: draft.layer,
 			}),
 		onSuccess: (result) => {
+			setDraft((previous) => ({ ...previous, dirty: false }));
 			setBackground(slot, result[slot] ?? null);
-			void queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+			void queryClient.invalidateQueries({ queryKey: backgroundsKey });
 			toast.success(`${SLOT_TEXT[slot].title}: background saved.`);
 		},
 		onError: (error) =>
@@ -305,8 +374,9 @@ const BackgroundCard: React.FC<{
 	const remove = useMutation({
 		mutationFn: () => PlatformAPI.resetBackground(slot),
 		onSuccess: () => {
+			setDraft((previous) => ({ ...previous, removed: false, dirty: false }));
 			setBackground(slot, null);
-			void queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+			void queryClient.invalidateQueries({ queryKey: backgroundsKey });
 			toast.success(`${SLOT_TEXT[slot].title}: background removed.`);
 		},
 		onError: (error) =>
@@ -344,25 +414,33 @@ const BackgroundCard: React.FC<{
 				(current?.kind !== "html" ? current?.url : undefined))
 			: undefined;
 	const htmlBytes = new TextEncoder().encode(html).length;
-	const ready = isHtml
-		? html.trim().length > 0 && htmlBytes <= htmlMax && !loadingHtml
-		: Boolean(imageURL);
+	const ready =
+		draft.removed ||
+		(isHtml
+			? html.trim().length > 0 && htmlBytes <= htmlMax && !loadingHtml
+			: Boolean(imageURL));
 	const busy = save.isPending || remove.isPending || preparing;
-	const preview: BackgroundImage | null = imageURL
-		? {
-				url: imageURL,
-				opacity: draft.opacity,
-				fit: draft.fit,
-				layer: draft.layer,
-			}
-		: null;
+	useImperativeHandle(ref, () => ({
+		dirty: draft.dirty,
+		ready: ready && !busy,
+		save: () => (draft.removed ? remove.mutateAsync() : save.mutateAsync()),
+	}));
+	const preview: BackgroundImage | null =
+		!draft.removed && imageURL
+			? {
+					url: imageURL,
+					opacity: draft.opacity,
+					fit: draft.fit,
+					layer: draft.layer,
+				}
+			: null;
 
 	return (
 		<div
-			className="flex flex-col gap-4 rounded-lg border border-solid border-border p-5"
+			className="grid gap-4 rounded-lg border border-solid border-border p-4 lg:grid-cols-2"
 			data-testid={`background-${slot}`}
 		>
-			<div className="flex items-start justify-between gap-3">
+			<div className="flex items-start justify-between gap-3 lg:col-span-2">
 				<div>
 					<h3 className="m-0 text-base font-semibold">
 						{SLOT_TEXT[slot].title}
@@ -385,207 +463,230 @@ const BackgroundCard: React.FC<{
 			<BackgroundPreview
 				slot={slot}
 				image={preview}
-				html={isHtml && ready ? html : undefined}
+				html={isHtml && ready && !draft.removed ? html : undefined}
 				dials={draft.dials}
 				opacity={draft.opacity}
 				layer={draft.layer}
 			/>
 
-			<div className="flex flex-wrap items-center gap-3">
-				{/* Platform: Upload, its arrow the image store in a dialog (its animated previews only while open) */}
-				<ImageUploadSplit
-					testId={`background-${slot}-image`}
-					title={`${SLOT_TEXT[slot].title} background: the image store`}
-					onUpload={() => inputRef.current?.click()}
-					disabled={busy || !state.available}
-					busy={preparing}
-					gallery={{
-						extra: PREBAKED_BACKGROUNDS,
-						selected: draft.source === "image" ? galleryPick : undefined,
-						onSelect: setGalleryPick,
-						disabled: busy,
-						onPick: (file) => void pick(file, file.name),
-						// The dashboard's own pictures are saved as their path: no upload, nothing to go missing.
-						onPickBuiltin: (picture) => {
-							setProblem(undefined);
-							setGalleryPick(picture.name);
-							change({
-								source: "image",
-								picture: picture.url,
-								dataURL: undefined,
-								bytes: undefined,
-								name: picture.name,
-							});
-						},
-					}}
-				/>
-				<input
-					ref={inputRef}
-					type="file"
-					accept="image/png,image/jpeg,image/webp,image/gif,image/avif"
-					aria-label={`Choose the ${SLOT_TEXT[slot].title.toLowerCase()} background image`}
-					className="hidden"
-					onChange={(event) => {
-						const file = event.currentTarget.files?.[0];
-						event.currentTarget.value = "";
-						if (file) {
-							void pick(file);
-						}
-					}}
-				/>
-				<span className="min-w-0 truncate text-sm text-content-secondary">
-					{isHtml
-						? `${draft.source === "particles" ? "Particles" : "Your own HTML"}, ${formatBytes(htmlBytes)}${draft.dirty ? " (not saved yet)" : ""}`
-						: draft.name
-							? `${draft.name}${draft.bytes ? `, ${formatBytes(draft.bytes)}` : ""} (not saved yet)`
-							: current && current.kind !== "html"
-								? `${current.type.replace("image/", "").toUpperCase()}, ${formatBytes(current.bytes)}${current.builtin ? " · built into the dashboard" : ""}${current.updatedBy ? ` · by ${current.updatedBy}` : ""}`
-								: "No image."}
-				</span>
-			</div>
-			<HtmlSourcePicker
-				selected={isHtml ? (draft.source as HtmlSource) : undefined}
-				disabled={busy}
-				onSelect={(source) => {
-					setProblem(undefined);
-					setGalleryPick(undefined);
-					change({
-						source,
-						dataURL: undefined,
-						picture: undefined,
-						name: undefined,
-					});
-				}}
-			/>
-			{problem && (
-				<p role="alert" className="m-0 text-sm text-content-destructive">
-					{problem}
-				</p>
-			)}
-
-			{draft.source === "particles" && (
-				<ParticlesControls
-					value={draft.particles}
-					disabled={busy}
-					onChange={(particles) => change({ particles })}
-				/>
-			)}
-			{draft.source === "custom" && (
-				<CustomHtmlEditor
-					html={draft.html}
-					maxBytes={htmlMax}
-					loading={loadingHtml}
-					disabled={busy}
-					onChange={(next) => change({ html: next })}
-					onProblem={setProblem}
-				/>
-			)}
-			{isHtml && (
-				<DialControls
-					value={draft.dials}
-					disabled={busy}
-					onChange={(dials) => change({ dials })}
-				/>
-			)}
-
-			<label className="flex flex-col gap-1.5 text-sm">
-				<span className="flex justify-between font-medium">
-					Strength
-					<span className="tabular-nums text-content-secondary">
-						{Math.round(draft.opacity * 100)}%
-					</span>
-				</span>
-				<input
-					type="range"
-					min={Math.round(limits.min * 100)}
-					max={Math.round(limits.max * 100)}
-					step={1}
-					value={Math.round(draft.opacity * 100)}
-					disabled={busy}
-					onChange={(event) =>
-						change({ opacity: Number(event.target.value) / 100 })
-					}
-					aria-label={`${SLOT_TEXT[slot].title} background strength`}
-				/>
-				<span className="text-xs text-content-secondary">
-					{Math.round(limits.default * 100)}% (the default) is barely
-					noticeable; keep it low so text stays easy to read.
-				</span>
-			</label>
-
-			<div className="grid gap-3 sm:grid-cols-2">
-				{!isHtml && (
-					<label className="flex flex-col gap-1.5 text-sm font-medium">
-						Fit
-						<select
-							value={draft.fit}
-							disabled={busy}
-							onChange={(event) =>
-								change({ fit: event.target.value as BackgroundFit })
+			<div className="flex min-w-0 flex-col gap-3">
+				<div className="flex flex-wrap items-center gap-3">
+					{/* Platform: Upload, its arrow the image store in a dialog (its animated previews only while open) */}
+					<ImageUploadSplit
+						testId={`background-${slot}-image`}
+						title={`${SLOT_TEXT[slot].title} background: the image store`}
+						onUpload={() => inputRef.current?.click()}
+						disabled={busy || !state.available}
+						busy={preparing}
+						gallery={{
+							extra: PREBAKED_BACKGROUNDS,
+							selected: draft.source === "image" ? galleryPick : undefined,
+							onSelect: setGalleryPick,
+							disabled: busy,
+							onPick: (file) => void pick(file, file.name),
+							// The dashboard's own pictures are saved as their path: no upload, nothing to go missing.
+							onPickBuiltin: (picture) => {
+								setProblem(undefined);
+								setGalleryPick(picture.name);
+								change({
+									source: "image",
+									picture: picture.url,
+									dataURL: undefined,
+									bytes: undefined,
+									name: picture.name,
+								});
+							},
+						}}
+					/>
+					<input
+						ref={inputRef}
+						type="file"
+						accept="image/png,image/jpeg,image/webp,image/gif,image/avif"
+						aria-label={`Choose the ${SLOT_TEXT[slot].title.toLowerCase()} background image`}
+						className="hidden"
+						onChange={(event) => {
+							const file = event.currentTarget.files?.[0];
+							event.currentTarget.value = "";
+							if (file) {
+								void pick(file);
 							}
-							className="h-9 rounded-md border border-solid border-border bg-surface-primary px-2 text-sm text-content-primary"
-						>
-							{FITS.map((f) => (
-								<option key={f.value} value={f.value}>
-									{f.label}
-								</option>
-							))}
-						</select>
-					</label>
-				)}
-				<fieldset className="m-0 flex flex-col gap-1.5 border-0 p-0 text-sm">
-					<legend className="mb-1.5 p-0 font-medium">Layer</legend>
-					{(
-						[
-							["under", "Behind the page (recommended)"],
-							["over", "Over the page, as a watermark"],
-						] as const
-					).map(([value, label]) => (
-						<label key={value} className="flex items-center gap-2">
-							<input
-								type="radio"
-								name={`background-layer-${slot}`}
-								checked={draft.layer === value}
-								disabled={busy}
-								onChange={() => change({ layer: value })}
-							/>
-							{label}
-						</label>
-					))}
-				</fieldset>
-			</div>
-
-			<div className="flex flex-wrap gap-3">
-				<Button
-					disabled={busy || !draft.dirty || !ready}
-					onClick={() => save.mutate()}
-				>
-					<Spinner loading={save.isPending} />
-					Save
-				</Button>
-				{draft.dirty && (
-					<Button
-						variant="outline"
-						disabled={busy}
-						onClick={() => {
-							setDraft(fresh());
-							setGalleryPick(undefined);
+						}}
+					/>
+					<span className="min-w-0 truncate text-sm text-content-secondary">
+						{isHtml
+							? `${draft.source === "particles" ? "Particles" : "Your own HTML"}, ${formatBytes(htmlBytes)}${draft.dirty ? " (not saved yet)" : ""}`
+							: draft.name
+								? `${draft.name}${draft.bytes ? `, ${formatBytes(draft.bytes)}` : ""} (not saved yet)`
+								: current && current.kind !== "html"
+									? `${current.type.replace("image/", "").toUpperCase()}, ${formatBytes(current.bytes)}${current.builtin ? " · built into the dashboard" : ""}${current.updatedBy ? ` · by ${current.updatedBy}` : ""}`
+									: "No image."}
+					</span>
+				</div>
+				<div className="flex items-center gap-3">
+					<Label htmlFor={`background-source-${slot}`}>Source</Label>
+					<Select
+						value={draft.source}
+						onValueChange={(source) => {
+							if (
+								source !== "image" &&
+								source !== "particles" &&
+								source !== "custom"
+							)
+								return;
 							setProblem(undefined);
+							setGalleryPick(undefined);
+							change({
+								source,
+								dataURL: undefined,
+								picture: undefined,
+								name: undefined,
+							});
 						}}
 					>
-						Discard changes
-					</Button>
+						<SelectTrigger id={`background-source-${slot}`}>
+							<SelectValue />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value="image">Picture</SelectItem>
+							<SelectItem value="particles">Animated particles</SelectItem>
+							<SelectItem value="custom">Custom HTML / CSS</SelectItem>
+						</SelectContent>
+					</Select>
+				</div>
+				{problem && (
+					<p role="alert" className="m-0 text-sm text-content-destructive">
+						{problem}
+					</p>
 				)}
-				{current && (
-					<Button
-						variant="outline"
+
+				{draft.source === "particles" && (
+					<ParticlesControls
+						value={draft.particles}
 						disabled={busy}
-						onClick={() => remove.mutate()}
-					>
-						<Spinner loading={remove.isPending} />
-						Remove
-					</Button>
+						onChange={(particles) => change({ particles })}
+					/>
 				)}
+				{draft.source === "custom" && (
+					<CustomHtmlEditor
+						html={draft.html}
+						maxBytes={htmlMax}
+						loading={loadingHtml}
+						disabled={busy}
+						onChange={(next) => change({ html: next })}
+						onProblem={setProblem}
+					/>
+				)}
+				{isHtml && (
+					<DialControls
+						value={draft.dials}
+						disabled={busy}
+						onChange={(dials) => change({ dials })}
+					/>
+				)}
+
+				<label className="flex flex-col gap-1.5 text-sm">
+					<span className="flex justify-between font-medium">
+						Strength
+						<span className="tabular-nums text-content-secondary">
+							{Math.round(draft.opacity * 100)}%
+						</span>
+					</span>
+					<input
+						type="range"
+						min={Math.round(limits.min * 100)}
+						max={Math.round(limits.max * 100)}
+						step={1}
+						value={Math.round(draft.opacity * 100)}
+						disabled={busy}
+						onChange={(event) =>
+							change({ opacity: Number(event.target.value) / 100 })
+						}
+						aria-label={`${SLOT_TEXT[slot].title} background strength`}
+					/>
+					<span className="text-xs text-content-secondary">
+						{Math.round(limits.default * 100)}% (the default) is barely
+						noticeable; keep it low so text stays easy to read.
+					</span>
+				</label>
+
+				<div className="grid gap-3 sm:grid-cols-2">
+					{!isHtml && (
+						<label className="flex flex-col gap-1.5 text-sm font-medium">
+							Fit
+							<select
+								value={draft.fit}
+								disabled={busy}
+								onChange={(event) =>
+									change({ fit: event.target.value as BackgroundFit })
+								}
+								className="h-9 rounded-md border border-solid border-border bg-surface-primary px-2 text-sm text-content-primary"
+							>
+								{FITS.map((f) => (
+									<option key={f.value} value={f.value}>
+										{f.label}
+									</option>
+								))}
+							</select>
+						</label>
+					)}
+					<fieldset className="m-0 flex flex-col gap-1.5 border-0 p-0 text-sm">
+						<legend className="mb-1.5 p-0 font-medium">Layer</legend>
+						{(
+							[
+								["under", "Behind the page (recommended)"],
+								["over", "Over the page, as a watermark"],
+							] as const
+						).map(([value, label]) => (
+							<label key={value} className="flex items-center gap-2">
+								<input
+									type="radio"
+									name={`background-layer-${slot}`}
+									checked={draft.layer === value}
+									disabled={busy}
+									onChange={() => change({ layer: value })}
+								/>
+								{label}
+							</label>
+						))}
+					</fieldset>
+				</div>
+
+				<div className="flex flex-wrap gap-3">
+					{!managed && (
+						<Button
+							disabled={busy || !draft.dirty || !ready}
+							onClick={() => save.mutate()}
+						>
+							<Spinner loading={save.isPending} />
+							Save
+						</Button>
+					)}
+					{draft.dirty && (
+						<Button
+							variant="outline"
+							disabled={busy}
+							onClick={() => {
+								setDraft(fresh());
+								setGalleryPick(undefined);
+								setProblem(undefined);
+							}}
+						>
+							Discard changes
+						</Button>
+					)}
+					{current && (
+						<Button
+							variant="outline"
+							disabled={busy}
+							onClick={() =>
+								managed ? change({ removed: true }) : remove.mutate()
+							}
+						>
+							<Spinner loading={remove.isPending} />
+							{draft.removed ? "Removal pending save" : "Remove"}
+						</Button>
+					)}
+				</div>
 			</div>
 		</div>
 	);

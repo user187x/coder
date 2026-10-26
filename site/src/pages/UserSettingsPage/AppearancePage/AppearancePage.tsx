@@ -10,6 +10,7 @@ import { Loader } from "#/components/Loader/Loader";
 import { useEmbeddedMetadata } from "#/hooks/useEmbeddedMetadata";
 import { usePreferredColorScheme } from "#/theme/usePreferredColorScheme";
 import { AppearanceForm } from "./AppearanceForm";
+import { CompactAppearanceForm } from "./CompactAppearanceForm";
 
 type MutateAppearanceSettings = (
 	values: UpdateUserAppearanceSettingsRequest,
@@ -47,7 +48,9 @@ export const useQueuedAppearanceSubmit = (mutate: MutateAppearanceSettings) => {
 	};
 };
 
-const AppearancePage: React.FC = () => {
+const AppearancePage: React.FC<{ compact?: boolean }> = ({
+	compact = false,
+}) => {
 	const queryClient = useQueryClient();
 	const updateAppearanceSettingsMutation = useMutation(
 		updateAppearanceSettings(queryClient),
@@ -74,8 +77,9 @@ const AppearancePage: React.FC = () => {
 		return <ErrorAlert error={appearanceSettingsQuery.error} />;
 	}
 
+	const Form = compact ? CompactAppearanceForm : AppearanceForm;
 	return (
-		<AppearanceForm
+		<Form
 			isUpdating={updateAppearanceSettingsMutation.isPending}
 			error={updateAppearanceSettingsMutation.error}
 			initialValues={appearanceSettingsQuery.data}

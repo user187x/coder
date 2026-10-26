@@ -32,6 +32,12 @@ import {
 	SettingsHeaderTitle,
 } from "#/components/SettingsHeader/SettingsHeader";
 import { Spinner } from "#/components/Spinner/Spinner";
+import {
+	Tabs,
+	TabsContent,
+	TabsList,
+	TabsTrigger,
+} from "#/components/Tabs/Tabs";
 import { DEFAULT_LOGO_URL, setLogoURL } from "#/contexts/platformBoot";
 import { BackgroundSection } from "#/modules/platform/background/BackgroundSection";
 import { GalleryPicker } from "#/modules/platform/gallery/GalleryPicker";
@@ -80,7 +86,7 @@ const CustomizeSettingsPage: React.FC = () => {
 				aria-label="Your theme and terminal font"
 				className="mt-10 border-0 border-t border-solid border-border pt-8"
 			>
-				<AppearancePage />
+				<AppearancePage compact />
 			</section>
 		</>
 	);
@@ -146,10 +152,11 @@ export const LogoView: React.FC<LogoViewProps> = ({
 	onUpload,
 	onReset,
 }) => {
+	const [previewTheme, setPreviewTheme] = useState<"dark" | "light">("dark");
 	return (
 		<section
 			aria-labelledby="customize-logo"
-			className="rounded-lg border border-solid border-border p-6"
+			className="rounded-lg border border-solid border-border p-4"
 		>
 			<div className="mb-4 flex flex-wrap items-center justify-between gap-3">
 				<h2 id="customize-logo" className="m-0 text-base font-semibold">
@@ -163,10 +170,24 @@ export const LogoView: React.FC<LogoViewProps> = ({
 							: "Default logo"}
 				</Badge>
 			</div>
-			<div className="grid gap-4 sm:grid-cols-2">
-				<LogoPreview theme="dark" src={logo.url} caption="Dark theme" />
-				<LogoPreview theme="light" src={logo.url} caption="Light theme" />
-			</div>
+			<Tabs
+				value={previewTheme}
+				onValueChange={(value) => {
+					if (value === "dark" || value === "light") setPreviewTheme(value);
+				}}
+			>
+				<TabsList aria-label="Logo preview theme">
+					<TabsTrigger value="dark">Dark</TabsTrigger>
+					<TabsTrigger value="light">Light</TabsTrigger>
+				</TabsList>
+				<TabsContent value={previewTheme}>
+					<LogoPreview
+						theme={previewTheme}
+						src={logo.url}
+						caption={`${previewTheme === "dark" ? "Dark" : "Light"} theme preview`}
+					/>
+				</TabsContent>
+			</Tabs>
 			<p className="m-0 mt-4 text-sm text-content-secondary">
 				{!logo.available
 					? "The platform service is not connected to Coder's database, so a logo cannot be stored."
@@ -202,10 +223,6 @@ export const LogoView: React.FC<LogoViewProps> = ({
 					</DropdownMenuContent>
 				</DropdownMenu>
 			</div>
-			<p className="m-0 mt-4 text-sm text-content-secondary">
-				Stored in Coder's own PostgreSQL database, so it survives restarts and
-				upgrades. Everyone sees it after their next page load.
-			</p>
 		</section>
 	);
 };

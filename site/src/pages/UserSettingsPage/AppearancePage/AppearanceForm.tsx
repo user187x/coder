@@ -23,6 +23,7 @@ import {
 	terminalFontLabels,
 	terminalFonts,
 } from "#/theme/constants";
+import { parseCustomTheme } from "#/theme/customTheme";
 import {
 	draftFromState,
 	draftToUpdate,
@@ -150,7 +151,19 @@ export const AppearanceForm: React.FC<AppearanceFormProps> = ({
 	};
 
 	const onChangeTerminalFont = (nextTerminalFont: TerminalFontName) => {
-		submit({ draft, terminalFont: nextTerminalFont });
+		setValues({ draft, terminalFont: nextTerminalFont });
+		onSubmit({
+			...toUpdateRequest(
+				{ draft, terminalFont: nextTerminalFont },
+				activeScheme,
+			),
+			theme_preference:
+				draft.mode === "single" &&
+				parseCustomTheme(initialValues.theme_preference)
+					? initialValues.theme_preference
+					: draftToUpdate(draft, nextTerminalFont, activeScheme)
+							.theme_preference,
+		});
 	};
 
 	return (

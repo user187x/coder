@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { fn } from "storybook/test";
+import { fn, userEvent, within } from "storybook/test";
 import { MockLogo } from "#/testHelpers/platform";
 import { LogoView } from "./CustomizeSettingsPage";
 
@@ -30,4 +30,13 @@ export const CustomLogo: Story = {
 
 export const NotAvailable: Story = {
 	args: { logo: { ...MockLogo, available: false } },
+};
+
+export const LightPreview: Story = {
+	...CustomLogo,
+	play: async ({ canvasElement }) => {
+		await userEvent.click(
+			within(canvasElement).getByRole("tab", { name: "Light" }),
+		);
+	},
 };

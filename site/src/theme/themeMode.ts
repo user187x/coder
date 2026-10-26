@@ -5,6 +5,7 @@ import {
 	isConcreteThemeName,
 	legacyAutoToSync,
 } from ".";
+import { parseCustomTheme } from "./customTheme";
 
 type ThemeMode = "sync" | "single";
 
@@ -74,6 +75,8 @@ export const migrateLegacyPreference = (
 	settings: AppearanceSettingsLike,
 ): ThemeModeState => {
 	const mode = settings.theme_mode;
+	const custom = parseCustomTheme(settings.theme_preference);
+	if (custom && mode !== "sync") return { mode: "single", theme: custom.base };
 
 	if (mode === "sync") {
 		return {

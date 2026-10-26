@@ -15,11 +15,17 @@ import { Button } from "#/components/Button/Button";
 import { Input } from "#/components/Input/Input";
 import { Label } from "#/components/Label/Label";
 import { Loader } from "#/components/Loader/Loader";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "#/components/Select/Select";
 import { Slider } from "#/components/Slider/Slider";
 import { Spinner } from "#/components/Spinner/Spinner";
 import { Textarea } from "#/components/Textarea/Textarea";
 import { ColorField } from "#/modules/platform/ColorField";
-import { ContourTitle } from "#/modules/platform/contourTitle/ContourTitle";
 import { getApplicationName } from "#/utils/appearance";
 import { SignInTitle } from "./SignInTitle";
 
@@ -94,17 +100,15 @@ export const LoginPageSection: React.FC = () => {
 			className="mt-10 border-0 border-t border-solid border-border pt-8"
 			data-testid="customize-login-page"
 		>
-			<h2 id="customize-login-page" className="m-0 mb-2 text-2xl font-semibold">
+			<h2 id="customize-login-page" className="m-0 mb-2 text-lg font-semibold">
 				Sign-in and sign-out page
 			</h2>
-			<p className="m-0 mb-6 max-w-3xl text-sm font-medium text-content-secondary">
-				The page everyone signs in on, and lands on after signing out: its
-				title, the text effect it is drawn with (the traced outline it has
-				always had, or another), and a message under it for each.
+			<p className="m-0 mb-4 text-sm text-content-secondary">
+				Update the title, effect and messages with a live preview.
 			</p>
 
-			<div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-				<div className="flex flex-col gap-5">
+			<div className="grid gap-5 rounded-lg border border-solid border-border p-4 lg:grid-cols-2">
+				<div className="grid grid-cols-2 gap-3">
 					<div className="flex flex-col gap-2">
 						<Label htmlFor={`${ids}-title`}>Title</Label>
 						<Input
@@ -119,44 +123,27 @@ export const LoginPageSection: React.FC = () => {
 						</span>
 					</div>
 
-					<fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
-						<legend className="mb-2 p-0 text-sm font-medium">
-							Text effect
-						</legend>
-						<div className="grid grid-cols-3 gap-2" role="radiogroup">
-							{LOGIN_EFFECTS.map((effect) => (
-								<button
-									key={effect}
-									type="button"
-									role="radio"
-									aria-checked={draft.effect === effect}
-									onClick={() => set({ effect })}
-									data-testid={`login-effect-${effect}`}
-									className={cn(
-										"flex cursor-pointer flex-col items-center gap-1 overflow-hidden rounded-lg border border-solid bg-surface-secondary/40 px-2 pt-2 pb-2.5 text-center font-[inherit] text-content-primary",
-										draft.effect === effect
-											? "border-content-link ring-1 ring-content-link"
-											: "border-border hover:border-content-secondary",
-									)}
-								>
-									<span className="pointer-events-none flex h-10 w-full items-center justify-center overflow-hidden [&_svg]:h-10">
-										<ContourTitle
-											text="Aa"
-											effect={effect}
-											color={draft.color}
-											speed={draft.speed}
-										/>
-									</span>
-									<span className="text-sm font-medium">
+					<div className="flex flex-col gap-2">
+						<Label htmlFor={`${ids}-effect`}>Text effect</Label>
+						<Select
+							value={draft.effect}
+							onValueChange={(value) => {
+								const effect = LOGIN_EFFECTS.find((effect) => effect === value);
+								if (effect) set({ effect });
+							}}
+						>
+							<SelectTrigger id={`${ids}-effect`}>
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								{LOGIN_EFFECTS.map((effect) => (
+									<SelectItem key={effect} value={effect}>
 										{EFFECT_LABEL[effect].name}
-									</span>
-									<span className="text-[11px] leading-tight text-content-secondary">
-										{EFFECT_LABEL[effect].hint}
-									</span>
-								</button>
-							))}
-						</div>
-					</fieldset>
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					</div>
 
 					<ColorField
 						label="Colour"
@@ -219,7 +206,7 @@ export const LoginPageSection: React.FC = () => {
 						</span>
 					</div>
 
-					<div className="flex flex-wrap gap-2">
+					<div className="col-span-2 flex flex-wrap gap-2">
 						<Button
 							disabled={!dirty || save.isPending}
 							onClick={() => submit(draft, "The sign-in page is saved.")}
@@ -282,7 +269,7 @@ export const LoginPageSection: React.FC = () => {
 						</div>
 					</div>
 					<div
-						className="flex min-h-56 items-center justify-center rounded-lg border border-solid border-border bg-surface-primary px-6 py-10"
+						className="flex min-h-56 items-center justify-center rounded-lg border border-solid border-border bg-surface-primary px-5 py-6"
 						data-testid="login-page-preview"
 					>
 						<div className="w-full max-w-[385px]">
