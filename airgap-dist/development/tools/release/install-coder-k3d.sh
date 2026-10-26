@@ -2,6 +2,7 @@
 # Install the prebuilt release into a new local k3d cluster, without touching Minikube.
 set -Eeuo pipefail
 version=1.1.2
+k3s_image=rancher/k3s:v1.35.5-k3s1
 cluster=coder-fresh
 registry_name=coder-registry.localhost
 registry_port=5500
@@ -130,7 +131,7 @@ import json,sys
 p,cluster,domain,data=sys.argv[1:]
 with open(p,'w') as f: json.dump({'cluster':cluster,'domain':domain,'data_dir':data},f)
 PY
- k3d cluster create "$cluster" --servers 1 --agents 0 \
+ k3d cluster create "$cluster" --image "$k3s_image" --servers 1 --agents 0 \
   --registry-use "k3d-$registry_name:$registry_port" \
   --port '127.0.0.1:80:80@loadbalancer' --port '127.0.0.1:443:443@loadbalancer' \
   --volume "$data_dir:/var/lib/rancher/k3s/storage@server:0" \
