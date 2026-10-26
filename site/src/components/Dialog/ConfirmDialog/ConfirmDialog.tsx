@@ -59,6 +59,8 @@ export type ConfirmDialogProps = {
 	 * and focus that control instead.
 	 */
 	readonly onCloseAutoFocus?: (event: Event) => void;
+	readonly contentClassName?: string;
+	readonly overlayClassName?: string;
 };
 
 /**
@@ -73,6 +75,8 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
 	hideCancel,
 	onClose,
 	onCloseAutoFocus,
+	contentClassName,
+	overlayClassName,
 	onConfirm,
 	open = false,
 	title,
@@ -93,6 +97,8 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
 			}}
 		>
 			<DialogContent
+				className={contentClassName}
+				overlayClassName={overlayClassName}
 				variant={type === "delete" ? "destructive" : "default"}
 				data-testid="dialog"
 				onCloseAutoFocus={onCloseAutoFocus}

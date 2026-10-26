@@ -356,3 +356,22 @@ it("opens quarantine review from the shield without changing isolation", async (
 	);
 	expect(set).not.toHaveBeenCalled();
 });
+
+it("uses dashboard lockdown actions in an account panel", async () => {
+	vi.spyOn(PlatformAPI, "getLockdown").mockResolvedValue(lock({}));
+	const set = vi
+		.spyOn(PlatformAPI, "setLockdown")
+		.mockResolvedValue({
+			...lock({ modes: ["network"], locked: true }),
+			applied: "now",
+			error: null,
+		});
+	renderWith(<LockdownBadge workspace={MockWorkspace} panel />);
+	const user = userEvent.setup();
+	await user.click(
+		await screen.findByRole("button", { name: /Disconnect Network/ }),
+	);
+	await waitFor(() =>
+		expect(set).toHaveBeenCalledWith(MockWorkspace.id, "network"),
+	);
+});

@@ -46,3 +46,21 @@ export const RefetchError: Story = {
 		onRetry: fn(),
 	},
 };
+
+export const UpdateAvailable: Story = {
+	...Management,
+	args: { canManage: true, workspaces: [{ ...MockWorkspace, outdated: true }] },
+};
+export const LongNames: Story = {
+	...Management,
+	args: {
+		canManage: true,
+		workspaces: [
+			{
+				...MockWorkspace,
+				name: "a-workspace-with-a-long-name",
+				template_display_name: "A template with a long display name",
+			},
+		],
+	},
+};

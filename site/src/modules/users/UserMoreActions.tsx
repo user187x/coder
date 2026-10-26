@@ -4,10 +4,12 @@ import {
 	KeyRoundIcon,
 	LayoutGridIcon,
 	PencilIcon,
+	ShieldIcon,
 	TrashIcon,
 	UserCheckIcon,
 	UserXIcon,
 } from "lucide-react";
+import { useState } from "react";
 import { Link } from "react-router";
 import type { User } from "#/api/typesGenerated";
 import { Button } from "#/components/Button/Button";
@@ -18,6 +20,7 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "#/components/DropdownMenu/DropdownMenu";
+import { AccountLockdownDialog } from "./AccountLockdownDialog";
 import type { UserAdminAction } from "./UserActionDialogs";
 
 type UserMoreActionsProps = {
@@ -35,89 +38,106 @@ export const UserMoreActions: React.FC<UserMoreActionsProps> = ({
 	canViewActivity,
 	oidcRoleSyncEnabled,
 }) => {
+	const [lockdownOpen, setLockdownOpen] = useState(false);
 	return (
-		<DropdownMenu>
-			<DropdownMenuTrigger asChild>
-				<Button
-					size="icon-lg"
-					variant="subtle"
-					type="button"
-					aria-label="Open menu"
-				>
-					<EllipsisVerticalIcon aria-hidden="true" />
-				</Button>
-			</DropdownMenuTrigger>
-			<DropdownMenuContent align="end">
-				<DropdownMenuItem asChild>
-					<Link
-						to={`/workspaces?filter=${encodeURIComponent(`owner:${user.username}`)}`}
+		<>
+			<DropdownMenu>
+				<DropdownMenuTrigger asChild>
+					<Button
+						size="icon-lg"
+						variant="subtle"
+						type="button"
+						aria-label="Open menu"
 					>
-						<LayoutGridIcon aria-hidden />
-						Workspaces
-					</Link>
-				</DropdownMenuItem>
-
-				{canViewActivity && (
+						<EllipsisVerticalIcon aria-hidden="true" />
+					</Button>
+				</DropdownMenuTrigger>
+				<DropdownMenuContent align="end">
 					<DropdownMenuItem asChild>
 						<Link
-							to={`/audit?filter=${encodeURIComponent(`username:${user.username}`)}`}
+							to={`/workspaces?filter=${encodeURIComponent(`owner:${user.username}`)}`}
 						>
-							<ActivityIcon aria-hidden />
-							View activity
+							<LayoutGridIcon aria-hidden />
+							Workspaces
 						</Link>
 					</DropdownMenuItem>
-				)}
 
-				<DropdownMenuItem
-					onClick={() =>
-						onAction({
-							type: "edit",
-							user,
-							rolesReadOnly: user.login_type === "oidc" && oidcRoleSyncEnabled,
-						})
-					}
-				>
-					<PencilIcon aria-hidden />
-					Edit
-				</DropdownMenuItem>
+					<DropdownMenuItem onSelect={() => setLockdownOpen(true)}>
+						<ShieldIcon aria-hidden />
+						Lock Down
+					</DropdownMenuItem>
+					{canViewActivity && (
+						<DropdownMenuItem asChild>
+							<Link
+								to={`/audit?filter=${encodeURIComponent(`username:${user.username}`)}`}
+							>
+								<ActivityIcon aria-hidden />
+								View activity
+							</Link>
+						</DropdownMenuItem>
+					)}
 
-				{user.status !== "suspended" && (
 					<DropdownMenuItem
-						disabled={user.login_type !== "password"}
-						onClick={() => onAction({ type: "resetPassword", user })}
+						onClick={() =>
+							onAction({
+								type: "edit",
+								user,
+								rolesReadOnly:
+									user.login_type === "oidc" && oidcRoleSyncEnabled,
+							})
+						}
 					>
-						<KeyRoundIcon aria-hidden />
-						Password Reset
+						<PencilIcon aria-hidden />
+						Edit
 					</DropdownMenuItem>
-				)}
 
-				{user.status === "active" || user.status === "dormant" ? (
-					<DropdownMenuItem onClick={() => onAction({ type: "suspend", user })}>
-						<UserXIcon aria-hidden />
-						Suspend
-					</DropdownMenuItem>
-				) : (
+					{user.status !== "suspended" && (
+						<DropdownMenuItem
+							disabled={user.login_type !== "password"}
+							onClick={() => onAction({ type: "resetPassword", user })}
+						>
+							<KeyRoundIcon aria-hidden />
+							Password Reset
+						</DropdownMenuItem>
+					)}
+
+					{user.status === "active" || user.status === "dormant" ? (
+						<DropdownMenuItem
+							onClick={() => onAction({ type: "suspend", user })}
+						>
+							<UserXIcon aria-hidden />
+							Suspend
+						</DropdownMenuItem>
+					) : (
+						<DropdownMenuItem
+							onClick={() => onAction({ type: "activate", user })}
+						>
+							<UserCheckIcon aria-hidden />
+							Activate&hellip;
+						</DropdownMenuItem>
+					)}
+
+					<DropdownMenuSeparator />
+
 					<DropdownMenuItem
-						onClick={() => onAction({ type: "activate", user })}
+						className="text-content-destructive focus:text-content-destructive"
+						onClick={() => {
+							if (user.id !== me) onAction({ type: "delete", user });
+						}}
+						disabled={user.id === me}
 					>
-						<UserCheckIcon aria-hidden />
-						Activate&hellip;
+						<TrashIcon aria-hidden className="size-icon-xs" />
+						Delete&hellip;
 					</DropdownMenuItem>
-				)}
-
-				<DropdownMenuSeparator />
-
-				<DropdownMenuItem
-					className="text-content-destructive focus:text-content-destructive"
-					onClick={() => {
-						if (user.id !== me) onAction({ type: "delete", user });
-					}}
-					disabled={user.id === me}
-				>
-					<TrashIcon aria-hidden className="size-icon-xs" />
-					Delete&hellip;
-				</DropdownMenuItem>
-			</DropdownMenuContent>
-		</DropdownMenu>
+				</DropdownMenuContent>
+			</DropdownMenu>
+			{lockdownOpen && (
+				<AccountLockdownDialog
+					user={user}
+					open={lockdownOpen}
+					onOpenChange={setLockdownOpen}
+				/>
+			)}
+		</>
 	);
 };

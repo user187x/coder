@@ -7,6 +7,7 @@ import { MockWorkspace } from "#/testHelpers/entities";
 import { renderComponent } from "#/testHelpers/renderHelpers";
 import { MockWorkspacePowerOperation } from "#/testHelpers/workspacePower";
 import { AccountWorkspaceActions } from "./AccountWorkspaceActions";
+import { AccountWorkspaceUpdate } from "./AccountWorkspaceUpdate";
 
 afterEach(() => vi.restoreAllMocks());
 it("terminates through the force-stop API and never deletes the workspace", async () => {
@@ -57,4 +58,30 @@ it("retries unavailable workspace power history", async () => {
 		}),
 	);
 	await waitFor(() => expect(history).toHaveBeenCalledTimes(2));
+});
+
+it("updates another account's workspace only after review", async () => {
+	const workspace = { ...MockWorkspace, outdated: true };
+	const update = vi
+		.spyOn(API, "updateWorkspace")
+		.mockResolvedValue(workspace.latest_build);
+	renderComponent(
+		<QueryClientProvider client={new QueryClient()}>
+			<AccountWorkspaceUpdate workspace={workspace} />
+		</QueryClientProvider>,
+	);
+	const user = userEvent.setup();
+	await user.click(
+		screen.getByRole("button", { name: `Update ${workspace.name}` }),
+	);
+	expect(update).not.toHaveBeenCalled();
+	await user.click(
+		within(screen.getByRole("dialog", { name: "Update workspace" })).getByRole(
+			"button",
+			{ name: "Update" },
+		),
+	);
+	await waitFor(() =>
+		expect(update).toHaveBeenCalledWith(workspace, undefined),
+	);
 });

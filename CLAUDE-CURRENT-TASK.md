@@ -442,3 +442,9 @@ Replaced the painted notch overlay with a radial-gradient mask on the complete p
 ### Quarantine in the Lock Down shield menu
 
 Added a Quarantine menu entry with the existing ShieldBan icon beneath the Lock Down heading. It opens a review dialog using the existing WorkspaceQuarantineControl, preserving confirmation, enforcement reporting, query invalidation, and administrator checks. Replaced the workspace page's inactive card with notice-only rendering: active quarantine remains visible as a read-only notice, while management lives under the shield. Opening review performs no mutation. All 21 targeted lockdown/quarantine tests passed.
+
+### Account workspace controls and Lock Down review
+
+Expanded account workspace rows now reuse the dashboard Running status/light and template icon pill. Added explicit View and confirmed Update controls; stop/restart/terminate use accessible compact icon buttons in one non-wrapping action row. The nested table uses fixed columns, its existing narrow-container card layout, and no horizontal-scroll wrapper. Template links use the shared organization-aware route helper. Update uses the existing workspace mutation and preserves error feedback and query invalidation.
+
+Added Lock Down to the account context menu. Its blurred-background dialog loads only that account's workspaces and reuses the dashboard's control definitions and mutation handlers in a panel presentation, including Quarantine and snapshot controls. Opening review performs no access mutation. Nested quarantine confirmation is layered above its review dialog. Added tests for confirmed template updates, account-menu review without mutations, and shared inline lockdown behavior, plus long-name/update/panel visual stories. All 34 targeted tests passed; type checking and production build passed.

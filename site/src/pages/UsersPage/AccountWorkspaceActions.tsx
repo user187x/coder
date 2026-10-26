@@ -25,7 +25,8 @@ export const AccountWorkspaceActions: React.FC<{
 	targets: readonly Workspace[];
 	onClear?: () => void;
 	compact?: boolean;
-}> = ({ targets, onClear, compact = false }) => {
+	children?: React.ReactNode;
+}> = ({ targets, onClear, compact = false, children }) => {
 	const client = useQueryClient();
 	const power = useMutation(runWorkspacePower(client));
 	const restart = useMutation(restartAccountWorkspaces(client));
@@ -60,26 +61,37 @@ export const AccountWorkspaceActions: React.FC<{
 		: "selected workspaces";
 	return (
 		<div className="flex flex-col gap-2">
-			<div className="flex flex-wrap items-center gap-2">
+			<div
+				className={
+					compact
+						? "flex flex-nowrap items-center gap-1"
+						: "flex flex-wrap items-center gap-2"
+				}
+			>
+				{children}
 				{!compact && (
 					<span className="text-sm font-medium">
 						{regular.length} selected workspaces
 					</span>
 				)}
 				<Button
-					size="sm"
+					size={compact ? "icon" : "sm"}
+					className={compact ? "size-7 shrink-0" : undefined}
 					variant="outline"
 					aria-label={`Stop ${targetLabel}`}
+					title="Stop"
 					disabled={busy || regular.length === 0}
 					onClick={(e) => open("stop", e.currentTarget)}
 				>
 					<PowerIcon aria-hidden />
-					Stop
+					{!compact && "Stop"}
 				</Button>
 				<Button
-					size="sm"
+					size={compact ? "icon" : "sm"}
+					className={compact ? "size-7 shrink-0" : undefined}
 					variant="outline"
 					aria-label={`Restart ${targetLabel}`}
+					title="Restart"
 					disabled={
 						busy ||
 						regular.length === 0 ||
@@ -96,17 +108,19 @@ export const AccountWorkspaceActions: React.FC<{
 					onClick={(e) => open("restart", e.currentTarget)}
 				>
 					<RotateCcwIcon aria-hidden />
-					Restart
+					{!compact && "Restart"}
 				</Button>
 				<Button
-					size="sm"
+					size={compact ? "icon" : "sm"}
+					className={compact ? "size-7 shrink-0" : undefined}
 					variant="destructive"
 					aria-label={`Terminate ${targetLabel}`}
+					title="Terminate"
 					disabled={busy || regular.length === 0}
 					onClick={(e) => open("terminate", e.currentTarget)}
 				>
 					<ZapIcon aria-hidden />
-					Terminate
+					{!compact && "Terminate"}
 				</Button>
 				{onClear && (
 					<Button size="sm" variant="subtle" disabled={busy} onClick={onClear}>

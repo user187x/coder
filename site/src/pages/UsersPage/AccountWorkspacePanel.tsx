@@ -4,6 +4,7 @@ import { Link } from "react-router";
 import { workspaces as workspaceQuery } from "#/api/queries/workspaces";
 import type { User, Workspace } from "#/api/typesGenerated";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
+import { Avatar } from "#/components/Avatar/Avatar";
 import { Button } from "#/components/Button/Button";
 import { Checkbox } from "#/components/Checkbox/Checkbox";
 import {
@@ -14,8 +15,11 @@ import {
 	TableHeader,
 	TableRow,
 } from "#/components/Table/Table";
+import { linkToTemplate, useLinks } from "#/modules/navigation";
 import { QuotaAdjustments } from "#/modules/platform/quotaRequests/QuotaAdjustments";
+import { WorkspaceStatusIndicator } from "#/modules/workspaces/WorkspaceStatusIndicator/WorkspaceStatusIndicator";
 import { AccountWorkspaceActions } from "./AccountWorkspaceActions";
+import { AccountWorkspaceUpdate } from "./AccountWorkspaceUpdate";
 
 type PanelProps = {
 	user: User;
@@ -57,6 +61,7 @@ export const AccountWorkspacePanelView: React.FC<
 	error,
 	onRetry,
 }) => {
+	const links = useLinks();
 	const all = list.filter(
 		(w) => !w.is_prebuild && w.latest_build.status !== "deleted",
 	);
@@ -105,12 +110,13 @@ export const AccountWorkspacePanelView: React.FC<
 				<Table
 					aria-label={`${user.username}'s workspaces`}
 					className="account-workspaces-table"
+					wrapperClassName="min-w-0 overflow-x-hidden"
 				>
 					<colgroup>
 						{canManage && <col style={{ width: "6%" }} />}
-						<col style={{ width: canManage ? "28%" : "34%" }} />
-						<col style={{ width: "22%" }} />
-						<col style={{ width: "16%" }} />
+						<col style={{ width: canManage ? "22%" : "28%" }} />
+						<col style={{ width: "23%" }} />
+						<col style={{ width: "21%" }} />
 						<col style={{ width: "28%" }} />
 					</colgroup>
 					<TableHeader>
@@ -176,16 +182,58 @@ export const AccountWorkspacePanelView: React.FC<
 									)}
 								</TableCell>
 								<TableCell data-label="Template">
-									{w.template_display_name ||
-										w.template_name ||
-										"Unknown template"}
+									<Button
+										asChild
+										variant="outline"
+										size="sm"
+										className="max-w-full min-w-0 gap-1 rounded-[10px] py-1 pl-1 pr-2"
+									>
+										<Link
+											to={links(
+												linkToTemplate(w.organization_name, w.template_name),
+											)}
+										>
+											<Avatar
+												variant="icon"
+												src={w.template_icon}
+												fallback={w.template_display_name || w.template_name}
+												size="md"
+												className="rounded-[7px]"
+											/>
+											<span className="truncate">
+												{w.template_display_name ||
+													w.template_name ||
+													"Unknown template"}
+											</span>
+										</Link>
+									</Button>
 								</TableCell>
 								<TableCell data-label="Status">
-									{w.latest_build.status}
+									<WorkspaceStatusIndicator
+										workspace={w}
+										runningLight
+										className="workspace-topbar-running-status gap-1.5 rounded-full border border-solid border-current/20 bg-surface-secondary px-2 py-1 text-xs"
+									/>
 								</TableCell>
 								<TableCell data-label="Actions">
 									{canManage && !w.is_prebuild ? (
-										<AccountWorkspaceActions targets={[w]} compact />
+										<AccountWorkspaceActions targets={[w]} compact>
+											<Button
+												asChild
+												size="icon"
+												variant="outline"
+												className="size-7 shrink-0"
+											>
+												<Link
+													to={`/@${encodeURIComponent(w.owner_name)}/${encodeURIComponent(w.name)}`}
+													aria-label={`View ${w.name}`}
+													title="View workspace"
+												>
+													<ArrowUpRightIcon aria-hidden />
+												</Link>
+											</Button>
+											<AccountWorkspaceUpdate workspace={w} />
+										</AccountWorkspaceActions>
 									) : (
 										<span className="text-xs text-content-secondary">
 											View only

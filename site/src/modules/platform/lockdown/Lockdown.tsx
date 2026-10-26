@@ -21,6 +21,8 @@ import {
 	type WorkspaceLockdown,
 } from "#/api/platform";
 import type { Workspace } from "#/api/typesGenerated";
+import { ErrorAlert } from "#/components/Alert/ErrorAlert";
+import { Button } from "#/components/Button/Button";
 import { Dialog, DialogContent, DialogTitle } from "#/components/Dialog/Dialog";
 import {
 	DropdownMenu,
@@ -30,6 +32,7 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "#/components/DropdownMenu/DropdownMenu";
+import { Spinner } from "#/components/Spinner/Spinner";
 import { createDayString } from "#/utils/createDayString";
 import { WorkspaceQuarantineControl } from "../quarantine/WorkspaceQuarantine";
 import { SudoLockIcon } from "./SudoLockIcon";
@@ -209,7 +212,8 @@ export const LockdownBadge: React.FC<{
 	modes?: WorkspaceLockdown["modes"];
 	className?: string;
 	goldIcon?: boolean;
-}> = ({ workspace, modes, className, goldIcon = false }) => {
+	panel?: boolean;
+}> = ({ workspace, modes, className, goldIcon = false, panel = false }) => {
 	const [open, setOpen] = useState(false);
 	const [quarantineOpen, setQuarantineOpen] = useState(false);
 	const queryClient = useQueryClient();
@@ -243,136 +247,168 @@ export const LockdownBadge: React.FC<{
 		onError: (e) =>
 			toast.error(getErrorMessage(e, "The snapshot was not deleted.")),
 	});
+	if (panel && query.isLoading) return <Spinner loading />;
+	if (panel && query.error)
+		return (
+			<div className="flex flex-col gap-3">
+				<ErrorAlert error={query.error} />
+				<Button variant="outline" onClick={() => void query.refetch()}>
+					Retry Lock Down status
+				</Button>
+			</div>
+		);
 	// Admins only: the list's badges come only for them; a page's waits for the workspace's state.
 	if (modes === undefined && !query.data?.canChange) {
-		return null;
+		return panel ? (
+			<p>Lock Down controls are not available for this workspace.</p>
+		) : null;
 	}
 	const current = modeOf(query.data ?? { modes: modes ?? [] });
 	const locked = current !== "off";
 	const snapshot = query.data?.snapshot;
 	// In a clickable row: the badge's clicks and keys stay with it.
 	const keep = (e: React.SyntheticEvent) => e.stopPropagation();
+	const ControlItem = panel ? Button : DropdownMenuItem;
+	const ControlLabel = panel ? "div" : DropdownMenuLabel;
+	const ControlSeparator = panel ? "hr" : DropdownMenuSeparator;
+	const controls = (
+		<>
+			<ControlLabel>
+				Lock Down {workspace.owner_name}/{workspace.name}
+			</ControlLabel>
+			<ControlItem
+				onClick={panel ? () => setQuarantineOpen(true) : undefined}
+				onSelect={panel ? undefined : () => setQuarantineOpen(true)}
+			>
+				<ShieldBanIcon aria-hidden />
+				Quarantine
+			</ControlItem>
+			<ControlSeparator />
+			{MENU.map((item) => {
+				const on = item.isOn(current);
+				return (
+					<ControlItem
+						key={item.key}
+						disabled={
+							set.isPending || (current === "freeze" && item.key !== "freeze")
+						}
+						onClick={panel ? () => set.mutate(item.next(current)) : undefined}
+						onSelect={panel ? undefined : () => set.mutate(item.next(current))}
+						data-testid={`lockdown-${item.key}`}
+						data-on={on}
+						className={cn(
+							"items-start [&_svg]:mt-0.5 [&_svg]:size-4 [&_svg]:shrink-0",
+							on ? "text-content-destructive" : "text-content-success",
+						)}
+					>
+						{item.icon(on)}
+						<span className="flex flex-col">
+							<span className="font-medium">
+								{on ? item.label.on : item.label.off}
+							</span>
+							<span className="text-xs text-content-secondary">
+								{on ? item.hint.on : item.hint.off}
+							</span>
+						</span>
+					</ControlItem>
+				);
+			})}
+			{snapshot && (
+				<>
+					<ControlSeparator />
+					<ControlLabel
+						className="flex items-start gap-2 font-normal"
+						data-testid="lockdown-snapshot"
+					>
+						<DatabaseBackupIcon className="mt-0.5 size-icon-sm shrink-0" />
+						<span className="flex min-w-0 flex-col text-xs">
+							<span className="font-medium text-content-primary">
+								Snapshot{" "}
+								{snapshot.status ? SNAPSHOT_STATUS[snapshot.status] : ""}
+							</span>
+							<span className="break-all text-content-secondary">
+								{snapshot.error ??
+									`${snapshot.kind === "VolumeSnapshot" ? "VolumeSnapshot" : "Volume"} ${snapshot.name}, of ${snapshot.claim}`}
+							</span>
+							<span className="text-content-secondary">
+								{createDayString(snapshot.at)}
+								{snapshot.processes > 0 &&
+									` · ${snapshot.processes} processes paused`}
+							</span>
+						</span>
+					</ControlLabel>
+					<ControlItem
+						disabled={removeSnapshot.isPending}
+						onClick={panel ? () => removeSnapshot.mutate() : undefined}
+						onSelect={panel ? undefined : () => removeSnapshot.mutate()}
+						data-testid="lockdown-snapshot-delete"
+					>
+						<TrashIcon />
+						Delete snapshot
+					</ControlItem>
+				</>
+			)}
+		</>
+	);
 	return (
 		<>
 			<DropdownMenu open={open} onOpenChange={setOpen}>
-				<DropdownMenuTrigger asChild>
-					<button
-						type="button"
+				{!panel && (
+					<DropdownMenuTrigger asChild>
+						<button
+							type="button"
+							onClick={keep}
+							onKeyDown={keep}
+							title={
+								locked
+									? `Locked down: ${MODE_LABEL[current]}`
+									: `Lock ${workspace.owner_name}'s workspace down`
+							}
+							aria-label={
+								locked
+									? `Lock Down: ${MODE_LABEL[current]}`
+									: `Lock Down ${workspace.owner_name}/${workspace.name}`
+							}
+							data-testid="workspace-lockdown"
+							data-mode={current}
+							className={cn(
+								"inline-flex h-6 shrink-0 cursor-pointer items-center gap-1 rounded-full border border-solid px-1.5 text-xs font-medium transition-colors",
+								locked
+									? "border-border-destructive bg-surface-destructive/50 text-content-destructive hover:bg-surface-destructive"
+									: "border-border bg-transparent text-content-secondary opacity-70 hover:text-content-primary hover:opacity-100",
+								goldIcon && "border-border",
+								className,
+							)}
+						>
+							{locked ? (
+								<ShieldAlertIcon
+									aria-hidden
+									className={cn("size-3.5", goldIcon && "text-[#d4af37]")}
+								/>
+							) : (
+								<ShieldIcon
+									aria-hidden
+									className={cn("size-3.5", goldIcon && "text-[#d4af37]")}
+								/>
+							)}
+							{locked && <span className="pr-0.5">{BADGE_LABEL[current]}</span>}
+						</button>
+					</DropdownMenuTrigger>
+				)}
+				{panel ? (
+					<div className="flex flex-col gap-2 [&_button]:h-auto [&_button]:justify-start [&_button]:whitespace-normal [&_button]:py-3">
+						{controls}
+					</div>
+				) : (
+					<DropdownMenuContent
+						align="end"
+						className="w-80"
 						onClick={keep}
 						onKeyDown={keep}
-						title={
-							locked
-								? `Locked down: ${MODE_LABEL[current]}`
-								: `Lock ${workspace.owner_name}'s workspace down`
-						}
-						aria-label={
-							locked
-								? `Lock Down: ${MODE_LABEL[current]}`
-								: `Lock Down ${workspace.owner_name}/${workspace.name}`
-						}
-						data-testid="workspace-lockdown"
-						data-mode={current}
-						className={cn(
-							"inline-flex h-6 shrink-0 cursor-pointer items-center gap-1 rounded-full border border-solid px-1.5 text-xs font-medium transition-colors",
-							locked
-								? "border-border-destructive bg-surface-destructive/50 text-content-destructive hover:bg-surface-destructive"
-								: "border-border bg-transparent text-content-secondary opacity-70 hover:text-content-primary hover:opacity-100",
-							goldIcon && "border-border",
-							className,
-						)}
 					>
-						{locked ? (
-							<ShieldAlertIcon
-								aria-hidden
-								className={cn("size-3.5", goldIcon && "text-[#d4af37]")}
-							/>
-						) : (
-							<ShieldIcon
-								aria-hidden
-								className={cn("size-3.5", goldIcon && "text-[#d4af37]")}
-							/>
-						)}
-						{locked && <span className="pr-0.5">{BADGE_LABEL[current]}</span>}
-					</button>
-				</DropdownMenuTrigger>
-				<DropdownMenuContent
-					align="end"
-					className="w-80"
-					onClick={keep}
-					onKeyDown={keep}
-				>
-					<DropdownMenuLabel>
-						Lock Down {workspace.owner_name}/{workspace.name}
-					</DropdownMenuLabel>
-					<DropdownMenuItem onSelect={() => setQuarantineOpen(true)}>
-						<ShieldBanIcon aria-hidden />
-						Quarantine
-					</DropdownMenuItem>
-					<DropdownMenuSeparator />
-					{MENU.map((item) => {
-						const on = item.isOn(current);
-						return (
-							<DropdownMenuItem
-								key={item.key}
-								disabled={
-									set.isPending ||
-									(current === "freeze" && item.key !== "freeze")
-								}
-								onSelect={() => set.mutate(item.next(current))}
-								data-testid={`lockdown-${item.key}`}
-								data-on={on}
-								className={cn(
-									"items-start [&_svg]:mt-0.5 [&_svg]:size-4 [&_svg]:shrink-0",
-									on ? "text-content-destructive" : "text-content-success",
-								)}
-							>
-								{item.icon(on)}
-								<span className="flex flex-col">
-									<span className="font-medium">
-										{on ? item.label.on : item.label.off}
-									</span>
-									<span className="text-xs text-content-secondary">
-										{on ? item.hint.on : item.hint.off}
-									</span>
-								</span>
-							</DropdownMenuItem>
-						);
-					})}
-					{snapshot && (
-						<>
-							<DropdownMenuSeparator />
-							<DropdownMenuLabel
-								className="flex items-start gap-2 font-normal"
-								data-testid="lockdown-snapshot"
-							>
-								<DatabaseBackupIcon className="mt-0.5 size-icon-sm shrink-0" />
-								<span className="flex min-w-0 flex-col text-xs">
-									<span className="font-medium text-content-primary">
-										Snapshot{" "}
-										{snapshot.status ? SNAPSHOT_STATUS[snapshot.status] : ""}
-									</span>
-									<span className="break-all text-content-secondary">
-										{snapshot.error ??
-											`${snapshot.kind === "VolumeSnapshot" ? "VolumeSnapshot" : "Volume"} ${snapshot.name}, of ${snapshot.claim}`}
-									</span>
-									<span className="text-content-secondary">
-										{createDayString(snapshot.at)}
-										{snapshot.processes > 0 &&
-											` · ${snapshot.processes} processes paused`}
-									</span>
-								</span>
-							</DropdownMenuLabel>
-							<DropdownMenuItem
-								disabled={removeSnapshot.isPending}
-								onSelect={() => removeSnapshot.mutate()}
-								data-testid="lockdown-snapshot-delete"
-							>
-								<TrashIcon />
-								Delete snapshot
-							</DropdownMenuItem>
-						</>
-					)}
-				</DropdownMenuContent>
+						{controls}
+					</DropdownMenuContent>
+				)}
 			</DropdownMenu>
 			<Dialog open={quarantineOpen} onOpenChange={setQuarantineOpen}>
 				<DialogContent

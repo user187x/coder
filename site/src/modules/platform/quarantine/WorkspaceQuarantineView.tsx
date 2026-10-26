@@ -88,6 +88,8 @@ export const WorkspaceQuarantineView: React.FC<Props> = ({
 			)}
 			{children}
 			<ConfirmDialog
+				contentClassName="z-[100]"
+				overlayClassName="z-[100]"
 				open={confirm}
 				title={
 					activate ? `Quarantine ${name}?` : `Release quarantine for ${name}?`

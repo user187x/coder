@@ -1,8 +1,14 @@
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
-import { MockUserMember, MockUserOwner } from "#/testHelpers/entities";
-import { renderComponent } from "#/testHelpers/renderHelpers";
+import { API } from "#/api/api";
+import { PlatformAPI } from "#/api/platform";
+import {
+	MockUserMember,
+	MockUserOwner,
+	MockWorkspacesResponse,
+} from "#/testHelpers/entities";
+import { renderComponent, renderWithAuth } from "#/testHelpers/renderHelpers";
 import { UserMoreActions } from "./UserMoreActions";
 
 it.each([false, true])(
@@ -46,4 +52,28 @@ it("retains self deletion protection", async () => {
 	await user.click(screen.getByRole("button", { name: "Open menu" }));
 	await user.click(screen.getByRole("menuitem", { name: "Delete…" }));
 	expect(onAction).not.toHaveBeenCalled();
+});
+
+it("opens account lockdown review without changing workspace access", async () => {
+	const workspaces = vi
+		.spyOn(API, "getWorkspaces")
+		.mockResolvedValue({ ...MockWorkspacesResponse, workspaces: [], count: 0 });
+	const lock = vi.spyOn(PlatformAPI, "setLockdown");
+	renderWithAuth(
+		<UserMoreActions
+			user={MockUserMember}
+			me={MockUserOwner.id}
+			onAction={vi.fn()}
+		/>,
+	);
+	const user = userEvent.setup();
+	await user.click(await screen.findByRole("button", { name: "Open menu" }));
+	await user.click(screen.getByRole("menuitem", { name: "Lock Down" }));
+	await waitFor(() =>
+		expect(workspaces).toHaveBeenCalledWith({
+			q: `owner:${MockUserMember.username}`,
+			limit: 0,
+		}),
+	);
+	expect(lock).not.toHaveBeenCalled();
 });

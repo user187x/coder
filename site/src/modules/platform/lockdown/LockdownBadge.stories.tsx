@@ -12,3 +12,7 @@ type Story = StoryObj<typeof LockdownBadge>;
 export const Unlocked: Story = {};
 export const Locked: Story = { args: { modes: ["network", "sudo"] } };
 export const Frozen: Story = { args: { modes: ["freeze"] } };
+export const AccountPanel: Story = { args: { panel: true } };
+export const FrozenAccountPanel: Story = {
+	args: { panel: true, modes: ["freeze"] },
+};
