@@ -182,92 +182,15 @@ html.cd-dragging:has([data-cloud-drive-drop="taken"]) * {
 	stroke: hsl(var(--content-destructive));
 }
 
-/* The workspace page's Cloud Drive glyph (CloudDriveGlyph), grey in its grey circle: connected, a green glow sweeps
-   across it every 2 seconds; disconnected, its edge pulses red (the cloud frowns). Without animations (the user
-   menu's switch, or reduced motion) a still green or red edge says the same. */
-.cd-glyph {
-	overflow: hidden;
+.cd-cloud-icon {
+	background: currentColor;
+	mask: url("/icon/cloud-drive.svg") center / contain no-repeat;
+	-webkit-mask: url("/icon/cloud-drive.svg") center / contain no-repeat;
 }
-.cd-glyph[data-state="connected"]::after {
-	content: "";
-	position: absolute;
-	inset: 0;
-	border-radius: inherit;
-	background: linear-gradient(
-		100deg,
-		transparent 25%,
-		hsl(var(--content-success) / 0.6) 50%,
-		transparent 75%
-	);
-	transform: translateX(-120%);
-	animation: cd-glyph-sweep 2s ease-in-out infinite;
-	pointer-events: none;
-}
-.cd-glyph[data-state="connected"] svg {
-	animation: cd-glyph-sweep-glow 2s ease-in-out infinite;
-}
-@keyframes cd-glyph-sweep {
-	0% {
-		transform: translateX(-120%);
-	}
-	55%,
-	100% {
-		transform: translateX(120%);
-	}
-}
-@keyframes cd-glyph-sweep-glow {
-	0%,
-	60%,
-	100% {
-		filter: none;
-	}
-	28% {
-		filter: drop-shadow(0 0 3px hsl(var(--content-success)));
-	}
-}
-.cd-glyph[data-state="disconnected"] {
-	overflow: visible;
-	animation: cd-glyph-alarm 1.2s ease-in-out infinite;
-}
-@keyframes cd-glyph-alarm {
-	0%,
-	100% {
-		box-shadow: 0 0 0 1px hsl(var(--content-destructive) / 0.45);
-	}
-	50% {
-		box-shadow:
-			0 0 0 1px hsl(var(--content-destructive)),
-			0 0 7px 2px hsl(var(--content-destructive) / 0.8);
-	}
-}
-@media (prefers-reduced-motion: reduce) {
-	.cd-glyph[data-state],
-	.cd-glyph[data-state]::after,
-	.cd-glyph[data-state] svg {
-		animation: none !important;
-	}
-	.cd-glyph[data-state="connected"] {
-		box-shadow: 0 0 0 1px hsl(var(--content-success) / 0.7);
-	}
-	.cd-glyph[data-state="connected"]::after {
-		display: none;
-	}
-	.cd-glyph[data-state="disconnected"] {
-		box-shadow: 0 0 0 1px hsl(var(--content-destructive));
-	}
-}
-html[data-animations="off"] .cd-glyph[data-state],
-html[data-animations="off"] .cd-glyph[data-state]::after,
-html[data-animations="off"] .cd-glyph[data-state] svg {
-	animation: none !important;
-}
-html[data-animations="off"] .cd-glyph[data-state="connected"] {
+.cd-glyph[data-state="connected"] {
 	box-shadow: 0 0 0 1px hsl(var(--content-success) / 0.7);
 }
-html[data-animations="off"] .cd-glyph[data-state="connected"]::after {
-	display: none;
-}
-html[data-animations="off"] .cd-glyph[data-state="disconnected"] {
+.cd-glyph[data-state="disconnected"] {
 	box-shadow: 0 0 0 1px hsl(var(--content-destructive));
 }
 
