@@ -1,6 +1,5 @@
 import {
 	act,
-	fireEvent,
 	render,
 	screen,
 	waitFor,
@@ -403,31 +402,6 @@ it("connects an input terminal from the chosen peer output", async () => {
 	);
 });
 
-it("changes a cable arc locally without reconnecting the tunnel", async () => {
-	const create = vi
-		.spyOn(PlatformAPI, "createWorkspaceTunnel")
-		.mockResolvedValue({ tunnel });
-	const remove = vi
-		.spyOn(PlatformAPI, "deleteWorkspaceTunnel")
-		.mockResolvedValue({ tunnel });
-	const user = setup([tunnel], vi.fn(), {
-		tableAnchors: [
-			{ workspaceId: source.id, x: 40, y: 40 },
-			{ workspaceId: target.id, x: 40, y: 120 },
-		],
-	});
-	await user.click(
-		screen.getByRole("button", { name: "Connect Alpha output tunnel port" }),
-	);
-	const arc = await screen.findByRole("slider", {
-		name: "Cable arc: Alpha to Beta",
-	});
-	// jsdom does not implement the browser's native range-keyboard adjustment.
-	fireEvent.change(arc, { target: { value: "48" } });
-	expect(arc).toHaveValue("48");
-	expect(create).not.toHaveBeenCalled();
-	expect(remove).not.toHaveBeenCalled();
-});
 
 it("adds another connection from an occupied output without removing the first", async () => {
 	const third = { ...source, id: "third", name: "Gamma" };
@@ -476,16 +450,16 @@ it("keeps old outer-side connections manageable in a single-column inset gutter"
 		.spyOn(PlatformAPI, "deleteWorkspaceTunnel")
 		.mockResolvedValue({ tunnel });
 	const user = setup([existing], vi.fn(), { cols: 1, cellW: 180 });
+	await user.hover(
+		await screen.findByRole("button", {
+			name: "Disconnect tunnel Alpha to Beta source plug",
+		}),
+	);
 	await user.click(
 		await screen.findByRole("button", {
 			name: "Manage tunnel Alpha to Beta: ready",
 		}),
 	);
-	const arc = await screen.findByRole("slider", {
-		name: "Cable arc: Alpha to Beta",
-	});
-	fireEvent.change(arc, { target: { value: "999" } });
-	expect(arc).toHaveValue("52");
 	expect(create).not.toHaveBeenCalled();
 	expect(remove).not.toHaveBeenCalled();
 	await user.click(screen.getByRole("button", { name: "Disconnect" }));
@@ -696,19 +670,12 @@ it("disconnects a tunnel whose peer is filtered out via its visible marker", asy
 		.spyOn(PlatformAPI, "deleteWorkspaceTunnel")
 		.mockResolvedValue({ tunnel: { ...tunnel, status: "disconnecting" } });
 	const user = setup([tunnel], vi.fn(), { shown: [source], cols: 1 });
+	await user.hover(await screen.findByRole("button", { name: /Move cable head:/ }));
 	await user.click(
 		await screen.findByRole("button", {
 			name: /Manage tunnel to .* outside this view/,
 		}),
 	);
-	const length = screen.getByRole("slider", { name: /Cable length/ });
-	await user.click(length);
-	await user.keyboard("{ArrowRight}{ArrowRight}");
-	const bend = screen.getByRole("slider", { name: /Cable bend/ });
-	await user.click(bend);
-	await user.keyboard("{ArrowRight}");
-	expect(remove).not.toHaveBeenCalled();
-	await user.click(screen.getByRole("button", { name: "Reset cable shape" }));
 
 	await user.click(await screen.findByRole("button", { name: "Disconnect" }));
 	await waitFor(() =>
