@@ -23,6 +23,7 @@ import {
 import { CloudDriveMalePlug } from "../cloudDrive/CloudDriveMalePlug";
 import { cablePath, type Point, restingCable } from "../cloudDrive/cables";
 import { EditableTunnelCable } from "./EditableTunnelCable";
+import { TunnelConnectionHead } from "./TunnelConnectionHead";
 import { TunnelDetails } from "./TunnelDetails";
 import type { TunnelRoute } from "./tunnelRouting";
 import "../cloudDrive/cloudDrive.css";
@@ -468,6 +469,41 @@ export const WorkspaceTunnelPorts: React.FC<{
 						const head = heads[t.id] ?? { x: 0, y: 0 };
 						const end = visible.x + direction * stub.length + head.x;
 						const endY = visible.y + head.y;
+						const route = routes[t.id] ?? { points: [], orthogonal: false };
+						const last = route.points.at(-1);
+						const origin = last
+							? {
+									x: visible.x - direction * 15 + last.x,
+									y: visible.y + last.y,
+								}
+							: visible;
+						const dx =
+							route.orthogonal && endY !== origin.y
+								? 0
+								: last || route.orthogonal
+									? end - origin.x
+									: (direction * stub.length) / 3;
+						const dy = route.orthogonal
+							? endY - origin.y
+							: last
+								? endY - origin.y
+								: stub.bend;
+						const angle =
+							(Math.atan2(dy, dx) * 180) / Math.PI + (from ? 0 : 180);
+						const peerAddress = from ? t.target_address : t.source_address;
+						const peerStats = from ? t.target_stats : t.source_stats;
+						const ports = t.ports
+							?.map((p) => `${p.protocol.toUpperCase()} ${p.port}`)
+							.join(", ");
+						const observed = peerStats?.ports_available
+							? peerStats.ports
+									.map(
+										(p) =>
+											`${p.protocol.toUpperCase()} ${p.local_port} → ${p.remote_port}`,
+									)
+									.join(", ") || "None observed"
+							: "Not reported";
+						const headDescription = `Connected workspace: ${peer || (from ? t.target_workspace_id : t.source_workspace_id)}\nSource: ${t.source_workspace_name ?? t.source_workspace_id} → Destination: ${t.target_workspace_name ?? t.target_workspace_id}\nAddress / IP: ${peerAddress || "Not reported"}\nAllowed ports: ${t.ports ? ports || "None" : "All ports"}\nObserved ports (local → remote): ${observed}`;
 						return (
 							<EditableTunnelCable
 								key={t.id}
@@ -483,37 +519,20 @@ export const WorkspaceTunnelPorts: React.FC<{
 									}))
 								}
 								defaultPath={`M ${visible.x - direction * 15} ${visible.y} C ${visible.x + (direction * stub.length) / 3} ${visible.y + stub.bend}, ${end - (direction * stub.length) / 3} ${endY - stub.bend}, ${end} ${endY}`}
-								route={routes[t.id] ?? { points: [], orthogonal: false }}
+								route={route}
+								headDescription={headDescription}
 								onChange={(route) =>
 									setRoutes((current) => ({ ...current, [t.id]: route }))
 								}
 								label={label}
 								onOpen={open}
 							>
-								<circle
-									cx={end}
-									cy={endY}
-									r={8}
-									fill="hsl(var(--surface-primary))"
-									stroke="currentColor"
+								<TunnelConnectionHead
+									x={end}
+									y={endY}
+									angle={angle}
+									ready={t.status === "ready"}
 								/>
-								{t.status === "ready" ? (
-									<path
-										aria-hidden
-										d="M 2 -5 L -3 0 L 1 0 L -2 5 M -1 -2 L 4 1 M 0 2 L -4 3"
-										transform={`translate(${end} ${endY})`}
-										className="workspace-tunnel-electric"
-									/>
-								) : (
-									<text
-										x={end}
-										y={endY + 3}
-										textAnchor="middle"
-										className="fill-current text-[10px]"
-									>
-										…
-									</text>
-								)}
 							</EditableTunnelCable>
 						);
 					}

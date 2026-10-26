@@ -23,6 +23,7 @@ type Props = {
 	label: string;
 	onOpen: () => void;
 	onMoveHead?: (point: Point) => void;
+	headDescription?: string;
 	children?: ReactNode;
 	defaultCable?: ReactNode;
 	actions?: ReactNode;
@@ -40,6 +41,7 @@ export const EditableTunnelCable = ({
 	label,
 	onOpen,
 	onMoveHead,
+	headDescription,
 	children,
 	defaultCable,
 	actions,
@@ -282,6 +284,7 @@ export const EditableTunnelCable = ({
 						>
 							{children}
 							<title>
+								{headDescription ? `${headDescription}\n` : ""}
 								Ctrl+drag to move the cable head. Arrow keys adjust its
 								position.
 							</title>
