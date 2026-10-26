@@ -13,7 +13,7 @@ stage=$(mktemp -d)
 trap 'rm -rf "$stage"' EXIT
 name="coder-build-kit-$version"
 mkdir "$stage/$name"
-git -C "$root" archive HEAD | tar -xf - -C "$stage/$name"
+git -C "$root" archive HEAD | tar --exclude=docs/images --exclude=airgap-dist/development/graphics -xf - -C "$stage/$name"
 cp "$root/airgap-dist/filebrowser-quantum" "$stage/$name/airgap-dist/filebrowser-quantum"
 git -C "$root" rev-parse HEAD > "$stage/$name/RELEASE-COMMIT"
 cp "$here/release/START-HERE.md" "$stage/$name/START-HERE.md"
@@ -25,10 +25,13 @@ import json,pathlib,re,sys
 root,out=map(pathlib.Path,sys.argv[1:])
 refs=set()
 for path in [root/'scripts/Dockerfile.base',*root.glob('airgap-dist/development/*/Dockerfile')]:
- for line in path.read_text().splitlines():
-  m=re.match(r'(?:FROM\s+|ARG\s+\w+=)([^\s]+)',line)
-  if m and '/' in m[1] and '$' not in m[1] and not m[1].startswith('ghcr.io/user187x/'):
-   refs.add(m[1])
+ text=path.read_text()
+ defaults=dict(re.findall(r'^ARG (\w+)=([^\s]+)',text,re.M))
+ for raw in re.findall(r'^FROM\s+([^\s]+)',text,re.M):
+  value=raw
+  for key,default in defaults.items(): value=value.replace('${'+key+'}',default).replace('$'+key,default)
+  if '$' not in value and not value.startswith('ghcr.io/user187x/'):
+   refs.add(value)
 for path in root.glob('airgap-dist/development/tools/build-*.sh'):
  for value in re.findall(r'(?:go_image|alpine_image)=([^\s]+)',path.read_text()):
   if '/' in value and '$' not in value:
