@@ -2,7 +2,6 @@ import { cn } from "cn";
 import { API } from "#/api/api";
 import { PlatformAPI } from "#/api/platform";
 import type * as TypesGen from "#/api/typesGenerated";
-import { Badge } from "#/components/Badge/Badge";
 import { Button } from "#/components/Button/Button";
 import type { ProxyContextValue } from "#/contexts/ProxyContext";
 import { NotificationsInbox } from "#/modules/notifications/NotificationsInbox/NotificationsInbox";
@@ -117,23 +116,6 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 					hud: null,
 				}}
 			/>
-
-			{prerelease && buildInfo?.version && (
-				<a
-					href={buildInfo.external_url}
-					target="_blank"
-					rel="noreferrer"
-					className="absolute top-0 left-1/2 -translate-x-1/2 no-underline z-10"
-				>
-					<Badge
-						variant={prerelease === "rc" ? "info" : "warning"}
-						size="sm"
-						className="font-mono rounded-t-none border-t-0"
-					>
-						{buildInfo.version}
-					</Badge>
-				</a>
-			)}
 
 			<div className="flex items-center justify-end gap-3 ml-auto md:ml-3">
 				{supportLinks.filter(isNavbarLink).map((link) => (
