@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState } from "react";
 import { EditableTunnelCable } from "./EditableTunnelCable";
+import { TunnelConnectionHead } from "./TunnelConnectionHead";
 import type { TunnelRoute } from "./tunnelRouting";
 import "./workspaceTunnels.css";
 
@@ -53,14 +54,20 @@ export const Menu: Story = {
 export const MovableHead: Story = {
 	args: {
 		onMoveHead: () => {},
-		children: (
-			<circle
-				cx={300}
-				cy={150}
-				r={8}
-				fill="hsl(var(--surface-primary))"
-				stroke="currentColor"
-			/>
-		),
+		headDescription:
+			"Connected workspace: example\nAddress / IP: 10.42.0.25\nAllowed ports: TCP 443\nObserved ports (local → remote): TCP 443 → 54000",
+		children: <TunnelConnectionHead x={300} y={150} angle={0} ready />,
+	},
+};
+export const IncomingHead: Story = {
+	args: {
+		...MovableHead.args,
+		children: <TunnelConnectionHead x={300} y={150} angle={180} ready />,
+	},
+};
+export const PendingHead: Story = {
+	args: {
+		...MovableHead.args,
+		children: <TunnelConnectionHead x={300} y={150} angle={0} ready={false} />,
 	},
 };
