@@ -438,6 +438,7 @@ const GridBody: React.FC<GridBodyProps> = ({
 					>
 						{allowFocus && (
 							<WorkspaceTunnelPorts
+								key={`${tunnelActorId}:${layout}`}
 								shown={shown}
 								cols={cols}
 								cellW={cellW}
