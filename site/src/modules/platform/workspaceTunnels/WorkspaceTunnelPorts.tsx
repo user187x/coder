@@ -22,7 +22,9 @@ import {
 } from "#/components/Dialog/Dialog";
 import { CloudDriveMalePlug } from "../cloudDrive/CloudDriveMalePlug";
 import { cablePath, type Point, restingCable } from "../cloudDrive/cables";
+import { EditableTunnelCable } from "./EditableTunnelCable";
 import { TunnelDetails } from "./TunnelDetails";
+import type { TunnelRoute } from "./tunnelRouting";
 import "../cloudDrive/cloudDrive.css";
 import "./workspaceTunnels.css";
 import { LooseTunnelCord, type ReleasedTunnelCord } from "./LooseTunnelCord";
@@ -113,6 +115,7 @@ export const WorkspaceTunnelPorts: React.FC<{
 		"output",
 	);
 	const [selectedSide, setSelectedSide] = useState<"left" | "right">("right");
+	const [routes, setRoutes] = useState<Record<string, TunnelRoute>>({});
 	const [arcs, setArcs] = useState<Record<string, number>>({});
 	const [stubs, setStubs] = useState<
 		Record<string, { length: number; bend: number }>
@@ -461,25 +464,18 @@ export const WorkspaceTunnelPorts: React.FC<{
 						const direction = visible.side === "left" ? -1 : 1;
 						const end = visible.x + direction * stub.length;
 						return (
-							<g
+							<EditableTunnelCable
 								key={t.id}
-								role="button"
-								tabIndex={0}
-								aria-label={label}
-								className="pointer-events-auto cursor-pointer workspace-tunnel-cord"
-								onClick={open}
-								onKeyDown={(event) => {
-									if (event.key === "Enter" || event.key === " ") {
-										event.preventDefault();
-										open();
-									}
-								}}
+								from={{ x: visible.x - direction * 15, y: visible.y }}
+								to={{ x: end, y: visible.y }}
+								defaultPath={`M ${visible.x - direction * 15} ${visible.y} C ${visible.x + (direction * stub.length) / 3} ${visible.y + stub.bend}, ${end - (direction * stub.length) / 3} ${visible.y - stub.bend}, ${end} ${visible.y}`}
+								route={routes[t.id] ?? { points: [], orthogonal: false }}
+								onChange={(route) =>
+									setRoutes((current) => ({ ...current, [t.id]: route }))
+								}
+								label={label}
+								onOpen={open}
 							>
-								<title>{label}</title>
-								<path
-									d={`M ${visible.x - direction * 15} ${visible.y} C ${visible.x + (direction * stub.length) / 3} ${visible.y + stub.bend}, ${end - (direction * stub.length) / 3} ${visible.y - stub.bend}, ${end} ${visible.y}`}
-									className="workspace-tunnel-conduit"
-								/>
 								<circle
 									cx={end}
 									cy={visible.y}
@@ -504,65 +500,58 @@ export const WorkspaceTunnelPorts: React.FC<{
 										…
 									</text>
 								)}
-							</g>
+							</EditableTunnelCable>
 						);
 					}
 					const arc = arcFor(t, index);
 					const d = tunnelPath(from, to, from.side, to.side, arc);
 					return (
-						<ContextMenu key={t.id}>
-							<ContextMenuTrigger asChild>
-								<g className="workspace-tunnel-cord" data-state={t.status}>
-									<TunnelCord
-										from={from}
-										to={to}
-										fromSide={from.side}
-										toSide={to.side}
-										pending={t.status !== "ready"}
-										reverseFlow
-										arc={arc}
-									/>
-									<path
-										d={d}
-										fill="none"
-										stroke="transparent"
-										strokeWidth={14}
-										className="pointer-events-auto cursor-pointer"
-										role="button"
-										tabIndex={0}
-										aria-label={`Manage tunnel ${from.workspace.name} to ${to.workspace.name}: ${t.status}`}
-										onClick={() => {
-											setSelected(from.workspace);
-											setSelectedTerminal("output");
-											setSelectedSide(from.side);
-										}}
-										onKeyDown={(e) => {
-											if (e.key === "Enter" || e.key === " ") {
-												e.preventDefault();
-												setSelected(from.workspace);
-												setSelectedTerminal("output");
-												setSelectedSide(from.side);
-											}
-										}}
-									/>
-								</g>
-							</ContextMenuTrigger>
-							<ContextMenuContent className="z-[100]">
-								<ContextMenuItem onSelect={() => setDetailsId(t.id)}>
-									View connection
-								</ContextMenuItem>
-								<ContextMenuItem
-									disabled={
-										!managesTunnel(t) ||
-										remove.isPending ||
-										t.status === "disconnecting"
-									}
-									onSelect={() => disconnect(t)}
-								>
-									Delete connection
-								</ContextMenuItem>
-							</ContextMenuContent>
-						</ContextMenu>
+						<EditableTunnelCable
+							key={t.id}
+							from={from}
+							to={to}
+							defaultPath={d}
+							route={routes[t.id] ?? { points: [], orthogonal: false }}
+							onChange={(route) =>
+								setRoutes((current) => ({ ...current, [t.id]: route }))
+							}
+							label={`Manage tunnel ${from.workspace.name} to ${to.workspace.name}: ${t.status}`}
+							onOpen={() => {
+								setSelected(from.workspace);
+								setSelectedTerminal("output");
+								setSelectedSide(from.side);
+							}}
+							flow
+							pending={t.status !== "ready"}
+							defaultCable={
+								<TunnelCord
+									from={from}
+									to={to}
+									fromSide={from.side}
+									toSide={to.side}
+									pending={t.status !== "ready"}
+									reverseFlow
+									arc={arc}
+								/>
+							}
+							actions={
+								<>
+									<ContextMenuItem onSelect={() => setDetailsId(t.id)}>
+										View connection
+									</ContextMenuItem>
+									<ContextMenuItem
+										disabled={
+											!managesTunnel(t) ||
+											remove.isPending ||
+											t.status === "disconnecting"
+										}
+										onSelect={() => disconnect(t)}
+									>
+										Delete connection
+									</ContextMenuItem>
+								</>
+							}
+						/>
 					);
 				})}
 				{drag && (
