@@ -1,4 +1,4 @@
-import { type ReactNode, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import {
 	ContextMenu,
 	ContextMenuContent,
@@ -49,6 +49,21 @@ export const EditableTunnelCable = ({
 	const [selected, setSelected] = useState<number | null>(null);
 	const at = useRef<Point>({ x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 });
 	const moving = useRef<number | null>(null);
+	const frame = useRef<number | null>(null);
+	const pendingMove = useRef<(() => void) | null>(null);
+	useEffect(
+		() => () => {
+			if (frame.current !== null) cancelAnimationFrame(frame.current);
+		},
+		[],
+	);
+	const flushMove = () => {
+		if (frame.current !== null) cancelAnimationFrame(frame.current);
+		frame.current = null;
+		const pending = pendingMove.current;
+		pendingMove.current = null;
+		pending?.();
+	};
 	const custom = route.points.length > 0 || route.orthogonal;
 	const d = custom ? routedTunnelPath(from, to, route) : defaultPath;
 	const position = (clientX: number, clientY: number): Point => {
@@ -171,13 +186,19 @@ export const EditableTunnelCable = ({
 								if (moving.current !== e.pointerId) return;
 								e.stopPropagation();
 								const p = position(e.clientX, e.clientY);
-								move(index, { x: p.x - from.x, y: p.y - from.y });
+								pendingMove.current = () =>
+									move(index, { x: p.x - from.x, y: p.y - from.y });
+								if (frame.current === null)
+									frame.current = requestAnimationFrame(flushMove);
 							}}
 							onPointerUp={(e) => {
+								flushMove();
 								moving.current = null;
 								e.currentTarget.releasePointerCapture?.(e.pointerId);
 							}}
 							onPointerCancel={() => {
+								pendingMove.current = null;
+								flushMove();
 								moving.current = null;
 							}}
 							onKeyDown={(e) => {
