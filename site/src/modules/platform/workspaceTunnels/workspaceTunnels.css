@@ -51,9 +51,9 @@ html[data-animations="off"] .workspace-tunnel-flow {
 	stroke: #22c55e;
 	fill: #14532d;
 }
-.workspace-tunnel-output {
-	stroke: #60a5fa;
-	fill: #1e3a8a;
+.cd-socket.workspace-tunnel-output {
+	stroke: #4ade80;
+	fill: rgb(74 222 128 / 20%);
 }
 .workspace-tunnel-chevron path,
 .workspace-tunnel-chevron-static path {

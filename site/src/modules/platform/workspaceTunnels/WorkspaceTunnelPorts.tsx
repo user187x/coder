@@ -441,7 +441,58 @@ export const WorkspaceTunnelPorts: React.FC<{
 						t.target_side ?? "left",
 						"input",
 					);
-					if (!from || !to || drag?.tunnel?.id === t.id) return null;
+					if (drag?.tunnel?.id === t.id) return null;
+					if (!from || !to) {
+						const visible = from ?? to;
+						if (!visible) return null;
+						const peer = from
+							? t.target_workspace_name
+							: t.source_workspace_name;
+						const label = `Manage tunnel to ${peer || "workspace"} outside this view: ${t.status}`;
+						const open = () => {
+							setSelected(visible.workspace);
+							setSelectedTerminal(visible.terminal ?? "output");
+							setSelectedSide(visible.side);
+						};
+						const end = visible.x + (visible.side === "left" ? -26 : 26);
+						return (
+							<g
+								key={t.id}
+								role="button"
+								tabIndex={0}
+								aria-label={label}
+								className="pointer-events-auto cursor-pointer workspace-tunnel-cord"
+								onClick={open}
+								onKeyDown={(event) => {
+									if (event.key === "Enter" || event.key === " ") {
+										event.preventDefault();
+										open();
+									}
+								}}
+							>
+								<title>{label}</title>
+								<path
+									d={`M ${visible.x + (visible.side === "left" ? 15 : -15)} ${visible.y} H ${end}`}
+									className="workspace-tunnel-conduit"
+								/>
+								<circle
+									cx={end}
+									cy={visible.y}
+									r={8}
+									fill="hsl(var(--surface-primary))"
+									stroke="currentColor"
+								/>
+								<text
+									x={end}
+									y={visible.y + 3}
+									textAnchor="middle"
+									className="fill-current text-[10px]"
+								>
+									…
+								</text>
+							</g>
+						);
+					}
 					const arc = arcFor(t, index);
 					const d = tunnelPath(from, to, from.side, to.side, arc);
 					return (
@@ -538,10 +589,10 @@ export const WorkspaceTunnelPorts: React.FC<{
 								</g>
 							) : (
 								<rect
-									x={p.x - 4 + (p.side === "left" ? 15 : -15)}
-									y={p.y - 5}
-									width={8}
-									height={10}
+									x={p.x + (p.side === "left" ? 3 : -15)}
+									y={p.y - 4.5}
+									width={12}
+									height={9}
 									rx={2}
 									className={`cd-socket ${p.terminal ? `workspace-tunnel-${p.terminal}` : ""}`}
 								/>
@@ -549,7 +600,7 @@ export const WorkspaceTunnelPorts: React.FC<{
 							<rect
 								x={
 									p.x +
-									(idleInput
+									(idleInput || p.terminal === "output"
 										? p.side === "left"
 											? -7
 											: -17
@@ -558,7 +609,7 @@ export const WorkspaceTunnelPorts: React.FC<{
 											: -32)
 								}
 								y={p.y - 13}
-								width={idleInput ? 24 : 20}
+								width={idleInput || p.terminal === "output" ? 24 : 20}
 								height={26}
 								fill="transparent"
 								className={`pointer-events-auto ${p.terminal === "input" ? "cursor-grab" : "cursor-pointer"}`}

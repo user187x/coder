@@ -12,7 +12,8 @@ import {
 const Connections = createContext<{
 	tunnels: WorkspaceTunnel[];
 	unavailable: boolean;
-}>({ tunnels: [], unavailable: false });
+	shownIds: string[];
+}>({ tunnels: [], unavailable: false, shownIds: [] });
 
 /** Keep table cords anchored to visible rows as sorting, scrolling and row sizes change. */
 export const WorkspaceTableTunnels: React.FC<{
@@ -68,7 +69,9 @@ export const WorkspaceTableTunnels: React.FC<{
 		};
 	}, [shown]);
 	return (
-		<Connections.Provider value={{ tunnels, unavailable }}>
+		<Connections.Provider
+			value={{ tunnels, unavailable, shownIds: shown.map((w) => w.id) }}
+		>
 			<div ref={area} className="relative min-w-0">
 				{children}
 				<WorkspaceTunnelPorts
@@ -91,7 +94,7 @@ export const WorkspaceTableTunnels: React.FC<{
 export const WorkspaceTunnelStatus: React.FC<{ workspaceId: string }> = ({
 	workspaceId,
 }) => {
-	const { tunnels, unavailable } = useContext(Connections);
+	const { tunnels, unavailable, shownIds } = useContext(Connections);
 	const animations = useAnimationsEnabled();
 	const affected = tunnels.filter(
 		(t) =>
@@ -99,6 +102,11 @@ export const WorkspaceTunnelStatus: React.FC<{ workspaceId: string }> = ({
 			t.target_workspace_id === workspaceId,
 	);
 	if (!affected.length) return null;
+	const outside = affected.filter(
+		(t) =>
+			!shownIds.includes(t.source_workspace_id) ||
+			!shownIds.includes(t.target_workspace_id),
+	).length;
 	const removing = affected.some((t) => t.status === "disconnecting");
 	const pending = affected.some((t) => t.status === "pending");
 	const error = affected.some((t) => t.status === "error");
@@ -127,6 +135,7 @@ export const WorkspaceTunnelStatus: React.FC<{ workspaceId: string }> = ({
 				className={`size-1.5 rounded-full ${unavailable || error ? "bg-content-destructive" : pending || removing ? "bg-content-warning" : "bg-content-success"} ${animations && (pending || removing) ? "motion-safe:animate-pulse" : ""}`}
 			/>
 			{label}
+			{outside > 0 && ` · ${outside} outside this view`}
 		</span>
 	);
 };

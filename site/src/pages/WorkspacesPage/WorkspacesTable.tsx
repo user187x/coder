@@ -397,10 +397,7 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 							/>
 
 							{drive.enabled && (
-								<TableCell
-									className="w-16 px-2 text-center"
-									onClick={(e) => e.stopPropagation()}
-								>
+								<TableCell className="w-16 px-2 text-center">
 									<CloudDriveSocket
 										workspace={workspace}
 										links={drive}
@@ -462,10 +459,20 @@ const WorkspacesRow: React.FC<WorkspacesRowProps> = ({
 		isOwner: user.roles.some((role) => role.name === "owner"),
 	});
 
-	const openLinkInNewTab = () => window.open(workspacePageLink, "_blank");
+	const isControl = (event: React.MouseEvent<HTMLTableRowElement>) =>
+		event.target instanceof Element &&
+		Boolean(
+			event.target.closest(
+				'a, button, input, select, textarea, label, [role="button"], [role="checkbox"], [role="menuitem"]',
+			),
+		);
+	const openLinkInNewTab = (event: React.MouseEvent<HTMLTableRowElement>) => {
+		if (!isControl(event)) window.open(workspacePageLink, "_blank");
+	};
 	const { role, hover, ...clickableProps } = useClickableTableRow({
 		onMiddleClick: openLinkInNewTab,
 		onClick: (event) => {
+			if (event.defaultPrevented || isControl(event)) return;
 			// Order of booleans actually matters here for Windows-Mac compatibility;
 			// meta key is Cmd on Macs, but on Windows, it's either the Windows key,
 			// or the key does nothing at all (depends on the browser)
@@ -473,7 +480,7 @@ const WorkspacesRow: React.FC<WorkspacesRowProps> = ({
 				event.shiftKey || event.metaKey || event.ctrlKey;
 
 			if (shouldOpenInNewTab) {
-				openLinkInNewTab();
+				openLinkInNewTab(event);
 			} else {
 				navigate(workspacePageLink);
 			}
@@ -699,13 +706,7 @@ const WorkspaceActionsCell: React.FC<WorkspaceActionsCellProps> = ({
 	// among the apps)
 	return (
 		<>
-			<TableCell
-				className="w-0 px-2"
-				onClick={(e) => {
-					// Prevent the click in the apps to trigger the row click
-					e.stopPropagation();
-				}}
-			>
+			<TableCell className="w-0 px-2">
 				<div className="flex justify-center">
 					{workspace.latest_build.status === "running" &&
 						(workspace.latest_app_status ? (
@@ -715,13 +716,7 @@ const WorkspaceActionsCell: React.FC<WorkspaceActionsCellProps> = ({
 						))}
 				</div>
 			</TableCell>
-			<TableCell
-				className="w-0 px-2"
-				onClick={(e) => {
-					// Prevent the click in the actions to trigger the row click
-					e.stopPropagation();
-				}}
-			>
+			<TableCell className="w-0 px-2">
 				{!restricted && (
 					<WorkspaceRestrictedActions
 						workspace={workspace}

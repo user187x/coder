@@ -690,3 +690,19 @@ it("does not pull a cord out of an idle female output", async () => {
 	expect(dragging).not.toHaveBeenCalledWith(true);
 	expect(create).not.toHaveBeenCalled();
 });
+
+it("disconnects a tunnel whose peer is filtered out via its visible marker", async () => {
+	const remove = vi
+		.spyOn(PlatformAPI, "deleteWorkspaceTunnel")
+		.mockResolvedValue({ tunnel: { ...tunnel, status: "disconnecting" } });
+	const user = setup([tunnel], vi.fn(), { shown: [source], cols: 1 });
+	await user.click(
+		await screen.findByRole("button", {
+			name: /Manage tunnel to .* outside this view/,
+		}),
+	);
+	await user.click(await screen.findByRole("button", { name: "Disconnect" }));
+	await waitFor(() =>
+		expect(remove).toHaveBeenCalledWith(source.organization_id, tunnel.id),
+	);
+});

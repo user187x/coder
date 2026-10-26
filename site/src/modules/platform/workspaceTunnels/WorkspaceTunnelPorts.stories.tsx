@@ -229,3 +229,21 @@ export const ConnectionDetails: Story = {
 		);
 	},
 };
+
+export const PeerOutsideView: Story = {
+	beforeEach: () => {
+		const request = spyOn(PlatformAPI, "getWorkspaceTunnels").mockResolvedValue(
+			{ tunnels: [MockWorkspaceTunnel] },
+		);
+		return () => request.mockRestore();
+	},
+	args: { shown: [shown[0]], cols: 1 },
+	parameters: {
+		queries: [
+			{
+				key: workspaceTunnels(MockWorkspace.organization_id).queryKey,
+				data: { tunnels: [MockWorkspaceTunnel] },
+			},
+		],
+	},
+};

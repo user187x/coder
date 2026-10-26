@@ -261,3 +261,36 @@ it.each([false, true])(
 		expect(outdated ? restart : update).not.toHaveBeenCalled();
 	},
 );
+
+it.each(["apps", "controls"])(
+	"opens the workspace from empty %s cell space",
+	async (column) => {
+		const user = userEvent.setup();
+		const { router } = renderWithAuth(
+			<WorkspacesPageView
+				{...defaultProps}
+				workspaces={[MockWorkspace]}
+				count={1}
+			/>,
+			{
+				extraRoutes: [
+					{ path: "/@:username/:workspace", element: <div>Workspace</div> },
+				],
+			},
+		);
+		const row = await screen.findByRole("row", {
+			name: new RegExp(MockWorkspace.name),
+		});
+		const cells = within(row).getAllByRole("cell");
+		const headers = screen.getAllByRole("columnheader");
+		const index = headers.findIndex(
+			(header) => header.textContent?.toLowerCase() === column,
+		);
+		await user.click(cells[index]);
+		await waitFor(() =>
+			expect(router.state.location.pathname).toBe(
+				`/@${MockWorkspace.owner_name}/${MockWorkspace.name}`,
+			),
+		);
+	},
+);
