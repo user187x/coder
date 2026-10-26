@@ -25,6 +25,7 @@ import { cablePath, type Point, restingCable } from "../cloudDrive/cables";
 import { EditableTunnelCable } from "./EditableTunnelCable";
 import { TunnelConnectionHead } from "./TunnelConnectionHead";
 import { TunnelDetails } from "./TunnelDetails";
+import { readTunnelLayout, saveTunnelLayout } from "./tunnelLayout";
 import type { TunnelRoute } from "./tunnelRouting";
 import "../cloudDrive/cloudDrive.css";
 import "./workspaceTunnels.css";
@@ -116,14 +117,21 @@ export const WorkspaceTunnelPorts: React.FC<{
 		"output",
 	);
 	const [selectedSide, setSelectedSide] = useState<"left" | "right">("right");
-	const [routes, setRoutes] = useState<Record<string, TunnelRoute>>({});
-	const [heads, setHeads] = useState<Record<string, { x: number; y: number }>>(
-		{},
+	const layoutKey = `coder-tunnel-layout-v1:${actorId ?? "anonymous"}:${tableAnchors ? "table" : listMode ? "list" : "grid"}`;
+	const [saved] = useState(() => readTunnelLayout(layoutKey));
+	const [routes, setRoutes] = useState<Record<string, TunnelRoute>>(
+		saved.routes,
 	);
-	const [arcs, setArcs] = useState<Record<string, number>>({});
+	const [heads, setHeads] = useState<Record<string, { x: number; y: number }>>(
+		saved.heads,
+	);
+	const [arcs, setArcs] = useState<Record<string, number>>(saved.arcs);
 	const [stubs, setStubs] = useState<
 		Record<string, { length: number; bend: number }>
-	>({});
+	>(saved.stubs);
+	useEffect(() => {
+		saveTunnelLayout(layoutKey, { routes, heads, arcs, stubs });
+	}, [layoutKey, routes, heads, arcs, stubs]);
 	const [replacements, setReplacements] = useState<
 		{ old: WorkspaceTunnel; next: string }[]
 	>([]);
