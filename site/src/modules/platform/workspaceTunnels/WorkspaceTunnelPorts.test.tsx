@@ -701,6 +701,15 @@ it("disconnects a tunnel whose peer is filtered out via its visible marker", asy
 			name: /Manage tunnel to .* outside this view/,
 		}),
 	);
+	const length = screen.getByRole("slider", { name: /Cable length/ });
+	await user.click(length);
+	await user.keyboard("{ArrowRight}{ArrowRight}");
+	const bend = screen.getByRole("slider", { name: /Cable bend/ });
+	await user.click(bend);
+	await user.keyboard("{ArrowRight}");
+	expect(remove).not.toHaveBeenCalled();
+	await user.click(screen.getByRole("button", { name: "Reset cable shape" }));
+
 	await user.click(await screen.findByRole("button", { name: "Disconnect" }));
 	await waitFor(() =>
 		expect(remove).toHaveBeenCalledWith(source.organization_id, tunnel.id),

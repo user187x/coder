@@ -100,20 +100,26 @@ html[data-animations="off"] .workspace-tunnel-chevron-static {
 }
 @keyframes workspace-tunnel-electric {
 	0%,
-	18%,
-	26%,
-	64%,
-	72%,
 	100% {
-		opacity: 1;
+		d: path("M 2 -5 L -3 0 L 1 0 L -2 5 M -1 -2 L 4 1 M 0 2 L -4 3");
 	}
-	20%,
-	68% {
-		opacity: 0.25;
+	11% {
+		d: path("M -3 -5 L 2 -1 L -2 1 L 3 5 M 0 -2 L -4 0 M 0 2 L 4 1");
 	}
-	24%,
-	70% {
-		opacity: 0.65;
+	29% {
+		d: path("M 4 -4 L -1 -2 L 2 2 L -4 4 M 1 -1 L -4 -3 M 0 2 L 4 4");
+	}
+	37% {
+		d: path("M 0 -6 L -2 -1 L 3 1 L 0 6 M -1 -2 L 4 -3 M 1 2 L -4 4");
+	}
+	61% {
+		d: path("M -4 -4 L 2 -2 L -1 2 L 4 4 M 0 -1 L -4 1 M 1 2 L -2 5");
+	}
+	73% {
+		d: path("M 3 -5 L -2 -2 L 2 1 L -3 5 M 0 -2 L 4 0 M 0 2 L -4 1");
+	}
+	89% {
+		d: path("M -1 -6 L 3 -1 L -3 1 L 1 6 M 1 -2 L -4 -3 M -1 2 L 4 3");
 	}
 }
 html[data-animations="off"] .workspace-tunnel-electric {
