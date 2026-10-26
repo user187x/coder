@@ -27,6 +27,11 @@ func (api *API) mountGlobalLockdown(r chi.Router, auth func(http.Handler) http.H
 		r.Use(auth)
 		r.Get("/", api.getGlobalLockdown)
 		r.Post("/", api.postGlobalLockdown)
+		r.Get("/controls", api.getGlobalControls)
+		r.Put("/controls", api.putGlobalControls)
+		r.Post("/controls/unlock", api.unlockGlobalControls)
+		r.Post("/controls/close", api.closeGlobalControls)
+		r.Post("/organizations/{organization}/workspace-power", api.globalControlPower)
 	})
 }
 
@@ -168,6 +173,9 @@ func (api *API) getGlobalLockdown(rw http.ResponseWriter, r *http.Request) {
 // @x-apidocgen {"skip": true}
 func (api *API) postGlobalLockdown(rw http.ResponseWriter, r *http.Request) {
 	key := httpmw.APIKey(r)
+	if !api.requireGlobalControlGrant(rw, r, false) {
+		return
+	}
 	if !api.globalLockdown.Admin(r.Context(), key.UserID) {
 		httpapi.Write(r.Context(), rw, http.StatusForbidden, codersdk.Response{Message: "Only deployment owners may change global lockdown."})
 		return

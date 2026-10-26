@@ -140,3 +140,21 @@ it("queues organizations beyond the four-operation service limit", async () => {
 	expect(result.operations).toHaveLength(5);
 	expect(result.errors).toEqual([]);
 });
+
+it("uses the server-guarded route for global actions", async () => {
+	const global = vi
+		.spyOn(PlatformAPI, "startGlobalWorkspacePower")
+		.mockResolvedValue(MockWorkspacePowerOperation);
+	const regular = vi.spyOn(PlatformAPI, "startWorkspacePower");
+	await runWorkspacePower(new QueryClient(), "test-global-token").mutationFn({
+		action: "shutdown",
+		targets: [MockWorkspace],
+	});
+	expect(global).toHaveBeenCalledWith(
+		MockWorkspace.organization_id,
+		"shutdown",
+		[MockWorkspace.id],
+		"test-global-token",
+	);
+	expect(regular).not.toHaveBeenCalled();
+});

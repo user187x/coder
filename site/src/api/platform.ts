@@ -1978,6 +1978,24 @@ export const PlatformAPI = {
 		get<WorkspacePowerOperation>(
 			`${PLATFORM_BASE}/api/organizations/${encodeURIComponent(organizationId)}/workspace-power/operation/${encodeURIComponent(id)}`,
 		),
+	startGlobalWorkspacePower: async (
+		organizationId: string,
+		action: WorkspacePowerOperation["action"],
+		workspace_ids: string[],
+		token: string,
+	) =>
+		(
+			await API.getAxiosInstance().post<WorkspacePowerOperation>(
+				`/api/v2/global-lockdown/organizations/${encodeURIComponent(organizationId)}/workspace-power`,
+				{ action, workspace_ids, confirmation: action },
+				{
+					headers: {
+						"X-Requested-With": PLATFORM_REQUESTED_WITH,
+						"X-Coder-Global-Control-Token": token,
+					},
+				},
+			)
+		).data,
 	startWorkspacePower: (
 		organizationId: string,
 		action: WorkspacePowerOperation["action"],

@@ -1,5 +1,10 @@
 # Changelog
 
+## Global control dock 2026-10-25
+
+* Admin Security includes a roll-up PIN door over global Lock, Shut Down and Terminate controls, with real account avatars and connection counts.
+* Owner-configured six-digit PINs are verified on the server with shared rate limits, session-bound five-minute unlocks, rotation and explicit revocation. No default PIN is installed.
+
 ## UI checkpoint 2026-10-25
 
 * Metrics headers put the workspace or node name pill and centered Workspace title or Node/Cluster selector on one line. The owners-only informational notice is removed; metric access controls remain enforced.

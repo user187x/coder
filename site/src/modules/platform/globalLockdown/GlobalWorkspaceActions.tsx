@@ -22,9 +22,10 @@ const titles: Record<Action, string> = {
 	terminate: "Terminate",
 };
 
-export const GlobalWorkspaceActions: React.FC<{ disabled?: boolean }> = ({
-	disabled = false,
-}) => {
+export const GlobalWorkspaceActions: React.FC<{
+	disabled?: boolean;
+	controlToken?: string;
+}> = ({ disabled = false, controlToken }) => {
 	const client = useQueryClient();
 	const workspaces = useQuery({
 		...workspaceQuery({ q: "", limit: 0 }),
@@ -36,7 +37,7 @@ export const GlobalWorkspaceActions: React.FC<{ disabled?: boolean }> = ({
 	const history = useQueries({
 		queries: organizations.map(workspacePowerHistory),
 	});
-	const run = useMutation(runWorkspacePower(client));
+	const run = useMutation(runWorkspacePower(client, controlToken));
 	return (
 		<GlobalWorkspaceActionsView
 			workspaces={workspaces.data?.workspaces ?? []}

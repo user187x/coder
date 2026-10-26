@@ -7,7 +7,10 @@ import {
 	globalLockdown,
 	setGlobalLockdown,
 } from "#/api/queries/globalLockdown";
-import type { GlobalLockdownState } from "#/api/typesGenerated";
+import type {
+	GlobalControlStatus,
+	GlobalLockdownState,
+} from "#/api/typesGenerated";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { Avatar } from "#/components/Avatar/Avatar";
 import { Button } from "#/components/Button/Button";
@@ -21,6 +24,7 @@ import {
 	TooltipTrigger,
 } from "#/components/Tooltip/Tooltip";
 import "./globalLockdown.css";
+import { GlobalControlDoor } from "./GlobalControlDoor";
 import { GlobalWorkspaceActions } from "./GlobalWorkspaceActions";
 
 /** A non-dismissible emergency announcement with reduced-motion support. */
@@ -68,13 +72,29 @@ export const GlobalLockdownGate: React.FC<{ children: React.ReactNode }> = ({
 export const GlobalLockdownCard: React.FC = () => {
 	const queryClient = useQueryClient();
 	const state = useQuery(globalLockdown());
-	const change = useMutation(setGlobalLockdown(queryClient));
+	const [grant, setGrant] = useState<GlobalControlStatus | null>(null);
+	const change = useMutation(setGlobalLockdown(queryClient, grant?.token));
 	return (
 		<GlobalLockdownCardView
 			state={state.data}
+			renderActionPanel={(actions) => (
+				<GlobalControlDoor
+					disabled={state.isLoading || !state.data?.admin}
+					onUnlock={setGrant}
+				>
+					{actions}
+				</GlobalControlDoor>
+			)}
+			controlsUnlocked={Boolean(grant?.token)}
 			workspaceActions={
 				<GlobalWorkspaceActions
-					disabled={state.isLoading || !state.data?.admin || change.isPending}
+					controlToken={grant?.token}
+					disabled={
+						state.isLoading ||
+						!state.data?.admin ||
+						change.isPending ||
+						!grant?.token
+					}
 				/>
 			}
 			loading={state.isLoading}
@@ -88,6 +108,8 @@ export const GlobalLockdownCard: React.FC = () => {
 };
 
 type GlobalLockdownCardViewProps = {
+	renderActionPanel?: (actions: React.ReactNode) => React.ReactNode;
+	controlsUnlocked?: boolean;
 	workspaceActions?: React.ReactNode;
 	state?: GlobalLockdownState;
 	loading?: boolean;
@@ -103,6 +125,8 @@ type GlobalLockdownCardViewProps = {
 /** Disconnections stay amber until server sessions and agent policies confirm. */
 export const GlobalLockdownCardView: React.FC<GlobalLockdownCardViewProps> = ({
 	state,
+	renderActionPanel = (actions) => actions,
+	controlsUnlocked = true,
 	workspaceActions,
 	loading = false,
 	error,
@@ -127,106 +151,136 @@ export const GlobalLockdownCardView: React.FC<GlobalLockdownCardViewProps> = ({
 		>
 			<div className="global-lockdown-stripe h-3" aria-hidden />
 			<div className="flex flex-col gap-5 p-6">
-				<div className="flex flex-col items-start justify-between gap-4 lg:flex-row lg:items-center">
+				<div className="flex flex-col items-stretch justify-between gap-8 lg:flex-row lg:items-center">
 					<div className="min-w-0 max-w-xl flex-1">
 						<h2 className="m-0 flex items-center gap-2 text-lg font-semibold">
 							<ShieldAlertIcon aria-hidden className="size-5" />
-							Global Lock Down
+							Global Command & Control
 						</h2>
 						<p className="mb-0 mt-2 text-sm text-content-secondary">
 							Disconnect non-admin workspace sessions and block workspace
 							access. Workspaces keep running, and chat stays available.
 						</p>
+
+						{loading ? (
+							<div role="status" className="flex items-center gap-2 text-sm">
+								<Spinner loading /> Loading user connections
+							</div>
+						) : state ? (
+							<details>
+								<summary className="cursor-pointer text-sm font-medium">
+									Users ({users.length}) ·{" "}
+									{users.filter((user) => user.connected).length} connected
+									<span
+										aria-hidden
+										className="mt-3 flex items-center -space-x-3"
+									>
+										{users.slice(0, 4).map((user) => (
+											<span
+												key={user.id}
+												className="relative inline-flex rounded-full border-2 border-solid border-surface-secondary"
+											>
+												<Avatar
+													fallback={user.username}
+													src={user.avatar_url}
+													className="size-11 rounded-full"
+												/>
+												{user.connected && (
+													<span className="absolute bottom-0 right-0 size-3 rounded-full border-2 border-solid border-surface-secondary bg-content-success" />
+												)}
+											</span>
+										))}
+										{users.length > 4 && (
+											<span className="flex size-11 items-center justify-center rounded-full border-2 border-solid border-surface-secondary bg-surface-tertiary text-xs font-bold">
+												+{users.length - 4}
+											</span>
+										)}
+									</span>
+								</summary>
+								{users.length === 0 ? (
+									<p className="mb-0 text-sm text-content-secondary">
+										No users.
+									</p>
+								) : (
+									<ul
+										aria-label="User connection status"
+										className="mb-0 mt-4 grid list-none grid-cols-[repeat(auto-fill,2.5rem)] gap-3 p-0"
+									>
+										{users.map((user) => {
+											const status = user.admin
+												? "admin access preserved"
+												: state.enabled
+													? user.disconnected
+														? "disconnected"
+														: "disconnecting"
+													: user.connected
+														? "connected"
+														: "offline";
+											return (
+												<li key={user.id}>
+													<Tooltip>
+														<TooltipTrigger asChild>
+															<Button
+																variant="subtle"
+																size="icon"
+																aria-label={`${user.username}: ${status}`}
+																className="relative flex size-10 items-center justify-center rounded-full p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-content-link"
+															>
+																<Avatar
+																	fallback={user.username}
+																	src={user.avatar_url}
+																	className="size-10 rounded-full"
+																/>
+																<span
+																	aria-hidden
+																	className={cn(
+																		"absolute -bottom-0.5 -left-0.5 size-3 rounded-full border-2 border-solid border-surface-secondary",
+																		status === "disconnected"
+																			? "bg-content-destructive"
+																			: status === "disconnecting"
+																				? "bg-content-warning"
+																				: user.connected
+																					? "bg-content-success"
+																					: "bg-content-secondary/40",
+																	)}
+																/>
+															</Button>
+														</TooltipTrigger>
+														<TooltipContent>
+															{user.username}: {status}
+														</TooltipContent>
+													</Tooltip>
+												</li>
+											);
+										})}
+									</ul>
+								)}
+							</details>
+						) : null}
 					</div>
-					<div className="flex shrink-0 flex-col items-stretch gap-2 self-end lg:self-center">
-						<Button
-							ref={trigger}
-							variant={state?.enabled ? "outline" : "destructive"}
-							disabled={loading || !state || busy}
-							onClick={() => {
-								setConfirmation("");
-								setOpen(true);
-							}}
-						>
-							{state?.enabled ? (
-								<UnlockIcon aria-hidden />
-							) : (
-								<LockIcon aria-hidden />
-							)}
-							{state?.enabled ? "Lift lock" : "Lock"}
-						</Button>
-						{workspaceActions}
-					</div>
+					{renderActionPanel(
+						<div className="flex w-full flex-col items-stretch gap-3">
+							<Button
+								ref={trigger}
+								variant={state?.enabled ? "outline" : "destructive"}
+								disabled={loading || !state?.admin || busy}
+								onClick={() => {
+									setConfirmation("");
+									setOpen(true);
+								}}
+							>
+								{state?.enabled ? (
+									<UnlockIcon aria-hidden />
+								) : (
+									<LockIcon aria-hidden />
+								)}
+								{state?.enabled ? "Lift lock" : "Lock"}
+							</Button>
+							{workspaceActions}
+						</div>,
+					)}
 				</div>
 				{error ? <ErrorAlert error={error} /> : null}
-				{loading ? (
-					<div role="status" className="flex items-center gap-2 text-sm">
-						<Spinner loading /> Loading user connections
-					</div>
-				) : state ? (
-					<details open>
-						<summary className="cursor-pointer text-sm font-medium">
-							Users ({users.length}) ·{" "}
-							{users.filter((user) => user.connected).length} connected
-						</summary>
-						{users.length === 0 ? (
-							<p className="mb-0 text-sm text-content-secondary">No users.</p>
-						) : (
-							<ul
-								aria-label="User connection status"
-								className="mb-0 mt-4 grid list-none grid-cols-[repeat(auto-fill,2.5rem)] gap-3 p-0"
-							>
-								{users.map((user) => {
-									const status = user.admin
-										? "admin access preserved"
-										: state.enabled
-											? user.disconnected
-												? "disconnected"
-												: "disconnecting"
-											: user.connected
-												? "connected"
-												: "offline";
-									return (
-										<li key={user.id}>
-											<Tooltip>
-												<TooltipTrigger asChild>
-													<Button
-														variant="subtle"
-														size="icon"
-														aria-label={`${user.username}: ${status}`}
-														className="relative flex size-10 items-center justify-center rounded-full p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-content-link"
-													>
-														<Avatar
-															fallback={user.username}
-															src={user.avatar_url}
-															className="size-10 rounded-full"
-														/>
-														<span
-															aria-hidden
-															className={cn(
-																"absolute -bottom-0.5 -left-0.5 size-3 rounded-full border-2 border-solid border-surface-secondary",
-																status === "disconnected"
-																	? "bg-content-destructive"
-																	: status === "disconnecting"
-																		? "bg-content-warning"
-																		: user.connected
-																			? "bg-content-success"
-																			: "bg-content-secondary/40",
-															)}
-														/>
-													</Button>
-												</TooltipTrigger>
-												<TooltipContent>
-													{user.username}: {status}
-												</TooltipContent>
-											</Tooltip>
-										</li>
-									);
-								})}
-							</ul>
-						)}
-					</details>
-				) : null}
 				{state &&
 					(state.enabled ||
 						state.agents?.some(
@@ -283,7 +337,9 @@ export const GlobalLockdownCardView: React.FC<GlobalLockdownCardViewProps> = ({
 				type={state?.enabled ? "info" : "delete"}
 				hideCancel={false}
 				confirmLoading={busy}
-				disabled={!state?.enabled && confirmation !== "agree"}
+				disabled={
+					!controlsUnlocked || (!state?.enabled && confirmation !== "agree")
+				}
 				onConfirm={() =>
 					onChange(!state?.enabled, confirmation, () => {
 						setOpen(false);

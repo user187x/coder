@@ -1,4 +1,7 @@
-import type { GlobalLockdownState } from "#/api/typesGenerated";
+import type {
+	GlobalControlStatus,
+	GlobalLockdownState,
+} from "#/api/typesGenerated";
 
 export const MockGlobalLockdownState: GlobalLockdownState = {
 	enabled: false,
@@ -28,4 +31,13 @@ export const MockGlobalLockdownState: GlobalLockdownState = {
 			disconnected: false,
 		},
 	],
+};
+
+export const MockGlobalControlStatus: GlobalControlStatus = {
+	configured: true,
+};
+export const MockGlobalControlGrant: GlobalControlStatus = {
+	configured: true,
+	token: "test-only-control-token",
+	expires_at: "2100-01-01T00:00:00Z",
 };

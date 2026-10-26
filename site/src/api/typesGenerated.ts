@@ -1104,6 +1104,16 @@ export interface ClusterConfig {
 	readonly host: string;
 }
 
+// From codersdk/global_controls.go
+/**
+ * ConfigureGlobalControlPINRequest sets or rotates the deployment control PIN.
+ * Rotating an existing PIN requires its current value or an unlocked session.
+ */
+export interface ConfigureGlobalControlPINRequest {
+	readonly pin: string;
+	readonly current_pin: string;
+}
+
 // From codersdk/disconnect.go
 export type ConnectionDirection =
 	| "agent_to_client"
@@ -2568,6 +2578,25 @@ export interface GitSSHKey {
 	 * Note: The key includes a trailing newline (\n).
 	 */
 	readonly public_key: string;
+}
+
+// From codersdk/global_controls.go
+/**
+ * GlobalControlPINRequest verifies the deployment control PIN.
+ */
+export interface GlobalControlPINRequest {
+	readonly pin: string;
+}
+
+// From codersdk/global_controls.go
+/**
+ * GlobalControlStatus describes the PIN guard for deployment-wide controls.
+ * Token is returned only after successful PIN verification and expires shortly.
+ */
+export interface GlobalControlStatus {
+	readonly configured: boolean;
+	readonly token?: string;
+	readonly expires_at?: string;
 }
 
 // From codersdk/global_lockdown.go

@@ -42,7 +42,10 @@ export type WorkspacePowerResult = {
 };
 
 /** Submits only reviewed IDs, serializing batches within each organization. */
-export const runWorkspacePower = (client: QueryClient) => ({
+export const runWorkspacePower = (
+	client: QueryClient,
+	globalToken?: string,
+) => ({
 	mutationFn: async ({
 		action,
 		targets,
@@ -67,11 +70,18 @@ export const runWorkspacePower = (client: QueryClient) => ({
 				for (let offset = 0; offset < ids.length; offset += 100) {
 					const batch = ids.slice(offset, offset + 100);
 					try {
-						let operation = await PlatformAPI.startWorkspacePower(
-							organizationId,
-							action,
-							batch,
-						);
+						let operation = globalToken
+							? await PlatformAPI.startGlobalWorkspacePower(
+									organizationId,
+									action,
+									batch,
+									globalToken,
+								)
+							: await PlatformAPI.startWorkspacePower(
+									organizationId,
+									action,
+									batch,
+								);
 						remember(client, operation);
 						while (operation.status === "running") {
 							await new Promise((resolve) => setTimeout(resolve, 2000));
