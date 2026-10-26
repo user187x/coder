@@ -494,3 +494,20 @@ Replaced the reference's hardcoded browser PIN with six-digit owner setup and ro
 Verification: 17 frontend behavior tests cover setup mismatch, unlock, rejection, expiry, close and power routing; targeted Go tests cover ownership, configuration, rotation, revoked grants, expiry, shared attempt accounting and power-service forwarding. TypeScript, changed-file Biome and Oxlint pass; production frontend build passes. Full-site check/lint/format report pre-existing terminal radix, tunnel CSS specificity and config formatting findings outside this change. Compiler check reports zero function diagnostics but exits for missing existing AI directories; existing ImagesPage dependency cycles remain. No live access control or workspace power action was triggered for QA.
 
 Frontend-review audit: FE1 PASS (Vitest outcomes and door/card stories); FE2 PASS (generated API types); FE3 PASS (shared controls); FE4 PASS (substantive comments); FE5 PASS (load/error/retry and retained input); FE6 PASS (labels, keyboard controls, inert closed content); FE7 PASS (query factories and invalidation); FE8 PASS (external expiry timer only); FE9 PASS (shared fixtures); FE10 PASS (semantic queries and request/callback assertions).
+
+Server68 rollout verified: Coder runs `sha256:c8262747a7af7dd3509cee19b74264f11bc5ac170b4ae89976b5b4a14c6a3361`, with 2/2 ready replicas. The unchanged UI service remains 1/1 ready. Live Admin Security shows the new dock, five real users, one connected account, and the empty first-time PIN setup form. Screenshot: `/mnt/data/coder-ui-evidence-20261025/global-control-dock-server68.png`. Setup/unlock/error/opened states were checked in isolated Storybook; no production PIN or power/access action was submitted. The first image packaging process was interrupted; its cached retry completed and the pushed digest was deployed successfully.
+
+Frontend-review final verdicts:
+
+```text
+FE1 PASS
+FE2 PASS
+FE3 PASS
+FE4 PASS
+FE5 PASS
+FE6 PASS
+FE7 PASS
+FE8 PASS
+FE9 PASS
+FE10 PASS
+```
