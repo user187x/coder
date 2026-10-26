@@ -1,8 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { TableCard } from "#/modules/platform/tableCard/TableCard";
 import { workspaceQuarantineKey } from "#/api/queries/workspaceQuarantine";
 import { Avatar } from "#/components/Avatar/Avatar";
 import { Table, TableBody, TableCell } from "#/components/Table/Table";
+import { TableCard } from "#/modules/platform/tableCard/TableCard";
 import { MockWorkspace } from "#/testHelpers/entities";
 import { MockWorkspaceQuarantine } from "#/testHelpers/workspaceQuarantine";
 import {

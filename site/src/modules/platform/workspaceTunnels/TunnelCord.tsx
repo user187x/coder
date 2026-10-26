@@ -29,8 +29,9 @@ export const TunnelCord: React.FC<{
 	fromSide: "left" | "right";
 	toSide: "left" | "right";
 	pending?: boolean;
+	reverseFlow?: boolean;
 	arc?: number;
-}> = ({ from, to, fromSide, toSide, pending, arc }) => {
+}> = ({ from, to, fromSide, toSide, pending, arc, reverseFlow = false }) => {
 	const cable = useRef(makeCable(from, to));
 	const line = useRef<SVGPathElement>(null);
 	const shine = useRef<SVGPathElement>(null);
@@ -38,6 +39,9 @@ export const TunnelCord: React.FC<{
 	const animations = useAnimationsEnabled();
 	const rest = tunnelHandles(from, to, fromSide, toSide, arc);
 	const d = cablePath(from, restingCable(rest), to);
+	const flowPath = reverseFlow
+		? cablePath(to, restingCable([rest[1], rest[0]]), from)
+		: d;
 	const midpoint = {
 		x: (from.x + 3 * rest[0].x + 3 * rest[1].x + to.x) / 8,
 		y: (from.y + 3 * rest[0].y + 3 * rest[1].y + to.y) / 8,
@@ -79,11 +83,16 @@ export const TunnelCord: React.FC<{
 				strokeDasharray={pending ? "5 4" : undefined}
 			/>
 			<path ref={ridges} d={d} className="workspace-tunnel-ridges" />
-			<path ref={shine} d={d} className="workspace-tunnel-flow" />
+			<path
+				ref={shine}
+				d={d}
+				className="workspace-tunnel-flow"
+				style={{ animationDirection: reverseFlow ? "reverse" : undefined }}
+			/>
 			<g
 				className="workspace-tunnel-chevron-static"
 				aria-hidden
-				transform={`translate(${midpoint.x} ${midpoint.y}) rotate(${direction})`}
+				transform={`translate(${midpoint.x} ${midpoint.y}) rotate(${direction + (reverseFlow ? 180 : 0)})`}
 			>
 				<path d="M -4 -3 L 0 0 L -4 3" />
 			</g>
@@ -96,7 +105,7 @@ export const TunnelCord: React.FC<{
 							begin={`${-index}s`}
 							repeatCount="indefinite"
 							rotate="auto"
-							path={d}
+							path={flowPath}
 						/>
 					)}
 				</g>

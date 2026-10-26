@@ -454,6 +454,7 @@ export const WorkspaceTunnelPorts: React.FC<{
 										fromSide={from.side}
 										toSide={to.side}
 										pending={t.status !== "ready"}
+										reverseFlow
 										arc={arc}
 									/>
 									<path
@@ -503,6 +504,7 @@ export const WorkspaceTunnelPorts: React.FC<{
 					<g>
 						<TunnelCord
 							from={drag.from}
+							reverseFlow={drag.from.terminal === "output"}
 							to={drag.target ?? drag.at}
 							fromSide={drag.from.side}
 							toSide={drag.target?.side ?? "left"}
@@ -680,8 +682,8 @@ export const WorkspaceTunnelPorts: React.FC<{
 					</DialogTitle>
 					<p className="text-sm text-content-secondary">
 						Connect running workspaces in the same organization. Tunnels carry
-						private TCP and UDP traffic in both directions. Blue output and
-						green input indicate the visual connection direction.
+						private TCP and UDP traffic in both directions. Arrows flow from the
+						male plug toward the female socket.
 					</p>
 					{error && (
 						<p role="alert" className="text-content-destructive">
