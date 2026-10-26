@@ -162,3 +162,7 @@ export const MultipleConnections: Story = {
 		],
 	},
 };
+
+export const ConnectionOutsideView: Story = {
+	args: { shown: [shown[0]] },
+};
