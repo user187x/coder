@@ -187,7 +187,7 @@ export const GlobalControlDoor: React.FC<{
 									/>
 								</>
 							)}
-							<Label htmlFor={`${id}-pin`}>
+							<Label htmlFor={`${id}-pin`} className="text-center">
 								{setup ? "New six-digit PIN" : "Six-digit admin PIN"}
 							</Label>
 							<Input

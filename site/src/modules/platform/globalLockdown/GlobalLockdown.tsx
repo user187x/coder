@@ -167,13 +167,13 @@ export const GlobalLockdownCardView: React.FC<GlobalLockdownCardViewProps> = ({
 								<Spinner loading /> Loading user connections
 							</div>
 						) : state ? (
-							<details>
+							<details className="group/users">
 								<summary className="cursor-pointer text-sm font-medium">
 									Users ({users.length}) ·{" "}
 									{users.filter((user) => user.connected).length} connected
 									<span
 										aria-hidden
-										className="mt-3 flex items-center -space-x-3"
+										className="mt-3 flex items-center -space-x-3 group-open/users:hidden"
 									>
 										{users.slice(0, 4).map((user) => (
 											<span
