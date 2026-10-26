@@ -95,7 +95,7 @@ html[data-animations="off"] .workspace-tunnel-chevron-static {
 }
 @keyframes workspace-tunnel-head-flow {
 	from {
-		transform: translateX(-6px);
+		transform: translateX(-9px);
 	}
 	to {
 		transform: translateX(0);

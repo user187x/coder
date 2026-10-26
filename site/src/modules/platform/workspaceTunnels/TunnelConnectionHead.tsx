@@ -15,33 +15,37 @@ export const TunnelConnectionHead = ({
 	const id = useId().replace(/:/g, "");
 	return (
 		<g transform={`translate(${x} ${y}) rotate(${angle})`} aria-hidden>
-			<circle r={8} fill="hsl(var(--surface-primary))" stroke="currentColor" />
+			<circle r={10} fill="hsl(var(--surface-primary))" stroke="currentColor" />
 			{ready ? (
 				<>
 					<defs>
 						<clipPath id={`${id}-clip`}>
-							<circle r={6.5} />
+							<circle r={8.5} />
 						</clipPath>
 						<pattern
 							id={`${id}-pattern`}
-							width={6}
-							height={14}
-							y={-7}
+							width={9}
+							height={16}
+							y={-8}
 							patternUnits="userSpaceOnUse"
 						>
 							<path
-								d="M0 0 H4.5 L11.5 7 L4.5 14 H0 L7 7 Z M-6 0 H-1.5 L5.5 7 L-1.5 14 H-6 L1 7 Z"
-								fill="hsl(var(--content-link))"
+								d="M1 3 L6 8 L1 13"
+								fill="none"
+								stroke="hsl(var(--content-link))"
+								strokeWidth={2}
+								strokeLinecap="round"
+								strokeLinejoin="round"
 							/>
 						</pattern>
 					</defs>
 					<g clipPath={`url(#${id}-clip)`}>
 						<g className="workspace-tunnel-head-flow">
 							<rect
-								x={-14}
-								y={-7}
-								width={28}
-								height={14}
+								x={-18}
+								y={-8}
+								width={36}
+								height={16}
 								fill={`url(#${id}-pattern)`}
 							/>
 						</g>
