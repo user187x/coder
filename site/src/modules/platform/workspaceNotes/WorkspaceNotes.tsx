@@ -12,8 +12,8 @@ import {
 	type WorkspaceNote,
 } from "#/api/platform";
 import {
-	workspaceNotes,
 	workspaceNotesKey as notesKey,
+	workspaceNotes,
 } from "#/api/queries/workspaceNotes";
 import type { Workspace } from "#/api/typesGenerated";
 import { useNoteDraftRequests } from "./noteDraftStore";
