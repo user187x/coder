@@ -153,7 +153,7 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 	const drive = useCloudDriveLinks();
 
 	const table = (
-		<Table>
+		<Table aria-label="Workspaces">
 			<TableHeader>
 				<TableRow>
 					<TableHead className="w-0 pr-0">
@@ -190,17 +190,17 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 					</TableHead>
 					{/* Platform: CPU and RAM as live graphs, the disk used of what it was given */}
 					<TableHead
-						className={cn("w-0 px-6 text-center", hideHeaders && "invisible")}
+						className={cn("w-0 px-3 text-center", hideHeaders && "invisible")}
 					>
 						Resources
 					</TableHead>
 					<TableHead
-						className={cn("w-[18%] text-center", hideHeaders && "invisible")}
+						className={cn("w-[12%] text-center", hideHeaders && "invisible")}
 					>
 						Template
 					</TableHead>
 					<TableHead
-						className={cn("w-[14%] text-center", hideHeaders && "invisible")}
+						className={cn("w-[12%] text-center", hideHeaders && "invisible")}
 					>
 						Status
 					</TableHead>
@@ -216,7 +216,10 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 					</TableHead>
 					{drive.enabled && (
 						<TableHead
-							className={cn("w-0 text-center", hideHeaders && "invisible")}
+							className={cn(
+								"w-16 px-2 text-center",
+								hideHeaders && "invisible",
+							)}
 						>
 							Drive
 						</TableHead>
@@ -338,7 +341,7 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 								/>
 							</TableCell>
 
-							<TableCell className="px-6">
+							<TableCell className="px-3">
 								<WorkspaceResources workspace={workspace} />
 							</TableCell>
 
@@ -395,7 +398,7 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 
 							{drive.enabled && (
 								<TableCell
-									className="text-center"
+									className="w-16 px-2 text-center"
 									onClick={(e) => e.stopPropagation()}
 								>
 									<CloudDriveSocket
@@ -578,6 +581,7 @@ const WorkspaceActionsCell: React.FC<WorkspaceActionsCellProps> = ({
 	onActionError,
 }) => {
 	const { user } = useAuthenticated();
+	const restricted = useWorkspaceRestricted(workspace);
 
 	const queryClient = useQueryClient();
 	const abilities = abilitiesByWorkspaceStatus(workspace, {
@@ -696,7 +700,7 @@ const WorkspaceActionsCell: React.FC<WorkspaceActionsCellProps> = ({
 	return (
 		<>
 			<TableCell
-				className="w-0"
+				className="w-0 px-2"
 				onClick={(e) => {
 					// Prevent the click in the apps to trigger the row click
 					e.stopPropagation();
@@ -712,125 +716,129 @@ const WorkspaceActionsCell: React.FC<WorkspaceActionsCellProps> = ({
 				</div>
 			</TableCell>
 			<TableCell
-				className="w-0"
+				className="w-0 px-2"
 				onClick={(e) => {
 					// Prevent the click in the actions to trigger the row click
 					e.stopPropagation();
 				}}
 			>
-				<WorkspaceRestrictedActions
-					workspace={workspace}
-					className="workspace-controls flex gap-1.5 justify-center"
-				>
-					{abilities.actions.includes("start") && (
-						<PrimaryAction
-							onClick={() => startWorkspaceMutation.mutate({})}
-							isLoading={startWorkspaceMutation.isPending}
-							label="Start workspace"
-						>
-							<PlayIcon />
-						</PrimaryAction>
-					)}
-
-					{abilities.actions.includes("updateAndStart") && (
-						<>
-							<PrimaryAction
-								onClick={workspaceUpdate.update}
-								isLoading={workspaceUpdate.isUpdating}
-								label="Update and start workspace"
-							>
-								<RotateCcwIcon
-									className="workspace-update-pulse"
-									data-testid="workspace-update-pulse"
-								/>
-							</PrimaryAction>
-							<WorkspaceUpdateDialogs {...workspaceUpdate.dialogProps} />
-						</>
-					)}
-
-					{abilities.actions.includes("updateAndStartRequireActiveVersion") && (
-						<>
-							<PrimaryAction
-								onClick={workspaceUpdate.update}
-								isLoading={workspaceUpdate.isUpdating}
-								label="This template requires automatic updates on workspace startup. Contact your administrator if you want to preserve the template version."
-							>
-								<PlayIcon />
-							</PrimaryAction>
-							<WorkspaceUpdateDialogs {...workspaceUpdate.dialogProps} />
-						</>
-					)}
-
-					{abilities.actions.includes("updateAndRestart") && (
-						<>
-							<PrimaryAction
-								onClick={workspaceUpdate.update}
-								isLoading={workspaceUpdate.isUpdating}
-								label="Update and restart workspace"
-							>
-								<RotateCcwIcon
-									className="workspace-update-pulse"
-									data-testid="workspace-update-pulse"
-								/>
-							</PrimaryAction>
-							<WorkspaceUpdateDialogs {...workspaceUpdate.dialogProps} />
-						</>
-					)}
-
-					{abilities.actions.includes(
-						"updateAndRestartRequireActiveVersion",
-					) && (
-						<>
-							<PrimaryAction
-								onClick={workspaceUpdate.update}
-								isLoading={workspaceUpdate.isUpdating}
-								label="This template requires automatic updates on workspace restart. Contact your administrator if you want to preserve the template version."
-							>
-								<PlayIcon />
-							</PrimaryAction>
-							<WorkspaceUpdateDialogs {...workspaceUpdate.dialogProps} />
-						</>
-					)}
-
-					{abilities.canCancel && (
-						<PrimaryAction
-							onClick={() => setIsCancelConfirmOpen(true)}
-							isLoading={cancelBuildMutation.isPending}
-							label="Cancel build"
-						>
-							<BanIcon />
-						</PrimaryAction>
-					)}
-
-					{abilities.actions.includes("retry") && (
-						<PrimaryAction
-							onClick={retry}
-							isLoading={isRetrying}
-							label="Retry build"
-						>
-							<RefreshCcwIcon />
-						</PrimaryAction>
-					)}
-
-					<WorkspaceMoreActions
+				{!restricted && (
+					<WorkspaceRestrictedActions
 						workspace={workspace}
-						agentUpdateAvailable={agentUpdateAvailable}
-						disabled={!abilities.canAcceptJobs}
-						onStop={
-							abilities.actions.includes("stop")
-								? () => setIsStopConfirmOpen(true)
-								: undefined
-						}
-						isStopping={stopWorkspaceMutation.isPending}
-						onRestart={
-							abilities.actions.includes("restart")
-								? () => setIsRestartConfirmOpen(true)
-								: undefined
-						}
-						isRestarting={restartWorkspaceMutation.isPending}
-						onActionSuccess={onActionSuccess}
-					/>
-				</WorkspaceRestrictedActions>
+						className="workspace-controls flex gap-1.5 justify-center"
+					>
+						{abilities.actions.includes("start") && (
+							<PrimaryAction
+								onClick={() => startWorkspaceMutation.mutate({})}
+								isLoading={startWorkspaceMutation.isPending}
+								label="Start workspace"
+							>
+								<PlayIcon />
+							</PrimaryAction>
+						)}
+
+						{abilities.actions.includes("updateAndStart") && (
+							<>
+								<PrimaryAction
+									onClick={workspaceUpdate.update}
+									isLoading={workspaceUpdate.isUpdating}
+									label="Update and start workspace"
+								>
+									<RotateCcwIcon
+										className="workspace-update-pulse"
+										data-testid="workspace-update-pulse"
+									/>
+								</PrimaryAction>
+								<WorkspaceUpdateDialogs {...workspaceUpdate.dialogProps} />
+							</>
+						)}
+
+						{abilities.actions.includes(
+							"updateAndStartRequireActiveVersion",
+						) && (
+							<>
+								<PrimaryAction
+									onClick={workspaceUpdate.update}
+									isLoading={workspaceUpdate.isUpdating}
+									label="This template requires automatic updates on workspace startup. Contact your administrator if you want to preserve the template version."
+								>
+									<PlayIcon />
+								</PrimaryAction>
+								<WorkspaceUpdateDialogs {...workspaceUpdate.dialogProps} />
+							</>
+						)}
+
+						{abilities.actions.includes("updateAndRestart") && (
+							<>
+								<PrimaryAction
+									onClick={workspaceUpdate.update}
+									isLoading={workspaceUpdate.isUpdating}
+									label="Update and restart workspace"
+								>
+									<RotateCcwIcon
+										className="workspace-update-pulse"
+										data-testid="workspace-update-pulse"
+									/>
+								</PrimaryAction>
+								<WorkspaceUpdateDialogs {...workspaceUpdate.dialogProps} />
+							</>
+						)}
+
+						{abilities.actions.includes(
+							"updateAndRestartRequireActiveVersion",
+						) && (
+							<>
+								<PrimaryAction
+									onClick={workspaceUpdate.update}
+									isLoading={workspaceUpdate.isUpdating}
+									label="This template requires automatic updates on workspace restart. Contact your administrator if you want to preserve the template version."
+								>
+									<PlayIcon />
+								</PrimaryAction>
+								<WorkspaceUpdateDialogs {...workspaceUpdate.dialogProps} />
+							</>
+						)}
+
+						{abilities.canCancel && (
+							<PrimaryAction
+								onClick={() => setIsCancelConfirmOpen(true)}
+								isLoading={cancelBuildMutation.isPending}
+								label="Cancel build"
+							>
+								<BanIcon />
+							</PrimaryAction>
+						)}
+
+						{abilities.actions.includes("retry") && (
+							<PrimaryAction
+								onClick={retry}
+								isLoading={isRetrying}
+								label="Retry build"
+							>
+								<RefreshCcwIcon />
+							</PrimaryAction>
+						)}
+
+						<WorkspaceMoreActions
+							workspace={workspace}
+							agentUpdateAvailable={agentUpdateAvailable}
+							disabled={!abilities.canAcceptJobs}
+							onStop={
+								abilities.actions.includes("stop")
+									? () => setIsStopConfirmOpen(true)
+									: undefined
+							}
+							isStopping={stopWorkspaceMutation.isPending}
+							onRestart={
+								abilities.actions.includes("restart")
+									? () => setIsRestartConfirmOpen(true)
+									: undefined
+							}
+							isRestarting={restartWorkspaceMutation.isPending}
+							onActionSuccess={onActionSuccess}
+						/>
+					</WorkspaceRestrictedActions>
+				)}
 				{/* Stop workspace confirmation dialog */}
 				<ConfirmDialog
 					open={isStopConfirmOpen}

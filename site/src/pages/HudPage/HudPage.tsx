@@ -27,6 +27,8 @@ import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { pageTitle } from "#/utils/page";
 import "./hud.css";
 import { HudGraphs } from "./HudGraphs";
+import { HudSortableGrid } from "./HudSortableGrid";
+import { HudStorageClasses } from "./HudStorageClasses";
 import { hudIcon } from "./hudIcons";
 import { applyOrder, elevate, readHudOrder, writeHudOrder } from "./hudOrder";
 import { SystemUptime } from "./SystemUptime";
@@ -196,23 +198,28 @@ const HudPage: React.FC = () => {
 							}
 						/>
 
-						<ul
-							aria-label="Metrics"
-							className="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-3 p-0"
-						>
-							{metrics.map((m, i) => (
-								<li key={m.id}>
-									<MetricTile
-										metric={m}
-										series={track.series[m.id]}
-										first={i === 0 && order[0] === m.id}
-										flash={
-											track.at === data.generatedAt && track.moved.has(m.id)
-										}
-									/>
-								</li>
-							))}
-						</ul>
+						<HudSortableGrid
+							className="grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-3"
+							onReorder={reorder}
+							panels={metrics.map((m, i) => ({
+								id: m.id,
+								label: m.label,
+								render: (handle) => (
+									<div className="relative h-full">
+										<div className="absolute right-2 top-2 z-[1]">{handle}</div>
+										<MetricTile
+											metric={m}
+											series={track.series[m.id]}
+											first={i === 0 && order[0] === m.id}
+											flash={
+												track.at === data.generatedAt && track.moved.has(m.id)
+											}
+										/>
+									</div>
+								),
+							}))}
+						/>
+						{data.storage && <HudStorageClasses storage={data.storage} />}
 					</>
 				)}
 			</Margins>
@@ -378,7 +385,7 @@ const MetricTile: React.FC<MetricTileProps> = ({
 				flash && "hud-flash",
 			)}
 		>
-			<span className="flex items-center justify-between gap-2 text-xs uppercase tracking-wide text-content-secondary">
+			<span className="flex items-center justify-between gap-2 pr-5 text-xs uppercase tracking-wide text-content-secondary">
 				<span className="flex min-w-0 items-center gap-1.5">
 					<Icon
 						aria-hidden

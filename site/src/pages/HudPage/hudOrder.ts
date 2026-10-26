@@ -1,21 +1,21 @@
 const ORDER_KEY = "coder-ui-hud-order";
 
 /** The metric ids in the order the user put them (clicked ones first), or []. */
-export const readHudOrder = (): string[] => {
+export const readHudOrder = (key = ORDER_KEY): string[] => {
 	try {
-		const raw = JSON.parse(localStorage.getItem(ORDER_KEY) ?? "[]");
+		const raw = JSON.parse(localStorage.getItem(key) ?? "[]");
 		return Array.isArray(raw) ? raw.filter((x) => typeof x === "string") : [];
 	} catch {
 		return [];
 	}
 };
 
-export const writeHudOrder = (order: readonly string[]) => {
+export const writeHudOrder = (order: readonly string[], key = ORDER_KEY) => {
 	try {
 		if (order.length) {
-			localStorage.setItem(ORDER_KEY, JSON.stringify(order));
+			localStorage.setItem(key, JSON.stringify(order));
 		} else {
-			localStorage.removeItem(ORDER_KEY);
+			localStorage.removeItem(key);
 		}
 	} catch {
 		// Not remembered.
@@ -43,3 +43,7 @@ export const applyOrder = <T extends { id: string }>(
 		)
 		.map(({ item }) => item);
 };
+
+export const readHudGraphOrder = () => readHudOrder("coder-ui-hud-graph-order");
+export const writeHudGraphOrder = (order: readonly string[]) =>
+	writeHudOrder(order, "coder-ui-hud-graph-order");

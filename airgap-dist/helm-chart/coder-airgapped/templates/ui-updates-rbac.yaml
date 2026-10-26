@@ -172,7 +172,7 @@ metadata:
     {{- include "ca.uiLabels" . | nindent 4 }}
 rules:
   - apiGroups: [""]
-    resources: [nodes, pods]
+    resources: [nodes, pods, persistentvolumes, persistentvolumeclaims]
     verbs: [get, list]
   {{- if eq (toString ($.Values.global.userStorage | default dict).enabled) "true" }}
   # The safe: every account's PersistentVolume coder-safe-<id> (static, its S3 prefix; Retain), and its source's

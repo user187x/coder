@@ -170,6 +170,7 @@ import lockdown  # noqa: E402  (Lock Down: admins jail a workspace's network and
 import safe  # noqa: E402  (the safe: each account's own files on S3, on the Workspaces page and in its workspaces)
 import provisioners  # noqa: E402  (Provisioner Daemons: stuck jobs, their terraform processes, a re-kick)
 import dr  # noqa: E402  (Persistence > Disaster recovery: Coder's database dumped or copied outside the cluster)
+import hudstorage
 import workspaceconnections
 import workspacetunnels
 import workspacepower
@@ -7632,7 +7633,9 @@ def hud_report(token):
         m("disconnected", "Agents disconnected", "health", disconnected, "", "running workspaces", "", _workspaces_href("status:running")),
         m("unhealthy-apps", "Unhealthy apps", "health", unhealthy, "", "in running workspaces", "", "/health/workspace-health"),
     ]
-    out = {"metrics": metrics, "generatedAt": now(), "live": metrics_live, "uptime": coder_uptime()}
+    storage = hud_storage()
+    metrics.extend(hudstorage.metrics(storage))
+    out = {"metrics": metrics, "storage": storage, "generatedAt": now(), "live": metrics_live, "uptime": coder_uptime()}
     CACHE.put("hud:" + token[:16], out, 5)
     return out
 
@@ -7663,11 +7666,11 @@ def coder_uptime():
 KUBELET_INSECURE_TLS = os.environ.get("KUBELET_INSECURE_TLS", "false").lower() in ("1", "true", "yes")
 
 
-def node_network_counters():
-    """Each Ready node's network bytes received and sent so far, {node: (rx, tx)}: its interfaces' counters in the
-    kubelet's summary, read on the kubelet's own port as metrics-server reads it (RBAC nodes/stats only, not
-    nodes/proxy); its certificate checked against the cluster CA unless KUBELET_INSECURE_TLS. A node whose kubelet
-    does not answer is left out."""
+def node_summaries():
+    """Authenticated kubelet summaries for ready nodes, shared by network and storage sampling."""
+    cached = CACHE.get("hud-node-summaries")
+    if cached is not None:
+        return cached
     if not KUBE.ok:
         return {}
     with open(KUBE.SA + "/token") as f:
@@ -7692,13 +7695,28 @@ def node_network_counters():
                                      headers={"Authorization": "Bearer " + token})
         try:
             with urllib.request.urlopen(req, timeout=4, context=ctx) as r:
-                net = (json.loads(r.read()).get("node") or {}).get("network") or {}
+                summary = json.loads(r.read())
         except Exception:  # noqa: BLE001 - this node's kubelet is unreachable or refuses: left out this round
             continue
+        out[(n.get("metadata") or {}).get("name")] = summary
+    CACHE.put("hud-node-summaries", out, 5)
+    return out
+
+
+def hud_storage():
+    cached = CACHE.get("hud-storage")
+    if cached is None:
+        cached = hudstorage.collect(KUBE, cluster_snapshot()["nodes"], node_summaries(), quantity)
+        CACHE.put("hud-storage", cached, 10)
+    return cached
+
+
+def node_network_counters():
+    out = {}
+    for name, summary in node_summaries().items():
+        net = (summary.get("node") or {}).get("network") or {}
         ifaces = net.get("interfaces") or [net]
-        rx = sum(i.get("rxBytes") or 0 for i in ifaces)
-        tx = sum(i.get("txBytes") or 0 for i in ifaces)
-        out[(n.get("metadata") or {}).get("name")] = (rx, tx)
+        out[name] = (sum(i.get("rxBytes") or 0 for i in ifaces), sum(i.get("txBytes") or 0 for i in ifaces))
     return out
 
 
@@ -7811,7 +7829,7 @@ class HudHistory(threading.Thread):
                 cpu REAL, cpu_ws REAL, cpu_total REAL, mem REAL, mem_ws REAL, mem_total REAL,
                 lat_p50 REAL, lat_p95 REAL, lat_max REAL, connections INTEGER)""")
             columns = {r[1] for r in db.execute("PRAGMA table_info(samples)")}
-            for column in ("net_rx", "net_tx"):
+            for column in ("net_rx", "net_tx", "disk_used", "disk_total", "disk_claimed", "volume_used"):
                 if column not in columns:
                     db.execute("ALTER TABLE samples ADD COLUMN %s REAL" % column)
 
@@ -7890,16 +7908,17 @@ class HudHistory(threading.Thread):
             net_rx, net_tx = self.network_rates()
         except Exception:  # noqa: BLE001 - no traffic figures this round
             net_rx = net_tx = None
+        disk = hud_storage()
         gib = 1024 ** 3
         row = (int(time.time()), int(live),
                cluster["cpu"]["used"], sum(v["cpu"] for v in ws.values()) if live else None, cluster["cpu"]["total"],
                cluster["memory"]["used"] / gib, sum(v["memory"] for v in ws.values()) if live else None,
                cluster["memory"]["total"] / gib,
                lat[0] if lat else None, lat[1] if lat else None, lat[2] if lat else None, int(lat[3]) if lat else 0,
-               net_rx, net_tx)
+               net_rx, net_tx, disk["used"], disk["total"], disk["claimed"], disk["volumeUsed"])
         with self.connect() as db:
             db.execute("""INSERT OR REPLACE INTO samples (t, live, cpu, cpu_ws, cpu_total, mem, mem_ws, mem_total,
-                lat_p50, lat_p95, lat_max, connections, net_rx, net_tx) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", row)
+                lat_p50, lat_p95, lat_max, connections, net_rx, net_tx, disk_used, disk_total, disk_claimed, volume_used) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", row)
             db.execute("DELETE FROM samples WHERE t < ?", (int(time.time()) - HUD_HISTORY_DAYS * 86400,))
 
     def run(self):
@@ -7925,7 +7944,8 @@ class HudHistory(threading.Thread):
                     avg(cpu) AS cpu, max(cpu) AS cpu_peak, avg(cpu_ws) AS cpu_ws, max(cpu_total) AS cpu_total,
                     avg(mem) AS mem, max(mem) AS mem_peak, avg(mem_ws) AS mem_ws, max(mem_total) AS mem_total,
                     avg(lat_p50) AS lat_p50, max(lat_p95) AS lat_p95, max(lat_max) AS lat_max,
-                    max(connections) AS connections
+                    max(connections) AS connections, avg(disk_used) AS disk_used, max(disk_total) AS disk_total,
+                    avg(disk_claimed) AS disk_claimed, avg(volume_used) AS volume_used
                    FROM samples WHERE t >= ? GROUP BY b ORDER BY b""",
                 (start, step, start),
             ).fetchall()
@@ -7934,6 +7954,8 @@ class HudHistory(threading.Thread):
                    "cpuWorkspaces": r2(r["cpu_ws"]), "cpuTotal": r2(r["cpu_total"]), "memory": r2(r["mem"]),
                    "memoryPeak": r2(r["mem_peak"]), "memoryWorkspaces": r2(r["mem_ws"]), "memoryTotal": r2(r["mem_total"]),
                    "latency": r2(r["lat_p50"]), "latencyP95": r2(r["lat_p95"]), "latencyMax": r2(r["lat_max"]),
+                   "diskUsed": r2(r["disk_used"]), "diskTotal": r2(r["disk_total"]),
+                   "diskClaimed": r2(r["disk_claimed"]), "volumeUsed": r2(r["volume_used"]),
                    "connections": r["connections"] or 0} for r in rows]
         return {"range": range_ if range_ in HUD_RANGES else "1h", "start": start, "end": end, "step": step,
                 "points": points}

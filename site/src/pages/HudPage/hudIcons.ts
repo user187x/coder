@@ -6,6 +6,7 @@ import {
 	CpuIcon,
 	GaugeIcon,
 	GpuIcon,
+	HardDriveIcon,
 	HeartCrackIcon,
 	HourglassIcon,
 	LayersIcon,
@@ -22,6 +23,13 @@ import {
  * figure's id (the platform service's hud metrics).
  */
 const HUD_ICONS: Record<string, LucideIcon> = {
+	"disk-total": HardDriveIcon,
+	"disk-used": HardDriveIcon,
+	"disk-free": HardDriveIcon,
+	"disk-claimed": HardDriveIcon,
+	"max-volume": HardDriveIcon,
+	"max-volume-claim": HardDriveIcon,
+	"volume-count": HardDriveIcon,
 	users: UsersIcon,
 	workspaces: LayersIcon,
 	"top-workspaces": LayersIcon,

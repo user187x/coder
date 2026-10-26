@@ -3,6 +3,13 @@ import { HUD_ICON_IDS, hudIcon } from "./hudIcons";
 
 // Every figure the platform service's HUD sends (ui-service.py, the hud metrics).
 const SERVICE_IDS = [
+	"disk-total",
+	"disk-used",
+	"disk-free",
+	"disk-claimed",
+	"max-volume",
+	"max-volume-claim",
+	"volume-count",
 	"users",
 	"workspaces",
 	"active",

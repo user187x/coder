@@ -563,6 +563,10 @@ export type HudMetric = {
 
 /** One bucket of the HUD's graphs (cores, GiB, milliseconds; null where nothing was measured). */
 export type HudHistoryPoint = {
+	diskUsed?: number | null;
+	diskTotal?: number | null;
+	diskClaimed?: number | null;
+	volumeUsed?: number | null;
 	t: number;
 	live: boolean;
 	cpu: number | null;
@@ -620,7 +624,28 @@ export type WorkspaceLockdown = {
 	canChange: boolean;
 };
 
+export type HudStorage = {
+	used: number | null;
+	total: number | null;
+	free: number | null;
+	claimed: number | null;
+	volumeUsed: number | null;
+	measuredNodes: number;
+	readyNodes: number;
+	inventoryAvailable: boolean;
+	classes: {
+		name: string;
+		claims: number;
+		claimed: number;
+		volumes: number;
+		capacity: number;
+		used: number | null;
+		measuredClaims: number;
+	}[];
+};
+
 type HudReport = {
+	storage?: HudStorage;
 	metrics: HudMetric[];
 	generatedAt: string;
 	/** Live usage (metrics-server) is available. */

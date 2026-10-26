@@ -236,7 +236,7 @@ export const CloudDriveRopes: React.FC<{
 				right = Math.max(right, table?.right ?? r.right);
 				const mid = r.top + r.height / 2;
 				rows.set(id, {
-					end: at(r.right + GAP + PLUG, mid),
+					end: at(r.right + PLUG, mid),
 					top: r.top - box.top,
 					bottom: r.bottom - box.top,
 					left: r.left - box.left,

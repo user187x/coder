@@ -430,10 +430,10 @@ describe("CloudDrive", () => {
 			// from the socket on the Cloud Drive's right side, looping round into the plug at the row's right end
 			const d = cable.querySelector("path.cd-cable")?.getAttribute("d");
 			expect(d).toMatch(/^M807,36 C/);
-			expect(d).toMatch(/ 815,125$/);
+			expect(d).toMatch(/ 812,125$/);
 			// the plug in the row's edge, its prongs pointing in (left)
 			expect(cable.querySelector(".cd-plug")?.getAttribute("transform")).toBe(
-				"translate(815,125) rotate(180)",
+				"translate(812,125) rotate(180)",
 			);
 		});
 	});

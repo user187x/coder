@@ -1,4 +1,11 @@
-import { applyOrder, elevate } from "./hudOrder";
+import {
+	applyOrder,
+	elevate,
+	readHudGraphOrder,
+	readHudOrder,
+	writeHudGraphOrder,
+	writeHudOrder,
+} from "./hudOrder";
 
 const items = ["users", "workspaces", "active", "cpu"].map((id) => ({ id }));
 const ids = (xs: { id: string }[]) => xs.map((x) => x.id);
@@ -34,4 +41,15 @@ describe("HUD order", () => {
 			"active",
 		]);
 	});
+});
+
+it("remembers graph and metric order independently", () => {
+	writeHudOrder(["users", "disk-used"]);
+	writeHudGraphOrder(["disk-total", "cpu"]);
+	expect(readHudOrder()).toEqual(["users", "disk-used"]);
+	expect(readHudGraphOrder()).toEqual(["disk-total", "cpu"]);
+	writeHudGraphOrder([]);
+	expect(readHudGraphOrder()).toEqual([]);
+	expect(readHudOrder()).toEqual(["users", "disk-used"]);
+	localStorage.clear();
 });

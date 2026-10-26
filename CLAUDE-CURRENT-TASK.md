@@ -535,3 +535,14 @@ DEFAULT and DATAFLOW template source ConfigMaps were narrowly patched and new ve
 Live verification on Server69: the user's workspace page shows the exact workspace-specific announcement, hazard topbar and Access locked status; its existing quarantine had stopped the workspace, so disabled running-panel visuals were checked in Storybook. The workspace list shows hazard stripes and avatar shield for ahh; Dataflow exposes the built-in Terminal and omits Chromium/Ghostty. The live user menu exposes both color circles per light/dark mode. No preference was changed during live verification. Evidence is under `/mnt/data/coder-ui-evidence-20261025/`, including `workspace-lockdown-server69.png`, `workspace-apps-and-quarantine-server69.png` and `theme-colors-preview.png`.
 
 Queued next, at the user's explicit request: HUD disk/volume graphs and summary panels, per-storage-class totals, draggable handles on every graph, then removal of visible prongs from the shared male-plug artwork while retaining male-only dragging.
+
+
+## HUD and workspace alignment completion, 2026-10-26
+
+- Server resume.70 rolled out successfully, followed by resume.71 with HUD storage graphs/cards, draggable graph handles, prong-free shared plugs, flush Cloud Drive anchors, compact DRIVE columns, and hidden restricted row controls.
+- UI service resume.30 adds read-only PV/PVC inventory and authenticated kubelet filesystem sampling. Existing history databases migrate nullable storage columns without discarding history. Volume usage is deduplicated by PVC and stale samples are omitted. Physical totals require every ready node and describe root filesystems rather than all attached devices.
+- Live HUD verified 1,876.7 GiB physical capacity, about 1,130.5 GiB used, 545 GiB requested, and 107 existing volumes across three storage classes. This cluster exposes no per-PVC usage samples, which remain unavailable. New disk history starts with this rollout; older buckets stay blank.
+- Live workspace table verified aligned DRIVE cells, no visible horizontal scrollbar, no prong SVG elements, flush plug bodies, and no power/options controls on the locked ahh row. Cloud Drive and tunnel withdrawal from resume.29 remains active.
+- Verification: 54 targeted frontend tests across six files, six storage/history tests, three existing network/history tests, TypeScript, and targeted Oxlint passed. Frontend review FE1-FE10 passed for the scoped diff; existing broad-check baseline failures remain documented above.
+- Immutable rollout images: coder sha256:a2de08af11e3ae787461fd0adaa01e5bb4356556bb2966df277eceb927b61ec3; ui-updates sha256:8aae209c711f31b7594fbf3a6a5fcdae5ec8d79b6ca627de0a264a2ea80988dc.
+- Unrelated native quarantine/VM/runtime work remains unstaged. ui-service.py and RBAC changes were staged from HEAD with only the HUD additions; the deployed UI image overlays only those additions onto resume.29.

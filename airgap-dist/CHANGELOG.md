@@ -1,5 +1,11 @@
 # Changelog
 
+## HUD storage and connector alignment 2026-10-26
+
+* HUD history now includes physical disk usage/capacity and PVC reservations, with volume inventory cards and storage-class totals. Missing or incomplete measurements remain unavailable. Physical totals cover ready node root filesystems.
+* Large graphs and metric cards have pointer and keyboard reorder handles with independent saved ordering.
+* Male plugs share prong-free artwork. Cloud Drive plugs sit flush with workspace rows; compact column spacing keeps the DRIVE header and sockets aligned. Locked rows hide power and ellipsis controls.
+
 ## Workspace restrictions and app cleanup 2026-10-26
 
 * Restricted dashboards disable app and panel interaction, show a hazard topbar, and display the workspace-specific contact-administrator notice. Accounts and workspace rows share hazard stripes and avatar shields.
