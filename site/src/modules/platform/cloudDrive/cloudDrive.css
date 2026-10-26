@@ -187,13 +187,6 @@ html.cd-dragging:has([data-cloud-drive-drop="taken"]) * {
 	mask: url("/icon/cloud-drive.svg") center / contain no-repeat;
 	-webkit-mask: url("/icon/cloud-drive.svg") center / contain no-repeat;
 }
-.cd-glyph[data-state="connected"] {
-	box-shadow: 0 0 0 1px hsl(var(--content-success) / 0.7);
-}
-.cd-glyph[data-state="disconnected"] {
-	box-shadow: 0 0 0 1px hsl(var(--content-destructive));
-}
-
 /* That orange cloud: an unplugged plug in it, glowing and pulsing until the drive is attached. Without animations
    (the user menu's switch, or reduced motion) it glows still. */
 .cd-attaching {
