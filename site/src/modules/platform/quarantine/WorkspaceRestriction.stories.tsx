@@ -49,3 +49,22 @@ export const WorkspaceRow: Story = {
 		</TableCard>
 	),
 };
+
+export const ReleasedWorkspaceRow: Story = {
+	...WorkspaceRow,
+	parameters: {
+		queries: [
+			{
+				key: workspaceQuarantineKey(
+					MockWorkspace.organization_id,
+					MockWorkspace.id,
+				),
+				data: {
+					...MockWorkspaceQuarantine,
+					enabled: false,
+					manual_start_required: true,
+				},
+			},
+		],
+	},
+};

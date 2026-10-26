@@ -6,7 +6,7 @@ import { TableRow } from "#/components/Table/Table";
 import { modeOf, useWorkspaceLockdown } from "../lockdown/Lockdown";
 import "./workspaceRestriction.css";
 
-/** Quarantine applies before enforcement acknowledgement; partial network/sudo policies remain distinct. */
+/** Release keeps reconnection on hold server-side, but must leave the manual Start action available. */
 export function useWorkspaceRestricted(workspace: Workspace | undefined) {
 	const lock = useWorkspaceLockdown(workspace?.id);
 	const quarantine = useQuery({
@@ -19,7 +19,6 @@ export function useWorkspaceRestricted(workspace: Workspace | undefined) {
 	const mode = modeOf(lock);
 	return Boolean(
 		quarantine.data?.enabled ||
-			quarantine.data?.manual_start_required ||
 			(lock?.locked && (mode === "complete" || mode === "freeze")),
 	);
 }
