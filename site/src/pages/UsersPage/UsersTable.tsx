@@ -108,20 +108,20 @@ export const UsersTable: React.FC<UsersTableProps> = (props) => {
 					{selected && onSelect && <col style={{ width: "3%" }} />}
 					<col
 						style={{
-							width: `${100 - 12 - 5 - 12 - (quota ? 18 : 0) - (insights.shown ? 14 : 0) - (props.canEditUsers ? 6 : 0) - (selected && onSelect ? 3 : 0)}%`,
+							width: `${100 - 9 - 11 - 10 - (quota ? 18 : 0) - (insights.shown ? 18 : 0) - (props.canEditUsers ? 5 : 0) - (selected && onSelect ? 3 : 0)}%`,
 						}}
 					/>
-					<col style={{ width: "12%" }} />
-					<col style={{ width: "5%" }} />
+					<col style={{ width: "9%" }} />
+					<col style={{ width: "11%" }} />
 					{quota && <col style={{ width: "18%" }} />}
 					{insights.shown && (
 						<>
-							<col style={{ width: "7%" }} />
-							<col style={{ width: "7%" }} />
+							<col style={{ width: "9%" }} />
+							<col style={{ width: "9%" }} />
 						</>
 					)}
-					<col style={{ width: "12%" }} />
-					{props.canEditUsers && <col style={{ width: "6%" }} />}
+					<col style={{ width: "10%" }} />
+					{props.canEditUsers && <col style={{ width: "5%" }} />}
 				</colgroup>
 				<TableHeader>
 					<TableRow>
@@ -139,21 +139,21 @@ export const UsersTable: React.FC<UsersTableProps> = (props) => {
 								/>
 							</TableHead>
 						)}
-						<TableHead className="w-max">User</TableHead>
-						<TableHead className="w-1/6">
+						<TableHead>User</TableHead>
+						<TableHead>
 							<div className="flex flex-row gap-2 items-center">
 								<span>Roles</span>
 								<RolesHelpPopover />
 							</div>
 						</TableHead>
 						{/* Platform: admins' post-it notes on the user's workspaces, instead of Groups. */}
-						<TableHead className="w-1/6">Notes</TableHead>
+						<TableHead>Notes</TableHead>
 						{quota && <TableHead>Resources</TableHead>}
 						{/* Platform: how the user's connections to their workspaces went, beside when they were last seen */}
 						{insights.shown && (
 							<>
-								<TableHead className="w-[1%] whitespace-nowrap">
-									<span className="flex items-center gap-1">
+								<TableHead className="whitespace-nowrap text-center">
+									<span className="flex items-center justify-center gap-1">
 										Latency
 										<InfoTooltip size="small">
 											<TooltipTitle>Latency</TooltipTitle>
@@ -161,8 +161,8 @@ export const UsersTable: React.FC<UsersTableProps> = (props) => {
 										</InfoTooltip>
 									</span>
 								</TableHead>
-								<TableHead className="w-[1%] whitespace-nowrap">
-									<span className="flex items-center gap-1">
+								<TableHead className="whitespace-nowrap text-center">
+									<span className="flex items-center justify-center gap-1">
 										Activity
 										<InfoTooltip size="small">
 											<TooltipTitle>Activity</TooltipTitle>
@@ -172,7 +172,7 @@ export const UsersTable: React.FC<UsersTableProps> = (props) => {
 								</TableHead>
 							</>
 						)}
-						<TableHead className="w-1/6">Status</TableHead>
+						<TableHead className="text-center">Status</TableHead>
 						{props.canEditUsers && (
 							<TableHead>
 								<span className="sr-only">Account actions</span>
@@ -364,7 +364,7 @@ const UsersTableRow: React.FC<UsersTableRowProps> = ({
 				{insight && (
 					<>
 						<TableCell
-							className="whitespace-nowrap"
+							className="whitespace-nowrap text-center"
 							data-testid="user-latency"
 							data-label="Latency"
 						>
@@ -383,12 +383,12 @@ const UsersTableRow: React.FC<UsersTableRowProps> = ({
 							)}
 						</TableCell>
 						<TableCell
-							className="whitespace-nowrap"
+							className="whitespace-nowrap text-center"
 							data-testid="user-activity"
 							data-label="Activity"
 						>
 							{insight.seconds ? (
-								<div className="flex min-w-0 flex-col gap-1">
+								<div className="mx-auto flex min-w-0 max-w-20 flex-col items-center gap-1">
 									<span className="text-sm tabular-nums text-content-primary">
 										{formatActivity(insight.seconds)}
 									</span>
@@ -414,7 +414,7 @@ const UsersTableRow: React.FC<UsersTableRowProps> = ({
 				<TableCell
 					data-label="Status"
 					className={cn(
-						"capitalize",
+						"capitalize text-center",
 						user.status === "suspended" && "text-content-secondary",
 					)}
 				>
@@ -427,9 +427,9 @@ const UsersTableRow: React.FC<UsersTableRowProps> = ({
 				{canEditUsers && (
 					<TableCell
 						data-account-field="actions"
-						className="w-px whitespace-nowrap text-right"
+						className="whitespace-nowrap text-center"
 					>
-						<div className="flex justify-end">
+						<div className="flex justify-center">
 							<UserMoreActions
 								user={user}
 								me={me}

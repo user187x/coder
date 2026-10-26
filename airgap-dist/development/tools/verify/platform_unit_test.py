@@ -710,13 +710,23 @@ class QuickMenuTest(unittest.TestCase):
 
     def test_checked(self):
         self.assertEqual(ui.clean_quick_menu({"items": ["workspaces", "accounts", "oauth2-applications"]}),
-                         {"items": ["workspaces", "accounts", "oauth2-applications"]})
+                         {"items": ["workspaces", "accounts", "oauth2-applications"], "shortcut": "Escape"})
         for bad, why in (({"items": ["a", "a", "b"]}, "once"), ({"items": ["a", "b"]}, "3 to 12"),
                          ({"items": ["x%d" % i for i in range(13)]}, "3 to 12"), ({"items": "workspaces"}, "IDs"),
                          ({"items": ["Workspaces", "b", "c"]}, "IDs"), ({"items": ["../x", "b", "c"]}, "IDs")):
             with self.assertRaises(ValueError) as e:
                 ui.clean_quick_menu(bad)
             self.assertIn(why, str(e.exception))
+
+    def test_shortcuts(self):
+        for raw, expected in (("Escape", "Escape"), ("Ctrl+Shift+k", "Ctrl+Shift+K"), ("Shift+Ctrl+K", "Ctrl+Shift+K"), ("F8", "F8"), ("Meta+Space", "Meta+Space"), ("a", "A")):
+            self.assertEqual(ui.clean_quick_menu_shortcut(raw), expected)
+        for bad in (None, "", "Ctrl", "Ctrl+Ctrl+K", "Hyper+K", "Ctrl+", "F99", " "):
+            with self.assertRaises(ValueError):
+                ui.clean_quick_menu_shortcut(bad)
+        with mock.patch.object(ui, "STORE", mock.Mock(get_setting=lambda key, default=None: {"shortcut": "Ctrl+K"})):
+            self.assertEqual(ui.quick_menu_settings()["shortcut"], "Ctrl+K")
+
 
     def test_none_saved_is_the_default(self):
         with mock.patch.object(ui, "STORE", mock.Mock(get_setting=lambda key, default=None: None)):

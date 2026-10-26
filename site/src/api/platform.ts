@@ -145,6 +145,7 @@ export const LOGIN_EFFECTS = ["wireframe", "neon", "plain"] as const;
 export type LoginEffect = (typeof LOGIN_EFFECTS)[number];
 /** The quick access wheel's wedges (Admin Settings > Quick Menu): choices' IDs in order; null: the default wheel. */
 export type QuickMenuSettings = {
+	shortcut?: string;
 	items: string[] | null;
 	updatedBy?: string | null;
 	updatedAt?: string | null;
@@ -2233,8 +2234,11 @@ export const PlatformAPI = {
 
 	getLoginPage: () => get<LoginPageSettings>(`${PLATFORM_BASE}/api/login-page`),
 	getQuickMenu: () => get<QuickMenuSettings>(`${PLATFORM_BASE}/api/quick-menu`),
-	saveQuickMenu: (items: string[]) =>
-		post<QuickMenuSettings>(`${PLATFORM_BASE}/api/quick-menu`, { items }),
+	saveQuickMenu: (items: string[], shortcut?: string) =>
+		post<QuickMenuSettings>(`${PLATFORM_BASE}/api/quick-menu`, {
+			items,
+			shortcut,
+		}),
 	resetQuickMenu: () =>
 		post<QuickMenuSettings>(`${PLATFORM_BASE}/api/quick-menu/reset`, {}),
 	updateLoginPage: (settings: LoginPageSettings) =>

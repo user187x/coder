@@ -1416,6 +1416,19 @@ QUICK_MENU_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,39}$")
 QUICK_MENU_WEDGES = (3, 12)
 
 
+def clean_quick_menu_shortcut(value):
+    if not isinstance(value, str) or not value or len(value) > 80:
+        raise ValueError("shortcut: choose a key or key combination.")
+    parts = value.split("+")
+    modifiers, key = parts[:-1], parts[-1]
+    order = ("Ctrl", "Alt", "Shift", "Meta")
+    named = {"Escape", "Space", "Plus", "Enter", "Tab", "Backspace", "Delete", "Insert", "Home", "End", "PageUp", "PageDown", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"}
+    valid_key = (len(key) == 1 and key.isprintable() and not key.isspace()) or key in named or re.fullmatch(r"F([1-9]|1[0-9]|2[0-4])", key)
+    if len(set(modifiers)) != len(modifiers) or any(m not in order for m in modifiers) or not valid_key:
+        raise ValueError("shortcut: choose a supported key with Ctrl, Alt, Shift, or Meta.")
+    return "+".join([m for m in order if m in modifiers] + [key.upper() if len(key) == 1 else key])
+
+
 def clean_quick_menu(p):
     items = p.get("items")
     if not isinstance(items, list) or not all(isinstance(i, str) and QUICK_MENU_ID.match(i) for i in items):
@@ -1425,12 +1438,12 @@ def clean_quick_menu(p):
     least, most = QUICK_MENU_WEDGES
     if not least <= len(items) <= most:
         raise ValueError("The wheel takes %d to %d wedges." % (least, most))
-    return {"items": items}
+    return {"items": items, "shortcut": clean_quick_menu_shortcut(p.get("shortcut", "Escape"))}
 
 
 def quick_menu_settings():
     saved = STORE.get_setting("quick_menu", None) or {}
-    return {"items": saved.get("items") or None, "updatedBy": saved.get("updatedBy"), "updatedAt": saved.get("updatedAt"),
+    return {"items": saved.get("items") or None, "shortcut": saved.get("shortcut") or "Escape", "updatedBy": saved.get("updatedBy"), "updatedAt": saved.get("updatedAt"),
             "wedges": list(QUICK_MENU_WEDGES)}
 
 

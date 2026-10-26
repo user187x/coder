@@ -10,6 +10,7 @@ import { useEmbeddedMetadata } from "#/hooks/useEmbeddedMetadata";
 import { setDrawerOpen, useChatSnapshot } from "../chat/chatStore";
 import { CHAT_CONSOLE_PAGE } from "../chat/consolePlaces";
 import { useQuickMenu } from "./quickMenu";
+import { matchesShortcut } from "./shortcut";
 import { Wheel, type WheelItem } from "./Wheel";
 import { wheelOf } from "./wheelChoices";
 import "./radialMenu.css";
@@ -98,6 +99,7 @@ export const RadialMenu: React.FC = () => {
 	const build = useQuery(buildInfo(metadata["build-info"]));
 	const chat = useChatSnapshot();
 	const menu = useQuickMenu();
+	const shortcut = menu.data?.shortcut || "Escape";
 	// closed: not on the page at all; closing: fading out
 	const [phase, setPhase] = useState<"closed" | "open" | "closing">("closed");
 	const open = phase === "open";
@@ -137,18 +139,24 @@ export const RadialMenu: React.FC = () => {
 		// in the capture phase, ahead of the page's own Escape handlers: they see the page as it is, and an Escape
 		// that opens or closes the wheel goes no further
 		const onKey = (event: KeyboardEvent) => {
-			if (event.key !== "Escape") {
+			if (
+				event.isComposing ||
+				event.repeat ||
+				(event.target instanceof Element &&
+					event.target.closest("[data-quick-menu-shortcut]"))
+			)
 				return;
-			}
-			if (openRef.current) {
+			const activates =
+				shortcut === "Escape"
+					? escapeOpensWheel(event)
+					: matchesShortcut(event, shortcut);
+			if (openRef.current && (event.key === "Escape" || activates)) {
 				event.preventDefault();
 				event.stopPropagation();
 				close();
 				return;
 			}
-			if (!escapeOpensWheel(event)) {
-				return;
-			}
+			if (!activates) return;
 			const show = () => {
 				if (!embedded) {
 					openHere();
@@ -162,7 +170,7 @@ export const RadialMenu: React.FC = () => {
 				}
 			};
 			// a menu or dialog open: it closes on this Escape as it would (its focus and all), then the wheel opens
-			if (popupOpen()) {
+			if (event.key === "Escape" && popupOpen()) {
 				window.setTimeout(show, 0);
 				return;
 			}
@@ -177,7 +185,7 @@ export const RadialMenu: React.FC = () => {
 				window.__platformRadialOpen = undefined;
 			}
 		};
-	}, [close]);
+	}, [close, shortcut]);
 
 	const choose = (index: number) => {
 		const choice = choices[index];

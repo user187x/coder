@@ -2559,3 +2559,5 @@ workspace checks).
 - Add an account Lock Down modal with blurred background and workspace selection, reusing dashboard controls including Quarantine and snapshots.
 - Add Chat-style account Notes split buttons with workspace selection, centered note creation, editing, and confirmed deletion; retain note permissions and refresh dashboard/account note queries.
 - Match account Lock Down option buttons to the dark theme.
+- Add a shared configurable Quick Menu activation key or combination, with recording, Escape reset, server validation, and protection for ordinary typing.
+- Center and rebalance account Latency, Activity, Status, and action columns.

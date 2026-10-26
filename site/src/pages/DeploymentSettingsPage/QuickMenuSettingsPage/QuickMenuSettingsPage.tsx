@@ -1,6 +1,6 @@
 import { cn } from "cn";
 import { ArrowDownIcon, ArrowUpIcon, PlusIcon, XIcon } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { toast } from "sonner";
 import { getErrorMessage } from "#/api/errors";
@@ -16,6 +16,8 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "#/components/DropdownMenu/DropdownMenu";
+import { Input } from "#/components/Input/Input";
+import { Label } from "#/components/Label/Label";
 import { Loader } from "#/components/Loader/Loader";
 import {
 	SettingsHeader,
@@ -29,6 +31,7 @@ import {
 	quickMenuKey,
 	useQuickMenu,
 } from "#/modules/platform/radialMenu/quickMenu";
+import { shortcutFromEvent } from "#/modules/platform/radialMenu/shortcut";
 import { Wheel } from "#/modules/platform/radialMenu/Wheel";
 import {
 	WHEEL_WEDGES,
@@ -62,26 +65,33 @@ const QuickMenuSettingsPage: React.FC = () => {
 	const saved = wheelOf(menu.data?.items).map((choice) => choice.id);
 	const [draft, setDraft] = useState<string[] | null>(null);
 	const ids = draft ?? saved;
+	const [shortcutDraft, setShortcutDraft] = useState<string | null>(null);
+	const shortcut = shortcutDraft ?? menu.data?.shortcut ?? "Escape";
+	const [recording, setRecording] = useState(false);
+	const shortcutInput = useRef<HTMLInputElement>(null);
 	const wedges = ids
 		.map((id) => all.find((choice) => choice.id === id))
 		.filter((choice): choice is WheelChoice => Boolean(choice));
-	const changed = draft !== null && draft.join() !== saved.join();
+	const changed =
+		(draft !== null && draft.join() !== saved.join()) ||
+		shortcut !== (menu.data?.shortcut ?? "Escape");
 	const addable = all.filter((choice) => !ids.includes(choice.id));
 
 	const onSaved = (message: string) => (data: unknown) => {
 		queryClient.setQueryData(quickMenuKey, data);
 		setDraft(null);
+		setShortcutDraft(null);
 		toast.success(message);
 	};
 	const save = useMutation({
-		mutationFn: () => PlatformAPI.saveQuickMenu(ids),
-		onSuccess: onSaved("Saved: everyone's Quick Menu has these wedges now."),
+		mutationFn: () => PlatformAPI.saveQuickMenu(ids, shortcut),
+		onSuccess: onSaved("Quick Menu shortcut and wedges saved."),
 		onError: (error) =>
 			toast.error(getErrorMessage(error, "The Quick Menu was not saved.")),
 	});
 	const reset = useMutation({
 		mutationFn: PlatformAPI.resetQuickMenu,
-		onSuccess: onSaved("The Quick Menu is back to its default wedges."),
+		onSuccess: onSaved("Quick Menu shortcut and wedges reset to defaults."),
 		onError: (error) =>
 			toast.error(getErrorMessage(error, "The Quick Menu was not reset.")),
 	});
@@ -101,8 +111,8 @@ const QuickMenuSettingsPage: React.FC = () => {
 			<SettingsHeader>
 				<SettingsHeaderTitle>Quick Menu</SettingsHeaderTitle>
 				<SettingsHeaderDescription>
-					The wheel Escape opens on every page. Choose its wedges - the
-					dashboard's pages and every admin category - and their order,
+					Choose the shortcut that opens the wheel on every page, its wedges -
+					the dashboard's pages and every admin category - and their order,
 					clockwise from the top. Everyone gets this wheel; a page someone may
 					not open shows dimmed for them.
 				</SettingsHeaderDescription>
@@ -137,6 +147,65 @@ const QuickMenuSettingsPage: React.FC = () => {
 						aria-labelledby="quick-menu-wedges"
 						className="flex min-w-[300px] flex-1 flex-col gap-3"
 					>
+						<section
+							aria-labelledby="quick-menu-shortcut-heading"
+							className="mb-3 flex flex-col gap-3 rounded-lg border border-solid border-border p-4"
+						>
+							<h2
+								id="quick-menu-shortcut-heading"
+								className="m-0 text-base font-semibold"
+							>
+								Activation shortcut
+							</h2>
+							<Label htmlFor="quick-menu-shortcut">
+								Key or key combination
+							</Label>
+							<div className="flex flex-wrap items-center gap-2">
+								<Input
+									ref={shortcutInput}
+									id="quick-menu-shortcut"
+									data-quick-menu-shortcut
+									readOnly
+									value={recording ? "Press a key or combination" : shortcut}
+									className="max-w-64"
+									onKeyDown={(event) => {
+										event.preventDefault();
+										event.stopPropagation();
+										const next = shortcutFromEvent(event.nativeEvent);
+										if (next) {
+											setShortcutDraft(next);
+											setRecording(false);
+											event.currentTarget.blur();
+										}
+									}}
+								/>
+								<Button
+									variant="outline"
+									disabled={busy}
+									onClick={() => {
+										setRecording(true);
+										shortcutInput.current?.focus();
+									}}
+								>
+									Record shortcut
+								</Button>
+								<Button
+									variant="subtle"
+									disabled={busy}
+									onClick={() => {
+										setShortcutDraft("Escape");
+										setRecording(false);
+									}}
+								>
+									Use Escape
+								</Button>
+							</div>
+							<p className="m-0 text-xs text-content-secondary">
+								Save below to apply the shortcut and wedges for everyone.
+								Browser and system shortcuts may take priority. Plain character
+								keys do not activate the menu while typing in a field.
+							</p>
+						</section>
 						<div className="flex items-center justify-between gap-3">
 							<h2
 								id="quick-menu-wedges"

@@ -1,9 +1,17 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "react-query";
-import { MemoryRouter, Route, Routes } from "react-router";
+import {
+	createMemoryRouter,
+	MemoryRouter,
+	Route,
+	RouterProvider,
+	Routes,
+} from "react-router";
 import { PlatformAPI } from "#/api/platform";
 import { MockNoPermissions, MockPermissions } from "#/testHelpers/entities";
 import { escapeOpensWheel, popupOpen, RadialMenu } from "./RadialMenu";
+import { matchesShortcut, shortcutFromEvent } from "./shortcut";
 
 const auth = { permissions: MockPermissions };
 vi.mock("#/hooks/useAuthenticated", () => ({
@@ -216,4 +224,51 @@ describe("RadialMenu", () => {
 		fireEvent.click(await screen.findByTestId("radial-menu"));
 		expect(screen.queryByTestId("radial-menu")).toBeNull();
 	});
+});
+
+it("opens with the configured combo and navigates to the chosen workspace page", async () => {
+	document.documentElement.dataset.animations = "off";
+	auth.permissions = MockPermissions;
+	vi.spyOn(PlatformAPI, "getQuickMenu").mockResolvedValue({
+		items: null,
+		wedges: [3, 12],
+		shortcut: "Ctrl+Shift+K",
+	});
+	const router = createMemoryRouter([{ path: "*", element: <RadialMenu /> }], {
+		initialEntries: ["/workspaces"],
+	});
+	render(
+		<QueryClientProvider client={new QueryClient()}>
+			<RouterProvider router={router} />
+		</QueryClientProvider>,
+	);
+	await waitFor(() => expect(PlatformAPI.getQuickMenu).toHaveBeenCalled());
+	const user = userEvent.setup();
+	await user.keyboard("{Control>}{Shift>}k{/Shift}{/Control}");
+	await user.click(await screen.findByRole("menuitem", { name: "Templates" }));
+	await waitFor(() =>
+		expect(router.state.location.pathname).toBe("/templates"),
+	);
+	delete document.documentElement.dataset.animations;
+});
+
+it("matches configured combinations exactly and ignores bare modifiers and repeated keys", () => {
+	expect(
+		shortcutFromEvent(escapeKey({ key: "k", ctrlKey: true, shiftKey: true })),
+	).toBe("Ctrl+Shift+K");
+	expect(
+		matchesShortcut(escapeKey({ key: "k", ctrlKey: true }), "Ctrl+Shift+K"),
+	).toBe(false);
+	expect(
+		matchesShortcut(
+			escapeKey({ key: "k", ctrlKey: true, shiftKey: true }),
+			"Ctrl+Shift+K",
+		),
+	).toBe(true);
+	expect(
+		shortcutFromEvent(escapeKey({ key: "Control", ctrlKey: true })),
+	).toBeUndefined();
+	expect(
+		shortcutFromEvent(escapeKey({ key: "k", repeat: true })),
+	).toBeUndefined();
 });

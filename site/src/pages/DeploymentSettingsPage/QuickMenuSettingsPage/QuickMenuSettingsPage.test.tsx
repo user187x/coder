@@ -68,16 +68,19 @@ describe("QuickMenuSettingsPage", () => {
 
 		await userEvent.click(screen.getByTestId("quick-menu-save"));
 		await waitFor(() =>
-			expect(save).toHaveBeenCalledWith([
-				"workspaces",
-				"images",
-				"templates",
-				"accounts",
-				"chat",
-				"announcement",
-				"hud",
-				"security",
-			]),
+			expect(save).toHaveBeenCalledWith(
+				[
+					"workspaces",
+					"images",
+					"templates",
+					"accounts",
+					"chat",
+					"announcement",
+					"hud",
+					"security",
+				],
+				"Escape",
+			),
 		);
 	});
 
@@ -100,4 +103,29 @@ describe("QuickMenuSettingsPage", () => {
 		await waitFor(() => expect(reset).toHaveBeenCalled());
 		await waitFor(() => expect(wedgeIds()).toHaveLength(8));
 	});
+});
+
+it("captures and saves a key combination with the current wedges", async () => {
+	vi.spyOn(PlatformAPI, "getQuickMenu").mockResolvedValue({
+		items: null,
+		wedges: [3, 12],
+		shortcut: "Escape",
+	});
+	const save = vi
+		.spyOn(PlatformAPI, "saveQuickMenu")
+		.mockImplementation(async (items, shortcut) => ({
+			items,
+			shortcut,
+			wedges: [3, 12],
+		}));
+	renderWithAuth(<QuickMenuSettingsPage />);
+	const user = userEvent.setup();
+	await user.click(
+		await screen.findByRole("button", { name: "Record shortcut" }),
+	);
+	await user.keyboard("{Control>}{Shift>}k{/Shift}{/Control}");
+	await user.click(screen.getByTestId("quick-menu-save"));
+	await waitFor(() =>
+		expect(save).toHaveBeenCalledWith(expect.any(Array), "Ctrl+Shift+K"),
+	);
 });
