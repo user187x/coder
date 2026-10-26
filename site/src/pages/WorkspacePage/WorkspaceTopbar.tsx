@@ -267,42 +267,44 @@ export const WorkspaceTopbar: React.FC<WorkspaceTopbarProps> = ({
 						onActivateWorkspace={handleDormantActivate}
 					/>
 
-					{/* Platform: an animated light while it runs. */}
-					{restricted ? (
-						<>
-							<span
-								role="status"
-								className="inline-flex items-center gap-1.5 rounded-full border border-solid border-content-warning/40 bg-surface-primary px-2 py-1 text-xs text-content-warning"
-							>
-								<ShieldBanIcon className="size-3.5" aria-hidden />
-								Access locked
-							</span>
-							<LockdownBadge workspace={workspace} goldIcon />
-						</>
-					) : (
-						<WorkspaceStatusIndicator
-							workspace={workspace}
-							runningLight
-							className="workspace-topbar-running-status gap-1.5 rounded-full border border-solid border-current/20 bg-surface-secondary px-2 py-1 text-xs"
-						/>
-					)}
+					<div className="flex shrink-0 items-center gap-2">
+						{/* Platform: an animated light while it runs. */}
+						{restricted ? (
+							<>
+								<span
+									role="status"
+									className="inline-flex items-center gap-1.5 rounded-full border border-solid border-content-warning/40 bg-surface-primary px-2 py-1 text-xs text-content-warning"
+								>
+									<ShieldBanIcon className="size-3.5" aria-hidden />
+									Access locked
+								</span>
+								<LockdownBadge workspace={workspace} goldIcon />
+							</>
+						) : (
+							<WorkspaceStatusIndicator
+								workspace={workspace}
+								runningLight
+								className="workspace-topbar-running-status gap-1.5 rounded-full border border-solid border-current/20 bg-surface-secondary px-2 py-1 text-xs"
+							/>
+						)}
 
-					<WorkspaceRestrictedActions workspace={workspace}>
-						<WorkspaceActions
-							workspace={workspace}
-							permissions={permissions}
-							isUpdating={isUpdating}
-							isRestarting={isRestarting}
-							handleStart={handleStart}
-							handleStop={handleStop}
-							handleRestart={handleRestart}
-							handleUpdate={handleUpdate}
-							handleCancel={handleCancel}
-							handleRetry={handleRetry}
-							handleDebug={handleDebug}
-							handleDormantActivate={handleDormantActivate}
-						/>
-					</WorkspaceRestrictedActions>
+						<WorkspaceRestrictedActions workspace={workspace}>
+							<WorkspaceActions
+								workspace={workspace}
+								permissions={permissions}
+								isUpdating={isUpdating}
+								isRestarting={isRestarting}
+								handleStart={handleStart}
+								handleStop={handleStop}
+								handleRestart={handleRestart}
+								handleUpdate={handleUpdate}
+								handleCancel={handleCancel}
+								handleRetry={handleRetry}
+								handleDebug={handleDebug}
+								handleDormantActivate={handleDormantActivate}
+							/>
+						</WorkspaceRestrictedActions>
+					</div>
 				</div>
 			)}
 		</Topbar>

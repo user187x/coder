@@ -5,6 +5,7 @@ import { MemoryRouter, useLocation } from "react-router";
 import { API } from "#/api/api";
 import { PlatformAPI } from "#/api/platform";
 import type { Workspace } from "#/api/typesGenerated";
+import { TooltipProvider } from "#/components/Tooltip/Tooltip";
 import { MockWorkspace } from "#/testHelpers/entities";
 import {
 	FRAME_WIDTH,
@@ -33,16 +34,18 @@ const renderGrid = (names: string[], onOpenChange = vi.fn()) => {
 		count: names.length,
 	});
 	render(
-		<QueryClientProvider client={new QueryClient()}>
-			<MemoryRouter initialEntries={["/workspaces"]}>
-				<Where />
-				<WorkspaceGrid
-					ids={names.map((n) => `id-${n}`)}
-					open
-					onOpenChange={onOpenChange}
-				/>
-			</MemoryRouter>
-		</QueryClientProvider>,
+		<TooltipProvider>
+			<QueryClientProvider client={new QueryClient()}>
+				<MemoryRouter initialEntries={["/workspaces"]}>
+					<Where />
+					<WorkspaceGrid
+						ids={names.map((n) => `id-${n}`)}
+						open
+						onOpenChange={onOpenChange}
+					/>
+				</MemoryRouter>
+			</QueryClientProvider>
+		</TooltipProvider>,
 	);
 	return onOpenChange;
 };

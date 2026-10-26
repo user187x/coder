@@ -383,3 +383,12 @@ export const Quarantined: Story = {
 		],
 	},
 };
+
+export const RunningStatusWithActions: Story = {
+	args: { workspace: baseWorkspace },
+	render: (args) => (
+		<div className="mx-auto w-full max-w-[1200px]">
+			<WorkspaceTopbar {...args} />
+		</div>
+	),
+};

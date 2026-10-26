@@ -29,6 +29,7 @@ import {
 } from "#/components/DropdownMenu/DropdownMenu";
 import { embedFrameAttributes } from "#/contexts/platformBoot";
 import { TemplatePill } from "#/modules/platform/workspaceLatency/WorkspacesLatencyMenu";
+import { WorkspaceStatusIndicator } from "#/modules/workspaces/WorkspaceStatusIndicator/WorkspaceStatusIndicator";
 import { WorkspaceTunnelPorts } from "../workspaceTunnels/WorkspaceTunnelPorts";
 import { isEmbedSizeMessage } from "./embeddedSize";
 
@@ -452,7 +453,6 @@ const GridBody: React.FC<GridBodyProps> = ({
 							/>
 						)}
 						{shown.map((w) => {
-							const up = w.latest_build.status === "running";
 							const inUse = !pannable || active === w.id;
 							return (
 								<section
@@ -469,16 +469,11 @@ const GridBody: React.FC<GridBodyProps> = ({
 										className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-2 border-0 border-b border-solid border-border px-3 text-sm"
 										style={{ height: BAR_HEIGHT }}
 									>
-										<span className="flex min-w-0 items-center gap-2 text-xs text-content-secondary">
-											<span
-												aria-hidden
-												className={cn(
-													"size-2 shrink-0 rounded-full",
-													up ? "bg-content-success" : "bg-content-disabled",
-												)}
-											/>
-											<span className="truncate">{w.latest_build.status}</span>
-										</span>
+										<WorkspaceStatusIndicator
+											workspace={w}
+											runningLight
+											className="workspace-topbar-running-status w-fit gap-1.5 rounded-full border border-solid border-current/20 bg-surface-secondary px-2 py-1 text-xs"
+										/>
 										<span className="min-w-0 truncate font-medium text-content-primary">
 											{w.name}
 										</span>
