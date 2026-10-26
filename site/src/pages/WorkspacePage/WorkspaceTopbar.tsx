@@ -273,9 +273,9 @@ export const WorkspaceTopbar: React.FC<WorkspaceTopbarProps> = ({
 							<>
 								<span
 									role="status"
-									className="inline-flex items-center gap-1.5 rounded-full border border-solid border-content-warning/40 bg-surface-primary px-2 py-1 text-xs text-content-warning"
+									className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-solid border-content-warning/40 bg-surface-primary px-2 py-1 text-xs text-content-warning"
 								>
-									<ShieldBanIcon className="size-3.5" aria-hidden />
+									<ShieldBanIcon className="size-3.5 shrink-0" aria-hidden />
 									Access locked
 								</span>
 								<LockdownBadge workspace={workspace} goldIcon />

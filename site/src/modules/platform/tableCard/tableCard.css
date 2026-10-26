@@ -46,7 +46,7 @@
 .table-card tbody > tr:hover,
 .table-card tbody > tr:focus-visible {
 	outline: none;
-	background: hsl(var(--surface-secondary) / 0.55);
+	background-color: hsl(var(--surface-secondary) / 0.55);
 }
 .table-card tbody > tr:focus-visible {
 	box-shadow: inset 3px 0 0 hsl(var(--content-link));

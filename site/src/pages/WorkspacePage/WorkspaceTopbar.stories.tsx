@@ -392,3 +392,12 @@ export const RunningStatusWithActions: Story = {
 		</div>
 	),
 };
+
+export const QuarantinedCompact: Story = {
+	...Quarantined,
+	render: (args) => (
+		<div className="mx-auto w-full max-w-[1000px]">
+			<WorkspaceTopbar {...args} />
+		</div>
+	),
+};

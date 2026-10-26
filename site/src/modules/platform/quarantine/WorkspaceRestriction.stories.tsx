@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { TableCard } from "#/modules/platform/tableCard/TableCard";
 import { workspaceQuarantineKey } from "#/api/queries/workspaceQuarantine";
 import { Avatar } from "#/components/Avatar/Avatar";
 import { Table, TableBody, TableCell } from "#/components/Table/Table";
@@ -31,18 +32,20 @@ export const WorkspaceRow: Story = {
 		],
 	},
 	render: () => (
-		<Table aria-label="Workspaces">
-			<TableBody>
-				<RestrictedWorkspaceRow workspace={MockWorkspace}>
-					<TableCell>
-						<WorkspaceRestrictionAvatar workspace={MockWorkspace}>
-							<Avatar fallback={MockWorkspace.owner_name} />
-						</WorkspaceRestrictionAvatar>
-					</TableCell>
-					<TableCell>{MockWorkspace.name}</TableCell>
-					<TableCell>Locked down or quarantined</TableCell>
-				</RestrictedWorkspaceRow>
-			</TableBody>
-		</Table>
+		<TableCard>
+			<Table aria-label="Workspaces">
+				<TableBody>
+					<RestrictedWorkspaceRow workspace={MockWorkspace}>
+						<TableCell>
+							<WorkspaceRestrictionAvatar workspace={MockWorkspace}>
+								<Avatar fallback={MockWorkspace.owner_name} />
+							</WorkspaceRestrictionAvatar>
+						</TableCell>
+						<TableCell>{MockWorkspace.name}</TableCell>
+						<TableCell>Locked down or quarantined</TableCell>
+					</RestrictedWorkspaceRow>
+				</TableBody>
+			</Table>
+		</TableCard>
 	),
 };
