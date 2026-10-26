@@ -16,7 +16,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/google/uuid"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -26,22 +28,28 @@ import (
 // Fields is a banner as an admin publishes it. The JSON names and their order
 // are the contract with the dashboard (api/platform.ts BannerSettings).
 type Fields struct {
-	Enabled         bool   `json:"enabled"`
-	Level           string `json:"level"`
-	Title           string `json:"title"`
-	Message         string `json:"message"`
-	LinkText        string `json:"linkText"`
-	LinkURL         string `json:"linkUrl"`
-	Dismissible     bool   `json:"dismissible"`
-	ShowOnLoginPage bool   `json:"showOnLoginPage"`
-	RefreshSeconds  int    `json:"refreshSeconds"`
-	Effect          string `json:"effect"`
-	Repeat          bool   `json:"repeat"`
-	LoopText        bool   `json:"loopText"`
-	Speed           string `json:"speed"`
-	CrawlSpeed      int    `json:"crawlSpeed"`
-	CrawlTilt       int    `json:"crawlTilt"`
-	Font            string `json:"font"`
+	Audience        string   `json:"audience"`
+	AudienceUserIDs []string `json:"audienceUserIds"`
+	Enabled         bool     `json:"enabled"`
+	Level           string   `json:"level"`
+	Title           string   `json:"title"`
+	Message         string   `json:"message"`
+	LinkText        string   `json:"linkText"`
+	LinkURL         string   `json:"linkUrl"`
+	Dismissible     bool     `json:"dismissible"`
+	ShowOnLoginPage bool     `json:"showOnLoginPage"`
+	RefreshSeconds  int      `json:"refreshSeconds"`
+	Effect          string   `json:"effect"`
+	Repeat          bool     `json:"repeat"`
+	LoopText        bool     `json:"loopText"`
+	AutoScroll      bool     `json:"autoScroll"`
+	AutoScrollSpeed int      `json:"autoScrollSpeed"`
+	PauseOnHover    bool     `json:"pauseOnHover"`
+	PauseOnClick    bool     `json:"pauseOnClick"`
+	Speed           string   `json:"speed"`
+	CrawlSpeed      int      `json:"crawlSpeed"`
+	CrawlTilt       int      `json:"crawlTilt"`
+	Font            string   `json:"font"`
 	// Receipts: the dashboard records who viewed the announcement and lets
 	// them confirm it. Off for a greeting nobody needs to account for.
 	Receipts    bool   `json:"receipts"`
@@ -74,6 +82,7 @@ type Banner struct {
 // FieldDefaults are the fields an admin's payload leaves out.
 func FieldDefaults() Fields {
 	return Fields{
+		Audience:        "everyone",
 		Enabled:         true,
 		Level:           "info",
 		Dismissible:     true,
@@ -81,6 +90,8 @@ func FieldDefaults() Fields {
 		RefreshSeconds:  60,
 		Effect:          "none",
 		LoopText:        true,
+		AutoScroll:      true,
+		AutoScrollSpeed: 4,
 		Speed:           "normal",
 		CrawlSpeed:      15,
 		CrawlTilt:       100,
@@ -144,6 +155,28 @@ func Clean(raw []byte) (Fields, error) {
 		return Fields{}, ValidationError("Invalid JSON.")
 	}
 	out := FieldDefaults()
+	out.Audience = "everyone"
+	if value, ok := payload["audience"]; ok {
+		if json.Unmarshal(value, &out.Audience) != nil || (out.Audience != "everyone" && out.Audience != "selected") {
+			return Fields{}, ValidationError("Choose Everyone or Selected users.")
+		}
+	}
+	if value, ok := payload["audienceUserIds"]; ok {
+		if json.Unmarshal(value, &out.AudienceUserIDs) != nil || len(out.AudienceUserIDs) > 500 {
+			return Fields{}, ValidationError("Select at most 500 users.")
+		}
+		for _, id := range out.AudienceUserIDs {
+			if _, err := uuid.Parse(id); err != nil {
+				return Fields{}, ValidationError("Select valid users.")
+			}
+		}
+	}
+	if out.Audience == "selected" && len(out.AudienceUserIDs) == 0 {
+		return Fields{}, ValidationError("Select at least one recipient.")
+	}
+	if out.Audience == "everyone" {
+		out.AudienceUserIDs = nil
+	}
 
 	for _, t := range []struct {
 		key   string
@@ -180,6 +213,9 @@ func Clean(raw []byte) (Fields, error) {
 		{"showOnLoginPage", &out.ShowOnLoginPage},
 		{"repeat", &out.Repeat},
 		{"loopText", &out.LoopText},
+		{"autoScroll", &out.AutoScroll},
+		{"pauseOnHover", &out.PauseOnHover},
+		{"pauseOnClick", &out.PauseOnClick},
 		{"receipts", &out.Receipts},
 		{"markdown", &out.Markdown},
 		{"outline", &out.Outline},
@@ -235,6 +271,7 @@ func Clean(raw []byte) (Fields, error) {
 		what      string
 		dst       *int
 	}{
+		{"autoScrollSpeed", FieldDefaults().AutoScrollSpeed, 1, 60, "Auto-scroll speed", &out.AutoScrollSpeed},
 		{"crawlSpeed", crawlDefault, 4, 60, "The crawl's speed", &out.CrawlSpeed},
 		{"crawlTilt", FieldDefaults().CrawlTilt, 0, 100, "The crawl's convergence", &out.CrawlTilt},
 		{"opacity", FieldDefaults().Opacity, 20, 100, "The banner's opacity", &out.Opacity},
@@ -295,6 +332,9 @@ func Clean(raw []byte) (Fields, error) {
 	}
 	if out.LinkURL != "" && !SafeURL(out.LinkURL) {
 		return Fields{}, ValidationError("The link must start with https://, http:// or /.")
+	}
+	if out.Audience == "selected" {
+		out.ShowOnLoginPage = false
 	}
 	return out, nil
 }
@@ -451,4 +491,13 @@ func contains(list []string, s string) bool {
 		}
 	}
 	return false
+}
+
+// ForViewer removes announcements not addressed to the authenticated viewer.
+func (b Banner) ForViewer(userID string) Banner {
+	if b.Audience == "selected" && (userID == "" || !slices.Contains(b.AudienceUserIDs, userID)) {
+		return Banner{}
+	}
+	b.AudienceUserIDs = nil
+	return b
 }

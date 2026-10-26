@@ -100,6 +100,20 @@ const connect = () => {
 		} catch {
 			return;
 		}
+		if (
+			typeof message === "object" &&
+			message !== null &&
+			"type" in message &&
+			message.type === "refresh" &&
+			queryClient
+		) {
+			queryClient.setQueryData<Banner>(bannerKey, (previous) =>
+				previous
+					? { ...previous, enabled: false, message: "", picture: "" }
+					: previous,
+			);
+			void queryClient.invalidateQueries({ queryKey: bannerKey, exact: true });
+		}
 		// Heartbeats ({"type": "hb"}) only prove the connection is alive.
 		if (isBannerMessage(message) && queryClient) {
 			const previous = queryClient.getQueryData<Banner>(bannerKey);

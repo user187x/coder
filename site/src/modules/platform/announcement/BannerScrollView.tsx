@@ -83,6 +83,10 @@ type BannerScrollViewProps = {
 		| "picture"
 		| "pictureFit"
 		| "opacity"
+		| "autoScroll"
+		| "autoScrollSpeed"
+		| "pauseOnHover"
+		| "pauseOnClick"
 	>;
 	/** The banner's colours: the terminal's screen in them too (else its own dark screen). */
 	colors?: { bg: string; fg: string };
@@ -188,9 +192,17 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 	useEffect(() => {
 		const el = panel.current;
 		return open && el
-			? attachAnnouncementAutoScroll(el, () => body.current)
+			? attachAnnouncementAutoScroll(el, () => body.current, false, banner)
 			: undefined;
-	}, [open, rect, banner.message]);
+	}, [
+		open,
+		rect,
+		banner.message,
+		banner.autoScroll,
+		banner.autoScrollSpeed,
+		banner.pauseOnHover,
+		banner.pauseOnClick,
+	]);
 
 	// Typing shows at the bottom, where the prompt is.
 	useLayoutEffect(() => {

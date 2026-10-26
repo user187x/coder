@@ -54,6 +54,12 @@ const FIELDS = [
 	"effect",
 	"repeat",
 	"loopText",
+	"audience",
+	"audienceUserIds",
+	"autoScroll",
+	"autoScrollSpeed",
+	"pauseOnHover",
+	"pauseOnClick",
 	"speed",
 	"crawlSpeed",
 	"crawlTilt",
@@ -81,6 +87,12 @@ const fieldsOf = ({ id: _id, ...banner }: Banner): BannerFields => {
 		effect: banner.effect ?? "none",
 		repeat: banner.repeat ?? false,
 		loopText: banner.loopText ?? true,
+		audience: banner.audience ?? "everyone",
+		audienceUserIds: banner.audienceUserIds ?? [],
+		autoScroll: banner.autoScroll ?? true,
+		autoScrollSpeed: banner.autoScrollSpeed ?? 4,
+		pauseOnHover: banner.pauseOnHover ?? false,
+		pauseOnClick: banner.pauseOnClick ?? false,
 		speed: banner.speed ?? "normal",
 		crawlSpeed:
 			banner.crawlSpeed ?? LEGACY_CRAWL_SPEED[banner.speed ?? "normal"],
@@ -111,7 +123,11 @@ const fieldsOf = ({ id: _id, ...banner }: Banner): BannerFields => {
 };
 
 export const sameFields = (a: BannerFields, b: BannerFields) =>
-	FIELDS.every((field) => a[field] === b[field]);
+	FIELDS.every((field) =>
+		field === "audienceUserIds"
+			? JSON.stringify(a[field] ?? []) === JSON.stringify(b[field] ?? [])
+			: a[field] === b[field],
+	);
 
 /**
  * The published announcement as the editor writes it, plain text. One

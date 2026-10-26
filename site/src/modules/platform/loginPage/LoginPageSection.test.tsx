@@ -27,3 +27,31 @@ it("saves the compact effect selection and both messages in one request", async 
 		),
 	);
 });
+
+it("saves an uploaded image heading while preserving the text settings", async () => {
+	vi.spyOn(PlatformAPI, "getLoginPage").mockResolvedValue({
+		...LOGIN_PAGE_DEFAULT,
+		title: "Welcome",
+	});
+	const save = vi
+		.spyOn(PlatformAPI, "updateLoginPage")
+		.mockResolvedValue(LOGIN_PAGE_DEFAULT);
+	render(<LoginPageSection />);
+	await userEvent.click(await screen.findByLabelText("Heading"));
+	await userEvent.click(screen.getByRole("option", { name: "Image" }));
+	await userEvent.upload(
+		screen.getByLabelText("Upload heading image"),
+		new File(["image"], "heading.png", { type: "image/png" }),
+	);
+	await userEvent.click(screen.getByRole("button", { name: "Save" }));
+	await waitFor(() =>
+		expect(save).toHaveBeenCalledWith(
+			expect.objectContaining({
+				headingMode: "image",
+				headingImage: "data:image/png;base64,aW1hZ2U=",
+				title: "Welcome",
+				effect: "wireframe",
+			}),
+		),
+	);
+});

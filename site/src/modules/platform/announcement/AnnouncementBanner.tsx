@@ -18,6 +18,7 @@ import {
 	useWorkspaceRestricted,
 	WorkspaceRestrictionNotice,
 } from "../quarantine/WorkspaceRestriction";
+import { AnnouncementReader } from "./AnnouncementReader";
 import { BannerCountdown } from "./BannerCountdown";
 import { BannerScrollView } from "./BannerScrollView";
 import { BannerText } from "./BannerText";
@@ -237,9 +238,18 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 					el,
 					() => el.querySelector<HTMLElement>("[data-banner-text]"),
 					compact && banner.loopText !== false,
+					banner,
 				)
 			: undefined;
-	}, [banner.message, banner.loopText, compact]);
+	}, [
+		banner.message,
+		banner.loopText,
+		banner.autoScroll,
+		banner.autoScrollSpeed,
+		banner.pauseOnHover,
+		banner.pauseOnClick,
+		compact,
+	]);
 
 	useEffect(() => {
 		if (receipts && signedIn && !viewed.has(banner.id)) {
@@ -265,75 +275,80 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 	const opening = open.opening && !close.closing;
 
 	return (
-		<div
-			ref={card}
-			id="coder-system-banner"
-			role="status"
-			data-closing={close.props["data-closing"]}
-			data-opening={opening ? openEffect : undefined}
-			onAnimationEnd={(event) => {
-				open.props.onAnimationEnd(event);
-				close.props.onAnimationEnd(event);
-			}}
-			className={cn(
-				"flex items-center gap-1",
-				placement === "navbar"
-					? "ml-3 min-h-9 min-w-0 flex-1 gap-1.5 rounded-[14px] py-1 pl-1 pr-1.5 text-[13px] leading-[18px] shadow-[0_1px_3px_rgb(0_0_0/.2),inset_0_0_0_1px_rgb(255_255_255/.14)]"
-					: "w-full p-1 text-center text-sm",
-				wasPushed(banner.id) &&
-					openEffect === "none" &&
-					"animate-in fade-in slide-in-from-top-2 duration-300",
-			)}
-			style={{
-				background: withBannerAlpha(bg, banner.opacity),
-				color: fg,
-				// Transparent: what shows through is blurred, so the text keeps reading
-				...(bannerAlpha(banner.opacity) < 1
-					? { backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)" }
-					: {}),
-			}}
-		>
-			{banner.countdown && <BannerCountdown to={banner.countdown} />}
-			<BannerLcd
-				bg={bg}
-				fg={fg}
-				radius={CARD_RADIUS[placement]}
-				opacity={banner.opacity}
+		<AnnouncementReader banner={banner}>
+			<div
+				ref={card}
+				id="coder-system-banner"
+				role="status"
+				data-closing={close.props["data-closing"]}
+				data-opening={opening ? openEffect : undefined}
+				onAnimationEnd={(event) => {
+					open.props.onAnimationEnd(event);
+					close.props.onAnimationEnd(event);
+				}}
+				className={cn(
+					"flex items-center gap-1",
+					placement === "navbar"
+						? "ml-3 min-h-9 min-w-0 flex-1 gap-1.5 rounded-[14px] py-1 pl-1 pr-1.5 text-[13px] leading-[18px] shadow-[0_1px_3px_rgb(0_0_0/.2),inset_0_0_0_1px_rgb(255_255_255/.14)]"
+						: "w-full p-1 text-center text-sm",
+					wasPushed(banner.id) &&
+						openEffect === "none" &&
+						"animate-in fade-in slide-in-from-top-2 duration-300",
+				)}
+				style={{
+					background: withBannerAlpha(bg, banner.opacity),
+					color: fg,
+					// Transparent: what shows through is blurred, so the text keeps reading
+					...(bannerAlpha(banner.opacity) < 1
+						? { backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)" }
+						: {}),
+				}}
 			>
-				<BannerText
-					banner={banner}
-					animate
-					loop={compact && banner.loopText !== false}
-					className={cn(
-						"min-w-0 flex-1 text-center",
-						// Long announcements must leave room for the sign-in form.
-						compact && "max-h-[36px] overflow-hidden [overflow-wrap:anywhere]",
-					)}
-				/>
-			</BannerLcd>
-			{/* Scroll mode: the whole message at once, without waiting for its effect - at the right, by the close */}
-			{placement !== "login" && (
-				<BannerScrollView banner={banner} anchor={card} colors={{ bg, fg }} />
-			)}
-			{opening && <OpenLayers effect={openEffect} />}
-			{close.closing && <CloseLayers effect={closeEffect} />}
-			{receipts && signedIn && viewedAt && <ViewedStamp viewedAt={viewedAt} />}
-			{receipts && signedIn && (
-				<ConfirmButton
-					background={confirmBackground(bg)}
-					confirmed={acked && !banner.dismissible}
-					onConfirm={() => {
-						confirm.mutate(banner.id);
-						if (banner.dismissible) {
-							close.start();
-						}
-					}}
-				/>
-			)}
-			{!receipts && placement !== "login" && banner.dismissible && (
-				<DismissButton onDismiss={close.start} />
-			)}
-		</div>
+				{banner.countdown && <BannerCountdown to={banner.countdown} />}
+				<BannerLcd
+					bg={bg}
+					fg={fg}
+					radius={CARD_RADIUS[placement]}
+					opacity={banner.opacity}
+				>
+					<BannerText
+						banner={banner}
+						animate
+						loop={compact && banner.loopText !== false}
+						className={cn(
+							"min-w-0 flex-1 text-center",
+							// Long announcements must leave room for the sign-in form.
+							compact &&
+								"max-h-[36px] overflow-hidden [overflow-wrap:anywhere]",
+						)}
+					/>
+				</BannerLcd>
+				{/* Scroll mode: the whole message at once, without waiting for its effect - at the right, by the close */}
+				{placement !== "login" && (
+					<BannerScrollView banner={banner} anchor={card} colors={{ bg, fg }} />
+				)}
+				{opening && <OpenLayers effect={openEffect} />}
+				{close.closing && <CloseLayers effect={closeEffect} />}
+				{receipts && signedIn && viewedAt && (
+					<ViewedStamp viewedAt={viewedAt} />
+				)}
+				{receipts && signedIn && (
+					<ConfirmButton
+						background={confirmBackground(bg)}
+						confirmed={acked && !banner.dismissible}
+						onConfirm={() => {
+							confirm.mutate(banner.id);
+							if (banner.dismissible) {
+								close.start();
+							}
+						}}
+					/>
+				)}
+				{!receipts && placement !== "login" && banner.dismissible && (
+					<DismissButton onDismiss={close.start} />
+				)}
+			</div>
+		</AnnouncementReader>
 	);
 };
 

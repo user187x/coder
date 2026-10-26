@@ -1231,11 +1231,20 @@ class LoginPageSettingsTest(unittest.TestCase):
         self.assertEqual(ui.LOGIN_PAGE_DEFAULT["effect"], "wireframe")
         self.assertEqual(ui.LOGIN_PAGE_DEFAULT["title"], "")
 
+    def test_image_heading_validation(self):
+        import base64
+        base = {"color": "#ffffff", "headingMode": "image"}
+        for image in ("", "https://example.com/image.png", "data:image/svg+xml;base64,PHN2Zz4=", "data:image/png;base64,aW1hZ2U="):
+            with self.assertRaises(ValueError):
+                ui.clean_login_page(dict(base, headingImage=image))
+        image = "data:image/png;base64," + base64.b64encode(ui.PNG + b"test").decode()
+        self.assertEqual(ui.clean_login_page(dict(base, headingImage=image))["headingImage"], image)
+
     def test_clean(self):
         v = ui.clean_login_page({"title": " Mission Control ", "effect": "neon", "color": "#FF00AA", "speed": 2,
                                  "message": "Authorised users only.", "signedOutMessage": "Bye."})
         self.assertEqual(v, {"title": "Mission Control", "effect": "neon", "color": "#ff00aa", "speed": 2.0,
-                             "message": "Authorised users only.", "signedOutMessage": "Bye."})
+                             "message": "Authorised users only.", "signedOutMessage": "Bye.", "headingMode": "text", "headingImage": ""})
         for bad in ({"effect": "blink"}, {"color": "red"}, {"speed": 0}, {"speed": True}, {"title": "a\nb"},
                     {"title": "x" * 41}, {"message": "m" * 301}):
             with self.assertRaises(ValueError):

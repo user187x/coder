@@ -27,7 +27,13 @@ func (api *API) mountPlatformBanner(r chi.Router, apiKeyOptional func(http.Handl
 		Store:     store,
 		Hub:       api.platformBannerHub,
 		Authorize: api.platformBannerAdmin,
-		Logger:    api.Logger.Named("platform_banner"),
+		Viewer: func(r *http.Request) string {
+			if key, ok := httpmw.APIKeyOptional(r); ok {
+				return key.UserID.String()
+			}
+			return ""
+		},
+		Logger: api.Logger.Named("platform_banner"),
 	}
 	r.Route(platformBannerPrefix, func(r chi.Router) {
 		r.Use(apiKeyOptional)

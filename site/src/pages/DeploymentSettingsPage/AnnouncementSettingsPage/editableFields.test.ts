@@ -24,6 +24,12 @@ describe("editableFields", () => {
 		expect(editableFields(custom)).toEqual({
 			...fields,
 			loopText: true,
+			audience: "everyone",
+			audienceUserIds: [],
+			autoScroll: true,
+			autoScrollSpeed: 4,
+			pauseOnHover: false,
+			pauseOnClick: false,
 			speed: "normal",
 			crawlSpeed: 15,
 			crawlTilt: 100,

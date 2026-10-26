@@ -2,6 +2,7 @@ import { XIcon } from "lucide-react";
 import { useEffect } from "react";
 import type { BannerFields } from "#/api/platform";
 import { BannerLcd, bannerColors } from "./AnnouncementBanner";
+import { AnnouncementReader } from "./AnnouncementReader";
 import { BannerCountdown } from "./BannerCountdown";
 import { BannerText } from "./BannerText";
 import { withBannerAlpha } from "./bannerAlpha";
@@ -40,43 +41,45 @@ export const BannerPreview: React.FC<BannerPreviewProps> = ({
 		return () => window.clearTimeout(timer);
 	}, [closing, start]);
 	return (
-		<div
-			className="flex w-full items-center gap-1 rounded-md p-1 text-center text-sm"
-			style={{ background: withBannerAlpha(bg, banner.opacity), color: fg }}
-			data-closing={close.props["data-closing"]}
-			data-opening={opening ? openEffect : undefined}
-			onAnimationEnd={(event) => {
-				open.props.onAnimationEnd(event);
-				close.props.onAnimationEnd(event);
-			}}
-		>
-			{banner.countdown && <BannerCountdown to={banner.countdown} />}
-			<BannerLcd bg={bg} fg={fg} radius={6} opacity={banner.opacity}>
-				<BannerText
-					banner={banner}
-					animate={animate}
-					className="min-w-0 flex-1 py-1.5 text-center"
-				/>
-			</BannerLcd>
-			{opening && <OpenLayers effect={openEffect} />}
-			{close.closing && <CloseLayers effect={closeEffect} />}
-			{banner.receipts !== false ? (
-				<span
-					aria-hidden
-					className="shrink-0 rounded-[7px] border border-solid border-white/60 bg-white/15 px-3.5 py-[3px] text-[13px] leading-[18px] font-semibold whitespace-nowrap"
-				>
-					Confirm
-				</span>
-			) : (
-				banner.dismissible && (
+		<AnnouncementReader banner={banner}>
+			<div
+				className="flex w-full items-center gap-1 rounded-md p-1 text-center text-sm"
+				style={{ background: withBannerAlpha(bg, banner.opacity), color: fg }}
+				data-closing={close.props["data-closing"]}
+				data-opening={opening ? openEffect : undefined}
+				onAnimationEnd={(event) => {
+					open.props.onAnimationEnd(event);
+					close.props.onAnimationEnd(event);
+				}}
+			>
+				{banner.countdown && <BannerCountdown to={banner.countdown} />}
+				<BannerLcd bg={bg} fg={fg} radius={6} opacity={banner.opacity}>
+					<BannerText
+						banner={banner}
+						animate={animate}
+						className="min-w-0 flex-1 py-1.5 text-center"
+					/>
+				</BannerLcd>
+				{opening && <OpenLayers effect={openEffect} />}
+				{close.closing && <CloseLayers effect={closeEffect} />}
+				{banner.receipts !== false ? (
 					<span
 						aria-hidden
-						className="flex size-[26px] shrink-0 items-center justify-center rounded-[7px] border border-solid border-white/60 bg-white/15"
+						className="shrink-0 rounded-[7px] border border-solid border-white/60 bg-white/15 px-3.5 py-[3px] text-[13px] leading-[18px] font-semibold whitespace-nowrap"
 					>
-						<XIcon className="size-4" />
+						Confirm
 					</span>
-				)
-			)}
-		</div>
+				) : (
+					banner.dismissible && (
+						<span
+							aria-hidden
+							className="flex size-[26px] shrink-0 items-center justify-center rounded-[7px] border border-solid border-white/60 bg-white/15"
+						>
+							<XIcon className="size-4" />
+						</span>
+					)
+				)}
+			</div>
+		</AnnouncementReader>
 	);
 };

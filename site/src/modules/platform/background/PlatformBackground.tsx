@@ -10,7 +10,19 @@ import {
 import { stillFrame } from "../animations/gifFreezer";
 import { dial, dialFilter, frameHash } from "./backgroundHtml";
 
-const size = (fit: BackgroundImage["fit"]) => (fit === "tile" ? "auto" : fit);
+const size = (fit: BackgroundImage["fit"]) => {
+	switch (fit) {
+		case "tile":
+		case "center":
+			return "auto";
+		case "stretch":
+			return "100% 100%";
+		case "span":
+			return "100% auto";
+		default:
+			return fit;
+	}
+};
 const repeat = (fit: BackgroundImage["fit"]) =>
 	fit === "tile" ? "repeat" : "no-repeat";
 

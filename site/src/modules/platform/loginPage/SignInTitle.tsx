@@ -65,12 +65,20 @@ export const SignInTitle: React.FC<SignInTitleProps> = ({
 	return (
 		<div className="mb-8 flex flex-col items-center gap-3">
 			<h1 className="m-0 flex justify-center leading-none">
-				<ContourTitle
-					text={settings.title || applicationName}
-					effect={settings.effect}
-					color={settings.color}
-					speed={settings.speed}
-				/>
+				{settings.headingMode === "image" && settings.headingImage ? (
+					<img
+						src={settings.headingImage}
+						alt={settings.title || applicationName}
+						className="max-h-32 max-w-full object-contain"
+					/>
+				) : (
+					<ContourTitle
+						text={settings.title || applicationName}
+						effect={settings.effect}
+						color={settings.color}
+						speed={settings.speed}
+					/>
+				)}
 			</h1>
 			{message && (
 				<p

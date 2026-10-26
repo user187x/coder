@@ -1385,6 +1385,8 @@ LOGIN_PAGE_DEFAULT = {
     "speed": 3.2,         # seconds for one trace (wireframe) or one pulse (neon)
     "message": "",
     "signedOutMessage": "",
+    "headingMode": "text",
+    "headingImage": "",
 }
 
 
@@ -1401,7 +1403,22 @@ def clean_login_page(p):
     speed = p.get("speed", 3.2)
     if isinstance(speed, bool) or not isinstance(speed, (int, float)) or not 0.5 <= speed <= 20:
         raise ValueError("The speed must be between 0.5 and 20 seconds.")
-    out = {"title": title, "effect": effect, "color": color.lower(), "speed": round(float(speed), 1)}
+    mode = p.get("headingMode", "text")
+    image = p.get("headingImage", "")
+    if mode not in ("text", "image"):
+        raise ValueError("Choose Text or Image for the heading.")
+    if not isinstance(image, str) or len(image) > 350000:
+        raise ValueError("The heading image must be smaller than 256 KB.")
+    if image:
+        if not re.match(r"^data:image/(png|jpeg|gif|webp|avif);base64,", image):
+            raise ValueError("Upload a PNG, JPEG, GIF, WebP or AVIF heading image.")
+        _, image_data = parse_logo(image)
+        if len(image_data) > 256 * 1024:
+            raise ValueError("The heading image must be smaller than 256 KB.")
+    if mode == "image" and not image:
+        raise ValueError("Upload an image before selecting an image heading.")
+    out = {"title": title, "effect": effect, "color": color.lower(), "speed": round(float(speed), 1),
+           "headingMode": mode, "headingImage": image}
     for key, label in (("message", "sign-in"), ("signedOutMessage", "sign-out")):
         text = str(p.get(key, "")).strip()
         if len(text) > 300:
@@ -3193,7 +3210,7 @@ LOGOS = None
 BG_SLOTS = ("login", "dashboard")
 BG_TYPES = {"image/png", "image/jpeg", "image/webp", "image/gif", "image/avif"}
 BG_MAX_BYTES = 4 * 1024 * 1024  # the dashboard sends at most 1920 x 1200 (WebP); an animated GIF as it is
-BG_FITS = ("cover", "contain", "tile")
+BG_FITS = ("cover", "contain", "tile", "stretch", "center", "span")
 BG_LAYERS = ("under", "over")  # behind the page's content, or a faint watermark over it
 BG_OPACITY = (0.02, 0.3, 0.06)  # min, max, default: hardly noticeable
 BG_HTML_MAX = 256 * 1024  # an HTML / CSS background (an animated one like the Particles preset)

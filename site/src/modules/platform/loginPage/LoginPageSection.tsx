@@ -109,6 +109,62 @@ export const LoginPageSection: React.FC = () => {
 
 			<div className="grid gap-5 rounded-lg border border-solid border-border p-4 lg:grid-cols-2">
 				<div className="grid grid-cols-2 gap-3">
+					<div className="col-span-2 flex flex-col gap-2">
+						<Label htmlFor={`${ids}-heading-mode`}>Heading</Label>
+						<Select
+							value={draft.headingMode ?? "text"}
+							onValueChange={(value) => {
+								if (value === "text" || value === "image")
+									set({ headingMode: value });
+							}}
+						>
+							<SelectTrigger id={`${ids}-heading-mode`}>
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="text">Text</SelectItem>
+								<SelectItem value="image">Image</SelectItem>
+							</SelectContent>
+						</Select>
+						{draft.headingMode === "image" && (
+							<>
+								<Label htmlFor={`${ids}-heading-image`}>
+									Upload heading image
+								</Label>
+								<Input
+									id={`${ids}-heading-image`}
+									type="file"
+									accept="image/png,image/jpeg,image/gif,image/webp,image/avif"
+									onChange={(event) => {
+										const file = event.target.files?.[0];
+										if (!file) return;
+										if (file.size > 256 * 1024) {
+											toast.error(
+												"The heading image must be smaller than 256 KB.",
+											);
+											return;
+										}
+										const reader = new FileReader();
+										reader.onload = () => {
+											if (typeof reader.result === "string") {
+												const headingImage = reader.result;
+												setDraft((current) =>
+													current ? { ...current, headingImage } : current,
+												);
+											}
+										};
+										reader.onerror = () =>
+											toast.error("The heading image could not be read.");
+										reader.readAsDataURL(file);
+									}}
+								/>
+								<span className="text-xs text-content-secondary">
+									PNG, JPEG, GIF, WebP or AVIF, up to 256 KB. The title supplies
+									alternative text.
+								</span>
+							</>
+						)}
+					</div>
 					<div className="flex flex-col gap-2">
 						<Label htmlFor={`${ids}-title`}>Title</Label>
 						<Input
@@ -208,7 +264,11 @@ export const LoginPageSection: React.FC = () => {
 
 					<div className="col-span-2 flex flex-wrap gap-2">
 						<Button
-							disabled={!dirty || save.isPending}
+							disabled={
+								!dirty ||
+								save.isPending ||
+								(draft.headingMode === "image" && !draft.headingImage)
+							}
 							onClick={() => submit(draft, "The sign-in page is saved.")}
 							data-testid="login-page-save"
 						>

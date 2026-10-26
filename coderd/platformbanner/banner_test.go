@@ -110,3 +110,22 @@ func TestSafeURL(t *testing.T) {
 		require.Equal(t, ok, platformbanner.SafeURL(u), u)
 	}
 }
+
+func TestTargetAudience(t *testing.T) {
+	t.Parallel()
+	id := "672ea503-0c18-4456-840d-a4d6068491a1"
+	f, err := clean(t, map[string]any{"message": "Private notice", "audience": "selected", "audienceUserIds": []string{id}, "showOnLoginPage": true, "autoScrollSpeed": 12, "pauseOnHover": true})
+	require.NoError(t, err)
+	require.False(t, f.ShowOnLoginPage)
+	require.Equal(t, 12, f.AutoScrollSpeed)
+	require.True(t, f.PauseOnHover)
+	b := platformbanner.Banner{Fields: f}
+	require.Empty(t, b.ForViewer("").Message)
+	require.Empty(t, b.ForViewer("someone-else").Message)
+	require.Equal(t, "Private notice", b.ForViewer(id).Message)
+	require.Empty(t, b.ForViewer(id).AudienceUserIDs)
+	for _, payload := range []map[string]any{{"audience": "selected"}, {"audience": "other"}, {"audience": "selected", "audienceUserIds": []string{"bad"}}, {"autoScrollSpeed": 0}, {"autoScrollSpeed": 61}} {
+		_, err := clean(t, payload)
+		require.Error(t, err)
+	}
+}

@@ -595,3 +595,15 @@ Queued next, at the user's explicit request: HUD disk/volume graphs and summary 
 - Announcement verification: 17 tests passed, including a request-based regression for editing through preview before explicit publication. TypeScript, targeted Biome/Oxlint and production frontend/server builds passed. Storybook edit/preview views and the live page were inspected.
 - Frontend self-review for these diffs: FE1 PASS (behavior tests and stories), FE2 PASS (existing types), FE3 PASS (shared primitives and preview), FE4 PASS (substantive comments), FE5 PASS (retained drafts and error handling), FE6 PASS (keyboard controls and semantic names), FE7 PASS (existing query/mutation definitions), FE8 PASS (no new effects), FE9 PASS (shared fixtures), FE10 PASS (semantic interaction queries and request/router assertions).
 - Server resume.81 is deployed, 2/2 ready, pinned to sha256:379fcf7a7fd475608dd1f7816c020639d9a7d9c103edd946dfe031b99b29018a. UI service remains resume.34. Evidence: /mnt/data/coder-ui-evidence-20261025/tunnel-hidden-peer-server80.png and announcement-unified-server81.png. The task's Storybook tab was closed after verification.
+
+## Announcement controls and appearance follow-up (2026-10-26)
+
+Implemented announcement auto-scroll enable/speed/hover and click pause, a right-click full-message reader with a blurred backdrop, and selected-user audiences. Targeted content is filtered on authenticated banner reads; public sockets emit refresh notifications without content or recipient IDs. Admin save responses no longer populate the public display cache.
+
+Appearance supports Stretch, Center, and Span (window width), plus Text/Image sign-in and sign-out headings. Raster uploads are validated and capped at 256 KB; switching modes preserves title/effect fields. Browser verification drafts were discarded without publishing or changing branding.
+
+Validation: 39 frontend tests passed; platformbanner Go suite passed; 3 Python heading validation tests passed; TypeScript, targeted Biome/Oxlint, frontend and Go builds passed. Live browser checked audience controls, context menu/modal, heading selector and fit options. FE1-FE10 scoped self-review passed; behavior tests and existing stories cover changed settings, with an image-heading story added.
+
+Deployed server resume.82 and UI service resume.35, ready 2/2 and 1/1. Server digest sha256:2c6572fd8e809fac612d07e5b01daddafb8c2ff8fdaf7e65c597b66cb1276ddf. UI service overlay was built from deployed resume.34 with only heading and background validation changes, excluding unrelated working-tree runtime changes.
+
+Evidence: /mnt/data/coder-ui-evidence-20261025/announcement-controls-server82.png, announcement-modal-server82.png, image-heading-server82.png, background-options-server82.png.

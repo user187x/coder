@@ -80,6 +80,7 @@ import {
 	PictureFitSelect,
 	UploadImageButton,
 } from "./BackgroundPicture";
+import { BannerAudience } from "./BannerAudience";
 import { EmojiButton } from "./EmojiButton";
 
 // Long broadcasts are what the crawl and the banner's scroll-down view are for.
@@ -446,6 +447,60 @@ export const BannerEditor: React.FC<BannerEditorProps> = ({
 						</span>
 					</Label>
 				</div>
+
+				<section
+					aria-labelledby={`${id}-scroll-heading`}
+					className="flex flex-col gap-4 border-0 border-t border-solid border-border pt-4"
+				>
+					<h3 id={`${id}-scroll-heading`} className="m-0 text-sm font-semibold">
+						Auto-scroll
+					</h3>
+					<div className="flex flex-wrap items-center gap-6">
+						<Label className="flex items-center gap-2">
+							<Checkbox
+								checked={form.autoScroll !== false}
+								onCheckedChange={(checked) =>
+									onChange({ autoScroll: checked === true })
+								}
+							/>
+							Enable auto-scroll
+						</Label>
+						<CrawlSlider
+							label="Auto-scroll speed"
+							value={form.autoScrollSpeed ?? 4}
+							min={1}
+							max={60}
+							unit=" px/s"
+							hint="Reading speed for overflowing announcements."
+							onChange={(autoScrollSpeed) => onChange({ autoScrollSpeed })}
+						/>
+					</div>
+					<div className="flex flex-wrap gap-6">
+						<Label className="flex items-center gap-2">
+							<Checkbox
+								checked={form.pauseOnHover === true}
+								onCheckedChange={(checked) =>
+									onChange({ pauseOnHover: checked === true })
+								}
+							/>
+							Pause on mouseover
+						</Label>
+						<Label className="flex items-center gap-2">
+							<Checkbox
+								checked={form.pauseOnClick === true}
+								onCheckedChange={(checked) =>
+									onChange({ pauseOnClick: checked === true })
+								}
+							/>
+							Click to pause or resume
+						</Label>
+					</div>
+					<p className="m-0 text-xs text-content-secondary">
+						Right-click an announcement to open its full message in a pop-out
+						modal. Reduced-motion preferences still apply.
+					</p>
+				</section>
+				<BannerAudience form={form} onChange={onChange} />
 				<div className="grid gap-6 border-0 border-t border-solid border-border pt-4 xl:grid-cols-2">
 					<OpenField form={form} onChange={onChange} onTry={onTryOpen} />
 					<CloseField form={form} onChange={onChange} onTry={onTryClose} />
@@ -494,7 +549,12 @@ export const BannerEditor: React.FC<BannerEditorProps> = ({
 
 			<div className="sticky bottom-10 z-10 -mx-4 -mb-4 flex flex-wrap items-center gap-3 rounded-b-xl border-0 border-t border-solid border-border bg-surface-primary p-4 sm:-mx-6 sm:-mb-6 sm:px-6">
 				<Button
-					disabled={isPublishing || !dirty || !hasContent(form)}
+					disabled={
+						isPublishing ||
+						!dirty ||
+						!hasContent(form) ||
+						(form.audience === "selected" && !form.audienceUserIds?.length)
+					}
 					onClick={onPublish}
 				>
 					<Spinner loading={isPublishing} />

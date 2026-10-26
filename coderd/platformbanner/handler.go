@@ -44,6 +44,7 @@ type Handler struct {
 	Store     *Store
 	Hub       *Hub
 	Authorize Authorizer
+	Viewer    func(*http.Request) string
 	Logger    slog.Logger
 }
 
@@ -70,7 +71,11 @@ func (h *Handler) serveBanner(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rw.Header().Set("Cache-Control", "no-store")
-	writeJSON(rw, http.StatusOK, st.Banner())
+	viewer := ""
+	if h.Viewer != nil {
+		viewer = h.Viewer(r)
+	}
+	writeJSON(rw, http.StatusOK, st.Banner().ForViewer(viewer))
 }
 
 // summary is GET /api/state's answer (and every change's).

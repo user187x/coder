@@ -10,6 +10,19 @@ import {
 const URL = "/__coder-ui/background/dashboard?v=1";
 
 describe("backgroundStyle", () => {
+	it.each([
+		["stretch", "100% 100%"],
+		["center", "auto"],
+		["span", "100% auto"],
+	] as const)("maps %s in both rendering layers", (fit, size) => {
+		expect(
+			backgroundStyle({ url: "/x.png", opacity: 0.1, fit }).backgroundSize,
+		).toBe(size);
+		expect(
+			underlayLayers({ url: "/x.png", opacity: 0.1, fit }, [0, 0, 0])
+				.backgroundSize,
+		).toBe(`auto, ${size}`);
+	});
 	it("fills, fits or tiles, faintly", () => {
 		expect(
 			backgroundStyle({ url: "/x.png", opacity: 0.06, fit: "cover" }),

@@ -564,7 +564,7 @@ export const bannerState = () => ({
 const onBannerChange =
 	(queryClient: QueryClient) => async (state: BannerState) => {
 		queryClient.setQueryData(bannerStateKey, state);
-		queryClient.setQueryData(bannerKey, state.banner);
+		await queryClient.invalidateQueries({ queryKey: bannerKey, exact: true });
 		await queryClient.invalidateQueries({ queryKey: announcementReportKey });
 	};
 

@@ -25,6 +25,37 @@ describe("announcement auto scroll", () => {
 		return el;
 	};
 
+	it("honors disabled scrolling and configured speed", () => {
+		const el = box(1000, 36);
+		const off = attachAnnouncementAutoScroll(el, () => el, false, {
+			autoScroll: false,
+		});
+		vi.advanceTimersByTime(READ_DELAY_MS + 2000);
+		expect(el.scrollTop).toBe(0);
+		off();
+		const stop = attachAnnouncementAutoScroll(el, () => el, false, {
+			autoScrollSpeed: 20,
+		});
+		vi.advanceTimersByTime(READ_DELAY_MS + 1000);
+		expect(el.scrollTop).toBeGreaterThan(18);
+		stop();
+	});
+	it.each(["hover", "click"])("pauses and resumes using %s", (mode) => {
+		const el = box(1000, 36);
+		const off = attachAnnouncementAutoScroll(el, () => el, false, {
+			pauseOnHover: mode === "hover",
+			pauseOnClick: mode === "click",
+		});
+		vi.advanceTimersByTime(READ_DELAY_MS + 1000);
+		el.dispatchEvent(new Event(mode === "hover" ? "pointerenter" : "click"));
+		const position = el.scrollTop;
+		vi.advanceTimersByTime(5000);
+		expect(el.scrollTop).toBe(position);
+		el.dispatchEvent(new Event(mode === "hover" ? "pointerleave" : "click"));
+		vi.advanceTimersByTime(READ_DELAY_MS + 1000);
+		expect(el.scrollTop).toBeGreaterThan(position);
+		off();
+	});
 	it("automatically reads overflowing text very slowly to its end without hovering", () => {
 		const el = box(100, 36);
 		const off = attachAnnouncementAutoScroll(el);

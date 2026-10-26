@@ -121,6 +121,7 @@ func (h *Hub) Broadcast(b Banner) int {
 		return len(h.clients)
 	}
 	h.last = msg
+	msg = delivery(b)
 	n := 0
 	for c := range h.clients {
 		select {
@@ -159,7 +160,7 @@ func (h *Hub) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	conn.SetReadLimit(liveReadLimit)
 	ctx := conn.CloseRead(context.Background()) // answers pings, ends when the tab goes
 	c := &client{send: make(chan []byte, liveQueue)}
-	c.send <- message(st.Banner())
+	c.send <- delivery(st.Banner())
 	h.mu.Lock()
 	h.clients[c] = struct{}{}
 	h.mu.Unlock()
@@ -200,4 +201,12 @@ func (h *Hub) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+}
+
+// Targeted content is fetched through the authenticated HTTP endpoint.
+func delivery(b Banner) []byte {
+	if b.Audience == "selected" {
+		return []byte(`{"type":"refresh"}`)
+	}
+	return message(b.ForViewer(""))
 }

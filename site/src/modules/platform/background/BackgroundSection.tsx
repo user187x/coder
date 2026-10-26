@@ -73,6 +73,9 @@ const FITS: { value: BackgroundFit; label: string }[] = [
 	{ value: "cover", label: "Fill the window" },
 	{ value: "contain", label: "Fit inside" },
 	{ value: "tile", label: "Tile" },
+	{ value: "stretch", label: "Stretch" },
+	{ value: "center", label: "Center" },
+	{ value: "span", label: "Span (window width)" },
 ];
 
 /**

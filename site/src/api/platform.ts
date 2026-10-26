@@ -156,6 +156,8 @@ export type QuickMenuSettings = {
 export type LoginPageSettings = {
 	/** "": the deployment's name (Coder, or the one set in Appearance). */
 	title: string;
+	headingMode?: "text" | "image";
+	headingImage?: string;
 	effect: LoginEffect;
 	/** The effect's colour (#rrggbb): the traced outline, the neon's glow, the plain title. */
 	color: string;
@@ -170,6 +172,8 @@ export type LoginPageSettings = {
 };
 export const LOGIN_PAGE_DEFAULT: LoginPageSettings = {
 	title: "",
+	headingMode: "text",
+	headingImage: "",
 	effect: "wireframe",
 	color: "#4ff8ff",
 	speed: 3.2,
@@ -199,7 +203,13 @@ export type LogoState = {
 
 export const BACKGROUND_SLOTS = ["login", "dashboard"] as const;
 export type BackgroundSlot = (typeof BACKGROUND_SLOTS)[number];
-export type BackgroundFit = "cover" | "contain" | "tile";
+export type BackgroundFit =
+	| "cover"
+	| "contain"
+	| "tile"
+	| "stretch"
+	| "center"
+	| "span";
 /** Behind the page's content (an underlay), or a faint watermark over it. */
 export type BackgroundLayer = "under" | "over";
 
@@ -1430,6 +1440,12 @@ export type Banner = {
 	repeat: boolean;
 	/** Continuously reads overflowing banner text; missing means enabled. */
 	loopText?: boolean;
+	audience?: "everyone" | "selected";
+	audienceUserIds?: string[];
+	autoScroll?: boolean;
+	autoScrollSpeed?: number;
+	pauseOnHover?: boolean;
+	pauseOnClick?: boolean;
 	/** Missing in announcements saved before it existed: "normal". */
 	speed?: BannerSpeed;
 	/** The crawl's pace (effect "starwars"), pixels per second (CRAWL_SPEED). Missing: from speed. */
@@ -2320,6 +2336,8 @@ export const PlatformAPI = {
 	updateLoginPage: (settings: LoginPageSettings) =>
 		post<LoginPageSettings>(`${PLATFORM_BASE}/api/login-page`, {
 			title: settings.title.trim(),
+			headingMode: settings.headingMode ?? "text",
+			headingImage: settings.headingImage ?? "",
 			effect: settings.effect,
 			color: settings.color,
 			speed: settings.speed,

@@ -79,10 +79,10 @@ it.each(["keyboard", "pointer"])(
 		);
 		const user = userEvent.setup();
 		if (interaction === "keyboard") {
-			screen.getByRole("slider").focus();
+			screen.getByRole("slider", { name: "Transparency" }).focus();
 			await user.keyboard("{ArrowRight}");
 		} else {
-			const track = screen.getByLabelText("Transparency");
+			const track = screen.getByRole("group", { name: "Transparency" });
 			vi.spyOn(track, "getBoundingClientRect").mockReturnValue(
 				new DOMRect(0, 0, 100, 8),
 			);
