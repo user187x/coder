@@ -116,6 +116,9 @@ export const WorkspaceTunnelPorts: React.FC<{
 	);
 	const [selectedSide, setSelectedSide] = useState<"left" | "right">("right");
 	const [routes, setRoutes] = useState<Record<string, TunnelRoute>>({});
+	const [heads, setHeads] = useState<Record<string, { x: number; y: number }>>(
+		{},
+	);
 	const [arcs, setArcs] = useState<Record<string, number>>({});
 	const [stubs, setStubs] = useState<
 		Record<string, { length: number; bend: number }>
@@ -462,13 +465,24 @@ export const WorkspaceTunnelPorts: React.FC<{
 						};
 						const stub = stubs[t.id] ?? { length: 26, bend: 0 };
 						const direction = visible.side === "left" ? -1 : 1;
-						const end = visible.x + direction * stub.length;
+						const head = heads[t.id] ?? { x: 0, y: 0 };
+						const end = visible.x + direction * stub.length + head.x;
+						const endY = visible.y + head.y;
 						return (
 							<EditableTunnelCable
 								key={t.id}
 								from={{ x: visible.x - direction * 15, y: visible.y }}
-								to={{ x: end, y: visible.y }}
-								defaultPath={`M ${visible.x - direction * 15} ${visible.y} C ${visible.x + (direction * stub.length) / 3} ${visible.y + stub.bend}, ${end - (direction * stub.length) / 3} ${visible.y - stub.bend}, ${end} ${visible.y}`}
+								to={{ x: end, y: endY }}
+								onMoveHead={(point) =>
+									setHeads((current) => ({
+										...current,
+										[t.id]: {
+											x: point.x - visible.x - direction * stub.length,
+											y: point.y - visible.y,
+										},
+									}))
+								}
+								defaultPath={`M ${visible.x - direction * 15} ${visible.y} C ${visible.x + (direction * stub.length) / 3} ${visible.y + stub.bend}, ${end - (direction * stub.length) / 3} ${endY - stub.bend}, ${end} ${endY}`}
 								route={routes[t.id] ?? { points: [], orthogonal: false }}
 								onChange={(route) =>
 									setRoutes((current) => ({ ...current, [t.id]: route }))
@@ -478,7 +492,7 @@ export const WorkspaceTunnelPorts: React.FC<{
 							>
 								<circle
 									cx={end}
-									cy={visible.y}
+									cy={endY}
 									r={8}
 									fill="hsl(var(--surface-primary))"
 									stroke="currentColor"
@@ -487,13 +501,13 @@ export const WorkspaceTunnelPorts: React.FC<{
 									<path
 										aria-hidden
 										d="M 2 -5 L -3 0 L 1 0 L -2 5 M -1 -2 L 4 1 M 0 2 L -4 3"
-										transform={`translate(${end} ${visible.y})`}
+										transform={`translate(${end} ${endY})`}
 										className="workspace-tunnel-electric"
 									/>
 								) : (
 									<text
 										x={end}
-										y={visible.y + 3}
+										y={endY + 3}
 										textAnchor="middle"
 										className="fill-current text-[10px]"
 									>

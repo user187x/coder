@@ -120,3 +120,46 @@ it("switches routing modes and resets visual changes", async () => {
 	);
 	expect(changed).toHaveBeenLastCalledWith({ points: [], orthogonal: false });
 });
+
+it("moves the free head with Ctrl-drag without adding a bend or opening the connection", async () => {
+	const user = userEvent.setup();
+	const moved = vi.fn();
+	const changed = vi.fn();
+	const opened = vi.fn();
+	render(
+		<svg>
+			<EditableTunnelCable
+				from={{ x: 10, y: 20 }}
+				to={{ x: 110, y: 20 }}
+				defaultPath="M10 20 H110"
+				route={{ points: [], orthogonal: false }}
+				label="Manage test tunnel"
+				onOpen={opened}
+				onChange={changed}
+				onMoveHead={moved}
+			>
+				<circle cx={110} cy={20} r={8} />
+			</EditableTunnelCable>
+		</svg>,
+	);
+	const head = screen.getByRole("button", {
+		name: "Move cable head: test tunnel",
+	});
+	await user.keyboard("{Control>}");
+	await user.pointer([
+		{
+			keys: "[MouseLeft>]",
+			target: head,
+			coords: { clientX: 110, clientY: 20 },
+		},
+		{ target: head, coords: { clientX: 150, clientY: 70 } },
+		{ keys: "[/MouseLeft]", target: head },
+	]);
+	await user.keyboard("{/Control}");
+	expect(moved).toHaveBeenLastCalledWith({ x: 150, y: 70 });
+	expect(changed).not.toHaveBeenCalled();
+	expect(opened).not.toHaveBeenCalled();
+	head.focus();
+	await user.keyboard("{ArrowDown}");
+	expect(moved).toHaveBeenLastCalledWith({ x: 110, y: 22 });
+});
