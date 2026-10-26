@@ -48,7 +48,12 @@ export const EditableTunnelCable = ({
 	const group = useRef<SVGGElement>(null);
 	const [selected, setSelected] = useState<number | null>(null);
 	const at = useRef<Point>({ x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 });
-	const moving = useRef<number | null>(null);
+	const moving = useRef<{
+		pointerId: number;
+		index: number;
+		route: TunnelRoute;
+	} | null>(null);
+	const suppressClick = useRef(false);
 	const frame = useRef<number | null>(null);
 	const pendingMove = useRef<(() => void) | null>(null);
 	useEffect(
@@ -93,6 +98,34 @@ export const EditableTunnelCable = ({
 				<g
 					ref={group}
 					className="workspace-tunnel-cord"
+					onPointerMove={(e) => {
+						const drag = moving.current;
+						if (!drag || drag.pointerId !== e.pointerId) return;
+						e.stopPropagation();
+						const p = position(e.clientX, e.clientY);
+						pendingMove.current = () =>
+							onChange({
+								...drag.route,
+								points: drag.route.points.map((point, index) =>
+									index === drag.index
+										? { ...point, x: p.x - from.x, y: p.y - from.y }
+										: point,
+								),
+							});
+						if (frame.current === null)
+							frame.current = requestAnimationFrame(flushMove);
+					}}
+					onPointerUp={(e) => {
+						if (moving.current?.pointerId !== e.pointerId) return;
+						flushMove();
+						moving.current = null;
+						e.currentTarget.releasePointerCapture?.(e.pointerId);
+					}}
+					onPointerCancel={() => {
+						pendingMove.current = null;
+						flushMove();
+						moving.current = null;
+					}}
 					onContextMenuCapture={(e) => {
 						setSelected(null);
 						at.current =
@@ -144,7 +177,33 @@ export const EditableTunnelCable = ({
 						role="button"
 						tabIndex={0}
 						aria-label={label}
-						onClick={onOpen}
+						onClick={(e) => {
+							if (suppressClick.current || e.ctrlKey) {
+								suppressClick.current = false;
+								return;
+							}
+							onOpen();
+						}}
+						onPointerDown={(e) => {
+							suppressClick.current = false;
+							if (e.button !== 0 || !e.ctrlKey) return;
+							e.preventDefault();
+							e.stopPropagation();
+							const next = insertTunnelBend(
+								from,
+								to,
+								route,
+								position(e.clientX, e.clientY),
+							);
+							const index = next.points.findIndex(
+								(point) =>
+									!route.points.some((existing) => existing.id === point.id),
+							);
+							onChange(next);
+							moving.current = { pointerId: e.pointerId, index, route: next };
+							suppressClick.current = true;
+							group.current?.setPointerCapture?.(e.pointerId);
+						}}
 						onKeyDown={(e) => {
 							if (e.key === "Enter" || e.key === " ") {
 								e.preventDefault();
@@ -160,6 +219,10 @@ export const EditableTunnelCable = ({
 							className="pointer-events-auto cursor-pointer"
 						/>
 						{children}
+						<title>
+							Ctrl+drag the cable to add and move a bend point. Right-click for
+							routing options.
+						</title>
 					</g>
 					{route.points.map((point, index) => (
 						<circle
@@ -179,27 +242,8 @@ export const EditableTunnelCable = ({
 							onPointerDown={(e) => {
 								if (e.button !== 0) return;
 								e.stopPropagation();
-								moving.current = e.pointerId;
-								e.currentTarget.setPointerCapture?.(e.pointerId);
-							}}
-							onPointerMove={(e) => {
-								if (moving.current !== e.pointerId) return;
-								e.stopPropagation();
-								const p = position(e.clientX, e.clientY);
-								pendingMove.current = () =>
-									move(index, { x: p.x - from.x, y: p.y - from.y });
-								if (frame.current === null)
-									frame.current = requestAnimationFrame(flushMove);
-							}}
-							onPointerUp={(e) => {
-								flushMove();
-								moving.current = null;
-								e.currentTarget.releasePointerCapture?.(e.pointerId);
-							}}
-							onPointerCancel={() => {
-								pendingMove.current = null;
-								flushMove();
-								moving.current = null;
+								moving.current = { pointerId: e.pointerId, index, route };
+								group.current?.setPointerCapture?.(e.pointerId);
 							}}
 							onKeyDown={(e) => {
 								const step = e.shiftKey ? 10 : 2;

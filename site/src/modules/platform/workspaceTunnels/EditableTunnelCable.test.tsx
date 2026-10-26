@@ -66,6 +66,24 @@ it("adds, moves and removes a bend without opening or changing the connection", 
 	await user.pointer({ keys: "[MouseRight]", target: point });
 	await user.click(screen.getByRole("menuitem", { name: "Remove bend point" }));
 	expect(changed).toHaveBeenLastCalledWith({ orthogonal: false, points: [] });
+	await user.keyboard("{Control>}");
+	await user.pointer([
+		{
+			keys: "[MouseLeft>]",
+			target: screen.getByRole("button", { name: "Manage test tunnel" }),
+			coords: { clientX: 50, clientY: 20 },
+		},
+		{
+			target: screen.getByRole("button", { name: "Manage test tunnel" }),
+			coords: { clientX: 75, clientY: 60 },
+		},
+		{ keys: "[/MouseLeft]" },
+	]);
+	await user.keyboard("{/Control}");
+	expect(changed).toHaveBeenLastCalledWith({
+		orthogonal: false,
+		points: [{ id: expect.any(String), x: 65, y: 40 }],
+	});
 	expect(opened).not.toHaveBeenCalled();
 });
 
