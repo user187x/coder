@@ -128,7 +128,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
 		<div className="flex flex-col gap-6 max-w-[1200px] m-auto">
 			{/* Platform: the notice while an admin has the workspace locked down */}
 			<LockdownBanner workspace={workspace} />
-			<WorkspaceQuarantineControl workspace={workspace} />
+			<WorkspaceQuarantineControl workspace={workspace} noticeOnly />
 			{workspace.latest_build.status === "deleted" && (
 				<WorkspaceDeletedBanner
 					createWorkspaceLink={createWorkspaceLink}

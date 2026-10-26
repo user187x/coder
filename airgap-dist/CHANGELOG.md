@@ -2554,3 +2554,4 @@ workspace checks).
 - Refine the Add a panel cutout into a concentric semicircle around a floating circular plus, matching the supplied reference.
 - Render the tunnel indicator in gray with a theme-colored pulsing border, respecting reduced-motion and animation preferences.
 - Use a true radial mask for the add-panel cutout and place its floating button outside the masked card, eliminating the edge artifact.
+- Move workspace quarantine management into the gold Lock Down shield menu, preserving its icon and confirmation flow; retain active quarantine notices on the workspace page.

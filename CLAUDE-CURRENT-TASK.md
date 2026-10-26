@@ -438,3 +438,7 @@ Changed the workspace tunnel indicator to a muted gray glyph with a pulsing circ
 ### True masked panel cutout
 
 Replaced the painted notch overlay with a radial-gradient mask on the complete panel card, including its top border. Positioned the plus as a sibling outside the masked card, sharing the mask's center at 40 pixels from the right edge. This removes the residual straight border and colored overlay artifact while preserving a clean circular clearance. Removed the obsolete AgentPanels addTab slot after moving the control to the card wrapper.
+
+### Quarantine in the Lock Down shield menu
+
+Added a Quarantine menu entry with the existing ShieldBan icon beneath the Lock Down heading. It opens a review dialog using the existing WorkspaceQuarantineControl, preserving confirmation, enforcement reporting, query invalidation, and administrator checks. Replaced the workspace page's inactive card with notice-only rendering: active quarantine remains visible as a read-only notice, while management lives under the shield. Opening review performs no mutation. All 21 targeted lockdown/quarantine tests passed.

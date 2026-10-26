@@ -80,9 +80,10 @@ export const QuarantineEnforcementReport: React.FC<{
 };
 
 /** Keeps workspace metadata accessible while quarantine enforcement is pending. */
-export const WorkspaceQuarantineControl: React.FC<{ workspace: Workspace }> = ({
-	workspace,
-}) => {
+export const WorkspaceQuarantineControl: React.FC<{
+	workspace: Workspace;
+	noticeOnly?: boolean;
+}> = ({ workspace, noticeOnly = false }) => {
 	const client = useQueryClient();
 	const { user } = useAuthenticated();
 	const state = useQuery(
@@ -96,13 +97,13 @@ export const WorkspaceQuarantineControl: React.FC<{ workspace: Workspace }> = ({
 		setWorkspaceQuarantine(client, workspace.organization_id, workspace.id),
 	);
 	const admin = user.roles.some((role) => role.name === "owner");
-	if (!admin && !state.data?.enabled) return null;
+	if ((noticeOnly || !admin) && !state.data?.enabled) return null;
 	return (
 		<WorkspaceQuarantineView
 			name={`${workspace.owner_name}/${workspace.name}`}
 			enabled={state.data?.enabled}
 			reason={state.data?.reason}
-			canManage={admin}
+			canManage={admin && !noticeOnly}
 			loading={state.isLoading}
 			busy={change.isPending}
 			error={change.error || state.error}

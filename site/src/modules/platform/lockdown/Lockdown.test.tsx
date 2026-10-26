@@ -1,8 +1,11 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { PlatformAPI, type WorkspaceLockdown } from "#/api/platform";
+import { WorkspaceQuarantineAPI } from "#/api/workspaceQuarantine";
 import { MockWorkspace } from "#/testHelpers/entities";
-import { renderComponent } from "#/testHelpers/renderHelpers";
+import { renderComponent, renderWithAuth } from "#/testHelpers/renderHelpers";
+import { MockWorkspaceQuarantine } from "#/testHelpers/workspaceQuarantine";
 import {
 	LockdownBadge,
 	LockdownBanner,
@@ -327,4 +330,29 @@ describe("Lock Down", () => {
 		);
 		expect(screen.getByTestId("lockdown-complete")).toHaveTextContent("Unlock");
 	});
+});
+
+it("opens quarantine review from the shield without changing isolation", async () => {
+	vi.spyOn(PlatformAPI, "getLockdown").mockResolvedValue(lock({}));
+	const get = vi
+		.spyOn(WorkspaceQuarantineAPI, "get")
+		.mockResolvedValue({ ...MockWorkspaceQuarantine, enabled: false });
+	const set = vi.spyOn(WorkspaceQuarantineAPI, "set");
+	renderWithAuth(
+		<LockdownBadge workspace={MockWorkspace} modes={[]} goldIcon />,
+	);
+	const user = userEvent.setup();
+	await user.click(
+		await screen.findByRole("button", {
+			name: `Lock Down ${MockWorkspace.owner_name}/${MockWorkspace.name}`,
+		}),
+	);
+	await user.click(screen.getByRole("menuitem", { name: "Quarantine" }));
+	await waitFor(() =>
+		expect(get).toHaveBeenCalledWith(
+			MockWorkspace.organization_id,
+			MockWorkspace.id,
+		),
+	);
+	expect(set).not.toHaveBeenCalled();
 });
