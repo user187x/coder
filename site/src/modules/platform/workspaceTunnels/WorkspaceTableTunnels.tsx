@@ -75,6 +75,7 @@ export const WorkspaceTableTunnels: React.FC<{
 			<div ref={area} className="relative min-w-0">
 				{children}
 				<WorkspaceTunnelPorts
+					key={actorId}
 					shown={shown}
 					cols={1}
 					cellW={0}
