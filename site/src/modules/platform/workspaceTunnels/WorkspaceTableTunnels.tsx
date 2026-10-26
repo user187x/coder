@@ -3,7 +3,8 @@ import { useQueries } from "react-query";
 import type { WorkspaceTunnel } from "#/api/platform";
 import { workspaceTunnels } from "#/api/queries/workspaceTunnels";
 import type { Workspace } from "#/api/typesGenerated";
-import { useAnimationsEnabled } from "#/modules/platform/animations/animations";
+import { TunnelFlowIndicator } from "./TunnelFlowIndicator";
+import { TunnelOverviewTooltip } from "./TunnelOverview";
 import {
 	type TableTunnelAnchor,
 	WorkspaceTunnelPorts,
@@ -96,7 +97,6 @@ export const WorkspaceTunnelStatus: React.FC<{ workspaceId: string }> = ({
 	workspaceId,
 }) => {
 	const { tunnels, unavailable, shownIds } = useContext(Connections);
-	const animations = useAnimationsEnabled();
 	const affected = tunnels.filter(
 		(t) =>
 			t.source_workspace_id === workspaceId ||
@@ -120,25 +120,55 @@ export const WorkspaceTunnelStatus: React.FC<{ workspaceId: string }> = ({
 				: error
 					? "Tunnel error"
 					: `${affected.length} tunnel${affected.length === 1 ? "" : "s"} connected`;
+	const ready = unavailable ? [] : affected.filter((t) => t.status === "ready");
+	const incoming = ready.filter(
+		(t) => t.target_workspace_id === workspaceId,
+	).length;
+	const outgoing = ready.filter(
+		(t) => t.source_workspace_id === workspaceId,
+	).length;
+	const summary = `${label}${outside > 0 ? ` · ${outside} outside this view` : ""}. ${incoming} incoming, ${outgoing} outgoing`;
 	return (
-		<span
-			role="status"
-			title={
-				affected
-					.map((t) => t.error)
-					.filter(Boolean)
-					.join("; ") || undefined
+		<TunnelOverviewTooltip
+			overview={
+				<div className="flex flex-col gap-2">
+					<p className="m-0 font-semibold text-content-primary">
+						Workspace tunnels
+					</p>
+					<p className="m-0">
+						{label}
+						{outside > 0 && ` · ${outside} outside this view`}
+					</p>
+					<div className="flex justify-between gap-3">
+						<span className="text-[#4ade80]">{outgoing} outgoing ←</span>
+						<span className="text-[#60a5fa]">{incoming} incoming →</span>
+					</div>
+					{affected.map((t) => (
+						<div
+							key={t.id}
+							className="border-0 border-t border-solid border-border pt-2"
+						>
+							<p className="m-0 break-all text-content-primary">
+								{t.source_workspace_name ?? t.source_workspace_id} →{" "}
+								{t.target_workspace_name ?? t.target_workspace_id}
+							</p>
+							<p className="m-0">{t.error || t.status}</p>
+						</div>
+					))}
+				</div>
 			}
-			className="mt-1 inline-flex items-start gap-1 text-[10px] leading-[15px] text-content-secondary"
 		>
-			<span
-				aria-hidden
-				className={`mt-1 size-1.5 shrink-0 rounded-full ${unavailable || error ? "bg-content-destructive" : pending || removing ? "bg-content-warning" : "bg-content-success"} ${animations && (pending || removing) ? "motion-safe:animate-pulse" : ""}`}
-			/>
-			<span>
-				{label}
-				{outside > 0 && ` · ${outside} outside this view`}
-			</span>
-		</span>
+			<button
+				type="button"
+				aria-label={summary}
+				onClick={(e) => e.stopPropagation()}
+				className="mt-1 inline-flex cursor-help items-center border-0 bg-transparent p-0 text-content-secondary"
+			>
+				<TunnelFlowIndicator incoming={incoming} outgoing={outgoing} />
+				<span role="status" className="sr-only">
+					{summary}
+				</span>
+			</button>
+		</TunnelOverviewTooltip>
 	);
 };
