@@ -88,7 +88,3 @@ html[data-animations="off"] .workspace-tunnel-chevron-static {
 	mask: url("/icon/workspace-tunnel.svg") center / contain no-repeat;
 	-webkit-mask: url("/icon/workspace-tunnel.svg") center / contain no-repeat;
 }
-
-.workspace-tunnel-status {
-	box-shadow: 0 0 0 1px hsl(var(--border-success) / 0.55);
-}
