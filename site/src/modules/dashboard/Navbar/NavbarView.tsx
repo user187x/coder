@@ -1,4 +1,3 @@
-import { cn } from "cn";
 import { API } from "#/api/api";
 import { PlatformAPI } from "#/api/platform";
 import type * as TypesGen from "#/api/typesGenerated";
@@ -8,7 +7,6 @@ import { NotificationsInbox } from "#/modules/notifications/NotificationsInbox/N
 import { AnnouncementBanner } from "#/modules/platform/announcement/AnnouncementBanner";
 import { ChatInboxIndicator } from "#/modules/platform/chat/ChatInboxIndicator";
 import { NavbarArrange } from "#/modules/platform/navbarOrder/NavbarArrange";
-import { getPrereleaseFlag } from "#/utils/buildInfo";
 import {
 	type AdminQuickLinks,
 	type AdminSettingsPermissions,
@@ -43,7 +41,6 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 	adminQuickLinks,
 	proxyContextValue,
 }) => {
-	const prerelease = getPrereleaseFlag(buildInfo);
 	// Editable where there is anything to link to.
 	const quickLinksEditor =
 		adminQuickLinks && adminQuickLinks.pages.length > 0
@@ -57,26 +54,7 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 			: undefined;
 
 	return (
-		<div
-			className={cn(
-				// Platform: navbar-soft - its buttons rounder (navbarSoft.css)
-				"navbar-soft sticky top-0 bg-surface-primary z-40 border-0 border-b border-solid h-[72px] min-h-[72px] flex items-center leading-none px-6",
-				prerelease &&
-					cn(
-						"[&:before]:content-[''] [&:before]:absolute [&:before]:left-0",
-						"[&:before]:right-0 [&:before]:h-1 [&:before]:top-0",
-						"[&:before]:bg-[repeating-linear-gradient(-45deg,transparent,transparent_4px,hsl(var(--stripe-color)/0.5)_4px,hsl(var(--stripe-color)/0.5)_8px)]",
-					),
-			)}
-			style={{
-				"--stripe-color":
-					prerelease === "rc"
-						? "var(--border-sky)"
-						: prerelease === "devel"
-							? "var(--content-warning)"
-							: undefined,
-			}}
-		>
+		<div className="navbar-soft sticky top-0 bg-surface-primary z-40 border-0 border-b border-solid h-[72px] min-h-[72px] flex items-center leading-none px-6">
 			{/* Platform: the logo in a tile like the user's avatar. */}
 			<NavbarLogo />
 
