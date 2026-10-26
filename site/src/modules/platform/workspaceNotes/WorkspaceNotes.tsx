@@ -11,13 +11,14 @@ import {
 	PlatformAPI,
 	type WorkspaceNote,
 } from "#/api/platform";
+import { workspaceNotesKey as notesKey } from "#/api/queries/workspaceNotes";
 import type { Workspace } from "#/api/typesGenerated";
 import { useNoteDraftRequests } from "./noteDraftStore";
 import "./workspaceNotes.css";
 
 const NOTE_TEXT_MAX = 600;
-export const notesKey = (workspaceId: string) =>
-	["platform", "notes", workspaceId] as const;
+
+export { notesKey };
 
 type Draft = Pick<WorkspaceNote, "text" | "color" | "x" | "y">;
 

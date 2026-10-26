@@ -2557,3 +2557,5 @@ workspace checks).
 - Move workspace quarantine management into the gold Lock Down shield menu, preserving its icon and confirmation flow; retain active quarantine notices on the workspace page.
 - Match account workspace rows to dashboard status and template icon controls; add View and confirmed Update actions, with compact single-row power controls and no horizontal scrolling.
 - Add an account Lock Down modal with blurred background and workspace selection, reusing dashboard controls including Quarantine and snapshots.
+- Add Chat-style account Notes split buttons with workspace selection, centered note creation, editing, and confirmed deletion; retain note permissions and refresh dashboard/account note queries.
+- Match account Lock Down option buttons to the dark theme.

@@ -277,6 +277,7 @@ export const LockdownBadge: React.FC<{
 				Lock Down {workspace.owner_name}/{workspace.name}
 			</ControlLabel>
 			<ControlItem
+				className={panel ? "text-content-primary" : undefined}
 				onClick={panel ? () => setQuarantineOpen(true) : undefined}
 				onSelect={panel ? undefined : () => setQuarantineOpen(true)}
 			>
@@ -339,6 +340,7 @@ export const LockdownBadge: React.FC<{
 					</ControlLabel>
 					<ControlItem
 						disabled={removeSnapshot.isPending}
+						className={panel ? "text-content-primary" : undefined}
 						onClick={panel ? () => removeSnapshot.mutate() : undefined}
 						onSelect={panel ? undefined : () => removeSnapshot.mutate()}
 						data-testid="lockdown-snapshot-delete"
@@ -396,7 +398,7 @@ export const LockdownBadge: React.FC<{
 					</DropdownMenuTrigger>
 				)}
 				{panel ? (
-					<div className="flex flex-col gap-2 [&_button]:h-auto [&_button]:justify-start [&_button]:whitespace-normal [&_button]:py-3">
+					<div className="flex flex-col gap-2 [&_button]:h-auto [&_button]:justify-start [&_button]:whitespace-normal [&_button]:py-3 [&_button]:bg-surface-secondary [&_button]:border [&_button]:border-solid [&_button]:border-border [&_button]:text-left">
 						{controls}
 					</div>
 				) : (

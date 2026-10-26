@@ -6,24 +6,11 @@ import {
 	waitFor,
 } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "react-query";
-import { PlatformAPI, type WorkspaceNote } from "#/api/platform";
+import { PlatformAPI } from "#/api/platform";
 import { MockWorkspace } from "#/testHelpers/entities";
+import { MockWorkspaceNote as note } from "#/testHelpers/workspaceNotes";
 import { requestNoteDraft } from "./noteDraftStore";
 import { WorkspaceNotes } from "./WorkspaceNotes";
-
-const note: WorkspaceNote = {
-	id: "n1",
-	workspaceId: MockWorkspace.id,
-	text: "Push your branch before Friday",
-	color: "yellow",
-	x: 0.5,
-	y: 0.2,
-	tilt: 3,
-	author: "admin",
-	createdAt: "2026-10-11T00:00:00Z",
-	updatedAt: "2026-10-11T00:00:00Z",
-	dismissedAt: null,
-};
 
 const renderNotes = () =>
 	render(
