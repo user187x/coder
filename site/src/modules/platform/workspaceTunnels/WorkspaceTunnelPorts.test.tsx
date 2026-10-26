@@ -637,3 +637,35 @@ it("creates a list connection from the visible right-side terminals", async () =
 		),
 	);
 });
+
+it("deletes the selected connection through its context menu", async () => {
+	const remove = vi
+		.spyOn(PlatformAPI, "deleteWorkspaceTunnel")
+		.mockResolvedValue({ tunnel: { ...tunnel, status: "disconnecting" } });
+	const user = setup([tunnel]);
+	await user.pointer({
+		target: await screen.findByRole("button", {
+			name: "Manage tunnel Alpha to Beta: ready",
+		}),
+		keys: "[MouseRight]",
+	});
+	await user.click(screen.getByRole("menuitem", { name: "Delete connection" }));
+	await waitFor(() =>
+		expect(remove).toHaveBeenCalledWith(source.organization_id, tunnel.id),
+	);
+});
+it("does not allow another owner's connection to be deleted from the context menu", async () => {
+	const remove = vi.spyOn(PlatformAPI, "deleteWorkspaceTunnel");
+	const user = setup([tunnel], vi.fn(), {
+		canManage: false,
+		actorId: "another-user",
+	});
+	await user.pointer({
+		target: await screen.findByRole("button", {
+			name: "Manage tunnel Alpha to Beta: ready",
+		}),
+		keys: "[MouseRight]",
+	});
+	await user.click(screen.getByRole("menuitem", { name: "Delete connection" }));
+	expect(remove).not.toHaveBeenCalled();
+});

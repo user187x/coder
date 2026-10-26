@@ -2,7 +2,10 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { userEvent, within } from "storybook/test";
 import { workspaceTunnels } from "#/api/queries/workspaceTunnels";
 import { MockWorkspace } from "#/testHelpers/entities";
-import { MockWorkspaceTunnel } from "#/testHelpers/workspaceTunnels";
+import {
+	MockWorkspaceTunnel,
+	MockWorkspaceTunnelStats,
+} from "#/testHelpers/workspaceTunnels";
 import { WorkspaceTunnelPorts } from "./WorkspaceTunnelPorts";
 
 const shown = [
@@ -186,5 +189,40 @@ export const IdleRetractableInputs: Story = {
 				data: { tunnels: [] },
 			},
 		],
+	},
+};
+
+export const ConnectionDetails: Story = {
+	parameters: {
+		queries: [
+			{
+				key: workspaceTunnels(MockWorkspace.organization_id).queryKey,
+				data: {
+					tunnels: [
+						{
+							...MockWorkspaceTunnel,
+							source_stats: {
+								...MockWorkspaceTunnelStats,
+								rx_bytes: 1048576,
+								tx_bytes: 524288,
+							},
+							target_stats: MockWorkspaceTunnelStats,
+						},
+					],
+				},
+			},
+		],
+	},
+	play: async () => {
+		const page = within(document.body);
+		await userEvent.pointer({
+			target: await page.findByRole("button", {
+				name: "Manage tunnel Alpha to Beta: ready",
+			}),
+			keys: "[MouseRight]",
+		});
+		await userEvent.click(
+			page.getByRole("menuitem", { name: "View connection" }),
+		);
 	},
 };

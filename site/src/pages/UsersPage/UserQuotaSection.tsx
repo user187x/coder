@@ -8,6 +8,7 @@ import type {
 	QuotaKey,
 	QuotaLimits,
 	QuotaReport,
+	QuotaResourceModes,
 	QuotaSettings,
 } from "#/api/platform";
 import { quotaReport, updateQuota } from "#/api/queries/platform";
@@ -17,6 +18,13 @@ import { Button } from "#/components/Button/Button";
 import { Input } from "#/components/Input/Input";
 import { Label } from "#/components/Label/Label";
 import { Loader } from "#/components/Loader/Loader";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "#/components/Select/Select";
 import { Switch } from "#/components/Switch/Switch";
 import { TableCell } from "#/components/Table/Table";
 import { QuotaAdjustments } from "#/modules/platform/quotaRequests/QuotaAdjustments";
@@ -43,6 +51,7 @@ const UNITS: Record<QuotaKey, string> = {
 const NO_LIMIT = "none";
 
 type Draft = {
+	resourceModes: QuotaResourceModes;
 	default: Record<QuotaKey, string>;
 	/** Per user: "" = the default, NO_LIMIT = no limit, else a number. */
 	users: Record<string, Record<QuotaKey, string>>;
@@ -56,6 +65,7 @@ const emptyRow = (): Record<QuotaKey, string> => ({
 });
 
 const toDraft = (s: QuotaSettings): Draft => ({
+	resourceModes: s.resourceModes ?? { cpu: "cumulative", memory: "cumulative" },
 	default: {
 		workspaces: s.default.workspaces?.toString() ?? "",
 		cpu: s.default.cpu?.toString() ?? "",
@@ -100,6 +110,7 @@ const toSettings = (d: Draft): QuotaSettings => {
 		},
 		users,
 		exemptAdmins: d.exemptAdmins,
+		resourceModes: d.resourceModes,
 	};
 };
 
@@ -274,11 +285,12 @@ export const UserQuotaSection: React.FC<{
 							<div>
 								<h3 className="m-0 text-base font-medium">Default quota</h3>
 								<p className="m-0 mt-1 text-sm text-content-secondary">
-									What every developer may provision in all, across their
-									workspaces. Leave a field empty for no limit. Coder refuses
-									new workspaces and increased allocations that exceed a limit.
-									Existing workspaces may restart unchanged or with fewer
-									resources.
+									Choose whether CPU and memory limits apply cumulatively across
+									workspaces or separately to each instance. These modes also
+									apply to account overrides. Leave a field empty for no limit.
+									Coder refuses new workspaces and increased allocations that
+									exceed a limit. Existing workspaces may restart unchanged or
+									with fewer resources.
 								</p>
 							</div>
 							<div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -297,6 +309,39 @@ export const UserQuotaSection: React.FC<{
 												})
 											}
 										/>
+										{k !== "workspaces" && (
+											<>
+												<Label htmlFor={`quota-mode-${k}`}>
+													{LABELS[k]} limit applies to
+												</Label>
+												<Select
+													value={draft.resourceModes[k]}
+													disabled={saving}
+													onValueChange={(value) => {
+														if (value === "cumulative" || value === "instance")
+															setDraft({
+																...draft,
+																resourceModes: {
+																	...draft.resourceModes,
+																	[k]: value,
+																},
+															});
+													}}
+												>
+													<SelectTrigger id={`quota-mode-${k}`}>
+														<SelectValue />
+													</SelectTrigger>
+													<SelectContent>
+														<SelectItem value="cumulative">
+															Cumulative across workspaces
+														</SelectItem>
+														<SelectItem value="instance">
+															Per workspace instance
+														</SelectItem>
+													</SelectContent>
+												</Select>
+											</>
+										)}
 									</div>
 								))}
 							</div>
@@ -408,7 +453,17 @@ export const QuotaUsageCells: React.FC<{ userId: string }> = ({ userId }) => {
 								: null;
 				const bonus = user.bonus?.[k] ?? 0;
 				const effective = base === null ? null : base + bonus;
-				const used = user.usage[k];
+				const perInstance =
+					k !== "workspaces" && draft.resourceModes[k] === "instance";
+				const used = perInstance
+					? Math.max(0, ...user.workspaces.map((w) => w[k]))
+					: user.usage[k];
+				const runningUsed = perInstance
+					? Math.max(
+							0,
+							...user.workspaces.filter((w) => w.running).map((w) => w[k]),
+						)
+					: running[k];
 				const scale =
 					effective !== null && Number.isFinite(effective) && effective > 0
 						? effective
@@ -436,11 +491,14 @@ export const QuotaUsageCells: React.FC<{ userId: string }> = ({ userId }) => {
 										? ` / ${formatQuotaNumber(effective)}`
 										: ""}{" "}
 									{UNITS[k]}
+									{perInstance ? " / instance (largest)" : ""}
 								</span>
 								<span className="text-content-secondary">
-									{running[k] ? `${formatQuotaNumber(running[k])} running` : ""}
+									{runningUsed
+										? `${formatQuotaNumber(runningUsed)} running`
+										: ""}
 									{liveValue !== null && liveValue !== undefined
-										? ` · ${formatQuotaNumber(liveValue)} live`
+										? ` · ${formatQuotaNumber(liveValue)} ${perInstance ? "total live" : "live"}`
 										: ""}
 								</span>
 							</div>
@@ -469,7 +527,7 @@ export const QuotaUsageCells: React.FC<{ userId: string }> = ({ userId }) => {
 											: "bg-content-secondary",
 									)}
 									style={{
-										width: `${Math.min(scale ? running[k] / scale : 0, 1) * 100}%`,
+										width: `${Math.min(scale ? runningUsed / scale : 0, 1) * 100}%`,
 									}}
 								/>
 								{base !== null && Number.isFinite(base) && bonus > 0 && (

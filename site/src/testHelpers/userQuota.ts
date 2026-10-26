@@ -3,6 +3,7 @@ import { MockUserMember } from "./entities";
 
 export const MockQuotaReport: QuotaReport = {
 	settings: {
+		resourceModes: { cpu: "cumulative", memory: "cumulative" },
 		default: { workspaces: 3, cpu: 4, memory: 8 },
 		users: {},
 		exemptAdmins: false,

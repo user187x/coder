@@ -225,7 +225,7 @@ class WorkspaceTunnelsTest(unittest.TestCase):
             stats = data["workspaces"][self.a]["stats"]
             self.assertEqual(set(stats), {self.b})
             self.assertEqual(len(stats[self.b]["series"]), 60)
-            self.assertNotIn("rx_bytes", tunnels.public_stats(data["workspaces"][self.a], self.b))
+            self.assertEqual(tunnels.public_stats(data["workspaces"][self.a], self.b)["rx_bytes"], 69)
         link = tunnels.listing("session", self.user, self.org)[0]
         tunnels.remove("session", self.user, self.org, link["id"])
         self.sync(self.a, stats=[{"workspace_id": self.b, "rx_bytes": 100, "tx_bytes": 200}])

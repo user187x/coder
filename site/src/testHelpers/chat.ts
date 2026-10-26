@@ -1,4 +1,4 @@
-import type { ChatPeer, ChatState } from "#/api/platform";
+import type { ChatPeer, ChatSettings, ChatState } from "#/api/platform";
 
 export const MockChatPeer: ChatPeer = {
 	id: "chat-contact",
@@ -40,4 +40,21 @@ export const MockChatState: ChatState = {
 	available: [MockChatPeer.id],
 	off: [],
 	availVersion: 1,
+};
+
+export const MockChatSettings: ChatSettings = {
+	peers: true,
+	discoverAll: false,
+	keepDays: 30,
+	keepRange: [1, 365],
+	updatedBy: null,
+	updatedAt: null,
+	stats: {
+		messages: 0,
+		peerMessages: 0,
+		oldest: null,
+		screenshots: 0,
+		bytes: 0,
+		fileBytes: 0,
+	},
 };

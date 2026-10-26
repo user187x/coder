@@ -16,6 +16,7 @@ import {
 	QuotaEditorContext,
 	QuotaUsageCells,
 	UserQuotaProvider,
+	UserQuotaSection,
 } from "./UserQuotaSection";
 
 const Save: React.FC = () => {
@@ -30,7 +31,7 @@ vi.mock("#/hooks/useAuthenticated", () => ({
 	useAuthenticated: () => ({ user: MockUserOwner }),
 }));
 
-const setup = (compact = false) => {
+const setup = (compact = false, section = false) => {
 	vi.spyOn(PlatformAPI, "getQuotaReport").mockResolvedValue(MockQuotaReport);
 	const client = new QueryClient();
 	renderComponent(
@@ -47,7 +48,7 @@ const setup = (compact = false) => {
 						</TableRow>
 					</TableBody>
 				</Table>
-				<Save />
+				{section ? <UserQuotaSection /> : <Save />}
 			</UserQuotaProvider>
 		</QueryClientProvider>,
 	);
@@ -189,6 +190,33 @@ it("reviews an account quota request from its resource dropdown", async () => {
 			request: MockQuotaRequest,
 			action: "approve",
 			reason: "",
+		}),
+	);
+});
+
+it("saves independent per-instance CPU and cumulative memory modes with account overrides", async () => {
+	const save = vi
+		.spyOn(PlatformAPI, "updateQuota")
+		.mockResolvedValue({ ok: true, settings: MockQuotaReport.settings });
+	setup(false, true);
+	await userEvent.type(
+		await screen.findByRole("textbox", {
+			name: `CPU cores for ${MockUserMember.username}`,
+		}),
+		"5",
+	);
+	await userEvent.click(
+		screen.getByRole("combobox", { name: "CPU cores limit applies to" }),
+	);
+	await userEvent.click(
+		screen.getByRole("option", { name: "Per workspace instance" }),
+	);
+	await userEvent.click(screen.getByRole("button", { name: "Save quota" }));
+	await waitFor(() =>
+		expect(save).toHaveBeenCalledWith({
+			...MockQuotaReport.settings,
+			resourceModes: { cpu: "instance", memory: "cumulative" },
+			users: { [MockUserMember.username]: { cpu: 5 } },
 		}),
 	);
 });

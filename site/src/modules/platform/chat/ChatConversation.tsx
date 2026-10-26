@@ -14,11 +14,23 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { useMutation } from "react-query";
+import { toast } from "sonner";
+import { getErrorMessage } from "#/api/errors";
 import { type ChatFile, type ChatMessage, PlatformAPI } from "#/api/platform";
 import { Button } from "#/components/Button/Button";
+import { Checkbox } from "#/components/Checkbox/Checkbox";
+import {
+	ContextMenu,
+	ContextMenuContent,
+	ContextMenuItem,
+	ContextMenuTrigger,
+} from "#/components/ContextMenu/ContextMenu";
+import { ConfirmDialog } from "#/components/Dialog/ConfirmDialog/ConfirmDialog";
 import { CloudDriveShareCard } from "#/modules/platform/cloudDrive/CloudDrivePeers";
 import {
 	type ChatWindowState,
+	deleteChatMessages,
 	deleteConversation,
 	displayName,
 	isBlocked,
@@ -30,6 +42,7 @@ import {
 	setFocusedWindow,
 	useChatSnapshot,
 } from "./chatStore";
+import type { DockListActions } from "./dockActions";
 import { takeScreenshot } from "./screenshot";
 
 const MAX_TEXT = 4000;
@@ -77,7 +90,7 @@ export const formatSize = (bytes: number) => {
 };
 
 /** What the window's or the console's header menu asks of the conversation. */
-export type ConversationActions = {
+export type ConversationActions = DockListActions & {
 	screenshot: () => void;
 	askDelete: () => void;
 	focus: () => void;
@@ -129,6 +142,7 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
 	const [error, setError] = useState<string | null>(null);
 	const [confirmingDelete, setConfirmingDelete] = useState(false);
 	const [deleting, setDeleting] = useState(false);
+	const selectionRef = useRef<DockListActions>(null);
 	const logRef = useRef<HTMLDivElement>(null);
 	const inputRef = useRef<HTMLTextAreaElement>(null);
 	const fileRef = useRef<HTMLInputElement>(null);
@@ -285,6 +299,9 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
 	useImperativeHandle(ref, () => ({
 		screenshot: () => void screenshot(),
 		askDelete: () => setConfirmingDelete(true),
+		selectAll: () => selectionRef.current?.selectAll(),
+		clearSelection: () => selectionRef.current?.clearSelection(),
+		clearAll: () => selectionRef.current?.clearAll(),
 		focus: () => inputRef.current?.focus(),
 	}));
 
@@ -357,7 +374,12 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
 							{w.loadingOlder ? "Loading…" : "Earlier messages"}
 						</button>
 					)}
-					<MessageLog view={w} meId={me?.id ?? ""} name={name} />
+					<MessageLog
+						view={w}
+						meId={me?.id ?? ""}
+						name={name}
+						actionsRef={selectionRef}
+					/>
 				</div>
 				{location.protocol === "https:" && (
 					<span
@@ -610,12 +632,45 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
 };
 
 type MessageLogProps = {
+	actionsRef: React.Ref<DockListActions>;
 	view: ChatWindowState;
 	meId: string;
 	name: string;
 };
 
-const MessageLog: React.FC<MessageLogProps> = ({ view: w, meId, name }) => {
+const MessageLog: React.FC<MessageLogProps> = ({
+	view: w,
+	meId,
+	name,
+	actionsRef,
+}) => {
+	const [selected, setSelected] = useState<Set<number>>(new Set());
+	const [deleting, setDeleting] = useState<number[] | null | undefined>();
+	const remove = useMutation({
+		mutationFn: (ids: number[] | null) =>
+			ids === null
+				? deleteConversation(w.peer.id)
+				: deleteChatMessages(w.peer.id, ids),
+		onSuccess: () => {
+			setSelected(new Set());
+			setDeleting(undefined);
+		},
+		onError: (error) =>
+			toast.error(getErrorMessage(error, "Unable to delete messages.")),
+	});
+	const ids = w.messages.filter((m) => selected.has(m.id)).map((m) => m.id);
+	const toggle = (id: number) =>
+		setSelected((previous) => {
+			const next = new Set(previous);
+			if (next.has(id)) next.delete(id);
+			else next.add(id);
+			return next;
+		});
+	useImperativeHandle(actionsRef, () => ({
+		selectAll: () => setSelected(new Set(w.messages.map((m) => m.id))),
+		clearSelection: () => setSelected(new Set()),
+		clearAll: () => setDeleting(null),
+	}));
 	if (w.loading) {
 		return null;
 	}
@@ -636,35 +691,112 @@ const MessageLog: React.FC<MessageLogProps> = ({ view: w, meId, name }) => {
 
 	let lastShown = 0;
 	let previousFrom: string | null = null;
-	return w.messages.map((m) => {
-		const at = new Date(m.at).getTime();
-		const gap = !lastShown || at - lastShown > 10 * 60_000;
-		lastShown = at;
-		const grouped = !gap && previousFrom === m.from;
-		previousFrom = m.from;
-		const side = messageSide(m, meId);
-		const mine = m.from === meId;
-		return (
-			<div key={m.id} className="contents">
-				{gap && (
-					<div className="mt-2.5 mb-0.5 self-center text-[11px] text-content-secondary">
-						{formatWhen(m.at)}
-					</div>
-				)}
-				{!grouped && (
-					<div
-						className={cn(
-							"mx-1 mt-2 mb-0.5 text-[11px] font-semibold text-content-secondary",
-							side === "dev" && "self-end",
-						)}
-					>
-						{mine ? "You" : m.fromDisplay || m.fromName}
-					</div>
-				)}
-				<MessageBubble message={m} side={side} meId={meId} />
+	return (
+		<>
+			<div className="sticky top-0 z-10 flex flex-wrap items-center justify-center gap-1 rounded-md bg-surface-primary p-1 text-xs">
+				<span>{ids.length} selected</span>
+				<Button
+					size="sm"
+					variant="subtle"
+					onClick={() => setSelected(new Set(w.messages.map((m) => m.id)))}
+				>
+					Select all loaded
+				</Button>
+				<Button
+					size="sm"
+					variant="subtle"
+					onClick={() => setSelected(new Set())}
+				>
+					Clear selection
+				</Button>
+				<Button
+					size="sm"
+					variant="subtle"
+					disabled={!ids.length || remove.isPending}
+					onClick={() => setDeleting(ids)}
+				>
+					Delete selected
+				</Button>
+				<Button
+					size="sm"
+					variant="subtle"
+					disabled={remove.isPending}
+					onClick={() => setDeleting(null)}
+				>
+					Clear all
+				</Button>
 			</div>
-		);
-	});
+			{w.messages.map((m) => {
+				const at = new Date(m.at).getTime();
+				const gap = !lastShown || at - lastShown > 10 * 60_000;
+				lastShown = at;
+				const grouped = !gap && previousFrom === m.from;
+				previousFrom = m.from;
+				const side = messageSide(m, meId);
+				const mine = m.from === meId;
+				return (
+					<div key={m.id} className="contents">
+						{gap && (
+							<div className="mt-2.5 mb-0.5 self-center text-[11px] text-content-secondary">
+								{formatWhen(m.at)}
+							</div>
+						)}
+						{!grouped && (
+							<div
+								className={cn(
+									"mx-1 mt-2 mb-0.5 text-[11px] font-semibold text-content-secondary",
+									side === "dev" && "self-end",
+								)}
+							>
+								{mine ? "You" : m.fromDisplay || m.fromName}
+							</div>
+						)}
+						<ContextMenu>
+							<ContextMenuTrigger asChild>
+								<div className="flex flex-col">
+									<Checkbox
+										aria-label={`Select message ${m.id}`}
+										checked={selected.has(m.id)}
+										onCheckedChange={() => toggle(m.id)}
+									/>
+									<MessageBubble message={m} side={side} meId={meId} />
+								</div>
+							</ContextMenuTrigger>
+							<ContextMenuContent className="z-[110]">
+								<ContextMenuItem onSelect={() => toggle(m.id)}>
+									Select message
+								</ContextMenuItem>
+								<ContextMenuItem
+									onSelect={() =>
+										setDeleting(selected.has(m.id) && ids.length ? ids : [m.id])
+									}
+								>
+									Delete message
+								</ContextMenuItem>
+							</ContextMenuContent>
+						</ContextMenu>
+					</div>
+				);
+			})}
+			<ConfirmDialog
+				contentClassName="z-[120]"
+				overlayClassName="z-[119] backdrop-blur-sm"
+				open={deleting !== undefined}
+				onClose={() => setDeleting(undefined)}
+				title="Delete messages?"
+				description={
+					deleting === null
+						? "Delete every message in this conversation for everyone. This cannot be undone."
+						: `Delete ${deleting?.length ?? 0} selected message(s) for everyone. This cannot be undone.`
+				}
+				confirmText="Delete"
+				confirmLoading={remove.isPending}
+				onConfirm={() => {
+					if (deleting !== undefined) remove.mutate(deleting);
+				}}
+			/>
+		</>
+	);
 };
 
 type MessageBubbleProps = {

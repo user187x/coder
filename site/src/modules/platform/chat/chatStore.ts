@@ -96,9 +96,10 @@ type ChatSnapshot = {
 	/** The largest file a message may carry (MB). */
 	maxFileMb: number;
 	/** Peer-to-peer chat is on: developers see the People list and write to each other. */
+	discoverAll?: boolean;
 	peers: boolean;
 	dockMode: DockMode;
-	dockTab: "people" | "chat";
+	dockTab: "people" | "chat" | "notifications";
 	/** What full screen goes back to. */
 	fullFrom: "window" | "side";
 	/** The conversation open in the side panel or full screen (null: their list). */
@@ -148,6 +149,7 @@ const initialSnapshot: ChatSnapshot = {
 	availVersion: 0,
 	presenceVersion: 0,
 	maxFileMb: 25,
+	discoverAll: false,
 	peers: false,
 	dockMode: initialDockMode(),
 	dockTab: "people",
@@ -522,7 +524,8 @@ export const markRead = (peerId: string, used: boolean) => {
 	const hiddenDock =
 		snapshot.dockMode === "compact" ||
 		snapshot.dockMode === "bar" ||
-		(snapshot.dockMode === "window" && snapshot.dockTab === "people");
+		(["window", "side", "full"].includes(snapshot.dockMode) &&
+			snapshot.dockTab !== "chat");
 	if (
 		(hiddenDock && !inConsole) ||
 		!w ||
@@ -673,6 +676,7 @@ const applyAvailability = (availability: ChatAvailability) => {
 			availability.presenceVersion ?? 0,
 		),
 		maxFileMb: availability.maxFileMb ?? snapshot.maxFileMb,
+		discoverAll: availability.discoverAll ?? snapshot.discoverAll,
 		peers: availability.peers ?? snapshot.peers,
 		me: me && chatOn !== undefined ? { ...me, chatOn } : me,
 		// Nobody to write to: a raised window lowers (attached, its list says so).
@@ -729,6 +733,8 @@ const poll = async () => {
 			for (const peerId of result.cleared ?? []) {
 				cleared(peerId, false);
 			}
+			for (const event of result.removedMessages ?? [])
+				applyRemovedMessages(event);
 			applyAvailability(result);
 			for (const message of result.messages) {
 				receive(message);
@@ -776,6 +782,7 @@ const boot = async () => {
 		availVersion: state.availVersion || 0,
 		presenceVersion: state.presenceVersion ?? 0,
 		maxFileMb: state.maxFileMb ?? snapshot.maxFileMb,
+		discoverAll: Boolean(state.discoverAll),
 		peers: Boolean(state.peers),
 		focus: state.focus ?? [],
 	});
@@ -1005,6 +1012,7 @@ const makeWayForConsole = () => {
 
 /** Shows this conversation in the side panel or full screen (its window, put away, keeps its own copy). */
 export const selectInPanel = (peer: ChatPeer, focus = false) => {
+	update({ dockTab: "chat" });
 	const current = snapshot.panelView;
 	if (current?.peer.id === peer.id) {
 		if (focus) {
@@ -1317,7 +1325,32 @@ export const forceResponse = (peerId: string) =>
 	PlatformAPI.forceChatResponse(peerId);
 
 /** Selects the dock content without discarding conversation drafts. */
-export const setDockTab = (dockTab: "people" | "chat") => {
+export const setDockTab = (dockTab: "people" | "chat" | "notifications") => {
 	focusedPeer = null;
 	update({ dockTab });
+};
+
+/** Apply the server-authorized deletion to every open view and the conversation preview. */
+const applyRemovedMessages = (
+	event: import("#/api/platform").RemovedChatMessages,
+) => {
+	const ids = new Set(event.ids);
+	updateWindow(event.peer, (w) => ({
+		...w,
+		messages: w.messages.filter((m) => !ids.has(m.id)),
+		pending: w.pending.filter((m) => !ids.has(m.id)),
+	}));
+	const conversations = new Map(snapshot.conversations);
+	if (event.conversation) conversations.set(event.peer, event.conversation);
+	else conversations.delete(event.peer);
+	update({ conversations });
+};
+export const deleteChatMessages = async (peer: string, ids: number[]) => {
+	for (let offset = 0; offset < ids.length; offset += 100) {
+		const event = await PlatformAPI.deleteChatMessages(
+			peer,
+			ids.slice(offset, offset + 100),
+		);
+		applyRemovedMessages(event);
+	}
 };

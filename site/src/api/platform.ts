@@ -713,7 +713,13 @@ export type QuotaKey = "workspaces" | "cpu" | "memory";
 /** One set of limits; null = no limit. CPU in cores, memory in GiB. */
 export type QuotaLimits = Record<QuotaKey, number | null>;
 
+export type QuotaResourceModes = Record<
+	"cpu" | "memory",
+	"cumulative" | "instance"
+>;
+
 export type QuotaSettings = {
+	resourceModes?: QuotaResourceModes;
 	default: QuotaLimits;
 	/** Per-user overrides: only the keys set there replace the default. */
 	users: Record<string, Partial<QuotaLimits>>;
@@ -729,6 +735,7 @@ export type DashboardAddress = {
 
 /** The signed-in user's own quota (the Workspaces page's pill); limited false = no limit applies to them. */
 export type QuotaMe = {
+	resourceModes?: QuotaResourceModes;
 	baseLimits?: QuotaLimits;
 	bonus?: Record<QuotaKey, number>;
 	effectiveLimits?: QuotaLimits;
@@ -768,6 +775,7 @@ type QuotaUsage = {
 };
 
 export type QuotaUser = {
+	quotaUsage?: Record<QuotaKey, number>;
 	baseLimits?: QuotaLimits;
 	bonus?: Record<QuotaKey, number>;
 	effectiveLimits?: QuotaLimits;
@@ -1138,6 +1146,7 @@ export type ChatConversation = {
 };
 
 export type ChatAvailability = {
+	discoverAll?: boolean;
 	available: string[];
 	off: string[];
 	availVersion: number;
@@ -1167,6 +1176,7 @@ export type ChatPerson = ChatPeer & {
 
 /** Admin Controls > Chat. */
 export type ChatSettings = {
+	discoverAll?: boolean;
 	peers: boolean;
 	keepDays: number;
 	keepRange: [number, number];
@@ -1212,7 +1222,14 @@ export type ChatState = ChatAvailability & {
 	focusVersion?: number;
 };
 
+export type RemovedChatMessages = {
+	peer: string;
+	ids: number[];
+	conversation: ChatConversation | null;
+};
+
 type ChatPoll = ChatAvailability & {
+	removedMessages?: RemovedChatMessages[];
 	focus?: ChatFocus[];
 	focusVersion?: number;
 	messages: ChatMessage[];
@@ -1921,6 +1938,8 @@ export type WorkspacePowerOperation = {
 
 /** Network activity observed at one endpoint of a private workspace tunnel. */
 export type WorkspaceTunnelStats = {
+	rx_bytes?: number;
+	tx_bytes?: number;
 	ports_available?: boolean;
 	updated_at: number;
 	stale: boolean;
@@ -2362,6 +2381,8 @@ export const PlatformAPI = {
 			{},
 		),
 	/** The signed-in user's Inbox (the bell) emptied: every notification deleted (Coder can only mark them read). */
+	deleteInboxNotifications: (ids: string[]) =>
+		post<{ cleared: number }>(`${PLATFORM_BASE}/api/inbox/delete`, { ids }),
 	clearInbox: () =>
 		post<{ cleared: number }>(`${PLATFORM_BASE}/api/inbox/clear`, {}),
 	/** Admins: every note not dismissed yet, by the workspace owner's user id. */
@@ -2480,7 +2501,7 @@ export const PlatformAPI = {
 		post<{ invisible: boolean }>(chat("presence"), { invisible }),
 	getChatSettings: () => get<ChatSettings>(chat("settings")),
 	saveChatSettings: (
-		change: Partial<Pick<ChatSettings, "peers" | "keepDays">>,
+		change: Partial<Pick<ChatSettings, "peers" | "keepDays" | "discoverAll">>,
 	) => post<ChatSettings>(chat("settings"), change),
 	purgeChats: () =>
 		post<{ ok: true; deleted: number; stats: ChatSettings["stats"] }>(
@@ -2569,6 +2590,8 @@ export const PlatformAPI = {
 	/** Admins: Force Response - the newest admin message in the conversation, forced on them again. */
 	forceChatResponse: (to: string) =>
 		post<{ message: ChatMessage }>(chat("focus/force"), { to }),
+	deleteChatMessages: (to: string, ids: number[]) =>
+		post<RemovedChatMessages>(chat("delete-messages"), { to, ids }),
 	deleteChatConversation: (to: string) =>
 		post<{ ok: true; deleted: number }>(chat("delete"), { to }),
 	setChatAvailability: (enabled: boolean) =>

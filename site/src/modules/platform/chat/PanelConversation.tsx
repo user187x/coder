@@ -14,6 +14,7 @@ import {
 } from "./chatStore";
 
 type PanelConversationProps = {
+	actionsRef?: React.RefObject<ConversationActions | null>;
 	dock: React.RefObject<HTMLElement | null>;
 	view: ChatWindowState;
 	/** Back to the list (in full screen only where the list is not beside it). */
@@ -30,10 +31,12 @@ export const PanelConversation: React.FC<PanelConversationProps> = ({
 	onBack,
 	backClassName,
 	onEscape,
+	actionsRef,
 }) => {
 	const state = useChatSnapshot();
 	const [shooting, setShooting] = useState(false);
-	const actions = useRef<ConversationActions>(null);
+	const localActions = useRef<ConversationActions>(null);
+	const actions = actionsRef ?? localActions;
 	const peer = view.peer;
 	// Unread elsewhere: shown on the way back to the list.
 	const elsewhere =

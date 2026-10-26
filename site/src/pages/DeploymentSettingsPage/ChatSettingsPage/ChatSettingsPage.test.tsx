@@ -1,8 +1,10 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { type ChatPair, PlatformAPI } from "#/api/platform";
+import { MockChatSettings } from "#/testHelpers/chat";
 import { renderComponent } from "#/testHelpers/renderHelpers";
-import { PairsCard } from "./ChatSettingsPage";
+import { DiscoveryCard, PairsCard } from "./ChatSettingsPage";
 
 const pair = (i: number): ChatPair => ({
 	a: { id: `a${i}`, username: `ann${i}`, name: "", online: false },
@@ -71,4 +73,20 @@ describe("Who talks to whom", () => {
 			expect(screen.getAllByTestId("chat-pair")).toHaveLength(5),
 		);
 	});
+});
+
+it("saves the admin discovery permission", async () => {
+	const save = vi
+		.spyOn(PlatformAPI, "saveChatSettings")
+		.mockResolvedValue({ ...MockChatSettings, discoverAll: true });
+	renderComponent(
+		<QueryClientProvider client={new QueryClient()}>
+			<DiscoveryCard settings={MockChatSettings} />
+		</QueryClientProvider>,
+	);
+	await userEvent.click(
+		screen.getByRole("switch", { name: "Discover all users" }),
+	);
+	await waitFor(() => expect(save).toHaveBeenCalledWith({ discoverAll: true }));
+	vi.restoreAllMocks();
 });

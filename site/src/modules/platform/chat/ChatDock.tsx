@@ -2,6 +2,7 @@ import { cn } from "cn";
 import { useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { isEmbeddedFrame } from "#/contexts/platformBoot";
+import { DriveShareNotification } from "../cloudDrive/DriveShareNotification";
 import { ChatFullScreen, ChatSidePanel } from "./ChatAttached";
 import { ChatConsoleOverlay } from "./ChatConsoleOverlay";
 import { ChatFocusOverlay } from "./ChatFocusOverlay";
@@ -222,6 +223,7 @@ export const ChatDock: React.FC = () => {
 			// Platform: floating 10px clear of what it rests on (GUI-UPDATES)
 			style={{ bottom: "calc(var(--chat-bottom, 0px) + 10px)" }}
 		>
+			{state.me && <DriveShareNotification userId={state.me.id} />}
 			<ChatPanel dock={dock} />
 			{mode === "side" && <ChatSidePanel dock={dock} />}
 			{mode === "full" && <ChatFullScreen dock={dock} />}

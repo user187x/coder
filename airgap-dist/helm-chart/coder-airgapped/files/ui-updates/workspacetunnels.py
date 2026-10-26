@@ -138,7 +138,8 @@ def public_stats(current, peer_id):
     record = current.get("stats", {}).get(peer_id)
     if record is None:
         return None
-    return {"updated_at": record["updated_at"],
+    return {"rx_bytes": record["rx_bytes"], "tx_bytes": record["tx_bytes"],
+            "updated_at": record["updated_at"],
             "stale": record["updated_at"] + LEASE_SECONDS < time.time(),
             "series": record["series"], "ports": record["ports"],
             "ports_available": record.get("ports_available", False)}

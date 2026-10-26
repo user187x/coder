@@ -172,6 +172,8 @@ import provisioners  # noqa: E402  (Provisioner Daemons: stuck jobs, their terra
 import dr  # noqa: E402  (Persistence > Disaster recovery: Coder's database dumped or copied outside the cluster)
 import workspacetunnels
 import workspacepower
+import math
+import quotaextras
 import drivepeers  # noqa: E402  (Cloud Drives shared between users: asked for in chat, approved by admins)
 import clusternet  # noqa: E402  (the Cluster Network view in depth: entity details, code-server HA, the mesh)
 from http.cookies import SimpleCookie
@@ -5567,6 +5569,7 @@ class ChatStore:
         # this boot's time in ms, so they only grow, across restarts too.
         self.clear_ver = int(time.time() * 1000)
         self.cleared = {}
+        self.message_removed = {}
         # admins who turned their chat off (the switch in their Chats panel): developers can't write to them. A version
         # (also boot time in ms) wakes every poll when it changes, so everyone's panel updates at once.
         self.off = set()
@@ -5575,6 +5578,7 @@ class ChatStore:
         # tab reloads its conversations). Who is invisible; when each user's tabs last polled (online).
         self.settings = {
             "peers": False,
+            "discoverAll": False,
             "keepDays": CHAT_KEEP_DAYS,
             "purgeVersion": 0,
             "updatedBy": None,
@@ -6446,6 +6450,37 @@ class ChatStore:
             out.sort(key=lambda c: c["last"]["id"], reverse=True)
         return out
 
+    def delete_messages(self, user_id, peer_id, ids):
+        """Delete selected messages within an authorized conversation, including attachments."""
+        if not isinstance(ids, list) or not 1 <= len(ids) <= 100 or any(
+                isinstance(value, bool) or not isinstance(value, int) or value < 1 for value in ids):
+            raise ValueError("Select between 1 and 100 message IDs.")
+        group = self.groups.get(peer_id) if CHAT_GROUP_RE.match(peer_id) else None
+        if CHAT_GROUP_RE.match(peer_id) and (not group or group["createdBy"] != user_id):
+            raise PermissionError("Only the admin who started this chat can delete its messages.")
+        marks = ",".join("?" for _ in ids)
+        scope = "to_id = ?" if group else "((from_id = ? AND to_id = ?) OR (from_id = ? AND to_id = ?))"
+        params = [peer_id] if group else [user_id, peer_id, peer_id, user_id]
+        with self.lock, self.connect() as db:
+            rows = db.execute("SELECT id FROM chat_messages WHERE " + scope + " AND id IN (" + marks + ")", params + ids).fetchall()
+            removed = [r[0] for r in rows]
+            if removed:
+                selected = ",".join("?" for _ in removed)
+                db.execute("DELETE FROM chat_files WHERE message_id IN (" + selected + ")", removed)
+                db.execute("DELETE FROM chat_messages WHERE id IN (" + selected + ")", removed)
+        self._remove_files(removed)
+        recipients = list(group["members"]) if group else [user_id, peer_id]
+        with self.changed:
+            self.clear_ver += 1
+            for recipient in recipients:
+                other = peer_id if group or recipient == user_id else user_id
+                conversation = next((c for c in self.conversations(recipient) if c["peer"]["id"] == other), None)
+                event = {"peer": other, "ids": removed, "conversation": conversation}
+                self.message_removed[recipient] = (self.message_removed.get(recipient, []) + [(self.clear_ver, event)])[-100:]
+            self.changed.notify_all()
+        return removed
+
+
     def delete(self, user_id, peer_id):
         """Removes the whole conversation between the two, for both of them (either may do it). The number deleted.
         A group chat: its admin removes it for everyone."""
@@ -6522,7 +6557,8 @@ class ChatStore:
         )
 
     def last_clear(self, user_id):
-        return max([v for v, _ in self.cleared.get(user_id, [])] or [0])
+        return max([v for v, _ in self.cleared.get(user_id, []) + self.message_removed.get(user_id, [])] or [0])
+
 
     def mark_read(self, user_id, peer_id, last_id):
         with self.lock, self.connect() as db:
@@ -6611,11 +6647,30 @@ QUOTA_KEYS = ("workspaces", "cpu", "memory")
 QUOTA_PARAMS = {"cpu": "cpu", "memory": "memory"}   # template parameter names: cores, GiB
 
 
+def quota_resource_modes(settings):
+    raw = settings.get("resourceModes", {})
+    if raw is None:
+        raw = {}
+    if not isinstance(raw, dict) or any(k not in ("cpu", "memory") for k in raw):
+        raise ValueError("Resource modes apply only to CPU and memory.")
+    modes = {k: raw.get(k, "cumulative") for k in ("cpu", "memory")}
+    if any(v not in ("cumulative", "instance") for v in modes.values()):
+        raise ValueError("CPU and memory modes must be cumulative or instance.")
+    return modes
+
+
+def quota_usage(workspaces, modes):
+    return {"workspaces": len(workspaces), **{
+        k: max((w[k] for w in workspaces), default=0) if modes[k] == "instance" else sum(w[k] for w in workspaces)
+        for k in ("cpu", "memory")}}
+
+
 def quota_settings():
     s = STORE.get_setting("user_quota", None) or {}
     return {"default": {k: (s.get("default") or {}).get(k) for k in QUOTA_KEYS},
             "users": {u: {k: v for k, v in (o or {}).items() if k in QUOTA_KEYS} for u, o in (s.get("users") or {}).items()},
-            "exemptAdmins": s.get("exemptAdmins", True) is not False}
+            "exemptAdmins": s.get("exemptAdmins", True) is not False, "resourceModes": quota_resource_modes(s)}
+
 
 
 def _quota_number(v, what, integer=False):
@@ -6625,9 +6680,10 @@ def _quota_number(v, what, integer=False):
         n = float(v)
     except (TypeError, ValueError):
         raise ValueError("%s must be a number (or empty for no limit)." % what)
-    if n < 0 or n > 1e6 or (integer and n != int(n)):
+    if isinstance(v, bool) or not math.isfinite(n) or n < 0 or n > 1e6 or (integer and n != int(n)):
         raise ValueError("%s must be a %s between 0 and 1,000,000." % (what, "whole number" if integer else "number"))
     return int(n) if integer else round(n, 3)
+
 
 
 def clean_quota(raw):
@@ -6641,7 +6697,8 @@ def clean_quota(raw):
             raise ValueError("Unknown user name %r." % name)
         users[str(name)] = limits(o, name)
     d = limits(raw.get("default") or {}, "Default")
-    return {"default": {k: d.get(k) for k in QUOTA_KEYS}, "users": users, "exemptAdmins": raw.get("exemptAdmins", True) is not False}
+    return {"default": {k: d.get(k) for k in QUOTA_KEYS}, "users": users, "exemptAdmins": raw.get("exemptAdmins", True) is not False, "resourceModes": quota_resource_modes(raw)}
+
 
 
 def quota_limits(settings, username):
@@ -6665,22 +6722,35 @@ def _param_resources(params):
     out = []
     for key in ("cpu", "memory"):
         try:
-            out.append(max(float(vals.get(QUOTA_PARAMS[key]) or 0), 0.0))
+            value = float(vals.get(QUOTA_PARAMS[key]) or 0)
         except (TypeError, ValueError):
-            out.append(0.0)
+            value = 0.0
+        if not math.isfinite(value):
+            raise ValueError("Workspace resource parameters must be finite numbers.")
+        out.append(max(value, 0.0))
     return tuple(out)
+
 
 
 def quota_workspaces(token, owner=None):
     """Every workspace (of `owner`, else all the token can see) with the cores / GiB it was built with."""
-    q = {"limit": 1000}
+    q = {"limit": 500, "offset": 0}
     if owner:
         q["q"] = "owner:" + owner
-    status, data = _coder_get(token, "/api/v2/workspaces?" + urllib.parse.urlencode(q))
-    if status != 200 or not isinstance(data, dict):
-        raise RuntimeError("Coder's workspaces API answered HTTP %s" % status)
+    rows = []
+    while True:
+        status, data = _coder_get(token, "/api/v2/workspaces?" + urllib.parse.urlencode(q))
+        if status != 200 or not isinstance(data, dict):
+            raise RuntimeError("Coder's workspaces API answered HTTP %s" % status)
+        page = data.get("workspaces") or []
+        rows.extend(page)
+        if len(page) < q["limit"] or len(rows) >= data.get("count", len(rows) + 1):
+            break
+        if len(rows) >= 100000:
+            raise RuntimeError("Workspace quota collection exceeded its safe pagination limit.")
+        q["offset"] += len(page)
     out = []
-    for w in data.get("workspaces") or []:
+    for w in rows:
         build = w.get("latest_build") or {}
         key = "build-params:" + str(build.get("id"))
         params = CACHE.get(key)
@@ -6691,8 +6761,10 @@ def quota_workspaces(token, owner=None):
         cpu, mem = _param_resources(params)
         out.append({"id": w.get("id"), "name": w.get("name"), "owner": w.get("owner_name"), "ownerId": w.get("owner_id"),
                     "template": w.get("template_display_name") or w.get("template_name"), "cpu": cpu, "memory": mem,
+                    "organizationId": w.get("organization_id"),
                     "status": build.get("status"), "running": build.get("status") == "running" and build.get("transition") == "start"})
     return out
+
 
 
 def _pod_usage_by_owner():
@@ -6721,6 +6793,7 @@ def quota_report(token):
     """Health > User Quota: the settings, every active user's limits and what their workspaces take (built with,
     running, live), and the cluster's capacity, so an admin sees how taxed the cluster is."""
     settings = quota_settings()
+    modes = quota_resource_modes(settings)
     users, offset = [], 0
     while offset < 5000:
         status, page = _coder_get(token, "/api/v2/users?" + urllib.parse.urlencode({"q": "status:active", "limit": 500, "offset": offset}))
@@ -6734,19 +6807,23 @@ def quota_report(token):
     workspaces = quota_workspaces(token)
     live = _pod_usage_by_owner()
     out_users = []
+    additions = quotaextras.totals()
     for u in users:
         name = u.get("username") or ""
         mine = [w for w in workspaces if w["owner"] == name]
         admin = bool({r.get("name") for r in u.get("roles") or []} & ADMIN_ROLES)
-        limits = quota_limits(settings, name)
+        addition = quotaextras.limits(quota_limits(settings, name), u.get("id"), additions)
+        limits = addition["limits"]
         usage = {"workspaces": len(mine), "cpu": sum(w["cpu"] for w in mine), "memory": sum(w["memory"] for w in mine),
                  "runningCpu": sum(w["cpu"] for w in mine if w["running"]), "runningMemory": sum(w["memory"] for w in mine if w["running"]),
                  "running": sum(1 for w in mine if w["running"]), "liveCpu": (live.get(name) or {}).get("cpu"),
                  "liveMemory": (live.get(name) or {}).get("memory")}
         exempt = admin and settings["exemptAdmins"]
+        quota_used = quota_usage(mine, modes)
         out_users.append({"id": u.get("id"), "username": name, "name": u.get("name") or "", "avatar": u.get("avatar_url") or "",
-                          "admin": admin, "exempt": exempt, "override": settings["users"].get(name) or None, "limits": limits,
-                          "usage": usage, "atLimit": (not exempt) and any(limits[k] is not None and usage[k] >= limits[k] for k in QUOTA_KEYS),
+                          "admin": admin, "exempt": exempt, "override": settings["users"].get(name) or None, **addition,
+                          "usage": usage, "quotaUsage": quota_used,
+                          "atLimit": (not exempt) and any(limits[k] is not None and quota_used[k] >= limits[k] for k in QUOTA_KEYS),
                           "workspaces": mine})
     out_users.sort(key=lambda x: (-(x["usage"]["cpu"] + x["usage"]["memory"]), x["username"].lower()))
     try:
@@ -6759,6 +6836,7 @@ def quota_report(token):
         cluster = {"error": str(e)[:200]}
     return {"settings": settings, "users": out_users, "cluster": cluster, "liveUsage": bool(live),
             "parameters": dict(QUOTA_PARAMS), "generatedAt": now()}
+
 
 
 GATEWAY_NAME = os.environ.get("GATEWAY_NAME", "")
@@ -6787,20 +6865,24 @@ def quota_me(token, user):
     """The Workspaces page's quota pill: the caller's own limits and what their workspaces take. "limited" is false
     for no limit at all, or an exempt admin - the pill then stays away."""
     settings = quota_settings()
-    limits = quota_limits(settings, user["username"])
+    modes = quota_resource_modes(settings)
+    addition = quotaextras.limits(quota_limits(settings, user["username"]), user["id"])
+    limits = addition["limits"]
     exempt = bool(settings["exemptAdmins"] and set(user["roles"]) & ADMIN_ROLES)
     if exempt or all(limits[k] is None for k in QUOTA_KEYS):
-        return {"limited": False, "exempt": exempt, "limits": limits}
+        return {"limited": False, "exempt": exempt, **addition}
     mine = quota_workspaces(token, owner=user["username"])
-    usage = {"workspaces": len(mine), "cpu": sum(w["cpu"] for w in mine), "memory": sum(w["memory"] for w in mine)}
+    usage = quota_usage(mine, modes)
     left = {k: (None if limits[k] is None else max(limits[k] - usage[k], 0)) for k in QUOTA_KEYS}
-    return {"limited": True, "exempt": False, "limits": limits, "usage": usage, "left": left,
+    return {"limited": True, "exempt": False, **addition, "usage": usage, "left": left, "resourceModes": modes,
             "atLimit": any(left[k] is not None and left[k] <= 0 for k in QUOTA_KEYS)}
+
 
 def quota_check(token, user, body):
     """Before Coder creates a workspace: would it pass the owner's limits? {"allowed", "message", ...}. Asked by Coder
     with the requester's own session, so it sees exactly what they may see."""
     settings = quota_settings()
+    modes = quota_resource_modes(settings)
     owner = str(body.get("owner") or "me")
     if owner in ("me", user["username"], user["id"]):
         target = {"username": user["username"], "id": user["id"], "roles": user["roles"]}
@@ -6809,11 +6891,14 @@ def quota_check(token, user, body):
         if status != 200 or not isinstance(u, dict):
             return {"allowed": True, "message": "owner not readable; not checked"}
         target = {"username": u.get("username"), "id": u.get("id"), "roles": sorted({r.get("name") for r in u.get("roles") or []})}
-    limits = quota_limits(settings, target["username"])
+    if body.get("owner_id") and body["owner_id"] != target["id"]:
+        return {"allowed": False, "message": "Workspace owner identity does not match the quota request."}
+    addition = quotaextras.limits(quota_limits(settings, target["username"]), target["id"])
+    limits = addition["limits"]
     if settings["exemptAdmins"] and set(target["roles"]) & ADMIN_ROLES:
-        return {"allowed": True, "message": "admins are exempt", "limits": limits}
+        return {"allowed": True, "message": "admins are exempt", **addition}
     if all(limits[k] is None for k in QUOTA_KEYS):
-        return {"allowed": True, "message": "no limits", "limits": limits}
+        return {"allowed": True, "message": "no limits", **addition}
     # what the new workspace asks for: its parameters, else the template version's defaults
     params = {p.get("name"): p.get("value") for p in body.get("rich_parameter_values") or [] if isinstance(p, dict)}
     version = body.get("template_version_id")
@@ -6824,24 +6909,37 @@ def quota_check(token, user, body):
         st, rich = _coder_get(token, "/api/v2/templateversions/%s/rich-parameters" % version)
         for p in rich if st == 200 and isinstance(rich, list) else []:
             params.setdefault(p.get("name"), p.get("default_value"))
-    want_cpu, want_mem = _param_resources([{"name": k, "value": v} for k, v in params.items()])
+    try:
+        want_cpu, want_mem = _param_resources([{"name": k, "value": v} for k, v in params.items()])
+    except ValueError as error:
+        return {"allowed": False, **addition, "message": str(error)}
     mine = quota_workspaces(token, owner=target["username"])
+    current_workspace_id = body.get("current_workspace_id")
+    if current_workspace_id:
+        current = next((w for w in mine if w["id"] == current_workspace_id), None)
+        if not current or current.get("ownerId") != target["id"] or (
+            body.get("organization_id") and current.get("organizationId") != body["organization_id"]
+        ):
+            return {"allowed": False, **addition, "message": "The replaced workspace does not match this owner and organization."}
+        mine = [w for w in mine if w["id"] != current_workspace_id]
     usage = {"workspaces": len(mine), "cpu": sum(w["cpu"] for w in mine), "memory": sum(w["memory"] for w in mine)}
-    after = {"workspaces": usage["workspaces"] + 1, "cpu": usage["cpu"] + want_cpu, "memory": usage["memory"] + want_mem}
+    after = {"workspaces": usage["workspaces"] + 1, "cpu": want_cpu if modes["cpu"] == "instance" else usage["cpu"] + want_cpu,
+             "memory": want_mem if modes["memory"] == "instance" else usage["memory"] + want_mem}
     fmt = lambda v: ("%g" % round(v, 2))  # noqa: E731
     over = []
     if limits["workspaces"] is not None and after["workspaces"] > limits["workspaces"]:
         over.append("workspaces: %d of %d already" % (usage["workspaces"], limits["workspaces"]))
     if limits["cpu"] is not None and after["cpu"] > limits["cpu"]:
-        over.append("CPU: this one needs %s cores, %s of %s cores are taken" % (fmt(want_cpu), fmt(usage["cpu"]), fmt(limits["cpu"])))
+        over.append(("CPU: this workspace needs %s cores, above its per-instance limit of %s" % (fmt(want_cpu), fmt(limits["cpu"]))) if modes["cpu"] == "instance" else ("CPU: this one needs %s cores, %s of %s cores are taken" % (fmt(want_cpu), fmt(usage["cpu"]), fmt(limits["cpu"]))))
     if limits["memory"] is not None and after["memory"] > limits["memory"]:
-        over.append("memory: this one needs %s GiB, %s of %s GiB are taken" % (fmt(want_mem), fmt(usage["memory"]), fmt(limits["memory"])))
+        over.append(("memory: this workspace needs %s GiB, above its per-instance limit of %s" % (fmt(want_mem), fmt(limits["memory"]))) if modes["memory"] == "instance" else ("memory: this one needs %s GiB, %s of %s GiB are taken" % (fmt(want_mem), fmt(usage["memory"]), fmt(limits["memory"]))))
     if over:
         who = "Your" if target["username"] == user["username"] else "%s's" % target["username"]
-        return {"allowed": False, "limits": limits, "usage": usage, "request": {"cpu": want_cpu, "memory": want_mem},
+        return {"allowed": False, **addition, "usage": usage, "request": {"cpu": want_cpu, "memory": want_mem},
                 "message": "%s workspace quota is reached (%s). Delete or shrink a workspace, or ask an admin to raise the "
                            "quota in Health > User Quota." % (who, "; ".join(over))}
-    return {"allowed": True, "message": "within quota", "limits": limits, "usage": usage, "request": {"cpu": want_cpu, "memory": want_mem}}
+    return {"allowed": True, "message": "within quota", **addition, "usage": usage, "request": {"cpu": want_cpu, "memory": want_mem}}
+
 
 
 # --------------------------------------------------------------------------- Global Workspace Scheduler (Health > User Quota)
@@ -7947,6 +8045,7 @@ def chat_availability():
         "off": [i for i in ids if i in CHAT.off],
         "availVersion": CHAT.avail_ver,
         "peers": bool(CHAT.settings.get("peers")),
+        "discoverAll": bool(CHAT.settings.get("discoverAll")),
         "purgeVersion": int(CHAT.settings.get("purgeVersion") or 0),
         "presenceVersion": CHAT.presence_ver,
         "maxFileMb": CHAT_MAX_FILE // 1048576,
@@ -7999,7 +8098,7 @@ def chat_people_for(user, admin):
         presence = CHAT.presence(p["id"])
         online = presence["status"] != "offline"
         seen = _ts(p.get("lastSeen"))
-        if not online and (seen is None or now_t - seen > CHAT_ACTIVE_SECONDS):
+        if not CHAT.settings.get("discoverAll") and not online and (seen is None or now_t - seen > CHAT_ACTIVE_SECONDS):
             continue
         item = {**p, "online": online, "idle": presence["status"] == "idle", "activeAt": presence["activeAt"],
                 "chatOff": p["id"] in CHAT.off}
@@ -8008,6 +8107,7 @@ def chat_people_for(user, admin):
         out.append(item)
     out.sort(key=lambda p: (not p["online"], -(_ts(p.get("lastSeen")) or 0)))
     return out[:500]
+
 
 
 def presence_report(token):
@@ -8265,6 +8365,8 @@ class Handler(BaseHTTPRequestHandler):
         if dr.handle(self, "GET", path, url.query):
             return
         if provisioners.handle(self, "GET", path, url.query):
+            return
+        if quotaextras.handle(self, "GET", path, url.query):
             return
         if workspacepower.handle(self, "GET", path, url.query):
             return
@@ -8852,10 +8954,13 @@ class Handler(BaseHTTPRequestHandler):
         admin = bool(set(user["roles"]) & ADMIN_ROLES)
         tab = (q.get("tab") or [""])[0]
         tab = tab if CHAT_TAB_RE.match(tab) else ""
+        if what == "state":
+            migrate_drive_chat_notifications(user["id"])
+            publish_announcement_notification(user)
         if what in ("state", "poll"):
             CHAT.tab(user["id"], tab) if tab else CHAT.touch(user["id"])
         if what == "people":  # who is online or active today (peer-to-peer chat; admins always)
-            if not admin and not CHAT.settings.get("peers"):
+            if not admin and not (CHAT.settings.get("peers") or CHAT.settings.get("discoverAll")):
                 return self.send_json(200, {"enabled": False, "people": []})
             return self.send_json(
                 200,
@@ -8993,6 +9098,7 @@ class Handler(BaseHTTPRequestHandler):
                     "focus": CHAT.focus_pending(user["id"]),
                     "focusVersion": CHAT.focus_ver,
                     "cleared": CHAT.cleared_since(user["id"], cleared),
+                    "removedMessages": [event for version, event in CHAT.message_removed.get(user["id"], []) if version > cleared],
                     "clearVersion": max(CHAT.last_clear(user["id"]), cleared),
                     **chat_availability(),
                 },
@@ -9137,6 +9243,10 @@ class Handler(BaseHTTPRequestHandler):
                 if not isinstance(payload["peers"], bool):
                     return self.send_json(400, {"error": "peers must be true or false."})
                 changes["peers"] = payload["peers"]
+            if "discoverAll" in payload:
+                if not isinstance(payload["discoverAll"], bool):
+                    return self.send_json(400, {"error": "discoverAll must be true or false."})
+                changes["discoverAll"] = payload["discoverAll"]
             if "keepDays" in payload:
                 days = payload["keepDays"]
                 lo, hi = CHAT_KEEP_RANGE
@@ -9215,6 +9325,15 @@ class Handler(BaseHTTPRequestHandler):
             except (TypeError, ValueError):
                 return self.send_json(400, {"error": "last must be a message id."})
             return self.send_json(200, {"ok": True})
+        if what == "delete-messages":
+            try:
+                ids = CHAT.delete_messages(user["id"], peer_id, payload.get("ids"))
+            except ValueError as error:
+                return self.send_json(400, {"error": str(error)})
+            except PermissionError as error:
+                return self.send_json(403, {"error": str(error)})
+            conversation = next((c for c in CHAT.conversations(user["id"]) if c["peer"]["id"] == peer_id), None)
+            return self.send_json(200, {"peer": peer_id, "ids": ids, "conversation": conversation})
         if what == "delete":
             try:
                 n = CHAT.delete(user["id"], peer_id)
@@ -9357,7 +9476,7 @@ class Handler(BaseHTTPRequestHandler):
         if not imagebuilder.handle(self, "PUT", url.path, url.query, ADMIN_ROLES):
             self.send(404, "not found\n")
 
-    def clear_inbox(self):
+    def clear_inbox(self, ids=None):
         """The signed-in user's Inbox (the bell), emptied: Coder can only mark its notifications read, and a busy
         Inbox fills up. Only the caller's own rows of Coder's inbox_notifications go; nothing else is touched."""
         user, err = self.user()
@@ -9367,12 +9486,23 @@ class Handler(BaseHTTPRequestHandler):
         if not pool:
             return self.send_json(503, {"error": "Coder's database is not reachable yet."})
         try:
-            rows = pool.query("DELETE FROM inbox_notifications WHERE user_id = $1::uuid RETURNING id", [user["id"]])
+            if ids is None:
+                rows = pool.query("DELETE FROM inbox_notifications WHERE user_id = $1::uuid RETURNING id", [user["id"]])
+            else:
+                if not isinstance(ids, list) or not 1 <= len(ids) <= 100:
+                    return self.send_json(400, {"error": "Select between 1 and 100 notifications."})
+                try:
+                    selected = "{" + ",".join(str(uuid.UUID(value)) for value in ids) + "}"
+                except (ValueError, TypeError, AttributeError):
+                    return self.send_json(400, {"error": "Invalid notification ID."})
+                rows = pool.query("DELETE FROM inbox_notifications WHERE user_id = $1::uuid AND id = ANY($2::uuid[]) RETURNING id", [user["id"], selected])
         except Exception as e:  # noqa: BLE001 - said to the user
             log(event="inbox-clear-failed", user=user["username"], error=str(e)[:300])
             return self.send_json(503, {"error": "The Inbox could not be cleared: %s" % str(e)[:200]})
         log(event="inbox-cleared", user=user["username"], count=len(rows))
         return self.send_json(200, {"cleared": len(rows)})
+
+
 
     def do_DELETE(self):
         url = urllib.parse.urlsplit(self.path)
@@ -9392,6 +9522,8 @@ class Handler(BaseHTTPRequestHandler):
         if provisioners.handle(self, "POST", path, url.query):
             return
         if dr.handle(self, "POST", path, url.query):
+            return
+        if quotaextras.handle(self, "POST", path, url.query):
             return
         if workspacepower.handle(self, "POST", path, url.query):
             return
@@ -9456,6 +9588,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_json(403, {"error": "Only the workspace's owner can dismiss its notes."})
             log(event="note-dismissed", user=user["username"], note=note["id"], workspace=note["workspaceId"])
             return self.send_json(200, {"note": STORE.note_dismiss(note["id"])})
+        if path == BASE + "/api/inbox/delete":
+            return self.clear_inbox(payload.get("ids", []))
         if path == BASE + "/api/inbox/clear":
             return self.clear_inbox()
         if path in (BASE + "/api/avatar", BASE + "/api/avatar/reset"):
@@ -9823,6 +9957,8 @@ class Handler(BaseHTTPRequestHandler):
         if not (banner and banner["id"] == event_id) and not STORE.known(event_id):
             return self.send_json(409, {"error": "That announcement is not live."})
         STORE.record(event_id, user, ack, banner)
+        if banner and banner.get("id") == event_id:
+            publish_announcement_notification(user, banner)
         log(
             event="ack" if ack else "view", user=user["username"], announcement=event_id
         )
@@ -9902,11 +10038,9 @@ def drive_inbox_send(notification_id, recipient, item):
 
 
 def drive_chat_post(user, to_id, text, share_id):
-    """A Cloud Drive share's message (drivepeers): from the user to the other one, carrying the share's card."""
-    peer = safe_user(to_id)
-    if not (peer and CHAT):
-        return
-    CHAT.send(user, bool(set(user.get("roles") or []) & ADMIN_ROLES), peer, text, drive=share_id)
+    """Publish Cloud Drive events to the recipient's inbox, preserving share review links."""
+    publish_drive_notification(user["id"], to_id, text, share_id, event_id=str(uuid.uuid4()))
+
 
 
 def safe_owner_workspaces(owner_id):
@@ -9948,6 +10082,7 @@ def main():
     workspacevolumes.CODER_URL = CODER_URL
     workspacevolumes.start()
     workspacepower.setup(http_json, workspace_info, KUBE, CODER_URL, ADMIN_ROLES, log)
+    quotaextras.setup(_coder_send, log, publish_quota_notification)
     workspacetunnels.setup(workspace_info, http_json, KUBE, CODER_URL, ADMIN_ROLES, tunnel_live_workspaces)
     lockdown.setup(log, KUBE, workspace_info, ADMIN_ROLES, CODER_ACCESS_URL)
     provisioners.setup(log, KUBE, ADMIN_ROLES, _coder_get, _coder_send)
@@ -9983,6 +10118,88 @@ def main():
         kube=KUBE.ok,
     )
     server.serve_forever()
+
+
+
+
+def publish_drive_notification(actor_id, recipient, text, share_id, event_id=None, created_at=None):
+    notification_id = str(uuid.uuid5(uuid.NAMESPACE_URL, "drive-share:%s:%s:%s:%s" % (
+        share_id, recipient, event_id or "", text)))
+    actions = [{"label": "Review Cloud Drive share", "url": "/workspaces?driveShare=" + urllib.parse.quote(share_id, safe="")}]
+    publish_inbox_notification(recipient, notification_id, "Cloud Drive notification", text, actions, created_at)
+
+
+
+def publish_inbox_notification(recipient, notification_id, title, content, actions, created_at=None):
+    pool = LOGOS.pool if LOGOS else None
+    if not pool:
+        raise RuntimeError("Coder's notification database is unavailable.")
+    record = {"id": notification_id, "user_id": recipient, "template_id": safe.driveaudit.CUSTOM_TEMPLATE,
+              "targets": [], "title": title, "content": content,
+              "actions": actions, "read_at": None, "created_at": created_at or now()}
+    values = {**record, "targets": "{}", "icon": "", "actions": json.dumps(actions),
+              "channel": "inbox_notification:owner:" + recipient,
+              "event": json.dumps({"kind": "new", "inbox_notification": record})}
+    statement, names = safe.driveaudit.inbox_query()
+    pool.query(statement, [values[name] for name in names])
+    if not pool.query("SELECT id FROM inbox_notifications WHERE id = $1::uuid AND user_id = $2::uuid", [notification_id, recipient]):
+        raise RuntimeError("The notification was not stored in the recipient inbox.")
+
+
+
+def publish_quota_notification(record):
+    if record["status"] == "pending":
+        recipients = [p["id"] for p in chat_people().values() if
+                      "owner" in ((safe_user(p["id"]) or {}).get("roles") or [])]
+        title = "Quota approval requested"
+    else:
+        recipients = [record["user_id"]]
+        title = "Quota request " + record["status"]
+    for recipient in recipients:
+        notification_id = str(uuid.uuid5(uuid.NAMESPACE_URL, "quota:%s:%s:%s" % (record["id"], record["status"], recipient)))
+        publish_inbox_notification(recipient, notification_id, title,
+                                   "%s: %s" % (record["username"], record.get("review_reason") or record["reason"]),
+                                   [{"label": "Review quota requests" if record["status"] == "pending" else "View quota", "url": "/deployment/users" if record["status"] == "pending" else "/workspaces"}])
+
+
+
+def publish_announcement_notification(user, banner=None):
+    """Record delivery separately so deleting an inbox entry does not recreate it on reload."""
+    try:
+        banner = banner or current_banner()
+        if not banner or not banner.get("enabled") or not banner.get("id"):
+            return
+        key = "inbox-announcements:" + user["id"]
+        delivered = STORE.get_setting(key, []) or []
+        if banner["id"] in delivered:
+            return
+        notification_id = str(uuid.uuid5(uuid.NAMESPACE_URL, "announcement:%s:%s" % (banner["id"], user["id"])))
+        url = str(banner.get("linkUrl") or "")
+        actions = [{"label": banner.get("linkText") or "Read announcement", "url": url}] if (
+            url.startswith("/") and not url.startswith("//") or urllib.parse.urlsplit(url).scheme in ("http", "https")) else []
+        publish_inbox_notification(user["id"], notification_id, banner.get("title") or "Announcement",
+                                   re.sub(r"<[^>]*>", "", str(banner.get("message") or "")), actions)
+        STORE.put_setting(key, (delivered + [banner["id"]])[-1000:])
+    except Exception as error:
+        log(event="announcement-inbox-failed", user=user["id"], error=str(error)[:200])
+
+
+
+def migrate_drive_chat_notifications(user_id):
+    """Move only explicitly tagged system share messages after both inbox inserts succeed."""
+    with CHAT.lock, CHAT.connect() as db:
+        rows = db.execute("SELECT id, from_id, to_id, text, drive_request, sent_at FROM chat_messages "
+                          "WHERE drive_request != '' AND (from_id = ? OR to_id = ?) LIMIT 100", (user_id, user_id)).fetchall()
+    for row in rows:
+        try:
+            for recipient in set((row["from_id"], row["to_id"])):
+                publish_drive_notification(row["from_id"], recipient, row["text"], row["drive_request"], str(row["id"]), row["sent_at"])
+            with CHAT.lock, CHAT.connect() as db:
+                db.execute("DELETE FROM chat_messages WHERE id = ? AND drive_request != ''", (row["id"],))
+        except Exception as error:  # Retry safely on the next state refresh.
+            log(event="drive-notification-migration-failed", error=str(error)[:200])
+            break
+
 
 
 if __name__ == "__main__":

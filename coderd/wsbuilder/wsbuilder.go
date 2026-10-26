@@ -298,6 +298,44 @@ func (e BuildError) Response() (int, codersdk.Response) {
 	}
 }
 
+// ResolveParameters authorizes and resolves a build's effective parameter values
+// without creating a build. Callers must use a fresh builder for the later write,
+// since the workspace or template can change after this read-only preflight.
+func (b Builder) ResolveParameters(
+	ctx context.Context,
+	store database.Store,
+	fileCache *files.Cache,
+	authFunc func(action policy.Action, object rbac.Objecter) bool,
+) (uuid.UUID, []codersdk.WorkspaceBuildParameter, error) {
+	b.ctx, b.store = ctx, store
+	b.fileCache = files.NewCacheCloser(fileCache)
+	defer b.fileCache.Close()
+	if authFunc != nil {
+		if err := b.authorize(authFunc); err != nil {
+			return uuid.Nil, nil, err
+		}
+	}
+	if err := b.checkTemplateVersionMatchesTemplate(); err != nil {
+		return uuid.Nil, nil, err
+	}
+	if err := b.checkTemplateJobStatus(); err != nil {
+		return uuid.Nil, nil, err
+	}
+	names, values, err := b.getParameters()
+	if err != nil {
+		return uuid.Nil, nil, err
+	}
+	version, err := b.getTemplateVersionID()
+	if err != nil {
+		return uuid.Nil, nil, err
+	}
+	parameters := make([]codersdk.WorkspaceBuildParameter, len(names))
+	for i, name := range names {
+		parameters[i] = codersdk.WorkspaceBuildParameter{Name: name, Value: values[i]}
+	}
+	return version, parameters, nil
+}
+
 // Build computes and inserts a new workspace build into the database.  If authFunc is provided, it also performs
 // authorization preflight checks.
 func (b *Builder) Build(

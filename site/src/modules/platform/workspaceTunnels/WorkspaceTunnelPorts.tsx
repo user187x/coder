@@ -8,9 +8,21 @@ import {
 } from "#/api/queries/workspaceTunnels";
 import type { Workspace } from "#/api/typesGenerated";
 import { Button } from "#/components/Button/Button";
-import { Dialog, DialogContent, DialogTitle } from "#/components/Dialog/Dialog";
+import {
+	ContextMenu,
+	ContextMenuContent,
+	ContextMenuItem,
+	ContextMenuTrigger,
+} from "#/components/ContextMenu/ContextMenu";
+import {
+	Dialog,
+	DialogClose,
+	DialogContent,
+	DialogTitle,
+} from "#/components/Dialog/Dialog";
 import { CloudDriveMalePlug } from "../cloudDrive/CloudDriveMalePlug";
 import { cablePath, type Point, restingCable } from "../cloudDrive/cables";
+import { TunnelDetails } from "./TunnelDetails";
 import "../cloudDrive/cloudDrive.css";
 import "./workspaceTunnels.css";
 import { LooseTunnelCord, type ReleasedTunnelCord } from "./LooseTunnelCord";
@@ -109,6 +121,7 @@ export const WorkspaceTunnelPorts: React.FC<{
 	const client = useQueryClient();
 	const create = useMutation(createWorkspaceTunnel(client));
 	const remove = useMutation(deleteWorkspaceTunnel(client));
+	const [detailsId, setDetailsId] = useState<string | null>(null);
 	const organizations = [...new Set(shown.map((w) => w.organization_id))];
 	const results = useQueries({ queries: organizations.map(workspaceTunnels) });
 	const tunnels = results.flatMap((r) =>
@@ -378,8 +391,30 @@ export const WorkspaceTunnelPorts: React.FC<{
 		setDrag(next);
 		onDragging(true);
 	};
+	const details = tunnels.find((t) => t.id === detailsId);
 	return (
 		<>
+			<Dialog
+				open={detailsId !== null}
+				onOpenChange={(open) => {
+					if (!open) setDetailsId(null);
+				}}
+			>
+				<DialogContent
+					className="z-[95] max-h-[85vh] overflow-y-auto"
+					overlayClassName="z-[94] backdrop-blur-sm"
+				>
+					<DialogTitle>Connection details</DialogTitle>
+					{details ? (
+						<TunnelDetails tunnel={details} />
+					) : (
+						<p>This connection is no longer available.</p>
+					)}
+					<DialogClose asChild>
+						<Button variant="outline">Close</Button>
+					</DialogClose>
+				</DialogContent>
+			</Dialog>
 			<svg
 				ref={svg}
 				className="absolute inset-0 z-20 size-full overflow-visible pointer-events-none"
@@ -409,43 +444,58 @@ export const WorkspaceTunnelPorts: React.FC<{
 					const arc = arcFor(t, index);
 					const d = tunnelPath(from, to, from.side, to.side, arc);
 					return (
-						<g
-							key={t.id}
-							className="workspace-tunnel-cord"
-							data-state={t.status}
-						>
-							<TunnelCord
-								from={from}
-								to={to}
-								fromSide={from.side}
-								toSide={to.side}
-								pending={t.status !== "ready"}
-								arc={arc}
-							/>
-							<path
-								d={d}
-								fill="none"
-								stroke="transparent"
-								strokeWidth={14}
-								className="pointer-events-stroke cursor-pointer"
-								role="button"
-								tabIndex={0}
-								aria-label={`Manage tunnel ${from.workspace.name} to ${to.workspace.name}: ${t.status}`}
-								onClick={() => {
-									setSelected(from.workspace);
-									setSelectedTerminal("output");
-									setSelectedSide(from.side);
-								}}
-								onKeyDown={(e) => {
-									if (e.key === "Enter" || e.key === " ") {
-										e.preventDefault();
-										setSelected(from.workspace);
-										setSelectedTerminal("output");
-										setSelectedSide(from.side);
+						<ContextMenu key={t.id}>
+							<ContextMenuTrigger asChild>
+								<g className="workspace-tunnel-cord" data-state={t.status}>
+									<TunnelCord
+										from={from}
+										to={to}
+										fromSide={from.side}
+										toSide={to.side}
+										pending={t.status !== "ready"}
+										arc={arc}
+									/>
+									<path
+										d={d}
+										fill="none"
+										stroke="transparent"
+										strokeWidth={14}
+										className="pointer-events-stroke cursor-pointer"
+										role="button"
+										tabIndex={0}
+										aria-label={`Manage tunnel ${from.workspace.name} to ${to.workspace.name}: ${t.status}`}
+										onClick={() => {
+											setSelected(from.workspace);
+											setSelectedTerminal("output");
+											setSelectedSide(from.side);
+										}}
+										onKeyDown={(e) => {
+											if (e.key === "Enter" || e.key === " ") {
+												e.preventDefault();
+												setSelected(from.workspace);
+												setSelectedTerminal("output");
+												setSelectedSide(from.side);
+											}
+										}}
+									/>
+								</g>
+							</ContextMenuTrigger>
+							<ContextMenuContent className="z-[100]">
+								<ContextMenuItem onSelect={() => setDetailsId(t.id)}>
+									View connection
+								</ContextMenuItem>
+								<ContextMenuItem
+									disabled={
+										!managesTunnel(t) ||
+										remove.isPending ||
+										t.status === "disconnecting"
 									}
-								}}
-							/>
-						</g>
+									onSelect={() => disconnect(t)}
+								>
+									Delete connection
+								</ContextMenuItem>
+							</ContextMenuContent>
+						</ContextMenu>
 					);
 				})}
 				{drag && (
@@ -555,39 +605,57 @@ export const WorkspaceTunnelPorts: React.FC<{
 						{ at: from, fixed: to, source: true },
 						{ at: to, fixed: from, source: false },
 					].map(({ at, fixed, source }) => (
-						<g
-							key={`${t.id}-${source}`}
-							transform={`translate(${at.x} ${at.y}) scale(${at.side === "left" ? 1 : -1} 1)`}
-						>
-							<CloudDriveMalePlug />
-							<rect
-								x={-4}
-								y={-9}
-								width={16}
-								height={18}
-								fill="transparent"
-								className="pointer-events-auto cursor-grab"
-								role="button"
-								tabIndex={0}
-								aria-label={`Disconnect tunnel ${from.workspace.name} to ${to.workspace.name}${source ? " source plug" : ""}`}
-								onPointerDown={(event) => start(event, fixed, t, source)}
-								onClick={() => {
-									if (!moved.current) {
-										setSelected(at.workspace);
-										setSelectedTerminal(source ? "output" : "input");
-										setSelectedSide(at.side);
+						<ContextMenu key={`${t.id}-${source}`}>
+							<ContextMenuTrigger asChild>
+								<g
+									transform={`translate(${at.x} ${at.y}) scale(${at.side === "left" ? 1 : -1} 1)`}
+								>
+									<CloudDriveMalePlug />
+									<rect
+										x={-4}
+										y={-9}
+										width={16}
+										height={18}
+										fill="transparent"
+										className="pointer-events-auto cursor-grab"
+										role="button"
+										tabIndex={0}
+										aria-label={`Disconnect tunnel ${from.workspace.name} to ${to.workspace.name}${source ? " source plug" : ""}`}
+										onPointerDown={(event) => start(event, fixed, t, source)}
+										onClick={() => {
+											if (!moved.current) {
+												setSelected(at.workspace);
+												setSelectedTerminal(source ? "output" : "input");
+												setSelectedSide(at.side);
+											}
+										}}
+										onKeyDown={(event) => {
+											if (event.key === "Enter" || event.key === " ") {
+												event.preventDefault();
+												setSelected(at.workspace);
+												setSelectedTerminal(source ? "output" : "input");
+												setSelectedSide(at.side);
+											}
+										}}
+									/>
+								</g>
+							</ContextMenuTrigger>
+							<ContextMenuContent className="z-[100]">
+								<ContextMenuItem onSelect={() => setDetailsId(t.id)}>
+									View connection
+								</ContextMenuItem>
+								<ContextMenuItem
+									disabled={
+										!managesTunnel(t) ||
+										remove.isPending ||
+										t.status === "disconnecting"
 									}
-								}}
-								onKeyDown={(event) => {
-									if (event.key === "Enter" || event.key === " ") {
-										event.preventDefault();
-										setSelected(at.workspace);
-										setSelectedTerminal(source ? "output" : "input");
-										setSelectedSide(at.side);
-									}
-								}}
-							/>
-						</g>
+									onSelect={() => disconnect(t)}
+								>
+									Delete connection
+								</ContextMenuItem>
+							</ContextMenuContent>
+						</ContextMenu>
 					));
 				})}
 			</svg>

@@ -1,4 +1,5 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "react-query";
 import { type ChatMessage, PlatformAPI } from "#/api/platform";
 import { renderComponent } from "#/testHelpers/renderHelpers";
 import { ChatConversation, formatSize } from "./ChatConversation";
@@ -38,7 +39,9 @@ const message = (over: Partial<ChatMessage>): ChatMessage => ({
 
 const render = (messages?: ChatMessage[]) =>
 	renderComponent(
-		<ChatConversation view={view(messages)} dock={{ current: null }} />,
+		<QueryClientProvider client={new QueryClient()}>
+			<ChatConversation view={view(messages)} dock={{ current: null }} />
+		</QueryClientProvider>,
 	);
 
 describe("chat attachments", () => {

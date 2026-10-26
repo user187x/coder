@@ -79,6 +79,11 @@ func (api *API) workspaceBuild(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := api.checkPlatformStartQuota(ctx, httpmw.APITokenFromRequest(r), apiKey.UserID, workspace, createBuild, func(action policy.Action, object rbac.Objecter) bool { return api.Authorize(r, action, object) }); err != nil {
+		httperror.WriteWorkspaceBuildError(ctx, rw, err)
+		return
+	}
+
 	apiBuild, err := api.convertWorkspaceBuild(
 		workspaceBuild,
 		workspace,

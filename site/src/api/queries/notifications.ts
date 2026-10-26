@@ -1,5 +1,6 @@
 import type { QueryClient, UseMutationOptions } from "react-query";
 import { API } from "#/api/api";
+import { PlatformAPI } from "#/api/platform";
 import type {
 	NotificationPreference,
 	NotificationTemplate,
@@ -163,3 +164,51 @@ export const disableNotification = (
 		},
 	} satisfies UseMutationOptions<NotificationPreference[], unknown, string>;
 };
+
+export const inboxNotificationsKey = ["notifications"];
+export const inboxNotifications = () => ({
+	queryKey: inboxNotificationsKey,
+	queryFn: () => API.getInboxNotifications(),
+	refetchInterval: 15000,
+});
+export const deleteInboxNotifications = (client: QueryClient) => ({
+	mutationFn: async (ids: string[] | null) => {
+		if (ids === null) return PlatformAPI.clearInbox();
+		let cleared = 0;
+		for (let offset = 0; offset < ids.length; offset += 100)
+			cleared += (
+				await PlatformAPI.deleteInboxNotifications(
+					ids.slice(offset, offset + 100),
+				)
+			).cleared;
+		return { cleared };
+	},
+	onSettled: () =>
+		client.invalidateQueries({ queryKey: inboxNotificationsKey }),
+});
+export const markInboxNotificationRead = (client: QueryClient) => ({
+	mutationFn: (id: string) =>
+		API.updateInboxNotificationReadStatus(id, { is_read: true }),
+	onSettled: () =>
+		client.invalidateQueries({ queryKey: inboxNotificationsKey }),
+});
+
+export const loadAllInboxNotifications = (client: QueryClient) => ({
+	mutationFn: async () => {
+		const result = await API.getInboxNotifications();
+		const notifications = [...result.notifications];
+		const ids = new Set(result.notifications.map((n) => n.id));
+		let page = result.notifications;
+		while (page.length === 25) {
+			const last = page.at(-1);
+			if (!last) break;
+			const next = await API.getInboxNotifications(last.id);
+			page = next.notifications.filter((n) => !ids.has(n.id));
+			for (const n of page) ids.add(n.id);
+			notifications.push(...page);
+		}
+		return { ...result, notifications };
+	},
+	onSuccess: (result: Awaited<ReturnType<typeof API.getInboxNotifications>>) =>
+		client.setQueryData(inboxNotificationsKey, result),
+});

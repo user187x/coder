@@ -7,19 +7,12 @@ import {
 } from "lucide-react";
 import {
 	ChatHeading,
-	ChatList,
 	ChatOnSwitch,
 	ConsoleButton,
 	DockButton,
 } from "./ChatPanel";
-import {
-	closePanelView,
-	exitFullScreen,
-	selectInPanel,
-	setDockMode,
-	useChatSnapshot,
-} from "./chatStore";
-import { PanelConversation } from "./PanelConversation";
+import { exitFullScreen, setDockMode, useChatSnapshot } from "./chatStore";
+import { DockSections } from "./DockSections";
 
 type AttachedProps = {
 	/** The dock, left out of screenshots. */
@@ -84,19 +77,7 @@ export const ChatSidePanel: React.FC<AttachedProps> = ({ dock }) => {
 					<MinusIcon />
 				</DockButton>
 			</header>
-			{view ? (
-				<PanelConversation
-					view={view}
-					dock={dock}
-					onBack={closePanelView}
-					onEscape={closePanelView}
-				/>
-			) : (
-				<ChatList
-					onOpen={(peer) => selectInPanel(peer, true)}
-					className="min-h-0 flex-1"
-				/>
-			)}
+			<DockSections dock={dock} />
 		</section>
 	);
 };
@@ -138,28 +119,7 @@ export const ChatFullScreen: React.FC<AttachedProps> = ({ dock }) => {
 					<Minimize2Icon />
 				</DockButton>
 			</header>
-			<div className="grid min-h-0 flex-1 grid-rows-1 sm:grid-cols-[minmax(240px,320px)_1fr]">
-				<ChatList
-					onOpen={(peer) => selectInPanel(peer, true)}
-					selectedId={view?.peer.id}
-					className={cn(
-						"min-h-0 border-0 border-solid border-border sm:border-r",
-						view && "max-sm:hidden",
-					)}
-				/>
-				{view ? (
-					<PanelConversation
-						view={view}
-						dock={dock}
-						onBack={closePanelView}
-						backClassName="sm:hidden"
-					/>
-				) : (
-					<p className="m-auto p-4 text-sm text-content-secondary max-sm:hidden">
-						Pick a conversation to read it here.
-					</p>
-				)}
-			</div>
+			<DockSections dock={dock} wide />
 		</section>
 	);
 };

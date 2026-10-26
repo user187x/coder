@@ -9,7 +9,7 @@ import type {
 } from "#/api/typesGenerated";
 import { InboxPopover } from "./InboxPopover";
 
-const NOTIFICATIONS_QUERY_KEY = ["notifications"];
+import { inboxNotificationsKey as NOTIFICATIONS_QUERY_KEY } from "#/api/queries/notifications";
 const NOTIFICATIONS_LIMIT = 25; // This is hard set in the API
 
 type NotificationsInboxProps = {

@@ -2561,3 +2561,7 @@ workspace checks).
 - Match account Lock Down option buttons to the dark theme.
 - Add a shared configurable Quick Menu activation key or combination, with recording, Escape reset, server validation, and protection for ordinary typing.
 - Center and rebalance account Latency, Activity, Status, and action columns.
+
+* Added independent cumulative/per-workspace CPU and memory quota policies, including allocation-increase preflights and policy-aware usage labels.
+* Workspace tunnel context menus now expose authorized deletion and connection telemetry review across table, grid and list views.
+* Added a shared-inbox Notifications dock tab, announcement and approval alerts, user discovery controls, unread badges, and context-menu/bulk actions for notifications, contacts and messages.

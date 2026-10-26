@@ -125,7 +125,9 @@ export const ChatPeople: React.FC<ChatPeopleProps> = ({
 	const [search, setSearch] = useState("");
 	const peopleQuery = useQuery({
 		...chatPeople(state.availVersion, state.presenceVersion),
-		enabled: Boolean(state.me && (state.peers || state.me.admin)),
+		enabled: Boolean(
+			state.me && (state.peers || state.discoverAll || state.me.admin),
+		),
 	});
 	const people = (peopleQuery.data?.people ?? []).filter(
 		(p) => (!withoutAdmins || !p.admin) && (!onlineOnly || p.online),

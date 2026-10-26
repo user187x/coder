@@ -90,6 +90,7 @@ const ChatSettingsPage: React.FC = () => {
 					<ChatConsoleCard />
 					<OnlineUsersCard />
 					<PeersCard settings={settingsQuery.data} />
+					<DiscoveryCard settings={settingsQuery.data} />
 					<RetentionCard settings={settingsQuery.data} />
 					<PairsCard />
 					<section aria-labelledby="chat-people-now" className={card}>
@@ -405,3 +406,36 @@ export const PairsCard: React.FC = () => {
 };
 
 export default ChatSettingsPage;
+
+export const DiscoveryCard: React.FC<{ settings: ChatSettings }> = ({
+	settings,
+}) => {
+	const client = useQueryClient();
+	const save = useMutation(saveChatSettings(client));
+	return (
+		<section className={card} aria-label="User discovery">
+			<div className="flex items-center gap-3">
+				<Switch
+					id="chat-discover-all"
+					checked={settings.discoverAll ?? false}
+					disabled={save.isPending}
+					onCheckedChange={(discoverAll) =>
+						save.mutate(
+							{ discoverAll },
+							{
+								onError: (error) =>
+									toast.error(getErrorMessage(error, "Not saved.")),
+							},
+						)
+					}
+				/>
+				<Label htmlFor="chat-discover-all">Discover all users</Label>
+			</div>
+			<p className="m-0 text-sm text-content-secondary">
+				Include all active accounts in People, including offline users.
+				Peer-to-peer chat controls whether developers may start conversations
+				with each other. Invisible users remain hidden from other developers.
+			</p>
+		</section>
+	);
+};

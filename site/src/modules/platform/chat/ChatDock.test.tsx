@@ -1,7 +1,9 @@
 import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, Outlet } from "react-router";
+import { API } from "#/api/api";
 import { type ChatMessage, type ChatState, PlatformAPI } from "#/api/platform";
+import { MockNotification } from "#/testHelpers/entities";
 import { renderWithRouter } from "#/testHelpers/renderHelpers";
 import { ChatDock } from "./ChatDock";
 import {
@@ -337,4 +339,90 @@ describe("ChatDock: the bar, the raised window, the side panel and full screen",
 		await user.click(within(side).getByRole("button", { name: /ann/ }));
 		await within(side).findByRole("log", { name: "Messages with ann" });
 	});
+});
+
+describe("Dock selection actions", () => {
+	afterEach(() => {
+		act(() => {
+			setDockMode("bar");
+			closePanelView();
+			closeWindow("ann");
+		});
+		vi.restoreAllMocks();
+	});
+	it("deletes only selected inbox entries after confirmation", async () => {
+		vi.spyOn(API, "getInboxNotifications").mockResolvedValue({
+			notifications: [MockNotification],
+			unread_count: 1,
+		});
+		const remove = vi
+			.spyOn(PlatformAPI, "deleteInboxNotifications")
+			.mockResolvedValue({ cleared: 1 });
+		renderDock();
+		const user = userEvent.setup();
+		const raised = await raise(user);
+		await user.click(
+			within(raised).getByRole("tab", { name: /^Notifications/ }),
+		);
+		await user.click(
+			await screen.findByRole("checkbox", {
+				name: `Select ${MockNotification.title}`,
+			}),
+		);
+		await user.click(screen.getByRole("button", { name: "Delete selected" }));
+		expect(remove).not.toHaveBeenCalled();
+		await user.click(
+			within(screen.getByRole("dialog")).getByRole("button", {
+				name: "Delete",
+			}),
+		);
+		await waitFor(() =>
+			expect(remove).toHaveBeenCalledWith([MockNotification.id]),
+		);
+	});
+	it("deletes selected messages through the participant-scoped API", async () => {
+		const remove = vi
+			.spyOn(PlatformAPI, "deleteChatMessages")
+			.mockResolvedValue({ peer: "ann", ids: [1], conversation: null });
+		renderDock();
+		const user = userEvent.setup();
+		await raise(user);
+		await act(() => openChatWith({ id: "ann", username: "ann", name: "" }));
+		await user.click(
+			await screen.findByRole("checkbox", { name: "Select message 1" }),
+		);
+		const log = screen.getByRole("log", { name: "Messages with ann" });
+		await user.click(
+			within(log).getByRole("button", { name: "Delete selected" }),
+		);
+		await user.click(
+			within(screen.getByRole("dialog")).getByRole("button", {
+				name: "Delete",
+			}),
+		);
+		await waitFor(() => expect(remove).toHaveBeenCalledWith("ann", [1]));
+	});
+});
+
+it("clears the inbox through the Notifications tab context menu after confirmation", async () => {
+	vi.spyOn(API, "getInboxNotifications").mockResolvedValue({
+		notifications: [MockNotification],
+		unread_count: 1,
+	});
+	const clear = vi
+		.spyOn(PlatformAPI, "clearInbox")
+		.mockResolvedValue({ cleared: 1 });
+	renderDock();
+	const user = userEvent.setup();
+	await act(() => setDockMode("window"));
+	const tab = await screen.findByRole("tab", { name: /^Notifications/ });
+	await user.pointer({ target: tab, keys: "[MouseRight]" });
+	await user.click(screen.getByRole("menuitem", { name: "Clear all" }));
+	expect(clear).not.toHaveBeenCalled();
+	await user.click(
+		within(screen.getByRole("dialog")).getByRole("button", { name: "Delete" }),
+	);
+	await waitFor(() => expect(clear).toHaveBeenCalledTimes(1));
+	await act(() => setDockMode("bar"));
+	vi.restoreAllMocks();
 });

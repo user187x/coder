@@ -716,7 +716,7 @@ func createWorkspace(
 	}
 
 	// The platform's per-user quota (number of workspaces, CPU cores, memory).
-	if err := api.checkPlatformQuota(ctx, opts.sessionToken, owner, template.ID, templateVersionID, req); err != nil {
+	if err := api.checkPlatformQuota(ctx, opts.sessionToken, owner, template.OrganizationID, template.ID, templateVersionID, req); err != nil {
 		return codersdk.Workspace{}, err
 	}
 

@@ -7,19 +7,13 @@ import {
 	MinusIcon,
 	PanelRightIcon,
 	PanelsTopLeftIcon,
-	UsersRoundIcon,
 } from "lucide-react";
 import { useQuery } from "react-query";
 import type { ChatPeer } from "#/api/platform";
 import { chatAdmins } from "#/api/queries/platform";
 import { Avatar } from "#/components/Avatar/Avatar";
 import { Button } from "#/components/Button/Button";
-import {
-	Tabs,
-	TabsContent,
-	TabsList,
-	TabsTrigger,
-} from "#/components/Tabs/Tabs";
+
 import { navbarTileTriggerClass } from "#/modules/dashboard/Navbar/NavbarLogo";
 import { ChatAvatar } from "./ChatAvatar";
 import { ChatPeople } from "./ChatPeople";
@@ -28,15 +22,13 @@ import {
 	displayName,
 	hasRecentConversation,
 	noAdminAvailable,
-	openChatWith,
 	openConsoleOverlay,
 	setChatOn,
 	setDockMode,
-	setDockTab,
 	unreadTotal,
 	useChatSnapshot,
 } from "./chatStore";
-import { PanelConversation } from "./PanelConversation";
+import { DockSections } from "./DockSections";
 
 /** The raised window: Gmail's chat window, within the room under the navbar (ChatDock measures it). */
 const RAISED_HEIGHT = "min(520px, var(--chat-space, 520px))";
@@ -58,16 +50,6 @@ export const ChatPanel: React.FC<{
 
 	const compact = state.dockMode === "compact";
 	const floating = ["bar", "window", "compact"].includes(state.dockMode);
-	const view =
-		state.panelView ?? state.windows.find((window) => !window.minimized);
-	const views =
-		state.panelView &&
-		!state.windows.some((window) => window.peer.id === state.panelView?.peer.id)
-			? [...state.windows, state.panelView]
-			: state.windows;
-	const open = (peer: ChatPeer) => {
-		void openChatWith(peer);
-	};
 
 	return (
 		<>
@@ -167,78 +149,12 @@ export const ChatPanel: React.FC<{
 						</>
 					)}
 				</div>
-				<Tabs
+				<div
 					hidden={!raised}
-					orientation="vertical"
-					value={state.dockTab}
-					onValueChange={(tab) => {
-						if (tab === "people" || tab === "chat") setDockTab(tab);
-					}}
 					className={cn("flex min-h-0 flex-1", !raised && "hidden")}
 				>
-					<TabsList
-						aria-label="Chat sections"
-						className="flex w-12 shrink-0 flex-col items-center gap-2 border-0 border-r border-solid border-border bg-surface-secondary/30 py-2"
-					>
-						<TabsTrigger
-							value="people"
-							title="People"
-							className="chat-dock-section-tab"
-						>
-							<UsersRoundIcon aria-hidden className="size-4" />
-							<span className="sr-only">People</span>
-						</TabsTrigger>
-						<TabsTrigger
-							value="chat"
-							title="Chat"
-							className="chat-dock-section-tab"
-						>
-							<MessageSquareIcon aria-hidden className="size-4" />
-							<span className="sr-only">Chat</span>
-						</TabsTrigger>
-					</TabsList>
-					<TabsContent
-						value="people"
-						hidden={state.dockTab !== "people"}
-						forceMount
-						className="flex min-h-0 min-w-0 flex-1 flex-col data-[state=inactive]:hidden"
-					>
-						<ChatList onOpen={open} className="min-h-0 flex-1" />
-					</TabsContent>
-					<TabsContent
-						value="chat"
-						hidden={state.dockTab !== "chat"}
-						forceMount
-						className="flex min-h-0 min-w-0 flex-1 flex-col data-[state=inactive]:hidden"
-					>
-						{views.map((window) => (
-							<div
-								key={window.peer.id}
-								hidden={view?.peer.id !== window.peer.id}
-								className={cn(
-									"flex min-h-0 flex-1 flex-col",
-									view?.peer.id !== window.peer.id && "hidden",
-								)}
-							>
-								<PanelConversation
-									view={
-										state.panelView?.peer.id === window.peer.id
-											? state.panelView
-											: window
-									}
-									dock={dock}
-									onBack={() => setDockTab("people")}
-									onEscape={() => setDockTab("people")}
-								/>
-							</div>
-						))}
-						{!view && (
-							<p className="p-4 text-sm text-content-secondary">
-								Select someone in People to open a conversation.
-							</p>
-						)}
-					</TabsContent>
-				</Tabs>
+					<DockSections dock={dock} />
+				</div>
 			</div>
 		</>
 	);
@@ -434,17 +350,18 @@ export const ChatList: React.FC<ChatListProps> = ({
 				);
 			})}
 			{me.admin ? (
-				!conversations.length && (
-					<p className="m-2 text-[13px] text-content-secondary">
-						No conversations yet. Start one with "Chat" in Controls › Settings ›
-						Accounts.
-					</p>
-				)
+				<>
+					<ChatPeople onOpen={onOpen} />
+					{!conversations.length && (
+						<p className="m-2 text-[13px] text-content-secondary">
+							No conversations yet. Start one with "Chat" in Controls › Settings
+							› Accounts.
+						</p>
+					)}
+				</>
 			) : (
 				<>
-					{state.peers && (
-						<ChatPeople onOpen={onOpen} withoutAdmins onlineOnly />
-					)}
+					{state.peers && <ChatPeople onOpen={onOpen} withoutAdmins />}
 					{(!adminsQuery.data ||
 						adminsQuery.data.some(
 							(admin) =>

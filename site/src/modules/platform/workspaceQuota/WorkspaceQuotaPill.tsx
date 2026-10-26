@@ -41,7 +41,7 @@ export const WorkspaceQuotaPillView: FC<{ quota: QuotaMe }> = ({ quota }) => {
 			data-testid="workspace-quota-pill"
 			title={
 				quota.atLimit
-					? "Your quota is reached: delete or shrink a workspace, or ask an admin to raise it."
+					? "One or more quota limits are reached. Per-instance limits apply separately to each workspace. Ask an admin to raise a limit if needed."
 					: "Your workspace quota: what your workspaces are built with, of the limits an admin set."
 			}
 		>
@@ -56,7 +56,13 @@ export const WorkspaceQuotaPillView: FC<{ quota: QuotaMe }> = ({ quota }) => {
 						data-testid={`quota-${p.key}`}
 						data-level={level}
 					>
-						<span>{p.label}</span>
+						<span>
+							{p.label}
+							{p.key !== "workspaces" &&
+							quota.resourceModes?.[p.key] === "instance"
+								? " / instance (largest)"
+								: ""}
+						</span>
 						<span className="relative h-1.5 w-10 overflow-hidden rounded-full bg-surface-quaternary">
 							<span
 								className={cn(
