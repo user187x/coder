@@ -3,13 +3,13 @@ import { useMutation, useQuery, useQueryClient } from "react-query";
 import { toast } from "sonner";
 import { watchInboxNotifications } from "#/api/api";
 import { getErrorDetail, getErrorMessage } from "#/api/errors";
+import { inboxNotificationsKey as NOTIFICATIONS_QUERY_KEY } from "#/api/queries/notifications";
 import type {
 	ListInboxNotificationsResponse,
 	UpdateInboxNotificationReadStatusResponse,
 } from "#/api/typesGenerated";
 import { InboxPopover } from "./InboxPopover";
 
-import { inboxNotificationsKey as NOTIFICATIONS_QUERY_KEY } from "#/api/queries/notifications";
 const NOTIFICATIONS_LIMIT = 25; // This is hard set in the API
 
 type NotificationsInboxProps = {
