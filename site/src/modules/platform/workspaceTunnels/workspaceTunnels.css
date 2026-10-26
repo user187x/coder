@@ -85,32 +85,10 @@ html[data-animations="off"] .workspace-tunnel-chevron-static {
 
 .workspace-tunnel-icon {
 	background: currentColor;
-	mask: url("/icon/workspace-tunnel.png") center / contain no-repeat;
-	-webkit-mask: url("/icon/workspace-tunnel.png") center / contain no-repeat;
+	mask: url("/icon/workspace-tunnel.svg") center / contain no-repeat;
+	-webkit-mask: url("/icon/workspace-tunnel.svg") center / contain no-repeat;
 }
 
 .workspace-tunnel-status {
 	box-shadow: 0 0 0 1px hsl(var(--border-success) / 0.55);
-	animation: workspace-tunnel-status-glow 2s ease-in-out infinite;
-}
-@keyframes workspace-tunnel-status-glow {
-	0%,
-	100% {
-		box-shadow:
-			0 0 0 1px hsl(var(--border-success) / 0.4),
-			0 0 2px hsl(var(--border-success) / 0.15);
-	}
-	50% {
-		box-shadow:
-			0 0 0 1px hsl(var(--border-success) / 0.9),
-			0 0 6px 1px hsl(var(--border-success) / 0.45);
-	}
-}
-html[data-animations="off"] .workspace-tunnel-status {
-	animation: none;
-}
-@media (prefers-reduced-motion: reduce) {
-	.workspace-tunnel-status {
-		animation: none;
-	}
 }
