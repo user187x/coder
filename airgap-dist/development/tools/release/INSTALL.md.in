@@ -1,7 +1,7 @@
 # coder-fork @VERSION@ – install
 
 Coder @CODER_VERSION@ (the fork's open-source build) for an air-gapped Kubernetes cluster: with the public images the
-chart runs in your registry, push this folder's images, then one `helm install` with one values file. The chart
+chart runs reachable from the nodes, push this folder's fork images, then one `helm install` with one values file. The chart
 `coder-airgapped-@VERSION@.tgz` installs the whole platform, and on a bare cluster also its prerequisites (Traefik with
 the Gateway API, the CloudNativePG operator).
 
@@ -12,19 +12,20 @@ the Gateway API, the CloudNativePG operator).
 | `push-images.sh` | Checks the files, then loads each image and pushes it to your registry, where the chart pulls it (docker only) |
 | `PUBLIC-IMAGES.txt` | The public images the chart runs: their path in your registry and their tested digests (step 1) |
 | `pull-public-images.sh` | Optional, on a connected machine: saves those public images into this folder, so `push-images.sh` pushes them too |
+| `IMAGE-INVENTORY.json` | Complete machine-readable inventory: bundled fork images and public dependencies |
 | `IMAGES.txt` | Each image: its reference, file(s), size, config and manifest digests |
 | `values.example.yaml` | The values to start `values.yaml` from: every input of the install |
 | `values-ha.example.yaml` | High availability, on top of your values |
 | `SHA256SUMS` | Every file here (`sha256sum -c SHA256SUMS`); `SHA256SUMS.joined`: the split archives, joined |
-| `CVE-REPORT.md` | The CVE scan of the release's images (ours): no fixable finding |
+| `CVE-REPORT.md` | Present when built with `--scan`: the release image scan results |
 
 ## Before you start
 
 - **Kubernetes 1.27 or newer with amd64 (x86_64) nodes** – the images are amd64 only.
 - **A container registry** the nodes pull from (ECR, Harbor, a plain registry ...) – `$REGISTRY` below, the
-  chart's `global.registry`. Log in to it from where you run `push-images.sh` (`docker login $REGISTRY`; ECR:
+  chart's `global.forkRegistry`. Log in to it from where you run `push-images.sh` (`docker login $REGISTRY`; ECR:
   `aws ecr get-login-password | docker login --username AWS --password-stdin $REGISTRY`).
-- **The public images the chart runs, in that registry** (step 1): they are not in this folder - `pull-public-images.sh`
+- **The public images the chart runs, reachable from the nodes** (step 1): they are not in this folder. `pull-public-images.sh`
   saves them into it on a connected machine. They come from their own projects, through your site's usual import and
   scanning; their CVEs are those projects' to fix.
 - **A domain** for the platform: Coder at `coder.<domain>`, workspace apps at `*.<domain>`. Your users' machines must
@@ -40,8 +41,13 @@ Tools: `docker`, `helm`, `kubectl`.
 
 ## 1. Images
 
-The public images the chart runs (with high availability and its own prerequisites too) must be in your registry at
-these paths - each at the digest tested, or a later build of the same tag:
+The default values use `global.forkRegistry` for the fork images and leave public dependencies at their original
+registries. The following list is complete for the standard and high-availability profiles, including bundled
+prerequisites. Keycloak is external and is not installed by this chart. Storage provisioner helper images are managed
+by your cluster.
+
+For a completely disconnected cluster, mirror these public images too and set `global.registry` instead of
+`global.forkRegistry`. That setting remaps every image to these paths:
 
 | In your registry | The public image (tested digest) |
 |---|---|
@@ -70,7 +76,7 @@ It checks every file against `SHA256SUMS` (and `SHA256SUMS.public`), then loads,
 ## 2. Values
 
 ```bash
-cp values.example.yaml values.yaml    # change every CHANGE-ME: global.domain, global.registry ($REGISTRY)
+cp values.example.yaml values.yaml    # change every CHANGE-ME: global.domain, global.forkRegistry ($REGISTRY)
 ```
 
 Every input of the install is in this one file:
@@ -135,3 +141,18 @@ In this order. Uninstalling first lets a hook stop every workspace that mounts a
 CSI driver can still unmount it. Deleting the namespace straight away removes the driver too, and those workspace
 pods never finish terminating. If that happened: `kubectl -n coder-fork delete pod <pod> --grace-period=0 --force`,
 and on its node `umount -l` the pod's leftover `fuse` mounts.
+
+## Optional DATAFLOW workspace
+
+The platform and DEFAULT template install with DATAFLOW disabled. A DATAFLOW image that cannot be pulled does not
+participate in their startup. You may omit the `coder-workspace-dataflow_*.part-*` downloads and import only the
+required images:
+
+```bash
+./push-images.sh "$REGISTRY" --without-dataflow
+```
+
+After importing the DATAFLOW image successfully, set `coder-workspace.dataflowTemplate.enabled: true` in your saved
+values file and run `helm upgrade` with that file. Existing DATAFLOW workspaces are not deleted when the template
+publication switch is disabled. If a DATAFLOW workspace later cannot pull its image, that workspace fails to start;
+Coder and other workspaces keep running.

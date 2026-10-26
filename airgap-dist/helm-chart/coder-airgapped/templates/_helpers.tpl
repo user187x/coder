@@ -75,6 +75,9 @@ https://{{ include "platform.coderHost" . }}
 {{- define "platform.image" -}}
 {{- $ctx := index . 0 -}}{{- $ref := index . 1 -}}
 {{- $reg := trimSuffix "/" ($ctx.Values.global.registry | default "") -}}
+{{- if and (empty $reg) (hasPrefix "ghcr.io/user187x/" $ref) -}}
+{{- $reg = trimSuffix "/" ($ctx.Values.global.forkRegistry | default "") -}}
+{{- end -}}
 {{- if $reg -}}
 {{- $parts := splitList "/" $ref -}}
 {{- if and (gt (len $parts) 1) (or (contains "." (first $parts)) (contains ":" (first $parts)) (eq (first $parts) "localhost")) -}}

@@ -12,7 +12,8 @@ global:
   domain: example.com                       # CHANGE-ME: Coder at https://coder.example.com, workspace apps at *.example.com
   coderHost: ""                             # "" = coder.<domain>
   wildcardHost: ""                          # "" = *.<domain>; a domain of one label (vm, lab) needs "*.coder.<domain>"
-  registry: registry.example.com/coder      # CHANGE-ME: what you gave push-images.sh (host[:port][/prefix])
+  registry: ""                              # Public dependencies pull from their original registries.
+  forkRegistry: registry.example.com/coder  # CHANGE-ME: what you gave push-images.sh (host[:port][/prefix])
   imagePullSecrets: []                      # e.g. [{name: registry-pull}] for a registry that needs a login
   # The prerequisites the chart installs itself. Set one to false where the cluster already runs it (a second
   # CloudNativePG operator would fight the first one over the database); with your own Traefik, also set gateway.
@@ -70,3 +71,8 @@ uiUpdates:
     enabled: false                          # no Keycloak in this cluster to manage
   argocd:
     enabled: false                          # installed with Helm
+
+# DATAFLOW is optional. Enable only after importing its image; DEFAULT is always installed.
+coder-workspace:
+  dataflowTemplate:
+    enabled: false

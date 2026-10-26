@@ -6,14 +6,33 @@ announcement banner and a full-featured workspace template, packaged as **one He
 every container image it needs**. Nothing is downloaded during the install, and nothing at run time reaches outside
 your network.
 
-| | Current release: [**v1.45.0**](https://github.com/user187x/coder-fork/releases/latest) |
+| | Current release: [**1.1.1**](https://github.com/user187x/coder/releases/tag/1.1.1) |
 |---|---|
-| Coder server | `ghcr.io/user187x/coder-platform:2.0.0-platform.99-airgap`, upstream Coder `main` at `70bc2e554` (after v2.38.0) + 178 fork commits ([`user187x/coder`](https://github.com/user187x/coder)), with a Terraform provider mirror |
-| Workspace image | `ghcr.io/user187x/coder-workspace:1.9.4` (desktop with two themes, Chromium, Terminator, IDEs, FileBrowser Quantum, Kubernetes tools; nothing fetched at start) |
-| Platform service | `ghcr.io/user187x/coder-ui-updates` (its code on `coder-image-tools:1.2.0`: BuildKit helpers, trivy with its databases, Copa; and the image store's provided pictures, `development/image-store`) |
-| Release | One folder: our six images (Coder, the platform service, the DEFAULT and DATAFLOW workspace images, MinIO, the image registry; split where over 2 GiB), `push-images.sh`, the one chart and `INSTALL.md`; scanned with no fixable CVE (`CVE-REPORT.md`). The public images come from your registry |
-| Rollback image | `ghcr.io/user187x/coder-upstream:2.38.0-main.70bc2e554-airgap`: pure upstream Coder at the fork's base (in the repository's bundle, not in a release) |
-| Bundle (built from the repository) | Every image pinned by digest, in one folder per part (`images/ui/`: the user interface - Coder, the platform service, their databases; `workspaces/`, `cloud-drive/`, ...), and every chart packaged (`charts/`, a Helm repository); `-slim`: only our images; the same release in parts: `-charts` (no images) and `-images-<part>` per folder, together the bundle; `-layer`: the update for a cluster at the previous release, only what changed (often a few MB); `-decorator-update`: an Argo CD decorator install's update, the Coder image and both charts (~300 MB) |
+| Server | `coder-platform:1.1.1-airgap`, built from the released Go source and dashboard with the offline Terraform provider mirror |
+| Custom images | Server, platform service, DEFAULT workspace, optional DATAFLOW workspace, MinIO and image registry |
+| Chart | `coder-airgapped-1.47.0.tgz`, with vendored dependencies for a single Helm install |
+| Inventory | `IMAGE-INVENTORY.json`: exact custom archives and public dependencies, with digests |
+| Public dependencies | Pull from their original registries by default; `global.forkRegistry` redirects only custom images |
+
+Download every asset into a directory on the connected side, then carry that directory into your environment:
+
+```bash
+gh release download 1.1.1 --repo user187x/coder --dir coder-fork-1.1.1
+cd coder-fork-1.1.1
+./push-images.sh registry.example.com/coder --without-dataflow
+cp values.example.yaml values.yaml
+# Set global.domain, global.forkRegistry and storage/TLS settings for your cluster.
+helm install coder-fork ./coder-airgapped-1.47.0.tgz --namespace coder-fork --create-namespace -f values.yaml --timeout 20m
+```
+
+The release includes only custom runtime images. Public PostgreSQL, Python, gateway, CSI and operator images must be
+reachable from your nodes. Keycloak is external; its charts and images are not bundled. For a completely disconnected
+cluster, `pull-public-images.sh` saves the listed public images on a connected host; push them too and set
+`global.registry` to mirror every image.
+
+DATAFLOW is disabled initially. You can omit its archive parts, install the platform and DEFAULT, and import/enable
+DATAFLOW later. `INSTALL.md` explains the switch and registry layout. The original build and full-mirror workflows
+below are also available.
 
 **Contents:** [Quick start](#quick-start) · [Architecture](#architecture) · [Features](#features) ·
 [Security](#security) · [Testing and verification](#testing-and-verification) · [Build a release](#build-a-release) ·
@@ -36,7 +55,7 @@ machine, so the push takes them too. Then one push and one install:
 sha256sum -c SHA256SUMS                                   # every file: OK
 ./push-images.sh $REGISTRY                                # our images (and those public ones), where the chart pulls them
 cp values.example.yaml values.yaml                        # set every CHANGE-ME (domain, registry)
-helm install coder-fork coder-airgapped-1.46.0.tgz -n coder-fork --create-namespace -f values.yaml --timeout 20m
+helm install coder-fork coder-airgapped-1.47.0.tgz -n coder-fork --create-namespace -f values.yaml --timeout 20m
 ```
 
 The chart brings Traefik (with the Gateway API) and the CloudNativePG operator where the cluster has none
