@@ -7,6 +7,7 @@ import {
 	DropdownMenuTrigger,
 } from "#/components/DropdownMenu/DropdownMenu";
 import {
+	MockBuildInfo,
 	MockUserAppearanceSettings,
 	MockUserOwner,
 } from "#/testHelpers/entities";
@@ -15,6 +16,7 @@ import { UserDropdownContent } from "./UserDropdownContent";
 
 const renderUserDropdownContent = (props: {
 	onSignOut: () => void;
+	buildInfo?: typeof MockBuildInfo;
 	profileExtra?: React.ReactNode;
 }) => {
 	return render(
@@ -23,6 +25,7 @@ const renderUserDropdownContent = (props: {
 			<DropdownMenuContent>
 				<UserDropdownContent
 					user={MockUserOwner}
+					buildInfo={props.buildInfo}
 					onSignOut={props.onSignOut}
 					profileExtra={props.profileExtra}
 					supportLinks={[]}
@@ -120,4 +123,18 @@ it("saves a color variant selected from the theme circles", async () => {
 		),
 	);
 	vi.restoreAllMocks();
+});
+
+it("copies the build version from the user menu", async () => {
+	const user = userEvent.setup();
+	const copy = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue();
+	renderUserDropdownContent({ onSignOut: vi.fn(), buildInfo: MockBuildInfo });
+	await waitForLoaderToBeRemoved();
+	await user.click(
+		screen.getByRole("menuitem", {
+			name: `Copy build version ${MockBuildInfo.version}`,
+		}),
+	);
+	await waitFor(() => expect(copy).toHaveBeenCalledWith(MockBuildInfo.version));
+	copy.mockRestore();
 });

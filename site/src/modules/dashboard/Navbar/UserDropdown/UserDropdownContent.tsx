@@ -41,6 +41,7 @@ export const UserDropdownContent: React.FC<UserDropdownContentProps> = ({
 	onSignOut,
 }) => {
 	const { showCopiedSuccess, copyToClipboard } = useClipboard();
+	const versionClipboard = useClipboard();
 
 	return (
 		<>
@@ -87,6 +88,25 @@ export const UserDropdownContent: React.FC<UserDropdownContentProps> = ({
 				</DropdownMenuItem>
 			))}
 			<DropdownMenuSeparator />
+			{buildInfo?.version && (
+				<DropdownMenuItem
+					className="text-xs"
+					title="Copy build version"
+					aria-label={`Copy build version ${buildInfo.version}`}
+					onSelect={(event) => {
+						event.preventDefault();
+						versionClipboard.copyToClipboard(buildInfo.version);
+					}}
+				>
+					<span className="shrink-0">Version</span>
+					<span className="truncate flex-1 font-mono">{buildInfo.version}</span>
+					{versionClipboard.showCopiedSuccess ? (
+						<CheckIcon className="size-icon-xs! ml-auto" />
+					) : (
+						<CopyIcon className="size-icon-xs! ml-auto" />
+					)}
+				</DropdownMenuItem>
+			)}
 			{buildInfo?.deployment_id && (
 				<Tooltip disableHoverableContent>
 					<TooltipTrigger asChild>
@@ -97,6 +117,7 @@ export const UserDropdownContent: React.FC<UserDropdownContentProps> = ({
 								copyToClipboard(buildInfo.deployment_id);
 							}}
 						>
+							<span className="shrink-0">Deployment ID</span>
 							<span className="truncate flex-1">{buildInfo.deployment_id}</span>
 							{showCopiedSuccess ? (
 								<CheckIcon className="size-icon-xs! ml-auto" />
