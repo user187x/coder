@@ -8,3 +8,17 @@
 .agent-panels ::-webkit-scrollbar {
 	display: none;
 }
+
+/* The add button is a sibling so only the card is cut away. */
+.agent-panels-cutout {
+	mask-image: radial-gradient(
+		circle at calc(100% - 40px) 0,
+		transparent 16px,
+		black 17px
+	);
+	-webkit-mask-image: radial-gradient(
+		circle at calc(100% - 40px) 0,
+		transparent 16px,
+		black 17px
+	);
+}

@@ -2553,3 +2553,4 @@ workspace checks).
 - Place the circular Add a panel control inside an inward panel-edge cutout instead of a raised tab.
 - Refine the Add a panel cutout into a concentric semicircle around a floating circular plus, matching the supplied reference.
 - Render the tunnel indicator in gray with a theme-colored pulsing border, respecting reduced-motion and animation preferences.
+- Use a true radial mask for the add-panel cutout and place its floating button outside the masked card, eliminating the edge artifact.

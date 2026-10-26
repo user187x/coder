@@ -40,8 +40,6 @@ type AgentPanelsProps = {
 	/** The order they show in. */
 	order: string[];
 	onReorder: (order: string[]) => void;
-	/** Shown over the top of the first panel (AddPanelTab). */
-	addTab?: React.ReactNode;
 };
 
 /**
@@ -57,7 +55,6 @@ export const AgentPanels: React.FC<AgentPanelsProps> = ({
 	panels,
 	order,
 	onReorder,
-	addTab,
 }) => {
 	const [dragging, setDragging] = useState(false);
 	// The panel being moved with the keyboard, if any.
@@ -136,7 +133,6 @@ export const AgentPanels: React.FC<AgentPanelsProps> = ({
 				dragging && "select-none [&_iframe]:pointer-events-none",
 			)}
 		>
-			{addTab}
 			<DndContext
 				sensors={sensors}
 				collisionDetection={panelUnderPointer}

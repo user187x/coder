@@ -434,3 +434,7 @@ Matched the reference with a 24-pixel circular plus centered on the panel's top 
 ### Tunnel indicator outline and pulse
 
 Changed the workspace tunnel indicator to a muted gray glyph with a pulsing circular border glow using the theme's success-border token. The icon remains still; only its surrounding glow varies. User-disabled animations and reduced motion retain a static border. Connection visibility and telemetry behavior are unchanged.
+
+### True masked panel cutout
+
+Replaced the painted notch overlay with a radial-gradient mask on the complete panel card, including its top border. Positioned the plus as a sibling outside the masked card, sharing the mask's center at 40 pixels from the right edge. This removes the residual straight border and colored overlay artifact while preserving a clean circular clearance. Removed the obsolete AgentPanels addTab slot after moving the control to the card wrapper.

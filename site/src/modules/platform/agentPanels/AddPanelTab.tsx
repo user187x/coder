@@ -31,10 +31,10 @@ export const AddPanelTab: React.FC<AddPanelTabProps> = ({
 }) => {
 	return (
 		<div
-			className="pointer-events-none absolute right-6 top-0 z-20 -translate-y-px"
+			className="pointer-events-none absolute right-6 top-0 z-20"
 			data-testid="add-panel-tab"
 		>
-			<div className="pointer-events-auto relative h-4 w-8 rounded-b-full border border-t-0 border-solid border-border bg-surface-primary">
+			<div className="pointer-events-auto relative h-4 w-8">
 				<DropdownMenu>
 					<DropdownMenuTrigger asChild>
 						<button
