@@ -404,6 +404,8 @@ RUN apt-get update \
 	&& iptables --version && ip6tables --version && getent hosts localhost >/dev/null
 
 # What it adds over the base, every version as the installed programs say it: /usr/share/coder-workspace/addons.json.
+COPY --from=crypto-policy cryptopolicy.py fips-rules.json /tmp/coder-crypto/
+RUN python3 /tmp/coder-crypto/cryptopolicy.py --rules /tmp/coder-crypto/fips-rules.json && rm -rf /tmp/coder-crypto
 COPY addons/addons.py /tmp/addons.py
 RUN python3 /tmp/addons.py "${BASE}" >/usr/share/coder-workspace/addons.json \
 	&& python3 -m json.tool /usr/share/coder-workspace/addons.json >/dev/null \

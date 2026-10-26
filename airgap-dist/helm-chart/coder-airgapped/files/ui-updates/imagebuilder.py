@@ -54,6 +54,7 @@ template offers its own image, these (the nodes' of its own image's repository o
 """
 
 import nodeimagepurge
+import cryptopolicy
 import base64
 import datetime
 import gzip
@@ -64,6 +65,8 @@ import io
 import json
 import lzma
 import os
+import pathlib
+import shlex
 import re
 import secrets
 import shutil
@@ -674,22 +677,11 @@ def fips_script():
     OpenSSL's FIPS provider made the default when a validated module is installed (e.g. Ubuntu Pro's
     openssl-fips-module from your mirror); TLS at their minimum version."""
     rules = securitydata.rules()
-    ssh = rules["ssh"]
-    ciphers, macs, kex = (",".join(ssh[k]) for k in ("ciphers", "macs", "kex"))
-    tls_min = rules["tls"]["minProtocol"]
-    return [
-        "mkdir -p /etc/ssh/ssh_config.d /etc/ssh/sshd_config.d",
-        "printf '%s\\n' 'Ciphers " + ciphers + "' 'MACs " + macs + "' 'KexAlgorithms " + kex
-        + "' > /etc/ssh/ssh_config.d/coder-fips.conf",
-        "cp /etc/ssh/ssh_config.d/coder-fips.conf /etc/ssh/sshd_config.d/coder-fips.conf",
-        "mod=$(ls /usr/lib/*/ossl-modules/fips.so 2>/dev/null | head -n1 || true)",
-        "if [ -n \"$mod\" ]; then openssl fipsinstall -out /etc/ssl/fipsmodule.cnf -module \"$mod\" >/dev/null 2>&1 "
-        "|| true; printf '%s\\n' '' '# Image builder: FIPS provider by default' '.include /etc/ssl/fipsmodule.cnf' "
-        "'[coder_fips_sect]' 'default_properties = fips=yes' >> /etc/ssl/openssl.cnf; fi",
-        "printf '%s\\n' '' '# Image builder: FIPS-aligned TLS' '[system_default_sect]' 'MinProtocol = " + tls_min + "' "
-        "'CipherString = DEFAULT:@SECLEVEL=2' >> /etc/ssl/openssl.cnf",
-        "mkdir -p /etc/coder-image && echo fips > /etc/coder-image/fips",
-    ]
+    source = pathlib.Path(cryptopolicy.__file__).read_text().split("if __name__ == '__main__':", 1)[0]
+    command = source + "\napply('/', " + repr(rules) + ", provider=True)\nverify_runtime()\n"
+    return ["python3 -c " + shlex.quote("exec(" + repr(command) + ")"),
+            "mkdir -p /etc/coder-image && echo fips > /etc/coder-image/fips"]
+
 
 
 GNOME = ["gnome-session-flashback", "gnome-panel", "metacity", "gnome-terminal", "nautilus", "gnome-settings-daemon",
@@ -2897,10 +2889,9 @@ def fips_checks(files, contents, pkgs, rules=None):
         "openssl.cnf makes fips=yes the default." if "fips=yes" in cnf.replace(" ", "") else
         "openssl.cnf does not select the FIPS provider (FIPS-aligned crypto, in the builder, does once a module is there).")
     floor = rules["tls"]["minProtocol"]
-    allowed = r"TLSv1\.[23]" if floor == "TLSv1.2" else r"TLSv1\.3"
-    tls = re.search(r"MinProtocol\s*=\s*" + allowed, cnf)
+    tls = cryptopolicy.tls_minimum(cnf) in (("TLSv1.2", "TLSv1.3") if floor == "TLSv1.2" else ("TLSv1.3",))
     add("tls", "TLS %s or later only" % floor.replace("TLSv", ""), "pass" if tls else "warn",
-        "openssl.cnf sets MinProtocol." if tls else "Older TLS versions are allowed by OpenSSL's defaults.")
+        "The active OpenSSL configuration sets the minimum TLS version." if tls else "No active TLS minimum was found. Configure TLS 1.2 or later through OpenSSL's initialization and ssl_conf sections.")
     ssh = "\n".join(v for k, v in contents.items() if k.startswith("etc/ssh/ssh_config"))
     ciphers = re.findall(r"^\s*Ciphers\s+(\S+)", ssh, re.M | re.I)
     approved = set(rules["ssh"]["ciphers"])
@@ -2909,7 +2900,7 @@ def fips_checks(files, contents, pkgs, rules=None):
         "Ciphers: %s." % ciphers[-1] if ciphers else "SSH's defaults include ciphers FIPS does not approve (chacha20).")
     gnutls = [p for p in pkgs if any(p.startswith(x) for x in rules["nonFipsLibraries"])]
     add("other-libs", "Other crypto libraries", "warn" if gnutls else "pass",
-        "GnuTLS / libgcrypt run in FIPS mode only when the host kernel does: %s." % ", ".join(gnutls[:4]) if gnutls
+        "These libraries need vendor-validated FIPS builds and runtime verification on a compatible FIPS host; stock packages are not sufficient: %s." % ", ".join(gnutls[:4]) if gnutls
         else "Only OpenSSL.")
     add("kernel", "The host runs in FIPS mode", "info",
         "A container shares its node's kernel: FIPS mode (fips=1) is set on the nodes, not in the image.")

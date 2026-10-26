@@ -21,7 +21,7 @@ quantum="${FILEBROWSER_QUANTUM:-${top}/filebrowser-quantum}"
 # the binary alone as a build context of its own (not the repository)
 qctx="$(mktemp -d)"; trap 'rm -rf "$qctx"' EXIT
 cp "$quantum" "$qctx/filebrowser-quantum"
-docker build --platform linux/amd64 --build-context quantum="$qctx" -t "$img" "${dev}/workspace-image"
+docker build --platform linux/amd64 --build-context quantum="$qctx" --build-context crypto-policy="${top}/helm-chart/coder-airgapped/files/ui-updates" -t "$img" "${dev}/workspace-image"
 # What the image must provide (the template relies on it):
 docker run --rm --entrypoint sh "$img" -c '
 	set -e
