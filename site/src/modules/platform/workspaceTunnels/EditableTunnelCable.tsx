@@ -22,6 +22,7 @@ type Props = {
 	onChange: (route: TunnelRoute) => void;
 	label: string;
 	onOpen: () => void;
+	onMoveHead?: (point: Point) => void;
 	children?: ReactNode;
 	defaultCable?: ReactNode;
 	actions?: ReactNode;
@@ -38,6 +39,7 @@ export const EditableTunnelCable = ({
 	onChange,
 	label,
 	onOpen,
+	onMoveHead,
 	children,
 	defaultCable,
 	actions,
@@ -103,7 +105,11 @@ export const EditableTunnelCable = ({
 						if (!drag || drag.pointerId !== e.pointerId) return;
 						e.stopPropagation();
 						const p = position(e.clientX, e.clientY);
-						pendingMove.current = () =>
+						pendingMove.current = () => {
+							if (drag.index === -1) {
+								onMoveHead?.(p);
+								return;
+							}
 							onChange({
 								...drag.route,
 								points: drag.route.points.map((point, index) =>
@@ -112,6 +118,7 @@ export const EditableTunnelCable = ({
 										: point,
 								),
 							});
+						};
 						if (frame.current === null)
 							frame.current = requestAnimationFrame(flushMove);
 					}}
@@ -218,12 +225,68 @@ export const EditableTunnelCable = ({
 							strokeWidth={16}
 							className="pointer-events-auto cursor-pointer"
 						/>
-						{children}
+						{onMoveHead ? (
+							<circle
+								cx={(from.x + to.x) / 2}
+								cy={(from.y + to.y) / 2}
+								r={8}
+								fill="transparent"
+							/>
+						) : (
+							children
+						)}
 						<title>
 							Ctrl+drag the cable to add and move a bend point. Right-click for
 							routing options.
 						</title>
 					</g>
+					{onMoveHead && (
+						<g
+							role="button"
+							tabIndex={0}
+							aria-label={`Move cable head: ${label.replace(/^Manage /, "")}`}
+							className="pointer-events-auto cursor-move"
+							onClick={(e) => {
+								e.stopPropagation();
+								if (!suppressClick.current && !e.ctrlKey) onOpen();
+								suppressClick.current = false;
+							}}
+							onPointerDown={(e) => {
+								suppressClick.current = false;
+								if (e.button !== 0 || !e.ctrlKey) return;
+								e.preventDefault();
+								e.stopPropagation();
+								moving.current = { pointerId: e.pointerId, index: -1, route };
+								suppressClick.current = true;
+								group.current?.setPointerCapture?.(e.pointerId);
+							}}
+							onKeyDown={(e) => {
+								const step = e.shiftKey ? 10 : 2;
+								const offsets: Record<string, Point> = {
+									ArrowLeft: { x: -step, y: 0 },
+									ArrowRight: { x: step, y: 0 },
+									ArrowUp: { x: 0, y: -step },
+									ArrowDown: { x: 0, y: step },
+								};
+								if (offsets[e.key]) {
+									e.preventDefault();
+									onMoveHead({
+										x: to.x + offsets[e.key].x,
+										y: to.y + offsets[e.key].y,
+									});
+								} else if (e.key === "Enter" || e.key === " ") {
+									e.preventDefault();
+									onOpen();
+								}
+							}}
+						>
+							{children}
+							<title>
+								Ctrl+drag to move the cable head. Arrow keys adjust its
+								position.
+							</title>
+						</g>
+					)}
 					{route.points.map((point, index) => (
 						<circle
 							key={point.id}
