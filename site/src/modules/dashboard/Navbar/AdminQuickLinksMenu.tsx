@@ -24,6 +24,7 @@ import {
 	DropdownMenuSubContent,
 	DropdownMenuSubTrigger,
 } from "#/components/DropdownMenu/DropdownMenu";
+import { ANNOUNCEMENT_ACTION_SURFACE } from "#/modules/platform/announcement/bannerTokens";
 import type { AdminPage } from "./adminQuickLinks";
 
 type AdminQuickLinksMenuProps = {
@@ -206,7 +207,14 @@ const QuickLinkRow: React.FC<QuickLinkRowProps> = ({
 				isDragging && "relative z-10 rounded-md bg-surface-secondary shadow-md",
 			)}
 		>
-			<DropdownMenuItem asChild className={cn("min-w-0 flex-1", itemClassName)}>
+			<DropdownMenuItem
+				asChild
+				className={cn(
+					"min-w-0 flex-1",
+					itemClassName,
+					link.id === "announcement" && ANNOUNCEMENT_ACTION_SURFACE,
+				)}
+			>
 				<Link to={link.path}>
 					<link.icon aria-hidden />
 					<span className="truncate">{link.label}</span>

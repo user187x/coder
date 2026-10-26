@@ -25,6 +25,7 @@ import { BannerText } from "./BannerText";
 import { CloseLayers, useCloseTransition } from "./bannerClose";
 import { OpenLayers, useOpenTransition } from "./bannerOpen";
 import {
+	ANNOUNCEMENT_ACTION_SURFACE,
 	confirmBackground,
 	hasContent,
 	LEVEL_COLORS,
@@ -503,7 +504,8 @@ const ConfirmButton: React.FC<ConfirmButtonProps> = ({
 			}
 			className={cn(
 				RECEIPT_BOX,
-				"border-white/60 px-2 hover:brightness-110",
+				ANNOUNCEMENT_ACTION_SURFACE,
+				"px-2",
 				"text-inherit text-[13px] font-semibold leading-[18px] whitespace-nowrap",
 				confirmed ? "cursor-default opacity-80" : "cursor-pointer",
 			)}
