@@ -398,9 +398,18 @@ export const EditableTunnelCable = ({
 					{route.orthogonal ? "Use curved routing" : "Use right-angle routing"}
 				</ContextMenuItem>
 				<ContextMenuItem
-					onSelect={() =>
-						onChange({ points: [], orthogonal: false, straight: true })
-					}
+					onSelect={() => {
+						if (onMoveHead) {
+							const head =
+								Math.abs(to.x - from.x) >= Math.abs(to.y - from.y)
+									? { x: to.x, y: from.y }
+									: { x: from.x, y: to.y };
+							onMoveHead(head);
+							onChange({ points: [], orthogonal: false, straight: true });
+						} else {
+							onChange({ points: [], orthogonal: true });
+						}
+					}}
 				>
 					Straighten line
 				</ContextMenuItem>
