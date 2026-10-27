@@ -9,6 +9,7 @@ import { QueryClient, QueryClientProvider } from "react-query";
 import { PlatformAPI, type WorkspaceTunnel } from "#/api/platform";
 import { workspaceTunnels } from "#/api/queries/workspaceTunnels";
 import { MockWorkspace } from "#/testHelpers/entities";
+import { MockResizeObserver } from "#/testHelpers/resizeObserver";
 import { MockWorkspaceTunnel } from "#/testHelpers/workspaceTunnels";
 import { WorkspaceTunnelPorts } from "./WorkspaceTunnelPorts";
 
@@ -49,7 +50,14 @@ const setup = (
 	);
 	return userEvent.setup();
 };
-afterEach(() => vi.restoreAllMocks());
+beforeEach(() => {
+	MockResizeObserver.reset();
+	vi.stubGlobal("ResizeObserver", MockResizeObserver);
+});
+afterEach(() => {
+	vi.restoreAllMocks();
+	vi.unstubAllGlobals();
+});
 it("connects workspaces through keyboard management", async () => {
 	const create = vi
 		.spyOn(PlatformAPI, "createWorkspaceTunnel")
