@@ -63,7 +63,7 @@ global:
   # PostgreSQL (schema platform_ha) under an epoch and fences itself when it cannot renew it; nothing else changes.
   # "activeStandby" (coder.coder.replicaCount >= 2): one Coder serves at a time - the pod holding the active lease,
   # which the Service selects by its label coder-airgapped/ha-role=active; the others wait, warm, without starting
-  # Coder, and take over when its lease lapses (a crash: about a lease, 10 s) or by a handover in its preStop (a
+  # Coder, and take over when its lease lapses (a crash: about a lease, 30 s) or by a handover in its preStop (a
   # rolling update: the successor starts Coder and takes traffic before the leader lets go). Probes then use the
   # replica's health port, 2113; Coder may read and label its own pods (Role coder-platform-ha). Switching an
   # install that runs to activeStandby costs one Coder start of downtime (the Service moves to the label before a pod
@@ -74,8 +74,8 @@ global:
     cell: "a"
     # A lease's length unrenewed, and how often it is renewed (under half of it): a replica that cannot renew fences
     # itself a full interval before its lease can end.
-    leaseTTL: 10s
-    renewInterval: 3s
+    leaseTTL: 30s
+    renewInterval: 5s
     # activeStandby: how long a leader leaving (a rolling update's preStop) waits for its successor to serve before it
     # lets go anyway - inside the pod's 60 s grace period, with room for Coder's own shutdown.
     handoverTimeout: 40s
