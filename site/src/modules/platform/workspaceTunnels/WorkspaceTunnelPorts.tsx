@@ -533,6 +533,12 @@ export const WorkspaceTunnelPorts: React.FC<{
 							from={from}
 							to={to}
 							defaultPath={d}
+							onAdjustArc={(delta) =>
+								setArcs((current) => ({
+									...current,
+									[t.id]: Math.max(0, Math.min(maxArc(t), arc + delta)),
+								}))
+							}
 							route={routes[t.id] ?? { points: [], orthogonal: false }}
 							onChange={(route) =>
 								setRoutes((current) => ({ ...current, [t.id]: route }))

@@ -247,3 +247,57 @@ it.each([
 		expect(changed).toHaveBeenCalledWith({ points: [], orthogonal: true });
 	}
 });
+
+it("adjusts a connected cable arc by middle-dragging left or right without opening it", async () => {
+	const user = userEvent.setup();
+	const adjusted = vi.fn();
+	const changed = vi.fn();
+	const opened = vi.fn();
+	render(
+		<svg>
+			<EditableTunnelCable
+				from={{ x: 0, y: 0 }}
+				to={{ x: 80, y: 40 }}
+				defaultPath="M0 0 L80 40"
+				route={{ points: [], orthogonal: true }}
+				label="Manage connected tunnel"
+				onOpen={opened}
+				onChange={changed}
+				onAdjustArc={adjusted}
+			/>
+		</svg>,
+	);
+	const cable = screen.getByRole("button", { name: "Manage connected tunnel" });
+	await user.pointer({
+		keys: "[MouseMiddle]",
+		target: cable,
+		coords: { clientX: 40, clientY: 20 },
+	});
+	expect(changed).not.toHaveBeenCalled();
+	expect(adjusted).not.toHaveBeenCalled();
+	await user.pointer([
+		{
+			keys: "[MouseMiddle>]",
+			target: cable,
+			coords: { clientX: 40, clientY: 20 },
+		},
+		{ target: cable, coords: { clientX: 10, clientY: 20 } },
+		{ keys: "[/MouseMiddle]", target: cable },
+	]);
+	expect(adjusted).toHaveBeenLastCalledWith(30);
+	expect(changed).toHaveBeenCalledWith({ points: [], orthogonal: false });
+	await user.pointer([
+		{
+			keys: "[MouseMiddle>]",
+			target: cable,
+			coords: { clientX: 40, clientY: 20 },
+		},
+		{ target: cable, coords: { clientX: 60, clientY: 20 } },
+		{ keys: "[/MouseMiddle]", target: cable },
+	]);
+	expect(adjusted).toHaveBeenLastCalledWith(-20);
+	expect(opened).not.toHaveBeenCalled();
+	cable.focus();
+	await user.keyboard("{Shift>}{ArrowLeft}{/Shift}");
+	expect(adjusted).toHaveBeenLastCalledWith(10);
+});

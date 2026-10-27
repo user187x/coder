@@ -24,6 +24,7 @@ type Props = {
 	label: string;
 	onOpen: () => void;
 	onReset?: () => void;
+	onAdjustArc?: (delta: number) => void;
 	onMoveHead?: (point: Point) => void;
 	headOverview?: ReactNode;
 	children?: ReactNode;
@@ -43,6 +44,7 @@ export const EditableTunnelCable = ({
 	label,
 	onOpen,
 	onReset,
+	onAdjustArc,
 	onMoveHead,
 	headOverview,
 	children,
@@ -60,6 +62,8 @@ export const EditableTunnelCable = ({
 		index: number;
 		route: TunnelRoute;
 		constrained?: boolean;
+		originX?: number;
+		adjustArc?: (delta: number) => void;
 	} | null>(null);
 	const suppressClick = useRef(false);
 	const frame = useRef<number | null>(null);
@@ -118,6 +122,11 @@ export const EditableTunnelCable = ({
 									: { x: from.x, y: p.y };
 						}
 						pendingMove.current = () => {
+							if (drag.index === -2) {
+								onChange({ points: [], orthogonal: false });
+								drag.adjustArc?.((drag.originX ?? p.x) - p.x);
+								return;
+							}
 							if (drag.index === -1) {
 								if (e.shiftKey || drag.constrained)
 									onChange({ points: [], orthogonal: false, straight: true });
@@ -198,6 +207,12 @@ export const EditableTunnelCable = ({
 						role="button"
 						tabIndex={0}
 						aria-label={label}
+						onAuxClick={(e) => {
+							if (onAdjustArc && e.button === 1) {
+								e.preventDefault();
+								e.stopPropagation();
+							}
+						}}
 						onClick={(e) => {
 							if (suppressClick.current || e.ctrlKey) {
 								suppressClick.current = false;
@@ -207,6 +222,20 @@ export const EditableTunnelCable = ({
 						}}
 						onPointerDown={(e) => {
 							suppressClick.current = false;
+							if (e.button === 1 && onAdjustArc) {
+								e.preventDefault();
+								e.stopPropagation();
+								moving.current = {
+									pointerId: e.pointerId,
+									index: -2,
+									route,
+									originX: position(e.clientX, e.clientY).x,
+									adjustArc: onAdjustArc,
+								};
+								suppressClick.current = true;
+								group.current?.setPointerCapture?.(e.pointerId);
+								return;
+							}
 							if (e.button !== 0 || !e.ctrlKey) return;
 							e.preventDefault();
 							e.stopPropagation();
@@ -226,6 +255,16 @@ export const EditableTunnelCable = ({
 							group.current?.setPointerCapture?.(e.pointerId);
 						}}
 						onKeyDown={(e) => {
+							if (
+								onAdjustArc &&
+								e.shiftKey &&
+								(e.key === "ArrowLeft" || e.key === "ArrowRight")
+							) {
+								e.preventDefault();
+								onChange({ points: [], orthogonal: false });
+								onAdjustArc(e.key === "ArrowLeft" ? 10 : -10);
+								return;
+							}
 							if (e.key === "Enter" || e.key === " ") {
 								e.preventDefault();
 								onOpen();
@@ -250,6 +289,8 @@ export const EditableTunnelCable = ({
 							children
 						)}
 						<title>
+							{onAdjustArc &&
+								"Middle-drag left to increase the arc, right to reduce it. Shift+Left/Right adjusts the arc. "}
 							Ctrl+drag the cable to add and move a bend point. Right-click for
 							routing options.
 						</title>
