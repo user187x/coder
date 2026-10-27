@@ -1,0 +1,17 @@
+.deployment-health-orb {
+	animation: deployment-health-orb 4s ease-in-out infinite;
+}
+@keyframes deployment-health-orb {
+	0%,
+	100% {
+		opacity: 0.45;
+	}
+	50% {
+		opacity: 0.75;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.deployment-health-orb {
+		animation: none;
+	}
+}
