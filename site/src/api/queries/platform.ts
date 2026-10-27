@@ -755,3 +755,55 @@ export const notesByUser = () => ({
 	refetchInterval: 60_000,
 	retry: false,
 });
+
+export const enableCloudDriveSharing = (client: QueryClient) => ({
+	mutationFn: () => PlatformAPI.saveCloudDrivePeerSettings({ enabled: true }),
+	onSuccess: (data: CloudDrivePeers) =>
+		client.setQueryData(cloudDrivePeersKey, data),
+});
+
+export type CloudDriveRecipient = {
+	key: string;
+	label: string;
+	userId: string;
+	workspaceId?: string;
+};
+
+export const shareCloudDriveItems = (client: QueryClient) => ({
+	mutationFn: async ({
+		recipients,
+		path,
+		access,
+	}: {
+		recipients: CloudDriveRecipient[];
+		path: string;
+		access: "read" | "write";
+	}) => {
+		const failed: { recipient: CloudDriveRecipient; error: unknown }[] = [];
+		for (const recipient of recipients) {
+			try {
+				if (recipient.workspaceId) {
+					await PlatformAPI.shareCloudDrive(
+						recipient.userId,
+						path,
+						access,
+						recipient.workspaceId,
+					);
+				} else {
+					await PlatformAPI.shareCloudDrive(recipient.userId, path, access);
+				}
+			} catch (error) {
+				failed.push({ recipient, error });
+			}
+		}
+		return { failed, succeeded: recipients.length - failed.length };
+	},
+	onSettled: () => client.invalidateQueries({ queryKey: cloudDrivePeersKey }),
+});
+
+export const revokeCloudDriveShare = (client: QueryClient) => ({
+	mutationFn: PlatformAPI.endCloudDriveShare,
+	onSuccess: (data: CloudDrivePeers) =>
+		client.setQueryData(cloudDrivePeersKey, data),
+	onSettled: () => client.invalidateQueries({ queryKey: cloudDrivePeersKey }),
+});

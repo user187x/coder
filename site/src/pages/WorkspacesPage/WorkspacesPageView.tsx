@@ -245,6 +245,13 @@ export const WorkspacesPageView: React.FC<WorkspacesPageViewProps> = ({
 				{/* Platform: the account's Cloud Drive, once, above the rows' apps. */}
 				<CloudDrive
 					workspaceIds={mine}
+					shareWorkspaceIds={
+						me.roles.some((role) => role.name === "owner")
+							? (workspaces ?? [])
+									.filter((w) => w.owner_id !== me.id)
+									.map((w) => w.id)
+							: []
+					}
 					deleting={deleting}
 					className="ml-auto"
 				/>

@@ -986,7 +986,7 @@ def main():
     # drive is connected or disconnected.
     cd_sh = open(os.path.join(tf_dir, "scripts", "cloud-drive.sh")).read()
     check("template: File Browser shows every Cloud Drive here as a source of its own (read only where shared so)",
-          '"$HOME/cloud-drive-shared"' in cd_sh and "readOnly" in cd_sh and "readOnly" in fb
+          'SHARED="$LINK/Shared"' in cd_sh and "readOnly" in cd_sh and "readOnly" in fb
           and "rule filePath" in fb and "rule folderPath" in fb and "sidebarLinks" in fb
           and 'cloud_drive drives | jq' in fb and 'cloud_drive targets |' in fb and 'cloud_drive links |' in fb
           and '"$FB" restart' in cd_sh and 'setsid "$SELF" watch' in cd_sh
@@ -1079,7 +1079,7 @@ def main():
     # Folders and files of a Cloud Drive shared with the owner: each its owner's volume's subPath, mounted apart
     # (/mnt/cloud-drive-items/<share id>, one volume per owner's volume and access) and linked under
     # ~/cloud-drive-shared/<owner>/; File Browser makes each shared folder a source of its own.
-    check("template: shared folders and files of a Cloud Drive mounted by subPath and linked in ~/cloud-drive-shared",
+    check("template: shared folders and files of a Cloud Drive mounted by subPath and linked in ~/cloud-drive/Shared",
           "/mnt/cloud-drive-items/${volume_mount.value.id}" in tf["main.tf"]
           and "sub_path  = volume_mount.value.path" in tf["main.tf"]
           and "cloud_drive_peer_volumes" in tf["main.tf"] and "for_each = local.cloud_drive_peer_volumes" in tf["main.tf"]

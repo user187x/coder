@@ -489,12 +489,12 @@ locals {
   )
   # What other users shared with the owner (Cloud Drive > Sharing: asked for in chat and accepted, or shared by its
   # owner; approved by an admin): [{id, owner, name, claim, readOnly, kind, path, item}] - an entire drive (kind
-  # "drive") mounted at /mnt/cloud-drive-peers/<name> and linked at ~/cloud-drive-shared/<name>; a folder or file of
-  # one (its volume's subPath) at /mnt/cloud-drive-items/<id>, linked at ~/cloud-drive-shared/<name>/<item>; read
+  # "drive") mounted at /mnt/cloud-drive-peers/<name> and linked at ~/cloud-drive/Shared/<name>; a folder or file of
+  # one (its volume's subPath) at /mnt/cloud-drive-items/<id>, linked at ~/cloud-drive/Shared/<name>/<item>; read
   # only unless shared read and write; none in a workspace shared with others.
-  cloud_drive_peers = [for p in try(local.cloud_drive_state.peers[data.coder_workspace_owner.me.id], []) : merge(
+  cloud_drive_peers = [for p in concat(try(local.cloud_drive_state.peers[data.coder_workspace_owner.me.id], []), try(local.cloud_drive_state.workspacePeers[data.coder_workspace.me.id], [])) : merge(
     { id = "", kind = "drive", path = "", item = "" }, p)
-  if local.cloud_drive_mode != "" && !local.cloud_drive_shared]
+  if local.cloud_drive_mode != "" && !local.cloud_drive_shared && (try(p.workspaceId, null) == null || try(p.workspaceId, "") == data.coder_workspace.me.id)]
   # One volume for each owner's volume (the kubelet takes a claim named twice in a pod as one volume, mounted the way
   # the first says): read only when all that is shared of it is; each mount read only or not on its own.
   cloud_drive_peer_volumes = { for p in local.cloud_drive_peers : "peer-${substr(md5(p.claim), 0, 16)}" => p... }
@@ -1047,6 +1047,14 @@ resource "kubernetes_deployment_v1" "main" {
               name       = "safe"
             }
           }
+          # Per-workspace links to grants stay off the owner's object storage.
+          dynamic "volume_mount" {
+            for_each = var.user_storage ? [1] : []
+            content {
+              mount_path = "${local.cloud_drive_mount}/Shared"
+              name       = "cloud-drive-shared-links"
+            }
+          }
           # What is shared with the owner (local.cloud_drive_peers): entire drives, folders and files of them.
           dynamic "volume_mount" {
             for_each = local.cloud_drive_peers
@@ -1235,6 +1243,13 @@ resource "kubernetes_deployment_v1" "main" {
             persistent_volume_claim {
               claim_name = local.cloud_drive_claim
             }
+          }
+        }
+        dynamic "volume" {
+          for_each = var.user_storage ? [1] : []
+          content {
+            name = "cloud-drive-shared-links"
+            empty_dir {}
           }
         }
         # What is shared with the owner: their owners' volumes, each once (local.cloud_drive_peer_volumes).

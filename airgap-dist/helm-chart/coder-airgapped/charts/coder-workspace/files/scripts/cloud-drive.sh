@@ -15,10 +15,10 @@
 # How it started (mode, from the platform service then): "mount" with the volume; "source"; "shared" or "offline"
 # (the owner's source workspace was not running) without one - the drive comes with the next start.
 # The Cloud Drives other users shared with the owner (Cloud Drive > Sharing) come mounted under PEERS, one folder per
-# owner (read only unless shared read and write): linked at ~/cloud-drive-shared/<owner>, at every start. A folder or
+# owner (read only unless shared read and write): linked at ~/cloud-drive/Shared/<owner>, at every start. A folder or
 # file of one shared with them comes mounted under ITEMS (/mnt/cloud-drive-items/<share id>; ITEMS_LIST names them):
-# linked at ~/cloud-drive-shared/<owner>/<its name> - or ~/cloud-drive-shared/<owner> (shared items)/<its name> when
-# that owner's entire drive is linked at ~/cloud-drive-shared/<owner> too.
+# linked at ~/cloud-drive/Shared/<owner>/<its name> - or ~/cloud-drive/Shared/<owner> (shared items)/<its name> when
+# that owner's entire drive is linked at ~/cloud-drive/Shared/<owner> too.
 # The `cloud-drive` command (~/.local/bin/cloud-drive, from scripts/cloud-drive-cli.py - the file the platform service
 # runs in workspaces too): the Cloud Drive mounted into folders of the workspace (`cloud-drive mount ~/project/data`),
 # files of the same name resolved as the owner chooses; the watcher brings those mounts up to date every 10 seconds
@@ -54,7 +54,7 @@ STATE=/etc/platform/cloud-drive
 PUSHED=/tmp/coder-cloud-drive/pushed
 PEERS=/mnt/cloud-drive-peers
 ITEMS=/mnt/cloud-drive-items
-SHARED="$HOME/cloud-drive-shared"
+SHARED="$LINK/Shared"
 SELF=/tmp/coder-cloud-drive/cloud-drive.sh
 PIDFILE=/tmp/cloud-drive-watch.pid
 CLI="$HOME/.local/bin/cloud-drive"
@@ -114,6 +114,13 @@ sync_link() {
 # held only links to shared folders and files).
 link_shared() {
  local d name access
+ # Remove only generated links from the old layout; preserve any user-created files.
+ if [ -d "$HOME/cloud-drive-shared" ] && [ ! -L "$HOME/cloud-drive-shared" ]; then
+  find "$HOME/cloud-drive-shared" -mindepth 1 -maxdepth 1 -type l -lname "$PEERS/*" -delete
+  find "$HOME/cloud-drive-shared" -mindepth 2 -maxdepth 2 -type l -lname "$ITEMS/*" -delete
+  find "$HOME/cloud-drive-shared" -mindepth 1 -maxdepth 1 -type d -empty -delete
+  rmdir "$HOME/cloud-drive-shared" 2>/dev/null || true
+ fi
  if [ -d "$SHARED" ]; then
   find "$SHARED" -mindepth 1 -maxdepth 1 -type l -lname "$PEERS/*" -delete
   find "$SHARED" -mindepth 2 -maxdepth 2 -type l -lname "$ITEMS/*" -delete
@@ -146,7 +153,7 @@ link_shared() {
    echo "Cloud Drive: $owner's $what $item, shared with you ($access): $dir/$name"
   done
  if [ -d "$SHARED" ] && [ -z "$(ls -A "$SHARED")" ]; then
-  rmdir "$SHARED"
+  rmdir "$SHARED" 2>/dev/null || true
  fi
 }
 

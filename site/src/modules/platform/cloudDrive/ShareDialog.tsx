@@ -3,13 +3,17 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { toast } from "sonner";
 import { getErrorMessage } from "#/api/errors";
-import { PlatformAPI } from "#/api/platform";
 import {
+	type CloudDriveRecipient,
+	cloudDriveConnections,
 	cloudDrivePeers,
-	cloudDrivePeersKey,
 	cloudDrivePeople,
+	enableCloudDriveSharing,
+	revokeCloudDriveShare,
+	shareCloudDriveItems,
 } from "#/api/queries/platform";
 import { Button } from "#/components/Button/Button";
+import { Checkbox } from "#/components/Checkbox/Checkbox";
 import {
 	Dialog,
 	DialogContent,
@@ -19,14 +23,12 @@ import {
 	DialogTitle,
 } from "#/components/Dialog/Dialog";
 import { Label } from "#/components/Label/Label";
-import { RadioGroup, RadioGroupItem } from "#/components/RadioGroup/RadioGroup";
 import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "#/components/Select/Select";
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "#/components/Popover/Popover";
+import { RadioGroup, RadioGroupItem } from "#/components/RadioGroup/RadioGroup";
 import { Spinner } from "#/components/Spinner/Spinner";
 import { baseName } from "./sharedWithYou";
 
@@ -50,36 +52,45 @@ export const ShareDialog: React.FC<{
 	const queryClient = useQueryClient();
 	const people = useQuery(cloudDrivePeople(true));
 	const peers = useQuery(cloudDrivePeers());
-	const [to, setTo] = useState("");
+	const enableSharing = useMutation(enableCloudDriveSharing(queryClient));
+	const connections = useQuery(cloudDriveConnections());
+	const workspaceChoices =
+		kind === "drive" ? [] : (connections.data?.workspaceConnections ?? []);
+
+	const [selected, setSelected] = useState<string[]>([]);
+	const [failures, setFailures] = useState<string[]>([]);
 	const [access, setAccess] = useState<"read" | "write">("read");
 	const existing = (peers.data?.ofMine ?? []).filter(
 		(s) => (s.path ?? "") === path && OPEN.includes(s.state),
 	);
-	const taken = new Set(existing.map((s) => s.from));
-	const choices = (people.data?.people ?? []).filter((p) => !taken.has(p.id));
+	const taken = new Set(
+		existing.map((s) =>
+			s.workspaceId ? `workspace:${s.workspaceId}` : `user:${s.from}`,
+		),
+	);
+	const choices: CloudDriveRecipient[] = [
+		...workspaceChoices.map((c) => ({
+			key: `workspace:${c.workspaceId}`,
+			label: `Workspace: ${c.recipientName}/${c.workspaceName}`,
+			userId: c.recipientId,
+			workspaceId: c.workspaceId,
+		})),
+		...(people.data?.people ?? []).map((p) => ({
+			key: `user:${p.id}`,
+			label: p.name ? `${p.name} (@${p.username})` : p.username,
+			userId: p.id,
+		})),
+	].filter((c) => !taken.has(c.key));
+	const recipients = choices.filter((c) => selected.includes(c.key));
+	const share = useMutation(shareCloudDriveItems(queryClient));
+	const end = useMutation(revokeCloudDriveShare(queryClient));
+	const busy = share.isPending || end.isPending;
+	const loading = people.isLoading || connections.isLoading || peers.isLoading;
+	const loadError = people.error || connections.error || peers.error;
 	const what =
 		kind === "drive"
 			? "your entire Cloud Drive"
 			: `the ${kind} ${baseName(path)}`;
-	const share = useMutation({
-		mutationFn: () => PlatformAPI.shareCloudDrive(to, path, access),
-		onSuccess: (out) => {
-			queryClient.setQueryData(cloudDrivePeersKey, out);
-			const who = choices.find((p) => p.id === to)?.username ?? "them";
-			toast.success(
-				out.share.state === "approval"
-					? `Shared with ${who} once an admin approves it.`
-					: `Shared with ${who}: they have it now.`,
-			);
-			setTo("");
-		},
-		onError: (e) => toast.error(getErrorMessage(e, "Not shared.")),
-	});
-	const end = useMutation({
-		mutationFn: PlatformAPI.endCloudDriveShare,
-		onSuccess: (out) => queryClient.setQueryData(cloudDrivePeersKey, out),
-		onError: (e) => toast.error(getErrorMessage(e, "Not ended.")),
-	});
 	const sharingOff = peers.data && !peers.data.settings.enabled;
 
 	return (
@@ -98,42 +109,125 @@ export const ShareDialog: React.FC<{
 						)}
 					</DialogTitle>
 					<DialogDescription>
-						They open it at once in their Cloud Drive window, and their
-						workspaces have it at ~/cloud-drive-shared/ from their next start
+						Connecting a workspace shares nothing. Choose a file or folder and
+						its recipients here. They open shared items in their Cloud Drive
+						window, and workspace mounts become available at
+						~/cloud-drive/Shared/ after their next start
 						{peers.data?.settings.adminApproval
 							? " - once an admin approves it."
 							: "."}
 					</DialogDescription>
 				</DialogHeader>
 				{sharingOff ? (
-					<p role="alert" className="m-0 text-sm text-content-warning">
-						Sharing between users is off: an admin turns it on (Cloud Drive &gt;
-						Sharing).
-					</p>
+					<div className="flex flex-col gap-2">
+						<p role="alert" className="m-0 text-sm text-content-warning">
+							Sharing is disabled for this deployment. Enabling it permits
+							explicit file and folder grants; connections alone expose nothing.
+						</p>
+						{peers.data?.admin && (
+							<Button
+								variant="outline"
+								disabled={enableSharing.isPending}
+								onClick={() =>
+									enableSharing.mutate(undefined, {
+										onError: (error) =>
+											toast.error(
+												getErrorMessage(error, "Sharing was not enabled."),
+											),
+									})
+								}
+							>
+								Enable sharing
+							</Button>
+						)}
+					</div>
 				) : (
 					<div className="flex flex-col gap-3">
 						<div className="flex flex-col gap-1.5">
 							<Label htmlFor="share-to">With</Label>
-							<Select value={to} onValueChange={setTo}>
-								<SelectTrigger id="share-to" data-testid="share-to">
-									<SelectValue
-										placeholder={
-											people.isLoading ? "Reading the users…" : "Choose a user"
-										}
-									/>
-								</SelectTrigger>
-								<SelectContent>
-									{choices.map((p) => (
-										<SelectItem key={p.id} value={p.id}>
-											{p.name ? `${p.name} (@${p.username})` : p.username}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
+							<Popover>
+								<PopoverTrigger asChild>
+									<Button
+										id="share-to"
+										variant="outline"
+										disabled={busy || loading || Boolean(loadError)}
+									>
+										{loading
+											? "Loading recipients…"
+											: `${recipients.length ? `${recipients.length} selected` : "Choose recipients"}`}
+									</Button>
+								</PopoverTrigger>
+								<PopoverContent className="w-80" aria-label="Recipients">
+									<div className="flex gap-2 border-0 border-b border-solid border-border pb-2">
+										<Button
+											size="sm"
+											variant="outline"
+											disabled={busy || choices.length === 0}
+											onClick={() => setSelected(choices.map((c) => c.key))}
+										>
+											Select all
+										</Button>
+										<Button
+											size="sm"
+											variant="outline"
+											disabled={busy || selected.length === 0}
+											onClick={() => setSelected([])}
+										>
+											Clear all
+										</Button>
+									</div>
+									<div className="max-h-60 overflow-y-auto pt-2">
+										{choices.length === 0 && (
+											<p className="text-sm text-content-secondary">
+												No additional recipients available.
+											</p>
+										)}
+										{choices.map((c) => (
+											<Label
+												key={c.key}
+												className="flex items-center gap-2 py-2"
+											>
+												<Checkbox
+													checked={selected.includes(c.key)}
+													disabled={busy}
+													onCheckedChange={(checked) =>
+														setSelected((current) =>
+															checked === true
+																? [
+																		...current.filter((key) => key !== c.key),
+																		c.key,
+																	]
+																: current.filter((key) => key !== c.key),
+														)
+													}
+												/>
+												<span className="min-w-0 break-words">{c.label}</span>
+											</Label>
+										))}
+									</div>
+								</PopoverContent>
+							</Popover>
+							{Boolean(loadError) && (
+								<p role="alert" className="text-sm text-content-warning">
+									Recipients could not be loaded. Close and reopen to retry.
+								</p>
+							)}
+							{failures.map((message) => (
+								<p
+									key={message}
+									role="alert"
+									className="text-sm text-content-warning"
+								>
+									{message}
+								</p>
+							))}
 						</div>
 						<RadioGroup
 							value={access}
-							onValueChange={(v) => setAccess(v as "read" | "write")}
+							onValueChange={(v) => {
+								if (v === "read" || v === "write") setAccess(v);
+							}}
+							disabled={busy}
 							className="flex flex-col gap-2"
 							aria-label="Access"
 						>
@@ -155,6 +249,11 @@ export const ShareDialog: React.FC<{
 						<p className="m-0 text-xs font-medium text-content-secondary">
 							Shared with
 						</p>
+						<p className="m-0 text-xs text-content-secondary">
+							Revoking removes browser access now. Restart workspaces that
+							already mounted this item to remove their mounts. Other grants to
+							the same item still apply.
+						</p>
 						<ul
 							className="m-0 list-none p-0"
 							data-testid="cloud-drive-share-dialog-existing"
@@ -165,7 +264,10 @@ export const ShareDialog: React.FC<{
 									className="flex items-center gap-2 border-0 border-b border-solid border-border py-1.5 text-sm last:border-b-0"
 								>
 									<span className="min-w-0 flex-1 truncate">
-										<span className="font-medium">{s.fromName}</span>
+										<span className="font-medium">
+											{s.fromName}
+											{s.workspaceName ? `/${s.workspaceName}` : " (account)"}
+										</span>
 										<span className="text-content-secondary">
 											{" "}
 											· {s.access === "write" ? "read and write" : "read only"}{" "}
@@ -175,10 +277,21 @@ export const ShareDialog: React.FC<{
 									<Button
 										size="xs"
 										variant="outline"
-										disabled={end.isPending}
-										onClick={() => end.mutate(s.id)}
+										disabled={busy}
+										onClick={() =>
+											end.mutate(s.id, {
+												onSuccess: () =>
+													toast.success(
+														"Share revoked. Restart any workspace that already mounted this item to remove its mount.",
+													),
+												onError: (error) =>
+													toast.error(
+														getErrorMessage(error, "Share was not revoked."),
+													),
+											})
+										}
 									>
-										{s.state === "active" ? "End" : "Withdraw"}
+										{s.state === "active" ? "Revoke" : "Withdraw"}
 									</Button>
 								</li>
 							))}
@@ -190,8 +303,35 @@ export const ShareDialog: React.FC<{
 						Close
 					</Button>
 					<Button
-						disabled={!to || share.isPending || Boolean(sharingOff)}
-						onClick={() => share.mutate()}
+						disabled={
+							recipients.length === 0 ||
+							busy ||
+							loading ||
+							Boolean(loadError) ||
+							Boolean(sharingOff)
+						}
+						onClick={() =>
+							share.mutate(
+								{ recipients, path, access },
+								{
+									onSuccess: ({ failed, succeeded }) => {
+										setSelected(failed.map(({ recipient }) => recipient.key));
+										setFailures(
+											failed.map(
+												({ recipient, error }) =>
+													`${recipient.label}: ${getErrorMessage(error, "Not shared.")}`,
+											),
+										);
+										if (succeeded)
+											toast.success(
+												`Shared with ${succeeded} recipient${succeeded === 1 ? "" : "s"}. Approval may be required.`,
+											);
+									},
+									onError: (error) =>
+										toast.error(getErrorMessage(error, "Sharing failed.")),
+								},
+							)
+						}
 						data-testid="share-send"
 					>
 						<Spinner loading={share.isPending}>

@@ -190,7 +190,7 @@ describe("SharedWithYou", () => {
 		const cards = within(list).getAllByRole("article");
 		expect(cards).toHaveLength(2);
 		expect(cards[0]).toHaveTextContent("shares their Cloud Drive with you");
-		expect(cards[0]).toHaveTextContent("~/cloud-drive-shared/greg from");
+		expect(cards[0]).toHaveTextContent("~/cloud-drive/Shared/greg from");
 		// zed's: only parts - the first (docs/plans), how many more, and its own access (read only)
 		expect(cards[1]).toHaveTextContent(
 			"shares their folder plans (and 1 more) with you",
@@ -199,7 +199,7 @@ describe("SharedWithYou", () => {
 			within(cards[1]).getByTestId("cloud-drive-share-card-access"),
 		).toHaveTextContent("Read only");
 		await waitFor(() => expect(cards[1]).toHaveTextContent("2 KB in 1 file"));
-		expect(cards[1]).toHaveTextContent("~/cloud-drive-shared/zed/plans");
+		expect(cards[1]).toHaveTextContent("~/cloud-drive/Shared/zed/plans");
 		expect(glance).toHaveBeenCalledWith("zed-id", "b".repeat(32));
 		expect(glance).toHaveBeenCalledWith("greg-id", undefined);
 

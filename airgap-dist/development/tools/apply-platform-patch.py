@@ -97,6 +97,11 @@ def coder_ha(chart):
         open(path, "w").write(s.replace(old, new, 1))
 
     tpl = os.path.join(chart, "templates", "_coder.tpl")
+    edit(os.path.join(chart, "templates", "_coder.tpl"),
+         '{{- define "coder.deployment" -}}\nspec:\n',
+         '{{- define "coder.deployment" -}}\nspec:\n'
+         '  {{- with .Values.coder.deploymentStrategy }}\n  strategy:\n'
+         '    {{- toYaml . | nindent 4 }}\n  {{- end }}\n')
     if HA_MODE not in open(tpl).read():
         open(tpl, "a").write("\n" + HA_MODE)
     for probe, ha_path in (("readinessProbe", "/readyz"), ("livenessProbe", "/livez")):

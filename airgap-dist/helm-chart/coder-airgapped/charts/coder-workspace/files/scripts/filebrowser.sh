@@ -22,7 +22,7 @@
 # builds (an image from before it) refuse that setting, so there the links are hidden in the Start folder instead; the
 # drives' own sources are in the sidebar either way.
 set -eu
-HELPER_VERSION=5
+HELPER_VERSION=6
 dir="$HOME/.config/filebrowser-quantum"
 config="$dir/config.yaml"
 # per container (a PID kept in the home would name another process after a restart)
@@ -154,7 +154,8 @@ settings() {
 	 server: {disableUpdateCheck: true, database: {path: $db}, cacheDir: "/tmp/filebrowser-cache",
 	  sources: ([{path: $start, name: $name, config: ({defaultEnabled: true, defaultPermissions: all} + $start_config)}]
 	   + [$drives[] | {path, name, config: {defaultEnabled: true, readOnly,
-	      defaultPermissions: (if .readOnly then look else all end)}}])},
+	      defaultPermissions: (if .readOnly then look else all end)}
+      + (if $start_config.symlinkTargets then {symlinkTargets: $start_config.symlinkTargets} else {} end)}])},
 	 auth: {methods: {noauth: true}},
 	 userDefaults: {listing: {showHidden: true}, account: {disableUpdateNotifications: true}}}'
 }

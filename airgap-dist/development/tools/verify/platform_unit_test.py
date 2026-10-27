@@ -2655,7 +2655,7 @@ class CloudDriveConnectionsTest(unittest.TestCase):
     def test_disconnect_and_connect_again_at_once_in_the_running_pod(self):
         self.assertEqual(self.safe.connections(self.OWNER),
                          {"disconnected": [], "older": [self.OLD], "shared": [], "sharedWithVolume": [],
-                          "encrypted": False, "restart": [], "source": None, "attachment": {}})
+                          "encrypted": False, "restart": [], "source": None, "attachment": {}, "workspaceConnections": []})
         out = self.safe.set_connected(self.h, self.OWNER, self.WS, {"connected": False})
         self.assertEqual((out["disconnected"], out["applied"]), ([self.WS], True))
         self.assertEqual(self.kube.patches, [("coder-ws-1", {"platform.coder/cloud-drive": "off"})])

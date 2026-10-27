@@ -613,7 +613,7 @@ export const CloudDriveBrowser: React.FC<{
 							.join(", ")}`}
 					</span>
 					<span>
-						{`In your workspaces at ~/cloud-drive-shared/${shared.ownerName} from their next start`}
+						{`In your workspaces at ~/cloud-drive/Shared/${shared.ownerName} from their next start`}
 					</span>
 					{canWrite && (
 						<span className="ml-auto">

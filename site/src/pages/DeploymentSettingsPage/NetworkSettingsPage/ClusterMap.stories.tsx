@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { userEvent, within } from "storybook/test";
 import {
 	clusterEntityKey,
 	clusterHAKey,
@@ -144,5 +145,14 @@ export const IngressOnSeparateNode: Story = {
 			{ key: clusterMeshKey, data: MockMeshReport },
 			{ key: clusterHAKey, data: MockHAStorageReport },
 		],
+	},
+};
+
+export const FocusView: Story = {
+	...IngressOnSeparateNode,
+	play: async ({ canvasElement }) => {
+		await userEvent.click(
+			within(canvasElement).getByRole("button", { name: "Focus view" }),
+		);
 	},
 };

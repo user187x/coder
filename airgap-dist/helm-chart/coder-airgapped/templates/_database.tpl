@@ -107,18 +107,25 @@ spec:
           image: {{ $db.pooler.image }}
       affinity:
         podAntiAffinity:
+          {{- if $db.pooler.requireSeparateNodes }}
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - topologyKey: kubernetes.io/hostname
+              labelSelector:
+                matchLabels: {cnpg.io/poolerName: {{ printf "%s-pooler-rw" $db.name | quote }}}
+          {{- else }}
           preferredDuringSchedulingIgnoredDuringExecution:
             - weight: 100
               podAffinityTerm:
                 topologyKey: kubernetes.io/hostname
                 labelSelector:
-                  matchLabels: {app.kubernetes.io/name: coder-db-pooler}
+                  matchLabels: {cnpg.io/poolerName: {{ printf "%s-pooler-rw" $db.name | quote }}}
+          {{- end }}
       topologySpreadConstraints:
         - maxSkew: 1
           topologyKey: topology.kubernetes.io/zone
           whenUnsatisfiable: ScheduleAnyway
           labelSelector:
-            matchLabels: {app.kubernetes.io/name: coder-db-pooler}
+            matchLabels: {cnpg.io/poolerName: {{ printf "%s-pooler-rw" $db.name | quote }}}
 {{- end -}}
 
 {{- /* The database is applied by the database Job, not by Helm (the chart brings CloudNativePG itself). */ -}}

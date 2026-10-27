@@ -1,6 +1,6 @@
 import { cn } from "cn";
 import { TriangleAlertIcon } from "lucide-react";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "react-query";
 import type {
 	ClusterNetworkReport,
@@ -11,6 +11,14 @@ import type { ClusterNode, NetworkWorkspace } from "#/api/platform";
 import { networkReport } from "#/api/queries/platform";
 import { Badge } from "#/components/Badge/Badge";
 import { Button } from "#/components/Button/Button";
+import {
+	Dialog,
+	DialogClose,
+	DialogContent,
+	DialogDescription,
+	DialogTitle,
+	DialogTrigger,
+} from "#/components/Dialog/Dialog";
 import { Loader } from "#/components/Loader/Loader";
 import {
 	SettingsHeader,
@@ -37,6 +45,7 @@ import {
 	useNow,
 } from "#/modules/platform/ClusterVisuals";
 import "./clusterMap.css";
+import { CoderReplicas } from "./CoderReplicas";
 import { CodeServerHACard } from "./CodeServerHACard";
 import { cores } from "./clusterFormat";
 import {
@@ -121,6 +130,37 @@ export const ClusterMap: React.FC = () => {
 								</h2>
 								<div className="flex items-center gap-3">
 									<LiveStatus paused={paused} updatedAt={query.dataUpdatedAt} />
+									{report && (
+										<Dialog>
+											<DialogTrigger asChild>
+												<Button size="sm" variant="outline">
+													Focus view
+												</Button>
+											</DialogTrigger>
+											<DialogContent className="h-[95vh] max-h-[95vh] w-[96vw] max-w-none content-start">
+												<div className="flex items-center justify-between gap-3">
+													<DialogTitle>Cluster network focus view</DialogTitle>
+													<DialogClose asChild>
+														<Button variant="outline">Close focus view</Button>
+													</DialogClose>
+												</div>
+												<DialogDescription>
+													Filter nodes to reduce clutter. Connections to hidden
+													nodes are omitted. Live refresh follows the map's
+													Pause setting.
+												</DialogDescription>
+												{query.error && (
+													<p role="alert" className="text-content-destructive">
+														Updates unavailable. Showing the last received
+														report.
+													</p>
+												)}
+												<EntityProvider>
+													<Topology report={report} focus />
+												</EntityProvider>
+											</DialogContent>
+										</Dialog>
+									)}
 									<Button
 										size="sm"
 										variant="outline"
@@ -144,6 +184,7 @@ export const ClusterMap: React.FC = () => {
 							) : null}
 							{report && <Topology report={report} />}
 						</section>
+						<CoderReplicas />
 						<CodeServerHACard paused={paused} />
 						<MeshCard paused={paused} />
 						{report && <NodesTopologyCard report={report} />}
@@ -273,11 +314,15 @@ const useLinks = (
 				const [x2, y2] = at(to, "left");
 				const dx = Math.max(30, Math.abs(x2 - x1) / 2);
 				next.push({
-					kind: "entry",
+					kind: [from, to].some(
+						(el) => el.getAttribute("data-route-ready") === "false",
+					)
+						? "bad"
+						: "entry",
 					d: `M${x1},${y1} C${x1 + dx},${y1} ${x2 - dx},${y2} ${x2},${y2}`,
 					id: "gateway-coder",
 					testId: key,
-					label,
+					label: `${label}${[from, to].some((el) => el.getAttribute("data-route-ready") === "false") ? " (endpoint unhealthy)" : ""}`,
 				});
 			};
 			if (entry) {
@@ -304,7 +349,9 @@ const useLinks = (
 					}
 				}
 			}
-			const hub = servers[0];
+			const hub =
+				servers.find((server) => server.dataset.haRole === "active") ??
+				servers[0];
 			if (hub) {
 				for (const ws of root.querySelectorAll<HTMLElement>(
 					"[data-workspace]",
@@ -313,7 +360,11 @@ const useLinks = (
 					const [wx, wy] = at(ws, "top");
 					const lift = Math.min(hy, wy) - 18;
 					next.push({
-						kind: ws.dataset.workspace === "ok" ? "ok" : "bad",
+						kind:
+							ws.dataset.workspace === "ok" &&
+							hub.dataset.routeReady !== "false"
+								? "ok"
+								: "bad",
 						d: `M${hx},${hy} C${hx},${lift} ${wx},${lift} ${wx},${wy}`,
 						id: `agent:${ws.dataset.workspaceId}`,
 						testId: `agent-${ws.dataset.workspaceId}`,
@@ -333,9 +384,22 @@ const useLinks = (
 	return { paths, box };
 };
 
-const Topology: React.FC<{ report: ClusterNetworkReport }> = ({ report }) => {
+const Topology: React.FC<{ report: ClusterNetworkReport; focus?: boolean }> = ({
+	report,
+	focus = false,
+}) => {
+	const [nodeFilter, setNodeFilter] = useState("");
+	const visibleReport = useMemo(
+		() => ({
+			...report,
+			nodes: report.nodes.filter((node) =>
+				node.name.toLowerCase().includes(nodeFilter.toLowerCase()),
+			),
+		}),
+		[report, nodeFilter],
+	);
 	const container = useRef<HTMLDivElement>(null);
-	const { paths, box } = useLinks(container, report);
+	const { paths, box } = useLinks(container, visibleReport);
 	const animations = useAnimationsEnabled();
 	const open = useOpenEntity();
 	const now = useNow();
@@ -356,6 +420,21 @@ const Topology: React.FC<{ report: ClusterNetworkReport }> = ({ report }) => {
 	return (
 		<>
 			<Tiles report={report} />
+			{focus && (
+				<label className="flex items-center gap-3 text-sm">
+					Filter nodes
+					<input
+						aria-label="Filter nodes"
+						value={nodeFilter}
+						onChange={(event) => setNodeFilter(event.target.value)}
+						placeholder="Node name…"
+						className="rounded-md border border-border bg-surface-secondary px-3 py-2 text-content-primary"
+					/>
+					<span>
+						{visibleReport.nodes.length} of {report.nodes.length} nodes shown
+					</span>
+				</label>
+			)}
 			<div
 				ref={container}
 				className="relative grid items-start gap-14 md:grid-cols-[minmax(180px,220px)_minmax(0,1fr)]"
@@ -379,7 +458,7 @@ const Topology: React.FC<{ report: ClusterNetworkReport }> = ({ report }) => {
 										? "stroke-content-link/60"
 										: path.kind === "ok"
 											? "stroke-content-success/70"
-											: "stroke-content-warning/80",
+											: "stroke-content-destructive [filter:drop-shadow(0_0_3px_currentColor)] text-content-destructive",
 								)}
 							/>
 							{[25, 75].map((position) => (
@@ -398,7 +477,7 @@ const Topology: React.FC<{ report: ClusterNetworkReport }> = ({ report }) => {
 											? "text-content-link"
 											: path.kind === "ok"
 												? "text-content-success"
-												: "text-content-warning",
+												: "text-content-destructive",
 									)}
 									data-moving={animations && path.kind !== "bad"}
 									style={{
@@ -444,7 +523,9 @@ const Topology: React.FC<{ report: ClusterNetworkReport }> = ({ report }) => {
 						Browsers and CLIs reach Coder here (Gateway → Service). Workspace
 						agents dial back to Coder the same way. Blue lines show logical
 						routes through discovered ingress pods, not measured traffic or
-						individual requests.
+						individual requests. Dashed red routes indicate an unhealthy pod or
+						node, or a disconnected workspace agent. Readiness updates every
+						five seconds; network failures may take longer to be detected.
 					</div>
 					{gateway && (
 						<ServiceChip
@@ -461,7 +542,7 @@ const Topology: React.FC<{ report: ClusterNetworkReport }> = ({ report }) => {
 					)}
 				</div>
 				<div className="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-5">
-					{report.nodes.map((node) => (
+					{visibleReport.nodes.map((node) => (
 						<NodeCard key={node.name} node={node} report={report} now={now} />
 					))}
 				</div>
@@ -521,7 +602,8 @@ const Chip: React.FC<ChipProps> = ({
 				"relative inline-flex min-w-0 max-w-full cursor-pointer items-center gap-2 rounded-md border border-solid border-border bg-surface-secondary py-1.5 pr-2.5 pl-3 text-left text-xs leading-tight text-content-primary hover:bg-surface-tertiary",
 				"before:absolute before:top-1 before:bottom-1 before:left-0 before:w-[3px] before:rounded-sm before:bg-(--kind) before:content-['']",
 				KINDS[kind].color,
-				status !== "ok" && "border-dashed",
+				status !== "ok" &&
+					"border-dashed border-content-destructive shadow-[0_0_10px_var(--color-content-destructive)]",
 				className,
 			)}
 			data-kind={kind}
@@ -540,12 +622,7 @@ const Chip: React.FC<ChipProps> = ({
 					{status !== "ok" && (
 						<TriangleAlertIcon
 							aria-label={status === "error" ? "failing" : "not ready"}
-							className={cn(
-								"size-3 shrink-0",
-								status === "error"
-									? "text-content-destructive"
-									: "text-content-warning",
-							)}
+							className="size-3 shrink-0 text-content-destructive"
 						/>
 					)}
 				</b>
@@ -726,7 +803,7 @@ const NodeCard: React.FC<NodeCardProps> = ({ node: n, report, now }) => {
 										kind={kind}
 										name={pod.name}
 										sub={[pod.podIP, pod.haRole].filter(Boolean).join(" · ")}
-										status={pod.ready ? "ok" : "warn"}
+										status={pod.ready && n.ready ? "ok" : "warn"}
 										className={pod.ready ? undefined : "opacity-75"}
 										onOpen={() =>
 											open({
@@ -735,6 +812,8 @@ const NodeCard: React.FC<NodeCardProps> = ({ node: n, report, now }) => {
 												name: pod.name,
 											})
 										}
+										data-route-ready={pod.ready && n.ready}
+										data-ha-role={pod.haRole}
 										data-coder-server={kind === "coder" ? pod.name : undefined}
 										data-gateway-pod={
 											kind === "gateway"
@@ -757,7 +836,7 @@ const NodeCard: React.FC<NodeCardProps> = ({ node: n, report, now }) => {
 				{workspaces.length ? (
 					<div className="flex flex-wrap gap-1.5">
 						{workspaces.map((w) => {
-							const ok = agentOk(w);
+							const ok = agentOk(w) && w.pod.ready && n.ready;
 							const agent = w.agents[0];
 							return (
 								<Chip

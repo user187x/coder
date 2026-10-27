@@ -9,6 +9,7 @@ import {
 	setCloudDriveConnection,
 } from "#/api/queries/platform";
 import type { Workspace } from "#/api/typesGenerated";
+import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { pendingAttachments } from "./attachment";
 
 /** The signed-in user's Cloud Drive and its connections: whether there is one, and which workspaces have it. */
@@ -19,6 +20,7 @@ export const useCloudDriveLinks = () => {
 	const data = connections.data;
 	return {
 		enabled,
+		workspaceConnections: data?.workspaceConnections ?? [],
 		ready: Boolean(data),
 		off: new Set(data?.disconnected ?? []),
 		shared: new Set(data?.shared ?? []),
@@ -40,21 +42,23 @@ const tile =
 /**
  * Platform: the Workspaces table's Drive column - the row's socket for the Cloud Drive. The user's own workspace:
  * a plug while it has the drive (amber until the workspace has attached it), an empty socket while not; a click
- * plugs it in or pulls it out, as dragging a cable does. Someone else's, or one shared with others: an empty socket
- * that takes no plug (the Cloud Drive is its owner's alone).
+ * plugs it in or pulls it out, as dragging a cable does. Admins can connect another owner's workspace as a sharing
+ * recipient. That connection grants no file access until an item is explicitly shared.
  */
 export const CloudDriveSocket: React.FC<{
 	workspace: Workspace;
 	links: ReturnType<typeof useCloudDriveLinks>;
 	mine: boolean;
 }> = ({ workspace, links, mine }) => {
+	const { user } = useAuthenticated();
+	const canShare = user.roles.some((role) => role.name === "owner");
 	const queryClient = useQueryClient();
 	const link = useMutation(setCloudDriveConnection(queryClient));
 	if (!links.enabled) {
 		return null;
 	}
 	const shared = links.shared.has(workspace.id);
-	if (!mine || shared || !links.ready) {
+	if ((!mine && !canShare) || shared || !links.ready) {
 		return (
 			<span
 				className={cn(
@@ -75,16 +79,22 @@ export const CloudDriveSocket: React.FC<{
 			</span>
 		);
 	}
-	const on = !links.off.has(workspace.id);
-	const attaching = on && links.attaching.has(workspace.id);
+	const on = mine
+		? !links.off.has(workspace.id)
+		: links.workspaceConnections.some((c) => c.workspaceId === workspace.id);
+	const attaching = mine && on && links.attaching.has(workspace.id);
 	const later = links.older.has(workspace.id)
 		? " - once it is updated to its template's latest version"
 		: "";
-	const hint = attaching
-		? `Cloud Drive plugged in, not attached in ${workspace.name} yet: click to unplug`
-		: on
-			? `Cloud Drive mounted at ~/cloud-drive: click to unmount${later}`
-			: `No Cloud Drive: click to mount it at ~/cloud-drive${later}`;
+	const hint = !mine
+		? on
+			? `Sharing connection to ${workspace.owner_name}/${workspace.name}: no files are exposed until you share them. Click to disconnect.`
+			: `Connect ${workspace.owner_name}/${workspace.name} for sharing selected files or folders. No files are shared automatically.`
+		: attaching
+			? `Cloud Drive plugged in, not attached in ${workspace.name} yet: click to unplug`
+			: on
+				? `Cloud Drive mounted at ~/cloud-drive: click to unmount${later}`
+				: `No Cloud Drive: click to mount it at ~/cloud-drive${later}`;
 	return (
 		<button
 			type="button"
