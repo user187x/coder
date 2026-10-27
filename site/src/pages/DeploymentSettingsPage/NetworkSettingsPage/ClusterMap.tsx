@@ -26,6 +26,7 @@ import {
 	TableRow,
 } from "#/components/Table/Table";
 import { TableEmpty } from "#/components/TableEmpty/TableEmpty";
+import { useAnimationsEnabled } from "#/modules/platform/animations/animations";
 import {
 	ago,
 	bytes,
@@ -35,6 +36,7 @@ import {
 	Tile,
 	useNow,
 } from "#/modules/platform/ClusterVisuals";
+import "./clusterMap.css";
 import { CodeServerHACard } from "./CodeServerHACard";
 import { cores } from "./clusterFormat";
 import {
@@ -334,6 +336,7 @@ const useLinks = (
 const Topology: React.FC<{ report: ClusterNetworkReport }> = ({ report }) => {
 	const container = useRef<HTMLDivElement>(null);
 	const { paths, box } = useLinks(container, report);
+	const animations = useAnimationsEnabled();
 	const open = useOpenEntity();
 	const now = useNow();
 	let host = report.accessUrl;
@@ -379,6 +382,32 @@ const Topology: React.FC<{ report: ClusterNetworkReport }> = ({ report }) => {
 											: "stroke-content-warning/80",
 								)}
 							/>
+							{[25, 75].map((position) => (
+								<path
+									key={position}
+									aria-hidden
+									d="M -4 -3 L 0 0 L -4 3"
+									fill="none"
+									stroke="currentColor"
+									strokeWidth={2}
+									strokeLinecap="round"
+									strokeLinejoin="round"
+									className={cn(
+										"cluster-map-direction",
+										path.kind === "entry"
+											? "text-content-link"
+											: path.kind === "ok"
+												? "text-content-success"
+												: "text-content-warning",
+									)}
+									data-moving={animations && path.kind !== "bad"}
+									style={{
+										offsetPath: `path("${path.d}")`,
+										offsetDistance: `${position}%`,
+										animationDelay: `${-position / 25}s`,
+									}}
+								/>
+							))}
 							{/* The same line, invisible and wider, to click (the cards stay above it). */}
 							<path
 								d={path.d}

@@ -1,0 +1,20 @@
+.cluster-map-direction {
+	pointer-events: none;
+	offset-anchor: 0px 0px;
+	offset-rotate: auto;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	.cluster-map-direction[data-moving="true"] {
+		animation: cluster-map-direction-flow 4s linear infinite;
+	}
+}
+
+@keyframes cluster-map-direction-flow {
+	from {
+		offset-distance: 0%;
+	}
+	to {
+		offset-distance: 100%;
+	}
+}
