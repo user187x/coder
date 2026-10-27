@@ -228,7 +228,7 @@ type LinkPath = {
 };
 
 /**
- * Curves from the way in to each Coder server, and from a Coder server to
+ * Logical entrance routes through discovered gateway pods, and from a Coder server to
  * every workspace (its agent's connection), measured from the drawn cards.
  */
 const useLinks = (
@@ -258,18 +258,48 @@ const useLinks = (
 			const servers = [
 				...root.querySelectorAll<HTMLElement>("[data-coder-server]"),
 			];
+			const gateways = [
+				...root.querySelectorAll<HTMLElement>("[data-gateway-pod]"),
+			];
+			const entrancePath = (
+				from: Element,
+				to: Element,
+				key: string,
+				label: string,
+			) => {
+				const [x1, y1] = at(from, "right");
+				const [x2, y2] = at(to, "left");
+				const dx = Math.max(30, Math.abs(x2 - x1) / 2);
+				next.push({
+					kind: "entry",
+					d: `M${x1},${y1} C${x1 + dx},${y1} ${x2 - dx},${y2} ${x2},${y2}`,
+					id: "gateway-coder",
+					testId: key,
+					label,
+				});
+			};
 			if (entry) {
+				for (const gateway of gateways) {
+					entrancePath(
+						entry,
+						gateway,
+						`entry-${gateway.dataset.gatewayPod}`,
+						`Entrance route → ${gateway.dataset.gatewayPod}`,
+					);
+				}
 				for (const server of servers) {
-					const [x1, y1] = at(entry, "right");
-					const [x2, y2] = at(server, "left");
-					const dx = Math.max(30, Math.abs(x2 - x1) / 2);
-					next.push({
-						kind: "entry",
-						d: `M${x1},${y1} C${x1 + dx},${y1} ${x2 - dx},${y2} ${x2},${y2}`,
-						id: "gateway-coder",
-						testId: `gateway-coder-${server.dataset.coderServer ?? ""}`,
-						label: `The way in → ${server.dataset.coderServer ?? "Coder"}`,
-					});
+					for (const source of gateways.length ? gateways : [entry]) {
+						const name =
+							source instanceof HTMLElement
+								? source.dataset.gatewayPod
+								: undefined;
+						entrancePath(
+							source,
+							server,
+							`gateway-coder-${name ?? "entry"}-${server.dataset.coderServer}`,
+							`Entrance route: ${name ?? "The way in"} → ${server.dataset.coderServer}`,
+						);
+					}
 				}
 			}
 			const hub = servers[0];
@@ -333,8 +363,8 @@ const Topology: React.FC<{ report: ClusterNetworkReport }> = ({ report }) => {
 					role="group"
 					aria-label="Connections on the map"
 				>
-					{paths.map((path, i) => (
-						<g key={i}>
+					{paths.map((path) => (
+						<g key={path.testId}>
 							<path
 								aria-hidden
 								d={path.d}
@@ -383,7 +413,9 @@ const Topology: React.FC<{ report: ClusterNetworkReport }> = ({ report }) => {
 					<div className="font-semibold break-all">{host || "Access URL"}</div>
 					<div className="text-xs text-content-secondary">
 						Browsers and CLIs reach Coder here (Gateway → Service). Workspace
-						agents dial back to Coder the same way.
+						agents dial back to Coder the same way. Blue lines show logical
+						routes through discovered ingress pods, not measured traffic or
+						individual requests.
 					</div>
 					{gateway && (
 						<ServiceChip
@@ -675,6 +707,11 @@ const NodeCard: React.FC<NodeCardProps> = ({ node: n, report, now }) => {
 											})
 										}
 										data-coder-server={kind === "coder" ? pod.name : undefined}
+										data-gateway-pod={
+											kind === "gateway"
+												? `${pod.namespace}/${pod.name}`
+												: undefined
+										}
 										data-testid={`cluster-map-pod-${pod.name}`}
 										title={`${KINDS[kind].label}${pod.haRole ? ` (${pod.haRole})` : ""} · ${pod.namespace}/${pod.name}\nIP ${pod.podIP ?? "N/A"} · ${pod.ready ? "ready" : "not ready"} · ${pod.restarts} restarts · up ${ago(pod.started, now)}`}
 									/>

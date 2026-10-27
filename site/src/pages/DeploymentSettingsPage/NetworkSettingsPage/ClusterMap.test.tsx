@@ -1,4 +1,5 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "react-query";
 import {
 	ClusterNetworkAPI,
@@ -97,6 +98,22 @@ describe("ClusterMap", () => {
 				within(legend).getByTestId(`kind-legend-${kind}`),
 			).toBeInTheDocument();
 		}
+	});
+
+	it("opens entrance route details through the gateway pod", async () => {
+		const user = userEvent.setup();
+		renderMap();
+		await user.click(
+			await screen.findByRole("button", {
+				name: "Entrance route → traefik/traefik-6d-x",
+			}),
+		);
+		await waitFor(() =>
+			expect(entity).toHaveBeenCalledWith({
+				type: "link",
+				id: "gateway-coder",
+			}),
+		);
 	});
 
 	it("opens a pod's details from the map", async () => {
