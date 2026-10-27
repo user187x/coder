@@ -332,6 +332,8 @@ class WorkspaceVMMetricsTest(unittest.TestCase):
                 "memory": {"guestCurrent": "2Gi"}}}
         self.claim = lookup(self.secret)("/persistentvolumeclaims/home")
         def call(method, path):
+            if path == "/apis/kubevirt.io/v1":
+                return 200, {"resources": []}
             if "/virtualmachines/" in path:
                 return 200, self.vm
             if "/virtualmachineinstances/" in path:
@@ -343,6 +345,20 @@ class WorkspaceVMMetricsTest(unittest.TestCase):
             raise AssertionError(path)
         metrics.setup(mock.Mock(return_value=self.workspace), mock.Mock(), WorkspaceNodeMetricsTest.quantity, mock.Mock(), infrastructure_access=mock.Mock(return_value=(200, {"deployment_stats": True})))
         metrics.KUBE.call.side_effect = call
+
+    def test_absent_kubevirt_api_uses_container_placement(self):
+        metrics.KUBE.call.side_effect = None
+        metrics.KUBE.call.return_value = (404, {})
+        self.assertIsNone(metrics.vm_context(self.workspace, self.wid))
+        metrics.KUBE.call.assert_called_once_with("GET", "/apis/kubevirt.io/v1")
+
+    def test_unavailable_kubevirt_discovery_does_not_assume_container(self):
+        metrics.KUBE.call.side_effect = None
+        for status in (403, 500):
+            metrics.KUBE.call.return_value = (status, {})
+            result = metrics.vm_context(self.workspace, self.wid)
+            self.assertIsNone(result["nodeName"])
+            self.assertIsNone(result["allocation"]["cpu"])
 
     def test_current_hardware_ignores_desired_vm_and_launcher_overhead(self):
         self.vm["spec"]["template"]["spec"]["domain"]["cpu"]["cores"] = 8

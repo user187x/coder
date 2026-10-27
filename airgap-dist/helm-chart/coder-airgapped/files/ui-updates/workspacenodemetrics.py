@@ -248,6 +248,11 @@ def vm_context(workspace, wid):
     unknown = {"allocation": allocation([], wid), "nodeName": None,
                "error": "Current workspace VM allocation is unavailable."}
     try:
+        status, discovery = KUBE.call("GET", "/apis/kubevirt.io/v1")
+        if status == 404:
+            return None
+        if status != 200 or not isinstance(discovery, dict):
+            return unknown
         namespace = os.environ.get("WORKSPACE_NAMESPACE", os.environ.get("CODER_NAMESPACE", "coder"))
         vm_path = "/apis/kubevirt.io/v1/namespaces/" + urllib.parse.quote(namespace, safe="") + "/virtualmachines/coder-vm-" + wid
         status, vm = KUBE.call("GET", vm_path)
