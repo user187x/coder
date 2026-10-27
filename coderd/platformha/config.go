@@ -38,8 +38,8 @@ const ActiveLease = "coder-active"
 
 const (
 	DefaultCell          = "a"
-	DefaultLeaseTTL      = 10 * time.Second
-	DefaultRenewInterval = 3 * time.Second
+	DefaultLeaseTTL      = 30 * time.Second
+	DefaultRenewInterval = 5 * time.Second
 	// DefaultHealthAddress serves the replica's probes and status in the HA
 	// modes, from the start (a standby does not serve Coder's own port).
 	DefaultHealthAddress = ":2113"
