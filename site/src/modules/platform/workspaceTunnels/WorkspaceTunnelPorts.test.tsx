@@ -682,3 +682,41 @@ it("disconnects a tunnel whose peer is filtered out via its visible marker", asy
 		expect(remove).toHaveBeenCalledWith(source.organization_id, tunnel.id),
 	);
 });
+
+it("resets every saved shape setting for a tunnel", async () => {
+	const key = "coder-tunnel-layout-v1:reset-test:grid";
+	localStorage.setItem(
+		key,
+		JSON.stringify({
+			routes: {
+				[tunnel.id]: {
+					points: [{ id: "bend", x: 30, y: 40 }],
+					orthogonal: true,
+				},
+			},
+			heads: { [tunnel.id]: { x: -60, y: 30 } },
+			arcs: { [tunnel.id]: 80 },
+			stubs: { [tunnel.id]: { length: 100, bend: 30 } },
+		}),
+	);
+	const user = setup([tunnel], vi.fn(), {
+		shown: [source],
+		actorId: "reset-test",
+	});
+	await user.pointer({
+		keys: "[MouseRight]",
+		target: await screen.findByRole("button", { name: /Move cable head:/ }),
+	});
+	await user.click(
+		screen.getByRole("menuitem", { name: "Reset cable routing" }),
+	);
+	await waitFor(() =>
+		expect(JSON.parse(localStorage.getItem(key) ?? "null")).toEqual({
+			routes: {},
+			heads: {},
+			arcs: {},
+			stubs: {},
+		}),
+	);
+	localStorage.removeItem(key);
+});

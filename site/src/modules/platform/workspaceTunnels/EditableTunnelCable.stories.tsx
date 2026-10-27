@@ -86,3 +86,7 @@ export const HeadOverview: Story = {
 		);
 	},
 };
+
+export const Straight: Story = {
+	args: { route: { points: [], orthogonal: false, straight: true } },
+};

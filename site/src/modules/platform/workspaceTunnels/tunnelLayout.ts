@@ -27,6 +27,7 @@ const valid = (value: unknown): value is TunnelLayout =>
 		(route) =>
 			record(route) &&
 			typeof route.orthogonal === "boolean" &&
+			(route.straight === undefined || typeof route.straight === "boolean") &&
 			Array.isArray(route.points) &&
 			route.points.every(
 				(p) => point(p) && "id" in p && typeof p.id === "string",

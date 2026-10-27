@@ -3,6 +3,7 @@ import type { Point } from "../cloudDrive/cables";
 export type TunnelRoute = {
 	points: (Point & { id: string })[];
 	orthogonal: boolean;
+	straight?: boolean;
 };
 
 /** Draws a cable through editable waypoints relative to its starting connector. */
@@ -12,6 +13,10 @@ export const routedTunnelPath = (
 	route: TunnelRoute,
 	reverse = false,
 ) => {
+	if (route.straight)
+		return reverse
+			? `M ${to.x} ${to.y} L ${from.x} ${from.y}`
+			: `M ${from.x} ${from.y} L ${to.x} ${to.y}`;
 	const points = [
 		from,
 		...route.points.map((p) => ({ x: from.x + p.x, y: from.y + p.y })),
@@ -78,5 +83,5 @@ export const insertTunnelBend = (
 		x: point.x - from.x,
 		y: point.y - from.y,
 	});
-	return { ...route, points };
+	return { ...route, ...(route.straight ? { straight: false } : {}), points };
 };

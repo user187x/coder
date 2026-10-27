@@ -23,6 +23,7 @@ type Props = {
 	onChange: (route: TunnelRoute) => void;
 	label: string;
 	onOpen: () => void;
+	onReset?: () => void;
 	onMoveHead?: (point: Point) => void;
 	headOverview?: ReactNode;
 	children?: ReactNode;
@@ -41,6 +42,7 @@ export const EditableTunnelCable = ({
 	onChange,
 	label,
 	onOpen,
+	onReset,
 	onMoveHead,
 	headOverview,
 	children,
@@ -57,6 +59,7 @@ export const EditableTunnelCable = ({
 		pointerId: number;
 		index: number;
 		route: TunnelRoute;
+		constrained?: boolean;
 	} | null>(null);
 	const suppressClick = useRef(false);
 	const frame = useRef<number | null>(null);
@@ -74,7 +77,7 @@ export const EditableTunnelCable = ({
 		pendingMove.current = null;
 		pending?.();
 	};
-	const custom = route.points.length > 0 || route.orthogonal;
+	const custom = route.points.length > 0 || route.orthogonal || route.straight;
 	const d = custom ? routedTunnelPath(from, to, route) : defaultPath;
 	const position = (clientX: number, clientY: number): Point => {
 		const svg = group.current?.ownerSVGElement;
@@ -107,9 +110,17 @@ export const EditableTunnelCable = ({
 						const drag = moving.current;
 						if (!drag || drag.pointerId !== e.pointerId) return;
 						e.stopPropagation();
-						const p = position(e.clientX, e.clientY);
+						let p = position(e.clientX, e.clientY);
+						if (drag.index === -1 && (e.shiftKey || drag.constrained)) {
+							p =
+								Math.abs(p.x - from.x) >= Math.abs(p.y - from.y)
+									? { x: p.x, y: from.y }
+									: { x: from.x, y: p.y };
+						}
 						pendingMove.current = () => {
 							if (drag.index === -1) {
+								if (e.shiftKey || drag.constrained)
+									onChange({ points: [], orthogonal: false, straight: true });
 								onMoveHead?.(p);
 								return;
 							}
@@ -250,6 +261,10 @@ export const EditableTunnelCable = ({
 								tabIndex={0}
 								aria-label={`Move cable head: ${label.replace(/^Manage /, "")}`}
 								className="pointer-events-auto cursor-move"
+								onAuxClick={(e) => {
+									e.preventDefault();
+									e.stopPropagation();
+								}}
 								onClick={(e) => {
 									e.stopPropagation();
 									if (!suppressClick.current && !e.ctrlKey) onOpen();
@@ -257,10 +272,21 @@ export const EditableTunnelCable = ({
 								}}
 								onPointerDown={(e) => {
 									suppressClick.current = false;
-									if (e.button !== 0 || !e.ctrlKey) return;
+									if (
+										e.button !== 1 &&
+										(e.button !== 0 || (!e.ctrlKey && !e.shiftKey))
+									)
+										return;
 									e.preventDefault();
 									e.stopPropagation();
-									moving.current = { pointerId: e.pointerId, index: -1, route };
+									moving.current = {
+										pointerId: e.pointerId,
+										index: -1,
+										route,
+										constrained: e.shiftKey,
+									};
+									if (e.shiftKey)
+										onChange({ points: [], orthogonal: false, straight: true });
 									suppressClick.current = true;
 									group.current?.setPointerCapture?.(e.pointerId);
 								}}
@@ -287,7 +313,8 @@ export const EditableTunnelCable = ({
 								{children}
 								{!headOverview && (
 									<title>
-										Ctrl+drag to move the cable head. Arrow keys adjust its
+										Middle-drag or Ctrl+drag to move the cable head. Shift-drag
+										constrains it to a straight line. Arrow keys adjust its
 										position.
 									</title>
 								)}
@@ -360,12 +387,28 @@ export const EditableTunnelCable = ({
 					Remove bend point
 				</ContextMenuItem>
 				<ContextMenuItem
-					onSelect={() => onChange({ ...route, orthogonal: !route.orthogonal })}
+					onSelect={() =>
+						onChange({
+							...route,
+							...(route.straight ? { straight: false } : {}),
+							orthogonal: !route.orthogonal,
+						})
+					}
 				>
 					{route.orthogonal ? "Use curved routing" : "Use right-angle routing"}
 				</ContextMenuItem>
 				<ContextMenuItem
-					onSelect={() => onChange({ points: [], orthogonal: false })}
+					onSelect={() =>
+						onChange({ points: [], orthogonal: false, straight: true })
+					}
+				>
+					Straighten line
+				</ContextMenuItem>
+				<ContextMenuItem
+					onSelect={() => {
+						onChange({ points: [], orthogonal: false });
+						onReset?.();
+					}}
 				>
 					Reset cable routing
 				</ContextMenuItem>
