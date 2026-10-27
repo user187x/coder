@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Install the prebuilt release into a new local k3d cluster, without touching Minikube.
 set -Eeuo pipefail
-version=1.1.2
+version=1.1.3
 k3s_image=rancher/k3s:v1.35.5-k3s1
 cluster=coder-fresh
 registry_name=coder-registry.localhost
@@ -163,7 +163,7 @@ coder-workspace:
     enabled: false
 ''')
 PY
-helm upgrade --install coder-fork "$assets/coder-airgapped-1.47.1.tgz" \
+helm upgrade --install coder-fork "$assets/coder-airgapped-1.47.2.tgz" \
  --kubeconfig "$kubeconfig" --namespace coder-fork --create-namespace \
  --values "$assets/offline-values.example.yaml" --values "$assets/k3d-values.yaml" \
  --wait --timeout 20m

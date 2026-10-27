@@ -54,4 +54,5 @@ out.joinpath('IMAGE-INVENTORY.json').write_text(json.dumps({
 PY
 tar -C "$stage" -cf - "$name" | gzip -6 > "$out/$name.tar.gz"
 (cd "$out" && sha256sum -- START-HERE.md *.tgz *.tar.gz *IMAGES.txt IMAGE-INVENTORY.json > SHA256SUMS)
+cp "$out/SHA256SUMS" "$out/SOURCE-SHA256SUMS"
 echo "Source release packaged: $out"
