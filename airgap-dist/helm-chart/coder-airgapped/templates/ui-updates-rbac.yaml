@@ -45,6 +45,14 @@ rules:
     resources: [configmaps]
     resourceNames: [coder-platform-config]
     verbs: [get]
+  # Central Coder scaling, restricted to its deployment in this namespace.
+  - apiGroups: [apps]
+    resources: [deployments/scale]
+    resourceNames: [coder]
+    verbs: [get, update]
+  - apiGroups: [autoscaling]
+    resources: [horizontalpodautoscalers]
+    verbs: [list]
   # Persistence view (CloudNativePG backups).
   - apiGroups: [postgresql.cnpg.io]
     resources: [clusters]

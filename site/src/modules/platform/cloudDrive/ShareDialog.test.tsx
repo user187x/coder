@@ -1,4 +1,5 @@
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "react-query";
 import {
 	type CloudDrivePeers,
@@ -90,6 +91,132 @@ describe("sharedWithYou", () => {
 });
 
 describe("ShareDialog", () => {
+	beforeEach(() => {
+		vi.spyOn(PlatformAPI, "getCloudDriveConnections").mockResolvedValue({
+			disconnected: [],
+			older: [],
+		});
+	});
+
+	it("shares only the selected item with a connected workspace, read-only by default", async () => {
+		const user = userEvent.setup();
+		vi.mocked(PlatformAPI.getCloudDriveConnections).mockResolvedValue({
+			disconnected: [],
+			older: [],
+			workspaceConnections: [
+				{
+					workspaceId: "workspace-id",
+					workspaceName: "dev",
+					recipientId: "bob-id",
+					recipientName: "bob",
+					organizationId: "org",
+				},
+			],
+		});
+		vi.spyOn(PlatformAPI, "getCloudDrivePeople").mockResolvedValue({
+			people: [],
+		});
+		vi.spyOn(PlatformAPI, "getCloudDrivePeers").mockResolvedValue(
+			peers([], { admin: true }),
+		);
+		const send = vi
+			.spyOn(PlatformAPI, "shareCloudDrive")
+			.mockResolvedValue({ ...peers([]), share: share({}) });
+		wrap(<ShareDialog path="selected.txt" kind="file" onClose={() => {}} />);
+		await user.click(await screen.findByRole("button", { name: "With" }));
+		await user.click(
+			await screen.findByRole("checkbox", { name: "Workspace: bob/dev" }),
+		);
+		await user.click(screen.getByRole("button", { name: "Share" }));
+		await waitFor(() =>
+			expect(send).toHaveBeenCalledWith(
+				"bob-id",
+				"selected.txt",
+				"read",
+				"workspace-id",
+			),
+		);
+	});
+	it("selects all, clears all, and sends only the final checked recipients", async () => {
+		const user = userEvent.setup();
+		vi.spyOn(PlatformAPI, "getCloudDrivePeople").mockResolvedValue({
+			people: [
+				{ id: "ann-id", username: "ann", name: "" },
+				{ id: "bob-id", username: "bob", name: "" },
+			],
+		});
+		vi.spyOn(PlatformAPI, "getCloudDrivePeers").mockResolvedValue(peers([]));
+		const send = vi
+			.spyOn(PlatformAPI, "shareCloudDrive")
+			.mockResolvedValue({ ...peers([]), share: share({}) });
+		wrap(<ShareDialog path="selected.txt" kind="file" onClose={vi.fn()} />);
+		await user.click(await screen.findByRole("button", { name: "With" }));
+		await user.click(screen.getByRole("button", { name: "Select all" }));
+		await user.click(screen.getByRole("button", { name: "Clear all" }));
+		await user.click(screen.getByRole("checkbox", { name: "bob" }));
+		await user.click(screen.getByRole("button", { name: "With" }));
+		await user.click(screen.getByRole("button", { name: "Share" }));
+		await waitFor(() =>
+			expect(send).toHaveBeenCalledWith("bob-id", "selected.txt", "read"),
+		);
+		expect(send).toHaveBeenCalledTimes(1);
+	});
+
+	it("shares with every selected recipient and retries only failures", async () => {
+		const user = userEvent.setup();
+		vi.spyOn(PlatformAPI, "getCloudDrivePeople").mockResolvedValue({
+			people: [
+				{ id: "ann-id", username: "ann", name: "" },
+				{ id: "bob-id", username: "bob", name: "" },
+			],
+		});
+		vi.spyOn(PlatformAPI, "getCloudDrivePeers").mockResolvedValue(peers([]));
+		const send = vi
+			.spyOn(PlatformAPI, "shareCloudDrive")
+			.mockResolvedValue({ ...peers([]), share: share({}) });
+		send
+			.mockResolvedValueOnce({ ...peers([]), share: share({}) })
+			.mockRejectedValueOnce(new Error("Try again"));
+		wrap(<ShareDialog path="selected.txt" kind="file" onClose={vi.fn()} />);
+		await user.click(await screen.findByRole("button", { name: "With" }));
+		await user.click(screen.getByRole("button", { name: "Select all" }));
+		await user.click(screen.getByRole("button", { name: "With" }));
+		await user.click(screen.getByRole("button", { name: "Share" }));
+		await waitFor(() => expect(send).toHaveBeenCalledTimes(2));
+		await user.click(screen.getByRole("button", { name: "Share" }));
+		await waitFor(() => expect(send).toHaveBeenCalledTimes(3));
+		expect(send.mock.calls.map((call) => call[0])).toEqual([
+			"ann-id",
+			"bob-id",
+			"bob-id",
+		]);
+	});
+
+	it("revokes the selected existing grant without disconnecting the workspace", async () => {
+		const user = userEvent.setup();
+		const grant = share({
+			owner: ME,
+			path: "selected.txt",
+			kind: "file",
+			workspaceId: "workspace-id",
+			workspaceName: "dev",
+		});
+		vi.spyOn(PlatformAPI, "getCloudDrivePeople").mockResolvedValue({
+			people: [],
+		});
+		vi.spyOn(PlatformAPI, "getCloudDrivePeers").mockResolvedValue(
+			peers([], { ofMine: [grant] }),
+		);
+		const revoke = vi
+			.spyOn(PlatformAPI, "endCloudDriveShare")
+			.mockResolvedValue({ ...peers([]), share: { ...grant, state: "ended" } });
+		const disconnect = vi.spyOn(PlatformAPI, "setCloudDriveConnection");
+		wrap(<ShareDialog path="selected.txt" kind="file" onClose={vi.fn()} />);
+		await user.click(await screen.findByRole("button", { name: "Revoke" }));
+		await waitFor(() => expect(revoke.mock.calls[0]?.[0]).toBe(grant.id));
+		expect(disconnect).not.toHaveBeenCalled();
+	});
+
 	afterEach(() => vi.restoreAllMocks());
 
 	it("shares a folder with a chosen user, read and write; lists whom it is shared with", async () => {
@@ -117,19 +244,14 @@ describe("ShareDialog", () => {
 			share: share({ owner: ME, from: "bob-id", fromName: "bob" }),
 		});
 		wrap(<ShareDialog path="docs" kind="folder" onClose={vi.fn()} />);
-		const dialog = await screen.findByTestId("cloud-drive-share-dialog");
-		expect(dialog).toHaveTextContent("Share the folder docs");
-		expect(
-			await within(dialog).findByTestId("cloud-drive-share-dialog-existing"),
-		).toHaveTextContent("ann · read only · shared");
-		expect(within(dialog).getByTestId("share-send")).toBeDisabled();
-		// ann has it already: only bob to choose
-		fireEvent.click(within(dialog).getByTestId("share-to"));
-		const options = await screen.findAllByRole("option");
-		expect(options.map((o) => o.textContent)).toEqual(["Bob B (@bob)"]);
-		fireEvent.click(options[0]);
-		fireEvent.click(within(dialog).getByLabelText(/Read and write/));
-		fireEvent.click(within(dialog).getByTestId("share-send"));
+		const user = userEvent.setup();
+		await user.click(await screen.findByRole("button", { name: "With" }));
+		await user.click(
+			await screen.findByRole("checkbox", { name: "Bob B (@bob)" }),
+		);
+		await user.click(screen.getByRole("button", { name: "With" }));
+		await user.click(screen.getByLabelText(/Read and write/));
+		await user.click(screen.getByRole("button", { name: "Share" }));
 		await waitFor(() =>
 			expect(send).toHaveBeenCalledWith("bob-id", "docs", "write"),
 		);

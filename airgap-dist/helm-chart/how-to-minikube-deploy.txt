@@ -78,3 +78,11 @@ GOOD TO KNOW
 
   - The manual install, EKS and Argo CD are in DEPLOY.md; README.md is the
     reference; images/README.md lists every bundled image.
+
+Single-node restart after HA testing
+
+Starting the existing Minikube profile does not apply the k3d HA settings.
+For a single-node Helm install or upgrade, pass -f values-minikube-single-node.yaml LAST.
+This selects one central Coder replica, removes required anti-affinity and clears
+the HA lab node selector. One replica cannot provide central-server failover.
+Keep values-ha.example.yaml for multi-node deployments.

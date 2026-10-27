@@ -741,6 +741,7 @@ def peer_mounts():
                 continue
             mounts.append({"id": p["id"], "owner": p["owner"], "name": p["name"], "claim": claim,
                            "readOnly": p["access"] != "write", "kind": p["kind"], "path": p["path"],
+                           **({"workspaceId": p["workspaceId"]} if p.get("workspaceId") else {}),
                            "item": p["path"].rsplit("/", 1)[-1] if p["path"] else ""})
     return out
 
@@ -750,11 +751,18 @@ def publish_state(shared):
     {workspace, path, running}}, "peers": {user id: [{owner, name, claim, readOnly}]}} - a shared workspace mounts no
     Cloud Drive; a source workspace serves its directory and mounts none; the owner's others mount the source's while
     it runs; a user's workspaces mount the Cloud Drives shared with them (peer_mounts)."""
+    mounts = peer_mounts()
+    workspace_mounts = {}
+    for peers in mounts.values():
+        for mount in peers:
+            if mount.get("workspaceId"):
+                workspace_mounts.setdefault(mount["workspaceId"], []).append(mount)
     state = json.dumps({"shared": sorted(shared),
                         "sources": {owner: {"workspace": src["workspace"], "path": src["path"],
                                             "running": bool((_sources_seen.get(owner) or {}).get("running"))}
                                     for owner, src in sorted(sources().items())},
-                        "peers": peer_mounts(),
+                        "peers": {uid: [m for m in peers if not m.get("workspaceId")] for uid, peers in mounts.items()},
+                        "workspacePeers": workspace_mounts,
                         "auditClaims": {uid: audit_claim(uid, uid) for uid, _ in (USERS() or [])}
                         if AUDIT_ENABLED else {}}, sort_keys=True)
     if state == _published["state"]:
@@ -831,7 +839,8 @@ def connections(user):
     src = sources().get(user["id"])
     return {"disconnected": off, "older": older, "shared": shared, "sharedWithVolume": exposed,
             "encrypted": encryption_on(user["id"]), "restart": stale_mounts(user["id"], src, set(shared)),
-            "source": source_view(user["id"], src) if src else None, "attachment": attachment(user["id"])}
+            "source": source_view(user["id"], src) if src else None, "attachment": attachment(user["id"]),
+            "workspaceConnections": drivepeers.workspace_connections(user)}
 
 
 PEER_MOUNT_DIRS = ("/mnt/cloud-drive-peers/", "/mnt/cloud-drive-items/")
@@ -853,7 +862,7 @@ def stale_mounts(user_id, src, shared):
         NAMESPACE, urllib.parse.quote("com.coder.user.id=" + user_id)))
     out = []
     running = bool(src and (_sources_seen.get(user_id) or {}).get("running"))
-    peers_now = peer_mounts().get(user_id, [])
+    all_peers = peer_mounts().get(user_id, [])
     for p in (pods.get("items") or []) if status == 200 and isinstance(pods, dict) else []:
         meta = p.get("metadata") or {}
         wid = (meta.get("labels") or {}).get("com.coder.workspace.id")
@@ -863,6 +872,7 @@ def stale_mounts(user_id, src, shared):
             continue  # a template without the Cloud Drive's connections
         claims = {(v.get("persistentVolumeClaim") or {}).get("claimName")
                   for v in (p.get("spec") or {}).get("volumes") or []}
+        peers_now = [m for m in all_peers if not m.get("workspaceId") or m["workspaceId"] == wid]
         # what is shared with the user: where it mounts it (read only or not), where it would now
         has_peers = {(m.get("mountPath"), bool(m.get("readOnly")))
                      for c in (p.get("spec") or {}).get("containers") or [] for m in c.get("volumeMounts") or []
@@ -907,7 +917,8 @@ def set_connected(h, user, wid, body):
     if not ws:
         raise ValueError("There is no such workspace.")
     if ws.get("owner_id") != user["id"]:
-        raise PermissionError
+        drivepeers.connect_workspace(user, ws, want)
+        return {**connections(user), "workspace": wid, "connected": want, "applied": False}
     if want and wid in shared_now():
         raise ValueError("This workspace is shared with others: your Cloud Drive stays out of it while it is shared.")
     with reconnect_guard(wid) if want else contextlib.nullcontext():

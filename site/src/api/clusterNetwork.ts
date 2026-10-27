@@ -518,3 +518,22 @@ export const clusterHA = (paused: boolean) => ({
 	refetchInterval: paused ? (false as const) : 10_000,
 	retry: false,
 });
+
+export type CoderScale = {
+	desired: number;
+	ready: number;
+	resourceVersion: string;
+	automated: boolean;
+};
+export const coderScaleKey = [...clusterNetworkKey, "coder-scale"] as const;
+export const coderScale = () => ({
+	queryKey: coderScaleKey,
+	queryFn: () =>
+		platformRequest.get<CoderScale>(`${base}/api/network/coder-scale`),
+	refetchInterval: 5000,
+	retry: false,
+});
+export const updateCoderScale = () => ({
+	mutationFn: (body: { replicas: number; resourceVersion: string }) =>
+		platformRequest.post<CoderScale>(`${base}/api/network/coder-scale`, body),
+});

@@ -55,10 +55,11 @@ const ACTIVE_WITHIN_S = 1.5;
 export const CloudDrive: React.FC<{
 	/** The signed-in user's workspaces on the page: a cable to each connected one. */
 	workspaceIds: readonly string[];
+	shareWorkspaceIds?: readonly string[];
 	/** Of them, those being deleted: their cables pop off and reel in (CloudDriveRopes). */
 	deleting?: readonly string[];
 	className?: string;
-}> = ({ workspaceIds, deleting, className }) => {
+}> = ({ workspaceIds, shareWorkspaceIds = [], deleting, className }) => {
 	const { data: summary, error } = useQuery(safe());
 	const enabled = Boolean(summary?.enabled);
 	const settings = useQuery({ ...cloudDriveSettings(), enabled });
@@ -144,8 +145,13 @@ export const CloudDrive: React.FC<{
 			...connections.data.disconnected,
 			...(connections.data.shared ?? []),
 		]);
-		return workspaceIds.filter((id) => !off.has(id));
-	}, [connections.data, workspaceIds]);
+		return [
+			...workspaceIds.filter((id) => !off.has(id)),
+			...(connections.data.workspaceConnections ?? [])
+				.map((c) => c.workspaceId)
+				.filter((id) => shareWorkspaceIds.includes(id)),
+		];
+	}, [connections.data, workspaceIds, shareWorkspaceIds]);
 	// Of them, those whose drive is not attached in the workspace yet (it says so): their cables red until it is.
 	const unattached = useMemo(() => {
 		const waiting = new Set(pendingAttachments(connections.data));
@@ -274,7 +280,7 @@ export const CloudDrive: React.FC<{
 			</div>
 			<CloudDriveRopes
 				anchor={container}
-				workspaceIds={workspaceIds}
+				workspaceIds={[...workspaceIds, ...shareWorkspaceIds]}
 				deleting={deleting}
 				linked={linked}
 				onLink={onLink}

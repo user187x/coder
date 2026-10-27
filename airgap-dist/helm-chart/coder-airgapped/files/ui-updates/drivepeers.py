@@ -51,15 +51,17 @@ CHAT_POST = None   # (from user, to user id, text, share id) -> None: a chat mes
 CHANGED = None     # () -> None: the templates told at once (safe.publish_now)
 PEOPLE = None      # () -> [{id, username, name}]: Coder's active users
 ITEM = None        # (owner id, path) -> "file" | "folder" | None: what a path of the owner's drive is (safe.item_kind)
+WORKSPACE_INFO = None
 ADMINS = None      # () -> [{id, username, name}]: the admins, each asked in a chat message to approve a share
 KINDS = ("drive", "folder", "file")
 _lock = threading.Lock()
 
 
-def setup(log, is_admin, user_by_id, chat_post, changed, people=None, item=None, admins=None):
-    global LOG, IS_ADMIN, USER_BY_ID, CHAT_POST, CHANGED, PEOPLE, ITEM, ADMINS
+def setup(log, is_admin, user_by_id, chat_post, changed, people=None, item=None, admins=None, workspace_info=None):
+    global LOG, IS_ADMIN, USER_BY_ID, CHAT_POST, CHANGED, PEOPLE, ITEM, ADMINS, WORKSPACE_INFO
     LOG, IS_ADMIN, USER_BY_ID, CHAT_POST, CHANGED = log, is_admin, user_by_id, chat_post, changed
     PEOPLE, ITEM, ADMINS = people, item, admins
+    WORKSPACE_INFO = workspace_info
 
 
 def _load():
@@ -70,7 +72,7 @@ def _load():
         data = {}
     settings = {**DEFAULT_SETTINGS, **(data.get("settings") or {})}
     shares = data.get("shares") if isinstance(data.get("shares"), dict) else {}
-    return {"settings": settings, "shares": shares}
+    return {"settings": settings, "shares": shares, "connections": data.get("connections") or {}}
 
 
 def _save(data):
@@ -88,11 +90,41 @@ def _admin(user):
     return bool(IS_ADMIN and IS_ADMIN(user))
 
 
+def workspace_connections(user):
+    """An admin's selected workspaces, without granting access to any drive content."""
+    if not _admin(user):
+        return []
+    return [c for c in _load()["connections"].values() if c["owner"] == user["id"]]
+
+
+def connect_workspace(user, ws, connected):
+    if not _admin(user):
+        raise PermissionError("Only admins connect their drive to another owner's workspace.")
+    wid = ws["id"]
+    key = user["id"] + ":" + wid
+    with _lock:
+        data = _load()
+        if connected:
+            data["connections"][key] = {"workspaceId": wid, "workspaceName": ws["name"],
+                "owner": user["id"], "recipientId": ws["owner_id"],
+                "recipientName": ws.get("owner_name", ""), "organizationId": ws["organization_id"]}
+        else:
+            data["connections"].pop(key, None)
+            for grant in data["shares"].values():
+                if grant.get("owner") == user["id"] and grant.get("workspaceId") == wid and grant.get("state") in OPEN:
+                    grant.update(state="ended", closedAt=int(time.time()), closedBy=user["username"], wasActive=False)
+        _save(data)
+    LOG(event="cloud-drive-workspace-connection", workspace=wid, owner=user["id"], connected=connected)
+    _changed()
+
+
 def _public(s):
     out = {k: s.get(k) for k in ("id", "from", "fromName", "owner", "ownerName", "access", "asked", "state",
                                  "askedAt", "answeredAt", "approvedBy", "approvedAt", "closedBy", "closedAt")}
     # a share from before parts of a drive could be shared: the entire drive, asked for
     out.update(path=s.get("path") or "", kind=s.get("kind") or "drive", by=s.get("by") or "request")
+    out["workspaceId"] = s.get("workspaceId")
+    out["workspaceName"] = s.get("workspaceName")
     out["reconnectable"] = s.get("state") == "ended" and bool(s.get("wasActive") or s.get("approvedAt"))
     return out
 
@@ -123,7 +155,7 @@ def active():
         if s.get("state") == "active":
             p = _public(s)
             out.setdefault(s["from"], []).append({"id": p["id"], "owner": p["owner"], "name": p["ownerName"],
-                                                  "access": p["access"], "path": p["path"], "kind": p["kind"]})
+                                                  "access": p["access"], "path": p["path"], "kind": p["kind"], "workspaceId": p.get("workspaceId")})
     for peers in out.values():
         peers.sort(key=lambda p: (p["name"], p["kind"] != "drive", p["path"]))
     return out
@@ -263,7 +295,7 @@ def _what(kind, path):
     return "Cloud Drive" if kind == "drive" else "%s %s of my Cloud Drive" % (kind, path)
 
 
-def share(user, body):
+def share(user, body, token=None):
     """The owner shares their entire drive (path ""), or a folder or file of it, with a user: active at once, or once
     an admin approves it."""
     to_id = str(body.get("to") or "")
@@ -281,6 +313,15 @@ def share(user, body):
     to = USER_BY_ID(to_id) if USER_BY_ID else None
     if not to:
         raise ValueError("There is no such user.")
+    workspace_id = body.get("workspaceId")
+    connection = None
+    if workspace_id:
+        if not _admin(user) or not path:
+            raise PermissionError("Only admins share selected files or folders through workspace connections.")
+        connection = next((c for c in workspace_connections(user) if c["workspaceId"] == workspace_id), None)
+        ws = WORKSPACE_INFO(token, workspace_id) if WORKSPACE_INFO else None
+        if not connection or not ws or ws.get("owner_id") != to_id or connection["recipientId"] != to_id or ws.get("organization_id") != connection["organizationId"]:
+            raise PermissionError("Connect this workspace before sharing an item with it.")
     kind = "drive"
     if path:
         if any(part in ("", ".", "..") for part in path.split("/")):
@@ -292,17 +333,20 @@ def share(user, body):
         data = _load()
         if not data["settings"]["enabled"]:
             raise PermissionError("Sharing Cloud Drives between users is off: an admin turns it on.")
+        if connection and data["connections"].get(user["id"] + ":" + workspace_id) != connection:
+            raise PermissionError("The workspace connection changed. Reconnect before sharing.")
         for s in data["shares"].values():
             if s["owner"] == user["id"] and s["from"] == to_id and s.get("state") in OPEN and \
-                    (s.get("path") or "") == path:
+                    (s.get("path") or "") == path and s.get("workspaceId") == workspace_id:
                 raise ValueError("It is shared with %s already (%s, %s): end that share to change it." % (
                     to["username"], _access_words(s["access"]), s["state"]))
         sid = uuid.uuid4().hex
         now = time.time()
         item = {"id": sid, "from": to_id, "fromName": to["username"], "owner": user["id"],
                 "ownerName": user["username"], "access": access, "asked": access, "askedAt": round(now, 3),
-                "answeredAt": int(now), "state": "approval" if data["settings"]["adminApproval"] else "active",
-                "path": path, "kind": kind, "by": "owner"}
+                "answeredAt": int(now), "state": "approval" if data["settings"]["adminApproval"] and not connection else "active",
+                "path": path, "kind": kind, "by": "owner",
+                "workspaceId": workspace_id, "workspaceName": connection["workspaceName"] if connection else None}
         data["shares"][sid] = item
         _save(data)
     LOG(event="cloud-drive-peers-share", share=sid, by=user["username"], to=to["username"], kind=kind, path=path,
@@ -432,6 +476,8 @@ def connection(user, sid, body):
         data = _load()
         s = _get(data, sid)
         if connected:
+            if s.get("workspaceId") and not data["connections"].get(s["owner"] + ":" + s["workspaceId"]):
+                raise PermissionError("Reconnect the workspace before restoring this item share.")
             if not data["settings"]["enabled"]:
                 raise PermissionError("Sharing Cloud Drives between users is off.")
             for uid in (s["owner"], s["from"]):
@@ -477,7 +523,7 @@ def handle(h, method, path, user, read_json):
     if method == "POST" and rest == "/request":
         return h.send_json(200, request(user, read_json(h)))
     if method == "POST" and rest == "/share":
-        return h.send_json(200, share(user, read_json(h)))
+        return h.send_json(200, share(user, read_json(h), h.token()))
     if method == "GET" and rest == "/people":
         return h.send_json(200, people(user))
     m = re.match(r"^/([0-9a-f]{32})/(answer|approve|end|connection)$", rest)

@@ -1140,18 +1140,63 @@ def ha_and_storage():
     return out
 
 
+def coder_scale(body=None):
+    """Read or update only the central Coder Deployment, using optimistic concurrency."""
+    path = "/apis/apps/v1/namespaces/%s/deployments/coder" % NAMESPACE
+    status, deployment = KUBE.call("GET", path)
+    if status != 200:
+        raise RuntimeError("Cannot read the central Coder deployment")
+    status, hpas = KUBE.call("GET", "/apis/autoscaling/v2/namespaces/%s/horizontalpodautoscalers" % NAMESPACE)
+    if status != 200:
+        raise RuntimeError("Cannot check whether an autoscaler manages Coder")
+    automated = any((h.get("spec", {}).get("scaleTargetRef", {}).get("name") == "coder"
+                     and h.get("spec", {}).get("scaleTargetRef", {}).get("kind") == "Deployment")
+                    for h in hpas.get("items", []))
+    spec = deployment["spec"]
+    if body is not None:
+        if not isinstance(body, dict) or type(body.get("replicas")) is not int or not 2 <= body["replicas"] <= 10:
+            raise ValueError("Choose a whole number of replicas from 2 to 10")
+        if automated:
+            raise ValueError("An autoscaler manages Coder. Change its configuration instead.")
+        if body.get("resourceVersion") != deployment["metadata"]["resourceVersion"]:
+            raise ValueError("Deployment changed. Refresh and try again.")
+        terms = spec.get("template", {}).get("spec", {}).get("affinity", {}).get("podAntiAffinity", {}).get("requiredDuringSchedulingIgnoredDuringExecution", [])
+        if not any(t.get("topologyKey") == "kubernetes.io/hostname" and
+                   t.get("labelSelector", {}).get("matchLabels", {}).get("app.kubernetes.io/name") == "coder" for t in terms):
+            raise ValueError("Required separate-node placement must be configured before scaling")
+        status, result = KUBE.call("PUT", path + "/scale", {
+            "apiVersion": "autoscaling/v1", "kind": "Scale",
+            "metadata": {"name": "coder", "namespace": NAMESPACE,
+                         "resourceVersion": body["resourceVersion"]},
+            "spec": {"replicas": body["replicas"]}})
+        if status not in (200, 201):
+            raise RuntimeError("Scaling failed or the deployment changed. Refresh and try again.")
+        return coder_scale()
+    return {"desired": spec.get("replicas", 1),
+            "ready": deployment.get("status", {}).get("readyReplicas", 0),
+            "resourceVersion": deployment["metadata"]["resourceVersion"],
+            "automated": automated}
+
+
 # ---------------------------------------------------------------------------------------------------- HTTP
 def handle(h, method, path, query):
     """True when it answered (the paths under /api/network/)."""
     if not path.startswith(BASE + "/api/network/"):
         return False
-    if method != "GET":
+    if method != "GET" and not (method == "POST" and path == BASE + "/api/network/coder-scale"):
         h.send_json(405, {"error": "method not allowed"})
         return True
     user, err = h.user(admin=True)
     if err:
         return True
     try:
+        if path == BASE + "/api/network/coder-scale":
+            if method == "POST" and not h.csrf_ok():
+                return h.send_json(403, {"error": "Cross-site request refused"}) or True
+            result = coder_scale((h.body() or {}) if method == "POST" else None)
+            if method == "POST" and LOG:
+                LOG(event="coder-scaled", user_id=user.get("id"), replicas=result["desired"])
+            return h.send_json(200, result) or True
         if path == BASE + "/api/network/entity":
             return h.send_json(200, entity(h.token(), query)) or True
         if path == BASE + "/api/network/ha":

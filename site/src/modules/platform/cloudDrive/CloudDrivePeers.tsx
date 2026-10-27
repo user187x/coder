@@ -295,7 +295,7 @@ export const AskForCloudDriveDialog: React.FC<{
 					<DialogDescription>
 						A request goes into your chat with them. Once they share it (and an
 						admin approves it, when admins approve shares), it is in your
-						workspaces from their next start, at ~/cloud-drive-shared/.
+						workspaces from their next start, at ~/cloud-drive/Shared/.
 					</DialogDescription>
 				</DialogHeader>
 				<RadioGroup
@@ -387,7 +387,7 @@ const ShareRow: React.FC<{
 
 /**
  * The Cloud Drive window's Sharing: Cloud Drives shared between users. Everyone: the shares they asked for (others'
- * drives, mounted in their workspaces at ~/cloud-drive-shared/<owner> from their next start) and those of their own
+ * drives, mounted in their workspaces at ~/cloud-drive/Shared/<owner> from their next start) and those of their own
  * drive, each to end at any time; requests to answer. Asking is done in chat (a conversation's menu: Ask for their
  * Cloud Drive). Admins: the feature on or off, whether they approve each share, the shares waiting for them, every
  * share.
@@ -518,7 +518,7 @@ export const CloudDrivePeersView: React.FC = () => {
 					<UsersIcon aria-hidden className="mt-0.5 size-4 shrink-0" />
 					To use someone's Cloud Drive, ask them in chat: open your conversation
 					with them, then its menu's "Ask for their Cloud Drive". Shared drives
-					are in your workspaces at ~/cloud-drive-shared/ from their next start.
+					are in your workspaces at ~/cloud-drive/Shared/ from their next start.
 				</p>
 			)}
 			{toAnswer.length > 0 && (
@@ -599,7 +599,7 @@ const SharedNowHint: React.FC = () => {
 			<CloudIcon aria-hidden className="mt-px size-3.5 shrink-0" />
 			<span>
 				Open them now in Files: pick the drive above its list. Your workspaces
-				have them at ~/cloud-drive-shared/ from their next start
+				have them at ~/cloud-drive/Shared/ from their next start
 				{names.length > 0 &&
 					` - restart ${names.join(", ")} to have the shares as they are now`}
 				.

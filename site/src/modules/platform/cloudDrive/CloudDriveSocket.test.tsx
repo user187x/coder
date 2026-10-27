@@ -1,10 +1,19 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { PlatformAPI } from "#/api/platform";
 import { cloudDriveConnections, safe } from "#/api/queries/platform";
 import type { Workspace } from "#/api/typesGenerated";
-import { MockWorkspace } from "#/testHelpers/entities";
+import { MockUserOwner, MockWorkspace } from "#/testHelpers/entities";
 import { CloudDriveSocket, useCloudDriveLinks } from "./CloudDriveSocket";
+
+const auth = vi.hoisted(() => ({ admin: false }));
+vi.mock("#/hooks/useAuthenticated", () => ({
+	useAuthenticated: () => ({
+		user: { ...MockUserOwner, roles: auth.admin ? MockUserOwner.roles : [] },
+		permissions: {},
+	}),
+}));
 
 const ws = (id: string, owner = "me") =>
 	({ ...MockWorkspace, id, name: id, owner_name: owner }) as Workspace;
@@ -49,7 +58,10 @@ const renderSockets = (enabled = true) => {
 const socket = (id: string) => screen.getByTestId(`cloud-drive-socket-${id}`);
 
 describe("CloudDriveSocket", () => {
-	afterEach(() => vi.restoreAllMocks());
+	afterEach(() => {
+		auth.admin = false;
+		vi.restoreAllMocks();
+	});
 
 	it("shows each row's socket: plugged in, waiting, empty, or taking no plug", () => {
 		renderSockets();
@@ -66,6 +78,27 @@ describe("CloudDriveSocket", () => {
 			"Only greg's own Cloud Drive plugs in here",
 		);
 		expect(socket("greg").tagName).toBe("SPAN");
+	});
+
+	it("lets an admin connect another owner's workspace without sharing an item", async () => {
+		auth.admin = true;
+		const user = userEvent.setup();
+		const connect = vi
+			.spyOn(PlatformAPI, "setCloudDriveConnection")
+			.mockResolvedValue({
+				disconnected: [],
+				older: [],
+				workspace: "greg",
+				connected: true,
+				applied: false,
+			});
+		const share = vi.spyOn(PlatformAPI, "shareCloudDrive");
+		renderSockets();
+		await user.click(
+			screen.getByRole("button", { name: /Connect greg.*greg for sharing/ }),
+		);
+		await waitFor(() => expect(connect).toHaveBeenCalledWith("greg", true));
+		expect(share).not.toHaveBeenCalled();
 	});
 
 	it("plugs the drive in and pulls it out with a click", async () => {

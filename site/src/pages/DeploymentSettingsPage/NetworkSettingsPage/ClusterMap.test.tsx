@@ -105,7 +105,7 @@ describe("ClusterMap", () => {
 		renderMap();
 		await user.click(
 			await screen.findByRole("button", {
-				name: "Entrance route → traefik/traefik-6d-x",
+				name: "Entrance route → traefik/traefik-6d-x (endpoint unhealthy)",
 			}),
 		);
 		await waitFor(() =>
@@ -113,6 +113,23 @@ describe("ClusterMap", () => {
 				type: "link",
 				id: "gateway-coder",
 			}),
+		);
+	});
+
+	it("opens node details after filtering the focus view", async () => {
+		const user = userEvent.setup();
+		renderMap();
+		await user.click(await screen.findByRole("button", { name: "Focus view" }));
+		const focus = within(
+			screen.getByRole("dialog", { name: "Cluster network focus view" }),
+		);
+		await user.type(
+			focus.getByRole("textbox", { name: "Filter nodes" }),
+			"node-b",
+		);
+		await user.click(focus.getByRole("button", { name: "node-b" }));
+		await waitFor(() =>
+			expect(entity).toHaveBeenCalledWith({ type: "node", name: "node-b" }),
 		);
 	});
 

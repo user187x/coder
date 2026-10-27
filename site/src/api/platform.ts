@@ -1100,6 +1100,8 @@ export const isChatGroupId = (id: string) => id.startsWith("g:");
 
 /** A Cloud Drive shared between users (drivepeers): asked for in chat, accepted by its owner, approved by an admin. */
 export type CloudDriveShare = {
+	workspaceId?: string | null;
+	workspaceName?: string | null;
 	id: string;
 	/** Who asked (the drive is mounted in their workspaces). */
 	from: string;
@@ -1782,8 +1784,18 @@ export type CloudDriveSourceGuard =
 
 export type SafeFile = { name: string; size: number; modified: string };
 
-/** Which of the caller's workspaces have their Cloud Drive (a new one does: those disconnected are listed). */
+/** An admin connection that makes a workspace eligible for explicit item sharing. */
+export type CloudDriveWorkspaceConnection = {
+	workspaceId: string;
+	workspaceName: string;
+	recipientId: string;
+	recipientName: string;
+	organizationId: string;
+};
+
+/** Own-drive mount state and admin sharing connections, which grant no file access by themselves. */
 export type CloudDriveConnections = {
+	workspaceConnections?: CloudDriveWorkspaceConnection[];
 	/** Disconnected by their owner. */
 	disconnected: string[];
 	/** Running from a template version before the connections: a change takes effect once they are updated. */
@@ -2186,10 +2198,15 @@ export const PlatformAPI = {
 			{ owner, access },
 		),
 	/** The owner shares their entire drive (path ""), a folder or a file of it. */
-	shareCloudDrive: (to: string, path: string, access: "read" | "write") =>
+	shareCloudDrive: (
+		to: string,
+		path: string,
+		access: "read" | "write",
+		workspaceId?: string,
+	) =>
 		post<CloudDrivePeers & { share: CloudDriveShare }>(
 			`${PLATFORM_BASE}/api/safe/peers/share`,
-			{ to, path, access },
+			{ to, path, access, ...(workspaceId ? { workspaceId } : {}) },
 		),
 	/** Whom one can share with: the deployment's active users but the caller. */
 	getCloudDrivePeople: () =>

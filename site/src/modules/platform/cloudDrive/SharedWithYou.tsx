@@ -300,7 +300,7 @@ export const ShareCard: React.FC<{
 			<p className="m-0 mt-2 border-0 border-t border-solid border-border pt-2 text-content-secondary">
 				Your workspaces have it at{" "}
 				<code className="text-content-primary">
-					~/cloud-drive-shared/{drive.ownerName}
+					~/cloud-drive/Shared/{drive.ownerName}
 					{part ? `/${baseName(part.path)}` : ""}
 				</code>{" "}
 				from their next start.

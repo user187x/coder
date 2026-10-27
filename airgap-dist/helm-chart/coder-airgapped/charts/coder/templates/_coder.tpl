@@ -20,6 +20,10 @@ Deployment to merge into the libcoder template
 */}}
 {{- define "coder.deployment" -}}
 spec:
+  {{- with .Values.coder.deploymentStrategy }}
+  strategy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   template:
     spec:
       containers:

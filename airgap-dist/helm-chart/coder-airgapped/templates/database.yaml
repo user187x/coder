@@ -21,7 +21,7 @@ metadata:
 spec:
   maxUnavailable: 1
   selector:
-    matchLabels: {app.kubernetes.io/name: coder-db-pooler}
+    matchLabels: {cnpg.io/poolerName: {{ printf "%s-pooler-rw" $db.name | quote }}}
 {{- end }}
 {{- end }}
 {{- end }}

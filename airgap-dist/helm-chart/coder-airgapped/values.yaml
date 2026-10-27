@@ -367,6 +367,8 @@ database:
   pooler:
     enabled: false
     instances: 2
+    # Require distinct nodes for pooler replicas. Enable in multi-node HA deployments.
+    requireSeparateNodes: false
     image: '{{ include "platform.image" (list . "ghcr.io/cloudnative-pg/pgbouncer:1.25.1") }}'
     # PgBouncer's settings (strings): a pool per user and database; named prepared statements kept per connection.
     parameters:

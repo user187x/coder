@@ -9568,6 +9568,8 @@ class Handler(BaseHTTPRequestHandler):
             return
         if workspacevolumes.handle(self, "POST", path, url.query):
             return
+        if clusternet.handle(self, "POST", path, url.query):
+            return
         if provisioners.handle(self, "POST", path, url.query):
             return
         if dr.handle(self, "POST", path, url.query):
@@ -10298,7 +10300,8 @@ def main():
                quarantine_guard=connection_guard)
     drivepeers.setup(log, lambda user: bool(set(user.get("roles") or []) & ADMIN_ROLES), safe_user,
                      drive_chat_post, safe.publish_now, people=lambda: list(chat_people().values()),
-                     item=lambda owner, path: safe.item_kind(owner, path, fresh=True), admins=chat_admins)
+                     item=lambda owner, path: safe.item_kind(owner, path, fresh=True), admins=chat_admins,
+                     workspace_info=workspace_info)
     connection_restrictions = workspaceconnections.Restrictions(lambda: LOGOS.pool if LOGOS else None,
         lockdown.settings, safe, workspacetunnels, log)
     safe.CONNECTION_RESTRICTED = connection_restrictions.restricted

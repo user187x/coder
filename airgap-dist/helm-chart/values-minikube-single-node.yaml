@@ -1,0 +1,20 @@
+# Apply LAST, after any HA values, when installing on a single-node Minikube cluster.
+# One central Coder replica starts normally but cannot provide server failover.
+database:
+  pooler:
+    instances: 1
+    requireSeparateNodes: false
+coder:
+  coder:
+    replicaCount: 1
+    nodeSelector: null
+    affinity:
+      podAntiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution: []
+        preferredDuringSchedulingIgnoredDuringExecution: []
+    topologySpreadConstraints: []
+    deploymentStrategy:
+      type: RollingUpdate
+      rollingUpdate:
+        maxSurge: 0
+        maxUnavailable: 1
