@@ -6,7 +6,7 @@
 # mirror-images.sh pulls the public ones by that digest (save) and pushes every image under its tag (push).
 
 [ui]            images/ui/             push      the user interface: Coder (the fork - the dashboard and its server) and the platform service (coder-ui-updates), what they run on, and their databases
-ghcr.io/user187x/coder-platform:1.1.2-airgap sha256:58826d61f99f6035e44588ef2755b8edc608bf2c9968f82ebe1c846eabdb1e13   release 1.1.2 fork server with Terraform provider mirror
+ghcr.io/user187x/coder-platform:1.1.3-airgap sha256:acfc249bce57db5d54ffeea1359ec387d8f0e1afbc4c2f12a513ac8d85daa2a4   release 1.1.3 fork server with Terraform provider mirror
 ghcr.io/user187x/coder-ui-updates:code-92c349b043c8       sha256:07004139be863e63857a32993bddb92885d816fc51ae130befabc8cc2a26edd6   coder-ui-updates (the platform service) and the Images builder's scans: its code (helm-chart/coder-airgapped/files/ui-updates, development/tools/build-ui-image.sh) on coder-image-tools 1.2.0 - the bundled Python + shellcheck, shfmt, trivy (+ vulnerability DB), regctl, copa (development/image-tools)
 docker.io/library/python:3.13-alpine                      sha256:2d9aefe2fef018a7eb2c13064c89c71929800fd2e5dccdbf52ea5da5bb8d929a   coder-ui-updates, bootstrap Job, push-Job login (reference cluster: same tag via its Harbor)
 ghcr.io/cloudnative-pg/postgresql:18.4-system-trixie      sha256:42708a75345b7a48fdd9257b071830783a97fd228529196b6313187a7198e185   database, uiUpdates.logsDb, uiUpdates.pgImage
