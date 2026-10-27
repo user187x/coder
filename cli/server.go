@@ -796,7 +796,7 @@ func (r *RootCmd) Server(newAPI func(context.Context, *coderd.Options) (*coderd.
 				return xerrors.Errorf("compute max idle connections: %w", err)
 			}
 			logger.Debug(ctx, "creating database connection pool", slog.F("max_open_conns", maxOpenConns), slog.F("max_idle_conns", maxIdleConns))
-			sqlDB, dbURL, sqlDriver, err := getAndMigratePostgresDB(ctx, logger, vals.PostgresURL.String(), codersdk.PostgresAuth(vals.PostgresAuth), sqlDriver,
+			sqlDB, dbURL, err := getAndMigratePostgresDB(ctx, logger, vals.PostgresURL.String(), codersdk.PostgresAuth(vals.PostgresAuth), sqlDriver,
 				WithMaxOpenConns(maxOpenConns),
 				WithMaxIdleConns(maxIdleConns),
 			)
@@ -827,7 +827,7 @@ func (r *RootCmd) Server(newAPI func(context.Context, *coderd.Options) (*coderd.
 			var haRegistry *platformha.Registry
 			var haLostActive <-chan struct{} // nil (never ready) without activeStandby
 			if haConfig.Enabled() {
-				haDB, err := platformha.OpenPool(sqlDriver, dbURL)
+				haDB, err := platformha.OpenPool(sqlDB, dbURL)
 				if err != nil {
 					return xerrors.Errorf("platform HA: %w", err)
 				}
@@ -2861,23 +2861,23 @@ func signalNotifyContext(ctx context.Context, inv *serpent.Invocation, sig ...os
 	return inv.SignalNotifyContext(ctx, sig...)
 }
 
-func getAndMigratePostgresDB(ctx context.Context, logger slog.Logger, postgresURL string, auth codersdk.PostgresAuth, sqlDriver string, opts ...PostgresConnectOption) (*sql.DB, string, string, error) {
+func getAndMigratePostgresDB(ctx context.Context, logger slog.Logger, postgresURL string, auth codersdk.PostgresAuth, sqlDriver string, opts ...PostgresConnectOption) (*sql.DB, string, error) {
 	dbURL, err := escapePostgresURLUserInfo(postgresURL)
 	if err != nil {
-		return nil, "", "", xerrors.Errorf("escaping postgres URL: %w", err)
+		return nil, "", xerrors.Errorf("escaping postgres URL: %w", err)
 	}
 
 	if auth == codersdk.PostgresAuthAWSIAMRDS {
 		sqlDriver, err = awsiamrds.Register(ctx, sqlDriver)
 		if err != nil {
-			return nil, "", "", xerrors.Errorf("register aws rds iam auth: %w", err)
+			return nil, "", xerrors.Errorf("register aws rds iam auth: %w", err)
 		}
 	}
 
 	sqlDB, err := ConnectToPostgres(ctx, logger, sqlDriver, dbURL, migrations.Up, opts...)
 	if err != nil {
-		return nil, "", "", xerrors.Errorf("connect to postgres: %w", err)
+		return nil, "", xerrors.Errorf("connect to postgres: %w", err)
 	}
 
-	return sqlDB, dbURL, sqlDriver, nil
+	return sqlDB, dbURL, nil
 }
