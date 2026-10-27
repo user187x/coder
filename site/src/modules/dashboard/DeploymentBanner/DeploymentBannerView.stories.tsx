@@ -9,6 +9,7 @@ import type {
 import {
 	DeploymentHealthUnhealthy,
 	MockDeploymentStats,
+	MockHealth,
 } from "#/testHelpers/entities";
 import { DeploymentBannerView } from "./DeploymentBannerView";
 
@@ -138,3 +139,5 @@ export const WithDismissedHealthIssues: Story = {
 		);
 	},
 };
+
+export const Healthy: Story = { args: { health: MockHealth } };
