@@ -127,3 +127,22 @@ export const UnevenNodeContents: Story = {
 		],
 	},
 };
+
+export const IngressOnSeparateNode: Story = {
+	parameters: {
+		queries: [
+			{
+				key: networkReportKey,
+				data: {
+					...MockClusterNetworkReport,
+					coder: MockClusterNetworkReport.coder.map((pod) => ({
+						...pod,
+						node: pod.kind === "gateway" ? "node-b" : "node-a",
+					})),
+				},
+			},
+			{ key: clusterMeshKey, data: MockMeshReport },
+			{ key: clusterHAKey, data: MockHAStorageReport },
+		],
+	},
+};
