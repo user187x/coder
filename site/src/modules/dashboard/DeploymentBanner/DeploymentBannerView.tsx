@@ -7,7 +7,6 @@ import {
 	CloudDownloadIcon,
 	CloudUploadIcon,
 	GaugeIcon,
-	RocketIcon,
 	RotateCwIcon,
 	SquareTerminalIcon,
 	WrenchIcon,
@@ -35,6 +34,8 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "#/components/Tooltip/Tooltip";
+import { useAnimationsEnabled } from "#/modules/platform/animations/animations";
+import "./deploymentBanner.css";
 import { getDisplayWorkspaceStatus } from "#/utils/workspace";
 
 type DeploymentBannerViewProps = {
@@ -96,13 +97,20 @@ export const DeploymentBannerView: React.FC<DeploymentBannerViewProps> = ({
 	}, [timeUntilRefresh, stats, fetchStats]);
 
 	const healthErrors = health ? getHealthErrors(health) : [];
+	const animations = useAnimationsEnabled();
+	const healthy = health?.severity === "ok" && healthErrors.length === 0;
+	const healthLabel = !health
+		? "Checking deployment health"
+		: healthy
+			? "Deployment health checks passed"
+			: "Deployment health checks need attention";
 	const displayLatency = stats?.workspaces.connection_latency_ms.P50 || -1;
 
 	return (
 		<div
-			className="sticky bottom-0 z-1 flex h-9 w-full items-center gap-8
+			className="sticky bottom-0 z-1 flex h-9 w-full items-center gap-2
 		 		overflow-x-auto overflow-y-hidden whitespace-nowrap border-0 border-t border-solid border-border
-				bg-surface-primary pr-4 font-mono text-xs leading-none"
+				bg-surface-primary px-3 font-mono text-xs leading-none"
 		>
 			<TooltipProvider delayDuration={100}>
 				<Tooltip>
@@ -122,10 +130,15 @@ export const DeploymentBannerView: React.FC<DeploymentBannerViewProps> = ({
 							</Link>
 						) : (
 							<div
-								className="flex h-full items-center justify-center pl-3"
+								className="flex size-7 shrink-0 items-center justify-center rounded-full border border-solid border-border"
+								role="img"
+								aria-label={healthLabel}
 								data-testid="deployment-health-trigger"
 							>
-								<RocketIcon className="size-icon-sm" />
+								<span
+									aria-hidden
+									className={`size-1.5 rounded-full ${healthy ? `bg-[#4ade80] opacity-60 ${animations ? "deployment-health-orb" : ""}` : health ? "bg-content-warning opacity-60" : "bg-content-disabled"}`}
+								/>
 							</div>
 						)}
 					</TooltipTrigger>
@@ -145,14 +158,14 @@ export const DeploymentBannerView: React.FC<DeploymentBannerViewProps> = ({
 								</div>
 							</>
 						) : (
-							"Status of your Coder deployment. Only visible for admins!"
+							healthLabel
 						)}
 					</TooltipContent>
 				</Tooltip>
 			</TooltipProvider>
 
-			<div className="flex items-center">
-				<div className="mr-4 text-content-primary">Workspaces</div>
+			<div className="flex h-7 shrink-0 items-center rounded-full border border-solid border-border px-3">
+				<div className="mr-2 text-content-primary">Workspaces</div>
 				<div className="flex gap-2 text-content-secondary">
 					<WorkspaceBuildValue
 						status="pending"
@@ -181,11 +194,11 @@ export const DeploymentBannerView: React.FC<DeploymentBannerViewProps> = ({
 				</div>
 			</div>
 
-			<div className="flex items-center">
+			<div className="flex h-7 shrink-0 items-center rounded-full border border-solid border-border px-3">
 				<TooltipProvider delayDuration={100}>
 					<Tooltip>
 						<TooltipTrigger asChild>
-							<div className="mr-4 text-content-primary">Transmission</div>
+							<div className="mr-2 text-content-primary">Transmission</div>
 						</TooltipTrigger>
 						<TooltipContent>
 							{`Activity in the last ~${aggregatedMinutes} minutes`}
@@ -239,7 +252,7 @@ export const DeploymentBannerView: React.FC<DeploymentBannerViewProps> = ({
 
 			<ActiveConnections sessionCount={stats?.session_count} />
 
-			<div className="ml-auto flex mr-3 items-center gap-3 pl-8 text-content-primary">
+			<div className="ml-auto flex shrink-0 items-center gap-2 pl-2 text-content-primary">
 				<TooltipProvider delayDuration={100}>
 					<Tooltip>
 						<TooltipTrigger asChild>
@@ -266,7 +279,7 @@ export const DeploymentBannerView: React.FC<DeploymentBannerViewProps> = ({
 					<Tooltip>
 						<TooltipTrigger asChild>
 							<Button
-								className="h-7 w-auto rounded-[8px] border border-solid border-border px-2.5 font-mono [&_svg]:mr-1"
+								className="h-7 w-auto rounded-full border border-solid border-border px-2.5 font-mono [&_svg]:mr-1"
 								onClick={() => {
 									if (fetchStats) {
 										fetchStats();
@@ -351,8 +364,8 @@ const ActiveConnections = memo(
 
 		return (
 			<TooltipProvider delayDuration={TOOLTIP_DELAY_DURATION}>
-				<div className="flex items-center">
-					<div className="mr-4 text-content-primary">Active Connections</div>
+				<div className="flex h-7 shrink-0 items-center rounded-full border border-solid border-border px-3">
+					<div className="mr-2 text-content-primary">Active Connections</div>
 					<div className="flex gap-2 text-content-secondary">
 						{FAMILY_SLOTS.map(({ key, name, icon }, index) => {
 							const apps = groups.get(key) ?? [];
@@ -370,7 +383,7 @@ const ActiveConnections = memo(
 														? `${name}: ${count} active connections`
 														: `${name}: - loading active connections`
 												}
-												className="min-w-0 gap-1 p-0 font-mono text-xs [&>img]:p-0 [&>svg]:p-0"
+												className="min-w-0 gap-1 p-0 font-mono text-xs text-content-secondary [&>img]:p-0 [&>svg]:p-0"
 											>
 												{icon}
 												{sessionCount ? count : "-"}
@@ -448,7 +461,11 @@ const WorkspaceBuildValue: React.FC<WorkspaceBuildValueProps> = ({
 		<TooltipProvider delayDuration={100}>
 			<Tooltip>
 				<TooltipTrigger asChild>
-					<Link asChild showExternalIcon={false}>
+					<Link
+						asChild
+						showExternalIcon={false}
+						className="text-content-secondary visited:text-content-secondary hover:text-content-primary [&_svg]:text-content-secondary"
+					>
 						<RouterLink
 							to={`/workspaces?filter=${encodeURIComponent(`status:${status}`)}`}
 						>
