@@ -61,8 +61,8 @@ export const TunnelOverview = ({
 				</dd>
 			</dl>
 			<p className="m-0 border-0 border-t border-solid border-border pt-2 text-content-secondary">
-				Click for connection controls. Ctrl+drag the free head or cable to
-				adjust routing.
+				Click for connection controls. Middle-drag or Ctrl+drag the free head.
+				Shift-drag for a straight line. Ctrl+drag the cable to add a bend.
 			</p>
 			{stats?.stale && (
 				<p className="m-0 text-content-warning">Port observations are stale.</p>

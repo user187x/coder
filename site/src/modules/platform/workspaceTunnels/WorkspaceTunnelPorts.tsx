@@ -126,13 +126,24 @@ export const WorkspaceTunnelPorts: React.FC<{
 	const [heads, setHeads] = useState<Record<string, { x: number; y: number }>>(
 		saved.heads,
 	);
-	const [arcs] = useState<Record<string, number>>(saved.arcs);
-	const [stubs] = useState<Record<string, { length: number; bend: number }>>(
-		saved.stubs,
-	);
+	const [arcs, setArcs] = useState<Record<string, number>>(saved.arcs);
+	const [stubs, setStubs] = useState<
+		Record<string, { length: number; bend: number }>
+	>(saved.stubs);
 	useEffect(() => {
 		saveTunnelLayout(layoutKey, { routes, heads, arcs, stubs });
 	}, [layoutKey, routes, heads, arcs, stubs]);
+	const resetLayout = (id: string) => {
+		const clear = <T,>(current: Record<string, T>) => {
+			const next = { ...current };
+			delete next[id];
+			return next;
+		};
+		setRoutes(clear);
+		setHeads(clear);
+		setArcs(clear);
+		setStubs(clear);
+	};
 	const [replacements, setReplacements] = useState<
 		{ old: WorkspaceTunnel; next: string }[]
 	>([]);
@@ -483,6 +494,7 @@ export const WorkspaceTunnelPorts: React.FC<{
 						return (
 							<EditableTunnelCable
 								key={t.id}
+								onReset={() => resetLayout(t.id)}
 								from={{ x: visible.x - direction * 15, y: visible.y }}
 								to={{ x: end, y: endY }}
 								onMoveHead={(point) =>
@@ -517,6 +529,7 @@ export const WorkspaceTunnelPorts: React.FC<{
 					return (
 						<EditableTunnelCable
 							key={t.id}
+							onReset={() => resetLayout(t.id)}
 							from={from}
 							to={to}
 							defaultPath={d}

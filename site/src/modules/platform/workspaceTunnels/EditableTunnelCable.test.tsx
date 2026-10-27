@@ -126,6 +126,7 @@ it("moves the free head with Ctrl-drag without adding a bend or opening the conn
 	const moved = vi.fn();
 	const changed = vi.fn();
 	const opened = vi.fn();
+	const reset = vi.fn();
 	render(
 		<svg>
 			<EditableTunnelCable
@@ -135,6 +136,7 @@ it("moves the free head with Ctrl-drag without adding a bend or opening the conn
 				route={{ points: [], orthogonal: false }}
 				label="Manage test tunnel"
 				onOpen={opened}
+				onReset={reset}
 				onChange={changed}
 				onMoveHead={moved}
 			>
@@ -162,4 +164,45 @@ it("moves the free head with Ctrl-drag without adding a bend or opening the conn
 	head.focus();
 	await user.keyboard("{ArrowDown}");
 	expect(moved).toHaveBeenLastCalledWith({ x: 110, y: 22 });
+	await user.pointer([
+		{
+			keys: "[MouseMiddle>]",
+			target: head,
+			coords: { clientX: 110, clientY: 20 },
+		},
+		{ target: head, coords: { clientX: 130, clientY: 80 } },
+		{ keys: "[/MouseMiddle]", target: head },
+	]);
+	expect(moved).toHaveBeenLastCalledWith({ x: 130, y: 80 });
+	await user.keyboard("{Shift>}");
+	await user.pointer([
+		{
+			keys: "[MouseLeft>]",
+			target: head,
+			coords: { clientX: 110, clientY: 20 },
+		},
+		{ target: head, coords: { clientX: 180, clientY: 50 } },
+		{ keys: "[/MouseLeft]", target: head },
+	]);
+	await user.keyboard("{/Shift}");
+	expect(moved).toHaveBeenLastCalledWith({ x: 180, y: 20 });
+	expect(changed).toHaveBeenLastCalledWith({
+		points: [],
+		orthogonal: false,
+		straight: true,
+	});
+	expect(opened).not.toHaveBeenCalled();
+	await user.pointer({ keys: "[MouseRight]", target: head });
+	await user.click(screen.getByRole("menuitem", { name: "Straighten line" }));
+	expect(changed).toHaveBeenLastCalledWith({
+		points: [],
+		orthogonal: false,
+		straight: true,
+	});
+	await user.pointer({ keys: "[MouseRight]", target: head });
+	await user.click(
+		screen.getByRole("menuitem", { name: "Reset cable routing" }),
+	);
+	expect(reset).toHaveBeenCalledOnce();
+	expect(changed).toHaveBeenLastCalledWith({ points: [], orthogonal: false });
 });
