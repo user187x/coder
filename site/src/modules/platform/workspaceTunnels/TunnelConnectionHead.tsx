@@ -20,7 +20,18 @@ export const TunnelConnectionHead = ({
 	const animations = useAnimationsEnabled();
 	const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
 	return (
-		<g transform={`translate(${x} ${y}) rotate(${angle})`} aria-hidden>
+		<g
+			transform={`translate(${x} ${y}) rotate(${angle}) scale(0.55)`}
+			aria-hidden
+		>
+			<rect
+				x={-16}
+				y={-16}
+				width={32}
+				height={32}
+				fill="transparent"
+				stroke="none"
+			/>
 			<circle
 				r={10}
 				fill="hsl(var(--surface-primary))"
