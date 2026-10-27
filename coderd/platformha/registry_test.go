@@ -31,6 +31,8 @@ func TestConfigFromEnv(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, platformha.ModeOff, c.Mode)
 	require.False(t, c.Enabled())
+	require.Equal(t, 30*time.Second, c.LeaseTTL)
+	require.Equal(t, 5*time.Second, c.RenewInterval)
 
 	c, err = platformha.ConfigFromEnv(env(map[string]string{
 		"CODER_PLATFORM_HA_MODE": "registry", "CODER_PLATFORM_HA_CELL": "b",

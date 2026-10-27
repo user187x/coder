@@ -82,7 +82,7 @@ def ha_checks(B, ha_render, default_render):
     check("Platform HA (ADR-0001 phase 1): Coder gets its mode (off by default), cell, lease timings and its pod's name "
           "and IP (Downward API)",
           denv.get("CODER_PLATFORM_HA_MODE") == "off" and denv.get("CODER_PLATFORM_HA_CELL") == "a"
-          and denv.get("CODER_PLATFORM_HA_LEASE_TTL") == "10s" and denv.get("CODER_PLATFORM_HA_RENEW_INTERVAL") == "3s"
+          and denv.get("CODER_PLATFORM_HA_LEASE_TTL") == "30s" and denv.get("CODER_PLATFORM_HA_RENEW_INTERVAL") == "5s"
           and denv.get("CODER_PLATFORM_HA_POD_NAME") == {"fieldRef": {"fieldPath": "metadata.name"}}
           and denv.get("CODER_PLATFORM_HA_POD_IP") == {"fieldRef": {"fieldPath": "status.podIP"}}, denv)
     # ADR-0001 phase 2: activeStandby - the Service on the active pod only, probes on the health port, the preStop
