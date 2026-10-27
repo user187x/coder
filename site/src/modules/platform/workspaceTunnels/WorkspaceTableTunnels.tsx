@@ -162,7 +162,7 @@ export const WorkspaceTunnelStatus: React.FC<{ workspaceId: string }> = ({
 				type="button"
 				aria-label={summary}
 				onClick={(e) => e.stopPropagation()}
-				className="mt-1 inline-flex cursor-help items-center border-0 bg-transparent p-0 text-content-secondary"
+				className="mt-1 inline-flex cursor-pointer items-center border-0 bg-transparent p-0 text-content-secondary"
 			>
 				<TunnelFlowIndicator incoming={incoming} outgoing={outgoing} />
 				<span role="status" className="sr-only">
