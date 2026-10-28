@@ -10,7 +10,7 @@
 # re-shaded with the fixed Jackson, relocated by their own build's rules (checked against what they ship first).
 # Built by ../tools/build-dataflow-image.sh, which downloads NiFi (checked against Apache's SHA-512) beforehand: the
 # build itself needs the network only for apt, pip and those jars (Maven Central).
-ARG BASE=docker.io/user187x/coder-workspace:1.9.4
+ARG BASE=docker.io/mrshll187/coder-workspace:1.9.4
 FROM ${BASE}
 ARG NIFI_VERSION=2.12.0
 ARG AIRFLOW_VERSION=3.3.2

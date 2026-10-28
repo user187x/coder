@@ -81,15 +81,15 @@ mk_storage() {
 # ---- images -------------------------------------------------------------------------------------------------
 online() { [[ "${MK_OFFLINE:-0}" != 1 ]] && curl -s -o /dev/null --max-time 6 https://registry-1.docker.io/v2/; }
 
-# images.txt entries, "section image": ours (built here, docker.io/user187x/...), public (the others) or all
+# images.txt entries, "section image": ours (built here, docker.io/mrshll187/...), public (the others) or all
 images_of() {
 	local g="" a
 	while read -r a _; do
 		[[ -z "$a" || "$a" == \#* ]] && continue
 		if [[ "$a" == \[*\] ]]; then g="${a:1:-1}"; continue; fi
 		case "$1" in
-		ours) [[ "$a" == docker.io/user187x/* ]] || continue ;;
-		public) [[ "$a" != docker.io/user187x/* ]] || continue ;;
+		ours) [[ "$a" == docker.io/mrshll187/* ]] || continue ;;
+		public) [[ "$a" != docker.io/mrshll187/* ]] || continue ;;
 		esac
 		echo "$g $a"
 	done <"${here}/images.txt"

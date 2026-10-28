@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds docker.io/user187x/coder-registry:<TAG> (../registry-image): the Images view's registry (coder-image-registry,
+# Builds docker.io/mrshll187/coder-registry:<TAG> (../registry-image): the Images view's registry (coder-image-registry,
 # where built images are kept) - distribution's release built from source with the Go release and Go modules that fix
 # the vulnerabilities its own binary carries, on Alpine with its fixes, running as a regular user - checks it serves as
 # the chart runs it (uid 1000, read-only root), and saves it into the delivery bundle (mirror-images.sh store). Needs
@@ -9,7 +9,7 @@
 # ([image-builder]) and imageBuilder.registry.image in values.yaml.
 set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; dev="$(dirname "$here")"; top="$(dirname "$dev")"
-tag="${1:?usage: build-registry-image.sh TAG}"; version="${tag%%-*}"; img="docker.io/user187x/coder-registry:${tag}"
+tag="${1:?usage: build-registry-image.sh TAG}"; version="${tag%%-*}"; img="docker.io/mrshll187/coder-registry:${tag}"
 # what it is built from, pinned
 go_image=docker.io/library/golang:1.26.9-alpine@sha256:3082400e369fa24d5fc60bca20edab3f6d604e0c5a690ec66b295eff4dd87ade
 alpine_image=docker.io/library/alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
@@ -55,7 +55,7 @@ used = ("Images view: coder-image-registry, where built images are kept - distri
         "its modules' fixes, as a regular user (development/registry-image)")
 p = top + "/helm-chart/images.txt"
 s = open(p).read()
-pat = re.compile(r"^(?:docker\.io/library/registry|docker\.io/user187x/coder-registry):\S+\s+sha256:\S+.*$", re.M)
+pat = re.compile(r"^(?:docker\.io/library/registry|docker\.io/mrshll187/coder-registry):\S+\s+sha256:\S+.*$", re.M)
 assert len(pat.findall(s)) == 1, "images.txt: not one registry line"
 s = pat.sub(lambda m: "%-57s %s   %s" % (img, iid, used), s)
 open(p, "w").write(s)

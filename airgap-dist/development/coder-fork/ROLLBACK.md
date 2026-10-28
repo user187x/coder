@@ -29,7 +29,7 @@ It passed on the development cluster's database (2026-10-13, 7/7).
 
 ## The rollback image
 
-`docker.io/user187x/coder-upstream:2.38.0-main.70bc2e554-airgap` (in the bundle, `images/rollback/`): upstream Coder
+`docker.io/mrshll187/coder-upstream:2.38.0-main.70bc2e554-airgap` (in the bundle, `images/rollback/`): upstream Coder
 built from `70bc2e554` with no change, plus the same Terraform provider mirror as the fork's `-airgap` image.
 
 **Why not a published upstream release?** No published upstream release can take the fork's database: v2.38.0, the
@@ -37,7 +37,7 @@ newest when this was written, stops at migration 000605. Coder refuses to run on
 first release with migration 000611 (v2.39.0, expected around November 2026) will work as a rollback target too.
 
 Rebuild the rollback image:
-1. Run `scripts/build_platform_image.sh` in a worktree of `70bc2e554`, as `--image docker.io/user187x/coder-upstream`
+1. Run `scripts/build_platform_image.sh` in a worktree of `70bc2e554`, as `--image docker.io/mrshll187/coder-upstream`
    `--tag 2.38.0-main.70bc2e554`.
 2. Run `development/tools/build-airgap-image.sh --upstream 2.38.0-main.70bc2e554`.
 
@@ -51,7 +51,7 @@ Rebuild the rollback image:
    coder:
      coder:
        image:
-         repo: docker.io/user187x/coder-upstream        # with global.registry: <registry>/user187x/coder-upstream
+         repo: docker.io/mrshll187/coder-upstream        # with global.registry: <registry>/user187x/coder-upstream
          tag: 2.38.0-main.70bc2e554-airgap
    ```
 
@@ -65,7 +65,7 @@ Rebuild the rollback image:
      service for.
    - With `global.oidc` set, upstream needs Keycloak reachable at startup. Upstream exits when the issuer can't be
      reached, where the fork starts without it.
-4. **Roll forward:** set the image back to `docker.io/user187x/coder-platform:<tag>-airgap` and apply.
+4. **Roll forward:** set the image back to `docker.io/mrshll187/coder-platform:<tag>-airgap` and apply.
 
 ## When the fork moves to a newer upstream
 

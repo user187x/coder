@@ -27,7 +27,7 @@ up() {
 	kind get clusters 2>/dev/null | grep -qx "$CL" || kind create cluster --name "$CL" --config "$W/kind.yaml" --kubeconfig "$KUBECONFIG"
 	docker inspect "$REG" >/dev/null 2>&1 ||
 		docker run -d --restart=no --name "$REG" --tmpfs /var/lib/registry:size=30g,uid=1000,gid=1000 -p "127.0.0.1:${PORT}:5000" \
-			docker.io/user187x/coder-registry:3.1.2-1 >/dev/null
+			docker.io/mrshll187/coder-registry:3.1.2-1 >/dev/null
 	docker network connect kind "$REG" 2>/dev/null || true
 	for n in $(nodes); do
 		docker exec "$n" sh -c "mkdir -p /etc/containerd/certs.d/${REG}:5000 && printf '[host.\"http://${REG}:5000\"]\n' >/etc/containerd/certs.d/${REG}:5000/hosts.toml"

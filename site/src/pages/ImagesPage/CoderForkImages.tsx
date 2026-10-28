@@ -27,7 +27,7 @@ import { formatSize } from "./badges";
 export const contentsKey = ["platform", "images", "contents"] as const;
 
 /** The Coder fork's images: we build them, so what they hold is known precisely. */
-const OURS = "docker.io/user187x/";
+const OURS = "docker.io/mrshll187/";
 
 /** What each image of ours holds (recorded when they were built: it does not change while the page is open). */
 export const useImageContents = () =>
@@ -51,7 +51,7 @@ export const ourImage = (
 	if (!catalog || !ref) {
 		return undefined;
 	}
-	// Docker Hub's short form (user187x/coder-workspace:1.9.4) is the same image as its full one.
+	// Docker Hub's short form (mrshll187/coder-workspace:1.9.4) is the same image as its full one.
 	const name = /^([^/]*[.:][^/]*|localhost)\//.test(ref)
 		? ref
 		: `docker.io/${ref}`;
@@ -522,7 +522,7 @@ const summary = (c: ImageContents) => {
 };
 
 /**
- * Coder fork images: every image the fork builds (images.txt's docker.io/user187x/), each with what it holds, read
+ * Coder fork images: every image the fork builds (images.txt's docker.io/mrshll187/), each with what it holds, read
  * from the image as built - every program with its own version, every OS and Python package, its configuration and
  * every build step. A "Coder fork" tag elsewhere in the view opens its entry here.
  */

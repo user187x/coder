@@ -10,7 +10,7 @@ Gateway) configures everything, from a values file or from an Argo CD Applicatio
 
 | Part | Live source it was captured from | In the chart |
 |---|---|---|
-| Coder server, `docker.io/user187x/coder-platform:2.0.0-platform.4` (Coder 2.37.3 + fork, built from `d01b8f6`) | Argo CD app `argocd/coder` (chart `coder` 2.37.3) | `charts/coder/` (upstream 2.37.3 + platform patch) + `values.yaml › coder` |
+| Coder server, `docker.io/mrshll187/coder-platform:2.0.0-platform.4` (Coder 2.37.3 + fork, built from `d01b8f6`) | Argo CD app `argocd/coder` (chart `coder` 2.37.3) | `charts/coder/` (upstream 2.37.3 + platform patch) + `values.yaml › coder` |
 | PostgreSQL `coder-db` (CloudNativePG, 2 instances) | extraTemplate of `argocd/coder` | `templates/database.yaml` |
 | Announcement banner | Argo CD app `argocd/coder-banner` (chart 0.4.1) | Coder itself since 1.43.0 (the fork's `coderd/platformbanner`, at `/__banner/`; starts blank) – no service, no Traefik body rewrite |
 | Platform service `coder-ui-updates` + `coder-ui-logs-db` + RBAC | `coder-ui-updates apply` (plain manifests) | `templates/ui-updates*.yaml`, `files/ui-updates/` (48 files, identical to the live ConfigMap) |
@@ -54,7 +54,7 @@ images/                          every image as a docker-save archive, linux/amd
   cluster/ prereqs/                metrics-server; CloudNativePG operator and Traefik (for prereqs/)
   rollback/                        plain upstream Coder (the decorator install's base, rollback)
   reference/                       Argo CD + Keycloak as the reference cluster runs them (not pushed unless asked)
-                                 Ours (docker.io/user187x/...) are on no public registry: always keep them; public archives
+                                 Ours (docker.io/mrshll187/...) are on no public registry: always keep them; public archives
                                  can go for a smaller bundle (the -slim tarball has none)
 defaults/                        default logo + avatar (kept out of the chart: Helm's 1 MiB release record)
 prereqs/                         cloudnative-pg-0.29.0.tgz, traefik-41.4.0.tgz, Traefik values used on the reference cluster

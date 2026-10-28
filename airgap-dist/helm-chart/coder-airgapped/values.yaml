@@ -45,10 +45,10 @@ global:
   coderImages:
     fork:
       # The fork's 2.0.0-platform.108 (development/coder-fork/FORK.md)
-      repo: docker.io/user187x/coder-platform
-      tag: 1.2.0-airgap
+      repo: docker.io/mrshll187/coder-platform
+      tag: 1.2.1-airgap
     upstream:
-      repo: docker.io/user187x/coder-upstream
+      repo: docker.io/mrshll187/coder-upstream
       tag: 2.38.0-main.70bc2e554-airgap
   # Base domain. Coder: https://coder.<domain>, workspace apps: *.<domain>, OIDC default: https://keycloak.<domain>/...
   domain: grey-marshall.com
@@ -458,7 +458,7 @@ imageBuilder:
   proxyImage: '{{ include "platform.image" (list . "docker.io/library/python:3.13-alpine") }}'
   registry:
     deploy: true
-    image: '{{ include "platform.image" (list . "docker.io/user187x/coder-registry:3.1.2-1") }}'
+    image: '{{ include "platform.image" (list . "docker.io/mrshll187/coder-registry:3.1.2-1") }}'
     size: 50Gi
     storageClass: ""
     localPort: 5000
@@ -573,7 +573,7 @@ userStorage:
     enabled: true
     # cgr.dev/chainguard/minio (the MinIO project publishes no images since 2025) with its MinIO version as the tag
     # (development/tools/build-minio-image.sh).
-    image: '{{ include "platform.image" (list . "docker.io/user187x/coder-minio:RELEASE.2026-09-22T19-25-18Z") }}'
+    image: '{{ include "platform.image" (list . "docker.io/mrshll187/coder-minio:RELEASE.2026-09-22T19-25-18Z") }}'
     size: 50Gi
     storageClass: ""
     resources:
@@ -620,7 +620,7 @@ uiUpdates:
   # (+ its database) and regctl (development/image-tools), which the Images view lints, formats and scans with -
   # tagged with the code's hash (development/tools/build-ui-image.sh builds and pins it). The chart carries no code:
   # Helm keeps each release in a Secret of at most 1 MiB.
-  image: &platformServiceImage '{{ include "platform.image" (list . "docker.io/user187x/coder-ui-updates:code-401b23927da7") }}'
+  image: &platformServiceImage '{{ include "platform.image" (list . "docker.io/mrshll187/coder-ui-updates:code-401b23927da7") }}'
   imagePullPolicy: IfNotPresent
   imagePullSecrets: []
   hostname: '{{ include "platform.coderHost" . }}'
@@ -700,7 +700,7 @@ coder-workspace:
   codeServerHA:
     image: *platformServiceImage
     dbCaSecret: '{{ .Values.global.database.name }}-ca'
-  workspaceImage: '{{ include "platform.image" (list . "docker.io/user187x/coder-workspace:1.9.4") }}'
+  workspaceImage: '{{ include "platform.image" (list . "docker.io/mrshll187/coder-workspace:1.9.4") }}'
   # Opt-in canonical DEFAULT/Dataflow VM versions; does not convert custom templates.
   # Requires an approved immutable guest root, target organization, and explicit drive/tunnel opt-out.
   # Public Coder CA is read from the existing mounted CA file, never from a private key.
@@ -726,7 +726,7 @@ coder-workspace:
     name: ubuntu-dataflow
     displayName: DATAFLOW
     icon: /icon/ubuntu.svg
-  dataflowImage: '{{ include "platform.image" (list . "docker.io/user187x/coder-workspace-dataflow:1.1.4") }}'
+  dataflowImage: '{{ include "platform.image" (list . "docker.io/mrshll187/coder-workspace-dataflow:1.1.4") }}'
 
   icons:
     host: ""

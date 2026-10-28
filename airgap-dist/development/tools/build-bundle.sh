@@ -56,7 +56,7 @@ helm template coder "$chart" -n coder >/dev/null && echo "render ok"
 
 mapfile -t absent < <(mirror list | awk '$2 == "absent" {print $3}')
 for img in "${absent[@]}"; do
-	[[ "$img" != docker.io/user187x/* ]] || { echo "ERROR: our image's archive is missing: $(mirror path "$img") (tools/build-*.sh)" >&2; exit 1; }
+	[[ "$img" != docker.io/mrshll187/* ]] || { echo "ERROR: our image's archive is missing: $(mirror path "$img") (tools/build-*.sh)" >&2; exit 1; }
 	((save)) || { echo "ERROR: $(mirror path "$img") is missing (run without --no-save)" >&2; exit 1; }
 done
 ((${#absent[@]} == 0)) || mirror save all
@@ -95,7 +95,7 @@ if ((full)); then tarball "${name}.tar.gz"; fi
 # The archives of public images (the slim tarball leaves them out)
 public=()
 while read -r _ _ img _; do
-	[[ "$img" == docker.io/user187x/* ]] || public+=(--exclude="helm-chart/$(mirror path "$img")")
+	[[ "$img" == docker.io/mrshll187/* ]] || public+=(--exclude="helm-chart/$(mirror path "$img")")
 done < <(mirror list)
 if ((slim)); then tarball "${name}-slim.tar.gz" "${public[@]}"; fi
 

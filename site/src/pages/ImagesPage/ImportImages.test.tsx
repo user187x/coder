@@ -17,7 +17,7 @@ const withQueries = (node: React.ReactNode) =>
 describe("nameFrom", () => {
 	it("names an image after its repository or its archive", () => {
 		expect(nameFrom("harbor.example.org/team/Data_Tool:1.2")).toBe("data-tool");
-		expect(nameFrom("docker.io/user187x/coder-workspace@sha256:abc")).toBe(
+		expect(nameFrom("docker.io/mrshll187/coder-workspace@sha256:abc")).toBe(
 			"coder-workspace",
 		);
 		expect(nameFrom("my-image.tar.gz")).toBe("my-image");

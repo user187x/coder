@@ -40,20 +40,20 @@ cd "$root"
 "$here/build-agent-archive.sh" "$version"
 "$root/scripts/build_go.sh" --version "$version" --output "$out/platform/coder"
 docker build --platform linux/amd64 -f scripts/Dockerfile.base -t "coder-runtime:$version" scripts
-docker build --platform linux/amd64 -f scripts/Dockerfile --build-arg "BASE_IMAGE=coder-runtime:$version" --build-arg "CODER_VERSION=$version" -t "docker.io/user187x/coder-platform:$version" "$out/platform"
+docker build --platform linux/amd64 -f scripts/Dockerfile --build-arg "BASE_IMAGE=coder-runtime:$version" --build-arg "CODER_VERSION=$version" -t "docker.io/mrshll187/coder-platform:$version" "$out/platform"
 "$here/build-airgap-image.sh" "$version"
 ensure_image() {
  local image=$1
  shift
  if ! docker image inspect "$image" >/dev/null 2>&1; then "$@"; fi
 }
-ensure_image docker.io/user187x/coder-image-tools:1.2.0 "$here/build-image-tools.sh" 1.2.0
+ensure_image docker.io/mrshll187/coder-image-tools:1.2.0 "$here/build-image-tools.sh" 1.2.0
 "$here/build-ui-image.sh"
-ensure_image docker.io/user187x/coder-workspace:1.9.4 "$here/build-workspace-image.sh" 1.9.4
-ensure_image docker.io/user187x/coder-registry:3.1.2-1 "$here/build-registry-image.sh" 3.1.2-1
-ensure_image docker.io/user187x/coder-minio:RELEASE.2026-09-22T19-25-18Z "$here/build-minio-image.sh"
+ensure_image docker.io/mrshll187/coder-workspace:1.9.4 "$here/build-workspace-image.sh" 1.9.4
+ensure_image docker.io/mrshll187/coder-registry:3.1.2-1 "$here/build-registry-image.sh" 3.1.2-1
+ensure_image docker.io/mrshll187/coder-minio:RELEASE.2026-09-22T19-25-18Z "$here/build-minio-image.sh"
 if ((dataflow)); then
- ensure_image docker.io/user187x/coder-workspace-dataflow:1.1.4 "$here/build-dataflow-image.sh" --no-store 1.1.4
+ ensure_image docker.io/mrshll187/coder-workspace-dataflow:1.1.4 "$here/build-dataflow-image.sh" --no-store 1.1.4
 fi
 helm lint "$chart"
 helm template coder-fork "$chart" --set global.bundled.traefik=true --set global.bundled.cloudnativePG=true --set "coder-workspace.dataflowTemplate.enabled=$([[ $dataflow == 1 ]] && echo true || echo false)" > "$out/rendered.yaml"
@@ -67,11 +67,11 @@ for line in pathlib.Path(sys.argv[2]).read_text().splitlines():
  if line.startswith(('ghcr.io/','docker.io/','cr.yandex/','registry.k8s.io/')):
   ref=line.split()[0]
   if ref in text: refs.add(ref)
-refs.add('docker.io/user187x/coder-platform:'+sys.argv[3]+'-airgap')
-refs.add('docker.io/user187x/coder-workspace:1.9.4')
-refs={r for r in refs if not r.startswith('docker.io/user187x/coder-platform:') or r.endswith(':'+sys.argv[3]+'-airgap')}
-out.joinpath('FORK-IMAGES.txt').write_text(''.join(r+'\n' for r in sorted(refs) if r.startswith('docker.io/user187x/')))
-out.joinpath('PUBLIC-IMAGES.txt').write_text(''.join(r+'\n' for r in sorted(refs) if not r.startswith('docker.io/user187x/')))
+refs.add('docker.io/mrshll187/coder-platform:'+sys.argv[3]+'-airgap')
+refs.add('docker.io/mrshll187/coder-workspace:1.9.4')
+refs={r for r in refs if not r.startswith('docker.io/mrshll187/coder-platform:') or r.endswith(':'+sys.argv[3]+'-airgap')}
+out.joinpath('FORK-IMAGES.txt').write_text(''.join(r+'\n' for r in sorted(refs) if r.startswith('docker.io/mrshll187/')))
+out.joinpath('PUBLIC-IMAGES.txt').write_text(''.join(r+'\n' for r in sorted(refs) if not r.startswith('docker.io/mrshll187/')))
 PY
 : > "$out/BUILT-IMAGES.txt"
 while IFS= read -r image; do

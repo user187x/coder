@@ -11,12 +11,12 @@
 #   images/prereqs/        CloudNativePG operator, Traefik (for prereqs/)
 #   images/rollback/       plain upstream Coder
 #   images/reference/      Argo CD + Keycloak as the reference cluster runs them - reference only
-# Ours (docker.io/user187x/...) are built here (and published on Docker Hub); an air-gapped install has only the bundle: always keep them. For a smaller bundle delete the archives of
+# Ours (docker.io/mrshll187/...) are built here (and published on Docker Hub); an air-gapped install has only the bundle: always keep them. For a smaller bundle delete the archives of
 # public images (or a folder): push then takes those images from the local docker or pulls them, and `save` on a
 # connected machine writes the archives again.
 #
 #   ./mirror-images.sh push REGISTRY [GROUP...]
-#                                   tag and push each image as REGISTRY/<path>, e.g. docker.io/user187x/coder-platform:T
+#                                   tag and push each image as REGISTRY/<path>, e.g. docker.io/mrshll187/coder-platform:T
 #                                   -> REGISTRY/user187x/coder-platform:T (what the example values use). Source: its
 #                                   archive under images/, else the local docker, else docker pull (by digest).
 #                                   GROUP: a section of images.txt (ui workspaces cloud-drive image-builder cluster
@@ -86,7 +86,7 @@ target() { # strip the source registry host
 	echo "$2/${ref}"
 }
 # Ours: built here, never pulled (the bundle carries them).
-ours() { [[ "${images[$1]}" == docker.io/user187x/* ]]; }
+ours() { [[ "${images[$1]}" == docker.io/mrshll187/* ]]; }
 dir_of() { echo "${here}/${FOLDER[$1]}"; }
 archive() { echo "$(dir_of "${groups[$1]}")/$(echo "${images[$1]}" | tr '/:@' '___').tar.gz"; }
 rel() { echo "${1#"${here}"/}"; }
@@ -301,7 +301,7 @@ decorator-charts)
 	;;
 seed-builder)
 	ns="${1:-coder}"
-	ws=""; for i in "${!images[@]}"; do [[ "${images[$i]}" == docker.io/user187x/coder-workspace:* ]] && { ws=$i; break; }; done
+	ws=""; for i in "${!images[@]}"; do [[ "${images[$i]}" == docker.io/mrshll187/coder-workspace:* ]] && { ws=$i; break; }; done
 	[[ -n "$ws" ]] || { echo "ERROR: no workspace image in images.txt" >&2; exit 1; }
 	name="${images[$ws]##*/}"
 	kubectl -n "$ns" rollout status deploy/coder-image-registry --timeout=300s >/dev/null ||

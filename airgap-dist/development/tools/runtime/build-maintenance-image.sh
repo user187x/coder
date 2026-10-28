@@ -12,7 +12,7 @@ for file in vmhome.py vmprofile.py vmgpu.py workspace_runtime.py vmfs.py vmgrow.
 done
 cp "$here/maintenance/Dockerfile" "$context/Dockerfile"
 revision="$(cd "$context" && { sha256sum Dockerfile; sha256sum app/*.py; } | sha256sum | cut -c1-16)"
-image="docker.io/user187x/coder-vm-maintenance:code-$revision"
+image="docker.io/mrshll187/coder-vm-maintenance:code-$revision"
 docker build --platform linux/amd64 -t "$image" "$context"
 docker run --rm --network none --entrypoint python3 "$image" -c \
     'import vmhome, vmbackup, vmfs, vmgpu

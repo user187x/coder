@@ -33,12 +33,12 @@ minikube profile `coder` is the development cluster. Deploy (or redeploy) the wo
 | Path | What |
 |---|---|
 | `coder-fork/FORK.md` | Which fork commit the Coder image is built from, and how to build a new one |
-| `workspace-image/` | Dockerfile of the workspace image `docker.io/user187x/coder-workspace` (enterprise-base + desktop without light-locker, JetBrains Mono Nerd Font, tmux from `packages/tmux-installation.deb`, k9s/kubectl, Python venv); build with `tools/build-workspace-image.sh` |
+| `workspace-image/` | Dockerfile of the workspace image `docker.io/mrshll187/coder-workspace` (enterprise-base + desktop without light-locker, JetBrains Mono Nerd Font, tmux from `packages/tmux-installation.deb`, k9s/kubectl, Python venv); build with `tools/build-workspace-image.sh` |
 | `airgap-image/` | Dockerfile + `terraformrc` of the `-airgap` Coder image (the fork's image + a Terraform provider mirror); `template/` is filled by the build |
 | `tools/build-bundle.sh` | Lint + render the chart, package our charts into `charts/`, fetch missing public image archives, write `../dist/coder-airgapped-<version>[-slim].tar.gz`, the release in parts (`-charts`, `-images-<part>`, `-ASSETS.txt`) and `-layer` |
 | `tools/build-workspace-image.sh` | Build the workspace image (FileBrowser Quantum from the `filebrowser-quantum` release binary at the repository's root, pinned by SHA-256), check it, and save it into the bundle (`mirror-images.sh store`: `../helm-chart/images/workspaces/`) |
 | `tools/build-airgap-image.sh` | Build the `-airgap` image and save it into the bundle (`mirror-images.sh store`: `../helm-chart/images/ui/`, the rollback image `images/rollback/`) |
-| `tools/build-minio-image.sh` | The Cloud Drive's MinIO image `docker.io/user187x/coder-minio:<MinIO release>` (Chainguard's build, pinned by digest, retagged) into `../helm-chart/images/custom/` |
+| `tools/build-minio-image.sh` | The Cloud Drive's MinIO image `docker.io/mrshll187/coder-minio:<MinIO release>` (Chainguard's build, pinned by digest, retagged) into `../helm-chart/images/custom/` |
 | `tools/airgap-e2e/` | Fresh end-to-end test of DEPLOY.md on a kind cluster with egress blocked (`README.md` there) |
 | `tools/apply-platform-patch.py` | Applies the "platform patch" (templated values, `global.imagePullSecrets`, quoted checksums) to a vendored subchart |
 | `tools/render-diff.py` | Compare two `helm template` outputs object by object |

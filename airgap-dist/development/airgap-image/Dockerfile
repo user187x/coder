@@ -1,10 +1,10 @@
-# The fork's Coder for air-gapped clusters: docker.io/user187x/coder-platform plus a Terraform provider mirror, so
+# The fork's Coder for air-gapped clusters: docker.io/mrshll187/coder-platform plus a Terraform provider mirror, so
 # template pushes and workspace builds never reach registry.terraform.io (without it `terraform init` fails offline).
 # The mirror holds the providers the bundled workspace template needs (template/*.tf, copied in by
 # ../tools/build-airgap-image.sh) plus any in extra-providers/*.tf (for your other templates).
 # Terraform itself is built here from its source with a current Go (the release binary's Go has fixed CVEs since),
 # and the base's Alpine packages are upgraded: the image ships with no fixable CVE.
-ARG BASE=docker.io/user187x/coder-platform:2.0.0-platform.4
+ARG BASE=docker.io/mrshll187/coder-platform:2.0.0-platform.4
 ARG TERRAFORM_VERSION=1.16.6
 ARG GO_IMAGE=docker.io/library/golang:1.26.10-alpine
 

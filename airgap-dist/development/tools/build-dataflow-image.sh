@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds the workspace image of the ubuntu-dataflow template, docker.io/user187x/coder-workspace-dataflow:<TAG>
+# Builds the workspace image of the ubuntu-dataflow template, docker.io/mrshll187/coder-workspace-dataflow:<TAG>
 # (../workspace-image-dataflow: the DEFAULT template's image + Apache NiFi + Apache Airflow), and checks that NiFi
 # and Airflow start and answer with no network at all. NiFi's archive is downloaded once (kept in
 # ../workspace-image-dataflow/nifi-<version>-bin.zip, not in git) and checked against Apache's SHA-512; Airflow is
@@ -11,7 +11,7 @@ set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; dev="$(dirname "$here")"
 ctx="${dev}/workspace-image-dataflow"
 store=1; if [[ "${1:-}" == --no-store ]]; then store=0; shift; fi
-tag="${1:-1.1.4}"; img="docker.io/user187x/coder-workspace-dataflow:${tag}"
+tag="${1:-1.1.4}"; img="docker.io/mrshll187/coder-workspace-dataflow:${tag}"
 nifi="$(sed -n 's/^ARG NIFI_VERSION=//p' "${ctx}/Dockerfile")"
 airflow="$(sed -n 's/^ARG AIRFLOW_VERSION=//p' "${ctx}/Dockerfile")"
 base="${BASE:-$(sed -n 's/^ARG BASE=//p' "${ctx}/Dockerfile")}"

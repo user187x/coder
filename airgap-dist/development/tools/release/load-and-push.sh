@@ -5,14 +5,14 @@
 #   ./load-and-push.sh REGISTRY [--dry-run] [--rm] [--ours-only] [--without-dataflow] [NAME...]
 # REGISTRY: host[:port][/prefix], the chart's global.registry - e.g. 123456789012.dkr.ecr.us-east-1.amazonaws.com or
 # harbor.example.com/coder. Each image goes to REGISTRY/<its path without the source host>, where the chart pulls it:
-#   docker.io/user187x/coder-platform:T -> REGISTRY/user187x/coder-platform:T, docker.io/traefik:T -> REGISTRY/traefik:T
+#   docker.io/mrshll187/coder-platform:T -> REGISTRY/user187x/coder-platform:T, docker.io/traefik:T -> REGISTRY/traefik:T
 # First every file is checked against OFFLINE-SHA256SUMS (nothing is pushed if one does not match). Then per image: its
 # archive streamed into docker load (the parts of a split one joined with cat on the way, no temporary file), tagged,
 # and pushed (3 tries: a registry on slow storage can time out on a large layer; pushed layers are not sent twice).
 # Ends with a summary; exits non-zero if any image failed.
 #   --dry-run   check the files and print what it would do (no docker command)
 #   --rm        after each push remove the loaded image and its new tag (a push host with little disk)
-#   --ours-only only the fork's images (docker.io/user187x/...), not the public ones pull-public-images.sh saved here:
+#   --ours-only only the fork's images (docker.io/mrshll187/...), not the public ones pull-public-images.sh saved here:
 #               your registry already holds them, at the paths INSTALL.md lists
 #   --without-dataflow skip the optional DATAFLOW image, including its archive checks
 #   NAME...     only these images, by name (e.g. coder-platform coder-workspace); default: all of OFFLINE-IMAGES.txt
@@ -65,7 +65,7 @@ imgs=() files=() sizes=() configs=() manifests=()
 while read -r img fs size cfg man _; do
 	[[ -z "$img" || "$img" == \#* ]] && continue
 	if ((${#names[@]})) && [[ " ${names[*]} " != *" $(name_of "$img") "* ]]; then continue; fi
-	if ((ours_only)) && [[ "$img" != docker.io/user187x/* ]]; then continue; fi
+	if ((ours_only)) && [[ "$img" != docker.io/mrshll187/* ]]; then continue; fi
 	if ((without_dataflow)) && [[ "$(name_of "$img")" == coder-workspace-dataflow ]]; then continue; fi
  imgs+=("$img") files+=("$fs") sizes+=("$size") configs+=("$cfg") manifests+=("$man")
 done < <(cat "${lists[@]}")

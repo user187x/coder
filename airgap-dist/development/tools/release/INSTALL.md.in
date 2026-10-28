@@ -70,7 +70,7 @@ Then push:
 ```
 
 It checks every file against `SHA256SUMS` (and `SHA256SUMS.public`), then loads, tags and pushes each image to
-`$REGISTRY/<its path without the source registry>` (e.g. `docker.io/user187x/coder-platform:T` →
+`$REGISTRY/<its path without the source registry>` (e.g. `docker.io/mrshll187/coder-platform:T` →
 `$REGISTRY/user187x/coder-platform:T`) - where the chart pulls it - and ends with a summary.
 
 ## 2. Values
