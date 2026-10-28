@@ -7,57 +7,91 @@ import {
 	PopoverContent,
 	PopoverTrigger,
 } from "#/components/Popover/Popover";
+import type { LavaPictureOptions } from "../lava/drawLava";
+import { LavaDialog, LavaEntry } from "../lava/LavaDialog";
 import type { PrebakedPicture } from "../pictures";
 import { ImageStoreGrid } from "./ImageStoreGrid";
 import { useImageStore } from "./imageStore";
 
 /**
  * Platform: a button that opens the image store (every picture: baked in, the gallery's, uploaded) to choose one
- * from - beside an Upload button where a chooser has no room for the whole grid (template icons).
+ * from - beside an Upload button where a chooser has no room for the whole grid (template icons). With onLava, the
+ * lava lamp leads it: made with its dials (LavaDialog) and given as a file, like an upload.
  */
 export const ImageStoreMenu: React.FC<{
 	onChoose: (image: StoreImage) => void;
+	onLava?: (file: File) => void;
+	lava?: LavaPictureOptions;
 	extra?: readonly PrebakedPicture[];
 	disabled?: boolean;
 	label?: string;
 	trigger?: React.ReactElement;
-}> = ({ onChoose, extra, disabled, label = "Image store", trigger }) => {
+}> = ({
+	onChoose,
+	onLava,
+	lava,
+	extra,
+	disabled,
+	label = "Image store",
+	trigger,
+}) => {
 	const [open, setOpen] = useState(false);
+	const [lavaOpen, setLavaOpen] = useState(false);
 	const { images, isLoading } = useImageStore(extra);
 	return (
-		<Popover open={open} onOpenChange={setOpen}>
-			<PopoverTrigger asChild>
-				{trigger ?? (
-					<Button
-						type="button"
-						size="sm"
-						variant="outline"
-						disabled={disabled}
-						data-testid="image-store-menu"
-					>
-						<ImagesIcon />
-						{label}
-					</Button>
-				)}
-			</PopoverTrigger>
-			<PopoverContent
-				align="start"
-				className="w-[min(452px,calc(100vw-32px))] p-3"
-			>
-				<div className="mb-2 text-sm font-semibold">{label}</div>
-				{isLoading && images.length === 0 ? (
-					<p className="m-0 text-sm text-content-secondary">Loading…</p>
-				) : (
-					<ImageStoreGrid
-						images={images}
-						label={label}
-						onChoose={(image) => {
-							setOpen(false);
-							onChoose(image);
-						}}
-					/>
-				)}
-			</PopoverContent>
-		</Popover>
+		<>
+			{onLava && (
+				<LavaDialog
+					open={lavaOpen}
+					onOpenChange={setLavaOpen}
+					output={lava}
+					onCreate={onLava}
+				/>
+			)}
+			<Popover open={open} onOpenChange={setOpen}>
+				<PopoverTrigger asChild>
+					{trigger ?? (
+						<Button
+							type="button"
+							size="sm"
+							variant="outline"
+							disabled={disabled}
+							data-testid="image-store-menu"
+						>
+							<ImagesIcon />
+							{label}
+						</Button>
+					)}
+				</PopoverTrigger>
+				<PopoverContent
+					align="start"
+					className="w-[min(452px,calc(100vw-32px))] p-3"
+				>
+					<div className="mb-2 text-sm font-semibold">{label}</div>
+					{onLava && (
+						<div className="mb-3">
+							<LavaEntry
+								onClick={() => {
+									setOpen(false);
+									setLavaOpen(true);
+								}}
+							/>
+						</div>
+					)}
+					{isLoading && images.length === 0 ? (
+						<p className="m-0 text-sm text-content-secondary">Loading…</p>
+					) : (
+						<ImageStoreGrid
+							images={images}
+							label={label}
+							onChoose={(image) => {
+								setOpen(false);
+								onChoose(image);
+							}}
+						/>
+					)}
+				</PopoverContent>
+			</Popover>
+		</>
 	);
 };

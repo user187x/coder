@@ -21,7 +21,7 @@ import {
 	particleThemeOf,
 } from "./particles";
 
-export type HtmlSource = "particles" | "custom";
+export type HtmlSource = "particles" | "lava" | "custom";
 
 const HTML_PLACEHOLDER = [
 	"<!DOCTYPE html>",
@@ -113,7 +113,7 @@ export const HtmlSourcePicker: React.FC<{
 	</div>
 );
 
-const Slider: React.FC<{
+export const Slider: React.FC<{
 	label: string;
 	value: number;
 	min: number;
@@ -166,7 +166,7 @@ const BACKGROUND_STYLE_LABELS: Record<BackgroundStyle, string> = {
 };
 
 /** One of a few choices, as a row of buttons. */
-function Choice<T extends string>({
+export function Choice<T extends string>({
 	label,
 	options,
 	labels,
@@ -210,7 +210,7 @@ function Choice<T extends string>({
 	);
 }
 
-const Toggle: React.FC<{
+export const Toggle: React.FC<{
 	label: string;
 	hint: string;
 	checked: boolean;

@@ -139,6 +139,8 @@ export const UploadImageButton: React.FC<UploadImageButtonProps> = ({
 					extra={BANNER_PRESET_PICTURES}
 					label="Image store"
 					onChoose={(image) => onChange(image.url)}
+					onLava={(file) => void upload(file)}
+					lava={{ size: 384, maxBytes: MAX_BYTES }}
 					trigger={
 						<Button
 							size="sm"

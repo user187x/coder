@@ -37,6 +37,13 @@ import {
 import { setBackground } from "#/contexts/platformBoot";
 import { ImageUploadSplit } from "../imageStore/ImageUploadSplit";
 import { formatBytes } from "../images";
+import { LavaControls } from "../lava/LavaControls";
+import {
+	LAVA_BACKGROUND_DEFAULT,
+	type LavaSettings,
+	lavaHTML,
+	lavaSettings,
+} from "../lava/lava";
 import { sniffImageType } from "../normalizeImage";
 import { PREBAKED_BACKGROUNDS } from "../pictures";
 import { CONTROLLER, DIALS } from "./backgroundHtml";
@@ -221,7 +228,7 @@ export const BackgroundSection: React.FC = () => {
 
 type Draft = {
 	removed?: boolean;
-	/** A picture, the Particles preset, or HTML of one's own. */
+	/** A picture, the Particles or Lava lamp preset, or HTML of one's own. */
 	source: "image" | HtmlSource;
 	dataURL?: string;
 	/** One of the dashboard's own pictures, by its path: saved as that, not uploaded. */
@@ -230,6 +237,7 @@ type Draft = {
 	bytes?: number;
 	html: string;
 	particles: ParticlesSettings;
+	lava: LavaSettings;
 	dials: BackgroundDials;
 	opacity: number;
 	fit: BackgroundFit;
@@ -274,12 +282,19 @@ const BackgroundCard: React.FC<{
 					? "image"
 					: preset?.name === "particles"
 						? "particles"
-						: "custom",
+						: preset?.name === "lava"
+							? "lava"
+							: "custom",
 			html: "",
 			particles: particlesSettings(preset),
+			lava: lavaSettings(preset?.name === "lava" ? preset : undefined),
 			dials: dialsOf(current?.params),
 			opacity: current?.opacity ?? limits.default,
-			fit: current?.fit ?? "cover",
+			// The lava lamp draws its own fit, kept with its settings.
+			fit:
+				(preset?.name === "lava" &&
+					FITS.find((f) => f.value === preset.fit)?.value) ||
+				(current?.fit ?? "cover"),
 			layer: current?.layer ?? "under",
 			dirty: false,
 		};
@@ -339,9 +354,11 @@ const BackgroundCard: React.FC<{
 	const html =
 		draft.source === "particles"
 			? particlesHTML(draft.particles)
-			: draft.source === "custom"
-				? draft.html
-				: "";
+			: draft.source === "lava"
+				? lavaHTML(draft.lava, draft.fit)
+				: draft.source === "custom"
+					? draft.html
+					: "";
 
 	const save = useMutation({
 		mutationFn: () =>
@@ -358,7 +375,9 @@ const BackgroundCard: React.FC<{
 								...draft.dials,
 								...(draft.source === "particles"
 									? { preset: draft.particles }
-									: {}),
+									: draft.source === "lava"
+										? { preset: { ...draft.lava, fit: draft.fit } }
+										: {}),
 							},
 						}),
 				opacity: draft.opacity,
@@ -457,7 +476,9 @@ const BackgroundCard: React.FC<{
 						? current.kind === "html"
 							? current.params?.preset?.name === "particles"
 								? "Particles"
-								: "HTML"
+								: current.params?.preset?.name === "lava"
+									? "Lava lamp"
+									: "HTML"
 							: "Picture"
 						: "None"}
 				</Badge>
@@ -474,6 +495,7 @@ const BackgroundCard: React.FC<{
 						busy={preparing}
 						gallery={{
 							extra: PREBAKED_BACKGROUNDS,
+							lava: { size: 384, maxBytes: MAX_BYTES },
 							selected: draft.source === "image" ? galleryPick : undefined,
 							onSelect: setGalleryPick,
 							disabled: busy,
@@ -508,7 +530,7 @@ const BackgroundCard: React.FC<{
 					/>
 					<span className="min-w-0 truncate text-sm text-content-secondary">
 						{isHtml
-							? `${draft.source === "particles" ? "Particles" : "Your own HTML"}, ${formatBytes(htmlBytes)}${draft.dirty ? " (not saved yet)" : ""}`
+							? `${draft.source === "particles" ? "Particles" : draft.source === "lava" ? "Lava lamp" : "Your own HTML"}, ${formatBytes(htmlBytes)}${draft.dirty ? " (not saved yet)" : ""}`
 							: draft.name
 								? `${draft.name}${draft.bytes ? `, ${formatBytes(draft.bytes)}` : ""} (not saved yet)`
 								: current && current.kind !== "html"
@@ -524,6 +546,7 @@ const BackgroundCard: React.FC<{
 							if (
 								source !== "image" &&
 								source !== "particles" &&
+								source !== "lava" &&
 								source !== "custom"
 							)
 								return;
@@ -534,6 +557,7 @@ const BackgroundCard: React.FC<{
 								dataURL: undefined,
 								picture: undefined,
 								name: undefined,
+								...(source === "lava" ? { fit: "contain" } : {}),
 							});
 						}}
 					>
@@ -543,6 +567,7 @@ const BackgroundCard: React.FC<{
 						<SelectContent>
 							<SelectItem value="image">Picture</SelectItem>
 							<SelectItem value="particles">Animated particles</SelectItem>
+							<SelectItem value="lava">Lava lamp</SelectItem>
 							<SelectItem value="custom">Custom HTML / CSS</SelectItem>
 						</SelectContent>
 					</Select>
@@ -559,6 +584,17 @@ const BackgroundCard: React.FC<{
 						disabled={busy}
 						onChange={(particles) => change({ particles })}
 					/>
+				)}
+				{draft.source === "lava" && (
+					<fieldset className="m-0 rounded-md border border-solid border-border p-3">
+						<legend className="px-1 text-sm font-semibold">Lava lamp</legend>
+						<LavaControls
+							value={draft.lava}
+							defaults={LAVA_BACKGROUND_DEFAULT}
+							disabled={busy}
+							onChange={(lava) => change({ lava })}
+						/>
+					</fieldset>
 				)}
 				{draft.source === "custom" && (
 					<CustomHtmlEditor
@@ -604,7 +640,7 @@ const BackgroundCard: React.FC<{
 				</label>
 
 				<div className="grid gap-3 sm:grid-cols-2">
-					{!isHtml && (
+					{(!isHtml || draft.source === "lava") && (
 						<label className="flex flex-col gap-1.5 text-sm font-medium">
 							Fit
 							<select

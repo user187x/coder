@@ -6,6 +6,8 @@ import {
 	referenceOf,
 	useImageStore,
 } from "../imageStore/imageStore";
+import type { LavaPictureOptions } from "../lava/drawLava";
+import { LavaDialog, LavaEntry } from "../lava/LavaDialog";
 import type { PrebakedPicture } from "../pictures";
 
 export type GalleryPickerProps = {
@@ -29,12 +31,15 @@ export type GalleryPickerProps = {
 	 * caller that stores a reference rather than the file. Without it, it comes as a file like the others.
 	 */
 	onPickBuiltin?: (picture: PrebakedPicture) => void;
+	/** Platform: the size and limit of a lava lamp made here (LavaDialog); it comes as a file, like an upload. */
+	lava?: LavaPictureOptions;
 };
 
 /**
  * The image store next to "choose your own" (the logo, avatar and background editors): every picture there is -
  * the chooser's own presets (extra), the pictures baked into the platform service's image and into the dashboard
- * (there with every install), the gallery's and the ones uploaded for the announcement - as tiles to choose from.
+ * (there with every install), the gallery's and the ones uploaded for the announcement - as tiles to choose from,
+ * after the lava lamp, made here with its dials.
  */
 export const GalleryPicker: React.FC<GalleryPickerProps> = ({
 	onPick,
@@ -47,16 +52,27 @@ export const GalleryPicker: React.FC<GalleryPickerProps> = ({
 	onPickBuiltin,
 	layout,
 	onChosen,
+	lava,
 }) => {
 	const { images } = useImageStore(extra);
 	const [loading, setLoading] = useState<string>();
-	if (images.length === 0) {
-		return null;
-	}
+	const [lavaOpen, setLavaOpen] = useState(false);
 
 	return (
 		<div className="flex flex-col gap-2" data-testid="gallery-picker">
 			{label && <span className="text-sm text-content-secondary">{label}</span>}
+			<LavaEntry disabled={disabled} onClick={() => setLavaOpen(true)} />
+			<LavaDialog
+				open={lavaOpen}
+				onOpenChange={setLavaOpen}
+				round={tile === "round"}
+				output={lava}
+				onCreate={(file) => {
+					onSelect?.(undefined);
+					onPick(file);
+					onChosen?.();
+				}}
+			/>
 			<ImageStoreGrid
 				layout={layout}
 				images={images}

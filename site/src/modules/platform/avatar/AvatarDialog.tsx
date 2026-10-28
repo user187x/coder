@@ -137,6 +137,7 @@ const AvatarDialog: React.FC<AvatarDialogProps> = ({ onClose }) => {
 				{!unavailable && (
 					<GalleryPicker
 						tile="round"
+						lava={{ size: 256, maxBytes: AVATAR_TARGET.maxOutputBytes }}
 						selected={galleryPick}
 						onSelect={setGalleryPick}
 						disabled={busy}

@@ -1416,7 +1416,7 @@ def clean_login_page(p):
     image = p.get("headingImage", "")
     if mode not in ("text", "image"):
         raise ValueError("Choose Text or Image for the heading.")
-    if not isinstance(image, str) or len(image) > 350000:
+    if not isinstance(image, str) or len(image) > LOGIN_HEADING_MAX_CHARS:
         raise ValueError("The heading image must be smaller than 256 KB.")
     if image.startswith("/"):
         parse_background_picture(image)
@@ -3321,6 +3321,10 @@ BG_STORE_PICTURE_RE = re.compile(r"^/__coder-ui/image-store/([A-Za-z0-9][A-Za-z0
                                  re.I)
 BG_PICTURE_TYPES = {"gif": "image/gif", "png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg",
                     "webp": "image/webp", "avif": "image/avif"}
+
+
+# The sign-in heading's image as a data URL: base64 of at most 256 KB, and its prefix.
+LOGIN_HEADING_MAX_CHARS = 350000
 
 
 def parse_background_picture(path):
@@ -8365,6 +8369,8 @@ class Handler(BaseHTTPRequestHandler):
             limit = LOGO_MAX_BYTES * 2  # base64 of the largest logo
         if urllib.parse.urlsplit(self.path).path == BASE + "/api/avatar":
             limit = AVATAR_MAX_BYTES * 2
+        if urllib.parse.urlsplit(self.path).path == BASE + "/api/login-page":
+            limit = LOGIN_HEADING_MAX_CHARS + 16384  # a heading image as a data URL, and the page's text
         if urllib.parse.urlsplit(self.path).path == BASE + "/api/backgrounds":
             limit = BG_MAX_BYTES * 2 + BG_HTML_MAX * 2 + BG_PARAMS_MAX
         if urllib.parse.urlsplit(self.path).path == BASE + "/api/banner-pictures":

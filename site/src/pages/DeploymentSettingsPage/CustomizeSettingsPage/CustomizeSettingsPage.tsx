@@ -327,6 +327,7 @@ const LogoUploadDialog: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 					}}
 				/>
 				<GalleryPicker
+					lava={{ size: 256, maxBytes: LOGO_TARGET.maxOutputBytes }}
 					selected={galleryPick}
 					onSelect={setGalleryPick}
 					disabled={upload.isPending}

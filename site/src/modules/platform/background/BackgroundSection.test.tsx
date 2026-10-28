@@ -84,3 +84,27 @@ it("stages removal until the shared save action", async () => {
 	);
 	await waitFor(() => expect(remove).toHaveBeenCalledWith("dashboard"));
 });
+
+it("saves the lava lamp as a preset, its HTML drawn from its settings", async () => {
+	vi.spyOn(PlatformAPI, "getBackgrounds").mockResolvedValue(MockBackgrounds);
+	const save = vi
+		.spyOn(PlatformAPI, "saveBackground")
+		.mockResolvedValue({ ok: true, set: true });
+	render(<BackgroundSection />);
+	const card = await screen.findByTestId("background-dashboard");
+	await userEvent.click(within(card).getByRole("combobox", { name: "Source" }));
+	await userEvent.click(
+		await screen.findByRole("option", { name: "Lava lamp" }),
+	);
+	await userEvent.click(within(card).getByRole("button", { name: "Add lava" }));
+	await userEvent.selectOptions(within(card).getByLabelText("Fit"), "tile");
+	await userEvent.click(
+		screen.getByRole("button", { name: "Save backgrounds" }),
+	);
+	await waitFor(() => expect(save).toHaveBeenCalledTimes(1));
+	const [slot, body] = save.mock.calls[0];
+	expect(slot).toBe("dashboard");
+	expect(body.params?.preset).toMatchObject({ name: "lava", fit: "tile" });
+	expect(body.html).toContain('F="tile"');
+	expect(body.html?.match(/class="blob"/g)).toHaveLength(7);
+});

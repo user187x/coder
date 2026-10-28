@@ -170,6 +170,7 @@ export const LoginPageSection: React.FC = () => {
 									disabled={save.isPending}
 									gallery={{
 										extra: PREBAKED_BACKGROUNDS,
+										lava: { size: 128, maxBytes: 256 * 1024 },
 										onPick: pickImage,
 										onPickBuiltin: (picture) =>
 											set({ headingImage: picture.url }),

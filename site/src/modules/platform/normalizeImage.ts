@@ -320,22 +320,36 @@ export const normalizeImage = async (
 	if (decoded) {
 		try {
 			const fit = fitImage(decoded.width, decoded.height, target);
+			const fits =
+				fit.width === decoded.width &&
+				fit.height === decoded.height &&
+				fit.source.width === decoded.width &&
+				fit.source.height === decoded.height;
+			// Already the right size and small enough: re-encoding would only lose colours (a made lava lamp).
 			output =
-				decoded.frames.length > 1
+				type === "image/gif" && fits && bytes.length <= target.maxOutputBytes
 					? {
-							bytes: encodeGif(decoded.frames, fit),
-							type: "image/gif",
-							width: fit.width,
-							height: fit.height,
+							bytes,
+							type,
+							width: decoded.width,
+							height: decoded.height,
 							frames: decoded.frames.length,
 						}
-					: {
-							bytes: await drawStatic(decoded.frames[0].image, fit),
-							type: "image/png",
-							width: fit.width,
-							height: fit.height,
-							frames: 1,
-						};
+					: decoded.frames.length > 1
+						? {
+								bytes: encodeGif(decoded.frames, fit),
+								type: "image/gif",
+								width: fit.width,
+								height: fit.height,
+								frames: decoded.frames.length,
+							}
+						: {
+								bytes: await drawStatic(decoded.frames[0].image, fit),
+								type: "image/png",
+								width: fit.width,
+								height: fit.height,
+								frames: 1,
+							};
 		} finally {
 			decoded.close();
 		}

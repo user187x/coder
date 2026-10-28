@@ -189,6 +189,7 @@ export const IconEditor: React.FC<IconEditorProps> = ({
 							<ImageStoreMenu
 								disabled={disabled || upload.isPending}
 								onChoose={(image) => void fetchStoreImage(image).then(onFile)}
+								onLava={onFile}
 							/>
 						</>
 					)}
@@ -399,6 +400,7 @@ export const InlineIconEditor: React.FC<InlineIconEditorProps> = ({
 					<ImageStoreMenu
 						disabled={disabled || upload.isPending}
 						onChoose={(image) => void fetchStoreImage(image).then(onFile)}
+						onLava={onFile}
 						trigger={
 							<button
 								type="button"

@@ -1264,6 +1264,18 @@ class LoginPageSettingsTest(unittest.TestCase):
         image = "data:image/png;base64," + base64.b64encode(ui.PNG + b"test").decode()
         self.assertEqual(ui.clean_login_page(dict(base, headingImage=image))["headingImage"], image)
 
+    def test_a_heading_image_fits_in_the_request(self):
+        import base64
+        image = "data:image/gif;base64," + base64.b64encode(ui.GIF[0] + b"\0" * (250 * 1024)).decode()
+        body = json.dumps({"color": "#ffffff", "headingMode": "image", "headingImage": image}).encode()
+
+        def read(path):
+            h = mock.MagicMock(path=path, headers={"Content-Length": str(len(body))}, rfile=io.BytesIO(body))
+            return ui.Handler.body(h)
+
+        self.assertEqual(read("/__coder-ui/api/login-page")["headingImage"], image)
+        self.assertIsNone(read("/__coder-ui/api/notes"))  # others keep the small limit
+
     def test_heading_image_store_reference(self):
         with mock.patch.object(ui, "STORE_IMAGES") as store:
             store.items.return_value = {"synthsun.gif": {"bytes": 4000000}}
