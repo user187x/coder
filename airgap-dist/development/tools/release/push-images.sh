@@ -3,7 +3,7 @@
 # (the aws CLI too for ECR=1); no internet. It reads IMAGES.txt and SHA256SUMS next to it, from any directory - and,
 # when pull-public-images.sh saved the public images the chart runs into this folder (on a connected machine),
 # IMAGES-public.txt and SHA256SUMS.public: those are pushed too.
-#   ./push-images.sh REGISTRY [--dry-run] [--rm] [--ours-only] [NAME...]
+#   ./push-images.sh REGISTRY [--dry-run] [--rm] [--ours-only] [--without-dataflow] [NAME...]
 # REGISTRY: host[:port][/prefix], the chart's global.registry - e.g. 123456789012.dkr.ecr.us-east-1.amazonaws.com or
 # harbor.example.com/coder. Each image goes to REGISTRY/<its path without the source host>, where the chart pulls it:
 #   ghcr.io/user187x/coder-platform:T -> REGISTRY/user187x/coder-platform:T, docker.io/traefik:T -> REGISTRY/traefik:T
@@ -15,6 +15,7 @@
 #   --rm        after each push remove the loaded image and its new tag (a push host with little disk)
 #   --ours-only only the fork's images (ghcr.io/user187x/...), not the public ones pull-public-images.sh saved here:
 #               your registry already holds them, at the paths INSTALL.md lists
+#   --without-dataflow skip the optional DATAFLOW image, including its archive checks
 #   NAME...     only these images, by name (e.g. coder-platform coder-workspace); default: all of IMAGES.txt
 #   ECR=1 ./push-images.sh ...   create missing ECR repositories first (region from REGISTRY)
 # Log in first: docker login REGISTRY
@@ -23,12 +24,13 @@ set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 usage() { sed -n '2,/^set /p' "$0" | sed '$d' >&2; exit 2; }
-reg="" dry=0 rm_after=0 ours_only=0 names=()
+reg="" dry=0 rm_after=0 ours_only=0 without_dataflow=0 names=()
 while (($#)); do
 	case "$1" in
 	--dry-run) dry=1 ;;
 	--rm) rm_after=1 ;;
 	--ours-only) ours_only=1 ;;
+ --without-dataflow) without_dataflow=1 ;;
 	-h | --help) usage ;;
 	-*) echo "unknown option: $1" >&2; usage ;;
 	*) if [[ -z "$reg" ]]; then reg="$1"; else names+=("$1"); fi ;;
@@ -64,7 +66,8 @@ while read -r img fs size cfg man _; do
 	[[ -z "$img" || "$img" == \#* ]] && continue
 	if ((${#names[@]})) && [[ " ${names[*]} " != *" $(name_of "$img") "* ]]; then continue; fi
 	if ((ours_only)) && [[ "$img" != ghcr.io/user187x/* ]]; then continue; fi
-	imgs+=("$img") files+=("$fs") sizes+=("$size") configs+=("$cfg") manifests+=("$man")
+	if ((without_dataflow)) && [[ "$(name_of "$img")" == coder-workspace-dataflow ]]; then continue; fi
+ imgs+=("$img") files+=("$fs") sizes+=("$size") configs+=("$cfg") manifests+=("$man")
 done < <(cat "${lists[@]}")
 for n in "${names[@]}"; do
 	found=0; for img in "${imgs[@]}"; do [[ "$(name_of "$img")" != "$n" ]] || found=1; done
@@ -74,7 +77,7 @@ done
 
 # Check the files first: all of SHA256SUMS, or with NAMEs only their images' files
 echo "checking the files against SHA256SUMS ..."
-if ((${#names[@]})); then
+if ((${#names[@]} || without_dataflow || ours_only)); then
 	want=" $(printf '%s ' "${files[@]}" | tr ',' ' ')"
 	lines=$(cat "${sums[@]}" | awk -v want="$want" 'index(want, " " $2 " ")')
 	[[ $(grep -c . <<<"$lines") -eq $(wc -w <<<"$want") ]] ||

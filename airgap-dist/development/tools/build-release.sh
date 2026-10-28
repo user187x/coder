@@ -129,6 +129,7 @@ build_release() {
 	# CloudNativePG operator: global.bundled) - the release carries ours, INSTALL.md lists the public ones
 	helm template coder "$chart" -n coder --set global.registry=REGISTRY.invalid -f "${bundle}/values-ha.example.yaml" \
 		--set global.bundled.traefik=true --set global.bundled.cloudnativePG=true --set secrets.generateTls=true \
+		--set coder-workspace.dataflowTemplate.enabled=true \
 		>>"$tmp/render.yaml" 2>"$tmp/render.log" ||
 		{ cat "$tmp/render.log" >&2; die "helm template with values-ha.example.yaml and global.bundled failed"; }
 	# every image reference under the registry: path:tag (a trailing \ of an escaped string is not part of it)
@@ -313,6 +314,35 @@ build_release() {
 		echo "# saves them into this folder on a connected machine; push-images.sh then pushes them with ours."
 		((${#public[@]} == 0)) || printf '%s\n' "${public[@]}" | awk -F'\t' '{print $1 "  " $2}'
 	} >"$stage/PUBLIC-IMAGES.txt"
+
+
+	# The machine-readable inventory matches the chart and the archives actually shipped.
+	python3 - "$stage" "${bundle}/images.txt" "$version" <<'PYINVENTORY'
+import json, pathlib, sys
+root, listing, version = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2]), sys.argv[3]
+purposes = {}
+for line in listing.read_text().splitlines():
+    if line and not line.startswith(("#", "[")):
+        fields = line.split(None, 2)
+        if len(fields) == 3:
+            purposes[fields[0]] = fields[2]
+images = []
+for line in (root / "IMAGES.txt").read_text().splitlines():
+    if not line or line.startswith("#"):
+        continue
+    reference, files, size, config, manifest = line.split()
+    images.append(dict(reference=reference, bundled=True, files=files.split(","), bytes=sum((root / f).stat().st_size for f in files.split(",")),
+                       optional="coder-workspace-dataflow:" in reference,
+                       configDigest=config, manifestDigest=manifest, purpose=purposes.get(reference, "")))
+for line in (root / "PUBLIC-IMAGES.txt").read_text().splitlines():
+    if not line or line.startswith("#"):
+        continue
+    path, pinned = line.split()
+    reference, digest = pinned.rsplit("@", 1)
+    images.append(dict(reference=reference, digest=digest, bundled=False, mirrorPath=path,
+                       purpose=purposes.get(reference, "")))
+(root / "IMAGE-INVENTORY.json").write_text(json.dumps(dict(chartVersion=version, platform="linux/amd64", images=images), indent=2) + "\n")
+PYINVENTORY
 
 	# INSTALL.md from its template
 	local cnpg traefik line

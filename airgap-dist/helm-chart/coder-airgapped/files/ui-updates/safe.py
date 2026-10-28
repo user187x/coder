@@ -916,6 +916,8 @@ def set_connected(h, user, wid, body):
     ws = WORKSPACE_INFO(h.token(), wid) if WORKSPACE_INFO else None
     if not ws:
         raise ValueError("There is no such workspace.")
+    if want and CONNECTION_RESTRICTED and CONNECTION_RESTRICTED(wid):
+        raise PermissionError("Locked workspaces cannot reconnect Cloud Drive.")
     if ws.get("owner_id") != user["id"]:
         drivepeers.connect_workspace(user, ws, want)
         return {**connections(user), "workspace": wid, "connected": want, "applied": False}

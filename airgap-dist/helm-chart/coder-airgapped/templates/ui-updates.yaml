@@ -147,7 +147,7 @@ spec:
             # `mirror-images.sh seed-builder`), so BuildKit needs no access to your registry. Until it is seeded,
             # builds fall back to the workspace image in global.registry (that registry's pull secret, if any).
             - {name: BUILDER_BASE_IMAGE, value: {{ printf "coder-image-registry.%s.svc:5000/coder-images/base/%s" $ns ($ws | splitList "/" | last) | quote }}}
-            - {name: BUILDER_BASE_FALLBACK, value: {{ ternary $ws "" (ne $.Values.global.registry "") | quote }}}
+            - {name: BUILDER_BASE_FALLBACK, value: {{ ternary $ws "" (or (ne $.Values.global.registry "") (ne ($.Values.global.forkRegistry | default "") "")) | quote }}}
             # The image the workspace template runs: an entry of its own in the Images view (scanned from the copy above).
             {{- $tpl := index $.Values "coder-workspace" "template" }}
             - {name: BUILDER_WORKSPACE_IMAGE, value: {{ $ws | quote }}}

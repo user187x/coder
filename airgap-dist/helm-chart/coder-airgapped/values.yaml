@@ -46,7 +46,7 @@ global:
     fork:
       # The fork's 2.0.0-platform.108 (development/coder-fork/FORK.md)
       repo: ghcr.io/user187x/coder-platform
-      tag: 2.0.0-platform.108-airgap
+      tag: 1.1.3-airgap
     upstream:
       repo: ghcr.io/user187x/coder-upstream
       tag: 2.38.0-main.70bc2e554-airgap
@@ -57,6 +57,9 @@ global:
   # Registry every image is pulled from, laid out as ../mirror-images.sh push leaves it (<registry>/<path without the
   # source host>, e.g. <registry>/user187x/coder-platform). "" = each image's own registry (as on the reference cluster).
   registry: ""
+  # Mirror only fork-owned images here; public dependencies keep their upstream references.
+  # Layout: <forkRegistry>/user187x/<image>:<tag>. global.registry overrides this for a fully mirrored install.
+  forkRegistry: ""
   imagePullSecrets: []         # e.g. [{name: registry-pull}]; used wherever a component sets none of its own
   # Platform HA (../../docs/adr/0001-platform-ha.md): the platform's own high availability for Coder's control plane,
   # without the Enterprise license. "off" (default): none of it runs. "registry": each Coder replica holds a lease in
@@ -617,7 +620,7 @@ uiUpdates:
   # (+ its database) and regctl (development/image-tools), which the Images view lints, formats and scans with -
   # tagged with the code's hash (development/tools/build-ui-image.sh builds and pins it). The chart carries no code:
   # Helm keeps each release in a Secret of at most 1 MiB.
-  image: &platformServiceImage '{{ include "platform.image" (list . "ghcr.io/user187x/coder-ui-updates:code-6c98feb6965c") }}'
+  image: &platformServiceImage '{{ include "platform.image" (list . "ghcr.io/user187x/coder-ui-updates:code-92c349b043c8") }}'
   imagePullPolicy: IfNotPresent
   imagePullSecrets: []
   hostname: '{{ include "platform.coderHost" . }}'
@@ -718,7 +721,8 @@ coder-workspace:
     icon: /icon/ubuntu.svg
   # The same workspace with Apache NiFi and Apache Airflow in place of code-server, on its own image.
   dataflowTemplate:
-    enabled: true
+    # Optional: enable after the DATAFLOW image has been imported into your registry.
+    enabled: false
     name: ubuntu-dataflow
     displayName: DATAFLOW
     icon: /icon/ubuntu.svg
