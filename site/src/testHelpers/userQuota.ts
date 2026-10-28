@@ -3,8 +3,12 @@ import { MockUserMember } from "./entities";
 
 export const MockQuotaReport: QuotaReport = {
 	settings: {
-		resourceModes: { cpu: "cumulative", memory: "cumulative" },
-		default: { workspaces: 3, cpu: 4, memory: 8 },
+		resourceModes: {
+			cpu: "cumulative",
+			memory: "cumulative",
+			disk: "cumulative",
+		},
+		default: { workspaces: 3, cpu: 4, memory: 8, disk: 100 },
 		users: {},
 		exemptAdmins: false,
 	},
@@ -17,13 +21,15 @@ export const MockQuotaReport: QuotaReport = {
 			admin: false,
 			exempt: false,
 			override: null,
-			limits: { workspaces: 4, cpu: 6, memory: 10 },
-			baseLimits: { workspaces: 3, cpu: 4, memory: 8 },
-			bonus: { workspaces: 1, cpu: 2, memory: 2 },
-			effectiveLimits: { workspaces: 4, cpu: 6, memory: 10 },
+			limits: { workspaces: 4, cpu: 6, memory: 10, disk: 100 },
+			baseLimits: { workspaces: 3, cpu: 4, memory: 8, disk: 100 },
+			bonus: { workspaces: 1, cpu: 2, memory: 2, disk: 0 },
+			effectiveLimits: { workspaces: 4, cpu: 6, memory: 10, disk: 100 },
 			bonusScope: "global",
 			activeGrantCount: 1,
 			usage: {
+				disk: 10,
+				runningDisk: 10,
 				workspaces: 1,
 				cpu: 2,
 				memory: 4,
@@ -48,6 +54,6 @@ export const MockQuotaReport: QuotaReport = {
 		live: true,
 	},
 	liveUsage: true,
-	parameters: { cpu: "cpu", memory: "memory" },
+	parameters: { cpu: "cpu", memory: "memory", disk: "home_disk_size" },
 	generatedAt: "2026-10-24T12:00:00Z",
 };

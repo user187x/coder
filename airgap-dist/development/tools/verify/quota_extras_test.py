@@ -35,7 +35,7 @@ class QuotaExtrasTest(unittest.TestCase):
                 return 200, {key: token != "read-only" for key in body["checks"]}
             return 200, {"id": self.uid, "status": "active", "username": "developer"}
         extras.setup(mock.Mock(side_effect=send), mock.Mock())
-        self.body = {"request_id": self.rid, "resources": {"workspaces": 1, "cpu": 2, "memory": 4},
+        self.body = {"request_id": self.rid, "resources": {"workspaces": 1, "cpu": 2, "memory": 4, "disk": 0},
                      "reason": "Temporary development project requires additional capacity."}
 
     def create(self, body=None, org=None, user=None):
@@ -63,7 +63,7 @@ class QuotaExtrasTest(unittest.TestCase):
         self.create({**self.body, "request_id": rid}, org=self.other_org)
         self.approve(rid=rid, org=self.other_org)
         effective = extras.limits({"workspaces": 3, "cpu": 8, "memory": 16}, self.uid)
-        self.assertEqual(effective["limits"], {"workspaces": 5, "cpu": 12, "memory": 24})
+        self.assertEqual(effective["limits"], {"workspaces": 5, "cpu": 12, "memory": 24, "disk": None})
         self.assertEqual(effective["baseLimits"], {"workspaces": 3, "cpu": 8, "memory": 16})
         self.assertEqual(effective["bonusScope"], "global")
         self.assertEqual(effective["activeGrantCount"], 2)
@@ -75,7 +75,7 @@ class QuotaExtrasTest(unittest.TestCase):
         self.approve()
         base = {"workspaces": None, "cpu": 8, "memory": None}
         result = extras.limits(base, self.uid)
-        self.assertEqual(result["limits"], {"workspaces": None, "cpu": 10, "memory": None})
+        self.assertEqual(result["limits"], {"workspaces": None, "cpu": 10, "memory": None, "disk": None})
         self.assertEqual(result["bonus"], self.body["resources"])
 
     def test_request_and_approval_are_idempotent_under_concurrency(self):
@@ -162,10 +162,10 @@ class QuotaExtrasTest(unittest.TestCase):
         with mock.patch.object(ui, "STORE", mock.Mock(get_setting=lambda *args: settings)), \
              mock.patch.object(ui, "quota_workspaces", return_value=[{"cpu": 2, "memory": 4}]):
             result = ui.quota_me("session", self.user)
-        self.assertEqual(result["baseLimits"], {"workspaces": 2, "cpu": 6, "memory": 8})
-        self.assertEqual(result["limits"], {"workspaces": 3, "cpu": 8, "memory": 12})
-        self.assertEqual(result["usage"], {"workspaces": 1, "cpu": 2, "memory": 4})
-        self.assertEqual(result["left"], {"workspaces": 2, "cpu": 6, "memory": 8})
+        self.assertEqual(result["baseLimits"], {"workspaces": 2, "cpu": 6, "memory": 8, "disk": None})
+        self.assertEqual(result["limits"], {"workspaces": 3, "cpu": 8, "memory": 12, "disk": None})
+        self.assertEqual(result["usage"], {"workspaces": 1, "cpu": 2, "memory": 4, "disk": 0})
+        self.assertEqual(result["left"], {"workspaces": 2, "cpu": 6, "memory": 8, "disk": None})
 
     def test_quota_check_uses_addition_then_revoke_refuses_same_request(self):
         self.create()
@@ -202,9 +202,9 @@ class QuotaExtrasTest(unittest.TestCase):
         with mock.patch.object(ui, "STORE", mock.Mock(get_setting=lambda *args: settings)),              mock.patch.object(ui, "_coder_get", return_value=(200, {"users": [
                  {"id": self.uid, "username": "developer", "roles": []}]})),              mock.patch.object(ui, "quota_workspaces", return_value=workspaces),              mock.patch.object(ui, "_pod_usage_by_owner", return_value={"developer": {"cpu": 0.5, "memory": 1.25}}),              mock.patch.object(ui, "cluster_usage", side_effect=RuntimeError("metrics unavailable")):
             user = ui.quota_report("session")["users"][0]
-        self.assertEqual(user["baseLimits"], {"workspaces": 3, "cpu": 6, "memory": 12})
-        self.assertEqual(user["limits"], {"workspaces": 4, "cpu": 8, "memory": 16})
-        self.assertEqual(user["usage"], {"workspaces": 2, "cpu": 6, "memory": 12,
+        self.assertEqual(user["baseLimits"], {"workspaces": 3, "cpu": 6, "memory": 12, "disk": None})
+        self.assertEqual(user["limits"], {"workspaces": 4, "cpu": 8, "memory": 16, "disk": None})
+        self.assertEqual(user["usage"], {"workspaces": 2, "cpu": 6, "memory": 12, "disk": 0, "runningDisk": 0,
             "runningCpu": 4, "runningMemory": 8, "running": 1, "liveCpu": 0.5, "liveMemory": 1.25})
         self.assertEqual(user["workspaces"], workspaces)
 
@@ -224,7 +224,7 @@ class QuotaExtrasTest(unittest.TestCase):
                  "latest_build": {}} for i in range(501)]
         responses = [(200, {"workspaces": rows[:500], "count": 501}),
                      (200, {"workspaces": rows[500:], "count": 501})]
-        with mock.patch.object(ui, "_coder_get", side_effect=responses) as get:
+        with mock.patch.object(ui, "_coder_get", side_effect=responses) as get, mock.patch.object(ui.KUBE, "call", return_value=(200, {"items": []})):
             result = ui.quota_workspaces("session")
         self.assertEqual(len(result), 501)
         self.assertEqual(result[-1]["organizationId"], self.org)

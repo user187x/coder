@@ -77,6 +77,7 @@ export const AccountResourcesCell: React.FC<{
 									<TableHead>Workspaces</TableHead>
 									<TableHead>CPU cores</TableHead>
 									<TableHead>Memory (GiB)</TableHead>
+									<TableHead>Disk (GB)</TableHead>
 								</TableRow>
 							</TableHeader>
 							<TableBody>

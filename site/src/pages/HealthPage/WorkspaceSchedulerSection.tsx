@@ -80,7 +80,7 @@ export const WorkspaceSchedulerSection: React.FC = () => {
 	};
 
 	return (
-		<section className="flex flex-col gap-5" aria-labelledby={`${ids}-title`}>
+		<section className="flex flex-col gap-3" aria-labelledby={`${ids}-title`}>
 			<div>
 				<h3
 					id={`${ids}-title`}
@@ -101,10 +101,9 @@ export const WorkspaceSchedulerSection: React.FC = () => {
 					)}
 				</h3>
 				<p className="m-0 mt-1 text-sm text-content-secondary">
-					Make every workspace start and stop on a schedule. Coder refuses a new
-					workspace without one, and users whose existing workspaces have none
-					(or break the limit) must set them the next time they open the
-					dashboard.
+					Require schedules for new workspaces and prompt owners to correct
+					existing ones. Set shared times, a maximum duration, and exemptions
+					below.
 				</p>
 			</div>
 
@@ -120,7 +119,7 @@ export const WorkspaceSchedulerSection: React.FC = () => {
 			</div>
 
 			<fieldset
-				className="m-0 flex flex-col gap-5 border-0 p-0 disabled:opacity-60"
+				className="m-0 grid grid-cols-1 gap-3 border-0 p-0 disabled:opacity-60 lg:grid-cols-2"
 				disabled={!draft.enabled}
 			>
 				<RadioGroup
@@ -128,7 +127,7 @@ export const WorkspaceSchedulerSection: React.FC = () => {
 					onValueChange={(mode) =>
 						setDraft({ ...draft, mode: mode as SchedulerSettings["mode"] })
 					}
-					className="flex flex-col gap-3 text-sm"
+					className="grid grid-cols-1 gap-3 text-sm lg:grid-cols-2"
 				>
 					<div className="flex items-start gap-2">
 						<RadioGroupItem value="user" id={`${ids}-user`} />
@@ -152,7 +151,7 @@ export const WorkspaceSchedulerSection: React.FC = () => {
 				</RadioGroup>
 
 				{draft.mode === "fixed" && (
-					<div className="rounded-md border border-solid border-border p-4">
+					<div className="lg:col-span-2 rounded-md border border-solid border-border p-3">
 						<ScheduleFields
 							idPrefix={`${ids}-sched`}
 							value={draft.fixed}

@@ -11,6 +11,7 @@ const PARTS: { key: QuotaKey; label: string; unit: string }[] = [
 	{ key: "workspaces", label: "Workspaces", unit: "" },
 	{ key: "cpu", label: "CPU", unit: " cores" },
 	{ key: "memory", label: "Memory", unit: " GiB" },
+	{ key: "disk", label: "Disk", unit: " GB" },
 ];
 
 const num = (v: number) => `${Math.round(v * 100) / 100}`;
@@ -31,7 +32,7 @@ export const WorkspaceQuotaPillView: FC<{ quota: QuotaMe }> = ({ quota }) => {
 	const parts = PARTS.flatMap((p) => {
 		const limit = quota.limits[p.key];
 		const used = quota.usage?.[p.key] ?? 0;
-		return limit === null
+		return limit === null || limit === undefined
 			? []
 			: [{ ...p, limit, used, left: Math.max(limit - used, 0) }];
 	});

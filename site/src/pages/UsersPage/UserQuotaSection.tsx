@@ -33,18 +33,20 @@ import { WorkspaceSchedulerSection } from "#/pages/HealthPage/WorkspaceScheduler
 import { QuotaClusterLoad } from "./QuotaClusterLoad";
 import { formatQuotaNumber, quotaUserColor } from "./quotaFormatting";
 
-const KEYS: readonly QuotaKey[] = ["workspaces", "cpu", "memory"];
+const KEYS: readonly QuotaKey[] = ["workspaces", "cpu", "memory", "disk"];
 
 const LABELS: Record<QuotaKey, string> = {
 	workspaces: "Workspaces",
 	cpu: "CPU cores",
 	memory: "Memory (GiB)",
+	disk: "Disk (GB)",
 };
 
 const UNITS: Record<QuotaKey, string> = {
 	workspaces: "",
 	cpu: "cores",
 	memory: "GiB",
+	disk: "GB",
 };
 
 /** What an override field holds to lift the default for one user. */
@@ -62,14 +64,21 @@ const emptyRow = (): Record<QuotaKey, string> => ({
 	workspaces: "",
 	cpu: "",
 	memory: "",
+	disk: "",
 });
 
 const toDraft = (s: QuotaSettings): Draft => ({
-	resourceModes: s.resourceModes ?? { cpu: "cumulative", memory: "cumulative" },
+	resourceModes: {
+		cpu: "cumulative",
+		memory: "cumulative",
+		disk: "cumulative",
+		...s.resourceModes,
+	},
 	default: {
 		workspaces: s.default.workspaces?.toString() ?? "",
 		cpu: s.default.cpu?.toString() ?? "",
 		memory: s.default.memory?.toString() ?? "",
+		disk: s.default.disk?.toString() ?? "",
 	},
 	users: Object.fromEntries(
 		Object.entries(s.users).map(([name, o]) => {
@@ -107,6 +116,7 @@ const toSettings = (d: Draft): QuotaSettings => {
 			workspaces: num(d.default.workspaces),
 			cpu: num(d.default.cpu),
 			memory: num(d.default.memory),
+			disk: num(d.default.disk),
 		},
 		users,
 		exemptAdmins: d.exemptAdmins,
@@ -274,26 +284,23 @@ export const UserQuotaSection: React.FC<{
 				)}
 			</Header>
 
-			<Main>
+			<Main className="gap-4" style={{ paddingBottom: 0 }}>
 				{error ? <ErrorAlert error={error} /> : null}
 				{!report && !error && <Loader />}
 				{report && draft && (
 					<>
 						<QuotaClusterLoad report={report} />
 
-						<section className="flex flex-col gap-4">
+						<section className="rounded-lg border border-border p-3 flex flex-col gap-3">
 							<div>
 								<h3 className="m-0 text-base font-medium">Default quota</h3>
 								<p className="m-0 mt-1 text-sm text-content-secondary">
-									Choose whether CPU and memory limits apply cumulatively across
-									workspaces or separately to each instance. These modes also
-									apply to account overrides. Leave a field empty for no limit.
-									Coder refuses new workspaces and increased allocations that
-									exceed a limit. Existing workspaces may restart unchanged or
-									with fewer resources.
+									Set limits across all workspaces or per workspace. Empty means
+									unlimited. Disk counts allocated home storage, including
+									stopped workspaces.
 								</p>
 							</div>
-							<div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+							<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
 								{KEYS.map((k) => (
 									<div key={k} className="flex flex-col gap-1.5 text-sm">
 										<Label htmlFor={`quota-default-${k}`}>{LABELS[k]}</Label>
@@ -311,7 +318,7 @@ export const UserQuotaSection: React.FC<{
 										/>
 										{k !== "workspaces" && (
 											<>
-												<Label htmlFor={`quota-mode-${k}`}>
+												<Label className="sr-only" htmlFor={`quota-mode-${k}`}>
 													{LABELS[k]} limit applies to
 												</Label>
 												<Select
@@ -378,15 +385,17 @@ export const UserQuotaSection: React.FC<{
 								</Button>
 							)}
 							<span className="ml-auto text-xs text-content-secondary">
-								CPU and memory are read from each workspace's{" "}
+								Allocations use each workspace's{" "}
 								<code>{report.parameters.cpu}</code> and{" "}
-								<code>{report.parameters.memory}</code> parameters. Updated{" "}
+								<code>{report.parameters.memory}</code> and{" "}
+								<code>{report.parameters.disk ?? "home_disk_size"}</code>{" "}
+								parameters. Updated{" "}
 								{new Date(report.generatedAt).toLocaleTimeString("en-US")}.
 							</span>
 						</div>
 					</>
 				)}
-				<div className="border-0 border-t border-solid border-border pt-6">
+				<div className="rounded-lg border border-solid border-border p-3">
 					<WorkspaceSchedulerSection />
 				</div>
 			</Main>
@@ -425,16 +434,19 @@ export const QuotaUsageCells: React.FC<{ userId: string }> = ({ userId }) => {
 		workspaces: null,
 		cpu: cluster?.cpu ?? null,
 		memory: cluster?.memory ?? null,
+		disk: null,
 	};
 	const running: Record<QuotaKey, number> = {
 		workspaces: user.usage.running,
 		cpu: user.usage.runningCpu,
 		memory: user.usage.runningMemory,
+		disk: user.usage.runningDisk ?? 0,
 	};
 	const live: Record<QuotaKey, number | null> = {
 		workspaces: null,
 		cpu: user.usage.liveCpu,
 		memory: user.usage.liveMemory,
+		disk: null,
 	};
 	const exempt = user.admin && draft.exemptAdmins;
 
@@ -456,12 +468,12 @@ export const QuotaUsageCells: React.FC<{ userId: string }> = ({ userId }) => {
 				const perInstance =
 					k !== "workspaces" && draft.resourceModes[k] === "instance";
 				const used = perInstance
-					? Math.max(0, ...user.workspaces.map((w) => w[k]))
-					: user.usage[k];
+					? Math.max(0, ...user.workspaces.map((w) => w[k] ?? 0))
+					: (user.usage[k] ?? 0);
 				const runningUsed = perInstance
 					? Math.max(
 							0,
-							...user.workspaces.filter((w) => w.running).map((w) => w[k]),
+							...user.workspaces.filter((w) => w.running).map((w) => w[k] ?? 0),
 						)
 					: running[k];
 				const scale =

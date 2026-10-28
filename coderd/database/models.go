@@ -6679,8 +6679,10 @@ type User struct {
 	// Determines if a user is a system user, and therefore cannot login or perform normal actions
 	IsSystem bool `db:"is_system" json:"is_system"`
 	// Determines if a user is an admin-managed account that cannot login
-	IsServiceAccount     bool          `db:"is_service_account" json:"is_service_account"`
-	ChatSpendLimitMicros sql.NullInt64 `db:"chat_spend_limit_micros" json:"chat_spend_limit_micros"`
+	IsServiceAccount       bool          `db:"is_service_account" json:"is_service_account"`
+	ChatSpendLimitMicros   sql.NullInt64 `db:"chat_spend_limit_micros" json:"chat_spend_limit_micros"`
+	FailedPasswordAttempts int32         `db:"failed_password_attempts" json:"failed_password_attempts"`
+	PasswordLockedUntil    sql.NullTime  `db:"password_locked_until" json:"password_locked_until"`
 }
 
 // Per-user AI spend override that supersedes group budget resolution.

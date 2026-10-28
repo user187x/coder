@@ -6,6 +6,7 @@ package database
 
 import (
 	"context"
+	"database/sql"
 	"time"
 
 	"github.com/google/uuid"
@@ -1463,6 +1464,9 @@ type sqlcQuerier interface {
 	PinChatByID(ctx context.Context, id uuid.UUID) error
 	PopNextQueuedMessage(ctx context.Context, chatID uuid.UUID) (ChatQueuedMessage, error)
 	PrepareWorkspaceQuarantineRelease(ctx context.Context, arg PrepareWorkspaceQuarantineReleaseParams) (int64, error)
+	// Serialize attempts on the user row so replicas cannot bypass the threshold.
+	// Attempts during a lockout do not extend its deadline.
+	RecordUserPasswordAttempt(ctx context.Context, arg RecordUserPasswordAttemptParams) (sql.NullTime, error)
 	ReduceWorkspaceAgentShareLevelToAuthenticatedByTemplate(ctx context.Context, templateID uuid.UUID) error
 	RegisterWorkspaceProxy(ctx context.Context, arg RegisterWorkspaceProxyParams) (WorkspaceProxy, error)
 	ReindexStaleChatMessagesSearchTsv(ctx context.Context, batchSize int32) (int64, error)

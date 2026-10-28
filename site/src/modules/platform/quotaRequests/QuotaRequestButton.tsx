@@ -30,6 +30,7 @@ import { QuotaRequestDetails } from "./QuotaRequestDetails";
 const resources = [
 	{ key: "cpu", label: "Additional CPU cores" },
 	{ key: "memory", label: "Additional memory (GiB)" },
+	{ key: "disk", label: "Additional disk (GB)" },
 	{ key: "workspaces", label: "Additional workspaces" },
 ] as const;
 
@@ -48,12 +49,18 @@ export const QuotaRequestForm: FC<Props> = ({
 }) => {
 	const id = useId();
 	const [organization, setOrganization] = useState("");
-	const [values, setValues] = useState({ cpu: "", memory: "", workspaces: "" });
+	const [values, setValues] = useState({
+		cpu: "",
+		memory: "",
+		disk: "",
+		workspaces: "",
+	});
 	const [reason, setReason] = useState("");
 	const selected = organization || organizations[0]?.id || "";
 	const amounts = {
 		cpu: Number(values.cpu),
 		memory: Number(values.memory),
+		disk: Number(values.disk),
 		workspaces: Number(values.workspaces),
 	};
 	const valid =

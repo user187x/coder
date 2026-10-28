@@ -34,6 +34,9 @@ export const QuotaRequestDetails: FC<Props> = ({
 		request.resources.cpu > 0
 			? `+${request.resources.cpu.toLocaleString("en-US")} CPU cores`
 			: null,
+		request.resources.disk > 0
+			? `+${request.resources.disk.toLocaleString("en-US")} GB disk`
+			: "",
 		request.resources.memory > 0
 			? `+${request.resources.memory.toLocaleString("en-US")} GiB memory`
 			: null,

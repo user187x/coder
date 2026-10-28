@@ -9,7 +9,7 @@ import { cloneElement } from "react";
 import type { HealthSeverity } from "#/api/typesGenerated";
 
 // The pages open inside General's layout, which provides the outer spacing.
-const CONTENT_PADDING = 36;
+const CONTENT_PADDING = 0;
 
 export const Header: React.FC<React.ComponentProps<"header">> = ({
 	className,
@@ -20,7 +20,7 @@ export const Header: React.FC<React.ComponentProps<"header">> = ({
 	return (
 		<header
 			className={cn("flex items-center justify-between", className)}
-			style={{ padding: "8px 0 28px", ...style }}
+			style={{ padding: "0 0 12px", ...style }}
 			{...props}
 		>
 			{children}
@@ -36,7 +36,7 @@ export const HeaderTitle: React.FC<React.ComponentProps<"h2">> = ({
 	return (
 		<h2
 			className={cn(
-				"m-0 leading-[1.2] text-xl font-medium flex items-center gap-4",
+				"m-0 leading-[1.2] text-base font-medium flex items-center gap-2",
 				className,
 			)}
 			{...props}
@@ -91,7 +91,7 @@ export const Main: React.FC<React.ComponentProps<"div">> = ({
 }) => {
 	return (
 		<div
-			className={cn("flex flex-col gap-9", className)}
+			className={cn("flex flex-col gap-3", className)}
 			style={{
 				padding: `0 0 ${CONTENT_PADDING}px`,
 				...style,
@@ -112,7 +112,7 @@ export const GridData: React.FC<React.ComponentProps<"div">> = ({
 		<div
 			className={cn(
 				"leading-[1.4] w-min whitespace-nowrap",
-				"grid grid-cols-[auto_auto] gap-3 gap-x-12",
+				"grid grid-cols-[auto_auto] gap-2 gap-x-6",
 				className,
 			)}
 			{...props}
@@ -242,7 +242,7 @@ export const Logs: React.FC<LogsProps> = ({
 	return (
 		<div
 			className={cn(
-				"font-mono text-sm font-normal leading-relaxed p-6 bg-surface-secondary overflow-x-auto whitespace-pre-wrap break-all",
+				"font-mono text-sm font-normal leading-relaxed p-3 max-h-64 overflow-y-auto bg-surface-secondary overflow-x-auto whitespace-pre-wrap break-all",
 				className,
 			)}
 			{...divProps}

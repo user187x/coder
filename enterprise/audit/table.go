@@ -175,6 +175,8 @@ var auditableResourcesTypes = map[any]map[string]Action{
 		"id":                           ActionTrack,
 		"email":                        ActionTrack,
 		"username":                     ActionTrack,
+		"failed_password_attempts":     ActionIgnore,
+		"password_locked_until":        ActionIgnore,
 		"hashed_password":              ActionSecret, // Do not expose a users hashed password.
 		"created_at":                   ActionIgnore, // Never changes.
 		"updated_at":                   ActionIgnore, // Changes, but is implicit and not helpful in a diff.

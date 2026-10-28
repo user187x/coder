@@ -29,7 +29,7 @@ it("submits validated resource amounts and a trimmed reason", async () => {
 	expect(submit).toHaveBeenCalledExactlyOnceWith({
 		organization_id: MockOrganization.id,
 		request_id: "stable-request",
-		resources: { cpu: 1.5, memory: 0, workspaces: 0 },
+		resources: { cpu: 1.5, memory: 0, workspaces: 0, disk: 0 },
 		reason: "Integration tests",
 	});
 });

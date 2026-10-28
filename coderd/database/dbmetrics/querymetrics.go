@@ -5,6 +5,7 @@ package dbmetrics
 
 import (
 	"context"
+	"database/sql"
 	"slices"
 	"time"
 
@@ -5261,6 +5262,14 @@ func (m queryMetricsStore) PrepareWorkspaceQuarantineRelease(ctx context.Context
 	r0, r1 := m.s.PrepareWorkspaceQuarantineRelease(ctx, arg)
 	m.queryLatencies.WithLabelValues("PrepareWorkspaceQuarantineRelease").Observe(time.Since(start).Seconds())
 	m.queryCounts.WithLabelValues(httpmw.ExtractHTTPRoute(ctx), httpmw.ExtractHTTPMethod(ctx), "PrepareWorkspaceQuarantineRelease").Inc()
+	return r0, r1
+}
+
+func (m queryMetricsStore) RecordUserPasswordAttempt(ctx context.Context, arg database.RecordUserPasswordAttemptParams) (sql.NullTime, error) {
+	start := time.Now()
+	r0, r1 := m.s.RecordUserPasswordAttempt(ctx, arg)
+	m.queryLatencies.WithLabelValues("RecordUserPasswordAttempt").Observe(time.Since(start).Seconds())
+	m.queryCounts.WithLabelValues(httpmw.ExtractHTTPRoute(ctx), httpmw.ExtractHTTPMethod(ctx), "RecordUserPasswordAttempt").Inc()
 	return r0, r1
 }
 

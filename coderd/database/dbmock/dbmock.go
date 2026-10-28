@@ -11,6 +11,7 @@ package dbmock
 
 import (
 	context "context"
+	sql "database/sql"
 	reflect "reflect"
 	time "time"
 
@@ -9993,6 +9994,21 @@ func (m *MockStore) PrepareWorkspaceQuarantineRelease(ctx context.Context, arg d
 func (mr *MockStoreMockRecorder) PrepareWorkspaceQuarantineRelease(ctx, arg any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PrepareWorkspaceQuarantineRelease", reflect.TypeOf((*MockStore)(nil).PrepareWorkspaceQuarantineRelease), ctx, arg)
+}
+
+// RecordUserPasswordAttempt mocks base method.
+func (m *MockStore) RecordUserPasswordAttempt(ctx context.Context, arg database.RecordUserPasswordAttemptParams) (sql.NullTime, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RecordUserPasswordAttempt", ctx, arg)
+	ret0, _ := ret[0].(sql.NullTime)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RecordUserPasswordAttempt indicates an expected call of RecordUserPasswordAttempt.
+func (mr *MockStoreMockRecorder) RecordUserPasswordAttempt(ctx, arg any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RecordUserPasswordAttempt", reflect.TypeOf((*MockStore)(nil).RecordUserPasswordAttempt), ctx, arg)
 }
 
 // ReduceWorkspaceAgentShareLevelToAuthenticatedByTemplate mocks base method.

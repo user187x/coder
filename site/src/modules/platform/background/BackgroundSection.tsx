@@ -463,15 +463,6 @@ const BackgroundCard: React.FC<{
 				</Badge>
 			</div>
 
-			<BackgroundPreview
-				slot={slot}
-				image={preview}
-				html={isHtml && ready && !draft.removed ? html : undefined}
-				dials={draft.dials}
-				opacity={draft.opacity}
-				layer={draft.layer}
-			/>
-
 			<div className="flex min-w-0 flex-col gap-3">
 				<div className="flex flex-wrap items-center gap-3">
 					{/* Platform: Upload, its arrow the image store in a dialog (its animated previews only while open) */}
@@ -691,6 +682,14 @@ const BackgroundCard: React.FC<{
 					)}
 				</div>
 			</div>
+			<BackgroundPreview
+				slot={slot}
+				image={preview}
+				html={isHtml && ready && !draft.removed ? html : undefined}
+				dials={draft.dials}
+				opacity={draft.opacity}
+				layer={draft.layer}
+			/>
 		</div>
 	);
 };

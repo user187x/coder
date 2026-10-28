@@ -36,13 +36,15 @@ const ProvisionerDaemonsPage: React.FC = () => {
 
 				<ProvisionerRekick />
 
-				{daemons.items.map(({ provisioner_daemon, warnings }) => (
-					<Provisioner
-						key={provisioner_daemon.id}
-						provisioner={provisioner_daemon}
-						warnings={warnings}
-					/>
-				))}
+				<div className="grid grid-cols-1 gap-3 lg:grid-cols-2 2xl:grid-cols-3">
+					{daemons.items.map(({ provisioner_daemon, warnings }) => (
+						<Provisioner
+							key={provisioner_daemon.id}
+							provisioner={provisioner_daemon}
+							warnings={warnings}
+						/>
+					))}
+				</div>
 			</Main>
 		</>
 	);

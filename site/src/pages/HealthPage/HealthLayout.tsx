@@ -51,10 +51,10 @@ export const HealthLayout: React.FC = () => {
 	return (
 		<>
 			<title>{pageTitle("Health")}</title>
-			<div className="flex flex-col gap-6">
+			<div className="flex flex-col gap-3">
 				<section
 					aria-label="Deployment health"
-					className="flex flex-wrap items-center gap-x-8 gap-y-3 rounded-lg border border-solid border-border px-5 py-4 text-sm"
+					className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-lg border border-solid border-border px-4 py-3 text-sm"
 				>
 					<div className="flex items-center gap-3">
 						<HealthIcon size={28} severity={healthStatus.severity} />

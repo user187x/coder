@@ -807,3 +807,22 @@ WHERE
 SELECT *
 FROM users
 WHERE id = @id::uuid;
+
+-- name: RecordUserPasswordAttempt :one
+-- Serialize attempts on the user row so replicas cannot bypass the threshold.
+-- Attempts during a lockout do not extend its deadline.
+UPDATE users SET
+    failed_password_attempts = CASE
+        WHEN password_locked_until > @now::timestamptz THEN failed_password_attempts
+        WHEN @password_matches::boolean THEN 0
+        WHEN password_locked_until IS NOT NULL THEN 1
+        ELSE failed_password_attempts + 1
+    END,
+    password_locked_until = CASE
+        WHEN password_locked_until > @now::timestamptz THEN password_locked_until
+        WHEN @password_matches::boolean OR password_locked_until IS NOT NULL THEN NULL
+        WHEN failed_password_attempts >= 4 THEN sqlc.arg(now)::timestamptz + INTERVAL '10 minutes'
+        ELSE NULL
+    END
+WHERE id = @id::uuid AND NOT deleted
+RETURNING password_locked_until;

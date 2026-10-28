@@ -16,7 +16,7 @@ import uuid
 
 BASE = "/__coder-ui/api"
 FILE = os.environ.get("QUOTA_REQUESTS_FILE", "/data/quota-requests.json")
-KEYS = ("workspaces", "cpu", "memory")
+KEYS = ("workspaces", "cpu", "memory", "disk")
 ROUTE = re.compile(r"^" + BASE + r"/organizations/([0-9a-f-]{36})/quota-requests(?:/([0-9a-f-]{36})/(approve|deny|revoke))?$")
 SEND = LOG = NOTIFY = None
 _LOCK = threading.Lock()
@@ -70,7 +70,7 @@ def identifier(value):
 
 def resources(raw):
     if not isinstance(raw, dict) or any(k not in KEYS for k in raw):
-        raise ValueError("Choose extra workspaces, CPU cores, or memory GiB.")
+        raise ValueError("Choose extra workspaces, CPU cores, memory GiB, or disk GB.")
     result = {}
     for key in KEYS:
         value = raw.get(key, 0)
@@ -222,7 +222,7 @@ def totals():
                 continue
             total = result.setdefault(record["user_id"], {"bonus": dict.fromkeys(KEYS, 0), "activeGrantCount": 0})
             for key in KEYS:
-                total["bonus"][key] += record["resources"][key]
+                total["bonus"][key] += record["resources"].get(key, 0)
             total["activeGrantCount"] += 1
     return result
 
@@ -230,7 +230,7 @@ def totals():
 def limits(base, user_id, additions=None):
     addition = (totals() if additions is None else additions).get(user_id, {})
     bonus = addition.get("bonus", dict.fromkeys(KEYS, 0))
-    effective = {key: None if base[key] is None else base[key] + bonus[key] for key in KEYS}
+    effective = {key: None if base.get(key) is None else base[key] + bonus.get(key, 0) for key in KEYS}
     return {"baseLimits": base, "bonus": bonus, "effectiveLimits": effective, "limits": effective,
             "bonusScope": "global", "activeGrantCount": addition.get("activeGrantCount", 0)}
 

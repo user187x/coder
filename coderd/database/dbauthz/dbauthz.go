@@ -7448,6 +7448,13 @@ func (q *querier) PrepareWorkspaceQuarantineRelease(ctx context.Context, arg dat
 	return q.db.PrepareWorkspaceQuarantineRelease(ctx, arg)
 }
 
+func (q *querier) RecordUserPasswordAttempt(ctx context.Context, arg database.RecordUserPasswordAttemptParams) (sql.NullTime, error) {
+	if err := q.authorizeContext(ctx, policy.ActionUpdate, rbac.ResourceSystem); err != nil {
+		return sql.NullTime{}, err
+	}
+	return q.db.RecordUserPasswordAttempt(ctx, arg)
+}
+
 func (q *querier) ReduceWorkspaceAgentShareLevelToAuthenticatedByTemplate(ctx context.Context, templateID uuid.UUID) error {
 	template, err := q.db.GetTemplateByID(ctx, templateID)
 	if err != nil {

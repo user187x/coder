@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"net/mail"
 	"slices"
@@ -581,6 +582,28 @@ func (api *API) loginRequest(ctx context.Context, rw http.ResponseWriter, req co
 			Message: "Internal error.",
 		})
 		return user, rbac.Subject{}, false
+	}
+
+	if user.ID != uuid.Nil {
+		//nolint:gocritic // Authentication attempts update only system-owned lockout state.
+		lockedUntil, err := api.Database.RecordUserPasswordAttempt(dbauthz.AsSystemRestricted(ctx), database.RecordUserPasswordAttemptParams{
+			ID:              user.ID,
+			Now:             api.Clock.Now(),
+			PasswordMatches: equal,
+		})
+		if err != nil {
+			logger.Error(ctx, "record password attempt", slog.Error(err))
+			httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{Message: "Internal error."})
+			return user, rbac.Subject{}, false
+		}
+		if lockedUntil.Valid {
+			seconds := max(1, int(math.Ceil(lockedUntil.Time.Sub(api.Clock.Now()).Seconds())))
+			rw.Header().Set("Retry-After", strconv.Itoa(seconds))
+			httpapi.Write(ctx, rw, http.StatusTooManyRequests, codersdk.Response{
+				Message: "Too many failed login attempts. Please try again after the 10-minute lockout expires.",
+			})
+			return user, rbac.Subject{}, false
+		}
 	}
 
 	if !equal {

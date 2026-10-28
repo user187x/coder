@@ -1,3 +1,4 @@
+import { cn } from "cn";
 import { useEffect } from "react";
 import { useLocation } from "react-router";
 import AccessURLPage from "./AccessURLPage";
@@ -37,7 +38,7 @@ const HealthOverviewPage: React.FC = () => {
 	}, [hash]);
 
 	return (
-		<div className="flex flex-col gap-6">
+		<div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-2">
 			{HEALTH_CARD_IDS.map((id) => {
 				const Section = SECTIONS[id];
 				return (
@@ -45,7 +46,13 @@ const HealthOverviewPage: React.FC = () => {
 						key={id}
 						id={id}
 						data-testid="health-card"
-						className="scroll-mt-4 rounded-lg border border-solid border-border px-6 pt-3"
+						className={cn(
+							"min-w-0 scroll-mt-4 rounded-lg border border-solid border-border bg-surface-primary/50 p-4",
+							(id === "workspace-health" ||
+								id === "provisioner-daemons" ||
+								id === "derp") &&
+								"xl:col-span-2",
+						)}
 					>
 						<Section />
 					</section>

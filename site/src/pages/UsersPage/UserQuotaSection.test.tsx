@@ -215,8 +215,32 @@ it("saves independent per-instance CPU and cumulative memory modes with account 
 	await waitFor(() =>
 		expect(save).toHaveBeenCalledWith({
 			...MockQuotaReport.settings,
-			resourceModes: { cpu: "instance", memory: "cumulative" },
+			resourceModes: {
+				cpu: "instance",
+				memory: "cumulative",
+				disk: "cumulative",
+			},
 			users: { [MockUserMember.username]: { cpu: 5 } },
+		}),
+	);
+});
+
+it("saves disk quota overrides with the other resources", async () => {
+	const save = vi
+		.spyOn(PlatformAPI, "updateQuota")
+		.mockResolvedValue({ ok: true, settings: MockQuotaReport.settings });
+	setup();
+	await userEvent.type(
+		await screen.findByRole("textbox", {
+			name: `Disk (GB) for ${MockUserMember.username}`,
+		}),
+		"50",
+	);
+	await userEvent.click(screen.getByRole("button", { name: "Save quota" }));
+	await waitFor(() =>
+		expect(save).toHaveBeenCalledWith({
+			...MockQuotaReport.settings,
+			users: { [MockUserMember.username]: { disk: 50 } },
 		}),
 	);
 });

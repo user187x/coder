@@ -140,7 +140,7 @@ func platformAllocationIncreased(previous, next []codersdk.WorkspaceBuildParamet
 	values := func(params []codersdk.WorkspaceBuildParameter) map[string]float64 {
 		result := map[string]float64{}
 		for _, p := range params {
-			if p.Name != "cpu" && p.Name != "memory" {
+			if p.Name != "cpu" && p.Name != "memory" && p.Name != "home_disk_size" {
 				continue
 			}
 			value, err := strconv.ParseFloat(p.Value, 64)
@@ -152,7 +152,7 @@ func platformAllocationIncreased(previous, next []codersdk.WorkspaceBuildParamet
 		return result
 	}
 	old, updated := values(previous), values(next)
-	for _, name := range []string{"cpu", "memory"} {
+	for _, name := range []string{"cpu", "memory", "home_disk_size"} {
 		if math.IsNaN(updated[name]) || math.IsInf(updated[name], 0) || updated[name] > old[name] {
 			return true
 		}

@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { quotaLevel, WorkspaceQuotaPillView } from "./WorkspaceQuotaPill";
 
-const none = { workspaces: null, cpu: null, memory: null };
+const none = { workspaces: null, cpu: null, memory: null, disk: null };
 
 describe("WorkspaceQuotaPillView", () => {
 	it("shows nothing when no limit applies (none set, or an exempt admin)", () => {
@@ -19,9 +19,9 @@ describe("WorkspaceQuotaPillView", () => {
 				quota={{
 					limited: true,
 					exempt: false,
-					limits: { workspaces: 3, cpu: 8, memory: null },
-					usage: { workspaces: 3, cpu: 6.5, memory: 12 },
-					left: { workspaces: 0, cpu: 1.5, memory: null },
+					limits: { workspaces: 3, cpu: 8, memory: null, disk: null },
+					usage: { workspaces: 3, cpu: 6.5, memory: 12, disk: 0 },
+					left: { workspaces: 0, cpu: 1.5, memory: null, disk: null },
 					atLimit: true,
 				}}
 			/>,

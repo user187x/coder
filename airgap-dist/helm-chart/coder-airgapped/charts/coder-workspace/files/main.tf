@@ -746,7 +746,7 @@ resource "coder_app" "filebrowser" {
   display_name = "File Browser"
   icon         = "/__icons/filebrowser-quantum.png" # files/icons/filebrowser-quantum.png, served by templates/icons.yaml
   url          = "http://localhost:13339/@${data.coder_workspace_owner.me.name}/${data.coder_workspace.me.name}.main/apps/filebrowser/"
-  subdomain    = true
+  subdomain    = false
   share        = "owner"
 
   healthcheck {

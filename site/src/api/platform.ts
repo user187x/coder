@@ -743,13 +743,13 @@ export type SchedulerMe = {
 
 // ---------------------------------------------------------------- user quota
 
-export type QuotaKey = "workspaces" | "cpu" | "memory";
+export type QuotaKey = "workspaces" | "cpu" | "memory" | "disk";
 
 /** One set of limits; null = no limit. CPU in cores, memory in GiB. */
 export type QuotaLimits = Record<QuotaKey, number | null>;
 
 export type QuotaResourceModes = Record<
-	"cpu" | "memory",
+	"cpu" | "memory" | "disk",
 	"cumulative" | "instance"
 >;
 
@@ -787,6 +787,7 @@ export type QuotaMe = {
 };
 
 type QuotaWorkspace = {
+	disk: number;
 	id: string;
 	name: string;
 	owner: string;
@@ -799,6 +800,8 @@ type QuotaWorkspace = {
 };
 
 type QuotaUsage = {
+	disk: number;
+	runningDisk: number;
 	workspaces: number;
 	cpu: number;
 	memory: number;
@@ -850,7 +853,7 @@ export type QuotaReport = {
 	cluster: QuotaCluster;
 	liveUsage: boolean;
 	/** The template parameters read as cores and GiB. */
-	parameters: Record<"cpu" | "memory", string>;
+	parameters: Record<"cpu" | "memory" | "disk", string>;
 	generatedAt: string;
 };
 

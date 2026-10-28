@@ -6675,27 +6675,27 @@ def keycloak_status():
 # Per developer: how many workspaces, and how many CPU cores / GiB of memory those workspaces may be built with in all
 # (the template's "cpu" and "memory" parameters). A default for everyone, overrides per user; empty = no limit. Coder
 # (the platform build) asks /api/quota/check before it creates a workspace and refuses when a limit would be passed.
-QUOTA_DEFAULT = {"default": {"workspaces": None, "cpu": None, "memory": None}, "users": {}, "exemptAdmins": True}
-QUOTA_KEYS = ("workspaces", "cpu", "memory")
-QUOTA_PARAMS = {"cpu": "cpu", "memory": "memory"}   # template parameter names: cores, GiB
+QUOTA_DEFAULT = {"default": {"workspaces": None, "cpu": None, "memory": None, "disk": None}, "users": {}, "exemptAdmins": True}
+QUOTA_KEYS = ("workspaces", "cpu", "memory", "disk")
+QUOTA_PARAMS = {"cpu": "cpu", "memory": "memory", "disk": "home_disk_size"}   # template parameter names: cores, GiB
 
 
 def quota_resource_modes(settings):
     raw = settings.get("resourceModes", {})
     if raw is None:
         raw = {}
-    if not isinstance(raw, dict) or any(k not in ("cpu", "memory") for k in raw):
-        raise ValueError("Resource modes apply only to CPU and memory.")
-    modes = {k: raw.get(k, "cumulative") for k in ("cpu", "memory")}
+    if not isinstance(raw, dict) or any(k not in ("cpu", "memory", "disk") for k in raw):
+        raise ValueError("Resource modes apply only to CPU, memory and disk.")
+    modes = {k: raw.get(k, "cumulative") for k in ("cpu", "memory", "disk")}
     if any(v not in ("cumulative", "instance") for v in modes.values()):
-        raise ValueError("CPU and memory modes must be cumulative or instance.")
+        raise ValueError("CPU, memory and disk modes must be cumulative or instance.")
     return modes
 
 
 def quota_usage(workspaces, modes):
     return {"workspaces": len(workspaces), **{
-        k: max((w[k] for w in workspaces), default=0) if modes[k] == "instance" else sum(w[k] for w in workspaces)
-        for k in ("cpu", "memory")}}
+        k: max((w.get(k, 0) for w in workspaces), default=0) if modes.get(k, "cumulative") == "instance" else sum(w.get(k, 0) for w in workspaces)
+        for k in ("cpu", "memory", "disk")}}
 
 
 def quota_settings():
@@ -6720,7 +6720,7 @@ def _quota_number(v, what, integer=False):
 def clean_quota(raw):
     def limits(o, who):
         o = o or {}
-        return {k: _quota_number(o.get(k), "%s: %s" % (who, {"workspaces": "Workspaces", "cpu": "CPU cores", "memory": "Memory (GiB)"}[k]),
+        return {k: _quota_number(o.get(k), "%s: %s" % (who, {"workspaces": "Workspaces", "cpu": "CPU cores", "memory": "Memory (GiB)", "disk": "Disk (GB)"}[k]),
                                  integer=k == "workspaces") for k in QUOTA_KEYS if k in o}
     users = {}
     for name, o in (raw.get("users") or {}).items():
@@ -6750,7 +6750,7 @@ def _param_resources(params):
     """(cores, GiB) from a build's or a request's parameters ([{name, value}])."""
     vals = {p.get("name"): p.get("value") for p in params or []}
     out = []
-    for key in ("cpu", "memory"):
+    for key in ("cpu", "memory", "disk"):
         try:
             value = float(vals.get(QUOTA_PARAMS[key]) or 0)
         except (TypeError, ValueError):
@@ -6778,6 +6778,16 @@ def quota_workspaces(token, owner=None):
         if len(rows) >= 100000:
             raise RuntimeError("Workspace quota collection exceeded its safe pagination limit.")
         q["offset"] += len(page)
+    status, pvcs = KUBE.call("GET", "/api/v1/namespaces/%s/persistentvolumeclaims" % WORKSPACE_NAMESPACE)
+    if status != 200:
+        raise RuntimeError("Workspace disk allocations are unavailable; try again once storage is reachable.")
+    disks = {}
+    for pvc in pvcs.get("items") or []:
+        meta = pvc.get("metadata") or {}
+        requested = (((pvc.get("spec") or {}).get("resources") or {}).get("requests") or {}).get("storage")
+        capacity = ((pvc.get("status") or {}).get("capacity") or {}).get("storage")
+        disks[meta.get("name")] = max(quantity(requested) or 0, quantity(capacity) or 0,
+                                     float((meta.get("annotations") or {}).get("platform.coder/home-disk-bytes") or 0)) / 1e9
     out = []
     for w in rows:
         build = w.get("latest_build") or {}
@@ -6787,9 +6797,10 @@ def quota_workspaces(token, owner=None):
             st, params = _coder_get(token, "/api/v2/workspacebuilds/%s/parameters" % build["id"])
             params = params if st == 200 and isinstance(params, list) else []
             CACHE.put(key, params, 3600)   # a build's parameters never change
-        cpu, mem = _param_resources(params)
+        cpu, mem, disk = _param_resources(params)
+        disk = max(disk, disks.get(workspacevolumes.pvc_name(w["id"]), 0))
         out.append({"id": w.get("id"), "name": w.get("name"), "owner": w.get("owner_name"), "ownerId": w.get("owner_id"),
-                    "template": w.get("template_display_name") or w.get("template_name"), "cpu": cpu, "memory": mem,
+                    "template": w.get("template_display_name") or w.get("template_name"), "cpu": cpu, "memory": mem, "disk": disk,
                     "organizationId": w.get("organization_id"),
                     "status": build.get("status"), "running": build.get("status") == "running" and build.get("transition") == "start"})
     return out
@@ -6842,8 +6853,8 @@ def quota_report(token):
         admin = bool({r.get("name") for r in u.get("roles") or []} & ADMIN_ROLES)
         addition = quotaextras.limits(quota_limits(settings, name), u.get("id"), additions)
         limits = addition["limits"]
-        usage = {"workspaces": len(mine), "cpu": sum(w["cpu"] for w in mine), "memory": sum(w["memory"] for w in mine),
-                 "runningCpu": sum(w["cpu"] for w in mine if w["running"]), "runningMemory": sum(w["memory"] for w in mine if w["running"]),
+        usage = {"workspaces": len(mine), "cpu": sum(w["cpu"] for w in mine), "memory": sum(w["memory"] for w in mine), "disk": sum(w.get("disk", 0) for w in mine),
+                 "runningDisk": sum(w.get("disk", 0) for w in mine if w["running"]), "runningCpu": sum(w["cpu"] for w in mine if w["running"]), "runningMemory": sum(w["memory"] for w in mine if w["running"]),
                  "running": sum(1 for w in mine if w["running"]), "liveCpu": (live.get(name) or {}).get("cpu"),
                  "liveMemory": (live.get(name) or {}).get("memory")}
         exempt = admin and settings["exemptAdmins"]
@@ -6936,10 +6947,13 @@ def quota_check(token, user, body):
         for p in rich if st == 200 and isinstance(rich, list) else []:
             params.setdefault(p.get("name"), p.get("default_value"))
     try:
-        want_cpu, want_mem = _param_resources([{"name": k, "value": v} for k, v in params.items()])
+        want_cpu, want_mem, want_disk = _param_resources([{"name": k, "value": v} for k, v in params.items()])
     except ValueError as error:
         return {"allowed": False, **addition, "message": str(error)}
-    mine = quota_workspaces(token, owner=target["username"])
+    try:
+        mine = quota_workspaces(token, owner=target["username"])
+    except RuntimeError as error:
+        return {"allowed": False, **addition, "message": str(error)}
     current_workspace_id = body.get("current_workspace_id")
     if current_workspace_id:
         current = next((w for w in mine if w["id"] == current_workspace_id), None)
@@ -6948,23 +6962,27 @@ def quota_check(token, user, body):
         ):
             return {"allowed": False, **addition, "message": "The replaced workspace does not match this owner and organization."}
         mine = [w for w in mine if w["id"] != current_workspace_id]
-    usage = {"workspaces": len(mine), "cpu": sum(w["cpu"] for w in mine), "memory": sum(w["memory"] for w in mine)}
+    usage = {"workspaces": len(mine), "cpu": sum(w["cpu"] for w in mine), "memory": sum(w["memory"] for w in mine), "disk": sum(w.get("disk", 0) for w in mine)}
     after = {"workspaces": usage["workspaces"] + 1, "cpu": want_cpu if modes["cpu"] == "instance" else usage["cpu"] + want_cpu,
-             "memory": want_mem if modes["memory"] == "instance" else usage["memory"] + want_mem}
+             "memory": want_mem if modes["memory"] == "instance" else usage["memory"] + want_mem,
+             "disk": want_disk if modes["disk"] == "instance" else usage["disk"] + want_disk}
     fmt = lambda v: ("%g" % round(v, 2))  # noqa: E731
     over = []
-    if limits["workspaces"] is not None and after["workspaces"] > limits["workspaces"]:
+    disk_only = body.get("disk_expansion") is True and bool(current_workspace_id)
+    if not disk_only and limits["workspaces"] is not None and after["workspaces"] > limits["workspaces"]:
         over.append("workspaces: %d of %d already" % (usage["workspaces"], limits["workspaces"]))
-    if limits["cpu"] is not None and after["cpu"] > limits["cpu"]:
+    if not disk_only and limits["cpu"] is not None and after["cpu"] > limits["cpu"]:
         over.append(("CPU: this workspace needs %s cores, above its per-instance limit of %s" % (fmt(want_cpu), fmt(limits["cpu"]))) if modes["cpu"] == "instance" else ("CPU: this one needs %s cores, %s of %s cores are taken" % (fmt(want_cpu), fmt(usage["cpu"]), fmt(limits["cpu"]))))
-    if limits["memory"] is not None and after["memory"] > limits["memory"]:
+    if not disk_only and limits["memory"] is not None and after["memory"] > limits["memory"]:
         over.append(("memory: this workspace needs %s GiB, above its per-instance limit of %s" % (fmt(want_mem), fmt(limits["memory"]))) if modes["memory"] == "instance" else ("memory: this one needs %s GiB, %s of %s GiB are taken" % (fmt(want_mem), fmt(usage["memory"]), fmt(limits["memory"]))))
+    if limits["disk"] is not None and after["disk"] > limits["disk"]:
+        over.append("disk: %s GB requested, %s GB %s limit" % (fmt(after["disk"]), fmt(limits["disk"]), modes["disk"]))
     if over:
         who = "Your" if target["username"] == user["username"] else "%s's" % target["username"]
-        return {"allowed": False, **addition, "usage": usage, "request": {"cpu": want_cpu, "memory": want_mem},
+        return {"allowed": False, **addition, "usage": usage, "request": {"cpu": want_cpu, "memory": want_mem, "disk": want_disk},
                 "message": "%s workspace quota is reached (%s). Delete or shrink a workspace, or ask an admin to raise the "
                            "quota in Health > User Quota." % (who, "; ".join(over))}
-    return {"allowed": True, "message": "within quota", **addition, "usage": usage, "request": {"cpu": want_cpu, "memory": want_mem}}
+    return {"allowed": True, "message": "within quota", **addition, "usage": usage, "request": {"cpu": want_cpu, "memory": want_mem, "disk": want_disk}}
 
 
 # --------------------------------------------------------------------------- Global Workspace Scheduler (Health > User Quota)

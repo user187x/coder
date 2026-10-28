@@ -3458,6 +3458,12 @@ func (s *MethodTestSuite) TestUser() {
 		dbm.EXPECT().UpdateUserGithubComUserID(gomock.Any(), arg).Return(nil).AnyTimes()
 		check.Args(arg).Asserts(u, policy.ActionUpdatePersonal)
 	}))
+	s.Run("RecordUserPasswordAttempt", s.Mocked(func(dbm *dbmock.MockStore, faker *gofakeit.Faker, check *expects) {
+		arg := testutil.Fake(s.T(), faker, database.RecordUserPasswordAttemptParams{})
+		dbm.EXPECT().RecordUserPasswordAttempt(gomock.Any(), arg).Return(sql.NullTime{}, nil).AnyTimes()
+		check.Args(arg).Asserts(rbac.ResourceSystem, policy.ActionUpdate).Returns(sql.NullTime{})
+	}))
+
 	s.Run("UpdateUserHashedPassword", s.Mocked(func(dbm *dbmock.MockStore, faker *gofakeit.Faker, check *expects) {
 		u := testutil.Fake(s.T(), faker, database.User{})
 		arg := database.UpdateUserHashedPasswordParams{ID: u.ID}

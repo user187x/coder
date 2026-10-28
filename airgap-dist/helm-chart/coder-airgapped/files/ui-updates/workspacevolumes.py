@@ -1161,6 +1161,12 @@ def route(h, method, path, user, token, query=""):
         return h.send_json(200, {"restore": op_id}) or True
     if sub == "/expand" and method == "POST":
         size = read_json(h).get("size")
+        if QUOTA_CHECK:
+            decision = QUOTA_CHECK(token, user, {"owner": ws["owner_name"], "owner_id": ws["owner_id"],
+                "organization_id": ws["organization_id"], "current_workspace_id": ws["id"], "disk_expansion": True,
+                "rich_parameter_values": [{"name": "home_disk_size", "value": str(size)}]})
+            if not decision.get("allowed"):
+                return h.send_json(403, {"error": decision.get("message"), "quota": True}) or True
         op_id = start_expand(token, ws, int(size) if type(size) is int or (type(size) is float and size.is_integer()) else None, user["username"])
         return h.send_json(200, {"disk": op_id}) or True
     mb = re.match(r"^/backups/(\d+)/download$", sub)
