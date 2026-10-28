@@ -34,10 +34,12 @@ export type LavaSettings = {
 	blobs: LavaBlob[];
 	/** The orb's width, in percent of the picture (or of the window's shorter side). */
 	size: number;
-	/** Behind the orb's glass; with transparent, only inside the orb. */
+	/** The backdrop's colour, unless transparent. */
 	backdrop: string;
-	/** Nothing around the orb: no backdrop there and, in a picture (whose GIF cannot hold a soft glow), no glow. */
+	/** No backdrop: what is behind shows around the orb and through its glass. */
 	transparent: boolean;
+	/** Every copy (each tile of a background, each place a lava picture shows) turns, cycles and lies differently; off: all alike and in step. */
+	vary: boolean;
 };
 
 /** lava.html's six lumps. */
@@ -117,12 +119,45 @@ export const LAVA_PICTURE_DEFAULT: LavaSettings = {
 	// The dark theme's surface (--surface-primary, hsl(240 10% 4%)).
 	backdrop: "#09090b",
 	transparent: true,
+	vary: true,
 };
 
 /** A background: the orb in the middle of the window, its glow around it. */
 export const LAVA_BACKGROUND_DEFAULT: LavaSettings = {
 	...LAVA_PICTURE_DEFAULT,
 	size: 60,
+};
+
+/** A seeded random number generator (mulberry32): the same numbers for the same seed. */
+export const seededRandom = (seed: number) => {
+	let a = seed | 0;
+	return () => {
+		a = (a + 0x6d2b79f5) | 0;
+		let t = Math.imul(a ^ (a >>> 15), 1 | a);
+		t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+		return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+	};
+};
+
+/** How one copy differs from the settings: its speed, turn and mirroring of the lava, colour-cycle start and lump phases. */
+export type LavaVariation = {
+	speed: number;
+	turn: number;
+	mirror: boolean;
+	cycle: number;
+	phases: readonly number[];
+};
+
+/** A copy's own variation, the same for the same seed. */
+export const lavaVariation = (s: LavaSettings, seed: number): LavaVariation => {
+	const random = seededRandom(seed);
+	return {
+		speed: 0.85 + random() * 0.3,
+		turn: random() * 360,
+		mirror: random() < 0.5,
+		cycle: random(),
+		phases: s.blobs.map(() => random()),
+	};
 };
 
 /** A new lump, placed and turning at random (lava.html's "Add Lava"). */
@@ -198,6 +233,7 @@ export const lavaSettings = (
 		),
 		backdrop: color(v.backdrop, fallback.backdrop),
 		transparent: flag(v.transparent, fallback.transparent),
+		vary: flag(v.vary, fallback.vary),
 	};
 };
 
@@ -320,10 +356,6 @@ export const blobAngle = (
 	return (blob.reverse ? -turn : turn) * 360;
 };
 
-/** How long the animation takes to come back to where it started. */
-export const lavaLoopSeconds = (s: LavaSettings) =>
-	s.cycle ? s.spin * 3 : s.spin;
-
 const round = (n: number) => Math.round(n * 1000) / 1000;
 
 /**
@@ -362,8 +394,10 @@ const MAX_TILES = 48;
  * the orb placed by the background's fit, its size a share of the length that
  * fit goes by: the window's longer side (Fill), its shorter side (Fit inside),
  * its width (Span), each side (Stretch: an oval), or the orb's own size
- * (Center; Tile, repeated across, at most 48 times). Inline styles and script
- * only, as the platform service serves HTML backgrounds.
+ * (Center; Tile, repeated across, at most 48 times, each orb its own speed,
+ * colour-cycle start, lump phases and turn of its lava unless vary is off: the
+ * same for the same tile every time). Inline styles and script only, as the
+ * platform service serves HTML backgrounds.
  */
 export const lavaHTML = (
 	settings: LavaSettings,
@@ -396,11 +430,13 @@ body{display:grid;grid-template-columns:1fr}
 </style></head><body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="goo"><feGaussianBlur in="SourceGraphic" stdDeviation="5"/><feColorMatrix values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -9"/></filter></svg>
 <template id="lamp"><div class="lamp"><div class="glow g1"></div><div class="glow g2"></div><div class="loader"><div class="inner">${blobs}</div></div></div></template>
-<script>(()=>{const F=${JSON.stringify(fit)},S=${s.size / 100},N=${NATURAL_PX},M=${MAX_TILES},B=document.body,T=document.getElementById("lamp");
+<script>(()=>{const F=${JSON.stringify(fit)},S=${s.size / 100},N=${NATURAL_PX},M=${MAX_TILES},V=${s.vary},P=${s.spin},C=${s.cycle},B=document.body,T=document.getElementById("lamp");
+const rng=(a)=>()=>{a=(a+0x6d2b79f5)|0;let t=Math.imul(a^(a>>>15),1|a);t=(t+Math.imul(t^(t>>>7),61|t))^t;return((t^(t>>>14))>>>0)/4294967296};
+const vary=(l,i)=>{const r=rng(i*7919+1),t=P*(0.85+r()*0.3);l.style.setProperty("--t",t+"s");if(C)l.style.animationDelay=-r()*3*t+"s";const v=l.querySelector(".inner");v.style.transform="rotate("+Math.floor(r()*360)+"deg)"+(r()<0.5?" scaleX(-1)":"");for(const b of v.children)b.style.animationDelay=-r()*t+"s"};
 const lay=()=>{const W=innerWidth,H=innerHeight;for(const c of [...B.querySelectorAll(".cell")])c.remove();
 let n=1,x,y;if(F==="tile"){const side=Math.max(N*S,Math.sqrt((W*H)/M));const cols=Math.ceil(W/side),rows=Math.ceil(H/side);n=cols*rows;B.style.gridTemplateColumns="repeat("+cols+",1fr)";B.style.gridAutoRows=H/rows+"px";x=y=Math.min(W/cols,H/rows)*0.9/100}
 else{B.style.gridTemplateColumns="1fr";B.style.gridAutoRows="100%";const o=F==="cover"?Math.max(W,H)*S:F==="span"?W*S:F==="center"?N*S:Math.min(W,H)*S;x=F==="stretch"?(W*S)/100:o/100;y=F==="stretch"?(H*S)/100:o/100}
-for(let i=0;i<n;i++){const c=document.createElement("div");c.className="cell";const l=T.content.firstElementChild.cloneNode(true);if(x===y)l.style.zoom=String(x);else l.style.transform="scale("+x+","+y+")";c.appendChild(l);B.appendChild(c)}};
+for(let i=0;i<n;i++){const c=document.createElement("div");c.className="cell";const l=T.content.firstElementChild.cloneNode(true);if(V&&n>1)vary(l,i);if(x===y)l.style.zoom=String(x);else l.style.transform="scale("+x+","+y+")";c.appendChild(l);B.appendChild(c)}};
 addEventListener("resize",lay);lay()})()</script>
 </body></html>`;
 };

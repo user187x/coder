@@ -24,6 +24,7 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "#/components/DropdownMenu/DropdownMenu";
+import { ExternalImage } from "#/components/ExternalImage/ExternalImage";
 import { FileUpload } from "#/components/FileUpload/FileUpload";
 import { Loader } from "#/components/Loader/Loader";
 import {
@@ -251,7 +252,7 @@ const LogoPreview: React.FC<LogoPreviewProps> = ({
 					: "h-[72px] items-center gap-4",
 			)}
 		>
-			<img
+			<ExternalImage
 				src={src || DEFAULT_LOGO_URL}
 				alt="Logo"
 				className={cn("max-w-[200px] object-contain", signIn ? "h-12" : "h-7")}

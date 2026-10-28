@@ -325,9 +325,12 @@ export const normalizeImage = async (
 				fit.height === decoded.height &&
 				fit.source.width === decoded.width &&
 				fit.source.height === decoded.height;
-			// Already the right size and small enough: re-encoding would only lose colours (a made lava lamp).
+			// Already the right size and small enough: kept as it is. Re-encoding would only lose colours, or
+			// a lava picture's settings (lava/lavaPng.ts).
 			output =
-				type === "image/gif" && fits && bytes.length <= target.maxOutputBytes
+				(type === "image/gif" || type === "image/png") &&
+				fits &&
+				bytes.length <= target.maxOutputBytes
 					? {
 							bytes,
 							type,

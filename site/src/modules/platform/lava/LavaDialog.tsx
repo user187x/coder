@@ -10,7 +10,8 @@ import {
 } from "#/components/Dialog/Dialog";
 import { Spinner } from "#/components/Spinner/Spinner";
 import { type LavaPictureOptions, lavaPicture } from "./drawLava";
-import { LavaControls, LavaPreview } from "./LavaControls";
+import { LavaControls } from "./LavaControls";
+import { LiveLava } from "./LiveLava";
 import { LAVA_PICTURE_DEFAULT, type LavaSettings } from "./lava";
 
 /** What most choosers take: a 256-pixel picture of at most 1 MB (the icon editor's limit). */
@@ -19,15 +20,21 @@ export const LAVA_PICTURE_OUTPUT: LavaPictureOptions = {
 	maxBytes: 1024 * 1024,
 };
 
+/** Copies shown in the dialog when each copy varies. */
+const COPY_SEEDS = [11, 23, 37, 41];
+
 /**
  * Platform: the lava lamp in an image chooser, beside the image store: a live
- * preview with its dials, then "Use this" makes it an animated picture (one
- * whole loop) and gives it to the chooser as a file, as an upload would be.
+ * preview with its dials, then "Use this" gives the chooser its picture as a
+ * file, as an upload would be: a still carrying the settings, from which the
+ * dashboard draws every copy live (each its own with vary on). With onSettings
+ * (a background, drawn live itself), the settings instead.
  */
 export const LavaDialog: React.FC<{
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	onCreate: (file: File) => void;
+	onSettings?: (settings: LavaSettings) => void;
 	/** Previewed in a circle, as an avatar is shown. */
 	round?: boolean;
 	output?: LavaPictureOptions;
@@ -35,6 +42,7 @@ export const LavaDialog: React.FC<{
 	open,
 	onOpenChange,
 	onCreate,
+	onSettings,
 	round,
 	output = LAVA_PICTURE_OUTPUT,
 }) => {
@@ -43,6 +51,11 @@ export const LavaDialog: React.FC<{
 	const [problem, setProblem] = useState<string>();
 
 	const create = () => {
+		if (onSettings) {
+			onOpenChange(false);
+			onSettings(settings);
+			return;
+		}
 		setBusy(true);
 		setProblem(undefined);
 		lavaPicture(settings, output)
@@ -76,18 +89,40 @@ export const LavaDialog: React.FC<{
 				<DialogHeader>
 					<DialogTitle>Lava lamp</DialogTitle>
 					<DialogDescription>
-						Set its speed, colours and lava. The preview is exactly the picture
-						you get: one whole loop, animated.
+						Set its speed, colours and lava. It is drawn live wherever it shows,
+						sharp at any size; with Vary each orb, every copy is its own.
 					</DialogDescription>
 				</DialogHeader>
 				<div className="grid min-w-0 gap-6 sm:grid-cols-[auto_minmax(0,1fr)]">
 					<div className="flex flex-col items-center gap-2">
 						<div className="rounded-lg border border-solid border-border bg-surface-secondary p-3">
-							<LavaPreview settings={settings} size={208} round={round} />
+							<LiveLava
+								settings={{ ...settings, vary: false }}
+								size={208}
+								className={round ? "rounded-full" : undefined}
+							/>
 						</div>
 						<span className="text-xs text-content-secondary">
 							{round ? "As your avatar's circle shows it" : "Preview"}
 						</span>
+						{settings.vary && (
+							<div className="flex flex-col items-center gap-1.5">
+								<div className="flex gap-2">
+									{COPY_SEEDS.map((seed) => (
+										<LiveLava
+											key={seed}
+											settings={settings}
+											seed={seed}
+											size={44}
+											className={round ? "rounded-full" : undefined}
+										/>
+									))}
+								</div>
+								<span className="text-xs text-content-secondary">
+									Copies, each its own
+								</span>
+							</div>
+						)}
 					</div>
 					<div className="max-h-[min(60vh,520px)] min-w-0 overflow-y-auto pr-1">
 						<LavaControls
@@ -134,7 +169,11 @@ export const LavaEntry: React.FC<{
 		data-testid="lava-entry"
 		className="flex w-full cursor-pointer items-center gap-3 rounded-md border border-solid border-border bg-surface-secondary p-2 text-left font-[inherit] text-content-primary transition-colors hover:border-content-link focus-visible:border-content-link focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60"
 	>
-		<LavaPreview settings={LAVA_PICTURE_DEFAULT} size={40} round />
+		<LiveLava
+			settings={LAVA_PICTURE_DEFAULT}
+			size={40}
+			className="shrink-0 rounded-full"
+		/>
 		<span className="flex min-w-0 flex-col">
 			<span className="text-sm font-semibold">Lava lamp</span>
 			<span className="truncate text-xs text-content-secondary">

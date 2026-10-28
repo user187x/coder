@@ -12,6 +12,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "#/components/Dialog/Dialog";
+import { ExternalImage } from "#/components/ExternalImage/ExternalImage";
 import { Spinner } from "#/components/Spinner/Spinner";
 import { setUserAvatar } from "#/contexts/platformBoot";
 import { GalleryPicker } from "../gallery/GalleryPicker";
@@ -97,7 +98,11 @@ const AvatarDialog: React.FC<AvatarDialogProps> = ({ onClose }) => {
 						{meQuery.isLoading ? (
 							<Spinner loading />
 						) : preview ? (
-							<img src={preview} alt="" className="size-full object-cover" />
+							<ExternalImage
+								src={preview}
+								alt=""
+								className="size-full object-cover"
+							/>
 						) : (
 							initials
 						)}

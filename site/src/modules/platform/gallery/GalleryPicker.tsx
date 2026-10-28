@@ -8,6 +8,7 @@ import {
 } from "../imageStore/imageStore";
 import type { LavaPictureOptions } from "../lava/drawLava";
 import { LavaDialog, LavaEntry } from "../lava/LavaDialog";
+import type { LavaSettings } from "../lava/lava";
 import type { PrebakedPicture } from "../pictures";
 
 export type GalleryPickerProps = {
@@ -33,6 +34,8 @@ export type GalleryPickerProps = {
 	onPickBuiltin?: (picture: PrebakedPicture) => void;
 	/** Platform: the size and limit of a lava lamp made here (LavaDialog); it comes as a file, like an upload. */
 	lava?: LavaPictureOptions;
+	/** Platform: a lava lamp made here comes as its settings instead (a background draws it live itself). */
+	onLava?: (settings: LavaSettings) => void;
 };
 
 /**
@@ -53,6 +56,7 @@ export const GalleryPicker: React.FC<GalleryPickerProps> = ({
 	layout,
 	onChosen,
 	lava,
+	onLava,
 }) => {
 	const { images } = useImageStore(extra);
 	const [loading, setLoading] = useState<string>();
@@ -67,6 +71,14 @@ export const GalleryPicker: React.FC<GalleryPickerProps> = ({
 				onOpenChange={setLavaOpen}
 				round={tile === "round"}
 				output={lava}
+				onSettings={
+					onLava &&
+					((settings) => {
+						onSelect?.(undefined);
+						onLava(settings);
+						onChosen?.();
+					})
+				}
 				onCreate={(file) => {
 					onSelect?.(undefined);
 					onPick(file);

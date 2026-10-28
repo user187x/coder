@@ -495,7 +495,19 @@ const BackgroundCard: React.FC<{
 						busy={preparing}
 						gallery={{
 							extra: PREBAKED_BACKGROUNDS,
-							lava: { size: 384, maxBytes: MAX_BYTES },
+							// Drawn live as the Lava lamp source, not as a picture.
+							onLava: (lava) => {
+								setProblem(undefined);
+								setGalleryPick(undefined);
+								change({
+									source: "lava",
+									lava: { ...lava, size: Math.min(lava.size, 60) },
+									fit: "contain",
+									dataURL: undefined,
+									picture: undefined,
+									name: undefined,
+								});
+							},
 							selected: draft.source === "image" ? galleryPick : undefined,
 							onSelect: setGalleryPick,
 							disabled: busy,

@@ -1,11 +1,11 @@
-import { applyPalette, GIFEncoder, quantize } from "gifenc";
 import {
 	blobAngle,
 	type LavaSettings,
+	type LavaVariation,
 	lavaHue,
-	lavaLoopSeconds,
 	lavaPalette,
 } from "./lava";
+import { withLavaSettings } from "./lavaPng";
 
 type Ctx = CanvasRenderingContext2D;
 
@@ -56,7 +56,9 @@ const hueRotate = (data: Uint8ClampedArray, degrees: number) => {
  * draws it: the glow outside the orb (box-shadow), the glass (gradient, inset
  * shadows, top and bottom border), the lumps merged by the goo filter (blur,
  * then alpha × 22 − 9), and the colour cycle (hue-rotate) over all of it. The
- * backdrop goes behind; with transparent, only inside the orb.
+ * backdrop goes behind, unless transparent. A variation
+ * makes one copy its own: its speed, the turn and mirroring of its lava, where
+ * its colour cycle and each lump start.
  */
 export const lavaRenderer = (size: number) => {
 	const lamp = newContext(size);
@@ -65,7 +67,22 @@ export const lavaRenderer = (size: number) => {
 	// Safari before 18 has no canvas filters: the lumps are drawn without merging.
 	const canBlur = typeof goo.filter === "string";
 
-	return (target: Ctx, s: LavaSettings, seconds: number) => {
+	return (
+		target: Ctx,
+		settings: LavaSettings,
+		seconds: number,
+		variation?: LavaVariation,
+	) => {
+		const s = variation
+			? {
+					...settings,
+					spin: settings.spin / variation.speed,
+					blobs: settings.blobs.map((b, i) => ({
+						...b,
+						phase: b.phase + (variation.phases[i] ?? 0),
+					})),
+				}
+			: settings;
 		const p = lavaPalette(s);
 		const u = (size * s.size) / 10_000;
 		const c = size / 2;
@@ -77,28 +94,26 @@ export const lavaRenderer = (size: number) => {
 
 		lamp.setTransform(1, 0, 0, 1, 0, 0);
 		lamp.clearRect(0, 0, size, size);
-		if (!s.transparent) {
-			for (const [color, blur, dy] of [
-				[p.shadowOuter, 25, 0],
-				[p.shadowInner, 50, 20],
-			] as const) {
-				lamp.save();
-				lamp.shadowColor = color;
-				lamp.shadowBlur = blur * u;
-				lamp.shadowOffsetX = FAR;
-				lamp.shadowOffsetY = dy * u;
-				lamp.fillStyle = "#000";
-				circle(lamp, c - FAR);
-				lamp.fill();
-				lamp.restore();
-			}
-			// A box-shadow is not drawn under its box.
+		for (const [color, blur, dy] of [
+			[p.shadowOuter, 25, 0],
+			[p.shadowInner, 50, 20],
+		] as const) {
 			lamp.save();
-			lamp.globalCompositeOperation = "destination-out";
-			circle(lamp);
+			lamp.shadowColor = color;
+			lamp.shadowBlur = blur * u;
+			lamp.shadowOffsetX = FAR;
+			lamp.shadowOffsetY = dy * u;
+			lamp.fillStyle = "#000";
+			circle(lamp, c - FAR);
 			lamp.fill();
 			lamp.restore();
 		}
+		// A box-shadow is not drawn under its box.
+		lamp.save();
+		lamp.globalCompositeOperation = "destination-out";
+		circle(lamp);
+		lamp.fill();
+		lamp.restore();
 
 		lamp.save();
 		circle(lamp);
@@ -143,7 +158,12 @@ export const lavaRenderer = (size: number) => {
 			const w = b.size * u;
 			const px = x + (w * b.originX) / 100;
 			const py = y + (w * b.originY) / 100;
-			blobs.setTransform(1, 0, 0, 1, px, py);
+			blobs.setTransform(1, 0, 0, 1, c, c);
+			if (variation) {
+				blobs.rotate((variation.turn * Math.PI) / 180);
+				blobs.scale(variation.mirror ? -1 : 1, 1);
+			}
+			blobs.translate(px - c, py - c);
 			blobs.rotate((blobAngle(s, b, seconds) * Math.PI) / 180);
 			blobs.translate(-px, -py);
 			const lava = blobs.createLinearGradient(0, y, 0, y + w);
@@ -177,7 +197,10 @@ export const lavaRenderer = (size: number) => {
 		goo.globalCompositeOperation = "source-over";
 		lamp.drawImage(goo.canvas, 0, 0);
 
-		const hue = lavaHue(s, seconds);
+		const hue = lavaHue(
+			s,
+			seconds + (variation ? variation.cycle * s.spin * 3 : 0),
+		);
 		if (hue) {
 			const all = lamp.getImageData(0, 0, size, size);
 			hueRotate(all.data, hue);
@@ -185,136 +208,50 @@ export const lavaRenderer = (size: number) => {
 		}
 
 		target.clearRect(0, 0, size, size);
-		target.fillStyle = s.backdrop;
-		if (s.transparent) {
-			circle(target);
-			target.fill();
-		} else {
+		if (!s.transparent) {
+			target.fillStyle = s.backdrop;
 			target.fillRect(0, 0, size, size);
 		}
 		target.drawImage(lamp.canvas, 0, 0);
 	};
 };
 
-type Quality = { fps: number; colors: number };
-
-/**
- * Smoothness and colours, best first. Frame rates are ones whose frame times
- * GIF stores exactly (hundredths of a second).
- */
-const QUALITIES: readonly Quality[] = [
-	{ fps: 20, colors: 256 },
-	{ fps: 12.5, colors: 128 },
-	{ fps: 10, colors: 64 },
-	{ fps: 6.25, colors: 32 },
-];
-
-/** Measured: the lava lamp's GIF grows with its side to the power 1.26 and with its frame rate; fewer colours shrink it so. */
-const COLOR_COST: Record<number, number> = {
-	256: 1,
-	128: 0.84,
-	64: 0.7,
-	32: 0.58,
-};
-const SIDE_POWER = 1.26;
-const cost = (side: number, q: Quality) =>
-	side ** SIDE_POWER * q.fps * COLOR_COST[q.colors];
-
-/** A quality keeps at least this share of the asked size before a choppier one is tried. */
-const KEEP_SIZE = 0.85;
-/** Smaller than this, a picture is no longer worth making. */
-const MIN_SIDE = 32;
-/** The small first try that measures how large these settings make a GIF. */
-const PROBE_SIDE = 64;
-
-/** One loop as an animated GIF; nearly transparent pixels become its one transparent colour. */
-const encodeGif = async (
-	s: LavaSettings,
-	size: number,
-	{ fps, colors }: Quality,
-): Promise<Uint8Array> => {
-	const loop = lavaLoopSeconds(s);
-	const frames = Math.max(1, Math.round(loop * fps));
-	const out = newContext(size);
-	const draw = lavaRenderer(size);
-	const gif = GIFEncoder();
-	for (let i = 0; i < frames; i++) {
-		draw(out, s, (i * loop) / frames);
-		const { data } = out.getImageData(0, 0, size, size);
-		// Colours from RGB at 5-6-5 bits (smoother gradients than RGBA at 4 bits), the last one transparent.
-		const palette = quantize(data, colors - 1, { format: "rgb565" });
-		const index = applyPalette(data, palette, "rgb565");
-		const transparentIndex = palette.length;
-		let transparent = false;
-		for (let px = 0; px < index.length; px++) {
-			if (data[px * 4 + 3] < 128) {
-				index[px] = transparentIndex;
-				transparent = true;
-			}
-		}
-		gif.writeFrame(index, size, size, {
-			palette: transparent ? [...palette, [0, 0, 0]] : palette,
-			delay: 1000 / fps,
-			dispose: 2,
-			...(i === 0 ? { repeat: 0 } : {}),
-			...(transparent ? { transparent: true, transparentIndex } : {}),
-		});
-		if (i % 4 === 3) {
-			// Let the page breathe: a loop takes a moment.
-			await new Promise((resolve) => setTimeout(resolve, 0));
-		}
-	}
-	gif.finish();
-	return gif.bytes();
-};
-
-/** What a chooser takes: the picture's best size and its limit. */
+/** What a chooser takes: the picture's size and its limit. */
 export type LavaPictureOptions = {
 	/** Width and height in pixels, at best. */
 	size: number;
-	/** The chooser's limit; the picture is made smaller or choppier until it fits. */
+	/** The chooser's limit; the picture is made smaller until it fits. */
 	maxBytes: number;
 };
 
+const toPng = async (ctx: Ctx): Promise<Uint8Array> => {
+	const blob = await new Promise<Blob | null>((resolve) =>
+		ctx.canvas.toBlob(resolve, "image/png"),
+	);
+	if (!blob) {
+		throw new Error("This browser could not make the picture.");
+	}
+	return new Uint8Array(await blob.arrayBuffer());
+};
+
 /**
- * The lava lamp as an animated GIF of one whole loop, as large and smooth as
- * the chooser's limit allows, whatever the settings: a small first try
- * measures how large they make a GIF, which sets the size and smoothness to
- * make it at; a try that still comes out too large measures again and is
- * made smaller, until it fits.
+ * The lava lamp as a picture: a still PNG of its first moment carrying its
+ * settings (lavaPng.ts), from which the dashboard draws every copy live. The
+ * still is what shows where it cannot, such as another application.
  */
 export const lavaPicture = async (
 	s: LavaSettings,
 	{ size, maxBytes }: LavaPictureOptions,
 ): Promise<File> => {
-	const target = maxBytes * 0.92;
-	const probe = await encodeGif(s, PROBE_SIDE, QUALITIES[0]);
-	// Bytes per unit of cost, from the latest try.
-	let rate = probe.length / cost(PROBE_SIDE, QUALITIES[0]);
-	const largest = (q: Quality) =>
-		Math.min(
-			size,
-			Math.floor(
-				(target / (rate * q.fps * COLOR_COST[q.colors])) ** (1 / SIDE_POWER),
-			),
-		);
-	for (let attempt = 0; attempt < 6; attempt++) {
-		const quality =
-			QUALITIES.find((q) => largest(q) >= size * KEEP_SIZE) ??
-			QUALITIES[QUALITIES.length - 1];
-		const side = largest(quality);
-		if (side < MIN_SIDE) {
-			break;
-		}
-		const bytes = await encodeGif(s, side, quality);
-		if (bytes.length <= maxBytes) {
-			return new File([Uint8Array.from(bytes)], "lava.gif", {
-				type: "image/gif",
+	for (let side = size; side >= 32; side = Math.round(side * 0.8)) {
+		const out = newContext(side);
+		lavaRenderer(side)(out, s, 0);
+		const png = withLavaSettings(await toPng(out), s);
+		if (png.length <= maxBytes) {
+			return new File([Uint8Array.from(png)], "lava.png", {
+				type: "image/png",
 			});
 		}
-		rate = bytes.length / cost(side, quality);
 	}
-	throw new Error(
-		"This picture's size limit is too small for the lava lamp. Turn off the colour cycle or use fewer lumps.",
-	);
+	throw new Error("This picture's size limit is too small for the lava lamp.");
 };

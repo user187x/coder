@@ -72,4 +72,23 @@ describe("GalleryPicker", () => {
 		expect(settings.size).toBe(100);
 		expect(output).toEqual(lava);
 	});
+
+	it("gives a background the lava lamp's settings, to draw it live, not a picture", async () => {
+		vi.spyOn(PlatformAPI, "getGallery").mockResolvedValue({ images: [] });
+		const onPick = vi.fn();
+		const onLava = vi.fn();
+		vi.mocked(lavaPicture).mockClear();
+		renderPicker({ onPick, onLava });
+		await userEvent.click(screen.getByRole("button", { name: /Lava lamp/ }));
+		await userEvent.click(
+			await screen.findByRole("button", { name: "Use this" }),
+		);
+		await waitFor(() =>
+			expect(onLava).toHaveBeenCalledWith(
+				expect.objectContaining({ name: "lava", vary: true }),
+			),
+		);
+		expect(onPick).not.toHaveBeenCalled();
+		expect(lavaPicture).not.toHaveBeenCalled();
+	});
 });

@@ -16,6 +16,8 @@ import {
 	resolvePlatformAvatar,
 	usePlatformSnapshot,
 } from "#/contexts/platformBoot";
+import { LiveLava } from "#/modules/platform/lava/LiveLava";
+import { useLavaImage } from "#/modules/platform/lava/useLavaImage";
 import { useAppearance } from "#/theme/appearance";
 import { getExternalImageStylesFromUrl } from "#/theme/externalImages";
 
@@ -89,6 +91,7 @@ export const Avatar: React.FC<AvatarProps> = ({
 			? resolvePlatformAvatar(platform, fallback, src)
 			: undefined;
 	const imageSrc = uploadedSrc ?? src;
+	const lava = useLavaImage(imageSrc);
 
 	const isEmoji = imageSrc?.startsWith("/emojis/");
 	const avatarSizeToken = size === "lg" || size === "sm" ? size : "default";
@@ -111,16 +114,28 @@ export const Avatar: React.FC<AvatarProps> = ({
 			}}
 			{...props}
 		>
-			<AvatarPrimitive.Image
-				src={imageSrc}
-				alt={alt}
-				className={cn(
-					"aspect-square size-full",
-					uploadedSrc ? "rounded-full object-cover" : "object-contain",
-				)}
-				style={getExternalImageStylesFromUrl(externalImages, imageSrc)}
-			/>
-			{fallback && (
+			{lava ? (
+				// Platform: a lava picture is drawn live, each copy its own.
+				<LiveLava
+					settings={lava}
+					alt={alt}
+					className={cn(
+						"aspect-square size-full",
+						uploadedSrc && "rounded-full",
+					)}
+				/>
+			) : (
+				<AvatarPrimitive.Image
+					src={imageSrc}
+					alt={alt}
+					className={cn(
+						"aspect-square size-full",
+						uploadedSrc ? "rounded-full object-cover" : "object-contain",
+					)}
+					style={getExternalImageStylesFromUrl(externalImages, imageSrc)}
+				/>
+			)}
+			{fallback && !lava && (
 				<AvatarPrimitive.Fallback className="flex h-full w-full items-center justify-center rounded-full">
 					{fallback.slice(0, 2).toUpperCase()}
 				</AvatarPrimitive.Fallback>

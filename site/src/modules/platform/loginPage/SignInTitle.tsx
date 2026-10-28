@@ -1,6 +1,7 @@
 import { useQuery } from "react-query";
 import { LOGIN_PAGE_DEFAULT, type LoginPageSettings } from "#/api/platform";
 import { loginPage } from "#/api/queries/platform";
+import { ExternalImage } from "#/components/ExternalImage/ExternalImage";
 import { ContourTitle } from "#/modules/platform/contourTitle/ContourTitle";
 
 const SIGNED_OUT_KEY = "coder-ui-signed-out";
@@ -66,7 +67,7 @@ export const SignInTitle: React.FC<SignInTitleProps> = ({
 		<div className="mb-8 flex flex-col items-center gap-3">
 			<h1 className="m-0 flex justify-center leading-none">
 				{settings.headingMode === "image" && settings.headingImage ? (
-					<img
+					<ExternalImage
 						src={settings.headingImage}
 						alt={settings.title || applicationName}
 						className="max-h-32 max-w-full object-contain"

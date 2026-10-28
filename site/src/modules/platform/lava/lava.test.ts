@@ -5,8 +5,8 @@ import {
 	LAVA_PICTURE_DEFAULT,
 	lavaHTML,
 	lavaHue,
-	lavaLoopSeconds,
 	lavaSettings,
+	lavaVariation,
 	randomBlob,
 } from "./lava";
 
@@ -29,13 +29,11 @@ describe("the lava lamp's settings", () => {
 
 	it("cycles the colours as lava.html's keyframes do, over three turns", () => {
 		const s = { ...LAVA_PICTURE_DEFAULT, spin: 2 };
-		expect(lavaLoopSeconds(s)).toBe(6);
 		expect(lavaHue(s, 0)).toBeCloseTo(0);
 		expect(lavaHue(s, 0.6 * 6)).toBeCloseTo(-90);
 		expect(lavaHue(s, 0.8 * 6)).toBeCloseTo(-45);
 		expect(lavaHue(s, 6)).toBeCloseTo(0);
 		expect(lavaHue({ ...s, cycle: false }, 3.6)).toBe(0);
-		expect(lavaLoopSeconds({ ...s, cycle: false })).toBe(2);
 	});
 
 	it("turns each lump from its starting phase, reversed ones the other way", () => {
@@ -53,9 +51,23 @@ describe("the lava lamp's settings", () => {
 		expect(html.match(/class="blob"/g)).toHaveLength(3);
 		expect(html).toContain('F="contain",S=0.6');
 		expect(lavaHTML(LAVA_BACKGROUND_DEFAULT, "cover")).toContain('F="cover"');
+		expect(html).toContain("V=true");
+		expect(
+			lavaHTML({ ...LAVA_BACKGROUND_DEFAULT, vary: false }, "tile"),
+		).toContain("V=false");
 		expect(html).toContain("background:transparent");
 		expect(
 			lavaHTML({ ...LAVA_BACKGROUND_DEFAULT, cycle: false }),
 		).not.toContain("animation:colorize");
+	});
+
+	it("gives each copy its own variation, the same for the same seed", () => {
+		const s = LAVA_PICTURE_DEFAULT;
+		expect(lavaVariation(s, 7)).toEqual(lavaVariation(s, 7));
+		expect(lavaVariation(s, 7)).not.toEqual(lavaVariation(s, 8));
+		const v = lavaVariation(s, 7);
+		expect(v.phases).toHaveLength(s.blobs.length);
+		expect(v.speed).toBeGreaterThanOrEqual(0.85);
+		expect(v.speed).toBeLessThanOrEqual(1.15);
 	});
 });

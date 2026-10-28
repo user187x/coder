@@ -1,11 +1,7 @@
-import { cn } from "cn";
 import { MinusIcon, PlusIcon, RotateCcwIcon, ShuffleIcon } from "lucide-react";
-import { useEffect, useRef } from "react";
 import { Button } from "#/components/Button/Button";
-import { useAnimationsEnabled } from "../animations/animations";
 import { Slider, Toggle } from "../background/HtmlBackgroundControls";
 import { ColorField } from "../ColorField";
-import { lavaRenderer } from "./drawLava";
 import { LAVA_LIMITS, type LavaSettings, randomBlob } from "./lava";
 
 const COLOR_PRESETS = {
@@ -22,66 +18,6 @@ const COLOR_PRESETS = {
 		{ name: "Plum", value: "#7a1dbe" },
 	],
 } as const;
-
-/**
- * The lava lamp drawn live, exactly as its picture will be (the same renderer):
- * still while the dashboard's motion effects are off.
- */
-export const LavaPreview: React.FC<{
-	settings: LavaSettings;
-	/** Width and height in CSS pixels. */
-	size: number;
-	/** Shown in a circle, as an avatar is. */
-	round?: boolean;
-	className?: string;
-}> = ({ settings, size, round, className }) => {
-	const canvasRef = useRef<HTMLCanvasElement>(null);
-	const renderer = useRef<{
-		px: number;
-		draw: ReturnType<typeof lavaRenderer>;
-	}>(null);
-	const start = useRef(performance.now());
-	const animated = useAnimationsEnabled();
-
-	useEffect(() => {
-		const canvas = canvasRef.current;
-		const ctx = canvas?.getContext("2d");
-		if (!canvas || !ctx) {
-			return;
-		}
-		const px = Math.round(size * window.devicePixelRatio);
-		if (renderer.current?.px !== px) {
-			canvas.width = px;
-			canvas.height = px;
-			try {
-				renderer.current = { px, draw: lavaRenderer(px) };
-			} catch {
-				return;
-			}
-		}
-		const { draw } = renderer.current;
-		if (!animated) {
-			draw(ctx, settings, 0);
-			return;
-		}
-		let frame = 0;
-		const tick = (now: number) => {
-			draw(ctx, settings, (now - start.current) / 1000);
-			frame = requestAnimationFrame(tick);
-		};
-		frame = requestAnimationFrame(tick);
-		return () => cancelAnimationFrame(frame);
-	}, [settings, size, animated]);
-
-	return (
-		<canvas
-			ref={canvasRef}
-			aria-hidden
-			style={{ width: size, height: size }}
-			className={cn("block shrink-0", round && "rounded-full", className)}
-		/>
-	);
-};
 
 /**
  * The lava lamp's dials (lava.html's controls and more): speed, the two
@@ -196,30 +132,25 @@ export const LavaControls: React.FC<{
 					? "Of the picture's width. At 100% the orb is exactly an avatar's circle."
 					: "Of what the Fit goes by: the window's longer side (Fill), shorter side (Fit inside), width (Span), each side (Stretch), or the orb's own 256 px (Center, Tile)."}
 			</span>
-			{picture ? (
-				<Toggle
-					label="Glow and backdrop around the orb"
-					hint="Off: only the orb, nothing around it"
-					checked={!value.transparent}
-					onChange={(around) =>
-						set({
-							transparent: !around,
-							// The glow needs room: a picture-filling orb would leave none.
-							...(around && value.size > 75 ? { size: 62 } : {}),
-						})
-					}
-				/>
-			) : (
-				<Toggle
-					label="Backdrop"
-					hint="Off: the page shows around the orb and through its glass"
-					checked={!value.transparent}
-					onChange={(backdrop) => set({ transparent: !backdrop })}
-				/>
-			)}
-			{(picture || !value.transparent) && (
+			<Toggle
+				label="Backdrop"
+				hint="Off: what is behind shows around the orb and through its glass"
+				checked={!value.transparent}
+				onChange={(backdrop) => set({ transparent: !backdrop })}
+			/>
+			<Toggle
+				label="Vary each orb"
+				hint={
+					picture
+						? "Every place it shows draws its own: its speed, colours and lava differ; off: all alike and in step"
+						: "Tiled orbs each turn, cycle and lie differently; off: all in step"
+				}
+				checked={value.vary}
+				onChange={(vary) => set({ vary })}
+			/>
+			{!value.transparent && (
 				<ColorField
-					label={value.transparent ? "Behind the glass" : "Backdrop"}
+					label="Backdrop colour"
 					value={value.backdrop}
 					onChange={(backdrop) => set({ backdrop })}
 				/>
