@@ -14,16 +14,20 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { cn } from "cn";
-import { GripVerticalIcon, PlusIcon, Trash2Icon } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import {
+	ChevronDownIcon,
+	GripVerticalIcon,
+	SettingsIcon,
+	Trash2Icon,
+} from "lucide-react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Link } from "react-router";
 import {
-	DropdownMenuItem,
-	DropdownMenuLabel,
-	DropdownMenuSub,
-	DropdownMenuSubContent,
-	DropdownMenuSubTrigger,
-} from "#/components/DropdownMenu/DropdownMenu";
+	Collapsible,
+	CollapsibleContent,
+} from "#/components/Collapsible/Collapsible";
+import { DropdownMenuItem } from "#/components/DropdownMenu/DropdownMenu";
+import "./adminQuickLinksMenu.css";
 import type { AdminPage } from "./adminQuickLinks";
 
 type AdminQuickLinksMenuProps = {
@@ -48,6 +52,8 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 	onChange,
 	itemClassName,
 }) => {
+	const [expanded, setExpanded] = useState(false);
+	const choicesId = useId();
 	const ids = links.map((link) => link.id);
 	// The page being moved with the keyboard, if any.
 	const [moving, setMoving] = useState<string>();
@@ -125,34 +131,56 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 				</SortableContext>
 			</DndContext>
 
-			{addable.length > 0 && (
-				<DropdownMenuSub>
-					<DropdownMenuSubTrigger
-						aria-label="Add a quick link"
-						title="Add a quick link"
-						className={cn("text-content-secondary", itemClassName)}
-					>
-						<PlusIcon aria-hidden />
-					</DropdownMenuSubTrigger>
-					<DropdownMenuSubContent className="max-h-[var(--radix-dropdown-menu-content-available-height)] overflow-y-auto">
-						<DropdownMenuLabel>Add a quick link</DropdownMenuLabel>
-						{addable.map((page) => (
-							<DropdownMenuItem
-								key={page.id}
-								onSelect={(event) => {
-									// Stay open, so several pages can be added in a row.
-									event.preventDefault();
-									onChange([...ids, page.id]);
-									setAnnouncement(`${page.label} added to the quick links.`);
-								}}
-							>
-								<page.icon aria-hidden />
-								{page.label}
-							</DropdownMenuItem>
-						))}
-					</DropdownMenuSubContent>
-				</DropdownMenuSub>
-			)}
+			<Collapsible open={expanded} onOpenChange={setExpanded}>
+				<DropdownMenuItem
+					aria-expanded={expanded}
+					aria-controls={choicesId}
+					className={cn(
+						itemClassName,
+						"my-1 rounded-full border border-solid border-border text-content-secondary focus:bg-surface-secondary",
+					)}
+					onSelect={(event) => {
+						event.preventDefault();
+						setExpanded(!expanded);
+					}}
+				>
+					<SettingsIcon aria-hidden />
+					Settings
+					<ChevronDownIcon
+						aria-hidden
+						className={cn(
+							"ml-auto transition-transform motion-reduce:transition-none",
+							expanded && "rotate-180",
+						)}
+					/>
+				</DropdownMenuItem>
+				<CollapsibleContent
+					id={choicesId}
+					className="admin-quick-link-choices overflow-hidden"
+				>
+					<div className="my-1 rounded-lg border border-solid border-border bg-surface-secondary p-1">
+						{addable.length === 0 ? (
+							<p className="m-0 p-2 text-xs text-content-secondary">
+								All available settings are in your quick links.
+							</p>
+						) : (
+							addable.map((page) => (
+								<DropdownMenuItem
+									key={page.id}
+									onSelect={(event) => {
+										event.preventDefault();
+										onChange([...ids, page.id]);
+										setAnnouncement(`${page.label} added to the quick links.`);
+									}}
+								>
+									<page.icon aria-hidden />
+									{page.label}
+								</DropdownMenuItem>
+							))
+						)}
+					</div>
+				</CollapsibleContent>
+			</Collapsible>
 
 			<span className="sr-only" aria-live="polite">
 				{announcement}

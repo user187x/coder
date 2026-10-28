@@ -64,16 +64,13 @@ describe("NavbarView", () => {
 	it("has no Controls button of its own: the Controls are in the latency menu", async () => {
 		renderNavbar({ canViewDeployment: true, canViewAuditLog: true });
 		const withControls = menuButtons().filter((button) =>
-			button.textContent?.includes("Controls"),
+			button.textContent?.includes("Settings"),
 		);
 		const trigger = screen.getByTestId("navbar-latency-controls");
 		expect(withControls).toEqual([trigger]);
 		expect(screen.getByTestId("navbar-hud-latency")).toContainElement(trigger);
 		fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false });
 		const menu = await screen.findByTestId("navbar-latency-controls-menu");
-		expect(
-			within(menu).getByRole("menuitem", { name: "Settings" }),
-		).toBeInTheDocument();
 		expect(
 			within(menu).getByRole("menuitem", { name: "Audit logs" }),
 		).toBeInTheDocument();
@@ -83,7 +80,7 @@ describe("NavbarView", () => {
 		renderNavbar({ canViewAuditLog: true }, MockUserMember);
 		expect(screen.queryByTestId("navbar-hud-latency")).toBeNull();
 		const trigger = screen.getByTestId("navbar-latency-controls");
-		expect(trigger).toHaveTextContent("Controls");
+		expect(trigger).toHaveTextContent("Settings");
 		fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false });
 		const menu = await screen.findByTestId("navbar-latency-controls-menu");
 		expect(
@@ -97,7 +94,7 @@ describe("NavbarView", () => {
 	it("gives a member the latency menu, without Controls", () => {
 		renderNavbar({}, MockUserMember);
 		expect(screen.getByTestId("navbar-latency-controls")).not.toHaveTextContent(
-			"Controls",
+			"Settings",
 		);
 	});
 

@@ -42,12 +42,25 @@ export const AccountResourcesCell: React.FC<{
 						variant="outline"
 						size="sm"
 						aria-label={`Resources for ${user.username}: ${summary}`}
-						className="h-auto min-h-8 w-full min-w-0 gap-2 whitespace-normal py-1.5 text-left"
+						className="h-auto min-h-8 w-full min-w-0 gap-1 whitespace-nowrap px-1.5 py-1.5 text-left"
 					>
 						<span className="flex min-w-0 flex-col gap-0.5">
 							<span className="text-xs font-medium">Resources</span>
-							<span className="text-[10px] font-normal text-content-secondary">
-								{summary}
+							<span className="flex items-center gap-1 whitespace-nowrap text-[9px] font-normal tabular-nums text-content-secondary">
+								{entry ? (
+									<>
+										<span className="text-content-primary">WS</span>{" "}
+										{formatQuotaNumber(entry.usage.workspaces)}
+										<span aria-hidden>·</span>
+										<span className="text-content-primary">CPU</span>{" "}
+										{formatQuotaNumber(entry.usage.cpu)}
+										<span aria-hidden>·</span>
+										<span className="text-content-primary">RAM</span>{" "}
+										{formatQuotaNumber(entry.usage.memory)} GiB
+									</>
+								) : (
+									summary
+								)}
 							</span>
 						</span>
 						<ChevronDownIcon aria-hidden className="size-3.5" />

@@ -45,17 +45,17 @@ type ProxyMenuProps = {
 	canManageTunnels?: boolean;
 	tunnelActorId?: string;
 	/**
-	 * Platform: the HUD's link joined on its left (admins): one split button - HUD, then the latency, "Controls" and
+	 * Platform: the HUD's link joined on its left (admins): one split button - HUD, then the latency, "Settings" and
 	 * the menu's chevron - in the place of three buttons.
 	 */
 	hud?: boolean;
-	/** Platform: the Controls menu, under the Workspaces row; the button then says "Controls". */
+	/** Platform: the Controls menu, under the Workspaces row; the button then says "Settings". */
 	controls?: ProxyMenuControls;
 };
 
 /**
  * Platform: the top bar's latency and Controls menu, one button where there were two. The button shows the latency
- * to the selected region in a pill (the antenna in the latency's colour), then "Controls" and the chevron. The menu
+ * to the selected region in a pill (the antenna in the latency's colour), then "Settings" and the chevron. The menu
  * holds the Workspaces row, which shows the latency to each workspace while it is pressed (WorkspacesLatencyMenu),
  * and under it the whole Controls menu, its graphs last, in a rounded box. With more than one region, a Region row comes first
  * (Coder's region picker). Each opening measures the latency again. The workspaces chosen in the locked Workspaces
@@ -117,7 +117,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 		<>
 			{pill}
 			{/* Without the pill or the Controls, the menu is the workspaces' latency. */}
-			{controls ? "Controls" : !pill && "Workspaces"}
+			{controls ? "Settings" : !pill && "Workspaces"}
 			<ChevronDownIcon className="text-content-primary" />
 		</>
 	);
@@ -125,7 +125,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 	const title = [
 		selectedProxy && `Latency to ${selectedProxy.display_name}`,
 		"your workspaces",
-		controls && "the Controls",
+		controls && "the Settings",
 	]
 		.filter(Boolean)
 		.join(", ");
@@ -146,7 +146,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 					<div
 						role="group"
 						aria-label={
-							controls ? "HUD, latency and Controls" : "HUD and latency"
+							controls ? "HUD, latency and Settings" : "HUD and latency"
 						}
 						className="navbar-split"
 						data-testid="navbar-hud-latency"
@@ -281,7 +281,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 					{/* Platform: the whole Controls menu, its graphs last, in a rounded box of its own */}
 					{controls && (
 						<nav
-							aria-label="Controls"
+							aria-label="Settings"
 							data-testid="controls-group"
 							className="mx-1 mt-2 mb-1 rounded-lg border border-solid border-border p-1"
 						>

@@ -43,6 +43,7 @@ describe("editableFields", () => {
 			picture: "",
 			pictureFit: "span",
 			countdown: "",
+			countdownAction: "none",
 			opacity: 100,
 		});
 	});

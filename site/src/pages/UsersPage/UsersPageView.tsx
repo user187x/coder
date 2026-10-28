@@ -4,16 +4,16 @@ import { Link } from "react-router";
 import type * as TypesGen from "#/api/typesGenerated";
 import { Button } from "#/components/Button/Button";
 import { UsersFilter } from "#/components/Filter/UsersFilter";
-import {
-	PaginationContainer,
-	type PaginationResult,
-} from "#/components/PaginationWidget/PaginationContainer";
+import { PaginationAmount } from "#/components/PaginationWidget/PaginationAmount";
+import type { PaginationResult } from "#/components/PaginationWidget/PaginationContainer";
+import { PaginationWidgetBase } from "#/components/PaginationWidget/PaginationWidgetBase";
 import {
 	SettingsHeader,
 	SettingsHeaderDescription,
 	SettingsHeaderTitle,
 } from "#/components/SettingsHeader/SettingsHeader";
 import { AccountShareCables } from "#/modules/platform/cloudDrive/AccountShareCables";
+import { TableCard } from "#/modules/platform/tableCard/TableCard";
 import { BulkUserActions } from "#/modules/users/BulkUserActions";
 import {
 	UserActionDialogs,
@@ -93,9 +93,17 @@ export const UsersPageView: React.FC<UsersPageViewProps> = ({
 						/>
 					)}
 
-					<PaginationContainer
-						query={usersQuery}
-						paginationUnitLabel="accounts"
+					<TableCard
+						summary={
+							<PaginationAmount
+								limit={usersQuery.limit}
+								totalRecords={usersQuery.totalRecords}
+								currentOffsetStart={usersQuery.currentOffsetStart}
+								countIsCapped={usersQuery.countIsCapped}
+								paginationUnitLabel="accounts"
+								className="h-auto"
+							/>
+						}
 					>
 						{/* Platform: who shares their Cloud Drive with whom, as the Cloud Drive's cables between the rows. */}
 						<UsersTable
@@ -105,7 +113,18 @@ export const UsersPageView: React.FC<UsersPageViewProps> = ({
 							selected={props.canEditUsers ? selectedIds : undefined}
 							onSelect={setSelectedIds}
 						/>
-					</PaginationContainer>
+					</TableCard>
+					{usersQuery.totalRecords !== undefined && (
+						<PaginationWidgetBase
+							totalRecords={usersQuery.totalRecords}
+							totalPages={usersQuery.totalPages}
+							currentPage={usersQuery.currentPage}
+							pageSize={usersQuery.limit}
+							onPageChange={usersQuery.onPageChange}
+							hasPreviousPage={usersQuery.hasPreviousPage}
+							hasNextPage={usersQuery.hasNextPage}
+						/>
+					)}
 				</section>
 			</AccountShareCables>
 

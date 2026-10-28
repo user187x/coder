@@ -1,4 +1,4 @@
-import { type FC, useId, useState } from "react";
+import { type FC, useEffect, useId, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { toast } from "sonner";
 import { organizations as organizationsQuery } from "#/api/queries/organizations";
@@ -6,6 +6,7 @@ import { decideQuotaRequest, quotaRequests } from "#/api/queries/quotaRequests";
 import type { QuotaDecision, QuotaRequest } from "#/api/quotaRequests";
 import type { Organization, User } from "#/api/typesGenerated";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
+import { Badge } from "#/components/Badge/Badge";
 import { Button } from "#/components/Button/Button";
 import {
 	Dialog,
@@ -127,41 +128,68 @@ export const QuotaAdjustments: FC<{
 	const [open, setOpen] = useState(false);
 	const auth = useAuthenticated();
 	const admin = auth.user.roles.some((role) => role.name === "owner");
-	const query = useQuery({ ...quotaRequests(true), enabled: open && admin });
+	const query = useQuery({ ...quotaRequests(true), enabled: admin });
 	const queryClient = useQueryClient();
 	const decide = useMutation(decideQuotaRequest(queryClient));
 	const organizations = useQuery({
 		...organizationsQuery(),
 		enabled: open && admin,
 	});
-	if (!admin) return null;
+
 	const requests =
 		query.data?.requests.filter(
 			(request) => !user || request.user_id === user.id,
 		) ?? [];
+	const seenKey = `coder:quota-requests-viewed:${auth.user.id}`;
+	const [seen, setSeen] = useState<readonly string[]>(() => {
+		try {
+			const saved: unknown = JSON.parse(localStorage.getItem(seenKey) ?? "[]");
+			return Array.isArray(saved)
+				? saved.filter((id): id is string => typeof id === "string")
+				: [];
+		} catch {
+			return [];
+		}
+	});
+	const pendingIds = requests
+		.filter((request) => request.status === "pending")
+		.map((request) => request.id);
+	const unread = pendingIds.filter((id) => !seen.includes(id)).length;
+	useEffect(() => {
+		try {
+			localStorage.setItem(seenKey, JSON.stringify(seen));
+		} catch {
+			/* Storage may be unavailable in private browsing. */
+		}
+	}, [seenKey, seen]);
+	const viewRequests = () => {
+		setSeen((previous) => [...new Set([...previous, ...pendingIds])]);
+		decide.reset();
+		setOpen(true);
+	};
+	if (!admin) return null;
+
 	return (
 		<>
-			<Button
-				variant="outline"
-				size="sm"
-				onClick={() => {
-					decide.reset();
-					setOpen(true);
-				}}
-			>
-				{user ? "Quota requests" : "Review extra quota requests"}
+			<Button variant="outline" size="sm" onClick={viewRequests}>
+				Quota Requests
+				{!open && unread > 0 && (
+					<Badge aria-label={`${unread} unread quota requests`}>{unread}</Badge>
+				)}
 			</Button>
 			<Dialog
 				open={open}
 				onOpenChange={(next) => {
-					if (!decide.isPending) setOpen(next);
+					if (!decide.isPending) {
+						if (!next && query.data && !query.isError)
+							setSeen((previous) => [...new Set([...previous, ...pendingIds])]);
+						setOpen(next);
+					}
 				}}
 			>
 				<DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
 					<DialogTitle>
-						{user
-							? `Quota requests: ${user.username}`
-							: "Review extra quota requests"}
+						{user ? `Quota requests: ${user.username}` : "Quota Requests"}
 					</DialogTitle>
 					<DialogDescription>
 						Review requests and manage approved personal quota additions.

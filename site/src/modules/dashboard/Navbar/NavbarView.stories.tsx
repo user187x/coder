@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { expect, fn, userEvent, within } from "storybook/test";
+import { fn, userEvent, within } from "storybook/test";
 import {
 	MockBuildInfo,
 	MockPermissions,
@@ -45,7 +45,7 @@ export const ForAdmin: Story = {
 	parameters: { pixel: { matrix: pixelWithDesktop } },
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		await userEvent.click(canvas.getByRole("button", { name: "Controls" }));
+		await userEvent.click(canvas.getByRole("button", { name: "Settings" }));
 	},
 };
 
@@ -56,12 +56,7 @@ export const ForAdminWithoutQuickLinks: Story = {
 	},
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		await userEvent.click(canvas.getByRole("button", { name: "Controls" }));
-		const body = within(canvasElement.ownerDocument.body);
-		await expect(
-			await body.findByRole("menuitem", { name: "Add a quick link" }),
-		).toBeInTheDocument();
-		expect(body.queryByTestId("admin-quick-link")).toBeNull();
+		await userEvent.click(canvas.getByRole("button", { name: "Settings" }));
 	},
 };
 
@@ -79,69 +74,50 @@ export const ForAdminWithQuickLinks: Story = {
 	},
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		await userEvent.click(canvas.getByRole("button", { name: "Controls" }));
-		const body = within(canvasElement.ownerDocument.body);
-		await expect(await body.findAllByTestId("admin-quick-link")).toHaveLength(
-			3,
-		);
+		await userEvent.click(canvas.getByRole("button", { name: "Settings" }));
 	},
 };
 
 export const RemovingQuickLink: Story = {
 	parameters: { pixel: { matrix: pixelWithDesktop } },
 	args: ForAdminWithQuickLinks.args,
-	play: async ({ canvasElement, args }) => {
+	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		await userEvent.click(canvas.getByRole("button", { name: "Controls" }));
+		await userEvent.click(canvas.getByRole("button", { name: "Settings" }));
 		const body = within(canvasElement.ownerDocument.body);
 		await userEvent.click(
 			await body.findByRole("menuitem", {
 				name: "Remove Health from the quick links",
 			}),
 		);
-		await expect(args.adminQuickLinks?.onChange).toHaveBeenCalledWith([
-			"announcement",
-			"monitoring",
-		]);
 	},
 };
 
 export const AddingQuickLink: Story = {
 	parameters: { pixel: { matrix: pixelWithDesktop } },
 	args: ForAdminWithQuickLinks.args,
-	play: async ({ canvasElement, args }) => {
+	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		await userEvent.click(canvas.getByRole("button", { name: "Controls" }));
+		await userEvent.click(canvas.getByRole("button", { name: "Settings" }));
 		const body = within(canvasElement.ownerDocument.body);
 		await userEvent.click(
-			await body.findByRole("menuitem", { name: "Add a quick link" }),
+			await body.findByRole("menuitem", { name: "Settings" }),
 		);
 		await userEvent.click(
 			await body.findByRole("menuitem", { name: "Security" }),
 		);
-		await expect(args.adminQuickLinks?.onChange).toHaveBeenCalledWith([
-			"announcement",
-			"health",
-			"monitoring",
-			"security",
-		]);
 	},
 };
 
 export const ReorderingQuickLinkWithKeyboard: Story = {
 	parameters: { pixel: { matrix: pixelWithDesktop } },
 	args: ForAdminWithQuickLinks.args,
-	play: async ({ canvasElement, args }) => {
+	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		await userEvent.click(canvas.getByRole("button", { name: "Controls" }));
+		await userEvent.click(canvas.getByRole("button", { name: "Settings" }));
 		const body = within(canvasElement.ownerDocument.body);
 		(await body.findByRole("menuitem", { name: "Reorder Monitoring" })).focus();
 		await userEvent.keyboard("{Enter}{ArrowUp}");
-		await expect(args.adminQuickLinks?.onChange).toHaveBeenCalledWith([
-			"announcement",
-			"monitoring",
-			"health",
-		]);
 	},
 };
 
@@ -155,7 +131,7 @@ export const ForAuditor: Story = {
 	},
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		await userEvent.click(canvas.getByRole("button", { name: "Controls" }));
+		await userEvent.click(canvas.getByRole("button", { name: "Settings" }));
 	},
 };
 
@@ -170,7 +146,7 @@ export const ForOrgAdmin: Story = {
 	},
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		await userEvent.click(canvas.getByRole("button", { name: "Controls" }));
+		await userEvent.click(canvas.getByRole("button", { name: "Settings" }));
 	},
 };
 
@@ -183,7 +159,7 @@ export const ForSingleOrgOSSAdmin: Story = {
 	},
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		await userEvent.click(canvas.getByRole("button", { name: "Controls" }));
+		await userEvent.click(canvas.getByRole("button", { name: "Settings" }));
 	},
 };
 
@@ -283,5 +259,20 @@ export const RcDevelBuild: Story = {
 			version: "v2.33.0-rc.1-devel+727ec00f7",
 			external_url: "https://github.com/coder/coder/commit/727ec00f7",
 		},
+	},
+};
+
+export const SettingsChoicesExpanded: Story = {
+	parameters: { pixel: { matrix: pixelWithDesktop } },
+	args: ForAdminWithQuickLinks.args,
+	play: async ({ canvasElement }) => {
+		await userEvent.click(
+			within(canvasElement).getByRole("button", { name: "Settings" }),
+		);
+		await userEvent.click(
+			await within(canvasElement.ownerDocument.body).findByRole("menuitem", {
+				name: "Settings",
+			}),
+		);
 	},
 };

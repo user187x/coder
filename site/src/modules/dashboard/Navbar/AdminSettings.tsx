@@ -1,9 +1,4 @@
-import {
-	Building2Icon,
-	CableIcon,
-	ScrollTextIcon,
-	SettingsIcon,
-} from "lucide-react";
+import { Building2Icon, CableIcon, ScrollTextIcon } from "lucide-react";
 import { Link } from "react-router";
 import { DropdownMenuItem } from "#/components/DropdownMenu/DropdownMenu";
 import { ClusterGauge } from "#/modules/platform/ClusterGauge";
@@ -54,15 +49,6 @@ export type AdminSettingsPermissions = {
 	canEditDeployment?: boolean;
 };
 
-/**
- * Builds the ordered list of Admin menu items for the given permissions. The
- * deployment settings are called "Settings" (they open General; the menu
- * itself is "Controls"). Under it are
- * the admin's quick links to General's categories, none until they add some
- * with the row after them; each link can be removed or dragged into another
- * place. The menu ends with
- * the cluster's CPU and memory, which only admins get an answer for.
- */
 export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
 	itemClassName,
 	permissions,
@@ -71,14 +57,6 @@ export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
 }) => {
 	return (
 		<>
-			{permissions.canViewDeployment && (
-				<DropdownMenuItem asChild className={itemClassName}>
-					<Link to="/deployment">
-						<SettingsIcon aria-hidden />
-						Settings
-					</Link>
-				</DropdownMenuItem>
-			)}
 			{quickLinksEditor ? (
 				<AdminQuickLinksMenu
 					links={quickLinks}

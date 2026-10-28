@@ -333,7 +333,24 @@ export const PersistenceMap: React.FC<{ report: PersistenceReport }> = ({
 					)}
 				</div>
 				{cluster && (
-					<Box title="Backups" dashed={!backups?.configured} data-node="backup">
+					<Box
+						title="Backups"
+						dashed={!backups?.configured}
+						data-node="backup"
+						className={
+							!backups?.configured || !backups.schedule || backups.count === 0
+								? "border-content-warning/60"
+								: undefined
+						}
+						style={
+							!backups?.configured || !backups.schedule || backups.count === 0
+								? {
+										backgroundImage:
+											"repeating-linear-gradient(135deg, transparent 0 10px, hsl(var(--content-warning) / 0.14) 10px 20px)",
+									}
+								: undefined
+						}
+					>
 						<div className="font-semibold">
 							{backups?.configured ? backups.method : "None scheduled"}
 						</div>

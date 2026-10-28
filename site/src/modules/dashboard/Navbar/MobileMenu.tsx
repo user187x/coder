@@ -239,7 +239,7 @@ const AdminSettingsSub: React.FC<AdminSettingsSubProps> = ({
 						setOpen((prev) => !prev);
 					}}
 				>
-					Controls
+					Settings
 					<ChevronRightIcon
 						className={cn("ml-auto", open ? "rotate-90" : "")}
 					/>

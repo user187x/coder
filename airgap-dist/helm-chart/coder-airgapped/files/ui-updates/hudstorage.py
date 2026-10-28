@@ -20,15 +20,27 @@ def fresh(stats):
 
 
 def collect(kube, nodes, summaries, quantity):
-    """Unknown or partial physical totals stay null; PVC usage is deduplicated across pod mounts."""
+    """Unknown or partial totals stay null; PVC usage is deduplicated across mounts.
+
+    Set coder.com/storage-pool only on nodes sharing the same root filesystem
+    capacity (for example k3d containers on one host), never independent disks.
+    """
     ready = [n for n in nodes if any(c.get('type') == 'Ready' and c.get('status') == 'True'
              for c in (n.get('status') or {}).get('conditions') or [])]
     disks, volumes = [], {}
+    pools = {}
     for n in ready:
         summary = summaries.get((n.get('metadata') or {}).get('name')) or {}
         fs = (summary.get('node') or {}).get('fs') or {}
         if fresh(fs) and all(number(fs.get(k)) is not None for k in ('usedBytes', 'capacityBytes', 'availableBytes')):
             disks.append(fs)
+            meta = n.get('metadata') or {}
+            pool = (meta.get('labels') or {}).get('coder.com/storage-pool') or meta.get('name')
+            previous = pools.get(pool)
+            pools[pool] = fs if previous is None else dict(
+                capacityBytes=min(previous['capacityBytes'], fs['capacityBytes']),
+                usedBytes=max(previous['usedBytes'], fs['usedBytes']),
+                availableBytes=min(previous['availableBytes'], fs['availableBytes']))
         for pod in summary.get('pods') or []:
             for volume in pod.get('volume') or []:
                 ref = volume.get('pvcRef') or {}
@@ -74,7 +86,7 @@ def collect(kube, nodes, summaries, quantity):
         group['volumes'] += 1
         group['capacity'] += capacity
     complete = bool(ready) and len(disks) == len(ready)
-    total = lambda key: sum(fs[key] for fs in disks) / GIB if complete else None
+    total = lambda key: sum(fs[key] for fs in pools.values()) / GIB if complete else None
     measured = [group['used'] for group in classes.values() if group['used'] is not None]
     largest = max(claims, default=(None, ''), key=lambda claim: claim[0])
     return dict(used=total('usedBytes'), total=total('capacityBytes'), free=total('availableBytes'),

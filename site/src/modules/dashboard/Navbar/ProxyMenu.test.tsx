@@ -93,8 +93,8 @@ describe("ProxyMenu", () => {
 		expect(pill).toHaveTextContent(/Latency for/);
 		expect(pill).toHaveTextContent(/ms/);
 		expect(pill.querySelector("svg")).toHaveClass("text-content-success");
-		// "Controls" to the pill's right
-		expect(pill.nextSibling?.textContent).toBe("Controls");
+		// "Settings" to the pill's right
+		expect(pill.nextSibling?.textContent).toBe("Settings");
 	});
 
 	it("is the latency menu alone without the HUD, and says Controls only with them", () => {
@@ -103,7 +103,7 @@ describe("ProxyMenu", () => {
 		expect(screen.queryByRole("link", { name: /HUD/ })).toBeNull();
 		const button = screen.getByRole("button", { name: /Latency for/ });
 		expect(button).toBeVisible();
-		expect(button).not.toHaveTextContent("Controls");
+		expect(button).not.toHaveTextContent("Settings");
 	});
 
 	it("holds the Workspaces row, then the whole Controls menu, its graphs last - no Default row", async () => {
@@ -118,7 +118,6 @@ describe("ProxyMenu", () => {
 			.filter((item) => !list.contains(item));
 		expect(items.map((item) => item.textContent?.trim())).toEqual([
 			expect.stringMatching(/^Workspaces/),
-			"Settings",
 			...pages.slice(0, 2).map((page) => page.label),
 			"Organizations",
 			"Audit logs",
@@ -126,7 +125,7 @@ describe("ProxyMenu", () => {
 		]);
 		expect(items[0]).toBe(within(menu).getByTestId("workspaces-latency"));
 		// the graphs at the very bottom
-		const nav = within(menu).getByRole("navigation", { name: "Controls" });
+		const nav = within(menu).getByRole("navigation", { name: "Settings" });
 		expect(menu.lastElementChild).toBe(nav);
 		expect(nav.lastElementChild).toBe(gauge);
 		// the old first row (the region, its latency and its house) and the refresh row are gone
@@ -175,11 +174,11 @@ describe("ProxyMenu", () => {
 		});
 		const trigger = screen.getByTestId("navbar-latency-controls");
 		expect(screen.queryByTestId("navbar-latency-pill")).toBeNull();
-		expect(trigger).toHaveTextContent(/^Controls$/);
+		expect(trigger).toHaveTextContent(/^Settings$/);
 		const menu = await openMenu();
 		await waitFor(() =>
 			expect(
-				within(menu).getByRole("menuitem", { name: "Settings" }),
+				within(menu).getByRole("menuitem", { name: "Accounts" }),
 			).toBeInTheDocument(),
 		);
 	});

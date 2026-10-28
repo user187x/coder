@@ -1,5 +1,12 @@
 import { cn } from "cn";
-import { CircleCheckIcon, TriangleAlertIcon } from "lucide-react";
+import {
+	CircleCheckIcon,
+	CpuIcon,
+	HardDriveIcon,
+	MemoryStickIcon,
+	MonitorIcon,
+	TriangleAlertIcon,
+} from "lucide-react";
 import { createContext, useContext, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { toast } from "sonner";
@@ -34,6 +41,13 @@ import { QuotaClusterLoad } from "./QuotaClusterLoad";
 import { formatQuotaNumber, quotaUserColor } from "./quotaFormatting";
 
 const KEYS: readonly QuotaKey[] = ["workspaces", "cpu", "memory", "disk"];
+
+const RESOURCE_ICONS = {
+	workspaces: MonitorIcon,
+	cpu: CpuIcon,
+	memory: MemoryStickIcon,
+	disk: HardDriveIcon,
+};
 
 const LABELS: Record<QuotaKey, string> = {
 	workspaces: "Workspaces",
@@ -284,116 +298,151 @@ export const UserQuotaSection: React.FC<{
 				)}
 			</Header>
 
-			<Main className="gap-4" style={{ paddingBottom: 0 }}>
+			<Main className="gap-3" style={{ paddingBottom: 0 }}>
 				{error ? <ErrorAlert error={error} /> : null}
 				{!report && !error && <Loader />}
 				{report && draft && (
-					<>
-						<QuotaClusterLoad report={report} />
-
-						<section className="rounded-lg border border-border p-3 flex flex-col gap-3">
-							<div>
-								<h3 className="m-0 text-base font-medium">Default quota</h3>
-								<p className="m-0 mt-1 text-sm text-content-secondary">
-									Set limits across all workspaces or per workspace. Empty means
-									unlimited. Disk counts allocated home storage, including
-									stopped workspaces.
-								</p>
-							</div>
-							<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-								{KEYS.map((k) => (
-									<div key={k} className="flex flex-col gap-1.5 text-sm">
-										<Label htmlFor={`quota-default-${k}`}>{LABELS[k]}</Label>
-										<Input
-											id={`quota-default-${k}`}
-											inputMode="decimal"
-											placeholder="No limit"
-											value={draft.default[k]}
-											onChange={(e) =>
-												setDraft({
-													...draft,
-													default: { ...draft.default, [k]: e.target.value },
-												})
-											}
-										/>
-										{k !== "workspaces" && (
-											<>
-												<Label className="sr-only" htmlFor={`quota-mode-${k}`}>
-													{LABELS[k]} limit applies to
-												</Label>
-												<Select
-													value={draft.resourceModes[k]}
-													disabled={saving}
-													onValueChange={(value) => {
-														if (value === "cumulative" || value === "instance")
-															setDraft({
-																...draft,
-																resourceModes: {
-																	...draft.resourceModes,
-																	[k]: value,
-																},
-															});
-													}}
-												>
-													<SelectTrigger id={`quota-mode-${k}`}>
-														<SelectValue />
-													</SelectTrigger>
-													<SelectContent>
-														<SelectItem value="cumulative">
-															Cumulative across workspaces
-														</SelectItem>
-														<SelectItem value="instance">
-															Per workspace instance
-														</SelectItem>
-													</SelectContent>
-												</Select>
-											</>
-										)}
+					<div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+						<div className="min-w-0 flex flex-col gap-3">
+							<section className="rounded-lg border border-border p-3 flex flex-col gap-3">
+								<div>
+									<div className="flex flex-wrap items-center justify-between gap-2">
+										<h3 className="m-0 text-base font-medium">Default quota</h3>
+										{quotaAdjustments ?? <QuotaAdjustments />}
 									</div>
-								))}
-							</div>
-							<div className="flex items-center gap-3 text-sm">
-								<Switch
-									id="quota-exempt-admins"
-									checked={draft.exemptAdmins}
-									onCheckedChange={(checked) =>
-										setDraft({ ...draft, exemptAdmins: checked })
-									}
-								/>
-								<Label htmlFor="quota-exempt-admins">
-									Administrators are exempt
-								</Label>
-							</div>
-						</section>
+									<p className="m-0 mt-1 text-sm text-content-secondary">
+										Empty means unlimited. Disk includes stopped workspaces.
+									</p>
+								</div>
+								<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+									{KEYS.map((k) => (
+										<div key={k} className="flex flex-col gap-1.5 text-sm">
+											<Label
+												htmlFor={`quota-default-${k}`}
+												className="flex items-center gap-1.5"
+											>
+												{(() => {
+													const Icon = RESOURCE_ICONS[k];
+													return (
+														<Icon
+															aria-hidden
+															className="size-3.5 text-content-secondary"
+														/>
+													);
+												})()}
+												{LABELS[k]}
+											</Label>
+											<div className="flex min-w-0 items-center rounded-md border border-solid border-input focus-within:ring-1 focus-within:ring-content-link">
+												<Input
+													id={`quota-default-${k}`}
+													className={cn(
+														"min-w-0 border-0 shadow-none focus-visible:ring-0",
+														k !== "workspaces" &&
+															"w-16 shrink-0 rounded-r-none",
+													)}
+													inputMode="decimal"
+													placeholder="No limit"
+													value={draft.default[k]}
+													onChange={(e) =>
+														setDraft({
+															...draft,
+															default: {
+																...draft.default,
+																[k]: e.target.value,
+															},
+														})
+													}
+												/>
+												{k !== "workspaces" && (
+													<>
+														<Label
+															className="sr-only"
+															htmlFor={`quota-mode-${k}`}
+														>
+															{LABELS[k]} limit applies to
+														</Label>
+														<Select
+															value={draft.resourceModes[k]}
+															disabled={saving}
+															onValueChange={(value) => {
+																if (
+																	value === "cumulative" ||
+																	value === "instance"
+																)
+																	setDraft({
+																		...draft,
+																		resourceModes: {
+																			...draft.resourceModes,
+																			[k]: value,
+																		},
+																	});
+															}}
+														>
+															<SelectTrigger
+																id={`quota-mode-${k}`}
+																className="min-w-0 flex-1 rounded-l-none border-0 border-l border-solid border-input text-xs shadow-none focus:ring-0"
+															>
+																<SelectValue />
+															</SelectTrigger>
+															<SelectContent>
+																<SelectItem value="cumulative">
+																	Cumulative across workspaces
+																</SelectItem>
+																<SelectItem value="instance">
+																	Per workspace instance
+																</SelectItem>
+															</SelectContent>
+														</Select>
+													</>
+												)}
+											</div>
+										</div>
+									))}
+								</div>
+								<div className="flex flex-wrap items-center gap-3 text-sm">
+									<Switch
+										id="quota-exempt-admins"
+										checked={draft.exemptAdmins}
+										onCheckedChange={(checked) =>
+											setDraft({ ...draft, exemptAdmins: checked })
+										}
+									/>
+									<Label htmlFor="quota-exempt-admins">
+										Administrators are exempt
+									</Label>
+									<div className="ml-auto flex items-center gap-2">
+										{dirty && (
+											<Button variant="outline" onClick={onDiscard}>
+												Discard changes
+											</Button>
+										)}
+										<Button disabled={!dirty || saving} onClick={onSave}>
+											{saving ? "Saving…" : "Save"}
+										</Button>
+									</div>
+								</div>
+							</section>
 
-						<p className="m-0 text-sm text-content-secondary">
-							Open an account’s Resources panel above to see allocations against
-							its effective quota, with darker bars for running workspaces and
-							live usage. Empty overrides use the default;{" "}
-							<code>{NO_LIMIT}</code> removes the limit. Approved additions
-							apply globally until revoked.
-						</p>
-						{quotaAdjustments ?? <QuotaAdjustments />}
-
-						<div className="flex items-center gap-3">
-							<Button disabled={!dirty || saving} onClick={onSave}>
-								{saving ? "Saving…" : "Save quota"}
-							</Button>
-							{dirty && (
-								<Button variant="outline" onClick={onDiscard}>
-									Discard changes
-								</Button>
-							)}
-							<span className="ml-auto text-xs text-content-secondary">
-								Allocations use each workspace's{" "}
-								<code>{report.parameters.cpu}</code> and{" "}
-								<code>{report.parameters.memory}</code> and{" "}
-								<code>{report.parameters.disk ?? "home_disk_size"}</code>{" "}
-								parameters. Updated{" "}
-								{new Date(report.generatedAt).toLocaleTimeString("en-US")}.
-							</span>
+							<details className="text-xs text-content-secondary">
+								<summary className="cursor-pointer">How quotas work</summary>
+								<p>
+									Use each account’s Resources panel for overrides. Empty uses
+									the default; <code>{NO_LIMIT}</code> removes the limit.
+									Approved additions apply until revoked.
+								</p>
+								<p>
+									Allocations use <code>{report.parameters.cpu}</code>,{" "}
+									<code>{report.parameters.memory}</code> and{" "}
+									<code>{report.parameters.disk ?? "home_disk_size"}</code>.
+									Updated{" "}
+									{new Date(report.generatedAt).toLocaleTimeString("en-US")}.
+								</p>
+							</details>
 						</div>
-					</>
+						<div className="min-w-0 rounded-lg border border-border p-3">
+							<QuotaClusterLoad report={report} />
+						</div>
+					</div>
 				)}
 				<div className="rounded-lg border border-solid border-border p-3">
 					<WorkspaceSchedulerSection />

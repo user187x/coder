@@ -41,3 +41,17 @@ export const seconds = (s: number | null | undefined) => {
 			? `${Math.round(a / 60)} min`
 			: `${Math.round(a / 3600)} h`;
 };
+
+/** Keeps node identity colors stable across filtering and refreshes. */
+export const nodeBadgeStyle = (name: string) => {
+	let hash = 0;
+	for (const character of name) {
+		hash = (Math.imul(hash, 31) + character.charCodeAt(0)) >>> 0;
+	}
+	const hue = (hash * 137.508) % 360;
+	return {
+		color: `hsl(${hue} 70% 82%)`,
+		backgroundColor: `hsl(${hue} 45% 18%)`,
+		borderColor: `hsl(${hue} 55% 43%)`,
+	};
+};

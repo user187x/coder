@@ -1,0 +1,28 @@
+@keyframes quick-links-expand {
+	from {
+		height: 0;
+		opacity: 0;
+	}
+	to {
+		height: var(--radix-collapsible-content-height);
+		opacity: 1;
+	}
+}
+@keyframes quick-links-collapse {
+	from {
+		height: var(--radix-collapsible-content-height);
+		opacity: 1;
+	}
+	to {
+		height: 0;
+		opacity: 0;
+	}
+}
+@media (prefers-reduced-motion: no-preference) {
+	.admin-quick-link-choices[data-state="open"] {
+		animation: quick-links-expand 180ms ease-out;
+	}
+	.admin-quick-link-choices[data-state="closed"] {
+		animation: quick-links-collapse 180ms ease-out;
+	}
+}

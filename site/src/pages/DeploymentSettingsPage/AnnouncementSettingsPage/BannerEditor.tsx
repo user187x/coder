@@ -198,6 +198,7 @@ const nextHour = (): string => {
 };
 
 type BannerEditorProps = {
+	visibility?: React.ReactNode;
 	preview?: React.ReactNode;
 	previewing?: boolean;
 	onPreviewChange?: (previewing: boolean) => void;
@@ -217,6 +218,7 @@ type BannerEditorProps = {
 
 /** Edits remain local until Publish changes; the preview uses the same draft. */
 export const BannerEditor: React.FC<BannerEditorProps> = ({
+	visibility,
 	preview,
 	previewing = false,
 	onPreviewChange,
@@ -348,19 +350,24 @@ export const BannerEditor: React.FC<BannerEditorProps> = ({
 				<div className="border-0 border-b border-solid border-border bg-surface-secondary p-3">
 					<CountdownField
 						value={form.countdown ?? ""}
+						action={form.countdownAction ?? "none"}
+						onActionChange={(countdownAction) => onChange({ countdownAction })}
 						onChange={(countdown) => onChange({ countdown })}
 					/>
 				</div>
 				<div className="flex flex-col gap-3 p-4">
-					<div className="flex items-baseline justify-between">
-						<Label htmlFor={previewing ? undefined : `${id}-message`}>
+					<div className="flex items-center justify-end gap-3">
+						<Label
+							className="sr-only"
+							htmlFor={previewing ? undefined : `${id}-message`}
+						>
 							{previewing ? "Preview" : "Text"}
 						</Label>
 						{preview && (
 							<Button
 								variant="subtle"
 								size="sm"
-								className="ml-auto mr-3"
+								className="ml-auto"
 								aria-pressed={previewing}
 								onClick={() => onPreviewChange?.(!previewing)}
 							>
@@ -405,6 +412,11 @@ export const BannerEditor: React.FC<BannerEditorProps> = ({
 			>
 				<legend className="sr-only">Controls</legend>
 				<h3 className="m-0 text-sm font-semibold">Controls</h3>
+				{visibility && (
+					<div className="border-0 border-b border-solid border-border pb-4">
+						{visibility}
+					</div>
+				)}
 				<div className="flex items-center gap-2 text-sm">
 					<Checkbox
 						id={`${id}-dismissible`}
@@ -888,7 +900,11 @@ const AlignButton: React.FC<{
 const CountdownField: React.FC<{
 	value: string;
 	onChange: (countdown: string) => void;
-}> = ({ value, onChange }) => {
+	action: NonNullable<BannerFields["countdownAction"]>;
+	onActionChange: (
+		action: NonNullable<BannerFields["countdownAction"]>,
+	) => void;
+}> = ({ value, onChange, action, onActionChange }) => {
 	const id = useId();
 	const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 	return (
@@ -924,9 +940,43 @@ const CountdownField: React.FC<{
 							}
 						}}
 					/>
-					<span className="text-xs text-content-secondary">
-						{zone}; shown as a split-flap clock at the banner's far left
-					</span>
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button size="sm" variant="outline">
+								Take Action
+								{action === "shake"
+									? ": Shake Screen"
+									: action === "focus"
+										? ": Force Focus"
+										: ""}
+								<ChevronDownIcon aria-hidden className="size-4" />
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent>
+							<DropdownMenuRadioGroup
+								value={action}
+								onValueChange={(value) => {
+									if (
+										value === "none" ||
+										value === "shake" ||
+										value === "focus"
+									)
+										onActionChange(value);
+								}}
+							>
+								<DropdownMenuRadioItem value="shake">
+									Shake Screen
+								</DropdownMenuRadioItem>
+								<DropdownMenuRadioItem value="focus">
+									Force Focus
+								</DropdownMenuRadioItem>
+								<DropdownMenuRadioItem value="none">
+									No action
+								</DropdownMenuRadioItem>
+							</DropdownMenuRadioGroup>
+						</DropdownMenuContent>
+					</DropdownMenu>
+					<span className="text-xs text-content-secondary">{zone}</span>
 				</>
 			)}
 		</div>

@@ -78,9 +78,7 @@ export const AccountShareDragLayer: React.FC<{
 				if (!row) continue;
 				const box = row.getBoundingClientRect();
 				if (!box.height) continue;
-				const edge =
-					row.closest('[data-testid="accounts-card"]')?.getBoundingClientRect()
-						.right ?? box.right;
+				const edge = box.right;
 				rows.push({
 					id: account.id,
 					left: box.left,

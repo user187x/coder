@@ -9,6 +9,7 @@ import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { AnnouncementBanners } from "#/modules/dashboard/AnnouncementBanners/AnnouncementBanners";
 import { LicenseBanner } from "#/modules/dashboard/LicenseBanner/LicenseBanner";
 import { AnnouncementBanner } from "#/modules/platform/announcement/AnnouncementBanner";
+import { AnnouncementExpiry } from "#/modules/platform/announcement/AnnouncementExpiry";
 import { DashboardAddons } from "#/modules/platform/DashboardAddons";
 import { GlobalLockdownGate } from "#/modules/platform/globalLockdown/GlobalLockdown";
 import { WorkspaceScheduleGate } from "#/modules/platform/scheduler/WorkspaceScheduleGate";
@@ -30,6 +31,7 @@ export const DashboardLayout: React.FC = () => {
 		<>
 			{canViewDeployment && !embedded && <LicenseBanner />}
 			{!embedded && <AnnouncementBanners />}
+			{!embedded && <AnnouncementExpiry />}
 			{(!lockdown?.enabled || lockdown.admin) && <WorkspaceScheduleGate />}
 
 			<div className="flex flex-col min-h-screen justify-between">

@@ -47,7 +47,7 @@ import {
 import "./clusterMap.css";
 import { CoderReplicas } from "./CoderReplicas";
 import { CodeServerHACard } from "./CodeServerHACard";
-import { cores } from "./clusterFormat";
+import { cores, nodeBadgeStyle } from "./clusterFormat";
 import {
 	componentIcon,
 	groupByKind,
@@ -735,7 +735,8 @@ const NodeCard: React.FC<NodeCardProps> = ({ node: n, report, now }) => {
 				<button
 					type="button"
 					onClick={() => open({ type: "node", name: n.name })}
-					className="cursor-pointer border-0 bg-transparent p-0 text-[15px] font-semibold text-content-primary hover:underline"
+					className="max-w-full cursor-pointer rounded-full border border-solid px-2.5 py-1 text-left text-xs font-semibold [overflow-wrap:anywhere] hover:brightness-125 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-content-link"
+					style={nodeBadgeStyle(n.name)}
 					data-testid={`cluster-map-node-${n.name}`}
 				>
 					{n.name}

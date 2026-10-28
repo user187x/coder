@@ -1,4 +1,5 @@
 import { screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { MemoryRouter } from "react-router";
 import {
@@ -8,6 +9,7 @@ import {
 } from "#/components/DropdownMenu/DropdownMenu";
 import { MockPermissions } from "#/testHelpers/entities";
 import { renderComponent } from "#/testHelpers/renderHelpers";
+import { AdminQuickLinksMenu } from "./AdminQuickLinksMenu";
 import { AdminSettingsItems } from "./AdminSettings";
 import { adminPagesFor } from "./adminQuickLinks";
 
@@ -40,7 +42,6 @@ describe("Admin menu", () => {
 		const items = screen.getAllByRole("menuitem");
 		const labels = items.map((item) => item.textContent?.trim());
 		expect(labels).toEqual([
-			"Settings",
 			...pages.slice(0, 4).map((page) => page.label),
 			"Organizations",
 			"Audit logs",
@@ -50,4 +51,26 @@ describe("Admin menu", () => {
 			expect(item.firstElementChild?.tagName.toLowerCase()).toBe("svg");
 		}
 	});
+});
+
+it("adds a setting from the inline picker without navigating", async () => {
+	const onChange = vi.fn();
+	const pages = adminPagesFor({
+		permissions: MockPermissions,
+		oauth2Provider: true,
+	});
+	renderComponent(
+		<MemoryRouter>
+			<DropdownMenu open>
+				<DropdownMenuTrigger>Menu</DropdownMenuTrigger>
+				<DropdownMenuContent>
+					<AdminQuickLinksMenu links={[]} addable={pages} onChange={onChange} />
+				</DropdownMenuContent>
+			</DropdownMenu>
+		</MemoryRouter>,
+	);
+	const user = userEvent.setup();
+	await user.click(screen.getByRole("menuitem", { name: "Settings" }));
+	await user.click(screen.getByRole("menuitem", { name: "Security" }));
+	expect(onChange).toHaveBeenCalledWith(["security"]);
 });

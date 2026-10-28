@@ -231,12 +231,9 @@ const ShareCablesArea: React.FC<{
 				if (!el || !r || r.height === 0) {
 					continue;
 				}
-				const table = (
-					el.closest('[data-testid="accounts-card"]') ?? el.closest("table")
-				)?.getBoundingClientRect();
-				right = Math.max(right, table?.width ? table.right : r.right);
+				right = Math.max(right, r.right);
 				rows.set(id, {
-					right: (table?.width ? table.right : r.right) - b.left,
+					right: r.right - b.left,
 					mid: r.top + r.height / 2 - b.top,
 				});
 			}

@@ -41,7 +41,7 @@ export const AnnouncementReader: React.FC<{
 					overlayClassName="z-[99] backdrop-blur-lg"
 				>
 					<DialogTitle>Announcement</DialogTitle>
-					<ReaderBody banner={banner} />
+					<AnnouncementMessage banner={banner} />
 					<DialogClose asChild>
 						<Button variant="outline" className="justify-self-end">
 							Close
@@ -53,7 +53,9 @@ export const AnnouncementReader: React.FC<{
 	);
 };
 
-const ReaderBody: React.FC<{ banner: BannerFields }> = ({ banner }) => {
+export const AnnouncementMessage: React.FC<{ banner: BannerFields }> = ({
+	banner,
+}) => {
 	const body = useRef<HTMLDivElement>(null);
 	useEffect(() => {
 		const el = body.current;

@@ -27,6 +27,17 @@ class HudStorageTest(unittest.TestCase):
         self.pvcs = [dict(metadata=dict(namespace='coder', name='home'), spec=dict(storageClassName='local', resources=dict(requests=dict(storage=2*GIB))))]
         self.kube.call.side_effect = lambda method, path: (200, dict(items=self.pvs if path.endswith('/persistentvolumes') else self.pvcs))
 
+    def test_shared_storage_pool_counts_once(self):
+        import copy
+        self.nodes[0]['metadata']['labels'] = {'coder.com/storage-pool': 'shared'}
+        other = copy.deepcopy(self.nodes[0])
+        other['metadata']['name'] = 'two'
+        self.nodes.append(other)
+        self.summaries['two'] = copy.deepcopy(self.summaries['one'])
+        result = self.collect()
+        self.assertEqual((result['total'], result['used'], result['free']), (10, 3, 6))
+        self.assertEqual(result['measuredNodes'], 2)
+
     def collect(self):
         return hudstorage.collect(self.kube, self.nodes, self.summaries, lambda value: value)
 

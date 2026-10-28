@@ -1,0 +1,20 @@
+@keyframes announcement-screen-shake {
+	0%,
+	100% {
+		transform: translate(0, 0);
+	}
+	25% {
+		transform: translate(-3px, 1px);
+	}
+	50% {
+		transform: translate(3px, -1px);
+	}
+	75% {
+		transform: translate(-2px, -1px);
+	}
+}
+@media (prefers-reduced-motion: no-preference) {
+	html.announcement-expiry-shake {
+		animation: announcement-screen-shake 250ms linear infinite;
+	}
+}

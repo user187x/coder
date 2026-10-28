@@ -129,3 +129,20 @@ func TestTargetAudience(t *testing.T) {
 		require.Error(t, err)
 	}
 }
+
+func TestCountdownActions(t *testing.T) {
+	t.Parallel()
+	for _, action := range []string{"none", "shake", "focus"} {
+		f, err := clean(t, map[string]any{"message": "notice", "countdownAction": action})
+		require.NoError(t, err)
+		require.Equal(t, action, f.CountdownAction)
+	}
+	_, err := clean(t, map[string]any{"message": "notice", "countdownAction": "invalid"})
+	require.Error(t, err)
+	f := platformbanner.Fields{Message: "notice"}
+	original := platformbanner.ID(f, 0)
+	f.CountdownAction = "none"
+	require.Equal(t, original, platformbanner.ID(f, 0))
+	f.CountdownAction = "focus"
+	require.NotEqual(t, original, platformbanner.ID(f, 0))
+}

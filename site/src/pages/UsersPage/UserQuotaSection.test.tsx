@@ -23,7 +23,7 @@ const Save: React.FC = () => {
 	const quota = useContext(QuotaEditorContext);
 	return (
 		<button type="button" onClick={quota?.onSave}>
-			Save quota
+			Save
 		</button>
 	);
 };
@@ -64,7 +64,7 @@ it("saves per-user base quota edits without replacing global approved additions"
 		name: `CPU cores for ${MockUserMember.username}`,
 	});
 	await userEvent.type(field, "5");
-	await userEvent.click(screen.getByRole("button", { name: "Save quota" }));
+	await userEvent.click(screen.getByRole("button", { name: "Save" }));
 	await waitFor(() =>
 		expect(save).toHaveBeenCalledWith({
 			...MockQuotaReport.settings,
@@ -89,7 +89,7 @@ it("preserves an unsaved quota override when background usage refreshes", async 
 			generatedAt: "2026-10-24T12:01:00Z",
 		}),
 	);
-	await userEvent.click(screen.getByRole("button", { name: "Save quota" }));
+	await userEvent.click(screen.getByRole("button", { name: "Save" }));
 	await waitFor(() =>
 		expect(save).toHaveBeenCalledWith({
 			...MockQuotaReport.settings,
@@ -108,7 +108,7 @@ it("rejects invalid quota input instead of serializing it as an unlimited value"
 		}),
 		"invalid",
 	);
-	await userEvent.click(screen.getByRole("button", { name: "Save quota" }));
+	await userEvent.click(screen.getByRole("button", { name: "Save" }));
 	expect(save).not.toHaveBeenCalled();
 });
 
@@ -178,7 +178,7 @@ it("reviews an account quota request from its resource dropdown", async () => {
 		}),
 	);
 	await user.click(
-		await screen.findByRole("button", { name: "Quota requests" }),
+		await screen.findByRole("button", { name: /Quota Requests/ }),
 	);
 	await user.click(
 		await screen.findByRole("button", {
@@ -211,7 +211,7 @@ it("saves independent per-instance CPU and cumulative memory modes with account 
 	await userEvent.click(
 		screen.getByRole("option", { name: "Per workspace instance" }),
 	);
-	await userEvent.click(screen.getByRole("button", { name: "Save quota" }));
+	await userEvent.click(screen.getByRole("button", { name: "Save" }));
 	await waitFor(() =>
 		expect(save).toHaveBeenCalledWith({
 			...MockQuotaReport.settings,
@@ -236,7 +236,7 @@ it("saves disk quota overrides with the other resources", async () => {
 		}),
 		"50",
 	);
-	await userEvent.click(screen.getByRole("button", { name: "Save quota" }));
+	await userEvent.click(screen.getByRole("button", { name: "Save" }));
 	await waitFor(() =>
 		expect(save).toHaveBeenCalledWith({
 			...MockQuotaReport.settings,

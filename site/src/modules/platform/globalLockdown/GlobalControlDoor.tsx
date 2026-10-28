@@ -88,7 +88,7 @@ export const GlobalControlDoor: React.FC<{
 						? 440
 						: 340,
 			}}
-			className="global-control-box relative min-h-[340px] w-full shrink-0 overflow-hidden rounded-2xl border border-solid border-border bg-surface-primary lg:w-[340px]"
+			className="global-control-box relative min-h-[340px] w-full shrink-0 overflow-hidden rounded-2xl border border-solid border-border bg-surface-primary lg:mr-6 lg:w-[340px]"
 		>
 			<div
 				ref={firstAction}
@@ -204,7 +204,9 @@ export const GlobalControlDoor: React.FC<{
 							/>
 							{setup && (
 								<>
-									<Label htmlFor={`${id}-repeat`}>Confirm PIN</Label>
+									<Label htmlFor={`${id}-repeat`} className="text-center">
+										Confirm PIN
+									</Label>
 									<Input
 										id={`${id}-repeat`}
 										type="password"

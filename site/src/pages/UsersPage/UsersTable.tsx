@@ -10,7 +10,6 @@ import type * as TypesGen from "#/api/typesGenerated";
 import { AvatarDataSkeleton } from "#/components/Avatar/AvatarDataSkeleton";
 import { Checkbox } from "#/components/Checkbox/Checkbox";
 import { InfoTooltip } from "#/components/InfoTooltip/InfoTooltip";
-import { LastSeen } from "#/components/LastSeen/LastSeen";
 import { Skeleton } from "#/components/Skeleton/Skeleton";
 import {
 	Table,
@@ -26,7 +25,6 @@ import {
 	TableRowSkeleton,
 } from "#/components/TableLoader/TableLoader";
 import { TooltipMessage, TooltipTitle } from "#/components/Tooltip/Tooltip";
-
 import { ChatUserButton } from "#/modules/platform/chat/ChatUserButton";
 import { ShareApprovalButton } from "#/modules/platform/cloudDrive/ShareApprovalButton";
 import {
@@ -43,6 +41,7 @@ import { UserMoreActions } from "#/modules/users/UserMoreActions";
 import { UserRoleCell } from "#/modules/users/UserRoleCell";
 import { getLatencyColor } from "#/utils/latency";
 import { AccountIdentity } from "./AccountIdentity";
+import { AccountPresence } from "./AccountPresence";
 import { AccountResourcesCell } from "./AccountResourcesCell";
 import { AccountWorkspaceActions } from "./AccountWorkspaceActions";
 import { AccountWorkspacePanel } from "./AccountWorkspacePanel";
@@ -418,10 +417,7 @@ const UsersTableRow: React.FC<UsersTableRowProps> = ({
 						user.status === "suspended" && "text-content-secondary",
 					)}
 				>
-					<div>{user.status}</div>
-					{(user.status === "active" || user.status === "dormant") && (
-						<LastSeen at={user.last_seen_at} exactDays className="text-xs" />
-					)}
+					<AccountPresence user={user} enabled={canEditUsers} />
 				</TableCell>
 
 				{canEditUsers && (

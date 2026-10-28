@@ -1492,6 +1492,7 @@ export type Banner = {
 	pictureFit?: PictureFit;
 	/** The moment the watch at the banner's left counts down to (UTC, ISO 8601); "" or missing: no countdown. */
 	countdown?: string;
+	countdownAction?: "none" | "shake" | "focus";
 };
 
 export type BannerFields = Omit<Banner, "id">;

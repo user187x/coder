@@ -73,6 +73,7 @@ const FIELDS = [
 	"picture",
 	"pictureFit",
 	"countdown",
+	"countdownAction",
 	"opacity",
 ] as const;
 
@@ -107,6 +108,7 @@ const fieldsOf = ({ id: _id, ...banner }: Banner): BannerFields => {
 		picture: banner.picture ?? "",
 		pictureFit: banner.pictureFit ?? "span",
 		countdown: banner.countdown ?? "",
+		countdownAction: banner.countdownAction ?? "none",
 		opacity: banner.opacity ?? 100,
 	};
 	if (fields.markdown) {
@@ -281,95 +283,81 @@ const AnnouncementEditor: React.FC<{ state: BannerState }> = ({ state }) => {
 
 	return (
 		<>
-			<section
-				aria-labelledby="announcement-visibility"
-				className="flex flex-col gap-3 rounded-lg border border-solid border-border p-6"
-			>
-				<h2 id="announcement-visibility" className="sr-only">
-					Visibility
-				</h2>
-				<div className="flex flex-wrap items-center justify-between gap-4">
-					<div className="flex items-center gap-3">
-						<Switch
-							id="announcement-visible"
-							checked={live}
-							disabled={busy}
-							onCheckedChange={(enabled) => {
-								// Platform: nothing published to show - the draft is published, showing; with no draft
-								// either, the switch says so beside it and the message box is brought into view.
-								if (enabled && !hasContent(state.banner)) {
-									if (hasContent(form)) {
-										doPublish();
+			<BannerEditor
+				visibility={
+					<div className="flex flex-wrap items-center justify-between gap-4">
+						<div className="flex items-center gap-3">
+							<Switch
+								id="announcement-visible"
+								checked={live}
+								disabled={busy}
+								onCheckedChange={(enabled) => {
+									// Platform: nothing published to show - the draft is published, showing; with no draft
+									// either, the switch says so beside it and the message box is brought into view.
+									if (enabled && !hasContent(state.banner)) {
+										if (hasContent(form)) {
+											doPublish();
+											return;
+										}
+										setPreviewing(false);
+										setTriedEmpty(true);
+										const message = document.querySelector<HTMLElement>(
+											"[data-banner-message]",
+										);
+										message?.scrollIntoView({
+											behavior: "smooth",
+											block: "center",
+										});
+										message?.focus({ preventScroll: true });
 										return;
 									}
-									setPreviewing(false);
-									setTriedEmpty(true);
-									const message = document.querySelector<HTMLElement>(
-										"[data-banner-message]",
-									);
-									message?.scrollIntoView({
-										behavior: "smooth",
-										block: "center",
-									});
-									message?.focus({ preventScroll: true });
-									return;
-								}
-								setTriedEmpty(false);
-								publish.mutate(
-									{ ...published, enabled },
-									{
-										onSuccess: (next) => {
-											setProblem(null);
-											toast.success(
-												`${enabled ? "Banner is showing again." : "Banner hidden."}${sentTo(next)}`,
-											);
+									setTriedEmpty(false);
+									publish.mutate(
+										{ ...published, enabled },
+										{
+											onSuccess: (next) => {
+												setProblem(null);
+												toast.success(
+													`${enabled ? "Banner is showing again." : "Banner hidden."}${sentTo(next)}`,
+												);
+											},
+											onError,
 										},
-										onError,
-									},
-								);
-							}}
-						/>
-						<Label htmlFor="announcement-visible">Show banner</Label>
-						<span
-							className={
-								nothingToShow
-									? "text-sm font-medium text-content-warning"
-									: "text-sm text-content-secondary"
-							}
-							data-testid="announcement-visibility-state"
-							role={nothingToShow ? "status" : undefined}
+									);
+								}}
+							/>
+							<Label htmlFor="announcement-visible">Show banner</Label>
+							<span
+								className={
+									nothingToShow
+										? "text-sm font-medium text-content-warning"
+										: "sr-only"
+								}
+								data-testid="announcement-visibility-state"
+								role={nothingToShow ? "status" : undefined}
+							>
+								{live
+									? "On: developers see it"
+									: nothingToShow
+										? "Nothing to show yet: write a message below, then turn it on (or press Publish changes)"
+										: hasContent(state.banner)
+											? "Off: hidden from everyone"
+											: hasContent(form)
+												? "Off: turn it on to publish your message and show it"
+												: "Off: write a message below to show one"}
+							</span>
+						</div>
+						<Button
+							variant="outline"
+							className="border-highlight-orange text-highlight-orange"
+							disabled={busy || !hasContent(state.banner)}
+							title="Show the banner again to everyone, including people who dismissed it"
+							onClick={() => setConfirm("reshow")}
 						>
-							{live
-								? "On: developers see it"
-								: nothingToShow
-									? "Nothing to show yet: write a message below, then turn it on (or press Publish changes)"
-									: hasContent(state.banner)
-										? "Off: hidden from everyone"
-										: hasContent(form)
-											? "Off: turn it on to publish your message and show it"
-											: "Off: write a message below to show one"}
-						</span>
+							Force Display
+						</Button>
 					</div>
-					<Button
-						variant="outline"
-						className="border-highlight-orange text-highlight-orange"
-						disabled={busy || !hasContent(state.banner)}
-						title="Show the banner again to everyone, including people who dismissed it"
-						onClick={() => setConfirm("reshow")}
-					>
-						Show again to everyone
-					</Button>
-				</div>
-				<p className="m-0 text-sm text-content-secondary">
-					People who dismissed the banner will not see it again on their own.
-					Use "Show again to everyone" when something urgent needs everyone's
-					attention, for example a zero-day patch. Tabs with a live connection
-					{tabsText(state, " (", " right now)")} update instantly; any other
-					open tab within about {state.banner.refreshSeconds} seconds.
-				</p>
-			</section>
-
-			<BannerEditor
+				}
 				previewing={previewing}
 				onPreviewChange={(next) => {
 					setClosing(false);
@@ -498,7 +486,7 @@ const AnnouncementEditor: React.FC<{ state: BannerState }> = ({ state }) => {
 				type="info"
 				hideCancel={false}
 				open={confirm === "reshow"}
-				title="Show again to everyone"
+				title="Force Display"
 				description={`Show the banner again to everyone, including people who dismissed it? Tabs with a live connection${tabsText(state, " (", " right now)")} will show it instantly; any other open tab within about ${state.banner.refreshSeconds} seconds.`}
 				confirmText="Show again"
 				confirmLoading={reshow.isPending}

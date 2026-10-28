@@ -66,7 +66,8 @@ type Fields struct {
 	Picture    string `json:"picture"`
 	PictureFit string `json:"pictureFit"`
 	// The countdown shown as a watch at the banner's left ("" none).
-	Countdown string `json:"countdown"`
+	Countdown       string `json:"countdown"`
+	CountdownAction string `json:"countdownAction"`
 	// How opaque the banner's background is, in percent (20-100): lower lets
 	// the page show through; its text stays solid.
 	Opacity int `json:"opacity"`
@@ -102,6 +103,7 @@ func FieldDefaults() Fields {
 		Markdown:        true,
 		Align:           "center",
 		PictureFit:      "span",
+		CountdownAction: "none",
 		Opacity:         100,
 	}
 }
@@ -312,6 +314,9 @@ func Clean(raw []byte) (Fields, error) {
 		countdown = s
 	}
 	out.Countdown = countdown
+	if err := choice("countdownAction", "none", "The countdown action", []string{"none", "shake", "focus"}, &out.CountdownAction); err != nil {
+		return Fields{}, err
+	}
 
 	seconds := FieldDefaults().RefreshSeconds
 	if v, ok := payload["refreshSeconds"]; ok {
@@ -375,7 +380,11 @@ func ID(f Fields, revision int64) string {
 	_, _ = b.WriteString(strconv.FormatInt(revision, 10))
 	// A picture or a countdown makes another announcement; only when there is
 	// one, so the ids of those published before them stay.
-	for _, kv := range [][2]string{{"picture", f.Picture}, {"countdown", f.Countdown}} {
+	action := f.CountdownAction
+	if action == "none" {
+		action = ""
+	}
+	for _, kv := range [][2]string{{"picture", f.Picture}, {"countdown", f.Countdown}, {"countdownAction", action}} {
 		if kv[1] == "" {
 			continue
 		}
