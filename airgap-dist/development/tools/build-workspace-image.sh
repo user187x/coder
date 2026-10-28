@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds the workspace image ghcr.io/user187x/coder-workspace:<TAG> (../workspace-image: enterprise-base + desktop
+# Builds the workspace image docker.io/user187x/coder-workspace:<TAG> (../workspace-image: enterprise-base + desktop
 # with its two themes (Classic, Serenade), noVNC's clipboard shared with the computer and one viewer at a time
 # resizing it, Chromium, Terminator,
 # Firefox, JetBrains Mono Nerd Font in every terminal (code-server's too) and Noto Color Emoji, tmux, command-line
@@ -15,7 +15,7 @@
 #   ./build-workspace-image.sh [TAG]       default 1.9.4
 set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; dev="$(dirname "$here")"; top="$(dirname "$dev")"
-tag="${1:-1.9.4}"; img="ghcr.io/user187x/coder-workspace:${tag}"
+tag="${1:-1.9.4}"; img="docker.io/user187x/coder-workspace:${tag}"
 quantum="${FILEBROWSER_QUANTUM:-${top}/filebrowser-quantum}"
 [ -f "$quantum" ] || { echo "FileBrowser Quantum's binary is missing: $quantum (see the top of this script)" >&2; exit 1; }
 # the binary alone as a build context of its own (not the repository)

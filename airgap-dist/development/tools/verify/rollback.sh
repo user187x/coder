@@ -18,7 +18,7 @@ record() { # name ok detail
 	[[ -z "$jsonl" ]] || python3 -c 'import json,sys; print(json.dumps({"suite":"rollback","name":sys.argv[1],"ok":sys.argv[2]=="true","detail":sys.argv[3][:600],"seconds":None}))' "$1" "$2" "${3:-}" >>"$jsonl"
 }
 img() { awk -v p="$1" '$1 ~ p {print $1; exit}' "$bundle/images.txt"; }
-UP=$(img '^ghcr.io/user187x/coder-upstream:'); FORK=$(img '^ghcr.io/user187x/coder-platform:'); PG=$(img '^ghcr.io/cloudnative-pg/postgresql:18')
+UP=$(img '^docker.io/user187x/coder-upstream:'); FORK=$(img '^docker.io/user187x/coder-platform:'); PG=$(img '^ghcr.io/cloudnative-pg/postgresql:18')
 for i in "$UP" "$FORK" "$PG"; do
 	docker image inspect "$i" >/dev/null 2>&1 || docker load -q -i "$(find "$bundle/images" -name "$(echo "$i" | tr '/:@' '___').tar.gz" | head -1)" >/dev/null
 done

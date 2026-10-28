@@ -17,7 +17,7 @@
 #   --push             push the image and the charts first (the registry: --registry, else global.registry in FILE)
 #   --registry R       <harbor>/<project>: where the images are (default: global.registry in FILE)
 #   --dataflow off     the ubuntu-dataflow template (Apache NiFi and Apache Airflow) stays off (the default: this update
-#                      does not carry its image, ghcr.io/user187x/coder-workspace-dataflow:<tag>, the layer chart's)
+#                      does not carry its image, docker.io/user187x/coder-workspace-dataflow:<tag>, the layer chart's)
 #   --dataflow keep    it is on: the layer chart's image is in the registry already
 #                      (<registry>/user187x/coder-workspace-dataflow:<tag>; the helper says which)
 #   --dataflow IMAGE   it is on, on this image (a full reference)
@@ -62,10 +62,10 @@ layer_chart=$(find "$charts" -maxdepth 1 -name 'coder-airgapped-layer-*.tgz' 2>/
 [[ -n "$base_chart" && -n "$layer_chart" ]] || die "the two charts are not in ${charts} (coder-airgapped-{base,layer}-<version>.tgz)"
 version=$(basename "$layer_chart" .tgz); version=${version#coder-airgapped-layer-}
 [[ "$(basename "$base_chart")" == "coder-airgapped-base-${version}.tgz" ]] || die "the charts' versions differ: $(basename "$base_chart"), $(basename "$layer_chart")"
-fork_archive=$(find "$images" -maxdepth 1 -name 'ghcr.io_user187x_coder-platform_*-airgap.tar.gz' 2>/dev/null | sort -V | tail -n1)
+fork_archive=$(find "$images" -maxdepth 1 -name 'docker.io_user187x_coder-platform_*-airgap.tar.gz' 2>/dev/null | sort -V | tail -n1)
 [[ -n "$fork_archive" ]] || die "the fork's Coder image archive is not in ${images}"
-fork_image=$(basename "$fork_archive" .tar.gz)                       # ghcr.io_user187x_coder-platform_<tag>
-fork_image="ghcr.io/user187x/coder-platform:${fork_image#ghcr.io_user187x_coder-platform_}"
+fork_image=$(basename "$fork_archive" .tar.gz)                       # docker.io_user187x_coder-platform_<tag>
+fork_image="docker.io/user187x/coder-platform:${fork_image#docker.io_user187x_coder-platform_}"
 say "This update: charts ${version}, Coder image ${fork_image}"
 # The ubuntu-dataflow template's image, as the layer chart names it (coder-workspace.dataflowImage).
 dataflow_image=$( (tar -xzOf "$layer_chart" coder-airgapped-layer/values.yaml 2>/dev/null || true) |

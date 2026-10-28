@@ -2,7 +2,7 @@
 
 Every container image the solution runs, saved with `docker save` (linux/amd64, gzip), one folder per part of the
 solution – the sections of `../images.txt`. `../mirror-images.sh push` loads them from here and pushes them to your
-registry – no internet needed. Ours (`ghcr.io/user187x/...`) are on no public registry: **always keep them**; the
+registry – no internet needed. Ours (`docker.io/user187x/...`) are built here and published on Docker Hub, but an air-gapped install has only the bundle: **always keep them**; the
 public ones can be left out where your registry has them already.
 
 | Folder | What | Size | Pushed by default |
@@ -28,7 +28,7 @@ The release is also published in parts: `coder-airgapped-<version>-charts.tar.gz
 ```bash
 ./mirror-images.sh list                       # section, archive bundled or absent, image
 # every public archive left out (ours kept):
-for img in $(./mirror-images.sh list | awk '$3 !~ /^ghcr[.]io[/]user187x[/]/ {print $3}'); do
+for img in $(./mirror-images.sh list | awk '$3 !~ /^docker[.]io[/]user187x[/]/ {print $3}'); do
   rm -f "$(./mirror-images.sh path "$img")"
 done
 rm -rf images/reference                       # or only a folder of public images
@@ -51,8 +51,8 @@ or put them back on an internet machine first: `./mirror-images.sh save` (pulls 
 
 | Archive | Image | Size | Used by |
 |---|---|---:|---|
-| `ghcr.io_user187x_coder-platform_2.0.0-platform.57-airgap.tar.gz` | `ghcr.io/user187x/coder-platform:2.0.0-platform.57-airgap` | 320 MB | coder (server); = the fork's platform.57 (fa2a23742) + Terraform provider mirror |
-| `ghcr.io_user187x_coder-image-tools_1.0.0.tar.gz` | `ghcr.io/user187x/coder-image-tools:1.0.0` | 208 MB | coder-ui-updates and the Images builder's scans: the bundled Python + shellcheck, shfmt, trivy (+ vulnerability DB), regctl (development/image-tools) |
+| `docker.io_user187x_coder-platform_2.0.0-platform.57-airgap.tar.gz` | `docker.io/user187x/coder-platform:2.0.0-platform.57-airgap` | 320 MB | coder (server); = the fork's platform.57 (fa2a23742) + Terraform provider mirror |
+| `docker.io_user187x_coder-image-tools_1.0.0.tar.gz` | `docker.io/user187x/coder-image-tools:1.0.0` | 208 MB | coder-ui-updates and the Images builder's scans: the bundled Python + shellcheck, shfmt, trivy (+ vulnerability DB), regctl (development/image-tools) |
 | `docker.io_library_python_3.13-alpine.tar.gz` | `docker.io/library/python:3.13-alpine` | 20 MB | coder-ui-updates, bootstrap Job, push-Job login (reference cluster: same tag via its Harbor) |
 | `ghcr.io_cloudnative-pg_postgresql_18.4-system-trixie.tar.gz` | `ghcr.io/cloudnative-pg/postgresql:18.4-system-trixie` | 262 MB | database, uiUpdates.logsDb, uiUpdates.pgImage |
 
@@ -60,14 +60,14 @@ or put them back on an internet machine first: `./mirror-images.sh save` (pulls 
 
 | Archive | Image | Size | Used by |
 |---|---|---:|---|
-| `ghcr.io_user187x_coder-workspace_1.9.3.tar.gz` | `ghcr.io/user187x/coder-workspace:1.9.3` | 1.6 GB | workspace pods (default: DEFAULT): enterprise-base + desktop (no light-locker) with its Classic and Serenade themes, noVNC's clipboard shared with the computer, Chromium (default), Terminator, Firefox, JetBrains Mono Nerd Font in every terminal (code-server's too) and Noto Color Emoji, tmux, CLI tools, k9s/kubectl/kubelogin, Python venv, default ~/.bashrc and desktop background (development/workspace-image) |
-| `ghcr.io_user187x_coder-workspace-dataflow_1.1.3.tar.gz` | `ghcr.io/user187x/coder-workspace-dataflow:1.1.3` | 3.2 GB | workspace pods (ubuntu-dataflow): the workspace image + Java 21, Apache NiFi 2.12.0 (NARs unpacked), Apache Airflow 3.3.2 (development/workspace-image-dataflow) |
+| `docker.io_user187x_coder-workspace_1.9.3.tar.gz` | `docker.io/user187x/coder-workspace:1.9.3` | 1.6 GB | workspace pods (default: DEFAULT): enterprise-base + desktop (no light-locker) with its Classic and Serenade themes, noVNC's clipboard shared with the computer, Chromium (default), Terminator, Firefox, JetBrains Mono Nerd Font in every terminal (code-server's too) and Noto Color Emoji, tmux, CLI tools, k9s/kubectl/kubelogin, Python venv, default ~/.bashrc and desktop background (development/workspace-image) |
+| `docker.io_user187x_coder-workspace-dataflow_1.1.3.tar.gz` | `docker.io/user187x/coder-workspace-dataflow:1.1.3` | 3.2 GB | workspace pods (ubuntu-dataflow): the workspace image + Java 21, Apache NiFi 2.12.0 (NARs unpacked), Apache Airflow 3.3.2 (development/workspace-image-dataflow) |
 
 ### `cloud-drive/`
 
 | Archive | Image | Size | Used by |
 |---|---|---:|---|
-| `ghcr.io_user187x_coder-minio_RELEASE.2026-09-22T19-25-18Z.tar.gz` | `ghcr.io/user187x/coder-minio:RELEASE.2026-09-22T19-25-18Z` | 64 MB | the Cloud Drive's storage (userStorage.minio): cgr.dev/chainguard/minio retagged with its MinIO release (development/tools/build-minio-image.sh) |
+| `docker.io_user187x_coder-minio_RELEASE.2026-09-22T19-25-18Z.tar.gz` | `docker.io/user187x/coder-minio:RELEASE.2026-09-22T19-25-18Z` | 64 MB | the Cloud Drive's storage (userStorage.minio): cgr.dev/chainguard/minio retagged with its MinIO release (development/tools/build-minio-image.sh) |
 | `cr.yandex_crp9ftr22d26age3hulg_yandex-cloud_csi-s3_csi-s3-driver_0.43.7.tar.gz` | `cr.yandex/crp9ftr22d26age3hulg/yandex-cloud/csi-s3/csi-s3-driver:0.43.7` | 104 MB | the Cloud Drive's CSI driver (userStorage.csi; k8s-csi-s3 + GeeseFS, Apache-2.0) |
 | `cr.yandex_crp9ftr22d26age3hulg_yandex-cloud_csi-s3_csi-node-driver-registrar_v2.16.0.tar.gz` | `cr.yandex/crp9ftr22d26age3hulg/yandex-cloud/csi-s3/csi-node-driver-registrar:v2.16.0` | 14 MB | the Cloud Drive's CSI driver: kubelet registration |
 
@@ -76,7 +76,7 @@ or put them back on an internet machine first: `./mirror-images.sh save` (pulls 
 | Archive | Image | Size | Used by |
 |---|---|---:|---|
 | `docker.io_moby_buildkit_v0.33.0-rootless.tar.gz` | `docker.io/moby/buildkit:v0.33.0-rootless` | 123 MB | Images view: the build Jobs (BuildKit rootless) |
-| `ghcr.io_user187x_coder-registry_3.1.2-1.tar.gz` | `ghcr.io/user187x/coder-registry:3.1.2-1` | 22 MB | Images view: coder-image-registry, where built images are kept - Docker's registry 3.1.2 built from source with Go 1.26.9 and fixed modules, as a regular user (`development/registry-image`) |
+| `docker.io_user187x_coder-registry_3.1.2-1.tar.gz` | `docker.io/user187x/coder-registry:3.1.2-1` | 22 MB | Images view: coder-image-registry, where built images are kept - Docker's registry 3.1.2 built from source with Go 1.26.9 and fixed modules, as a regular user (`development/registry-image`) |
 
 ### `cluster/`
 
@@ -95,7 +95,7 @@ or put them back on an internet machine first: `./mirror-images.sh save` (pulls 
 
 | Archive | Image | Size | Used by |
 |---|---|---:|---|
-| `ghcr.io_user187x_coder-upstream_2.38.0-main.70bc2e554-airgap.tar.gz` | `ghcr.io/user187x/coder-upstream:2.38.0-main.70bc2e554-airgap` | 309 MB | plain base (Argo CD decorator install without the layer) and rollback: pure upstream Coder at the fork's base (70bc2e554) + the same Terraform provider mirror (development/coder-fork/ROLLBACK.md) |
+| `docker.io_user187x_coder-upstream_2.38.0-main.70bc2e554-airgap.tar.gz` | `docker.io/user187x/coder-upstream:2.38.0-main.70bc2e554-airgap` | 309 MB | plain base (Argo CD decorator install without the layer) and rollback: pure upstream Coder at the fork's base (70bc2e554) + the same Terraform provider mirror (development/coder-fork/ROLLBACK.md) |
 
 ### `reference/`
 

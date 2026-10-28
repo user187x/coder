@@ -607,7 +607,7 @@ claims and volumes keep the earlier name, `safe` (`/api/safe`, `coder-safe-<user
   left. A download is written to disk as it comes where the browser can (Chromium's save dialog); elsewhere it is held
   in memory, and a file over 1 GiB goes to the browser's own download.
   Files written inside a workspace are not stopped at the quota (S3 has none per prefix); the page shows what is used.
-* **Images:** `ghcr.io/user187x/coder-minio` (Chainguard's MinIO build; the MinIO project publishes no images since
+* **Images:** `docker.io/user187x/coder-minio` (Chainguard's MinIO build; the MinIO project publishes no images since
   2025: `development/tools/build-minio-image.sh`) and the driver's two images, all in `images.txt` and the bundle.
 
 ## Disaster recovery for Coder's database (General > Persistence)

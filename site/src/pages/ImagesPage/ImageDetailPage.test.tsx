@@ -26,7 +26,7 @@ const scan = (id: number, over: Partial<BuildSummary> = {}): BuildSummary => ({
 	...over,
 });
 
-const WORKSPACE_IMAGE = "ghcr.io/user187x/coder-workspace:1.9.4";
+const WORKSPACE_IMAGE = "docker.io/user187x/coder-workspace:1.9.4";
 
 /** The workspace template's image (tracked): every row of its table is a scan. */
 const tracked = (over: Partial<ImageDetail> = {}): ImageDetail => ({

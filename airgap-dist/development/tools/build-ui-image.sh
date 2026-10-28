@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds ghcr.io/user187x/coder-ui-updates:code-<hash>: the platform service (coder-ui-updates) - its code,
+# Builds docker.io/user187x/coder-ui-updates:code-<hash>: the platform service (coder-ui-updates) - its code,
 # helm-chart/coder-airgapped/files/ui-updates/, in /app of the tools image (coder-image-tools: Python and the tools
 # the Images view runs), with the image store's baked pictures in /image-store - and pins it: uiUpdates.image in values.yaml, its [ui] line in images.txt (tag, image ID), and
 # its archive in the bundle (helm-chart/images/ui/, mirror-images.sh store).
@@ -19,8 +19,8 @@ store="${dev}/image-store"
 # platform service's fallback where no ConfigMap gives them (a one-step Helm install has none; the logo is past a
 # ConfigMap's 1 MiB anyway).
 defaults="${top}/helm-chart/defaults"
-base="ghcr.io/user187x/coder-image-tools:1.2.0"
-repo="ghcr.io/user187x/coder-ui-updates"
+base="docker.io/user187x/coder-image-tools:1.2.0"
+repo="docker.io/user187x/coder-ui-updates"
 ctx="$(mktemp -d)"; trap 'rm -rf "$ctx"' EXIT
 (cd "${top}/.." && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -o "$ctx/workspace-tunnel" ./cmd/workspace-tunnel)
 
@@ -96,7 +96,7 @@ pat = re.compile(r"^%s:\S+\s+sha256:\S+.*$" % re.escape(repo), re.M)
 if pat.search(s):
     s = pat.sub(line, s, count=1)
 else:  # first pin: in place of the tools image's line
-    tools = re.compile(r"^ghcr\.io/user187x/coder-image-tools:\S+\s+sha256:\S+.*$", re.M)
+    tools = re.compile(r"^docker\.io/user187x/coder-image-tools:\S+\s+sha256:\S+.*$", re.M)
     assert tools.search(s), "images.txt: neither coder-ui-updates nor coder-image-tools in [ui]"
     s = tools.sub(line, s, count=1)
 open(p, "w").write(s)

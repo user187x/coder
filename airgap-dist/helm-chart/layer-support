@@ -80,7 +80,7 @@ def archive_name(image):
 
 def ours(image):
     """Built here, on no public registry."""
-    return image.startswith("ghcr.io/user187x/")
+    return image.startswith("docker.io/user187x/")
 
 
 def repository(image):

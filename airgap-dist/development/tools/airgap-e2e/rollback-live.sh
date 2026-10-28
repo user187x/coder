@@ -6,7 +6,7 @@ set -uo pipefail
 W="$(cd "$(dirname "$0")" && pwd)"; export KUBECONFIG=$W/kubeconfig
 exec > >(tee "$W/rollback-live.log") 2>&1
 B=$(ls -d "$W"/airgap/coder-airgapped-* | head -1)
-UP=$(awk '$1 ~ /^ghcr.io\/user187x\/coder-upstream:/ {print $1; exit}' "$B/images.txt")
+UP=$(awk '$1 ~ /^docker.io\/user187x\/coder-upstream:/ {print $1; exit}' "$B/images.txt")
 FORK_TAG=$(kubectl -n coder get deploy coder -o jsonpath='{.spec.template.spec.containers[0].image}' | sed 's/.*://')
 probe() { "$W/inpod.sh" "$W/rollback_probe.py" "$@" 2>&1 | tail -1; }
 cat >"$W/rollback_probe.py" <<'PY'
@@ -48,7 +48,7 @@ up=$(probe); echo "upstream: $up"
 [[ "$up" == *'"login": 201'* && "$up" == *v2.38.0-main* ]]; check "rolled back: pure upstream Coder serves, the admin signs in" $?
 [[ "$up" == *'"e2e"'* && "$up" == *'"agent": "connected"'* ]]; check "rolled back: the workspace is there and its agent (the fork's) connected to upstream" $?
 [[ "$up" != *unhealthy* && "$up" == *'"code-server": "healthy"'* ]]; check "rolled back: the workspace's apps healthy" $?
-set_image ghcr.io/user187x/coder-platform "$FORK_TAG"
+set_image docker.io/user187x/coder-platform "$FORK_TAG"
 after=$(probe); echo "fork:     $after"
 [[ "$after" == *'"login": 201'* && "$after" == *platform* && "$after" == *'"agent": "connected"'* ]]; check "rolled forward: the fork serves again, the workspace connected" $?
 echo; echo "$fails failed"; exit $((fails > 0))

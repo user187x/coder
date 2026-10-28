@@ -184,7 +184,7 @@ fi
 [ "$CLUSTER_ADMIN" = "true" ] && log "kubectl and k9s: signed in to this cluster as you on first use (~/.kube/coder-cluster.yaml)"
 
 # 1. Desktop Environment & noVNC, first: it needs no network. It is in the workspace image
-# (ghcr.io/user187x/coder-workspace, without light-locker); installed here only on an image without it.
+# (docker.io/user187x/coder-workspace, without light-locker); installed here only on an image without it.
 # code-server and File Browser below are downloaded when the image lacks them; offline they are skipped, the rest
 # still starts. An image built in Templates > Images names its desktop in /etc/coder-image/desktop: xfce, gnome or
 # none (no desktop: the Desktop app stays down); a template without the Desktop app starts none either.

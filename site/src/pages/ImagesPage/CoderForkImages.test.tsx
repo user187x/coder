@@ -16,7 +16,7 @@ import {
 import ImagesPage from "./ImagesPage";
 
 const workspace: ImageContents = {
-	ref: "ghcr.io/user187x/coder-workspace:1.9.3",
+	ref: "docker.io/user187x/coder-workspace:1.9.3",
 	repository: "coder-workspace",
 	digest: `sha256:${"8".repeat(64)}`,
 	imageId: `sha256:${"8".repeat(64)}`,
@@ -88,7 +88,7 @@ const workspace: ImageContents = {
 
 const registry: ImageContents = {
 	...workspace,
-	ref: "ghcr.io/user187x/coder-registry:3.1.2-1",
+	ref: "docker.io/user187x/coder-registry:3.1.2-1",
 	repository: "coder-registry",
 	section: "platform",
 	description: "The image registry",
@@ -122,14 +122,14 @@ const tracked = (tag: string): ImageListItem => ({
 	size: 1234,
 	builtAt: "2026-10-18T05:00:00Z",
 	builtBy: "platform",
-	pullRef: `ghcr.io/user187x/coder-workspace:${tag}`,
+	pullRef: `docker.io/user187x/coder-workspace:${tag}`,
 	s3: {},
 	base: { kind: "workspace" },
 	counts: { packages: 0, debs: 0, installations: 0, remove: 0 },
 	desktop: "keep",
 	summary: null,
 	tracked: {
-		image: `ghcr.io/user187x/coder-workspace:${tag}`,
+		image: `docker.io/user187x/coder-workspace:${tag}`,
 		ref: `localhost:5000/coder-images/base/coder-workspace:${tag}`,
 		template: "DEFAULT",
 	},
@@ -152,12 +152,16 @@ describe("ourImage", () => {
 			contents: workspace,
 			exact: true,
 		});
-		expect(ourImage(catalog, "ghcr.io/user187x/coder-workspace:1.9.2")).toEqual(
-			{ contents: workspace, exact: false },
-		);
+		expect(ourImage(catalog, "user187x/coder-workspace:1.9.3")).toEqual({
+			contents: workspace,
+			exact: true,
+		});
+		expect(
+			ourImage(catalog, "docker.io/user187x/coder-workspace:1.9.2"),
+		).toEqual({ contents: workspace, exact: false });
 		expect(ourImage(catalog, "docker.io/library/postgres:17")).toBeUndefined();
 		expect(
-			ourImage(catalog, "ghcr.io/user187x/coder-unknown:1"),
+			ourImage(catalog, "docker.io/user187x/coder-unknown:1"),
 		).toBeUndefined();
 		expect(ourImage(undefined, workspace.ref)).toBeUndefined();
 		expect(ourImage(catalog, null)).toBeUndefined();
@@ -169,7 +173,7 @@ describe("ImageContentsTree", () => {
 		withQueries(
 			<ImageContentsTree
 				ours={{ contents: workspace, exact: false }}
-				asked="ghcr.io/user187x/coder-workspace:1.9.2"
+				asked="docker.io/user187x/coder-workspace:1.9.2"
 			/>,
 		);
 		expect(screen.getByTestId("image-contents")).toHaveTextContent(
@@ -263,7 +267,7 @@ describe("The Images table", () => {
 			images,
 			canEdit: true,
 			pullPrefix: "localhost:5000/coder-images/",
-			baseImage: "ghcr.io/user187x/coder-workspace:1.9.2",
+			baseImage: "docker.io/user187x/coder-workspace:1.9.2",
 		});
 		vi.spyOn(ImagesAPI, "contents").mockResolvedValue(catalog);
 		vi.spyOn(ImagesAPI, "inUse").mockResolvedValue({ images: [] });
@@ -288,7 +292,7 @@ describe("The Images table", () => {
 		fireEvent.click(within(row).getByTestId("image-delete"));
 		const dialog = await screen.findByRole("dialog");
 		expect(dialog).toHaveTextContent(
-			"Only this entry and its security report go: the workspace template keeps running ghcr.io/user187x/coder-workspace:1.9.2",
+			"Only this entry and its security report go: the workspace template keeps running docker.io/user187x/coder-workspace:1.9.2",
 		);
 		expect(remove).not.toHaveBeenCalled();
 		fireEvent.click(within(dialog).getByRole("button", { name: "Delete" }));

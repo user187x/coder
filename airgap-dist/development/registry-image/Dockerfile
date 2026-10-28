@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# ghcr.io/user187x/coder-registry:<distribution version>-<build> (../tools/build-registry-image.sh): the Images view's
+# docker.io/user187x/coder-registry:<distribution version>-<build> (../tools/build-registry-image.sh): the Images view's
 # registry (coder-image-registry, where built images are kept). Docker's registry, distribution, built from its
 # release's source with the Go release and the Go modules that fix what the release's own binary carries, on Alpine
 # with its fixes - otherwise the official image (registry:<version>): the same config, entrypoint, volume and port -

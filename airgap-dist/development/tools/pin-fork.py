@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Pins a new build of the fork in this repo: the chart runs ghcr.io/user187x/coder-platform:2.0.0-platform.<N>-airgap.
+"""Pins a new build of the fork in this repo: the chart runs docker.io/user187x/coder-platform:2.0.0-platform.<N>-airgap.
 
   development/tools/pin-fork.py N        (after build_platform_image.sh and build-airgap-image.sh 2.0.0-platform.N)
 
@@ -17,7 +17,7 @@ import sys
 top = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 n = int(sys.argv[1])
 tag = "2.0.0-platform.%d" % n
-img = "ghcr.io/user187x/coder-platform:%s-airgap" % tag
+img = "docker.io/user187x/coder-platform:%s-airgap" % tag
 
 
 def sub(path, pattern, repl, count=1, flags=re.M):
@@ -44,7 +44,7 @@ image_id = subprocess.run(["docker", "image", "inspect", "--format", "{{.Id}}", 
 
 # images.txt
 sub("helm-chart/images.txt",
-    r"^ghcr\.io/user187x/coder-platform:\S+-airgap\s+sha256:[0-9a-f]+(\s+)coder \(server\); = the fork's platform\.\d+ \([0-9a-f]+\)",
+    r"^docker\.io/user187x/coder-platform:\S+-airgap\s+sha256:[0-9a-f]+(\s+)coder \(server\); = the fork's platform\.\d+ \([0-9a-f]+\)",
     lambda mm: "%s  %s%scoder (server); = the fork's platform.%d (%s)" % (img, image_id, mm.group(1), n, commit9))
 # values.yaml
 sub("helm-chart/coder-airgapped/values.yaml", r"# The fork's 2\.0\.0-platform\.\d+ ", "# The fork's %s " % tag)
@@ -54,12 +54,12 @@ sub("helm-chart/coder-airgapped/Chart.yaml", r'^appVersion: "2\.0\.0-platform\.\
 # FORK.md
 fork_md = "development/coder-fork/FORK.md"
 s = open(os.path.join(top, fork_md)).read()
-old = re.search(r"\| Image \| `ghcr\.io/user187x/coder-platform:(2\.0\.0-platform\.\d+)` \(`coder version`: `v[^+]+\+([0-9a-f]+)`\) \|", s)
+old = re.search(r"\| Image \| `docker\.io/user187x/coder-platform:(2\.0\.0-platform\.\d+)` \(`coder version`: `v[^+]+\+([0-9a-f]+)`\) \|", s)
 if old and old.group(1) != tag:
     built = re.search(r"\| Built from \| `([0-9a-f]+)`", s).group(1)[:9]
     sub(fork_md, r"^\| Previous \| ", "| Previous | `%s` (`%s`), " % (old.group(1), built))
-sub(fork_md, r"^\| Image \| `ghcr\.io/user187x/coder-platform:[^`]+` \(`coder version`: `[^`]+`\) \|",
-    "| Image | `ghcr.io/user187x/coder-platform:%s` (`coder version`: `v%s+%s`) |" % (tag, tag, short))
+sub(fork_md, r"^\| Image \| `docker\.io/user187x/coder-platform:[^`]+` \(`coder version`: `[^`]+`\) \|",
+    "| Image | `docker.io/user187x/coder-platform:%s` (`coder version`: `v%s+%s`) |" % (tag, tag, short))
 sub(fork_md, r"^\| Built from \| `[0-9a-f]+`, clean tree, [0-9-]+ \|",
     "| Built from | `%s`, clean tree, %s |" % (full, datetime.date.today().isoformat()))
 sub(fork_md, r"^(\| Air-gap image \| `…:)2\.0\.0-platform\.\d+(-airgap`)", r"\g<1>%s\g<2>" % tag)

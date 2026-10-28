@@ -30,7 +30,7 @@ for path in [root/'scripts/Dockerfile.base',*root.glob('airgap-dist/development/
  for raw in re.findall(r'^FROM\s+([^\s]+)',text,re.M):
   value=raw
   for key,default in defaults.items(): value=value.replace('${'+key+'}',default).replace('$'+key,default)
-  if '$' not in value and not value.startswith('ghcr.io/user187x/'):
+  if '$' not in value and not value.startswith('docker.io/user187x/'):
    refs.add(value)
 for path in root.glob('airgap-dist/development/tools/build-*.sh'):
  for value in re.findall(r'(?:go_image|alpine_image)=([^\s]+)',path.read_text()):
@@ -47,7 +47,7 @@ out.joinpath('IMAGE-INVENTORY.json').write_text(json.dumps({
  'fork_images':out.joinpath('FORK-IMAGES.txt').read_text().splitlines(),
  'public_runtime_images':out.joinpath('PUBLIC-IMAGES.txt').read_text().splitlines(),
  'public_build_base_images':sorted(refs),
- 'optional_dataflow':'ghcr.io/user187x/coder-workspace-dataflow:1.1.4',
+ 'optional_dataflow':'docker.io/user187x/coder-workspace-dataflow:1.1.4',
  'build_command':'./airgap-dist/development/tools/build-source-release.sh REGISTRY --push',
  'notes':['Build on a connected Linux x86_64 machine. Base images alone do not supply package/source downloads.','No saved container images are included. DATAFLOW is disabled unless --dataflow is used.']
 },indent=2)+'\n')

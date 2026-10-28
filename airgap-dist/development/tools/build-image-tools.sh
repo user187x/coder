@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds ghcr.io/user187x/coder-image-tools:<TAG> (../image-tools): the platform service's image with shellcheck, shfmt,
+# Builds docker.io/user187x/coder-image-tools:<TAG> (../image-tools): the platform service's image with shellcheck, shfmt,
 # trivy (+ its vulnerability database, downloaded now), regctl and copa (Copacetic: the Images view's pit stops patch
 # images with it, through BuildKit), and saves it into the delivery bundle
 # (helm-chart/images/custom/), replacing the previous one. Needs internet (the binaries, copa's source, the Go modules
@@ -8,7 +8,7 @@
 #   ./build-image-tools.sh [TAG]           default 1.2.0
 set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; dev="$(dirname "$here")"; top="$(dirname "$dev")"
-tag="${1:-1.2.0}"; img="ghcr.io/user187x/coder-image-tools:${tag}"
+tag="${1:-1.2.0}"; img="docker.io/user187x/coder-image-tools:${tag}"
 cache="${XDG_CACHE_HOME:-$HOME/.cache}/coder-airgapped/image-tools"; mkdir -p "$cache"
 ctx="$(mktemp -d)"; trap 'rm -rf "$ctx"' EXIT
 cp "${dev}/image-tools/Dockerfile" "$ctx/"; mkdir -p "$ctx/bin" "$ctx/trivy-cache"
@@ -54,7 +54,7 @@ docker run --rm --network none --entrypoint sh "$img" -c '
 	echo "image-tools checks passed"'
 # its archive in the bundle, where images.txt lists it; it ships inside the platform service's image
 # (coder-ui-updates, build-ui-image.sh), which images.txt lists instead
-if grep -q '^ghcr.io/user187x/coder-image-tools:' "${top}/helm-chart/images.txt"; then
+if grep -q '^docker.io/user187x/coder-image-tools:' "${top}/helm-chart/images.txt"; then
 	"${top}/helm-chart/mirror-images.sh" store "$img"
 else
 	echo "not stored on its own: build-ui-image.sh builds the platform service's image on it"

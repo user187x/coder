@@ -12,7 +12,7 @@ for your separate Keycloak installation. The Coder chart does not install Keyclo
 
 Download the release files into one folder named `coder-offline`.
 Keep every image file, including both DATAFLOW `.part-00` and `.part-01` files.
-You may skip `coder-build-kit-1.1.3.tar.gz`; that is the source-build alternative.
+You may skip `coder-build-kit-1.2.0.tar.gz`; that is the source-build alternative.
 
 Copy the WHOLE folder into the enclave. Do not rearrange it.
 Open a terminal in that folder.
@@ -84,7 +84,7 @@ kubectl get storageclass
 Then run:
 
 ```bash
-helm upgrade --install coder-fork ./coder-airgapped-1.47.2.tgz \
+helm upgrade --install coder-fork ./coder-airgapped-1.48.0.tgz \
   --namespace coder-fork --create-namespace \
   --values values.yaml --timeout 20m
 ```

@@ -315,7 +315,7 @@ def one_step_checks(B, chart):
     selection = release_sh.split("# ours, outside [rollback]/[reference], rendered by the chart")[-1][:800]
     check("one step: the release ships values.example.yaml and our images only; INSTALL.md lists the public ones "
           "(pull-public-images.sh saves them, push-images.sh pushes them); helm install --timeout 20m",
-          'cp "${bundle}/values.example.yaml"' in release_sh and '[[ "$img" == ghcr.io/user187x/* ]] || continue' in selection
+          'cp "${bundle}/values.example.yaml"' in release_sh and '[[ "$img" == docker.io/user187x/* ]] || continue' in selection
           and "@PUBLIC_IMAGES@" in install and "--ours-only" in push_sh and "IMAGES-public.txt" in push_sh
           and 'install -m 0755 "${templates}/pull-public-images.sh"' in release_sh and "PUBLIC-IMAGES.txt" in release_sh
           and "--timeout 20m" in install
@@ -814,7 +814,7 @@ def main():
                           capture_output=True, text=True).stdout.split()
     check("marimo is gone (code, templates, images, docs; history and reference exports aside)", not left, left[:5])
     # code-server HA (templates/code-server-ha.yaml, files/ui-updates/csha.py)
-    ui_img = re.search(r"image: (ghcr\.io/user187x/coder-ui-updates:code-[0-9a-f]+)", r)
+    ui_img = re.search(r"image: (docker\.io/user187x/coder-ui-updates:code-[0-9a-f]+)", r)
     op = re.search(r"name: coder-code-server-replicator\n(?:.*\n){0,40}?\s+command: \[python3, /app/csha\.py, operator\]", r)
     check("code-server HA: the code-server-replicator runs the platform service's code, as Coder's database's owner",
           op and "CSHA_DB" in r and re.search(r"name: CSHA_DB\s*\n\s*valueFrom: \{secretKeyRef: \{name: coder-db-app, key: uri\}\}", r),
@@ -942,7 +942,7 @@ def main():
                      for f in baked)
     want = "coder-ui-updates:code-" + hashlib.sha256(lines.encode()).hexdigest()[:12]
     values_txt = open(os.path.join(chart, "values.yaml")).read()
-    pinned = re.search(r"ghcr\.io/user187x/(coder-ui-updates:code-[0-9a-f]+)", values_txt)
+    pinned = re.search(r"docker\.io/user187x/(coder-ui-updates:code-[0-9a-f]+)", values_txt)
     check("platform service: values.yaml pins the image of the code as it is (development/tools/build-ui-image.sh)",
           pinned and pinned.group(1) == want, "pinned %s, code is %s" % (pinned and pinned.group(1), want))
     images_txt = open(os.path.join(chart, "..", "images.txt")).read()
@@ -1108,7 +1108,7 @@ def main():
           and startup.index("cannot be applied: Classic instead") < startup.index("Xtigervnc :1 -auth"), "")
     check("template: the workspace image is substituted (not codercom/enterprise-base)",
           "codercom/enterprise-base" not in r, "")
-    ws_img = re.search(r'workspaceImage: .*?"(ghcr\.io/user187x/coder-workspace:[^"]+)"', vals).group(1)
+    ws_img = re.search(r'workspaceImage: .*?"(docker\.io/user187x/coder-workspace:[^"]+)"', vals).group(1)
     check("the workspace image the chart runs is the bundled one", ws_img in images, ws_img)
     dfp = os.path.normpath(os.path.join(B, "../development/workspace-image/Dockerfile"))
     if os.path.isfile(dfp):
@@ -1153,7 +1153,7 @@ def main():
             tgz.add(os.path.join(chart, "values.yaml"), "coder-airgapped-layer/values.yaml")
         dataflow_image = re.search(r'^  dataflowImage:.*"([^"\n]+)"', open(os.path.join(chart, "values.yaml")).read(),
                                    re.M).group(1)
-        open(os.path.join(tmp, "images", "ghcr.io_user187x_coder-platform_0.0.0-test-airgap.tar.gz"), "w").close()
+        open(os.path.join(tmp, "images", "docker.io_user187x_coder-platform_0.0.0-test-airgap.tar.gz"), "w").close()
         shutil.copy(os.path.join(B, "argocd", "update-application.sh"), tmp)
         app = os.path.join(tmp, "app.yaml")
         open(app, "w").write(open(os.path.join(B, "argocd", "coder-decorated-application.yaml")).read()

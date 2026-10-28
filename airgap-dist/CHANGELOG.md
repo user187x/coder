@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.0 (chart 1.48.0) 2026-10-28
+
+* Images are published on Docker Hub as `docker.io/user187x/...` instead of `ghcr.io/user187x/...`: the chart, images.txt, the build and release scripts and the Images view's Coder fork images all use the new names. The bundle still carries them for air-gapped installs.
+* Coder `1.2.0` (fork `e407e52`): every image chooser (avatar, logo, icons, sign-in heading, announcement picture) offers a lava lamp drawn live, each copy its own, with speed, colour, lumps, size, backdrop and vary controls; the background has a lava lamp source that follows Fit.
+* The platform service accepts a sign-in heading picture of up to 350 KB (the request body limit was 16 KB).
+* The online chart (`helm/coder-platform` 0.3.0) runs `docker.io/user187x/coder-platform:1.2.0-agpl` for linux/amd64 and linux/arm64.
+
 ## HUD storage and connector alignment 2026-10-26
 
 * HUD history now includes physical disk usage/capacity and PVC reservations, with volume inventory cards and storage-class totals. Missing or incomplete measurements remain unavailable. Physical totals cover ready node root filesystems.

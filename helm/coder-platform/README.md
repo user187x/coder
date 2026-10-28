@@ -51,20 +51,20 @@ kubectl -n coder-platform port-forward svc/coder 8080:80
 
 ## Common settings
 
-| Value                                                           | Default                                         | Purpose                                                             |
-|-----------------------------------------------------------------|-------------------------------------------------|---------------------------------------------------------------------|
-| `accessURL`                                                     | `""` (in-cluster address)                       | The URL users open, for example `https://coder.example.com`         |
-| `wildcardAccessURL`                                             | `""`                                            | Wildcard host for workspace apps, for example `*.coder.example.com` |
-| `image.repository`, `image.tag`                                 | `ghcr.io/user187x/coder-platform`, `appVersion` | The Coder image                                                     |
-| `coder.service.type`                                            | `ClusterIP`                                     | `LoadBalancer` or `NodePort` to publish Coder directly              |
-| `ingress.enabled`, `ingress.className`, `ingress.tlsSecretName` | `false`                                         | An Ingress to Coder                                                 |
-| `httpRoute.enabled`, `httpRoute.parentRefs`                     | `false`                                         | A Gateway API route to Coder                                        |
-| `oidc.*`                                                        | disabled                                        | Keycloak or another OpenID Connect provider                         |
-| `firstUser.*`                                                   | `admin`                                         | The first admin; `existingSecret` supplies the password             |
-| `postgres.enabled`                                              | `true`                                          | `false` uses `postgres.external.secretName` (a connection URL)      |
-| `tls.caPem`                                                     | `""`                                            | A private CA that Coder and the platform service trust              |
-| `platform.keycloakNamespace`                                    | `""`                                            | Lets the Keycloak page read the Keycloak operator's resources       |
-| `platform.clusterRead`                                          | `true`                                          | Cluster-wide read access for the Network and Persistence pages      |
+| Value                                                           | Default                                           | Purpose                                                             |
+|-----------------------------------------------------------------|---------------------------------------------------|---------------------------------------------------------------------|
+| `accessURL`                                                     | `""` (in-cluster address)                         | The URL users open, for example `https://coder.example.com`         |
+| `wildcardAccessURL`                                             | `""`                                              | Wildcard host for workspace apps, for example `*.coder.example.com` |
+| `image.repository`, `image.tag`                                 | `docker.io/user187x/coder-platform`, `appVersion` | The Coder image                                                     |
+| `coder.service.type`                                            | `ClusterIP`                                       | `LoadBalancer` or `NodePort` to publish Coder directly              |
+| `ingress.enabled`, `ingress.className`, `ingress.tlsSecretName` | `false`                                           | An Ingress to Coder                                                 |
+| `httpRoute.enabled`, `httpRoute.parentRefs`                     | `false`                                           | A Gateway API route to Coder                                        |
+| `oidc.*`                                                        | disabled                                          | Keycloak or another OpenID Connect provider                         |
+| `firstUser.*`                                                   | `admin`                                           | The first admin; `existingSecret` supplies the password             |
+| `postgres.enabled`                                              | `true`                                            | `false` uses `postgres.external.secretName` (a connection URL)      |
+| `tls.caPem`                                                     | `""`                                              | A private CA that Coder and the platform service trust              |
+| `platform.keycloakNamespace`                                    | `""`                                              | Lets the Keycloak page read the Keycloak operator's resources       |
+| `platform.clusterRead`                                          | `true`                                            | Cluster-wide read access for the Network and Persistence pages      |
 
 See [values.yaml](values.yaml) for everything else.
 

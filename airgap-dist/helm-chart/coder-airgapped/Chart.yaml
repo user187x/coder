@@ -2,13 +2,13 @@ apiVersion: v2
 name: coder-airgapped
 description: >-
   The forked Coder platform exactly as it runs on the reference cluster (minikube, namespace coder, captured
-  2026-10-09): Coder 2.37.3 chart with the ghcr.io/user187x/coder-platform image, its CloudNativePG database,
+  2026-10-09): Coder 2.37.3 chart with the docker.io/user187x/coder-platform image, its CloudNativePG database,
   the coder-ui-updates platform service (+ its log buffer database; the announcement banner is Coder's own),
   the DEFAULT workspace template and its icon server. Every dependency is vendored in charts/,
   so the chart installs with no network access.
 type: application
-version: 1.47.2
-appVersion: "1.1.3"
+version: 1.48.0
+appVersion: "1.2.0"
 kubeVersion: ">=1.27.0-0"
 keywords:
   - coder

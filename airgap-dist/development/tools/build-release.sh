@@ -24,7 +24,7 @@
 #   SHA256SUMS                       every file in the folder, parts one by one (sha256sum -c SHA256SUMS works as is)
 #   SHA256SUMS.joined                the split archives as joined (<file>.tar.gz), when any is split
 #   CVE-REPORT.md                    with --scan / --scan-only
-# The images: those of images.txt that are ours (ghcr.io/user187x/...), outside its [rollback] and [reference]
+# The images: those of images.txt that are ours (docker.io/user187x/...), outside its [rollback] and [reference]
 # sections, that the chart renders under `--set global.registry=REGISTRY.invalid` - by default, and with high
 # availability and its own prerequisites (global.bundled) - matched on path:tag. An image of ours the chart renders
 # without an archive (or not in images.txt) is an error; those of ours it does not render are listed as left out; the
@@ -46,7 +46,7 @@
 # --no-db-update   scan with the databases in TRIVY_CACHE as they are (no download; they must be there)
 # Environment:
 #   SPLIT_SIZE=1900M    an archive larger than this is split into parts of this size (numfmt IEC: 1900M, 10M, ...)
-#   TOOLS_IMAGE=ghcr.io/user187x/coder-image-tools:1.2.0         the trivy to scan with (1.1.0 or newer)
+#   TOOLS_IMAGE=docker.io/user187x/coder-image-tools:1.2.0         the trivy to scan with (1.1.0 or newer)
 #   TRIVY_CACHE=${XDG_CACHE_HOME:-~/.cache}/coder-airgapped/trivy    trivy's databases (about 3 GB)
 #   ONLY=coder-minio,coder-registry   TEST AID: only these images (by name) - a partial release, never one to ship
 set -euo pipefail
@@ -74,7 +74,7 @@ done
 die() { echo "ERROR: $*" >&2; exit 1; }
 out=$(realpath -m "$out")
 split_bytes=$(numfmt --from=iec "${SPLIT_SIZE:-1900M}") || die "SPLIT_SIZE: ${SPLIT_SIZE}"
-tools_image="${TOOLS_IMAGE:-ghcr.io/user187x/coder-image-tools:1.2.0}"
+tools_image="${TOOLS_IMAGE:-docker.io/user187x/coder-image-tools:1.2.0}"
 trivy_cache=$(realpath -m "${TRIVY_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/coder-airgapped/trivy}")
 only=",${ONLY:-},"
 for v in "${vex[@]}"; do [[ -f "$v" ]] || die "no VEX file $v"; done
@@ -162,7 +162,7 @@ build_release() {
 	local i img p
 	for i in "${!images[@]}"; do
 		img=${images[$i]} p=$(path_of "${images[$i]}")
-		[[ "$img" == ghcr.io/user187x/* ]] || continue
+		[[ "$img" == docker.io/user187x/* ]] || continue
 		case "${groups[$i]}" in rollback | reference) left_out+=("${img}  ([${groups[$i]}])"); continue ;; esac
 		listed[$p]=$i
 		if [[ -z "${rendered[$p]:-}" ]]; then left_out+=("${img}  (the chart does not run it)"); continue; fi
@@ -208,7 +208,7 @@ build_release() {
 	local -a public=()
 	local -A pub_src=()
 	for i in "${!images[@]}"; do
-		[[ "${images[$i]}" == ghcr.io/user187x/* ]] && continue
+		[[ "${images[$i]}" == docker.io/user187x/* ]] && continue
 		pub_src[$(path_of "${images[$i]}")]="${images[$i]}@${digests[$i]}"
 	done
 	while read -r r; do

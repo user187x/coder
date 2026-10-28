@@ -38,7 +38,7 @@ class ReleaseInstallTest(unittest.TestCase):
         self.assertTrue(any(i.startswith("private.example/coder/user187x/coder-ui-updates:") for i in images))
         self.assertTrue(any(i.startswith("docker.io/library/python:") for i in images))
         self.assertTrue(any(i.startswith("ghcr.io/cloudnative-pg/cloudnative-pg:") for i in images))
-        self.assertFalse(any(i.startswith("ghcr.io/user187x/") for i in images))
+        self.assertFalse(any(i.startswith("docker.io/user187x/") for i in images))
         self.assertFalse(any(i.startswith("private.example/coder/library/") for i in images))
 
     def test_dataflow_does_not_participate_in_core_install(self):
@@ -55,8 +55,8 @@ class ReleaseInstallTest(unittest.TestCase):
             shutil.copy(PUSH, root / "push-images.sh")
             (root / "core.tar.gz").write_bytes(b"archive fixture")
             digest = hashlib.sha256(b"archive fixture").hexdigest()
-            (root / "IMAGES.txt").write_text("ghcr.io/user187x/coder-platform:1 core.tar.gz 1B sha256:a sha256:b\n"
-                "ghcr.io/user187x/coder-workspace-dataflow:1 absent.tar.gz 1B sha256:c sha256:d\n")
+            (root / "IMAGES.txt").write_text("docker.io/user187x/coder-platform:1 core.tar.gz 1B sha256:a sha256:b\n"
+                "docker.io/user187x/coder-workspace-dataflow:1 absent.tar.gz 1B sha256:c sha256:d\n")
             (root / "SHA256SUMS").write_text(f"{digest}  core.tar.gz\n{'0' * 64}  absent.tar.gz\n")
             result = subprocess.run(["bash", str(root / "push-images.sh"), "private.example/coder", "--without-dataflow", "--dry-run"], capture_output=True, text=True)
             self.assertEqual(result.returncode, 0, result.stderr)

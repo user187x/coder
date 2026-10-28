@@ -11,7 +11,7 @@
 # gap and upload it. trivy publishes a new vulnerability database every 6 hours; the dashboard warns after 14 days.
 set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; top="$(cd "${here}/../.." && pwd)"
-image="ghcr.io/user187x/coder-image-tools:1.2.0"
+image="docker.io/user187x/coder-image-tools:1.2.0"
 rules="${top}/helm-chart/coder-airgapped/files/ui-updates/fips-rules.json"
 out="${top}/dist"; java=1
 while (($#)); do

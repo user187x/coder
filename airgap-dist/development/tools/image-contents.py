@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""What each image of ours holds (helm-chart/images.txt's ghcr.io/user187x/ images: we build them, so we can say
+"""What each image of ours holds (helm-chart/images.txt's docker.io/user187x/ images: we build them, so we can say
 precisely), as JSON for the Images view (Templates > Images: their "Coder fork" tag and contents tree):
 helm-chart/coder-airgapped/files/ui-updates/image-contents.json, served by the platform service.
 
@@ -26,7 +26,7 @@ import sys
 TOP = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 IMAGES_TXT = os.path.join(TOP, "helm-chart", "images.txt")
 OUT = os.path.join(TOP, "helm-chart", "coder-airgapped", "files", "ui-updates", "image-contents.json")
-OURS = "ghcr.io/user187x/"
+OURS = "docker.io/user187x/"
 
 # Where each of ours is made: (folder, build script) in this repository.
 SOURCES = {

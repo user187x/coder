@@ -1,6 +1,6 @@
 # Coder (github.com/user187x/coder, with all its dashboard and server changes) on any Kubernetes cluster that runs
-# Argo CD. Everything comes from public sources: the Helm chart from this GitHub repository, the images from ghcr.io
-# and Docker Hub (linux/amd64 and linux/arm64). Nothing else is needed and nothing has to be edited.
+# Argo CD. Everything comes from public sources: the Helm chart from this GitHub repository, the images from
+# Docker Hub (linux/amd64 and linux/arm64). Nothing else is needed and nothing has to be edited.
 #
 #   kubectl apply -n argocd -f application.yaml
 #
@@ -8,7 +8,7 @@
 # and the first admin. Full guide: https://github.com/user187x/coder/blob/main/helm/coder-platform/DEPLOY.md
 #
 # Needs: Argo CD 2.10 or newer deploying to its own cluster, a default StorageClass (or set the two storageClass
-# values below), and internet access from the cluster to github.com, ghcr.io and docker.io. The file also creates
+# values below), and internet access from the cluster to github.com and docker.io. The file also creates
 # the Argo CD project the Application uses.
 #
 # ---- After the first sync (5 to 10 minutes, mostly Argo CD cloning the repository; Synced and Healthy) ----

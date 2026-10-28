@@ -3,8 +3,8 @@
 This repository's Coder, with all its dashboard and server changes, deploys to
 any Kubernetes cluster from one Argo CD Application:
 [argocd/application.yaml](argocd/application.yaml). It needs nothing else: the
-chart comes from this public repository, and the images come from `ghcr.io` and
-Docker Hub, for linux/amd64 and linux/arm64.
+chart comes from this public repository, and the images come from Docker Hub
+(`docker.io`), for linux/amd64 and linux/arm64.
 
 ## What gets deployed
 
@@ -12,7 +12,7 @@ Everything lands in namespace `coder-platform`:
 
 | Component               | Kubernetes objects                                                     | Purpose                                                                                                                         |
 |-------------------------|------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------|
-| Coder                   | Deployment `coder`, Service `coder`, ConfigMap `coder-platform-config` | This repository's Coder, image `ghcr.io/user187x/coder-platform`                                                                |
+| Coder                   | Deployment `coder`, Service `coder`, ConfigMap `coder-platform-config` | This repository's Coder, image `docker.io/user187x/coder-platform`                                                              |
 | PostgreSQL              | StatefulSet `coder-db`, Service, 10Gi volume                           | Coder's database, including uploaded logos, avatars, template icons and admin quick links                                       |
 | Platform service        | Deployment `coder-ui-updates`, Service, 1Gi volume                     | Logo, avatars, template icons, classification, announcements, chat, and the Keycloak, Network, Monitoring and Persistence pages |
 | Monitoring log database | Deployment `coder-ui-logs-db`                                          | Buffers workspace logs for the Monitoring page                                                                                  |
@@ -31,7 +31,7 @@ or a Gateway API route.
   `coder-platform`, and the cluster-scoped objects the chart creates.
 - A default StorageClass, or set `postgres.storage.storageClass` and
   `platform.storage.storageClass`.
-- Internet access from the cluster to `github.com`, `ghcr.io` and `docker.io`.
+- Internet access from the cluster to `github.com` and `docker.io`.
   Workspace builds also download Terraform providers from
   `registry.terraform.io`.
 
@@ -184,12 +184,12 @@ Applications that track `targetRevision: main` pick up new versions by
 themselves. To release one from this repository:
 
 1. Bump `appVersion` in [Chart.yaml](Chart.yaml), for example to
-   `2.0.0-platform.3`. Bump `version` when the chart changes.
+   `1.2.1-agpl`. Bump `version` when the chart changes.
 2. Build and push the image from the repository root. It's tagged with
    `appVersion` for linux/amd64 and linux/arm64:
 
    ```sh
-   docker login ghcr.io -u user187x --password-stdin < /path/to/token-file
+   docker login docker.io -u user187x --password-stdin < /path/to/token-file
    ./scripts/build_platform_image.sh --push
    ```
 
@@ -233,7 +233,7 @@ delete the Application, then `kubectl delete namespace coder-platform`.
 | Symptom                                                         | Cause and fix                                                                                                                                                 |
 |-----------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | PVCs stay `Pending`                                             | No default StorageClass. Set `postgres.storage.storageClass` and `platform.storage.storageClass`                                                              |
-| Pods in `ImagePullBackOff`                                      | The cluster can't reach `ghcr.io` or `docker.io`, or Docker Hub's anonymous pull limit was hit. Check `kubectl -n coder-platform describe pod <pod>`          |
+| Pods in `ImagePullBackOff`                                      | The cluster can't reach `docker.io`, or Docker Hub's anonymous pull limit was hit. Check `kubectl -n coder-platform describe pod <pod>`                       |
 | `coder` restarts a few times on the first sync                  | It started before PostgreSQL accepted connections, and settles once it does                                                                                   |
 | Application stays `Progressing`; the admin Job never runs       | Something isn't healthy yet: a pod that isn't ready, or an Ingress or LoadBalancer without an address. Check `kubectl -n coder-platform get pods,ingress,svc` |
 | Dashboard pages show "platform service is not reachable"        | `coder-ui-updates` isn't running: check its pods and logs                                                                                                     |

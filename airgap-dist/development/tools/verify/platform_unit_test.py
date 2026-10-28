@@ -63,7 +63,7 @@ class NodeScanTest(unittest.TestCase):
                              (ib.REGISTRY + "/coder-images/a:3", None))
 
     def test_scanned_entries_are_named_after_the_image(self):
-        a = ib.scanned_id("ghcr.io/user187x/coder-workspace-dataflow:1.1.0")
+        a = ib.scanned_id("docker.io/user187x/coder-workspace-dataflow:1.1.0")
         self.assertRegex(a, r"^scan-coder-workspace-dataflow-1-1-0-[0-9a-f]{6}$")
         self.assertNotEqual(a, ib.scanned_id("other.io/user187x/coder-workspace-dataflow:1.1.0"))
 
@@ -297,7 +297,7 @@ class LockDownTest(unittest.TestCase):
         meta = {"name": "ws-pod", "labels": {"com.coder.workspace.id": self.WID}}
         if applied:
             meta["annotations"] = {ld.ANNOTATION: applied}
-        return {"metadata": meta, "spec": {"containers": [{"name": "dev", "image": "ghcr.io/user187x/coder-workspace:1.8.3"}]},
+        return {"metadata": meta, "spec": {"containers": [{"name": "dev", "image": "docker.io/user187x/coder-workspace:1.8.3"}]},
                 "status": {"phase": "Running", "containerStatuses": [{"name": "dev", "state": {"running": {"startedAt": "2026-10-13T12:00:00Z"}}}]}}
 
     def setUp(self):
@@ -325,7 +325,7 @@ class LockDownTest(unittest.TestCase):
         patch = next(c for c in calls if c[1].endswith("/ephemeralcontainers"))
         c = patch[2]["spec"]["ephemeralContainers"][0]
         self.assertEqual(c["targetContainerName"], "dev")                      # shares the workspace's processes
-        self.assertEqual(c["image"], "ghcr.io/user187x/coder-workspace:1.8.3")
+        self.assertEqual(c["image"], "docker.io/user187x/coder-workspace:1.8.3")
         self.assertEqual(c["command"][4:], ["network,sudo", "coder.example.com", "/proc/1/root"])
         self.assertEqual(c["securityContext"]["runAsUser"], 0)
         self.assertEqual(set(c["securityContext"]["capabilities"]["add"]), {"NET_ADMIN", "NET_RAW", "SYS_PTRACE"})
@@ -429,7 +429,7 @@ class FreezeTest(unittest.TestCase):
     def pod(self):
         return {"metadata": {"name": "ws-pod", "labels": {"com.coder.workspace.id": self.WID}},
                 "spec": {"nodeName": "node-2", "tolerations": [{"key": "dedicated", "operator": "Exists"}],
-                         "containers": [{"name": "dev", "image": "ghcr.io/user187x/coder-workspace:1.8.3",
+                         "containers": [{"name": "dev", "image": "docker.io/user187x/coder-workspace:1.8.3",
                                          "volumeMounts": [{"name": "tmp", "mountPath": "/tmp"},
                                                           {"name": "home", "mountPath": "/home/coder"}]}],
                          "volumes": [{"name": "tmp", "emptyDir": {}},
@@ -480,7 +480,7 @@ class FreezeTest(unittest.TestCase):
 
     def setUp(self):
         for name, value in (("LOG", None), ("CODER_HOST", "coder.example.com"), ("APPLY_TIMEOUT", 5),
-                            ("COPY_IMAGE", "ghcr.io/user187x/coder-workspace:1.8.3")):
+                            ("COPY_IMAGE", "docker.io/user187x/coder-workspace:1.8.3")):
             p = mock.patch.object(ld, name, value)
             p.start()
             self.addCleanup(p.stop)
@@ -541,7 +541,7 @@ class FreezeTest(unittest.TestCase):
         job = next(b for p, b in state["objects"].items() if p.endswith("/jobs"))
         spec = job["spec"]["template"]["spec"]
         self.assertEqual(spec["volumes"][0]["persistentVolumeClaim"]["claimName"], "coder-%s-home" % self.WID)
-        self.assertEqual(spec["containers"][0]["image"], "ghcr.io/user187x/coder-workspace:1.8.3")
+        self.assertEqual(spec["containers"][0]["image"], "docker.io/user187x/coder-workspace:1.8.3")
         self.assertEqual(spec["affinity"], {})                                # wherever the volume can be
 
     def test_kept_after_lifting_replaced_by_the_next_freeze_and_deleted_by_admins(self):
@@ -1397,7 +1397,7 @@ class TrackedWorkspaceImageTest(unittest.TestCase):
         self.deploy("1.8.2")
 
     def deploy(self, tag):
-        for name, value in (("WORKSPACE_IMAGE", "ghcr.io/user187x/coder-workspace:" + tag),
+        for name, value in (("WORKSPACE_IMAGE", "docker.io/user187x/coder-workspace:" + tag),
                             ("BASE_IMAGE", ib.REGISTRY + "/coder-images/base/coder-workspace:" + tag)):
             p = mock.patch.object(ib, name, value)
             p.start()
@@ -1407,7 +1407,7 @@ class TrackedWorkspaceImageTest(unittest.TestCase):
         ib.sync_tracked()
         img = ib.STORE.image(ib.TRACKED_ID)
         self.assertEqual(img["status"], "ready")
-        self.assertEqual(img["pullRef"], "ghcr.io/user187x/coder-workspace:1.8.2")  # what templates name
+        self.assertEqual(img["pullRef"], "docker.io/user187x/coder-workspace:1.8.2")  # what templates name
         self.assertEqual(img["ref"], ib.REGISTRY + "/coder-images/base/coder-workspace:1.8.2")  # what is scanned
         self.assertEqual(img["tracked"]["template"], "DEFAULT")
         self.assertEqual(self.rescans, [ib.TRACKED_ID])
@@ -1419,7 +1419,7 @@ class TrackedWorkspaceImageTest(unittest.TestCase):
         self.digest = "sha256:" + "2" * 64
         ib.sync_tracked()
         img = ib.STORE.image(ib.TRACKED_ID)
-        self.assertEqual(img["pullRef"], "ghcr.io/user187x/coder-workspace:1.8.3")
+        self.assertEqual(img["pullRef"], "docker.io/user187x/coder-workspace:1.8.3")
         self.assertIsNone(img["report"])
         self.assertEqual(self.rescans, [ib.TRACKED_ID, ib.TRACKED_ID])
 
@@ -1456,11 +1456,11 @@ class TrackedWorkspaceImageTest(unittest.TestCase):
         self.assertIsNone(ib.STORE.image(ib.TRACKED_ID))  # the same image: not listed again
         self.deploy("1.8.3")
         ib.sync_tracked()
-        self.assertEqual(ib.STORE.image(ib.TRACKED_ID)["pullRef"], "ghcr.io/user187x/coder-workspace:1.8.3")
+        self.assertEqual(ib.STORE.image(ib.TRACKED_ID)["pullRef"], "docker.io/user187x/coder-workspace:1.8.3")
 
     def test_contents_of_our_images(self):
         h = mock.MagicMock()
-        catalog = {"images": {"ghcr.io/user187x/coder-workspace:1.8.2": {"repository": "coder-workspace"}}}
+        catalog = {"images": {"docker.io/user187x/coder-workspace:1.8.2": {"repository": "coder-workspace"}}}
         with mock.patch.dict(ib._contents, {"data": catalog}):
             ib.route(h, "GET", "/contents", "", {"username": "dev"}, False, False)
         h.send_json.assert_called_with(200, catalog)
@@ -1468,7 +1468,7 @@ class TrackedWorkspaceImageTest(unittest.TestCase):
         # the file shipped with the service: our images, each with its packages and build steps
         ib._contents.clear()
         shipped = ib.image_contents()["images"]
-        self.assertTrue(shipped and all(ref.startswith("ghcr.io/user187x/") for ref in shipped))
+        self.assertTrue(shipped and all(ref.startswith("docker.io/user187x/") for ref in shipped))
         for i in shipped.values():
             self.assertTrue(i["steps"] and i["digest"].startswith("sha256:"), i["ref"])
             # add-ons as the reports give them: every part there (addons.json has no "python" part)
@@ -1509,7 +1509,7 @@ class ScanDeleteTest(unittest.TestCase):
             self.addCleanup(p.stop)
         self.addCleanup(self.dir.cleanup)
         ib.STORE.create("scan-ws", "",
-                        dict(ib.empty_spec(), scanned={"image": "ghcr.io/user187x/coder-workspace:1.9.4"}), "alice")
+                        dict(ib.empty_spec(), scanned={"image": "docker.io/user187x/coder-workspace:1.9.4"}), "alice")
         ib.STORE.set("scan-ws", status="ready", ref=self.REF)
 
     def scan(self, image_id="scan-ws", at="2026-10-20T19:03:22Z", ref=REF, status="ready"):
@@ -1918,7 +1918,7 @@ class PitStopTest(unittest.TestCase):
             p.stop()
         self.dir.cleanup()
 
-    def scanned(self, ref="ghcr.io/user187x/coder-workspace-dataflow:1.1.3"):
+    def scanned(self, ref="docker.io/user187x/coder-workspace-dataflow:1.1.3"):
         image_id = ib.scanned_id(ref)
         ib.STORE.create(image_id, "", dict(ib.empty_spec(), scanned={"image": ref}), "alice")
         ib.STORE.set(image_id, status="ready", ref=ref, report=self.REPORT)
@@ -1931,12 +1931,12 @@ class PitStopTest(unittest.TestCase):
         self.assertEqual(target, "coder-workspace-dataflow-patched")
         copy = ib.STORE.image(target)
         self.assertEqual((copy["imported"]["source"], copy["imported"]["from"], copy["imported"]["entry"]),
-                         ("copa", "ghcr.io/user187x/coder-workspace-dataflow:1.1.3", image_id))
+                         ("copa", "docker.io/user187x/coder-workspace-dataflow:1.1.3", image_id))
         st = ib.pit_state(build_id)
         # every finding with a fixed version (none chosen), the grade it came in with
         self.assertEqual(st["pairs"], [["CVE-1", "openssl"], ["CVE-2", "requests"]])
         self.assertEqual((st["source"], st["version"], st["before"]["grade"]),
-                         ("ghcr.io/user187x/coder-workspace-dataflow:1.1.3", 1, "D"))
+                         ("docker.io/user187x/coder-workspace-dataflow:1.1.3", 1, "D"))
         self.assertEqual([s_["key"] for s_ in json.loads(ib.STORE.build(build_id)["steps"])],
                          ["pit-in", "report", "patch", "rescan", "pit-out"])
         # both the scanned entry and the copy know their pit stop
@@ -2110,7 +2110,7 @@ class ImageImportTest(unittest.TestCase):
 
     def test_references_and_their_registry(self):
         for ok in ("registry.example.org/team/tool:1.2", "harbor.local:8443/a/b@sha256:" + "0" * 64,
-                   "ghcr.io/user187x/coder-workspace:1.8.5"):
+                   "docker.io/user187x/coder-workspace:1.8.5"):
             self.assertTrue(ib.REF_RE.match(ok), ok)
         for bad in ("tool:1.2", "registry.example.org/team/tool", "registry.example.org/team/tool:1.2 extra",
                     "https://registry.example.org/a:1"):
@@ -2171,7 +2171,7 @@ class ImageImportTest(unittest.TestCase):
     def test_images_in_use(self):
         pods = {"items": [
             {"metadata": {"labels": {"com.coder.user.username": "alice", "com.coder.workspace.name": "w1"}},
-             "spec": {"containers": [{"image": "ghcr.io/user187x/coder-workspace:1.8.5"}]}, "status": {"phase": "Running"}},
+             "spec": {"containers": [{"image": "docker.io/user187x/coder-workspace:1.8.5"}]}, "status": {"phase": "Running"}},
             {"metadata": {"labels": {"com.coder.user.username": "bob", "com.coder.workspace.name": "w2"}},
              "spec": {"containers": [{"image": "localhost:5000/coder-images/team-tool:2"}]}, "status": {"phase": "Running"}},
             {"metadata": {"labels": {}}, "spec": {"containers": [{"image": "old:1"}]}, "status": {"phase": "Succeeded"}}]}
@@ -2179,13 +2179,13 @@ class ImageImportTest(unittest.TestCase):
         ib.STORE.set("team-tool", version=2, ref="r", status="ready")
         with mock.patch.object(ib, "kube_call", return_value=(200, pods)), \
                 mock.patch.object(ib, "TEMPLATES", [
-                    {"name": "default", "displayName": "DEFAULT", "image": "ghcr.io/user187x/coder-workspace:1.8.5"},
+                    {"name": "default", "displayName": "DEFAULT", "image": "docker.io/user187x/coder-workspace:1.8.5"},
                     {"name": "ubuntu-dataflow", "displayName": "DATAFLOW",
-                     "image": "ghcr.io/user187x/coder-workspace-dataflow:1.1.0"}]):
+                     "image": "docker.io/user187x/coder-workspace-dataflow:1.1.0"}]):
             out = {x["image"]: x for x in ib.images_in_use()}
-        self.assertEqual(out["ghcr.io/user187x/coder-workspace:1.8.5"]["workspaces"], ["alice/w1"])
-        self.assertEqual(out["ghcr.io/user187x/coder-workspace:1.8.5"]["templates"], ["DEFAULT"])
-        self.assertEqual(out["ghcr.io/user187x/coder-workspace-dataflow:1.1.0"]["workspaces"], [])
+        self.assertEqual(out["docker.io/user187x/coder-workspace:1.8.5"]["workspaces"], ["alice/w1"])
+        self.assertEqual(out["docker.io/user187x/coder-workspace:1.8.5"]["templates"], ["DEFAULT"])
+        self.assertEqual(out["docker.io/user187x/coder-workspace-dataflow:1.1.0"]["workspaces"], [])
         self.assertEqual(out["localhost:5000/coder-images/team-tool:2"]["entry"], "team-tool")
         self.assertNotIn("old:1", out)
 

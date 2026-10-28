@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Install the prebuilt release into a new local k3d cluster, without touching Minikube.
 set -Eeuo pipefail
-version=1.1.3
+version=1.2.0
 k3s_image=rancher/k3s:v1.35.5-k3s1
 cluster=coder-fresh
 registry_name=coder-registry.localhost
@@ -118,7 +118,7 @@ except OSError as e: raise SystemExit(f'Registry port {sys.argv[1]} is unavailab
 finally: s.close()
 PY
  docker load -i "$assets/coder-registry_3.1.2-1.tar.gz"
- k3d registry create "$registry_name" --image ghcr.io/user187x/coder-registry:3.1.2-1 --port "127.0.0.1:$registry_port"
+ k3d registry create "$registry_name" --image docker.io/user187x/coder-registry:3.1.2-1 --port "127.0.0.1:$registry_port"
 fi
 docker start "k3d-$registry_name" >/dev/null
 printf '\n[3/7] Loading and pushing all 16 images. This can take a while.\n'
@@ -163,7 +163,7 @@ coder-workspace:
     enabled: false
 ''')
 PY
-helm upgrade --install coder-fork "$assets/coder-airgapped-1.47.2.tgz" \
+helm upgrade --install coder-fork "$assets/coder-airgapped-1.48.0.tgz" \
  --kubeconfig "$kubeconfig" --namespace coder-fork --create-namespace \
  --values "$assets/offline-values.example.yaml" --values "$assets/k3d-values.yaml" \
  --wait --timeout 20m

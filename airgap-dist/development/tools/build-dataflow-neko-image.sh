@@ -4,7 +4,7 @@ set -Eeuo pipefail
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source_dir=${NEKO_SOURCE_DIR:?exact upstream checkout required}
 context_dir=${1:?new private build context directory required}
-image=${2:-ghcr.io/user187x/coder-workspace-dataflow:1.2.0-neko.1}
+image=${2:-docker.io/user187x/coder-workspace-dataflow:1.2.0-neko.1}
 commit=65fba485de2987998c7028b04240b21669d674e0
 [[ $(git -C "$source_dir" rev-parse HEAD) == "$commit" ]]
 [[ ! -e $context_dir ]]

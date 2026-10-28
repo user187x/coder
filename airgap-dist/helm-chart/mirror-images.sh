@@ -11,12 +11,12 @@
 #   images/prereqs/        CloudNativePG operator, Traefik (for prereqs/)
 #   images/rollback/       plain upstream Coder
 #   images/reference/      Argo CD + Keycloak as the reference cluster runs them - reference only
-# Ours (ghcr.io/user187x/...) are on no public registry: always keep them. For a smaller bundle delete the archives of
+# Ours (docker.io/user187x/...) are built here (and published on Docker Hub); an air-gapped install has only the bundle: always keep them. For a smaller bundle delete the archives of
 # public images (or a folder): push then takes those images from the local docker or pulls them, and `save` on a
 # connected machine writes the archives again.
 #
 #   ./mirror-images.sh push REGISTRY [GROUP...]
-#                                   tag and push each image as REGISTRY/<path>, e.g. ghcr.io/user187x/coder-platform:T
+#                                   tag and push each image as REGISTRY/<path>, e.g. docker.io/user187x/coder-platform:T
 #                                   -> REGISTRY/user187x/coder-platform:T (what the example values use). Source: its
 #                                   archive under images/, else the local docker, else docker pull (by digest).
 #                                   GROUP: a section of images.txt (ui workspaces cloud-drive image-builder cluster
@@ -85,8 +85,8 @@ target() { # strip the source registry host
 	if [[ "$first" == *.* || "$first" == *:* ]]; then ref="${ref#*/}"; fi
 	echo "$2/${ref}"
 }
-# Ours: built here, on no public registry (never pulled).
-ours() { [[ "${images[$1]}" == ghcr.io/user187x/* ]]; }
+# Ours: built here, never pulled (the bundle carries them).
+ours() { [[ "${images[$1]}" == docker.io/user187x/* ]]; }
 dir_of() { echo "${here}/${FOLDER[$1]}"; }
 archive() { echo "$(dir_of "${groups[$1]}")/$(echo "${images[$1]}" | tr '/:@' '___').tar.gz"; }
 rel() { echo "${1#"${here}"/}"; }
@@ -142,7 +142,7 @@ ensure() { # index: the image in the local docker - from its archive when the bu
 	elif docker image inspect "$img" >/dev/null 2>&1; then
 		echo "using $img from the local docker ($(rel "$f") is not in the bundle)"
 	elif ours "$1"; then
-		echo "ERROR: $img is on no public registry and $(rel "$f") is missing" >&2; exit 1
+		echo "ERROR: $img is built here, not pulled, and $(rel "$f") is missing" >&2; exit 1
 	else
 		echo "pulling $img ($(rel "$f") is not in the bundle)"; pull "$1"
 	fi
@@ -301,7 +301,7 @@ decorator-charts)
 	;;
 seed-builder)
 	ns="${1:-coder}"
-	ws=""; for i in "${!images[@]}"; do [[ "${images[$i]}" == ghcr.io/user187x/coder-workspace:* ]] && { ws=$i; break; }; done
+	ws=""; for i in "${!images[@]}"; do [[ "${images[$i]}" == docker.io/user187x/coder-workspace:* ]] && { ws=$i; break; }; done
 	[[ -n "$ws" ]] || { echo "ERROR: no workspace image in images.txt" >&2; exit 1; }
 	name="${images[$ws]##*/}"
 	kubectl -n "$ns" rollout status deploy/coder-image-registry --timeout=300s >/dev/null ||

@@ -423,7 +423,7 @@ export type ImageOnNode = {
 };
 
 /**
- * What an image of ours (the Coder fork's: ghcr.io/user187x/) holds, as built: recorded by
+ * What an image of ours (the Coder fork's: docker.io/user187x/) holds, as built: recorded by
  * development/tools/image-contents.py from the image itself, shipped with the platform service.
  */
 export type ImageContents = {

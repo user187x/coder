@@ -88,7 +88,7 @@ FILES = os.environ.get("BUILDER_FILES", "/builder")
 REGISTRY = os.environ.get("BUILDER_REGISTRY", "coder-image-registry.coder.svc:5000")
 PULL_PREFIX = os.environ.get("BUILDER_PULL_PREFIX", "localhost:5000")
 BUILDKIT_IMAGE = os.environ.get("BUILDER_BUILDKIT_IMAGE", "docker.io/moby/buildkit:v0.33.0-rootless")
-TOOLS_IMAGE = os.environ.get("BUILDER_TOOLS_IMAGE", "ghcr.io/user187x/coder-image-tools:1.0.0")
+TOOLS_IMAGE = os.environ.get("BUILDER_TOOLS_IMAGE", "docker.io/user187x/coder-image-tools:1.0.0")
 BASE_IMAGE = os.environ.get("BUILDER_BASE_IMAGE", "")
 BASE_FALLBACK = os.environ.get("BUILDER_BASE_FALLBACK", "")
 # The image the workspace template runs, as the template names it, and the template's name (for the tracked entry).
@@ -3630,7 +3630,7 @@ def sync_tracked():
 
 IMAGES_CONFIGMAP = "coder-workspace-images"
 IMAGES_PUBLISH_SECONDS = int(os.environ.get("BUILDER_IMAGES_PUBLISH_SECONDS", "30"))
-# The platform's workspace images on the nodes (their earlier versions too): ghcr.io/user187x/coder-workspace[-*]:<tag>.
+# The platform's workspace images on the nodes (their earlier versions too): docker.io/user187x/coder-workspace[-*]:<tag>.
 WORKSPACE_IMAGE_RE = re.compile(r"^[^@\s]*/coder-workspace(-[a-z0-9]+)*:[A-Za-z0-9._-]+$")
 _images_published = {"state": None}
 
