@@ -319,7 +319,7 @@ def one_step_checks(B, chart):
     push_sh = open(os.path.join(repo, "development", "tools", "release", "push-images.sh")).read()
     # the owner's choice (1.45.0): the release carries only ours (its CVE gate covers them); INSTALL.md lists the
     # public images the registry must hold
-    selection = release_sh.split("# ours, outside [rollback]/[reference], rendered by the chart")[-1][:800]
+    selection = release_sh.split("# Every release-owned image, including alternate editions and build tools.")[-1][:800]
     check("one step: the release ships values.example.yaml and our images only; INSTALL.md lists the public ones "
           "(pull-public-images.sh saves them, push-images.sh pushes them); helm install --timeout 20m",
           'cp "${bundle}/values.example.yaml"' in release_sh and '[[ "$img" == docker.io/mrshll187/* ]] || continue' in selection
