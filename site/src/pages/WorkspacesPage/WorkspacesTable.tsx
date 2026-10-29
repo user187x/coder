@@ -1,3 +1,4 @@
+import "#/modules/platform/sandbox/sandbox.css";
 import { cn } from "cn";
 import {
 	BanIcon,
@@ -264,6 +265,9 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 						<WorkspacesRow
 							workspace={workspace}
 							workspacePageLink={workspacePageLink}
+							sandboxed={Boolean(
+								locks.data?.workspaces[workspace.id]?.modes.includes("sandbox"),
+							)}
 							key={workspace.id}
 							checked={checked}
 						>
@@ -437,6 +441,7 @@ const WorkspaceRowStatus: React.FC<
 };
 
 type WorkspacesRowProps = {
+	sandboxed?: boolean;
 	workspace: Workspace;
 	workspacePageLink: string;
 	children?: React.ReactNode;
@@ -444,6 +449,7 @@ type WorkspacesRowProps = {
 };
 
 const WorkspacesRow: React.FC<WorkspacesRowProps> = ({
+	sandboxed,
 	workspace,
 	workspacePageLink,
 	children,
@@ -527,7 +533,8 @@ const WorkspacesRow: React.FC<WorkspacesRowProps> = ({
 					checked
 						? "bg-surface-secondary hover:bg-surface-secondary"
 						: undefined,
-					starting && "workspace-row-starting",
+					starting && !sandboxed && "workspace-row-starting",
+					sandboxed && "workspace-row-sandbox",
 					deleting && "workspace-row-deleting",
 					clickableProps.className,
 				])}

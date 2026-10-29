@@ -47,7 +47,12 @@ export const attachAnnouncementAutoScroll = (
 			const source = loop
 				? el.querySelector<HTMLElement>("[data-banner-loop-source]")
 				: null;
-			const period = source?.getBoundingClientRect().height ?? 0;
+			const period = source?.offsetHeight ?? 0;
+			if (loop && source && period <= el.clientHeight) {
+				el.scrollTop = 0;
+				frame = 0;
+				return;
+			}
 			const cycling = loop && period > el.clientHeight;
 			if (cycling) position %= period;
 			el.scrollTop = cycling ? position : Math.min(position, end);

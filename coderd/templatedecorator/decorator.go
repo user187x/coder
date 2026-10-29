@@ -71,6 +71,9 @@ type Section struct {
 
 // Payload is what the decorator injects: the prototype's platform sections.
 type Payload struct {
+	// RuntimeImage and AccessURL are supplied by the server, not template variables.
+	RuntimeImage string `json:"-"`
+	AccessURL    string `json:"-"`
 	// Features in the prototype's order.
 	Features []string  `json:"features"`
 	Sections []Section `json:"sections"`
@@ -677,6 +680,34 @@ type tfFile struct {
 
 // Decorate injects the payload's features the template's .tf files lack.
 func (p *Payload) Decorate(files map[string][]byte) (*Result, error) {
+	res, err := p.decorate(files)
+	if err != nil {
+		return nil, err
+	}
+	changed, err := manageRuntime(res.Files, p.RuntimeImage, p.AccessURL)
+	if err != nil {
+		return nil, err
+	}
+	if len(changed) > 0 {
+		res.Injected = append(res.Injected, "managed-runtime")
+		for _, name := range changed {
+			found := false
+			for _, existing := range res.Changed {
+				if name == existing {
+					found = true
+					break
+				}
+			}
+			if !found {
+				res.Changed = append(res.Changed, name)
+			}
+		}
+		sort.Strings(res.Changed)
+	}
+	return res, nil
+}
+
+func (p *Payload) decorate(files map[string][]byte) (*Result, error) {
 	res := &Result{Files: map[string][]byte{}}
 	var tfs []*tfFile
 	names := make([]string, 0, len(files))

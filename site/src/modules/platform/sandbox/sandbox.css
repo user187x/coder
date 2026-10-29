@@ -1,0 +1,38 @@
+.workspace-row-sandbox > td {
+	background-image:
+		radial-gradient(
+			circle,
+			color-mix(in srgb, #d4a55a 45%, transparent) 0.8px,
+			transparent 1.1px
+		),
+		linear-gradient(
+			115deg,
+			transparent,
+			color-mix(in srgb, #b38a42 17%, transparent),
+			transparent
+		);
+	background-size:
+		7px 9px,
+		230% 100%;
+	animation: workspace-sand-drift 16s linear infinite;
+}
+@keyframes workspace-sand-drift {
+	from {
+		background-position:
+			0 0,
+			100% 0;
+	}
+	to {
+		background-position:
+			35px 27px,
+			-130% 0;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.workspace-row-sandbox > td {
+		animation: none;
+	}
+}
+:root[data-animations="off"] .workspace-row-sandbox > td {
+	animation: none;
+}

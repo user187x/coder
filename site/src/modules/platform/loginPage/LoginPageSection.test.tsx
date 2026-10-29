@@ -93,3 +93,22 @@ it("saves a baked image-store reference without uploading its bytes", async () =
 		),
 	);
 });
+
+it("saves no heading without discarding the existing title", async () => {
+	vi.spyOn(PlatformAPI, "getLoginPage").mockResolvedValue({
+		...LOGIN_PAGE_DEFAULT,
+		title: "Welcome",
+	});
+	const save = vi
+		.spyOn(PlatformAPI, "updateLoginPage")
+		.mockResolvedValue(LOGIN_PAGE_DEFAULT);
+	render(<LoginPageSection />);
+	await userEvent.click(await screen.findByLabelText("Heading"));
+	await userEvent.click(screen.getByRole("option", { name: "None" }));
+	await userEvent.click(screen.getByRole("button", { name: "Save" }));
+	await waitFor(() =>
+		expect(save).toHaveBeenCalledWith(
+			expect.objectContaining({ headingMode: "none", title: "Welcome" }),
+		),
+	);
+});

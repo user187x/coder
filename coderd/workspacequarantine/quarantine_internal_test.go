@@ -22,6 +22,7 @@ func TestWorkspaceQuarantineReplicaSessions(t *testing.T) {
 	var mu sync.Mutex
 	current := map[uuid.UUID]database.WorkspaceQuarantine{}
 	db := dbmock.NewMockStore(gomock.NewController(t))
+	db.EXPECT().GetShortTermLeaseByWorkspaceID(gomock.Any(), gomock.Any()).Return(database.ShortTermLease{}, sql.ErrNoRows).AnyTimes()
 	db.EXPECT().GetWorkspaceQuarantineByWorkspaceID(gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(func(_ context.Context, id uuid.UUID) (database.WorkspaceQuarantine, error) {
 		mu.Lock()
 		defer mu.Unlock()

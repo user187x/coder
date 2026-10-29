@@ -406,6 +406,107 @@ Status Code **200**
 
 To perform this operation, you must be authenticated. [Learn more](authentication.md).
 
+## Get workspace quarantine policy
+
+### Code samples
+
+```sh
+# Example request using curl
+curl -X GET http://coder-server:8080/api/v2/organizations/{organization}/workspaces/{workspace}/quarantine \
+  -H 'Accept: application/json' \
+  -H 'Coder-Session-Token: API_KEY'
+```
+
+`GET /api/v2/organizations/{organization}/workspaces/{workspace}/quarantine`
+
+### Parameters
+
+| Name           | In   | Type         | Required | Description     |
+|----------------|------|--------------|----------|-----------------|
+| `organization` | path | string(uuid) | true     | Organization ID |
+| `workspace`    | path | string(uuid) | true     | Workspace ID    |
+
+### Example responses
+
+> 200 Response
+
+```json
+{
+  "enabled": true,
+  "manual_start_required": true,
+  "organization_id": "7c60d51f-b44e-4682-87d6-449835ea4de6",
+  "reason": "string",
+  "revision": "b587a570-d9a5-40c2-87da-edba28b3005f",
+  "updated_at": "2019-08-24T14:15:22Z",
+  "updated_by": "deea00dc-b6b6-4412-a483-26ac61e1f6fe",
+  "workspace_id": "0967198e-ec7b-4c6b-b4d3-f71244cadbe9"
+}
+```
+
+### Responses
+
+| Status | Meaning                                                 | Description | Schema                                                                 |
+|--------|---------------------------------------------------------|-------------|------------------------------------------------------------------------|
+| 200    | [OK](https://tools.ietf.org/html/rfc7231#section-6.3.1) | OK          | [codersdk.WorkspaceQuarantine](schemas.md#codersdkworkspacequarantine) |
+
+To perform this operation, you must be authenticated. [Learn more](authentication.md).
+
+## Change workspace quarantine policy
+
+### Code samples
+
+```sh
+# Example request using curl
+curl -X PUT http://coder-server:8080/api/v2/organizations/{organization}/workspaces/{workspace}/quarantine \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json' \
+  -H 'Coder-Session-Token: API_KEY'
+```
+
+`PUT /api/v2/organizations/{organization}/workspaces/{workspace}/quarantine`
+
+> Body parameter
+
+```json
+{
+  "enabled": true,
+  "reason": "string"
+}
+```
+
+### Parameters
+
+| Name           | In   | Type                                                                                             | Required | Description                                       |
+|----------------|------|--------------------------------------------------------------------------------------------------|----------|---------------------------------------------------|
+| `organization` | path | string(uuid)                                                                                     | true     | Organization ID                                   |
+| `workspace`    | path | string(uuid)                                                                                     | true     | Workspace ID                                      |
+| `body`         | body | [codersdk.UpdateWorkspaceQuarantineRequest](schemas.md#codersdkupdateworkspacequarantinerequest) | true     | Containment policy. Release never starts runtime. |
+
+### Example responses
+
+> 200 Response
+
+```json
+{
+  "enabled": true,
+  "manual_start_required": true,
+  "organization_id": "7c60d51f-b44e-4682-87d6-449835ea4de6",
+  "reason": "string",
+  "revision": "b587a570-d9a5-40c2-87da-edba28b3005f",
+  "updated_at": "2019-08-24T14:15:22Z",
+  "updated_by": "deea00dc-b6b6-4412-a483-26ac61e1f6fe",
+  "workspace_id": "0967198e-ec7b-4c6b-b4d3-f71244cadbe9"
+}
+```
+
+### Responses
+
+| Status | Meaning                                                 | Description | Schema                                                                 |
+|--------|---------------------------------------------------------|-------------|------------------------------------------------------------------------|
+| 200    | [OK](https://tools.ietf.org/html/rfc7231#section-6.3.1) | OK          | [codersdk.WorkspaceQuarantine](schemas.md#codersdkworkspacequarantine) |
+
+To perform this operation, you must be authenticated. [Learn more](authentication.md).
+
 ## Get workspace metadata by user and workspace name
 
 ### Code samples

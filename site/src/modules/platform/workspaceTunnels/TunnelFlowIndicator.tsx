@@ -1,6 +1,6 @@
 import { useAnimationsEnabled } from "#/modules/platform/animations/animations";
 
-/** One illuminated chevron per ready tunnel, flowing outward from the center. */
+/** One illuminated chevron per ready tunnel, indicating incoming or outgoing connections. */
 export const TunnelFlowIndicator = ({
 	incoming,
 	outgoing,
@@ -15,22 +15,22 @@ export const TunnelFlowIndicator = ({
 			aria-hidden
 		>
 			{[
-				{ count: outgoing, left: true, color: "#4ade80" },
-				{ count: incoming, left: false, color: "#60a5fa" },
+				{ count: incoming, left: true, color: "#4ade80" },
+				{ count: outgoing, left: false, color: "#94a3b8" },
 			].map(({ count, left, color }) => {
 				const slots = Math.max(6, count);
 				const points = left
-					? "8,0 4,0 0,5 4,10 8,10 4,5"
-					: "0,0 4,0 8,5 4,10 0,10 4,5";
+					? "0,0 4,0 8,5 4,10 0,10 4,5"
+					: "8,0 4,0 0,5 4,10 8,10 4,5";
 				return (
 					<svg
-						key={left ? "outgoing" : "incoming"}
+						key={left ? "incoming" : "outgoing"}
 						width={44}
 						height={10}
 						viewBox={`0 0 ${slots * 8} 10`}
 					>
 						{Array.from({ length: slots }, (_, index) => {
-							const distance = left ? slots - 1 - index : index;
+							const distance = left ? index : slots - 1 - index;
 							return (
 								<g key={index} transform={`translate(${index * 8} 0)`}>
 									<polygon points={points} fill="currentColor" opacity={0.18} />

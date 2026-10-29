@@ -53,11 +53,23 @@ func (r *Registry) ServeHealth(ctx context.Context) (func(), error) {
 			http.Error(w, "the pod is not terminating: not handing over", http.StatusPreconditionFailed)
 			return
 		}
-		hctx, cancel := context.WithTimeout(context.Background(), r.cfg.HandoverTimeout+5*time.Second)
+		hctx, cancel := context.WithTimeout(context.Background(), r.cfg.HandoverTimeout+10*time.Second)
 		defer cancel()
+		wasActive := r.Role() == RoleActive
 		if err := r.Handover(hctx); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
+		}
+		if wasActive {
+			// Keep serving while ingress controllers observe the role-label change.
+			// Ending preStop immediately can close the old listener before routing
+			// removes it, producing gateway errors despite a ready successor.
+			drain := time.NewTimer(5 * time.Second)
+			defer drain.Stop()
+			select {
+			case <-hctx.Done():
+			case <-drain.C:
+			}
 		}
 		_, _ = w.Write([]byte("handed over\n"))
 	})

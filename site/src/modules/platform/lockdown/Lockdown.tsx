@@ -20,6 +20,7 @@ import {
 	PlatformAPI,
 	type WorkspaceLockdown,
 } from "#/api/platform";
+import { lockdownRootKey } from "#/api/queries/platform";
 import type { Workspace } from "#/api/typesGenerated";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { Button } from "#/components/Button/Button";
@@ -35,10 +36,11 @@ import {
 import { Spinner } from "#/components/Spinner/Spinner";
 import { createDayString } from "#/utils/createDayString";
 import { WorkspaceQuarantineControl } from "../quarantine/WorkspaceQuarantine";
+import { SandboxControl } from "../sandbox/SandboxControl";
 import { SudoLockIcon } from "./SudoLockIcon";
 
 export const lockdownKey = (workspaceId: string) =>
-	["platform", "lockdown", workspaceId] as const;
+	[...lockdownRootKey, workspaceId] as const;
 
 /** The mode the lock is in: complete is both, freeze is complete and everything paused. */
 export const modeOf = (
@@ -216,6 +218,7 @@ export const LockdownBadge: React.FC<{
 }> = ({ workspace, modes, className, goldIcon = false, panel = false }) => {
 	const [open, setOpen] = useState(false);
 	const [quarantineOpen, setQuarantineOpen] = useState(false);
+	const [sandboxOpen, setSandboxOpen] = useState(false);
 	const queryClient = useQueryClient();
 	const query = useLockdown(workspace.id, modes === undefined || open);
 	const set = useMutation({
@@ -284,6 +287,13 @@ export const LockdownBadge: React.FC<{
 				<ShieldBanIcon aria-hidden />
 				Quarantine
 			</ControlItem>
+			<ControlItem
+				onClick={panel ? () => setSandboxOpen(true) : undefined}
+				onSelect={panel ? undefined : () => setSandboxOpen(true)}
+			>
+				<ShieldIcon aria-hidden />
+				Sandbox
+			</ControlItem>
 			<ControlSeparator />
 			{MENU.map((item) => {
 				const on = item.isOn(current);
@@ -291,7 +301,9 @@ export const LockdownBadge: React.FC<{
 					<ControlItem
 						key={item.key}
 						disabled={
-							set.isPending || (current === "freeze" && item.key !== "freeze")
+							set.isPending ||
+							Boolean(query.data?.sandbox_group) ||
+							(current === "freeze" && item.key !== "freeze")
 						}
 						onClick={panel ? () => set.mutate(item.next(current)) : undefined}
 						onSelect={panel ? undefined : () => set.mutate(item.next(current))}
@@ -393,7 +405,11 @@ export const LockdownBadge: React.FC<{
 									className={cn("size-3.5", goldIcon && "text-[#d4af37]")}
 								/>
 							)}
-							{locked && <span className="pr-0.5">{BADGE_LABEL[current]}</span>}
+							{locked && (
+								<span className="pr-0.5">
+									{query.data?.sandbox_group ? "Sandbox" : BADGE_LABEL[current]}
+								</span>
+							)}
 						</button>
 					</DropdownMenuTrigger>
 				)}
@@ -412,6 +428,15 @@ export const LockdownBadge: React.FC<{
 					</DropdownMenuContent>
 				)}
 			</DropdownMenu>
+			<Dialog open={sandboxOpen} onOpenChange={setSandboxOpen}>
+				<DialogContent
+					className="z-[95] max-h-[85vh] overflow-y-auto"
+					overlayClassName="z-[95]"
+				>
+					<DialogTitle>Sandbox</DialogTitle>
+					<SandboxControl workspace={workspace} />
+				</DialogContent>
+			</Dialog>
 			<Dialog open={quarantineOpen} onOpenChange={setQuarantineOpen}>
 				<DialogContent
 					className="z-[95] max-h-[85vh] overflow-y-auto"

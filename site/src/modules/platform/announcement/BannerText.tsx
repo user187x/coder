@@ -1,16 +1,25 @@
 import { cn } from "cn";
-import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+	Fragment,
+	useEffect,
+	useId,
+	useLayoutEffect,
+	useRef,
+	useState,
+} from "react";
 import {
 	type Banner,
 	type BannerEffect,
 	type BannerSpeed,
 	CRAWL_TILT,
+	type PictureEffect,
 	type PictureFit,
 } from "#/api/platform";
 import { useBannerClock } from "./bannerClock";
 import { bannerFontStack } from "./bannerFonts";
 import "./bannerCrawl.css";
 import "./bannerFx.css";
+import "./bannerLibraryFx.css";
 import "./bannerKitt.css";
 import "./bannerRoll.css";
 import {
@@ -115,6 +124,16 @@ const EFFECTS: Record<
 	flap: { unit: "char", className: "fx-flap", maxIndex: 14 },
 	shimmer: { unit: "whole", className: "fx-shimmer" },
 	kitt: { unit: "whole", scanner: true },
+	aurora: { unit: "whole", className: "fx-aurora" },
+	neon: { unit: "whole", className: "fx-neon" },
+	chrome: { unit: "whole", className: "fx-chrome" },
+	focus: { unit: "char", className: "fx-focus", maxIndex: 14 },
+	ember: { unit: "whole", className: "fx-ember" },
+	spectrum: { unit: "char", className: "fx-spectrum", maxIndex: 14 },
+	anaglyph: { unit: "whole", className: "fx-anaglyph" },
+	heartbeat: { unit: "whole", className: "fx-heartbeat" },
+	softblur: { unit: "whole", className: "fx-softblur" },
+	voltage: { unit: "char", className: "fx-voltage", maxIndex: 14 },
 };
 
 /** A letter's --i: its index, closer together past plan.maxIndex letters. */
@@ -372,32 +391,67 @@ const usePictures = (
 /** A URL for CSS url("…"): an address that passed safeHref, its quotes and backslashes dropped. */
 const cssUrl = (src: string) => `url("${src.replace(/["\\\n\r]/g, "")}")`;
 
-/**
- * The banner's screen behind the text, from its background picture (or a
- * Markdown message's pictures: the first one's fit decides). Span (the
- * default): as wide as the screen, rolling through it (PictureRoll), with
- * every other spanning picture after it. Center: the whole picture, fitted in
- * the middle. Tile: repeated across, as tall as the screen. Fill: covering the
- * screen, its middle showing. Stretch: squeezed to the screen's size. The
- * banner keeps its size whatever the fit (bannerRoll.css).
- */
-export const PictureScreen: React.FC<{ pictures: ScreenPicture[] }> = ({
-	pictures,
-}) => {
+/** Background image sizing and effects shared by the banner and expanded reader. */
+export const PictureScreen: React.FC<{
+	pictures: ScreenPicture[];
+	effect?: PictureEffect;
+}> = ({ pictures, effect }) => {
+	const rippleId = useId();
 	const lead = pictures[0];
 	const fit = lead.fit;
-	if (fit === "span") {
-		return <PictureRoll pictures={pictures.filter((p) => p.fit === "span")} />;
+	if (effect === "roller" || (effect === undefined && fit === "span")) {
+		return (
+			<PictureRoll
+				pictures={
+					effect === "roller"
+						? pictures
+						: pictures.filter((p) => p.fit === "span")
+				}
+				downward={effect === "roller"}
+			/>
+		);
 	}
 	return (
 		<span
 			className="banner-picture"
+			data-effect={effect}
 			data-fit={fit}
 			role="img"
 			aria-label={lead.alt || "Picture"}
 			data-testid="announcement-picture"
-			style={{ backgroundImage: cssUrl(lead.src) }}
-		/>
+			style={{
+				backgroundImage: cssUrl(lead.src),
+				...(effect === "ripple" ? { filter: `url(#${rippleId})` } : {}),
+			}}
+		>
+			{effect === "ripple" && (
+				<svg width="0" height="0" aria-hidden>
+					<filter id={rippleId} x="-10%" y="-10%" width="120%" height="120%">
+						<feTurbulence
+							type="fractalNoise"
+							baseFrequency="0.008 0.025"
+							numOctaves="1"
+							seed="3"
+							result="wave"
+						>
+							<animate
+								attributeName="baseFrequency"
+								values="0.008 0.025;0.012 0.018;0.008 0.025"
+								dur="8s"
+								repeatCount="indefinite"
+							/>
+						</feTurbulence>
+						<feDisplacementMap
+							in="SourceGraphic"
+							in2="wave"
+							scale="12"
+							xChannelSelector="R"
+							yChannelSelector="G"
+						/>
+					</filter>
+				</svg>
+			)}
+		</span>
 	);
 };
 
@@ -407,9 +461,10 @@ export const PictureScreen: React.FC<{ pictures: ScreenPicture[] }> = ({
  * and round again, behind the text. The screen shows the strip of them that
  * fits; the banner keeps its size whatever the pictures' (bannerRoll.css).
  */
-const PictureRoll: React.FC<{ pictures: { src: string; alt: string }[] }> = ({
-	pictures,
-}) => {
+const PictureRoll: React.FC<{
+	pictures: { src: string; alt: string }[];
+	downward?: boolean;
+}> = ({ pictures, downward }) => {
 	const strip = useRef<HTMLSpanElement>(null);
 	const [seconds, setSeconds] = useState<number>();
 	useLayoutEffect(() => {
@@ -442,7 +497,10 @@ const PictureRoll: React.FC<{ pictures: { src: string; alt: string }[] }> = ({
 			<span
 				ref={strip}
 				className="banner-roll-strip"
-				style={{ animationDuration: `${seconds ?? 30}s` }}
+				style={{
+					animationDuration: `${seconds ?? 30}s`,
+					animationDirection: downward ? "reverse" : "normal",
+				}}
 			>
 				{[0, 1].flatMap((copy) =>
 					pictures.map((p) => (
@@ -664,6 +722,7 @@ type BannerTextProps = {
 		| "outline"
 		| "picture"
 		| "pictureFit"
+		| "pictureEffect"
 	>;
 	/** Plays the banner's text effect (a remount plays it again). */
 	animate?: boolean;
@@ -697,7 +756,7 @@ export const BannerText: React.FC<BannerTextProps> = ({
 		? [{ src: background, alt: "", fit: banner.pictureFit ?? "span" }]
 		: inMessage;
 	const roll = pictureList.length > 0 && (
-		<PictureScreen pictures={pictureList} />
+		<PictureScreen pictures={pictureList} effect={banner.pictureEffect} />
 	);
 	const crawl = banner.effect === "starwars";
 	const [crawlDone, setCrawlDone] = useState(false);
@@ -759,9 +818,7 @@ export const BannerText: React.FC<BannerTextProps> = ({
 		const source = loopSource.current;
 		if (!loop || !viewport || !source) return;
 		const measure = () =>
-			setOverflowing(
-				source.getBoundingClientRect().height > viewport.clientHeight,
-			);
+			setOverflowing(source.offsetHeight > viewport.clientHeight);
 		measure();
 		const observer = new ResizeObserver(measure);
 		observer.observe(viewport);

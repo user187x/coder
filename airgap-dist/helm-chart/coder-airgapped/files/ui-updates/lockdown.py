@@ -30,6 +30,7 @@ API and a VolumeSnapshotClass for the volume's CSI driver, as on EKS with the EB
 new volume (PVC coder-freeze-<workspace>-<time>) by a Job on the workspace's node, while its processes are paused.
 The processes that were running are kept with it (key <workspace id>.meta: "processes").
 """
+import sandbox
 import datetime
 import json
 import os
@@ -89,13 +90,14 @@ def settings():
     data = (_configmap() or {}).get("data") or {}
     out = {}
     for key, modes in data.items():
-        if "." in key or modes in ("", "off"):
+        if "." in key or modes in ("", "off", "sandbox"):
             continue
         try:
             meta = json.loads(data.get(key + ".meta") or "{}")
         except ValueError:
             meta = {}
         out[key] = dict(meta, modes=modes.split(","))
+    out.update(sandbox.settings())
     return out
 
 
@@ -196,11 +198,13 @@ def annotate(pod, modes):
 def apply(pod, modes):
     """Runs lockdown.sh in an ephemeral container of the running pod: (ok, message)."""
     meta = pod["metadata"]
+    wid = meta.get('labels', {}).get('com.coder.workspace.id')
+    coder_ips, peers, signature = sandbox.inputs(wid) if modes == 'sandbox' else ('', '', '')
     name = "lockdown-%d" % int(time.time() * 1000)
-    image = next((c["image"] for c in pod["spec"]["containers"] if c["name"] == "dev"), None)
+    image = COPY_IMAGE or next((c["image"] for c in pod["spec"]["containers"] if c["name"] == "dev"), None)
     container = {
         "name": name, "image": image, "imagePullPolicy": "IfNotPresent", "targetContainerName": "dev",
-        "command": ["sh", "-c", SCRIPT, "lockdown", modes, CODER_HOST, "/proc/1/root"],
+        "command": ["sh", "-c", SCRIPT, "lockdown", modes, CODER_HOST, "/proc/1/root", coder_ips, peers],
         "securityContext": {"runAsUser": 0, "runAsNonRoot": False, "allowPrivilegeEscalation": False,
                             "capabilities": {"add": ["NET_ADMIN", "NET_RAW", "SYS_PTRACE"]}},
         "resources": {},
@@ -230,7 +234,7 @@ def apply(pod, modes):
     if code != 0:
         return False, "Lock Down did not apply in the running workspace (%s)%s" % (
             "timed out" if code is None else "exit %s" % code, ": " + message if message else "")
-    annotate(pod, modes)
+    annotate(pod, modes + (":" + signature if modes == "sandbox" else ""))
     return True, message
 
 
@@ -239,7 +243,8 @@ def reconcile(wid, modes, pods=None):
     results = []
     with lock_of(wid):
         for pod in running_pods(wid):
-            if applied(pod) == modes:
+            expected = modes + (":" + sandbox.inputs(wid)[2] if modes == "sandbox" else "")
+            if applied(pod) == expected:
                 results.append((pod["metadata"]["name"], True, "already in force"))
                 continue
             ok, message = apply(pod, modes)
@@ -254,6 +259,8 @@ def reconcile(wid, modes, pods=None):
 
 def watch_once():
     """Every running workspace pod as the settings say (a restart's new pod gets its lock back, Freeze included)."""
+    sandbox.project()
+    sandbox.network_policies(sandbox.settings())
     wanted = {wid: ",".join(s["modes"]) for wid, s in settings().items()}
     for pod in running_pods():
         wid = ((pod.get("metadata") or {}).get("labels") or {}).get("com.coder.workspace.id")
@@ -263,7 +270,8 @@ def watch_once():
         if applied(pod) is None and want == "off" and started_with(pod) == "off":
             annotate(pod, "off")   # a new pod that never was locked: nothing to undo, no container needed
             continue
-        if applied(pod) != want:
+        expected = want + (":" + sandbox.inputs(wid)[2] if want == "sandbox" else "")
+        if applied(pod) != expected:
             reconcile(wid, want)
 
 
@@ -431,6 +439,10 @@ def state_of(wid, admin=False):
            "at": (s or {}).get("at"), "running": bool(pods),
            "inForce": all((applied(p) or "off") == ",".join((s or {}).get("modes") or ["off"]) for p in pods)
            if pods else None}
+    if s and s.get('sandbox_group'):
+        out['sandbox_group'] = s['sandbox_group']
+        expected = 'sandbox:' + sandbox.inputs(wid)[2]
+        out['inForce'] = all(applied(p) == expected for p in pods) if pods else None
     if admin:
         snap = snapshot_of(wid)
         out["snapshot"] = dict({k: snap.get(k) for k in ("kind", "name", "at", "claim", "error")},
@@ -482,6 +494,8 @@ def handle(h, method, path, query):
         mode = str(read_json(h).get("mode") or "")
         if mode not in MODES:
             raise ValueError("A mode: network, sudo, complete, freeze or off.")
+        if (settings().get(wid) or {}).get("sandbox_group"):
+            raise ValueError("Release the sandbox group before changing Lock Down.")
         modes = MODES[mode]
         was = (settings().get(wid) or {}).get("modes") or []
         save(wid, modes, {"by": user["username"], "at": now(), "workspace": ws.get("name"),

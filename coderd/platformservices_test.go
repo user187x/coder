@@ -79,8 +79,8 @@ func TestPlatformServiceRoutes(t *testing.T) {
 	client := coderdtest.New(t, &coderdtest.Options{
 		PlatformServiceRoutes: []coderd.PlatformServiceRoute{
 			{PathPrefix: "/__coder-ui", Target: upstream("ui")},
-			{PathPrefix: "/__banner", Target: upstream("banner")},
-			{PathPrefix: "/__banner/live", Target: upstream("live")},
+			{PathPrefix: "/__example-banner", Target: upstream("banner")},
+			{PathPrefix: "/__example-banner/live", Target: upstream("live")},
 			{PathPrefix: "/__down", Target: down},
 			{PathPrefix: "/__slow", Target: slow},
 		},
@@ -116,10 +116,10 @@ func TestPlatformServiceRoutes(t *testing.T) {
 	require.Equal(t, `{"dataUrl":"x"}`, got.body)
 
 	// The more specific prefix wins.
-	_, body = send(http.MethodGet, "/__banner/live", "")
+	_, body = send(http.MethodGet, "/__example-banner/live", "")
 	require.Equal(t, "live", body)
 	<-requests
-	_, body = send(http.MethodGet, "/__banner/banner.json", "")
+	_, body = send(http.MethodGet, "/__example-banner/banner.json", "")
 	require.Equal(t, "banner", body)
 	<-requests
 

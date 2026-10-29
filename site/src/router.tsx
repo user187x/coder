@@ -11,6 +11,7 @@ import { GlobalErrorBoundary } from "./components/ErrorBoundary/GlobalErrorBound
 import { Loader } from "./components/Loader/Loader";
 import { RequireAuth } from "./contexts/auth/RequireAuth";
 import { DashboardLayout } from "./modules/dashboard/DashboardLayout";
+import { LeaseLoginPage } from "./modules/platform/shortTermLeases/LeaseLoginPage";
 import AuditPage from "./pages/AuditPage/AuditPage";
 import ConnectionLogPage from "./pages/ConnectionLogPage/ConnectionLogPage";
 import { HealthLayout } from "./pages/HealthPage/HealthLayout";
@@ -438,6 +439,7 @@ export const router = createBrowserRouter(
 	createRoutesFromChildren(
 		<Route element={<GlobalLayout />} errorElement={<GlobalErrorBoundary />}>
 			<Route path="login" element={<LoginPage />} />
+			<Route path="lease" element={<LeaseLoginPage />} />
 			<Route path="login/device" element={<LoginOAuthDevicePage />} />
 			<Route path="setup" element={<SetupPage />} />
 			<Route path="reset-password">

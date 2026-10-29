@@ -11,6 +11,10 @@ metadata:
   annotations:
     {{- toYaml .Values.coder.service.annotations | nindent 4 }}
 spec:
+  {{- if eq (include "coder.platformHAMode" .) "activeStandby" }}
+  # The HA role label fences traffic; keep the active pod routed during preStop.
+  publishNotReadyAddresses: true
+  {{- end }}
   type: {{ .Values.coder.service.type }}
   sessionAffinity: {{ .Values.coder.service.sessionAffinity }}
   ports:

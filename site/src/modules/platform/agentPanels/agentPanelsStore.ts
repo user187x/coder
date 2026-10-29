@@ -13,6 +13,7 @@ export const BUILT_IN_PANELS = ["logs", "terminal"] as const;
 /** What a panel the user added shows. */
 export type PanelContent =
 	| { kind: "app"; slug: string }
+	| { kind: "terminal" }
 	| {
 			kind: "port";
 			port: number;
@@ -45,6 +46,7 @@ const toAppPanel = (value: unknown): AppPanel | null => {
 	const height =
 		typeof v.height === "number" && v.height > 0 ? v.height : undefined;
 	const kind = v.kind ?? "app";
+	if (kind === "terminal") return { id: v.id, kind, height };
 	if (kind === "app" && typeof v.slug === "string") {
 		return { id: v.id, kind, slug: v.slug, height };
 	}

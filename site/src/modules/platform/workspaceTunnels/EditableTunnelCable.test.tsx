@@ -207,46 +207,46 @@ it("moves the free head with Ctrl-drag without adding a bend or opening the conn
 	expect(changed).toHaveBeenLastCalledWith({ points: [], orthogonal: false });
 });
 
-it.each([
-	true,
-	false,
-])("straightens along 90-degree axes (free head: %s)", async (free) => {
-	const user = userEvent.setup();
-	const moved = vi.fn();
-	const changed = vi.fn();
-	render(
-		<svg>
-			<EditableTunnelCable
-				from={{ x: 0, y: 0 }}
-				to={{ x: 80, y: 40 }}
-				defaultPath="M0 0 L80 40"
-				route={{ points: [], orthogonal: false }}
-				label="Manage test tunnel"
-				onOpen={vi.fn()}
-				onChange={changed}
-				onMoveHead={free ? moved : undefined}
-			>
-				<circle cx={80} cy={40} r={8} />
-			</EditableTunnelCable>
-		</svg>,
-	);
-	await user.pointer({
-		keys: "[MouseRight]",
-		target: screen.getByRole("button", { name: "Manage test tunnel" }),
-	});
-	await user.click(screen.getByRole("menuitem", { name: "Straighten line" }));
-	if (free) {
-		expect(moved).toHaveBeenCalledWith({ x: 80, y: 0 });
-		expect(changed).toHaveBeenCalledWith({
-			points: [],
-			orthogonal: false,
-			straight: true,
+it.each([true, false])(
+	"straightens along 90-degree axes (free head: %s)",
+	async (free) => {
+		const user = userEvent.setup();
+		const moved = vi.fn();
+		const changed = vi.fn();
+		render(
+			<svg>
+				<EditableTunnelCable
+					from={{ x: 0, y: 0 }}
+					to={{ x: 80, y: 40 }}
+					defaultPath="M0 0 L80 40"
+					route={{ points: [], orthogonal: false }}
+					label="Manage test tunnel"
+					onOpen={vi.fn()}
+					onChange={changed}
+					onMoveHead={free ? moved : undefined}
+				>
+					<circle cx={80} cy={40} r={8} />
+				</EditableTunnelCable>
+			</svg>,
+		);
+		await user.pointer({
+			keys: "[MouseRight]",
+			target: screen.getByRole("button", { name: "Manage test tunnel" }),
 		});
-	} else {
-		expect(moved).not.toHaveBeenCalled();
-		expect(changed).toHaveBeenCalledWith({ points: [], orthogonal: true });
-	}
-});
+		await user.click(screen.getByRole("menuitem", { name: "Straighten line" }));
+		if (free) {
+			expect(moved).toHaveBeenCalledWith({ x: 80, y: 0 });
+			expect(changed).toHaveBeenCalledWith({
+				points: [],
+				orthogonal: false,
+				straight: true,
+			});
+		} else {
+			expect(moved).not.toHaveBeenCalled();
+			expect(changed).toHaveBeenCalledWith({ points: [], orthogonal: true });
+		}
+	},
+);
 
 it("adjusts a connected cable arc by middle-dragging left or right without opening it", async () => {
 	const user = userEvent.setup();

@@ -54,30 +54,29 @@ export const SignInForm: React.FC<SignInFormProps> = ({
 				</div>
 			)}
 
-			{oAuthEnabled && (
-				<OAuthSignInForm
-					isSigningIn={isSigningIn}
-					redirectTo={redirectTo}
-					authMethods={authMethods}
-				/>
-			)}
-
-			{passwordEnabled && oAuthEnabled && (
-				<div className="py-6 flex items-center gap-4">
-					<div className="w-full h-px bg-border" />
-					<div className="shrink-0 text-content-secondary uppercase text-xs tracking-widest">
-						or
-					</div>
-					<div className="w-full h-px bg-border" />
-				</div>
-			)}
-
-			{passwordEnabled && (
+			{passwordEnabled ? (
 				<PasswordSignInForm
 					onSubmit={onSubmit}
 					autoFocus={!oAuthEnabled}
 					isSigningIn={isSigningIn}
+					beforeSubmit={
+						oAuthEnabled && (
+							<OAuthSignInForm
+								isSigningIn={isSigningIn}
+								redirectTo={redirectTo}
+								authMethods={authMethods}
+							/>
+						)
+					}
 				/>
+			) : (
+				oAuthEnabled && (
+					<OAuthSignInForm
+						isSigningIn={isSigningIn}
+						redirectTo={redirectTo}
+						authMethods={authMethods}
+					/>
+				)
 			)}
 
 			{!passwordEnabled && !oAuthEnabled && (

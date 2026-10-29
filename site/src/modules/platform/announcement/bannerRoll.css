@@ -82,8 +82,82 @@ html[data-animations="off"] .banner-roll-strip {
 	background-position: left center;
 }
 
-
 .banner-roll,
 .banner-picture {
 	opacity: var(--banner-alpha, 1);
+}
+
+.banner-picture[data-fit="span"] {
+	background-size: 100% auto;
+	background-position: center top;
+}
+.banner-picture[data-effect="pan-up"],
+.banner-picture[data-effect="pan-down"] {
+	background-size: cover;
+	animation: banner-picture-pan 40s ease-in-out infinite alternate;
+}
+.banner-picture[data-effect="pan-down"] {
+	animation-direction: alternate-reverse;
+}
+@keyframes banner-picture-pan {
+	from {
+		background-position: center top;
+	}
+	to {
+		background-position: center bottom;
+	}
+}
+.banner-picture[data-effect="glitch"] {
+	animation: banner-picture-glitch 7s steps(1) infinite;
+}
+@keyframes banner-picture-glitch {
+	0%,
+	92%,
+	100% {
+		transform: none;
+		filter: none;
+	}
+	93%,
+	96% {
+		transform: translateX(3px);
+		filter: hue-rotate(35deg);
+	}
+	94%,
+	98% {
+		transform: translateX(-3px);
+		filter: saturate(2);
+	}
+}
+.banner-picture[data-effect="fade"] {
+	animation: banner-picture-fade 10s ease-in-out infinite;
+}
+@keyframes banner-picture-fade {
+	0%,
+	100% {
+		opacity: var(--banner-alpha, 1);
+	}
+	50% {
+		opacity: 0.08;
+	}
+}
+.banner-picture[data-effect="gaussian"] {
+	filter: blur(5px);
+}
+.banner-picture[data-effect="ripple"],
+.banner-picture[data-effect="gaussian"] {
+	inset: -8px;
+}
+@media (prefers-reduced-motion: reduce) {
+	.banner-picture[data-effect] {
+		animation: none;
+	}
+	.banner-picture[data-effect="ripple"] {
+		filter: none !important;
+	}
+}
+html[data-animations="off"] .banner-picture[data-effect] {
+	animation: none;
+}
+html[data-animations="off"] .banner-picture[data-effect="ripple"] {
+	filter: none !important;
 }

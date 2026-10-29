@@ -6321,6 +6321,19 @@ type Replica struct {
 	NATSPort int32 `db:"nats_port" json:"nats_port"`
 }
 
+// Isolated temporary browser accounts. Expiration restricts the account independently of its API keys.
+type ShortTermLease struct {
+	UserID               uuid.UUID     `db:"user_id" json:"user_id"`
+	OrganizationID       uuid.UUID     `db:"organization_id" json:"organization_id"`
+	WorkspaceID          uuid.NullUUID `db:"workspace_id" json:"workspace_id"`
+	IssuedBy             uuid.UUID     `db:"issued_by" json:"issued_by"`
+	IssuedAt             time.Time     `db:"issued_at" json:"issued_at"`
+	ExpiresAt            time.Time     `db:"expires_at" json:"expires_at"`
+	RevokedAt            sql.NullTime  `db:"revoked_at" json:"revoked_at"`
+	ExtensionRequestedAt sql.NullTime  `db:"extension_requested_at" json:"extension_requested_at"`
+	TokenID              string        `db:"token_id" json:"token_id"`
+}
+
 type SiteConfig struct {
 	Key   string `db:"key" json:"key"`
 	Value string `db:"value" json:"value"`
@@ -7284,6 +7297,15 @@ type WorkspaceResourceMetadatum struct {
 	Value               sql.NullString `db:"value" json:"value"`
 	Sensitive           bool           `db:"sensitive" json:"sensitive"`
 	ID                  int64          `db:"id" json:"id"`
+}
+
+// Organization-scoped network isolation groups projected into workspace startup policy.
+type WorkspaceSandboxMember struct {
+	WorkspaceID    uuid.UUID       `db:"workspace_id" json:"workspace_id"`
+	OrganizationID uuid.UUID       `db:"organization_id" json:"organization_id"`
+	GroupID        uuid.UUID       `db:"group_id" json:"group_id"`
+	Metadata       json.RawMessage `db:"metadata" json:"metadata"`
+	UpdatedAt      time.Time       `db:"updated_at" json:"updated_at"`
 }
 
 type WorkspaceTable struct {

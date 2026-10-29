@@ -19,6 +19,7 @@
 # Network; Sudo is a last sudoers rule that denies every command, so nobody in it can become root any more (a
 # process that is root already stays root).
 #
+
 # Network: everything in or out is refused but loopback, DNS (the pod's name servers) and Coder (CODER_HOST's
 # addresses), IPv6 entirely. Connections that are open already, to anything else, stop at once.
 #
@@ -47,57 +48,107 @@ fi
 modes=$1
 host=$2
 root=${3-}
+coder_ips=${4-}
+peers=${5-}
+sandbox=
 
 case $modes in file:*) modes=$(cat "${modes#file:}" 2>/dev/null || echo off) ;; esac
 net=
 sudo_=
 freeze=
 case ",$modes," in *,network,*) net=1 ;; esac
+case ",$modes," in *,sandbox,*)
+ net=1
+ sandbox=1
+ ;;
+esac
 case ",$modes," in *,sudo,*) sudo_=1 ;; esac
 case ",$modes," in *,freeze,*) freeze=1 ;; esac
 
+if [ -n "$net" ]; then
+ coder=$coder_ips
+ resolved=
+ for i in 1 2 3 4 5 6 7 8 9 10; do
+  resolved=$(getent ahostsv4 "$host" 2>/dev/null | awk '{ print $1 }' | sort -u | tr '\n' ' ')
+  [ -n "$resolved" ] && break
+  [ -n "$coder" ] && break
+  sleep 1
+ done
+ coder="$coder $resolved"
+ if [ -n "$sandbox" ] && [ -n "$resolved" ]; then
+  # Keep the control endpoint resolvable while all external DNS is blocked.
+  hosts="${root}/etc/hosts"
+  if ! grep -F "# coder-sandbox-control:$host" "$hosts" >/dev/null 2>&1; then
+   for address in $resolved; do
+    printf '%s %s # coder-sandbox-control:%s\n' "$address" "$host" "$host" >>"$hosts"
+   done
+  fi
+ fi
+fi
+
 out=CODER-LOCKDOWN
 in=CODER-LOCKDOWN-IN
+forward=CODER-LOCKDOWN-FWD
 
 # Network: the rules go first in OUTPUT and INPUT, in chains of their own (lifted by removing them).
 for t in iptables ip6tables; do
+ $t -N CODER-LOCKDOWN-HOLD 2>/dev/null || true
+ $t -C CODER-LOCKDOWN-HOLD -j DROP 2>/dev/null || $t -A CODER-LOCKDOWN-HOLD -j DROP
+ $t -C OUTPUT -j CODER-LOCKDOWN-HOLD 2>/dev/null || $t -I OUTPUT 1 -j CODER-LOCKDOWN-HOLD
+ $t -C INPUT -j CODER-LOCKDOWN-HOLD 2>/dev/null || $t -I INPUT 1 -j CODER-LOCKDOWN-HOLD
+ $t -C FORWARD -j CODER-LOCKDOWN-HOLD 2>/dev/null || $t -I FORWARD 1 -j CODER-LOCKDOWN-HOLD
+ while $t -D FORWARD -j "$forward" 2>/dev/null; do :; done
  while $t -D OUTPUT -j "$out" 2>/dev/null; do :; done
  while $t -D INPUT -j "$in" 2>/dev/null; do :; done
- for c in "$out" "$in"; do
+ for c in "$out" "$in" "$forward"; do
   $t -F "$c" 2>/dev/null || true
   $t -X "$c" 2>/dev/null || true
  done
 done
 if [ -n "$net" ]; then
  servers=$(awk '/^nameserver/ { print $2 }' /etc/resolv.conf | grep -v ':' || true)
- coder=
- for i in 1 2 3 4 5 6 7 8 9 10; do
-  coder=$(getent ahostsv4 "$host" 2>/dev/null | awk '{ print $1 }' | sort -u | tr '\n' ' ')
-  [ -n "$coder" ] && break
-  sleep 1
- done
- [ -n "$coder" ] || echo "lockdown: $host does not resolve: the workspace is cut off from Coder too" >&2
  iptables -N "$out"
  iptables -N "$in"
+ iptables -N "$forward"
  iptables -A "$out" -o lo -j ACCEPT
  iptables -A "$in" -i lo -j ACCEPT
+ [ -z "$sandbox" ] || servers=
  for s in $servers; do
   for p in udp tcp; do
    iptables -A "$out" -d "$s" -p "$p" --dport 53 -j ACCEPT
    iptables -A "$in" -s "$s" -p "$p" --sport 53 -j ACCEPT
   done
  done
+ for peer in $peers; do
+  iptables -A "$out" -d "$peer" -j ACCEPT
+  iptables -A "$in" -s "$peer" -j ACCEPT
+ done
  for c in $coder; do
-  iptables -A "$out" -d "$c" -p tcp -j ACCEPT
-  iptables -A "$in" -s "$c" -p tcp -j ACCEPT
+  if [ -n "$sandbox" ]; then
+   iptables -A "$out" -d "$c" -p tcp -m multiport --dports 80,443,8080 -j ACCEPT
+   iptables -A "$in" -s "$c" -p tcp -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+  else
+   iptables -A "$out" -d "$c" -p tcp -j ACCEPT
+   iptables -A "$in" -s "$c" -p tcp -j ACCEPT
+  fi
  done
  iptables -A "$out" -p tcp -j REJECT --reject-with tcp-reset
  iptables -A "$out" -j REJECT
  iptables -A "$in" -j DROP
+ for source in $peers; do
+  for destination in $peers; do
+   iptables -A "$forward" -s "$source" -d "$destination" -j ACCEPT
+  done
+ done
+ iptables -A "$forward" -j DROP
+ iptables -I FORWARD 1 -j "$forward"
  iptables -I OUTPUT 1 -j "$out"
  iptables -I INPUT 1 -j "$in"
  ip6tables -N "$out"
  ip6tables -N "$in"
+ ip6tables -N "$forward"
+ ip6tables -A "$forward" -j DROP
+ ip6tables -I FORWARD 1 -j "$forward"
  ip6tables -A "$out" -o lo -j ACCEPT
  ip6tables -A "$in" -i lo -j ACCEPT
  ip6tables -A "$out" -j REJECT
@@ -105,6 +156,14 @@ if [ -n "$net" ]; then
  ip6tables -I OUTPUT 1 -j "$out"
  ip6tables -I INPUT 1 -j "$in"
 fi
+
+for t in iptables ip6tables; do
+ while $t -D FORWARD -j CODER-LOCKDOWN-HOLD 2>/dev/null; do :; done
+ while $t -D OUTPUT -j CODER-LOCKDOWN-HOLD 2>/dev/null; do :; done
+ while $t -D INPUT -j CODER-LOCKDOWN-HOLD 2>/dev/null; do :; done
+ $t -F CODER-LOCKDOWN-HOLD
+ $t -X CODER-LOCKDOWN-HOLD
+done
 
 # Sudo: a last rule in sudoers.d that denies every command to everyone (sudo uses the last rule that matches).
 if [ -n "$root" ]; then

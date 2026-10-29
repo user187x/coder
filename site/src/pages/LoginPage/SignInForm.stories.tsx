@@ -84,3 +84,23 @@ export const WithoutAny: Story = {
 		},
 	},
 };
+
+export const WithKeycloak: Story = {
+	decorators: [
+		(Story) => (
+			<div className="mx-auto w-full max-w-xs">
+				<Story />
+			</div>
+		),
+	],
+	args: {
+		authMethods: {
+			password: { enabled: true },
+			oidc: {
+				enabled: true,
+				signInText: "Sign in with Keycloak",
+				iconUrl: "/keycloak.svg",
+			},
+		},
+	},
+};

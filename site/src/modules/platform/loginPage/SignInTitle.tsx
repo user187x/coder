@@ -63,24 +63,27 @@ export const SignInTitle: React.FC<SignInTitleProps> = ({
 		signedOut && settings.signedOutMessage
 			? settings.signedOutMessage
 			: settings.message;
+	if (settings.headingMode === "none" && !message) return null;
 	return (
 		<div className="mb-8 flex flex-col items-center gap-3">
-			<h1 className="m-0 flex justify-center leading-none">
-				{settings.headingMode === "image" && settings.headingImage ? (
-					<ExternalImage
-						src={settings.headingImage}
-						alt={settings.title || applicationName}
-						className="max-h-32 max-w-full object-contain"
-					/>
-				) : (
-					<ContourTitle
-						text={settings.title || applicationName}
-						effect={settings.effect}
-						color={settings.color}
-						speed={settings.speed}
-					/>
-				)}
-			</h1>
+			{settings.headingMode !== "none" && (
+				<h1 className="m-0 flex justify-center leading-none">
+					{settings.headingMode === "image" && settings.headingImage ? (
+						<ExternalImage
+							src={settings.headingImage}
+							alt={settings.title || applicationName}
+							className="max-h-32 max-w-full object-contain"
+						/>
+					) : (
+						<ContourTitle
+							text={settings.title || applicationName}
+							effect={settings.effect}
+							color={settings.color}
+							speed={settings.speed}
+						/>
+					)}
+				</h1>
+			)}
 			{message && (
 				<p
 					className="m-0 max-w-sm whitespace-pre-line text-center text-sm text-content-secondary"

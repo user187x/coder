@@ -156,7 +156,7 @@ export type QuickMenuSettings = {
 export type LoginPageSettings = {
 	/** "": the deployment's name (Coder, or the one set in Appearance). */
 	title: string;
-	headingMode?: "text" | "image";
+	headingMode?: "none" | "text" | "image";
 	headingImage?: string;
 	effect: LoginEffect;
 	/** The effect's colour (#rrggbb): the traced outline, the neon's glow, the plain title. */
@@ -621,7 +621,8 @@ export type LockdownSnapshot = {
 };
 export type WorkspaceLockdown = {
 	locked: boolean;
-	modes: ("network" | "sudo" | "freeze")[];
+	modes: ("network" | "sudo" | "freeze" | "sandbox")[];
+	sandbox_group?: string;
 	/** Admins: the snapshot of the last freeze (kept after it is lifted, until deleted or replaced). */
 	snapshot?: LockdownSnapshot | null;
 	by: string | null;
@@ -1380,6 +1381,16 @@ export const BANNER_EFFECTS = [
 	"flap",
 	"shimmer",
 	"kitt",
+	"aurora",
+	"neon",
+	"chrome",
+	"focus",
+	"ember",
+	"spectrum",
+	"anaglyph",
+	"heartbeat",
+	"softblur",
+	"voltage",
 ] as const;
 export type BannerEffect = (typeof BANNER_EFFECTS)[number];
 
@@ -1421,6 +1432,18 @@ export const PICTURE_FITS = [
 	"stretch",
 ] as const;
 export type PictureFit = (typeof PICTURE_FITS)[number];
+
+export const PICTURE_EFFECTS = [
+	"none",
+	"pan-up",
+	"pan-down",
+	"roller",
+	"glitch",
+	"fade",
+	"gaussian",
+	"ripple",
+] as const;
+export type PictureEffect = (typeof PICTURE_EFFECTS)[number];
 
 /** How the message lines up on the banner's screen. */
 export const BANNER_ALIGNS = ["left", "center", "right"] as const;
@@ -1511,6 +1534,7 @@ export type Banner = {
 	picture?: string;
 	/** How the background picture fills the banner's screen; missing: "span". */
 	pictureFit?: PictureFit;
+	pictureEffect?: PictureEffect;
 	/** The moment the watch at the banner's left counts down to (UTC, ISO 8601); "" or missing: no countdown. */
 	countdown?: string;
 	countdownAction?: "none" | "shake" | "focus";

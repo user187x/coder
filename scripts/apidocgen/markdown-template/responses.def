@@ -5,16 +5,16 @@
 			content = r.content[ct];
 			break;
 		}
-		if (!content) {
+		if (!content || !content.schema) {
 			return "";
 		}
 
 		var ref = content.schema["x-widdershins-oldRef"];
 		if (!ref) {
-			ref = content.schema.items["x-widdershins-oldRef"];
+			ref = content.schema.items && content.schema.items["x-widdershins-oldRef"];
 		}
 		if (!ref) {
-			return content.schema.items.type;
+			return (content.schema.items || content.schema).type || "";
 		}
 		const aType = ref.replace("#/components/schemas/","");
 		const href = aType.replace(".","").toLowerCase();

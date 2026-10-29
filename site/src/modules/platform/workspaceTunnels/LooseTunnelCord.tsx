@@ -91,7 +91,11 @@ export const LooseTunnelCord: React.FC<{
 		<g aria-hidden>
 			<path ref={line} className="workspace-tunnel-conduit" />
 			<path ref={shine} className="workspace-tunnel-ridges" />
-			<g ref={plug} visibility="hidden">
+			<g
+				ref={plug}
+				visibility="hidden"
+				className="workspace-tunnel-output-connector"
+			>
 				<CloudDriveMalePlug />
 			</g>
 		</g>

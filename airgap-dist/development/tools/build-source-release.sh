@@ -47,13 +47,13 @@ ensure_image() {
  shift
  if ! docker image inspect "$image" >/dev/null 2>&1; then "$@"; fi
 }
-ensure_image docker.io/mrshll187/coder-image-tools:1.5.0 "$here/build-image-tools.sh"
+ensure_image docker.io/mrshll187/coder-image-tools:${version} "$here/build-image-tools.sh"
 "$here/build-ui-image.sh"
-ensure_image docker.io/mrshll187/coder-workspace:1.5.0 "$here/build-workspace-image.sh"
-ensure_image docker.io/mrshll187/coder-registry:1.5.0 "$here/build-registry-image.sh"
-ensure_image docker.io/mrshll187/coder-minio:1.5.0 "$here/build-minio-image.sh"
+ensure_image docker.io/mrshll187/coder-workspace:${version} "$here/build-workspace-image.sh"
+ensure_image docker.io/mrshll187/coder-registry:${version} "$here/build-registry-image.sh"
+ensure_image docker.io/mrshll187/coder-minio:${version} "$here/build-minio-image.sh"
 if ((dataflow)); then
- ensure_image docker.io/mrshll187/coder-workspace-dataflow:1.5.0 "$here/build-dataflow-image.sh" --no-store
+ ensure_image docker.io/mrshll187/coder-workspace-dataflow:${version} "$here/build-dataflow-image.sh" --no-store
 fi
 helm lint "$chart"
 helm template coder-fork "$chart" --set global.bundled.traefik=true --set global.bundled.cloudnativePG=true --set "coder-workspace.dataflowTemplate.enabled=$([[ $dataflow == 1 ]] && echo true || echo false)" > "$out/rendered.yaml"
@@ -68,7 +68,7 @@ for line in pathlib.Path(sys.argv[2]).read_text().splitlines():
   ref=line.split()[0]
   if ref in text: refs.add(ref)
 refs.add('docker.io/mrshll187/coder-platform:'+sys.argv[3])
-refs.add('docker.io/mrshll187/coder-workspace:1.5.0')
+refs.add('docker.io/mrshll187/coder-workspace:'+sys.argv[3])
 refs={r for r in refs if not r.startswith('docker.io/mrshll187/coder-platform:') or r.endswith(':'+sys.argv[3])}
 out.joinpath('FORK-IMAGES.txt').write_text(''.join(r+'\n' for r in sorted(refs) if r.startswith('docker.io/mrshll187/')))
 out.joinpath('PUBLIC-IMAGES.txt').write_text(''.join(r+'\n' for r in sorted(refs) if not r.startswith('docker.io/mrshll187/')))

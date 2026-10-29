@@ -9,8 +9,8 @@ description: >-
 type: application
 # Bump version for chart changes and appVersion for a new image (scripts/build_platform_image.sh tags the
 # image with appVersion, and the chart deploys that tag when image.tag is empty).
-version: 1.5.0
-appVersion: "1.5.0"
+version: 1.5.1
+appVersion: "1.5.1"
 kubeVersion: ">=1.25.0-0"
 keywords:
   - coder

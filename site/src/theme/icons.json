@@ -24,10 +24,14 @@
 	"azure.png",
 	"azure.svg",
 	"bitbucket.svg",
+	"browser-web-icon.png",
 	"centos.svg",
+	"certificate.svg",
 	"charm-crush.svg",
+	"chromium.svg",
 	"claude.svg",
 	"clion.svg",
+	"cloud-drive.svg",
 	"code-insiders.svg",
 	"code.svg",
 	"coder.svg",
@@ -154,6 +158,8 @@
 	"widgets.svg",
 	"windows.svg",
 	"windsurf.svg",
+	"workspace-tunnel.png",
+	"workspace-tunnel.svg",
 	"xum.svg",
 	"zed.svg"
 ]

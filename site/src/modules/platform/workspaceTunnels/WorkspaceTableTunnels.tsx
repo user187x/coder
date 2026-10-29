@@ -150,8 +150,8 @@ export const WorkspaceTunnelStatus: React.FC<{ workspaceId: string }> = ({
 						{outside > 0 && ` · ${outside} outside this view`}
 					</p>
 					<div className="flex justify-between gap-3">
-						<span className="text-[#4ade80]">{outgoing} outgoing ←</span>
-						<span className="text-[#60a5fa]">{incoming} incoming →</span>
+						<span className="text-[#94a3b8]">{outgoing} outgoing →</span>
+						<span className="text-[#4ade80]">{incoming} incoming ←</span>
 					</div>
 					{affected.map((t) => (
 						<div

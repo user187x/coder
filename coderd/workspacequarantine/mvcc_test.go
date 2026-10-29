@@ -1,6 +1,7 @@
 package workspacequarantine_test
 
 import (
+	"database/sql"
 	"sync/atomic"
 	"testing"
 
@@ -77,6 +78,7 @@ func TestWorkspaceQuarantineSecurityReadDoesNotDependOnVisibleMetadata(t *testin
 	t.Parallel()
 	id := uuid.New()
 	db := dbmock.NewMockStore(gomock.NewController(t))
+	db.EXPECT().GetShortTermLeaseByWorkspaceID(gomock.Any(), gomock.Any()).Return(database.ShortTermLease{}, sql.ErrNoRows).AnyTimes()
 	db.EXPECT().GetWorkspaceQuarantineByWorkspaceID(gomock.Any(), id).Return(database.WorkspaceQuarantine{WorkspaceID: id, Enabled: true}, nil)
 	db.EXPECT().Wrappers().Return([]string{}).AnyTimes()
 	wrapped := dbauthz.New(db, &coderdtest.FakeAuthorizer{}, slog.Make(), coderdtest.AccessControlStorePointer())

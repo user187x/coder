@@ -46,7 +46,7 @@
 # --no-db-update   scan with the databases in TRIVY_CACHE as they are (no download; they must be there)
 # Environment:
 #   SPLIT_SIZE=1900M    an archive larger than this is split into parts of this size (numfmt IEC: 1900M, 10M, ...)
-#   TOOLS_IMAGE=docker.io/mrshll187/coder-image-tools:1.5.0         the trivy to scan with (1.1.0 or newer)
+#   TOOLS_IMAGE=docker.io/mrshll187/coder-image-tools:<release-version>         the trivy to scan with (1.1.0 or newer)
 #   TRIVY_CACHE=${XDG_CACHE_HOME:-~/.cache}/coder-airgapped/trivy    trivy's databases (about 3 GB)
 #   ONLY=coder-minio,coder-registry   TEST AID: only these images (by name) - a partial release, never one to ship
 set -euo pipefail
@@ -74,7 +74,7 @@ done
 die() { echo "ERROR: $*" >&2; exit 1; }
 out=$(realpath -m "$out")
 split_bytes=$(numfmt --from=iec "${SPLIT_SIZE:-1900M}") || die "SPLIT_SIZE: ${SPLIT_SIZE}"
-tools_image="${TOOLS_IMAGE:-docker.io/mrshll187/coder-image-tools:1.5.0}"
+tools_image="${TOOLS_IMAGE:-docker.io/mrshll187/coder-image-tools:${version}}"
 trivy_cache=$(realpath -m "${TRIVY_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/coder-airgapped/trivy}")
 only=",${ONLY:-},"
 for v in "${vex[@]}"; do [[ -f "$v" ]] || die "no VEX file $v"; done
@@ -156,16 +156,14 @@ build_release() {
 		groups+=("$g") images+=("$a") digests+=("$b")
 	done <"${bundle}/images.txt"
 
-	# ours, outside [rollback]/[reference], rendered by the chart
+	# Every release-owned image, including alternate editions and build tools.
 	local -a sel=() left_out=() errors=()
 	local -A listed=()
 	local i img p
 	for i in "${!images[@]}"; do
 		img=${images[$i]} p=$(path_of "${images[$i]}")
 		[[ "$img" == docker.io/mrshll187/* ]] || continue
-		case "${groups[$i]}" in rollback | reference) left_out+=("${img}  ([${groups[$i]}])"); continue ;; esac
 		listed[$p]=$i
-		if [[ -z "${rendered[$p]:-}" ]]; then left_out+=("${img}  (the chart does not run it)"); continue; fi
 		wanted "$(name_of "$img")" || continue
 		sel+=("$i")
 	done

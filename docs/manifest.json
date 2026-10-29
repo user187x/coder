@@ -1218,6 +1218,10 @@
 							"path": "./reference/api/debug.md"
 						},
 						{
+							"title": "Deployment",
+							"path": "./reference/api/deployment.md"
+						},
+						{
 							"title": "Enterprise",
 							"path": "./reference/api/enterprise.md"
 						},

@@ -89,6 +89,7 @@ type sqlcQuerier interface {
 	BatchUpdateWorkspaceLastUsedAt(ctx context.Context, arg BatchUpdateWorkspaceLastUsedAtParams) error
 	BatchUpdateWorkspaceNextStartAt(ctx context.Context, arg BatchUpdateWorkspaceNextStartAtParams) error
 	BatchUpsertConnectionLogs(ctx context.Context, arg BatchUpsertConnectionLogsParams) error
+	BindShortTermLease(ctx context.Context, arg BindShortTermLeaseParams) (ShortTermLease, error)
 	BulkMarkNotificationMessagesFailed(ctx context.Context, arg BulkMarkNotificationMessagesFailedParams) (int64, error)
 	BulkMarkNotificationMessagesSent(ctx context.Context, arg BulkMarkNotificationMessagesSentParams) (int64, error)
 	// Calculates the telemetry summary for a given provider, model, and client
@@ -301,6 +302,7 @@ type sqlcQuerier interface {
 	// attributed through the token usage's effective group, and rows are bucketed
 	// by the token usage created_at, matching how ai_user_daily_spend is derived.
 	ExportOrganizationAISpend(ctx context.Context, arg ExportOrganizationAISpendParams) ([]ExportOrganizationAISpendRow, error)
+	ExtendShortTermLease(ctx context.Context, arg ExtendShortTermLeaseParams) (ShortTermLease, error)
 	FavoriteWorkspace(ctx context.Context, id uuid.UUID) error
 	FetchMemoryResourceMonitorsByAgentID(ctx context.Context, agentID uuid.UUID) (WorkspaceAgentMemoryResourceMonitor, error)
 	FetchMemoryResourceMonitorsUpdatedAfter(ctx context.Context, updatedAt time.Time) ([]WorkspaceAgentMemoryResourceMonitor, error)
@@ -676,6 +678,7 @@ type sqlcQuerier interface {
 	// the experiment name. starts_with is used instead of LIKE because '_' is a
 	// LIKE wildcard.
 	GetExperimentRules(ctx context.Context) ([]GetExperimentRulesRow, error)
+	GetExpiredShortTermLeases(ctx context.Context) ([]ShortTermLease, error)
 	// GetExternalAgentTokensByTemplateID returns the auth tokens for all
 	// non-deleted external agents on the latest build of every running workspace
 	// of the given template. "Running" means the latest build has
@@ -892,6 +895,9 @@ type sqlcQuerier interface {
 	GetReplicasUpdatedAfter(ctx context.Context, updatedAt time.Time) ([]Replica, error)
 	GetRunningPrebuiltWorkspaces(ctx context.Context) ([]GetRunningPrebuiltWorkspacesRow, error)
 	GetRuntimeConfig(ctx context.Context, key string) (string, error)
+	GetShortTermLeaseByUserID(ctx context.Context, userID uuid.UUID) (ShortTermLease, error)
+	GetShortTermLeaseByWorkspaceID(ctx context.Context, workspaceID uuid.NullUUID) (ShortTermLease, error)
+	GetShortTermLeasesByOrganization(ctx context.Context, organizationID uuid.UUID) ([]ShortTermLease, error)
 	// Find chats that appear stuck and need recovery:
 	//   1. Running chats whose heartbeat has expired (worker crash).
 	//   2. requires_action chats past the timeout threshold (client
@@ -1289,6 +1295,7 @@ type sqlcQuerier interface {
 	InsertProvisionerJobTimings(ctx context.Context, arg InsertProvisionerJobTimingsParams) ([]ProvisionerJobTiming, error)
 	InsertProvisionerKey(ctx context.Context, arg InsertProvisionerKeyParams) (ProvisionerKey, error)
 	InsertReplica(ctx context.Context, arg InsertReplicaParams) (Replica, error)
+	InsertShortTermLease(ctx context.Context, arg InsertShortTermLeaseParams) (ShortTermLease, error)
 	InsertTelemetryItemIfNotExists(ctx context.Context, arg InsertTelemetryItemIfNotExistsParams) error
 	// Inserts a new lock row into the telemetry_locks table. Replicas should call
 	// this function prior to attempting to generate or publish a heartbeat event to
@@ -1487,7 +1494,9 @@ type sqlcQuerier interface {
 	// Sets the target queued message's position to one less than the
 	// current minimum position for that chat, moving it to the head.
 	ReorderChatQueuedMessageToHead(ctx context.Context, arg ReorderChatQueuedMessageToHeadParams) (int64, error)
+	RequestShortTermLeaseExtension(ctx context.Context, userID uuid.UUID) (ShortTermLease, error)
 	RevokeDBCryptKey(ctx context.Context, activeKeyDigest string) error
+	RevokeShortTermLease(ctx context.Context, arg RevokeShortTermLeaseParams) (ShortTermLease, error)
 	// Note that this selects from the CTE, not the original table. The CTE is named
 	// the same as the original table to trick sqlc into reusing the existing struct
 	// for the table.

@@ -71,6 +71,21 @@ class WorkspaceTunnelsTest(unittest.TestCase):
         self.sync(self.b, policy["revision"])
         self.assertEqual(tunnels.listing("session", self.user, self.org)[0]["status"], "ready")
 
+    def test_empty_go_peer_slice_can_ack_removal(self):
+        link, policy = self.ready()
+        tunnels.remove("session", self.user, self.org, link["id"])
+        with tunnels.state(write=False) as data:
+            revision = data["revision"]
+        for wid in (self.a, self.b):
+            tunnels.sync(wid, {
+                "public_key": base64.b64encode(wid.encode()[:32]).decode(),
+                "endpoint": "192.168.1.%d:51871" % (1 if wid == self.a else 2),
+                "applied_revision": revision,
+                "established_peers": None,
+                "peer_stats": None,
+            })
+        self.assertEqual(tunnels.listing("session", self.user, self.org), [])
+
     def test_fresh_helper_acks_do_not_mask_workspace_restart_or_agent_disconnect(self):
         self.ready()
         build = self.ws[self.b]["latest_build"]

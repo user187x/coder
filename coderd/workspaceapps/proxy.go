@@ -118,6 +118,8 @@ type ServerOptions struct {
 	GuardSession func(context.Context, uuid.UUID) (context.Context, func(), error)
 	// GuardWorkspaceSession checks workspace containment, including signed app tokens.
 	GuardWorkspaceSession func(context.Context, uuid.UUID) (context.Context, func(), error)
+	// CheckAppAccess applies account restrictions even to previously issued app tickets.
+	CheckAppAccess func(context.Context, uuid.UUID, uuid.UUID, string) error
 	// NekoMedia is disabled unless a trusted client and relay are configured.
 	NekoMedia *NekoMedia
 }
@@ -647,6 +649,12 @@ func (s *Server) proxyWorkspaceApp(rw http.ResponseWriter, r *http.Request, appT
 		ctx = guard
 		r = r.WithContext(ctx)
 	}
+	if s.CheckAppAccess != nil {
+		if err := s.CheckAppAccess(ctx, appToken.UserID, appToken.WorkspaceID, appToken.AppSlugOrPort); err != nil {
+			httpapi.Write(ctx, rw, http.StatusForbidden, codersdk.Response{Message: "This account cannot access this workspace application."})
+			return
+		}
+	}
 	if s.GuardWorkspaceSession != nil {
 		guard, end, err := s.GuardWorkspaceSession(ctx, appToken.WorkspaceID)
 		if err != nil {
@@ -857,6 +865,12 @@ func (s *Server) workspaceAgentPTY(rw http.ResponseWriter, r *http.Request) {
 		defer end()
 		ctx = guard
 		r = r.WithContext(ctx)
+	}
+	if s.CheckAppAccess != nil {
+		if err := s.CheckAppAccess(ctx, appToken.UserID, appToken.WorkspaceID, appToken.AppSlugOrPort); err != nil {
+			httpapi.Write(ctx, rw, http.StatusForbidden, codersdk.Response{Message: "This account cannot access this workspace application."})
+			return
+		}
 	}
 	if s.GuardWorkspaceSession != nil {
 		guard, end, err := s.GuardWorkspaceSession(ctx, appToken.WorkspaceID)

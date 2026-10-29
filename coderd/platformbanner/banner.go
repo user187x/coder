@@ -63,8 +63,9 @@ type Fields struct {
 	Outline bool `json:"outline"`
 	// The banner's background picture (a same-site path or an http(s) URL)
 	// and how it fills the banner.
-	Picture    string `json:"picture"`
-	PictureFit string `json:"pictureFit"`
+	Picture       string `json:"picture"`
+	PictureFit    string `json:"pictureFit"`
+	PictureEffect string `json:"pictureEffect"`
 	// The countdown shown as a watch at the banner's left ("" none).
 	Countdown       string `json:"countdown"`
 	CountdownAction string `json:"countdownAction"`
@@ -103,6 +104,7 @@ func FieldDefaults() Fields {
 		Markdown:        true,
 		Align:           "center",
 		PictureFit:      "span",
+		PictureEffect:   "none",
 		CountdownAction: "none",
 		Opacity:         100,
 	}
@@ -120,7 +122,7 @@ func Defaults() Fields {
 // dashboard's (BANNER_EFFECTS, BANNER_OPEN_EFFECTS, bannerFonts.ts, ...).
 var (
 	levels       = []string{"info", "success", "warning", "critical"}
-	effects      = []string{"none", "typewriter", "fade", "rise", "wave", "bounce", "flip", "shake", "pulse", "rainbow", "starwars", "pewpew", "flap", "shimmer", "kitt"}
+	effects      = []string{"none", "typewriter", "fade", "rise", "wave", "bounce", "flip", "shake", "pulse", "rainbow", "starwars", "pewpew", "flap", "shimmer", "kitt", "aurora", "neon", "chrome", "focus", "ember", "spectrum", "anaglyph", "heartbeat", "softblur", "voltage"}
 	speeds       = []string{"slow", "normal", "fast"}
 	closeEffects = []string{"none", "pixelate", "rollup", "fade", "wipe", "matrix", "gaussian", "evaporate", "kitt"}
 	openEffects  = []string{"none", "fade", "rolldown", "kitt", "crt", "glitch"}
@@ -299,6 +301,9 @@ func Clean(raw []byte) (Fields, error) {
 		return Fields{}, err
 	}
 	if err := choice("pictureFit", "span", "The picture's fit", pictureFits, &out.PictureFit); err != nil {
+		return Fields{}, err
+	}
+	if err := choice("pictureEffect", "none", "Background image effect", []string{"none", "pan-up", "pan-down", "roller", "glitch", "fade", "gaussian", "ripple"}, &out.PictureEffect); err != nil {
 		return Fields{}, err
 	}
 	if out.Picture != "" && !SafeURL(out.Picture) {

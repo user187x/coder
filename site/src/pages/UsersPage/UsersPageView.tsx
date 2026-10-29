@@ -13,6 +13,7 @@ import {
 	SettingsHeaderTitle,
 } from "#/components/SettingsHeader/SettingsHeader";
 import { AccountShareCables } from "#/modules/platform/cloudDrive/AccountShareCables";
+import { ShortTermLeases } from "#/modules/platform/shortTermLeases/ShortTermLeases";
 import { TableCard } from "#/modules/platform/tableCard/TableCard";
 import { BulkUserActions } from "#/modules/users/BulkUserActions";
 import {
@@ -134,6 +135,7 @@ export const UsersPageView: React.FC<UsersPageViewProps> = ({
 					data-testid="user-quota"
 					className="mb-6 rounded-lg border border-solid border-border px-6 pt-3"
 				>
+					{canCreateUser && <ShortTermLeases />}
 					{quota}
 				</section>
 			)}

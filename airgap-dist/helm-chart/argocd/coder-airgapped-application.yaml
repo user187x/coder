@@ -46,7 +46,7 @@ spec:
   source:
     repoURL: 123456789012.dkr.ecr.us-east-1.amazonaws.com/charts  # CHANGE-ME: same as the repository url above
     chart: coder-airgapped
-    targetRevision: 1.5.0
+    targetRevision: 1.5.1
     helm:
       releaseName: coder
       valuesObject:

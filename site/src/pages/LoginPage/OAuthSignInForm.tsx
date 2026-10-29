@@ -1,4 +1,3 @@
-import { cn } from "cn";
 import { KeyIcon } from "lucide-react";
 import type { AuthMethods } from "#/api/typesGenerated";
 import { Button } from "#/components/Button/Button";
@@ -16,12 +15,6 @@ const KEYCLOAK_LOGO = "/keycloak-sign-in.png";
 /** The provider is Keycloak: its icon (the chart's oidc.iconUrl) is Keycloak's. */
 const isKeycloak = (iconUrl: string) => /\/keycloak\.(svg|png)$/i.test(iconUrl);
 
-/**
- * Platform: the OIDC provider as one large button, centered. Keycloak's is its
- * logo; any other provider's, its icon on a large square. Everyone knows what
- * it is for, so its sign-in text is not shown: it is the button's accessible
- * name only.
- */
 export const OAuthSignInForm: React.FC<OAuthSignInFormProps> = ({
 	isSigningIn,
 	redirectTo,
@@ -38,30 +31,21 @@ export const OAuthSignInForm: React.FC<OAuthSignInFormProps> = ({
 
 	if (isKeycloak(iconUrl)) {
 		return (
-			<div className="flex justify-center">
+			<Button asChild size="lg" className="w-full" disabled={isSigningIn}>
 				<a
-					href={href}
+					href={isSigningIn ? undefined : href}
 					aria-label={label}
 					aria-disabled={isSigningIn || undefined}
 					data-testid="oidc-sign-in"
-					className={cn(
-						"block rounded-lg p-1 outline-none",
-						"transition-[filter,transform] duration-150 hover:scale-[1.03] hover:brightness-110",
-						"focus-visible:ring-2 focus-visible:ring-content-link",
-						isSigningIn && "pointer-events-none opacity-60",
-					)}
 				>
 					<img
 						src={KEYCLOAK_LOGO}
 						alt=""
-						width={120}
-						height={77}
 						draggable={false}
-						// Smaller than the deployment's own logo above it.
-						className="block h-auto w-[120px]"
+						className="h-7! w-auto! max-w-full object-contain p-0!"
 					/>
 				</a>
-			</div>
+			</Button>
 		);
 	}
 

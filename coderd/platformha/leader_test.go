@@ -110,6 +110,26 @@ func TestLeadershipOneActiveAndCrashTakeover(t *testing.T) {
 	require.NoError(t, standby.Close(ctx))
 }
 
+func TestLeadershipLostDuringStartup(t *testing.T) {
+	t.Parallel()
+	ctx := testutil.Context(t, testutil.WaitLong)
+	db := openDB(t)
+	flaky := &flakyDB{DB: db}
+	starting := startStandby(t, flaky, "starting")
+	require.NoError(t, starting.WaitForTurn(ctx))
+	standby := startStandby(t, db, "standby")
+	// Startup has permission to proceed, but has not reached MarkServing yet.
+	flaky.broken.Store(true)
+	testutil.Eventually(ctx, t, func(context.Context) bool { return closed(starting.LostActive()) },
+		testutil.IntervalFast, "lease loss aborts startup before the server begins serving")
+	require.Equal(t, platformha.RoleStandby, starting.Role())
+	testutil.Eventually(ctx, t, func(context.Context) bool { return turned(t, standby, testutil.IntervalFast) },
+		testutil.IntervalFast, "the healthy standby takes over")
+	standby.MarkServing()
+	require.Equal(t, platformha.RoleActive, standby.Role())
+	require.NoError(t, standby.Close(ctx))
+}
+
 func TestLeadershipHandoverWithoutAGap(t *testing.T) {
 	t.Parallel()
 	ctx := testutil.Context(t, testutil.WaitLong)

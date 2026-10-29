@@ -38,12 +38,10 @@ describe("TemplateParametersCard", () => {
 	});
 
 	it("warns only when the template uses the deprecated compatibility mode", async () => {
-		const update = vi
-			.spyOn(API, "updateTemplateMeta")
-			.mockResolvedValue({
-				...MockTemplate,
-				use_classic_parameter_flow: false,
-			});
+		const update = vi.spyOn(API, "updateTemplateMeta").mockResolvedValue({
+			...MockTemplate,
+			use_classic_parameter_flow: false,
+		});
 		renderWithAuth(
 			<TemplateParametersCard
 				template={{ ...MockTemplate, use_classic_parameter_flow: true }}

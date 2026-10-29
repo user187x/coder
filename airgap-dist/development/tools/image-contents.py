@@ -30,6 +30,7 @@ OURS = "docker.io/mrshll187/"
 
 # Where each of ours is made: (folder, build script) in this repository.
 SOURCES = {
+    "coder-platform-agpl": ("development/coder-fork", "scripts/build_go.sh --agpl"),
     "coder-platform": ("development/coder-fork (the fork: ~/workspace/coder), development/airgap-image",
                        "scripts/build_platform_image.sh (fork), development/tools/build-airgap-image.sh"),
     "coder-upstream": ("development/airgap-image", "development/tools/build-airgap-image.sh"),
@@ -43,6 +44,7 @@ SOURCES = {
 
 # The programs we put in each (beyond the workspace images' add-ons): (name, what it does, command, version pattern).
 PROGRAMS = {
+    "coder-platform-agpl": [("Coder (AGPL)", "AGPL-only server edition", ["coder", "--version"], r"Coder .*?(v\S+)")],
     "coder-platform": [
         ("Coder (the fork)", "The dashboard and its server", ["coder", "--version"], r"Coder (v\S+)"),
         ("Terraform", "Builds workspaces; providers mirrored for offline use", ["terraform", "version"],

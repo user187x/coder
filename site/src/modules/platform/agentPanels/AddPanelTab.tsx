@@ -21,6 +21,7 @@ type AddPanelTabProps = {
 	/** The workspace is not ready yet (agentAppsReady). */
 	disabled: boolean;
 	actions?: React.ReactNode;
+	terminal?: boolean;
 	onAdd: (content: PanelContent) => void;
 };
 
@@ -30,6 +31,7 @@ export const AddPanelTab: React.FC<AddPanelTabProps> = ({
 	disabled,
 	onAdd,
 	actions,
+	terminal = false,
 }) => {
 	return (
 		<div
@@ -61,6 +63,11 @@ export const AddPanelTab: React.FC<AddPanelTabProps> = ({
 						{actions}
 						{!apps.some((app) => app.slug === "neko-browser") && (
 							<DropdownMenuLabel>Add a panel with</DropdownMenuLabel>
+						)}
+						{terminal && (
+							<DropdownMenuItem onSelect={() => onAdd({ kind: "terminal" })}>
+								<SquareTerminalIcon /> Terminal
+							</DropdownMenuItem>
 						)}
 						{apps.map((app) => (
 							<DropdownMenuItem
@@ -98,7 +105,7 @@ export const AddPanelTab: React.FC<AddPanelTabProps> = ({
 								)}
 							</DropdownMenuItem>
 						))}
-						{apps.length === 0 && (
+						{apps.length === 0 && !terminal && (
 							<DropdownMenuItem disabled>No apps</DropdownMenuItem>
 						)}
 					</DropdownMenuContent>

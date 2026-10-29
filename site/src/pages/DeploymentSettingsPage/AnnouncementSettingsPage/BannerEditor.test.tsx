@@ -113,3 +113,48 @@ it.each(["keyboard", "pointer"])(
 		expect(bannerAlpha(opacity)).toBe(interaction === "keyboard" ? 0.99 : 0.4);
 	},
 );
+
+it.each([
+	["Background image effect", "Pan up", { pictureEffect: "pan-up" }],
+	["Background image effect", "Pan down", { pictureEffect: "pan-down" }],
+	["Background image effect", "Roller pin", { pictureEffect: "roller" }],
+	["Background image effect", "Glitch", { pictureEffect: "glitch" }],
+	["Background image effect", "Fade in/out", { pictureEffect: "fade" }],
+	["Background image effect", "Gaussian blur", { pictureEffect: "gaussian" }],
+	[
+		"Background image effect",
+		"Ripple (flag wave)",
+		{ pictureEffect: "ripple" },
+	],
+	["Text effect", "Borealis", { effect: "aurora" }],
+	["Text effect", "Neon-Haus", { effect: "neon" }],
+	["Text effect", "Chrome", { effect: "chrome" }],
+	["Text effect", "Lens-Drift", { effect: "focus" }],
+	["Text effect", "Emberglow", { effect: "ember" }],
+	["Text effect", "Prisma", { effect: "spectrum" }],
+	["Text effect", "Anaglyph-3D", { effect: "anaglyph" }],
+	["Text effect", "Cardio", { effect: "heartbeat" }],
+	["Text effect", "Soft-Blur", { effect: "softblur" }],
+	["Text effect", "Kilovolt", { effect: "voltage" }],
+])("changes %s to %s independently", async (control, option, expected) => {
+	const onChange = vi.fn();
+	render(
+		<QueryClientProvider client={new QueryClient()}>
+			<BannerEditor
+				form={{ ...MockBanner, picture: "/pictures/creeper.gif" }}
+				dirty={false}
+				isPublishing={false}
+				problem={null}
+				onChange={onChange}
+				onProblem={vi.fn()}
+				onPublish={vi.fn()}
+				onDiscard={vi.fn()}
+				onTryOpen={vi.fn()}
+				onTryClose={vi.fn()}
+			/>
+		</QueryClientProvider>,
+	);
+	await userEvent.click(screen.getByRole("combobox", { name: control }));
+	await userEvent.click(screen.getByRole("option", { name: option }));
+	expect(onChange).toHaveBeenCalledWith(expected);
+});

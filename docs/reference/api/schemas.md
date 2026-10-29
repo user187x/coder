@@ -227,6 +227,64 @@ title: Schemas
 |--------------------|
 | `prebuild_claimed` |
 
+## agentsdk.SyncWorkspaceAccessRequest
+
+```json
+{
+  "applied_policy": "string",
+  "session": "string"
+}
+```
+
+### Properties
+
+| Name             | Type   | Required | Restrictions | Description |
+|------------------|--------|----------|--------------|-------------|
+| `applied_policy` | string | false    |              |             |
+| `session`        | string | false    |              |             |
+
+## agentsdk.TunnelIdentity
+
+```json
+{
+  "agent_id": "2b1e3b65-2c04-4fa2-a2d7-467901e98978",
+  "build_id": "bfb1f3fa-bf7b-43a5-9e0b-26cc050e44cb",
+  "organization_id": "7c60d51f-b44e-4682-87d6-449835ea4de6",
+  "workspace_id": "0967198e-ec7b-4c6b-b4d3-f71244cadbe9"
+}
+```
+
+### Properties
+
+| Name              | Type   | Required | Restrictions | Description |
+|-------------------|--------|----------|--------------|-------------|
+| `agent_id`        | string | false    |              |             |
+| `build_id`        | string | false    |              |             |
+| `organization_id` | string | false    |              |             |
+| `workspace_id`    | string | false    |              |             |
+
+## agentsdk.WorkspaceAccessPolicy
+
+```json
+{
+  "allowed_peers": [
+    "string"
+  ],
+  "enabled": true,
+  "fingerprint": "string",
+  "revision": "string"
+}
+```
+
+### Properties
+
+| Name            | Type            | Required | Restrictions | Description |
+|-----------------|-----------------|----------|--------------|-------------|
+| `allowed_peers` | array of string | false    |              |             |
+| `enabled`       | boolean         | false    |              |             |
+| `fingerprint`   | string          | false    |              |             |
+| `revision`      | string          | false    |              |             |
+
 ## coderd.cspViolation
 
 ```json
@@ -1171,6 +1229,22 @@ AuthorizationObject can represent a "set" of objects, such as: all workspaces in
 |--------|--------|----------|--------------|-------------|
 | `host` | string | false    |              |             |
 
+## codersdk.ConfigureGlobalControlPINRequest
+
+```json
+{
+  "current_pin": "string",
+  "pin": "string"
+}
+```
+
+### Properties
+
+| Name          | Type   | Required | Restrictions | Description |
+|---------------|--------|----------|--------------|-------------|
+| `current_pin` | string | false    |              |             |
+| `pin`         | string | false    |              |             |
+
 ## codersdk.ConnectionLatency
 
 ```json
@@ -1517,6 +1591,22 @@ AuthorizationObject can represent a "set" of objects, such as: all workspaces in
 | Name  | Type   | Required | Restrictions | Description |
 |-------|--------|----------|--------------|-------------|
 | `key` | string | false    |              |             |
+
+## codersdk.CreateShortTermLeaseRequest
+
+```json
+{
+  "minutes": 0,
+  "template_id": "string"
+}
+```
+
+### Properties
+
+| Name          | Type    | Required | Restrictions | Description |
+|---------------|---------|----------|--------------|-------------|
+| `minutes`     | integer | false    |              |             |
+| `template_id` | string  | false    |              |             |
 
 ## codersdk.CreateTemplateRequest
 
@@ -4079,6 +4169,127 @@ Git clone makes use of this by parsing the URL from: 'Username for "https://gith
 | `updated_at` | string | false    |              |                                                                                                                                                                                                   |
 | `user_id`    | string | false    |              |                                                                                                                                                                                                   |
 
+## codersdk.GlobalControlPINRequest
+
+```json
+{
+  "pin": "string"
+}
+```
+
+### Properties
+
+| Name  | Type   | Required | Restrictions | Description |
+|-------|--------|----------|--------------|-------------|
+| `pin` | string | false    |              |             |
+
+## codersdk.GlobalControlStatus
+
+```json
+{
+  "configured": true,
+  "expires_at": "string",
+  "token": "string"
+}
+```
+
+### Properties
+
+| Name         | Type    | Required | Restrictions | Description |
+|--------------|---------|----------|--------------|-------------|
+| `configured` | boolean | false    |              |             |
+| `expires_at` | string  | false    |              |             |
+| `token`      | string  | false    |              |             |
+
+## codersdk.GlobalLockdownAgent
+
+```json
+{
+  "id": "string",
+  "name": "string",
+  "state": "string"
+}
+```
+
+### Properties
+
+| Name    | Type   | Required | Restrictions | Description |
+|---------|--------|----------|--------------|-------------|
+| `id`    | string | false    |              |             |
+| `name`  | string | false    |              |             |
+| `state` | string | false    |              |             |
+
+## codersdk.GlobalLockdownState
+
+```json
+{
+  "admin": true,
+  "agents": [
+    {
+      "id": "string",
+      "name": "string",
+      "state": "string"
+    }
+  ],
+  "agents_pending": 0,
+  "agents_total": 0,
+  "confirmed": true,
+  "enabled": true,
+  "revision": "string",
+  "updated_at": "string",
+  "updated_by": "string",
+  "users": [
+    {
+      "admin": true,
+      "avatar_url": "string",
+      "connected": true,
+      "disconnected": true,
+      "id": "string",
+      "username": "string"
+    }
+  ]
+}
+```
+
+### Properties
+
+| Name             | Type                                                                  | Required | Restrictions | Description |
+|------------------|-----------------------------------------------------------------------|----------|--------------|-------------|
+| `admin`          | boolean                                                               | false    |              |             |
+| `agents`         | array of [codersdk.GlobalLockdownAgent](#codersdkgloballockdownagent) | false    |              |             |
+| `agents_pending` | integer                                                               | false    |              |             |
+| `agents_total`   | integer                                                               | false    |              |             |
+| `confirmed`      | boolean                                                               | false    |              |             |
+| `enabled`        | boolean                                                               | false    |              |             |
+| `revision`       | string                                                                | false    |              |             |
+| `updated_at`     | string                                                                | false    |              |             |
+| `updated_by`     | string                                                                | false    |              |             |
+| `users`          | array of [codersdk.GlobalLockdownUser](#codersdkgloballockdownuser)   | false    |              |             |
+
+## codersdk.GlobalLockdownUser
+
+```json
+{
+  "admin": true,
+  "avatar_url": "string",
+  "connected": true,
+  "disconnected": true,
+  "id": "string",
+  "username": "string"
+}
+```
+
+### Properties
+
+| Name           | Type    | Required | Restrictions | Description |
+|----------------|---------|----------|--------------|-------------|
+| `admin`        | boolean | false    |              |             |
+| `avatar_url`   | string  | false    |              |             |
+| `connected`    | boolean | false    |              |             |
+| `disconnected` | boolean | false    |              |             |
+| `id`           | string  | false    |              |             |
+| `username`     | string  | false    |              |             |
+
 ## codersdk.Group
 
 ```json
@@ -4439,6 +4650,20 @@ Git clone makes use of this by parsing the URL from: 'Username for "https://gith
 | Value(s)                                            |
 |-----------------------------------------------------|
 | `INSUFFICIENT_QUOTA`, `REQUIRED_TEMPLATE_VARIABLES` |
+
+## codersdk.LeaseTokenLoginRequest
+
+```json
+{
+  "token": "string"
+}
+```
+
+### Properties
+
+| Name    | Type   | Required | Restrictions | Description |
+|---------|--------|----------|--------------|-------------|
+| `token` | string | false    |              |             |
 
 ## codersdk.License
 
@@ -7672,6 +7897,36 @@ Git clone makes use of this by parsing the URL from: 'Username for "https://gith
 |-----------------|
 | `group`, `user` |
 
+## codersdk.ShortTermLease
+
+```json
+{
+  "expires_at": "string",
+  "extension_requested_at": "string",
+  "issued_at": "string",
+  "organization_id": "string",
+  "revoked_at": "string",
+  "token": "string",
+  "token_id": "string",
+  "user_id": "string",
+  "workspace_id": "string"
+}
+```
+
+### Properties
+
+| Name                     | Type   | Required | Restrictions | Description                                                       |
+|--------------------------|--------|----------|--------------|-------------------------------------------------------------------|
+| `expires_at`             | string | false    |              |                                                                   |
+| `extension_requested_at` | string | false    |              |                                                                   |
+| `issued_at`              | string | false    |              |                                                                   |
+| `organization_id`        | string | false    |              |                                                                   |
+| `revoked_at`             | string | false    |              |                                                                   |
+| `token`                  | string | false    |              | Token is returned only at creation; the database stores its hash. |
+| `token_id`               | string | false    |              |                                                                   |
+| `user_id`                | string | false    |              |                                                                   |
+| `workspace_id`           | string | false    |              |                                                                   |
+
 ## codersdk.SlimRole
 
 ```json
@@ -9464,6 +9719,22 @@ Restarts will only happen on weekdays in this list on weeks which line up with W
 | `url`     | string  | false    |              | URL to download the latest release of Coder.                            |
 | `version` | string  | false    |              | Version is the semantic version for the latest release of Coder.        |
 
+## codersdk.UpdateGlobalLockdownRequest
+
+```json
+{
+  "confirmation": "string",
+  "enabled": true
+}
+```
+
+### Properties
+
+| Name           | Type    | Required | Restrictions | Description |
+|----------------|---------|----------|--------------|-------------|
+| `confirmation` | string  | false    |              |             |
+| `enabled`      | boolean | false    |              |             |
+
 ## codersdk.UpdateOrganizationRequest
 
 ```json
@@ -9503,6 +9774,22 @@ Restarts will only happen on weekdays in this list on weeks which line up with W
 | Name    | Type            | Required | Restrictions | Description |
 |---------|-----------------|----------|--------------|-------------|
 | `roles` | array of string | false    |              |             |
+
+## codersdk.UpdateShortTermLeaseRequest
+
+```json
+{
+  "minutes": 0,
+  "revoke": true
+}
+```
+
+### Properties
+
+| Name      | Type    | Required | Restrictions | Description |
+|-----------|---------|----------|--------------|-------------|
+| `minutes` | integer | false    |              |             |
+| `revoke`  | boolean | false    |              |             |
 
 ## codersdk.UpdateTemplateACL
 
@@ -9838,6 +10125,22 @@ If the schedule is empty, the user will be updated to use the default schedule.|
 | Name      | Type    | Required | Restrictions | Description |
 |-----------|---------|----------|--------------|-------------|
 | `dormant` | boolean | false    |              |             |
+
+## codersdk.UpdateWorkspaceQuarantineRequest
+
+```json
+{
+  "enabled": true,
+  "reason": "string"
+}
+```
+
+### Properties
+
+| Name      | Type    | Required | Restrictions | Description |
+|-----------|---------|----------|--------------|-------------|
+| `enabled` | boolean | false    |              |             |
+| `reason`  | string  | false    |              |             |
 
 ## codersdk.UpdateWorkspaceRequest
 
@@ -12315,6 +12618,34 @@ If the schedule is empty, the user will be updated to use the default schedule.|
 | `checked_at` | string                                                   | false    |              |                                                                           |
 | `report`     | [codersdk.ProxyHealthReport](#codersdkproxyhealthreport) | false    |              | Report provides more information about the health of the workspace proxy. |
 | `status`     | [codersdk.ProxyHealthStatus](#codersdkproxyhealthstatus) | false    |              |                                                                           |
+
+## codersdk.WorkspaceQuarantine
+
+```json
+{
+  "enabled": true,
+  "manual_start_required": true,
+  "organization_id": "7c60d51f-b44e-4682-87d6-449835ea4de6",
+  "reason": "string",
+  "revision": "b587a570-d9a5-40c2-87da-edba28b3005f",
+  "updated_at": "2019-08-24T14:15:22Z",
+  "updated_by": "deea00dc-b6b6-4412-a483-26ac61e1f6fe",
+  "workspace_id": "0967198e-ec7b-4c6b-b4d3-f71244cadbe9"
+}
+```
+
+### Properties
+
+| Name                    | Type    | Required | Restrictions | Description |
+|-------------------------|---------|----------|--------------|-------------|
+| `enabled`               | boolean | false    |              |             |
+| `manual_start_required` | boolean | false    |              |             |
+| `organization_id`       | string  | false    |              |             |
+| `reason`                | string  | false    |              |             |
+| `revision`              | string  | false    |              |             |
+| `updated_at`            | string  | false    |              |             |
+| `updated_by`            | string  | false    |              |             |
+| `workspace_id`          | string  | false    |              |             |
 
 ## codersdk.WorkspaceQuota
 

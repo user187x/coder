@@ -46,8 +46,6 @@ type Drag = {
 	origin: Point;
 	pointer: number;
 	target?: Port;
-	movingSource?: boolean;
-	tunnel?: WorkspaceTunnel;
 	velocity?: Point;
 	sampled?: number;
 };
@@ -154,9 +152,6 @@ export const WorkspaceTunnelPorts: React.FC<{
 		setArcs(clear);
 		setStubs(clear);
 	};
-	const [replacements, setReplacements] = useState<
-		{ old: WorkspaceTunnel; next: string }[]
-	>([]);
 	const [error, setError] = useState<string>();
 	const client = useQueryClient();
 	const create = useMutation(createWorkspaceTunnel(client));
@@ -188,7 +183,7 @@ export const WorkspaceTunnelPorts: React.FC<{
 					y:
 						Math.floor(index / cols) * (cellH + gap) +
 						portCenterY +
-						(terminal === "input" ? -12 : 12),
+						(terminal === "output" ? -12 : 12),
 				})),
 			),
 	);
@@ -201,7 +196,7 @@ export const WorkspaceTunnelPorts: React.FC<{
 							workspace,
 							side: "left" as const,
 							terminal,
-							y: anchor.y + (terminal === "input" ? -12 : 12),
+							y: anchor.y + (terminal === "output" ? -12 : 12),
 						}))
 					: [];
 			})
@@ -250,12 +245,10 @@ export const WorkspaceTunnelPorts: React.FC<{
 	const connect = (
 		a: Workspace,
 		b: Workspace,
-		replace?: WorkspaceTunnel,
 		sourceSide: "left" | "right" = tableAnchors ? "left" : "right",
 		targetSide: "left" | "right" = "left",
 	) => {
-		if (!managesPair(a, b) || (replace && !managesTunnel(replace))) return;
-		if (replace && samePair(replace, a.id, b.id)) return;
+		if (!managesPair(a, b)) return;
 		setError(undefined);
 		create.mutate(
 			{
@@ -267,13 +260,6 @@ export const WorkspaceTunnelPorts: React.FC<{
 			},
 			{
 				onError: fail,
-				onSuccess: ({ tunnel }) => {
-					if (replace)
-						setReplacements((current) => [
-							...current,
-							{ old: replace, next: tunnel.id },
-						]);
-				},
 			},
 		);
 	};
@@ -284,28 +270,14 @@ export const WorkspaceTunnelPorts: React.FC<{
 			{ onError: fail },
 		);
 	};
-	useEffect(() => {
-		for (const replacement of replacements) {
-			const next = tunnels.find((t) => t.id === replacement.next);
-			if (next?.status === "ready" || next?.status === "error") {
-				setReplacements((current) =>
-					current.filter((r) => r.next !== replacement.next),
-				);
-				if (next.status === "ready") disconnect(replacement.old);
-			}
-		}
-	});
 	const valid = (from: Port, to: Port) =>
 		managesPair(from.workspace, to.workspace) &&
-		from.terminal !== to.terminal &&
+		from.terminal === "output" &&
+		to.terminal === "input" &&
 		from.workspace.id !== to.workspace.id &&
 		from.workspace.organization_id === to.workspace.organization_id &&
 		to.workspace.latest_build.status === "running" &&
-		!tunnels.some(
-			(t) =>
-				samePair(t, from.workspace.id, to.workspace.id) &&
-				t.id !== dragRef.current?.tunnel?.id,
-		);
+		!tunnels.some((t) => samePair(t, from.workspace.id, to.workspace.id));
 	useEffect(() => {
 		if (!drag) return;
 		let frame = 0;
@@ -345,15 +317,10 @@ export const WorkspaceTunnelPorts: React.FC<{
 			if (!current || cancelled) return;
 			if (current.target)
 				connect(
-					current.movingSource
-						? current.target.workspace
-						: current.from.workspace,
-					current.movingSource
-						? current.from.workspace
-						: current.target.workspace,
-					current.tunnel,
-					current.movingSource ? current.target.side : current.from.side,
-					current.movingSource ? current.from.side : current.target.side,
+					current.from.workspace,
+					current.target.workspace,
+					current.from.side,
+					current.target.side,
 				);
 			else {
 				if (moved.current) {
@@ -366,7 +333,6 @@ export const WorkspaceTunnelPorts: React.FC<{
 					};
 					setLoose((previous) => [...previous, cord]);
 				}
-				if (current.tunnel) disconnect(current.tunnel);
 			}
 		};
 		const up = (e: PointerEvent) => {
@@ -396,19 +362,11 @@ export const WorkspaceTunnelPorts: React.FC<{
 		};
 	});
 	useEffect(() => () => onDragging(false), [onDragging]);
-	const start = (
-		e: React.PointerEvent,
-		from: Port,
-		tunnel?: WorkspaceTunnel,
-		movingSource = false,
-	) => {
+	const start = (e: React.PointerEvent, from: Port) => {
 		if (
 			e.button !== 0 ||
-			(!tunnel && from.terminal !== "input") ||
-			!manages(from.workspace) ||
-			(tunnel && !managesTunnel(tunnel)) ||
-			tunnel?.status === "disconnecting" ||
-			tunnel?.status === "pending"
+			from.terminal !== "output" ||
+			!manages(from.workspace)
 		)
 			return;
 		e.preventDefault();
@@ -420,13 +378,8 @@ export const WorkspaceTunnelPorts: React.FC<{
 			origin: box
 				? { x: e.clientX - box.left, y: e.clientY - box.top }
 				: { x: from.x, y: from.y },
-			at:
-				tunnel && box
-					? { x: e.clientX - box.left, y: e.clientY - box.top }
-					: { x: from.x, y: from.y },
+			at: { x: from.x, y: from.y },
 			pointer: e.pointerId,
-			tunnel,
-			movingSource: movingSource || (!tunnel && from.terminal === "input"),
 		};
 		dragRef.current = next;
 		setDrag(next);
@@ -481,7 +434,6 @@ export const WorkspaceTunnelPorts: React.FC<{
 						t.target_side ?? "left",
 						"input",
 					);
-					if (drag?.tunnel?.id === t.id) return null;
 					if (!from || !to) {
 						const visible = from ?? to;
 						if (!visible) return null;
@@ -568,7 +520,6 @@ export const WorkspaceTunnelPorts: React.FC<{
 									fromSide={from.side}
 									toSide={to.side}
 									pending={t.status !== "ready"}
-									reverseFlow
 									arc={arc}
 								/>
 							}
@@ -596,12 +547,13 @@ export const WorkspaceTunnelPorts: React.FC<{
 					<g>
 						<TunnelCord
 							from={drag.from}
-							reverseFlow={drag.from.terminal === "output"}
+							reverseFlow={drag.from.terminal === "input"}
 							to={drag.target ?? drag.at}
 							fromSide={drag.from.side}
 							toSide={drag.target?.side ?? "left"}
 						/>
 						<g
+							className="workspace-tunnel-output-connector"
 							transform={`translate(${drag.at.x} ${drag.at.y}) scale(${(drag.target?.side ?? "left") === "left" ? 1 : -1} 1)`}
 						>
 							<CloudDriveMalePlug />
@@ -609,22 +561,22 @@ export const WorkspaceTunnelPorts: React.FC<{
 					</g>
 				)}
 				{ports.map((p) => {
-					const connectedInput = tunnels.some(
+					const connectedOutput = tunnels.some(
 						(t) =>
 							portFor(
-								t.target_workspace_id,
-								t.target_side ?? "left",
-								"input",
+								t.source_workspace_id,
+								t.source_side ?? "right",
+								"output",
 							) === p,
 					);
-					const idleInput = p.terminal === "input" && !connectedInput;
+					const idleOutput = p.terminal === "output" && !connectedOutput;
 					return (
 						<g key={`${p.workspace.id}-${p.side}-${p.terminal}`}>
-							{idleInput ? (
+							{idleOutput ? (
 								<g
 									aria-hidden
 									transform={`translate(${p.x + (p.side === "left" ? 15 : -15)} ${p.y}) scale(${p.side === "left" ? -1 : 1} 1)`}
-									className="[&_.cd-plug-body]:fill-[#14532d] [&_.cd-plug-body]:stroke-[#4ade80] [&_.cd-prong]:stroke-[#4ade80]"
+									className="workspace-tunnel-output-connector"
 								>
 									<CloudDriveMalePlug />
 								</g>
@@ -641,7 +593,7 @@ export const WorkspaceTunnelPorts: React.FC<{
 							<rect
 								x={
 									p.x +
-									(idleInput || p.terminal === "output"
+									(idleOutput || p.terminal === "input"
 										? p.side === "left"
 											? -7
 											: -17
@@ -650,10 +602,10 @@ export const WorkspaceTunnelPorts: React.FC<{
 											: -32)
 								}
 								y={p.y - 13}
-								width={idleInput || p.terminal === "output" ? 24 : 20}
+								width={idleOutput || p.terminal === "input" ? 24 : 20}
 								height={26}
 								fill="transparent"
-								className={`pointer-events-auto ${p.terminal === "input" ? "cursor-grab" : "cursor-pointer"}`}
+								className={`pointer-events-auto ${p.terminal === "output" ? "cursor-grab" : "cursor-pointer"}`}
 								role="button"
 								tabIndex={0}
 								aria-label={`Connect ${p.workspace.name} ${tableAnchors ? "" : `${p.side} `}${p.terminal} tunnel port`}
@@ -695,31 +647,38 @@ export const WorkspaceTunnelPorts: React.FC<{
 						t.target_side ?? "left",
 						"input",
 					);
-					if (!from || !to || drag?.tunnel?.id === t.id) return [];
+					if (!from || !to) return [];
 					return [
-						{ at: from, fixed: to, source: true },
-						{ at: to, fixed: from, source: false },
-					].map(({ at, fixed, source }) => (
+						{ at: from, source: true },
+						{ at: to, source: false },
+					].map(({ at, source }) => (
 						<ContextMenu key={`${t.id}-${source}`}>
 							<TunnelOverviewTooltip
 								overview={<TunnelOverview tunnel={t} peerSource={!source} />}
 							>
 								<ContextMenuTrigger asChild>
 									<g
+										className="workspace-tunnel-output-connector"
 										transform={`translate(${at.x} ${at.y}) scale(${at.side === "left" ? 1 : -1} 1)`}
 									>
-										<CloudDriveMalePlug />
+										{source && <CloudDriveMalePlug />}
 										<rect
 											x={-4}
 											y={-9}
 											width={16}
 											height={18}
 											fill="transparent"
-											className="pointer-events-auto cursor-grab"
+											className={
+												source
+													? "pointer-events-auto cursor-grab"
+													: "pointer-events-auto cursor-pointer"
+											}
 											role="button"
 											tabIndex={0}
 											aria-label={`Disconnect tunnel ${from.workspace.name} to ${to.workspace.name}${source ? " source plug" : ""}`}
-											onPointerDown={(event) => start(event, fixed, t, source)}
+											onPointerDown={
+												source ? (event) => start(event, from) : undefined
+											}
 											onClick={() => {
 												if (!moved.current) {
 													setSelected(at.workspace);
@@ -906,14 +865,12 @@ export const WorkspaceTunnelPorts: React.FC<{
 														? connect(
 																w,
 																selected,
-																undefined,
 																tableAnchors ? "left" : "right",
 																selectedSide,
 															)
 														: connect(
 																selected,
 																w,
-																undefined,
 																selectedSide,
 																listMode ? "right" : "left",
 															)

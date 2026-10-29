@@ -28,6 +28,7 @@ import (
 	"github.com/coder/coder/v2/coderd/promoauth"
 	"github.com/coder/coder/v2/coderd/rbac"
 	"github.com/coder/coder/v2/coderd/rbac/rolestore"
+	"github.com/coder/coder/v2/coderd/shorttermlease"
 	"github.com/coder/coder/v2/codersdk"
 )
 
@@ -272,6 +273,39 @@ func ValidateAPIKey(ctx context.Context, cfg ValidateAPIKeyConfig, r *http.Reque
 	}
 
 	now := dbtime.Now()
+	lease, leaseErr := shorttermlease.Load(ctx, cfg.DB, key.UserID)
+	if leaseErr != nil {
+		return nil, &ValidateAPIKeyError{Code: http.StatusServiceUnavailable, Hard: true, Response: codersdk.Response{Message: "Could not verify temporary access."}}
+	}
+	leaseRequest := r
+	if lease != nil && strings.HasPrefix(r.URL.Path, "/api/v2/users/") && strings.Contains(r.URL.Path, "/workspace/") {
+		//nolint:gocritic // Resolve only the temporary account's own username for its dashboard route.
+		user, err := cfg.DB.GetUserByID(dbauthz.AsSystemRestricted(ctx), key.UserID)
+		if err != nil {
+			return nil, &ValidateAPIKeyError{Code: http.StatusServiceUnavailable, Hard: true, Response: codersdk.Response{Message: "Could not verify lease identity."}}
+		}
+		prefix := "/api/v2/users/" + user.Username + "/"
+		if strings.HasPrefix(r.URL.Path, prefix) {
+			leaseRequest = r.Clone(ctx)
+			u := *r.URL
+			u.Path = "/api/v2/users/" + key.UserID.String() + "/" + strings.TrimPrefix(r.URL.Path, prefix)
+			leaseRequest.URL = &u
+		}
+	}
+	if lease != nil {
+		allowed := false
+		if shorttermlease.Active(*lease, now) {
+			var err error
+			allowed, err = shorttermlease.AllowedResource(ctx, cfg.DB, *lease, leaseRequest)
+			if err != nil {
+				return nil, &ValidateAPIKeyError{Code: http.StatusServiceUnavailable, Hard: true, Response: codersdk.Response{Message: "Could not verify lease resource access."}}
+			}
+		}
+		if !allowed {
+			return nil, &ValidateAPIKeyError{Code: http.StatusForbidden, Hard: true, Response: codersdk.Response{Message: "This temporary account is restricted to its active Browser lease."}}
+		}
+	}
+
 	if key.ExpiresAt.Before(now) {
 		return nil, &ValidateAPIKeyError{
 			Code: http.StatusUnauthorized,

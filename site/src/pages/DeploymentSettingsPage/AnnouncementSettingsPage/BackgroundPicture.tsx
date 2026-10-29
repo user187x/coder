@@ -11,7 +11,13 @@ import {
 } from "lucide-react";
 import { useRef, useState } from "react";
 import { getErrorMessage } from "#/api/errors";
-import { PICTURE_FITS, type PictureFit, PlatformAPI } from "#/api/platform";
+import {
+	PICTURE_EFFECTS,
+	PICTURE_FITS,
+	type PictureEffect,
+	type PictureFit,
+	PlatformAPI,
+} from "#/api/platform";
 import { Button } from "#/components/Button/Button";
 import {
 	Select,
@@ -36,7 +42,7 @@ const FIT_OPTIONS: Record<
 	},
 	span: {
 		label: "Span",
-		hint: "As wide as the screen, rolling through it",
+		hint: "As wide as the screen",
 		icon: UnfoldVerticalIcon,
 	},
 	tile: {
@@ -255,3 +261,43 @@ export const PictureFitSelect: React.FC<PictureFitSelectProps> = ({
 		</Select>
 	);
 };
+
+const EFFECT_LABELS: Record<PictureEffect, string> = {
+	none: "No image effect",
+	"pan-up": "Pan up",
+	"pan-down": "Pan down",
+	roller: "Roller pin",
+	glitch: "Glitch",
+	fade: "Fade in/out",
+	gaussian: "Gaussian blur",
+	ripple: "Ripple (flag wave)",
+};
+
+export const PictureEffectSelect: React.FC<{
+	value: PictureEffect;
+	disabled: boolean;
+	onChange: (effect: PictureEffect) => void;
+}> = ({ value, disabled, onChange }) => (
+	<Select
+		value={value}
+		disabled={disabled}
+		onValueChange={(next) => {
+			const effect = PICTURE_EFFECTS.find((effect) => effect === next);
+			if (effect) onChange(effect);
+		}}
+	>
+		<SelectTrigger
+			className="h-8 w-44 text-xs"
+			aria-label="Background image effect"
+		>
+			<SelectValue />
+		</SelectTrigger>
+		<SelectContent>
+			{PICTURE_EFFECTS.map((effect) => (
+				<SelectItem key={effect} value={effect}>
+					{EFFECT_LABELS[effect]}
+				</SelectItem>
+			))}
+		</SelectContent>
+	</Select>
+);

@@ -834,3 +834,5 @@ export const updateUserUIPreferences = (client: QueryClient) => ({
 		settings: Awaited<ReturnType<typeof PlatformAPI.getUserUIPreferences>>,
 	) => client.setQueryData(userUIPreferences().queryKey, settings),
 });
+
+export const lockdownRootKey = ["platform", "lockdown"] as const;

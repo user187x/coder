@@ -101,6 +101,9 @@ def ha_checks(B, ha_render, default_render):
           and hprobe == {"path": "/readyz", "port": 2113, "scheme": "HTTP"}
           and hstop == {"httpGet": {"path": "/handover", "port": 2113}}
           and henv.get("CODER_PLATFORM_HA_HANDOVER_TIMEOUT") == "40s", {"svc": hsvc, "probe": hprobe, "preStop": hstop})
+    check("activeStandby keeps the active endpoint routed until handover completes; other modes use normal readiness",
+          docs[("Service", "coder")]["spec"].get("publishNotReadyAddresses") is True
+          and not dflt[("Service", "coder")]["spec"].get("publishNotReadyAddresses", False))
     hrole = docs.get(("Role", "coder-platform-ha"), {}).get("rules") or []
     hbind = docs.get(("RoleBinding", "coder-platform-ha"), {})
     check("high availability: activeStandby - Coder may read and label its own pods (its own Role, whatever "

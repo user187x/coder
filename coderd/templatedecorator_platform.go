@@ -84,10 +84,16 @@ func (api *API) templateDecoratorPayload(ctx context.Context) (*templatedecorato
 // archive with the platform's sections it lacks, else as it is.
 func (api *API) DecorateTemplateArchive(ctx context.Context, archive []byte) ([]byte, error) {
 	payload, _, err := api.templateDecoratorPayload(ctx)
-	if err != nil || payload == nil {
+	if err != nil {
 		return archive, err
 	}
-	out, res, err := payload.DecorateArchive(archive)
+	if payload == nil {
+		payload = &templatedecorator.Payload{}
+	}
+	managed := *payload
+	managed.RuntimeImage = api.WorkspaceRuntimeImage
+	managed.AccessURL = api.AccessURL.String()
+	out, res, err := managed.DecorateArchive(archive)
 	if err != nil {
 		return archive, err
 	}
@@ -227,12 +233,18 @@ func (api *API) templateBuilderMaterialize(rw http.ResponseWriter, r *http.Reque
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{Message: "The template decorator's sections cannot be read.", Detail: err.Error()})
 		return
 	}
-	if payload == nil {
+	if payload == nil && api.WorkspaceRuntimeImage == "" {
 		httpapi.Write(ctx, rw, http.StatusOK, resp)
 		return
 	}
+	if payload == nil {
+		payload = &templatedecorator.Payload{}
+	}
+	managed := *payload
+	managed.RuntimeImage = api.WorkspaceRuntimeImage
+	managed.AccessURL = api.AccessURL.String()
 	resp.Enabled = true
-	res, err := payload.Decorate(files)
+	res, err := managed.Decorate(files)
 	if err != nil {
 		httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{Message: "The template could not be decorated.", Detail: err.Error()})
 		return

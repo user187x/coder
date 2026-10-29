@@ -48,6 +48,10 @@ def main():
             for name, tag in OURS.findall(line):
                 if tag != release:
                     problems.append("%s:%d: %s:%s" % (path, n, name, tag))
+    expected = {"coder-platform", "coder-platform-agpl", "coder-ui-updates", "coder-image-tools", "coder-workspace", "coder-workspace-dataflow", "coder-registry", "coder-minio", "coder-upstream"}
+    actual = {name for name, _ in OURS.findall(read("airgap-dist/helm-chart/images.txt"))}
+    if actual != expected:
+        problems.append("images.txt release inventory: missing %s; unexpected %s" % (sorted(expected - actual), sorted(actual - expected)))
     values = read("airgap-dist/helm-chart/coder-airgapped/values.yaml")
     for which in ("fork", "upstream"):
         m = re.search(r"^    %s:\n(?:      .*\n)*?      tag: \"?([^\"\s]+)" % which, values, re.M)

@@ -66,7 +66,7 @@ spec:
   # ---- 1. The Coder installation -------------------------------------------------------------------------------
   - repoURL: harbor.example.com/coder-airgapped/charts                # CHANGE-ME: same as the repository url above
     chart: coder-airgapped-base
-    targetRevision: 1.5.0
+    targetRevision: 1.5.1
     helm:
       releaseName: coder
       valuesObject:

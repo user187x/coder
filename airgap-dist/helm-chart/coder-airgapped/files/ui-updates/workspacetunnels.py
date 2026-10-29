@@ -25,6 +25,7 @@ WORKSPACE_INFO = HTTP_JSON = KUBE = LIVE_WORKSPACES = None
 QUARANTINE = None
 QUARANTINE_GUARD = None
 CONNECTION_RESTRICTED = None
+PAIR_ALLOWED = None
 CODER_URL = ""
 ADMIN_ROLES = set()
 _LOCK = threading.Lock()
@@ -308,6 +309,8 @@ def configure_ports(token, user, organization_id, tunnel_id, body):
     if isinstance(body.get('revision'), bool) or not isinstance(body.get('revision'), int):
         raise ValueError('Expected a reviewed connection revision.')
     with QUARANTINE_GUARD.many(endpoints) if QUARANTINE_GUARD else contextlib.nullcontext():
+        if PAIR_ALLOWED and not PAIR_ALLOWED(*endpoints):
+            raise PermissionError('Tunnel crosses a sandbox boundary.')
         if any(quarantined(wid) for wid in endpoints):
             raise PermissionError('Restricted workspaces cannot configure tunnels.')
         with state() as data:
@@ -328,6 +331,8 @@ def create(token, user, organization_id, body):
         raise ValueError("Workspace ports must be left or right.")
     if source == target:
         raise ValueError("Choose two different workspaces.")
+    if PAIR_ALLOWED and not PAIR_ALLOWED(source, target):
+        raise PermissionError("Tunnels may only connect members of the same sandbox.")
     known = {wid: authorize(token, user, organization_id, wid) for wid in (source, target)}
     if any(quarantined(wid) for wid in (source, target)):
         raise PermissionError('Quarantined workspaces cannot establish tunnels.')
@@ -487,6 +492,8 @@ def sync(token, body):
         raise ValueError('Unsupported port policy capability.')
     measurements = peer_stats(body)
     established = body.get("established_peers", [])
+    if established is None:
+        established = []
     if not isinstance(established, list) or len(established) > 4096:
         raise ValueError("Expected established workspace peer IDs.")
     established = [identifier(peer) for peer in established]
@@ -512,6 +519,9 @@ def sync(token, body):
                 continue
             ends = (tunnel["source_workspace_id"], tunnel["target_workspace_id"])
             if wid not in ends:
+                continue
+            if PAIR_ALLOWED and not PAIR_ALLOWED(*ends):
+                tunnel.update(deleted=True, revision=changed(data))
                 continue
             other = ends[1] if ends[0] == wid else ends[0]
             peer = data["workspaces"][other]

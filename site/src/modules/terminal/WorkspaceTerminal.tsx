@@ -6,6 +6,7 @@ import { WebLinksAddon } from "@xterm/addon-web-links";
 import { WebglAddon } from "@xterm/addon-webgl";
 import { Terminal } from "@xterm/xterm";
 import { cn } from "cn";
+import type { Ghostty } from "ghostty-web";
 import {
 	useCallback,
 	useEffect,
@@ -79,7 +80,7 @@ type WorkspaceTerminalProps = {
 
 const DEFAULT_TERMINAL_FONT_FAMILY = "monospace";
 // Platform: Ghostty's VT engine, loaded once (ghostty-web's WebAssembly) for every Ghostty terminal of the page.
-let ghosttyVt: Promise<import("ghostty-web").Ghostty> | undefined;
+let ghosttyVt: Promise<Ghostty> | undefined;
 const ESCAPED_CARRIAGE_RETURN = "\x1b\r";
 
 /** Platform: how much of the session's latest output is kept, to tell an exit from a dropped connection. */
@@ -451,8 +452,8 @@ export const WorkspaceTerminal = ({
 						const style = window.getComputedStyle(element);
 						const width =
 							element.clientWidth -
-							(Number.parseInt(style.paddingLeft) || 0) -
-							(Number.parseInt(style.paddingRight) || 0);
+							(Number.parseInt(style.paddingLeft, 10) || 0) -
+							(Number.parseInt(style.paddingRight, 10) || 0);
 						return {
 							...proposed,
 							cols: Math.max(proposed.cols, Math.floor(width / metrics.width)),

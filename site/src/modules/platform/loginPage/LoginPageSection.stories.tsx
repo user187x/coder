@@ -26,3 +26,14 @@ export const ImageHeading: Story = {
 		],
 	},
 };
+
+export const NoHeading: Story = {
+	parameters: {
+		queries: [
+			{
+				key: loginPageKey,
+				data: { ...LOGIN_PAGE_DEFAULT, headingMode: "none" },
+			},
+		],
+	},
+};

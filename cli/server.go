@@ -771,6 +771,7 @@ func (r *RootCmd) Server(newAPI func(context.Context, *coderd.Options) (*coderd.
 
 			// Platform: the installer's bootstrap creates the first owner (refuse OIDC sign-ins until then).
 			options.PlatformFirstOwnerByBootstrap = os.Getenv("CODER_PLATFORM_FIRST_OWNER") == "bootstrap"
+			options.WorkspaceRuntimeImage = os.Getenv("CODER_WORKSPACE_RUNTIME_IMAGE")
 			options.NekoMedia, err = coderd.NekoMediaConfigFromEnv(os.Getenv)
 			if err != nil {
 				return xerrors.Errorf("configure Neko media: %w", err)

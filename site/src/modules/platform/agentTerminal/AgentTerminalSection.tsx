@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { PictureInPicture2Icon, PlayIcon } from "lucide-react";
+import { PictureInPicture2Icon, PlayIcon, Trash2Icon } from "lucide-react";
 import { useEffect, useEffectEvent, useId, useRef, useState } from "react";
 import { useQuery } from "react-query";
 import { toast } from "sonner";
@@ -64,6 +64,9 @@ type AgentTerminalSectionProps = {
 	ready: boolean;
 	/** The panel's reorder handle (AgentPanels), at the left of its header. */
 	handle?: React.ReactNode;
+	panelId?: string;
+	initiallyOpen?: boolean;
+	onRemove?: () => void;
 };
 
 /**
@@ -104,6 +107,9 @@ export const AgentTerminalSection: React.FC<AgentTerminalSectionProps> = ({
 	workspace,
 	ready,
 	handle,
+	panelId,
+	initiallyOpen = false,
+	onRemove,
 }) => {
 	const { proxy } = useProxy();
 	const { metadata } = useEmbeddedMetadata();
@@ -115,18 +121,24 @@ export const AgentTerminalSection: React.FC<AgentTerminalSectionProps> = ({
 		proxy.preferredPathAppURL,
 	);
 
-	const [open, setOpen] = useState(false);
-	const [session, setSession] = useState<TerminalSession | null>(() =>
-		loadSession(agent.id),
+	const sessionKey = panelId ? `${agent.id}:${panelId}` : agent.id;
+	const [open, setOpen] = useState(initiallyOpen && ready);
+	const [session, setSession] = useState<TerminalSession | null>(
+		() =>
+			loadSession(sessionKey) ??
+			(initiallyOpen && ready ? newSession(agent.operating_system) : null),
 	);
+	useEffect(() => saveSession(sessionKey, session), [sessionKey, session]);
 	const [endOnClose, setEndOnClose] = useState(readEndOnClose);
 	const [clientSessionId] = useState(generateConnectionSessionId);
 	const endOnCloseId = useId();
 	const customId = useId();
-	const [custom, setCustom] = useState(readCustomCommand);
+	const [custom, setCustom] = useState(() =>
+		panelId ? { enabled: false, command: "" } : readCustomCommand(),
+	);
 	const changeCustom = (next: typeof custom) => {
 		setCustom(next);
-		writeCustomCommand(next);
+		if (!panelId) writeCustomCommand(next);
 	};
 	const canRunCommands = agent.operating_system !== "windows";
 	const connected = useRef(false);
@@ -173,7 +185,6 @@ export const AgentTerminalSection: React.FC<AgentTerminalSectionProps> = ({
 
 	const replaceSession = (next: TerminalSession | null) => {
 		setSession(next);
-		saveSession(agent.id, next);
 	};
 
 	// Back to the start: no session, drop-down rolled up, not popped out. The
@@ -213,7 +224,7 @@ export const AgentTerminalSection: React.FC<AgentTerminalSectionProps> = ({
 	// Leaving the workspace page with the terminal open ends the session too.
 	const endOnLeave = useEffectEvent(() => {
 		if ((open || poppedOut) && session && endOnClose) {
-			saveSession(agent.id, null);
+			saveSession(sessionKey, null);
 			void endSession(agent.id, session, terminalConfig.baseUrl);
 		}
 	});
@@ -421,6 +432,20 @@ export const AgentTerminalSection: React.FC<AgentTerminalSectionProps> = ({
 								End session
 							</Button>
 						</span>
+					)}
+					{onRemove && (
+						<Button
+							variant="subtle"
+							size="icon"
+							className="relative z-[1] ml-auto"
+							aria-label="Remove terminal panel"
+							onClick={() => {
+								if (session) finish(session, false);
+								onRemove();
+							}}
+						>
+							<Trash2Icon className="size-4" />
+						</Button>
 					)}
 				</div>
 				<CollapsibleContent>

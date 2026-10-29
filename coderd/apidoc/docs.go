@@ -1638,6 +1638,180 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v2/global-lockdown/controls": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Deployment"
+                ],
+                "summary": "Read global control PIN configuration",
+                "operationId": "get-global-control-pin",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.GlobalControlStatus"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ]
+            },
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Deployment"
+                ],
+                "summary": "Configure the global control PIN",
+                "operationId": "configure-global-control-pin",
+                "parameters": [
+                    {
+                        "description": "Six-digit PIN and current PIN when rotating",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.ConfigureGlobalControlPINRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.GlobalControlStatus"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ]
+            }
+        },
+        "/api/v2/global-lockdown/controls/close": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Deployment"
+                ],
+                "summary": "Close the current session's global control panel",
+                "operationId": "close-global-controls",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.GlobalControlStatus"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ]
+            }
+        },
+        "/api/v2/global-lockdown/controls/unlock": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Deployment"
+                ],
+                "summary": "Unlock global controls for five minutes",
+                "operationId": "unlock-global-controls",
+                "parameters": [
+                    {
+                        "description": "Admin PIN",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.GlobalControlPINRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.GlobalControlStatus"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ]
+            }
+        },
+        "/api/v2/global-lockdown/organizations/{organization}/workspace-power": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Deployment"
+                ],
+                "summary": "Submit reviewed global workspace power targets",
+                "operationId": "global-workspace-power",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Organization ID",
+                        "name": "organization",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Reviewed action, workspace_ids and confirmation",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ]
+            }
+        },
         "/api/v2/groups": {
             "get": {
                 "produces": [
@@ -4971,6 +5145,144 @@ const docTemplate = `{
                 ]
             }
         },
+        "/api/v2/organizations/{organization}/short-term-leases": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Organizations"
+                ],
+                "summary": "List short term leases",
+                "operationId": "list-short-term-leases",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Organization ID",
+                        "name": "organization",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/codersdk.ShortTermLease"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ]
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Organizations"
+                ],
+                "summary": "Create an isolated short term Browser lease",
+                "operationId": "create-short-term-lease",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Organization ID",
+                        "name": "organization",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Lease duration and Browser template",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.CreateShortTermLeaseRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.ShortTermLease"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ]
+            }
+        },
+        "/api/v2/organizations/{organization}/short-term-leases/{user}": {
+            "patch": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Organizations"
+                ],
+                "summary": "Extend or revoke an active short term lease",
+                "operationId": "update-short-term-lease",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Organization ID",
+                        "name": "organization",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Temporary user ID",
+                        "name": "user",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Extension or revocation",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.UpdateShortTermLeaseRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.ShortTermLease"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ]
+            }
+        },
         "/api/v2/organizations/{organization}/templates": {
             "get": {
                 "description": "Returns a list of templates for the specified organization.\nBy default, only non-deprecated templates are returned.\nTo include deprecated templates, specify ` + "`" + `deprecated:true` + "`" + ` in the search query.",
@@ -5273,6 +5585,102 @@ const docTemplate = `{
                         "description": "Created",
                         "schema": {
                             "$ref": "#/definitions/codersdk.TemplateVersion"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ]
+            }
+        },
+        "/api/v2/organizations/{organization}/workspaces/{workspace}/quarantine": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Workspaces"
+                ],
+                "summary": "Get workspace quarantine policy",
+                "operationId": "get-workspace-quarantine",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Organization ID",
+                        "name": "organization",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Workspace ID",
+                        "name": "workspace",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.WorkspaceQuarantine"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ]
+            },
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Workspaces"
+                ],
+                "summary": "Change workspace quarantine policy",
+                "operationId": "update-workspace-quarantine",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Organization ID",
+                        "name": "organization",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Workspace ID",
+                        "name": "workspace",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Containment policy. Release never starts runtime.",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.UpdateWorkspaceQuarantineRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.WorkspaceQuarantine"
                         }
                     }
                 },
@@ -5657,6 +6065,90 @@ const docTemplate = `{
                         "CoderSessionToken": []
                     }
                 ]
+            }
+        },
+        "/api/v2/short-term-lease": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Read the current temporary lease",
+                "operationId": "get-current-short-term-lease",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.ShortTermLease"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ]
+            }
+        },
+        "/api/v2/short-term-lease/extension": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Request a temporary lease extension",
+                "operationId": "request-short-term-lease-extension",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.ShortTermLease"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ]
+            }
+        },
+        "/api/v2/short-term-lease/login": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Sign in with a temporary lease token",
+                "operationId": "login-short-term-lease",
+                "parameters": [
+                    {
+                        "description": "Temporary token",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.LeaseTokenLoginRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.ShortTermLease"
+                        }
+                    }
+                }
             }
         },
         "/api/v2/tailnet": {
@@ -14732,6 +15224,17 @@ const docTemplate = `{
                 }
             }
         },
+        "codersdk.ConfigureGlobalControlPINRequest": {
+            "type": "object",
+            "properties": {
+                "current_pin": {
+                    "type": "string"
+                },
+                "pin": {
+                    "type": "string"
+                }
+            }
+        },
         "codersdk.ConnectionLatency": {
             "type": "object",
             "properties": {
@@ -14983,6 +15486,17 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "key": {
+                    "type": "string"
+                }
+            }
+        },
+        "codersdk.CreateShortTermLeaseRequest": {
+            "type": "object",
+            "properties": {
+                "minutes": {
+                    "type": "integer"
+                },
+                "template_id": {
                     "type": "string"
                 }
             }
@@ -16666,6 +17180,28 @@ const docTemplate = `{
                 }
             }
         },
+        "codersdk.GlobalControlPINRequest": {
+            "type": "object",
+            "properties": {
+                "pin": {
+                    "type": "string"
+                }
+            }
+        },
+        "codersdk.GlobalControlStatus": {
+            "type": "object",
+            "properties": {
+                "configured": {
+                    "type": "boolean"
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
         "codersdk.GlobalLockdownAgent": {
             "type": "object",
             "properties": {
@@ -17049,6 +17585,14 @@ const docTemplate = `{
                 "RequiredTemplateVariables",
                 "InsufficientQuota"
             ]
+        },
+        "codersdk.LeaseTokenLoginRequest": {
+            "type": "object",
+            "properties": {
+                "token": {
+                    "type": "string"
+                }
+            }
         },
         "codersdk.License": {
             "type": "object",
@@ -20370,6 +20914,39 @@ const docTemplate = `{
                 "SharedWorkspaceActorTypeUser"
             ]
         },
+        "codersdk.ShortTermLease": {
+            "type": "object",
+            "properties": {
+                "expires_at": {
+                    "type": "string"
+                },
+                "extension_requested_at": {
+                    "type": "string"
+                },
+                "issued_at": {
+                    "type": "string"
+                },
+                "organization_id": {
+                    "type": "string"
+                },
+                "revoked_at": {
+                    "type": "string"
+                },
+                "token": {
+                    "description": "Token is returned only at creation; the database stores its hash.",
+                    "type": "string"
+                },
+                "token_id": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                },
+                "workspace_id": {
+                    "type": "string"
+                }
+            }
+        },
         "codersdk.SlimRole": {
             "type": "object",
             "properties": {
@@ -21901,6 +22478,17 @@ const docTemplate = `{
                 }
             }
         },
+        "codersdk.UpdateShortTermLeaseRequest": {
+            "type": "object",
+            "properties": {
+                "minutes": {
+                    "type": "integer"
+                },
+                "revoke": {
+                    "type": "boolean"
+                }
+            }
+        },
         "codersdk.UpdateTemplateACL": {
             "type": "object",
             "properties": {
@@ -22242,6 +22830,17 @@ const docTemplate = `{
             "properties": {
                 "dormant": {
                     "type": "boolean"
+                }
+            }
+        },
+        "codersdk.UpdateWorkspaceQuarantineRequest": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "reason": {
+                    "type": "string"
                 }
             }
         },
@@ -24138,6 +24737,40 @@ const docTemplate = `{
                 },
                 "status": {
                     "$ref": "#/definitions/codersdk.ProxyHealthStatus"
+                }
+            }
+        },
+        "codersdk.WorkspaceQuarantine": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "manual_start_required": {
+                    "type": "boolean"
+                },
+                "organization_id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "revision": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "updated_at": {
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "updated_by": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "workspace_id": {
+                    "type": "string",
+                    "format": "uuid"
                 }
             }
         },

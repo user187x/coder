@@ -1925,6 +1925,13 @@ func (q *querier) BatchUpsertConnectionLogs(ctx context.Context, arg database.Ba
 	return q.db.BatchUpsertConnectionLogs(ctx, arg)
 }
 
+func (q *querier) BindShortTermLease(ctx context.Context, arg database.BindShortTermLeaseParams) (database.ShortTermLease, error) {
+	if err := q.authorizeContext(ctx, policy.ActionUpdate, rbac.ResourceSystem); err != nil {
+		return database.ShortTermLease{}, err
+	}
+	return q.db.BindShortTermLease(ctx, arg)
+}
+
 func (q *querier) BulkMarkNotificationMessagesFailed(ctx context.Context, arg database.BulkMarkNotificationMessagesFailedParams) (int64, error) {
 	if err := q.authorizeContext(ctx, policy.ActionUpdate, rbac.ResourceNotificationMessage); err != nil {
 		return 0, err
@@ -2851,6 +2858,13 @@ func (q *querier) ExportOrganizationAISpend(ctx context.Context, arg database.Ex
 		return nil, err
 	}
 	return q.db.ExportOrganizationAISpend(ctx, arg)
+}
+
+func (q *querier) ExtendShortTermLease(ctx context.Context, arg database.ExtendShortTermLeaseParams) (database.ShortTermLease, error) {
+	if err := q.authorizeContext(ctx, policy.ActionUpdate, rbac.ResourceSystem); err != nil {
+		return database.ShortTermLease{}, err
+	}
+	return q.db.ExtendShortTermLease(ctx, arg)
 }
 
 func (q *querier) FavoriteWorkspace(ctx context.Context, id uuid.UUID) error {
@@ -4114,6 +4128,13 @@ func (q *querier) GetExperimentRules(ctx context.Context) ([]database.GetExperim
 	return q.db.GetExperimentRules(ctx)
 }
 
+func (q *querier) GetExpiredShortTermLeases(ctx context.Context) ([]database.ShortTermLease, error) {
+	if err := q.authorizeContext(ctx, policy.ActionUpdate, rbac.ResourceSystem); err != nil {
+		return nil, err
+	}
+	return q.db.GetExpiredShortTermLeases(ctx)
+}
+
 // GetExternalAgentTokensByTemplateID is used for scaletesting purposes; the
 // scaletest agentfake path calls this query directly via a connection to the
 // database. There is no production code path that uses this method, and it is
@@ -4927,6 +4948,27 @@ func (q *querier) GetRuntimeConfig(ctx context.Context, key string) (string, err
 		return "", err
 	}
 	return q.db.GetRuntimeConfig(ctx, key)
+}
+
+func (q *querier) GetShortTermLeaseByUserID(ctx context.Context, userID uuid.UUID) (database.ShortTermLease, error) {
+	if err := q.authorizeContext(ctx, policy.ActionUpdate, rbac.ResourceSystem); err != nil {
+		return database.ShortTermLease{}, err
+	}
+	return q.db.GetShortTermLeaseByUserID(ctx, userID)
+}
+
+func (q *querier) GetShortTermLeaseByWorkspaceID(ctx context.Context, workspaceID uuid.NullUUID) (database.ShortTermLease, error) {
+	if err := q.authorizeContext(ctx, policy.ActionUpdate, rbac.ResourceSystem); err != nil {
+		return database.ShortTermLease{}, err
+	}
+	return q.db.GetShortTermLeaseByWorkspaceID(ctx, workspaceID)
+}
+
+func (q *querier) GetShortTermLeasesByOrganization(ctx context.Context, organizationID uuid.UUID) ([]database.ShortTermLease, error) {
+	if err := q.authorizeContext(ctx, policy.ActionUpdate, rbac.ResourceSystem); err != nil {
+		return nil, err
+	}
+	return q.db.GetShortTermLeasesByOrganization(ctx, organizationID)
 }
 
 func (q *querier) GetStaleChats(ctx context.Context, staleThreshold time.Time) ([]database.Chat, error) {
@@ -6749,6 +6791,13 @@ func (q *querier) InsertReplica(ctx context.Context, arg database.InsertReplicaP
 	return q.db.InsertReplica(ctx, arg)
 }
 
+func (q *querier) InsertShortTermLease(ctx context.Context, arg database.InsertShortTermLeaseParams) (database.ShortTermLease, error) {
+	if err := q.authorizeContext(ctx, policy.ActionUpdate, rbac.ResourceSystem); err != nil {
+		return database.ShortTermLease{}, err
+	}
+	return q.db.InsertShortTermLease(ctx, arg)
+}
+
 func (q *querier) InsertTelemetryItemIfNotExists(ctx context.Context, arg database.InsertTelemetryItemIfNotExistsParams) error {
 	if err := q.authorizeContext(ctx, policy.ActionCreate, rbac.ResourceSystem); err != nil {
 		return err
@@ -7527,11 +7576,25 @@ func (q *querier) ReorderChatQueuedMessageToHead(ctx context.Context, arg databa
 	return q.db.ReorderChatQueuedMessageToHead(ctx, arg)
 }
 
+func (q *querier) RequestShortTermLeaseExtension(ctx context.Context, userID uuid.UUID) (database.ShortTermLease, error) {
+	if err := q.authorizeContext(ctx, policy.ActionUpdate, rbac.ResourceSystem); err != nil {
+		return database.ShortTermLease{}, err
+	}
+	return q.db.RequestShortTermLeaseExtension(ctx, userID)
+}
+
 func (q *querier) RevokeDBCryptKey(ctx context.Context, activeKeyDigest string) error {
 	if err := q.authorizeContext(ctx, policy.ActionUpdate, rbac.ResourceSystem); err != nil {
 		return err
 	}
 	return q.db.RevokeDBCryptKey(ctx, activeKeyDigest)
+}
+
+func (q *querier) RevokeShortTermLease(ctx context.Context, arg database.RevokeShortTermLeaseParams) (database.ShortTermLease, error) {
+	if err := q.authorizeContext(ctx, policy.ActionUpdate, rbac.ResourceSystem); err != nil {
+		return database.ShortTermLease{}, err
+	}
+	return q.db.RevokeShortTermLease(ctx, arg)
 }
 
 func (q *querier) SelectUsageEventsForPublishing(ctx context.Context, arg time.Time) ([]database.UsageEvent, error) {

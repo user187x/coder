@@ -77,6 +77,7 @@ import {
 import { ColorField, type ColorPreset } from "#/modules/platform/ColorField";
 import {
 	ChosenImage,
+	PictureEffectSelect,
 	PictureFitSelect,
 	UploadImageButton,
 } from "./BackgroundPicture";
@@ -122,6 +123,40 @@ const EFFECT_OPTIONS: Record<BannerEffect, { label: string; hint: string }> = {
 	kitt: {
 		label: "Knight Rider",
 		hint: "KITT's scanner: a red light sweeps back and forth across the banner, its trail fading behind it.",
+	},
+	aurora: {
+		label: "Borealis",
+		hint: "An aurora gradient drifts through the letters.",
+	},
+	neon: { label: "Neon-Haus", hint: "A neon glow flickers like a tube sign." },
+	chrome: {
+		label: "Chrome",
+		hint: "A metallic highlight sweeps over the message.",
+	},
+	focus: { label: "Lens-Drift", hint: "Letters slip in and out of focus." },
+	ember: {
+		label: "Emberglow",
+		hint: "Warm firelight glows behind the letters.",
+	},
+	spectrum: {
+		label: "Prisma",
+		hint: "Each letter refracts a changing spectrum.",
+	},
+	anaglyph: {
+		label: "Anaglyph-3D",
+		hint: "Red and cyan shadows drift apart and return.",
+	},
+	heartbeat: {
+		label: "Cardio",
+		hint: "A double heartbeat pulses with a glow.",
+	},
+	softblur: {
+		label: "Soft-Blur",
+		hint: "The message breathes between crisp and hazy.",
+	},
+	voltage: {
+		label: "Kilovolt",
+		hint: "Letters crackle with staggered electric flashes.",
 	},
 };
 
@@ -328,6 +363,11 @@ export const BannerEditor: React.FC<BannerEditorProps> = ({
 						value={form.pictureFit ?? "span"}
 						disabled={!form.picture}
 						onChange={(pictureFit) => onChange({ pictureFit })}
+					/>
+					<PictureEffectSelect
+						value={form.pictureEffect ?? "none"}
+						disabled={!form.picture}
+						onChange={(pictureEffect) => onChange({ pictureEffect })}
 					/>
 					{form.picture && (
 						<ChosenImage

@@ -1,9 +1,11 @@
 import { cn } from "cn";
-import { type FC, useEffect } from "react";
+import type { FC } from "react";
 import { useQuery } from "react-query";
 import type { QuotaKey, QuotaMe } from "#/api/platform";
 import { quotaMe } from "#/api/queries/platform";
+import { myShortTermLease } from "#/api/queries/shortTermLeases";
 import { QuotaRequestButton } from "../quotaRequests/QuotaRequestButton";
+import { LeaseExtensionButton } from "../shortTermLeases/LeaseExtensionButton";
 
 // Approved extras extend finite base limits until an administrator revokes them.
 
@@ -119,14 +121,21 @@ export const WorkspaceQuotaPillView: FC<{ quota: QuotaMe }> = ({ quota }) => {
 export const WorkspaceQuotaPill: FC<{ workspacesKey?: string }> = ({
 	workspacesKey,
 }) => {
-	const { data, refetch } = useQuery(quotaMe());
-	useEffect(() => {
-		void refetch();
-	}, [workspacesKey, refetch]);
+	const lease = useQuery(myShortTermLease());
+	const quotaQuery = quotaMe();
+	const { data } = useQuery({
+		...quotaQuery,
+		queryKey: [...quotaQuery.queryKey, workspacesKey],
+		enabled: lease.isSuccess && !lease.data,
+	});
 	return (
 		<div className="flex flex-wrap items-center gap-2">
 			{data && <WorkspaceQuotaPillView quota={data} />}
-			<QuotaRequestButton />
+			{lease.data ? (
+				<LeaseExtensionButton lease={lease.data} />
+			) : (
+				!lease.isLoading && <QuotaRequestButton />
+			)}
 		</div>
 	);
 };

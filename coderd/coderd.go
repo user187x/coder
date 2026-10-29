@@ -180,6 +180,8 @@ type Options struct {
 	// PlatformServiceRoutes forward path prefixes (/__coder-ui, /__banner)
 	// to the dashboard's platform services.
 	PlatformServiceRoutes []PlatformServiceRoute
+	// WorkspaceRuntimeImage is the deployment-owned privileged network runtime.
+	WorkspaceRuntimeImage string
 	// NekoMedia is explicit operator-owned LAN relay configuration, disabled by default.
 	NekoMedia *NekoMediaConfig
 	// NekoMediaContext returns the current infrastructure serving epoch.
@@ -685,6 +687,7 @@ func New(options *Options) *API {
 	)
 	api.workspaceQuarantine = workspacequarantine.New(options.Database, options.Clock)
 	go api.workspaceQuarantine.Run(api.ctx)
+	go api.runShortTermLeases()
 	api.globalLockdown = platformlockdown.New(options.Database, api.ID, options.Clock)
 	if err := api.globalLockdown.Register(ctx); err != nil {
 		options.Logger.Error(ctx, "register global lockdown replica", slog.Error(err))
@@ -892,6 +895,7 @@ func New(options *Options) *API {
 		WSWatcher:             api.wsWatcher,
 		GuardSession:          api.guardGlobalLockdownSession,
 		GuardWorkspaceSession: api.guardWorkspaceQuarantineSession,
+		CheckAppAccess:        api.checkLeaseAppAccess,
 
 		DisablePathApps:          options.DeploymentValues.DisablePathApps.Value(),
 		CookiesConfig:            options.DeploymentValues.HTTPCookies,
@@ -1270,6 +1274,9 @@ func New(options *Options) *API {
 				r.Get("/device", api.externalAuthDeviceByID)
 			})
 		})
+		r.Post("/short-term-lease/login", api.loginShortTermLease)
+		r.With(apiKeyMiddleware).Get("/short-term-lease", api.getMyShortTermLease)
+		r.With(apiKeyMiddleware).Post("/short-term-lease/extension", api.requestShortTermLeaseExtension)
 		r.Route("/organizations", func(r chi.Router) {
 			r.Use(
 				apiKeyMiddleware,
@@ -1280,6 +1287,9 @@ func New(options *Options) *API {
 					httpmw.ExtractOrganizationParam(options.Database),
 				)
 				r.Get("/", api.organization)
+				r.Get("/short-term-leases", api.getShortTermLeases)
+				r.Post("/short-term-leases", api.postShortTermLease)
+				r.Patch("/short-term-leases/{user}", api.patchShortTermLease)
 				r.With(httpmw.ExtractWorkspaceParam(options.Database)).Get("/workspaces/{workspace}/quarantine", api.getWorkspaceQuarantine)
 				r.With(httpmw.ExtractWorkspaceParam(options.Database)).Put("/workspaces/{workspace}/quarantine", api.putWorkspaceQuarantine)
 				r.Post("/templateversions", api.postTemplateVersionsByOrganization)
@@ -1923,7 +1933,9 @@ func New(options *Options) *API {
 				slog.F("prefix", route.PathPrefix), slog.F("target", route.Target.String()))
 			continue
 		}
-		r.Mount(route.PathPrefix, platformServiceProxy(api.Logger.Named("platform_services"), route.Target))
+		// Public branding remains anonymous, but authenticated restrictions must
+		// be enforced before forwarding to a platform service.
+		r.Mount(route.PathPrefix, apiKeyMiddlewareOptional(platformServiceProxy(api.Logger.Named("platform_services"), route.Target)))
 	}
 
 	// Static file handler must be wrapped with HSTS handler if the

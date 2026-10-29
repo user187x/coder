@@ -725,6 +725,7 @@ Actions: `create`, `write`, `delete`
 <tr><td><code>created_at</code></td><td>No</td></tr>
 <tr><td><code>deleted</code></td><td>Yes</td></tr>
 <tr><td><code>email</code></td><td>Yes</td></tr>
+<tr><td><code>failed_password_attempts</code></td><td>No</td></tr>
 <tr><td><code>github_com_user_id</code></td><td>No</td></tr>
 <tr><td><code>hashed_one_time_passcode</code></td><td>No</td></tr>
 <tr><td><code>hashed_password</code></td><td>Yes</td></tr>
@@ -735,6 +736,7 @@ Actions: `create`, `write`, `delete`
 <tr><td><code>login_type</code></td><td>Yes</td></tr>
 <tr><td><code>name</code></td><td>Yes</td></tr>
 <tr><td><code>one_time_passcode_expires_at</code></td><td>Yes</td></tr>
+<tr><td><code>password_locked_until</code></td><td>No</td></tr>
 <tr><td><code>quiet_hours_schedule</code></td><td>Yes</td></tr>
 <tr><td><code>rbac_roles</code></td><td>Yes</td></tr>
 <tr><td><code>status</code></td><td>Yes</td></tr>

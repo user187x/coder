@@ -114,6 +114,11 @@ def coder_ha(chart):
              '    path: %s\n    port: 2113\n'
              '    {{- else }}\n    path: /healthz\n    port: "http"\n    {{- end }}\n' % (probe, ha_path))
     edit(os.path.join(chart, "templates", "service.yaml"),
+         'spec:\n  type:',
+         'spec:\n  {{- if eq (include "coder.platformHAMode" .) "activeStandby" }}\n'
+         '  # The HA role label fences traffic; keep the active pod routed during preStop.\n'
+         '  publishNotReadyAddresses: true\n  {{- end }}\n  type:')
+    edit(os.path.join(chart, "templates", "service.yaml"),
          '  selector:\n    {{- include "coder.selectorLabels" . | nindent 4 }}\n',
          '  selector:\n    {{- include "coder.selectorLabels" . | nindent 4 }}\n'
          '    {{- if eq (include "coder.platformHAMode" .) "activeStandby" }}\n'

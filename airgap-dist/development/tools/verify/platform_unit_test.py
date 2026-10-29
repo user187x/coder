@@ -301,6 +301,10 @@ class LockDownTest(unittest.TestCase):
                 "status": {"phase": "Running", "containerStatuses": [{"name": "dev", "state": {"running": {"startedAt": "2026-10-13T12:00:00Z"}}}]}}
 
     def setUp(self):
+        for name, result in (("settings", {}), ("project", None), ("network_policies", None)):
+            patcher = mock.patch.object(ld.sandbox, name, return_value=result)
+            patcher.start()
+            self.addCleanup(patcher.stop)
         for name, value in (("LOG", None), ("CODER_HOST", "coder.example.com"), ("APPLY_TIMEOUT", 5)):
             p = mock.patch.object(ld, name, value)
             p.start()
@@ -326,7 +330,7 @@ class LockDownTest(unittest.TestCase):
         c = patch[2]["spec"]["ephemeralContainers"][0]
         self.assertEqual(c["targetContainerName"], "dev")                      # shares the workspace's processes
         self.assertEqual(c["image"], "docker.io/mrshll187/coder-workspace:1.8.3")
-        self.assertEqual(c["command"][4:], ["network,sudo", "coder.example.com", "/proc/1/root"])
+        self.assertEqual(c["command"][4:], ["network,sudo", "coder.example.com", "/proc/1/root", "", ""])
         self.assertEqual(c["securityContext"]["runAsUser"], 0)
         self.assertEqual(set(c["securityContext"]["capabilities"]["add"]), {"NET_ADMIN", "NET_RAW", "SYS_PTRACE"})
         annotate = [c for c in calls if c[0] == "PATCH" and c[3] == "application/merge-patch+json"]
@@ -479,6 +483,10 @@ class FreezeTest(unittest.TestCase):
         return mock.MagicMock(call=call, ok=True), calls, state
 
     def setUp(self):
+        for name, result in (("settings", {}), ("project", None), ("network_policies", None)):
+            patcher = mock.patch.object(ld.sandbox, name, return_value=result)
+            patcher.start()
+            self.addCleanup(patcher.stop)
         for name, value in (("LOG", None), ("CODER_HOST", "coder.example.com"), ("APPLY_TIMEOUT", 5),
                             ("COPY_IMAGE", "docker.io/mrshll187/coder-workspace:1.8.3")):
             p = mock.patch.object(ld, name, value)

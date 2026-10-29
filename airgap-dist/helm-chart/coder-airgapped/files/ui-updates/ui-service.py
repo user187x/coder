@@ -166,6 +166,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import pgwire  # noqa: E402  (next to this file)
 import imagebuilder  # noqa: E402  (next to this file: the Images view)
 import workspacevolumes  # noqa: E402  (workspace icons, home backups, disk growth)
+import sandbox
 import lockdown  # noqa: E402  (Lock Down: admins jail a workspace's network and sudo)
 import safe  # noqa: E402  (the safe: each account's own files on S3, on the Workspaces page and in its workspaces)
 import provisioners  # noqa: E402  (Provisioner Daemons: stuck jobs, their terraform processes, a re-kick)
@@ -1427,8 +1428,8 @@ def clean_login_page(p):
         raise ValueError("The speed must be between 0.5 and 20 seconds.")
     mode = p.get("headingMode", "text")
     image = p.get("headingImage", "")
-    if mode not in ("text", "image"):
-        raise ValueError("Choose Text or Image for the heading.")
+    if mode not in ("none", "text", "image"):
+        raise ValueError("Choose None, Text or Image for the heading.")
     if not isinstance(image, str) or len(image) > LOGIN_HEADING_MAX_CHARS:
         raise ValueError("The heading image must be smaller than 256 KB.")
     if image.startswith("/"):
@@ -8509,6 +8510,8 @@ class Handler(BaseHTTPRequestHandler):
             return
         if quarantine.handle(self, "GET", path, QUARANTINE_ENFORCER, workspace_info):
             return
+        if sandbox.handle(self, "GET", path):
+            return
         if lockdown.handle(self, "GET", path, url.query):
             return
         if safe.handle(self, "GET", path, url.query) or safe.handle_libraries(self, "GET", path, url.query):
@@ -9696,6 +9699,8 @@ class Handler(BaseHTTPRequestHandler):
             return
         if workspacetunnels.handle(self, "POST", path, url.query):
             return
+        if sandbox.handle(self, "POST", path):
+            return
         if lockdown.handle(self, "POST", path, url.query):
             return
         if safe.handle(self, "POST", path, url.query) or safe.handle_libraries(self, "POST", path, url.query):
@@ -10386,6 +10391,7 @@ def main():
     shared_documents = pgdocuments.Documents(lambda: LOGOS.pool if LOGOS else None)
     STORE.settings_backing = shared_documents
     workspacetunnels.PERSISTENCE = shared_documents
+    sandbox.PERSISTENCE = shared_documents
     quotaextras.PERSISTENCE = shared_documents
     safe.PERSISTENCE = shared_documents
     drivepeers.PERSISTENCE = shared_documents
@@ -10412,6 +10418,8 @@ def main():
     connection_guard = quarantineguard.Guard(lambda: LOGOS.pool if LOGOS else None)
     workspacetunnels.setup(workspace_info, http_json, KUBE, CODER_URL, ADMIN_ROLES, tunnel_live_workspaces,
                           quarantine=workspace_quarantine_policy, quarantine_guard=connection_guard)
+    sandbox.LOCKDOWN = lockdown
+    workspacetunnels.PAIR_ALLOWED = sandbox.pair_allowed
     lockdown.setup(log, KUBE, workspace_info, ADMIN_ROLES, CODER_ACCESS_URL)
     provisioners.setup(log, KUBE, ADMIN_ROLES, _coder_get, _coder_send)
     clusternet.setup(log, KUBE, _coder_get, cluster_snapshot, lambda: LOGOS.pool if LOGOS else None, quantity,
@@ -10430,7 +10438,7 @@ def main():
                      workspace_info=workspace_info)
     connection_restrictions = workspaceconnections.Restrictions(lambda: LOGOS.pool if LOGOS else None,
         lockdown.settings, safe, workspacetunnels, log)
-    safe.CONNECTION_RESTRICTED = connection_restrictions.restricted
+    safe.CONNECTION_RESTRICTED = lambda wid: bool(sandbox.group_of(wid)) or connection_restrictions.restricted(wid)
     workspacetunnels.CONNECTION_RESTRICTED = connection_restrictions.restricted
     connection_restrictions.start()
     safe.setup_audit(safe_user, drive_inbox_send)

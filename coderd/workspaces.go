@@ -38,6 +38,7 @@ import (
 	"github.com/coder/coder/v2/coderd/schedule"
 	"github.com/coder/coder/v2/coderd/schedule/cron"
 	"github.com/coder/coder/v2/coderd/searchquery"
+	"github.com/coder/coder/v2/coderd/shorttermlease"
 	"github.com/coder/coder/v2/coderd/util/ptr"
 	"github.com/coder/coder/v2/coderd/util/slice"
 	"github.com/coder/coder/v2/coderd/wsbuilder"
@@ -637,15 +638,27 @@ func createWorkspace(
 		return codersdk.Workspace{}, err
 	}
 
-	// The platform's Global Workspace Scheduler: a start and stop time are
-	// required, or the administrator's schedule is applied.
-	scheduleAnswer, err := api.checkPlatformSchedule(ctx, opts.sessionToken, owner.Username, platformScheduleCreate, req.AutostartSchedule, req.TTLMillis)
+	lease, err := shorttermlease.Load(ctx, api.Database, owner.ID)
 	if err != nil {
-		return codersdk.Workspace{}, err
+		return codersdk.Workspace{}, xerrors.Errorf("read workspace owner's lease: %w", err)
 	}
-	if scheduleAnswer != nil && scheduleAnswer.Apply != nil {
-		req.AutostartSchedule = &scheduleAnswer.Apply.AutostartSchedule
-		req.TTLMillis = &scheduleAnswer.Apply.TTLMillis
+	if lease != nil {
+		if !shorttermlease.Active(*lease, api.Clock.Now()) || lease.WorkspaceID.Valid {
+			return codersdk.Workspace{}, httperror.NewResponseError(http.StatusForbidden, codersdk.Response{Message: "This lease cannot create another workspace."})
+		}
+		// The extendable lease deadline owns shutdown. Recurring autostart must never resurrect temporary access.
+		req.AutostartSchedule = nil
+		ttl := int64(0)
+		req.TTLMillis = &ttl
+	} else {
+		scheduleAnswer, err := api.checkPlatformSchedule(ctx, opts.sessionToken, owner.Username, platformScheduleCreate, req.AutostartSchedule, req.TTLMillis)
+		if err != nil {
+			return codersdk.Workspace{}, err
+		}
+		if scheduleAnswer != nil && scheduleAnswer.Apply != nil {
+			req.AutostartSchedule = &scheduleAnswer.Apply.AutostartSchedule
+			req.TTLMillis = &scheduleAnswer.Apply.TTLMillis
+		}
 	}
 
 	dbAutostartSchedule, err := validWorkspaceSchedule(req.AutostartSchedule)

@@ -249,6 +249,14 @@ func (m queryMetricsStore) BatchUpsertConnectionLogs(ctx context.Context, arg da
 	return r0
 }
 
+func (m queryMetricsStore) BindShortTermLease(ctx context.Context, arg database.BindShortTermLeaseParams) (database.ShortTermLease, error) {
+	start := time.Now()
+	r0, r1 := m.s.BindShortTermLease(ctx, arg)
+	m.queryLatencies.WithLabelValues("BindShortTermLease").Observe(time.Since(start).Seconds())
+	m.queryCounts.WithLabelValues(httpmw.ExtractHTTPRoute(ctx), httpmw.ExtractHTTPMethod(ctx), "BindShortTermLease").Inc()
+	return r0, r1
+}
+
 func (m queryMetricsStore) BulkMarkNotificationMessagesFailed(ctx context.Context, arg database.BulkMarkNotificationMessagesFailedParams) (int64, error) {
 	start := time.Now()
 	r0, r1 := m.s.BulkMarkNotificationMessagesFailed(ctx, arg)
@@ -1086,6 +1094,14 @@ func (m queryMetricsStore) ExportOrganizationAISpend(ctx context.Context, arg da
 	r0, r1 := m.s.ExportOrganizationAISpend(ctx, arg)
 	m.queryLatencies.WithLabelValues("ExportOrganizationAISpend").Observe(time.Since(start).Seconds())
 	m.queryCounts.WithLabelValues(httpmw.ExtractHTTPRoute(ctx), httpmw.ExtractHTTPMethod(ctx), "ExportOrganizationAISpend").Inc()
+	return r0, r1
+}
+
+func (m queryMetricsStore) ExtendShortTermLease(ctx context.Context, arg database.ExtendShortTermLeaseParams) (database.ShortTermLease, error) {
+	start := time.Now()
+	r0, r1 := m.s.ExtendShortTermLease(ctx, arg)
+	m.queryLatencies.WithLabelValues("ExtendShortTermLease").Observe(time.Since(start).Seconds())
+	m.queryCounts.WithLabelValues(httpmw.ExtractHTTPRoute(ctx), httpmw.ExtractHTTPMethod(ctx), "ExtendShortTermLease").Inc()
 	return r0, r1
 }
 
@@ -2265,6 +2281,14 @@ func (m queryMetricsStore) GetExperimentRules(ctx context.Context) ([]database.G
 	return r0, r1
 }
 
+func (m queryMetricsStore) GetExpiredShortTermLeases(ctx context.Context) ([]database.ShortTermLease, error) {
+	start := time.Now()
+	r0, r1 := m.s.GetExpiredShortTermLeases(ctx)
+	m.queryLatencies.WithLabelValues("GetExpiredShortTermLeases").Observe(time.Since(start).Seconds())
+	m.queryCounts.WithLabelValues(httpmw.ExtractHTTPRoute(ctx), httpmw.ExtractHTTPMethod(ctx), "GetExpiredShortTermLeases").Inc()
+	return r0, r1
+}
+
 func (m queryMetricsStore) GetExternalAgentTokensByTemplateID(ctx context.Context, arg database.GetExternalAgentTokensByTemplateIDParams) ([]database.GetExternalAgentTokensByTemplateIDRow, error) {
 	start := time.Now()
 	r0, r1 := m.s.GetExternalAgentTokensByTemplateID(ctx, arg)
@@ -3126,6 +3150,30 @@ func (m queryMetricsStore) GetRuntimeConfig(ctx context.Context, key string) (st
 	r0, r1 := m.s.GetRuntimeConfig(ctx, key)
 	m.queryLatencies.WithLabelValues("GetRuntimeConfig").Observe(time.Since(start).Seconds())
 	m.queryCounts.WithLabelValues(httpmw.ExtractHTTPRoute(ctx), httpmw.ExtractHTTPMethod(ctx), "GetRuntimeConfig").Inc()
+	return r0, r1
+}
+
+func (m queryMetricsStore) GetShortTermLeaseByUserID(ctx context.Context, userID uuid.UUID) (database.ShortTermLease, error) {
+	start := time.Now()
+	r0, r1 := m.s.GetShortTermLeaseByUserID(ctx, userID)
+	m.queryLatencies.WithLabelValues("GetShortTermLeaseByUserID").Observe(time.Since(start).Seconds())
+	m.queryCounts.WithLabelValues(httpmw.ExtractHTTPRoute(ctx), httpmw.ExtractHTTPMethod(ctx), "GetShortTermLeaseByUserID").Inc()
+	return r0, r1
+}
+
+func (m queryMetricsStore) GetShortTermLeaseByWorkspaceID(ctx context.Context, workspaceID uuid.NullUUID) (database.ShortTermLease, error) {
+	start := time.Now()
+	r0, r1 := m.s.GetShortTermLeaseByWorkspaceID(ctx, workspaceID)
+	m.queryLatencies.WithLabelValues("GetShortTermLeaseByWorkspaceID").Observe(time.Since(start).Seconds())
+	m.queryCounts.WithLabelValues(httpmw.ExtractHTTPRoute(ctx), httpmw.ExtractHTTPMethod(ctx), "GetShortTermLeaseByWorkspaceID").Inc()
+	return r0, r1
+}
+
+func (m queryMetricsStore) GetShortTermLeasesByOrganization(ctx context.Context, organizationID uuid.UUID) ([]database.ShortTermLease, error) {
+	start := time.Now()
+	r0, r1 := m.s.GetShortTermLeasesByOrganization(ctx, organizationID)
+	m.queryLatencies.WithLabelValues("GetShortTermLeasesByOrganization").Observe(time.Since(start).Seconds())
+	m.queryCounts.WithLabelValues(httpmw.ExtractHTTPRoute(ctx), httpmw.ExtractHTTPMethod(ctx), "GetShortTermLeasesByOrganization").Inc()
 	return r0, r1
 }
 
@@ -4697,6 +4745,14 @@ func (m queryMetricsStore) InsertReplica(ctx context.Context, arg database.Inser
 	return r0, r1
 }
 
+func (m queryMetricsStore) InsertShortTermLease(ctx context.Context, arg database.InsertShortTermLeaseParams) (database.ShortTermLease, error) {
+	start := time.Now()
+	r0, r1 := m.s.InsertShortTermLease(ctx, arg)
+	m.queryLatencies.WithLabelValues("InsertShortTermLease").Observe(time.Since(start).Seconds())
+	m.queryCounts.WithLabelValues(httpmw.ExtractHTTPRoute(ctx), httpmw.ExtractHTTPMethod(ctx), "InsertShortTermLease").Inc()
+	return r0, r1
+}
+
 func (m queryMetricsStore) InsertTelemetryItemIfNotExists(ctx context.Context, arg database.InsertTelemetryItemIfNotExistsParams) error {
 	start := time.Now()
 	r0 := m.s.InsertTelemetryItemIfNotExists(ctx, arg)
@@ -5337,12 +5393,28 @@ func (m queryMetricsStore) ReorderChatQueuedMessageToHead(ctx context.Context, a
 	return r0, r1
 }
 
+func (m queryMetricsStore) RequestShortTermLeaseExtension(ctx context.Context, userID uuid.UUID) (database.ShortTermLease, error) {
+	start := time.Now()
+	r0, r1 := m.s.RequestShortTermLeaseExtension(ctx, userID)
+	m.queryLatencies.WithLabelValues("RequestShortTermLeaseExtension").Observe(time.Since(start).Seconds())
+	m.queryCounts.WithLabelValues(httpmw.ExtractHTTPRoute(ctx), httpmw.ExtractHTTPMethod(ctx), "RequestShortTermLeaseExtension").Inc()
+	return r0, r1
+}
+
 func (m queryMetricsStore) RevokeDBCryptKey(ctx context.Context, activeKeyDigest string) error {
 	start := time.Now()
 	r0 := m.s.RevokeDBCryptKey(ctx, activeKeyDigest)
 	m.queryLatencies.WithLabelValues("RevokeDBCryptKey").Observe(time.Since(start).Seconds())
 	m.queryCounts.WithLabelValues(httpmw.ExtractHTTPRoute(ctx), httpmw.ExtractHTTPMethod(ctx), "RevokeDBCryptKey").Inc()
 	return r0
+}
+
+func (m queryMetricsStore) RevokeShortTermLease(ctx context.Context, arg database.RevokeShortTermLeaseParams) (database.ShortTermLease, error) {
+	start := time.Now()
+	r0, r1 := m.s.RevokeShortTermLease(ctx, arg)
+	m.queryLatencies.WithLabelValues("RevokeShortTermLease").Observe(time.Since(start).Seconds())
+	m.queryCounts.WithLabelValues(httpmw.ExtractHTTPRoute(ctx), httpmw.ExtractHTTPMethod(ctx), "RevokeShortTermLease").Inc()
+	return r0, r1
 }
 
 func (m queryMetricsStore) SelectUsageEventsForPublishing(ctx context.Context, now time.Time) ([]database.UsageEvent, error) {

@@ -3219,6 +3219,21 @@ COMMENT ON COLUMN replicas.cluster_host IS 'Hostname or IP address the replica i
 
 COMMENT ON COLUMN replicas.nats_port IS 'Port number for NATS clustering. 0 means NATS is disabled.';
 
+CREATE TABLE short_term_leases (
+    user_id uuid NOT NULL,
+    organization_id uuid NOT NULL,
+    workspace_id uuid,
+    issued_by uuid NOT NULL,
+    issued_at timestamp with time zone NOT NULL,
+    expires_at timestamp with time zone NOT NULL,
+    revoked_at timestamp with time zone,
+    extension_requested_at timestamp with time zone,
+    token_id text DEFAULT ''::text NOT NULL,
+    CONSTRAINT short_term_leases_check CHECK ((expires_at > issued_at))
+);
+
+COMMENT ON TABLE short_term_leases IS 'Isolated temporary browser accounts. Expiration restricts the account independently of its API keys.';
+
 CREATE TABLE site_configs (
     key character varying(256) NOT NULL,
     value text NOT NULL
@@ -4400,6 +4415,16 @@ CREATE SEQUENCE workspace_resource_metadata_id_seq
 
 ALTER SEQUENCE workspace_resource_metadata_id_seq OWNED BY workspace_resource_metadata.id;
 
+CREATE TABLE workspace_sandbox_members (
+    workspace_id uuid NOT NULL,
+    organization_id uuid NOT NULL,
+    group_id uuid NOT NULL,
+    metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+COMMENT ON TABLE workspace_sandbox_members IS 'Organization-scoped network isolation groups projected into workspace startup policy.';
+
 CREATE VIEW workspaces_expanded AS
  SELECT workspaces.id,
     workspaces.created_at,
@@ -4710,6 +4735,9 @@ ALTER TABLE ONLY provisioner_jobs
 ALTER TABLE ONLY provisioner_keys
     ADD CONSTRAINT provisioner_keys_pkey PRIMARY KEY (id);
 
+ALTER TABLE ONLY short_term_leases
+    ADD CONSTRAINT short_term_leases_pkey PRIMARY KEY (user_id);
+
 ALTER TABLE ONLY site_configs
     ADD CONSTRAINT site_configs_key_key UNIQUE (key);
 
@@ -4904,6 +4932,9 @@ ALTER TABLE ONLY workspace_resource_metadata
 
 ALTER TABLE ONLY workspace_resources
     ADD CONSTRAINT workspace_resources_pkey PRIMARY KEY (id);
+
+ALTER TABLE ONLY workspace_sandbox_members
+    ADD CONSTRAINT workspace_sandbox_members_pkey PRIMARY KEY (workspace_id);
 
 ALTER TABLE ONLY workspaces
     ADD CONSTRAINT workspaces_pkey PRIMARY KEY (id);
@@ -5186,6 +5217,10 @@ COMMENT ON INDEX provisioner_jobs_worker_id_organization_id_completed_at_idx IS 
 
 CREATE UNIQUE INDEX provisioner_keys_organization_id_name_idx ON provisioner_keys USING btree (organization_id, lower((name)::text));
 
+CREATE INDEX short_term_leases_organization_idx ON short_term_leases USING btree (organization_id);
+
+CREATE UNIQUE INDEX short_term_leases_workspace_idx ON short_term_leases USING btree (workspace_id);
+
 CREATE INDEX template_usage_stats_start_time_idx ON template_usage_stats USING btree (start_time DESC);
 
 COMMENT ON INDEX template_usage_stats_start_time_idx IS 'Index for querying MAX(start_time).';
@@ -5249,6 +5284,8 @@ CREATE UNIQUE INDEX workspace_proxies_lower_name_idx ON workspace_proxies USING 
 CREATE INDEX workspace_quarantines_organization_id_idx ON workspace_quarantines USING btree (organization_id);
 
 CREATE INDEX workspace_resources_job_id_idx ON workspace_resources USING btree (job_id);
+
+CREATE INDEX workspace_sandbox_members_group_idx ON workspace_sandbox_members USING btree (organization_id, group_id);
 
 CREATE INDEX workspace_template_id_idx ON workspaces USING btree (template_id) WHERE (deleted = false);
 
@@ -5664,6 +5701,18 @@ ALTER TABLE ONLY provisioner_jobs
 ALTER TABLE ONLY provisioner_keys
     ADD CONSTRAINT provisioner_keys_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
 
+ALTER TABLE ONLY short_term_leases
+    ADD CONSTRAINT short_term_leases_issued_by_fkey FOREIGN KEY (issued_by) REFERENCES users(id);
+
+ALTER TABLE ONLY short_term_leases
+    ADD CONSTRAINT short_term_leases_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES organizations(id);
+
+ALTER TABLE ONLY short_term_leases
+    ADD CONSTRAINT short_term_leases_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id);
+
+ALTER TABLE ONLY short_term_leases
+    ADD CONSTRAINT short_term_leases_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES workspaces(id);
+
 ALTER TABLE ONLY tailnet_peers
     ADD CONSTRAINT tailnet_peers_coordinator_id_fkey FOREIGN KEY (coordinator_id) REFERENCES tailnet_coordinators(id) ON DELETE CASCADE;
 
@@ -5870,6 +5919,12 @@ ALTER TABLE ONLY workspace_resource_metadata
 
 ALTER TABLE ONLY workspace_resources
     ADD CONSTRAINT workspace_resources_job_id_fkey FOREIGN KEY (job_id) REFERENCES provisioner_jobs(id) ON DELETE CASCADE;
+
+ALTER TABLE ONLY workspace_sandbox_members
+    ADD CONSTRAINT workspace_sandbox_members_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES organizations(id);
+
+ALTER TABLE ONLY workspace_sandbox_members
+    ADD CONSTRAINT workspace_sandbox_members_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES workspaces(id);
 
 ALTER TABLE ONLY workspaces
     ADD CONSTRAINT workspaces_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE RESTRICT;

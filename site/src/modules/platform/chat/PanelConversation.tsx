@@ -1,7 +1,13 @@
 import { cn } from "cn";
-import { ChevronLeftIcon } from "lucide-react";
+import { ChevronLeftIcon, TrashIcon } from "lucide-react";
 import { useRef, useState } from "react";
 import { Button } from "#/components/Button/Button";
+import {
+	ContextMenu,
+	ContextMenuContent,
+	ContextMenuItem,
+	ContextMenuTrigger,
+} from "#/components/ContextMenu/ContextMenu";
 import { ChatAvatar } from "./ChatAvatar";
 import { ChatConversation, type ConversationActions } from "./ChatConversation";
 import { ConversationMenu, CountBadge } from "./ChatWindow";
@@ -47,35 +53,56 @@ export const PanelConversation: React.FC<PanelConversationProps> = ({
 			className="flex min-h-0 min-w-0 flex-1 flex-col"
 			onPointerDown={() => markRead(peer.id, true)}
 		>
-			<div className="flex shrink-0 items-center gap-2 border-0 border-b border-solid border-border py-1 pr-1 pl-1.5">
-				<span className={cn("flex shrink-0 items-center", backClassName)}>
-					<Button
-						variant="subtle"
-						size="icon"
-						aria-label={
-							elsewhere
-								? `Back to the chats, ${elsewhere} unread`
-								: "Back to the chats"
-						}
-						title="Back to the chats"
-						data-testid="chat-panel-back"
-						onClick={onBack}
+			<ContextMenu>
+				<ContextMenuTrigger asChild>
+					<div
+						role="group"
+						aria-label={`Conversation with ${displayName(peer)}`}
+						className="flex shrink-0 items-center gap-2 border-0 border-b border-solid border-border py-1 pr-1 pl-1.5"
 					>
-						<ChevronLeftIcon />
-					</Button>
-					{elsewhere > 0 && <CountBadge count={elsewhere} />}
-				</span>
-				<ChatAvatar peer={peer} />
-				<span className="flex min-w-0 flex-1 flex-col">
-					<span className="truncate text-sm font-semibold">
-						{displayName(peer)}
-					</span>
-					<span className="truncate text-xs text-content-secondary">
-						@{peer.username}
-					</span>
-				</span>
-				<ConversationMenu peer={peer} actions={actions} shooting={shooting} />
-			</div>
+						<span className={cn("flex shrink-0 items-center", backClassName)}>
+							<Button
+								variant="subtle"
+								size="icon"
+								aria-label={
+									elsewhere
+										? `Back to the chats, ${elsewhere} unread`
+										: "Back to the chats"
+								}
+								title="Back to the chats"
+								data-testid="chat-panel-back"
+								onClick={onBack}
+							>
+								<ChevronLeftIcon />
+							</Button>
+							{elsewhere > 0 && <CountBadge count={elsewhere} />}
+						</span>
+						<ChatAvatar peer={peer} />
+						<span className="flex min-w-0 flex-1 flex-col">
+							<span className="truncate text-sm font-semibold">
+								{displayName(peer)}
+							</span>
+							<span className="truncate text-xs text-content-secondary">
+								@{peer.username}
+							</span>
+						</span>
+						<ConversationMenu
+							peer={peer}
+							actions={actions}
+							shooting={shooting}
+						/>
+					</div>
+				</ContextMenuTrigger>
+				<ContextMenuContent className="z-[110]">
+					<ContextMenuItem
+						className="text-content-destructive"
+						onSelect={() => actions.current?.askDelete()}
+					>
+						<TrashIcon />
+						Delete conversation
+					</ContextMenuItem>
+				</ContextMenuContent>
+			</ContextMenu>
 			<ChatConversation
 				ref={actions}
 				view={view}

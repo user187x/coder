@@ -143,9 +143,13 @@ rules:
     resources: [volumesnapshots]
     verbs: [get, create, delete]
   # Monitoring > Security posture: are workspaces segmented?
+  - apiGroups: [""]
+    resources: [services, endpoints]
+    resourceNames: [coder]
+    verbs: [get]
   - apiGroups: [networking.k8s.io]
     resources: [networkpolicies]
-    verbs: [get, list]
+    verbs: [get, list, create, update, delete]
   {{- if eq (toString ($.Values.global.userStorage | default dict).enabled) "true" }}
   # The safe (safe.py): every account's claim coder-safe-<id> (made above: persistentvolumeclaims create), the
   # Secrets its volume mounts with (plain and TLS), the encrypted Cloud Drives' data keys (coder-cloud-drive-keys), the

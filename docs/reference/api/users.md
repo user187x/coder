@@ -5,6 +5,135 @@ title: Users
 
 <!-- DO NOT EDIT | GENERATED CONTENT -->
 
+## Read the current temporary lease
+
+### Code samples
+
+```sh
+# Example request using curl
+curl -X GET http://coder-server:8080/api/v2/short-term-lease \
+  -H 'Accept: application/json' \
+  -H 'Coder-Session-Token: API_KEY'
+```
+
+`GET /api/v2/short-term-lease`
+
+### Example responses
+
+> 200 Response
+
+```json
+{
+  "expires_at": "string",
+  "extension_requested_at": "string",
+  "issued_at": "string",
+  "organization_id": "string",
+  "revoked_at": "string",
+  "token": "string",
+  "token_id": "string",
+  "user_id": "string",
+  "workspace_id": "string"
+}
+```
+
+### Responses
+
+| Status | Meaning                                                 | Description | Schema                                                       |
+|--------|---------------------------------------------------------|-------------|--------------------------------------------------------------|
+| 200    | [OK](https://tools.ietf.org/html/rfc7231#section-6.3.1) | OK          | [codersdk.ShortTermLease](schemas.md#codersdkshorttermlease) |
+
+To perform this operation, you must be authenticated. [Learn more](authentication.md).
+
+## Request a temporary lease extension
+
+### Code samples
+
+```sh
+# Example request using curl
+curl -X POST http://coder-server:8080/api/v2/short-term-lease/extension \
+  -H 'Accept: application/json' \
+  -H 'Coder-Session-Token: API_KEY'
+```
+
+`POST /api/v2/short-term-lease/extension`
+
+### Example responses
+
+> 200 Response
+
+```json
+{
+  "expires_at": "string",
+  "extension_requested_at": "string",
+  "issued_at": "string",
+  "organization_id": "string",
+  "revoked_at": "string",
+  "token": "string",
+  "token_id": "string",
+  "user_id": "string",
+  "workspace_id": "string"
+}
+```
+
+### Responses
+
+| Status | Meaning                                                 | Description | Schema                                                       |
+|--------|---------------------------------------------------------|-------------|--------------------------------------------------------------|
+| 200    | [OK](https://tools.ietf.org/html/rfc7231#section-6.3.1) | OK          | [codersdk.ShortTermLease](schemas.md#codersdkshorttermlease) |
+
+To perform this operation, you must be authenticated. [Learn more](authentication.md).
+
+## Sign in with a temporary lease token
+
+### Code samples
+
+```sh
+# Example request using curl
+curl -X POST http://coder-server:8080/api/v2/short-term-lease/login \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json'
+```
+
+`POST /api/v2/short-term-lease/login`
+
+> Body parameter
+
+```json
+{
+  "token": "string"
+}
+```
+
+### Parameters
+
+| Name   | In   | Type                                                                         | Required | Description     |
+|--------|------|------------------------------------------------------------------------------|----------|-----------------|
+| `body` | body | [codersdk.LeaseTokenLoginRequest](schemas.md#codersdkleasetokenloginrequest) | true     | Temporary token |
+
+### Example responses
+
+> 200 Response
+
+```json
+{
+  "expires_at": "string",
+  "extension_requested_at": "string",
+  "issued_at": "string",
+  "organization_id": "string",
+  "revoked_at": "string",
+  "token": "string",
+  "token_id": "string",
+  "user_id": "string",
+  "workspace_id": "string"
+}
+```
+
+### Responses
+
+| Status | Meaning                                                 | Description | Schema                                                       |
+|--------|---------------------------------------------------------|-------------|--------------------------------------------------------------|
+| 200    | [OK](https://tools.ietf.org/html/rfc7231#section-6.3.1) | OK          | [codersdk.ShortTermLease](schemas.md#codersdkshorttermlease) |
+
 ## Get users
 
 ### Code samples

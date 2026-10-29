@@ -82,6 +82,7 @@ type BannerScrollViewProps = {
 		| "markdown"
 		| "picture"
 		| "pictureFit"
+		| "pictureEffect"
 		| "opacity"
 		| "autoScroll"
 		| "autoScrollSpeed"
@@ -347,6 +348,7 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 								data-testid="announcement-scroll-picture"
 							>
 								<PictureScreen
+									effect={banner.pictureEffect}
 									pictures={[
 										{
 											src: picture,

@@ -1269,7 +1269,11 @@ func (b *Builder) checkQuarantine() error {
 	if err := workspacequarantine.Acquire(b.ctx, b.store, b.workspace.ID); err != nil {
 		return BuildError{http.StatusInternalServerError, "Cannot verify workspace quarantine", err}
 	}
-	current, err := workspacequarantine.Load(b.ctx, b.store, b.workspace.ID)
+	loadPolicy := workspacequarantine.Load
+	if b.trans == database.WorkspaceTransitionDelete {
+		loadPolicy = workspacequarantine.LoadContainment
+	}
+	current, err := loadPolicy(b.ctx, b.store, b.workspace.ID)
 	if err != nil {
 		return BuildError{http.StatusInternalServerError, "Cannot verify workspace quarantine", err}
 	}

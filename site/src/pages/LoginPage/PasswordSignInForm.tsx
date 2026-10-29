@@ -12,12 +12,14 @@ type PasswordSignInFormProps = {
 	onSubmit: (credentials: { email: string; password: string }) => void;
 	isSigningIn: boolean;
 	autoFocus: boolean;
+	beforeSubmit?: React.ReactNode;
 };
 
 export const PasswordSignInForm: React.FC<PasswordSignInFormProps> = ({
 	onSubmit,
 	isSigningIn,
 	autoFocus,
+	beforeSubmit,
 }) => {
 	const validationSchema = Yup.object({
 		email: Yup.string()
@@ -97,6 +99,7 @@ export const PasswordSignInForm: React.FC<PasswordSignInFormProps> = ({
 				)}
 			</div>
 
+			{beforeSubmit}
 			<Button size="lg" disabled={isSigningIn} className="w-full" type="submit">
 				<Spinner loading={isSigningIn} />
 				Sign In

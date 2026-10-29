@@ -135,7 +135,7 @@ export const LoginPageSection: React.FC = () => {
 						<Select
 							value={draft.headingMode ?? "text"}
 							onValueChange={(value) => {
-								if (value === "text" || value === "image")
+								if (value === "none" || value === "text" || value === "image")
 									set({ headingMode: value });
 							}}
 						>
@@ -143,6 +143,7 @@ export const LoginPageSection: React.FC = () => {
 								<SelectValue />
 							</SelectTrigger>
 							<SelectContent>
+								<SelectItem value="none">None</SelectItem>
 								<SelectItem value="text">Text</SelectItem>
 								<SelectItem value="image">Image</SelectItem>
 							</SelectContent>
@@ -183,75 +184,81 @@ export const LoginPageSection: React.FC = () => {
 							</>
 						)}
 					</div>
-					<div className="flex flex-col gap-2">
-						<Label htmlFor={`${ids}-title`}>Title</Label>
-						<Input
-							id={`${ids}-title`}
-							value={draft.title}
-							maxLength={40}
-							placeholder={applicationName}
-							onChange={(e) => set({ title: e.target.value })}
-						/>
-						<span className="text-xs text-content-secondary">
-							Empty: the deployment's name ({applicationName}).
-						</span>
-					</div>
-
-					<div className="flex flex-col gap-2">
-						<Label htmlFor={`${ids}-effect`}>Text effect</Label>
-						<Select
-							value={draft.effect}
-							onValueChange={(value) => {
-								const effect = LOGIN_EFFECTS.find((effect) => effect === value);
-								if (effect) set({ effect });
-							}}
-						>
-							<SelectTrigger id={`${ids}-effect`}>
-								<SelectValue />
-							</SelectTrigger>
-							<SelectContent>
-								{LOGIN_EFFECTS.map((effect) => (
-									<SelectItem key={effect} value={effect}>
-										{EFFECT_LABEL[effect].name}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
-					</div>
-
-					<ColorField
-						label="Colour"
-						value={draft.color}
-						presets={COLOR_PRESETS}
-						onChange={(color) => set({ color: color.toLowerCase() })}
-					/>
-
-					{draft.effect !== "plain" && (
-						<div className="flex flex-col gap-2">
-							<div className="flex items-center justify-between">
-								<Label htmlFor={`${ids}-speed`}>
-									{draft.effect === "neon" ? "Pulse" : "Trace"} speed
-								</Label>
-								<span className="text-sm tabular-nums text-content-secondary">
-									{draft.speed.toFixed(1)} s
+					{draft.headingMode !== "none" && (
+						<>
+							<div className="flex flex-col gap-2">
+								<Label htmlFor={`${ids}-title`}>Title</Label>
+								<Input
+									id={`${ids}-title`}
+									value={draft.title}
+									maxLength={40}
+									placeholder={applicationName}
+									onChange={(e) => set({ title: e.target.value })}
+								/>
+								<span className="text-xs text-content-secondary">
+									Empty: the deployment's name ({applicationName}).
 								</span>
 							</div>
-							<Slider
-								id={`${ids}-speed`}
-								min={0.5}
-								max={20}
-								step={0.1}
-								value={[draft.speed]}
-								onValueChange={([speed]) => set({ speed })}
-								aria-label="Seconds per trace or pulse"
-							/>
-							<span className="text-xs text-content-secondary">
-								Seconds for one {draft.effect === "neon" ? "pulse" : "trace"}:
-								lower is faster.
-							</span>
-						</div>
-					)}
 
+							<div className="flex flex-col gap-2">
+								<Label htmlFor={`${ids}-effect`}>Text effect</Label>
+								<Select
+									value={draft.effect}
+									onValueChange={(value) => {
+										const effect = LOGIN_EFFECTS.find(
+											(effect) => effect === value,
+										);
+										if (effect) set({ effect });
+									}}
+								>
+									<SelectTrigger id={`${ids}-effect`}>
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent>
+										{LOGIN_EFFECTS.map((effect) => (
+											<SelectItem key={effect} value={effect}>
+												{EFFECT_LABEL[effect].name}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							</div>
+
+							<ColorField
+								label="Colour"
+								value={draft.color}
+								presets={COLOR_PRESETS}
+								onChange={(color) => set({ color: color.toLowerCase() })}
+							/>
+
+							{draft.effect !== "plain" && (
+								<div className="flex flex-col gap-2">
+									<div className="flex items-center justify-between">
+										<Label htmlFor={`${ids}-speed`}>
+											{draft.effect === "neon" ? "Pulse" : "Trace"} speed
+										</Label>
+										<span className="text-sm tabular-nums text-content-secondary">
+											{draft.speed.toFixed(1)} s
+										</span>
+									</div>
+									<Slider
+										id={`${ids}-speed`}
+										min={0.5}
+										max={20}
+										step={0.1}
+										value={[draft.speed]}
+										onValueChange={([speed]) => set({ speed })}
+										aria-label="Seconds per trace or pulse"
+									/>
+									<span className="text-xs text-content-secondary">
+										Seconds for one{" "}
+										{draft.effect === "neon" ? "pulse" : "trace"}: lower is
+										faster.
+									</span>
+								</div>
+							)}
+						</>
+					)}
 					<div className="flex flex-col gap-2">
 						<Label htmlFor={`${ids}-message`}>Sign-in message</Label>
 						<Textarea

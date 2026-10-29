@@ -32,12 +32,22 @@ describe("readPanels", () => {
 			"coder-ui-agent-panels:ws:main",
 			JSON.stringify({
 				order: ["logs", 3],
-				apps: [{ id: "app:a", slug: "notebook" }, { id: "x", slug: "y" }, null],
+				apps: [
+					{ id: "app:a", slug: "notebook" },
+					{ id: "app:t1", kind: "terminal" },
+					{ id: "app:t2", kind: "terminal" },
+					{ id: "x", slug: "y" },
+					null,
+				],
 			}),
 		);
 		expect(readPanels("ws", "main")).toEqual({
 			order: ["logs"],
-			apps: [{ id: "app:a", kind: "app", slug: "notebook" }],
+			apps: [
+				{ id: "app:a", kind: "app", slug: "notebook" },
+				{ id: "app:t1", kind: "terminal" },
+				{ id: "app:t2", kind: "terminal" },
+			],
 		});
 	});
 

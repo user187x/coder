@@ -66,6 +66,7 @@ const (
 	CheckOauth2ProviderAppsClientTypeCheck                   CheckConstraint = "oauth2_provider_apps_client_type_check"                    // oauth2_provider_apps
 	CheckMaxProvisionerLogsLength                            CheckConstraint = "max_provisioner_logs_length"                               // provisioner_jobs
 	CheckNatsPortValidTcp                                    CheckConstraint = "nats_port_valid_tcp"                                       // replicas
+	CheckShortTermLeasesCheck                                CheckConstraint = "short_term_leases_check"                                   // short_term_leases
 	CheckTelemetryLockEventTypeConstraint                    CheckConstraint = "telemetry_lock_event_type_constraint"                      // telemetry_locks
 	CheckValidationMonotonicOrder                            CheckConstraint = "validation_monotonic_order"                                // template_version_parameters
 	CheckUsageEventTypeCheck                                 CheckConstraint = "usage_event_type_check"                                    // usage_events

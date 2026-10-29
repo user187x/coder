@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { within } from "storybook/test";
+import { spyOn, within } from "storybook/test";
+import { PlatformAPI } from "#/api/platform";
 import { workspaceTunnels } from "#/api/queries/workspaceTunnels";
 import { TableCard } from "#/modules/platform/tableCard/TableCard";
 import { MockWorkspace } from "#/testHelpers/entities";
@@ -25,13 +26,21 @@ const shown = [
 const meta: Meta<typeof WorkspaceTableTunnels> = {
 	title: "modules/platform/WorkspaceTableTunnels",
 	component: WorkspaceTableTunnels,
+	beforeEach: () => {
+		spyOn(PlatformAPI, "getWorkspaceTunnels").mockReturnValue(
+			new Promise(() => {}),
+		);
+	},
 	args: {
 		shown,
 		canManage: true,
 		children: (
 			<TableCard>
 				<div className="overflow-x-auto">
-					<table className="w-full min-w-[560px] border-separate border-spacing-0 rounded-lg border border-solid border-border">
+					<table
+						aria-label="Workspace tunnels"
+						className="w-full min-w-[560px] border-separate border-spacing-0 rounded-lg border border-solid border-border"
+					>
 						<thead>
 							<tr>
 								<th className="h-12 text-left">Workspace</th>
@@ -59,7 +68,7 @@ const meta: Meta<typeof WorkspaceTableTunnels> = {
 	},
 	decorators: [
 		(Story) => (
-			<div className="w-[600px] max-w-full">
+			<div className="ml-28 w-[600px] max-w-full">
 				<Story />
 			</div>
 		),

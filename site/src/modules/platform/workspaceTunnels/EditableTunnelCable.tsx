@@ -176,11 +176,7 @@ export const EditableTunnelCable = ({
 							<path d={d} className="workspace-tunnel-ridges" />
 							{flow && (
 								<>
-									<path
-										d={d}
-										className="workspace-tunnel-flow"
-										style={{ animationDirection: "reverse" }}
-									/>
+									<path d={d} className="workspace-tunnel-flow" />
 									{animations &&
 										[0, 1, 2].map((index) => (
 											<g
@@ -194,7 +190,7 @@ export const EditableTunnelCable = ({
 													begin={`${-index}s`}
 													repeatCount="indefinite"
 													rotate="auto"
-													path={routedTunnelPath(from, to, route, true)}
+													path={d}
 												/>
 											</g>
 										))}

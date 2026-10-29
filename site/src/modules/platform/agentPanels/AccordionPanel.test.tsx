@@ -262,6 +262,21 @@ describe("any app in a panel", () => {
 		expect(page.getAttribute("sandbox")).not.toMatch(/allow-same-origin/);
 	});
 
+	it("adds multiple independent terminal panels from the menu", async () => {
+		const onAdd = vi.fn();
+		render(<AddPanelTab apps={[]} terminal disabled={false} onAdd={onAdd} />);
+		for (let i = 0; i < 2; i++) {
+			await userEvent.click(
+				screen.getByRole("button", { name: "Add a panel" }),
+			);
+			await userEvent.click(screen.getByRole("menuitem", { name: "Terminal" }));
+		}
+		expect(onAdd.mock.calls).toEqual([
+			[{ kind: "terminal" }],
+			[{ kind: "terminal" }],
+		]);
+	});
+
 	it("adds an app from the + tab - apps only, no ports or web addresses", () => {
 		const onAdd = vi.fn();
 		render(

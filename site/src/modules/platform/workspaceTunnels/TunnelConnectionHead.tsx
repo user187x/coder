@@ -15,7 +15,7 @@ export const TunnelConnectionHead = ({
 	ready: boolean;
 }) => {
 	const angle = outgoing ? 180 : 0;
-	const color = outgoing ? "#4ade80" : "#60a5fa";
+	const color = outgoing ? "#94a3b8" : "#4ade80";
 	const id = useId().replace(/:/g, "");
 	const animations = useAnimationsEnabled();
 	const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");

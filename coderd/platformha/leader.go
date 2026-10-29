@@ -87,7 +87,7 @@ func (r *Registry) MarkServing() {
 	r.kickRound()
 }
 
-// LostActive is closed when this replica, serving as the active one, loses the
+// LostActive is closed when this replica, starting or serving Coder, loses the
 // active lease without handing it over (its lease taken or lapsed, or fenced),
 // or when it started Coder as a handover's successor and the handover ended
 // without it: Coder must stop here - the process exits and comes back as a
@@ -130,7 +130,7 @@ func (r *Registry) openTurn(ctx context.Context, why string) {
 func (r *Registry) updateRole(ctx context.Context) {
 	r.mu.Lock()
 	role := RoleStandby
-	if (r.lead.holding || r.lead.successor) && r.lead.serving && !r.fenced {
+	if (r.lead.holding || r.lead.successor) && r.lead.serving && !r.fenced && !r.lead.lostSent {
 		role = RoleActive
 	}
 	if role == r.lead.role {
@@ -194,7 +194,7 @@ func (r *Registry) leaseChanged(ctx context.Context) bool {
 }
 
 // stepDown: this replica no longer holds the active lease. Unless it handed it
-// over, a serving replica has lost it: LostActive fires.
+// over, a replica that began startup has lost it: LostActive fires.
 func (r *Registry) stepDown(ctx context.Context, why string) {
 	r.mu.Lock()
 	if !r.lead.holding {
@@ -202,13 +202,13 @@ func (r *Registry) stepDown(ctx context.Context, why string) {
 		return
 	}
 	r.lead.holding = false
-	lostWhileServing := r.lead.serving && !r.lead.handedOver && !r.lead.lostSent
-	if lostWhileServing {
+	lostTurn := r.lead.turnSent && !r.lead.handedOver && !r.lead.lostSent
+	if lostTurn {
 		r.lead.lostSent = true
 		close(r.lead.lost)
 	}
 	r.mu.Unlock()
-	if lostWhileServing {
+	if lostTurn {
 		r.logger.Warn(ctx, "lost the active lease: Coder stops here", slog.F("why", why))
 	} else {
 		r.logger.Info(ctx, "stepped down from the active lease", slog.F("why", why))
@@ -220,10 +220,10 @@ func (r *Registry) stepDown(ctx context.Context, why string) {
 // when holding it, else take it when it lapsed, or claim a handover.
 func (r *Registry) leadRound(ctx context.Context) {
 	r.mu.Lock()
-	self, holding, serving, retired := r.self, r.lead.holding, r.lead.serving, r.lead.handedOver
+	self, holding, serving, retired := r.self, r.lead.holding, r.lead.serving, r.lead.handedOver || r.lead.lostSent
 	r.mu.Unlock()
 	if retired {
-		// It handed the lease over or is leaving: it neither renews nor takes it again.
+		// A replica that handed over or lost its turn must not take it again.
 		return
 	}
 	ttl := r.cfg.LeaseTTL.Seconds()

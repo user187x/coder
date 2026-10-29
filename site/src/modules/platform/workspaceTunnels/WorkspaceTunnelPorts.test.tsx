@@ -1,9 +1,4 @@
-import {
-	act,
-	render,
-	screen,
-	waitFor,
-} from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { PlatformAPI, type WorkspaceTunnel } from "#/api/platform";
@@ -109,22 +104,22 @@ it("keeps the selected port sides when connecting by dragging", async () => {
 		expect(PlatformAPI.getWorkspaceTunnels).toHaveBeenCalled(),
 	);
 	const from = screen.getByRole("button", {
-		name: "Connect Beta left input tunnel port",
+		name: "Connect Alpha right output tunnel port",
 	});
 	const to = screen.getByRole("button", {
-		name: "Connect Alpha right output tunnel port",
+		name: "Connect Beta left input tunnel port",
 	});
 	await user.pointer([
 		{
 			keys: "[MouseLeft>]",
 			target: from,
-			coords: { clientX: 420, clientY: 138 },
+			coords: { clientX: 392, clientY: 138 },
 		},
-		{ target: to, coords: { clientX: 392, clientY: 162 } },
+		{ target: to, coords: { clientX: 420, clientY: 162 } },
 		{
 			keys: "[/MouseLeft]",
 			target: to,
-			coords: { clientX: 392, clientY: 162 },
+			coords: { clientX: 420, clientY: 162 },
 		},
 	]);
 	await waitFor(() =>
@@ -148,7 +143,7 @@ it("cancels a dragged connection with Escape", async () => {
 		target: screen.getByRole("button", {
 			name: "Connect Alpha right output tunnel port",
 		}),
-		coords: { clientX: 392, clientY: 162 },
+		coords: { clientX: 392, clientY: 138 },
 	});
 	await user.keyboard("{Escape}");
 	await user.pointer({
@@ -156,7 +151,7 @@ it("cancels a dragged connection with Escape", async () => {
 		target: screen.getByRole("button", {
 			name: "Connect Beta left input tunnel port",
 		}),
-		coords: { clientX: 420, clientY: 138 },
+		coords: { clientX: 420, clientY: 162 },
 	});
 	expect(create).not.toHaveBeenCalled();
 });
@@ -168,7 +163,7 @@ it("releases an unconnected cable without creating a tunnel", async () => {
 	const onDragging = vi.fn();
 	const user = setup([], onDragging);
 	const from = screen.getByRole("button", {
-		name: "Connect Alpha right input tunnel port",
+		name: "Connect Alpha right output tunnel port",
 	});
 	await user.pointer([
 		{
@@ -187,39 +182,37 @@ it("releases an unconnected cable without creating a tunnel", async () => {
 	expect(onDragging).toHaveBeenLastCalledWith(false);
 });
 
-it.each([
-	"Disconnect tunnel Alpha to Beta",
-	"Disconnect tunnel Alpha to Beta source plug",
-])("unplugs an existing tunnel through %s", async (name) => {
-	const create = vi
-		.spyOn(PlatformAPI, "createWorkspaceTunnel")
-		.mockResolvedValue({ tunnel });
-	const remove = vi
-		.spyOn(PlatformAPI, "deleteWorkspaceTunnel")
-		.mockResolvedValue({ tunnel: { ...tunnel, status: "disconnecting" } });
-	const user = setup([tunnel]);
-	await screen.findByRole("button", {
-		name: "Disconnect tunnel Alpha to Beta",
-	});
-	const plug = screen.getByRole("button", { name });
-	await user.pointer([
-		{
-			keys: "[MouseLeft>]",
-			target: plug,
-			coords: { clientX: 420, clientY: 18 },
-		},
-		{ target: plug, coords: { clientX: 600, clientY: 150 } },
-		{
-			keys: "[/MouseLeft]",
-			target: document.body,
-			coords: { clientX: 600, clientY: 150 },
-		},
-	]);
-	await waitFor(() =>
-		expect(remove).toHaveBeenCalledWith(source.organization_id, tunnel.id),
-	);
-	expect(create).not.toHaveBeenCalled();
-});
+it.each(["Disconnect tunnel Alpha to Beta source plug"])(
+	"keeps existing tunnels when a new cable from %s is dropped on empty space",
+	async (name) => {
+		const create = vi
+			.spyOn(PlatformAPI, "createWorkspaceTunnel")
+			.mockResolvedValue({ tunnel });
+		const remove = vi
+			.spyOn(PlatformAPI, "deleteWorkspaceTunnel")
+			.mockResolvedValue({ tunnel: { ...tunnel, status: "disconnecting" } });
+		const user = setup([tunnel]);
+		await screen.findByRole("button", {
+			name: "Disconnect tunnel Alpha to Beta",
+		});
+		const plug = screen.getByRole("button", { name });
+		await user.pointer([
+			{
+				keys: "[MouseLeft>]",
+				target: plug,
+				coords: { clientX: 420, clientY: 18 },
+			},
+			{ target: plug, coords: { clientX: 600, clientY: 150 } },
+			{
+				keys: "[/MouseLeft]",
+				target: document.body,
+				coords: { clientX: 600, clientY: 150 },
+			},
+		]);
+		expect(remove).not.toHaveBeenCalled();
+		expect(create).not.toHaveBeenCalled();
+	},
+);
 
 it("connects table row sockets on the left side", async () => {
 	const create = vi
@@ -277,92 +270,84 @@ it.each([false, true])(
 		expect(remove).not.toHaveBeenCalled();
 	},
 );
-it.each([false, true])(
-	"keeps the original cord until its replacement is ready (source plug: %s)",
-	async (sourcePlug) => {
-		const third = { ...source, id: "third", name: "Gamma" };
-		const replacement = {
-			...tunnel,
-			id: "replacement",
-			source_workspace_id: sourcePlug ? third.id : source.id,
-			target_workspace_id: sourcePlug ? target.id : third.id,
-			status: "pending" as const,
-			source_side: "left" as const,
-			target_side: "left" as const,
-		};
-		const get = vi
-			.spyOn(PlatformAPI, "getWorkspaceTunnels")
-			.mockResolvedValue({ tunnels: [tunnel] });
-		const create = vi
-			.spyOn(PlatformAPI, "createWorkspaceTunnel")
-			.mockImplementation(async () => {
-				get.mockResolvedValue({ tunnels: [tunnel, replacement] });
-				return { tunnel: replacement };
-			});
-		const remove = vi
-			.spyOn(PlatformAPI, "deleteWorkspaceTunnel")
-			.mockResolvedValue({ tunnel: { ...tunnel, status: "disconnecting" } });
-		const client = new QueryClient({
-			defaultOptions: { queries: { retry: false } },
+it("adds a second output tunnel without removing the first when the new peer becomes ready", async () => {
+	const third = { ...source, id: "third", name: "Gamma" };
+	const replacement = {
+		...tunnel,
+		id: "replacement",
+		source_workspace_id: source.id,
+		target_workspace_id: third.id,
+		status: "pending" as const,
+		source_side: "left" as const,
+		target_side: "left" as const,
+	};
+	const get = vi
+		.spyOn(PlatformAPI, "getWorkspaceTunnels")
+		.mockResolvedValue({ tunnels: [tunnel] });
+	const create = vi
+		.spyOn(PlatformAPI, "createWorkspaceTunnel")
+		.mockImplementation(async () => {
+			get.mockResolvedValue({ tunnels: [tunnel, replacement] });
+			return { tunnel: replacement };
 		});
-		render(
-			<QueryClientProvider client={client}>
-				<WorkspaceTunnelPorts
-					shown={[source, target, third]}
-					cols={1}
-					cellW={0}
-					cellH={0}
-					gap={0}
-					tableAnchors={[
-						{ workspaceId: source.id, x: 40, y: 40 },
-						{ workspaceId: target.id, x: 40, y: 120 },
-						{ workspaceId: third.id, x: 40, y: 200 },
-					]}
-					onDragging={vi.fn()}
-				/>
-			</QueryClientProvider>,
-		);
-		const plug = await screen.findByRole("button", {
-			name: `Disconnect tunnel Alpha to Beta${sourcePlug ? " source plug" : ""}`,
-		});
-		const user = userEvent.setup();
-		await user.pointer([
-			{
-				keys: "[MouseLeft>]",
-				target: plug,
-				coords: { clientX: 40, clientY: sourcePlug ? 40 : 120 },
-			},
-			{ target: document.body, coords: { clientX: 40, clientY: 200 } },
-			{
-				keys: "[/MouseLeft]",
-				target: document.body,
-				coords: { clientX: 40, clientY: 200 },
-			},
-		]);
-		await waitFor(() =>
-			expect(create).toHaveBeenCalledWith(
-				source.organization_id,
-				sourcePlug ? third.id : source.id,
-				sourcePlug ? target.id : third.id,
-				"left",
-				"left",
-			),
-		);
-		expect(remove).not.toHaveBeenCalled();
-		await waitFor(() => expect(get).toHaveBeenCalledTimes(2));
-		act(() =>
-			client.setQueryData(workspaceTunnels(source.organization_id).queryKey, {
-				tunnels: [tunnel, { ...replacement, status: "ready" }],
-			}),
-		);
-		await waitFor(() =>
-			expect(remove).toHaveBeenCalledExactlyOnceWith(
-				source.organization_id,
-				tunnel.id,
-			),
-		);
-	},
-);
+	const remove = vi
+		.spyOn(PlatformAPI, "deleteWorkspaceTunnel")
+		.mockResolvedValue({ tunnel: { ...tunnel, status: "disconnecting" } });
+	const client = new QueryClient({
+		defaultOptions: { queries: { retry: false } },
+	});
+	render(
+		<QueryClientProvider client={client}>
+			<WorkspaceTunnelPorts
+				shown={[source, target, third]}
+				cols={1}
+				cellW={0}
+				cellH={0}
+				gap={0}
+				tableAnchors={[
+					{ workspaceId: source.id, x: 40, y: 40 },
+					{ workspaceId: target.id, x: 40, y: 120 },
+					{ workspaceId: third.id, x: 40, y: 200 },
+				]}
+				onDragging={vi.fn()}
+			/>
+		</QueryClientProvider>,
+	);
+	const plug = await screen.findByRole("button", {
+		name: "Disconnect tunnel Alpha to Beta source plug",
+	});
+	const user = userEvent.setup();
+	await user.pointer([
+		{
+			keys: "[MouseLeft>]",
+			target: plug,
+			coords: { clientX: 40, clientY: 28 },
+		},
+		{ target: document.body, coords: { clientX: 40, clientY: 212 } },
+		{
+			keys: "[/MouseLeft]",
+			target: document.body,
+			coords: { clientX: 40, clientY: 212 },
+		},
+	]);
+	await waitFor(() =>
+		expect(create).toHaveBeenCalledWith(
+			source.organization_id,
+			source.id,
+			third.id,
+			"left",
+			"left",
+		),
+	);
+	expect(remove).not.toHaveBeenCalled();
+	await waitFor(() => expect(get).toHaveBeenCalledTimes(2));
+	act(() =>
+		client.setQueryData(workspaceTunnels(source.organization_id).queryKey, {
+			tunnels: [tunnel, { ...replacement, status: "ready" }],
+		}),
+	);
+	expect(remove).not.toHaveBeenCalled();
+});
 
 it("disconnects an established peer outside the visible table page", async () => {
 	const offpage = {
@@ -409,7 +394,6 @@ it("connects an input terminal from the chosen peer output", async () => {
 		),
 	);
 });
-
 
 it("adds another connection from an occupied output without removing the first", async () => {
 	const third = { ...source, id: "third", name: "Gamma" };
@@ -652,33 +636,45 @@ it("does not allow another owner's connection to be deleted from the context men
 	expect(remove).not.toHaveBeenCalled();
 });
 
-it("does not pull a cord out of an idle female output", async () => {
-	const dragging = vi.fn();
-	const create = vi
-		.spyOn(PlatformAPI, "createWorkspaceTunnel")
-		.mockResolvedValue({ tunnel });
-	const user = setup([], dragging);
-	await user.pointer([
-		{
-			keys: "[MouseLeft>]",
-			target: screen.getByRole("button", {
-				name: "Connect Alpha right output tunnel port",
-			}),
-			coords: { clientX: 392, clientY: 162 },
-		},
-		{ target: document.body, coords: { clientX: 500, clientY: 200 } },
-		{ keys: "[/MouseLeft]", target: document.body },
-	]);
-	expect(dragging).not.toHaveBeenCalledWith(true);
-	expect(create).not.toHaveBeenCalled();
-});
+it.each([false, true])(
+	"does not start or unplug a cable from a green input (connected: %s)",
+	async (connected) => {
+		const dragging = vi.fn();
+		const create = vi
+			.spyOn(PlatformAPI, "createWorkspaceTunnel")
+			.mockResolvedValue({ tunnel });
+		const remove = vi
+			.spyOn(PlatformAPI, "deleteWorkspaceTunnel")
+			.mockResolvedValue({ tunnel });
+		const user = setup(connected ? [tunnel] : [], dragging);
+		const input = await screen.findByRole("button", {
+			name: connected
+				? "Disconnect tunnel Alpha to Beta"
+				: "Connect Beta left input tunnel port",
+		});
+		await user.pointer([
+			{
+				keys: "[MouseLeft>]",
+				target: input,
+				coords: { clientX: 420, clientY: 162 },
+			},
+			{ target: document.body, coords: { clientX: 392, clientY: 138 } },
+			{ keys: "[/MouseLeft]", target: document.body },
+		]);
+		expect(dragging).not.toHaveBeenCalledWith(true);
+		expect(create).not.toHaveBeenCalled();
+		expect(remove).not.toHaveBeenCalled();
+	},
+);
 
 it("disconnects a tunnel whose peer is filtered out via its visible marker", async () => {
 	const remove = vi
 		.spyOn(PlatformAPI, "deleteWorkspaceTunnel")
 		.mockResolvedValue({ tunnel: { ...tunnel, status: "disconnecting" } });
 	const user = setup([tunnel], vi.fn(), { shown: [source], cols: 1 });
-	await user.hover(await screen.findByRole("button", { name: /Move cable head:/ }));
+	await user.hover(
+		await screen.findByRole("button", { name: /Move cable head:/ }),
+	);
 	await user.click(
 		await screen.findByRole("button", {
 			name: /Manage tunnel to .* outside this view/,

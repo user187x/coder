@@ -16,6 +16,7 @@ const meta: Meta<typeof ChatDock> = {
 	title: "modules/platform/ChatDock",
 	component: ChatDock,
 	beforeEach: () => {
+		spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({});
 		spyOn(API, "getInboxNotifications").mockResolvedValue({
 			notifications: [MockNotification],
 			unread_count: 1,
@@ -47,7 +48,9 @@ export const People: Story = {};
 export const Conversation: Story = {
 	play: async () => {
 		await userEvent.click(
-			await within(document.body).findByRole("button", { name: /Alex/ }),
+			await within(document.body).findByRole("button", {
+				name: /^Alex Can you help/,
+			}),
 		);
 	},
 };
@@ -65,5 +68,22 @@ export const SelectedNotification: Story = {
 				name: `Select ${MockNotification.title}`,
 			}),
 		);
+	},
+};
+
+export const ConversationHeaderMenu: Story = {
+	play: async () => {
+		setDockMode("side");
+		await userEvent.click(
+			await within(document.body).findByRole("button", {
+				name: /^Alex Can you help/,
+			}),
+		);
+		await userEvent.pointer({
+			target: await within(document.body).findByRole("group", {
+				name: "Conversation with Alex",
+			}),
+			keys: "[MouseRight]",
+		});
 	},
 };

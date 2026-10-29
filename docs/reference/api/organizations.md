@@ -491,3 +491,180 @@ curl -X GET http://coder-server:8080/api/v2/organizations/{organization}/provisi
 | 200    | [OK](https://tools.ietf.org/html/rfc7231#section-6.3.1) | OK          | [codersdk.ProvisionerJob](schemas.md#codersdkprovisionerjob) |
 
 To perform this operation, you must be authenticated. [Learn more](authentication.md).
+
+## List short term leases
+
+### Code samples
+
+```sh
+# Example request using curl
+curl -X GET http://coder-server:8080/api/v2/organizations/{organization}/short-term-leases \
+  -H 'Accept: application/json' \
+  -H 'Coder-Session-Token: API_KEY'
+```
+
+`GET /api/v2/organizations/{organization}/short-term-leases`
+
+### Parameters
+
+| Name           | In   | Type         | Required | Description     |
+|----------------|------|--------------|----------|-----------------|
+| `organization` | path | string(uuid) | true     | Organization ID |
+
+### Example responses
+
+> 200 Response
+
+```json
+[
+  {
+    "expires_at": "string",
+    "extension_requested_at": "string",
+    "issued_at": "string",
+    "organization_id": "string",
+    "revoked_at": "string",
+    "token": "string",
+    "token_id": "string",
+    "user_id": "string",
+    "workspace_id": "string"
+  }
+]
+```
+
+### Responses
+
+| Status | Meaning                                                 | Description | Schema                                                                |
+|--------|---------------------------------------------------------|-------------|-----------------------------------------------------------------------|
+| 200    | [OK](https://tools.ietf.org/html/rfc7231#section-6.3.1) | OK          | array of [codersdk.ShortTermLease](schemas.md#codersdkshorttermlease) |
+
+<h3 id="list-short-term-leases-responseschema">Response Schema</h3>
+
+Status Code **200**
+
+| Name                       | Type   | Required | Restrictions | Description                                                       |
+|----------------------------|--------|----------|--------------|-------------------------------------------------------------------|
+| `[array item]`             | array  | false    |              |                                                                   |
+| `» expires_at`             | string | false    |              |                                                                   |
+| `» extension_requested_at` | string | false    |              |                                                                   |
+| `» issued_at`              | string | false    |              |                                                                   |
+| `» organization_id`        | string | false    |              |                                                                   |
+| `» revoked_at`             | string | false    |              |                                                                   |
+| `» token`                  | string | false    |              | Token is returned only at creation; the database stores its hash. |
+| `» token_id`               | string | false    |              |                                                                   |
+| `» user_id`                | string | false    |              |                                                                   |
+| `» workspace_id`           | string | false    |              |                                                                   |
+
+To perform this operation, you must be authenticated. [Learn more](authentication.md).
+
+## Create an isolated short term Browser lease
+
+### Code samples
+
+```sh
+# Example request using curl
+curl -X POST http://coder-server:8080/api/v2/organizations/{organization}/short-term-leases \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json' \
+  -H 'Coder-Session-Token: API_KEY'
+```
+
+`POST /api/v2/organizations/{organization}/short-term-leases`
+
+> Body parameter
+
+```json
+{
+  "minutes": 0,
+  "template_id": "string"
+}
+```
+
+### Parameters
+
+| Name           | In   | Type                                                                                   | Required | Description                         |
+|----------------|------|----------------------------------------------------------------------------------------|----------|-------------------------------------|
+| `organization` | path | string(uuid)                                                                           | true     | Organization ID                     |
+| `body`         | body | [codersdk.CreateShortTermLeaseRequest](schemas.md#codersdkcreateshorttermleaserequest) | true     | Lease duration and Browser template |
+
+### Example responses
+
+> 201 Response
+
+```json
+{
+  "expires_at": "string",
+  "extension_requested_at": "string",
+  "issued_at": "string",
+  "organization_id": "string",
+  "revoked_at": "string",
+  "token": "string",
+  "token_id": "string",
+  "user_id": "string",
+  "workspace_id": "string"
+}
+```
+
+### Responses
+
+| Status | Meaning                                                      | Description | Schema                                                       |
+|--------|--------------------------------------------------------------|-------------|--------------------------------------------------------------|
+| 201    | [Created](https://tools.ietf.org/html/rfc7231#section-6.3.2) | Created     | [codersdk.ShortTermLease](schemas.md#codersdkshorttermlease) |
+
+To perform this operation, you must be authenticated. [Learn more](authentication.md).
+
+## Extend or revoke an active short term lease
+
+### Code samples
+
+```sh
+# Example request using curl
+curl -X PATCH http://coder-server:8080/api/v2/organizations/{organization}/short-term-leases/{user} \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json' \
+  -H 'Coder-Session-Token: API_KEY'
+```
+
+`PATCH /api/v2/organizations/{organization}/short-term-leases/{user}`
+
+> Body parameter
+
+```json
+{
+  "minutes": 0,
+  "revoke": true
+}
+```
+
+### Parameters
+
+| Name           | In   | Type                                                                                   | Required | Description             |
+|----------------|------|----------------------------------------------------------------------------------------|----------|-------------------------|
+| `organization` | path | string(uuid)                                                                           | true     | Organization ID         |
+| `user`         | path | string(uuid)                                                                           | true     | Temporary user ID       |
+| `body`         | body | [codersdk.UpdateShortTermLeaseRequest](schemas.md#codersdkupdateshorttermleaserequest) | true     | Extension or revocation |
+
+### Example responses
+
+> 200 Response
+
+```json
+{
+  "expires_at": "string",
+  "extension_requested_at": "string",
+  "issued_at": "string",
+  "organization_id": "string",
+  "revoked_at": "string",
+  "token": "string",
+  "token_id": "string",
+  "user_id": "string",
+  "workspace_id": "string"
+}
+```
+
+### Responses
+
+| Status | Meaning                                                 | Description | Schema                                                       |
+|--------|---------------------------------------------------------|-------------|--------------------------------------------------------------|
+| 200    | [OK](https://tools.ietf.org/html/rfc7231#section-6.3.1) | OK          | [codersdk.ShortTermLease](schemas.md#codersdkshorttermlease) |
+
+To perform this operation, you must be authenticated. [Learn more](authentication.md).

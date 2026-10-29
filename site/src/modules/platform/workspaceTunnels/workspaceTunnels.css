@@ -47,13 +47,13 @@ html[data-animations="off"] .workspace-tunnel-flow {
 	stroke: hsl(var(--content-link));
 }
 
-.workspace-tunnel-input {
+.cd-socket.workspace-tunnel-input {
 	stroke: #22c55e;
 	fill: #14532d;
 }
 .cd-socket.workspace-tunnel-output {
-	stroke: #4ade80;
-	fill: rgb(74 222 128 / 20%);
+	stroke: #94a3b8;
+	fill: #334155;
 }
 .workspace-tunnel-chevron path,
 .workspace-tunnel-chevron-static path {
@@ -68,9 +68,7 @@ html[data-animations="off"] .workspace-tunnel-flow {
 .workspace-tunnel-chevron-static {
 	display: none;
 }
-html[data-animations="off"] .workspace-tunnel-chevron {
-	display: none;
-}
+
 html[data-animations="off"] .workspace-tunnel-chevron-static {
 	display: inline;
 }
@@ -89,8 +87,26 @@ html[data-animations="off"] .workspace-tunnel-chevron-static {
 	-webkit-mask: url("/icon/workspace-tunnel.svg") center / contain no-repeat;
 }
 
-.tunnel-flow-reduced { display: none; }
+.tunnel-flow-reduced {
+	display: none;
+}
 @media (prefers-reduced-motion: reduce) {
- .tunnel-flow-animated { display: none; }
- .tunnel-flow-reduced { display: inline; }
+	.tunnel-flow-animated {
+		display: none;
+	}
+	.tunnel-flow-reduced {
+		display: inline;
+	}
+}
+
+html[data-animations="off"] .workspace-tunnel-chevron {
+	display: none;
+}
+
+.workspace-tunnel-output-connector .cd-plug-body {
+	fill: #334155;
+	stroke: #94a3b8;
+}
+.workspace-tunnel-output-connector .cd-prong {
+	stroke: #94a3b8;
 }

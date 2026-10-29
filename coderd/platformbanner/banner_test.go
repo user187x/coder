@@ -67,7 +67,7 @@ func TestCleanFillsAndChecks(t *testing.T) {
 		{map[string]any{"title": strings.Repeat("é", 81), "message": "x"}, "title is too long (max 80 characters)."},
 		{map[string]any{"message": "x", "dismissible": "yes"}, "dismissible must be true or false."},
 		{map[string]any{"message": "x", "level": "loud"}, "Style must be one of: info, success, warning, critical."},
-		{map[string]any{"message": "x", "effect": nil}, "Text effect must be one of: none, typewriter, fade, rise, wave, bounce, flip, shake, pulse, rainbow, starwars, pewpew, flap, shimmer, kitt."},
+		{map[string]any{"message": "x", "effect": nil}, "Text effect must be one of: none, typewriter, fade, rise, wave, bounce, flip, shake, pulse, rainbow, starwars, pewpew, flap, shimmer, kitt, aurora, neon, chrome, focus, ember, spectrum, anaglyph, heartbeat, softblur, voltage."},
 		{map[string]any{"message": "x", "crawlSpeed": 15.5}, "The crawl's speed must be a whole number from 4 to 60."},
 		{map[string]any{"message": "x", "crawlSpeed": true}, "The crawl's speed must be a whole number from 4 to 60."},
 		{map[string]any{"message": "x", "crawlTilt": 101}, "The crawl's convergence must be a whole number from 0 to 100."},
@@ -145,4 +145,25 @@ func TestCountdownActions(t *testing.T) {
 	require.Equal(t, original, platformbanner.ID(f, 0))
 	f.CountdownAction = "focus"
 	require.NotEqual(t, original, platformbanner.ID(f, 0))
+}
+
+func TestImageAndTextEffects(t *testing.T) {
+	t.Parallel()
+	for _, effect := range []string{"none", "pan-up", "pan-down", "roller", "glitch", "fade", "gaussian", "ripple"} {
+		f, err := clean(t, map[string]any{"message": "Test", "pictureEffect": effect})
+		require.NoError(t, err)
+		require.Equal(t, effect, f.PictureEffect)
+		encoded, err := json.Marshal(f)
+		require.NoError(t, err)
+		saved, err := platformbanner.Clean(encoded)
+		require.NoError(t, err)
+		require.Equal(t, effect, saved.PictureEffect)
+	}
+	_, err := clean(t, map[string]any{"message": "Test", "pictureEffect": "unsupported"})
+	require.Error(t, err)
+	for _, effect := range []string{"aurora", "neon", "chrome", "focus", "ember", "spectrum", "anaglyph", "heartbeat", "softblur", "voltage"} {
+		f, err := clean(t, map[string]any{"message": "Test", "effect": effect})
+		require.NoError(t, err)
+		require.Equal(t, effect, f.Effect)
+	}
 }

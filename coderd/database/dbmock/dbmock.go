@@ -308,6 +308,21 @@ func (mr *MockStoreMockRecorder) BatchUpsertConnectionLogs(ctx, arg any) *gomock
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BatchUpsertConnectionLogs", reflect.TypeOf((*MockStore)(nil).BatchUpsertConnectionLogs), ctx, arg)
 }
 
+// BindShortTermLease mocks base method.
+func (m *MockStore) BindShortTermLease(ctx context.Context, arg database.BindShortTermLeaseParams) (database.ShortTermLease, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BindShortTermLease", ctx, arg)
+	ret0, _ := ret[0].(database.ShortTermLease)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// BindShortTermLease indicates an expected call of BindShortTermLease.
+func (mr *MockStoreMockRecorder) BindShortTermLease(ctx, arg any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BindShortTermLease", reflect.TypeOf((*MockStore)(nil).BindShortTermLease), ctx, arg)
+}
+
 // BulkMarkNotificationMessagesFailed mocks base method.
 func (m *MockStore) BulkMarkNotificationMessagesFailed(ctx context.Context, arg database.BulkMarkNotificationMessagesFailedParams) (int64, error) {
 	m.ctrl.T.Helper()
@@ -1885,6 +1900,21 @@ func (m *MockStore) ExportOrganizationAISpend(ctx context.Context, arg database.
 func (mr *MockStoreMockRecorder) ExportOrganizationAISpend(ctx, arg any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ExportOrganizationAISpend", reflect.TypeOf((*MockStore)(nil).ExportOrganizationAISpend), ctx, arg)
+}
+
+// ExtendShortTermLease mocks base method.
+func (m *MockStore) ExtendShortTermLease(ctx context.Context, arg database.ExtendShortTermLeaseParams) (database.ShortTermLease, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ExtendShortTermLease", ctx, arg)
+	ret0, _ := ret[0].(database.ShortTermLease)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ExtendShortTermLease indicates an expected call of ExtendShortTermLease.
+func (mr *MockStoreMockRecorder) ExtendShortTermLease(ctx, arg any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ExtendShortTermLease", reflect.TypeOf((*MockStore)(nil).ExtendShortTermLease), ctx, arg)
 }
 
 // FavoriteWorkspace mocks base method.
@@ -4241,6 +4271,21 @@ func (mr *MockStoreMockRecorder) GetExperimentRules(ctx any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetExperimentRules", reflect.TypeOf((*MockStore)(nil).GetExperimentRules), ctx)
 }
 
+// GetExpiredShortTermLeases mocks base method.
+func (m *MockStore) GetExpiredShortTermLeases(ctx context.Context) ([]database.ShortTermLease, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetExpiredShortTermLeases", ctx)
+	ret0, _ := ret[0].([]database.ShortTermLease)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetExpiredShortTermLeases indicates an expected call of GetExpiredShortTermLeases.
+func (mr *MockStoreMockRecorder) GetExpiredShortTermLeases(ctx any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetExpiredShortTermLeases", reflect.TypeOf((*MockStore)(nil).GetExpiredShortTermLeases), ctx)
+}
+
 // GetExternalAgentTokensByTemplateID mocks base method.
 func (m *MockStore) GetExternalAgentTokensByTemplateID(ctx context.Context, arg database.GetExternalAgentTokensByTemplateIDParams) ([]database.GetExternalAgentTokensByTemplateIDRow, error) {
 	m.ctrl.T.Helper()
@@ -5859,6 +5904,51 @@ func (m *MockStore) GetRuntimeConfig(ctx context.Context, key string) (string, e
 func (mr *MockStoreMockRecorder) GetRuntimeConfig(ctx, key any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRuntimeConfig", reflect.TypeOf((*MockStore)(nil).GetRuntimeConfig), ctx, key)
+}
+
+// GetShortTermLeaseByUserID mocks base method.
+func (m *MockStore) GetShortTermLeaseByUserID(ctx context.Context, userID uuid.UUID) (database.ShortTermLease, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetShortTermLeaseByUserID", ctx, userID)
+	ret0, _ := ret[0].(database.ShortTermLease)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetShortTermLeaseByUserID indicates an expected call of GetShortTermLeaseByUserID.
+func (mr *MockStoreMockRecorder) GetShortTermLeaseByUserID(ctx, userID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetShortTermLeaseByUserID", reflect.TypeOf((*MockStore)(nil).GetShortTermLeaseByUserID), ctx, userID)
+}
+
+// GetShortTermLeaseByWorkspaceID mocks base method.
+func (m *MockStore) GetShortTermLeaseByWorkspaceID(ctx context.Context, workspaceID uuid.NullUUID) (database.ShortTermLease, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetShortTermLeaseByWorkspaceID", ctx, workspaceID)
+	ret0, _ := ret[0].(database.ShortTermLease)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetShortTermLeaseByWorkspaceID indicates an expected call of GetShortTermLeaseByWorkspaceID.
+func (mr *MockStoreMockRecorder) GetShortTermLeaseByWorkspaceID(ctx, workspaceID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetShortTermLeaseByWorkspaceID", reflect.TypeOf((*MockStore)(nil).GetShortTermLeaseByWorkspaceID), ctx, workspaceID)
+}
+
+// GetShortTermLeasesByOrganization mocks base method.
+func (m *MockStore) GetShortTermLeasesByOrganization(ctx context.Context, organizationID uuid.UUID) ([]database.ShortTermLease, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetShortTermLeasesByOrganization", ctx, organizationID)
+	ret0, _ := ret[0].([]database.ShortTermLease)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetShortTermLeasesByOrganization indicates an expected call of GetShortTermLeasesByOrganization.
+func (mr *MockStoreMockRecorder) GetShortTermLeasesByOrganization(ctx, organizationID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetShortTermLeasesByOrganization", reflect.TypeOf((*MockStore)(nil).GetShortTermLeasesByOrganization), ctx, organizationID)
 }
 
 // GetStaleChats mocks base method.
@@ -8839,6 +8929,21 @@ func (mr *MockStoreMockRecorder) InsertReplica(ctx, arg any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertReplica", reflect.TypeOf((*MockStore)(nil).InsertReplica), ctx, arg)
 }
 
+// InsertShortTermLease mocks base method.
+func (m *MockStore) InsertShortTermLease(ctx context.Context, arg database.InsertShortTermLeaseParams) (database.ShortTermLease, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "InsertShortTermLease", ctx, arg)
+	ret0, _ := ret[0].(database.ShortTermLease)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// InsertShortTermLease indicates an expected call of InsertShortTermLease.
+func (mr *MockStoreMockRecorder) InsertShortTermLease(ctx, arg any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertShortTermLease", reflect.TypeOf((*MockStore)(nil).InsertShortTermLease), ctx, arg)
+}
+
 // InsertTelemetryItemIfNotExists mocks base method.
 func (m *MockStore) InsertTelemetryItemIfNotExists(ctx context.Context, arg database.InsertTelemetryItemIfNotExistsParams) error {
 	m.ctrl.T.Helper()
@@ -10129,6 +10234,21 @@ func (mr *MockStoreMockRecorder) ReorderChatQueuedMessageToHead(ctx, arg any) *g
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReorderChatQueuedMessageToHead", reflect.TypeOf((*MockStore)(nil).ReorderChatQueuedMessageToHead), ctx, arg)
 }
 
+// RequestShortTermLeaseExtension mocks base method.
+func (m *MockStore) RequestShortTermLeaseExtension(ctx context.Context, userID uuid.UUID) (database.ShortTermLease, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RequestShortTermLeaseExtension", ctx, userID)
+	ret0, _ := ret[0].(database.ShortTermLease)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RequestShortTermLeaseExtension indicates an expected call of RequestShortTermLeaseExtension.
+func (mr *MockStoreMockRecorder) RequestShortTermLeaseExtension(ctx, userID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RequestShortTermLeaseExtension", reflect.TypeOf((*MockStore)(nil).RequestShortTermLeaseExtension), ctx, userID)
+}
+
 // RevokeDBCryptKey mocks base method.
 func (m *MockStore) RevokeDBCryptKey(ctx context.Context, activeKeyDigest string) error {
 	m.ctrl.T.Helper()
@@ -10141,6 +10261,21 @@ func (m *MockStore) RevokeDBCryptKey(ctx context.Context, activeKeyDigest string
 func (mr *MockStoreMockRecorder) RevokeDBCryptKey(ctx, activeKeyDigest any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RevokeDBCryptKey", reflect.TypeOf((*MockStore)(nil).RevokeDBCryptKey), ctx, activeKeyDigest)
+}
+
+// RevokeShortTermLease mocks base method.
+func (m *MockStore) RevokeShortTermLease(ctx context.Context, arg database.RevokeShortTermLeaseParams) (database.ShortTermLease, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RevokeShortTermLease", ctx, arg)
+	ret0, _ := ret[0].(database.ShortTermLease)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RevokeShortTermLease indicates an expected call of RevokeShortTermLease.
+func (mr *MockStoreMockRecorder) RevokeShortTermLease(ctx, arg any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RevokeShortTermLease", reflect.TypeOf((*MockStore)(nil).RevokeShortTermLease), ctx, arg)
 }
 
 // SelectUsageEventsForPublishing mocks base method.

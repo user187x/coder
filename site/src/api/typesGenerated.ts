@@ -1305,6 +1305,15 @@ export interface CreateProvisionerKeyResponse {
 	readonly key: string;
 }
 
+// From codersdk/shorttermlease.go
+/**
+ * CreateShortTermLeaseRequest selects the Browser template and lifetime.
+ */
+export interface CreateShortTermLeaseRequest {
+	readonly template_id: string;
+	readonly minutes: number;
+}
+
 // From codersdk/organizations.go
 /**
  * CreateTemplateRequest provides options when creating a template.
@@ -2984,6 +2993,14 @@ export const JobErrorCodes: JobErrorCode[] = [
 	"INSUFFICIENT_QUOTA",
 	"REQUIRED_TEMPLATE_VARIABLES",
 ];
+
+// From codersdk/shorttermlease.go
+/**
+ * LeaseTokenLoginRequest exchanges a temporary token for a browser session.
+ */
+export interface LeaseTokenLoginRequest {
+	readonly token: string;
+}
 
 // From codersdk/licenses.go
 export interface License {
@@ -5701,6 +5718,25 @@ export const SharedWorkspaceActorTypes: SharedWorkspaceActorType[] = [
 	"user",
 ];
 
+// From codersdk/shorttermlease.go
+/**
+ * ShortTermLease describes an organization-scoped temporary browser account.
+ */
+export interface ShortTermLease {
+	readonly user_id: string;
+	readonly organization_id: string;
+	readonly workspace_id: string | null;
+	readonly issued_at: string;
+	readonly expires_at: string;
+	readonly revoked_at: string | null;
+	readonly extension_requested_at: string | null;
+	readonly token_id: string;
+	/**
+	 * Token is returned only at creation; the database stores its hash.
+	 */
+	readonly token?: string;
+}
+
 // From codersdk/client.go
 /**
  * SignedAppTokenCookie is the name of the cookie that stores a temporary
@@ -6752,6 +6788,15 @@ export interface UpdateOrganizationRequest {
 // From codersdk/users.go
 export interface UpdateRoles {
 	readonly roles: readonly string[];
+}
+
+// From codersdk/shorttermlease.go
+/**
+ * UpdateShortTermLeaseRequest extends an active lease or revokes it.
+ */
+export interface UpdateShortTermLeaseRequest {
+	readonly minutes: number;
+	readonly revoke: boolean;
 }
 
 // From codersdk/templates.go

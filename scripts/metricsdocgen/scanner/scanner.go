@@ -28,7 +28,6 @@ import (
 // Add or remove directories here to control the scanner's scope.
 var scanDirs = []string{
 	"agent",
-	"aibridge",
 	"coderd",
 	"enterprise",
 	"provisionerd",

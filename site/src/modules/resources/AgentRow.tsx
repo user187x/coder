@@ -711,6 +711,7 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 					<div className="relative w-full min-w-0">
 						<AddPanelTab
 							apps={panelApps}
+							terminal={agent.display_apps.includes("web_terminal")}
 							actions={
 								certificateApp && (
 									<AppLink
@@ -1049,6 +1050,24 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 													panels.setHeight(panel.id, height),
 												onRemove: () => panels.remove(panel.id),
 											};
+											if (panel.kind === "terminal") {
+												return {
+													id: panel.id,
+													label: "Terminal",
+													render: (handle: React.ReactNode) =>
+														agent.display_apps.includes("web_terminal") && (
+															<AgentTerminalSection
+																agent={agent}
+																workspace={workspace}
+																ready={appsReady}
+																handle={handle}
+																panelId={panel.id}
+																initiallyOpen={panel.id === justAdded}
+																onRemove={() => panels.remove(panel.id)}
+															/>
+														),
+												};
+											}
 											if (panel.kind === "port") {
 												return {
 													id: panel.id,

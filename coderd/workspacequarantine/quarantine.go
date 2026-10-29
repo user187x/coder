@@ -9,6 +9,7 @@ import (
 
 	"github.com/coder/coder/v2/coderd/database"
 	"github.com/coder/coder/v2/coderd/database/dbauthz"
+	"github.com/coder/coder/v2/coderd/shorttermlease"
 	"github.com/coder/quartz"
 	"github.com/google/uuid"
 	"golang.org/x/xerrors"
@@ -39,6 +40,20 @@ func Acquire(ctx context.Context, db database.Store, id uuid.UUID) error {
 
 // Load reads authoritative policy. No row means the workspace has never been quarantined.
 func Load(ctx context.Context, db database.Store, id uuid.UUID) (database.WorkspaceQuarantine, error) {
+	//nolint:gocritic // Signed app tickets also need authoritative lease expiry checks.
+	lease, err := db.GetShortTermLeaseByWorkspaceID(dbauthz.AsSystemRestricted(ctx), uuid.NullUUID{UUID: id, Valid: true})
+	if err != nil && !xerrors.Is(err, sql.ErrNoRows) {
+		return database.WorkspaceQuarantine{}, err
+	}
+	if err == nil && !shorttermlease.Active(lease, time.Now()) {
+		return database.WorkspaceQuarantine{WorkspaceID: id, Enabled: true}, nil
+	}
+	return LoadContainment(ctx, db, id)
+}
+
+// LoadContainment reads explicit quarantine independently of expired login leases.
+// Deleting an expired lease workspace does not reopen its data plane.
+func LoadContainment(ctx context.Context, db database.Store, id uuid.UUID) (database.WorkspaceQuarantine, error) {
 	//nolint:gocritic // Security enforcement reads only policy for an already resolved target, including signed app sessions.
 	policy, err := db.GetWorkspaceQuarantineByWorkspaceID(dbauthz.AsSystemRestricted(ctx), id)
 	if xerrors.Is(err, sql.ErrNoRows) {

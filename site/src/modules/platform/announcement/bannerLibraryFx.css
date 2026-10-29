@@ -1,0 +1,371 @@
+/* Adapted from the local visualfx text effects library; banner typography and motion controls are preserved. */
+[data-banner-text].fx-aurora {
+	letter-spacing: 0.06em;
+	background:
+		linear-gradient(
+			115deg,
+			var(--ink-2),
+			var(--ink-3),
+			var(--ink-2),
+			var(--ink-3)
+		)
+		0 0 / 300% 100%;
+	-webkit-background-clip: text;
+	background-clip: text;
+	color: transparent;
+	animation: fx-aurora 7s linear infinite;
+}
+@keyframes fx-aurora {
+	0% {
+		background-position: 0% 50%;
+		filter: hue-rotate(0deg);
+	}
+	100% {
+		background-position: 300% 50%;
+		filter: hue-rotate(360deg);
+	}
+}
+[data-banner-text].fx-neon {
+	letter-spacing: 0.14em;
+	color: var(--ink);
+	animation: fx-neon 3.2s linear infinite;
+}
+@keyframes fx-neon {
+	0%,
+	18%,
+	21%,
+	24%,
+	100% {
+		opacity: 1;
+		text-shadow:
+			0 0 4px var(--ink),
+			0 0 11px var(--ink-2),
+			0 0 24px var(--ink-2),
+			0 0 48px var(--ink-2);
+	}
+	19%,
+	22%,
+	62% {
+		opacity: 0.35;
+		text-shadow: none;
+	}
+	63%,
+	64.5% {
+		opacity: 0.6;
+		text-shadow: 0 0 4px var(--ink-2);
+	}
+}
+[data-banner-text].fx-chrome {
+	letter-spacing: 0.06em;
+	background:
+		linear-gradient(
+			105deg,
+			color-mix(in srgb, var(--ink) 40%, transparent) 0 38%,
+			var(--ink) 47%,
+			#fff 50%,
+			var(--ink) 53%,
+			color-mix(in srgb, var(--ink) 40%, transparent) 62% 100%
+		)
+		0 0 / 260% 100%;
+	-webkit-background-clip: text;
+	background-clip: text;
+	color: transparent;
+	animation: fx-chrome 2.8s ease-in-out infinite;
+}
+@keyframes fx-chrome {
+	0% {
+		background-position: 130% 0;
+	}
+	60%,
+	100% {
+		background-position: -130% 0;
+	}
+}
+[data-banner-text].fx-focus {
+	letter-spacing: 0.08em;
+	color: var(--ink);
+}
+[data-banner-text].fx-focus b {
+	font-weight: inherit;
+	display: inline-block;
+	animation: fx-focus 2.6s ease-in-out infinite;
+	animation-delay: calc(var(--i) * 0.18s);
+}
+@keyframes fx-focus {
+	0%,
+	100% {
+		filter: blur(0);
+		opacity: 1;
+	}
+	50% {
+		filter: blur(7px);
+		opacity: 0.35;
+	}
+}
+[data-banner-text].fx-ember {
+	letter-spacing: 0.1em;
+	color: #ffd9a0;
+	animation: fx-ember 1.7s ease-in-out infinite alternate;
+}
+@keyframes fx-ember {
+	0% {
+		text-shadow:
+			0 -2px 6px #ffab40,
+			0 -6px 14px #ff6d00,
+			0 -12px 28px #dd2c00,
+			0 -20px 44px rgba(213, 0, 0, 0.55);
+	}
+	100% {
+		text-shadow:
+			0 -3px 8px #ffc46b,
+			0 -9px 20px #ff8f1f,
+			0 -18px 38px #ff3d00,
+			0 -30px 60px rgba(213, 0, 0, 0.8);
+	}
+}
+[data-banner-text].fx-spectrum {
+	letter-spacing: 0.08em;
+}
+[data-banner-text].fx-spectrum b {
+	font-weight: inherit;
+	display: inline-block;
+	color: #ff2d78;
+	filter: hue-rotate(calc(var(--i) * 42deg));
+	animation: fx-spectrum 2.4s linear infinite;
+	animation-delay: calc(var(--i) * -0.1s);
+}
+@keyframes fx-spectrum {
+	to {
+		filter: hue-rotate(calc(var(--i) * 42deg + 360deg));
+	}
+}
+[data-banner-text].fx-anaglyph {
+	letter-spacing: 0.1em;
+	color: var(--ink);
+	animation: fx-anaglyph 2.4s ease-in-out infinite;
+}
+@keyframes fx-anaglyph {
+	0%,
+	100% {
+		text-shadow:
+			0 0 0 #ff3355,
+			0 0 0 #33ddff;
+	}
+	50% {
+		text-shadow:
+			-6px 0 1px #ff3355,
+			6px 0 1px #33ddff;
+	}
+}
+[data-banner-text].fx-heartbeat {
+	letter-spacing: 0.12em;
+	color: var(--ink-2);
+	animation: fx-heartbeat 1.4s ease-in-out infinite;
+}
+@keyframes fx-heartbeat {
+	0%,
+	100% {
+		transform: scale(1);
+		text-shadow: 0 0 0 transparent;
+	}
+	14% {
+		transform: scale(1.14);
+		text-shadow: 0 0 18px color-mix(in srgb, var(--ink-2) 65%, transparent);
+	}
+	28% {
+		transform: scale(1);
+	}
+	42% {
+		transform: scale(1.18);
+		text-shadow: 0 0 26px color-mix(in srgb, var(--ink-2) 80%, transparent);
+	}
+	70% {
+		transform: scale(1);
+		text-shadow: 0 0 0 transparent;
+	}
+}
+[data-banner-text].fx-softblur {
+	letter-spacing: 0.1em;
+	color: var(--ink);
+	text-shadow:
+		0 0 0 var(--ink),
+		0 0 18px color-mix(in srgb, var(--ink-2) 45%, transparent),
+		0 0 34px color-mix(in srgb, var(--ink-3) 35%, transparent);
+	animation: fx-softblur 3.2s ease-in-out infinite;
+}
+@keyframes fx-softblur {
+	0%,
+	100% {
+		filter: blur(0);
+		opacity: 1;
+		transform: scale(1);
+	}
+	50% {
+		filter: blur(2.4px);
+		opacity: 0.72;
+		transform: scale(1.045);
+	}
+}
+[data-banner-text].fx-voltage {
+	letter-spacing: 0.12em;
+	color: var(--ink);
+	display: block;
+}
+[data-banner-text].fx-voltage b {
+	font-weight: inherit;
+	display: inline-block;
+	animation: fx-voltage 2.6s steps(1) infinite;
+	animation-delay: calc(var(--i) * 0.08s);
+}
+@keyframes fx-voltage {
+	0%,
+	100% {
+		transform: none;
+		color: var(--ink);
+		text-shadow: none;
+		filter: brightness(1);
+	}
+	7% {
+		transform: translate(1px, -1px) skewX(-10deg);
+		color: #fff;
+		text-shadow:
+			0 0 4px #fff,
+			0 0 14px var(--ink-3),
+			2px 0 0 var(--ink-2),
+			-2px 0 0 var(--ink-3);
+		filter: brightness(1.85);
+	}
+	9% {
+		transform: translate(-1px, 1px) skewX(8deg);
+		color: var(--ink-3);
+		text-shadow:
+			0 0 10px var(--ink-3),
+			0 0 22px color-mix(in srgb, var(--ink-3) 70%, transparent);
+	}
+	11%,
+	48% {
+		transform: none;
+		color: var(--ink);
+		text-shadow: none;
+		filter: brightness(1);
+	}
+	61% {
+		transform: translate(0, -1px) skewX(4deg);
+		color: #fff;
+		text-shadow:
+			0 0 6px var(--ink-2),
+			0 0 18px var(--ink-2),
+			-1px 0 0 var(--ink-3);
+		filter: brightness(1.6);
+	}
+	63% {
+		transform: none;
+		color: var(--ink);
+		text-shadow: none;
+		filter: brightness(1);
+	}
+}
+
+[data-banner-text]:is(
+	.fx-aurora,
+	.fx-neon,
+	.fx-chrome,
+	.fx-focus,
+	.fx-ember,
+	.fx-spectrum,
+	.fx-anaglyph,
+	.fx-heartbeat,
+	.fx-softblur,
+	.fx-voltage
+) {
+	--ink: var(--banner-lcd-ink, currentColor);
+	--ink-2: #ff4fd8;
+	--ink-3: #4ff8ff;
+	font-size: inherit;
+	line-height: inherit;
+}
+[data-banner-text][data-fx-once]:is(
+	.fx-aurora,
+	.fx-neon,
+	.fx-chrome,
+	.fx-focus,
+	.fx-ember,
+	.fx-spectrum,
+	.fx-anaglyph,
+	.fx-heartbeat,
+	.fx-softblur,
+	.fx-voltage
+),
+[data-banner-text][data-fx-once]:is(
+		.fx-aurora,
+		.fx-neon,
+		.fx-chrome,
+		.fx-focus,
+		.fx-ember,
+		.fx-spectrum,
+		.fx-anaglyph,
+		.fx-heartbeat,
+		.fx-softblur,
+		.fx-voltage
+	)
+	b {
+	animation-iteration-count: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+	[data-banner-text]:is(
+		.fx-aurora,
+		.fx-neon,
+		.fx-chrome,
+		.fx-focus,
+		.fx-ember,
+		.fx-spectrum,
+		.fx-anaglyph,
+		.fx-heartbeat,
+		.fx-softblur,
+		.fx-voltage
+	),
+	[data-banner-text]:is(
+			.fx-aurora,
+			.fx-neon,
+			.fx-chrome,
+			.fx-focus,
+			.fx-ember,
+			.fx-spectrum,
+			.fx-anaglyph,
+			.fx-heartbeat,
+			.fx-softblur,
+			.fx-voltage
+		)
+		b {
+		animation: none;
+	}
+}
+html[data-animations="off"]
+	[data-banner-text]:is(
+		.fx-aurora,
+		.fx-neon,
+		.fx-chrome,
+		.fx-focus,
+		.fx-ember,
+		.fx-spectrum,
+		.fx-anaglyph,
+		.fx-heartbeat,
+		.fx-softblur,
+		.fx-voltage
+	),
+html[data-animations="off"]
+	[data-banner-text]:is(
+		.fx-aurora,
+		.fx-neon,
+		.fx-chrome,
+		.fx-focus,
+		.fx-ember,
+		.fx-spectrum,
+		.fx-anaglyph,
+		.fx-heartbeat,
+		.fx-softblur,
+		.fx-voltage
+	)
+	b {
+	animation: none;
+}

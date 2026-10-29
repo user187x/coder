@@ -147,15 +147,30 @@ describe("continuous announcement text", () => {
 		}),
 	);
 	afterEach(() => vi.useRealTimers());
+	it("does not loop a fitting line with a fractional painted height", () => {
+		const viewport = document.createElement("div");
+		vi.spyOn(viewport, "scrollHeight", "get").mockReturnValue(100);
+		vi.spyOn(viewport, "clientHeight", "get").mockReturnValue(18);
+		const source = document.createElement("span");
+		source.setAttribute("data-banner-loop-source", "");
+		vi.spyOn(source, "offsetHeight", "get").mockReturnValue(18);
+		vi.spyOn(source, "getBoundingClientRect").mockReturnValue(
+			new DOMRect(0, 0, 200, 18.004),
+		);
+		viewport.append(source);
+		const off = attachAnnouncementAutoScroll(viewport, () => viewport, true);
+		vi.advanceTimersByTime(READ_DELAY_MS + 1000);
+		expect(viewport.scrollTop).toBe(0);
+		expect(vi.getTimerCount()).toBe(0);
+		off();
+	});
 	it("continues from the end into its duplicate and wraps without stopping", () => {
 		const viewport = document.createElement("div");
 		Object.defineProperty(viewport, "scrollHeight", { value: 200 });
 		Object.defineProperty(viewport, "clientHeight", { value: 36 });
 		const source = document.createElement("span");
 		source.setAttribute("data-banner-loop-source", "");
-		vi.spyOn(source, "getBoundingClientRect").mockReturnValue(
-			new DOMRect(0, 0, 200, 100),
-		);
+		vi.spyOn(source, "offsetHeight", "get").mockReturnValue(100);
 		viewport.append(source);
 		const off = attachAnnouncementAutoScroll(viewport, () => viewport, true);
 		vi.advanceTimersByTime(READ_DELAY_MS + 26_000);

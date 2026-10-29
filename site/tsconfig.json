@@ -15,13 +15,7 @@
 		"skipLibCheck": true,
 		"strict": true,
 		"target": "esnext",
-		"types": [
-			"node",
-			"react",
-			"react-dom",
-			"vite/client",
-			"vitest/globals"
-		],
+		"types": ["node", "react", "react-dom", "vite/client", "vitest/globals"],
 		"paths": {
 			"#/*": ["./src/*"]
 		}
