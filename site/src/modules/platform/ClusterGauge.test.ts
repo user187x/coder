@@ -1,4 +1,4 @@
-import { formatRate, graphTop, usageShares } from "./ClusterGauge";
+import { formatRate, graphTop, historyX, usageShares } from "./ClusterGauge";
 
 describe("formatRate", () => {
 	it("shows bytes per second from B/s to GB/s", () => {
@@ -40,5 +40,13 @@ describe("graphTop", () => {
 		expect(graphTop(38)).toBe(50);
 		expect(graphTop(51)).toBe(100);
 		expect(graphTop(100)).toBe(100);
+	});
+});
+
+describe("historyX", () => {
+	it("places sparse samples across elapsed time instead of packing them at the right", () => {
+		expect(historyX(15, 900, 15)).toBeCloseTo(0);
+		expect(historyX(450, 900, 15)).toBeCloseTo(48.333333);
+		expect(historyX(900, 900, 15)).toBeCloseTo(98.333333);
 	});
 });

@@ -8023,6 +8023,7 @@ class HudHistory(threading.Thread):
 
     def run(self):
         last = None
+        deadline = time.monotonic()
         while True:
             try:
                 self.sample()
@@ -8031,7 +8032,13 @@ class HudHistory(threading.Thread):
                 if str(e) != last:
                     log(event="hud-sample-failed", error=str(e)[:300])
                 last = str(e)
-            time.sleep(HUD_SAMPLE_EVERY)
+            # Collection time is part of the interval, not added to it. Skip
+            # missed deadlines rather than issuing a burst after a slow round.
+            deadline += HUD_SAMPLE_EVERY
+            current = time.monotonic()
+            if deadline <= current:
+                deadline += (int((current - deadline) // HUD_SAMPLE_EVERY) + 1) * HUD_SAMPLE_EVERY
+            time.sleep(max(0, deadline - current))
 
     def series(self, range_):
         span = HUD_RANGES.get(range_, 3600)

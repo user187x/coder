@@ -116,6 +116,18 @@ export const formatRate = (bytesPerSecond: number): string => {
 /** The graph's slots: 15 minutes of rounds (60 at the HUD's 15 seconds). */
 const NETWORK_SLOTS = 60;
 
+/** Place samples by their recorded time so missed rounds remain gaps, not a permanent blank leading margin. */
+export const historyX = (time: number, latest: number, every: number): number =>
+	Math.max(
+		0,
+		Math.min(
+			100 - 100 / NETWORK_SLOTS,
+			100 -
+				100 / NETWORK_SLOTS -
+				((latest - time) / (NETWORK_SLOTS * every)) * 100,
+		),
+	);
+
 /**
  * Under the CPU and memory bars, as wide as both: the cluster's network
  * traffic over the last 15 minutes, a bar a round (the HUD's samples): what
@@ -162,8 +174,8 @@ const NetworkGraph: React.FC<{ network: ClusterNetwork }> = ({ network }) => {
 					strokeWidth={0.4}
 					vectorEffect="non-scaling-stroke"
 				/>
-				{points.map((p, i) => {
-					const x = (NETWORK_SLOTS - points.length + i) * slot;
+				{points.map((p) => {
+					const x = historyX(p.t, points[points.length - 1].t, network.every);
 					const up = (p.rx / peak) * (half - 1);
 					const down = (p.tx / peak) * (half - 1);
 					return (
@@ -263,8 +275,8 @@ const UsageGraph: React.FC<{
 				preserveAspectRatio="none"
 				className="block h-6 w-full overflow-hidden rounded bg-surface-tertiary"
 			>
-				{shares.map((s, i) => {
-					const x = (NETWORK_SLOTS - shares.length + i) * slot;
+				{shares.map((s) => {
+					const x = historyX(s.t, shares[shares.length - 1].t, history.every);
 					const tall = (Math.min(top, s.percent) / top) * (height - 1);
 					const level = levelOf(s.percent);
 					return (

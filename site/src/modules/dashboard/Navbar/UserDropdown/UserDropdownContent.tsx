@@ -1,20 +1,19 @@
 import {
 	ArrowLeftRightIcon,
+	ChevronDownIcon,
 	CircleUserIcon,
 	CopyIcon,
 	LogOutIcon,
 	PaletteIcon,
 	TerminalIcon,
 } from "lucide-react";
+import { useId, useState } from "react";
 import { Link } from "react-router";
 import type * as TypesGen from "#/api/typesGenerated";
 import { CheckIcon } from "#/components/AnimatedIcons/Check";
 import {
 	DropdownMenuItem,
 	DropdownMenuSeparator,
-	DropdownMenuSub,
-	DropdownMenuSubContent,
-	DropdownMenuSubTrigger,
 } from "#/components/DropdownMenu/DropdownMenu";
 import {
 	Tooltip,
@@ -46,6 +45,8 @@ export const UserDropdownContent: React.FC<UserDropdownContentProps> = ({
 }) => {
 	const { showCopiedSuccess, copyToClipboard } = useClipboard();
 	const versionClipboard = useClipboard();
+	const [appearanceOpen, setAppearanceOpen] = useState(false);
+	const appearanceId = useId();
 
 	return (
 		<>
@@ -76,12 +77,27 @@ export const UserDropdownContent: React.FC<UserDropdownContentProps> = ({
 				<span>Sign Out</span>
 			</DropdownMenuItem>
 			<DropdownMenuSeparator />
-			<DropdownMenuSub>
-				<DropdownMenuSubTrigger>
-					<PaletteIcon />
-					<span>Appearance</span>
-				</DropdownMenuSubTrigger>
-				<DropdownMenuSubContent className="min-w-64">
+			<DropdownMenuItem
+				aria-expanded={appearanceOpen}
+				aria-controls={appearanceId}
+				onSelect={(event) => {
+					event.preventDefault();
+					setAppearanceOpen(!appearanceOpen);
+				}}
+			>
+				<PaletteIcon />
+				<span>Appearance</span>
+				<ChevronDownIcon
+					className={appearanceOpen ? "ml-auto rotate-180" : "ml-auto"}
+				/>
+			</DropdownMenuItem>
+			{appearanceOpen && (
+				<div
+					id={appearanceId}
+					className="pl-3 border-l border-solid border-border ml-3"
+					role="group"
+					aria-label="Appearance options"
+				>
 					<ThemeToggleItem />
 					<AnimationsToggleItem />
 					<DropdownMenuSeparator />
@@ -89,8 +105,8 @@ export const UserDropdownContent: React.FC<UserDropdownContentProps> = ({
 						<ArrowLeftRightIcon />
 						<span>Rearrange top bar</span>
 					</DropdownMenuItem>
-				</DropdownMenuSubContent>
-			</DropdownMenuSub>
+				</div>
+			)}
 			{supportLinks.map((link) => (
 				<DropdownMenuItem key={link.name} asChild>
 					<a href={link.target} target="_blank" rel="noreferrer">
