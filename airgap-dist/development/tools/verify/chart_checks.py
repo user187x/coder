@@ -266,8 +266,12 @@ def one_step_checks(B, chart):
     check("one step: the workspace templates are pushed with the release's namespace",
           push and out.count('--variable namespace="cf"') == len(push) and 'namespace="coder"' not in out, len(push))
     stray = sorted({(d["metadata"].get("namespace"), d["kind"]) for d in docs if d["metadata"].get("namespace") not in (None, "cf")})
+    # The node load collector runs outside the protected release namespace on purpose (templates/node-load.yaml).
+    runtime_ns = "coder-runtime-system"
     check("one step: nothing lands in another namespace (no coder, no keycloak/argocd with them off; only the DNS "
-          "Role in kube-system)", stray == [("kube-system", "Role"), ("kube-system", "RoleBinding")], stray)
+          "Role in kube-system and the node load collector in %s)" % runtime_ns,
+          stray == sorted([("kube-system", "Role"), ("kube-system", "RoleBinding"),
+                           (runtime_ns, "DaemonSet"), (runtime_ns, "ServiceAccount")]), stray)
 
     def pod_images(d):
         spec = d.get("spec", {})
@@ -414,12 +418,17 @@ def icon_checks(chart, default_render):
           is not None, "")
 
 
-def template_checks(B, chart, default_render):
-    """The workspace templates the chart pushes: DEFAULT and DATAFLOW only, each by its own Job and in the Images view;
+def template_checks(B, chart, default_render, dataflow_render):
+    """The workspace templates the chart pushes: DEFAULT, and DATAFLOW when enabled (off by default, until its image is
+    in the registry), each by its own Job and in the Images view;
     the AI template (UBUNTU OPENCODE: OpenCode on Unsloth, its own image) is gone for good, as are the templates removed
     before it (Unsloth's, LM Studio's, Obsidian's): no Job, no values, no app, no icon, no image."""
     import yaml
-    docs = {(d["kind"], d["metadata"]["name"]): d for d in yaml.safe_load_all(default_render) if d}
+    default_jobs = sorted(d["metadata"]["name"] for d in yaml.safe_load_all(default_render)
+                          if d and d["kind"] == "Job" and "push-template" in d["metadata"]["name"])
+    check("templates: by default only DEFAULT is pushed (DATAFLOW is off until its image is in the registry)",
+          default_jobs == ["coder-workspace-push-template"], default_jobs)
+    docs = {(d["kind"], d["metadata"]["name"]): d for d in yaml.safe_load_all(dataflow_render) if d}
     jobs = {k[1]: "\n".join(c["args"][0] for c in d["spec"]["template"]["spec"]["containers"])
             for k, d in docs.items() if k[0] == "Job" and "push-template" in k[1]}
     vals = open(os.path.join(chart, "values.yaml")).read()
@@ -427,7 +436,7 @@ def template_checks(B, chart, default_render):
     vols = {k[1]: [v["name"] for v in d["spec"]["template"]["spec"]["volumes"]]
             for k, d in docs.items() if k[0] == "Job" and "push-template" in k[1]}
     dflt, dflow = jobs.get("coder-workspace-push-template", ""), jobs.get("coder-workspace-push-template-dataflow", "")
-    check("templates: DEFAULT and DATAFLOW pushed, no other (no AI, Unsloth, LM Studio or Obsidian template); only "
+    check("templates: with DATAFLOW on, DEFAULT and DATAFLOW pushed, no other (no AI, Unsloth, LM Studio or Obsidian template); only "
           "DATAFLOW's push gets files/dataflow/ (its ConfigMap) and its variables",
           sorted(n.rsplit("push-template", 1)[1] for n in jobs) == ["", "-dataflow"]
           and "tf-dataflow" in vols.get("coder-workspace-push-template-dataflow", [])
@@ -441,25 +450,27 @@ def template_checks(B, chart, default_render):
     ui_env = {e["name"]: e.get("value") for c in docs[("Deployment", "coder-ui-updates")]["spec"]["template"]["spec"]["containers"]
               for e in c.get("env", [])}
     names = [t["name"] for t in json.loads(ui_env.get("BUILDER_TEMPLATES") or "[]")]
-    check("templates: the Images view's In use list has DEFAULT and DATAFLOW, no AI template",
+    check("templates: with DATAFLOW on, the Images view's In use list has DEFAULT and DATAFLOW, no AI template",
           names == ["default", "ubuntu-dataflow"], names)
     check("values: no AI template (coder-workspace.aiTemplates, aiImage) in either chart's values",
           not re.search(r"aiTemplates|aiImage|opencode|coder-workspace-ai", vals + sub_vals, re.I), "")
     tf = open(os.path.join(chart, "charts", "coder-workspace", "files", "main.tf")).read()
     startup = open(os.path.join(chart, "charts", "coder-workspace", "files", "scripts", "startup.sh")).read()
-    # DEFAULT (main.tf and the shared scripts, the files its push gets): its own apps and nothing else's - Desktop,
-    # File Browser, code-server, Coder's web terminal and Ports; no word of another template's apps
+    # DEFAULT (main.tf and the shared scripts, the files its push gets): its own apps and nothing else's - Desktop
+    # (Chromium inside it, no app of its own), File Browser, code-server, Coder's web terminal and Ports; no word of
+    # another template's apps but main.tf's neko_browser variable, which only DATAFLOW's push turns on
     shared_dir = os.path.join(chart, "charts", "coder-workspace", "files")
     shared = tf + "".join(open(os.path.join(shared_dir, "scripts", n)).read()
                           for n in sorted(os.listdir(os.path.join(shared_dir, "scripts"))))
     apps = re.findall(r'^resource "coder_app" "([\w-]+)"', tf, re.M)
     display = re.search(r"display_apps \{(.*?)\n  \}", tf, re.S)
+    shared = re.sub(r'\nvariable "neko_browser" \{.*?\n\}\n', "\n", shared, flags=re.S)
     named = sorted(set(w.lower() for w in re.findall(
         r"nifi|airflow|dataflow|ghostty|terminal_app|opencode|unsloth|context_length|coder-models|lmstudio|LM Studio|"
         r"obsidian|app_set", shared, re.I)))
-    check("DEFAULT (main.tf + shared scripts): only Desktop, Chromium, File Browser, code-server, the web terminal and Ports; no "
+    check("DEFAULT (main.tf + shared scripts): only Desktop, File Browser, code-server, the web terminal and Ports; no "
           "other template's app named (NiFi, Airflow, Ghostty, OpenCode...)",
-          sorted(apps) == ["chromium", "code-server", "filebrowser", "novnc"] and display
+          sorted(apps) == ["code-server", "filebrowser", "novnc"] and display
           and "web_terminal = var.terminal" in display.group(1) and "vscode       = false" in display.group(1)
           and "ssh_helper   = false" in display.group(1) and "port_forwarding_helper" not in display.group(1)
           and not named, {"apps": apps, "named": named})
@@ -577,11 +588,11 @@ def decorator_checks(B, chart, full_render):
     plain, dec = renders["base"], renders["base+layer"]
     plain_env = re.findall(r"name: CODER_PLATFORM_(?:SERVICE_ROUTES|FIRST_OWNER)\n\s+value: (\S*)", plain)
     check("decorator: without the layer the base runs upstream Coder, without the fork's settings",
-          "/user187x/coder-upstream:" in plain and "/user187x/coder-platform:" not in plain and plain_env == ['""', '""'],
+          "/mrshll187/coder-upstream:" in plain and "/mrshll187/coder-platform:" not in plain and plain_env == ['""', '""'],
           plain_env)
     dec_env = re.findall(r"name: CODER_PLATFORM_(?:SERVICE_ROUTES|FIRST_OWNER)\n\s+value: (\S*)", dec)
     check("decorator: with global.decorator.layer the base runs the fork's image with its settings",
-          "/user187x/coder-platform:" in dec and "/user187x/coder-upstream:" not in dec and all(v not in ('""', "") for v in dec_env),
+          "/mrshll187/coder-platform:" in dec and "/mrshll187/coder-upstream:" not in dec and all(v not in ('""', "") for v in dec_env),
           dec_env)
     # The Applications: the plain one is the decorated one without the layer (application.py --plain), both parse, and
     # they install this chart version.
@@ -720,6 +731,7 @@ def main():
         "a private registry (global.registry)": ["--set", "global.registry=registry.internal.example:5000"],
         "Keycloak-only sign-in (disablePasswordAuth)": ["--set", "global.disablePasswordAuth=true"],
         "admins' kubectl (clusterAccess)": ["--set", "global.clusterAccess.enabled=true"],
+        "DATAFLOW on (coder-workspace.dataflowTemplate.enabled)": ["--set", "coder-workspace.dataflowTemplate.enabled=true"],
     }
     renders = {}
     for name, extra in scenarios.items():
@@ -745,14 +757,15 @@ def main():
 
     vals = open(os.path.join(chart, "values.yaml")).read()
     r = renders["Minikube defaults"]
-    forks = sorted(set(re.findall(r'image: "?(\S*/user187x/coder-platform:[^"\s]+)"?', r)))
+    forks = sorted(set(re.findall(r'image: "?(\S*/mrshll187/coder-platform:[^"\s]+)"?', r)))
     check("the template push's CLI is Coder's own image (same tag as the server)", len(forks) == 1, forks)
     decorator_checks(B, chart, r)
     ha_checks(B, renders["high availability (values-ha.example.yaml)"], r)
     no_rewrite_checks(B, chart, renders)
     install_checks(B, chart, r)
     safe_checks(chart, r)
-    template_checks(B, chart, r)
+    rdf = renders["DATAFLOW on (coder-workspace.dataflowTemplate.enabled)"]
+    template_checks(B, chart, r, rdf)
     pit_checks(B, chart, r)
     icon_checks(chart, r)
     check("Coder starts without Keycloak's Secrets (optional)",
@@ -839,7 +852,7 @@ def main():
                              env=dict(os.environ, CODER_DECORATOR_PROTOTYPE=tf_dir, GOPROXY="off", GOFLAGS="-mod=mod"))
         check("template: Coder's decorator reads its platform sections (the fork's extraction, on this template)",
               dec.returncode == 0 and dec.stdout.startswith("ok"), (dec.stdout + dec.stderr).strip()[-300:])
-    shipped = re.findall(r"^  ([\w.-]+\.(?:sh|py|c)): \|$", r, re.M)
+    shipped = re.findall(r"^  ([\w.-]+\.(?:sh|py|c)): \|$", rdf, re.M)
     df_refs = sorted(set(re.findall(r'templatefile\("\$\{path\.module\}/scripts/([^"]+)"', tf["dataflow.tf"])))
     check("template: every script the .tf files read is in files/scripts/ (DATAFLOW's: files/dataflow/) and in the "
           "push's ConfigMaps",
@@ -875,29 +888,17 @@ def main():
           and re.search(r"COPY image-store/ /image-store/\n(?:COPY defaults/ /defaults/\n)?COPY app/ /app/", build_ui)
           and 'BASE + "/image-store/"' in svc and 'BASE + "/api/image-store"' in svc,
           {"pictures": len(pics), "without a preview": no_preview[:5]})
-    # Ghostty in place of the web terminal (the DATAFLOW template's): its push asks for it, the app's slug is the one
-    # the dashboard draws an agent's terminals with Ghostty for (site/src/modules/terminal/terminalConfig.ts), its icon
-    # is served, and the built-in terminal is off where it is on.
+    # Both templates' terminal is Coder's own (DATAFLOW's Ghostty app went 2026-10-26): DATAFLOW's push turns it on,
+    # DEFAULT's leaves main.tf's default, and no template has a Ghostty app.
     import yaml
     push_jobs = {d["metadata"]["name"]: "\n".join(c["args"][0] for c in d["spec"]["template"]["spec"]["containers"])
-                 for d in yaml.safe_load_all(r) if d and d.get("kind") == "Job" and "push-template" in d["metadata"]["name"]}
+                 for d in yaml.safe_load_all(rdf) if d and d.get("kind") == "Job" and "push-template" in d["metadata"]["name"]}
     pushes = {n.rsplit("push-template", 1)[1] or "default": re.findall(r'--variable (terminal_app="\w+"|terminal=\w+)', a)
               for n, a in push_jobs.items()}
-    fork_slug = ""
-    cfg_ts = os.path.join(os.path.expanduser(os.environ.get("CODER_FORK", "~/workspace/coder")),
-                          "site/src/modules/terminal/terminalConfig.ts")
-    if os.path.isfile(cfg_ts):
-        m = re.search(r'GHOSTTY_APP = "([^"]+)"', open(cfg_ts).read())
-        fork_slug = m.group(1) if m else ""
-    app = re.search(r'resource "coder_app" "ghostty" \{(.*?)\n\}', tf["dataflow.tf"], re.S)
-    check("template: DATAFLOW's terminal is Ghostty (its dataflow.tf's Ghostty app, Coder's own terminal off), "
-          "DEFAULT's Coder's own",
-          pushes.get("-dataflow") == ['terminal_app="ghostty"', "terminal=false"] and pushes.get("default") == [] and app
-          and 'count        = var.terminal_app == "ghostty" ? 1 : 0' in app.group(1)
-          and re.search(r'slug\s*=\s*"%s"' % (fork_slug or "ghostty"), app.group(1))
+    check("template: DATAFLOW's terminal is Coder's own (its push turns it on), DEFAULT's main.tf's default; no Ghostty app",
+          pushes.get("-dataflow") == ["terminal=true"] and pushes.get("default") == []
           and "web_terminal = var.terminal\n" in tf["main.tf"]
-          and os.path.isfile(os.path.join(chart, "charts/coder-workspace/files/icons/ghostty.png"))
-          and '"/__icons/ghostty.png"' in app.group(1), {"pushes": pushes, "fork slug": fork_slug})
+          and not any(re.search(r'resource "coder_app" "ghostty"', t) for t in tf.values()), {"pushes": pushes})
     check("template: no script left inline in the .tf files (heredocs)", not any("<<" in t for t in tf.values()),
           [n for n, t in tf.items() if "<<" in t])
     # code-server HA is switched per template in Settings > Network (a new version with code_server_ha changed): the
@@ -1047,7 +1048,7 @@ def main():
     # NiFi's route: ONE for every dataflow workspace (coder-enhanced-nifi), not one per workspace; NiFi's path is
     # Coder's X-Forwarded-Prefix (the fork's app proxy), so the route removes a client's own context-path headers.
     import yaml
-    nifi = [d for d in yaml.safe_load_all(r) if isinstance(d, dict) and d.get("kind") == "HTTPRoute"
+    nifi = [d for d in yaml.safe_load_all(rdf) if isinstance(d, dict) and d.get("kind") == "HTTPRoute"
             and d["metadata"]["name"] == "coder-enhanced-nifi"]
     rule = (nifi[0]["spec"]["rules"] if nifi else [{}])[0]
     hdr = ((rule.get("filters") or [{}])[0].get("requestHeaderModifier") or {})

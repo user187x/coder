@@ -10,6 +10,7 @@ Every releasable now shares one version, kept in `RELEASE_VERSION` at the reposi
   * `coder-platform-agpl`: the online chart's open-source Coder 1.5.0, linux/amd64 and linux/arm64 (was `coder-platform:1.2.1-agpl`).
   * `coder-ui-updates` (was `code-473282934ef3`; the code's hash is now its revision label), `coder-image-tools` (1.2.0), `coder-workspace` (1.9.4), `coder-workspace-dataflow` (1.1.4), `coder-registry` (distribution 3.1.2, was `3.1.2-1`), `coder-minio` (MinIO RELEASE.2026-09-22T19-25-18Z) and `coder-upstream` (upstream Coder 2.38.0-main at 70bc2e554, the rollback image): the same images as before under the release tag.
 * The `tools/build-*.sh` scripts tag with `RELEASE_VERSION`; `tools/verify/release_version.py` checks that every releasable is at it.
+* `tools/verify/chart_checks.py` passes in full again. Its checks now follow the chart as it is: DATAFLOW off by default (checked with it on), Chromium inside the desktop, both templates on Coder's own terminal, the node load collector in `coder-runtime-system`, and the quota pill's disk. The example Argo CD Applications install chart 1.5.0, and `apache_airflow.sh` is formatted.
 
 ## 1.2.1 (chart 1.48.1) 2026-10-28
 

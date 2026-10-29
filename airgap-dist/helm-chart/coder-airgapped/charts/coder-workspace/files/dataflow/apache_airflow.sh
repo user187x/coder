@@ -8,7 +8,7 @@
 # main.tf renders this with templatefile(): path and access_host are the template's values (a shell variable in braces
 # is written with two dollar signs).
 set -e
-AIRFLOW_BASE='${path}'       # empty for an isolated app origin
+AIRFLOW_BASE='${path}' # empty for an isolated app origin
 ACCESS_HOST='${access_host}'
 ACCESS_SCHEME='${scheme}' # this app's host, as browsers reach it
 

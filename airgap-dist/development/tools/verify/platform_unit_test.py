@@ -2548,11 +2548,11 @@ class QuotaMeTest(unittest.TestCase):
         out = self.me({"default": {"workspaces": 3, "cpu": 8}, "users": {"dev": {"memory": 16}}},
                       workspaces=[{"cpu": 2, "memory": 4}, {"cpu": 4, "memory": 8}])
         self.assertTrue(out["limited"])
-        self.assertEqual(out["usage"], {"workspaces": 2, "cpu": 6, "memory": 12})
-        self.assertEqual(out["left"], {"workspaces": 1, "cpu": 2, "memory": 4})
+        self.assertEqual(out["usage"], {"workspaces": 2, "cpu": 6, "memory": 12, "disk": 0})
+        self.assertEqual(out["left"], {"workspaces": 1, "cpu": 2, "memory": 4, "disk": None})
         self.assertFalse(out["atLimit"])
         full = self.me({"default": {"workspaces": 2}}, workspaces=[{"cpu": 1, "memory": 1}] * 2)
-        self.assertEqual(full["left"], {"workspaces": 0, "cpu": None, "memory": None})
+        self.assertEqual(full["left"], {"workspaces": 0, "cpu": None, "memory": None, "disk": None})
         self.assertTrue(full["atLimit"])
 
 

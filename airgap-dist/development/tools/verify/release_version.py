@@ -2,8 +2,9 @@
 """Checks that every releasable is at the release version in RELEASE_VERSION (the repository's root).
 
 A release has one version: every image of ours (docker.io/mrshll187/...) is tagged with it, and both charts
-(airgap-dist/helm-chart/coder-airgapped, helm/coder-platform) carry it as version and appVersion. Editions and
-variants differ by repository name (coder-platform, coder-platform-agpl, coder-upstream), never by a tag suffix.
+(airgap-dist/helm-chart/coder-airgapped, helm/coder-platform) carry it as version and appVersion; the example Argo CD
+Applications install that chart version. Editions and variants differ by repository name (coder-platform,
+coder-platform-agpl, coder-upstream), never by a tag suffix.
 
     airgap-dist/development/tools/verify/release_version.py     exits 1 and lists what differs
 """
@@ -31,6 +32,12 @@ def main():
             m = re.search(r'^%s: *"?([^"\s]+)"?' % key, text, re.M)
             if not m or m.group(1) != release:
                 problems.append("%s: %s is %s" % (chart, key, m.group(1) if m else "missing"))
+    for app in ("coder-airgapped-application.yaml", "coder-decorated-application.yaml", "coder-plain-application.yaml"):
+        path = "airgap-dist/helm-chart/argocd/" + app
+        for n, line in enumerate(read(path).splitlines(), 1):
+            m = re.match(r"\s+targetRevision: (\S+)", line)
+            if m and m.group(1) != release:
+                problems.append("%s:%d: targetRevision %s" % (path, n, m.group(1)))
     pinned = ("airgap-dist/helm-chart/images.txt",
               "airgap-dist/helm-chart/coder-airgapped/values.yaml",
               "airgap-dist/helm-chart/coder-airgapped/charts/coder-workspace/values.yaml")

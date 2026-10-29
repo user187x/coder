@@ -63,7 +63,7 @@ spec:
   # ---- 1. The Coder installation -------------------------------------------------------------------------------
   - repoURL: harbor.example.com/coder-airgapped/charts                # CHANGE-ME: same as the repository url above
     chart: coder-airgapped-base
-    targetRevision: 1.46.0
+    targetRevision: 1.5.0
     helm:
       releaseName: coder
       valuesObject:
@@ -128,7 +128,7 @@ spec:
   # ---- 2. The customization layer: delete this source (and set layer: false above) for plain Coder ----------------
   - repoURL: harbor.example.com/coder-airgapped/charts                # CHANGE-ME: same as above
     chart: coder-airgapped-layer
-    targetRevision: 1.46.0
+    targetRevision: 1.5.0
     helm:
       releaseName: coder
       valuesObject:
