@@ -29,7 +29,7 @@ It passed on the development cluster's database (2026-10-13, 7/7).
 
 ## The rollback image
 
-`docker.io/mrshll187/coder-upstream:2.38.0-main.70bc2e554-airgap` (in the bundle, `images/rollback/`): upstream Coder
+`docker.io/mrshll187/coder-upstream:1.5.0` (in the bundle, `images/rollback/`): upstream Coder
 built from `70bc2e554` with no change, plus the same Terraform provider mirror as the fork's `-airgap` image.
 
 **Why not a published upstream release?** No published upstream release can take the fork's database: v2.38.0, the

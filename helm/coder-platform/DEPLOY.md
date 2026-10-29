@@ -12,7 +12,7 @@ Everything lands in namespace `coder-platform`:
 
 | Component               | Kubernetes objects                                                     | Purpose                                                                                                                         |
 |-------------------------|------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------|
-| Coder                   | Deployment `coder`, Service `coder`, ConfigMap `coder-platform-config` | This repository's Coder, image `docker.io/mrshll187/coder-platform`                                                             |
+| Coder                   | Deployment `coder`, Service `coder`, ConfigMap `coder-platform-config` | This repository's Coder, image `docker.io/mrshll187/coder-platform-agpl`                                                        |
 | PostgreSQL              | StatefulSet `coder-db`, Service, 10Gi volume                           | Coder's database, including uploaded logos, avatars, template icons and admin quick links                                       |
 | Platform service        | Deployment `coder-ui-updates`, Service, 1Gi volume                     | Logo, avatars, template icons, classification, announcements, chat, and the Keycloak, Network, Monitoring and Persistence pages |
 | Monitoring log database | Deployment `coder-ui-logs-db`                                          | Buffers workspace logs for the Monitoring page                                                                                  |
@@ -183,8 +183,9 @@ migrations only go forward.
 Applications that track `targetRevision: main` pick up new versions by
 themselves. To release one from this repository:
 
-1. Bump `appVersion` in [Chart.yaml](Chart.yaml), for example to
-   `1.2.2-agpl`. Bump `version` when the chart changes.
+1. Set `version` and `appVersion` in [Chart.yaml](Chart.yaml) to the new
+   release version in `RELEASE_VERSION` at the repository's root, for example
+   `1.5.1`. Every image and chart of a release shares that one version.
 2. Build and push the image from the repository root. It's tagged with
    `appVersion` for linux/amd64 and linux/arm64:
 

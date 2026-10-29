@@ -46,7 +46,7 @@
 # --no-db-update   scan with the databases in TRIVY_CACHE as they are (no download; they must be there)
 # Environment:
 #   SPLIT_SIZE=1900M    an archive larger than this is split into parts of this size (numfmt IEC: 1900M, 10M, ...)
-#   TOOLS_IMAGE=docker.io/mrshll187/coder-image-tools:1.2.0         the trivy to scan with (1.1.0 or newer)
+#   TOOLS_IMAGE=docker.io/mrshll187/coder-image-tools:1.5.0         the trivy to scan with (1.1.0 or newer)
 #   TRIVY_CACHE=${XDG_CACHE_HOME:-~/.cache}/coder-airgapped/trivy    trivy's databases (about 3 GB)
 #   ONLY=coder-minio,coder-registry   TEST AID: only these images (by name) - a partial release, never one to ship
 set -euo pipefail
@@ -74,7 +74,7 @@ done
 die() { echo "ERROR: $*" >&2; exit 1; }
 out=$(realpath -m "$out")
 split_bytes=$(numfmt --from=iec "${SPLIT_SIZE:-1900M}") || die "SPLIT_SIZE: ${SPLIT_SIZE}"
-tools_image="${TOOLS_IMAGE:-docker.io/mrshll187/coder-image-tools:1.2.0}"
+tools_image="${TOOLS_IMAGE:-docker.io/mrshll187/coder-image-tools:1.5.0}"
 trivy_cache=$(realpath -m "${TRIVY_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/coder-airgapped/trivy}")
 only=",${ONLY:-},"
 for v in "${vex[@]}"; do [[ -f "$v" ]] || die "no VEX file $v"; done

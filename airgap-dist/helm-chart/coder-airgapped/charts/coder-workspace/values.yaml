@@ -13,12 +13,12 @@ coder:
   internalUrl: ""
 
 # Image of the template-push Job's coder CLI.
-cliImage: "docker.io/mrshll187/coder-platform:2.0.0-platform.45-airgap"
+cliImage: "docker.io/mrshll187/coder-platform:1.5.0"
 # Any image with python3: signs in with coder-init-auth when there is no token Secret.
 loginImage: "docker.io/library/python:3.13-alpine"
 
 # Container image of the workspace pods, substituted for "codercom/enterprise-base:ubuntu" in files/main.tf.
-workspaceImage: "docker.io/mrshll187/coder-workspace:1.9.4"
+workspaceImage: "docker.io/mrshll187/coder-workspace:1.5.0"
 # Platform service image containing the private networking helper. Empty disables the sidecar.
 workspaceTunnelImage: ""
 # Opt-in publication of these canonical templates as guest VMs. Custom templates are unchanged.
@@ -61,7 +61,7 @@ dataflowTemplate:
 # The exact configured Coder wildcard app hostname, required when publishing Dataflow.
 appsWildcardHost: ""
 # Its image: the workspace image + NiFi, a Java runtime and Airflow.
-dataflowImage: "docker.io/mrshll187/coder-workspace-dataflow:1.1.4"
+dataflowImage: "docker.io/mrshll187/coder-workspace-dataflow:1.5.0"
 # Its NiFi under Coder's app path: ONE HTTPRoute for every dataflow workspace, coder-enhanced-nifi
 # (templates/nifi-route.yaml), on the Gateway in icons.gateway, to Coder's Service, setting the proxy headers NiFi reads
 # (scheme, host, port; its path is Coder's X-Forwarded-Prefix). Coder's service account may still manage HTTPRoutes

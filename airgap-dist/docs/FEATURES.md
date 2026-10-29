@@ -53,7 +53,7 @@ air-gapped end-to-end checks (`development/tools/airgap-e2e/`); `verify` is the 
 | Images lists the workspace template's own image (read-only): its security report and its add-ons (every program with its version, apt and Python packages, from the image's addons.json) | service, fork, image | platform unit tests, vitest |
 | Workspace template DEFAULT (`default`, Ubuntu icon): its scripts as files (`files/scripts/`, `shfmt -i 1`; the metrics as functions of `metadata.sh`), read with `file()` / `templatefile()`; a workspace load average beside the node's | chart | chart checks, step8 |
 | Workspace network lights: RX / TX LEDs in the workspace header, flickering with the workspace's own traffic (template metadata `net`); hover for a live graph of the last minute (received green, sent blue, the axis in B/s to GB/s); red and still while Lock Down cuts the network, the graph showing no traffic | fork, chart | vitest |
-| Pure upstream Coder at the fork's base, as a rollback image in the bundle (`coder-upstream:2.38.0-main.70bc2e554-airgap`) | chart | verify rollback |
+| Pure upstream Coder at the fork's base, as a rollback image in the bundle (`coder-upstream:1.5.0`) | chart | verify rollback |
 | Prerequisites in the bundle: Gateway API CRDs, Traefik, CloudNativePG; Argo CD and Keycloak images for reference | chart | e2e |
 
 ## 2. Sign-in and identity

@@ -78,6 +78,7 @@ Docs use `pnpm run format-docs` and `pnpm run lint-docs`. Frontend commands live
 - **Concurrent tests:** call `t.Parallel()`, use unique identifiers, and do not use `time.Sleep` to mask timing problems.
 - **Frontend:** reuse shared UI primitives. Prefer Vitest and `userEvent` tests that assert the non-visual outcome of the interaction (callback, request, state); extend existing coverage instead of adding a new test when equivalent coverage already exists. Use Storybook stories only for visual components that should be covered by the visual regression tool, which Pixel screenshots in CI.
 - **GitHub Actions:** set top-level `permissions: {}` and grant only required permissions per job.
+- **Release versions:** every releasable moves in lockstep at the one version in `RELEASE_VERSION` (repository root): every image of ours on `docker.io/mrshll187/`, both charts' `version` and `appVersion` (`airgap-dist/helm-chart/coder-airgapped`, `helm/coder-platform`), and the git tag. A release bumps them all to the next version together, retagging images whose contents did not change. Never give an image its own version or a tag suffix such as `-agpl`, `-airgap` or `code-<hash>`; a variant gets its own repository name (`coder-platform`, `coder-platform-agpl`, `coder-upstream`). Check with `airgap-dist/development/tools/verify/release_version.py`.
 
 ## Code and writing style
 

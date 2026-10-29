@@ -51,7 +51,7 @@ export const ourImage = (
 	if (!catalog || !ref) {
 		return undefined;
 	}
-	// Docker Hub's short form (mrshll187/coder-workspace:1.9.4) is the same image as its full one.
+	// Docker Hub's short form (mrshll187/coder-workspace:1.5.0) is the same image as its full one.
 	const name = /^([^/]*[.:][^/]*|localhost)\//.test(ref)
 		? ref
 		: `docker.io/${ref}`;

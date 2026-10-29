@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.5.0 2026-10-28
+
+Every releasable now shares one version, kept in `RELEASE_VERSION` at the repository's root: each image of ours, both charts' `version` and `appVersion`, and the git tag move together from here on. Images whose contents did not change are retagged.
+
+* Chart `coder-airgapped` 1.5.0 (was 1.48.1) and `helm/coder-platform` 1.5.0 (was 0.3.0). The charts' versions go down: pin `targetRevision: 1.5.0` exactly where an Application resolves the newest chart.
+* Every image of ours is `docker.io/mrshll187/<name>:1.5.0`. Variants get their own repository instead of a tag suffix:
+  * `coder-platform`: Coder 1.5.0, the Enterprise build with the Terraform provider mirror (was `coder-platform:1.2.1-airgap`).
+  * `coder-platform-agpl`: the online chart's open-source Coder 1.5.0, linux/amd64 and linux/arm64 (was `coder-platform:1.2.1-agpl`).
+  * `coder-ui-updates` (was `code-473282934ef3`; the code's hash is now its revision label), `coder-image-tools` (1.2.0), `coder-workspace` (1.9.4), `coder-workspace-dataflow` (1.1.4), `coder-registry` (distribution 3.1.2, was `3.1.2-1`), `coder-minio` (MinIO RELEASE.2026-09-22T19-25-18Z) and `coder-upstream` (upstream Coder 2.38.0-main at 70bc2e554, the rollback image): the same images as before under the release tag.
+* The `tools/build-*.sh` scripts tag with `RELEASE_VERSION`; `tools/verify/release_version.py` checks that every releasable is at it.
+
 ## 1.2.1 (chart 1.48.1) 2026-10-28
 
 1.2.0 was tagged but never published: its images were named for a Docker Hub namespace that does not exist.

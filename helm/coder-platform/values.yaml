@@ -17,7 +17,7 @@ wildcardAccessURL: ""
 
 # The Coder image built from this repository (scripts/build_platform_image.sh --push).
 image:
-  repository: docker.io/mrshll187/coder-platform
+  repository: docker.io/mrshll187/coder-platform-agpl
   tag: ""                         # empty = the chart's appVersion
   pullPolicy: IfNotPresent
 imagePullSecrets: []              # names of docker-registry Secrets in the release namespace

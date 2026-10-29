@@ -89,7 +89,7 @@ it, e.g. `'coder.{{ .Values.global.domain }}'`. The defaults reproduce the refer
 | `global.firstUser.{username,email,password}` | `admin` / `admin@admin.com` / `admin` | first owner, created on a fresh database (password set once, never reset). With `disablePasswordAuth: "true"`: the Keycloak account with this email |
 | `global.database.name` | `coder-db` | CNPG Cluster; Secrets `<name>-app`, `<name>-ca` |
 | `global.secretNames.*` | `coder-init-auth`, `coder-ui-logs-db`, `tls-ca`, `keycloaking-coder-ca`, `keycloaking-coder-oidc`, `tls-wild-cert` | every reference to those Secrets, including the workspace template's `tls-ca` |
-| `global.coderImages.{fork,upstream}.{repo,tag}` | the fork's `coder-platform:2.0.0-platform.N-airgap` / `coder-upstream:2.38.0-main.70bc2e554-airgap` | Coder's server image: the fork's here and on a decorated base; upstream Coder on a base without the layer |
+| `global.coderImages.{fork,upstream}.{repo,tag}` | the fork's `coder-platform:<release>` / `coder-upstream:<release>` (RELEASE_VERSION) | Coder's server image: the fork's here and on a decorated base; upstream Coder on a base without the layer |
 | `global.decorator.part` | `all` (set by packaging: `base`, `layer`) | which part of the platform a chart installs (DEPLOY.md › Argo CD) |
 | `global.decorator.layer` | `true` (`false` in coder-airgapped-base) | the base only: the customization layer is installed alongside, so Coder runs the fork's image with the platform's settings |
 

@@ -644,8 +644,8 @@ def pit_checks(B, chart, default_render):
     repo = os.path.dirname(B)
     tools = open(os.path.join(repo, "development/tools/build-image-tools.sh")).read()
     ui = open(os.path.join(repo, "development/tools/build-ui-image.sh")).read()
-    tag = re.search(r'tag="\$\{1:-([0-9.]+)\}"', tools)
-    tag = tag.group(1) if tag else ""
+    # both tagged with the release version (RELEASE_VERSION)
+    tag = "${release}" if 'tag="${1:-$release}"' in tools else ""
     check("pit stop: the tools image builds Copa from its release's source, pinned by checksum, and checks it runs",
           re.search(r"copacetic/archive/refs/tags/v[0-9.]+\.tar\.gz\"\s*\\\s*\n\s*[0-9a-f]{64}\b", tools)
           and "copa --version" in tools, tag)
@@ -814,7 +814,7 @@ def main():
                           capture_output=True, text=True).stdout.split()
     check("marimo is gone (code, templates, images, docs; history and reference exports aside)", not left, left[:5])
     # code-server HA (templates/code-server-ha.yaml, files/ui-updates/csha.py)
-    ui_img = re.search(r"image: (docker\.io/mrshll187/coder-ui-updates:code-[0-9a-f]+)", r)
+    ui_img = re.search(r"image: (docker\.io/mrshll187/coder-ui-updates:[A-Za-z0-9._-]+)", r)
     op = re.search(r"name: coder-code-server-replicator\n(?:.*\n){0,40}?\s+command: \[python3, /app/csha\.py, operator\]", r)
     check("code-server HA: the code-server-replicator runs the platform service's code, as Coder's database's owner",
           op and "CSHA_DB" in r and re.search(r"name: CSHA_DB\s*\n\s*valueFrom: \{secretKeyRef: \{name: coder-db-app, key: uri\}\}", r),
@@ -920,9 +920,9 @@ def main():
         check("template scripts: formatted (shfmt -i 1)", rc == 0, (out + err).strip()[:300] or "%d scripts" % len(scripts))
     else:
         check("template scripts: formatted (shfmt -i 1; shfmt not installed: skipped)", True, "skipped")
-    # The platform service's code is in its image (development/tools/build-ui-image.sh), tagged with the code's hash:
-    # values.yaml must name the build of the code as it is now (code changed without a new build would deploy the old
-    # code), and the chart must not carry the code (Helm keeps each release in a Secret of at most 1 MiB).
+    # The platform service's code is in its image (development/tools/build-ui-image.sh), tagged with the release
+    # version; its revision label is the code's hash. The chart must not carry the code (Helm keeps each release in a
+    # Secret of at most 1 MiB).
     ui_dir = os.path.join(chart, "files/ui-updates")
     names = sorted(n for n in os.listdir(ui_dir) if os.path.isfile(os.path.join(ui_dir, n)) and not n.endswith(".pyc"))
     lines = "".join("%s  %s\n" % (hashlib.sha256(open(os.path.join(ui_dir, n), "rb").read()).hexdigest(), n)
@@ -940,10 +940,10 @@ def main():
                     and f.split(".")[0] in ("logo", "avatar")), key=lambda x: x.encode())
     lines += "".join("%s  %s\n" % (hashlib.sha256(open(os.path.join(defaults_top, f), "rb").read()).hexdigest(), f)
                      for f in baked)
-    want = "coder-ui-updates:code-" + hashlib.sha256(lines.encode()).hexdigest()[:12]
+    want = "coder-ui-updates:" + open(os.path.join(os.path.dirname(os.path.dirname(B)), "RELEASE_VERSION")).read().strip()
     values_txt = open(os.path.join(chart, "values.yaml")).read()
-    pinned = re.search(r"docker\.io/mrshll187/(coder-ui-updates:code-[0-9a-f]+)", values_txt)
-    check("platform service: values.yaml pins the image of the code as it is (development/tools/build-ui-image.sh)",
+    pinned = re.search(r"docker\.io/mrshll187/(coder-ui-updates:[A-Za-z0-9._-]+)", values_txt)
+    check("platform service: values.yaml pins the release's image (development/tools/build-ui-image.sh)",
           pinned and pinned.group(1) == want, "pinned %s, code is %s" % (pinned and pinned.group(1), want))
     images_txt = open(os.path.join(chart, "..", "images.txt")).read()
     check("platform service: images.txt lists that image", bool(pinned) and pinned.group(1) in images_txt,

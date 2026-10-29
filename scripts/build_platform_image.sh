@@ -9,8 +9,8 @@
 #
 #   --image       image repository (default: the chart's image.repository)
 #   --tag         image tag, also the version Coder reports (default: the
-#                 chart's appVersion, which the chart deploys when image.tag
-#                 is empty)
+#                 chart's appVersion, the release version in RELEASE_VERSION,
+#                 which the chart deploys when image.tag is empty)
 #   --arch        comma-separated architectures: amd64, arm64 (default: both)
 #   --build-base  build Coder's base image from scripts/Dockerfile.base instead
 #                 of pulling ghcr.io/coder/coder-base:latest
@@ -101,6 +101,8 @@ for arch in "${arch_list[@]}"; do
 	fi
 
 	log "--- Building $binary (dashboard and agent binaries embedded)"
+	# The Enterprise build of the same release version has the same file name: never reuse it.
+	rm -f "$binary"
 	make -j "$binary"
 
 	docker_args=(--arch "$arch" --target "$target" --version "$version")

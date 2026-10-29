@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Builds docker.io/mrshll187/coder-ui-updates:code-<hash>: the platform service (coder-ui-updates) - its code,
+# Builds docker.io/mrshll187/coder-ui-updates:<release version> (RELEASE_VERSION): the platform service (coder-ui-updates) - its code,
 # helm-chart/coder-airgapped/files/ui-updates/, in /app of the tools image (coder-image-tools: Python and the tools
 # the Images view runs), with the image store's baked pictures in /image-store - and pins it: uiUpdates.image in values.yaml, its [ui] line in images.txt (tag, image ID), and
 # its archive in the bundle (helm-chart/images/ui/, mirror-images.sh store).
 #
 # The chart refers to this image instead of carrying the code in a ConfigMap: Helm keeps every release in a Secret of
 # at most 1 MiB, and the code - kept there twice, as the chart's files and as the rendered ConfigMap - had nearly
-# filled it. The tag is the code's hash: other code never gets an older build's tag (no same-tag rebuilds), and the
-# same code builds to the same tag.
+# filled it. The image's revision label is the code's hash: the same code is not built again, other code rebuilds the
+# release's tag.
 #   ./build-ui-image.sh            build (when the tag is not in docker yet), check, pin
 set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; dev="$(dirname "$here")"; top="$(dirname "$dev")"
@@ -19,7 +19,8 @@ store="${dev}/image-store"
 # platform service's fallback where no ConfigMap gives them (a one-step Helm install has none; the logo is past a
 # ConfigMap's 1 MiB anyway).
 defaults="${top}/helm-chart/defaults"
-base="docker.io/mrshll187/coder-image-tools:1.2.0"
+release="$(cat "$(dirname "$top")/RELEASE_VERSION")"
+base="docker.io/mrshll187/coder-image-tools:${release}"
 repo="docker.io/mrshll187/coder-ui-updates"
 ctx="$(mktemp -d)"; trap 'rm -rf "$ctx"' EXIT
 (cd "${top}/.." && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -o "$ctx/workspace-tunnel" ./cmd/workspace-tunnel)
@@ -36,9 +37,9 @@ hash=$({ (cd "$src" && sha256sum "${files[@]}"); (cd "$store" && sha256sum "${pi
 	(cd "${top}/.." && sha256sum coderd/database/queries/notificationsinbox.sql);
 	(cd "$ctx" && sha256sum workspace-tunnel);
 	(cd "$defaults" && sha256sum "${baked[@]}"); } | sha256sum | cut -c1-12)
-img="${repo}:code-${hash}"
+img="${repo}:${release}"
 
-if docker image inspect "$img" >/dev/null 2>&1; then
+if [[ "$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$img" 2>/dev/null)" == "code-${hash}" ]]; then
 	echo "$img is built already (the same code)"
 else
 	docker image inspect "$base" >/dev/null 2>&1 || { echo "ERROR: $base is not in this docker (build-image-tools.sh, or load it from the bundle)" >&2; exit 1; }
@@ -91,7 +92,7 @@ top, img, image_id = sys.argv[1:]
 repo = img.rsplit(":", 1)[0]
 p = top + "/helm-chart/images.txt"
 s = open(p).read()
-line = "%-57s %s   coder-ui-updates (the platform service) and the Images builder's scans: its code (helm-chart/coder-airgapped/files/ui-updates, development/tools/build-ui-image.sh) on coder-image-tools 1.2.0 - the bundled Python + shellcheck, shfmt, trivy (+ vulnerability DB), regctl, copa (development/image-tools)" % (img, image_id)
+line = "%-57s %s   coder-ui-updates (the platform service) and the Images builder's scans: its code (helm-chart/coder-airgapped/files/ui-updates, development/tools/build-ui-image.sh) on coder-image-tools - the bundled Python + shellcheck, shfmt, trivy (+ vulnerability DB), regctl, copa (development/image-tools)" % (img, image_id)
 pat = re.compile(r"^%s:\S+\s+sha256:\S+.*$" % re.escape(repo), re.M)
 if pat.search(s):
     s = pat.sub(line, s, count=1)

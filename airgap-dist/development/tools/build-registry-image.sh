@@ -4,12 +4,13 @@
 # the vulnerabilities its own binary carries, on Alpine with its fixes, running as a regular user - checks it serves as
 # the chart runs it (uid 1000, read-only root), and saves it into the delivery bundle (mirror-images.sh store). Needs
 # internet (Docker Hub, GitHub, the Go module proxy).
-#   ./build-registry-image.sh TAG     e.g. 3.1.2-1: distribution 3.1.2, the image's first build
-# A newer Go or module fix: change go_image / modules below and build the next TAG. Then pin it: images.txt
+#   ./build-registry-image.sh [TAG]   default: the release version (RELEASE_VERSION); distribution's version is below
+# A newer distribution, Go or module fix: change version / go_image / modules below and build it for the next release. Then pin it: images.txt
 # ([image-builder]) and imageBuilder.registry.image in values.yaml.
 set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; dev="$(dirname "$here")"; top="$(dirname "$dev")"
-tag="${1:?usage: build-registry-image.sh TAG}"; version="${tag%%-*}"; img="docker.io/mrshll187/coder-registry:${tag}"
+release="$(cat "$(dirname "$top")/RELEASE_VERSION")"  # every image of ours is tagged with the release version (RELEASE_VERSION)
+tag="${1:-$release}"; version=3.1.2; img="docker.io/mrshll187/coder-registry:${tag}"
 # what it is built from, pinned
 go_image=docker.io/library/golang:1.26.9-alpine@sha256:3082400e369fa24d5fc60bca20edab3f6d604e0c5a690ec66b295eff4dd87ade
 alpine_image=docker.io/library/alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
@@ -48,11 +49,11 @@ docker run --rm --entrypoint registry "$img" --version | grep -q " ${version}" |
 docker rm -f "$cid" >/dev/null; cid=
 
 # pinned: its [image-builder] line in images.txt (tag, image ID) and imageBuilder.registry.image in values.yaml
-python3 - "$top" "$img" "$(docker image inspect "$img" --format '{{.Id}}')" <<'PY'
+python3 - "$top" "$img" "$(docker image inspect "$img" --format '{{.Id}}')" "$version" <<'PY'
 import re, sys
-top, img, iid = sys.argv[1:]
-used = ("Images view: coder-image-registry, where built images are kept - distribution built from source with Go's and "
-        "its modules' fixes, as a regular user (development/registry-image)")
+top, img, iid, version = sys.argv[1:]
+used = ("Images view: coder-image-registry, where built images are kept - distribution %s built from source with Go's and "
+        "its modules' fixes, as a regular user (development/registry-image)") % version
 p = top + "/helm-chart/images.txt"
 s = open(p).read()
 pat = re.compile(r"^(?:docker\.io/library/registry|docker\.io/mrshll187/coder-registry):\S+\s+sha256:\S+.*$", re.M)

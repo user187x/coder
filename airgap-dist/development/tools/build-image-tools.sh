@@ -5,10 +5,11 @@
 # (helm-chart/images/custom/), replacing the previous one. Needs internet (the binaries, copa's source, the Go modules
 # and the database). shfmt, regctl and copa are built from their release tags in the Dockerfile's Go stage.
 # Then update its [custom] line (tag, digest) in helm-chart/images.txt and uiUpdates.image in values.yaml.
-#   ./build-image-tools.sh [TAG]           default 1.2.0
+#   ./build-image-tools.sh [TAG]           default: the release version (RELEASE_VERSION)
 set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; dev="$(dirname "$here")"; top="$(dirname "$dev")"
-tag="${1:-1.2.0}"; img="docker.io/mrshll187/coder-image-tools:${tag}"
+release="$(cat "$(dirname "$top")/RELEASE_VERSION")"  # every image of ours is tagged with the release version (RELEASE_VERSION)
+tag="${1:-$release}"; img="docker.io/mrshll187/coder-image-tools:${tag}"
 cache="${XDG_CACHE_HOME:-$HOME/.cache}/coder-airgapped/image-tools"; mkdir -p "$cache"
 ctx="$(mktemp -d)"; trap 'rm -rf "$ctx"' EXIT
 cp "${dev}/image-tools/Dockerfile" "$ctx/"; mkdir -p "$ctx/bin" "$ctx/trivy-cache"

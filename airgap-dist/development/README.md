@@ -19,8 +19,11 @@ Everything needed to keep developing the coder-airgapped deliverable, other than
 | The Coder server itself (UI, API) | the fork, `~/workspace/coder` – see `coder-fork/FORK.md` |
 | Images that are shipped | `../helm-chart/images.txt` (+ `mirror-images.sh save`, or `tools/build-airgap-image.sh` / `tools/build-minio-image.sh` for the custom ones) |
 
-After a change: bump `version` in `../helm-chart/coder-airgapped/Chart.yaml`, add a `../CHANGELOG.md` entry, build with
-`tools/build-bundle.sh`, test with `tools/airgap-e2e/`, commit, and tag `v<version>`.
+After a change: bump the release version in `../../RELEASE_VERSION`, then move every releasable to it: both charts'
+`version` and `appVersion` (`../helm-chart/coder-airgapped`, `../../helm/coder-platform`) and every image of ours,
+rebuilt or retagged (the `tools/build-*.sh` scripts tag with `RELEASE_VERSION`). Check with
+`tools/verify/release_version.py`, add a `../CHANGELOG.md` entry, build with `tools/build-bundle.sh`, test with
+`tools/airgap-e2e/`, commit, and tag `<version>`.
 
 ## Development cluster
 
@@ -38,7 +41,7 @@ minikube profile `coder` is the development cluster. Deploy (or redeploy) the wo
 | `tools/build-bundle.sh` | Lint + render the chart, package our charts into `charts/`, fetch missing public image archives, write `../dist/coder-airgapped-<version>[-slim].tar.gz`, the release in parts (`-charts`, `-images-<part>`, `-ASSETS.txt`) and `-layer` |
 | `tools/build-workspace-image.sh` | Build the workspace image (FileBrowser Quantum from the `filebrowser-quantum` release binary at the repository's root, pinned by SHA-256), check it, and save it into the bundle (`mirror-images.sh store`: `../helm-chart/images/workspaces/`) |
 | `tools/build-airgap-image.sh` | Build the `-airgap` image and save it into the bundle (`mirror-images.sh store`: `../helm-chart/images/ui/`, the rollback image `images/rollback/`) |
-| `tools/build-minio-image.sh` | The Cloud Drive's MinIO image `docker.io/mrshll187/coder-minio:<MinIO release>` (Chainguard's build, pinned by digest, retagged) into `../helm-chart/images/custom/` |
+| `tools/build-minio-image.sh` | The Cloud Drive's MinIO image `docker.io/mrshll187/coder-minio:<release version>` (Chainguard's build, pinned by digest, retagged) into `../helm-chart/images/custom/` |
 | `tools/airgap-e2e/` | Fresh end-to-end test of DEPLOY.md on a kind cluster with egress blocked (`README.md` there) |
 | `tools/apply-platform-patch.py` | Applies the "platform patch" (templated values, `global.imagePullSecrets`, quoted checksums) to a vendored subchart |
 | `tools/render-diff.py` | Compare two `helm template` outputs object by object |

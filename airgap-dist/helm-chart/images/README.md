@@ -67,7 +67,7 @@ or put them back on an internet machine first: `./mirror-images.sh save` (pulls 
 
 | Archive | Image | Size | Used by |
 |---|---|---:|---|
-| `docker.io_mrshll187_coder-minio_RELEASE.2026-09-22T19-25-18Z.tar.gz` | `docker.io/mrshll187/coder-minio:RELEASE.2026-09-22T19-25-18Z` | 64 MB | the Cloud Drive's storage (userStorage.minio): cgr.dev/chainguard/minio retagged with its MinIO release (development/tools/build-minio-image.sh) |
+| `docker.io_mrshll187_coder-minio_1.5.0.tar.gz` | `docker.io/mrshll187/coder-minio:1.5.0` | 64 MB | the Cloud Drive's storage (userStorage.minio): cgr.dev/chainguard/minio retagged with its MinIO release (development/tools/build-minio-image.sh) |
 | `cr.yandex_crp9ftr22d26age3hulg_yandex-cloud_csi-s3_csi-s3-driver_0.43.7.tar.gz` | `cr.yandex/crp9ftr22d26age3hulg/yandex-cloud/csi-s3/csi-s3-driver:0.43.7` | 104 MB | the Cloud Drive's CSI driver (userStorage.csi; k8s-csi-s3 + GeeseFS, Apache-2.0) |
 | `cr.yandex_crp9ftr22d26age3hulg_yandex-cloud_csi-s3_csi-node-driver-registrar_v2.16.0.tar.gz` | `cr.yandex/crp9ftr22d26age3hulg/yandex-cloud/csi-s3/csi-node-driver-registrar:v2.16.0` | 14 MB | the Cloud Drive's CSI driver: kubelet registration |
 
@@ -76,7 +76,7 @@ or put them back on an internet machine first: `./mirror-images.sh save` (pulls 
 | Archive | Image | Size | Used by |
 |---|---|---:|---|
 | `docker.io_moby_buildkit_v0.33.0-rootless.tar.gz` | `docker.io/moby/buildkit:v0.33.0-rootless` | 123 MB | Images view: the build Jobs (BuildKit rootless) |
-| `docker.io_mrshll187_coder-registry_3.1.2-1.tar.gz` | `docker.io/mrshll187/coder-registry:3.1.2-1` | 22 MB | Images view: coder-image-registry, where built images are kept - Docker's registry 3.1.2 built from source with Go 1.26.9 and fixed modules, as a regular user (`development/registry-image`) |
+| `docker.io_mrshll187_coder-registry_1.5.0.tar.gz` | `docker.io/mrshll187/coder-registry:1.5.0` | 22 MB | Images view: coder-image-registry, where built images are kept - Docker's registry 3.1.2 built from source with Go 1.26.9 and fixed modules, as a regular user (`development/registry-image`) |
 
 ### `cluster/`
 
@@ -95,7 +95,7 @@ or put them back on an internet machine first: `./mirror-images.sh save` (pulls 
 
 | Archive | Image | Size | Used by |
 |---|---|---:|---|
-| `docker.io_mrshll187_coder-upstream_2.38.0-main.70bc2e554-airgap.tar.gz` | `docker.io/mrshll187/coder-upstream:2.38.0-main.70bc2e554-airgap` | 309 MB | plain base (Argo CD decorator install without the layer) and rollback: pure upstream Coder at the fork's base (70bc2e554) + the same Terraform provider mirror (development/coder-fork/ROLLBACK.md) |
+| `docker.io_mrshll187_coder-upstream_1.5.0.tar.gz` | `docker.io/mrshll187/coder-upstream:1.5.0` | 309 MB | plain base (Argo CD decorator install without the layer) and rollback: pure upstream Coder at the fork's base (70bc2e554) + the same Terraform provider mirror (development/coder-fork/ROLLBACK.md) |
 
 ### `reference/`
 

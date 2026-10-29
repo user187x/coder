@@ -5,13 +5,14 @@
 # ../workspace-image-dataflow/nifi-<version>-bin.zip, not in git) and checked against Apache's SHA-512; Airflow is
 # pinned with Airflow's own constraints for the image's Python (but for ../workspace-image-dataflow/airflow-overrides.txt),
 # and NiFi's libraries with fixed vulnerabilities replaced (../workspace-image-dataflow/patch-nifi-jars.py).
-#   ./build-dataflow-image.sh [--no-store] [TAG]   default 1.1.4; --no-store: build and check only, the bundle untouched
+#   ./build-dataflow-image.sh [--no-store] [TAG]   default: the release version (RELEASE_VERSION); --no-store: build and check only, the bundle untouched
 #   BASE=<image> ./build-dataflow-image.sh ...      another base than the Dockerfile's (ARG BASE)
 set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; dev="$(dirname "$here")"
 ctx="${dev}/workspace-image-dataflow"
 store=1; if [[ "${1:-}" == --no-store ]]; then store=0; shift; fi
-tag="${1:-1.1.4}"; img="docker.io/mrshll187/coder-workspace-dataflow:${tag}"
+release="$(cat "$(dirname "$(dirname "$dev")")/RELEASE_VERSION")"
+tag="${1:-$release}"; img="docker.io/mrshll187/coder-workspace-dataflow:${tag}"
 nifi="$(sed -n 's/^ARG NIFI_VERSION=//p' "${ctx}/Dockerfile")"
 airflow="$(sed -n 's/^ARG AIRFLOW_VERSION=//p' "${ctx}/Dockerfile")"
 base="${BASE:-$(sed -n 's/^ARG BASE=//p' "${ctx}/Dockerfile")}"

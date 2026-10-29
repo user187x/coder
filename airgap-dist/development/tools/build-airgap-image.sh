@@ -1,18 +1,22 @@
 #!/usr/bin/env bash
-# Builds docker.io/mrshll187/coder-platform:<tag>-airgap (the fork's image + Terraform provider mirror) and saves it
-# into the delivery bundle (helm-chart/images/custom/), replacing the previous one. Update its digest in images.txt.
-#   ./build-airgap-image.sh [BASE_TAG]      default 2.0.0-platform.45 (from local docker, Docker Hub, or the private backup)
-#   ./build-airgap-image.sh --upstream TAG  the rollback image instead: docker.io/mrshll187/coder-upstream:TAG-airgap, pure
-#                                           upstream Coder at the fork's base commit (development/coder-fork/ROLLBACK.md)
+# Builds docker.io/mrshll187/coder-platform:<release version> (RELEASE_VERSION; the fork's image + Terraform provider
+# mirror) and saves it into the delivery bundle (helm-chart/images/custom/), replacing the previous one. Update its
+# digest in images.txt.
+#   ./build-airgap-image.sh [BASE]          BASE: the fork's image without the mirror (scripts/build_docker.sh --target),
+#                                           default coder-platform-base:<release> (local docker, or the private backup)
+#   ./build-airgap-image.sh --upstream BASE the rollback image instead: docker.io/mrshll187/coder-upstream:<release>, pure
+#                                           upstream Coder at the fork's base commit on BASE, e.g.
+#                                           ghcr.io/coder/coder:v2.38.0 (development/coder-fork/ROLLBACK.md)
 set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; dev="$(dirname "$here")"; top="$(dirname "$dev")"
+release="$(cat "$(dirname "$top")/RELEASE_VERSION")"
 repo=coder-platform
-if [[ "${1:-}" == --upstream ]]; then repo=coder-upstream; shift; [[ -n "${1:-}" ]] || { echo "usage: $0 --upstream TAG" >&2; exit 2; }; fi
-base_tag="${1:-2.0.0-platform.45}"; base="docker.io/mrshll187/${repo}:${base_tag}"; img="${base}-airgap"
+if [[ "${1:-}" == --upstream ]]; then repo=coder-upstream; shift; [[ -n "${1:-}" ]] || { echo "usage: $0 --upstream BASE" >&2; exit 2; }; fi
+base="${1:-coder-platform-base:${release}}"; img="docker.io/mrshll187/${repo}:${release}"
 ctx="${dev}/airgap-image"
-# The base image: local docker, else Docker Hub (docker login), else the backup in ~/coder-airgapped-private/images/
+# The base image: local docker, else the registry, else the backup in ~/coder-airgapped-private/images/
 docker image inspect "$base" >/dev/null 2>&1 || docker pull "$base" 2>/dev/null ||
-	docker load -i "${HOME}/coder-airgapped-private/images/coder-platform-${base_tag}.tar.gz"
+	docker load -i "${HOME}/coder-airgapped-private/images/$(basename "${base//:/-}").tar.gz"
 rm -rf "${ctx}/template"; mkdir -p "${ctx}/template"
 cp "${top}"/helm-chart/coder-airgapped/charts/coder-workspace/files/*.tf "${ctx}/template/"
 # Terraform: built from source in the image (../airgap-image/Dockerfile), the newest 1.16 (Coder's provisioner accepts
