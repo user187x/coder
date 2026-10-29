@@ -41,11 +41,24 @@ export const isRetiredWorkspaceApp = (app: Pick<WorkspaceApp, "slug">) =>
 
 /** Retires old template app entries without requiring a running workspace rebuild. */
 export function normalizeWorkspaceApps(agent: WorkspaceAgent): WorkspaceAgent {
-	if (!agent.apps.some(isRetiredWorkspaceApp)) return agent;
+	if (
+		!agent.apps.some(
+			(app) =>
+				isRetiredWorkspaceApp(app) ||
+				(app.slug === "neko-browser" && !app.icon),
+		)
+	)
+		return agent;
 	const replacedTerminal = agent.apps.some((app) => app.slug === "ghostty");
 	return {
 		...agent,
-		apps: agent.apps.filter((app) => !isRetiredWorkspaceApp(app)),
+		apps: agent.apps
+			.filter((app) => !isRetiredWorkspaceApp(app))
+			.map((app) =>
+				app.slug === "neko-browser" && !app.icon
+					? { ...app, icon: "/icon/browser-web-icon.png" }
+					: app,
+			),
 		display_apps:
 			replacedTerminal && !agent.display_apps.includes("web_terminal")
 				? [...agent.display_apps, "web_terminal"]

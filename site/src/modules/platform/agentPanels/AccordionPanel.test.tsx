@@ -1,4 +1,12 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import {
+	act,
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+} from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { useEffect } from "react";
 import type { WorkspaceApp } from "#/api/typesGenerated";
 import {
 	MockWorkspace,
@@ -21,6 +29,98 @@ const base = {
 };
 
 describe("the accordion panel", () => {
+	it("starts the default app session on readiness and preserves it when collapsed", async () => {
+		const start = vi.fn();
+		const stop = vi.fn();
+		const Session = () => {
+			useEffect(() => {
+				start();
+				return stop;
+			}, []);
+			return null;
+		};
+		const content = (unavailable?: string) => (
+			<AccordionPanel
+				{...base}
+				initiallyOpen
+				title="Browser"
+				kind="app"
+				slug="browser"
+				unavailable={unavailable}
+			>
+				<Session />
+			</AccordionPanel>
+		);
+		const { rerender, unmount } = render(content("Starting"));
+		expect(start).not.toHaveBeenCalled();
+		rerender(content());
+		expect(start).toHaveBeenCalledTimes(1);
+		await userEvent.click(screen.getByRole("button", { name: "Browser" }));
+		rerender(content());
+		expect(start).toHaveBeenCalledTimes(1);
+		expect(stop).not.toHaveBeenCalled();
+		unmount();
+		expect(stop).toHaveBeenCalledTimes(1);
+	});
+
+	it("closes and recreates a browser unless Keep session is enabled", async () => {
+		const close = vi.fn().mockResolvedValue(undefined);
+		const start = vi.fn();
+		const stop = vi.fn();
+		const Session = () => {
+			useEffect(() => {
+				start();
+				return stop;
+			}, []);
+			return null;
+		};
+		render(
+			<AccordionPanel
+				{...base}
+				initiallyOpen
+				title="Web Browser"
+				kind="app"
+				slug="neko-browser"
+				onCloseSession={close}
+			>
+				<Session />
+			</AccordionPanel>,
+		);
+		await userEvent.click(screen.getByRole("button", { name: "Web Browser" }));
+		expect(close).toHaveBeenCalledTimes(1);
+		await waitFor(() => expect(stop).toHaveBeenCalledTimes(1));
+		await userEvent.click(screen.getByRole("button", { name: "Web Browser" }));
+		expect(start).toHaveBeenCalledTimes(2);
+		await userEvent.click(screen.getByRole("switch", { name: "Keep session" }));
+		await userEvent.click(screen.getByRole("button", { name: "Web Browser" }));
+		expect(close).toHaveBeenCalledTimes(1);
+		expect(stop).toHaveBeenCalledTimes(1);
+	});
+
+	it("keeps the browser session mounted when closing fails", async () => {
+		const stop = vi.fn();
+		const Session = () => {
+			useEffect(() => stop, []);
+			return null;
+		};
+		const close = vi.fn().mockRejectedValue(new Error("Unavailable"));
+		render(
+			<AccordionPanel
+				{...base}
+				initiallyOpen
+				title="Web Browser"
+				kind="app"
+				slug="neko-browser"
+				onCloseSession={close}
+			>
+				<Session />
+			</AccordionPanel>,
+		);
+		await userEvent.click(screen.getByRole("button", { name: "Web Browser" }));
+		expect(close).toHaveBeenCalledTimes(1);
+		expect(stop).not.toHaveBeenCalled();
+	});
+
 	it("wraps anything: closed it shows nothing, opened it mounts it and keeps it when rolled up", () => {
 		render(
 			<AccordionPanel {...base} title="Anything" kind="custom" slug="anything">

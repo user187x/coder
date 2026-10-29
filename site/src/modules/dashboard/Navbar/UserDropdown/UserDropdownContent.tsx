@@ -3,6 +3,7 @@ import {
 	CircleUserIcon,
 	CopyIcon,
 	LogOutIcon,
+	PaletteIcon,
 	TerminalIcon,
 } from "lucide-react";
 import { Link } from "react-router";
@@ -11,6 +12,9 @@ import { CheckIcon } from "#/components/AnimatedIcons/Check";
 import {
 	DropdownMenuItem,
 	DropdownMenuSeparator,
+	DropdownMenuSub,
+	DropdownMenuSubContent,
+	DropdownMenuSubTrigger,
 } from "#/components/DropdownMenu/DropdownMenu";
 import {
 	Tooltip,
@@ -72,13 +76,21 @@ export const UserDropdownContent: React.FC<UserDropdownContentProps> = ({
 				<span>Sign Out</span>
 			</DropdownMenuItem>
 			<DropdownMenuSeparator />
-			<ThemeToggleItem />
-			<AnimationsToggleItem />
-			{/* Platform: move Workspaces, latency and HUD around the announcement banner (NavbarArrange). */}
-			<DropdownMenuItem onSelect={() => startNavbarArrange()}>
-				<ArrowLeftRightIcon />
-				<span>Rearrange top bar</span>
-			</DropdownMenuItem>
+			<DropdownMenuSub>
+				<DropdownMenuSubTrigger>
+					<PaletteIcon />
+					<span>Appearance</span>
+				</DropdownMenuSubTrigger>
+				<DropdownMenuSubContent className="min-w-64">
+					<ThemeToggleItem />
+					<AnimationsToggleItem />
+					<DropdownMenuSeparator />
+					<DropdownMenuItem onSelect={() => startNavbarArrange()}>
+						<ArrowLeftRightIcon />
+						<span>Rearrange top bar</span>
+					</DropdownMenuItem>
+				</DropdownMenuSubContent>
+			</DropdownMenuSub>
 			{supportLinks.map((link) => (
 				<DropdownMenuItem key={link.name} asChild>
 					<a href={link.target} target="_blank" rel="noreferrer">

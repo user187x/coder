@@ -21,7 +21,7 @@ const table = (
 
 describe("TableCard", () => {
 	it("says what the table holds, and in one place what the element pointed at or focused does", () => {
-		render(
+		const { rerender } = render(
 			<TableCard summary="Showing 2 of 2 workspaces" hint="Point at anything">
 				{table}
 			</TableCard>,
@@ -47,6 +47,19 @@ describe("TableCard", () => {
 
 		fireEvent.pointerLeave(screen.getByText("plain").closest(".table-card")!);
 		expect(hint).toHaveTextContent("Point at anything");
+		rerender(
+			<TableCard
+				summary="Showing 2 of 2 workspaces"
+				hint="Point at anything"
+				footerRight="Selected 1 of 2 workspaces"
+			>
+				{table}
+			</TableCard>,
+		);
+		fireEvent.pointerOver(
+			screen.getByRole("button", { name: "Open Terminal" }),
+		);
+		expect(hint).toHaveTextContent("Selected 1 of 2 workspaces");
 	});
 
 	it("has no footer without a summary", () => {

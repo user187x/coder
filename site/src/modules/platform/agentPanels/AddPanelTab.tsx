@@ -20,6 +20,7 @@ type AddPanelTabProps = {
 	apps: readonly WorkspaceApp[];
 	/** The workspace is not ready yet (agentAppsReady). */
 	disabled: boolean;
+	actions?: React.ReactNode;
 	onAdd: (content: PanelContent) => void;
 };
 
@@ -28,6 +29,7 @@ export const AddPanelTab: React.FC<AddPanelTabProps> = ({
 	apps,
 	disabled,
 	onAdd,
+	actions,
 }) => {
 	return (
 		<div
@@ -56,13 +58,21 @@ export const AddPanelTab: React.FC<AddPanelTabProps> = ({
 						align="end"
 						className="max-h-[70vh] min-w-56 overflow-y-auto"
 					>
-						<DropdownMenuLabel>Add a panel with</DropdownMenuLabel>
+						{actions}
+						{!apps.some((app) => app.slug === "neko-browser") && (
+							<DropdownMenuLabel>Add a panel with</DropdownMenuLabel>
+						)}
 						{apps.map((app) => (
 							<DropdownMenuItem
 								key={app.id}
 								onSelect={() => onAdd({ kind: "app", slug: app.slug })}
 							>
-								{app.icon ? (
+								{app.slug === "neko-browser" ? (
+									<ExternalImage
+										src="/icon/browser-web-icon.png"
+										className="size-4"
+									/>
+								) : app.icon ? (
 									<ExternalImage src={app.icon} className="size-4" />
 								) : app.command ? (
 									<SquareTerminalIcon />
@@ -71,7 +81,11 @@ export const AddPanelTab: React.FC<AddPanelTabProps> = ({
 								) : (
 									<LayoutGridIcon />
 								)}
-								<span>{app.display_name || app.slug}</span>
+								<span>
+									{app.slug === "neko-browser"
+										? "Browser"
+										: app.display_name || app.slug}
+								</span>
 								{app.command && (
 									<span className="ml-auto text-2xs text-content-secondary">
 										terminal

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useImperativeHandle, useRef, useState } from "react";
 import { useMutation, useQueries, useQueryClient } from "react-query";
 import type { WorkspaceTunnel } from "#/api/platform";
 import {
@@ -68,7 +68,10 @@ export const tunnelPath = (
 	);
 };
 
+export type TunnelManagerActions = { open: (workspaceId: string) => void };
+
 export const WorkspaceTunnelPorts: React.FC<{
+	managerRef?: React.Ref<TunnelManagerActions>;
 	shown: readonly Workspace[];
 	cols: number;
 	cellW: number;
@@ -82,6 +85,7 @@ export const WorkspaceTunnelPorts: React.FC<{
 	actorId?: string;
 }> = ({
 	shown,
+	managerRef,
 	cols,
 	cellW,
 	cellH,
@@ -114,6 +118,12 @@ export const WorkspaceTunnelPorts: React.FC<{
 	const [drag, setDrag] = useState<Drag>();
 	const dragRef = useRef<Drag | undefined>(undefined);
 	const [selected, setSelected] = useState<Workspace>();
+	useImperativeHandle(managerRef, () => ({
+		open: (workspaceId) => {
+			const workspace = shown.find((item) => item.id === workspaceId);
+			if (workspace) setSelected(workspace);
+		},
+	}));
 	const [selectedTerminal, setSelectedTerminal] = useState<"input" | "output">(
 		"output",
 	);
@@ -780,6 +790,42 @@ export const WorkspaceTunnelPorts: React.FC<{
 					{results.some((r) => r.isError) && (
 						<p role="alert">Could not load workspace tunnels. Try again.</p>
 					)}
+					{selected &&
+						tunnels
+							.filter(
+								(t) =>
+									t.source_workspace_id === selected.id ||
+									t.target_workspace_id === selected.id,
+							)
+							.map((tunnel) => (
+								<details
+									key={`settings-${tunnel.id}`}
+									className="rounded-lg border border-solid border-border p-3"
+								>
+									<summary className="cursor-pointer text-sm font-medium">
+										{tunnel.source_workspace_name ?? tunnel.source_workspace_id}{" "}
+										→{" "}
+										{tunnel.target_workspace_name ?? tunnel.target_workspace_id}
+										: ports and connection
+									</summary>
+									<div className="mt-3">
+										<TunnelDetails tunnel={tunnel} />
+									</div>
+									<Button
+										className="mt-3"
+										variant="outline"
+										size="sm"
+										disabled={
+											!managesTunnel(tunnel) ||
+											remove.isPending ||
+											tunnel.status === "disconnecting"
+										}
+										onClick={() => disconnect(tunnel)}
+									>
+										Disconnect connection
+									</Button>
+								</details>
+							))}
 					{selected &&
 						tunnels
 							.filter((t) => {

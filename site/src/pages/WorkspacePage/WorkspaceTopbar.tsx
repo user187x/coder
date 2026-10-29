@@ -1,10 +1,5 @@
 import { cn } from "cn";
-import {
-	ChevronLeftIcon,
-	CircleDollarSignIcon,
-	ShieldBanIcon,
-	TrashIcon,
-} from "lucide-react";
+import { ChevronLeftIcon, CircleDollarSignIcon, TrashIcon } from "lucide-react";
 import { useQuery } from "react-query";
 import { Link as RouterLink } from "react-router";
 import { workspaceQuota } from "#/api/queries/workspaceQuota";
@@ -39,6 +34,7 @@ import {
 	WorkspaceRestrictedActions,
 } from "#/modules/platform/quarantine/WorkspaceRestriction";
 import { useWorkspaceIcon } from "#/modules/workspaces/WorkspaceIcon/useWorkspaceIcon";
+import { WorkspaceStateOrb } from "#/modules/workspaces/WorkspaceStatusIndicator/WorkspaceStateOrb";
 import { WorkspaceStatusIndicator } from "#/modules/workspaces/WorkspaceStatusIndicator/WorkspaceStatusIndicator";
 import { displayDormantDeletion } from "#/utils/dormant";
 import { formatDate } from "#/utils/time";
@@ -275,7 +271,7 @@ export const WorkspaceTopbar: React.FC<WorkspaceTopbarProps> = ({
 									role="status"
 									className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-solid border-content-warning/40 bg-surface-primary px-2 py-1 text-xs text-content-warning"
 								>
-									<ShieldBanIcon className="size-3.5 shrink-0" aria-hidden />
+									<WorkspaceStateOrb state="locked" />
 									Access locked
 								</span>
 								<LockdownBadge workspace={workspace} goldIcon />

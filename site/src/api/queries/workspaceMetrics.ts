@@ -7,9 +7,16 @@ export const workspaceInfrastructureMetricsKey = [
 export const workspaceInfrastructureMetrics = (
 	organizationId: string,
 	workspaceId: string,
+	seconds = 300,
 ) => ({
-	queryKey: [...workspaceInfrastructureMetricsKey, organizationId, workspaceId],
-	queryFn: () => getWorkspaceInfrastructureMetrics(organizationId, workspaceId),
+	queryKey: [
+		...workspaceInfrastructureMetricsKey,
+		organizationId,
+		workspaceId,
+		seconds,
+	],
+	queryFn: () =>
+		getWorkspaceInfrastructureMetrics(organizationId, workspaceId, seconds),
 	enabled: Boolean(organizationId && workspaceId),
 	refetchInterval: 5000,
 	retry: false,

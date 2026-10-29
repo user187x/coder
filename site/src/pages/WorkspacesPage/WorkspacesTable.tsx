@@ -89,6 +89,7 @@ import { AppsCarousel } from "#/modules/platform/workspaceApps/AppsCarousel";
 import { agentAppsReady } from "#/modules/platform/workspaceInitializing/workspaceReadiness";
 import { abilitiesByWorkspaceStatus } from "#/modules/workspaces/actions";
 import { WorkspaceBuildCancelDialog } from "#/modules/workspaces/WorkspaceBuildCancelDialog/WorkspaceBuildCancelDialog";
+import { WorkspaceContextMenu } from "#/modules/workspaces/WorkspaceContextMenu";
 import { useWorkspaceIcons } from "#/modules/workspaces/WorkspaceIcon/useWorkspaceIcon";
 import { WorkspaceMoreActions } from "#/modules/workspaces/WorkspaceMoreActions/WorkspaceMoreActions";
 import { WorkspaceOutdatedTooltip } from "#/modules/workspaces/WorkspaceOutdatedTooltip/WorkspaceOutdatedTooltip";
@@ -299,46 +300,48 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 							)}
 
 							<TableCell>
-								<AvatarData
-									title={
-										<div className="flex items-center gap-1">
-											<Link
-												to={workspacePageLink}
-												className="whitespace-nowrap select-none"
-											>
-												{workspace.name}
-											</Link>
-											{workspace.outdated && (
-												<WorkspaceOutdatedTooltip workspace={workspace} />
-											)}
-										</div>
-									}
-									subtitle={
-										<div className="flex items-center gap-1">
-											<span className="sr-only">Owner: </span>
-											<div className="flex gap-2">
-												{workspace.owner_name}
-												{workspace.shared_with &&
-													workspace.shared_with.length > 0 && (
-														<WorkspaceSharingIndicator
-															sharedWith={workspace.shared_with}
-															settingsPath={`/@${workspace.owner_name}/${workspace.name}/settings/sharing`}
-														/>
-													)}
+								<WorkspaceContextMenu workspace={workspace}>
+									<AvatarData
+										title={
+											<div className="flex items-center gap-1">
+												<Link
+													to={workspacePageLink}
+													className="whitespace-nowrap select-none"
+												>
+													{workspace.name}
+												</Link>
+												{workspace.outdated && (
+													<WorkspaceOutdatedTooltip workspace={workspace} />
+												)}
 											</div>
-										</div>
-									}
-									avatar={
-										<WorkspaceRestrictionAvatar workspace={workspace}>
-											<Avatar
-												src={workspace.owner_avatar_url}
-												fallback={workspace.owner_name}
-												size="lg"
-												className="rounded-[10px]"
-											/>
-										</WorkspaceRestrictionAvatar>
-									}
-								/>
+										}
+										subtitle={
+											<div className="flex items-center gap-1">
+												<span className="sr-only">Owner: </span>
+												<div className="flex gap-2">
+													{workspace.owner_name}
+													{workspace.shared_with &&
+														workspace.shared_with.length > 0 && (
+															<WorkspaceSharingIndicator
+																sharedWith={workspace.shared_with}
+																settingsPath={`/@${workspace.owner_name}/${workspace.name}/settings/sharing`}
+															/>
+														)}
+												</div>
+											</div>
+										}
+										avatar={
+											<WorkspaceRestrictionAvatar workspace={workspace}>
+												<Avatar
+													src={workspace.owner_avatar_url}
+													fallback={workspace.owner_name}
+													size="lg"
+													className="rounded-[10px]"
+												/>
+											</WorkspaceRestrictionAvatar>
+										}
+									/>
+								</WorkspaceContextMenu>
 							</TableCell>
 
 							<TableCell className="px-3">
@@ -961,12 +964,18 @@ const WorkspaceApps: React.FC<WorkspaceAppsProps> = ({ workspace }) => {
 	}
 
 	const builtinApps = new Set(agent.display_apps);
+	const browserWorkspace = agent.apps.some(
+		(app) => app.slug === "neko-browser",
+	);
+	if (browserWorkspace) builtinApps.clear();
 	builtinApps.delete("port_forwarding_helper");
 	builtinApps.delete("ssh_helper");
 
 	const userApps = agent.apps.filter(
 		(app) =>
-			(app.health === "healthy" || app.health === "disabled") && !app.hidden,
+			(app.health === "healthy" || app.health === "disabled") &&
+			!app.hidden &&
+			(!browserWorkspace || app.slug === "neko-browser"),
 	);
 
 	const buttons: React.ReactNode[] = [];

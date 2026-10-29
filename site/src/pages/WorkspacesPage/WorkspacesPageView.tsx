@@ -4,21 +4,14 @@ import {
 	RotateCcwIcon,
 	SquareIcon,
 	TrashIcon,
+	XIcon,
 } from "lucide-react";
 import { useMemo } from "react";
 import type { UseQueryResult } from "react-query";
 import { hasError, isApiValidationError } from "#/api/errors";
 import type { Template, Workspace } from "#/api/typesGenerated";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
-import { ChevronDownIcon } from "#/components/AnimatedIcons/ChevronDown";
 import { Button } from "#/components/Button/Button";
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuSeparator,
-	DropdownMenuTrigger,
-} from "#/components/DropdownMenu/DropdownMenu";
 import { EmptyState } from "#/components/EmptyState/EmptyState";
 import type { UseFilterResult } from "#/components/Filter/Filter";
 import { Margins } from "#/components/Margins/Margins";
@@ -27,7 +20,6 @@ import {
 	PageHeaderTitle,
 } from "#/components/PageHeader/PageHeader";
 import { PaginationWidgetBase } from "#/components/PaginationWidget/PaginationWidgetBase";
-import { Spinner } from "#/components/Spinner/Spinner";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { CloudDrive } from "#/modules/platform/cloudDrive/CloudDrive";
 import {
@@ -180,68 +172,7 @@ export const WorkspacesPageView: React.FC<WorkspacesPageViewProps> = ({
 				<div className="min-w-0 flex-1">
 					<WorkspacesFilter filter={filter} error={error} />
 				</div>
-				{checkedWorkspaces.length > 0 ? (
-					<>
-						<div className="whitespace-nowrap">
-							Selected <strong>{checkedWorkspaces.length}</strong> of{" "}
-							<strong>{workspaces?.length}</strong>{" "}
-							{workspaces?.length === 1 ? "workspace" : "workspaces"}
-						</div>
 
-						<DropdownMenu>
-							<DropdownMenuTrigger asChild>
-								<Button
-									disabled={isRunningBatchAction}
-									variant="outline"
-									size="sm"
-								>
-									Bulk actions
-									<Spinner loading={isRunningBatchAction}>
-										<ChevronDownIcon />
-									</Spinner>
-								</Button>
-							</DropdownMenuTrigger>
-							<DropdownMenuContent align="end">
-								<DropdownMenuItem
-									disabled={
-										!checkedWorkspaces?.some(
-											(w) =>
-												w.latest_build.status === "stopped" &&
-												!mustUpdateWorkspace(w, canChangeVersions),
-										)
-									}
-									onClick={onBatchStartTransition}
-								>
-									<PlayIcon /> Start
-								</DropdownMenuItem>
-								<DropdownMenuItem
-									disabled={
-										!checkedWorkspaces?.some(
-											(w) => w.latest_build.status === "running",
-										)
-									}
-									onClick={onBatchStopTransition}
-								>
-									<SquareIcon /> Stop
-								</DropdownMenuItem>
-								<DropdownMenuSeparator />
-								<DropdownMenuItem onClick={onBatchUpdateTransition}>
-									<RotateCcwIcon
-										className="size-icon-sm"
-										data-testid="bulk-action-update"
-									/>{" "}
-									Update&hellip;
-								</DropdownMenuItem>
-								<DropdownMenuItem
-									className="text-content-destructive focus:text-content-destructive"
-									onClick={onBatchDeleteTransition}
-								>
-									<TrashIcon /> Delete&hellip;
-								</DropdownMenuItem>
-							</DropdownMenuContent>
-						</DropdownMenu>
-					</>
-				) : null}
 				{/* Platform: the account's Cloud Drive, once, above the rows' apps. */}
 				<CloudDrive
 					workspaceIds={mine}
@@ -256,6 +187,75 @@ export const WorkspacesPageView: React.FC<WorkspacesPageViewProps> = ({
 					className="ml-auto"
 				/>
 			</div>
+
+			{checkedWorkspaces.length > 0 && (
+				<div
+					role="toolbar"
+					aria-label="Workspaces chosen"
+					data-testid="bulk-workspace-actions"
+					className="workspace-selection-toolbar mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-solid border-border bg-surface-secondary px-3 py-2"
+				>
+					<Button
+						size="sm"
+						variant="outline"
+						disabled={
+							isRunningBatchAction ||
+							!checkedWorkspaces.some(
+								(w) =>
+									w.latest_build.status === "stopped" &&
+									!mustUpdateWorkspace(w, canChangeVersions),
+							)
+						}
+						onClick={onBatchStartTransition}
+					>
+						<PlayIcon />
+						Start
+					</Button>
+					<Button
+						size="sm"
+						variant="outline"
+						disabled={
+							isRunningBatchAction ||
+							!checkedWorkspaces.some(
+								(w) => w.latest_build.status === "running",
+							)
+						}
+						onClick={onBatchStopTransition}
+					>
+						<SquareIcon />
+						Stop
+					</Button>
+					<Button
+						size="sm"
+						variant="outline"
+						disabled={isRunningBatchAction}
+						onClick={onBatchUpdateTransition}
+					>
+						<RotateCcwIcon data-testid="bulk-action-update" />
+						Update…
+					</Button>
+					<Button
+						size="sm"
+						variant="outline"
+						disabled={isRunningBatchAction}
+						onClick={onBatchDeleteTransition}
+					>
+						<TrashIcon />
+						Delete…
+					</Button>
+					<Button
+						size="sm"
+						variant="subtle"
+						className="ml-auto"
+						aria-label="Clear workspace selection"
+						disabled={isRunningBatchAction}
+						onClick={() => onCheckChange([])}
+					>
+						<XIcon />
+						Clear
+					</Button>
+				</div>
+			)}
 
 			{pageNumberIsInvalid ? (
 				<EmptyState
@@ -282,6 +282,11 @@ export const WorkspacesPageView: React.FC<WorkspacesPageViewProps> = ({
 					<TableCard
 						data-testid="workspaces-card"
 						summary={summary}
+						footerRight={
+							checkedWorkspaces.length > 0
+								? `Selected ${checkedWorkspaces.length} of ${workspaces?.length ?? 0} workspaces`
+								: undefined
+						}
 						hint={
 							drive.enabled && mine.length > 0
 								? "Drag the Cloud Drive plug onto a row to mount it, or pull a plug off a row to unmount"

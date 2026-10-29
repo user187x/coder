@@ -28,6 +28,7 @@ PEERS_FILE on the service's volume.
   POST /__coder-ui/api/safe/peers/<id>/connection {connected}       admins: disconnect or restore an approved grant
 """
 import json
+import contextlib
 import os
 import re
 import threading
@@ -54,6 +55,7 @@ ITEM = None        # (owner id, path) -> "file" | "folder" | None: what a path o
 WORKSPACE_INFO = None
 ADMINS = None      # () -> [{id, username, name}]: the admins, each asked in a chat message to approve a share
 KINDS = ("drive", "folder", "file")
+PERSISTENCE = None
 _lock = threading.Lock()
 
 
@@ -64,10 +66,23 @@ def setup(log, is_admin, user_by_id, chat_post, changed, people=None, item=None,
     WORKSPACE_INFO = workspace_info
 
 
+@contextlib.contextmanager
+def policy_lock():
+    with _lock:
+        if PERSISTENCE is not None:
+            with PERSISTENCE.file_state(PEERS_FILE, {}, write=True):
+                yield
+        else:
+            yield
+
+
 def _load():
     try:
-        with open(PEERS_FILE) as f:
-            data = json.load(f)
+        if PERSISTENCE is not None:
+            data = PERSISTENCE.read_file(PEERS_FILE, {})
+        else:
+            with open(PEERS_FILE) as f:
+                data = json.load(f)
     except (OSError, ValueError):
         data = {}
     settings = {**DEFAULT_SETTINGS, **(data.get("settings") or {})}
@@ -79,6 +94,9 @@ def _save(data):
     cutoff = time.time() - ENDED_KEPT_SECONDS
     data["shares"] = {sid: s for sid, s in data["shares"].items()
                       if s.get("state") in OPEN or (s.get("closedAt") or 0) >= cutoff}
+    if PERSISTENCE is not None:
+        PERSISTENCE.write_file(PEERS_FILE, data)
+        return
     os.makedirs(os.path.dirname(PEERS_FILE) or ".", exist_ok=True)
     tmp = PEERS_FILE + ".tmp"
     with open(tmp, "w") as f:
@@ -102,7 +120,7 @@ def connect_workspace(user, ws, connected):
         raise PermissionError("Only admins connect their drive to another owner's workspace.")
     wid = ws["id"]
     key = user["id"] + ":" + wid
-    with _lock:
+    with policy_lock():
         data = _load()
         if connected:
             data["connections"][key] = {"workspaceId": wid, "workspaceName": ws["name"],
@@ -206,7 +224,7 @@ def save_settings(user, body):
             changes[key] = body[key]
     if not changes:
         raise ValueError("Nothing to change: enabled, adminApproval.")
-    with _lock:
+    with policy_lock():
         data = _load()
         data["settings"].update(changes, updatedBy=user["username"], updatedAt=int(time.time()))
         if changes.get("adminApproval") is False:
@@ -270,7 +288,7 @@ def request(user, body):
     owner = USER_BY_ID(owner_id) if USER_BY_ID else None
     if not owner:
         raise ValueError("There is no such user.")
-    with _lock:
+    with policy_lock():
         data = _load()
         if not data["settings"]["enabled"]:
             raise PermissionError("Sharing Cloud Drives between users is off: an admin turns it on.")
@@ -329,7 +347,7 @@ def share(user, body, token=None):
         kind = ITEM(user["id"], path) if ITEM else None
         if kind not in ("file", "folder"):
             raise ValueError("There is no %s in your Cloud Drive (any more)." % path)
-    with _lock:
+    with policy_lock():
         data = _load()
         if not data["settings"]["enabled"]:
             raise PermissionError("Sharing Cloud Drives between users is off: an admin turns it on.")
@@ -381,7 +399,7 @@ def answer(user, sid, body):
     accept = body.get("accept")
     if not isinstance(accept, bool):
         raise ValueError("accept: true or false.")
-    with _lock:
+    with policy_lock():
         data = _load()
         s = _get(data, sid)
         if s["owner"] != user["id"]:
@@ -422,7 +440,7 @@ def approve(user, sid, body):
     ok = body.get("approve")
     if not isinstance(ok, bool):
         raise ValueError("approve: true or false.")
-    with _lock:
+    with policy_lock():
         data = _load()
         s = _get(data, sid)
         if s["state"] != "approval":
@@ -445,7 +463,7 @@ def approve(user, sid, body):
 
 
 def end(user, sid):
-    with _lock:
+    with policy_lock():
         data = _load()
         s = _get(data, sid)
         if user["id"] not in (s["owner"], s["from"]) and not _admin(user):
@@ -472,7 +490,7 @@ def connection(user, sid, body):
     connected = body.get("connected")
     if not isinstance(connected, bool):
         raise ValueError("connected: true or false.")
-    with _lock:
+    with policy_lock():
         data = _load()
         s = _get(data, sid)
         if connected:

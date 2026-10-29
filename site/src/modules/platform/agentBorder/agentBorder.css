@@ -143,3 +143,7 @@ html[data-animations="off"] .agent-fx-pulse {
 		animation: none;
 	}
 }
+
+.agent-fx-rounded {
+	border-radius: 40px;
+}

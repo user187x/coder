@@ -214,6 +214,79 @@ class Store:
                 db.execute("UPDATE events SET delivered=1 WHERE id=?", (event["id"],))
 
 
+class PostgresStore(Store):
+    """Shared credentials and audit outbox, with one-time retained SQLite import."""
+
+    class Cursor:
+        def __init__(self, rows):
+            self.rows = rows
+
+        def fetchone(self):
+            return self.rows[0] if self.rows else None
+
+        def fetchall(self):
+            return self.rows
+
+        def __iter__(self):
+            return iter(self.rows)
+
+    class Session:
+        def __init__(self, connection):
+            self.connection = connection
+
+        def execute(self, sql, params=()):
+            ignore = 'INSERT OR IGNORE INTO' in sql
+            sql = sql.replace('INSERT OR IGNORE INTO', 'INSERT INTO').replace('ORDER BY rowid', 'ORDER BY sequence')
+            count = iter(range(1, len(params) + 1))
+            sql = re.sub(r'\?', lambda match: '$' + str(next(count)), sql)
+            if ignore:
+                sql += ' ON CONFLICT DO NOTHING'
+            return PostgresStore.Cursor(self.connection.query(sql, params))
+
+    def __init__(self, path, pool):
+        self.path, self.pool = path, pool
+        self.lock = threading.RLock()
+        database = pool()
+        if database is None:
+            raise RuntimeError('Shared Cloud Drive audit storage is unavailable.')
+        database.query('CREATE SCHEMA IF NOT EXISTS coder_drive_audit')
+        with self.connect() as db:
+            db.execute("SELECT pg_advisory_xact_lock(hashtextextended('coder-drive-audit-migration', 0))")
+            for sql in (
+                'CREATE TABLE IF NOT EXISTS accounts (id text PRIMARY KEY, access_key text UNIQUE NOT NULL, secret_key text NOT NULL)',
+                'CREATE TABLE IF NOT EXISTS events (id text PRIMARY KEY, body text NOT NULL, delivered integer NOT NULL DEFAULT 0, sequence bigserial)',
+                'CREATE TABLE IF NOT EXISTS deliveries (event_id text NOT NULL, user_id text NOT NULL, PRIMARY KEY(event_id, user_id))',
+                'CREATE TABLE IF NOT EXISTS uploads (id text PRIMARY KEY, actor text NOT NULL, owner text NOT NULL, path text NOT NULL)',
+                'CREATE TABLE IF NOT EXISTS intents (id text PRIMARY KEY, body text NOT NULL)',
+                'CREATE TABLE IF NOT EXISTS migration (id integer PRIMARY KEY)'):
+                db.execute(sql)
+            if not db.execute('SELECT id FROM migration WHERE id=1').fetchone():
+                if os.path.isfile(path):
+                    with sqlite3.connect('file:' + path + '?mode=ro', uri=True) as legacy:
+                        tables = {row[0] for row in legacy.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+                        for table, columns in (('accounts', 'id,access_key,secret_key'), ('events', 'id,body,delivered'),
+                                               ('deliveries', 'event_id,user_id'), ('uploads', 'id,actor,owner,path'), ('intents', 'id,body')):
+                            if table in tables:
+                                for row in legacy.execute('SELECT ' + columns + ' FROM ' + table):
+                                    db.execute('INSERT OR IGNORE INTO ' + table + '(' + columns + ') VALUES (' + ','.join('?' for _ in row) + ')', row)
+                for intent_id, raw in db.execute('SELECT id,body FROM intents'):
+                    intent = json.loads(raw)
+                    item = event(intent['actor'], intent['owner'], 'gap', intent['path'], 0, event_id=intent_id)
+                    item['message'] = 'A Cloud Drive mutation was interrupted before shared audit storage was activated. Its final change cannot be confirmed.'
+                    db.execute('INSERT OR IGNORE INTO events(id,body) VALUES (?,?)', [intent_id, json.dumps(item)])
+                    db.execute('DELETE FROM intents WHERE id=?', [intent_id])
+                db.execute('INSERT INTO migration VALUES (1)')
+
+    @contextlib.contextmanager
+    def connect(self):
+        database = self.pool()
+        if database is None:
+            raise RuntimeError('Shared Cloud Drive audit storage is unavailable.')
+        with database.transaction() as connection:
+            connection.query('SET LOCAL search_path TO coder_drive_audit, public')
+            yield self.Session(connection)
+
+
 def event(actor, owner, action, path, size, source=False, event_id=None):
     return {"id": event_id or str(uuid.uuid4()), "actor": actor, "owner": owner,
             "action": action, "path": path.rstrip("/"), "kind": "directory" if path.endswith("/") else "file",

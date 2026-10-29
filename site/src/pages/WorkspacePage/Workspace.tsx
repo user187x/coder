@@ -126,6 +126,46 @@ export const Workspace: React.FC<WorkspaceProps> = ({
 	const shouldShowProvisionerAlert =
 		workspacePending && !haveBuildLogs && !provisionersHealthy && !isRestarting;
 
+	const workspaceTopbar = !embedded ? (
+		<WorkspaceTopbar
+			workspace={workspace}
+			template={template}
+			permissions={permissions}
+			latestVersion={latestVersion}
+			isUpdating={isUpdating}
+			isRestarting={isRestarting}
+			handleStart={handleStart}
+			handleStop={handleStop}
+			handleRestart={handleRestart}
+			handleUpdate={handleUpdate}
+			handleCancel={handleCancel}
+			handleRetry={handleRetry}
+			handleDebug={handleDebug}
+			handleDormantActivate={handleDormantActivate}
+			navigation={
+				<WorkspaceNav
+					value={sidebarOption.value}
+					onToggle={setSidebarOption}
+					onClose={sidebarOption.deleteValue}
+					extra={<WorkspaceNotesButton workspace={workspace} />}
+					panels={{
+						resources: (
+							<ResourcesSidebar
+								failed={workspace.latest_build.status === "failed"}
+								resources={resources}
+								isSelected={resourcesNav.isSelected}
+								onChange={(r) => {
+									resourcesNav.select(r);
+									sidebarOption.deleteValue();
+								}}
+							/>
+						),
+						history: <HistorySidebar workspace={workspace} />,
+					}}
+				/>
+			}
+		/>
+	) : undefined;
 	const dashboard = (
 		<div className="flex flex-col gap-6 max-w-[1200px] m-auto">
 			{/* Platform: the notice while an admin has the workspace locked down */}
@@ -166,14 +206,14 @@ export const Workspace: React.FC<WorkspaceProps> = ({
 			{selectedResource && (
 				<fieldset
 					aria-label="Workspace apps and panels"
-					inert={restricted}
-					disabled={restricted}
-					className={`m-0 border-0 p-0 flex flex-col gap-6 grow min-w-0 ${restricted ? "grayscale opacity-40 pointer-events-none select-none" : ""}`}
+					className="m-0 border-0 p-0 flex flex-col gap-6 grow min-w-0"
 				>
 					{topAgents.map((agent, i) => (
 						<AgentRow
 							key={agent.id}
 							agent={agent}
+							topbar={i === 0 ? workspaceTopbar : undefined}
+							restricted={restricted}
 							subAgents={selectedResource.agents?.filter(
 								(a) => a.parent_id === agent.id,
 							)}
@@ -234,44 +274,8 @@ export const Workspace: React.FC<WorkspaceProps> = ({
 				<div className="absolute top-0 left-0 right-0 h-32 bg-linear-to-b from-surface-primary to-transparent"></div>
 
 				<div className="relative z-10">
-					<WorkspaceTopbar
-						workspace={workspace}
-						template={template}
-						permissions={permissions}
-						latestVersion={latestVersion}
-						isUpdating={isUpdating}
-						isRestarting={isRestarting}
-						handleStart={handleStart}
-						handleStop={handleStop}
-						handleRestart={handleRestart}
-						handleUpdate={handleUpdate}
-						handleCancel={handleCancel}
-						handleRetry={handleRetry}
-						handleDebug={handleDebug}
-						handleDormantActivate={handleDormantActivate}
-						navigation={
-							<WorkspaceNav
-								value={sidebarOption.value}
-								onToggle={setSidebarOption}
-								onClose={sidebarOption.deleteValue}
-								extra={<WorkspaceNotesButton workspace={workspace} />}
-								panels={{
-									resources: (
-										<ResourcesSidebar
-											failed={workspace.latest_build.status === "failed"}
-											resources={resources}
-											isSelected={resourcesNav.isSelected}
-											onChange={(r) => {
-												resourcesNav.select(r);
-												sidebarOption.deleteValue();
-											}}
-										/>
-									),
-									history: <HistorySidebar workspace={workspace} />,
-								}}
-							/>
-						}
-					/>
+					{!topAgents.length && workspaceTopbar}
+
 					{selectedResource && (
 						<ResourceMetadata
 							resource={selectedResource}

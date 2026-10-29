@@ -1304,6 +1304,27 @@ type ChatSendRequest = {
 };
 
 /** The last minutes of a workspace's network traffic, each agent's (the platform service samples it all the time). */
+export type ResourceHistorySample = {
+	t: number;
+	share: number;
+	value: number;
+	text: string;
+	key: string;
+};
+export type WorkspaceResourceHistory = {
+	windowSeconds: number;
+	asOf: number;
+	agents: Record<
+		string,
+		Record<"cpu" | "ram" | "disk" | "load", ResourceHistorySample[]>
+	>;
+};
+export type UserUIPreferences = {
+	quota_seen?: string[];
+	people_order?: string[];
+	people_sort?: "manual" | "name";
+};
+
 export type WorkspaceNetwork = {
 	windowSeconds: number;
 	agents: Record<
@@ -2666,6 +2687,18 @@ export const PlatformAPI = {
 	/** Admins: everyone online now, and who Coder saw lately. */
 	getPresence: () => get<PresenceReport>(`${PLATFORM_BASE}/api/presence`),
 	/** The workspace's network traffic, the last minutes of each agent's. */
+	getWorkspaceResourceHistory: (
+		workspaceId: string,
+		seconds = 300,
+		buckets = 12,
+	) =>
+		get<WorkspaceResourceHistory>(
+			`${PLATFORM_BASE}/api/workspaces/${encodeURIComponent(workspaceId)}/resources?seconds=${seconds}&buckets=${buckets}`,
+		),
+	getUserUIPreferences: () =>
+		get<UserUIPreferences>(`${PLATFORM_BASE}/api/preferences`),
+	setUserUIPreferences: (settings: UserUIPreferences) =>
+		post<UserUIPreferences>(`${PLATFORM_BASE}/api/preferences`, settings),
 	getWorkspaceNetwork: (workspaceId: string) =>
 		get<WorkspaceNetwork>(
 			`${PLATFORM_BASE}/api/workspaces/${encodeURIComponent(workspaceId)}/network`,

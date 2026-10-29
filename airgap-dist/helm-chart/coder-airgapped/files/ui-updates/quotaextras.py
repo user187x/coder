@@ -20,6 +20,7 @@ KEYS = ("workspaces", "cpu", "memory", "disk")
 ROUTE = re.compile(r"^" + BASE + r"/organizations/([0-9a-f-]{36})/quota-requests(?:/([0-9a-f-]{36})/(approve|deny|revoke))?$")
 SEND = LOG = NOTIFY = None
 _LOCK = threading.Lock()
+PERSISTENCE = None
 
 
 class Conflict(RuntimeError):
@@ -33,6 +34,10 @@ def setup(send, log, notify=None):
 
 @contextlib.contextmanager
 def state(write=False):
+    if PERSISTENCE is not None:
+        with PERSISTENCE.file_state(FILE, {}, write=write) as data:
+            yield data
+        return
     os.makedirs(os.path.dirname(FILE) or ".", exist_ok=True)
     with _LOCK, open(FILE + ".lock", "a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)

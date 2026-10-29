@@ -117,6 +117,7 @@ html[data-animations="off"] .apps-carousel-thumb {
 .apps-carousel[data-framed] .apps-carousel-item > * {
 	width: var(--apps-button);
 	height: var(--apps-button);
+	padding: 0;
 	border-color: transparent;
 	border-radius: 10px;
 	background: hsl(var(--surface-secondary));
@@ -137,40 +138,6 @@ html[data-animations="off"] .apps-carousel-thumb {
 	.apps-carousel-arrow[data-testid="workspace-apps-next"] {
 	color: hsl(var(--content-link));
 	background: hsl(var(--content-link) / 0.1);
-}
-.apps-carousel[data-framed] .apps-carousel-window::before,
-.apps-carousel[data-framed] .apps-carousel-window::after {
-	content: "";
-	position: absolute;
-	top: 3px;
-	bottom: 3px;
-	z-index: 1;
-	width: 18px;
-	pointer-events: none;
-	opacity: 0;
-	transition: opacity 200ms;
-}
-.apps-carousel[data-framed] .apps-carousel-window::before {
-	left: 0;
-	border-radius: 10px 0 0 10px;
-	background: linear-gradient(
-		to right,
-		hsl(var(--content-link) / 0.2),
-		transparent
-	);
-}
-.apps-carousel[data-framed] .apps-carousel-window::after {
-	right: 0;
-	border-radius: 0 10px 10px 0;
-	background: linear-gradient(
-		to left,
-		hsl(var(--content-link) / 0.2),
-		transparent
-	);
-}
-.apps-carousel[data-framed][data-more-before] .apps-carousel-window::before,
-.apps-carousel[data-framed][data-more-after] .apps-carousel-window::after {
-	opacity: 1;
 }
 .apps-carousel[data-framed] .apps-carousel-bar {
 	bottom: -4px;

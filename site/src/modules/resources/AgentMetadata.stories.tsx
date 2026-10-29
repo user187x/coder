@@ -313,3 +313,29 @@ export const VMWorkspaceAllocation: Story = {
 		pausedAt: Date.parse(MockWorkspaceInfrastructureMetrics.generatedAt),
 	},
 };
+
+export const SharedHistory: Story = {
+	args: {
+		metadata: MockWorkspaceMetricMetadata,
+		workspaceName: "dataflow",
+		infrastructure: MockWorkspaceInfrastructureMetrics,
+		now: Date.parse(MockWorkspaceInfrastructureMetrics.generatedAt),
+		pausedAt: Date.parse(MockWorkspaceInfrastructureMetrics.generatedAt),
+		persistedHistory: Object.fromEntries(
+			MockWorkspaceMetricMetadata.map((metric) => [
+				metric.description.key,
+				Array.from({ length: 40 }, (_, index) => {
+					const t =
+						Date.parse(MockWorkspaceInfrastructureMetrics.generatedAt) -
+						(39 - index) * 1000;
+					return {
+						at: new Date(t).toISOString(),
+						t,
+						value: 20 + (index % 10),
+						text: `${20 + (index % 10)}%`,
+					};
+				}),
+			]),
+		),
+	},
+};

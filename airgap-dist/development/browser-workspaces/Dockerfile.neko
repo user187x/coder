@@ -1,0 +1,15 @@
+FROM ghcr.io/m1k1o/neko/chromium:3.1.6@sha256:2471119c7b4010067f76f3421a78a8bcf35e3c223b2d1f4db084914ec915fb30
+RUN apt-get update && apt-get install -y --no-install-recommends libnss3-tools python3-aiohttp && rm -rf /var/lib/apt/lists/* \
+    && cp -a /home/neko /opt/neko-default-profile
+COPY kasm-browser.py /opt/coder/browser-certificates.py
+COPY neko-certificates.conf /etc/neko/supervisord/certificates.conf
+ENV BROWSER_MODE=certificates NEKO_CAPTURE_VIDEO_SHOW_POINTER=false
+RUN python3 -c 'import json,pathlib; p=pathlib.Path("/etc/chromium/policies/managed/policies.json"); data=json.loads(p.read_text()); data.pop("ExtensionInstallForcelist", None); data.pop("ExtensionInstallAllowlist", None); data["AlwaysOpenPdfExternally"]=True; p.write_text(json.dumps(data))'
+RUN sed -i '/  --no-first-run/a\  --hide-crash-restore-bubble' /etc/neko/supervisord/chromium.conf
+RUN sed -i '/show-component-extension-options/d' /etc/chromium.d/default-flags
+COPY patch-neko-client.py neko-start.py /opt/coder/
+COPY neko-sessions.py /opt/coder/
+COPY neko-supervisord.conf /etc/neko/coder-supervisord.conf
+COPY neko-panel.js /var/www/coder-panel.js
+RUN python3 /opt/coder/patch-neko-client.py
+CMD ["/usr/bin/python3", "/opt/coder/neko-start.py"]

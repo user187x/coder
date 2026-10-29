@@ -22,6 +22,7 @@ import {
 	isAppUrlValid,
 } from "#/modules/apps/apps";
 import { useAppLink } from "#/modules/apps/useAppLink";
+import { BrowserCertificateButton } from "#/modules/platform/browserCertificate/BrowserCertificateButton";
 import { AgentButton } from "../AgentButton";
 import { BaseIcon } from "./BaseIcon";
 
@@ -159,6 +160,23 @@ export const AppLink: React.FC<AppLinkProps> = ({
 			{ShareIcon && <ShareIcon />}
 		</>
 	);
+
+	if (
+		app.slug === "certificate" &&
+		!app.subdomain &&
+		!app.external &&
+		link.href
+	) {
+		return (
+			<BrowserCertificateButton
+				baseUrl={link.href}
+				disabled={!canClick}
+				grouped={grouped}
+			>
+				{content}
+			</BrowserCertificateButton>
+		);
+	}
 
 	const trigger = opensViaClick ? (
 		<button

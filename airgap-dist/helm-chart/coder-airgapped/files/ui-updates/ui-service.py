@@ -177,6 +177,8 @@ import workspacepower
 import vmreconcile
 import quarantine
 import quarantineguard
+import uistate
+import pgdocuments
 import nekomedia
 
 QUARANTINE_ENFORCER = None
@@ -1127,6 +1129,7 @@ def container_env(dep):
 
 class Store:
     def __init__(self, path):
+        self.settings_backing = None
         os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
         self.path = path
         self.lock = threading.Lock()
@@ -1242,7 +1245,13 @@ class Store:
         return db
 
     # ---- settings
+    def legacy_settings(self):
+        with self.connect() as db:
+            return {row['key']: json.loads(row['value']) for row in db.execute('SELECT key, value FROM settings')}
+
     def get_setting(self, key, default=None):
+        if self.settings_backing is not None:
+            return self.settings_backing.read('platform-settings', {}, legacy=self.legacy_settings).get(key, default)
         with self.connect() as db:
             row = db.execute(
                 "SELECT value FROM settings WHERE key=?", (key,)
@@ -1250,6 +1259,10 @@ class Store:
             return json.loads(row["value"]) if row else default
 
     def put_setting(self, key, value):
+        if self.settings_backing is not None:
+            with self.settings_backing.state('platform-settings', {}, write=True, legacy=self.legacy_settings) as settings:
+                settings[key] = value
+            return
         with self.lock, self.connect() as db:
             db.execute(
                 "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
@@ -7841,6 +7854,8 @@ class AgentNetHistory(threading.Thread):
                WHERE key ~ '(^|_)net_io$' AND collected_at > now() - interval '120 seconds'"""
         )
         self.add(rows)
+        if UI_STATE is not None:
+            UI_STATE.add_network(rows)
 
     def run(self):
         last_error = None
@@ -7856,19 +7871,24 @@ class AgentNetHistory(threading.Thread):
 
 
 NET_HISTORY = None
+UI_STATE = None
 
 
 class HudHistory(threading.Thread):
     """The HUD's graphs: every HUD_SAMPLE_EVERY seconds, whether or not anyone looks, the cluster's CPU and memory in
     use (live, from metrics-server; what workspaces use of it too) and the latency of users' connections to their
     workspaces (Coder's agent stats: the median of each connection, over the last minute). Kept HUD_HISTORY_DAYS days
-    in /data/hud.sqlite; read back in up to 120 buckets per range. Also the cluster's network traffic (bytes per second
+    in the shared Postgres database; read back in up to 120 buckets per range. Also the cluster's network traffic (bytes per second
     received and sent by the nodes, from their kubelets' counters): the Settings menu's network graph."""
 
-    def __init__(self, path):
+    def __init__(self, path, backing=None):
         super().__init__(daemon=True)
         self.path = path
         self.net_prev = {}
+        self.backing = backing
+        self.legacy_migrated = False
+        if backing is not None:
+            return
         with self.connect() as db:
             db.execute("""CREATE TABLE IF NOT EXISTS samples (t INTEGER PRIMARY KEY, live INTEGER,
                 cpu REAL, cpu_ws REAL, cpu_total REAL, mem REAL, mem_ws REAL, mem_total REAL,
@@ -7897,9 +7917,8 @@ class HudHistory(threading.Thread):
     def network_recent(self, seconds=900):
         """The cluster's traffic over the last `seconds` (one point a round): {"rx", "tx" (the latest, bytes/s),
         "points": [{"t", "rx", "tx"}]}, or None before there is any."""
-        with self.connect() as db:
-            rows = db.execute("SELECT t, net_rx, net_tx FROM samples WHERE t >= ? AND net_rx IS NOT NULL ORDER BY t",
-                              (int(time.time()) - seconds,)).fetchall()
+        rows = self.rows("SELECT t, net_rx, net_tx FROM samples WHERE t >= ? AND net_rx IS NOT NULL ORDER BY t",
+                         (int(time.time()) - seconds,), ('t', 'net_rx', 'net_tx'))
         if not rows:
             return None
         points = [{"t": r["t"], "rx": round(r["net_rx"], 1), "tx": round(r["net_tx"], 1)} for r in rows]
@@ -7910,10 +7929,9 @@ class HudHistory(threading.Thread):
         round: {"points": [{"t", "cpu", "cpuTotal", "memory", "memoryTotal"}], "every"}, or None before there is any.
         The Settings menu's CPU and memory graphs; "in use" as the bars have it (live, or requested without
         metrics-server)."""
-        with self.connect() as db:
-            rows = db.execute("""SELECT t, cpu, cpu_total, mem, mem_total FROM samples
+        rows = self.rows("""SELECT t, cpu, cpu_total, mem, mem_total FROM samples
                 WHERE t >= ? AND cpu IS NOT NULL AND mem IS NOT NULL ORDER BY t""",
-                              (int(time.time()) - seconds,)).fetchall()
+                         (int(time.time()) - seconds,), ('t', 'cpu', 'cpu_total', 'mem', 'mem_total'))
         if not rows:
             return None
         gib = 1024 ** 3
@@ -7921,6 +7939,36 @@ class HudHistory(threading.Thread):
                             "memory": round(r["mem"] * gib), "memoryTotal": round((r["mem_total"] or 0) * gib)}
                            for r in rows],
                 "every": HUD_SAMPLE_EVERY}
+
+    def migrate_legacy(self):
+        if not self.backing or self.legacy_migrated:
+            return
+        if os.path.isfile(self.path):
+            with self.connect() as db:
+                columns = {r[1] for r in db.execute("PRAGMA table_info(samples)")}
+                if 't' in columns:
+                    fields = ', '.join(name if name in columns else 'NULL AS ' + name for name in self.backing.HUD_COLUMNS)
+                    cursor = db.execute('SELECT ' + fields + ' FROM samples WHERE t >= ? ORDER BY t',
+                                        (int(time.time()) - HUD_HISTORY_DAYS * 86400,))
+                    while True:
+                        rows = cursor.fetchmany(1000)
+                        if not rows:
+                            break
+                        self.backing.insert_hud(rows)
+        self.legacy_migrated = True
+
+    def rows(self, sql, params, columns):
+        if self.backing is None:
+            with self.connect() as db:
+                return db.execute(sql, params).fetchall()
+        self.migrate_legacy()
+        count = iter(range(1, len(params) + 1))
+        sql = re.sub(r'\?', lambda match: '$' + str(next(count)), sql)
+        sql = sql.replace('FROM samples', 'FROM coder_ui_updates.hud_samples')
+        rows = self.backing.database().query(sql, params)
+        integers = {'t', 'b', 'live', 'connections'}
+        return [dict(zip(columns, (None if value is None else int(value) if key in integers else float(value)
+                                  for key, value in zip(columns, row)))) for row in rows]
 
     def connect(self):
         db = sqlite3.connect(self.path, timeout=10)
@@ -7955,12 +8003,19 @@ class HudHistory(threading.Thread):
             net_rx = net_tx = None
         disk = hud_storage()
         gib = 1024 ** 3
-        row = (int(time.time()), int(live),
+        row = (int(time.time()) // HUD_SAMPLE_EVERY * HUD_SAMPLE_EVERY, int(live),
                cluster["cpu"]["used"], sum(v["cpu"] for v in ws.values()) if live else None, cluster["cpu"]["total"],
                cluster["memory"]["used"] / gib, sum(v["memory"] for v in ws.values()) if live else None,
                cluster["memory"]["total"] / gib,
                lat[0] if lat else None, lat[1] if lat else None, lat[2] if lat else None, int(lat[3]) if lat else 0,
                net_rx, net_tx, disk["used"], disk["total"], disk["claimed"], disk["volumeUsed"])
+        if self.backing is not None:
+            self.migrate_legacy()
+            row = tuple(float(value) if value is not None and i in (8, 9, 10) else value for i, value in enumerate(row))
+            self.backing.insert_hud([row])
+            self.backing.database().query('DELETE FROM coder_ui_updates.hud_samples WHERE t < $1::bigint',
+                                         [int(time.time()) - HUD_HISTORY_DAYS * 86400])
+            return
         with self.connect() as db:
             db.execute("""INSERT OR REPLACE INTO samples (t, live, cpu, cpu_ws, cpu_total, mem, mem_ws, mem_total,
                 lat_p50, lat_p95, lat_max, connections, net_rx, net_tx, disk_used, disk_total, disk_claimed, volume_used) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", row)
@@ -7983,8 +8038,7 @@ class HudHistory(threading.Thread):
         end = int(time.time())
         start = end - span
         step = max(HUD_SAMPLE_EVERY, span // 120)
-        with self.connect() as db:
-            rows = db.execute(
+        rows = self.rows(
                 """SELECT (t - ?) / ? AS b, max(t) AS t, max(live) AS live,
                     avg(cpu) AS cpu, max(cpu) AS cpu_peak, avg(cpu_ws) AS cpu_ws, max(cpu_total) AS cpu_total,
                     avg(mem) AS mem, max(mem) AS mem_peak, avg(mem_ws) AS mem_ws, max(mem_total) AS mem_total,
@@ -7993,7 +8047,8 @@ class HudHistory(threading.Thread):
                     avg(disk_claimed) AS disk_claimed, avg(volume_used) AS volume_used
                    FROM samples WHERE t >= ? GROUP BY b ORDER BY b""",
                 (start, step, start),
-            ).fetchall()
+            ('b', 't', 'live', 'cpu', 'cpu_peak', 'cpu_ws', 'cpu_total', 'mem', 'mem_peak', 'mem_ws', 'mem_total',
+             'lat_p50', 'lat_p95', 'lat_max', 'connections', 'disk_used', 'disk_total', 'disk_claimed', 'volume_used'))
         r2 = lambda v: None if v is None else round(v, 3)  # noqa: E731
         points = [{"t": r["b"] * step + start, "live": bool(r["live"]), "cpu": r2(r["cpu"]), "cpuPeak": r2(r["cpu_peak"]),
                    "cpuWorkspaces": r2(r["cpu_ws"]), "cpuTotal": r2(r["cpu_total"]), "memory": r2(r["mem"]),
@@ -8715,6 +8770,26 @@ class Handler(BaseHTTPRequestHandler):
             return self.chat_get(
                 path[len(BASE + "/api/chat/") :], urllib.parse.parse_qs(url.query)
             )
+        if path == BASE + "/api/preferences":
+            user, err = self.user()
+            if err:
+                return
+            try:
+                return self.send_json(200, UI_STATE.preferences(user["id"]))
+            except Exception:
+                return self.send_json(503, {"error": "Shared preferences are temporarily unavailable."})
+        if path.startswith(BASE + "/api/workspaces/") and path.endswith("/resources"):
+            user, err = self.user()
+            if err:
+                return
+            ws = workspace_info(self.token(), path[len(BASE + "/api/workspaces/"):-len("/resources")])
+            if not ws:
+                return self.send_json(404, {"error": "There is no such workspace (or it is not yours to see)."})
+            try:
+                return self.send_json(200, UI_STATE.history(ws, (urllib.parse.parse_qs(url.query).get("seconds") or [300])[0],
+                    (urllib.parse.parse_qs(url.query).get("buckets") or [12])[0]))
+            except Exception:
+                return self.send_json(503, {"error": "Resource history is temporarily unavailable."})
         if path.startswith(BASE + "/api/workspaces/") and path.endswith("/network"):
             # the workspace page's network pill and lights: the last minutes of each of its agents' traffic
             user, err = self.user()
@@ -8726,7 +8801,7 @@ class Handler(BaseHTTPRequestHandler):
             agents = [a.get("id") for r in (ws.get("latest_build") or {}).get("resources") or []
                       for a in r.get("agents") or []]
             return self.send_json(200, {"windowSeconds": NET_HISTORY_SECONDS,
-                                        "agents": NET_HISTORY.recent(agents) if NET_HISTORY else {}})
+                                        "agents": UI_STATE.network_history(agents, NET_HISTORY_SECONDS) if UI_STATE else {}})
         if path == BASE + "/api/presence":
             user, err = self.user(admin=True)
             if err:
@@ -9586,6 +9661,16 @@ class Handler(BaseHTTPRequestHandler):
         self.close_connection = True
         url = urllib.parse.urlsplit(self.path)
         path = url.path
+        if path == BASE + "/api/preferences":
+            user, err = self.user()
+            if err:
+                return
+            try:
+                return self.send_json(200, UI_STATE.preferences(user["id"], self.body()))
+            except ValueError as error:
+                return self.send_json(400, {"error": str(error)})
+            except Exception:
+                return self.send_json(503, {"error": "Shared preferences could not be saved."})
         if path.startswith(BASE + "/internal/") and imagebuilder.handle_internal(self, "POST", path):
             return
         if imagebuilder.handle(self, "POST", path, url.query, ADMIN_ROLES):
@@ -10274,7 +10359,7 @@ def safe_owner_workspaces(owner_id):
 
 
 def main():
-    global STORE, LOGOS, MONITOR, AVATARS, DEFAULTS, CHAT, ICONS, GALLERY, BACKGROUNDS, BANNER_PICTURES, HUD_HISTORY
+    global UI_STATE, STORE, LOGOS, MONITOR, AVATARS, DEFAULTS, CHAT, ICONS, GALLERY, BACKGROUNDS, BANNER_PICTURES, HUD_HISTORY
     global STORE_IMAGES
     global NET_HISTORY, QUARANTINE_ENFORCER, NEKO_MEDIA
     STORE = Store(DB_PATH)
@@ -10291,7 +10376,15 @@ def main():
     BANNER_PICTURES = BannerPictureStore(LOGOS)
     ICONS = IconStore(LOGOS)
     MONITOR = Monitor()
-    HUD_HISTORY = HudHistory(os.path.join(os.path.dirname(DB_PATH) or "/data", "hud.sqlite"))
+    shared_documents = pgdocuments.Documents(lambda: LOGOS.pool if LOGOS else None)
+    STORE.settings_backing = shared_documents
+    workspacetunnels.PERSISTENCE = shared_documents
+    quotaextras.PERSISTENCE = shared_documents
+    safe.PERSISTENCE = shared_documents
+    drivepeers.PERSISTENCE = shared_documents
+    UI_STATE = uistate.UIState(lambda: LOGOS.pool if LOGOS else None, log,
+                              infrastructure=workspacenodemetrics.collect_history)
+    HUD_HISTORY = HudHistory(os.path.join(os.path.dirname(DB_PATH) or "/data", "hud.sqlite"), backing=UI_STATE)
     HUD_HISTORY.start()
     NET_HISTORY = AgentNetHistory()
     NET_HISTORY.start()
@@ -10305,6 +10398,8 @@ def main():
         infrastructure_access=lambda token: http_json(CODER_URL + "/api/v2/authcheck", method="POST",
             body={"checks": {"deployment_stats": {"action": "read", "object": {"resource_type": "deployment_stats"}}}},
             headers={"Coder-Session-Token": token}, timeout=5))
+    workspacenodemetrics.HISTORY = UI_STATE.infrastructure_history
+    UI_STATE.start()
     quotaextras.setup(_coder_send, log, publish_quota_notification)
     workspacepower.setup(http_json, workspace_info, KUBE, CODER_URL, ADMIN_ROLES, log)
     connection_guard = quarantineguard.Guard(lambda: LOGOS.pool if LOGOS else None)

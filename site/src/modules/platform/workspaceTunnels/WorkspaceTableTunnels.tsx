@@ -7,6 +7,7 @@ import { TunnelFlowIndicator } from "./TunnelFlowIndicator";
 import { TunnelOverviewTooltip } from "./TunnelOverview";
 import {
 	type TableTunnelAnchor,
+	type TunnelManagerActions,
 	WorkspaceTunnelPorts,
 } from "./WorkspaceTunnelPorts";
 
@@ -14,7 +15,8 @@ const Connections = createContext<{
 	tunnels: WorkspaceTunnel[];
 	unavailable: boolean;
 	shownIds: string[];
-}>({ tunnels: [], unavailable: false, shownIds: [] });
+	openManager: (workspaceId: string) => void;
+}>({ tunnels: [], unavailable: false, shownIds: [], openManager: () => {} });
 
 /** Keep table cords anchored to visible rows as sorting, scrolling and row sizes change. */
 export const WorkspaceTableTunnels: React.FC<{
@@ -24,6 +26,7 @@ export const WorkspaceTableTunnels: React.FC<{
 	children: React.ReactNode;
 }> = ({ shown, canManage, actorId, children }) => {
 	const area = useRef<HTMLDivElement>(null);
+	const managerRef = useRef<TunnelManagerActions>(null);
 	const [anchors, setAnchors] = useState<TableTunnelAnchor[]>([]);
 	const organizations = [...new Set(shown.map((w) => w.organization_id))];
 	const results = useQueries({ queries: organizations.map(workspaceTunnels) });
@@ -71,11 +74,17 @@ export const WorkspaceTableTunnels: React.FC<{
 	}, [shown]);
 	return (
 		<Connections.Provider
-			value={{ tunnels, unavailable, shownIds: shown.map((w) => w.id) }}
+			value={{
+				tunnels,
+				unavailable,
+				shownIds: shown.map((w) => w.id),
+				openManager: (id) => managerRef.current?.open(id),
+			}}
 		>
 			<div ref={area} className="relative min-w-0">
 				{children}
 				<WorkspaceTunnelPorts
+					managerRef={managerRef}
 					key={actorId}
 					shown={shown}
 					cols={1}
@@ -96,7 +105,8 @@ export const WorkspaceTableTunnels: React.FC<{
 export const WorkspaceTunnelStatus: React.FC<{ workspaceId: string }> = ({
 	workspaceId,
 }) => {
-	const { tunnels, unavailable, shownIds } = useContext(Connections);
+	const { tunnels, unavailable, shownIds, openManager } =
+		useContext(Connections);
 	const affected = tunnels.filter(
 		(t) =>
 			t.source_workspace_id === workspaceId ||
@@ -161,7 +171,10 @@ export const WorkspaceTunnelStatus: React.FC<{ workspaceId: string }> = ({
 			<button
 				type="button"
 				aria-label={summary}
-				onClick={(e) => e.stopPropagation()}
+				onClick={(e) => {
+					e.stopPropagation();
+					openManager(workspaceId);
+				}}
 				className="mt-1 inline-flex cursor-pointer items-center border-0 bg-transparent p-0 text-content-secondary"
 			>
 				<TunnelFlowIndicator incoming={incoming} outgoing={outgoing} />

@@ -78,3 +78,25 @@
 .table-card-hint-on {
 	color: hsl(var(--content-primary));
 }
+
+@keyframes workspace-selection-enter {
+	from {
+		opacity: 0;
+		transform: translateY(-6px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+.workspace-selection-toolbar {
+	animation: workspace-selection-enter 180ms ease-out;
+}
+html[data-animations="off"] .workspace-selection-toolbar {
+	animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+	.workspace-selection-toolbar {
+		animation: none;
+	}
+}

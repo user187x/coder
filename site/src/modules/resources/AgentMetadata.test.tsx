@@ -3,7 +3,11 @@ import userEvent from "@testing-library/user-event";
 import type { WorkspaceAgentMetadata } from "#/api/typesGenerated";
 import { renderComponent } from "#/testHelpers/renderHelpers";
 import { MockWorkspaceInfrastructureMetrics } from "#/testHelpers/workspaceMetrics";
-import { AgentMetadataView, metricName } from "./AgentMetadata";
+import {
+	AgentMetadataView,
+	metricName,
+	persistedMetadataHistory,
+} from "./AgentMetadata";
 import { groupMetadata } from "./metadataGroups";
 import * as graphSettings from "./metricGraphSettings";
 
@@ -80,4 +84,55 @@ it("publishes only workspace metric intervals when infrastructure is restricted"
 		{ name: "Workspace Disk", s: 10 },
 	]);
 	publish.mockRestore();
+});
+
+it("maps server history for the requested agent and selected infrastructure scope", () => {
+	const t = Date.parse(MockWorkspaceInfrastructureMetrics.generatedAt);
+	const sample = {
+		t,
+		share: 25,
+		value: 25,
+		text: "1 / 4 GiB (25%)",
+		key: "1_ram_usage",
+	};
+	const resources = {
+		windowSeconds: 300,
+		asOf: t,
+		agents: {
+			selected: { cpu: [], ram: [sample], disk: [], load: [] },
+			other: {
+				cpu: [{ ...sample, key: "0_cpu_usage", value: 99 }],
+				ram: [],
+				disk: [],
+				load: [],
+			},
+		},
+	};
+	const infrastructure = {
+		...MockWorkspaceInfrastructureMetrics,
+		history: {
+			node: { cpu: [{ t, used: 1, total: 4, unit: "cores" as const }] },
+			cluster: { cpu: [{ t, used: 3, total: 8, unit: "cores" as const }] },
+		},
+	};
+	const node = persistedMetadataHistory(
+		resources,
+		"selected",
+		infrastructure,
+		"node",
+	);
+	expect(node["1_ram_usage"][0].value).toBe(25);
+	expect(node["0_cpu_usage"]).toBeUndefined();
+	expect(node[`node:${infrastructure.nodeName}:cpu_host`][0].value).toBe(25);
+	expect(node["cluster:all:cpu_host"]).toBeUndefined();
+	const cluster = persistedMetadataHistory(
+		resources,
+		"selected",
+		infrastructure,
+		"cluster",
+	);
+	expect(cluster["cluster:all:cpu_host"][0].value).toBe(37.5);
+	expect(
+		persistedMetadataHistory(undefined, "selected", undefined, "node"),
+	).toEqual({});
 });

@@ -5,11 +5,11 @@
 # From /opt/nifi as the workspace image installed it (its NARs unpacked there, read-only); everything it writes is a
 # link into ~/.nifi: conf (the image's, the first time; then the user's flows and settings), logs, state, repositories,
 # work areas. NiFi listens on local HTTP, while Coder provides the authenticated
-# external app origin and replaces proxy host, scheme and port headers. No
-# dashboard prefix is exposed to the application.
+# external dashboard origin and supplies proxy host, scheme and port headers. The
+# dashboard app path is supplied through X-Forwarded-Prefix.
 # templatefile() supplies path and access_host.
 set -e
-NIFI_PATH='${path}'          # empty for an isolated app origin
+NIFI_PATH='${path}'          # the workspace's app path under the dashboard
 ACCESS_HOST='${access_host}' # this app's host, as browsers reach it
 NIFI_HOME=/home/coder/.nifi
 

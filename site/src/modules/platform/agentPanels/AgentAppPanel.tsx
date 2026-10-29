@@ -1,4 +1,6 @@
 import { GlobeIcon, SquareTerminalIcon } from "lucide-react";
+import { useMutation } from "react-query";
+import { closeWorkspaceBrowserSession } from "#/api/queries/browserSessions";
 import type {
 	Workspace,
 	WorkspaceAgent,
@@ -7,7 +9,10 @@ import type {
 import { ExternalImage } from "#/components/ExternalImage/ExternalImage";
 import { isExternalApp, needsSessionToken } from "#/modules/apps/apps";
 import { useAppLink } from "#/modules/apps/useAppLink";
-import { WorkspaceAppFrame } from "#/modules/apps/WorkspaceAppFrame";
+import {
+	WorkspaceAppFrame,
+	WorkspaceIframe,
+} from "#/modules/apps/WorkspaceAppFrame";
 import { AccordionPanel } from "./AccordionPanel";
 
 export { MAX_APP_HEIGHT, MIN_APP_HEIGHT } from "./AccordionPanel";
@@ -120,6 +125,18 @@ const PanelWithApp: React.FC<AgentAppPanelProps & { app: WorkspaceApp }> = ({
 	const name = app.display_name || slug;
 	const service = SERVICE_APPS.has(slug) ? servicePort(app) : null;
 	const external = isExternalApp(app);
+	const browserSession = slug === "neko-browser";
+	const sessionId = id.replace(/[^a-zA-Z0-9_-]/g, "");
+	const sessionUrl =
+		browserSession && link.href
+			? new URL(
+					`sessions/${sessionId}/?embed=1`,
+					new URL(link.href, window.location.origin),
+				).href
+			: link.href;
+	const closeSession = useMutation(
+		closeWorkspaceBrowserSession(link.href ?? "", sessionId),
+	);
 	return (
 		<AccordionPanel
 			id={id}
@@ -136,7 +153,10 @@ const PanelWithApp: React.FC<AgentAppPanelProps & { app: WorkspaceApp }> = ({
 			handle={handle}
 			unavailable={ready ? undefined : "Opens when the workspace is ready"}
 			initiallyOpen={initiallyOpen}
-			href={link.href}
+			href={sessionUrl}
+			onCloseSession={
+				browserSession ? () => closeSession.mutateAsync() : undefined
+			}
 			fitToPage={FIT_TO_PAGE.has(slug)}
 			height={height}
 			onHeightChange={onHeightChange}
@@ -166,7 +186,15 @@ const PanelWithApp: React.FC<AgentAppPanelProps & { app: WorkspaceApp }> = ({
 				</>
 			}
 		>
-			<WorkspaceAppFrame workspace={workspace} app={{ ...app, agent }} active />
+			{browserSession ? (
+				<WorkspaceIframe src={sessionUrl} title={name} />
+			) : (
+				<WorkspaceAppFrame
+					workspace={workspace}
+					app={{ ...app, agent }}
+					active
+				/>
+			)}
 		</AccordionPanel>
 	);
 };

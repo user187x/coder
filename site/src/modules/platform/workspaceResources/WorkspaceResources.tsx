@@ -1,6 +1,8 @@
 import { cn } from "cn";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useState } from "react";
+import { useQuery } from "react-query";
 import { watchAgentMetadata } from "#/api/api";
+import { workspaceResourceHistory } from "#/api/queries/platform";
 import type {
 	ServerSentEvent,
 	Workspace,
@@ -29,6 +31,36 @@ const GRAPH_H = 22;
 const GRAPH_R = 5;
 // the longest wait between attempts to watch the readings again (ms)
 const MAX_RETRY_MS = 30_000;
+
+/** Average each fixed 25-second bucket in the trailing five-minute window. Missing samples stay empty. */
+export const resourceBuckets = (
+	samples: readonly { t: number; share: number }[],
+	asOf: number,
+): (number | null)[] => {
+	const buckets = Array.from({ length: GRAPH_BARS }, () => ({
+		sum: 0,
+		count: 0,
+	}));
+	const start = asOf - 300_000;
+	for (const sample of samples) {
+		if (
+			!Number.isFinite(sample.t) ||
+			!Number.isFinite(sample.share) ||
+			sample.t < start ||
+			sample.t > asOf
+		)
+			continue;
+		const index = Math.min(
+			GRAPH_BARS - 1,
+			Math.floor((sample.t - start) / (300_000 / GRAPH_BARS)),
+		);
+		buckets[index].sum += Math.min(100, Math.max(0, sample.share));
+		buckets[index].count++;
+	}
+	return buckets.map((bucket) =>
+		bucket.count ? bucket.sum / bucket.count : null,
+	);
+};
 
 type Reading = { share: number; text: string };
 
@@ -68,21 +100,13 @@ const workspaceMetric = (
 	);
 
 /**
- * An agent's metadata, live (its page's socket), and the CPU and RAM shares of its last GRAPH_BARS readings. It
- * keeps trying, less often each time, while the socket fails.
+ * Live metadata for the current readings, retrying while the socket is unavailable.
  */
 const useAgentReadings = (agentId: string | undefined) => {
 	const [metadata, setMetadata] = useState<WorkspaceAgentMetadata[]>();
-	const [series, setSeries] = useState<{ cpu: number[]; ram: number[] }>({
-		cpu: [],
-		ram: [],
-	});
-	const seen = useRef<{ cpu?: string; ram?: string }>({});
 
 	useEffect(() => {
 		setMetadata(undefined);
-		setSeries({ cpu: [], ram: [] });
-		seen.current = {};
 		if (!agentId) {
 			return;
 		}
@@ -100,28 +124,6 @@ const useAgentReadings = (agentId: string | undefined) => {
 				retries = 0;
 				const data = e.parsedMessage.data as WorkspaceAgentMetadata[];
 				setMetadata(data);
-				// a new reading (a new collected_at) adds a bar
-				const next: { cpu?: number; ram?: number } = {};
-				for (const key of ["cpu", "ram"] as const) {
-					const m = workspaceMetric(data, RANKS[key]);
-					const reading = readingOf(m);
-					if (m && reading && seen.current[key] !== m.result.collected_at) {
-						seen.current[key] = m.result.collected_at;
-						next[key] = reading.share;
-					}
-				}
-				if (next.cpu !== undefined || next.ram !== undefined) {
-					setSeries((prev) => ({
-						cpu:
-							next.cpu === undefined
-								? prev.cpu
-								: [...prev.cpu, next.cpu].slice(-GRAPH_BARS),
-						ram:
-							next.ram === undefined
-								? prev.ram
-								: [...prev.ram, next.ram].slice(-GRAPH_BARS),
-					}));
-				}
 			});
 			s.addEventListener("error", () => {
 				s.close();
@@ -144,7 +146,7 @@ const useAgentReadings = (agentId: string | undefined) => {
 		};
 	}, [agentId]);
 
-	return { metadata, series };
+	return { metadata };
 };
 
 /**
@@ -162,7 +164,16 @@ export const WorkspaceResources: React.FC<{ workspace: Workspace }> = ({
 					.flatMap((r) => r.agents ?? [])
 					.find((a) => a.parent_id === null && a.status === "connected")
 			: undefined;
-	const { metadata, series } = useAgentReadings(agent?.id);
+	const { metadata } = useAgentReadings(agent?.id);
+	const history = useQuery({
+		...workspaceResourceHistory(workspace.id),
+		enabled: Boolean(agent),
+	});
+	const samples = agent ? history.data?.agents[agent.id] : undefined;
+	const series = {
+		cpu: resourceBuckets(samples?.cpu ?? [], history.data?.asOf ?? 0),
+		ram: resourceBuckets(samples?.ram ?? [], history.data?.asOf ?? 0),
+	};
 
 	if (!agent) {
 		return (
@@ -214,7 +225,7 @@ const Percent: React.FC<{ share: number | null }> = ({ share }) => (
 const BarGraph: React.FC<{
 	label: string;
 	reading: Reading | null;
-	shares: readonly number[];
+	shares: readonly (number | null)[];
 }> = ({ label, reading, shares }) => {
 	const bar = GRAPH_W / GRAPH_BARS;
 	const shown = shares.length ? shares : reading ? [reading.share] : [];
@@ -222,7 +233,11 @@ const BarGraph: React.FC<{
 	return (
 		<div
 			data-testid={`workspace-resources-${label.toLowerCase()}`}
-			title={reading ? `${label}: ${reading.text}` : `${label}: no reading`}
+			title={
+				reading
+					? `${label}: ${reading.text}. Trailing 5 minutes.`
+					: `${label}: no reading`
+			}
 			className="flex flex-col gap-1"
 			style={{ width: GRAPH_W }}
 		>
@@ -263,6 +278,7 @@ const BarGraph: React.FC<{
 						strokeWidth={1}
 					/>
 					{shown.map((share, i) => {
+						if (share === null) return null;
 						const h = Math.max(1.5, (share / 100) * GRAPH_H);
 						const x = GRAPH_W - (shown.length - i) * bar;
 						return (

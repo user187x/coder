@@ -1,7 +1,11 @@
-import { type FC, useEffect, useId, useState } from "react";
+import { type FC, useId, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { toast } from "sonner";
 import { organizations as organizationsQuery } from "#/api/queries/organizations";
+import {
+	updateUserUIPreferences,
+	userUIPreferences,
+} from "#/api/queries/platform";
 import { decideQuotaRequest, quotaRequests } from "#/api/queries/quotaRequests";
 import type { QuotaDecision, QuotaRequest } from "#/api/quotaRequests";
 import type { Organization, User } from "#/api/typesGenerated";
@@ -140,30 +144,21 @@ export const QuotaAdjustments: FC<{
 		query.data?.requests.filter(
 			(request) => !user || request.user_id === user.id,
 		) ?? [];
-	const seenKey = `coder:quota-requests-viewed:${auth.user.id}`;
-	const [seen, setSeen] = useState<readonly string[]>(() => {
-		try {
-			const saved: unknown = JSON.parse(localStorage.getItem(seenKey) ?? "[]");
-			return Array.isArray(saved)
-				? saved.filter((id): id is string => typeof id === "string")
-				: [];
-		} catch {
-			return [];
-		}
-	});
+	const preferences = useQuery({ ...userUIPreferences(), enabled: admin });
+	const rememberViewed = useMutation(updateUserUIPreferences(queryClient));
+	const seen = preferences.data?.quota_seen ?? [];
 	const pendingIds = requests
 		.filter((request) => request.status === "pending")
 		.map((request) => request.id);
 	const unread = pendingIds.filter((id) => !seen.includes(id)).length;
-	useEffect(() => {
-		try {
-			localStorage.setItem(seenKey, JSON.stringify(seen));
-		} catch {
-			/* Storage may be unavailable in private browsing. */
-		}
-	}, [seenKey, seen]);
+	const markViewed = () => {
+		if (preferences.isSuccess && pendingIds.some((id) => !seen.includes(id)))
+			rememberViewed.mutate({
+				quota_seen: pendingIds,
+			});
+	};
 	const viewRequests = () => {
-		setSeen((previous) => [...new Set([...previous, ...pendingIds])]);
+		markViewed();
 		decide.reset();
 		setOpen(true);
 	};
@@ -173,7 +168,7 @@ export const QuotaAdjustments: FC<{
 		<>
 			<Button variant="outline" size="sm" onClick={viewRequests}>
 				Quota Requests
-				{!open && unread > 0 && (
+				{!open && preferences.isSuccess && unread > 0 && (
 					<Badge aria-label={`${unread} unread quota requests`}>{unread}</Badge>
 				)}
 			</Button>
@@ -181,13 +176,16 @@ export const QuotaAdjustments: FC<{
 				open={open}
 				onOpenChange={(next) => {
 					if (!decide.isPending) {
-						if (!next && query.data && !query.isError)
-							setSeen((previous) => [...new Set([...previous, ...pendingIds])]);
+						if (!next && query.data && !query.isError) markViewed();
 						setOpen(next);
 					}
 				}}
 			>
 				<DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
+					{preferences.isError && <ErrorAlert error={preferences.error} />}
+					{rememberViewed.isError && (
+						<ErrorAlert error={rememberViewed.error} />
+					)}
 					<DialogTitle>
 						{user ? `Quota requests: ${user.username}` : "Quota Requests"}
 					</DialogTitle>

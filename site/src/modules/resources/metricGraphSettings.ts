@@ -4,11 +4,10 @@ import { useAnimationSettings } from "#/modules/platform/animations/animations";
 /**
  * The workspace metric graphs' refresh interval, shared by the agent's
  * "Metrics Interval" menu (next to Open ports) and the graphs: seconds per bar
- * (0 = one bar per reading, as the agent sends it) or "off" (no graphs, nothing
- * recorded: for browsers short on processing power; also the user menu's
+ * (0 = one bar per reading, as the agent sends it) or "off" (no graphs displayed: for browsers short on processing power; also the user menu's
  * Animations > Live graphs, and while all animations are off). 1 s unless
  * chosen; remembered in this browser. The graphs also publish how often each agent reports its metrics,
- * for the menu's readout.
+ * for the menu's readout. Server-side Postgres collection continues while graphs are hidden.
  */
 export type GraphEvery = number | "off";
 

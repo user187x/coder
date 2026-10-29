@@ -43,9 +43,11 @@ export const TableCard: React.FC<{
 	summary?: React.ReactNode;
 	/** The footer's right side while nothing in the table is hovered. */
 	hint?: React.ReactNode;
+	/** Persistent footer status, taking precedence over hover hints. */
+	footerRight?: React.ReactNode;
 	className?: string;
 	"data-testid"?: string;
-}> = ({ children, summary, hint, className, ...props }) => {
+}> = ({ children, summary, hint, footerRight, className, ...props }) => {
 	const card = useRef<HTMLDivElement>(null);
 	const [hovered, setHovered] = useState<string | null>(null);
 	const follow = useCallback((e: React.SyntheticEvent) => {
@@ -75,7 +77,7 @@ export const TableCard: React.FC<{
 						className={cn("table-card-hint", hovered && "table-card-hint-on")}
 						data-testid="table-card-hint"
 					>
-						{hovered ?? hint}
+						{footerRight ?? hovered ?? hint}
 					</span>
 				</div>
 			)}

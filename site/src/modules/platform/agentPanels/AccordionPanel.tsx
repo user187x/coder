@@ -1,6 +1,15 @@
 import { cn } from "cn";
-import { SquareArrowOutUpRightIcon, Trash2Icon, Undo2Icon } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import {
+	MaximizeIcon,
+	MinimizeIcon,
+	MonitorIcon,
+	SquareArrowOutUpRightIcon,
+	Trash2Icon,
+	Undo2Icon,
+	Volume2Icon,
+	VolumeXIcon,
+} from "lucide-react";
+import { useEffect, useId, useRef, useState } from "react";
 import { ChevronDownIcon } from "#/components/AnimatedIcons/ChevronDown";
 import { Badge } from "#/components/Badge/Badge";
 import { Button } from "#/components/Button/Button";
@@ -8,6 +17,7 @@ import {
 	Collapsible,
 	CollapsibleTrigger,
 } from "#/components/Collapsible/Collapsible";
+import { Switch } from "#/components/Switch/Switch";
 import { isTerminalExit } from "./terminalExited";
 
 const DEFAULT_HEIGHT = 640;
@@ -41,6 +51,7 @@ export type AccordionPanelProps = {
 	height: number | undefined;
 	onHeightChange: (height: number) => void;
 	onRemove: () => void;
+	onCloseSession?: () => Promise<void>;
 	/** For tests and styles: what it holds. */
 	kind: string;
 	slug: string;
@@ -73,16 +84,66 @@ export const AccordionPanel: React.FC<AccordionPanelProps> = ({
 	height,
 	onHeightChange,
 	onRemove,
+	onCloseSession,
 	kind,
 	slug,
 	children,
 }) => {
+	const panelElement = useRef<HTMLElement>(null);
+	const [fullscreen, setFullscreen] = useState(false);
+	const [fullscreenError, setFullscreenError] = useState("");
+	const keepSessionId = useId();
+	const [keepSession, setKeepSession] = useState(false);
+	const [closingSession, setClosingSession] = useState(false);
+	const [sessionError, setSessionError] = useState("");
+	useEffect(() => {
+		const changed = () =>
+			setFullscreen(document.fullscreenElement === panelElement.current);
+		document.addEventListener("fullscreenchange", changed);
+		return () => document.removeEventListener("fullscreenchange", changed);
+	}, []);
+	const toggleFullscreen = async () => {
+		setFullscreenError("");
+		try {
+			if (document.fullscreenElement === panelElement.current)
+				await document.exitFullscreen();
+			else await panelElement.current?.requestFullscreen();
+		} catch {
+			setFullscreenError(
+				"Fullscreen is unavailable. You can pop out this panel instead.",
+			);
+		}
+	};
 	const available = !unavailable;
 	const [open, setOpen] = useState(initiallyOpen && available);
 	const [loaded, setLoaded] = useState(initiallyOpen && available);
+	const initiallyOpened = useRef(initiallyOpen && available);
+	useEffect(() => {
+		if (initiallyOpen && available && !initiallyOpened.current) {
+			initiallyOpened.current = true;
+			setOpen(true);
+			setLoaded(true);
+		}
+	}, [initiallyOpen, available]);
 	const [boxHeight, setBoxHeight] = useState(height ?? DEFAULT_HEIGHT);
 	const [resizing, setResizing] = useState(false);
 	const box = useRef<HTMLDivElement>(null);
+	const [browserMuted, setBrowserMuted] = useState(true);
+	useEffect(() => {
+		if (slug !== "neko-browser") return;
+		const audioState = (event: MessageEvent) => {
+			if (
+				event.origin !== window.location.origin ||
+				event.source !== box.current?.querySelector("iframe")?.contentWindow ||
+				event.data?.type !== "coder:browser-audio" ||
+				typeof event.data.muted !== "boolean"
+			)
+				return;
+			setBrowserMuted(event.data.muted);
+		};
+		window.addEventListener("message", audioState);
+		return () => window.removeEventListener("message", audioState);
+	}, [slug]);
 	const userSized = useRef(height !== undefined);
 	// Its own browser window, while it is popped out.
 	const [popup, setPopup] = useState<Window | null>(null);
@@ -123,6 +184,22 @@ export const AccordionPanel: React.FC<AccordionPanelProps> = ({
 		setPopup(null);
 		setLoaded(true);
 		setOpen(true);
+	};
+	const closeSession = async (remove: boolean) => {
+		setSessionError("");
+		setClosingSession(true);
+		try {
+			await onCloseSession?.();
+			popup?.close();
+			setPopup(null);
+			setLoaded(false);
+			setOpen(false);
+			if (remove) onRemove();
+		} catch {
+			setSessionError("Could not close this browser session. Try again.");
+		} finally {
+			setClosingSession(false);
+		}
 	};
 	useEffect(() => {
 		if (!available) {
@@ -213,15 +290,24 @@ export const AccordionPanel: React.FC<AccordionPanelProps> = ({
 
 	return (
 		<section
-			className="border-0 border-t border-solid border-border"
+			ref={panelElement}
+			className={cn(
+				"border-0 border-t border-solid border-border",
+				fullscreen && "bg-surface-primary",
+			)}
 			data-testid="agent-app-panel"
 			data-kind={kind}
 			data-app={slug}
 		>
 			<Collapsible
 				open={open}
-				disabled={!available}
+				disabled={!available || closingSession}
 				onOpenChange={(next) => {
+					if (!next && fullscreen) void toggleFullscreen();
+					if (!next && onCloseSession && !keepSession) {
+						void closeSession(false);
+						return;
+					}
 					setOpen(next);
 					if (next) {
 						setLoaded(true);
@@ -252,6 +338,68 @@ export const AccordionPanel: React.FC<AccordionPanelProps> = ({
 					)}
 					<span className="relative z-[1] ml-auto flex items-center gap-1">
 						{extras}
+						{onCloseSession && (
+							<label
+								htmlFor={keepSessionId}
+								className="flex items-center gap-2 mr-2 text-xs whitespace-nowrap"
+								title="Keep this browser running when its panel is collapsed"
+							>
+								<Switch
+									id={keepSessionId}
+									size="sm"
+									checked={keepSession}
+									onCheckedChange={setKeepSession}
+									disabled={closingSession}
+								/>
+								Keep session
+							</label>
+						)}
+						{slug === "neko-browser" && open && available && !popup && (
+							<>
+								<Button
+									size="sm"
+									variant="outline"
+									onClick={() =>
+										box.current
+											?.querySelector("iframe")
+											?.contentWindow?.postMessage(
+												{ type: "coder:browser-mute", muted: !browserMuted },
+												window.location.origin,
+											)
+									}
+								>
+									{browserMuted ? <Volume2Icon /> : <VolumeXIcon />}
+									{browserMuted ? "Unmute" : "Mute"}
+								</Button>
+								<Button
+									size="sm"
+									variant="outline"
+									onClick={() => {
+										box.current
+											?.querySelector("iframe")
+											?.contentWindow?.postMessage(
+												{ type: "coder:browser-resolution" },
+												window.location.origin,
+											);
+									}}
+								>
+									<MonitorIcon /> Resolution
+								</Button>
+							</>
+						)}
+						{open && available && !popup && (
+							<Button
+								size="sm"
+								variant="outline"
+								onClick={() => void toggleFullscreen()}
+								title={
+									fullscreen ? "Exit fullscreen" : "Show this panel fullscreen"
+								}
+							>
+								{fullscreen ? <MinimizeIcon /> : <MaximizeIcon />}
+								{fullscreen ? "Exit fullscreen" : "Fullscreen"}
+							</Button>
+						)}
 						{href && available && !popup && (
 							<Button
 								size="sm"
@@ -289,8 +437,13 @@ export const AccordionPanel: React.FC<AccordionPanelProps> = ({
 							variant="subtle"
 							className="text-content-secondary hover:text-content-destructive"
 							aria-label={`Remove the ${title} panel`}
+							disabled={closingSession}
 							title={`Remove this panel and close ${title}`}
 							onClick={() => {
+								if (onCloseSession) {
+									void closeSession(true);
+									return;
+								}
 								popup?.close();
 								onRemove();
 							}}
@@ -311,13 +464,23 @@ export const AccordionPanel: React.FC<AccordionPanelProps> = ({
 						</Button>
 					</div>
 				)}
+				{fullscreenError && (
+					<p role="status" className="px-4 text-sm text-content-secondary">
+						{fullscreenError}
+					</p>
+				)}
+				{(sessionError || closingSession) && (
+					<p role="status" className="px-4 text-sm text-content-secondary">
+						{sessionError || "Closing browser…"}
+					</p>
+				)}
 				{loaded && available && (
 					<div className={cn("relative px-4 pb-6", !open && "hidden")}>
 						<div
 							ref={box}
-							style={{ height: boxHeight }}
+							style={{ height: fullscreen ? "calc(100dvh - 80px)" : boxHeight }}
 							className={cn(
-								"overflow-hidden rounded-md border border-solid border-border",
+								"overflow-hidden rounded-2xl border border-solid border-border",
 								// The pointer must not disappear into the app while resizing.
 								resizing && "select-none [&_iframe]:pointer-events-none",
 							)}

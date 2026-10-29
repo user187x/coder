@@ -50,6 +50,7 @@ const UNSIZED_PX = 257;
  */
 export const LiveLava: React.FC<{
 	settings: LavaSettings;
+	paused?: boolean;
 	/** Width and height in CSS pixels; without, the class names size it. */
 	size?: number;
 	/** This copy's variation; without, one of its own at random. */
@@ -57,11 +58,19 @@ export const LiveLava: React.FC<{
 	alt?: string;
 	className?: string;
 	style?: React.CSSProperties;
-}> = ({ settings, size, seed: givenSeed, alt, className, style }) => {
+}> = ({
+	settings,
+	size,
+	seed: givenSeed,
+	alt,
+	className,
+	style,
+	paused = false,
+}) => {
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 	const [ownSeed] = useState(() => Math.floor(Math.random() * 2 ** 31));
 	const seed = givenSeed ?? ownSeed;
-	const moving = animated(useAnimationSettings(), "gifs");
+	const moving = animated(useAnimationSettings(), "gifs") && !paused;
 
 	useEffect(() => {
 		const canvas = canvasRef.current;

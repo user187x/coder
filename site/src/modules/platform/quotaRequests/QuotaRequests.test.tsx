@@ -131,9 +131,7 @@ it("retries a failed submission using the same dialog identity and draft", async
 		),
 	);
 	render(<QuotaRequestButton />);
-	await userEvent.click(
-		screen.getByRole("button", { name: "Request extra quota" }),
-	);
+	await userEvent.click(screen.getByRole("button", { name: "Quota Request" }));
 	await userEvent.type(
 		await screen.findByLabelText("Additional CPU cores"),
 		"2",
@@ -158,9 +156,16 @@ it("retries a failed submission using the same dialog identity and draft", async
 });
 
 it("remembers viewed requests without approving them", async () => {
-	const key = `coder:quota-requests-viewed:${MockUserOwner.id}`;
-	localStorage.removeItem(key);
+	let saved: unknown;
+
 	server.use(
+		http.get("/__coder-ui/api/preferences", () =>
+			HttpResponse.json({ quota_seen: [] }),
+		),
+		http.post("/__coder-ui/api/preferences", async ({ request }) => {
+			saved = await request.json();
+			return HttpResponse.json({ quota_seen: [MockQuotaRequest.id] });
+		}),
 		http.get("/__coder-ui/api/quota/requests", () =>
 			HttpResponse.json({ requests: [MockQuotaRequest] }),
 		),
@@ -174,9 +179,6 @@ it("remembers viewed requests without approving them", async () => {
 	});
 	await userEvent.click(button);
 	await waitFor(() =>
-		expect(JSON.parse(localStorage.getItem(key) ?? "[]")).toEqual([
-			MockQuotaRequest.id,
-		]),
+		expect(saved).toEqual({ quota_seen: [MockQuotaRequest.id] }),
 	);
-	localStorage.removeItem(key);
 });

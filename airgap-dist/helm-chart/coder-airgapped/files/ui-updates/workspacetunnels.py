@@ -28,6 +28,7 @@ CONNECTION_RESTRICTED = None
 CODER_URL = ""
 ADMIN_ROLES = set()
 _LOCK = threading.Lock()
+PERSISTENCE = None
 ROUTE = re.compile(r"^" + BASE + r"/organizations/([0-9a-f-]{36})/workspace-tunnels(?:/([0-9a-f-]{36}))?$")
 
 
@@ -72,6 +73,10 @@ def withdraw_quarantine(current):
 @contextlib.contextmanager
 def state(write=True):
     """Serialize atomic policy writes across service threads and processes."""
+    if PERSISTENCE is not None:
+        with PERSISTENCE.file_state(STATE_FILE, {"revision": 0, "workspaces": {}, "tunnels": {}}, write=write) as data:
+            yield data
+        return
     os.makedirs(os.path.dirname(STATE_FILE) or ".", exist_ok=True)
     with _LOCK, open(STATE_FILE + ".lock", "a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)

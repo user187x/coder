@@ -7,6 +7,7 @@ const prefersReducedMotion = () =>
 
 type AgentBorderFxProps = {
 	state: AgentBorderState | null;
+	rounded?: boolean;
 	children: React.ReactNode;
 };
 
@@ -21,6 +22,7 @@ type AgentBorderFxProps = {
  */
 export const AgentBorderFx: React.FC<AgentBorderFxProps> = ({
 	state,
+	rounded = false,
 	children,
 }) => {
 	const id = useId().replace(/[^a-zA-Z0-9_-]/g, "");
@@ -30,7 +32,7 @@ export const AgentBorderFx: React.FC<AgentBorderFxProps> = ({
 	// (its open logs and terminal session) when the state comes and goes.
 	return (
 		<div
-			className="agent-fx"
+			className={rounded ? "agent-fx agent-fx-rounded" : "agent-fx"}
 			data-fx={state ?? undefined}
 			style={
 				{

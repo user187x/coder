@@ -7,6 +7,7 @@ import type { WorkspaceAgentLogSource } from "#/api/typesGenerated";
 import { getPreferredProxy } from "#/contexts/ProxyContext";
 import * as M from "#/testHelpers/entities";
 import {
+	withAuthProvider,
 	withDashboardProvider,
 	withProxyProvider,
 	withWebSocket,
@@ -162,6 +163,35 @@ export default meta;
 type Story = StoryObj<typeof AgentRow>;
 
 export const Example: Story = {};
+
+export const NekoBrowser: Story = {
+	parameters: { user: M.MockUserOwner },
+	decorators: [withAuthProvider],
+	args: {
+		workspace: { ...M.MockWorkspace, id: "neko-panel-story" },
+		agent: {
+			...M.MockWorkspaceAgentReady,
+			apps: [
+				{
+					...M.MockWorkspaceApp,
+					id: "neko-browser-story",
+					slug: "neko-browser",
+					display_name: "Web Browser",
+					icon: "",
+					health: "initializing",
+				},
+				{
+					...M.MockWorkspaceApp,
+					id: "certificate-story",
+					slug: "certificate",
+					display_name: "Browser Certificate",
+					icon: "/icon/certificate.svg",
+					subdomain: false,
+				},
+			],
+		},
+	},
+};
 
 export const BunchOfApps: Story = {
 	args: {

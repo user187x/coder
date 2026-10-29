@@ -15,16 +15,21 @@ class DataflowOriginsTest(unittest.TestCase):
         scripts = {}
         with tempfile.TemporaryDirectory() as directory:
             for app in ('nifi', 'airflow'):
-                values = {'path': '', 'access_host': app + '--main--workspace--owner.apps.example.com', 'scheme': 'https'}
+                values = {'path': '/@owner/workspace.main/apps/nifi' if app == 'nifi' else '', 'access_host': app + '--main--workspace--owner.apps.example.com', 'scheme': 'https'}
                 expression = 'jsonencode(templatefile(' + json.dumps(str(FILES / ('apache_' + app + '.sh'))) + ',' + json.dumps(values) + '))\n'
                 rendered = subprocess.run(['terraform', 'console', '-no-color'], cwd=directory, input=expression, text=True, capture_output=True)
                 self.assertEqual(rendered.returncode, 0, rendered.stderr)
                 script = json.loads(json.loads(rendered.stdout))
                 syntax = subprocess.run(['bash', '-n'], input=script, text=True, capture_output=True)
                 self.assertEqual(syntax.returncode, 0, syntax.stderr)
-                self.assertNotIn('/@', script)
+                if app == 'airflow':
+                    self.assertNotIn('/@', script)
                 self.assertIn(values['access_host'], script)
                 scripts[app] = script
+        dataflow = (FILES / 'dataflow.tf').read_text()
+        nifi_app = dataflow.split('resource "coder_app" "nifi" {', 1)[1].split('variable "apps_wildcard_host"', 1)[0]
+        self.assertIn('subdomain = false', nifi_app)
+        self.assertIn('path        = local.nifi_path', dataflow)
         self.assertIn('AIRFLOW_BASE=\'\'', scripts['airflow'])
         self.assertIn('BASE_URL=$ACCESS_SCHEME://$ACCESS_HOST$AIRFLOW_BASE', scripts['airflow'])
-        self.assertIn('NIFI_PATH=\'\'', scripts['nifi'])
+        self.assertIn("NIFI_PATH='/@owner/workspace.main/apps/nifi'", scripts['nifi'])

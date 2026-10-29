@@ -21,6 +21,7 @@ import vmprofile
 
 ROUTE = re.compile(r"^/__coder-ui/api/organizations/([0-9a-f-]{36})/workspaces/([0-9a-f-]{36})/node-metrics$")
 WORKSPACE_INFO = SNAPSHOT = QUANTITY = KUBE = INFRASTRUCTURE_ACCESS = None
+HISTORY = None
 INSECURE_TLS = False
 _CACHE = {}
 _LOCK = threading.Lock()
@@ -335,7 +336,32 @@ def infrastructure_allowed(token):
         return False
 
 
-def report(token, oid, wid, owner=False):
+def observations(snapshot, node_name=None):
+    nodes = {n["metadata"]["name"]: n for n in snapshot.get("nodes", [])}
+    wanted = [n for name, n in nodes.items() if ready(n) or name == node_name]
+    # CPU/RAM remain available for large clusters; disk collection stays bounded.
+    summaries = {}
+    collected_nodes = wanted if len(wanted) <= 32 else [nodes[node_name]] if node_name in nodes else []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
+        for node, stats in zip(collected_nodes, pool.map(summary, collected_nodes)):
+            summaries[node["metadata"]["name"]] = stats
+    readings = {name: node_metrics(node, snapshot, summaries.get(name)) for name, node in nodes.items()
+                if ready(node) or name == node_name}
+    return nodes, readings
+
+
+def collect_history():
+    """Collect trusted physical metrics without depending on a dashboard being open."""
+    nodes, readings = observations(SNAPSHOT())
+    result = {'cluster': aggregate([readings[name] for name, node in nodes.items() if ready(node)])}
+    for name, values in readings.items():
+        uid = nodes[name]['metadata'].get('uid')
+        if uid:
+            result['node:' + name + ':' + uid] = values
+    return result
+
+
+def report(token, oid, wid, owner=False, seconds=300):
     workspace = WORKSPACE_INFO(token, wid)
     if not workspace or workspace.get("organization_id") != oid:
         raise LookupError("Workspace not found in this organization.")
@@ -352,16 +378,7 @@ def report(token, oid, wid, owner=False):
         placement = set()
         pods = []
     node_name = guest["nodeName"] if guest is not None else next(iter(placement)) if len(placement) == 1 else None
-    nodes = {n["metadata"]["name"]: n for n in snapshot.get("nodes", [])}
-    wanted = [n for name, n in nodes.items() if ready(n) or name == node_name]
-    # CPU/RAM remain available for large clusters; disk collection stays bounded.
-    summaries = {}
-    collected_nodes = wanted if len(wanted) <= 32 else [nodes[node_name]] if node_name in nodes else []
-    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
-        for node, stats in zip(collected_nodes, pool.map(summary, collected_nodes)):
-            summaries[node["metadata"]["name"]] = stats
-    readings = {name: node_metrics(node, snapshot, summaries.get(name)) for name, node in nodes.items()
-                if ready(node) or name == node_name}
+    nodes, readings = observations(snapshot, node_name)
     reason = "Workspace pod has not been assigned to a node."
     if len(placement) > 1:
         reason = "Workspace pods are assigned to multiple nodes; a single node scope is unavailable."
@@ -369,8 +386,19 @@ def report(token, oid, wid, owner=False):
         reason = "The assigned node's metrics are unavailable."
     elif snapshot.get("podsAvailable") is False:
         reason = "Workspace pod placement is unavailable."
+    history = {'node': {}, 'cluster': {}}
+    history_error = None
+    if HISTORY is not None:
+        try:
+            uid = nodes.get(node_name, {}).get('metadata', {}).get('uid')
+            if node_name and uid:
+                history['node'] = HISTORY('node:' + node_name + ':' + uid, seconds)
+            history['cluster'] = HISTORY('cluster', seconds)
+        except Exception:
+            history_error = 'Shared metric history is temporarily unavailable.'
     return {"workspaceId": wid, "workspaceName": workspace.get("name", ""), "nodeName": node_name,
             "allocation": guest["allocation"] if guest is not None else allocation(pods, wid), "infrastructureRestricted": False,
+            "history": history, "historyError": history_error,
             "node": readings.get(node_name, unavailable(reason)),
             "cluster": aggregate([readings[name] for name, node in nodes.items() if ready(node)]),
             "nodeCount": sum(ready(n) for n in nodes.values()),
@@ -389,7 +417,8 @@ def handle(h, method, path, query=""):
         return True
     try:
         oid, wid = (str(uuid.UUID(value)) for value in match.groups())
-        h.send_json(200, report(h.token(), oid, wid, owner="owner" in user.get("roles", [])))
+        seconds = max(40, min(14400, int((urllib.parse.parse_qs(query).get("seconds") or [300])[0])))
+        h.send_json(200, report(h.token(), oid, wid, owner="owner" in user.get("roles", []), seconds=seconds))
     except LookupError as error:
         h.send_json(404, {"error": str(error)})
     except ValueError:

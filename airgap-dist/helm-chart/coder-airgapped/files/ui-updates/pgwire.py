@@ -11,6 +11,7 @@
 A Connection is not thread-safe; Pool hands one out per call and reconnects after errors.
 """
 import base64
+import contextlib
 import hashlib
 import hmac
 import os
@@ -215,6 +216,35 @@ class Pool:
         self.url, self.cafile, self.size = url, cafile, size
         self.idle = []
         self.lock = threading.Lock()
+
+    @contextlib.contextmanager
+    def transaction(self):
+        """Pin every statement to one connection until commit or rollback."""
+        with self.lock:
+            conn = self.idle.pop() if self.idle else None
+        healthy = False
+        try:
+            if conn is None:
+                conn = Connection(self.url, self.cafile)
+            conn.query('BEGIN')
+            try:
+                yield conn
+                conn.query('COMMIT')
+                healthy = True
+            except BaseException:
+                try:
+                    conn.query('ROLLBACK')
+                    healthy = True
+                except Exception:
+                    pass
+                raise
+        finally:
+            if conn is not None:
+                with self.lock:
+                    if healthy and len(self.idle) < self.size:
+                        self.idle.append(conn)
+                    else:
+                        conn.close()
 
     def query(self, sql, params=()):
         with self.lock:

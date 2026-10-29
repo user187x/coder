@@ -157,6 +157,7 @@ LIBRARIES = {
 }
 
 SETTINGS_FILE = os.environ.get("SAFE_SETTINGS_FILE", "/data/cloud-drive.json")
+PERSISTENCE = None
 # Every account's capacity as an admin set it (Cloud Drive > Settings), over the chart's (QUOTA_BYTES).
 QUOTA_FILE = os.environ.get("SAFE_QUOTA_FILE", "/data/cloud-drive-quota.json")
 QUOTA_GIB_RANGE = (1, 10240)
@@ -248,7 +249,7 @@ def setup_audit(account, send):
     if not AUDIT_ENABLED:
         return
     _audit_account = account
-    _audit = driveaudit.Store(AUDIT_DB)
+    _audit = driveaudit.PostgresStore(AUDIT_DB, PERSISTENCE.pool) if PERSISTENCE is not None else driveaudit.Store(AUDIT_DB)
     _audit_gateway = driveaudit.Gateway(_audit, drive_of, audit_permission, lambda owner: owner in sources(),
                                       MAX_UPLOAD_BYTES, LOG)
     driveaudit.serve(_audit_gateway, "0.0.0.0", 9444, AUDIT_CERT, AUDIT_KEY)
@@ -360,6 +361,9 @@ def chart_backend():
 
 
 def load_custom():
+    if PERSISTENCE is not None:
+        data = PERSISTENCE.read_file(SETTINGS_FILE, {})
+        return data if isinstance(data, dict) and data.get('endpoint') else None
     try:
         with open(SETTINGS_FILE) as f:
             data = json.load(f)
@@ -439,7 +443,7 @@ def save_settings(user, body):
         raise PermissionError
     if body.get("reset"):
         try:
-            os.remove(SETTINGS_FILE)
+            _remove_json(SETTINGS_FILE)
         except FileNotFoundError:
             pass
         LOG(event="cloud-drive-backend", action="chart", by=user["username"])
@@ -451,11 +455,7 @@ def save_settings(user, body):
             raise ValueError("Not saved: it could not be reached (%s)." % result["error"])
         if not result["bucketExists"]:
             client(cfg).create_bucket(cfg["bucket"])
-        tmp = SETTINGS_FILE + ".tmp"
-        with open(tmp, "w") as f:
-            os.fchmod(f.fileno(), 0o600)
-            json.dump(cfg, f)
-        os.replace(tmp, SETTINGS_FILE)
+        _write_json(SETTINGS_FILE, cfg)
         LOG(event="cloud-drive-backend", action="custom", endpoint=cfg["endpoint"], bucket=cfg["bucket"],
             by=user["username"])
     # every volume and the mount Secret looked at again now
@@ -467,6 +467,8 @@ def save_settings(user, body):
 
 def turned_off():
     """{by, at} while an admin has the Cloud Drive off for everyone, else None."""
+    if PERSISTENCE is not None:
+        return PERSISTENCE.read_file(OFF_FILE, None)
     try:
         with open(OFF_FILE) as f:
             data = json.load(f)
@@ -486,7 +488,7 @@ def save_enabled(user, body):
         raise ValueError("enabled: true or false.")
     if on:
         try:
-            os.remove(OFF_FILE)
+            _remove_json(OFF_FILE)
         except FileNotFoundError:
             pass
     else:
@@ -502,6 +504,9 @@ def save_enabled(user, body):
 
 def custom_quota_gib():
     """The capacity an admin set (GiB), or None: the chart's."""
+    if PERSISTENCE is not None:
+        gib = (PERSISTENCE.read_file(QUOTA_FILE, {}) or {}).get('quotaGiB')
+        return gib if type(gib) is int and QUOTA_GIB_RANGE[0] <= gib <= QUOTA_GIB_RANGE[1] else None
     try:
         with open(QUOTA_FILE) as f:
             gib = json.load(f).get("quotaGiB")
@@ -522,7 +527,7 @@ def save_quota(user, body):
         raise PermissionError
     if body.get("reset"):
         try:
-            os.remove(QUOTA_FILE)
+            _remove_json(QUOTA_FILE)
         except FileNotFoundError:
             pass
         LOG(event="cloud-drive-quota", action="chart", gib=QUOTA_BYTES // 1024 ** 3, by=user["username"])
@@ -532,10 +537,7 @@ def save_quota(user, body):
         gib = int(gib)
     if not isinstance(gib, int) or isinstance(gib, bool) or not QUOTA_GIB_RANGE[0] <= gib <= QUOTA_GIB_RANGE[1]:
         raise ValueError("A capacity of %d to %d GiB, a whole number." % QUOTA_GIB_RANGE)
-    tmp = QUOTA_FILE + ".tmp"
-    with open(tmp, "w") as f:
-        json.dump({"quotaGiB": gib, "by": user["username"], "at": int(time.time())}, f)
-    os.replace(tmp, QUOTA_FILE)
+    _write_json(QUOTA_FILE, {"quotaGiB": gib, "by": user["username"], "at": int(time.time())})
     LOG(event="cloud-drive-quota", action="set", gib=gib, by=user["username"])
     return quota_view()
 
@@ -1358,7 +1360,16 @@ def start():
 
 
 # ---------------------------------------------------------------------------------------------------- encryption
+def _remove_json(path):
+    if PERSISTENCE is not None:
+        PERSISTENCE.write_file(path, None)
+        return
+    os.remove(path)
+
+
 def _read_json(path):
+    if PERSISTENCE is not None:
+        return PERSISTENCE.read_file(path, {}) or {}
     try:
         with open(path) as f:
             data = json.load(f)
@@ -1368,6 +1379,11 @@ def _read_json(path):
 
 
 def _read_state(path):
+    if PERSISTENCE is not None:
+        data = PERSISTENCE.read_file(path, {})
+        if not isinstance(data, dict):
+            raise RuntimeError('Cloud Drive connection state is invalid.')
+        return data
     try:
         with open(path) as source:
             data = json.load(source)
@@ -1382,7 +1398,11 @@ def _read_state(path):
 
 @contextlib.contextmanager
 def local_lock(path):
-    """Serialize state changes across replicas sharing the platform state volume."""
+    """Serialize state changes across service replicas."""
+    if PERSISTENCE is not None:
+        with PERSISTENCE.file_state(path, {}, write=True):
+            yield
+        return
     fd = os.open(path + '.lock', os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
     try:
         fcntl.flock(fd, fcntl.LOCK_EX)
@@ -1405,6 +1425,9 @@ def reconnect_guard(workspace_id):
 
 
 def _write_json(path, data):
+    if PERSISTENCE is not None:
+        PERSISTENCE.write_file(path, data)
+        return
     directory = os.path.dirname(os.path.abspath(path))
     fd, tmp = tempfile.mkstemp(prefix='.' + os.path.basename(path) + '.', dir=directory)
     try:

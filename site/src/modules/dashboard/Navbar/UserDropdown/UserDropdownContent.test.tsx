@@ -76,6 +76,7 @@ describe("UserDropdownContent", () => {
 		renderUserDropdownContent({ onSignOut: vi.fn() });
 		await waitForLoaderToBeRemoved();
 
+		await userEvent.click(screen.getByRole("menuitem", { name: "Appearance" }));
 		await userEvent.click(
 			screen.getByRole("menuitemcheckbox", { name: "Dark Mode" }),
 		);
@@ -110,6 +111,7 @@ it("saves a color variant selected from the theme circles", async () => {
 	});
 	renderUserDropdownContent({ onSignOut: vi.fn() });
 	await waitForLoaderToBeRemoved();
+	await userEvent.click(screen.getByRole("menuitem", { name: "Appearance" }));
 	await userEvent.click(screen.getByRole("menuitem", { name: "Theme colors" }));
 	await userEvent.click(
 		screen.getByRole("menuitemradio", { name: "Light tritanopia" }),

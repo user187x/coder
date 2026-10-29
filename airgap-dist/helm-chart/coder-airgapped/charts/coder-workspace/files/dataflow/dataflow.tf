@@ -1,9 +1,9 @@
 # The DATAFLOW template's own part (the chart pushes it beside main.tf, and with scripts/apache_nifi.sh and
 # scripts/apache_airflow.sh, for that template only): Apache NiFi and Apache Airflow in place of code-server (main.tf's
-# code_server = false), each started on its own app origin, with the built-in web terminal.
+# code_server = false), with the built-in web terminal.
 
-# Each app has a separate origin. Coder authenticates the proxy request and
-# replaces forwarding headers before passing requests to the local service.
+# NiFi shares the dashboard origin so its SAMEORIGIN policy permits workspace panels.
+# Coder authenticates the request and supplies its app path in X-Forwarded-Prefix.
 resource "coder_app" "nifi" {
   agent_id     = coder_agent.main.id
   slug         = "nifi"
@@ -12,14 +12,8 @@ resource "coder_app" "nifi" {
   # The root: Coder joins the app URL's path to every request, and NiFi serves at /nifi and /nifi-api (its root
   # redirects to its UI, under the app's path).
   url       = "http://127.0.0.1:8080"
-  subdomain = true
-  lifecycle {
-    precondition {
-      condition     = var.apps_wildcard_host != ""
-      error_message = "Dataflow subdomain apps require the configured apps_wildcard_host."
-    }
-  }
-  share = "owner"
+  subdomain = false
+  share     = "owner"
 
   # The dashboard's panel shows the port and protocol it is checked on.
   healthcheck {
@@ -43,19 +37,20 @@ variable "apps_wildcard_host" {
 locals {
   app_port            = try(regex("^https?://[^/]+(:[0-9]+)(?:/|$)", data.coder_workspace.me.access_url)[0], "")
   app_scheme          = startswith(data.coder_workspace.me.access_url, "https://") ? "https" : "http"
-  nifi_access_host    = replace(var.apps_wildcard_host, "*", "nifi--main--${data.coder_workspace.me.name}--${data.coder_workspace_owner.me.name}")
+  nifi_path           = "/@${data.coder_workspace_owner.me.name}/${data.coder_workspace.me.name}.main/apps/nifi"
+  nifi_access_host    = trimsuffix(replace(replace(data.coder_workspace.me.access_url, "https://", ""), "http://", ""), "/")
   airflow_access_host = replace(var.apps_wildcard_host, "*", "airflow--main--${data.coder_workspace.me.name}--${data.coder_workspace_owner.me.name}")
 }
 
 # NiFi and Airflow at every start, each in a script of its own (the workspace's Logs show them by name): their homes
-# in ~/.nifi and ~/airflow and their isolated public app hosts.
+# in ~/.nifi and ~/airflow, with NiFi under the dashboard and Airflow on its app host.
 resource "coder_script" "nifi" {
   agent_id     = coder_agent.main.id
   display_name = "Apache NiFi"
   icon         = "/__icons/nifi.svg" # files/icons/nifi.svg, served by templates/icons.yaml
   run_on_start = true
   script = templatefile("${path.module}/scripts/apache_nifi.sh", {
-    path        = ""
+    path        = local.nifi_path
     access_host = local.nifi_access_host
   })
 }

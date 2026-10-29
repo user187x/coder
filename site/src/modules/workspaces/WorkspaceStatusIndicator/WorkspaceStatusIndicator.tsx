@@ -20,6 +20,7 @@ import {
 	type DisplayWorkspaceStatusType,
 	getDisplayWorkspaceStatus,
 } from "#/utils/workspace";
+import { WorkspaceStateOrb } from "./WorkspaceStateOrb";
 import "./runningLight.css";
 
 export const variantByStatusType: Record<
@@ -50,12 +51,9 @@ const RunningLight: React.FC<{
 			aria-hidden
 			data-testid="workspace-running-light"
 			data-lost={lostAt ? true : undefined}
-			className="ws-running-light"
+			className="inline-flex"
 		>
-			<i className="ws-running-ring ws-running-outer" />
-			<i className="ws-running-ring ws-running-middle" />
-			<i className="ws-running-ring ws-running-inner" />
-			<i className="ws-running-core" />
+			<WorkspaceStateOrb state={lostAt ? "error" : "running"} />
 		</span>
 	);
 	if (!started && !lostAt) {
@@ -137,18 +135,34 @@ export const WorkspaceStatusIndicator: React.FC<
 						? "inactive"
 						: "warning"
 			: variantByStatusType[type];
-	const dot = update ? (
-		<RefreshCcwIcon aria-hidden className="size-3.5 workspace-update-pulse" />
-	) : listPill &&
-		workspace.latest_build.status === "running" &&
-		workspace.health.healthy &&
-		!lostWhileRunning ? null : runningLight &&
-		(type === "success" || lostWhileRunning) &&
-		workspace.latest_build.status === "running" ? (
-		<RunningLight started={workspaceStartedAt(workspace)} lostAt={lostAt} />
-	) : (
-		<StatusIndicatorDot />
-	);
+	const dot =
+		runningLight &&
+		(workspace.latest_build.status !== "running" ||
+			!workspace.health.healthy) ? (
+			<WorkspaceStateOrb
+				state={
+					!workspace.health.healthy ||
+					workspace.latest_build.status === "failed"
+						? "error"
+						: ["stopped", "deleted", "canceled"].includes(
+									workspace.latest_build.status,
+								)
+							? "stopped"
+							: "starting"
+				}
+			/>
+		) : update ? (
+			<RefreshCcwIcon aria-hidden className="size-3.5 workspace-update-pulse" />
+		) : listPill &&
+			workspace.latest_build.status === "running" &&
+			workspace.health.healthy &&
+			!lostWhileRunning ? null : runningLight &&
+			(type === "success" || lostWhileRunning) &&
+			workspace.latest_build.status === "running" ? (
+			<RunningLight started={workspaceStartedAt(workspace)} lostAt={lostAt} />
+		) : (
+			<StatusIndicatorDot />
+		);
 
 	const statusIndicator = (
 		<StatusIndicator

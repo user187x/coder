@@ -1,3 +1,4 @@
+import { PlusIcon } from "lucide-react";
 import { type FC, useId, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { toast } from "sonner";
@@ -169,13 +170,20 @@ export const QuotaRequestButton: FC = () => {
 			<Button
 				variant="outline"
 				size="sm"
+				className="h-9 gap-0 rounded-l-md rounded-r-full pl-3 pr-0"
 				onClick={() => {
 					setRequestId(generateUUID());
 					create.reset();
 					setOpen(true);
 				}}
 			>
-				Request extra quota
+				<span>Quota Request</span>
+				<span
+					aria-hidden
+					className="ml-3 flex size-10 items-center justify-center rounded-full border border-solid border-border bg-surface-secondary"
+				>
+					<PlusIcon className="size-5" strokeWidth={3} />
+				</span>
 			</Button>
 			<Dialog
 				open={open}

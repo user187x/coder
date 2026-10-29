@@ -807,3 +807,30 @@ export const revokeCloudDriveShare = (client: QueryClient) => ({
 		client.setQueryData(cloudDrivePeersKey, data),
 	onSettled: () => client.invalidateQueries({ queryKey: cloudDrivePeersKey }),
 });
+
+export const workspaceResourceHistory = (
+	workspaceId: string,
+	seconds = 300,
+	buckets = 12,
+) => ({
+	queryKey: [
+		...platformKey,
+		"workspace-resources",
+		workspaceId,
+		seconds,
+		buckets,
+	] as const,
+	queryFn: () =>
+		PlatformAPI.getWorkspaceResourceHistory(workspaceId, seconds, buckets),
+	refetchInterval: 5000,
+});
+export const userUIPreferences = () => ({
+	queryKey: [...platformKey, "user-ui-preferences"] as const,
+	queryFn: PlatformAPI.getUserUIPreferences,
+});
+export const updateUserUIPreferences = (client: QueryClient) => ({
+	mutationFn: PlatformAPI.setUserUIPreferences,
+	onSuccess: (
+		settings: Awaited<ReturnType<typeof PlatformAPI.getUserUIPreferences>>,
+	) => client.setQueryData(userUIPreferences().queryKey, settings),
+});

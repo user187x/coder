@@ -3,6 +3,8 @@ import { useQuery } from "react-query";
 import { toast } from "sonner";
 import { watchAgentMetadata } from "#/api/api";
 import { getErrorMessage } from "#/api/errors";
+import type { WorkspaceResourceHistory } from "#/api/platform";
+import { workspaceResourceHistory } from "#/api/queries/platform";
 import { workspaceInfrastructureMetrics } from "#/api/queries/workspaceMetrics";
 import type {
 	ServerSentEvent,
@@ -25,7 +27,11 @@ import {
 	infrastructureMetadata,
 	workspaceMaximum,
 } from "./infrastructureMetrics";
-import { metadataNumber, useMetadataHistory } from "./MetadataHistogram";
+import {
+	metadataNumber,
+	type Sample,
+	useMetadataHistory,
+} from "./MetadataHistogram";
 import { MetadataItem } from "./MetadataItem";
 import {
 	groupMetadata,
@@ -42,7 +48,52 @@ export { isHostMetric, metricName, metricRank } from "./metadataGroups";
 const shareOrNumber = (m: WorkspaceAgentMetadata) =>
 	metadataNumber(m.result.value) !== null;
 
+export type PersistedMetadataHistory = Record<string, Sample[]>;
+
+/** Convert authorized Postgres history to the existing histogram input. */
+export const persistedMetadataHistory = (
+	resources: WorkspaceResourceHistory | undefined,
+	agentId: string,
+	infrastructure: WorkspaceInfrastructureMetrics | undefined,
+	scope: InfrastructureScope,
+): PersistedMetadataHistory => {
+	const result: PersistedMetadataHistory = {};
+	for (const series of Object.values(resources?.agents[agentId] ?? {})) {
+		for (const sample of series) {
+			const samples = result[sample.key] ?? [];
+			result[sample.key] = samples;
+			samples.push({
+				at: new Date(sample.t).toISOString(),
+				t: sample.t,
+				value: sample.value,
+				text: sample.text,
+			});
+		}
+	}
+	for (const [kind, series] of Object.entries(
+		infrastructure?.history?.[scope] ?? {},
+	)) {
+		const key = `${scope}:${scope === "node" ? (infrastructure?.nodeName ?? "unknown") : "all"}:${kind}_host`;
+		result[key] = series.map((sample) => {
+			const percent =
+				sample.total !== null && sample.total > 0
+					? (sample.used / sample.total) * 100
+					: null;
+			const factor = sample.unit === "bytes" ? 1024 ** 3 : 1;
+			const text = `${sample.used / factor}${sample.total === null ? "" : ` / ${sample.total / factor}`}${percent === null ? "" : ` (${percent.toFixed(3)}%)`}`;
+			return {
+				at: new Date(sample.t).toISOString(),
+				t: sample.t,
+				value: percent ?? sample.used,
+				text,
+			};
+		});
+	}
+	return result;
+};
+
 type AgentMetadataViewProps = {
+	persistedHistory?: PersistedMetadataHistory;
 	now?: number;
 	metadata: WorkspaceAgentMetadata[];
 	workspaceName?: string;
@@ -58,6 +109,7 @@ type AgentMetadataViewProps = {
 };
 
 export const AgentMetadataView: React.FC<AgentMetadataViewProps> = ({
+	persistedHistory,
 	metadata,
 	now,
 	workspaceName,
@@ -85,7 +137,11 @@ export const AgentMetadataView: React.FC<AgentMetadataViewProps> = ({
 	const shown = scoped
 		? [...metadata.filter((m) => !isHostMetric(m)), ...host]
 		: metadata;
-	const historyOf = useMetadataHistory(historyScope, shown, every !== "off");
+	const historyOf = useMetadataHistory(
+		historyScope,
+		shown,
+		every !== "off" && persistedHistory === undefined,
+	);
 	// for the agent's Metrics Interval menu (beside Open ports): how often each metric is reported
 	const intervals = JSON.stringify(
 		shown
@@ -176,7 +232,11 @@ export const AgentMetadataView: React.FC<AgentMetadataViewProps> = ({
 					? "Capacity unavailable"
 					: "Assigned maximum unavailable"
 			}
-			history={historyOf(m.description.key)}
+			history={
+				persistedHistory === undefined
+					? historyOf(m.description.key)
+					: (persistedHistory[m.description.key] ?? [])
+			}
 			every={every}
 			pausedAt={pausedAt}
 		/>
@@ -194,7 +254,7 @@ export const AgentMetadataView: React.FC<AgentMetadataViewProps> = ({
 	}
 	return (
 		<section
-			className="grid w-full min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,27rem),1fr))] items-stretch gap-3 pb-1"
+			className="grid w-full min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,27rem),1fr))] items-stretch gap-6"
 			data-metrics
 		>
 			{groups.map((g) => (
@@ -203,7 +263,7 @@ export const AgentMetadataView: React.FC<AgentMetadataViewProps> = ({
 					role="group"
 					aria-label={g.title}
 					title={g.hint}
-					className="flex w-full min-w-0 flex-col gap-2 rounded-2xl border border-solid border-border bg-surface-secondary/40 px-3.5 pt-3 pb-4"
+					className="flex w-full min-w-0 flex-col gap-2 rounded-2xl border border-solid border-border bg-surface-secondary/40 p-4"
 					data-testid={`metrics-group-${g.id}`}
 				>
 					<div className="grid min-h-9 min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-2 text-xs font-semibold tracking-wide text-content-secondary">
@@ -322,10 +382,20 @@ export const AgentMetadata: React.FC<AgentMetadataProps> = ({
 }) => {
 	const [activeMetadata, setActiveMetadata] = useState(initialMetadata);
 	const [scope, setScope] = useState<InfrastructureScope>("node");
+	const every = useGraphEvery();
+	const seconds = Math.min(
+		14400,
+		Math.max(40, typeof every === "number" && every > 0 ? every * 40 : 300),
+	);
+	const history = useQuery({
+		...workspaceResourceHistory(workspace?.id ?? "", seconds, 40),
+		enabled: Boolean(workspace) && pausedAt === undefined,
+	});
 	const infrastructure = useQuery({
 		...workspaceInfrastructureMetrics(
 			workspace?.organization_id ?? "",
 			workspace?.id ?? "",
+			seconds,
 		),
 		enabled: Boolean(workspace) && pausedAt === undefined,
 	});
@@ -408,17 +478,34 @@ export const AgentMetadata: React.FC<AgentMetadataProps> = ({
 	}
 
 	return (
-		<AgentMetadataView
-			metadata={shown}
-			workspaceName={workspace?.name}
-			infrastructure={infrastructure.data}
-			infrastructureLoading={infrastructure.isLoading}
-			infrastructureError={infrastructure.error}
-			scope={scope}
-			onScopeChange={setScope}
-			historyScope={agent.id}
-			pausedAt={pausedAt}
-		/>
+		<>
+			{(history.isError || infrastructure.data?.historyError) && (
+				<p role="status" className="text-xs text-content-secondary">
+					Shared metric history is temporarily unavailable.
+				</p>
+			)}
+			<AgentMetadataView
+				metadata={shown}
+				workspaceName={workspace?.name}
+				infrastructure={infrastructure.data}
+				infrastructureLoading={infrastructure.isLoading}
+				infrastructureError={infrastructure.error}
+				scope={scope}
+				onScopeChange={setScope}
+				historyScope={agent.id}
+				persistedHistory={
+					workspace
+						? persistedMetadataHistory(
+								history.data,
+								agent.id,
+								infrastructure.data,
+								scope,
+							)
+						: undefined
+				}
+				pausedAt={pausedAt}
+			/>
+		</>
 	);
 };
 
