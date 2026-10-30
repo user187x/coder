@@ -91,6 +91,14 @@ default_memory = "4"
 def neko_template(base, output, image, turn_secret):
     kasm_template(base, output)
     source = (output / 'main.tf').read_text()
+    source = re.sub(r'(variable "terminal" \{.*?default\s*=\s*)true', r'\g<1>false', source, count=1, flags=re.S)
+    source = source.replace('var.terminal', 'false')
+    dev_security = r'(security_context\s*\{\s*run_as_user\s*=\s*"1000"\s*)\}'
+    source, hardened = re.subn(dev_security, r'\1run_as_non_root = true\n            allow_privilege_escalation = false\n            capabilities {\n              drop = ["ALL"]\n            }\n          }', source)
+    if hardened != 1:
+        raise ValueError('The base template has no unique agent container security context.')
+    (output / 'terraform.tfvars').write_text((output / 'terraform.tfvars').read_text().replace('terminal = true', 'terminal = false'))
+
     start = source.index('        container {\n          name = "kasm"')
     end = source.index('        container {\n          name  = "dev"', start)
     env = {
@@ -144,7 +152,14 @@ def neko_template(base, output, image, turn_secret):
           }
         }
 '''
-    (output / 'main.tf').write_text(source[:start] + container + source[end:])
+    source = source[:start] + container + source[end:]
+    agent_container = '        container {\n          name  = "dev"'
+    restrictions = ''.join('\n          env {\n            name = ' + json.dumps(key) + '\n            value = "true"\n          }' for key in (
+        'CODER_AGENT_BLOCK_TERMINAL_ACCESS', 'CODER_AGENT_BLOCK_LOCAL_PORT_FORWARDING',
+        'CODER_AGENT_BLOCK_REVERSE_PORT_FORWARDING',
+    ))
+    source = source.replace(agent_container, agent_container + restrictions, 1)
+    (output / 'main.tf').write_text(source)
     (output / 'browser.tf').write_text('''resource "coder_app" "browser" {
   agent_id = coder_agent.main.id
   slug = "neko-browser"

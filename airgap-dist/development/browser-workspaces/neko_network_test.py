@@ -24,11 +24,18 @@ class NekoNetworkTest(unittest.TestCase):
             base = root / 'base'
             base.mkdir()
             (base / 'scripts').mkdir()
-            (base / 'main.tf').write_text('        container {\n          name  = "dev"\n        }\n')
+            (base / 'main.tf').write_text('        container {\n          name  = "dev"\n          security_context {\n            run_as_user = "1000"\n          }\n        }\n')
             (base / 'workspace-vm.tf').write_text('')
             archive = builder.neko_template(base, root / 'template', 'registry.test/neko@sha256:123', 'custom-turn')
             with tarfile.open(archive) as tar:
                 policy = json.load(tar.extractfile('browser-network.tf.json'))['resource']['kubernetes_network_policy_v1']['browser_media']
+            source = (root / 'template/main.tf').read_text()
+            self.assertNotIn('var.terminal', source)
+            self.assertIn('terminal = false', (root / 'template/terraform.tfvars').read_text())
+            self.assertIn('CODER_AGENT_BLOCK_TERMINAL_ACCESS', source)
+            self.assertIn('run_as_non_root = true', source)
+            self.assertIn('allow_privilege_escalation = false', source)
+            self.assertIn('drop = ["ALL"]', source)
             # The same template must resolve fresh names and selectors on recreation.
             for workspace_id in ('first-workspace', 'recreated-workspace'):
                 rendered = json.loads(json.dumps(policy).replace('${data.coder_workspace.me.id}', workspace_id))

@@ -35,6 +35,8 @@ type Server struct {
 	// Note that this is different from the devcontainers feature, which uses
 	// subagents.
 	ExperimentalContainers bool
+	// BlockConnections rejects web terminal connections before creating a process.
+	BlockConnections bool
 }
 
 // NewServer returns a new ReconnectingPTY server
@@ -68,6 +70,10 @@ func (s *Server) Serve(ctx, hardCtx context.Context, l net.Listener) (retErr err
 			s.logger.Debug(ctx, "accept pty failed", slog.Error(err))
 			retErr = err
 			break
+		}
+		if s.BlockConnections {
+			_ = conn.Close()
+			continue
 		}
 		clientSessionID := agentssh.ClientSessionIDFromConn(conn)
 		clog := s.logger.With(

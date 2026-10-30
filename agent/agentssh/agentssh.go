@@ -108,6 +108,8 @@ type Config struct {
 	// to shrink the port range and reduce the number of sessions
 	// required.
 	X11MaxPort *int
+	// BlockTerminalAccess rejects user SSH sessions, including commands and SFTP.
+	BlockTerminalAccess bool
 	// BlockFileTransfer restricts use of file transfer applications.
 	BlockFileTransfer bool
 	// BlockReversePortForwarding disables reverse port forwarding (ssh -R).
@@ -430,6 +432,11 @@ func extractContainerInfo(env []string) (container, containerUser string, filter
 }
 
 func (s *Server) sessionHandler(session ssh.Session) {
+	if s.config.BlockTerminalAccess {
+		_, _ = io.WriteString(session.Stderr(), "Terminal access is disabled for this workspace.\n")
+		_ = session.Exit(1)
+		return
+	}
 	ctx := session.Context()
 	id := uuid.New()
 	clientSessionID := clientSessionIDFromContext(ctx)

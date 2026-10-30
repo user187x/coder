@@ -597,3 +597,47 @@ func sshClient(t *testing.T, addr string) *ssh.Client {
 	})
 	return c
 }
+
+func TestBlockTerminalAccess(t *testing.T) {
+	t.Parallel()
+	ctx := testutil.Context(t, testutil.WaitLong)
+	s, err := agentssh.NewServer(ctx, testutil.Logger(t), prometheus.NewRegistry(), afero.NewMemMapFs(), agentexec.DefaultExecer, &agentssh.Config{BlockTerminalAccess: true})
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = s.Close() })
+	require.NoError(t, s.UpdateHostSigner(42))
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_ = s.Serve(listener)
+	}()
+	t.Cleanup(func() { _ = s.Close(); <-done })
+	client := sshClient(t, listener.Addr().String())
+	for _, kind := range []string{"command", "shell", "sftp"} {
+		t.Run(kind, func(t *testing.T) {
+			session, err := client.NewSession()
+			require.NoError(t, err)
+			defer session.Close()
+			var output, stderr bytes.Buffer
+			session.Stdout, session.Stderr = &output, &stderr
+			switch kind {
+			case "command":
+				err = session.Start("echo terminal-command-executed")
+			case "shell":
+				err = session.Shell()
+			case "sftp":
+				err = session.RequestSubsystem("sftp")
+			}
+			require.NoError(t, err)
+			require.Error(t, session.Wait())
+			if kind != "sftp" {
+				require.Contains(t, stderr.String(), "Terminal access is disabled")
+			}
+			require.NotContains(t, output.String(), "terminal-command-executed")
+		})
+	}
+	// Startup scripts use CreateCommand directly and must remain available.
+	_, err = s.CreateCommand(ctx, "true", nil, nil)
+	require.NoError(t, err)
+}

@@ -102,6 +102,7 @@ type Options struct {
 	ReportMetadataInterval          time.Duration
 	ServiceBannerRefreshInterval    time.Duration
 	BlockFileTransfer               bool
+	BlockTerminalAccess             bool
 	BlockReversePortForwarding      bool
 	BlockLocalPortForwarding        bool
 	Execer                          agentexec.Execer
@@ -225,6 +226,7 @@ func New(options Options) Agent {
 		subsystems:                         options.Subsystems,
 		logSender:                          agentsdk.NewLogSender(options.Logger),
 		blockFileTransfer:                  options.BlockFileTransfer,
+		blockTerminalAccess:                options.BlockTerminalAccess,
 		blockReversePortForwarding:         options.BlockReversePortForwarding,
 		blockLocalPortForwarding:           options.BlockLocalPortForwarding,
 
@@ -299,6 +301,7 @@ type agent struct {
 	sshMaxTimeout                      time.Duration
 	envInfo                            usershell.EnvInfoer
 	blockFileTransfer                  bool
+	blockTerminalAccess                bool
 	blockReversePortForwarding         bool
 	blockLocalPortForwarding           bool
 
@@ -351,6 +354,7 @@ func (a *agent) init() {
 		WorkingDirectory:           func() string { return a.manifest.Load().Directory },
 		EnvInfo:                    a.envInfo,
 		BlockFileTransfer:          a.blockFileTransfer,
+		BlockTerminalAccess:        a.blockTerminalAccess,
 		BlockReversePortForwarding: a.blockReversePortForwarding,
 		BlockLocalPortForwarding:   a.blockLocalPortForwarding,
 		ConnectionReporter:         a.connectionReporter,
@@ -394,6 +398,7 @@ func (a *agent) init() {
 		a.reconnectingPTYTimeout,
 		func(s *reconnectingpty.Server) {
 			s.ExperimentalContainers = a.devcontainers
+			s.BlockConnections = a.blockTerminalAccess
 		},
 	)
 

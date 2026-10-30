@@ -59,6 +59,7 @@ func (r *RootCmd) workspaceAgent() *serpent.Command {
 		slogJSONPath                    string
 		slogStackdriverPath             string
 		blockFileTransfer               bool
+		blockTerminalAccess             bool
 		blockReversePortForwarding      bool
 		blockLocalPortForwarding        bool
 		agentHeaderCommand              string
@@ -337,6 +338,7 @@ func (r *RootCmd) workspaceAgent() *serpent.Command {
 
 					PrometheusRegistry:         prometheusRegistry,
 					BlockFileTransfer:          blockFileTransfer,
+					BlockTerminalAccess:        blockTerminalAccess,
 					BlockReversePortForwarding: blockReversePortForwarding,
 					BlockLocalPortForwarding:   blockLocalPortForwarding,
 					Execer:                     execer,
@@ -511,6 +513,13 @@ func (r *RootCmd) workspaceAgent() *serpent.Command {
 			Description: "Number of log entries below the current log level to keep " +
 				"in memory and emit on errors. Set to 0 to disable the flight recorder.",
 			Value: serpent.Int64Of(&flightRecorderSize),
+		},
+		{
+			Flag:        "block-terminal-access",
+			Default:     "false",
+			Env:         "CODER_AGENT_BLOCK_TERMINAL_ACCESS",
+			Description: "Block SSH sessions and web terminals while allowing workspace apps and startup scripts.",
+			Value:       serpent.BoolOf(&blockTerminalAccess),
 		},
 		{
 			Flag:        "block-file-transfer",

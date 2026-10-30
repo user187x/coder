@@ -1,6 +1,7 @@
 FROM ghcr.io/m1k1o/neko/chromium:3.1.6@sha256:2471119c7b4010067f76f3421a78a8bcf35e3c223b2d1f4db084914ec915fb30
 RUN apt-get update && apt-get install -y --no-install-recommends libnss3-tools python3-aiohttp && rm -rf /var/lib/apt/lists/* \
     && cp -a /home/neko /opt/neko-default-profile
+COPY chromium-browser-policy.json /etc/chromium/policies/managed/coder-browser.json
 COPY kasm-browser.py /opt/coder/browser-certificates.py
 COPY neko-certificates.conf /etc/neko/supervisord/certificates.conf
 ENV BROWSER_MODE=certificates NEKO_CAPTURE_VIDEO_SHOW_POINTER=false

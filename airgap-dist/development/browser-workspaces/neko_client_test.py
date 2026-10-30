@@ -1,5 +1,6 @@
 """Verify first-visit session establishment without stored N.eko credentials."""
 import importlib.util
+import json
 import pathlib
 import shutil
 import subprocess
@@ -12,6 +13,13 @@ spec.loader.exec_module(patcher)
 
 @unittest.skipUnless(shutil.which('node'), 'Node required')
 class NekoClientTest(unittest.TestCase):
+    def test_home_button_opens_new_tab(self):
+        policy = json.loads(pathlib.Path(__file__).with_name('chromium-browser-policy.json').read_text())
+        self.assertTrue(policy['ShowHomeButton'])
+        self.assertTrue(policy['HomepageIsNewTabPage'])
+        dockerfile = pathlib.Path(__file__).with_name('Dockerfile.neko').read_text()
+        self.assertIn('COPY chromium-browser-policy.json /etc/chromium/policies/managed/coder-browser.json', dockerfile)
+
     def test_session_creation_and_errors(self):
         program = r'''
 const assert = require('node:assert/strict');
