@@ -174,6 +174,24 @@ resource "coder_app" "browser_certificate" {
   }
 }
 ''')
+    # Media permissions must follow the workspace lifecycle, including recreation.
+    workspace = {'com.coder.workspace.id': '${data.coder_workspace.me.id}'}
+    policy = {
+        'count': '${var.workspace_vm_enabled ? 0 : data.coder_workspace.me.start_count}',
+        'metadata': [{'name': 'coder-neko-${data.coder_workspace.me.id}', 'namespace': '${var.namespace}',
+                      'labels': workspace}],
+        'spec': [{
+            'pod_selector': [{'match_labels': {'app.kubernetes.io/name': turn_secret}}],
+            'policy_types': ['Ingress', 'Egress'],
+            'ingress': [{'from': [{'pod_selector': [{'match_labels': workspace}]}],
+                         'ports': [{'protocol': 'UDP', 'port': '49160', 'end_port': 49200}]}],
+            'egress': [{'to': [{'pod_selector': [{'match_labels': workspace}]}],
+                        'ports': [{'protocol': 'UDP', 'port': '30590', 'end_port': 30595}]}],
+        }],
+    }
+    (output / 'browser-network.tf.json').write_text(json.dumps({
+        'resource': {'kubernetes_network_policy_v1': {'browser_media': policy}},
+    }, indent=2) + '\n')
     archive = output.with_suffix('.tar')
     with tarfile.open(archive, 'w', format=tarfile.USTAR_FORMAT) as tar:
         for path in sorted(output.rglob('*')):

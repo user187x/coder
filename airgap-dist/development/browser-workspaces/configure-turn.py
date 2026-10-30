@@ -1,19 +1,24 @@
 #!/usr/bin/env python3
-"""Provision an authenticated, workspace-scoped TURN/TLS route on existing HTTPS ingress."""
+"""Provision shared TURN/TLS ingress; workspace templates own media permissions."""
 import argparse
 import base64
 import json
 import secrets
 import subprocess
 
-parser = argparse.ArgumentParser()
+parser = argparse.ArgumentParser(
+    description=__doc__,
+    epilog='For upgrades, run with --prepare-workspaces, update the browser template and rebuild its workspaces, then rerun without that flag.',
+)
 parser.add_argument('--kubeconfig', required=True)
 parser.add_argument('--namespace', default='coder')
-parser.add_argument('--workspace-id', required=True)
+parser.add_argument('--prepare-workspaces', action='store_true', help='Install provisioner permissions without changing relay configuration or existing media rules')
+parser.add_argument('--workspace-id', help='Deprecated; workspace templates now manage media permissions.')
 parser.add_argument('--hostname', required=True)
 parser.add_argument('--tls-secret', required=True)
 parser.add_argument('--pod-cidr-range', required=True)
 parser.add_argument('--name', default='coder-neko-turn')
+parser.add_argument('--provisioner-service-account', default='coder', help='ServiceAccount running browser workspace Terraform')
 parser.add_argument('--gateway-class', default='traefik')
 parser.add_argument('--gateway-port', type=int, default=8443)
 args = parser.parse_args()
@@ -21,7 +26,20 @@ kubectl = ['kubectl', '--kubeconfig', args.kubeconfig, '-n', args.namespace]
 name = args.name
 metadata = {'name': name, 'namespace': args.namespace}
 labels = {'app.kubernetes.io/name': name}
-workspace = {'com.coder.workspace.id': args.workspace_id}
+rbac_resources = [
+    {'apiVersion': 'rbac.authorization.k8s.io/v1', 'kind': 'Role',
+     'metadata': {'name': name + '-workspaces', 'namespace': args.namespace},
+     'rules': [{'apiGroups': ['networking.k8s.io'], 'resources': ['networkpolicies'],
+                'verbs': ['get', 'create', 'update', 'delete']}]},
+    {'apiVersion': 'rbac.authorization.k8s.io/v1', 'kind': 'RoleBinding',
+     'metadata': {'name': name + '-workspaces', 'namespace': args.namespace},
+     'roleRef': {'apiGroup': 'rbac.authorization.k8s.io', 'kind': 'Role', 'name': name + '-workspaces'},
+     'subjects': [{'kind': 'ServiceAccount', 'name': args.provisioner_service_account, 'namespace': args.namespace}]},
+]
+if args.prepare_workspaces:
+    subprocess.run(kubectl + ['apply', '-f', '-'], input=json.dumps({'apiVersion': 'v1', 'kind': 'List', 'items': rbac_resources}), text=True, check=True)
+    raise SystemExit(0)
+
 credentials = subprocess.run(kubectl + ['get', 'secret', name, '-o', 'json'], capture_output=True, text=True)
 if credentials.returncode:
     password = secrets.token_urlsafe(32)
@@ -48,7 +66,7 @@ else:
     if ice[0]['urls'] != ['turns:' + args.hostname + ':443?transport=tcp']:
         raise SystemExit('Existing TURN credentials belong to a different hostname.')
 
-resources = [
+resources = rbac_resources + [
     {'apiVersion': 'apps/v1', 'kind': 'Deployment', 'metadata': metadata, 'spec': {
         'replicas': 1, 'selector': {'matchLabels': labels},
         'template': {'metadata': {'labels': labels}, 'spec': {
@@ -78,8 +96,7 @@ resources = [
     {'apiVersion': 'networking.k8s.io/v1', 'kind': 'NetworkPolicy', 'metadata': metadata, 'spec': {
         'podSelector': {'matchLabels': labels}, 'policyTypes': ['Ingress', 'Egress'],
         'ingress': [
-            {'from': [{'podSelector': {'matchLabels': {'app.kubernetes.io/name': 'traefik'}}}], 'ports': [{'protocol': 'TCP', 'port': 5349}]},
-            {'from': [{'podSelector': {'matchLabels': workspace}}], 'ports': [{'protocol': 'UDP', 'port': 49160, 'endPort': 49200}]}],
-        'egress': [{'to': [{'podSelector': {'matchLabels': workspace}}], 'ports': [{'protocol': 'UDP', 'port': 30590, 'endPort': 30595}]}]}},
+            {'from': [{'podSelector': {'matchLabels': {'app.kubernetes.io/name': 'traefik'}}}], 'ports': [{'protocol': 'TCP', 'port': 5349}]}],
+        'egress': []}},
 ]
 subprocess.run(kubectl + ['apply', '-f', '-'], input=json.dumps({'apiVersion': 'v1', 'kind': 'List', 'items': resources}), text=True, check=True)
