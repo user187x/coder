@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"testing/fstest"
 
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/require"
@@ -30,7 +31,27 @@ func TestGetModulesArchive(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		t.Parallel()
 
-		archive, skipped, err := GetModulesArchive(os.DirFS(filepath.Join("testdata", "modules-source-caching")))
+		// Git does not preserve group-write permissions from the checkout's umask.
+		// Fix fixture modes so the expected archive hash is portable.
+		source := os.DirFS(filepath.Join("testdata", "modules-source-caching"))
+		fixture := fstest.MapFS{}
+		err := fs.WalkDir(source, ".", func(path string, entry fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if entry.IsDir() {
+				fixture[path] = &fstest.MapFile{Mode: fs.ModeDir | 0o755}
+				return nil
+			}
+			data, err := fs.ReadFile(source, path)
+			if err != nil {
+				return err
+			}
+			fixture[path] = &fstest.MapFile{Data: data, Mode: 0o644}
+			return nil
+		})
+		require.NoError(t, err)
+		archive, skipped, err := GetModulesArchive(fixture)
 		require.NoError(t, err)
 		require.Len(t, skipped, 0)
 

@@ -305,6 +305,9 @@ type Options struct {
 	// rotator is the sole creator of nats_ca rows, so this cache is read-only.
 	NATSCACache cryptokeys.SigningKeycache
 	Clock       quartz.Clock
+	// SessionGuardClock controls security-policy polling independently of
+	// the workspace lifecycle clock. Defaults to the real clock.
+	SessionGuardClock quartz.Clock
 	// Acquirer acquires provisioner jobs. Defaults to provisionerdserver.Acquirer
 	// backed by Database and Pubsub.
 	Acquirer *provisionerdserver.Acquirer
@@ -437,6 +440,9 @@ func New(options *Options) *API {
 	}
 	if options.Clock == nil {
 		options.Clock = quartz.NewReal()
+	}
+	if options.SessionGuardClock == nil {
+		options.SessionGuardClock = quartz.NewReal()
 	}
 	if options.DERPServer == nil && options.DeploymentValues.DERP.Server.Enable {
 		options.DERPServer = derp.NewServer(key.NewNode(), tailnet.Logger(options.Logger.Named("derp")))
@@ -687,10 +693,10 @@ func New(options *Options) *API {
 		options.WorkspaceAppAuditSessionTimeout,
 		options.AppSigningKeyCache,
 	)
-	api.workspaceQuarantine = workspacequarantine.New(options.Database, options.Clock)
+	api.workspaceQuarantine = workspacequarantine.New(options.Database, options.SessionGuardClock)
 	go api.workspaceQuarantine.Run(api.ctx)
 	go api.runShortTermLeases()
-	api.globalLockdown = platformlockdown.New(options.Database, api.ID, options.Clock)
+	api.globalLockdown = platformlockdown.New(options.Database, api.ID, options.SessionGuardClock)
 	if err := api.globalLockdown.Register(ctx); err != nil {
 		options.Logger.Error(ctx, "register global lockdown replica", slog.Error(err))
 	}

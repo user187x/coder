@@ -3,6 +3,7 @@ package pubsub
 import (
 	"context"
 	"fmt"
+	"io"
 	"sync"
 	"testing"
 
@@ -12,6 +13,48 @@ import (
 
 	"github.com/coder/coder/v2/testutil"
 )
+
+func TestPubSub_CloseDuringLatencySubscribe(t *testing.T) {
+	t.Parallel()
+	ctx := testutil.Context(t, testutil.WaitShort)
+	listener := &disconnectedPqListener{
+		listening: make(chan struct{}),
+		closed:    make(chan struct{}),
+		notify:    make(chan *pq.Notification),
+	}
+	uut := newWithoutListener(testutil.Logger(t), nil, nil)
+	uut.pgListener = listener
+	go uut.listen()
+	t.Cleanup(func() { _ = uut.closeListener() })
+	uut.metrics.StartLatencyLoop(uut)
+	testutil.TryReceive(ctx, t, listener.listening)
+	closed := make(chan error, 1)
+	go func() { closed <- uut.Close() }()
+	require.NoError(t, testutil.TryReceive(ctx, t, closed))
+}
+
+// disconnectedPqListener models LISTEN waiting for PostgreSQL to reconnect.
+type disconnectedPqListener struct {
+	listening chan struct{}
+	closed    chan struct{}
+	notify    chan *pq.Notification
+}
+
+func (f *disconnectedPqListener) Listen(string) error {
+	close(f.listening)
+	<-f.closed
+	return io.ErrClosedPipe
+}
+
+func (*disconnectedPqListener) Unlisten(string) error { return io.ErrClosedPipe }
+
+func (f *disconnectedPqListener) NotifyChan() <-chan *pq.Notification { return f.notify }
+
+func (f *disconnectedPqListener) Close() error {
+	close(f.closed)
+	close(f.notify)
+	return nil
+}
 
 func TestPubSub_DoesntBlockNotify(t *testing.T) {
 	t.Parallel()

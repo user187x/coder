@@ -383,10 +383,10 @@ func (p *PGPubsub) Publish(event string, message []byte) error {
 // Close closes the pubsub instance.
 func (p *PGPubsub) Close() error {
 	p.logger.Info(context.Background(), "pubsub is closing")
-	// Stop the latency loop before closing the listener so an in-flight
-	// probe unsubscribes first. No-op if the loop was never started.
-	p.metrics.StopLatencyLoop()
+	// LISTEN can wait indefinitely for a disconnected database to reconnect.
+	// Closing the listener unblocks a probe before we wait for its loop.
 	err := p.closeListener()
+	p.metrics.StopLatencyLoop()
 	<-p.listenDone
 	p.logger.Debug(context.Background(), "pubsub closed")
 	return err
