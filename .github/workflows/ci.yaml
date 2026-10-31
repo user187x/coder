@@ -16,8 +16,7 @@ on:
   pull_request:
   workflow_dispatch:
 
-permissions:
-  contents: read
+permissions: {}
 
 # Cancel in-progress runs for pull requests when developers push
 # additional changes
@@ -27,6 +26,8 @@ concurrency:
 
 jobs:
   changes:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     # For create events, only run on release branches to avoid
     # triggering CI for every feature branch creation.
@@ -136,6 +137,8 @@ jobs:
           FILTER_JSON: ${{ toJSON(steps.filter.outputs) }}
 
   lint-docs:
+    permissions:
+      contents: read
     needs: changes
     if: needs.changes.outputs.docs == 'true' || needs.changes.outputs.ci == 'true' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -306,6 +309,8 @@ jobs:
   #       run: git diff --exit-code
 
   lint:
+    permissions:
+      contents: read
     needs: changes
     if: needs.changes.outputs.offlinedocs-only == 'false' || needs.changes.outputs.ci == 'true' || github.ref == 'refs/heads/main'
     runs-on: ${{ github.repository_owner == 'coder' && 'depot-ubuntu-22.04-8' || 'ubuntu-latest' }}
@@ -394,6 +399,8 @@ jobs:
         shell: bash
 
   lint-actions:
+    permissions:
+      contents: read
     needs: changes
     # Only run this job if changes to CI workflow files are detected. This job
     # can flake as it reaches out to GitHub to check referenced actions.
@@ -426,6 +433,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   gen:
+    permissions:
+      contents: read
     timeout-minutes: 20
     runs-on: ${{ github.repository_owner == 'coder' && 'depot-ubuntu-22.04-8' || 'ubuntu-latest' }}
     if: ${{ !cancelled() }}
@@ -487,6 +496,8 @@ jobs:
           path: postgres.log
 
   fmt:
+    permissions:
+      contents: read
     needs: changes
     if: needs.changes.outputs.offlinedocs-only == 'false' || needs.changes.outputs.ci == 'true' || github.ref == 'refs/heads/main'
     runs-on: ${{ github.repository_owner == 'coder' && 'depot-ubuntu-22.04-8' || 'ubuntu-latest' }}
@@ -528,6 +539,8 @@ jobs:
         run: ./scripts/check_unstaged.sh
 
   test-go-pg:
+    permissions:
+      contents: read
     # make sure to adjust NUM_PARALLEL_PACKAGES and NUM_PARALLEL_TESTS below
     # when changing runner sizes
     runs-on: ${{ matrix.os == 'ubuntu-latest' && github.repository_owner == 'coder' && 'depot-ubuntu-22.04-8' || matrix.os && matrix.os == 'macos-latest' && github.repository_owner == 'coder' && 'depot-macos-latest' || matrix.os == 'windows-2022' && github.repository_owner == 'coder' && 'depot-windows-2022-16' || matrix.os }}
@@ -542,10 +555,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os:
-          - ubuntu-latest
-          - macos-latest
-          - windows-2022
+        os: ${{ fromJSON(github.repository_owner == 'coder' && '["ubuntu-latest","macos-latest","windows-2022"]' || '["ubuntu-latest"]') }}
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
@@ -755,6 +765,8 @@ jobs:
           api-key: ${{ secrets.DATADOG_API_KEY }}
 
   test-go-pg-17:
+    permissions:
+      contents: read
     runs-on: ${{ github.repository_owner == 'coder' && 'depot-ubuntu-22.04-8' || 'ubuntu-latest' }}
     needs:
       - changes
@@ -831,6 +843,8 @@ jobs:
           api-key: ${{ secrets.DATADOG_API_KEY }}
 
   test-go-race-pg:
+    permissions:
+      contents: read
     runs-on: ${{ github.repository_owner == 'coder' && 'depot-ubuntu-22.04-16' || 'ubuntu-latest' }}
     needs: changes
     if: needs.changes.outputs.go == 'true' || needs.changes.outputs.ci == 'true' || github.ref == 'refs/heads/main'
@@ -915,6 +929,8 @@ jobs:
   # These tests are skipped in the main go test jobs because they require root
   # and mess with networking.
   test-go-tailnet-integration:
+    permissions:
+      contents: read
     runs-on: ${{ github.repository_owner == 'coder' && 'depot-ubuntu-22.04-8' || 'ubuntu-latest' }}
     needs: changes
     # Unnecessary to run on main for now
@@ -948,6 +964,8 @@ jobs:
         run: make test-tailnet-integration
 
   test-js:
+    permissions:
+      contents: read
     runs-on: ${{ github.repository_owner == 'coder' && 'depot-ubuntu-22.04-8' || 'ubuntu-latest' }}
     needs: changes
     if: needs.changes.outputs.site == 'true' || needs.changes.outputs.ci == 'true' || github.ref == 'refs/heads/main'
@@ -976,6 +994,8 @@ jobs:
         working-directory: site
 
   test-e2e:
+    permissions:
+      contents: read
     runs-on: ${{ github.repository_owner == 'coder' && 'depot-ubuntu-22.04-4' || 'ubuntu-latest' }}
     needs: changes
     strategy:
@@ -1101,6 +1121,8 @@ jobs:
           retention-days: 7
 
   storybook:
+    permissions:
+      contents: read
     name: Storybook
 
     runs-on: ${{ github.repository_owner == 'coder' && 'depot-ubuntu-24.04-16' || 'ubuntu-latest' }}
@@ -1108,7 +1130,7 @@ jobs:
     # Forks and Dependabot receive no secrets, so they only build Storybook;
     # trusted runs snapshot it against Pixel instead.
     env:
-      PIXEL_ENABLED: ${{ github.event_name != 'pull_request' || (!github.event.pull_request.head.repo.fork && github.actor != 'dependabot[bot]') }}
+      PIXEL_ENABLED: ${{ github.repository_owner == 'coder' && (github.event_name != 'pull_request' || (!github.event.pull_request.head.repo.fork && github.actor != 'dependabot[bot]')) }}
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -1140,6 +1162,8 @@ jobs:
           PIXEL_AUTO_REVIEW: ${{ github.repository_owner == 'coder' && github.ref_name == 'main' }}
 
   offlinedocs:
+    permissions:
+      contents: read
     name: offlinedocs
     needs: changes
     runs-on: ${{ github.repository_owner == 'coder' && 'depot-ubuntu-22.04-8' || 'ubuntu-latest' }}
@@ -1246,11 +1270,13 @@ jobs:
           echo "Required checks have passed"
 
   check-build:
+    permissions:
+      contents: read
     # This job runs make build to verify compilation on PRs.
     # The build doesn't get signed, and is not suitable for usage, unlike the
     # `build` job that runs on main.
     needs: changes
-    if: needs.changes.outputs.go == 'true' && github.ref != 'refs/heads/main'
+    if: (needs.changes.outputs.go == 'true' || needs.changes.outputs.ci == 'true') && (github.ref != 'refs/heads/main' || github.repository_owner != 'coder')
     runs-on: ${{ github.repository_owner == 'coder' && 'depot-ubuntu-22.04-8' || 'ubuntu-latest' }}
     steps:
       - name: Harden Runner
@@ -1283,16 +1309,23 @@ jobs:
           set -euxo pipefail
           ./.github/scripts/retry.sh -- go mod download
           make gen/mark-fresh
-          make -j build
+          if [[ "$REPOSITORY_OWNER" == coder ]]; then
+            make -j build
+          else
+            make -j2 build/coder_linux_amd64
+          fi
+        env:
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
 
   build:
     # This builds and publishes ghcr.io/coder/coder-preview:main for each commit
     # to main branch.
     needs:
       - changes
-    if: (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/')) && needs.changes.outputs.docs-only == 'false' && !github.event.pull_request.head.repo.fork
+    if: github.repository_owner == 'coder' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/')) && needs.changes.outputs.docs-only == 'false' && !github.event.pull_request.head.repo.fork
     runs-on: ${{ github.repository_owner == 'coder' && 'depot-ubuntu-22.04-8' || 'ubuntu-22.04' }}
     permissions:
+      contents: read
       # Necessary to push docker images to ghcr.io.
       packages: write
       # Necessary for GCP authentication (https://github.com/google-github-actions/setup-gcloud#usage)
@@ -1669,6 +1702,8 @@ jobs:
   # runs sqlc-vet to ensure all queries are valid. This catches any mistakes
   # in migrations or sqlc queries that makes a query unable to be prepared.
   sqlc-vet:
+    permissions:
+      contents: read
     runs-on: ${{ github.repository_owner == 'coder' && 'depot-ubuntu-22.04-8' || 'ubuntu-latest' }}
     needs: changes
     if: needs.changes.outputs.db == 'true' || needs.changes.outputs.ci == 'true' || github.ref == 'refs/heads/main'
@@ -1702,7 +1737,7 @@ jobs:
     needs:
       - required
     runs-on: ubuntu-latest
-    if: failure() && github.ref == 'refs/heads/main'
+    if: failure() && github.repository_owner == 'coder' && github.ref == 'refs/heads/main'
 
     steps:
       - name: Send Slack notification

@@ -18,8 +18,7 @@ on:
         required: true
         default: false
 
-permissions:
-  contents: read
+permissions: {}
 
 concurrency: ${{ github.workflow }}-${{ github.ref }}
 
@@ -35,6 +34,9 @@ env:
 jobs:
   # Only allow maintainers/admins to release.
   check-perms:
+    if: github.repository_owner == 'coder'
+    permissions:
+      contents: read
     runs-on: ${{ github.repository_owner == 'coder' && 'depot-ubuntu-22.04-8' || 'ubuntu-latest' }}
     steps:
       - name: Allow only maintainers/admins
