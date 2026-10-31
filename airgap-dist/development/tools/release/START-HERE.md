@@ -1,7 +1,7 @@
 # Install Coder fork 1.5.1
 
 This guide uses the small source build kit. To install the supplied images without building,
-use OFFLINE-INSTALL.md instead.
+use INSTALL.md instead.
 You build the fork images, put them in your registry, then install one Helm chart.
 The build kit contains the source and the custom FileBrowser binary needed by DEFAULT.
 It does not contain saved base images. The built server includes matching agent downloads.
