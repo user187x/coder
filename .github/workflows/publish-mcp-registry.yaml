@@ -19,6 +19,7 @@ permissions: {}
 
 jobs:
   publish-mcp:
+    if: github.repository == 'coder/coder'
     runs-on: ubuntu-latest
     permissions:
       id-token: write # Required for GitHub OIDC

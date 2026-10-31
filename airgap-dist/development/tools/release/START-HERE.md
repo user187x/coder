@@ -1,7 +1,7 @@
-# Install Coder fork 1.5.0
+# Install Coder fork 1.5.2
 
 This guide uses the small source build kit. To install the supplied images without building,
-use OFFLINE-INSTALL.md instead.
+use INSTALL.md instead.
 You build the fork images, put them in your registry, then install one Helm chart.
 The build kit contains the source and the custom FileBrowser binary needed by DEFAULT.
 It does not contain saved base images. The built server includes matching agent downloads.
@@ -44,8 +44,8 @@ Open a terminal in that folder. Run:
 
 ```bash
 sha256sum -c SOURCE-SHA256SUMS
-tar -xzf coder-build-kit-1.5.0.tar.gz
-cd coder-build-kit-1.5.0
+tar -xzf coder-build-kit-1.5.2.tar.gz
+cd coder-build-kit-1.5.2
 ```
 
 Every checksum must say `OK`. Stop if one fails and download that file again.
@@ -79,12 +79,12 @@ The script does not export large image archives.
 When it prints `Build finished`, your output folder is:
 
 ```text
-build/release-1.5.0/
+build/release-1.5.2/
 ```
 
 That folder contains:
 
-- `coder-airgapped-1.5.0.tgz`: the single Helm chart to install.
+- `coder-airgapped-1.5.2.tgz`: the single Helm chart to install.
 - `values.yaml`: the settings file you will edit next.
 - `BUILT-IMAGES.txt`: every fork image pushed to your registry.
 - `PUBLIC-IMAGES.txt`: common public images the cluster also needs.
@@ -185,7 +185,7 @@ namespace also has the pull credentials required by your registry.
 Run from the generated output folder:
 
 ```bash
-helm upgrade --install coder-fork ./coder-airgapped-1.5.0.tgz \
+helm upgrade --install coder-fork ./coder-airgapped-1.5.2.tgz \
   --namespace coder-fork --create-namespace \
   --values values.yaml --timeout 20m
 ```

@@ -219,7 +219,7 @@ build_release() {
 		sel+=("$i")
 	done
 	for r in "${!rendered[@]}"; do
-		[[ "$r" == user187x/* ]] || continue
+		[[ "$r" == mrshll187/* ]] || continue
 		wanted "$(name_of "$r")" || continue
 		[[ -n "${listed[$r]:-}" ]] ||
 			errors+=("the chart runs REGISTRY/${r}, which images.txt does not list (outside [rollback]/[reference]): add it there and build its archive")
@@ -269,8 +269,9 @@ build_release() {
 		pub_src[$(path_of "${images[$i]}")]="${images[$i]}@${digests[$i]}"
 	done
 	while read -r r; do
-		[[ -n "${rendered[$r]:-}" && "$r" != user187x/* ]] || continue
-		public+=("${r}	${pub_src[$r]:-(not in images.txt)}")
+		[[ -n "${rendered[$r]:-}" && "$r" != mrshll187/* ]] || continue
+		[[ -n "${pub_src[$r]:-}" ]] || die "public image ${r} is missing from images.txt"
+		public+=("${r}	${pub_src[$r]}")
 	done <"$tmp/rendered"
 	# the plan
 	local total=0 need=0 k parts how
