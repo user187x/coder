@@ -23,6 +23,7 @@ cp "$built/FORK-IMAGES.txt" "$built/PUBLIC-IMAGES.txt" "$out/"
 python3 - "$root" "$out" <<'PY'
 import json,pathlib,re,sys
 root,out=map(pathlib.Path,sys.argv[1:])
+version=root.joinpath('RELEASE_VERSION').read_text().strip()
 refs=set()
 for path in [root/'scripts/Dockerfile.base',*root.glob('airgap-dist/development/*/Dockerfile')]:
  text=path.read_text()
@@ -43,11 +44,11 @@ if digest: refs.add('cgr.dev/chainguard/minio@'+digest[1])
 out.joinpath('BUILD-BASE-IMAGES.txt').write_text('\n'.join(sorted(refs))+'\n')
 out.joinpath('IMAGE-INVENTORY.json').write_text(json.dumps({
  'format':'source-build-kit',
- 'version':re.search(r'appVersion: "([^"]+)"',(root/'airgap-dist/helm-chart/coder-airgapped/Chart.yaml').read_text())[1],
+ 'version':version,
  'fork_images':out.joinpath('FORK-IMAGES.txt').read_text().splitlines(),
  'public_runtime_images':out.joinpath('PUBLIC-IMAGES.txt').read_text().splitlines(),
  'public_build_base_images':sorted(refs),
- 'optional_dataflow':'docker.io/mrshll187/coder-workspace-dataflow:1.5.0',
+ 'optional_dataflow':'docker.io/mrshll187/coder-workspace-dataflow:'+version,
  'build_command':'./airgap-dist/development/tools/build-source-release.sh REGISTRY --push',
  'notes':['Build on a connected Linux x86_64 machine. Base images alone do not supply package/source downloads.','No saved container images are included. DATAFLOW is disabled unless --dataflow is used.']
 },indent=2)+'\n')

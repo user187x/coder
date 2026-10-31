@@ -81,6 +81,8 @@ for v in "${vex[@]}"; do [[ -f "$v" ]] || die "no VEX file $v"; done
 unzip=$(command -v pigz || echo gzip)
 
 tmp=$(mktemp -d) stage="" join_dir=""
+# Invoked by the EXIT trap.
+# shellcheck disable=SC2329
 cleanup() { rm -rf "$tmp"; [[ -z "$stage" ]] || rm -rf "$stage"; [[ -z "$join_dir" ]] || rm -rf "$join_dir"; }
 trap cleanup EXIT
 
@@ -168,7 +170,7 @@ build_release() {
 		sel+=("$i")
 	done
 	for r in "${!rendered[@]}"; do
-		[[ "$r" == user187x/* ]] || continue
+		[[ "$r" == mrshll187/* ]] || continue
 		wanted "$(name_of "$r")" || continue
 		[[ -n "${listed[$r]:-}" ]] ||
 			errors+=("the chart runs REGISTRY/${r}, which images.txt does not list (outside [rollback]/[reference]): add it there and build its archive")
@@ -210,8 +212,9 @@ build_release() {
 		pub_src[$(path_of "${images[$i]}")]="${images[$i]}@${digests[$i]}"
 	done
 	while read -r r; do
-		[[ -n "${rendered[$r]:-}" && "$r" != user187x/* ]] || continue
-		public+=("${r}	${pub_src[$r]:-(not in images.txt)}")
+		[[ -n "${rendered[$r]:-}" && "$r" != mrshll187/* ]] || continue
+		[[ -n "${pub_src[$r]:-}" ]] || die "public image ${r} is missing from images.txt"
+		public+=("${r}	${pub_src[$r]}")
 	done <"$tmp/rendered"
 	# the plan
 	local total=0 need=0 k parts how
@@ -268,6 +271,8 @@ build_release() {
 			rm -f "$tmp/fifo"; mkfifo "$tmp/fifo"
 			sha256sum <"$tmp/fifo" >"$tmp/whole" &
 			hash_pid=$!
+			# split expands FILE in its filter subprocess.
+			# shellcheck disable=SC2016
 			(cd "$stage" && tee "$tmp/fifo" <"${src[$k]}" |
 				split -b "$split_bytes" -d -a 2 --filter='tee "$FILE" | sha256sum | sed "s|-\$|$FILE|"' - "${f}.part-") \
 				>>"$tmp/sums" || die "splitting ${src[$k]#"${top}"/} failed"
@@ -360,7 +365,8 @@ PYINVENTORY
 
 	# SHA256SUMS: every file (the images' from the pass above); SHA256SUMS.joined: the split archives as joined
 	if [[ -s "$tmp/joined" ]]; then sort -k2,2 "$tmp/joined" >"$stage/SHA256SUMS.joined"; fi
-	(cd "$stage" && find . -type f -printf '%P\n' | grep -vxF -f <(awk '{print $2}' "$tmp/sums") | sort |
+	awk '{print $2}' "$tmp/sums" >"$tmp/hashed-files"
+	(cd "$stage" && find . -type f -printf '%P\n' | grep -vxF -f "$tmp/hashed-files" | sort |
 		xargs -d '\n' sha256sum) >>"$tmp/sums"
 	sort -k2,2 "$tmp/sums" >"$stage/SHA256SUMS"
 

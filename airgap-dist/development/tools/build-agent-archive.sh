@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Build the agent downloads from the same source/version as the server before
-# scripts/build_go.sh embeds site/out. Defaults to every supported client target.
+# scripts/build_go.sh embeds site/out. Defaults to x86-64 client targets.
 # Usage: build-agent-archive.sh VERSION [os/arch ...]
 set -euo pipefail
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -9,7 +9,7 @@ version=${1:?Usage: build-agent-archive.sh VERSION [os/arch ...]}
 shift
 platforms=("$@")
 if ((${#platforms[@]} == 0)); then
-  platforms=(linux/amd64 linux/arm64 linux/armv7 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64)
+  platforms=(linux/amd64 darwin/amd64 windows/amd64)
 fi
 stage=$(mktemp -d)
 trap 'rm -rf "$stage"' EXIT
