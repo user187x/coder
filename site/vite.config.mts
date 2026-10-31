@@ -210,6 +210,9 @@ export default defineConfig({
 				extends: true,
 				test: {
 					name: "unit",
+					// Bound jsdom workers so concurrent Go tests and builds do not
+					// starve asynchronous UI assertions on high-core hosts.
+					maxWorkers: 4,
 					include: [
 						"src/**/*.test.?(m)ts?(x)",
 						"scripts/**/*.test.?(m)[jt]s?(x)",
