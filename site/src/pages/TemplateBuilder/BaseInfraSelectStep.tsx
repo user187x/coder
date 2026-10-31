@@ -20,8 +20,6 @@ type BaseInfraSelectStepProps = {
 	onSelectBase: (base: SelectedBaseMeta) => void;
 };
 
-export { PLATFORM_BASE_ID };
-
 function detailsUrl(baseId: string): string | undefined {
 	return baseId === PLATFORM_BASE_ID
 		? undefined

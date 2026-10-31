@@ -4,7 +4,11 @@ import { QueryClient, QueryClientProvider } from "react-query";
 import { type ChatPair, PlatformAPI } from "#/api/platform";
 import { MockChatSettings } from "#/testHelpers/chat";
 import { renderComponent } from "#/testHelpers/renderHelpers";
-import { DiscoveryCard, PairsCard } from "./ChatSettingsPage";
+import {
+	DiscoveryCard,
+	PairsCard,
+	ScreenSharingCard,
+} from "./ChatSettingsPage";
 
 const pair = (i: number): ChatPair => ({
 	a: { id: `a${i}`, username: `ann${i}`, name: "", online: false },
@@ -89,4 +93,21 @@ it("saves the admin discovery permission", async () => {
 	);
 	await waitFor(() => expect(save).toHaveBeenCalledWith({ discoverAll: true }));
 	vi.restoreAllMocks();
+});
+
+it("saves the user screen-sharing permission", async () => {
+	const save = vi
+		.spyOn(PlatformAPI, "saveChatSettings")
+		.mockResolvedValue({ ...MockChatSettings, screenSharing: true });
+	renderComponent(
+		<QueryClientProvider client={new QueryClient()}>
+			<ScreenSharingCard settings={MockChatSettings} />
+		</QueryClientProvider>,
+	);
+	await userEvent.click(
+		screen.getByRole("switch", { name: "Allow users to share screens" }),
+	);
+	await waitFor(() =>
+		expect(save).toHaveBeenCalledWith({ screenSharing: true }),
+	);
 });

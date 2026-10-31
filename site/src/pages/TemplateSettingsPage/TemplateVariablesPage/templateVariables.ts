@@ -22,7 +22,7 @@ import type {
 } from "#/api/typesGenerated";
 
 /** What a variable starts as in the form: its value, a bool's or a required one's default, a sensitive one's blank. */
-export const selectInitialUserVariableValues = (
+const selectInitialUserVariableValues = (
 	templateVariables: TemplateVersionVariable[],
 ): VariableValue[] => {
 	const defaults: VariableValue[] = [];
@@ -60,7 +60,7 @@ export const selectInitialUserVariableValues = (
 	return defaults;
 };
 
-export const ValidationSchemaForTemplateVariables = (
+const ValidationSchemaForTemplateVariables = (
 	_ns: string,
 	templateVariables: TemplateVersionVariable[],
 ): Yup.AnySchema => {
@@ -95,7 +95,7 @@ export const ValidationSchemaForTemplateVariables = (
 };
 
 /** A sensitive variable left blank keeps the value it has (it is not sent). */
-export const filterEmptySensitiveVariables = (
+const filterEmptySensitiveVariables = (
 	request: CreateTemplateVersionRequest,
 	templateVariables?: TemplateVersionVariable[],
 ): CreateTemplateVersionRequest => {

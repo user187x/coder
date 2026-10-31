@@ -182,7 +182,7 @@ describe("ChatConsoleOverlay: the chat bar's console button", () => {
 		await user.click(await screen.findByRole("button", { name: "Chats" }));
 		await user.click(
 			within(screen.getByTestId("chat-window-raised")).getByRole("button", {
-				name: /bob/,
+				name: /^bob/,
 			}),
 		);
 		await user.type(

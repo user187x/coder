@@ -20,11 +20,12 @@ import {
 	splitPercent,
 } from "#/modules/resources/MetadataHistogram";
 import type { OneWayWebSocket } from "#/utils/OneWayWebSocket";
+import { WorkspaceMetricDetails } from "./WorkspaceMetricDetails";
 
 /** How many readings the CPU and RAM graphs show, the newest on the right. */
-export const GRAPH_BARS = 12;
+const GRAPH_BARS = 12;
 /** The disk's bar, in segments. */
-export const DISK_SEGMENTS = 16;
+const DISK_SEGMENTS = 16;
 const GRAPH_W = 52;
 const GRAPH_H = 22;
 /** The graphs' corners (px): the bars are cut to them. */
@@ -196,18 +197,48 @@ export const WorkspaceResources: React.FC<{ workspace: Workspace }> = ({
 			</div>
 		);
 	}
-	const cpu = readingOf(workspaceMetric(metadata, RANKS.cpu));
-	const ram = readingOf(workspaceMetric(metadata, RANKS.ram));
-	const disk = readingOf(workspaceMetric(metadata, RANKS.disk));
+	const cpuMetric = workspaceMetric(metadata, RANKS.cpu);
+	const ramMetric = workspaceMetric(metadata, RANKS.ram);
+	const diskMetric = workspaceMetric(metadata, RANKS.disk);
+	const cpu = readingOf(cpuMetric);
+	const ram = readingOf(ramMetric);
+	const disk = readingOf(diskMetric);
 	return (
 		<div
 			data-testid="workspace-resources"
 			className="flex items-center justify-center gap-3"
-			// the row opens the workspace; the readings are only to look at
+			// Metric triggers handle their own interaction, independently of row navigation.
 		>
-			<BarGraph label="CPU" reading={cpu} shares={series.cpu} />
-			<BarGraph label="RAM" reading={ram} shares={series.ram} />
-			<DiskBar reading={disk} />
+			<WorkspaceMetricDetails
+				workspaceId={workspace.id}
+				organizationId={workspace.organization_id}
+				agentId={agent.id}
+				kind="cpu"
+				label="CPU"
+				metric={cpuMetric}
+			>
+				<BarGraph label="CPU" reading={cpu} shares={series.cpu} />
+			</WorkspaceMetricDetails>
+			<WorkspaceMetricDetails
+				workspaceId={workspace.id}
+				organizationId={workspace.organization_id}
+				agentId={agent.id}
+				kind="ram"
+				label="RAM"
+				metric={ramMetric}
+			>
+				<BarGraph label="RAM" reading={ram} shares={series.ram} />
+			</WorkspaceMetricDetails>
+			<WorkspaceMetricDetails
+				workspaceId={workspace.id}
+				organizationId={workspace.organization_id}
+				agentId={agent.id}
+				kind="disk"
+				label="Disk"
+				metric={diskMetric}
+			>
+				<DiskBar reading={disk} />
+			</WorkspaceMetricDetails>
 		</div>
 	);
 };
@@ -233,11 +264,6 @@ const BarGraph: React.FC<{
 	return (
 		<div
 			data-testid={`workspace-resources-${label.toLowerCase()}`}
-			title={
-				reading
-					? `${label}: ${reading.text}. Trailing 5 minutes.`
-					: `${label}: no reading`
-			}
 			className="flex flex-col gap-1"
 			style={{ width: GRAPH_W }}
 		>
@@ -330,7 +356,6 @@ const DiskBar: React.FC<{ reading: Reading | null }> = ({ reading }) => {
 	return (
 		<div
 			data-testid="workspace-resources-disk"
-			title={reading ? `Disk: ${text} (used / allocated)` : "Disk: no reading"}
 			className="flex w-28 flex-col gap-1"
 		>
 			<div className="flex items-baseline justify-between gap-1.5 text-[11px] leading-none">

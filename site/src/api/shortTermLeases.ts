@@ -8,6 +8,12 @@ import type {
 const root = (org: string) =>
 	`/api/v2/organizations/${encodeURIComponent(org)}/short-term-leases`;
 export const ShortTermLeasesAPI = {
+	remove: async (org: string, user: string) =>
+		(
+			await API.getAxiosInstance().delete(
+				`${root(org)}/${encodeURIComponent(user)}`,
+			)
+		).data,
 	list: async (org: string) =>
 		(await API.getAxiosInstance().get<ShortTermLease[]>(root(org))).data,
 	create: async (org: string, request: CreateShortTermLeaseRequest) =>

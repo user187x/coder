@@ -21,6 +21,7 @@ import {
 
 type PanelConversationProps = {
 	actionsRef?: React.RefObject<ConversationActions | null>;
+	compact?: boolean;
 	dock: React.RefObject<HTMLElement | null>;
 	view: ChatWindowState;
 	/** Back to the list (in full screen only where the list is not beside it). */
@@ -38,6 +39,7 @@ export const PanelConversation: React.FC<PanelConversationProps> = ({
 	backClassName,
 	onEscape,
 	actionsRef,
+	compact,
 }) => {
 	const state = useChatSnapshot();
 	const [shooting, setShooting] = useState(false);
@@ -105,6 +107,7 @@ export const PanelConversation: React.FC<PanelConversationProps> = ({
 			</ContextMenu>
 			<ChatConversation
 				ref={actions}
+				compact={compact}
 				view={view}
 				dock={dock}
 				className="min-h-0 flex-1"

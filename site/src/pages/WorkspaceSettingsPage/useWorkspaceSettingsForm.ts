@@ -33,7 +33,7 @@ import {
 } from "./WorkspaceSchedulePage/scheduleForm";
 import { ttlMsToAutostop } from "./WorkspaceSchedulePage/ttl";
 
-export type GeneralValues = {
+type GeneralValues = {
 	name: string;
 	automatic_updates: AutomaticUpdates;
 	/** The workspace's own icon ("" = its template's), kept by the platform service. */

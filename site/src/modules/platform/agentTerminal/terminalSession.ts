@@ -44,29 +44,37 @@ const isSession = (value: unknown): value is TerminalSession =>
 		typeof value.command === "string");
 
 /** The session survives reloads of this tab (sessionStorage), not other tabs. */
-export const loadSession = (agentId: string): TerminalSession | null => {
+export const loadSessions = (agentId: string): TerminalSession[] => {
 	try {
 		const parsed: unknown = JSON.parse(
 			sessionStorage.getItem(sessionKey(agentId)) ?? "null",
 		);
-		return isSession(parsed) ? parsed : null;
+		if (isSession(parsed)) return [parsed];
+		if (!Array.isArray(parsed)) return [];
+		const seen = new Set<string>();
+		return parsed.filter((value): value is TerminalSession => {
+			if (!isSession(value) || seen.has(value.id)) return false;
+			seen.add(value.id);
+			return true;
+		});
 	} catch {
-		return null;
+		return [];
 	}
 };
 
-export const saveSession = (
-	agentId: string,
-	session: TerminalSession | null,
-) => {
+export const loadSession = (agentId: string): TerminalSession | null =>
+	loadSessions(agentId)[0] ?? null;
+
+export const saveSessions = (agentId: string, sessions: TerminalSession[]) => {
 	try {
-		if (session) {
-			sessionStorage.setItem(sessionKey(agentId), JSON.stringify(session));
-		} else {
-			sessionStorage.removeItem(sessionKey(agentId));
-		}
+		if (sessions.length) {
+			sessionStorage.setItem(
+				sessionKey(agentId),
+				JSON.stringify(sessions.length === 1 ? sessions[0] : sessions),
+			);
+		} else sessionStorage.removeItem(sessionKey(agentId));
 	} catch {
-		// The agent still ends the session after its idle timeout.
+		// The agent still ends sessions after their idle timeout.
 	}
 };
 

@@ -3,6 +3,7 @@ import { useDeploymentConfig } from "#/modules/management/DeploymentConfigProvid
 import { CertificateOverview } from "#/modules/platform/CertificateOverview";
 import { GlobalLockdownCard } from "#/modules/platform/globalLockdown/GlobalLockdown";
 import { WorkspaceQuarantineCard } from "#/modules/platform/quarantine/WorkspaceQuarantine";
+import { SecurityActivity } from "#/modules/platform/security/SecurityActivity";
 import { pageTitle } from "#/utils/page";
 import { SecuritySettingsPageView } from "./SecuritySettingsPageView";
 
@@ -16,6 +17,9 @@ const SecuritySettingsPage: React.FC = () => {
 
 			<SecuritySettingsPageView
 				options={deploymentConfig.options}
+				activity={
+					permissions.viewAnyAuditLog ? <SecurityActivity /> : undefined
+				}
 				lockdown={
 					user.roles.some((role) => role.name === "owner") ? (
 						<div className="flex flex-col gap-6">

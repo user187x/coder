@@ -1,9 +1,9 @@
 import { CableIcon, PlugIcon } from "lucide-react";
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "react-query";
 import { cloudDrivePeers } from "#/api/queries/platform";
 import { Button } from "#/components/Button/Button";
-import { useAnimationsEnabled } from "#/modules/platform/animations/animations";
+import { useAnimationsEnabled } from "#/hooks/useAnimationSettings";
 import { AccountShareConnectionsDialog } from "./AccountShareConnectionsDialog";
 import {
 	AccountShareDragLayer,
@@ -77,7 +77,7 @@ export const AccountShareCables: React.FC<{
 	/** The accounts on the page (their rows: data-testid="user-<id>"). */
 	userIds: readonly string[];
 	accounts?: readonly { id: string; username: string }[];
-	children: ReactNode;
+	children: React.ReactNode;
 }> = ({ userIds, accounts, children }) => {
 	const peers = useQuery(cloudDrivePeers());
 	const [manageOpen, setManageOpen] = useState(false);
@@ -162,7 +162,7 @@ export const AccountShareCables: React.FC<{
 
 const ShareCablesArea: React.FC<{
 	edges: readonly ShareEdge[];
-	children: ReactNode;
+	children: React.ReactNode;
 	onManage?: (shareId: string) => void;
 	draggedShare?: string;
 	accounts?: readonly { id: string; username: string }[];

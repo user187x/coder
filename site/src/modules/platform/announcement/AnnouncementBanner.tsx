@@ -33,6 +33,7 @@ import {
 	outlineColor,
 	parseColors,
 } from "./bannerTokens";
+import { useAnnouncementMotion } from "./useAnnouncementMotion";
 import "./bannerLcd.css";
 import { bannerAlpha, withBannerAlpha } from "./bannerAlpha";
 import { attachAnnouncementAutoScroll } from "./hoverAutoScroll";
@@ -212,6 +213,7 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 	placement,
 	onDismiss,
 }) => {
+	const motion = useAnnouncementMotion(banner.animationsDisabled);
 	const queryClient = useQueryClient();
 	// Receipts (who viewed it, Confirm): not on the sign-in page, and only when
 	// the announcement asks for them (a greeting need not).
@@ -234,7 +236,7 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 	// Overflow reads slowly; holding the pointer pauses without resetting the reader.
 	useEffect(() => {
 		const el = card.current;
-		return el
+		return el && motion.effects
 			? attachAnnouncementAutoScroll(
 					el,
 					() => el.querySelector<HTMLElement>("[data-banner-text]"),
@@ -243,6 +245,7 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 				)
 			: undefined;
 	}, [
+		motion.effects,
 		banner.message,
 		banner.loopText,
 		banner.autoScroll,
@@ -268,20 +271,21 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 	}, [receipts, acked, banner.dismissible, onDismiss]);
 
 	// Dismissed here (the close button, or Confirm): it goes with its close transition.
-	const closeEffect = banner.closeEffect ?? "fade";
+	const closeEffect = motion.effects ? (banner.closeEffect ?? "fade") : "none";
 	const close = useCloseTransition(closeEffect, onDismiss);
 	// Appearing (the page loads with it, or a new announcement arrives): its open transition.
-	const openEffect = banner.openEffect ?? "none";
+	const openEffect = motion.effects ? (banner.openEffect ?? "none") : "none";
 	const open = useOpenTransition(openEffect);
-	const opening = open.opening && !close.closing;
+	const opening = motion.effects && open.opening && !close.closing;
 
 	return (
 		<AnnouncementReader banner={banner}>
 			<div
 				ref={card}
 				id="coder-system-banner"
+				data-announcement-motion={motion.effects ? "on" : "off"}
 				role="status"
-				data-closing={close.props["data-closing"]}
+				data-closing={motion.effects ? close.props["data-closing"] : undefined}
 				data-opening={opening ? openEffect : undefined}
 				onAnimationEnd={(event) => {
 					open.props.onAnimationEnd(event);
@@ -292,7 +296,8 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 					placement === "navbar"
 						? "ml-3 min-h-9 min-w-0 flex-1 gap-1.5 rounded-[14px] py-1 pl-1 pr-1.5 text-[13px] leading-[18px] shadow-[0_1px_3px_rgb(0_0_0/.2),inset_0_0_0_1px_rgb(255_255_255/.14)]"
 						: "w-full p-1 text-center text-sm",
-					wasPushed(banner.id) &&
+					motion.effects &&
+						wasPushed(banner.id) &&
 						openEffect === "none" &&
 						"animate-in fade-in slide-in-from-top-2 duration-300",
 				)}
@@ -329,7 +334,9 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 					<BannerScrollView banner={banner} anchor={card} colors={{ bg, fg }} />
 				)}
 				{opening && <OpenLayers effect={openEffect} />}
-				{close.closing && <CloseLayers effect={closeEffect} />}
+				{motion.effects && close.closing && (
+					<CloseLayers effect={closeEffect} />
+				)}
 				{receipts && signedIn && viewedAt && (
 					<ViewedStamp viewedAt={viewedAt} />
 				)}

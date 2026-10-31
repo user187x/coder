@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -15,6 +14,7 @@ import (
 	"reflect"
 	"time"
 
+	"golang.org/x/xerrors"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
 
@@ -78,7 +78,7 @@ type Runtime struct {
 // Validate rejects prefixes, duplicate identities and unsafe endpoints.
 func (p Policy) Validate() error {
 	if p.Revision < 0 || p.LeaseSeconds < 5 || p.LeaseSeconds > 60 {
-		return fmt.Errorf("invalid policy revision or lease")
+		return xerrors.New("invalid policy revision or lease")
 	}
 	own, err := hostPrefix(p.Address)
 	if err != nil {
@@ -89,12 +89,12 @@ func (p Policy) Validate() error {
 	for _, peer := range p.Peers {
 		if peer.Ports != nil {
 			if p.PortPolicyVersion != 1 || len(peer.Ports) > 32 {
-				return fmt.Errorf("unsupported port policy")
+				return xerrors.New("unsupported port policy")
 			}
 			seenPorts := map[PortRule]bool{}
 			for _, rule := range peer.Ports {
 				if rule.Port == 0 || rule.Protocol != "tcp" && rule.Protocol != "udp" || seenPorts[rule] {
-					return fmt.Errorf("invalid or duplicate peer port")
+					return xerrors.New("invalid or duplicate peer port")
 				}
 				seenPorts[rule] = true
 			}
@@ -105,14 +105,14 @@ func (p Policy) Validate() error {
 		}
 		key, err := wgtypes.ParseKey(peer.PublicKey)
 		if err != nil || key == (wgtypes.Key{}) {
-			return fmt.Errorf("invalid peer public key")
+			return xerrors.New("invalid peer public key")
 		}
 		endpoint, err := netip.ParseAddrPort(peer.Endpoint)
 		if err != nil || !endpoint.Addr().Is4() || !endpoint.Addr().IsGlobalUnicast() || endpoint.Port() == 0 {
-			return fmt.Errorf("invalid peer endpoint")
+			return xerrors.New("invalid peer endpoint")
 		}
 		if peer.WorkspaceID == "" || seenIPs[ip.Addr()] || seenKeys[key] {
-			return fmt.Errorf("duplicate or incomplete peer")
+			return xerrors.New("duplicate or incomplete peer")
 		}
 		seenIPs[ip.Addr()] = true
 		seenKeys[key] = true
@@ -123,7 +123,7 @@ func (p Policy) Validate() error {
 func hostPrefix(value string) (netip.Prefix, error) {
 	p, err := netip.ParsePrefix(value)
 	if err != nil || !p.Addr().Is4() || p.Bits() != 32 || !p.Addr().IsPrivate() {
-		return netip.Prefix{}, fmt.Errorf("overlay address must be a private IPv4 host route")
+		return netip.Prefix{}, xerrors.New("overlay address must be a private IPv4 host route")
 	}
 	return p, nil
 }
@@ -146,15 +146,15 @@ func (r *Runtime) Sync(ctx context.Context) error {
 	req.Header.Set("Content-Type", "application/json")
 	response, err := r.Client.Do(req)
 	if err != nil {
-		return r.revoke(fmt.Errorf("sync policy: %w", err))
+		return r.revoke(xerrors.Errorf("sync policy: %w", err))
 	}
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {
-		return r.revoke(fmt.Errorf("sync policy returned HTTP %d", response.StatusCode))
+		return r.revoke(xerrors.Errorf("sync policy returned HTTP %d", response.StatusCode))
 	}
 	var policy Policy
 	if err = json.NewDecoder(io.LimitReader(response.Body, 1<<20)).Decode(&policy); err != nil {
-		return r.revoke(fmt.Errorf("decode policy: %w", err))
+		return r.revoke(xerrors.Errorf("decode policy: %w", err))
 	}
 	if err = policy.Validate(); err != nil {
 		return r.revoke(err)
@@ -164,7 +164,7 @@ func (r *Runtime) Sync(ctx context.Context) error {
 		return nil
 	}
 	if err = r.Device.Apply(ctx, policy); err != nil {
-		return r.revoke(fmt.Errorf("apply policy: %w", err))
+		return r.revoke(xerrors.Errorf("apply policy: %w", err))
 	}
 	r.installed = &policy
 	r.applied = policy.Revision
@@ -177,7 +177,7 @@ func (r *Runtime) revoke(cause error) error {
 	r.installed = nil
 	r.lastError = cause.Error()
 	if err := r.Device.Clear(); err != nil {
-		return fmt.Errorf("%w; revoke overlay: %w", cause, err)
+		return xerrors.Errorf("%w; revoke overlay: %w", cause, err)
 	}
 	return cause
 }
@@ -185,7 +185,11 @@ func (r *Runtime) revoke(cause error) error {
 // Run keeps policy fresh and clears connectivity when canceled. Every exchange is
 // bounded below the minimum lease, and any failed exchange revokes immediately.
 func (r *Runtime) Run(ctx context.Context, report func(error)) error {
-	defer r.Device.Clear()
+	defer func() {
+		if err := r.Device.Clear(); err != nil {
+			report(err)
+		}
+	}()
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 	lastReported := ""

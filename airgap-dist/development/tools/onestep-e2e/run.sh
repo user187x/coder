@@ -14,7 +14,7 @@ REL="$(cd "${1:?RELEASE_DIR}" && pwd)"
 STEP="${2:-all}"
 CL=onestep
 REG=onestep-registry
-PORT=5002                       # the registry, from this machine (push-images.sh)
+PORT=5002 # the registry, from this machine (push-images.sh)
 DOMAIN=onestep.test
 NS=coder-fork
 RELEASE=coder-fork
@@ -44,7 +44,8 @@ done
 EOF
 	done
 	if docker exec "$(nodes | head -1)" sh -c 'timeout 5 wget -q -O- https://ghcr.io >/dev/null 2>&1'; then
-		echo "ERROR: the nodes still reach the internet" >&2; exit 1
+		echo "ERROR: the nodes still reach the internet" >&2
+		exit 1
 	fi
 	echo "  egress blocked on $(nodes | wc -l) nodes"
 }
@@ -68,7 +69,8 @@ open(dst, "w").write(s)
 PY
 	grep -nE 'domain:|registry:|password:|type: NodePort|inClusterDNS|kubeletInsecureTLS' "$W/values.yaml" | head
 	say "3. THE install: helm install ${RELEASE} $(basename "$REL"/coder-airgapped-*.tgz) -n ${NS} --create-namespace -f values.yaml"
-	local t0; t0=$(date +%s)
+	local t0
+	t0=$(date +%s)
 	helm install "$RELEASE" "$REL"/coder-airgapped-*.tgz -n "$NS" --create-namespace -f "$W/values.yaml"
 	echo "  helm install returned after $(($(date +%s) - t0)) s"
 }
@@ -77,7 +79,8 @@ check() { python3 "$W/check.py" "$KUBECONFIG" "$NS" "$DOMAIN" "$RELEASE"; }
 
 uninstall() {
 	say "uninstall: helm uninstall, then the namespace"
-	local t0; t0=$(date +%s)
+	local t0
+	t0=$(date +%s)
 	helm uninstall "$RELEASE" -n "$NS" --wait --timeout 10m
 	kubectl delete namespace "$NS" --wait=true --timeout=10m
 	echo "  gone after $(($(date +%s) - t0)) s"
@@ -92,6 +95,13 @@ down() {
 
 case "$STEP" in
 up) up ;; install) install ;; check) check ;; uninstall) uninstall ;; down) down ;;
-all) up; install; check ;;
-*) echo "unknown step: $STEP" >&2; exit 2 ;;
+all)
+	up
+	install
+	check
+	;;
+*)
+	echo "unknown step: $STEP" >&2
+	exit 2
+	;;
 esac

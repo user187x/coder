@@ -1,76 +1,88 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { QueryClient, QueryClientProvider } from "react-query";
+import { PlatformAPI } from "#/api/platform";
+import { userUIPreferences } from "#/api/queries/platform";
+import { renderComponent } from "#/testHelpers/renderHelpers";
 import { NavbarArrange } from "./NavbarArrange";
-import { normalizeOrder, startNavbarArrange } from "./navbarOrder";
+import {
+	NAVBAR_ITEMS,
+	normalizeOrder,
+	startNavbarArrange,
+} from "./navbarOrder";
 
-const orderOf = (id: string) =>
-	Number(
-		(document.querySelector(`[data-navbar-item="${id}"]`) as HTMLElement).style
-			.order,
-	);
-
-describe("normalizeOrder", () => {
-	it("keeps the remembered order and adds what is missing", () => {
-		expect(normalizeOrder(["hud", "banner", "x", "hud"])).toEqual([
-			"hud",
-			"banner",
-			"workspaces",
-			"latency",
-		]);
-		expect(normalizeOrder(null)).toEqual([
-			"workspaces",
-			"banner",
-			"latency",
-			"hud",
-		]);
-	});
+beforeEach(() => localStorage.clear());
+afterEach(() => vi.restoreAllMocks());
+it("preserves the legacy order and inserts the newly movable edge tiles", () => {
+	expect(normalizeOrder(["hud", "banner", "x", "hud"])).toEqual([
+		"logo",
+		"hud",
+		"banner",
+		"workspaces",
+		"latency",
+		"notifications",
+		"account",
+	]);
+	expect(normalizeOrder(null)).toEqual(NAVBAR_ITEMS);
 });
-
-describe("NavbarArrange", () => {
-	beforeEach(() => localStorage.clear());
-
-	it("arranges the buttons around a banner placeholder, then remembers", () => {
-		render(
-			<NavbarArrange
-				items={{
-					workspaces: <button type="button">Workspaces</button>,
-					banner: <span>banner text</span>,
-					latency: null,
-					hud: <button type="button">HUD</button>,
-				}}
-			/>,
-		);
-		expect(screen.queryByTestId("navbar-banner-ghost")).toBeNull();
-		fireEvent.contextMenu(screen.getByText("HUD"));
-		expect(screen.getByTestId("navbar-banner-ghost")).toBeInTheDocument();
-		const hud = screen.getByRole("button", { name: "Move HUD" });
-		hud.focus();
-		fireEvent.keyDown(hud, { key: "ArrowLeft" });
-		fireEvent.keyDown(hud, { key: "ArrowLeft" });
-		expect([orderOf("hud"), orderOf("workspaces"), orderOf("banner")]).toEqual([
-			0, 1, 2,
-		]);
-		expect(hud).toHaveFocus();
-		fireEvent.keyDown(hud, { key: "Enter" });
-		expect(screen.queryByTestId("navbar-banner-ghost")).toBeNull();
-		expect(screen.getByText("banner text")).toBeInTheDocument();
-		// Latency (not shown to this user) keeps its slot; the others move around it.
-		expect(
-			JSON.parse(localStorage.getItem("coder-ui-navbar-order") ?? ""),
-		).toEqual(["hud", "workspaces", "latency", "banner"]);
+it("moves, removes, restores and resets tiles, saving the layout", async () => {
+	const save = vi
+		.spyOn(PlatformAPI, "setUserUIPreferences")
+		.mockImplementation(async (settings) => settings);
+	vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({});
+	const client = new QueryClient({
+		defaultOptions: { queries: { staleTime: Number.POSITIVE_INFINITY } },
 	});
-
-	it("starts from the user menu", () => {
-		render(
+	client.setQueryData(userUIPreferences().queryKey, {});
+	renderComponent(
+		<QueryClientProvider client={client}>
 			<NavbarArrange
 				items={{
-					workspaces: <span>W</span>,
-					banner: <span />,
-					latency: <span>L</span>,
+					logo: <span>Logo</span>,
+					workspaces: <span>Resources</span>,
+					banner: <span>Announcement</span>,
+					latency: <span>Settings</span>,
 					hud: null,
+					notifications: <span>Notifications</span>,
+					account: <span>Account</span>,
 				}}
-			/>,
-		);
-		act(() => startNavbarArrange());
-		expect(screen.getByTestId("navbar-arrange-hint")).toBeInTheDocument();
-	});
+			/>
+		</QueryClientProvider>,
+	);
+	const user = userEvent.setup();
+	act(() => startNavbarArrange());
+	screen.getByRole("button", { name: "Move Logo" }).focus();
+	await user.keyboard("{ArrowRight}");
+	await user.click(screen.getByRole("button", { name: "Remove Account" }));
+	await user.click(
+		screen.getByRole("button", { name: "Remove Notifications" }),
+	);
+	await user.click(
+		screen.getByRole("button", { name: "Restore Notifications" }),
+	);
+	await user.click(screen.getByRole("button", { name: "Done" }));
+	await waitFor(() =>
+		expect(save).toHaveBeenCalledWith({
+			navbar_layout: {
+				order: [
+					"workspaces",
+					"logo",
+					"banner",
+					"latency",
+					"hud",
+					"notifications",
+					"account",
+				],
+				hidden: ["account"],
+			},
+		}),
+	);
+	act(() => startNavbarArrange());
+	await user.click(screen.getByRole("button", { name: "Reset" }));
+	act(() => startNavbarArrange());
+	await waitFor(() =>
+		expect(save).toHaveBeenLastCalledWith({
+			navbar_layout: { order: [...NAVBAR_ITEMS], hidden: [] },
+		}),
+	);
 });

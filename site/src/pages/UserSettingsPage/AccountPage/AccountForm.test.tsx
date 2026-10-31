@@ -1,4 +1,5 @@
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import type { UpdateUserProfileRequest } from "#/api/typesGenerated";
 import { MockUserMember } from "#/testHelpers/entities";
 import { render } from "#/testHelpers/renderHelpers";
@@ -20,6 +21,7 @@ describe("AccountForm", () => {
 			// When
 			render(
 				<AccountForm
+					emailEditable
 					editable
 					email={MockUserMember.email}
 					initialValues={mockInitialValues}
@@ -49,6 +51,7 @@ describe("AccountForm", () => {
 		// When
 		render(
 			<AccountForm
+				emailEditable
 				editable
 				email={MockUserMember.email}
 				initialValues={mockInitialValues}
@@ -73,6 +76,7 @@ describe("AccountForm", () => {
 			// When
 			render(
 				<AccountForm
+					emailEditable
 					editable={false}
 					email={MockUserMember.email}
 					initialValues={mockInitialValues}
@@ -86,4 +90,39 @@ describe("AccountForm", () => {
 			expect(el).toBeDisabled();
 		});
 	});
+});
+
+it("submits an email change with current-password confirmation", async () => {
+	const onSubmit = vi.fn();
+	const user = userEvent.setup();
+	render(
+		<AccountForm
+			editable={false}
+			emailEditable
+			email={MockUserMember.email}
+			initialValues={{
+				username: MockUserMember.username,
+				name: MockUserMember.name ?? "",
+				avatar_url: "",
+			}}
+			isLoading={false}
+			onSubmit={onSubmit}
+		/>,
+	);
+	await user.clear(screen.getByLabelText("Email"));
+	await user.type(screen.getByLabelText("Email"), "updated@example.test");
+	await user.type(
+		screen.getByLabelText(/Current password/),
+		"confirmed-password",
+	);
+	await user.click(screen.getByRole("button", { name: "Update account" }));
+	await waitFor(() =>
+		expect(onSubmit).toHaveBeenCalledWith(
+			expect.objectContaining({
+				email: "updated@example.test",
+				current_password: "confirmed-password",
+				username: MockUserMember.username,
+			}),
+		),
+	);
 });

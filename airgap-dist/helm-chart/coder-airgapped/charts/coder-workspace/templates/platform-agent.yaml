@@ -1,0 +1,35 @@
+{{- if (.Values.global.platformAgent | default dict).enabled }}
+{{- $scripts := list }}
+{{- $metadata := list }}
+{{- $lockdown := printf "#!/bin/sh\nset -- start \"file:/etc/coder-lockdown/$CODER_WORKSPACE_ID\"\n%s" (.Files.Get "files/scripts/lockdown.sh") }}
+{{- $certificates := .Files.Get "files/scripts/certificates.sh" | replace "owner='${owner_name}'" "owner=\"$CODER_WORKSPACE_OWNER_NAME\"" | replace "$${" "${" }}
+{{- range $entry := list (dict "name" "Lock Down" "icon" "lockdown" "source" $lockdown) (dict "name" "Certificates" "icon" "certificate" "source" $certificates) }}
+{{- $scripts = append $scripts (dict "display_name" $entry.name "icon" (printf "/__icons/%s.svg" $entry.icon) "script" $entry.source "run_on_start" true "start_blocks_login" true) }}
+{{- end }}
+{{- $metrics := .Files.Get "files/scripts/metadata.sh" }}
+{{- range $entry := list
+  (list "0_cpu_usage" "CPU" "coder stat cpu" 10 1)
+  (list "1_ram_usage" "RAM" (printf "%s\nram" $metrics) 10 1)
+  (list "2_home_disk" "Disk" (printf "%s\ndisk" $metrics) 60 15)
+  (list "3_load" "Ø Load" (printf "%s\nload" $metrics) 10 3)
+  (list "4_cpu_usage_host" "CPU" "coder stat cpu --host" 10 1)
+  (list "5_mem_usage_host" "RAM" (printf "%s\nram_host" $metrics) 10 1)
+  (list "6_disk_host" "Disk" (printf "%s\ndisk_host" $metrics) 60 5)
+  (list "7_load_host" "Ø Load" (printf "%s\nload_host" $metrics) 60 1)
+  (list "8_net_io" "Network" (printf "%s\nnet" $metrics) 1 1) }}
+{{- $metadata = append $metadata (dict "key" (index $entry 0) "display_name" (index $entry 1) "script" (index $entry 2) "interval" (index $entry 3) "timeout" (index $entry 4)) }}
+{{- end }}
+{{- if (.Values.global.userStorage | default dict).enabled }}
+{{- $cloud := .Files.Get "files/scripts/cloud-drive.sh" | replace "${link}" "" | replace "${mode}" "" | replace "${mount}" "" | replace "${items}" "" | replace "${cli}" (.Files.Get "files/scripts/cloud-drive-cli.py" | b64enc) | replace "${filebrowser}" (.Files.Get "files/scripts/filebrowser.sh" | b64enc) | replace "$${" "${" }}
+{{- $scripts = append $scripts (dict "display_name" "Cloud Drive" "icon" "/__icons/cloud-drive.svg" "script" $cloud "run_on_start" true "start_blocks_login" true) }}
+{{- $metadata = append $metadata (dict "key" "9_cloud_drive" "display_name" "Cloud Drive" "script" "/tmp/coder-cloud-drive/cloud-drive.sh status 2>/dev/null || echo starting" "interval" 2 "timeout" 4) }}
+{{- end }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coder-platform-agent
+  namespace: {{ .Release.Namespace }}
+data:
+  agent.json: |
+    {{ dict "scripts" $scripts "metadata" $metadata | toJson }}
+{{- end }}

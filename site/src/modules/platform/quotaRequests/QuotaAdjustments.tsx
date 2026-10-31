@@ -1,4 +1,4 @@
-import { type FC, useId, useState } from "react";
+import { useId, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { toast } from "sonner";
 import { organizations as organizationsQuery } from "#/api/queries/organizations";
@@ -23,7 +23,7 @@ import { Textarea } from "#/components/Textarea/Textarea";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { QuotaRequestDetails } from "./QuotaRequestDetails";
 
-export type QuotaReviewProps = {
+type QuotaReviewProps = {
 	requests: readonly QuotaRequest[];
 	organizations?: readonly Pick<Organization, "id" | "name" | "display_name">[];
 	busy?: boolean;
@@ -34,7 +34,7 @@ export type QuotaReviewProps = {
 	) => void;
 };
 
-export const QuotaRequestsView: FC<QuotaReviewProps> = ({
+export const QuotaRequestsView: React.FC<QuotaReviewProps> = ({
 	requests,
 	organizations,
 	busy,
@@ -126,10 +126,14 @@ export const QuotaRequestsView: FC<QuotaReviewProps> = ({
 };
 
 /** Deployment owners review additive grants without editing the quota draft. */
-export const QuotaAdjustments: FC<{
+export const QuotaAdjustments: React.FC<{
 	user?: Pick<User, "id" | "username">;
-}> = ({ user }) => {
-	const [open, setOpen] = useState(false);
+	open?: boolean;
+	onOpenChange?: (open: boolean) => void;
+}> = ({ user, open: controlledOpen, onOpenChange }) => {
+	const [internalOpen, setInternalOpen] = useState(false);
+	const open = controlledOpen ?? internalOpen;
+	const setOpen = onOpenChange ?? setInternalOpen;
 	const auth = useAuthenticated();
 	const admin = auth.user.roles.some((role) => role.name === "owner");
 	const query = useQuery({ ...quotaRequests(true), enabled: admin });
@@ -157,21 +161,20 @@ export const QuotaAdjustments: FC<{
 				quota_seen: pendingIds,
 			});
 	};
-	const viewRequests = () => {
-		markViewed();
-		decide.reset();
-		setOpen(true);
-	};
 	if (!admin) return null;
 
 	return (
 		<>
-			<Button variant="outline" size="sm" onClick={viewRequests}>
-				Quota Requests
-				{!open && preferences.isSuccess && unread > 0 && (
-					<Badge aria-label={`${unread} unread quota requests`}>{unread}</Badge>
-				)}
-			</Button>
+			{controlledOpen === undefined && (
+				<Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+					Quota Requests
+					{!open && preferences.isSuccess && unread > 0 && (
+						<Badge aria-label={`${unread} unread quota requests`}>
+							{unread}
+						</Badge>
+					)}
+				</Button>
+			)}
 			<Dialog
 				open={open}
 				onOpenChange={(next) => {
@@ -181,7 +184,13 @@ export const QuotaAdjustments: FC<{
 					}
 				}}
 			>
-				<DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
+				<DialogContent
+					className="max-h-[85vh] max-w-2xl overflow-y-auto"
+					onOpenAutoFocus={() => {
+						markViewed();
+						decide.reset();
+					}}
+				>
 					{preferences.isError && <ErrorAlert error={preferences.error} />}
 					{rememberViewed.isError && (
 						<ErrorAlert error={rememberViewed.error} />

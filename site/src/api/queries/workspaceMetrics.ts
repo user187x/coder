@@ -1,6 +1,6 @@
 import { getWorkspaceInfrastructureMetrics } from "#/api/workspaceMetrics";
 
-export const workspaceInfrastructureMetricsKey = [
+const workspaceInfrastructureMetricsKey = [
 	"platform",
 	"workspace-infrastructure-metrics",
 ] as const;

@@ -12,12 +12,12 @@
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "cn";
 import { Avatar as AvatarPrimitive } from "radix-ui";
+import { LiveLava } from "#/components/LavaImage/LiveLava";
+import { useLavaImage } from "#/components/LavaImage/useLavaImage";
 import {
 	resolvePlatformAvatar,
 	usePlatformSnapshot,
 } from "#/contexts/platformBoot";
-import { LiveLava } from "#/modules/platform/lava/LiveLava";
-import { useLavaImage } from "#/modules/platform/lava/useLavaImage";
 import { useAppearance } from "#/theme/appearance";
 import { getExternalImageStylesFromUrl } from "#/theme/externalImages";
 

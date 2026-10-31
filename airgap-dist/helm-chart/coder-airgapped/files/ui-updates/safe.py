@@ -191,7 +191,7 @@ SOURCES_FILE = os.environ.get("SAFE_SOURCES_FILE", "/data/cloud-drive-sources.js
 SOURCE_PREFIX = "coder-drive-src-"
 SOURCE_BUCKET = "drive"
 SOURCE_PORT = 9900
-SOURCE_CONTAINER = os.environ.get("SAFE_SOURCE_CONTAINER", "dev")
+SOURCE_CONTAINER = os.environ.get("SAFE_SOURCE_CONTAINER", "")
 SOURCE_HOME = "/home/coder"
 SOURCE_RETRY = 30  # seconds between attempts to start a source's server
 
@@ -1863,7 +1863,7 @@ def _source_pod(workspace_id):
         st = p.get("status") or {}
         if st.get("phase") == "Running" and not p["metadata"].get("deletionTimestamp") and st.get("podIP"):
             ready = {c.get("name"): c.get("ready") for c in st.get("containerStatuses") or []}
-            if ready.get(SOURCE_CONTAINER) or (ready.get("compute") and _vm_source_pod(p)):
+            if ready.get(SOURCE_CONTAINER or kexec.agent_container(p).get("name")) or (ready.get("compute") and _vm_source_pod(p)):
                 return p["metadata"]["name"], st["podIP"]
     return None
 

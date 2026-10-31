@@ -10,6 +10,7 @@ import {
 	HardDriveIcon,
 	HistoryIcon,
 	RotateCcwIcon,
+	ServerCogIcon,
 	SettingsIcon,
 	Share2Icon,
 	SlidersHorizontalIcon,
@@ -43,10 +44,12 @@ import {
 	DropdownMenuTrigger,
 } from "#/components/DropdownMenu/DropdownMenu";
 import { TopbarButton } from "#/components/FullPageLayout/Topbar";
+import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { WorkspaceErrorDialog } from "../ErrorDialog/WorkspaceErrorDialog";
 import { UpdateBuildParametersDialog } from "../WorkspaceUpdateDialogs";
 import { ChangeWorkspaceVersionDialog } from "./ChangeWorkspaceVersionDialog";
 import { DownloadLogsDialog } from "./DownloadLogsDialog";
+import { MigrateWorkspaceDialog } from "./MigrateWorkspaceDialog";
 import { RestoreWorkspaceDialog } from "./RestoreWorkspaceDialog";
 import { ShareWorkspaceDialog } from "./ShareWorkspaceDialog";
 import { useWorkspaceDuplication } from "./useWorkspaceDuplication";
@@ -96,6 +99,8 @@ export const WorkspaceMoreActions: React.FC<WorkspaceMoreActionsProps> = ({
 	className,
 	share,
 }) => {
+	const { user } = useAuthenticated();
+	const migrationAdmin = user.roles.some((role) => role.name === "owner");
 	const afterBuild = jobsBlocked
 		? "Available once the current build has finished"
 		: undefined;
@@ -115,7 +120,7 @@ export const WorkspaceMoreActions: React.FC<WorkspaceMoreActionsProps> = ({
 	const [isSharing, setIsSharing] = useState(false);
 	// Home volume: back up, expand
 	const [volumeDialog, setVolumeDialog] = useState<
-		"backup" | "restore" | "expand" | null
+		"backup" | "restore" | "expand" | "migrate" | null
 	>(null);
 
 	// Change version
@@ -285,6 +290,16 @@ export const WorkspaceMoreActions: React.FC<WorkspaceMoreActionsProps> = ({
 					{permissions?.updateWorkspace && (
 						<>
 							<DropdownMenuSeparator />
+							{migrationAdmin && (
+								<DropdownMenuItem
+									disabled={jobsBlocked}
+									title={afterBuild}
+									onClick={() => setVolumeDialog("migrate")}
+								>
+									<ServerCogIcon />
+									Migrate Workspace&hellip;
+								</DropdownMenuItem>
+							)}
 							<DropdownMenuItem onClick={() => setVolumeDialog("backup")}>
 								<ArchiveIcon />
 								Back up home&hellip;
@@ -339,6 +354,13 @@ export const WorkspaceMoreActions: React.FC<WorkspaceMoreActionsProps> = ({
 				/>
 			)}
 
+			{migrationAdmin && (
+				<MigrateWorkspaceDialog
+					workspace={workspace}
+					open={volumeDialog === "migrate"}
+					onClose={() => setVolumeDialog(null)}
+				/>
+			)}
 			<BackupHomeDialog
 				workspace={workspace}
 				open={volumeDialog === "backup"}

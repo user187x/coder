@@ -8,6 +8,7 @@ import { BannerText } from "./BannerText";
 import { withBannerAlpha } from "./bannerAlpha";
 import { CloseLayers, useCloseTransition } from "./bannerClose";
 import { OpenLayers, useOpenTransition } from "./bannerOpen";
+import { useAnnouncementMotion } from "./useAnnouncementMotion";
 
 type BannerPreviewProps = {
 	banner: BannerFields;
@@ -25,13 +26,15 @@ export const BannerPreview: React.FC<BannerPreviewProps> = ({
 	closing = false,
 	onClosed,
 }) => {
+	const motion = useAnnouncementMotion(banner.animationsDisabled);
 	const { bg, fg } = bannerColors(banner);
-	const closeEffect = banner.closeEffect ?? "fade";
+	const closeEffect = motion.effects ? (banner.closeEffect ?? "fade") : "none";
 	const close = useCloseTransition(closeEffect, () => onClosed?.());
 	const { start } = close;
-	const openEffect = animate ? (banner.openEffect ?? "none") : "none";
+	const openEffect =
+		animate && motion.effects ? (banner.openEffect ?? "none") : "none";
 	const open = useOpenTransition(openEffect);
-	const opening = open.opening && !close.closing;
+	const opening = motion.effects && open.opening && !close.closing;
 	// Shown a moment first, then closed.
 	useEffect(() => {
 		if (!closing) {
@@ -43,9 +46,10 @@ export const BannerPreview: React.FC<BannerPreviewProps> = ({
 	return (
 		<AnnouncementReader banner={banner}>
 			<div
+				data-announcement-motion={motion.effects ? "on" : "off"}
 				className="flex w-full items-center gap-1 rounded-md p-1 text-center text-sm"
 				style={{ background: withBannerAlpha(bg, banner.opacity), color: fg }}
-				data-closing={close.props["data-closing"]}
+				data-closing={motion.effects ? close.props["data-closing"] : undefined}
 				data-opening={opening ? openEffect : undefined}
 				onAnimationEnd={(event) => {
 					open.props.onAnimationEnd(event);
@@ -61,7 +65,9 @@ export const BannerPreview: React.FC<BannerPreviewProps> = ({
 					/>
 				</BannerLcd>
 				{opening && <OpenLayers effect={openEffect} />}
-				{close.closing && <CloseLayers effect={closeEffect} />}
+				{motion.effects && close.closing && (
+					<CloseLayers effect={closeEffect} />
+				)}
 				{banner.receipts !== false ? (
 					<span
 						aria-hidden

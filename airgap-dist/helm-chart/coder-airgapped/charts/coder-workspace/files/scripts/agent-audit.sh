@@ -1,12 +1,16 @@
 #!/usr/bin/env bash
+# Terraform expands the single-quoted template parameters before shell execution.
+# shellcheck disable=SC2016
 # The agent activity monitor (coder_script.agent_audit in ../agent-audit.tf, which explains it).
 # The .tf file renders this with templatefile(), so Terraform template syntax applies here: a shell variable in
 # braces is written with two dollar signs ($${HOME}), and a percent sign before a brace is doubled (%%{).
 # Best-effort: never fail a workspace start because auditing could not be set up.
 set -u
+# Terraform unescapes the runtime shell variable.
+# shellcheck disable=SC2193
 if [ "$${AGENT_AUDIT_DISABLE:-0}" = "1" ]; then
- echo "Agent activity monitor disabled (AGENT_AUDIT_DISABLE=1)"
- exit 0
+	echo "Agent activity monitor disabled (AGENT_AUDIT_DISABLE=1)"
+	exit 0
 fi
 
 ACCESS_URL='${access_url}'
@@ -24,29 +28,29 @@ chmod 700 "$LOGDIR"
 #    universe packages it; snoopy-enable adds it to /etc/ld.so.preload so it covers processes started afterwards,
 #    the workspace's agents included.
 if [ ! -f /etc/ld.so.preload ] || ! grep -q snoopy /etc/ld.so.preload 2>/dev/null; then
- sudo DEBIAN_FRONTEND=noninteractive apt-get update -qq || true
- sudo DEBIAN_FRONTEND=noninteractive apt-get install -y snoopy >/dev/null 2>&1 || true
- sudo snoopy-enable >/dev/null 2>&1 || true
+	sudo DEBIAN_FRONTEND=noninteractive apt-get update -qq || true
+	sudo DEBIAN_FRONTEND=noninteractive apt-get install -y snoopy >/dev/null 2>&1 || true
+	sudo snoopy-enable >/dev/null 2>&1 || true
 fi
 
 # 2. Snoopy writes JSON lines to our file (not syslog: containers have no syslogd). One line per exec, with the
 #    fields that describe an action: when, who, where, the parent, the session, and the full command line.
 if command -v snoopy-enable >/dev/null 2>&1 && [ ! -f "$SNOOPY_INI.agent-audit" ]; then
- sudo tee "$SNOOPY_INI" >/dev/null <<'INI'
+	sudo tee "$SNOOPY_INI" >/dev/null <<'INI'
 [snoopy]
 error_logging = disabled
 message = {"ts":"%%{timestamp_utc}","uid":"%%{uid}","user":"%%{username}","cwd":"%%{cwd}","tty":"%%{tty}","sid":"%%{sid}","pid":"%%{pid}","ppid":"%%{ppid}","login":"%%{login}","cmd":%%{cmdline_json}}
 output = file:HERE_LOG
 INI
- sudo sed -i "s#HERE_LOG#$LOG#" "$SNOOPY_INI"
- sudo touch "$LOG"
- sudo chown "$(id -u):$(id -g)" "$LOG"
- sudo chmod 640 "$LOG"
- sudo touch "$SNOOPY_INI.agent-audit"
+	sudo sed -i "s#HERE_LOG#$LOG#" "$SNOOPY_INI"
+	sudo touch "$LOG"
+	sudo chown "$(id -u):$(id -g)" "$LOG"
+	sudo chmod 640 "$LOG"
+	sudo touch "$SNOOPY_INI.agent-audit"
 fi
 # snoopy older than 2.4 has no %%{cmdline_json}: fall back to a quoted cmdline so the line still parses.
 if ! snoopy-test 2>/dev/null | grep -q cmdline_json; then
- sudo sed -i 's#,"cmd":%%{cmdline_json}}#,"cmd":"%%{cmdline}"}#' "$SNOOPY_INI" 2>/dev/null || true
+	sudo sed -i 's#,"cmd":%%{cmdline_json}}#,"cmd":"%%{cmdline}"}#' "$SNOOPY_INI" 2>/dev/null || true
 fi
 
 # 3. Forwarder: tail the log, batch new lines, and POST them to the service. Progress is remembered by byte
@@ -102,10 +106,10 @@ PY
 
 # One forwarder per workspace. Probe by a marker file's pid; snoopy would log a pgrep of our own name.
 if [ -f "$LOGDIR/forward.pid" ] && kill -0 "$(cat "$LOGDIR/forward.pid" 2>/dev/null)" 2>/dev/null; then
- echo "Agent activity monitor already running."
+	echo "Agent activity monitor already running."
 else
- ACCESS_URL="$ACCESS_URL" OWNER="$OWNER" OWNER_ID="$OWNER_ID" WS="$WS" WS_ID="$WS_ID" LOG="$LOG" \
-  nohup python3 "$LOGDIR/forward.py" >"$LOGDIR/forward.out" 2>&1 &
- echo $! >"$LOGDIR/forward.pid"
- echo "Agent activity monitor started; execs are recorded and forwarded to Observability > Agent Activity."
+	ACCESS_URL="$ACCESS_URL" OWNER="$OWNER" OWNER_ID="$OWNER_ID" WS="$WS" WS_ID="$WS_ID" LOG="$LOG" \
+		nohup python3 "$LOGDIR/forward.py" >"$LOGDIR/forward.out" 2>&1 &
+	echo $! >"$LOGDIR/forward.pid"
+	echo "Agent activity monitor started; execs are recorded and forwarded to Observability > Agent Activity."
 fi

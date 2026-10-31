@@ -1,43 +1,50 @@
 =====SUBMITTED RAN OUT OF CREDITS (10/23) ==========
 
-# Workspace Dashboard Updates:
+# Workspace Dashboard Updates
+
 - Replace the 'workspace agent name' span with the "latency" button
 - Enclose both the RX/TX agent-network button and "agent network pill" into one single enclosing pill container'
 - Remove the 'status' or agent-status (the top left green circle status) from the Workspace Dashboard
 - Replace the "workspace-update-button' from the workspace-topbar with the existing animated 'agent-outdated-update' located right of the agent-network-pill
 
-# Workspace Dashboard Bug fixes:
+# Workspace Dashboard Bug fixes
+
 - Ghostty terminal doesn't close correctly - when added to the accordion dropdown panel doesn't this terminal doesn't close on exit. The accordion panel should close cleanly exit. A perfect example of how this works is present in the "DEFAULT" workspace's terminal close event.
 - Ghostty mouse clicks don't work. When Ghostty is displaying either within a panel or popped out the terminal doesn't responds to mouse clicks
 
-# Announcement Banner Updates:
+# Announcement Banner Updates
+
 - Provide a transparency slider to allow the the announcement banner to be more transparent
 - When there are more lines of text in the announcement that are able to viewed due to being to long of a message, a mouse-over event will slowly animated and auto-scroll down for the user to allow the reader to keep reading through the entire message. When the mouse leave it will animated back up the to the beginning of text fast
 - Typing 'IP' in announcement banner dropdown menu will display actual IP of the Coder Dashboard
 
-# Inbox Notification Updates:
+# Inbox Notification Updates
+
 - Add a notification when a connected shared Cloud Drive file event happens detailing the actions along with username created action, file|directory name file|directory size for the following actions: New File|Directory Added|Removed|Deleted
 
-# Admin Security view Updates:
+# Admin Security view Updates
+
 - Update the Security view to add a "Global Lock Down" card view. This will be used to trap any rouge agents traversing the system or inbetween accounts
 - The "Global Lock Down" will display an exposed dropdown panel of all connected users represented by a grid a small grid of green circles in a matrix-style view
- - mouseover event will display username of the represented green dot.
+- mouseover event will display username of the represented green dot.
 - When Global Lock Down is activated each user represented circle will turn turn red when confirmed their workspaces have been disconnected, affirming the proper disconnection from the service.
 - The 'Global Lock Down' card view will be located within the admin Security view at the top of its content view.
 - 'Global Lock Down' card-view will display a header and footer hazard strip on the card view.
 - 'Global Lock Down' will be activated by "lock" button. This action will be protected by a confirmation prompt requiring admin to type out 'agree' consenting to lock the entire coder platform down.
-- All non-admin users' workspaces will disconnect, grayed-out with faint lock glyph overlayed on all of thier workspace dashboards
+- All non-admin users' workspaces will disconnect, grayed-out with faint lock glyph overlaid on all of their workspace dashboards
 - All non-admin users' active sessions will be terminated while leaving workspaces active.
-- All users will lose access to workspace dashboard until botton admins lift the "Global lock down".
-- Chat feature and banner will sill be visible providing communcation channel to user.
-- The Announcement banner container will stobe diagnal black and yellow caution stripes while displaying the blinking announcement message "System Lockdown Enabled"
+- All users will lose access to workspace dashboard until bottom admins lift the "Global lock down".
+- Chat feature and banner will sill be visible providing communication channel to user.
+- The Announcement banner container will stobe diagonal black and yellow caution stripes while displaying the blinking announcement message "System Lockdown Enabled"
 
 =====NOT SUBMITTED==========
 
-# Template "Source Code" view Updates:
+# Template "Source Code" view Updates
+
 - Add developer mode to workspace-template view to have allow terraform editor.
 
-# Workspace App Bug Fixes:
+# Workspace App Bug Fixes
+
 - Workspaces don't display the correct CPU and Memory available. They display the entire clusters. Fix this
 
 =====CODEX CONTINUATION IN PROGRESS==========
@@ -45,12 +52,14 @@
 Confirmed scope: complete all items above, including NOT SUBMITTED.
 
 User decisions:
+
 - Global Lock Down blocks workspace access and disconnects workspace sessions. Users stay signed in to Coder and can read announcements and chat with admins.
 - Preserve ordinary direct SSH resilience during control connection loss. Add agent-side revocation and require updated agents before reporting confirmed disconnection.
 - Cloud Drive filesystem notifications identify the mount/workspace account. Source-folder edits are explicitly labelled as observations by the source workspace account, rather than an exact signed-in actor.
 - Parallel coding agents are authorized.
 
 Completed and verified so far:
+
 - Fixed the scrolling announcement prop type to include opacity.
 - Moved the dashboard address lookup into a shared React Query definition; uppercase IP is supported in source.
 - Added Developer mode navigation to the existing Terraform editor for template editors, including the displayed historical version.
@@ -59,6 +68,7 @@ Completed and verified so far:
 - Deployed the missing platform-service dashboard-address endpoint plus its gateway configuration and narrowly scoped gateway read permission. The announcement command now shows 10.100.63.126 and coder.grey-marshall.com.
 
 Combined Minikube preview:
+
 - Profile/context: coder; namespace: coder.
 - Coder deployment image: coder-local:claude-resume-2, version 2.0.0-platform.108-resume.2. Both replicas healthy.
 - The server embeds newly built slim agents for all seven supported OS/architecture combinations.
@@ -68,12 +78,14 @@ Combined Minikube preview:
 - Sanitized live preflight found zero configured source-folder drives.
 
 Implemented:
+
 - Workspace-only server access guards, graceful session teardown, replica acknowledgements, and agent-side WireGuard peer enforcement. Agent acknowledgements bind the exact applied policy to the current agent process. Old agents remain explicitly update-required; disconnected agents and unresponsive replicas prevent false confirmation.
 - Real-agent race-tested integration proves ordinary detached SSH resilience, lockdown revocation, and preserved owner/server access. Chat and announcements remain outside the workspace gate.
 - Per-account Cloud Drive TLS audit gateway and distinct retained viewer claims, durable source observation and Inbox outbox, permission checks, Markdown escaping, size reporting, retries, and explicit observation-gap alerts.
 - Audited storage defaults off. Source observations identify the source workspace account and do not claim exact Coder-login attribution.
 
 Verification:
+
 - Final focused frontend: 14 files, 78 tests; earlier broader affected run: 18 files, 92 tests. TypeScript, production build, and changed-file Biome checks passed.
 - Final seven-package targeted Go race suite and full agent SDK race suite passed.
 - Platform Python: 239 tests passed; source observer: 17 tests passed. Focused database/auth/latest-template-version tests passed.
@@ -83,6 +95,7 @@ Verification:
 - Additional localhost Storybook inspection was blocked by browser approval. Earlier confirmation/card screenshots and live editor/Ghostty/IP verification are retained.
 
 Pending disruptive rollout:
+
 - Updated existing workspace agents are required to confirm revocation of their detached direct connections.
 - Audited mounts require Helm activation, updated template publication, disposable two-account validation, then approved workspace restarts onto new handles. Existing legacy mounts remain unaudited until migrated.
 - No live lockdown activation or real workspace restart has been performed.
@@ -92,6 +105,7 @@ Verification evidence is under /tmp/coder-resume-evidence/ and /tmp/coder-*-test
 Inherited broader-check blockers: full frontend lint has existing branch errors; full make gen reaches the unrelated metrics generator and fails because the root aibridge directory is absent. Database query generation and targeted new database/auth tests have passed.
 
 User-approved rollout continuation:
+
 - User approved disposable validation, agent updates/workspace restarts, audited mount migration, and brief lockdown testing with restoration.
 - Corrected the leftover agent-card Update control: removed its old tooltip/version components and placed Update in the header Restart slot when an agent or template needs updating. Running workspaces now show Stop / Update / actions. Up-to-date workspaces retain Restart.
 - Agent-only and rebuilt-agent differences now participate in header action selection. Existing update-request behavior tests cover all three update reasons; 66 focused tests, TypeScript, and changed-file Biome checks passed.
@@ -129,6 +143,7 @@ Latest UI feedback is implemented and live verified: Update placement, centered 
 Remaining check limitations are the inherited full-lint/full-make-gen blockers documented above. No live source-backed drives are configured; source observation has automated tests. No PR/commit or remote image publication was requested or performed.
 
 =====FOLLOW-UP REQUESTS IN PROGRESS=====
+
 - User reports File Browser 404. Reproduced: original admin's own three apps return200; Brad/Tom apps return404 in adminsession due owner-only path-app protection. User explicitly authorized deployment admins to access other owners' File Browser apps. Implementing a narrow File Browser deployment-owner exception while retaining standard RBAC/token scopes and restrictions for unrelated users/other apps; no broad path-app sharing flag enabled.
 - Ghostty mouse cursor must be pointer in shared terminal wrapper for accordion and standalone tabs; scoped CSS override implemented,5terminaltests passed.
 - Center Template cell entries; remove Registry CTA from editor; minimum five-row Versions card; no own scrollbar for Categories (normal page scrolling on short windows); theme-aware QuickMenu settings preview. Implemented with38targetedtests/types/checks passed.
@@ -143,6 +158,7 @@ Remaining check limitations are the inherited full-lint/full-make-gen blockers d
 
 =====FOLLOW-UP FINAL VERIFIED STATUS=====
 All follow-up requests are complete and live: Coder image coder-local:claude-resume-8, platform-service coder-ui-local:claude-resume-4. Local deployment overrides preserve these image pins and audit activation. No agent update/workspace restart was needed for this batch.
+
 - Deployment owners can open all five File Browser apps; owner-only access to other apps remains restricted and normal token scopes remain enforced.
 - Shared Ghostty component enforces pointer cursor on wrapper/canvas/input, covering accordion and standalone contexts; standalone live computed styles verified pointer.
 - Template entries centered; Registry CTA removed; Versions card body minimum208px/five40px rows; Categories intrinsically sized without internal scrollbar, using page scroll on short viewports; QuickMenu settings preview theme-aware.
@@ -153,8 +169,8 @@ All follow-up requests are complete and live: Coder image coder-local:claude-res
 - Final checks passed:85frontend tests across19files, TypeScript, production build, app authorization/session-guard/token-provider Go race tests,242Python service tests plus final legacy-share regression checks, changed-file Biome/format/whitespace. Inherited broad lint/full-generation blockers remain documented above.
 - Live final state: original five workspaces running; lockdown off, five agents, zero pending. Both Coder replicas and platform service ready. Final drivepeers.py source hash matches running image. Temporary QA tabs closed; original workspace left open. Evidence directory /tmp/coder-resume-evidence/.
 
-
 =====WORKSPACE GRID AND PRIVATE TUNNELS 2026-10-24=====
+
 - User clarified full private TCP and UDP networking, rather than selected TCP forwards. Grid dashboards now share one fit based on visible dashboard heights, keeping iframe scales and dimensions equal.
 - Added both-side workspace ports, persisted source/target port sides, existing Cloud Drive cable material/physics including fall/reel release, drag/pan/iframe shielding, keyboard connection management and pending/error/disconnecting states.
 - Supplied /home/xxx/Desktop/tunnel.png copied unchanged to site/static/pictures/tunnel.png. Established-only companion button sits immediately right of Cloud Drive with matching icon/button dimensions; query failures hide stale ready indicators.
@@ -170,8 +186,8 @@ All follow-up requests are complete and live: Coder image coder-local:claude-res
 - Corrected overlapping SVG socket hit areas covering attached plugs: final plug interaction layer and target-socket delegation now unplug the existing cord; start drag at pointer position, not the source socket. Added existing-plug and target-socket DELETE-without-CREATE regressions.
 - User subsequently requested replacing the supplied globe artwork with a matching existing-aesthetic icon. Supersedes the earlier asset note: use lucide CableIcon at matching14px inside22x20px control with semantic success stroke; remove unused tunnel.png asset. Final icon/drag rollout pending below.
 
-
 =====FINAL PRIVATE TUNNEL STATUS 2026-10-24=====
+
 - Final live images: coder-local:claude-resume-13 (two healthy Coder replicas), coder-ui-local:claude-resume-6 (one healthy platform replica), server/agentversion remains resume.3. Static helper packaged in service image code-953d910b7d10, bundled archive/pins updated; local deploy overrides pin correct service/helper/CLI images. Both template active versions preserve current sources/variables with only helper-image update: default ca98e6fb-c3dd-4cc7-9b6a-6b29856e2e79, dataflow b16bf0a5-b5ba-4613-9a2b-624b8ba5a5bf.
 - User's latest request complete: matching CableIcon hover/focus/click card shows connected workspace names, actual per-peer RX/TX histogram and observed TCP/UDP local/remote ports. Existing NetworkHistogram and Popover primitives reused; missing/stale/partial observations labeled explicitly. UDP is a recent observed flow, not an assertion that a socket remains open. Current counters/histories bounded; epochs reset on peer/interface/key changes without spikes. Authorization HTTP calls moved outside policy file lock to avoid blocking helper syncs.
 - Runtime now reports WG peer counters, established TCP sockets, connected UDP sockets and UDP conntrack flows (including sendto), with bounded payloads and availability flag. Conntrack observation uses empty custom chain; it does not ACCEPT or bypass existing filtering. Observation failures do not revoke healthy transport.
@@ -180,21 +196,22 @@ All follow-up requests are complete and live: Coder image coder-local:claude-res
 - Original five workspaces running, every Coder agent connected, every helper ready on .6. Lockdown off, five agents, zero pending. Original parameters preserved and external user restarts adopted. Original dashboard tab left open, temporary QA tabs closed; grid selection restored to original three admin workspaces.
 - Evidence: /tmp/coder-resume-evidence/workspace-tunnel-hover-active-final.png, workspace-overlay-live-telemetry.json, workspace-overlay-live-telemetry-recovered.json, workspace-overlay-real-ui-unplug.json, workspace-tunnels-final-state.json. Kernel SIGKILL limitation noted above remains; do not claim unconditional kernel lease enforcement.
 
-
 =====ANNOUNCEMENT LOOP AND TERMINAL CONTEXT COMPLETED 2026-10-24=====
+
 - User requested endless announcement text loop and a toggle, and dashboard accordion prompt position unaffected by announcement. Added independent loopText setting, defaulttrue, persisted/validated in coderd/platformbanner Fields. Compact long text duplicates into an inert/aria-hidden second block, smoothly wraps at exact first-block height at4px/sec. Loop text continuously toggle in Deployment > Announcement > Compose; visual-effect Repeat remains independent. Holdpointerpauses, motionprefs/manualreaderyield retained; loopoffreads once.
 - User confirmed dashboardaccordiononly. Read-only evidence found the bottom prompt-like line is tmux pane-border-format term_info, while Bash PS1 is unchanged and standalone prompt starts correctly. Moved managed monitor window borderstatus to top in live skibbity session without workspace/sessionrestart. New default tmux command sets pane-border-status top; migrate only exactpreviousdefault andpreservecustomcommands/enabledflag. Live screenshot terminal-context-top.png / announcement-loop-terminal-final.png.
 - Thirty announcement/editor/scroll tests, five terminalsession tests, platformbanner Go-race tests, types/targetedBiome/build pass. Liveeditor toggle off/on changed draft then returned Publishdisabled; nothingpublished. Bannerliveviewport36px/height48px, twocopies/period180px, observedwrap145.31->30.95px, held3sec movementonly0.53px includingpreclicklatencyvs12pxnormal. Terminalcanvasposition/height stable duringbanneractivity. QAstandalone shell exited, temporarytabsclosed. Existingworkspace/announcementcontentpreserved.
 - Deployed coder-local:claude-resume-14, bothreplicasready, platformservice/helper .6 unchanged, no original workspace restart needed. Localpinsupdated. FE1-FE10 scopedselfreviewpassed; inheritedbroadchecklimitationsremain.
 
 =====SECURITY BULK POWER AND AVATARS IN PROGRESS=====
+
 - User asks Shut Down and Terminate on right beneath Lock; avatars in userconnectiongrid withlightbottomleft. Clarified Terminate means force-stop retainingdata, neverdeleteworkspaces/storage. Bothactionsallusersincludingadmins; userrequestedUIbuttons, NOT executionagainstoriginal5. Onlydisposablepowerfixture authorizedforQA.
 - Frontendagentconnector_reuse_design ownsbuttons/reviewconfirm/progress/avatars. Pythonbackendagentworkspace_grid_sizing ownsorg-scoped workspace-power operations andnarrowKubeRBAC. Runtimeagentworkspace_tunnel_design preparesfixture/gracefulstop/restart/force-stop/restartsentinelpreservation QA andindependentreview.
 - Chosen API POST /__coder-ui/api/organizations/{org}/workspace-power {action:shutdown|terminate,workspace_ids:[reviewedUUIDs],confirmation:actionliteral}; GET operation/id. UIenumeratesallvisibledeploymentworkspaceIDs, groupsorgs, confirmsallusers/adminsscope thenfanoutoperations; explicitIDspermitfixture-onlybackendQA. GracefulusesCoderstopbuilds; forceaddsexactUUIDdeploymentreplicas0 andgrace0poddelete whileCoderstopconverges, preservesPVCs/workspaceobjects. Unsupportedcontrollers/providers/nodeunreachable reportunsupported/unverified ratherthanfalseforce success. Tokenmemoryonly; service restart interrupted state, boundedjobs/partialerrors.
 - RootSDKGlobalLockdownUser addsavatar_url andservermatrixincludesallactiveaccounts (offlinegrey,connectedgreen,blockedred); regeneratedTS, addedadminavatar/offline visibility test; nonownerprivacyretained. Go -racetestsrunning.
 
-
 =====FINAL SECURITY BULK POWER AND AVATARS COMPLETED 2026-10-24=====
+
 - Right-side controls are Lock, Shut Down, Terminate. Bothpoweractionsreviewalluser/adminworkspaceIDs acrossorganizations, typedconfirmation, frozenIDsnapshot, systemprebuildsexcluded, up tofourorganizationworkers withserial100-IDbatches. Persistentrealprogress/recenthistory/perworkspacepartialerrors; nooptimisticsuccess. Workspace/PVCretentionexplicit.
 - Org-scopedworkspacepower.py usesCodergracefulstopbuilds; forceaddsUID/resourceVersion-fencedDeploymentreplicas0 andUID-preconditionedgrace0podremoval, preservingworkspaceobjects/volumes. Handlespendingbuildcancel races, refusesunsupportedcontrollers/providers, abortsifanotherbuildstarts, retainsexistingparameters/version, scopesallPOST/GETauthorization, tokensonlyinmemory, restartmarksinterrupted. NamespacedDeploymentget/list/patchandReplicaSetget added; nostorage-deletionpermissionadded. Controlplaneremovalreportedseparatelyfromphysicalpoweroff; nodeunreachabilityisnotclaimedverified.
 - Usergridnowrendersprofileavatars withbottom-leftgreenconnected/amberdisconnecting/reddisconnected/greyofflinelights. SDKavatar_url andallactiveaccountsallowofflinevisibility; authenticatedrequester explicitlyconnected (liveinspectioncaughttheoldlastSeenlag). Nonowneruser-matrixprivacyretained; Goprivacy/avatar/offline/requester-race tests pass; regeneratedAPItypes/Swagger.
@@ -207,6 +224,7 @@ All follow-up requests are complete and live: Coder image coder-local:claude-res
 - Final visual follow-up: keep control stack onright withresponsive nonwrappingheader (small screensrightalignedbelowdescription); live requesterpresencegreen, otherofflineavatarsgrey. FinalCoderimagecoder-local:claude-resume-17, twohealthyreplicas, platformservice.7/helper.6unchanged. Allfiveoriginalpods3/3, disposablepowerfixturefullydeletedandQAoperationrecordscleaned. Finalscopeincludesuser-requestedcommit/push; sourcebranchclaude-task. Currenttypedfrontend/bulkAPIreviewsandproductionbuildsvalidated; nooriginalshutdown/terminateexecuted.
 
 =====ACCOUNTS AND PERSONAL QUOTA ADDITIONS COMPLETED 2026-10-24=====
+
 - Merged Accounts and quota tables, preserving identity, account actions/bulk selection, roles, notes, Cloud Drive shares/chat, latency/activity/status, per-user base overrides, allocated/running/live resource readings and cluster/default/scheduler controls. Account rows expand to all owned workspaces with explicit dashboard links and independent cross-account workspace selection; Stop, Restart and Terminate review exact target IDs and report actual outcomes/partial failures.
 - Developers request additional CPU, memory or workspace count from Workspaces. Deployment owners approve/deny/revoke through Accounts. Records are organization-routed; additions apply to the user's personal global quota by immutable UUID until revoked. Dotted sections distinguish approved extras from base/default quotas. Unlimited/exempt limits remain unlimited. Approval is serialized and idempotent, state is atomically persisted, and authorization/CSRF checks apply to every route. No new persistent credentials.
 - User-initiated resource increases use the existing builder parameter resolver and replacement-allocation quota check, outside the transaction and after authorization. Unchanged/reduced allocations remain restartable after revocation. Existing external-quota fail-open behavior remains; checks do not reserve capacity and concurrent builds can race. This is not a new hard transactional allocation guarantee.
@@ -215,6 +233,7 @@ All follow-up requests are complete and live: Coder image coder-local:claude-res
 - Live Minikube coder-local:claude-resume-18 and coder-ui-local:claude-resume-8 healthy. Disposable quota-check account tested self-request, unauthorized/read-only approval denial, approval/repeat without doubling, effective limits, revocation/history, and visible dotted Accounts bars. UI fixture-only graceful Stop, Restart, bulk-selected Terminate, Restart passed; exact sentinel and home PVC UID survived. All fixture workspaces/claims/records/keys cleaned, original five workspaces running with unchanged builds. Evidence accounts-quota-live-final-cleanup.json and accounts-quota-revoked.png under /tmp/coder-resume-evidence.
 
 =====SYSBOX AND WORKSPACE METRICS IN PROGRESS=====
+
 - Deployment constraint added: final solution must support non-bare-metal AWS EKS. Hold original workspace migration while assessing Kata versus KubeVirt. Ordinary local Kata and KubeVirt both need nested virtualization on virtual EC2 workers; AWS now supports selected Intel families, with EKS/Karpenter configuration separately verified. Kata remote/Cloud API Adaptor peer pods avoid nesting by creating separate cloud VMs but introduce storage/network/lifecycle integration. Sysbox remains mandatory unless the user changes that requirement; a Kata RuntimeClass does not automatically invoke sysbox-runc inside its guest. No architecture switch or AWS deployment is claimed complete.
 - Architecture decision resolved: retain KubeVirt plus Sysbox and allow clusters to use or add a dedicated compatible worker/pool when required. Do not switch to Kata. Runtime renderer now supports either an explicit hostname or validated dedicated pool labels, never an empty selector. Ordinary platform nodes remain separate; tenant VM readiness and HOME affinity are still mandatory, with no ordinary-runc fallback. AWS instance/node-group provisioning remains an operator action and requires verified nested virtualization. Resume disposable runtime qualification; original migration still waits for all safety/lifecycle tests.
 - Dedicated placement tests pass, including amd64 enforcement and empty/ambiguous/invalid selector rejection. Offline pinned manifest render verifies the operator, infrastructure and workloads all use the same selected pool. EKS readiness also requires externally enforced metadata/Pod Identity endpoint isolation and no launcher IAM/token grants; actual AWS validation has not been performed. Keep all VM-ready labels within the selected runtime pool.
@@ -225,6 +244,7 @@ All follow-up requests are complete and live: Coder image coder-local:claude-res
 - Recovery snapshots: protected local /tmp/coder-resume-evidence/keycloak-recovery directory0700, configuration/secrets and Coder consistent pg_dump0600, stopped-state Keycloak data tar0600 verified. Keycloak scaled back to1; deployment ready and OIDC discovery healthy. Never commit backup secrets or VM credentials. Existing cluster/Keycloak otherwise unchanged.
 
 =====QUEUED AFTER CURRENT RUNTIME AND METRICS WORK=====
+
 - Scope assessment from the latest user request: include runtime safety prerequisites and existing metrics/status correctness in the current implementation. Complete the separate Quarantine product action, GPU enablement configuration, connector visual redesign and Dataflow N.eko replacement after current runtime qualification. These are authorized follow-up tasks, not optional suggestions.
 - Current safety prerequisites: host-side administration must remain able to halt a VM and revoke its external connections without trusting its agent. Keep physical/GPU device access denied by default, and retain explicit boundaries for future narrowly approved GPU profiles. Lock Down remains Coder workspace-access/session revocation; it must not silently acquire network-quarantine semantics.
 - Current correctness: reconcile workspace update indicators between dashboard and overview; tunnel connected counts/status must reflect actual current endpoint availability and acknowledgements across disconnect/restart, not persisted ready state alone. Repair Workspace load collection and provide real Node/Cluster load data with explicit unavailable/stale states; do not substitute CPU utilization for load average. Preserve infrastructure-metrics privacy, allocated resource limits, maximum one-decimal badges and no horizontal overflow.
@@ -238,6 +258,7 @@ All follow-up requests are complete and live: Coder image coder-local:claude-res
 - Also queued: announcement transparency slider must mark the draft dirty and enable Publish changes. Add regression for slider change -> publish payload/dirty state.
 
 =====CURRENT QUALIFICATION AND UI FOLLOW-UP 2026-10-24=====
+
 - Original five workspaces remain native and have not been migrated. Production mandatory VM admission remains off pending clean end-to-end qualification. Do not treat older completed rollout notes as evidence of VM isolation.
 - A dedicated Ubuntu worker runs KubeVirt with Sysbox inside each test VM. Patched-V4 raw CPUID/sysinfo, cgroup stress, namespace isolation and nested Docker tests passed; clean V5 image contains the root-only staging normalization fix and still needs a full Coder lifecycle without operator repair. HOME expansion, restore, worker reboot and original cold migration remain outstanding.
 - Hashicorp kubernetes_manifest fails actual KubeVirt CRD round trips on both3.4.0 and2.36. VM-only raw alekc/kubectl2.4.1 create/update/no-op probes pass; canonical Terraform preserves native Hashicorp resources and supports exact-owned VM state adoption. Approved provider ZIP checksum is pinned in airgap packaging. No original state was changed.
@@ -255,6 +276,7 @@ All follow-up requests are complete and live: Coder image coder-local:claude-res
 - Existing worker SSH recovery material and libvirt domain XML are now retained outside the repository in /home/xxx/.local/state/coder-runtime/coder-sysbox-worker (directory0700, files0600). Temporary source copies remain for existing QA scripts.
 
 =====RUNTIME QUALIFICATION FOLLOW-UP 2026-10-24=====
+
 - Qualified clean guest root is V6, digest d930160b2cf3e1002b3f134ecc5f2a25941d2e739cc40d08248d22593fac134d. This supersedes the V5-only activation note above. Final mandatory admission must approve only qualified V6; older roots are temporary owned-QA cleanup allowances.
 - Clean V6 Coder lifecycle passed without guest repair: agent connected, retained sentinel present, private staging normalized automatically, local IDE health and editor return200. Earlier V4 full CPU/memory stress remains explicitly reused; do not claim repeated V6 stress.
 - Disk maintenance now parses tenant filesystems only inside an unprivileged, networkless libguestfs TCG appliance with namespace isolation, empty capabilities and no service-account token visibility. Host-side work retains ownership/fence/hash/allocation checks. Actual backup/restore/grow round trip passed under2CPU/2GiB limits, including unsafe archive rejection without changing the input image.
@@ -272,6 +294,7 @@ All follow-up requests are complete and live: Coder image coder-local:claude-res
 - Worker storage budget requires expanding only its owned trusted OS disk from256GiB to512GiB after restore tests and private builder cleanup. Underlying /mnt/data has sufficient space. No tenant filesystem is parsed by host tools; this planned OS growth is separate from tenant HOME maintenance. No expansion performed yet.
 
 =====CURRENT RESTORE AND QUARANTINE WORK 2026-10-24=====
+
 - LIVE service UI21 code352cefca8482, digest7c9bdeee3428e7a2f0643ade10ac97a6ec3ac8156294b06d1be0be5b4e95cd60; Server30 unchanged/stable. UI21 contains bounded actual-VM/consumer stop wait. No new Quarantine Go schema, policy callbacks, frontend or observer is deployed yet. Current Root source after UI21 requires the new Go migration before its service rollout.
 - Actual API backup18 passed38.2MB. Existing replace20 passed on old timing; do not claim it reproduced a failure. New restore21 DID reproduce the grace-period race before worker mutation. Fixed wait in workspacevolumes; actual running-source replace22 on UI21 passed. Successful new-mode23 created owned vm-restored-aa9460ff UUID74e1ecda-3deb-426b-826c-e2ed12dc17f6 with3GB from source parameter1, retained both sentinels and healthy agent/apps/IDE. Traversal19 and truncated24 rejected before lifecycle/data changes. Failed owned clone a426cdfd-7ebf-43fc-a38e-42dfc4b0e02f deleted only through Coder. Original five untouched.
 - Two healthy owned V6 VMs retained for next private TCP/UDP and actor-audited Drive/source/item/ISO parity. Runtime agent owns their mutations. Canonical template feature guard remains; only disposable QA template may override it. Dataflow/N.eko and original migration remain later. Browser-denied File Browser origin must not be retried.
@@ -288,26 +311,28 @@ All follow-up requests are complete and live: Coder image coder-local:claude-res
 - Do not commit/push until complete qualification, queued implementation and final checks; user explicitly requested final Git delivery. Mandatory global VM admission still disabled, original workspaces still native. Keycloak remains healthy.
 
 =====RESUMED AFTER STORAGE RELOCATION 2026-10-25=====
+
 - User relocated the volume after exhausting disk. /var/lib/docker is now mounted from /dev/mapper/data[/docker]; root has approximately180GB available. Shared Go cache was not moved or deleted by the agent. Minikube coder was stopped and kubeconfig empty; existing profile restarted and context restored. Both nodes Ready, Coder2/2, PostgreSQL healthy, Keycloak1/1, original native workspaces recovered without deleting data. Temporary /tmp QA evidence and credentials did not survive; durable /mnt/data artifacts remain.
 - Browser route10.96.0.0/12 via192.168.58.2 is missing; minikube tunnel cannot authenticate sudo. User asked to restore exact route while independent internal tests continue.
 - Superseding earlier outstanding note: HOME node_uid provenance and host-only validation are implemented. First-capture missing/replaced worker identity and safe target-retirement regressions now pass. No automatic enrollment of old HOME records is allowed.
-- V7 guest build recovered complete: qcow SHA256201cc042ba6fded8123a18974989bb01785f808c435ba00343a843c1e04deab3, image localhost:5000/coder-vm-guest@sha256:3cabd4d95784d0cf38e0686c4f96bf8904b18bcae967eb5837dfa1afbbfc2363. Contains tunnel-forward ordering and public Drive ancestor permission fixes. Not qualified or globally activated yet.
+- V7 guest build recovered complete: qcow SHA256 201cc042ba6fded8123a18974989bb01785f808c435ba00343a843c1e04deab3, image localhost:5000/coder-vm-guest@sha256:3cabd4d95784d0cf38e0686c4f96bf8904b18bcae967eb5837dfa1afbbfc2363. Contains tunnel-forward ordering and public Drive ancestor permission fixes. Not qualified or globally activated yet.
 
 =====V7 RUNTIME RESUME 2026-10-25=====
+
 - Session restart found Minikube profile coder stopped and /tmp QA credentials/evidence absent. Dedicated libvirt worker and retained HOME disks survived. Root owns cluster/Keycloak recovery; runtime agent does not force-delete terminating launchers or bypass unavailable webhooks.
-- Completed V7 QCOW2 exists on /mnt/data/coder-vm-bake-qa, SHA256201cc042ba6fded8123a18974989bb01785f808c435ba00343a843c1e04deab3. Read-only qemu-img info reports clean16GiB, no backing chain. Guest vmprofile sidecar remains exactec32d603943e7171af085a2998cf45758931e2813876b822584fe818fae1d894. Public mount0755 and narrow tunnel forwarding fixes have16privateconfig,3guest and targetedGo forwarding tests passing.
+- Completed V7 QCOW2 exists on /mnt/data/coder-vm-bake-qa, SHA256 201cc042ba6fded8123a18974989bb01785f808c435ba00343a843c1e04deab3. Read-only qemu-img info reports clean16GiB, no backing chain. Guest vmprofile sidecar remains exactec32d603943e7171af085a2998cf45758931e2813876b822584fe818fae1d894. Public mount0755 and narrow tunnel forwarding fixes have16privateconfig,3guest and targetedGo forwarding tests passing.
 - Packaged/published V7 immutable guest localhost:5000/coder-vm-guest@sha256:3cabd4d95784d0cf38e0686c4f96bf8904b18bcae967eb5837dfa1afbbfc2363. Added only this root to the QA external webhook's existing allowlist; no original template/VM mutation.
-- Synthetic template version4b1ba7e0-e11d-412a-a6f1-3ea9e19f10e3 imported from the exact prior QA file/variables with only root image changed. Short-lived admin key used solely for this import was deleted immediately; private proof and a separate12h synthetic-owner key are0600 under /mnt/data/coder-vm-bake-qa/parity-state. Cleanup that synthetic key after QA; do not commit credentials.
+- Synthetic template version 4b1ba7e0-e11d-412a-a6f1-3ea9e19f10e3 imported from the exact prior QA file/variables with only root image changed. Short-lived admin key used solely for this import was deleted immediately; private proof and a separate12h synthetic-owner key are0600 under /mnt/data/coder-vm-bake-qa/parity-state. Cleanup that synthetic key after QA; do not commit credentials.
 - First normal Coder stop86374f03-16a5-4e58-a1d9-50c247d0b321 failed because KubeVirt virt-api Service had no endpoints after recovery. Subsequent explicit V7 start53870b3d-44a0-4adc-86bb-bb7e8bbfca1a failed for the same infrastructure error. Old VMI still exists; no V7 boot or real tunnel/Drive success is claimed. Both owned launchers now terminating due worker unreachable taints. Root recovering worker kubelet connectivity before another serialized normal lifecycle retry.
 - Recovery completed enough for normal Coder lifecycle: V7 builda4b6f0f0-66ff-4634-aada-f0103c516285 ran with exactV7 root and retained HOME sentinel, but clean guest exposed an additional defect: serviceUMask0077 masks rclone mount permissions to0700; rechecking a read-only ISO root then tries chmod and failsEROFS. V7 is not qualified.
 - Source correction adds explicit rclone --umask0000 while retaining root-only credentials, and public_directory validates mounted root ownership/traversability without chmod on an already mounted filesystem. Seventeen private-config tests pass including read-only mount recheck and mount umask regression. Fresh V8 baked from independently signed UbuntuNoble20261017 base SHA04e8f2461a16a44e78a370284471f29616cdd9baf1893df25807b71f985b6c94, Sysbox smoke and qcow checks pass. V8 QCOW SHA0bc1b6bd6cdd597037a27e04e8f8233744e630f2a452535ffbd2a86cddea7b6b; immutable localhost:5000/coder-vm-guest@sha256:329215acd3f462fbedbaa1df2d9e2c44ec4c809aed0186ee946c9e955c24ed16. Same golden vmprofile hash retained.
-- V8 QA templateversion6b38f797-790f-425b-bece-6b926319f2e2 imported successfully; exact priorQA file/variables exceptroot. AddedV8 to staged QA allowlist, temporary admin import key deleted. Both owned fixtures stopped normally (source68379d00-346e-46f2-aab3-d3dfaa126364, restored74a7c0a1-7195-42ba-813b-a94138f26b66), both desired/specHalted and VMIs absent, giving root a cold NodeUID enrollment/installer window. No V8 actual workspace boot claimed yet.
+- V8 QA template version 6b38f797-790f-425b-bece-6b926319f2e2 imported successfully; exact priorQA file/variables exceptroot. AddedV8 to staged QA allowlist, temporary admin import key deleted. Both owned fixtures stopped normally (source68379d00-346e-46f2-aab3-d3dfaa126364, restored 74a7c0a1-7195-42ba-813b-a94138f26b66), both desired/specHalted and VMIs absent, giving root a cold NodeUID enrollment/installer window. No V8 actual workspace boot claimed yet.
 - MinIO write capacity recovered: synthetic ownfolder and syntheticpeer folder/file writes return200. Peer account5397e73d-dd55-41f7-86f3-828138f4b2d0 retained from previous QA; reconstructed12h key privately for cleanup. Only synthetic peer folder/file shared with syntheticowner; existingglobal sharing settings unchanged. Root owns source/runtime rollout; no original migration or worker reboot yet.
 
 - Resumed live recovery: worker kubelet lost control-plane.minikube.internal because cloud-init regenerated /etc/hosts. Restored192.168.58.2 mapping in both /etc/hosts and /etc/cloud/templates/hosts.debian.tmpl; TLS/auth unchanged. Worker Ready and KubeVirt control pods recovered automatically, without bypassing unreachable taints. User restored host load-balancer route; normal Coder login200.
 - Server32 live digestb727097236973dbd5f3fe79e47c1ce22b0cc0072f35eeef1305cc65a46f14e21,2/2ready; DBmigration612clean. Fresh PostgreSQL custom backup and verified contents saved private /mnt/data/coder-recovery-20261025 before migration. Server31 candidate was built/pushed but never activated; Server32 includes Versions-card containment correction. Fresh frontend6targetedtests/types/scopedBiome/build pass; live screenshot versions-card-server32-live.png verifies enclosure/internal scrolling.
 - Current UI23 livecode309ca2a74d6d digestbe8ef61381bf635b9c52935f89f4aca881e3b79302de495e0d0d15c1471ff854,1/1ready. Includes persistent Quarantine callbacks/release preparer and NodeUID checks afterschema612. Maintenance candidatecodeb23d5324ab3dfb36 digest8a3dfa6a9e6c97fd86c8b895ef068de9b90fbd62f5141549c98f358130e6b999 nowselected; guestfs disk adapters unchanged, identity retry fixes added. New observerDaemonSet running rootless onworker but physical absence qualification still pending; empty targets ConfigMap absent until first quarantine, so retry log is expected and not proof.
-- Reviewed cold enrollment completed for both active synthetic HOME records and retained deleted-clonea426cdfd. Before mutation verified physical/desiredHalted, noVMIs/claimconsumers, noQEMUworkerprocesses, matchingPV/claimUIDs/Block/Retain/localpaths, private local/registry exactrecords. Pinned original NodeUID in localmanifest and registry withCMUID/RVCAS. New binder installer uses network-online ordering and bounded transient-only selfNodeHTTPS retries;39HOMEtests pass. Actual binder accepted all3identities; raw inode/device/size/SHA256 unchanged. Private evidence /mnt/data/coder-nodeuid-enrollment-20261025 andworker /var/lib/coder-vm-nodeuid-enrollment-20261025. No originals enrolled/migrated and no reboot yet.
+- Reviewed cold enrollment completed for both active synthetic HOME records and retained deleted-clonea426cdfd. Before mutation verified physical/desiredHalted, noVMIs/claimconsumers, noQEMUworkerprocesses, matchingPV/claimUIDs/Block/Retain/localpaths, private local/registry exactrecords. Pinned original NodeUID in localmanifest and registry withCMUID/RVCAS. New binder installer uses network-online ordering and bounded transient-only selfNodeHTTPS retries;39 HOME tests pass. Actual binder accepted all3identities; raw inode/device/size/SHA256 unchanged. Private evidence /mnt/data/coder-nodeuid-enrollment-20261025 andworker /var/lib/coder-vm-nodeuid-enrollment-20261025. No originals enrolled/migrated and no reboot yet.
 - V7 cleanboot found rcloneUMask0077 masking explicit0777mountpermissions and repeatedchmod failingEROFSonreadonlyISO. V8 source adds explicit --umask0000 and mounted-root validation withoutchmod;17private/guestregressionspass. V8 digest329215acd3f462fbedbaa1df2d9e2c44ec4c809aed0186ee946c9e955c24ed16, qcowSHA0bc1b6bd6cdd597037a27e04e8f8233744e630f2a452535ffbd2a86cddea7b6b, QAversion6b38f797-790f-425b-bece-6b926319f2e2. Not qualified final until clean actual lifecycle/parity. Older roots are QA allowances only.
 - User resolved Neko scope: LAN/VPN only, using existing browser-trusted HTTPS without installing organization CA bundles/certs. Direct UDP plus guest signaling patch cannot guarantee revocation against compromised guests; trusted infrastructure media revocation assessment continues. No Neko replacement deployed.
 - Latest connector scope: table greeninput/blueoutput perrow, grid greeninput/blueoutput at BOTH middleleft/middleright cardedges; multipleconnections; bright directionalchevrons and adjustable per-cord arc. FEagent owns implementation/tests/build in progress, no original tunnel mutations. Browser shows user changed original connection toskibbity↔xrp; preserve current user intent rather than restoring older xrp↔xxx snapshot.
@@ -319,6 +344,7 @@ All follow-up requests are complete and live: Coder image coder-local:claude-res
 - Fresh V8 user-code secrecy checks also pass: direct raw x86 CPUID reports2logical/2cores; libc sysinfo reports2063208448bytes (within VM2GiB), /procMemTotal1610612736bytes (app1.5GiB), cpu.max200000/100000 and memory.max1610612736. These are actual fresh guest readings, separate from older V4 stress/OOM tests. V9 standalone QCOW SHA186470fb91d72974bc5aff3ea0523d85f12e595fa77aa40f3ebbd871c20b1d56; immutable5a0b3b0d... above, not yet boot-qualified.
 
 =====LIVE QUARANTINE AND UI QUALIFICATION 2026-10-25=====
+
 - Server33 live digestb1cd5d02fcccf947543a678594929700982ffee9e130ca140cdffb624c1c53c5,2/2ready. Contains greeninput/blueoutput tableandgridterminals, directionalchevrons/per-cordarc controls, adminonlygridgate, Restartorangeupdatepill. Userthenrequestedinward-onlygridconnections toavoidclipping; followupsourcecomplete butnotyetdeployed.
 - UI24 livecode199c3d1495c7 digestce1a4198468bdceb7e3346b2fb2e163db961900079c3459342cf5b34ee5283bd. Livecaughtpgwireboolstrings causingstrictquarantinepolicyrejectandVMstartpending. Added sharedstrictpolicy_row decodingonlybool/t/f forauthoritativeproducer,pendingreleaseandadvisoryguard, unknownfailsclosed.9guard+2actualproducerregressionspass; pendingbuildconvergedwithoutcancel/retryafterrollout. FullPython615tests pass42.979s beforelaterguest/coherency additions.
 - Actual quarantine qualified on ownedpeer74e1ecda withactiveUID1000Coderagent: openedexistingmemberPTYthenactivated; PTYclosed. Rootreportquarantined withallcomponentsblocked/revoked/freshNodeUID+bootidentityproof; VMIabsentandVMStopped. MemberStart423 andnewmember/adminPTY404denied; users/me200/accountloginavailable. Releaseenabledfalse/manualtrue; release_preparedlatertrue andVMremainedHalted/noVMI, noautoreconnect. ActualnewexplicitV9Startconsumedlatch; targetobservationretired(emptyCM). RuntimeagentindependentlyverifiedDriveoff/tunnelabsentAFTERStart, thenexplicitlyreconnectedboth; newtunnelbe911d8e-3c8f-4293-a13f-afa335155ff3, notoldf23revived. Privateproofs /mnt/data/coder-vm-bake-qa/parity-state/quarantine-{live,release}-proof.json. RoottemporaryadminQAkey IDFi3I8lmS4r pathroot-quarantine-auth.json remainsonehexpiry; Rootownsfinalcleanup.
@@ -331,6 +357,7 @@ All follow-up requests are complete and live: Coder image coder-local:claude-res
 - MandatoryVMadmissionstillOFF, originals5stillnative, finalguestV10pending, workerOS512GiBgrow/rebootandoriginalcoldmigrationstilloutstanding. Externalwebhookstilloldcodeaf032ac7b386/QAallowrootsappended; updateNodegetRBAC+newwebhookonlyafterappropriatequalification. Finalpackaging/pins/hooks/review/cleanup/commit/pushremain.
 
 =====RUNTIME QUALIFICATION FOLLOW-UP 2026-10-25=====
+
 - Root's restored-peer V8 Quarantine test passed existing member PTY closure, member start rejection, new member/admin PTY rejection, retained dashboard access and fresh physical host absence proof. After release, runtime independently confirmed no incident tunnel and the peer Drive still disconnected. Explicit V9 start did not restore Drive connectivity; only subsequent explicit connect and new tunnel creation restored them. New owned tunnel is be911d8e-3c8f-4293-a13f-afa335155ff3. The old f23e connection was not resurrected.
 - V9 source and restored peer both booted with real 32-hex folder/file share IDs and no supervisor restarts. Shared folder writes reached the other account's backend with delivered audit actor009311d8-d0f5-40f3-a598-a4b6b924ad98/owner5397e73d-dd55-41f7-86f3-828138f4b2d0. Whole Drive grants also passed both workspaces' UID1000 reads/writes. Whole grants were ended afterward; only exact owned QA folder/file grants remain active.
 - V9 exposed a real shared-file coherency bug: a bind of a FUSE file inode retained stale object metadata and returned EIO after a remote overwrite. V10 replaced only file binds with a protected Root-owned item symlink into a public, literal-files-from-raw-filtered FUSE parent. Credentials and include files stay private0600. Parent permissions, expected target, UID and inode are checked during cleanup; replacement files/links are preserved. Actual V10 S3 two-way grow/shrink overwrites converged with ZERO EIO in both workspaces; the filtered parent exposed only the granted basename and not the peer's unshared object. Local rclone literal metacharacter and two-mount preflight also passed; owned test mounts were removed.
@@ -343,6 +370,7 @@ All follow-up requests are complete and live: Coder image coder-local:claude-res
 - Runtime evidence and private expiring fixture credentials live under /mnt/data/coder-vm-bake-qa/parity-state, not /tmp. Never commit credentials. Root owns cleanup of its expired one-hour admin key Fi3I8lmS4r; synthetic owner and peer12h key IDs are recorded in their private JSON for cleanup. All original workspace/tunnel/share data remains untouched.
 
 =====RUNTIME HELD FOR USER UI CHECKPOINT 2026-10-25=====
+
 - User priority shifted to completing/checking in the easier UI work before the token budget is depleted. Runtime QA is now held: no further VM starts, reboots, migrations, package installs or probes. Root has a safe idle window for UI26 and the UI checkpoint commit.
 - Current stable owned fixture state: vm-core-check V12 build7372be26-6e80-4656-b047-8dbcdfb4713a is Running with connected/ready agent and Ready VM; vm-restored-aa9460ff remains Stopped on build3e73bd17-8ee3-48d4-a449-0659aabbd1da, VM Halted. No active build was started during the resumed ordinary-check window. All original five workspaces remain untouched by runtime agent.
 - V12 artifact remains localhost:5000/coder-vm-guest@sha256:00660ab3699dd06dccfeba3e81d7ef1fdd9aadb1a69f700e29fff28eaf7a5109; QCOW SHA4473158572a97dd98a15c4d3b46288422384ea0abf7120b23212702c8e3f1a0a; QA versionda0b6fed-1c8b-4087-b6c1-9187830f1fff. Source manifests include the previously omitted copied Python modules; source hashes match. Golden vmprofile is unchangedec32d603943e7171af085a2998cf45758931e2813876b822584fe818fae1d894.
@@ -352,6 +380,7 @@ All follow-up requests are complete and live: Coder image coder-local:claude-res
 - Root has already deleted the expired Fi3I8lmS4r admin row and its auth file. Synthetic owner/peer expiring keys, QA shares/source selection/ISO/tunnel and two owned fixtures remain for eventual cleanup; private IDs are retained in /mnt/data/coder-vm-bake-qa/parity-state. Never commit those private credentials. Runtime code remains uncommitted for Root to scope separately from the UI checkpoint.
 
 ===== FRONTEND CHECKPOINT 2026-10-25 =====
+
 - User requested prioritizing completed UI work and checking it in before further runtime qualification. Stage site/src, the supplied static tunnel PNG, and development logs only. Backend/runtime/N.eko source remains separate uncommitted work; current live backend already supplies the platform endpoints used by this UI. This is a frontend checkpoint, not a complete standalone runtime release.
 - Latest grid fix top-aligns embedded dashboards and stretches their green frames to the shared viewport while measuring intrinsic content without viewport-height feedback. This includes member dashboards with five versus six app buttons.
 - Latest table fix removes the left inset so the card aligns with the filter. Authenticated actor ID reaches table/grid tunnel ports; non-admin actions require both endpoints owned by that actor and in the same organization. Backend existing fresh endpoint authorization independently enforces this, with 30 policy tests passing.
@@ -363,11 +392,13 @@ All follow-up requests are complete and live: Coder image coder-local:claude-res
 - Remaining backend/runtime/N.eko changes are intentionally retained uncommitted for a later separately qualified checkpoint.
 
 ===== GRID CONNECTOR MIDPOINT FOLLOW-UP 2026-10-25 =====
+
 - Corrected grid port anchoring: use the shared scaled iframe's actual visible midpoint plus the tile header offset, rather than cellH/2 (which included unused tile space below short dashboards). Inward ports now sit8px outside tile edges within a72px inter-cell gutter, retaining the existing centered input/output pair and single-column inset behavior. Table anchors and tunnel permissions are unchanged.
 - Updated the existing tunnel visual stories to use the72px gutter.29 focused grid/tunnel tests, full TypeScript checks, three-file Biome and production build passed. FE1-FE10 self-review passed: visual layout reuses existing stories and DOM measurement, no new server actions or state effects.
 - Live Server39 validation passed: both member dashboards retain equal frame sizes, and green/blue terminal pairs now straddle the visible dashboard vertical midpoint within the widened center gutter. Clicking the output terminal opens the expected connection dialog; Connect was not clicked and no tunnel was created. Screenshot /tmp/coder-resume-evidence/grid-connectors-server39.png. Deployment2/2ready, image localhost:5000/coder-platform@sha256:c948beb98d98b9f3aa07a8a171dbbe519bd166f529ad3a91870d4a86ce1ec15a.
 
 ===== GRID CARD AND FOCUS FOLLOW-UP 2026-10-25 =====
+
 - Grid rows now shrink to the shared fitted dashboard height with12px bottom spacing instead of stretching across unused viewport space. Equal frame sizes and inward gutter connections are retained.
 - Header status sits beside its light, workspace name is centered, and template plus outlined square-focus/open-arrow controls align right. The focus action reuses the existing measured embedded dashboard in a centered nested dialog with a blurred overlay, without changing workspace state.
 - Added focus navigation interaction coverage and grid/focused visual stories.30 focused tests, full TypeScript check, production build and scoped Biome passed. Frontend reviewFE1-FE10 passed: shared Button/Dialog/embedding/query primitives, no direct API calls or new fetch effects, keyboard labels and focus trapping retained.
@@ -379,10 +410,12 @@ All follow-up requests are complete and live: Coder image coder-local:claude-res
 - Final Server42 live2/2ready: localhost:5000/coder-platform@sha256:bda84602a4fe92e8b0f03482d036d79f230340d0874ad36d3aac20b66bf35b81. Separate hidden member-session tab verified full amethyst-sparrow-4 name, DEFAULT/DATAFLOW badges and latency in dynamically widened dropdown, plus rounded Logs/Terminal/timeline/uptime card aligned with metrics/apps. Durable evidence dropdown-server42.png and panel-card-server42.png in /mnt/data/coder-ui-evidence-20261025/. Test tab closed; no workspace power/tunnel/share mutation was performed by this validation.
 
 ===== DASHBOARD GAP FOLLOW-UP 2026-10-25 =====
+
 - Reduced AgentRow content bottom padding from48px to12px. Together with the metrics section's4px bottom padding this makes the visible metrics-to-panels gap16px, matching the app-to-metrics grid gap. Panel/card internals and top/side spacing are unchanged. Scoped Biome, production build and its TypeScript checks passed. Visual-only change; no redundant interaction tests added.
 - Live Server43 visual check passed on tom/ahh: metrics-to-panels spacing matches the apps-to-metrics spacing; add-panel tab stays visible.2/2ready image localhost:5000/coder-platform@sha256:783ce840ac488f2617ce8d36698ddd6c68da89fa97f00234d8ffad6add8944ce. Durable screenshot /mnt/data/coder-ui-evidence-20261025/equal-gaps-server43.png. No workspace actions performed.
 
 ===== CONTAINED CHAT AND VIEWER LIST FOLLOW-UP 2026-10-25 =====
+
 - ChatDock no longer renders separate floating conversation windows. Existing conversation rendering was extracted into PanelConversation and reused inside the floating panel, preserving its history, attachments, composer and menu controls. Explicit contact/console/unread opens select the dock Chat tab; incoming messages remain counted without creating an external window.
 - Angled vertical People/Chat tabs use the shared accessible Tabs primitive. People lists all conversations returned by the server (removed15-entry UI cap), retains online/support discovery, and avoids repeating admins already listed as contacts. Conversations remain mounted while switching tabs and collapsing to preserve unsent text/attachments. Hidden bar/compact/People views are excluded from read acknowledgements. Admin console controls and attached/full-screen modes retain existing behavior.
 - Viewer header centered Workspaces plus circular count; Grid/List radio dropdown swaps icons. List mode uses uniform shared frame fitting, vertical scrolling, right-only terminals and72px right gutter. Existing tunnel sides are remapped visually only; switching layouts sends no tunnel mutation. New list connections explicitly use right/right sides.
@@ -395,7 +428,7 @@ All follow-up requests are complete and live: Coder image coder-local:claude-res
 - Live Server47 verified the corrected reference-style icon rail and idle blue male-output plug ends on the Workspaces table. A real incoming unread chat remained counted in People without an outside conversation window; validation deliberately did not open/acknowledge that unread conversation or type/send a message. Screenshot chat-icon-rail-and-plugs-server47.png under /mnt/data/coder-ui-evidence-20261025/. Cloud Drive had active links, so its idle conditional was covered by source review/existing24interaction tests rather than detaching user mounts.
 - Metrics header follow-ups: AgentMetadata now uses one balanced header row, left workspace/node pill and centered WORKSPACE or Node/Cluster control. Removed informational owners-only notice only; data requests, restricted filtering, scope switching and permission gates remain intact. Cluster scope has no existing cluster-name field, so node-name pill remains exclusive to Node scope instead of inventing data. Existing4metric tests, full types, scopedBiome and final production build passed.
 
-### Outward idle tunnel plugs
+## Outward idle tunnel plugs
 
 Unconnected blue output plugs now point away from the workspace on either side. Their pointer targets follow the outward glyph. Occupied outputs retain a socket behind the connected plug, avoiding overlapping prongs. The idle Cloud Drive source already points outward. All 25 tunnel interaction tests passed.
 
@@ -536,7 +569,6 @@ Live verification on Server69: the user's workspace page shows the exact workspa
 
 Queued next, at the user's explicit request: HUD disk/volume graphs and summary panels, per-storage-class totals, draggable handles on every graph, then removal of visible prongs from the shared male-plug artwork while retaining male-only dragging.
 
-
 ## HUD and workspace alignment completion, 2026-10-26
 
 - Server resume.70 rolled out successfully, followed by resume.71 with HUD storage graphs/cards, draggable graph handles, prong-free shared plugs, flush Cloud Drive anchors, compact DRIVE columns, and hidden restricted row controls.
@@ -546,7 +578,6 @@ Queued next, at the user's explicit request: HUD disk/volume graphs and summary 
 - Verification: 54 targeted frontend tests across six files, six storage/history tests, three existing network/history tests, TypeScript, and targeted Oxlint passed. Frontend review FE1-FE10 passed for the scoped diff; existing broad-check baseline failures remain documented above.
 - Immutable rollout images: coder sha256:a2de08af11e3ae787461fd0adaa01e5bb4356556bb2966df277eceb927b61ec3; ui-updates sha256:8aae209c711f31b7594fbf3a6a5fcdae5ec8d79b6ca627de0a264a2ea80988dc.
 - Unrelated native quarantine/VM/runtime work remains unstaged. ui-service.py and RBAC changes were staged from HEAD with only the HUD additions; the deployed UI image overlays only those additions onto resume.29.
-
 
 ## Tunnel ports, live proof, and image cleanup, 2026-10-26
 
@@ -558,7 +589,6 @@ Queued next, at the user's explicit request: HUD disk/volume graphs and summary 
 - Server resume.73 and UI service resume.32 are deployed. Tests: 44 frontend tests, TypeScript, targeted lint, 10 cleanup backend tests, 24 tests against the staged tunnel service, and Go port-policy tests pass. Frontend-review FE1 through FE10 pass for this scope.
 - Image switching and Keycloak GitOps orchestration remain pending. Only the coder kubeconfig context is currently available. The future AWS EKS hub context and desired-source mapping have not been supplied, so no Argo CD/Crossplane ownership or Keycloak rollout has been changed. An untracked workspaceimages.py draft is not wired or deployed.
 
-
 ## Crypto compatibility and lockdown UI follow-ups, 2026-10-26
 
 - 091fa1961c adds a shared workspace/builder crypto policy. OpenSSL initialization activates the TLS floor; SSH reads the explicit cipher/MAC/KEX policy before vendor defaults. The scanner checks the active TLS section chain rather than an orphan MinProtocol assignment.
@@ -569,14 +599,12 @@ Queued next, at the user's explicit request: HUD disk/volume graphs and summary 
 - fe4a5cb16d reverses connected cable arrows, static chevrons, and flow highlights to run from male plugs to female sockets. Drag/reconnect previews use the same orientation; API endpoint ordering and bidirectional transport are unchanged. The existing 28 tunnel interaction tests pass, plus five restriction/topbar tests, TypeScript, targeted Biome and Oxlint checks. Frontend-review FE1-FE10 pass for this scoped diff, with existing stories covering changed visual states.
 - Server resume.76 includes the UI follow-ups. UI service resume.34 includes the scanner/builder fixes and uses the same pinned image for scan/build workers. Evidence: crypto-policy-report.png, locked-pill-server75.png, locked-row-hover-server75.png, and tunnel-direction-server76.png under /mnt/data/coder-ui-evidence-20261025/.
 
-
 ## Quarantine release controls, 2026-10-26
 
 - 454976a944 removes manual_start_required from the UI's full-restriction guard. Active quarantine and full Lock Down/Freeze still disable actions and show hazard stripes. A released workspace can use Start while server-side reconnection holds remain enforced.
 - Added callback-based regression tests for a released manual-start hold and an already mounted row receiving release state through the shared query cache. Seven restriction/topbar tests, TypeScript, Biome and targeted Oxlint pass. Frontend-review FE1-FE10 pass for the narrow change, with a released-row story added.
 - Read-only live verification found ahh's quarantine disabled and lockdown off. It subsequently appeared running with normal controls and no hazard class; the user was interacting concurrently. No live start, unlock, or quarantine mutation was made by this verification.
 - Server resume.77 is pinned to sha256:2317e8ee1a610e6d32b1773f8167164e5e2e56adde5be08d730f35bcbadceccf. UI service remains resume.34. This supersedes the earlier UI treatment of manual-start holds as full locks, without changing backend quarantine enforcement or reconnection policy.
-
 
 ## Compact Appearance editors, 2026-10-26
 

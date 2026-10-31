@@ -1633,16 +1633,19 @@ func testMigration000595RemoveTaskPermissions(t *testing.T, sqlDB *sql.DB, next 
 func testMigration000587RemoveAgentsAccessRole(t *testing.T, sqlDB *sql.DB, next migrationStepper) {
 	const migrationVersion = 587
 
+	ctx := testutil.Context(t, testutil.WaitLong)
 	db := database.New(sqlDB)
-	user := dbgen.User(t, db, database.User{
-		RBACRoles: []string{"auditor", "agents-access"},
-	})
+	userID := uuid.New()
+	_, err := sqlDB.ExecContext(ctx, `INSERT INTO users
+		(id, email, username, hashed_password, created_at, updated_at, status, rbac_roles, login_type)
+		VALUES ($1, $2, $2, '', now(), now(), 'active', '{auditor,agents-access}', 'password')`, userID, userID.String())
+	require.NoError(t, err)
 	org := dbgen.Organization(t, db, database.Organization{
 		DefaultOrgMemberRoles: []string{"organization-workspace-access", "agents-access"},
 	})
 	dbgen.OrganizationMember(t, db, database.OrganizationMember{
 		OrganizationID: org.ID,
-		UserID:         user.ID,
+		UserID:         userID,
 		Roles:          []string{"organization-auditor", "agents-access"},
 	})
 
@@ -1650,11 +1653,10 @@ func testMigration000587RemoveAgentsAccessRole(t *testing.T, sqlDB *sql.DB, next
 	require.NoError(t, err)
 	require.EqualValues(t, migrationVersion, version)
 
-	ctx := testutil.Context(t, testutil.WaitLong)
 	var siteRoles, orgRoles, defaultRoles pq.StringArray
-	err = sqlDB.QueryRowContext(ctx, "SELECT rbac_roles FROM users WHERE id = $1", user.ID).Scan(&siteRoles)
+	err = sqlDB.QueryRowContext(ctx, "SELECT rbac_roles FROM users WHERE id = $1", userID).Scan(&siteRoles)
 	require.NoError(t, err)
-	err = sqlDB.QueryRowContext(ctx, "SELECT roles FROM organization_members WHERE organization_id = $1 AND user_id = $2", org.ID, user.ID).Scan(&orgRoles)
+	err = sqlDB.QueryRowContext(ctx, "SELECT roles FROM organization_members WHERE organization_id = $1 AND user_id = $2", org.ID, userID).Scan(&orgRoles)
 	require.NoError(t, err)
 	err = sqlDB.QueryRowContext(ctx, "SELECT default_org_member_roles FROM organizations WHERE id = $1", org.ID).Scan(&defaultRoles)
 	require.NoError(t, err)
@@ -1687,16 +1689,25 @@ func testMigration000602RestoreAgentsAccessDefaultRole(t *testing.T, sqlDB *sql.
 		orgIDs[i] = org.ID
 	}
 
-	member := dbgen.User(t, db, database.User{})
+	insertUser := func(service bool) uuid.UUID {
+		t.Helper()
+		id := uuid.New()
+		_, err := sqlDB.ExecContext(ctx, `INSERT INTO users
+    (id, email, username, hashed_password, created_at, updated_at, status, login_type, is_service_account)
+    VALUES ($1, CASE WHEN $3 THEN '' ELSE $2 END, $2, '', now(), now(), 'active', CASE WHEN $3 THEN 'none'::login_type ELSE 'password'::login_type END, $3)`, id, id.String(), service)
+		require.NoError(t, err)
+		return id
+	}
+	memberID := insertUser(false)
 	dbgen.OrganizationMember(t, db, database.OrganizationMember{
 		OrganizationID: orgIDs[0],
-		UserID:         member.ID,
+		UserID:         memberID,
 		Roles:          []string{"organization-auditor"},
 	})
-	serviceAccount := dbgen.User(t, db, database.User{IsServiceAccount: true})
+	serviceAccountID := insertUser(true)
 	dbgen.OrganizationMember(t, db, database.OrganizationMember{
 		OrganizationID: orgIDs[0],
-		UserID:         serviceAccount.ID,
+		UserID:         serviceAccountID,
 		Roles:          []string{},
 	})
 	legacyRole := dbgen.CustomRole(t, db, database.CustomRole{
@@ -1739,13 +1750,13 @@ func testMigration000602RestoreAgentsAccessDefaultRole(t *testing.T, sqlDB *sql.
 	require.NoError(t, err)
 	require.EqualValues(t, migrationVersion, version)
 	assertDefaults(true)
-	require.Equal(t, []string{"organization-auditor"}, memberRoles(member.ID))
-	require.Empty(t, memberRoles(serviceAccount.ID))
+	require.Equal(t, []string{"organization-auditor"}, memberRoles(memberID))
+	require.Empty(t, memberRoles(serviceAccountID))
 	require.False(t, customRoleExists(legacyRole.ID))
 	require.True(t, customRoleExists(unrelatedRole.ID))
 
 	// An explicit grant made after the upgrade is removed on downgrade.
-	_, err = sqlDB.ExecContext(ctx, "UPDATE organization_members SET roles = array_append(roles, 'agents-access') WHERE user_id = $1", serviceAccount.ID)
+	_, err = sqlDB.ExecContext(ctx, "UPDATE organization_members SET roles = array_append(roles, 'agents-access') WHERE user_id = $1", serviceAccountID)
 	require.NoError(t, err)
 
 	downSQL, err := os.ReadFile("000602_restore_agents_access_default_role.down.sql")
@@ -1753,8 +1764,8 @@ func testMigration000602RestoreAgentsAccessDefaultRole(t *testing.T, sqlDB *sql.
 	_, err = sqlDB.ExecContext(ctx, string(downSQL))
 	require.NoError(t, err)
 	assertDefaults(false)
-	require.Equal(t, []string{"organization-auditor"}, memberRoles(member.ID))
-	require.Empty(t, memberRoles(serviceAccount.ID))
+	require.Equal(t, []string{"organization-auditor"}, memberRoles(memberID))
+	require.Empty(t, memberRoles(serviceAccountID))
 
 	upSQL, err := os.ReadFile("000602_restore_agents_access_default_role.up.sql")
 	require.NoError(t, err)

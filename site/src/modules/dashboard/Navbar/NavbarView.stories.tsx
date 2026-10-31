@@ -1,5 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { fn, userEvent, within } from "storybook/test";
+import { fn, spyOn, userEvent, within } from "storybook/test";
+import { PlatformAPI } from "#/api/platform";
+import { userUIPreferences } from "#/api/queries/platform";
+import { startNavbarArrange } from "#/modules/platform/navbarOrder/navbarOrder";
 import {
 	MockBuildInfo,
 	MockPermissions,
@@ -45,7 +48,7 @@ export const ForAdmin: Story = {
 	parameters: { pixel: { matrix: pixelWithDesktop } },
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		await userEvent.click(canvas.getByRole("button", { name: "Settings" }));
+		await userEvent.click(canvas.getByRole("button", { name: /Settings/ }));
 	},
 };
 
@@ -56,7 +59,7 @@ export const ForAdminWithoutQuickLinks: Story = {
 	},
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		await userEvent.click(canvas.getByRole("button", { name: "Settings" }));
+		await userEvent.click(canvas.getByRole("button", { name: /Settings/ }));
 	},
 };
 
@@ -74,7 +77,7 @@ export const ForAdminWithQuickLinks: Story = {
 	},
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		await userEvent.click(canvas.getByRole("button", { name: "Settings" }));
+		await userEvent.click(canvas.getByRole("button", { name: /Settings/ }));
 	},
 };
 
@@ -83,7 +86,7 @@ export const RemovingQuickLink: Story = {
 	args: ForAdminWithQuickLinks.args,
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		await userEvent.click(canvas.getByRole("button", { name: "Settings" }));
+		await userEvent.click(canvas.getByRole("button", { name: /Settings/ }));
 		const body = within(canvasElement.ownerDocument.body);
 		await userEvent.click(
 			await body.findByRole("menuitem", {
@@ -98,7 +101,7 @@ export const AddingQuickLink: Story = {
 	args: ForAdminWithQuickLinks.args,
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		await userEvent.click(canvas.getByRole("button", { name: "Settings" }));
+		await userEvent.click(canvas.getByRole("button", { name: /Settings/ }));
 		const body = within(canvasElement.ownerDocument.body);
 		await userEvent.click(
 			await body.findByRole("menuitem", { name: "Settings" }),
@@ -114,7 +117,7 @@ export const ReorderingQuickLinkWithKeyboard: Story = {
 	args: ForAdminWithQuickLinks.args,
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		await userEvent.click(canvas.getByRole("button", { name: "Settings" }));
+		await userEvent.click(canvas.getByRole("button", { name: /Settings/ }));
 		const body = within(canvasElement.ownerDocument.body);
 		(await body.findByRole("menuitem", { name: "Reorder Monitoring" })).focus();
 		await userEvent.keyboard("{Enter}{ArrowUp}");
@@ -131,7 +134,7 @@ export const ForAuditor: Story = {
 	},
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		await userEvent.click(canvas.getByRole("button", { name: "Settings" }));
+		await userEvent.click(canvas.getByRole("button", { name: /Settings/ }));
 	},
 };
 
@@ -146,7 +149,7 @@ export const ForOrgAdmin: Story = {
 	},
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		await userEvent.click(canvas.getByRole("button", { name: "Settings" }));
+		await userEvent.click(canvas.getByRole("button", { name: /Settings/ }));
 	},
 };
 
@@ -159,7 +162,7 @@ export const ForSingleOrgOSSAdmin: Story = {
 	},
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		await userEvent.click(canvas.getByRole("button", { name: "Settings" }));
+		await userEvent.click(canvas.getByRole("button", { name: /Settings/ }));
 	},
 };
 
@@ -267,11 +270,45 @@ export const SettingsChoicesExpanded: Story = {
 	args: ForAdminWithQuickLinks.args,
 	play: async ({ canvasElement }) => {
 		await userEvent.click(
-			within(canvasElement).getByRole("button", { name: "Settings" }),
+			within(canvasElement).getByRole("button", { name: /Settings/ }),
 		);
 		await userEvent.click(
 			await within(canvasElement.ownerDocument.body).findByRole("menuitem", {
 				name: "Settings",
+			}),
+		);
+	},
+};
+
+export const CustomizeToolbar: Story = {
+	render: (args) => (
+		<>
+			<NavbarView {...args} />
+			<main className="mx-auto max-w-6xl space-y-6 p-8">
+				<h1>Workspaces</h1>
+				<p>Manage your development environments and shared resources.</p>
+				<section className="rounded-xl border border-solid border-border bg-surface-secondary p-6">
+					<h2>Workspace resources</h2>
+					<p>
+						Choose a workspace to view its applications, usage, and connection
+						status.
+					</p>
+					<button type="button">Create a workspace</button>
+				</section>
+			</main>
+		</>
+	),
+	parameters: { queries: [{ key: userUIPreferences().queryKey, data: {} }] },
+	beforeEach: () => {
+		spyOn(PlatformAPI, "setUserUIPreferences").mockImplementation(
+			async (value) => value,
+		);
+	},
+	play: async ({ canvasElement }) => {
+		startNavbarArrange();
+		await userEvent.click(
+			await within(canvasElement).findByRole("button", {
+				name: "Remove Account",
 			}),
 		);
 	},

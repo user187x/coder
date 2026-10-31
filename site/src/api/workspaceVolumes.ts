@@ -76,7 +76,7 @@ export type RestorePlan = {
 	quota: { allowed: boolean; message: string };
 };
 
-export type S3Backup = {
+type S3Backup = {
 	key: string;
 	workspace: string;
 	bytes: number;

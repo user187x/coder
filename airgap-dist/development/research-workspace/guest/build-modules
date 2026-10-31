@@ -1,0 +1,11 @@
+#!/bin/bash
+set -euo pipefail
+cd /opt/coder-research/source
+# Build against the guest kernel, never the build host's running kernel.
+kernel_dir=$(find /lib/modules -mindepth 1 -maxdepth 1 -type d | sort | tail -1)
+for project in input_monitoring process_network_blocker retrive_process_informations sysfs; do
+    make -C "$project" KDIR="$kernel_dir/build" COMPILE_DIR="$PWD/$project" PWD="$PWD/$project"
+done
+# BTF is supplied by the guest's running kernel at test time.
+cd privilege_escalation_monitor
+cc -g -Wall privilege_escalation_monitor_user.c -o privilege_escalation_monitor -lbpf -lelf

@@ -13,6 +13,7 @@ import (
 
 	"github.com/google/uuid"
 	"go4.org/netipx"
+	"golang.org/x/xerrors"
 	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/net/dns"
 	"tailscale.com/tailcfg"
@@ -395,7 +396,7 @@ func (c *configMaps) reconfig(nm *netmap.NetworkMap, hosts map[dnsname.FQDN][]ne
 		// WGCfg never returns an error at the time this code was written.  If it starts, returning
 		// errors if/when we upgrade tailscale, we'll need to deal.
 		c.logger.Critical(context.Background(), "update wireguard config failed", slog.Error(err))
-		return fmt.Errorf("build wireguard configuration: %w", err)
+		return xerrors.Errorf("build wireguard configuration: %w", err)
 	}
 
 	rc := &router.Config{
@@ -406,16 +407,16 @@ func (c *configMaps) reconfig(nm *netmap.NetworkMap, hosts map[dnsname.FQDN][]ne
 	if err != nil {
 		if errors.Is(err, wgengine.ErrNoChanges) {
 			if c.lastEngineError != nil {
-				return fmt.Errorf("previous wireguard configuration remains unconfirmed: %w", c.lastEngineError)
+				return xerrors.Errorf("previous wireguard configuration remains unconfirmed: %w", c.lastEngineError)
 			}
 			return nil
 		}
 		c.logger.Error(context.Background(), "failed to reconfigure wireguard engine", slog.Error(err))
-		c.lastEngineError = fmt.Errorf("reconfigure wireguard engine: %w", err)
+		c.lastEngineError = xerrors.Errorf("reconfigure wireguard engine: %w", err)
 		return c.lastEngineError
 	}
 	if c.lastEngineError != nil {
-		return fmt.Errorf("wireguard engine restart required after an unconfirmed reconfiguration: %w", c.lastEngineError)
+		return xerrors.Errorf("wireguard engine restart required after an unconfirmed reconfiguration: %w", c.lastEngineError)
 	}
 	return nil
 }
@@ -429,6 +430,7 @@ func (c *configMaps) peerMapLocked(id uuid.UUID) map[uuid.UUID]*peerLifecycle {
 	return c.peers
 }
 
+//nolint:revive // This boolean represents the externally supplied policy state.
 func (c *configMaps) setPeerAllowlist(ctx context.Context, enabled bool, allowed []uuid.UUID) error {
 	select {
 	case <-ctx.Done():

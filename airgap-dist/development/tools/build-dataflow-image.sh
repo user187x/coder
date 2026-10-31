@@ -8,11 +8,17 @@
 #   ./build-dataflow-image.sh [--no-store] [TAG]   default: the release version (RELEASE_VERSION); --no-store: build and check only, the bundle untouched
 #   BASE=<image> ./build-dataflow-image.sh ...      another base than the Dockerfile's (ARG BASE)
 set -euo pipefail
-here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; dev="$(dirname "$here")"
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+dev="$(dirname "$here")"
 ctx="${dev}/workspace-image-dataflow"
-store=1; if [[ "${1:-}" == --no-store ]]; then store=0; shift; fi
+store=1
+if [[ "${1:-}" == --no-store ]]; then
+	store=0
+	shift
+fi
 release="$(cat "$(dirname "$(dirname "$dev")")/RELEASE_VERSION")"
-tag="${1:-$release}"; img="docker.io/mrshll187/coder-workspace-dataflow:${tag}"
+tag="${1:-$release}"
+img="docker.io/mrshll187/coder-workspace-dataflow:${tag}"
 nifi="$(sed -n 's/^ARG NIFI_VERSION=//p' "${ctx}/Dockerfile")"
 airflow="$(sed -n 's/^ARG AIRFLOW_VERSION=//p' "${ctx}/Dockerfile")"
 base="${BASE:-$(sed -n 's/^ARG BASE=//p' "${ctx}/Dockerfile")}"
@@ -29,7 +35,11 @@ want="$(curl -fsL "https://downloads.apache.org/nifi/${nifi}/nifi-${nifi}-bin.zi
 	curl -fsL "https://archive.apache.org/dist/nifi/${nifi}/nifi-${nifi}-bin.zip.sha512")"
 want="${want%% *}"
 got="$(sha512sum "$zip" | cut -d' ' -f1)"
-[[ "$got" == "$want" ]] || { echo "nifi-${nifi}-bin.zip: SHA-512 mismatch (got ${got:0:16}…, want ${want:0:16}…)" >&2; rm -f "$zip"; exit 1; }
+[[ "$got" == "$want" ]] || {
+	echo "nifi-${nifi}-bin.zip: SHA-512 mismatch (got ${got:0:16}…, want ${want:0:16}…)" >&2
+	rm -f "$zip"
+	exit 1
+}
 echo "nifi-${nifi}-bin.zip: SHA-512 verified"
 curl -fsL -o "${ctx}/airflow-constraints.txt" \
 	"https://raw.githubusercontent.com/apache/airflow/constraints-${airflow}/constraints-${py}.txt"
@@ -77,5 +87,5 @@ docker run --rm --network none --hostname localhost --entrypoint bash "$img" -c 
 # digest) in helm-chart/images.txt and coder-workspace.dataflowImage in helm-chart/coder-airgapped/values.yaml.
 top="$(dirname "$dev")"
 # its archive in the bundle, in its section's folder of images.txt (replacing the previous tag's)
-if (( store )); then "${top}/helm-chart/mirror-images.sh" store "$img"; else echo "--no-store: not stored in the bundle"; fi
+if ((store)); then "${top}/helm-chart/mirror-images.sh" store "$img"; else echo "--no-store: not stored in the bundle"; fi
 echo "built $img on $base (NiFi ${nifi}, Airflow ${airflow}, Python ${py}); image ID $(docker image inspect --format '{{.Id}}' "$img")"

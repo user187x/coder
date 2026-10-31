@@ -1,5 +1,5 @@
 import type { WorkspaceTunnel, WorkspaceTunnelStats } from "#/api/platform";
-import { formatBytes } from "../images";
+import { formatBytes } from "#/utils/images";
 import { NetworkHistogram } from "../networkLeds/NetworkHistogram";
 import { TunnelPortSettings } from "./TunnelPortSettings";
 

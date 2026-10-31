@@ -76,22 +76,6 @@ const getRootGroupQueryKey = (organization: string, groupName: string) => [
 	groupName,
 ];
 
-export const getGroupByIdQueryKey = (groupId: string, req: GroupRequest) => [
-	"group",
-	groupId,
-	req,
-];
-
-export const groupById = (
-	groupId: string,
-	req: GroupRequest,
-): UseQueryOptions<Group> => {
-	return {
-		queryKey: getGroupByIdQueryKey(groupId, req),
-		queryFn: ({ signal }) => API.getGroupById(groupId, req, signal),
-	};
-};
-
 export const getGroupQueryKey = (
 	organization: string,
 	groupName: string,
@@ -207,10 +191,7 @@ function selectGroupsByUserId(groups: Group[]): GroupsByUserId {
 	return userIdMapper as GroupsByUserId;
 }
 
-export const getGroupsForUserQueryKey = (
-	userId: string,
-	organizationId?: string,
-) => [
+const getGroupsForUserQueryKey = (userId: string, organizationId?: string) => [
 	...groupsQueryKey,
 	"user",
 	userId,

@@ -5,9 +5,10 @@ import (
 	"database/sql"
 	"testing"
 
-	"github.com/coder/coder/v2/coderd/database"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+
+	"github.com/coder/coder/v2/coderd/database"
 )
 
 type quarantineStore struct {
@@ -18,14 +19,20 @@ type quarantineStore struct {
 	queried  bool
 }
 
-func (s *quarantineStore) AcquireLock(context.Context, int64) error { return nil }
-func (s *quarantineStore) TouchWorkspaceQuarantineLock(context.Context, uuid.UUID) (int64, error) {
+func (*quarantineStore) AcquireLock(context.Context, int64) error { return nil }
+func (*quarantineStore) GetShortTermLeaseByWorkspaceID(context.Context, uuid.NullUUID) (database.ShortTermLease, error) {
+	return database.ShortTermLease{}, sql.ErrNoRows
+}
+
+func (*quarantineStore) TouchWorkspaceQuarantineLock(context.Context, uuid.UUID) (int64, error) {
 	return 1, nil
 }
+
 func (s *quarantineStore) GetWorkspaceQuarantineByWorkspaceID(context.Context, uuid.UUID) (database.WorkspaceQuarantine, error) {
 	s.queried = true
 	return s.row, s.err
 }
+
 func (s *quarantineStore) ConsumeWorkspaceQuarantineManualStart(context.Context, database.ConsumeWorkspaceQuarantineManualStartParams) error {
 	s.consumed = true
 	return nil

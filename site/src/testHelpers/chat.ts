@@ -1,9 +1,21 @@
-import type { ChatPeer, ChatSettings, ChatState } from "#/api/platform";
+import type {
+	ChatPeer,
+	ChatPerson,
+	ChatSettings,
+	ChatState,
+	OnlineUser,
+} from "#/api/platform";
 
 export const MockChatPeer: ChatPeer = {
 	id: "chat-contact",
 	username: "alex",
 	name: "Alex",
+};
+
+export const MockChatPerson: ChatPerson = {
+	...MockChatPeer,
+	online: true,
+	lastSeen: null,
 };
 export const MockChatState: ChatState = {
 	me: {
@@ -57,4 +69,15 @@ export const MockChatSettings: ChatSettings = {
 		bytes: 0,
 		fileBytes: 0,
 	},
+};
+
+export const MockOnlineChatUser: OnlineUser = {
+	...MockChatPeer,
+	status: "active",
+	lastSeen: "2026-10-25T12:00:00Z",
+	activeAt: "2026-10-25T12:00:00Z",
+	since: "2026-10-25T11:00:00Z",
+	tabs: 2,
+	invisible: false,
+	workspaces: [{ id: "chat-workspace", name: "research", owner: "alex" }],
 };

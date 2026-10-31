@@ -97,7 +97,7 @@ func TestPlatformBanner(t *testing.T) {
 	code, out = bannerCall(ctx, t, member, http.MethodGet, "/api/state", nil, nil)
 	require.Equal(t, http.StatusForbidden, code)
 	require.Equal(t, "Only Coder admins can change the banner.", out["error"])
-	code, out = bannerCall(ctx, t, member, http.MethodPost, "/api/banner", map[string]any{"message": "x"}, nil)
+	code, out = bannerCall(ctx, t, member, http.MethodPost, "/api/banner", map[string]any{"message": "x", "animationsDisabled": false}, nil)
 	require.Equal(t, http.StatusForbidden, code, out)
 	code, out = bannerCall(ctx, t, client, http.MethodGet, "/api/state", nil, nil)
 	require.Equal(t, http.StatusOK, code, out)
@@ -117,7 +117,7 @@ func TestPlatformBanner(t *testing.T) {
 	}
 
 	// publish: every page and the open tab get it
-	code, out = bannerCall(ctx, t, client, http.MethodPost, "/api/banner", map[string]any{"message": "Maintenance at 02:00", "level": "warning"}, nil)
+	code, out = bannerCall(ctx, t, client, http.MethodPost, "/api/banner", map[string]any{"message": "Maintenance at 02:00", "level": "warning", "animationsDisabled": true}, nil)
 	require.Equal(t, http.StatusOK, code, out)
 	require.Equal(t, true, out["overrideActive"])
 	require.Equal(t, "Maintenance at 02:00", bannerOf(t, out)["message"])
@@ -125,10 +125,15 @@ func TestPlatformBanner(t *testing.T) {
 	published := bannerOf(t, out)["id"]
 	live := next()
 	require.Equal(t, "Maintenance at 02:00", live["message"])
+	require.Equal(t, true, live["animationsDisabled"])
 	require.Equal(t, published, live["id"])
 	code, b = bannerCall(ctx, t, anon, http.MethodGet, "/banner.json", nil, nil)
 	require.Equal(t, http.StatusOK, code)
 	require.Equal(t, published, b["id"])
+	require.Equal(t, true, b["animationsDisabled"])
+	code, out = bannerCall(ctx, t, client, http.MethodGet, "/api/state", nil, nil)
+	require.Equal(t, http.StatusOK, code)
+	require.Equal(t, true, bannerOf(t, out)["animationsDisabled"])
 
 	// an invalid payload: the message an admin must act on
 	code, out = bannerCall(ctx, t, client, http.MethodPost, "/api/banner", map[string]any{"message": "x", "level": "loud"}, nil)

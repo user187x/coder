@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { spyOn } from "storybook/test";
+import { spyOn, userEvent, within } from "storybook/test";
 import { organizations } from "#/api/queries/organizations";
 import { shortTermLeases } from "#/api/queries/shortTermLeases";
 import { templates } from "#/api/queries/templates";
@@ -101,3 +101,14 @@ export const Unavailable: Story = {
 };
 
 export const Loading: Story = { parameters: { leaseLoading: true } };
+
+export const IssueLease: Story = {
+	play: async ({ canvasElement }) => {
+		await userEvent.click(
+			await within(canvasElement).findByRole("button", { name: "New Lease" }),
+		);
+	},
+};
+export const Expired: Story = {
+	args: { clock: () => Date.parse(MockShortTermLease.expires_at) + 1 },
+};

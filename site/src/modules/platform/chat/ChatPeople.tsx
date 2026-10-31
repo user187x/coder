@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import type { ChatPeer, ChatPerson } from "#/api/platform";
 import { chatPeople } from "#/api/queries/platform";
 import { ChatAvatar } from "./ChatAvatar";
+import { ChatPersonMenu } from "./ChatPersonMenu";
 import { displayName, setInvisible, useChatSnapshot } from "./chatStore";
 
 const ago = (iso: string | null | undefined) => {
@@ -57,7 +58,7 @@ export const PresenceAvatar: React.FC<{
 );
 
 /** The switch every user has: invisible to everyone but admins in the People list. */
-export const InvisibleSwitch: React.FC = () => {
+const InvisibleSwitch: React.FC = () => {
 	const { me } = useChatSnapshot();
 	if (!me) {
 		return null;
@@ -99,6 +100,7 @@ export const InvisibleSwitch: React.FC = () => {
 type ChatPeopleProps = {
 	/** Opens the conversation with this person. */
 	onOpen: (peer: ChatPeer) => void;
+	onSendFile?: (peer: ChatPeer) => void;
 	/** Leave the admins out (the developers' panel lists them on their own). */
 	withoutAdmins?: boolean;
 	/** The chat's roster: only who is online now, appearing and leaving as they come and go (grey when idle). */
@@ -117,6 +119,7 @@ type ChatPeopleProps = {
  */
 export const ChatPeople: React.FC<ChatPeopleProps> = ({
 	onOpen,
+	onSendFile,
 	withoutAdmins = false,
 	onlineOnly = false,
 	className,
@@ -183,42 +186,57 @@ export const ChatPeople: React.FC<ChatPeopleProps> = ({
 							: "No one else is around right now."}
 				</p>
 			)}
-			{shown.map((person) => (
-				<button
-					key={person.id}
-					type="button"
-					disabled={person.chatOff}
-					title={
-						person.chatOff
-							? `${displayName(person)} has turned chat off`
-							: `Chat with ${displayName(person)}`
-					}
-					data-testid="chat-person"
-					data-online={person.online ? "" : undefined}
-					data-idle={person.online && person.idle ? "" : undefined}
-					onClick={() => onOpen(person)}
-					className={cn(
-						"flex w-full cursor-pointer items-center gap-2.5 rounded-md border-0 bg-transparent p-2 text-left text-inherit transition-[opacity,filter] duration-500 hover:bg-surface-secondary focus-visible:bg-surface-secondary focus-visible:outline-hidden disabled:cursor-not-allowed disabled:opacity-50",
-						// someone coming online slides in
-						"animate-in fade-in slide-in-from-left-1 duration-300 motion-reduce:animate-none",
-						// idle (no input for 30 s): grey
-						person.online && person.idle && "opacity-55 grayscale",
-					)}
-				>
-					<PresenceAvatar person={person} />
-					<span className="flex min-w-0 flex-1 flex-col gap-0.5">
-						<span className="truncate font-semibold">
-							{displayName(person)}
+			{shown.map((person) => {
+				const row = (
+					<button
+						key={person.id}
+						type="button"
+						disabled={person.chatOff}
+						title={
+							person.chatOff
+								? `${displayName(person)} has turned chat off`
+								: `Chat with ${displayName(person)}`
+						}
+						data-testid="chat-person"
+						data-online={person.online ? "" : undefined}
+						data-idle={person.online && person.idle ? "" : undefined}
+						onClick={() => onOpen(person)}
+						className={cn(
+							"flex w-full cursor-pointer items-center gap-2.5 rounded-md border-0 bg-transparent p-2 text-left text-inherit transition-[opacity,filter] duration-500 hover:bg-surface-secondary focus-visible:bg-surface-secondary focus-visible:outline-hidden disabled:cursor-not-allowed disabled:opacity-50",
+							// someone coming online slides in
+							"animate-in fade-in slide-in-from-left-1 duration-300 motion-reduce:animate-none",
+							// idle (no input for 30 s): grey
+							person.online && person.idle && "opacity-55 grayscale",
+						)}
+					>
+						<PresenceAvatar person={person} />
+						<span className="flex min-w-0 flex-1 flex-col gap-0.5">
+							<span className="truncate font-semibold">
+								{displayName(person)}
+							</span>
+							<span className="truncate text-xs text-content-secondary">
+								@{person.username} · {presenceText(person)}
+								{person.admin ? " · admin" : ""}
+								{person.chatOff ? " · chat off" : ""}
+								{person.invisible ? " · invisible" : ""}
+							</span>
 						</span>
-						<span className="truncate text-xs text-content-secondary">
-							@{person.username} · {presenceText(person)}
-							{person.admin ? " · admin" : ""}
-							{person.chatOff ? " · chat off" : ""}
-							{person.invisible ? " · invisible" : ""}
-						</span>
-					</span>
-				</button>
-			))}
+					</button>
+				);
+				return onSendFile ? (
+					<ChatPersonMenu
+						key={person.id}
+						peer={person}
+						disabled={person.chatOff}
+						onOpen={onOpen}
+						onSendFile={onSendFile}
+					>
+						{row}
+					</ChatPersonMenu>
+				) : (
+					row
+				);
+			})}
 		</section>
 	);
 };

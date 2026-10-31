@@ -751,6 +751,74 @@ title: Schemas
 |-------------------------------------------------------------------------------------------------------------------------------------------------|
 | `close`, `connect`, `create`, `delete`, `disconnect`, `login`, `logout`, `open`, `register`, `request_password_reset`, `start`, `stop`, `write` |
 
+## codersdk.AuditCollector
+
+```json
+{
+  "client_id": "string",
+  "created_at": "2019-08-24T14:15:22Z",
+  "created_by": "ee824cad-d7a6-4f48-87dc-e8461a9201c4",
+  "expires_at": "2019-08-24T14:15:22Z",
+  "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+  "issuer": "string",
+  "name": "string",
+  "organization_id": "7c60d51f-b44e-4682-87d6-449835ea4de6",
+  "subject": "string"
+}
+```
+
+### Properties
+
+| Name              | Type   | Required | Restrictions | Description |
+|-------------------|--------|----------|--------------|-------------|
+| `client_id`       | string | false    |              |             |
+| `created_at`      | string | false    |              |             |
+| `created_by`      | string | false    |              |             |
+| `expires_at`      | string | false    |              |             |
+| `id`              | string | false    |              |             |
+| `issuer`          | string | false    |              |             |
+| `name`            | string | false    |              |             |
+| `organization_id` | string | false    |              |             |
+| `subject`         | string | false    |              |             |
+
+## codersdk.AuditCollectorConfiguration
+
+```json
+{
+  "audience": "string",
+  "available": true,
+  "collectors": [
+    {
+      "client_id": "string",
+      "created_at": "2019-08-24T14:15:22Z",
+      "created_by": "ee824cad-d7a6-4f48-87dc-e8461a9201c4",
+      "expires_at": "2019-08-24T14:15:22Z",
+      "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+      "issuer": "string",
+      "name": "string",
+      "organization_id": "7c60d51f-b44e-4682-87d6-449835ea4de6",
+      "subject": "string"
+    }
+  ],
+  "endpoint": "string",
+  "issuer": "string",
+  "scope": "string",
+  "token_endpoint": "string"
+}
+```
+
+### Properties
+
+| Name             | Type                                                        | Required | Restrictions | Description |
+|------------------|-------------------------------------------------------------|----------|--------------|-------------|
+| `audience`       | string                                                      | false    |              |             |
+| `available`      | boolean                                                     | false    |              |             |
+| `collectors`     | array of [codersdk.AuditCollector](#codersdkauditcollector) | false    |              |             |
+| `endpoint`       | string                                                      | false    |              |             |
+| `issuer`         | string                                                      | false    |              |             |
+| `scope`          | string                                                      | false    |              |             |
+| `token_endpoint` | string                                                      | false    |              |             |
+
 ## codersdk.AuditDiff
 
 ```json
@@ -981,6 +1049,7 @@ title: Schemas
 ```json
 {
   "oidc": {
+    "accountUrl": "string",
     "enabled": true,
     "iconUrl": "string",
     "signInText": "string"
@@ -1502,6 +1571,26 @@ AuthorizationObject can represent a "set" of objects, such as: all workspaces in
 | `password` | string                                   | true     |              |                                          |
 | `to_type`  | [codersdk.LoginType](#codersdklogintype) | true     |              | To type is the login type to convert to. |
 
+## codersdk.CreateAuditCollectorRequest
+
+```json
+{
+  "client_id": "string",
+  "name": "string",
+  "subject": "string",
+  "valid_days": 0
+}
+```
+
+### Properties
+
+| Name         | Type    | Required | Restrictions | Description |
+|--------------|---------|----------|--------------|-------------|
+| `client_id`  | string  | false    |              |             |
+| `name`       | string  | false    |              |             |
+| `subject`    | string  | false    |              |             |
+| `valid_days` | integer | false    |              |             |
+
 ## codersdk.CreateFirstUserRequest
 
 ```json
@@ -1596,17 +1685,29 @@ AuthorizationObject can represent a "set" of objects, such as: all workspaces in
 
 ```json
 {
+  "auto_remove_history": true,
   "minutes": 0,
-  "template_id": "string"
+  "template_id": "c6d67e98-83ea-49f0-8812-e4abae2b68bc",
+  "terms": {
+    "firewall": true,
+    "no_root": true,
+    "sandbox_only": true,
+    "website_mode": "string",
+    "websites": [
+      "string"
+    ]
+  }
 }
 ```
 
 ### Properties
 
-| Name          | Type    | Required | Restrictions | Description |
-|---------------|---------|----------|--------------|-------------|
-| `minutes`     | integer | false    |              |             |
-| `template_id` | string  | false    |              |             |
+| Name                  | Type                                                         | Required | Restrictions | Description |
+|-----------------------|--------------------------------------------------------------|----------|--------------|-------------|
+| `auto_remove_history` | boolean                                                      | false    |              |             |
+| `minutes`             | integer                                                      | false    |              |             |
+| `template_id`         | string                                                       | false    |              |             |
+| `terms`               | [codersdk.ShortTermLeaseTerms](#codersdkshorttermleaseterms) | false    |              |             |
 
 ## codersdk.CreateTemplateRequest
 
@@ -2089,15 +2190,19 @@ CreateWorkspaceRequest provides options for creating a new workspace. Only one o
   "content": {
     "message": "string",
     "title": "string"
-  }
+  },
+  "user_ids": [
+    "497f6eca-6276-4993-bfeb-53cbbbba6f08"
+  ]
 }
 ```
 
 ### Properties
 
-| Name      | Type                                                                     | Required | Restrictions | Description |
-|-----------|--------------------------------------------------------------------------|----------|--------------|-------------|
-| `content` | [codersdk.CustomNotificationContent](#codersdkcustomnotificationcontent) | false    |              |             |
+| Name       | Type                                                                     | Required | Restrictions | Description                                                                                                                                         |
+|------------|--------------------------------------------------------------------------|----------|--------------|-----------------------------------------------------------------------------------------------------------------------------------------------------|
+| `content`  | [codersdk.CustomNotificationContent](#codersdkcustomnotificationcontent) | false    |              |                                                                                                                                                     |
+| `user_ids` | array of string                                                          | false    |              | User ids targets selected recipients. Omit to notify only the caller. Sending to selected recipients requires deployment administrator permissions. |
 
 ## codersdk.CustomRoleRequest
 
@@ -4816,17 +4921,17 @@ Git clone makes use of this by parsing the URL from: 'Username for "https://gith
 
 ```json
 {
-  "email": "user@example.com",
+  "email": "string",
   "password": "string"
 }
 ```
 
 ### Properties
 
-| Name       | Type   | Required | Restrictions | Description |
-|------------|--------|----------|--------------|-------------|
-| `email`    | string | true     |              |             |
-| `password` | string | true     |              |             |
+| Name       | Type   | Required | Restrictions | Description                                                                                 |
+|------------|--------|----------|--------------|---------------------------------------------------------------------------------------------|
+| `email`    | string | true     |              | Email accepts either an email address or a username, retaining the existing API field name. |
+| `password` | string | true     |              |                                                                                             |
 
 ## codersdk.LoginWithPasswordResponse
 
@@ -5497,9 +5602,9 @@ Git clone makes use of this by parsing the URL from: 'Username for "https://gith
 
 #### Enumerated Values
 
-| Value(s)                                                                                                                                                                                                                                                    |
-|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `access_denied`, `invalid_client`, `invalid_grant`, `invalid_request`, `invalid_scope`, `invalid_target`, `server_error`, `temporarily_unavailable`, `unauthorized_client`, `unsupported_grant_type`, `unsupported_response_type`, `unsupported_token_type` |
+| Value(s)                                                                                                                                                                                                                                                                                           |
+|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `access_denied`, `insufficient_scope`, `invalid_client`, `invalid_grant`, `invalid_request`, `invalid_scope`, `invalid_target`, `invalid_token`, `server_error`, `temporarily_unavailable`, `unauthorized_client`, `unsupported_grant_type`, `unsupported_response_type`, `unsupported_token_type` |
 
 ## codersdk.OAuth2GithubConfig
 
@@ -5778,6 +5883,7 @@ Git clone makes use of this by parsing the URL from: 'Username for "https://gith
 
 ```json
 {
+  "accountUrl": "string",
   "enabled": true,
   "iconUrl": "string",
   "signInText": "string"
@@ -5786,11 +5892,12 @@ Git clone makes use of this by parsing the URL from: 'Username for "https://gith
 
 ### Properties
 
-| Name         | Type    | Required | Restrictions | Description |
-|--------------|---------|----------|--------------|-------------|
-| `enabled`    | boolean | false    |              |             |
-| `iconUrl`    | string  | false    |              |             |
-| `signInText` | string  | false    |              |             |
+| Name         | Type    | Required | Restrictions | Description                                                      |
+|--------------|---------|----------|--------------|------------------------------------------------------------------|
+| `accountUrl` | string  | false    |              | Accounturl opens the provider's account settings when supported. |
+| `enabled`    | boolean | false    |              |                                                                  |
+| `iconUrl`    | string  | false    |              |                                                                  |
+| `signInText` | string  | false    |              |                                                                  |
 
 ## codersdk.OIDCClaimsResponse
 
@@ -7901,31 +8008,67 @@ Git clone makes use of this by parsing the URL from: 'Username for "https://gith
 
 ```json
 {
-  "expires_at": "string",
-  "extension_requested_at": "string",
-  "issued_at": "string",
-  "organization_id": "string",
-  "revoked_at": "string",
+  "auto_remove_history": true,
+  "expires_at": "2019-08-24T14:15:22Z",
+  "extension_requested_at": "2019-08-24T14:15:22Z",
+  "issued_at": "2019-08-24T14:15:22Z",
+  "organization_id": "7c60d51f-b44e-4682-87d6-449835ea4de6",
+  "revoked_at": "2019-08-24T14:15:22Z",
+  "terms": {
+    "firewall": true,
+    "no_root": true,
+    "sandbox_only": true,
+    "website_mode": "string",
+    "websites": [
+      "string"
+    ]
+  },
   "token": "string",
   "token_id": "string",
-  "user_id": "string",
-  "workspace_id": "string"
+  "user_id": "a169451c-8525-4352-b8ca-070dd449a1a5",
+  "workspace_id": "0967198e-ec7b-4c6b-b4d3-f71244cadbe9"
 }
 ```
 
 ### Properties
 
-| Name                     | Type   | Required | Restrictions | Description                                                       |
-|--------------------------|--------|----------|--------------|-------------------------------------------------------------------|
-| `expires_at`             | string | false    |              |                                                                   |
-| `extension_requested_at` | string | false    |              |                                                                   |
-| `issued_at`              | string | false    |              |                                                                   |
-| `organization_id`        | string | false    |              |                                                                   |
-| `revoked_at`             | string | false    |              |                                                                   |
-| `token`                  | string | false    |              | Token is returned only at creation; the database stores its hash. |
-| `token_id`               | string | false    |              |                                                                   |
-| `user_id`                | string | false    |              |                                                                   |
-| `workspace_id`           | string | false    |              |                                                                   |
+| Name                     | Type                                                         | Required | Restrictions | Description                                                       |
+|--------------------------|--------------------------------------------------------------|----------|--------------|-------------------------------------------------------------------|
+| `auto_remove_history`    | boolean                                                      | false    |              |                                                                   |
+| `expires_at`             | string                                                       | false    |              |                                                                   |
+| `extension_requested_at` | string                                                       | false    |              |                                                                   |
+| `issued_at`              | string                                                       | false    |              |                                                                   |
+| `organization_id`        | string                                                       | false    |              |                                                                   |
+| `revoked_at`             | string                                                       | false    |              |                                                                   |
+| `terms`                  | [codersdk.ShortTermLeaseTerms](#codersdkshorttermleaseterms) | false    |              |                                                                   |
+| `token`                  | string                                                       | false    |              | Token is returned only at creation; the database stores its hash. |
+| `token_id`               | string                                                       | false    |              |                                                                   |
+| `user_id`                | string                                                       | false    |              |                                                                   |
+| `workspace_id`           | string                                                       | false    |              |                                                                   |
+
+## codersdk.ShortTermLeaseTerms
+
+```json
+{
+  "firewall": true,
+  "no_root": true,
+  "sandbox_only": true,
+  "website_mode": "string",
+  "websites": [
+    "string"
+  ]
+}
+```
+
+### Properties
+
+| Name           | Type            | Required | Restrictions | Description |
+|----------------|-----------------|----------|--------------|-------------|
+| `firewall`     | boolean         | false    |              |             |
+| `no_root`      | boolean         | false    |              |             |
+| `sandbox_only` | boolean         | false    |              |             |
+| `website_mode` | string          | false    |              |             |
+| `websites`     | array of string | false    |              |             |
 
 ## codersdk.SlimRole
 
@@ -8851,7 +8994,7 @@ Restarts will only happen on weekdays in this list on weeks which line up with W
 | `content`   | string          | false    |              |                                                                        |
 | `features`  | array of string | false    |              |                                                                        |
 | `name`      | string          | false    |              |                                                                        |
-| `path`      | string          | false    |              | Path in a decorated template (.platform/<name>).                       |
+| `path`      | string          | false    |              | Path in a decorated template (`.platform/<name>`).                     |
 | `reference` | string          | false    |              | Reference: how a template uses it (the base template's own use of it). |
 | `size`      | integer         | false    |              |                                                                        |
 
@@ -9993,6 +10136,8 @@ Restarts will only happen on weekdays in this list on weeks which line up with W
 ```json
 {
   "avatar_url": "http://example.com",
+  "current_password": "string",
+  "email": "user@example.com",
   "name": "string",
   "username": "string"
 }
@@ -10000,11 +10145,13 @@ Restarts will only happen on weekdays in this list on weeks which line up with W
 
 ### Properties
 
-| Name         | Type   | Required | Restrictions | Description                                                                                                                                                                                 |
-|--------------|--------|----------|--------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `avatar_url` | string | false    |              | Avatar URL is only applied for users whose login type is password or none. For other login types the avatar is synced from the identity provider on login, so a submitted value is ignored. |
-| `name`       | string | false    |              |                                                                                                                                                                                             |
-| `username`   | string | true     |              |                                                                                                                                                                                             |
+| Name               | Type   | Required | Restrictions | Description                                                                                                                                                                                 |
+|--------------------|--------|----------|--------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `avatar_url`       | string | false    |              | Avatar URL is only applied for users whose login type is password or none. For other login types the avatar is synced from the identity provider on login, so a submitted value is ignored. |
+| `current_password` | string | false    |              |                                                                                                                                                                                             |
+| `email`            | string | false    |              | Email may be changed by password users after confirming their current password.                                                                                                             |
+| `name`             | string | false    |              |                                                                                                                                                                                             |
+| `username`         | string | true     |              |                                                                                                                                                                                             |
 
 ## codersdk.UpdateUserQuietHoursScheduleRequest
 

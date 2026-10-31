@@ -18,7 +18,7 @@ const meta: Meta<typeof EditableTunnelCable> = {
 		onOpen: () => {},
 		route: { orthogonal: false, points: [] },
 	},
-	render: (args) => {
+	render: function Render(args) {
 		const [route, setRoute] = useState<TunnelRoute>(args.route);
 		return (
 			<svg width="400" height="240" aria-label="Editable tunnel example">

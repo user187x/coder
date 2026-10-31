@@ -1,6 +1,6 @@
 import { platformGet, platformPost, type QuotaKey } from "./platform";
 
-export type ExtraResources = Record<QuotaKey, number>;
+type ExtraResources = Record<QuotaKey, number>;
 export type QuotaRequest = {
 	id: string;
 	organization_id: string;

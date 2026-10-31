@@ -2,7 +2,6 @@ package workspaceapps
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/http/httputil"
@@ -13,6 +12,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/xerrors"
 
 	"github.com/coder/coder/v2/coderd/httpmw"
 	"github.com/coder/coder/v2/coderd/tracing"
@@ -60,7 +60,7 @@ func TestSessionGuardRejectsCachedTokens(t *testing.T) {
 					GuardSession: func(ctx context.Context, id uuid.UUID) (context.Context, func(), error) {
 						require.Equal(t, userID, id)
 						guarded = true
-						return ctx, nil, errors.New("locked")
+						return ctx, nil, xerrors.New("locked")
 					},
 				})
 				if scope == "workspace" {
@@ -68,7 +68,7 @@ func TestSessionGuardRejectsCachedTokens(t *testing.T) {
 					s.GuardWorkspaceSession = func(ctx context.Context, id uuid.UUID) (context.Context, func(), error) {
 						require.Equal(t, workspaceID, id)
 						guarded = true
-						return ctx, nil, errors.New("quarantined")
+						return ctx, nil, xerrors.New("quarantined")
 					}
 				}
 				router := chi.NewRouter()
@@ -107,12 +107,11 @@ func (lockdownProxyAgent) ReverseProxy(target, _ *url.URL, _ uuid.UUID, _ appurl
 func TestSessionGuardClosesActiveAppWebsocket(t *testing.T) {
 	t.Parallel()
 	for _, scope := range []string{"global", "workspace"} {
-		t.Run(scope, func(t *testing.T) { testSessionGuardClosesActiveAppWebsocket(t, scope) })
+		t.Run(scope, func(t *testing.T) { t.Parallel(); verifySessionGuardClosesActiveAppWebsocket(t, scope) })
 	}
 }
 
-func testSessionGuardClosesActiveAppWebsocket(t *testing.T, scope string) {
-	t.Parallel()
+func verifySessionGuardClosesActiveAppWebsocket(t *testing.T, scope string) {
 	ctx := testutil.Context(t, testutil.WaitShort)
 	backendClosed := make(chan error, 1)
 	backend := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
@@ -143,8 +142,10 @@ func testSessionGuardClosesActiveAppWebsocket(t *testing.T, scope string) {
 		s.GuardWorkspaceSession = s.GuardSession
 		s.GuardSession = nil
 	}
-	token := SignedToken{UserID: uuid.New(), AgentID: uuid.New(), WorkspaceID: uuid.New(), AppURL: backend.URL,
-		Request: Request{AccessMethod: AccessMethodPath, AppSlugOrPort: "editor"}}
+	token := SignedToken{
+		UserID: uuid.New(), AgentID: uuid.New(), WorkspaceID: uuid.New(), AppURL: backend.URL,
+		Request: Request{AccessMethod: AccessMethodPath, AppSlugOrPort: "editor"},
+	}
 	proxy := httptest.NewServer(httpmw.ExtractRealIP(&httpmw.RealIPConfig{})(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		s.proxyWorkspaceApp(rw, r, token, "/", appurl.ApplicationURL{})
 	})))

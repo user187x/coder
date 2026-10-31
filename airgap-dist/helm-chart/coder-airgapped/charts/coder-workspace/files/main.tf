@@ -429,130 +429,6 @@ locals {
   ])
 }
 
-# ---------------------------------------------------------------------------------------------------------------------
-# The platform's sections (# platform:begin NAME ... # platform:end NAME): what every workspace of the platform has -
-# the owner's certificate, Lock Down, the Cloud Drive, the metrics. Coder's template decorator (the fork's
-# coderd/templatedecorator) takes them from this template, the platform's base, and injects each into any template that
-# lacks it, at the same place (top level, the agent, the pod, the agent's container), when it is built: a template made
-# in Create new template has none of them in its own code, and Source Code > Materialized shows them injected.
-# ---------------------------------------------------------------------------------------------------------------------
-
-# platform:begin metrics
-locals {
-  # The metrics' functions (the agent's metadata below).
-  platform_metadata_sh = file("${path.module}/scripts/metadata.sh")
-}
-# platform:end metrics
-
-# platform:begin lockdown
-locals {
-  # Lock Down (an admin's jail for this workspace: Network, Sudo or both): the script the pod's init container runs
-  # at start (Network) and the agent runs at start (Sudo; login waits for it).
-  platform_lockdown_sh = file("${path.module}/scripts/lockdown.sh")
-}
-
-# Lock Down, at start: Sudo (Network is the pod's init container, below). Login waits for it.
-resource "coder_script" "lockdown" {
-  agent_id           = coder_agent.main.id
-  display_name       = "Lock Down"
-  icon               = "/__icons/lockdown.svg" # files/icons/lockdown.svg, served by templates/icons.yaml
-  run_on_start       = true
-  start_blocks_login = true
-  script             = "#!/bin/sh\nset -- start 'file:/etc/coder-lockdown/${data.coder_workspace.me.id}'\n${local.platform_lockdown_sh}"
-}
-# platform:end lockdown
-
-# platform:begin certificates
-# Installs the owner's PKCS#12 certificate into the workspace as ~/.cert/<owner>.p12, where <owner> is the Coder
-# username (for user jdoe: /home/coder/.cert/jdoe.p12). Nothing else is left in ~/.cert.
-# Where the certificate comes from: each user uploads theirs in Coder > Settings > Certificates. The page stores the
-# file as one of the user's own Coder secrets (base64, because secret values are text), with the file path
-# ~/.cert/.<owner>.p12.b64. When a workspace starts, Coder's agent writes the owner's secrets (and only the owner's) to
-# those paths, directory 0700 and files 0600, before any startup script runs. This script decodes it to
-# ~/.cert/<owner>.p12 (0600) and removes the encoded copy. An upload saved under another name (by an earlier version
-# of the page, or before the user was renamed) is installed under the owner's name all the same. When the owner
-# deletes the certificate in Coder, it is removed from ~/.cert on the next start (only a file this script installed).
-resource "coder_script" "user_certificates" {
-  agent_id           = coder_agent.main.id
-  display_name       = "Certificates"
-  icon               = "/__icons/certificate.svg" # files/icons/certificate.svg, served by templates/icons.yaml
-  run_on_start       = true
-  start_blocks_login = true # nobody gets a shell before the certificate is in place
-  script = templatefile("${path.module}/scripts/certificates.sh", {
-    owner_name = data.coder_workspace_owner.me.name
-  })
-}
-# platform:end certificates
-
-# platform:begin cloud-drive
-locals {
-  # The Cloud Drive's volume, out of the way: user_storage_path links to it while the owner keeps the workspace
-  # connected (coder_script.cloud_drive).
-  cloud_drive_mount = "/mnt/cloud-drive"
-  # What the platform service says of the Cloud Drive when this workspace starts (data.kubernetes_config_map_v1.cloud_drive):
-  # a workspace shared with others has none (the Cloud Drive is its owner's alone); the owner's source workspace (a
-  # folder of it is their Cloud Drive) serves that folder and links to it; the owner's others mount the source's
-  # volume while it runs, else nothing until their next start ("offline"); without a source, the S3 volume.
-  cloud_drive_state     = try(jsondecode(data.kubernetes_config_map_v1.cloud_drive[0].data["state"]), {})
-  cloud_drive_shared    = contains(try(local.cloud_drive_state.shared, []), data.coder_workspace.me.id)
-  cloud_drive_source    = try(local.cloud_drive_state.sources[data.coder_workspace_owner.me.id], null)
-  cloud_drive_is_source = try(local.cloud_drive_source.workspace, "") == data.coder_workspace.me.id
-  cloud_drive_mode = (!var.user_storage ? "" : local.cloud_drive_shared ? "shared" : local.cloud_drive_is_source ? "source"
-  : local.cloud_drive_source == null || try(local.cloud_drive_source.running, false) ? "mount" : "offline")
-  cloud_drive_claim = local.cloud_drive_mode != "mount" ? "" : try(local.cloud_drive_state.auditClaims[data.coder_workspace_owner.me.id], (local.cloud_drive_source == null
-    ? "coder-safe-${data.coder_workspace_owner.me.id}" : "coder-drive-src-${data.coder_workspace_owner.me.id}")
-  )
-  # What other users shared with the owner (Cloud Drive > Sharing: asked for in chat and accepted, or shared by its
-  # owner; approved by an admin): [{id, owner, name, claim, readOnly, kind, path, item}] - an entire drive (kind
-  # "drive") mounted at /mnt/cloud-drive-peers/<name> and linked at ~/cloud-drive/Shared/<name>; a folder or file of
-  # one (its volume's subPath) at /mnt/cloud-drive-items/<id>, linked at ~/cloud-drive/Shared/<name>/<item>; read
-  # only unless shared read and write; none in a workspace shared with others.
-  cloud_drive_peers = [for p in concat(try(local.cloud_drive_state.peers[data.coder_workspace_owner.me.id], []), try(local.cloud_drive_state.workspacePeers[data.coder_workspace.me.id], [])) : merge(
-    { id = "", kind = "drive", path = "", item = "" }, p)
-  if local.cloud_drive_mode != "" && !local.cloud_drive_shared && (try(p.workspaceId, null) == null || try(p.workspaceId, "") == data.coder_workspace.me.id)]
-  # One volume for each owner's volume (the kubelet takes a claim named twice in a pod as one volume, mounted the way
-  # the first says): read only when all that is shared of it is; each mount read only or not on its own.
-  cloud_drive_peer_volumes = { for p in local.cloud_drive_peers : "peer-${substr(md5(p.claim), 0, 16)}" => p... }
-}
-
-# The Cloud Drive's state, kept by the platform service (the chart's coder-workspace Role lets Coder's service account
-# read this one ConfigMap): {"shared": [workspace ids], "sources": {owner id: {workspace, path, running}},
-# "peers": {user id: [{owner, name, claim, readOnly}]}}.
-data "kubernetes_config_map_v1" "cloud_drive" {
-  count = var.user_storage ? 1 : 0
-  metadata {
-    name      = "coder-cloud-drive"
-    namespace = var.namespace
-  }
-}
-
-# The Cloud Drive, at start and then live: user_storage_path links to its volume while the pod's annotation
-# platform.coder/cloud-drive says "on" (the owner connects and disconnects the workspace on the Workspaces page).
-resource "coder_script" "cloud_drive" {
-  count              = var.user_storage ? 1 : 0
-  agent_id           = coder_agent.main.id
-  display_name       = "Cloud Drive"
-  icon               = "/__icons/cloud-drive.svg" # files/icons/cloud-drive.svg, served by templates/icons.yaml
-  run_on_start       = true
-  start_blocks_login = true
-  script = templatefile("${path.module}/scripts/cloud-drive.sh", {
-    link = var.user_storage_path
-    mode = local.cloud_drive_mode
-    # the volume, where this workspace has one ("on"); the source's folder comes in the annotation (source:<folder>)
-    mount = local.cloud_drive_claim != "" ? local.cloud_drive_mount : ""
-    # the `cloud-drive` command: the Cloud Drive mounted into folders of the workspace (scripts/cloud-drive-cli.py)
-    cli = base64encode(file("${path.module}/scripts/cloud-drive-cli.py"))
-    # File Browser's helper, here too: every template gets the current one with this section (scripts/filebrowser.sh,
-    # which asks this script for the drives)
-    filebrowser = base64encode(file("${path.module}/scripts/filebrowser.sh"))
-    # the folders and files shared with the owner, for their links: [{id, owner, item}]
-    items = base64encode(jsonencode([for p in local.cloud_drive_peers : { id = p.id, owner = p.name, item = p.item }
-    if p.kind != "drive"]))
-  })
-}
-# platform:end cloud-drive
-
-# platform:begin code-server-ha
 variable "workspace_vm_enabled" {
   type    = bool
   default = false
@@ -581,7 +457,6 @@ variable "code_server_ha_db_ca_secret" {
 locals {
   code_server_ha = !var.workspace_vm_enabled && var.code_server_ha && var.code_server_ha_image != ""
 }
-# platform:end code-server-ha
 
 resource "coder_agent" "main" {
   os   = "linux"
@@ -617,104 +492,9 @@ resource "coder_agent" "main" {
     # btop's disk: the home volume's own size where volumes are folders of the node's disk (startup.sh builds it)
     home_statfs = base64encode(file("${path.module}/scripts/home-statfs.c"))
     # and the Disk metric's measurement (scripts/metadata.sh's disk), which startup.sh keeps fresh for it
-    platform_metadata = base64encode(local.platform_metadata_sh)
+    platform_metadata = base64encode(file("${path.module}/scripts/metadata.sh"))
   })
 
-  # platform:begin metrics
-  # The metrics, in the same order in both of the dashboard's groups (the keys order them): CPU, RAM, Disk and Ø Load
-  # (the load average) of the workspace, then of the node it runs on (the Cluster group: keys ending in "_host"). Each
-  # but CPU is a function of scripts/metadata.sh, which explains it: the file runs with the function's name appended.
-  metadata {
-    display_name = "CPU"
-    key          = "0_cpu_usage"
-    script       = "coder stat cpu"
-    interval     = 10
-    timeout      = 1
-  }
-
-  metadata {
-    display_name = "RAM"
-    key          = "1_ram_usage"
-    script       = "${local.platform_metadata_sh}\nram"
-    interval     = 10
-    timeout      = 1
-  }
-
-  metadata {
-    display_name = "Disk"
-    key          = "2_home_disk"
-    script       = "${local.platform_metadata_sh}\ndisk"
-    interval     = 60
-    timeout      = 15
-  }
-
-  metadata {
-    display_name = "Ø Load"
-    key          = "3_load"
-    script       = "${local.platform_metadata_sh}\nload"
-    interval     = 10
-    timeout      = 3
-  }
-
-  metadata {
-    display_name = "CPU"
-    key          = "4_cpu_usage_host"
-    script       = "coder stat cpu --host"
-    interval     = 10
-    timeout      = 1
-  }
-
-  metadata {
-    display_name = "RAM"
-    key          = "5_mem_usage_host"
-    script       = "${local.platform_metadata_sh}\nram_host"
-    interval     = 10
-    timeout      = 1
-  }
-
-  metadata {
-    display_name = "Disk"
-    key          = "6_disk_host"
-    script       = "${local.platform_metadata_sh}\ndisk_host"
-    interval     = 60
-    timeout      = 5
-  }
-
-  metadata {
-    display_name = "Ø Load"
-    key          = "7_load_host"
-    script       = "${local.platform_metadata_sh}\nload_host"
-    interval     = 60
-    timeout      = 1
-  }
-
-  # The workspace's network traffic (bytes received and sent so far), every second: not a metric display, the
-  # dashboard's network lights by the workspace's name (key ending in "net_io").
-  metadata {
-    display_name = "Network"
-    key          = "8_net_io"
-    script       = "${local.platform_metadata_sh}\nnet"
-    interval     = 1
-    timeout      = 1
-  }
-  # platform:end metrics
-
-  # platform:begin cloud-drive
-  # Whether the owner's Cloud Drive is attached in the workspace now, a word (scripts/cloud-drive.sh status: attached,
-  # waiting, unanswered, ...; "starting" before that script ran): not a metric display (key ending in "cloud_drive"). The
-  # platform service reads it from Coder's database for the Workspaces page - an orange cloud beside Running and a red
-  # cable until the drive is attached.
-  dynamic "metadata" {
-    for_each = var.user_storage ? [1] : []
-    content {
-      display_name = "Cloud Drive"
-      key          = "9_cloud_drive"
-      script       = "/tmp/coder-cloud-drive/cloud-drive.sh status 2>/dev/null || echo starting"
-      interval     = 2
-      timeout      = 4
-    }
-  }
-  # platform:end cloud-drive
 }
 
 resource "coder_app" "novnc" {
@@ -877,13 +657,7 @@ resource "kubernetes_deployment_v1" "main" {
           "com.coder.user.id"          = data.coder_workspace_owner.me.id
           "com.coder.user.username"    = data.coder_workspace_owner.me.name
         }
-        # platform:begin cloud-drive
-        # Connected to the owner's Cloud Drive from the start; the platform service sets "off" for a workspace the
-        # owner disconnected (and back), and the pod reads it at /etc/platform/cloud-drive.
-        # The source workspace (a folder of it is the owner's Cloud Drive) starts linking that folder.
-        annotations = var.user_storage ? { "platform.coder/cloud-drive" = (local.cloud_drive_is_source
-        ? "source:${try(local.cloud_drive_source.path, "")}" : "on") } : {}
-        # platform:end cloud-drive
+        annotations = local.code_server_ha ? { "platform.coder/code-server-ha" = "on" } : {}
       }
       spec {
         hostname = local.hostname
@@ -918,47 +692,6 @@ resource "kubernetes_deployment_v1" "main" {
             mount_path = "/ca-bundle"
           }
         }
-
-        # platform:begin lockdown
-        # Lock Down, at start: Network, before anything in the workspace runs. The admins' setting comes from the
-        # ConfigMap coder-lockdown (the platform service keeps it; none yet: nothing is locked). Root with NET_ADMIN
-        # in the pod's network namespace, which the workspace container shares but cannot change (it has no
-        # NET_ADMIN). A running workspace is locked without a restart, by the platform service.
-        init_container {
-          name              = "lockdown"
-          image             = local.workspace_image
-          image_pull_policy = "IfNotPresent"
-          resources {
-            requests = { cpu = "1", memory = "64Mi" }
-            limits   = { cpu = "1", memory = "64Mi" }
-          }
-          command = [
-            "sh", "-c", local.platform_lockdown_sh, "lockdown",
-            "file:/etc/coder-lockdown/${data.coder_workspace.me.id}", local.coder_host, "",
-          ]
-          security_context {
-            run_as_user     = 0
-            run_as_non_root = false
-            capabilities {
-              add = ["NET_ADMIN", "NET_RAW"]
-            }
-          }
-          volume_mount {
-            name       = "lockdown"
-            mount_path = "/etc/coder-lockdown"
-            read_only  = true
-          }
-        }
-
-        # Lock Down's settings, by workspace id (the platform service makes the ConfigMap at the first lock).
-        volume {
-          name = "lockdown"
-          config_map {
-            name     = "coder-lockdown"
-            optional = true
-          }
-        }
-        # platform:end lockdown
 
         volume {
           name = "workspace-tunnel-run"
@@ -1037,6 +770,10 @@ resource "kubernetes_deployment_v1" "main" {
             name  = "CODER_AGENT_TOKEN"
             value = coder_agent.main.token
           }
+          env {
+            name  = "CODER_AGENT_TAILNET_LISTEN_PORT"
+            value = "41641"
+          }
           # The home volume's size as Kubernetes has it (it can grow after creation), for the Home Disk metric.
           env {
             name  = "CODER_HOME_DISK_SIZE"
@@ -1062,79 +799,6 @@ resource "kubernetes_deployment_v1" "main" {
             mount_path = "/dev/shm"
             name       = "dshm"
           }
-          # platform:begin lockdown
-          # Lock Down's setting (read-only): the start script reads it for Sudo.
-          volume_mount {
-            mount_path = "/etc/coder-lockdown"
-            name       = "lockdown"
-            read_only  = true
-          }
-          # platform:end lockdown
-          # platform:begin cloud-drive
-          # The owner's Cloud Drive: the same files in every one of their workspaces (and on the Workspaces page), at
-          # user_storage_path while the workspace is connected (a link to this mount; coder_script.cloud_drive).
-          dynamic "volume_mount" {
-            for_each = local.cloud_drive_claim != "" ? [1] : []
-            content {
-              mount_path = local.cloud_drive_mount
-              name       = "safe"
-            }
-          }
-          # Per-workspace links to grants stay off the owner's object storage.
-          dynamic "volume_mount" {
-            for_each = var.user_storage ? [1] : []
-            content {
-              mount_path = "${local.cloud_drive_mount}/Shared"
-              name       = "cloud-drive-shared-links"
-            }
-          }
-          # What is shared with the owner (local.cloud_drive_peers): entire drives, folders and files of them.
-          dynamic "volume_mount" {
-            for_each = local.cloud_drive_peers
-            content {
-              mount_path = (volume_mount.value.kind == "drive" ? "/mnt/cloud-drive-peers/${volume_mount.value.name}"
-              : "/mnt/cloud-drive-items/${volume_mount.value.id}")
-              name      = "peer-${substr(md5(volume_mount.value.claim), 0, 16)}"
-              read_only = volume_mount.value.readOnly
-              sub_path  = volume_mount.value.path
-            }
-          }
-          # Whether it is connected: the pod's annotation platform.coder/cloud-drive, kept current by the kubelet.
-          dynamic "volume_mount" {
-            for_each = var.user_storage ? [1] : []
-            content {
-              mount_path = "/etc/platform"
-              name       = "platform-info"
-              read_only  = true
-            }
-          }
-          # The ISO library (Templates > Images), read-only: the same disk images in every workspace.
-          dynamic "volume_mount" {
-            for_each = var.user_storage ? [1] : []
-            content {
-              mount_path = "/home/coder/isos"
-              name       = "isos"
-              read_only  = true
-            }
-          }
-          dynamic "env" {
-            for_each = var.user_storage ? [1] : []
-            content {
-              name  = "CODER_SAFE"
-              value = var.user_storage_path
-            }
-          }
-          # platform:end cloud-drive
-          # platform:begin code-server-ha
-          # code-server runs elsewhere (code-server HA): the startup script starts none here.
-          dynamic "env" {
-            for_each = local.code_server_ha ? [1] : []
-            content {
-              name  = "CODER_CODE_SERVER_HA"
-              value = "1"
-            }
-          }
-          # platform:end code-server-ha
         }
 
         volume {
@@ -1168,161 +832,6 @@ resource "kubernetes_deployment_v1" "main" {
           name = "ca-bundle"
           empty_dir {}
         }
-
-        # platform:begin code-server-ha
-        # The relay (code-server HA): where code-server would listen, and it takes each connection to the workspace's
-        # active code-server instance, in this cluster or another.
-        dynamic "container" {
-          for_each = local.code_server_ha ? [1] : []
-          content {
-            name              = "code-server-relay"
-            image             = var.code_server_ha_image
-            image_pull_policy = "IfNotPresent"
-            command           = ["python3", "/app/csha.py", "front"]
-            security_context {
-              run_as_user                = 1000
-              allow_privilege_escalation = false
-              read_only_root_filesystem  = true
-              capabilities {
-                drop = ["ALL"]
-              }
-            }
-            env {
-              name  = "CSHA_WORKSPACE"
-              value = data.coder_workspace.me.id
-            }
-            # its proof: the agent's token (Coder's registry of agents)
-            env {
-              name  = "CSHA_AGENT_TOKEN"
-              value = coder_agent.main.token
-            }
-            env {
-              name  = "CSHA_NAMESPACE"
-              value = var.namespace
-            }
-            env {
-              name  = "CSHA_IMAGE"
-              value = local.workspace_image
-            }
-            env {
-              name = "CSHA_NODE"
-              value_from {
-                field_ref {
-                  field_path = "spec.nodeName"
-                }
-              }
-            }
-            env {
-              name = "CSHA_CLUSTER"
-              value_from {
-                config_map_key_ref {
-                  name     = "coder-code-server-ha"
-                  key      = "cluster"
-                  optional = true
-                }
-              }
-            }
-            env {
-              name = "CSHA_DB"
-              value_from {
-                secret_key_ref {
-                  name = "coder-code-server-ha-relay"
-                  key  = "uri"
-                }
-              }
-            }
-            env {
-              name  = "CSHA_DB_CA"
-              value = "/etc/coder-db-ca/ca.crt"
-            }
-            resources {
-              requests = {
-                cpu    = "1"
-                memory = "128Mi"
-              }
-              limits = {
-                cpu    = "1"
-                memory = "128Mi"
-              }
-            }
-            volume_mount {
-              name       = "coder-db-ca"
-              mount_path = "/etc/coder-db-ca"
-              read_only  = true
-            }
-          }
-        }
-        dynamic "volume" {
-          for_each = local.code_server_ha ? [1] : []
-          content {
-            name = "coder-db-ca"
-            secret {
-              secret_name = var.code_server_ha_db_ca_secret
-              items {
-                key  = "ca.crt"
-                path = "ca.crt"
-              }
-            }
-          }
-        }
-        # platform:end code-server-ha
-
-        # platform:begin cloud-drive
-        # The owner's Cloud Drive: their S3 prefix, or their source workspace's folder, through the cluster's CSI driver
-        # (ReadWriteMany: all their workspaces); none in a shared workspace or the source itself (local.cloud_drive_mode).
-        dynamic "volume" {
-          for_each = local.cloud_drive_claim != "" ? [1] : []
-          content {
-            name = "safe"
-            persistent_volume_claim {
-              claim_name = local.cloud_drive_claim
-            }
-          }
-        }
-        dynamic "volume" {
-          for_each = var.user_storage ? [1] : []
-          content {
-            name = "cloud-drive-shared-links"
-            empty_dir {}
-          }
-        }
-        # What is shared with the owner: their owners' volumes, each once (local.cloud_drive_peer_volumes).
-        dynamic "volume" {
-          for_each = local.cloud_drive_peer_volumes
-          content {
-            name = volume.key
-            persistent_volume_claim {
-              claim_name = volume.value[0].claim
-              read_only  = alltrue([for p in volume.value : p.readOnly])
-            }
-          }
-        }
-        dynamic "volume" {
-          for_each = var.user_storage ? [1] : []
-          content {
-            name = "platform-info"
-            downward_api {
-              items {
-                path = "cloud-drive"
-                field_ref {
-                  field_path = "metadata.annotations['platform.coder/cloud-drive']"
-                }
-              }
-            }
-          }
-        }
-        # The ISO library: one read-only volume for every workspace (the platform service makes it).
-        dynamic "volume" {
-          for_each = var.user_storage ? [1] : []
-          content {
-            name = "isos"
-            persistent_volume_claim {
-              claim_name = "coder-isos"
-              read_only  = true
-            }
-          }
-        }
-        # platform:end cloud-drive
 
         affinity {
           pod_anti_affinity {

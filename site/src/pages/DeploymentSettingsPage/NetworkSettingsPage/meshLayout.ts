@@ -38,9 +38,9 @@ const SPOKE_DROP = 150;
 /** Where along a spoke (from the platform service) its label sits: near the row, where spokes are far apart. */
 const SPOKE_LABEL_AT = 0.7;
 
-export type LaidNode = { node: MeshNode; x: number; y: number };
+type LaidNode = { node: MeshNode; x: number; y: number };
 
-export type LaidEdge = {
+type LaidEdge = {
 	edge: MeshEdge;
 	/** SVG path data. */
 	d: string;
@@ -48,7 +48,7 @@ export type LaidEdge = {
 	shape: "arc" | "spoke";
 };
 
-export type MeshLayout = {
+type MeshLayout = {
 	width: number;
 	height: number;
 	nodes: LaidNode[];
@@ -56,7 +56,7 @@ export type MeshLayout = {
 };
 
 /** How high an arc spanning this many slots rises above the row's top. */
-export const arcHeight = (span: number) => 24 + 28 * (span - 1);
+const arcHeight = (span: number) => 24 + 28 * (span - 1);
 
 export const layoutMesh = (report: MeshReport): MeshLayout => {
 	const byId = new Map(report.nodes.map((n) => [n.id, n]));

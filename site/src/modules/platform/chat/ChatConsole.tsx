@@ -70,7 +70,7 @@ const SHORTCUTS = [
 	"Right-click a conversation: delete, workspace, Cloud Drive, Force Response",
 ].join("\n");
 
-export type ConsoleFilter = "waiting" | "unread" | "all";
+type ConsoleFilter = "waiting" | "unread" | "all";
 
 /** The last message is theirs: they are waiting for an answer. */
 export const isWaiting = (c: Conversation, meId: string) =>

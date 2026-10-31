@@ -28,7 +28,8 @@ class NekoNetworkTest(unittest.TestCase):
             (base / 'workspace-vm.tf').write_text('')
             archive = builder.neko_template(base, root / 'template', 'registry.test/neko@sha256:123', 'custom-turn')
             with tarfile.open(archive) as tar:
-                policy = json.load(tar.extractfile('browser-network.tf.json'))['resource']['kubernetes_network_policy_v1']['browser_media']
+                policies = json.load(tar.extractfile('browser-network.tf.json'))['resource']['kubernetes_network_policy_v1']
+                policy = policies['browser_media']
             source = (root / 'template/main.tf').read_text()
             self.assertNotIn('var.terminal', source)
             self.assertIn('terminal = false', (root / 'template/terraform.tfvars').read_text())
@@ -50,6 +51,22 @@ class NekoNetworkTest(unittest.TestCase):
                         peers: [{'pod_selector': [{'match_labels': {'com.coder.workspace.id': workspace_id}}]}],
                         'ports': [{'protocol': 'UDP', 'port': first, 'end_port': last}],
                     }])
+                ingress = json.loads(json.dumps(policies['browser_ingress']).replace('${data.coder_workspace.me.id}', workspace_id))
+                self.assertEqual(ingress['metadata'][0]['name'], 'coder-neko-ingress-' + workspace_id)
+                self.assertEqual(ingress['metadata'][0]['namespace'], '${var.namespace}')
+                self.assertEqual(ingress['count'], rendered['count'])
+                self.assertEqual(ingress['spec'][0], {
+                    'pod_selector': [{'match_labels': {'com.coder.workspace.id': workspace_id}}],
+                    'policy_types': ['Ingress'],
+                    'ingress': [{'from': [{'pod_selector': [{'match_labels': {'app.kubernetes.io/name': 'custom-turn'}}]}],
+                                 'ports': [{'protocol': 'UDP', 'port': '30590', 'end_port': 30595}]}],
+                })
+            firewall = policies['lease_firewall']['spec'][0]
+            for name, ports in [('coder', [{'protocol': 'TCP', 'port': '443'}, {'protocol': 'TCP', 'port': '8443'}]),
+                                ('custom-turn', [{'protocol': 'TCP', 'port': '5349'}, {'protocol': 'UDP', 'port': '49160', 'end_port': 49200}])]:
+                rule = next(rule for rule in firewall['egress']
+                            if rule['to'][0].get('pod_selector') == [{'match_labels': {'app.kubernetes.io/name': name}}])
+                self.assertEqual(rule['ports'], ports)
 
     def test_upgrade_preparation_preserves_existing_relay_and_media_rules(self):
         argv = ['configure-turn.py', '--kubeconfig', '/unused', '--hostname', 'turn.example.test',

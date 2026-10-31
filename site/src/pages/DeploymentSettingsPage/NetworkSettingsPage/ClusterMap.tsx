@@ -34,7 +34,7 @@ import {
 	TableRow,
 } from "#/components/Table/Table";
 import { TableEmpty } from "#/components/TableEmpty/TableEmpty";
-import { useAnimationsEnabled } from "#/modules/platform/animations/animations";
+import { useAnimationsEnabled } from "#/hooks/useAnimationSettings";
 import {
 	ago,
 	bytes,
@@ -44,6 +44,7 @@ import {
 	Tile,
 	useNow,
 } from "#/modules/platform/ClusterVisuals";
+import { EntityContextMenu } from "./EntityActions";
 import "./clusterMap.css";
 import { CoderReplicas } from "./CoderReplicas";
 import { CodeServerHACard } from "./CodeServerHACard";
@@ -488,26 +489,28 @@ const Topology: React.FC<{ report: ClusterNetworkReport; focus?: boolean }> = ({
 								/>
 							))}
 							{/* The same line, invisible and wider, to click (the cards stay above it). */}
-							<path
-								d={path.d}
-								fill="none"
-								stroke="transparent"
-								strokeWidth={14}
-								role="button"
-								tabIndex={0}
-								aria-label={path.label}
-								className="pointer-events-[stroke] cursor-pointer outline-none focus-visible:stroke-content-link/30"
-								onClick={() => open({ type: "link", id: path.id })}
-								onKeyDown={(ev) => {
-									if (ev.key === "Enter" || ev.key === " ") {
-										ev.preventDefault();
-										open({ type: "link", id: path.id });
-									}
-								}}
-								data-testid={`cluster-map-link-${path.testId}`}
-							>
-								<title>{path.label}</title>
-							</path>
+							<EntityContextMenu target={{ type: "link", id: path.id }}>
+								<path
+									d={path.d}
+									fill="none"
+									stroke="transparent"
+									strokeWidth={14}
+									role="button"
+									tabIndex={0}
+									aria-label={path.label}
+									className="pointer-events-[stroke] cursor-pointer outline-none focus-visible:stroke-content-link/30"
+									onClick={() => open({ type: "link", id: path.id })}
+									onKeyDown={(ev) => {
+										if (ev.key === "Enter" || ev.key === " ") {
+											ev.preventDefault();
+											open({ type: "link", id: path.id });
+										}
+									}}
+									data-testid={`cluster-map-link-${path.testId}`}
+								>
+									<title>{path.label}</title>
+								</path>
+							</EntityContextMenu>
 						</g>
 					))}
 				</svg>
@@ -528,17 +531,25 @@ const Topology: React.FC<{ report: ClusterNetworkReport; focus?: boolean }> = ({
 						five seconds; network failures may take longer to be detected.
 					</div>
 					{gateway && (
-						<ServiceChip
-							svc={gateway}
-							testId="cluster-map-way-in-service"
-							onOpen={() =>
-								open({
-									type: "service",
-									namespace: gateway.namespace,
-									name: gateway.name,
-								})
-							}
-						/>
+						<EntityContextMenu
+							target={{
+								type: "service",
+								namespace: gateway.namespace,
+								name: gateway.name,
+							}}
+						>
+							<ServiceChip
+								svc={gateway}
+								testId="cluster-map-way-in-service"
+								onOpen={() =>
+									open({
+										type: "service",
+										namespace: gateway.namespace,
+										name: gateway.name,
+									})
+								}
+							/>
+						</EntityContextMenu>
 					)}
 				</div>
 				<div className="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-5">
@@ -647,11 +658,13 @@ const serviceStatus = (s: MapService): "ok" | "warn" | "error" =>
 				? "warn"
 				: "ok";
 
-const ServiceChip: React.FC<{
-	svc: MapService;
-	onOpen: () => void;
-	testId?: string;
-}> = ({ svc: s, onOpen, testId }) => (
+const ServiceChip: React.FC<
+	{
+		svc: MapService;
+		onOpen: () => void;
+		testId?: string;
+	} & Omit<React.ComponentProps<"button">, "onClick">
+> = ({ svc: s, onOpen, testId, ...attrs }) => (
 	<Chip
 		kind={s.kind}
 		name={s.name}
@@ -665,6 +678,7 @@ const ServiceChip: React.FC<{
 		onOpen={onOpen}
 		title={`Service ${s.namespace}/${s.name} (${s.type}, ${KINDS[s.kind].label})\n${s.ports.join(", ")}${s.external.length ? `\nexternal ${s.external.join(", ")}` : ""}\n${s.endpoints == null ? "endpoints not readable" : `${s.ready} of ${s.endpoints} endpoints ready`}`}
 		data-testid={testId ?? `cluster-map-service-${s.namespace}-${s.name}`}
+		{...attrs}
 	/>
 );
 
@@ -684,17 +698,26 @@ const ServicesStrip: React.FC<{ services: MapService[] }> = ({ services }) => {
 						</span>
 						<div className="flex flex-wrap gap-1.5">
 							{list.map((s) => (
-								<ServiceChip
+								<EntityContextMenu
+									target={{
+										type: "service",
+										namespace: s.namespace,
+										name: s.name,
+									}}
 									key={`${s.namespace}/${s.name}`}
-									svc={s}
-									onOpen={() =>
-										open({
-											type: "service",
-											namespace: s.namespace,
-											name: s.name,
-										})
-									}
-								/>
+								>
+									<ServiceChip
+										key={`${s.namespace}/${s.name}`}
+										svc={s}
+										onOpen={() =>
+											open({
+												type: "service",
+												namespace: s.namespace,
+												name: s.name,
+											})
+										}
+									/>
+								</EntityContextMenu>
 							))}
 						</div>
 					</div>
@@ -732,15 +755,17 @@ const NodeCard: React.FC<NodeCardProps> = ({ node: n, report, now }) => {
 			)}
 		>
 			<div className="flex flex-wrap items-center justify-between gap-2">
-				<button
-					type="button"
-					onClick={() => open({ type: "node", name: n.name })}
-					className="max-w-full cursor-pointer rounded-full border border-solid px-2.5 py-1 text-left text-xs font-semibold [overflow-wrap:anywhere] hover:brightness-125 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-content-link"
-					style={nodeBadgeStyle(n.name)}
-					data-testid={`cluster-map-node-${n.name}`}
-				>
-					{n.name}
-				</button>
+				<EntityContextMenu target={{ type: "node", name: n.name }}>
+					<button
+						type="button"
+						onClick={() => open({ type: "node", name: n.name })}
+						className="max-w-full cursor-pointer rounded-full border border-solid px-2.5 py-1 text-left text-xs font-semibold [overflow-wrap:anywhere] hover:brightness-125 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-content-link"
+						style={nodeBadgeStyle(n.name)}
+						data-testid={`cluster-map-node-${n.name}`}
+					>
+						{n.name}
+					</button>
+				</EntityContextMenu>
 				<Badge
 					size="xs"
 					variant={
@@ -799,31 +824,42 @@ const NodeCard: React.FC<NodeCardProps> = ({ node: n, report, now }) => {
 							</span>
 							<div className="flex flex-wrap gap-1.5">
 								{pods.map((pod) => (
-									<Chip
+									<EntityContextMenu
+										target={{
+											type: "pod",
+											namespace: pod.namespace,
+											name: pod.name,
+										}}
 										key={`${pod.namespace}/${pod.name}`}
-										kind={kind}
-										name={pod.name}
-										sub={[pod.podIP, pod.haRole].filter(Boolean).join(" · ")}
-										status={pod.ready && n.ready ? "ok" : "warn"}
-										className={pod.ready ? undefined : "opacity-75"}
-										onOpen={() =>
-											open({
-												type: "pod",
-												namespace: pod.namespace,
-												name: pod.name,
-											})
-										}
-										data-route-ready={pod.ready && n.ready}
-										data-ha-role={pod.haRole}
-										data-coder-server={kind === "coder" ? pod.name : undefined}
-										data-gateway-pod={
-											kind === "gateway"
-												? `${pod.namespace}/${pod.name}`
-												: undefined
-										}
-										data-testid={`cluster-map-pod-${pod.name}`}
-										title={`${KINDS[kind].label}${pod.haRole ? ` (${pod.haRole})` : ""} · ${pod.namespace}/${pod.name}\nIP ${pod.podIP ?? "N/A"} · ${pod.ready ? "ready" : "not ready"} · ${pod.restarts} restarts · up ${ago(pod.started, now)}`}
-									/>
+									>
+										<Chip
+											key={`${pod.namespace}/${pod.name}`}
+											kind={kind}
+											name={pod.name}
+											sub={[pod.podIP, pod.haRole].filter(Boolean).join(" · ")}
+											status={pod.ready && n.ready ? "ok" : "warn"}
+											className={pod.ready ? undefined : "opacity-75"}
+											onOpen={() =>
+												open({
+													type: "pod",
+													namespace: pod.namespace,
+													name: pod.name,
+												})
+											}
+											data-route-ready={pod.ready && n.ready}
+											data-ha-role={pod.haRole}
+											data-coder-server={
+												kind === "coder" ? pod.name : undefined
+											}
+											data-gateway-pod={
+												kind === "gateway"
+													? `${pod.namespace}/${pod.name}`
+													: undefined
+											}
+											data-testid={`cluster-map-pod-${pod.name}`}
+											title={`${KINDS[kind].label}${pod.haRole ? ` (${pod.haRole})` : ""} · ${pod.namespace}/${pod.name}\nIP ${pod.podIP ?? "N/A"} · ${pod.ready ? "ready" : "not ready"} · ${pod.restarts} restarts · up ${ago(pod.started, now)}`}
+										/>
+									</EntityContextMenu>
 								))}
 							</div>
 						</div>
@@ -840,25 +876,34 @@ const NodeCard: React.FC<NodeCardProps> = ({ node: n, report, now }) => {
 							const ok = agentOk(w) && w.pod.ready && n.ready;
 							const agent = w.agents[0];
 							return (
-								<Chip
+								<EntityContextMenu
+									target={{
+										type: "pod",
+										namespace: w.pod.namespace,
+										name: w.pod.name,
+									}}
 									key={w.id}
-									kind="workspace"
-									name={`${w.owner}/${w.name}`}
-									sub={w.pod.podIP}
-									status={ok ? "ok" : "warn"}
-									onOpen={() =>
-										open({
-											type: "pod",
-											namespace: w.pod.namespace,
-											name: w.pod.name,
-										})
-									}
-									data-workspace={ok ? "ok" : "bad"}
-									data-workspace-id={w.id}
-									data-label={`${w.owner}/${w.name}`}
-									data-testid={`cluster-map-pod-${w.pod.name}`}
-									title={`${w.owner}/${w.name} (${w.template ?? "N/A"})\npod ${w.pod.name} · IP ${w.pod.podIP ?? "N/A"}\nagent: ${agentLabel(w)}${agent?.latencyMs != null ? ` · ${agent.latencyMs.toFixed(0)} ms` : ""}`}
-								/>
+								>
+									<Chip
+										key={w.id}
+										kind="workspace"
+										name={`${w.owner}/${w.name}`}
+										sub={w.pod.podIP}
+										status={ok ? "ok" : "warn"}
+										onOpen={() =>
+											open({
+												type: "pod",
+												namespace: w.pod.namespace,
+												name: w.pod.name,
+											})
+										}
+										data-workspace={ok ? "ok" : "bad"}
+										data-workspace-id={w.id}
+										data-label={`${w.owner}/${w.name}`}
+										data-testid={`cluster-map-pod-${w.pod.name}`}
+										title={`${w.owner}/${w.name} (${w.template ?? "N/A"})\npod ${w.pod.name} · IP ${w.pod.podIP ?? "N/A"}\nagent: ${agentLabel(w)}${agent?.latencyMs != null ? ` · ${agent.latencyMs.toFixed(0)} ms` : ""}`}
+									/>
+								</EntityContextMenu>
 							);
 						})}
 					</div>

@@ -13,9 +13,36 @@ import (
 	"tailscale.com/tailcfg"
 
 	"cdr.dev/slog/v3/sloggers/slogtest"
+	"github.com/coder/coder/v2/codersdk"
 	"github.com/coder/coder/v2/codersdk/agentsdk"
 	"github.com/coder/coder/v2/testutil"
 )
+
+func TestConnectRPC213AdvertisesTermination(t *testing.T) {
+	t.Parallel()
+	requests := make(chan url.Values, 1)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests <- r.URL.Query()
+		w.WriteHeader(http.StatusForbidden)
+	}))
+	defer srv.Close()
+	u, err := url.Parse(srv.URL)
+	require.NoError(t, err)
+	client := agentsdk.New(u, agentsdk.WithFixedToken("unused"))
+	ctx := testutil.Context(t, testutil.WaitShort)
+	_, _, err = client.ConnectRPC213WithRole(ctx, "agent")
+	require.Error(t, err)
+	apiErr, ok := codersdk.AsError(err)
+	require.True(t, ok)
+	require.Equal(t, http.StatusForbidden, apiErr.StatusCode())
+	select {
+	case query := <-requests:
+		require.Equal(t, "2.13", query.Get("version"))
+		require.Equal(t, "agent", query.Get("role"))
+	case <-ctx.Done():
+		t.Fatal(ctx.Err())
+	}
+}
 
 // newReinitTestClient returns an http.Client with a dedicated transport.
 //

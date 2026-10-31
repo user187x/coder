@@ -1,4 +1,4 @@
-import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { PreviewParameter } from "#/api/typesGenerated";
 import { render } from "#/testHelpers/renderHelpers";
@@ -799,25 +799,20 @@ describe("DynamicParameter", () => {
 			expect(input).toHaveAttribute("max", "10");
 		});
 
-		it("calls onChange when numeric value changes (debounced)", () => {
-			vi.useFakeTimers();
+		it("calls onChange when numeric value changes", async () => {
+			const user = userEvent.setup();
 			render(
 				<DynamicParameter
 					parameter={mockNumberInputParameter}
-					value="5"
+					value=""
 					onChange={mockOnChange}
 				/>,
 			);
 
 			const input = screen.getByRole("spinbutton");
-			fireEvent.change(input, { target: { value: "7" } });
+			await user.type(input, "7");
 
-			act(() => {
-				vi.runAllTimers();
-			});
-
-			expect(mockOnChange).toHaveBeenCalledWith("7");
-			vi.useRealTimers();
+			await waitFor(() => expect(mockOnChange).toHaveBeenCalledWith("7"));
 		});
 	});
 

@@ -5,13 +5,13 @@ import {
 	NetworkIcon,
 	SquareTerminalIcon,
 } from "lucide-react";
-import type { ReactNode } from "react";
+
 import type { WorkspaceAgent, WorkspaceResource } from "#/api/typesGenerated";
 import { ExternalImage } from "#/components/ExternalImage/ExternalImage";
 import { DisplayAppNameMap } from "#/modules/resources/AppLink/AppLink";
 import { BaseIcon } from "#/modules/resources/AppLink/BaseIcon";
 
-type Tile = { key: string; name: string; icon: ReactNode };
+type Tile = { key: string; name: string; icon: React.ReactNode };
 
 /** An agent's apps as tiles: its own (coder_app), then Coder's built-in ones it shows (terminal, VS Code, SSH, ports). */
 const tilesOf = (agent: WorkspaceAgent): Tile[] => {

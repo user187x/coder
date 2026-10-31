@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { userEvent, within } from "storybook/test";
 import { mockApiError } from "#/testHelpers/entities";
 import { AccountForm } from "./AccountForm";
 
@@ -6,6 +7,7 @@ const meta: Meta<typeof AccountForm> = {
 	title: "pages/UserSettingsPage/AccountForm",
 	component: AccountForm,
 	args: {
+		emailEditable: true,
 		email: "test-user@org.com",
 		isLoading: false,
 		initialValues: {
@@ -48,5 +50,20 @@ export const WithError: Story = {
 export const Editable: Story = {
 	args: {
 		editable: true,
+	},
+};
+
+export const ProviderManagedEmail: Story = {
+	args: {
+		emailEditable: false,
+		providerAccountURL: "https://sso.example.test/realms/coder/account/",
+	},
+};
+
+export const ChangingEmail: Story = {
+	play: async ({ canvasElement }) => {
+		const email = within(canvasElement).getByLabelText("Email");
+		await userEvent.clear(email);
+		await userEvent.type(email, "updated@example.test");
 	},
 };

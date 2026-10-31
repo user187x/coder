@@ -18,6 +18,7 @@ import {
 import { ago, LiveStatus, useNow } from "#/modules/platform/ClusterVisuals";
 import { formatMs } from "./clusterFormat";
 import { componentIcon, KINDS, KindLegend } from "./componentKinds";
+import { EntityContextMenu } from "./EntityActions";
 import { useOpenEntity } from "./EntityDetails";
 import { layoutMesh, NODE_H, NODE_W, PLATFORM_W } from "./meshLayout";
 
@@ -26,7 +27,7 @@ export const edgeLabel = (e: MeshEdge) =>
 	e.ms != null ? formatMs(e.ms) : e.measuredBy ? "failed" : "—";
 
 /** The hover text: how it is measured (and by whom, when), or why it is not. */
-export const edgeHint = (e: MeshEdge, names: Record<string, string>) =>
+const edgeHint = (e: MeshEdge, names: Record<string, string>) =>
 	[
 		`${names[e.from] ?? e.from} → ${names[e.to] ?? e.to}`,
 		e.ms != null
@@ -84,7 +85,7 @@ export const MeshCard: React.FC<{ paused: boolean }> = ({ paused }) => {
 	);
 };
 
-export const MeshView: React.FC<{ report: MeshReport }> = ({ report }) => {
+const MeshView: React.FC<{ report: MeshReport }> = ({ report }) => {
 	const open = useOpenEntity();
 	const now = useNow();
 	const layout = layoutMesh(report);
@@ -307,22 +308,24 @@ const MeshNodeBox: React.FC<{
 		</>
 	);
 	return onOpen ? (
-		<g
-			role="button"
-			tabIndex={0}
-			aria-label={`${node.label}: ${sub}`}
-			className="cursor-pointer outline-none [&:focus-visible>rect:first-of-type]:stroke-[3]"
-			onClick={onOpen}
-			onKeyDown={(ev) => {
-				if (ev.key === "Enter" || ev.key === " ") {
-					ev.preventDefault();
-					onOpen();
-				}
-			}}
-			data-testid={`mesh-node-${node.id}`}
-		>
-			{box}
-		</g>
+		<EntityContextMenu target={node.entity ?? undefined}>
+			<g
+				role="button"
+				tabIndex={0}
+				aria-label={`${node.label}: ${sub}`}
+				className="cursor-pointer outline-none [&:focus-visible>rect:first-of-type]:stroke-[3]"
+				onClick={onOpen}
+				onKeyDown={(ev) => {
+					if (ev.key === "Enter" || ev.key === " ") {
+						ev.preventDefault();
+						onOpen();
+					}
+				}}
+				data-testid={`mesh-node-${node.id}`}
+			>
+				{box}
+			</g>
+		</EntityContextMenu>
 	) : (
 		<g data-testid={`mesh-node-${node.id}`}>{box}</g>
 	);

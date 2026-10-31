@@ -255,7 +255,7 @@ func NewServer(ctx context.Context, logger slog.Logger, prometheusRegistry *prom
 			// the client session ID from the inner conn.
 			clientSessionID := ""
 			val := reflect.ValueOf(conn)
-			if val.Kind() == reflect.Ptr {
+			if val.Kind() == reflect.Pointer {
 				val = val.Elem()
 			}
 			if val.Kind() == reflect.Struct {

@@ -6,6 +6,7 @@ import {
 	cableReach,
 	fall,
 	hangingRest,
+	heldRest,
 	makeCable,
 	plugAngle,
 	REACH,
@@ -116,6 +117,24 @@ describe("cables", () => {
 		// the Cloud Drive left of the table's corner: straight along the top to the corner first
 		expect(cablePath({ x: 300, y: 30 }, cable, to, from)).toMatch(
 			/^M300,30 L407,30 C/,
+		);
+	});
+
+	it("sags below an avatar while approaching the back of a plug aimed at the banner", () => {
+		const avatar = { x: 250, y: 350 };
+		const plug = { x: 750, y: 80 };
+		const banner = { x: 650, y: 25 };
+		const cable = settle(
+			makeCable(avatar, plug),
+			heldRest(avatar, plug, banner),
+		);
+		expect(cablePoint(avatar, cable, plug, 0.05).y).toBeGreaterThan(avatar.y);
+		expect(plugAngle(cable, plug)).toBeCloseTo(
+			Math.atan2(banner.y - plug.y, banner.x - plug.x),
+			1,
+		);
+		expect(cableLength(avatar, cable, plug)).toBeGreaterThan(
+			Math.hypot(plug.x - avatar.x, plug.y - avatar.y),
 		);
 	});
 });

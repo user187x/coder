@@ -13,11 +13,16 @@ import {
 	DialogContent,
 	DialogTitle,
 } from "#/components/Dialog/Dialog";
+import { AnnouncementImage } from "./AnnouncementImage";
 import { BannerCountdown } from "./BannerCountdown";
 import { BannerBlocks } from "./BannerText";
 import { bannerFontStack } from "./bannerFonts";
 import { safeHref } from "./bannerTokens";
 import { attachAnnouncementAutoScroll } from "./hoverAutoScroll";
+import {
+	AnnouncementMotionDisabled,
+	useAnnouncementMotion,
+} from "./useAnnouncementMotion";
 
 /** A full-message reader that leaves the announcement's dismissal state unchanged. */
 export const AnnouncementReader: React.FC<{
@@ -26,7 +31,9 @@ export const AnnouncementReader: React.FC<{
 }> = ({ banner, children }) => {
 	const [open, setOpen] = useState(false);
 	return (
-		<>
+		<AnnouncementMotionDisabled.Provider
+			value={banner.animationsDisabled === true}
+		>
 			<ContextMenu>
 				<ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
 				<ContextMenuContent>
@@ -49,20 +56,32 @@ export const AnnouncementReader: React.FC<{
 					</DialogClose>
 				</DialogContent>
 			</Dialog>
-		</>
+		</AnnouncementMotionDisabled.Provider>
 	);
 };
 
 export const AnnouncementMessage: React.FC<{ banner: BannerFields }> = ({
 	banner,
+}) => (
+	<AnnouncementMotionDisabled.Provider
+		value={banner.animationsDisabled === true}
+	>
+		<AnnouncementMessageContent banner={banner} />
+	</AnnouncementMotionDisabled.Provider>
+);
+
+const AnnouncementMessageContent: React.FC<{ banner: BannerFields }> = ({
+	banner,
 }) => {
+	const motion = useAnnouncementMotion(banner.animationsDisabled);
 	const body = useRef<HTMLDivElement>(null);
 	useEffect(() => {
 		const el = body.current;
-		return el
+		return el && motion.effects
 			? attachAnnouncementAutoScroll(el, () => el, false, banner)
 			: undefined;
 	}, [
+		motion.effects,
 		banner.message,
 		banner.autoScroll,
 		banner.autoScrollSpeed,
@@ -72,6 +91,7 @@ export const AnnouncementMessage: React.FC<{ banner: BannerFields }> = ({
 	return (
 		<div
 			ref={body}
+			data-announcement-motion={motion.effects ? "on" : "off"}
 			// biome-ignore lint/a11y/noNoninteractiveTabindex: Keyboard users must be able to scroll the message region.
 			tabIndex={0}
 			role="region"
@@ -80,7 +100,7 @@ export const AnnouncementMessage: React.FC<{ banner: BannerFields }> = ({
 			style={{ fontFamily: bannerFontStack(banner.font) }}
 		>
 			{banner.picture && safeHref(banner.picture) && (
-				<img
+				<AnnouncementImage
 					src={banner.picture}
 					alt="Announcement"
 					className="mb-4 max-h-80 max-w-full object-contain"

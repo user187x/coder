@@ -1,12 +1,15 @@
 import { screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { PlatformAPI } from "#/api/platform";
 import type { Workspace, WorkspaceAgentMetadata } from "#/api/typesGenerated";
+import * as WorkspaceMetricsAPI from "#/api/workspaceMetrics";
 import {
 	MockStoppedWorkspace,
 	MockWorkspace,
 	MockWorkspaceAgent,
 } from "#/testHelpers/entities";
 import { render } from "#/testHelpers/renderHelpers";
+import { MockWorkspaceInfrastructureMetrics } from "#/testHelpers/workspaceMetrics";
 import {
 	readingOf,
 	resourceBuckets,
@@ -66,6 +69,7 @@ const running: Workspace = {
 };
 
 beforeEach(() => {
+	vi.clearAllMocks();
 	vi.spyOn(PlatformAPI, "getWorkspaceResourceHistory").mockResolvedValue({
 		windowSeconds: 300,
 		asOf: 300000,
@@ -84,9 +88,9 @@ it("places only the trailing five minutes in fixed buckets, averaging within eac
 	const result = resourceBuckets(samples, 300000);
 	expect(result).toHaveLength(12);
 	expect(result[0]).toBe(20);
-	expect(result.slice(1, 11)).toEqual(Array(10).fill(null));
+	expect(result.slice(1, 11)).toEqual(new Array(10).fill(null));
 	expect(result[11]).toBe(60);
-	expect(resourceBuckets(samples, 900000)).toEqual(Array(12).fill(null));
+	expect(resourceBuckets(samples, 900000)).toEqual(new Array(12).fill(null));
 });
 
 describe("WorkspaceResources", () => {
@@ -131,3 +135,59 @@ describe("WorkspaceResources", () => {
 		);
 	});
 });
+
+it.each(["CPU", "RAM", "Disk"])(
+	"requests finer history only while %s details are open",
+	async (label) => {
+		const user = userEvent.setup();
+		const onRowClick = vi.fn();
+		const allocation = vi
+			.spyOn(WorkspaceMetricsAPI, "getWorkspaceInfrastructureMetrics")
+			.mockResolvedValue(MockWorkspaceInfrastructureMetrics);
+		render(
+			<div onClick={onRowClick} onKeyDown={onRowClick}>
+				<WorkspaceResources workspace={running} />
+			</div>,
+		);
+		sockets
+			.at(-1)
+			?.send([
+				metric("0_cpu_usage", "CPU", "0.1/2 cores (6%)"),
+				metric("1_mem_usage", "Memory", "1/4 GB (25%)"),
+				metric("2_disk", "Disk", "2/10 GB (20%)"),
+			]);
+		await vi.waitFor(() =>
+			expect(PlatformAPI.getWorkspaceResourceHistory).toHaveBeenCalledWith(
+				running.id,
+				300,
+				12,
+			),
+		);
+		expect(PlatformAPI.getWorkspaceResourceHistory).not.toHaveBeenCalledWith(
+			running.id,
+			300,
+			60,
+		);
+		const trigger = await screen.findByRole("button", {
+			name: `${label} metric details`,
+		});
+		expect(allocation).not.toHaveBeenCalled();
+		await user.hover(trigger);
+		await vi.waitFor(() =>
+			expect(allocation).toHaveBeenCalledWith(
+				running.organization_id,
+				running.id,
+				300,
+			),
+		);
+		await vi.waitFor(() =>
+			expect(PlatformAPI.getWorkspaceResourceHistory).toHaveBeenCalledWith(
+				running.id,
+				300,
+				60,
+			),
+		);
+		await user.click(trigger);
+		expect(onRowClick).not.toHaveBeenCalled();
+	},
+);

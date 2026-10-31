@@ -8,14 +8,17 @@ out=${1:?Usage: package-source-release.sh OUTPUT-DIRECTORY}
 mkdir -p "$out"
 out=$(realpath "$out")
 built="$root/build/release-$version"
-[[ -s "$built/FORK-IMAGES.txt" ]] || { echo 'Run build-source-release.sh first.' >&2; exit 1; }
+[[ -s "$built/FORK-IMAGES.txt" ]] || {
+	echo 'Run build-source-release.sh first.' >&2
+	exit 1
+}
 stage=$(mktemp -d)
 trap 'rm -rf "$stage"' EXIT
 name="coder-build-kit-$version"
 mkdir "$stage/$name"
 git -C "$root" archive HEAD | tar --exclude=docs/images --exclude=airgap-dist/development/graphics -xf - -C "$stage/$name"
 cp "$root/airgap-dist/filebrowser-quantum" "$stage/$name/airgap-dist/filebrowser-quantum"
-git -C "$root" rev-parse HEAD > "$stage/$name/RELEASE-COMMIT"
+git -C "$root" rev-parse HEAD >"$stage/$name/RELEASE-COMMIT"
 cp "$here/release/START-HERE.md" "$stage/$name/START-HERE.md"
 cp "$here/release/START-HERE.md" "$out/START-HERE.md"
 cp "$built/"*.tgz "$out/"
@@ -52,7 +55,7 @@ out.joinpath('IMAGE-INVENTORY.json').write_text(json.dumps({
  'notes':['Build on a connected Linux x86_64 machine. Base images alone do not supply package/source downloads.','No saved container images are included. DATAFLOW is disabled unless --dataflow is used.']
 },indent=2)+'\n')
 PY
-tar -C "$stage" -cf - "$name" | gzip -6 > "$out/$name.tar.gz"
-(cd "$out" && sha256sum -- START-HERE.md *.tgz *.tar.gz *IMAGES.txt IMAGE-INVENTORY.json > SHA256SUMS)
+tar -C "$stage" -cf - "$name" | gzip -6 >"$out/$name.tar.gz"
+(cd "$out" && sha256sum -- START-HERE.md *.tgz *.tar.gz *IMAGES.txt IMAGE-INVENTORY.json >SHA256SUMS)
 cp "$out/SHA256SUMS" "$out/SOURCE-SHA256SUMS"
 echo "Source release packaged: $out"

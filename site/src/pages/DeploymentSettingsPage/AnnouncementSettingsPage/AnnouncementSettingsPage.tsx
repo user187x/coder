@@ -28,6 +28,7 @@ import {
 	SettingsHeaderTitle,
 } from "#/components/SettingsHeader/SettingsHeader";
 import { Switch } from "#/components/Switch/Switch";
+import { useAuthContext } from "#/contexts/auth/AuthProvider";
 import { BannerPreview } from "#/modules/platform/announcement/BannerPreview";
 import {
 	fromMarkdown,
@@ -37,6 +38,7 @@ import {
 import { pageTitle } from "#/utils/page";
 import { Acknowledgements } from "./Acknowledgements";
 import { BannerEditor, MESSAGE_MAX_LENGTH } from "./BannerEditor";
+import { NotificationComposer } from "./NotificationComposer";
 
 // The crawl's pace before it had a slider of its own (announcements with only a speed).
 const LEGACY_CRAWL_SPEED = { slow: 9, normal: 15, fast: 26 } as const;
@@ -54,6 +56,7 @@ const FIELDS = [
 	"effect",
 	"repeat",
 	"loopText",
+	"animationsDisabled",
 	"audience",
 	"audienceUserIds",
 	"autoScroll",
@@ -89,6 +92,7 @@ const fieldsOf = ({ id: _id, ...banner }: Banner): BannerFields => {
 		effect: banner.effect ?? "none",
 		repeat: banner.repeat ?? false,
 		loopText: banner.loopText ?? true,
+		animationsDisabled: banner.animationsDisabled ?? false,
 		audience: banner.audience ?? "everyone",
 		audienceUserIds: banner.audienceUserIds ?? [],
 		autoScroll: banner.autoScroll ?? true,
@@ -203,6 +207,7 @@ const unavailableMessage = (error: unknown) => {
  */
 const AnnouncementSettingsPage: React.FC = () => {
 	const stateQuery = useQuery(bannerState());
+	const { permissions } = useAuthContext();
 
 	return (
 		<>
@@ -224,9 +229,14 @@ const AnnouncementSettingsPage: React.FC = () => {
 			) : (
 				<div className="flex flex-col gap-6">
 					<AnnouncementEditor state={stateQuery.data} />
-					<Acknowledgements />
+					<Acknowledgements banner={stateQuery.data.banner} />
 				</div>
 			)}
+			<div className="mt-6">
+				<NotificationComposer
+					canEdit={Boolean(permissions?.editDeploymentConfig)}
+				/>
+			</div>
 		</>
 	);
 };
@@ -255,7 +265,10 @@ const AnnouncementEditor: React.FC<{ state: BannerState }> = ({ state }) => {
 		window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 
 	const published = fieldsOf(state.banner);
-	const form = draft ?? editableFields(state.banner);
+	const form = {
+		...(draft ?? editableFields(state.banner)),
+		receipts: published.receipts,
+	};
 	const dirty = !sameFields(form, published);
 	const live = state.banner.enabled && hasContent(state.banner);
 	const nothingToShow =
@@ -287,7 +300,8 @@ const AnnouncementEditor: React.FC<{ state: BannerState }> = ({ state }) => {
 		<>
 			<BannerEditor
 				visibility={
-					<div className="flex flex-wrap items-center justify-between gap-4">
+					<div className="grid grid-cols-[1fr_auto] items-center gap-4">
+						<h3 className="m-0 text-sm font-semibold">Controls</h3>
 						<div className="flex items-center gap-3">
 							<Switch
 								id="announcement-visible"
@@ -351,7 +365,7 @@ const AnnouncementEditor: React.FC<{ state: BannerState }> = ({ state }) => {
 						</div>
 						<Button
 							variant="outline"
-							className="border-highlight-orange text-highlight-orange"
+							className="col-start-2 row-start-1 row-span-2 self-center border-highlight-orange text-highlight-orange"
 							disabled={busy || !hasContent(state.banner)}
 							title="Show the banner again to everyone, including people who dismissed it"
 							onClick={() => setConfirm("reshow")}

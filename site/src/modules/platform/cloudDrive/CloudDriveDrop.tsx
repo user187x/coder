@@ -9,7 +9,7 @@ import { describe, type Transfer, upload } from "./transfers";
 import "./cloudDrive.css";
 
 /** Why the user's own Cloud Drive takes no files now: a few words while they are held over it, and what a drop says. */
-export type Refusal = { hint: string; message: string };
+type Refusal = { hint: string; message: string };
 
 /**
  * Why a drop on the Cloud Drive is refused now, or null: it takes files. Its files cannot be reached (`offline`: its
@@ -51,7 +51,7 @@ export const dropRefusal = (
 };
 
 /** Dropped files on their way up: the one going now, which of how many, and the bytes of those before it, of all. */
-export type DropUpload = {
+type DropUpload = {
 	transfer: Transfer;
 	index: number;
 	count: number;

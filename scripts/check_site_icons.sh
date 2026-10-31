@@ -17,6 +17,9 @@ exceptions=(
 	"gcp.png"
 	"k8s.png"
 	"ruby.png"
+	# Raster artwork used by the fork's Browser and tunnel controls.
+	"browser-web-icon.png"
+	"workspace-tunnel.png"
 )
 
 function is_exception() {

@@ -24,6 +24,7 @@ import subprocess
 import sys
 import tarfile
 import urllib.request
+from servicetls import open_service
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 BUNDLED_RULES = os.path.join(HERE, "fips-rules.json")
@@ -311,7 +312,7 @@ def activate(sid):
 def fetch(url, dest):
     """The active set from the service, unpacked: DEST/trivy (the cache directory) and DEST/fips-rules.json."""
     os.makedirs(dest, exist_ok=True)
-    with urllib.request.urlopen(url, timeout=600) as r, tarfile.open(fileobj=r, mode="r|gz") as tf:
+    with open_service(url, timeout=600) as r, tarfile.open(fileobj=r, mode="r|gz") as tf:
         for m in tf:
             if not m.isfile():
                 continue

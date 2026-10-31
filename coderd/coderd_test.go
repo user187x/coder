@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/google/uuid"
@@ -506,7 +507,12 @@ func TestWebSocketProbeMetrics(t *testing.T) {
 
 	// Wait for the WSWatcher ticker to be created, then trigger one probe.
 	trap.MustWait(ctx).MustRelease(ctx)
-	mClock.Advance(httpapi.HeartbeatInterval).MustWait(ctx)
+	// Advance through the enforcement tickers before reaching the probe tick.
+	for elapsed := time.Duration(0); elapsed < httpapi.HeartbeatInterval; {
+		delta, advance := mClock.AdvanceNext()
+		advance.MustWait(ctx)
+		elapsed += delta
+	}
 
 	// Assert the probe metric was recorded.
 	testutil.Eventually(ctx, t, func(context.Context) bool {

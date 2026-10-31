@@ -1,6 +1,7 @@
 import { act, render } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { toast } from "sonner";
+import type * as APIModule from "#/api/api";
 import { NotificationsInbox } from "./NotificationsInbox";
 
 type Listener = (event: unknown) => void;
@@ -23,7 +24,7 @@ class FakeSocket {
 
 const sockets: FakeSocket[] = [];
 vi.mock("#/api/api", async (importOriginal) => ({
-	...(await importOriginal<typeof import("#/api/api")>()),
+	...(await importOriginal<typeof APIModule>()),
 	watchInboxNotifications: () => {
 		const socket = new FakeSocket();
 		sockets.push(socket);

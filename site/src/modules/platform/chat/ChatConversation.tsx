@@ -49,7 +49,7 @@ const MAX_TEXT = 4000;
 const TLS_NOTE =
 	"Encrypted in transit: this chat travels over HTTPS (TLS) to Coder, where messages are kept for 30 days.";
 
-export const formatWhen = (iso: string) => {
+const formatWhen = (iso: string) => {
 	const date = new Date(iso);
 	const today = new Date().toDateString() === date.toDateString();
 	return today
@@ -92,11 +92,13 @@ export const formatSize = (bytes: number) => {
 /** What the window's or the console's header menu asks of the conversation. */
 export type ConversationActions = DockListActions & {
 	screenshot: () => void;
+	chooseFile: () => void;
 	askDelete: () => void;
 	focus: () => void;
 };
 
 type ChatConversationProps = {
+	compact?: boolean;
 	view: ChatWindowState;
 	/** The dock, left out of screenshots. */
 	dock: React.RefObject<HTMLElement | null>;
@@ -120,6 +122,7 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
 	view: w,
 	dock,
 	ref,
+	compact,
 	className,
 	style,
 	onEscape,
@@ -298,6 +301,9 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
 
 	useImperativeHandle(ref, () => ({
 		screenshot: () => void screenshot(),
+		chooseFile: () => {
+			if (!blocked) fileRef.current?.click();
+		},
 		askDelete: () => setConfirmingDelete(true),
 		selectAll: () => selectionRef.current?.selectAll(),
 		clearSelection: () => selectionRef.current?.clearSelection(),
@@ -375,6 +381,7 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
 						</button>
 					)}
 					<MessageLog
+						compact={compact}
 						view={w}
 						meId={me?.id ?? ""}
 						name={name}
@@ -554,6 +561,8 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
 				<input
 					ref={fileRef}
 					type="file"
+					aria-label="Choose attachment"
+					disabled={blocked}
 					hidden
 					tabIndex={-1}
 					onChange={(event) => {
@@ -632,6 +641,7 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
 };
 
 type MessageLogProps = {
+	compact?: boolean;
 	actionsRef: React.Ref<DockListActions>;
 	view: ChatWindowState;
 	meId: string;
@@ -639,6 +649,7 @@ type MessageLogProps = {
 };
 
 const MessageLog: React.FC<MessageLogProps> = ({
+	compact,
 	view: w,
 	meId,
 	name,
@@ -693,39 +704,47 @@ const MessageLog: React.FC<MessageLogProps> = ({
 	let previousFrom: string | null = null;
 	return (
 		<>
-			<div className="sticky top-0 z-10 flex flex-wrap items-center justify-center gap-1 rounded-md bg-surface-primary p-1 text-xs">
-				<span>{ids.length} selected</span>
-				<Button
-					size="sm"
-					variant="subtle"
-					onClick={() => setSelected(new Set(w.messages.map((m) => m.id)))}
+			<details open={compact ? undefined : true} className="shrink-0">
+				<summary
+					hidden={!compact}
+					className="cursor-pointer py-1 text-xs text-content-secondary"
 				>
-					Select all loaded
-				</Button>
-				<Button
-					size="sm"
-					variant="subtle"
-					onClick={() => setSelected(new Set())}
-				>
-					Clear selection
-				</Button>
-				<Button
-					size="sm"
-					variant="subtle"
-					disabled={!ids.length || remove.isPending}
-					onClick={() => setDeleting(ids)}
-				>
-					Delete selected
-				</Button>
-				<Button
-					size="sm"
-					variant="subtle"
-					disabled={remove.isPending}
-					onClick={() => setDeleting(null)}
-				>
-					Clear all
-				</Button>
-			</div>
+					Message actions{ids.length ? ` · ${ids.length} selected` : ""}
+				</summary>
+				<div className="bulk-action-surface sticky top-0 z-10 flex flex-wrap items-center justify-center gap-1 rounded-md bg-surface-primary p-1 text-xs">
+					<span>{ids.length} selected</span>
+					<Button
+						size="sm"
+						variant="subtle"
+						onClick={() => setSelected(new Set(w.messages.map((m) => m.id)))}
+					>
+						Select all loaded
+					</Button>
+					<Button
+						size="sm"
+						variant="subtle"
+						onClick={() => setSelected(new Set())}
+					>
+						Clear selection
+					</Button>
+					<Button
+						size="sm"
+						variant="subtle"
+						disabled={!ids.length || remove.isPending}
+						onClick={() => setDeleting(ids)}
+					>
+						Delete selected
+					</Button>
+					<Button
+						size="sm"
+						variant="subtle"
+						disabled={remove.isPending}
+						onClick={() => setDeleting(null)}
+					>
+						Clear all
+					</Button>
+				</div>
+			</details>
 			{w.messages.map((m) => {
 				const at = new Date(m.at).getTime();
 				const gap = !lastShown || at - lastShown > 10 * 60_000;
@@ -778,6 +797,7 @@ const MessageLog: React.FC<MessageLogProps> = ({
 					</div>
 				);
 			})}
+
 			<ConfirmDialog
 				contentClassName="z-[120]"
 				overlayClassName="z-[119] backdrop-blur-sm"

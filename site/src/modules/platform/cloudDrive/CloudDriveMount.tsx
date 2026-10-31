@@ -239,7 +239,7 @@ const describe = (c: CloudDriveCollision) =>
  * The mount halted on files of the same name: keep both, or overwrite - and then overwrite all, or each occurrence
  * asked in turn (the terminal's [Y/n]: Y overwrites, n keeps both).
  */
-export const CollisionDialog: React.FC<{
+const CollisionDialog: React.FC<{
 	plan: CloudDriveMountPlan;
 	pending: boolean;
 	onCancel: () => void;

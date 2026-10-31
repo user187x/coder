@@ -3,7 +3,8 @@
 # kind's node image, Traefik, Argo CD and Keycloak before the air gap is turned on) and docker, kind, kubectl, helm,
 # openssl. Idempotent: an existing cluster is kept. Then: ./e2e.sh <bundle.tar.gz> && ./step8.sh
 set -euo pipefail
-W="$(cd "$(dirname "$0")" && pwd)"; B="$(cd "$W/../../../helm-chart" && pwd)"
+W="$(cd "$(dirname "$0")" && pwd)"
+B="$(cd "$W/../../../helm-chart" && pwd)"
 export KUBECONFIG=$W/kubeconfig
 # Helm repositories of its own (not the user's ~/.config/helm and ~/.cache/helm)
 export HELM_REPOSITORY_CONFIG=$W/helm/repositories.yaml HELM_REPOSITORY_CACHE=$W/helm/cache HELM_REGISTRY_CONFIG=$W/helm-registry.json
@@ -17,7 +18,8 @@ docker network connect kind airgap-registry 2>/dev/null || true
 docker exec airgap-test-control-plane sh -c 'for h in localhost:5001 airgap-registry:5000; do mkdir -p /etc/containerd/certs.d/$h; printf "[host.\"http://airgap-registry:5000\"]\n" > /etc/containerd/certs.d/$h/hosts.toml; done'
 
 say "test PKI (pki/): CA, *.airgap.test, OIDC client secret"
-P=$W/pki; mkdir -p "$P"
+P=$W/pki
+mkdir -p "$P"
 if [[ ! -s $P/ca.crt ]]; then
 	openssl req -x509 -newkey rsa:3072 -nodes -days 3650 -subj "/CN=airgap-test CA" -keyout "$P/ca.key" -out "$P/ca.crt" \
 		-addext "basicConstraints=critical,CA:TRUE" -addext "keyUsage=critical,keyCertSign,cRLSign" 2>/dev/null

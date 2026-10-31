@@ -112,9 +112,6 @@ importers:
       formik:
         specifier: 2.4.9
         version: 2.4.9(@types/react@19.2.18)(react@19.2.8)
-      front-matter:
-        specifier: 4.0.2
-        version: 4.0.2
       ghostty-web:
         specifier: 0.4.0
         version: 0.4.0
@@ -284,9 +281,6 @@ importers:
       '@types/lodash':
         specifier: 4.17.25
         version: 4.17.25
-      '@types/mdast':
-        specifier: 4.0.4
-        version: 4.0.4
       '@types/node':
         specifier: 20.19.41
         version: 20.19.41
@@ -3325,9 +3319,6 @@ packages:
     resolution: {integrity: sha512-4Dj6M28JB+oAH8kFkTLUo+a2jwOFkuqb3yucU0CANcRRUbxS0cP0nZYCGjcc3BNXwRIsUVmDGgzawme7zvJHvg==, tarball: https://registry.npmjs.org/ansi-styles/-/ansi-styles-6.2.3.tgz}
     engines: {node: '>=12'}
 
-  argparse@1.0.10:
-    resolution: {integrity: sha512-o5Roy6tNG4SL/FOkCAN6RzjiakZS25RLYFrcMttJqbdd8BWrnA+fGz57iN5Pb06pvBGvl5gQ0B48dJlslXvoTg==, tarball: https://registry.npmjs.org/argparse/-/argparse-1.0.10.tgz}
-
   argparse@2.0.1:
     resolution: {integrity: sha512-8+9WqebbFzpX9OR+Wa6O29asIogeRMzcGtAINdpMHHyAg10f05aSFVBbcEqGf/PXw1EjAZ+q2/bEBg3DvurK3Q==, tarball: https://registry.npmjs.org/argparse/-/argparse-2.0.1.tgz}
 
@@ -4048,9 +4039,6 @@ packages:
     resolution: {integrity: sha512-zJ2mQYM18rEFOudeV4GShTGIQ7RbzA7ozbU9I/XBpm7kqgMywgmylMwXHxZJmkVoYkna9d2pVXVXPdYTP9ej8Q==, tarball: https://registry.npmjs.org/fresh/-/fresh-0.5.2.tgz}
     engines: {node: '>= 0.6'}
 
-  front-matter@4.0.2:
-    resolution: {integrity: sha512-I8ZuJ/qG92NWX8i5x1Y8qyj3vizhXS31OxjKDu3LKP+7/qBgfIKValiZIEwoVoJKUHlhWtYrktkxV1XsX+pPlg==, tarball: https://registry.npmjs.org/front-matter/-/front-matter-4.0.2.tgz}
-
   fs-extra@11.3.4:
     resolution: {integrity: sha512-CTXd6rk/M3/ULNQj8FBqBWHYBVYybQ3VPBw0xGKFe3tuH7ytT6ACnvzpIQ3UZtB8yvUKC2cXn1a+x+5EVQLovA==, tarball: https://registry.npmjs.org/fs-extra/-/fs-extra-11.3.4.tgz}
     engines: {node: '>=14.14'}
@@ -4410,10 +4398,6 @@ packages:
 
   js-tokens@4.0.0:
     resolution: {integrity: sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==, tarball: https://registry.npmjs.org/js-tokens/-/js-tokens-4.0.0.tgz}
-
-  js-yaml@3.15.2:
-    resolution: {integrity: sha512-6EuL879VkRA+1Cz578mKMiKvjPNEuk6+r1JaFzoSWejZmtf7xWbIyw1e3KkxlkzTIt9Taw6JBhEppG7utc1P+w==, tarball: https://registry.npmjs.org/js-yaml/-/js-yaml-3.15.2.tgz}
-    hasBin: true
 
   js-yaml@4.3.2:
     resolution: {integrity: sha512-SFNOvSJ+Dgf/9An904Yx+CgSlIPCkIpao4qo51lpee25TIRejdH3rhR4EZMGoNx3/TP3O+wzWuiTFl4sqbltzA==, tarball: https://registry.npmjs.org/js-yaml/-/js-yaml-4.3.2.tgz}
@@ -5605,9 +5589,6 @@ packages:
 
   space-separated-tokens@2.0.2:
     resolution: {integrity: sha512-PEGlAwrG8yXGXRjW32fGbg66JAlOAwbObuqVoJpv/mRgoWDQfgH1wDPvtzWyUSNAXBGSk8h755YDbbcEy3SH2Q==, tarball: https://registry.npmjs.org/space-separated-tokens/-/space-separated-tokens-2.0.2.tgz}
-
-  sprintf-js@1.0.3:
-    resolution: {integrity: sha512-D9cPgkvLlV3t3IzL0D0YLvGA9Ahk4PcvVwUbN0dSGr1aP0Nrt4AEnTUbuGvquEC0mA64Gqt1fzirlRs5ibXx8g==, tarball: https://registry.npmjs.org/sprintf-js/-/sprintf-js-1.0.3.tgz}
 
   sqids@0.3.0:
     resolution: {integrity: sha512-lOQK1ucVg+W6n3FhRwwSeUijxe93b51Bfz5PMRMihVf1iVkl82ePQG7V5vwrhzB11v0NtsR25PSZRGiSomJaJw==, tarball: https://registry.npmjs.org/sqids/-/sqids-0.3.0.tgz}
@@ -8898,10 +8879,6 @@ snapshots:
 
   ansi-styles@6.2.3: {}
 
-  argparse@1.0.10:
-    dependencies:
-      sprintf-js: 1.0.3
-
   argparse@2.0.1: {}
 
   aria-hidden@1.2.6:
@@ -9642,10 +9619,6 @@ snapshots:
 
   fresh@0.5.2: {}
 
-  front-matter@4.0.2:
-    dependencies:
-      js-yaml: 3.15.2
-
   fs-extra@11.3.4:
     dependencies:
       graceful-fs: 4.2.11
@@ -10018,11 +9991,6 @@ snapshots:
   jiti@2.7.0: {}
 
   js-tokens@4.0.0: {}
-
-  js-yaml@3.15.2:
-    dependencies:
-      argparse: 1.0.10
-      esprima: 4.0.1
 
   js-yaml@4.3.2:
     dependencies:
@@ -11616,8 +11584,6 @@ snapshots:
   space-separated-tokens@1.1.5: {}
 
   space-separated-tokens@2.0.2: {}
-
-  sprintf-js@1.0.3: {}
 
   sqids@0.3.0: {}
 

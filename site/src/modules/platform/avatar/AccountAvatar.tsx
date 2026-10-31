@@ -1,19 +1,7 @@
 import { PencilIcon } from "lucide-react";
 import type { User } from "#/api/typesGenerated";
-import {
-	resolvePlatformAvatar,
-	usePlatformSnapshot,
-} from "#/contexts/platformBoot";
+import { Avatar } from "#/components/Avatar/Avatar";
 import { openAvatarDialog } from "./avatarDialogStore";
-
-const initialsOf = (label: string): string =>
-	label
-		.split(/[\s._-]+/)
-		.filter(Boolean)
-		.slice(0, 2)
-		.map((word) => word[0])
-		.join("")
-		.toUpperCase() || "?";
 
 type AccountAvatarProps = {
 	user: User;
@@ -25,11 +13,6 @@ type AccountAvatarProps = {
  * else your initials). A click opens the avatar dialog to change it.
  */
 export const AccountAvatar: React.FC<AccountAvatarProps> = ({ user }) => {
-	const platform = usePlatformSnapshot();
-	const src =
-		resolvePlatformAvatar(platform, user.username, user.avatar_url) ||
-		user.avatar_url ||
-		undefined;
 	const label = user.name || user.username;
 
 	return (
@@ -41,13 +24,12 @@ export const AccountAvatar: React.FC<AccountAvatarProps> = ({ user }) => {
 				title="Change your avatar"
 				className="group relative size-24 shrink-0 cursor-pointer rounded-full border-0 bg-transparent p-0 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-content-link focus-visible:ring-offset-2 focus-visible:ring-offset-surface-primary"
 			>
-				<span className="flex size-full items-center justify-center overflow-hidden rounded-full border border-solid border-border bg-surface-secondary text-2xl font-semibold text-content-secondary">
-					{src ? (
-						<img src={src} alt="" className="size-full object-cover" />
-					) : (
-						initialsOf(label)
-					)}
-				</span>
+				<Avatar
+					src={user.avatar_url}
+					fallback={user.username}
+					className="size-full rounded-full text-2xl font-semibold [&_img]:object-cover"
+					style={{ padding: 0 }}
+				/>
 				<span
 					aria-hidden
 					className="absolute right-0 bottom-0 flex size-8 items-center justify-center rounded-full border border-solid border-border bg-surface-primary text-content-primary shadow-md transition-colors group-hover:bg-surface-secondary"

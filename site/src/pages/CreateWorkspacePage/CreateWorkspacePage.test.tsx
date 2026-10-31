@@ -658,37 +658,21 @@ describe("CreateWorkspacePage", () => {
 	});
 
 	describe("Permissions", () => {
-		it("blocks the form behind a permission dialog when the user cannot create workspaces", async () => {
-			mockCheckAuthorization();
-
-			const { mockPublisher } = await renderPageWithSocket({});
-			await expectSocketHandshake({ mockPublisher, parameters: [] });
-
-			expect(
-				await screen.findByText(/you don't have permission to view this page/i),
-			).toBeInTheDocument();
-			expect(
-				screen.queryByRole("form", { name: /create workspace/i }),
-			).not.toBeInTheDocument();
-		});
-
-		it("blocks auto-creation without showing the consent dialog when the user cannot create workspaces", async () => {
-			mockCheckAuthorization();
-			const autoCreateSpy = vi.spyOn(API, "createWorkspace");
-
-			const { mockPublisher } = await renderPageWithSocket({
-				route: `/templates/${MockTemplate.name}/workspace?mode=auto`,
-			});
-			await expectSocketHandshake({ mockPublisher, parameters: [] });
-
-			expect(
-				await screen.findByText(/you don't have permission to view this page/i),
-			).toBeInTheDocument();
-			expect(
-				screen.queryByText(/automatic workspace creation/i),
-			).not.toBeInTheDocument();
-			expect(autoCreateSpy).not.toHaveBeenCalled();
-		});
+		it.each(["", "?mode=auto"])(
+			"redirects without creating a workspace when permission is denied (%s)",
+			async (query) => {
+				mockCheckAuthorization();
+				const create = vi.spyOn(API, "createWorkspace");
+				const { mockPublisher, router } = await renderPageWithSocket({
+					route: `/templates/${MockTemplate.name}/workspace${query}`,
+				});
+				await expectSocketHandshake({ mockPublisher, parameters: [] });
+				await waitFor(() =>
+					expect(router.state.location.pathname).toBe("/workspaces"),
+				);
+				expect(create).not.toHaveBeenCalled();
+			},
+		);
 
 		it("shows an error instead of the form when the permission check fails", async () => {
 			// Only reject the page's own check batch; the auth provider also

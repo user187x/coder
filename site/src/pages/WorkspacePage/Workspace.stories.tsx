@@ -989,3 +989,26 @@ export const Quarantined: Story = {
 		],
 	},
 };
+
+export const ExpandedDashboard: Story = {
+	...Running,
+	play: async ({ canvasElement }) => {
+		await userEvent.click(
+			within(canvasElement).getByRole("button", {
+				name: "Expand workspace dashboard",
+			}),
+		);
+	},
+};
+export const CollapsedOverview: Story = {
+	...ExpandedDashboard,
+	play: async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		await userEvent.click(
+			canvas.getByRole("button", { name: "Expand workspace dashboard" }),
+		);
+		await userEvent.click(
+			canvas.getByRole("button", { name: "Collapse workspace overview" }),
+		);
+	},
+};

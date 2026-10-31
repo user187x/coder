@@ -11,7 +11,7 @@ import type {
 } from "#/api/platform";
 
 /** A share of another user's Cloud Drive with the user, active now. */
-export type IncomingShare = Pick<
+type IncomingShare = Pick<
 	CloudDriveShare,
 	"id" | "owner" | "ownerName" | "access" | "kind" | "path"
 >;
@@ -139,7 +139,7 @@ export const openPath = (part: Pick<CloudDriveShare, "kind" | "path">) =>
 		: part.path;
 
 /** One part of the capacity bar: the user's own drive, or an entire drive shared with them read and write. */
-export type RoomPart = {
+type RoomPart = {
 	owner: string;
 	/** "" for the user's own. */
 	ownerName: string;

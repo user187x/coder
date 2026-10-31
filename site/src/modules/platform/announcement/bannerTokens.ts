@@ -99,7 +99,7 @@ const COLORS_RE = /^\{\{colors bg=(#[0-9a-fA-F]{6}) fg=(#[0-9a-fA-F]{6})\}\}$/;
 const COUNTDOWN_RE =
 	/\{\{countdown\s+to=([0-9T:.\-+Z]+)(?:\s+format=(dhms|clock|words))?(?:\s+done="([^"]{0,80})")?\s*\}\}/;
 
-export const COUNTDOWN_FORMATS = ["dhms", "clock", "words"] as const;
+const COUNTDOWN_FORMATS = ["dhms", "clock", "words"] as const;
 type CountdownFormat = (typeof COUNTDOWN_FORMATS)[number];
 
 const isCountdownFormat = (

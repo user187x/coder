@@ -1,3 +1,4 @@
+import { TagIcon } from "lucide-react";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { toast } from "sonner";
@@ -17,6 +18,12 @@ import {
 import { Slider } from "#/components/Slider/Slider";
 import { Spinner } from "#/components/Spinner/Spinner";
 import { Switch } from "#/components/Switch/Switch";
+import {
+	Tabs,
+	TabsContent,
+	TabsList,
+	TabsTrigger,
+} from "#/components/Tabs/Tabs";
 import {
 	classificationFontSize,
 	classificationHeight,
@@ -152,17 +159,6 @@ export const ClassificationForm: React.FC<ClassificationFormProps> = ({
 					>
 						Classification banners
 					</h2>
-					<div className="flex items-center gap-2.5">
-						<Switch
-							id="classification-enabled"
-							checked={form.enabled}
-							onCheckedChange={(enabled) => onChange({ enabled })}
-						/>
-						<Label htmlFor="classification-enabled">Show on every page</Label>
-						<span className="text-sm text-content-secondary">
-							{form.enabled ? "On" : "Off"}
-						</span>
-					</div>
 				</div>
 				<div
 					aria-label="Preview"
@@ -171,7 +167,13 @@ export const ClassificationForm: React.FC<ClassificationFormProps> = ({
 					style={{ opacity: form.enabled ? 1 : 0.45 }}
 				>
 					<PreviewBar settings={form} height={height} />
-					<div className="flex h-24 items-center justify-center bg-surface-secondary text-sm text-content-secondary">
+					<div
+						className="flex h-24 items-center justify-center bg-surface-secondary text-sm text-content-secondary"
+						style={{
+							backgroundImage:
+								"repeating-linear-gradient(135deg, color-mix(in srgb, currentColor 12%, transparent) 0 1px, transparent 1px 12px)",
+						}}
+					>
 						Coder dashboard
 					</div>
 					<PreviewBar settings={form} height={height} />
@@ -184,97 +186,157 @@ export const ClassificationForm: React.FC<ClassificationFormProps> = ({
 
 			<section
 				aria-labelledby="classification-marking"
-				className="flex flex-col gap-5 rounded-lg border border-solid border-border p-6"
+				className="overflow-hidden rounded-xl border border-solid border-border bg-surface-primary/60"
 			>
-				<h2 id="classification-marking" className="m-0 text-base font-semibold">
-					Marking
-				</h2>
-				<div className="flex flex-col gap-2">
-					<Label htmlFor="classification-text">Classification text</Label>
-					<Input
-						id="classification-text"
-						value={form.text}
-						maxLength={120}
-						placeholder="e.g. UNCLASSIFIED"
-						autoComplete="off"
-						spellCheck={false}
-						onChange={(event) => onChange({ text: event.target.value })}
-					/>
-				</div>
-				<div className="flex flex-col gap-2">
-					<Label id="classification-height-label">
-						Banner height (top and bottom)
-					</Label>
-					<div className="flex items-center gap-3.5">
-						<Slider
-							aria-labelledby="classification-height-label"
-							min={12}
-							max={64}
-							step={1}
-							value={[height]}
-							onValueChange={([value]) => onChange({ height: value })}
+				<header className="flex flex-wrap items-center gap-3 border-0 border-b border-solid border-border px-6 py-4">
+					<span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-surface-secondary text-content-secondary">
+						<TagIcon aria-hidden className="size-5" />
+					</span>
+					<div>
+						<h2
+							id="classification-marking"
+							className="m-0 text-base font-semibold"
+						>
+							Marking
+						</h2>
+						<p className="m-0 mt-1 text-sm text-content-secondary">
+							Customize the label, size and colours of both banners.
+						</p>
+					</div>
+					<div className="ml-auto flex items-center gap-2.5">
+						<Switch
+							id="classification-enabled"
+							checked={form.enabled}
+							onCheckedChange={(enabled) => onChange({ enabled })}
 						/>
-						<output className="min-w-14 text-right text-sm tabular-nums text-content-secondary">
-							{height} px
-						</output>
+						<Label htmlFor="classification-enabled">Show on every page</Label>
+						<span className="text-sm text-content-secondary">
+							{form.enabled ? "On" : "Off"}
+						</span>
+					</div>
+				</header>
+				<div className="grid gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.8fr)]">
+					<div className="flex min-w-0 flex-col justify-center gap-6">
+						<div className="flex flex-col gap-2">
+							<Label htmlFor="classification-text">Classification text</Label>
+							<Input
+								id="classification-text"
+								value={form.text}
+								maxLength={120}
+								placeholder="e.g. UNCLASSIFIED"
+								autoComplete="off"
+								spellCheck={false}
+								onChange={(event) => onChange({ text: event.target.value })}
+							/>
+						</div>
+						<div className="flex flex-col gap-3">
+							<div className="flex items-center justify-between gap-3">
+								<Label id="classification-height-label">
+									Banner height (top and bottom)
+								</Label>
+								<output className="rounded-md border border-solid border-border bg-surface-secondary px-2 py-1 text-xs tabular-nums text-content-primary">
+									{height} px
+								</output>
+							</div>
+							<Slider
+								aria-labelledby="classification-height-label"
+								min={12}
+								max={64}
+								step={1}
+								value={[height]}
+								onValueChange={([value]) => onChange({ height: value })}
+							/>
+						</div>
+					</div>
+					<div className="min-w-0 rounded-lg border border-solid border-border bg-surface-secondary/40 p-4">
+						<Tabs defaultValue="background">
+							<TabsList
+								aria-label="Banner colour target"
+								className="mb-4 gap-4"
+							>
+								<TabsTrigger value="background">
+									<span
+										aria-hidden
+										className="size-3 rounded-full border border-solid border-border"
+										style={{ background: form.background }}
+									/>
+									Background
+								</TabsTrigger>
+								<TabsTrigger value="text">
+									<span
+										aria-hidden
+										className="size-3 rounded-full border border-solid border-border"
+										style={{ background: form.color }}
+									/>
+									Text
+								</TabsTrigger>
+							</TabsList>
+							<TabsContent value="background">
+								<ColorField
+									label="Background colour"
+									value={form.background}
+									presets={BACKGROUNDS}
+									onChange={(background) => onChange({ background })}
+									onPreset={(background) =>
+										onChange({
+											background,
+											color: DARK_TEXT_BACKGROUNDS.has(background)
+												? "#000000"
+												: "#ffffff",
+										})
+									}
+								/>
+							</TabsContent>
+							<TabsContent value="text">
+								<ColorField
+									label="Text colour"
+									value={form.color}
+									presets={FOREGROUNDS}
+									onChange={(color) => onChange({ color })}
+								/>
+							</TabsContent>
+						</Tabs>
+						{ratio < 4.5 && (
+							<p
+								role="status"
+								className="m-0 mt-3 text-sm text-content-warning"
+							>
+								Low contrast ({ratio.toFixed(1)}:1): the text may be hard to
+								read. 4.5:1 or more is recommended.
+							</p>
+						)}
 					</div>
 				</div>
-				<div className="grid gap-5 md:grid-cols-2">
-					<ColorField
-						label="Background colour"
-						value={form.background}
-						presets={BACKGROUNDS}
-						onChange={(background) => onChange({ background })}
-						onPreset={(background) =>
-							onChange({
-								background,
-								color: DARK_TEXT_BACKGROUNDS.has(background)
-									? "#000000"
-									: "#ffffff",
-							})
-						}
-					/>
-					<ColorField
-						label="Text colour"
-						value={form.color}
-						presets={FOREGROUNDS}
-						onChange={(color) => onChange({ color })}
-					/>
-				</div>
-				{ratio < 4.5 && (
-					<p role="status" className="m-0 text-sm text-content-warning">
-						Low contrast ({ratio.toFixed(1)}:1): the text may be hard to read.
-						4.5:1 or more is recommended.
+				<footer className="flex flex-wrap items-center justify-between gap-4 border-0 border-t border-solid border-border bg-surface-secondary/20 px-6 py-4">
+					<div className="flex flex-wrap items-center gap-3">
+						<Button
+							disabled={!dirty || missingText || isSaving}
+							onClick={() => onSave(form)}
+						>
+							<Spinner loading={isSaving} />
+							Save
+						</Button>
+						<Button
+							variant="outline"
+							disabled={!dirty || isSaving}
+							onClick={onDiscard}
+						>
+							Discard changes
+						</Button>
+						<span aria-live="polite" className="text-sm text-content-secondary">
+							{missingText
+								? "Enter the classification text to turn the banners on."
+								: dirty
+									? "Unsaved changes"
+									: ""}
+						</span>
+					</div>
+					<p className="m-0 text-sm text-content-secondary">
+						{saved.updatedBy && saved.updatedAt
+							? `Last changed by ${saved.updatedBy} on ${new Date(saved.updatedAt).toLocaleString("en-US")}.`
+							: "Not set up yet."}
 					</p>
-				)}
-				<div className="flex flex-wrap items-center gap-3">
-					<Button
-						disabled={!dirty || missingText || isSaving}
-						onClick={() => onSave(form)}
-					>
-						<Spinner loading={isSaving} />
-						Save
-					</Button>
-					<Button
-						variant="outline"
-						disabled={!dirty || isSaving}
-						onClick={onDiscard}
-					>
-						Discard changes
-					</Button>
-					<span aria-live="polite" className="text-sm text-content-secondary">
-						{missingText
-							? "Enter the classification text to turn the banners on."
-							: dirty
-								? "Unsaved changes"
-								: ""}
-					</span>
-				</div>
-				<p className="m-0 text-sm text-content-secondary">
-					{saved.updatedBy && saved.updatedAt
-						? `Last changed by ${saved.updatedBy} on ${new Date(saved.updatedAt).toLocaleString("en-US")}.`
-						: "Not set up yet."}
-				</p>
+				</footer>
 			</section>
 		</div>
 	);

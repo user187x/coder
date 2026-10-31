@@ -68,6 +68,14 @@ const validationSchema = Yup.object({
 	login_type: Yup.string()
 		.oneOf(Object.keys(loginTypeOptions))
 		.required("Please select a login type."),
+	certificate_password: Yup.string().when("issue_certificate", {
+		is: true,
+		then: (schema) =>
+			schema
+				.min(12, "Use at least 12 characters.")
+				.max(128)
+				.required("Choose a download password."),
+	}),
 	password: Yup.string().when("login_type", {
 		is: "password",
 		then: (schema) => schema.required("Please enter a password."),
@@ -76,6 +84,8 @@ const validationSchema = Yup.object({
 });
 
 type CreateUserFormData = {
+	readonly issue_certificate: boolean;
+	readonly certificate_password: string;
 	readonly username: string;
 	readonly name: string;
 	readonly email: string;
@@ -87,6 +97,7 @@ type CreateUserFormData = {
 };
 
 type CreateUserFormProps = {
+	certificatesEnabled?: boolean;
 	error?: unknown;
 	isLoading: boolean;
 	onSubmit: (user: CreateUserFormData) => void;
@@ -170,11 +181,14 @@ const CreateUserFormFields: React.FC<CreateUserFormFieldsProps> = ({
 	rolesError,
 	availableLoginTypes,
 	defaultLoginType,
+	certificatesEnabled,
 }) => {
 	const form = useFormik<CreateUserFormData>({
 		initialValues: {
 			email: "",
 			password: "",
+			issue_certificate: false,
+			certificate_password: "",
 			username: "",
 			name: "",
 			organization: showOrganizations
@@ -277,6 +291,7 @@ const CreateUserFormFields: React.FC<CreateUserFormFieldsProps> = ({
 										const isServiceAccount = value === "none";
 										await Promise.all([
 											form.setFieldValue("login_type", value),
+											form.setFieldValue("issue_certificate", false),
 											form.setFieldValue("service_account", isServiceAccount),
 											isServiceAccount
 												? form.setFieldValue("email", "")
@@ -382,6 +397,35 @@ const CreateUserFormFields: React.FC<CreateUserFormFieldsProps> = ({
 								/>
 							)}
 
+							{certificatesEnabled && form.values.login_type === "oidc" && (
+								<div className="space-y-3 rounded-lg border border-solid p-4">
+									<label className="flex items-center gap-2 text-sm">
+										<input
+											type="checkbox"
+											name="issue_certificate"
+											checked={form.values.issue_certificate}
+											onChange={form.handleChange}
+										/>
+										Create and download a client certificate
+									</label>
+									{form.values.issue_certificate && (
+										<>
+											<p className="text-sm text-content-secondary">
+												Use this certificate to sign in without a password. The
+												certificate is valid for 90 days. Choose a password to
+												protect its one-time download.
+											</p>
+											<FormField
+												field={getFieldHelpers("certificate_password")}
+												label="Certificate download password"
+												type="password"
+												autoComplete="new-password"
+												required
+											/>
+										</>
+									)}
+								</div>
+							)}
 							<RoleSelector
 								loading={rolesLoading}
 								error={rolesError}
@@ -397,7 +441,9 @@ const CreateUserFormFields: React.FC<CreateUserFormFieldsProps> = ({
 							</Button>
 							<Button type="submit" disabled={isLoading}>
 								<Spinner loading={isLoading} />
-								Save
+								{form.values.issue_certificate
+									? "Create user and download"
+									: "Save"}
 							</Button>
 						</FormFooter>
 					</form>

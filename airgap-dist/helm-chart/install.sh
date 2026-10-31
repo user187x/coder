@@ -30,32 +30,85 @@ declare -A sname=([tlsCa]=tls-ca [oidcCa]=keycloaking-coder-ca [oidcClient]=keyc
 
 while (($#)); do
 	case "$1" in
-	-f | --values) values+=(-f "$2"); shift 2 ;;
-	--ca) ca="$2"; shift 2 ;;
-	--oidc-ca) oidc_ca="$2"; shift 2 ;;
-	--oidc-secret-file) oidc_secret="$2"; shift 2 ;;
-	--tls-crt) tls_crt="$2"; shift 2 ;;
-	--tls-key) tls_key="$2"; shift 2 ;;
-	--pull-secret) pull_registry="$2"; shift 2 ;;
-	--cnpg) cnpg=1; shift ;;
-	--namespace) ns="$2"; shift 2 ;;
-	--release) release="$2"; shift 2 ;;
-	--force-secrets) force=1; shift ;;
+	-f | --values)
+		values+=(-f "$2")
+		shift 2
+		;;
+	--ca)
+		ca="$2"
+		shift 2
+		;;
+	--oidc-ca)
+		oidc_ca="$2"
+		shift 2
+		;;
+	--oidc-secret-file)
+		oidc_secret="$2"
+		shift 2
+		;;
+	--tls-crt)
+		tls_crt="$2"
+		shift 2
+		;;
+	--tls-key)
+		tls_key="$2"
+		shift 2
+		;;
+	--pull-secret)
+		pull_registry="$2"
+		shift 2
+		;;
+	--cnpg)
+		cnpg=1
+		shift
+		;;
+	--namespace)
+		ns="$2"
+		shift 2
+		;;
+	--release)
+		release="$2"
+		shift 2
+		;;
+	--force-secrets)
+		force=1
+		shift
+		;;
 	--secret-name)
-		[[ "$2" == *=* && -n "${sname[${2%%=*}]+x}" ]] || { echo "--secret-name KEY=NAME, KEY one of: ${!sname[*]}" >&2; exit 2; }
-		sname[${2%%=*}]="${2#*=}"; shift 2 ;;
-	--prepare-only) prepare=1; shift ;;
-	--dry-run) dry=1; shift ;;
-	-h | --help) sed -n '2,/^set /p' "$0" | sed '$d'; exit 0 ;;
-	*) echo "unknown option: $1" >&2; exit 2 ;;
+		[[ "$2" == *=* && -n "${sname[${2%%=*}]+x}" ]] || {
+			echo "--secret-name KEY=NAME, KEY one of: ${!sname[*]}" >&2
+			exit 2
+		}
+		sname[${2%%=*}]="${2#*=}"
+		shift 2
+		;;
+	--prepare-only)
+		prepare=1
+		shift
+		;;
+	--dry-run)
+		dry=1
+		shift
+		;;
+	-h | --help)
+		sed -n '2,/^set /p' "$0" | sed '$d'
+		exit 0
+		;;
+	*)
+		echo "unknown option: $1" >&2
+		exit 2
+		;;
 	esac
 done
 
 log() { printf '\033[1m==> %s\033[0m\n' "$*"; }
 warn() { printf '\033[33mWARN: %s\033[0m\n' "$*" >&2; }
-die() { printf '\033[31mERROR: %s\033[0m\n' "$*" >&2; exit 1; }
+die() {
+	printf '\033[31mERROR: %s\033[0m\n' "$*" >&2
+	exit 1
+}
 
-for bin in kubectl helm; do command -v "$bin" >/dev/null || die "$bin not found"; done
+for bin in kubectl helm python3; do command -v "$bin" >/dev/null || die "$bin not found"; done
 kubectl version --request-timeout=10s >/dev/null 2>&1 || die "kubectl cannot reach the cluster"
 [[ "$ns" == coder ]] || warn "the workspace template only accepts namespace \"coder\" (got \"$ns\")"
 
@@ -68,7 +121,10 @@ if ((cnpg)) && ! ((dry)); then
 fi
 missing=0
 ((prepare)) || for crd in clusters.postgresql.cnpg.io httproutes.gateway.networking.k8s.io middlewares.traefik.io; do
-	kubectl get crd "$crd" >/dev/null 2>&1 || { warn "CRD $crd missing"; missing=1; }
+	kubectl get crd "$crd" >/dev/null 2>&1 || {
+		warn "CRD $crd missing"
+		missing=1
+	}
 done
 ((missing == 0)) || die "install the prerequisites first (README.md > Prerequisites; --cnpg installs CloudNativePG)"
 
@@ -86,8 +142,12 @@ if ! kubectl get ns "$ns" >/dev/null 2>&1; then
 fi
 
 secret_from() { # name, kubectl create secret args...
-	local name="$1"; shift
-	if exists secret "$name" && ! ((force)); then echo "    secret/$name exists (kept)"; return; fi
+	local name="$1"
+	shift
+	if exists secret "$name" && ! ((force)); then
+		echo "    secret/$name exists (kept)"
+		return
+	fi
 	kubectl -n "$ns" create secret "$@" --dry-run=client -o yaml | apply
 	echo "    secret/$name $( ((force)) && echo replaced || echo created)"
 }
@@ -118,8 +178,12 @@ done
 
 log "Default logo / avatar ConfigMaps (defaults/)"
 for kind in logo avatar; do
-	f=$(ls "${here}/defaults/${kind}."* 2>/dev/null | head -n1 || true)
-	[[ -n "$f" ]] || { echo "    no defaults/${kind}.*"; continue; }
+	files=("${here}/defaults/${kind}."*)
+	f=${files[0]}
+	[[ -f "$f" ]] || {
+		echo "    no defaults/${kind}.*"
+		continue
+	}
 	cm="coder-ui-updates-default-${kind}"
 	# past a ConfigMap's 1 MiB (the animated logo): the service's image has it (build-ui-image.sh), no ConfigMap
 	if (($(stat -c %s "$f") > 1000000)); then
@@ -127,7 +191,10 @@ for kind in logo avatar; do
 		kubectl -n "$ns" delete configmap "$cm" --ignore-not-found >/dev/null
 		continue
 	fi
-	if exists configmap "$cm" && ! ((force)); then echo "    configmap/$cm exists (kept)"; continue; fi
+	if exists configmap "$cm" && ! ((force)); then
+		echo "    configmap/$cm exists (kept)"
+		continue
+	fi
 	kubectl -n "$ns" create configmap "$cm" --from-file="$(basename "$f")=$f" --dry-run=client -o yaml |
 		kubectl label --local -f - app.kubernetes.io/name=coder-ui-updates app.kubernetes.io/part-of=coder -o yaml | apply
 	echo "    configmap/$cm from $(basename "$f")"
@@ -139,7 +206,11 @@ log "Logo / avatar gallery ConfigMaps (defaults/gallery/)"
 i=0
 for f in "${here}"/defaults/gallery/*; do
 	[[ -f "$f" ]] || continue
-	i=$((i + 1)); ((i <= 8)) || { warn "defaults/gallery: more than 8 pictures, $(basename "$f") left out"; continue; }
+	i=$((i + 1))
+	((i <= 8)) || {
+		warn "defaults/gallery: more than 8 pictures, $(basename "$f") left out"
+		continue
+	}
 	kubectl -n "$ns" create configmap "coder-ui-updates-gallery-${i}" --from-file="$(basename "$f")=$f" --dry-run=client -o yaml |
 		kubectl label --local -f - app.kubernetes.io/name=coder-ui-updates app.kubernetes.io/part-of=coder -o yaml | apply
 	echo "    configmap/coder-ui-updates-gallery-${i} from $(basename "$f")"
@@ -161,6 +232,10 @@ if ((dry)); then
 	helm template "$release" "$chart" -n "$ns" "${values[@]}" | kubectl apply --dry-run=server -f - | sed 's/^/    /'
 	exit 0
 fi
+log "Prepare platform-service image before replacing its single writer"
+helm template "$release" "$chart" -n "$ns" "${values[@]}" |
+	kubectl create --dry-run=client --validate=false -o json -f - |
+	python3 "${here}/update-platform-service.py" --namespace "$ns" --prepare-manifest
 log "helm upgrade --install $release ($ns)"
 helm upgrade --install "$release" "$chart" -n "$ns" "${values[@]}" --wait --timeout 20m >/dev/null
 log "Done"

@@ -1,7 +1,7 @@
 import { EyeOffIcon, MessageSquareIcon } from "lucide-react";
 import { useQuery } from "react-query";
 import { Link } from "react-router";
-import type { OnlineUser } from "#/api/platform";
+import type { ChatPeer, OnlineUser } from "#/api/platform";
 import { onlineUsers } from "#/api/queries/platform";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { Button } from "#/components/Button/Button";
@@ -51,13 +51,12 @@ export const sinceText = (iso: string | null, now: number) => {
 	return `${Math.floor(hours / 24)} d ${hours % 24} h`;
 };
 
-/**
- * Controls › Settings › Chat: Online Users, a card of its own (it was a category of its own) - everyone with a
- * Coder tab open now (active, or idle: grey after 30 seconds without input), how many tabs, since when, their last
- * input and their running workspaces; then who Coder saw in the last 15 minutes without a tab open (the CLI, SSH, an
- * app). Asked again every 3 seconds.
- */
-export const OnlineUsersCard: React.FC = () => {
+/** Current dashboard presence and recent CLI, SSH and workspace-app activity. */
+export const OnlineUsersCard = ({
+	onOpen = openChatWith,
+}: {
+	onOpen?: (peer: ChatPeer) => void;
+}) => {
 	const query = useQuery(onlineUsers());
 	const report = query.data;
 	const now = report ? new Date(report.generatedAt).getTime() : Date.now();
@@ -101,7 +100,7 @@ export const OnlineUsersCard: React.FC = () => {
 							No one has Coder open right now.
 						</p>
 					) : (
-						<UsersTable users={report.online} now={now} live />
+						<UsersTable users={report.online} now={now} live onOpen={onOpen} />
 					)}
 					<h3 id="online-recent" className="m-0 mt-2 text-sm font-semibold">
 						Seen in the last 15 minutes
@@ -113,7 +112,12 @@ export const OnlineUsersCard: React.FC = () => {
 					{report.recent.length === 0 ? (
 						<p className="m-0 text-sm text-content-secondary">No one else.</p>
 					) : (
-						<UsersTable users={report.recent} now={now} live={false} />
+						<UsersTable
+							users={report.recent}
+							now={now}
+							live={false}
+							onOpen={onOpen}
+						/>
 					)}
 				</>
 			)}
@@ -126,9 +130,15 @@ type UsersTableProps = {
 	now: number;
 	/** Online now: status, tabs, since and last input; otherwise when Coder last saw them. */
 	live: boolean;
+	onOpen: (peer: ChatPeer) => void;
 };
 
-const UsersTable: React.FC<UsersTableProps> = ({ users, now, live }) => {
+const UsersTable: React.FC<UsersTableProps> = ({
+	users,
+	now,
+	live,
+	onOpen,
+}) => {
 	const me = useChatSnapshot().me;
 	return (
 		<Table aria-label={live ? "Online now" : "Seen lately"}>
@@ -244,7 +254,7 @@ const UsersTable: React.FC<UsersTableProps> = ({ users, now, live }) => {
 											size="sm"
 											variant="outline"
 											title={`Message ${displayName(u)}`}
-											onClick={() => void openChatWith(u)}
+											onClick={() => onOpen(u)}
 										>
 											<MessageSquareIcon />
 											Message
@@ -259,5 +269,3 @@ const UsersTable: React.FC<UsersTableProps> = ({ users, now, live }) => {
 		</Table>
 	);
 };
-
-export default OnlineUsersCard;

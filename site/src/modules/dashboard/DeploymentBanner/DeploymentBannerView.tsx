@@ -34,7 +34,7 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "#/components/Tooltip/Tooltip";
-import { useAnimationsEnabled } from "#/modules/platform/animations/animations";
+import { useAnimationsEnabled } from "#/hooks/useAnimationSettings";
 import "./deploymentBanner.css";
 import { getDisplayWorkspaceStatus } from "#/utils/workspace";
 

@@ -1,0 +1,41 @@
+{{- if include "platform.hasLayer" . }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: coder-workspace-ingress
+  namespace: {{ (index .Values "coder-workspace").namespace | default .Release.Namespace }}
+  labels:
+    {{- include "ca.labels" . | nindent 4 }}
+spec:
+  # Covers existing workspaces as well as newly provisioned ones. Application
+  # TCP traffic must pass through the authenticated Coder agent connection.
+  podSelector:
+    matchExpressions:
+      - {key: com.coder.workspace.id, operator: Exists}
+      - {key: com.coder.user.id, operator: Exists}
+  policyTypes: [Ingress]
+  ingress:
+    # Coder tailnet verifies WireGuard keys; older agents using dynamic ports
+    # retain their encrypted DERP fallback until their next template update.
+    - ports:
+        - {protocol: UDP, port: 41641}
+    # Workspace tunnels authenticate configured peers with WireGuard keys.
+    - from:
+        - podSelector:
+            matchExpressions:
+              - {key: com.coder.workspace.id, operator: Exists}
+              - {key: com.coder.user.id, operator: Exists}
+      ports:
+        - {protocol: UDP, port: 51871}
+    {{- if .Values.global.nekoMedia.enabled }}
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Release.Namespace }}
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: coder
+      ports:
+        - {protocol: UDP, port: 59000}
+    {{- end }}
+{{- end }}

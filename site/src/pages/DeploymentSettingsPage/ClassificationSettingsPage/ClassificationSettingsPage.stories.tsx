@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { userEvent, within } from "storybook/test";
 import { classificationKey } from "#/api/queries/platform";
 import { MockClassification } from "#/testHelpers/platform";
 import { withToaster } from "#/testHelpers/storybook";
@@ -43,5 +44,23 @@ export const LowContrast: Story = {
 				},
 			},
 		],
+	},
+};
+
+export const TextColour: Story = {
+	...Enabled,
+	play: async ({ canvasElement }) => {
+		await userEvent.click(
+			await within(canvasElement).findByRole("tab", {
+				name: "Text",
+			}),
+		);
+	},
+};
+export const Mobile: Story = {
+	...Enabled,
+	parameters: {
+		...Enabled.parameters,
+		viewport: { defaultViewport: "mobile1" },
 	},
 };

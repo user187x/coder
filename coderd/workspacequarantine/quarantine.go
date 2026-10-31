@@ -7,12 +7,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
+	"golang.org/x/xerrors"
+
 	"github.com/coder/coder/v2/coderd/database"
 	"github.com/coder/coder/v2/coderd/database/dbauthz"
 	"github.com/coder/coder/v2/coderd/shorttermlease"
 	"github.com/coder/quartz"
-	"github.com/google/uuid"
-	"golang.org/x/xerrors"
 )
 
 // ErrQuarantined means the workspace requires containment or a new explicit Start.

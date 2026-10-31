@@ -3,7 +3,6 @@ package coderd_test
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"io"
 	"net/http"
 	"strings"
@@ -11,11 +10,12 @@ import (
 	"testing"
 	"time"
 
-	"cdr.dev/slog/v3"
-	"cdr.dev/slog/v3/sloggers/slogtest"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/xerrors"
 
+	"cdr.dev/slog/v3"
+	"cdr.dev/slog/v3/sloggers/slogtest"
 	"github.com/coder/coder/v2/agent/agenttest"
 	"github.com/coder/coder/v2/coderd/coderdtest"
 	"github.com/coder/coder/v2/coderd/database"
@@ -83,7 +83,7 @@ type detachedControlTransport struct {
 	control chan io.Closer
 }
 
-var errDetachedControl = errors.New("control connection unavailable")
+var errDetachedControl = xerrors.New("control connection unavailable")
 
 func (t *detachedControlTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	coordinate := strings.HasSuffix(req.URL.Path, "/coordinate")
@@ -133,6 +133,7 @@ func TestGlobalLockdownAgentRevokesDetachedPeersAndPreservesOwner(t *testing.T) 
 	control := testutil.TryReceive(ctx, t, transport.control)
 	transport.blocked.Store(true)
 	require.NoError(t, control.Close())
+	//nolint:dogsled // Only the connectivity error matters; latency and peer statistics do not.
 	_, _, _, err = memberConn.Ping(ctx)
 	require.NoError(t, err, "ordinary control loss must preserve the existing data-plane connection")
 	_, err = client.UpdateGlobalLockdown(ctx, codersdk.UpdateGlobalLockdownRequest{Enabled: true, Confirmation: "agree"})
@@ -141,12 +142,14 @@ func TestGlobalLockdownAgentRevokesDetachedPeersAndPreservesOwner(t *testing.T) 
 		state, err := client.GlobalLockdown(ctx)
 		return err == nil && state.Confirmed && state.AgentsTotal == 1
 	}, testutil.WaitLong, testutil.IntervalFast)
+	//nolint:dogsled // Only the connectivity error matters; latency and peer statistics do not.
 	_, _, _, err = ownerConn.Ping(ctx)
 	require.NoError(t, err, "owner peer must survive agent enforcement")
 	_, err = client.WorkspaceAgentListeningPorts(ctx, agentID)
 	require.NoError(t, err, "integrated Coder server peer must survive agent enforcement")
-	denied, cancel := context.WithTimeout(ctx, time.Second)
+	denied, cancel := context.WithTimeout(ctx, testutil.WaitShort)
 	defer cancel()
+	//nolint:dogsled // Only the connectivity error matters; latency and peer statistics do not.
 	_, _, _, err = memberConn.Ping(denied)
 	require.Error(t, err, "a detached legacy peer must be removed from the agent")
 	_, err = client.UpdateGlobalLockdown(ctx, codersdk.UpdateGlobalLockdownRequest{Enabled: false})
@@ -157,6 +160,7 @@ func TestGlobalLockdownAgentRevokesDetachedPeersAndPreservesOwner(t *testing.T) 
 	reconnected, err := workspacesdk.New(fresh).DialAgent(ctx, agentID, &workspacesdk.DialAgentOptions{Logger: testutil.Logger(t)})
 	require.NoError(t, err, "a fresh member connection must work immediately after unlock")
 	defer reconnected.Close()
+	//nolint:dogsled // Only the connectivity error matters; latency and peer statistics do not.
 	_, _, _, err = reconnected.Ping(ctx)
 	require.NoError(t, err)
 }

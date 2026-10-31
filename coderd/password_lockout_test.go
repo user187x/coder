@@ -7,10 +7,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/coder/coder/v2/coderd/coderdtest"
 	"github.com/coder/coder/v2/codersdk"
 	"github.com/coder/quartz"
-	"github.com/stretchr/testify/require"
 )
 
 // Only the login clock is advanced; unrelated server tickers use real time.

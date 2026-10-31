@@ -803,6 +803,36 @@ export const AuditActions: AuditAction[] = [
 	"write",
 ];
 
+// From codersdk/auditcollectors.go
+/**
+ * AuditCollector authorizes one external identity to read an organization's logs.
+ */
+export interface AuditCollector {
+	readonly id: string;
+	readonly organization_id: string;
+	readonly name: string;
+	readonly issuer: string;
+	readonly subject: string;
+	readonly client_id: string;
+	readonly created_by: string;
+	readonly created_at: string;
+	readonly expires_at: string;
+}
+
+// From codersdk/auditcollectors.go
+/**
+ * AuditCollectorConfiguration describes the protected external collection API.
+ */
+export interface AuditCollectorConfiguration {
+	readonly available: boolean;
+	readonly issuer: string;
+	readonly token_endpoint: string;
+	readonly endpoint: string;
+	readonly audience: string;
+	readonly scope: string;
+	readonly collectors: readonly AuditCollector[];
+}
+
 // From codersdk/audit.go
 export type AuditDiff = Record<string, AuditDiffField>;
 
@@ -1258,6 +1288,17 @@ export interface ConvertLoginRequest {
 	readonly password: string;
 }
 
+// From codersdk/auditcollectors.go
+/**
+ * CreateAuditCollectorRequest binds a grant to an exact Keycloak identity.
+ */
+export interface CreateAuditCollectorRequest {
+	readonly name: string;
+	readonly subject: string;
+	readonly client_id: string;
+	readonly valid_days: number;
+}
+
 // From codersdk/users.go
 export interface CreateFirstUserRequest {
 	readonly email: string;
@@ -1312,6 +1353,8 @@ export interface CreateProvisionerKeyResponse {
 export interface CreateShortTermLeaseRequest {
 	readonly template_id: string;
 	readonly minutes: number;
+	readonly terms?: ShortTermLeaseTerms;
+	readonly auto_remove_history: boolean;
 }
 
 // From codersdk/organizations.go
@@ -1715,6 +1758,11 @@ export interface CustomNotificationContent {
 // From codersdk/notifications.go
 export interface CustomNotificationRequest {
 	readonly content: CustomNotificationContent | null;
+	/**
+	 * UserIDs targets selected recipients. Omit to notify only the caller.
+	 * Sending to selected recipients requires deployment administrator permissions.
+	 */
+	readonly user_ids?: readonly string[];
 }
 
 // From codersdk/roles.go
@@ -3126,9 +3174,12 @@ export const LoginTypes: LoginType[] = [
 
 // From codersdk/users.go
 /**
- * LoginWithPasswordRequest enables callers to authenticate with email and password.
+ * LoginWithPasswordRequest enables callers to authenticate with username or email and password.
  */
 export interface LoginWithPasswordRequest {
+	/**
+	 * Email accepts either an email address or a username, retaining the existing API field name.
+	 */
 	readonly email: string;
 	readonly password: string;
 }
@@ -3677,11 +3728,13 @@ export interface OAuth2Error {
 // From codersdk/oauth2.go
 export type OAuth2ErrorCode =
 	| "access_denied"
+	| "insufficient_scope"
 	| "invalid_client"
 	| "invalid_grant"
 	| "invalid_request"
 	| "invalid_scope"
 	| "invalid_target"
+	| "invalid_token"
 	| "server_error"
 	| "temporarily_unavailable"
 	| "unauthorized_client"
@@ -3691,11 +3744,13 @@ export type OAuth2ErrorCode =
 
 export const OAuth2ErrorCodes: OAuth2ErrorCode[] = [
 	"access_denied",
+	"insufficient_scope",
 	"invalid_client",
 	"invalid_grant",
 	"invalid_request",
 	"invalid_scope",
 	"invalid_target",
+	"invalid_token",
 	"server_error",
 	"temporarily_unavailable",
 	"unauthorized_client",
@@ -3980,6 +4035,10 @@ export interface OAuthConversionResponse {
 export interface OIDCAuthMethod extends AuthMethod {
 	readonly signInText: string;
 	readonly iconUrl: string;
+	/**
+	 * AccountURL opens the provider's account settings when supported.
+	 */
+	readonly accountUrl?: string;
 }
 
 // From codersdk/users.go
@@ -5730,11 +5789,25 @@ export interface ShortTermLease {
 	readonly expires_at: string;
 	readonly revoked_at: string | null;
 	readonly extension_requested_at: string | null;
+	readonly terms?: ShortTermLeaseTerms;
+	readonly auto_remove_history: boolean;
 	readonly token_id: string;
 	/**
 	 * Token is returned only at creation; the database stores its hash.
 	 */
 	readonly token?: string;
+}
+
+// From codersdk/shorttermlease.go
+/**
+ * ShortTermLeaseTerms are enforced by the Browser template's immutable lease policy.
+ */
+export interface ShortTermLeaseTerms {
+	readonly no_root: boolean;
+	readonly sandbox_only: boolean;
+	readonly firewall: boolean;
+	readonly website_mode: string;
+	readonly websites: readonly string[];
 }
 
 // From codersdk/client.go
@@ -6353,7 +6426,7 @@ export interface TemplateDecorator {
 export interface TemplateDecoratorFile {
 	readonly name: string;
 	/**
-	 * Path in a decorated template (.platform/<name>).
+	 * Path in a decorated template (`.platform/<name>`).
 	 */
 	readonly path: string;
 	readonly size: number;
@@ -6984,6 +7057,11 @@ export interface UpdateUserPreferenceSettingsRequest {
 export interface UpdateUserProfileRequest {
 	readonly username: string;
 	readonly name: string;
+	/**
+	 * Email may be changed by password users after confirming their current password.
+	 */
+	readonly email?: string;
+	readonly current_password?: string;
 	/**
 	 * AvatarURL is only applied for users whose login type is password or
 	 * none. For other login types the avatar is synced from the identity

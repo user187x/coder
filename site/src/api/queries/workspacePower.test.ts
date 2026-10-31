@@ -27,12 +27,14 @@ it("submits all reviewed IDs including administrator-owned targets in batches of
 		MockWorkspace.organization_id,
 		"shutdown",
 		targets.slice(0, 100).map((w) => w.id),
+		false,
 	);
 	expect(start).toHaveBeenNthCalledWith(
 		2,
 		MockWorkspace.organization_id,
 		"shutdown",
 		["workspace-100"],
+		false,
 	);
 });
 it("waits for server completion before submitting the next batch", async () => {
@@ -149,12 +151,14 @@ it("uses the server-guarded route for global actions", async () => {
 	await runWorkspacePower(new QueryClient(), "test-global-token").mutationFn({
 		action: "shutdown",
 		targets: [MockWorkspace],
+		excludeAdmins: true,
 	});
 	expect(global).toHaveBeenCalledWith(
 		MockWorkspace.organization_id,
 		"shutdown",
 		[MockWorkspace.id],
 		"test-global-token",
+		true,
 	);
 	expect(regular).not.toHaveBeenCalled();
 });

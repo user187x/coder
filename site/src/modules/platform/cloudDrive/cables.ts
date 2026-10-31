@@ -19,18 +19,18 @@ export type Cable = {
 };
 
 /** The handles' springs (a second squared) and damping (a second): a swing or two, then still. */
-export const STIFFNESS = 140;
-export const DAMPING = 11;
+const STIFFNESS = 140;
+const DAMPING = 11;
 /** How far out (px) a cable's handles reach at most, and how much further each deeper row's: they nest. */
 export const REACH = 72;
-export const NEST = 10;
+const NEST = 10;
 const NEST_MAX = 8;
 /** How much lower than its ends a cable's handles rest (px): it is heavy, a little. */
-export const SAG = 4;
+const SAG = 4;
 /** A falling plug's gravity (px a second squared), and the spring pulling a plug to its row (and its damping). */
-export const GRAVITY = 2400;
-export const SEAT_STIFFNESS = 260;
-export const SEAT_DAMPING = 22;
+const GRAVITY = 2400;
+const SEAT_STIFFNESS = 260;
+const SEAT_DAMPING = 22;
 
 /**
  * How far to the right of its ends a cable's handles reach: about its drop (a round loop, as wide as it is tall, for
@@ -55,6 +55,27 @@ export const hangingRest = (from: Point, plug: Point): [Point, Point] => {
 	return [
 		{ x: from.x + Math.min(28, d * 0.3), y: from.y + SAG },
 		{ x: plug.x, y: plug.y - Math.min(70, d * 0.45) },
+	];
+};
+
+/** A held cable sags below its attachment and meets the back of the aimed plug. */
+export const heldRest = (
+	from: Point,
+	plug: Point,
+	target: Point,
+): [Point, Point] => {
+	const length = Math.hypot(plug.x - from.x, plug.y - from.y);
+	const reach = Math.min(70, length * 0.45);
+	const direction = Math.atan2(target.y - plug.y, target.x - plug.x);
+	return [
+		{
+			x: from.x + (plug.x - from.x) * 0.3,
+			y: from.y + Math.min(120, length * 0.4),
+		},
+		{
+			x: plug.x - Math.cos(direction) * reach,
+			y: plug.y - Math.sin(direction) * reach,
+		},
 	];
 };
 

@@ -2,7 +2,8 @@
 # DEPLOY.md step 8 inside the air-gapped network: step8.py in a pod (the bundle's python image, from the mirror), with
 # the test CA. Prints its checks; exits non-zero when one fails. Log: step8.log.
 set -uo pipefail
-W="$(cd "$(dirname "$0")" && pwd)"; export KUBECONFIG=$W/kubeconfig
+W="$(cd "$(dirname "$0")" && pwd)"
+export KUBECONFIG=$W/kubeconfig
 kubectl -n default delete pod step8 --ignore-not-found --wait=true >/dev/null 2>&1
 kubectl -n default delete configmap step8 --ignore-not-found >/dev/null
 kubectl -n default create configmap step8 --from-file=step8.py="$W/step8.py" --from-file=ca.crt="$W/pki/ca.crt" >/dev/null

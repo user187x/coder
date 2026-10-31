@@ -3,12 +3,15 @@ import { ChevronDownIcon } from "lucide-react";
 import {
 	useCallback,
 	useEffect,
+	useId,
 	useLayoutEffect,
 	useRef,
 	useState,
 } from "react";
 import { createPortal } from "react-dom";
+import { useLocation } from "react-router";
 import type { Banner } from "#/api/platform";
+import { CornerExpandButton } from "#/components/Button/CornerExpandButton";
 import { BannerBlocks, PictureScreen } from "./BannerText";
 import { BrokenScreenOverlay } from "./BrokenScreenOverlay";
 import { bannerAlpha, withBannerAlpha } from "./bannerAlpha";
@@ -18,9 +21,21 @@ import { DotMatrixTime } from "./DotMatrixTime";
 import { enterFullscreen, leaveFullscreen } from "./fullscreen";
 import { attachAnnouncementAutoScroll } from "./hoverAutoScroll";
 import { MatrixOverlay } from "./MatrixOverlay";
+import { PromptCat, PromptEcho, PromptFlash } from "./PromptEffects";
 import { SkynetOverlay } from "./SkynetOverlay";
 import { startSparks } from "./sparksCursor";
 import { type Answer, isRm, TerminalAnswer } from "./TerminalAnswers";
+import {
+	BannerWorkspaceTerminal,
+	TerminalConnectorCable,
+} from "./TerminalConnector";
+import {
+	registerTerminalBanner,
+	resetConnector,
+	updateConnector,
+	useTerminalConnector,
+} from "./terminalConnector";
+import { useAnnouncementMotion } from "./useAnnouncementMotion";
 import "./bannerScrollView.css";
 
 const CLOSE_MS = 220;
@@ -33,20 +48,22 @@ const SKYNET = "skynet";
 export const RM_RF =
 	/^(sudo\s+)?rm\s+-(rf|fr|Rf|fR)\s+(\*|\/\*?|~\/?\*?|\.\/?\*?)$/;
 /** Run at the prompt: the mouse pointer becomes sparks (sparksCursor) until a key is pressed. */
-export const MOUSE = "/dev/mouse";
+const MOUSE = "/dev/mouse";
 /** Run at the prompt: the time now, on a dot-matrix display (DotMatrixTime). */
-export const TIME = "time";
+const TIME = "time";
 /** Run at the prompt: the Matrix's rain over the screen (MatrixOverlay) until a key or the mouse. */
-export const MATRIX = "matrix";
+const MATRIX = "matrix";
 
 /** What a command run at the prompt is answered with (TerminalAnswers); "clear" and the effects print nothing. */
 export const answerFor = (command: string): Answer => {
+	command = command.toLowerCase();
 	const word = command.split(" ")[0];
 	if (
 		!command ||
 		command === MOUSE ||
 		command === MATRIX ||
-		command === "clear" ||
+		["clear", "exit", "close"].includes(command) ||
+		["cat", "cd", "echo"].includes(word) ||
 		RM_RF.test(command)
 	) {
 		return "none";
@@ -60,9 +77,10 @@ export const answerFor = (command: string): Answer => {
 	if (word === "date" || word === "data") {
 		return "date";
 	}
-	if (command === "whoami") {
+	if (command === "whoami" || command === "who") {
 		return "whoami";
 	}
+	if (command === "health") return "health";
 	if (word === "ls") {
 		return "ls";
 	}
@@ -106,7 +124,7 @@ type BannerScrollViewProps = {
  *
  * The message is followed by the one prompt, which takes typing while the view is open (it has the focus), as a
  * terminal would: Backspace, and Enter runs the line (TerminalAnswers): "ls" lists the user's workspaces with their
- * state and uptime, "date" says the date, "whoami" says "Skynet", "ip" the dashboard's address, "clear" empties the screen, "time" prints the time
+ * state and uptime, "date" says the date, "whoami" identifies the signed-in user, "ip" the dashboard's address, "clear" empties the screen, "time" prints the time
  * on a dot-matrix display (DotMatrixTime, ticking); anything starting with "rm" is answered with a wagging finger and
  * "ahh ahh ahh..." that fade away after 1.5 s (NoNoResponse); anything else is not found. The effects take the whole
  * screen (fullscreen.ts) while they last: typing "skynet" rolls the view up and fades the screen into Skynet; running
@@ -119,12 +137,35 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 	anchor,
 	colors,
 }) => {
+	const motion = useAnnouncementMotion();
 	// Platform: the banner's background picture (an animated GIF too) across the terminal's screen as well
+	const connector = useTerminalConnector();
+	const connectorId = useId();
+	useEffect(
+		() =>
+			registerTerminalBanner(connectorId, () => {
+				const bounds = anchor.current?.getBoundingClientRect();
+				return Boolean(bounds && bounds.width > 0 && bounds.height > 0);
+			}),
+		[anchor, connectorId],
+	);
+	const workspace =
+		connector.ownerId === connectorId ? connector.workspace : null;
+	const location = useLocation();
+	useEffect(() => {
+		resetConnector();
+		return resetConnector;
+	}, [location.pathname]);
 	const picture = safeHref(banner.picture ?? "");
-	const [open, setOpen] = useState(false);
+	const [manualOpen, setOpen] = useState(false);
+	const open = manualOpen || Boolean(workspace);
+	const [expanded, setExpanded] = useState(false);
 	const [closing, setClosing] = useState(false);
 	const [rect, setRect] = useState<Rect>();
 	const [typed, setTyped] = useState("");
+	const [cat, setCat] = useState(0);
+	const [flash, setFlash] = useState(0);
+	const [echo, setEcho] = useState(false);
 	const [history, setHistory] = useState<{ command: string; answer: Answer }[]>(
 		[],
 	);
@@ -161,14 +202,22 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 	};
 
 	const close = () => {
+		setExpanded(false);
+		setCat(0);
+		setFlash(0);
+		setEcho(false);
+		if (workspace) resetConnector();
 		if (!open || closing) {
 			return;
 		}
 		setClosing(true);
-		window.setTimeout(() => {
-			setOpen(false);
-			setClosing(false);
-		}, CLOSE_MS);
+		window.setTimeout(
+			() => {
+				setOpen(false);
+				setClosing(false);
+			},
+			motion.effects ? CLOSE_MS : 0,
+		);
 	};
 
 	useLayoutEffect(() => {
@@ -192,10 +241,11 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 	// The reader can hold the message still without losing their place.
 	useEffect(() => {
 		const el = panel.current;
-		return open && el
+		return motion.effects && open && el
 			? attachAnnouncementAutoScroll(el, () => body.current, false, banner)
 			: undefined;
 	}, [
+		motion.effects,
 		open,
 		rect,
 		banner.message,
@@ -213,6 +263,13 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 	}, [typed, history]);
 
 	const onPromptKey = (event: React.KeyboardEvent) => {
+		if (workspace) return;
+		if (echo) {
+			setEcho(false);
+			event.preventDefault();
+			event.stopPropagation();
+			return;
+		}
 		if (event.ctrlKey || event.metaKey || event.altKey) {
 			return;
 		}
@@ -220,8 +277,29 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 			setTyped((t) => t.slice(0, -1));
 		} else if (event.key === "Enter") {
 			const command = typed.trim().replace(/\s+/g, " ");
+			const keyword = command.toLowerCase().split(" ")[0];
 			setTyped("");
-			if (command === "clear") {
+			if (
+				["terminal", "connect"].includes(command.toLowerCase()) &&
+				location.pathname === "/workspaces"
+			) {
+				updateConnector({ armed: true, ownerId: connectorId });
+				close();
+				event.preventDefault();
+				event.stopPropagation();
+				return;
+			}
+			if (["exit", "close"].includes(command.toLowerCase())) {
+				close();
+				toggle.current?.focus();
+				event.preventDefault();
+				event.stopPropagation();
+				return;
+			}
+			if (keyword === "cat") setCat((value) => value + 1);
+			if (keyword === "cd") setFlash((value) => value + 1);
+			if (keyword === "echo") setEcho(true);
+			if (command.toLowerCase() === "clear") {
 				setHistory([]);
 				setCleared(true);
 			} else {
@@ -271,6 +349,7 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 			close();
 		};
 		const onKey = (event: KeyboardEvent) => {
+			if (echo) setEcho(false);
 			if (event.key === "Escape") {
 				close();
 				toggle.current?.focus();
@@ -289,6 +368,8 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 
 	return (
 		<>
+			{connector.ownerId === connectorId && <TerminalConnectorCable />}
+			{flash > 0 && <PromptFlash key={flash} onDone={() => setFlash(0)} />}
 			<button
 				ref={toggle}
 				type="button"
@@ -316,19 +397,26 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 					<div
 						ref={panel}
 						role="dialog"
-						aria-label="Announcement"
+						aria-label={
+							workspace ? `Terminal: ${workspace.name}` : "Announcement"
+						}
 						data-testid="announcement-scroll-view"
 						data-closing={closing || undefined}
 						tabIndex={-1}
 						onKeyDown={onPromptKey}
 						className="banner-scroll"
+						data-announcement-motion={motion.effects ? "on" : "off"}
 						data-picture={picture ? "" : undefined}
 						style={
 							{
 								"--banner-alpha": bannerAlpha(banner.opacity),
 								top: rect.top,
-								left: rect.left,
-								width: rect.width,
+								left: expanded ? 8 : rect.left,
+								width: expanded ? "calc(100vw - 16px)" : rect.width,
+								height: expanded
+									? `calc(100dvh - ${rect.top + 8}px)`
+									: undefined,
+								maxHeight: `calc(100dvh - ${rect.top + 8}px)`,
 								...(colors
 									? {
 											"--banner-scroll-screen": withBannerAlpha(
@@ -364,39 +452,58 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 							data-testid="announcement-scroll-title"
 							aria-hidden
 						>
-							<b>Broadcast Announcement</b>
+							<b>
+								{workspace
+									? `${workspace.owner_name}/${workspace.name} terminal`
+									: "Broadcast Announcement"}
+							</b>
 						</div>
-						<div ref={body} className="banner-scroll-body">
-							{!cleared && (
+						{workspace ? (
+							<BannerWorkspaceTerminal
+								key={workspace.id}
+								workspace={workspace}
+							/>
+						) : (
+							<div ref={body} className="banner-scroll-body">
+								{!cleared && (
+									<div
+										className="banner-scroll-text"
+										style={{ fontFamily: bannerFontStack(banner.font) }}
+									>
+										<BannerBlocks
+											message={banner.message}
+											markdown={banner.markdown !== false}
+										/>
+									</div>
+								)}
+								{history.map(({ command, answer }, i) => (
+									<div key={i} className="banner-scroll-prompt">
+										<i>root@platform</i>:<em>~</em># {command}
+										<TerminalAnswer
+											answer={answer}
+											command={command}
+											time={<DotMatrixTime />}
+										/>
+									</div>
+								))}
+								{cat > 0 && <PromptCat key={cat} onDone={() => setCat(0)} />}
+								{echo && <PromptEcho />}
 								<div
-									className="banner-scroll-text"
-									style={{ fontFamily: bannerFontStack(banner.font) }}
+									className="banner-scroll-prompt"
+									data-testid="announcement-scroll-prompt"
+									aria-hidden
 								>
-									<BannerBlocks
-										message={banner.message}
-										markdown={banner.markdown !== false}
-									/>
+									<i>root@platform</i>:<em>~</em># {typed}
+									<span className="banner-scroll-cursor" />
 								</div>
-							)}
-							{history.map(({ command, answer }, i) => (
-								<div key={i} className="banner-scroll-prompt" aria-hidden>
-									<i>root@platform</i>:<em>~</em># {command}
-									<TerminalAnswer
-										answer={answer}
-										command={command}
-										time={<DotMatrixTime />}
-									/>
-								</div>
-							))}
-							<div
-								className="banner-scroll-prompt"
-								data-testid="announcement-scroll-prompt"
-								aria-hidden
-							>
-								<i>root@platform</i>:<em>~</em># {typed}
-								<span className="banner-scroll-cursor" />
 							</div>
-						</div>
+						)}
+						<CornerExpandButton
+							bottom
+							label="announcement panel"
+							expanded={expanded}
+							onToggle={() => setExpanded(!expanded)}
+						/>
 					</div>,
 					document.body,
 				)}

@@ -102,5 +102,4 @@ func TestEnterpriseAuditLogs(t *testing.T) {
 		// OrganizationID is deprecated, but make sure it is empty.
 		require.Equal(t, uuid.Nil, alogs.AuditLogs[0].OrganizationID)
 	})
-
 }

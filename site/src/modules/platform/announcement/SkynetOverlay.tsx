@@ -3,9 +3,9 @@ import { createPortal } from "react-dom";
 import "./skynetOverlay.css";
 
 /** The image (site/static/skynet.webp). */
-export const SKYNET_SRC = "/skynet.webp";
+const SKYNET_SRC = "/skynet.webp";
 /** How long the glitch out takes (skynetOverlay.css: skynet-out). */
-export const SKYNET_OUT_MS = 900;
+const SKYNET_OUT_MS = 900;
 /** Input this soon after it shows is the typing that summoned it, not a dismissal. */
 const SETTLE_MS = 400;
 

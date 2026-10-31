@@ -30,6 +30,7 @@ import (
 	"golang.org/x/sync/singleflight"
 	"golang.org/x/xerrors"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"storj.io/drpc/drpcerr"
 	"tailscale.com/tailcfg"
 
 	"cdr.dev/slog/v3"
@@ -3179,9 +3180,7 @@ func buildWorkspaceWithAgent(
 }
 
 // TestWorkspaceAgentPushContextState exercises the full agent RPC path
-// for PushContextState: agent token auth middleware, the v2.10 DRPC
-// API, the dbauthz workspace authorization boundary, and persistence.
-// The push must succeed using only the agent's own token subject.
+// for the unsupported context API. Agents receive Unimplemented and stop pushing.
 func TestWorkspaceAgentPushContextState(t *testing.T) {
 	t.Parallel()
 
@@ -3204,7 +3203,7 @@ func TestWorkspaceAgentPushContextState(t *testing.T) {
 		require.NoError(t, cErr)
 	}()
 
-	resp, err := aAPI.PushContextState(ctx, &agentproto.PushContextStateRequest{
+	_, err = aAPI.PushContextState(ctx, &agentproto.PushContextStateRequest{
 		Version:       1,
 		Initial:       true,
 		AggregateHash: []byte{0x01, 0x02},
@@ -3220,27 +3219,10 @@ func TestWorkspaceAgentPushContextState(t *testing.T) {
 			},
 		},
 	})
-	require.NoError(t, err)
-	require.True(t, resp.GetAccepted())
-
-	snapshot, err := db.GetLatestWorkspaceAgentContextSnapshot(dbauthz.AsSystemRestricted(ctx), agentID) //nolint:gocritic // Test assertions read agent-pushed rows directly from the store.
-	require.NoError(t, err)
-	require.EqualValues(t, 1, snapshot.Version)
-	resources, err := db.ListWorkspaceAgentContextResources(dbauthz.AsSystemRestricted(ctx), agentID) //nolint:gocritic // Same as above.
-	require.NoError(t, err)
-	require.Len(t, resources, 1)
-	require.Equal(t, "/workspace/AGENTS.md", resources[0].Source)
-	require.Equal(t, database.WorkspaceAgentContextBodyKindInstructionFile, resources[0].BodyKind)
-	require.Equal(t, database.WorkspaceAgentContextResourceStatusOk, resources[0].Status)
-
-	// A non-initial replay of the same version is dropped without error.
-	resp, err = aAPI.PushContextState(ctx, &agentproto.PushContextStateRequest{
-		Version:       1,
-		Initial:       false,
-		AggregateHash: []byte{0x01, 0x02},
-	})
-	require.NoError(t, err)
-	require.False(t, resp.GetAccepted())
+	require.Error(t, err)
+	require.EqualValues(t, drpcerr.Unimplemented, drpcerr.Code(err))
+	_, err = db.GetLatestWorkspaceAgentContextSnapshot(dbauthz.AsSystemRestricted(ctx), agentID)
+	require.ErrorIs(t, err, sql.ErrNoRows)
 }
 
 func requireGetManifest(ctx context.Context, t testing.TB, aAPI agentproto.DRPCAgentClient) agentsdk.Manifest {
@@ -3351,15 +3333,6 @@ func waitForUpdates(
 	case <-ctx.Done():
 		t.Fatal("Timeout waiting for desired state", currentState)
 	}
-}
-
-func requireEqualOrBothNil[T any](t testing.TB, a, b *T) {
-	t.Helper()
-	if a != nil && b != nil {
-		require.Equal(t, *a, *b)
-		return
-	}
-	require.Equal(t, a, b)
 }
 
 func TestAgentConnectionInfo(t *testing.T) {

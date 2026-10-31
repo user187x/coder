@@ -33,6 +33,8 @@ type RequestParams struct {
 	Request          *http.Request
 	Action           database.AuditAction
 	AdditionalFields interface{}
+	// AllowUnknownUser records password attempts even when the account does not exist.
+	AllowUnknownUser bool
 }
 
 type Request[T Auditable] struct {
@@ -591,10 +593,9 @@ func InitRequest[T Auditable](w http.ResponseWriter, p *RequestParams) (*Request
 		case req.UserID != uuid.Nil:
 			userID = req.UserID
 		default:
-			// if we do not have a user associated with the audit action
-			// we do not want to audit
-			// (this pertains to logins; we don't want to capture non-user login attempts)
-			return
+			if !p.AllowUnknownUser || p.Action != database.AuditActionLogin {
+				return
+			}
 		}
 
 		action := p.Action

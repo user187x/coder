@@ -463,7 +463,7 @@ require (
 	github.com/tklauser/go-sysconf v0.3.16 // indirect
 	github.com/tklauser/numcpus v0.11.0 // indirect
 	github.com/u-root/uio v0.0.0-20240209044354-b3d14b93376a // indirect
-	github.com/vishvananda/netlink v1.2.1-beta.2 // indirect
+	github.com/vishvananda/netlink v1.2.1-beta.2
 	github.com/vishvananda/netns v0.0.4 // indirect
 	github.com/vmihailenco/msgpack v4.0.4+incompatible // indirect
 	github.com/vmihailenco/msgpack/v5 v5.4.1 // indirect
@@ -490,9 +490,9 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.1 // indirect
 	go4.org/mem v0.0.0-20220726221520-4f986261bf13 // indirect
-	golang.org/x/time v0.16.0 // indirect
+	golang.org/x/time v0.16.0
 	golang.zx2c4.com/wintun v0.0.0-20230126152724-0fa3db229ce2
-	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20230429144221-925a1e7659e6 // indirect
+	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20230429144221-925a1e7659e6
 	golang.zx2c4.com/wireguard/windows v0.5.3 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/genproto v0.0.0-20260729162451-8efbd57d26e0 // indirect
@@ -501,7 +501,7 @@ require (
 	gopkg.in/ini.v1 v1.67.3 // indirect
 	howett.net/plist v1.0.1 // indirect
 	kernel.org/pub/linux/libs/security/libcap/psx v1.2.77 // indirect
-	sigs.k8s.io/yaml v1.6.0 // indirect
+	sigs.k8s.io/yaml v1.6.0
 )
 
 require github.com/coder/clistat v1.2.1
@@ -560,6 +560,7 @@ require (
 	github.com/pion/transport/v4 v4.0.2 // indirect
 	github.com/wlynxg/anet v0.0.5 // indirect
 	golang.org/x/image v0.45.0 // indirect
+	golang.zx2c4.com/wireguard v0.0.0-20230325221338-052af4a8072b // indirect
 )
 
 require (

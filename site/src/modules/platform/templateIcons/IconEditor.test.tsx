@@ -3,10 +3,11 @@ import { useState } from "react";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { PlatformAPI, type TemplateIcon } from "#/api/platform";
 import { renderComponent } from "#/testHelpers/renderHelpers";
+import type * as ImageModule from "#/utils/normalizeImage";
 import { freeIconName, IconEditor } from "./IconEditor";
 
-vi.mock("../normalizeImage", async (importOriginal) => ({
-	...(await importOriginal<typeof import("../normalizeImage")>()),
+vi.mock("#/utils/normalizeImage", async (importOriginal) => ({
+	...(await importOriginal<typeof ImageModule>()),
 	// jsdom has no canvas: the picture as it came
 	normalizeImage: async () => ({ dataURL: "data:image/png;base64,AAAA" }),
 }));

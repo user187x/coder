@@ -59,7 +59,7 @@ const withLatency = (
 const renderMenu = (
 	onOpenChange = vi.fn(),
 	onOther = vi.fn(),
-	onOpenGrid?: (ids: string[]) => void,
+	onOpenGrid?: (ids: string[], layout: "list" | "grid") => void,
 ) =>
 	render(
 		<QueryClientProvider client={new QueryClient()}>
@@ -244,34 +244,40 @@ describe("WorkspacesLatencyMenu", () => {
 		expect(isOpen(list)).toBe(false);
 	});
 
-	it("locked, chooses workspaces for the grid and opens them together", async () => {
-		mockWorkspaces();
-		const onOpenChange = vi.fn();
-		const onOpenGrid = vi.fn();
-		renderMenu(onOpenChange, vi.fn(), onOpenGrid);
-		const row = await screen.findByTestId("workspaces-latency");
-		const list = screen.getByTestId("workspaces-latency-list");
-
-		// only while it is pressed: no ticks
-		fireEvent.pointerDown(row, { button: 0, pointerId: 1 });
-		await within(list).findByTestId("workspace-latency-ggg");
-		expect(within(list).queryByTestId("workspace-grid-view")).toBeNull();
-		fireEvent.pointerUp(document.body, { button: 0, pointerId: 1 });
-
-		fireEvent.doubleClick(row);
-		const user = userEvent.setup();
-		const view = within(list).getByTestId("workspace-grid-view");
-		const ggg = within(list).getByTestId("workspace-latency-ggg");
-		await user.click(view);
-		expect(onOpenGrid).toHaveBeenLastCalledWith(["ggg", "old"]);
-		await user.click(within(list).getByTestId("workspace-grid-clear"));
-		await user.click(ggg);
-		await user.click(view);
-		expect(onOpenGrid).toHaveBeenLastCalledWith(["ggg"]);
-		await user.click(within(list).getByTestId("workspace-grid-all"));
-		await user.click(view);
-		expect(onOpenGrid).toHaveBeenLastCalledWith(["ggg", "old"]);
-	});
+	it.each(["list", "grid"] as const)(
+		"opens the selected workspaces in %s layout",
+		async (layout) => {
+			mockWorkspaces();
+			const onOpenGrid = vi.fn();
+			renderMenu(vi.fn(), vi.fn(), onOpenGrid);
+			const user = userEvent.setup();
+			const row = await screen.findByRole("menuitem", {
+				name: /Workspaces.*2/,
+			});
+			if (layout === "list") {
+				await user.dblClick(row);
+			} else {
+				row.focus();
+				await user.keyboard("{Enter}");
+			}
+			const view = screen.getByRole("menuitem", {
+				name: layout === "list" ? "List view" : "Grid view",
+			});
+			await user.click(view);
+			expect(onOpenGrid).toHaveBeenLastCalledWith(["ggg", "old"], layout);
+			await user.click(screen.getByRole("menuitem", { name: "Clear" }));
+			onOpenGrid.mockClear();
+			await user.click(view);
+			expect(onOpenGrid).not.toHaveBeenCalled();
+			await user.click(screen.getByRole("menuitemcheckbox", { name: /ggg/ }));
+			await user.click(view);
+			expect(onOpenGrid).toHaveBeenLastCalledWith(["ggg"], layout);
+			await user.click(screen.getByRole("menuitem", { name: "Select all" }));
+			view.focus();
+			await user.keyboard("{Enter}");
+			expect(onOpenGrid).toHaveBeenLastCalledWith(["ggg", "old"], layout);
+		},
+	);
 
 	it("counts the hold with chevrons each side of its words, three at most, in step with the ring", async () => {
 		mockWorkspaces();

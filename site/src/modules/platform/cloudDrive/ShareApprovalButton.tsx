@@ -22,7 +22,7 @@ import { sharedThing, useShareActions } from "./CloudDrivePeers";
 import { openPath } from "./sharedWithYou";
 
 /** "bob's Cloud Drive for ann (read only)". */
-export const shareWords = (s: CloudDriveShare) =>
+const shareWords = (s: CloudDriveShare) =>
 	`${s.ownerName}'s ${sharedThing(s)} for ${s.fromName} (${s.access === "write" ? "read and write" : "read only"})`;
 
 /** Where an admin inspects what a share would give: the owner's Cloud Drive, at the shared folder (a file's folder). */

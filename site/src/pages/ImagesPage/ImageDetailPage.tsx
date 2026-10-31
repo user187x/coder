@@ -27,6 +27,7 @@ import {
 	ImagesAPI,
 	terraformSnippet,
 } from "#/api/images";
+import { imagesKey } from "#/api/queries/images";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { Button } from "#/components/Button/Button";
 import { CodeExample } from "#/components/CodeExample/CodeExample";
@@ -63,7 +64,6 @@ import {
 import { ImageAddons } from "./ImageAddons";
 import { imageKey } from "./ImageEditorPage";
 import { ImageReport } from "./ImageReport";
-import { imagesKey } from "./ImagesPage";
 import { ImportImageDialog } from "./ImportImageDialog";
 
 /**

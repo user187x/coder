@@ -2,13 +2,14 @@ import type { QueryClient } from "react-query";
 import { API } from "../api";
 import { platformGet, platformPost } from "../platform";
 import { lockdownRootKey } from "./platform";
-export type SandboxGroup = {
+
+type SandboxGroup = {
 	id: string;
 	organization_id: string;
 	workspaces: { id: string; name: string }[];
 };
-export type SandboxState = { groups: SandboxGroup[]; error?: string | null };
-export const sandboxKey = (org: string) => ["sandbox", org] as const;
+type SandboxState = { groups: SandboxGroup[]; error?: string | null };
+const sandboxKey = (org: string) => ["sandbox", org] as const;
 export const SandboxAPI = {
 	groups: (org: string) =>
 		platformGet<SandboxState>(

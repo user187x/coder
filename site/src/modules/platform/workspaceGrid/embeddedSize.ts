@@ -3,7 +3,7 @@ import { useEffect } from "react";
 /** What an embedded dashboard page tells the page around it: its content's size (the workspace grid fits it). */
 export const EMBED_SIZE_MESSAGE = "platform-embed-size";
 
-export type EmbedSizeMessage = {
+type EmbedSizeMessage = {
 	type: typeof EMBED_SIZE_MESSAGE;
 	width: number;
 	height: number;
@@ -12,9 +12,16 @@ export type EmbedSizeMessage = {
 export const isEmbedSizeMessage = (data: unknown): data is EmbedSizeMessage =>
 	typeof data === "object" &&
 	data !== null &&
-	(data as EmbedSizeMessage).type === EMBED_SIZE_MESSAGE &&
-	typeof (data as EmbedSizeMessage).height === "number" &&
-	typeof (data as EmbedSizeMessage).width === "number";
+	"type" in data &&
+	data.type === EMBED_SIZE_MESSAGE &&
+	"height" in data &&
+	typeof data.height === "number" &&
+	Number.isFinite(data.height) &&
+	data.height > 0 &&
+	"width" in data &&
+	typeof data.width === "number" &&
+	Number.isFinite(data.width) &&
+	data.width > 0;
 
 /**
  * In a page in the platform's frame: tells the page around it (this origin only) how big the element is, now and
@@ -29,16 +36,20 @@ export const useReportEmbeddedSize = (
 		if (!enabled || !el || typeof ResizeObserver === "undefined") {
 			return;
 		}
+		let previous: EmbedSizeMessage | undefined;
 		const report = () => {
-			// Measure intrinsic content without the viewport stretch used to equalize grid cards.
-			el.setAttribute("data-measuring", "");
-			const height = el.offsetHeight;
-			el.removeAttribute("data-measuring");
 			const message: EmbedSizeMessage = {
 				type: EMBED_SIZE_MESSAGE,
 				width: el.scrollWidth,
-				height,
+				height: el.offsetHeight,
 			};
+			if (
+				!isEmbedSizeMessage(message) ||
+				(message.width === previous?.width &&
+					message.height === previous?.height)
+			)
+				return;
+			previous = message;
 			try {
 				window.parent.postMessage(message, window.location.origin);
 			} catch {

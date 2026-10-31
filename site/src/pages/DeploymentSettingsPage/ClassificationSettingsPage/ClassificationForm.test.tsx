@@ -1,16 +1,12 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import type { ClassificationSettings } from "#/api/platform";
+import { MockClassification } from "#/testHelpers/platform";
 import { renderComponent } from "#/testHelpers/renderHelpers";
 import { ClassificationForm } from "./ClassificationSettingsPage";
 
-const saved: ClassificationSettings = {
-	enabled: false,
-	text: "UNCLASSIFIED",
-	height: 24,
-	background: "#007a33",
-	color: "#ffffff",
-};
+const saved: ClassificationSettings = { ...MockClassification, enabled: false };
 
 const renderForm = (form: ClassificationSettings) => {
 	const onChange = vi.fn();
@@ -58,4 +54,43 @@ describe("ClassificationForm", () => {
 
 		expect(onSave).not.toHaveBeenCalled();
 	});
+});
+
+it("switches colour targets without losing edited values and saves both", async () => {
+	const onSave = vi.fn();
+	const Form = () => {
+		const [form, setForm] = useState(saved);
+		return (
+			<ClassificationForm
+				saved={saved}
+				form={form}
+				onChange={(change) => setForm((before) => ({ ...before, ...change }))}
+				onDiscard={() => setForm(saved)}
+				onSave={onSave}
+				isSaving={false}
+			/>
+		);
+	};
+	renderComponent(<Form />);
+	const user = userEvent.setup();
+	await user.click(screen.getByRole("button", { name: "CUI #502b85" }));
+	await user.click(screen.getByRole("tab", { name: "Text" }));
+	await user.click(screen.getByRole("button", { name: "Black #000000" }));
+	await user.click(screen.getByRole("tab", { name: "Background" }));
+	await user.click(screen.getByRole("button", { name: "Save" }));
+	expect(onSave).toHaveBeenCalledWith({
+		...saved,
+		background: "#502b85",
+		color: "#000000",
+	});
+});
+
+it("changing the colour target does not modify the marking", async () => {
+	const { onChange, onSave } = renderForm(saved);
+	const user = userEvent.setup();
+	await user.click(screen.getByRole("tab", { name: "Text" }));
+	await user.keyboard("{ArrowLeft}");
+	expect(onChange).not.toHaveBeenCalled();
+	await user.click(screen.getByRole("button", { name: "Save" }));
+	expect(onSave).not.toHaveBeenCalled();
 });

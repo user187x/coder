@@ -356,3 +356,34 @@ export const workspaceAgentNeedsUpdate = (
 		agent.api_version,
 		serverAPIVersion,
 	).status !== agentVersionStatus.Updated;
+
+/** Explains the updates that a restart can apply, using the same version policy as the status indicator. */
+export const getWorkspaceRestartReasons = (
+	workspace: TypesGen.Workspace,
+	serverVersion: string,
+	serverAPIVersion: string,
+): string[] => {
+	const reasons: string[] = [];
+	if (workspace.outdated) {
+		reasons.push(
+			`Template update available. Current version: ${workspace.latest_build.template_version_name || "Unknown"}. Restart with updates to use the active template version.`,
+		);
+	}
+	for (const agent of getWorkspaceAgents(workspace)) {
+		const { status } = getDisplayVersionStatus(
+			agent.version,
+			serverVersion,
+			agent.api_version,
+			serverAPIVersion,
+		);
+		if (status === agentVersionStatus.Updated) continue;
+		reasons.push(
+			`Agent ${agent.name}: installed ${agent.version || "Unknown"}; server version ${serverVersion || "Unknown"}.${
+				status === agentVersionStatus.Deprecated
+					? ` Incompatible agent API ${agent.api_version}; server requires API ${serverAPIVersion}.`
+					: " An agent update is available."
+			}`,
+		);
+	}
+	return reasons;
+};

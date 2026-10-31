@@ -14,11 +14,18 @@ import {
 
 const validationSchema = Yup.object({
 	username: nameValidator("Username"),
+	email: Yup.string()
+		.trim()
+		.email("Enter a valid email address.")
+		.required("Email is required."),
 	name: Yup.string(),
 });
 
 type AccountFormProps = {
 	editable: boolean;
+	focusUsername?: boolean;
+	emailEditable: boolean;
+	providerAccountURL?: string;
 	email: string;
 	isLoading: boolean;
 	initialValues: UpdateUserProfileRequest;
@@ -30,6 +37,9 @@ type AccountFormProps = {
 
 export const AccountForm: React.FC<AccountFormProps> = ({
 	editable,
+	focusUsername = false,
+	emailEditable,
+	providerAccountURL,
 	email,
 	isLoading,
 	onSubmit,
@@ -37,10 +47,20 @@ export const AccountForm: React.FC<AccountFormProps> = ({
 	updateProfileError,
 	initialTouched,
 }) => {
-	const form = useFormik({
-		initialValues,
+	const form = useFormik<
+		UpdateUserProfileRequest & { email: string; current_password: string }
+	>({
+		initialValues: { ...initialValues, email, current_password: "" },
 		validationSchema,
-		onSubmit,
+		onSubmit: ({ email: nextEmail, current_password, ...profile }) => {
+			const changedEmail =
+				emailEditable && nextEmail.toLowerCase() !== email.toLowerCase();
+			onSubmit(
+				changedEmail
+					? { ...profile, email: nextEmail, current_password }
+					: profile,
+			);
+		},
 		initialTouched,
 	});
 	const getFieldHelpers = getFormHelpers(form, updateProfileError);
@@ -55,14 +75,46 @@ export const AccountForm: React.FC<AccountFormProps> = ({
 				<FormField
 					field={getFieldHelpers("email")}
 					label="Email"
-					value={email}
-					disabled
+					type="email"
+					autoComplete="email"
+					onChange={onChangeTrimmed(form)}
+					disabled={!emailEditable}
 				/>
+				{!emailEditable && (
+					<p className="text-sm text-content-secondary">
+						Your sign-in provider manages your email address.
+						{providerAccountURL && (
+							<>
+								{" "}
+								<a
+									className="text-content-link underline"
+									href={providerAccountURL}
+									target="_blank"
+									rel="noreferrer"
+								>
+									Change email with your sign-in provider
+								</a>
+								. Sign in to Coder again afterward to sync the change.
+							</>
+						)}
+					</p>
+				)}
+				{emailEditable &&
+					form.values.email.toLowerCase() !== email.toLowerCase() && (
+						<FormField
+							field={getFieldHelpers("current_password")}
+							label="Current password"
+							type="password"
+							autoComplete="current-password"
+							required
+						/>
+					)}
 				<FormField
 					field={getFieldHelpers("username")}
 					onChange={onChangeTrimmed(form)}
 					aria-disabled={!editable}
 					autoComplete="username"
+					autoFocus={focusUsername}
 					disabled={!editable}
 					className="w-full"
 					label="Username"

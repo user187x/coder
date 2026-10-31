@@ -2,8 +2,9 @@
 # (Re)creates the test realm content in the e2e Keycloak (start-dev keeps it in memory, so a pod restart loses it):
 # confidential client "coder" with the secret in pki/oidc-client-secret.txt, and user tester / tester@airgap.test.
 set -euo pipefail
-W="$(cd "$(dirname "$0")" && pwd)"; export KUBECONFIG=$W/kubeconfig
-SECRET=$(tr -d '\n' < "$W/pki/oidc-client-secret.txt")
+W="$(cd "$(dirname "$0")" && pwd)"
+export KUBECONFIG=$W/kubeconfig
+SECRET=$(tr -d '\n' <"$W/pki/oidc-client-secret.txt")
 kubectl -n keycloak exec -i deploy/keycloak -- env HOME=/tmp SECRET="$SECRET" sh -s <<'EOF'
 set -e
 K=/opt/keycloak/bin/kcadm.sh

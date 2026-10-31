@@ -2,7 +2,6 @@ package codersdk
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -30,15 +29,15 @@ type UpdateWorkspaceQuarantineRequest struct {
 
 // WorkspaceQuarantine reads one organization's workspace containment policy.
 func (c *Client) WorkspaceQuarantine(ctx context.Context, organizationID, workspaceID uuid.UUID) (WorkspaceQuarantine, error) {
-	return c.workspaceQuarantine(ctx, http.MethodGet, organizationID, workspaceID, nil)
+	return c.requestWorkspaceQuarantine(ctx, http.MethodGet, organizationID, workspaceID, nil)
 }
 
 // UpdateWorkspaceQuarantine changes policy. Release requires a fresh explicit Start.
 func (c *Client) UpdateWorkspaceQuarantine(ctx context.Context, organizationID, workspaceID uuid.UUID, request UpdateWorkspaceQuarantineRequest) (WorkspaceQuarantine, error) {
-	return c.workspaceQuarantine(ctx, http.MethodPut, organizationID, workspaceID, request)
+	return c.requestWorkspaceQuarantine(ctx, http.MethodPut, organizationID, workspaceID, request)
 }
 
-func (c *Client) workspaceQuarantine(ctx context.Context, method string, organizationID, workspaceID uuid.UUID, body any) (WorkspaceQuarantine, error) {
+func (c *Client) requestWorkspaceQuarantine(ctx context.Context, method string, organizationID, workspaceID uuid.UUID, body any) (WorkspaceQuarantine, error) {
 	response, err := c.Request(ctx, method, fmt.Sprintf("/api/v2/organizations/%s/workspaces/%s/quarantine", organizationID, workspaceID), body)
 	if err != nil {
 		return WorkspaceQuarantine{}, err
@@ -48,6 +47,6 @@ func (c *Client) workspaceQuarantine(ctx context.Context, method string, organiz
 		return WorkspaceQuarantine{}, ReadBodyAsError(response)
 	}
 	var out WorkspaceQuarantine
-	err = json.NewDecoder(response.Body).Decode(&out)
+	err = ReadBodyAsJSON(response, &out)
 	return out, err
 }

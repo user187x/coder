@@ -1,0 +1,28 @@
+.corner-expand-tab {
+	position: absolute;
+	top: 0;
+	right: 0;
+	display: flex;
+	width: 40px;
+	height: 40px;
+	align-items: center;
+	justify-content: flex-end;
+	padding: 0 10px 0 0;
+	clip-path: path("M 0 3 A 37 37 0 0 1 37 40 Z");
+	border: 0;
+	border-radius: 0;
+	background: hsl(var(--surface-secondary) / 0.96);
+	color: hsl(var(--content-secondary));
+	backdrop-filter: blur(12px);
+	pointer-events: auto;
+}
+.corner-expand-tab:hover {
+	background: hsl(var(--surface-tertiary));
+	color: hsl(var(--content-primary));
+}
+
+.corner-expand-bottom {
+	top: auto;
+	bottom: 0;
+	transform: scaleY(-1);
+}

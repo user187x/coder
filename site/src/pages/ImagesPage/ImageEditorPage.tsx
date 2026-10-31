@@ -6,7 +6,7 @@ import {
 	CircleCheckIcon,
 	HammerIcon,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { useMutation, useQueries, useQuery, useQueryClient } from "react-query";
 import {
 	Navigate,
@@ -21,6 +21,7 @@ import {
 	type ImageSpec,
 	ImagesAPI,
 } from "#/api/images";
+import { imagesKey } from "#/api/queries/images";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { Button } from "#/components/Button/Button";
 import { Input } from "#/components/Input/Input";
@@ -40,7 +41,6 @@ import {
 	ReviewStep,
 	useAptCheck,
 } from "./BuilderSteps";
-import { imagesKey } from "./ImagesPage";
 
 const STEPS = [
 	{ key: "basics", title: "Basics" },
@@ -93,7 +93,7 @@ const ImageEditor: React.FC<{ image: ImageDetail }> = ({ image }) => {
 	const list = useQuery({ queryKey: imagesKey, queryFn: ImagesAPI.list });
 
 	// saved a moment after each change
-	const saved = useRef(
+	const [saved, setSaved] = useState(
 		JSON.stringify({ spec: image.spec, description: image.description }),
 	);
 	const current = JSON.stringify({ spec, description });
@@ -101,28 +101,29 @@ const ImageEditor: React.FC<{ image: ImageDetail }> = ({ image }) => {
 	const save = useMutation({
 		mutationFn: (body: string) => ImagesAPI.save(image.id, JSON.parse(body)),
 		onSuccess: (out, body) => {
-			saved.current = body;
+			setSaved(body);
 			queryClient.setQueryData(imageKey(image.id), out);
 		},
 	});
 	const { mutate } = save;
+	const lastSaved = useEffectEvent(() => saved);
 	useEffect(() => {
-		if (pending !== saved.current) {
+		if (pending !== lastSaved()) {
 			mutate(pending);
 		}
 	}, [pending, mutate]);
-	const dirty = current !== saved.current;
+	const dirty = current !== saved;
 
 	// leaving with unsaved changes
 	useEffect(() => {
 		const warn = (e: BeforeUnloadEvent) => {
-			if (current !== saved.current) {
+			if (dirty) {
 				e.preventDefault();
 			}
 		};
 		window.addEventListener("beforeunload", warn);
 		return () => window.removeEventListener("beforeunload", warn);
-	}, [current]);
+	}, [dirty]);
 
 	// what stops a build: packages apt lacks, installations without a (clean) script
 	const apt = useAptCheck(spec.packages);
@@ -194,7 +195,7 @@ const ImageEditor: React.FC<{ image: ImageDetail }> = ({ image }) => {
 
 	const build = useMutation({
 		mutationFn: async () => {
-			if (current !== saved.current) {
+			if (current !== saved) {
 				await save.mutateAsync(current);
 			}
 			return ImagesAPI.build(image.id);

@@ -27,6 +27,7 @@ describe("editableFields", () => {
 			audience: "everyone",
 			audienceUserIds: [],
 			autoScroll: true,
+			animationsDisabled: false,
 			autoScrollSpeed: 4,
 			pauseOnHover: false,
 			pauseOnClick: false,

@@ -5,14 +5,14 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-
-	"github.com/coder/coder/v2/coderd"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
+	"github.com/coder/coder/v2/coderd"
 	"github.com/coder/coder/v2/coderd/coderdtest"
 	"github.com/coder/coder/v2/codersdk"
 	"github.com/coder/coder/v2/testutil"
-	"github.com/stretchr/testify/require"
 )
 
 func TestGlobalControlHTTPAuthorization(t *testing.T) {

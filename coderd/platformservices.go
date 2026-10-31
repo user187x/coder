@@ -2,6 +2,7 @@ package coderd
 
 import (
 	"context"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -63,6 +64,17 @@ func platformServiceProxy(logger slog.Logger, target *url.URL) http.Handler {
 	proxy := httputil.NewSingleHostReverseProxy(target)
 	// Long polls and the banner's WebSocket must not be buffered.
 	proxy.FlushInterval = -1
+	baseTransport, ok := http.DefaultTransport.(*http.Transport)
+	if !ok {
+		baseTransport = &http.Transport{Proxy: http.ProxyFromEnvironment}
+	}
+	networkTransport := baseTransport.Clone()
+	// A terminating pod can leave a connection blackholed until TCP times out.
+	// Bound each connection attempt so another attempt can reach its replacement.
+	networkTransport.DialContext = (&net.Dialer{Timeout: time.Second, KeepAlive: 30 * time.Second}).DialContext
+	networkTransport.TLSHandshakeTimeout = 2 * time.Second
+	networkTransport.ResponseHeaderTimeout = 5 * time.Second
+	proxy.Transport = platformReadTransport{base: http.DefaultTransport, network: networkTransport}
 	proxy.ErrorHandler = func(rw http.ResponseWriter, r *http.Request, err error) {
 		logger.Warn(r.Context(), "platform service unreachable", slog.F("target", target.String()), slog.Error(err))
 		if isPlatformBootScript(r) {
@@ -82,8 +94,50 @@ func platformServiceProxy(logger slog.Logger, target *url.URL) http.Handler {
 			defer cancel()
 			r = r.WithContext(ctx)
 		}
+		if isPlatformNetworkRead(r) {
+			ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
+			defer cancel()
+			r = r.WithContext(ctx)
+		}
 		proxy.ServeHTTP(rw, r)
 	})
+}
+
+// The single-writer platform service briefly loses its endpoint during an
+// update. Retry only the read-only topology snapshot, never a mutation or stream.
+type platformReadTransport struct {
+	base    http.RoundTripper
+	network http.RoundTripper
+}
+
+func isPlatformNetworkRead(r *http.Request) bool {
+	// Middleware may wrap even an empty body. ContentLength describes the wire
+	// request without depending on the concrete reader; unknown bodies are excluded.
+	return r.Method == http.MethodGet && r.URL.Path == "/__coder-ui/api/network" && r.Header.Get("Upgrade") == "" && r.ContentLength == 0 && len(r.TransferEncoding) == 0
+}
+
+func (t platformReadTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	base := t.base
+	if isPlatformNetworkRead(r) && t.network != nil {
+		base = t.network
+	}
+	for attempt := 0; ; attempt++ {
+		response, err := base.RoundTrip(r)
+		retry := err != nil || response.StatusCode == http.StatusBadGateway || response.StatusCode == http.StatusServiceUnavailable || response.StatusCode == http.StatusGatewayTimeout
+		if !isPlatformNetworkRead(r) || !retry || attempt == 19 || r.Context().Err() != nil {
+			return response, err
+		}
+		if response != nil {
+			_ = response.Body.Close()
+		}
+		timer := time.NewTimer(500 * time.Millisecond)
+		select {
+		case <-r.Context().Done():
+			timer.Stop()
+			return nil, r.Context().Err()
+		case <-timer.C:
+		}
+	}
 }
 
 // platformBootTimeout bounds how long the dashboard waits for the platform service's boot script.

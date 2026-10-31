@@ -1,4 +1,3 @@
-import type { ReactElement, ReactNode } from "react";
 import type { WorkspaceTunnel } from "#/api/platform";
 import {
 	Tooltip,
@@ -79,8 +78,8 @@ export const TunnelOverviewTooltip = ({
 	overview,
 	children,
 }: {
-	overview?: ReactNode;
-	children: ReactElement;
+	overview?: React.ReactNode;
+	children: React.ReactElement;
 }) =>
 	overview ? (
 		<TooltipProvider delayDuration={100}>

@@ -3,11 +3,12 @@ import userEvent from "@testing-library/user-event";
 import { PlatformAPI } from "#/api/platform";
 import { MockChatPeer, MockChatState } from "#/testHelpers/chat";
 import { render } from "#/testHelpers/renderHelpers";
+import type * as ChatStoreModule from "./chatStore";
 import { deleteConversations, useChatSnapshot } from "./chatStore";
 import { DockPeople } from "./DockPeople";
 
 vi.mock("./chatStore", async (original) => ({
-	...(await original<typeof import("./chatStore")>()),
+	...(await original<typeof ChatStoreModule>()),
 	useChatSnapshot: vi.fn(),
 	deleteConversations: vi.fn(),
 }));
@@ -38,6 +39,7 @@ beforeEach(() => {
 		fullFrom: "window",
 		panelView: null,
 		consoleOpen: false,
+		menuOpen: false,
 		consoleOverlay: false,
 		consoleView: null,
 		consoleRequest: 0,

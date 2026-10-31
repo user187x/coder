@@ -80,5 +80,66 @@ class QuotaResourceModesTest(unittest.TestCase):
                          {"workspaces": 2, "cpu": 3, "memory": 12, "disk": 0})
 
 
+class QuotaExcludedUsersTest(unittest.TestCase):
+    account_id = "11111111-1111-4111-8111-111111111111"
+    other_id = "22222222-2222-4222-8222-222222222222"
+
+    def settings(self, excluded=None):
+        return ui.clean_quota({"default": {key: 0 for key in ui.QUOTA_KEYS}, "exemptAdmins": False,
+                               "excludedUsers": [self.account_id] if excluded is None else excluded})
+
+    def test_settings_round_trip_and_old_settings(self):
+        self.assertEqual(ui.clean_quota({})["excludedUsers"], [])
+        settings = self.settings([self.account_id, self.account_id.upper(), self.other_id])
+        self.assertEqual(settings["excludedUsers"], [self.account_id, self.other_id])
+        with mock.patch.object(ui, "STORE", mock.Mock(get_setting=lambda *args: settings)):
+            self.assertEqual(ui.quota_settings(), settings)
+        for invalid in (None, "username", ["username"], [True], [{}], [self.account_id] * 5001):
+            with self.subTest(invalid=type(invalid).__name__), self.assertRaises(ValueError):
+                ui.clean_quota({"excludedUsers": invalid})
+
+    def test_exclusion_follows_identity_and_removal_restores_enforcement(self):
+        for excluded, allowed in (([self.account_id], True), ([], False)):
+            with mock.patch.object(ui, "quota_settings", return_value=self.settings(excluded)), \
+                 mock.patch.object(ui, "quota_workspaces", return_value=[]), \
+                 mock.patch.object(ui.quotaextras, "limits", side_effect=lambda limits, *_: {"limits": limits}):
+                for name in ("original-name", "renamed-account"):
+                    result = ui.quota_check("session", {"id": self.account_id, "username": name, "roles": []},
+                                            {"owner": "me", "owner_id": self.account_id})
+                    self.assertEqual(result["allowed"], allowed)
+
+    def test_excluded_requester_does_not_exempt_other_owner(self):
+        with mock.patch.object(ui, "quota_settings", return_value=self.settings()), \
+             mock.patch.object(ui, "quota_workspaces", return_value=[]), \
+             mock.patch.object(ui, "_coder_get", return_value=(200, {"id": self.other_id, "username": "other", "roles": []})), \
+             mock.patch.object(ui.quotaextras, "limits", side_effect=lambda limits, *_: {"limits": limits}):
+            caller = {"id": self.account_id, "username": "excluded", "roles": []}
+            self.assertFalse(ui.quota_check("session", caller, {"owner": "other", "owner_id": self.other_id})["allowed"])
+            self.assertFalse(ui.quota_check("session", caller, {"owner": "me", "owner_id": self.other_id})["allowed"])
+
+    def test_admin_toggle_and_user_exclusion_are_independent(self):
+        settings = self.settings()
+        self.assertTrue(ui.quota_exempt(settings, self.account_id, False))
+        self.assertFalse(ui.quota_exempt(settings, self.other_id, True))
+        settings["exemptAdmins"] = True
+        self.assertTrue(ui.quota_exempt(settings, self.other_id, True))
+        self.assertFalse(ui.quota_exempt(settings, self.other_id, False))
+
+    def test_report_and_personal_quota_recognize_exclusion(self):
+        with mock.patch.object(ui, "quota_settings", return_value=self.settings()), \
+             mock.patch.object(ui, "quota_workspaces", return_value=[]), \
+             mock.patch.object(ui, "_coder_get", return_value=(200, {"users": [{"id": self.account_id, "username": "developer", "roles": []}]})), \
+             mock.patch.object(ui, "_pod_usage_by_owner", return_value={}), \
+             mock.patch.object(ui, "cluster_usage", side_effect=RuntimeError("offline")), \
+             mock.patch.object(ui.quotaextras, "totals", return_value={}), \
+             mock.patch.object(ui.quotaextras, "limits", side_effect=lambda limits, *_: {"limits": limits}):
+            report = ui.quota_report("session")
+            self.assertTrue(report["users"][0]["exempt"])
+            self.assertFalse(report["users"][0]["atLimit"])
+            own = ui.quota_me("session", {"id": self.account_id, "username": "developer", "roles": []})
+            self.assertTrue(own["exempt"])
+            self.assertFalse(own["limited"])
+
+
 if __name__ == "__main__":
     unittest.main()

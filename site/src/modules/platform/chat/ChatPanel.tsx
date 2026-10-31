@@ -7,9 +7,11 @@ import {
 	MinusIcon,
 	PanelRightIcon,
 	PanelsTopLeftIcon,
+	PinIcon,
 } from "lucide-react";
+import { useRef } from "react";
 import { useQuery } from "react-query";
-import type { ChatPeer } from "#/api/platform";
+import type { ChatPeer, UserUIPreferences } from "#/api/platform";
 import { chatAdmins } from "#/api/queries/platform";
 import { Avatar } from "#/components/Avatar/Avatar";
 import { Button } from "#/components/Button/Button";
@@ -17,6 +19,7 @@ import { Button } from "#/components/Button/Button";
 import { navbarTileTriggerClass } from "#/modules/dashboard/Navbar/NavbarLogo";
 import { ChatAvatar } from "./ChatAvatar";
 import { ChatPeople } from "./ChatPeople";
+import { ChatResizeHandles } from "./ChatResizeHandles";
 import { CountBadge } from "./ChatWindow";
 import {
 	displayName,
@@ -30,15 +33,18 @@ import {
 } from "./chatStore";
 import { DockSections } from "./DockSections";
 
-/** The raised window: Gmail's chat window, within the room under the navbar (ChatDock measures it). */
-const RAISED_HEIGHT = "min(520px, var(--chat-space, 520px))";
 /** The bar alone: its 44 px and the card's border. */
 const BAR_HEIGHT = "46px";
 
 /** The floating chat dock, with persistent People and Chat panels and optional attached/full-screen views. */
 export const ChatPanel: React.FC<{
 	dock: React.RefObject<HTMLElement | null>;
-}> = ({ dock }) => {
+	size: UserUIPreferences["chat_size"];
+	onResize: (size: UserUIPreferences["chat_size"]) => void;
+	keepOpen?: boolean;
+	onToggleKeepOpen?: () => void;
+}> = ({ dock, size, onResize, keepOpen, onToggleKeepOpen }) => {
+	const panel = useRef<HTMLDivElement>(null);
 	const state = useChatSnapshot();
 	const me = state.me;
 	if (!me) {
@@ -57,17 +63,30 @@ export const ChatPanel: React.FC<{
 				<RestoreChatButton total={total} onRestore={() => setDockMode("bar")} />
 			)}
 			<div
+				ref={panel}
+				role="group"
+				aria-label="Chat window"
 				data-chat-panel=""
 				hidden={!floating || compact || state.consoleOverlay}
 				data-testid={raised ? "chat-window-raised" : "chat-bar"}
 				// Platform: a card floating clear of the page's bottom bar (ChatDock lifts it), rounded all round; it rises from its bottom edge
 				className={cn(
-					"flex w-[min(420px,calc(100vw-32px))] flex-col overflow-hidden rounded-[14px] border border-solid border-border bg-surface-primary shadow-[0_8px_28px_rgb(0_0_0/.16),0_1px_3px_rgb(0_0_0/.08)] transition-[height] duration-250 ease-out motion-reduce:transition-none",
+					"relative flex flex-col overflow-hidden rounded-[14px] border border-solid border-border bg-surface-primary shadow-[0_8px_28px_rgb(0_0_0/.16),0_1px_3px_rgb(0_0_0/.08)] transition-[height] duration-250 ease-out motion-reduce:transition-none",
 					(!floating || compact || state.consoleOverlay) && "hidden",
 				)}
-				style={{ height: raised ? RAISED_HEIGHT : BAR_HEIGHT }}
+				style={{
+					width: `min(${size?.width ?? 420}px, calc(100vw - 32px))`,
+					height: raised
+						? `min(${size?.height ?? 520}px, var(--chat-space, 520px))`
+						: BAR_HEIGHT,
+				}}
 			>
+				{raised && (
+					<ChatResizeHandles dock={dock} panel={panel} onResize={onResize} />
+				)}
 				<div
+					data-chat-drag
+					title="Middle-drag to move chat. Right-click for position options."
 					className={cn(
 						"flex shrink-0 items-center bg-surface-primary",
 						raised && "border-0 border-b border-solid border-border pr-1",
@@ -100,6 +119,24 @@ export const ChatPanel: React.FC<{
 					</button>
 					{raised ? (
 						<>
+							<Button
+								size="icon"
+								variant="subtle"
+								aria-label="Keep chat open"
+								title={
+									keepOpen
+										? "Unpin chat"
+										: "Keep chat open when clicking elsewhere"
+								}
+								aria-pressed={keepOpen}
+								onClick={onToggleKeepOpen}
+							>
+								<PinIcon
+									className={
+										keepOpen ? "fill-current text-content-link" : undefined
+									}
+								/>
+							</Button>
 							{me.admin && <ChatOnSwitch className="px-1.5" />}
 							{me.admin && <ConsoleButton />}
 							<DockButton
@@ -293,6 +330,7 @@ const listItemClass =
 
 type ChatListProps = {
 	onOpen: (peer: ChatPeer) => void;
+	onSendFile?: (peer: ChatPeer) => void;
 	/** The conversation shown beside the list (full screen). */
 	selectedId?: string;
 	className?: string;
@@ -301,6 +339,7 @@ type ChatListProps = {
 /** The recent conversations, and for developers the People online and the admins to write to. */
 export const ChatList: React.FC<ChatListProps> = ({
 	onOpen,
+	onSendFile,
 	selectedId,
 	className,
 }) => {
@@ -351,7 +390,7 @@ export const ChatList: React.FC<ChatListProps> = ({
 			})}
 			{me.admin ? (
 				<>
-					<ChatPeople onOpen={onOpen} />
+					<ChatPeople onOpen={onOpen} onSendFile={onSendFile} />
 					{!conversations.length && (
 						<p className="m-2 text-[13px] text-content-secondary">
 							No conversations yet. Start one with "Chat" in Controls › Settings
@@ -361,7 +400,9 @@ export const ChatList: React.FC<ChatListProps> = ({
 				</>
 			) : (
 				<>
-					{state.peers && <ChatPeople onOpen={onOpen} withoutAdmins />}
+					{state.peers && (
+						<ChatPeople onOpen={onOpen} onSendFile={onSendFile} withoutAdmins />
+					)}
 					{(!adminsQuery.data ||
 						adminsQuery.data.some(
 							(admin) =>
@@ -420,6 +461,7 @@ export const RestoreChatButton: React.FC<{
 	return (
 		<button
 			type="button"
+			data-chat-restore
 			className={cn(
 				navbarTileTriggerClass,
 				"rounded-[10px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-content-link",

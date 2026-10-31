@@ -10,14 +10,14 @@ files=(/etc/apt/sources.list.d/*)
 ((${#files[@]} == 0)) || mv "${files[@]}" "$backup/sources/"
 if [[ -f /etc/apt/sources.list ]]; then mv /etc/apt/sources.list "$backup/list"; fi
 restore() {
- rm -f /etc/apt/sources.list.d/coder-neko.sources
- saved=("$backup"/sources/*)
- ((${#saved[@]} == 0)) || mv "${saved[@]}" /etc/apt/sources.list.d/
- if [[ -f $backup/list ]]; then mv "$backup/list" /etc/apt/sources.list; fi
- rm -rf "$backup"
+	rm -f /etc/apt/sources.list.d/coder-neko.sources
+	saved=("$backup"/sources/*)
+	((${#saved[@]} == 0)) || mv "${saved[@]}" /etc/apt/sources.list.d/
+	if [[ -f $backup/list ]]; then mv "$backup/list" /etc/apt/sources.list; fi
+	rm -rf "$backup"
 }
 trap restore EXIT
-cat > /etc/apt/sources.list.d/coder-neko.sources <<'SOURCES'
+cat >/etc/apt/sources.list.d/coder-neko.sources <<'SOURCES'
 Types: deb
 URIs: https://snapshot.ubuntu.com/ubuntu/20261024T000000Z/
 Suites: resolute resolute-updates resolute-security

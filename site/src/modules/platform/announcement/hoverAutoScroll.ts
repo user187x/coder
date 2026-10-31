@@ -1,7 +1,7 @@
 import type { BannerFields } from "#/api/platform";
 
 /** A line takes several seconds, leaving time to read it before it moves away. */
-export const READ_PX_PER_SECOND = 4;
+const READ_PX_PER_SECOND = 4;
 export const READ_DELAY_MS = 2000;
 
 /** Reads overflowing announcements automatically; holding the pointer pauses at the current position. */

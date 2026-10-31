@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
 	ContextMenu,
 	ContextMenuContent,
@@ -6,7 +6,7 @@ import {
 	ContextMenuSeparator,
 	ContextMenuTrigger,
 } from "#/components/ContextMenu/ContextMenu";
-import { useAnimationsEnabled } from "#/modules/platform/animations/animations";
+import { useAnimationsEnabled } from "#/hooks/useAnimationSettings";
 import type { Point } from "../cloudDrive/cables";
 import { TunnelOverviewTooltip } from "./TunnelOverview";
 import {
@@ -26,10 +26,10 @@ type Props = {
 	onReset?: () => void;
 	onAdjustArc?: (delta: number) => void;
 	onMoveHead?: (point: Point) => void;
-	headOverview?: ReactNode;
-	children?: ReactNode;
-	defaultCable?: ReactNode;
-	actions?: ReactNode;
+	headOverview?: React.ReactNode;
+	children?: React.ReactNode;
+	defaultCable?: React.ReactNode;
+	actions?: React.ReactNode;
 	flow?: boolean;
 	pending?: boolean;
 };

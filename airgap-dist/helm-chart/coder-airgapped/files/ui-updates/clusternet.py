@@ -127,7 +127,7 @@ def on_map(pod):
     labels = meta.get("labels") or {}
     if labels.get("com.coder.workspace.id"):
         return False
-    return (meta.get("namespace") == NAMESPACE or meta.get("namespace") == KEYCLOAK_NAMESPACE
+    return (meta.get("namespace") in (NAMESPACE, KEYCLOAK_NAMESPACE, "coder-system", "coder-runtime-system")
             or component_kind(labels) in ("gateway", "code-server")
             or labels.get("app.kubernetes.io/name") == "cloudnative-pg")
 
@@ -1179,17 +1179,125 @@ def coder_scale(body=None):
 
 
 # ---------------------------------------------------------------------------------------------------- HTTP
+def pod_reference(query):
+    args = urllib.parse.parse_qs(query or "")
+    namespace = (args.get("namespace") or [NAMESPACE])[0]
+    name = (args.get("name") or [""])[0]
+    if not NAME_RE.fullmatch(namespace) or not NAME_RE.fullmatch(name):
+        raise ValueError("A valid Kubernetes namespace and name are required.")
+    return namespace, name, args
+
+
+def log_targets(query):
+    namespace, name, args = pod_reference(query)
+    kind = (args.get("type") or [""])[0]
+    if kind == "pod":
+        pods = [_get("/api/v1/namespaces/%s/pods/%s" % (namespace, name), "pod")]
+    elif kind in ("service", "node"):
+        hit = SNAPSHOT()
+        pods = hit["pods"] + hit.get("failedPods", [])
+        if kind == "service":
+            service = _get("/api/v1/namespaces/%s/services/%s" % (namespace, name), "Service")
+            selector = (service.get("spec") or {}).get("selector")
+            pods = [p for p in pods if (p.get("metadata") or {}).get("namespace") == namespace
+                    and selects(selector, (p.get("metadata") or {}).get("labels") or {})]
+        else:
+            _get("/api/v1/nodes/%s" % name, "node")
+            pods = [p for p in pods if (p.get("spec") or {}).get("nodeName") == name]
+    else:
+        raise ValueError("Logs are available for pods, Services and nodes.")
+    result = {}
+    for pod in pods:
+        meta, spec = pod.get("metadata") or {}, pod.get("spec") or {}
+        uid = meta.get("uid")
+        if not uid:
+            continue
+        owners = meta.get("ownerReferences") or []
+        controlled = any(o.get("controller") and o.get("kind") in (
+            "ReplicaSet", "StatefulSet", "DaemonSet", "ReplicationController", "Cluster") for o in owners)
+        result[uid] = {"namespace": meta.get("namespace"), "name": meta.get("name"), "uid": uid,
+                       "containers": [c["name"] for key in ("containers", "initContainers", "ephemeralContainers")
+                                      for c in spec.get(key) or []],
+                       "restartable": controlled and not meta.get("deletionTimestamp"),
+                       "restartReason": "" if controlled else "This pod has no restarting controller. Use its workspace or workload controls."}
+    return {"pods": sorted(result.values(), key=lambda p: (p["namespace"], p["name"]))}
+
+
+def pod_logs(query):
+    namespace, name, args = pod_reference(query)
+    pod = _get("/api/v1/namespaces/%s/pods/%s" % (namespace, name), "pod")
+    uid = (args.get("uid") or [""])[0]
+    if not uid or uid != (pod.get("metadata") or {}).get("uid"):
+        raise LookupError("The pod was replaced. Refresh the pod selection.")
+    container = (args.get("container") or [""])[0]
+    containers = [c["name"] for key in ("containers", "initContainers", "ephemeralContainers")
+                  for c in (pod.get("spec") or {}).get(key) or []]
+    if container not in containers:
+        raise ValueError("Select a container belonging to this pod.")
+    previous = (args.get("previous") or ["false"])[0]
+    if previous not in ("true", "false"):
+        raise ValueError("previous must be true or false.")
+    options = urllib.parse.urlencode({"container": container, "tailLines": 500, "limitBytes": 131072,
+                                     "timestamps": "true", "previous": previous})
+    try:
+        with KUBE.stream("/api/v1/namespaces/%s/pods/%s/log?%s" % (namespace, name, options), timeout=10) as stream:
+            text = stream.read(131072).decode("utf-8", errors="replace")
+    except urllib.error.HTTPError as error:
+        if error.code == 403:
+            raise PermissionError("Kubernetes denied pod log access.") from error
+        if error.code in (400, 404):
+            raise LookupError("Logs are not available for this container instance.") from error
+        raise RuntimeError("Pod logs: Kubernetes HTTP %s" % error.code) from error
+    return {"text": text, "readAt": now_iso(), "uid": uid}
+
+
+def restart_pod(body, user):
+    namespace, name = body.get("namespace", ""), body.get("name", "")
+    uid = body.get("uid")
+    if not isinstance(namespace, str) or not isinstance(name, str) or not NAME_RE.fullmatch(namespace) or not NAME_RE.fullmatch(name):
+        raise ValueError("A valid Kubernetes namespace and pod name are required.")
+    if not isinstance(uid, str) or not uid or body.get("confirmation") != name:
+        raise ValueError("Confirm the pod name before restarting it.")
+    target = log_targets(urllib.parse.urlencode({"type": "pod", "namespace": namespace, "name": name}))["pods"]
+    if not target or target[0]["uid"] != uid:
+        raise LookupError("The pod was replaced. Review its current details before restarting.")
+    if not target[0]["restartable"]:
+        raise ValueError(target[0]["restartReason"] or "This pod is already terminating.")
+    status, _ = KUBE.call("POST", "/api/v1/namespaces/%s/pods/%s/eviction" % (namespace, name), {
+        "apiVersion": "policy/v1", "kind": "Eviction", "metadata": {"namespace": namespace, "name": name},
+        "deleteOptions": {"preconditions": {"uid": uid}}})
+    if status == 403:
+        raise PermissionError("Kubernetes denied pod restart access.")
+    if status == 429:
+        raise ValueError("The pod disruption budget currently prevents this restart. Try again when the workload is ready.")
+    if status not in (200, 201, 202):
+        raise RuntimeError("Pod restart: Kubernetes HTTP %s" % status)
+    if LOG:
+        LOG(event="network-pod-restart-requested", user_id=user.get("id"), namespace=namespace, pod=name, pod_uid=uid)
+    return {"accepted": True, "message": "Restart requested. The workload controller will replace the pod."}
+
+
 def handle(h, method, path, query):
     """True when it answered (the paths under /api/network/)."""
     if not path.startswith(BASE + "/api/network/"):
         return False
-    if method != "GET" and not (method == "POST" and path == BASE + "/api/network/coder-scale"):
+    if method != "GET" and not (method == "POST" and path in (BASE + "/api/network/coder-scale", BASE + "/api/network/restart-pod")):
         h.send_json(405, {"error": "method not allowed"})
         return True
     user, err = h.user(admin=True)
     if err:
         return True
     try:
+        if path == BASE + "/api/network/restart-pod":
+            if method != "POST":
+                return h.send_json(405, {"error": "method not allowed"}) or True
+            if not h.csrf_ok():
+                return h.send_json(403, {"error": "Cross-site request refused"}) or True
+            return h.send_json(202, restart_pod(h.body() or {}, user)) or True
+        if path == BASE + "/api/network/log-targets":
+            return h.send_json(200, log_targets(query)) or True
+        if path == BASE + "/api/network/pod-logs":
+            return h.send_json(200, pod_logs(query)) or True
         if path == BASE + "/api/network/coder-scale":
             if method == "POST" and not h.csrf_ok():
                 return h.send_json(403, {"error": "Cross-site request refused"}) or True
@@ -1206,6 +1314,8 @@ def handle(h, method, path, query):
         return h.send_json(404, {"error": "not found"}) or True
     except ValueError as e:
         return h.send_json(400, {"error": str(e)}) or True
+    except PermissionError as e:
+        return h.send_json(403, {"error": str(e)}) or True
     except LookupError as e:
         return h.send_json(404, {"error": str(e)}) or True
     except Exception as e:  # noqa: BLE001

@@ -301,6 +301,8 @@ RUN glib-compile-schemas /usr/share/glib-2.0/schemas \
 	&& GSETTINGS_BACKEND=memory gsettings get org.gnome.desktop.interface monospace-font-name | grep -q 'JetBrainsMono Nerd Font' \
 	&& sed -i 's|</head>|    <script type="module" crossorigin="anonymous" src="app/coder-clipboard.js"></script>\n    <script type="module" crossorigin="anonymous" src="app/coder-resize.js"></script>\n</head>|' \
 		/usr/share/novnc/vnc.html \
+	&& viewer_hash="$(sha256sum /usr/share/novnc/app/coder-resize.js | cut -c 1-16)" \
+	&& sed -i "s|src=\"app/coder-resize.js\"|src=\"app/coder-resize.js?v=${viewer_hash}\"|" /usr/share/novnc/vnc.html \
 	&& test "$(grep -c -e 'app/coder-clipboard.js' -e 'app/coder-resize.js' /usr/share/novnc/vnc.html)" = 2
 RUN chmod 0755 /usr/local/bin/coder-desktop-theme /usr/local/bin/picom /usr/local/bin/eww \
 	&& fc-cache -f >/dev/null && fc-list | grep -qi overpass \

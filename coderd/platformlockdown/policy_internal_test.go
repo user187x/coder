@@ -69,6 +69,7 @@ func TestQuarantinePeerPolicyHasNoHumanExemption(t *testing.T) {
 	ctx := context.Background()
 	owner, workspace, other := uuid.New(), uuid.New(), uuid.New()
 	db := testStore(t, map[uuid.UUID]database.User{owner: {ID: owner, Status: database.UserStatusActive, RBACRoles: []string{"owner"}}})
+	db.EXPECT().GetShortTermLeaseByWorkspaceID(gomock.Any(), gomock.Any()).Return(database.ShortTermLease{}, sql.ErrNoRows).AnyTimes()
 	revision := uuid.New()
 	db.EXPECT().GetWorkspaceQuarantineByWorkspaceID(gomock.Any(), gomock.Any()).AnyTimes().DoAndReturn(func(_ context.Context, id uuid.UUID) (database.WorkspaceQuarantine, error) {
 		if id != workspace {

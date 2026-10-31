@@ -98,7 +98,7 @@ const isKind = (k: unknown): k is ComponentKind =>
 	typeof k === "string" && k in KINDS;
 
 /** A pod's kind from its name, as the platform service guesses a Service's (an older service sends no kind). */
-export const kindFromName = (name: string): ComponentKind => {
+const kindFromName = (name: string): ComponentKind => {
 	const prefixes: [string, ComponentKind][] = [
 		["coder-cs-", "code-server"],
 		["coder-code-server-replicator", "replicator"],

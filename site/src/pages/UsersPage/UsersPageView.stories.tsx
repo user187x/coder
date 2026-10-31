@@ -1,5 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { expect, within } from "storybook/test";
+import { expect, spyOn, within } from "storybook/test";
+import { PlatformAPI } from "#/api/platform";
+import { quotaReport, schedulerReport } from "#/api/queries/platform";
 import {
 	getDefaultFilterProps,
 	MockMenu,
@@ -10,6 +12,8 @@ import {
 	MockUserOwner,
 	mockApiError,
 } from "#/testHelpers/entities";
+import { MockQuotaReport, MockSchedulerReport } from "#/testHelpers/userQuota";
+import { UserQuotaProvider, UserQuotaSection } from "./UserQuotaSection";
 import { UsersPageView } from "./UsersPageView";
 
 type FilterProps = React.ComponentProps<typeof UsersPageView>["filterProps"];
@@ -115,5 +119,28 @@ export const WithError: Story = {
 				],
 			}),
 		},
+	},
+};
+
+export const QuotaAndSchedulerCards: Story = {
+	beforeEach: () => {
+		spyOn(PlatformAPI, "getQuotaReport").mockResolvedValue(MockQuotaReport);
+		spyOn(PlatformAPI, "getSchedulerReport").mockResolvedValue(
+			MockSchedulerReport,
+		);
+	},
+	args: { quota: <UserQuotaSection quotaAdjustments={<span />} /> },
+	decorators: [
+		(Story) => (
+			<UserQuotaProvider enabled>
+				<Story />
+			</UserQuotaProvider>
+		),
+	],
+	parameters: {
+		queries: [
+			{ key: quotaReport().queryKey, data: MockQuotaReport },
+			{ key: schedulerReport().queryKey, data: MockSchedulerReport },
+		],
 	},
 };

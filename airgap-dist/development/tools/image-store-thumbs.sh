@@ -5,8 +5,12 @@
 # preview that is there already is kept, one without its picture is removed. Needs ffmpeg with libwebp.
 #   ./image-store-thumbs.sh
 set -euo pipefail
-here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; store="$(dirname "$here")/image-store"
-command -v ffmpeg >/dev/null || { echo "ERROR: ffmpeg is needed" >&2; exit 1; }
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+store="$(dirname "$here")/image-store"
+command -v ffmpeg >/dev/null || {
+	echo "ERROR: ffmpeg is needed" >&2
+	exit 1
+}
 for p in "$store"/pictures/*; do
 	[ -f "$p" ] || continue
 	t="$store/thumbs/$(basename "$p").webp"
@@ -17,5 +21,8 @@ for p in "$store"/pictures/*; do
 done
 for t in "$store"/thumbs/*.webp; do
 	[ -f "$t" ] || continue
-	[ -f "$store/pictures/$(basename "$t" .webp)" ] || { rm -f -- "$t"; echo "removed $(basename "$t") (no picture)"; }
+	[ -f "$store/pictures/$(basename "$t" .webp)" ] || {
+		rm -f -- "$t"
+		echo "removed $(basename "$t") (no picture)"
+	}
 done

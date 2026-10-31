@@ -4,8 +4,9 @@ import type {
 	CreateShortTermLeaseRequest,
 	UpdateShortTermLeaseRequest,
 } from "../typesGenerated";
-export const leasesKey = (org: string) => ["short-term-leases", org] as const;
-export const myLeaseKey = ["short-term-lease", "me"] as const;
+
+const leasesKey = (org: string) => ["short-term-leases", org] as const;
+const myLeaseKey = ["short-term-lease", "me"] as const;
 export const shortTermLeases = (org: string) => ({
 	queryKey: leasesKey(org),
 	queryFn: () => ShortTermLeasesAPI.list(org),
@@ -18,21 +19,34 @@ export const myShortTermLease = () => ({
 	refetchInterval: 5000,
 	retry: false,
 });
-export const createShortTermLease = (client: QueryClient, org: string) => ({
-	mutationFn: (request: CreateShortTermLeaseRequest) =>
-		ShortTermLeasesAPI.create(org, request),
-	onSettled: () => client.invalidateQueries({ queryKey: leasesKey(org) }),
-});
-export const updateShortTermLease = (client: QueryClient, org: string) => ({
+export const createShortTermLease = (client: QueryClient) => ({
 	mutationFn: ({
+		org,
+		...request
+	}: CreateShortTermLeaseRequest & { org: string }) =>
+		ShortTermLeasesAPI.create(org, request),
+	onSettled: (_data: unknown, _error: unknown, { org }: { org: string }) =>
+		client.invalidateQueries({ queryKey: leasesKey(org) }),
+});
+export const updateShortTermLease = (client: QueryClient) => ({
+	mutationFn: ({
+		org,
 		user,
 		...request
-	}: UpdateShortTermLeaseRequest & { user: string }) =>
+	}: UpdateShortTermLeaseRequest & { org: string; user: string }) =>
 		ShortTermLeasesAPI.update(org, user, request),
-	onSettled: () => client.invalidateQueries({ queryKey: leasesKey(org) }),
+	onSettled: (_data: unknown, _error: unknown, { org }: { org: string }) =>
+		client.invalidateQueries({ queryKey: leasesKey(org) }),
 });
 export const requestLeaseExtension = (client: QueryClient) => ({
 	mutationFn: ShortTermLeasesAPI.request,
 	onSettled: () => client.invalidateQueries({ queryKey: myLeaseKey }),
 });
 export const leaseLogin = () => ({ mutationFn: ShortTermLeasesAPI.login });
+
+export const removeShortTermLease = (client: QueryClient) => ({
+	mutationFn: ({ org, user }: { org: string; user: string }) =>
+		ShortTermLeasesAPI.remove(org, user),
+	onSettled: (_data: unknown, _error: unknown, { org }: { org: string }) =>
+		client.invalidateQueries({ queryKey: leasesKey(org) }),
+});

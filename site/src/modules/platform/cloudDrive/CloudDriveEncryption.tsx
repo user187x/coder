@@ -4,7 +4,7 @@ import {
 	LockOpenIcon,
 	RotateCcwIcon,
 } from "lucide-react";
-import { type FormEvent, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { toast } from "sonner";
 import { getErrorMessage } from "#/api/errors";
@@ -27,7 +27,7 @@ import { Spinner } from "#/components/Spinner/Spinner";
 import { CloudDrivePfxDialog } from "./CloudDrivePfx";
 
 /** The recovery kit saved as a file (a JSON document the owner keeps). */
-export const downloadKit = (kit: CloudDriveRecoveryKit, fileName: string) => {
+const downloadKit = (kit: CloudDriveRecoveryKit, fileName: string) => {
 	const url = URL.createObjectURL(
 		new Blob([`${JSON.stringify(kit, null, 2)}\n`], {
 			type: "application/json",
@@ -217,7 +217,7 @@ const TurnOn: React.FC<{ enc: Encryption }> = ({ enc }) => {
 
 	const tooShort = password.length < enc.passwordMin;
 	const mismatch = again !== password;
-	const submit = (e: FormEvent) => {
+	const submit = (e: React.FormEvent) => {
 		e.preventDefault();
 		prepare.mutate();
 	};

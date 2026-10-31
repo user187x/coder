@@ -1,8 +1,8 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { PlatformAPI } from "#/api/platform";
-import * as normalize from "#/modules/platform/normalizeImage";
 import { renderComponent } from "#/testHelpers/renderHelpers";
+import * as normalize from "#/utils/normalizeImage";
 import { IconField } from "./IconField";
 
 const renderField = (onPickEmoji = vi.fn()) => {

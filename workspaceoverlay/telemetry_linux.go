@@ -16,6 +16,7 @@ import (
 
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
+	"golang.org/x/xerrors"
 	"golang.zx2c4.com/wireguard/wgctrl"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
@@ -30,20 +31,21 @@ type SocketScope struct {
 // ParseSocketScope validates an optional root-provided application socket scope.
 func ParseSocketScope(pid, namespace, address string) (*SocketScope, error) {
 	if pid == "" && namespace == "" && address == "" {
+		//nolint:nilnil // A nil value means this optional policy or integration is not configured.
 		return nil, nil
 	}
 	process, err := strconv.ParseInt(pid, 10, 32)
 	if err != nil || process <= 1 || strconv.FormatInt(process, 10) != pid {
-		return nil, fmt.Errorf("invalid application socket process")
+		return nil, xerrors.New("invalid application socket process")
 	}
 	inode := strings.TrimSuffix(strings.TrimPrefix(namespace, "net:["), "]")
 	number, err := strconv.ParseUint(inode, 10, 64)
 	if err != nil || number == 0 || namespace != "net:["+strconv.FormatUint(number, 10)+"]" {
-		return nil, fmt.Errorf("invalid application network namespace")
+		return nil, xerrors.New("invalid application network namespace")
 	}
 	ip, err := netip.ParseAddr(address)
 	if err != nil || !ip.Is4() || !ip.IsPrivate() || ip.IsLoopback() || ip.String() != address {
-		return nil, fmt.Errorf("invalid application socket address")
+		return nil, xerrors.New("invalid application socket address")
 	}
 	return &SocketScope{PID: int(process), Namespace: namespace, Address: ip}, nil
 }

@@ -453,6 +453,21 @@ func (mr *MockStoreMockRecorder) ClearChatDiffStatusPR(ctx, arg any) *gomock.Cal
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ClearChatDiffStatusPR", reflect.TypeOf((*MockStore)(nil).ClearChatDiffStatusPR), ctx, arg)
 }
 
+// ConfigureShortTermLease mocks base method.
+func (m *MockStore) ConfigureShortTermLease(ctx context.Context, arg database.ConfigureShortTermLeaseParams) (database.ShortTermLease, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ConfigureShortTermLease", ctx, arg)
+	ret0, _ := ret[0].(database.ShortTermLease)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ConfigureShortTermLease indicates an expected call of ConfigureShortTermLease.
+func (mr *MockStoreMockRecorder) ConfigureShortTermLease(ctx, arg any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ConfigureShortTermLease", reflect.TypeOf((*MockStore)(nil).ConfigureShortTermLease), ctx, arg)
+}
+
 // ConsumeChatAutomationWebhookByID mocks base method.
 func (m *MockStore) ConsumeChatAutomationWebhookByID(ctx context.Context, arg database.ConsumeChatAutomationWebhookByIDParams) (int64, error) {
 	m.ctrl.T.Helper()
@@ -907,6 +922,21 @@ func (m *MockStore) DeleteApplicationConnectAPIKeysByUserID(ctx context.Context,
 func (mr *MockStoreMockRecorder) DeleteApplicationConnectAPIKeysByUserID(ctx, userID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteApplicationConnectAPIKeysByUserID", reflect.TypeOf((*MockStore)(nil).DeleteApplicationConnectAPIKeysByUserID), ctx, userID)
+}
+
+// DeleteAuditCollector mocks base method.
+func (m *MockStore) DeleteAuditCollector(ctx context.Context, arg database.DeleteAuditCollectorParams) (database.AuditCollector, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteAuditCollector", ctx, arg)
+	ret0, _ := ret[0].(database.AuditCollector)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DeleteAuditCollector indicates an expected call of DeleteAuditCollector.
+func (mr *MockStoreMockRecorder) DeleteAuditCollector(ctx, arg any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteAuditCollector", reflect.TypeOf((*MockStore)(nil).DeleteAuditCollector), ctx, arg)
 }
 
 // DeleteChatAutomationByID mocks base method.
@@ -2604,6 +2634,21 @@ func (m *MockStore) GetApplicationName(ctx context.Context) (string, error) {
 func (mr *MockStoreMockRecorder) GetApplicationName(ctx any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetApplicationName", reflect.TypeOf((*MockStore)(nil).GetApplicationName), ctx)
+}
+
+// GetAuditCollectors mocks base method.
+func (m *MockStore) GetAuditCollectors(ctx context.Context, organizationID uuid.UUID) ([]database.AuditCollector, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetAuditCollectors", ctx, organizationID)
+	ret0, _ := ret[0].([]database.AuditCollector)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetAuditCollectors indicates an expected call of GetAuditCollectors.
+func (mr *MockStoreMockRecorder) GetAuditCollectors(ctx, organizationID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAuditCollectors", reflect.TypeOf((*MockStore)(nil).GetAuditCollectors), ctx, organizationID)
 }
 
 // GetAuditLogsOffset mocks base method.
@@ -8066,6 +8111,21 @@ func (mr *MockStoreMockRecorder) HasTemplateVersionsUsingCachedModuleFileInOrg(c
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HasTemplateVersionsUsingCachedModuleFileInOrg", reflect.TypeOf((*MockStore)(nil).HasTemplateVersionsUsingCachedModuleFileInOrg), ctx, arg)
 }
 
+// HideShortTermLease mocks base method.
+func (m *MockStore) HideShortTermLease(ctx context.Context, arg database.HideShortTermLeaseParams) (database.ShortTermLease, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "HideShortTermLease", ctx, arg)
+	ret0, _ := ret[0].(database.ShortTermLease)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// HideShortTermLease indicates an expected call of HideShortTermLease.
+func (mr *MockStoreMockRecorder) HideShortTermLease(ctx, arg any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HideShortTermLease", reflect.TypeOf((*MockStore)(nil).HideShortTermLease), ctx, arg)
+}
+
 // HydrateAgentChatsContext mocks base method.
 func (m *MockStore) HydrateAgentChatsContext(ctx context.Context, arg database.HydrateAgentChatsContextParams) ([]uuid.UUID, error) {
 	m.ctrl.T.Helper()
@@ -8287,6 +8347,21 @@ func (m *MockStore) InsertAllUsersGroup(ctx context.Context, organizationID uuid
 func (mr *MockStoreMockRecorder) InsertAllUsersGroup(ctx, organizationID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertAllUsersGroup", reflect.TypeOf((*MockStore)(nil).InsertAllUsersGroup), ctx, organizationID)
+}
+
+// InsertAuditCollector mocks base method.
+func (m *MockStore) InsertAuditCollector(ctx context.Context, arg database.InsertAuditCollectorParams) (database.AuditCollector, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "InsertAuditCollector", ctx, arg)
+	ret0, _ := ret[0].(database.AuditCollector)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// InsertAuditCollector indicates an expected call of InsertAuditCollector.
+func (mr *MockStoreMockRecorder) InsertAuditCollector(ctx, arg any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertAuditCollector", reflect.TypeOf((*MockStore)(nil).InsertAuditCollector), ctx, arg)
 }
 
 // InsertAuditLog mocks base method.

@@ -16,8 +16,18 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { cn } from "cn";
-import { GripVerticalIcon } from "lucide-react";
+import {
+	GripVerticalIcon,
+	MaximizeIcon,
+	PanelsTopLeftIcon,
+} from "lucide-react";
 import { useState } from "react";
+import {
+	ContextMenu,
+	ContextMenuContent,
+	ContextMenuItem,
+	ContextMenuTrigger,
+} from "#/components/ContextMenu/ContextMenu";
 import "./agentPanels.css";
 
 // Panels differ a lot in height (an embedded app is hundreds of pixels tall), so
@@ -27,7 +37,7 @@ const panelUnderPointer: CollisionDetection = (args) => {
 	return under.length > 0 ? under : closestCenter(args);
 };
 
-export type PanelDefinition = {
+type PanelDefinition = {
 	id: string;
 	label: string;
 	/** The panel, with its reorder handle to put in its header. */
@@ -57,6 +67,10 @@ export const AgentPanels: React.FC<AgentPanelsProps> = ({
 	onReorder,
 }) => {
 	const [dragging, setDragging] = useState(false);
+	const [focusedPanel, setFocusedPanel] = useState<string>();
+	const focused = panels.some((panel) => panel.id === focusedPanel)
+		? focusedPanel
+		: undefined;
 	// The panel being moved with the keyboard, if any.
 	const [moving, setMoving] = useState<string>();
 	const [announcement, setAnnouncement] = useState("");
@@ -168,6 +182,11 @@ export const AgentPanels: React.FC<AgentPanelsProps> = ({
 							panel={panel}
 							position={order.indexOf(panel.id)}
 							moving={moving === panel.id}
+							hidden={focused !== undefined && focused !== panel.id}
+							onFocusPanel={() => setFocusedPanel(panel.id)}
+							onRestorePanels={
+								focused ? () => setFocusedPanel(undefined) : undefined
+							}
 							onHandleKeyDown={(event) => onHandleKeyDown(panel.id, event)}
 							onHandleBlur={() => setMoving(undefined)}
 						/>
@@ -186,6 +205,9 @@ type SortablePanelProps = {
 	position: number;
 	/** Being moved with the keyboard. */
 	moving: boolean;
+	hidden: boolean;
+	onFocusPanel: () => void;
+	onRestorePanels?: () => void;
 	onHandleKeyDown: (event: React.KeyboardEvent) => void;
 	onHandleBlur: () => void;
 };
@@ -194,6 +216,9 @@ const SortablePanel: React.FC<SortablePanelProps> = ({
 	panel,
 	position,
 	moving,
+	hidden,
+	onFocusPanel,
+	onRestorePanels,
 	onHandleKeyDown,
 	onHandleBlur,
 }) => {
@@ -232,21 +257,46 @@ const SortablePanel: React.FC<SortablePanelProps> = ({
 	);
 
 	return (
-		<div
-			ref={setNodeRef}
-			data-panel={panel.id}
-			style={{
-				order: position,
-				// No scaling: panels keep their size while moving.
-				transform: CSS.Translate.toString(transform),
-				transition,
-			}}
-			className={cn(
-				isDragging && "relative z-20 bg-surface-primary shadow-lg",
-				moving && "relative z-10 ring-1 ring-inset ring-content-link",
-			)}
-		>
-			{panel.render(handle)}
-		</div>
+		<ContextMenu>
+			<ContextMenuTrigger
+				asChild
+				onContextMenu={(event) => {
+					if (
+						!(event.target instanceof Element) ||
+						!event.target.closest("[data-panel-title]")
+					)
+						event.preventDefault();
+				}}
+			>
+				<div
+					ref={setNodeRef}
+					data-panel={panel.id}
+					hidden={hidden}
+					style={{
+						order: position,
+						// No scaling: panels keep their size while moving.
+						transform: CSS.Translate.toString(transform),
+						transition,
+					}}
+					className={cn(
+						isDragging && "relative z-20 bg-surface-primary shadow-lg",
+						moving && "relative z-10 ring-1 ring-inset ring-content-link",
+					)}
+				>
+					{panel.render(handle)}
+				</div>
+			</ContextMenuTrigger>
+			<ContextMenuContent aria-label={`${panel.label} panel view`}>
+				<ContextMenuItem
+					onSelect={onFocusPanel}
+					disabled={Boolean(onRestorePanels)}
+				>
+					<MaximizeIcon /> Hide other panels
+				</ContextMenuItem>
+				<ContextMenuItem onSelect={onRestorePanels} disabled={!onRestorePanels}>
+					<PanelsTopLeftIcon /> Restore all panels
+				</ContextMenuItem>
+			</ContextMenuContent>
+		</ContextMenu>
 	);
 };

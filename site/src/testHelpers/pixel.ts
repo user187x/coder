@@ -9,7 +9,3 @@ export const pixelWithTablet = {
 export const pixelWithDesktop = {
 	viewports: ["desktop"],
 };
-
-export const pixelWithPhone = {
-	viewports: ["phone"],
-};

@@ -120,7 +120,7 @@ export const DeploymentSidebarView: React.FC<DeploymentSidebarViewProps> = ({
 	const categories = candidates.filter((c): c is SidebarCategory => Boolean(c));
 
 	return (
-		<BaseSidebar className="lg:sticky lg:top-[calc(88px+var(--coder-classification-h,0px))] lg:self-start [@media(max-height:640px)]:static">
+		<BaseSidebar className="lg:sticky lg:top-[calc(var(--dashboard-navigation-height,72px)+var(--admin-breadcrumb-height,0px)+16px+var(--coder-classification-h,0px))] lg:self-start [@media(max-height:640px)]:static">
 			{onReorder ? (
 				<SortableCategories
 					categories={categories}

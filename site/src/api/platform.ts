@@ -7,6 +7,7 @@
  */
 import globalAxios, { type AxiosRequestConfig, isAxiosError } from "axios";
 import { API } from "./api";
+import type { ClusterNetworkReport } from "./clusterNetwork";
 
 const PLATFORM_BASE = "/__coder-ui";
 const BANNER_BASE = "/__banner";
@@ -66,11 +67,16 @@ const withSession = (config: AxiosRequestConfig): AxiosRequestConfig => {
 		: config;
 };
 
-const get = async <T>(url: string): Promise<T> => {
+type RequestOptions = Pick<AxiosRequestConfig, "timeout" | "signal">;
+
+const get = async <T>(
+	url: string,
+	options: RequestOptions = {},
+): Promise<T> => {
 	try {
 		const response = await platformAxios.get<T>(
 			url,
-			withSession({ headers: { "Cache-Control": "no-store" } }),
+			withSession({ ...options, headers: { "Cache-Control": "no-store" } }),
 		);
 		return response.data;
 	} catch (error) {
@@ -82,12 +88,14 @@ const post = async <T>(
 	url: string,
 	body: unknown,
 	requestedWith = PLATFORM_REQUESTED_WITH,
+	options: RequestOptions = {},
 ): Promise<T> => {
 	try {
 		const response = await platformAxios.post<T>(
 			url,
 			body,
 			withSession({
+				...options,
 				headers: {
 					"Content-Type": "application/json",
 					"X-Requested-With": requestedWith,
@@ -144,7 +152,7 @@ export const platformRequest = { get, post, upload, base: PLATFORM_BASE };
 export const LOGIN_EFFECTS = ["wireframe", "neon", "plain"] as const;
 export type LoginEffect = (typeof LOGIN_EFFECTS)[number];
 /** The quick access wheel's wedges (Admin Settings > Quick Menu): choices' IDs in order; null: the default wheel. */
-export type QuickMenuSettings = {
+type QuickMenuSettings = {
 	shortcut?: string;
 	items: string[] | null;
 	updatedBy?: string | null;
@@ -286,6 +294,7 @@ export type PlatformUser = {
 	username: string;
 	name: string;
 	email: string;
+	avatar_url?: string;
 	loginType?: string;
 };
 
@@ -325,7 +334,7 @@ export type ResourceUsage = {
 };
 
 /** The cluster's network traffic: bytes per second the nodes received (rx) and sent (tx). */
-export type NetworkPoint = { t: number; rx: number; tx: number };
+type NetworkPoint = { t: number; rx: number; tx: number };
 
 export type ClusterNetwork = {
 	/** The latest round's rates. */
@@ -760,10 +769,12 @@ export type QuotaSettings = {
 	/** Per-user overrides: only the keys set there replace the default. */
 	users: Record<string, Partial<QuotaLimits>>;
 	exemptAdmins: boolean;
+	/** Account IDs excluded from all workspace resource quotas. */
+	excludedUsers?: string[];
 };
 
 /** Where users reach the dashboard: its host name and the addresses of the Gateway in front of it. */
-export type DashboardAddress = {
+type DashboardAddress = {
 	host: string;
 	addresses: string[];
 	gateway: string;
@@ -813,7 +824,7 @@ type QuotaUsage = {
 	liveMemory: number | null;
 };
 
-export type QuotaUser = {
+type QuotaUser = {
 	quotaUsage?: Record<QuotaKey, number>;
 	baseLimits?: QuotaLimits;
 	bonus?: Record<QuotaKey, number>;
@@ -1132,7 +1143,7 @@ export type CloudDriveShare = {
 	reconnectable?: boolean;
 };
 
-export type CloudDrivePeerSettings = {
+type CloudDrivePeerSettings = {
 	enabled: boolean;
 	adminApproval: boolean;
 	updatedBy: string | null;
@@ -1217,6 +1228,7 @@ export type ChatPerson = ChatPeer & {
 
 /** Admin Controls > Chat. */
 export type ChatSettings = {
+	screenSharing?: boolean;
 	discoverAll?: boolean;
 	peers: boolean;
 	keepDays: number;
@@ -1321,12 +1333,25 @@ export type WorkspaceResourceHistory = {
 	>;
 };
 export type UserUIPreferences = {
+	navbar_layout?: { order: string[]; hidden: string[] };
+	chat_position?: {
+		edge: "top" | "right" | "bottom" | "left";
+		offset: number;
+	} | null;
+	resource_shortcuts?: string[];
+	resource_tray_top?: number;
+	admin_notes_tray_top?: number;
+	resource_tray?: { expanded: boolean; lock: "up" | "down" } | null;
+	admin_notes_tray?: { expanded: boolean; lock: "up" | "down" } | null;
+	chat_hidden?: boolean;
+	chat_keep_open?: boolean;
+	chat_size?: { width: number; height: number } | null;
 	quota_seen?: string[];
 	people_order?: string[];
 	people_sort?: "manual" | "name";
 };
 
-export type WorkspaceNetwork = {
+type WorkspaceNetwork = {
 	windowSeconds: number;
 	agents: Record<
 		string,
@@ -1350,7 +1375,7 @@ export type OnlineUser = ChatPeer & {
 	workspaces: { id: string; name: string; owner: string }[];
 };
 
-export type PresenceReport = {
+type PresenceReport = {
 	online: OnlineUser[];
 	recent: OnlineUser[];
 	idleSeconds: number;
@@ -1489,6 +1514,8 @@ export type Banner = {
 	repeat: boolean;
 	/** Continuously reads overflowing banner text; missing means enabled. */
 	loopText?: boolean;
+	/** Administrator-enforced still announcement, overriding personal preferences. */
+	animationsDisabled?: boolean;
 	audience?: "everyone" | "selected";
 	audienceUserIds?: string[];
 	autoScroll?: boolean;
@@ -1574,7 +1601,7 @@ export type WorkspaceNote = {
 
 /** A picture installed with the platform to choose as logo or avatar. */
 /** A picture uploaded for the announcement, at its own (never-changing) address. */
-export type BannerPicture = {
+type BannerPicture = {
 	id: string;
 	url: string;
 	name: string;
@@ -1597,7 +1624,7 @@ export type StoreImage = {
 	source: "store" | "gallery" | "uploaded" | "dashboard";
 };
 
-export type GalleryImage = {
+type GalleryImage = {
 	name: string;
 	type: string;
 	bytes: number;
@@ -1643,7 +1670,7 @@ export type SafeSummary = {
 };
 
 /** An entire Cloud Drive shared with the user read and write (SafeSummary.shared). */
-export type SharedCapacity = {
+type SharedCapacity = {
 	owner: string;
 	ownerName: string;
 	/** null: its owner's workspace folder is that drive (no capacity to count). */
@@ -1675,7 +1702,7 @@ export type DrTarget = {
 	where?: string;
 };
 
-export type DrRun = {
+type DrRun = {
 	id: string;
 	target: string;
 	name: string;
@@ -1719,7 +1746,7 @@ export type DrTargetInput = {
 };
 
 /** A folder of one of the owner's workspaces as their Cloud Drive (served from it while it runs). */
-export type CloudDriveSource = {
+type CloudDriveSource = {
 	workspace: string;
 	name: string | null;
 	path: string;
@@ -1797,7 +1824,7 @@ export type CloudDriveMountPlan = {
 	linked: number;
 };
 
-export type CloudDriveMountResult =
+type CloudDriveMountResult =
 	| { halted: true; unresolved: string[] }
 	| {
 			halted?: undefined;
@@ -1810,7 +1837,7 @@ export type CloudDriveMountResult =
 			total: number;
 	  };
 
-export type CloudDriveMounts = {
+type CloudDriveMounts = {
 	workspace: string;
 	name: string;
 	cloud: boolean;
@@ -1822,7 +1849,7 @@ export type CloudDriveMounts = {
 	}[];
 };
 
-export type CloudDriveSourceGuard =
+type CloudDriveSourceGuard =
 	| { source: false }
 	| {
 			source: true;
@@ -1831,10 +1858,10 @@ export type CloudDriveSourceGuard =
 			connected: { id: string; name: string; mounted: boolean }[];
 	  };
 
-export type SafeFile = { name: string; size: number; modified: string };
+type SafeFile = { name: string; size: number; modified: string };
 
 /** An admin connection that makes a workspace eligible for explicit item sharing. */
-export type CloudDriveWorkspaceConnection = {
+type CloudDriveWorkspaceConnection = {
 	workspaceId: string;
 	workspaceName: string;
 	recipientId: string;
@@ -1891,7 +1918,7 @@ export type SafeListing = {
 };
 
 /** A Cloud Drive at a glance (the HUD of a drive shared with the caller, on the Workspaces page). */
-export type CloudDriveGlance = {
+type CloudDriveGlance = {
 	files: number;
 	usedBytes: number;
 	/** Its newest files (a few), newest first. */
@@ -1913,7 +1940,7 @@ export type CloudDriveStatus = {
 };
 
 /** Where the Cloud Drive keeps files: the chart's storage, or one an admin set here. */
-export type CloudDriveQuota = {
+type CloudDriveQuota = {
 	gib: number;
 	chartGib: number;
 	/** Set by an admin (else the chart's). */
@@ -2011,6 +2038,7 @@ export type ProvisionersRekickResult = {
 
 /** A reviewed organization-scoped bulk workspace power operation. */
 export type WorkspacePowerOperation = {
+	exclude_admins?: boolean;
 	id: string;
 	organization_id: string;
 	action: "shutdown" | "terminate";
@@ -2089,11 +2117,12 @@ export const PlatformAPI = {
 		action: WorkspacePowerOperation["action"],
 		workspace_ids: string[],
 		token: string,
+		exclude_admins = false,
 	) =>
 		(
 			await API.getAxiosInstance().post<WorkspacePowerOperation>(
 				`/api/v2/global-lockdown/organizations/${encodeURIComponent(organizationId)}/workspace-power`,
-				{ action, workspace_ids, confirmation: action },
+				{ action, workspace_ids, confirmation: action, exclude_admins },
 				{
 					headers: {
 						"X-Requested-With": PLATFORM_REQUESTED_WITH,
@@ -2106,10 +2135,11 @@ export const PlatformAPI = {
 		organizationId: string,
 		action: WorkspacePowerOperation["action"],
 		workspace_ids: string[],
+		exclude_admins = false,
 	) =>
 		post<WorkspacePowerOperation>(
 			`${PLATFORM_BASE}/api/organizations/${encodeURIComponent(organizationId)}/workspace-power`,
-			{ action, workspace_ids, confirmation: action },
+			{ action, workspace_ids, confirmation: action, exclude_admins },
 		),
 	getWorkspaceTunnels: (organizationId: string) =>
 		get<{ tunnels: WorkspaceTunnel[] }>(
@@ -2546,7 +2576,8 @@ export const PlatformAPI = {
 
 	getClusterUsage: () =>
 		get<ClusterUsage>(`${PLATFORM_BASE}/api/cluster/usage`),
-	getNetworkReport: () => get<NetworkReport>(`${PLATFORM_BASE}/api/network`),
+	getNetworkReport: () =>
+		get<ClusterNetworkReport>(`${PLATFORM_BASE}/api/network`),
 
 	getMonitoring: () =>
 		get<MonitoringOverview>(`${PLATFORM_BASE}/api/monitoring`),
@@ -2642,7 +2673,9 @@ export const PlatformAPI = {
 		post<{ invisible: boolean }>(chat("presence"), { invisible }),
 	getChatSettings: () => get<ChatSettings>(chat("settings")),
 	saveChatSettings: (
-		change: Partial<Pick<ChatSettings, "peers" | "keepDays" | "discoverAll">>,
+		change: Partial<
+			Pick<ChatSettings, "peers" | "keepDays" | "discoverAll" | "screenSharing">
+		>,
 	) => post<ChatSettings>(chat("settings"), change),
 	purgeChats: () =>
 		post<{ ok: true; deleted: number; stats: ChatSettings["stats"] }>(

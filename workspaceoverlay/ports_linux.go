@@ -3,8 +3,9 @@
 package workspaceoverlay
 
 import (
-	"fmt"
 	"strconv"
+
+	"golang.org/x/xerrors"
 )
 
 // portPolicy returns permitted flows to the pod's existing firewall. It never
@@ -17,7 +18,7 @@ func (d *KernelDevice) portPolicy(p Policy, run func(...string) error) error {
 		chain := direction.chain
 		if err := run("-w", "5", "-N", chain); err != nil {
 			if err := run("-w", "5", "-S", chain); err != nil {
-				return fmt.Errorf("inspect tunnel port chain: %w", err)
+				return xerrors.Errorf("inspect tunnel port chain: %w", err)
 			}
 		}
 		if err := run("-w", "5", "-F", chain); err != nil {

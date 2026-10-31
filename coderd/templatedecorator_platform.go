@@ -13,7 +13,6 @@ import (
 	"golang.org/x/xerrors"
 
 	"cdr.dev/slog/v3"
-
 	"github.com/coder/coder/v2/coderd/database/dbauthz"
 	"github.com/coder/coder/v2/coderd/httpapi"
 	"github.com/coder/coder/v2/coderd/rbac"
@@ -41,6 +40,9 @@ type templateDecoratorState struct {
 // templateDecoratorPayload is the payload, or nil when the deployment has no
 // base template (or it is not pushed yet).
 func (api *API) templateDecoratorPayload(ctx context.Context) (*templatedecorator.Payload, uuid.UUID, error) {
+	if api.PlatformAgentDirectory != "" {
+		return nil, uuid.Nil, nil
+	}
 	name := api.templateBuilderPlatformBaseName()
 	if name == "" {
 		return nil, uuid.Nil, nil

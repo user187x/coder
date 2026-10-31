@@ -11,13 +11,13 @@ import (
 	"strconv"
 	"strings"
 
-	"cdr.dev/slog/v3"
 	"github.com/google/uuid"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/zclconf/go-cty/cty"
 	"golang.org/x/xerrors"
 
+	"cdr.dev/slog/v3"
 	"github.com/coder/coder/v2/coderd/database"
 	"github.com/coder/coder/v2/coderd/database/dbauthz"
 	"github.com/coder/coder/v2/coderd/templatebuilder"
@@ -129,6 +129,7 @@ func (api *API) platformBaseTemplate(sys context.Context, orgID uuid.UUID, name 
 func (api *API) templateBuilderPlatformBase(ctx context.Context, orgID uuid.UUID) (*platformBuilderBase, error) {
 	name := api.templateBuilderPlatformBaseName()
 	if name == "" {
+		//nolint:nilnil // A nil value means this optional policy or integration is not configured.
 		return nil, nil
 	}
 	//nolint:gocritic // The builder's base is read for a template admin, who may create templates.

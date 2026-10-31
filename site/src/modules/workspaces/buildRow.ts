@@ -18,7 +18,7 @@ const BUSY: readonly Workspace["latest_build"]["status"][] = [
 	"deleting",
 ];
 
-export type BuildRow = {
+type BuildRow = {
 	/** The buttons, in the order the workspace showed them before the build. */
 	actions: readonly ActionType[];
 	/** Where the build's own button is (Cancel, or its in-progress label); the others wait. -1: after them. */

@@ -1,6 +1,6 @@
 import { cn } from "cn";
 import { BlocksIcon, HistoryIcon } from "lucide-react";
-import { type FC, type ReactNode, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import {
 	Tooltip,
 	TooltipContent,
@@ -22,12 +22,12 @@ const OPTIONS: {
 	{ value: "history", label: "History", icon: HistoryIcon },
 ];
 
-export const WorkspaceNav: FC<{
+export const WorkspaceNav: React.FC<{
 	value: string | undefined;
 	onToggle: (option: WorkspaceNavOption) => void;
 	onClose: () => void;
-	panels: Record<WorkspaceNavOption, ReactNode>;
-	extra?: ReactNode;
+	panels: Record<WorkspaceNavOption, React.ReactNode>;
+	extra?: React.ReactNode;
 }> = ({ value, onToggle, onClose, panels, extra }) => {
 	const ref = useRef<HTMLDivElement>(null);
 	const open = OPTIONS.find((o) => o.value === value);

@@ -143,6 +143,7 @@ header and a same-origin Origin (cross-site protection). Keycloak's admin creden
 read in-cluster (Kubernetes API, RBAC limited to the named Secrets) and never sent to the browser.
 """
 
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 import base64
 import collections
 import hashlib
@@ -151,6 +152,7 @@ import os
 import random
 import re
 import shutil
+import signal
 import sqlite3
 import ssl
 import sys
@@ -163,8 +165,13 @@ import uuid
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from servicetls import TLSServer
 import pgwire  # noqa: E402  (next to this file)
 import imagebuilder  # noqa: E402  (next to this file: the Images view)
+import screenshare
+import clientcertificates
+import adminnotes
+import workspacemigration
 import workspacevolumes  # noqa: E402  (workspace icons, home backups, disk growth)
 import sandbox
 import lockdown  # noqa: E402  (Lock Down: admins jail a workspace's network and sudo)
@@ -305,12 +312,15 @@ def now():
 
 
 TLS = ssl.create_default_context()
+TLS.minimum_version = ssl.TLSVersion.TLSv1_2
 # Python 3.13 turned on strict RFC 5280 checks by default; many local root CAs (this cluster's included) lack the
 # keyUsage extension they insist on, while OpenSSL, curl and Go (Coder itself) accept them. Chain and hostname
 # verification stay on.
 TLS.verify_flags &= ~getattr(ssl, "VERIFY_X509_STRICT", 0)
 if CA_FILE and os.path.exists(CA_FILE):
     TLS.load_verify_locations(CA_FILE)
+if os.environ.get("INTERNAL_CA_FILE"):
+    TLS.load_verify_locations(os.environ["INTERNAL_CA_FILE"])
 
 
 def http_json(
@@ -328,7 +338,7 @@ def http_json(
     req = urllib.request.Request(url, data=data, method=method, headers=hdrs)
     try:
         with urllib.request.urlopen(
-            req, timeout=timeout, context=context if url.startswith("https") else None
+            req, timeout=timeout, context=(context or TLS) if url.startswith("https") else None
         ) as res:
             raw, status = res.read(), res.status
     except urllib.error.HTTPError as e:
@@ -501,6 +511,7 @@ def active_users(token):
                 "name": u.get("name") or "",
                 "email": u.get("email") or "",
                 "loginType": u.get("login_type") or "",
+                "avatar_url": u.get("avatar_url") or "",
             }
             for u in rows
         ]
@@ -1251,6 +1262,10 @@ class Store:
             return {row['key']: json.loads(row['value']) for row in db.execute('SELECT key, value FROM settings')}
 
     def get_setting(self, key, default=None):
+        if key == "workspace_scheduler" and self.settings_backing is not None:
+            # GetRuntimeConfig in coderd/database/queries/siteconfig.sql.
+            rows = self.settings_backing.database().query("SELECT value FROM site_configs WHERE key = $1", [key])
+            return json.loads(rows[0][0]) if rows else default
         if self.settings_backing is not None:
             return self.settings_backing.read('platform-settings', {}, legacy=self.legacy_settings).get(key, default)
         with self.connect() as db:
@@ -1260,6 +1275,11 @@ class Store:
             return json.loads(row["value"]) if row else default
 
     def put_setting(self, key, value):
+        if key == "workspace_scheduler" and self.settings_backing is not None:
+            # UpsertRuntimeConfig in coderd/database/queries/siteconfig.sql.
+            self.settings_backing.database().query("""INSERT INTO site_configs (key, value) VALUES ($1, $2)
+                ON CONFLICT (key) DO UPDATE SET value = $2 WHERE site_configs.key = $1""", [key, json.dumps(value)])
+            return
         if self.settings_backing is not None:
             with self.settings_backing.state('platform-settings', {}, write=True, legacy=self.legacy_settings) as settings:
                 settings[key] = value
@@ -1290,6 +1310,8 @@ class Store:
 
     # ---- receipts
     def ensure_event(self, db, banner):
+        if banner.get("receipts") is False:
+            return
         db.execute(
             "INSERT OR IGNORE INTO events (id, level, title, message, link_text, link_url, first_seen) VALUES (?,?,?,?,?,?,?)",
             (
@@ -1313,7 +1335,7 @@ class Store:
     def record(self, event_id, user, ack, banner):
         stamp = now()
         with self.lock, self.connect() as db:
-            if banner and banner["id"] == event_id:
+            if banner and banner.get("receipts") is not False and banner["id"] == event_id:
                 self.ensure_event(db, banner)
             db.execute(
                 "INSERT INTO receipts (event_id, user_id, username, name, email, viewed_at, acked_at) VALUES (?,?,?,?,?,?,?) "
@@ -1517,6 +1539,21 @@ DEFAULT_KC_SETTINGS = {
     "flowAlias": "x509-browser",
     "tokenLifespan": 36000,
 }
+
+
+def certificate_identity_provider():
+    status, deployment = KUBE.call("GET", "/apis/apps/v1/namespaces/%s/deployments/%s" % (CODER_NAMESPACE, CODER_DEPLOYMENT))
+    if status != 200:
+        raise RuntimeError("Cannot verify the configured sign-in provider.")
+    declared = container_env(deployment)
+    issuer = (declared.get("CODER_OIDC_ISSUER_URL") or {}).get("value", "").rstrip("/")
+    match = re.fullmatch(r"(https://[^/]+(?:/auth)?)/realms/([a-zA-Z0-9_-]+)", issuer)
+    if not match:
+        raise RuntimeError("A verified HTTPS Keycloak issuer is required.")
+    client_id = (declared.get("CODER_OIDC_CLIENT_ID") or {}).get("value", "")
+    if not client_id:
+        raise RuntimeError("Cannot verify the configured OpenID Connect client.")
+    return Keycloak(match[1]), match[2], issuer, client_id
 
 
 def kc_settings(declared_env):
@@ -3354,7 +3391,7 @@ def parse_background_picture(path):
         raise ValueError("Not one of the dashboard's pictures (/pictures/<name>) or the image store's.")
     req = urllib.request.Request(CODER_URL + path, method="HEAD")
     try:
-        with urllib.request.urlopen(req, timeout=10) as resp:
+        with urllib.request.urlopen(req, timeout=10, context=TLS) as resp:
             ctype = (resp.headers.get("Content-Type") or "").split(";")[0].strip()
             size = int(resp.headers.get("Content-Length") or 0)
     except Exception as e:  # noqa: BLE001
@@ -3913,7 +3950,7 @@ class LogStore:
     """
 
     def __init__(self, url):
-        self.pool = pgwire.Pool(url, size=6) if url else None
+        self.pool = pgwire.Pool(url, os.environ.get("LOGS_DB_CA"), size=6) if url else None
         self.ready = False
         self.lock = threading.Lock()
 
@@ -4258,6 +4295,7 @@ def pod_brief(pod):
         "ready": bool(containers) and all(c.get("ready") for c in containers),
         "restarts": sum(c.get("restartCount") or 0 for c in containers),
         "started": st.get("startTime"),
+        "deleting": bool(meta.get("deletionTimestamp")),
     }
 
 
@@ -4290,7 +4328,7 @@ def cluster_snapshot():
         status, pods = KUBE.call(
             "GET",
             "/api/v1/pods?fieldSelector="
-            + urllib.parse.quote("status.phase!=Succeeded,status.phase!=Failed"),
+            + urllib.parse.quote("status.phase!=Succeeded"),
         )
         pods_available = status == 200 and isinstance(pods, dict)
         pods = (
@@ -4312,7 +4350,8 @@ def cluster_snapshot():
         status, version = KUBE.call("GET", "/version")
         hit = {
             "nodes": nodes.get("items") or [],
-            "pods": pods,
+            "pods": [p for p in pods if (p.get("status") or {}).get("phase") != "Failed"],
+            "failedPods": [p for p in pods if (p.get("status") or {}).get("phase") == "Failed"],
             "podsAvailable": pods_available,
             "usage": usage,
             "usageTimes": usage_times,
@@ -4486,7 +4525,7 @@ def network_report(token):
     # matched to Coder's workspaces; each with its kind (clusternet.py: one colour per kind in the dashboard).
     by_ws = {}
     coder = []
-    for pod in hit["pods"]:
+    for pod in hit["pods"] + hit.get("failedPods", []):
         meta = pod.get("metadata") or {}
         wid = (meta.get("labels") or {}).get("com.coder.workspace.id")
         if wid:
@@ -4545,7 +4584,7 @@ def network_report(token):
             }
         )
     try:
-        services = clusternet.services_report(hit["pods"])
+        services = clusternet.services_report(hit["pods"] + hit.get("failedPods", []))
     except Exception as e:  # noqa: BLE001 - the map without its Services
         services = {"services": [], "error": str(e)[:300]}
     return {
@@ -4554,6 +4593,7 @@ def network_report(token):
         "accessUrl": CODER_ACCESS_URL,
         "metrics": hit["usage"] is not None,
         "coderNamespace": CODER_NAMESPACE,
+        "podsAvailable": hit["podsAvailable"],
         "nodes": sorted(out_nodes, key=lambda n: n["name"] or ""),
         "coder": sorted(coder, key=lambda p: (p["role"], p["name"] or "")),
         "workspaces": sorted(
@@ -5632,6 +5672,7 @@ class ChatStore:
         self.settings = {
             "peers": False,
             "discoverAll": False,
+            "screenSharing": False,
             "keepDays": CHAT_KEEP_DAYS,
             "purgeVersion": 0,
             "updatedBy": None,
@@ -6693,7 +6734,7 @@ def keycloak_status():
 # Per developer: how many workspaces, and how many CPU cores / GiB of memory those workspaces may be built with in all
 # (the template's "cpu" and "memory" parameters). A default for everyone, overrides per user; empty = no limit. Coder
 # (the platform build) asks /api/quota/check before it creates a workspace and refuses when a limit would be passed.
-QUOTA_DEFAULT = {"default": {"workspaces": None, "cpu": None, "memory": None, "disk": None}, "users": {}, "exemptAdmins": True}
+QUOTA_DEFAULT = {"default": {"workspaces": None, "cpu": None, "memory": None, "disk": None}, "users": {}, "exemptAdmins": True, "excludedUsers": []}
 QUOTA_KEYS = ("workspaces", "cpu", "memory", "disk")
 QUOTA_PARAMS = {"cpu": "cpu", "memory": "memory", "disk": "home_disk_size"}   # template parameter names: cores, GiB
 
@@ -6720,7 +6761,7 @@ def quota_settings():
     s = STORE.get_setting("user_quota", None) or {}
     return {"default": {k: (s.get("default") or {}).get(k) for k in QUOTA_KEYS},
             "users": {u: {k: v for k, v in (o or {}).items() if k in QUOTA_KEYS} for u, o in (s.get("users") or {}).items()},
-            "exemptAdmins": s.get("exemptAdmins", True) is not False, "resourceModes": quota_resource_modes(s)}
+            "exemptAdmins": s.get("exemptAdmins", True) is not False, "excludedUsers": quota_excluded_users(s), "resourceModes": quota_resource_modes(s)}
 
 
 def _quota_number(v, what, integer=False):
@@ -6735,6 +6776,20 @@ def _quota_number(v, what, integer=False):
     return int(n) if integer else round(n, 3)
 
 
+def quota_excluded_users(settings):
+    excluded = settings.get("excludedUsers", [])
+    if not isinstance(excluded, list) or len(excluded) > 5000:
+        raise ValueError("Excluded users must be a list of at most 5,000 account IDs.")
+    try:
+        return sorted({str(uuid.UUID(user_id)) for user_id in excluded})
+    except (ValueError, TypeError, AttributeError):
+        raise ValueError("Excluded users must contain valid account IDs.")
+
+
+def quota_exempt(settings, user_id, admin):
+    return user_id in settings.get("excludedUsers", []) or (admin and settings["exemptAdmins"])
+
+
 def clean_quota(raw):
     def limits(o, who):
         o = o or {}
@@ -6746,7 +6801,7 @@ def clean_quota(raw):
             raise ValueError("Unknown user name %r." % name)
         users[str(name)] = limits(o, name)
     d = limits(raw.get("default") or {}, "Default")
-    return {"default": {k: d.get(k) for k in QUOTA_KEYS}, "users": users, "exemptAdmins": raw.get("exemptAdmins", True) is not False, "resourceModes": quota_resource_modes(raw)}
+    return {"default": {k: d.get(k) for k in QUOTA_KEYS}, "users": users, "exemptAdmins": raw.get("exemptAdmins", True) is not False, "excludedUsers": quota_excluded_users(raw), "resourceModes": quota_resource_modes(raw)}
 
 
 def quota_limits(settings, username):
@@ -6875,7 +6930,7 @@ def quota_report(token):
                  "runningDisk": sum(w.get("disk", 0) for w in mine if w["running"]), "runningCpu": sum(w["cpu"] for w in mine if w["running"]), "runningMemory": sum(w["memory"] for w in mine if w["running"]),
                  "running": sum(1 for w in mine if w["running"]), "liveCpu": (live.get(name) or {}).get("cpu"),
                  "liveMemory": (live.get(name) or {}).get("memory")}
-        exempt = admin and settings["exemptAdmins"]
+        exempt = quota_exempt(settings, u.get("id"), admin)
         quota_used = quota_usage(mine, modes)
         out_users.append({"id": u.get("id"), "username": name, "name": u.get("name") or "", "avatar": u.get("avatar_url") or "",
                           "admin": admin, "exempt": exempt, "override": settings["users"].get(name) or None, **addition,
@@ -6924,7 +6979,7 @@ def quota_me(token, user):
     modes = quota_resource_modes(settings)
     addition = quotaextras.limits(quota_limits(settings, user["username"]), user["id"])
     limits = addition["limits"]
-    exempt = bool(settings["exemptAdmins"] and set(user["roles"]) & ADMIN_ROLES)
+    exempt = quota_exempt(settings, user["id"], bool(set(user["roles"]) & ADMIN_ROLES))
     if exempt or all(limits[k] is None for k in QUOTA_KEYS):
         return {"limited": False, "exempt": exempt, **addition}
     mine = quota_workspaces(token, owner=user["username"])
@@ -6950,8 +7005,8 @@ def quota_check(token, user, body):
         return {"allowed": False, "message": "Workspace owner identity does not match the quota request."}
     addition = quotaextras.limits(quota_limits(settings, target["username"]), target["id"])
     limits = addition["limits"]
-    if settings["exemptAdmins"] and set(target["roles"]) & ADMIN_ROLES:
-        return {"allowed": True, "message": "admins are exempt", **addition}
+    if quota_exempt(settings, target["id"], bool(set(target["roles"]) & ADMIN_ROLES)):
+        return {"allowed": True, "message": "account is exempt from quota", **addition}
     if all(limits[k] is None for k in QUOTA_KEYS):
         return {"allowed": True, "message": "no limits", **addition}
     # what the new workspace asks for: its parameters, else the template version's defaults
@@ -7040,6 +7095,10 @@ def clean_scheduler(raw):
     tz = str(fixed.get("timezone") or "UTC")
     if not re.match(r"^[A-Za-z0-9_+\-/]{1,64}$", tz):
         raise ValueError("Unknown time zone %r." % tz)
+    try:
+        ZoneInfo(tz)
+    except (ZoneInfoNotFoundError, ValueError):
+        raise ValueError("Unknown time zone %r." % tz)
     hours = raw.get("maxActiveHours")
     if hours in (None, "", 0):
         hours = None
@@ -7122,7 +7181,7 @@ def scheduler_check(token, user, body):
     settings = scheduler_settings()
     target = _scheduler_target(token, user, body.get("owner"))
     if target is None:
-        return {"allowed": True, "message": "owner not readable; not checked"}
+        raise RuntimeError("Workspace owner could not be checked.")
     why = scheduler_exempt(settings, target["username"], target["roles"])
     if why:
         return {"allowed": True, "message": why}
@@ -8136,6 +8195,8 @@ def certificates_overview():
             sources.append(("ConfigMap", v["configMap"].get("name"), mount))
     if CODER_DB_CA_SECRET:
         sources.append(("Secret", CODER_DB_CA_SECRET, {}))   # not mounted into Coder: it verifies the database with it
+    for service in ("coder-ui-updates", "coder-ui-logs-db"):
+        sources.append(("Secret", service + "-internal-tls", {}))
     for kind, name, mount in sources:
         data, st = (_secret_bytes if kind == "Secret" else _configmap_bytes)(CODER_NAMESPACE, name)
         if data is None:
@@ -8307,7 +8368,7 @@ def boot_js():
 # --------------------------------------------------------------------------- HTTP
 
 
-class Server(ThreadingHTTPServer):
+class Server(TLSServer):
     """One thread per request. Its accept queue holds a burst (everyone's chat at once; socketserver's default of 5
     made the proxy answer 502), and a client that went away mid-answer (a closed tab's long poll) is not an error."""
 
@@ -8486,6 +8547,8 @@ class Handler(BaseHTTPRequestHandler):
         path = url.path
         if path == BASE + "/healthz":
             return self.send(200, "ok\n")
+        if screenshare.handle_relay(self, path):
+            return
         if nekomedia.handle(self, 'GET', path, url.query, NEKO_MEDIA):
             return
         if path.startswith(BASE + "/internal/") and imagebuilder.handle_internal(self, "GET", path):
@@ -8493,6 +8556,14 @@ class Handler(BaseHTTPRequestHandler):
         if path.startswith(BASE + "/internal/") and workspacevolumes.handle_internal(self, "GET", path):
             return   # a restore Job fetching its backup
         if imagebuilder.handle(self, "GET", path, url.query, ADMIN_ROLES):
+            return
+        if screenshare.handle(self, "GET", path):
+            return
+        if clientcertificates.handle(self, "GET", path):
+            return
+        if adminnotes.handle(self, "GET", path):
+            return
+        if workspacemigration.handle(self, "GET", path):
             return
         if workspacevolumes.handle(self, "GET", path, url.query):
             return
@@ -9098,7 +9169,7 @@ class Handler(BaseHTTPRequestHandler):
         if hit is None:
             try:
                 with urllib.request.urlopen(
-                    CODER_URL + "/favicons/" + name, timeout=5
+                    CODER_URL + "/favicons/" + name, timeout=5, context=TLS
                 ) as res:
                     hit = (res.headers.get("Content-Type") or "image/png", res.read())
                 FAVICONS.put(name, hit, 3600)
@@ -9407,6 +9478,10 @@ class Handler(BaseHTTPRequestHandler):
                 if not isinstance(payload["discoverAll"], bool):
                     return self.send_json(400, {"error": "discoverAll must be true or false."})
                 changes["discoverAll"] = payload["discoverAll"]
+            if "screenSharing" in payload:
+                if not isinstance(payload["screenSharing"], bool):
+                    return self.send_json(400, {"error": "screenSharing must be true or false."})
+                changes["screenSharing"] = payload["screenSharing"]
             if "keepDays" in payload:
                 days = payload["keepDays"]
                 lo, hi = CHAT_KEEP_RANGE
@@ -9685,6 +9760,14 @@ class Handler(BaseHTTPRequestHandler):
             return
         if imagebuilder.handle(self, "POST", path, url.query, ADMIN_ROLES):
             return
+        if screenshare.handle(self, "POST", path):
+            return
+        if clientcertificates.handle(self, "POST", path):
+            return
+        if adminnotes.handle(self, "POST", path):
+            return
+        if workspacemigration.handle(self, "POST", path):
+            return
         if workspacevolumes.handle(self, "POST", path, url.query):
             return
         if clusternet.handle(self, "POST", path, url.query):
@@ -9837,7 +9920,7 @@ class Handler(BaseHTTPRequestHandler):
             except ValueError as e:
                 return self.send_json(400, {"error": str(e)})
             STORE.put_setting("user_quota", value)
-            log(event="quota-saved", user=user["username"], default=value["default"], overrides=len(value["users"]))
+            log(event="quota-saved", user=user["username"], default=value["default"], overrides=len(value["users"]), excluded=len(value["excludedUsers"]))
             return self.send_json(200, {"ok": True, "settings": quota_settings()})
         if path == BASE + "/api/banner-pictures":
             if not BANNER_PICTURES or not BANNER_PICTURES.pool:
@@ -10121,7 +10204,9 @@ class Handler(BaseHTTPRequestHandler):
         user, err = self.user()
         if err:
             return
-        banner = current_banner()
+        banner = current_banner(fresh=True)
+        if not banner or banner.get("receipts") is False:
+            return self.send_json(409, {"error": "Announcement recording is disabled."})
         if not (banner and banner["id"] == event_id) and not STORE.known(event_id):
             banner = current_banner(
                 fresh=True
@@ -10374,6 +10459,8 @@ def main():
     global UI_STATE, STORE, LOGOS, MONITOR, AVATARS, DEFAULTS, CHAT, ICONS, GALLERY, BACKGROUNDS, BANNER_PICTURES, HUD_HISTORY
     global STORE_IMAGES
     global NET_HISTORY, QUARANTINE_ENFORCER, NEKO_MEDIA
+    # PID 1 otherwise ignores the default SIGTERM disposition during pod replacement.
+    signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
     STORE = Store(DB_PATH)
     CHAT = ChatStore(DB_PATH)
     DEFAULTS = Defaults(
@@ -10397,6 +10484,8 @@ def main():
     drivepeers.PERSISTENCE = shared_documents
     UI_STATE = uistate.UIState(lambda: LOGOS.pool if LOGOS else None, log,
                               infrastructure=workspacenodemetrics.collect_history)
+    adminnotes.setup(UI_STATE, log)
+    clientcertificates.setup(UI_STATE, log, certificate_identity_provider)
     HUD_HISTORY = HudHistory(os.path.join(os.path.dirname(DB_PATH) or "/data", "hud.sqlite"), backing=UI_STATE)
     HUD_HISTORY.start()
     NET_HISTORY = AgentNetHistory()
@@ -10407,6 +10496,11 @@ def main():
     workspacevolumes.QUOTA_CHECK = quota_check   # a restore asks the user quota before it creates a workspace
     workspacevolumes.CODER_URL = CODER_URL
     workspacevolumes.start()
+    screenshare.setup(UI_STATE, log, lambda user, peer: CHAT.may_write(user, bool(set(user['roles']) & ADMIN_ROLES), peer,
+        {a['id'] for a in chat_admins() if a['id'] not in CHAT.off}, {a['id'] for a in chat_admins()}),
+        lambda: bool(CHAT.settings.get('screenSharing')))
+    workspacemigration.setup(KUBE, UI_STATE, cluster_snapshot, node_summaries, quantity, log)
+    workspacevolumes.MIGRATION_BUSY = workspacemigration.busy
     workspacenodemetrics.setup(workspace_info, cluster_snapshot, quantity, KUBE, KUBELET_INSECURE_TLS,
         infrastructure_access=lambda token: http_json(CODER_URL + "/api/v2/authcheck", method="POST",
             body={"checks": {"deployment_stats": {"action": "read", "object": {"resource_type": "deployment_stats"}}}},
@@ -10460,7 +10554,9 @@ def main():
         threading.Thread(target=lambda: imagebuilder.APT.load(), daemon=True).start()
     if CLUSTER_ACCESS_GROUP:
         ClusterAdminSync().start()
-    server = Server(("0.0.0.0", PORT), Handler)
+    certificate = os.environ.get("SERVICE_TLS_CERT", "")
+    server = Server(("0.0.0.0" if certificate else "127.0.0.1", PORT), Handler,
+                    certificate=certificate, key=os.environ.get("SERVICE_TLS_KEY", ""))
     server.daemon_threads = True
     log(
         event="listening",
@@ -10472,7 +10568,16 @@ def main():
         argocd_app=ARGOCD_APP or None,
         kube=KUBE.ok,
     )
-    server.serve_forever()
+    serve_until_stopped(server)
+
+
+def serve_until_stopped(server):
+    """Let Kubernetes replace PID 1 without waiting for its forced-kill deadline."""
+    signal.signal(signal.SIGTERM, lambda *_: threading.Thread(target=server.shutdown, daemon=True).start())
+    try:
+        server.serve_forever()
+    finally:
+        server.server_close()
 
 
 if __name__ == "__main__":

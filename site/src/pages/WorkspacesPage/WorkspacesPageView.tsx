@@ -193,7 +193,7 @@ export const WorkspacesPageView: React.FC<WorkspacesPageViewProps> = ({
 					role="toolbar"
 					aria-label="Workspaces chosen"
 					data-testid="bulk-workspace-actions"
-					className="workspace-selection-toolbar mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-solid border-border bg-surface-secondary px-3 py-2"
+					className="bulk-action-surface workspace-selection-toolbar mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-solid border-border bg-surface-secondary px-3 py-2"
 				>
 					<Button
 						size="sm"

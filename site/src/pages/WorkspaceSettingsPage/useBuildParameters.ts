@@ -19,7 +19,7 @@ import {
 } from "#/modules/workspaces/DynamicParameter/DynamicParameter";
 import type { AutofillBuildParameter } from "#/utils/richParameters";
 
-export type BuildParametersValues = {
+type BuildParametersValues = {
 	rich_parameter_values: WorkspaceBuildParameter[];
 };
 
@@ -397,8 +397,6 @@ export const useBuildParameters = ({
 		},
 	};
 };
-
-export type BuildParameters = ReturnType<typeof useBuildParameters>;
 
 /**
  * What the Resources and Environment cards need of a form of build parameters: a workspace's (useBuildParameters, on

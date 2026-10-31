@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import type { Workspace, WorkspaceAgent } from "#/api/typesGenerated";
 import { initializingMilestones, initializingStep } from "./workspaceReadiness";
 import "./workspaceInitializing.css";
@@ -24,9 +24,9 @@ export const useStartProgress = (
 	total: number,
 	now: number,
 ): number => {
-	const since = useRef({ done, at: now });
-	if (since.current.done !== done) {
-		since.current = { done, at: now };
+	const [since, setSince] = useState({ done, at: now });
+	if (since.done !== done) {
+		setSince({ done, at: now });
 	}
 	if (total <= 0) {
 		return 0;
@@ -34,7 +34,7 @@ export const useStartProgress = (
 	if (done >= total) {
 		return 1;
 	}
-	const t = Math.max(0, now - since.current.at);
+	const t = since.done === done ? Math.max(0, now - since.at) : 0;
 	const creep = CREEP * (1 - 0.5 ** (t / CREEP_HALF_LIFE_MS));
 	return Math.min(1, (done + creep) / total);
 };

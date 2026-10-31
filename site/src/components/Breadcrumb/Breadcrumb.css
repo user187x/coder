@@ -1,0 +1,92 @@
+.breadcrumb-connected {
+	--crumb-edge: 12px;
+	container-type: inline-size;
+}
+
+.breadcrumb-connected > ol {
+	gap: 4px;
+	margin-block: 10px;
+	padding-inline: 24px;
+}
+
+.breadcrumb-connected > ol > li {
+	min-width: 0;
+	max-width: 100%;
+}
+
+.breadcrumb-connected > ol > li + li {
+	margin-left: calc(-1 * var(--crumb-edge));
+}
+
+.breadcrumb-connected > ol > li > :is(a, span) {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-height: 36px;
+	padding: 8px clamp(14px, 2cqw, 20px);
+	background: hsl(var(--surface-tertiary));
+	color: hsl(var(--content-secondary));
+	text-decoration: none;
+	transition:
+		background-color 150ms ease-out,
+		color 150ms ease-out;
+}
+
+.breadcrumb-connected > ol > li > a:hover {
+	background: hsl(var(--surface-quaternary));
+	color: hsl(var(--content-primary));
+}
+
+.breadcrumb-connected > ol > li > a:focus-visible {
+	outline: 2px solid hsl(var(--content-link));
+	outline-offset: -4px;
+}
+
+.breadcrumb-connected > ol > li:first-child > :is(a, span) {
+	border-radius: 6px 0 0 6px;
+	padding-right: calc(clamp(14px, 2cqw, 20px) + var(--crumb-edge));
+	clip-path: polygon(
+		0 0,
+		calc(100% - var(--crumb-edge)) 0,
+		100% 50%,
+		calc(100% - var(--crumb-edge)) 100%,
+		0 100%
+	);
+}
+
+.breadcrumb-connected > ol > li:not(:first-child) > :is(a, span) {
+	padding-left: calc(clamp(14px, 2cqw, 20px) + var(--crumb-edge));
+	padding-right: calc(clamp(14px, 2cqw, 20px) + var(--crumb-edge));
+	clip-path: polygon(
+		0 0,
+		calc(100% - var(--crumb-edge)) 0,
+		100% 50%,
+		calc(100% - var(--crumb-edge)) 100%,
+		0 100%,
+		var(--crumb-edge) 50%
+	);
+}
+
+.breadcrumb-connected > ol > li:last-child > :is(a, span) {
+	border-radius: 0 6px 6px 0;
+	padding-right: clamp(14px, 2cqw, 20px);
+	clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, var(--crumb-edge) 50%);
+}
+
+.breadcrumb-connected > ol > li:only-child > :is(a, span) {
+	border-radius: 6px;
+	padding-inline: clamp(14px, 2cqw, 20px);
+	clip-path: none;
+}
+
+.breadcrumb-connected > ol > li > [aria-current="page"] {
+	background: hsl(var(--surface-invert-primary));
+	color: hsl(var(--content-invert));
+	font-weight: 700;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.breadcrumb-connected > ol > li > :is(a, span) {
+		transition: none;
+	}
+}

@@ -208,7 +208,7 @@ type TemplateDecoratorSection struct {
 // TemplateDecoratorFile is a file the decorator provides to every template.
 type TemplateDecoratorFile struct {
 	Name string `json:"name"`
-	// Path in a decorated template (.platform/<name>).
+	// Path in a decorated template (`.platform/<name>`).
 	Path    string `json:"path"`
 	Size    int    `json:"size"`
 	Content string `json:"content"`
@@ -258,7 +258,7 @@ func (c *Client) TemplateDecorator(ctx context.Context) (TemplateDecorator, erro
 		return TemplateDecorator{}, ReadBodyAsError(res)
 	}
 	var resp TemplateDecorator
-	return resp, json.NewDecoder(res.Body).Decode(&resp)
+	return resp, ReadBodyAsJSON(res, &resp)
 }
 
 // TemplateMaterialize is a template's Terraform as Coder provisions it.
@@ -272,5 +272,5 @@ func (c *Client) TemplateMaterialize(ctx context.Context, req TemplateMaterializ
 		return TemplateMaterializeResponse{}, ReadBodyAsError(res)
 	}
 	var resp TemplateMaterializeResponse
-	return resp, json.NewDecoder(res.Body).Decode(&resp)
+	return resp, ReadBodyAsJSON(res, &resp)
 }

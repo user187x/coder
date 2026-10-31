@@ -1,5 +1,11 @@
 import { cn } from "cn";
 import { Button } from "#/components/Button/Button";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTitle,
+	TooltipTrigger,
+} from "#/components/Tooltip/Tooltip";
 import "#/modules/platform/workspaceUpdate/updatePulse.css";
 import type { Workspace } from "#/api/typesGenerated";
 import { lastUsedMessage } from "#/utils/workspace";
@@ -14,6 +20,7 @@ type WorkspaceStatusProps = {
 	/** Platform: the status in a tinted pill, when it was last used centred under it (the Workspaces table). */
 	pill?: boolean;
 	agentUpdateAvailable?: boolean;
+	restartReasons?: readonly string[];
 	onUpdate?: () => void;
 	updateDisabled?: boolean;
 };
@@ -23,6 +30,7 @@ export const WorkspaceStatus: React.FC<WorkspaceStatusProps> = ({
 	after,
 	pill = false,
 	agentUpdateAvailable = false,
+	restartReasons,
 	onUpdate,
 	updateDisabled = false,
 }) => {
@@ -45,19 +53,40 @@ export const WorkspaceStatus: React.FC<WorkspaceStatusProps> = ({
 			data-hint={pill ? `Last used: ${lastUsed}` : undefined}
 		>
 			{pill && needsUpdate && workspace.latest_build.status === "running" ? (
-				<Button
-					variant="subtle"
-					disabled={updateDisabled || !onUpdate}
-					aria-label={`Running. Restart ${workspace.name}; update available`}
-					title="Review a restart for available workspace updates"
-					className="h-auto min-w-0 rounded-full p-0 hover:bg-transparent"
-					onClick={(event) => {
-						event.stopPropagation();
-						onUpdate?.();
-					}}
-				>
-					{indicator}
-				</Button>
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<Button
+							variant="subtle"
+							aria-disabled={updateDisabled || !onUpdate}
+							aria-label={`Running. Restart ${workspace.name}; update available`}
+							className="h-auto min-w-0 rounded-full p-0 hover:bg-transparent"
+							onClick={(event) => {
+								event.stopPropagation();
+								if (!updateDisabled) onUpdate?.();
+							}}
+						>
+							{indicator}
+						</Button>
+					</TooltipTrigger>
+					<TooltipContent className="max-w-sm">
+						<TooltipTitle>Restart recommended</TooltipTitle>
+						<ul className="m-0 space-y-2 pl-4">
+							{(restartReasons?.length
+								? restartReasons
+								: [
+										...(workspace.outdated
+											? ["A template update is available."]
+											: []),
+										...(agentUpdateAvailable
+											? ["An agent update is available."]
+											: []),
+									]
+							).map((reason) => (
+								<li key={reason}>{reason}</li>
+							))}
+						</ul>
+					</TooltipContent>
+				</Tooltip>
 			) : (
 				indicator
 			)}

@@ -37,11 +37,12 @@ class ChatNotificationsTest(unittest.TestCase):
         people = {p["id"]: {**p, "name": "", "lastSeen": None} for p in (self.ann, self.bob, self.eve)}
         with mock.patch.object(ui, "CHAT", self.chat), mock.patch.object(ui, "chat_people", return_value=people):
             self.assertEqual(ui.chat_people_for(self.ann, False), [])
-            self.chat.put_settings({"discoverAll": True}, "boss")
+            self.chat.put_settings({"discoverAll": True, "screenSharing": True}, "boss")
             self.chat.invisible.add(self.eve["id"])
             self.assertEqual([p["id"] for p in ui.chat_people_for(self.ann, False)], [self.bob["id"]])
             self.assertEqual(len(ui.chat_people_for(self.ann, True)), 2)
             self.assertTrue(ui.ChatStore(self.chat.path).settings["discoverAll"])
+            self.assertTrue(ui.ChatStore(self.chat.path).settings["screenSharing"])
 
     def test_new_drive_events_use_inbox_instead_of_chat(self):
         with mock.patch.object(ui, "publish_drive_notification") as publish, mock.patch.object(ui, "CHAT", self.chat):

@@ -2,6 +2,7 @@ import { PowerIcon, ZapIcon } from "lucide-react";
 import { useId, useRef, useState } from "react";
 import { useMutation, useQueries, useQuery, useQueryClient } from "react-query";
 import type { WorkspacePowerOperation } from "#/api/platform";
+import { users as usersQuery } from "#/api/queries/users";
 import {
 	runWorkspacePower,
 	type WorkspacePowerResult,
@@ -15,6 +16,7 @@ import { ConfirmDialog } from "#/components/Dialog/ConfirmDialog/ConfirmDialog";
 import { Input } from "#/components/Input/Input";
 import { Label } from "#/components/Label/Label";
 import { Spinner } from "#/components/Spinner/Spinner";
+import { Switch } from "#/components/Switch/Switch";
 
 type Action = WorkspacePowerOperation["action"];
 const titles: Record<Action, string> = {
@@ -31,6 +33,18 @@ export const GlobalWorkspaceActions: React.FC<{
 		...workspaceQuery({ q: "", limit: 0 }),
 		enabled: !disabled,
 	});
+	const accounts = useQuery({
+		...usersQuery({ limit: 0 }),
+		enabled: !disabled,
+	});
+	const administratorIds =
+		accounts.data?.users
+			.filter((user) =>
+				user.roles.some((role) =>
+					["owner", "user-admin", "template-admin"].includes(role.name),
+				),
+			)
+			.map((user) => user.id) ?? [];
 	const organizations = [
 		...new Set(workspaces.data?.workspaces.map((w) => w.organization_id) ?? []),
 	];
@@ -41,17 +55,28 @@ export const GlobalWorkspaceActions: React.FC<{
 	return (
 		<GlobalWorkspaceActionsView
 			workspaces={workspaces.data?.workspaces ?? []}
+			administratorIds={administratorIds}
 			operations={history.flatMap((q) => q.data?.operations ?? [])}
-			loading={workspaces.isLoading || history.some((q) => q.isLoading)}
+			loading={
+				workspaces.isLoading ||
+				accounts.isLoading ||
+				history.some((q) => q.isLoading)
+			}
 			disabled={disabled}
 			busy={run.isPending}
 			error={
-				workspaces.error || history.find((q) => q.error)?.error || run.error
+				workspaces.error ||
+				accounts.error ||
+				history.find((q) => q.error)?.error ||
+				run.error
 			}
 			failures={run.data?.errors}
-			onRun={(action, targets) => run.mutate({ action, targets })}
+			onRun={(action, targets, excludeAdmins) =>
+				run.mutate({ action, targets, excludeAdmins })
+			}
 			onRefresh={() => {
 				void workspaces.refetch();
+				void accounts.refetch();
 				for (const q of history) void q.refetch();
 			}}
 		/>
@@ -60,19 +85,25 @@ export const GlobalWorkspaceActions: React.FC<{
 
 type Props = {
 	workspaces: readonly Workspace[];
+	administratorIds?: readonly string[];
 	operations?: readonly WorkspacePowerOperation[];
 	loading?: boolean;
 	disabled?: boolean;
 	busy?: boolean;
 	error?: unknown;
 	failures?: WorkspacePowerResult["errors"];
-	onRun: (action: Action, targets: readonly Workspace[]) => void;
+	onRun: (
+		action: Action,
+		targets: readonly Workspace[],
+		excludeAdmins: boolean,
+	) => void;
 	onRefresh?: () => void;
 };
 
 /** Reviews a fixed target snapshot before requesting deployment-wide workspace power actions. */
 export const GlobalWorkspaceActionsView: React.FC<Props> = ({
 	workspaces,
+	administratorIds = [],
 	operations = [],
 	loading = false,
 	disabled = false,
@@ -83,16 +114,23 @@ export const GlobalWorkspaceActionsView: React.FC<Props> = ({
 	onRefresh,
 }) => {
 	const [action, setAction] = useState<Action>();
+	const [excludeAdmins, setExcludeAdmins] = useState(true);
+	const [reviewExcludeAdmins, setReviewExcludeAdmins] = useState(true);
+	const excludeId = useId();
 	const [review, setReview] = useState<readonly Workspace[]>([]);
 	const [confirmation, setConfirmation] = useState("");
 	const confirmationId = useId();
 	const trigger = useRef<HTMLButtonElement | null>(null);
 	const running = busy || operations.some((op) => op.status === "running");
 	const targets = workspaces.filter(
-		(w) => !w.is_prebuild && w.latest_build.status !== "deleted",
+		(w) =>
+			!w.is_prebuild &&
+			w.latest_build.status !== "deleted" &&
+			(!excludeAdmins || !administratorIds.includes(w.owner_id)),
 	);
 	const open = (selected: Action, button: HTMLButtonElement) => {
 		trigger.current = button;
+		setReviewExcludeAdmins(excludeAdmins);
 		setReview(
 			[...targets].sort((a, b) =>
 				`${a.owner_name}/${a.name}`.localeCompare(
@@ -115,7 +153,7 @@ export const GlobalWorkspaceActionsView: React.FC<Props> = ({
 		setConfirmation("");
 	};
 	return (
-		<div className="flex max-w-sm flex-col items-stretch gap-2">
+		<div className="bulk-action-surface flex max-w-sm flex-col items-stretch gap-2 rounded-lg p-2">
 			<Button
 				variant="destructive"
 				disabled={
@@ -144,9 +182,17 @@ export const GlobalWorkspaceActionsView: React.FC<Props> = ({
 				<ZapIcon aria-hidden />
 				Terminate
 			</Button>
-			<p className="m-0 text-xs text-content-secondary">
-				Power actions include administrator workspaces.
-			</p>
+			<div className="flex items-center justify-between gap-3 py-1">
+				<Label htmlFor={excludeId} className="text-xs">
+					Exclude administrator workspaces
+				</Label>
+				<Switch
+					id={excludeId}
+					checked={excludeAdmins}
+					onCheckedChange={setExcludeAdmins}
+					disabled={disabled || running || Boolean(action)}
+				/>
+			</div>
 			{loading && (
 				<p role="status" className="m-0 text-xs text-content-secondary">
 					Loading workspace targets…
@@ -214,6 +260,14 @@ export const GlobalWorkspaceActionsView: React.FC<Props> = ({
 													? "Interrupted"
 													: "Completed"}
 									</p>
+									<p className="mb-0 mt-1 text-content-secondary">
+										<time
+											dateTime={new Date(op.created_at * 1000).toISOString()}
+										>
+											{new Date(op.created_at * 1000).toLocaleString("en-US")}
+										</time>
+										{op.exclude_admins && " · Administrators excluded"}
+									</p>
 									<ul className="mb-0 mt-2 space-y-1 pl-4">
 										{op.workspaces.map((w) => (
 											<li
@@ -260,15 +314,17 @@ export const GlobalWorkspaceActionsView: React.FC<Props> = ({
 				}
 				onConfirm={() => {
 					if (action) {
-						onRun(action, review);
+						onRun(action, review, reviewExcludeAdmins);
 						close();
 					}
 				}}
 				description={
 					<div className="flex flex-col gap-3">
 						<p className="m-0">
-							This affects {review.length} workspaces across all users,
-							including administrators.
+							This affects {review.length} reviewed workspaces,
+							{reviewExcludeAdmins
+								? " excluding administrators."
+								: " including administrators."}
 						</p>
 						<p className="m-0">
 							{action === "terminate"

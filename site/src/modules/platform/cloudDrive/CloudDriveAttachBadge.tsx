@@ -15,7 +15,7 @@ import "./cloudDrive.css";
  * The cloud disconnected: a cloud struck through (the project's cloud-disconnect.svg, in the current colour) - the
  * Workspaces table's connecting cloud (32px).
  */
-export const CloudUnpluggedIcon: React.FC<{ className?: string }> = ({
+const CloudUnpluggedIcon: React.FC<{ className?: string }> = ({
 	className,
 }) => (
 	<svg

@@ -9,7 +9,7 @@ import {
 import { useEffect, useState } from "react";
 import { Toaster as Sonner, type ToasterProps as SonnerProps } from "sonner";
 import { Spinner } from "#/components/Spinner/Spinner";
-import { bottomBarsHeight } from "#/modules/platform/bottomBars";
+import { bottomBarsHeight } from "#/utils/bottomBars";
 
 /** How far (px) the toasts float above the bars along the bottom, and from the window's left edge. */
 const TOAST_GAP = 12;

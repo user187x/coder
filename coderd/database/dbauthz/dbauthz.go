@@ -2013,6 +2013,13 @@ func (q *querier) ClearChatDiffStatusPR(ctx context.Context, arg database.ClearC
 	return q.db.ClearChatDiffStatusPR(ctx, arg)
 }
 
+func (q *querier) ConfigureShortTermLease(ctx context.Context, arg database.ConfigureShortTermLeaseParams) (database.ShortTermLease, error) {
+	if err := q.authorizeContext(ctx, policy.ActionUpdate, rbac.ResourceSystem); err != nil {
+		return database.ShortTermLease{}, err
+	}
+	return q.db.ConfigureShortTermLease(ctx, arg)
+}
+
 func (q *querier) ConsumeChatAutomationWebhookByID(ctx context.Context, arg database.ConsumeChatAutomationWebhookByIDParams) (int64, error) {
 	automation, err := q.db.GetChatAutomationByID(ctx, arg.ID)
 	if err != nil {
@@ -2259,6 +2266,16 @@ func (q *querier) DeleteApplicationConnectAPIKeysByUserID(ctx context.Context, u
 		return err
 	}
 	return q.db.DeleteApplicationConnectAPIKeysByUserID(ctx, userID)
+}
+
+func (q *querier) DeleteAuditCollector(ctx context.Context, arg database.DeleteAuditCollectorParams) (database.AuditCollector, error) {
+	if err := q.authorizeContext(ctx, policy.ActionUpdate, rbac.ResourceDeploymentConfig); err != nil {
+		return database.AuditCollector{}, err
+	}
+	if err := q.authorizeContext(ctx, policy.ActionRead, rbac.ResourceAuditLog.InOrg(arg.OrganizationID)); err != nil {
+		return database.AuditCollector{}, err
+	}
+	return q.db.DeleteAuditCollector(ctx, arg)
 }
 
 func (q *querier) DeleteChatAutomationByID(ctx context.Context, id uuid.UUID) error {
@@ -3205,6 +3222,16 @@ func (q *querier) GetAnnouncementBanners(ctx context.Context) (string, error) {
 func (q *querier) GetApplicationName(ctx context.Context) (string, error) {
 	// No authz checks
 	return q.db.GetApplicationName(ctx)
+}
+
+func (q *querier) GetAuditCollectors(ctx context.Context, organizationID uuid.UUID) ([]database.AuditCollector, error) {
+	if err := q.authorizeContext(ctx, policy.ActionUpdate, rbac.ResourceDeploymentConfig); err != nil {
+		return nil, err
+	}
+	if err := q.authorizeContext(ctx, policy.ActionRead, rbac.ResourceAuditLog.InOrg(organizationID)); err != nil {
+		return nil, err
+	}
+	return q.db.GetAuditCollectors(ctx, organizationID)
 }
 
 func (q *querier) GetAuditLogsOffset(ctx context.Context, arg database.GetAuditLogsOffsetParams) ([]database.GetAuditLogsOffsetRow, error) {
@@ -6282,6 +6309,13 @@ func (q *querier) HasTemplateVersionsUsingCachedModuleFileInOrg(ctx context.Cont
 	return q.db.HasTemplateVersionsUsingCachedModuleFileInOrg(ctx, arg)
 }
 
+func (q *querier) HideShortTermLease(ctx context.Context, arg database.HideShortTermLeaseParams) (database.ShortTermLease, error) {
+	if err := q.authorizeContext(ctx, policy.ActionUpdate, rbac.ResourceSystem); err != nil {
+		return database.ShortTermLease{}, err
+	}
+	return q.db.HideShortTermLease(ctx, arg)
+}
+
 func (q *querier) HydrateAgentChatsContext(ctx context.Context, arg database.HydrateAgentChatsContextParams) ([]uuid.UUID, error) {
 	// System-level operation: an agent context push fans hydration out
 	// across every not-yet-pinned chat for the agent, so it authorizes at
@@ -6395,6 +6429,16 @@ func (q *querier) InsertAgentContextResourcesIntoChat(ctx context.Context, arg d
 func (q *querier) InsertAllUsersGroup(ctx context.Context, organizationID uuid.UUID) (database.Group, error) {
 	// This method creates a new group.
 	return insert(q.log, q.auth, rbac.ResourceGroup.InOrg(organizationID), q.db.InsertAllUsersGroup)(ctx, organizationID)
+}
+
+func (q *querier) InsertAuditCollector(ctx context.Context, arg database.InsertAuditCollectorParams) (database.AuditCollector, error) {
+	if err := q.authorizeContext(ctx, policy.ActionUpdate, rbac.ResourceDeploymentConfig); err != nil {
+		return database.AuditCollector{}, err
+	}
+	if err := q.authorizeContext(ctx, policy.ActionRead, rbac.ResourceAuditLog.InOrg(arg.OrganizationID)); err != nil {
+		return database.AuditCollector{}, err
+	}
+	return q.db.InsertAuditCollector(ctx, arg)
 }
 
 func (q *querier) InsertAuditLog(ctx context.Context, arg database.InsertAuditLogParams) (database.AuditLog, error) {

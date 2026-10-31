@@ -161,7 +161,7 @@ const CloudGlyph: React.FC<{ plus: boolean; shared: boolean }> = ({
 );
 
 /** One owner's card (the HUD the floating clouds had): whose, what, the access, its files, where it is. */
-export const ShareCard: React.FC<{
+const ShareCard: React.FC<{
 	drive: SharedDrive;
 	onOpen: () => void;
 }> = ({ drive, onOpen }) => {

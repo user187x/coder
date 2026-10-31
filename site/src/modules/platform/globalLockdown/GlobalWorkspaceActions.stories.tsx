@@ -12,6 +12,25 @@ const meta: Meta<typeof GlobalWorkspaceActionsView> = {
 export default meta;
 type Story = StoryObj<typeof GlobalWorkspaceActionsView>;
 export const Ready: Story = {};
+export const AdministratorsExcluded: Story = {
+	args: {
+		administratorIds: ["admin-owner"],
+		workspaces: [
+			MockWorkspace,
+			{
+				...MockWorkspace,
+				id: "admin-workspace",
+				owner_id: "admin-owner",
+				owner_name: "admin",
+			},
+		],
+	},
+	play: async ({ canvasElement }) => {
+		await userEvent.click(
+			within(canvasElement).getByRole("button", { name: "Shut Down" }),
+		);
+	},
+};
 export const ConfirmShutDown: Story = {
 	play: async ({ canvasElement }) => {
 		await userEvent.click(

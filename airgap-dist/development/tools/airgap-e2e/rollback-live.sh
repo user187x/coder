@@ -3,12 +3,14 @@
 # Argo CD, with the workspaces it has (step 8's "e2e"); they must stay, their agent reconnect and their apps stay
 # healthy; then back to the fork. Run after step8.sh. Log: rollback-live.log.
 set -uo pipefail
-W="$(cd "$(dirname "$0")" && pwd)"; export KUBECONFIG=$W/kubeconfig
+W="$(cd "$(dirname "$0")" && pwd)"
+export KUBECONFIG=$W/kubeconfig
 exec > >(tee "$W/rollback-live.log") 2>&1
-B=$(ls -d "$W"/airgap/coder-airgapped-* | head -1)
+bundles=("$W"/airgap/coder-airgapped-*)
+B=${bundles[0]}
 UP=$(awk '$1 ~ /^docker.io\/mrshll187\/coder-upstream:/ {print $1; exit}' "$B/images.txt")
 FORK_TAG=$(kubectl -n coder get deploy coder -o jsonpath='{.spec.template.spec.containers[0].image}' | sed 's/.*://')
-probe() { "$W/inpod.sh" "$W/rollback_probe.py" "$@" 2>&1 | tail -1; }
+probe() { "$W/inpod.sh" "$W/rollback_probe.py" 2>&1 | tail -1; }
 cat >"$W/rollback_probe.py" <<'PY'
 import json, ssl, sys, time, urllib.request, urllib.error
 ctx = ssl.create_default_context(cafile="/ca/ca.crt"); B = "https://coder.airgap.test"
@@ -36,19 +38,38 @@ for _ in range(60):
 print(json.dumps({"login": s, "version": v, "workspaces": sorted(ws), "agent": a.get("status"), "apps": apps}))
 PY
 fails=0
-check() { if [[ "$2" == 0 ]]; then echo "PASS $1${3:+ - $3}"; else echo "FAIL $1${3:+ - $3}"; fails=$((fails + 1)); fi; }
+check() { if [[ "$2" == 0 ]]; then echo "PASS $1${3:+ - $3}"; else
+	echo "FAIL $1${3:+ - $3}"
+	fails=$((fails + 1))
+fi; }
 set_image() { # repo tag
 	kubectl -n argocd patch application coder --type=merge -p "{\"spec\":{\"source\":{\"helm\":{\"valuesObject\":{\"coder\":{\"coder\":{\"image\":{\"repo\":\"localhost:5001/${1#*/}\",\"tag\":\"$2\"}}}}}}}}" >/dev/null
-	for _ in $(seq 60); do [[ "$(kubectl -n coder get deploy coder -o jsonpath='{.spec.template.spec.containers[0].image}')" == *":$2" ]] && break; sleep 10; done
+	for _ in $(seq 60); do
+		[[ "$(kubectl -n coder get deploy coder -o jsonpath='{.spec.template.spec.containers[0].image}')" == *":$2" ]] && break
+		sleep 10
+	done
 	kubectl -n coder rollout status deploy/coder --timeout=600s >/dev/null 2>&1
 }
-before=$(probe); echo "fork:     $before"
+before=$(probe)
+echo "fork:     $before"
 set_image "${UP%:*}" "${UP##*:}"
-up=$(probe); echo "upstream: $up"
-[[ "$up" == *'"login": 201'* && "$up" == *v2.38.0-main* ]]; check "rolled back: pure upstream Coder serves, the admin signs in" $?
-[[ "$up" == *'"e2e"'* && "$up" == *'"agent": "connected"'* ]]; check "rolled back: the workspace is there and its agent (the fork's) connected to upstream" $?
-[[ "$up" != *unhealthy* && "$up" == *'"code-server": "healthy"'* ]]; check "rolled back: the workspace's apps healthy" $?
+up=$(probe)
+echo "upstream: $up"
+rc=0
+[[ "$up" == *'"login": 201'* && "$up" == *v2.38.0-main* ]] || rc=1
+check "rolled back: pure upstream Coder serves, the admin signs in" "$rc"
+rc=0
+[[ "$up" == *'"e2e"'* && "$up" == *'"agent": "connected"'* ]] || rc=1
+check "rolled back: the workspace is there and its agent (the fork's) connected to upstream" "$rc"
+rc=0
+[[ "$up" != *unhealthy* && "$up" == *'"code-server": "healthy"'* ]] || rc=1
+check "rolled back: the workspace's apps healthy" "$rc"
 set_image docker.io/mrshll187/coder-platform "$FORK_TAG"
-after=$(probe); echo "fork:     $after"
-[[ "$after" == *'"login": 201'* && "$after" == *platform* && "$after" == *'"agent": "connected"'* ]]; check "rolled forward: the fork serves again, the workspace connected" $?
-echo; echo "$fails failed"; exit $((fails > 0))
+after=$(probe)
+echo "fork:     $after"
+rc=0
+[[ "$after" == *'"login": 201'* && "$after" == *platform* && "$after" == *'"agent": "connected"'* ]] || rc=1
+check "rolled forward: the fork serves again, the workspace connected" "$rc"
+echo
+echo "$fails failed"
+exit $((fails > 0))

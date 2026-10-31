@@ -120,7 +120,7 @@ export const BulkUserActions: React.FC<BulkUserActionsProps> = ({
 
 	return (
 		<div
-			className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-solid border-border bg-surface-secondary px-3 py-2"
+			className="bulk-action-surface mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-solid border-border bg-surface-secondary px-3 py-2"
 			role="toolbar"
 			aria-label="Accounts chosen"
 			data-testid="bulk-user-actions"

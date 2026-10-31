@@ -348,10 +348,10 @@ func (api *API) putUserNotificationPreferences(rw http.ResponseWriter, r *http.R
 // @Tags Notifications
 // @Accept json
 // @Produce json
-// @Param request body codersdk.CustomNotificationRequest true "Provide a non-empty title or message"
+// @Param request body codersdk.CustomNotificationRequest true "Provide a title and message, and optionally selected recipient IDs (administrators only)"
 // @Success 204 "No Content"
 // @Failure 400 {object} codersdk.Response "Invalid request body"
-// @Failure 403 {object} codersdk.Response "System users cannot send custom notifications"
+// @Failure 403 {object} codersdk.Response "System users cannot send notifications; targeting other users requires administrator permissions"
 // @Failure 500 {object} codersdk.Response "Failed to send custom notification"
 // @Router /api/v2/notifications/custom [post]
 func (api *API) postCustomNotification(rw http.ResponseWriter, r *http.Request) {
@@ -396,32 +396,53 @@ func (api *API) postCustomNotification(rw http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	if _, err := api.NotificationsEnqueuer.EnqueueWithData(
-		//nolint:gocritic // We need to be notifier to send the notification.
-		dbauthz.AsNotifier(ctx),
-		user.ID,
-		notifications.TemplateCustomNotification,
-		map[string]string{
-			"custom_title":   req.Content.Title,
-			"custom_message": req.Content.Message,
-		},
-		map[string]any{
-			// Current dedupe is done via an hash of (template, user, method, payload, targets, day).
-			// Include a minute-bucketed timestamp to bypass per-day dedupe for self-sends,
-			// letting the caller resend identical content the same day (but not more than
-			// once per minute).
-			// TODO(ssncferreira): When custom notifications can target multiple users/roles,
-			//   enforce proper deduplication across recipients to reduce noise and prevent spam.
-			"dedupe_bypass_ts": api.Clock.Now().UTC().Truncate(time.Minute),
-		},
-		user.ID.String(),
-	); err != nil {
-		api.Logger.Error(ctx, "send custom notification", slog.Error(err))
-		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
-			Message: "Failed to send custom notification",
-			Detail:  err.Error(),
-		})
-		return
+	recipients := []uuid.UUID{user.ID}
+	if req.UserIDs != nil {
+		if !api.Authorize(r, policy.ActionUpdate, rbac.ResourceDeploymentConfig) {
+			httpapi.Forbidden(rw)
+			return
+		}
+		targets, err := api.Database.GetUsersByIDs(ctx, req.UserIDs)
+		if err != nil {
+			httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{Message: "Could not validate notification recipients."})
+			return
+		}
+		valid := len(targets) == len(req.UserIDs)
+		for _, target := range targets {
+			if target.Deleted || target.IsSystem || target.Status != database.UserStatusActive {
+				valid = false
+			}
+		}
+		if !valid {
+			httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{Message: "Select active users who can receive notifications."})
+			return
+		}
+		recipients = req.UserIDs
+	}
+
+	for index, recipient := range recipients {
+		if _, err := api.NotificationsEnqueuer.EnqueueWithData(
+			//nolint:gocritic // Recipients are authorized and validated before enqueueing.
+			dbauthz.AsNotifier(ctx),
+			recipient,
+			notifications.TemplateCustomNotification,
+			map[string]string{
+				"custom_title":   req.Content.Title,
+				"custom_message": req.Content.Message,
+			},
+			map[string]any{
+				// Keep retries within a minute from duplicating delivery per recipient.
+				"dedupe_bypass_ts": api.Clock.Now().UTC().Truncate(time.Minute),
+			},
+			user.ID.String(),
+		); err != nil {
+			api.Logger.Error(ctx, "send custom notification", slog.Error(err))
+			httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
+				Message: "Failed to queue all notifications.",
+				Detail:  fmt.Sprintf("%d of %d recipients were queued before delivery failed.", index, len(recipients)),
+			})
+			return
+		}
 	}
 
 	rw.WriteHeader(http.StatusNoContent)

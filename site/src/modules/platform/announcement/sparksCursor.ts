@@ -43,12 +43,6 @@ const particle = (x: number, y: number): Particle => {
 
 let stopCurrent: (() => void) | null = null;
 
-/** Whether the sparks are the pointer now. */
-export const sparksOn = () => stopCurrent !== null;
-
-/** Turns them off (any key does it, too). */
-export const stopSparks = () => stopCurrent?.();
-
 /** The sparks become the pointer, until a key is pressed. */
 export const startSparks = () => {
 	if (stopCurrent) {

@@ -52,7 +52,7 @@ type Drag = {
 const samePair = (t: WorkspaceTunnel, a: string, b: string) =>
 	(t.source_workspace_id === a && t.target_workspace_id === b) ||
 	(t.source_workspace_id === b && t.target_workspace_id === a);
-export const tunnelPath = (
+const tunnelPath = (
 	from: Point,
 	to: Point,
 	fromSide: "left" | "right",

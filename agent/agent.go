@@ -120,9 +120,9 @@ type Options struct {
 }
 
 type Client interface {
-	// ConnectRPC212WithRole connects to the Agent API v2.12. The workspace
+	// ConnectRPC213WithRole connects to the Agent API v2.13. The workspace
 	// agent should use role "agent" to enable connection monitoring.
-	ConnectRPC212WithRole(ctx context.Context, role string) (
+	ConnectRPC213WithRole(ctx context.Context, role string) (
 		proto.DRPCAgentClient212, tailnetproto.DRPCTailnetClient28, error,
 	)
 	tailnet.DERPMapRewriter
@@ -901,7 +901,7 @@ func (a *agent) run() (retErr error) {
 	// ConnectRPC returns the dRPC connection we use for the Agent and Tailnet v2+ APIs.
 	// We pass role "agent" to enable connection monitoring on the server, which tracks
 	// the agent's connectivity state (first_connected_at, last_connected_at, disconnected_at).
-	aAPI, tAPI, err := a.client.ConnectRPC212WithRole(a.hardCtx, "agent")
+	aAPI, tAPI, err := a.client.ConnectRPC213WithRole(a.hardCtx, "agent")
 	if err != nil {
 		return err
 	}
@@ -2291,35 +2291,6 @@ func newAPIConnRoutineManager(
 func (a *apiConnRoutineManager) startAgentAPI(
 	name string, behavior gracefulShutdownBehavior,
 	f func(context.Context, proto.DRPCAgentClient28) error,
-) {
-	logger := a.logger.With(slog.F("name", name))
-	var ctx context.Context
-	switch behavior {
-	case gracefulShutdownBehaviorStop:
-		ctx = a.stopCtx
-	case gracefulShutdownBehaviorRemain:
-		ctx = a.remainCtx
-	default:
-		panic("unknown behavior")
-	}
-	a.eg.Go(func() error {
-		logger.Debug(ctx, "starting agent routine")
-		err := f(ctx, a.aAPI)
-		err = shouldPropagateError(ctx, logger, err)
-		logger.Debug(ctx, "routine exited", slog.Error(err))
-		if err != nil {
-			return xerrors.Errorf("error in routine %s: %w", name, err)
-		}
-		return nil
-	})
-}
-
-// startAgentAPI210 is the v2.10 counterpart to startAgentAPI; it hands the
-// routine the full v2.10 Agent API client. Use it for routines that need
-// RPCs introduced after v2.8 (notably PushContextState).
-func (a *apiConnRoutineManager) startAgentAPI210(
-	name string, behavior gracefulShutdownBehavior,
-	f func(context.Context, proto.DRPCAgentClient210) error,
 ) {
 	logger := a.logger.With(slog.F("name", name))
 	var ctx context.Context

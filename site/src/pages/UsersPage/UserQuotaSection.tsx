@@ -25,6 +25,7 @@ import { Button } from "#/components/Button/Button";
 import { Input } from "#/components/Input/Input";
 import { Label } from "#/components/Label/Label";
 import { Loader } from "#/components/Loader/Loader";
+import { MultiSelectCombobox } from "#/components/MultiSelectCombobox/MultiSelectCombobox";
 import {
 	Select,
 	SelectContent,
@@ -36,7 +37,6 @@ import { Switch } from "#/components/Switch/Switch";
 import { TableCell } from "#/components/Table/Table";
 import { QuotaAdjustments } from "#/modules/platform/quotaRequests/QuotaAdjustments";
 import { Header, HeaderTitle, Main } from "#/pages/HealthPage/Content";
-import { WorkspaceSchedulerSection } from "#/pages/HealthPage/WorkspaceSchedulerSection";
 import { QuotaClusterLoad } from "./QuotaClusterLoad";
 import { formatQuotaNumber, quotaUserColor } from "./quotaFormatting";
 
@@ -72,6 +72,7 @@ type Draft = {
 	/** Per user: "" = the default, NO_LIMIT = no limit, else a number. */
 	users: Record<string, Record<QuotaKey, string>>;
 	exemptAdmins: boolean;
+	excludedUsers: string[];
 };
 
 const emptyRow = (): Record<QuotaKey, string> => ({
@@ -107,6 +108,7 @@ const toDraft = (s: QuotaSettings): Draft => ({
 		}),
 	),
 	exemptAdmins: s.exemptAdmins,
+	excludedUsers: [...(s.excludedUsers ?? [])].sort(),
 });
 
 const toSettings = (d: Draft): QuotaSettings => {
@@ -134,6 +136,7 @@ const toSettings = (d: Draft): QuotaSettings => {
 		},
 		users,
 		exemptAdmins: d.exemptAdmins,
+		excludedUsers: d.excludedUsers,
 		resourceModes: d.resourceModes,
 	};
 };
@@ -159,8 +162,7 @@ const loadColor = (fraction: number) =>
  */
 /**
  * User Quota, at the top of Accounts: what every developer may provision and
- * each one's overrides, their usage, the cluster's load and the workspace
- * scheduler.
+ * each one's overrides, their usage and the cluster's load.
  */
 type QuotaEditorState = {
 	report?: QuotaReport;
@@ -399,6 +401,37 @@ export const UserQuotaSection: React.FC<{
 										</div>
 									))}
 								</div>
+								<div className="flex flex-col gap-1.5 text-sm">
+									<span className="font-medium">Excluded users</span>
+									<MultiSelectCombobox
+										commandProps={{ label: "Excluded users" }}
+										placeholder="Users exempt from workspace quotas"
+										emptyIndicator={
+											<p className="text-center text-sm">No such user</p>
+										}
+										disabled={saving}
+										value={draft.excludedUsers.map((id) => ({
+											value: id,
+											label:
+												report.users.find((user) => user.id === id)?.username ??
+												id,
+										}))}
+										options={report.users.map((user) => ({
+											value: user.id,
+											label: user.username,
+										}))}
+										onChange={(options) =>
+											setDraft({
+												...draft,
+												excludedUsers: options.map((option) => option.value),
+											})
+										}
+									/>
+									<p className="m-0 text-xs text-content-secondary">
+										Selected users are exempt from workspace, CPU, memory and
+										disk limits.
+									</p>
+								</div>
 								<div className="flex flex-wrap items-center gap-3 text-sm">
 									<Switch
 										id="quota-exempt-admins"
@@ -422,31 +455,12 @@ export const UserQuotaSection: React.FC<{
 									</div>
 								</div>
 							</section>
-
-							<details className="text-xs text-content-secondary">
-								<summary className="cursor-pointer">How quotas work</summary>
-								<p>
-									Use each account’s Resources panel for overrides. Empty uses
-									the default; <code>{NO_LIMIT}</code> removes the limit.
-									Approved additions apply until revoked.
-								</p>
-								<p>
-									Allocations use <code>{report.parameters.cpu}</code>,{" "}
-									<code>{report.parameters.memory}</code> and{" "}
-									<code>{report.parameters.disk ?? "home_disk_size"}</code>.
-									Updated{" "}
-									{new Date(report.generatedAt).toLocaleTimeString("en-US")}.
-								</p>
-							</details>
 						</div>
 						<div className="min-w-0 rounded-lg border border-border p-3">
 							<QuotaClusterLoad report={report} />
 						</div>
 					</div>
 				)}
-				<div className="rounded-lg border border-solid border-border p-3">
-					<WorkspaceSchedulerSection />
-				</div>
 			</Main>
 		</>
 	);
@@ -497,7 +511,8 @@ export const QuotaUsageCells: React.FC<{ userId: string }> = ({ userId }) => {
 		memory: user.usage.liveMemory,
 		disk: null,
 	};
-	const exempt = user.admin && draft.exemptAdmins;
+	const exempt =
+		(user.admin && draft.exemptAdmins) || draft.excludedUsers.includes(user.id);
 
 	return (
 		<>
@@ -604,7 +619,7 @@ export const QuotaUsageCells: React.FC<{ userId: string }> = ({ userId }) => {
 							</div>
 							<span className="text-[10px] text-content-secondary">
 								{exempt
-									? "Administrator exempt"
+									? "Exempt from quota"
 									: `Base ${base === null ? "unlimited" : Number.isFinite(base) ? formatQuotaNumber(base) : "invalid"}${bonus > 0 ? ` + ${formatQuotaNumber(bonus)} approved globally` : ""}`}
 								{user.atLimit && !exempt ? " · at limit" : ""}
 							</span>

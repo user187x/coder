@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Terraform expands the single-quoted template parameters before shell execution.
+# shellcheck disable=SC2016
 # Apache Airflow in the workspace (coder_script.airflow in ../main.tf: the ubuntu-dataflow template's, in place of
 # code-server, with no network). Its own script, beside the startup script and the others (the workspace's Logs show it
 # as Apache Airflow). Runs at every start; each step is safe to repeat.
@@ -13,8 +15,8 @@ ACCESS_HOST='${access_host}'
 ACCESS_SCHEME='${scheme}' # this app's host, as browsers reach it
 
 if [ ! -x /opt/airflow/bin/airflow ]; then
- echo "Apache Airflow is not in this image (/opt/airflow): skipped"
- exit 0
+	echo "Apache Airflow is not in this image (/opt/airflow): skipped"
+	exit 0
 fi
 cat >/home/coder/.airflowrc <<AIRFLOWRC
 export AIRFLOW_HOME=/home/coder/airflow
@@ -32,30 +34,32 @@ AIRFLOWRC
 # place where there is none or only Ubuntu's stock one: the line goes in once that is done (added before, it would keep
 # the default out) - waited for in the background, up to a minute.
 bashrc_line() {
- grep -qs "airflowrc" /home/coder/.bashrc || echo '[ -f ~/.airflowrc ] && . ~/.airflowrc' >>/home/coder/.bashrc
+	grep -qs "airflowrc" /home/coder/.bashrc || echo '[ -f ~/.airflowrc ] && . ~/.airflowrc' >>/home/coder/.bashrc
 }
 bashrc_ready() {
- [ ! -f /usr/share/coder-workspace/bashrc ] ||
-  { [ -e /home/coder/.bashrc ] && ! cmp -s /home/coder/.bashrc /usr/share/coder-workspace/ubuntu-bashrc; }
+	[ ! -f /usr/share/coder-workspace/bashrc ] ||
+		{ [ -e /home/coder/.bashrc ] && ! cmp -s /home/coder/.bashrc /usr/share/coder-workspace/ubuntu-bashrc; }
 }
 if bashrc_ready; then
- bashrc_line
+	bashrc_line
 else
- # The whole subshell redirected: a background job holding the agent's output keeps the script from ending (a start
- # error).
- (
-  for _ in $(seq 120); do
-   bashrc_ready && break
-   sleep 0.5
-  done
-  bashrc_line
- ) </dev/null >/dev/null 2>&1 &
+	# The whole subshell redirected: a background job holding the agent's output keeps the script from ending (a start
+	# error).
+	(
+		for _ in $(seq 120); do
+			bashrc_ready && break
+			sleep 0.5
+		done
+		bashrc_line
+	) </dev/null >/dev/null 2>&1 &
 fi
 
 if curl -fs "http://127.0.0.1:8090$AIRFLOW_BASE/api/v2/monitor/health" >/dev/null; then
- echo "Apache Airflow: running already"
+	echo "Apache Airflow: running already"
 else
- # Redirected and exec'd, for the same reason.
- (. /home/coder/.airflowrc && mkdir -p "$AIRFLOW_HOME/dags" && exec airflow standalone) </dev/null >/tmp/airflow.log 2>&1 &
- echo "Apache Airflow: starting (log: /tmp/airflow.log)"
+	# Redirected and exec'd, for the same reason.
+	# Created by the workspace setup at runtime.
+	# shellcheck source=/dev/null
+	(. /home/coder/.airflowrc && mkdir -p "$AIRFLOW_HOME/dags" && exec airflow standalone) </dev/null >/tmp/airflow.log 2>&1 &
+	echo "Apache Airflow: starting (log: /tmp/airflow.log)"
 fi

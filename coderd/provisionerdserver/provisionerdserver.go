@@ -37,12 +37,14 @@ import (
 	"github.com/coder/coder/v2/coderd/database/pubsub"
 	"github.com/coder/coder/v2/coderd/externalauth"
 	"github.com/coder/coder/v2/coderd/notifications"
+	"github.com/coder/coder/v2/coderd/platformagent"
 	"github.com/coder/coder/v2/coderd/prebuilds"
 	"github.com/coder/coder/v2/coderd/promoauth"
 	"github.com/coder/coder/v2/coderd/schedule"
 	"github.com/coder/coder/v2/coderd/tracing"
 	"github.com/coder/coder/v2/coderd/usage"
 	"github.com/coder/coder/v2/coderd/util/slice"
+	"github.com/coder/coder/v2/coderd/workspacescheduler"
 	"github.com/coder/coder/v2/coderd/wspubsub"
 	"github.com/coder/coder/v2/codersdk"
 	"github.com/coder/coder/v2/codersdk/agentsdk"
@@ -104,12 +106,15 @@ type Options struct {
 	// import, a dry run, a workspace build) and returns it as the provisioner
 	// gets it: the platform's sections injected (coderd/templatedecorator).
 	TemplateDecorator func(ctx context.Context, archive []byte) ([]byte, error)
+	// PlatformAgentDirectory contains the deployment's agent.json bundle.
+	PlatformAgentDirectory string
 }
 
 type server struct {
 	apiVersion string
 	// templateDecorator: Options.TemplateDecorator.
-	templateDecorator func(ctx context.Context, archive []byte) ([]byte, error)
+	templateDecorator      func(ctx context.Context, archive []byte) ([]byte, error)
+	platformAgentDirectory string
 	// lifecycleCtx must be tied to the API server's lifecycle
 	// as when the API server shuts down, we want to cancel any
 	// long-running operations.
@@ -295,6 +300,7 @@ func NewServer(
 		heartbeatInterval:           options.HeartbeatInterval,
 		heartbeatFn:                 options.HeartbeatFn,
 		templateDecorator:           options.TemplateDecorator,
+		platformAgentDirectory:      options.PlatformAgentDirectory,
 		PrebuildsOrchestrator:       prebuildsOrchestrator,
 		UsageInserter:               usageInserter,
 		activeJobs:                  map[uuid.UUID]struct{}{},
@@ -2159,6 +2165,13 @@ func (s *server) completeWorkspaceBuildJob(ctx context.Context, job database.Pro
 
 	var workspace database.Workspace
 	var getWorkspaceError error
+	var platformConfig *platformagent.Config
+	if workspaceBuild.Transition == database.WorkspaceTransitionStart {
+		platformConfig, err = platformagent.Load(s.platformAgentDirectory)
+		if err != nil {
+			return xerrors.Errorf("load workspace platform features: %w", err)
+		}
+	}
 
 	// Execute all database modifications in a transaction
 	err = s.Database.InTx(func(db database.Store) error {
@@ -2217,6 +2230,13 @@ func (s *server) completeWorkspaceBuildJob(ctx context.Context, job database.Pro
 			}
 			deadline = autoStop.Deadline
 			maxDeadline = autoStop.MaxDeadline
+			if workspaceBuild.Transition == database.WorkspaceTransitionStart {
+				scheduler, err := workspacescheduler.ForWorkspace(ctx, db, workspace)
+				if err != nil {
+					return err
+				}
+				deadline, maxDeadline = scheduler.Limit(workspace, now, now, deadline, maxDeadline)
+			}
 		}
 
 		err = db.UpdateProvisionerJobWithCompleteByID(ctx, database.UpdateProvisionerJobWithCompleteByIDParams{
@@ -2285,6 +2305,7 @@ func (s *server) completeWorkspaceBuildJob(ctx context.Context, job database.Pro
 				// Ensure that the agent IDs we set previously
 				// are written to the database.
 				InsertWorkspaceResourceWithAgentIDsFromProto(),
+				InsertWorkspaceResourceWithPlatformAgent(platformConfig),
 			)
 			if err != nil {
 				s.warnWorkspaceAppRebindRejected(ctx, jobID, err)
@@ -2827,6 +2848,7 @@ func InsertWorkspacePresetAndParameters(ctx context.Context, db database.Store, 
 
 type insertWorkspaceResourceOptions struct {
 	useAgentIDsFromProto bool
+	platformAgent        *platformagent.Config
 }
 
 // InsertWorkspaceResourceOption represents a functional option for
@@ -2838,6 +2860,14 @@ type InsertWorkspaceResourceOption func(*insertWorkspaceResourceOptions)
 func InsertWorkspaceResourceWithAgentIDsFromProto() InsertWorkspaceResourceOption {
 	return func(opts *insertWorkspaceResourceOptions) {
 		opts.useAgentIDsFromProto = true
+	}
+}
+
+// InsertWorkspaceResourceWithPlatformAgent adds platform features only to actual
+// workspace builds. Import and dry-run resources are left as authored.
+func InsertWorkspaceResourceWithPlatformAgent(config *platformagent.Config) InsertWorkspaceResourceOption {
+	return func(opts *insertWorkspaceResourceOptions) {
+		opts.platformAgent = config
 	}
 }
 
@@ -2884,6 +2914,7 @@ func InsertWorkspaceResource(ctx context.Context, db database.Store, jobID uuid.
 	}
 
 	for _, prAgent := range protoAgents {
+		prAgent = opts.platformAgent.Agent(protoResource.Type, prAgent)
 		// Similar logic is duplicated in terraform/resources.go.
 		if prAgent.Name == "" {
 			return xerrors.Errorf("agent name cannot be empty")

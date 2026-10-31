@@ -2,20 +2,20 @@ package workspaceapps
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"net/http/httputil"
 	"net/netip"
 	"strings"
 	"sync"
 
-	"github.com/coder/quartz"
-	"github.com/coder/websocket"
 	"github.com/google/uuid"
 	"golang.org/x/sync/errgroup"
+	"golang.org/x/xerrors"
 
 	"github.com/coder/coder/v2/coderd/httpmw"
 	"github.com/coder/coder/v2/coderd/workspaceapps/medialease"
+	"github.com/coder/quartz"
+	"github.com/coder/websocket"
 )
 
 // NekoMediaOptions accepts only infrastructure-authenticated runtime resolution.
@@ -45,7 +45,7 @@ type NekoMedia struct {
 // opens no UDP socket; each authenticated signaling session owns its own lease.
 func NewNekoMedia(options NekoMediaOptions) (*NekoMedia, error) {
 	if options.Relay == nil || options.Clock == nil || options.Client == nil || options.Client.handler == nil || options.Resolve == nil {
-		return nil, errors.New("neko media requires a relay, pinned client, clock, and trusted resolver")
+		return nil, xerrors.New("neko media requires a relay, pinned client, clock, and trusted resolver")
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	return &NekoMedia{options: options, ctx: ctx, cancel: cancel}, nil
@@ -119,7 +119,7 @@ func (s *Server) serveNeko(rw http.ResponseWriter, r *http.Request, token Signed
 		ip, valid = netip.AddrFromSlice(clientIP)
 		err = extractErr
 		if !valid {
-			err = errors.New("neko client address is invalid")
+			err = xerrors.New("neko client address is invalid")
 		}
 	}
 	if err != nil {
@@ -167,12 +167,12 @@ func (s *Server) serveNeko(rw http.ResponseWriter, r *http.Request, token Signed
 		http.Error(rw, "Neko signaling backend is unavailable.", http.StatusBadGateway)
 		return
 	}
-	defer backend.CloseNow()
+	defer func() { _ = backend.CloseNow() }()
 	browser, err := websocket.Accept(rw, r, nil)
 	if err != nil {
 		return
 	}
-	defer browser.CloseNow()
+	defer func() { _ = browser.CloseNow() }()
 	backend.SetReadLimit(128 * 1024)
 	browser.SetReadLimit(128 * 1024)
 	group, sessionCtx := errgroup.WithContext(ctx)
@@ -204,7 +204,7 @@ func forwardNekoSignals(ctx context.Context, source, destination *websocket.Conn
 			return err
 		}
 		if kind != websocket.MessageText {
-			return errors.New("neko signaling requires JSON text")
+			return xerrors.New("neko signaling requires JSON text")
 		}
 		rewritten, forward, err := rewriteNekoSignal(raw, lease.Credentials(), lease.RelayAddress(), peer, toBrowser)
 		if err != nil {

@@ -6,7 +6,7 @@ import {
 	SquareTerminalIcon,
 	XIcon,
 } from "lucide-react";
-import { type FormEvent, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQueryClient } from "react-query";
 import { toast } from "sonner";
 import { API } from "#/api/api";
@@ -118,7 +118,7 @@ const BaseName: React.FC<{
 			</>
 		);
 	}
-	const submit = (e: FormEvent) => {
+	const submit = (e: React.FormEvent) => {
 		e.preventDefault();
 		if (valid) {
 			rename.mutate(trimmed);

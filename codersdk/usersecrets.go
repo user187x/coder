@@ -2,7 +2,6 @@ package codersdk
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -190,5 +189,5 @@ func (c *Client) UserCertificateFile(ctx context.Context, user string, name stri
 		return UserCertificateFile{}, ReadBodyAsError(res)
 	}
 	var file UserCertificateFile
-	return file, json.NewDecoder(res.Body).Decode(&file)
+	return file, ReadBodyAsJSON(res, &file)
 }

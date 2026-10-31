@@ -1,18 +1,20 @@
 import { cn } from "cn";
 import { ChevronRightIcon, ListXIcon, XIcon } from "lucide-react";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { toast } from "sonner";
 import { getErrorMessage } from "#/api/errors";
 import type {
 	AnnouncementEvent,
 	AnnouncementReport,
+	Banner,
 	PlatformUser,
 } from "#/api/platform";
 import {
 	announcementReport,
 	clearAnnouncementEvents,
 	deleteAnnouncementEvent,
+	publishBanner,
 } from "#/api/queries/platform";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { Badge } from "#/components/Badge/Badge";
@@ -23,7 +25,9 @@ import {
 	CollapsibleTrigger,
 } from "#/components/Collapsible/Collapsible";
 import { ConfirmDialog } from "#/components/Dialog/ConfirmDialog/ConfirmDialog";
+import { Label } from "#/components/Label/Label";
 import { Loader } from "#/components/Loader/Loader";
+import { Switch } from "#/components/Switch/Switch";
 import {
 	Table,
 	TableBody,
@@ -52,9 +56,17 @@ const formatWhen = (iso: string | null) =>
  * who pressed Confirm; open one to see the people. A record can be deleted,
  * or all of them at once (Clear all).
  */
-export const Acknowledgements: React.FC = () => {
+export const Acknowledgements = ({ banner }: { banner: Banner }) => {
+	const headingId = useId();
+	const recordingId = useId();
 	const queryClient = useQueryClient();
-	const reportQuery = useQuery(announcementReport());
+	const enabled = banner.receipts !== false;
+	const save = useMutation(publishBanner(queryClient));
+	const reportQuery = useQuery({
+		...announcementReport(),
+		enabled,
+		refetchInterval: enabled ? announcementReport().refetchInterval : false,
+	});
 	const clear = useMutation(clearAnnouncementEvents(queryClient));
 	const [confirming, setConfirming] = useState(false);
 	const events = reportQuery.data?.events ?? [];
@@ -62,81 +74,133 @@ export const Acknowledgements: React.FC = () => {
 
 	return (
 		<section
-			aria-labelledby="announcement-acks"
+			aria-labelledby={headingId}
 			className="flex flex-col gap-4 rounded-lg border border-solid border-border p-6"
 		>
 			<div className="flex flex-wrap items-center justify-between gap-3">
-				<h2 id="announcement-acks" className="m-0 text-base font-semibold">
+				<h2 id={headingId} className="m-0 text-base font-semibold">
 					Acknowledgements
 				</h2>
 				<div className="flex items-center gap-3">
-					{reportQuery.dataUpdatedAt > 0 && (
-						<span
-							className="text-xs text-content-secondary"
-							data-pixel="ignore"
-						>
-							Updated{" "}
-							{new Date(reportQuery.dataUpdatedAt).toLocaleTimeString("en-US")}
-						</span>
-					)}
-					<Button
-						size="sm"
-						variant="outline"
-						disabled={events.length === 0 || clear.isPending}
-						onClick={() => setConfirming(true)}
-						data-testid="announcement-acks-clear"
-					>
-						<ListXIcon />
-						Clear all
-					</Button>
+					<Label htmlFor={recordingId}>Record views and confirmations</Label>
+					<Switch
+						id={recordingId}
+						checked={enabled}
+						disabled={save.isPending}
+						onCheckedChange={(receipts) => {
+							const { id: _id, ...fields } = banner;
+							setConfirming(false);
+							save.mutate(
+								{ ...fields, receipts },
+								{
+									onError: (error) =>
+										toast.error(
+											getErrorMessage(
+												error,
+												"Recording setting could not be saved.",
+											),
+										),
+								},
+							);
+						}}
+					/>
 				</div>
 			</div>
-			<ConfirmDialog
-				type="delete"
-				open={confirming}
-				title="Clear all records"
-				description={`Delete the record of every announcement (${events.length}) and everyone's confirmations?${
-					live
-						? " The live announcement stays up; its confirmations start again from nobody."
-						: ""
-				}`}
-				confirmText="Clear all"
-				confirmLoading={clear.isPending}
-				onClose={() => setConfirming(false)}
-				onConfirm={() =>
-					clear.mutate(undefined, {
-						onSuccess: ({ removed }) => {
-							setConfirming(false);
-							toast.success(
-								`Cleared ${removed} ${removed === 1 ? "record" : "records"}.`,
-							);
-						},
-						onError: (error) => {
-							toast.error(
-								getErrorMessage(error, "The records could not be cleared."),
-							);
-						},
-					})
-				}
-			/>
-			<p className="m-0 text-sm text-content-secondary">
-				Each announcement you publish (or show again) is listed with everyone
-				who has seen it and who pressed Confirm. Open one to see the people.
-			</p>
-			{reportQuery.isLoading ? (
-				<Loader />
-			) : !reportQuery.data ? (
-				<ErrorAlert error={reportQuery.error} />
-			) : (
-				<AcknowledgementList report={reportQuery.data} />
+			{!enabled && (
+				<p className="m-0 text-sm text-content-secondary">
+					Recording is off. New views and confirmations are not collected.
+					Existing records are retained.
+				</p>
 			)}
+			<fieldset
+				disabled={!enabled || save.isPending}
+				className={cn(
+					"m-0 flex min-w-0 flex-col gap-4 border-0 p-0",
+					!enabled && "opacity-40",
+				)}
+			>
+				<legend className="sr-only">Announcement recording history</legend>
+
+				<div className="flex flex-wrap items-center justify-between gap-3">
+					<span className="text-sm font-medium">Recording history</span>
+					<div className="flex items-center gap-3">
+						{reportQuery.dataUpdatedAt > 0 && (
+							<span
+								className="text-xs text-content-secondary"
+								data-pixel="ignore"
+							>
+								Updated{" "}
+								{new Date(reportQuery.dataUpdatedAt).toLocaleTimeString(
+									"en-US",
+								)}
+							</span>
+						)}
+						<Button
+							size="sm"
+							variant="outline"
+							disabled={events.length === 0 || clear.isPending}
+							onClick={() => setConfirming(true)}
+							data-testid="announcement-acks-clear"
+						>
+							<ListXIcon />
+							Clear all
+						</Button>
+					</div>
+				</div>
+				<ConfirmDialog
+					type="delete"
+					open={enabled && confirming}
+					title="Clear all records"
+					description={`Delete the record of every announcement (${events.length}) and everyone's confirmations?${
+						live
+							? " The live announcement stays up; its confirmations start again from nobody."
+							: ""
+					}`}
+					confirmText="Clear all"
+					confirmLoading={clear.isPending}
+					onClose={() => setConfirming(false)}
+					onConfirm={() =>
+						clear.mutate(undefined, {
+							onSuccess: ({ removed }) => {
+								setConfirming(false);
+								toast.success(
+									`Cleared ${removed} ${removed === 1 ? "record" : "records"}.`,
+								);
+							},
+							onError: (error) => {
+								toast.error(
+									getErrorMessage(error, "The records could not be cleared."),
+								);
+							},
+						})
+					}
+				/>
+				<p className="m-0 text-sm text-content-secondary">
+					Each announcement you publish (or show again) is listed with everyone
+					who has seen it and who pressed Confirm. Open one to see the people.
+				</p>
+				{!enabled && !reportQuery.data ? (
+					<p className="m-0 text-sm text-content-secondary">
+						Enable recording to view the history.
+					</p>
+				) : reportQuery.isLoading ? (
+					<Loader />
+				) : !reportQuery.data ? (
+					<ErrorAlert error={reportQuery.error} />
+				) : (
+					<div inert={!enabled}>
+						<AcknowledgementList enabled={enabled} report={reportQuery.data} />
+					</div>
+				)}
+			</fieldset>
 		</section>
 	);
 };
 
-const AcknowledgementList: React.FC<{ report: AnnouncementReport }> = ({
-	report,
-}) => {
+const AcknowledgementList: React.FC<{
+	report: AnnouncementReport;
+	enabled: boolean;
+}> = ({ report, enabled }) => {
 	if (!report.events.length) {
 		return (
 			<p className="m-0 text-sm text-content-secondary">
@@ -150,6 +214,7 @@ const AcknowledgementList: React.FC<{ report: AnnouncementReport }> = ({
 			{report.events.map((event, i) => (
 				<AnnouncementEventRow
 					key={event.id}
+					enabled={enabled}
 					event={event}
 					totalUsers={report.totalUsers}
 					shownAgain={report.events
@@ -167,12 +232,14 @@ const AcknowledgementList: React.FC<{ report: AnnouncementReport }> = ({
 };
 
 type AnnouncementEventRowProps = {
+	enabled: boolean;
 	event: AnnouncementEvent;
 	totalUsers: number | null;
 	shownAgain: boolean;
 };
 
 const AnnouncementEventRow: React.FC<AnnouncementEventRowProps> = ({
+	enabled,
 	event,
 	totalUsers,
 	shownAgain,
@@ -263,7 +330,7 @@ const AnnouncementEventRow: React.FC<AnnouncementEventRowProps> = ({
 			</CollapsibleContent>
 			<ConfirmDialog
 				type="delete"
-				open={confirming}
+				open={enabled && confirming}
 				title="Delete this record"
 				description={`Delete the record of "${label.slice(0, 80)}"? ${
 					event.current

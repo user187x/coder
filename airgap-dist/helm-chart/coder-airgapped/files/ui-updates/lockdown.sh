@@ -30,20 +30,20 @@
 # had stopped on purpose. The platform service copies the workspace's disk while it is frozen (the snapshot).
 set -eu
 if [ "$1" = start ]; then
- modes=$(cat "${2#file:}" 2>/dev/null || echo off)
- case ",$modes," in
- *,sudo,*) ;;
- *)
-  echo "Lock Down: sudo works as usual (not locked)"
-  exit 0
-  ;;
- esac
- printf '%s\n' "# Lock Down: an admin took sudo away in this workspace (Workspace page > Lock Down)." \
-  'ALL ALL=(ALL:ALL) !ALL' | sudo -n tee /etc/sudoers.d/zz-coder-lockdown.new >/dev/null &&
-  sudo -n chmod 0440 /etc/sudoers.d/zz-coder-lockdown.new &&
-  sudo -n mv -f /etc/sudoers.d/zz-coder-lockdown.new /etc/sudoers.d/zz-coder-lockdown &&
-  echo "Lock Down: sudo is off in this workspace (an admin locked it)."
- exit $?
+	modes=$(cat "${2#file:}" 2>/dev/null || echo off)
+	case ",$modes," in
+	*,sudo,*) ;;
+	*)
+		echo "Lock Down: sudo works as usual (not locked)"
+		exit 0
+		;;
+	esac
+	printf '%s\n' "# Lock Down: an admin took sudo away in this workspace (Workspace page > Lock Down)." \
+		'ALL ALL=(ALL:ALL) !ALL' | sudo -n tee /etc/sudoers.d/zz-coder-lockdown.new >/dev/null &&
+		sudo -n chmod 0440 /etc/sudoers.d/zz-coder-lockdown.new &&
+		sudo -n mv -f /etc/sudoers.d/zz-coder-lockdown.new /etc/sudoers.d/zz-coder-lockdown &&
+		echo "Lock Down: sudo is off in this workspace (an admin locked it)."
+	exit $?
 fi
 modes=$1
 host=$2
@@ -58,32 +58,32 @@ sudo_=
 freeze=
 case ",$modes," in *,network,*) net=1 ;; esac
 case ",$modes," in *,sandbox,*)
- net=1
- sandbox=1
- ;;
+	net=1
+	sandbox=1
+	;;
 esac
 case ",$modes," in *,sudo,*) sudo_=1 ;; esac
 case ",$modes," in *,freeze,*) freeze=1 ;; esac
 
 if [ -n "$net" ]; then
- coder=$coder_ips
- resolved=
- for i in 1 2 3 4 5 6 7 8 9 10; do
-  resolved=$(getent ahostsv4 "$host" 2>/dev/null | awk '{ print $1 }' | sort -u | tr '\n' ' ')
-  [ -n "$resolved" ] && break
-  [ -n "$coder" ] && break
-  sleep 1
- done
- coder="$coder $resolved"
- if [ -n "$sandbox" ] && [ -n "$resolved" ]; then
-  # Keep the control endpoint resolvable while all external DNS is blocked.
-  hosts="${root}/etc/hosts"
-  if ! grep -F "# coder-sandbox-control:$host" "$hosts" >/dev/null 2>&1; then
-   for address in $resolved; do
-    printf '%s %s # coder-sandbox-control:%s\n' "$address" "$host" "$host" >>"$hosts"
-   done
-  fi
- fi
+	coder=$coder_ips
+	resolved=
+	for _ in 1 2 3 4 5 6 7 8 9 10; do
+		resolved=$(getent ahostsv4 "$host" 2>/dev/null | awk '{ print $1 }' | sort -u | tr '\n' ' ')
+		[ -n "$resolved" ] && break
+		[ -n "$coder" ] && break
+		sleep 1
+	done
+	coder="$coder $resolved"
+	if [ -n "$sandbox" ] && [ -n "$resolved" ]; then
+		# Keep the control endpoint resolvable while all external DNS is blocked.
+		hosts="${root}/etc/hosts"
+		if ! grep -F "# coder-sandbox-control:$host" "$hosts" >/dev/null 2>&1; then
+			for address in $resolved; do
+				printf '%s %s # coder-sandbox-control:%s\n' "$address" "$host" "$host" >>"$hosts"
+			done
+		fi
+	fi
 fi
 
 out=CODER-LOCKDOWN
@@ -92,134 +92,134 @@ forward=CODER-LOCKDOWN-FWD
 
 # Network: the rules go first in OUTPUT and INPUT, in chains of their own (lifted by removing them).
 for t in iptables ip6tables; do
- $t -N CODER-LOCKDOWN-HOLD 2>/dev/null || true
- $t -C CODER-LOCKDOWN-HOLD -j DROP 2>/dev/null || $t -A CODER-LOCKDOWN-HOLD -j DROP
- $t -C OUTPUT -j CODER-LOCKDOWN-HOLD 2>/dev/null || $t -I OUTPUT 1 -j CODER-LOCKDOWN-HOLD
- $t -C INPUT -j CODER-LOCKDOWN-HOLD 2>/dev/null || $t -I INPUT 1 -j CODER-LOCKDOWN-HOLD
- $t -C FORWARD -j CODER-LOCKDOWN-HOLD 2>/dev/null || $t -I FORWARD 1 -j CODER-LOCKDOWN-HOLD
- while $t -D FORWARD -j "$forward" 2>/dev/null; do :; done
- while $t -D OUTPUT -j "$out" 2>/dev/null; do :; done
- while $t -D INPUT -j "$in" 2>/dev/null; do :; done
- for c in "$out" "$in" "$forward"; do
-  $t -F "$c" 2>/dev/null || true
-  $t -X "$c" 2>/dev/null || true
- done
+	$t -N CODER-LOCKDOWN-HOLD 2>/dev/null || true
+	$t -C CODER-LOCKDOWN-HOLD -j DROP 2>/dev/null || $t -A CODER-LOCKDOWN-HOLD -j DROP
+	$t -C OUTPUT -j CODER-LOCKDOWN-HOLD 2>/dev/null || $t -I OUTPUT 1 -j CODER-LOCKDOWN-HOLD
+	$t -C INPUT -j CODER-LOCKDOWN-HOLD 2>/dev/null || $t -I INPUT 1 -j CODER-LOCKDOWN-HOLD
+	$t -C FORWARD -j CODER-LOCKDOWN-HOLD 2>/dev/null || $t -I FORWARD 1 -j CODER-LOCKDOWN-HOLD
+	while $t -D FORWARD -j "$forward" 2>/dev/null; do :; done
+	while $t -D OUTPUT -j "$out" 2>/dev/null; do :; done
+	while $t -D INPUT -j "$in" 2>/dev/null; do :; done
+	for c in "$out" "$in" "$forward"; do
+		$t -F "$c" 2>/dev/null || true
+		$t -X "$c" 2>/dev/null || true
+	done
 done
 if [ -n "$net" ]; then
- servers=$(awk '/^nameserver/ { print $2 }' /etc/resolv.conf | grep -v ':' || true)
- iptables -N "$out"
- iptables -N "$in"
- iptables -N "$forward"
- iptables -A "$out" -o lo -j ACCEPT
- iptables -A "$in" -i lo -j ACCEPT
- [ -z "$sandbox" ] || servers=
- for s in $servers; do
-  for p in udp tcp; do
-   iptables -A "$out" -d "$s" -p "$p" --dport 53 -j ACCEPT
-   iptables -A "$in" -s "$s" -p "$p" --sport 53 -j ACCEPT
-  done
- done
- for peer in $peers; do
-  iptables -A "$out" -d "$peer" -j ACCEPT
-  iptables -A "$in" -s "$peer" -j ACCEPT
- done
- for c in $coder; do
-  if [ -n "$sandbox" ]; then
-   iptables -A "$out" -d "$c" -p tcp -m multiport --dports 80,443,8080 -j ACCEPT
-   iptables -A "$in" -s "$c" -p tcp -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-  else
-   iptables -A "$out" -d "$c" -p tcp -j ACCEPT
-   iptables -A "$in" -s "$c" -p tcp -j ACCEPT
-  fi
- done
- iptables -A "$out" -p tcp -j REJECT --reject-with tcp-reset
- iptables -A "$out" -j REJECT
- iptables -A "$in" -j DROP
- for source in $peers; do
-  for destination in $peers; do
-   iptables -A "$forward" -s "$source" -d "$destination" -j ACCEPT
-  done
- done
- iptables -A "$forward" -j DROP
- iptables -I FORWARD 1 -j "$forward"
- iptables -I OUTPUT 1 -j "$out"
- iptables -I INPUT 1 -j "$in"
- ip6tables -N "$out"
- ip6tables -N "$in"
- ip6tables -N "$forward"
- ip6tables -A "$forward" -j DROP
- ip6tables -I FORWARD 1 -j "$forward"
- ip6tables -A "$out" -o lo -j ACCEPT
- ip6tables -A "$in" -i lo -j ACCEPT
- ip6tables -A "$out" -j REJECT
- ip6tables -A "$in" -j DROP
- ip6tables -I OUTPUT 1 -j "$out"
- ip6tables -I INPUT 1 -j "$in"
+	servers=$(awk '/^nameserver/ { print $2 }' /etc/resolv.conf | grep -v ':' || true)
+	iptables -N "$out"
+	iptables -N "$in"
+	iptables -N "$forward"
+	iptables -A "$out" -o lo -j ACCEPT
+	iptables -A "$in" -i lo -j ACCEPT
+	[ -z "$sandbox" ] || servers=
+	for s in $servers; do
+		for p in udp tcp; do
+			iptables -A "$out" -d "$s" -p "$p" --dport 53 -j ACCEPT
+			iptables -A "$in" -s "$s" -p "$p" --sport 53 -j ACCEPT
+		done
+	done
+	for peer in $peers; do
+		iptables -A "$out" -d "$peer" -j ACCEPT
+		iptables -A "$in" -s "$peer" -j ACCEPT
+	done
+	for c in $coder; do
+		if [ -n "$sandbox" ]; then
+			iptables -A "$out" -d "$c" -p tcp -m multiport --dports 80,443,8080 -j ACCEPT
+			iptables -A "$in" -s "$c" -p tcp -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+		else
+			iptables -A "$out" -d "$c" -p tcp -j ACCEPT
+			iptables -A "$in" -s "$c" -p tcp -j ACCEPT
+		fi
+	done
+	iptables -A "$out" -p tcp -j REJECT --reject-with tcp-reset
+	iptables -A "$out" -j REJECT
+	iptables -A "$in" -j DROP
+	for source in $peers; do
+		for destination in $peers; do
+			iptables -A "$forward" -s "$source" -d "$destination" -j ACCEPT
+		done
+	done
+	iptables -A "$forward" -j DROP
+	iptables -I FORWARD 1 -j "$forward"
+	iptables -I OUTPUT 1 -j "$out"
+	iptables -I INPUT 1 -j "$in"
+	ip6tables -N "$out"
+	ip6tables -N "$in"
+	ip6tables -N "$forward"
+	ip6tables -A "$forward" -j DROP
+	ip6tables -I FORWARD 1 -j "$forward"
+	ip6tables -A "$out" -o lo -j ACCEPT
+	ip6tables -A "$in" -i lo -j ACCEPT
+	ip6tables -A "$out" -j REJECT
+	ip6tables -A "$in" -j DROP
+	ip6tables -I OUTPUT 1 -j "$out"
+	ip6tables -I INPUT 1 -j "$in"
 fi
 
 for t in iptables ip6tables; do
- while $t -D FORWARD -j CODER-LOCKDOWN-HOLD 2>/dev/null; do :; done
- while $t -D OUTPUT -j CODER-LOCKDOWN-HOLD 2>/dev/null; do :; done
- while $t -D INPUT -j CODER-LOCKDOWN-HOLD 2>/dev/null; do :; done
- $t -F CODER-LOCKDOWN-HOLD
- $t -X CODER-LOCKDOWN-HOLD
+	while $t -D FORWARD -j CODER-LOCKDOWN-HOLD 2>/dev/null; do :; done
+	while $t -D OUTPUT -j CODER-LOCKDOWN-HOLD 2>/dev/null; do :; done
+	while $t -D INPUT -j CODER-LOCKDOWN-HOLD 2>/dev/null; do :; done
+	$t -F CODER-LOCKDOWN-HOLD
+	$t -X CODER-LOCKDOWN-HOLD
 done
 
 # Sudo: a last rule in sudoers.d that denies every command to everyone (sudo uses the last rule that matches).
 if [ -n "$root" ]; then
- f="$root/etc/sudoers.d/zz-coder-lockdown"
- if [ -n "$sudo_" ]; then
-  printf '%s\n' "# Lock Down: an admin took sudo away in this workspace (Workspace page > Lock Down)." \
-   'ALL ALL=(ALL:ALL) !ALL' >"$f.new"
-  chown 0:0 "$f.new"
-  chmod 0440 "$f.new"
-  mv -f "$f.new" "$f"
- else
-  rm -f "$f"
- fi
+	f="$root/etc/sudoers.d/zz-coder-lockdown"
+	if [ -n "$sudo_" ]; then
+		printf '%s\n' "# Lock Down: an admin took sudo away in this workspace (Workspace page > Lock Down)." \
+			'ALL ALL=(ALL:ALL) !ALL' >"$f.new"
+		chown 0:0 "$f.new"
+		chmod 0440 "$f.new"
+		mv -f "$f.new" "$f"
+	else
+		rm -f "$f"
+	fi
 fi
 
 # Freeze: every process but PID 1 and this container's own (theirs is this root): the workspace container's, and
 # the sandboxes its programs start (bubblewrap's have a root of their own).
 frozen=
 if [ -n "$root" ]; then
- list="$root/run/coder-lockdown-frozen"
- if [ -n "$freeze" ]; then
-  # a few rounds: a process may start a child while the others are being paused
-  for round in 1 2 3; do
-   for d in /proc/[0-9]*; do
-    pid=${d#/proc/}
-    [ "$pid" = 1 ] && continue
-    [ "$d/root" -ef /proc/self/root ] 2>/dev/null && continue
-    state=$(awk '{ print $3 }' "$d/stat" 2>/dev/null || true)
-    case $state in T | t | Z | "") continue ;; esac
-    kill -STOP "$pid" 2>/dev/null && echo "$pid" >>"$list.new" || true
-   done
-  done
-  if [ -f "$list.new" ]; then
-   cat "$list.new" "$list" 2>/dev/null | sort -un >"$list.all"
-   mv -f "$list.all" "$list"
-   rm -f "$list.new"
-  fi
-  frozen=$(wc -l <"$list" 2>/dev/null || echo 0)
-  # what was running at that moment, for the admins (the platform service keeps it with the snapshot)
-  echo "lockdown: frozen processes:"
-  for pid in $(cat "$list" 2>/dev/null); do
-   [ -r "/proc/$pid/cmdline" ] || continue
-   printf 'lockdown:   %s %s %s\n' "$pid" "$(stat -c %U "/proc/$pid" 2>/dev/null || echo ?)" \
-    "$(tr '\0' ' ' <"/proc/$pid/cmdline" | cut -c1-200)"
-  done
- elif [ -f "$list" ]; then
-  for pid in $(cat "$list"); do kill -CONT "$pid" 2>/dev/null || true; done
-  rm -f "$list"
- fi
+	list="$root/run/coder-lockdown-frozen"
+	if [ -n "$freeze" ]; then
+		# a few rounds: a process may start a child while the others are being paused
+		for _ in 1 2 3; do
+			for d in /proc/[0-9]*; do
+				pid=${d#/proc/}
+				[ "$pid" = 1 ] && continue
+				[ "$d/root" -ef /proc/self/root ] 2>/dev/null && continue
+				state=$(awk '{ print $3 }' "$d/stat" 2>/dev/null || true)
+				case $state in T | t | Z | "") continue ;; esac
+				kill -STOP "$pid" 2>/dev/null && echo "$pid" >>"$list.new" || true
+			done
+		done
+		if [ -f "$list.new" ]; then
+			cat "$list.new" "$list" 2>/dev/null | sort -un >"$list.all"
+			mv -f "$list.all" "$list"
+			rm -f "$list.new"
+		fi
+		frozen=$(wc -l <"$list" 2>/dev/null || echo 0)
+		# what was running at that moment, for the admins (the platform service keeps it with the snapshot)
+		echo "lockdown: frozen processes:"
+		while read -r pid; do
+			[ -r "/proc/$pid/cmdline" ] || continue
+			printf 'lockdown:   %s %s %s\n' "$pid" "$(stat -c %U "/proc/$pid" 2>/dev/null || echo ?)" \
+				"$(tr '\0' ' ' <"/proc/$pid/cmdline" | cut -c1-200)"
+		done <"$list"
+	elif [ -f "$list" ]; then
+		while read -r pid; do kill -CONT "$pid" 2>/dev/null || true; done <"$list"
+		rm -f "$list"
+	fi
 fi
 
 # what was asked, for the platform service (a pod's lock at start: the init container's log)
 echo "lockdown: modes ${modes:-off}"
 state() { if [ -n "$1" ]; then echo on; else echo off; fi; }
 if [ -n "$root" ]; then
- echo "lockdown: network $(state "$net"), sudo $(state "$sudo_"), freeze $(state "$freeze")${frozen:+ ($frozen processes paused)}"
+	echo "lockdown: network $(state "$net"), sudo $(state "$sudo_"), freeze $(state "$freeze")${frozen:+ ($frozen processes paused)}"
 else
- echo "lockdown: network $(state "$net") (sudo is set by the workspace's start script, freeze by the platform service)"
+	echo "lockdown: network $(state "$net") (sudo is set by the workspace's start script, freeze by the platform service)"
 fi

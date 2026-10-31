@@ -518,15 +518,25 @@ curl -X GET http://coder-server:8080/api/v2/organizations/{organization}/short-t
 ```json
 [
   {
-    "expires_at": "string",
-    "extension_requested_at": "string",
-    "issued_at": "string",
-    "organization_id": "string",
-    "revoked_at": "string",
+    "auto_remove_history": true,
+    "expires_at": "2019-08-24T14:15:22Z",
+    "extension_requested_at": "2019-08-24T14:15:22Z",
+    "issued_at": "2019-08-24T14:15:22Z",
+    "organization_id": "7c60d51f-b44e-4682-87d6-449835ea4de6",
+    "revoked_at": "2019-08-24T14:15:22Z",
+    "terms": {
+      "firewall": true,
+      "no_root": true,
+      "sandbox_only": true,
+      "website_mode": "string",
+      "websites": [
+        "string"
+      ]
+    },
     "token": "string",
     "token_id": "string",
-    "user_id": "string",
-    "workspace_id": "string"
+    "user_id": "a169451c-8525-4352-b8ca-070dd449a1a5",
+    "workspace_id": "0967198e-ec7b-4c6b-b4d3-f71244cadbe9"
   }
 ]
 ```
@@ -541,18 +551,25 @@ curl -X GET http://coder-server:8080/api/v2/organizations/{organization}/short-t
 
 Status Code **200**
 
-| Name                       | Type   | Required | Restrictions | Description                                                       |
-|----------------------------|--------|----------|--------------|-------------------------------------------------------------------|
-| `[array item]`             | array  | false    |              |                                                                   |
-| `» expires_at`             | string | false    |              |                                                                   |
-| `» extension_requested_at` | string | false    |              |                                                                   |
-| `» issued_at`              | string | false    |              |                                                                   |
-| `» organization_id`        | string | false    |              |                                                                   |
-| `» revoked_at`             | string | false    |              |                                                                   |
-| `» token`                  | string | false    |              | Token is returned only at creation; the database stores its hash. |
-| `» token_id`               | string | false    |              |                                                                   |
-| `» user_id`                | string | false    |              |                                                                   |
-| `» workspace_id`           | string | false    |              |                                                                   |
+| Name                       | Type                                                                   | Required | Restrictions | Description                                                       |
+|----------------------------|------------------------------------------------------------------------|----------|--------------|-------------------------------------------------------------------|
+| `[array item]`             | array                                                                  | false    |              |                                                                   |
+| `» auto_remove_history`    | boolean                                                                | false    |              |                                                                   |
+| `» expires_at`             | string(date-time)                                                      | false    |              |                                                                   |
+| `» extension_requested_at` | string(date-time)                                                      | false    |              |                                                                   |
+| `» issued_at`              | string(date-time)                                                      | false    |              |                                                                   |
+| `» organization_id`        | string(uuid)                                                           | false    |              |                                                                   |
+| `» revoked_at`             | string(date-time)                                                      | false    |              |                                                                   |
+| `» terms`                  | [codersdk.ShortTermLeaseTerms](schemas.md#codersdkshorttermleaseterms) | false    |              |                                                                   |
+| `»» firewall`              | boolean                                                                | false    |              |                                                                   |
+| `»» no_root`               | boolean                                                                | false    |              |                                                                   |
+| `»» sandbox_only`          | boolean                                                                | false    |              |                                                                   |
+| `»» website_mode`          | string                                                                 | false    |              |                                                                   |
+| `»» websites`              | array                                                                  | false    |              |                                                                   |
+| `» token`                  | string                                                                 | false    |              | Token is returned only at creation; the database stores its hash. |
+| `» token_id`               | string                                                                 | false    |              |                                                                   |
+| `» user_id`                | string(uuid)                                                           | false    |              |                                                                   |
+| `» workspace_id`           | string(uuid)                                                           | false    |              |                                                                   |
 
 To perform this operation, you must be authenticated. [Learn more](authentication.md).
 
@@ -574,8 +591,18 @@ curl -X POST http://coder-server:8080/api/v2/organizations/{organization}/short-
 
 ```json
 {
+  "auto_remove_history": true,
   "minutes": 0,
-  "template_id": "string"
+  "template_id": "c6d67e98-83ea-49f0-8812-e4abae2b68bc",
+  "terms": {
+    "firewall": true,
+    "no_root": true,
+    "sandbox_only": true,
+    "website_mode": "string",
+    "websites": [
+      "string"
+    ]
+  }
 }
 ```
 
@@ -592,15 +619,25 @@ curl -X POST http://coder-server:8080/api/v2/organizations/{organization}/short-
 
 ```json
 {
-  "expires_at": "string",
-  "extension_requested_at": "string",
-  "issued_at": "string",
-  "organization_id": "string",
-  "revoked_at": "string",
+  "auto_remove_history": true,
+  "expires_at": "2019-08-24T14:15:22Z",
+  "extension_requested_at": "2019-08-24T14:15:22Z",
+  "issued_at": "2019-08-24T14:15:22Z",
+  "organization_id": "7c60d51f-b44e-4682-87d6-449835ea4de6",
+  "revoked_at": "2019-08-24T14:15:22Z",
+  "terms": {
+    "firewall": true,
+    "no_root": true,
+    "sandbox_only": true,
+    "website_mode": "string",
+    "websites": [
+      "string"
+    ]
+  },
   "token": "string",
   "token_id": "string",
-  "user_id": "string",
-  "workspace_id": "string"
+  "user_id": "a169451c-8525-4352-b8ca-070dd449a1a5",
+  "workspace_id": "0967198e-ec7b-4c6b-b4d3-f71244cadbe9"
 }
 ```
 
@@ -609,6 +646,51 @@ curl -X POST http://coder-server:8080/api/v2/organizations/{organization}/short-
 | Status | Meaning                                                      | Description | Schema                                                       |
 |--------|--------------------------------------------------------------|-------------|--------------------------------------------------------------|
 | 201    | [Created](https://tools.ietf.org/html/rfc7231#section-6.3.2) | Created     | [codersdk.ShortTermLease](schemas.md#codersdkshorttermlease) |
+
+To perform this operation, you must be authenticated. [Learn more](authentication.md).
+
+## Remove an inactive lease from visible history
+
+### Code samples
+
+```sh
+# Example request using curl
+curl -X DELETE http://coder-server:8080/api/v2/organizations/{organization}/short-term-leases/{user} \
+  -H 'Accept: application/json' \
+  -H 'Coder-Session-Token: API_KEY'
+```
+
+`DELETE /api/v2/organizations/{organization}/short-term-leases/{user}`
+
+### Parameters
+
+| Name           | In   | Type         | Required | Description       |
+|----------------|------|--------------|----------|-------------------|
+| `organization` | path | string(uuid) | true     | Organization ID   |
+| `user`         | path | string(uuid) | true     | Temporary user ID |
+
+### Example responses
+
+> 200 Response
+
+```json
+{
+  "detail": "string",
+  "message": "string",
+  "validations": [
+    {
+      "detail": "string",
+      "field": "string"
+    }
+  ]
+}
+```
+
+### Responses
+
+| Status | Meaning                                                 | Description | Schema                                           |
+|--------|---------------------------------------------------------|-------------|--------------------------------------------------|
+| 200    | [OK](https://tools.ietf.org/html/rfc7231#section-6.3.1) | OK          | [codersdk.Response](schemas.md#codersdkresponse) |
 
 To perform this operation, you must be authenticated. [Learn more](authentication.md).
 
@@ -649,15 +731,25 @@ curl -X PATCH http://coder-server:8080/api/v2/organizations/{organization}/short
 
 ```json
 {
-  "expires_at": "string",
-  "extension_requested_at": "string",
-  "issued_at": "string",
-  "organization_id": "string",
-  "revoked_at": "string",
+  "auto_remove_history": true,
+  "expires_at": "2019-08-24T14:15:22Z",
+  "extension_requested_at": "2019-08-24T14:15:22Z",
+  "issued_at": "2019-08-24T14:15:22Z",
+  "organization_id": "7c60d51f-b44e-4682-87d6-449835ea4de6",
+  "revoked_at": "2019-08-24T14:15:22Z",
+  "terms": {
+    "firewall": true,
+    "no_root": true,
+    "sandbox_only": true,
+    "website_mode": "string",
+    "websites": [
+      "string"
+    ]
+  },
   "token": "string",
   "token_id": "string",
-  "user_id": "string",
-  "workspace_id": "string"
+  "user_id": "a169451c-8525-4352-b8ca-070dd449a1a5",
+  "workspace_id": "0967198e-ec7b-4c6b-b4d3-f71244cadbe9"
 }
 ```
 

@@ -3,6 +3,8 @@ package coderd
 import (
 	"bytes"
 	"crypto/sha256"
+	"crypto/tls"
+	"crypto/x509"
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
@@ -16,7 +18,6 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/coder/quartz"
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/require"
@@ -30,8 +31,10 @@ import (
 	"github.com/coder/coder/v2/coderd/rbac"
 	"github.com/coder/coder/v2/coderd/workspaceapps/medialease"
 	"github.com/coder/coder/v2/testutil"
+	"github.com/coder/quartz"
 )
 
+//nolint:paralleltest,tparallel // Subtests precede mutations of the shared runtime descriptor.
 func TestNekoTrustedDescriptorAndFreshWorkspaceIdentity(t *testing.T) {
 	t.Parallel()
 	db, _ := dbtestutil.NewDB(t)
@@ -47,7 +50,7 @@ func TestNekoTrustedDescriptorAndFreshWorkspaceIdentity(t *testing.T) {
 	current.Store(descriptor)
 	var unavailable atomic.Bool
 	key := strings.Repeat("ab", 32)
-	root := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	root := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		require.Equal(t, "/__coder-ui/internal/organizations/"+org.ID.String()+"/workspaces/"+fixture.Workspace.ID.String()+"/neko-media", r.URL.Path)
 		require.Equal(t, fixture.Build.ID.String(), r.URL.Query().Get("build_id"))
 		require.Equal(t, agent.ID.String(), r.URL.Query().Get("agent_id"))
@@ -68,6 +71,22 @@ func TestNekoTrustedDescriptorAndFreshWorkspaceIdentity(t *testing.T) {
 	cfg := &NekoMediaConfig{DescriptorOrigin: origin, descriptorKey: key}
 	requested := medialease.Binding{UserID: owner.ID, WorkspaceID: fixture.Workspace.ID, AgentID: agent.ID, SessionID: uuid.New(), ClientIP: netip.MustParseAddr("192.168.1.20")}
 	ctx := testutil.Context(t, testutil.WaitLong)
+	trustedRoots := x509.NewCertPool()
+	trustedRoots.AddCert(root.Certificate())
+	for _, tc := range []struct {
+		name string
+		tls  *tls.Config
+	}{
+		{name: "UntrustedCA", tls: &tls.Config{MinVersion: tls.VersionTLS12, RootCAs: x509.NewCertPool()}},
+		{name: "WrongHostname", tls: &tls.Config{MinVersion: tls.VersionTLS12, RootCAs: trustedRoots, ServerName: "not-this-service.invalid"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			transport := &http.Transport{TLSClientConfig: tc.tls}
+			t.Cleanup(transport.CloseIdleConnections)
+			_, err := api.resolveNekoMedia(ctx, cfg, &http.Client{Transport: transport}, requested)
+			require.ErrorContains(t, err, "descriptor is unavailable")
+		})
+	}
 	result, err := api.resolveNekoMedia(ctx, cfg, root.Client(), requested)
 	require.NoError(t, err)
 	require.Equal(t, descriptor.NodeUID, result.NodeUID)

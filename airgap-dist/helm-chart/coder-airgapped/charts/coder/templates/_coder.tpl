@@ -53,7 +53,7 @@ envFrom:
 {{- end }}
 env:
 - name: CODER_HTTP_ADDRESS
-  value: "0.0.0.0:8080"
+  value: {{ if eq (include "coder.tlsEnabled" .) "true" }}""{{ else }}"0.0.0.0:8080"{{ end }}
 {{- $hasPrometheusAddress := false }}
 {{- $hasPprofAddress := false }}
 {{- range .Values.coder.env }}
@@ -97,7 +97,7 @@ env:
     fieldRef:
       fieldPath: status.podIP
 - name: CODER_DERP_SERVER_RELAY_URL
-  value: "http://$(KUBE_POD_IP):8080"
+  value: {{ if eq (include "coder.tlsEnabled" .) "true" }}"https://$(KUBE_POD_IP):8443"{{ else }}"http://$(KUBE_POD_IP):8080"{{ end }}
 - name: CODER_CLUSTER_HOST
   valueFrom:
     fieldRef:
@@ -138,9 +138,9 @@ readinessProbe:
     port: 2113
     {{- else }}
     path: /healthz
-    port: "http"
+    port: {{ if eq (include "coder.tlsEnabled" .) "true" }}"https"{{ else }}"http"{{ end }}
     {{- end }}
-    scheme: "HTTP"
+    scheme: {{ if and (ne (include "coder.platformHAMode" .) "activeStandby") (eq (include "coder.tlsEnabled" .) "true") }}"HTTPS"{{ else }}"HTTP"{{ end }}
   initialDelaySeconds: {{ .Values.coder.readinessProbe.initialDelaySeconds }}
   {{- if hasKey .Values.coder.readinessProbe "periodSeconds" }}
   periodSeconds: {{ .Values.coder.readinessProbe.periodSeconds }}
@@ -163,9 +163,9 @@ livenessProbe:
     port: 2113
     {{- else }}
     path: /healthz
-    port: "http"
+    port: {{ if eq (include "coder.tlsEnabled" .) "true" }}"https"{{ else }}"http"{{ end }}
     {{- end }}
-    scheme: "HTTP"
+    scheme: {{ if and (ne (include "coder.platformHAMode" .) "activeStandby") (eq (include "coder.tlsEnabled" .) "true") }}"HTTPS"{{ else }}"HTTP"{{ end }}
   initialDelaySeconds: {{ .Values.coder.livenessProbe.initialDelaySeconds }}
   {{- if hasKey .Values.coder.livenessProbe "periodSeconds" }}
   periodSeconds: {{ .Values.coder.livenessProbe.periodSeconds }}

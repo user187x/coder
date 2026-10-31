@@ -8,7 +8,7 @@ image=${2:-docker.io/mrshll187/coder-workspace-dataflow:1.2.0-neko.1}
 commit=65fba485de2987998c7028b04240b21669d674e0
 [[ $(git -C "$source_dir" rev-parse HEAD) == "$commit" ]]
 [[ ! -e $context_dir ]]
-mkdir -m 0700 -p "$context_dir/upstream"
+install -d -m 0700 "$context_dir/upstream"
 git -C "$source_dir" archive "$commit" server utils/xorg-deps runtime/xorg.conf LICENSE | tar -xf - -C "$context_dir/upstream"
 find "$here/../workspace-image-dataflow/neko" -maxdepth 1 -type f ! -name 'test_*' -exec cp {} "$context_dir/" \;
 python3 - "$context_dir" <<'PY'

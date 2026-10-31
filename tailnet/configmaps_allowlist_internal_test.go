@@ -2,13 +2,13 @@ package tailnet
 
 import (
 	"context"
-	"errors"
 	"slices"
 	"sync"
 	"testing"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/xerrors"
 	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/net/dns"
 	"tailscale.com/tailcfg"
@@ -265,7 +265,7 @@ func TestPeerAllowlistReconfigErrorRequiresEngineRestart(t *testing.T) {
 	installed.result <- nil
 	done := applyAllowlist(ctx, conn, true)
 	failed := testutil.TryReceive(ctx, t, engine.calls)
-	wantErr := errors.New("wireguard update rejected")
+	wantErr := xerrors.New("wireguard update rejected")
 	failed.result <- wantErr
 	require.ErrorIs(t, testutil.TryReceive(ctx, t, done), wantErr)
 	require.Equal(t, []key.NodePublic{memberKey}, engine.installedKeys())

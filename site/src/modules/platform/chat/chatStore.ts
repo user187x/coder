@@ -22,6 +22,7 @@
  * full screen, conversations open in it (panelView) rather than in windows.
  */
 import { useEffect, useSyncExternalStore } from "react";
+import type { RemovedChatMessages } from "#/api/platform";
 import {
 	type ChatAvailability,
 	type ChatConversation,
@@ -80,7 +81,7 @@ export type ChatWindowState = {
  * attached to the right side, from the navbar down; "full", over the page
  * below the navbar.
  */
-export type DockMode = "bar" | "compact" | "window" | "side" | "full";
+type DockMode = "bar" | "compact" | "window" | "side" | "full";
 
 type ChatSnapshot = {
 	me: ChatState["me"] | null;
@@ -106,6 +107,7 @@ type ChatSnapshot = {
 	panelView: ChatWindowState | null;
 	/** Admins: the chat console (shown on the Chat page, or popped out), and the conversation open in it. */
 	consoleOpen: boolean;
+	menuOpen: boolean;
 	/** Admins: the console over the page open (ChatConsoleOverlay), from the chat's own console buttons. */
 	consoleOverlay: boolean;
 	consoleView: ChatWindowState | null;
@@ -156,6 +158,7 @@ const initialSnapshot: ChatSnapshot = {
 	fullFrom: "window",
 	panelView: null,
 	consoleOpen: false,
+	menuOpen: false,
 	consoleOverlay: false,
 	consoleView: null,
 	consoleRequest: 0,
@@ -347,6 +350,8 @@ const consoleShown = () => snapshot.consoleOpen || snapshot.consoleOverlay;
  * dock's windows are hidden under it.
  */
 const findView = (peerId: string) => {
+	if (snapshot.menuOpen && snapshot.panelView?.peer.id === peerId)
+		return snapshot.panelView;
 	const inConsole =
 		consoleShown() && snapshot.consoleView?.peer.id === peerId
 			? snapshot.consoleView
@@ -500,14 +505,6 @@ export const closeWindow = (peerId: string) => {
 	saveOpenWindows();
 };
 
-export const setMinimized = (peerId: string, minimized: boolean) => {
-	updateWindow(peerId, (w) => ({ ...w, minimized }));
-	saveOpenWindows();
-	if (!minimized) {
-		markRead(peerId, true);
-	}
-};
-
 /** Where the keyboard focus is, so arriving messages count as read there. */
 export const setFocusedWindow = (peerId: string | null) => {
 	focusedPeer = peerId;
@@ -527,7 +524,7 @@ export const markRead = (peerId: string, used: boolean) => {
 		(["window", "side", "full"].includes(snapshot.dockMode) &&
 			snapshot.dockTab !== "chat");
 	if (
-		(hiddenDock && !inConsole) ||
+		(hiddenDock && !inConsole && !snapshot.menuOpen) ||
 		!w ||
 		w.minimized ||
 		document.visibilityState !== "visible"
@@ -557,6 +554,7 @@ export const markRead = (peerId: string, used: boolean) => {
 /** Attached or full screen, nothing pops up: the message is counted in its list. */
 const popsUp = () =>
 	snapshot.dockMode !== "compact" &&
+	!snapshot.menuOpen &&
 	!attached() &&
 	(!snapshot.me?.admin ||
 		(!consoleShown() && snapshot.windows.length < maxOpenWindows()));
@@ -855,10 +853,20 @@ document.addEventListener("visibilitychange", onVisibilityChange);
 
 // ---------------------------------------------------------------- actions
 
+/** Registers the compact navbar console without changing the dock layout. */
+export const setChatMenuOpen = (menuOpen: boolean) => {
+	update({ menuOpen });
+	if (!menuOpen) setFocusedWindow(null);
+};
+
 /** Opens (or brings up) the conversation with this user. */
 export const openChatWith = async (peer: ChatPeer) => {
 	await startChat();
 	if (!snapshot.me || peer.id === snapshot.me.id) {
+		return;
+	}
+	if (snapshot.menuOpen) {
+		selectInPanel(peer, true);
 		return;
 	}
 	if (consoleShown() && snapshot.me.admin) {
@@ -1331,9 +1339,7 @@ export const setDockTab = (dockTab: "people" | "chat" | "notifications") => {
 };
 
 /** Apply the server-authorized deletion to every open view and the conversation preview. */
-const applyRemovedMessages = (
-	event: import("#/api/platform").RemovedChatMessages,
-) => {
+const applyRemovedMessages = (event: RemovedChatMessages) => {
 	const ids = new Set(event.ids);
 	updateWindow(event.peer, (w) => ({
 		...w,

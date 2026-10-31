@@ -516,6 +516,77 @@ const docTemplate = `{
                 ]
             }
         },
+        "/api/v2/audit-export/{organization}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Audit"
+                ],
+                "summary": "Collect organization audit logs with a Keycloak access token",
+                "operationId": "collect-organization-audit-logs-with-a-keycloak-access-token",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Organization ID",
+                        "name": "organization",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Bearer access token with coder-audit audience and coder:audit:read scope",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Audit filter; organization is always enforced",
+                        "name": "q",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size, 1 to 500 (default 100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page offset",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.AuditLogResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.OAuth2Error"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.OAuth2Error"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "Authorization": []
+                    }
+                ]
+            }
+        },
         "/api/v2/audit/testgenerate": {
             "post": {
                 "consumes": [
@@ -1579,7 +1650,7 @@ const docTemplate = `{
                     "Deployment"
                 ],
                 "summary": "Get global workspace lockdown",
-                "operationId": "get-global-lockdown",
+                "operationId": "get-global-workspace-lockdown",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -1608,7 +1679,7 @@ const docTemplate = `{
                     "Deployment"
                 ],
                 "summary": "Change global workspace lockdown",
-                "operationId": "update-global-lockdown",
+                "operationId": "change-global-workspace-lockdown",
                 "parameters": [
                     {
                         "description": "Lockdown setting",
@@ -2451,7 +2522,7 @@ const docTemplate = `{
                 "operationId": "send-a-custom-notification",
                 "parameters": [
                     {
-                        "description": "Provide a non-empty title or message",
+                        "description": "Provide a title and message, and optionally selected recipient IDs (administrators only)",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -2471,7 +2542,7 @@ const docTemplate = `{
                         }
                     },
                     "403": {
-                        "description": "System users cannot send custom notifications",
+                        "description": "System users cannot send notifications; targeting other users requires administrator permissions",
                         "schema": {
                             "$ref": "#/definitions/codersdk.Response"
                         }
@@ -3383,6 +3454,119 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/codersdk.Organization"
                         }
+                    }
+                },
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ]
+            }
+        },
+        "/api/v2/organizations/{organization}/audit-collectors": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Audit"
+                ],
+                "summary": "Get external audit collector configuration",
+                "operationId": "get-external-audit-collector-configuration",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Organization ID",
+                        "name": "organization",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.AuditCollectorConfiguration"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ]
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Audit"
+                ],
+                "summary": "Grant external audit access",
+                "operationId": "grant-external-audit-access",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Organization ID",
+                        "name": "organization",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Collector grant",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.CreateAuditCollectorRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.AuditCollector"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ]
+            }
+        },
+        "/api/v2/organizations/{organization}/audit-collectors/{collector}": {
+            "delete": {
+                "tags": [
+                    "Audit"
+                ],
+                "summary": "Revoke external audit access",
+                "operationId": "revoke-external-audit-access",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Organization ID",
+                        "name": "organization",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Collector ID",
+                        "name": "collector",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
                     }
                 },
                 "security": [
@@ -5193,7 +5377,7 @@ const docTemplate = `{
                     "Organizations"
                 ],
                 "summary": "Create an isolated short term Browser lease",
-                "operationId": "create-short-term-lease",
+                "operationId": "create-an-isolated-short-term-browser-lease",
                 "parameters": [
                     {
                         "type": "string",
@@ -5229,6 +5413,47 @@ const docTemplate = `{
             }
         },
         "/api/v2/organizations/{organization}/short-term-leases/{user}": {
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Organizations"
+                ],
+                "summary": "Remove an inactive lease from visible history",
+                "operationId": "remove-an-inactive-lease-from-visible-history",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Organization ID",
+                        "name": "organization",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Temporary user ID",
+                        "name": "user",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.Response"
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "CoderSessionToken": []
+                    }
+                ]
+            },
             "patch": {
                 "consumes": [
                     "application/json"
@@ -5240,7 +5465,7 @@ const docTemplate = `{
                     "Organizations"
                 ],
                 "summary": "Extend or revoke an active short term lease",
-                "operationId": "update-short-term-lease",
+                "operationId": "extend-or-revoke-an-active-short-term-lease",
                 "parameters": [
                     {
                         "type": "string",
@@ -5604,7 +5829,7 @@ const docTemplate = `{
                     "Workspaces"
                 ],
                 "summary": "Get workspace quarantine policy",
-                "operationId": "get-workspace-quarantine",
+                "operationId": "get-workspace-quarantine-policy",
                 "parameters": [
                     {
                         "type": "string",
@@ -5648,7 +5873,7 @@ const docTemplate = `{
                     "Workspaces"
                 ],
                 "summary": "Change workspace quarantine policy",
-                "operationId": "update-workspace-quarantine",
+                "operationId": "change-workspace-quarantine-policy",
                 "parameters": [
                     {
                         "type": "string",
@@ -6076,7 +6301,7 @@ const docTemplate = `{
                     "Users"
                 ],
                 "summary": "Read the current temporary lease",
-                "operationId": "get-current-short-term-lease",
+                "operationId": "read-the-current-temporary-lease",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -6101,7 +6326,7 @@ const docTemplate = `{
                     "Users"
                 ],
                 "summary": "Request a temporary lease extension",
-                "operationId": "request-short-term-lease-extension",
+                "operationId": "request-a-temporary-lease-extension",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -6129,7 +6354,7 @@ const docTemplate = `{
                     "Users"
                 ],
                 "summary": "Sign in with a temporary lease token",
-                "operationId": "login-short-term-lease",
+                "operationId": "sign-in-with-a-temporary-lease-token",
                 "parameters": [
                     {
                         "description": "Temporary token",
@@ -10579,7 +10804,7 @@ const docTemplate = `{
                     "Agents"
                 ],
                 "summary": "Synchronize workspace access enforcement",
-                "operationId": "sync-workspace-agent-access",
+                "operationId": "synchronize-workspace-access-enforcement",
                 "parameters": [
                     {
                         "description": "Applied policy acknowledgement",
@@ -10763,7 +10988,7 @@ const docTemplate = `{
                     "Agents"
                 ],
                 "summary": "Get authenticated workspace tunnel identity",
-                "operationId": "get-workspace-agent-tunnel-identity",
+                "operationId": "get-authenticated-workspace-tunnel-identity",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -14892,6 +15117,72 @@ const docTemplate = `{
                 "AuditActionClose"
             ]
         },
+        "codersdk.AuditCollector": {
+            "type": "object",
+            "properties": {
+                "client_id": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "created_by": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "expires_at": {
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "issuer": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "organization_id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "subject": {
+                    "type": "string"
+                }
+            }
+        },
+        "codersdk.AuditCollectorConfiguration": {
+            "type": "object",
+            "properties": {
+                "audience": {
+                    "type": "string"
+                },
+                "available": {
+                    "type": "boolean"
+                },
+                "collectors": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/codersdk.AuditCollector"
+                    }
+                },
+                "endpoint": {
+                    "type": "string"
+                },
+                "issuer": {
+                    "type": "string"
+                },
+                "scope": {
+                    "type": "string"
+                },
+                "token_endpoint": {
+                    "type": "string"
+                }
+            }
+        },
         "codersdk.AuditDiff": {
             "type": "object",
             "additionalProperties": {
@@ -15406,6 +15697,23 @@ const docTemplate = `{
                 }
             }
         },
+        "codersdk.CreateAuditCollectorRequest": {
+            "type": "object",
+            "properties": {
+                "client_id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "subject": {
+                    "type": "string"
+                },
+                "valid_days": {
+                    "type": "integer"
+                }
+            }
+        },
         "codersdk.CreateFirstUserRequest": {
             "type": "object",
             "required": [
@@ -15493,11 +15801,18 @@ const docTemplate = `{
         "codersdk.CreateShortTermLeaseRequest": {
             "type": "object",
             "properties": {
+                "auto_remove_history": {
+                    "type": "boolean"
+                },
                 "minutes": {
                     "type": "integer"
                 },
                 "template_id": {
-                    "type": "string"
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "terms": {
+                    "$ref": "#/definitions/codersdk.ShortTermLeaseTerms"
                 }
             }
         },
@@ -16126,6 +16441,14 @@ const docTemplate = `{
             "properties": {
                 "content": {
                     "$ref": "#/definitions/codersdk.CustomNotificationContent"
+                },
+                "user_ids": {
+                    "description": "UserIDs targets selected recipients. Omit to notify only the caller.\nSending to selected recipients requires deployment administrator permissions.",
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "uuid"
+                    }
                 }
             }
         },
@@ -17731,8 +18054,8 @@ const docTemplate = `{
             ],
             "properties": {
                 "email": {
-                    "type": "string",
-                    "format": "email"
+                    "description": "Email accepts either an email address or a username, retaining the existing API field name.",
+                    "type": "string"
                 },
                 "password": {
                     "type": "string"
@@ -18407,7 +18730,9 @@ const docTemplate = `{
                 "server_error",
                 "temporarily_unavailable",
                 "unsupported_token_type",
-                "invalid_target"
+                "invalid_target",
+                "invalid_token",
+                "insufficient_scope"
             ],
             "x-enum-varnames": [
                 "OAuth2ErrorCodeInvalidRequest",
@@ -18421,7 +18746,9 @@ const docTemplate = `{
                 "OAuth2ErrorCodeServerError",
                 "OAuth2ErrorCodeTemporarilyUnavailable",
                 "OAuth2ErrorCodeUnsupportedTokenType",
-                "OAuth2ErrorCodeInvalidTarget"
+                "OAuth2ErrorCodeInvalidTarget",
+                "OAuth2ErrorCodeInvalidToken",
+                "OAuth2ErrorCodeInsufficientScope"
             ]
         },
         "codersdk.OAuth2GithubConfig": {
@@ -18691,6 +19018,10 @@ const docTemplate = `{
         "codersdk.OIDCAuthMethod": {
             "type": "object",
             "properties": {
+                "accountUrl": {
+                    "description": "AccountURL opens the provider's account settings when supported.",
+                    "type": "string"
+                },
                 "enabled": {
                     "type": "boolean"
                 },
@@ -20917,20 +21248,31 @@ const docTemplate = `{
         "codersdk.ShortTermLease": {
             "type": "object",
             "properties": {
+                "auto_remove_history": {
+                    "type": "boolean"
+                },
                 "expires_at": {
-                    "type": "string"
+                    "type": "string",
+                    "format": "date-time"
                 },
                 "extension_requested_at": {
-                    "type": "string"
+                    "type": "string",
+                    "format": "date-time"
                 },
                 "issued_at": {
-                    "type": "string"
+                    "type": "string",
+                    "format": "date-time"
                 },
                 "organization_id": {
-                    "type": "string"
+                    "type": "string",
+                    "format": "uuid"
                 },
                 "revoked_at": {
-                    "type": "string"
+                    "type": "string",
+                    "format": "date-time"
+                },
+                "terms": {
+                    "$ref": "#/definitions/codersdk.ShortTermLeaseTerms"
                 },
                 "token": {
                     "description": "Token is returned only at creation; the database stores its hash.",
@@ -20940,10 +21282,35 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "user_id": {
-                    "type": "string"
+                    "type": "string",
+                    "format": "uuid"
                 },
                 "workspace_id": {
+                    "type": "string",
+                    "format": "uuid"
+                }
+            }
+        },
+        "codersdk.ShortTermLeaseTerms": {
+            "type": "object",
+            "properties": {
+                "firewall": {
+                    "type": "boolean"
+                },
+                "no_root": {
+                    "type": "boolean"
+                },
+                "sandbox_only": {
+                    "type": "boolean"
+                },
+                "website_mode": {
                     "type": "string"
+                },
+                "websites": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -21640,7 +22007,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "path": {
-                    "description": "Path in a decorated template (.platform/\u003cname\u003e).",
+                    "description": "Path in a decorated template (` + "`" + `.platform/\u003cname\u003e` + "`" + `).",
                     "type": "string"
                 },
                 "reference": {
@@ -22737,6 +23104,14 @@ const docTemplate = `{
                     "description": "AvatarURL is only applied for users whose login type is password or\nnone. For other login types the avatar is synced from the identity\nprovider on login, so a submitted value is ignored.",
                     "type": "string",
                     "format": "uri"
+                },
+                "current_password": {
+                    "type": "string"
+                },
+                "email": {
+                    "description": "Email may be changed by password users after confirming their current password.",
+                    "type": "string",
+                    "format": "email"
                 },
                 "name": {
                     "type": "string"

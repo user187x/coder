@@ -107,7 +107,8 @@ def neko_template(base, output, image, turn_secret):
         'NEKO_SESSION_COOKIE_HTTP_ONLY': 'true', 'NEKO_SESSION_COOKIE_ENABLED': 'true', 'NEKO_WEBRTC_UDPMUX': '30590',
         'NEKO_WEBRTC_ICELITE': 'false', 'NEKO_WEBRTC_ICESERVERS_BACKEND': '[]',
     }
-    command = 'exec /usr/bin/python3 /opt/coder/neko-start.py'
+    shutil.copy2(ROOT / 'lease-policy.py', output / 'lease-policy.py')
+    command = "python3 -c \"import base64,os;exec(compile(base64.b64decode(os.environ['CODER_LEASE_POLICY_SCRIPT']),'<lease-policy>','exec'))\" && exec /usr/bin/python3 /opt/coder/neko-start.py"
     if not turn_secret or not re.fullmatch(r'[a-z0-9][a-z0-9.-]*', turn_secret):
         raise ValueError('A valid operator-provided TURN Secret name is required.')
     container = '        container {\n          name = "neko"\n          image = ' + json.dumps(image) + '\n'
@@ -136,6 +137,8 @@ def neko_template(base, output, image, turn_secret):
             }
           }
 '''
+    container += '          env {\n            name = "CODER_BROWSER_LEASE_POLICY"\n            value = data.coder_parameter.lease_policy.value\n          }\n'
+    container += '          env {\n            name = "CODER_LEASE_POLICY_SCRIPT"\n            value = filebase64("${path.module}/lease-policy.py")\n          }\n'
     for key, value in env.items():
         container += '          env {\n            name = ' + json.dumps(key) + '\n            value = ' + json.dumps(value) + '\n          }\n'
     container += '''          resources {
@@ -160,7 +163,14 @@ def neko_template(base, output, image, turn_secret):
     ))
     source = source.replace(agent_container, agent_container + restrictions, 1)
     (output / 'main.tf').write_text(source)
-    (output / 'browser.tf').write_text('''resource "coder_app" "browser" {
+    (output / 'browser.tf').write_text('''data "coder_parameter" "lease_policy" {
+  name = "lease_policy"
+  display_name = "Browser lease policy"
+  type = "string"
+  default = "{}"
+  mutable = false
+}
+resource "coder_app" "browser" {
   agent_id = coder_agent.main.id
   slug = "neko-browser"
   display_name = "Web Browser"
@@ -204,8 +214,38 @@ resource "coder_app" "browser_certificate" {
                         'ports': [{'protocol': 'UDP', 'port': '30590', 'end_port': 30595}]}],
         }],
     }
+    ingress = {
+        'count': '${var.workspace_vm_enabled ? 0 : data.coder_workspace.me.start_count}',
+        'metadata': [{'name': 'coder-neko-ingress-${data.coder_workspace.me.id}', 'namespace': '${var.namespace}', 'labels': workspace}],
+        'spec': [{
+            'pod_selector': [{'match_labels': workspace}], 'policy_types': ['Ingress'],
+            'ingress': [{'from': [{'pod_selector': [{'match_labels': {'app.kubernetes.io/name': turn_secret}}]}],
+                         'ports': [{'protocol': 'UDP', 'port': '30590', 'end_port': 30595}]}],
+        }],
+    }
+    firewall = {
+        'count': '${!var.workspace_vm_enabled && try(jsondecode(data.coder_parameter.lease_policy.value).firewall, false) ? data.coder_workspace.me.start_count : 0}',
+        'metadata': [{'name': 'coder-lease-${data.coder_workspace.me.id}', 'namespace': '${var.namespace}', 'labels': workspace}],
+        'spec': [{
+            'pod_selector': [{'match_labels': workspace}], 'policy_types': ['Ingress', 'Egress'],
+            'ingress': [{'from': [{'pod_selector': [{'match_labels': {'app.kubernetes.io/name': turn_secret}}]}],
+                         'ports': [{'protocol': 'UDP', 'port': '30590', 'end_port': 30595}]}],
+            'egress': [
+                {'to': [{'ip_block': [{'cidr': '0.0.0.0/0', 'except': ['0.0.0.0/8', '10.0.0.0/8', '100.64.0.0/10', '127.0.0.0/8', '169.254.0.0/16', '172.16.0.0/12', '192.168.0.0/16', '224.0.0.0/4', '240.0.0.0/4']}]}],
+                 'ports': [{'protocol': 'TCP', 'port': str(port)} for port in (80, 443)]},
+                {'to': [{'namespace_selector': [{'match_labels': {'kubernetes.io/metadata.name': 'kube-system'}}], 'pod_selector': [{'match_labels': {'k8s-app': 'kube-dns'}}]}],
+                 'ports': [{'protocol': protocol, 'port': '53'} for protocol in ('UDP', 'TCP')]},
+                {'to': [{'pod_selector': [{'match_labels': {'app.kubernetes.io/name': 'coder'}}]}],
+                 'ports': [{'protocol': 'TCP', 'port': str(port)} for port in (443, 8443)]},
+                {'to': [{'pod_selector': [{'match_labels': {'app.kubernetes.io/name': 'traefik'}}]}],
+                 'ports': [{'protocol': 'TCP', 'port': str(port)} for port in (8000, 8443)]},
+                {'to': [{'pod_selector': [{'match_labels': {'app.kubernetes.io/name': turn_secret}}]}],
+                 'ports': [{'protocol': 'TCP', 'port': '5349'}, {'protocol': 'UDP', 'port': '49160', 'end_port': 49200}]},
+            ],
+        }],
+    }
     (output / 'browser-network.tf.json').write_text(json.dumps({
-        'resource': {'kubernetes_network_policy_v1': {'browser_media': policy}},
+        'resource': {'kubernetes_network_policy_v1': {'browser_media': policy, 'browser_ingress': ingress, 'lease_firewall': firewall}},
     }, indent=2) + '\n')
     archive = output.with_suffix('.tar')
     with tarfile.open(archive, 'w', format=tarfile.USTAR_FORMAT) as tar:

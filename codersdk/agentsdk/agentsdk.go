@@ -377,6 +377,18 @@ func (c *Client) ConnectRPC212WithRole(ctx context.Context, role string) (
 	return proto.NewDRPCAgentClient(conn), tailnetproto.NewDRPCTailnetClient(conn), nil
 }
 
+// ConnectRPC213WithRole advertises explicit reconnecting PTY termination support.
+// Version 2.13 adds no RPCs, so it uses the v2.12 RPC interfaces.
+func (c *Client) ConnectRPC213WithRole(ctx context.Context, role string) (
+	proto.DRPCAgentClient212, tailnetproto.DRPCTailnetClient28, error,
+) {
+	conn, err := c.connectRPCVersion(ctx, apiversion.New(2, 13), role)
+	if err != nil {
+		return nil, nil, err
+	}
+	return proto.NewDRPCAgentClient(conn), tailnetproto.NewDRPCTailnetClient(conn), nil
+}
+
 // ConnectRPC connects to the workspace agent API and tailnet API.
 // It does not send a role query parameter, so the server will apply
 // its default behavior (currently: enable connection monitoring for

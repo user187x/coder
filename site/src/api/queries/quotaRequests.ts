@@ -2,7 +2,7 @@ import type { QueryClient } from "react-query";
 import { QuotaRequestsAPI } from "#/api/quotaRequests";
 import { quotaMeKey, quotaReportKey } from "./platform";
 
-export const quotaRequestsKey = ["platform", "quota-requests"] as const;
+const quotaRequestsKey = ["platform", "quota-requests"] as const;
 export const quotaRequests = (admin: boolean) => ({
 	queryKey: [...quotaRequestsKey, admin ? "admin" : "me"],
 	queryFn: () => QuotaRequestsAPI.list(admin),

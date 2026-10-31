@@ -27,6 +27,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import pgwire  # noqa: E402
 
 CODER_URL = os.environ["CODER_URL"].rstrip("/")
+CODER_TLS = ssl.create_default_context(cafile=os.environ.get("CODER_CA_FILE"))
 EMAIL = os.environ["FIRST_USER_EMAIL"]
 USERNAME = os.environ.get("FIRST_USER_USERNAME") or "admin"
 PASSWORD = os.environ["FIRST_USER_PASSWORD"]
@@ -48,7 +49,7 @@ def coder(method, path, body=None, token=None):
     req = urllib.request.Request(CODER_URL + path, method=method, headers=headers,
                                  data=json.dumps(body).encode() if body is not None else None)
     try:
-        with urllib.request.urlopen(req, timeout=15) as res:
+        with urllib.request.urlopen(req, timeout=15, context=CODER_TLS) as res:
             return res.status, res.read()
     except urllib.error.HTTPError as e:
         return e.code, e.read()

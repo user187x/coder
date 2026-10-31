@@ -3,9 +3,15 @@ package coderd
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
+	"golang.org/x/xerrors"
 
 	"cdr.dev/slog/v3"
 	"github.com/coder/coder/v2/coderd/apikey"
@@ -20,13 +26,16 @@ import (
 	"github.com/coder/coder/v2/coderd/shorttermlease"
 	"github.com/coder/coder/v2/coderd/wsbuilder"
 	"github.com/coder/coder/v2/codersdk"
-	"github.com/go-chi/chi/v5"
-	"github.com/google/uuid"
-	"golang.org/x/xerrors"
 )
 
 func leaseSDK(row database.ShortTermLease) codersdk.ShortTermLease {
-	out := codersdk.ShortTermLease{UserID: row.UserID, OrganizationID: row.OrganizationID, IssuedAt: row.IssuedAt, ExpiresAt: row.ExpiresAt, TokenID: row.TokenID}
+	out := codersdk.ShortTermLease{AutoRemoveHistory: row.AutoRemoveHistory, UserID: row.UserID, OrganizationID: row.OrganizationID, IssuedAt: row.IssuedAt, ExpiresAt: row.ExpiresAt, TokenID: row.TokenID}
+	if len(row.Terms) > 2 {
+		var terms codersdk.ShortTermLeaseTerms
+		if json.Unmarshal(row.Terms, &terms) == nil {
+			out.Terms = &terms
+		}
+	}
 	if row.WorkspaceID.Valid {
 		out.WorkspaceID = &row.WorkspaceID.UUID
 	}
@@ -55,7 +64,7 @@ func (api *API) leaseAdmin(rw http.ResponseWriter, r *http.Request) bool {
 // @Param organization path string true "Organization ID" format(uuid)
 // @Success 200 {array} codersdk.ShortTermLease
 // @Router /api/v2/organizations/{organization}/short-term-leases [get]
-func (api *API) getShortTermLeases(rw http.ResponseWriter, r *http.Request) {
+func (api *API) shortTermLeases(rw http.ResponseWriter, r *http.Request) {
 	if !api.leaseAdmin(rw, r) {
 		return
 	}
@@ -74,7 +83,7 @@ func (api *API) getShortTermLeases(rw http.ResponseWriter, r *http.Request) {
 }
 
 // @Summary Create an isolated short term Browser lease
-// @ID create-short-term-lease
+// @ID create-an-isolated-short-term-browser-lease
 // @Security CoderSessionToken
 // @Accept json
 // @Produce json
@@ -104,6 +113,35 @@ func (api *API) postShortTermLease(rw http.ResponseWriter, r *http.Request) {
 		httpapi.Write(r.Context(), rw, 400, codersdk.Response{Message: "Choose the Browser template in this organization."})
 		return
 	}
+	termsJSON := []byte("{}")
+	var parameters []codersdk.WorkspaceBuildParameter
+	if req.Terms != nil {
+		if err := validateLeaseTerms(req.Terms); err != nil {
+			httpapi.Write(r.Context(), rw, 400, codersdk.Response{Message: err.Error()})
+			return
+		}
+		params, err := api.Database.GetTemplateVersionParameters(r.Context(), tmpl.ActiveVersionID)
+		if err != nil {
+			httpapi.InternalServerError(rw, err)
+			return
+		}
+		supported := false
+		for _, param := range params {
+			if param.Name == "lease_policy" && !param.Mutable {
+				supported = true
+			}
+		}
+		if !supported {
+			httpapi.Write(r.Context(), rw, 409, codersdk.Response{Message: "Update the Browser template to a version with immutable lease policy support before issuing these terms."})
+			return
+		}
+		termsJSON, err = json.Marshal(req.Terms)
+		if err != nil {
+			httpapi.InternalServerError(rw, err)
+			return
+		}
+		parameters = []codersdk.WorkspaceBuildParameter{{Name: "lease_policy", Value: string(termsJSON)}}
+	}
 	now := api.Clock.Now()
 	issuer := httpmw.APIKey(r).UserID
 	//nolint:gocritic // The administrator authorized creation; account and restriction commit atomically.
@@ -119,6 +157,10 @@ func (api *API) postShortTermLease(rw http.ResponseWriter, r *http.Request) {
 			return e
 		}
 		row, e = tx.InsertShortTermLease(ctx, database.InsertShortTermLeaseParams{UserID: user.ID, OrganizationID: org, IssuedBy: issuer, IssuedAt: now, ExpiresAt: now.Add(time.Duration(req.Minutes) * time.Minute)})
+		if e != nil {
+			return e
+		}
+		row, e = tx.ConfigureShortTermLease(ctx, database.ConfigureShortTermLeaseParams{UserID: user.ID, OrganizationID: org, Terms: termsJSON, AutoRemoveHistory: req.AutoRemoveHistory})
 		return e
 	}, nil)
 	if err != nil {
@@ -129,7 +171,13 @@ func (api *API) postShortTermLease(rw http.ResponseWriter, r *http.Request) {
 	client.SetSessionToken(httpmw.APITokenFromRequest(r))
 	// The lease clock owns shutdown so extensions do not race a fixed workspace TTL.
 	ttl := int64(0)
-	ws, err := client.CreateUserWorkspace(r.Context(), user.ID.String(), codersdk.CreateWorkspaceRequest{TemplateID: req.TemplateID, Name: "browser", TTLMillis: &ttl})
+	workspaceRequest := codersdk.CreateWorkspaceRequest{TemplateID: req.TemplateID, Name: "browser", TTLMillis: &ttl, RichParameterValues: parameters}
+	if req.Terms != nil {
+		// Keep the policy capability check and provisioning on the same immutable version.
+		workspaceRequest.TemplateID = uuid.Nil
+		workspaceRequest.TemplateVersionID = tmpl.ActiveVersionID
+	}
+	ws, err := client.CreateUserWorkspace(r.Context(), user.ID.String(), workspaceRequest)
 	if err != nil {
 		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
 		defer cancel()
@@ -172,7 +220,7 @@ func (api *API) postShortTermLease(rw http.ResponseWriter, r *http.Request) {
 }
 
 // @Summary Extend or revoke an active short term lease
-// @ID update-short-term-lease
+// @ID extend-or-revoke-an-active-short-term-lease
 // @Security CoderSessionToken
 // @Accept json
 // @Produce json
@@ -230,13 +278,13 @@ func (api *API) patchShortTermLease(rw http.ResponseWriter, r *http.Request) {
 }
 
 // @Summary Read the current temporary lease
-// @ID get-current-short-term-lease
+// @ID read-the-current-temporary-lease
 // @Security CoderSessionToken
 // @Produce json
 // @Tags Users
 // @Success 200 {object} codersdk.ShortTermLease
 // @Router /api/v2/short-term-lease [get]
-func (api *API) getMyShortTermLease(rw http.ResponseWriter, r *http.Request) {
+func (api *API) myShortTermLease(rw http.ResponseWriter, r *http.Request) {
 	row, err := shorttermlease.Load(r.Context(), api.Database, httpmw.APIKey(r).UserID)
 	if err != nil {
 		httpapi.InternalServerError(rw, err)
@@ -250,7 +298,7 @@ func (api *API) getMyShortTermLease(rw http.ResponseWriter, r *http.Request) {
 }
 
 // @Summary Request a temporary lease extension
-// @ID request-short-term-lease-extension
+// @ID request-a-temporary-lease-extension
 // @Security CoderSessionToken
 // @Produce json
 // @Tags Users
@@ -353,7 +401,7 @@ func (api *API) expireShortTermLease(ctx context.Context, row database.ShortTerm
 }
 
 // @Summary Sign in with a temporary lease token
-// @ID login-short-term-lease
+// @ID sign-in-with-a-temporary-lease-token
 // @Accept json
 // @Produce json
 // @Tags Users
@@ -397,4 +445,65 @@ func (api *API) checkLeaseAppAccess(ctx context.Context, user, workspace uuid.UU
 		return xerrors.New("Browser lease access required")
 	}
 	return nil
+}
+
+var leaseWebsiteDomain = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$`)
+
+func validateLeaseTerms(terms *codersdk.ShortTermLeaseTerms) error {
+	if terms.Websites == nil {
+		terms.Websites = []string{}
+	}
+	if !terms.NoRoot || !terms.SandboxOnly {
+		return xerrors.New("Browser leases require no root access and access to only their leased Browser instance.")
+	}
+	if terms.WebsiteMode != "all" && terms.WebsiteMode != "allowlist" && terms.WebsiteMode != "blocklist" {
+		return xerrors.New("Select unrestricted, allowlist, or blocklist websites.")
+	}
+	if len(terms.Websites) > 100 || (terms.WebsiteMode != "all" && len(terms.Websites) == 0) {
+		return xerrors.New("Provide between 1 and 100 website domains.")
+	}
+	seen := make(map[string]bool)
+	for i, domain := range terms.Websites {
+		domain = strings.ToLower(strings.TrimPrefix(strings.TrimSpace(domain), "*."))
+		if len(domain) > 253 || !leaseWebsiteDomain.MatchString(domain) || seen[domain] {
+			return xerrors.New("Website entries must be unique domain names, such as example.com, without paths or protocols.")
+		}
+		seen[domain] = true
+		terms.Websites[i] = domain
+	}
+	if terms.WebsiteMode == "all" && len(terms.Websites) != 0 {
+		return xerrors.New("Choose allowlist or blocklist to use website entries.")
+	}
+	return nil
+}
+
+// @Summary Remove an inactive lease from visible history
+// @ID remove-an-inactive-lease-from-visible-history
+// @Security CoderSessionToken
+// @Produce json
+// @Tags Organizations
+// @Param organization path string true "Organization ID" format(uuid)
+// @Param user path string true "Temporary user ID" format(uuid)
+// @Success 200 {object} codersdk.Response
+// @Router /api/v2/organizations/{organization}/short-term-leases/{user} [delete]
+func (api *API) deleteShortTermLeaseHistory(rw http.ResponseWriter, r *http.Request) {
+	if !api.leaseAdmin(rw, r) {
+		return
+	}
+	id, err := uuid.Parse(chi.URLParam(r, "user"))
+	if err != nil {
+		httpapi.ResourceNotFound(rw)
+		return
+	}
+	//nolint:gocritic // Authorized admin; retain the access tombstone and scope the mutation to its organization.
+	_, err = api.Database.HideShortTermLease(dbauthz.AsSystemRestricted(r.Context()), database.HideShortTermLeaseParams{UserID: id, OrganizationID: httpmw.OrganizationParam(r).ID})
+	if xerrors.Is(err, sql.ErrNoRows) {
+		httpapi.Write(r.Context(), rw, 409, codersdk.Response{Message: "Only expired or revoked leases can be removed from history."})
+		return
+	}
+	if err != nil {
+		httpapi.InternalServerError(rw, err)
+		return
+	}
+	httpapi.Write(r.Context(), rw, 200, codersdk.Response{Message: "Lease removed from history. Access remains revoked."})
 }

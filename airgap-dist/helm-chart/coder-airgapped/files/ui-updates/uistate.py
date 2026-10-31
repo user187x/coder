@@ -199,8 +199,44 @@ class UIState(threading.Thread):
     def preferences(self, user_id, changes=None):
         pool = self.database()
         if changes is not None:
-            if not isinstance(changes, dict) or changes.keys() - {'people_order', 'people_sort', 'quota_seen'}:
+            if not isinstance(changes, dict) or changes.keys() - {'people_order', 'people_sort', 'quota_seen', 'resource_shortcuts', 'resource_tray', 'admin_notes_tray', 'resource_tray_top', 'admin_notes_tray_top', 'navbar_layout', 'chat_position', 'chat_size', 'chat_hidden', 'chat_keep_open'}:
                 raise ValueError('Unsupported preference.')
+            for key in ('resource_tray_top', 'admin_notes_tray_top'):
+                if key in changes and (type(changes[key]) not in (int, float) or not 0 <= changes[key] <= 16384):
+                    raise ValueError('Invalid panel position.')
+            if 'chat_keep_open' in changes and type(changes['chat_keep_open']) is not bool:
+                raise ValueError('Invalid chat pin preference.')
+            if 'chat_hidden' in changes and type(changes['chat_hidden']) is not bool:
+                raise ValueError('Invalid chat visibility.')
+            if 'chat_size' in changes and changes['chat_size'] is not None:
+                size = changes['chat_size']
+                if not isinstance(size, dict) or set(size) != {'width', 'height'} or any(type(size[key]) not in (int, float) or not minimum <= size[key] <= 8192 for key, minimum in (('width', 320), ('height', 240))):
+                    raise ValueError('Invalid chat size.')
+            for key in ('resource_tray', 'admin_notes_tray'):
+                if key not in changes or changes[key] is None:
+                    continue
+                tray = changes[key]
+                if not isinstance(tray, dict) or set(tray) != {'expanded', 'lock'} or type(tray['expanded']) is not bool or tray['lock'] not in ('up', 'down'):
+                    raise ValueError('Invalid panel lock.')
+            if 'navbar_layout' in changes:
+                layout = changes['navbar_layout']
+                items = {'logo', 'workspaces', 'banner', 'latency', 'hud', 'notifications', 'account'}
+                if not isinstance(layout, dict) or set(layout) != {'order', 'hidden'}:
+                    raise ValueError('Invalid navbar layout.')
+                for field in ('order', 'hidden'):
+                    values = layout[field]
+                    if not isinstance(values, list) or not all(isinstance(item, str) and item in items for item in values) or len(set(values)) != len(values):
+                        raise ValueError('Invalid navbar layout.')
+                if set(layout['order']) != items or 'banner' in layout['hidden']:
+                    raise ValueError('Invalid navbar layout.')
+            if 'chat_position' in changes and changes['chat_position'] is not None:
+                position = changes['chat_position']
+                if not isinstance(position, dict) or set(position) != {'edge', 'offset'} or position['edge'] not in ('top', 'right', 'bottom', 'left') or type(position['offset']) not in (int, float) or not 0 <= position['offset'] <= 1:
+                    raise ValueError('Invalid chat position.')
+            if 'resource_shortcuts' in changes:
+                shortcuts = changes['resource_shortcuts']
+                if not isinstance(shortcuts, list) or len(shortcuts) > 3 or not all(isinstance(item, str) and item not in {'account', 'workspaces', 'templates'} and re.fullmatch(r'[a-z][a-z0-9-]{0,63}', item) for item in shortcuts) or len(set(shortcuts)) != len(shortcuts):
+                    raise ValueError('Invalid resource shortcuts.')
             if 'people_sort' in changes and changes['people_sort'] not in ('manual', 'name'):
                 raise ValueError('Unsupported people sort.')
             for field in ('people_order', 'quota_seen'):
@@ -222,7 +258,11 @@ class UIState(threading.Thread):
                     )) ELSE '{}'::jsonb END''',
                        [user_id, json.dumps(changes)])
         rows = pool.query('SELECT settings::text FROM coder_ui_updates.user_preferences WHERE user_id = $1::uuid', [user_id])
-        return json.loads(rows[0][0]) if rows else {}
+        settings = json.loads(rows[0][0]) if rows else {}
+        if 'resource_shortcuts' in settings:
+            settings['resource_shortcuts'] = [item for item in settings['resource_shortcuts']
+                if item not in {'account', 'workspaces', 'templates'}][:3]
+        return settings
 
     def run(self):
         last_error = None

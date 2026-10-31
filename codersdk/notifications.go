@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 	"golang.org/x/xerrors"
@@ -291,8 +292,9 @@ type CustomNotificationContent struct {
 
 type CustomNotificationRequest struct {
 	Content *CustomNotificationContent `json:"content"`
-	// TODO(ssncferreira): Add target (user_ids, roles) to support multi-user and role-based delivery.
-	//   See: https://github.com/coder/coder/issues/19768
+	// UserIDs targets selected recipients. Omit to notify only the caller.
+	// Sending to selected recipients requires deployment administrator permissions.
+	UserIDs []uuid.UUID `json:"user_ids,omitempty" format:"uuid"`
 }
 
 const (
@@ -304,6 +306,18 @@ func (c CustomNotificationRequest) Validate() error {
 	if c.Content == nil {
 		return xerrors.Errorf("content is required")
 	}
+	if c.UserIDs != nil {
+		if len(c.UserIDs) == 0 || len(c.UserIDs) > 100 {
+			return xerrors.Errorf("select between 1 and 100 recipients")
+		}
+		seen := make(map[uuid.UUID]bool, len(c.UserIDs))
+		for _, id := range c.UserIDs {
+			if id == uuid.Nil || seen[id] {
+				return xerrors.Errorf("recipients must contain unique, non-empty user IDs")
+			}
+			seen[id] = true
+		}
+	}
 	return c.Content.Validate()
 }
 
@@ -312,10 +326,10 @@ func (c CustomNotificationContent) Validate() error {
 		strings.TrimSpace(c.Message) == "" {
 		return xerrors.Errorf("provide a non-empty 'content.title' and 'content.message'")
 	}
-	if len(c.Title) > maxCustomNotificationTitleLen {
+	if utf8.RuneCountInString(c.Title) > maxCustomNotificationTitleLen {
 		return xerrors.Errorf("'content.title' must be less than %d characters", maxCustomNotificationTitleLen)
 	}
-	if len(c.Message) > maxCustomNotificationMessageLen {
+	if utf8.RuneCountInString(c.Message) > maxCustomNotificationMessageLen {
 		return xerrors.Errorf("'content.message' must be less than %d characters", maxCustomNotificationMessageLen)
 	}
 	return nil

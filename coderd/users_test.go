@@ -146,7 +146,7 @@ func TestPostLogin(t *testing.T) {
 		var apiErr *codersdk.Error
 		require.ErrorAs(t, err, &apiErr)
 		require.Equal(t, http.StatusUnauthorized, apiErr.StatusCode())
-		require.Equal(t, "Incorrect email or password.", apiErr.Message)
+		require.Equal(t, "Incorrect username, email, or password.", apiErr.Message)
 	})
 
 	// Attempting built-in login as an SSO user returns a 401 to avoid
@@ -179,7 +179,7 @@ func TestPostLogin(t *testing.T) {
 		var apiErr *codersdk.Error
 		require.ErrorAs(t, err, &apiErr)
 		require.Equal(t, http.StatusUnauthorized, apiErr.StatusCode())
-		require.Equal(t, "Incorrect email or password.", apiErr.Message)
+		require.Equal(t, "Incorrect username, email, or password.", apiErr.Message)
 		// The login type must not be leaked.
 		require.NotContains(t, apiErr.Message, string(codersdk.LoginTypeOIDC))
 	})
@@ -1268,6 +1268,75 @@ func TestUpdateUserEmailExperimental(t *testing.T) {
 
 func TestUpdateUserProfile(t *testing.T) {
 	t.Parallel()
+	t.Run("EmailRespectsAccountOwnershipAndLoginProvider", func(t *testing.T) {
+		t.Parallel()
+		client, db := coderdtest.NewWithDatabase(t, nil)
+		first := coderdtest.CreateFirstUser(t, client)
+		member, account := coderdtest.CreateAnotherUser(t, client, first.OrganizationID)
+		ctx := testutil.Context(t, testutil.WaitLong)
+		request := codersdk.UpdateUserProfileRequest{Username: account.Username, Email: "changed@example.test", CurrentPassword: "SomeSecurePassword!"}
+		_, err := client.UpdateUserProfile(ctx, account.ID.String(), request)
+		var apiErr *codersdk.Error
+		require.ErrorAs(t, err, &apiErr)
+		require.Equal(t, http.StatusForbidden, apiErr.StatusCode())
+		//nolint:gocritic // Emulate an existing session after converting the account to SSO.
+		_, err = db.UpdateUserLoginType(dbauthz.AsSystemRestricted(ctx), database.UpdateUserLoginTypeParams{UserID: account.ID, NewLoginType: database.LoginTypeOIDC})
+		require.NoError(t, err)
+		_, err = member.UpdateUserProfile(ctx, codersdk.Me, request)
+		require.ErrorAs(t, err, &apiErr)
+		require.Equal(t, http.StatusForbidden, apiErr.StatusCode())
+		unchanged, err := member.User(ctx, codersdk.Me)
+		require.NoError(t, err)
+		require.Equal(t, account.Email, unchanged.Email)
+	})
+
+	for _, tc := range []struct {
+		name     string
+		email    string
+		password string
+		status   int
+	}{
+		{name: "Email", email: "updated@example.test", password: "SomeSecurePassword!", status: http.StatusOK},
+		{name: "EmailRequiresPassword", email: "updated@example.test", status: http.StatusBadRequest},
+		{name: "EmailWrongPassword", email: "updated@example.test", password: "incorrect", status: http.StatusUnauthorized},
+		{name: "InvalidEmail", email: "invalid", password: "SomeSecurePassword!", status: http.StatusBadRequest},
+		{name: "ConflictingEmail", email: "duplicate", password: "SomeSecurePassword!", status: http.StatusConflict},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			client := coderdtest.New(t, nil)
+			first := coderdtest.CreateFirstUser(t, client)
+			member, account := coderdtest.CreateAnotherUser(t, client, first.OrganizationID)
+			ctx := testutil.Context(t, testutil.WaitLong)
+			email := tc.email
+			if tc.name == "ConflictingEmail" {
+				owner, err := client.User(ctx, codersdk.Me)
+				require.NoError(t, err)
+				email = strings.ToUpper(owner.Email)
+			}
+			updated, err := member.UpdateUserProfile(ctx, codersdk.Me, codersdk.UpdateUserProfileRequest{
+				Username: account.Username, Name: account.Name, Email: email, CurrentPassword: tc.password,
+			})
+			if tc.status != http.StatusOK {
+				var apiErr *codersdk.Error
+				require.ErrorAs(t, err, &apiErr)
+				require.Equal(t, tc.status, apiErr.StatusCode())
+				unchanged, err := member.User(ctx, codersdk.Me)
+				require.NoError(t, err)
+				require.Equal(t, account.Email, unchanged.Email)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, email, updated.Email)
+			for _, identifier := range []string{email, strings.ToUpper(account.Username)} {
+				_, err = member.LoginWithPassword(ctx, codersdk.LoginWithPasswordRequest{Email: identifier, Password: tc.password})
+				require.NoError(t, err)
+			}
+			_, err = member.LoginWithPassword(ctx, codersdk.LoginWithPasswordRequest{Email: account.Email, Password: tc.password})
+			require.Error(t, err)
+		})
+	}
+
 	t.Run("UserNotFound", func(t *testing.T) {
 		t.Parallel()
 		client := coderdtest.New(t, nil)

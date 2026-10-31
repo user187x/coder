@@ -4,13 +4,14 @@ package workspaceoverlay
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"net"
 	"net/netip"
 	"os/exec"
 	"time"
 
 	"github.com/vishvananda/netlink"
+	"golang.org/x/xerrors"
 	"golang.zx2c4.com/wireguard/wgctrl"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
@@ -38,7 +39,8 @@ func (d *KernelDevice) Clear() error {
 	d.peerAddresses = nil
 	d.address = netip.Addr{}
 	link, err := netlink.LinkByName(d.Name)
-	if _, missing := err.(netlink.LinkNotFoundError); missing {
+	var linkNotFoundError netlink.LinkNotFoundError
+	if errors.As(err, &linkNotFoundError) {
 		return nil
 	}
 	if err != nil {
@@ -67,7 +69,7 @@ func (d *KernelDevice) Apply(ctx context.Context, p Policy) (err error) {
 	}
 	routes, e := netlink.RouteList(nil, netlink.FAMILY_V4)
 	if e != nil {
-		return fmt.Errorf("inspect existing routes: %w", e)
+		return xerrors.Errorf("inspect existing routes: %w", e)
 	}
 	for _, route := range routes {
 		if route.Dst == nil {
@@ -80,14 +82,14 @@ func (d *KernelDevice) Apply(ctx context.Context, p Policy) (err error) {
 		for _, address := range addresses {
 			prefix, _ := hostPrefix(address)
 			if route.Dst.Contains(net.IP(prefix.Addr().AsSlice())) {
-				return fmt.Errorf("overlay address overlaps existing route %s", route.Dst)
+				return xerrors.Errorf("overlay address overlaps existing route %s", route.Dst)
 			}
 		}
 	}
 	if err = d.forwardingGuards(func(args ...string) error {
 		output, runErr := exec.CommandContext(ctx, "iptables", args...).CombinedOutput()
 		if runErr != nil {
-			return fmt.Errorf("%w: %s", runErr, output)
+			return xerrors.Errorf("%w: %s", runErr, output)
 		}
 		return nil
 	}); err != nil {
@@ -96,7 +98,7 @@ func (d *KernelDevice) Apply(ctx context.Context, p Policy) (err error) {
 	if err = d.portPolicy(p, func(args ...string) error {
 		output, runErr := exec.CommandContext(ctx, "iptables", args...).CombinedOutput()
 		if runErr != nil {
-			return fmt.Errorf("%w: %s", runErr, output)
+			return xerrors.Errorf("%w: %s", runErr, output)
 		}
 		return nil
 	}); err != nil {
@@ -108,12 +110,12 @@ func (d *KernelDevice) Apply(ctx context.Context, p Policy) (err error) {
 	_ = d.observeUDP(ctx)
 	link := &netlink.GenericLink{LinkAttrs: netlink.LinkAttrs{Name: d.Name, MTU: 1380}, LinkType: "wireguard"}
 	if err = netlink.LinkAdd(link); err != nil {
-		return fmt.Errorf("create WireGuard interface: %w", err)
+		return xerrors.Errorf("create WireGuard interface: %w", err)
 	}
 	own, _ := hostPrefix(p.Address)
 	address := ipNet(own)
 	if err = netlink.AddrAdd(link, &netlink.Addr{IPNet: &address}); err != nil {
-		return fmt.Errorf("assign overlay address: %w", err)
+		return xerrors.Errorf("assign overlay address: %w", err)
 	}
 	peers := make([]wgtypes.PeerConfig, 0, len(p.Peers))
 	keepalive := 5 * time.Second
@@ -132,7 +134,7 @@ func (d *KernelDevice) Apply(ctx context.Context, p Policy) (err error) {
 	}
 	defer client.Close()
 	if err = client.ConfigureDevice(d.Name, wgtypes.Config{PrivateKey: &d.PrivateKey, ListenPort: &d.Port, ReplacePeers: true, Peers: peers}); err != nil {
-		return fmt.Errorf("configure WireGuard: %w", err)
+		return xerrors.Errorf("configure WireGuard: %w", err)
 	}
 	if err = netlink.LinkSetUp(link); err != nil {
 		return err
@@ -141,7 +143,7 @@ func (d *KernelDevice) Apply(ctx context.Context, p Policy) (err error) {
 		prefix, _ := hostPrefix(peer.AllowedIP)
 		destination := ipNet(prefix)
 		if err = netlink.RouteAdd(&netlink.Route{LinkIndex: link.Attrs().Index, Dst: &destination, Src: address.IP, Scope: netlink.SCOPE_LINK}); err != nil {
-			return fmt.Errorf("route workspace peer: %w", err)
+			return xerrors.Errorf("route workspace peer: %w", err)
 		}
 	}
 	d.peers = make(map[wgtypes.Key]string, len(p.Peers))
@@ -204,11 +206,11 @@ func (d *KernelDevice) observeUDP(ctx context.Context) error {
 // The optional root-owned adapter is installed first and must already exist.
 func (d *KernelDevice) forwardingGuards(run func(...string) error) error {
 	if d.ForwardChain != "" && (d.ForwardChain != "CODER_VM_TUNNEL") {
-		return fmt.Errorf("invalid overlay adapter chain")
+		return xerrors.New("invalid overlay adapter chain")
 	}
 	if d.ForwardChain != "" {
 		if err := run("-w", "5", "-S", d.ForwardChain); err != nil {
-			return fmt.Errorf("inspect overlay adapter chain: %w", err)
+			return xerrors.Errorf("inspect overlay adapter chain: %w", err)
 		}
 	}
 	for _, direction := range []string{"-i", "-o"} {
@@ -216,7 +218,7 @@ func (d *KernelDevice) forwardingGuards(run func(...string) error) error {
 		if run(args...) != nil {
 			args[2] = "-I"
 			if err := run(args...); err != nil {
-				return fmt.Errorf("install overlay forwarding guard: %w", err)
+				return xerrors.Errorf("install overlay forwarding guard: %w", err)
 			}
 		}
 	}
@@ -227,12 +229,12 @@ func (d *KernelDevice) forwardingGuards(run func(...string) error) error {
 	if run(args...) == nil {
 		args[2] = "-D"
 		if err := run(args...); err != nil {
-			return fmt.Errorf("reorder overlay adapter: %w", err)
+			return xerrors.Errorf("reorder overlay adapter: %w", err)
 		}
 	}
 	args[2] = "-I"
 	if err := run(args...); err != nil {
-		return fmt.Errorf("install overlay adapter: %w", err)
+		return xerrors.Errorf("install overlay adapter: %w", err)
 	}
 	return nil
 }

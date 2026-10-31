@@ -51,3 +51,53 @@
 	width: 1.125rem;
 	height: 1.125rem;
 }
+
+.settings-navbar-width {
+	width: min(300px, calc(100vw - 96px));
+	flex-shrink: 0;
+}
+.settings-navbar-width .navbar-split-menu {
+	flex: 1;
+	justify-content: center;
+}
+.settings-menu {
+	width: min(364px, calc(100vw - 32px));
+	min-width: 0;
+}
+.settings-menu:has(
+		[data-workspaces-expanded="true"],
+		[data-settings-expanded="true"]
+	)
+	[data-settings-metrics],
+.settings-menu:has(
+		[data-workspaces-expanded="true"],
+		[data-settings-expanded="true"],
+		[data-settings-chat]
+	)
+	.settings-admin-notes-handle,
+.settings-menu:has(
+		[data-workspaces-expanded="true"],
+		[data-settings-expanded="true"],
+		[data-settings-chat]
+	)
+	.settings-admin-notes-panel {
+	display: none;
+}
+.settings-compact-chat {
+	animation: settings-chat-reveal 160ms ease-out;
+}
+@keyframes settings-chat-reveal {
+	from {
+		opacity: 0;
+		transform: translateY(-6px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.settings-compact-chat {
+		animation: none;
+	}
+}

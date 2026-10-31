@@ -1,13 +1,24 @@
 import { cn } from "cn";
-import { ChevronDownIcon, SparklesIcon } from "lucide-react";
+import {
+	ChartNoAxesCombinedIcon,
+	ChevronDownIcon,
+	ImagePlayIcon,
+	type LucideIcon,
+	MegaphoneIcon,
+	MountainIcon,
+	SparklesIcon,
+	WandSparklesIcon,
+} from "lucide-react";
 import { useState } from "react";
+import { useQuery } from "react-query";
+import { banner as bannerQuery } from "#/api/queries/platform";
 import { DropdownMenuItem } from "#/components/DropdownMenu/DropdownMenu";
 import {
 	type AnimationPart,
 	setAnimationPart,
 	setAnimationsEnabled,
 	useAnimationSettings,
-} from "#/modules/platform/animations/animations";
+} from "#/hooks/useAnimationSettings";
 import {
 	setGraphsOn,
 	useGraphEveryChoice,
@@ -37,24 +48,27 @@ const SwitchItem: React.FC<{
 	on: boolean;
 	disabled?: boolean;
 	onChange: (on: boolean) => void;
-}> = ({ label, hint, on, disabled, onChange }) => (
+	compact?: boolean;
+	icon: LucideIcon;
+}> = ({ label, hint, on, disabled, onChange, compact, icon: Icon }) => (
 	<DropdownMenuItem
 		role="menuitemcheckbox"
 		aria-checked={on}
 		disabled={disabled}
-		title={hint}
-		className="pl-8"
+		title={compact ? `${label}: ${on ? "On" : "Off"}. ${hint}` : hint}
+		className={compact ? undefined : "pl-8"}
 		onSelect={(event) => {
 			// Choosing keeps the menu open.
 			event.preventDefault();
 			onChange(!on);
 		}}
 	>
-		<span className="flex min-w-0 flex-col">
+		{compact && <Icon />}
+		<span className={compact ? "sr-only" : "flex min-w-0 flex-col"}>
 			<span>{label}</span>
 			<span className="text-2xs text-content-secondary">{hint}</span>
 		</span>
-		<SwitchLook on={on} />
+		{!compact && <SwitchLook on={on} />}
 	</DropdownMenuItem>
 );
 
@@ -70,6 +84,11 @@ const PARTS: readonly { part: AnimationPart; label: string; hint: string }[] = [
 		label: "Moving background",
 		hint: "Particles and animated backgrounds",
 	},
+	{
+		part: "announcement",
+		label: "Announcement animations",
+		hint: "Text effects, scrolling and animated pictures",
+	},
 ];
 
 /**
@@ -80,11 +99,18 @@ const PARTS: readonly { part: AnimationPart; label: string; hint: string }[] = [
  * one at the screen's edge closes on the way to it); choosing keeps the menu
  * open.
  */
-export const AnimationsToggleItem: React.FC = () => {
+export const AnimationsToggleItem: React.FC<{
+	compact?: boolean;
+	showDetails?: boolean;
+}> = ({ compact = false, showDetails = true }) => {
 	const [expanded, setExpanded] = useState(false);
 	const s = useAnimationSettings();
+	const policy = useQuery(bannerQuery(false));
+	const announcementDisabled = policy.data?.animationsDisabled === true;
 	const graphs = useGraphEveryChoice() !== "off";
-	const parts = PARTS.map(({ part }) => s[part]).concat(graphs);
+	const parts = PARTS.map(
+		({ part }) => s[part] && (part !== "announcement" || !announcementDisabled),
+	).concat(graphs);
 	const state = !s.all
 		? "Off"
 		: parts.every(Boolean)
@@ -92,9 +118,20 @@ export const AnimationsToggleItem: React.FC = () => {
 			: parts.some(Boolean)
 				? "Some"
 				: "Off";
+	if (!showDetails)
+		return (
+			<SwitchItem
+				label="Animations"
+				hint="Enable or disable dashboard animations"
+				on={s.all}
+				onChange={setAnimationsEnabled}
+				icon={SparklesIcon}
+			/>
+		);
 	return (
 		<>
 			<DropdownMenuItem
+				title={`Animations: ${state}`}
 				data-testid="animations-menu"
 				aria-expanded={expanded}
 				onSelect={(event) => {
@@ -103,21 +140,29 @@ export const AnimationsToggleItem: React.FC = () => {
 				}}
 			>
 				<SparklesIcon />
-				<span>Animations</span>
-				<span className="ml-auto pl-3 text-xs text-content-secondary">
+				<span className={compact ? "sr-only" : undefined}>Animations</span>
+				<span
+					className={
+						compact ? "sr-only" : "ml-auto pl-3 text-xs text-content-secondary"
+					}
+				>
 					{state}
 				</span>
-				<ChevronDownIcon
-					aria-hidden
-					className={cn(
-						"size-3.5 text-content-secondary transition-transform motion-reduce:transition-none",
-						expanded && "rotate-180",
-					)}
-				/>
+				{!compact && (
+					<ChevronDownIcon
+						aria-hidden
+						className={cn(
+							"size-3.5 text-content-secondary transition-transform motion-reduce:transition-none",
+							expanded && "rotate-180",
+						)}
+					/>
+				)}
 			</DropdownMenuItem>
 			{expanded && (
 				<>
 					<SwitchItem
+						compact={compact}
+						icon={SparklesIcon}
 						label="All animations"
 						hint="Off: everything below stands still"
 						on={s.all}
@@ -126,6 +171,8 @@ export const AnimationsToggleItem: React.FC = () => {
 					{PARTS.slice(0, 2).map(({ part, label, hint }) => (
 						<SwitchItem
 							key={part}
+							compact={compact}
+							icon={part === "effects" ? WandSparklesIcon : ImagePlayIcon}
 							label={label}
 							hint={hint}
 							on={s.all && s[part]}
@@ -135,6 +182,8 @@ export const AnimationsToggleItem: React.FC = () => {
 					))}
 					<SwitchItem
 						label="Live graphs"
+						compact={compact}
+						icon={ChartNoAxesCombinedIcon}
 						hint="The workspace metric graphs"
 						on={s.all && graphs}
 						disabled={!s.all}
@@ -143,10 +192,22 @@ export const AnimationsToggleItem: React.FC = () => {
 					{PARTS.slice(2).map(({ part, label, hint }) => (
 						<SwitchItem
 							key={part}
+							compact={compact}
+							icon={part === "announcement" ? MegaphoneIcon : MountainIcon}
 							label={label}
-							hint={hint}
-							on={s.all && s[part]}
-							disabled={!s.all}
+							hint={
+								part === "announcement" && announcementDisabled
+									? "Disabled by your administrator"
+									: hint
+							}
+							on={
+								s.all &&
+								s[part] &&
+								(part !== "announcement" || !announcementDisabled)
+							}
+							disabled={
+								!s.all || (part === "announcement" && announcementDisabled)
+							}
 							onChange={(on) => setAnimationPart(part, on)}
 						/>
 					))}

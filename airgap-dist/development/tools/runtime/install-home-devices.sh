@@ -28,7 +28,7 @@ node = vmhome.get(identity, '/api/v1/nodes/' + identity.node_name)
 vmhome.identifier(node['metadata']['uid'])
 subprocess.run(vmhome.host_loop_args('--version'), check=True, stdout=subprocess.DEVNULL, env=vmhome.LOOP_ENV)
 PYVERIFY
-cat > /etc/systemd/system/coder-vm-home-devices.service <<'UNIT'
+cat >/etc/systemd/system/coder-vm-home-devices.service <<'UNIT'
 [Unit]
 Description=Restore verified workspace HOME block devices
 Wants=network-online.target
@@ -47,7 +47,7 @@ UMask=0077
 WantedBy=multi-user.target
 UNIT
 mkdir -p /etc/systemd/system/kubelet.service.d
-printf '%s\n' '[Unit]' 'Requires=coder-vm-home-devices.service' 'After=coder-vm-home-devices.service' > /etc/systemd/system/kubelet.service.d/coder-vm-home-devices.conf
+printf '%s\n' '[Unit]' 'Requires=coder-vm-home-devices.service' 'After=coder-vm-home-devices.service' >/etc/systemd/system/kubelet.service.d/coder-vm-home-devices.conf
 systemctl daemon-reload
 systemctl enable coder-vm-home-devices.service
 # Existing HOME records missing node_uid require reviewed cold enrollment before reboot.

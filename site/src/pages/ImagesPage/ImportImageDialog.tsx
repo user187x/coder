@@ -4,6 +4,7 @@ import { useMutation, useQuery } from "react-query";
 import { useNavigate } from "react-router";
 import { getErrorMessage } from "#/api/errors";
 import { ImagesAPI } from "#/api/images";
+import { imagesKey } from "#/api/queries/images";
 import { Button } from "#/components/Button/Button";
 import {
 	Dialog,
@@ -17,7 +18,6 @@ import { Input } from "#/components/Input/Input";
 import { Label } from "#/components/Label/Label";
 import { Spinner } from "#/components/Spinner/Spinner";
 import { Textarea } from "#/components/Textarea/Textarea";
-import { imagesKey } from "./ImagesPage";
 
 const NAME_RE = /^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/;
 const REF_RE =

@@ -1,4 +1,6 @@
 import { useState } from "react";
+import type { LavaPictureOptions } from "#/components/LavaImage/drawLava";
+import type { LavaSettings } from "#/components/LavaImage/lava";
 import { ImageStoreGrid } from "../imageStore/ImageStoreGrid";
 import {
 	fetchStoreImage,
@@ -6,9 +8,7 @@ import {
 	referenceOf,
 	useImageStore,
 } from "../imageStore/imageStore";
-import type { LavaPictureOptions } from "../lava/drawLava";
 import { LavaDialog, LavaEntry } from "../lava/LavaDialog";
-import type { LavaSettings } from "../lava/lava";
 import type { PrebakedPicture } from "../pictures";
 
 export type GalleryPickerProps = {

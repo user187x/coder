@@ -43,6 +43,8 @@ const isGif = (url: string): Promise<boolean> => {
 
 const firstFrame = async (url: string): Promise<string | undefined> => {
 	const image = new Image();
+	if (!sameOrigin(url) && !url.startsWith("data:"))
+		image.crossOrigin = "anonymous";
 	image.src = url;
 	await image.decode();
 	const canvas = document.createElement("canvas");
@@ -111,4 +113,16 @@ export const thawAll = () => {
 			img.setAttribute("src", original);
 		}
 	}
+};
+
+const staticFrames = new Map<string, Promise<string | undefined>>();
+
+/** Freeze any browser-decodable picture, including uploaded URLs without an extension. */
+export const staticImageFrame = (url: string): Promise<string | undefined> => {
+	let frame = staticFrames.get(url);
+	if (!frame) {
+		frame = firstFrame(url).catch(() => undefined);
+		staticFrames.set(url, frame);
+	}
+	return frame;
 };

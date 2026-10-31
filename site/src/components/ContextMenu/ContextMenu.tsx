@@ -7,6 +7,7 @@
  */
 
 import { cn } from "cn";
+import { CheckIcon } from "lucide-react";
 import { ContextMenu as ContextMenuPrimitive } from "radix-ui";
 import {
 	menuContentClass,
@@ -25,10 +26,12 @@ export const ContextMenuGroup = ContextMenuPrimitive.Group;
 export const ContextMenuRadioGroup = ContextMenuPrimitive.RadioGroup;
 
 export const ContextMenuContent: React.FC<
-	React.ComponentProps<typeof ContextMenuPrimitive.Content>
-> = ({ className, ...props }) => {
+	React.ComponentProps<typeof ContextMenuPrimitive.Content> & {
+		container?: HTMLElement | null;
+	}
+> = ({ className, container, ...props }) => {
 	return (
-		<ContextMenuPrimitive.Portal>
+		<ContextMenuPrimitive.Portal container={container}>
 			<ContextMenuPrimitive.Content
 				className={cn(menuContentClass, className)}
 				{...props}
@@ -66,3 +69,19 @@ export const ContextMenuSeparator: React.FC<
 		/>
 	);
 };
+
+export const ContextMenuCheckboxItem: React.FC<
+	React.ComponentProps<typeof ContextMenuPrimitive.CheckboxItem>
+> = ({ className, children, ...props }) => (
+	<ContextMenuPrimitive.CheckboxItem
+		className={cn(menuItemClass, "relative pr-8", className)}
+		{...props}
+	>
+		{children}
+		<span className="absolute right-2 flex size-3.5 items-center justify-center">
+			<ContextMenuPrimitive.ItemIndicator>
+				<CheckIcon className="size-4" />
+			</ContextMenuPrimitive.ItemIndicator>
+		</span>
+	</ContextMenuPrimitive.CheckboxItem>
+);

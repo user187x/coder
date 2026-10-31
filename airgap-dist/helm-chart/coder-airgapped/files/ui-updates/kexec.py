@@ -14,6 +14,15 @@ import struct
 import urllib.parse
 
 
+def agent_container(pod):
+    """The workspace container: agent token first, then dev, then the first container."""
+    containers = [c for c in (pod.get("spec") or {}).get("containers") or []
+                  if c.get("name") != "workspace-tunnel"]
+    return next((c for c in containers if any(e.get("name") == "CODER_AGENT_TOKEN"
+                 for e in c.get("env") or [])),
+                next((c for c in containers if c.get("name") == "dev"), containers[0] if containers else {}))
+
+
 class Frames:
     """WebSocket frames from the server (unmasked), after the handshake's leftover bytes."""
 
@@ -65,6 +74,14 @@ def exec_stream(kube, namespace, pod, container, command, on_stdout, timeout=30,
     """(exit code, stderr) of command (a list) in the pod's container, its stdout handed to on_stdout(bytes) as it
     comes (a dump of any size never sits in memory); stdin: bytes sent first (frames of at most 64 KiB). timeout: of
     each wait for data, not of the whole run."""
+    if not container:
+        status, resource = kube.call("GET", "/api/v1/namespaces/%s/pods/%s" % (
+            urllib.parse.quote(namespace, safe=""), urllib.parse.quote(pod, safe="")))
+        if status != 200 or not isinstance(resource, dict):
+            raise RuntimeError("The workspace container could not be read (%s)." % status)
+        container = agent_container(resource).get("name")
+        if not container:
+            raise RuntimeError("The workspace pod has no agent container.")
     query = urllib.parse.urlencode([("command", c) for c in command]
                                    + [("container", container), ("stdout", "true"), ("stderr", "true")]
                                    + ([("stdin", "true")] if stdin is not None else []))
@@ -91,8 +108,9 @@ def exec_stream(kube, namespace, pod, container, command, on_stdout, timeout=30,
         if b" 101 " not in head.split(b"\r\n")[0]:
             raise RuntimeError("exec refused: %s" % head.split(b"\r\n")[0].decode(errors="replace"))
         if stdin:
-            for i in range(0, len(stdin), 65536):
-                sock.sendall(frame(b"\0" + stdin[i:i + 65536]))
+            chunks = (stdin[i:i + 65536] for i in range(0, len(stdin), 65536)) if isinstance(stdin, bytes) else stdin
+            for chunk in chunks:
+                sock.sendall(frame(b"\0" + chunk))
         frames = Frames(sock, rest)
         while True:
             got = frames.next()
@@ -118,7 +136,7 @@ def exec_stream(kube, namespace, pod, container, command, on_stdout, timeout=30,
             status = json.loads(status_raw)
         except ValueError:
             status = {}
-    code = 0
+    code = 0 if status.get("status") == "Success" else 1
     if status.get("status") and status.get("status") != "Success":
         code = 1
         for cause in (status.get("details") or {}).get("causes") or []:
@@ -129,7 +147,7 @@ def exec_stream(kube, namespace, pod, container, command, on_stdout, timeout=30,
 
 def exec_in(kube, namespace, pod, container, command, timeout=30, stdin=None):
     """(exit code, stdout, stderr) of command (a list) in the pod's container; stdin: bytes sent to it (in frames of
-    at most 64 KiB) before its output is read."""
+    at most 64 KiB), or an iterable of bounded byte chunks, sent before its output is read."""
     out = []
     code, err = exec_stream(kube, namespace, pod, container, command, out.append, timeout=timeout, stdin=stdin)
     return code, b"".join(out).decode(errors="replace"), err

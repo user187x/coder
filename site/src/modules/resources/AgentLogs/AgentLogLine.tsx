@@ -15,7 +15,7 @@ type AgentLogLineProps = {
  * Agent log output with ANSI colors. Shows only the text after the last
  * carriage return, so a redrawn progress line shows its final state.
  */
-export const AgentLogOutput: React.FC<{ output: string }> = ({ output }) => {
+const AgentLogOutput: React.FC<{ output: string }> = ({ output }) => {
 	const lastCarriageReturn = output.lastIndexOf("\r");
 	return (
 		<AnsiHtml

@@ -3,9 +3,9 @@
  * edges, with branches and jagged rings around the impact, the dead pixel columns a cracked LCD panel shows, and the
  * ink that bleeds from the impact. Seeded, so a test (and every render of one break) draws the same screen.
  */
-export type Point = { x: number; y: number };
+type Point = { x: number; y: number };
 
-export type BrokenScreen = {
+type BrokenScreen = {
 	impact: Point;
 	/** SVG paths: the main cracks to the edges, then their branches. */
 	cracks: string[];
@@ -18,7 +18,7 @@ export type BrokenScreen = {
 };
 
 /** Mulberry32: a small seeded random number generator, [0, 1). */
-export const seeded = (seed: number) => {
+const seeded = (seed: number) => {
 	let a = seed >>> 0;
 	return () => {
 		a = (a + 0x6d2b79f5) >>> 0;

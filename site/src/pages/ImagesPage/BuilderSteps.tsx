@@ -37,7 +37,7 @@ import { createDayString } from "#/utils/createDayString";
 import { BashEditor } from "./BashEditor";
 import { formatSize } from "./badges";
 
-export type StepProps = {
+type StepProps = {
 	imageId: string;
 	spec: ImageSpec;
 	/** Takes a function of the latest spec where a change lands after an await (an upload), so edits made meanwhile stay. */

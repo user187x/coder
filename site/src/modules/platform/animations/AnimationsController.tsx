@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { animated, useAnimationSettings } from "./animations";
+import { animated, useAnimationSettings } from "#/hooks/useAnimationSettings";
 import { freezeAll, freezeImage, thawAll } from "./gifFreezer";
 import "./animations.css";
 

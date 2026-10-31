@@ -145,6 +145,9 @@ type CreateUserRequestWithOrgs = CreateUserRequest
 type UpdateUserProfileRequest struct {
 	Username string `json:"username" validate:"required,username"`
 	Name     string `json:"name" validate:"user_real_name"`
+	// Email may be changed by password users after confirming their current password.
+	Email           string `json:"email,omitempty" validate:"omitempty,email" format:"email"`
+	CurrentPassword string `json:"current_password,omitempty"`
 	// AvatarURL is only applied for users whose login type is password or
 	// none. For other login types the avatar is synced from the identity
 	// provider on login, so a submitted value is ignored.
@@ -314,9 +317,10 @@ type ConvertLoginRequest struct {
 	Password string    `json:"password" validate:"required"`
 }
 
-// LoginWithPasswordRequest enables callers to authenticate with email and password.
+// LoginWithPasswordRequest enables callers to authenticate with username or email and password.
 type LoginWithPasswordRequest struct {
-	Email    string `json:"email" validate:"required,email" format:"email"`
+	// Email accepts either an email address or a username, retaining the existing API field name.
+	Email    string `json:"email" validate:"required"`
 	Password string `json:"password" validate:"required"`
 }
 
@@ -363,6 +367,8 @@ type OIDCAuthMethod struct {
 	AuthMethod
 	SignInText string `json:"signInText"`
 	IconURL    string `json:"iconUrl"`
+	// AccountURL opens the provider's account settings when supported.
+	AccountURL string `json:"accountUrl,omitempty"`
 }
 
 // OIDCClaimsResponse represents the merged OIDC claims for a user.

@@ -193,6 +193,27 @@ export const NekoBrowser: Story = {
 	},
 };
 
+export const CollapsedGridPanels: Story = {
+	...NekoBrowser,
+	args: {
+		...NekoBrowser.args,
+		initiallyCollapsed: true,
+		agent: {
+			...M.MockWorkspaceAgentReady,
+			logs_length: 1,
+			apps: [
+				{
+					...M.MockWorkspaceApp,
+					id: "collapsed-neko-browser",
+					slug: "neko-browser",
+					display_name: "Web Browser",
+					health: "healthy",
+				},
+			],
+		},
+	},
+};
+
 export const BunchOfApps: Story = {
 	args: {
 		agent: {

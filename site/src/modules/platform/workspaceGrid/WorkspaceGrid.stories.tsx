@@ -38,7 +38,9 @@ export const Focused: Story = {
 	},
 };
 
-export const List: Story = {
+export const List: Story = { args: { initialLayout: "list" } };
+
+export const SwitchToList: Story = {
 	play: async () => {
 		const body = within(document.body);
 		await userEvent.click(

@@ -8,10 +8,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/coder/coder/v2/coderd/database"
-	"github.com/coder/coder/v2/coderd/database/dbauthz"
 	"github.com/google/uuid"
 	"golang.org/x/xerrors"
+
+	"github.com/coder/coder/v2/coderd/database"
+	"github.com/coder/coder/v2/coderd/database/dbauthz"
 )
 
 // Load returns nil for an ordinary account. Read failures must deny access.
@@ -19,6 +20,7 @@ func Load(ctx context.Context, db database.Store, user uuid.UUID) (*database.Sho
 	//nolint:gocritic // Authentication must read restrictions independently of the caller's roles.
 	row, err := db.GetShortTermLeaseByUserID(dbauthz.AsSystemRestricted(ctx), user)
 	if xerrors.Is(err, sql.ErrNoRows) {
+		//nolint:nilnil // A nil value means this optional policy or integration is not configured.
 		return nil, nil
 	}
 	if err != nil {
@@ -98,7 +100,7 @@ func AllowedResource(ctx context.Context, db database.Store, row database.ShortT
 		ws, err := db.GetWorkspaceByID(ctx, row.WorkspaceID.UUID)
 		return err == nil && ws.TemplateID == id, err
 	case "workspacebuilds":
-		if len(parts) != 4 && !(len(parts) == 5 && parts[4] == "resources") {
+		if len(parts) != 4 && (len(parts) != 5 || parts[4] != "resources") {
 			return false, nil
 		}
 		build, err := db.GetWorkspaceBuildByID(ctx, id)

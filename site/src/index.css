@@ -977,3 +977,12 @@ a[href^="http://coder.com/docs"],
 a[href^="https://www.coder.com/docs"] {
 	display: none !important;
 }
+
+/* Safety colors remain black and yellow across user themes. */
+.bulk-action-surface {
+	background-image: repeating-linear-gradient(
+		-45deg,
+		rgb(0 0 0 / 0.12) 0 8px,
+		rgb(250 204 21 / 0.09) 8px 16px
+	);
+}

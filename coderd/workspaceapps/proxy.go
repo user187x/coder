@@ -444,14 +444,15 @@ func setAppProxyHeaders(r *http.Request, scheme string) bool {
 		return false
 	}
 	port := origin.Port()
-	if port != "" {
+	switch {
+	case port != "":
 		value, err := strconv.Atoi(port)
 		if err != nil || value < 1 || value > 65535 {
 			return false
 		}
-	} else if scheme == "https" {
+	case scheme == "https":
 		port = "443"
-	} else {
+	default:
 		port = "80"
 	}
 	for _, key := range []string{"X-ProxyContextPath", "X-Forwarded-Context", forwardedPrefixHeader, "Forwarded"} {

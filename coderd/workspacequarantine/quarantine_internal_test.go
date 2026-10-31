@@ -6,13 +6,14 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
+
 	"github.com/coder/coder/v2/coderd/database"
 	"github.com/coder/coder/v2/coderd/database/dbmock"
 	"github.com/coder/coder/v2/testutil"
 	"github.com/coder/quartz"
-	"github.com/google/uuid"
-	"github.com/stretchr/testify/require"
-	"go.uber.org/mock/gomock"
 )
 
 func TestWorkspaceQuarantineReplicaSessions(t *testing.T) {

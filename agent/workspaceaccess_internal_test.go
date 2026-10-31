@@ -2,12 +2,12 @@ package agent
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/xerrors"
 
 	"github.com/coder/coder/v2/codersdk/agentsdk"
 	"github.com/coder/coder/v2/testutil"
@@ -77,7 +77,7 @@ func TestWorkspaceAccessFailedEnforcementNeverAcknowledges(t *testing.T) {
 	go func() {
 		finished <- workspaceAccessLoop(ctx, clock, client, func(context.Context, bool, []uuid.UUID) error {
 			failed <- struct{}{}
-			return errors.New("device rejected reconfiguration")
+			return xerrors.New("device rejected reconfiguration")
 		}, testutil.Logger(t))
 	}()
 	require.Empty(t, testutil.TryReceive(ctx, t, requests).AppliedPolicy)

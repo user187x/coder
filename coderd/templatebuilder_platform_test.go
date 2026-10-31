@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"testing"
 
@@ -38,7 +39,7 @@ func untarForTest(t *testing.T, data []byte) map[string]string {
 	tr := tar.NewReader(bytes.NewReader(data))
 	for {
 		hdr, err := tr.Next()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			return out
 		}
 		require.NoError(t, err)

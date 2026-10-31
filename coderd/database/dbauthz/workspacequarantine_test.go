@@ -2,13 +2,14 @@ package dbauthz_test
 
 import (
 	"github.com/brianvoe/gofakeit/v7"
+	"github.com/google/uuid"
+	"go.uber.org/mock/gomock"
+
 	"github.com/coder/coder/v2/coderd/database"
 	"github.com/coder/coder/v2/coderd/database/dbmock"
 	"github.com/coder/coder/v2/coderd/rbac"
 	"github.com/coder/coder/v2/coderd/rbac/policy"
 	"github.com/coder/coder/v2/testutil"
-	"github.com/google/uuid"
-	"go.uber.org/mock/gomock"
 )
 
 func (s *MethodTestSuite) TestWorkspaceQuarantine() {

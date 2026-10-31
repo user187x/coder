@@ -28,12 +28,12 @@ import {
 	PopoverContent,
 } from "#/components/Popover/Popover";
 import { Spinner } from "#/components/Spinner/Spinner";
+import { iconNameFromFile } from "#/utils/iconNameFromFile";
 import {
 	ICON_TARGET,
 	ImageNormalizeError,
 	normalizeImage,
-} from "#/modules/platform/normalizeImage";
-import { iconNameFromFile } from "#/modules/platform/templateIcons/TemplateIconsDialog";
+} from "#/utils/normalizeImage";
 
 /** The pictures Upload image takes (as Templates > Icons). */
 const ICON_ACCEPT = ".png,.jpg,.jpeg,.svg,.webp,.gif,.avif,image/*";

@@ -11,6 +11,7 @@ import {
 	ImagesAPI,
 	type Severity,
 } from "#/api/images";
+import { imagesKey } from "#/api/queries/images";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { Loader } from "#/components/Loader/Loader";
 import { Spinner } from "#/components/Spinner/Spinner";
@@ -24,7 +25,6 @@ import {
 	gradeAfter,
 	hunks,
 } from "./fixPlan";
-import { imagesKey } from "./ImagesPage";
 import { ImportImageDialog, nameFrom } from "./ImportImageDialog";
 import { PitLane, PitStopPanel, pitApplicable } from "./PitStop";
 

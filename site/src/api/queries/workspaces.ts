@@ -479,32 +479,6 @@ const updateWorkspaceBuild = async (
 	});
 };
 
-export const toggleFavorite = (
-	workspace: Workspace,
-	queryClient: QueryClient,
-) => {
-	return {
-		mutationFn: () => {
-			if (workspace.favorite) {
-				return API.deleteFavoriteWorkspace(workspace.id);
-			}
-			return API.putFavoriteWorkspace(workspace.id);
-		},
-		onSuccess: async () => {
-			queryClient.setQueryData(
-				workspaceByOwnerAndNameKey(workspace.owner_name, workspace.name),
-				{ ...workspace, favorite: !workspace.favorite },
-			);
-			await queryClient.invalidateQueries({
-				queryKey: workspaceByOwnerAndNameKey(
-					workspace.owner_name,
-					workspace.name,
-				),
-			});
-		},
-	};
-};
-
 export const buildLogsKey = (workspaceId: string) => [
 	"workspaces",
 	workspaceId,

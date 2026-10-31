@@ -7,15 +7,18 @@ source_dir="$root/helm-chart/coder-airgapped/files/ui-updates"
 context="$(mktemp -d)"
 trap 'rm -rf "$context"' EXIT
 mkdir "$context/app"
-for file in vmhome.py vmprofile.py vmgpu.py workspace_runtime.py vmfs.py vmgrow.py vmbackup.py; do
+for file in vmhome.py vmprofile.py vmgpu.py workspace_runtime.py vmfs.py vmgrow.py vmbackup.py servicetls.py; do
 	cp "$source_dir/$file" "$context/app/"
 done
 cp "$here/maintenance/Dockerfile" "$context/Dockerfile"
-revision="$(cd "$context" && { sha256sum Dockerfile; sha256sum app/*.py; } | sha256sum | cut -c1-16)"
+revision="$(cd "$context" && {
+	sha256sum Dockerfile
+	sha256sum app/*.py
+} | sha256sum | cut -c1-16)"
 image="docker.io/mrshll187/coder-vm-maintenance:code-$revision"
 docker build --platform linux/amd64 -t "$image" "$context"
 docker run --rm --network none --entrypoint python3 "$image" -c \
-    'import vmhome, vmbackup, vmfs, vmgpu
+	'import vmhome, vmbackup, vmfs, vmgpu
 assert vmgpu.status()["enabled"] is False
 try:
     vmbackup.worker(None, {}, "unsupported", "")

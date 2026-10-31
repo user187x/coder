@@ -156,6 +156,8 @@ func (m *Manager) Set(ctx context.Context, enabled bool, by string) (State, erro
 
 // SetChecked serializes activation with changes to external enforcement
 // boundaries. The check runs on the same transaction while the setting is locked.
+//
+//nolint:revive // This boolean represents the externally supplied policy state.
 func (m *Manager) SetChecked(ctx context.Context, enabled bool, by string, check func(database.Store) error) (State, error) {
 	s, err := m.changeDB(ctx, func(s *State, tx database.Store) error {
 		if enabled && check != nil {

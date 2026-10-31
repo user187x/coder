@@ -42,15 +42,15 @@ import {
 import { DEFAULT_LOGO_URL, setLogoURL } from "#/contexts/platformBoot";
 import { BackgroundSection } from "#/modules/platform/background/BackgroundSection";
 import { GalleryPicker } from "#/modules/platform/gallery/GalleryPicker";
-import { formatBytes } from "#/modules/platform/images";
 import { LoginPageSection } from "#/modules/platform/loginPage/LoginPageSection";
+import AppearancePage from "#/pages/UserSettingsPage/AppearancePage/AppearancePage";
+import { formatBytes } from "#/utils/images";
 import {
 	ImageNormalizeError,
 	LOGO_TARGET,
 	type NormalizedImage,
 	normalizeImage,
-} from "#/modules/platform/normalizeImage";
-import AppearancePage from "#/pages/UserSettingsPage/AppearancePage/AppearancePage";
+} from "#/utils/normalizeImage";
 import { pageTitle } from "#/utils/page";
 
 const LOGO_EXTENSIONS = ["png", "jpg", "jpeg", "svg", "webp", "gif", "avif"];

@@ -30,7 +30,7 @@ type Bytes = Uint8Array<ArrayBuffer>;
 /** Where the file comes from: the certificate kept in Account > Certificates, or one chosen now. */
 type Source = { kind: "account"; name: string } | { kind: "file"; file: File };
 
-export type PfxCertificate = { pem: string; subject: string };
+type PfxCertificate = { pem: string; subject: string };
 
 type Step = "assure" | "choose" | "password";
 

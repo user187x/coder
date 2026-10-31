@@ -18,9 +18,14 @@
 # (docker exec --env-file keeps "robot$argocd" as it is; a shell would expand $argocd.)
 # Clean up: docker rm -f -v harbor-installer (and kind delete cluster --name airgap-test; docker rm -f airgap-registry).
 set -euo pipefail
-W="$(cd "$(dirname "$0")" && pwd)"; R="$(cd "$W/../../.." && pwd)"; BUNDLE="${BUNDLE:-$R/helm-chart}"
+W="$(cd "$(dirname "$0")" && pwd)"
+R="$(cd "$W/../../.." && pwd)"
+BUNDLE="${BUNDLE:-$R/helm-chart}"
 export KUBECONFIG=$W/kubeconfig HELM_REPOSITORY_CONFIG=$W/helm/repositories.yaml HELM_REPOSITORY_CACHE=$W/helm/cache
-N=airgap-test-control-plane; H=$W/harbor; mkdir -p "$H"; chmod 700 "$H"
+N=airgap-test-control-plane
+H=$W/harbor
+mkdir -p "$H"
+chmod 700 "$H"
 say() { printf '\n=== %s\n' "$*"; }
 NIP=$(docker inspect $N -f '{{(index .NetworkSettings.Networks "kind").IPAddress}}')
 
@@ -34,8 +39,13 @@ helm upgrade traefik "$BUNDLE/prereqs/traefik-41.4.0.tgz" -n traefik \
 	--set service.type=ClusterIP --set ports.websecure.hostPort=443 --wait >/dev/null
 
 say "Harbor 2.15 (chart 1.19.2)"
-[[ -s $H/admin-password ]] || (umask 077; openssl rand -hex 16 >"$H/admin-password")
-(umask 077; cat >"$H/values.yaml" <<EOF
+[[ -s $H/admin-password ]] || (
+	umask 077
+	openssl rand -hex 16 >"$H/admin-password"
+)
+(
+	umask 077
+	cat >"$H/values.yaml" <<EOF
 expose: {type: clusterIP, tls: {enabled: false}, clusterIP: {name: harbor}}
 externalURL: https://harbor.airgap.test
 harborAdminPassword: "$(cat "$H/admin-password")"
@@ -64,8 +74,11 @@ printf 'server = \"https://harbor.airgap.test\"\n[host.\"https://harbor.airgap.t
 curl -fs --cacert /etc/containerd/certs.d/harbor.airgap.test/ca.crt https://harbor.airgap.test/api/v2.0/ping >/dev/null" && echo "the node reaches Harbor"
 
 say "robot\$argocd (system robot, pull rights)"
-(umask 077; printf 'user = "admin:%s"\n' "$(cat "$H/admin-password")" >"$H/curl-admin.cfg"
-	printf 'HARBOR_PASSWORD=%s\n' "$(cat "$H/admin-password")" >"$H/push.env")
+(
+	umask 077
+	printf 'user = "admin:%s"\n' "$(cat "$H/admin-password")" >"$H/curl-admin.cfg"
+	printf 'HARBOR_PASSWORD=%s\n' "$(cat "$H/admin-password")" >"$H/push.env"
+)
 api() { curl -fsS --cacert "$W/pki/ca.crt" --resolve "harbor.airgap.test:443:$NIP" -K "$H/curl-admin.cfg" -H 'Content-Type: application/json' "$@"; }
 if [[ ! -s $H/argocd.env ]]; then
 	api -X POST https://harbor.airgap.test/api/v2.0/robots -d '{"name":"argocd","level":"system","duration":-1,
@@ -78,7 +91,8 @@ grep -o '^ARGOCD_USER=.*' "$H/argocd.env"
 say "the installing machine: harbor-installer (docker-in-docker, no images)"
 if ! docker inspect harbor-installer >/dev/null 2>&1; then
 	# a copy of the bundle without its .deploy (the installer writes its own there; never the repo's own answers)
-	rm -rf "$H/bundle"; mkdir -p "$H/bundle/images"
+	rm -rf "$H/bundle"
+	mkdir -p "$H/bundle/images"
 	(cd "$BUNDLE" && tar -cf - --exclude=./.deploy --exclude=./images --exclude=__pycache__ .) | tar -xf - -C "$H/bundle"
 	docker run -d --privileged --network kind --name harbor-installer \
 		--add-host "harbor.airgap.test:$NIP" --add-host "coder.airgap.test:$NIP" --add-host "keycloak.airgap.test:$NIP" \

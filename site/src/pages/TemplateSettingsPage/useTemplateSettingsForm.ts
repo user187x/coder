@@ -165,5 +165,3 @@ export const useTemplateSettingsForm = (template: Template) => {
 		discard,
 	};
 };
-
-export type TemplateSettingsForm = ReturnType<typeof useTemplateSettingsForm>;

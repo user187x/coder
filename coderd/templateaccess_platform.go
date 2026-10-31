@@ -13,7 +13,6 @@ import (
 	"golang.org/x/xerrors"
 
 	"cdr.dev/slog/v3"
-
 	"github.com/coder/coder/v2/coderd/database"
 	"github.com/coder/coder/v2/coderd/database/dbauthz"
 	"github.com/coder/coder/v2/coderd/httpapi"
@@ -219,7 +218,7 @@ func (api *API) putTemplateAccessList(rw http.ResponseWriter, r *http.Request) {
 	}
 	api.templateAccess.Store(template.ID, templateAccessEntry{users: users, restricted: restricted, at: time.Now()})
 	api.Logger.Info(ctx, "template access list", slog.F("template", template.Name), slog.F("restricted", restricted),
-		slog.F("users", len(users)), slog.F("by", httpmw.APIKey(r).UserID))
+		slog.F("users", len(users)), slog.F("by_id", httpmw.APIKey(r).UserID))
 	httpapi.Write(ctx, rw, http.StatusOK, codersdk.TemplateAccessList{UserIDs: accessIDs(users), Restricted: restricted})
 }
 

@@ -156,8 +156,7 @@ func New(ctx context.Context, options *Options) (_ *API, err error) {
 	}
 
 	var replicaManagerPtr atomic.Pointer[replicasync.Manager]
-	var api *API
-	api = &API{
+	api := &API{
 		ctx:     ctx,
 		cancel:  cancelFunc,
 		Options: options,

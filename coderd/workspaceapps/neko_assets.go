@@ -5,8 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
-	"fmt"
 	"io"
 	"io/fs"
 	"mime"
@@ -14,6 +12,8 @@ import (
 	"path"
 	"strings"
 	"time"
+
+	"golang.org/x/xerrors"
 )
 
 const nekoClientManifest = "coder-neko-client.json"
@@ -30,15 +30,15 @@ func (c *NekoClient) ServeHTTP(w http.ResponseWriter, r *http.Request) { c.handl
 func LoadNekoClient(source fs.FS, manifestSHA string) (*NekoClient, error) {
 	expected, err := hex.DecodeString(manifestSHA)
 	if err != nil || len(expected) != sha256.Size || source == nil {
-		return nil, errors.New("neko client requires a pinned manifest digest")
+		return nil, xerrors.New("neko client requires a pinned manifest digest")
 	}
 	raw, err := readNekoAsset(source, nekoClientManifest, 512*1024)
 	if err != nil {
-		return nil, fmt.Errorf("read Neko client manifest: %w", err)
+		return nil, xerrors.Errorf("read Neko client manifest: %w", err)
 	}
 	digest := sha256.Sum256(raw)
 	if !bytes.Equal(digest[:], expected) {
-		return nil, errors.New("neko client manifest digest differs")
+		return nil, xerrors.New("neko client manifest digest differs")
 	}
 	var manifest struct {
 		Version   int               `json:"version"`
@@ -49,36 +49,36 @@ func LoadNekoClient(source fs.FS, manifestSHA string) (*NekoClient, error) {
 	decoder := json.NewDecoder(bytes.NewReader(raw))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&manifest); err != nil {
-		return nil, fmt.Errorf("decode Neko client manifest: %w", err)
+		return nil, xerrors.Errorf("decode Neko client manifest: %w", err)
 	}
 	if decoder.Decode(new(any)) != io.EOF {
-		return nil, errors.New("neko client manifest has trailing content")
+		return nil, xerrors.New("neko client manifest has trailing content")
 	}
 	if manifest.Version != 1 || manifest.Protocol != "neko-v3.1.6-legacy" || !manifest.RelayOnly || len(manifest.Files) == 0 || len(manifest.Files) > 4096 {
-		return nil, errors.New("neko client manifest is not a bounded supported relay-only client")
+		return nil, xerrors.New("neko client manifest is not a bounded supported relay-only client")
 	}
 	files := make(map[string][]byte, len(manifest.Files))
 	total := 0
 	for name, want := range manifest.Files {
 		if !fs.ValidPath(name) || name == "." || strings.HasPrefix(name, ".") || strings.Contains(name, "/.") {
-			return nil, errors.New("neko client asset path is invalid")
+			return nil, xerrors.New("neko client asset path is invalid")
 		}
 		contents, err := readNekoAsset(source, name, 16*1024*1024)
 		if err != nil {
-			return nil, fmt.Errorf("read Neko client asset: %w", err)
+			return nil, xerrors.Errorf("read Neko client asset: %w", err)
 		}
 		sum := sha256.Sum256(contents)
 		if hex.EncodeToString(sum[:]) != want {
-			return nil, errors.New("neko client asset digest differs")
+			return nil, xerrors.New("neko client asset digest differs")
 		}
 		total += len(contents)
 		if total > 32*1024*1024 {
-			return nil, errors.New("neko client exceeds the asset budget")
+			return nil, xerrors.New("neko client exceeds the asset budget")
 		}
 		files[name] = contents
 	}
 	if len(files["index.html"]) == 0 {
-		return nil, errors.New("neko client index is missing")
+		return nil, xerrors.New("neko client index is missing")
 	}
 	return &NekoClient{handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
@@ -115,7 +115,7 @@ func readNekoAsset(source fs.FS, name string, limit int64) ([]byte, error) {
 		return nil, err
 	}
 	if int64(len(contents)) > limit {
-		return nil, errors.New("neko asset exceeds its size bound")
+		return nil, xerrors.New("neko asset exceeds its size bound")
 	}
 	return contents, nil
 }

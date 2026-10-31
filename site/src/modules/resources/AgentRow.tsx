@@ -1,5 +1,6 @@
 import { cn } from "cn";
 import {
+	ChevronUpIcon,
 	CopyIcon,
 	EllipsisIcon,
 	InfoIcon,
@@ -7,7 +8,7 @@ import {
 	PlayIcon,
 	TriangleAlertIcon,
 } from "lucide-react";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import AutoSizer from "react-virtualized-auto-sizer";
 import type { VariableSizeList as List, ListOnScrollProps } from "react-window";
 import type {
@@ -52,6 +53,7 @@ import {
 	TooltipTrigger,
 } from "#/components/Tooltip/Tooltip";
 import { useProxy } from "#/contexts/ProxyContext";
+import { useAnimationsEnabled } from "#/hooks/useAnimationSettings";
 import { useClipboard } from "#/hooks/useClipboard";
 import {
 	isRetiredWorkspaceApp,
@@ -72,7 +74,6 @@ import {
 import { AgentPanels } from "#/modules/platform/agentPanels/AgentPanels";
 import { useAgentPanels } from "#/modules/platform/agentPanels/agentPanelsStore";
 import { AgentTerminalSection } from "#/modules/platform/agentTerminal/AgentTerminalSection";
-import { useAnimationsEnabled } from "#/modules/platform/animations/animations";
 import { BuildFooterEnd } from "#/modules/platform/buildFooter/footerEnd";
 import { CloudDriveGlyph } from "#/modules/platform/cloudDrive/CloudDriveGlyph";
 import { LockdownBadge } from "#/modules/platform/lockdown/Lockdown";
@@ -124,6 +125,8 @@ type AgentRowProps = {
 	footer?: React.ReactNode;
 	topbar?: React.ReactNode;
 	restricted?: boolean;
+	/** Embedded dashboards defer panel sessions until the user opens them. */
+	initiallyCollapsed?: boolean;
 };
 
 const statusBorderClassByStatus: Partial<
@@ -183,7 +186,11 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 	footer,
 	topbar,
 	restricted = false,
+	initiallyCollapsed = false,
 }) => {
+	const [overviewCollapsed, setOverviewCollapsed] = useState(false);
+	const overviewId = useId();
+
 	const agent = normalizeWorkspaceApps(originalAgent);
 	const { browser_only, workspace_external_agent } = useFeatureVisibility();
 	const appSections = organizeAgentApps(agent.apps);
@@ -219,9 +226,10 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 	const hasScriptIssues = getAgentScriptIssues(agent).length > 0;
 	const { proxy } = useProxy();
 	const [showLogs, setShowLogs] = useState(
-		(agent.lifecycle_state !== "ready" ||
-			hasConnectivityIssues ||
-			hasScriptIssues) &&
+		!initiallyCollapsed &&
+			(agent.lifecycle_state !== "ready" ||
+				hasConnectivityIssues ||
+				hasScriptIssues) &&
 			hasStartupFeatures,
 	);
 	const agentLogs = useAgentLogs({ agentId: agent.id, enabled: showLogs });
@@ -230,6 +238,7 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 	const [bottomOfLogs, setBottomOfLogs] = useState(true);
 
 	useEffect(() => {
+		if (initiallyCollapsed) return;
 		setShowLogs(
 			(agent.lifecycle_state !== "ready" ||
 				hasConnectivityIssues ||
@@ -237,6 +246,7 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 				hasStartupFeatures,
 		);
 	}, [
+		initiallyCollapsed,
 		agent.lifecycle_state,
 		hasConnectivityIssues,
 		hasScriptIssues,
@@ -351,9 +361,11 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 		const existing = panels.apps.find(
 			(panel) => panel.kind === "app" && panel.slug === nekoApp.slug,
 		);
-		if (!existing)
-			setJustAdded(panels.add({ kind: "app", slug: nekoApp.slug }));
-	}, [nekoApp, appsReady, panels]);
+		if (!existing) {
+			const id = panels.add({ kind: "app", slug: nekoApp.slug });
+			if (!initiallyCollapsed) setJustAdded(id);
+		}
+	}, [nekoApp, appsReady, panels, initiallyCollapsed]);
 	if (nekoApp) shouldDisplayAppsSection = false;
 	const [selectedLogTab, setSelectedLogTab] = useState("all");
 	const hasAutoSelectedLogTabRef = useRef(false);
@@ -444,7 +456,8 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 	];
 	const hasAnyLogs = agentLogs.length > 0;
 	const shouldExpandLogs =
-		showLogs || (!hasStartupFeatures && hasConnectivityIssues);
+		showLogs ||
+		(!initiallyCollapsed && !hasStartupFeatures && hasConnectivityIssues);
 	const shouldShowLogsTabs = hasStartupFeatures && hasAnyLogs;
 	const logTabsMeasureEnabled = shouldShowLogsTabs && showLogs;
 	const {
@@ -498,13 +511,46 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 		<AgentBorderFx key={agent.id} state={fxState} rounded={Boolean(topbar)}>
 			<div
 				className={cn(
-					"flex max-w-full flex-col gap-6 rounded-lg border border-solid bg-surface-primary p-6 text-sm shadow-md overflow-clip",
+					"workspace-agent-card relative flex max-w-full flex-col gap-6 rounded-lg border border-solid bg-surface-primary p-6 text-sm shadow-md overflow-clip",
 					fxState ? "border-transparent" : borderClass,
 					topbar && "rounded-[40px]",
 				)}
 			>
 				{topbar && (
-					<div className="w-full min-w-0 [&>header]:m-0 [&>header]:w-full [&>header]:max-w-none [&>header]:rounded-2xl">
+					<Button
+						type="button"
+						variant="subtle"
+						size="icon"
+						className="absolute left-1/2 top-1 z-20 h-3 w-9 -translate-x-1/2 rounded-b-full rounded-t-none border border-t-0 border-solid border-border bg-surface-secondary text-content-secondary"
+						aria-label={
+							overviewCollapsed
+								? "Expand workspace overview"
+								: "Collapse workspace overview"
+						}
+						title={
+							overviewCollapsed
+								? "Expand workspace overview"
+								: "Collapse workspace overview"
+						}
+						aria-expanded={!overviewCollapsed}
+						aria-controls={`${overviewId} ${overviewId}-network ${overviewId}-metrics`}
+						onClick={() => setOverviewCollapsed((current) => !current)}
+					>
+						{overviewCollapsed ? (
+							<ChevronUpIcon className="size-3 rotate-180" />
+						) : (
+							<ChevronUpIcon className="size-3" />
+						)}
+					</Button>
+				)}
+				{topbar && (
+					<div
+						id={overviewId}
+						className={cn(
+							"w-full min-w-0 [&>header]:m-0 [&>header]:w-full [&>header]:max-w-none [&>header]:rounded-2xl",
+							overviewCollapsed && "hidden",
+						)}
+					>
 						{topbar}
 					</div>
 				)}
@@ -517,7 +563,13 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 							"grayscale opacity-40 pointer-events-none select-none",
 					)}
 				>
-					<header className="flex flex-wrap items-center justify-between gap-4 leading-normal md:gap-6">
+					<header
+						id={`${overviewId}-network`}
+						className={cn(
+							"flex flex-wrap items-center justify-between gap-4 leading-normal md:gap-6",
+							overviewCollapsed && "hidden",
+						)}
+					>
 						<div className="flex min-w-0 items-center gap-6 text-sm text-content-secondary">
 							<div className="flex min-w-0 w-full items-center gap-4 md:w-auto">
 								{/* Platform: the workspace's network - its lights (RX / TX) and its last minutes as a graph, with
@@ -567,7 +619,7 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 							)}
 						</div>
 
-						<div className="flex items-center gap-2">
+						<div className="flex shrink-0 items-center gap-2 rounded-full border border-solid border-border p-0.5">
 							{anyRunningOrStartingDevcontainers && (
 								<Button
 									variant="outline"
@@ -608,11 +660,21 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 							)}
 							<WorkspaceTunnelGlyph workspace={workspace} />
 							{/* Platform: admins' Lock Down badge and its menu, right of Open Ports */}
-							<LockdownBadge workspace={workspace} goldIcon />
+							<LockdownBadge
+								workspace={workspace}
+								goldIcon
+								className="[&>svg]:size-5"
+							/>
 						</div>
 					</header>
 
-					<div className="flex min-w-0 flex-col gap-6">
+					<div
+						id={`${overviewId}-metrics`}
+						className={cn(
+							"flex min-w-0 flex-col gap-6",
+							overviewCollapsed && "hidden",
+						)}
+					>
 						{workspace.latest_app_status?.agent_id === agent.id && (
 							<section>
 								<h3 className="sr-only">App statuses</h3>
@@ -708,7 +770,7 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 							)}
 					</div>
 
-					<div className="relative w-full min-w-0">
+					<div data-agent-panels className="relative w-full min-w-0">
 						<AddPanelTab
 							apps={panelApps}
 							terminal={agent.display_apps.includes("web_terminal")}
@@ -1043,7 +1105,8 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 												id: panel.id,
 												initiallyOpen:
 													panel.id === justAdded ||
-													(panel.kind === "app" &&
+													(!initiallyCollapsed &&
+														panel.kind === "app" &&
 														panel.slug === nekoApp?.slug),
 												height: panel.height,
 												onHeightChange: (height: number) =>

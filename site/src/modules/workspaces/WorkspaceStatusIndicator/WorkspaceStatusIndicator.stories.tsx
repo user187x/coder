@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { userEvent, within } from "storybook/test";
 import type { Workspace, WorkspaceStatus } from "#/api/typesGenerated";
 import {
 	MockWorkspace,
@@ -120,5 +121,35 @@ export const TopbarRunning: Story = {
 		runningLight: true,
 		className:
 			"workspace-topbar-running-status gap-1.5 rounded-full border border-solid border-current/20 bg-surface-secondary px-2 py-1 text-xs",
+	},
+};
+
+export const TopbarStopped: Story = {
+	args: {
+		workspace: createWorkspaceWithStatus("stopped"),
+		runningLight: true,
+	},
+};
+
+export const StartedTooltip: Story = {
+	args: {
+		workspace: {
+			...MockWorkspace,
+			latest_build: {
+				...MockWorkspace.latest_build,
+				transition: "start",
+				status: "running",
+				job: {
+					...MockWorkspace.latest_build.job,
+					completed_at: "2026-10-17T01:02:15Z",
+				},
+			},
+		},
+		runningLight: true,
+	},
+	play: async ({ canvasElement }) => {
+		await userEvent.hover(
+			within(canvasElement).getByTestId("workspace-running-light-trigger"),
+		);
 	},
 };

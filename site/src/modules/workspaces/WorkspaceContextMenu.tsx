@@ -2,11 +2,13 @@ import {
 	CopyIcon,
 	ExternalLinkIcon,
 	FolderOpenIcon,
+	PlugZapIcon,
 	SettingsIcon,
 	Share2Icon,
 	SquareTerminalIcon,
 } from "lucide-react";
 import { Link } from "react-router";
+import { toast } from "sonner";
 import type { Workspace } from "#/api/typesGenerated";
 import {
 	ContextMenu,
@@ -16,6 +18,7 @@ import {
 	ContextMenuTrigger,
 } from "#/components/ContextMenu/ContextMenu";
 import { useClipboard } from "#/hooks/useClipboard";
+import { connectBannerTerminal } from "#/modules/platform/announcement/terminalConnector";
 
 export const WorkspaceContextMenu: React.FC<{
 	workspace: Workspace;
@@ -26,6 +29,13 @@ export const WorkspaceContextMenu: React.FC<{
 	const agent = workspace.latest_build.resources
 		.flatMap((resource) => resource.agents ?? [])
 		.find((item) => item.status === "connected");
+	const canConnectTerminal = workspace.latest_build.resources.some((resource) =>
+		resource.agents?.some(
+			(item) =>
+				item.status === "connected" &&
+				item.display_apps.includes("web_terminal"),
+		),
+	);
 	return (
 		<ContextMenu>
 			<ContextMenuTrigger asChild>
@@ -50,6 +60,20 @@ export const WorkspaceContextMenu: React.FC<{
 							<SquareTerminalIcon />
 							Open terminal
 						</Link>
+					</ContextMenuItem>
+				)}
+				{canConnectTerminal && (
+					<ContextMenuItem
+						onSelect={() => {
+							if (!connectBannerTerminal(workspace)) {
+								toast.error(
+									"Show the announcement banner to connect a terminal.",
+								);
+							}
+						}}
+					>
+						<PlugZapIcon />
+						Connect terminal
 					</ContextMenuItem>
 				)}
 				<ContextMenuSeparator />

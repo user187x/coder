@@ -6,7 +6,9 @@ import type {
 	ResourceUsage,
 	UsagePoint,
 } from "#/api/platform";
-import { clusterUsage } from "#/api/queries/platform";
+import { clusterUsage, hudHistory } from "#/api/queries/platform";
+
+import { ClusterDiskGraph } from "./ClusterDiskGraph";
 
 const GiB = 1024 ** 3;
 
@@ -43,11 +45,17 @@ const formatAmount = (kind: Kind, value: number) =>
  * refreshed while the menu is open. Each bar fills with what is in use (live
  * from metrics-server; without it, what pods requested), the band behind it
  * is what running pods reserved, and "free" is what new workspaces can still
- * be given; under each, its last 15 minutes; under both, the network graph.
+ * be given; under each, its last 15 minutes; under both, network and disk history.
  * Users who are not admins get no answer, so nothing is shown.
  */
 export const ClusterGauge: React.FC = () => {
 	const { data } = useQuery(clusterUsage());
+	const disk = useQuery({
+		...hudHistory("15m"),
+		enabled: Boolean(data),
+		retry: false,
+		refetchIntervalInBackground: false,
+	});
 
 	if (!data) {
 		return null;
@@ -56,7 +64,7 @@ export const ClusterGauge: React.FC = () => {
 	return (
 		<div
 			role="group"
-			aria-label="Cluster CPU, memory and network"
+			aria-label="Cluster CPU, memory, network and disk"
 			data-cluster-gauge=""
 			className="mt-1 px-2.5 pt-2.5 pb-1.5 border-0 border-t border-solid border-border cursor-default"
 		>
@@ -97,6 +105,11 @@ export const ClusterGauge: React.FC = () => {
 			{data.network && data.network.points.length > 0 && (
 				<NetworkGraph network={data.network} />
 			)}
+			<ClusterDiskGraph
+				history={disk.data}
+				loading={disk.isLoading}
+				error={disk.error}
+			/>
 		</div>
 	);
 };
@@ -216,7 +229,7 @@ const levelOf = (percent: number): Level =>
 	percent >= 90 ? "high" : percent >= 70 ? "mid" : "low";
 
 /** A round's CPU or memory in use: the amount, of what is allocatable, as a percentage. */
-export type UsageShare = {
+type UsageShare = {
 	t: number;
 	used: number;
 	total: number;

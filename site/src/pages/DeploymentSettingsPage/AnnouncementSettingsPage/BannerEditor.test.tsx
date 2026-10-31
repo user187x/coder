@@ -158,3 +158,46 @@ it.each([
 	await userEvent.click(screen.getByRole("option", { name: option }));
 	expect(onChange).toHaveBeenCalledWith(expected);
 });
+
+it("publishes enforced still mode without erasing the configured effects", async () => {
+	const original = editableFields({
+		...MockBanner,
+		effect: "wave",
+		pictureEffect: "ripple",
+		animationsDisabled: false,
+	});
+	const publish = vi.fn();
+	const Editor = () => {
+		const [form, setForm] = useState(original);
+		return (
+			<BannerEditor
+				form={form}
+				dirty={!sameFields(form, original)}
+				isPublishing={false}
+				problem={null}
+				onChange={(patch) => setForm((value) => ({ ...value, ...patch }))}
+				onProblem={vi.fn()}
+				onPublish={() => publish(form)}
+				onDiscard={vi.fn()}
+				onTryOpen={vi.fn()}
+				onTryClose={vi.fn()}
+			/>
+		);
+	};
+	render(
+		<QueryClientProvider client={new QueryClient()}>
+			<Editor />
+		</QueryClientProvider>,
+	);
+	const user = userEvent.setup();
+	await user.click(
+		screen.getByRole("switch", {
+			name: "Disable announcement animations for everyone",
+		}),
+	);
+	await user.click(screen.getByRole("button", { name: "Publish changes" }));
+	expect(publish).toHaveBeenCalledWith({
+		...original,
+		animationsDisabled: true,
+	});
+});

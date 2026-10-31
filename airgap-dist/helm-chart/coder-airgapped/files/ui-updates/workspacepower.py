@@ -127,6 +127,7 @@ def public(operation):
                   completed=sum(w["status"] in TERMINAL for w in operation["workspaces"]))
     if operation.get("finished_at") is not None:
         result["finished_at"] = operation["finished_at"]
+    result["exclude_admins"] = operation.get("exclude_admins", False)
     return result
 
 
@@ -148,6 +149,9 @@ def update(operation_id, workspace_id=None, **fields):
 
 
 def start(token, user, oid, body):
+    exclude_admins = body.get("exclude_admins", False)
+    if not isinstance(exclude_admins, bool):
+        raise ValueError("exclude_admins must be a boolean.")
     action = body.get("action")
     if action not in ("shutdown", "terminate") or body.get("confirmation") != action:
         raise ValueError("Confirm the exact shutdown or terminate action.")
@@ -172,7 +176,8 @@ def start(token, user, oid, body):
                         "force_requested": False, "runtime_objects_removed": None})
     permissions(token, targets, "update")
     operation = {"id": str(uuid.uuid4()), "organization_id": oid, "action": action, "status": "running",
-                 "created_at": time.time(), "created_by": user["id"], "workspaces": targets}
+                 "created_at": time.time(), "created_by": user["id"], "workspaces": targets,
+                 "exclude_admins": exclude_admins}
     def insert(data):
         if any(op["organization_id"] == oid and op["status"] == "running" for op in data.values()):
             raise Conflict("Another workspace stop operation is running in this organization.")
@@ -198,8 +203,20 @@ def resources(wid):
 
 
 
+def vm_api_available():
+    """Discovery distinguishes an absent VM runtime from denied access to one."""
+    status, _ = KUBE.call("GET", "/apis/kubevirt.io/v1")
+    if status == 404:
+        return False
+    if status != 200:
+        raise RuntimeError("Could not discover the workspace VM API (Kubernetes HTTP %s)." % status)
+    return True
+
+
 def vm_stopped(wid, oid):
     """Return whether a managed VM has no current instance; legacy runtimes pass through."""
+    if not vm_api_available():
+        return True
     base = "/apis/kubevirt.io/v1/namespaces/" + NAMESPACE
     name = "coder-vm-" + wid
     status, vm = KUBE.call("GET", base + "/virtualmachines/" + name)
@@ -218,6 +235,8 @@ def vm_stopped(wid, oid):
 
 def force_vm_runtime(wid, oid=None):
     """Halt an owned VM and remove only its current UID-fenced VMI, retaining disks."""
+    if not vm_api_available():
+        return None
     base = "/apis/kubevirt.io/v1/namespaces/" + NAMESPACE
     name = "coder-vm-" + wid
     status, vm = KUBE.call("GET", base + "/virtualmachines/" + name)
@@ -329,6 +348,15 @@ def force_runtime(wid, oid=None):
     return not remaining, reachable
 
 
+def administrator_owner(token, owner_id):
+    """Resolve current roles before a power action; failed lookups must stop the operation."""
+    user = coder(token, "GET", "/users/" + identifier(owner_id))
+    if not isinstance(user, dict) or user.get("id") != owner_id or not isinstance(user.get("roles"), list):
+        raise RuntimeError("Could not verify the workspace owner's administrator roles.")
+    roles = {role.get("name") for role in user["roles"] if isinstance(role, dict)}
+    return bool(roles & (ADMIN_ROLES | {"owner", "user-admin", "template-admin"}))
+
+
 def stop_one(token, operation, target):
     wid, oid, action = target["id"], operation["organization_id"], operation["action"]
     deadline = time.monotonic() + TIMEOUT
@@ -342,6 +370,9 @@ def stop_one(token, operation, target):
             ws = coder(token, "GET", "/workspaces/" + wid)
             if ws.get("organization_id") != oid:
                 raise RuntimeError("Workspace organization changed; no further action taken.")
+            if operation.get("exclude_admins") and administrator_owner(token, ws["owner_id"]):
+                update(operation["id"], wid, status="skipped", error="Administrator workspace excluded.")
+                return
             build = ws["latest_build"]
             if build["id"] not in (target["captured_build_id"], stop_id):
                 raise RuntimeError("Another workspace build started; no further action taken.")

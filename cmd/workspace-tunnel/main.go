@@ -13,13 +13,15 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/coder/coder/v2/workspaceoverlay"
+	"golang.org/x/xerrors"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
+
+	"github.com/coder/coder/v2/workspaceoverlay"
 )
 
 func main() {
 	if err := run(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		_, _ = fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
@@ -28,12 +30,12 @@ func run() error {
 	service := os.Getenv("WORKSPACE_TUNNEL_URL")
 	parsed, err := url.Parse(service)
 	if err != nil || parsed.Scheme != "https" || parsed.Host == "" {
-		return fmt.Errorf("WORKSPACE_TUNNEL_URL must use HTTPS")
+		return xerrors.New("WORKSPACE_TUNNEL_URL must use HTTPS")
 	}
 	token := os.Getenv("CODER_AGENT_TOKEN")
 	podIP := os.Getenv("POD_IP")
 	if token == "" || podIP == "" {
-		return fmt.Errorf("CODER_AGENT_TOKEN and POD_IP are required")
+		return xerrors.New("CODER_AGENT_TOKEN and POD_IP are required")
 	}
 	key, err := wgtypes.GeneratePrivateKey()
 	if err != nil {
@@ -42,10 +44,10 @@ func run() error {
 	device := &workspaceoverlay.KernelDevice{Name: "coderwg", PrivateKey: key, Port: 51871, ForwardChain: os.Getenv("WORKSPACE_TUNNEL_FORWARD_CHAIN")}
 	device.SocketScope, err = workspaceoverlay.ParseSocketScope(os.Getenv("WORKSPACE_TUNNEL_APP_PID"), os.Getenv("WORKSPACE_TUNNEL_APP_NETNS"), os.Getenv("WORKSPACE_TUNNEL_APP_ADDRESS"))
 	if err != nil || device.SocketScope != nil && device.ForwardChain != "CODER_VM_TUNNEL" {
-		return fmt.Errorf("invalid root-provided application socket scope")
+		return xerrors.New("invalid root-provided application socket scope")
 	}
 	if err = device.Clear(); err != nil {
-		return fmt.Errorf("clear previous overlay: %w", err)
+		return xerrors.Errorf("clear previous overlay: %w", err)
 	}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
@@ -53,5 +55,5 @@ func run() error {
 	if device.SocketScope == nil {
 		runtime.PortPolicyVersion = 1
 	}
-	return runtime.Run(ctx, func(err error) { fmt.Fprintln(os.Stderr, err) })
+	return runtime.Run(ctx, func(err error) { _, _ = fmt.Fprintln(os.Stderr, err) })
 }

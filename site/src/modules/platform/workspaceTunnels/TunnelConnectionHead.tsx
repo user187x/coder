@@ -1,6 +1,6 @@
 import { useId } from "react";
+import { useAnimationsEnabled } from "#/hooks/useAnimationSettings";
 import { useMediaQuery } from "#/hooks/useMediaQuery";
-import { useAnimationsEnabled } from "#/modules/platform/animations/animations";
 
 /** Clips a seamless directional flow pattern inside the free tunnel connector. */
 export const TunnelConnectionHead = ({

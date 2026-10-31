@@ -1884,6 +1884,18 @@ CREATE TABLE api_keys (
 
 COMMENT ON COLUMN api_keys.hashed_secret IS 'hashed_secret contains a SHA256 hash of the key secret. This is considered a secret and MUST NOT be returned from the API as it is used for API key encryption in app proxying code.';
 
+CREATE TABLE audit_collectors (
+    id uuid NOT NULL,
+    organization_id uuid NOT NULL,
+    name text NOT NULL,
+    issuer text NOT NULL,
+    subject text NOT NULL,
+    client_id text NOT NULL,
+    created_by uuid NOT NULL,
+    created_at timestamp with time zone NOT NULL,
+    expires_at timestamp with time zone NOT NULL
+);
+
 CREATE TABLE audit_logs (
     id uuid NOT NULL,
     "time" timestamp with time zone NOT NULL,
@@ -3229,6 +3241,9 @@ CREATE TABLE short_term_leases (
     revoked_at timestamp with time zone,
     extension_requested_at timestamp with time zone,
     token_id text DEFAULT ''::text NOT NULL,
+    hidden_at timestamp with time zone,
+    auto_remove_history boolean DEFAULT false NOT NULL,
+    terms jsonb DEFAULT '{}'::jsonb NOT NULL,
     CONSTRAINT short_term_leases_check CHECK ((expires_at > issued_at))
 );
 
@@ -4522,6 +4537,12 @@ ALTER TABLE ONLY aibridge_user_prompts
 ALTER TABLE ONLY api_keys
     ADD CONSTRAINT api_keys_pkey PRIMARY KEY (id);
 
+ALTER TABLE ONLY audit_collectors
+    ADD CONSTRAINT audit_collectors_organization_id_issuer_subject_client_id_key UNIQUE (organization_id, issuer, subject, client_id);
+
+ALTER TABLE ONLY audit_collectors
+    ADD CONSTRAINT audit_collectors_pkey PRIMARY KEY (id);
+
 ALTER TABLE ONLY audit_logs
     ADD CONSTRAINT audit_logs_pkey PRIMARY KEY (id);
 
@@ -5430,6 +5451,12 @@ ALTER TABLE ONLY aibridge_interceptions
 
 ALTER TABLE ONLY api_keys
     ADD CONSTRAINT api_keys_user_id_uuid_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+
+ALTER TABLE ONLY audit_collectors
+    ADD CONSTRAINT audit_collectors_created_by_fkey FOREIGN KEY (created_by) REFERENCES users(id);
+
+ALTER TABLE ONLY audit_collectors
+    ADD CONSTRAINT audit_collectors_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
 
 ALTER TABLE ONLY boundary_logs
     ADD CONSTRAINT boundary_logs_owner_id_fkey FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE SET NULL;

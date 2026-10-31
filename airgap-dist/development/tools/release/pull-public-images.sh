@@ -11,21 +11,36 @@
 set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-usage() { sed -n '2,/^set /p' "$0" | sed '$d' >&2; exit 2; }
+usage() {
+	sed -n '2,/^set /p' "$0" | sed '$d' >&2
+	exit 2
+}
 dry=0 names=()
 while (($#)); do
 	case "$1" in
 	--dry-run) dry=1 ;;
 	-h | --help) usage ;;
-	-*) echo "unknown option: $1" >&2; usage ;;
+	-*)
+		echo "unknown option: $1" >&2
+		usage
+		;;
 	*) names+=("$1") ;;
 	esac
 	shift
 done
 list="${here}/PUBLIC-IMAGES.txt"
-[[ -f "$list" ]] || { echo "ERROR: PUBLIC-IMAGES.txt is missing next to $0" >&2; exit 1; }
-((dry)) || command -v docker >/dev/null || { echo "ERROR: docker not found" >&2; exit 1; }
-name_of() { local p="${1##*/}"; echo "${p%%[:@]*}"; }
+[[ -f "$list" ]] || {
+	echo "ERROR: PUBLIC-IMAGES.txt is missing next to $0" >&2
+	exit 1
+}
+((dry)) || command -v docker >/dev/null || {
+	echo "ERROR: docker not found" >&2
+	exit 1
+}
+name_of() {
+	local p="${1##*/}"
+	echo "${p%%[:@]*}"
+}
 sha() { if command -v sha256sum >/dev/null; then sha256sum "$@"; else shasum -a 256 "$@"; fi; }
 human() { awk -v b="$1" 'BEGIN { split("B KiB MiB GiB", u); i = 1; while (b >= 1024 && i < 4) { b /= 1024; i++ } printf "%.1f%s", b, u[i] }'; }
 
@@ -52,23 +67,32 @@ while read -r path src _; do
 	file="public/$(name_of "$img")_${tag}.tar.gz"
 	if [[ -n "${saved[$img]:-}" ]]; then
 		echo "[${n}] ${img}: saved already (${file})"
-		lines+=("${saved[$img]}"); continue
+		lines+=("${saved[$img]}")
+		continue
 	fi
 	echo "[${n}] ${src} -> ${file}"
 	if ((dry)); then continue; fi
 	if ! docker pull -q --platform linux/amd64 "$src" >/dev/null; then
-		echo "  ERROR: docker pull failed" >&2; failed=$((failed + 1)); continue
+		echo "  ERROR: docker pull failed" >&2
+		failed=$((failed + 1))
+		continue
 	fi
 	docker tag "$src" "$img"
 	if ! docker save "$img" | gzip -1 >"${here}/${file}.part"; then
-		rm -f "${here}/${file}.part"; echo "  ERROR: docker save failed" >&2; failed=$((failed + 1)); continue
+		rm -f "${here}/${file}.part"
+		echo "  ERROR: docker save failed" >&2
+		failed=$((failed + 1))
+		continue
 	fi
 	mv "${here}/${file}.part" "${here}/${file}"
 	cfg=$(docker image inspect --format '{{.Id}}' "$img")
 	lines+=("${img} ${file} $(human "$(stat -c %s "${here}/${file}" 2>/dev/null || stat -f %z "${here}/${file}")") ${cfg} ${digest}")
 	echo "  saved ($(human "$(stat -c %s "${here}/${file}" 2>/dev/null || stat -f %z "${here}/${file}")"))"
 done <"$list"
-((dry)) && { echo "dry run: nothing pulled"; exit 0; }
+((dry)) && {
+	echo "dry run: nothing pulled"
+	exit 0
+}
 
 {
 	echo "# The public images the chart runs, saved by pull-public-images.sh: image  file  size  config-digest  manifest-digest"
@@ -77,4 +101,7 @@ done <"$list"
 mapfile -t saved_files < <(awk '!/^#/ && NF {print $2}' "${here}/IMAGES-public.txt")
 if ((${#saved_files[@]})); then (cd "$here" && sha "${saved_files[@]}" >SHA256SUMS.public); fi
 echo "$(grep -vc '^#' "${here}/IMAGES-public.txt") public images in IMAGES-public.txt; carry this folder across and run ./push-images.sh REGISTRY"
-((failed == 0)) || { echo "${failed} images FAILED (above): run it again" >&2; exit 1; }
+((failed == 0)) || {
+	echo "${failed} images FAILED (above): run it again" >&2
+	exit 1
+}

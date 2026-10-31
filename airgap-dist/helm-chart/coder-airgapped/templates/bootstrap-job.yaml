@@ -100,7 +100,8 @@ spec:
           command: ["python3", "/bootstrap/bootstrap.py"]
           env:
             - name: CODER_URL
-              value: {{ include "ca.svcUrl" (list "coder" . 80) | quote }}
+              value: {{ printf "https://coder.%s.svc.cluster.local" $ns | quote }}
+            - {name: CODER_CA_FILE, value: /etc/coder-internal-ca/ca.crt}
             - name: TIMEOUT
               value: {{ .Values.bootstrap.timeoutSeconds | quote }}
             - name: FIRST_USER_EMAIL
@@ -126,9 +127,12 @@ spec:
             requests: {cpu: 10m, memory: 32Mi}
             limits: {memory: 64Mi}
           volumeMounts:
+            - {name: internal-ca, mountPath: /etc/coder-internal-ca, readOnly: true}
             - {name: script, mountPath: /bootstrap, readOnly: true}
             - {name: db-ca, mountPath: /etc/coder-db-ca, readOnly: true}
       volumes:
+        - name: internal-ca
+          configMap: {name: coder-internal-tls}
         - name: script
           configMap: {name: coder-bootstrap}
         - name: db-ca

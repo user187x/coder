@@ -31,8 +31,8 @@ vi.mock("#/hooks/useAuthenticated", () => ({
 	useAuthenticated: () => ({ user: MockUserOwner }),
 }));
 
-const setup = (compact = false, section = false) => {
-	vi.spyOn(PlatformAPI, "getQuotaReport").mockResolvedValue(MockQuotaReport);
+const setup = (compact = false, section = false, report = MockQuotaReport) => {
+	vi.spyOn(PlatformAPI, "getQuotaReport").mockResolvedValue(report);
 	const client = new QueryClient();
 	renderComponent(
 		<QueryClientProvider client={client}>
@@ -243,4 +243,70 @@ it("saves disk quota overrides with the other resources", async () => {
 			users: { [MockUserMember.username]: { disk: 50 } },
 		}),
 	);
+});
+
+it("saves quota exclusions by account ID and preserves them during usage refreshes", async () => {
+	const save = vi
+		.spyOn(PlatformAPI, "updateQuota")
+		.mockResolvedValue({ ok: true, settings: MockQuotaReport.settings });
+	const client = setup(false, true);
+	const user = userEvent.setup();
+	await user.click(
+		await screen.findByRole("combobox", { name: "Excluded users" }),
+	);
+	await user.click(
+		screen.getByRole("option", { name: MockUserMember.username }),
+	);
+	act(() =>
+		client.setQueryData(quotaReport().queryKey, {
+			...MockQuotaReport,
+			generatedAt: "2026-10-31T12:00:00Z",
+		}),
+	);
+	await user.click(screen.getByRole("button", { name: "Save" }));
+	await waitFor(() =>
+		expect(save).toHaveBeenCalledWith({
+			...MockQuotaReport.settings,
+			excludedUsers: [MockUserMember.id],
+		}),
+	);
+});
+
+it("removes an exclusion without deleting the account's quota overrides", async () => {
+	const settings = {
+		...MockQuotaReport.settings,
+		users: { [MockUserMember.username]: { cpu: 5 } },
+		excludedUsers: [MockUserMember.id],
+	};
+	const save = vi.spyOn(PlatformAPI, "updateQuota").mockResolvedValue({
+		ok: true,
+		settings: { ...settings, excludedUsers: [] },
+	});
+	setup(false, true, { ...MockQuotaReport, settings });
+	const user = userEvent.setup();
+	await user.click(
+		await screen.findByRole("combobox", { name: "Excluded users" }),
+	);
+	await user.keyboard("{Backspace}");
+	await user.click(screen.getByRole("button", { name: "Save" }));
+	await waitFor(() =>
+		expect(save).toHaveBeenCalledWith({ ...settings, excludedUsers: [] }),
+	);
+});
+
+it("discards an exclusion while preserving the saved limits", async () => {
+	const save = vi
+		.spyOn(PlatformAPI, "updateQuota")
+		.mockResolvedValue({ ok: true, settings: MockQuotaReport.settings });
+	setup(false, true);
+	const user = userEvent.setup();
+	await user.click(
+		await screen.findByRole("combobox", { name: "Excluded users" }),
+	);
+	await user.click(
+		screen.getByRole("option", { name: MockUserMember.username }),
+	);
+	await user.click(screen.getByRole("button", { name: "Discard changes" }));
+	await user.click(screen.getByRole("button", { name: "Save" }));
+	expect(save).not.toHaveBeenCalled();
 });

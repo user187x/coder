@@ -5,6 +5,7 @@ import { Link as RouterLink, useNavigate } from "react-router";
 import { toast } from "sonner";
 import { getErrorMessage } from "#/api/errors";
 import { ImagesAPI } from "#/api/images";
+import { imagesInUseKey } from "#/api/queries/images";
 import { nodeImages } from "#/api/queries/nodeImageCleanup";
 import { Badge } from "#/components/Badge/Badge";
 import { Button } from "#/components/Button/Button";
@@ -23,8 +24,6 @@ import { formatSize } from "./badges";
 import { CoderForkBadge, ourImage, useImageContents } from "./CoderForkImages";
 import { nameFrom } from "./ImportImageDialog";
 import { NodeImageCleanup } from "./NodeImageCleanup";
-
-export const inUseKey = ["platform", "images", "in-use"] as const;
 
 /**
  * Scan, for an image that has no entry here: scanned as it is (from the
@@ -66,7 +65,7 @@ export const ImagesInUse: React.FC<{
 	onImport: (initial: { name: string; ref: string }) => void;
 }> = ({ canEdit, onImport }) => {
 	const query = useQuery({
-		queryKey: inUseKey,
+		queryKey: imagesInUseKey,
 		queryFn: ImagesAPI.inUse,
 		refetchInterval: 30_000,
 	});
@@ -199,7 +198,7 @@ export const ImagesOnNodes: React.FC<{ canEdit: boolean }> = ({ canEdit }) => {
 				needed.
 			</p>
 			{canEdit && (
-				<div className="mb-3 flex flex-wrap items-center gap-2">
+				<div className="bulk-action-surface mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-solid border-border bg-surface-secondary px-3 py-2">
 					<Button
 						variant="subtle"
 						size="sm"

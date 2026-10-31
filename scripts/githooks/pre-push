@@ -105,7 +105,7 @@ if $run; then
 
 		if $fallback || [[ -z $changed ]]; then
 			make pre-push || rc=$?
-		elif echo "$changed" | grep -qE '\.(go|ts|tsx|sql|proto)$|^go\.(mod|sum)$|^site/|^Makefile$'; then
+		elif grep -qE '\.(go|ts|tsx|sql|proto)$|^go\.(mod|sum)$|^site/|^Makefile$' <<<"$changed"; then
 			make pre-push || rc=$?
 		else
 			echo "pre-push: no Go/TS changes, skipping tests"

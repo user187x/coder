@@ -208,7 +208,7 @@ func (rpty *screenReconnectingPTY) Attach(ctx context.Context, _ string, conn ne
 	}()
 
 	// Pipe conn -> pty and block.
-	readConnLoop(ctx, conn, ptty, rpty.metrics, logger)
+	readConnLoop(ctx, conn, ptty, rpty.metrics, logger, rpty.Close)
 	return nil
 }
 

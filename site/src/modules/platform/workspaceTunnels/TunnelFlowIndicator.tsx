@@ -1,4 +1,4 @@
-import { useAnimationsEnabled } from "#/modules/platform/animations/animations";
+import { useAnimationsEnabled } from "#/hooks/useAnimationSettings";
 
 /** One illuminated chevron per ready tunnel, indicating incoming or outgoing connections. */
 export const TunnelFlowIndicator = ({

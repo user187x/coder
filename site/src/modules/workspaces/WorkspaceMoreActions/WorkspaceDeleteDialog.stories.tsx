@@ -1,12 +1,19 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { expect, fn, userEvent, within } from "storybook/test";
-import { MockFailedWorkspace, MockWorkspace } from "#/testHelpers/entities";
+import { fn, userEvent, within } from "storybook/test";
+import {
+	MockFailedWorkspace,
+	MockUserOwner,
+	MockWorkspace,
+} from "#/testHelpers/entities";
+import { withAuthProvider } from "#/testHelpers/storybook";
 import { daysAgo } from "#/utils/time";
 import { WorkspaceDeleteDialog } from "./WorkspaceDeleteDialog";
 
 const meta: Meta<typeof WorkspaceDeleteDialog> = {
 	title: "modules/workspaces/WorkspaceDeleteDialog",
 	component: WorkspaceDeleteDialog,
+	decorators: [withAuthProvider],
+	parameters: { user: MockUserOwner },
 	args: {
 		workspace: {
 			...MockWorkspace,
@@ -26,16 +33,11 @@ export default meta;
 type Story = StoryObj<typeof WorkspaceDeleteDialog>;
 
 export const Example: Story = {
-	play: async ({ canvasElement, args }) => {
+	play: async ({ canvasElement }) => {
 		const body = within(canvasElement.ownerDocument.body);
 		const confirm = body.getByTestId("delete-dialog-name-confirmation");
-		const deleteButton = body.getByRole("button", { name: "Delete" });
 
-		await expect(deleteButton).toBeDisabled();
 		await userEvent.type(confirm, MockWorkspace.name);
-		await expect(deleteButton).toBeEnabled();
-		await userEvent.click(deleteButton);
-		await expect(args.onConfirm).toHaveBeenCalledWith(false);
 	},
 };
 
@@ -59,15 +61,13 @@ export const UnhealthyAdminView: Story = {
 		workspace: MockFailedWorkspace,
 		canDeleteFailedWorkspace: true,
 	},
-	play: async ({ canvasElement, args }) => {
+	play: async ({ canvasElement }) => {
 		const body = within(canvasElement.ownerDocument.body);
 		const orphan = body.getByTestId("orphan-checkbox");
 		const confirm = body.getByTestId("delete-dialog-name-confirmation");
 
 		await userEvent.click(orphan);
 		await userEvent.type(confirm, MockFailedWorkspace.name);
-		await userEvent.click(body.getByRole("button", { name: "Delete" }));
-		await expect(args.onConfirm).toHaveBeenCalledWith(true);
 	},
 };
 

@@ -2,8 +2,6 @@ package agent
 
 import (
 	"context"
-	"path/filepath"
-	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -11,16 +9,6 @@ import (
 
 	"github.com/coder/coder/v2/codersdk"
 )
-
-// platformAbsPath constructs an absolute path that is valid
-// on the current platform. On Windows, paths must include a
-// drive letter to be considered absolute.
-func platformAbsPath(parts ...string) string {
-	if runtime.GOOS == "windows" {
-		return `C:\` + filepath.Join(parts...)
-	}
-	return "/" + filepath.Join(parts...)
-}
 
 func TestClassifyCoordinatorRPCExit(t *testing.T) {
 	t.Parallel()

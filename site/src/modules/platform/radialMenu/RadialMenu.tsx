@@ -1,5 +1,11 @@
 import { cn } from "cn";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+	useCallback,
+	useEffect,
+	useEffectEvent,
+	useRef,
+	useState,
+} from "react";
 import { createPortal } from "react-dom";
 import { useQuery } from "react-query";
 import { useNavigate } from "react-router";
@@ -77,12 +83,7 @@ export const popupOpen = (doc: Document = document): boolean =>
 			el.getClientRects().length > 0,
 	);
 
-declare global {
-	interface Window {
-		/** Opens the wheel of the page this one is embedded in (a dashboard page in a frame of the dashboard). */
-		__platformRadialOpen?: () => void;
-	}
-}
+const OPEN_EVENT = "coder-radial-open";
 
 /**
  * Platform: the quick access wheel (radial-menu.html), on every signed-in page (RequireAuth mounts it). Escape
@@ -105,8 +106,7 @@ export const RadialMenu: React.FC = () => {
 	const open = phase === "open";
 	const [chosen, setChosen] = useState<number | null>(null);
 	const before = useRef<HTMLElement | null>(null);
-	const openRef = useRef(open);
-	openRef.current = open;
+	const isOpen = useEffectEvent(() => open);
 
 	const access = {
 		permissions,
@@ -134,7 +134,7 @@ export const RadialMenu: React.FC = () => {
 			setPhase("open");
 		};
 		if (!embedded) {
-			window.__platformRadialOpen = openHere;
+			window.addEventListener(OPEN_EVENT, openHere);
 		}
 		// in the capture phase, ahead of the page's own Escape handlers: they see the page as it is, and an Escape
 		// that opens or closes the wheel goes no further
@@ -150,7 +150,7 @@ export const RadialMenu: React.FC = () => {
 				shortcut === "Escape"
 					? escapeOpensWheel(event)
 					: matchesShortcut(event, shortcut);
-			if (openRef.current && (event.key === "Escape" || activates)) {
+			if (isOpen() && (event.key === "Escape" || activates)) {
 				event.preventDefault();
 				event.stopPropagation();
 				close();
@@ -164,7 +164,7 @@ export const RadialMenu: React.FC = () => {
 				}
 				// a page in a frame of the dashboard: the wheel opens over the whole window, the frame's page included
 				try {
-					window.parent.__platformRadialOpen?.();
+					window.parent.dispatchEvent(new Event(OPEN_EVENT));
 				} catch {
 					// a parent of another origin: no wheel
 				}
@@ -181,9 +181,7 @@ export const RadialMenu: React.FC = () => {
 		window.addEventListener("keydown", onKey, true);
 		return () => {
 			window.removeEventListener("keydown", onKey, true);
-			if (!embedded && window.__platformRadialOpen === openHere) {
-				window.__platformRadialOpen = undefined;
-			}
+			window.removeEventListener(OPEN_EVENT, openHere);
 		};
 	}, [close, shortcut]);
 

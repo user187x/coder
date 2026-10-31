@@ -5,10 +5,10 @@
 declare target
 
 case $1 in
-	--taskmanager) target="xfce4-taskmanager" ;;
-	--filemanager) target="thunar" ;;
-	--webbrowser) target="chromium" ;;
-	--terminal) target="terminator" ;;
+--taskmanager) target="xfce4-taskmanager" ;;
+--filemanager) target="thunar" ;;
+--webbrowser) target="chromium" ;;
+--terminal) target="terminator" ;;
 esac
 
 [ -n "$target" ] && setsid gtk-launch "$target" >/dev/null 2>&1 &

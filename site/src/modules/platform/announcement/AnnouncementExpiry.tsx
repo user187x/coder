@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogTitle } from "#/components/Dialog/Dialog";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { AnnouncementMessage } from "./AnnouncementReader";
 import { useBannerClock } from "./bannerClock";
+import { useAnnouncementMotion } from "./useAnnouncementMotion";
 import { useBannerLive } from "./useBannerLive";
 import "./announcementExpiry.css";
 
@@ -18,7 +19,7 @@ export const AnnouncementExpiry: React.FC = () => {
 	const { data: banner } = useQuery(bannerQuery(live));
 	if (
 		!banner?.enabled ||
-		!banner.countdown ||
+		(!banner.countdown && banner.countdownAction !== "focus") ||
 		!banner.countdownAction ||
 		banner.countdownAction === "none"
 	)
@@ -36,6 +37,7 @@ export const AnnouncementExpiryNotice: React.FC<{
 	banner: Banner;
 	userId: string;
 }> = ({ banner, userId }) => {
+	const motion = useAnnouncementMotion(banner.animationsDisabled);
 	const now = useBannerClock();
 	const target = Date.parse(banner.countdown ?? "");
 	const token = `${banner.id}:${banner.countdown}:${banner.countdownAction}`;
@@ -49,8 +51,8 @@ export const AnnouncementExpiryNotice: React.FC<{
 	});
 	const active =
 		banner.enabled &&
-		Number.isFinite(target) &&
-		now >= target &&
+		((!banner.countdown && banner.countdownAction === "focus") ||
+			(Number.isFinite(target) && now >= target)) &&
 		!dismissed &&
 		(banner.countdownAction === "shake" || banner.countdownAction === "focus");
 	const dismiss = useCallback(() => {
@@ -78,8 +80,10 @@ export const AnnouncementExpiryNotice: React.FC<{
 		};
 	}, [storageKey, token]);
 	useEffect(() => {
-		if (!active || banner.countdownAction !== "shake") return;
-		document.documentElement.classList.add("announcement-expiry-shake");
+		if (!active || !motion.effects || banner.countdownAction !== "shake")
+			return;
+		if (motion.effects)
+			document.documentElement.classList.add("announcement-expiry-shake");
 		window.addEventListener("pointerdown", dismiss, true);
 		window.addEventListener("keydown", dismiss, true);
 		return () => {
@@ -87,7 +91,7 @@ export const AnnouncementExpiryNotice: React.FC<{
 			window.removeEventListener("pointerdown", dismiss, true);
 			window.removeEventListener("keydown", dismiss, true);
 		};
-	}, [active, banner.countdownAction, dismiss]);
+	}, [active, motion.effects, banner.countdownAction, dismiss]);
 	if (!active) return null;
 	if (banner.countdownAction === "shake")
 		return (

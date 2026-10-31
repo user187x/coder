@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useAnimationsEnabled } from "#/modules/platform/animations/animations";
+import { useAnimationsEnabled } from "#/hooks/useAnimationSettings";
 import { CloudDriveMalePlug } from "./CloudDriveMalePlug";
 import { motionless } from "./CloudDriveRopes";
 import {

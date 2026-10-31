@@ -10,23 +10,35 @@
 # Writes <out>/coder-security-data-<UTC date>.tar.gz (default out: dist/) and its .sha256. Carry it across the air
 # gap and upload it. trivy publishes a new vulnerability database every 6 hours; the dashboard warns after 14 days.
 set -euo pipefail
-here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; top="$(cd "${here}/../.." && pwd)"
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+top="$(cd "${here}/../.." && pwd)"
 image="docker.io/mrshll187/coder-image-tools:1.6.0"
 rules="${top}/helm-chart/coder-airgapped/files/ui-updates/fips-rules.json"
-out="${top}/dist"; java=1
+out="${top}/dist"
+java=1
 while (($#)); do
 	case "$1" in
 	--no-java) java=0 ;;
-	--fips-rules) rules="$2"; shift ;;
-	--out) out="$2"; shift ;;
-	*) echo "usage: $0 [--no-java] [--fips-rules FILE] [--out DIR]" >&2; exit 2 ;;
+	--fips-rules)
+		rules="$2"
+		shift
+		;;
+	--out)
+		out="$2"
+		shift
+		;;
+	*)
+		echo "usage: $0 [--no-java] [--fips-rules FILE] [--out DIR]" >&2
+		exit 2
+		;;
 	esac
 	shift
 done
 docker image inspect "$image" >/dev/null 2>&1 ||
 	docker load -q -i "${top}/helm-chart/$("${top}/helm-chart/mirror-images.sh" path "$image")"
 
-work="$(mktemp -d)"; trap 'rm -rf "$work"' EXIT
+work="$(mktemp -d)"
+trap 'rm -rf "$work"' EXIT
 mkdir -p "$work/cache" "$work/data/trivy"
 trivy() { # the bundle's trivy, allowed to download this time
 	docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -e TRIVY_SKIP_DB_UPDATE=false \

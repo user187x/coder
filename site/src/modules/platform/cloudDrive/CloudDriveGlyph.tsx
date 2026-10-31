@@ -63,14 +63,14 @@ export const CloudDriveGlyph: React.FC<{ workspace: Workspace }> = ({
 						aria-label={`Cloud Drive ${connected ? "connected" : "disconnected"}: ${formatBytes(used)}${quota === null ? "" : ` of ${formatBytes(quota)}`} used`}
 						data-testid="cloud-drive-glyph"
 						data-state={connected ? "connected" : "disconnected"}
-						className="cd-glyph relative flex h-5 min-w-5 cursor-pointer items-center justify-center border-0 bg-transparent p-0 px-1 text-content-secondary"
+						className="cd-glyph relative flex h-6 min-w-6 cursor-pointer items-center justify-center border-0 bg-transparent p-0 px-1 text-content-secondary"
 						onClick={() => {
 							setOpen(false);
 							setView("files");
 							setWindowOpen(true);
 						}}
 					>
-						<span aria-hidden className="cd-cloud-icon relative size-3.5" />
+						<span aria-hidden className="cd-cloud-icon relative size-5" />
 					</button>
 				</TooltipTrigger>
 				<TooltipContent

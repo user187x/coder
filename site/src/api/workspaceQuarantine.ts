@@ -5,7 +5,7 @@ import type {
 	WorkspaceQuarantine,
 } from "./typesGenerated";
 
-export type QuarantineComponent = {
+type QuarantineComponent = {
 	state:
 		| "pending"
 		| "blocked"

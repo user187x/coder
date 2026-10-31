@@ -2,11 +2,11 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { PlatformAPI } from "#/api/platform";
-import { lavaPicture } from "../lava/drawLava";
+import { lavaPicture } from "#/components/LavaImage/drawLava";
 import { PREBAKED_BACKGROUNDS, PREBAKED_GALLERY } from "../pictures";
 import { GalleryPicker } from "./GalleryPicker";
 
-vi.mock("../lava/drawLava", () => ({
+vi.mock("#/components/LavaImage/drawLava", () => ({
 	lavaRenderer: () => () => {},
 	lavaPicture: vi.fn(),
 }));

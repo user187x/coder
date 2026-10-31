@@ -13,7 +13,7 @@ describe("backgroundStyle", () => {
 	it.each([
 		["stretch", "100% 100%"],
 		["center", "auto"],
-		["span", "100% auto"],
+		["span", "cover"],
 	] as const)("maps %s in both rendering layers", (fit, size) => {
 		expect(
 			backgroundStyle({ url: "/x.png", opacity: 0.1, fit }).backgroundSize,
@@ -99,7 +99,7 @@ describe("PlatformBackground", () => {
 
 describe("PlatformBackground: an animated GIF", () => {
 	afterEach(async () => {
-		const { setAnimationPart } = await import("../animations/animations");
+		const { setAnimationPart } = await import("#/hooks/useAnimationSettings");
 		setAnimationPart("background", true);
 		setAnimationPart("gifs", true);
 		setBackground("dashboard", null);
@@ -111,7 +111,7 @@ describe("PlatformBackground: an animated GIF", () => {
 		const still = vi
 			.spyOn(freezer, "stillFrame")
 			.mockResolvedValue("data:image/png;base64,STILL");
-		const { setAnimationPart } = await import("../animations/animations");
+		const { setAnimationPart } = await import("#/hooks/useAnimationSettings");
 		const { act, screen, waitFor } = await import("@testing-library/react");
 		render(<PlatformBackground slot="dashboard" />);
 		act(() =>

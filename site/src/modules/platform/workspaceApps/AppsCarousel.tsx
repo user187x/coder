@@ -1,6 +1,11 @@
 import { cn } from "cn";
-import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
-import { Children, type ReactNode, useState } from "react";
+import {
+	ChevronDownIcon,
+	ChevronLeftIcon,
+	ChevronRightIcon,
+	ChevronUpIcon,
+} from "lucide-react";
+import { Children, useState } from "react";
 import "./appsCarousel.css";
 
 /**
@@ -12,16 +17,26 @@ import "./appsCarousel.css";
  * the same width (each row's apps line up), its arrows in it, the side with more apps to see lit faintly.
  */
 export const AppsCarousel: React.FC<{
-	children: ReactNode;
+	children: React.ReactNode;
 	/** The apps shown at once. */
 	visible?: number;
 	/** In a frame of its own, as wide as `visible` apps, whatever their number. */
 	framed?: boolean;
-}> = ({ children, visible = 4, framed = false }) => {
+	orientation?: "horizontal" | "vertical";
+	label?: string;
+	className?: string;
+}> = ({
+	children,
+	visible = 4,
+	framed = false,
+	orientation = "horizontal",
+	label = "Apps",
+	className,
+}) => {
 	const items = Children.toArray(children);
 	const [start, setStart] = useState(0);
 	if (items.length <= visible && !framed) {
-		return <>{items}</>;
+		return items;
 	}
 	const last = Math.max(0, items.length - visible);
 	const at = Math.min(start, last);
@@ -34,31 +49,43 @@ export const AppsCarousel: React.FC<{
 			aria-roledescription="carousel"
 			aria-label={
 				fits
-					? `Apps (${items.length})`
-					: `Apps ${at + 1} to ${at + visible} of ${items.length}`
+					? `${label} (${items.length})`
+					: `${label} ${at + 1} to ${at + visible} of ${items.length}`
 			}
 			data-testid="workspace-apps-carousel"
 			data-framed={framed || undefined}
 			data-fits={fits || undefined}
 			data-more-before={at > 0 || undefined}
 			data-more-after={at < last || undefined}
-			className="apps-carousel"
+			className={cn("apps-carousel", className)}
+			data-orientation={orientation}
 			style={{ "--apps-visible": visible } as React.CSSProperties}
 			onClick={(e) => e.stopPropagation()}
 			onKeyDown={(e) => {
-				if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+				const previous = orientation === "vertical" ? "ArrowUp" : "ArrowLeft";
+				const next = orientation === "vertical" ? "ArrowDown" : "ArrowRight";
+				if (e.key === previous || e.key === next) {
 					e.preventDefault();
-					go(at + (e.key === "ArrowLeft" ? -1 : 1));
+					e.stopPropagation();
+					go(at + (e.key === previous ? -1 : 1));
 				}
 			}}
 			onWheel={(e) => {
 				// a sideways swipe or scroll (a trackpad, shift and the wheel): the page's own scrolling is left alone
-				if (Math.abs(e.deltaX) > Math.abs(e.deltaY) && Math.abs(e.deltaX) > 4) {
+				if (orientation === "vertical" && Math.abs(e.deltaY) > 4) {
+					e.stopPropagation();
+					go(at + (e.deltaY < 0 ? -1 : 1));
+				} else if (
+					Math.abs(e.deltaX) > Math.abs(e.deltaY) &&
+					Math.abs(e.deltaX) > 4
+				) {
 					go(at + (e.deltaX < 0 ? -1 : 1));
 				}
 			}}
 		>
 			<CarouselArrow
+				orientation={orientation}
+				itemLabel={label === "Apps" ? "app" : "shortcut"}
 				side="previous"
 				disabled={at === 0}
 				onClick={() => go(at - 1)}
@@ -88,14 +115,18 @@ export const AppsCarousel: React.FC<{
 						<span
 							className="apps-carousel-thumb"
 							style={{
-								width: `${(visible / items.length) * 100}%`,
-								left: `${(at / items.length) * 100}%`,
+								[orientation === "vertical" ? "height" : "width"]:
+									`${(visible / items.length) * 100}%`,
+								[orientation === "vertical" ? "top" : "left"]:
+									`${(at / items.length) * 100}%`,
 							}}
 						/>
 					</span>
 				)}
 			</div>
 			<CarouselArrow
+				orientation={orientation}
+				itemLabel={label === "Apps" ? "app" : "shortcut"}
 				side="next"
 				disabled={at === last}
 				onClick={() => go(at + 1)}
@@ -106,16 +137,25 @@ export const AppsCarousel: React.FC<{
 
 const CarouselArrow: React.FC<{
 	side: "previous" | "next";
+	orientation: "horizontal" | "vertical";
+	itemLabel: string;
 	disabled: boolean;
 	onClick: () => void;
-}> = ({ side, disabled, onClick }) => {
-	const Icon = side === "previous" ? ChevronLeftIcon : ChevronRightIcon;
+}> = ({ side, disabled, onClick, orientation, itemLabel }) => {
+	const Icon =
+		orientation === "vertical"
+			? side === "previous"
+				? ChevronUpIcon
+				: ChevronDownIcon
+			: side === "previous"
+				? ChevronLeftIcon
+				: ChevronRightIcon;
 	return (
 		<button
 			type="button"
 			className="apps-carousel-arrow"
 			data-testid={`workspace-apps-${side}`}
-			aria-label={side === "previous" ? "Previous app" : "Next app"}
+			aria-label={`${side === "previous" ? "Previous" : "Next"} ${itemLabel}`}
 			disabled={disabled}
 			onClick={(e) => {
 				e.stopPropagation();

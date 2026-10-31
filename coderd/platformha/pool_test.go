@@ -4,10 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"golang.org/x/xerrors"
 
 	"github.com/coder/coder/v2/coderd/database/dbtestutil"
 	"github.com/coder/coder/v2/coderd/platformha"
@@ -52,8 +52,8 @@ func (c *cancelConnector) Driver() driver.Driver { return &cancelDriver{connecto
 
 type cancelDriver struct{ connector *cancelConnector }
 
-func (d *cancelDriver) Open(string) (driver.Conn, error) {
-	return nil, errors.New("connector required")
+func (*cancelDriver) Open(string) (driver.Conn, error) {
+	return nil, xerrors.New("connector required")
 }
 func (d *cancelDriver) Connector(string) (driver.Connector, error) { return d.connector, nil }
 

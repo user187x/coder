@@ -64,7 +64,7 @@ export const DockSections: React.FC<{
 				if (tab === "people" || tab === "chat" || tab === "notifications")
 					setDockTab(tab);
 			}}
-			className="flex min-h-0 flex-1"
+			className="flex min-h-0 min-w-0 flex-1"
 		>
 			<TabsList
 				aria-label="Chat sections"
@@ -185,7 +185,7 @@ const SectionTab: React.FC<
 		<ContextMenuTrigger asChild>
 			<TabsTrigger {...props}>{children}</TabsTrigger>
 		</ContextMenuTrigger>
-		<ContextMenuContent className="z-[110]">
+		<ContextMenuContent className="bulk-action-surface z-[110]">
 			<ContextMenuItem
 				onSelect={() => {
 					if (

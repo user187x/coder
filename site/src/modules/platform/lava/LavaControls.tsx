@@ -1,8 +1,12 @@
 import { MinusIcon, PlusIcon, RotateCcwIcon, ShuffleIcon } from "lucide-react";
 import { Button } from "#/components/Button/Button";
+import {
+	LAVA_LIMITS,
+	type LavaSettings,
+	randomBlob,
+} from "#/components/LavaImage/lava";
 import { Slider, Toggle } from "../background/HtmlBackgroundControls";
 import { ColorField } from "../ColorField";
-import { LAVA_LIMITS, type LavaSettings, randomBlob } from "./lava";
 
 const COLOR_PRESETS = {
 	primary: [

@@ -14,13 +14,17 @@
 # Sources (environment): K9S_BIN (~/.local/bin/k9s), K9S_CONFIG (~/.config/k9s), KUBECTL_BIN (on PATH),
 # KUBELOGIN_BIN (default: the pinned release, downloaded once into ~/.cache/coder-airgapped).
 set -euo pipefail
-here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; dev="$(dirname "$here")"
-version="${1:-1.1.0}"; pkg=k8s-devtools
-k9s_bin="${K9S_BIN:-$HOME/.local/bin/k9s}"; k9s_config="${K9S_CONFIG:-$HOME/.config/k9s}"
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+dev="$(dirname "$here")"
+version="${1:-1.1.0}"
+pkg=k8s-devtools
+k9s_bin="${K9S_BIN:-$HOME/.local/bin/k9s}"
+k9s_config="${K9S_CONFIG:-$HOME/.config/k9s}"
 kubectl_bin="${KUBECTL_BIN:-$(command -v kubectl)}"
 kubelogin_version=v1.36.4
 kubelogin_zip_sha256=9e8baeb4905d35a301304af2548324997add512fe94ab20e65993d167212bf85
-out="${dev}/workspace-image/packages"; deb="${out}/${pkg}_${version}_amd64.deb"
+out="${dev}/workspace-image/packages"
+deb="${out}/${pkg}_${version}_amd64.deb"
 
 if [[ -z "${KUBELOGIN_BIN:-}" ]]; then
 	cache="${XDG_CACHE_HOME:-$HOME/.cache}/coder-airgapped/kubelogin-${kubelogin_version}"
@@ -29,23 +33,39 @@ if [[ -z "${KUBELOGIN_BIN:-}" ]]; then
 		mkdir -p "$cache"
 		curl -fsSL -o "${cache}/kubelogin_linux_amd64.zip" \
 			"https://github.com/int128/kubelogin/releases/download/${kubelogin_version}/kubelogin_linux_amd64.zip"
-		echo "${kubelogin_zip_sha256}  ${cache}/kubelogin_linux_amd64.zip" | sha256sum -c --quiet \
-			|| { rm -f "${cache}/kubelogin_linux_amd64.zip"; echo "ERROR: kubelogin checksum mismatch" >&2; exit 1; }
+		echo "${kubelogin_zip_sha256}  ${cache}/kubelogin_linux_amd64.zip" | sha256sum -c --quiet ||
+			{
+				rm -f "${cache}/kubelogin_linux_amd64.zip"
+				echo "ERROR: kubelogin checksum mismatch" >&2
+				exit 1
+			}
 		unzip -o -q "${cache}/kubelogin_linux_amd64.zip" kubelogin -d "$cache"
 	fi
 fi
 kubelogin_bin="$KUBELOGIN_BIN"
 
 for f in "$k9s_bin" "$kubectl_bin" "$kubelogin_bin"; do
-	[[ -x "$f" ]] || { echo "ERROR: not an executable: $f" >&2; exit 1; }
-	file -L "$f" | grep -q 'ELF 64-bit.*x86-64' || { echo "ERROR: not a linux/amd64 binary: $f" >&2; exit 1; }
+	[[ -x "$f" ]] || {
+		echo "ERROR: not an executable: $f" >&2
+		exit 1
+	}
+	file -L "$f" | grep -q 'ELF 64-bit.*x86-64' || {
+		echo "ERROR: not a linux/amd64 binary: $f" >&2
+		exit 1
+	}
 done
 for f in config.yaml aliases.yaml plugins skins; do
-	[[ -e "${k9s_config}/${f}" ]] || { echo "ERROR: missing ${k9s_config}/${f}" >&2; exit 1; }
+	[[ -e "${k9s_config}/${f}" ]] || {
+		echo "ERROR: missing ${k9s_config}/${f}" >&2
+		exit 1
+	}
 done
 
-root="$(mktemp -d)"; trap 'rm -rf "$root"' EXIT
-lib="${root}/usr/lib/${pkg}"; share="${root}/usr/share/${pkg}"; doc="${root}/usr/share/doc/${pkg}"
+root="$(mktemp -d)"
+trap 'rm -rf "$root"' EXIT
+lib="${root}/usr/lib/${pkg}"
+share="${root}/usr/share/${pkg}"
+doc="${root}/usr/share/doc/${pkg}"
 comp="${root}/usr/share/bash-completion/completions"
 mkdir -p "$lib" "${share}/k9s" "$doc" "$comp" "${root}/usr/bin" "${root}/DEBIAN"
 
@@ -58,7 +78,8 @@ ln -s "../lib/${pkg}/kubelogin" "${root}/usr/bin/kubelogin"
 
 # k9s's configuration (symlinks resolved), and its plugin script on PATH (the plugin looks there first).
 for f in config.yaml aliases.yaml plugins skins; do cp -rL "${k9s_config}/${f}" "${share}/k9s/"; done
-find "${share}/k9s" -type d -exec chmod 0755 {} + ; find "${share}/k9s" -type f -exec chmod 0644 {} +
+find "${share}/k9s" -type d -exec chmod 0755 {} +
+find "${share}/k9s" -type f -exec chmod 0644 {} +
 find "${share}/k9s/plugins" -path '*/scripts/*' -type f -exec chmod 0755 {} +
 if [[ -f "${share}/k9s/plugins/scripts/k9s-copy-secret" ]]; then
 	ln -s "../share/${pkg}/k9s/plugins/scripts/k9s-copy-secret" "${root}/usr/bin/k9s-copy-secret"
@@ -126,7 +147,8 @@ Description: k9s (custom build, with its configuration), kubectl and kubelogin
  configuration the bundled one on first run.
 EOF
 
-mkdir -p "$out"; rm -f "${out}/${pkg}"_*_amd64.deb
+mkdir -p "$out"
+rm -f "${out}/${pkg}"_*_amd64.deb
 fakeroot dpkg-deb -Zxz --build "$root" "$deb" >/dev/null
 (cd "$out" && sha256sum ./*.deb | sed 's|  \./|  |' >SHA256SUMS)
 echo "built ${deb} ($(du -h "$deb" | cut -f1)): k9s ${k9s_v}, kubectl ${kubectl_v}, kubelogin ${kubelogin_v}"

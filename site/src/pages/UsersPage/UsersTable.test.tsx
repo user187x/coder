@@ -164,6 +164,7 @@ describe("UsersTable", () => {
 				MockWorkspace.organization_id,
 				"shutdown",
 				["alpha", "beta"],
+				false,
 			),
 		);
 		expect(accountSelect).not.toHaveBeenCalled();

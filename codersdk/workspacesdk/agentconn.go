@@ -216,9 +216,11 @@ func AgentReconnectingPTYInitWithContainer(container, containerUser string) Agen
 // to pipe data to a PTY.
 // @typescript-ignore ReconnectingPTYRequest
 type ReconnectingPTYRequest struct {
-	Data   string `json:"data,omitempty"`
-	Height uint16 `json:"height,omitempty"`
-	Width  uint16 `json:"width,omitempty"`
+	// Terminate ends this PTY process, rather than detaching for reconnection.
+	Terminate bool   `json:"terminate,omitempty"`
+	Data      string `json:"data,omitempty"`
+	Height    uint16 `json:"height,omitempty"`
+	Width     uint16 `json:"width,omitempty"`
 }
 
 // ReconnectingPTY spawns a new reconnecting terminal session.

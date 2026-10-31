@@ -142,12 +142,38 @@ async def control(request):
     return web.json_response({'stopped': True})
 
 
+async def status(request):
+    session_id = request.match_info['session']
+    if not re.fullmatch(r'[a-zA-Z0-9_-]{1,80}', session_id):
+        raise web.HTTPBadRequest()
+    async with LOCK:
+        session = SESSIONS.get(session_id)
+        running = bool(session and session['browser'].returncode is None)
+        if session and not running:
+            await stop_session(session_id)
+    return web.json_response({'running': running}, headers={'Cache-Control': 'no-store'})
+
+
+async def list_sessions(_request):
+    async with LOCK:
+        sessions = [key for key, session in SESSIONS.items() if session['browser'].returncode is None]
+    return web.json_response({'sessions': sessions}, headers={'Cache-Control': 'no-store'})
+
+
+async def support(_request):
+    return web.FileResponse('/opt/coder/neko-support.html', headers={
+        'Cache-Control': 'no-store',
+        'X-Content-Type-Options': 'nosniff',
+        'Referrer-Policy': 'same-origin',
+    })
+
+
 async def proxy(request):
     session_id = request.match_info['session']
     if not re.fullmatch(r'[a-zA-Z0-9_-]{1,80}', session_id):
         raise web.HTTPBadRequest()
     async with LOCK:
-        if session_id not in SESSIONS and request.match_info.get('path', ''):
+        if session_id not in SESSIONS and (request.match_info.get('path', '') or request.query.get('existing') == '1'):
             raise web.HTTPGone(text='This browser session has closed. Reopen its panel.')
         session = await start_session(session_id)
     path = '/' + request.match_info.get('path', '')
@@ -202,6 +228,9 @@ def application():
     app.cleanup_ctx.append(lifecycle)
     app.router.add_route('*', '/control', control)
     app.router.add_get('/', index)
+    app.router.add_get('/sessions', list_sessions)
+    app.router.add_get('/support', support)
+    app.router.add_get('/sessions/{session}/status', status)
     app.router.add_route('*', '/sessions/{session}/{path:.*}', proxy)
     return app
 

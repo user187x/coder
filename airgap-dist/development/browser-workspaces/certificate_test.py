@@ -26,6 +26,15 @@ class CertificateTest(unittest.TestCase):
             keys = subprocess.run(['certutil', '-K', '-d', 'sql:' + str(module.DB)], check=True, capture_output=True, text=True)
             self.assertIn('rsa', keys.stdout)
             self.assertIsNotNone(module.INSTALLED_DIGEST)
+            self.assertEqual(len(module.CERTIFICATE_DETAILS['thumbprint'].split(':')), 32)
+            self.assertIn('Workspace Test', module.CERTIFICATE_DETAILS['subject'])
+            self.assertIn('T', module.CERTIFICATE_DETAILS['expires_at'])
+            saved = module.CERTIFICATE_DETAILS.copy()
+            module.CERTIFICATE_DETAILS = None
+            module.INSTALLED_DIGEST = None
+            self.assertTrue(module.restored_certificate(root / 'test.p12'))
+            self.assertEqual(module.CERTIFICATE_DETAILS, saved)
+            self.assertNotIn('PRIVATE KEY', (module.DB / 'coder-certificate.json').read_text())
             self.assertFalse((root / 'password').exists())
 
 

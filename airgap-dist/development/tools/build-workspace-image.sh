@@ -14,13 +14,20 @@
 # coder-workspace.workspaceImage in helm-chart/coder-airgapped/values.yaml.
 #   ./build-workspace-image.sh [TAG]       default: the release version (RELEASE_VERSION at the repository's root)
 set -euo pipefail
-here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; dev="$(dirname "$here")"; top="$(dirname "$dev")"
-release="$(cat "$(dirname "$top")/RELEASE_VERSION")"  # every image of ours is tagged with the release version (RELEASE_VERSION)
-tag="${1:-$release}"; img="docker.io/mrshll187/coder-workspace:${tag}"
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+dev="$(dirname "$here")"
+top="$(dirname "$dev")"
+release="$(cat "$(dirname "$top")/RELEASE_VERSION")" # every image of ours is tagged with the release version (RELEASE_VERSION)
+tag="${1:-$release}"
+img="docker.io/mrshll187/coder-workspace:${tag}"
 quantum="${FILEBROWSER_QUANTUM:-${top}/filebrowser-quantum}"
-[ -f "$quantum" ] || { echo "FileBrowser Quantum's binary is missing: $quantum (see the top of this script)" >&2; exit 1; }
+[ -f "$quantum" ] || {
+	echo "FileBrowser Quantum's binary is missing: $quantum (see the top of this script)" >&2
+	exit 1
+}
 # the binary alone as a build context of its own (not the repository)
-qctx="$(mktemp -d)"; trap 'rm -rf "$qctx"' EXIT
+qctx="$(mktemp -d)"
+trap 'rm -rf "$qctx"' EXIT
 cp "$quantum" "$qctx/filebrowser-quantum"
 docker build --platform linux/amd64 --build-context quantum="$qctx" --build-context crypto-policy="${top}/helm-chart/coder-airgapped/files/ui-updates" -t "$img" "${dev}/workspace-image"
 # What the image must provide (the template relies on it):

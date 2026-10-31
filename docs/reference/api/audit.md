@@ -107,3 +107,251 @@ curl -X GET http://coder-server:8080/api/v2/audit?limit=0 \
 | 200    | [OK](https://tools.ietf.org/html/rfc7231#section-6.3.1) | OK          | [codersdk.AuditLogResponse](schemas.md#codersdkauditlogresponse) |
 
 To perform this operation, you must be authenticated. [Learn more](authentication.md).
+
+## Collect organization audit logs with a Keycloak access token
+
+### Code samples
+
+```sh
+# Example request using curl
+curl -X GET http://coder-server:8080/api/v2/audit-export/{organization} \
+  -H 'Accept: application/json' \
+  -H 'Authorization: string' \
+  -H 'Authorization: API_KEY'
+```
+
+`GET /api/v2/audit-export/{organization}`
+
+### Parameters
+
+| Name            | In     | Type    | Required | Description                                                              |
+|-----------------|--------|---------|----------|--------------------------------------------------------------------------|
+| `organization`  | path   | string  | true     | Organization ID                                                          |
+| `Authorization` | header | string  | true     | Bearer access token with coder-audit audience and coder:audit:read scope |
+| `q`             | query  | string  | false    | Audit filter; organization is always enforced                            |
+| `limit`         | query  | integer | false    | Page size, 1 to 500 (default 100)                                        |
+| `offset`        | query  | integer | false    | Page offset                                                              |
+
+### Example responses
+
+> 200 Response
+
+```json
+{
+  "audit_logs": [
+    {
+      "action": "create",
+      "additional_fields": {},
+      "description": "string",
+      "diff": {
+        "property1": {
+          "new": null,
+          "old": null,
+          "secret": true
+        },
+        "property2": {
+          "new": null,
+          "old": null,
+          "secret": true
+        }
+      },
+      "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+      "ip": "string",
+      "is_deleted": true,
+      "organization": {
+        "display_name": "string",
+        "icon": "string",
+        "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+        "name": "string"
+      },
+      "organization_id": "7c60d51f-b44e-4682-87d6-449835ea4de6",
+      "request_id": "266ea41d-adf5-480b-af50-15b940c2b846",
+      "resource_icon": "string",
+      "resource_id": "4d5215ed-38bb-48ed-879a-fdb9ca58522f",
+      "resource_link": "string",
+      "resource_target": "string",
+      "resource_type": "template",
+      "status_code": 0,
+      "time": "2019-08-24T14:15:22Z",
+      "user": {
+        "avatar_url": "http://example.com",
+        "created_at": "2019-08-24T14:15:22Z",
+        "email": "user@example.com",
+        "has_ai_seat": true,
+        "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+        "is_service_account": true,
+        "last_seen_at": "2019-08-24T14:15:22Z",
+        "login_type": "",
+        "name": "string",
+        "organization_ids": [
+          "497f6eca-6276-4993-bfeb-53cbbbba6f08"
+        ],
+        "roles": [
+          {
+            "display_name": "string",
+            "name": "string",
+            "organization_id": "string"
+          }
+        ],
+        "status": "active",
+        "theme_preference": "string",
+        "updated_at": "2019-08-24T14:15:22Z",
+        "username": "string"
+      },
+      "user_agent": "string"
+    }
+  ],
+  "count": 0,
+  "count_cap": 0
+}
+```
+
+### Responses
+
+| Status | Meaning                                                         | Description  | Schema                                                           |
+|--------|-----------------------------------------------------------------|--------------|------------------------------------------------------------------|
+| 200    | [OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)         | OK           | [codersdk.AuditLogResponse](schemas.md#codersdkauditlogresponse) |
+| 401    | [Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1) | Unauthorized | [codersdk.OAuth2Error](schemas.md#codersdkoauth2error)           |
+| 403    | [Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)  | Forbidden    | [codersdk.OAuth2Error](schemas.md#codersdkoauth2error)           |
+
+To perform this operation, you must be authenticated. [Learn more](authentication.md).
+
+## Get external audit collector configuration
+
+### Code samples
+
+```sh
+# Example request using curl
+curl -X GET http://coder-server:8080/api/v2/organizations/{organization}/audit-collectors \
+  -H 'Accept: application/json' \
+  -H 'Coder-Session-Token: API_KEY'
+```
+
+`GET /api/v2/organizations/{organization}/audit-collectors`
+
+### Parameters
+
+| Name           | In   | Type   | Required | Description     |
+|----------------|------|--------|----------|-----------------|
+| `organization` | path | string | true     | Organization ID |
+
+### Example responses
+
+> 200 Response
+
+```json
+{
+  "audience": "string",
+  "available": true,
+  "collectors": [
+    {
+      "client_id": "string",
+      "created_at": "2019-08-24T14:15:22Z",
+      "created_by": "ee824cad-d7a6-4f48-87dc-e8461a9201c4",
+      "expires_at": "2019-08-24T14:15:22Z",
+      "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+      "issuer": "string",
+      "name": "string",
+      "organization_id": "7c60d51f-b44e-4682-87d6-449835ea4de6",
+      "subject": "string"
+    }
+  ],
+  "endpoint": "string",
+  "issuer": "string",
+  "scope": "string",
+  "token_endpoint": "string"
+}
+```
+
+### Responses
+
+| Status | Meaning                                                 | Description | Schema                                                                                 |
+|--------|---------------------------------------------------------|-------------|----------------------------------------------------------------------------------------|
+| 200    | [OK](https://tools.ietf.org/html/rfc7231#section-6.3.1) | OK          | [codersdk.AuditCollectorConfiguration](schemas.md#codersdkauditcollectorconfiguration) |
+
+To perform this operation, you must be authenticated. [Learn more](authentication.md).
+
+## Grant external audit access
+
+### Code samples
+
+```sh
+# Example request using curl
+curl -X POST http://coder-server:8080/api/v2/organizations/{organization}/audit-collectors \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json' \
+  -H 'Coder-Session-Token: API_KEY'
+```
+
+`POST /api/v2/organizations/{organization}/audit-collectors`
+
+> Body parameter
+
+```json
+{
+  "client_id": "string",
+  "name": "string",
+  "subject": "string",
+  "valid_days": 0
+}
+```
+
+### Parameters
+
+| Name           | In   | Type                                                                                   | Required | Description     |
+|----------------|------|----------------------------------------------------------------------------------------|----------|-----------------|
+| `organization` | path | string                                                                                 | true     | Organization ID |
+| `body`         | body | [codersdk.CreateAuditCollectorRequest](schemas.md#codersdkcreateauditcollectorrequest) | true     | Collector grant |
+
+### Example responses
+
+> 201 Response
+
+```json
+{
+  "client_id": "string",
+  "created_at": "2019-08-24T14:15:22Z",
+  "created_by": "ee824cad-d7a6-4f48-87dc-e8461a9201c4",
+  "expires_at": "2019-08-24T14:15:22Z",
+  "id": "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+  "issuer": "string",
+  "name": "string",
+  "organization_id": "7c60d51f-b44e-4682-87d6-449835ea4de6",
+  "subject": "string"
+}
+```
+
+### Responses
+
+| Status | Meaning                                                      | Description | Schema                                                       |
+|--------|--------------------------------------------------------------|-------------|--------------------------------------------------------------|
+| 201    | [Created](https://tools.ietf.org/html/rfc7231#section-6.3.2) | Created     | [codersdk.AuditCollector](schemas.md#codersdkauditcollector) |
+
+To perform this operation, you must be authenticated. [Learn more](authentication.md).
+
+## Revoke external audit access
+
+### Code samples
+
+```sh
+# Example request using curl
+curl -X DELETE http://coder-server:8080/api/v2/organizations/{organization}/audit-collectors/{collector} \
+  -H 'Coder-Session-Token: API_KEY'
+```
+
+`DELETE /api/v2/organizations/{organization}/audit-collectors/{collector}`
+
+### Parameters
+
+| Name           | In   | Type   | Required | Description     |
+|----------------|------|--------|----------|-----------------|
+| `organization` | path | string | true     | Organization ID |
+| `collector`    | path | string | true     | Collector ID    |
+
+### Responses
+
+| Status | Meaning                                                         | Description | Schema |
+|--------|-----------------------------------------------------------------|-------------|--------|
+| 204    | [No Content](https://tools.ietf.org/html/rfc7231#section-6.3.5) | No Content  |        |
+
+To perform this operation, you must be authenticated. [Learn more](authentication.md).

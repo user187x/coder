@@ -86,7 +86,7 @@ export const PARTICLES_LIMITS = {
 	seed: { min: 0, max: 999, step: 1 },
 } as const;
 
-export type ParticleTheme = {
+type ParticleTheme = {
 	id: string;
 	name: string;
 	description: string;

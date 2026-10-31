@@ -261,7 +261,8 @@ html.platform-sparks-cursor * {
 	inset: 0;
 	background: color-mix(in srgb, var(--banner-scroll-screen) 45%, transparent);
 }
-.banner-scroll[data-picture] > :not(.banner-scroll-picture) {
+.banner-scroll[data-picture]
+	> :not(.banner-scroll-picture, .corner-expand-tab) {
 	position: relative;
 	z-index: 1;
 }
@@ -284,4 +285,27 @@ html.platform-sparks-cursor * {
 	to {
 		opacity: 0;
 	}
+}
+
+.banner-scroll .corner-expand-tab {
+	z-index: 2;
+	/* The panel clips the outer curve so the fold follows its exact inner edge. */
+	clip-path: polygon(0 0, 100% 0, 100% 100%);
+	background: hsl(var(--surface-secondary) / 0.35);
+	backdrop-filter: none;
+	box-shadow: none;
+}
+.banner-scroll .corner-expand-tab:hover {
+	background: hsl(var(--surface-secondary) / 0.55);
+}
+.banner-scroll .corner-expand-tab > svg {
+	position: absolute;
+	top: 7px;
+	right: 7px;
+	width: 12px;
+	height: 12px;
+	padding: 0;
+}
+.banner-scroll-body {
+	padding-bottom: 32px;
 }

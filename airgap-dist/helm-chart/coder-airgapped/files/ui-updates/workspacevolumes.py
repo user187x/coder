@@ -42,6 +42,7 @@ import vmbackup
 import gzip
 import io
 import http.client
+from servicetls import open_service, service_connection
 import json
 import math
 import os
@@ -77,6 +78,7 @@ QUOTA_CHECK = None   # ui-service's quota_check(token, user, body): {"allowed", 
 STORE = None
 OPS = {}           # workspace id -> the running backup / disk operation (one at a time per workspace)
 OPS_LOCK = threading.Lock()
+MIGRATION_BUSY = None
 
 
 def setup(log, http_json, kube):
@@ -265,6 +267,7 @@ def job_body(name, op_id, containers, volumes, root=False, node=None):
     ctx = ({"runAsUser": 0, "runAsGroup": 0, "seccompProfile": {"type": "RuntimeDefault"}} if root else
            {"runAsNonRoot": True, "runAsUser": 1000, "runAsGroup": 1000, "seccompProfile": {"type": "RuntimeDefault"}})
     spec = {"restartPolicy": "Never", "securityContext": ctx, "containers": containers, "volumes": volumes}
+    ib.add_service_ca(spec)
     if node:
         spec["nodeName"] = node
     if ib.PULL_SECRETS:
@@ -334,7 +337,7 @@ def start_backup(token, ws, target, user):
     if not prepared and not get_pvc(pvc_name(wid)):
         raise ValueError("This workspace has no home volume.")
     with OPS_LOCK:
-        if wid in OPS:
+        if wid in OPS or (MIGRATION_BUSY and MIGRATION_BUSY(wid)):
             raise ValueError("Another backup, restore or disk change of this workspace is running.")
         tok = secrets.token_urlsafe(32)
         op_id = STORE.new_op(wid, "backup", user, target=target, token=tok, mode="vm-block" if prepared else None, message="Starting the copy",
@@ -548,7 +551,7 @@ def start_expand(token, ws, size, user):
     if prepared:
         info["vmGrow"] = prepared
     with OPS_LOCK:
-        if wid in OPS:
+        if wid in OPS or (MIGRATION_BUSY and MIGRATION_BUSY(wid)):
             raise ValueError("Another backup, restore or disk change of this workspace is running.")
         op_id = STORE.new_op(wid, "disk", user, from_gi=info["sizeGB"], to_gi=size, mode=mode,
                              message="Starting")
@@ -915,7 +918,7 @@ def start_restore(token, ws, user, mode, name, h=None, key=None):
         if not plan["quota"].get("allowed"):
             raise Refused(plan["quota"].get("message") or "Over your quota.")
     with OPS_LOCK:
-        if wid in OPS:
+        if wid in OPS or (MIGRATION_BUSY and MIGRATION_BUSY(wid)):
             raise ValueError("Another backup, restore or disk change of this workspace is running.")
         op_id = STORE.new_op(wid, "restore", user["username"], target="s3" if key else "upload", key=key, mode=mode,
                              message="Fetching the backup from S3" if key else "Receiving the backup",
@@ -1200,45 +1203,60 @@ def start():
 # --------------------------------------------------------------------------- the Job's side
 def archive(src, url):
     """A .tar.gz of SRC, streamed (chunked) to URL."""
-    proc = subprocess.Popen(["tar", "-czf", "-", "-C", src, "."], stdout=subprocess.PIPE)
     u = urllib.parse.urlsplit(url)
-    conn = (http.client.HTTPSConnection if u.scheme == "https" else http.client.HTTPConnection)(
-        u.hostname, u.port, timeout=600)
+    conn = service_connection(url, timeout=600)
+    proc = None
+    try:
+        # Verify the peer before reading any workspace files.
+        conn.connect()
+        proc = subprocess.Popen(["tar", "-czf", "-", "-C", src, "."], stdout=subprocess.PIPE)
 
-    def body():
-        while True:
-            d = proc.stdout.read(1024 * 1024)
-            if not d:
-                return
-            yield d
+        def body():
+            while True:
+                d = proc.stdout.read(1024 * 1024)
+                if not d:
+                    return
+                yield d
 
-    conn.request("PUT", u.path, body=body(), headers={"Content-Type": "application/gzip"}, encode_chunked=True)
-    r = conn.getresponse()
-    out = r.read().decode("utf-8", "replace")
-    code = proc.wait()
+        conn.request("PUT", u.path, body=body(), headers={"Content-Type": "application/gzip"}, encode_chunked=True)
+        with conn.getresponse() as response:
+            status = response.status
+            out = response.read(4096).decode("utf-8", "replace")
+        code = proc.wait()
+    finally:
+        conn.close()
+        if proc is not None:
+            if proc.poll() is None:
+                proc.kill()
+            proc.wait()
+            proc.stdout.close()
     if code not in (0, 1):  # 1: a file changed while it was read (a live workspace); the archive is still good
         sys.exit("tar failed (%d)" % code)
-    if r.status != 200:
-        sys.exit("the service refused the archive: %s %s" % (r.status, out[:300]))
+    if status != 200:
+        sys.exit("the service refused the archive: %s %s" % (status, out[:300]))
     print("sent:", out)
 
 
 def restore(dst, url):
-    """DST emptied (the home's own folder kept: its owner and mode), then the .tar.gz at URL unpacked into it, every
-    owner and mode as in the backup."""
-    for name in os.listdir(dst):
-        p = os.path.join(dst, name)
-        if os.path.isdir(p) and not os.path.islink(p):
-            shutil.rmtree(p)
-        else:
-            os.remove(p)
-    tar = subprocess.Popen(["tar", "-xzpf", "-", "--numeric-owner", "--exclude=./" + META_NAME, "-C", dst],
-                           stdin=subprocess.PIPE)
-    with urllib.request.urlopen(url, timeout=600) as r:
-        shutil.copyfileobj(r, tar.stdin, 1024 * 1024)
-    tar.stdin.close()
-    if tar.wait() != 0:
-        sys.exit("tar failed (%d)" % tar.returncode)
+    """Verify the service response before replacing HOME, then stream its checked archive."""
+    with open_service(url, timeout=600) as response:
+        for name in os.listdir(dst):
+            path = os.path.join(dst, name)
+            if os.path.isdir(path) and not os.path.islink(path):
+                shutil.rmtree(path)
+            else:
+                os.remove(path)
+        tar = subprocess.Popen(["tar", "-xzpf", "-", "--numeric-owner", "--exclude=./" + META_NAME, "-C", dst],
+                               stdin=subprocess.PIPE)
+        try:
+            shutil.copyfileobj(response, tar.stdin, 1024 * 1024)
+            tar.stdin.close()
+            if tar.wait() != 0:
+                raise RuntimeError("Archive extraction failed")
+        finally:
+            if tar.poll() is None:
+                tar.kill()
+            tar.wait()
     print("restored:", sum(len(f) + len(d) for _, d, f in os.walk(dst)), "files and folders")
 
 

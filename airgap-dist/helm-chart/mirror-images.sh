@@ -73,7 +73,9 @@ g=""
 while read -r a b c _; do
 	[[ -z "$a" || "$a" == \#* ]] && continue
 	if [[ "$a" == \[*\] ]]; then
-		g="${a:1:-1}"; ALL_GROUPS+=("$g"); FOLDER[$g]="${b%/}"
+		g="${a:1:-1}"
+		ALL_GROUPS+=("$g")
+		FOLDER[$g]="${b%/}"
 		[[ "$c" == reference ]] || DEFAULT_PUSH+=("$g")
 		continue
 	fi
@@ -93,7 +95,11 @@ rel() { echo "${1#"${here}"/}"; }
 pick() { # pick DEFAULT... -- ARGS...: indexes of the images in the requested groups (sections, ours/custom, public, all)
 	local -a want=() def=()
 	local all=0 our=0 pub=0 w i
-	while [[ "$1" != -- ]]; do def+=("$1"); shift; done; shift
+	while [[ "$1" != -- ]]; do
+		def+=("$1")
+		shift
+	done
+	shift
 	for w in "$@"; do
 		case "$w" in
 		all) all=1 ;;
@@ -102,8 +108,12 @@ pick() { # pick DEFAULT... -- ARGS...: indexes of the images in the requested gr
 		public) pub=1 ;;
 		*)
 			[[ " ${ALL_GROUPS[*]} " == *" $w "* ]] ||
-				{ echo "ERROR: unknown group '$w' (${ALL_GROUPS[*]} ours public all)" >&2; exit 2; }
-			want+=("$w") ;;
+				{
+					echo "ERROR: unknown group '$w' (${ALL_GROUPS[*]} ours public all)" >&2
+					exit 2
+				}
+			want+=("$w")
+			;;
 		esac
 	done
 	((${#want[@]} || all || our || pub)) || want=("${def[@]}")
@@ -116,16 +126,28 @@ pick() { # pick DEFAULT... -- ARGS...: indexes of the images in the requested gr
 }
 index_of() { # IMAGE -> its index in images.txt
 	local i
-	for i in "${!images[@]}"; do [[ "${images[$i]}" != "$1" ]] || { echo "$i"; return; }; done
-	echo "ERROR: $1 is not in images.txt" >&2; exit 1
+	for i in "${!images[@]}"; do [[ "${images[$i]}" != "$1" ]] || {
+		echo "$i"
+		return
+	}; done
+	echo "ERROR: $1 is not in images.txt" >&2
+	exit 1
 }
 sums() { # DIR: its SHA256SUMS written again from the archives in it
 	(cd "$1" && sha256sum ./*.tar.gz 2>/dev/null | sed 's|  \./|  |' >SHA256SUMS)
 }
 check() { # archive against its folder's SHA256SUMS
-	local d n; d=$(dirname "$1"); n=$(basename "$1")
-	grep -qF "  ${n}" "$d/SHA256SUMS" 2>/dev/null || { echo "ERROR: $(rel "$1") is not listed in $(rel "$d")/SHA256SUMS" >&2; exit 1; }
-	(cd "$d" && grep -F "  ${n}" SHA256SUMS | sha256sum -c --quiet -) || { echo "ERROR: checksum mismatch: $(rel "$1")" >&2; exit 1; }
+	local d n
+	d=$(dirname "$1")
+	n=$(basename "$1")
+	grep -qF "  ${n}" "$d/SHA256SUMS" 2>/dev/null || {
+		echo "ERROR: $(rel "$1") is not listed in $(rel "$d")/SHA256SUMS" >&2
+		exit 1
+	}
+	(cd "$d" && grep -F "  ${n}" SHA256SUMS | sha256sum -c --quiet -) || {
+		echo "ERROR: checksum mismatch: $(rel "$1")" >&2
+		exit 1
+	}
 }
 pull() { # index: by digest when images.txt has one
 	local img=${images[$1]} dg=${digests[$1]}
@@ -136,15 +158,20 @@ pull() { # index: by digest when images.txt has one
 	fi
 }
 ensure() { # index: the image in the local docker - from its archive when the bundle has it
-	local img=${images[$1]} f; f=$(archive "$1")
+	local img=${images[$1]} f
+	f=$(archive "$1")
 	if [[ -f "$f" ]]; then
-		check "$f"; echo "loading $img from $(rel "$f")"; docker load -q -i "$f" >/dev/null
+		check "$f"
+		echo "loading $img from $(rel "$f")"
+		docker load -q -i "$f" >/dev/null
 	elif docker image inspect "$img" >/dev/null 2>&1; then
 		echo "using $img from the local docker ($(rel "$f") is not in the bundle)"
 	elif ours "$1"; then
-		echo "ERROR: $img is built here, not pulled, and $(rel "$f") is missing" >&2; exit 1
+		echo "ERROR: $img is built here, not pulled, and $(rel "$f") is missing" >&2
+		exit 1
 	else
-		echo "pulling $img ($(rel "$f") is not in the bundle)"; pull "$1"
+		echo "pulling $img ($(rel "$f") is not in the bundle)"
+		pull "$1"
 	fi
 }
 
@@ -152,14 +179,19 @@ ensure() { # index: the image in the local docker - from its archive when the bu
 # $1: the part (global.decorator.part), the chart's name and description, and without the other
 # part's subcharts. Prints the two packages' paths.
 decorator_charts() {
-	local out="$1" part d tmp; tmp=$(mktemp -d)
+	local out="$1" part d tmp
+	tmp=$(mktemp -d)
 	mkdir -p "$out"
 	for part in base layer; do
-		d="${tmp}/coder-airgapped-${part}"; cp -r "${CHART_DIR:-${here}/coder-airgapped}" "$d"
+		d="${tmp}/coder-airgapped-${part}"
+		cp -r "${CHART_DIR:-${here}/coder-airgapped}" "$d"
 		find "$d" -name __pycache__ -type d -prune -exec rm -rf {} +
 		sed -i "s/^    part: all$/    part: ${part}/" "$d/values.yaml"
 		[[ "$part" == layer ]] || sed -i 's/^    layer: true$/    layer: false/' "$d/values.yaml"
-		grep -q "^    part: ${part}$" "$d/values.yaml" || { echo "ERROR: values.yaml has no global.decorator.part" >&2; return 1; }
+		grep -q "^    part: ${part}$" "$d/values.yaml" || {
+			echo "ERROR: values.yaml has no global.decorator.part" >&2
+			return 1
+		}
 		python3 - "$d/Chart.yaml" "$part" <<'PY' || return 1
 import re, sys
 path, part = sys.argv[1], sys.argv[2]
@@ -210,53 +242,80 @@ PY
 	rm -rf "$tmp"
 }
 
-cmd="${1:-}"; shift || true
+cmd="${1:-}"
+shift || true
 case "$cmd" in
 save)
 	zip=$(command -v pigz || echo gzip)
 	mapfile -t idx < <(pick "${ALL_GROUPS[@]}" -- "$@")
 	for i in "${idx[@]}"; do
-		! ours "$i" || { echo "skipping ${images[$i]}: ours, only built (development/tools/build-*.sh)"; continue; }
-		f=$(archive "$i"); mkdir -p "$(dirname "$f")"
+		! ours "$i" || {
+			echo "skipping ${images[$i]}: ours, only built (development/tools/build-*.sh)"
+			continue
+		}
+		f=$(archive "$i")
+		mkdir -p "$(dirname "$f")"
 		pull "$i"
 		echo "saving ${images[$i]} -> $(rel "$f")"
-		docker save --platform linux/amd64 "${images[$i]}" | "$zip" -6 >"$f.part"; mv "$f.part" "$f"
+		docker save --platform linux/amd64 "${images[$i]}" | "$zip" -6 >"$f.part"
+		mv "$f.part" "$f"
 		sums "$(dirname "$f")"
 	done
 	;;
 push)
-	reg="${1:?usage: push REGISTRY [GROUP...]}"; shift; reg="${reg%/}"
+	reg="${1:?usage: push REGISTRY [GROUP...]}"
+	shift
+	reg="${reg%/}"
 	mapfile -t idx < <(pick "${DEFAULT_PUSH[@]}" -- "$@")
-	carried=""; [[ ! -f "${here}/LAYER.json" ]] || carried=$("${here}/layer-support" delivered)
+	carried=""
+	[[ ! -f "${here}/LAYER.json" ]] || carried=$("${here}/layer-support" delivered)
 	for i in "${idx[@]}"; do
 		img=${images[$i]}
 		if [[ -f "${here}/LAYER.json" ]] && ! grep -qxF "$img" <<<"$carried"; then
-			echo "in $reg since the earlier install: $img (the layer does not carry it)"; continue
+			echo "in $reg since the earlier install: $img (the layer does not carry it)"
+			continue
 		fi
 		ensure "$i"
 		dst=$(target "$img" "$reg")
 		if [[ "${ECR:-0}" == 1 ]]; then
-			repo="${dst#*/}"; repo="${repo%:*}"
+			repo="${dst#*/}"
+			repo="${repo%:*}"
 			aws ecr describe-repositories --repository-names "$repo" >/dev/null 2>&1 ||
 				aws ecr create-repository --repository-name "$repo" >/dev/null
 		fi
-		echo "$img -> $dst"; docker tag "$img" "$dst"
+		echo "$img -> $dst"
+		docker tag "$img" "$dst"
 		# A registry on slow storage can time out on a large layer: try again (pushed layers are not sent twice).
-		for try in 1 2 3; do docker push -q "$dst" && break; ((try < 3)) || exit 1; echo "push failed, retrying ($try/3)"; sleep 10; done
+		for try in 1 2 3; do
+			docker push -q "$dst" && break
+			((try < 3)) || exit 1
+			echo "push failed, retrying ($try/3)"
+			sleep 10
+		done
 	done
 	;;
 verify)
 	n=0
 	for i in "${!images[@]}"; do
 		f=$(archive "$i")
-		if [[ -f "$f" ]]; then check "$f"; echo "ok       $(rel "$f")"; n=$((n + 1)); else echo "absent   $(rel "$f")"; fi
+		if [[ -f "$f" ]]; then
+			check "$f"
+			echo "ok       $(rel "$f")"
+			n=$((n + 1))
+		else echo "absent   $(rel "$f")"; fi
 	done
 	echo "$n archives verified"
 	;;
 chart | charts)
-	repo="${1:?usage: $cmd REPO}"; repo="${repo#oci://}"; repo="${repo%/}"
-	command -v helm >/dev/null || { echo "ERROR: helm not found" >&2; exit 1; }
-	tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
+	repo="${1:?usage: $cmd REPO}"
+	repo="${repo#oci://}"
+	repo="${repo%/}"
+	command -v helm >/dev/null || {
+		echo "ERROR: helm not found" >&2
+		exit 1
+	}
+	tmp=$(mktemp -d)
+	trap 'rm -rf "$tmp"' EXIT
 	# the bundle's packages (charts/), else packaged now
 	version=$(sed -n 's/^version: *//p' "${here}/coder-airgapped/Chart.yaml")
 	if [[ -f "${here}/charts/coder-airgapped-${version}.tgz" ]]; then
@@ -271,13 +330,17 @@ chart | charts)
 		else
 			mapfile -t -O "${#pkgs[@]}" pkgs < <(decorator_charts "$tmp/decorator")
 		fi
-		shopt -s nullglob; pkgs+=("${here}"/prereqs/*.tgz); shopt -u nullglob   # none in a layer bundle (unchanged)
+		shopt -s nullglob
+		pkgs+=("${here}"/prereqs/*.tgz)
+		shopt -u nullglob # none in a layer bundle (unchanged)
 	fi
 	read -r -a extra <<<"${HELM_PUSH_ARGS:-}"
 	[[ "${PLAIN_HTTP:-0}" == 1 ]] && extra+=(--plain-http)
 	for pkg in "${pkgs[@]}"; do
 		if [[ "${ECR:-0}" == 1 ]]; then
-			name=$(basename "$pkg"); name="${name%-*}"; ecr_repo="${repo#*/}/${name}"
+			name=$(basename "$pkg")
+			name="${name%-*}"
+			ecr_repo="${repo#*/}/${name}"
 			aws ecr describe-repositories --repository-names "$ecr_repo" >/dev/null 2>&1 ||
 				aws ecr create-repository --repository-name "$ecr_repo" >/dev/null
 		fi
@@ -287,7 +350,7 @@ chart | charts)
 	done
 	;;
 charts-list)
-	shopt -s nullglob   # a layer bundle carries no unchanged prerequisite chart
+	shopt -s nullglob # a layer bundle carries no unchanged prerequisite chart
 	for c in "${here}/coder-airgapped" "${here}"/prereqs/*.tgz; do
 		helm show chart "$c" | awk '/^name:/ {n=$2} /^version:/ {v=$2} END {print n, v}'
 	done
@@ -296,25 +359,46 @@ charts-list)
 	echo "coder-airgapped-layer ${version}"
 	;;
 decorator-charts)
-	command -v helm >/dev/null || { echo "ERROR: helm not found" >&2; exit 1; }
+	command -v helm >/dev/null || {
+		echo "ERROR: helm not found" >&2
+		exit 1
+	}
 	decorator_charts "${1:-${here}/charts}"
 	;;
 seed-builder)
 	ns="${1:-coder}"
-	ws=""; for i in "${!images[@]}"; do [[ "${images[$i]}" == docker.io/mrshll187/coder-workspace:* ]] && { ws=$i; break; }; done
-	[[ -n "$ws" ]] || { echo "ERROR: no workspace image in images.txt" >&2; exit 1; }
+	ws=""
+	for i in "${!images[@]}"; do [[ "${images[$i]}" == docker.io/mrshll187/coder-workspace:* ]] && {
+		ws=$i
+		break
+	}; done
+	[[ -n "$ws" ]] || {
+		echo "ERROR: no workspace image in images.txt" >&2
+		exit 1
+	}
 	name="${images[$ws]##*/}"
 	kubectl -n "$ns" rollout status deploy/coder-image-registry --timeout=300s >/dev/null ||
-		{ echo "ERROR: deploy/coder-image-registry in namespace $ns is not ready (imageBuilder.enabled?)" >&2; exit 1; }
+		{
+			echo "ERROR: deploy/coder-image-registry in namespace $ns is not ready (imageBuilder.enabled?)" >&2
+			exit 1
+		}
 	port=$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')
-	kubectl -n "$ns" port-forward svc/coder-image-registry "${port}:5000" >/dev/null 2>&1 & pf=$!
+	kubectl -n "$ns" port-forward svc/coder-image-registry "${port}:5000" >/dev/null 2>&1 &
+	pf=$!
 	trap 'kill "$pf" 2>/dev/null || true' EXIT
-	for _ in $(seq 60); do curl -fs -o /dev/null "http://127.0.0.1:${port}/v2/" && break; sleep 1; done
-	curl -fs -o /dev/null "http://127.0.0.1:${port}/v2/" || { echo "ERROR: the registry does not answer through port-forward" >&2; exit 1; }
+	for _ in $(seq 60); do
+		curl -fs -o /dev/null "http://127.0.0.1:${port}/v2/" && break
+		sleep 1
+	done
+	curl -fs -o /dev/null "http://127.0.0.1:${port}/v2/" || {
+		echo "ERROR: the registry does not answer through port-forward" >&2
+		exit 1
+	}
 	# (any manifest type: docker pushes from its containerd store as an OCI index)
 	if curl -fs -o /dev/null -H "Accept: application/vnd.oci.image.index.v1+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.docker.distribution.manifest.v2+json" \
 		"http://127.0.0.1:${port}/v2/coder-images/base/${name%%:*}/manifests/${name##*:}"; then
-		echo "the image builder's registry has coder-images/base/${name} already"; exit 0
+		echo "the image builder's registry has coder-images/base/${name} already"
+		exit 0
 	fi
 	ensure "$ws"
 	# Docker pushes to a registry on 127.0.0.1 over plain HTTP without any daemon setting.
@@ -326,7 +410,9 @@ seed-builder)
 list)
 	reg="${1:-}"
 	for i in "${!images[@]}"; do
-		f=$(archive "$i"); have=absent; [[ -f "$f" ]] && have=bundled
+		f=$(archive "$i")
+		have=absent
+		[[ -f "$f" ]] && have=bundled
 		printf '%-13s %-8s %-56s %s\n' "${groups[$i]}" "$have" "${images[$i]}" "${reg:+-> $(target "${images[$i]}" "$reg")}"
 	done
 	;;
@@ -342,16 +428,32 @@ store)
 		echo "Archive export skipped; image remains in Docker: ${1:?IMAGE}"
 		exit 0
 	fi
-	img="${1:?usage: store IMAGE}"; sec=""
-	for i in "${!images[@]}"; do [[ "${images[$i]%:*}" != "${img%:*}" ]] || { sec=${groups[$i]}; break; }; done
-	[[ -n "$sec" ]] || { echo "ERROR: no section of images.txt has ${img%:*}: add the image there first" >&2; exit 1; }
-	docker image inspect "$img" >/dev/null 2>&1 || { echo "ERROR: $img is not in this docker" >&2; exit 1; }
-	d=$(dir_of "$sec"); f="${d}/$(echo "$img" | tr '/:@' '___').tar.gz"; mkdir -p "$d"
+	img="${1:?usage: store IMAGE}"
+	sec=""
+	for i in "${!images[@]}"; do [[ "${images[$i]%:*}" != "${img%:*}" ]] || {
+		sec=${groups[$i]}
+		break
+	}; done
+	[[ -n "$sec" ]] || {
+		echo "ERROR: no section of images.txt has ${img%:*}: add the image there first" >&2
+		exit 1
+	}
+	docker image inspect "$img" >/dev/null 2>&1 || {
+		echo "ERROR: $img is not in this docker" >&2
+		exit 1
+	}
+	d=$(dir_of "$sec")
+	f="${d}/$(echo "$img" | tr '/:@' '___').tar.gz"
+	mkdir -p "$d"
 	repo_file=$(echo "${img%:*}" | tr '/:@' '___')
 	find "$d" -maxdepth 1 -name "${repo_file}_*.tar.gz" ! -name "$(basename "$f")" -print -delete | sed 's|.*/|removed the older |'
-	docker save --platform linux/amd64 "$img" | gzip -1 >"$f.part"; mv "$f.part" "$f"
+	docker save --platform linux/amd64 "$img" | gzip -1 >"$f.part"
+	mv "$f.part" "$f"
 	sums "$d"
 	echo "saved $img -> $(rel "$f") ($(du -h "$f" | cut -f1))"
 	;;
-*) sed -n '2,/^set /p' "$0" | sed '$d'; exit 2 ;;
+*)
+	sed -n '2,/^set /p' "$0" | sed '$d'
+	exit 2
+	;;
 esac

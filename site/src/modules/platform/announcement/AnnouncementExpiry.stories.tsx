@@ -20,6 +20,9 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 export const ForceFocus: Story = {};
+export const ImmediateForceFocus: Story = {
+	args: { banner: { ...meta.args.banner, countdown: "" } },
+};
 export const ShakeScreen: Story = {
 	args: { banner: { ...meta.args.banner, countdownAction: "shake" } },
 };

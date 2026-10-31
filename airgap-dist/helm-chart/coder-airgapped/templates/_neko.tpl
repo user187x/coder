@@ -71,7 +71,7 @@
 {{- include "platform.nekoValidate" . -}}
 {{- $media := .Values.global.nekoMedia -}}
 {{- if and $media.enabled (not (hasKey .Values.coder "platformNekoMerged")) -}}
-{{- $config := dict "enabled" true "advertise_ip" $media.advertiseIP "client_cidrs" $media.clientCIDRs "peer_cidrs" $media.peerCIDRs "port_min" $media.portMin "port_max" $media.portMax "max_leases" $media.maxLeases "packets_per_second" $media.packetsPerSecond "lifetime_ms" $media.lifetimeMilliseconds "descriptor_origin" (printf "http://coder-ui-updates.%s.svc.cluster.local" .Release.Namespace) "descriptor_key_file" "/run/coder-neko/descriptor-key" "client_directory" $media.clientDirectory "client_manifest_sha256" $media.clientManifestSHA256 -}}
+{{- $config := dict "enabled" true "advertise_ip" $media.advertiseIP "client_cidrs" $media.clientCIDRs "peer_cidrs" $media.peerCIDRs "port_min" $media.portMin "port_max" $media.portMax "max_leases" $media.maxLeases "packets_per_second" $media.packetsPerSecond "lifetime_ms" $media.lifetimeMilliseconds "descriptor_origin" (printf "https://coder-ui-updates.%s.svc.cluster.local" .Release.Namespace) "descriptor_key_file" "/run/coder-neko/descriptor-key" "client_directory" $media.clientDirectory "client_manifest_sha256" $media.clientManifestSHA256 -}}
 {{- $env := list (dict "name" "CODER_NEKO_MEDIA_CONFIG" "value" ($config | toJson)) (dict "name" "CODER_NEKO_MEDIA_BIND_IP" "valueFrom" (dict "fieldRef" (dict "fieldPath" "status.podIP"))) -}}
 {{- $_ := set .Values.coder "env" (concat (.Values.coder.env | default list) $env) -}}
 {{- $_ := set .Values.coder "volumeMounts" (concat (.Values.coder.volumeMounts | default list) (list (dict "name" "neko-media-key" "mountPath" "/run/coder-neko" "readOnly" true))) -}}

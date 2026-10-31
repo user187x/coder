@@ -4,8 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/coder/coder/v2/coderd/templatedecorator"
 	"github.com/stretchr/testify/require"
+
+	"github.com/coder/coder/v2/coderd/templatedecorator"
 )
 
 func TestManagedRuntime(t *testing.T) {

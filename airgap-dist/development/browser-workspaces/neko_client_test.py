@@ -50,29 +50,44 @@ global.window = {CODER_NEKO_OWNER: 'workspace-owner'};
         program = r"""
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
-let receive, clicked = 0;
+(async () => {
+        const listeners = {}, timers = new Map(), resolutions = [];
+        let clicked = 0, nextTimer = 0;
 const parent = {postMessage() {}};
 const video = {muted:true, addEventListener() {}};
 const root = {toggleAttribute() {}};
 const context = {
  URL, location:{href:'https://coder.test/app/?embed=1',origin:'https://coder.test'},
- window:{parent,innerWidth:1200,addEventListener:(name,fn)=>{receive=fn}},
+         window:{parent,innerWidth:1200,innerHeight:600,setInterval:()=>1,clearInterval(){},
+          setTimeout:fn=>{const id=++nextTimer;timers.set(id,fn);return id},
+          clearTimeout:id=>timers.delete(id),
+          addEventListener:(name,fn)=>{listeners[name]=fn},removeEventListener(){}},
  document:{documentElement:root,head:{appendChild(){}},createElement:()=>({}),
  querySelector:selector=>selector==='video'?video:{dispatchEvent:()=>{clicked++}}},
  MutationObserver:class {observe(){} disconnect(){}},
  MouseEvent:class {},
+         fetch:async (url,options)=>{resolutions.push([String(url),JSON.parse(options.body)]);return {ok:true}},
 };
 vm.runInNewContext(process.argv[1], context);
-receive({origin:'https://other.test',source:parent,data:{type:'coder:browser-mute',muted:false}});
+        listeners.message({origin:'https://other.test',source:parent,data:{type:'coder:browser-mute',muted:false}});
 assert.equal(video.muted,true);
-receive({origin:'https://coder.test',source:{},data:{type:'coder:browser-resolution'}});
+        listeners.message({origin:'https://coder.test',source:{},data:{type:'coder:browser-resolution'}});
 assert.equal(clicked,0);
-receive({origin:'https://coder.test',source:parent,data:{type:'coder:browser-mute',muted:false}});
+        listeners.message({origin:'https://coder.test',source:parent,data:{type:'coder:browser-mute',muted:false}});
 assert.equal(video.muted,false);
-receive({origin:'https://coder.test',source:parent,data:{type:'coder:browser-resolution'}});
+        listeners.message({origin:'https://coder.test',source:parent,data:{type:'coder:browser-resolution'}});
 assert.equal(clicked,1);
+        context.window.innerWidth = 1536;
+        listeners.resize();
+        await [...timers.values()][0]();
+        assert.deepEqual(resolutions, [['https://coder.test/app/api/room/screen', {width:1536,height:600,rate:60}]]);
+        listeners.message({origin:'https://coder.test',source:parent,data:{type:'coder:browser-fit',width:1800,height:900}});
+        await [...timers.values()][0]();
+        assert.deepEqual(resolutions[1][1], {width:1800,height:900,rate:60});
+})().catch(error => {console.error(error);process.exitCode=1});
 """
-        subprocess.run(['node', '-e', program, source], check=True, capture_output=True, text=True)
+        result = subprocess.run(['node', '-e', program, source], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_both_clients_disable_manual_login_and_require_relay(self):
         modern = 'async mounted(){if(await this.loadOAuthConfig())return;old();} x(this,"passwordLoginEnabled",!0); new RTCPeerConnection({iceServers:t}):new RTCPeerConnection'

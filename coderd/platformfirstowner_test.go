@@ -28,6 +28,7 @@ func TestPlatformFirstOwnerByBootstrap(t *testing.T) {
 	claims := jwt.MapClaims{"sub": "first-sub", "email": "first@example.com", "email_verified": true, "preferred_username": "first"}
 
 	_, resp := fake.AttemptLogin(t, client, claims)
+	defer resp.Body.Close()
 	body, _ := io.ReadAll(resp.Body)
 	require.Equal(t, http.StatusServiceUnavailable, resp.StatusCode, string(body))
 
@@ -35,6 +36,7 @@ func TestPlatformFirstOwnerByBootstrap(t *testing.T) {
 	require.NotEmpty(t, owner.UserID)
 
 	member, resp := fake.AttemptLogin(t, client, claims)
+	defer resp.Body.Close()
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	ctx := testutil.Context(t, testutil.WaitShort)
 	me, err := member.User(ctx, codersdk.Me)

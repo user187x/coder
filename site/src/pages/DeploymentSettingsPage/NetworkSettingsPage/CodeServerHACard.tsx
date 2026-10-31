@@ -30,6 +30,7 @@ import {
 import { CodeServerHASwitches } from "./CodeServerHASwitches";
 import { seconds } from "./clusterFormat";
 import { KindSwatch } from "./componentKinds";
+import { EntityContextMenu } from "./EntityActions";
 import { useOpenEntity } from "./EntityDetails";
 
 /**
@@ -97,29 +98,33 @@ const PodLink: React.FC<{
 }> = ({ namespace, name, children }) => {
 	const open = useOpenEntity();
 	return (
-		<button
-			type="button"
-			onClick={() => open({ type: "pod", namespace, name })}
-			className={cn(
-				"cursor-pointer border-0 bg-transparent p-0 text-left text-xs text-content-link hover:underline",
-				children === undefined && "font-mono",
-			)}
-		>
-			{children ?? name}
-		</button>
+		<EntityContextMenu target={{ type: "pod", namespace, name }}>
+			<button
+				type="button"
+				onClick={() => open({ type: "pod", namespace, name })}
+				className={cn(
+					"cursor-pointer border-0 bg-transparent p-0 text-left text-xs text-content-link hover:underline",
+					children === undefined && "font-mono",
+				)}
+			>
+				{children ?? name}
+			</button>
+		</EntityContextMenu>
 	);
 };
 
 const NodeLink: React.FC<{ name: string | null }> = ({ name }) => {
 	const open = useOpenEntity();
 	return name ? (
-		<button
-			type="button"
-			onClick={() => open({ type: "node", name })}
-			className="cursor-pointer border-0 bg-transparent p-0 font-mono text-xs text-content-link hover:underline"
-		>
-			{name}
-		</button>
+		<EntityContextMenu target={{ type: "node", name }}>
+			<button
+				type="button"
+				onClick={() => open({ type: "node", name })}
+				className="cursor-pointer border-0 bg-transparent p-0 font-mono text-xs text-content-link hover:underline"
+			>
+				{name}
+			</button>
+		</EntityContextMenu>
 	) : (
 		<span className="text-content-secondary">N/A</span>
 	);

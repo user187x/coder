@@ -10,7 +10,7 @@ address=ipaddress.IPv4Address(sys.argv[1])
 assert address.is_private and not address.is_loopback and not address.is_link_local
 PY
 mkdir -p /etc/containerd/certs.d/localhost:5000
-printf '%s\n' "server = \"http://$address:5000\"" "[host.\"http://$address:5000\"]" '  capabilities = ["pull", "resolve"]' > /etc/containerd/certs.d/localhost:5000/hosts.toml
+printf '%s\n' "server = \"http://$address:5000\"" "[host.\"http://$address:5000\"]" '  capabilities = ["pull", "resolve"]' >/etc/containerd/certs.d/localhost:5000/hosts.toml
 python3 - <<'PY'
 import pathlib,re,tomllib
 path=pathlib.Path('/etc/containerd/config.toml')

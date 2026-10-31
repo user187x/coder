@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { SettingsIcon, TagIcon } from "lucide-react";
 import {
 	Breadcrumb,
 	BreadcrumbEllipsis,
@@ -44,4 +45,37 @@ export const Default: Story = {
 			</Breadcrumb>
 		),
 	},
+};
+
+export const Connected: Story = {
+	args: {
+		variant: "connected",
+		children: (
+			<BreadcrumbList>
+				<BreadcrumbItem>
+					<BreadcrumbLink to="/hud" end>
+						<SettingsIcon aria-hidden className="size-4 shrink-0" />
+						Admin
+					</BreadcrumbLink>
+				</BreadcrumbItem>
+				<BreadcrumbItem>
+					<BreadcrumbPage>
+						<TagIcon aria-hidden className="size-4 shrink-0" />
+						Classification
+					</BreadcrumbPage>
+				</BreadcrumbItem>
+			</BreadcrumbList>
+		),
+	},
+};
+
+export const ConnectedNarrow: Story = {
+	...Connected,
+	decorators: [
+		(Story) => (
+			<div className="w-80 max-w-full">
+				<Story />
+			</div>
+		),
+	],
 };

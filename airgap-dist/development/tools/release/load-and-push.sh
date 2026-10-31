@@ -22,28 +22,41 @@
 set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-usage() { sed -n '2,/^set /p' "$0" | sed '$d' >&2; exit 2; }
+usage() {
+	sed -n '2,/^set /p' "$0" | sed '$d' >&2
+	exit 2
+}
 reg="" dry=0 rm_after=0 ours_only=0 without_dataflow=0 names=()
 while (($#)); do
 	case "$1" in
 	--dry-run) dry=1 ;;
 	--rm) rm_after=1 ;;
 	--ours-only) ours_only=1 ;;
- --without-dataflow) without_dataflow=1 ;;
+	--without-dataflow) without_dataflow=1 ;;
 	-h | --help) usage ;;
-	-*) echo "unknown option: $1" >&2; usage ;;
+	-*)
+		echo "unknown option: $1" >&2
+		usage
+		;;
 	*) if [[ -z "$reg" ]]; then reg="$1"; else names+=("$1"); fi ;;
 	esac
 	shift
 done
 [[ -n "$reg" ]] || usage
 reg="${reg%/}"
-[[ "$reg" != *://* ]] || { echo "ERROR: REGISTRY is host[:port][/prefix], without a scheme: ${reg}" >&2; exit 2; }
+[[ "$reg" != *://* ]] || {
+	echo "ERROR: REGISTRY is host[:port][/prefix], without a scheme: ${reg}" >&2
+	exit 2
+}
 [[ -f "${here}/OFFLINE-IMAGES.txt" && -f "${here}/OFFLINE-SHA256SUMS" ]] ||
-	{ echo "ERROR: OFFLINE-IMAGES.txt or OFFLINE-SHA256SUMS is missing next to $0" >&2; exit 1; }
+	{
+		echo "ERROR: OFFLINE-IMAGES.txt or OFFLINE-SHA256SUMS is missing next to $0" >&2
+		exit 1
+	}
 
 [[ "$reg" != *://* && "$reg" != *[[:space:]]* && "$reg" != -* ]] || {
- echo "Use a registry host/path without https:// or spaces." >&2; exit 2;
+	echo "Use a registry host/path without https:// or spaces." >&2
+	exit 2
 }
 
 target() { # the reference without its source registry host, under REGISTRY (as mirror-images.sh)
@@ -51,9 +64,13 @@ target() { # the reference without its source registry host, under REGISTRY (as 
 	if [[ "$first" == *.* || "$first" == *:* ]]; then ref="${ref#*/}"; fi
 	echo "${reg}/${ref}"
 }
-name_of() { local p="${1##*/}"; echo "${p%%[:@]*}"; }
+name_of() {
+	local p="${1##*/}"
+	echo "${p%%[:@]*}"
+}
 sumcheck() { # OFFLINE-SHA256SUMS lines on stdin, checked from this folder
-	if command -v sha256sum >/dev/null; then (cd "$here" && sha256sum -c --quiet -)
+	if command -v sha256sum >/dev/null; then
+		(cd "$here" && sha256sum -c --quiet -)
 	else (cd "$here" && shasum -a 256 -c --quiet -); fi
 }
 
@@ -67,36 +84,62 @@ while read -r img fs size cfg man _; do
 	if ((${#names[@]})) && [[ " ${names[*]} " != *" $(name_of "$img") "* ]]; then continue; fi
 	if ((ours_only)) && [[ "$img" != docker.io/mrshll187/* ]]; then continue; fi
 	if ((without_dataflow)) && [[ "$(name_of "$img")" == coder-workspace-dataflow ]]; then continue; fi
- imgs+=("$img") files+=("$fs") sizes+=("$size") configs+=("$cfg") manifests+=("$man")
+	imgs+=("$img") files+=("$fs") sizes+=("$size") configs+=("$cfg") manifests+=("$man")
 done < <(cat "${lists[@]}")
 for n in "${names[@]}"; do
-	found=0; for img in "${imgs[@]}"; do [[ "$(name_of "$img")" != "$n" ]] || found=1; done
-	((found)) || { echo "ERROR: no image named $n in OFFLINE-IMAGES.txt" >&2; exit 2; }
+	found=0
+	for img in "${imgs[@]}"; do [[ "$(name_of "$img")" != "$n" ]] || found=1; done
+	((found)) || {
+		echo "ERROR: no image named $n in OFFLINE-IMAGES.txt" >&2
+		exit 2
+	}
 done
-((${#imgs[@]})) || { echo "ERROR: OFFLINE-IMAGES.txt lists no image" >&2; exit 1; }
+((${#imgs[@]})) || {
+	echo "ERROR: OFFLINE-IMAGES.txt lists no image" >&2
+	exit 1
+}
 
-# Check the files first: all of OFFLINE-SHA256SUMS, or with NAMEs only their images' files
+# Check the files first: all of OFFLINE-SHA256SUMS, or with named images only their files
 echo "checking the files against OFFLINE-SHA256SUMS ..."
 if ((${#names[@]} || without_dataflow || ours_only)); then
 	want=" $(printf '%s ' "${files[@]}" | tr ',' ' ')"
 	lines=$(cat "${sums[@]}" | awk -v want="$want" 'index(want, " " $2 " ")')
 	[[ $(grep -c . <<<"$lines") -eq $(wc -w <<<"$want") ]] ||
-		{ echo "ERROR: OFFLINE-SHA256SUMS does not list every file of these images" >&2; exit 1; }
-	sumcheck <<<"$lines" || { echo "ERROR: checksum mismatch (above): nothing pushed" >&2; exit 1; }
+		{
+			echo "ERROR: OFFLINE-SHA256SUMS does not list every file of these images" >&2
+			exit 1
+		}
+	sumcheck <<<"$lines" || {
+		echo "ERROR: checksum mismatch (above): nothing pushed" >&2
+		exit 1
+	}
 else
-	cat "${sums[@]}" | sumcheck || { echo "ERROR: checksum mismatch (above): nothing pushed" >&2; exit 1; }
+	cat "${sums[@]}" | sumcheck || {
+		echo "ERROR: checksum mismatch (above): nothing pushed" >&2
+		exit 1
+	}
 fi
 echo "ok: the files match OFFLINE-SHA256SUMS"
 
-((dry)) || command -v docker >/dev/null || { echo "ERROR: docker not found" >&2; exit 1; }
+((dry)) || command -v docker >/dev/null || {
+	echo "ERROR: docker not found" >&2
+	exit 1
+}
 if [[ "${ECR:-0}" == 1 ]]; then
-	command -v aws >/dev/null || ((dry)) || { echo "ERROR: ECR=1 needs the aws CLI" >&2; exit 1; }
+	command -v aws >/dev/null || ((dry)) || {
+		echo "ERROR: ECR=1 needs the aws CLI" >&2
+		exit 1
+	}
 	region=$(sed -n 's/^[0-9]*\.dkr\.ecr\.\([a-z0-9-]*\)\.amazonaws\.com.*/\1/p' <<<"$reg")
-	region_args=(); [[ -z "$region" ]] || region_args=(--region "$region")
+	region_args=()
+	[[ -z "$region" ]] || region_args=(--region "$region")
 fi
 ecr_repo() { # REPOSITORY: created when missing
 	if aws ecr describe-repositories "${region_args[@]}" --repository-names "$1" >/dev/null 2>&1; then return; fi
-	if ((dry)); then echo "  would create the ECR repository $1"; return; fi
+	if ((dry)); then
+		echo "  would create the ECR repository $1"
+		return
+	fi
 	echo "  creating the ECR repository $1"
 	aws ecr create-repository "${region_args[@]}" --repository-name "$1" >/dev/null
 }
@@ -106,24 +149,35 @@ trap 'rm -f "$log"' EXIT
 for i in "${!imgs[@]}"; do
 	img=${imgs[$i]} dst=$(target "${imgs[$i]}")
 	IFS=, read -r -a parts <<<"${files[$i]}"
-	paths=(); for p in "${parts[@]}"; do paths+=("${here}/${p}"); done
+	paths=()
+	for p in "${parts[@]}"; do paths+=("${here}/${p}"); done
 	echo "[$((i + 1))/${#imgs[@]}] ${img} (${sizes[$i]}${parts[1]:+, ${#parts[@]} parts}) -> ${dst}"
 	if [[ "${ECR:-0}" == 1 ]]; then
-		repo="${dst#*/}"; repo="${repo%:*}"
+		repo="${dst#*/}"
+		repo="${repo%:*}"
 		if command -v aws >/dev/null; then ecr_repo "$repo"; else echo "  would create the ECR repository $repo if missing"; fi
 	fi
 	if ((dry)); then
 		echo "  would run: cat ${parts[*]} | docker load; docker tag ${img} ${dst}; docker push ${dst}"
-		results+=("dry-run  ${img} -> ${dst}"); continue
+		results+=("dry-run  ${img} -> ${dst}")
+		continue
 	fi
 	# load: the parts joined on the way (cat), straight into docker
 	if ! cat "${paths[@]}" | docker load -q >"$log" 2>&1; then
-		sed 's/^/  /' "$log" >&2; echo "  ERROR: docker load failed" >&2
-		results+=("FAILED   ${img} (docker load)"); failed=$((failed + 1)); continue
+		sed 's/^/  /' "$log" >&2
+		echo "  ERROR: docker load failed" >&2
+		results+=("FAILED   ${img} (docker load)")
+		failed=$((failed + 1))
+		continue
 	fi
 	loaded=$(sed -n 's/^Loaded image: //p' "$log" | grep -xF "$img" || true)
 	[[ -n "$loaded" ]] || loaded=$(sed -n 's/^Loaded image: //p; s/^Loaded image ID: //p' "$log" | head -n1)
-	[[ -n "$loaded" ]] || { cat "$log" >&2; results+=("FAILED   ${img} (no image loaded)"); failed=$((failed + 1)); continue; }
+	[[ -n "$loaded" ]] || {
+		cat "$log" >&2
+		results+=("FAILED   ${img} (no image loaded)")
+		failed=$((failed + 1))
+		continue
+	}
 	[[ "$loaded" == "$img" ]] || echo "  note: the archive loaded as ${loaded}"
 	# its ID: the config digest (docker's classic store) or the manifest digest (containerd image store)
 	id=$(docker image inspect --format '{{.Id}}' "$loaded")
@@ -132,11 +186,21 @@ for i in "${!imgs[@]}"; do
 	docker tag "$loaded" "$dst"
 	ok=0
 	for try in 1 2 3; do
-		if docker push -q "$dst" >"$log" 2>&1; then ok=1; break; fi
+		if docker push -q "$dst" >"$log" 2>&1; then
+			ok=1
+			break
+		fi
 		sed 's/^/  /' "$log" >&2
-		((try < 3)) && { echo "  push failed, retrying ($try/3)"; sleep 10; }
+		((try < 3)) && {
+			echo "  push failed, retrying ($try/3)"
+			sleep 10
+		}
 	done
-	if ((!ok)); then results+=("FAILED   ${img} -> ${dst} (push)"); failed=$((failed + 1)); continue; fi
+	if ((!ok)); then
+		results+=("FAILED   ${img} -> ${dst} (push)")
+		failed=$((failed + 1))
+		continue
+	fi
 	digest=$(docker image inspect --format '{{range .RepoDigests}}{{println .}}{{end}}' "$dst" |
 		awk -v repo="${dst%:*}@" 'index($0, repo) == 1 {print substr($0, length(repo) + 1); exit}')
 	echo "  pushed ${dst}${digest:+@${digest}}"
@@ -147,5 +211,8 @@ done
 echo
 echo "summary (${reg}):"
 printf '  %s\n' "${results[@]}"
-if ((failed)); then echo "${failed} of ${#imgs[@]} images FAILED" >&2; exit 1; fi
+if ((failed)); then
+	echo "${failed} of ${#imgs[@]} images FAILED" >&2
+	exit 1
+fi
 if ((dry)); then echo "dry run: ${#imgs[@]} images checked, nothing pushed"; else echo "${#imgs[@]} images pushed"; fi

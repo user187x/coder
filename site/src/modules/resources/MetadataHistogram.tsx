@@ -159,13 +159,13 @@ export const toBars = (
 	if (every <= 0) {
 		const last = samples.slice(-BARS);
 		return [
-			...Array<null>(BARS - last.length).fill(null),
+			...new Array<null>(BARS - last.length).fill(null),
 			...last.map((s) => ({ t: s.t, value: s.value, text: s.text, count: 1 })),
 		];
 	}
 	const ms = every * 1000;
 	const end = Math.floor(now / ms);
-	const out: (Bar | null)[] = Array<null>(BARS).fill(null);
+	const out: (Bar | null)[] = new Array<null>(BARS).fill(null);
 	for (const s of samples) {
 		const slot = BARS - 1 - (end - Math.floor(s.t / ms));
 		if (slot < 0 || slot >= BARS) {

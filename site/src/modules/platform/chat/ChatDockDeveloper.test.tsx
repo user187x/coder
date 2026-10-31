@@ -57,7 +57,7 @@ describe("ChatDock: a developer's", () => {
 		within(raised).getByRole("button", { name: "Attach to the right side" });
 
 		await user.click(
-			await within(raised).findByRole("button", { name: /Ada/ }),
+			await within(raised).findByRole("button", { name: /^Ada/ }),
 		);
 		await within(raised).findByRole("textbox", { name: "Message Ada" });
 

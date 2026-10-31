@@ -49,7 +49,10 @@ export const DashboardLayout: React.FC = () => {
 				</a>
 				{!embedded && <Navbar />}
 				{/* On narrow screens the announcement is not docked in the navbar. */}
-				<div className="md:hidden sticky top-[calc(72px+var(--coder-classification-h,0px))] z-39 empty:hidden">
+				<div
+					data-dashboard-mobile-announcement
+					className="md:hidden sticky top-[calc(72px+var(--coder-classification-h,0px))] z-39 empty:hidden"
+				>
 					<AnnouncementBanner placement="page" />
 				</div>
 

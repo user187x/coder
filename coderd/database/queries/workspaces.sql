@@ -825,7 +825,10 @@ WHERE
 			workspace_builds.workspace_id = workspaces.id
 	) AND
 
-	(
+ (
+  -- Reconcile policy changes even for running workspaces without a deadline.
+  EXISTS (SELECT 1 FROM site_configs WHERE key = 'workspace_scheduler'
+      AND value::jsonb->>'enabled' = 'true') OR
 		-- A workspace may be eligible for autostop if the following are true:
 		--   * The provisioner job has not failed.
 		--   * The workspace is not dormant.

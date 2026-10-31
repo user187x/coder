@@ -55,7 +55,7 @@ describe("LoginPage", () => {
 		// When
 		render(<LoginPage />);
 		await waitForLoaderToBeRemoved();
-		const email = screen.getByLabelText(/Email/);
+		const email = screen.getByLabelText(/Username or email/i);
 		const password = screen.getByLabelText(/Password/);
 		await userEvent.type(email, "test@coder.com");
 		await userEvent.type(password, "password");
@@ -73,7 +73,7 @@ describe("LoginPage", () => {
 		render(<LoginPage />);
 		await waitForLoaderToBeRemoved();
 
-		const emailInput = screen.getByLabelText(/Email/);
+		const emailInput = screen.getByLabelText(/Username or email/i);
 		const passwordInput = screen.getByLabelText(/Password/);
 		expect(emailInput).not.toHaveAttribute("aria-invalid", "true");
 		expect(emailInput).not.toHaveAttribute(
@@ -91,7 +91,7 @@ describe("LoginPage", () => {
 
 		// Then
 		const emailError = await screen.findByText(
-			"Please enter an email address.",
+			"Please enter your username or email.",
 		);
 		expect(emailInput).toHaveAttribute("aria-invalid", "true");
 		expect(emailInput).toHaveAttribute(
@@ -102,7 +102,7 @@ describe("LoginPage", () => {
 		const emailErrorElement = document.getElementById("signin-email-error");
 		expect(emailErrorElement).toBe(emailError);
 		expect(emailErrorElement).toHaveTextContent(
-			"Please enter an email address.",
+			"Please enter your username or email.",
 		);
 
 		expect(passwordInput).not.toHaveAttribute("aria-invalid", "true");
@@ -183,7 +183,10 @@ describe("LoginPage", () => {
 
 		await waitForLoaderToBeRemoved();
 
-		await userEvent.type(screen.getByLabelText(/Email/), "test@coder.com");
+		await userEvent.type(
+			screen.getByLabelText(/Username or email/i),
+			"test@coder.com",
+		);
 		await userEvent.type(screen.getByLabelText(/Password/), "password");
 		fireEvent.click(await screen.findByText("Sign In"));
 
@@ -235,7 +238,10 @@ describe("LoginPage", () => {
 
 		await waitForLoaderToBeRemoved();
 
-		await userEvent.type(screen.getByLabelText(/Email/), "test@coder.com");
+		await userEvent.type(
+			screen.getByLabelText(/Username or email/i),
+			"test@coder.com",
+		);
 		await userEvent.type(screen.getByLabelText(/Password/), "password");
 		fireEvent.click(await screen.findByText("Sign In"));
 
@@ -328,7 +334,10 @@ describe("LoginPage", () => {
 
 		await waitForLoaderToBeRemoved();
 
-		await userEvent.type(screen.getByLabelText(/Email/), "test@coder.com");
+		await userEvent.type(
+			screen.getByLabelText(/Username or email/i),
+			"test@coder.com",
+		);
 		await userEvent.type(screen.getByLabelText(/Password/), "password");
 		fireEvent.click(await screen.findByText("Sign In"));
 

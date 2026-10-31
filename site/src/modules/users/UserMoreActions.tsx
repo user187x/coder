@@ -1,8 +1,10 @@
 import {
 	ActivityIcon,
+	CloudIcon,
 	EllipsisVerticalIcon,
 	KeyRoundIcon,
 	LayoutGridIcon,
+	ListChecksIcon,
 	PencilIcon,
 	ShieldIcon,
 	TrashIcon,
@@ -20,6 +22,9 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "#/components/DropdownMenu/DropdownMenu";
+import { ClientCertificatesDialog } from "#/modules/platform/clientCertificates/ClientCertificatesDialog";
+import { AccountCloudDriveConnections } from "#/modules/platform/cloudDrive/AccountCloudDriveConnections";
+import { QuotaAdjustments } from "#/modules/platform/quotaRequests/QuotaAdjustments";
 import { AccountLockdownDialog } from "./AccountLockdownDialog";
 import type { UserAdminAction } from "./UserActionDialogs";
 
@@ -28,6 +33,7 @@ type UserMoreActionsProps = {
 	me: string;
 	onAction: (action: UserAdminAction) => void;
 	canViewActivity?: boolean;
+	canManageWorkspaces?: boolean;
 	oidcRoleSyncEnabled?: boolean;
 };
 
@@ -36,9 +42,13 @@ export const UserMoreActions: React.FC<UserMoreActionsProps> = ({
 	me,
 	onAction,
 	canViewActivity,
+	canManageWorkspaces,
 	oidcRoleSyncEnabled,
 }) => {
 	const [lockdownOpen, setLockdownOpen] = useState(false);
+	const [quotaOpen, setQuotaOpen] = useState(false);
+	const [driveOpen, setDriveOpen] = useState(false);
+	const [certificatesOpen, setCertificatesOpen] = useState(false);
 	return (
 		<>
 			<DropdownMenu>
@@ -58,9 +68,19 @@ export const UserMoreActions: React.FC<UserMoreActionsProps> = ({
 							to={`/workspaces?filter=${encodeURIComponent(`owner:${user.username}`)}`}
 						>
 							<LayoutGridIcon aria-hidden />
-							Workspaces
+							All workspaces
 						</Link>
 					</DropdownMenuItem>
+					{canManageWorkspaces && (
+						<>
+							<DropdownMenuItem onSelect={() => setQuotaOpen(true)}>
+								<ListChecksIcon aria-hidden /> Quota Requests
+							</DropdownMenuItem>
+							<DropdownMenuItem onSelect={() => setDriveOpen(true)}>
+								<CloudIcon aria-hidden /> Cloud Drive
+							</DropdownMenuItem>
+						</>
+					)}
 
 					<DropdownMenuItem onSelect={() => setLockdownOpen(true)}>
 						<ShieldIcon aria-hidden />
@@ -117,6 +137,11 @@ export const UserMoreActions: React.FC<UserMoreActionsProps> = ({
 						</DropdownMenuItem>
 					)}
 
+					{user.login_type === "oidc" && (
+						<DropdownMenuItem onSelect={() => setCertificatesOpen(true)}>
+							<KeyRoundIcon aria-hidden /> Client certificates
+						</DropdownMenuItem>
+					)}
 					<DropdownMenuSeparator />
 
 					<DropdownMenuItem
@@ -131,6 +156,26 @@ export const UserMoreActions: React.FC<UserMoreActionsProps> = ({
 					</DropdownMenuItem>
 				</DropdownMenuContent>
 			</DropdownMenu>
+			{canManageWorkspaces && quotaOpen && (
+				<QuotaAdjustments
+					user={user}
+					open={quotaOpen}
+					onOpenChange={setQuotaOpen}
+				/>
+			)}
+			{canManageWorkspaces && driveOpen && (
+				<AccountCloudDriveConnections
+					user={user}
+					open={driveOpen}
+					onOpenChange={setDriveOpen}
+				/>
+			)}
+			{certificatesOpen && (
+				<ClientCertificatesDialog
+					user={user}
+					onClose={() => setCertificatesOpen(false)}
+				/>
+			)}
 			{lockdownOpen && (
 				<AccountLockdownDialog
 					user={user}

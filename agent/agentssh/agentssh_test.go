@@ -616,6 +616,7 @@ func TestBlockTerminalAccess(t *testing.T) {
 	client := sshClient(t, listener.Addr().String())
 	for _, kind := range []string{"command", "shell", "sftp"} {
 		t.Run(kind, func(t *testing.T) {
+			t.Parallel()
 			session, err := client.NewSession()
 			require.NoError(t, err)
 			defer session.Close()

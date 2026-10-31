@@ -19,4 +19,5 @@ export const MockShortTermLease: ShortTermLease = {
 	revoked_at: null,
 	extension_requested_at: null,
 	token_id: "example",
+	auto_remove_history: false,
 };

@@ -3,13 +3,13 @@ package platformlockdown
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"sync"
 	"testing"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
+	"golang.org/x/xerrors"
 
 	"github.com/coder/coder/v2/coderd/database"
 	"github.com/coder/coder/v2/coderd/database/dbmock"
@@ -163,7 +163,7 @@ func TestUnregisteredReplicaCannotServeSessions(t *testing.T) {
 type failingConfigStore struct{ database.Store }
 
 func (failingConfigStore) GetRuntimeConfig(context.Context, string) (string, error) {
-	return "", errors.New("unreachable")
+	return "", xerrors.New("unreachable")
 }
 
 func TestLockdownCancelsGuardedWorkspaceRequest(t *testing.T) {
@@ -198,7 +198,7 @@ func TestLockdownSerializesExternalProxyRegistration(t *testing.T) {
 	}()
 	_ = testutil.TryReceive(ctx, t, registering)
 	activationResult := make(chan error, 1)
-	unsupported := errors.New("unsupported proxy")
+	unsupported := xerrors.New("unsupported proxy")
 	go func() {
 		_, err := m.SetChecked(ctx, true, "owner", func(database.Store) error {
 			if registered {

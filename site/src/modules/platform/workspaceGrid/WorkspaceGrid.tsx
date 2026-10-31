@@ -34,11 +34,11 @@ import { WorkspaceTunnelPorts } from "../workspaceTunnels/WorkspaceTunnelPorts";
 import { isEmbedSizeMessage } from "./embeddedSize";
 
 /** Columns and rows in view at most: four dashboards; with more, the grid is dragged round to reach the others. */
-export const IN_VIEW = 2;
+const IN_VIEW = 2;
 /** A dashboard is drawn at least this wide and scaled down to its cell, so the page keeps its wide layout. */
 export const FRAME_WIDTH = 1024;
 /** How often the workspaces' names and states are asked again while the grid is open. */
-export const REFRESH_MS = 5000;
+const REFRESH_MS = 5000;
 const GAP = 72;
 /** A cell's own bar: the workspace's name, its state and the way to its page. */
 const BAR_HEIGHT = 44;
@@ -105,6 +105,7 @@ type WorkspaceGridProps = {
 	canManageTunnels?: boolean;
 	tunnelActorId?: string;
 	open: boolean;
+	initialLayout?: "list" | "grid";
 	onOpenChange: (open: boolean) => void;
 };
 
@@ -122,6 +123,7 @@ export const WorkspaceGrid: React.FC<WorkspaceGridProps> = ({
 	canManageTunnels = false,
 	tunnelActorId,
 	open,
+	initialLayout = "grid",
 	onOpenChange,
 }) => {
 	const query = useQuery({
@@ -161,6 +163,7 @@ export const WorkspaceGrid: React.FC<WorkspaceGridProps> = ({
 				)}
 			>
 				<GridBody
+					initialLayout={initialLayout}
 					shown={shown}
 					canManageTunnels={canManageTunnels}
 					tunnelActorId={tunnelActorId}
@@ -179,6 +182,7 @@ type GridBodyProps = {
 	loading: boolean;
 	navigate: (to: string) => void;
 	allowFocus?: boolean;
+	initialLayout?: "list" | "grid";
 };
 
 const GridBody: React.FC<GridBodyProps> = ({
@@ -188,8 +192,9 @@ const GridBody: React.FC<GridBodyProps> = ({
 	loading,
 	navigate,
 	allowFocus = true,
+	initialLayout = "grid",
 }) => {
-	const [layout, setLayout] = useState<"grid" | "list">("grid");
+	const [layout, setLayout] = useState<"grid" | "list">(initialLayout);
 	const spacing = layout === "list" ? 24 : GAP;
 	const [focusedId, setFocusedId] = useState<string | null>(null);
 	const focused = shown.find((workspace) => workspace.id === focusedId);

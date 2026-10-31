@@ -329,6 +329,14 @@ func (m queryMetricsStore) ClearChatDiffStatusPR(ctx context.Context, arg databa
 	return r0
 }
 
+func (m queryMetricsStore) ConfigureShortTermLease(ctx context.Context, arg database.ConfigureShortTermLeaseParams) (database.ShortTermLease, error) {
+	start := time.Now()
+	r0, r1 := m.s.ConfigureShortTermLease(ctx, arg)
+	m.queryLatencies.WithLabelValues("ConfigureShortTermLease").Observe(time.Since(start).Seconds())
+	m.queryCounts.WithLabelValues(httpmw.ExtractHTTPRoute(ctx), httpmw.ExtractHTTPMethod(ctx), "ConfigureShortTermLease").Inc()
+	return r0, r1
+}
+
 func (m queryMetricsStore) ConsumeChatAutomationWebhookByID(ctx context.Context, arg database.ConsumeChatAutomationWebhookByIDParams) (int64, error) {
 	start := time.Now()
 	r0, r1 := m.s.ConsumeChatAutomationWebhookByID(ctx, arg)
@@ -551,6 +559,14 @@ func (m queryMetricsStore) DeleteApplicationConnectAPIKeysByUserID(ctx context.C
 	m.queryLatencies.WithLabelValues("DeleteApplicationConnectAPIKeysByUserID").Observe(time.Since(start).Seconds())
 	m.queryCounts.WithLabelValues(httpmw.ExtractHTTPRoute(ctx), httpmw.ExtractHTTPMethod(ctx), "DeleteApplicationConnectAPIKeysByUserID").Inc()
 	return r0
+}
+
+func (m queryMetricsStore) DeleteAuditCollector(ctx context.Context, arg database.DeleteAuditCollectorParams) (database.AuditCollector, error) {
+	start := time.Now()
+	r0, r1 := m.s.DeleteAuditCollector(ctx, arg)
+	m.queryLatencies.WithLabelValues("DeleteAuditCollector").Observe(time.Since(start).Seconds())
+	m.queryCounts.WithLabelValues(httpmw.ExtractHTTPRoute(ctx), httpmw.ExtractHTTPMethod(ctx), "DeleteAuditCollector").Inc()
+	return r0, r1
 }
 
 func (m queryMetricsStore) DeleteChatAutomationByID(ctx context.Context, id uuid.UUID) error {
@@ -1470,6 +1486,14 @@ func (m queryMetricsStore) GetApplicationName(ctx context.Context) (string, erro
 	r0, r1 := m.s.GetApplicationName(ctx)
 	m.queryLatencies.WithLabelValues("GetApplicationName").Observe(time.Since(start).Seconds())
 	m.queryCounts.WithLabelValues(httpmw.ExtractHTTPRoute(ctx), httpmw.ExtractHTTPMethod(ctx), "GetApplicationName").Inc()
+	return r0, r1
+}
+
+func (m queryMetricsStore) GetAuditCollectors(ctx context.Context, organizationID uuid.UUID) ([]database.AuditCollector, error) {
+	start := time.Now()
+	r0, r1 := m.s.GetAuditCollectors(ctx, organizationID)
+	m.queryLatencies.WithLabelValues("GetAuditCollectors").Observe(time.Since(start).Seconds())
+	m.queryCounts.WithLabelValues(httpmw.ExtractHTTPRoute(ctx), httpmw.ExtractHTTPMethod(ctx), "GetAuditCollectors").Inc()
 	return r0, r1
 }
 
@@ -4289,6 +4313,14 @@ func (m queryMetricsStore) HasTemplateVersionsUsingCachedModuleFileInOrg(ctx con
 	return r0, r1
 }
 
+func (m queryMetricsStore) HideShortTermLease(ctx context.Context, arg database.HideShortTermLeaseParams) (database.ShortTermLease, error) {
+	start := time.Now()
+	r0, r1 := m.s.HideShortTermLease(ctx, arg)
+	m.queryLatencies.WithLabelValues("HideShortTermLease").Observe(time.Since(start).Seconds())
+	m.queryCounts.WithLabelValues(httpmw.ExtractHTTPRoute(ctx), httpmw.ExtractHTTPMethod(ctx), "HideShortTermLease").Inc()
+	return r0, r1
+}
+
 func (m queryMetricsStore) HydrateAgentChatsContext(ctx context.Context, arg database.HydrateAgentChatsContextParams) ([]uuid.UUID, error) {
 	start := time.Now()
 	r0, r1 := m.s.HydrateAgentChatsContext(ctx, arg)
@@ -4398,6 +4430,14 @@ func (m queryMetricsStore) InsertAllUsersGroup(ctx context.Context, organization
 	r0, r1 := m.s.InsertAllUsersGroup(ctx, organizationID)
 	m.queryLatencies.WithLabelValues("InsertAllUsersGroup").Observe(time.Since(start).Seconds())
 	m.queryCounts.WithLabelValues(httpmw.ExtractHTTPRoute(ctx), httpmw.ExtractHTTPMethod(ctx), "InsertAllUsersGroup").Inc()
+	return r0, r1
+}
+
+func (m queryMetricsStore) InsertAuditCollector(ctx context.Context, arg database.InsertAuditCollectorParams) (database.AuditCollector, error) {
+	start := time.Now()
+	r0, r1 := m.s.InsertAuditCollector(ctx, arg)
+	m.queryLatencies.WithLabelValues("InsertAuditCollector").Observe(time.Since(start).Seconds())
+	m.queryCounts.WithLabelValues(httpmw.ExtractHTTPRoute(ctx), httpmw.ExtractHTTPMethod(ctx), "InsertAuditCollector").Inc()
 	return r0, r1
 }
 

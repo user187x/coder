@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { useAnimationsEnabled } from "#/modules/platform/animations/animations";
+import { useAnimationsEnabled } from "#/hooks/useAnimationSettings";
 import {
 	cablePath,
 	makeCable,

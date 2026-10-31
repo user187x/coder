@@ -5,14 +5,15 @@ package workspaceoverlay_test
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	"github.com/coder/coder/v2/workspaceoverlay"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/xerrors"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
+
+	"github.com/coder/coder/v2/workspaceoverlay"
 )
 
 type fakeDevice struct {
@@ -81,7 +82,7 @@ func TestSyncAcknowledgesOnlyInstalledPolicyAndRevokesOnFailure(t *testing.T) {
 	require.Len(t, device.applied, 1)
 	desired.Revision = 2
 	desired.Address = "10.253.0.3/32"
-	device.err = fmt.Errorf("engine unavailable")
+	device.err = xerrors.New("engine unavailable")
 	require.ErrorContains(t, runtime.Sync(t.Context()), "engine unavailable")
 	require.Equal(t, 1, device.clears)
 	device.err = nil
@@ -101,7 +102,7 @@ func TestSyncRevokesWhenServerCannotBeReached(t *testing.T) {
 	require.Equal(t, 1, device.clears)
 }
 
-func (d *fakeDevice) EstablishedPeers() []string { return []string{"other"} }
+func (*fakeDevice) EstablishedPeers() []string { return []string{"other"} }
 
 func TestRevisionOnlyChangePreservesInstalledConnections(t *testing.T) {
 	t.Parallel()
@@ -119,4 +120,4 @@ func TestRevisionOnlyChangePreservesInstalledConnections(t *testing.T) {
 	require.Zero(t, device.clears)
 }
 
-func (d *fakeDevice) PeerStats() []workspaceoverlay.PeerStats { return nil }
+func (*fakeDevice) PeerStats() []workspaceoverlay.PeerStats { return nil }

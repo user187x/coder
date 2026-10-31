@@ -28,7 +28,10 @@ import {
 } from "#/components/Collapsible/Collapsible";
 import { DropdownMenuItem } from "#/components/DropdownMenu/DropdownMenu";
 import "./adminQuickLinksMenu.css";
+import { AnnouncementMenuItem } from "./AnnouncementMenuItem";
+import { AppearanceMenuItem } from "./AppearanceMenuItem";
 import type { AdminPage } from "./adminQuickLinks";
+import { ChatMenuItem } from "./ChatMenuItem";
 
 type AdminQuickLinksMenuProps = {
 	/** The quick links, in the user's order. */
@@ -38,6 +41,8 @@ type AdminQuickLinksMenuProps = {
 	/** The new list of page IDs, in order, after an add, remove or move. */
 	onChange: (ids: string[]) => void;
 	itemClassName?: string;
+	chatExpanded?: boolean;
+	onChatToggle?: () => void;
 };
 
 /**
@@ -51,6 +56,8 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 	addable,
 	onChange,
 	itemClassName,
+	chatExpanded,
+	onChatToggle,
 }) => {
 	const [expanded, setExpanded] = useState(false);
 	const choicesId = useId();
@@ -101,6 +108,8 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 						<QuickLinkRow
 							key={link.id}
 							link={link}
+							chatExpanded={chatExpanded}
+							onChatToggle={onChatToggle}
 							itemClassName={itemClassName}
 							moving={moving === link.id}
 							handleRef={(node) => {
@@ -134,6 +143,7 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 			<Collapsible open={expanded} onOpenChange={setExpanded}>
 				<DropdownMenuItem
 					aria-expanded={expanded}
+					data-settings-expanded={expanded}
 					aria-controls={choicesId}
 					className={cn(
 						itemClassName,
@@ -192,6 +202,8 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 type QuickLinkRowProps = {
 	link: AdminPage;
 	itemClassName?: string;
+	chatExpanded?: boolean;
+	onChatToggle?: () => void;
 	moving: boolean;
 	handleRef: (node: HTMLElement | null) => void;
 	onRemove: () => void;
@@ -204,6 +216,8 @@ type QuickLinkRowProps = {
 const QuickLinkRow: React.FC<QuickLinkRowProps> = ({
 	link,
 	itemClassName,
+	chatExpanded,
+	onChatToggle,
 	moving,
 	handleRef,
 	onRemove,
@@ -230,16 +244,32 @@ const QuickLinkRow: React.FC<QuickLinkRowProps> = ({
 				transition,
 			}}
 			className={cn(
-				"flex items-center",
+				"flex flex-wrap items-center",
 				isDragging && "relative z-10 rounded-md bg-surface-secondary shadow-md",
 			)}
 		>
-			<DropdownMenuItem asChild className={cn("min-w-0 flex-1", itemClassName)}>
-				<Link to={link.path}>
-					<link.icon aria-hidden />
-					<span className="truncate">{link.label}</span>
-				</Link>
-			</DropdownMenuItem>
+			{link.id === "chat" ? (
+				<ChatMenuItem
+					admin
+					expanded={chatExpanded}
+					onToggle={onChatToggle}
+					className={cn("min-w-0 flex-1", itemClassName)}
+				/>
+			) : link.id === "announcement" ? (
+				<AnnouncementMenuItem className={cn("min-w-0 flex-1", itemClassName)} />
+			) : link.id === "customize" ? (
+				<AppearanceMenuItem className={cn("min-w-0 flex-1", itemClassName)} />
+			) : (
+				<DropdownMenuItem
+					asChild
+					className={cn("min-w-0 flex-1", itemClassName)}
+				>
+					<Link to={link.path}>
+						<link.icon aria-hidden />
+						<span className="truncate">{link.label}</span>
+					</Link>
+				</DropdownMenuItem>
+			)}
 			<DropdownMenuItem
 				aria-label={`Remove ${link.label} from the quick links`}
 				title="Remove"

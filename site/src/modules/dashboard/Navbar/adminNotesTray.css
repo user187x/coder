@@ -1,0 +1,117 @@
+.settings-admin-notes-tray {
+	position: absolute;
+	left: 16px;
+	width: 48px;
+	display: flex;
+	pointer-events: none;
+}
+
+.settings-admin-notes-tray[hidden] {
+	display: none;
+}
+
+.settings-admin-notes-handle {
+	position: absolute;
+	top: 50%;
+	left: 0;
+	width: 48px;
+	z-index: 5;
+	pointer-events: auto;
+}
+
+.settings-admin-notes-panel {
+	position: relative;
+	flex-shrink: 0;
+	z-index: 4;
+	pointer-events: auto;
+	overflow: hidden;
+	border: 1px solid hsl(var(--border));
+	border-radius: 12px 0 0 12px;
+	background: hsl(var(--surface-primary));
+	padding: 8px 12px 8px 8px;
+	box-sizing: border-box;
+	display: flex;
+	box-shadow: -6px 4px 14px hsl(var(--content-primary) / 0.08);
+	animation: settings-notes-open 160ms ease-out;
+}
+.settings-admin-notes-panel[aria-hidden="true"] {
+	display: flex;
+	visibility: hidden;
+	pointer-events: none;
+}
+.settings-admin-notes-inner {
+	min-width: 0;
+	min-height: 0;
+	width: 100%;
+	overflow: hidden;
+	border: 1px solid hsl(var(--border));
+	border-radius: 6px;
+	display: flex;
+}
+
+@keyframes settings-notes-open {
+	from {
+		opacity: 0;
+		clip-path: inset(0 0 0 100% round 12px);
+	}
+	to {
+		opacity: 1;
+		clip-path: inset(0 round 12px);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.settings-admin-notes-panel {
+		animation: none;
+	}
+}
+html[data-animations="off"] .settings-admin-notes-panel {
+	animation: none;
+}
+
+.settings-notes-content {
+	width: 100%;
+	max-height: inherit;
+}
+.settings-notes-resize {
+	display: flex;
+	flex-shrink: 0;
+	align-items: center;
+	justify-content: center;
+	align-self: center;
+	width: 72px;
+	height: 24px;
+	padding: 0;
+	border: 0;
+	background: transparent;
+	cursor: ns-resize;
+	touch-action: none;
+}
+.settings-notes-resize:hover .build-footer-grip,
+.settings-notes-resize:focus-visible .build-footer-grip {
+	border-color: hsl(var(--content-link));
+}
+
+.settings-admin-notes-handle[data-unread] .settings-resource-tray-grip {
+	border-color: hsl(var(--content-link));
+	animation: admin-notes-unread 1.6s ease-in-out infinite;
+}
+@keyframes admin-notes-unread {
+	0%,
+	100% {
+		box-shadow: 0 0 2px hsl(var(--content-link) / 0.3);
+	}
+	50% {
+		box-shadow: 0 0 8px 2px hsl(var(--content-link) / 0.8);
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.settings-admin-notes-handle[data-unread] .settings-resource-tray-grip {
+		animation: none;
+	}
+}
+html[data-animations="off"]
+	.settings-admin-notes-handle[data-unread]
+	.settings-resource-tray-grip {
+	animation: none;
+}

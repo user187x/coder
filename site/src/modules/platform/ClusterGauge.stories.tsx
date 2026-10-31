@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { clusterUsageKey } from "#/api/queries/platform";
+import { clusterUsageKey, hudHistory } from "#/api/queries/platform";
+import { MockHudHistory } from "#/testHelpers/hud";
 import { MockClusterUsage } from "#/testHelpers/platform";
 import { ClusterGauge } from "./ClusterGauge";
 
@@ -20,13 +21,33 @@ type Story = StoryObj<typeof ClusterGauge>;
 
 export const Live: Story = {
 	parameters: {
-		queries: [{ key: clusterUsageKey, data: MockClusterUsage }],
+		queries: [
+			{
+				key: hudHistory("15m").queryKey,
+				data: {
+					...MockHudHistory,
+					range: "15m",
+					start: MockHudHistory.end - 900,
+					points: MockHudHistory.points.slice(-30),
+				},
+			},
+			{ key: clusterUsageKey, data: MockClusterUsage },
+		],
 	},
 };
 
 export const NearlyFull: Story = {
 	parameters: {
 		queries: [
+			{
+				key: hudHistory("15m").queryKey,
+				data: {
+					...MockHudHistory,
+					range: "15m",
+					start: MockHudHistory.end - 900,
+					points: MockHudHistory.points.slice(-30),
+				},
+			},
 			{
 				key: clusterUsageKey,
 				data: {
@@ -53,6 +74,15 @@ const networkPoints = Array.from({ length: 60 }, (_, i) => ({
 export const WithNetwork: Story = {
 	parameters: {
 		queries: [
+			{
+				key: hudHistory("15m").queryKey,
+				data: {
+					...MockHudHistory,
+					range: "15m",
+					start: MockHudHistory.end - 900,
+					points: MockHudHistory.points.slice(-30),
+				},
+			},
 			{
 				key: clusterUsageKey,
 				data: {
@@ -81,6 +111,15 @@ const historyPoints = Array.from({ length: 60 }, (_, i) => ({
 export const WithHistory: Story = {
 	parameters: {
 		queries: [
+			{
+				key: hudHistory("15m").queryKey,
+				data: {
+					...MockHudHistory,
+					range: "15m",
+					start: MockHudHistory.end - 900,
+					points: MockHudHistory.points.slice(-30),
+				},
+			},
 			{
 				key: clusterUsageKey,
 				data: {

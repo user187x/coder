@@ -1,7 +1,7 @@
 import { PlatformAPI } from "#/api/platform";
 
 /** No input in this tab for this long: its user is idle (grey in the People lists). */
-export const IDLE_MS = 30_000;
+const IDLE_MS = 30_000;
 
 /** This tab's id: the service tells several tabs of one user apart (online while any is open). */
 export const TAB_ID =

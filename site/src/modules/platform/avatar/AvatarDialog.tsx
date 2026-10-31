@@ -15,12 +15,12 @@ import {
 import { ExternalImage } from "#/components/ExternalImage/ExternalImage";
 import { Spinner } from "#/components/Spinner/Spinner";
 import { setUserAvatar } from "#/contexts/platformBoot";
-import { GalleryPicker } from "../gallery/GalleryPicker";
 import {
 	AVATAR_TARGET,
 	ImageNormalizeError,
 	normalizeImage,
-} from "../normalizeImage";
+} from "#/utils/normalizeImage";
+import { GalleryPicker } from "../gallery/GalleryPicker";
 import { closeAvatarDialog, useAvatarDialogOpen } from "./avatarDialogStore";
 
 /**

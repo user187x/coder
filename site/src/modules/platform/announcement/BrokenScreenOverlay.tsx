@@ -4,7 +4,7 @@ import { breakScreen } from "./brokenScreen";
 import "./brokenScreen.css";
 
 /** How long the screen takes to come back (brokenScreen.css). */
-export const RESTORE_MS = 700;
+const RESTORE_MS = 700;
 
 const motionless = () =>
 	document.documentElement.dataset.animations === "off" ||

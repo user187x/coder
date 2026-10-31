@@ -228,7 +228,7 @@ html[data-animations="off"] .cd-attaching {
 	stroke: transparent;
 	stroke-width: 12;
 	pointer-events: stroke;
-	cursor: help;
+	cursor: pointer;
 }
 .cd-share[data-interactive="true"] .cd-share-hit {
 	cursor: pointer;

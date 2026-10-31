@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.5.2 2026-10-31
+
+Nine core images and both Helm charts share version 1.5.2. Release images and agent downloads target Linux amd64.
+
+* Coder manages workspace startup integration and tunnel runtimes without Global Scripts. Sandbox groups retain peer networking and Coder browser/terminal access while blocking external traffic. Gray output terminals support multiple destinations; green terminals receive connections.
+* Short Term Lease provisions isolated Browser workspaces, supports extension requests, and revokes access and active connections at expiry.
+* Dashboard support includes consent-based live viewing, mouse input and keyboard input, with explicit stop/revocation. Security logs can be exported or collected through an organization-scoped endpoint using an authorized X.509 certificate or Keycloak token.
+* Network objects expose logs, Kubernetes details and guarded pod restarts. Cluster requests recover from temporary service rollouts; workspace networking and global power controls include the reported reliability fixes.
+* Chat administration is consolidated into the console. Announcement controls include selected-user notifications, acknowledgement controls and an administrator-enforced still mode. Admin pages use wider content, pinned breadcrumbs and updated classification and quota cards.
+* Settings drawers use left-button dragging, double-click visibility, dimple locks and saved positions. Resource shortcuts protect Account, Workspaces and Templates and cap the total at six. Workspace previews offer separate list and grid actions.
+* The research sandbox image is an optional enclave-testing artifact. Neither the charts nor the deployment scripts require it.
+
 ## 1.5.0 2026-10-28
 
 Every releasable now shares one version, kept in `RELEASE_VERSION` at the repository's root: each image of ours, both charts' `version` and `appVersion`, and the git tag move together from here on. Images whose contents did not change are retagged.

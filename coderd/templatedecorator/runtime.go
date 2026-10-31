@@ -33,6 +33,7 @@ func manageRuntime(files map[string][]byte, image, accessURL string) ([]string, 
 		if diags.HasErrors() {
 			return nil, xerrors.Errorf("parse managed workspace runtime template: %s", diags.Error())
 		}
+		//nolint:forcetypeassert // hclsyntax.ParseConfig always returns a native syntax body.
 		body := f.Body.(*hclsyntax.Body)
 		parsed[name] = body
 		agents = append(agents, agentNames(body)...)

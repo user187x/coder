@@ -3,7 +3,7 @@ import { Dialog as DialogPrimitive } from "radix-ui";
 import { useLayoutEffect, useRef } from "react";
 import { Link } from "react-router";
 import { Button } from "#/components/Button/Button";
-import { ChatConsole } from "./ChatConsole";
+import { ChatConsoleWorkspace } from "./ChatConsoleWorkspace";
 import { closeConsoleOverlay, useChatSnapshot } from "./chatStore";
 import { CHAT_CONSOLE_PAGE } from "./consolePlaces";
 import "./chatConsoleOverlay.css";
@@ -79,7 +79,7 @@ export const ChatConsoleOverlay: React.FC = () => {
 						<DialogPrimitive.Description className="sr-only">
 							Over this page: Escape, a click outside it or Close puts it away.
 						</DialogPrimitive.Description>
-						<ChatConsole
+						<ChatConsoleWorkspace
 							place="overlay"
 							dock={overlay}
 							className="h-full rounded-[14px]"

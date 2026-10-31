@@ -11,13 +11,6 @@ export const deploymentConfig = () => {
 	};
 };
 
-export const deploymentDAUs = () => {
-	return {
-		queryKey: ["deployment", "daus"],
-		queryFn: () => API.getDeploymentDAUs(),
-	};
-};
-
 export const deploymentStatsQueryKey = ["deployment", "stats"];
 
 export const deploymentStats = () => {

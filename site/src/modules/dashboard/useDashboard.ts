@@ -10,11 +10,3 @@ export const useDashboard = (): DashboardValue => {
 
 	return context;
 };
-
-export const getDefaultOrganizationName = (
-	organizations: DashboardValue["organizations"],
-): string => organizations.find((org) => org.is_default)?.name ?? "";
-
-export const getDefaultOrganizationId = (
-	organizations: DashboardValue["organizations"],
-): string => organizations.find((org) => org.is_default)?.id ?? "";

@@ -22,3 +22,14 @@ export function paginatedAudits(
 		prefetch: false,
 	};
 }
+
+export const securityAuditLogs = (q: string, page: number) => ({
+	queryKey: ["auditLogs", "security", q, page] as const,
+	queryFn: () => API.getAuditLogs({ q, offset: page * 25, limit: 25 }),
+	refetchInterval: 15000,
+});
+
+export const exportSecurityAuditLogs = () => ({
+	// Zero uses the audit API's unlimited query, independent of its capped count.
+	mutationFn: (q: string) => API.getAuditLogs({ q, offset: 0, limit: 0 }),
+});

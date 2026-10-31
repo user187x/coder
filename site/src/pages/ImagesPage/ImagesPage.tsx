@@ -16,6 +16,7 @@ import { Link as RouterLink, useNavigate } from "react-router";
 import { toast } from "sonner";
 import { getErrorMessage } from "#/api/errors";
 import { type ImageListItem, ImagesAPI } from "#/api/images";
+import { imagesKey } from "#/api/queries/images";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { Button } from "#/components/Button/Button";
 import { CopyButton } from "#/components/CopyButton/CopyButton";
@@ -77,8 +78,6 @@ import {
 } from "./ImportImageDialog";
 import { NewImageDialog } from "./NewImageDialog";
 import { SecurityDataBadge } from "./SecurityData";
-
-export const imagesKey = ["platform", "images"] as const;
 
 type StatusFilter = "all" | "ready" | "building" | "draft" | "failed";
 

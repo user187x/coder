@@ -1,4 +1,3 @@
-import type { FC } from "react";
 import type { QuotaRequest } from "#/api/quotaRequests";
 import type { Organization } from "#/api/typesGenerated";
 
@@ -23,7 +22,7 @@ const requestDate = (seconds: number) => {
 };
 
 /** Shared request history keeps organization scope visible beside global extras. */
-export const QuotaRequestDetails: FC<Props> = ({
+export const QuotaRequestDetails: React.FC<Props> = ({
 	request,
 	organizations = [],
 }) => {

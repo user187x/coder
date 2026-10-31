@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
-import { setAnimationsEnabled } from "../animations/animations";
+import { setAnimationsEnabled } from "#/hooks/useAnimationSettings";
 import { LavaDialog } from "./LavaDialog";
 
 const meta: Meta<typeof LavaDialog> = {

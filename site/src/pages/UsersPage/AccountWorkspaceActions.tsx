@@ -25,8 +25,15 @@ export const AccountWorkspaceActions: React.FC<{
 	targets: readonly Workspace[];
 	onClear?: () => void;
 	compact?: boolean;
+	restartDisabled?: boolean;
 	children?: React.ReactNode;
-}> = ({ targets, onClear, compact = false, children }) => {
+}> = ({
+	targets,
+	onClear,
+	compact = false,
+	restartDisabled = false,
+	children,
+}) => {
 	const client = useQueryClient();
 	const power = useMutation(runWorkspacePower(client));
 	const restart = useMutation(restartAccountWorkspaces(client));
@@ -65,7 +72,7 @@ export const AccountWorkspaceActions: React.FC<{
 				className={
 					compact
 						? "flex flex-nowrap items-center gap-1"
-						: "flex flex-wrap items-center gap-2"
+						: "bulk-action-surface flex flex-wrap items-center gap-2 rounded-lg border border-solid border-border bg-surface-secondary px-3 py-2"
 				}
 			>
 				{children}
@@ -94,6 +101,7 @@ export const AccountWorkspaceActions: React.FC<{
 					title="Restart"
 					disabled={
 						busy ||
+						restartDisabled ||
 						regular.length === 0 ||
 						regular.some((w) =>
 							[
@@ -169,10 +177,11 @@ export const AccountWorkspaceActions: React.FC<{
 			{operations.length > 0 && (
 				<details
 					open={
-						busy ||
-						operations.some(
-							(op) => op.status === "partial" || op.status === "interrupted",
-						)
+						!compact &&
+						(busy ||
+							operations.some(
+								(op) => op.status === "partial" || op.status === "interrupted",
+							))
 					}
 					className="text-xs"
 				>

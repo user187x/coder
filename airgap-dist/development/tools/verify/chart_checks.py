@@ -112,8 +112,8 @@ def ha_checks(B, ha_render, default_render):
           and [x.get("name") for x in hbind.get("subjects") or []] == ["coder"]
           and ("Role", "coder-platform-ha") not in dflt, {"rules": hrole, "binding": hbind.get("subjects")})
     dsvc, dprobe, dstop = coder_spec({(d["kind"], d["metadata"]["name"]): d for d in yaml.safe_load_all(default_render) if d})
-    check("default: Coder's Service, probe and preStop exactly upstream's",
-          "coder-airgapped/ha-role" not in dsvc and dprobe == {"path": "/healthz", "port": "http", "scheme": "HTTP"}
+    check("default: Coder service selects its pods and checks health over internal TLS",
+          "coder-airgapped/ha-role" not in dsvc and dprobe == {"path": "/healthz", "port": "https", "scheme": "HTTPS"}
           and dstop == {"exec": {"command": ["/bin/sleep", "15"]}}, {"svc": dsvc, "probe": dprobe, "preStop": dstop})
     check("default: no synchronous replication, no pooler, the relays on -rw (as before)",
           not ddb.get("postgresql") and not ddb.get("certificates") and ("Pooler", "coder-db-pooler-rw") not in dflt
@@ -143,7 +143,8 @@ def no_rewrite_checks(B, chart, renders):
     - and no Traefik values file loads one, so the prerequisite is stock Traefik."""
     import yaml
     renders = dict(renders)
-    rc, out, err = run(["helm", "template", "coder", chart, "-n", "coder", "--set", "uiUpdates.enabled=false"])
+    rc, out, err = run(["helm", "template", "coder", chart, "-n", "coder", "--set",
+                        "uiUpdates.enabled=false,global.platformAgent.enabled=false,platformWebhook.enabled=false"])
     renders["the platform service off (uiUpdates.enabled=false)"] = out if rc == 0 else ""
     bad = {name: body_rewrites(r) for name, r in renders.items() if body_rewrites(r)}
     check("no Traefik body rewriting: no rendered Middleware runs a plugin (%d renders)" % len(renders),
@@ -190,14 +191,13 @@ def install_checks(B, chart, default_render):
 
 
 def webhook_checks(B, chart):
-    """The workspace pods' admission webhook (ADR-0002): off by default; on, it reaches only the release namespace's
+    """The workspace pods' admission webhook (ADR-0002): enabled by default; it reaches only the release namespace's
     workspace pods, fails closed (no workspace pod without Lock Down), runs two replicas of the platform service's
     image and only reads."""
     import yaml
     rc, out, err = run(["helm", "template", "cf", chart, "-n", "cf"])
-    check("webhook: off by default (the decorator still adds the pods' pieces)",
-          rc == 0 and "coder-platform-webhook" not in out, err.strip()[-200:])
-    rc, out, err = run(["helm", "template", "cf", chart, "-n", "cf", "--set", "platformWebhook.enabled=true"])
+    check("webhook: enabled by default with native agent services",
+          rc == 0 and "coder-platform-webhook" in out and "coder-platform-agent" in out, err.strip()[-200:])
     docs = [d for d in yaml.safe_load_all(out) if d] if rc == 0 else []
     by = {(d["kind"], d["metadata"]["name"]): d for d in docs}
     conf = by.get(("MutatingWebhookConfiguration", "coder-platform-webhook-cf"), {}).get("webhooks", [{}])[0]
@@ -389,6 +389,13 @@ def icon_checks(chart, default_render):
     check("routes: coder-enhanced, one route, sends /__coder-ui/ and /__icons/ to the platform service (and no other "
           "platform route)", {"/__coder-ui/", "/__icons/"} <= set(enhanced)
           and not ({"coder-ui-updates", "coder-workspace-icons"} & set(routes)), {"routes": sorted(routes), "to the service": enhanced})
+    network = [r for r in routes.get("coder-enhanced", {}).get("spec", {}).get("rules", [])
+               if any(m.get("path", {}).get("value") == "/__coder-ui/api/network" for m in r.get("matches", []))]
+    check("routes: network reads use Coder's bounded recovery proxy, without retrying mutations",
+          len(network) == 1 and network[0].get("matches") == [
+              {"method": "GET", "path": {"type": "Exact", "value": "/__coder-ui/api/network"}}]
+          and network[0].get("backendRefs") == [
+              {"group": "", "kind": "Service", "name": "coder", "port": 443, "weight": 1}], network)
     icons = os.path.join(chart, "charts", "coder-workspace", "files", "icons")
     files = sorted(os.listdir(icons))
     cms = [d for d in yaml.safe_load_all(default_render) if d and d.get("kind") == "ConfigMap"
@@ -585,7 +592,7 @@ def decorator_checks(B, chart, full_render):
           if (base & layer) or (base | layer) != full else "%d + %d objects" % (len(base), len(layer)))
     check("decorator: the base is Coder, its database and first owner only",
           {k for k, _ in base} <= {"Deployment", "Service", "ServiceAccount", "Role", "RoleBinding", "HTTPRoute", "Cluster",
-                                    "Secret", "ConfigMap", "Job"} and ("Cluster", "coder-db") in base and ("Deployment", "coder") in base
+                                    "Secret", "ConfigMap", "Job", "BackendTLSPolicy"} and ("Cluster", "coder-db") in base and ("Deployment", "coder") in base
           and not any(n.startswith(("coder-ui", "coder-workspace-push", "coder-image")) for _, n in base),
           sorted(base))
     plain, dec = renders["base"], renders["base+layer"]
@@ -798,27 +805,20 @@ def main():
         shared_file = os.path.join(tf_dir, "scripts", n)
         return shared_file if os.path.isfile(shared_file) else os.path.join(tf_dir, "dataflow", n)
     refs = sorted({m for m in re.findall(r'file\("\$\{path\.module\}/scripts/([^"]+)"', tf["main.tf"])})
-    # the base template (the DEFAULT prototype): one main.tf, its platform sections marked for the template decorator
-    check("template: consolidated - no certificates.tf, no lockdown-start.sh (lockdown.sh's start mode)",
-          not os.path.exists(os.path.join(tf_dir, "certificates.tf"))
-          and not os.path.exists(os.path.join(tf_dir, "scripts", "lockdown-start.sh"))
-          and "set -- start" in tf["main.tf"] and 'if [ "$1" = start ]' in open(os.path.join(tf_dir, "scripts",
-                                                                                          "lockdown.sh")).read(), "")
-    marks, opened, bad_marks = [], None, []
-    for i, line in enumerate(tf["main.tf"].split("\n"), 1):
-        t = line.strip()
-        if t.startswith("# platform:begin "):
-            if opened:
-                bad_marks.append(i)
-            opened = t.split()[-1]
-            marks.append(opened)
-        elif t.startswith("# platform:end "):
-            if opened != t.split()[-1]:
-                bad_marks.append(i)
-            opened = None
-    check("template: the platform's sections (certificates, Lock Down, Cloud Drive, metrics, code-server HA) marked for the decorator",
-          not bad_marks and not opened and set(marks) == {"certificates", "lockdown", "cloud-drive", "metrics", "code-server-ha"},
-          "features %s, unbalanced at lines %s" % (sorted(set(marks)), bad_marks))
+    import base64, yaml
+    native_docs = [d for d in yaml.safe_load_all(r) if d]
+    native_config = next(d for d in native_docs if d.get("kind") == "ConfigMap"
+                         and d["metadata"]["name"] == "coder-platform-agent")
+    agent_config = json.loads(native_config["data"]["agent.json"])
+    agent_scripts = {x["display_name"]: x["script"] for x in agent_config["scripts"]}
+    agent_metadata = {x["key"]: x for x in agent_config["metadata"]}
+    webhook = open(os.path.join(chart, "files/ui-updates/webhook.py")).read()
+    check("native agent: platform scripts and metadata ship independently of template Terraform",
+          set(agent_scripts) == {"Lock Down", "Certificates", "Cloud Drive"}
+          and len(agent_metadata) == 10 and "set -- start" in agent_scripts["Lock Down"]
+          and not re.search(r"# platform:(begin|end)", tf["main.tf"])
+          and "CODER_PLATFORM_AGENT_DIR" in r and "/etc/coder-platform-agent" in r,
+          {"scripts": sorted(agent_scripts), "metadata": sorted(agent_metadata)})
     check("template: the Desktop, File Browser and Terminal apps are the template's choice (variables)",
           all(re.search(r'variable "%s" \{\s*type\s*=\s*bool' % v, tf["main.tf"]) for v in ("desktop", "file_browser",
                                                                                           "terminal"))
@@ -840,9 +840,10 @@ def main():
           re.search(r"managed:\s*\n\s*roles:\s*\n\s*- name: code_server_relay", r)
           and re.search(r"name: coder-code-server-ha-relay\n(?:.*\n){0,12}?type: kubernetes\.io/basic-auth", r)
           and ui_img and ('--variable code_server_ha_image="%s"' % ui_img.group(1)) in r, "")
-    check("code-server HA: the template's section (a relay where code-server would be; the startup script starts none)",
-          "# platform:begin code-server-ha" in tf["main.tf"] and '"/app/csha.py", "front"' in tf["main.tf"]
-          and "CODER_CODE_SERVER_HA" in tf["main.tf"]
+    check("code-server HA: template requests the managed relay and startup honors its environment",
+          '"platform.coder/code-server-ha"' in tf["main.tf"]
+          and '["python3", "/app/csha.py", "front"]' in webhook
+          and 'setenv("CODER_CODE_SERVER_HA", "1")' in webhook
           and "CODER_CODE_SERVER_HA" in open(os.path.join(tf_dir, "scripts", "startup.sh")).read(), "")
     # Coder reads the platform's sections from this template (its decorator: the Source Code view's Materialized, and
     # every template made from the prototype gets them at build): the fork's own extraction, run on it, where the fork
@@ -920,10 +921,10 @@ def main():
           defaults and set(top) <= {"listing", "account", "preview", "fileLoading"} and '"stickySidebar":false' in fb,
           top)
     if subprocess.run(["sh", "-c", "command -v shfmt"], capture_output=True).returncode == 0:
-        rc, out, err = run(["shfmt", "-i", "1", "-d"] + scripts)
-        check("template scripts: formatted (shfmt -i 1)", rc == 0, (out + err).strip()[:300] or "%d scripts" % len(scripts))
+        rc, out, err = run(["shfmt", "-d"] + scripts)
+        check("template scripts: formatted (repository shfmt defaults)", rc == 0, (out + err).strip()[:300] or "%d scripts" % len(scripts))
     else:
-        check("template scripts: formatted (shfmt -i 1; shfmt not installed: skipped)", True, "skipped")
+        check("template scripts: formatted (shfmt; shfmt not installed: skipped)", True, "skipped")
     # The platform service's code is in its image (development/tools/build-ui-image.sh), tagged with the release
     # version; its revision label is the code's hash. The chart must not carry the code (Helm keeps each release in a
     # Secret of at most 1 MiB).
@@ -1001,17 +1002,13 @@ def main():
     # platform section), which the service reads from Coder's database for the Workspaces page.
     safe_py = open(os.path.join(chart, "files/ui-updates/safe.py")).read()
     ui_py = open(os.path.join(chart, "files/ui-updates/ui-service.py")).read()
-    agent_part = re.search(r'resource "coder_agent" "main" \{.*?# platform:begin cloud-drive\n(.*?)# platform:end cloud-drive',
-                           tf["main.tf"], re.S)
     check("Cloud Drive: told at once (push by exec), the newer of it and the annotation's file followed",
           'if { read -r at state <"$PUSHED"; } 2>/dev/null && [ "$${at:-0}" -ge "$file_at" ]; then' in cd_sh
           and 'file_at="$(stat -L -c %Y "$STATE"' in cd_sh and "push) push" in cd_sh
           and 'PUSH_HELPER = "/tmp/coder-cloud-drive/cloud-drive.sh"' in safe_py
           and '[PUSH_HELPER, "push", want]' in safe_py and "push_soon(pod[\"metadata\"][\"name\"], wid, want)" in safe_py, "")
     check("Cloud Drive: the workspace says whether it is attached (metadata cloud_drive), the service reads it",
-          bool(agent_part) and 'key          = "9_cloud_drive"' in agent_part.group(1)
-          and "for_each = var.user_storage ? [1] : []" in agent_part.group(1)
-          and "cloud-drive.sh status 2>/dev/null || echo starting" in agent_part.group(1)
+          "cloud-drive.sh status 2>/dev/null || echo starting" in agent_metadata.get("9_cloud_drive", {}).get("script", "")
           and all(w in cd_sh for w in ("echo attached", "echo unanswered", "echo detached", "echo waiting"))
           and "m.key ~ '(^|_)cloud_drive$'" in ui_py and "attachment=safe_cloud_drive_attachment" in ui_py
           and '"attachment": attachment(user["id"])' in safe_py, "")
@@ -1072,22 +1069,19 @@ def main():
     # restart); the helper also comes with the Cloud Drive's platform section (the decorator gives templates made in
     # the builder the base's current one at every build), the newer one kept; the watcher's check takes over a File
     # Browser an older startup.sh started; a drive whose storage does not answer is left out, not waited on.
-    cd_section = re.search(r"# platform:begin cloud-drive\n(.*?)# platform:end cloud-drive", tf["main.tf"], re.S)
     check("template: File Browser keeps every Cloud Drive through restarts and in every template (builder-made too)",
           "pidfile=/tmp/" in fb and '"/proc/$1/comm"' in fb and "HELPER_VERSION=" in fb and "install)" in fb
           and "check) flock -n 9" in fb and "timeout 10 test" in cd_sh and 'grep -qxF "$config"' in fb
-          and bool(cd_section) and 'filebrowser = base64encode(file("${path.module}/scripts/filebrowser.sh"))'
-          in cd_section.group(1)
+          and base64.b64encode(fb.encode()).decode() in agent_scripts.get("Cloud Drive", "")
           and 'bash "$fb_helper" install' in cd_sh and 'bash "$fb_helper" install' in startup
           and "files_check" in cd_sh, "")
     # Folders and files of a Cloud Drive shared with the owner: each its owner's volume's subPath, mounted apart
     # (/mnt/cloud-drive-items/<share id>, one volume per owner's volume and access) and linked under
     # ~/cloud-drive-shared/<owner>/; File Browser makes each shared folder a source of its own.
     check("template: shared folders and files of a Cloud Drive mounted by subPath and linked in ~/cloud-drive/Shared",
-          "/mnt/cloud-drive-items/${volume_mount.value.id}" in tf["main.tf"]
-          and "sub_path  = volume_mount.value.path" in tf["main.tf"]
-          and "cloud_drive_peer_volumes" in tf["main.tf"] and "for_each = local.cloud_drive_peer_volumes" in tf["main.tf"]
-          and "items = base64encode(jsonencode(" in tf["main.tf"]
+          '"/mnt/cloud-drive-items/%s"' in webhook and '"subPath": p.get("path", "")' in webhook
+          and '"claimName": claim' in webhook and '"readOnly": bool(p.get("readOnly"))' in webhook
+          and 'annotations[MOUNTS_ANNOTATION] = json.dumps(' in webhook
           and 'ITEMS=/mnt/cloud-drive-items' in cd_sh and '-lname "$ITEMS/*" -delete' in cd_sh
           and "(shared items)" in cd_sh and 'source_of "$item"' in cd_sh and "unique_names" in fb, "")
     # The desktop's look: the Desktop theme parameter (where the template has the desktop), put in the home by the

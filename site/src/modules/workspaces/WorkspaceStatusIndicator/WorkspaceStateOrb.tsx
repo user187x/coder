@@ -1,10 +1,10 @@
-import { LiveLava } from "#/modules/platform/lava/LiveLava";
+import { LiveLava } from "#/components/LavaImage/LiveLava";
 import {
 	LAVA_PICTURE_DEFAULT,
 	type LavaSettings,
-} from "#/modules/platform/lava/lava";
+} from "#/components/LavaImage/lava";
 
-export type WorkspaceOrbState =
+type WorkspaceOrbState =
 	| "running"
 	| "error"
 	| "starting"
@@ -30,7 +30,7 @@ export const WorkspaceStateOrb: React.FC<{ state: WorkspaceOrbState }> = ({
 	<LiveLava
 		className="rounded-full"
 		settings={settings[state]}
-		size={20}
+		style={{ width: "1em", height: "1em" }}
 		paused={state === "stopped"}
 	/>
 );

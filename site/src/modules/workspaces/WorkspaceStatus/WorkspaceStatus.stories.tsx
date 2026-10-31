@@ -1,6 +1,12 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { fn, userEvent, within } from "storybook/test";
 import { WorkspaceStatuses } from "#/api/typesGenerated";
-import { MockDormantWorkspace, MockWorkspace } from "#/testHelpers/entities";
+import {
+	MockDormantWorkspace,
+	MockWorkspace,
+	MockWorkspaceAgent,
+} from "#/testHelpers/entities";
+import { getWorkspaceRestartReasons } from "#/utils/workspace";
 import { WorkspaceStatus } from "./WorkspaceStatus";
 
 const meta: Meta<typeof WorkspaceStatus> = {
@@ -52,4 +58,54 @@ export const RunningUpToDate: Story = {
 			health: { healthy: true, failing_agents: [] },
 		},
 	},
+};
+
+const workspaceNeedingUpdates = {
+	...MockWorkspace,
+	outdated: true,
+	latest_build: {
+		...MockWorkspace.latest_build,
+		resources: [
+			{
+				...MockWorkspace.latest_build.resources[0],
+				agents: [
+					{
+						...MockWorkspaceAgent,
+						name: "browser",
+						version: "v1.9.0",
+						api_version: "1.0",
+					},
+				],
+			},
+		],
+	},
+};
+export const RestartReasons: Story = {
+	args: {
+		workspace: workspaceNeedingUpdates,
+		pill: true,
+		agentUpdateAvailable: true,
+		restartReasons: getWorkspaceRestartReasons(
+			workspaceNeedingUpdates,
+			"v2.0.0",
+			"2.12",
+		),
+		onUpdate: fn(),
+	},
+	decorators: [
+		(Story) => (
+			<div className="p-32">
+				<Story />
+			</div>
+		),
+	],
+	play: async ({ canvasElement }) => {
+		await userEvent.hover(
+			within(canvasElement).getByRole("button", { name: /Running. Restart/ }),
+		);
+	},
+};
+export const RestartUnavailable: Story = {
+	...RestartReasons,
+	args: { ...RestartReasons.args, updateDisabled: true },
 };

@@ -5,6 +5,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/require"
+
 	"github.com/coder/coder/v2/coderd/coderdtest"
 	"github.com/coder/coder/v2/coderd/database"
 	"github.com/coder/coder/v2/coderd/database/dbauthz"
@@ -12,8 +15,6 @@ import (
 	"github.com/coder/coder/v2/coderd/database/dbgen"
 	"github.com/coder/coder/v2/codersdk"
 	"github.com/coder/coder/v2/testutil"
-	"github.com/google/uuid"
-	"github.com/stretchr/testify/require"
 )
 
 func TestWorkspaceQuarantinePolicyAndStart(t *testing.T) {
@@ -116,17 +117,19 @@ func TestWorkspaceQuarantineCancelsCapturedStartAndDelete(t *testing.T) {
 	t.Parallel()
 	client, db := coderdtest.NewWithDatabase(t, nil)
 	owner := coderdtest.CreateFirstUser(t, client)
-	ctx := testutil.Context(t, testutil.WaitLong)
 	for _, tc := range []struct {
 		name       string
 		transition database.WorkspaceTransition
 		running    bool
 	}{
-		{"pending-start", database.WorkspaceTransitionStart, false}, {"running-start", database.WorkspaceTransitionStart, true},
-		{"pending-delete", database.WorkspaceTransitionDelete, false}, {"running-delete", database.WorkspaceTransitionDelete, true},
+		{"pending-start", database.WorkspaceTransitionStart, false},
+		{"running-start", database.WorkspaceTransitionStart, true},
+		{"pending-delete", database.WorkspaceTransitionDelete, false},
+		{"running-delete", database.WorkspaceTransitionDelete, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+			ctx := testutil.Context(t, testutil.WaitLong)
 			builder := dbfake.WorkspaceBuild(t, db, database.WorkspaceTable{OrganizationID: owner.OrganizationID, OwnerID: owner.UserID}).Seed(database.WorkspaceBuild{Transition: tc.transition})
 			if tc.running {
 				builder = builder.Starting()

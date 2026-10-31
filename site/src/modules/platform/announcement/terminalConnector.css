@@ -1,0 +1,43 @@
+.banner-terminal-flash {
+	pointer-events: none;
+	position: fixed;
+	inset: 0;
+	z-index: 200;
+	background: white;
+	animation: banner-terminal-connect 1800ms ease-out forwards;
+}
+@keyframes banner-terminal-connect {
+	0% {
+		opacity: 0;
+	}
+	10%,
+	55% {
+		opacity: 1;
+	}
+	100% {
+		opacity: 0;
+	}
+}
+body:has(.banner-terminal-flash) #root {
+	animation: banner-terminal-shake 100ms linear 10;
+}
+@keyframes banner-terminal-shake {
+	0%,
+	100% {
+		transform: translate(0, 0);
+	}
+	25% {
+		transform: translate(2px, 1px);
+	}
+	75% {
+		transform: translate(-2px, -1px);
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.banner-terminal-flash {
+		display: none;
+	}
+	body:has(.banner-terminal-flash) #root {
+		animation: none;
+	}
+}

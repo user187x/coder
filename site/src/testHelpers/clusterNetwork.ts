@@ -4,10 +4,13 @@ import type {
 	MeshEdge,
 	MeshLinkDetails,
 	MeshReport,
+	NetworkLogPod,
+	NetworkPodLogs,
 	NodeDetails,
 	PodBrief,
 	PodDetails,
 } from "#/api/clusterNetwork";
+import type { SerpentOption } from "#/api/typesGenerated";
 import { MockNetworkReport } from "./platform";
 
 const brief = (name: string, node = "node-a", ready = true): PodBrief => ({
@@ -562,3 +565,67 @@ export const MockLinkDetails: MeshLinkDetails = {
 		["2026-09-30T10:03:40Z", 1.5],
 	],
 };
+
+export const MockNetworkLogPod: NetworkLogPod = {
+	namespace: "coder",
+	name: "coder-5d9f7c",
+	uid: "test-pod-uid",
+	containers: ["coder", "init"],
+	restartable: true,
+	restartReason: "",
+};
+export const MockNetworkPodLogs: NetworkPodLogs = {
+	uid: MockNetworkLogPod.uid,
+	readAt: "2026-10-31T17:00:00Z",
+	text: "2026-10-31T17:00:00Z server ready\n2026-10-31T17:00:01Z workspace connected\n",
+};
+
+export const MockNetworkAnsiPodLogs: NetworkPodLogs = {
+	...MockNetworkPodLogs,
+	text: "2026-10-31T17:00:00Z \u001b[32mINF\u001b[0m server ready\n2026-10-31T17:00:01Z \u001b[33mWRN\u001b[0m upstream connection delayed: retrying request to http://coder.coder.svc.cluster.local:8080/api/v2/buildinfo after timeout\n2026-10-31T17:00:02Z literal <script>alert('log text')</script>\n",
+};
+
+export const MockNetworkOptions: SerpentOption[] = [
+	{
+		name: "DERP Server Enable",
+		description: "Whether to enable or disable the embedded DERP relay server.",
+		value: true,
+		group: { name: "Networking", description: "" },
+		flag: "derp-server-enable",
+		hidden: false,
+	},
+	{
+		name: "DERP Server Region Name",
+		description: "Region name that for the embedded DERP server.",
+		value: "aws-east",
+		group: { name: "Networking", description: "" },
+		flag: "derp-server-region-name",
+		hidden: false,
+	},
+	{
+		name: "DERP Server STUN Addresses",
+		description:
+			"Addresses for STUN servers to establish P2P connections. Set empty to disable P2P connections.",
+		value: ["stun.l.google.com:19302", "stun.l.google.com:19301"],
+		group: { name: "Networking", description: "" },
+		flag: "derp-server-stun-addresses",
+		hidden: false,
+	},
+	{
+		name: "DERP Config URL",
+		description:
+			"URL to fetch a DERP mapping on startup. See: https://tailscale.com/kb/1118/custom-derp-servers/",
+		value: "https://coder.com",
+		group: { name: "Networking", description: "" },
+		flag: "derp-config-url",
+		hidden: false,
+	},
+	{
+		name: "Wildcard Access URL",
+		description: "",
+		value: "https://coder.com",
+		group: { name: "Networking", description: "" },
+		flag: "wildcard-access-url",
+		hidden: false,
+	},
+];

@@ -1,3 +1,4 @@
+import type { QueryClient } from "react-query";
 /**
  * @file The Cluster Network view in depth (Settings > Network), served by the
  * platform service (clusternet.py): what each pod and Service on the map is
@@ -7,6 +8,7 @@
  */
 import type { CoderPod, NetworkReport, NetworkWorkspace } from "./platform";
 import { platformRequest } from "./platform";
+import { networkReportKey } from "./queries/platform";
 
 const { get, base } = platformRequest;
 
@@ -26,15 +28,16 @@ type Requests = { cpu: number; memory: number };
 
 /** What the map's report adds to a pod (missing from an older platform service). */
 type PodExtras = {
+	deleting?: boolean;
 	kind?: ComponentKind;
 	/** A Coder server's active / standby, a database instance's primary / replica. */
 	haRole?: string;
 	requests?: Requests;
 };
 
-export type MapPod = CoderPod & PodExtras;
+type MapPod = CoderPod & PodExtras;
 
-export type MapWorkspace = Omit<NetworkWorkspace, "pod"> & {
+type MapWorkspace = Omit<NetworkWorkspace, "pod"> & {
 	pod: NetworkWorkspace["pod"] & PodExtras;
 };
 
@@ -56,6 +59,7 @@ export type ClusterNetworkReport = Omit<
 	NetworkReport,
 	"coder" | "workspaces"
 > & {
+	podsAvailable?: boolean;
 	coder: MapPod[];
 	workspaces: MapWorkspace[];
 	services?: MapService[];
@@ -247,7 +251,7 @@ export type MeshNode = {
 	entity: EntityRef | null;
 };
 
-export type MeshSample = {
+type MeshSample = {
 	target: string;
 	ms: number | null;
 	error: string | null;
@@ -394,7 +398,7 @@ export type CodeServerHA = {
 	error: string | null;
 };
 
-export type StorageVolume = {
+type StorageVolume = {
 	name: string;
 	claim: string | null;
 	phase: string | null;
@@ -484,6 +488,19 @@ const entityQuery = (ref: EntityRef) => {
 };
 
 export const ClusterNetworkAPI = {
+	logTargets: (ref: KubernetesEntityRef) =>
+		get<{ pods: NetworkLogPod[] }>(
+			`${base}/api/network/log-targets?${entityQuery(ref)}`,
+		),
+	podLogs: (pod: NetworkLogPod, container: string, previous: boolean) =>
+		get<NetworkPodLogs>(
+			`${base}/api/network/pod-logs?${new URLSearchParams({ namespace: pod.namespace, name: pod.name, uid: pod.uid, container, previous: String(previous) })}`,
+		),
+	restartPod: (pod: NetworkLogPod, confirmation: string) =>
+		platformRequest.post<{ accepted: boolean; message: string }>(
+			`${base}/api/network/restart-pod`,
+			{ namespace: pod.namespace, name: pod.name, uid: pod.uid, confirmation },
+		),
 	entity: (ref: EntityRef) =>
 		get<EntityDetails>(`${base}/api/network/entity?${entityQuery(ref)}`),
 	haAndStorage: () => get<HAStorageReport>(`${base}/api/network/ha`),
@@ -519,7 +536,7 @@ export const clusterHA = (paused: boolean) => ({
 	retry: false,
 });
 
-export type CoderScale = {
+type CoderScale = {
 	desired: number;
 	ready: number;
 	resourceVersion: string;
@@ -536,4 +553,52 @@ export const coderScale = () => ({
 export const updateCoderScale = () => ({
 	mutationFn: (body: { replicas: number; resourceVersion: string }) =>
 		platformRequest.post<CoderScale>(`${base}/api/network/coder-scale`, body),
+});
+
+export type KubernetesEntityRef = Exclude<EntityRef, { type: "link" }>;
+export type NetworkLogPod = {
+	namespace: string;
+	name: string;
+	uid: string;
+	containers: string[];
+	restartable: boolean;
+	restartReason: string;
+};
+export type NetworkPodLogs = { text: string; readAt: string; uid: string };
+
+export const networkLogTargets = (ref: KubernetesEntityRef) => ({
+	queryKey: [...clusterNetworkKey, "log-targets", entityQuery(ref)],
+	queryFn: () => ClusterNetworkAPI.logTargets(ref),
+	retry: false,
+	refetchOnWindowFocus: false,
+});
+
+export const networkPodLogs = (
+	pod: NetworkLogPod,
+	container: string,
+	previous: boolean,
+	paused: boolean,
+) => ({
+	queryKey: [...clusterNetworkKey, "pod-logs", pod.uid, container, previous],
+	queryFn: () => ClusterNetworkAPI.podLogs(pod, container, previous),
+	enabled: Boolean(container),
+	refetchInterval: paused || previous ? (false as const) : 2000,
+	refetchOnWindowFocus: false,
+	gcTime: 0,
+	retry: false,
+});
+
+export const restartNetworkPod = (client: QueryClient) => ({
+	onSettled: () =>
+		Promise.all([
+			client.invalidateQueries({ queryKey: clusterNetworkKey }),
+			client.invalidateQueries({ queryKey: networkReportKey }),
+		]),
+	mutationFn: ({
+		pod,
+		confirmation,
+	}: {
+		pod: NetworkLogPod;
+		confirmation: string;
+	}) => ClusterNetworkAPI.restartPod(pod, confirmation),
 });

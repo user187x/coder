@@ -1,0 +1,42 @@
+.agent-terminal-surface {
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+	height: 480px;
+	width: 100%;
+}
+.agent-terminal-tiles {
+	display: flex;
+	flex: 1;
+	min-height: 0;
+	overflow: auto;
+	border: 1px solid hsl(var(--border));
+	border-radius: 6px;
+	background: #000509;
+}
+.agent-terminal-surface:fullscreen {
+	height: 100%;
+	padding: 12px;
+	background: hsl(var(--surface-primary));
+}
+.agent-terminal-popout-content > .agent-terminal-surface {
+	height: 100%;
+}
+.workspace-dashboard-page[data-workspace-expanded]
+	:is(
+		.agent-terminal-section[data-open],
+		.agent-terminal-section[data-open] > div,
+		.agent-terminal-content,
+		.agent-terminal-content > div,
+		.agent-panels
+			> [data-panel]:not([hidden]):has(.agent-terminal-section[data-open])
+	) {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	min-height: 0;
+}
+.workspace-dashboard-page[data-workspace-expanded] .agent-terminal-surface {
+	flex: 1;
+	height: 100%;
+}

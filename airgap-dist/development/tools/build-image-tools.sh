@@ -7,18 +7,28 @@
 # Then update its [custom] line (tag, digest) in helm-chart/images.txt and uiUpdates.image in values.yaml.
 #   ./build-image-tools.sh [TAG]           default: the release version (RELEASE_VERSION)
 set -euo pipefail
-here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; dev="$(dirname "$here")"; top="$(dirname "$dev")"
-release="$(cat "$(dirname "$top")/RELEASE_VERSION")"  # every image of ours is tagged with the release version (RELEASE_VERSION)
-tag="${1:-$release}"; img="docker.io/mrshll187/coder-image-tools:${tag}"
-cache="${XDG_CACHE_HOME:-$HOME/.cache}/coder-airgapped/image-tools"; mkdir -p "$cache"
-ctx="$(mktemp -d)"; trap 'rm -rf "$ctx"' EXIT
-cp "${dev}/image-tools/Dockerfile" "$ctx/"; mkdir -p "$ctx/bin" "$ctx/trivy-cache"
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+dev="$(dirname "$here")"
+top="$(dirname "$dev")"
+release="$(cat "$(dirname "$top")/RELEASE_VERSION")" # every image of ours is tagged with the release version (RELEASE_VERSION)
+tag="${1:-$release}"
+img="docker.io/mrshll187/coder-image-tools:${tag}"
+cache="${XDG_CACHE_HOME:-$HOME/.cache}/coder-airgapped/image-tools"
+mkdir -p "$cache"
+ctx="$(mktemp -d)"
+trap 'rm -rf "$ctx"' EXIT
+cp "${dev}/image-tools/Dockerfile" "$ctx/"
+mkdir -p "$ctx/bin" "$ctx/trivy-cache"
 
 fetch() { # URL SHA256 [NAME] -> path of the verified download (kept in the cache, as NAME or the URL's file name)
 	local url="$1" sum="$2" file="${cache}/${3:-$(basename "$1")}"
 	if [[ ! -f "$file" ]] || ! echo "${sum}  ${file}" | sha256sum -c --quiet 2>/dev/null; then
 		curl -fsSL -o "${file}.part" "$url"
-		echo "${sum}  ${file}.part" | sha256sum -c --quiet || { rm -f "${file}.part"; echo "ERROR: checksum mismatch: $url" >&2; exit 1; }
+		echo "${sum}  ${file}.part" | sha256sum -c --quiet || {
+			rm -f "${file}.part"
+			echo "ERROR: checksum mismatch: $url" >&2
+			exit 1
+		}
 		mv "${file}.part" "$file"
 	fi
 	echo "$file"

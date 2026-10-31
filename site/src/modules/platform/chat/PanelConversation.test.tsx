@@ -12,6 +12,7 @@ vi.mock("./ChatConversation", () => ({
 	ChatConversation: ({ ref }: { ref: React.Ref<ConversationActions> }) => {
 		useImperativeHandle(ref, () => ({
 			askDelete,
+			chooseFile: vi.fn(),
 			focus: vi.fn(),
 			screenshot: vi.fn(),
 			selectAll: vi.fn(),

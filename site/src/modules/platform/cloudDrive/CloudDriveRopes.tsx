@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { useAnimationsEnabled } from "#/modules/platform/animations/animations";
+import { useAnimationsEnabled } from "#/hooks/useAnimationSettings";
+import { CloudDriveCable } from "./CloudDriveCable";
 import { CloudDriveMalePlug } from "./CloudDriveMalePlug";
 import {
 	type Cable,
@@ -19,7 +20,7 @@ import {
 /** Where the cables are drawn over: the Workspaces page's content. */
 export const ROPES_AREA = "data-cloud-drive-area";
 /** On the row a cable is dragged over: "on" (it plugs in there) or "taken" (connected already: it would not). */
-export const DROP = "data-cloud-drive-drop";
+const DROP = "data-cloud-drive-drop";
 
 /** No motion: the user menu's Animations off, or the system's reduced motion. */
 export const motionless = () =>
@@ -31,12 +32,12 @@ const SUBSTEPS = 2;
 /** Frames in a row the cables barely move before the loop stops. */
 const REST_FRAMES = 20;
 /** The socket on the Cloud Drive's right side, and a plug's body (px). */
-export const SOCKET = 7;
-export const PLUG = 12;
+const SOCKET = 7;
+const PLUG = 12;
 /** Room between the table's right edge and a cable. */
 const GAP = 3;
 /** How long a pulled-out cable hangs limp before it reels in (ms). */
-export const LIMP_MS = 500;
+const LIMP_MS = 500;
 /** How far right of a row a plug dropped there still plugs into it (px). */
 const DROP_REACH = 90;
 /** When the page opens, the cables plug in one after another (ms apart). */
@@ -146,7 +147,9 @@ export const CloudDriveRopes: React.FC<{
 	const deletingRef = useRef(new Set(deleting));
 	const onLinkRef = useRef(onLink);
 	const kickRef = useRef<() => void>(() => {});
-	onLinkRef.current = onLink;
+	useEffect(() => {
+		onLinkRef.current = onLink;
+	}, [onLink]);
 
 	useEffect(() => {
 		linkedRef.current = new Set(linked);
@@ -721,11 +724,7 @@ export const CloudDriveRopes: React.FC<{
 						}
 					}}
 				>
-					<path className="cd-cable" />
-					<path className="cd-cable-shine" />
-					{/* The plug: the cable joins its body at (0, 0); its prongs point on along +x (into the row's edge). */}
-					<g className="cd-plug">
-						<CloudDriveMalePlug />
+					<CloudDriveCable>
 						<rect
 							className="cd-grab"
 							data-grab="plug"
@@ -736,7 +735,7 @@ export const CloudDriveRopes: React.FC<{
 						>
 							<title>Drag away to disconnect this workspace</title>
 						</rect>
-					</g>
+					</CloudDriveCable>
 				</g>
 			))}
 			<g ref={socket} className="cd-socket-group" visibility="hidden">

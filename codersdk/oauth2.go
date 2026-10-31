@@ -401,7 +401,7 @@ func (h OAuth2RevocationTokenTypeHint) Valid() bool {
 
 type OAuth2ErrorCode string
 
-// OAuth2 error codes per RFC 6749, RFC 7009, RFC 8707.
+// OAuth2 error codes per RFC 6749, RFC 6750, RFC 7009, RFC 8707.
 // This is not comprehensive; it includes only codes relevant to this implementation.
 const (
 	// RFC 6749 - Token endpoint errors.
@@ -423,6 +423,10 @@ const (
 
 	// RFC 8707 - Resource indicator errors.
 	OAuth2ErrorCodeInvalidTarget OAuth2ErrorCode = "invalid_target"
+
+	// RFC 6750 - Protected resource errors.
+	OAuth2ErrorCodeInvalidToken      OAuth2ErrorCode = "invalid_token"
+	OAuth2ErrorCodeInsufficientScope OAuth2ErrorCode = "insufficient_scope"
 )
 
 func (c OAuth2ErrorCode) Valid() bool {
@@ -438,7 +442,9 @@ func (c OAuth2ErrorCode) Valid() bool {
 		OAuth2ErrorCodeServerError,
 		OAuth2ErrorCodeTemporarilyUnavailable,
 		OAuth2ErrorCodeUnsupportedTokenType,
-		OAuth2ErrorCodeInvalidTarget:
+		OAuth2ErrorCodeInvalidTarget,
+		OAuth2ErrorCodeInvalidToken,
+		OAuth2ErrorCodeInsufficientScope:
 		return true
 	}
 	return false

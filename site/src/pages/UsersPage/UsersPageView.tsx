@@ -12,7 +12,6 @@ import {
 	SettingsHeaderDescription,
 	SettingsHeaderTitle,
 } from "#/components/SettingsHeader/SettingsHeader";
-import { AccountShareCables } from "#/modules/platform/cloudDrive/AccountShareCables";
 import { ShortTermLeases } from "#/modules/platform/shortTermLeases/ShortTermLeases";
 import { TableCard } from "#/modules/platform/tableCard/TableCard";
 import { BulkUserActions } from "#/modules/users/BulkUserActions";
@@ -20,6 +19,7 @@ import {
 	UserActionDialogs,
 	type UserAdminAction,
 } from "#/modules/users/UserActionDialogs";
+import { WorkspaceSchedulerSection } from "#/pages/HealthPage/WorkspaceSchedulerSection";
 import { UsersTable, type UsersTableProps } from "./UsersTable";
 
 type UsersPageViewProps = Omit<
@@ -46,10 +46,6 @@ export const UsersPageView: React.FC<UsersPageViewProps> = ({
 		new Set(),
 	);
 	const pageUsers = usersQuery.data?.users;
-	const userIds = useMemo(
-		() => (pageUsers ?? []).map((u) => u.id),
-		[pageUsers],
-	);
 	const selected = useMemo(
 		() => (pageUsers ?? []).filter((u) => selectedIds.has(u.id)),
 		[pageUsers, selectedIds],
@@ -76,67 +72,72 @@ export const UsersPageView: React.FC<UsersPageViewProps> = ({
 				</SettingsHeaderDescription>
 			</SettingsHeader>
 
-			{/* Platform: the accounts - their filter, the bulk actions and the table - in a card of their own, the first. */}
-			<AccountShareCables userIds={userIds} accounts={pageUsers}>
-				<section
-					aria-label="Accounts"
-					data-testid="accounts-card"
-					className="mb-6 flex flex-col gap-3 rounded-lg border border-solid border-border p-6"
-				>
-					<UsersFilter {...filterProps} />
+			<section
+				aria-label="Accounts"
+				data-testid="accounts-card"
+				className="mb-6 flex flex-col gap-3 rounded-lg border border-solid border-border p-6"
+			>
+				<UsersFilter {...filterProps} />
 
-					{props.canEditUsers && (
-						<BulkUserActions
-							selected={selected}
-							me={props.me}
-							oidcRoleSyncEnabled={props.oidcRoleSyncEnabled}
-							onClear={() => setSelectedIds(new Set())}
-						/>
-					)}
+				{props.canEditUsers && (
+					<BulkUserActions
+						selected={selected}
+						me={props.me}
+						oidcRoleSyncEnabled={props.oidcRoleSyncEnabled}
+						onClear={() => setSelectedIds(new Set())}
+					/>
+				)}
 
-					<TableCard
-						summary={
-							<PaginationAmount
-								limit={usersQuery.limit}
-								totalRecords={usersQuery.totalRecords}
-								currentOffsetStart={usersQuery.currentOffsetStart}
-								countIsCapped={usersQuery.countIsCapped}
-								paginationUnitLabel="accounts"
-								className="h-auto"
-							/>
-						}
-					>
-						{/* Platform: who shares their Cloud Drive with whom, as the Cloud Drive's cables between the rows. */}
-						<UsersTable
-							{...props}
-							users={pageUsers}
-							onAction={setAction}
-							selected={props.canEditUsers ? selectedIds : undefined}
-							onSelect={setSelectedIds}
-						/>
-					</TableCard>
-					{usersQuery.totalRecords !== undefined && (
-						<PaginationWidgetBase
+				<TableCard
+					summary={
+						<PaginationAmount
+							limit={usersQuery.limit}
 							totalRecords={usersQuery.totalRecords}
-							totalPages={usersQuery.totalPages}
-							currentPage={usersQuery.currentPage}
-							pageSize={usersQuery.limit}
-							onPageChange={usersQuery.onPageChange}
-							hasPreviousPage={usersQuery.hasPreviousPage}
-							hasNextPage={usersQuery.hasNextPage}
+							currentOffsetStart={usersQuery.currentOffsetStart}
+							countIsCapped={usersQuery.countIsCapped}
+							paginationUnitLabel="accounts"
+							className="h-auto"
 						/>
-					)}
-				</section>
-			</AccountShareCables>
+					}
+				>
+					<UsersTable
+						{...props}
+						users={pageUsers}
+						onAction={setAction}
+						selected={props.canEditUsers ? selectedIds : undefined}
+						onSelect={setSelectedIds}
+					/>
+				</TableCard>
+				{usersQuery.totalRecords !== undefined && (
+					<PaginationWidgetBase
+						totalRecords={usersQuery.totalRecords}
+						totalPages={usersQuery.totalPages}
+						currentPage={usersQuery.currentPage}
+						pageSize={usersQuery.limit}
+						onPageChange={usersQuery.onPageChange}
+						hasPreviousPage={usersQuery.hasPreviousPage}
+						hasNextPage={usersQuery.hasNextPage}
+					/>
+				)}
+			</section>
+			{canCreateUser && <ShortTermLeases />}
 
 			{quota && (
 				<section
 					aria-label="User Quota"
 					data-testid="user-quota"
-					className="mb-6 rounded-lg border border-solid border-border px-6 pt-3"
+					className="mb-6 rounded-lg border border-solid border-border p-6"
 				>
-					{canCreateUser && <ShortTermLeases />}
 					{quota}
+				</section>
+			)}
+
+			{quota && (
+				<section
+					aria-label="Global Workspace Scheduler"
+					className="mb-6 rounded-lg border border-solid border-border p-6"
+				>
+					<WorkspaceSchedulerSection />
 				</section>
 			)}
 

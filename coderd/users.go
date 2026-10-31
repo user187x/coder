@@ -1009,6 +1009,26 @@ func (api *API) putUserProfile(rw http.ResponseWriter, r *http.Request) {
 		httpapi.ResourceNotFound(rw)
 		return
 	}
+	email := user.Email
+	if params.Email != "" && !strings.EqualFold(params.Email, user.Email) {
+		if httpmw.APIKey(r).UserID != user.ID || user.LoginType != database.LoginTypePassword {
+			httpapi.Write(ctx, rw, http.StatusForbidden, codersdk.Response{
+				Message: "Email can only be changed here by the account's password-authenticated owner.",
+			})
+			return
+		}
+		if params.CurrentPassword == "" {
+			httpapi.Write(ctx, rw, http.StatusBadRequest, codersdk.Response{
+				Message:     "Confirm your current password to change your email.",
+				Validations: []codersdk.ValidationError{{Field: "current_password", Detail: "Current password is required."}},
+			})
+			return
+		}
+		if _, _, ok := api.loginRequest(ctx, rw, codersdk.LoginWithPasswordRequest{Email: user.Email, Password: params.CurrentPassword}); !ok {
+			return
+		}
+		email = params.Email
+	}
 
 	existentUser, err := api.Database.GetUserByEmailOrUsername(ctx, database.GetUserByEmailOrUsernameParams{
 		Username: params.Username,
@@ -1044,7 +1064,7 @@ func (api *API) putUserProfile(rw http.ResponseWriter, r *http.Request) {
 
 	updatedUserProfile, err := api.Database.UpdateUserProfile(ctx, database.UpdateUserProfileParams{
 		ID:        user.ID,
-		Email:     user.Email,
+		Email:     email,
 		Name:      params.Name,
 		AvatarURL: avatarURL,
 		Username:  params.Username,
@@ -1053,6 +1073,13 @@ func (api *API) putUserProfile(rw http.ResponseWriter, r *http.Request) {
 	aReq.New = updatedUserProfile
 
 	if err != nil {
+		if database.IsUniqueViolation(err, database.UniqueIndexUsersEmail) || database.IsUniqueViolation(err, database.UniqueUsersEmailLowerIndex) {
+			httpapi.Write(ctx, rw, http.StatusConflict, codersdk.Response{
+				Message:     "A user with this email already exists.",
+				Validations: []codersdk.ValidationError{{Field: "email", Detail: "This email is already in use."}},
+			})
+			return
+		}
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
 			Message: "Internal error updating user.",
 			Detail:  err.Error(),

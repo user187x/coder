@@ -30,6 +30,7 @@ import (
 	"github.com/coder/coder/v2/coderd/pproflabel"
 	"github.com/coder/coder/v2/coderd/provisionerdserver"
 	"github.com/coder/coder/v2/coderd/schedule"
+	"github.com/coder/coder/v2/coderd/workspacescheduler"
 	"github.com/coder/coder/v2/coderd/wsbuilder"
 	"github.com/coder/coder/v2/codersdk"
 )
@@ -275,6 +276,28 @@ func (e *Executor) runOnce(t time.Time) Stats {
 						return xerrors.Errorf("get latest provisioner job: %w", err)
 					}
 
+					scheduler, err := workspacescheduler.ForWorkspace(e.ctx, tx, ws)
+					schedulerUnavailable := err != nil
+					if scheduler.Enabled && scheduler.Mode == "fixed" && err == nil {
+						_, _, err = scheduler.FixedSchedule()
+					}
+					if err != nil {
+						// A malformed policy must not suppress an existing shutdown.
+						log.Error(e.ctx, "cannot reconcile workspace scheduler", slog.Error(err))
+						schedulerUnavailable = true
+					} else if err := scheduler.ApplyFixed(e.ctx, tx, &ws); err != nil {
+						return err
+					}
+					if latestBuild.Transition == database.WorkspaceTransitionStart && latestJob.CompletedAt.Valid && !latestJob.Error.Valid {
+						deadline, maximum := scheduler.Limit(ws, latestJob.CompletedAt.Time, currentTick, latestBuild.Deadline, latestBuild.MaxDeadline)
+						if !deadline.Equal(latestBuild.Deadline) || !maximum.Equal(latestBuild.MaxDeadline) {
+							if err := tx.UpdateWorkspaceBuildDeadlineByID(e.ctx, database.UpdateWorkspaceBuildDeadlineByIDParams{ID: latestBuild.ID, Deadline: deadline, MaxDeadline: maximum, UpdatedAt: currentTick}); err != nil {
+								return err
+							}
+							latestBuild.Deadline, latestBuild.MaxDeadline = deadline, maximum
+						}
+					}
+
 					templateSchedule, err := (*(e.templateScheduleStore.Load())).Get(e.ctx, tx, ws.TemplateID)
 					if err != nil {
 						return xerrors.Errorf("get template scheduling options: %w", err)
@@ -312,6 +335,9 @@ func (e *Executor) runOnce(t time.Time) Stats {
 					nextTransition, reason, err := getNextTransition(user, ws, latestBuild, latestJob, templateSchedule, currentTick)
 					if err != nil {
 						return xerrors.Errorf("get next transition: %w", err)
+					}
+					if nextTransition == database.WorkspaceTransitionStart && schedulerUnavailable {
+						return nil
 					}
 
 					// No transition is due. The workspace may still need a one-time

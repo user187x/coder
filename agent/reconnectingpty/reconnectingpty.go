@@ -266,7 +266,7 @@ func (s *ptyState) waitForStateOrContext(ctx context.Context, state State) (Stat
 
 // readConnLoop reads messages from conn and writes to ptty as needed.  Blocks
 // until EOF or an error writing to ptty or reading from conn.
-func readConnLoop(ctx context.Context, conn net.Conn, ptty pty.PTYCmd, metrics *prometheus.CounterVec, logger slog.Logger) {
+func readConnLoop(ctx context.Context, conn net.Conn, ptty pty.PTYCmd, metrics *prometheus.CounterVec, logger slog.Logger, terminate func(error)) {
 	decoder := json.NewDecoder(conn)
 	for {
 		var req workspacesdk.ReconnectingPTYRequest
@@ -276,6 +276,10 @@ func readConnLoop(ctx context.Context, conn net.Conn, ptty pty.PTYCmd, metrics *
 		}
 		if err != nil {
 			logger.Warn(ctx, "reconnecting pty failed with read error", slog.Error(err))
+			return
+		}
+		if req.Terminate {
+			terminate(nil)
 			return
 		}
 		_, err = ptty.InputWriter().Write([]byte(req.Data))

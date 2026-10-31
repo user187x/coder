@@ -66,7 +66,7 @@ export const upload = async (
 };
 
 /** Without a way to write a download to disk as it comes, files up to this are held in memory, then saved. */
-export const MEMORY_LIMIT = 1024 ** 3;
+const MEMORY_LIMIT = 1024 ** 3;
 
 /** "12.3 MB of 1.2 GB · 34 MB/s · 35 s left", from how much has gone, of how much, since when. */
 export const describe = (t: Transfer, now = Date.now()): string => {

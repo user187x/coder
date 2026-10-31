@@ -1,6 +1,20 @@
-import { cn } from "cn";
-import { PictureInPicture2Icon, PlayIcon, Trash2Icon } from "lucide-react";
-import { useEffect, useEffectEvent, useId, useRef, useState } from "react";
+import {
+	MaximizeIcon,
+	MinimizeIcon,
+	MinusIcon,
+	PictureInPicture2Icon,
+	PlayIcon,
+	PlusIcon,
+	Trash2Icon,
+} from "lucide-react";
+import {
+	useEffect,
+	useEffectEvent,
+	useId,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { useQuery } from "react-query";
 import { toast } from "sonner";
 import { deploymentConfig } from "#/api/queries/deployment";
@@ -25,27 +39,32 @@ import {
 	getTerminalConfig,
 	terminalRenderer,
 } from "#/modules/terminal/terminalConfig";
-import type { ConnectionStatus } from "#/modules/terminal/types";
-import { WorkspaceTerminal } from "#/modules/terminal/WorkspaceTerminal";
 import themes from "#/theme";
 import { openMaybePortForwardedURL } from "#/utils/portForward";
-import { generateConnectionSessionId } from "#/utils/random";
 import { FaMinusCircleIcon, FaPlusCircleIcon } from "./circleIcons";
 import { TerminalPopout } from "./TerminalPopout";
+import { TerminalTile } from "./TerminalTile";
+import {
+	loadLayout,
+	reconcileLayout,
+	replaceLayoutIds,
+	type SplitDirection,
+	saveLayout,
+	splitLayout,
+	terminalBounds,
+} from "./terminalLayout";
 import {
 	endSession,
 	fittingFontSize,
-	loadSession,
+	loadSessions,
 	MAX_CUSTOM_COMMAND_LENGTH,
 	MAX_TERMINAL_FONT_SIZE,
-	MIN_TERMINAL_COLS,
 	MIN_TERMINAL_FONT_SIZE,
-	MIN_TERMINAL_ROWS,
 	newSession,
 	readCustomCommand,
 	readEndOnClose,
 	readFontSize,
-	saveSession,
+	saveSessions,
 	startCommand,
 	stepFontSize,
 	type TerminalSession,
@@ -53,55 +72,21 @@ import {
 	writeEndOnClose,
 	writeFontSize,
 } from "./terminalSession";
+import "./agentTerminal.css";
 
-/** How long the columns x rows readout stays after the last text size change. */
-const DIMENSIONS_SHOWN_MS = 2500;
+const MAX_TILES = 6;
 
 type AgentTerminalSectionProps = {
 	agent: WorkspaceAgent;
 	workspace: Workspace;
-	/** The workspace is ready (agentAppsReady): until then the terminal does not open. */
 	ready: boolean;
-	/** The panel's reorder handle (AgentPanels), at the left of its header. */
 	handle?: React.ReactNode;
 	panelId?: string;
 	initiallyOpen?: boolean;
 	onRemove?: () => void;
 };
 
-/**
- * Workspace page > agent > "Terminal": the agent's terminal in a drop-down
- * right under its "Logs", inside the page instead of a new window.
- *
- * When the terminal terminates - its shell exits, the connection drops, or
- * "End session" - the drop-down rolls back up and starts over: the next open
- * is a new session, as on a fresh page.
- *
- * "End session when closed" (on by default): collapsing the drop-down, or
- * leaving the workspace page, ends the shell. Off: it keeps running and is
- * there again when the drop-down is reopened in the same tab; meanwhile the
- * header shows "Session running" with an "End session" button.
- *
- * "Pop out" moves the same session into a floating window over the page;
- * closing that window leaves the drop-down collapsed (and, with "End session
- * when closed", ends the shell), docking it puts the terminal back, and "Open
- * in a browser window" hands the session to Coder's own terminal page in a
- * window of its own (this page then lets go of it). The text size buttons
- * change only this terminal's text (the page layout stays): it starts at the
- * largest size that still shows 80x24 characters, the least full-screen tools
- * such as btop need, until the user picks a size. While they change it, the
- * terminal's columns x rows show in a small pill in its top-right corner, for
- * a few seconds after the last change.
- *
- * "Custom command" (on by default: tmux's shared session "monitor" with btop
- * in it, started or joined; remembered in this browser): new sessions run it
- * first and continue in the login shell when it exits.
- * "Run" starts a new session with it right away.
- *
- * Until the workspace is ready (its startup scripts, the terminal's tmux among
- * them, have finished) the drop-down stays shut; a terminal already open or
- * popped out is left alone.
- */
+/** Independent terminal tiles share one toolbar and retain their PTYs across layout changes. */
 export const AgentTerminalSection: React.FC<AgentTerminalSectionProps> = ({
 	agent,
 	workspace,
@@ -120,17 +105,40 @@ export const AgentTerminalSection: React.FC<AgentTerminalSectionProps> = ({
 		appearance.data,
 		proxy.preferredPathAppURL,
 	);
-
 	const sessionKey = panelId ? `${agent.id}:${panelId}` : agent.id;
-	const [open, setOpen] = useState(initiallyOpen && ready);
-	const [session, setSession] = useState<TerminalSession | null>(
+	const [openRequested, setOpen] = useState(initiallyOpen && ready);
+	const [sessions, setSessions] = useState(() => {
+		const saved = loadSessions(sessionKey);
+		return saved.length
+			? saved
+			: initiallyOpen && ready
+				? [newSession(agent.operating_system)]
+				: [];
+	});
+	useEffect(() => saveSessions(sessionKey, sessions), [sessionKey, sessions]);
+	const [savedLayout, setLayout] = useState(() => loadLayout(sessionKey));
+	const layout = useMemo(
 		() =>
-			loadSession(sessionKey) ??
-			(initiallyOpen && ready ? newSession(agent.operating_system) : null),
+			reconcileLayout(
+				savedLayout,
+				sessions.map(({ id }) => id),
+			),
+		[savedLayout, sessions],
 	);
-	useEffect(() => saveSession(sessionKey, session), [sessionKey, session]);
+	const bounds = useMemo(() => terminalBounds(layout), [layout]);
+	const smallestWidth = Math.min(
+		100,
+		...[...bounds.values()].map((pane) => pane.width),
+	);
+	const smallestHeight = Math.min(
+		100,
+		...[...bounds.values()].map((pane) => pane.height),
+	);
+	useEffect(() => saveLayout(sessionKey, layout), [sessionKey, layout]);
+	const [selectedId, setSelectedId] = useState<string>();
+	const selected =
+		sessions.find((session) => session.id === selectedId) ?? sessions[0];
 	const [endOnClose, setEndOnClose] = useState(readEndOnClose);
-	const [clientSessionId] = useState(generateConnectionSessionId);
 	const endOnCloseId = useId();
 	const customId = useId();
 	const [custom, setCustom] = useState(() =>
@@ -140,25 +148,18 @@ export const AgentTerminalSection: React.FC<AgentTerminalSectionProps> = ({
 		setCustom(next);
 		if (!panelId) writeCustomCommand(next);
 	};
-	const canRunCommands = agent.operating_system !== "windows";
-	const connected = useRef(false);
-	const [poppedOut, setPoppedOut] = useState(false);
-	// The user's text size; until they choose one, a size that fits 80x24.
+	const [popoutRequested, setPoppedOut] = useState(false);
+	const open = openRequested && sessions.length > 0;
+	const poppedOut = popoutRequested && sessions.length > 0;
 	const [chosenFontSize, setChosenFontSize] = useState(readFontSize);
-	const [fitFontSize, setFitFontSize] = useState<number>();
-	const fontSize = chosenFontSize ?? fitFontSize ?? 13;
-	const [dimensions, setDimensions] = useState<{
-		cols: number;
-		rows: number;
-	}>();
-	const terminalBox = useRef<HTMLDivElement>(null);
-
-	// The columns x rows readout: shown while the user changes the text size,
-	// until DIMENSIONS_SHOWN_MS after the last change.
+	const [fitFontSize, setFitFontSize] = useState(13);
+	const fontSize = chosenFontSize ?? fitFontSize;
+	const terminalGrid = useRef<HTMLDivElement>(null);
+	const surface = useRef<HTMLDivElement>(null);
+	const [fullscreen, setFullscreen] = useState(false);
 	const [dimensionsShown, setDimensionsShown] = useState(false);
 	const hideDimensions = useRef<number>(undefined);
 	useEffect(() => () => window.clearTimeout(hideDimensions.current), []);
-
 	const changeFontSize = (by: number) => {
 		const next = stepFontSize(fontSize, by);
 		setChosenFontSize(next);
@@ -167,251 +168,380 @@ export const AgentTerminalSection: React.FC<AgentTerminalSectionProps> = ({
 		window.clearTimeout(hideDimensions.current);
 		hideDimensions.current = window.setTimeout(
 			() => setDimensionsShown(false),
-			DIMENSIONS_SHOWN_MS,
+			2500,
 		);
 	};
-	// Too small for 80x24 at the starting size: one step smaller, until it fits.
 	useEffect(() => {
-		if (
-			chosenFontSize === undefined &&
-			dimensions &&
-			(dimensions.cols < MIN_TERMINAL_COLS ||
-				dimensions.rows < MIN_TERMINAL_ROWS) &&
-			fontSize > MIN_TERMINAL_FONT_SIZE
-		) {
-			setFitFontSize(fontSize - 1);
-		}
-	}, [chosenFontSize, dimensions, fontSize]);
-
-	const replaceSession = (next: TerminalSession | null) => {
-		setSession(next);
-	};
-
-	// Back to the start: no session, drop-down rolled up, not popped out. The
-	// next open starts a new session.
-	const reset = () => {
-		connected.current = false;
-		replaceSession(null);
-		setPoppedOut(false);
-		setOpen(false);
-		setDimensions(undefined);
-	};
-
-	/** Ends the session's shell and starts over; `report`: say so if the workspace did not confirm it. */
-	const finish = (ended: TerminalSession, report: boolean) => {
-		reset();
-		void endSession(agent.id, ended, terminalConfig.baseUrl).then((result) => {
-			if (report && result === false) {
-				toast.info(
-					"The workspace did not confirm the end of the session; the agent ends it after a few idle minutes.",
-				);
-			}
-		});
-	};
-
-	const start = (next: TerminalSession | null) => {
-		if (!next) {
-			replaceSession(
-				newSession(
-					agent.operating_system,
-					custom.enabled ? custom.command : undefined,
+		const grid = terminalGrid.current;
+		if (!grid || chosenFontSize !== undefined) return;
+		const observer = new ResizeObserver(() => {
+			setFitFontSize(
+				fittingFontSize(
+					(grid.clientWidth * smallestWidth) / 100,
+					(grid.clientHeight * smallestHeight) / 100,
 				),
 			);
+		});
+		observer.observe(grid);
+		return () => observer.disconnect();
+	}, [open, poppedOut, chosenFontSize, smallestWidth, smallestHeight]);
+	useEffect(() => {
+		const changed = () =>
+			setFullscreen(document.fullscreenElement === surface.current);
+		document.addEventListener("fullscreenchange", changed);
+		return () => document.removeEventListener("fullscreenchange", changed);
+	}, []);
+	const toggleFullscreen = async () => {
+		try {
+			if (document.fullscreenElement === surface.current)
+				await document.exitFullscreen();
+			else await surface.current?.requestFullscreen();
+		} catch {
+			toast.error("Fullscreen is unavailable in this browser.");
 		}
-		connected.current = false;
 	};
-
-	// Leaving the workspace page with the terminal open ends the session too.
+	const reset = () => {
+		setSessions([]);
+		setPoppedOut(false);
+		setOpen(false);
+	};
+	const terminate = (ended: TerminalSession[], report: boolean) => {
+		void Promise.all(
+			ended.map((session) =>
+				endSession(agent.id, session, terminalConfig.baseUrl),
+			),
+		).then((results) => {
+			if (report && results.includes(false))
+				toast.info(
+					"The workspace did not confirm every session ended; the agent ends idle sessions after a few minutes.",
+				);
+		});
+	};
+	const finishAll = (report: boolean) => {
+		terminate(sessions, report);
+		reset();
+	};
+	const finishTile = (ended: TerminalSession) => {
+		terminate([ended], false);
+		if (sessions.length === 1) reset();
+		else
+			setSessions((current) =>
+				current.filter((session) => session.id !== ended.id),
+			);
+	};
+	const createSession = () =>
+		newSession(
+			agent.operating_system,
+			custom.enabled ? custom.command : undefined,
+		);
+	const addTile = (
+		direction: SplitDirection = "horizontal",
+		targetId = selected?.id,
+	) => {
+		if (sessions.length >= MAX_TILES) return;
+		const next = createSession();
+		if (layout !== null && targetId)
+			setLayout(splitLayout(layout, targetId, next.id, direction));
+		setSessions((current) => [...current, next]);
+		setSelectedId(next.id);
+	};
 	const endOnLeave = useEffectEvent(() => {
-		if ((open || poppedOut) && session && endOnClose) {
-			saveSession(sessionKey, null);
-			void endSession(agent.id, session, terminalConfig.baseUrl);
+		if ((open || poppedOut) && endOnClose) {
+			saveSessions(sessionKey, []);
+			saveLayout(sessionKey, null);
+			terminate(sessions, false);
 		}
 	});
 	useEffect(() => endOnLeave, []);
-
-	const kept = Boolean(session && !open && !poppedOut);
-	const activeSession = open || poppedOut ? (session ?? undefined) : undefined;
-
-	const popOut = () => {
-		setPoppedOut(true);
-		setOpen(false);
-	};
 	const dock = () => {
 		setPoppedOut(false);
 		setOpen(true);
 	};
 	const closePopout = () => {
-		if (session && endOnClose) {
-			finish(session, false);
-			return;
-		}
-		setPoppedOut(false);
+		if (endOnClose) finishAll(false);
+		else setPoppedOut(false);
 	};
-	// The session moves to Coder's terminal page in a browser window of its
-	// own (same reconnect id: the same shell). This page lets go of it, so
-	// leaving or closing it no longer ends it.
 	const openInBrowserWindow = () => {
-		if (!session) {
-			return;
-		}
+		if (!selected) return;
 		const href = getTerminalHref({
 			username: workspace.owner_name,
 			workspace: workspace.name,
 			agent: agent.name,
 		});
 		openAppInNewWindow(
-			`${href}${href.endsWith("?") ? "" : "&"}reconnect=${encodeURIComponent(session.id)}`,
+			`${href}${href.endsWith("?") ? "" : "&"}reconnect=${encodeURIComponent(selected.id)}`,
 		);
-		reset();
+		// Relinquish only the transferred PTY; the browser window now owns it.
+		if (sessions.length === 1) reset();
+		else
+			setSessions((current) =>
+				current.filter((session) => session.id !== selected.id),
+			);
 	};
-
-	// Minus, the size, plus: one small oval.
-	const fontSizeControls = (
-		<div
-			className="flex items-center gap-0.5 rounded-full border border-solid border-border bg-surface-secondary/40 px-0.5 text-xs text-content-secondary"
-			role="group"
-			aria-label="Terminal text size"
-		>
-			<Button
-				size="icon"
-				variant="subtle"
-				className="size-6 rounded-full"
-				aria-label="Smaller text"
-				title="Smaller text"
-				disabled={fontSize <= MIN_TERMINAL_FONT_SIZE}
-				onClick={() => changeFontSize(-1)}
-			>
-				<FaMinusCircleIcon className="size-4" />
-			</Button>
-			<span className="w-6 text-center tabular-nums" title="Text size (px)">
-				{fontSize}
-			</span>
-			<Button
-				size="icon"
-				variant="subtle"
-				className="size-6 rounded-full"
-				aria-label="Larger text"
-				title="Larger text"
-				disabled={fontSize >= MAX_TERMINAL_FONT_SIZE}
-				onClick={() => changeFontSize(1)}
-			>
-				<FaPlusCircleIcon className="size-4" />
-			</Button>
-		</div>
-	);
-
-	const terminalBody = (boxClassName: string) =>
-		activeSession && (
-			<ThemeOverride theme={themes.dark}>
+	const active = open || poppedOut;
+	const kept = sessions.length > 0 && !active;
+	const endLabel = sessions.length > 1 ? "End all sessions" : "End session";
+	const terminalSurface = (
+		<div ref={surface} className="agent-terminal-surface">
+			<div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 pb-2">
 				<div
-					ref={terminalBox}
-					className={cn(
-						"relative overflow-hidden rounded-md border border-solid border-border",
-						boxClassName,
-					)}
+					className="flex items-center gap-0.5 rounded-full border border-solid border-border bg-surface-secondary/40 px-0.5 text-xs text-content-secondary"
+					role="group"
+					aria-label="Terminal text size"
 				>
-					<WorkspaceTerminal
-						key={activeSession.id}
-						agentId={agent.id}
-						operatingSystem={agent.operating_system}
-						initialCommand={startCommand(activeSession)}
-						reconnectionToken={activeSession.id}
-						sessionId={clientSessionId}
-						baseUrl={terminalConfig.baseUrl}
-						terminalFontFamily={terminalConfig.fontFamily}
-						fontSize={fontSize}
-						onResize={(cols, rows) => setDimensions({ cols, rows })}
-						renderer={terminalRenderer(terminalConfig.renderer, agent)}
-						loading={config.isLoading || appearance.isLoading}
-						autoFocus
-						onOpenLink={(uri) =>
-							openMaybePortForwardedURL(
-								uri,
-								proxy.preferredWildcardHostname,
-								agent.name,
-								workspace.name,
-								workspace.owner_name,
-							)
-						}
-						onStatusChange={(status: ConnectionStatus) => {
-							if (status === "connected") {
-								connected.current = true;
-							} else if (status === "disconnected" && connected.current) {
-								// The shell exited or the connection dropped: the
-								// terminal terminated. End what may be left of it
-								// (before the terminal would reconnect and start a
-								// fresh shell under the same id) and start over.
-								finish(activeSession, false);
-							}
+					<Button
+						size="icon"
+						variant="subtle"
+						className="size-6 rounded-full"
+						aria-label="Smaller text"
+						title="Smaller text in every terminal"
+						disabled={fontSize <= MIN_TERMINAL_FONT_SIZE}
+						onClick={() => changeFontSize(-1)}
+					>
+						<FaMinusCircleIcon className="size-4" />
+					</Button>
+					<span className="w-6 text-center tabular-nums">{fontSize}</span>
+					<Button
+						size="icon"
+						variant="subtle"
+						className="size-6 rounded-full"
+						aria-label="Larger text"
+						title="Larger text in every terminal"
+						disabled={fontSize >= MAX_TERMINAL_FONT_SIZE}
+						onClick={() => changeFontSize(1)}
+					>
+						<FaPlusCircleIcon className="size-4" />
+					</Button>
+				</div>
+				<div
+					role="group"
+					aria-label="Terminal tiles"
+					className="flex items-center gap-1"
+				>
+					<Button
+						size="icon"
+						variant="outline"
+						className="size-7"
+						aria-label="Add terminal below"
+						title="Add terminal below"
+						disabled={sessions.length >= MAX_TILES}
+						onClick={() => addTile()}
+					>
+						<PlusIcon className="size-3.5" />
+					</Button>
+					<span className="text-xs tabular-nums text-content-secondary">
+						{sessions.length}
+					</span>
+					<Button
+						size="icon"
+						variant="outline"
+						className="size-7"
+						aria-label="Close selected terminal"
+						title="Close the focused terminal"
+						disabled={!selected || sessions.length < 2}
+						onClick={() => {
+							if (selected) finishTile(selected);
 						}}
-					/>
-					{dimensions && (
-						// Columns x rows in a pill in the terminal's top-right corner, while the text size changes.
-						<span
-							data-testid="terminal-dimensions"
-							data-shown={dimensionsShown || undefined}
-							aria-hidden={!dimensionsShown}
-							title={`Terminal size ${dimensions.cols} columns by ${dimensions.rows} rows`}
-							className={cn(
-								"pointer-events-none absolute right-5 top-3.5 z-[1] select-none rounded-full border border-solid bg-surface-primary/85 px-2 py-0.5 font-mono text-[10px] leading-4 tabular-nums shadow-sm",
-								"transition-opacity duration-300 motion-reduce:transition-none",
-								dimensionsShown ? "opacity-100" : "opacity-0",
-								dimensions.cols < MIN_TERMINAL_COLS ||
-									dimensions.rows < MIN_TERMINAL_ROWS
-									? "border-border-warning text-content-warning"
-									: "border-border text-content-secondary",
-							)}
+					>
+						<MinusIcon className="size-3.5" />
+					</Button>
+				</div>
+				{agent.operating_system !== "windows" && (
+					<div
+						className="flex flex-wrap items-center gap-2 text-xs text-content-secondary"
+						role="group"
+						aria-label="Custom command"
+					>
+						<Switch
+							id={customId}
+							size="sm"
+							checked={custom.enabled}
+							onCheckedChange={(enabled) =>
+								changeCustom({ ...custom, enabled })
+							}
+						/>
+						<Label htmlFor={customId} className="text-xs font-normal">
+							Custom command
+						</Label>
+						<Input
+							aria-label="Command"
+							className="h-7 w-48 px-2 font-mono text-xs"
+							spellCheck={false}
+							autoComplete="off"
+							maxLength={MAX_CUSTOM_COMMAND_LENGTH}
+							disabled={!custom.enabled}
+							value={custom.command}
+							onChange={(event) =>
+								changeCustom({ ...custom, command: event.target.value })
+							}
+						/>
+						<Button
+							size="sm"
+							variant="outline"
+							className="h-7"
+							disabled={!custom.enabled || !custom.command.trim()}
+							title="Restart every terminal with this command"
+							onClick={() => {
+								terminate(sessions, false);
+								const next = sessions.map(createSession);
+								setLayout(
+									replaceLayoutIds(
+										layout,
+										new Map(
+											sessions.flatMap((session, index) => {
+												const replacement = next[index];
+												return replacement
+													? [[session.id, replacement.id]]
+													: [];
+											}),
+										),
+									),
+								);
+								setSessions(next);
+							}}
 						>
-							{dimensions.cols}x{dimensions.rows}
-						</span>
+							<PlayIcon />
+							{sessions.length > 1 ? "Run all" : "Run"}
+						</Button>
+					</div>
+				)}
+				<div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+					<div className="flex items-center gap-2 text-xs text-content-secondary">
+						<Switch
+							id={endOnCloseId}
+							size="sm"
+							checked={endOnClose}
+							onCheckedChange={(on) => {
+								setEndOnClose(on);
+								writeEndOnClose(on);
+							}}
+						/>
+						<Label htmlFor={endOnCloseId} className="text-xs font-normal">
+							End session when closed
+						</Label>
+					</div>
+					<Button
+						size="icon"
+						variant="outline"
+						className="size-7"
+						aria-label={
+							fullscreen ? "Exit terminal fullscreen" : "Fullscreen terminals"
+						}
+						title={fullscreen ? "Exit fullscreen" : "Fullscreen"}
+						onClick={toggleFullscreen}
+					>
+						{fullscreen ? (
+							<MinimizeIcon className="size-3.5" />
+						) : (
+							<MaximizeIcon className="size-3.5" />
+						)}
+					</Button>
+					{!poppedOut && (
+						<Button
+							size="sm"
+							variant="outline"
+							className="h-7"
+							disabled={fullscreen}
+							onClick={() => {
+								setPoppedOut(true);
+								setOpen(false);
+							}}
+						>
+							<PictureInPicture2Icon />
+							Pop out
+						</Button>
 					)}
+					<Button
+						size="sm"
+						variant="destructive"
+						className="h-7"
+						disabled={!sessions.length}
+						onClick={() => finishAll(true)}
+					>
+						{endLabel}
+					</Button>
+				</div>
+			</div>
+			<ThemeOverride theme={themes.dark}>
+				<div className="agent-terminal-tiles">
+					<div
+						ref={terminalGrid}
+						className="relative flex-1"
+						style={{
+							minWidth: (240 * 100) / smallestWidth,
+							minHeight: (180 * 100) / smallestHeight,
+						}}
+					>
+						{sessions.map((session, index) => (
+							<TerminalTile
+								key={session.id}
+								index={index}
+								bounds={bounds.get(session.id)}
+								canSplit={sessions.length < MAX_TILES}
+								onSplit={(direction) => addTile(direction, session.id)}
+								selected={sessions.length > 1 && session.id === selected?.id}
+								onSelect={() => setSelectedId(session.id)}
+								onEnd={() => finishTile(session)}
+								showDimensions={dimensionsShown}
+								agentId={agent.id}
+								operatingSystem={agent.operating_system}
+								initialCommand={startCommand(session)}
+								reconnectionToken={session.id}
+								baseUrl={terminalConfig.baseUrl}
+								terminalFontFamily={terminalConfig.fontFamily}
+								fontSize={fontSize}
+								renderer={terminalRenderer(terminalConfig.renderer, agent)}
+								loading={config.isLoading || appearance.isLoading}
+								autoFocus={session.id === selected?.id}
+								onOpenLink={(uri) =>
+									openMaybePortForwardedURL(
+										uri,
+										proxy.preferredWildcardHostname,
+										agent.name,
+										workspace.name,
+										workspace.owner_name,
+									)
+								}
+							/>
+						))}
+					</div>
 				</div>
 			</ThemeOverride>
-		);
-
-	// The first time the drop-down's terminal box is laid out, size the text to fit 80x24.
-	useEffect(() => {
-		const box = terminalBox.current;
-		if (chosenFontSize === undefined && fitFontSize === undefined && box) {
-			setFitFontSize(fittingFontSize(box.clientWidth, box.clientHeight));
-		}
-	});
-
+		</div>
+	);
 	return (
-		<section className="border-0 border-t border-solid border-border">
+		<section
+			className="agent-terminal-section border-0 border-t border-solid border-border"
+			data-open={open || undefined}
+		>
 			<Collapsible
 				open={open}
-				disabled={!ready && !open && !poppedOut}
+				disabled={!ready && !active}
 				onOpenChange={(next) => {
 					if (poppedOut) {
-						if (next) {
-							dock();
-						}
+						if (next) dock();
 						return;
 					}
 					if (next) {
 						setOpen(true);
-						start(session);
-					} else if (session && endOnClose) {
-						finish(session, false);
-					} else {
-						setOpen(false);
-					}
+						if (!sessions.length) setSessions([createSession()]);
+					} else if (endOnClose) finishAll(false);
+					else setOpen(false);
 				}}
 			>
-				<div className="px-4 py-2 relative flex items-center gap-2">
+				<div className="px-4 py-2 relative flex shrink-0 items-center gap-2">
 					{handle}
 					<CollapsibleTrigger asChild>
 						<Button
 							variant="subtle"
+							data-panel-title
 							className="after:content-[''] after:absolute after:inset-0"
 						>
 							<ChevronDownIcon open={open} />
 							<span>Terminal</span>
 						</Button>
 					</CollapsibleTrigger>
-					{!ready && !open && !poppedOut && (
+					{!ready && !active && (
 						<Badge size="xs" className="relative z-[1]">
 							Opens when the workspace is ready
 						</Badge>
@@ -421,15 +551,19 @@ export const AgentTerminalSection: React.FC<AgentTerminalSectionProps> = ({
 							Popped out
 						</Badge>
 					)}
-					{kept && session && (
+					{kept && (
 						<span className="relative z-[1] flex items-center gap-2">
-							<Badge size="xs">Session running</Badge>
+							<Badge size="xs">
+								{sessions.length > 1
+									? `${sessions.length} sessions running`
+									: "Session running"}
+							</Badge>
 							<Button
 								size="sm"
 								variant="destructive"
-								onClick={() => finish(session, false)}
+								onClick={() => finishAll(false)}
 							>
-								End session
+								{endLabel}
 							</Button>
 						</span>
 					)}
@@ -440,7 +574,7 @@ export const AgentTerminalSection: React.FC<AgentTerminalSectionProps> = ({
 							className="relative z-[1] ml-auto"
 							aria-label="Remove terminal panel"
 							onClick={() => {
-								if (session) finish(session, false);
+								finishAll(false);
 								onRemove();
 							}}
 						>
@@ -448,121 +582,20 @@ export const AgentTerminalSection: React.FC<AgentTerminalSectionProps> = ({
 						</Button>
 					)}
 				</div>
-				<CollapsibleContent>
+				<CollapsibleContent className="agent-terminal-content">
 					<div className="px-4 pb-4">
-						{/* Three columns: text size (left), the custom command (centred), session controls (right). */}
-						<div className="mb-2 flex flex-wrap items-center gap-x-8 gap-y-2">
-							<div className="flex min-w-max flex-1 basis-0 items-center">
-								{fontSizeControls}
-							</div>
-							{canRunCommands && (
-								<div
-									className="flex items-center justify-center gap-2 text-sm text-content-secondary"
-									role="group"
-									aria-label="Custom command"
-									title="New sessions run this command first, then continue in your shell"
-								>
-									<Switch
-										id={customId}
-										size="sm"
-										checked={custom.enabled}
-										onCheckedChange={(enabled) =>
-											changeCustom({ ...custom, enabled })
-										}
-									/>
-									<Label htmlFor={customId} className="font-normal">
-										Custom command
-									</Label>
-									<Input
-										aria-label="Command"
-										className="h-7 w-72 px-2 font-mono text-xs"
-										spellCheck={false}
-										autoComplete="off"
-										maxLength={MAX_CUSTOM_COMMAND_LENGTH}
-										disabled={!custom.enabled}
-										value={custom.command}
-										onChange={(event) =>
-											changeCustom({ ...custom, command: event.target.value })
-										}
-									/>
-									<Button
-										size="sm"
-										variant="outline"
-										className="h-7"
-										disabled={!custom.enabled || !custom.command.trim()}
-										title="Start a new session with this command now"
-										onClick={() => {
-											if (session) {
-												void endSession(
-													agent.id,
-													session,
-													terminalConfig.baseUrl,
-												);
-											}
-											start(null);
-										}}
-									>
-										<PlayIcon />
-										Run
-									</Button>
-								</div>
-							)}
-							<div className="flex min-w-max flex-1 basis-0 items-center justify-end gap-3">
-								<div
-									className="flex items-center gap-2 text-sm text-content-secondary"
-									title="Collapsing this drop-down (or leaving the page) ends the shell and everything running in it"
-								>
-									<Switch
-										id={endOnCloseId}
-										size="sm"
-										checked={endOnClose}
-										onCheckedChange={(on) => {
-											setEndOnClose(on);
-											writeEndOnClose(on);
-										}}
-									/>
-									<Label htmlFor={endOnCloseId} className="font-normal">
-										End session when closed
-									</Label>
-								</div>
-								<Button
-									size="sm"
-									variant="outline"
-									disabled={!activeSession}
-									title="Open this terminal in a window over the page"
-									onClick={popOut}
-								>
-									<PictureInPicture2Icon />
-									Pop out
-								</Button>
-								<Button
-									size="sm"
-									variant="destructive"
-									disabled={!session}
-									onClick={() => {
-										if (session) {
-											finish(session, true);
-										}
-									}}
-								>
-									End session
-								</Button>
-							</div>
-						</div>
-
-						{!poppedOut && terminalBody("h-[420px]")}
+						{open && !poppedOut && terminalSurface}
 					</div>
 				</CollapsibleContent>
 			</Collapsible>
 			{poppedOut && (
 				<TerminalPopout
-					title={`Terminal · ${workspace.name}.${agent.name}`}
+					title={`Terminals · ${workspace.name}.${agent.name}`}
 					onDock={dock}
 					onClose={closePopout}
 					onOpenInBrowserWindow={openInBrowserWindow}
-					toolbar={fontSizeControls}
 				>
-					{terminalBody("h-full")}
+					{terminalSurface}
 				</TerminalPopout>
 			)}
 		</section>

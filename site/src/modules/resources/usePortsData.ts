@@ -23,7 +23,7 @@ export const canShowPortForwarding = (
 	);
 };
 
-export type PortsData = {
+type PortsData = {
 	listeningPorts: readonly WorkspaceAgentListeningPort[] | undefined;
 	sharedPorts: readonly WorkspaceAgentPortShare[] | undefined;
 	privateListeningPorts: readonly WorkspaceAgentListeningPort[];

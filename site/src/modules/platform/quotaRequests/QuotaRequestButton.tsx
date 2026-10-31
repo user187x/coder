@@ -1,5 +1,5 @@
 import { PlusIcon } from "lucide-react";
-import { type FC, useId, useState } from "react";
+import { useId, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { toast } from "sonner";
 import { organizations as organizationsQuery } from "#/api/queries/organizations";
@@ -42,7 +42,7 @@ type Props = {
 	onSubmit: (value: CreateQuotaRequest) => void;
 };
 
-export const QuotaRequestForm: FC<Props> = ({
+export const QuotaRequestForm: React.FC<Props> = ({
 	organizations,
 	requestId,
 	busy,
@@ -157,7 +157,7 @@ export const QuotaRequestForm: FC<Props> = ({
 };
 
 /** Developers submit requests without modifying global quota settings. */
-export const QuotaRequestButton: FC = () => {
+export const QuotaRequestButton: React.FC = () => {
 	const [open, setOpen] = useState(false);
 	const [requestId, setRequestId] = useState("");
 	const client = useQueryClient();
@@ -170,20 +170,15 @@ export const QuotaRequestButton: FC = () => {
 			<Button
 				variant="outline"
 				size="sm"
-				className="h-9 gap-0 rounded-l-md rounded-r-full pl-3 pr-0"
+				className="gap-2"
 				onClick={() => {
 					setRequestId(generateUUID());
 					create.reset();
 					setOpen(true);
 				}}
 			>
+				<PlusIcon aria-hidden className="size-4" />
 				<span>Quota Request</span>
-				<span
-					aria-hidden
-					className="ml-3 flex size-10 items-center justify-center rounded-full border border-solid border-border bg-surface-secondary"
-				>
-					<PlusIcon className="size-5" strokeWidth={3} />
-				</span>
 			</Button>
 			<Dialog
 				open={open}

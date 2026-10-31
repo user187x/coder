@@ -58,7 +58,7 @@ export type WheelItem = {
  * Each wedge's own colour, pointed at (or focused) and chosen, round the wheel in this order: emerald first, as it
  * always was, then the rest, so neighbours never share one.
  */
-export const PETAL_COLOURS = [
+const PETAL_COLOURS = [
 	"#10b981",
 	"#38bdf8",
 	"#a78bfa",
@@ -72,7 +72,7 @@ export const PETAL_COLOURS = [
 ] as const;
 
 /** A wedge's colour by its place round the wheel; the last never repeats the first (the wheel is a circle). */
-export const petalColour = (index: number, count: number) => {
+const petalColour = (index: number, count: number) => {
 	const n = PETAL_COLOURS.length;
 	const colour = PETAL_COLOURS[index % n];
 	return index === count - 1 && index % n === 0 && count > 1

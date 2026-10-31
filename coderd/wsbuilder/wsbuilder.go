@@ -34,6 +34,7 @@ import (
 	"github.com/coder/coder/v2/coderd/util/ptr"
 	"github.com/coder/coder/v2/coderd/util/slice"
 	"github.com/coder/coder/v2/coderd/workspacequarantine"
+	"github.com/coder/coder/v2/coderd/workspacescheduler"
 	"github.com/coder/coder/v2/codersdk"
 	"github.com/coder/coder/v2/provisioner/terraform/tfparse"
 	"github.com/coder/coder/v2/provisionersdk"
@@ -315,7 +316,9 @@ func (b Builder) ResolveParameters(
 	fileCache *files.Cache,
 	authFunc func(action policy.Action, object rbac.Objecter) bool,
 ) (uuid.UUID, []codersdk.WorkspaceBuildParameter, error) {
+	//nolint:revive // Preflight intentionally configures only this private builder copy.
 	b.ctx, b.store = ctx, store
+	//nolint:revive // Preflight intentionally configures only this private builder copy.
 	b.fileCache = files.NewCacheCloser(fileCache)
 	defer b.fileCache.Close()
 	if authFunc != nil {
@@ -375,6 +378,11 @@ func (b *Builder) Build(
 	err = database.ReadModifyUpdate(store, func(tx database.Store) error {
 		var err error
 		b.store = tx
+		// Policy reconciliation must not reuse values from a rolled-back attempt.
+		b.workspace, err = tx.GetWorkspaceByID(b.ctx, b.workspace.ID)
+		if err != nil {
+			return xerrors.Errorf("read workspace for build: %w", err)
+		}
 		workspaceBuild, provisionerJob, provisionerDaemons, err = b.buildTx(authFunc)
 		return err
 	})
@@ -424,6 +432,21 @@ func (b *Builder) buildTx(authFunc func(action policy.Action, object rbac.Object
 	}
 	if err := b.checkQuarantine(); err != nil {
 		return nil, nil, nil, err
+	}
+
+	if b.trans == database.WorkspaceTransitionStart {
+		scheduler, err := workspacescheduler.ForWorkspace(b.ctx, b.store, b.workspace)
+		if err != nil {
+			return nil, nil, nil, BuildError{http.StatusServiceUnavailable, "Cannot verify workspace schedule", err}
+		}
+		if err := scheduler.ApplyFixed(b.ctx, b.store, &b.workspace); err != nil {
+			return nil, nil, nil, err
+		}
+		if scheduler.Enabled {
+			if problem := scheduler.Problem(b.workspace.AutostartSchedule.String, time.Duration(b.workspace.Ttl.Int64)); problem != "" {
+				return nil, nil, nil, BuildError{http.StatusForbidden, problem, xerrors.New(problem)}
+			}
+		}
 	}
 
 	err := b.checkTemplateVersionMatchesTemplate()

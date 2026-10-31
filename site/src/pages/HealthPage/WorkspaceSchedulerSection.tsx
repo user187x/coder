@@ -27,7 +27,7 @@ const same = (a: SchedulerSettings, b: SchedulerSettings) =>
 	JSON.stringify(a) === JSON.stringify(b);
 
 /**
- * Health > User Quota > Global Workspace Scheduler: make every workspace have a
+ * Accounts > Global Workspace Scheduler: make every workspace have a
  * start and a stop time (each user's own, or the admin's for everyone), cap how
  * long a workspace may stay up, and leave out admins or named users. Coder
  * enforces it on create and on every schedule change; the dashboard makes
@@ -82,7 +82,7 @@ export const WorkspaceSchedulerSection: React.FC = () => {
 	return (
 		<section className="flex flex-col gap-3" aria-labelledby={`${ids}-title`}>
 			<div>
-				<h3
+				<h2
 					id={`${ids}-title`}
 					className="m-0 flex items-center gap-2 text-base font-medium"
 				>
@@ -99,7 +99,7 @@ export const WorkspaceSchedulerSection: React.FC = () => {
 					) : (
 						<Badge size="xs">Off</Badge>
 					)}
-				</h3>
+				</h2>
 				<p className="m-0 mt-1 text-sm text-content-secondary">
 					Require schedules for new workspaces and prompt owners to correct
 					existing ones. Set shared times, a maximum duration, and exemptions

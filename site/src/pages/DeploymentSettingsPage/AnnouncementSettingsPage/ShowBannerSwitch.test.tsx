@@ -80,14 +80,13 @@ it("retains edits through preview and publishes only on request", async () => {
 	renderWithAuth(<AnnouncementSettingsPage />);
 	const message = await screen.findByRole("textbox", { name: "Text" });
 	await user.clear(message);
-	await user.type(message, "Scheduled maintenance tonight.");
+	await user.paste("Scheduled maintenance tonight.");
 	await user.click(screen.getByRole("button", { name: "Preview" }));
 	expect(publish).not.toHaveBeenCalled();
 	await user.click(screen.getByRole("button", { name: "Edit message" }));
-	await user.type(
-		screen.getByRole("textbox", { name: "Text" }),
-		" Please save your work.",
-	);
+	await user.click(screen.getByRole("textbox", { name: "Text" }));
+	await user.keyboard("{Control>}{End}{/Control}");
+	await user.paste(" Please save your work.");
 	await user.click(screen.getByRole("button", { name: "Publish changes" }));
 	await waitFor(() =>
 		expect(publish).toHaveBeenCalledWith(
@@ -96,4 +95,66 @@ it("retains edits through preview and publishes only on request", async () => {
 			}),
 		),
 	);
+});
+
+describe("announcement recording", () => {
+	it("saves the toggle without publishing the message draft, then preserves it on publish", async () => {
+		let state = {
+			...MockBannerState,
+			banner: {
+				...MockBanner,
+				message: "Published message",
+				markdown: false,
+				receipts: true,
+			},
+		};
+		vi.spyOn(PlatformAPI, "getBannerState").mockImplementation(
+			async () => state,
+		);
+		vi.spyOn(PlatformAPI, "getAnnouncementReport").mockResolvedValue(
+			MockAnnouncementReport,
+		);
+		const publish = vi
+			.spyOn(PlatformAPI, "publishBanner")
+			.mockImplementation(async (fields) => {
+				state = {
+					...state,
+					banner: {
+						...state.banner,
+						...fields,
+						markdown: fields.markdown ?? false,
+						receipts: fields.receipts ?? true,
+					},
+				};
+				return state;
+			});
+		renderWithAuth(<AnnouncementSettingsPage />);
+		const message = await screen.findByPlaceholderText(
+			"What do developers need to know?",
+		);
+		await userEvent.clear(message);
+		await userEvent.type(message, "Unpublished changes");
+		await userEvent.click(
+			screen.getByRole("switch", { name: "Record views and confirmations" }),
+		);
+		await waitFor(() =>
+			expect(publish).toHaveBeenCalledWith(
+				expect.objectContaining({
+					message: "Published message",
+					receipts: false,
+				}),
+			),
+		);
+		await userEvent.click(
+			screen.getByRole("button", { name: "Publish changes" }),
+		);
+		await waitFor(() =>
+			expect(publish).toHaveBeenLastCalledWith(
+				expect.objectContaining({
+					message: "Unpublished changes",
+					receipts: false,
+				}),
+			),
+		);
+	});
 });

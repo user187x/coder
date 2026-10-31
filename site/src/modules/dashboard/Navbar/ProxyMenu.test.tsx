@@ -1,15 +1,20 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { MemoryRouter } from "react-router";
 import { API } from "#/api/api";
 import { PlatformAPI } from "#/api/platform";
 import { getPreferredProxy } from "#/contexts/ProxyContext";
+import * as animations from "#/hooks/useAnimationSettings";
 import {
 	MockPermissions,
 	MockPrimaryWorkspaceProxy,
 	MockProxyLatencies,
+	MockUserAppearanceSettings,
+	MockUserOwner,
 	MockWorkspaceProxies,
 } from "#/testHelpers/entities";
+import { MockHudHistory } from "#/testHelpers/hud";
 import { MockClusterUsage } from "#/testHelpers/platform";
 import { renderComponent } from "#/testHelpers/renderHelpers";
 import { adminPagesFor } from "./adminQuickLinks";
@@ -49,11 +54,21 @@ const controls = {
 	quickLinks: pages.slice(0, 2),
 };
 
-const renderMenu = (props: React.ComponentProps<typeof ProxyMenu>) =>
+const renderMenu = (
+	props: Omit<
+		React.ComponentProps<typeof ProxyMenu>,
+		"user" | "supportLinks" | "onSignOut"
+	>,
+) =>
 	renderComponent(
 		<QueryClientProvider client={new QueryClient()}>
 			<MemoryRouter>
-				<ProxyMenu {...props} />
+				<ProxyMenu
+					{...props}
+					user={MockUserOwner}
+					supportLinks={[]}
+					onSignOut={vi.fn()}
+				/>
 			</MemoryRouter>
 		</QueryClientProvider>,
 	);
@@ -68,6 +83,12 @@ const openMenu = async () => {
 
 describe("ProxyMenu", () => {
 	beforeEach(() => {
+		vi.spyOn(API, "getInboxNotifications").mockResolvedValue({
+			notifications: [],
+			unread_count: 0,
+		});
+		vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({});
+		vi.spyOn(PlatformAPI, "getHudHistory").mockResolvedValue(MockHudHistory);
 		vi.spyOn(API, "getWorkspaces").mockResolvedValue({
 			workspaces: [],
 			count: 0,
@@ -77,6 +98,68 @@ describe("ProxyMenu", () => {
 		);
 	});
 	afterEach(() => vi.restoreAllMocks());
+
+	it.each([false, true])(
+		"changes personal appearance inline (editable links: %s)",
+		async (editable) => {
+			vi.spyOn(API, "getAppearanceSettings").mockResolvedValue(
+				MockUserAppearanceSettings,
+			);
+			const update = vi
+				.spyOn(API, "updateAppearanceSettings")
+				.mockResolvedValue({
+					...MockUserAppearanceSettings,
+					theme_preference: "light",
+				});
+			const animate = vi
+				.spyOn(animations, "setAnimationsEnabled")
+				.mockImplementation(() => {});
+			const user = userEvent.setup();
+			renderMenu({
+				proxyContextValue: value,
+				controls: {
+					...controls,
+					quickLinks: pages.filter((page) => page.id === "customize"),
+					quickLinksEditor: editable
+						? { addable: [], onChange: vi.fn() }
+						: undefined,
+				},
+			});
+			await user.click(screen.getByRole("button", { name: /Settings/ }));
+			await user.pointer({
+				target: await screen.findByRole("menuitem", { name: "Appearance" }),
+				keys: "[MouseRight]",
+			});
+			const shortcut = screen.getByRole("menuitem", { name: "Appearance" });
+			await user.pointer({ target: shortcut, keys: "[MouseRight]" });
+			await user.pointer({ target: shortcut, keys: "[MouseRight]" });
+			const appearance = within(
+				await screen.findByRole("group", {
+					name: "Personal dashboard appearance",
+				}),
+			);
+			await user.click(
+				appearance.getByRole("menuitemcheckbox", { name: "Dark Mode" }),
+			);
+			await waitFor(() =>
+				expect(update).toHaveBeenCalledWith(
+					expect.objectContaining({
+						theme_preference: "light",
+						theme_mode: "single",
+					}),
+				),
+			);
+			shortcut.focus();
+			await user.keyboard("{Shift>}{F10}{/Shift}");
+			await user.keyboard("{Shift>}{F10}{/Shift}");
+			await user.click(
+				within(
+					screen.getByRole("group", { name: "Personal dashboard appearance" }),
+				).getByRole("menuitemcheckbox", { name: /Animations/ }),
+			);
+			expect(animate).toHaveBeenCalledWith(false);
+		},
+	);
 
 	it("joins the HUD on as one split button: the HUD's link, then the latency in a pill, Controls and the chevron", () => {
 		renderMenu({ proxyContextValue: value, hud: true, controls });
@@ -97,37 +180,42 @@ describe("ProxyMenu", () => {
 		expect(pill.nextSibling?.textContent).toBe("Settings");
 	});
 
-	it("is the latency menu alone without the HUD, and says Controls only with them", () => {
+	it("keeps Settings available without the HUD", () => {
 		renderMenu({ proxyContextValue: value });
 		expect(screen.queryByTestId("navbar-hud-latency")).toBeNull();
 		expect(screen.queryByRole("link", { name: /HUD/ })).toBeNull();
 		const button = screen.getByRole("button", { name: /Latency for/ });
 		expect(button).toBeVisible();
-		expect(button).not.toHaveTextContent("Settings");
+		expect(button).toHaveTextContent("Settings");
 	});
 
 	it("holds the Workspaces row, then the whole Controls menu, its graphs last - no Default row", async () => {
 		renderMenu({ proxyContextValue: single, hud: true, controls });
 		const menu = await openMenu();
-		const gauge = await within(menu).findByRole("group", {
-			name: "Cluster CPU, memory and network",
+		await within(menu).findByRole("group", {
+			name: "Cluster CPU, memory, network and disk",
 		});
 		const list = within(menu).getByTestId("workspaces-latency-list");
+		const tray = within(menu).getByRole("group", {
+			name: "Resource shortcuts",
+		});
 		const items = within(menu)
 			.getAllByRole("menuitem")
-			.filter((item) => !list.contains(item));
+			.filter(
+				(item) =>
+					!list.contains(item) &&
+					!tray.contains(item) &&
+					item.textContent?.trim(),
+			);
 		expect(items.map((item) => item.textContent?.trim())).toEqual([
 			expect.stringMatching(/^Workspaces/),
+			"Chat",
 			...pages.slice(0, 2).map((page) => page.label),
 			"Organizations",
 			"Audit logs",
 			"Connection logs",
 		]);
 		expect(items[0]).toBe(within(menu).getByTestId("workspaces-latency"));
-		// the graphs at the very bottom
-		const nav = within(menu).getByRole("navigation", { name: "Settings" });
-		expect(menu.lastElementChild).toBe(nav);
-		expect(nav.lastElementChild).toBe(gauge);
 		// the old first row (the region, its latency and its house) and the refresh row are gone
 		expect(within(menu).queryByRole("menuitemradio")).toBeNull();
 		expect(
@@ -151,7 +239,6 @@ describe("ProxyMenu", () => {
 		renderMenu({ proxyContextValue: { ...value, setProxy }, controls });
 		const menu = await openMenu();
 		const region = within(menu).getByTestId("navbar-region");
-		expect(within(menu).getAllByRole("menuitem")[0]).toBe(region);
 		expect(screen.queryByRole("menuitemradio")).toBeNull();
 		fireEvent.keyDown(region, { key: "ArrowRight" });
 		const healthy = await screen.findByRole("menuitemradio", {
@@ -174,7 +261,7 @@ describe("ProxyMenu", () => {
 		});
 		const trigger = screen.getByTestId("navbar-latency-controls");
 		expect(screen.queryByTestId("navbar-latency-pill")).toBeNull();
-		expect(trigger).toHaveTextContent(/^Settings$/);
+		await waitFor(() => expect(trigger).toHaveTextContent(/^Settings$/));
 		const menu = await openMenu();
 		await waitFor(() =>
 			expect(

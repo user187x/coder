@@ -1,10 +1,12 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { userEvent, within } from "storybook/test";
+import { spyOn, userEvent, within } from "storybook/test";
 import {
+	ClusterNetworkAPI,
 	clusterEntityKey,
 	clusterHAKey,
 	clusterMeshKey,
 } from "#/api/clusterNetwork";
+import { PlatformAPI } from "#/api/platform";
 import { networkReportKey } from "#/api/queries/platform";
 import {
 	MockClusterNetworkReport,
@@ -53,6 +55,37 @@ export default meta;
 type Story = StoryObj<typeof ClusterMap>;
 
 export const Default: Story = {};
+
+export const ServiceActions: Story = {
+	beforeEach: () => {
+		const report = spyOn(PlatformAPI, "getNetworkReport").mockResolvedValue(
+			MockClusterNetworkReport,
+		);
+		const mesh = spyOn(ClusterNetworkAPI, "mesh").mockResolvedValue(
+			MockMeshReport,
+		);
+		const storage = spyOn(ClusterNetworkAPI, "haAndStorage").mockResolvedValue(
+			MockHAStorageReport,
+		);
+		return () => {
+			report.mockRestore();
+			mesh.mockRestore();
+			storage.mockRestore();
+		};
+	},
+	play: async ({ canvasElement }) => {
+		const target = within(canvasElement).getByRole("button", {
+			name: /^coder-db-rw/,
+		});
+		target.scrollIntoView({ behavior: "instant", block: "center" });
+		const rect = target.getBoundingClientRect();
+		await userEvent.pointer({
+			keys: "[MouseRight]",
+			target,
+			coords: { clientX: rect.left + 12, clientY: rect.top + 12 },
+		});
+	},
+};
 
 export const NodeNotReady: Story = {
 	parameters: {

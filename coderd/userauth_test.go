@@ -125,15 +125,20 @@ func TestUserLogin(t *testing.T) {
 	client := coderdtest.New(t, nil)
 	user := coderdtest.CreateFirstUser(t, client)
 
-	t.Run("OK", func(t *testing.T) {
-		t.Parallel()
-		anotherClient, anotherUser := coderdtest.CreateAnotherUser(t, client, user.OrganizationID)
-		_, err := anotherClient.LoginWithPassword(context.Background(), codersdk.LoginWithPasswordRequest{
-			Email:    anotherUser.Email,
-			Password: "SomeSecurePassword!",
+	for _, useUsername := range []bool{false, true} {
+		t.Run(fmt.Sprintf("OKUsername=%t", useUsername), func(t *testing.T) {
+			t.Parallel()
+			anotherClient, anotherUser := coderdtest.CreateAnotherUser(t, client, user.OrganizationID)
+			identifier := anotherUser.Email
+			if useUsername {
+				identifier = "  " + strings.ToUpper(anotherUser.Username) + "  "
+			}
+			_, err := anotherClient.LoginWithPassword(context.Background(), codersdk.LoginWithPasswordRequest{
+				Email: identifier, Password: "SomeSecurePassword!",
+			})
+			require.NoError(t, err)
 		})
-		require.NoError(t, err)
-	})
+	}
 	// Login is reachable without credentials, so it is the endpoint where an
 	// unbounded body costs the most. The payload here carries valid credentials
 	// and is padded with a field the request type ignores, so a server that read
@@ -202,6 +207,26 @@ func TestUserLogin(t *testing.T) {
 
 func TestUserAuthMethods(t *testing.T) {
 	t.Parallel()
+	for _, tc := range []struct {
+		name, authURL, accountURL string
+	}{
+		{"Keycloak", "https://sso.example.test/realms/coder/protocol/openid-connect/auth", "https://sso.example.test/realms/coder/account/"},
+		{"KeycloakPrefix", "https://sso.example.test/auth/realms/coder/protocol/openid-connect/auth?prompt=login", "https://sso.example.test/auth/realms/coder/account/"},
+		{"OtherProvider", "https://sso.example.test/authorize", ""},
+		{"InsecureProvider", "http://sso.example.test/realms/coder/protocol/openid-connect/auth", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			client := coderdtest.New(t, &coderdtest.Options{
+				OIDCConfig: &coderd.OIDCConfig{OAuth2Config: &oauth2.Config{Endpoint: oauth2.Endpoint{AuthURL: tc.authURL}}},
+			})
+			ctx, cancel := context.WithTimeout(context.Background(), testutil.WaitLong)
+			defer cancel()
+			methods, err := client.AuthMethods(ctx)
+			require.NoError(t, err)
+			require.Equal(t, tc.accountURL, methods.OIDC.AccountURL)
+		})
+	}
 	t.Run("Password", func(t *testing.T) {
 		t.Parallel()
 		client := coderdtest.New(t, nil)
@@ -1929,7 +1954,7 @@ func TestUserForgotPassword(t *testing.T) {
 		var apiErr *codersdk.Error
 		require.ErrorAs(t, err, &apiErr)
 		require.Equal(t, http.StatusUnauthorized, apiErr.StatusCode())
-		require.Contains(t, apiErr.Message, "Incorrect email or password.")
+		require.Contains(t, apiErr.Message, "Incorrect username, email, or password.")
 	}
 
 	requireRequestOneTimePasscode := func(t *testing.T, ctx context.Context, client *codersdk.Client, notifyEnq *notificationstest.FakeEnqueuer, email string, userID uuid.UUID) string {
@@ -2233,44 +2258,6 @@ func TestUserForgotPassword(t *testing.T) {
 	})
 }
 
-func oauth2Callback(t *testing.T, client *codersdk.Client, opts ...func(*http.Request)) *http.Response {
-	client.HTTPClient.CheckRedirect = func(req *http.Request, via []*http.Request) error {
-		return http.ErrUseLastResponse
-	}
-
-	state := "somestate"
-	oauthURL, err := client.URL.Parse("/api/v2/users/oauth2/github/callback?code=asd&state=" + state)
-	require.NoError(t, err)
-	req, err := http.NewRequestWithContext(context.Background(), "GET", oauthURL.String(), nil)
-	require.NoError(t, err)
-	for _, opt := range opts {
-		opt(req)
-	}
-	req.AddCookie(&http.Cookie{
-		Name:  codersdk.OAuth2StateCookie,
-		Value: state,
-	})
-	req.AddCookie(&http.Cookie{
-		Name:  codersdk.OAuth2PKCEVerifier,
-		Value: oauth2.GenerateVerifier(),
-	})
-	res, err := client.HTTPClient.Do(req)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		_ = res.Body.Close()
-	})
-	return res
-}
-
-func authCookieValue(cookies []*http.Cookie) string {
-	for _, cookie := range cookies {
-		if cookie.Name == codersdk.SessionTokenCookie {
-			return cookie.Value
-		}
-	}
-	return ""
-}
-
 // inflateClaims 'inflates' a jwt.MapClaims from a seed by
 // adding a ridiculously large key-value pair of length size.
 func inflateClaims(t testing.TB, seed jwt.MapClaims, size int) jwt.MapClaims {
@@ -2300,4 +2287,27 @@ func generateBadJWT(t *testing.T, claims interface{}) string {
 	compact, err := signed.CompactSerialize()
 	require.NoError(t, err)
 	return compact
+}
+
+func TestUserLoginAuditIdentifiers(t *testing.T) {
+	t.Parallel()
+	auditor := audit.NewMock()
+	client := coderdtest.New(t, &coderdtest.Options{Auditor: auditor})
+	coderdtest.CreateFirstUser(t, client)
+	account, err := client.User(context.Background(), "me")
+	require.NoError(t, err)
+	unauthenticated := codersdk.New(client.URL)
+	for _, identifier := range []string{"nonexistent@example.test", "nonexistent-user", account.Email, account.Username} {
+		auditor.ResetLogs()
+		_, err := unauthenticated.LoginWithPassword(context.Background(), codersdk.LoginWithPasswordRequest{Email: identifier, Password: "incorrect-password"})
+		require.Error(t, err)
+		logs := auditor.AuditLogs()
+		require.Len(t, logs, 1)
+		require.Equal(t, database.AuditActionLogin, logs[0].Action)
+		require.EqualValues(t, http.StatusUnauthorized, logs[0].StatusCode)
+		var fields map[string]string
+		require.NoError(t, json.Unmarshal(logs[0].AdditionalFields, &fields))
+		require.Equal(t, identifier, fields["submitted_identifier"])
+		require.NotContains(t, string(logs[0].AdditionalFields), "incorrect-password")
+	}
 }

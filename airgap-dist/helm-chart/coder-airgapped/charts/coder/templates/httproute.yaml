@@ -29,7 +29,7 @@ spec:
     - backendRefs:
         - name: coder
           # gateway api does not support named ports
-          port: 80
+          port: {{ if eq (include "coder.tlsEnabled" .) "true" }}443{{ else }}80{{ end }}
   hostnames:
     - {{ .Values.coder.httproute.host | quote }}
     {{- with .Values.coder.httproute.wildcardHost }}

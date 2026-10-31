@@ -1,5 +1,6 @@
 """Organization-scoped network groups using the existing lockdown enforcement path."""
 import contextlib
+import kexec
 import hashlib
 import ipaddress
 import json
@@ -218,8 +219,7 @@ def handle(h, method, path):
                 raise ValueError('Start the workspace before adding it to a sandbox so its runtime can be verified.')
             for pod in pods:
                 spec = pod.get('spec', {})
-                dev = next((c for c in spec.get('containers', []) if c['name'] == 'dev'), {})
-                security = dev.get('securityContext', {})
+                security = kexec.agent_container(pod).get('securityContext', {})
                 if spec.get('hostNetwork') or spec.get('hostPID') or spec.get('hostIPC') or any('hostPath' in volume for volume in spec.get('volumes', [])) or security.get('privileged') or any(cap in ('ALL', 'NET_ADMIN', 'SYS_ADMIN', 'SYS_PTRACE') for cap in security.get('capabilities', {}).get('add', [])):
                     raise ValueError('This workspace runtime can override network isolation and cannot join a sandbox.')
                 if not any(container.get('name') == 'lockdown' for container in spec.get('initContainers', [])):

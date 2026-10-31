@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { MockQuotaReport } from "#/testHelpers/userQuota";
+import { QuotaRequestButton } from "../quotaRequests/QuotaRequestButton";
 import { WorkspaceQuotaPillView } from "./WorkspaceQuotaPill";
 
 const usage = { workspaces: 1, cpu: 2, memory: 4, disk: 0 };
@@ -20,6 +21,35 @@ const meta = {
 } satisfies Meta<typeof WorkspaceQuotaPillView>;
 export default meta;
 type Story = StoryObj<typeof meta>;
+export const AvailableCapacity: Story = {
+	args: {
+		action: <QuotaRequestButton />,
+		quota: {
+			...meta.args.quota,
+			limits: { workspaces: 2, cpu: 8, memory: 12, disk: 25 },
+			bonus: { workspaces: 0, cpu: 0, memory: 0, disk: 0 },
+			activeGrantCount: 0,
+			usage: { workspaces: 0, cpu: 0, memory: 0, disk: 0 },
+			resourceModes: {
+				cpu: "cumulative",
+				memory: "cumulative",
+				disk: "instance",
+			},
+		},
+	},
+};
+
+export const Narrow: Story = {
+	...AvailableCapacity,
+	decorators: [
+		(Story) => (
+			<div className="w-80 max-w-full">
+				<Story />
+			</div>
+		),
+	],
+};
+
 export const ApprovedExtras: Story = {};
 export const AtLimit: Story = {
 	args: {

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Private Coder app gateway for KasmVNC, audio and owner certificate import."""
 import base64
+import datetime
 import hashlib
 import hmac
 import http.client
@@ -32,6 +33,7 @@ CERT_DIR = HOME / '.cert'
 BROWSER = pathlib.Path('/usr/bin/google-chrome')
 PROCESS = None
 INSTALLED_DIGEST = None
+CERTIFICATE_DETAILS = None
 
 
 def certificate_path():
@@ -39,19 +41,54 @@ def certificate_path():
     return saved if saved.is_file() else CERT_DIR / 'browser-upload.p12'
 
 
+def certificate_details(path, password_file):
+    """Read only the public leaf certificate; never emit private key material."""
+    command = ['openssl', 'pkcs12', '-in', str(path), '-passin', 'file:' + str(password_file), '-clcerts', '-nokeys']
+    result = subprocess.run(command, capture_output=True)
+    if result.returncode:
+        result = subprocess.run(command + ['-legacy'], capture_output=True)
+    if result.returncode:
+        raise ValueError('The certificate could not be unlocked. Check its password and try again.')
+    certificate = result.stdout
+    der = subprocess.run(['openssl', 'x509', '-outform', 'DER'], input=certificate, check=True, capture_output=True).stdout
+    dates = subprocess.run(['openssl', 'x509', '-noout', '-enddate', '-subject'], input=certificate, check=True, capture_output=True, env={**os.environ, 'LC_ALL': 'C'}).stdout.decode()
+    fields = dict(line.split('=', 1) for line in dates.splitlines() if '=' in line)
+    expires = datetime.datetime.strptime(fields['notAfter'], '%b %d %H:%M:%S %Y %Z').replace(tzinfo=datetime.timezone.utc)
+    return {'thumbprint': ':'.join(f'{byte:02X}' for byte in hashlib.sha256(der).digest()), 'expires_at': expires.isoformat(), 'subject': fields.get('subject', '')}
+
+
+def restored_certificate(path):
+    """Reuse import metadata only for the same bundle and existing NSS database."""
+    global INSTALLED_DIGEST, CERTIFICATE_DETAILS
+    try:
+        record = json.loads((DB / 'coder-certificate.json').read_text())
+        digest = hashlib.sha256(path.read_bytes()).digest()
+        if (DB / 'cert9.db').is_file() and record['digest'] == digest.hex():
+            INSTALLED_DIGEST, CERTIFICATE_DETAILS = digest, record['certificate']
+            return True
+    except (OSError, ValueError, KeyError, TypeError):
+        pass
+    return False
+
+
 def import_certificate(path, password):
-    global INSTALLED_DIGEST
+    global INSTALLED_DIGEST, CERTIFICATE_DETAILS
     DB.mkdir(mode=0o700, parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='browser-certificate-') as directory:
         key = pathlib.Path(directory) / 'password'
         key.write_text(password + '\n')
         key.chmod(0o600)
+        details = certificate_details(path, key)
         if not (DB / 'cert9.db').exists():
             subprocess.run(['certutil', '-N', '-d', 'sql:' + str(DB), '--empty-password'], check=True, capture_output=True)
         result = subprocess.run(['pk12util', '-i', str(path), '-d', 'sql:' + str(DB), '-K', '', '-w', str(key)], capture_output=True)
         if result.returncode:
             raise ValueError('The certificate could not be unlocked. Check its password and try again.')
         INSTALLED_DIGEST = hashlib.sha256(path.read_bytes()).digest()
+        CERTIFICATE_DETAILS = details
+        record = DB / 'coder-certificate.json'
+        record.write_text(json.dumps({'digest': INSTALLED_DIGEST.hex(), 'certificate': details}))
+        record.chmod(0o600)
 
 
 def relaunch():
@@ -78,7 +115,7 @@ def watch_certificate():
                 with LOCK:
                     if signature:
                         try:
-                            if hashlib.sha256(path.read_bytes()).digest() != INSTALLED_DIGEST:
+                            if hashlib.sha256(path.read_bytes()).digest() != INSTALLED_DIGEST and not restored_certificate(path):
                                 import_certificate(path, '')
                                 relaunch()
                             STATUS.update(state='ready', message='Your client certificate is installed in the browser.')
@@ -123,7 +160,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 page = page.replace('Kasm Desktop', 'Browser certificate').replace('</script></body>', 'dialog.showModal();</script></body>')
             return self.reply(200, page.replace('__CSRF__', json.dumps(CSRF)), 'text/html; charset=utf-8')
         if path == '/status':
-            return self.reply(200, json.dumps({**STATUS, "csrf": CSRF}))
+            return self.reply(200, json.dumps({**STATUS, "csrf": CSRF, "certificate": CERTIFICATE_DETAILS if STATUS["state"] == "ready" else None}))
         if path == '/health':
             return self.reply(200, '{"ready":true}')
         if os.environ.get('BROWSER_MODE') == 'certificates':

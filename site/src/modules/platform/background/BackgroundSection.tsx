@@ -19,6 +19,12 @@ import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { Badge } from "#/components/Badge/Badge";
 import { Button } from "#/components/Button/Button";
 import { Label } from "#/components/Label/Label";
+import {
+	LAVA_BACKGROUND_DEFAULT,
+	type LavaSettings,
+	lavaHTML,
+	lavaSettings,
+} from "#/components/LavaImage/lava";
 import { Loader } from "#/components/Loader/Loader";
 import {
 	Select,
@@ -35,16 +41,10 @@ import {
 	TabsTrigger,
 } from "#/components/Tabs/Tabs";
 import { setBackground } from "#/contexts/platformBoot";
+import { formatBytes } from "#/utils/images";
+import { sniffImageType } from "#/utils/normalizeImage";
 import { ImageUploadSplit } from "../imageStore/ImageUploadSplit";
-import { formatBytes } from "../images";
 import { LavaControls } from "../lava/LavaControls";
-import {
-	LAVA_BACKGROUND_DEFAULT,
-	type LavaSettings,
-	lavaHTML,
-	lavaSettings,
-} from "../lava/lava";
-import { sniffImageType } from "../normalizeImage";
 import { PREBAKED_BACKGROUNDS } from "../pictures";
 import { CONTROLLER, DIALS } from "./backgroundHtml";
 import {
@@ -82,7 +82,7 @@ const FITS: { value: BackgroundFit; label: string }[] = [
 	{ value: "tile", label: "Tile" },
 	{ value: "stretch", label: "Stretch" },
 	{ value: "center", label: "Center" },
-	{ value: "span", label: "Span (window width)" },
+	{ value: "span", label: "Span" },
 ];
 
 /**
@@ -90,7 +90,7 @@ const FITS: { value: BackgroundFit; label: string }[] = [
  * anything else scaled to at most 1920 × 1200 and saved as WebP (else JPEG),
  * which keeps photographs small.
  */
-export const prepareBackground = async (
+const prepareBackground = async (
 	file: File,
 ): Promise<{ dataURL: string; bytes: number }> => {
 	const bytes = new Uint8Array(await file.arrayBuffer());

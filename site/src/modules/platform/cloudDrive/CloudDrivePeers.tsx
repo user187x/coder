@@ -63,7 +63,7 @@ const STATE_STYLE: Record<CloudDriveShare["state"], string> = {
 const when = (seconds?: number | null) =>
 	seconds ? createDayString(new Date(seconds * 1000).toISOString()) : "";
 
-export const StateBadge: React.FC<{ share: CloudDriveShare }> = ({ share }) => (
+const StateBadge: React.FC<{ share: CloudDriveShare }> = ({ share }) => (
 	<span
 		className={cn(
 			"rounded px-1.5 py-px text-[11px] font-medium",
@@ -127,9 +127,7 @@ export const useShareActions = () => {
 };
 
 /** The owner's answer to a request: read only, read and write (when asked for), or decline. */
-export const AnswerButtons: React.FC<{ share: CloudDriveShare }> = ({
-	share,
-}) => {
+const AnswerButtons: React.FC<{ share: CloudDriveShare }> = ({ share }) => {
 	const { answer } = useShareActions();
 	return (
 		<span className="flex flex-wrap gap-1.5">

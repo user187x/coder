@@ -16,12 +16,30 @@ it("keeps both tab drafts and saves them together without an intervening save", 
 		await screen.findByLabelText("Dashboard background strength"),
 		{ target: { value: "18" } },
 	);
+	await userEvent.selectOptions(
+		within(screen.getByRole("tabpanel", { name: "Dashboard" })).getByRole(
+			"combobox",
+			{ name: "Fit" },
+		),
+		"span",
+	);
 	await userEvent.click(
 		screen.getByRole("tab", { name: "Sign-in / sign-out" }),
 	);
 	fireEvent.change(screen.getByLabelText("Sign-in page background strength"), {
 		target: { value: "22" },
 	});
+	await userEvent.selectOptions(
+		within(
+			screen.getByRole("tabpanel", { name: "Sign-in / sign-out" }),
+		).getByRole("combobox", { name: "Fit" }),
+		"span",
+	);
+	await userEvent.click(
+		within(
+			screen.getByRole("tabpanel", { name: "Sign-in / sign-out" }),
+		).getByLabelText("Over the page, as a watermark"),
+	);
 	await userEvent.click(screen.getByRole("tab", { name: "Dashboard" }));
 	expect(save).not.toHaveBeenCalled();
 	await userEvent.click(
@@ -30,11 +48,11 @@ it("keeps both tab drafts and saves them together without an intervening save", 
 	await waitFor(() => expect(save).toHaveBeenCalledTimes(2));
 	expect(save).toHaveBeenCalledWith(
 		"dashboard",
-		expect.objectContaining({ opacity: 0.18 }),
+		expect.objectContaining({ opacity: 0.18, fit: "span", layer: "under" }),
 	);
 	expect(save).toHaveBeenCalledWith(
 		"login",
-		expect.objectContaining({ opacity: 0.22 }),
+		expect.objectContaining({ opacity: 0.22, fit: "span", layer: "over" }),
 	);
 });
 

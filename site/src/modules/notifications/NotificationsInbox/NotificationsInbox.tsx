@@ -14,6 +14,7 @@ const NOTIFICATIONS_LIMIT = 25; // This is hard set in the API
 
 type NotificationsInboxProps = {
 	defaultOpen?: boolean;
+	trigger?: React.ReactElement;
 	fetchNotifications: (
 		startingBeforeId?: string,
 	) => Promise<ListInboxNotificationsResponse>;
@@ -30,6 +31,7 @@ const WATCH_TOAST_ID = "inbox-watch-unavailable";
 
 export const NotificationsInbox: React.FC<NotificationsInboxProps> = ({
 	defaultOpen,
+	trigger,
 	fetchNotifications,
 	markAllAsRead,
 	clearAll,
@@ -128,7 +130,12 @@ export const NotificationsInbox: React.FC<NotificationsInboxProps> = ({
 				updateNotificationsCache((current) => {
 					return {
 						unread_count: msg.unread_count,
-						notifications: [msg.notification, ...current.notifications],
+						notifications: [
+							msg.notification,
+							...current.notifications.filter(
+								(n) => n.id !== msg.notification.id,
+							),
+						],
 					};
 				});
 			});
@@ -251,6 +258,7 @@ export const NotificationsInbox: React.FC<NotificationsInboxProps> = ({
 
 	return (
 		<InboxPopover
+			trigger={trigger}
 			defaultOpen={defaultOpen}
 			notifications={inboxRes?.notifications}
 			unreadCount={inboxRes?.unread_count ?? 0}

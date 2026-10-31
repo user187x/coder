@@ -16,9 +16,18 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { cn } from "cn";
-import { useEffect, useState } from "react";
+import { XIcon } from "lucide-react";
+import {
+	useEffect,
+	useEffectEvent,
+	useLayoutEffect,
+	useRef,
+	useState,
+} from "react";
+import { createPortal } from "react-dom";
 import { Button } from "#/components/Button/Button";
 import {
+	isNavbarItem,
 	NAVBAR_ITEMS,
 	type NavbarItem,
 	onNavbarArrange,
@@ -26,6 +35,9 @@ import {
 } from "./navbarOrder";
 
 const LABELS: Record<NavbarItem, string> = {
+	logo: "Logo",
+	notifications: "Notifications",
+	account: "Account",
 	workspaces: "Workspaces",
 	banner: "Announcement banner",
 	// admins': the HUD joined to it (one split button)
@@ -45,38 +57,81 @@ type NavbarArrangeProps = {
 	className?: string;
 };
 
-/**
- * The top bar's Workspaces menu, latency menu and HUD button, in the user's
- * order around the announcement banner. Right-clicking one of them (or the
- * user menu's "Rearrange top bar") starts arranging: they get a dashed
- * outline and can be dragged left or right (or moved with the arrow keys),
- * and the banner shows as a placeholder, so it is clear which side of it each
- * one ends up on. There are no empty places: items only swap. Done, Escape or
- * Enter ends it; Reset puts the default order back.
- */
+/** Customizable toolbar with a palette for removed tiles. */
 export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 	items,
 	className,
 }) => {
-	const { order, save, reset } = useNavbarOrder();
+	const { order, hidden, save, reset, commit, saving } = useNavbarOrder();
+	const done = () => commit(() => setArranging(false));
+	const escapeDone = useEffectEvent(done);
 	const [arranging, setArranging] = useState(false);
+	const toolbar = useRef<HTMLDivElement>(null);
+	const controls = useRef<HTMLDivElement>(null);
+	const doneButton = useRef<HTMLButtonElement>(null);
+	const [navbarBottom, setNavbarBottom] = useState(0);
+	const toggleArrange = useEffectEvent(() => {
+		if (arranging) done();
+		else setArranging(true);
+	});
 	const [announcement, setAnnouncement] = useState("");
-	const visible = order.filter((id) => items[id] !== null);
+	const visible = order.filter(
+		(id) => items[id] !== null && !hidden.includes(id),
+	);
 	const sensors = useSensors(
 		useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
 	);
 
-	useEffect(() => onNavbarArrange(() => setArranging(true)), []);
+	useEffect(() => onNavbarArrange(() => toggleArrange()), []);
+	useLayoutEffect(() => {
+		if (!arranging || !toolbar.current) return;
+		const navbar =
+			toolbar.current.closest<HTMLElement>(".navbar-soft") ?? toolbar.current;
+		const previousFocus = document.activeElement;
+		const previousLayer = navbar.style.zIndex;
+		navbar.style.zIndex = "121";
+		const measure = () =>
+			setNavbarBottom(navbar.getBoundingClientRect().bottom);
+		measure();
+		const observer = new ResizeObserver(measure);
+		observer.observe(navbar);
+		window.addEventListener("resize", measure);
+		window.addEventListener("scroll", measure, { passive: true });
+		// Keep both editing surfaces interactive while the rest of the dashboard is blurred.
+		const disabled: { element: HTMLElement; inert: boolean }[] = [];
+		let branch: HTMLElement | null = navbar;
+		while (branch && branch !== document.body) {
+			for (const sibling of branch.parentElement?.children ?? []) {
+				if (
+					sibling instanceof HTMLElement &&
+					sibling !== branch &&
+					!sibling.contains(controls.current)
+				) {
+					disabled.push({ element: sibling, inert: sibling.inert });
+					sibling.inert = true;
+				}
+			}
+			branch = branch.parentElement;
+		}
+		doneButton.current?.focus();
+		return () => {
+			observer.disconnect();
+			window.removeEventListener("resize", measure);
+			window.removeEventListener("scroll", measure);
+			navbar.style.zIndex = previousLayer;
+			for (const { element, inert } of disabled) element.inert = inert;
+			if (previousFocus instanceof HTMLElement && previousFocus.isConnected)
+				previousFocus.focus();
+		};
+	}, [arranging]);
 	useEffect(() => {
 		if (!arranging) {
 			return;
 		}
-		setAnnouncement(
-			"Arranging the top bar. Drag the buttons, or focus one and use the left and right arrow keys. Press Escape when done.",
-		);
 		const onKey = (event: KeyboardEvent) => {
 			if (event.key === "Escape") {
-				setArranging(false);
+				event.preventDefault();
+				escapeDone();
 			}
 		};
 		window.addEventListener("keydown", onKey);
@@ -92,20 +147,28 @@ export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 		}
 		const nextVisible = arrayMove(visible, from, to);
 		let i = 0;
-		save(order.map((item) => (items[item] === null ? item : nextVisible[i++])));
+		save(
+			order.map((item) => (!visible.includes(item) ? item : nextVisible[i++])),
+		);
 		setAnnouncement(
 			`${LABELS[id]} moved to position ${to + 1} of ${visible.length}.`,
 		);
 	};
 
 	const onDragEnd = ({ active, over }: DragEndEvent) => {
-		if (over && active.id !== over.id) {
-			moveTo(active.id as NavbarItem, over.id as NavbarItem);
+		if (
+			over &&
+			isNavbarItem(active.id) &&
+			isNavbarItem(over.id) &&
+			active.id !== over.id
+		) {
+			moveTo(active.id, over.id);
 		}
 	};
 
 	return (
 		<div
+			ref={toolbar}
 			className={cn(className)}
 			data-testid="navbar-arrange"
 			data-arranging={arranging || undefined}
@@ -141,42 +204,88 @@ export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 					strategy={horizontalListSortingStrategy}
 				>
 					{/* A fixed order in the page (CSS order places them), so a moved button keeps the keyboard focus. */}
-					{NAVBAR_ITEMS.filter((id) => items[id] !== null).map((id) => (
+					{NAVBAR_ITEMS.filter((id) => visible.includes(id)).map((id) => (
 						<ArrangeItem
 							key={id}
 							id={id}
 							position={visible.indexOf(id)}
 							arranging={arranging}
-							onStart={() => setArranging(true)}
 							onMove={(by) => {
 								const over = visible[visible.indexOf(id) + by];
 								if (over) {
 									moveTo(id, over);
 								}
 							}}
-							onDone={() => setArranging(false)}
+							onDone={done}
+							onRemove={() => save(order, [...hidden, id])}
 						>
 							{items[id]}
 						</ArrangeItem>
 					))}
 				</SortableContext>
 			</DndContext>
-			{arranging && (
-				<div
-					className="absolute left-1/2 top-full z-50 mt-2 flex -translate-x-1/2 items-center gap-3 rounded-full border border-solid border-border bg-surface-primary py-1.5 pr-1.5 pl-4 text-sm text-content-secondary shadow-lg"
-					data-testid="navbar-arrange-hint"
-				>
-					<span className="whitespace-nowrap">
-						Drag the buttons to either side of the banner
-					</span>
-					<Button size="sm" variant="outline" onClick={reset}>
-						Reset
-					</Button>
-					<Button size="sm" onClick={() => setArranging(false)}>
-						Done
-					</Button>
-				</div>
-			)}
+			{arranging &&
+				createPortal(
+					<div
+						ref={controls}
+						className="fixed inset-x-0 bottom-[var(--coder-classification-h,0px)] z-[120] flex items-center justify-center bg-black/25 p-4 backdrop-blur-md"
+						style={{ top: navbarBottom }}
+						onContextMenu={(event) => {
+							event.preventDefault();
+							event.stopPropagation();
+						}}
+					>
+						<div
+							role="dialog"
+							aria-label="Rearrange navigation bar"
+							className="flex w-max max-w-full max-h-full overflow-y-auto flex-col gap-3 rounded-xl border border-solid border-border bg-surface-primary p-4 text-sm text-content-secondary shadow-xl"
+							data-testid="navbar-arrange-hint"
+						>
+							<div className="flex flex-wrap items-center gap-3">
+								<span>Drag to rearrange. Use × to remove.</span>
+								<Button size="sm" variant="outline" onClick={reset}>
+									Reset
+								</Button>
+								<Button
+									ref={doneButton}
+									size="sm"
+									disabled={saving}
+									onClick={done}
+								>
+									{saving ? "Saving…" : "Done"}
+								</Button>
+							</div>
+							{hidden.some((id) => items[id] !== null) && (
+								<div
+									className="flex flex-wrap items-center gap-2"
+									role="group"
+									aria-label="Removed toolbar items"
+								>
+									<span>Restore:</span>
+									{hidden
+										.filter((id) => items[id] !== null)
+										.map((id) => (
+											<Button
+												key={id}
+												size="sm"
+												variant="outline"
+												aria-label={`Restore ${LABELS[id]}`}
+												onClick={() =>
+													save(
+														order,
+														hidden.filter((item) => item !== id),
+													)
+												}
+											>
+												{LABELS[id]}
+											</Button>
+										))}
+								</div>
+							)}
+						</div>
+					</div>,
+					document.body,
+				)}
 			<div className="sr-only" aria-live="assertive" aria-atomic>
 				{announcement}
 			</div>
@@ -188,9 +297,9 @@ type ArrangeItemProps = {
 	id: NavbarItem;
 	position: number;
 	arranging: boolean;
-	onStart: () => void;
 	onMove: (by: number) => void;
 	onDone: () => void;
+	onRemove: () => void;
 	children: React.ReactNode;
 };
 
@@ -198,9 +307,9 @@ const ArrangeItem: React.FC<ArrangeItemProps> = ({
 	id,
 	position,
 	arranging,
-	onStart,
 	onMove,
 	onDone,
+	onRemove,
 	children,
 }) => {
 	const isBanner = id === "banner";
@@ -231,14 +340,6 @@ const ArrangeItem: React.FC<ArrangeItemProps> = ({
 				isBanner ? "flex min-w-0 flex-1" : "shrink-0",
 				isDragging && "z-20",
 			)}
-			onContextMenu={
-				isBanner
-					? undefined
-					: (event) => {
-							event.preventDefault();
-							onStart();
-						}
-			}
 		>
 			{isBanner && arranging ? (
 				// Where the announcement banner goes (it may be empty right now).
@@ -255,34 +356,45 @@ const ArrangeItem: React.FC<ArrangeItemProps> = ({
 						arranging && "pointer-events-none opacity-90",
 					)}
 					aria-hidden={arranging && !isBanner ? true : undefined}
+					inert={arranging && !isBanner}
 				>
 					{children}
 				</div>
 			)}
 			{arranging && !isBanner && (
-				<button
-					type="button"
-					{...attributes}
-					{...listeners}
-					aria-label={`Move ${LABELS[id]}`}
-					title="Drag left or right"
-					className={cn(
-						"absolute -inset-1 z-10 touch-none rounded-lg border-0 bg-transparent p-0",
-						"outline outline-2 outline-dashed outline-content-link focus-visible:outline-solid",
-						isDragging
-							? "cursor-grabbing bg-surface-secondary/50"
-							: "cursor-grab",
-					)}
-					onKeyDown={(event) => {
-						if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
-							event.preventDefault();
-							onMove(event.key === "ArrowLeft" ? -1 : 1);
-						} else if (event.key === "Enter") {
-							event.preventDefault();
-							onDone();
-						}
-					}}
-				/>
+				<>
+					<button
+						type="button"
+						{...attributes}
+						{...listeners}
+						aria-label={`Move ${LABELS[id]}`}
+						title="Drag left or right"
+						className={cn(
+							"absolute -inset-1 z-10 touch-none rounded-lg border-0 bg-transparent p-0",
+							"outline outline-2 outline-dashed outline-content-link focus-visible:outline-solid",
+							isDragging
+								? "cursor-grabbing bg-surface-secondary/50"
+								: "cursor-grab",
+						)}
+						onKeyDown={(event) => {
+							if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+								event.preventDefault();
+								onMove(event.key === "ArrowLeft" ? -1 : 1);
+							} else if (event.key === "Enter") {
+								event.preventDefault();
+								onDone();
+							}
+						}}
+					/>
+					<button
+						type="button"
+						aria-label={`Remove ${LABELS[id]}`}
+						onClick={onRemove}
+						className="absolute -right-2 -top-2 z-20 flex size-4 items-center justify-center rounded-full border border-solid border-border bg-surface-primary text-content-secondary hover:text-content-primary"
+					>
+						<XIcon className="size-3" />
+					</button>
+				</>
 			)}
 		</div>
 	);

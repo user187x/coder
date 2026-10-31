@@ -8,7 +8,7 @@ import {
 	TriangleAlertIcon,
 } from "lucide-react";
 import * as monaco from "monaco-editor";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { getErrorMessage } from "#/api/errors";
 import { ImagesAPI, type LintIssue } from "#/api/images";
 import { Button } from "#/components/Button/Button";
@@ -56,15 +56,15 @@ export const BashEditor: React.FC<BashEditorProps> = ({
 	const [lintError, setLintError] = useState<string>();
 	const [formatting, setFormatting] = useState(false);
 	const [formatError, setFormatError] = useState<string>();
-	// the latest callback, so a new one each render doesn't lint again
-	const onIssuesRef = useRef(onIssues);
-	onIssuesRef.current = onIssues;
+	const reportIssues = useEffectEvent((issues: LintIssue[]) =>
+		onIssues?.(issues),
+	);
 
 	// shellcheck, a moment after typing stops
 	useEffect(() => {
 		if (!value.trim()) {
 			setIssues([]);
-			onIssuesRef.current?.([]);
+			reportIssues([]);
 			return;
 		}
 		const timer = window.setTimeout(async () => {
@@ -73,7 +73,7 @@ export const BashEditor: React.FC<BashEditorProps> = ({
 				const out = await ImagesAPI.lint(value);
 				setIssues(out.issues);
 				setLintError(out.available ? out.error : "shellcheck is not available");
-				onIssuesRef.current?.(out.issues);
+				reportIssues(out.issues);
 			} catch (e) {
 				setLintError(getErrorMessage(e, "Could not lint the script."));
 			} finally {

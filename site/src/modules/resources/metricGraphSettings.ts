@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import { useAnimationSettings } from "#/modules/platform/animations/animations";
+import { useAnimationSettings } from "#/hooks/useAnimationSettings";
 
 /**
  * The workspace metric graphs' refresh interval, shared by the agent's

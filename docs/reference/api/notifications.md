@@ -26,15 +26,18 @@ curl -X POST http://coder-server:8080/api/v2/notifications/custom \
   "content": {
     "message": "string",
     "title": "string"
-  }
+  },
+  "user_ids": [
+    "497f6eca-6276-4993-bfeb-53cbbbba6f08"
+  ]
 }
 ```
 
 ### Parameters
 
-| Name   | In   | Type                                                                               | Required | Description                          |
-|--------|------|------------------------------------------------------------------------------------|----------|--------------------------------------|
-| `body` | body | [codersdk.CustomNotificationRequest](schemas.md#codersdkcustomnotificationrequest) | true     | Provide a non-empty title or message |
+| Name   | In   | Type                                                                               | Required | Description                                                                              |
+|--------|------|------------------------------------------------------------------------------------|----------|------------------------------------------------------------------------------------------|
+| `body` | body | [codersdk.CustomNotificationRequest](schemas.md#codersdkcustomnotificationrequest) | true     | Provide a title and message, and optionally selected recipient IDs (administrators only) |
 
 ### Example responses
 
@@ -55,12 +58,12 @@ curl -X POST http://coder-server:8080/api/v2/notifications/custom \
 
 ### Responses
 
-| Status | Meaning                                                                    | Description                                   | Schema                                           |
-|--------|----------------------------------------------------------------------------|-----------------------------------------------|--------------------------------------------------|
-| 204    | [No Content](https://tools.ietf.org/html/rfc7231#section-6.3.5)            | No Content                                    |                                                  |
-| 400    | [Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)           | Invalid request body                          | [codersdk.Response](schemas.md#codersdkresponse) |
-| 403    | [Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)             | System users cannot send custom notifications | [codersdk.Response](schemas.md#codersdkresponse) |
-| 500    | [Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1) | Failed to send custom notification            | [codersdk.Response](schemas.md#codersdkresponse) |
+| Status | Meaning                                                                    | Description                                                                                      | Schema                                           |
+|--------|----------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------|--------------------------------------------------|
+| 204    | [No Content](https://tools.ietf.org/html/rfc7231#section-6.3.5)            | No Content                                                                                       |                                                  |
+| 400    | [Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)           | Invalid request body                                                                             | [codersdk.Response](schemas.md#codersdkresponse) |
+| 403    | [Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)             | System users cannot send notifications; targeting other users requires administrator permissions | [codersdk.Response](schemas.md#codersdkresponse) |
+| 500    | [Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1) | Failed to send custom notification                                                               | [codersdk.Response](schemas.md#codersdkresponse) |
 
 To perform this operation, you must be authenticated. [Learn more](authentication.md).
 

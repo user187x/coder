@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { API } from "#/api/api";
 import { PlatformAPI } from "#/api/platform";
@@ -294,3 +294,39 @@ it.each(["apps", "controls"])(
 		);
 	},
 );
+
+it("loads SSH details only from the workspace avatar", async () => {
+	vi.spyOn(PlatformAPI, "getWorkspaceTunnels").mockResolvedValue({
+		tunnels: [],
+	});
+	const get = vi.spyOn(API, "getWorkspace").mockResolvedValue(MockWorkspace);
+	renderWithAuth(
+		<WorkspacesPageView
+			{...defaultProps}
+			workspaces={[MockWorkspace]}
+			count={1}
+		/>,
+	);
+	const avatar = await screen.findByRole("group", {
+		name: `SSH access for ${MockWorkspace.name}`,
+	});
+	vi.useFakeTimers();
+	try {
+		const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+		await user.hover(
+			screen.getByRole("row", { name: new RegExp(MockWorkspace.name) }),
+		);
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(700);
+		});
+		expect(get).not.toHaveBeenCalled();
+		await user.hover(avatar);
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(700);
+		});
+		expect(get).toHaveBeenCalledExactlyOnceWith(MockWorkspace.id);
+	} finally {
+		vi.useRealTimers();
+		vi.restoreAllMocks();
+	}
+});

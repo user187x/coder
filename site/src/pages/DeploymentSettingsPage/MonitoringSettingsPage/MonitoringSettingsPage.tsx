@@ -30,6 +30,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "#/components/Table/Table";
+import { ScreenShareCard } from "#/modules/platform/screenShare/ScreenShareCard";
 import { pageTitle } from "#/utils/page";
 import { SecurityPostureSection } from "./SecurityPostureSection";
 import { MAX_SHOWN_LINES, useWorkspaceLogs } from "./useWorkspaceLogs";
@@ -79,6 +80,11 @@ const MonitoringSettingsPage: React.FC = () => {
 				</SettingsHeaderDescription>
 			</SettingsHeader>
 
+			<ScreenShareCard
+				overview={overviewQuery.data}
+				error={overviewQuery.error}
+				onRetry={() => void overviewQuery.refetch()}
+			/>
 			<SecurityPostureSection />
 
 			<div className="mb-4 flex flex-wrap items-center gap-4">

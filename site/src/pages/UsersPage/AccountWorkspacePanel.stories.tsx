@@ -2,8 +2,15 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
 import { workspacePowerHistory } from "#/api/queries/workspacePower";
 import { workspaceQuarantineKey } from "#/api/queries/workspaceQuarantine";
-import { MockUserMember, MockWorkspace } from "#/testHelpers/entities";
-import { withAuthProvider } from "#/testHelpers/storybook";
+import {
+	MockUserMember,
+	MockUserOwner,
+	MockWorkspace,
+} from "#/testHelpers/entities";
+import {
+	withAuthProvider,
+	withDashboardProvider,
+} from "#/testHelpers/storybook";
 import { MockWorkspaceQuarantine } from "#/testHelpers/workspaceQuarantine";
 import { AccountWorkspacePanelView } from "./AccountWorkspacePanel";
 
@@ -17,7 +24,8 @@ const meta: Meta<typeof AccountWorkspacePanelView> = {
 		onSelect: fn(),
 		workspaces: [MockWorkspace],
 	},
-	decorators: [withAuthProvider],
+	decorators: [withAuthProvider, withDashboardProvider],
+	parameters: { user: MockUserOwner },
 };
 export default meta;
 type Story = StoryObj<typeof AccountWorkspacePanelView>;
@@ -68,8 +76,13 @@ export const LongNames: Story = {
 };
 
 export const Quarantined: Story = {
+	args: { canManage: true },
 	parameters: {
 		queries: [
+			{
+				key: workspacePowerHistory(MockWorkspace.organization_id).queryKey,
+				data: { operations: [] },
+			},
 			{
 				key: workspaceQuarantineKey(
 					MockWorkspace.organization_id,

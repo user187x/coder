@@ -6,7 +6,7 @@ import {
 	animated,
 	useAnimationSettings,
 	useBackgroundAnimated,
-} from "../animations/animations";
+} from "#/hooks/useAnimationSettings";
 import { stillFrame } from "../animations/gifFreezer";
 import { dial, dialFilter, frameHash } from "./backgroundHtml";
 
@@ -18,7 +18,7 @@ const size = (fit: BackgroundImage["fit"]) => {
 		case "stretch":
 			return "100% 100%";
 		case "span":
-			return "100% auto";
+			return "cover";
 		default:
 			return fit;
 	}
@@ -123,7 +123,11 @@ const useStillWhenStopped = (
 /** Lays the picture under the page's own background (body), following the theme; undone when it goes. */
 const useUnderlay = (image: BackgroundImage | null) => {
 	useEffect(() => {
-		if (image?.layer !== "under" || image.kind === "html") {
+		if (
+			image?.layer !== "under" ||
+			image.kind === "html" ||
+			image.fit === "span"
+		) {
 			return;
 		}
 		const body = document.body;
@@ -159,7 +163,7 @@ const useUnderlay = (image: BackgroundImage | null) => {
 };
 
 /**
- * Room beneath the page for an HTML background's frame: the page's colour moves
+ * Room beneath the page for a fixed background: the page's colour moves
  * from body to html (it looks the same), so a layer at z-index -1 shows where
  * the page has no background of its own. Undone when it goes.
  */
@@ -203,7 +207,8 @@ const useRoomBeneath = (active: boolean) => {
  * element of the page: it is part of the page's own background (the picture
  * under a veil of the page's colour), so it shows only where the page has no
  * background of its own, and nothing else about the page changes. "Over" is a
- * separate layer above it, a watermark.
+ * separate layer above it, a watermark. Span uses the same fixed viewport
+ * sizing in either layer, independent of the document height.
  *
  * An HTML background (the Particles preset, or HTML / CSS an admin pasted) is
  * a frame of its own page, sandboxed: it can't reach Coder's page, its cookies
@@ -219,7 +224,12 @@ export const PlatformBackground: React.FC<{ slot: BackgroundSlot }> = ({
 	const shown = useStillWhenStopped(image && !isEmbeddedFrame() ? image : null);
 	const animations = useBackgroundAnimated();
 	useUnderlay(shown);
-	useRoomBeneath(shown?.kind === "html" && shown.layer === "under");
+	useRoomBeneath(
+		Boolean(
+			shown?.layer === "under" &&
+				(shown.kind === "html" || shown.fit === "span"),
+		),
+	);
 	if (shown?.kind === "html") {
 		return createPortal(
 			<iframe
@@ -242,7 +252,7 @@ export const PlatformBackground: React.FC<{ slot: BackgroundSlot }> = ({
 			document.body,
 		);
 	}
-	if (shown?.layer !== "over") {
+	if (!shown || (shown.layer !== "over" && shown.fit !== "span")) {
 		return null;
 	}
 	return createPortal(
@@ -251,7 +261,10 @@ export const PlatformBackground: React.FC<{ slot: BackgroundSlot }> = ({
 			data-testid="platform-background"
 			data-slot={slot}
 			className="pointer-events-none fixed inset-0 select-none"
-			style={{ ...backgroundStyle(shown), zIndex: 2147483000 }}
+			style={{
+				...backgroundStyle(shown),
+				zIndex: shown.layer === "over" ? 2147483000 : -1,
+			}}
 		/>,
 		document.body,
 	);

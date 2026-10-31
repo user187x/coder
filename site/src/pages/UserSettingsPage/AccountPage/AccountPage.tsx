@@ -1,5 +1,7 @@
 import { useQuery } from "react-query";
+import { useSearchParams } from "react-router";
 import { groupsForUser } from "#/api/queries/groups";
+import { authMethods } from "#/api/queries/users";
 import {
 	SettingsHeader,
 	SettingsHeaderDescription,
@@ -17,6 +19,8 @@ const AccountPage: React.FC = () => {
 	const { updateProfile, updateProfileError, isUpdatingProfile } =
 		useAuthContext();
 	const { entitlements } = useDashboard();
+	const [search] = useSearchParams();
+	const authMethodsQuery = useQuery(authMethods());
 
 	const hasGroupsFeature = entitlements.features.user_role_management.enabled;
 	const groupsQuery = useQuery({
@@ -35,7 +39,14 @@ const AccountPage: React.FC = () => {
 				</SettingsHeader>
 				<AccountAvatar user={me} />
 				<AccountForm
+					focusUsername={search.get("edit") === "username"}
 					editable={permissions?.updateUsers ?? false}
+					emailEditable={me.login_type === "password"}
+					providerAccountURL={
+						me.login_type === "oidc"
+							? authMethodsQuery.data?.oidc.accountUrl
+							: undefined
+					}
 					email={me.email}
 					updateProfileError={updateProfileError}
 					isLoading={isUpdatingProfile}

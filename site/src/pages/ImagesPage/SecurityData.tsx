@@ -21,7 +21,7 @@ import { Button } from "#/components/Button/Button";
 import { Spinner } from "#/components/Spinner/Spinner";
 import { createDayString } from "#/utils/createDayString";
 
-export const securityDataKey = ["platform", "images", "security-data"] as const;
+const securityDataKey = ["platform", "images", "security-data"] as const;
 
 export const useSecurityData = () =>
 	useQuery({
@@ -198,6 +198,7 @@ export const SecurityDataSection: React.FC = () => {
 				)}
 			</>,
 			<Age
+				key="vulnerability-age"
 				days={data.vulnerabilityDb?.ageDays}
 				level={data.vulnerabilityDb?.level ?? "unknown"}
 			/>,
@@ -207,21 +208,29 @@ export const SecurityDataSection: React.FC = () => {
 			data.javaDb ? (
 				day(data.javaDb.updatedAt)
 			) : (
-				<span className="text-content-secondary">
+				<span key="java-unavailable" className="text-content-secondary">
 					Not loaded: .jar, .war and .ear are not scanned
 				</span>
 			),
 			data.javaDb ? (
-				<Age days={data.javaDb.ageDays} level={data.javaDb.level} />
+				<Age
+					key="java-age"
+					days={data.javaDb.ageDays}
+					level={data.javaDb.level}
+				/>
 			) : null,
 		],
 		[
 			"FIPS rules",
-			<span title={data.fipsRules.sources.join("\n")}>
+			<span key="fips-version" title={data.fipsRules.sources.join("\n")}>
 				{data.fipsRules.version} · {data.fipsRules.standard} · published{" "}
 				{day(data.fipsRules.published)}
 			</span>,
-			<Age days={data.fipsRules.ageDays} level={data.fipsRules.level} />,
+			<Age
+				key="fips-age"
+				days={data.fipsRules.ageDays}
+				level={data.fipsRules.level}
+			/>,
 		],
 	];
 

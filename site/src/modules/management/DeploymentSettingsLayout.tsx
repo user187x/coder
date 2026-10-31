@@ -2,17 +2,17 @@ import { SettingsIcon } from "lucide-react";
 import { Suspense } from "react";
 import { Navigate, Outlet, useLocation } from "react-router";
 import {
-	Breadcrumb,
 	BreadcrumbItem,
+	BreadcrumbLink,
 	BreadcrumbList,
 	BreadcrumbPage,
-	BreadcrumbSeparator,
 } from "#/components/Breadcrumb/Breadcrumb";
 import { Loader } from "#/components/Loader/Loader";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { adminCategory } from "#/modules/dashboard/Navbar/adminQuickLinks";
 import { canViewDeploymentSettings } from "#/modules/permissions";
 import { RequirePermission } from "#/modules/permissions/RequirePermission";
+import { AdminBreadcrumb } from "./AdminBreadcrumb";
 import { DeploymentSidebar } from "./DeploymentSidebar";
 
 const DeploymentSettingsLayout: React.FC = () => {
@@ -43,21 +43,21 @@ const DeploymentSettingsLayout: React.FC = () => {
 		(location.pathname.startsWith("/health") && canViewHealth);
 
 	// the category's quick-link icon in the breadcrumb (General: the Admin menu's Settings icon)
+	const chat = location.pathname === "/deployment/chat";
 	const category = adminCategory(location.pathname);
 	const CategoryIcon = category?.icon ?? SettingsIcon;
 
 	return (
 		<RequirePermission isFeatureVisible={canViewDeploymentSettingsPage}>
-			<div>
-				<Breadcrumb>
+			<div className={chat ? "flex-1 min-h-0" : undefined}>
+				<AdminBreadcrumb variant="connected">
 					<BreadcrumbList>
 						<BreadcrumbItem>
-							<BreadcrumbPage>
+							<BreadcrumbLink to="/hud" end>
 								<SettingsIcon aria-hidden className="size-4 shrink-0" />
-								Admin Settings
-							</BreadcrumbPage>
+								Admin
+							</BreadcrumbLink>
 						</BreadcrumbItem>
-						<BreadcrumbSeparator />
 						<BreadcrumbItem>
 							<BreadcrumbPage className="text-content-primary">
 								<CategoryIcon aria-hidden className="size-4 shrink-0" />
@@ -65,17 +65,16 @@ const DeploymentSettingsLayout: React.FC = () => {
 							</BreadcrumbPage>
 						</BreadcrumbItem>
 					</BreadcrumbList>
-				</Breadcrumb>
-				<div className="h-px border-none bg-border" />
-				<section
-					className={
-						location.pathname.startsWith("/health")
-							? "px-4 sm:px-6 lg:px-10 max-w-[1920px] mx-auto"
-							: "px-4 sm:px-6 lg:px-10 max-w-(--breakpoint-2xl) mx-auto"
-					}
-				>
+				</AdminBreadcrumb>
+				<section className="px-4 sm:px-6 lg:px-10 max-w-[1920px] mx-auto">
 					<div className="flex flex-col gap-4 py-3 lg:flex-row lg:gap-8 lg:py-5">
-						<DeploymentSidebar />
+						{chat ? (
+							<div className="hidden lg:contents">
+								<DeploymentSidebar />
+							</div>
+						) : (
+							<DeploymentSidebar />
+						)}
 						<div className="grow min-w-0">
 							<Suspense fallback={<Loader />}>
 								<Outlet />

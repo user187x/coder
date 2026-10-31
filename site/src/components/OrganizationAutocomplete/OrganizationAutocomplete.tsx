@@ -13,7 +13,6 @@ import {
 	CommandItem,
 	CommandList,
 } from "#/components/Command/Command";
-import { Label } from "#/components/Label/Label";
 import {
 	Popover,
 	PopoverContent,
@@ -40,7 +39,7 @@ type OrganizationAutocompleteProps = {
 	optionsTabbable?: boolean;
 };
 
-export const getOrganizationLabel = (
+const getOrganizationLabel = (
 	organization: Organization,
 	organizations: readonly Organization[],
 ) => {
@@ -155,131 +154,5 @@ export const OrganizationAutocomplete: React.FC<
 				</Command>
 			</PopoverContent>
 		</Popover>
-	);
-};
-
-type OrganizationValueProps = {
-	organization: Organization;
-	labelOrganizations?: readonly Organization[];
-	id?: string;
-	className?: string;
-};
-
-const OrganizationValue: React.FC<OrganizationValueProps> = ({
-	organization,
-	labelOrganizations,
-	id,
-	className,
-}) => {
-	const label = getOrganizationLabel(
-		organization,
-		labelOrganizations ?? [organization],
-	);
-	return (
-		<div
-			id={id}
-			role="group"
-			aria-label={`Organization ${label}`}
-			className={cn(
-				"flex h-10 items-center gap-2 rounded-md border border-solid border-border px-3 py-2 text-sm text-content-primary",
-				className,
-			)}
-		>
-			<Avatar
-				size="sm"
-				src={organization.icon}
-				fallback={organization.display_name}
-			/>
-			<span className="truncate">{label}</span>
-		</div>
-	);
-};
-
-type OrganizationFieldProps = {
-	id: string;
-	organization: Organization;
-	organizations: readonly Organization[];
-	labelOrganizations?: readonly Organization[];
-	onChange?: (organization: Organization) => void;
-	className?: string;
-	disabled?: boolean;
-	label?: string;
-	showLabel?: boolean;
-	showSingleOrganization?: boolean;
-	readOnly?: boolean;
-	triggerClassName?: string;
-	optionsTabbable?: boolean;
-	required?: boolean;
-};
-
-export const OrganizationField: React.FC<OrganizationFieldProps> = ({
-	id,
-	organization,
-	organizations,
-	labelOrganizations,
-	onChange,
-	className,
-	disabled,
-	label = "Organization",
-	showLabel = true,
-	showSingleOrganization = false,
-	readOnly = false,
-	triggerClassName,
-	optionsTabbable,
-	required = true,
-}) => {
-	const hasSingleSelectedOrganization =
-		organizations.length <= 1 &&
-		organizations.some((option) => option.id === organization.id);
-	if (hasSingleSelectedOrganization && !showSingleOrganization && !readOnly) {
-		return null;
-	}
-
-	const resolvedLabelOrganizations =
-		labelOrganizations ??
-		(organizations.some((option) => option.id === organization.id)
-			? organizations
-			: [...organizations, organization]);
-	const organizationLabel = getOrganizationLabel(
-		organization,
-		resolvedLabelOrganizations,
-	);
-	const isReadOnly = readOnly || !onChange || hasSingleSelectedOrganization;
-
-	return (
-		<div className={cn("flex w-72 flex-col gap-1.5", className)}>
-			{showLabel && (
-				<Label
-					htmlFor={id}
-					className="flex items-center gap-1 leading-6 text-content-primary"
-				>
-					{label}
-				</Label>
-			)}
-			{isReadOnly ? (
-				<OrganizationValue
-					id={id}
-					organization={organization}
-					labelOrganizations={resolvedLabelOrganizations}
-				/>
-			) : (
-				<OrganizationAutocomplete
-					id={id}
-					ariaLabel={`${label} ${organizationLabel}`}
-					value={organization}
-					onChange={(org) => {
-						if (org) {
-							onChange?.(org);
-						}
-					}}
-					options={organizations}
-					labelOrganizations={resolvedLabelOrganizations}
-					required={required}
-					disabled={disabled}
-					triggerClassName={triggerClassName}
-					optionsTabbable={optionsTabbable}
-				/>
-			)}
-		</div>
 	);
 };

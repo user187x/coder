@@ -11,20 +11,22 @@ import (
 	"sync"
 	"time"
 
-	"github.com/coder/quartz"
 	"github.com/google/uuid"
 	"github.com/pion/turn/v5"
 	"golang.org/x/time/rate"
+	"golang.org/x/xerrors"
+
+	"github.com/coder/quartz"
 )
 
 var (
 	// ErrDisabled means media relay support has not been enabled by an operator.
-	ErrDisabled = errors.New("workspace media relay is disabled")
+	ErrDisabled = xerrors.New("workspace media relay is disabled")
 	// ErrClosed means the lease cannot carry traffic or be renewed.
-	ErrClosed = errors.New("workspace media lease is closed")
+	ErrClosed = xerrors.New("workspace media lease is closed")
 	// ErrCapacity means no bounded relay slot is available.
-	ErrCapacity       = errors.New("workspace media relay capacity is exhausted")
-	errDatagramDenied = errors.New("media datagram denied by endpoint or rate policy")
+	ErrCapacity       = xerrors.New("workspace media relay capacity is exhausted")
+	errDatagramDenied = xerrors.New("media datagram denied by endpoint or rate policy")
 )
 
 // Binding must be resolved from trusted authentication and runtime state, never
@@ -122,25 +124,25 @@ func New(cfg Config) (*Manager, error) {
 		return m, nil
 	}
 	if cfg.Guard == nil || cfg.Check == nil || cfg.Clock == nil {
-		return nil, errors.New("media relay requires authoritative guards, checks, and a clock")
+		return nil, xerrors.New("media relay requires authoritative guards, checks, and a clock")
 	}
 	if !unicast4(cfg.BindIP) || !unicast4(cfg.AdvertiseIP) || cfg.BindIP.IsLoopback() != cfg.AdvertiseIP.IsLoopback() {
-		return nil, errors.New("media relay requires explicit IPv4 bind and advertised addresses")
+		return nil, xerrors.New("media relay requires explicit IPv4 bind and advertised addresses")
 	}
 	ports := int(cfg.PortMax) - int(cfg.PortMin) + 1
 	if cfg.PortMin < 1024 || cfg.PortMax <= cfg.PortMin || cfg.MaxLeases < 1 || cfg.MaxLeases > 64 || ports < cfg.MaxLeases*2 || ports > 128 {
-		return nil, errors.New("media relay requires a bounded unprivileged port pool for at most 64 leases")
+		return nil, xerrors.New("media relay requires a bounded unprivileged port pool for at most 64 leases")
 	}
 	if cfg.Lifetime < time.Second || cfg.Lifetime > 3*time.Second || cfg.PacketsPerSecond < 1 || cfg.PacketsPerSecond > 10000 {
-		return nil, errors.New("media relay requires a one to three second lease and bounded packet rate")
+		return nil, xerrors.New("media relay requires a one to three second lease and bounded packet rate")
 	}
 	for _, prefixes := range [][]netip.Prefix{cfg.ClientPrefixes, cfg.PeerPrefixes} {
 		if len(prefixes) == 0 || len(prefixes) > 16 {
-			return nil, errors.New("media relay requires bounded client and peer networks")
+			return nil, xerrors.New("media relay requires bounded client and peer networks")
 		}
 		for _, p := range prefixes {
 			if !p.IsValid() || !p.Addr().Is4() || p.Bits() < 8 {
-				return nil, errors.New("media relay network is invalid or too broad")
+				return nil, xerrors.New("media relay network is invalid or too broad")
 			}
 		}
 	}
@@ -165,14 +167,14 @@ func contains(prefixes []netip.Prefix, ip netip.Addr) bool {
 func (m *Manager) validate(b Binding) error {
 	for _, id := range []uuid.UUID{b.OrganizationID, b.UserID, b.WorkspaceID, b.BuildID, b.AgentID, b.NodeUID, b.VMUID, b.VMIUID, b.SessionID} {
 		if id == uuid.Nil {
-			return errors.New("media lease identity is incomplete")
+			return xerrors.New("media lease identity is incomplete")
 		}
 	}
 	if len(b.AccessRevision) == 0 || len(b.AccessRevision) > 256 {
-		return errors.New("media lease access revision is incomplete")
+		return xerrors.New("media lease access revision is incomplete")
 	}
 	if !b.ClientIP.IsValid() || b.ClientIP.IsUnspecified() || b.ClientIP.IsMulticast() || b.ClientIP.Zone() != "" || !unicast4(b.Peer.Addr()) || b.Peer.Port() == 0 || !contains(m.cfg.PeerPrefixes, b.Peer.Addr()) || (b.Peer.Addr().IsLoopback() && !m.cfg.BindIP.IsLoopback()) {
-		return errors.New("media lease endpoint is outside approved networks")
+		return xerrors.New("media lease endpoint is outside approved networks")
 	}
 	return nil
 }
@@ -206,13 +208,13 @@ func (m *Manager) Create(ctx context.Context, b Binding) (*Lease, error) {
 		if release != nil {
 			release()
 		}
-		return nil, fmt.Errorf("guard media lease: %w", err)
+		return nil, xerrors.Errorf("guard media lease: %w", err)
 	}
 	if guarded == nil || guarded.Done() == nil || release == nil {
 		if release != nil {
 			release()
 		}
-		return nil, errors.New("media lease requires a cancellable authoritative guard")
+		return nil, xerrors.New("media lease requires a cancellable authoritative guard")
 	}
 	l := &Lease{manager: m, binding: b, guard: guarded, release: release, done: make(chan struct{}), limiter: newLimiter(m.cfg.PacketsPerSecond)}
 	l.credentials = Credentials{Username: uuid.NewString(), Password: rand.Text()}
@@ -232,6 +234,7 @@ func (m *Manager) Create(ctx context.Context, b Binding) (*Lease, error) {
 		return nil, ErrCapacity
 	}
 	for port := int(m.cfg.PortMin); port+1 <= int(m.cfg.PortMax); port += 2 {
+		//nolint:gosec // The loop bounds port below cfg.PortMax, which is a uint16.
 		p := uint16(port)
 		if _, used := m.slots[p]; used {
 			continue
@@ -255,7 +258,7 @@ func (m *Manager) Create(ctx context.Context, b Binding) (*Lease, error) {
 			_ = relay.Close()
 			m.mu.Unlock()
 			release()
-			return nil, fmt.Errorf("bound media socket buffers: %w", e)
+			return nil, xerrors.Errorf("bound media socket buffers: %w", e)
 		}
 		m.slots[p] = l
 		break
@@ -278,11 +281,13 @@ func (m *Manager) Create(ctx context.Context, b Binding) (*Lease, error) {
 		// Pion invokes this only after MESSAGE-INTEGRITY authentication, not
 		// during credential lookup or an unauthenticated STUN challenge.
 		QuotaHandler: l.pinClient,
-		PacketConnConfigs: []turn.PacketConnConfig{{PacketConn: l.listener, RelayAddressGenerator: l,
+		PacketConnConfigs: []turn.PacketConnConfig{{
+			PacketConn: l.listener, RelayAddressGenerator: l,
 			PermissionHandler: func(client net.Addr, peer net.IP) bool {
 				ip, ok := netip.AddrFromSlice(peer)
 				return ok && ip.Unmap() == b.Peer.Addr() && l.client(client) && l.active()
-			}}},
+			},
+		}},
 		// TURN refresh timers retain their RFC defaults. Authorization expires
 		// independently at each datagram gate and closes both owned sockets.
 		InboundMTU: 1500,
@@ -290,7 +295,7 @@ func (m *Manager) Create(ctx context.Context, b Binding) (*Lease, error) {
 	if err != nil {
 		m.mu.Unlock()
 		_ = l.Close()
-		return nil, fmt.Errorf("start media TURN relay: %w", err)
+		return nil, xerrors.Errorf("start media TURN relay: %w", err)
 	}
 	l.mu.Lock()
 	l.timer = m.cfg.Clock.AfterFunc(m.cfg.Lifetime, l.expire, "media-lease-expiry")
@@ -317,7 +322,7 @@ func (l *Lease) check(ctx context.Context) error {
 		return err
 	}
 	if err := l.manager.cfg.Check(checkCtx, l.binding); err != nil {
-		return fmt.Errorf("verify media lease: %w", err)
+		return xerrors.Errorf("verify media lease: %w", err)
 	}
 	if err := checkCtx.Err(); err != nil {
 		return err
@@ -454,7 +459,7 @@ func (m *Manager) Close() error {
 }
 
 // Validate implements the TURN allocator contract.
-func (l *Lease) Validate() error { return nil }
+func (*Lease) Validate() error { return nil }
 
 // AllocatePacketConn permits one exact pre-reserved UDP allocation per lease.
 func (l *Lease) AllocatePacketConn(info turn.AllocateListenerConfig) (net.PacketConn, net.Addr, error) {
@@ -471,11 +476,11 @@ func (l *Lease) AllocatePacketConn(info turn.AllocateListenerConfig) (net.Packet
 }
 
 // AllocateListener rejects TURN TCP allocations.
-func (l *Lease) AllocateListener(turn.AllocateListenerConfig) (net.Listener, net.Addr, error) {
-	return nil, nil, errors.New("TCP media allocation is disabled")
+func (*Lease) AllocateListener(turn.AllocateListenerConfig) (net.Listener, net.Addr, error) {
+	return nil, nil, xerrors.New("TCP media allocation is disabled")
 }
 
 // AllocateConn rejects TURN TCP peer connections.
-func (l *Lease) AllocateConn(turn.AllocateConnConfig) (net.Conn, error) {
-	return nil, errors.New("TCP media allocation is disabled")
+func (*Lease) AllocateConn(turn.AllocateConnConfig) (net.Conn, error) {
+	return nil, xerrors.New("TCP media allocation is disabled")
 }

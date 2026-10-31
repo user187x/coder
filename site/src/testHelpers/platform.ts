@@ -12,6 +12,7 @@ import type {
 	PersistenceReport,
 	TemplateIconList,
 } from "#/api/platform";
+import { MockLavaAvatar } from "./avatar";
 import { MockUserMember, MockUserOwner } from "./entities";
 
 export const MockClassification: ClassificationSettings = {
@@ -212,6 +213,7 @@ export const MockMonitoringOverview: MonitoringOverview = {
 				username: MockUserMember.username,
 				name: MockUserMember.name ?? "",
 				email: MockUserMember.email,
+				avatar_url: MockLavaAvatar,
 			},
 			instances: [
 				{

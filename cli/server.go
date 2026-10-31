@@ -78,6 +78,7 @@ import (
 	"github.com/coder/coder/v2/coderd/notifications"
 	"github.com/coder/coder/v2/coderd/notifications/reports"
 	"github.com/coder/coder/v2/coderd/oauthpki"
+	"github.com/coder/coder/v2/coderd/platformagent"
 	"github.com/coder/coder/v2/coderd/platformha"
 	"github.com/coder/coder/v2/coderd/pproflabel"
 	"github.com/coder/coder/v2/coderd/prometheusmetrics"
@@ -772,6 +773,10 @@ func (r *RootCmd) Server(newAPI func(context.Context, *coderd.Options) (*coderd.
 			// Platform: the installer's bootstrap creates the first owner (refuse OIDC sign-ins until then).
 			options.PlatformFirstOwnerByBootstrap = os.Getenv("CODER_PLATFORM_FIRST_OWNER") == "bootstrap"
 			options.WorkspaceRuntimeImage = os.Getenv("CODER_WORKSPACE_RUNTIME_IMAGE")
+			options.PlatformAgentDirectory = os.Getenv("CODER_PLATFORM_AGENT_DIR")
+			if _, err := platformagent.Load(options.PlatformAgentDirectory); err != nil {
+				return xerrors.Errorf("configure platform agent features: %w", err)
+			}
 			options.NekoMedia, err = coderd.NekoMediaConfigFromEnv(os.Getenv)
 			if err != nil {
 				return xerrors.Errorf("configure Neko media: %w", err)

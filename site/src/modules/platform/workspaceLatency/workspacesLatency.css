@@ -14,6 +14,7 @@
 }
 .workspaces-pill-ring rect {
 	fill: none;
+	opacity: 0;
 	stroke: hsl(var(--content-link));
 	stroke-width: 2;
 	stroke-linecap: round;
@@ -24,10 +25,12 @@
 		stroke 0.2s ease;
 }
 .workspaces-pill[data-hold="holding"] .workspaces-pill-ring rect {
+	opacity: 1;
 	stroke-dashoffset: 0;
 	transition: stroke-dashoffset 0.8s linear;
 }
 .workspaces-pill[data-hold="locked"] .workspaces-pill-ring rect {
+	opacity: 1;
 	stroke-dashoffset: 0;
 	stroke: hsl(var(--content-success));
 }
@@ -75,22 +78,23 @@ html[data-animations="off"] .workspaces-pill-ring rect {
 	border-radius: inherit;
 	background: linear-gradient(
 		90deg,
-		hsl(var(--content-link) / 0.04),
-		hsl(var(--content-link) / 0.12) 50%,
-		hsl(var(--content-link) / 0.04)
+		hsl(var(--content-link) / 0.12),
+		hsl(var(--content-link) / 0.32) 50%,
+		hsl(var(--content-link) / 0.12)
 	);
 	pointer-events: none;
 	opacity: 0;
 	transform: scaleX(0);
 	transform-origin: center;
 	transition:
-		transform 900ms ease-out,
+		transform 500ms ease-out,
 		opacity 200ms ease-out;
 }
 .workspaces-pill:hover::before,
 [data-highlighted] > .workspaces-pill::before {
 	opacity: 1;
 	transform: scaleX(1);
+	box-shadow: inset 0 0 0 1px hsl(var(--content-link) / 0.45);
 }
 html[data-animations="off"] .workspaces-pill::before {
 	transition: none;

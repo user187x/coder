@@ -108,6 +108,8 @@ def coder_ha(chart):
     if HA_MODE not in open(tpl).read():
         open(tpl, "a").write("\n" + HA_MODE)
     for probe, ha_path in (("readinessProbe", "/readyz"), ("livenessProbe", "/livez")):
+        if ('%s:\n  httpGet:\n    {{- if eq (include "coder.platformHAMode" .) "activeStandby" }}\n    path: %s' % (probe, ha_path)) in open(tpl).read():
+            continue
         edit(tpl, '%s:\n  httpGet:\n    path: /healthz\n    port: "http"\n' % probe,
              '%s:\n  httpGet:\n'
              '    {{- if eq (include "coder.platformHAMode" .) "activeStandby" }}\n'
@@ -129,6 +131,111 @@ def coder_ha(chart):
          '  {{- if eq (include "coder.platformHAMode" .) "activeStandby" }}\n'
          '  preStop:\n    httpGet: {path: /handover, port: 2113}\n'
          '  {{- else }}\n  {{- toYaml .Values.coder.lifecycle | nindent 2 }}\n  {{- end }}\n')
+
+
+def coder_tls(chart):
+    """Keep service ports, probes and HA relay URLs on verified TLS when configured."""
+    edit(os.path.join(chart, "templates", "ingress.yaml"),
+         '{{- if .Values.coder.ingress.enable }}\n',
+         '{{- if .Values.coder.ingress.enable }}\n'
+         '{{- if eq (include "coder.tlsEnabled" .) "true" }}\n'
+         '{{- fail "Internal TLS requires Gateway API with BackendTLSPolicy. Disable coder.ingress.enable and configure coder.httpRoute instead." }}\n'
+         '{{- end }}\n')
+    edits = [('_coder.tpl',
+      '  value: "0.0.0.0:8080"\n',
+      '  value: {{ if eq (include "coder.tlsEnabled" .) "true" }}""{{ else }}"0.0.0.0:8080"{{ end }}\n'),
+     ('_coder.tpl',
+      '  value: "http://$(KUBE_POD_IP):8080"\n',
+      '  value: {{ if eq (include "coder.tlsEnabled" .) "true" }}"https://$(KUBE_POD_IP):8443"{{ else '
+      '}}"http://$(KUBE_POD_IP):8080"{{ end }}\n'),
+     ('_coder.tpl',
+      '    port: "http"\n',
+      '    port: {{ if eq (include "coder.tlsEnabled" .) "true" }}"https"{{ else }}"http"{{ end }}\n'),
+     ('_coder.tpl',
+      '    scheme: "HTTP"\n',
+      '    scheme: {{ if and (ne (include "coder.platformHAMode" .) "activeStandby") (eq (include '
+      '"coder.tlsEnabled" .) "true") }}"HTTPS"{{ else }}"HTTP"{{ end }}\n'),
+     ('_coder.tpl',
+      '    port: "http"\n',
+      '    port: {{ if eq (include "coder.tlsEnabled" .) "true" }}"https"{{ else }}"http"{{ end }}\n'),
+     ('_coder.tpl',
+      '    scheme: "HTTP"\n',
+      '    scheme: {{ if and (ne (include "coder.platformHAMode" .) "activeStandby") (eq (include '
+      '"coder.tlsEnabled" .) "true") }}"HTTPS"{{ else }}"HTTP"{{ end }}\n'),
+     ('httproute.yaml',
+      '          port: 80\n',
+      '          port: {{ if eq (include "coder.tlsEnabled" .) "true" }}443{{ else }}80{{ end }}\n'),
+     ('service.yaml',
+      '  ports:\n'
+      '    - name: "http"\n'
+      '      port: 80\n'
+      '      targetPort: "http"\n'
+      '      protocol: TCP\n'
+      '      {{- if or (eq .Values.coder.service.type "NodePort") (eq .Values.coder.service.type "LoadBalancer") '
+      '}}\n'
+      '      nodePort: {{ .Values.coder.service.httpNodePort }}\n'
+      '      {{- end }}\n'
+      '    {{- if eq (include "coder.tlsEnabled" .) "true" }}\n'
+      '    - name: "https"\n'
+      '      port: 443\n'
+      '      targetPort: "https"\n'
+      '      protocol: TCP\n'
+      '      {{- if or (eq .Values.coder.service.type "NodePort") (eq .Values.coder.service.type "LoadBalancer") '
+      '}}\n'
+      '      nodePort: {{ .Values.coder.service.httpsNodePort }}\n'
+      '      {{- end }}\n'
+      '    {{- end }}\n'
+      '  {{- if eq "LoadBalancer" .Values.coder.service.type }}\n'
+      '  {{- with .Values.coder.service.loadBalancerIP }}\n'
+      '  loadBalancerIP: {{ . | quote }}\n'
+      '  {{- end }}\n'
+      '  {{- with .Values.coder.service.externalTrafficPolicy }}\n'
+      '  externalTrafficPolicy: {{ . | quote }}\n'
+      '  {{- end }}\n'
+      '  {{- with .Values.coder.service.loadBalancerClass }}\n'
+      '  loadBalancerClass: {{ . | quote }}\n'
+      '  {{- end }}\n'
+      '  {{- end }}\n',
+      '  ports:\n'
+      '    {{- if ne (include "coder.tlsEnabled" .) "true" }}\n'
+      '    - name: "http"\n'
+      '      port: 80\n'
+      '      targetPort: "http"\n'
+      '      protocol: TCP\n'
+      '      {{- if or (eq .Values.coder.service.type "NodePort") (eq .Values.coder.service.type "LoadBalancer") '
+      '}}\n'
+      '      nodePort: {{ .Values.coder.service.httpNodePort }}\n'
+      '      {{- end }}\n'
+      '    {{- end }}\n'
+      '    {{- if eq (include "coder.tlsEnabled" .) "true" }}\n'
+      '    - name: "https"\n'
+      '      port: 443\n'
+      '      targetPort: "https"\n'
+      '      protocol: TCP\n'
+      '      {{- if or (eq .Values.coder.service.type "NodePort") (eq .Values.coder.service.type "LoadBalancer") '
+      '}}\n'
+      '      nodePort: {{ .Values.coder.service.httpsNodePort }}\n'
+      '      {{- end }}\n'
+      '    {{- end }}\n'
+      '  {{- if eq "LoadBalancer" .Values.coder.service.type }}\n'
+      '  {{- with .Values.coder.service.loadBalancerIP }}\n'
+      '  loadBalancerIP: {{ . | quote }}\n'
+      '  {{- end }}\n'
+      '  {{- with .Values.coder.service.externalTrafficPolicy }}\n'
+      '  externalTrafficPolicy: {{ . | quote }}\n'
+      '  {{- end }}\n'
+      '  {{- with .Values.coder.service.loadBalancerClass }}\n'
+      '  loadBalancerClass: {{ . | quote }}\n'
+      '  {{- end }}\n'
+      '  {{- end }}\n')]
+    for name, old, new in edits:
+        path = os.path.join(chart, "templates", name)
+        text = open(path).read()
+        if new in text:
+            continue
+        if old not in text:
+            sys.exit("TLS patch: expected text not found in " + path)
+        open(path, "w").write(text.replace(old, new))
 
 
 def main():
@@ -169,6 +276,7 @@ def main():
     open(cp, "w").write(s)
     if a.coder_ha:
         coder_ha(a.chart)
+        coder_tls(a.chart)
     print("patched", a.chart)
 
 

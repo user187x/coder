@@ -195,7 +195,6 @@ func TestMetrics(t *testing.T) {
 		})
 		require.Nil(t, successHist, "should not have success=true metric on failure")
 	})
-
 }
 
 //nolint:paralleltest // It uses LockIDDBPurge.
@@ -1835,54 +1834,4 @@ func TestDeleteExpiredAPIKeys(t *testing.T) {
 // ptr is a helper to create a pointer to a value.
 func ptr[T any](v T) *T {
 	return &v
-}
-
-func awaitDoTicks(ctx context.Context, t *testing.T, clk *quartz.Mock, n int) func() {
-	t.Helper()
-	completed := make(chan struct{})
-	advance := make(chan struct{})
-	trapNow := clk.Trap().Now()
-	trapStop := clk.Trap().TickerStop()
-	trapReset := clk.Trap().TickerReset()
-	go func() {
-		defer close(completed)
-		defer trapReset.Close()
-		defer trapStop.Close()
-		defer trapNow.Close()
-		trapNow.MustWait(ctx).MustRelease(ctx)
-		trapReset.MustWait(ctx).MustRelease(ctx)
-		select {
-		case completed <- struct{}{}:
-		case <-ctx.Done():
-			return
-		}
-		for i := 1; i < n; i++ {
-			select {
-			case <-advance:
-			case <-ctx.Done():
-				return
-			}
-			d, w := clk.AdvanceNext()
-			if !assert.Equal(t, 10*time.Minute, d) {
-				return
-			}
-			w.MustWait(ctx)
-			trapStop.MustWait(ctx).MustRelease(ctx)
-			trapReset.MustWait(ctx).MustRelease(ctx)
-			select {
-			case completed <- struct{}{}:
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
-	first := true
-	return func() {
-		t.Helper()
-		if !first {
-			testutil.RequireSend(ctx, t, advance, struct{}{})
-		}
-		first = false
-		testutil.TryReceive(ctx, t, completed)
-	}
 }

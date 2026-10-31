@@ -39,7 +39,7 @@ import { WorkspaceQuarantineControl } from "../quarantine/WorkspaceQuarantine";
 import { SandboxControl } from "../sandbox/SandboxControl";
 import { SudoLockIcon } from "./SudoLockIcon";
 
-export const lockdownKey = (workspaceId: string) =>
+const lockdownKey = (workspaceId: string) =>
 	[...lockdownRootKey, workspaceId] as const;
 
 /** The mode the lock is in: complete is both, freeze is complete and everything paused. */
@@ -63,7 +63,7 @@ export const networkLocked = (lock: WorkspaceLockdown | undefined) =>
 	Boolean(lock?.locked && lock.modes.includes("network"));
 
 /** What each lock is called (the toasts, the notice, the badge's title). */
-export const MODE_LABEL: Record<LockdownMode, string> = {
+const MODE_LABEL: Record<LockdownMode, string> = {
 	network: "Network Disconnected",
 	sudo: "Privilege Escalation Disabled",
 	complete: "Locked Down",
@@ -184,7 +184,7 @@ const SNAPSHOT_STATUS: Record<
 };
 
 /** The workspaces locked now (admins): {workspace id: its modes}, for the Workspaces list's badges. */
-export const locksKey = ["platform", "lockdown", "all"] as const;
+const locksKey = ["platform", "lockdown", "all"] as const;
 export const useAllLockdowns = () =>
 	useQuery({
 		queryKey: locksKey,

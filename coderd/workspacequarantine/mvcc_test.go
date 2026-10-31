@@ -5,6 +5,10 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
+
 	"cdr.dev/slog/v3"
 	"github.com/coder/coder/v2/coderd/coderdtest"
 	"github.com/coder/coder/v2/coderd/database"
@@ -15,9 +19,6 @@ import (
 	"github.com/coder/coder/v2/coderd/database/dbtestutil"
 	"github.com/coder/coder/v2/coderd/workspacequarantine"
 	"github.com/coder/coder/v2/testutil"
-	"github.com/google/uuid"
-	"github.com/stretchr/testify/require"
-	"go.uber.org/mock/gomock"
 )
 
 func TestWorkspaceQuarantineWaiterRetriesStaleSnapshot(t *testing.T) {

@@ -3,7 +3,10 @@ import { Link } from "react-router";
 import { DropdownMenuItem } from "#/components/DropdownMenu/DropdownMenu";
 import { ClusterGauge } from "#/modules/platform/ClusterGauge";
 import { AdminQuickLinksMenu } from "./AdminQuickLinksMenu";
+import { AnnouncementMenuItem } from "./AnnouncementMenuItem";
+import { AppearanceMenuItem } from "./AppearanceMenuItem";
 import type { AdminPage } from "./adminQuickLinks";
+import { ChatMenuItem } from "./ChatMenuItem";
 
 /**
  * Permissions that determine which items appear in the Admin menu.
@@ -18,6 +21,9 @@ type AdminSettingsItemsProps = {
 	quickLinks?: readonly AdminPage[];
 	/** Makes the quick links editable in place: add, remove and reorder. */
 	quickLinksEditor?: AdminQuickLinksEditor;
+	metricsRef?: React.Ref<HTMLDivElement>;
+	chatExpanded?: boolean;
+	onChatToggle?: () => void;
 };
 
 /** Changes to an admin's quick links, made from the Admin menu. */
@@ -54,25 +60,44 @@ export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
 	permissions,
 	quickLinks = [],
 	quickLinksEditor,
+	metricsRef,
+	chatExpanded,
+	onChatToggle,
 }) => {
 	return (
 		<>
 			{quickLinksEditor ? (
 				<AdminQuickLinksMenu
+					chatExpanded={chatExpanded}
+					onChatToggle={onChatToggle}
 					links={quickLinks}
 					addable={quickLinksEditor.addable}
 					onChange={quickLinksEditor.onChange}
 					itemClassName={itemClassName}
 				/>
 			) : (
-				quickLinks.map((page) => (
-					<DropdownMenuItem key={page.id} asChild className={itemClassName}>
-						<Link to={page.path}>
-							<page.icon aria-hidden />
-							{page.label}
-						</Link>
-					</DropdownMenuItem>
-				))
+				quickLinks.map((page) =>
+					page.id === "chat" ? (
+						<ChatMenuItem
+							key={page.id}
+							expanded={chatExpanded}
+							onToggle={onChatToggle}
+							admin={permissions.canEditDeployment}
+							className={itemClassName}
+						/>
+					) : page.id === "announcement" ? (
+						<AnnouncementMenuItem key={page.id} className={itemClassName} />
+					) : page.id === "customize" ? (
+						<AppearanceMenuItem key={page.id} className={itemClassName} />
+					) : (
+						<DropdownMenuItem key={page.id} asChild className={itemClassName}>
+							<Link to={page.path}>
+								<page.icon aria-hidden />
+								{page.label}
+							</Link>
+						</DropdownMenuItem>
+					),
+				)
 			)}
 			{permissions.canViewOrganizations && (
 				<DropdownMenuItem asChild className={itemClassName}>
@@ -98,7 +123,9 @@ export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
 					</Link>
 				</DropdownMenuItem>
 			)}
-			<ClusterGauge />
+			<div ref={metricsRef} data-settings-metrics hidden={chatExpanded}>
+				<ClusterGauge />
+			</div>
 		</>
 	);
 };

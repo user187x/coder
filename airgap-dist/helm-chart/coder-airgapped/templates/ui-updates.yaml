@@ -97,14 +97,24 @@ spec:
           imagePullPolicy: {{ $ui.imagePullPolicy }}
           command: [python3, /app/ui-service.py]
           env:
+            {{- if $ui.supportRelay.enabled }}
+            - {name: SCREEN_SHARE_TURN_URL, value: {{ printf "turns:%s:443?transport=tcp" $ui.supportRelay.hostname | quote }}}
+            - {name: SCREEN_SHARE_TURN_SECRET_FILE, value: /run/coder-support-relay/auth-secret}
+            - {name: SCREEN_SHARE_RELAY_CONTROL_SECRET_FILE, value: /run/coder-support-relay/control-secret}
+            {{- end }}
             - {name: SAFE_AUDIT_ENABLED, value: {{ $audit | quote }}}
-            - {name: PORT, value: "8080"}
+            - {name: PORT, value: "8443"}
+            - {name: SERVICE_CA_FILE, value: /run/coder-ui-tls/ca.crt}
+            - {name: SERVICE_TLS_CERT, value: /run/coder-ui-tls/tls.crt}
+            - {name: SERVICE_TLS_KEY, value: /run/coder-ui-tls/tls.key}
+            - {name: INTERNAL_CA_FILE, value: /run/coder-internal-ca/ca.crt}
+            - {name: LOGS_DB_CA, value: /run/coder-logs-ca/ca.crt}
             - {name: DB_PATH, value: /data/receipts.sqlite}
             # Kubelets' serving certificates not checked (self-signed: Minikube, kind), as for metrics-server.
             - {name: KUBELET_INSECURE_TLS, value: {{ .Values.metricsServer.kubeletInsecureTLS | default false | quote }}}
-            - {name: CODER_URL, value: {{ include "ca.svcUrl" (list "coder" . 80) | quote }}}
+            - {name: CODER_URL, value: {{ printf "https://coder.%s.svc.cluster.local" $ns | quote }}}
             # the announcement banner (/__banner/banner.json, for its receipts) is Coder's own
-            - {name: BANNER_URL, value: {{ include "ca.svcUrl" (list "coder" . 80) | quote }}}
+            - {name: BANNER_URL, value: {{ printf "https://coder.%s.svc.cluster.local" $ns | quote }}}
             - {name: ADMIN_ROLES, value: {{ $ui.adminRoles | quote }}}
             # the Gateway every user reaches the dashboard through: its addresses answer the announcement's `ip`
             - {name: GATEWAY_NAME, value: {{ $ui.gateway.name | quote }}}
@@ -127,6 +137,9 @@ spec:
             - {name: CODER_DEPLOYMENT, value: coder}
             - {name: CODER_RELEASE, value: {{ .Release.Name | quote }}}
             - {name: ATTACHED, value: "false"}
+            {{- if $ui.clientCertificates.enabled }}
+            - {name: CLIENT_CERTIFICATE_CA_DIR, value: /run/coder-client-ca}
+            {{- end }}
             - {name: KEYCLOAK_NAMESPACE, value: {{ ternary $ui.keycloak.namespace "" $ui.keycloak.enabled | quote }}}
             - {name: KEYCLOAK_ADMIN_SECRET, value: {{ ternary $ui.keycloak.adminSecret "" $ui.keycloak.enabled | quote }}}
             - {name: ARGOCD_NAMESPACE, value: {{ ternary $ui.argocd.namespace "" $ui.argocd.enabled | quote }}}
@@ -160,7 +173,7 @@ spec:
             {{- $templates = append $templates (dict "name" $df.name "displayName" ($df.displayName | default $df.name) "image" (tpl (index $.Values "coder-workspace" "dataflowImage") $)) }}
             {{- end }}
             - {name: BUILDER_TEMPLATES, value: {{ toJson $templates | quote }}}
-            - {name: BUILDER_SERVICE_URL, value: {{ printf "http://coder-ui-updates.%s.svc" $ns | quote }}}
+            - {name: BUILDER_SERVICE_URL, value: {{ printf "https://coder-ui-updates.%s.svc" $ns | quote }}}
             - {name: BUILDER_CPU, value: {{ .build.cpu | quote }}}
             - {name: BUILDER_MEMORY, value: {{ .build.memory | quote }}}
             - {name: BUILDER_TIMEOUT_MINUTES, value: {{ .build.timeoutMinutes | quote }}}
@@ -223,7 +236,7 @@ spec:
             - {name: CODER_DB_SECRET_KEY, value: uri}
             - {name: CODER_DB_CA_SECRET, value: {{ printf "%s-ca" .Values.database.name | quote }}}
             - {name: LOGS_DB_SECRET, value: {{ .Values.secrets.logsDb.name | quote }}}
-            - {name: LOGS_DB_URL, value: {{ printf "postgresql://logs:{password}@coder-ui-logs-db.%s.svc.cluster.local:5432/logs?sslmode=disable" $ns | quote }}}
+            - {name: LOGS_DB_URL, value: {{ printf "postgresql://logs:{password}@coder-ui-logs-db.%s.svc.cluster.local:5432/logs?sslmode=verify-full" $ns | quote }}}
             - {name: DEFAULTS_DIR, value: /app/defaults}
             # the install's backgrounds, set once in the slots no one set (values: uiUpdates.appearanceDefaults)
             - {name: BACKGROUND_DEFAULTS, value: {{ (.Values.uiUpdates.appearanceDefaults | default dict).backgrounds | default dict | toJson | quote }}}
@@ -231,15 +244,15 @@ spec:
             - {name: PYTHONDONTWRITEBYTECODE, value: "1"}
             - {name: PYTHONUNBUFFERED, value: "1"}
           ports:
-            - {name: http, containerPort: 8080, protocol: TCP}
+            - {name: https, containerPort: 8443, protocol: TCP}
             {{- if $audit }}
             - {name: drive-audit, containerPort: 9444, protocol: TCP}
             {{- end }}
           livenessProbe:
-            httpGet: {path: /__coder-ui/healthz, port: http}
+            httpGet: {path: /__coder-ui/healthz, port: https, scheme: HTTPS}
             periodSeconds: 30
           readinessProbe:
-            httpGet: {path: /__coder-ui/healthz, port: http}
+            httpGet: {path: /__coder-ui/healthz, port: https, scheme: HTTPS}
             periodSeconds: 10
           resources:
             {{- toYaml $ui.resources | nindent 12 }}
@@ -248,6 +261,15 @@ spec:
             capabilities: {drop: [ALL]}
             readOnlyRootFilesystem: true
           volumeMounts:
+            {{- if $ui.clientCertificates.enabled }}
+            - {name: client-certificate-ca, mountPath: /run/coder-client-ca, readOnly: true}
+            {{- end }}
+            - {name: internal-tls, mountPath: /run/coder-ui-tls, readOnly: true}
+            - {name: internal-ca, mountPath: /run/coder-internal-ca, readOnly: true}
+            - {name: logs-ca, mountPath: /run/coder-logs-ca, readOnly: true}
+            {{- if $ui.supportRelay.enabled }}
+            - {name: support-relay-key, mountPath: /run/coder-support-relay, readOnly: true}
+            {{- end }}
             {{- if .Values.global.nekoMedia.enabled }}
             - {name: neko-media-key, mountPath: /run/coder-neko, readOnly: true}
             {{- end }}
@@ -269,6 +291,26 @@ spec:
             - {name: user-storage-ca, mountPath: /etc/coder-user-storage, readOnly: true}
             {{- end }}
       volumes:
+        {{- if $ui.clientCertificates.enabled }}
+        - name: client-certificate-ca
+          secret:
+            secretName: {{ $ui.clientCertificates.issuerSecret | quote }}
+            defaultMode: 0440
+            items: [{key: ca.crt, path: ca.crt}, {key: ca.key, path: ca.key}, {key: password, path: password}]
+        {{- end }}
+        - name: internal-tls
+          secret: {secretName: coder-ui-updates-internal-tls, defaultMode: 0440, items: [{key: tls.crt, path: tls.crt}, {key: tls.key, path: tls.key}, {key: ca.crt, path: ca.crt}]}
+        - name: internal-ca
+          configMap: {name: coder-internal-tls}
+        - name: logs-ca
+          configMap: {name: coder-ui-logs-db-internal-tls}
+        {{- if $ui.supportRelay.enabled }}
+        - name: support-relay-key
+          secret:
+            secretName: coder-support-relay
+            defaultMode: 0440
+            items: [{key: auth-secret, path: auth-secret}, {key: control-secret, path: control-secret}]
+        {{- end }}
         {{- if .Values.global.nekoMedia.enabled }}
         - name: neko-media-key
           secret:
@@ -334,7 +376,7 @@ spec:
   selector:
     app.kubernetes.io/name: coder-ui-updates
   ports:
-    - {name: http, port: 80, protocol: TCP, targetPort: http}
+    - {name: https, port: 443, protocol: TCP, targetPort: https}
     {{- if $audit }}
     - {name: drive-audit, port: 9444, protocol: TCP, targetPort: drive-audit}
     {{- end }}
@@ -359,15 +401,21 @@ spec:
       name: {{ $ui.gateway.name }}
       namespace: {{ $ui.gateway.namespace }}
   rules:
+    # Coder retries this read during a single-writer platform-service replacement.
+    - matches:
+        - method: GET
+          path: {type: Exact, value: /__coder-ui/api/network}
+      backendRefs:
+        - {group: "", kind: Service, name: coder, port: 443, weight: 1}
     - matches:
         - path: {type: PathPrefix, value: /__coder-ui/}
         - path: {type: PathPrefix, value: /__icons/}
       backendRefs:
-        - {group: "", kind: Service, name: coder-ui-updates, port: 80, weight: 1}
+        - {group: "", kind: Service, name: coder-ui-updates, port: 443, weight: 1}
     - matches:
         - path: {type: RegularExpression, value: '^/assets/index-[A-Za-z0-9_-]{4,64}\.js$'}
       backendRefs:
-        - {group: "", kind: Service, name: coder, port: 80, weight: 1}
+        - {group: "", kind: Service, name: coder, port: 443, weight: 1}
     - matches:
         - headers:
             - {name: Accept, type: RegularExpression, value: '.*text/html.*'}
@@ -376,7 +424,7 @@ spec:
             - {name: Accept, type: RegularExpression, value: '.*text/html.*'}
           path: {type: RegularExpression, value: '^/@[^/]+/[^/]+(/builds/[0-9]+|/settings(/[a-z-]+)?|/terminal)?/?$'}
       backendRefs:
-        - {group: "", kind: Service, name: coder, port: 80, weight: 1}
+        - {group: "", kind: Service, name: coder, port: 443, weight: 1}
 ---
 # Buffer for streamed workspace logs (Monitoring): a throw-away PostgreSQL on an emptyDir.
 apiVersion: apps/v1
@@ -423,10 +471,13 @@ spec:
                 printf '%s' "$POSTGRES_PASSWORD" > /tmp/pw
                 "$BIN/initdb" -D /data/pg -U logs --auth-local=trust --auth-host=scram-sha-256 --pwfile=/tmp/pw -E UTF8 >/dev/null
                 rm -f /tmp/pw
-                echo "host all all 0.0.0.0/0 scram-sha-256" >> /data/pg/pg_hba.conf
+                echo "hostssl all all 0.0.0.0/0 scram-sha-256" >> /data/pg/pg_hba.conf
                 echo "CREATE DATABASE logs;" | "$BIN/postgres" --single -D /data/pg postgres >/dev/null
               fi
+              cp /tls/tls.key /tmp/tls.key
+              chmod 600 /tmp/tls.key
               exec "$BIN/postgres" -D /data/pg -c listen_addresses='*' -c unix_socket_directories=/tmp \
+                -c ssl=on -c ssl_cert_file=/tls/tls.crt -c ssl_key_file=/tmp/tls.key -c ssl_min_protocol_version=TLSv1.2 \
                 -c max_connections=30 -c shared_buffers=32MB -c fsync=off -c synchronous_commit=off \
                 -c full_page_writes=off -c log_min_messages=warning
           env:
@@ -448,6 +499,7 @@ spec:
             - {name: data, mountPath: /data}
             - {name: tmp, mountPath: /tmp}
             - {name: run, mountPath: /var/run/postgresql}
+            - {name: logs-tls, mountPath: /tls, readOnly: true}
       volumes:
         - name: data
           emptyDir: {sizeLimit: 1Gi}
@@ -455,6 +507,8 @@ spec:
           emptyDir: {}
         - name: run
           emptyDir: {}
+        - name: logs-tls
+          secret: {secretName: coder-ui-logs-db-internal-tls, defaultMode: 0440, items: [{key: tls.crt, path: tls.crt}, {key: tls.key, path: tls.key}, {key: ca.crt, path: ca.crt}]}
 ---
 apiVersion: v1
 kind: Service

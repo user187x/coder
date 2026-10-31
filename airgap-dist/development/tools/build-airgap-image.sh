@@ -8,16 +8,27 @@
 #                                           upstream Coder at the fork's base commit on BASE, e.g.
 #                                           ghcr.io/coder/coder:v2.38.0 (development/coder-fork/ROLLBACK.md)
 set -euo pipefail
-here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; dev="$(dirname "$here")"; top="$(dirname "$dev")"
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+dev="$(dirname "$here")"
+top="$(dirname "$dev")"
 release="$(cat "$(dirname "$top")/RELEASE_VERSION")"
 repo=coder-platform
-if [[ "${1:-}" == --upstream ]]; then repo=coder-upstream; shift; [[ -n "${1:-}" ]] || { echo "usage: $0 --upstream BASE" >&2; exit 2; }; fi
-base="${1:-coder-platform-base:${release}}"; img="docker.io/mrshll187/${repo}:${release}"
+if [[ "${1:-}" == --upstream ]]; then
+	repo=coder-upstream
+	shift
+	[[ -n "${1:-}" ]] || {
+		echo "usage: $0 --upstream BASE" >&2
+		exit 2
+	}
+fi
+base="${1:-coder-platform-base:${release}}"
+img="docker.io/mrshll187/${repo}:${release}"
 ctx="${dev}/airgap-image"
 # The base image: local docker, else the registry, else the backup in ~/coder-airgapped-private/images/
 docker image inspect "$base" >/dev/null 2>&1 || docker pull "$base" 2>/dev/null ||
 	docker load -i "${HOME}/coder-airgapped-private/images/$(basename "${base//:/-}").tar.gz"
-rm -rf "${ctx}/template"; mkdir -p "${ctx}/template"
+rm -rf "${ctx}/template"
+mkdir -p "${ctx}/template"
 cp "${top}"/helm-chart/coder-airgapped/charts/coder-workspace/files/*.tf "${ctx}/template/"
 # Terraform: built from source in the image (../airgap-image/Dockerfile), the newest 1.16 (Coder's provisioner accepts
 # up to 1.16.9), with a current Go

@@ -25,25 +25,17 @@ import { Input } from "#/components/Input/Input";
 import { Label } from "#/components/Label/Label";
 import { Loader } from "#/components/Loader/Loader";
 import { Spinner } from "#/components/Spinner/Spinner";
-import { formatBytes } from "../images";
+import { iconNameFromFile } from "#/utils/iconNameFromFile";
+import { formatBytes } from "#/utils/images";
 import {
 	ICON_TARGET,
 	ImageNormalizeError,
 	type NormalizedImage,
 	normalizeImage,
-} from "../normalizeImage";
+} from "#/utils/normalizeImage";
 
 const ICON_EXTENSIONS = ["png", "jpg", "jpeg", "svg", "webp", "gif", "avif"];
 const NAME_RE = /^[a-z0-9][a-z0-9._-]{0,63}$/;
-
-/** A name for an icon from its file name: lower case, safe characters, no extension. */
-export const iconNameFromFile = (fileName: string): string =>
-	fileName
-		.replace(/\.[^.]+$/, "")
-		.toLowerCase()
-		.replace(/[^a-z0-9._-]+/g, "-")
-		.replace(/^[^a-z0-9]+|-+$/g, "")
-		.slice(0, 64);
 
 /** "Icons" on the Templates page: opens the icon library. */
 export const TemplateIconsButton: React.FC = () => {

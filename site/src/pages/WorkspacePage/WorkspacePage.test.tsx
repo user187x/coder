@@ -78,7 +78,7 @@ const testButton = async (
 
 	const user = userEvent.setup();
 	await user.click(button);
-	expect(actionMock).toHaveBeenCalled();
+	await waitFor(() => expect(actionMock).toHaveBeenCalled());
 };
 
 afterEach(() => {
@@ -274,7 +274,7 @@ describe("WorkspacePage", () => {
 		);
 	});
 
-	it.each(["template", "agent", "build"])(
+	it.each(["template", "agent", "api"])(
 		"requests an update for an outdated %s",
 		async (reason) => {
 			const workspace =
@@ -290,9 +290,8 @@ describe("WorkspacePage", () => {
 										agents: resource.agents?.map((agent) => ({
 											...agent,
 											version:
-												reason === "agent"
-													? "v1.0.0"
-													: `${MockBuildInfo.version}+old`,
+												reason === "agent" ? "v1.0.0" : MockBuildInfo.version,
+											api_version: reason === "api" ? "0.1" : agent.api_version,
 										})),
 									}),
 								),
@@ -309,9 +308,12 @@ describe("WorkspacePage", () => {
 			// Actions
 			const user = userEvent.setup();
 			await user.click(
-				within(screen.getByTestId("workspace-actions")).getByRole("button", {
-					name: "Update and restart",
-				}),
+				await within(screen.getByTestId("workspace-actions")).findByRole(
+					"button",
+					{
+						name: "Update and restart",
+					},
+				),
 			);
 			const confirmButton = await screen.findByTestId("confirm-button");
 			await user.click(confirmButton);
@@ -518,5 +520,28 @@ describe("WorkspacePage", () => {
 			expect(screen.queryByText("Resources")).toBeNull();
 			expect(screen.queryByText("History")).toBeNull();
 		});
+	});
+});
+
+describe("workspace dashboard space", () => {
+	it("synchronizes expanded mode with the page and restores it on toggle and unmount", async () => {
+		const set = vi.spyOn(document.documentElement, "setAttribute");
+		const remove = vi.spyOn(document.documentElement, "removeAttribute");
+		const { unmount } = await renderWorkspacePage(MockWorkspace);
+		const user = userEvent.setup();
+		await user.click(
+			await screen.findByRole("button", { name: "Expand workspace dashboard" }),
+		);
+		expect(set).toHaveBeenCalledWith("data-workspace-expanded", "");
+		await user.click(
+			screen.getByRole("button", { name: "Restore workspace dashboard" }),
+		);
+		expect(remove).toHaveBeenCalledWith("data-workspace-expanded");
+		await user.click(
+			screen.getByRole("button", { name: "Expand workspace dashboard" }),
+		);
+		remove.mockClear();
+		unmount();
+		expect(remove).toHaveBeenCalledWith("data-workspace-expanded");
 	});
 });

@@ -1,5 +1,5 @@
 import dayjs from "dayjs";
-import { useContext, useId, useState } from "react";
+import { useId, useState } from "react";
 import { useQuery } from "react-query";
 import { getErrorMessage } from "#/api/errors";
 import { PlatformAPI } from "#/api/platform";
@@ -16,7 +16,7 @@ import {
 } from "#/components/Dialog/DeleteDialog/DeleteConfirmationField";
 import { Input } from "#/components/Input/Input";
 import { RadioGroup, RadioGroupItem } from "#/components/RadioGroup/RadioGroup";
-import { AuthContext } from "#/contexts/auth/AuthProvider";
+import { useAuthContext } from "#/contexts/auth/AuthProvider";
 
 const warnBoxClassName =
 	"mt-6 flex gap-2 rounded-lg border border-solid border-border-warning bg-surface-orange p-3 leading-snug text-content-warning";
@@ -39,7 +39,7 @@ export const WorkspaceDeleteDialog: React.FC<WorkspaceDeleteDialogProps> = ({
 	const orphanId = useId();
 	// Platform: the owner's Cloud Drive source (a folder of this workspace is their Cloud Drive) is guarded: each
 	// workspace connected to it confirmed, and "delete" typed (then Enter). Only the owner's own workspaces.
-	const me = useContext(AuthContext)?.user?.id;
+	const me = useAuthContext().user?.id;
 	const guard = useQuery(
 		cloudDriveSourceGuard(
 			workspace.id,

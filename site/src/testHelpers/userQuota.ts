@@ -1,4 +1,4 @@
-import type { QuotaReport } from "#/api/platform";
+import type { PlatformAPI, QuotaReport } from "#/api/platform";
 import { MockUserMember } from "./entities";
 
 export const MockQuotaReport: QuotaReport = {
@@ -11,6 +11,7 @@ export const MockQuotaReport: QuotaReport = {
 		default: { workspaces: 3, cpu: 4, memory: 8, disk: 100 },
 		users: {},
 		exemptAdmins: false,
+		excludedUsers: [],
 	},
 	users: [
 		{
@@ -56,4 +57,27 @@ export const MockQuotaReport: QuotaReport = {
 	liveUsage: true,
 	parameters: { cpu: "cpu", memory: "memory", disk: "home_disk_size" },
 	generatedAt: "2026-10-24T12:00:00Z",
+};
+
+export const MockSchedulerReport: Awaited<
+	ReturnType<typeof PlatformAPI.getSchedulerReport>
+> = {
+	settings: {
+		enabled: true,
+		mode: "user",
+		fixed: {
+			start: "09:00",
+			stop: "17:00",
+			days: [1, 2, 3, 4, 5],
+			timezone: "America/New_York",
+		},
+		maxActiveHours: 2,
+		ignoreAdmins: true,
+		excludedUsers: [],
+	},
+	workspaces: 1,
+	exempt: 0,
+	noncompliant: [],
+	users: [MockUserMember.username],
+	generatedAt: "2026-10-31T12:00:00Z",
 };

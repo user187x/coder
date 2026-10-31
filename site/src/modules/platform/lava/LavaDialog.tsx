@@ -8,14 +8,20 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "#/components/Dialog/Dialog";
+import {
+	type LavaPictureOptions,
+	lavaPicture,
+} from "#/components/LavaImage/drawLava";
+import { LiveLava } from "#/components/LavaImage/LiveLava";
+import {
+	LAVA_PICTURE_DEFAULT,
+	type LavaSettings,
+} from "#/components/LavaImage/lava";
 import { Spinner } from "#/components/Spinner/Spinner";
-import { type LavaPictureOptions, lavaPicture } from "./drawLava";
 import { LavaControls } from "./LavaControls";
-import { LiveLava } from "./LiveLava";
-import { LAVA_PICTURE_DEFAULT, type LavaSettings } from "./lava";
 
 /** What most choosers take: a 256-pixel picture of at most 1 MB (the icon editor's limit). */
-export const LAVA_PICTURE_OUTPUT: LavaPictureOptions = {
+const LAVA_PICTURE_OUTPUT: LavaPictureOptions = {
 	size: 256,
 	maxBytes: 1024 * 1024,
 };

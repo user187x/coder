@@ -22,7 +22,6 @@ import {
 	DropdownMenuTrigger,
 } from "#/components/DropdownMenu/DropdownMenu";
 import { Loader } from "#/components/Loader/Loader";
-import { Margins } from "#/components/Margins/Margins";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { pageTitle } from "#/utils/page";
 import "./hud.css";
@@ -112,9 +111,9 @@ const HudPage: React.FC = () => {
 
 	if (!allowed) {
 		return (
-			<Margins className="py-10">
+			<div className="w-full px-6 py-10">
 				<p className="text-content-secondary">The HUD is for administrators.</p>
-			</Margins>
+			</div>
 		);
 	}
 
@@ -124,7 +123,7 @@ const HudPage: React.FC = () => {
 	return (
 		<>
 			<title>{pageTitle("HUD")}</title>
-			<Margins className="flex flex-col gap-6 pb-12 pt-8">
+			<div className="flex w-full min-w-0 flex-col gap-6 px-6 pb-12 pt-8">
 				<header className="flex flex-wrap items-center justify-between gap-3">
 					<div className="flex flex-col gap-1">
 						<h1 className="m-0 flex items-center gap-2 text-2xl font-semibold">
@@ -222,7 +221,7 @@ const HudPage: React.FC = () => {
 						{data.storage && <HudStorageClasses storage={data.storage} />}
 					</>
 				)}
-			</Margins>
+			</div>
 		</>
 	);
 };

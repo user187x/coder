@@ -2,11 +2,11 @@ package agentsdk
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 
-	"github.com/coder/coder/v2/codersdk"
 	"github.com/google/uuid"
+
+	"github.com/coder/coder/v2/codersdk"
 )
 
 // WorkspaceAccessPolicy is enforced inside the workspace agent's WireGuard map.
@@ -36,6 +36,6 @@ func (c *Client) SyncWorkspaceAccess(ctx context.Context, req SyncWorkspaceAcces
 		return WorkspaceAccessPolicy{}, codersdk.ReadBodyAsError(res)
 	}
 	var policy WorkspaceAccessPolicy
-	err = json.NewDecoder(res.Body).Decode(&policy)
+	err = codersdk.ReadBodyAsJSON(res, &policy)
 	return policy, err
 }

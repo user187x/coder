@@ -18,6 +18,7 @@ import urllib.request
 import uuid
 
 import vmgrow
+from servicetls import open_service, service_connection
 
 
 def prepare(kube, ws):
@@ -99,6 +100,7 @@ def job_body(prepared, action, url):
             'env': [{'name': 'WORKSPACE_NAMESPACE', 'value': vmgrow.NAMESPACE},
                     {'name': 'POD_NAMESPACE', 'value': vmgrow.RUNTIME_NAMESPACE},
                     {'name': 'NODE_NAME', 'valueFrom': {'fieldRef': {'fieldPath': 'spec.nodeName'}}},
+                    {'name': 'SERVICE_CA_PEM', 'value': pathlib.Path(os.environ['SERVICE_CA_FILE']).read_text()},
                     {'name': 'CODER_VM_TRANSFER_URL', 'value': url}],
             'securityContext': {'privileged': True, 'runAsUser': 0},
             'resources': {'requests': {'cpu': '1', 'memory': '1Gi'}, 'limits': {'cpu': '2', 'memory': '2Gi'}},
@@ -300,7 +302,7 @@ def restore_capacity(current, plan, max_gb):
 
 def upload_archive(path, url):
     parsed = urllib.parse.urlsplit(url)
-    connection = (http.client.HTTPSConnection if parsed.scheme == 'https' else http.client.HTTPConnection)(parsed.hostname, parsed.port, timeout=600)
+    connection = service_connection(url, timeout=600)
     try:
         with pathlib.Path(path).open('rb') as source:
             connection.request('PUT', parsed.path, body=source, headers={'Content-Type': 'application/gzip', 'Content-Length': str(pathlib.Path(path).stat().st_size)})
@@ -316,7 +318,7 @@ def download_archive(url, path, capacity):
     """Bound staging before touching the HOME registry or block device."""
     maximum = capacity + METADATA_BUDGET
     count = 0
-    with urllib.request.urlopen(url, timeout=600) as source, path.open('xb') as target:
+    with open_service(url, timeout=600) as source, path.open('xb') as target:
         while True:
             block = source.read(min(1048576, maximum - count + 1))
             if not block:

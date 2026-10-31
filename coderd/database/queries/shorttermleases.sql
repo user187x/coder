@@ -5,7 +5,8 @@ SELECT * FROM short_term_leases WHERE user_id = $1;
 SELECT * FROM short_term_leases WHERE workspace_id = $1;
 
 -- name: GetShortTermLeasesByOrganization :many
-SELECT * FROM short_term_leases WHERE organization_id = $1 ORDER BY issued_at DESC;
+SELECT * FROM short_term_leases WHERE organization_id = $1 AND hidden_at IS NULL
+AND NOT (auto_remove_history AND (expires_at <= now() OR revoked_at IS NOT NULL)) ORDER BY issued_at DESC;
 
 -- name: InsertShortTermLease :one
 INSERT INTO short_term_leases (user_id, organization_id, issued_by, issued_at, expires_at)
@@ -32,3 +33,11 @@ WHERE user_id = $1 AND organization_id = $2 RETURNING *;
 
 -- name: GetExpiredShortTermLeases :many
 SELECT * FROM short_term_leases WHERE expires_at <= now() OR revoked_at IS NOT NULL;
+
+-- name: ConfigureShortTermLease :one
+UPDATE short_term_leases SET terms = $3, auto_remove_history = $4
+WHERE user_id = $1 AND organization_id = $2 RETURNING *;
+
+-- name: HideShortTermLease :one
+UPDATE short_term_leases SET hidden_at = now()
+WHERE user_id = $1 AND organization_id = $2 AND (revoked_at IS NOT NULL OR expires_at <= now()) RETURNING *;

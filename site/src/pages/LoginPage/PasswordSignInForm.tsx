@@ -22,10 +22,7 @@ export const PasswordSignInForm: React.FC<PasswordSignInFormProps> = ({
 	beforeSubmit,
 }) => {
 	const validationSchema = Yup.object({
-		email: Yup.string()
-			.trim()
-			.email("Please enter a valid email address.")
-			.required("Please enter an email address."),
+		email: Yup.string().trim().required("Please enter your username or email."),
 		password: Yup.string(),
 	});
 
@@ -48,7 +45,7 @@ export const PasswordSignInForm: React.FC<PasswordSignInFormProps> = ({
 		<form onSubmit={form.handleSubmit} className="flex flex-col gap-5">
 			<div className="flex flex-col items-start gap-2">
 				<Label htmlFor={emailField.id}>
-					Email{" "}
+					Username or email{" "}
 					<span className="text-xs text-content-destructive font-bold">*</span>
 				</Label>
 				<Input
@@ -58,8 +55,8 @@ export const PasswordSignInForm: React.FC<PasswordSignInFormProps> = ({
 					onChange={onChangeTrimmed(form)}
 					onBlur={emailField.onBlur}
 					autoFocus={autoFocus}
-					autoComplete="email"
-					type="email"
+					autoComplete="username"
+					type="text"
 					aria-invalid={Boolean(emailField.error)}
 					aria-describedby={emailField.error ? emailErrorId : undefined}
 				/>
@@ -113,7 +110,7 @@ export const PasswordSignInForm: React.FC<PasswordSignInFormProps> = ({
 			>
 				<RouterLink
 					to={
-						form.values.email
+						form.values.email.includes("@")
 							? `/reset-password?email=${encodeURIComponent(form.values.email)}`
 							: "/reset-password"
 					}

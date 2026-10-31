@@ -3,8 +3,8 @@ import { CodeIcon, FileUpIcon, RotateCcwIcon, ShuffleIcon } from "lucide-react";
 import { useRef } from "react";
 import type { BackgroundDials } from "#/api/platform";
 import { Button } from "#/components/Button/Button";
+import { formatBytes } from "#/utils/images";
 import { ColorField } from "../ColorField";
-import { formatBytes } from "../images";
 import { DIALS, dial, dialFilter, previewDocument } from "./backgroundHtml";
 import {
 	BACKGROUND_STYLES,
@@ -51,66 +51,6 @@ export const HtmlPreviewFrame: React.FC<{
 		className={cn("pointer-events-none border-0", className)}
 		style={{ filter: dialFilter(dials), ...style }}
 	/>
-);
-
-/** The animated backgrounds to choose from, next to the pictures. */
-export const HtmlSourcePicker: React.FC<{
-	selected: HtmlSource | undefined;
-	disabled?: boolean;
-	onSelect: (source: HtmlSource) => void;
-}> = ({ selected, disabled, onSelect }) => (
-	<div className="flex flex-col gap-2" data-testid="html-source-picker">
-		<span className="text-sm text-content-secondary">
-			Or an animated one, with dials:
-		</span>
-		<div
-			role="radiogroup"
-			aria-label="Animated backgrounds"
-			className="flex flex-wrap gap-2.5"
-		>
-			<button
-				type="button"
-				role="radio"
-				aria-checked={selected === "particles"}
-				aria-label="Particles (animated)"
-				title="Particles: themes (Minecraft among them) and dials for their colours, shapes and motion"
-				disabled={disabled}
-				onClick={() => onSelect("particles")}
-				className={cn(
-					"relative h-16 w-24 cursor-pointer overflow-hidden rounded-md border border-solid border-border p-0",
-					"hover:border-content-link focus-visible:border-content-link focus-visible:outline-none",
-					selected === "particles" &&
-						"border-content-link ring-2 ring-content-link",
-				)}
-			>
-				<HtmlPreviewFrame
-					html={particlesHTML(PARTICLES_DEFAULT)}
-					className="absolute inset-0 h-[400%] w-[400%] origin-top-left scale-25"
-				/>
-				<span className="absolute right-0 bottom-0 left-0 bg-black/45 px-1 py-0.5 text-[10px] font-semibold text-white">
-					Particles
-				</span>
-			</button>
-			<button
-				type="button"
-				role="radio"
-				aria-checked={selected === "custom"}
-				aria-label="Your own HTML and CSS"
-				title="Paste or import your own HTML and CSS"
-				disabled={disabled}
-				onClick={() => onSelect("custom")}
-				className={cn(
-					"flex h-16 w-24 cursor-pointer flex-col items-center justify-center gap-1 rounded-md border border-dashed border-border bg-surface-secondary p-1 text-[11px] text-content-secondary",
-					"hover:border-content-link hover:text-content-primary focus-visible:border-content-link focus-visible:outline-none",
-					selected === "custom" &&
-						"border-solid border-content-link text-content-primary ring-2 ring-content-link",
-				)}
-			>
-				<CodeIcon className="size-4" />
-				Your own HTML
-			</button>
-		</div>
-	</div>
 );
 
 export const Slider: React.FC<{
@@ -166,7 +106,7 @@ const BACKGROUND_STYLE_LABELS: Record<BackgroundStyle, string> = {
 };
 
 /** One of a few choices, as a row of buttons. */
-export function Choice<T extends string>({
+function Choice<T extends string>({
 	label,
 	options,
 	labels,

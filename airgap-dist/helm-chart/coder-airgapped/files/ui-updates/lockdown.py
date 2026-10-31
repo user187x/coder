@@ -31,6 +31,7 @@ new volume (PVC coder-freeze-<workspace>-<time>) by a Job on the workspace's nod
 The processes that were running are kept with it (key <workspace id>.meta: "processes").
 """
 import sandbox
+import kexec
 import datetime
 import json
 import os
@@ -167,7 +168,8 @@ def running_pods(wid=None):
     out = []
     for p in (pods.get("items") or []) if status == 200 and isinstance(pods, dict) else []:
         st = p.get("status") or {}
-        dev = next((c for c in st.get("containerStatuses") or [] if c.get("name") == "dev"), None)
+        agent_name = kexec.agent_container(p).get("name")
+        dev = next((c for c in st.get("containerStatuses") or [] if c.get("name") == agent_name), None)
         if st.get("phase") == "Running" and dev and (dev.get("state") or {}).get("running") \
                 and not (p.get("metadata") or {}).get("deletionTimestamp"):
             out.append(p)
@@ -201,9 +203,12 @@ def apply(pod, modes):
     wid = meta.get('labels', {}).get('com.coder.workspace.id')
     coder_ips, peers, signature = sandbox.inputs(wid) if modes == 'sandbox' else ('', '', '')
     name = "lockdown-%d" % int(time.time() * 1000)
-    image = COPY_IMAGE or next((c["image"] for c in pod["spec"]["containers"] if c["name"] == "dev"), None)
+    agent = kexec.agent_container(pod)
+    image = COPY_IMAGE or agent.get("image")
+    if not image or not agent.get("name"):
+        return False, "The workspace pod has no agent container."
     container = {
-        "name": name, "image": image, "imagePullPolicy": "IfNotPresent", "targetContainerName": "dev",
+        "name": name, "image": image, "imagePullPolicy": "IfNotPresent", "targetContainerName": agent["name"],
         "command": ["sh", "-c", SCRIPT, "lockdown", modes, CODER_HOST, "/proc/1/root", coder_ips, peers],
         "securityContext": {"runAsUser": 0, "runAsNonRoot": False, "allowPrivilegeEscalation": False,
                             "capabilities": {"add": ["NET_ADMIN", "NET_RAW", "SYS_PTRACE"]}},
@@ -295,7 +300,7 @@ def home_claim(pod):
     """The PVC the workspace container has its home on (the volume mounted under /home)."""
     claims = {v["name"]: v["persistentVolumeClaim"]["claimName"] for v in (pod.get("spec") or {}).get("volumes") or []
               if (v.get("persistentVolumeClaim") or {}).get("claimName")}
-    dev = next((c for c in pod["spec"]["containers"] if c["name"] == "dev"), {})
+    dev = kexec.agent_container(pod)
     mounts = sorted(dev.get("volumeMounts") or [], key=lambda m: not m.get("mountPath", "").startswith("/home"))
     return next((claims[m["name"]] for m in mounts if m.get("name") in claims), None)
 
@@ -359,7 +364,7 @@ def take_snapshot(pod, wid):
         return {"error": "The snapshot volume could not be made (%s): %s" % (
             status, str((res or {}).get("message") if isinstance(res, dict) else res)[:200]), "at": now()}
     pod_spec = (pod or {}).get("spec") or {}
-    image = next((c["image"] for c in pod_spec.get("containers") or [] if c["name"] == "dev"), None) or COPY_IMAGE
+    image = kexec.agent_container(pod or {}).get("image") or COPY_IMAGE
     node = pod_spec.get("nodeName")  # running: where its volume is attached; stopped: wherever the volume can be
     script = ("set -e; cp -a /source/. /snapshot/; mkdir -p /snapshot/.coder-freeze; "
               "printf 'Frozen by Lock Down at %s, a copy of %s (workspace %s).\n' \"$AT\" \"$CLAIM\" \"$WID\" "

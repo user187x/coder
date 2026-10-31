@@ -5286,6 +5286,18 @@ type APIKey struct {
 	AllowList       AllowList    `db:"allow_list" json:"allow_list"`
 }
 
+type AuditCollector struct {
+	ID             uuid.UUID `db:"id" json:"id"`
+	OrganizationID uuid.UUID `db:"organization_id" json:"organization_id"`
+	Name           string    `db:"name" json:"name"`
+	Issuer         string    `db:"issuer" json:"issuer"`
+	Subject        string    `db:"subject" json:"subject"`
+	ClientID       string    `db:"client_id" json:"client_id"`
+	CreatedBy      uuid.UUID `db:"created_by" json:"created_by"`
+	CreatedAt      time.Time `db:"created_at" json:"created_at"`
+	ExpiresAt      time.Time `db:"expires_at" json:"expires_at"`
+}
+
 type AuditLog struct {
 	ID               uuid.UUID       `db:"id" json:"id"`
 	Time             time.Time       `db:"time" json:"time"`
@@ -6323,15 +6335,18 @@ type Replica struct {
 
 // Isolated temporary browser accounts. Expiration restricts the account independently of its API keys.
 type ShortTermLease struct {
-	UserID               uuid.UUID     `db:"user_id" json:"user_id"`
-	OrganizationID       uuid.UUID     `db:"organization_id" json:"organization_id"`
-	WorkspaceID          uuid.NullUUID `db:"workspace_id" json:"workspace_id"`
-	IssuedBy             uuid.UUID     `db:"issued_by" json:"issued_by"`
-	IssuedAt             time.Time     `db:"issued_at" json:"issued_at"`
-	ExpiresAt            time.Time     `db:"expires_at" json:"expires_at"`
-	RevokedAt            sql.NullTime  `db:"revoked_at" json:"revoked_at"`
-	ExtensionRequestedAt sql.NullTime  `db:"extension_requested_at" json:"extension_requested_at"`
-	TokenID              string        `db:"token_id" json:"token_id"`
+	UserID               uuid.UUID       `db:"user_id" json:"user_id"`
+	OrganizationID       uuid.UUID       `db:"organization_id" json:"organization_id"`
+	WorkspaceID          uuid.NullUUID   `db:"workspace_id" json:"workspace_id"`
+	IssuedBy             uuid.UUID       `db:"issued_by" json:"issued_by"`
+	IssuedAt             time.Time       `db:"issued_at" json:"issued_at"`
+	ExpiresAt            time.Time       `db:"expires_at" json:"expires_at"`
+	RevokedAt            sql.NullTime    `db:"revoked_at" json:"revoked_at"`
+	ExtensionRequestedAt sql.NullTime    `db:"extension_requested_at" json:"extension_requested_at"`
+	TokenID              string          `db:"token_id" json:"token_id"`
+	HiddenAt             sql.NullTime    `db:"hidden_at" json:"hidden_at"`
+	AutoRemoveHistory    bool            `db:"auto_remove_history" json:"auto_remove_history"`
+	Terms                json.RawMessage `db:"terms" json:"terms"`
 }
 
 type SiteConfig struct {

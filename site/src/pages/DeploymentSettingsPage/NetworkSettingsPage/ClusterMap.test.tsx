@@ -11,6 +11,8 @@ import {
 	MockClusterNetworkReport,
 	MockHAStorageReport,
 	MockMeshReport,
+	MockNetworkLogPod,
+	MockNetworkPodLogs,
 	MockPodDetails,
 } from "#/testHelpers/clusterNetwork";
 import { renderComponent } from "#/testHelpers/renderHelpers";
@@ -65,6 +67,32 @@ describe("ClusterMap", () => {
 		vi.restoreAllMocks();
 		vi.unstubAllGlobals();
 	});
+
+	it.each(["View Logs", "Restart Pod", "Details"])(
+		"opens %s from a service in the services strip",
+		async (action) => {
+			const targets = vi
+				.spyOn(ClusterNetworkAPI, "logTargets")
+				.mockResolvedValue({ pods: [MockNetworkLogPod] });
+			vi.spyOn(ClusterNetworkAPI, "podLogs").mockResolvedValue(
+				MockNetworkPodLogs,
+			);
+			const user = userEvent.setup();
+			renderMap();
+			await user.pointer({
+				keys: "[MouseRight]",
+				target: await screen.findByRole("button", { name: /^coder-db-rw/ }),
+			});
+			await user.click(await screen.findByRole("menuitem", { name: action }));
+			await waitFor(() =>
+				expect(action === "Details" ? entity : targets).toHaveBeenCalledWith({
+					type: "service",
+					namespace: "coder",
+					name: "coder-db-rw",
+				}),
+			);
+		},
+	);
 
 	it("colours every pod and Service by its kind, and names the colours", async () => {
 		renderMap();

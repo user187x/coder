@@ -48,7 +48,7 @@ export { isHostMetric, metricName, metricRank } from "./metadataGroups";
 const shareOrNumber = (m: WorkspaceAgentMetadata) =>
 	metadataNumber(m.result.value) !== null;
 
-export type PersistedMetadataHistory = Record<string, Sample[]>;
+type PersistedMetadataHistory = Record<string, Sample[]>;
 
 /** Convert authorized Postgres history to the existing histogram input. */
 export const persistedMetadataHistory = (

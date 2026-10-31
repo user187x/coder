@@ -10,14 +10,14 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"time"
 
-	"cdr.dev/slog/v3"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"golang.org/x/xerrors"
 
+	"cdr.dev/slog/v3"
 	"github.com/coder/coder/v2/coderd/database"
 	"github.com/coder/coder/v2/coderd/database/dbauthz"
 	"github.com/coder/coder/v2/coderd/httpapi"
@@ -26,9 +26,11 @@ import (
 	"github.com/coder/coder/v2/codersdk"
 )
 
-const globalControlConfigKey = "platform_global_control_pin"
-const globalControlHeader = "X-Coder-Global-Control-Token"
-const globalControlLifetime = 5 * time.Minute
+const (
+	globalControlConfigKey = "platform_global_control_pin"
+	globalControlHeader    = "X-Coder-Global-Control-Token"
+	globalControlLifetime  = 5 * time.Minute
+)
 
 type controlGrant struct {
 	Hash    string `json:"hash"`
@@ -44,12 +46,12 @@ type globalControlConfig struct {
 	Grants   map[string]controlGrant   `json:"grants"`
 	Attempts map[string]controlAttempt `json:"attempts"`
 }
-type controlFailure struct {
+type controlError struct {
 	status  int
 	message string
 }
 
-func (e controlFailure) Error() string { return e.message }
+func (e controlError) Error() string { return e.message }
 
 // Failed verification attempts must commit, including across Coder replicas.
 func (api *API) changeGlobalControls(ctx context.Context, fn func(*globalControlConfig) error) error {
@@ -111,21 +113,24 @@ func validControlPIN(pin string) bool {
 	}
 	return true
 }
+
 func controlDigest(token string) string {
 	sum := sha256.Sum256([]byte(token))
 	return hex.EncodeToString(sum[:])
 }
+
 func controlUnlocked(state *globalControlConfig, key database.APIKey, token string, now time.Time) bool {
 	grant, ok := state.Grants[key.ID]
 	return ok && token != "" && len(token) <= 128 && grant.User == key.UserID.String() && grant.Expires > now.Unix() && subtle.ConstantTimeCompare([]byte(grant.Hash), []byte(controlDigest(token))) == 1
 }
+
 func verifyControlPIN(state *globalControlConfig, user string, pin string, now time.Time) error {
 	attempt := state.Attempts[user]
 	if attempt.Until <= now.Unix() {
 		attempt = controlAttempt{Until: now.Add(5 * time.Minute).Unix()}
 	}
 	if attempt.Count >= 5 {
-		return controlFailure{http.StatusTooManyRequests, "Too many PIN attempts. Try again after five minutes."}
+		return controlError{http.StatusTooManyRequests, "Too many PIN attempts. Try again after five minutes."}
 	}
 	ok := false
 	if validControlPIN(pin) && state.Hash != "" {
@@ -138,11 +143,12 @@ func verifyControlPIN(state *globalControlConfig, user string, pin string, now t
 	if !ok {
 		attempt.Count++
 		state.Attempts[user] = attempt
-		return controlFailure{http.StatusForbidden, "Incorrect admin PIN."}
+		return controlError{http.StatusForbidden, "Incorrect admin PIN."}
 	}
 	delete(state.Attempts, user)
 	return nil
 }
+
 func issueControlGrant(state *globalControlConfig, key database.APIKey, now time.Time) (codersdk.GlobalControlStatus, error) {
 	secret := make([]byte, 32)
 	if _, err := rand.Read(secret); err != nil {
@@ -153,6 +159,7 @@ func issueControlGrant(state *globalControlConfig, key database.APIKey, now time
 	state.Grants[key.ID] = controlGrant{Hash: controlDigest(token), User: key.UserID.String(), Expires: expires.Unix()}
 	return codersdk.GlobalControlStatus{Configured: true, Token: token, ExpiresAt: expires.UTC().Format(time.RFC3339)}, nil
 }
+
 func (api *API) controlOwner(rw http.ResponseWriter, r *http.Request) bool {
 	if api.globalLockdown.Admin(r.Context(), httpmw.APIKey(r).UserID) {
 		return true
@@ -160,15 +167,16 @@ func (api *API) controlOwner(rw http.ResponseWriter, r *http.Request) bool {
 	httpapi.Write(r.Context(), rw, http.StatusForbidden, codersdk.Response{Message: "Only deployment owners may use global controls."})
 	return false
 }
+
 func controlResponse(rw http.ResponseWriter, r *http.Request, out codersdk.GlobalControlStatus, err error) {
 	rw.Header().Set("Cache-Control", "no-store")
 	if err != nil {
-		var failure controlFailure
+		var failure controlError
 		if errors.As(err, &failure) {
 			httpapi.Write(r.Context(), rw, failure.status, codersdk.Response{Message: failure.message})
 			return
 		}
-		httpapi.InternalServerError(rw, fmt.Errorf("verify global control access: %w", err))
+		httpapi.InternalServerError(rw, xerrors.Errorf("verify global control access: %w", err))
 		return
 	}
 	httpapi.Write(r.Context(), rw, http.StatusOK, out)
@@ -181,7 +189,7 @@ func controlResponse(rw http.ResponseWriter, r *http.Request, out codersdk.Globa
 // @Produce json
 // @Success 200 {object} codersdk.GlobalControlStatus
 // @Router /api/v2/global-lockdown/controls [get]
-func (api *API) getGlobalControls(rw http.ResponseWriter, r *http.Request) {
+func (api *API) globalControlsStatus(rw http.ResponseWriter, r *http.Request) {
 	if !api.controlOwner(rw, r) {
 		return
 	}
@@ -208,7 +216,7 @@ func (api *API) putGlobalControls(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !validControlPIN(req.PIN) {
-		controlResponse(rw, r, codersdk.GlobalControlStatus{}, controlFailure{http.StatusBadRequest, "Choose a six-digit admin PIN."})
+		controlResponse(rw, r, codersdk.GlobalControlStatus{}, controlError{http.StatusBadRequest, "Choose a six-digit admin PIN."})
 		return
 	}
 	key := httpmw.APIKey(r)
@@ -255,7 +263,7 @@ func (api *API) unlockGlobalControls(rw http.ResponseWriter, r *http.Request) {
 	var out codersdk.GlobalControlStatus
 	err := api.changeGlobalControls(r.Context(), func(state *globalControlConfig) error {
 		if state.Hash == "" {
-			return controlFailure{http.StatusConflict, "Configure an admin PIN first."}
+			return controlError{http.StatusConflict, "Configure an admin PIN first."}
 		}
 		if err := verifyControlPIN(state, key.UserID.String(), req.PIN, api.Clock.Now()); err != nil {
 			return err
@@ -287,6 +295,7 @@ func (api *API) closeGlobalControls(rw http.ResponseWriter, r *http.Request) {
 	controlResponse(rw, r, out, err)
 }
 
+//nolint:revive // This boolean represents the externally supplied policy state.
 func (api *API) requireGlobalControlGrant(rw http.ResponseWriter, r *http.Request, required bool) bool {
 	if !api.controlOwner(rw, r) {
 		return false
@@ -296,7 +305,7 @@ func (api *API) requireGlobalControlGrant(rw http.ResponseWriter, r *http.Reques
 			return nil
 		}
 		if !controlUnlocked(state, httpmw.APIKey(r), r.Header.Get(globalControlHeader), api.Clock.Now()) {
-			return controlFailure{http.StatusForbidden, "Unlock the Global Command & Control panel first."}
+			return controlError{http.StatusForbidden, "Unlock the Global Command & Control panel first."}
 		}
 		return nil
 	})

@@ -7,6 +7,7 @@ import { NotificationsInbox } from "#/modules/notifications/NotificationsInbox/N
 import { AnnouncementBanner } from "#/modules/platform/announcement/AnnouncementBanner";
 import { ChatInboxIndicator } from "#/modules/platform/chat/ChatInboxIndicator";
 import { NavbarArrange } from "#/modules/platform/navbarOrder/NavbarArrange";
+import { startNavbarArrange } from "#/modules/platform/navbarOrder/navbarOrder";
 import {
 	type AdminQuickLinks,
 	type AdminSettingsPermissions,
@@ -54,14 +55,30 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 			: undefined;
 
 	return (
-		<div className="navbar-soft sticky top-0 bg-surface-primary z-40 border-0 border-b border-solid h-[72px] min-h-[72px] flex items-center leading-none px-6">
+		<div
+			onContextMenu={(event) => {
+				// Portaled dropdowns bubble through React without being inside the navbar.
+				if (
+					event.target instanceof Element &&
+					event.currentTarget.contains(event.target) &&
+					!event.target.closest("[role=menu]")
+				) {
+					event.preventDefault();
+					startNavbarArrange();
+				}
+			}}
+			className="navbar-soft sticky top-0 bg-surface-primary z-40 border-0 border-b border-solid h-[72px] min-h-[72px] flex items-center leading-none px-6"
+		>
 			{/* Platform: the logo in a tile like the user's avatar. */}
-			<NavbarLogo />
+			<div className="md:hidden">
+				<NavbarLogo />
+			</div>
 
 			{/* Platform: Workspaces, the banner, latency and HUD, in the user's order (NavbarArrange). */}
 			<NavbarArrange
-				className="relative ml-4 hidden md:flex flex-1 min-w-0 items-center gap-3 h-full"
+				className="relative hidden md:flex flex-1 min-w-0 items-center gap-3 h-full"
 				items={{
+					logo: <NavbarLogo />,
 					workspaces: (
 						<nav className="flex items-center h-full">
 							<WorkspacesDropdown
@@ -73,6 +90,10 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 					// the latency and the Controls in one menu, the HUD joined on as one split button (admins)
 					latency: (
 						<ProxyMenu
+							user={user}
+							buildInfo={buildInfo}
+							supportLinks={supportLinks.filter((link) => !isNavbarLink(link))}
+							onSignOut={onSignOut}
 							tunnelActorId={user.id}
 							canManageTunnels={user.roles.some(
 								(role) => role.name === "owner",
@@ -90,12 +111,37 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 							}
 						/>
 					),
+					notifications: (
+						<div className="relative">
+							<NotificationsInbox
+								fetchNotifications={API.getInboxNotifications}
+								markAllAsRead={API.markAllInboxNotificationsAsRead}
+								clearAll={PlatformAPI.clearInbox}
+								markNotificationAsRead={(notificationId) =>
+									API.updateInboxNotificationReadStatus(notificationId, {
+										is_read: true,
+									})
+								}
+							/>
+							<ChatInboxIndicator />
+						</div>
+					),
+					account: (
+						<UserDropdown
+							user={user}
+							buildInfo={buildInfo}
+							supportLinks={supportLinks?.filter((link) => !isNavbarLink(link))}
+							onSignOut={onSignOut}
+						/>
+					),
 					// never alone: always joined to the latency menu
 					hud: null,
 				}}
 			/>
 
-			<div className="flex items-center justify-end gap-3 ml-auto md:ml-3">
+			<div
+				className={`flex items-center justify-end gap-3 ml-auto ${supportLinks.some(isNavbarLink) ? "md:ml-3" : "md:hidden"}`}
+			>
 				{supportLinks.filter(isNavbarLink).map((link) => (
 					<div key={link.name} className="hidden md:block">
 						<SupportButton
@@ -106,38 +152,30 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 					</div>
 				))}
 
-				<div className="relative">
-					<NotificationsInbox
-						fetchNotifications={API.getInboxNotifications}
-						markAllAsRead={API.markAllInboxNotificationsAsRead}
-						clearAll={PlatformAPI.clearInbox}
-						markNotificationAsRead={(notificationId) =>
-							API.updateInboxNotificationReadStatus(notificationId, {
-								is_read: true,
-							})
-						}
-					/>
-					<ChatInboxIndicator />
-				</div>
-
-				<div className="hidden md:block">
-					<UserDropdown
-						user={user}
-						buildInfo={buildInfo}
-						supportLinks={supportLinks?.filter((link) => !isNavbarLink(link))}
-						onSignOut={onSignOut}
-					/>
-				</div>
-
 				<div className="md:hidden">
-					<MobileMenu
-						proxyContextValue={proxyContextValue}
-						adminPermissions={adminPermissions}
-						adminQuickLinks={adminQuickLinks?.links}
-						user={user}
-						supportLinks={supportLinks}
-						onSignOut={onSignOut}
-					/>
+					<div className="flex items-center gap-3">
+						<div className="relative">
+							<NotificationsInbox
+								fetchNotifications={API.getInboxNotifications}
+								markAllAsRead={API.markAllInboxNotificationsAsRead}
+								clearAll={PlatformAPI.clearInbox}
+								markNotificationAsRead={(notificationId) =>
+									API.updateInboxNotificationReadStatus(notificationId, {
+										is_read: true,
+									})
+								}
+							/>
+							<ChatInboxIndicator />
+						</div>
+						<MobileMenu
+							proxyContextValue={proxyContextValue}
+							adminPermissions={adminPermissions}
+							adminQuickLinks={adminQuickLinks?.links}
+							user={user}
+							supportLinks={supportLinks}
+							onSignOut={onSignOut}
+						/>
+					</div>
 				</div>
 			</div>
 		</div>

@@ -9,6 +9,7 @@ import (
 	"math"
 	"net/http"
 	"net/mail"
+	"net/url"
 	"slices"
 	"strconv"
 	"strings"
@@ -504,18 +505,24 @@ func (api *API) postLogin(rw http.ResponseWriter, r *http.Request) {
 		ctx               = r.Context()
 		auditor           = api.Auditor.Load()
 		logger            = api.Logger.Named(userAuthLoggerName)
+		loginFields       = map[string]string{"login_type": "password"}
 		aReq, commitAudit = audit.InitRequest[database.APIKey](rw, &audit.RequestParams{
-			Audit:   *auditor,
-			Log:     api.Logger,
-			Request: r,
-			Action:  database.AuditActionLogin,
+			Audit:            *auditor,
+			Log:              api.Logger,
+			Request:          r,
+			Action:           database.AuditActionLogin,
+			AdditionalFields: loginFields,
+			AllowUnknownUser: true,
 		})
 	)
 	aReq.Old = database.APIKey{}
 	defer commitAudit()
 
 	var loginWithPassword codersdk.LoginWithPasswordRequest
-	if !httpapi.Read(ctx, rw, r, &loginWithPassword) {
+	valid := httpapi.Read(ctx, rw, r, &loginWithPassword)
+	// Bound untrusted identifiers; never record the password or session token.
+	loginFields["submitted_identifier"] = string([]rune(loginWithPassword.Email)[:min(len([]rune(loginWithPassword.Email)), 320)])
+	if !valid {
 		return
 	}
 
@@ -564,10 +571,11 @@ func (api *API) loginRequest(ctx context.Context, rw http.ResponseWriter, req co
 
 	//nolint:gocritic // In order to login, we need to get the user first!
 	user, err := api.Database.GetUserByEmailOrUsername(dbauthz.AsSystemRestricted(ctx), database.GetUserByEmailOrUsernameParams{
-		Email: req.Email,
+		Email:    strings.TrimSpace(req.Email),
+		Username: strings.TrimSpace(req.Email),
 	})
 	if err != nil && !xerrors.Is(err, sql.ErrNoRows) {
-		logger.Error(ctx, "unable to fetch user by email", slog.Error(err))
+		logger.Error(ctx, "unable to fetch user by login identifier", slog.Error(err))
 		httpapi.Write(ctx, rw, http.StatusInternalServerError, codersdk.Response{
 			Message: "Internal error.",
 		})
@@ -610,7 +618,7 @@ func (api *API) loginRequest(ctx context.Context, rw http.ResponseWriter, req co
 		// This message is the same as above to remove ease in detecting whether
 		// users are registered or not. Attackers still could with a timing attack.
 		httpapi.Write(ctx, rw, http.StatusUnauthorized, codersdk.Response{
-			Message: "Incorrect email or password.",
+			Message: "Incorrect username, email, or password.",
 		})
 		return user, rbac.Subject{}, false
 	}
@@ -775,12 +783,24 @@ func (api *API) postLogout(rw http.ResponseWriter, r *http.Request) {
 func (api *API) userAuthMethods(rw http.ResponseWriter, r *http.Request) {
 	var signInText string
 	var iconURL string
+	var accountURL string
 
 	if api.OIDCConfig != nil {
 		signInText = api.OIDCConfig.SignInText
 	}
 	if api.OIDCConfig != nil {
 		iconURL = api.OIDCConfig.IconURL
+		if api.OIDCConfig.OAuth2Config != nil {
+			providerURL, err := url.Parse(api.OIDCConfig.AuthCodeURL(""))
+			// Keycloak exposes its account console beside the realm's protocol endpoints.
+			if err == nil && providerURL.Scheme == "https" && providerURL.Host != "" &&
+				strings.Contains(providerURL.Path, "/realms/") && strings.HasSuffix(providerURL.Path, "/protocol/openid-connect/auth") {
+				providerURL.Path = strings.TrimSuffix(providerURL.Path, "/protocol/openid-connect/auth") + "/account/"
+				providerURL.RawPath, providerURL.RawQuery, providerURL.Fragment = "", "", ""
+				providerURL.User = nil
+				accountURL = providerURL.String()
+			}
+		}
 	}
 
 	httpapi.Write(r.Context(), rw, http.StatusOK, codersdk.AuthMethods{
@@ -792,6 +812,7 @@ func (api *API) userAuthMethods(rw http.ResponseWriter, r *http.Request) {
 			AuthMethod: codersdk.AuthMethod{Enabled: api.OIDCConfig != nil},
 			SignInText: signInText,
 			IconURL:    iconURL,
+			AccountURL: accountURL,
 		},
 	})
 }

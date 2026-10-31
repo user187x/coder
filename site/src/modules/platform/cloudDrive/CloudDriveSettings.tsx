@@ -327,7 +327,7 @@ const Field: React.FC<{
 );
 
 /** The slider's stops (GiB): fine at the small end, coarse at the large one. */
-export const CAPACITY_STOPS = [
+const CAPACITY_STOPS = [
 	1, 2, 5, 10, 15, 20, 25, 30, 40, 50, 75, 100, 150, 200, 250, 300, 400, 500,
 	750, 1000, 1500, 2000, 2500, 3000, 4000, 5000, 7500, 10240,
 ];

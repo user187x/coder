@@ -4,7 +4,7 @@ import type { Workspace } from "#/api/typesGenerated";
 import { globalLockdownKey } from "./globalLockdown";
 import { workspacesQueryKeyPrefix } from "./workspaces";
 
-export const workspacePowerKey = ["platform", "workspace-power"] as const;
+const workspacePowerKey = ["platform", "workspace-power"] as const;
 export const workspacePowerHistory = (organizationId: string) => ({
 	queryKey: [...workspacePowerKey, organizationId],
 	queryFn: () => PlatformAPI.getWorkspacePowerHistory(organizationId),
@@ -49,9 +49,11 @@ export const runWorkspacePower = (
 	mutationFn: async ({
 		action,
 		targets,
+		excludeAdmins = false,
 	}: {
 		action: WorkspacePowerOperation["action"];
 		targets: readonly Workspace[];
+		excludeAdmins?: boolean;
 	}): Promise<WorkspacePowerResult> => {
 		const result: WorkspacePowerResult = { operations: [], errors: [] };
 		const groups = new Map<string, string[]>();
@@ -76,11 +78,13 @@ export const runWorkspacePower = (
 									action,
 									batch,
 									globalToken,
+									excludeAdmins,
 								)
 							: await PlatformAPI.startWorkspacePower(
 									organizationId,
 									action,
 									batch,
+									excludeAdmins,
 								);
 						remember(client, operation);
 						while (operation.status === "running") {

@@ -60,6 +60,7 @@ import {
 } from "#/components/Select/Select";
 import { Slider } from "#/components/Slider/Slider";
 import { Spinner } from "#/components/Spinner/Spinner";
+import { Switch } from "#/components/Switch/Switch";
 import { Textarea } from "#/components/Textarea/Textarea";
 import { bannerColors } from "#/modules/platform/announcement/AnnouncementBanner";
 import { CLOSE_EFFECT_OPTIONS } from "#/modules/platform/announcement/bannerClose";
@@ -451,7 +452,7 @@ export const BannerEditor: React.FC<BannerEditorProps> = ({
 				data-testid="announcement-controls"
 			>
 				<legend className="sr-only">Controls</legend>
-				<h3 className="m-0 text-sm font-semibold">Controls</h3>
+				{!visibility && <h3 className="m-0 text-sm font-semibold">Controls</h3>}
 				{visibility && (
 					<div className="border-0 border-b border-solid border-border pb-4">
 						{visibility}
@@ -484,22 +485,29 @@ export const BannerEditor: React.FC<BannerEditorProps> = ({
 						Also show on the sign-in page
 					</Label>
 				</div>
-				<div className="flex items-center gap-2 text-sm">
-					<Checkbox
-						id={`${id}-receipts`}
-						checked={form.receipts !== false}
-						onCheckedChange={(checked) =>
-							onChange({ receipts: checked === true })
+
+				<div className="flex items-center justify-between gap-4 rounded-md border border-solid border-border p-3">
+					<div className="flex flex-col gap-1">
+						<Label htmlFor={`${id}-still`}>
+							Disable announcement animations for everyone
+						</Label>
+						<p
+							id={`${id}-still-hint`}
+							className="m-0 text-xs text-content-secondary"
+						>
+							Enforce plain text and still images. Overrides personal
+							preferences without changing the saved effects.
+						</p>
+					</div>
+					<Switch
+						id={`${id}-still`}
+						aria-describedby={`${id}-still-hint`}
+						checked={form.animationsDisabled === true}
+						onCheckedChange={(animationsDisabled) =>
+							onChange({ animationsDisabled })
 						}
 					/>
-					<Label htmlFor={`${id}-receipts`} className="font-normal">
-						Record who viewed it, and let them confirm it{" "}
-						<span className="text-content-secondary">
-							(the Viewed box and Confirm; untick for a greeting)
-						</span>
-					</Label>
 				</div>
-
 				<section
 					aria-labelledby={`${id}-scroll-heading`}
 					className="flex flex-col gap-4 border-0 border-t border-solid border-border pt-4"
@@ -966,59 +974,55 @@ const CountdownField: React.FC<{
 				</Label>
 			</div>
 			{value && (
-				<>
-					<Input
-						type="datetime-local"
-						step={60}
-						className="h-8 w-56 text-xs"
-						aria-label={`Counts down to (${zone})`}
-						value={toLocalInput(value)}
-						onChange={(event) => {
-							const next = utcSeconds(event.target.value);
-							if (next) {
-								onChange(next);
-							}
-						}}
-					/>
-					<DropdownMenu>
-						<DropdownMenuTrigger asChild>
-							<Button size="sm" variant="outline">
-								Take Action
-								{action === "shake"
-									? ": Shake Screen"
-									: action === "focus"
-										? ": Force Focus"
-										: ""}
-								<ChevronDownIcon aria-hidden className="size-4" />
-							</Button>
-						</DropdownMenuTrigger>
-						<DropdownMenuContent>
-							<DropdownMenuRadioGroup
-								value={action}
-								onValueChange={(value) => {
-									if (
-										value === "none" ||
-										value === "shake" ||
-										value === "focus"
-									)
-										onActionChange(value);
-								}}
-							>
-								<DropdownMenuRadioItem value="shake">
-									Shake Screen
-								</DropdownMenuRadioItem>
-								<DropdownMenuRadioItem value="focus">
-									Force Focus
-								</DropdownMenuRadioItem>
-								<DropdownMenuRadioItem value="none">
-									No action
-								</DropdownMenuRadioItem>
-							</DropdownMenuRadioGroup>
-						</DropdownMenuContent>
-					</DropdownMenu>
-					<span className="text-xs text-content-secondary">{zone}</span>
-				</>
+				<Input
+					type="datetime-local"
+					step={60}
+					className="h-8 w-56 text-xs"
+					aria-label={`Counts down to (${zone})`}
+					value={toLocalInput(value)}
+					onChange={(event) => {
+						const next = utcSeconds(event.target.value);
+						if (next) {
+							onChange(next);
+						}
+					}}
+				/>
 			)}
+			<DropdownMenu>
+				<DropdownMenuTrigger asChild>
+					<Button size="sm" variant="outline">
+						Take Action
+						{action === "shake"
+							? ": Shake Screen"
+							: action === "focus"
+								? ": Force Focus"
+								: ""}
+						<ChevronDownIcon aria-hidden className="size-4" />
+					</Button>
+				</DropdownMenuTrigger>
+				<DropdownMenuContent>
+					<DropdownMenuRadioGroup
+						value={action}
+						onValueChange={(value) => {
+							if (value === "none" || value === "shake" || value === "focus")
+								onActionChange(value);
+						}}
+					>
+						<DropdownMenuRadioItem value="shake" disabled={!value}>
+							Shake Screen
+						</DropdownMenuRadioItem>
+						<DropdownMenuRadioItem value="focus">
+							Force Focus
+						</DropdownMenuRadioItem>
+						<DropdownMenuRadioItem value="none">
+							No action
+						</DropdownMenuRadioItem>
+					</DropdownMenuRadioGroup>
+				</DropdownMenuContent>
+			</DropdownMenu>
+			<span className="text-xs text-content-secondary">
+				{value ? zone : action === "focus" ? "Appears when published" : ""}
+			</span>
 		</div>
 	);
 };

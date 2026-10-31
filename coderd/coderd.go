@@ -182,6 +182,8 @@ type Options struct {
 	PlatformServiceRoutes []PlatformServiceRoute
 	// WorkspaceRuntimeImage is the deployment-owned privileged network runtime.
 	WorkspaceRuntimeImage string
+	// PlatformAgentDirectory supplies scripts and metadata at build completion.
+	PlatformAgentDirectory string
 	// NekoMedia is explicit operator-owned LAN relay configuration, disabled by default.
 	NekoMedia *NekoMediaConfig
 	// NekoMediaContext returns the current infrastructure serving epoch.
@@ -446,7 +448,7 @@ func New(options *Options) *API {
 		options.TailnetCoordinator = tailnet.NewCoordinator(options.Logger)
 	}
 	if options.Auditor == nil {
-		options.Auditor = audit.NewNop()
+		options.Auditor = audit.NewDatabase(options.Database)
 	}
 	if options.ConnectionLogger == nil {
 		options.ConnectionLogger = connectionlog.NewNop()
@@ -1222,6 +1224,7 @@ func New(options *Options) *API {
 			r.With(httpmw.NoStore).Get("/", api.handleExperimentsGet)
 		})
 		r.Get("/updatecheck", api.updateCheck)
+		r.With(httpmw.RateLimit(60, time.Minute)).Get("/audit-export/{organization}", api.externalAuditLogs)
 		r.Route("/audit", func(r chi.Router) {
 			r.Use(
 				apiKeyMiddleware,
@@ -1275,7 +1278,7 @@ func New(options *Options) *API {
 			})
 		})
 		r.Post("/short-term-lease/login", api.loginShortTermLease)
-		r.With(apiKeyMiddleware).Get("/short-term-lease", api.getMyShortTermLease)
+		r.With(apiKeyMiddleware).Get("/short-term-lease", api.myShortTermLease)
 		r.With(apiKeyMiddleware).Post("/short-term-lease/extension", api.requestShortTermLeaseExtension)
 		r.Route("/organizations", func(r chi.Router) {
 			r.Use(
@@ -1287,10 +1290,14 @@ func New(options *Options) *API {
 					httpmw.ExtractOrganizationParam(options.Database),
 				)
 				r.Get("/", api.organization)
-				r.Get("/short-term-leases", api.getShortTermLeases)
+				r.Get("/audit-collectors", api.auditCollectors)
+				r.Post("/audit-collectors", api.postAuditCollector)
+				r.Delete("/audit-collectors/{collector}", api.deleteAuditCollector)
+				r.Get("/short-term-leases", api.shortTermLeases)
 				r.Post("/short-term-leases", api.postShortTermLease)
 				r.Patch("/short-term-leases/{user}", api.patchShortTermLease)
-				r.With(httpmw.ExtractWorkspaceParam(options.Database)).Get("/workspaces/{workspace}/quarantine", api.getWorkspaceQuarantine)
+				r.Delete("/short-term-leases/{user}", api.deleteShortTermLeaseHistory)
+				r.With(httpmw.ExtractWorkspaceParam(options.Database)).Get("/workspaces/{workspace}/quarantine", api.workspaceQuarantineStatus)
 				r.With(httpmw.ExtractWorkspaceParam(options.Database)).Put("/workspaces/{workspace}/quarantine", api.putWorkspaceQuarantine)
 				r.Post("/templateversions", api.postTemplateVersionsByOrganization)
 				r.Route("/templates", func(r chi.Router) {
@@ -1532,7 +1539,7 @@ func New(options *Options) *API {
 								r.Get("/", api.getUserSecret)
 								r.Patch("/", api.patchUserSecret)
 								r.Delete("/", api.deleteUserSecret)
-								r.Get("/certificate", api.getUserCertificateFile)
+								r.Get("/certificate", api.userCertificateFile)
 							})
 						})
 						r.Route("/notifications", func(r chi.Router) {
@@ -2269,11 +2276,12 @@ func (api *API) CreateInMemoryTaggedProvisionerDaemon(dialCtx context.Context, n
 		api.UsageInserter,
 		api.DeploymentValues,
 		provisionerdserver.Options{
-			OIDCConfig:          api.OIDCConfig,
-			ExternalAuthConfigs: api.ExternalAuthConfigs,
-			Clock:               api.Clock,
-			HeartbeatFn:         options.heartbeatFn,
-			TemplateDecorator:   api.DecorateTemplateArchive,
+			OIDCConfig:             api.OIDCConfig,
+			ExternalAuthConfigs:    api.ExternalAuthConfigs,
+			Clock:                  api.Clock,
+			HeartbeatFn:            options.heartbeatFn,
+			TemplateDecorator:      api.DecorateTemplateArchive,
+			PlatformAgentDirectory: api.PlatformAgentDirectory,
 		},
 		api.NotificationsEnqueuer,
 		&api.PrebuildsReconciler,

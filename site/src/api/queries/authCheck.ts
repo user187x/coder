@@ -8,7 +8,7 @@ import { disabledRefetchOptions } from "./util";
 
 const AUTHORIZATION_KEY = "authorization";
 
-export const authorizationKey = [AUTHORIZATION_KEY] as const;
+const authorizationKey = [AUTHORIZATION_KEY] as const;
 
 export const getAuthorizationKey = (req: AuthorizationRequest) =>
 	[...authorizationKey, req] as const;

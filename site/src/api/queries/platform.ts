@@ -573,6 +573,20 @@ export const publishBanner = (queryClient: QueryClient) => ({
 	onSuccess: onBannerChange(queryClient),
 });
 
+/** Publishes quick text while retaining the latest audience and display settings. */
+export const publishBannerMessage = (queryClient: QueryClient) => ({
+	mutationFn: async (message: string) => {
+		const { id: _id, ...fields } = await PlatformAPI.getBanner();
+		return PlatformAPI.publishBanner({
+			...fields,
+			message,
+			markdown: false,
+			enabled: true,
+		});
+	},
+	onSuccess: onBannerChange(queryClient),
+});
+
 export const reshowBanner = (queryClient: QueryClient) => ({
 	mutationFn: PlatformAPI.reshowBanner,
 	onSuccess: onBannerChange(queryClient),

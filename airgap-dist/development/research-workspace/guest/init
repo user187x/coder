@@ -1,0 +1,33 @@
+#!/bin/bash
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export HOME=/root TERM=linux
+mount -o remount,rw /
+mount -t proc proc /proc 2>/dev/null || true
+mount -t sysfs sysfs /sys 2>/dev/null || true
+mount -t devtmpfs devtmpfs /dev 2>/dev/null || true
+mkdir -p /dev/pts /run /tmp /sys/kernel/tracing /sys/fs/bpf
+mount -t devpts devpts /dev/pts
+mount -t tmpfs tmpfs /run
+mount -t tracefs tracefs /sys/kernel/tracing
+mount -t bpf bpf /sys/fs/bpf
+ip link set lo up
+/bin/busybox hostname coder-research
+printf '127.0.0.1 localhost coder-research\n::1 localhost\n' > /etc/hosts
+printf '\nCoder Research Sandbox: disposable guest kernel %s\n' "$(uname -r)"
+printf 'No host devices, host filesystems, or network interfaces are attached.\n'
+if grep -qw research.run=1 /proc/cmdline; then
+    modprobe sr_mod
+    modprobe iso9660
+    if mount -t iso9660 -o ro /dev/sr0 /media/job; then
+        /bin/bash /media/job/run.sh
+        result=$?
+    else
+        result=125
+    fi
+    printf '\nCODER_SANDBOX_EXIT=%s\n' "$result"
+else
+    cd /opt/coder-research/source
+    setsid /bin/bash --login -i </dev/ttyS0 >/dev/ttyS0 2>&1
+fi
+sync
+/bin/busybox poweroff -f

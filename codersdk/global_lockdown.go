@@ -2,7 +2,6 @@ package codersdk
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 )
 
@@ -55,7 +54,7 @@ func (c *Client) GlobalLockdown(ctx context.Context) (GlobalLockdownState, error
 		return GlobalLockdownState{}, ReadBodyAsError(res)
 	}
 	var out GlobalLockdownState
-	err = json.NewDecoder(res.Body).Decode(&out)
+	err = ReadBodyAsJSON(res, &out)
 	return out, err
 }
 
@@ -70,6 +69,6 @@ func (c *Client) UpdateGlobalLockdown(ctx context.Context, req UpdateGlobalLockd
 		return GlobalLockdownState{}, ReadBodyAsError(res)
 	}
 	var out GlobalLockdownState
-	err = json.NewDecoder(res.Body).Decode(&out)
+	err = ReadBodyAsJSON(res, &out)
 	return out, err
 }

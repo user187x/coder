@@ -22,7 +22,7 @@ const INACTIVITY_CLEANUP_DEFAULT = 180 * MS_DAY_CONVERSION;
 const DORMANT_AUTODELETION_DEFAULT = 30 * MS_DAY_CONVERSION;
 
 /** What saving the schedule came to: sent, held back by an error in it, or called off at its confirmation. */
-export type SaveOutcome = "saved" | "invalid" | "cancelled";
+type SaveOutcome = "saved" | "invalid" | "cancelled";
 
 const initialValuesOf = (
 	template: Template,

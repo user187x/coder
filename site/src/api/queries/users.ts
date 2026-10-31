@@ -373,7 +373,7 @@ export type AccountEditRequest = {
 	profile?: UpdateUserProfileRequest;
 	roles?: string[];
 };
-export type AccountEditStep =
+type AccountEditStep =
 	| { state: "skipped" }
 	| { state: "saved"; user: User }
 	| { state: "failed"; error: unknown };

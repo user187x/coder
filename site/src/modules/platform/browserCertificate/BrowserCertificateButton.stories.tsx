@@ -2,19 +2,29 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useQueryClient } from "react-query";
 import { userEvent, within } from "storybook/test";
 import { browserCertificateStatus } from "#/api/queries/browserCertificate";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuTrigger,
+} from "#/components/DropdownMenu/DropdownMenu";
+import { MockBrowserCertificate } from "#/testHelpers/browserCertificate";
 import { BrowserCertificateButton } from "./BrowserCertificateButton";
 
 const meta = {
 	title: "modules/platform/BrowserCertificateButton",
 	component: BrowserCertificateButton,
-	args: { baseUrl: "/certificate/", children: "Browser Certificate" },
+	args: {
+		baseUrl: "/certificate/",
+		children: "Browser Certificate",
+		now: Date.parse("2026-10-30T12:00:00Z"),
+	},
 	decorators: [
 		(Story) => (
 			<div className="min-h-screen p-12">
 				<h1>Workspace browser</h1>
 				<p>
 					Apps, metrics and workspace panels remain behind the certificate
-					dialog.
+					panel.
 				</p>
 				<Story />
 			</div>
@@ -63,11 +73,7 @@ export const Ready: Story = {
 		queries: [
 			{
 				key: browserCertificateStatus("/certificate/").queryKey,
-				data: {
-					state: "ready",
-					message: "Your certificate is installed.",
-					csrf: "story-csrf",
-				},
+				data: MockBrowserCertificate,
 			},
 		],
 	},
@@ -104,4 +110,26 @@ export const Unavailable: Story = {
 			return <Story />;
 		},
 	],
+};
+
+export const GroupedReady: Story = {
+	...Ready,
+	args: { grouped: true },
+	decorators: [
+		(Story) => (
+			<DropdownMenu defaultOpen>
+				<DropdownMenuTrigger>Browser apps</DropdownMenuTrigger>
+				<DropdownMenuContent>
+					<Story />
+				</DropdownMenuContent>
+			</DropdownMenu>
+		),
+	],
+	play: async () => {
+		await userEvent.click(
+			await within(document.body).findByRole("menuitem", {
+				name: "Browser Certificate",
+			}),
+		);
+	},
 };

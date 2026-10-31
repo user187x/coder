@@ -81,7 +81,7 @@ fi
 # If Go, TS, or build-system files changed, run the full
 # pre-commit. Otherwise run the lightweight target that
 # covers everything except gen, Go/TS fmt+lint, and binary build.
-if echo "$staged" | grep -qE '\.(go|ts|tsx|sql|proto)$|^go\.(mod|sum)$|^site/|^Makefile$'; then
+if grep -qE '\.(go|ts|tsx|sql|proto)$|^go\.(mod|sum)$|^site/|^Makefile$' <<<"$staged"; then
 	exec make pre-commit
 fi
 exec make pre-commit-light

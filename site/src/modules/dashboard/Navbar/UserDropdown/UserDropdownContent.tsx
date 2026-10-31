@@ -1,6 +1,8 @@
+import { cn } from "cn";
 import {
 	ArrowLeftRightIcon,
 	ChevronDownIcon,
+	CircleHelpIcon,
 	CircleUserIcon,
 	CopyIcon,
 	LogOutIcon,
@@ -34,6 +36,7 @@ type UserDropdownContentProps = {
 	profileExtra?: React.ReactNode;
 	supportLinks: readonly TypesGen.LinkConfig[];
 	onSignOut: () => void;
+	compact?: boolean;
 };
 
 export const UserDropdownContent: React.FC<UserDropdownContentProps> = ({
@@ -42,6 +45,7 @@ export const UserDropdownContent: React.FC<UserDropdownContentProps> = ({
 	profileExtra,
 	supportLinks,
 	onSignOut,
+	compact = false,
 }) => {
 	const { showCopiedSuccess, copyToClipboard } = useClipboard();
 	const versionClipboard = useClipboard();
@@ -49,35 +53,38 @@ export const UserDropdownContent: React.FC<UserDropdownContentProps> = ({
 	const appearanceId = useId();
 
 	return (
-		<>
-			<DropdownMenuItem className="flex items-center gap-3" asChild>
-				<Link to="/settings/account">
-					<div className="flex flex-col">
-						<span className="text-content-primary">{user.username}</span>
-						<span className="text-xs font-semibold">{user.email}</span>
-					</div>
-				</Link>
-			</DropdownMenuItem>
+		<div className={compact ? "user-menu-compact" : undefined}>
+			{!compact && (
+				<DropdownMenuItem className="flex items-center gap-3" asChild>
+					<Link to="/settings/account">
+						<div className="flex flex-col">
+							<span className="text-content-primary">{user.username}</span>
+							<span className="text-xs font-semibold">{user.email}</span>
+						</div>
+					</Link>
+				</DropdownMenuItem>
+			)}
 			{profileExtra}
 			<DropdownMenuSeparator />
-			<DropdownMenuItem asChild>
+			<DropdownMenuItem asChild title="Install CLI">
 				<Link to="/install">
 					<TerminalIcon />
-					<span>Install CLI</span>
+					<span className={compact ? "sr-only" : undefined}>Install CLI</span>
 				</Link>
 			</DropdownMenuItem>
-			<DropdownMenuItem asChild>
+			<DropdownMenuItem asChild title="Account">
 				<Link to="/settings/account">
 					<CircleUserIcon />
-					<span>Account</span>
+					<span className={compact ? "sr-only" : undefined}>Account</span>
 				</Link>
 			</DropdownMenuItem>
-			<DropdownMenuItem onClick={onSignOut}>
+			<DropdownMenuItem onClick={onSignOut} title="Sign Out">
 				<LogOutIcon />
-				<span>Sign Out</span>
+				<span className={compact ? "sr-only" : undefined}>Sign Out</span>
 			</DropdownMenuItem>
 			<DropdownMenuSeparator />
 			<DropdownMenuItem
+				title="Appearance"
 				aria-expanded={appearanceOpen}
 				aria-controls={appearanceId}
 				onSelect={(event) => {
@@ -86,37 +93,52 @@ export const UserDropdownContent: React.FC<UserDropdownContentProps> = ({
 				}}
 			>
 				<PaletteIcon />
-				<span>Appearance</span>
-				<ChevronDownIcon
-					className={appearanceOpen ? "ml-auto rotate-180" : "ml-auto"}
-				/>
+				<span className={compact ? "sr-only" : undefined}>Appearance</span>
+				{!compact && (
+					<ChevronDownIcon
+						className={appearanceOpen ? "ml-auto rotate-180" : "ml-auto"}
+					/>
+				)}
 			</DropdownMenuItem>
 			{appearanceOpen && (
 				<div
 					id={appearanceId}
-					className="pl-3 border-l border-solid border-border ml-3"
+					className={
+						compact
+							? "user-menu-compact"
+							: "pl-3 border-l border-solid border-border ml-3"
+					}
 					role="group"
 					aria-label="Appearance options"
 				>
-					<ThemeToggleItem />
-					<AnimationsToggleItem />
+					<ThemeToggleItem compact={compact} />
+					<AnimationsToggleItem compact={compact} />
 					<DropdownMenuSeparator />
-					<DropdownMenuItem onSelect={() => startNavbarArrange()}>
+					<DropdownMenuItem
+						title="Rearrange top bar"
+						onSelect={() => startNavbarArrange()}
+					>
 						<ArrowLeftRightIcon />
-						<span>Rearrange top bar</span>
+						<span className={compact ? "sr-only" : undefined}>
+							Rearrange top bar
+						</span>
 					</DropdownMenuItem>
 				</div>
 			)}
 			{supportLinks.map((link) => (
-				<DropdownMenuItem key={link.name} asChild>
+				<DropdownMenuItem key={link.name} asChild title={link.name}>
 					<a href={link.target} target="_blank" rel="noreferrer">
-						{link.icon && <SupportIcon icon={link.icon} />}
-						<span>{link.name}</span>
+						{link.icon ? (
+							<SupportIcon icon={link.icon} />
+						) : (
+							compact && <CircleHelpIcon />
+						)}
+						<span className={compact ? "sr-only" : undefined}>{link.name}</span>
 					</a>
 				</DropdownMenuItem>
 			))}
-			<DropdownMenuSeparator />
-			{buildInfo?.version && (
+			{!compact && <DropdownMenuSeparator />}
+			{!compact && buildInfo?.version && (
 				<DropdownMenuItem
 					className="text-xs"
 					title="Copy build version"
@@ -126,31 +148,43 @@ export const UserDropdownContent: React.FC<UserDropdownContentProps> = ({
 						versionClipboard.copyToClipboard(buildInfo.version);
 					}}
 				>
-					<span className="shrink-0">Version</span>
-					<span className="truncate flex-1 font-mono">{buildInfo.version}</span>
+					<span className={compact ? "sr-only" : "shrink-0"}>Version</span>
+					<span className={compact ? "sr-only" : "truncate flex-1 font-mono"}>
+						{buildInfo.version}
+					</span>
 					{versionClipboard.showCopiedSuccess ? (
-						<CheckIcon className="size-icon-xs! ml-auto" />
+						<CheckIcon className={cn("size-icon-xs!", !compact && "ml-auto")} />
 					) : (
-						<CopyIcon className="size-icon-xs! ml-auto" />
+						<CopyIcon className={cn("size-icon-xs!", !compact && "ml-auto")} />
 					)}
 				</DropdownMenuItem>
 			)}
-			{buildInfo?.deployment_id && (
+			{!compact && buildInfo?.deployment_id && (
 				<Tooltip disableHoverableContent>
 					<TooltipTrigger asChild>
 						<DropdownMenuItem
 							className="text-xs"
+							title="Copy deployment ID"
+							aria-label="Copy deployment ID"
 							onSelect={(e) => {
 								e.preventDefault();
 								copyToClipboard(buildInfo.deployment_id);
 							}}
 						>
-							<span className="shrink-0">Deployment ID</span>
-							<span className="truncate flex-1">{buildInfo.deployment_id}</span>
+							<span className={compact ? "sr-only" : "shrink-0"}>
+								Deployment ID
+							</span>
+							<span className={compact ? "sr-only" : "truncate flex-1"}>
+								{buildInfo.deployment_id}
+							</span>
 							{showCopiedSuccess ? (
-								<CheckIcon className="size-icon-xs! ml-auto" />
+								<CheckIcon
+									className={cn("size-icon-xs!", !compact && "ml-auto")}
+								/>
 							) : (
-								<CopyIcon className="size-icon-xs! ml-auto" />
+								<CopyIcon
+									className={cn("size-icon-xs!", !compact && "ml-auto")}
+								/>
 							)}
 						</DropdownMenuItem>
 					</TooltipTrigger>
@@ -159,9 +193,13 @@ export const UserDropdownContent: React.FC<UserDropdownContentProps> = ({
 					</TooltipContent>
 				</Tooltip>
 			)}
-			<DropdownMenuItem className="text-xs" disabled>
-				<span>&copy; {new Date().getFullYear()} Coder Technologies, Inc.</span>
-			</DropdownMenuItem>
-		</>
+			{!compact && (
+				<DropdownMenuItem className="text-xs" disabled>
+					<span>
+						&copy; {new Date().getFullYear()} Coder Technologies, Inc.
+					</span>
+				</DropdownMenuItem>
+			)}
+		</div>
 	);
 };

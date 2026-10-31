@@ -18,6 +18,7 @@ spec:
   type: {{ .Values.coder.service.type }}
   sessionAffinity: {{ .Values.coder.service.sessionAffinity }}
   ports:
+    {{- if ne (include "coder.tlsEnabled" .) "true" }}
     - name: "http"
       port: 80
       targetPort: "http"
@@ -25,6 +26,7 @@ spec:
       {{- if or (eq .Values.coder.service.type "NodePort") (eq .Values.coder.service.type "LoadBalancer") }}
       nodePort: {{ .Values.coder.service.httpNodePort }}
       {{- end }}
+    {{- end }}
     {{- if eq (include "coder.tlsEnabled" .) "true" }}
     - name: "https"
       port: 443

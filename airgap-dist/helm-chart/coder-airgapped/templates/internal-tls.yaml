@@ -1,0 +1,80 @@
+{{- include "ca.values" . -}}
+{{- $services := list }}
+{{- if include "platform.hasBase" . }}{{ $services = append $services "coder" }}{{ end }}
+{{- if and .Values.uiUpdates.enabled (include "platform.hasLayer" .) }}
+{{- $services = concat $services (list "coder-ui-updates" "coder-ui-logs-db") }}
+{{- end }}
+{{- range $service := $services }}
+{{- $name := printf "%s-internal-tls" $service }}
+{{- $existing := lookup "v1" "Secret" $.Release.Namespace $name }}
+{{- $issuerName := printf "%s-issuer" $name }}
+{{- $issuer := lookup "v1" "Secret" $.Release.Namespace $issuerName }}
+{{- $ca := genCA (printf "%s.%s internal CA" $service $.Release.Namespace) 3650 }}
+{{- if $issuer }}
+{{- $ca = buildCustomCert (index $issuer.data "ca.crt") (index $issuer.data "ca.key") }}
+{{- else if $existing }}
+{{- fail (printf "%s exists without its signing issuer; restore %s before upgrading" $name $issuerName) }}
+{{- end }}
+{{- $data := dict }}
+{{- if $existing }}
+{{- range $key := list "tls.crt" "tls.key" "ca.crt" }}
+{{- $_ := set $data $key (required (printf "%s is missing %s" $name $key) (index $existing.data $key)) }}
+{{- end }}
+{{- else }}
+{{- $dns := list $service (printf "%s.%s.svc" $service $.Release.Namespace) (printf "%s.%s.svc.cluster.local" $service $.Release.Namespace) "localhost" }}
+{{- if eq $service "coder" }}{{ $dns = append $dns (include "platform.coderHost" $ | trim) }}{{ end }}
+{{- $cert := genSignedCert $service (list "127.0.0.1" "::1") $dns 365 $ca }}
+{{- $data = dict "tls.crt" (printf "%s%s" $cert.Cert $ca.Cert | b64enc) "tls.key" ($cert.Key | b64enc) "ca.crt" ($ca.Cert | b64enc) }}
+{{- end }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ $issuerName }}
+  namespace: {{ $.Release.Namespace }}
+  annotations:
+    helm.sh/resource-policy: keep
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+type: Opaque
+data:
+  ca.crt: {{ $ca.Cert | b64enc }}
+  ca.key: {{ $ca.Key | b64enc }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ $name }}
+  namespace: {{ $.Release.Namespace }}
+  annotations:
+    helm.sh/resource-policy: keep
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+type: kubernetes.io/tls
+data:
+  {{- toYaml $data | nindent 2 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}
+  namespace: {{ $.Release.Namespace }}
+  annotations:
+    helm.sh/resource-policy: keep
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+data:
+  ca.crt: {{ index $data "ca.crt" | b64dec | quote }}
+{{- if ne $service "coder-ui-logs-db" }}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: BackendTLSPolicy
+metadata:
+  name: {{ $service }}
+  namespace: {{ $.Release.Namespace }}
+spec:
+  targetRefs:
+    - {group: "", kind: Service, name: {{ $service }}, sectionName: https}
+  validation:
+    hostname: {{ printf "%s.%s.svc.cluster.local" $service $.Release.Namespace }}
+    caCertificateRefs:
+      - {group: "", kind: ConfigMap, name: {{ $name }}}
+{{- end }}
+{{- end }}

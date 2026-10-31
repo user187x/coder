@@ -132,7 +132,7 @@ export const DockPeople: React.FC<{
 	return (
 		<section
 			aria-label="People directory"
-			className="flex min-h-0 flex-1 flex-col"
+			className="flex min-h-0 min-w-0 flex-1 flex-col"
 		>
 			<div className="flex items-center gap-1">
 				<Input
@@ -161,7 +161,7 @@ export const DockPeople: React.FC<{
 				<summary className="cursor-pointer p-2">
 					Bulk actions · {chosen.length} selected
 				</summary>
-				<div className="flex flex-wrap justify-center gap-1 p-2 text-xs">
+				<div className="bulk-action-surface flex flex-wrap justify-center gap-1 rounded-md p-2 text-xs">
 					<span>{chosen.length} selected</span>
 					<Button
 						size="sm"

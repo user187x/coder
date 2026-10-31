@@ -24,8 +24,8 @@ const reading = (
 ];
 
 describe("pillBars", () => {
-	const slot = 104 / 40;
-	it("draws the last 5 minutes in 40 slots of 7.5 s, newest at the right, as the metric graphs do", () => {
+	const slot = 104 / 80;
+	it("draws the last 5 minutes in 80 narrow slots, newest at the right", () => {
 		const now = 300_000;
 		const bars = pillBars(
 			[
@@ -35,12 +35,27 @@ describe("pillBars", () => {
 			now,
 		);
 		expect(bars).toHaveLength(2);
-		expect(bars[0].x).toBeCloseTo(20 * slot + slot * 0.15); // 150 s into the 5 minutes
-		expect(bars[1].x).toBeCloseTo(39 * slot + slot * 0.15); // the last slot
+		expect(bars[0].x).toBeCloseTo(40 * slot + slot * 0.15); // 150 s into the 5 minutes
+		expect(bars[1].x).toBeCloseTo(79 * slot + slot * 0.15); // the last slot
 		expect(bars[0].width).toBeCloseTo(slot * 0.7);
 		expect(bars[0].down).toBeCloseTo(7.5); // the busiest reading: the half height
 		expect(bars[1].up).toBeCloseTo(7.5);
+		expect(bars[0].txColor).toBe("fill-content-destructive");
+		expect(bars[1].rxColor).toBe("fill-content-destructive");
 		expect(bars[1].latest).toBe(true);
+	});
+
+	it("uses blue for low rates and warmer colors as rates rise", () => {
+		const bars = pillBars(
+			[
+				{ from: 295_000, t: 296_000, rx: 128, tx: 128 },
+				{ from: 298_000, t: 299_000, rx: 1024, tx: 512 },
+			],
+			300_000,
+		);
+		expect(bars[0].rxColor).toBe("fill-content-link");
+		expect(bars[1].rxColor).toBe("fill-content-destructive");
+		expect(bars[1].txColor).toBe("fill-content-warning");
 	});
 
 	it("keeps each slot's busiest reading, leaves out what is older than 5 minutes, an idle workspace near the line", () => {
@@ -48,7 +63,7 @@ describe("pillBars", () => {
 			[
 				{ from: 0, t: 1_000, rx: 99_999, tx: 99_999 }, // more than 5 minutes before
 				{ from: 300_000, t: 301_000, rx: 10, tx: 10 },
-				{ from: 301_000, t: 302_000, rx: 30, tx: 20 },
+				{ from: 301_000, t: 301_100, rx: 30, tx: 20 },
 			],
 			305_000,
 		);
@@ -160,8 +175,9 @@ describe("AgentNetworkPill", () => {
 describe("spanText", () => {
 	it("gives the graph's span, its first bar's time to its last's", () => {
 		const to = new Date(2026, 9, 22, 8, 15, 12).getTime();
-		const { short, long } = spanText(to - 300_000, to);
-		expect(short).toBe("08:10–08:15");
-		expect(long).toMatch(/22, 08:10:12 – 08:15:12$/);
+		const { start, end, long } = spanText(to - 300_000, to);
+		expect(start).toMatch(/8:10\s?AM$/);
+		expect(end).toMatch(/8:15\s?AM$/);
+		expect(long).toMatch(/22, 8:10:12\s?AM \u2013 8:15:12\s?AM$/);
 	});
 });

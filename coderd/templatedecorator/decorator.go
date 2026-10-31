@@ -26,7 +26,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"path"
+	filepath "path"
 	"regexp"
 	"sort"
 	"strconv"
@@ -264,6 +264,7 @@ func Extract(mainTF []byte, files map[string][]byte, variableValues map[string]s
 	if diags.HasErrors() {
 		return nil, xerrors.Errorf("the base template's main.tf: %s", diags.Error())
 	}
+	//nolint:forcetypeassert // hclsyntax.ParseConfig always returns a native syntax body.
 	body := file.Body.(*hclsyntax.Body)
 	src := lines(mainTF)
 	p := &Payload{Files: map[string][]byte{}, Requires: map[string]Requirement{}, VariableValues: variableValues}
@@ -323,6 +324,7 @@ func definedIn(sections []Section) (map[string]bool, error) {
 		if diags.HasErrors() {
 			return nil, xerrors.Errorf("platform section %q: %s", s.Feature, diags.Error())
 		}
+		//nolint:forcetypeassert // hclsyntax.ParseConfig always returns a native syntax body.
 		for _, b := range f.Body.(*hclsyntax.Body).Blocks {
 			for _, k := range blockRefs(b) {
 				out[k] = true
@@ -359,6 +361,7 @@ func references(text string, name string) ([]string, error) {
 	}
 	set := map[string]bool{}
 	iterators := map[string]bool{}
+	//nolint:forcetypeassert // hclsyntax.ParseConfig always returns a native syntax body.
 	_ = hclsyntax.VisitAll(f.Body.(*hclsyntax.Body), func(n hclsyntax.Node) hcl.Diagnostics {
 		if b, ok := n.(*hclsyntax.Block); ok && b.Type == "dynamic" && len(b.Labels) == 1 {
 			iterators[b.Labels[0]] = true
@@ -385,6 +388,7 @@ func references(text string, name string) ([]string, error) {
 			walk(blk.Body)
 		}
 	}
+	//nolint:forcetypeassert // hclsyntax.ParseConfig always returns a native syntax body.
 	walk(f.Body.(*hclsyntax.Body))
 	out := make([]string, 0, len(set))
 	for k := range set {
@@ -459,8 +463,10 @@ func (p *Payload) resolveRequires(body *hclsyntax.Body, src []byte, regs []regio
 				if inRegion(a.SrcRange) {
 					continue
 				}
-				decls["local."+name] = Requirement{Kind: "local", Name: name,
-					Text: name + " = " + strings.TrimSpace(string(a.Expr.Range().SliceBytes(src)))}
+				decls["local."+name] = Requirement{
+					Kind: "local", Name: name,
+					Text: name + " = " + strings.TrimSpace(string(a.Expr.Range().SliceBytes(src))),
+				}
 			}
 		}
 	}
@@ -517,8 +523,8 @@ func Strip(mainTF []byte) ([]byte, []string, error) {
 	for _, r := range regs {
 		for i := r.start; i <= r.end; i++ {
 			drop[i] = true
-			removedText.WriteString(src[i-1])
-			removedText.WriteByte('\n')
+			_, _ = removedText.WriteString(src[i-1])
+			_ = removedText.WriteByte('\n')
 		}
 	}
 	var kept []string
@@ -680,7 +686,7 @@ type tfFile struct {
 
 // Decorate injects the payload's features the template's .tf files lack.
 func (p *Payload) Decorate(files map[string][]byte) (*Result, error) {
-	res, err := p.decorate(files)
+	res, err := p.decorateFiles(files)
 	if err != nil {
 		return nil, err
 	}
@@ -707,7 +713,7 @@ func (p *Payload) Decorate(files map[string][]byte) (*Result, error) {
 	return res, nil
 }
 
-func (p *Payload) decorate(files map[string][]byte) (*Result, error) {
+func (p *Payload) decorateFiles(files map[string][]byte) (*Result, error) {
 	res := &Result{Files: map[string][]byte{}}
 	var tfs []*tfFile
 	names := make([]string, 0, len(files))
@@ -719,7 +725,7 @@ func (p *Payload) decorate(files map[string][]byte) (*Result, error) {
 	all := &strings.Builder{}
 	for _, name := range names {
 		res.Files[name] = files[name]
-		if path.Dir(name) != "." || !strings.HasSuffix(name, ".tf") {
+		if filepath.Dir(name) != "." || !strings.HasSuffix(name, ".tf") {
 			continue
 		}
 		if bytes.Contains(files[name], []byte(OptOut)) {
@@ -730,9 +736,10 @@ func (p *Payload) decorate(files map[string][]byte) (*Result, error) {
 			// the template's own error: Terraform reports it, undecorated
 			return p.skipAll(res, "the template's Terraform does not parse ("+name+")"), nil
 		}
+		//nolint:forcetypeassert // hclsyntax.ParseConfig always returns a native syntax body.
 		tfs = append(tfs, &tfFile{name: name, src: files[name], body: f.Body.(*hclsyntax.Body)})
-		all.Write(files[name])
-		all.WriteByte('\n')
+		_, _ = all.Write(files[name])
+		_ = all.WriteByte('\n')
 	}
 	if optOut {
 		return p.skipAll(res, "the template opts out ("+OptOut+")"), nil
@@ -826,6 +833,7 @@ func (p *Payload) decorate(files map[string][]byte) (*Result, error) {
 		for _, s := range secs {
 			if s.Placement == Top {
 				f, _ := hclsyntax.ParseConfig([]byte(s.Text), "s.tf", hcl.InitialPos)
+				//nolint:forcetypeassert // hclsyntax.ParseConfig always returns a native syntax body.
 				for _, b := range f.Body.(*hclsyntax.Body).Blocks {
 					for _, k := range blockRefs(b) {
 						defined[k] = true
@@ -909,6 +917,7 @@ func withoutDuplicates(section string, target *hclsyntax.Block, src []byte, feat
 	if diags.HasErrors() {
 		return section
 	}
+	//nolint:forcetypeassert // hclsyntax.ParseConfig always returns a native syntax body.
 	body := f.Body.(*hclsyntax.Body)
 	var keep []string
 	dup := false
@@ -951,7 +960,7 @@ func (p *Payload) sectionsOf(feature string) []Section {
 }
 
 // clashes: a top-level declaration of the feature the template has already.
-func (p *Payload) clashes(secs []Section, defined map[string]bool) string {
+func (*Payload) clashes(secs []Section, defined map[string]bool) string {
 	for _, s := range secs {
 		if s.Placement != Top {
 			continue
@@ -960,6 +969,7 @@ func (p *Payload) clashes(secs []Section, defined map[string]bool) string {
 		if diags.HasErrors() {
 			continue
 		}
+		//nolint:forcetypeassert // hclsyntax.ParseConfig always returns a native syntax body.
 		for _, b := range f.Body.(*hclsyntax.Body).Blocks {
 			for _, k := range blockRefs(b) {
 				if defined[k] {
@@ -986,11 +996,12 @@ func (p *Payload) rewrite(text, agent string, wl *workload, wlFile *tfFile) stri
 }
 
 // metadataInsertion: the pod's annotations, merged with the template's own.
-func (p *Payload) metadataInsertion(body string, wl *workload, f *tfFile) (insertion, error) {
+func (*Payload) metadataInsertion(body string, wl *workload, f *tfFile) (insertion, error) {
 	parsed, diags := hclsyntax.ParseConfig([]byte(body), "metadata.tf", hcl.InitialPos)
 	if diags.HasErrors() {
 		return insertion{}, xerrors.Errorf("a pod-metadata section: %s", diags.Error())
 	}
+	//nolint:forcetypeassert // hclsyntax.ParseConfig always returns a native syntax body.
 	pb := parsed.Body.(*hclsyntax.Body)
 	ann, ok := pb.Attributes["annotations"]
 	if !ok || len(pb.Attributes) != 1 || len(pb.Blocks) != 0 {
@@ -998,8 +1009,10 @@ func (p *Payload) metadataInsertion(body string, wl *workload, f *tfFile) (inser
 	}
 	expr := strings.TrimSpace(string(ann.Expr.Range().SliceBytes([]byte(body))))
 	if wl.podMeta == nil {
-		return insertion{file: f.name, offset: wl.template.OpenBraceRange.End.Byte,
-			text: "\nmetadata {\n" + body + "\n}\n"}, nil
+		return insertion{
+			file: f.name, offset: wl.template.OpenBraceRange.End.Byte,
+			text: "\nmetadata {\n" + body + "\n}\n",
+		}, nil
 	}
 	own, ok := wl.podMeta.Body.Attributes["annotations"]
 	if !ok {
@@ -1007,8 +1020,10 @@ func (p *Payload) metadataInsertion(body string, wl *workload, f *tfFile) (inser
 	}
 	r := own.Expr.Range()
 	ownExpr := strings.TrimSpace(string(r.SliceBytes(f.src)))
-	return insertion{file: f.name, offset: r.Start.Byte, replace: r.End.Byte - r.Start.Byte,
-		text: "merge(" + ownExpr + ", " + expr + ") # platform: cloud-drive and the template's own"}, nil
+	return insertion{
+		file: f.name, offset: r.Start.Byte, replace: r.End.Byte - r.Start.Byte,
+		text: "merge(" + ownExpr + ", " + expr + ") # platform: cloud-drive and the template's own",
+	}, nil
 }
 
 // requirements: the declarations the injected sections need that the template
@@ -1044,25 +1059,25 @@ func (p *Payload) requirements(secs []Section, defined map[string]bool) string {
 	}
 	sort.Strings(keys)
 	var b strings.Builder
-	b.WriteString("# platform:begin requires\n# What the platform's sections use that this template does not declare.\n")
+	_, _ = b.WriteString("# platform:begin requires\n# What the platform's sections use that this template does not declare.\n")
 	var locals []string
 	for _, k := range keys {
 		r := p.Requires[k]
 		switch r.Kind {
 		case "variable":
-			b.WriteString(p.variable(r))
-			b.WriteString("\n\n")
+			_, _ = b.WriteString(p.variable(r))
+			_, _ = b.WriteString("\n\n")
 		case "data":
-			b.WriteString(r.Text)
-			b.WriteString("\n\n")
+			_, _ = b.WriteString(r.Text)
+			_, _ = b.WriteString("\n\n")
 		case "local":
 			locals = append(locals, r.Text)
 		}
 	}
 	if len(locals) > 0 {
-		b.WriteString("locals {\n" + strings.Join(locals, "\n") + "\n}\n")
+		_, _ = b.WriteString("locals {\n" + strings.Join(locals, "\n") + "\n}\n")
 	}
-	b.WriteString("# platform:end requires\n")
+	_, _ = b.WriteString("# platform:end requires\n")
 	return b.String()
 }
 
@@ -1088,8 +1103,10 @@ func (p *Payload) withDefaults(text string) string {
 		if a := blk.Body().GetAttribute("type"); a != nil {
 			typ = strings.TrimSpace(string(a.Expr().BuildTokens(nil).Bytes()))
 		}
-		v := strings.TrimSpace(p.variable(Requirement{Kind: "variable", Name: blk.Labels()[0], Type: typ,
-			Text: string(hclwrite.Format(blk.BuildTokens(nil).Bytes()))}))
+		v := strings.TrimSpace(p.variable(Requirement{
+			Kind: "variable", Name: blk.Labels()[0], Type: typ,
+			Text: string(hclwrite.Format(blk.BuildTokens(nil).Bytes())),
+		}))
 		nf, d := hclwrite.ParseConfig([]byte(v), "v.tf", hcl.InitialPos)
 		if d.HasErrors() || len(nf.Body().Blocks()) != 1 {
 			continue
@@ -1158,7 +1175,7 @@ func (p *Payload) DecorateArchive(archive []byte) ([]byte, *Result, error) {
 			if len(data) > maxFile {
 				return archive, &Result{}, nil // a file too large to read: left as it is
 			}
-			name := path.Clean(strings.TrimPrefix(hdr.Name, "./"))
+			name := filepath.Clean(strings.TrimPrefix(hdr.Name, "./"))
 			files[name] = data
 		}
 		entries = append(entries, entry{hdr: hdr, data: data})
@@ -1177,7 +1194,7 @@ func (p *Payload) DecorateArchive(archive []byte) ([]byte, *Result, error) {
 		hdr := *e.hdr
 		data := e.data
 		if hdr.Typeflag == tar.TypeReg {
-			name := path.Clean(strings.TrimPrefix(hdr.Name, "./"))
+			name := filepath.Clean(strings.TrimPrefix(hdr.Name, "./"))
 			data = res.Files[name]
 			hdr.Size = int64(len(data))
 			written[name] = true
@@ -1242,6 +1259,7 @@ func (p *Payload) References() map[string]Reference {
 			continue
 		}
 		src := []byte(s.Text)
+		//nolint:forcetypeassert // hclsyntax.ParseConfig always returns a native syntax body.
 		_ = hclsyntax.VisitAll(f.Body.(*hclsyntax.Body), func(n hclsyntax.Node) hcl.Diagnostics {
 			a, ok := n.(*hclsyntax.Attribute)
 			if !ok {

@@ -8,7 +8,7 @@ import { generateUUID } from "#/utils/random";
  * (agent ids change with every build), in this browser: the panels' order and
  * the added panels.
  */
-export const BUILT_IN_PANELS = ["logs", "terminal"] as const;
+const BUILT_IN_PANELS = ["logs", "terminal"] as const;
 
 /** What a panel the user added shows. */
 export type PanelContent =
@@ -23,7 +23,7 @@ export type PanelContent =
 	  }
 	| { kind: "web"; url: string; name?: string };
 
-export type AppPanel = PanelContent & {
+type AppPanel = PanelContent & {
 	id: string;
 	/** The height the user gave the app's box (px), if any. */
 	height?: number;

@@ -2,12 +2,12 @@ import { ImagesIcon } from "lucide-react";
 import { useState } from "react";
 import type { StoreImage } from "#/api/platform";
 import { Button } from "#/components/Button/Button";
+import type { LavaPictureOptions } from "#/components/LavaImage/drawLava";
 import {
 	Popover,
 	PopoverContent,
 	PopoverTrigger,
 } from "#/components/Popover/Popover";
-import type { LavaPictureOptions } from "../lava/drawLava";
 import { LavaDialog, LavaEntry } from "../lava/LavaDialog";
 import type { PrebakedPicture } from "../pictures";
 import { ImageStoreGrid } from "./ImageStoreGrid";

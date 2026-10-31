@@ -35,7 +35,7 @@ var certificateSecretPath = regexp.MustCompile(`^~/\.cert/\.[A-Za-z0-9_@+-][A-Za
 // @Param name path string true "Secret name"
 // @Success 200 {object} codersdk.UserCertificateFile
 // @Router /api/v2/users/{user}/secrets/{name}/certificate [get]
-func (api *API) getUserCertificateFile(rw http.ResponseWriter, r *http.Request) {
+func (api *API) userCertificateFile(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	user := httpmw.UserParam(r)
 	name := chi.URLParam(r, codersdk.UserSecretNameField)

@@ -4,6 +4,11 @@ export type BrowserCertificateStatus = {
 	state: "checking" | "missing" | "locked" | "ready" | "error";
 	message: string;
 	csrf: string;
+	certificate?: {
+		thumbprint: string;
+		expires_at: string;
+		subject: string;
+	} | null;
 };
 
 const certificateClient = axios.create();

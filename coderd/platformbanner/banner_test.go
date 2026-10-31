@@ -20,11 +20,15 @@ func TestIDMatchesTheBannerService(t *testing.T) {
 		id       string
 	}{
 		{platformbanner.Fields{Level: "info"}, 0, "a33fd46da6a4"},
-		{platformbanner.Fields{Level: "warning", Title: "Heads up", Message: "Maintenance \"Saturday\" 02:00\\03:00\nline2\ttab",
-			LinkText: "Details", LinkURL: "/docs"}, 3, "2dd86e9aa5d5"},
-		{platformbanner.Fields{Level: "critical", Title: "Ünïcödé — 日本語",
+		{platformbanner.Fields{
+			Level: "warning", Title: "Heads up", Message: "Maintenance \"Saturday\" 02:00\\03:00\nline2\ttab",
+			LinkText: "Details", LinkURL: "/docs",
+		}, 3, "2dd86e9aa5d5"},
+		{platformbanner.Fields{
+			Level: "critical", Title: "Ünïcödé \u2014 日本語",
 			Message: "emoji 🚀 and 👩‍💻 and \x7f del \x01 ctrl <b>&amp;</b>", LinkURL: "https://example.com/a?b=c&d=e",
-			Picture: "/pictures/usa.gif", Countdown: "2026-10-20T18:00:00Z"}, 12, "d3c303be2189"},
+			Picture: "/pictures/usa.gif", Countdown: "2026-10-20T18:00:00Z",
+		}, 12, "d3c303be2189"},
 		{platformbanner.Fields{Level: "success", Picture: "https://x.test/p.png"}, 1, "270365862eed"},
 	} {
 		require.Equal(t, c.id, platformbanner.ID(c.f, c.revision), "%+v", c.f)
@@ -52,16 +56,19 @@ func TestCleanFillsAndChecks(t *testing.T) {
 	want.Message, want.Speed, want.CrawlSpeed = "hello", "fast", 26 // the legacy pace for "fast"
 	require.Equal(t, want, f)
 	require.True(t, f.LoopText)
+	require.False(t, f.AnimationsDisabled)
 	for _, loop := range []bool{false, true} {
-		configured, err := clean(t, map[string]any{"message": "hello", "loopText": loop})
+		configured, err := clean(t, map[string]any{"message": "hello", "loopText": loop, "animationsDisabled": loop})
 		require.NoError(t, err)
 		require.Equal(t, loop, configured.LoopText)
+		require.Equal(t, loop, configured.AnimationsDisabled)
 	}
 
 	for _, c := range []struct {
 		payload any
 		err     string
 	}{
+		{map[string]any{"message": "x", "animationsDisabled": "true"}, "animationsDisabled must be true or false."},
 		{map[string]any{"message": "x", "loopText": "true"}, "loopText must be true or false."},
 		{map[string]any{"message": 5}, "message must be text."},
 		{map[string]any{"title": strings.Repeat("é", 81), "message": "x"}, "title is too long (max 80 characters)."},

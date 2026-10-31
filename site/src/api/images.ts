@@ -21,9 +21,9 @@ export type ImageInstallation = {
 	files: ImageFile[];
 };
 
-export type ImageDotfile = { path: string; content: string };
+type ImageDotfile = { path: string; content: string };
 
-export type ImageHardening = {
+type ImageHardening = {
 	purgeDocs?: boolean;
 	noSudo?: boolean;
 	lockRoot?: boolean;
@@ -104,7 +104,7 @@ export type ImageAddons = {
 };
 
 /** The workspace template's own image, listed (read-only) for its report and add-ons. */
-export type TrackedImage = {
+type TrackedImage = {
 	/** As the template names it (what workspaces run). */
 	image: string;
 	/** The builder's copy, which is scanned. */
@@ -116,7 +116,7 @@ export type TrackedImage = {
 export type CheckStatus = "pass" | "warn" | "fail" | "info";
 
 /** What a report records about the security data that graded it. */
-export type ReportData = {
+type ReportData = {
 	source: "bundled" | "uploaded";
 	trivyVersion: string | null;
 	vulnerabilityDbUpdatedAt: string | null;
@@ -257,7 +257,7 @@ export type ImageReport = {
 	addons?: ImageAddons | null;
 };
 
-export type ImageS3 = {
+type ImageS3 = {
 	enabled?: boolean;
 	status?: "uploading" | "done" | "failed";
 	key?: string;
@@ -306,7 +306,7 @@ export type ImageListItem = {
 };
 
 /** An image in the pit now: its lap of the laps allowed, the step, and where the patched image goes. */
-export type PitBadge = {
+type PitBadge = {
 	build: number;
 	lap: number;
 	laps: number;
@@ -370,7 +370,7 @@ export type PitStop = {
 	log: string;
 };
 
-export type PitStopOptions = {
+type PitStopOptions = {
 	/** The findings chosen; none: every one with a fixed version. */
 	keys?: { id: string; pkg: string }[];
 	/** Python and Node.js packages too (Copa's experimental library patching). */
@@ -381,7 +381,7 @@ export type PitStopOptions = {
 };
 
 /** Where an imported image came from, and its last import. */
-export type ImportedImage = {
+type ImportedImage = {
 	/** copa: a patched copy of an image only scanned here (a pit stop's), entry the image it was patched from. */
 	source: "registry" | "upload" | "copa";
 	entry?: string;
@@ -410,7 +410,7 @@ export type NodeImageCleanupResult = {
 	}[];
 };
 
-export type ImageOnNode = {
+type ImageOnNode = {
 	purgeBlocked?: string;
 	image: string;
 	/** Its other names on the nodes (digests). */
@@ -479,7 +479,7 @@ export type ImageContents = {
 export type ImageContentsCatalog = { images: Record<string, ImageContents> };
 
 /** An image workspaces run now, or a template runs: which, and its entry here if it has one. */
-export type ImageInUse = {
+type ImageInUse = {
 	image: string;
 	workspaces: string[];
 	templates: string[];
@@ -490,10 +490,10 @@ export type ImageInUse = {
 export type LibraryKind = "isos";
 
 /** A file of a library. */
-export type LibraryFile = { name: string; size: number; modified: string };
+type LibraryFile = { name: string; size: number; modified: string };
 
 /** A file the service downloads into a library. */
-export type LibraryImport = {
+type LibraryImport = {
 	name: string;
 	url: string;
 	bytes: number;
@@ -548,7 +548,7 @@ export type ImageDetail = ImageListItem & {
 	pit?: PitStop | null;
 };
 
-export type BuildStep = {
+type BuildStep = {
 	key: string;
 	label: string;
 	state: "done" | "active" | "pending";
@@ -566,7 +566,7 @@ export type AptResult = {
 	section?: string;
 };
 
-export type AptIndexStatus = {
+type AptIndexStatus = {
 	sources: number;
 	packages: number;
 	loadedAt: string | null;

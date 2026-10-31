@@ -3,6 +3,8 @@ import { useQuery } from "react-query";
 import { dashboardAddress } from "#/api/queries/platform";
 import { workspaces } from "#/api/queries/workspaces";
 import type { Workspace } from "#/api/typesGenerated";
+import { useAuthContext } from "#/contexts/auth/AuthProvider";
+import { HealthResponse } from "./HealthResponse";
 
 /** What the announcement terminal answers a command with (BannerScrollView). */
 export type Answer =
@@ -13,13 +15,14 @@ export type Answer =
 	| "date"
 	| "whoami"
 	| "ls"
-	| "ip";
+	| "ip"
+	| "health";
 
 /** "rm" and anything after it (rm, rm file, rmdir...): the wagging finger. */
 export const isRm = (command: string) => /^rm/.test(command);
 
 /** The no-no picture's answer: shown, typed out, then faded away after this long (ms). */
-export const NO_NO_SHOWN_MS = 1500;
+const NO_NO_SHOWN_MS = 1500;
 const NO_NO_FADE_MS = 400;
 const NO_NO_SRC = "/no-no.gif";
 const NO_NO_TEXT = "ahh ahh ahh...";
@@ -32,7 +35,7 @@ const NO_NO_PER_MS = 70;
  * ahh ahh..." typed out a letter at a time (the banner's typewriter effect, announce-appear) - faded out after 1.5 s,
  * then gone.
  */
-export const NoNoResponse: React.FC = () => {
+const NoNoResponse: React.FC = () => {
 	const [gone, setGone] = useState(false);
 	useEffect(() => {
 		const timer = window.setTimeout(
@@ -70,7 +73,7 @@ export const NoNoResponse: React.FC = () => {
 };
 
 /** "Wed Oct 22 08:30:12 EDT 2026", as date(1) says it (this browser's time zone). */
-export const dateText = (at: Date) => {
+const dateText = (at: Date) => {
 	const parts = Object.fromEntries(
 		new Intl.DateTimeFormat("en-US", {
 			weekday: "short",
@@ -161,6 +164,19 @@ const IpResponse: React.FC = () => {
 	);
 };
 
+const IdentityResponse: React.FC = () => {
+	const { user } = useAuthContext();
+	return (
+		<div className="banner-scroll-out" data-testid="announcement-scroll-whoami">
+			{user
+				? user.name && user.name !== user.username
+					? `${user.name} (@${user.username})`
+					: user.username
+				: "Not signed in"}
+		</div>
+	);
+};
+
 /** The terminal's answers that print something (the effects run from BannerScrollView itself). */
 export const TerminalAnswer: React.FC<{
 	answer: Answer;
@@ -180,7 +196,7 @@ export const TerminalAnswer: React.FC<{
 				</div>
 			);
 		case "time":
-			return <>{time}</>;
+			return time;
 		case "date":
 			return (
 				<div
@@ -191,14 +207,9 @@ export const TerminalAnswer: React.FC<{
 				</div>
 			);
 		case "whoami":
-			return (
-				<div
-					className="banner-scroll-out"
-					data-testid="announcement-scroll-whoami"
-				>
-					Skynet
-				</div>
-			);
+			return <IdentityResponse />;
+		case "health":
+			return <HealthResponse />;
 		case "ls":
 			return <LsResponse />;
 		case "ip":

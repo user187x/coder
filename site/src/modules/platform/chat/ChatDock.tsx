@@ -1,6 +1,21 @@
 import { cn } from "cn";
 import { useEffect, useRef } from "react";
+import { useMutation, useQuery, useQueryClient } from "react-query";
 import { useLocation, useNavigate } from "react-router";
+import { toast } from "sonner";
+import { getErrorMessage } from "#/api/errors";
+import type { UserUIPreferences } from "#/api/platform";
+import {
+	updateUserUIPreferences,
+	userUIPreferences,
+} from "#/api/queries/platform";
+import {
+	ContextMenu,
+	ContextMenuCheckboxItem,
+	ContextMenuContent,
+	ContextMenuItem,
+	ContextMenuTrigger,
+} from "#/components/ContextMenu/ContextMenu";
 import { isEmbeddedFrame } from "#/contexts/platformBoot";
 import { DriveShareNotification } from "../cloudDrive/DriveShareNotification";
 import { ChatFullScreen, ChatSidePanel } from "./ChatAttached";
@@ -16,8 +31,9 @@ import {
 	windowsBeside,
 } from "./chatStore";
 import { CHAT_CONSOLE_PAGE } from "./consolePlaces";
+import { type DockPosition, placeDock, snapDockPosition } from "./dockPosition";
 import "./chatDock.css";
-import { bottomBarsHeight } from "#/modules/platform/bottomBars";
+import { bottomBarsHeight } from "#/utils/bottomBars";
 
 // What may be fixed or sticky at the window's edges: the classification
 // marking, the deployment stats footer, the navbar.
@@ -35,7 +51,10 @@ const POPPERS = "[data-radix-popper-content-wrapper]";
  * (the navbar's bottom: where the side panel and full screen start),
  * --chat-space (the raised window's room) and --chat-room (the windows').
  */
-const useDockMeasurements = (dock: React.RefObject<HTMLDivElement | null>) => {
+const useDockMeasurements = (
+	dock: React.RefObject<HTMLDivElement | null>,
+	position: DockPosition | null | undefined,
+) => {
 	useEffect(() => {
 		const last = new Map<string, number>();
 		const set = (element: HTMLElement, name: string, px: number) => {
@@ -46,11 +65,56 @@ const useDockMeasurements = (dock: React.RefObject<HTMLDivElement | null>) => {
 		};
 		const measure = () => {
 			const element = dock.current;
-			if (!element) {
+			if (!element || element.dataset.dragging || element.dataset.resizing) {
 				return;
 			}
 			const height = window.innerHeight;
-			const bottom = bottomBarsHeight(element);
+			const right = document.documentElement.getBoundingClientRect().right;
+			const positioned =
+				position &&
+				["bar", "window", "compact"].includes(element.dataset.mode ?? "");
+			const expanded =
+				!position &&
+				document
+					.querySelector(
+						".workspace-dashboard-page[data-workspace-expanded] .workspace-dashboard-scroll",
+					)
+					?.getBoundingClientRect();
+			const uptime =
+				!position &&
+				document
+					.querySelector(
+						'.workspace-dashboard-page[data-workspace-expanded] [data-testid="workspace-uptime"]',
+					)
+					?.getBoundingClientRect();
+			const footerControl = element
+				.querySelector(
+					element.dataset.mode === "bar"
+						? "[data-chat-panel]"
+						: "[data-chat-restore]",
+				)
+				?.getBoundingClientRect();
+			// The bar and compact button share Uptime's centerline; the dock adds 10 px below it.
+			const bottom =
+				expanded && uptime && footerControl
+					? Math.max(
+							0,
+							height -
+								uptime.top -
+								uptime.height / 2 -
+								footerControl.height / 2 -
+								10,
+						)
+					: expanded
+						? Math.max(0, height - expanded.bottom)
+						: bottomBarsHeight(element);
+			if (!positioned) {
+				element.style.right = expanded
+					? uptime
+						? `${Math.max(16, right - uptime.left + 8)}px`
+						: `${Math.max(16, right - expanded.right + 16)}px`
+					: "";
+			}
 			set(element, "--chat-bottom", bottom);
 
 			let top = 0;
@@ -68,7 +132,7 @@ const useDockMeasurements = (dock: React.RefObject<HTMLDivElement | null>) => {
 					top = Math.max(top, r.bottom);
 				}
 			}
-			top = Math.round(top);
+			top = Math.round(expanded ? expanded.top : top);
 			set(element, "--chat-top", top);
 			// From 8 px below the navbar down to the dock (floating 10 px clear of the bottom bars).
 			set(element, "--chat-space", Math.max(0, height - bottom - 10 - top - 8));
@@ -84,6 +148,15 @@ const useDockMeasurements = (dock: React.RefObject<HTMLDivElement | null>) => {
 					: panel.top
 				: height - bottom;
 			set(element, "--chat-room", Math.max(0, Math.round(base - top - 16)));
+			if (positioned) {
+				// Size the raised panel before positioning it so it remains inside the viewport.
+				set(element, "--chat-space", Math.max(0, height - bottom - top - 18));
+				placeDock(element, position, top, bottom);
+			} else {
+				element.style.left = "";
+				element.style.top = "";
+				element.style.bottom = "calc(var(--chat-bottom, 0px) + 10px)";
+			}
 		};
 
 		let queued = false;
@@ -106,7 +179,7 @@ const useDockMeasurements = (dock: React.RefObject<HTMLDivElement | null>) => {
 			window.removeEventListener("scroll", queue, { capture: true });
 			window.clearInterval(interval);
 		};
-	}, [dock]);
+	}, [dock, position]);
 };
 
 /**
@@ -120,7 +193,56 @@ export const ChatDock: React.FC = () => {
 	const state = useChatSnapshot();
 	const mode = state.dockMode;
 	const shown = !embedded && Boolean(state.me);
-	useDockMeasurements(dock);
+	const preferences = useQuery({ ...userUIPreferences(), enabled: shown });
+	const client = useQueryClient();
+	const position = preferences.data?.chat_position;
+	const hidden = Boolean(preferences.data?.chat_hidden);
+	const savePosition = useMutation({
+		...updateUserUIPreferences(client),
+		onError: (error) =>
+			toast.error(getErrorMessage(error, "Could not save chat layout.")),
+	});
+	const drag = useRef<{
+		x: number;
+		y: number;
+		left: number;
+		top: number;
+		width: number;
+		height: number;
+	} | null>(null);
+	useDockMeasurements(dock, position);
+	const moveToEdge = (next: DockPosition | null) =>
+		savePosition.mutate({ chat_position: next });
+	const resize = (size: UserUIPreferences["chat_size"]) => {
+		const element = dock.current;
+		if (!element) return;
+		const top =
+			Number.parseFloat(element.style.getPropertyValue("--chat-top")) || 0;
+		const bottom = bottomBarsHeight(element);
+		const next = snapDockPosition(element.getBoundingClientRect(), {
+			width: document.documentElement.clientWidth,
+			height: window.innerHeight,
+			top,
+			bottom,
+		});
+		savePosition.mutate(
+			{ chat_size: size, chat_position: next },
+			{
+				onSuccess: () => placeDock(element, next, top, bottom),
+				onError: () => {
+					const panel = element.querySelector<HTMLElement>("[data-chat-panel]");
+					if (panel) {
+						panel.style.width = `min(${preferences.data?.chat_size?.width ?? 420}px, calc(100vw - 32px))`;
+						panel.style.height = `min(${preferences.data?.chat_size?.height ?? 520}px, var(--chat-space, 520px))`;
+					}
+					if (position) placeDock(element, position, top, bottom);
+				},
+				onSettled: () => {
+					delete element.dataset.resizing;
+				},
+			},
+		);
+	};
 
 	useChatConnection(!embedded);
 
@@ -152,7 +274,11 @@ export const ChatDock: React.FC = () => {
 	// The raised window lowers on a click elsewhere or Escape; full screen ends
 	// on Escape. The side panel stays.
 	useEffect(() => {
-		if (state.consoleOverlay || (mode !== "window" && mode !== "full")) {
+		if (
+			hidden ||
+			state.consoleOverlay ||
+			(mode !== "window" && mode !== "full")
+		) {
 			return;
 		}
 		const onKey = (event: KeyboardEvent) => {
@@ -170,6 +296,7 @@ export const ChatDock: React.FC = () => {
 			const target = event.target instanceof Element ? event.target : null;
 			if (
 				mode === "window" &&
+				!preferences.data?.chat_keep_open &&
 				!(target && (dock.current?.contains(target) || target.closest(POPPERS)))
 			) {
 				setDockMode("bar");
@@ -181,11 +308,12 @@ export const ChatDock: React.FC = () => {
 			document.removeEventListener("pointerdown", onPointer);
 			document.removeEventListener("keydown", onKey);
 		};
-	}, [mode, state.consoleOverlay]);
+	}, [mode, state.consoleOverlay, hidden, preferences.data?.chat_keep_open]);
 
 	// Attached, the chat takes its room from the page (chatDock.css), under full screen too.
 	const sideways =
 		shown &&
+		!hidden &&
 		(mode === "side" || (mode === "full" && state.fullFrom === "side"));
 	useEffect(() => {
 		if (!sideways) {
@@ -201,34 +329,150 @@ export const ChatDock: React.FC = () => {
 	if (!shown) {
 		return null;
 	}
+	if (hidden) {
+		return (
+			<ChatFocusOverlay
+				onReply={() => savePosition.mutate({ chat_hidden: false })}
+			/>
+		);
+	}
 	const floating = mode === "bar" || mode === "window" || mode === "compact";
 	// The console over the page: every conversation is in it, so the windows (a second copy of one) wait hidden -
 	// as they were, drafts and all - and the dock goes under its blur with the rest of the page.
 	const overlaid = state.consoleOverlay;
 
 	return (
-		<div
-			ref={dock}
-			aria-label="Chats"
-			role="region"
-			data-mode={mode}
-			className={cn(
-				"pointer-events-none fixed right-4 flex flex-col items-end gap-2 text-sm text-content-primary transition-[bottom] duration-200 motion-reduce:transition-none md:flex-row md:gap-3 [&>*]:pointer-events-auto",
-				// Floating, in front of everything but the chat's own overlays; attached or full screen (or under the
-				// console over the page), a part of the page: above it and its navbar, below its dialogs (the ones
-				// opened from the chat too).
-				floating && !overlaid ? "z-[60]" : "z-[45]",
-				mode === "compact" && "right-6",
-			)}
-			// Platform: floating 10px clear of what it rests on (GUI-UPDATES)
-			style={{ bottom: "calc(var(--chat-bottom, 0px) + 10px)" }}
-		>
-			{state.me && <DriveShareNotification userId={state.me.id} />}
-			<ChatPanel dock={dock} />
-			{mode === "side" && <ChatSidePanel dock={dock} />}
-			{mode === "full" && <ChatFullScreen dock={dock} />}
-			<ChatConsoleOverlay />
-			<ChatFocusOverlay />
-		</div>
+		<ContextMenu>
+			<ContextMenuTrigger asChild disabled={!floating}>
+				<div
+					onMouseDownCapture={(event) => {
+						if (event.button === 1 && floating) event.preventDefault();
+					}}
+					onAuxClickCapture={(event) => {
+						if (event.button === 1 && floating) event.preventDefault();
+					}}
+					onPointerDownCapture={(event) => {
+						if (
+							event.button !== 1 ||
+							!floating ||
+							!(event.target instanceof Element) ||
+							!event.target.closest("[data-chat-drag], [data-chat-restore]")
+						)
+							return;
+						event.preventDefault();
+						event.stopPropagation();
+						const rect = event.currentTarget.getBoundingClientRect();
+						drag.current = {
+							x: event.clientX,
+							y: event.clientY,
+							left: rect.left,
+							top: rect.top,
+							width: rect.width,
+							height: rect.height,
+						};
+						event.currentTarget.dataset.dragging = "true";
+						event.currentTarget.setPointerCapture(event.pointerId);
+					}}
+					onPointerMove={(event) => {
+						const start = drag.current;
+						if (!start) return;
+						const element = event.currentTarget;
+						element.style.left = `${Math.max(0, Math.min(document.documentElement.clientWidth - start.width, start.left + event.clientX - start.x))}px`;
+						element.style.top = `${Math.max(0, Math.min(window.innerHeight - start.height, start.top + event.clientY - start.y))}px`;
+						element.style.bottom = "auto";
+						element.style.right = "auto";
+					}}
+					onPointerUp={(event) => {
+						if (!drag.current) return;
+						const element = event.currentTarget;
+						drag.current = null;
+						delete element.dataset.dragging;
+						element.releasePointerCapture(event.pointerId);
+						const top =
+							Number.parseFloat(element.style.getPropertyValue("--chat-top")) ||
+							0;
+						const bottom = bottomBarsHeight(element);
+						const next = snapDockPosition(element.getBoundingClientRect(), {
+							width: document.documentElement.clientWidth,
+							height: window.innerHeight,
+							top,
+							bottom,
+						});
+						placeDock(element, next, top, bottom);
+						moveToEdge(next);
+					}}
+					onPointerCancel={(event) => {
+						drag.current = null;
+						delete event.currentTarget.dataset.dragging;
+					}}
+					ref={dock}
+					aria-label="Chats"
+					role="region"
+					data-mode={mode}
+					className={cn(
+						"pointer-events-none fixed right-4 flex flex-col items-end gap-2 text-sm text-content-primary transition-[bottom] duration-200 motion-reduce:transition-none md:flex-row md:gap-3 [&>*]:pointer-events-auto",
+						// Floating, in front of everything but the chat's own overlays; attached or full screen (or under the
+						// console over the page), a part of the page: above it and its navbar, below its dialogs (the ones
+						// opened from the chat too).
+						floating && !overlaid ? "z-[60]" : "z-[45]",
+						mode === "compact" && "right-6",
+					)}
+					// Platform: floating 10px clear of what it rests on (GUI-UPDATES)
+					style={{ bottom: "calc(var(--chat-bottom, 0px) + 10px)" }}
+				>
+					{state.me && <DriveShareNotification userId={state.me.id} />}
+					<ChatPanel
+						dock={dock}
+						size={preferences.data?.chat_size}
+						keepOpen={Boolean(preferences.data?.chat_keep_open)}
+						onToggleKeepOpen={() =>
+							savePosition.mutate({
+								chat_keep_open: !preferences.data?.chat_keep_open,
+							})
+						}
+						onResize={resize}
+					/>
+					{mode === "side" && <ChatSidePanel dock={dock} />}
+					{mode === "full" && <ChatFullScreen dock={dock} />}
+					<ChatConsoleOverlay />
+					<ChatFocusOverlay />
+				</div>
+			</ContextMenuTrigger>
+			<ContextMenuContent
+				aria-label="Chat dock position"
+				className="z-[2147483647]"
+			>
+				<ContextMenuCheckboxItem
+					checked={Boolean(preferences.data?.chat_keep_open)}
+					onSelect={(event) => event.preventDefault()}
+					onCheckedChange={(checked) =>
+						savePosition.mutate({ chat_keep_open: checked })
+					}
+				>
+					Keep chat open
+				</ContextMenuCheckboxItem>
+				<ContextMenuItem
+					onSelect={() => savePosition.mutate({ chat_hidden: true })}
+				>
+					Hide
+				</ContextMenuItem>
+				{(["top", "right", "bottom", "left"] as const).map((edge) => (
+					<ContextMenuItem
+						key={edge}
+						onSelect={() => moveToEdge({ edge, offset: 0.5 })}
+					>
+						Move chat to {edge}
+					</ContextMenuItem>
+				))}
+				<ContextMenuItem onSelect={() => moveToEdge(null)}>
+					Reset chat position
+				</ContextMenuItem>
+				<ContextMenuItem
+					onSelect={() => savePosition.mutate({ chat_size: null })}
+				>
+					Reset chat size
+				</ContextMenuItem>
+			</ContextMenuContent>
+		</ContextMenu>
 	);
 };

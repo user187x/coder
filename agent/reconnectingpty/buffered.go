@@ -205,7 +205,7 @@ func (rpty *bufferedReconnectingPTY) Attach(ctx context.Context, connID string, 
 	}
 
 	// Pipe conn -> pty and block.  pty -> conn is handled in newBuffered().
-	readConnLoop(ctx, conn, rpty.ptty, rpty.metrics, logger)
+	readConnLoop(ctx, conn, rpty.ptty, rpty.metrics, logger, rpty.Close)
 	return nil
 }
 

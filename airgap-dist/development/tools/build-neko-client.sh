@@ -5,16 +5,27 @@ umask 022
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 commit=65fba485de2987998c7028b04240b21669d674e0
 if [[ $# != 2 ]]; then
-    echo 'usage: build-neko-client.sh source-repository new-output-directory' >&2
-    exit 2
+	echo 'usage: build-neko-client.sh source-repository new-output-directory' >&2
+	exit 2
 fi
 source_repo="$(realpath "$1")"
 output="$(realpath -m "$2")"
-case "$output" in "$source_repo"|"$source_repo"/*) echo 'Output must be outside the source checkout.' >&2; exit 1 ;; esac
-[[ ! -e "$output" && ! -L "$output" ]] || { echo 'Output directory must not exist.' >&2; exit 1; }
+case "$output" in "$source_repo" | "$source_repo"/*)
+	echo 'Output must be outside the source checkout.' >&2
+	exit 1
+	;;
+esac
+[[ ! -e "$output" && ! -L "$output" ]] || {
+	echo 'Output directory must not exist.' >&2
+	exit 1
+}
 [[ "$(git --no-replace-objects -c core.attributesFile=/dev/null -C "$source_repo" rev-parse "${commit}^{commit}")" == "$commit" ]] || exit 1
 node_version="$(node --version)"
-case "$node_version" in v22.*|v24.*) ;; *) echo 'Node.js 22 or 24 is required.' >&2; exit 1 ;; esac
+case "$node_version" in v22.* | v24.*) ;; *)
+	echo 'Node.js 22 or 24 is required.' >&2
+	exit 1
+	;;
+esac
 npm_version="$(npm --version)"
 work="$(mktemp -d "${TMPDIR:-/mnt/data}/coder-neko-client.XXXXXXXX")"
 trap 'rm -rf -- "$work"' EXIT
@@ -25,9 +36,9 @@ git -C "$work/source" apply "$here/neko/relay-only.patch"
 epoch="$(git --no-replace-objects -c core.attributesFile=/dev/null -C "$source_repo" show -s --format=%ct "$commit")"
 clean_env=(env -i "PATH=$PATH" "HOME=$work/home" "TMPDIR=$work" 'LANG=C.UTF-8' 'TZ=UTC' 'CI=true' "SOURCE_DATE_EPOCH=$epoch" "npm_config_cache=$work/npm-cache")
 (
-    cd "$work/source/client"
-    "${clean_env[@]}" npm ci --ignore-scripts --no-audit --no-fund
-    "${clean_env[@]}" npm run build -- --dest "$work/assets"
+	cd "$work/source/client"
+	"${clean_env[@]}" npm ci --ignore-scripts --no-audit --no-fund
+	"${clean_env[@]}" npm run build -- --dest "$work/assets"
 )
 "${clean_env[@]}" node "$here/neko/verify-relay.cjs" "$work/source/client" "$work/assets"
 cp "$work/source/LICENSE" "$work/assets/LICENSE-neko.txt"
@@ -63,5 +74,8 @@ python3 "$here/neko/manifest.py" "$work/assets"
 mkdir -p "$(dirname "$output")"
 # The destination is new; do not merge assets with an earlier build.
 mv -T -n "$work/assets" "$output"
-[[ ! -d "$work/assets" ]] || { echo 'Output appeared during the build; refusing replacement.' >&2; exit 1; }
+[[ ! -d "$work/assets" ]] || {
+	echo 'Output appeared during the build; refusing replacement.' >&2
+	exit 1
+}
 echo "trusted_client=$output"

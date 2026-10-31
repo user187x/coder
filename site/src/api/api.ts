@@ -311,7 +311,7 @@ export type InsightsParams = {
 	template_ids: string;
 };
 
-export type InsightsTemplateParams = InsightsParams & {
+type InsightsTemplateParams = InsightsParams & {
 	interval: "day" | "week";
 };
 
@@ -1991,6 +1991,35 @@ class ApiMethods {
 		return resp.data;
 	};
 
+	getAuditCollectors = async (
+		organizationId: string,
+	): Promise<TypesGen.AuditCollectorConfiguration> => {
+		const response = await this.axios.get(
+			`/api/v2/organizations/${organizationId}/audit-collectors`,
+		);
+		return response.data;
+	};
+
+	createAuditCollector = async (
+		organizationId: string,
+		request: TypesGen.CreateAuditCollectorRequest,
+	): Promise<TypesGen.AuditCollector> => {
+		const response = await this.axios.post(
+			`/api/v2/organizations/${organizationId}/audit-collectors`,
+			request,
+		);
+		return response.data;
+	};
+
+	deleteAuditCollector = async (
+		organizationId: string,
+		collectorId: string,
+	): Promise<void> => {
+		await this.axios.delete(
+			`/api/v2/organizations/${organizationId}/audit-collectors/${collectorId}`,
+		);
+	};
+
 	getAuditLogs = async (
 		options: TypesGen.AuditLogsRequest,
 	): Promise<TypesGen.AuditLogResponse> => {
@@ -2767,6 +2796,10 @@ class ApiMethods {
 
 	postTestNotification = async () => {
 		await this.axios.post("/api/v2/notifications/test");
+	};
+
+	postCustomNotification = async (req: TypesGen.CustomNotificationRequest) => {
+		await this.axios.post("/api/v2/notifications/custom", req);
 	};
 
 	createWebPushSubscription = async (

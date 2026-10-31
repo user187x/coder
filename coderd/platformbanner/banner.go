@@ -16,40 +16,42 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/google/uuid"
 	"regexp"
 	"slices"
 	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/google/uuid"
 )
 
 // Fields is a banner as an admin publishes it. The JSON names and their order
 // are the contract with the dashboard (api/platform.ts BannerSettings).
 type Fields struct {
-	Audience        string   `json:"audience"`
-	AudienceUserIDs []string `json:"audienceUserIds"`
-	Enabled         bool     `json:"enabled"`
-	Level           string   `json:"level"`
-	Title           string   `json:"title"`
-	Message         string   `json:"message"`
-	LinkText        string   `json:"linkText"`
-	LinkURL         string   `json:"linkUrl"`
-	Dismissible     bool     `json:"dismissible"`
-	ShowOnLoginPage bool     `json:"showOnLoginPage"`
-	RefreshSeconds  int      `json:"refreshSeconds"`
-	Effect          string   `json:"effect"`
-	Repeat          bool     `json:"repeat"`
-	LoopText        bool     `json:"loopText"`
-	AutoScroll      bool     `json:"autoScroll"`
-	AutoScrollSpeed int      `json:"autoScrollSpeed"`
-	PauseOnHover    bool     `json:"pauseOnHover"`
-	PauseOnClick    bool     `json:"pauseOnClick"`
-	Speed           string   `json:"speed"`
-	CrawlSpeed      int      `json:"crawlSpeed"`
-	CrawlTilt       int      `json:"crawlTilt"`
-	Font            string   `json:"font"`
+	Audience           string   `json:"audience"`
+	AudienceUserIDs    []string `json:"audienceUserIds"`
+	Enabled            bool     `json:"enabled"`
+	Level              string   `json:"level"`
+	Title              string   `json:"title"`
+	Message            string   `json:"message"`
+	LinkText           string   `json:"linkText"`
+	LinkURL            string   `json:"linkUrl"`
+	Dismissible        bool     `json:"dismissible"`
+	ShowOnLoginPage    bool     `json:"showOnLoginPage"`
+	RefreshSeconds     int      `json:"refreshSeconds"`
+	Effect             string   `json:"effect"`
+	Repeat             bool     `json:"repeat"`
+	LoopText           bool     `json:"loopText"`
+	AnimationsDisabled bool     `json:"animationsDisabled"`
+	AutoScroll         bool     `json:"autoScroll"`
+	AutoScrollSpeed    int      `json:"autoScrollSpeed"`
+	PauseOnHover       bool     `json:"pauseOnHover"`
+	PauseOnClick       bool     `json:"pauseOnClick"`
+	Speed              string   `json:"speed"`
+	CrawlSpeed         int      `json:"crawlSpeed"`
+	CrawlTilt          int      `json:"crawlTilt"`
+	Font               string   `json:"font"`
 	// Receipts: the dashboard records who viewed the announcement and lets
 	// them confirm it. Off for a greeting nobody needs to account for.
 	Receipts    bool   `json:"receipts"`
@@ -217,6 +219,7 @@ func Clean(raw []byte) (Fields, error) {
 		{"showOnLoginPage", &out.ShowOnLoginPage},
 		{"repeat", &out.Repeat},
 		{"loopText", &out.LoopText},
+		{"animationsDisabled", &out.AnimationsDisabled},
 		{"autoScroll", &out.AutoScroll},
 		{"pauseOnHover", &out.PauseOnHover},
 		{"pauseOnClick", &out.PauseOnClick},

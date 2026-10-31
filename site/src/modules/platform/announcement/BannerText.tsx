@@ -15,8 +15,14 @@ import {
 	type PictureEffect,
 	type PictureFit,
 } from "#/api/platform";
+import { AnnouncementImage } from "./AnnouncementImage";
 import { useBannerClock } from "./bannerClock";
 import { bannerFontStack } from "./bannerFonts";
+import { useAnnouncementImage } from "./useAnnouncementImage";
+import {
+	AnnouncementMotionDisabled,
+	useAnnouncementMotion,
+} from "./useAnnouncementMotion";
 import "./bannerCrawl.css";
 import "./bannerFx.css";
 import "./bannerLibraryFx.css";
@@ -322,7 +328,7 @@ const renderNodes = (
 					return null;
 				}
 				return (
-					<img
+					<AnnouncementImage
 						key={key}
 						src={node.src}
 						alt={node.alt}
@@ -347,7 +353,7 @@ const imagesOf = (nodes: InlineNode[]): { src: string; alt: string }[] =>
 	);
 
 /** A picture on the banner's screen, behind the text, and how it fills the screen. */
-export type ScreenPicture = { src: string; alt: string; fit: PictureFit };
+type ScreenPicture = { src: string; alt: string; fit: PictureFit };
 
 /**
  * A Markdown message's pictures: its images given a fit (Insert picture),
@@ -395,10 +401,14 @@ const cssUrl = (src: string) => `url("${src.replace(/["\\\n\r]/g, "")}")`;
 export const PictureScreen: React.FC<{
 	pictures: ScreenPicture[];
 	effect?: PictureEffect;
-}> = ({ pictures, effect }) => {
+}> = ({ pictures, effect: requestedEffect }) => {
+	const motion = useAnnouncementMotion();
+	const effect = motion.effects ? requestedEffect : "none";
+	const image = useAnnouncementImage(pictures[0]?.src ?? "");
 	const rippleId = useId();
 	const lead = pictures[0];
-	const fit = lead.fit;
+	const fit = lead?.fit;
+	if (!lead) return null;
 	if (effect === "roller" || (effect === undefined && fit === "span")) {
 		return (
 			<PictureRoll
@@ -420,7 +430,7 @@ export const PictureScreen: React.FC<{
 			aria-label={lead.alt || "Picture"}
 			data-testid="announcement-picture"
 			style={{
-				backgroundImage: cssUrl(lead.src),
+				backgroundImage: image ? cssUrl(image) : undefined,
 				...(effect === "ripple" ? { filter: `url(#${rippleId})` } : {}),
 			}}
 		>
@@ -504,7 +514,7 @@ const PictureRoll: React.FC<{
 			>
 				{[0, 1].flatMap((copy) =>
 					pictures.map((p) => (
-						<img
+						<AnnouncementImage
 							key={`${copy}-${p.src}`}
 							src={p.src}
 							alt=""
@@ -723,6 +733,7 @@ type BannerTextProps = {
 		| "picture"
 		| "pictureFit"
 		| "pictureEffect"
+		| "animationsDisabled"
 	>;
 	/** Plays the banner's text effect (a remount plays it again). */
 	animate?: boolean;
@@ -737,12 +748,23 @@ type BannerTextProps = {
  * live countdowns and pictures, and an optional link. A lead-in that carries
  * custom colours is not shown (the banner is drawn in those colours instead).
  */
-export const BannerText: React.FC<BannerTextProps> = ({
+export const BannerText: React.FC<BannerTextProps> = (props) => (
+	<AnnouncementMotionDisabled.Provider
+		value={props.banner.animationsDisabled === true}
+	>
+		<BannerTextContent {...props} />
+	</AnnouncementMotionDisabled.Provider>
+);
+
+const BannerTextContent: React.FC<BannerTextProps> = ({
 	banner,
-	animate = false,
-	loop = false,
+	animate: requestedAnimate = false,
+	loop: requestedLoop = false,
 	className,
 }) => {
+	const motion = useAnnouncementMotion(banner.animationsDisabled);
+	const animate = requestedAnimate && motion.effects;
+	const loop = requestedLoop && motion.effects;
 	const plain = banner.markdown === false;
 	const message: InlineNode[] = plain
 		? banner.message

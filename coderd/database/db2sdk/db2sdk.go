@@ -14,7 +14,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hashicorp/hcl/v2"
-	"github.com/sqlc-dev/pqtype"
 	"golang.org/x/xerrors"
 	"tailscale.com/tailcfg"
 
@@ -1050,33 +1049,6 @@ func AgentFirewallLogs(logs []database.BoundaryLog) []codersdk.AgentFirewallLog 
 	return results
 }
 
-// flattenAndSum recursively walks a JSON object and sums all numeric
-// leaf values into sums, using dot-separated keys for nested objects.
-func flattenAndSum(sums map[string]int64, prefix string, m map[string]json.RawMessage) {
-	for k, raw := range m {
-		key := k
-		if prefix != "" {
-			key = prefix + "." + k
-		}
-
-		// Try as a number first.
-		var n json.Number
-		if err := json.Unmarshal(raw, &n); err == nil {
-			if v, err := n.Int64(); err == nil {
-				sums[key] += v
-			}
-			continue
-		}
-
-		// Try as a nested object.
-		var nested map[string]json.RawMessage
-		if err := json.Unmarshal(raw, &nested); err == nil {
-			flattenAndSum(sums, key, nested)
-		}
-		// Arrays, strings, booleans, nulls are skipped.
-	}
-}
-
 func InvalidatedPresets(invalidatedPresets []database.UpdatePresetsLastInvalidatedAtRow) []codersdk.InvalidatedPreset {
 	var presets []codersdk.InvalidatedPreset
 	for _, p := range invalidatedPresets {
@@ -1089,99 +1061,11 @@ func InvalidatedPresets(invalidatedPresets []database.UpdatePresetsLastInvalidat
 	return presets
 }
 
-func jsonOrEmptyMap(rawMessage pqtype.NullRawMessage) map[string]any {
-	var m map[string]any
-	if !rawMessage.Valid {
-		return m
-	}
-
-	err := json.Unmarshal(rawMessage.RawMessage, &m)
-	if err != nil {
-		// Don't reuse m
-		return map[string]any{}
-	}
-	return m
-}
-
-func nullUUIDPtr(v uuid.NullUUID) *uuid.UUID {
-	if !v.Valid {
-		return nil
-	}
-	value := v.UUID
-	return &value
-}
-
-func nullInt64Ptr(v sql.NullInt64) *int64 {
-	if !v.Valid {
-		return nil
-	}
-	value := v.Int64
-	return &value
-}
-
 func nullInt32Ptr(n sql.NullInt32) *int32 {
 	if !n.Valid {
 		return nil
 	}
 	return &n.Int32
-}
-
-func nullStringPtr(v sql.NullString) *string {
-	if !v.Valid {
-		return nil
-	}
-	value := v.String
-	return &value
-}
-
-func nullTimePtr(v sql.NullTime) *time.Time {
-	if !v.Valid {
-		return nil
-	}
-	value := v.Time
-	return &value
-}
-
-const fallbackChatLastErrorMessage = "The chat request failed unexpectedly."
-
-// rawJSONObject deserializes a JSON object payload for debug display.
-// If the payload is malformed, it returns a map with "error" and "raw"
-// keys preserving the original content for diagnostics.  Callers that
-// consume the result programmatically should check for the "error" key.
-func rawJSONObject(raw json.RawMessage) map[string]any {
-	if len(raw) == 0 {
-		return nil
-	}
-
-	var object map[string]any
-	if err := json.Unmarshal(raw, &object); err != nil {
-		return map[string]any{
-			"error":       "malformed debug payload",
-			"parse_error": err.Error(),
-			"raw":         string(raw),
-		}
-	}
-	// Guard against JSON literal "null" which unmarshals successfully
-	// but leaves the map nil. The DB column is JSONB NOT NULL but
-	// that only rejects SQL NULL, not JSONB null.
-	if object == nil {
-		return map[string]any{}
-	}
-	return object
-}
-
-func nullRawJSONObject(raw pqtype.NullRawMessage) map[string]any {
-	if !raw.Valid {
-		return nil
-	}
-	return rawJSONObject(raw.RawMessage)
-}
-
-func nonNilStrings(values []string) []string {
-	if values == nil {
-		return []string{}
-	}
-	return values
 }
 
 // UserSecret converts a database ListUserSecretsRow (metadata only,

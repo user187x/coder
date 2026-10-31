@@ -31,6 +31,7 @@ import sys
 import threading
 import time
 import urllib.parse
+import kexec
 
 APP = os.path.dirname(os.path.abspath(__file__))
 PORT = int(os.environ.get("PORT", "8443"))
@@ -42,6 +43,7 @@ CODER_HOST = urllib.parse.urlparse(os.environ.get("CODER_ACCESS_URL", "")).hostn
 TLS_CA_SECRET = os.environ.get("TLS_CA_SECRET", "tls-ca")
 CSHA_IMAGE = os.environ.get("CODE_SERVER_HA_IMAGE", "")
 CSHA_DB_CA_SECRET = os.environ.get("CODE_SERVER_HA_DB_CA_SECRET", "")
+LOCKDOWN_IMAGE = os.environ.get("LOCKDOWN_COPY_IMAGE", "")
 STATE_TTL = 2.0
 
 CLOUD_DRIVE_MOUNT = "/mnt/cloud-drive"
@@ -75,9 +77,12 @@ def cloud_drive(state, workspace_id, owner_id):
         mode = "mount"
     else:
         mode = "offline"
-    claim = "" if mode != "mount" else ("coder-safe-%s" % owner_id if source is None else "coder-drive-src-%s" % owner_id)
+    claim = "" if mode != "mount" else ((state.get("auditClaims") or {}).get(owner_id) or
+            ("coder-safe-%s" % owner_id if source is None else "coder-drive-src-%s" % owner_id))
     peers = [] if shared else [dict({"id": "", "kind": "drive", "path": "", "item": ""}, **p)
-                               for p in (state.get("peers") or {}).get(owner_id) or []]
+                               for p in ((state.get("peers") or {}).get(owner_id) or []) +
+                                        ((state.get("workspacePeers") or {}).get(workspace_id) or [])
+                               if not p.get("workspaceId") or p["workspaceId"] == workspace_id]
     return {
         "mode": mode, "claim": claim, "peers": peers,
         "annotation": "source:%s" % (source or {}).get("path", "") if is_source else "on",
@@ -92,13 +97,8 @@ def peer_volume(claim):
 def agent_container(pod):
     """The index of the agent's container: the one given CODER_AGENT_TOKEN, else "dev", else the first."""
     containers = pod["spec"].get("containers") or []
-    for i, c in enumerate(containers):
-        if any(e.get("name") == "CODER_AGENT_TOKEN" for e in c.get("env") or []):
-            return i
-    for i, c in enumerate(containers):
-        if c.get("name") == "dev":
-            return i
-    return 0
+    selected = kexec.agent_container(pod)
+    return containers.index(selected) if selected else 0
 
 
 def home_claim(pod):
@@ -161,12 +161,19 @@ def mutated(pod, state, lockdown_sh):
         mount({"name": "ca-bundle", "mountPath": "/etc/ssl/certs/ca-certificates.crt",
                "subPath": "ca-certificates.crt", "readOnly": True})
 
+    for container in spec["containers"]:
+        if container.get("name") == "workspace-tunnel" and _named(volumes, "ca-bundle"):
+            runtime_mounts = container.setdefault("volumeMounts", [])
+            if not any(m.get("mountPath") == "/etc/ssl/certs/ca-certificates.crt" for m in runtime_mounts):
+                runtime_mounts.append({"name": "ca-bundle", "mountPath": "/etc/ssl/certs/ca-certificates.crt",
+                                       "subPath": "ca-certificates.crt", "readOnly": True})
+
     # Lock Down: before anything of the workspace runs, in the pod's network namespace (the workspace's container
     # shares it and cannot change it: no NET_ADMIN)
     if not _named(inits, "lockdown"):
         at = next((i + 1 for i, c in enumerate(inits) if c.get("name") == "trust-local-ca"), 0)
         inits.insert(at, {
-            "name": "lockdown", "image": image, "imagePullPolicy": "IfNotPresent",
+            "name": "lockdown", "image": LOCKDOWN_IMAGE or image, "imagePullPolicy": "IfNotPresent",
             "resources": {"requests": {"cpu": "1", "memory": "64Mi"}, "limits": {"cpu": "1", "memory": "64Mi"}},
             "command": ["sh", "-c", lockdown_sh, "lockdown", "file:/etc/coder-lockdown/%s" % workspace_id, CODER_HOST, ""],
             "securityContext": {"runAsUser": 0, "runAsNonRoot": False,
@@ -184,7 +191,7 @@ def mutated(pod, state, lockdown_sh):
     if USER_STORAGE and workspace_id and owner_id and not _named(volumes, "platform-info"):
         cd = cloud_drive(state.get("cloudDrive") or {}, workspace_id, owner_id)
         annotations.setdefault(ANNOTATION, cd["annotation"])
-        items = [{"id": p["id"], "owner": p.get("owner", ""), "item": p.get("item", "")}
+        items = [{"id": p["id"], "owner": p.get("name", ""), "item": p.get("item", "")}
                  for p in cd["peers"] if p.get("kind") != "drive"]
         annotations[MOUNTS_ANNOTATION] = json.dumps({
             "mode": cd["mode"], "link": STORAGE_PATH, "mount": CLOUD_DRIVE_MOUNT if cd["claim"] else "", "items": items,

@@ -55,6 +55,8 @@ type WorkspaceTerminalProps = {
 	 * shell. Without it the terminal reconnects as it always has.
 	 */
 	onExit?: () => void;
+	/** End the PTY process when this short-lived terminal is removed. */
+	terminateOnUnmount?: boolean;
 	onError?: (error: Error) => void;
 	onContentReady?: () => void;
 	reconnectionToken: string;
@@ -70,6 +72,8 @@ type WorkspaceTerminalProps = {
 	fontSize?: number;
 	/** The terminal's size in characters, whenever it changes. */
 	onResize?: (cols: number, rows: number) => void;
+	/** Additional actions appended to the terminal's Copy/Paste menu. */
+	contextMenuItems?: React.ReactNode;
 	renderer?: string;
 	backgroundColor?: string;
 	onOpenLink?: (uri: string) => void;
@@ -107,7 +111,9 @@ export const shellExited = (tail: string): boolean => {
 	return /(?:^|[\s$#%>])(?:exit|logout)$/.test(lines.at(-1) ?? "");
 };
 
-const encodeTerminalPayload = (payload: Record<string, number | string>) => {
+const encodeTerminalPayload = (
+	payload: Record<string, number | string | boolean>,
+) => {
 	return new TextEncoder().encode(JSON.stringify(payload));
 };
 
@@ -123,6 +129,7 @@ export const WorkspaceTerminal = ({
 	containerUser,
 	onStatusChange,
 	onExit,
+	terminateOnUnmount = false,
 	onError,
 	onContentReady,
 	reconnectionToken,
@@ -131,6 +138,7 @@ export const WorkspaceTerminal = ({
 	terminalFontFamily = DEFAULT_TERMINAL_FONT_FAMILY,
 	fontSize = 16,
 	onResize,
+	contextMenuItems,
 	renderer,
 	backgroundColor,
 	onOpenLink,
@@ -167,9 +175,15 @@ export const WorkspaceTerminal = ({
 	const { copyToClipboard, readFromClipboard } = useClipboard();
 
 	const [hasSelection, setHasSelection] = useState(false);
+	const [menuContainer, setMenuContainer] = useState<HTMLElement | null>(null);
 	const handleContextMenuOpenChange = (open: boolean) => {
 		if (open) {
 			setHasSelection(Boolean(terminal?.hasSelection()));
+			setMenuContainer(
+				document.fullscreenElement instanceof HTMLElement
+					? document.fullscreenElement
+					: null,
+			);
 		}
 	};
 	const copyTerminalSelection = () => {
@@ -764,11 +778,14 @@ export const WorkspaceTerminal = ({
 			for (const disposer of disposers) {
 				disposer.dispose();
 			}
+			if (terminateOnUnmount && websocket?.readyState === WebSocket.OPEN)
+				websocket.send(encodeTerminalPayload({ terminate: true }));
 			websocket?.close(1000);
 			websocketRef.current = undefined;
 		};
 	}, [
 		isVisible,
+		terminateOnUnmount,
 		agentId,
 		baseUrl,
 		containerName,
@@ -819,7 +836,7 @@ export const WorkspaceTerminal = ({
 				}
 			`}</style>
 			<ContextMenu onOpenChange={handleContextMenuOpenChange}>
-				<ContextMenuTrigger asChild disabled={isMac()}>
+				<ContextMenuTrigger asChild disabled={isMac() && !contextMenuItems}>
 					<div
 						className={cn(
 							"workspace-terminal h-full w-full flex-1 min-h-0 overflow-hidden bg-surface-tertiary",
@@ -832,6 +849,7 @@ export const WorkspaceTerminal = ({
 					/>
 				</ContextMenuTrigger>
 				<ContextMenuContent
+					container={menuContainer}
 					onCloseAutoFocus={(event) => {
 						event.preventDefault();
 						terminal?.focus();
@@ -846,6 +864,7 @@ export const WorkspaceTerminal = ({
 					<ContextMenuItem onSelect={() => void pasteIntoTerminal()}>
 						Paste
 					</ContextMenuItem>
+					{contextMenuItems}
 				</ContextMenuContent>
 			</ContextMenu>
 		</>

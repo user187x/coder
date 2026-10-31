@@ -156,3 +156,32 @@ export const TransparentStaticPicture: Story = {
 		],
 	},
 };
+
+export const AdministratorEnforcedStill: Story = {
+	args: { placement: "navbar" },
+	decorators: [
+		(Story) => (
+			<div className="flex w-[720px]">
+				<Story />
+			</div>
+		),
+	],
+	parameters: {
+		queries: [
+			{
+				key: bannerKey,
+				data: {
+					...MockBanner,
+					message: "Announcements use plain text and a still picture",
+					picture: "/pictures/usa.gif",
+					pictureFit: "cover",
+					pictureEffect: "ripple",
+					effect: "wave",
+					repeat: true,
+					animationsDisabled: true,
+					receipts: false,
+				},
+			},
+		],
+	},
+};

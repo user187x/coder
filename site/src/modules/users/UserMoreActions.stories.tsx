@@ -37,6 +37,7 @@ const meta: Meta<typeof UserMoreActions> = {
 		user: MockUserMember,
 		me: MockUserOwner.id,
 		canViewActivity: true,
+		canManageWorkspaces: true,
 		onAction: fn(),
 	},
 };

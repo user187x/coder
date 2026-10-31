@@ -1,5 +1,5 @@
-import { LiveLava } from "#/modules/platform/lava/LiveLava";
-import { useLavaImage } from "#/modules/platform/lava/useLavaImage";
+import { LiveLava } from "#/components/LavaImage/LiveLava";
+import { useLavaImage } from "#/components/LavaImage/useLavaImage";
 import { useAppearance } from "#/theme/appearance";
 import { getExternalImageStylesFromUrl } from "#/theme/externalImages";
 

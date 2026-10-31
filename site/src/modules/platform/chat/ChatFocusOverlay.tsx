@@ -13,7 +13,9 @@ const keep = (event: Event) => event.preventDefault();
  *    Acknowledge lets go of the page, Reply also opens the conversation to answer.
  * Only the dashboard: their workspaces and apps go on as they were.
  */
-export const ChatFocusOverlay: React.FC = () => {
+export const ChatFocusOverlay: React.FC<{ onReply?: () => void }> = ({
+	onReply,
+}) => {
 	const { focus } = useChatSnapshot();
 	const item = focus[0];
 	if (!item) {
@@ -68,7 +70,10 @@ export const ChatFocusOverlay: React.FC = () => {
 								</Button>
 								<Button
 									autoFocus
-									onClick={() => void acknowledgeFocus(item)}
+									onClick={() => {
+										onReply?.();
+										void acknowledgeFocus(item);
+									}}
 									data-testid="chat-focus-reply"
 								>
 									<MessageSquareIcon />
@@ -79,7 +84,10 @@ export const ChatFocusOverlay: React.FC = () => {
 					) : (
 						<button
 							type="button"
-							onClick={() => void acknowledgeFocus(item)}
+							onClick={() => {
+								onReply?.();
+								void acknowledgeFocus(item);
+							}}
 							className="flex w-full cursor-pointer flex-col gap-3 rounded-xl border border-solid border-border-primary bg-surface-primary p-6 text-left shadow-xl transition-colors hover:border-content-link focus-visible:outline focus-visible:outline-2 focus-visible:outline-content-link"
 						>
 							<span className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-content-secondary">

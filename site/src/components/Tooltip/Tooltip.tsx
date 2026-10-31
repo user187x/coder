@@ -18,8 +18,6 @@ export const Tooltip = TooltipPrimitive.Root;
 
 export const TooltipTrigger = TooltipPrimitive.Trigger;
 
-export const TooltipArrow = TooltipPrimitive.Arrow;
-
 type TooltipContentProps = React.ComponentProps<
 	typeof TooltipPrimitive.Content
 > & {

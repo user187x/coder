@@ -57,6 +57,10 @@ OPTIONS:
       --block-reverse-port-forwarding bool, $CODER_AGENT_BLOCK_REVERSE_PORT_FORWARDING (default: false)
           Block reverse port forwarding through the SSH server (ssh -R).
 
+      --block-terminal-access bool, $CODER_AGENT_BLOCK_TERMINAL_ACCESS (default: false)
+          Block SSH sessions and web terminals while allowing workspace apps and
+          startup scripts.
+
       --debug-address string, $CODER_AGENT_DEBUG_ADDRESS (default: 127.0.0.1:2113)
           The bind address to serve a debug HTTP server.
 

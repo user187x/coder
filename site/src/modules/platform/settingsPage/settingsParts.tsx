@@ -78,7 +78,7 @@ export const PressSwitch: React.FC<{
 );
 
 /** "2 Cores" → 2 / cores, "16 GB" → 16 / GB: an option's name as a tile's number and unit. */
-export const tileLabel = (name: string) => {
+const tileLabel = (name: string) => {
 	const m = /^\s*([\d.]+)\s*(.*)$/.exec(name);
 	if (!m) {
 		return { n: name, unit: "" };
@@ -90,7 +90,7 @@ export const tileLabel = (name: string) => {
 	};
 };
 
-export type TileOption = { value: string; name: string };
+type TileOption = { value: string; name: string };
 
 /** A choice as tiles (CPU, memory): each a button, the chosen one pressed. */
 export const OptionTiles: React.FC<{

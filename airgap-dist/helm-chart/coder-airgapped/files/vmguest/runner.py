@@ -93,7 +93,7 @@ def main():
     script.write_bytes(base64.b64decode(profile['agent']['init_script_base64']))
     os.chmod(script, 0o555)
     env = RUN / 'agent.env'
-    env.write_text('CODER_AGENT_TOKEN=' + profile['agent']['token'] + '\nCODER_URL=' + profile['agent']['url'] + '\n')
+    env.write_text('CODER_AGENT_TOKEN=' + profile['agent']['token'] + '\nCODER_URL=' + profile['agent']['url'] + '\nCODER_AGENT_TAILNET_LISTEN_PORT=41641\n')
     os.chmod(env, 0o600)
     bundle = RUN / 'ca-certificates.crt'
     bundle.write_bytes(pathlib.Path('/etc/ssl/certs/ca-certificates.crt').read_bytes() + b'\n' + base64.b64decode(profile['trusted_ca_pem_base64']))

@@ -24,6 +24,13 @@ RESTORE_RESERVATION = vmhome.restore_reservation
 
 class BackupTest(unittest.TestCase):
     def setUp(self):
+        certificate = tempfile.NamedTemporaryFile()
+        certificate.write(b"test service CA")
+        certificate.flush()
+        self.addCleanup(certificate.close)
+        ca_env = mock.patch.dict(os.environ, {"SERVICE_CA_FILE": certificate.name})
+        ca_env.start()
+        self.addCleanup(ca_env.stop)
         self.ws = {'id': '00000000-0000-4000-8000-000000000001', 'organization_id': 'org',
                    'owner_id': 'user', 'latest_build': {'status': 'stopped'}}
         self.current = {'vm': {'spec': {'runStrategy': 'Halted'}}, 'size': 1000000000,

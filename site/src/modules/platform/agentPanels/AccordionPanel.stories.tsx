@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn, userEvent, within } from "storybook/test";
 import { AccordionPanel } from "./AccordionPanel";
+import { AgentPanels } from "./AgentPanels";
 
 const meta: Meta<typeof AccordionPanel> = {
 	title: "modules/AccordionPanel",
@@ -35,6 +36,48 @@ export const CloseError: Story = {
 	play: async ({ canvasElement }) => {
 		await userEvent.click(
 			within(canvasElement).getByRole("button", { name: "Web Browser" }),
+		);
+	},
+};
+
+export const PanelViewMenu: Story = {
+	render: (args) => (
+		<AgentPanels
+			order={["logs", "desktop"]}
+			onReorder={fn()}
+			panels={["logs", "desktop"].map((id) => ({
+				id,
+				label: id,
+				render: (handle) => (
+					<AccordionPanel
+						{...args}
+						id={id}
+						title={id === "desktop" ? "Desktop" : "Logs"}
+						slug={id}
+						handle={handle}
+						onCloseSession={undefined}
+					/>
+				),
+			}))}
+		/>
+	),
+	play: async ({ canvasElement }) => {
+		await userEvent.pointer({
+			target: within(canvasElement).getByRole("button", {
+				name: "Desktop",
+			}),
+			keys: "[MouseRight]",
+		});
+	},
+};
+export const FocusedDesktop: Story = {
+	...PanelViewMenu,
+	play: async (context) => {
+		await PanelViewMenu.play?.(context);
+		await userEvent.click(
+			within(document.body).getByRole("menuitem", {
+				name: "Hide other panels",
+			}),
 		);
 	},
 };

@@ -430,6 +430,7 @@ const UsersTableRow: React.FC<UsersTableRowProps> = ({
 								user={user}
 								me={me}
 								canViewActivity={canViewActivity}
+								canManageWorkspaces={canManageWorkspaces}
 								oidcRoleSyncEnabled={oidcRoleSyncEnabled}
 								onAction={onAction}
 							/>

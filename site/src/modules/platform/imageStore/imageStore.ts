@@ -7,7 +7,7 @@ import {
 	type PrebakedPicture,
 } from "../pictures";
 
-export const imageStoreKey = ["platform", "image-store"] as const;
+const imageStoreKey = ["platform", "image-store"] as const;
 
 /** The pictures baked into the dashboard itself (site/static/pictures/), as the store lists pictures. */
 const asStore = (p: PrebakedPicture): StoreImage => ({

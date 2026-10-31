@@ -28,10 +28,23 @@ describe("TerminalAnswers", () => {
 		expect(answerFor("rmdir x")).toBe("nono");
 		expect(answerFor("rm -rf *")).toBe("none"); // the broken screen
 		expect(answerFor("ls")).toBe("ls");
+		expect(answerFor("health")).toBe("health");
+		expect(answerFor("HeAlTh")).toBe("health");
 		expect(answerFor("ls -la")).toBe("ls");
 		expect(answerFor("date")).toBe("date");
 		expect(answerFor("data")).toBe("date");
 		expect(answerFor("whoami")).toBe("whoami");
+		expect(answerFor("WHO")).toBe("whoami");
+		expect(answerFor("WhoAmI")).toBe("whoami");
+		for (const command of [
+			"EXIT",
+			"Close",
+			"cat hello",
+			"CAT",
+			"cd /tmp",
+			"echo noise",
+		])
+			expect(answerFor(command)).toBe("none");
 		expect(answerFor("time")).toBe("time");
 		expect(answerFor("clear")).toBe("none");
 		expect(answerFor("matrix")).toBe("none");

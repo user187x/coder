@@ -48,7 +48,7 @@ export const WithTermsOfService: Story = {
 export const AuthError: Story = {
 	args: {
 		error: mockApiError({
-			message: "Incorrect email or password.",
+			message: "Incorrect username, email, or password.",
 		}),
 		authMethods: MockAuthMethodsPasswordOnly,
 	},
@@ -57,7 +57,7 @@ export const AuthError: Story = {
 export const ExternalAuthError: Story = {
 	args: {
 		error: mockApiError({
-			message: "Incorrect email or password.",
+			message: "Incorrect username, email, or password.",
 		}),
 		authMethods: MockAuthMethodsAll,
 	},

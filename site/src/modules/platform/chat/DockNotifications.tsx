@@ -55,7 +55,7 @@ export const DockNotifications: React.FC<{
 			aria-label="Notifications"
 			className="flex min-h-0 flex-1 flex-col"
 		>
-			<div className="flex flex-wrap items-center justify-center gap-1 border-0 border-b border-solid border-border p-2 text-xs">
+			<div className="bulk-action-surface flex flex-wrap items-center justify-center gap-1 border-0 border-b border-solid border-border p-2 text-xs">
 				<span>{ids.length} selected</span>
 				<Button
 					size="sm"

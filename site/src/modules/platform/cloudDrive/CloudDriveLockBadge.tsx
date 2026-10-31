@@ -23,7 +23,7 @@ export const CloudDriveLockBadge: React.FC<{
 		!data?.disconnected.includes(workspaceId) &&
 		!data?.shared?.includes(workspaceId);
 	if (!locked) {
-		return <>{children}</>;
+		return children;
 	}
 	return (
 		<span className="relative inline-flex" data-testid="cloud-drive-lock">

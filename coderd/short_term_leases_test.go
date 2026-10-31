@@ -1,22 +1,25 @@
 package coderd_test
 
 import (
-	"github.com/coder/coder/v2/coderd"
-	"github.com/coder/coder/v2/coderd/coderdtest"
-	"github.com/coder/coder/v2/coderd/database"
-	"github.com/coder/coder/v2/coderd/database/dbauthz"
-	"github.com/coder/coder/v2/coderd/workspacequarantine"
-	"github.com/coder/coder/v2/codersdk"
-	"github.com/coder/coder/v2/testutil"
-	"github.com/coder/quartz"
-	"github.com/google/uuid"
-	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/require"
+
+	"github.com/coder/coder/v2/coderd"
+	"github.com/coder/coder/v2/coderd/coderdtest"
+	"github.com/coder/coder/v2/coderd/database"
+	"github.com/coder/coder/v2/coderd/database/dbauthz"
+	"github.com/coder/coder/v2/coderd/workspacequarantine"
+	"github.com/coder/coder/v2/coderd/workspacescheduler"
+	"github.com/coder/coder/v2/codersdk"
+	"github.com/coder/coder/v2/testutil"
+	"github.com/coder/quartz"
 )
 
 func TestShortTermLeaseAuthorization(t *testing.T) {
@@ -46,22 +49,11 @@ func TestShortTermLeaseAuthorization(t *testing.T) {
 
 func TestShortTermLeaseLifecycle(t *testing.T) {
 	t.Parallel()
-	var scheduleChecks atomic.Int32
-	scheduler := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/api/scheduler/check" {
-			scheduleChecks.Add(1)
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte(`{"allowed":false,"message":"Recurring schedule required"}`))
-			return
-		}
-		http.NotFound(w, r)
-	}))
-	t.Cleanup(scheduler.Close)
-	target, err := url.Parse(scheduler.URL)
-	require.NoError(t, err)
-	client := coderdtest.New(t, &coderdtest.Options{IncludeProvisionerDaemon: true, PlatformServiceRoutes: []coderd.PlatformServiceRoute{{PathPrefix: "/__coder-ui", Target: target}}})
+	client, db := coderdtest.NewWithDatabase(t, &coderdtest.Options{IncludeProvisionerDaemon: true})
 	owner := coderdtest.CreateFirstUser(t, client)
 	ctx := testutil.Context(t, testutil.WaitLong)
+	require.NoError(t, db.UpsertRuntimeConfig(dbauthz.AsSystemRestricted(ctx), database.UpsertRuntimeConfigParams{Key: workspacescheduler.ConfigKey, Value: `{"enabled":true,"mode":"user","ignoreAdmins":false}`}))
+
 	version := coderdtest.CreateTemplateVersion(t, client, owner.OrganizationID, nil)
 	coderdtest.AwaitTemplateVersionJobCompleted(t, client, version.ID)
 	template := coderdtest.CreateTemplate(t, client, owner.OrganizationID, version.ID, func(r *codersdk.CreateTemplateRequest) { r.Name = "browser" })
@@ -74,6 +66,10 @@ func TestShortTermLeaseLifecycle(t *testing.T) {
 	}
 	var lease codersdk.ShortTermLease
 	require.NoError(t, codersdk.ReadBodyAsJSON(res, &lease))
+	res, err = client.Request(ctx, http.MethodDelete, path+"/"+lease.UserID.String(), nil)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusConflict, res.StatusCode)
+	_ = res.Body.Close()
 	require.NotEmpty(t, lease.Token)
 	require.NotNil(t, lease.WorkspaceID)
 	require.Equal(t, 15*time.Minute, lease.ExpiresAt.Sub(lease.IssuedAt))
@@ -90,7 +86,6 @@ func TestShortTermLeaseLifecycle(t *testing.T) {
 	require.NoError(t, err)
 	require.Nil(t, leasedWorkspace.TTLMillis, "the extendable lease clock owns shutdown")
 	require.Nil(t, leasedWorkspace.AutostartSchedule)
-	require.Zero(t, scheduleChecks.Load(), "leases must not receive a recurring scheduler policy")
 
 	_, err = guest.User(ctx, codersdk.Me)
 	require.NoError(t, err)
@@ -114,6 +109,18 @@ func TestShortTermLeaseLifecycle(t *testing.T) {
 	require.NoError(t, err)
 	defer res.Body.Close()
 	require.Equal(t, http.StatusConflict, res.StatusCode)
+	res, err = client.Request(ctx, http.MethodDelete, path+"/"+lease.UserID.String(), nil)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, res.StatusCode)
+	_ = res.Body.Close()
+	res, err = client.Request(ctx, http.MethodGet, path, nil)
+	require.NoError(t, err)
+	var remaining []codersdk.ShortTermLease
+	require.NoError(t, codersdk.ReadBodyAsJSON(res, &remaining))
+	_ = res.Body.Close()
+	require.Empty(t, remaining)
+	_, err = guest.User(ctx, codersdk.Me)
+	require.Error(t, err, "removing history must not reactivate the account")
 }
 
 func TestShortTermLeaseExpiryClosesSession(t *testing.T) {

@@ -46,6 +46,20 @@ it("requires explicit dismissal for focus", async () => {
 	unmount();
 });
 
+it("requires acknowledgement for Force Focus without a countdown", async () => {
+	const user = userEvent.setup();
+	render(
+		<AnnouncementExpiryNotice
+			banner={{ ...banner, countdown: "", countdownAction: "focus" }}
+			userId="test"
+		/>,
+	);
+	await user.click(await screen.findByRole("button", { name: "Dismiss" }));
+	expect(localStorage.getItem("coder:announcement-expiry:test")).toBe(
+		`${banner.id}::focus`,
+	);
+});
+
 it("does not acknowledge an unexpired timer", async () => {
 	const user = userEvent.setup();
 	const { unmount } = render(

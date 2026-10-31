@@ -1,7 +1,7 @@
 import type { QueryClient } from "react-query";
 import { PlatformAPI, type WorkspaceTunnelPort } from "#/api/platform";
 
-export const workspaceTunnelsKey = ["platform", "workspace-tunnels"] as const;
+const workspaceTunnelsKey = ["platform", "workspace-tunnels"] as const;
 export const workspaceTunnels = (organizationId: string) => ({
 	queryKey: [...workspaceTunnelsKey, organizationId],
 	queryFn: () => PlatformAPI.getWorkspaceTunnels(organizationId),

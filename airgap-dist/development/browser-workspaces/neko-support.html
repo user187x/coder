@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Workspace browser support</title>
+<style>
+:root { color-scheme: light dark; font: 13px system-ui, sans-serif; }
+body { margin: 0; height: 100dvh; display: flex; flex-direction: column; background: #090a0d; color: #e5e7eb; }
+nav { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px; }
+button { padding: 5px 10px; border: 1px solid #525660; border-radius: 6px; color: inherit; background: transparent; cursor: pointer; }
+button[aria-pressed=true] { background: #343944; }
+p { margin: 8px; }
+iframe { width: 100%; flex: 1; min-height: 0; border: 0; }
+[hidden] { display: none; }
+</style>
+</head>
+<body>
+<nav aria-label="Running browser windows"></nav>
+<p role="status">Loading running browser windows...</p>
+<script>
+(() => {
+  const parentOrigin = document.referrer ? new URL(document.referrer).origin : null;
+  const nav = document.querySelector('nav');
+  const status = document.querySelector('[role=status]');
+  let selected = null, frame = null, control = false, disposed = false;
+  const notify = (type, extra = {}) => {
+    if (parentOrigin && window.parent !== window) window.parent.postMessage({type, ...extra}, parentOrigin);
+  };
+  const applyControl = () => {
+    if (!frame) return;
+    if (!control) frame.blur();
+    frame.inert = !control;
+    frame.style.pointerEvents = control ? 'auto' : 'none';
+  };
+  const end = () => {
+    const wasSelected = selected !== null;
+    frame?.remove();
+    frame = null;
+    selected = null;
+    if (wasSelected) notify('coder:support-ended');
+  };
+  const choose = (id) => {
+    if (selected === id) return;
+    frame?.remove();
+    selected = id;
+    frame = document.createElement('iframe');
+    frame.title = 'Shared workspace browser window';
+    frame.referrerPolicy = 'same-origin';
+    frame.src = `/sessions/${encodeURIComponent(id)}/?embed=1&existing=1&support=1`;
+    applyControl();
+    document.body.append(frame);
+    for (const button of nav.children) button.setAttribute('aria-pressed', String(button.dataset.session === id));
+    status.textContent = '';
+    status.hidden = true;
+  };
+  const receive = (event) => {
+    if (event.source === frame?.contentWindow && event.origin === location.origin && event.data?.type === 'coder:browser-exited') {
+      end();
+      return;
+    }
+    if (window.parent === window || event.source !== window.parent || event.origin !== parentOrigin ||
+        event.data?.type !== 'coder:support-control' || typeof event.data.enabled !== 'boolean') return;
+    control = event.data.enabled;
+    applyControl();
+    notify('coder:support-control-state', {enabled: control});
+  };
+  const controller = new AbortController();
+  const refresh = async () => {
+    try {
+      const response = await fetch('/sessions', {cache: 'no-store', credentials: 'same-origin', signal: controller.signal});
+      if (!response.ok) throw new Error('Unable to load browser windows.');
+      const {sessions} = await response.json();
+      if (!Array.isArray(sessions) || sessions.some(id => typeof id !== 'string' || !/^[a-zA-Z0-9_-]{1,80}$/.test(id))) throw new Error('Invalid window list.');
+      if (disposed) return;
+      if (selected && !sessions.includes(selected)) end();
+      if (nav.dataset.sessions !== JSON.stringify(sessions)) {
+        nav.replaceChildren();
+        sessions.forEach((id, index) => {
+          const button = document.createElement('button');
+          button.textContent = `Window ${index + 1}`;
+          button.dataset.session = id;
+          button.setAttribute('aria-pressed', String(selected === id));
+          button.addEventListener('click', () => choose(id));
+          nav.append(button);
+        });
+        nav.dataset.sessions = JSON.stringify(sessions);
+      }
+      status.textContent = sessions.length ? 'Choose a running browser window.' : 'No browser windows are running.';
+      status.hidden = Boolean(selected);
+    } catch (error) {
+      if (disposed) return;
+      end();
+      status.hidden = false;
+      status.textContent = 'Browser access is unavailable. Reconnect to try again.';
+    }
+  };
+  window.addEventListener('message', receive);
+  notify('coder:support-ready');
+  void refresh();
+  const timer = setInterval(refresh, 5000);
+  window.addEventListener('pagehide', () => {
+    disposed = true;
+    controller.abort();
+    clearInterval(timer);
+    window.removeEventListener('message', receive);
+    frame?.remove();
+  }, {once: true});
+})();
+</script>
+</body>
+</html>

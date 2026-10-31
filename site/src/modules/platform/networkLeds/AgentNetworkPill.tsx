@@ -10,7 +10,6 @@ import {
 	useWorkspaceLockdown,
 } from "#/modules/platform/lockdown/Lockdown";
 import { WORKSPACE_PILL } from "#/modules/platform/workspaceUptime/WorkspaceUptime";
-import { BARS } from "#/modules/resources/MetadataHistogram";
 import { useAgentNetworkMetadata } from "./agentMetadataStore";
 import { formatRate, type NetworkSample } from "./NetworkHistogram";
 import { mergeSamples, useNetworkSeed } from "./networkSeed";
@@ -28,50 +27,59 @@ const H = 16;
 export const spanText = (from: number, to: number) => {
 	const hm = (t: number) =>
 		new Date(t).toLocaleTimeString(undefined, {
-			hour: "2-digit",
+			hour: "numeric",
 			minute: "2-digit",
-			hour12: false,
+			hour12: true,
 		});
 	const hms = (t: number) =>
 		new Date(t).toLocaleTimeString(undefined, {
-			hour: "2-digit",
+			hour: "numeric",
 			minute: "2-digit",
 			second: "2-digit",
-			hour12: false,
+			hour12: true,
 		});
 	const day = new Date(from).toLocaleDateString(undefined, {
 		month: "short",
 		day: "numeric",
 	});
 	return {
-		short: `${hm(from)}–${hm(to)}`,
+		start: hm(from),
+		end: hm(to),
 		long: `${day}, ${hms(from)} – ${hms(to)}`,
 	};
 };
 
 /** What the pill shows: the last 5 minutes (the platform service keeps them, so a page opens with them). */
-export const PILL_WINDOW_MS = 300_000;
+const PILL_WINDOW_MS = 300_000;
+const PILL_BARS = 80;
 /** How often the window slides on its own (readings or not). */
-export const PILL_TICK_MS = 1000;
+const PILL_TICK_MS = 1000;
 /** Live readings this late: the minutes are asked of the platform service again (and again, while it lasts). */
-export const PILL_STALL_MS = 20_000;
+const PILL_STALL_MS = 20_000;
+
+const heatColor = (ratio: number) => {
+	if (ratio < 0.25) return "fill-content-link";
+	if (ratio < 0.5) return "fill-content-success";
+	if (ratio < 0.75) return "fill-content-warning";
+	return "fill-content-destructive";
+};
 
 /**
  * The bars of the last 5 minutes, as the metric graphs below draw theirs
- * (MetadataHistogram): BARS slots of 7.5 s, each holding its busiest reading,
+ * (MetadataHistogram): 80 slots of 3.75 s, each holding its busiest reading,
  * newest at the right, empty where nothing was read; what was received rising
  * above the middle line, what was sent hanging below it, to the busiest
  * reading shown.
  */
 export const pillBars = (samples: readonly NetworkSample[], now: number) => {
-	const span = PILL_WINDOW_MS / BARS;
+	const span = PILL_WINDOW_MS / PILL_BARS;
 	const start = now - PILL_WINDOW_MS;
 	const slots: ({ t: number; rx: number; tx: number } | undefined)[] = [];
 	for (const s of samples) {
 		if (s.t <= start || s.t > now) {
 			continue;
 		}
-		const i = Math.min(BARS - 1, Math.floor((s.t - start) / span));
+		const i = Math.min(PILL_BARS - 1, Math.floor((s.t - start) / span));
 		const cur = slots[i];
 		slots[i] = cur
 			? {
@@ -83,7 +91,7 @@ export const pillBars = (samples: readonly NetworkSample[], now: number) => {
 	}
 	const shown = slots.flatMap((v, i) => (v ? [{ ...v, i }] : []));
 	const peak = Math.max(MIN_PEAK, ...shown.flatMap((s) => [s.rx, s.tx]));
-	const slot = W / BARS;
+	const slot = W / PILL_BARS;
 	const half = H / 2 - 0.5;
 	return shown.map((s, n) => ({
 		t: s.t,
@@ -91,6 +99,8 @@ export const pillBars = (samples: readonly NetworkSample[], now: number) => {
 		width: slot * 0.7,
 		up: Math.max(0.5, (Math.min(s.rx, peak) / peak) * half),
 		down: Math.max(0.5, (Math.min(s.tx, peak) / peak) * half),
+		rxColor: heatColor(s.rx / peak),
+		txColor: heatColor(s.tx / peak),
 		latest: n === shown.length - 1,
 	}));
 };
@@ -119,6 +129,7 @@ export const AgentNetworkPill: React.FC<{
 	const locked = networkLocked(useWorkspaceLockdown(workspaceId));
 	const stopped = stoppedAt !== undefined;
 	const last = useRef<{ at: number; rx: number; tx: number } | null>(null);
+	const [lastAt, setLastAt] = useState<number | null>(null);
 	const [history, setHistory] = useState<NetworkSample[]>([]);
 	// the window's clock: it slides every second, readings or not
 	const [clock, setClock] = useState(() => Date.now());
@@ -129,8 +140,7 @@ export const AgentNetworkPill: React.FC<{
 		const id = setInterval(() => setClock(Date.now()), PILL_TICK_MS);
 		return () => clearInterval(id);
 	}, [stopped]);
-	const stalled =
-		!stopped && !locked && clock - (last.current?.at ?? 0) > PILL_STALL_MS;
+	const stalled = !stopped && !locked && clock - (lastAt ?? 0) > PILL_STALL_MS;
 	const seed = useNetworkSeed(workspaceId, agentId, stopped, stalled);
 	const value = item?.result.value ?? "";
 	const collectedAt = item?.result.collected_at ?? "";
@@ -143,6 +153,7 @@ export const AgentNetworkPill: React.FC<{
 		setHistory((h) => mergeSamples(seed.samples, h, PILL_WINDOW_MS));
 		if (seed.last && (!last.current || seed.last.at > last.current.at)) {
 			last.current = seed.last;
+			setLastAt(seed.last.at);
 		}
 	}, [seed]);
 
@@ -154,10 +165,16 @@ export const AgentNetworkPill: React.FC<{
 		}
 		const [rx, tx] = counters;
 		const prev = last.current;
-		last.current = { at, rx, tx };
-		if (!prev || at <= prev.at) {
+		if (!prev) {
+			last.current = { at, rx, tx };
+			setLastAt(at);
 			return;
 		}
+		if (at <= prev.at) {
+			return;
+		}
+		last.current = { at, rx, tx };
+		setLastAt(at);
 		const seconds = (at - prev.at) / 1000;
 		// counters restart with the workspace: a drop is no traffic
 		setHistory((h) =>
@@ -179,6 +196,7 @@ export const AgentNetworkPill: React.FC<{
 	useEffect(() => {
 		if (locked) {
 			last.current = null;
+			setLastAt(null);
 			setHistory([]);
 		}
 	}, [locked]);
@@ -223,6 +241,14 @@ export const AgentNetworkPill: React.FC<{
 						stopped && "opacity-60 grayscale",
 					)}
 				>
+					{!locked && (
+						<span
+							data-testid="agent-network-start"
+							className="shrink-0 text-[10px] leading-none tabular-nums"
+						>
+							{span.start}
+						</span>
+					)}
 					<svg
 						viewBox={`0 0 ${W} ${H}`}
 						preserveAspectRatio="none"
@@ -249,7 +275,7 @@ export const AgentNetworkPill: React.FC<{
 									height={b.up}
 									rx={0.75}
 									opacity={b.latest ? 1 : 0.7}
-									className="fill-content-success"
+									className={b.rxColor}
 								/>
 								<rect
 									x={b.x}
@@ -258,7 +284,7 @@ export const AgentNetworkPill: React.FC<{
 									height={b.down}
 									rx={0.75}
 									opacity={b.latest ? 1 : 0.7}
-									className="fill-content-link"
+									className={b.txColor}
 								/>
 							</g>
 						))}
@@ -268,7 +294,7 @@ export const AgentNetworkPill: React.FC<{
 							data-testid="agent-network-span"
 							className="shrink-0 text-[10px] leading-none tabular-nums"
 						>
-							{span.short}
+							{span.end}
 						</span>
 					)}
 				</span>

@@ -1,8 +1,19 @@
-import { act, screen, waitFor, within } from "@testing-library/react";
+import {
+	act,
+	renderHook,
+	screen,
+	waitFor,
+	within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, Outlet } from "react-router";
 import { API } from "#/api/api";
-import { type ChatMessage, type ChatState, PlatformAPI } from "#/api/platform";
+import {
+	type ChatMessage,
+	type ChatState,
+	PlatformAPI,
+	type UserUIPreferences,
+} from "#/api/platform";
 import { MockNotification } from "#/testHelpers/entities";
 import { renderWithRouter } from "#/testHelpers/renderHelpers";
 import { ChatDock } from "./ChatDock";
@@ -14,6 +25,7 @@ import {
 	markRead,
 	openChatWith,
 	setDockMode,
+	useChatSnapshot,
 } from "./chatStore";
 import { CHAT_CONSOLE_PAGE } from "./consolePlaces";
 
@@ -50,9 +62,18 @@ const chatState: ChatState = {
 };
 
 // The dock runs on the real chat store: booted once for the file (an admin), its mode put back after each test.
-const renderDock = () => {
+let deliverPoll: (
+	result: Awaited<ReturnType<typeof PlatformAPI.pollChat>>,
+) => void;
+const renderDock = (preferences: UserUIPreferences = {}) => {
+	vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue(preferences);
 	vi.spyOn(PlatformAPI, "getChatState").mockResolvedValue(chatState);
-	vi.spyOn(PlatformAPI, "pollChat").mockReturnValue(new Promise(() => {}));
+	vi.spyOn(PlatformAPI, "pollChat").mockImplementation(
+		() =>
+			new Promise((resolve) => {
+				deliverPoll = resolve;
+			}),
+	);
 	vi.spyOn(PlatformAPI, "chatActivity").mockResolvedValue({ ok: true });
 	vi.spyOn(PlatformAPI, "markChatRead").mockResolvedValue({ ok: true });
 	vi.spyOn(PlatformAPI, "getChatMessages").mockImplementation(async (peer) => ({
@@ -129,6 +150,45 @@ describe("ChatDock: the bar, the raised window, the side panel and full screen",
 		);
 	});
 
+	it("keeps a resized window open when pinned, saves the option, and still minimizes manually", async () => {
+		const user = userEvent.setup();
+		const preferences = {
+			chat_size: { width: 360, height: 280 },
+			chat_keep_open: true,
+		};
+		const save = vi
+			.spyOn(PlatformAPI, "setUserUIPreferences")
+			.mockImplementation(async (patch) => ({ ...preferences, ...patch }));
+		renderDock(preferences);
+		const { result } = renderHook(() => useChatSnapshot());
+		await raise(user);
+		await user.click(screen.getByText("Workspaces"));
+		expect(result.current.dockMode).toBe("window");
+		await user.click(screen.getByRole("button", { name: "Minimize" }));
+		expect(result.current.dockMode).toBe("bar");
+		await raise(user);
+		await user.click(screen.getByRole("button", { name: "Keep chat open" }));
+		await waitFor(() =>
+			expect(save).toHaveBeenCalledWith({ chat_keep_open: false }),
+		);
+		await user.click(screen.getByText("Workspaces"));
+		expect(result.current.dockMode).toBe("bar");
+		await user.pointer({
+			target: screen.getByRole("region", { name: "Chats" }),
+			keys: "[MouseRight]",
+		});
+		await user.click(
+			screen.getByRole("menuitemcheckbox", { name: "Keep chat open" }),
+		);
+		await waitFor(() =>
+			expect(save).toHaveBeenLastCalledWith({ chat_keep_open: true }),
+		);
+		await user.keyboard("{Escape}");
+		await raise(user);
+		await user.click(screen.getByText("Workspaces"));
+		expect(result.current.dockMode).toBe("window");
+	});
+
 	it("hides the bar into a remembered squircle and restores its conversation draft", async () => {
 		const user = userEvent.setup();
 		const send = vi.spyOn(PlatformAPI, "sendChatMessage").mockResolvedValue({
@@ -137,7 +197,7 @@ describe("ChatDock: the bar, the raised window, the side panel and full screen",
 		vi.spyOn(PlatformAPI, "sendChatTyping").mockResolvedValue({ ok: true });
 		renderDock();
 		const raised = await raise(user);
-		await user.click(within(raised).getByRole("button", { name: /ann/ }));
+		await user.click(within(raised).getByRole("button", { name: /^ann/ }));
 		await user.type(
 			await screen.findByRole("textbox", { name: "Message ann" }),
 			"draft kept",
@@ -227,7 +287,7 @@ describe("ChatDock: the bar, the raised window, the side panel and full screen",
 		await user.click(within(await raise(user)).getByTestId("chat-mode-attach"));
 		const side = screen.getByTestId("chat-side-panel");
 
-		await user.click(within(side).getByRole("button", { name: /ann/ }));
+		await user.click(within(side).getByRole("button", { name: /^ann/ }));
 		await within(side).findByRole("log", { name: "Messages with ann" });
 		expect(screen.queryByRole("dialog", { name: "Chat with ann" })).toBeNull();
 		expect(PlatformAPI.getChatMessages).toHaveBeenCalledWith("ann");
@@ -242,7 +302,7 @@ describe("ChatDock: the bar, the raised window, the side panel and full screen",
 		const user = userEvent.setup();
 		renderDock();
 		const raised = await raise(user);
-		await user.click(within(raised).getByRole("button", { name: /bob/ }));
+		await user.click(within(raised).getByRole("button", { name: /^bob/ }));
 		await within(screen.getByTestId("chat-window-raised")).findByRole(
 			"textbox",
 			{ name: "Message bob" },
@@ -336,7 +396,7 @@ describe("ChatDock: the bar, the raised window, the side panel and full screen",
 		renderDock();
 		await user.click(within(await raise(user)).getByTestId("chat-mode-attach"));
 		const side = screen.getByTestId("chat-side-panel");
-		await user.click(within(side).getByRole("button", { name: /ann/ }));
+		await user.click(within(side).getByRole("button", { name: /^ann/ }));
 		await within(side).findByRole("log", { name: "Messages with ann" });
 	});
 });
@@ -426,3 +486,121 @@ it("clears the inbox through the Notifications tab context menu after confirmati
 	await act(() => setDockMode("bar"));
 	vi.restoreAllMocks();
 });
+
+it.each(["left", "top"])(
+	"keeps the %s edge stable after middle-drag and can restore automatic placement",
+	async (edge) => {
+		const intervals = vi.spyOn(window, "setInterval");
+		const save = vi
+			.spyOn(PlatformAPI, "setUserUIPreferences")
+			.mockImplementation(async (settings) => settings);
+		const user = userEvent.setup();
+		renderDock();
+		const bar = await screen.findByRole("button", { name: "Chats" });
+		const region = screen.getByRole("region", { name: "Chats" });
+		vi.spyOn(region, "getBoundingClientRect").mockImplementation(() => {
+			const left = region.style.left
+				? Number.parseFloat(region.style.left)
+				: 700;
+			const top = region.style.top ? Number.parseFloat(region.style.top) : 600;
+			// Fixed elements with opposing horizontal anchors stretch instead of shrink-wrapping.
+			const width =
+				region.style.left && region.style.right !== "auto"
+					? 1200 - left - 16
+					: 300;
+			return new DOMRect(left, top, width, 46);
+		});
+		const destination = edge === "left" ? { x: 10, y: 200 } : { x: 400, y: 10 };
+		vi.spyOn(document.documentElement, "clientWidth", "get").mockReturnValue(
+			1200,
+		);
+		await user.pointer([
+			{ keys: "[MouseMiddle>]", target: bar, coords: { x: 700, y: 650 } },
+			{ target: bar, coords: destination },
+			{ keys: "[/MouseMiddle]", target: bar, coords: destination },
+		]);
+		await waitFor(() =>
+			expect(save).toHaveBeenCalledWith({
+				chat_position: expect.objectContaining({ edge }),
+			}),
+		);
+		const saved = save.mock.calls[0][0];
+		await act(() => {
+			const measure = intervals.mock.calls
+				.filter(([, delay]) => delay === 500)
+				.at(-1)?.[0];
+			if (typeof measure === "function") {
+				for (let index = 0; index < 5; index++) measure();
+			}
+		});
+		await user.pointer([
+			{ keys: "[MouseMiddle>]", target: bar, coords: destination },
+			{ keys: "[/MouseMiddle]", target: bar, coords: destination },
+		]);
+		await waitFor(() => expect(save).toHaveBeenLastCalledWith(saved));
+		await user.pointer({ keys: "[MouseRight]", target: bar });
+		await user.click(
+			await screen.findByRole("menuitem", { name: "Reset chat position" }),
+		);
+		await waitFor(() =>
+			expect(save).toHaveBeenLastCalledWith({ chat_position: null }),
+		);
+		vi.restoreAllMocks();
+	},
+);
+
+it("hides the dock through its context menu without changing the chat connection", async () => {
+	const save = vi
+		.spyOn(PlatformAPI, "setUserUIPreferences")
+		.mockImplementation(async (settings) => settings);
+	const user = userEvent.setup();
+	renderDock();
+	await user.pointer({
+		target: await screen.findByRole("button", { name: "Chats" }),
+		keys: "[MouseRight]",
+	});
+	await user.click(screen.getByRole("menuitem", { name: "Hide" }));
+	await waitFor(() => expect(save).toHaveBeenCalledWith({ chat_hidden: true }));
+});
+
+it.each(["Acknowledge", "Reply"])(
+	"handles %s when the chat dock is hidden",
+	async (action) => {
+		const ack = vi
+			.spyOn(PlatformAPI, "acknowledgeForcedChat")
+			.mockResolvedValue({ ok: true });
+		const save = vi
+			.spyOn(PlatformAPI, "setUserUIPreferences")
+			.mockImplementation(async (settings) => settings);
+		renderDock({ chat_hidden: true });
+		await waitFor(() => expect(deliverPoll).toBeTypeOf("function"));
+		await act(async () => {
+			deliverPoll({
+				messages: [],
+				typing: [],
+				cleared: [],
+				clearVersion: 0,
+				available: [ME],
+				off: [],
+				availVersion: 1,
+				focus: [
+					{
+						group: { id: "ann", username: "ann", name: "" },
+						message: message(37, "ann", ME),
+						forced: true,
+					},
+				],
+				focusVersion: 2,
+			});
+		});
+		await userEvent.click(await screen.findByRole("button", { name: action }));
+		await waitFor(() => expect(ack).toHaveBeenCalledWith(37));
+		if (action === "Reply") {
+			await waitFor(() =>
+				expect(save).toHaveBeenCalledWith({ chat_hidden: false }),
+			);
+		} else {
+			expect(save).not.toHaveBeenCalled();
+		}
+	},
+);

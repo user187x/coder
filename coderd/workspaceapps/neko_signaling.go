@@ -2,17 +2,19 @@ package workspaceapps
 
 import (
 	"encoding/json"
-	"errors"
 	"net/netip"
 	"strconv"
 	"strings"
 
+	"golang.org/x/xerrors"
+
 	"github.com/coder/coder/v2/coderd/workspaceapps/medialease"
 )
 
+//nolint:revive // This boolean represents the externally supplied policy state.
 func rewriteNekoSignal(raw []byte, credentials medialease.Credentials, relay, peer netip.AddrPort, toBrowser bool) ([]byte, bool, error) {
 	if len(raw) > 128*1024 {
-		return nil, false, errors.New("neko signaling exceeds its bound")
+		return nil, false, xerrors.New("neko signaling exceeds its bound")
 	}
 	var message map[string]json.RawMessage
 	if err := json.Unmarshal(raw, &message); err != nil {
@@ -20,7 +22,7 @@ func rewriteNekoSignal(raw []byte, credentials medialease.Credentials, relay, pe
 	}
 	var event string
 	if err := json.Unmarshal(message["event"], &event); err != nil || event == "" {
-		return nil, false, errors.New("neko event is invalid")
+		return nil, false, xerrors.New("neko event is invalid")
 	}
 	if !strings.HasPrefix(event, "signal/") {
 		return raw, true, nil
@@ -32,7 +34,7 @@ func rewriteNekoSignal(raw []byte, credentials medialease.Credentials, relay, pe
 	switch event {
 	case "signal/provide":
 		if !toBrowser {
-			return nil, false, errors.New("browser cannot provide Neko server configuration")
+			return nil, false, xerrors.New("browser cannot provide Neko server configuration")
 		}
 		ice, err := json.Marshal([]map[string]any{{"urls": []string{credentials.URL}, "username": credentials.Username, "credential": credentials.Password}})
 		if err != nil {
@@ -69,7 +71,7 @@ func rewriteNekoSignal(raw []byte, credentials medialease.Credentials, relay, pe
 			return nil, false, nil
 		}
 	default:
-		return nil, false, errors.New("unsupported Neko signaling event")
+		return nil, false, xerrors.New("unsupported Neko signaling event")
 	}
 	updated, err := json.Marshal(message)
 	return updated, true, err
@@ -85,12 +87,12 @@ func nekoCandidate(candidate string, expected netip.AddrPort, kind string) bool 
 		return false
 	}
 	port, err := strconv.ParseUint(fields[5], 10, 16)
-	return err == nil && uint16(port) == expected.Port()
+	return err == nil && port == uint64(expected.Port())
 }
 
 func filterNekoSDP(sdp string, expected netip.AddrPort, kind string) (string, error) {
 	if len(sdp) > 96*1024 || !strings.HasPrefix(sdp, "v=0") {
-		return "", errors.New("neko SDP is invalid")
+		return "", xerrors.New("neko SDP is invalid")
 	}
 	lines := strings.Split(strings.ReplaceAll(sdp, "\r\n", "\n"), "\n")
 	output := make([]string, 0, len(lines))
@@ -107,7 +109,7 @@ func filterNekoSDP(sdp string, expected netip.AddrPort, kind string) (string, er
 		case strings.HasPrefix(line, "m="):
 			fields := strings.Fields(line)
 			if len(fields) < 4 {
-				return "", errors.New("neko SDP media line is invalid")
+				return "", xerrors.New("neko SDP media line is invalid")
 			}
 			if fields[1] != "0" {
 				fields[1] = "9"

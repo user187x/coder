@@ -2,11 +2,19 @@ import type { QueryClient, UseMutationOptions } from "react-query";
 import { API } from "#/api/api";
 import { PlatformAPI } from "#/api/platform";
 import type {
+	CustomNotificationRequest,
 	NotificationPreference,
 	NotificationTemplate,
 	UpdateNotificationTemplateMethod,
 	UpdateUserNotificationPreferences,
 } from "#/api/typesGenerated";
+
+export const sendCustomNotification = (client: QueryClient) => ({
+	mutationFn: (request: CustomNotificationRequest) =>
+		API.postCustomNotification(request),
+	onSettled: () =>
+		client.invalidateQueries({ queryKey: inboxNotificationsKey }),
+});
 
 export const userNotificationPreferencesKey = (userId: string) => [
 	"users",

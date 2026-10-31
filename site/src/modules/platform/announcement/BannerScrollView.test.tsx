@@ -1,8 +1,13 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { useRef } from "react";
+import { MemoryRouter } from "react-router";
 import { BannerScrollView, RM_RF } from "./BannerScrollView";
 import { timeText } from "./DotMatrixTime";
 import { SPARKS_CLASS } from "./sparksCursor";
+
+vi.mock("#/contexts/auth/AuthProvider", () => ({
+	useAuthContext: () => ({ user: undefined }),
+}));
 
 const message =
 	"# Maintenance tonight\nThe cluster restarts at 22:00.\n\n- save your work\n- push your branches\n\n![diagram](/icon/desktop.svg) 🚀 **Thanks!**";
@@ -10,15 +15,17 @@ const message =
 const Harness: React.FC = () => {
 	const anchor = useRef<HTMLDivElement>(null);
 	return (
-		<div>
-			<div ref={anchor}>
-				<BannerScrollView
-					banner={{ id: "x", message, font: "default" }}
-					anchor={anchor}
-				/>
+		<MemoryRouter>
+			<div>
+				<div ref={anchor}>
+					<BannerScrollView
+						banner={{ id: "x", message, font: "default" }}
+						anchor={anchor}
+					/>
+				</div>
+				<p>elsewhere</p>
 			</div>
-			<p>elsewhere</p>
-		</div>
+		</MemoryRouter>
 	);
 };
 
@@ -138,7 +145,7 @@ describe("BannerScrollView", () => {
 		};
 		run("whoami");
 		expect(screen.getByTestId("announcement-scroll-whoami")).toHaveTextContent(
-			"Skynet",
+			"Not signed in",
 		);
 		run("date");
 		expect(screen.getByTestId("announcement-scroll-date").textContent).toMatch(
@@ -279,7 +286,11 @@ describe("BannerScrollView", () => {
 				</div>
 			);
 		};
-		render(<Colored />);
+		render(
+			<MemoryRouter>
+				<Colored />
+			</MemoryRouter>,
+		);
 		fireEvent.click(screen.getByTestId("announcement-scroll-toggle"));
 		const view = screen.getByTestId("announcement-scroll-view");
 		expect(view.style.getPropertyValue("--banner-scroll-screen")).toBe(

@@ -10,6 +10,7 @@ import {
 	getDisplayWorkspaceTemplateName,
 	getMatchingAgentOrFirst,
 	getWorkspaceAgents,
+	getWorkspaceRestartReasons,
 	isWorkspaceOn,
 	workspaceAgentNeedsUpdate,
 } from "./workspace";
@@ -270,4 +271,54 @@ describe("workspaceAgentNeedsUpdate", () => {
 			).toBe(expected);
 		},
 	);
+});
+
+describe("getWorkspaceRestartReasons", () => {
+	it("lists template changes and exact versions for each agent needing an update", () => {
+		const workspace = buildWorkspace([
+			[
+				{
+					...Mocks.MockWorkspaceAgent,
+					name: "browser",
+					version: "v1.9.0",
+					api_version: "2.12",
+				},
+				{
+					...Mocks.MockWorkspaceAgent,
+					name: "desktop",
+					version: "v2.0.0",
+					api_version: "1.0",
+				},
+				{
+					...Mocks.MockWorkspaceAgent,
+					name: "current",
+					version: "v2.0.0",
+					api_version: "2.12",
+				},
+			],
+		]);
+		expect(
+			getWorkspaceRestartReasons(
+				{ ...workspace, outdated: true },
+				"v2.0.0",
+				"2.12",
+			),
+		).toEqual([
+			`Template update available. Current version: ${workspace.latest_build.template_version_name}. Restart with updates to use the active template version.`,
+			"Agent browser: installed v1.9.0; server version v2.0.0. An agent update is available.",
+			"Agent desktop: installed v2.0.0; server version v2.0.0. Incompatible agent API 1.0; server requires API 2.12.",
+		]);
+	});
+	it("does not invent restart reasons for current or newer compatible agents", () => {
+		const workspace = buildWorkspace([
+			[{ ...Mocks.MockWorkspaceAgent, version: "v2.0.1", api_version: "2.12" }],
+		]);
+		expect(
+			getWorkspaceRestartReasons(
+				{ ...workspace, outdated: false },
+				"v2.0.0",
+				"2.12",
+			),
+		).toEqual([]);
+	});
 });

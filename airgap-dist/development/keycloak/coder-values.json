@@ -1,0 +1,22 @@
+{
+  "global": {
+    "disablePasswordAuth": "false",
+    "oidc": {
+      "issuerUrl": "https://keycloak.coder.grey-marshall.com/realms/coder",
+      "clientId": "coder",
+      "signInText": "Sign in with Keycloak",
+      "ignoreEmailVerified": "false"
+    }
+  },
+  "uiUpdates": {
+    "clientCertificates": {
+      "enabled": true,
+      "issuerSecret": "coder-client-certificate-issuer"
+    },
+    "keycloak": {
+      "enabled": true,
+      "namespace": "coder",
+      "adminSecret": "coder-keycloak-admin"
+    }
+  }
+}

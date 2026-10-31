@@ -34,6 +34,7 @@ import {
 } from "#/modules/platform/ClusterVisuals";
 import { cores, formatMs } from "./clusterFormat";
 import { groupByKind, KINDS, KindSwatch } from "./componentKinds";
+import { EntityActionsProvider, EntityContextMenu } from "./EntityActions";
 
 const OpenEntity = createContext<(ref: EntityRef) => void>(() => {});
 
@@ -58,30 +59,34 @@ export const EntityProvider: React.FC<{ children: React.ReactNode }> = ({
 
 	return (
 		<OpenEntity.Provider value={open}>
-			{children}
-			<Drawer
-				open={current !== undefined}
-				onOpenChange={(next) => {
-					if (!next) {
-						setStack([]);
-					}
-				}}
-			>
-				<DrawerContent
-					className="w-full overflow-y-auto bg-surface-primary sm:max-w-xl"
-					data-testid="entity-details"
+			<EntityActionsProvider onDetails={open} onOpen={() => setStack([])}>
+				{children}
+				<Drawer
+					open={current !== undefined}
+					onOpenChange={(next) => {
+						if (!next) {
+							setStack([]);
+						}
+					}}
 				>
-					{current && (
-						<EntityPanel
-							key={JSON.stringify(current)}
-							target={current}
-							onBack={
-								stack.length > 1 ? () => setStack((s) => s.slice(0, -1)) : null
-							}
-						/>
-					)}
-				</DrawerContent>
-			</Drawer>
+					<DrawerContent
+						className="w-full overflow-y-auto bg-surface-primary sm:max-w-xl"
+						data-testid="entity-details"
+					>
+						{current && (
+							<EntityPanel
+								key={JSON.stringify(current)}
+								target={current}
+								onBack={
+									stack.length > 1
+										? () => setStack((s) => s.slice(0, -1))
+										: null
+								}
+							/>
+						)}
+					</DrawerContent>
+				</Drawer>
+			</EntityActionsProvider>
 		</OpenEntity.Provider>
 	);
 };
@@ -227,14 +232,16 @@ const EntityLink: React.FC<{
 }> = ({ to, kind, children }) => {
 	const open = useOpenEntity();
 	return (
-		<button
-			type="button"
-			onClick={() => open(to)}
-			className="inline-flex max-w-full cursor-pointer items-center gap-1.5 border-0 bg-transparent p-0 text-left font-mono text-[11px] text-content-link hover:underline"
-		>
-			{kind && <KindSwatch kind={kind} />}
-			<span className="truncate">{children}</span>
-		</button>
+		<EntityContextMenu target={to}>
+			<button
+				type="button"
+				onClick={() => open(to)}
+				className="inline-flex max-w-full cursor-pointer items-center gap-1.5 border-0 bg-transparent p-0 text-left font-mono text-[11px] text-content-link hover:underline"
+			>
+				{kind && <KindSwatch kind={kind} />}
+				<span className="truncate">{children}</span>
+			</button>
+		</EntityContextMenu>
 	);
 };
 
@@ -459,13 +466,13 @@ const PodPanel: React.FC<{ pod: PodDetails }> = ({ pod: p }) => {
 					[
 						"Node",
 						p.node ? (
-							<EntityLink to={{ type: "node", name: p.node }}>
+							<EntityLink key="node" to={{ type: "node", name: p.node }}>
 								{p.node}
 							</EntityLink>
 						) : null,
 					],
 					["Pod IP", <Mono key="ip">{p.podIPs.join(", ") || p.podIP}</Mono>],
-					["Host IP", p.hostIP ? <Mono>{p.hostIP}</Mono> : null],
+					["Host IP", p.hostIP ? <Mono key="host-ip">{p.hostIP}</Mono> : null],
 					[
 						"Owner",
 						p.owner
@@ -616,7 +623,9 @@ const ServicePanel: React.FC<{ svc: ServiceDetails }> = ({ svc: s }) => {
 					["Cluster IP", <Mono key="c">{s.clusterIPs.join(", ")}</Mono>],
 					[
 						"External",
-						s.external.length ? <Mono>{s.external.join(", ")}</Mono> : null,
+						s.external.length ? (
+							<Mono key="external">{s.external.join(", ")}</Mono>
+						) : null,
 					],
 					["DNS name", <Mono key="d">{s.dns}</Mono>],
 					["Session affinity", s.sessionAffinity],
@@ -781,7 +790,11 @@ const NodePanel: React.FC<{ node: NodeDetails }> = ({ node: n }) => {
 					["Architecture", n.info.architecture],
 					[
 						"Taints",
-						n.taints.length ? <Mono>{n.taints.join(", ")}</Mono> : "None",
+						n.taints.length ? (
+							<Mono key="taints">{n.taints.join(", ")}</Mono>
+						) : (
+							"None"
+						),
 					],
 					["Images", String(n.images)],
 					["Volumes in use", String(n.volumesInUse)],
@@ -935,7 +948,9 @@ const MeshLinkPanel: React.FC<{ link: MeshLinkDetails }> = ({ link: l }) => {
 					[
 						"Error",
 						l.error ? (
-							<span className="text-content-destructive">{l.error}</span>
+							<span key="error" className="text-content-destructive">
+								{l.error}
+							</span>
 						) : null,
 					],
 				]}

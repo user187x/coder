@@ -2,7 +2,8 @@
 # The image builder offline: step9.py in a pod (builds an image with no internet, checks its report), then the built
 # image started on the node through the registry proxy (localhost:5000), checked for what the build put in it.
 set -uo pipefail
-W="$(cd "$(dirname "$0")" && pwd)"; export KUBECONFIG=$W/kubeconfig
+W="$(cd "$(dirname "$0")" && pwd)"
+export KUBECONFIG=$W/kubeconfig
 kubectl -n default delete pod step9 step9-image --ignore-not-found --wait=true >/dev/null 2>&1
 kubectl -n default delete configmap step9 --ignore-not-found >/dev/null
 kubectl -n default create configmap step9 --from-file=step9.py="$W/step9.py" --from-file=ca.crt="$W/pki/ca.crt" >/dev/null
@@ -31,9 +32,14 @@ if [[ -n "$ref" ]]; then
 	kubectl -n coder run step9-image --image="$ref" --restart=Never --command -- sh -c \
 		'test -f /usr/share/e2e-hello/ok && test -f /etc/e2e-install-ok && test -f /etc/coder-image/fips && test -f /usr/share/coder-image/home/.e2e-dotfile && command -v code-server >/dev/null && echo "built image content ok"' >/dev/null
 	kubectl -n coder wait pod/step9-image --for=jsonpath='{.status.phase}'=Succeeded --timeout=600s >/dev/null 2>&1
-	out=$(kubectl -n coder logs step9-image 2>&1); phase=$(kubectl -n coder get pod step9-image -o jsonpath='{.status.phase}')
-	if [[ "$phase" == Succeeded && "$out" == *"content ok"* ]]; then echo "PASS the node pulled and ran the built image ($ref): $out"
-	else echo "FAIL the node could not run the built image ($ref): $phase $out $(kubectl -n coder get events --field-selector involvedObject.name=step9-image -o jsonpath='{range .items[*]}{.message}{"\n"}{end}' | tail -3)"; code=1; fi
+	out=$(kubectl -n coder logs step9-image 2>&1)
+	phase=$(kubectl -n coder get pod step9-image -o jsonpath='{.status.phase}')
+	if [[ "$phase" == Succeeded && "$out" == *"content ok"* ]]; then
+		echo "PASS the node pulled and ran the built image ($ref): $out"
+	else
+		echo "FAIL the node could not run the built image ($ref): $phase $out $(kubectl -n coder get events --field-selector involvedObject.name=step9-image -o jsonpath='{range .items[*]}{.message}{"\n"}{end}' | tail -3)"
+		code=1
+	fi
 	kubectl -n coder delete pod step9-image --ignore-not-found >/dev/null
 fi
 exit "${code:-1}"

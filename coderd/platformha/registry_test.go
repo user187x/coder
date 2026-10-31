@@ -15,7 +15,6 @@ import (
 	"golang.org/x/xerrors"
 
 	"cdr.dev/slog/v3/sloggers/slogtest"
-
 	"github.com/coder/coder/v2/coderd/database/dbtestutil"
 	"github.com/coder/coder/v2/coderd/platformha"
 	"github.com/coder/coder/v2/testutil"

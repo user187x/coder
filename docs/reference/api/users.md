@@ -24,15 +24,25 @@ curl -X GET http://coder-server:8080/api/v2/short-term-lease \
 
 ```json
 {
-  "expires_at": "string",
-  "extension_requested_at": "string",
-  "issued_at": "string",
-  "organization_id": "string",
-  "revoked_at": "string",
+  "auto_remove_history": true,
+  "expires_at": "2019-08-24T14:15:22Z",
+  "extension_requested_at": "2019-08-24T14:15:22Z",
+  "issued_at": "2019-08-24T14:15:22Z",
+  "organization_id": "7c60d51f-b44e-4682-87d6-449835ea4de6",
+  "revoked_at": "2019-08-24T14:15:22Z",
+  "terms": {
+    "firewall": true,
+    "no_root": true,
+    "sandbox_only": true,
+    "website_mode": "string",
+    "websites": [
+      "string"
+    ]
+  },
   "token": "string",
   "token_id": "string",
-  "user_id": "string",
-  "workspace_id": "string"
+  "user_id": "a169451c-8525-4352-b8ca-070dd449a1a5",
+  "workspace_id": "0967198e-ec7b-4c6b-b4d3-f71244cadbe9"
 }
 ```
 
@@ -63,15 +73,25 @@ curl -X POST http://coder-server:8080/api/v2/short-term-lease/extension \
 
 ```json
 {
-  "expires_at": "string",
-  "extension_requested_at": "string",
-  "issued_at": "string",
-  "organization_id": "string",
-  "revoked_at": "string",
+  "auto_remove_history": true,
+  "expires_at": "2019-08-24T14:15:22Z",
+  "extension_requested_at": "2019-08-24T14:15:22Z",
+  "issued_at": "2019-08-24T14:15:22Z",
+  "organization_id": "7c60d51f-b44e-4682-87d6-449835ea4de6",
+  "revoked_at": "2019-08-24T14:15:22Z",
+  "terms": {
+    "firewall": true,
+    "no_root": true,
+    "sandbox_only": true,
+    "website_mode": "string",
+    "websites": [
+      "string"
+    ]
+  },
   "token": "string",
   "token_id": "string",
-  "user_id": "string",
-  "workspace_id": "string"
+  "user_id": "a169451c-8525-4352-b8ca-070dd449a1a5",
+  "workspace_id": "0967198e-ec7b-4c6b-b4d3-f71244cadbe9"
 }
 ```
 
@@ -116,15 +136,25 @@ curl -X POST http://coder-server:8080/api/v2/short-term-lease/login \
 
 ```json
 {
-  "expires_at": "string",
-  "extension_requested_at": "string",
-  "issued_at": "string",
-  "organization_id": "string",
-  "revoked_at": "string",
+  "auto_remove_history": true,
+  "expires_at": "2019-08-24T14:15:22Z",
+  "extension_requested_at": "2019-08-24T14:15:22Z",
+  "issued_at": "2019-08-24T14:15:22Z",
+  "organization_id": "7c60d51f-b44e-4682-87d6-449835ea4de6",
+  "revoked_at": "2019-08-24T14:15:22Z",
+  "terms": {
+    "firewall": true,
+    "no_root": true,
+    "sandbox_only": true,
+    "website_mode": "string",
+    "websites": [
+      "string"
+    ]
+  },
   "token": "string",
   "token_id": "string",
-  "user_id": "string",
-  "workspace_id": "string"
+  "user_id": "a169451c-8525-4352-b8ca-070dd449a1a5",
+  "workspace_id": "0967198e-ec7b-4c6b-b4d3-f71244cadbe9"
 }
 ```
 
@@ -301,6 +331,7 @@ curl -X GET http://coder-server:8080/api/v2/users/authmethods \
 ```json
 {
   "oidc": {
+    "accountUrl": "string",
     "enabled": true,
     "iconUrl": "string",
     "signInText": "string"
@@ -1526,6 +1557,8 @@ curl -X PUT http://coder-server:8080/api/v2/users/{user}/profile \
 ```json
 {
   "avatar_url": "http://example.com",
+  "current_password": "string",
+  "email": "user@example.com",
   "name": "string",
   "username": "string"
 }

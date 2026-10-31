@@ -53,17 +53,34 @@ class UIStateTest(unittest.TestCase):
         self.state.database()
 
     def test_preferences_survive_service_restart_and_remain_per_user(self):
-        settings = {'people_sort': 'manual', 'people_order': [self.other]}
+        settings = {'resource_tray_top': 56.5, 'admin_notes_tray_top': 300, 'chat_keep_open': True, 'admin_notes_tray': {'expanded': True, 'lock': 'down'}, 'people_sort': 'manual', 'people_order': [self.other], 'resource_shortcuts': ['images', 'hud'], 'resource_tray': {'expanded': False, 'lock': 'up'}, 'chat_size': {'width': 360, 'height': 280}}
         self.assertEqual(self.state.preferences(self.user, settings), settings)
         restarted = uistate.UIState(lambda: self.pool, lambda **kwargs: None)
         self.assertEqual(restarted.preferences(self.user), settings)
         self.assertEqual(restarted.preferences(self.other), {})
         self.assertEqual(restarted.preferences(self.user, {'people_sort': 'name'}), {**settings, 'people_sort': 'name'})
-        for invalid in ({'people_order': [self.other, self.other]}, {'people_order': [{}]},
-                        {'people_order': ['not-a-user-id']}, {'people_sort': 'unknown'}, {'admin': True}):
+        for invalid in ({'chat_keep_open': 'yes'}, {'people_order': [self.other, self.other]}, {'people_order': [{}]},
+                        {'people_order': ['not-a-user-id']}, {'people_sort': 'unknown'}, {'admin': True}, {'resource_shortcuts': ['hud', 'hud']}, {'resource_shortcuts': ['javascript:alert(1)']}, {'resource_shortcuts': ['a' * 65]}, {'resource_shortcuts': [1]}, {'resource_shortcuts': ['hud', 'images', 'leases', 'monitoring']}, {'resource_shortcuts': ['account']}, {'resource_shortcuts': ['workspaces']}, {'resource_shortcuts': ['templates']}):
             with self.assertRaises(ValueError):
                 self.state.preferences(self.user, invalid)
         self.assertEqual(restarted.preferences(self.user)['people_order'], [self.other])
+        for invalid_size in ({'width': 100, 'height': 240}, {'width': 320, 'height': True}, {'width': 400, 'height': float('nan')}, {'width': 320}, {'width': 9000, 'height': 400}):
+            with self.assertRaises(ValueError):
+                self.state.preferences(self.user, {'chat_size': invalid_size})
+        for invalid in (True, {}, {'expanded': 'false', 'lock': 'up'}, {'expanded': True, 'lock': 'center'}, {'expanded': True, 'lock': 'up', 'extra': 1}):
+            with self.assertRaises(ValueError):
+                self.state.preferences(self.user, {'resource_tray': invalid})
+            with self.assertRaises(ValueError):
+                self.state.preferences(self.user, {'admin_notes_tray': invalid})
+        self.assertEqual(self.state.preferences(self.user, {'resource_tray': {'expanded': True, 'lock': 'down'}})['resource_tray'], {'expanded': True, 'lock': 'down'})
+        self.assertIsNone(restarted.preferences(self.user, {'resource_tray': None})['resource_tray'])
+        for key in ('resource_tray_top', 'admin_notes_tray_top'):
+            for invalid in (-1, 16385, True, None, '20', float('nan'), float('inf')):
+                with self.assertRaises(ValueError):
+                    self.state.preferences(self.user, {key: invalid})
+            self.assertEqual(self.state.preferences(self.user, {key: 120})[key], 120)
+            self.assertEqual(restarted.preferences(self.user)[key], 120)
+
 
     def test_background_sampling_deduplicates_replicas_and_expires_old_readings(self):
         job, resource = (str(uuid.uuid4()) for _ in range(2))

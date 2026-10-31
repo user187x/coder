@@ -1,9 +1,4 @@
-import {
-	type MutationOptions,
-	mutationOptions,
-	type QueryClient,
-	type QueryOptions,
-} from "react-query";
+import type { MutationOptions, QueryClient, QueryOptions } from "react-query";
 import {
 	API,
 	type GetTemplatesOptions,
@@ -18,7 +13,6 @@ import type {
 	TemplateAccessList,
 	TemplateRole,
 	TemplateVersion,
-	UpdateTemplateMeta,
 	UsersRequest,
 } from "#/api/typesGenerated";
 import { delay } from "#/utils/delay";
@@ -64,32 +58,6 @@ export const invalidateTemplateListQueries = (queryClient: QueryClient) =>
 	queryClient.invalidateQueries({
 		queryKey: templateListsKey,
 		refetchType: "all",
-	});
-
-type UpdateTemplateMetaVariables = {
-	template: Template;
-	data: UpdateTemplateMeta;
-};
-
-export const updateTemplateMeta = (queryClient: QueryClient) =>
-	mutationOptions({
-		mutationFn: ({ template, data }: UpdateTemplateMetaVariables) =>
-			API.updateTemplateMeta(template.id, data),
-		onSuccess: async (result, { template }) => {
-			const updatedTemplate = result ?? template;
-			await Promise.all([
-				invalidateTemplateListQueries(queryClient),
-				queryClient.invalidateQueries({
-					queryKey: templateKey(template.id),
-				}),
-				queryClient.invalidateQueries({
-					queryKey: templateByNameKey(
-						updatedTemplate.organization_name,
-						updatedTemplate.name,
-					),
-				}),
-			]);
-		},
 	});
 
 /** Platform: the template's access list (its whitelist of users). */

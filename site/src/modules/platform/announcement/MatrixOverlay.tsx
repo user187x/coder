@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import "./matrixOverlay.css";
 
 /** How long the rain takes to fade once a key or the mouse is pressed (ms). */
-export const MATRIX_OUT_MS = 700;
+const MATRIX_OUT_MS = 700;
 const GLYPHS =
 	"ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ0123456789Z:.=*+-<>¦|";
 const FONT_PX = 18;

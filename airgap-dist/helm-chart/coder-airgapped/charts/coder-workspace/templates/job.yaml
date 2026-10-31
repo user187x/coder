@@ -68,7 +68,10 @@ spec:
             - |
               import json, os, ssl, sys, urllib.request
               base = os.environ["CODER_URL"].rstrip("/")
-              ctx = ssl.create_default_context(cafile="/etc/ssl/certs/coder/ca.crt") if os.path.exists("/etc/ssl/certs/coder/ca.crt") else None
+              ctx = ssl.create_default_context()
+              for ca in ("/etc/ssl/certs/coder/ca.crt", "/etc/coder-internal-ca/ca.crt"):
+                  if os.path.exists(ca):
+                      ctx.load_verify_locations(ca)
               token = os.environ.get("CODER_SESSION_TOKEN")
               if not token:
                   print("No token Secret. Logging in with coder-init-auth...")
@@ -198,6 +201,9 @@ spec:
           volumeMounts:
             - name: shared
               mountPath: /shared
+            - name: internal-ca
+              mountPath: /etc/coder-internal-ca
+              readOnly: true
             - name: tls-ca
               mountPath: /etc/ssl/certs/coder
               readOnly: true
@@ -217,6 +223,7 @@ spec:
               export CODER_ORGANIZATION={{ $vm.organizationId | quote }}
               {{- end }}
               export SSL_CERT_FILE="/etc/ssl/certs/coder/ca.crt"
+              export SSL_CERT_DIR="/etc/ssl/certs:/etc/coder-internal-ca"
               export WORKSPACE="/tmp/workspace"
 
               # Create the target workspace directory
@@ -300,6 +307,9 @@ spec:
             - name: tf-dataflow
               mountPath: /tmp/tf-dataflow
             {{- end }}
+            - name: internal-ca
+              mountPath: /etc/coder-internal-ca
+              readOnly: true
             - name: tls-ca
               mountPath: /etc/ssl/certs/coder
               readOnly: true
@@ -316,6 +326,10 @@ spec:
           configMap:
             name: {{ include "coder-workspace.prefix" $ }}-terraform-dataflow
         {{- end }}
+        - name: internal-ca
+          configMap:
+            name: coder-internal-tls
+            optional: true
         - name: tls-ca
           secret:
             secretName: {{ $.Values.secrets.tlsCa | quote }}

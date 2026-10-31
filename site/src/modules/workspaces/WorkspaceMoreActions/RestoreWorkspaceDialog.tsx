@@ -8,7 +8,7 @@ import {
 	ReplaceIcon,
 	UploadIcon,
 } from "lucide-react";
-import { type FC, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { Link } from "react-router";
 import { getErrorMessage } from "#/api/errors";
@@ -63,11 +63,11 @@ const resources = (meta: BackupMeta) =>
 
 type Source = "file" | "s3";
 
-const Choice: FC<{
+const Choice: React.FC<{
 	selected: boolean;
 	disabled?: boolean;
 	onSelect: () => void;
-	icon: FC<{ className?: string }>;
+	icon: React.FC<{ className?: string }>;
 	title: string;
 	detail: string;
 	testId: string;
@@ -95,7 +95,7 @@ const Choice: FC<{
 );
 
 /** What the chosen backup holds and the quota's answer, as asked before anything is sent. */
-const PlanSummary: FC<{ plan: RestorePlan; workspace: Workspace }> = ({
+const PlanSummary: React.FC<{ plan: RestorePlan; workspace: Workspace }> = ({
 	plan,
 	workspace,
 }) => (
@@ -152,7 +152,7 @@ const PlanSummary: FC<{ plan: RestorePlan; workspace: Workspace }> = ({
  * bytes and the user quota asked before anything is uploaded, downloaded or
  * created.
  */
-export const RestoreWorkspaceDialog: FC<{
+export const RestoreWorkspaceDialog: React.FC<{
 	workspace: Workspace;
 	open: boolean;
 	onClose: () => void;

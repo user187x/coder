@@ -346,6 +346,7 @@ func assertSecurityDefined(t *testing.T, comment SwaggerComment) {
 	authorizedSecurityTags := []string{
 		"CoderSessionToken",
 		"CoderProvisionerKey",
+		"Authorization",
 		"AIGatewayKey",
 	}
 
@@ -354,6 +355,7 @@ func assertSecurityDefined(t *testing.T, comment SwaggerComment) {
 		comment.router == "/api/v2/" ||
 		comment.router == "/api/v2/auth/scopes" ||
 		comment.router == "/api/v2/users/login" ||
+		comment.router == "/api/v2/short-term-lease/login" ||
 		comment.router == "/api/v2/users/otp/request" ||
 		comment.router == "/api/v2/users/otp/change-password" ||
 		comment.router == "/api/v2/init-script/{os}/{arch}" ||

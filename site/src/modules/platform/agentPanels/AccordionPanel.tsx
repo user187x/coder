@@ -9,7 +9,7 @@ import {
 	Volume2Icon,
 	VolumeXIcon,
 } from "lucide-react";
-import { useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { ChevronDownIcon } from "#/components/AnimatedIcons/ChevronDown";
 import { Badge } from "#/components/Badge/Badge";
 import { Button } from "#/components/Button/Button";
@@ -21,8 +21,8 @@ import { Switch } from "#/components/Switch/Switch";
 import { isTerminalExit } from "./terminalExited";
 
 const DEFAULT_HEIGHT = 640;
-export const MIN_APP_HEIGHT = 200;
-export const MAX_APP_HEIGHT = 4000;
+const MIN_APP_HEIGHT = 200;
+const MAX_APP_HEIGHT = 4000;
 /** A page that scrolls as a whole grows to fit it, up to this. */
 const MAX_FIT_HEIGHT = 2400;
 const KEY_STEP = 40;
@@ -30,7 +30,7 @@ const KEY_STEP = 40;
 const clampHeight = (height: number) =>
 	Math.min(MAX_APP_HEIGHT, Math.max(MIN_APP_HEIGHT, Math.round(height)));
 
-export type AccordionPanelProps = {
+type AccordionPanelProps = {
 	/** Its id (a popped-out window is named after it). */
 	id: string;
 	title: string;
@@ -96,6 +96,7 @@ export const AccordionPanel: React.FC<AccordionPanelProps> = ({
 	const [keepSession, setKeepSession] = useState(false);
 	const [closingSession, setClosingSession] = useState(false);
 	const [sessionError, setSessionError] = useState("");
+	const [popup, setPopup] = useState<Window | null>(null);
 	useEffect(() => {
 		const changed = () =>
 			setFullscreen(document.fullscreenElement === panelElement.current);
@@ -144,28 +145,92 @@ export const AccordionPanel: React.FC<AccordionPanelProps> = ({
 		window.addEventListener("message", audioState);
 		return () => window.removeEventListener("message", audioState);
 	}, [slug]);
+	useEffect(() => {
+		if (!["neko-browser", "novnc"].includes(slug) || !open || !loaded || popup)
+			return;
+		const iframe = box.current?.querySelector("iframe");
+		if (!iframe) return;
+
+		const fit = () => {
+			if (iframe.clientWidth <= 0 || iframe.clientHeight <= 0) return;
+			if (slug === "novnc" && !document.hasFocus()) return;
+			iframe.contentWindow?.postMessage(
+				{
+					type: slug === "novnc" ? "coder:desktop-fit" : "coder:browser-fit",
+					width: iframe.clientWidth,
+					height: iframe.clientHeight,
+				},
+				new URL(iframe.src, window.location.href).origin,
+			);
+		};
+		const observer = new ResizeObserver(fit);
+		observer.observe(iframe);
+		iframe.addEventListener("load", fit);
+		fit();
+		return () => {
+			observer.disconnect();
+			iframe.removeEventListener("load", fit);
+		};
+	}, [loaded, open, popup, slug]);
 	const userSized = useRef(height !== undefined);
-	// Its own browser window, while it is popped out.
-	const [popup, setPopup] = useState<Window | null>(null);
+
+	const bringBack = () => {
+		popup?.close();
+		setPopup(null);
+		setLoaded(true);
+		setOpen(true);
+	};
+	const closeSession = useCallback(
+		async (remove: boolean) => {
+			setSessionError("");
+			setClosingSession(true);
+			try {
+				await onCloseSession?.();
+				popup?.close();
+				setPopup(null);
+				setLoaded(false);
+				setOpen(false);
+				if (remove) onRemove();
+			} catch {
+				setSessionError("Could not close this browser session. Try again.");
+			} finally {
+				setClosingSession(false);
+			}
+		},
+		[onCloseSession, onRemove, popup],
+	);
 	useEffect(() => {
 		if (!popup) {
 			return;
 		}
-		// Closed by the user: it comes back to the panel.
+		// Closing a browser pop-out ends its session; other apps return to the panel.
 		const timer = window.setInterval(() => {
 			if (popup.closed) {
 				setPopup(null);
+				if (slug === "neko-browser") {
+					void closeSession(false);
+					return;
+				}
 				setLoaded(true);
 				setOpen(true);
 			}
 		}, 500);
 		return () => window.clearInterval(timer);
-	}, [popup]);
+	}, [popup, slug, closeSession]);
 	// A terminal in it (or popped out of it) whose shell exits: it rolls up and starts over - the next open is a new
 	// session, as the agent's Terminal drop-down does; a popped-out one closes and stays closed.
 	useEffect(() => {
 		const onMessage = (event: MessageEvent) => {
 			const frame = box.current?.querySelector("iframe")?.contentWindow;
+			const browserExited =
+				slug === "neko-browser" &&
+				event.origin === window.location.origin &&
+				[frame, popup].some((source) => source && event.source === source) &&
+				event.data?.type === "coder:browser-exited";
+			if (browserExited) {
+				void closeSession(false);
+				return;
+			}
 			if (!isTerminalExit(event, [frame, popup])) {
 				return;
 			}
@@ -178,29 +243,7 @@ export const AccordionPanel: React.FC<AccordionPanelProps> = ({
 		};
 		window.addEventListener("message", onMessage);
 		return () => window.removeEventListener("message", onMessage);
-	}, [popup]);
-	const bringBack = () => {
-		popup?.close();
-		setPopup(null);
-		setLoaded(true);
-		setOpen(true);
-	};
-	const closeSession = async (remove: boolean) => {
-		setSessionError("");
-		setClosingSession(true);
-		try {
-			await onCloseSession?.();
-			popup?.close();
-			setPopup(null);
-			setLoaded(false);
-			setOpen(false);
-			if (remove) onRemove();
-		} catch {
-			setSessionError("Could not close this browser session. Try again.");
-		} finally {
-			setClosingSession(false);
-		}
-	};
+	}, [popup, slug, closeSession]);
 	useEffect(() => {
 		if (!available) {
 			setOpen(false);
@@ -292,10 +335,11 @@ export const AccordionPanel: React.FC<AccordionPanelProps> = ({
 		<section
 			ref={panelElement}
 			className={cn(
-				"border-0 border-t border-solid border-border",
+				"agent-app-panel border-0 border-t border-solid border-border",
 				fullscreen && "bg-surface-primary",
 			)}
 			data-testid="agent-app-panel"
+			data-open={open || undefined}
 			data-kind={kind}
 			data-app={slug}
 		>
@@ -319,6 +363,7 @@ export const AccordionPanel: React.FC<AccordionPanelProps> = ({
 					<CollapsibleTrigger asChild>
 						<Button
 							variant="subtle"
+							data-panel-title
 							className="after:content-[''] after:absolute after:inset-0"
 						>
 							<ChevronDownIcon open={open} />
@@ -475,12 +520,17 @@ export const AccordionPanel: React.FC<AccordionPanelProps> = ({
 					</p>
 				)}
 				{loaded && available && (
-					<div className={cn("relative px-4 pb-6", !open && "hidden")}>
+					<div
+						data-panel-content
+						className={cn("relative px-4 pb-6", !open && "hidden")}
+					>
 						<div
 							ref={box}
 							style={{ height: fullscreen ? "calc(100dvh - 80px)" : boxHeight }}
 							className={cn(
-								"overflow-hidden rounded-2xl border border-solid border-border",
+								"agent-app-frame overflow-hidden rounded-2xl border border-solid border-border",
+								slug === "neko-browser" &&
+									"bg-surface-primary p-1 shadow-inner [&>iframe]:block [&>iframe]:rounded-xl",
 								// The pointer must not disappear into the app while resizing.
 								resizing && "select-none [&_iframe]:pointer-events-none",
 							)}

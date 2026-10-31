@@ -49,7 +49,7 @@ export const DotMatrixTime: React.FC = () => {
 			});
 		}
 		if (i < text.length - 1) {
-			columns.push({ lit: Array(ROWS).fill(false), colon: false });
+			columns.push({ lit: new Array(ROWS).fill(false), colon: false });
 		}
 	}
 	const zone =

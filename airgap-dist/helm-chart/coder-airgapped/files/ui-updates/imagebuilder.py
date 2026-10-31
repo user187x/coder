@@ -54,6 +54,7 @@ template offers its own image, these (the nodes' of its own image's repository o
 """
 
 import nodeimagepurge
+from servicetls import open_service
 import cryptopolicy
 import base64
 import datetime
@@ -97,7 +98,7 @@ WORKSPACE_TEMPLATE = os.environ.get("BUILDER_WORKSPACE_TEMPLATE", "")
 TRACKED_ID = "coder-workspace"
 TRACKED_SYNC_SECONDS = 300
 ADDONS_PATH = "usr/share/coder-workspace/addons.json"
-SERVICE_URL = os.environ.get("BUILDER_SERVICE_URL", "http://coder-ui-updates.coder.svc").rstrip("/")
+SERVICE_URL = os.environ.get("BUILDER_SERVICE_URL", "https://coder-ui-updates.coder.svc").rstrip("/")
 BUILD_CPU = os.environ.get("BUILDER_CPU", "4")
 BUILD_MEMORY = os.environ.get("BUILDER_MEMORY", "8Gi")
 BUILD_TIMEOUT = int(os.environ.get("BUILDER_TIMEOUT_MINUTES", "60") or 60)
@@ -1231,7 +1232,19 @@ def node_scan_spec(scan, init, ref, node):
     return spec
 
 
+def add_service_ca(spec, image=None):
+    image = image or TOOLS_IMAGE
+    # Give callback clients only the service CA, never the service's private key.
+    spec["volumes"].append({"name": "service-ca", "configMap": {"name": "coder-ui-updates-internal-tls"}})
+    for container in spec.get("initContainers", []) + spec["containers"]:
+        if container["image"] == image:
+            container.setdefault("env", []).append({"name": "SERVICE_CA_FILE", "value": "/run/service-ca/ca.crt"})
+            container.setdefault("volumeMounts", []).append({
+                "name": "service-ca", "mountPath": "/run/service-ca", "readOnly": True})
+
+
 def job_body(name, image_id, build_id, kind, spec):
+    add_service_ca(spec)
     labels = {"app.kubernetes.io/name": "coder-image-" + kind, "app.kubernetes.io/part-of": "coder",
               "coder-image/id": image_id, "coder-image/build": str(build_id)}
     return {"apiVersion": "batch/v1", "kind": "Job", "metadata": {"name": name, "namespace": NAMESPACE, "labels": labels},
@@ -2364,7 +2377,7 @@ def copa(url):
     def call(method, path="", body=None):
         req = urllib.request.Request(url + path, data=json.dumps(body).encode() if body is not None else None,
                                      method=method, headers={"Content-Type": "application/json"})
-        with urllib.request.urlopen(req, timeout=120) as r:
+        with open_service(req, timeout=120) as r:
             return json.loads(r.read() or b"null")
 
     plan = call("GET")
@@ -2923,7 +2936,8 @@ def _post_to(report_url):
     def post(body):
         req = urllib.request.Request(report_url, data=json.dumps(body).encode(), method="POST",
                                      headers={"Content-Type": "application/json"})
-        urllib.request.urlopen(req, timeout=60).read()
+        with open_service(req, timeout=60) as response:
+            response.read()
     return post
 
 
@@ -3083,7 +3097,7 @@ def addons_of(text_):
 
 
 def fetch_context(url, dest):
-    with urllib.request.urlopen(url, timeout=600) as r:
+    with open_service(url, timeout=600) as r:
         with tarfile.open(fileobj=r, mode="r|") as tf:
             tf.extractall(dest, filter="data")
 

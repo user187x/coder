@@ -20,8 +20,8 @@ config['live-restore'] = False
 path.write_text(json.dumps(config, indent=2) + '\n')
 PY
 mkdir -p /etc/systemd/system/lxcfs.service.d /etc/coder-workspace /usr/local/lib/coder-vm /etc/systemd/journald.conf.d
-printf '%s\n' '[Service]' 'ExecStart=' 'ExecStart=/usr/bin/lxcfs --enable-cfs /var/lib/lxcfs' > /etc/systemd/system/lxcfs.service.d/cpu-quota.conf
-printf '%s\n' '[Journal]' 'Storage=volatile' > /etc/systemd/journald.conf.d/volatile.conf
+printf '%s\n' '[Service]' 'ExecStart=' 'ExecStart=/usr/bin/lxcfs --enable-cfs /var/lib/lxcfs' >/etc/systemd/system/lxcfs.service.d/cpu-quota.conf
+printf '%s\n' '[Journal]' 'Storage=volatile' >/etc/systemd/journald.conf.d/volatile.conf
 install -m 0755 /tmp/coder-vm-source/runner.py /usr/local/sbin/coder-vm-guest
 install -m 0644 /tmp/coder-vm-source/vmprofile.py /usr/local/lib/coder-vm/vmprofile.py
 install -m 0644 /tmp/coder-vm-source/coder-workspace.service /etc/systemd/system/coder-workspace.service
@@ -38,8 +38,8 @@ install -m 0555 /tmp/coder-vm-source/launch-user.sh /usr/local/lib/coder-vm/laun
 install -m 0755 /tmp/coder-vm-source/workspace-tunnel /usr/local/lib/coder-vm/workspace-tunnel
 install -m 0644 /tmp/coder-vm-source/coder-vm-registry.service /etc/systemd/system/coder-vm-registry.service
 mkdir -p /etc/systemd/system/qemu-guest-agent.service.d /etc/modules-load.d
-printf '%s\n' '[Service]' 'UMask=0077' > /etc/systemd/system/qemu-guest-agent.service.d/private.conf
-printf '%s\n' wireguard > /etc/modules-load.d/coder-wireguard.conf
+printf '%s\n' '[Service]' 'UMask=0077' >/etc/systemd/system/qemu-guest-agent.service.d/private.conf
+printf '%s\n' wireguard >/etc/modules-load.d/coder-wireguard.conf
 modprobe wireguard
 chmod 0700 /etc/coder-workspace
 swapoff -a
@@ -47,9 +47,9 @@ sed -i '/^[^#].*[[:space:]]swap[[:space:]]/s/^/# disabled for workspace VM: /' /
 systemctl daemon-reload
 systemctl enable docker sysbox-mgr sysbox-fs lxcfs qemu-guest-agent coder-vm-registry coder-workspace
 if ! systemctl restart docker lxcfs sysbox-mgr sysbox-fs; then
-  # This phase has no workspace profile or credentials; preserve useful evidence.
-  journalctl --no-pager -n 80 -u sysbox-mgr -u sysbox-fs >&2
-  exit 1
+	# This phase has no workspace profile or credentials; preserve useful evidence.
+	journalctl --no-pager -n 80 -u sysbox-mgr -u sysbox-fs >&2
+	exit 1
 fi
 python3 -m py_compile /usr/local/sbin/coder-vm-guest /usr/local/lib/coder-vm/vmprofile.py
 command -v fusermount3 >/dev/null

@@ -50,28 +50,46 @@
 #   TRIVY_CACHE=${XDG_CACHE_HOME:-~/.cache}/coder-airgapped/trivy    trivy's databases (about 3 GB)
 #   ONLY=coder-minio,coder-registry   TEST AID: only these images (by name) - a partial release, never one to ship
 set -euo pipefail
-here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; top="$(cd "${here}/../.." && pwd)"
-bundle="${top}/helm-chart"; chart="${bundle}/coder-airgapped"; templates="${here}/release"
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+top="$(cd "${here}/../.." && pwd)"
+bundle="${top}/helm-chart"
+chart="${bundle}/coder-airgapped"
+templates="${here}/release"
 version=$(sed -n 's/^version: *//p' "${chart}/Chart.yaml")
 coder_version=$(sed -n 's/^appVersion: *"\{0,1\}\([^"]*\)"\{0,1\} *$/\1/p' "${chart}/Chart.yaml")
 out="${top}/dist/coder-fork-${version}"
 build=1 plan=0 scan=0 db_update=1 vex=()
-usage() { sed -n '2,/^set /p' "$0" | sed '$d' >&2; exit 2; }
+usage() {
+	sed -n '2,/^set /p' "$0" | sed '$d' >&2
+	exit 2
+}
 while (($#)); do
 	case "$1" in
-	--out) out="${2:?--out DIR}"; shift ;;
+	--out)
+		out="${2:?--out DIR}"
+		shift
+		;;
 	--plan) plan=1 ;;
 	--scan) scan=1 ;;
 	--no-scan) scan=0 ;;
 	--scan-only) scan=1 build=0 ;;
-	--vex) vex+=("${2:?--vex FILE}"); shift ;;
+	--vex)
+		vex+=("${2:?--vex FILE}")
+		shift
+		;;
 	--no-db-update) db_update=0 ;;
 	-h | --help) usage ;;
-	*) echo "unknown option: $1" >&2; usage ;;
+	*)
+		echo "unknown option: $1" >&2
+		usage
+		;;
 	esac
 	shift
 done
-die() { echo "ERROR: $*" >&2; exit 1; }
+die() {
+	echo "ERROR: $*" >&2
+	exit 1
+}
 out=$(realpath -m "$out")
 split_bytes=$(numfmt --from=iec "${SPLIT_SIZE:-1900M}") || die "SPLIT_SIZE: ${SPLIT_SIZE}"
 tools_image="${TOOLS_IMAGE:-docker.io/mrshll187/coder-image-tools:${version}}"
@@ -81,7 +99,13 @@ for v in "${vex[@]}"; do [[ -f "$v" ]] || die "no VEX file $v"; done
 unzip=$(command -v pigz || echo gzip)
 
 tmp=$(mktemp -d) stage="" join_dir=""
-cleanup() { rm -rf "$tmp"; [[ -z "$stage" ]] || rm -rf "$stage"; [[ -z "$join_dir" ]] || rm -rf "$join_dir"; }
+# Used by the EXIT trap.
+# shellcheck disable=SC2329
+cleanup() {
+	rm -rf "$tmp"
+	[[ -z "$stage" ]] || rm -rf "$stage"
+	[[ -z "$join_dir" ]] || rm -rf "$join_dir"
+}
 trap cleanup EXIT
 
 human() { numfmt --to=iec-i --suffix=B --format=%.1f "$1"; }
@@ -90,13 +114,24 @@ path_of() { # the reference without its source registry host (mirror-images.sh's
 	if [[ "$first" == *.* || "$first" == *:* ]]; then ref="${ref#*/}"; fi
 	echo "$ref"
 }
-name_of() { local p="${1##*/}"; echo "${p%%[:@]*}"; }
+name_of() {
+	local p="${1##*/}"
+	echo "${p%%[:@]*}"
+}
 wanted() { [[ "$only" == ",," || "$only" == *",$1,"* ]]; }
-existing() { local p="$1"; while [[ ! -e "$p" ]]; do p=$(dirname "$p"); done; echo "$p"; }
+existing() {
+	local p="$1"
+	while [[ ! -e "$p" ]]; do p=$(dirname "$p"); done
+	echo "$p"
+}
 free_bytes() { df -B1 --output=avail "$(existing "$1")" | tail -n1 | tr -d ' '; }
 sums_line() { # DIR FILE: FILE's line of DIR/SHA256SUMS written again
-	local s; s=$(cd "$1" && sha256sum "$2")
-	{ awk -v f="$2" '$2 != f' "$1/SHA256SUMS"; echo "$s"; } | sort -k2,2 >"$tmp/sums.new"
+	local s
+	s=$(cd "$1" && sha256sum "$2")
+	{
+		awk -v f="$2" '$2 != f' "$1/SHA256SUMS"
+		echo "$s"
+	} | sort -k2,2 >"$tmp/sums.new"
 	mv "$tmp/sums.new" "$1/SHA256SUMS"
 }
 
@@ -119,19 +154,31 @@ PY
 # ---------------------------------------------------------------------------------------------------------------------
 build_release() {
 	[[ "$only" == ",," ]] || echo "ONLY=${ONLY}: a partial release (test aid), not one to ship"
-	helm lint "$chart" >"$tmp/lint.log" 2>&1 || { cat "$tmp/lint.log" >&2; die "helm lint failed"; }
+	helm lint "$chart" >"$tmp/lint.log" 2>&1 || {
+		cat "$tmp/lint.log" >&2
+		die "helm lint failed"
+	}
 	echo "lint ok"
-	helm template coder "$chart" -n coder >/dev/null 2>"$tmp/render.log" || { cat "$tmp/render.log" >&2; die "helm template failed"; }
+	helm template coder "$chart" -n coder >/dev/null 2>"$tmp/render.log" || {
+		cat "$tmp/render.log" >&2
+		die "helm template failed"
+	}
 	echo "render ok"
 	helm template coder "$chart" -n coder --set global.registry=REGISTRY.invalid >"$tmp/render.yaml" 2>"$tmp/render.log" ||
-		{ cat "$tmp/render.log" >&2; die "helm template --set global.registry=REGISTRY.invalid failed"; }
+		{
+			cat "$tmp/render.log" >&2
+			die "helm template --set global.registry=REGISTRY.invalid failed"
+		}
 	# every image the chart can run: also with high availability and with its own prerequisites (Traefik, the
 	# CloudNativePG operator: global.bundled) - the release carries ours, INSTALL.md lists the public ones
 	helm template coder "$chart" -n coder --set global.registry=REGISTRY.invalid -f "${bundle}/values-ha.example.yaml" \
 		--set global.bundled.traefik=true --set global.bundled.cloudnativePG=true --set secrets.generateTls=true \
 		--set coder-workspace.dataflowTemplate.enabled=true \
 		>>"$tmp/render.yaml" 2>"$tmp/render.log" ||
-		{ cat "$tmp/render.log" >&2; die "helm template with values-ha.example.yaml and global.bundled failed"; }
+		{
+			cat "$tmp/render.log" >&2
+			die "helm template with values-ha.example.yaml and global.bundled failed"
+		}
 	# every image reference under the registry: path:tag (a trailing \ of an escaped string is not part of it)
 	grep -oE 'REGISTRY\.invalid/[A-Za-z0-9._/-]+(:[A-Za-z0-9_.-]+)?(@sha256:[0-9a-f]{64})?' "$tmp/render.yaml" |
 		sed 's|^REGISTRY\.invalid/||' | sort -u >"$tmp/rendered" || true
@@ -152,7 +199,11 @@ build_release() {
 	local a b g=""
 	while read -r a b _; do
 		[[ -z "$a" || "$a" == \#* ]] && continue
-		if [[ "$a" == \[*\] ]]; then g="${a:1:-1}"; folder[$g]="${b%/}"; continue; fi
+		if [[ "$a" == \[*\] ]]; then
+			g="${a:1:-1}"
+			folder[$g]="${b%/}"
+			continue
+		fi
 		groups+=("$g") images+=("$a") digests+=("$b")
 	done <"${bundle}/images.txt"
 
@@ -188,12 +239,20 @@ build_release() {
 			continue
 		fi
 		s=$(awk -v f="$(basename "$f")" '$2 == f {print $1}' "${dir}/SHA256SUMS" 2>/dev/null || true)
-		[[ -n "$s" ]] || { errors+=("${f#"${top}"/} is not listed in its folder's SHA256SUMS"); continue; }
-		[[ -z "${taken[${n}_${tag}]:-}" ]] || { errors+=("two images would both be ${n}_${tag}.tar.gz"); continue; }
+		[[ -n "$s" ]] || {
+			errors+=("${f#"${top}"/} is not listed in its folder's SHA256SUMS")
+			continue
+		}
+		[[ -z "${taken[${n}_${tag}]:-}" ]] || {
+			errors+=("two images would both be ${n}_${tag}.tar.gz")
+			continue
+		}
 		taken[${n}_${tag}]=1
 		src+=("$f") sum+=("$s") file+=("${n}_${tag}.tar.gz") size+=("$(stat -c %s "$f")")
-		if ((${size[-1]} > split_bytes)); then mode+=(split)
-		elif [[ "$(stat -c %d "$f")" == "$dev_out" ]]; then mode+=(link)
+		if ((${size[-1]} > split_bytes)); then
+			mode+=(split)
+		elif [[ "$(stat -c %d "$f")" == "$dev_out" ]]; then
+			mode+=(link)
 		else mode+=(copy); fi
 	done
 	if ((${#errors[@]})); then
@@ -220,24 +279,36 @@ build_release() {
 	for k in "${!sel[@]}"; do
 		total=$((total + size[k]))
 		case "${mode[$k]}" in
-		split) parts=$(((size[k] + split_bytes - 1) / split_bytes)); need=$((need + size[k])); how="split into ${parts} parts" ;;
-		copy) need=$((need + size[k])); how="copied" ;;
+		split)
+			parts=$(((size[k] + split_bytes - 1) / split_bytes))
+			need=$((need + size[k]))
+			how="split into ${parts} parts"
+			;;
+		copy)
+			need=$((need + size[k]))
+			how="copied"
+			;;
 		link) how="hard link" ;;
 		esac
 		printf '  %-62s %10s  %s\n' "${file[$k]}" "$(human "${size[$k]}")" "$how"
 	done
 	echo "  ${#sel[@]} images, $(human "$total"); to write: $(human "$need") (split size $(human "$split_bytes"))"
 	if ((${#left_out[@]})); then
-		echo "left out (ours, not in the release):"; printf '  %s\n' "${left_out[@]}"
+		echo "left out (ours, not in the release):"
+		printf '  %s\n' "${left_out[@]}"
 	fi
 	if ((${#public[@]})); then
 		echo "public images the chart runs (not in the release; your registry must have them):"
 		printf '%s\n' "${public[@]}" | sed 's/\t/  <- /; s/^/  /'
 	fi
-	((!plan)) || { echo "plan only: nothing written"; return 0; }
+	((!plan)) || {
+		echo "plan only: nothing written"
+		return 0
+	}
 
 	# room for what is written (hard links take none)
-	local avail; avail=$(free_bytes "$out")
+	local avail
+	avail=$(free_bytes "$out")
 	((avail > need + 1073741824)) ||
 		die "$(human "$avail") free at $(existing "$out"), $(human "$need") to write (+1 GiB): not enough"
 
@@ -247,8 +318,11 @@ build_release() {
 		[[ -z "$(/bin/ls -A "$out")" || -f "$out/IMAGES.txt" ]] ||
 			die "$out is not empty and not a release folder (no IMAGES.txt): choose another --out"
 	fi
-	stage="${out}.partial"; rm -rf "$stage"; mkdir -p "$stage"
-	: >"$tmp/sums"; : >"$tmp/joined"
+	stage="${out}.partial"
+	rm -rf "$stage"
+	mkdir -p "$stage"
+	: >"$tmp/sums"
+	: >"$tmp/joined"
 	local whole got list meta cfg man tags hash_pid
 	local -a plist
 	{
@@ -265,9 +339,12 @@ build_release() {
 		if [[ "${mode[$k]}" == split ]]; then
 			# one pass: tee into sha256sum (the whole archive, checked against SHA256SUMS below) and into split, whose
 			# filter writes each part and prints its checksum
-			rm -f "$tmp/fifo"; mkfifo "$tmp/fifo"
+			rm -f "$tmp/fifo"
+			mkfifo "$tmp/fifo"
 			sha256sum <"$tmp/fifo" >"$tmp/whole" &
 			hash_pid=$!
+			# split expands FILE in its child shell.
+			# shellcheck disable=SC2016
 			(cd "$stage" && tee "$tmp/fifo" <"${src[$k]}" |
 				split -b "$split_bytes" -d -a 2 --filter='tee "$FILE" | sha256sum | sed "s|-\$|$FILE|"' - "${f}.part-") \
 				>>"$tmp/sums" || die "splitting ${src[$k]#"${top}"/} failed"
@@ -285,20 +362,30 @@ build_release() {
 		fi
 		[[ "$whole" == "${sum[$k]}" ]] || die "checksum mismatch: ${src[$k]#"${top}"/} is not what its SHA256SUMS lists"
 		# the digests, from the archive's manifest.json / index.json (read through, not loaded)
-		meta="$tmp/meta"; rm -rf "$meta"; mkdir -p "$meta"
+		meta="$tmp/meta"
+		rm -rf "$meta"
+		mkdir -p "$meta"
 		(cd "$stage" && cat "${plist[@]}") | "$unzip" -dc | tar -xf - -C "$meta" manifest.json index.json 2>/dev/null || true
 		[[ -f "$meta/manifest.json" ]] || die "${f}: no manifest.json in the archive (not a docker save archive?)"
 		read -r cfg man tags < <(digests "$meta")
 		[[ "$cfg" == sha256:* ]] || die "${f}: cannot read its config digest from manifest.json"
 		[[ ",${tags}," == *",${img},"* ]] || echo "  warning: the archive is tagged ${tags}, not ${img}" >&2
-		list=$(IFS=,; echo "${plist[*]}")
+		list=$(
+			IFS=,
+			echo "${plist[*]}"
+		)
 		echo "${img}  ${list}  $(human "${size[$k]}")  ${cfg}  ${man}" >>"$stage/IMAGES.txt"
 	done
 
 	# the chart, packaged from a copy without __pycache__
-	local chart_copy="$tmp/chart/coder-airgapped"; mkdir -p "$tmp/chart"; cp -r "$chart" "$chart_copy"
+	local chart_copy="$tmp/chart/coder-airgapped"
+	mkdir -p "$tmp/chart"
+	cp -r "$chart" "$chart_copy"
 	find "$chart_copy" -name __pycache__ -type d -prune -exec rm -rf {} +
-	helm package "$chart_copy" -d "$stage" >/dev/null 2>"$tmp/package.log" || { cat "$tmp/package.log" >&2; die "helm package failed"; }
+	helm package "$chart_copy" -d "$stage" >/dev/null 2>"$tmp/package.log" || {
+		cat "$tmp/package.log" >&2
+		die "helm package failed"
+	}
 	[[ -f "$stage/coder-airgapped-${version}.tgz" ]] || die "helm package wrote no coder-airgapped-${version}.tgz"
 	# the one values file to start from (every input of the one-step install) and the high-availability overlay; the
 	# prerequisites (Traefik, the Gateway API CRDs, CloudNativePG) are in the chart (global.bundled)
@@ -312,7 +399,6 @@ build_release() {
 		echo "# saves them into this folder on a connected machine; push-images.sh then pushes them with ours."
 		((${#public[@]} == 0)) || printf '%s\n' "${public[@]}" | awk -F'\t' '{print $1 "  " $2}'
 	} >"$stage/PUBLIC-IMAGES.txt"
-
 
 	# The machine-readable inventory matches the chart and the archives actually shipped.
 	python3 - "$stage" "${bundle}/images.txt" "$version" <<'PYINVENTORY'
@@ -344,27 +430,37 @@ PYINVENTORY
 
 	# INSTALL.md from its template
 	local cnpg traefik line
-	cnpg=$(awk '$1 ~ /\/cloudnative-pg:/ {print $1; exit}' "${bundle}/images.txt"); cnpg="operator ${cnpg##*:} (\`${cnpg:-?}\`)"
-	traefik=$(awk '$1 ~ /\/traefik:/ {print $1; exit}' "${bundle}/images.txt"); traefik="Traefik ${traefik##*:} (\`${traefik:-?}\`)"
+	cnpg=$(awk '$1 ~ /\/cloudnative-pg:/ {print $1; exit}' "${bundle}/images.txt")
+	cnpg="operator ${cnpg##*:} (\`${cnpg:-?}\`)"
+	traefik=$(awk '$1 ~ /\/traefik:/ {print $1; exit}' "${bundle}/images.txt")
+	traefik="Traefik ${traefik##*:} (\`${traefik:-?}\`)"
 	while IFS= read -r line; do
 		case "$line" in
 		@PUBLIC_IMAGES@)
-			((${#public[@]} == 0)) || printf '%s\n' "${public[@]}" | awk -F'\t' '{printf "| `$REGISTRY/%s` | `%s` |\n", $1, $2}' ;;
+			((${#public[@]} == 0)) || printf '%s\n' "${public[@]}" | awk -F'\t' '{printf "| `$REGISTRY/%s` | `%s` |\n", $1, $2}'
+			;;
 		*)
-			line=${line//@VERSION@/$version}; line=${line//@CODER_VERSION@/$coder_version}
-			line=${line//@IMAGE_COUNT@/${#sel[@]}}; line=${line//@IMAGES_SIZE@/$(human "$total")}
-			line=${line//@CNPG@/$cnpg}; line=${line//@TRAEFIK@/$traefik}
-			printf '%s\n' "$line" ;;
+			line=${line//@VERSION@/$version}
+			line=${line//@CODER_VERSION@/$coder_version}
+			line=${line//@IMAGE_COUNT@/${#sel[@]}}
+			line=${line//@IMAGES_SIZE@/$(human "$total")}
+			line=${line//@CNPG@/$cnpg}
+			line=${line//@TRAEFIK@/$traefik}
+			printf '%s\n' "$line"
+			;;
 		esac
 	done <"${templates}/INSTALL.md.in" >"$stage/INSTALL.md"
 
 	# SHA256SUMS: every file (the images' from the pass above); SHA256SUMS.joined: the split archives as joined
 	if [[ -s "$tmp/joined" ]]; then sort -k2,2 "$tmp/joined" >"$stage/SHA256SUMS.joined"; fi
 	(cd "$stage" && find . -type f -printf '%P\n' | grep -vxF -f <(awk '{print $2}' "$tmp/sums") | sort |
-		xargs -d '\n' sha256sum) >>"$tmp/sums"
+		xargs -d '\n' sha256sum) >"$tmp/additional-sums"
+	cat "$tmp/additional-sums" >>"$tmp/sums"
 	sort -k2,2 "$tmp/sums" >"$stage/SHA256SUMS"
 
-	rm -rf "$out"; mv "$stage" "$out"; stage=""
+	rm -rf "$out"
+	mv "$stage" "$out"
+	stage=""
 	echo "wrote ${out}"
 }
 
@@ -539,7 +635,9 @@ scan_release() { # DIR: the CVE gate; sets gate=1 when it fails
 		vex_mounts+=(-v "$(realpath "${vex[$k]}"):/vex/${k}-$(basename "${vex[$k]}"):ro")
 		vex_args+=(--vex "/vex/${k}-$(basename "${vex[$k]}")")
 	done
-	local json="${dir}.scan"; rm -rf "$json"; mkdir -p "$json"
+	local json="${dir}.scan"
+	rm -rf "$json"
+	mkdir -p "$json"
 	: >"$tmp/scanned"
 	local img fs input base status need
 	local -a mounts parts
@@ -555,9 +653,11 @@ scan_release() { # DIR: the CVE gate; sets gate=1 when it fails
 			# trivy needs the whole archive: joined into a temporary file in the cache, removed after
 			need=$(cd "$dir" && cat "${parts[@]}" | wc -c)
 			(($(free_bytes "$db") > need + 1073741824)) || die "not enough room in ${db} to join ${base} ($(human "$need"))"
-			join_dir="${db}/join.$$"; mkdir -p "$join_dir"
+			join_dir="${db}/join.$$"
+			mkdir -p "$join_dir"
 			(cd "$dir" && cat "${parts[@]}") >"${join_dir}/${base}.tar.gz"
-			mounts+=(-v "${join_dir}:/join:ro"); input="/join/${base}.tar.gz"
+			mounts+=(-v "${join_dir}:/join:ro")
+			input="/join/${base}.tar.gz"
 		fi
 		echo "scanning ${img} ..."
 		status=ok
@@ -565,8 +665,14 @@ scan_release() { # DIR: the CVE gate; sets gate=1 when it fails
 			image --input "$input" --cache-dir /cache --cache-backend memory --scanners vuln --skip-db-update \
 			--skip-java-db-update --offline-scan --skip-version-check --disable-telemetry --no-progress --timeout 60m \
 			--format json --show-suppressed "${vex_args[@]}" </dev/null >"${json}/${base}.json" 2>"${json}/${base}.log" || status=error
-		[[ "$status" == ok ]] || { echo "  trivy failed (${json}/${base}.log):" >&2; tail -n 5 "${json}/${base}.log" >&2; }
-		if [[ -n "$join_dir" ]]; then rm -rf "$join_dir"; join_dir=""; fi
+		[[ "$status" == ok ]] || {
+			echo "  trivy failed (${json}/${base}.log):" >&2
+			tail -n 5 "${json}/${base}.log" >&2
+		}
+		if [[ -n "$join_dir" ]]; then
+			rm -rf "$join_dir"
+			join_dir=""
+		fi
 		printf '%s\t%s\t%s\n' "$img" "${json}/${base}.json" "$status" >>"$tmp/scanned"
 	done <"$dir/IMAGES.txt"
 	[[ -s "$tmp/scanned" ]] || die "no image to scan in $dir${ONLY:+ (ONLY=${ONLY})}"

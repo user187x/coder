@@ -2,13 +2,15 @@ package shorttermlease_test
 
 import (
 	"database/sql"
-	"github.com/coder/coder/v2/coderd/database"
-	"github.com/coder/coder/v2/coderd/shorttermlease"
-	"github.com/google/uuid"
-	"github.com/stretchr/testify/require"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/require"
+
+	"github.com/coder/coder/v2/coderd/database"
+	"github.com/coder/coder/v2/coderd/shorttermlease"
 )
 
 func TestAccountScope(t *testing.T) {

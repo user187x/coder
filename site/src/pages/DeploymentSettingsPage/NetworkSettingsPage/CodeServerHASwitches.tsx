@@ -7,7 +7,7 @@ import { Spinner } from "#/components/Spinner/Spinner";
 import { Switch } from "#/components/Switch/Switch";
 
 /** The template variable that runs a template's code-server as an HA instance (charts/coder-workspace main.tf). */
-export const CODE_SERVER_HA_VARIABLE = "code_server_ha";
+const CODE_SERVER_HA_VARIABLE = "code_server_ha";
 const IMPORT_POLL_MS = 2000;
 const IMPORT_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -40,7 +40,7 @@ const haTemplates = async (): Promise<HATemplate[]> => {
  * A new version of the template, its code_server_ha set, made the active one - as the template's Variables page
  * would: the active version's files and every other variable as they are. Its workspaces follow at their next start.
  */
-export const switchCodeServerHA = async ({
+const switchCodeServerHA = async ({
 	template,
 	variables,
 	on,

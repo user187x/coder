@@ -6,13 +6,28 @@
 import { cn } from "cn";
 import { MoreHorizontalIcon } from "lucide-react";
 import { NavLink } from "react-router";
+import "./Breadcrumb.css";
 
 type BreadcrumbProps = React.ComponentProps<"nav"> & {
 	separator?: React.ReactNode;
+	variant?: "default" | "connected";
 };
 
-export const Breadcrumb: React.FC<BreadcrumbProps> = ({ ...props }) => {
-	return <nav aria-label="breadcrumb" {...props} />;
+export const Breadcrumb: React.FC<BreadcrumbProps> = ({
+	variant = "default",
+	className,
+	...props
+}) => {
+	return (
+		<nav
+			aria-label="breadcrumb"
+			className={cn(
+				variant === "connected" && "breadcrumb-connected",
+				className,
+			)}
+			{...props}
+		/>
+	);
 };
 
 export const BreadcrumbList: React.FC<React.ComponentProps<"ol">> = ({

@@ -6,6 +6,9 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/google/uuid"
+	"golang.org/x/xerrors"
+
 	"github.com/coder/coder/v2/coderd/audit"
 	"github.com/coder/coder/v2/coderd/database"
 	"github.com/coder/coder/v2/coderd/httpapi"
@@ -14,8 +17,6 @@ import (
 	"github.com/coder/coder/v2/coderd/workspacequarantine"
 	"github.com/coder/coder/v2/coderd/wspubsub"
 	"github.com/coder/coder/v2/codersdk"
-	"github.com/google/uuid"
-	"golang.org/x/xerrors"
 )
 
 func quarantineSDK(row database.WorkspaceQuarantine) codersdk.WorkspaceQuarantine {
@@ -23,7 +24,7 @@ func quarantineSDK(row database.WorkspaceQuarantine) codersdk.WorkspaceQuarantin
 }
 
 // @Summary Get workspace quarantine policy
-// @ID get-workspace-quarantine
+// @ID get-workspace-quarantine-policy
 // @Security CoderSessionToken
 // @Produce json
 // @Tags Workspaces
@@ -31,7 +32,7 @@ func quarantineSDK(row database.WorkspaceQuarantine) codersdk.WorkspaceQuarantin
 // @Param workspace path string true "Workspace ID" format(uuid)
 // @Success 200 {object} codersdk.WorkspaceQuarantine
 // @Router /api/v2/organizations/{organization}/workspaces/{workspace}/quarantine [get]
-func (api *API) getWorkspaceQuarantine(rw http.ResponseWriter, r *http.Request) {
+func (api *API) workspaceQuarantineStatus(rw http.ResponseWriter, r *http.Request) {
 	ws := httpmw.WorkspaceParam(r)
 	if httpmw.OrganizationParam(r).ID != ws.OrganizationID {
 		httpapi.ResourceNotFound(rw)
@@ -51,7 +52,7 @@ func (api *API) getWorkspaceQuarantine(rw http.ResponseWriter, r *http.Request) 
 }
 
 // @Summary Change workspace quarantine policy
-// @ID update-workspace-quarantine
+// @ID change-workspace-quarantine-policy
 // @Security CoderSessionToken
 // @Accept json
 // @Produce json

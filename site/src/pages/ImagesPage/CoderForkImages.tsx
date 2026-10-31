@@ -24,7 +24,7 @@ import { TableCard } from "#/modules/platform/tableCard/TableCard";
 import { createDayString } from "#/utils/createDayString";
 import { formatSize } from "./badges";
 
-export const contentsKey = ["platform", "images", "contents"] as const;
+const contentsKey = ["platform", "images", "contents"] as const;
 
 /** The Coder fork's images: we build them, so what they hold is known precisely. */
 const OURS = "docker.io/mrshll187/";
@@ -37,7 +37,7 @@ export const useImageContents = () =>
 		staleTime: Number.POSITIVE_INFINITY,
 	});
 
-export type OurImage = {
+type OurImage = {
 	contents: ImageContents;
 	/** The very image described; else another version of it (the one the platform pins is described). */
 	exact: boolean;
@@ -70,7 +70,7 @@ export const ourImage = (
 };
 
 /** Where an image's contents open in Coder fork images (from the other tables' badges). */
-export const contentsAnchor = (repository: string) => `contents-${repository}`;
+const contentsAnchor = (repository: string) => `contents-${repository}`;
 
 /** An image the Coder fork builds. */
 export const CoderForkBadge: React.FC<{ ours: OurImage; link?: boolean }> = ({
@@ -150,7 +150,7 @@ const parts = (c: ImageContents) => ({
 });
 
 /** An image's contents as a tree: overview, configuration, programs, add-ons, packages, environments, steps. */
-export const contentsTree = (c: ImageContents): Node[] => {
+const contentsTree = (c: ImageContents): Node[] => {
 	const { addons: a, os, python } = parts(c);
 	const nodes: Node[] = [
 		{

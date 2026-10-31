@@ -90,9 +90,13 @@ import (
 //   - Added the client_session_id to TelemetryEvent.
 //   - Added client_session_id to Connection on the agent API, for logging the
 //     client's session ID in the connections table.
+//
+// API v2.13:
+//   - Added explicit termination of a reconnecting PTY on the Agent API.
+//   - No changes to the Tailnet API.
 const (
 	CurrentMajor = 2
-	CurrentMinor = 12
+	CurrentMinor = 13
 )
 
 var CurrentVersion = apiversion.New(CurrentMajor, CurrentMinor)

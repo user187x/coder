@@ -1,52 +1,78 @@
 import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "react-query";
+import { toast } from "sonner";
+import { getErrorMessage } from "#/api/errors";
+import type { UserUIPreferences } from "#/api/platform";
+import {
+	updateUserUIPreferences,
+	userUIPreferences,
+} from "#/api/queries/platform";
 
-/**
- * The order of the top bar's movable items, around the announcement banner
- * (NavbarArrange), remembered in this browser. The banner is one of them: an
- * item before it sits at the left (after the logo), one after it at the right.
- */
-export const NAVBAR_ITEMS = ["workspaces", "banner", "latency", "hud"] as const;
+export const NAVBAR_ITEMS = [
+	"logo",
+	"workspaces",
+	"banner",
+	"latency",
+	"hud",
+	"notifications",
+	"account",
+] as const;
 export type NavbarItem = (typeof NAVBAR_ITEMS)[number];
-
 const KEY = "coder-ui-navbar-order";
 const START = "coder-ui-navbar-arrange";
+export const isNavbarItem = (value: unknown): value is NavbarItem =>
+	typeof value === "string" && NAVBAR_ITEMS.some((item) => item === value);
 
-const isItem = (value: unknown): value is NavbarItem =>
-	typeof value === "string" &&
-	(NAVBAR_ITEMS as readonly string[]).includes(value);
-
-/** Every item once: the remembered order, then any it does not know, in the default order. */
+/** Keep existing positions while placing newly customizable tiles at their original edges. */
 export const normalizeOrder = (value: unknown): NavbarItem[] => {
-	const known = Array.isArray(value)
-		? value.filter((item, i) => isItem(item) && value.indexOf(item) === i)
+	const known: NavbarItem[] = Array.isArray(value)
+		? value
+				.filter(isNavbarItem)
+				.filter((item, i, items) => items.indexOf(item) === i)
 		: [];
+	if (!known.includes("logo")) known.unshift("logo");
 	return [...known, ...NAVBAR_ITEMS.filter((item) => !known.includes(item))];
 };
-
-export const readNavbarOrder = (): NavbarItem[] => {
+const readNavbarOrder = (): NavbarItem[] => {
 	try {
 		return normalizeOrder(JSON.parse(localStorage.getItem(KEY) ?? "null"));
 	} catch {
 		return [...NAVBAR_ITEMS];
 	}
 };
-
 export const useNavbarOrder = () => {
-	const [order, setOrder] = useState(readNavbarOrder);
-	const save = (next: NavbarItem[]) => {
-		setOrder(next);
-		try {
-			localStorage.setItem(KEY, JSON.stringify(next));
-		} catch {
-			// For this page only.
-		}
+	const client = useQueryClient();
+	const preferences = useQuery(userUIPreferences());
+	const [draft, setDraft] = useState<UserUIPreferences["navbar_layout"]>();
+	const layout = draft ?? preferences.data?.navbar_layout;
+	const order = layout ? normalizeOrder(layout.order) : readNavbarOrder();
+	const hidden = (layout?.hidden ?? []).filter(isNavbarItem);
+	const mutation = useMutation({
+		...updateUserUIPreferences(client),
+		onError: (error) =>
+			toast.error(getErrorMessage(error, "Could not save the top bar layout.")),
+	});
+	return {
+		order,
+		hidden,
+		save: (next: NavbarItem[], removed = hidden) =>
+			setDraft({ order: next, hidden: removed }),
+		reset: () => setDraft({ order: [...NAVBAR_ITEMS], hidden: [] }),
+		commit: (onSuccess: () => void) =>
+			mutation.mutate(
+				{ navbar_layout: { order, hidden } },
+				{
+					onSuccess: () => {
+						setDraft(undefined);
+						onSuccess();
+					},
+				},
+			),
+		saving: mutation.isPending,
 	};
-	return { order, save, reset: () => save([...NAVBAR_ITEMS]) };
 };
-
-/** Starts arranging the top bar (the user menu's "Rearrange top bar"). */
+/** Starts arranging even when the account tile is hidden. */
 export const startNavbarArrange = () => window.dispatchEvent(new Event(START));
-
 export const onNavbarArrange = (listener: () => void) => {
 	window.addEventListener(START, listener);
 	return () => window.removeEventListener(START, listener);

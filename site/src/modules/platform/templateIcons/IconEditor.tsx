@@ -23,14 +23,14 @@ import {
 	PopoverTrigger,
 } from "#/components/Popover/Popover";
 import { Spinner } from "#/components/Spinner/Spinner";
-import { ImageStoreMenu } from "../imageStore/ImageStoreMenu";
-import { fetchStoreImage } from "../imageStore/imageStore";
+import { iconNameFromFile } from "#/utils/iconNameFromFile";
 import {
 	ICON_TARGET,
 	ImageNormalizeError,
 	normalizeImage,
-} from "../normalizeImage";
-import { iconNameFromFile } from "./TemplateIconsDialog";
+} from "#/utils/normalizeImage";
+import { ImageStoreMenu } from "../imageStore/ImageStoreMenu";
+import { fetchStoreImage } from "../imageStore/imageStore";
 
 /** How many of the uploaded icons show as one-click choices. */
 const QUICK = 12;

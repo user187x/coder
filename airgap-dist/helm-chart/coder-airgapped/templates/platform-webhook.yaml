@@ -1,4 +1,7 @@
 {{- include "ca.values" . -}}
+{{- if and .Values.global.platformAgent.enabled (include "platform.hasLayer" .) (not (and .Values.platformWebhook.enabled .Values.uiUpdates.enabled (include "platform.hasLayer" .) (index .Values "coder-workspace").enabled)) }}
+{{- fail "platform agent features require the platform webhook, UI platform layer and workspace chart" }}
+{{- end }}
 {{- if and (or .Values.platformWebhook.runtimeIsolation.enabled .Values.platformWebhook.runtimeIsolation.prepareBackend) (not (and .Values.platformWebhook.enabled .Values.uiUpdates.enabled (include "platform.hasLayer" .))) }}
 {{- fail "runtime isolation requires the platform webhook and UI platform layer to be enabled" }}
 {{- end }}
@@ -261,6 +264,7 @@ spec:
             - {name: WORKSPACE_RUNTIME_PLATFORM_CONTROLLERS, value: {{ $wh.runtimeIsolation.platformControllers | toJson | quote }}}
             {{- end }}
             - {name: WORKSPACE_NAMESPACE, value: {{ $ns | quote }}}
+            - {name: LOCKDOWN_COPY_IMAGE, value: {{ tpl (index $.Values "coder-workspace" "workspaceImage") $ | quote }}}
             - {name: CODER_ACCESS_URL, value: {{ $ui.accessUrl | quote }}}
             - {name: TLS_CA_SECRET, value: {{ $.Values.global.secretNames.tlsCa | quote }}}
             - {name: USER_STORAGE, value: {{ ternary "1" "" $userStorage | quote }}}

@@ -36,10 +36,16 @@ class Connection:
         self.database = (u.path or "/").lstrip("/") or self.user
         q = urllib.parse.parse_qs(u.query)
         self.sslmode = (q.get("sslmode") or ["prefer"])[0]
+        if self.sslmode not in ("disable", "allow", "prefer", "require", "verify-ca", "verify-full"):
+            raise ValueError("invalid PostgreSQL sslmode")
         self.sock = socket.create_connection((u.hostname, u.port or 5432), timeout=timeout)
         self.buf = b""
-        self._tls(u.hostname, cafile)
-        self._startup(application_name)
+        try:
+            self._tls(u.hostname, cafile)
+            self._startup(application_name)
+        except Exception:
+            self.sock.close()
+            raise
 
     # ---- low level
     def _send(self, kind, payload=b""):
@@ -73,12 +79,18 @@ class Connection:
         self.sock.sendall(struct.pack("!II", 8, 80877103))
         answer = self._recv_exact(1)
         if answer == b"S":
-            ctx = ssl.create_default_context(cafile=cafile) if cafile and os.path.exists(cafile) else ssl.create_default_context()
+            # A configured CA must load successfully; verification modes also use
+            # system trust when no custom CA was supplied.
+            ctx = ssl.create_default_context(cafile=cafile or None)
             ctx.verify_flags &= ~getattr(ssl, "VERIFY_X509_STRICT", 0)
-            if not (cafile and os.path.exists(cafile)):
+            if self.sslmode == "verify-ca":
+                ctx.check_hostname = False
+            elif not cafile and self.sslmode not in ("verify-ca", "verify-full"):
                 ctx.check_hostname = False          # sslmode=require semantics: encrypted, not verified
                 ctx.verify_mode = ssl.CERT_NONE
             self.sock = ctx.wrap_socket(self.sock, server_hostname=host)
+        elif answer != b"N":
+            raise ConnectionError("invalid PostgreSQL TLS response")
         elif self.sslmode in ("require", "verify-ca", "verify-full"):
             raise ConnectionError("the server does not offer TLS")
 

@@ -1,0 +1,210 @@
+.settings-resource-tray {
+	position: absolute;
+	top: 56px;
+	left: 16px;
+	width: 48px;
+	display: flex;
+}
+
+.settings-resource-tray-panel {
+	position: relative;
+	min-height: 0;
+	width: 100%;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 4px;
+	padding: 18px 0;
+	isolation: isolate;
+}
+
+/* Keep the rail footprint and handle anchor when the drawer is folded away. */
+.settings-resource-tray-panel[aria-hidden="true"] {
+	display: flex;
+	visibility: hidden;
+	pointer-events: none;
+}
+
+.settings-resource-tray-outline {
+	position: absolute;
+	inset: 0;
+	z-index: -1;
+	width: 100%;
+	height: 100%;
+	fill: hsl(var(--surface-primary));
+	stroke: hsl(var(--border));
+	stroke-linejoin: round;
+	pointer-events: none;
+}
+
+.settings-resource-tray-links {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 6px;
+	padding-top: 8px;
+	margin-top: -8px;
+	max-height: calc(
+		var(--radix-dropdown-menu-content-available-height, 80vh) -
+		104px
+	);
+	overflow-y: auto;
+	scrollbar-width: thin;
+	width: 100%;
+}
+
+.settings-resource-tray-toggle {
+	position: absolute;
+	top: 50%;
+	left: calc(100% + 1px);
+	z-index: 1;
+	width: 12px;
+	height: 84px;
+	padding: 0;
+	justify-content: center;
+	transform: translateY(-50%);
+	background: transparent;
+	cursor: grab;
+	touch-action: none;
+}
+.settings-resource-tray-dimple {
+	position: absolute;
+	top: 50%;
+	left: calc(100% - 3px);
+	width: 20px;
+	height: 20px;
+	padding: 0;
+	justify-content: center;
+	z-index: 2;
+	cursor: pointer;
+}
+.settings-resource-tray-dimple[data-edge="top"] {
+	transform: translateY(-69px);
+}
+.settings-resource-tray-dimple[data-edge="bottom"] {
+	transform: translateY(49px);
+}
+.settings-resource-tray-dimple > span {
+	width: 5px;
+	height: 5px;
+	border: 1px solid hsl(var(--content-secondary) / 0.6);
+	border-radius: 50%;
+	box-shadow: inset 0 1px 1px hsl(var(--content-primary) / 0.15);
+}
+.settings-resource-tray-dimple[data-locked] > span {
+	background: hsl(var(--content-link));
+	border-color: hsl(var(--content-link));
+	box-shadow: 0 0 4px hsl(var(--content-link) / 0.5);
+}
+.settings-resource-tray-toggle:active {
+	cursor: grabbing;
+}
+.settings-resource-tray-grip {
+	width: 8px;
+	height: 72px;
+	background-image: repeating-linear-gradient(
+		0deg,
+		hsl(var(--content-secondary) / 0.55) 0 1px,
+		transparent 1px 4px
+	);
+	background-size: 6px 53px;
+	transform: none;
+}
+.settings-resource-tray-toggle:hover .settings-resource-tray-grip,
+.settings-resource-tray-toggle:focus .settings-resource-tray-grip {
+	border-color: hsl(var(--content-link));
+	box-shadow: 0 0 5px hsl(var(--content-link) / 0.35);
+}
+.settings-resource-tray-toggle:focus-visible .settings-resource-tray-grip {
+	box-shadow: 0 0 0 2px hsl(var(--content-link) / 0.35);
+}
+
+.settings-shortcut-carousel {
+	position: absolute;
+	left: 0.5px;
+	width: calc(100% - 1px);
+	z-index: 5;
+	padding-top: 40px;
+	border: 1px solid hsl(var(--border));
+	border-top: 0;
+	border-radius: 0 0 24px 24px;
+	background: hsl(var(--surface-primary));
+	box-shadow: 0 4px 12px hsl(var(--content-primary) / 0.08);
+	animation: shortcut-carousel-open 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.settings-shortcut-carousel > .apps-carousel[data-orientation="vertical"] {
+	width: 100%;
+	border: 0;
+	background: transparent;
+}
+@keyframes shortcut-carousel-open {
+	from {
+		clip-path: inset(0 0 calc(100% - 40px) 0 round 0 0 24px 24px);
+	}
+	to {
+		clip-path: inset(0 round 0 0 24px 24px);
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.settings-shortcut-carousel {
+		animation: none;
+	}
+}
+html[data-animations="off"] .settings-shortcut-carousel {
+	animation: none;
+}
+
+.settings-resource-tray[data-choosing] {
+	z-index: 6;
+	isolation: isolate;
+}
+.settings-resource-tray[data-choosing] .settings-resource-tray-panel {
+	isolation: auto;
+}
+
+.settings-resource-tray[data-account-open] .settings-resource-tray-panel {
+	animation: settings-account-open 200ms ease-out;
+}
+.settings-account-menu,
+.user-menu-compact {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 6px;
+	width: 100%;
+	min-width: 0;
+}
+.user-menu-compact [role^="menuitem"] {
+	width: 32px;
+	height: 32px;
+	min-height: 32px;
+	padding: 0;
+	justify-content: center;
+}
+.user-menu-compact [role="separator"] {
+	width: 24px;
+	margin: 0;
+}
+.user-menu-compact [aria-checked="true"],
+.user-menu-compact [aria-expanded="true"] {
+	color: hsl(var(--content-link));
+	background: hsl(var(--content-link) / 0.1);
+}
+@keyframes settings-account-open {
+	from {
+		clip-path: inset(0 0 40% 0);
+	}
+	to {
+		clip-path: inset(0);
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.settings-resource-tray[data-account-open] .settings-resource-tray-panel {
+		animation: none;
+	}
+}
+html[data-animations="off"]
+	.settings-resource-tray[data-account-open]
+	.settings-resource-tray-panel {
+	animation: none;
+}

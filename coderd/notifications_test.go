@@ -5,6 +5,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
 	"github.com/coder/coder/v2/coderd/coderdtest"
@@ -484,5 +485,48 @@ func TestCustomNotification(t *testing.T) {
 		require.Equal(t, "Custom Title", sent[0].Labels["custom_title"])
 		require.Equal(t, "Custom Message", sent[0].Labels["custom_message"])
 		require.Equal(t, memberUser.ID.String(), sent[0].CreatedBy)
+	})
+}
+
+//nolint:paralleltest,tparallel // Subtests verify the same notification queue before and after delivery.
+func TestCustomNotificationRecipients(t *testing.T) {
+	t.Parallel()
+	ctx := testutil.Context(t, testutil.WaitLong)
+	enqueuer := &notificationstest.FakeEnqueuer{}
+	owner := coderdtest.New(t, &coderdtest.Options{NotificationsEnqueuer: enqueuer})
+	first := coderdtest.CreateFirstUser(t, owner)
+	member, recipient := coderdtest.CreateAnotherUser(t, owner, first.OrganizationID)
+	_, second := coderdtest.CreateAnotherUser(t, owner, first.OrganizationID)
+	content := &codersdk.CustomNotificationContent{Title: "Maintenance", Message: "Save your work."}
+
+	t.Run("MemberCannotTargetUsers", func(t *testing.T) {
+		err := member.PostCustomNotification(ctx, codersdk.CustomNotificationRequest{Content: content, UserIDs: []uuid.UUID{second.ID}})
+		var apiError *codersdk.Error
+		require.ErrorAs(t, err, &apiError)
+		require.Equal(t, http.StatusForbidden, apiError.StatusCode())
+		require.Empty(t, enqueuer.Sent(notificationstest.WithTemplateID(notifications.TemplateCustomNotification)))
+	})
+
+	t.Run("RejectsInvalidBatchBeforeSending", func(t *testing.T) {
+		for _, ids := range [][]uuid.UUID{{recipient.ID, uuid.New()}, {recipient.ID, recipient.ID}, {recipient.ID, uuid.Nil}, {recipient.ID, database.PrebuildsSystemUserID}} {
+			err := owner.PostCustomNotification(ctx, codersdk.CustomNotificationRequest{Content: content, UserIDs: ids})
+			var apiError *codersdk.Error
+			require.ErrorAs(t, err, &apiError)
+			require.Equal(t, http.StatusBadRequest, apiError.StatusCode())
+			require.Empty(t, enqueuer.Sent(notificationstest.WithTemplateID(notifications.TemplateCustomNotification)))
+		}
+	})
+
+	t.Run("OnlySelectedRecipients", func(t *testing.T) {
+		err := owner.PostCustomNotification(ctx, codersdk.CustomNotificationRequest{Content: content, UserIDs: []uuid.UUID{recipient.ID, second.ID}})
+		require.NoError(t, err)
+		sent := enqueuer.Sent(notificationstest.WithTemplateID(notifications.TemplateCustomNotification))
+		require.Len(t, sent, 2)
+		require.ElementsMatch(t, []uuid.UUID{recipient.ID, second.ID}, []uuid.UUID{sent[0].UserID, sent[1].UserID})
+		for _, notification := range sent {
+			require.Equal(t, first.UserID.String(), notification.CreatedBy)
+			require.Equal(t, content.Title, notification.Labels["custom_title"])
+			require.Equal(t, content.Message, notification.Labels["custom_message"])
+		}
 	})
 }

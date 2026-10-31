@@ -20,8 +20,3 @@ export const templateDecorator = () => ({
 	queryFn: API.getTemplateDecorator,
 	staleTime: 60_000,
 });
-
-export const materializedTemplateVersion = (versionId: string) => ({
-	queryKey: ["templateBuilder", "materialized", versionId],
-	queryFn: () => API.materializeTemplate({ template_version_id: versionId }),
-});

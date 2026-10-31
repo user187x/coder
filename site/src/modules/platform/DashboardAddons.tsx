@@ -8,6 +8,7 @@ import {
 } from "#/contexts/platformBoot";
 import { PlatformBackground } from "./background/PlatformBackground";
 import { ChatDock } from "./chat/ChatDock";
+import { ScreenShareController } from "./screenShare/ScreenShareController";
 
 /**
  * What the platform adds to every signed-in dashboard page: the chat, the
@@ -42,6 +43,7 @@ export const DashboardAddons: React.FC = () => {
 		<>
 			<PlatformBackground slot="dashboard" />
 			<ChatDock />
+			<ScreenShareController />
 		</>
 	);
 };

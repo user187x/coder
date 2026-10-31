@@ -52,10 +52,12 @@ type InboxPopoverProps = {
 	onMarkNotificationAsRead: (notificationId: string) => void;
 	onLoadMoreNotifications: () => void;
 	defaultOpen?: boolean;
+	trigger?: React.ReactElement;
 };
 
 export const InboxPopover: React.FC<InboxPopoverProps> = ({
 	defaultOpen,
+	trigger,
 	unreadCount,
 	notifications,
 	error,
@@ -91,11 +93,12 @@ export const InboxPopover: React.FC<InboxPopoverProps> = ({
 	return (
 		<Popover open={isOpen} onOpenChange={setIsOpen}>
 			<PopoverTrigger asChild>
-				<InboxButton unreadCount={unreadCount} />
+				{trigger ?? <InboxButton unreadCount={unreadCount} />}
 			</PopoverTrigger>
 			<PopoverContent
 				className="w-(--radix-popper-available-width) max-w-[466px]"
 				align="end"
+				onKeyDown={(event) => event.stopPropagation()}
 			>
 				{/*
 				 * Platform: the header stays put above the list (it no longer scrolls with it, covering its first entry),
@@ -130,7 +133,7 @@ export const InboxPopover: React.FC<InboxPopoverProps> = ({
 							/>
 						</label>
 
-						<div className="flex shrink-0 justify-end gap-1">
+						<div className="bulk-action-surface flex shrink-0 justify-end gap-1 rounded-md p-1">
 							{onClearAll && (
 								<Button
 									variant={clearArmed ? "destructive" : "outline"}

@@ -10,7 +10,9 @@
 # release's tag.
 #   ./build-ui-image.sh            build (when the tag is not in docker yet), check, pin
 set -euo pipefail
-here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; dev="$(dirname "$here")"; top="$(dirname "$dev")"
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+dev="$(dirname "$here")"
+top="$(dirname "$dev")"
 src="${top}/helm-chart/coder-airgapped/files/ui-updates"
 # The image store's baked pictures and their previews (development/image-store, image-store-thumbs.sh): in the image
 # at /image-store, a layer of their own under the code's, so a build of new code ships only the code's layer.
@@ -22,30 +24,42 @@ defaults="${top}/helm-chart/defaults"
 release="$(cat "$(dirname "$top")/RELEASE_VERSION")"
 base="docker.io/mrshll187/coder-image-tools:${release}"
 repo="docker.io/mrshll187/coder-ui-updates"
-ctx="$(mktemp -d)"; trap 'rm -rf "$ctx"' EXIT
+ctx="$(mktemp -d)"
+trap 'rm -rf "$ctx"' EXIT
 (cd "${top}/.." && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -o "$ctx/workspace-tunnel" ./cmd/workspace-tunnel)
 
 # The code: every file of files/ui-updates but Python's bytecode; and the image store's files (the tag follows both).
 mapfile -t files < <(cd "$src" && find . -maxdepth 1 -type f ! -name '*.pyc' -printf '%P\n' | LC_ALL=C sort)
 mapfile -t pictures < <(cd "$store" && find pictures thumbs -type f -printf '%p\n' | LC_ALL=C sort)
 for p in "${pictures[@]}"; do
-	case "$p" in pictures/*) [ -s "${store}/thumbs/${p#pictures/}.webp" ] || { echo "ERROR: no preview for $p: run development/tools/image-store-thumbs.sh" >&2; exit 1; };; esac
+	case "$p" in pictures/*) [ -s "${store}/thumbs/${p#pictures/}.webp" ] || {
+		echo "ERROR: no preview for $p: run development/tools/image-store-thumbs.sh" >&2
+		exit 1
+	} ;; esac
 done
 mapfile -t baked < <(cd "$defaults" && find . -maxdepth 1 -type f \( -name 'logo.*' -o -name 'avatar.*' \) -printf '%P\n' | LC_ALL=C sort)
-hash=$({ (cd "$src" && sha256sum "${files[@]}"); (cd "$store" && sha256sum "${pictures[@]}");
-	sha256sum "$here/build-ui-image.sh";
-	(cd "${top}/.." && sha256sum coderd/database/queries/notificationsinbox.sql);
-	(cd "$ctx" && sha256sum workspace-tunnel);
-	(cd "$defaults" && sha256sum "${baked[@]}"); } | sha256sum | cut -c1-12)
+hash=$({
+	(cd "$src" && sha256sum "${files[@]}")
+	(cd "$store" && sha256sum "${pictures[@]}")
+	sha256sum "$here/build-ui-image.sh"
+	(cd "${top}/.." && sha256sum coderd/database/queries/notificationsinbox.sql)
+	(cd "$ctx" && sha256sum workspace-tunnel)
+	(cd "$defaults" && sha256sum "${baked[@]}")
+} | sha256sum | cut -c1-12)
 img="${repo}:${release}"
 
 if [[ "$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$img" 2>/dev/null)" == "code-${hash}" ]]; then
 	echo "$img is built already (the same code)"
 else
-	docker image inspect "$base" >/dev/null 2>&1 || { echo "ERROR: $base is not in this docker (build-image-tools.sh, or load it from the bundle)" >&2; exit 1; }
+	docker image inspect "$base" >/dev/null 2>&1 || {
+		echo "ERROR: $base is not in this docker (build-image-tools.sh, or load it from the bundle)" >&2
+		exit 1
+	}
 	mkdir "$ctx/app" "$ctx/image-store" "$ctx/defaults"
 	for f in "${baked[@]}"; do
-		kind="${f%%.*}"; mkdir -p "$ctx/defaults/$kind"; cp -p "$defaults/$f" "$ctx/defaults/$kind/$f"
+		kind="${f%%.*}"
+		mkdir -p "$ctx/defaults/$kind"
+		cp -p "$defaults/$f" "$ctx/defaults/$kind/$f"
 	done
 	(cd "$src" && cp -- "${files[@]}" "$ctx/app/")
 	cp "${top}/../coderd/database/queries/notificationsinbox.sql" "$ctx/app/notificationsinbox.sql"
@@ -56,6 +70,11 @@ else
 	cat >"$ctx/Dockerfile" <<EOF
 FROM ${base}
 RUN apk add --no-cache iptables e2fsprogs e2fsprogs-extra util-linux coreutils
+COPY app/requirements.txt /tmp/ui-requirements.txt
+RUN python3 -m ensurepip \\
+    && python3 -m pip install --no-cache-dir --only-binary=:all: --require-hashes -r /tmp/ui-requirements.txt \\
+    && python3 -m pip uninstall -y pip \\
+    && rm /tmp/ui-requirements.txt
 COPY image-store/ /image-store/
 COPY defaults/ /defaults/
 COPY app/ /app/
@@ -68,6 +87,7 @@ EOF
 	docker run --rm --network none --entrypoint sh "$img" -c '
 		set -e
 		cd /app && python3 -c "import importlib.util, sys
+from cryptography import x509
 sys.path.insert(0, \"/app\")
 for name in (\"pgwire\", \"safe\", \"dr\", \"drivesource\", \"driveaudit\", \"kitcrypto\", \"kexec\", \"provisioners\", \"s3client\", \"lockdown\", \"imagebuilder\"):
     __import__(name)

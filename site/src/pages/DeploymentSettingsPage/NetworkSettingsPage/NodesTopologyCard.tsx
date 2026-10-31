@@ -19,6 +19,7 @@ import {
 	KINDS,
 	KindLegend,
 } from "./componentKinds";
+import { EntityContextMenu } from "./EntityActions";
 import { useOpenEntity } from "./EntityDetails";
 import {
 	type KindShare,
@@ -146,14 +147,16 @@ const NodeBox: React.FC<{
 			data-testid={`topology-node-${n.name}`}
 		>
 			<div className="flex flex-wrap items-center justify-between gap-2">
-				<button
-					type="button"
-					onClick={() => open({ type: "node", name: n.name })}
-					className="max-w-full cursor-pointer rounded-full border border-solid px-2.5 py-1 text-left text-xs font-semibold [overflow-wrap:anywhere] hover:brightness-125 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-content-link"
-					style={nodeBadgeStyle(n.name)}
-				>
-					{n.name}
-				</button>
+				<EntityContextMenu target={{ type: "node", name: n.name }}>
+					<button
+						type="button"
+						onClick={() => open({ type: "node", name: n.name })}
+						className="max-w-full cursor-pointer rounded-full border border-solid px-2.5 py-1 text-left text-xs font-semibold [overflow-wrap:anywhere] hover:brightness-125 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-content-link"
+						style={nodeBadgeStyle(n.name)}
+					>
+						{n.name}
+					</button>
+				</EntityContextMenu>
 				<Badge
 					size="xs"
 					variant={status[0] as "destructive" | "warning" | "green"}
@@ -267,35 +270,40 @@ const PodBlocks: React.FC<{ pods: readonly TopologyPod[] }> = ({ pods }) => {
 					</span>
 					<div className="flex flex-wrap gap-1">
 						{list.map((p) => (
-							<button
+							<EntityContextMenu
+								target={p.ref}
 								key={`${p.namespace}/${p.name}`}
-								type="button"
-								onClick={() => open(p.ref)}
-								title={`${p.label} (${KINDS[kind].label})${p.role ? ` · ${p.role}` : ""}\n${p.ready ? "ready" : "not ready"}${p.requests ? ` · requests ${cores(p.requests.cpu)} CPU, ${bytes(p.requests.memory)}` : ""}`}
-								className={cn(
-									"inline-flex max-w-full cursor-pointer items-center gap-1 rounded border border-solid border-border bg-surface-secondary py-0.5 pr-1.5 pl-1 text-[11px] leading-tight hover:bg-surface-tertiary",
-									KINDS[kind].color,
-									!p.ready && "border-dashed border-content-warning",
-								)}
-								data-testid={`topology-pod-${p.name}`}
-								data-kind={kind}
 							>
-								<i
-									aria-hidden
-									className="h-3 w-1 shrink-0 rounded-sm bg-(--kind)"
-								/>
-								<PodIcon kind={kind} name={p.name} />
-								<span className="truncate">{p.label}</span>
-								{p.role && (
-									<span className="text-content-secondary">{p.role}</span>
-								)}
-								{!p.ready && (
-									<TriangleAlertIcon
-										aria-label="not ready"
-										className="size-3 shrink-0 text-content-warning"
+								<button
+									key={`${p.namespace}/${p.name}`}
+									type="button"
+									onClick={() => open(p.ref)}
+									title={`${p.label} (${KINDS[kind].label})${p.role ? ` · ${p.role}` : ""}\n${p.ready ? "ready" : "not ready"}${p.requests ? ` · requests ${cores(p.requests.cpu)} CPU, ${bytes(p.requests.memory)}` : ""}`}
+									className={cn(
+										"inline-flex max-w-full cursor-pointer items-center gap-1 rounded border border-solid border-border bg-surface-secondary py-0.5 pr-1.5 pl-1 text-[11px] leading-tight hover:bg-surface-tertiary",
+										KINDS[kind].color,
+										!p.ready && "border-dashed border-content-warning",
+									)}
+									data-testid={`topology-pod-${p.name}`}
+									data-kind={kind}
+								>
+									<i
+										aria-hidden
+										className="h-3 w-1 shrink-0 rounded-sm bg-(--kind)"
 									/>
-								)}
-							</button>
+									<PodIcon kind={kind} name={p.name} />
+									<span className="truncate">{p.label}</span>
+									{p.role && (
+										<span className="text-content-secondary">{p.role}</span>
+									)}
+									{!p.ready && (
+										<TriangleAlertIcon
+											aria-label="not ready"
+											className="size-3 shrink-0 text-content-warning"
+										/>
+									)}
+								</button>
+							</EntityContextMenu>
 						))}
 					</div>
 				</div>

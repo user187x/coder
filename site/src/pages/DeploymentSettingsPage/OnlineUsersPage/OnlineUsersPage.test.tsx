@@ -3,7 +3,10 @@ import { QueryClient, QueryClientProvider } from "react-query";
 import { MemoryRouter } from "react-router";
 import { type OnlineUser, PlatformAPI } from "#/api/platform";
 import { renderComponent } from "#/testHelpers/renderHelpers";
-import OnlineUsersPage, { sinceText } from "./OnlineUsersPage";
+import {
+	OnlineUsersCard as OnlineUsersPage,
+	sinceText,
+} from "./OnlineUsersPage";
 
 const at = "2026-10-17T12:00:00Z";
 const ago = (seconds: number) =>

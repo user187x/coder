@@ -7,13 +7,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
+
 	"github.com/coder/coder/v2/coderd/database"
 	"github.com/coder/coder/v2/coderd/database/dbmock"
 	"github.com/coder/coder/v2/coderd/userpassword"
 	"github.com/coder/quartz"
-	"github.com/google/uuid"
-	"github.com/stretchr/testify/require"
-	"go.uber.org/mock/gomock"
 )
 
 func TestGlobalControlGrantBoundToSessionAndExpiry(t *testing.T) {
@@ -61,7 +62,7 @@ func TestGlobalControlPINRateLimitPersistsAcrossReplicas(t *testing.T) {
 		require.Error(t, a.changeGlobalControls(context.Background(), func(s *globalControlConfig) error { return verifyControlPIN(s, "owner", "wrong", clock.Now()) }))
 	}
 	err = b.changeGlobalControls(context.Background(), func(s *globalControlConfig) error { return verifyControlPIN(s, "owner", "938271", clock.Now()) })
-	var failure controlFailure
+	var failure controlError
 	require.ErrorAs(t, err, &failure)
 	require.Equal(t, 429, failure.status)
 	clock.Advance(5 * time.Minute).MustWait(context.Background())

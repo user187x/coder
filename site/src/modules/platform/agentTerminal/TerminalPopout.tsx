@@ -126,7 +126,9 @@ export const TerminalPopout: React.FC<TerminalPopoutProps> = ({
 					<XIcon />
 				</Button>
 			</div>
-			<div className="min-h-0 flex-1 p-2">{children}</div>
+			<div className="agent-terminal-popout-content min-h-0 flex-1 p-2">
+				{children}
+			</div>
 		</div>,
 		document.body,
 	);

@@ -9,7 +9,7 @@ import (
 )
 
 // @Summary Get authenticated workspace tunnel identity
-// @ID get-workspace-agent-tunnel-identity
+// @ID get-authenticated-workspace-tunnel-identity
 // @Security CoderSessionToken
 // @Produce json
 // @Tags Agents

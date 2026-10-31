@@ -7,7 +7,7 @@
  */
 
 /** The DEC modes a program sets: what it is told about, and how. */
-export type MouseModes = {
+type MouseModes = {
 	/** 1000: presses and releases. */
 	normal: boolean;
 	/** 1002: and moves while a button is down. */
@@ -18,7 +18,7 @@ export type MouseModes = {
 	sgr: boolean;
 };
 
-export type MouseReport = {
+type MouseReport = {
 	/** 0 left, 1 middle, 2 right; 64 / 65 wheel up / down; 3 for a move with no button (classic release too). */
 	button: number;
 	kind: "press" | "release" | "move";

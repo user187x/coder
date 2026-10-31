@@ -13,6 +13,7 @@ import {
 	MockWorkspaceAgent,
 	MockWorkspaceApp,
 } from "#/testHelpers/entities";
+import { MockResizeObserver } from "#/testHelpers/resizeObserver";
 import { AccordionPanel } from "./AccordionPanel";
 import { AddPanelTab } from "./AddPanelTab";
 import { canBePanel } from "./AgentAppPanel";
@@ -29,6 +30,47 @@ const base = {
 };
 
 describe("the accordion panel", () => {
+	it.each(["neko-browser", "novnc"])(
+		"fits the %s screen to its resized panel",
+		(slug) => {
+			vi.spyOn(document, "hasFocus").mockReturnValue(true);
+			MockResizeObserver.reset();
+			vi.stubGlobal("ResizeObserver", MockResizeObserver);
+			const { unmount } = render(
+				<AccordionPanel
+					{...base}
+					initiallyOpen
+					title="Web Browser"
+					kind="app"
+					slug={slug}
+				>
+					<iframe title="browser-session" />
+				</AccordionPanel>,
+			);
+			const frame = screen.getByTitle("browser-session");
+			if (!(frame instanceof HTMLIFrameElement))
+				throw new Error("Expected browser iframe");
+			Object.defineProperties(frame, {
+				clientWidth: { configurable: true, value: 1800 },
+				clientHeight: { configurable: true, value: 900 },
+			});
+			const browserWindow = frame.contentWindow;
+			if (!browserWindow) throw new Error("Expected browser window");
+			const postMessage = vi.spyOn(browserWindow, "postMessage");
+			act(() => MockResizeObserver.getLast().simulateResize(1800, 900));
+			expect(postMessage).toHaveBeenCalledWith(
+				{
+					type: slug === "novnc" ? "coder:desktop-fit" : "coder:browser-fit",
+					width: 1800,
+					height: 900,
+				},
+				window.location.origin,
+			);
+			unmount();
+			vi.unstubAllGlobals();
+		},
+	);
+
 	it("starts the default app session on readiness and preserves it when collapsed", async () => {
 		const start = vi.fn();
 		const stop = vi.fn();
@@ -95,6 +137,57 @@ describe("the accordion panel", () => {
 		await userEvent.click(screen.getByRole("button", { name: "Web Browser" }));
 		expect(close).toHaveBeenCalledTimes(1);
 		expect(stop).toHaveBeenCalledTimes(1);
+	});
+
+	it("ends an exited browser session even when Keep session is enabled, accepting only its own frame", async () => {
+		const close = vi.fn().mockResolvedValue(undefined);
+		const stopped = vi.fn();
+		const Session = () => {
+			useEffect(() => stopped, []);
+			return <iframe title="browser-session" />;
+		};
+		render(
+			<AccordionPanel
+				{...base}
+				initiallyOpen
+				title="Web Browser"
+				kind="app"
+				slug="neko-browser"
+				onCloseSession={close}
+			>
+				<Session />
+			</AccordionPanel>,
+		);
+		await userEvent.click(screen.getByRole("switch", { name: "Keep session" }));
+		const frame = screen.getByTitle("browser-session");
+		if (!(frame instanceof HTMLIFrameElement))
+			throw new Error("Expected browser iframe");
+		for (const source of [window, frame.contentWindow]) {
+			act(() =>
+				window.dispatchEvent(
+					new MessageEvent("message", {
+						data: { type: "coder:browser-exited" },
+						origin:
+							source === window ? window.location.origin : "https://other.test",
+						source,
+					}),
+				),
+			);
+		}
+		expect(close).not.toHaveBeenCalled();
+		act(() =>
+			window.dispatchEvent(
+				new MessageEvent("message", {
+					data: { type: "coder:browser-exited" },
+					origin: window.location.origin,
+					source: frame.contentWindow,
+				}),
+			),
+		);
+		await waitFor(() => expect(stopped).toHaveBeenCalledTimes(1));
+		expect(close).toHaveBeenCalledTimes(1);
+		await userEvent.click(screen.getByRole("button", { name: "Web Browser" }));
+		expect(close).toHaveBeenCalledTimes(1);
 	});
 
 	it("keeps the browser session mounted when closing fails", async () => {

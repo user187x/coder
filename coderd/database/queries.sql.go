@@ -4543,6 +4543,114 @@ func (q *sqlQuerier) UpdateAPIKeyByID(ctx context.Context, arg UpdateAPIKeyByIDP
 	return err
 }
 
+const deleteAuditCollector = `-- name: DeleteAuditCollector :one
+DELETE FROM audit_collectors WHERE organization_id = $1 AND id = $2 RETURNING id, organization_id, name, issuer, subject, client_id, created_by, created_at, expires_at
+`
+
+type DeleteAuditCollectorParams struct {
+	OrganizationID uuid.UUID `db:"organization_id" json:"organization_id"`
+	ID             uuid.UUID `db:"id" json:"id"`
+}
+
+func (q *sqlQuerier) DeleteAuditCollector(ctx context.Context, arg DeleteAuditCollectorParams) (AuditCollector, error) {
+	row := q.db.QueryRowContext(ctx, deleteAuditCollector, arg.OrganizationID, arg.ID)
+	var i AuditCollector
+	err := row.Scan(
+		&i.ID,
+		&i.OrganizationID,
+		&i.Name,
+		&i.Issuer,
+		&i.Subject,
+		&i.ClientID,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.ExpiresAt,
+	)
+	return i, err
+}
+
+const auditCollectors = `-- name: GetAuditCollectors :many
+SELECT id, organization_id, name, issuer, subject, client_id, created_by, created_at, expires_at FROM audit_collectors WHERE organization_id = $1 ORDER BY created_at, id
+`
+
+func (q *sqlQuerier) GetAuditCollectors(ctx context.Context, organizationID uuid.UUID) ([]AuditCollector, error) {
+	rows, err := q.db.QueryContext(ctx, auditCollectors, organizationID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []AuditCollector
+	for rows.Next() {
+		var i AuditCollector
+		if err := rows.Scan(
+			&i.ID,
+			&i.OrganizationID,
+			&i.Name,
+			&i.Issuer,
+			&i.Subject,
+			&i.ClientID,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.ExpiresAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const insertAuditCollector = `-- name: InsertAuditCollector :one
+INSERT INTO audit_collectors (id, organization_id, name, issuer, subject, client_id, created_by, created_at, expires_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+RETURNING id, organization_id, name, issuer, subject, client_id, created_by, created_at, expires_at
+`
+
+type InsertAuditCollectorParams struct {
+	ID             uuid.UUID `db:"id" json:"id"`
+	OrganizationID uuid.UUID `db:"organization_id" json:"organization_id"`
+	Name           string    `db:"name" json:"name"`
+	Issuer         string    `db:"issuer" json:"issuer"`
+	Subject        string    `db:"subject" json:"subject"`
+	ClientID       string    `db:"client_id" json:"client_id"`
+	CreatedBy      uuid.UUID `db:"created_by" json:"created_by"`
+	CreatedAt      time.Time `db:"created_at" json:"created_at"`
+	ExpiresAt      time.Time `db:"expires_at" json:"expires_at"`
+}
+
+func (q *sqlQuerier) InsertAuditCollector(ctx context.Context, arg InsertAuditCollectorParams) (AuditCollector, error) {
+	row := q.db.QueryRowContext(ctx, insertAuditCollector,
+		arg.ID,
+		arg.OrganizationID,
+		arg.Name,
+		arg.Issuer,
+		arg.Subject,
+		arg.ClientID,
+		arg.CreatedBy,
+		arg.CreatedAt,
+		arg.ExpiresAt,
+	)
+	var i AuditCollector
+	err := row.Scan(
+		&i.ID,
+		&i.OrganizationID,
+		&i.Name,
+		&i.Issuer,
+		&i.Subject,
+		&i.ClientID,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.ExpiresAt,
+	)
+	return i, err
+}
+
 const countAuditLogs = `-- name: CountAuditLogs :one
 SELECT COUNT(*) FROM (
 	SELECT 1
@@ -28237,7 +28345,7 @@ func (q *sqlQuerier) UpdateCustomRole(ctx context.Context, arg UpdateCustomRoleP
 const bindShortTermLease = `-- name: BindShortTermLease :one
 UPDATE short_term_leases SET workspace_id = $3, token_id = $4
 WHERE user_id = $1 AND organization_id = $2 AND revoked_at IS NULL AND expires_at > now()
-RETURNING user_id, organization_id, workspace_id, issued_by, issued_at, expires_at, revoked_at, extension_requested_at, token_id
+RETURNING user_id, organization_id, workspace_id, issued_by, issued_at, expires_at, revoked_at, extension_requested_at, token_id, hidden_at, auto_remove_history, terms
 `
 
 type BindShortTermLeaseParams struct {
@@ -28265,6 +28373,46 @@ func (q *sqlQuerier) BindShortTermLease(ctx context.Context, arg BindShortTermLe
 		&i.RevokedAt,
 		&i.ExtensionRequestedAt,
 		&i.TokenID,
+		&i.HiddenAt,
+		&i.AutoRemoveHistory,
+		&i.Terms,
+	)
+	return i, err
+}
+
+const configureShortTermLease = `-- name: ConfigureShortTermLease :one
+UPDATE short_term_leases SET terms = $3, auto_remove_history = $4
+WHERE user_id = $1 AND organization_id = $2 RETURNING user_id, organization_id, workspace_id, issued_by, issued_at, expires_at, revoked_at, extension_requested_at, token_id, hidden_at, auto_remove_history, terms
+`
+
+type ConfigureShortTermLeaseParams struct {
+	UserID            uuid.UUID       `db:"user_id" json:"user_id"`
+	OrganizationID    uuid.UUID       `db:"organization_id" json:"organization_id"`
+	Terms             json.RawMessage `db:"terms" json:"terms"`
+	AutoRemoveHistory bool            `db:"auto_remove_history" json:"auto_remove_history"`
+}
+
+func (q *sqlQuerier) ConfigureShortTermLease(ctx context.Context, arg ConfigureShortTermLeaseParams) (ShortTermLease, error) {
+	row := q.db.QueryRowContext(ctx, configureShortTermLease,
+		arg.UserID,
+		arg.OrganizationID,
+		arg.Terms,
+		arg.AutoRemoveHistory,
+	)
+	var i ShortTermLease
+	err := row.Scan(
+		&i.UserID,
+		&i.OrganizationID,
+		&i.WorkspaceID,
+		&i.IssuedBy,
+		&i.IssuedAt,
+		&i.ExpiresAt,
+		&i.RevokedAt,
+		&i.ExtensionRequestedAt,
+		&i.TokenID,
+		&i.HiddenAt,
+		&i.AutoRemoveHistory,
+		&i.Terms,
 	)
 	return i, err
 }
@@ -28272,7 +28420,7 @@ func (q *sqlQuerier) BindShortTermLease(ctx context.Context, arg BindShortTermLe
 const extendShortTermLease = `-- name: ExtendShortTermLease :one
 UPDATE short_term_leases SET expires_at = $3, extension_requested_at = NULL
 WHERE user_id = $1 AND organization_id = $2 AND revoked_at IS NULL AND expires_at > now() AND $3 > expires_at
-RETURNING user_id, organization_id, workspace_id, issued_by, issued_at, expires_at, revoked_at, extension_requested_at, token_id
+RETURNING user_id, organization_id, workspace_id, issued_by, issued_at, expires_at, revoked_at, extension_requested_at, token_id, hidden_at, auto_remove_history, terms
 `
 
 type ExtendShortTermLeaseParams struct {
@@ -28294,12 +28442,15 @@ func (q *sqlQuerier) ExtendShortTermLease(ctx context.Context, arg ExtendShortTe
 		&i.RevokedAt,
 		&i.ExtensionRequestedAt,
 		&i.TokenID,
+		&i.HiddenAt,
+		&i.AutoRemoveHistory,
+		&i.Terms,
 	)
 	return i, err
 }
 
 const getExpiredShortTermLeases = `-- name: GetExpiredShortTermLeases :many
-SELECT user_id, organization_id, workspace_id, issued_by, issued_at, expires_at, revoked_at, extension_requested_at, token_id FROM short_term_leases WHERE expires_at <= now() OR revoked_at IS NOT NULL
+SELECT user_id, organization_id, workspace_id, issued_by, issued_at, expires_at, revoked_at, extension_requested_at, token_id, hidden_at, auto_remove_history, terms FROM short_term_leases WHERE expires_at <= now() OR revoked_at IS NOT NULL
 `
 
 func (q *sqlQuerier) GetExpiredShortTermLeases(ctx context.Context) ([]ShortTermLease, error) {
@@ -28321,6 +28472,9 @@ func (q *sqlQuerier) GetExpiredShortTermLeases(ctx context.Context) ([]ShortTerm
 			&i.RevokedAt,
 			&i.ExtensionRequestedAt,
 			&i.TokenID,
+			&i.HiddenAt,
+			&i.AutoRemoveHistory,
+			&i.Terms,
 		); err != nil {
 			return nil, err
 		}
@@ -28336,7 +28490,7 @@ func (q *sqlQuerier) GetExpiredShortTermLeases(ctx context.Context) ([]ShortTerm
 }
 
 const getShortTermLeaseByUserID = `-- name: GetShortTermLeaseByUserID :one
-SELECT user_id, organization_id, workspace_id, issued_by, issued_at, expires_at, revoked_at, extension_requested_at, token_id FROM short_term_leases WHERE user_id = $1
+SELECT user_id, organization_id, workspace_id, issued_by, issued_at, expires_at, revoked_at, extension_requested_at, token_id, hidden_at, auto_remove_history, terms FROM short_term_leases WHERE user_id = $1
 `
 
 func (q *sqlQuerier) GetShortTermLeaseByUserID(ctx context.Context, userID uuid.UUID) (ShortTermLease, error) {
@@ -28352,12 +28506,15 @@ func (q *sqlQuerier) GetShortTermLeaseByUserID(ctx context.Context, userID uuid.
 		&i.RevokedAt,
 		&i.ExtensionRequestedAt,
 		&i.TokenID,
+		&i.HiddenAt,
+		&i.AutoRemoveHistory,
+		&i.Terms,
 	)
 	return i, err
 }
 
 const getShortTermLeaseByWorkspaceID = `-- name: GetShortTermLeaseByWorkspaceID :one
-SELECT user_id, organization_id, workspace_id, issued_by, issued_at, expires_at, revoked_at, extension_requested_at, token_id FROM short_term_leases WHERE workspace_id = $1
+SELECT user_id, organization_id, workspace_id, issued_by, issued_at, expires_at, revoked_at, extension_requested_at, token_id, hidden_at, auto_remove_history, terms FROM short_term_leases WHERE workspace_id = $1
 `
 
 func (q *sqlQuerier) GetShortTermLeaseByWorkspaceID(ctx context.Context, workspaceID uuid.NullUUID) (ShortTermLease, error) {
@@ -28373,12 +28530,16 @@ func (q *sqlQuerier) GetShortTermLeaseByWorkspaceID(ctx context.Context, workspa
 		&i.RevokedAt,
 		&i.ExtensionRequestedAt,
 		&i.TokenID,
+		&i.HiddenAt,
+		&i.AutoRemoveHistory,
+		&i.Terms,
 	)
 	return i, err
 }
 
 const getShortTermLeasesByOrganization = `-- name: GetShortTermLeasesByOrganization :many
-SELECT user_id, organization_id, workspace_id, issued_by, issued_at, expires_at, revoked_at, extension_requested_at, token_id FROM short_term_leases WHERE organization_id = $1 ORDER BY issued_at DESC
+SELECT user_id, organization_id, workspace_id, issued_by, issued_at, expires_at, revoked_at, extension_requested_at, token_id, hidden_at, auto_remove_history, terms FROM short_term_leases WHERE organization_id = $1 AND hidden_at IS NULL
+AND NOT (auto_remove_history AND (expires_at <= now() OR revoked_at IS NOT NULL)) ORDER BY issued_at DESC
 `
 
 func (q *sqlQuerier) GetShortTermLeasesByOrganization(ctx context.Context, organizationID uuid.UUID) ([]ShortTermLease, error) {
@@ -28400,6 +28561,9 @@ func (q *sqlQuerier) GetShortTermLeasesByOrganization(ctx context.Context, organ
 			&i.RevokedAt,
 			&i.ExtensionRequestedAt,
 			&i.TokenID,
+			&i.HiddenAt,
+			&i.AutoRemoveHistory,
+			&i.Terms,
 		); err != nil {
 			return nil, err
 		}
@@ -28414,9 +28578,39 @@ func (q *sqlQuerier) GetShortTermLeasesByOrganization(ctx context.Context, organ
 	return items, nil
 }
 
+const hideShortTermLease = `-- name: HideShortTermLease :one
+UPDATE short_term_leases SET hidden_at = now()
+WHERE user_id = $1 AND organization_id = $2 AND (revoked_at IS NOT NULL OR expires_at <= now()) RETURNING user_id, organization_id, workspace_id, issued_by, issued_at, expires_at, revoked_at, extension_requested_at, token_id, hidden_at, auto_remove_history, terms
+`
+
+type HideShortTermLeaseParams struct {
+	UserID         uuid.UUID `db:"user_id" json:"user_id"`
+	OrganizationID uuid.UUID `db:"organization_id" json:"organization_id"`
+}
+
+func (q *sqlQuerier) HideShortTermLease(ctx context.Context, arg HideShortTermLeaseParams) (ShortTermLease, error) {
+	row := q.db.QueryRowContext(ctx, hideShortTermLease, arg.UserID, arg.OrganizationID)
+	var i ShortTermLease
+	err := row.Scan(
+		&i.UserID,
+		&i.OrganizationID,
+		&i.WorkspaceID,
+		&i.IssuedBy,
+		&i.IssuedAt,
+		&i.ExpiresAt,
+		&i.RevokedAt,
+		&i.ExtensionRequestedAt,
+		&i.TokenID,
+		&i.HiddenAt,
+		&i.AutoRemoveHistory,
+		&i.Terms,
+	)
+	return i, err
+}
+
 const insertShortTermLease = `-- name: InsertShortTermLease :one
 INSERT INTO short_term_leases (user_id, organization_id, issued_by, issued_at, expires_at)
-VALUES ($1, $2, $3, $4, $5) RETURNING user_id, organization_id, workspace_id, issued_by, issued_at, expires_at, revoked_at, extension_requested_at, token_id
+VALUES ($1, $2, $3, $4, $5) RETURNING user_id, organization_id, workspace_id, issued_by, issued_at, expires_at, revoked_at, extension_requested_at, token_id, hidden_at, auto_remove_history, terms
 `
 
 type InsertShortTermLeaseParams struct {
@@ -28446,6 +28640,9 @@ func (q *sqlQuerier) InsertShortTermLease(ctx context.Context, arg InsertShortTe
 		&i.RevokedAt,
 		&i.ExtensionRequestedAt,
 		&i.TokenID,
+		&i.HiddenAt,
+		&i.AutoRemoveHistory,
+		&i.Terms,
 	)
 	return i, err
 }
@@ -28453,7 +28650,7 @@ func (q *sqlQuerier) InsertShortTermLease(ctx context.Context, arg InsertShortTe
 const requestShortTermLeaseExtension = `-- name: RequestShortTermLeaseExtension :one
 UPDATE short_term_leases SET extension_requested_at = now()
 WHERE user_id = $1 AND revoked_at IS NULL AND expires_at > now()
-RETURNING user_id, organization_id, workspace_id, issued_by, issued_at, expires_at, revoked_at, extension_requested_at, token_id
+RETURNING user_id, organization_id, workspace_id, issued_by, issued_at, expires_at, revoked_at, extension_requested_at, token_id, hidden_at, auto_remove_history, terms
 `
 
 func (q *sqlQuerier) RequestShortTermLeaseExtension(ctx context.Context, userID uuid.UUID) (ShortTermLease, error) {
@@ -28469,13 +28666,16 @@ func (q *sqlQuerier) RequestShortTermLeaseExtension(ctx context.Context, userID 
 		&i.RevokedAt,
 		&i.ExtensionRequestedAt,
 		&i.TokenID,
+		&i.HiddenAt,
+		&i.AutoRemoveHistory,
+		&i.Terms,
 	)
 	return i, err
 }
 
 const revokeShortTermLease = `-- name: RevokeShortTermLease :one
 UPDATE short_term_leases SET revoked_at = now()
-WHERE user_id = $1 AND organization_id = $2 RETURNING user_id, organization_id, workspace_id, issued_by, issued_at, expires_at, revoked_at, extension_requested_at, token_id
+WHERE user_id = $1 AND organization_id = $2 RETURNING user_id, organization_id, workspace_id, issued_by, issued_at, expires_at, revoked_at, extension_requested_at, token_id, hidden_at, auto_remove_history, terms
 `
 
 type RevokeShortTermLeaseParams struct {
@@ -28496,6 +28696,9 @@ func (q *sqlQuerier) RevokeShortTermLease(ctx context.Context, arg RevokeShortTe
 		&i.RevokedAt,
 		&i.ExtensionRequestedAt,
 		&i.TokenID,
+		&i.HiddenAt,
+		&i.AutoRemoveHistory,
+		&i.Terms,
 	)
 	return i, err
 }
@@ -42982,7 +43185,10 @@ WHERE
 			workspace_builds.workspace_id = workspaces.id
 	) AND
 
-	(
+ (
+  -- Reconcile policy changes even for running workspaces without a deadline.
+  EXISTS (SELECT 1 FROM site_configs WHERE key = 'workspace_scheduler'
+      AND value::jsonb->>'enabled' = 'true') OR
 		-- A workspace may be eligible for autostop if the following are true:
 		--   * The provisioner job has not failed.
 		--   * The workspace is not dormant.

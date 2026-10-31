@@ -1,5 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { useState } from "react";
+import userEvent from "@testing-library/user-event";
+import { useEffect, useState } from "react";
+import { AccordionPanel } from "./AccordionPanel";
 import { AgentPanels } from "./AgentPanels";
 
 const Harness: React.FC = () => {
@@ -53,4 +55,59 @@ describe("AgentPanels", () => {
 		fireEvent.keyDown(handle, { key: "ArrowDown" });
 		expect(orderOf("app:a")).toBe(0);
 	});
+});
+
+it("hides and restores other panels without restarting their sessions", async () => {
+	const user = userEvent.setup();
+	const start = vi.fn();
+	const stop = vi.fn();
+	const Session = () => {
+		useEffect(() => {
+			start();
+			return stop;
+		}, []);
+		return <input aria-label="Session draft" defaultValue="Keep this draft" />;
+	};
+	render(
+		<AgentPanels
+			order={["desktop", "terminal"]}
+			onReorder={vi.fn()}
+			panels={["desktop", "terminal"].map((id) => ({
+				id,
+				label: id,
+				render: (handle) => (
+					<AccordionPanel
+						id={id}
+						title={id}
+						handle={handle}
+						kind="app"
+						slug={id}
+						initiallyOpen
+						height={240}
+						onHeightChange={vi.fn()}
+						onRemove={vi.fn()}
+					>
+						<Session />
+					</AccordionPanel>
+				),
+			}))}
+		/>,
+	);
+	await user.pointer({
+		target: screen.getByRole("button", { name: "desktop" }),
+		keys: "[MouseRight]",
+	});
+	await user.click(screen.getByRole("menuitem", { name: "Hide other panels" }));
+	await user.pointer({
+		target: screen.getByRole("button", { name: "desktop" }),
+		keys: "[MouseRight]",
+	});
+	await user.click(
+		screen.getByRole("menuitem", { name: "Restore all panels" }),
+	);
+	expect(start).toHaveBeenCalledTimes(2);
+	expect(stop).not.toHaveBeenCalled();
+	expect(
+		screen.getAllByRole("textbox").map((input) => input.getAttribute("value")),
+	).toEqual(["Keep this draft", "Keep this draft"]);
 });

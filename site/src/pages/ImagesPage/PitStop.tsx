@@ -11,9 +11,9 @@ import {
 	type PitLap,
 	type PitStop,
 } from "#/api/images";
+import { imagesKey } from "#/api/queries/images";
 import { Spinner } from "#/components/Spinner/Spinner";
 import type { Finding } from "./fixPlan";
-import { imagesKey } from "./ImagesPage";
 import "./pitStop.css";
 
 /**

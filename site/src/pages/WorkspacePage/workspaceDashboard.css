@@ -1,0 +1,68 @@
+html[data-workspace-expanded] {
+	overflow: hidden;
+}
+.workspace-dashboard-expand-corner {
+	width: 40px;
+	height: 40px;
+	pointer-events: none;
+}
+.workspace-dashboard-page[data-workspace-expanded] .workspace-dashboard-scroll {
+	display: flex;
+	flex-direction: column;
+	position: fixed;
+	top: var(--workspace-top);
+	bottom: var(--workspace-bottom);
+	left: 0;
+	right: 0;
+	z-index: 30;
+	padding: 0;
+}
+.workspace-dashboard-page[data-workspace-expanded] .workspace-dashboard-content,
+.workspace-dashboard-page[data-workspace-expanded] .workspace-dashboard-grid {
+	min-height: 100%;
+	width: 100%;
+	max-width: none;
+}
+.workspace-dashboard-page[data-workspace-expanded] .workspace-dashboard-content,
+.workspace-dashboard-page[data-workspace-expanded]
+	.workspace-dashboard-grid
+	> fieldset,
+.workspace-dashboard-page[data-workspace-expanded] .agent-fx,
+.workspace-dashboard-page[data-workspace-expanded]
+	.workspace-agent-card
+	> fieldset,
+.workspace-dashboard-page[data-workspace-expanded] [data-agent-panels],
+.workspace-dashboard-page[data-workspace-expanded] .agent-panels-cutout,
+.workspace-dashboard-page[data-workspace-expanded] .agent-panels,
+.workspace-dashboard-page[data-workspace-expanded] .agent-app-panel[data-open],
+.workspace-dashboard-page[data-workspace-expanded]
+	.agent-app-panel[data-open]
+	> div,
+.workspace-dashboard-page[data-workspace-expanded] [data-panel-content] {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	min-height: 0;
+}
+.workspace-dashboard-page[data-workspace-expanded] [data-panel-content].hidden {
+	display: none;
+}
+.workspace-dashboard-page[data-workspace-expanded] .workspace-agent-card {
+	flex: 1;
+}
+.workspace-dashboard-page[data-workspace-expanded] .agent-app-frame {
+	flex: 1;
+	min-height: 200px;
+	height: auto !important;
+}
+.workspace-dashboard-page[data-workspace-expanded] .workspace-dashboard-grid {
+	flex: 1;
+}
+.workspace-dashboard-page[data-workspace-expanded]
+	.agent-panels
+	> [data-panel]:not([hidden]):has(.agent-app-panel[data-open]) {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	min-height: 0;
+}

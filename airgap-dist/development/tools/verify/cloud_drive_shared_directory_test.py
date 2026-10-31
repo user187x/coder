@@ -11,6 +11,21 @@ SCRIPT = Path(__file__).resolve().parents[3] / "helm-chart/coder-airgapped/chart
 
 
 class SharedDirectoryTest(unittest.TestCase):
+    def test_native_mount_information_overrides_template_defaults(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "mounts.json"
+            path.write_text(json.dumps({"link": "/home/coder/cloud-drive", "mode": "mount",
+                                        "mount": "/mnt/cloud-drive", "items": [{"id": "grant"}]}))
+            script = SCRIPT.read_text().split("STATE=/etc/platform/cloud-drive")[0]
+            for key in ("link", "mode", "mount", "items"):
+                script = script.replace("${" + key + "}", "")
+            script = script.replace("/etc/platform/cloud-drive-mounts", str(path))
+            result = subprocess.run(["bash", "-c", script + '\nprintf "%s\\n" "$LINK" "$MODE" "$MOUNT" "$ITEMS_LIST"'],
+                                    check=True, capture_output=True, text=True)
+            link, mode, mount, items = result.stdout.splitlines()
+            self.assertEqual((link, mode, mount), ("/home/coder/cloud-drive", "mount", "/mnt/cloud-drive"))
+            self.assertEqual(json.loads(base64.b64decode(items)), [{"id": "grant"}])
+
     def test_migrate_generated_links_and_preserve_user_files(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

@@ -2,7 +2,7 @@ import { AppWindowIcon, Maximize2Icon, Minimize2Icon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "#/components/Button/Button";
-import { ChatConsole } from "./ChatConsole";
+import { ChatConsoleWorkspace } from "./ChatConsoleWorkspace";
 import {
 	attachConsole,
 	closeConsole,
@@ -112,19 +112,12 @@ export const ChatConsoleCard: React.FC = () => {
 	return (
 		<section
 			aria-labelledby="chat-console-card"
-			className="flex flex-col gap-3 rounded-lg border border-solid border-border p-6"
+			className="flex min-h-0 min-w-0 flex-col h-[calc(100dvh-var(--dashboard-navigation-height,72px)-var(--admin-breadcrumb-height,58px)-2*var(--coder-classification-h,0px)-80px)]"
 			data-testid="chat-console-card"
 		>
-			<h2 id="chat-console-card" className="m-0 text-base font-semibold">
+			<h2 id="chat-console-card" className="sr-only">
 				Chat console
 			</h2>
-			<p className="m-0 text-sm text-content-secondary">
-				Every conversation in one place: what waits for an answer, what is
-				unread, everything. Right-click a conversation for its person's
-				workspace, Cloud Drive or Force Response; choose several conversations
-				to delete them together (Select all for the whole list), or their people
-				for one group chat.
-			</p>
 			{poppedOut ? (
 				<div className="flex flex-col items-center gap-3 rounded-md border border-dashed border-border p-8 text-center text-sm text-content-secondary">
 					<AppWindowIcon className="size-6 opacity-60" />
@@ -143,9 +136,9 @@ export const ChatConsoleCard: React.FC = () => {
 					</span>
 				</div>
 			) : (
-				<ChatConsole
+				<ChatConsoleWorkspace
 					place="card"
-					className="h-[min(640px,75vh)]"
+					className="min-w-0 flex-1"
 					actions={
 						<Button
 							variant="subtle"
@@ -219,7 +212,7 @@ export const ChatConsoleWindow: React.FC = () => {
 	};
 	return (
 		<div className="flex h-screen flex-col bg-surface-primary p-2">
-			<ChatConsole
+			<ChatConsoleWorkspace
 				place="window"
 				className="flex-1"
 				actions={

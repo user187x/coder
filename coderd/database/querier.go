@@ -101,6 +101,7 @@ type sqlcQuerier interface {
 	CleanTailnetTunnels(ctx context.Context) error
 	CleanupDeletedMCPServerIDsFromChats(ctx context.Context) error
 	ClearChatDiffStatusPR(ctx context.Context, arg ClearChatDiffStatusPRParams) error
+	ConfigureShortTermLease(ctx context.Context, arg ConfigureShortTermLeaseParams) (ShortTermLease, error)
 	// Marks an unconsumed single-use webhook as consumed. It affects no row
 	// when the automation is not a single-use webhook or was already
 	// consumed, so callers can refuse the delivery.
@@ -159,6 +160,7 @@ type sqlcQuerier interface {
 	// be recreated.
 	DeleteAllWebpushSubscriptions(ctx context.Context) error
 	DeleteApplicationConnectAPIKeysByUserID(ctx context.Context, userID uuid.UUID) error
+	DeleteAuditCollector(ctx context.Context, arg DeleteAuditCollectorParams) (AuditCollector, error)
 	DeleteChatAutomationByID(ctx context.Context, id uuid.UUID) error
 	// Clears a chat's pinned context resources. Used as the first half of a
 	// clear-then-copy re-pin, and on its own when the chat's current agent
@@ -439,6 +441,7 @@ type sqlcQuerier interface {
 	GetAndResetBoundaryUsageSummary(ctx context.Context, maxStalenessMs int64) (GetAndResetBoundaryUsageSummaryRow, error)
 	GetAnnouncementBanners(ctx context.Context) (string, error)
 	GetApplicationName(ctx context.Context) (string, error)
+	GetAuditCollectors(ctx context.Context, organizationID uuid.UUID) ([]AuditCollector, error)
 	// GetAuditLogsBefore retrieves `row_limit` number of audit logs before the provided
 	// ID.
 	GetAuditLogsOffset(ctx context.Context, arg GetAuditLogsOffsetParams) ([]GetAuditLogsOffsetRow, error)
@@ -1191,6 +1194,7 @@ type sqlcQuerier interface {
 	// module-file downloads so a daemon cannot read another organization's cached
 	// Terraform module source.
 	HasTemplateVersionsUsingCachedModuleFileInOrg(ctx context.Context, arg HasTemplateVersionsUsingCachedModuleFileInOrgParams) (bool, error)
+	HideShortTermLease(ctx context.Context, arg HideShortTermLeaseParams) (ShortTermLease, error)
 	// Stamps the pinned hash and error on every not-yet-hydrated chat for
 	// an agent (context_aggregate_hash IS NULL) and copies the agent's
 	// current context resources onto those chats in the same statement, so
@@ -1227,6 +1231,7 @@ type sqlcQuerier interface {
 	// for simplicity since all users is
 	// every member of the org.
 	InsertAllUsersGroup(ctx context.Context, organizationID uuid.UUID) (Group, error)
+	InsertAuditCollector(ctx context.Context, arg InsertAuditCollectorParams) (AuditCollector, error)
 	InsertAuditLog(ctx context.Context, arg InsertAuditLogParams) (AuditLog, error)
 	InsertBoundaryLogs(ctx context.Context, arg InsertBoundaryLogsParams) ([]BoundaryLog, error)
 	InsertBoundarySession(ctx context.Context, arg InsertBoundarySessionParams) (BoundarySession, error)

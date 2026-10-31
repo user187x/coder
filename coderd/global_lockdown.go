@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"golang.org/x/xerrors"
 
 	"github.com/coder/coder/v2/coderd/database"
 	"github.com/coder/coder/v2/coderd/database/dbauthz"
@@ -21,14 +22,14 @@ import (
 	"github.com/coder/coder/v2/codersdk/agentsdk"
 )
 
-var errGlobalLockdownExternalProxy = errors.New("external workspace app proxy configured")
+var errGlobalLockdownExternalProxy = xerrors.New("external workspace app proxy configured")
 
 func (api *API) mountGlobalLockdown(r chi.Router, auth func(http.Handler) http.Handler) {
 	r.Route("/api/v2/global-lockdown", func(r chi.Router) {
 		r.Use(auth)
-		r.Get("/", api.getGlobalLockdown)
+		r.Get("/", api.globalLockdownStatus)
 		r.Post("/", api.postGlobalLockdown)
-		r.Get("/controls", api.getGlobalControls)
+		r.Get("/controls", api.globalControlsStatus)
 		r.Put("/controls", api.putGlobalControls)
 		r.Post("/controls/unlock", api.unlockGlobalControls)
 		r.Post("/controls/close", api.closeGlobalControls)
@@ -112,7 +113,7 @@ func (api *API) globalLockdownResponse(r *http.Request, s platformlockdown.State
 }
 
 // @Summary Synchronize workspace access enforcement
-// @ID sync-workspace-agent-access
+// @ID synchronize-workspace-access-enforcement
 // @Security CoderSessionToken
 // @Accept json
 // @Produce json
@@ -152,14 +153,14 @@ func (api *API) trackGlobalLockdownPeer(rw http.ResponseWriter, r *http.Request,
 }
 
 // @Summary Get global workspace lockdown
-// @ID get-global-lockdown
+// @ID get-global-workspace-lockdown
 // @Security CoderSessionToken
 // @Produce json
 // @Tags Deployment
 // @Success 200 {object} codersdk.GlobalLockdownState
 // @Router /api/v2/global-lockdown [get]
 // @x-apidocgen {"skip": true}
-func (api *API) getGlobalLockdown(rw http.ResponseWriter, r *http.Request) {
+func (api *API) globalLockdownStatus(rw http.ResponseWriter, r *http.Request) {
 	s, err := api.globalLockdown.Load(r.Context())
 	if err != nil {
 		httpapi.InternalServerError(rw, err)
@@ -174,7 +175,7 @@ func (api *API) getGlobalLockdown(rw http.ResponseWriter, r *http.Request) {
 }
 
 // @Summary Change global workspace lockdown
-// @ID update-global-lockdown
+// @ID change-global-workspace-lockdown
 // @Security CoderSessionToken
 // @Accept json
 // @Produce json

@@ -23,7 +23,7 @@ class WorkspacePowerTest(unittest.TestCase):
         patch.start()
         self.addCleanup(patch.stop)
         self.org, self.wid, self.build, self.version = [str(uuid.uuid4()) for _ in range(4)]
-        self.ws = {"id": self.wid, "name": "fixture", "owner_name": "admin", "owner_id": "owner",
+        self.ws = {"id": self.wid, "name": "fixture", "owner_name": "admin", "owner_id": str(uuid.uuid4()),
                    "organization_id": self.org, "latest_build": {"id": self.build, "status": "running",
                    "transition": "start", "template_version_id": self.version}}
         self.user = {"id": "owner", "roles": ["owner"]}
@@ -44,6 +44,8 @@ class WorkspacePowerTest(unittest.TestCase):
             requests.append((method, path, body))
             if method == "GET" and path == "/workspaces/" + self.wid:
                 return {**self.ws, "latest_build": next(builds)}
+            if method == "GET" and path == "/users/" + self.ws["owner_id"]:
+                return {"id": self.ws["owner_id"], "roles": [{"name": "member"}]}
             if path.endswith("/parameters"):
                 return [{"name": "disk", "value": "12"}]
             if method == "POST" and path.endswith("/builds"):
@@ -59,6 +61,19 @@ class WorkspacePowerTest(unittest.TestCase):
     def build_state(self, status, transition="start", build_id=None):
         return {**self.ws["latest_build"], "id": build_id or self.build, "status": status, "transition": transition}
 
+    def test_absent_vm_api_does_not_probe_forbidden_vm_resources(self):
+        power.KUBE.call.side_effect = lambda method, path: (404, {}) if path == '/apis/kubevirt.io/v1' else (403, {})
+        self.assertTrue(power.vm_stopped(self.wid, self.org))
+        self.assertIsNone(power.force_vm_runtime(self.wid, self.org))
+        self.assertTrue(all(call.args[1] == '/apis/kubevirt.io/v1' for call in power.KUBE.call.call_args_list))
+
+    def test_vm_discovery_permission_failure_is_not_treated_as_absent(self):
+        power.KUBE.call.return_value = (403, {})
+        with self.assertRaises(RuntimeError):
+            power.vm_stopped(self.wid, self.org)
+        with self.assertRaises(RuntimeError):
+            power.force_vm_runtime(self.wid, self.org)
+
     def test_shutdown_preserves_workspace_parameters_and_only_creates_stop_build(self):
         operation = self.operation()
         result, calls = self.execute(operation, [self.build_state("running"),
@@ -69,6 +84,49 @@ class WorkspacePowerTest(unittest.TestCase):
         self.assertEqual(posted, [{"transition": "stop", "template_version_id": self.version,
                                   "rich_parameter_values": [{"name": "disk", "value": "12"}]}])
         self.assertFalse(any(method == "DELETE" for method, _, _ in calls))
+
+    def test_administrator_exclusion_skips_both_power_actions_before_runtime_changes(self):
+        for action in ("shutdown", "terminate"):
+            for role in ("owner", "user-admin", "template-admin"):
+                with self.subTest(action=action, role=role):
+                    operation = self.operation(action)
+                    operation["exclude_admins"] = True
+                    def coder(token, method, path, body=None):
+                        self.assertEqual(method, "GET")
+                        if path == "/workspaces/" + self.wid:
+                            return self.ws
+                        self.assertEqual(path, "/users/" + self.ws["owner_id"])
+                        return {"id": self.ws["owner_id"], "roles": [{"name": role}]}
+                    with mock.patch.object(power, "coder", side_effect=coder), mock.patch.object(power, "force_runtime") as force:
+                        power.stop_one("session", operation, operation["workspaces"][0])
+                    force.assert_not_called()
+                    result = power.read_operation(self.org, operation["id"])["workspaces"][0]
+                    self.assertEqual(result["status"], "skipped")
+                    self.assertEqual(result["error"], "Administrator workspace excluded.")
+                    power.update(operation["id"], status="completed")
+
+    def test_administrator_lookup_failure_does_not_stop_the_workspace(self):
+        operation = self.operation("terminate")
+        operation["exclude_admins"] = True
+        with mock.patch.object(power, "coder", side_effect=[self.ws, power.CoderError(503, "GET", "/users/owner")]), \
+             mock.patch.object(power, "force_runtime") as force:
+            power.stop_one("session", operation, operation["workspaces"][0])
+        force.assert_not_called()
+        result = power.read_operation(self.org, operation["id"])["workspaces"][0]
+        self.assertEqual(result["status"], "error")
+
+    def test_exclusion_still_stops_non_administrator_workspaces(self):
+        operation = self.operation()
+        operation["exclude_admins"] = True
+        result, calls = self.execute(operation, [self.build_state("running"), self.build_state("stopped", "stop", "stop-build")])
+        self.assertEqual(result["status"], "stopped")
+        self.assertEqual(sum(method == "POST" for method, _, _ in calls), 1)
+        self.assertEqual(sum(path == "/users/" + self.ws["owner_id"] for _, path, _ in calls), 2)
+
+    def test_exclusion_rejects_non_boolean_before_start(self):
+        with self.assertRaises(ValueError):
+            power.start("session", self.user, self.org, {"action": "shutdown", "confirmation": "shutdown",
+                        "workspace_ids": [self.wid], "exclude_admins": "false"})
 
     def test_pending_start_is_canceled_before_stop_and_not_duplicated(self):
         operation = self.operation()
@@ -228,6 +286,8 @@ class WorkspacePowerTest(unittest.TestCase):
         calls = []
         def call(method, path, body=None, patch_type=None):
             calls.append((method, path, body))
+            if path == "/apis/kubevirt.io/v1":
+                return 200, {}
             if method == "GET" and "/virtualmachines/" in path:
                 return 200, copy.deepcopy(vm)
             if method == "GET" and "/virtualmachineinstances/" in path:
@@ -299,6 +359,8 @@ class WorkspacePowerTest(unittest.TestCase):
             {"kind": "Deployment", "uid": "deployment-uid", "controller": True}]}}
         pods = [pod]
         def call(method, path, body=None, patch_type=None):
+            if path == "/apis/kubevirt.io/v1":
+                return 404, {}
             if method == "GET" and "/virtualmachines/" in path:
                 return 404, {}
             if method == "GET" and "/deployments?" in path:

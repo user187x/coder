@@ -7,12 +7,16 @@
 # this is Chainguard's build (cgr.dev/chainguard/minio, rebuilt as fixes land; its free tier is "latest" only), pinned
 # by the digest of its linux/amd64 image; the MinIO release it reports is printed (images.txt's description names it). Nothing else is changed.
 set -euo pipefail
-here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; top="$(cd "${here}/../.." && pwd)"
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+top="$(cd "${here}/../.." && pwd)"
 source_repo=cgr.dev/chainguard/minio
 digest="${1:-sha256:c93745c56fccdaf0e5dcb88999a96a65a136428beb045ef5d546255a80d747a7}"
 docker pull --platform linux/amd64 -q "${source_repo}@${digest}" >/dev/null
 release=$(docker run --rm --platform linux/amd64 "${source_repo}@${digest}" --version | awk '/^minio version/ {print $3}')
-[[ "$release" =~ ^RELEASE\.[0-9T:-]+Z$ ]] || { echo "unexpected MinIO version: ${release}" >&2; exit 1; }
+[[ "$release" =~ ^RELEASE\.[0-9T:-]+Z$ ]] || {
+	echo "unexpected MinIO version: ${release}" >&2
+	exit 1
+}
 img="docker.io/mrshll187/coder-minio:$(cat "$(dirname "$top")/RELEASE_VERSION")"
 docker tag "${source_repo}@${digest}" "$img"
 # its archive in the bundle, in its section's folder of images.txt (replacing the previous tag's)

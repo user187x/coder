@@ -336,6 +336,22 @@ class LockDownTest(unittest.TestCase):
         annotate = [c for c in calls if c[0] == "PATCH" and c[3] == "application/merge-patch+json"]
         self.assertEqual(annotate[0][2]["metadata"]["annotations"][ld.ANNOTATION], "network,sudo")
 
+    def test_lockdown_follows_the_agent_container_and_home(self):
+        pod = self.pod()
+        agent = pod["spec"]["containers"][0]
+        agent.update(name="workspace", env=[{"name": "CODER_AGENT_TOKEN", "value": "test"}],
+                     volumeMounts=[{"name": "home", "mountPath": "/home/coder"}])
+        pod["spec"]["containers"].insert(0, {"name": "sidecar", "image": "reg/side:1"})
+        pod["spec"]["volumes"] = [{"name": "home", "persistentVolumeClaim": {"claimName": "home-claim"}}]
+        pod["status"]["containerStatuses"][0]["name"] = "workspace"
+        kube, calls, _ = self.kube(pods=[pod])
+        with mock.patch.object(ld, "KUBE", kube):
+            self.assertEqual([r[1] for r in ld.reconcile(self.WID, "network")], [True])
+        added = next(c for c in calls if c[1].endswith("/ephemeralcontainers"))[2]["spec"]["ephemeralContainers"][0]
+        self.assertEqual(added["targetContainerName"], "workspace")
+        self.assertEqual(added["image"], agent["image"])
+        self.assertEqual(ld.home_claim(pod), "home-claim")
+
     def test_in_force_already_or_failing(self):
         kube, calls, _ = self.kube(pods=[self.pod(applied="sudo")])
         with mock.patch.object(ld, "KUBE", kube):
@@ -2051,10 +2067,10 @@ class PitStopTest(unittest.TestCase):
 
         with mock.patch.object(ib, "_forward"), mock.patch.object(ib.subprocess, "run", run), \
                 mock.patch.object(ib.securitydata, "job_stamp", lambda d: {"cacheDir": "/data"}), \
-                mock.patch.object(ib.urllib.request, "urlopen", lambda *a, **k: io.BytesIO(json.dumps(plan).encode())), \
+                mock.patch.object(ib, "open_service", lambda *a, **k: io.BytesIO(json.dumps(plan).encode())), \
                 mock.patch.dict(os.environ, {"BUILDER_REGISTRY": ib.REGISTRY}), \
                 self.assertRaises(SystemExit), mock.patch("builtins.print"):
-            ib.copa("http://svc/copa/1")
+            ib.copa("https://svc/copa/1")
         cmd = runs[0]
         self.assertEqual(cmd[:2], ["trivy", "image"])
         self.assertEqual([cmd[i + 1] for i, a in enumerate(cmd) if a == "--skip-files"], ["**/*.jar", "**/*.war", "**/*.ear"])
@@ -3396,7 +3412,8 @@ class CloudDriveMountTest(unittest.TestCase):
                                         "decisions": {"b.txt": "overwrite"}})
         self.assertTrue(r["halted"])
         pod, container, command, stdin = calls[0]
-        self.assertEqual((pod, container), ("ws-pod", "dev"))
+        self.assertEqual(pod, "ws-pod")
+        self.assertEqual(container, "")  # kexec selects the pod's actual agent container.
         self.assertEqual(command[:2], ["python3", "-c"])
         self.assertEqual(command[4:], ["apply", "data", "--mode", "ask",
                                        "--decisions=-:%d" % len(json.dumps({"b.txt": "overwrite"})), "--json"])
@@ -4119,6 +4136,23 @@ class WebhookTest(unittest.TestCase):
         pod = self.apply(self.example_pod(), self.wh.patch(self.example_pod(), {"cloudDrive": {}}, "LOCKDOWN"))
         self.assertEqual(self.wh.patch(pod, {"cloudDrive": {}}, "LOCKDOWN"), [], "a decorated or mutated pod: no change")
 
+    def test_network_tools_come_from_the_managed_image(self):
+        pod = self.example_pod()
+        with mock.patch.object(self.wh, "LOCKDOWN_IMAGE", "registry/network-tools:1"):
+            after = self.apply(pod, self.wh.patch(pod, {"cloudDrive": {}}, "L"))
+        self.assertEqual(after["spec"]["initContainers"][1]["image"], "registry/network-tools:1")
+        self.assertEqual(after["spec"]["containers"][0]["image"], pod["spec"]["containers"][0]["image"])
+
+    def test_managed_runtime_also_trusts_the_cluster_ca(self):
+        pod = self.example_pod()
+        pod["spec"]["containers"].insert(0, {"name": "workspace-tunnel", "image": "reg/runtime:1",
+                                             "env": [{"name": "CODER_AGENT_TOKEN", "value": "test"}]})
+        after = self.apply(pod, self.wh.patch(pod, {"cloudDrive": {}}, "L"))
+        mounts = after["spec"]["containers"][0]["volumeMounts"]
+        self.assertIn({"name": "ca-bundle", "mountPath": "/etc/ssl/certs/ca-certificates.crt",
+                       "subPath": "ca-certificates.crt", "readOnly": True}, mounts)
+        self.assertIn("/etc/platform", [m["mountPath"] for m in after["spec"]["containers"][1]["volumeMounts"]])
+
     def test_the_cloud_drive_modes(self):
         cd = self.wh.cloud_drive
         self.assertEqual(cd({"shared": [self.WID]}, self.WID, self.OWNER)["mode"], "shared")
@@ -4129,6 +4163,21 @@ class WebhookTest(unittest.TestCase):
         self.assertEqual((other["mode"], other["claim"]), ("mount", "coder-drive-src-" + self.OWNER))
         down = {"sources": {self.OWNER: {"workspace": "x", "running": False}}}
         self.assertEqual((cd(down, self.WID, self.OWNER)["mode"], cd(down, self.WID, self.OWNER)["claim"]), ("offline", ""))
+
+    def test_audit_claim_and_workspace_grants(self):
+        grants = {"auditClaims": {self.OWNER: "audit-claim"}, "peers": {self.OWNER: [
+            {"owner": "other", "workspaceId": "unrelated", "claim": "wrong"}]},
+            "workspacePeers": {self.WID: [{"owner": "other", "name": "alice", "claim": "shared",
+                                           "id": "item", "kind": "item", "item": "file", "path": "file"}]}}
+        pod = self.example_pod()
+        after = self.apply(pod, self.wh.patch(pod, {"cloudDrive": grants}, "L"))
+        claims = [v["persistentVolumeClaim"]["claimName"] for v in after["spec"]["volumes"]
+                  if "persistentVolumeClaim" in v]
+        self.assertIn("audit-claim", claims)
+        self.assertIn("shared", claims)
+        self.assertNotIn("wrong", claims)
+        self.assertEqual(json.loads(after["metadata"]["annotations"]["platform.coder/cloud-drive-mounts"])["items"],
+                         [{"id": "item", "owner": "alice", "item": "file"}])
 
     def test_what_is_shared_with_the_owner(self):
         claim = "coder-safe-bob"

@@ -21,6 +21,8 @@ func NewFence() *Fence {
 }
 
 // SetServing is safe in nonblocking HA role and fencing callbacks.
+//
+//nolint:revive // This boolean represents the externally supplied policy state.
 func (f *Fence) SetServing(allowed bool) {
 	f.mu.Lock()
 	defer f.mu.Unlock()

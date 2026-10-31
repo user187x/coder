@@ -7,6 +7,7 @@ import {
 } from "#/api/platform";
 import { render } from "#/testHelpers/renderHelpers";
 import { ChatConsole } from "./ChatConsole";
+import type * as ChatStoreModule from "./chatStore";
 import type { useChatSnapshot } from "./chatStore";
 
 type Snapshot = ReturnType<typeof useChatSnapshot>;
@@ -44,7 +45,7 @@ const conversations = [
 // The console reads the chat store; these tests give it a fixed one.
 const snapshot = vi.hoisted(() => ({ current: null as unknown }));
 vi.mock("./chatStore", async (importOriginal) => ({
-	...(await importOriginal<typeof import("./chatStore")>()),
+	...(await importOriginal<typeof ChatStoreModule>()),
 	useChatSnapshot: () => snapshot.current,
 }));
 
@@ -65,6 +66,7 @@ const renderConsole = () => {
 		fullFrom: "window",
 		panelView: null,
 		consoleOpen: true,
+		menuOpen: false,
 		consoleOverlay: false,
 		consoleView: null,
 		consoleRequest: 0,

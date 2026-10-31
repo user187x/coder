@@ -15,6 +15,9 @@ import (
 
 	"github.com/coder/coder/v2/coderd"
 	"github.com/coder/coder/v2/coderd/coderdtest"
+	"github.com/coder/coder/v2/coderd/database"
+	"github.com/coder/coder/v2/coderd/database/dbauthz"
+	"github.com/coder/coder/v2/coderd/workspacescheduler"
 	"github.com/coder/coder/v2/codersdk"
 	"github.com/coder/coder/v2/provisioner/echo"
 	"github.com/coder/coder/v2/provisionersdk/proto"
@@ -214,108 +217,59 @@ func TestPlatformWorkspaceQuota(t *testing.T) {
 
 func TestPlatformWorkspaceScheduler(t *testing.T) {
 	t.Parallel()
-
-	type check struct {
-		token string
-		body  map[string]any
-	}
-	checks := make(chan check, 10)
-	answer := make(chan func(rw http.ResponseWriter), 10)
-	srv := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-		if r.Header.Get("X-Requested-With") != "coder-ui" {
-			rw.WriteHeader(http.StatusNotFound)
-			return
-		}
-		switch r.URL.Path {
-		case "/__coder-ui/api/quota/check":
-			rw.Header().Set("Content-Type", "application/json")
-			_, _ = rw.Write([]byte(`{"allowed": true}`))
-		case "/__coder-ui/api/scheduler/check":
-			var body map[string]any
-			_ = json.NewDecoder(r.Body).Decode(&body)
-			checks <- check{token: r.Header.Get(codersdk.SessionTokenHeader), body: body}
-			(<-answer)(rw)
-		default:
-			rw.WriteHeader(http.StatusNotFound)
-		}
-	}))
-	t.Cleanup(srv.Close)
-	target, err := url.Parse(srv.URL)
-	require.NoError(t, err)
-
-	client := coderdtest.New(t, &coderdtest.Options{
-		IncludeProvisionerDaemon: true,
-		PlatformServiceRoutes:    []coderd.PlatformServiceRoute{{PathPrefix: "/__coder-ui", Target: target}},
-	})
+	client, db := coderdtest.NewWithDatabase(t, &coderdtest.Options{IncludeProvisionerDaemon: true})
 	first := coderdtest.CreateFirstUser(t, client)
+	ctx := testutil.Context(t, testutil.WaitLong)
 	version := coderdtest.CreateTemplateVersion(t, client, first.OrganizationID, nil)
 	coderdtest.AwaitTemplateVersionJobCompleted(t, client, version.ID)
 	template := coderdtest.CreateTemplate(t, client, first.OrganizationID, version.ID)
-
-	reply := func(status int, body string) {
-		answer <- func(rw http.ResponseWriter) {
-			rw.Header().Set("Content-Type", "application/json")
-			rw.WriteHeader(status)
-			_, _ = rw.Write([]byte(body))
-		}
+	setPolicy := func(value string) {
+		t.Helper()
+		require.NoError(t, db.UpsertRuntimeConfig(dbauthz.AsSystemRestricted(ctx), database.UpsertRuntimeConfigParams{Key: workspacescheduler.ConfigKey, Value: value}))
 	}
-	requireRefused := func(err error, message string) {
+	refused := func(err error, message string) {
 		t.Helper()
 		var sdkErr *codersdk.Error
 		require.ErrorAs(t, err, &sdkErr)
 		require.Equal(t, http.StatusForbidden, sdkErr.StatusCode())
 		require.Contains(t, sdkErr.Message, message)
 	}
-	ctx := testutil.Context(t, testutil.WaitLong)
-
-	// Create without a schedule: refused with the service's message.
-	reply(http.StatusOK, `{"allowed": false, "message": "Every workspace needs a start time and a stop time: it has no start time."}`)
-	_, err = client.CreateUserWorkspace(ctx, codersdk.Me, codersdk.CreateWorkspaceRequest{TemplateID: template.ID, Name: "nosched"})
-	requireRefused(err, "needs a start time")
-	got := <-checks
-	require.Equal(t, client.SessionToken(), got.token)
-	require.Equal(t, "create", got.body["action"])
-	require.Nil(t, got.body["autostart_schedule"])
-
-	// The administrator's schedule is applied on create.
-	reply(http.StatusOK, `{"allowed": true, "apply": {"autostart_schedule": "CRON_TZ=UTC 30 8 * * 1-5", "ttl_ms": 30600000}}`)
+	setPolicy(`{"enabled":true,"mode":"user","ignoreAdmins":false,"maxActiveHours":10}`)
+	_, err := client.CreateUserWorkspace(ctx, codersdk.Me, codersdk.CreateWorkspaceRequest{TemplateID: template.ID, Name: "nosched"})
+	refused(err, "start schedule")
+	setPolicy(`{"enabled":true,"mode":"fixed","ignoreAdmins":false,"fixed":{"start":"08:30","stop":"17:00","days":[0,1,2,3,4,5,6],"timezone":"UTC"}}`)
 	ws, err := client.CreateUserWorkspace(ctx, codersdk.Me, codersdk.CreateWorkspaceRequest{TemplateID: template.ID, Name: "fixed"})
 	require.NoError(t, err)
-	<-checks
+	coderdtest.AwaitWorkspaceBuildJobCompleted(t, client, ws.LatestBuild.ID)
 	require.NotNil(t, ws.AutostartSchedule)
-	require.Equal(t, "CRON_TZ=UTC 30 8 * * 1-5", *ws.AutostartSchedule)
+	require.Equal(t, "CRON_TZ=UTC 30 8 * * *", *ws.AutostartSchedule)
 	require.NotNil(t, ws.TTLMillis)
 	require.Equal(t, int64(30600000), *ws.TTLMillis)
-
-	// Removing the start time: refused; the check sees the workspace's stop time.
-	reply(http.StatusOK, `{"allowed": false, "message": "Every workspace needs a start time and a stop time: it has no start time."}`)
-	err = client.UpdateWorkspaceAutostart(ctx, ws.ID, codersdk.UpdateWorkspaceAutostartRequest{Schedule: nil})
-	requireRefused(err, "needs a start time")
-	got = <-checks
-	require.Equal(t, "autostart", got.body["action"])
-	require.Equal(t, "fixed", ws.Name)
-	require.EqualValues(t, 30600000, got.body["ttl_ms"])
-
-	// A new start time that complies: saved.
-	reply(http.StatusOK, `{"allowed": true}`)
-	sched := "CRON_TZ=UTC 0 9 * * 1-5"
-	require.NoError(t, client.UpdateWorkspaceAutostart(ctx, ws.ID, codersdk.UpdateWorkspaceAutostartRequest{Schedule: &sched}))
-	<-checks
-
-	// A stop time over the maximum: refused; the check sees the start time.
-	reply(http.StatusOK, `{"allowed": false, "message": "it stays up 20 h, more than the 10 h allowed"}`)
+	refused(client.UpdateWorkspaceAutostart(ctx, ws.ID, codersdk.UpdateWorkspaceAutostartRequest{Schedule: nil}), "start schedule")
+	setPolicy(`{"enabled":true,"mode":"user","ignoreAdmins":false,"maxActiveHours":10}`)
+	spec := "CRON_TZ=UTC 0 9 * * 1-5"
+	require.NoError(t, client.UpdateWorkspaceAutostart(ctx, ws.ID, codersdk.UpdateWorkspaceAutostartRequest{Schedule: &spec}))
 	long := int64(20 * 3600 * 1000)
-	err = client.UpdateWorkspaceTTL(ctx, ws.ID, codersdk.UpdateWorkspaceTTLRequest{TTLMillis: &long})
-	requireRefused(err, "more than the 10 h allowed")
-	got = <-checks
-	require.Equal(t, "ttl", got.body["action"])
-	require.Equal(t, sched, got.body["autostart_schedule"])
-
-	// The check itself failing changes nothing: the request goes through.
-	reply(http.StatusServiceUnavailable, `{"error": "down"}`)
+	refused(client.UpdateWorkspaceTTL(ctx, ws.ID, codersdk.UpdateWorkspaceTTLRequest{TTLMillis: &long}), "within 10 hours")
 	short := int64(4 * 3600 * 1000)
 	require.NoError(t, client.UpdateWorkspaceTTL(ctx, ws.ID, codersdk.UpdateWorkspaceTTLRequest{TTLMillis: &short}))
-	<-checks
+	stopped, err := client.CreateWorkspaceBuild(ctx, ws.ID, codersdk.CreateWorkspaceBuildRequest{Transition: codersdk.WorkspaceTransitionStop})
+	require.NoError(t, err)
+	coderdtest.AwaitWorkspaceBuildJobCompleted(t, client, stopped.ID)
+	require.NoError(t, db.UpdateWorkspaceAutostart(dbauthz.AsSystemRestricted(ctx), database.UpdateWorkspaceAutostartParams{ID: ws.ID}))
+	_, err = client.CreateWorkspaceBuild(ctx, ws.ID, codersdk.CreateWorkspaceBuildRequest{Transition: codersdk.WorkspaceTransitionStart})
+	refused(err, "start schedule")
+	setPolicy(`{"enabled":true,"mode":"fixed","ignoreAdmins":false,"fixed":{"start":"08:30","stop":"17:00","days":[0,1,2,3,4,5,6],"timezone":"UTC"}}`)
+	restarted, err := client.CreateWorkspaceBuild(ctx, ws.ID, codersdk.CreateWorkspaceBuildRequest{Transition: codersdk.WorkspaceTransitionStart})
+	require.NoError(t, err)
+	coderdtest.AwaitWorkspaceBuildJobCompleted(t, client, restarted.ID)
+	repaired, err := client.Workspace(ctx, ws.ID)
+	require.NoError(t, err)
+	require.Equal(t, "CRON_TZ=UTC 30 8 * * *", *repaired.AutostartSchedule)
+	require.Equal(t, int64(30600000), *repaired.TTLMillis)
+	setPolicy(`invalid`)
+	_, err = client.CreateUserWorkspace(ctx, codersdk.Me, codersdk.CreateWorkspaceRequest{TemplateID: template.ID, Name: "badpolicy"})
+	require.Error(t, err, "unreadable enforcement must not allow a start")
 }
 
 func TestPlatformWorkspaceQuotaStartResize(t *testing.T) {

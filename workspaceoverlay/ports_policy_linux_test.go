@@ -3,9 +3,11 @@
 package workspaceoverlay_test
 
 import (
-	"github.com/coder/coder/v2/workspaceoverlay"
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/coder/coder/v2/workspaceoverlay"
 )
 
 func TestPolicyRejectsUnsupportedOrInvalidPortRules(t *testing.T) {

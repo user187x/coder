@@ -30,19 +30,34 @@
 set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-die() { printf '\033[31mERROR: %s\033[0m\n' "$*" >&2; exit 1; }
+die() {
+	printf '\033[31mERROR: %s\033[0m\n' "$*" >&2
+	exit 1
+}
 say() { printf '\033[1;34m==> %s\033[0m\n' "$*"; }
 
 app="" push=0 apply=0 registry="" dataflow=off dry=0
 while (($#)); do
 	case "$1" in
-	--app) app="${2:?--app FILE}"; shift ;;
+	--app)
+		app="${2:?--app FILE}"
+		shift
+		;;
 	--push) push=1 ;;
 	--apply) apply=1 ;;
-	--registry) registry="${2:?--registry <harbor>/<project>}"; shift ;;
-	--dataflow) dataflow="${2:?--dataflow off|keep|IMAGE}"; shift ;;
+	--registry)
+		registry="${2:?--registry <harbor>/<project>}"
+		shift
+		;;
+	--dataflow)
+		dataflow="${2:?--dataflow off|keep|IMAGE}"
+		shift
+		;;
 	--dry-run) dry=1 ;;
-	-h | --help) sed -n '2,/^set -euo/p' "$0" | sed '$d' | sed 's/^# \{0,1\}//'; exit 0 ;;
+	-h | --help)
+		sed -n '2,/^set -euo/p' "$0" | sed '$d' | sed 's/^# \{0,1\}//'
+		exit 0
+		;;
 	*) die "unknown option: $1 (--help)" ;;
 	esac
 	shift
@@ -60,11 +75,12 @@ fi
 base_chart=$(find "$charts" -maxdepth 1 -name 'coder-airgapped-base-*.tgz' 2>/dev/null | sort -V | tail -n1)
 layer_chart=$(find "$charts" -maxdepth 1 -name 'coder-airgapped-layer-*.tgz' 2>/dev/null | sort -V | tail -n1)
 [[ -n "$base_chart" && -n "$layer_chart" ]] || die "the two charts are not in ${charts} (coder-airgapped-{base,layer}-<version>.tgz)"
-version=$(basename "$layer_chart" .tgz); version=${version#coder-airgapped-layer-}
+version=$(basename "$layer_chart" .tgz)
+version=${version#coder-airgapped-layer-}
 [[ "$(basename "$base_chart")" == "coder-airgapped-base-${version}.tgz" ]] || die "the charts' versions differ: $(basename "$base_chart"), $(basename "$layer_chart")"
 fork_archive=$(find "$images" -maxdepth 1 -name 'docker.io_mrshll187_coder-platform_*.tar.gz' 2>/dev/null | sort -V | tail -n1)
 [[ -n "$fork_archive" ]] || die "the fork's Coder image archive is not in ${images}"
-fork_image=$(basename "$fork_archive" .tar.gz)                       # docker.io_mrshll187_coder-platform_<tag>
+fork_image=$(basename "$fork_archive" .tar.gz) # docker.io_mrshll187_coder-platform_<tag>
 fork_image="docker.io/mrshll187/coder-platform:${fork_image#docker.io_mrshll187_coder-platform_}"
 say "This update: charts ${version}, Coder image ${fork_image}"
 # The ubuntu-dataflow template's image, as the layer chart names it (coder-workspace.dataflowImage).
@@ -137,7 +153,8 @@ fi
 
 # ---- 3. the Application: both sources at this version; the dataflow template
 stamp=$(date +%Y%m%d-%H%M%S)
-updated=$(mktemp); trap 'rm -f "$updated"' EXIT
+updated=$(mktemp)
+trap 'rm -f "$updated"' EXIT
 python3 - "$app" "$updated" "$version" "$dataflow" <<'PY'
 import re, sys
 

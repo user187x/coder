@@ -1,3 +1,5 @@
+import { TerminalConnectorAvatar } from "#/modules/platform/announcement/TerminalConnector";
+import { WorkspaceSSHDetails } from "#/modules/workspaces/WorkspaceSSHDetails/WorkspaceSSHDetails";
 import "#/modules/platform/sandbox/sandbox.css";
 import { cn } from "cn";
 import {
@@ -101,6 +103,7 @@ import {
 } from "#/modules/workspaces/WorkspaceUpdateDialogs";
 import {
 	getDisplayWorkspaceTemplateName,
+	getWorkspaceRestartReasons,
 	workspaceAgentNeedsUpdate,
 } from "#/utils/workspace";
 import {
@@ -186,7 +189,10 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 					)}
 					{/* Platform: as wide as the names, the Resources right beside them */}
 					<TableHead
-						className={cn("w-0 whitespace-nowrap", hideHeaders && "invisible")}
+						className={cn(
+							"w-0 whitespace-nowrap text-center",
+							hideHeaders && "invisible",
+						)}
 					>
 						Name
 					</TableHead>
@@ -335,14 +341,18 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 											</div>
 										}
 										avatar={
-											<WorkspaceRestrictionAvatar workspace={workspace}>
-												<Avatar
-													src={workspace.owner_avatar_url}
-													fallback={workspace.owner_name}
-													size="lg"
-													className="rounded-[10px]"
-												/>
-											</WorkspaceRestrictionAvatar>
+											<WorkspaceAvatarSSH workspace={workspace}>
+												<TerminalConnectorAvatar workspace={workspace}>
+													<WorkspaceRestrictionAvatar workspace={workspace}>
+														<Avatar
+															src={workspace.owner_avatar_url}
+															fallback={workspace.owner_name}
+															size="lg"
+															className="rounded-[10px]"
+														/>
+													</WorkspaceRestrictionAvatar>
+												</TerminalConnectorAvatar>
+											</WorkspaceAvatarSSH>
 										}
 									/>
 								</WorkspaceContextMenu>
@@ -390,6 +400,11 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 								<WorkspaceRowStatus
 									workspace={workspace}
 									agentUpdateAvailable={agentUpdateAvailable}
+									restartReasons={getWorkspaceRestartReasons(
+										workspace,
+										dashboard.buildInfo.version,
+										dashboard.buildInfo.agent_api_version,
+									)}
 									pill
 									after={<CloudDriveAttachBadge workspace={workspace} />}
 								/>
@@ -1254,5 +1269,30 @@ const BaseIconLink: React.FC<BaseIconLinkProps> = ({
 			{children}
 			<span className="sr-only">{label}</span>
 		</Button>
+	);
+};
+
+const WorkspaceAvatarSSH = ({
+	workspace,
+	children,
+}: {
+	workspace: Workspace;
+	children: React.ReactNode;
+}) => {
+	const restricted = useWorkspaceRestricted(workspace);
+	return (
+		<WorkspaceSSHDetails workspace={workspace} disabled={restricted}>
+			{(events) => (
+				<span
+					{...events}
+					role="group"
+					tabIndex={restricted ? -1 : 0}
+					aria-label={`SSH access for ${workspace.name}`}
+					className="inline-flex rounded-[10px] outline-offset-2"
+				>
+					{children}
+				</span>
+			)}
+		</WorkspaceSSHDetails>
 	);
 };

@@ -1,4 +1,7 @@
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { CornerExpandButton } from "#/components/Button/CornerExpandButton";
+import { bottomBarsHeight } from "#/utils/bottomBars";
+import "./workspaceDashboard.css";
 import type * as TypesGen from "#/api/typesGenerated";
 import { isEmbeddedFrame } from "#/contexts/platformBoot";
 import { useSearchParamsKey } from "#/hooks/useSearchParamsKey";
@@ -72,6 +75,29 @@ export const Workspace: React.FC<WorkspaceProps> = ({
 	// Platform: in the workspace grid's frame, the dashboard alone (no top bar, side bar or resource strip), its
 	// size told to the grid, which fits it to its cell
 	const embedded = isEmbeddedFrame();
+	const [expanded, setExpanded] = useState(false);
+	const pageRef = useRef<HTMLDivElement>(null);
+	useEffect(() => {
+		if (!expanded) return;
+		const root = document.documentElement;
+		const measure = () => {
+			const page = pageRef.current;
+			if (!page) return;
+			page.style.setProperty(
+				"--workspace-top",
+				`${page.getBoundingClientRect().top}px`,
+			);
+			page.style.setProperty("--workspace-bottom", `${bottomBarsHeight()}px`);
+		};
+
+		root.setAttribute("data-workspace-expanded", "");
+		measure();
+		window.addEventListener("resize", measure);
+		return () => {
+			root.removeAttribute("data-workspace-expanded");
+			window.removeEventListener("resize", measure);
+		};
+	}, [expanded]);
 	const dashboardRef = useRef<HTMLDivElement>(null);
 	useReportEmbeddedSize(dashboardRef, embedded);
 	const createWorkspaceLink = `${getLink(
@@ -167,7 +193,16 @@ export const Workspace: React.FC<WorkspaceProps> = ({
 		/>
 	) : undefined;
 	const dashboard = (
-		<div className="flex flex-col gap-6 max-w-[1200px] m-auto">
+		<div className="workspace-dashboard-grid relative flex flex-col gap-6 max-w-[1200px] m-auto">
+			{!embedded && (
+				<div className="workspace-dashboard-expand-corner absolute right-0 top-0 z-20">
+					<CornerExpandButton
+						expanded={expanded}
+						onToggle={() => setExpanded((current) => !current)}
+						label="workspace dashboard"
+					/>
+				</div>
+			)}
 			{/* Platform: the notice while an admin has the workspace locked down */}
 			<LockdownBanner workspace={workspace} />
 			<WorkspaceQuarantineControl workspace={workspace} noticeOnly />
@@ -210,6 +245,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
 				>
 					{topAgents.map((agent, i) => (
 						<AgentRow
+							initiallyCollapsed={embedded}
 							key={agent.id}
 							agent={agent}
 							topbar={i === 0 ? workspaceTopbar : undefined}
@@ -254,12 +290,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
 				{/* the grid fits it whole: never a scrollbar, even while it grows (before the grid has fitted it) */}
 				<style>
 					{`html{scrollbar-width:none;overflow:hidden}html::-webkit-scrollbar{display:none}
-.workspace-embedded-dashboard{display:flex;flex-direction:column;min-height:100vh}
-.workspace-embedded-dashboard>div{flex:1;width:100%}
-.workspace-embedded-dashboard>div>section{flex:1}
-.workspace-embedded-dashboard .agent-fx{display:flex;flex-direction:column;flex:1}
-.workspace-embedded-dashboard .agent-fx>div:first-child{flex:1}
-.workspace-embedded-dashboard[data-measuring]{min-height:0}`}
+.workspace-embedded-dashboard{display:flow-root}`}
 				</style>
 				{dashboard}
 			</div>
@@ -267,13 +298,17 @@ export const Workspace: React.FC<WorkspaceProps> = ({
 	}
 
 	return (
-		<div className="flex flex-col flex-1 min-h-0">
+		<div
+			ref={pageRef}
+			data-workspace-expanded={expanded || undefined}
+			className="workspace-dashboard-page flex flex-col flex-1 min-h-0"
+		>
 			{/* Platform: no left sidebar - its Resources and History open from the top pill (WorkspaceNav), which floats
 			    over the dashboard as wide as it, staying in view as the dashboard scrolls */}
-			<div className="relative flex-1 min-h-0 w-full overflow-y-auto bg-[radial-gradient(circle_at_1px_1px,hsl(var(--content-disabled))_0,transparent_1px)] bg-position-[-2px_-2px] bg-size-[16px_16px] p-4 md:p-8 md:pt-6">
+			<div className="workspace-dashboard-scroll relative flex-1 min-h-0 w-full overflow-y-auto bg-[radial-gradient(circle_at_1px_1px,hsl(var(--content-disabled))_0,transparent_1px)] bg-position-[-2px_-2px] bg-size-[16px_16px] p-4 md:p-8 md:pt-6">
 				<div className="absolute top-0 left-0 right-0 h-32 bg-linear-to-b from-surface-primary to-transparent"></div>
 
-				<div className="relative z-10">
+				<div className="workspace-dashboard-content relative z-10">
 					{!topAgents.length && workspaceTopbar}
 
 					{selectedResource && (

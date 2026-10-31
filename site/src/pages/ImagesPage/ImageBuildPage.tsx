@@ -21,10 +21,10 @@ import { Margins } from "#/components/Margins/Margins";
 import { Spinner } from "#/components/Spinner/Spinner";
 import { useStartProgress } from "#/modules/platform/workspaceInitializing/WorkspaceInitializing";
 import "#/modules/platform/workspaceInitializing/workspaceInitializing.css";
+import { imagesKey } from "#/api/queries/images";
 import { pageTitle } from "#/utils/page";
 import { FipsBadge, GradeBadge } from "./badges";
 import { imageKey } from "./ImageEditorPage";
-import { imagesKey } from "./ImagesPage";
 
 const FINISHED = ["ready", "failed", "cancelled"];
 

@@ -5,6 +5,7 @@ import {
 	ChevronLeftIcon,
 	ChevronRightIcon,
 	LayoutGridIcon,
+	ListIcon,
 	MonitorIcon,
 } from "lucide-react";
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
@@ -18,11 +19,11 @@ import { getLatencyColor } from "#/utils/latency";
 import "./workspacesLatency.css";
 
 /** How often the list asks again while the menu is open. */
-export const REFRESH_MS = 3000;
+const REFRESH_MS = 3000;
 /** How long a press lasts before the list locks open (the ring round the pill drawn all the way). */
 export const HOLD_MS = 800;
 /** An agent's latency as the workspace page shows it: its preferred region's, else the first. */
-export const agentLatency = (agent: WorkspaceAgent): number | undefined => {
+const agentLatency = (agent: WorkspaceAgent): number | undefined => {
 	const regions = Object.values(agent.latency ?? {});
 	return (regions.find((r) => r.preferred) ?? regions[0])?.latency_ms;
 };
@@ -37,7 +38,7 @@ export const workspaceLatency = (workspace: Workspace): number | undefined => {
 };
 
 /** At most this many chevrons each side of the pill's words while it is held (workspacesLatency.css). */
-export const HOLD_CHEVRONS = 3;
+const HOLD_CHEVRONS = 3;
 
 /**
  * Hold to confirm, counted: chevrons each side of the pill's words, pointing at them, one more each third of the hold -
@@ -139,13 +140,13 @@ export const TemplatePill: React.FC<{
  * carries its template's name in a pill beside its own.
  *
  * Locked open, the list chooses workspaces for the grid (onOpenGrid, ProxyMenu's WorkspaceGrid): a workspace's row
- * ticks it (its arrow, at the end, still opens its page), and "View in a grid" under the list shows those chosen,
+ * ticks it (its arrow, at the end, still opens its page), and the list/grid controls under the list show those chosen,
  * together. Each menu session starts with all workspaces selected.
  */
 export const WorkspacesLatencyMenu: React.FC<{
 	open: boolean;
 	/** Shows the chosen workspaces (their ids) together: without it, the locked list chooses none. */
-	onOpenGrid?: (ids: string[]) => void;
+	onOpenGrid?: (ids: string[], layout: "list" | "grid") => void;
 }> = ({ open, onOpenGrid }) => {
 	const query = useQuery({
 		...workspaces({ q: "owner:me" }),
@@ -160,7 +161,7 @@ export const WorkspacesLatencyMenu: React.FC<{
 	const [locked, setLocked] = useState(false);
 	const [keyboard, setKeyboard] = useState(false);
 	const expanded = pressed || locked || keyboard;
-	const selecting = locked && onOpenGrid !== undefined;
+	const selecting = (locked || keyboard) && onOpenGrid !== undefined;
 	const [selected, setSelected] = useState<string[]>();
 	const chosen = list.filter(
 		(w) => selected === undefined || selected.includes(w.id),
@@ -286,6 +287,7 @@ export const WorkspacesLatencyMenu: React.FC<{
 				ref={rowRef}
 				data-testid="workspaces-latency"
 				aria-expanded={expanded}
+				data-workspaces-expanded={expanded}
 				aria-controls={listId}
 				data-locked={locked || undefined}
 				className="justify-center px-1 py-1"
@@ -484,7 +486,7 @@ export const WorkspacesLatencyMenu: React.FC<{
 							);
 						})}
 						{selecting && list.length > 0 && (
-							<div className="mt-1 space-y-1 border-0 border-t border-solid border-border pt-1">
+							<div className="bulk-action-surface mt-1 space-y-1 rounded-md border-0 border-t border-solid border-border pt-1">
 								<div className="flex items-center justify-center gap-2 text-[10px] text-content-secondary">
 									<span
 										title={`${chosen.length} selected of ${list.length} selectable`}
@@ -512,18 +514,41 @@ export const WorkspacesLatencyMenu: React.FC<{
 										Select all
 									</DropdownMenuItem>
 								</div>
-								<DropdownMenuItem
-									data-testid="workspace-grid-view"
-									disabled={chosen.length === 0}
-									className={cn(
-										"min-h-10 w-full justify-center gap-2 px-4 py-2 font-medium",
-										ANNOUNCEMENT_ACTION_SURFACE,
-									)}
-									onSelect={() => onOpenGrid?.(chosen.map((w) => w.id))}
+								<div
+									className="flex overflow-hidden rounded-md border border-solid border-border"
+									role="group"
+									aria-label="Open selected workspaces"
 								>
-									<LayoutGridIcon aria-hidden className="size-4" />
-									Grid View
-								</DropdownMenuItem>
+									{(
+										[
+											{ layout: "list", label: "List view", Icon: ListIcon },
+											{
+												layout: "grid",
+												label: "Grid view",
+												Icon: LayoutGridIcon,
+											},
+										] as const
+									).map(({ layout, label, Icon }) => (
+										<DropdownMenuItem
+											key={layout}
+											aria-label={label}
+											title={label}
+											disabled={chosen.length === 0}
+											className={cn(
+												"min-h-10 flex-1 justify-center rounded-none px-4 py-2 first:border-0 first:border-r first:border-solid first:border-border",
+												ANNOUNCEMENT_ACTION_SURFACE,
+											)}
+											onSelect={() =>
+												onOpenGrid?.(
+													chosen.map((w) => w.id),
+													layout,
+												)
+											}
+										>
+											<Icon aria-hidden className="size-5" />
+										</DropdownMenuItem>
+									))}
+								</div>
 							</div>
 						)}
 					</div>

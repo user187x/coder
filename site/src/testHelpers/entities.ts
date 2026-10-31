@@ -24,6 +24,29 @@ export const MockOrganization: TypesGen.Organization = {
 	default_org_member_roles: ["organization-workspace-access", "agents-access"],
 };
 
+export const MockAuditCollector: TypesGen.AuditCollector = {
+	id: "audit-collector-id",
+	organization_id: MockOrganization.id,
+	name: "Security operations",
+	issuer: "https://keycloak.example.test/realms/coder",
+	subject: "2c72aff9-e8ac-4794-bb71-674c3f391865",
+	client_id: "security-collector",
+	created_by: "admin-user-id",
+	created_at: "2026-10-31T12:00:00Z",
+	expires_at: "2026-11-30T12:00:00Z",
+};
+
+export const MockAuditCollectorConfiguration: TypesGen.AuditCollectorConfiguration =
+	{
+		available: true,
+		issuer: MockAuditCollector.issuer,
+		token_endpoint: `${MockAuditCollector.issuer}/protocol/openid-connect/token`,
+		endpoint: `https://coder.example.test/api/v2/audit-export/${MockOrganization.id}`,
+		audience: "coder-audit",
+		scope: "coder:audit:read",
+		collectors: [MockAuditCollector],
+	};
+
 export const MockDefaultOrganization: TypesGen.Organization = {
 	...MockOrganization,
 	is_default: true,
@@ -841,11 +864,11 @@ export const MockFailedProvisionerJob: TypesGen.ProvisionerJob = {
 	status: "failed",
 };
 
-export const MockCancelingProvisionerJob: TypesGen.ProvisionerJob = {
+const MockCancelingProvisionerJob: TypesGen.ProvisionerJob = {
 	...MockProvisionerJob,
 	status: "canceling",
 };
-export const MockCanceledProvisionerJob: TypesGen.ProvisionerJob = {
+const MockCanceledProvisionerJob: TypesGen.ProvisionerJob = {
 	...MockProvisionerJob,
 	status: "canceled",
 };
@@ -1649,19 +1672,6 @@ export const MockWorkspace: TypesGen.Workspace = {
 	shared_with: [],
 };
 
-export const MockPrebuiltWorkspace = {
-	...MockWorkspace,
-	owner_name: "prebuilds",
-	name: "prebuilt-workspace",
-	is_prebuild: true,
-};
-
-export const MockFavoriteWorkspace: TypesGen.Workspace = {
-	...MockWorkspace,
-	id: "test-favorite-workspace",
-	favorite: true,
-};
-
 export const MockStoppedWorkspace: TypesGen.Workspace = {
 	...MockWorkspace,
 	id: "test-stopped-workspace",
@@ -1827,23 +1837,6 @@ export const MockDormantOutdatedWorkspace: TypesGen.Workspace = {
 	outdated: true,
 	dormant_at: new Date().toISOString(),
 };
-
-export const MockOutdatedRunningWorkspaceRequireActiveVersion: TypesGen.Workspace =
-	{
-		...MockWorkspace,
-		id: "test-outdated-workspace-require-active-version",
-		outdated: true,
-		template_require_active_version: true,
-	};
-
-export const MockOutdatedStoppedWorkspaceRequireActiveVersion: TypesGen.Workspace =
-	{
-		...MockOutdatedRunningWorkspaceRequireActiveVersion,
-		latest_build: {
-			...MockWorkspaceBuild,
-			status: "stopped",
-		},
-	};
 
 const MockOutdatedRunningWorkspaceAlwaysUpdate: TypesGen.Workspace = {
 	...MockWorkspace,
@@ -3312,35 +3305,6 @@ export const MockGroup3: TypesGen.Group = {
 	quota_allowance: 5,
 	source: "user",
 	total_member_count: 2,
-};
-
-export const MockEveryoneGroup: TypesGen.Group = {
-	// The "Everyone" group must have the same ID as a the organization it belongs
-	// to.
-	id: MockOrganization.id,
-	name: "Everyone",
-	display_name: "",
-	organization_id: MockOrganization.id,
-	organization_name: MockOrganization.name,
-	organization_display_name: MockOrganization.display_name,
-	members: [],
-	avatar_url: "",
-	quota_allowance: 0,
-	source: "user",
-	total_member_count: 0,
-};
-
-export const MockTemplateACL: TypesGen.TemplateACL = {
-	group: [
-		{ ...MockEveryoneGroup, role: "use" },
-		{ ...MockGroup, role: "admin" },
-	],
-	users: [{ ...MockUserOwner, role: "use" }],
-};
-
-export const MockTemplateACLEmpty: TypesGen.TemplateACL = {
-	group: [],
-	users: [],
 };
 
 export const MockTemplateExample: TypesGen.TemplateExample = {

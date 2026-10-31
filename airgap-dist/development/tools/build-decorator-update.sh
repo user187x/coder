@@ -13,28 +13,49 @@
 # release tag before this version).
 #   ./build-decorator-update.sh [--since VERSION]
 set -euo pipefail
-here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; top="$(cd "${here}/../.." && pwd)"
-bundle="${top}/helm-chart"; chart="${bundle}/coder-airgapped"; dist="${top}/dist"
-version=$(sed -n 's/^version: *//p' "${chart}/Chart.yaml"); name="coder-airgapped-${version}-decorator-update"
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+top="$(cd "${here}/../.." && pwd)"
+bundle="${top}/helm-chart"
+chart="${bundle}/coder-airgapped"
+dist="${top}/dist"
+version=$(sed -n 's/^version: *//p' "${chart}/Chart.yaml")
+name="coder-airgapped-${version}-decorator-update"
 since=""
 while (($#)); do
 	case "$1" in
-	--since) since="${2:?--since VERSION}"; shift ;;
-	*) echo "unknown option: $1" >&2; exit 2 ;;
+	--since)
+		since="${2:?--since VERSION}"
+		shift
+		;;
+	*)
+		echo "unknown option: $1" >&2
+		exit 2
+		;;
 	esac
 	shift
 done
 if [[ -z "$since" ]]; then # the newest release before this one
 	since=$(git -C "$top" tag -l 'v*' --sort=-v:refname | sed 's/^v//' |
-		while read -r t; do [[ "$t" != "$version" && "$(printf '%s\n%s\n' "$t" "$version" | sort -V | tail -n1)" == "$version" ]] && { echo "$t"; break; }; done)
+		while read -r t; do [[ "$t" != "$version" && "$(printf '%s\n%s\n' "$t" "$version" | sort -V | tail -n1)" == "$version" ]] && {
+			echo "$t"
+			break
+		}; done)
 fi
 
 fork=$(awk '!/^#/ && $1 ~ /\/coder-platform:.*-airgap$/ {print $1; exit}' "${bundle}/images.txt")
-[[ -n "$fork" ]] || { echo "ERROR: no coder-platform -airgap image in images.txt" >&2; exit 1; }
+[[ -n "$fork" ]] || {
+	echo "ERROR: no coder-platform -airgap image in images.txt" >&2
+	exit 1
+}
 archive="${bundle}/$("${bundle}/mirror-images.sh" path "$fork")"
-[[ -f "$archive" ]] || { echo "ERROR: ${archive} is missing: run tools/build-airgap-image.sh" >&2; exit 1; }
+[[ -f "$archive" ]] || {
+	echo "ERROR: ${archive} is missing: run tools/build-airgap-image.sh" >&2
+	exit 1
+}
 
-staging="${dist}/.decorator-${version}"; rm -rf "$staging"; out="${staging}/${name}"
+staging="${dist}/.decorator-${version}"
+rm -rf "$staging"
+out="${staging}/${name}"
 mkdir -p "${out}/charts" "${out}/images"
 "${bundle}/mirror-images.sh" decorator-charts "${out}/charts" | sed "s|^${out}/|packaged |"
 ln "$archive" "${out}/images/" 2>/dev/null || cp "$archive" "${out}/images/"
@@ -50,7 +71,10 @@ fi
 fork_tag=${fork##*:}
 # The ubuntu-dataflow template's image (coder-workspace.dataflowImage), and the one the release the cluster runs had.
 dataflow=$(sed -n 's/^  dataflowImage:.*"\([^"]*\)".*/\1/p' "${chart}/values.yaml" | head -n1)
-[[ -n "$dataflow" ]] || { echo "ERROR: no coder-workspace.dataflowImage in ${chart}/values.yaml" >&2; exit 1; }
+[[ -n "$dataflow" ]] || {
+	echo "ERROR: no coder-workspace.dataflowImage in ${chart}/values.yaml" >&2
+	exit 1
+}
 dataflow_then=""
 if [[ -n "$since" ]] && git -C "$top" rev-parse -q --verify "v${since}" >/dev/null; then
 	dataflow_then=$(git -C "$top" show "v${since}:helm-chart/coder-airgapped/values.yaml" |
@@ -114,7 +138,8 @@ Back to the previous release: restore the .bak file and kubectl apply -f it (the
 in your registry).
 EOF
 
-(cd "$out" && find . -type f ! -name SHA256SUMS -printf '%P\n' | sort | xargs sha256sum >SHA256SUMS)
+(cd "$out" && find . -type f ! -name SHA256SUMS -printf '%P\n' | sort | xargs sha256sum) >"$staging/sums"
+mv "$staging/sums" "$out/SHA256SUMS"
 mkdir -p "$dist"
 tar -C "$staging" -czf "${dist}/${name}.tar.gz.part" "$name"
 mv "${dist}/${name}.tar.gz.part" "${dist}/${name}.tar.gz"

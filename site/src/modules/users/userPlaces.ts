@@ -2,7 +2,7 @@ import type { QueryClient } from "react-query";
 import { workspaces } from "#/api/queries/workspaces";
 
 /** A user's workspaces list (the Workspaces page filtered on them). */
-export const userWorkspacesHref = (username: string) =>
+const userWorkspacesHref = (username: string) =>
 	`/workspaces?filter=${encodeURIComponent(`owner:${username}`)}`;
 
 /**

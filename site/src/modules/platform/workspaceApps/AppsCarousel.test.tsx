@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { AppsCarousel } from "./AppsCarousel";
 
 const apps = (n: number) =>
@@ -85,4 +86,31 @@ describe("AppsCarousel", () => {
 		expect(group).toHaveAttribute("data-more-before");
 		expect(group).not.toHaveAttribute("data-more-after");
 	});
+});
+
+it("lets a vertical picker select a shortcut after scrolling with arrows and the keyboard", async () => {
+	const select = vi.fn();
+	const user = userEvent.setup();
+	render(
+		<AppsCarousel
+			framed
+			orientation="vertical"
+			label="Resource shortcuts"
+			visible={2}
+		>
+			{Array.from({ length: 4 }, (_, i) => (
+				<button type="button" key={i} onClick={() => select(i)}>
+					Shortcut {i + 1}
+				</button>
+			))}
+		</AppsCarousel>,
+	);
+	await user.click(screen.getByRole("button", { name: "Next shortcut" }));
+	await user.keyboard("{ArrowDown}");
+	await user.click(screen.getByRole("button", { name: "Shortcut 4" }));
+	expect(select).toHaveBeenCalledExactlyOnceWith(3);
+	await user.click(screen.getByRole("button", { name: "Previous shortcut" }));
+	await user.keyboard("{ArrowUp}");
+	await user.click(screen.getByRole("button", { name: "Shortcut 1" }));
+	expect(select).toHaveBeenLastCalledWith(0);
 });

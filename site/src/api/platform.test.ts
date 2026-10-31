@@ -58,6 +58,7 @@ it("submits only reviewed workspace IDs with explicit power-action confirmation"
 		action: "terminate",
 		workspace_ids: ["reviewed-workspace"],
 		confirmation: "terminate",
+		exclude_admins: false,
 	});
 	expect(request?.headers.get("X-Requested-With")).toBe("coder-ui");
 });
