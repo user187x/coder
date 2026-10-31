@@ -13,13 +13,22 @@ describe("useResourcesNav", () => {
 				agents: [],
 			},
 		];
-		const { result } = renderHook(() => useResourcesNav(resources), {
-			wrapper: ({ children }) => (
-				<RouterProvider
-					router={createMemoryRouter([{ path: "/", element: children }])}
-				/>
-			),
-		});
+		const selections: string[] = [];
+		const { result } = renderHook(
+			() => {
+				const navigation = useResourcesNav(resources);
+				selections.push(navigation.value);
+				return navigation;
+			},
+			{
+				wrapper: ({ children }) => (
+					<RouterProvider
+						router={createMemoryRouter([{ path: "/", element: children }])}
+					/>
+				),
+			},
+		);
+		expect(selections[0]).toBe(resourceOptionValue(MockWorkspaceResource));
 		expect(result.current.value).toBe(
 			resourceOptionValue(MockWorkspaceResource),
 		);

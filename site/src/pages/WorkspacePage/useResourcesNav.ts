@@ -13,11 +13,16 @@ export const resourceOptionValue = (resource: WorkspaceResource) => {
 // robust implementation.
 export const useResourcesNav = (resources: WorkspaceResource[]) => {
 	const resourcesNav = useSearchParamsKey({ key: "resources" });
+	const firstResource = resources[0];
+	// Keep the initial agent panel mounted while the URL selection is synchronized.
+	const value =
+		resourcesNav.value ||
+		(firstResource?.agents?.length ? resourceOptionValue(firstResource) : "");
 	const isSelected = useCallback(
 		(resource: WorkspaceResource) => {
-			return resourceOptionValue(resource) === resourcesNav.value;
+			return resourceOptionValue(resource) === value;
 		},
-		[resourcesNav.value],
+		[value],
 	);
 
 	const onResourceChanges = useEffectEvent(
@@ -46,6 +51,6 @@ export const useResourcesNav = (resources: WorkspaceResource[]) => {
 	return {
 		isSelected,
 		select,
-		value: resourcesNav.value,
+		value,
 	};
 };
