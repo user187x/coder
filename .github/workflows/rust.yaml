@@ -37,6 +37,7 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     env:
+      CODER_TEST_TERRAFORM_BINARY: ${{ runner.temp }}/terraform
       CODER_TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/coder_rust_test?sslmode=disable
     defaults:
       run:
@@ -50,3 +51,9 @@ jobs:
       - run: cargo +${{ matrix.rust }} clippy --workspace --locked --all-targets -- -D warnings
       - run: cargo +${{ matrix.rust }} test --workspace --locked
       - run: cargo +${{ matrix.rust }} test -p coder-server --test control_plane --locked -- --ignored
+      - name: Install Terraform for local infrastructure tests
+        run: |
+          curl --fail --silent --show-error --location --output "$RUNNER_TEMP/terraform.zip" https://releases.hashicorp.com/terraform/1.13.5/terraform_1.13.5_linux_amd64.zip
+          echo "0dbe3fcc268eb670801af6a6456799d1ae26e72e73797f6c6167e18aafd1fd9a  $RUNNER_TEMP/terraform.zip" | sha256sum --check
+          unzip -j "$RUNNER_TEMP/terraform.zip" terraform -d "$RUNNER_TEMP"
+      - run: cargo +${{ matrix.rust }} test -p coder-server --test infrastructure --locked -- --ignored

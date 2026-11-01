@@ -45,6 +45,8 @@ pub(crate) struct WorkspaceList {
 
 #[derive(Deserialize)]
 pub(crate) struct Workspace {
+    #[serde(default)]
+    pub infrastructure_recovery_required: bool,
     pub id: String,
     pub name: String,
     pub owner_name: String,

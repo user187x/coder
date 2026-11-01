@@ -4,6 +4,7 @@ mod auth;
 mod catalog;
 mod jobs;
 mod secrets;
+mod state;
 mod workspaces;
 
 use axum::{
@@ -135,6 +136,22 @@ pub fn api(pool: PgPool, secret_key: Option<[u8; 32]>) -> Router {
         .route(
             "/api/v2/workspacebuilds/{id}/cancel",
             axum::routing::patch(workspaces::cancel),
+        )
+        .route(
+            "/api/v2/workspaces/{id}/provisioner-state",
+            get(state::inspect),
+        )
+        .route(
+            "/api/v2/workspaces/{id}/provisioner-state/recover",
+            post(state::recover).layer(DefaultBodyLimit::max(5 * 1024 * 1024)),
+        )
+        .route(
+            "/api/v2/provisioner/jobs/{id}/state/read",
+            post(state::read),
+        )
+        .route(
+            "/api/v2/provisioner/jobs/{id}/state",
+            post(state::write).layer(DefaultBodyLimit::max(5 * 1024 * 1024)),
         )
         .route("/api/v2/provisioner/jobs/claim", post(jobs::claim))
         .route(

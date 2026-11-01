@@ -4,14 +4,14 @@ use crate::{
 };
 use axum::{
     Json,
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::{HeaderMap, StatusCode},
 };
 use serde::Deserialize;
 use serde_json::{Value, json};
 use uuid::Uuid;
 
-async fn worker(app: &App, headers: &HeaderMap) -> Result<(Uuid, Uuid)> {
+pub(crate) async fn worker(app: &App, headers: &HeaderMap) -> Result<(Uuid, Uuid)> {
     let token = crate::header(headers, "Coder-Provisioner-Token")?;
     sqlx::query_as("SELECT id,organization_id FROM coder_rust.provisioner_keys WHERE token_hash=$1")
         .bind(auth::digest(token))
@@ -60,12 +60,21 @@ pub(crate) async fn delete_key(
         .await?;
     Ok(StatusCode::NO_CONTENT)
 }
-pub(crate) async fn claim(State(app): State<App>, headers: HeaderMap) -> Result {
+#[derive(Deserialize, Default)]
+pub(crate) struct ClaimQuery {
+    driver: Option<String>,
+}
+
+pub(crate) async fn claim(
+    State(app): State<App>,
+    headers: HeaderMap,
+    Query(query): Query<ClaimQuery>,
+) -> Result {
     let (worker, org) = worker(&app, &headers).await?;
     let mut tx = app.pool.begin().await?;
     sqlx::query("WITH expired AS (UPDATE coder_rust.builds SET status='failed',completed_at=now(),lease_hash=NULL WHERE organization_id=$1 AND status IN ('starting','stopping','deleting') AND lease_expires_at<=now() RETURNING id) INSERT INTO coder_rust.build_logs(build_id,log_level,output) SELECT id,'error','Provisioner lease expired. Inspect infrastructure before retrying.' FROM expired")
         .bind(org).execute(&mut *tx).await?;
-    let build=sqlx::query_as::<_,Build>("SELECT * FROM coder_rust.builds WHERE organization_id=$1 AND status='pending' ORDER BY created_at,id FOR UPDATE SKIP LOCKED LIMIT 1").bind(org).fetch_optional(&mut *tx).await?;
+    let build=sqlx::query_as::<_,Build>("SELECT b.* FROM coder_rust.builds b JOIN coder_rust.template_versions v ON v.id=b.template_version_id WHERE b.organization_id=$1 AND b.status='pending' AND ($2::text IS NULL OR v.provisioner_spec->>'driver'=$2) AND NOT EXISTS(SELECT 1 FROM coder_rust.provisioner_states s WHERE s.workspace_id=b.workspace_id AND s.dirty) ORDER BY b.created_at,b.id FOR UPDATE OF b SKIP LOCKED LIMIT 1").bind(org).bind(query.driver).fetch_optional(&mut *tx).await?;
     let Some(build) = build else {
         tx.commit().await?;
         return Ok(Json(Value::Null));
@@ -83,11 +92,22 @@ pub(crate) async fn claim(State(app): State<App>, headers: HeaderMap) -> Result 
             .bind(build.template_version_id)
             .fetch_one(&mut *tx)
             .await?;
+    if spec["driver"] == "terraform" && app.secret_key.is_none() {
+        return Err(Error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "Configure CODER_ENCRYPTION_KEY before claiming Terraform jobs.".into(),
+        ));
+    }
+    let parameter_schema: Value =
+        sqlx::query_scalar("SELECT parameters FROM coder_rust.template_versions WHERE id=$1")
+            .bind(build.template_version_id)
+            .fetch_one(&mut *tx)
+            .await?;
     let owner: Uuid = sqlx::query_scalar("SELECT owner_id FROM coder_rust.workspaces WHERE id=$1")
         .bind(build.workspace_id)
         .fetch_one(&mut *tx)
         .await?;
-    let environment = if build.transition == "start" {
+    let environment = if build.transition == "start" || spec["driver"] == "terraform" {
         crate::secrets::environment(&app, &mut tx, owner).await?
     } else {
         json!({})
@@ -95,7 +115,7 @@ pub(crate) async fn claim(State(app): State<App>, headers: HeaderMap) -> Result 
     tx.commit().await?;
     Ok(Json(
         json!({"id":build.id,"organization_id":org,"workspace_id":build.workspace_id,"transition":build.transition,"template_version_id":build.template_version_id,
-        "parameters":build.parameters,"provisioner_spec":spec,"environment":environment,"lease_token":token,"lease_seconds":300}),
+        "parameters":build.parameters,"parameter_schema":parameter_schema,"provisioner_spec":spec,"environment":environment,"lease_token":token,"lease_seconds":300}),
     ))
 }
 
@@ -104,7 +124,7 @@ pub(crate) async fn claim(State(app): State<App>, headers: HeaderMap) -> Result 
 pub(crate) struct Lease {
     lease_token: String,
 }
-async fn check(
+pub(crate) async fn check(
     conn: &mut sqlx::PgConnection,
     id: Uuid,
     org: Uuid,
@@ -182,6 +202,7 @@ pub(crate) async fn logs(
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct Complete {
+    state_revision: Option<i64>,
     lease_token: String,
     success: bool,
     #[serde(default)]
@@ -229,6 +250,24 @@ pub(crate) async fn complete(
     }
     let mut tx = app.pool.begin().await?;
     let build = check(&mut tx, id, org, worker, &req.lease_token).await?;
+    let spec: Value =
+        sqlx::query_scalar("SELECT provisioner_spec FROM coder_rust.template_versions WHERE id=$1")
+            .bind(build.template_version_id)
+            .fetch_one(&mut *tx)
+            .await?;
+    if spec["driver"] == "terraform" {
+        let (revision, dirty) = crate::state::metadata(&mut tx, build.workspace_id).await?;
+        if (dirty && req.success) || req.state_revision != Some(revision) {
+            return Err(Error::conflict(
+                "Checkpoint the current Terraform state before completing this build.",
+            ));
+        }
+        if req.success && revision == 0 {
+            return Err(Error::conflict(
+                "Terraform success requires a durable state checkpoint.",
+            ));
+        }
+    }
     let status = completed_status(&build.transition, req.success)?;
     sqlx::query("UPDATE coder_rust.builds SET status=$1,resources=$2,completed_at=now(),lease_hash=NULL WHERE id=$3")
         .bind(status).bind(json!(req.resources)).bind(id).execute(&mut *tx).await?;

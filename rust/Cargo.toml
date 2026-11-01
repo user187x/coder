@@ -8,8 +8,8 @@ description = "Shared Coder protocol and validation logic"
 publish = false
 
 [workspace]
-members = ["ui", "server"]
-default-members = [".", "ui", "server"]
+members = ["ui", "server", "provisioner"]
+default-members = [".", "ui", "server", "provisioner"]
 resolver = "3"
 
 [profile.release]

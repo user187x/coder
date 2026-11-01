@@ -28,12 +28,14 @@ impl Workspace {
     pub async fn json(&self, conn: &mut PgConnection) -> Result<Value> {
         let build = sqlx::query_as::<_, Build>("SELECT * FROM coder_rust.builds WHERE id=$1")
             .bind(self.latest_build_id)
-            .fetch_one(conn)
+            .fetch_one(&mut *conn)
             .await?;
+        let (_, dirty) = crate::state::metadata(conn, self.id).await?;
+        let recovery = dirty && !pending(&build.status);
         Ok(
             json!({"id":self.id,"organization_id":self.organization_id,"owner_id":self.owner_id,"owner_name":self.owner_name,
             "name":self.name,"template_id":self.template_id,"template_name":self.template_name,"template_display_name":self.template_display_name,
-            "template_active_version_id":self.active_version_id,"favorite":self.favorite,"outdated":build.template_version_id!=self.active_version_id,"latest_build":build.json()}),
+            "template_active_version_id":self.active_version_id,"favorite":self.favorite,"outdated":build.template_version_id!=self.active_version_id,"latest_build":build.json(),"infrastructure_recovery_required":recovery}),
         )
     }
 }
@@ -272,6 +274,11 @@ pub(crate) async fn build(
     let previous=sqlx::query_as::<_,Build>("SELECT b.* FROM coder_rust.builds b JOIN coder_rust.workspaces w ON w.latest_build_id=b.id WHERE w.id=$1").bind(id).fetch_one(&mut *tx).await?;
     if pending(&previous.status) {
         return Err(Error::conflict("A build is already in progress."));
+    }
+    if crate::state::metadata(&mut tx, id).await?.1 {
+        return Err(Error::conflict(
+            "Terraform state requires administrator recovery before further infrastructure changes.",
+        ));
     }
     if previous.status == "deleted" {
         return Err(Error::conflict("The workspace is deleted."));

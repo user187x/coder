@@ -1,0 +1,17 @@
+{
+  "name": "rust-infrastructure",
+  "display_name": "Rust infrastructure example",
+  "parameters": [
+    {
+      "name": "message",
+      "type": "string",
+      "required": true
+    }
+  ],
+  "provisioner_spec": {
+    "driver": "terraform",
+    "files": {
+      "main.tf": "terraform { required_version = \">= 1.4\" }\nvariable \"coder_start_count\" { type = number }\nvariable \"message\" { type = string }\nvariable \"coder_environment\" {\n  type = map(string)\n  sensitive = true\n  default = {}\n}\nresource \"terraform_data\" \"workspace\" {\n  count = var.coder_start_count\n  input = { message = var.message, secret = lookup(var.coder_environment, \"WORKSPACE_TOKEN\", \"\") }\n}\n"
+    }
+  }
+}

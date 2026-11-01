@@ -23,6 +23,8 @@ tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "signal
 uuid = { version = "1", features = ["v4", "serde"] }
 
 [dev-dependencies]
+coder-provisioner = { path = "../provisioner" }
+tempfile = "3"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 tower = { version = "0.5", features = ["util"] }
 

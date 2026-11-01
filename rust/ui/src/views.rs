@@ -223,16 +223,17 @@ pub(crate) fn workspace(
                 div { p.eyebrow { (w.owner_name) " / " (w.template_name) } h1 { (w.name) } (status(&w.latest_build.status)) }
                 div.actions {
                     (action(&w.id, "favorite", if w.favorite { "Unfavorite" } else { "Favorite" }))
-                    @match w.latest_build.status.as_str() {
-                    "running" => { (action(&w.id, "stop", "Stop")) (action(&w.id, "restart", "Restart on active version")) }
-                        "stopped" | "failed" | "canceled" => { (action(&w.id, "start", "Start")) }
-                        "starting" | "pending" | "stopping" => { (action(&w.id, "cancel", "Cancel build")) }
+                    @match (w.infrastructure_recovery_required, w.latest_build.status.as_str()) {
+                    (false, "running") => { (action(&w.id, "stop", "Stop")) (action(&w.id, "restart", "Restart on active version")) }
+                        (false, "stopped" | "failed" | "canceled") => { (action(&w.id, "start", "Start")) }
+                        (_, "starting" | "pending" | "stopping") => { (action(&w.id, "cancel", "Cancel build")) }
                         _ => {}
                     }
                 @if api.full_application { a.button.primary href=(&full) { "Open workspace" } }
                 }
             }
             (alert(message))
+            @if w.infrastructure_recovery_required { (alert(Some("Infrastructure state requires administrator recovery. Further infrastructure changes are blocked until state is reconciled."))) }
             div.notice { "Refresh to see the latest build status. " a href=(format!("/workspaces/{}", segment(&w.id))) { "Refresh now" } }
             section.panel {
                 h2 { "Resources & agents" }
