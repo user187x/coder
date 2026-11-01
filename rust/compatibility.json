@@ -1,0 +1,25 @@
+{
+  "repository": "user187x/coder",
+  "tag": "1.5.1",
+  "commit": "3536d5b6f268beab85b8e9892aa38185cfdd718c",
+  "scope": "All capabilities and UI behavior present in this fork at the pinned tag, including enterprise-equivalent and platform extensions. Later additions are outside this target.",
+  "complete": false,
+  "reference_files": [
+    "site/src/router.tsx",
+    "site/src/pages/WorkspacesPage/WorkspacesPageView.tsx",
+    "site/src/pages/WorkspacesPage/WorkspacesTable.tsx",
+    "site/src/modules/dashboard/Navbar/NavbarView.tsx",
+    "site/src/modules/platform/tableCard/tableCard.css",
+    "site/src/index.css",
+    "coderd/searchquery/search.go",
+    "coderd/database/queries/workspaces.sql",
+    "coderd/coderd.go"
+  ],
+  "assets": [
+    {
+      "path": "ui/assets/brix.gif",
+      "source": "site/static/brix.gif",
+      "sha256": "115b015d6c86db118a5d9293c9da820dca791e2f5df04cf0a2a944301c3ed89a"
+    }
+  ]
+}

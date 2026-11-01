@@ -52,6 +52,16 @@ fn build_router(
         .route("/logout", post(handlers::sign_out))
         .route("/workspaces", get(handlers::workspaces))
         .route("/workspaces/{id}", get(handlers::workspace))
+        .route("/workspaces/{id}/builds", get(handlers::build_history))
+        .route("/{username}/{workspace}", get(handlers::workspace_by_name))
+        .route(
+            "/{username}/{workspace}/builds/{number}",
+            get(handlers::build_by_number),
+        )
+        .route(
+            "/{username}/{workspace}/terminal",
+            get(handlers::terminal_by_name),
+        )
         .route("/workspaces/{id}/terminal", get(handlers::terminal))
         .route(
             "/terminal.js",
@@ -117,6 +127,15 @@ fn build_router(
         .route(
             "/settings/access/{org}",
             get(access::page).post(access::change),
+        )
+        .route(
+            "/brix.gif",
+            get(|| async {
+                (
+                    [(header::CONTENT_TYPE, "image/gif")],
+                    include_bytes!("../assets/brix.gif").as_slice(),
+                )
+            }),
         )
         .route(
             "/style.css",

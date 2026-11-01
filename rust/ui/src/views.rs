@@ -12,10 +12,10 @@ pub(crate) fn page(title: &str, user: Option<&User>, api: Option<&Api>, body: Ma
                 title { (title) " | Coder" }
                 link rel="stylesheet" href="/style.css";
             }
-            body {
+            body class=(if user.is_none() { "anonymous" } else { "authenticated" }) {
                 a.skip href="#main" { "Skip to content" }
                 header {
-                    a.brand href="/workspaces" aria-label="Coder home" { span.mark aria-hidden="true" { "C" } "coder" }
+                    a.brand href="/workspaces" aria-label="Coder home" { img.logo src="/brix.gif" alt="Coder"; }
                     @if let Some(user) = user {
                         nav aria-label="Main navigation" {
                             a href="/workspaces" { "Workspaces" }
@@ -69,9 +69,8 @@ pub(crate) fn login(api: &Api, auth: &AuthMethods, email: &str, message: Option<
         html! {
             section.login {
                 a.back href="/setup" { "First-time setup" }
-                p.eyebrow { "YOUR DEVELOPMENT ENVIRONMENT" }
-                h1 { "Welcome back" }
-                p.muted { "Sign in to your Coder deployment." }
+                img.login-logo src="/brix.gif" alt="Coder";
+                h1 { "Sign in to Coder" }
                 (alert(message))
                 @if !api.full_application && auth.oidc.enabled { a.button.primary href="/auth/oidc" { "Sign in with SSO" } }
                 @if auth.password.enabled {
@@ -142,25 +141,32 @@ pub(crate) fn workspaces(
         Some(user),
         Some(api),
         html! {
-            div.heading { div { p.eyebrow { "DEVELOPMENT" } h1 { "Workspaces" } p.muted { "Your environments, ready when you are." } }
-                a.button.primary href="/templates" { "Create workspace" }
+            div.heading.workspace-heading { h1 { "Workspaces" }
+                a.button.primary href="/templates" { span aria-hidden="true" { "+" } " Workspace" }
             }
             form.search method="get" action="/workspaces" role="search" {
                 label.sr for="search" { "Search workspaces" }
-                input id="search" name="q" value=(q) placeholder="Search by name, owner, or status...";
+                input id="search" name="q" value=(q) placeholder="Search and filter workspaces…" aria-describedby="workspace-filter-help";
                 button type="submit" { "Search" }
                 a.quiet href="/workspaces" { "Reset" }
             }
-            div.table-wrap {
+            details.filter-help { summary { "Search filters" } p id="workspace-filter-help" { "Use owner:me for your workspaces, user:me to include shared workspaces, template:name, organization:name, status:running, outdated:true, name:text, or id:UUID. Combine filters with spaces. Quote values containing spaces." } }
+            div.table-wrap.table-card {
                 table aria-label="Workspaces" {
-                    thead { tr { th { "Workspace" } th { "Template" } th { "Status" } th { "Owner" } } }
+                    thead { tr { th { "Name" } th { "Template" } th { "Status" } th { "Controls" } } }
                     tbody {
                         @for w in &data.workspaces {
                             tr {
-                                td { a.strong href=(format!("/workspaces/{}", segment(&w.id))) { (w.name) } @if w.favorite { span.tag { "Favorite" } } }
+                                td { a.strong href=(workspace_path(w)) { (w.name) } @if w.favorite && w.owner_name == user.username { span.tag { "Favorite" } } p.muted { (w.owner_name) } }
                                 td { @if w.template_display_name.is_empty() { (w.template_name) } @else { (w.template_display_name) } }
                                 td { (status(&w.latest_build.status)) @if w.outdated { span.tag { "Update available" } } }
-                                td { (w.owner_name) }
+                                td { div.actions {
+                                    @if !w.infrastructure_recovery_required {
+                                        @if w.latest_build.status == "running" && w.can("stop") { (action(&w.id, "stop", "Stop")) }
+                                        @if matches!(w.latest_build.status.as_str(), "stopped" | "failed" | "canceled") && w.can("start") { (action(&w.id, "start", "Start")) }
+                                    }
+                                    a.button href=(workspace_path(w)) { "Open" }
+                                } }
                             }
                         }
                     }
@@ -224,7 +230,7 @@ pub(crate) fn workspace(
             div.heading {
                 div { p.eyebrow { (w.owner_name) " / " (w.template_name) } h1 { (w.name) } (status(&w.latest_build.status)) }
                 div.actions {
-                    (action(&w.id, "favorite", if w.favorite { "Unfavorite" } else { "Favorite" }))
+                    @if w.owner_name == user.username { (action(&w.id, "favorite", if w.favorite { "Unfavorite" } else { "Favorite" })) }
                     @match (w.infrastructure_recovery_required, w.latest_build.status.as_str()) {
                     (false, "running") => { @if w.can("stop") { (action(&w.id, "stop", "Stop")) } @if w.can("stop") && w.can("start") { (action(&w.id, "restart", "Restart on active version")) } }
                         (false, "stopped" | "failed" | "canceled") if w.can("start") => { (action(&w.id, "start", "Start")) }
@@ -259,7 +265,7 @@ pub(crate) fn workspace(
             }
             }
             section.panel {
-                div.heading.small { h2 { "Build logs" } span.muted { "Build #" (w.latest_build.build_number) } }
+                div.heading.small { h2 { "Build logs" } a href=(format!("/workspaces/{}/builds", segment(&w.id))) { "Build history" } span.muted { "Build #" (w.latest_build.build_number) } }
                 (alert(log_error))
                 @if logs.is_empty() { p.muted { "No logs available yet." } }
                 pre.logs aria-label="Build logs" { @for log in logs { (log.created_at) " [" (log.level) "] " (log.output) "\n" } }
@@ -491,6 +497,60 @@ pub(crate) fn terminal(api: &Api, user: &User, w: &Workspace) -> Markup {
             div id="terminal" data-endpoint=(format!("/api/v2/workspaces/{}/terminal",segment(&w.id))) aria-label="Workspace terminal" {}
             p.muted { "Disconnecting closes this shell. Reload to open a new session. " a href="/xterm.LICENSE" { "Terminal renderer license" } }
             script src="/xterm.js" defer {} script src="/terminal.js" defer {}
+        },
+    )
+}
+
+fn workspace_path(w: &Workspace) -> String {
+    format!("/@{}/{}", segment(&w.owner_name), segment(&w.name))
+}
+
+pub(crate) fn build_history(api: &Api, user: &User, w: &Workspace, builds: &[Build]) -> Markup {
+    page(
+        "Build history",
+        Some(user),
+        Some(api),
+        html! {
+            a.back href=(workspace_path(w)) { "Back to workspace" }
+            div.heading { h1 { (w.name) " build history" } }
+            div.table-wrap { table aria-label="Build history" {
+                thead { tr { th { "Build" } th { "Status" } } }
+                tbody { @for build in builds { tr {
+                    td { a href=(format!("{}/builds/{}", workspace_path(w), build.build_number)) { "Build #" (build.build_number) } }
+                    td { (status(&build.status)) }
+                } } }
+            } }
+            p.muted { "The latest 100 builds are shown." }
+        },
+    )
+}
+
+pub(crate) fn build_detail(
+    api: &Api,
+    user: &User,
+    w: &Workspace,
+    build: &Build,
+    logs: &[Log],
+) -> Markup {
+    page(
+        "Workspace build",
+        Some(user),
+        Some(api),
+        html! {
+            a.back href=(format!("/workspaces/{}/builds", segment(&w.id))) { "Back to build history" }
+            div.heading { h1 { (w.name) " / Build #" (build.build_number) } (status(&build.status)) }
+            section.panel { h2 { "Resources & agents" }
+                @for resource in build.resources.iter().filter(|r| !r.hide) {
+                    div.resource { strong { (resource.name) } span.muted { (resource.r#type) }
+                        @for agent in &resource.agents { span { (agent.name) " " (status(&agent.status)) } }
+                    }
+                }
+                @if build.resources.is_empty() { p.muted { "No resources reported for this build." } }
+            }
+            section.panel { h2 { "Build logs" }
+                @if logs.is_empty() { p.muted { "No logs available yet." } }
+                pre.logs aria-label="Build logs" { @for log in logs { (log.created_at) " [" (log.level) "] " (log.output) "\n" } }
+            }
         },
     )
 }

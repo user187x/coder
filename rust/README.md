@@ -7,6 +7,14 @@ no engine download is needed at runtime. The shared validation library remains
 dependency-free. This is a working migration of the implemented flows, with
 the compatibility limits listed below.
 
+The compatibility target is this fork's [`1.5.1` tag](https://github.com/user187x/coder/tree/1.5.1),
+commit `3536d5b6f268beab85b8e9892aa38185cfdd718c`, recorded in
+[`compatibility.json`](compatibility.json). All capabilities and UI behavior in
+that tag are required, including platform extensions and features formerly
+classified as enterprise. Later additions are outside this target. The Rust
+port is incomplete; this target does not mean the implemented flows have full
+release compatibility.
+
 ## Open in an IDE
 
 Open this `rust/` directory in VS Code with rust-analyzer, or open `Cargo.toml`
@@ -355,7 +363,7 @@ agent provides relayed TCP, including SSH transport to an existing SSH service.
 WireGuard encrypts CLI connections through the relay. Workspaces remain pending
 until a suitable worker executes their jobs. The JSON worker protocol differs
 from Go DRPC. Direct peer discovery, the Go agent protocol, scheduling, quotas,
-enterprise features, and in-place Go data migration remain unported. This is
+remaining organization controls, and in-place Go data migration remain unported. This is
 not a drop-in replacement for an existing Coder deployment.
 
 ## Connect a workspace
@@ -642,12 +650,29 @@ JavaScript is limited to the bundled terminal renderer and its transport bridge;
 no CDN assets or browser-local credential storage is used. The UI uses its own cookie, so the original application may require its
 own sign-in when opened from a dashboard link.
 
+The workspace list accepts `owner`, `user`, `name`, `template`, `organization`,
+`status`, `outdated`, and comma-separated UUIDs in `id` filters. Unkeyed
+`owner/name` searches and quoted values are supported. `owner:me` shows owned
+workspaces; the default `user:me` also includes workspaces explicitly shared
+through resource-level read grants. Group ACL sharing is not implemented.
+Unknown filters return an error. Favorites sort first for their owner, followed
+by owned workspaces, running workspaces, owner, and name.
+
+Workspace links use `/@username/workspace`. Build history links use
+`/@username/workspace/builds/number`; the UUID workspace routes continue to work.
+The API also serves owner/name lookup, numbered builds, build-by-ID, parameters,
+and resources under the corresponding `1.5.1` endpoint paths. These routes use
+the same authorization checks as workspace reads. The Rust layout uses the
+tag's navbar height, page width, table corners, dark color tokens, and bundled
+`brix.gif` logo. It has not passed browser screenshot comparison, and the
+remaining custom interactions and screens are not reproduced yet.
+
 **UI migration status:** Rust now handles OIDC callbacks, browser PTYs, role
 management, identity linking, access events, and CLI token issuance. AI chat,
 advanced template editors, dynamic parameter interactions, general deployment
 administration, branding, and other original UI routes remain unported. The
 standalone UI can still target a Go deployment; integrated Rust mode hides
-unimplemented destinations. This is not UI/API feature parity with all of Coder.
+unimplemented destinations. This is not yet UI/API feature parity with the pinned `1.5.1` tag.
 
 The library exposes these implemented modules:
 
@@ -677,7 +702,8 @@ porting and verifying all of these areas before switching the runtime:
   workspace proxies, and distributed relay coordination.
 - CLI commands, SDK transport, configuration, and credential storage.
 - Remaining browser UI routes, live interactions, and deployment customizations.
-- Enterprise features, custom airgap tools, and native monitoring utilities.
+- Tag-specific platform features, including images, AI chat, Cloud Drive, quotas,
+  lockdown controls, custom airgap tools, and native monitoring utilities.
 - Cross-platform packaging, installation, containers, Helm, upgrades, and release automation.
 - Compatibility and end-to-end tests across supported operating systems.
 

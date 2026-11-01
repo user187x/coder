@@ -192,7 +192,7 @@ pub(crate) async fn workspaces(
     Query(search): Query<Search>,
 ) -> Result {
     let user = me(&api, &headers).await?;
-    let (q, query) = search_params(&search, "owner:me")?;
+    let (q, query) = search_params(&search, "user:me")?;
     let data: WorkspaceList = api.get(&headers, &["workspaces"], &query).await?;
     Ok(crate::html(views::workspaces(
         &api,
@@ -238,6 +238,85 @@ pub(crate) async fn workspace(
     let user = me(&api, &headers).await?;
     let w = get_workspace(&api, &headers, &id).await?;
     Ok(workspace_page(&api, &headers, &user, &w, None).await)
+}
+
+async fn named_workspace(
+    api: &Api,
+    headers: &HeaderMap,
+    owner: &str,
+    name: &str,
+) -> Result<Workspace> {
+    api.get(
+        headers,
+        &[
+            "users",
+            owner.strip_prefix('@').unwrap_or(owner),
+            "workspace",
+            name,
+        ],
+        &[],
+    )
+    .await
+}
+
+pub(crate) async fn workspace_by_name(
+    State(api): State<Api>,
+    headers: HeaderMap,
+    Path((owner, name)): Path<(String, String)>,
+) -> Result {
+    let user = me(&api, &headers).await?;
+    let w = named_workspace(&api, &headers, &owner, &name).await?;
+    Ok(workspace_page(&api, &headers, &user, &w, None).await)
+}
+
+pub(crate) async fn terminal_by_name(
+    State(api): State<Api>,
+    headers: HeaderMap,
+    Path((owner, name)): Path<(String, String)>,
+) -> Result {
+    let w = named_workspace(&api, &headers, &owner, &name).await?;
+    // Keep the WebSocket bootstrap at the existing Origin-protected terminal route.
+    Ok(Redirect::to(&format!("/workspaces/{}/terminal", views::segment(&w.id))).into_response())
+}
+
+pub(crate) async fn build_history(
+    State(api): State<Api>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+) -> Result {
+    let user = me(&api, &headers).await?;
+    let w = get_workspace(&api, &headers, &id).await?;
+    let builds: Vec<Build> = api.list(&headers, &["workspaces", &id, "builds"]).await?;
+    Ok(crate::html(views::build_history(&api, &user, &w, &builds)))
+}
+
+pub(crate) async fn build_by_number(
+    State(api): State<Api>,
+    headers: HeaderMap,
+    Path((owner, name, number)): Path<(String, String, u32)>,
+) -> Result {
+    let user = me(&api, &headers).await?;
+    let w = named_workspace(&api, &headers, &owner, &name).await?;
+    let build: Build = api
+        .get(
+            &headers,
+            &[
+                "users",
+                &w.owner_name,
+                "workspace",
+                &w.name,
+                "builds",
+                &number.to_string(),
+            ],
+            &[],
+        )
+        .await?;
+    let logs: Vec<Log> = api
+        .list(&headers, &["workspacebuilds", &build.id, "logs"])
+        .await?;
+    Ok(crate::html(views::build_detail(
+        &api, &user, &w, &build, &logs,
+    )))
 }
 
 #[derive(Deserialize)]

@@ -99,7 +99,9 @@ async fn backend(State(state): State<Backend>, request: Request) -> Response {
     match (method.as_str(),path.as_str()) {
         ("GET","/api/v2/users/me") => Json(user()).into_response(),
         ("GET","/api/v2/workspaces") => Json(json!({"workspaces":[workspace()],"count":26})).into_response(),
-        ("GET","/api/v2/workspaces/workspace-id") => Json(workspace()).into_response(),
+        ("GET","/api/v2/workspaces/workspace-id") | ("GET","/api/v2/users/greg/workspace/my-workspace") => Json(workspace()).into_response(),
+        ("GET","/api/v2/workspaces/workspace-id/builds") => Json(json!([workspace()["latest_build"].clone()])).into_response(),
+        ("GET","/api/v2/users/greg/workspace/my-workspace/builds/1") => Json(workspace()["latest_build"].clone()).into_response(),
         ("GET","/api/v2/workspacebuilds/build-id/logs") => Json(json!([{"output":"Build ready <script>alert(1)</script>","log_level":"info","created_at":"2026-11-01T12:00:00Z"}])).into_response(),
         ("GET","/api/v2/templates") => Json(json!([template()])).into_response(),
         ("GET","/api/v2/templates/template-id") => Json(template()).into_response(),
@@ -533,4 +535,36 @@ async fn sessions_are_attached_per_request_and_not_cached_between_users() {
         .map(|c| c.token.as_deref())
         .collect();
     assert_eq!(me, [Some("first-user"), Some("second-user"), None]);
+}
+
+#[tokio::test]
+async fn release_workspace_urls_and_build_history() {
+    let f = Fixture::new().await;
+    let (status, _, body) = f.get("/@greg/my-workspace").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("Build history"));
+    let (status, _, body) = f.get("/workspaces/workspace-id/builds").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("/@greg/my-workspace/builds/1"));
+    let (status, _, body) = f.get("/@greg/my-workspace/builds/1").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("Build #1"));
+    assert!(body.contains("&lt;script&gt;"));
+    assert!(!body.contains("<script>alert"));
+    // Historical builds must not render lifecycle actions for the current build.
+    assert!(!body.contains("name=\"action\""));
+    let (status, headers, _) = f.get("/@greg/my-workspace/terminal").await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    assert_eq!(
+        headers[header::LOCATION],
+        "/workspaces/workspace-id/terminal"
+    );
+    f.backend.failures.lock().unwrap().insert(
+        "/api/v2/users/greg/workspace/my-workspace".into(),
+        StatusCode::FORBIDDEN,
+    );
+    assert_eq!(
+        f.get("/@greg/my-workspace/builds/1").await.0,
+        StatusCode::FORBIDDEN
+    );
 }

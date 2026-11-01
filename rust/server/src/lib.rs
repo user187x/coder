@@ -10,6 +10,7 @@ mod rbac;
 mod runner;
 mod secrets;
 mod state;
+mod workspace_search;
 mod workspaces;
 pub use runner::{run, run_command};
 
@@ -238,6 +239,23 @@ pub fn api_with_options(
         .route(
             "/api/v2/organizations/{org}/provisionerkeys/{id}",
             axum::routing::delete(jobs::delete_key),
+        )
+        .route(
+            "/api/v2/users/{user}/workspace/{name}",
+            get(workspaces::by_name),
+        )
+        .route(
+            "/api/v2/users/{user}/workspace/{name}/builds/{number}",
+            get(workspaces::build_by_number),
+        )
+        .route("/api/v2/workspacebuilds/{id}", get(workspaces::get_build))
+        .route(
+            "/api/v2/workspacebuilds/{id}/parameters",
+            get(workspaces::build_parameters),
+        )
+        .route(
+            "/api/v2/workspacebuilds/{id}/resources",
+            get(workspaces::build_resources),
         )
         .route("/api/v2/workspaces", get(workspaces::list))
         .route("/api/v2/workspaces/{id}", get(workspaces::get))

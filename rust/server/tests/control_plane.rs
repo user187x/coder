@@ -211,6 +211,127 @@ async fn control_plane_and_rust_ui_work_without_the_go_server() {
     assert_eq!(status, StatusCode::CREATED, "{w}");
     assert_eq!(w["latest_build"]["status"], "pending");
     let workspace = w["id"].as_str().unwrap();
+    let first_build = w["latest_build"]["id"].as_str().unwrap();
+    for path in [
+        "/api/v2/users/me/workspace/my-workspace".to_owned(),
+        "/api/v2/users/OWNER/workspace/MY-WORKSPACE".to_owned(),
+        format!(
+            "/api/v2/users/{}/workspace/my-workspace",
+            first["user_id"].as_str().unwrap()
+        ),
+        "/api/v2/users/owner/workspace/my-workspace/builds/1".to_owned(),
+        format!("/api/v2/workspacebuilds/{first_build}"),
+        format!("/api/v2/workspacebuilds/{first_build}/parameters"),
+        format!("/api/v2/workspacebuilds/{first_build}/resources"),
+    ] {
+        let (status, body) = server
+            .call(Method::GET, &path, &owner, false, Value::Null)
+            .await;
+        assert_eq!(status, StatusCode::OK, "{path}: {body}");
+        if path.ends_with("parameters") {
+            assert_eq!(body, json!([{"name":"cores","value":"4"}]));
+        }
+        // 'me' denotes a different owner for this user, so the name lookup is absent.
+        let denied = server
+            .call(Method::GET, &path, &member_token, false, Value::Null)
+            .await
+            .0;
+        assert!(
+            matches!(denied, StatusCode::FORBIDDEN | StatusCode::NOT_FOUND),
+            "{path}: {denied}"
+        );
+        assert_eq!(
+            server
+                .call(Method::GET, &path, "", false, Value::Null)
+                .await
+                .0,
+            StatusCode::UNAUTHORIZED
+        );
+    }
+    for (q, count) in [
+        ("user:me".to_owned(), 1),
+        (
+            "owner:OWNER template:DEVELOPMENT status:pending outdated:false".to_owned(),
+            1,
+        ),
+        ("owner/my-workspace".to_owned(), 1),
+        (format!("organization:{org} id:{workspace}"), 1),
+        (r#"name:"my-workspace""#.to_owned(), 1),
+        ("outdated:true".to_owned(), 0),
+        ("owner:member".to_owned(), 0),
+        ("status:running".to_owned(), 0),
+    ] {
+        let url = reqwest::Url::parse_with_params(
+            &format!("{}/api/v2/workspaces", server.base),
+            [("q", &q)],
+        )
+        .unwrap();
+        let response: Value = server
+            .client
+            .get(url.clone())
+            .header("Coder-Session-Token", &owner)
+            .send()
+            .await
+            .unwrap()
+            .json()
+            .await
+            .unwrap();
+        assert_eq!(response["count"], count, "{q}: {response}");
+        assert_eq!(
+            response["workspaces"].as_array().unwrap().len(),
+            count as usize
+        );
+        let response: Value = server
+            .client
+            .get(url)
+            .header("Coder-Session-Token", &member_token)
+            .send()
+            .await
+            .unwrap()
+            .json()
+            .await
+            .unwrap();
+        assert_eq!(
+            response["count"], 0,
+            "Filters must not bypass authorization: {q}"
+        );
+    }
+    let response: Value = server
+        .client
+        .get(format!("{}/api/v2/workspaces?offset=50", server.base))
+        .header("Coder-Session-Token", &owner)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(response["count"], 1);
+    assert_eq!(response["workspaces"], json!([]));
+    for q in [
+        "outdated:garbage",
+        "status:unknown",
+        "owner:me owner:member",
+        "has-agent:connected",
+    ] {
+        let url = reqwest::Url::parse_with_params(
+            &format!("{}/api/v2/workspaces", server.base),
+            [("q", q)],
+        )
+        .unwrap();
+        assert_eq!(
+            server
+                .client
+                .get(url)
+                .header("Coder-Session-Token", &owner)
+                .send()
+                .await
+                .unwrap()
+                .status(),
+            StatusCode::BAD_REQUEST
+        );
+    }
+
     let other_org = Uuid::new_v4();
     sqlx::query("INSERT INTO coder_rust.organizations VALUES($1,'isolated','Isolated')")
         .bind(other_org)

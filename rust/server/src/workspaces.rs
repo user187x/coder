@@ -102,54 +102,185 @@ pub(crate) async fn list(
 ) -> Result {
     let actor = auth::actor(&app, &headers).await?;
     let (offset, limit) = search.page()?;
-    let mut term = String::new();
-    let mut status = String::new();
-    let mut own = false;
-    for word in search.q.split_whitespace() {
-        if word == "owner:me" {
-            own = true;
-            continue;
-        }
-        if let Some(value) = word.strip_prefix("status:") {
-            status = value.to_owned();
-        } else if word.contains(':') {
-            return Err(Error::bad(
-                "Supported filters are owner:me and status:<state>.",
-            ));
-        } else {
-            if !term.is_empty() {
-                term.push(' ');
-            }
-            term.push_str(word);
-        }
-    }
-    let filter = " JOIN coder_rust.builds b ON b.id=w.latest_build_id WHERE coder_rust.permitted($1,w.organization_id,'workspace.read',w.id,w.owner_id=$1) AND (NOT $4 OR w.owner_id=$1) AND NOT w.deleted AND w.name ILIKE $2 AND ($3='' OR b.status=$3)";
-    let rows = sqlx::query_as::<_, Workspace>(&format!(
-        "{WORKSPACE}{filter} ORDER BY w.created_at DESC LIMIT $5 OFFSET $6"
-    ))
-    .bind(actor.id)
-    .bind(format!("%{term}%"))
-    .bind(&status)
-    .bind(own)
-    .bind(limit)
-    .bind(offset)
-    .fetch_all(&app.pool)
-    .await?;
-    let count: i64 = sqlx::query_scalar(&format!(
-        "SELECT count(*) FROM coder_rust.workspaces w{filter}"
-    ))
-    .bind(actor.id)
-    .bind(format!("%{term}%"))
-    .bind(status)
-    .bind(own)
-    .fetch_one(&app.pool)
-    .await?;
+    let filter = crate::workspace_search::Filter::parse(&search.q)?;
+    let target_user: Option<Uuid> = if filter.user.is_empty() {
+        None
+    } else if filter.user == "me" {
+        Some(actor.id)
+    } else {
+        Some(
+            sqlx::query_scalar(
+                "SELECT id FROM coder_rust.users WHERE lower(username)=$1 OR id::text=$1",
+            )
+            .bind(&filter.user)
+            .fetch_one(&app.pool)
+            .await?,
+        )
+    };
+    let mut query = workspace_query(WORKSPACE, &filter, &actor, target_user);
+    query
+        .push(" ORDER BY (w.favorite AND w.owner_id=")
+        .push_bind(actor.id)
+        .push(") DESC,(w.owner_id=")
+        .push_bind(actor.id)
+        .push(") DESC,(b.status='running') DESC,lower(u.username),lower(w.name),w.id LIMIT ")
+        .push_bind(limit)
+        .push(" OFFSET ")
+        .push_bind(offset);
+    let rows = query
+        .build_query_as::<Workspace>()
+        .fetch_all(&app.pool)
+        .await?;
+    let count: i64 = workspace_query(
+        "SELECT count(*) FROM coder_rust.workspaces w JOIN coder_rust.users u ON u.id=w.owner_id JOIN coder_rust.templates t ON t.id=w.template_id",
+        &filter, &actor, target_user,
+    ).build_query_scalar().fetch_one(&app.pool).await?;
     let mut values = Vec::new();
     let mut conn = app.pool.acquire().await?;
     for row in rows {
         values.push(row.json(&mut conn, actor.id).await?);
     }
     Ok(Json(json!({"workspaces":values,"count":count})))
+}
+
+fn workspace_query<'a>(
+    prefix: &'a str,
+    filter: &'a crate::workspace_search::Filter,
+    actor: &'a auth::User,
+    target_user: Option<Uuid>,
+) -> sqlx::QueryBuilder<'a, sqlx::Postgres> {
+    let mut query = sqlx::QueryBuilder::new(prefix);
+    query.push(" JOIN coder_rust.builds b ON b.id=w.latest_build_id JOIN coder_rust.organizations o ON o.id=w.organization_id WHERE NOT w.deleted AND coder_rust.permitted(")
+        .push_bind(actor.id).push(",w.organization_id,'workspace.read',w.id,w.owner_id=").push_bind(actor.id).push(")");
+    if !filter.name.is_empty() {
+        query
+            .push(" AND w.name ILIKE ")
+            .push_bind(format!("%{}%", filter.name));
+    }
+    if !filter.owner.is_empty() {
+        if filter.owner == "me" {
+            query.push(" AND w.owner_id=").push_bind(actor.id);
+        } else {
+            query
+                .push(" AND lower(u.username)=")
+                .push_bind(&filter.owner);
+        }
+    }
+    if let Some(user) = target_user {
+        // Explicit resource grants are the Rust runtime's sharing mechanism.
+        // An org-wide administrator role does not mean every workspace was shared.
+        query.push(" AND (w.owner_id=").push_bind(user)
+            .push(" OR (coder_rust.permitted(").push_bind(user)
+            .push(",w.organization_id,'workspace.read',w.id,false) AND EXISTS (SELECT 1 FROM coder_rust.role_bindings rb JOIN coder_rust.role_permissions rp USING(organization_id,role_id) WHERE rb.user_id=")
+            .push_bind(user).push(" AND rb.organization_id=w.organization_id AND rp.resource_id=w.id AND rp.action='workspace.read' AND rp.allow)))");
+    }
+    if !filter.template.is_empty() {
+        query
+            .push(" AND lower(t.name)=")
+            .push_bind(&filter.template);
+    }
+    if !filter.organization.is_empty() {
+        query
+            .push(" AND (lower(o.name)=")
+            .push_bind(&filter.organization)
+            .push(" OR o.id::text=")
+            .push_bind(&filter.organization)
+            .push(")");
+    }
+    if !filter.status.is_empty() {
+        query.push(" AND b.status=").push_bind(&filter.status);
+    }
+    if let Some(outdated) = filter.outdated {
+        query
+            .push(" AND (b.template_version_id<>t.active_version_id)=")
+            .push_bind(outdated);
+    }
+    if !filter.ids.is_empty() {
+        query
+            .push(" AND w.id=ANY(")
+            .push_bind(&filter.ids)
+            .push(")");
+    }
+    query
+}
+
+async fn named_workspace(
+    app: &App,
+    actor: &auth::User,
+    user: &str,
+    name: &str,
+) -> Result<Workspace> {
+    let user = if user == "me" {
+        actor.username.as_str()
+    } else {
+        user
+    };
+    let id: Uuid = sqlx::query_scalar("SELECT w.id FROM coder_rust.workspaces w JOIN coder_rust.users u ON u.id=w.owner_id WHERE (lower(u.username)=lower($1) OR u.id::text=$1) AND lower(w.name)=lower($2) AND NOT w.deleted")
+        .bind(user).bind(name).fetch_one(&app.pool).await?;
+    authorized(app, actor, id).await
+}
+
+pub(crate) async fn by_name(
+    State(app): State<App>,
+    headers: HeaderMap,
+    Path((user, name)): Path<(String, String)>,
+) -> Result {
+    let actor = auth::actor(&app, &headers).await?;
+    let w = named_workspace(&app, &actor, &user, &name).await?;
+    Ok(Json(
+        w.json(&mut *app.pool.acquire().await?, actor.id).await?,
+    ))
+}
+
+pub(crate) async fn build_by_number(
+    State(app): State<App>,
+    headers: HeaderMap,
+    Path((user, name, number)): Path<(String, String, i32)>,
+) -> Result {
+    let actor = auth::actor(&app, &headers).await?;
+    let w = named_workspace(&app, &actor, &user, &name).await?;
+    let build = sqlx::query_as::<_, Build>(
+        "SELECT * FROM coder_rust.builds WHERE workspace_id=$1 AND build_number=$2",
+    )
+    .bind(w.id)
+    .bind(number)
+    .fetch_one(&app.pool)
+    .await?;
+    Ok(Json(build.json()))
+}
+
+async fn authorized_build(app: &App, headers: &HeaderMap, id: Uuid) -> Result<Build> {
+    let actor = auth::actor(app, headers).await?;
+    let build = sqlx::query_as::<_, Build>("SELECT * FROM coder_rust.builds WHERE id=$1")
+        .bind(id)
+        .fetch_one(&app.pool)
+        .await?;
+    authorized(app, &actor, build.workspace_id).await?;
+    Ok(build)
+}
+
+pub(crate) async fn get_build(
+    State(app): State<App>,
+    headers: HeaderMap,
+    Path(id): Path<Uuid>,
+) -> Result {
+    Ok(Json(authorized_build(&app, &headers, id).await?.json()))
+}
+
+pub(crate) async fn build_parameters(
+    State(app): State<App>,
+    headers: HeaderMap,
+    Path(id): Path<Uuid>,
+) -> Result {
+    Ok(Json(authorized_build(&app, &headers, id).await?.parameters))
+}
+
+pub(crate) async fn build_resources(
+    State(app): State<App>,
+    headers: HeaderMap,
+    Path(id): Path<Uuid>,
+) -> Result {
+    Ok(Json(authorized_build(&app, &headers, id).await?.resources))
 }
 
 #[derive(Deserialize)]

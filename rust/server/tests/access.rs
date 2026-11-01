@@ -337,6 +337,10 @@ async fn oidc_roles_and_browser_terminal_enforce_boundaries() {
         let binding=format!("{role_path}/users/{bob}");assert_eq!(f.call(Method::PUT,&binding,&owner,Value::Null).await.0,StatusCode::NO_CONTENT);
         assert_eq!(f.call(Method::GET,&path,&bob_session,Value::Null).await.0,StatusCode::OK);
         let (_,listing)=f.call(Method::GET,"/api/v2/workspaces",&bob_session,Value::Null).await;assert_eq!(listing["count"],1);
+        let (_,listing)=f.call(Method::GET,"/api/v2/workspaces?q=user:me",&bob_session,Value::Null).await;assert_eq!(listing["count"],1);
+        let (_,listing)=f.call(Method::GET,"/api/v2/workspaces?q=owner:me",&bob_session,Value::Null).await;assert_eq!(listing["count"],0);
+        let (_,listing)=f.call(Method::GET,"/api/v2/workspaces?q=user:me",&owner,Value::Null).await;assert_eq!(listing["count"],0,"Administrator visibility must not be mistaken for explicit sharing");
+
         for action in ["stop","delete"] {assert_eq!(f.call(Method::POST,&format!("{path}/builds"),&bob_session,json!({"transition":action})).await.0,StatusCode::FORBIDDEN);}
         assert_eq!(f.call(Method::POST,&format!("{path}/agent"),&bob_session,json!({"ports":[22],"terminal":true})).await.0,StatusCode::FORBIDDEN);
         let deny=Uuid::new_v4();let deny_path=format!("/api/v2/organizations/{org}/roles/{deny}");
