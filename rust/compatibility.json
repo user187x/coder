@@ -13,7 +13,15 @@
     "site/src/index.css",
     "coderd/searchquery/search.go",
     "coderd/database/queries/workspaces.sql",
-    "coderd/coderd.go"
+    "coderd/coderd.go",
+    "coderd/schedule/cron/cron.go",
+    "coderd/autobuild/lifecycle_executor.go",
+    "coderd/platformquota.go",
+    "coderd/platformscheduler.go",
+    "coderd/templateversions.go",
+    "coderd/templates.go",
+    "airgap-dist/helm-chart/coder-airgapped/files/ui-updates/ui-service.py",
+    "site/src/api/platform.ts"
   ],
   "assets": [
     {

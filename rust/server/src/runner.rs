@@ -79,7 +79,18 @@ pub async fn run_command(
             coder_ui::integrated_router(&format!("http://{internal}"), &origin)?,
         );
     eprintln!("Coder Rust control plane: {origin} (first-time setup: {origin}/setup)");
-    axum::serve(listener, app)
+    let schedule_pool = pool.clone();
+    let scheduler = tokio::spawn(async move {
+        let mut interval = tokio::time::interval(std::time::Duration::from_secs(30));
+        interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+        loop {
+            interval.tick().await;
+            if crate::schedules::reconcile(&schedule_pool).await.is_err() {
+                eprintln!("Workspace scheduler pass failed; retrying on the next interval.");
+            }
+        }
+    });
+    let result = axum::serve(listener, app)
         .with_graceful_shutdown(async {
             #[cfg(unix)]
             {
@@ -91,7 +102,10 @@ pub async fn run_command(
             #[cfg(not(unix))]
             let _ = tokio::signal::ctrl_c().await;
         })
-        .await?;
+        .await;
+    scheduler.abort();
+    let _ = scheduler.await;
     pool.close().await;
+    result?;
     Ok(())
 }

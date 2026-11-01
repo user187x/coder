@@ -316,7 +316,7 @@ async fn workspace_controls_send_the_correct_build_and_favorite_payloads() {
     let calls = f.mutations();
     assert_eq!(
         calls[0].body,
-        json!({"transition":"start","template_version_id":"version-id","reason":"dashboard"})
+        json!({"transition":"start","reason":"dashboard"})
     );
     assert_eq!(calls[1].body, json!({"transition":"stop"}));
     assert_eq!(calls[2].body["on_success"]["transition"], "start");
@@ -371,7 +371,7 @@ async fn creation_maps_form_fields_to_parameter_names_and_rejects_stale_versions
     assert_eq!(headers[header::LOCATION], "/workspaces/workspace-id");
     assert_eq!(
         f.mutations()[0].body,
-        json!({"template_version_id":"version-id","name":"test","rich_parameter_values":[{"name":"region","value":"us-east-1"},{"name":"cores","value":"4"}]})
+        json!({"template_version_id":"version-id","name":"test","rich_parameter_values":[{"name":"region","value":"us-east-1"},{"name":"cores","value":"4"}],"autostart_schedule":null,"ttl_ms":null})
     );
 }
 

@@ -334,7 +334,7 @@ pub(crate) async fn workspace_action(
     let w = get_workspace(&api, &headers, &id).await?;
     let result: Result<Value> = match form.action.as_str() {
         "start" => api.send(&headers, Method::POST, &["workspaces", &id, "builds"],
-            &json!({"transition":"start","template_version_id":w.latest_build.template_version_id,"reason":"dashboard"})).await,
+            &json!({"transition":"start","reason":"dashboard"})).await,
         "stop" => api.send(&headers, Method::POST, &["workspaces", &id, "builds"], &json!({"transition":"stop"})).await,
         "restart" => api.send(&headers, Method::POST, &["workspaces", &id, "builds"],
             &json!({"transition":"stop","reason":"dashboard","on_success":{"transition":"start"}})).await,
@@ -489,8 +489,9 @@ pub(crate) async fn create_workspace(
             .into_response());
     }
     let rich: Vec<Value> = params.iter().enumerate().map(|(index,p)| json!({"name":p.name,"value":values.get(&format!("parameter_{index}")).unwrap_or(&p.default_value)})).collect();
+    let schedule = crate::policies::schedule_values(&values)?;
     let result: Result<Workspace> = api.send(&headers, Method::POST, &["users", &user.id, "workspaces"],
-        &json!({"template_version_id":template.active_version_id,"name":values.get("name").map(String::as_str).unwrap_or_default(),"rich_parameter_values":rich})).await;
+        &json!({"template_version_id":template.active_version_id,"name":values.get("name").map(String::as_str).unwrap_or_default(),"rich_parameter_values":rich,"autostart_schedule":schedule["autostart_schedule"],"ttl_ms":schedule["ttl_ms"]})).await;
     match result {
         Ok(w) => {
             Ok(Redirect::to(&format!("/workspaces/{}", views::segment(&w.id))).into_response())

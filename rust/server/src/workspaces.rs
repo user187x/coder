@@ -22,8 +22,12 @@ pub(crate) struct Workspace {
     pub template_name: String,
     pub template_display_name: String,
     pub active_version_id: Uuid,
+    pub autostart_schedule: Option<String>,
+    pub ttl_ms: Option<i64>,
+    pub automatic_updates: String,
+    pub next_start_at: Option<chrono::DateTime<chrono::Utc>>,
 }
-pub(crate) const WORKSPACE: &str = "SELECT w.id,w.organization_id,w.owner_id,w.template_id,w.name,w.latest_build_id,w.favorite,u.username AS owner_name,t.name AS template_name,t.display_name AS template_display_name,t.active_version_id FROM coder_rust.workspaces w JOIN coder_rust.users u ON u.id=w.owner_id JOIN coder_rust.templates t ON t.id=w.template_id";
+pub(crate) const WORKSPACE: &str = "SELECT w.id,w.organization_id,w.owner_id,w.template_id,w.name,w.latest_build_id,w.favorite,w.autostart_schedule,w.ttl_ms,w.automatic_updates,w.next_start_at,u.username AS owner_name,t.name AS template_name,t.display_name AS template_display_name,t.active_version_id FROM coder_rust.workspaces w JOIN coder_rust.users u ON u.id=w.owner_id JOIN coder_rust.templates t ON t.id=w.template_id";
 impl Workspace {
     pub async fn json(&self, conn: &mut PgConnection, actor: Uuid) -> Result<Value> {
         let build = sqlx::query_as::<_, Build>("SELECT * FROM coder_rust.builds WHERE id=$1")
@@ -37,7 +41,7 @@ impl Workspace {
         Ok(
             json!({"id":self.id,"organization_id":self.organization_id,"owner_id":self.owner_id,"owner_name":self.owner_name,
             "name":self.name,"template_id":self.template_id,"template_name":self.template_name,"template_display_name":self.template_display_name,
-            "template_active_version_id":self.active_version_id,"favorite":self.favorite,"outdated":build.template_version_id!=self.active_version_id,"latest_build":build.json(),"infrastructure_recovery_required":recovery,"available_actions":available}),
+            "autostart_schedule":self.autostart_schedule,"ttl_ms":self.ttl_ms,"automatic_updates":self.automatic_updates,"next_start_at":self.next_start_at,"template_active_version_id":self.active_version_id,"favorite":self.favorite,"outdated":build.template_version_id!=self.active_version_id,"latest_build":build.json(),"infrastructure_recovery_required":recovery,"available_actions":available}),
         )
     }
 }
@@ -53,10 +57,13 @@ pub(crate) struct Build {
     pub parameters: Value,
     pub resources: Value,
     pub on_success: bool,
+    pub deadline: Option<chrono::DateTime<chrono::Utc>>,
+    pub max_deadline: Option<chrono::DateTime<chrono::Utc>>,
+    pub reason: String,
 }
 impl Build {
     pub fn json(&self) -> Value {
-        json!({"id":self.id,"organization_id":self.organization_id,"workspace_id":self.workspace_id,"build_number":self.build_number,"template_version_id":self.template_version_id,"transition":self.transition,"status":self.status,"resources":self.resources})
+        json!({"id":self.id,"organization_id":self.organization_id,"workspace_id":self.workspace_id,"build_number":self.build_number,"template_version_id":self.template_version_id,"transition":self.transition,"status":self.status,"resources":self.resources,"deadline":self.deadline,"max_deadline":self.max_deadline,"reason":self.reason})
     }
 }
 pub(crate) async fn authorized(app: &App, actor: &auth::User, id: Uuid) -> Result<Workspace> {
@@ -287,6 +294,9 @@ pub(crate) async fn build_resources(
 #[serde(deny_unknown_fields)]
 pub(crate) struct CreateWorkspace {
     name: String,
+    autostart_schedule: Option<String>,
+    ttl_ms: Option<i64>,
+    automatic_updates: Option<String>,
     template_version_id: Option<Uuid>,
     template_id: Option<Uuid>,
     rich_parameter_values: Option<Vec<catalog::ParameterValue>>,
@@ -341,16 +351,57 @@ pub(crate) async fn create(
     )
     .await?;
     crate::member(&app, owner, template.organization_id).await?;
-    let version = req
-        .template_version_id
-        .unwrap_or(template.active_version_id);
+    let automatic_updates = req.automatic_updates.as_deref().unwrap_or("never");
+    if !matches!(automatic_updates, "always" | "never") {
+        return Err(Error::bad("Automatic updates must be always or never."));
+    }
     let id = Uuid::new_v4();
     let build = Uuid::new_v4();
     let mut tx = app.pool.begin().await?;
+    crate::quotas::lock_owner(&mut tx, owner).await?;
+    let template = sqlx::query_as::<_, catalog::Template>(&format!(
+        "{} WHERE t.id=$1 AND NOT t.deleted FOR SHARE OF t",
+        catalog::TEMPLATE
+    ))
+    .bind(template.id)
+    .fetch_one(&mut *tx)
+    .await?;
+    if !template.deprecation_message.is_empty() {
+        return Err(Error::bad("This template is deprecated."));
+    }
+    let version = req
+        .template_version_id
+        .unwrap_or(template.active_version_id);
+    if template.require_active_version && version != template.active_version_id {
+        return Err(Error::bad("This template requires its active version."));
+    }
+    sqlx::query("SELECT id FROM coder_rust.template_versions WHERE id=$1 AND template_id=$2 AND NOT archived").bind(version).bind(template.id).fetch_one(&mut *tx).await?;
+    let schedule = crate::schedules::prepare(
+        &mut tx,
+        owner,
+        crate::schedules::Schedule {
+            autostart_schedule: req.autostart_schedule,
+            ttl_ms: req
+                .ttl_ms
+                .filter(|ms| *ms != 0)
+                .or((template.default_ttl_ms > 0).then_some(template.default_ttl_ms)),
+        },
+        "create",
+    )
+    .await?;
     let params =
         catalog::validate_parameters(&mut tx, version, req.rich_parameter_values, None).await?;
+    crate::quotas::enforce(&mut tx, owner, None, &params, None).await?;
     sqlx::query("INSERT INTO coder_rust.workspaces(id,organization_id,owner_id,template_id,name) VALUES($1,$2,$3,$4,$5)")
         .bind(id).bind(template.organization_id).bind(owner).bind(template.id).bind(req.name).execute(&mut *tx).await?;
+    let next = schedule.next(chrono::Utc::now())?;
+    sqlx::query("UPDATE coder_rust.workspaces SET autostart_schedule=$1,ttl_ms=$2,next_start_at=$3 WHERE id=$4")
+        .bind(schedule.autostart_schedule).bind(schedule.ttl_ms).bind(next).bind(id).execute(&mut *tx).await?;
+    sqlx::query("UPDATE coder_rust.workspaces SET automatic_updates=$1 WHERE id=$2")
+        .bind(automatic_updates)
+        .bind(id)
+        .execute(&mut *tx)
+        .await?;
     insert_build(
         &mut tx,
         build,
@@ -391,6 +442,7 @@ pub(crate) async fn insert_build(
         .bind(workspace)
         .execute(&mut *conn)
         .await?;
+    crate::schedules::on_build(conn, workspace, transition).await?;
     sqlx::query("INSERT INTO coder_rust.build_logs(build_id,log_level,output) VALUES($1,'info','Queued; waiting for an authorized provisioner.')").bind(id).execute(conn).await?;
     Ok(())
 }
@@ -439,6 +491,7 @@ pub(crate) async fn build(
         }
     }
     let mut tx = app.pool.begin().await?;
+    crate::quotas::lock_owner(&mut tx, w.owner_id).await?;
     sqlx::query("SELECT id FROM coder_rust.workspaces WHERE id=$1 FOR UPDATE")
         .bind(id)
         .fetch_one(&mut *tx)
@@ -461,14 +514,36 @@ pub(crate) async fn build(
     if req.transition == "stop" && previous.status == "stopped" {
         return Err(Error::conflict("The workspace is already stopped."));
     }
-    let version = req
-        .template_version_id
-        .unwrap_or(previous.template_version_id);
+    let template = sqlx::query_as::<_, catalog::Template>(&format!(
+        "{} WHERE t.id=$1 AND NOT t.deleted FOR SHARE OF t",
+        catalog::TEMPLATE
+    ))
+    .bind(w.template_id)
+    .fetch_one(&mut *tx)
+    .await?;
+    let version = if req.transition == "start" {
+        req.template_version_id.unwrap_or(
+            if template.require_active_version || w.automatic_updates == "always" {
+                template.active_version_id
+            } else {
+                previous.template_version_id
+            },
+        )
+    } else {
+        previous.template_version_id
+    };
+    if req.transition == "start"
+        && template.require_active_version
+        && version != template.active_version_id
+    {
+        return Err(Error::bad("This template requires its active version."));
+    }
     let belongs: bool = sqlx::query_scalar(
-        "SELECT EXISTS(SELECT 1 FROM coder_rust.template_versions WHERE id=$1 AND template_id=$2)",
+        "SELECT EXISTS(SELECT 1 FROM coder_rust.template_versions WHERE id=$1 AND template_id=$2 AND (NOT archived OR $3))",
     )
     .bind(version)
     .bind(w.template_id)
+    .bind(req.transition!="start")
     .fetch_one(&mut *tx)
     .await?;
     if !belongs {
@@ -479,12 +554,22 @@ pub(crate) async fn build(
             &mut tx,
             version,
             req.rich_parameter_values,
-            Some(previous.parameters),
+            Some(previous.parameters.clone()),
         )
         .await?
     } else {
-        previous.parameters
+        previous.parameters.clone()
     };
+    if req.transition == "start" {
+        crate::quotas::enforce(
+            &mut tx,
+            w.owner_id,
+            Some(id),
+            &params,
+            Some(&previous.parameters),
+        )
+        .await?;
+    }
     let next = Uuid::new_v4();
     insert_build(
         &mut tx,
@@ -578,4 +663,41 @@ pub(crate) async fn unfavorite(
     Path(id): Path<Uuid>,
 ) -> Result<StatusCode> {
     set_favorite(app, headers, id, false).await
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct AutoUpdates {
+    automatic_updates: String,
+}
+pub(crate) async fn auto_updates(
+    State(app): State<App>,
+    headers: HeaderMap,
+    Path(id): Path<Uuid>,
+    Json(req): Json<AutoUpdates>,
+) -> Result<StatusCode> {
+    let actor = auth::actor(&app, &headers).await?;
+    let w = authorized_action(&app, &actor, id, "workspace.start").await?;
+    if !matches!(req.automatic_updates.as_str(), "always" | "never") {
+        return Err(Error::bad("Automatic updates must be always or never."));
+    }
+    let mut tx = app.pool.begin().await?;
+    crate::quotas::lock_owner(&mut tx, w.owner_id).await?;
+    sqlx::query(
+        "UPDATE coder_rust.workspaces SET automatic_updates=$1 WHERE id=$2 AND NOT deleted",
+    )
+    .bind(req.automatic_updates)
+    .bind(id)
+    .execute(&mut *tx)
+    .await?;
+    crate::rbac::audit(
+        &mut tx,
+        w.organization_id,
+        actor.id,
+        "workspace.autoupdates",
+        Some(id),
+    )
+    .await?;
+    tx.commit().await?;
+    Ok(StatusCode::NO_CONTENT)
 }

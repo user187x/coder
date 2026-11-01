@@ -23,6 +23,7 @@ pub(crate) fn page(title: &str, user: Option<&User>, api: Option<&Api>, body: Ma
                             @if api.is_some_and(|a|!a.full_application) {a href="/settings/access" { "Access" } a href="/settings/tokens" { "CLI access" }}
                             @if user.roles.iter().any(|r| matches!(r.name.as_str(), "owner" | "user-admin")) {
                                 a href="/users" { "Users" }
+                                @if api.is_some_and(|a| !a.full_application) {a href="/health/user-quota" {"User quota"}}
                             }
                         }
                         div.session {
@@ -245,6 +246,8 @@ pub(crate) fn workspace(
             }
             (alert(message))
             @if w.infrastructure_recovery_required { (alert(Some("Infrastructure state requires administrator recovery. Further infrastructure changes are blocked until state is reconciled."))) }
+            @if w.can("schedule") && !api.full_application {p {a.button href=(format!("/workspaces/{}/settings/schedule",segment(&w.id))) {"Schedule"}}}
+            @if let Some(deadline)=&w.latest_build.deadline {p.muted {"Automatic stop: " (deadline)}}
             div.notice { "Refresh to see the latest build status. " a href=(format!("/workspaces/{}", segment(&w.id))) { "Refresh now" } }
             section.panel {
                 h2 { "Resources & agents" }
@@ -309,7 +312,7 @@ pub(crate) fn templates(api: &Api, user: &User, templates: &[Template]) -> Marku
         Some(user),
         Some(api),
         html! {
-            div.heading { div { p.eyebrow { "BUILD YOUR ENVIRONMENT" } h1 { "Templates" } p.muted { "Choose a starting point for your next workspace." } } }
+            div.heading { div { p.eyebrow { "BUILD YOUR ENVIRONMENT" } h1 { "Templates" } p.muted { "Choose a starting point for your next workspace." } } @if !api.full_application {a.button.primary href="/templates/new" {"Create template"}} }
             div.cards { @for t in templates {
                 a.template-card href=(format!("/templates/{}", segment(&t.id))) {
                     p.eyebrow { (t.organization_name) } h2 { (t.title()) } p.muted { (t.description) }
@@ -331,6 +334,7 @@ pub(crate) fn template(api: &Api, user: &User, t: &Template) -> Markup {
             div.heading { div { p.eyebrow { (t.organization_name) } h1 { (t.title()) } p.muted { (t.description) } }
                 @if !t.deprecated { a.button.primary href=(format!("/templates/{}/workspace", segment(&t.id))) { "Create workspace" } }
             }
+            @if t.can_manage && !api.full_application {p {a.button href=(format!("/templates/{}/settings",segment(&t.id))) {"Template settings and versions"}}}
             @if t.deprecated { (alert(Some(&t.deprecation_message))) }
             section.panel { h2 { "Template details" } p { "Name: " (t.name) } p { "Organization: " (t.organization_name) }
             @if api.full_application { a href=(api.external(&["templates", &t.organization_name, &t.name])) { "Open template documentation and settings" } }
@@ -376,6 +380,7 @@ pub(crate) fn new_workspace(
                         }
                         p.hint { (p.description_plaintext) @if p.r#type == "list(string)" { " Enter a JSON array of strings." } }
                     }
+                    (crate::policies::schedule_fields(values))
                     button.primary type="submit" { "Create workspace" }
                 }
             }
@@ -395,7 +400,7 @@ pub(crate) fn account(
         Some(user),
         Some(api),
         html! {
-            section.form-page { (settings_nav()) h1 { "Account" } p.muted { (user.email) }
+            section.form-page { (settings_nav(api)) h1 { "Account" } p.muted { (user.email) }
                 (alert(message))
                 form.stack method="post" action="/settings/account" {
                     label for="username" { "Username" } input id="username" name="username" value=(username) maxlength="32" required;
@@ -407,8 +412,8 @@ pub(crate) fn account(
     )
 }
 
-fn settings_nav() -> Markup {
-    html! { nav.tabs aria-label="Account settings" { a href="/settings/account" { "Profile" } a href="/settings/secrets" { "Secrets" } } }
+fn settings_nav(api: &Api) -> Markup {
+    html! { nav.tabs aria-label="Account settings" { a href="/settings/account" { "Profile" } a href="/settings/secrets" { "Secrets" } @if !api.full_application {a href="/settings/schedule" {"Schedule and quota"}} } }
 }
 
 pub(crate) fn secrets(
@@ -424,7 +429,7 @@ pub(crate) fn secrets(
         Some(user),
         Some(api),
         html! {
-            (settings_nav()) h1 { "Secrets" } p.muted { "Credentials for your workspace environments. Stored values are never shown." }
+            (settings_nav(api)) h1 { "Secrets" } p.muted { "Credentials for your workspace environments. Stored values are never shown." }
             (alert(message))
             div.table-wrap { table aria-label="User secrets" {
                 thead { tr { th { "Name" } th { "Destination" } th { "Status" } } }

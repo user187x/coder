@@ -46,7 +46,7 @@ bash scripts/build-bundle.sh opentofu /absolute/path/to/tofu VERIFIED_EXECUTABLE
 Use `terraform` as the first argument to embed Terraform instead. The build
 rejects a mismatched checksum and includes the engine license. It produces
 `dist/coder-opentofu.tar.gz` or `dist/coder-terraform.tar.gz`. The archive contains
-`coder`, notices, this guide, and the example template. The GitHub Actions
+`coder`, notices, this guide, the compatibility manifest, and the example template. The GitHub Actions
 `rust-bundle` workflow performs the same build for Linux AMD64 using pinned,
 checksum-verified releases. The engine is extracted into a private temporary
 directory while in use and removed on normal shutdown. A crash can leave that
@@ -362,9 +362,94 @@ Cloud and Docker resource providers have not been exercised. The outbound Rust
 agent provides relayed TCP, including SSH transport to an existing SSH service.
 WireGuard encrypts CLI connections through the relay. Workspaces remain pending
 until a suitable worker executes their jobs. The JSON worker protocol differs
-from Go DRPC. Direct peer discovery, the Go agent protocol, scheduling, quotas,
-remaining organization controls, and in-place Go data migration remain unported. This is
+from Go DRPC. Direct peer discovery, the Go agent protocol, advanced lifecycle
+policies, remaining organization controls, and in-place Go data migration remain unported. This is
 not a drop-in replacement for an existing Coder deployment.
+
+## Manage templates, schedules, and quotas
+
+In the integrated Rust UI, use **Templates > Create template** to enter Terraform
+source files and parameter definitions. Template settings support metadata,
+immutable version publication, activation, archival, deprecation, and deletion.
+Publishing a version does not activate it or execute Terraform. The worker
+validates and plans its source when a workspace job runs. The active version and
+versions used by existing workspaces cannot be archived. Delete a template's
+workspaces before deleting the template.
+Deleted template names can be reused. Active names are unique within each
+organization, ignoring case. Before upgrading an existing Rust database,
+rename any template names that differ only by case; migration 6 rejects those
+duplicates. Rolling this migration back can also require resolving reused names.
+
+Partial build parameter updates preserve the previous values of retained
+parameters, discard parameters removed from the new schema, and fill new
+parameters from their defaults. Required fields and supported types are checked
+before a job is queued. Templates can require the active version and supply a
+default autostop duration. Workspaces can select `automatic_updates=always` or
+`never`; `always` resolves the active version at each start. Required active
+versions take precedence. Changes to template policy apply to future builds.
+
+| Operation | API path |
+|-----------|----------|
+| Read or update template metadata; delete template | `GET/PATCH/DELETE /api/v2/templates/{id}` |
+| List versions; activate `{ "id": "version UUID" }` | `GET/PATCH /api/v2/templates/{id}/versions` |
+| Publish a version | `POST /api/v2/organizations/{org}/templateversions` |
+| Read a version or its editable source | `GET /api/v2/templateversions/{id}` or `/{id}/source` |
+| Archive or unarchive a version | `POST /api/v2/templateversions/{id}/archive` or `/{id}/unarchive` |
+| Change a workspace's update policy | `PUT /api/v2/workspaces/{id}/autoupdates` |
+
+The publication body contains `template_id`, `name`, `message`, `parameters`,
+and `provisioner_spec`, using the same parameter and source format as template
+creation. This native Rust publication API does not implement Go's archive
+upload, import jobs, dry runs, dynamic parameters, or provisioner DRPC contract.
+Source reads and version mutations require `template.write` permission.
+
+Workspace **Schedule** settings accept a weekly five-field cron expression,
+optionally prefixed with `CRON_TZ=Area/City`, and an autostop duration in minutes.
+For example, `CRON_TZ=America/New_York 0 9 * * MON-FRI` starts at 9 AM on weekdays
+in New York. The day-of-month and month fields must be `*`. Time zones are
+embedded; daylight-saving gaps and repeated times follow the zone's clock.
+An empty schedule disables autostart. Zero autostop minutes disables the
+workspace timer unless a deployment rule requires one. API durations use
+milliseconds, truncated to whole minutes, between 1 minute and 30 days.
+
+The server checks persisted schedules every 30 seconds. Running builds stop at
+their deadline; stopped workspaces start at their next due time after permission,
+parameter, quota, and infrastructure-state checks. Database locks prevent
+multiple server instances from queuing the same transition. Skipped autostarts
+advance to the next occurrence. Queued work still requires a provisioner worker.
+Autostop starts counting after a successful start completes. Changing the
+workspace duration affects future starts; **Extend deadline** changes the
+current running build within its policy cap.
+
+| Operation | API path and body |
+|-----------|-------------------|
+| Set autostart | `PUT /api/v2/workspaces/{id}/autostart`, `{ "schedule": "0 9 * * MON-FRI" }` |
+| Set autostop | `PUT /api/v2/workspaces/{id}/ttl`, `{ "ttl_ms": 3600000 }` |
+| Set both together | `PUT /api/v2/workspaces/{id}/schedule`, `{ "autostart_schedule": "0 9 * * MON-FRI", "ttl_ms": 3600000 }` |
+| Extend running deadline | `PUT /api/v2/workspaces/{id}/extend`, `{ "deadline": "RFC3339 timestamp" }` |
+| Read own policy and allocations | `GET /api/v2/users/me/scheduler` and `/api/v2/users/me/quota` |
+| Read or replace deployment rules | `GET/POST /api/v2/deployment/scheduler` and `/api/v2/deployment/quota` |
+
+Administrators configure these deployment rules at `/health/user-quota`. Users
+see their own limits and schedule compliance at `/settings/schedule`. Scheduler
+rules can enforce user-managed schedules or fixed start/stop times, cap active
+hours, and exempt administrators or named users. New fixed-policy workspaces
+receive that schedule automatically. Existing noncompliant workspaces are
+listed for correction; changing a rule does not rewrite existing timers.
+
+Quotas limit workspace counts and the `cpu`, `memory`, and `home_disk_size`
+parameter allocations. CPU, memory, and disk can use cumulative or per-instance
+limits. Per-user overrides support inheritance, explicit unlimited values, and
+numeric limits. Allocation checks and job insertion share a transaction and an
+owner lock, so pending work reserves capacity. Stopped workspaces still count.
+Unchanged or reduced allocations can restart after an administrator lowers a
+limit. Changing resource modes affects subsequent allocation checks.
+
+Quota accounting uses declared parameters, not observed Kubernetes PVC capacity
+or live resource usage. Quota grants, requests, and bonuses, template quiet hours,
+dormancy, inactivity policies, and the tag's advanced restart rules remain
+unported. These native policies replace the implemented Python sidecar calls;
+they do not establish full platform-service compatibility.
 
 ## Connect a workspace
 
@@ -577,6 +662,7 @@ compatibility work.
 ```sh
 cargo test --workspace --locked
 cargo test -p coder-server --test control_plane --locked -- --ignored
+cargo test -p coder-server --test lifecycle --locked -- --ignored
 CODER_TEST_TERRAFORM_BINARY=/absolute/path/to/terraform CODER_TEST_ALTERNATE_IAC_BINARY=/absolute/path/to/tofu cargo test -p coder-server --test infrastructure --locked -- --ignored
 cargo test -p coder-server --test networking --locked -- --ignored
 CODER_AGENT_TOKEN=must-not-inherit cargo test -p coder-server --test access --locked -- --ignored
@@ -589,7 +675,10 @@ dedicated test database**. It creates test data and does not reset existing data
 CI supplies PostgreSQL 16 and runs the test on Rust 1.85 and stable. The test
 exercises setup, authentication, organization isolation, secret encryption and
 worker delivery, job fencing, restart/cancellation, lease expiry, deletion,
-HTTP-service restart persistence, and real Rust UI sign-in. The infrastructure
+HTTP-service restart persistence, and real Rust UI sign-in. The lifecycle test
+adds quota reservations, schedule deadlines and restart persistence, suspended
+users and revoked permissions, template version activation and parameter
+preservation, policy enforcement, and Rust template and policy forms. The infrastructure
 test executes the example template with real Terraform, checks start/stop/delete
 across fresh worker directories, encrypted state, stale lease rejection, dirty
 state blocking, and administrator recovery. It uses built-in resources and
@@ -639,12 +728,12 @@ The UI supports:
 - Workspace search and pagination, details, resources, and build logs.
 - Start, stop, cancel, favorite, and typed-name deletion confirmation.
 - Restart on the active template version through the backend's queued build API.
-- Template browsing and workspace creation with rich parameter inputs.
+- Template browsing, creation, version management, and workspace creation with parameter inputs.
+- Workspace schedules, deployment schedule rules, and declared-allocation quotas.
 - Profile name/username editing, secret listing/creation, and user listings.
 - Responsive layouts, native keyboard-accessible forms, and escaped HTML.
 
-Pages use full HTTP navigations and manual refresh. Failed submissions retain
-non-secret fields. Passwords and existing session tokens are not reflected into
+Pages use full HTTP navigations and manual refresh. Passwords and existing session tokens are not reflected into
 pages. The CLI access page displays a newly requested token once. Browser
 JavaScript is limited to the bundled terminal renderer and its transport bridge;
 no CDN assets or browser-local credential storage is used. The UI uses its own cookie, so the original application may require its
@@ -697,12 +786,12 @@ The full application still uses its existing implementation. Completion requires
 porting and verifying all of these areas before switching the runtime:
 
 - Remaining Go API/SDK contracts, OAuth-provider functionality, SAML/SCIM/group sync, and full deployment auditing.
-- Provider compatibility, scheduling, import workflows, and event streams.
+- Provider compatibility, advanced lifecycle policies, import workflows, and event streams.
 - Go-compatible agent/SSH protocols, persistent/reconnecting terminals, direct peer connections,
   workspace proxies, and distributed relay coordination.
 - CLI commands, SDK transport, configuration, and credential storage.
 - Remaining browser UI routes, live interactions, and deployment customizations.
-- Tag-specific platform features, including images, AI chat, Cloud Drive, quotas,
+- Tag-specific platform features, including images, AI chat, Cloud Drive, quota grants and measured disk accounting,
   lockdown controls, custom airgap tools, and native monitoring utilities.
 - Cross-platform packaging, installation, containers, Helm, upgrades, and release automation.
 - Compatibility and end-to-end tests across supported operating systems.

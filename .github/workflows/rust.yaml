@@ -72,6 +72,7 @@ jobs:
       - run: cargo +${{ matrix.rust }} test -p coder-server --test access --locked -- --ignored
         env:
           CODER_AGENT_TOKEN: must-not-inherit
+      - run: cargo +${{ matrix.rust }} test -p coder-server --test lifecycle --locked -- --ignored
       - name: Exercise the embedded engine through real infrastructure jobs
         env:
           CODER_EMBEDDED_ENGINE_KIND: opentofu

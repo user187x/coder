@@ -4,6 +4,8 @@ mod access;
 mod api;
 mod handlers;
 mod models;
+mod policies;
+mod templates;
 mod views;
 
 use api::{Api, UiError};
@@ -104,7 +106,33 @@ fn build_router(
             "/workspaces/{id}/delete",
             get(handlers::delete_workspace).post(handlers::confirm_delete),
         )
+        .route(
+            "/workspaces/{id}/settings/schedule",
+            get(policies::workspace_schedule).post(policies::save_schedule),
+        )
+        .route(
+            "/{username}/{workspace}/settings/schedule",
+            get(policies::named_schedule),
+        )
+        .route("/workspaces/{id}/extend", post(policies::extend))
+        .route(
+            "/health/user-quota",
+            get(policies::admin).post(policies::save_admin),
+        )
+        .route("/settings/schedule", get(policies::personal))
         .route("/templates", get(handlers::templates))
+        .route(
+            "/templates/new",
+            get(templates::new)
+                .post(templates::create)
+                .layer(DefaultBodyLimit::max(512 * 1024)),
+        )
+        .route(
+            "/templates/{id}/settings",
+            get(templates::settings)
+                .post(templates::save)
+                .layer(DefaultBodyLimit::max(512 * 1024)),
+        )
         .route("/templates/{id}", get(handlers::template))
         .route(
             "/templates/{id}/workspace",

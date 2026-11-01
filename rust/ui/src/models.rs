@@ -57,12 +57,15 @@ pub(crate) struct Workspace {
     pub latest_build: Build,
     pub favorite: bool,
     pub outdated: bool,
+    pub autostart_schedule: Option<String>,
+    pub ttl_ms: Option<i64>,
+    pub next_start_at: Option<String>,
 }
 
 #[derive(Deserialize)]
 pub(crate) struct Build {
     pub id: String,
-    pub template_version_id: String,
+    pub deadline: Option<String>,
     pub status: String,
     pub build_number: i32,
     #[serde(default, deserialize_with = "null_vec")]
@@ -89,6 +92,14 @@ pub(crate) struct Agent {
 #[derive(Deserialize)]
 pub(crate) struct Template {
     pub id: String,
+    #[serde(default)]
+    pub organization_id: String,
+    #[serde(default)]
+    pub can_manage: bool,
+    #[serde(default)]
+    pub default_ttl_ms: i64,
+    #[serde(default)]
+    pub require_active_version: bool,
     pub name: String,
     pub display_name: String,
     pub organization_name: String,

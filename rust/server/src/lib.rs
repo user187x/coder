@@ -6,10 +6,15 @@ pub mod config;
 mod jobs;
 mod network;
 pub mod oidc;
+mod quotas;
 mod rbac;
 mod runner;
+mod schedules;
 mod secrets;
+mod settings;
 mod state;
+mod template_versions;
+mod weekly;
 mod workspace_search;
 mod workspaces;
 pub use runner::{run, run_command};
@@ -223,7 +228,37 @@ pub fn api_with_options(
             get(secrets::capabilities),
         )
         .route("/api/v2/templates", get(catalog::templates))
-        .route("/api/v2/templates/{id}", get(catalog::template))
+        .route(
+            "/api/v2/templates/{id}",
+            get(catalog::template)
+                .patch(template_versions::update)
+                .delete(template_versions::delete),
+        )
+        .route(
+            "/api/v2/templates/{id}/versions",
+            get(template_versions::list).patch(template_versions::activate),
+        )
+        .route(
+            "/api/v2/templates/{id}/versions/{name}",
+            get(template_versions::by_name),
+        )
+        .route(
+            "/api/v2/organizations/{org}/templateversions",
+            post(template_versions::create),
+        )
+        .route("/api/v2/templateversions/{id}", get(template_versions::get))
+        .route(
+            "/api/v2/templateversions/{id}/source",
+            get(template_versions::source),
+        )
+        .route(
+            "/api/v2/templateversions/{id}/archive",
+            post(template_versions::archive),
+        )
+        .route(
+            "/api/v2/templateversions/{id}/unarchive",
+            post(template_versions::unarchive),
+        )
         .route(
             "/api/v2/templateversions/{id}/rich-parameters",
             get(catalog::parameters),
@@ -257,8 +292,48 @@ pub fn api_with_options(
             "/api/v2/workspacebuilds/{id}/resources",
             get(workspaces::build_resources),
         )
+        .route(
+            "/api/v2/deployment/quota",
+            get(quotas::report).post(quotas::save),
+        )
+        .route("/api/v2/users/me/quota", get(quotas::me))
+        .route(
+            "/__coder-ui/api/quota",
+            get(quotas::report).post(quotas::save),
+        )
+        .route("/__coder-ui/api/quota/me", get(quotas::me))
+        .route(
+            "/api/v2/deployment/scheduler",
+            get(schedules::report).post(schedules::save),
+        )
+        .route("/api/v2/users/me/scheduler", get(schedules::me))
+        .route(
+            "/__coder-ui/api/scheduler",
+            get(schedules::report).post(schedules::save),
+        )
+        .route("/__coder-ui/api/scheduler/me", get(schedules::me))
+        .route(
+            "/api/v2/workspaces/{id}/autostart",
+            axum::routing::put(schedules::autostart),
+        )
+        .route(
+            "/api/v2/workspaces/{id}/ttl",
+            axum::routing::put(schedules::ttl),
+        )
+        .route(
+            "/api/v2/workspaces/{id}/schedule",
+            axum::routing::put(schedules::put),
+        )
+        .route(
+            "/api/v2/workspaces/{id}/extend",
+            axum::routing::put(schedules::extend),
+        )
         .route("/api/v2/workspaces", get(workspaces::list))
         .route("/api/v2/workspaces/{id}", get(workspaces::get))
+        .route(
+            "/api/v2/workspaces/{id}/autoupdates",
+            axum::routing::put(workspaces::auto_updates),
+        )
         .route(
             "/api/v2/workspaces/{id}/builds",
             get(workspaces::builds).post(workspaces::build),
@@ -399,4 +474,14 @@ pub(crate) fn header<'a>(headers: &'a HeaderMap, name: &str) -> Result<&'a str> 
                 "A valid authentication token is required.".into(),
             )
         })
+}
+
+/// Runs one durable scheduling pass. Embedded hosts must call this periodically;
+/// the unified server runs it every thirty seconds. Multiple replicas are safe.
+pub async fn reconcile_schedules(
+    pool: &PgPool,
+) -> std::result::Result<usize, Box<dyn std::error::Error + Send + Sync>> {
+    schedules::reconcile(pool)
+        .await
+        .map_err(|_| "Workspace schedule reconciliation failed".into())
 }

@@ -19,9 +19,11 @@ install -m 644 "$4" "$bundle/ENGINE-LICENSE.txt"
 install -m 644 ../LICENSE "$bundle/LICENSE"
 install -m 644 ui/assets/xterm.LICENSE "$bundle/XTERM-LICENSE.txt"
 install -m 644 NETWORK-AUTH-NOTICES.txt "$bundle/NETWORK-AUTH-NOTICES.txt"
+install -m 644 SCHEDULER-NOTICES.txt "$bundle/SCHEDULER-NOTICES.txt"
+install -m 644 compatibility.json "$bundle/compatibility.json"
 install -m 644 README.md "$bundle/README.md"
 install -m 644 provisioner/examples/terraform-template.json "$bundle/provisioner/examples/terraform-template.json"
 "$bundle/coder" engine version
 (cd "$bundle" && sha256sum coder > SHA256SUMS)
 # Paths are controlled by the engine choice above; no credentials are packaged.
-tar -czf "dist/coder-$CODER_EMBEDDED_ENGINE_KIND.tar.gz" -C "$bundle" coder SHA256SUMS ENGINE-LICENSE.txt XTERM-LICENSE.txt NETWORK-AUTH-NOTICES.txt LICENSE README.md provisioner/examples/terraform-template.json
+tar -czf "dist/coder-$CODER_EMBEDDED_ENGINE_KIND.tar.gz" -C "$bundle" coder SHA256SUMS ENGINE-LICENSE.txt XTERM-LICENSE.txt NETWORK-AUTH-NOTICES.txt SCHEDULER-NOTICES.txt compatibility.json LICENSE README.md provisioner/examples/terraform-template.json

@@ -551,3 +551,5 @@ header button, header a.button { border-radius: 10px; }
 .anonymous .login { width: 100%; max-width: 320px; margin: 0 auto; }
 .login-logo { display: block; height: 112px; max-width: 320px; margin: 0 auto 16px; }
 @media (max-width: 800px) { header { position: static; padding: 16px 24px; } .workspace-heading { margin-bottom: 32px; } }
+
+.code-input { font-family: ui-monospace, monospace; min-height: 180px; white-space: pre; tab-size: 2; }

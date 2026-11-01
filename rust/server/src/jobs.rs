@@ -248,6 +248,13 @@ pub(crate) async fn complete(
         }
     }
     let mut tx = app.pool.begin().await?;
+    let (workspace,owner):(Uuid,Uuid)=sqlx::query_as("SELECT w.id,w.owner_id FROM coder_rust.workspaces w JOIN coder_rust.builds b ON b.workspace_id=w.id WHERE b.id=$1 AND b.organization_id=$2")
+        .bind(id).bind(org).fetch_one(&mut *tx).await?;
+    crate::quotas::lock_owner(&mut tx, owner).await?;
+    sqlx::query("SELECT id FROM coder_rust.workspaces WHERE id=$1 FOR UPDATE")
+        .bind(workspace)
+        .fetch_one(&mut *tx)
+        .await?;
     let build = check(&mut tx, id, org, worker, &req.lease_token).await?;
     let spec: Value =
         sqlx::query_scalar("SELECT provisioner_spec FROM coder_rust.template_versions WHERE id=$1")
@@ -280,6 +287,9 @@ pub(crate) async fn complete(
         })
         .execute(&mut *tx)
         .await?;
+    if status == "running" {
+        crate::schedules::on_complete(&mut tx, build.workspace_id, build.id).await?;
+    }
     if status == "deleted" {
         sqlx::query("UPDATE coder_rust.workspaces SET deleted=true WHERE id=$1")
             .bind(build.workspace_id)
@@ -287,9 +297,9 @@ pub(crate) async fn complete(
             .await?;
     }
     if status == "stopped" && build.on_success {
-        let row:(Uuid,Uuid,i32,Value)=sqlx::query_as("SELECT t.active_version_id,w.owner_id,b.build_number,b.parameters FROM coder_rust.workspaces w JOIN coder_rust.templates t ON t.id=w.template_id JOIN coder_rust.builds b ON b.id=w.latest_build_id WHERE w.id=$1 AND w.latest_build_id=$2 FOR UPDATE OF w")
+        let row:(Uuid,Uuid,i32,Value)=sqlx::query_as("SELECT t.active_version_id,w.owner_id,b.build_number,b.parameters FROM coder_rust.workspaces w JOIN coder_rust.templates t ON t.id=w.template_id JOIN coder_rust.builds b ON b.id=w.latest_build_id WHERE w.id=$1 AND w.latest_build_id=$2 FOR UPDATE OF w FOR SHARE OF t")
             .bind(build.workspace_id).bind(id).fetch_one(&mut *tx).await?;
-        let active:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM coder_rust.users u JOIN coder_rust.memberships m ON m.user_id=u.id WHERE u.id=$1 AND u.status='active' AND m.organization_id=$2)").bind(row.1).bind(org).fetch_one(&mut *tx).await?;
+        let active:bool=sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM coder_rust.users u JOIN coder_rust.memberships m ON m.user_id=u.id JOIN coder_rust.workspaces w ON w.owner_id=u.id WHERE u.id=$1 AND u.status='active' AND m.organization_id=$2 AND w.id=$3 AND coder_rust.permitted(u.id,m.organization_id,'workspace.start',w.id,true) AND coder_rust.permitted(u.id,m.organization_id,'template.use',w.template_id,true))").bind(row.1).bind(org).bind(workspace).fetch_one(&mut *tx).await?;
         if active {
             // A changed active version can invalidate parameters. Keep the stop
             // committed and let the owner resolve it, rather than undoing reality.
@@ -297,22 +307,38 @@ pub(crate) async fn complete(
                 crate::catalog::validate_parameters(&mut tx, row.0, None, Some(row.3)).await;
             match params {
                 Ok(params) => {
-                    workspaces::insert_build(
+                    if let Err(error) = crate::quotas::enforce(
                         &mut tx,
-                        Uuid::new_v4(),
-                        org,
-                        build.workspace_id,
-                        row.2 + 1,
-                        row.0,
-                        "start",
-                        params,
-                        false,
+                        owner,
+                        Some(workspace),
+                        &params,
+                        Some(&build.parameters),
                     )
-                    .await?
+                    .await
+                    {
+                        if !error.0.is_client_error() {
+                            return Err(error);
+                        }
+                        sqlx::query("INSERT INTO coder_rust.build_logs(build_id,log_level,output) VALUES($1,'error','Restart not queued: active template allocation exceeds quota.')").bind(id).execute(&mut *tx).await?;
+                    } else {
+                        workspaces::insert_build(
+                            &mut tx,
+                            Uuid::new_v4(),
+                            org,
+                            build.workspace_id,
+                            row.2 + 1,
+                            row.0,
+                            "start",
+                            params,
+                            false,
+                        )
+                        .await?
+                    }
                 }
-                Err(_) => {
+                Err(error) if error.0.is_client_error() => {
                     sqlx::query("INSERT INTO coder_rust.build_logs(build_id,log_level,output) VALUES($1,'error','Restart not queued: review parameters for the active template version.')").bind(id).execute(&mut *tx).await?;
                 }
+                Err(error) => return Err(error),
             }
         }
     }

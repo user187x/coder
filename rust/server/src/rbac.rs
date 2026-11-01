@@ -14,6 +14,7 @@ pub(crate) const ACTIONS: &[&str] = &[
     "workspace.read",
     "workspace.create",
     "workspace.start",
+    "workspace.schedule",
     "workspace.stop",
     "workspace.cancel",
     "workspace.delete",
