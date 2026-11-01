@@ -2,13 +2,14 @@
 
 mod auth;
 mod catalog;
+pub mod config;
 mod jobs;
 mod network;
 mod runner;
 mod secrets;
 mod state;
 mod workspaces;
-pub use runner::run;
+pub use runner::{run, run_command};
 
 use axum::{
     Json, Router,
@@ -42,6 +43,8 @@ pub async fn connect(url: &str) -> std::result::Result<PgPool, Box<dyn std::erro
     Ok(pool)
 }
 
+static MIGRATIONS: sqlx::migrate::Migrator = sqlx::migrate!("./migrations");
+
 /// Applies control-plane migrations using a caller-managed PostgreSQL pool.
 pub async fn migrate(pool: &PgPool) -> std::result::Result<(), Box<dyn std::error::Error>> {
     sqlx::query("CREATE SCHEMA IF NOT EXISTS coder_rust")
@@ -51,8 +54,37 @@ pub async fn migrate(pool: &PgPool) -> std::result::Result<(), Box<dyn std::erro
     sqlx::query("SET search_path TO coder_rust")
         .execute(&mut *conn)
         .await?;
-    sqlx::migrate!("./migrations").run(&mut *conn).await?;
+    MIGRATIONS.run(&mut *conn).await?;
     drop(conn);
+    Ok(())
+}
+
+/// Verifies every embedded migration without changing the schema or migration history.
+pub async fn verify_schema(pool: &PgPool) -> std::result::Result<(), Box<dyn std::error::Error>> {
+    let rows: Vec<(i64, Vec<u8>, bool)> = sqlx::query_as(
+        "SELECT version,checksum,success FROM coder_rust._sqlx_migrations ORDER BY version",
+    )
+    .fetch_all(pool)
+    .await
+    .map_err(
+        |_| "Database schema is unavailable; run coder migrate with a migration role first.",
+    )?;
+    let expected = MIGRATIONS
+        .iter()
+        .filter(|m| m.migration_type.is_up_migration())
+        .collect::<Vec<_>>();
+    if rows.len() != expected.len()
+        || rows
+            .iter()
+            .zip(expected)
+            .any(|((version, checksum, success), migration)| {
+                !success
+                    || *version != migration.version
+                    || checksum.as_slice() != migration.checksum.as_ref()
+            })
+    {
+        return Err("Database schema does not match this Rust binary; apply compatible migrations before starting with --no-migrate.".into());
+    }
     Ok(())
 }
 
@@ -91,6 +123,27 @@ pub fn api(pool: PgPool, secret_key: Option<[u8; 32]>) -> Router {
             get(network::attach),
         )
         .route("/healthz", get(|| async { "ok" }))
+        .route(
+            "/readyz",
+            get(
+                |axum::extract::State(app): axum::extract::State<App>| async move {
+                    if tokio::time::timeout(
+                        Duration::from_secs(2),
+                        sqlx::query("SELECT 1").execute(&app.pool),
+                    )
+                    .await
+                    .is_ok_and(|r| r.is_ok())
+                    {
+                        (StatusCode::OK, Json(json!({"ready":true})))
+                    } else {
+                        (
+                            StatusCode::SERVICE_UNAVAILABLE,
+                            Json(json!({"ready":false})),
+                        )
+                    }
+                },
+            ),
+        )
         .route("/api/v2/users/first", get(auth::first).post(auth::setup))
         .route(
             "/api/v2/users/authmethods",

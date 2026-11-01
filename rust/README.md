@@ -92,6 +92,86 @@ For non-local use, terminate HTTPS at a reverse proxy, set the public HTTPS
 origin, and use a PostgreSQL connection configured with certificate verification.
 The Rust process serves HTTP and does not terminate TLS itself.
 
+## Configure an external PostgreSQL database
+
+The `server`, `migrate`, and `db-check` commands share explicit database flags.
+Run `coder server --help` for the complete list. The standalone `coder-server`
+accepts the same server flags. CLI flags override environment values; explicit
+host/port/user/database flags override their fields in `DATABASE_URL`.
+Passwords can be supplied through `PGPASSWORD` or a password file, including
+passwords containing URL-special characters. Password files preserve spaces and
+remove one trailing line ending. Unknown, duplicate, and invalid options fail
+without echoing their values.
+
+For example, after provisioning an external database and role:
+
+```sh
+./coder db-check \
+  --db-host db.example.com --db-port 5432 \
+  --db-user coder --db-name coder \
+  --db-password-file /run/secrets/postgres-password \
+  --db-ssl-root-cert /etc/coder/postgres-ca.pem
+```
+
+`db-check` verifies connectivity without applying migrations. TLS defaults to
+`verify-full`, which verifies the certificate chain and database hostname.
+A URL's explicit `sslmode` is honored; `--db-ssl-mode` overrides it. For mutual
+TLS, also pass `--db-ssl-cert` and `--db-ssl-key`. Use `--db-ssl-mode disable`
+only when deliberately choosing an unencrypted connection, such as a local
+development database. The bundled runtime does not create PostgreSQL databases
+or roles.
+
+The corresponding environment settings are:
+
+| Parameter               | Environment variable                     | Default                              |
+|-------------------------|------------------------------------------|--------------------------------------|
+| `--database-url`        | `DATABASE_URL`                           | Unset                                |
+| `--db-host`             | `PGHOST`                                 | Required without a URL               |
+| `--db-port`             | `PGPORT`                                 | `5432`                               |
+| `--db-user`             | `PGUSER`                                 | `postgres`                           |
+| `--db-name`             | `PGDATABASE`                             | `postgres`                           |
+| Password                | `PGPASSWORD` or `CODER_DB_PASSWORD_FILE` | Unset                                |
+| `--db-ssl-mode`         | `PGSSLMODE`                              | `verify-full`                        |
+| `--db-ssl-root-cert`    | `PGSSLROOTCERT`                          | Unset                                |
+| `--db-ssl-cert`         | `PGSSLCERT`                              | Unset                                |
+| `--db-ssl-key`          | `PGSSLKEY`                               | Unset                                |
+| `--db-max-connections`  | `CODER_DB_MAX_CONNECTIONS`               | `10`                                 |
+| `--db-connect-timeout`  | `CODER_DB_CONNECT_TIMEOUT`               | `10` seconds                         |
+| `--listen`              | `CODER_SERVER_LISTEN`                    | `127.0.0.1:3000`                     |
+| `--origin`              | `CODER_SERVER_ORIGIN`                    | Listening address                    |
+| `--encryption-key-file` | `CODER_ENCRYPTION_KEY_FILE`              | Falls back to `CODER_ENCRYPTION_KEY` |
+| `--no-migrate`          | `CODER_DATABASE_MIGRATE=false`           | Migrate at startup                   |
+
+With a URL, host/port/user/database environment values are not overrides; put
+those values in the URL or explicit flags. TLS environment settings and
+`PGPASSWORD` can supply fields omitted from the URL. A password file overrides
+the URL/environment password. Keep passwords out of command arguments and
+configure the environment through your service manager or secret mounts.
+
+For deployments that separate migration and runtime privileges, run
+`coder migrate` with a role allowed to create the `coder_rust` schema, tables,
+indexes, and sequences. Run `coder server --no-migrate` with a role granted schema
+usage, table read/write privileges, sequence usage, and read access to
+`coder_rust._sqlx_migrations`. The server checks all migration versions and
+checksums without writing migration history. It refuses startup if the schema is
+missing, incomplete, newer, or incompatible with this binary. Existing Go data
+is not imported by these commands.
+
+Use the same connection flags or environment settings for both commands:
+
+```sh
+./coder migrate --db-host db.example.com --db-user coder_migrator --db-name coder \
+  --db-password-file /run/secrets/migration-password --db-ssl-root-cert /etc/coder/postgres-ca.pem
+./coder server --no-migrate --db-host db.example.com --db-user coder_runtime --db-name coder \
+  --db-password-file /run/secrets/runtime-password --db-ssl-root-cert /etc/coder/postgres-ca.pem \
+  --encryption-key-file /run/secrets/coder-encryption-key --listen 0.0.0.0:3000 \
+  --origin https://coder.example.com
+```
+
+`/healthz` is process liveness. `/readyz` checks PostgreSQL connectivity and
+returns HTTP 503 when the pool/database is unavailable. Connection failures and
+configuration errors do not print the database URL, password, or key contents.
+
 The core implements:
 
 - Transactional first-user setup and default organization membership.
@@ -343,6 +423,8 @@ cargo test --workspace --locked
 cargo test -p coder-server --test control_plane --locked -- --ignored
 CODER_TEST_TERRAFORM_BINARY=/absolute/path/to/terraform CODER_TEST_ALTERNATE_IAC_BINARY=/absolute/path/to/tofu cargo test -p coder-server --test infrastructure --locked -- --ignored
 cargo test -p coder-server --test networking --locked -- --ignored
+cargo test -p coder-server --test postgres --locked -- --ignored external_postgres_configuration
+python3 scripts/test-postgres-tls.py
 ```
 
 The integration commands require `CODER_TEST_DATABASE_URL` pointing to an **empty,
@@ -358,7 +440,10 @@ creates no cloud infrastructure. The networking test runs real WebSocket and TCP
 connections through the outbound agent, including concurrent transfers,
 half-close, cross-user rejection, credential revocation, logout, and single-use
 connection tickets. CI also exercises the embedded OpenTofu engine through
-infrastructure jobs. Local verification
+infrastructure jobs. The TLS test helper uses Python/OpenSSL only for test certificates and a
+mutual-TLS proxy in front of the configured dedicated PostgreSQL test database.
+It verifies a successful authenticated TLS connection and rejection of a hostname
+that does not match the certificate. These are test-only dependencies. Local verification
 also supports an embedded PostgreSQL test adapter with
 `CODER_TEST_SINGLE_CONNECTION=1`; this adapter does not establish native
 PostgreSQL concurrency or production load behavior.

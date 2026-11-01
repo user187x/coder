@@ -3,7 +3,9 @@
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     match std::env::args().nth(1).as_deref() {
-        None | Some("server") => coder_server::run().await,
+        None => coder_server::run_command("server",Vec::new()).await,
+        Some(command @ ("server"|"migrate"|"db-check")) => coder_server::run_command(command,std::env::args().skip(2)).await,
+        Some("--help"|"-h") => { println!("Usage: coder [server|migrate|db-check|worker|agent|register|connect|forward|engine|engine-license]\nUse coder server --help for PostgreSQL and server parameters."); Ok(()) },
         Some("worker") => coder_provisioner::run().await,
         Some("agent" | "connect" | "forward" | "register") => coder_network::run().await,
         Some("engine-license") => {
@@ -26,7 +28,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             Ok(())
         }
         _ => Err(
-            "Usage: coder [server|worker|agent|register|connect|forward|engine|engine-license]"
+            "Usage: coder [server|migrate|db-check|worker|agent|register|connect|forward|engine|engine-license]"
                 .into(),
         ),
     }
