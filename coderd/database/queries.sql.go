@@ -4569,12 +4569,12 @@ func (q *sqlQuerier) DeleteAuditCollector(ctx context.Context, arg DeleteAuditCo
 	return i, err
 }
 
-const auditCollectors = `-- name: GetAuditCollectors :many
+const getAuditCollectors = `-- name: GetAuditCollectors :many
 SELECT id, organization_id, name, issuer, subject, client_id, created_by, created_at, expires_at FROM audit_collectors WHERE organization_id = $1 ORDER BY created_at, id
 `
 
 func (q *sqlQuerier) GetAuditCollectors(ctx context.Context, organizationID uuid.UUID) ([]AuditCollector, error) {
-	rows, err := q.db.QueryContext(ctx, auditCollectors, organizationID)
+	rows, err := q.db.QueryContext(ctx, getAuditCollectors, organizationID)
 	if err != nil {
 		return nil, err
 	}
