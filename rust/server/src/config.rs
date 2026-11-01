@@ -17,6 +17,8 @@ pub struct ServerConfig {
     pub encryption_key: Option<[u8; 32]>,
     /// Whether startup applies migrations. Disable with a separately migrated database.
     pub migrate: bool,
+    /// Optional OIDC sign-in configuration.
+    pub oidc: Option<crate::oidc::Config>,
     database: PgConnectOptions,
     maximum_connections: u32,
     acquire_timeout: Duration,
@@ -24,7 +26,7 @@ pub struct ServerConfig {
 
 /// A sanitized configuration or connection failure, never containing credentials.
 #[derive(Debug)]
-pub struct ConfigError(&'static str);
+pub struct ConfigError(pub(crate) &'static str);
 impl fmt::Display for ConfigError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.0)
@@ -56,6 +58,12 @@ pub const HELP: &str = "Usage: coder server|migrate|db-check [OPTIONS]
                         use CODER_ENCRYPTION_KEY (64 hexadecimal characters)
 --no-migrate            Check existing schema instead of applying migrations
                         (CODER_DATABASE_MIGRATE=false)
+--oidc-issuer URL       OIDC issuer (CODER_OIDC_ISSUER)
+--oidc-client-id ID     Registered client (CODER_OIDC_CLIENT_ID)
+--oidc-secret-file PATH Client secret file (CODER_OIDC_SECRET_FILE)
+--oidc-organization ID Existing organization UUID (CODER_OIDC_ORGANIZATION)
+--oidc-allow-signups B  true/false, default false (CODER_OIDC_ALLOW_SIGNUPS)
+--password-auth B      true/false, default true (CODER_PASSWORD_AUTH)
 --help                  Show help without reading secrets or contacting PostgreSQL
 
 Flags override their environment variables. Structured flags override URL fields.
@@ -133,6 +141,12 @@ impl ServerConfig {
                     | "--origin"
                     | "--encryption-key-file"
                     | "--no-migrate"
+                    | "--oidc-issuer"
+                    | "--oidc-client-id"
+                    | "--oidc-secret-file"
+                    | "--oidc-organization"
+                    | "--oidc-allow-signups"
+                    | "--password-auth"
             ) {
                 return Err(ConfigError(
                     "Unknown server option. Use --help for supported parameters.",
@@ -344,7 +358,47 @@ impl ServerConfig {
             .unwrap_or_else(|| "true".into())
             .parse()
             .map_err(|_| ConfigError("CODER_DATABASE_MIGRATE must be true or false."))?;
+        let oidc = if let Some(issuer) = setting("--oidc-issuer", "CODER_OIDC_ISSUER") {
+            Some(crate::oidc::Config {
+                issuer,
+                client_id: setting("--oidc-client-id", "CODER_OIDC_CLIENT_ID")
+                    .ok_or(ConfigError("OIDC requires a client ID."))?,
+                client_secret: setting("--oidc-secret-file", "CODER_OIDC_SECRET_FILE")
+                    .map(|p| secret(&p, 16384))
+                    .transpose()?,
+                organization: setting("--oidc-organization", "CODER_OIDC_ORGANIZATION")
+                    .ok_or(ConfigError("OIDC requires an existing organization ID."))?
+                    .parse()
+                    .map_err(|_| ConfigError("Invalid OIDC organization ID."))?,
+                allow_signups: setting("--oidc-allow-signups", "CODER_OIDC_ALLOW_SIGNUPS")
+                    .unwrap_or_else(|| "false".into())
+                    .parse()
+                    .map_err(|_| ConfigError("OIDC signup setting must be true or false."))?,
+                password_enabled: setting("--password-auth", "CODER_PASSWORD_AUTH")
+                    .unwrap_or_else(|| "true".into())
+                    .parse()
+                    .map_err(|_| ConfigError("Password auth setting must be true or false."))?,
+            })
+        } else {
+            if [
+                "--oidc-client-id",
+                "--oidc-secret-file",
+                "--oidc-organization",
+                "--oidc-allow-signups",
+                "--password-auth",
+            ]
+            .iter()
+            .any(|key| flags.contains_key(*key))
+                || env("CODER_PASSWORD_AUTH").is_some_and(|v| v != "true")
+            {
+                return Err(ConfigError(
+                    "OIDC settings and password disabling require --oidc-issuer.",
+                ));
+            }
+            None
+        };
         Ok(Self {
+            oidc,
             listen,
             origin,
             encryption_key,

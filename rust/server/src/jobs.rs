@@ -30,8 +30,7 @@ pub(crate) async fn create_key(
     Path(org): Path<Uuid>,
 ) -> Result<(StatusCode, Json<Value>)> {
     let actor = auth::actor(&app, &headers).await?;
-    actor.admin()?;
-    crate::member(&app, actor.id, org).await?;
+    crate::rbac::require(&app, &actor, org, "provisioner.manage", None, false).await?;
     let key = auth::token();
     let id = Uuid::new_v4();
     sqlx::query("INSERT INTO coder_rust.provisioner_keys VALUES($1,$2,$3)")
@@ -51,8 +50,7 @@ pub(crate) async fn delete_key(
     Path((org, id)): Path<(Uuid, Uuid)>,
 ) -> Result<StatusCode> {
     let actor = auth::actor(&app, &headers).await?;
-    actor.admin()?;
-    crate::member(&app, actor.id, org).await?;
+    crate::rbac::require(&app, &actor, org, "provisioner.manage", None, false).await?;
     sqlx::query("DELETE FROM coder_rust.provisioner_keys WHERE id=$1 AND organization_id=$2")
         .bind(id)
         .bind(org)

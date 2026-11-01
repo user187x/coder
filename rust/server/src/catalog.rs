@@ -28,7 +28,7 @@ impl Template {
 }
 pub(crate) async fn templates(State(app): State<App>, headers: HeaderMap) -> Result {
     let actor = auth::actor(&app, &headers).await?;
-    let rows=sqlx::query_as::<_,Template>(&format!("{TEMPLATE} JOIN coder_rust.memberships m ON m.organization_id=t.organization_id WHERE m.user_id=$1 ORDER BY t.name"))
+    let rows=sqlx::query_as::<_,Template>(&format!("{TEMPLATE} JOIN coder_rust.memberships m ON m.organization_id=t.organization_id WHERE m.user_id=$1 AND coder_rust.permitted($1,t.organization_id,'template.read',t.id,true) ORDER BY t.name"))
         .bind(actor.id).fetch_all(&app.pool).await?;
     Ok(Json(json!(
         rows.iter().map(Template::json).collect::<Vec<_>>()
@@ -44,7 +44,15 @@ pub(crate) async fn template(
         .bind(id)
         .fetch_one(&app.pool)
         .await?;
-    crate::member(&app, actor.id, row.organization_id).await?;
+    crate::rbac::require(
+        &app,
+        &actor,
+        row.organization_id,
+        "template.read",
+        Some(row.id),
+        true,
+    )
+    .await?;
     Ok(Json(row.json()))
 }
 pub(crate) async fn parameters(
@@ -53,9 +61,9 @@ pub(crate) async fn parameters(
     Path(id): Path<Uuid>,
 ) -> Result {
     let actor = auth::actor(&app, &headers).await?;
-    let (org,params):(Uuid,Value)=sqlx::query_as("SELECT t.organization_id,v.parameters FROM coder_rust.template_versions v JOIN coder_rust.templates t ON t.id=v.template_id WHERE v.id=$1")
+    let (org,template,params):(Uuid,Uuid,Value)=sqlx::query_as("SELECT t.organization_id,t.id,v.parameters FROM coder_rust.template_versions v JOIN coder_rust.templates t ON t.id=v.template_id WHERE v.id=$1")
         .bind(id).fetch_one(&app.pool).await?;
-    crate::member(&app, actor.id, org).await?;
+    crate::rbac::require(&app, &actor, org, "template.read", Some(template), true).await?;
     Ok(Json(params))
 }
 pub(crate) async fn organizations(
@@ -118,8 +126,7 @@ pub(crate) async fn create_template(
     Json(req): Json<CreateTemplate>,
 ) -> Result<(StatusCode, Json<Value>)> {
     let actor = auth::actor(&app, &headers).await?;
-    actor.admin()?;
-    crate::member(&app, actor.id, org).await?;
+    crate::rbac::require(&app, &actor, org, "template.write", None, false).await?;
     crate::name(&req.name)?;
     if req.display_name.len() > 64
         || req.description.len() > 16384

@@ -44,6 +44,20 @@ pub async fn run_command(
         println!("PostgreSQL schema migrations applied successfully.");
         return Ok(());
     }
+    if let Some(oidc) = &config.oidc {
+        let exists: bool =
+            sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM coder_rust.organizations WHERE id=$1)")
+                .bind(oidc.organization)
+                .fetch_one(&pool)
+                .await
+                .map_err(|_| "OIDC organization check failed")?;
+        if !exists {
+            return Err(
+                "Complete initial setup before configuring OIDC with an existing organization ID"
+                    .into(),
+            );
+        }
+    }
     // Bind first so an ephemeral port is passed correctly to the internal UI API client.
     let listener = tokio::net::TcpListener::bind(config.listen)
         .await
@@ -60,10 +74,10 @@ pub async fn run_command(
     let origin = config
         .origin
         .unwrap_or_else(|| format!("http://{internal}"));
-    let app = crate::api(pool.clone(), config.encryption_key).merge(coder_ui::integrated_router(
-        &format!("http://{internal}"),
-        &origin,
-    )?);
+    let app =
+        crate::api_with_options(pool.clone(), config.encryption_key, &origin, config.oidc)?.merge(
+            coder_ui::integrated_router(&format!("http://{internal}"), &origin)?,
+        );
     eprintln!("Coder Rust control plane: {origin} (first-time setup: {origin}/setup)");
     axum::serve(listener, app)
         .with_graceful_shutdown(async {

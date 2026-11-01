@@ -182,7 +182,7 @@ pub(crate) async fn inspect(
     Path(id): Path<Uuid>,
 ) -> Result {
     let actor = auth::actor(&app, &headers).await?;
-    crate::workspaces::authorized(&app, &actor, id).await?;
+    crate::workspaces::authorized_action(&app, &actor, id, "workspace.state.read").await?;
     let (revision, dirty) = metadata(&mut *app.pool.acquire().await?, id).await?;
     Ok(Json(json!({"revision":revision,"recovery_required":dirty})))
 }
@@ -202,8 +202,8 @@ pub(crate) async fn recover(
     Json(req): Json<Recover>,
 ) -> Result {
     let actor = auth::actor(&app, &headers).await?;
-    actor.admin()?;
-    let workspace = crate::workspaces::authorized(&app, &actor, id).await?;
+    let workspace =
+        crate::workspaces::authorized_action(&app, &actor, id, "workspace.state.recover").await?;
     if req.confirm_workspace_id != id {
         return Err(Error::bad(
             "Confirm the exact workspace ID before recovering state.",

@@ -580,3 +580,19 @@ pub(crate) async fn users(
         search.offset,
     )))
 }
+
+pub(crate) async fn terminal(
+    State(api): State<Api>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+) -> Result {
+    if api.full_application {
+        return Err(UiError::new(
+            StatusCode::NOT_FOUND,
+            "Use the deployment terminal.",
+        ));
+    }
+    let user = me(&api, &headers).await?;
+    let workspace: Workspace = api.get(&headers, &["workspaces", &id], &[]).await?;
+    Ok(crate::html(views::terminal(&api, &user, &workspace)))
+}

@@ -2,7 +2,7 @@
 
 The Cargo workspace builds a unified `coder` executable for the Rust dashboard,
 PostgreSQL control plane, infrastructure worker, outbound workspace agent, and
-TCP/SSH forwarding client. The worker can embed either Terraform or OpenTofu;
+WireGuard TCP/SSH forwarding client, OIDC sign-in, resource-scoped roles, and browser PTYs. The worker can embed either Terraform or OpenTofu;
 no engine download is needed at runtime. The shared validation library remains
 dependency-free. This is a working migration of the implemented flows, with
 the compatibility limits listed below.
@@ -177,7 +177,10 @@ The core implements:
 - Transactional first-user setup and default organization membership.
 - Argon2 password hashing, bounded authentication work, sign-in throttling,
   hashed expiring session tokens, and server-side logout.
-- User/profile APIs, administrator-only user creation/listing, and organization checks.
+- User/profile APIs, administrator-only user creation/listing/suspension, organization checks, and CLI sessions.
+- OIDC authorization code sign-in with PKCE, verified ID tokens, and explicit identity linking.
+- Organization roles with per-resource allow/deny permissions, shared workspaces, and access audit events.
+- Native agent PTYs with browser terminal rendering and live authorization checks.
 - Organization-scoped template definitions and typed rich parameters.
 - Owner-scoped workspaces, search, favorites, build history, logs, and lifecycle jobs.
 - Encrypted secret storage and delivery only to an authorized workspace job worker.
@@ -231,7 +234,8 @@ The mirror does not vendor remote modules or remove a provider's need to reach
 its cloud API. Ship required modules/providers separately for air-gapped use.
 
 A Terraform spec accepts `driver`, `files`, optional `variables`, and an
-optional `agent: { "ports": [22, 3000] }` configuration. Files must
+optional `agent: { "ports": [22, 3000], "terminal": true }` configuration.
+Terminal access defaults to false and also requires local agent opt-in. Files must
 be flat `.tf`/`.tf.json` files, plus an optional `.terraform.lock.hcl`, with at
 most 32 files and 64 KiB total source. Use the local Terraform backend; external
 backends and Terraform Cloud are unsupported. Rich parameters become typed
@@ -348,11 +352,11 @@ for success. These routes use the same `/api/v2/provisioner` prefix.
 
 Cloud and Docker resource providers have not been exercised. The outbound Rust
 agent provides relayed TCP, including SSH transport to an existing SSH service.
-WireGuard, direct peer-to-peer networking, and the Go agent protocol are not implemented. Workspaces remain pending
-until a suitable worker executes their jobs. The JSON worker protocol is not the existing Go DRPC protocol.
-Full RBAC, audit, OAuth/SSO, scheduling, quotas, enterprise features, and in-place
-Go data migration remain unported. This is not a production-compatible Coder
-replacement.
+WireGuard encrypts CLI connections through the relay. Workspaces remain pending
+until a suitable worker executes their jobs. The JSON worker protocol differs
+from Go DRPC. Direct peer discovery, the Go agent protocol, scheduling, quotas,
+enterprise features, and in-place Go data migration remain unported. This is
+not a drop-in replacement for an existing Coder deployment.
 
 ## Connect a workspace
 
@@ -402,8 +406,13 @@ ssh -o 'ProxyCommand=/absolute/path/to/coder connect WORKSPACE_UUID 22' user@wor
 
 The SSH command inherits `CODER_URL` and `CODER_SESSION_TOKEN`. This transports
 SSH to an existing workspace SSH server; it does not install sshd, manage SSH
-keys, or implement a browser terminal. Forwarded application traffic terminates
-at the relay; use SSH or application TLS when end-to-end encryption is required.
+keys. CLI connections now require a WireGuard handshake before accepting local
+input; they never silently fall back to plaintext. BoringTun 0.7.1 implements
+WireGuard cryptography, with fresh X25519 keys per connection, replay protection,
+key rotation timers, authenticated EOF, and ordered stream records. Encrypted IP
+packets travel inside the existing WebSocket relay. The control plane distributes
+public keys and remains trusted for peer identity; the relay does not hold the
+CLI connection private keys or decrypt its payloads.
 The relay supports independent TCP half-close, bounded frames/backpressure, and
 32 simultaneous sessions per workspace (1024 per server). It rechecks sessions,
 organization access, port permissions, agent credentials, and workspace state
@@ -414,7 +423,146 @@ revocation close access. Clients reconnect explicitly after a network failure.
 Run one Rust server instance for this relay. Connection tickets and sockets are
 process-local; multi-server routing and distributed relay state are not
 implemented. Remote deployments require WSS through the TLS reverse proxy.
-There is no UDP/WireGuard, STUN/DERP, transparent VPN, or direct connection mode.
+This transport needs no TUN device, root privileges, or kernel WireGuard module.
+It is not a UDP VPN: STUN/DERP, transparent IP routing, NAT traversal, and direct
+peer-to-peer connections are not implemented. Existing raw TCP relay API clients
+remain supported; the Rust CLI always negotiates WireGuard.
+
+## Enable browser terminals
+
+On a client with `workspace.agent` permission:
+
+```sh
+./coder register WORKSPACE_UUID 22,3000 --terminal
+```
+
+Inside the workspace, configure the agent service:
+
+```sh
+export CODER_AGENT_TERMINAL=true
+export CODER_AGENT_SHELL=/bin/bash
+export CODER_AGENT_DIRECTORY=/home/coder
+./coder agent
+```
+
+Set `CODER_URL`, `CODER_AGENT_TOKEN`, and `CODER_AGENT_PORTS` as above. Both the
+server registration and the local service must enable terminals. Terraform
+bootstrap can set `provisioner_spec.agent.terminal`; its startup script must also
+set the local service variables. The worker supplies `coder_agent_terminal`
+alongside `coder_agent_token` as Terraform input variables.
+
+Open a running workspace and select **Terminal**. The Rust agent creates a native
+Unix PTY as its own operating-system user. Keyboard input, control characters,
+ANSI rendering, and resize events work without a shell command supplied by the
+browser. The bundled xterm.js 6.0.0 renderer is served locally, with its MIT
+license; no npm build, CDN, or Node runtime is required. Only terminal pages
+permit scripts. Terminal sockets require an exact browser Origin and an
+HTTP-only session cookie, with `workspace.terminal` authorization rechecked
+throughout the session. Browser terminal traffic uses TLS through the trusted
+control plane; it does not use the CLI's end-to-end WireGuard channel.
+
+Disconnecting kills the shell and its foreground process group and reaps the
+shell. Sessions do not resume. Deliberately detached processes are not a sandbox:
+run each agent under the intended workspace OS account. Shells inherit only
+HOME, USER, LOGNAME, PATH, locale settings, and TERM; service credentials are
+excluded. Native browser PTYs currently require a Unix agent.
+
+## Configure SSO
+
+Complete initial setup first. Register an OIDC client with your provider using
+`https://coder.example.com/auth/oidc/callback` as the exact redirect URI, then run:
+
+```sh
+./coder server --db-host db.example.com --db-user coder --db-name coder \
+  --db-password-file /run/secrets/pg-password \
+  --db-ssl-root-cert /etc/coder/pg-ca.pem \
+  --encryption-key-file /run/secrets/coder-key \
+  --origin https://coder.example.com \
+  --oidc-issuer https://identity.example.com/realms/developers \
+  --oidc-client-id coder \
+  --oidc-secret-file /run/secrets/oidc-secret \
+  --oidc-organization ORGANIZATION_UUID
+```
+
+Equivalent environment variables are `CODER_OIDC_ISSUER`, `CODER_OIDC_CLIENT_ID`,
+`CODER_OIDC_SECRET_FILE`, and `CODER_OIDC_ORGANIZATION`. Public clients can omit
+the secret file. Discovery, JWKS, and token requests have bounded response sizes,
+timeouts, and no redirects. HTTPS is required except for loopback development.
+ID tokens are verified for signature, issuer, audience, expiry, nonce, and access
+token hash when present. Login state is single-use, bound to an HTTP-only browser
+cookie, expires after five minutes, and is lost on server restart.
+
+New account creation is disabled by default. In **Access**, a deployment owner
+can link an existing member to an exact provider subject. Linking disables that
+member's password login and revokes sessions. Relinking replaces their previous
+provider subject. Existing email addresses never
+cause automatic account linking. Deployment owner accounts cannot be converted.
+With `--oidc-allow-signups true` (`CODER_OIDC_ALLOW_SIGNUPS=true`), a verified
+email claim permits new non-admin users in the configured organization. Limit
+who can authenticate to this client at the identity provider before enabling it.
+
+`--password-auth false` (`CODER_PASSWORD_AUTH=false`) disables password sign-in
+for the deployment, including owners. Restoring it requires changing server
+configuration. OIDC uses local one-day application sessions; IdP logout does not
+revoke them automatically. A deployment owner can suspend a member using
+`PATCH /api/v2/users/USER_UUID/status` with `{"status":"suspended"}`; suspension
+revokes sessions and prevents further sign-in. SAML, SCIM, provider group sync,
+and OIDC back-channel logout are not implemented.
+
+After browser sign-in, **CLI access** issues a one-day token shown once for
+`CODER_SESSION_TOKEN`. It also revokes all browser and CLI sessions. These APIs
+are `POST /api/v2/users/me/tokens` and `DELETE /api/v2/users/me/sessions`.
+
+## Manage permissions
+
+Open **Access** to create organization roles, assign members, link SSO identities,
+and review access events. A role contains explicit action names, an optional
+workspace/template UUID, and `allow: true` or `false`. Deny wins over grants and
+member defaults. Deployment owners bypass role denies within organizations they
+belong to. Active organization membership is always required. Granting
+`rbac.manage` delegates full access administration for that organization.
+
+Members can read/use templates and create/manage their own workspaces by default.
+Use denies to restrict these defaults. For another user's workspace, grant
+`workspace.read` plus only the operations needed. Reading never grants shell,
+network, agent-key, build, or delete access. List queries use the same permission
+function as object endpoints, and the UI hides disallowed workspace actions.
+
+| Actions                                                                                       | Scope                                                                         |
+|-----------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------|
+| `workspace.read`, `workspace.start`, `workspace.stop`, `workspace.cancel`, `workspace.delete` | One workspace or all in the organization                                      |
+| `workspace.connect`, `workspace.terminal`, `workspace.agent`                                  | Separate network, shell, and agent credential permissions                     |
+| `workspace.state.read`, `workspace.state.recover`                                             | State metadata and privileged recovery; owners do not get recovery by default |
+| `template.read`, `template.use`                                                               | One template or all in the organization                                       |
+| `workspace.create`, `template.write`, `provisioner.manage`, `rbac.manage`, `audit.read`       | Organization                                                                  |
+
+Routes under `/api/v2/organizations/ORG_UUID`:
+
+- `GET/POST /roles`: list or create roles and discover available actions.
+- `PUT/DELETE /roles/ROLE_UUID`: replace or delete a role.
+- `PUT/DELETE /roles/ROLE_UUID/users/USER_UUID`: assign or remove a role.
+- `GET /members`: list assignable members, up to 1000.
+- `GET /audit`: paginated access events, including role changes, identity linking,
+  SSO sign-ins, member suspension, and connection/terminal openings.
+- `PUT /oidc/users/USER_UUID`: link `{"subject":"provider-subject"}` as an owner.
+
+Role update example:
+
+```json
+{
+  "name": "workspace-support",
+  "permissions": [
+    {"action": "workspace.read", "resource_id": "WORKSPACE_UUID", "allow": true},
+    {"action": "workspace.terminal", "resource_id": "WORKSPACE_UUID", "allow": true}
+  ]
+}
+```
+
+Replace `WORKSPACE_UUID` with the actual UUID. Roles and assignments are durable
+PostgreSQL data in `coder_rust`. The audit API covers access operations; it is not
+an equivalent of the original deployment's full audit subsystem. Group-based
+bindings, enterprise policy languages, and Go role/data migration remain separate
+compatibility work.
 
 ## Database integration tests
 
@@ -423,6 +571,7 @@ cargo test --workspace --locked
 cargo test -p coder-server --test control_plane --locked -- --ignored
 CODER_TEST_TERRAFORM_BINARY=/absolute/path/to/terraform CODER_TEST_ALTERNATE_IAC_BINARY=/absolute/path/to/tofu cargo test -p coder-server --test infrastructure --locked -- --ignored
 cargo test -p coder-server --test networking --locked -- --ignored
+CODER_AGENT_TOKEN=must-not-inherit cargo test -p coder-server --test access --locked -- --ignored
 cargo test -p coder-server --test postgres --locked -- --ignored external_postgres_configuration
 python3 scripts/test-postgres-tls.py
 ```
@@ -487,19 +636,18 @@ The UI supports:
 - Responsive layouts, native keyboard-accessible forms, and escaped HTML.
 
 Pages use full HTTP navigations and manual refresh. Failed submissions retain
-non-secret fields. Passwords, session tokens, and secret values are not reflected
-into pages. No client JavaScript, CDN assets, or browser-local credential storage
-is used. The UI uses its own cookie, so the original application may require its
+non-secret fields. Passwords and existing session tokens are not reflected into
+pages. The CLI access page displays a newly requested token once. Browser
+JavaScript is limited to the bundled terminal renderer and its transport bridge;
+no CDN assets or browser-local credential storage is used. The UI uses its own cookie, so the original application may require its
 own sign-in when opened from a dashboard link.
 
-**UI migration status:** terminal emulation, live streams, direct SSO callbacks,
-AI chat, advanced template editors and dynamic parameter interactions,
-organization/deployment administration, branding/classification customizations,
-and the remaining settings pages still use the original UI. When the separate UI targets a Go deployment, full-application links open
-that deployment. Integrated Rust mode hides those unimplemented destinations. This dashboard is an
-initial Rust UI implementation, not feature parity or a drop-in replacement.
-Validation uses mock API contracts; deployment integration still needs testing
-against your running Coder instance.
+**UI migration status:** Rust now handles OIDC callbacks, browser PTYs, role
+management, identity linking, access events, and CLI token issuance. AI chat,
+advanced template editors, dynamic parameter interactions, general deployment
+administration, branding, and other original UI routes remain unported. The
+standalone UI can still target a Go deployment; integrated Rust mode hides
+unimplemented destinations. This is not UI/API feature parity with all of Coder.
 
 The library exposes these implemented modules:
 
@@ -523,9 +671,9 @@ a successful byte count or an error, rather than Go's simultaneous count/error.
 The full application still uses its existing implementation. Completion requires
 porting and verifying all of these areas before switching the runtime:
 
-- Remaining API models/routes, OAuth, fine-grained RBAC, and audit.
+- Remaining Go API/SDK contracts, OAuth-provider functionality, SAML/SCIM/group sync, and full deployment auditing.
 - Provider compatibility, scheduling, import workflows, and event streams.
-- Go-compatible agent/SSH protocols, PTYs, WireGuard, direct peer connections,
+- Go-compatible agent/SSH protocols, persistent/reconnecting terminals, direct peer connections,
   workspace proxies, and distributed relay coordination.
 - CLI commands, SDK transport, configuration, and credential storage.
 - Remaining browser UI routes, live interactions, and deployment customizations.
@@ -535,5 +683,5 @@ porting and verifying all of these areas before switching the runtime:
 
 Keep the existing SQL migrations, protocol schemas, assets, and fixtures as
 compatibility inputs. Move runtime ownership only after the corresponding Rust
-implementation passes its compatibility tests. Do not deploy this library as
-the application or remove the current implementation based on these unit tests.
+implementation passes its compatibility tests. Do not remove the existing runtime or claim full compatibility based on the
+implemented flows alone.

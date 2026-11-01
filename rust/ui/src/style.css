@@ -529,3 +529,5 @@ summary {
     flex-basis: 100%;
   }
 }
+
+#terminal { height: min(70vh, 900px); min-height: 250px; width: 100%; background: #10131b; padding: 8px; border-radius: 8px; overflow: hidden; }

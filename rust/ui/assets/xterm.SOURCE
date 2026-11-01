@@ -1,0 +1,5 @@
+@xterm/xterm 6.0.0
+https://github.com/xtermjs/xterm.js
+https://registry.npmjs.org/@xterm/xterm/-/xterm-6.0.0.tgz
+sha512-TQwDdQGtwwDt+2cgKDLn0IRaSxYu1tSUjgKarSDkUM0ZNiSRXFpjxEsvc/Zgc5kq5omJ+V0a8/kIM2WD3sMOYg==
+Only runtime JS, CSS, and MIT license are bundled. No Node runtime or build is required.

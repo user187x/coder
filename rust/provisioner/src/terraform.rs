@@ -17,6 +17,8 @@ use tokio::{process::Command, sync::watch, time::Instant};
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct AgentSpec {
+    #[serde(default, rename = "terminal")]
+    _terminal: bool,
     ports: std::collections::BTreeSet<u16>,
 }
 
@@ -417,6 +419,14 @@ async fn command(
         .env(
             "TF_VAR_coder_agent_token",
             job.agent["token"].as_str().unwrap_or(""),
+        )
+        .env(
+            "TF_VAR_coder_agent_terminal",
+            if job.agent["terminal"].as_bool().unwrap_or(false) {
+                "true"
+            } else {
+                "false"
+            },
         )
         .env("TF_VAR_coder_workspace_id", job.workspace_id.to_string())
         .env(

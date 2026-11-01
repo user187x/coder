@@ -25,17 +25,19 @@ pub(crate) struct Workspace {
 }
 pub(crate) const WORKSPACE: &str = "SELECT w.id,w.organization_id,w.owner_id,w.template_id,w.name,w.latest_build_id,w.favorite,u.username AS owner_name,t.name AS template_name,t.display_name AS template_display_name,t.active_version_id FROM coder_rust.workspaces w JOIN coder_rust.users u ON u.id=w.owner_id JOIN coder_rust.templates t ON t.id=w.template_id";
 impl Workspace {
-    pub async fn json(&self, conn: &mut PgConnection) -> Result<Value> {
+    pub async fn json(&self, conn: &mut PgConnection, actor: Uuid) -> Result<Value> {
         let build = sqlx::query_as::<_, Build>("SELECT * FROM coder_rust.builds WHERE id=$1")
             .bind(self.latest_build_id)
             .fetch_one(&mut *conn)
             .await?;
         let (_, dirty) = crate::state::metadata(conn, self.id).await?;
         let recovery = dirty && !pending(&build.status);
+        let available:Vec<String>=sqlx::query_scalar("SELECT action FROM unnest($1::text[]) AS action WHERE coder_rust.permitted($2,$3,action,$4,$5 AND action <> 'workspace.state.recover')")
+            .bind(crate::rbac::ACTIONS.iter().filter(|a|a.starts_with("workspace.") && **a!="workspace.create").copied().collect::<Vec<_>>()).bind(actor).bind(self.organization_id).bind(self.id).bind(self.owner_id==actor).fetch_all(&mut *conn).await?;
         Ok(
             json!({"id":self.id,"organization_id":self.organization_id,"owner_id":self.owner_id,"owner_name":self.owner_name,
             "name":self.name,"template_id":self.template_id,"template_name":self.template_name,"template_display_name":self.template_display_name,
-            "template_active_version_id":self.active_version_id,"favorite":self.favorite,"outdated":build.template_version_id!=self.active_version_id,"latest_build":build.json(),"infrastructure_recovery_required":recovery}),
+            "template_active_version_id":self.active_version_id,"favorite":self.favorite,"outdated":build.template_version_id!=self.active_version_id,"latest_build":build.json(),"infrastructure_recovery_required":recovery,"available_actions":available}),
         )
     }
 }
@@ -58,15 +60,28 @@ impl Build {
     }
 }
 pub(crate) async fn authorized(app: &App, actor: &auth::User, id: Uuid) -> Result<Workspace> {
+    authorized_action(app, actor, id, "workspace.read").await
+}
+pub(crate) async fn authorized_action(
+    app: &App,
+    actor: &auth::User,
+    id: Uuid,
+    action: &str,
+) -> Result<Workspace> {
     let row =
         sqlx::query_as::<_, Workspace>(&format!("{WORKSPACE} WHERE w.id=$1 AND NOT w.deleted"))
             .bind(id)
             .fetch_one(&app.pool)
             .await?;
-    if row.owner_id != actor.id && !actor.is_admin {
-        return Err(Error::forbidden());
-    }
-    crate::member(app, actor.id, row.organization_id).await?;
+    crate::rbac::require(
+        app,
+        actor,
+        row.organization_id,
+        action,
+        Some(row.id),
+        row.owner_id == actor.id && action != "workspace.state.recover",
+    )
+    .await?;
     Ok(row)
 }
 pub(crate) async fn get(
@@ -76,7 +91,9 @@ pub(crate) async fn get(
 ) -> Result {
     let actor = auth::actor(&app, &headers).await?;
     let row = authorized(&app, &actor, id).await?;
-    Ok(Json(row.json(&mut *app.pool.acquire().await?).await?))
+    Ok(Json(
+        row.json(&mut *app.pool.acquire().await?, actor.id).await?,
+    ))
 }
 pub(crate) async fn list(
     State(app): State<App>,
@@ -87,8 +104,10 @@ pub(crate) async fn list(
     let (offset, limit) = search.page()?;
     let mut term = String::new();
     let mut status = String::new();
+    let mut own = false;
     for word in search.q.split_whitespace() {
         if word == "owner:me" {
+            own = true;
             continue;
         }
         if let Some(value) = word.strip_prefix("status:") {
@@ -104,13 +123,14 @@ pub(crate) async fn list(
             term.push_str(word);
         }
     }
-    let filter = " JOIN coder_rust.builds b ON b.id=w.latest_build_id WHERE w.owner_id=$1 AND NOT w.deleted AND w.name ILIKE $2 AND ($3='' OR b.status=$3)";
+    let filter = " JOIN coder_rust.builds b ON b.id=w.latest_build_id WHERE coder_rust.permitted($1,w.organization_id,'workspace.read',w.id,w.owner_id=$1) AND (NOT $4 OR w.owner_id=$1) AND NOT w.deleted AND w.name ILIKE $2 AND ($3='' OR b.status=$3)";
     let rows = sqlx::query_as::<_, Workspace>(&format!(
-        "{WORKSPACE}{filter} ORDER BY w.created_at DESC LIMIT $4 OFFSET $5"
+        "{WORKSPACE}{filter} ORDER BY w.created_at DESC LIMIT $5 OFFSET $6"
     ))
     .bind(actor.id)
     .bind(format!("%{term}%"))
     .bind(&status)
+    .bind(own)
     .bind(limit)
     .bind(offset)
     .fetch_all(&app.pool)
@@ -121,12 +141,13 @@ pub(crate) async fn list(
     .bind(actor.id)
     .bind(format!("%{term}%"))
     .bind(status)
+    .bind(own)
     .fetch_one(&app.pool)
     .await?;
     let mut values = Vec::new();
     let mut conn = app.pool.acquire().await?;
     for row in rows {
-        values.push(row.json(&mut conn).await?);
+        values.push(row.json(&mut conn, actor.id).await?);
     }
     Ok(Json(json!({"workspaces":values,"count":count})))
 }
@@ -170,7 +191,24 @@ pub(crate) async fn create(
             ));
         }
     };
-    crate::member(&app, actor.id, template.organization_id).await?;
+    crate::rbac::require(
+        &app,
+        &actor,
+        template.organization_id,
+        "workspace.create",
+        None,
+        true,
+    )
+    .await?;
+    crate::rbac::require(
+        &app,
+        &actor,
+        template.organization_id,
+        "template.use",
+        Some(template.id),
+        true,
+    )
+    .await?;
     crate::member(&app, owner, template.organization_id).await?;
     let version = req
         .template_version_id
@@ -198,7 +236,7 @@ pub(crate) async fn create(
         .bind(id)
         .fetch_one(&mut *tx)
         .await?;
-    let value = row.json(&mut tx).await?;
+    let value = row.json(&mut tx, actor.id).await?;
     tx.commit().await?;
     Ok((StatusCode::CREATED, Json(value)))
 }
@@ -252,9 +290,12 @@ pub(crate) async fn build(
     Json(req): Json<BuildRequest>,
 ) -> Result<(StatusCode, Json<Value>)> {
     let actor = auth::actor(&app, &headers).await?;
-    let w = authorized(&app, &actor, id).await?;
     if !matches!(req.transition.as_str(), "start" | "stop" | "delete") {
         return Err(Error::bad("Unknown workspace transition."));
+    }
+    let w = authorized_action(&app, &actor, id, &format!("workspace.{}", req.transition)).await?;
+    if req.on_success.is_some() {
+        authorized_action(&app, &actor, id, "workspace.start").await?;
     }
     if let Some(child) = &req.on_success {
         if req.transition != "stop"
@@ -371,7 +412,7 @@ pub(crate) async fn cancel(
             .bind(id)
             .fetch_one(&app.pool)
             .await?;
-    authorized(&app, &actor, workspace).await?;
+    authorized_action(&app, &actor, workspace, "workspace.cancel").await?;
     let updated=sqlx::query("UPDATE coder_rust.builds SET status='canceled',completed_at=now(),lease_hash=NULL WHERE id=$1 AND status IN ('pending','starting','stopping','deleting')").bind(id).execute(&app.pool).await?;
     if updated.rows_affected() == 0 {
         return Err(Error::conflict("This build is no longer cancelable."));

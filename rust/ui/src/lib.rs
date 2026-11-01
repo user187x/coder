@@ -1,5 +1,6 @@
 //! A Rust-rendered UI using the existing authenticated Coder API.
 
+mod access;
 mod api;
 mod handlers;
 mod models;
@@ -51,6 +52,43 @@ fn build_router(
         .route("/logout", post(handlers::sign_out))
         .route("/workspaces", get(handlers::workspaces))
         .route("/workspaces/{id}", get(handlers::workspace))
+        .route("/workspaces/{id}/terminal", get(handlers::terminal))
+        .route(
+            "/terminal.js",
+            get(|| async {
+                (
+                    [(header::CONTENT_TYPE, "text/javascript; charset=utf-8")],
+                    include_str!("terminal.js"),
+                )
+            }),
+        )
+        .route(
+            "/xterm.js",
+            get(|| async {
+                (
+                    [(header::CONTENT_TYPE, "text/javascript; charset=utf-8")],
+                    include_str!("../assets/xterm.js"),
+                )
+            }),
+        )
+        .route(
+            "/xterm.css",
+            get(|| async {
+                (
+                    [(header::CONTENT_TYPE, "text/css; charset=utf-8")],
+                    include_str!("../assets/xterm.css"),
+                )
+            }),
+        )
+        .route(
+            "/xterm.LICENSE",
+            get(|| async {
+                (
+                    [(header::CONTENT_TYPE, "text/plain; charset=utf-8")],
+                    include_str!("../assets/xterm.LICENSE"),
+                )
+            }),
+        )
         .route("/workspaces/{id}/actions", post(handlers::workspace_action))
         .route(
             "/workspaces/{id}/delete",
@@ -71,6 +109,15 @@ fn build_router(
             get(handlers::secrets).post(handlers::create_secret),
         )
         .route("/users", get(handlers::users))
+        .route(
+            "/settings/tokens",
+            get(access::tokens).post(access::token_action),
+        )
+        .route("/settings/access", get(access::organizations))
+        .route(
+            "/settings/access/{org}",
+            get(access::page).post(access::change),
+        )
         .route(
             "/style.css",
             get(|| async {
@@ -107,6 +154,8 @@ fn root_url(value: &str) -> Result<Url, Box<dyn std::error::Error>> {
 }
 
 async fn boundary(State(api): State<Api>, request: Request, next: Next) -> Response {
+    let terminal_page = request.uri().path().starts_with("/workspaces/")
+        && request.uri().path().ends_with("/terminal");
     let origin_ok = request
         .headers()
         .get(header::ORIGIN)
@@ -131,6 +180,9 @@ async fn boundary(State(api): State<Api>, request: Request, next: Next) -> Respo
     let headers = response.headers_mut();
     headers.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
     headers.insert(header::CONTENT_SECURITY_POLICY, HeaderValue::from_static("default-src 'none'; style-src 'self'; img-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"));
+    if terminal_page {
+        headers.insert(header::CONTENT_SECURITY_POLICY,HeaderValue::from_static("default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"));
+    }
     headers.insert(
         header::X_CONTENT_TYPE_OPTIONS,
         HeaderValue::from_static("nosniff"),

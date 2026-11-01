@@ -23,6 +23,8 @@ sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio-r
 tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "signal", "sync"] }
 url = "2"
 uuid = { version = "1", features = ["v4", "serde"] }
+openidconnect = { version = "4", default-features = false, features = ["reqwest", "rustls-tls"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 
 [dev-dependencies]
 coder-network = { path = "../network" }

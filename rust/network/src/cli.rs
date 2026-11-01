@@ -12,6 +12,12 @@ fn token(name: &str) -> Result<String, Box<dyn std::error::Error>> {
 pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
     let server = env::var("CODER_URL").unwrap_or_else(|_| "http://127.0.0.1:3000".into());
     let args = env::args().skip(1).collect::<Vec<_>>();
+    if args.iter().any(|a| matches!(a.as_str(), "--help" | "-h")) {
+        println!(
+            "Usage: coder agent | register WORKSPACE PORTS [--terminal] | connect WORKSPACE PORT | forward WORKSPACE PORT 127.0.0.1:PORT\n\nCODER_URL: HTTPS server root (loopback HTTP allowed for development)\nCODER_SESSION_TOKEN: CLI session; create one through the browser CLI access page\nCODER_AGENT_TOKEN: workspace agent credential\nCODER_AGENT_PORTS: comma-separated local TCP ports (default 22)\nCODER_AGENT_TERMINAL: true to enable Unix PTYs (default false)\nCODER_AGENT_SHELL: absolute shell path (default /bin/sh)\nCODER_AGENT_DIRECTORY: absolute working directory (default current directory)\n\nconnect and forward require WireGuard encryption through the relay."
+        );
+        return Ok(());
+    }
     let (stop, mut stopped) = watch::channel(false);
     let signal = tokio::spawn(async move {
         #[cfg(unix)]
@@ -29,7 +35,10 @@ pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
         match args.first().map(String::as_str) {
             Some("agent") if args.len()==1=>{
                 let ports=env::var("CODER_AGENT_PORTS").unwrap_or_else(|_|"22".into()).split(',').map(str::parse).collect::<Result<BTreeSet<u16>,_>>()?;
-                crate::agent(&server,&token("CODER_AGENT_TOKEN")?,ports,stopped.clone()).await?;
+                let terminal=if env::var("CODER_AGENT_TERMINAL").unwrap_or_else(|_|"false".into()).parse::<bool>().map_err(|_|"CODER_AGENT_TERMINAL must be true or false")? {
+                    Some(crate::TerminalConfig{shell:env::var("CODER_AGENT_SHELL").unwrap_or_else(|_|"/bin/sh".into()).into(),directory:env::var("CODER_AGENT_DIRECTORY").map(std::path::PathBuf::from).unwrap_or(env::current_dir()?)})
+                }else{None};
+                crate::agent_with_terminal(&server,&token("CODER_AGENT_TOKEN")?,ports,terminal,stopped.clone()).await?;
             }
             Some("connect"|"forward") if (3..=4).contains(&args.len())=>{
                 let workspace:Uuid=args[1].parse()?;let port:u16=args[2].parse()?;
@@ -55,14 +64,15 @@ pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
                     tasks.abort_all();
                 }else{return Err("connect takes workspace-id port; forward also takes 127.0.0.1:local-port".into());}
             }
-            Some("register") if args.len()==3=>{
+            Some("register") if (3..=4).contains(&args.len())=>{
+                let terminal=match args.get(3).map(String::as_str) {None=>false,Some("--terminal")=>true,_=>return Err("register only accepts --terminal as its optional flag".into())};
                 let id:Uuid=args[1].parse()?;
                 let ports=args[2].split(',').map(str::parse).collect::<Result<BTreeSet<u16>,_>>()?;
                 if ports.is_empty() || ports.len()>16 || ports.contains(&0){return Err("Allow 1-16 nonzero ports".into());}
                 let root=crate::server_url(&server)?;
                 let response=reqwest::Client::builder().redirect(reqwest::redirect::Policy::none()).timeout(std::time::Duration::from_secs(20)).build()?
                     .post(root.join(&format!("api/v2/workspaces/{id}/agent"))?).header("Coder-Session-Token",token("CODER_SESSION_TOKEN")?)
-                    .json(&serde_json::json!({"ports":ports})).send().await?;
+                    .json(&serde_json::json!({"ports":ports,"terminal":terminal})).send().await?;
                 if !response.status().is_success(){return Err(format!("Agent registration rejected: {}",response.status()).into());}
                 // Registration deliberately emits the one-time credential for installation.
                 println!("{}",response.text().await?);

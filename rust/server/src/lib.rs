@@ -5,6 +5,8 @@ mod catalog;
 pub mod config;
 mod jobs;
 mod network;
+pub mod oidc;
+mod rbac;
 mod runner;
 mod secrets;
 mod state;
@@ -27,6 +29,8 @@ use uuid::Uuid;
 #[derive(Clone)]
 pub(crate) struct App {
     pool: PgPool,
+    oidc: Option<Arc<oidc::Provider>>,
+    browser_origin: String,
     broker: Arc<network::Broker>,
     hashes: Arc<Semaphore>,
     secret_key: Option<[u8; 32]>,
@@ -103,13 +107,49 @@ pub fn encryption_key(value: &str) -> std::result::Result<[u8; 32], &'static str
 
 /// Builds the JSON API. Authentication uses session headers, not browser cookies.
 pub fn api(pool: PgPool, secret_key: Option<[u8; 32]>) -> Router {
+    api_with_options(pool, secret_key, "http://127.0.0.1:3000", None).expect("default API settings")
+}
+
+/// Builds an API with a trusted browser origin and optional OIDC provider.
+pub fn api_with_options(
+    pool: PgPool,
+    secret_key: Option<[u8; 32]>,
+    origin: &str,
+    oidc: Option<oidc::Config>,
+) -> std::result::Result<Router, Box<dyn std::error::Error>> {
+    let provider = oidc
+        .map(|c| oidc::Provider::new(c, origin))
+        .transpose()?
+        .map(Arc::new);
     let app = App {
+        oidc: provider,
+        browser_origin: url::Url::parse(origin)?.origin().ascii_serialization(),
         broker: Arc::new(network::Broker::default()),
         pool,
         secret_key,
         hashes: Arc::new(Semaphore::new(4)),
     };
-    Router::new()
+    Ok(Router::new()
+        .route("/auth/oidc", get(oidc::start))
+        .route("/auth/oidc/callback", get(oidc::callback))
+        .route(
+            "/api/v2/organizations/{org}/oidc/users/{user}",
+            axum::routing::put(oidc::link),
+        )
+        .route(
+            "/api/v2/organizations/{org}/roles",
+            get(rbac::list).post(rbac::create),
+        )
+        .route(
+            "/api/v2/organizations/{org}/roles/{id}",
+            axum::routing::put(rbac::put).delete(rbac::delete),
+        )
+        .route(
+            "/api/v2/organizations/{org}/roles/{id}/users/{user}",
+            axum::routing::put(rbac::bind).delete(rbac::unbind),
+        )
+        .route("/api/v2/organizations/{org}/audit", get(rbac::events))
+        .route("/api/v2/organizations/{org}/members", get(rbac::members))
         .route(
             "/api/v2/workspaces/{id}/agent",
             get(network::inspect)
@@ -117,6 +157,7 @@ pub fn api(pool: PgPool, secret_key: Option<[u8; 32]>) -> Router {
                 .delete(network::revoke),
         )
         .route("/api/v2/workspaces/{id}/connect", get(network::connect))
+        .route("/api/v2/workspaces/{id}/terminal", get(network::terminal))
         .route("/api/v2/workspaceagents/me/listen", get(network::listen))
         .route(
             "/api/v2/workspaceagents/me/connections/{id}",
@@ -145,14 +186,20 @@ pub fn api(pool: PgPool, secret_key: Option<[u8; 32]>) -> Router {
             ),
         )
         .route("/api/v2/users/first", get(auth::first).post(auth::setup))
-        .route(
-            "/api/v2/users/authmethods",
-            get(|| async { Json(json!({"password":{"enabled":true}})) }),
-        )
+        .route("/api/v2/users/authmethods", get(oidc::methods))
         .route("/api/v2/users/login", post(auth::login))
         .route("/api/v2/users/logout", post(auth::logout))
         .route("/api/v2/users", get(auth::users).post(auth::create_user))
         .route("/api/v2/users/{user}", get(auth::user))
+        .route("/api/v2/users/me/tokens", post(auth::cli_token))
+        .route(
+            "/api/v2/users/me/sessions",
+            axum::routing::delete(auth::revoke_sessions),
+        )
+        .route(
+            "/api/v2/users/{user}/status",
+            axum::routing::patch(auth::status),
+        )
         .route(
             "/api/v2/users/{user}/profile",
             axum::routing::put(auth::profile),
@@ -241,10 +288,14 @@ pub fn api(pool: PgPool, secret_key: Option<[u8; 32]>) -> Router {
                     axum::http::header::CACHE_CONTROL,
                     axum::http::HeaderValue::from_static("no-store"),
                 );
+                response.headers_mut().insert(
+                    axum::http::header::REFERRER_POLICY,
+                    axum::http::HeaderValue::from_static("no-referrer"),
+                );
                 response
             },
         ))
-        .with_state(app)
+        .with_state(app))
 }
 
 pub(crate) type Result<T = Json<serde_json::Value>> = std::result::Result<T, Error>;

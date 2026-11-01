@@ -191,17 +191,14 @@ async fn outbound_relay_preserves_half_close_and_enforces_workspace_access() {
                 _=>panic!("invalid control message"),
             }
         };
-        let mut request=format!("{}/api/v2/workspaceagents/me/connections/{ticket}",f.base.replace("http://","ws://")).into_client_request().unwrap();
+        let mut request=format!("{}/api/v2/workspaceagents/me/connections/{ticket}?key={}",f.base.replace("http://","ws://"),"01".repeat(32)).into_client_request().unwrap();
         request.headers_mut().insert("Coder-Agent-Token",new_key.parse().unwrap());
         let (mut data,_)=tokio_tungstenite::connect_async(request.clone()).await.unwrap();
         assert!(tokio_tungstenite::connect_async(request).await.is_err(),"ticket replay accepted");
         data.send(Message::Binary(b"reply".to_vec().into())).await.unwrap();
         data.send(Message::Text("eof".into())).await.unwrap();
-        while let Some(Ok(message))=data.next().await {
-            if matches!(message,Message::Text(ref text) if text.as_str()=="eof"){break;}
-        }
         let _=data.close(None).await;
-        connected.await.unwrap().unwrap();
+        assert!(connected.await.unwrap().is_err(),"WireGuard must reject plaintext downgrade");
         let _=control.close(None).await;
         service.abort();
     }).await.expect("network integration deadline");

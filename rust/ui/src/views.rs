@@ -20,6 +20,7 @@ pub(crate) fn page(title: &str, user: Option<&User>, api: Option<&Api>, body: Ma
                         nav aria-label="Main navigation" {
                             a href="/workspaces" { "Workspaces" }
                             a href="/templates" { "Templates" }
+                            @if api.is_some_and(|a|!a.full_application) {a href="/settings/access" { "Access" } a href="/settings/tokens" { "CLI access" }}
                             @if user.roles.iter().any(|r| matches!(r.name.as_str(), "owner" | "user-admin")) {
                                 a href="/users" { "Users" }
                             }
@@ -72,6 +73,7 @@ pub(crate) fn login(api: &Api, auth: &AuthMethods, email: &str, message: Option<
                 h1 { "Welcome back" }
                 p.muted { "Sign in to your Coder deployment." }
                 (alert(message))
+                @if !api.full_application && auth.oidc.enabled { a.button.primary href="/auth/oidc" { "Sign in with SSO" } }
                 @if auth.password.enabled {
                     form.stack method="post" action="/login" {
                         input type="hidden" name="method" value="password";
@@ -224,12 +226,15 @@ pub(crate) fn workspace(
                 div.actions {
                     (action(&w.id, "favorite", if w.favorite { "Unfavorite" } else { "Favorite" }))
                     @match (w.infrastructure_recovery_required, w.latest_build.status.as_str()) {
-                    (false, "running") => { (action(&w.id, "stop", "Stop")) (action(&w.id, "restart", "Restart on active version")) }
-                        (false, "stopped" | "failed" | "canceled") => { (action(&w.id, "start", "Start")) }
-                        (_, "starting" | "pending" | "stopping") => { (action(&w.id, "cancel", "Cancel build")) }
+                    (false, "running") => { @if w.can("stop") { (action(&w.id, "stop", "Stop")) } @if w.can("stop") && w.can("start") { (action(&w.id, "restart", "Restart on active version")) } }
+                        (false, "stopped" | "failed" | "canceled") if w.can("start") => { (action(&w.id, "start", "Start")) }
+                        (_, "starting" | "pending" | "stopping") if w.can("cancel") => { (action(&w.id, "cancel", "Cancel build")) }
                         _ => {}
                     }
                 @if api.full_application { a.button.primary href=(&full) { "Open workspace" } }
+                @if !api.full_application && w.latest_build.status=="running" && !w.infrastructure_recovery_required && w.can("terminal") {
+                    a.button.primary href=(format!("/workspaces/{}/terminal",segment(&w.id))) { "Terminal" }
+                }
                 }
             }
             (alert(message))
@@ -259,10 +264,10 @@ pub(crate) fn workspace(
                 @if logs.is_empty() { p.muted { "No logs available yet." } }
                 pre.logs aria-label="Build logs" { @for log in logs { (log.created_at) " [" (log.level) "] " (log.output) "\n" } }
             }
-            details.danger { summary { "Delete workspace" }
+            @if w.can("delete") { details.danger { summary { "Delete workspace" }
                 p { "Deleting a workspace destroys the resources managed by its template." }
                 a.button href=(format!("/workspaces/{}/delete", segment(&w.id))) { "Review deletion" }
-            }
+            } }
         },
     )
 }
@@ -472,4 +477,20 @@ pub(crate) fn segment(value: &str) -> String {
         .clear()
         .push(value);
     url.path()[1..].to_owned()
+}
+
+pub(crate) fn terminal(api: &Api, user: &User, w: &Workspace) -> Markup {
+    page(
+        "Terminal",
+        Some(user),
+        Some(api),
+        html! {
+            link rel="stylesheet" href="/xterm.css";
+            div.heading { div { a.back href=(format!("/workspaces/{}",segment(&w.id))) { "Back to workspace" } h1 { (w.name) " terminal" } } button id="terminal-disconnect" type="button" { "Disconnect" } }
+            p id="terminal-status" role="status" { "Connecting…" }
+            div id="terminal" data-endpoint=(format!("/api/v2/workspaces/{}/terminal",segment(&w.id))) aria-label="Workspace terminal" {}
+            p.muted { "Disconnecting closes this shell. Reload to open a new session. " a href="/xterm.LICENSE" { "Terminal renderer license" } }
+            script src="/xterm.js" defer {} script src="/terminal.js" defer {}
+        },
+    )
 }

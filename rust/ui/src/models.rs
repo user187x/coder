@@ -46,6 +46,8 @@ pub(crate) struct WorkspaceList {
 #[derive(Deserialize)]
 pub(crate) struct Workspace {
     #[serde(default)]
+    pub available_actions: Option<Vec<String>>,
+    #[serde(default)]
     pub infrastructure_recovery_required: bool,
     pub id: String,
     pub name: String,
@@ -140,12 +142,14 @@ pub(crate) struct LoginResponse {
 
 #[derive(Deserialize)]
 pub(crate) struct AuthMethods {
+    #[serde(default)]
+    pub oidc: AuthMethod,
     pub password: AuthMethod,
     #[serde(default)]
     pub terms_of_service_url: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Default)]
 pub(crate) struct AuthMethod {
     pub enabled: bool,
 }
@@ -157,4 +161,12 @@ pub(crate) struct Secret {
     pub env_name: String,
     pub file_path: String,
     pub enabled: bool,
+}
+
+impl Workspace {
+    pub fn can(&self, action: &str) -> bool {
+        self.available_actions
+            .as_ref()
+            .is_none_or(|a| a.iter().any(|a| a == &format!("workspace.{action}")))
+    }
 }

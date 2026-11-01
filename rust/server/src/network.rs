@@ -41,6 +41,7 @@ async fn credential(
     org: Uuid,
     ports: &BTreeSet<u16>,
     rotate: bool,
+    terminal: bool,
 ) -> Result<Value> {
     let token = auth::token();
     let agent = Uuid::new_v4();
@@ -58,9 +59,9 @@ async fn credential(
         )
         .map_err(|_| Error::bad("Agent encryption failed."))?;
     let query = if rotate {
-        "INSERT INTO coder_rust.workspace_agents(workspace_id,organization_id,id,token_hash,ports,nonce,ciphertext) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(workspace_id) DO UPDATE SET id=EXCLUDED.id,token_hash=EXCLUDED.token_hash,ports=EXCLUDED.ports,nonce=EXCLUDED.nonce,ciphertext=EXCLUDED.ciphertext,last_connected_at=NULL RETURNING id,nonce,ciphertext"
+        "INSERT INTO coder_rust.workspace_agents(workspace_id,organization_id,id,token_hash,ports,nonce,ciphertext,terminal) VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(workspace_id) DO UPDATE SET id=EXCLUDED.id,token_hash=EXCLUDED.token_hash,ports=EXCLUDED.ports,terminal=EXCLUDED.terminal,nonce=EXCLUDED.nonce,ciphertext=EXCLUDED.ciphertext,last_connected_at=NULL RETURNING id,nonce,ciphertext"
     } else {
-        "INSERT INTO coder_rust.workspace_agents(workspace_id,organization_id,id,token_hash,ports,nonce,ciphertext) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(workspace_id) DO UPDATE SET ports=EXCLUDED.ports RETURNING id,nonce,ciphertext"
+        "INSERT INTO coder_rust.workspace_agents(workspace_id,organization_id,id,token_hash,ports,nonce,ciphertext,terminal) VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(workspace_id) DO UPDATE SET ports=EXCLUDED.ports,terminal=EXCLUDED.terminal RETURNING id,nonce,ciphertext"
     };
     let (agent, nonce, ciphertext): (Uuid, Vec<u8>, Vec<u8>) = sqlx::query_as(query)
         .bind(workspace)
@@ -70,6 +71,7 @@ async fn credential(
         .bind(json!(ports))
         .bind(nonce.as_slice())
         .bind(ciphertext)
+        .bind(terminal)
         .fetch_one(conn)
         .await?;
     if nonce.len() != 12 {
@@ -90,7 +92,7 @@ async fn credential(
             )
         })?;
     let token = String::from_utf8(token).map_err(|_| Error::bad("Invalid agent key encoding."))?;
-    Ok(json!({"id":agent,"token":token,"ports":ports}))
+    Ok(json!({"id":agent,"token":token,"ports":ports,"terminal":terminal}))
 }
 
 pub(crate) async fn bootstrap(
@@ -112,6 +114,7 @@ pub(crate) async fn bootstrap(
         build.organization_id,
         &allowed,
         false,
+        spec["agent"]["terminal"].as_bool().unwrap_or(false),
     )
     .await
 }
@@ -130,7 +133,8 @@ struct Control {
 struct Pending {
     agent: Uuid,
     generation: Uuid,
-    sender: oneshot::Sender<WebSocket>,
+    sender: oneshot::Sender<(WebSocket, Option<String>)>,
+    secure: bool,
 }
 
 pub(crate) struct Broker {
@@ -166,6 +170,8 @@ impl Broker {
 #[serde(deny_unknown_fields)]
 pub(crate) struct Register {
     ports: BTreeSet<u16>,
+    #[serde(default)]
+    terminal: bool,
 }
 fn ports(ports: &BTreeSet<u16>) -> Result<()> {
     if ports.is_empty() || ports.len() > 16 || ports.contains(&0) {
@@ -183,7 +189,7 @@ pub(crate) async fn register(
 ) -> Result {
     ports(&req.ports)?;
     let actor = auth::actor(&app, &headers).await?;
-    let workspace = workspaces::authorized(&app, &actor, id).await?;
+    let workspace = workspaces::authorized_action(&app, &actor, id, "workspace.agent").await?;
     let result = credential(
         &app,
         &mut *app.pool.acquire().await?,
@@ -191,6 +197,7 @@ pub(crate) async fn register(
         workspace.organization_id,
         &req.ports,
         true,
+        req.terminal,
     )
     .await?;
     app.broker.remove(id, None);
@@ -204,7 +211,7 @@ pub(crate) async fn revoke(
     Path(id): Path<Uuid>,
 ) -> Result<StatusCode> {
     let actor = auth::actor(&app, &headers).await?;
-    workspaces::authorized(&app, &actor, id).await?;
+    workspaces::authorized_action(&app, &actor, id, "workspace.agent").await?;
     sqlx::query("DELETE FROM coder_rust.workspace_agents WHERE workspace_id=$1")
         .bind(id)
         .execute(&app.pool)
@@ -221,12 +228,13 @@ pub(crate) async fn inspect(
 ) -> Result {
     let actor = auth::actor(&app, &headers).await?;
     workspaces::authorized(&app, &actor, id).await?;
-    let row: Option<(Uuid, Value)> =
-        sqlx::query_as("SELECT id,ports FROM coder_rust.workspace_agents WHERE workspace_id=$1")
-            .bind(id)
-            .fetch_optional(&app.pool)
-            .await?;
-    let Some((agent, ports)) = row else {
+    let row: Option<(Uuid, Value, bool)> = sqlx::query_as(
+        "SELECT id,ports,terminal FROM coder_rust.workspace_agents WHERE workspace_id=$1",
+    )
+    .bind(id)
+    .fetch_optional(&app.pool)
+    .await?;
+    let Some((agent, ports, terminal)) = row else {
         return Ok(Json(Value::Null));
     };
     let connected = app
@@ -237,7 +245,7 @@ pub(crate) async fn inspect(
         .get(&id)
         .is_some_and(|c| c.agent == agent);
     Ok(Json(
-        json!({"id":agent,"ports":ports,"connected":connected}),
+        json!({"id":agent,"ports":ports,"connected":connected,"terminal":terminal}),
     ))
 }
 
@@ -311,39 +319,70 @@ pub(crate) async fn attach(
     State(app): State<App>,
     headers: HeaderMap,
     Path(id): Path<Uuid>,
+    Query(key): Query<PeerKey>,
     ws: WebSocketUpgrade,
 ) -> Result<Response> {
+    if key.key.as_ref().is_some_and(|k| !valid_key(k)) {
+        return Err(Error::bad("Invalid WireGuard key."));
+    }
     let agent = authorized_agent(&app, &headers).await?;
     let pending = {
         let mut pending = app.broker.pending.lock().expect("broker lock");
-        if !pending.get(&id).is_some_and(|p| p.agent == agent.id) {
+        if !pending
+            .get(&id)
+            .is_some_and(|p| p.agent == agent.id && p.secure == key.key.is_some())
+        {
             return Err(Error::forbidden());
         }
         pending.remove(&id).expect("pending ticket")
     };
     Ok(upgrade(ws).on_upgrade(move |socket| async move {
-        let _ = pending.sender.send(socket);
+        let _ = pending.sender.send((socket, key.key));
     }))
 }
 
 #[derive(Deserialize)]
+pub(crate) struct PeerKey {
+    key: Option<String>,
+}
+fn valid_key(key: &str) -> bool {
+    key.len() == 64 && key.bytes().all(|c| c.is_ascii_hexdigit()) && key.bytes().any(|c| c != b'0')
+}
+#[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct Target {
     port: u16,
+    wireguard: Option<String>,
+    #[serde(skip)]
+    terminal: bool,
 }
-async fn client(app: &App, headers: &HeaderMap, id: Uuid, port: u16) -> Result<Uuid> {
+async fn client(app: &App, headers: &HeaderMap, id: Uuid, target: &Target) -> Result<Uuid> {
     let actor = auth::actor(app, headers).await?;
-    workspaces::authorized(app, &actor, id).await?;
-    let row:Option<(Uuid,Value)>=sqlx::query_as("SELECT a.id,a.ports FROM coder_rust.workspace_agents a JOIN coder_rust.workspaces w ON w.id=a.workspace_id JOIN coder_rust.builds b ON b.id=w.latest_build_id WHERE w.id=$1 AND b.status='running' AND NOT EXISTS(SELECT 1 FROM coder_rust.provisioner_states s WHERE s.workspace_id=w.id AND s.dirty)")
+    workspaces::authorized_action(
+        app,
+        &actor,
+        id,
+        if target.terminal {
+            "workspace.terminal"
+        } else {
+            "workspace.connect"
+        },
+    )
+    .await?;
+    let row:Option<(Uuid,Value,bool)>=sqlx::query_as("SELECT a.id,a.ports,a.terminal FROM coder_rust.workspace_agents a JOIN coder_rust.workspaces w ON w.id=a.workspace_id JOIN coder_rust.builds b ON b.id=w.latest_build_id WHERE w.id=$1 AND b.status='running' AND NOT EXISTS(SELECT 1 FROM coder_rust.provisioner_states s WHERE s.workspace_id=w.id AND s.dirty)")
         .bind(id).fetch_optional(&app.pool).await?;
-    let Some((agent, ports)) = row else {
+    let Some((agent, ports, terminal)) = row else {
         return Err(Error::conflict(
             "Workspace is not running or requires infrastructure recovery.",
         ));
     };
-    if !ports
-        .as_array()
-        .is_some_and(|ports| ports.iter().any(|p| p.as_u64() == Some(u64::from(port))))
+    if (target.terminal && !terminal)
+        || (!target.terminal
+            && !ports.as_array().is_some_and(|ports| {
+                ports
+                    .iter()
+                    .any(|p| p.as_u64() == Some(u64::from(target.port)))
+            }))
     {
         return Err(Error::forbidden());
     }
@@ -358,7 +397,85 @@ pub(crate) async fn connect(
     Query(target): Query<Target>,
     ws: WebSocketUpgrade,
 ) -> Result<Response> {
-    let agent = client(&app, &headers, id, target.port).await?;
+    relay(app, headers, id, target, ws).await
+}
+
+/// @Router /api/v2/workspaces/{id}/terminal [get]
+pub(crate) async fn terminal(
+    State(app): State<App>,
+    mut headers: HeaderMap,
+    Path(id): Path<Uuid>,
+    ws: WebSocketUpgrade,
+) -> Result<Response> {
+    if headers
+        .get(axum::http::header::ORIGIN)
+        .and_then(|h| h.to_str().ok())
+        != Some(app.browser_origin.as_str())
+        || headers
+            .get("sec-fetch-site")
+            .is_some_and(|h| h == "cross-site")
+    {
+        return Err(Error::forbidden());
+    }
+    if !headers.contains_key("Coder-Session-Token") {
+        let cookie = headers
+            .get(axum::http::header::COOKIE)
+            .and_then(|h| h.to_str().ok())
+            .unwrap_or("");
+        let tokens = cookie
+            .split(';')
+            .filter_map(|s| s.trim().split_once('='))
+            .filter(|(k, _)| *k == "coder_ui_session")
+            .map(|(_, v)| v)
+            .collect::<Vec<_>>();
+        if tokens.len() != 1 {
+            return Err(Error::forbidden());
+        }
+        let value = axum::http::HeaderValue::from_str(tokens[0]).map_err(|_| Error::forbidden())?;
+        headers.insert("Coder-Session-Token", value);
+    }
+    relay(
+        app,
+        headers,
+        id,
+        Target {
+            port: 0,
+            wireguard: None,
+            terminal: true,
+        },
+        ws,
+    )
+    .await
+}
+async fn relay(
+    app: App,
+    headers: HeaderMap,
+    id: Uuid,
+    target: Target,
+    ws: WebSocketUpgrade,
+) -> Result<Response> {
+    if target.wireguard.as_ref().is_some_and(|k| !valid_key(k)) {
+        return Err(Error::bad("Invalid WireGuard key."));
+    }
+    let agent = client(&app, &headers, id, &target).await?;
+    let actor = auth::actor(&app, &headers).await?;
+    let org: Uuid =
+        sqlx::query_scalar("SELECT organization_id FROM coder_rust.workspaces WHERE id=$1")
+            .bind(id)
+            .fetch_one(&app.pool)
+            .await?;
+    crate::rbac::audit(
+        &mut *app.pool.acquire().await?,
+        org,
+        actor.id,
+        if target.terminal {
+            "terminal.open"
+        } else {
+            "connection.open"
+        },
+        Some(id),
+    )
+    .await?;
     let control = app
         .broker
         .controls
@@ -393,13 +510,13 @@ pub(crate) async fn connect(
     Ok(upgrade(ws).on_upgrade(move |mut socket| async move {
         let (_global,_permit)=(global,permit);
         let ticket=Uuid::new_v4();let (send,receive)=oneshot::channel();
-        app.broker.pending.lock().expect("broker lock").insert(ticket,Pending{agent,generation:control.generation,sender:send});
-        let mut peer=if control.sender.try_send(json!({"id":ticket,"port":target.port})).is_ok(){
+        app.broker.pending.lock().expect("broker lock").insert(ticket,Pending{agent,generation:control.generation,sender:send,secure:target.wireguard.is_some()});
+        let mut peer=if control.sender.try_send(json!({"id":ticket,"port":target.port,"wireguard":target.wireguard,"terminal":target.terminal})).is_ok(){
             tokio::time::timeout(Duration::from_secs(20),receive).await.ok().and_then(|r|r.ok())
         } else {None};
         app.broker.pending.lock().expect("broker lock").remove(&ticket);
-        if let Some(ref mut peer)=peer {
-            if tokio::time::timeout(IO_TIMEOUT,socket.send(Message::Text("ready".into()))).await.is_ok_and(|r|r.is_ok()) {
+        if let Some((ref mut peer, ref key))=peer {
+            if tokio::time::timeout(IO_TIMEOUT,socket.send(Message::Text(if let Some(key)=key {json!({"ready":true,"wireguard":key}).to_string().into()}else{"ready".into()}))).await.is_ok_and(|r|r.is_ok()) {
                 let mut check=tokio::time::interval(CHECK_INTERVAL);
                 let (mut left_eof,mut right_eof)=(false,false);
                 loop {
@@ -409,7 +526,7 @@ pub(crate) async fn connect(
                         incoming=peer.recv()=>forward(incoming,&mut socket,&mut right_eof).await,
                         _=check.tick()=>{
                             let current=app.broker.controls.lock().expect("broker lock").get(&id).is_some_and(|c|c.generation==control.generation);
-                            if !current || client(&app,&headers,id,target.port).await.is_err(){false}else{
+                            if !current || client(&app,&headers,id,&target).await.is_err(){false}else{
                                 tokio::time::timeout(IO_TIMEOUT,socket.send(Message::Ping(Vec::new().into()))).await.is_ok_and(|r|r.is_ok())
                                 && tokio::time::timeout(IO_TIMEOUT,peer.send(Message::Ping(Vec::new().into()))).await.is_ok_and(|r|r.is_ok())
                             }
@@ -419,7 +536,7 @@ pub(crate) async fn connect(
                 }
             }
         }
-        if let Some(peer)=peer {tokio::join!(close(peer),close(socket));}else{close(socket).await;}
+        if let Some((peer,_))=peer {tokio::join!(close(peer),close(socket));}else{close(socket).await;}
     }))
 }
 

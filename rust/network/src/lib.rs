@@ -1,8 +1,11 @@
 //! Outbound workspace networking with bounded WebSocket frames and TCP half-close.
-//! TLS protects remote hops; SSH can provide end-to-end encryption through the relay.
+//! WireGuard encrypts client TCP streams end to end; TLS protects control and terminal hops.
 
 mod cli;
+mod terminal;
+mod wireguard;
 pub use cli::run;
+pub use terminal::TerminalConfig;
 
 use futures_util::{SinkExt, StreamExt};
 use reqwest::Url;
@@ -149,9 +152,11 @@ where
     if port == 0 {
         return Err(error("Port must be nonzero"));
     }
+    let key = wireguard::Key::new();
+    let public = key.public();
     let mut ws = socket(
         &server_url(server)?,
-        &format!("/api/v2/workspaces/{workspace}/connect?port={port}"),
+        &format!("/api/v2/workspaces/{workspace}/connect?port={port}&wireguard={public}"),
         "Coder-Session-Token",
         token,
     )
@@ -160,10 +165,16 @@ where
     let ready = tokio::time::timeout(Duration::from_secs(30), ws.next())
         .await
         .map_err(|_| error("Agent connection timed out"))?;
-    if !matches!(ready,Some(Ok(Message::Text(ref s))) if s.as_str()=="ready") {
+    let Some(Ok(Message::Text(ready))) = ready else {
         return Err(error("Workspace agent could not connect"));
-    }
-    bridge(ws, input, output).await
+    };
+    let ready: serde_json::Value =
+        serde_json::from_str(&ready).map_err(|_| error("WireGuard negotiation required"))?;
+    let remote = ready["wireguard"]
+        .as_str()
+        .filter(|_| ready["ready"] == true)
+        .ok_or_else(|| error("WireGuard negotiation required"))?;
+    wireguard::bridge(ws, key, remote, true, input, output).await
 }
 
 /// One pending connection requested by the authenticated control plane.
@@ -173,6 +184,12 @@ pub struct Connection {
     pub id: Uuid,
     /// Loopback TCP port, independently checked against the agent allowlist.
     pub port: u16,
+    /// Optional client WireGuard public key, represented as 64 hex characters.
+    #[serde(default)]
+    pub wireguard: Option<String>,
+    /// Requests an opted-in local interactive PTY instead of a TCP port.
+    #[serde(default)]
+    pub terminal: bool,
 }
 
 /// Runs an outbound agent until shutdown. Every target is IPv4 loopback.
@@ -181,8 +198,22 @@ pub async fn agent(
     server: &str,
     token: &str,
     ports: BTreeSet<u16>,
+    shutdown: watch::Receiver<bool>,
+) -> io::Result<()> {
+    agent_with_terminal(server, token, ports, None, shutdown).await
+}
+
+/// Runs an agent with explicit local shell configuration. Server approval is also required.
+pub async fn agent_with_terminal(
+    server: &str,
+    token: &str,
+    ports: BTreeSet<u16>,
+    terminal: Option<TerminalConfig>,
     mut shutdown: watch::Receiver<bool>,
 ) -> io::Result<()> {
+    if let Some(config) = &terminal {
+        config.validate()?;
+    }
     if ports.is_empty() || ports.len() > 16 || ports.contains(&0) {
         return Err(error("Allow 1-16 nonzero local ports"));
     }
@@ -208,17 +239,28 @@ pub async fn agent(
                         match message {
                             Some(Ok(Message::Text(text)))=>{
                                 let Ok(connection)=serde_json::from_str::<Connection>(&text) else {break;};
-                                if tasks.len()>=32 || !ports.contains(&connection.port) {
+                                if tasks.len()>=32 || (connection.terminal && terminal.is_none()) || (!connection.terminal && !ports.contains(&connection.port)) || (connection.terminal && connection.wireguard.is_some()) {
                                     if tokio::time::timeout(TIMEOUT,send.send(Message::Text(serde_json::json!({"failed":connection.id}).to_string().into()))).await.map_or(true,|r|r.is_err()){break;}
                                     continue;
                                 }
-                                let root=root.clone();let token=token.to_owned();
+                                let root=root.clone();let token=token.to_owned();let terminal=terminal.clone();
                                 tasks.spawn(async move {
                                     let id=connection.id;
                                     let result=async {
+                                        if connection.terminal {
+                                            let socket=socket(&root,&format!("/api/v2/workspaceagents/me/connections/{id}"),"Coder-Agent-Token",&token).await?;
+                                            return terminal::run(socket,terminal.ok_or_else(||error("Terminal disabled"))?).await;
+                                        }
                                         let stream=tokio::time::timeout(TIMEOUT,TcpStream::connect((std::net::Ipv4Addr::LOCALHOST,connection.port))).await.map_err(|_|error("Local connection timed out"))??;
-                                        let socket=socket(&root,&format!("/api/v2/workspaceagents/me/connections/{id}"),"Coder-Agent-Token",&token).await?;
-                                        let (read,write)=stream.into_split();bridge(socket,read,write).await
+                                        let (read,write)=stream.into_split();
+                                        if let Some(remote)=connection.wireguard {
+                                            let key=wireguard::Key::new();let public=key.public();
+                                            let socket=socket(&root,&format!("/api/v2/workspaceagents/me/connections/{id}?key={public}"),"Coder-Agent-Token",&token).await?;
+                                            wireguard::bridge(socket,key,&remote,false,read,write).await
+                                        }else{
+                                            let socket=socket(&root,&format!("/api/v2/workspaceagents/me/connections/{id}"),"Coder-Agent-Token",&token).await?;
+                                            bridge(socket,read,write).await
+                                        }
                                     }.await;
                                     (id,result)
                                 });
