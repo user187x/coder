@@ -11,6 +11,7 @@ pub(crate) struct Api {
     client: Client,
     pub backend: Url,
     pub origin: Url,
+    pub full_application: bool,
 }
 
 impl Api {
@@ -24,6 +25,7 @@ impl Api {
             client,
             backend,
             origin,
+            full_application: true,
         })
     }
 

@@ -33,7 +33,7 @@ pub(crate) fn page(title: &str, user: Option<&User>, api: Option<&Api>, body: Ma
                 main id="main" { (body) }
                 footer {
                     span { "Coder workspace dashboard" }
-                    @if let Some(api) = api {
+                    @if let Some(api) = api.filter(|api| api.full_application) {
                         a href=(api.external(&[])) { "Open full application" }
                     }
                 }
@@ -67,6 +67,7 @@ pub(crate) fn login(api: &Api, auth: &AuthMethods, email: &str, message: Option<
         Some(api),
         html! {
             section.login {
+                a.back href="/setup" { "First-time setup" }
                 p.eyebrow { "YOUR DEVELOPMENT ENVIRONMENT" }
                 h1 { "Welcome back" }
                 p.muted { "Sign in to your Coder deployment." }
@@ -97,7 +98,31 @@ pub(crate) fn login(api: &Api, auth: &AuthMethods, email: &str, message: Option<
                         button type="submit" { "Use token" }
                     }
                 }
-                p.muted { "For SSO, first sign in through the " a href=(api.external(&["login"])) { "full application" } "." }
+            @if api.full_application { p.muted { "For SSO, first sign in through the " a href=(api.external(&["login"])) { "full application" } "." } }
+            }
+        },
+    )
+}
+
+pub(crate) fn setup(api: &Api, values: &HashMap<String, String>, message: Option<&str>) -> Markup {
+    page(
+        "Initial setup",
+        None,
+        Some(api),
+        html! {
+            section.login {
+                p.eyebrow { "WELCOME TO CODER" } h1 { "Create your first account" }
+                p.muted { "This account administers the deployment. Setup closes after the first account is created." }
+                (alert(message))
+                form.stack method="post" action="/setup" {
+                    @for (field, label, kind) in [("email", "Email", "email"), ("username", "Username", "text"), ("name", "Full name", "text")] {
+                        label for=(field) { (label) }
+                        input id=(field) name=(field) type=(kind) value=(values.get(field).map(String::as_str).unwrap_or_default()) required[field != "name"];
+                    }
+                    label for="password" { "Password" }
+                    input id="password" name="password" type="password" minlength="12" maxlength="1024" autocomplete="new-password" required;
+                    button.primary type="submit" { "Create account" }
+                }
             }
         },
     )
@@ -204,7 +229,7 @@ pub(crate) fn workspace(
                         "starting" | "pending" | "stopping" => { (action(&w.id, "cancel", "Cancel build")) }
                         _ => {}
                     }
-                    a.button.primary href=(&full) { "Open workspace" }
+                @if api.full_application { a.button.primary href=(&full) { "Open workspace" } }
                 }
             }
             (alert(message))
@@ -221,7 +246,11 @@ pub(crate) fn workspace(
                     }
                 }
                 @if w.latest_build.resources.is_empty() { p.muted { "No resources reported for this build." } }
+            @if api.full_application {
                 p.muted { "Open the workspace for application links, the live terminal, and IDE connections." }
+            } @else {
+                p.muted { "Terminal, workspace application, and IDE connections are not yet implemented in the Rust core." }
+            }
             }
             section.panel {
                 div.heading.small { h2 { "Build logs" } span.muted { "Build #" (w.latest_build.build_number) } }
@@ -292,7 +321,7 @@ pub(crate) fn template(api: &Api, user: &User, t: &Template) -> Markup {
             }
             @if t.deprecated { (alert(Some(&t.deprecation_message))) }
             section.panel { h2 { "Template details" } p { "Name: " (t.name) } p { "Organization: " (t.organization_name) }
-                a href=(api.external(&["templates", &t.organization_name, &t.name])) { "Open template documentation and settings" }
+            @if api.full_application { a href=(api.external(&["templates", &t.organization_name, &t.name])) { "Open template documentation and settings" } }
             }
         },
     )

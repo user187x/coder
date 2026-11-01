@@ -42,6 +42,43 @@ pub(crate) struct LoginForm {
     accept_terms: String,
 }
 
+pub(crate) async fn setup(State(api): State<Api>, headers: HeaderMap) -> Result {
+    let first: Result<Value> = api.get(&headers, &["users", "first"], &[]).await;
+    match first {
+        Ok(_) => Ok(Redirect::to("/login").into_response()),
+        Err(error) if error.status == StatusCode::NOT_FOUND => {
+            Ok(crate::html(views::setup(&api, &HashMap::new(), None)))
+        }
+        Err(error) => Err(error),
+    }
+}
+
+pub(crate) async fn create_first_user(
+    State(api): State<Api>,
+    headers: HeaderMap,
+    Form(mut values): Form<HashMap<String, String>>,
+) -> Result {
+    let password = values.remove("password").unwrap_or_default();
+    let field = |name: &str| values.get(name).map(String::as_str).unwrap_or_default();
+    let result: Result<Value> = api.send(&HeaderMap::new(), Method::POST, &["users", "first"],
+        &json!({"email":field("email"), "username":field("username"), "name":field("name"), "password":password})).await;
+    if let Err(error) = result {
+        return Ok((
+            error.status,
+            crate::html(views::setup(&api, &values, Some(&error.message))),
+        )
+            .into_response());
+    }
+    let login = LoginForm {
+        method: "password".into(),
+        email: field("email").into(),
+        password,
+        session_token: String::new(),
+        accept_terms: "yes".into(),
+    };
+    sign_in(State(api), headers, Form(login)).await
+}
+
 pub(crate) async fn sign_in(
     State(api): State<Api>,
     headers: HeaderMap,

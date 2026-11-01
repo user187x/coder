@@ -23,23 +23,69 @@ const COOKIE_NAME: &str = "coder_ui_session";
 /// The browser origin is also the allowlist for form submissions. Configure it
 /// to the external HTTPS origin when running behind a TLS reverse proxy.
 pub fn router(backend: &str, browser_origin: &str) -> Result<Router, Box<dyn std::error::Error>> {
-    let state = Api::new(root_url(backend)?, root_url(browser_origin)?)?;
+    build_router(backend, browser_origin, true)
+}
+
+/// Builds the UI for the Rust core, without links to unimplemented Go pages.
+pub fn integrated_router(
+    backend: &str,
+    browser_origin: &str,
+) -> Result<Router, Box<dyn std::error::Error>> {
+    build_router(backend, browser_origin, false)
+}
+
+fn build_router(
+    backend: &str,
+    browser_origin: &str,
+    full_application: bool,
+) -> Result<Router, Box<dyn std::error::Error>> {
+    let mut state = Api::new(root_url(backend)?, root_url(browser_origin)?)?;
+    state.full_application = full_application;
     Ok(Router::new()
         .route("/", get(|| async { Redirect::to("/workspaces") }))
         .route("/login", get(handlers::login).post(handlers::sign_in))
+        .route(
+            "/setup",
+            get(handlers::setup).post(handlers::create_first_user),
+        )
         .route("/logout", post(handlers::sign_out))
         .route("/workspaces", get(handlers::workspaces))
         .route("/workspaces/{id}", get(handlers::workspace))
         .route("/workspaces/{id}/actions", post(handlers::workspace_action))
-        .route("/workspaces/{id}/delete", get(handlers::delete_workspace).post(handlers::confirm_delete))
+        .route(
+            "/workspaces/{id}/delete",
+            get(handlers::delete_workspace).post(handlers::confirm_delete),
+        )
         .route("/templates", get(handlers::templates))
         .route("/templates/{id}", get(handlers::template))
-        .route("/templates/{id}/workspace", get(handlers::new_workspace).post(handlers::create_workspace))
-        .route("/settings/account", get(handlers::account).post(handlers::save_account))
-        .route("/settings/secrets", get(handlers::secrets).post(handlers::create_secret))
+        .route(
+            "/templates/{id}/workspace",
+            get(handlers::new_workspace).post(handlers::create_workspace),
+        )
+        .route(
+            "/settings/account",
+            get(handlers::account).post(handlers::save_account),
+        )
+        .route(
+            "/settings/secrets",
+            get(handlers::secrets).post(handlers::create_secret),
+        )
         .route("/users", get(handlers::users))
-        .route("/style.css", get(|| async { ([(header::CONTENT_TYPE, "text/css; charset=utf-8")], include_str!("style.css")) }))
-        .fallback(|| async { UiError::new(StatusCode::NOT_FOUND, "This page has not been ported. Open the full Coder application for advanced features.") })
+        .route(
+            "/style.css",
+            get(|| async {
+                (
+                    [(header::CONTENT_TYPE, "text/css; charset=utf-8")],
+                    include_str!("style.css"),
+                )
+            }),
+        )
+        .fallback(|| async {
+            UiError::new(
+                StatusCode::NOT_FOUND,
+                "This page is not available in the Rust UI.",
+            )
+        })
         .layer(DefaultBodyLimit::max(64 * 1024))
         .layer(middleware::from_fn_with_state(state.clone(), boundary))
         .with_state(state))

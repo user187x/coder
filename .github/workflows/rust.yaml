@@ -22,6 +22,22 @@ jobs:
     permissions:
       contents: read
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: coder_rust_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      CODER_TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/coder_rust_test?sslmode=disable
     defaults:
       run:
         working-directory: rust
@@ -33,3 +49,4 @@ jobs:
       - run: cargo +${{ matrix.rust }} fmt --all --check
       - run: cargo +${{ matrix.rust }} clippy --workspace --locked --all-targets -- -D warnings
       - run: cargo +${{ matrix.rust }} test --workspace --locked
+      - run: cargo +${{ matrix.rust }} test -p coder-server --test control_plane --locked -- --ignored

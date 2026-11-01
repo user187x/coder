@@ -1,0 +1,14 @@
+DROP TABLE coder_rust.secrets;
+DROP TABLE coder_rust.provisioner_keys;
+DROP TABLE coder_rust.build_logs;
+ALTER TABLE coder_rust.workspaces DROP CONSTRAINT latest_build_fk;
+DROP TABLE coder_rust.builds;
+DROP TABLE coder_rust.workspaces;
+ALTER TABLE coder_rust.templates DROP CONSTRAINT active_version_fk;
+DROP TABLE coder_rust.template_versions;
+DROP TABLE coder_rust.templates;
+DROP TABLE coder_rust.login_limits;
+DROP TABLE coder_rust.sessions;
+DROP TABLE coder_rust.memberships;
+DROP TABLE coder_rust.organizations;
+DROP TABLE coder_rust.users;
