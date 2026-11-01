@@ -2,3 +2,4 @@
 /coder-provisioner-recovery/
 !/.vscode/extensions.json
 !/.vscode/settings.json
+/dist/

@@ -4,12 +4,12 @@ on:
   pull_request:
     paths:
       - "rust/**"
-      - ".github/workflows/rust.yaml"
+      - ".github/workflows/rust*.yaml"
   push:
     branches: [main]
     paths:
       - "rust/**"
-      - ".github/workflows/rust.yaml"
+      - ".github/workflows/rust*.yaml"
   workflow_dispatch:
 
 permissions: {}
@@ -37,6 +37,7 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     env:
+      CODER_TEST_ALTERNATE_IAC_BINARY: ${{ runner.temp }}/tofu
       CODER_TEST_TERRAFORM_BINARY: ${{ runner.temp }}/terraform
       CODER_TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/coder_rust_test?sslmode=disable
     defaults:
@@ -56,4 +57,19 @@ jobs:
           curl --fail --silent --show-error --location --output "$RUNNER_TEMP/terraform.zip" https://releases.hashicorp.com/terraform/1.13.5/terraform_1.13.5_linux_amd64.zip
           echo "0dbe3fcc268eb670801af6a6456799d1ae26e72e73797f6c6167e18aafd1fd9a  $RUNNER_TEMP/terraform.zip" | sha256sum --check
           unzip -j "$RUNNER_TEMP/terraform.zip" terraform -d "$RUNNER_TEMP"
+      - name: Install OpenTofu for interoperability tests
+        run: |
+          curl --fail --silent --show-error --location --output "$RUNNER_TEMP/tofu.zip" https://github.com/opentofu/opentofu/releases/download/v1.10.6/tofu_1.10.6_linux_amd64.zip
+          echo "15b7bed76420b50da3e121769c43341df8cd57d751ca14e6dbe9c850124c6dac  $RUNNER_TEMP/tofu.zip" | sha256sum --check
+          unzip -j "$RUNNER_TEMP/tofu.zip" tofu LICENSE -d "$RUNNER_TEMP"
       - run: cargo +${{ matrix.rust }} test -p coder-server --test infrastructure --locked -- --ignored
+      - run: cargo +${{ matrix.rust }} test -p coder-server --test networking --locked -- --ignored
+      - name: Exercise the embedded engine through real infrastructure jobs
+        env:
+          CODER_EMBEDDED_ENGINE_KIND: opentofu
+          CODER_EMBEDDED_ENGINE_PATH: ${{ runner.temp }}/tofu
+          CODER_EMBEDDED_ENGINE_LICENSE_PATH: ${{ runner.temp }}/LICENSE
+          CODER_TEST_USE_EMBEDDED_ENGINE: "1"
+        run: |
+          export CODER_EMBEDDED_ENGINE_SHA256="$(sha256sum "$RUNNER_TEMP/tofu" | cut -d ' ' -f 1)"
+          cargo +${{ matrix.rust }} test -p coder-server --test infrastructure --locked -- --ignored

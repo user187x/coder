@@ -3,9 +3,12 @@
 mod auth;
 mod catalog;
 mod jobs;
+mod network;
+mod runner;
 mod secrets;
 mod state;
 mod workspaces;
+pub use runner::run;
 
 use axum::{
     Json, Router,
@@ -23,6 +26,7 @@ use uuid::Uuid;
 #[derive(Clone)]
 pub(crate) struct App {
     pool: PgPool,
+    broker: Arc<network::Broker>,
     hashes: Arc<Semaphore>,
     secret_key: Option<[u8; 32]>,
 }
@@ -68,11 +72,24 @@ pub fn encryption_key(value: &str) -> std::result::Result<[u8; 32], &'static str
 /// Builds the JSON API. Authentication uses session headers, not browser cookies.
 pub fn api(pool: PgPool, secret_key: Option<[u8; 32]>) -> Router {
     let app = App {
+        broker: Arc::new(network::Broker::default()),
         pool,
         secret_key,
         hashes: Arc::new(Semaphore::new(4)),
     };
     Router::new()
+        .route(
+            "/api/v2/workspaces/{id}/agent",
+            get(network::inspect)
+                .post(network::register)
+                .delete(network::revoke),
+        )
+        .route("/api/v2/workspaces/{id}/connect", get(network::connect))
+        .route("/api/v2/workspaceagents/me/listen", get(network::listen))
+        .route(
+            "/api/v2/workspaceagents/me/connections/{id}",
+            get(network::attach),
+        )
         .route("/healthz", get(|| async { "ok" }))
         .route("/api/v2/users/first", get(auth::first).post(auth::setup))
         .route(

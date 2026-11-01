@@ -250,7 +250,7 @@ pub(crate) fn workspace(
             @if api.full_application {
                 p.muted { "Open the workspace for application links, the live terminal, and IDE connections." }
             } @else {
-                p.muted { "Terminal, workspace application, and IDE connections are not yet implemented in the Rust core." }
+                p.muted { "After installing a workspace agent, connect SSH or forward application ports with the Rust CLI: " code { "coder connect " (w.id) " 22" } }
             }
             }
             section.panel {

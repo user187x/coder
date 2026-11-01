@@ -16,7 +16,14 @@ use tokio::{process::Command, sync::watch, time::Instant};
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
+struct AgentSpec {
+    ports: std::collections::BTreeSet<u16>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Spec {
+    agent: Option<AgentSpec>,
     driver: String,
     files: BTreeMap<String, String>,
     #[serde(default)]
@@ -88,6 +95,11 @@ fn spec(job: &Job) -> Result<Spec, Error> {
         return Err(Error::Protocol(
             "Terraform templates require 1-32 files totaling at most 64 KiB.",
         ));
+    }
+    if let Some(agent) = &spec.agent {
+        if agent.ports.is_empty() || agent.ports.len() > 16 || agent.ports.contains(&0) {
+            return Err(Error::Protocol("Allow 1-16 nonzero agent ports."));
+        }
     }
     for name in spec.files.keys() {
         if name == ".terraform.lock.hcl" {
@@ -205,9 +217,15 @@ impl Worker {
     ) -> Result<Vec<Value>, Error> {
         let spec = spec(job)?;
         let variables = variables(job, &spec)?;
-        let dir = tempfile::Builder::new()
-            .prefix(&format!("work-{}-{}-", job.workspace_id, job.id))
-            .tempdir_in(&self.recovery)?;
+        let mut builder = tempfile::Builder::new();
+        let prefix = format!("work-{}-{}-", job.workspace_id, job.id);
+        builder.prefix(&prefix);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            builder.permissions(std::fs::Permissions::from_mode(0o700));
+        }
+        let dir = builder.tempdir_in(&self.recovery)?;
         let mut directory = Directory {
             dir: Some(dir),
             preserve: false,
@@ -226,6 +244,18 @@ impl Worker {
             &serde_json::to_vec(&variables)
                 .map_err(|_| Error::Protocol("Invalid Terraform variables."))?,
         )?;
+        // Use a job-local CLI config so user-global configuration cannot override the backend/mirror policy.
+        let cli = if let Some(mirror) = &self.mirror {
+            let path = mirror
+                .to_str()
+                .ok_or(Error::Config("Provider mirror path must be UTF-8."))?;
+            let quoted = serde_json::to_string(&path.replace("${", "$${").replace("%{", "%%{"))
+                .map_err(|_| Error::Config("Invalid mirror path."))?;
+            format!("provider_installation {{ filesystem_mirror {{ path = {quoted} }} }}\n")
+        } else {
+            "provider_installation { direct {} }\n".into()
+        };
+        write_private(&path.join("coder.tfrc"), cli.as_bytes())?;
         let had_state = !snapshot.state.is_null();
         if had_state {
             write_private(
@@ -380,9 +410,14 @@ async fn command(
         .current_dir(path)
         .env_clear()
         .envs(std::env::vars_os().filter(|(name, _)| name.to_str().is_some_and(inherited)))
+        .env("TF_CLI_CONFIG_FILE", path.join("coder.tfrc"))
         .env("TF_IN_AUTOMATION", "1")
         .env("TF_INPUT", "0")
         .env("CHECKPOINT_DISABLE", "1")
+        .env(
+            "TF_VAR_coder_agent_token",
+            job.agent["token"].as_str().unwrap_or(""),
+        )
         .env("TF_VAR_coder_workspace_id", job.workspace_id.to_string())
         .env(
             "TF_VAR_coder_organization_id",

@@ -97,6 +97,8 @@ impl Api {
 
 #[derive(Deserialize)]
 pub(crate) struct Job {
+    #[serde(default)]
+    pub agent: Value,
     pub id: Uuid,
     pub organization_id: Uuid,
     pub workspace_id: Uuid,

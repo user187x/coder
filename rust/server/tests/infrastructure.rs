@@ -134,6 +134,7 @@ async fn real_terraform_start_stop_delete_and_state_recovery() {
         "../../provisioner/examples/terraform-template.json"
     ))
     .unwrap();
+    definition["provisioner_spec"]["agent"] = json!({"ports":[22]});
     definition["name"] = json!(format!("terraform-{suffix}"));
     let source = definition["provisioner_spec"]["files"]["main.tf"]
         .as_str()
@@ -159,13 +160,23 @@ async fn real_terraform_start_stop_delete_and_state_recovery() {
         .expect("Set CODER_TEST_TERRAFORM_BINARY to a real Terraform executable");
     let recovery = tempfile::tempdir().unwrap();
     let (_shutdown, stopped) = watch::channel(false);
-    let worker = Worker::new(
-        &base,
-        key.into(),
-        binary.clone().into(),
-        recovery.path().join("worker-one"),
-    )
-    .unwrap();
+    let worker = if std::env::var_os("CODER_TEST_USE_EMBEDDED_ENGINE").is_some() {
+        Worker::with_engine(
+            &base,
+            key.into(),
+            coder_provisioner::engine::Engine::from_environment().unwrap(),
+            recovery.path().join("worker-one"),
+        )
+        .unwrap()
+    } else {
+        Worker::new(
+            &base,
+            key.into(),
+            binary.clone().into(),
+            recovery.path().join("worker-one"),
+        )
+        .unwrap()
+    };
     assert!(worker.run_once(stopped.clone()).await.unwrap());
     let (_, running) = call(
         &client,
@@ -212,7 +223,8 @@ async fn real_terraform_start_stop_delete_and_state_recovery() {
     assert!(meta["revision"].as_i64().unwrap() >= 2);
     assert_eq!(meta["recovery_required"], false);
 
-    // A new worker and empty local directory must restore state from PostgreSQL.
+    // A new worker and optionally a different engine restore the same durable state.
+    let binary = std::env::var_os("CODER_TEST_ALTERNATE_IAC_BINARY").unwrap_or(binary);
     let worker = Worker::new(
         &base,
         key.into(),
@@ -220,6 +232,10 @@ async fn real_terraform_start_stop_delete_and_state_recovery() {
         recovery.path().join("worker-two"),
     )
     .unwrap();
+    let mirror = tempfile::tempdir().unwrap();
+    let worker = worker
+        .with_provider_mirror(mirror.path().to_owned())
+        .unwrap();
     for (transition, status, count) in [("stop", "stopped", 0), ("start", "running", 1)] {
         assert_eq!(
             call(

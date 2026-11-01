@@ -112,10 +112,11 @@ pub(crate) async fn claim(
     } else {
         json!({})
     };
+    let agent = crate::network::bootstrap(&app, &mut tx, &build, &spec).await?;
     tx.commit().await?;
     Ok(Json(
         json!({"id":build.id,"organization_id":org,"workspace_id":build.workspace_id,"transition":build.transition,"template_version_id":build.template_version_id,
-        "parameters":build.parameters,"parameter_schema":parameter_schema,"provisioner_spec":spec,"environment":environment,"lease_token":token,"lease_seconds":300}),
+        "agent":agent,"parameters":build.parameters,"parameter_schema":parameter_schema,"provisioner_spec":spec,"environment":environment,"lease_token":token,"lease_seconds":300}),
     ))
 }
 

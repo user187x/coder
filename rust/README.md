@@ -1,11 +1,11 @@
 # Coder Rust migration
 
-The Cargo workspace contains the shared `coder-core` library, the `coder-ui`
-dashboard, a runnable `coder-server` control plane, and a `coder-provisioner`
-Terraform worker. The server runs the Rust
-UI and API together and stores state in PostgreSQL. The implemented flows no
-longer require the Go server. This remains an initial migration, with the
-limitations listed below.
+The Cargo workspace builds a unified `coder` executable for the Rust dashboard,
+PostgreSQL control plane, infrastructure worker, outbound workspace agent, and
+TCP/SSH forwarding client. The worker can embed either Terraform or OpenTofu;
+no engine download is needed at runtime. The shared validation library remains
+dependency-free. This is a working migration of the implemented flows, with
+the compatibility limits listed below.
 
 ## Open in an IDE
 
@@ -22,6 +22,43 @@ cargo test --workspace --locked
 cargo fmt --all --check
 cargo clippy --workspace --locked --all-targets -- -D warnings
 ```
+
+## Build a bundled executable
+
+For a small development build, run `cargo build --locked -p coder`. No engine
+is embedded by default. To distribute one executable with an engine, first
+obtain a platform-matching Terraform or OpenTofu executable and its license
+from an official release. Verify the release archive against the published
+checksum, then pass the executable's SHA-256 to:
+
+```sh
+bash scripts/build-bundle.sh opentofu /absolute/path/to/tofu VERIFIED_EXECUTABLE_SHA256 /absolute/path/to/LICENSE
+```
+
+Use `terraform` as the first argument to embed Terraform instead. The build
+rejects a mismatched checksum and includes the engine license. It produces
+`dist/coder-opentofu.tar.gz` or `dist/coder-terraform.tar.gz`. The archive contains
+`coder`, notices, this guide, and the example template. The GitHub Actions
+`rust-bundle` workflow performs the same build for Linux AMD64 using pinned,
+checksum-verified releases. The engine is extracted into a private temporary
+directory while in use and removed on normal shutdown. A crash can leave that
+engine file behind; it contains no workspace credentials.
+
+Run the packaged roles with the same executable:
+
+```sh
+./coder server
+./coder worker
+./coder agent
+./coder engine version
+./coder engine-license
+```
+
+Each role runs as a separate process. The server still requires PostgreSQL;
+remote HTTPS requires a TLS reverse proxy that supports WebSocket upgrades.
+Providers, workspace services, and remote modules are not embedded. This is a
+bundled application runtime, not a rewrite of the Terraform/OpenTofu engines
+in Rust or a replacement for every feature of the original application.
 
 ## Run the Rust application
 
@@ -69,9 +106,9 @@ The core implements:
 
 ## Run infrastructure provisioning
 
-Install Terraform 1.4 or later on a Unix worker host. Terraform 1.13.5 is tested.
-The Rust worker invokes the Terraform CLI; provider plugins remain Terraform
-plugins. Set `CODER_ENCRYPTION_KEY` on the server before creating infrastructure.
+Use an embedded engine, or install Terraform 1.4+ / OpenTofu on a Unix worker
+host. Terraform 1.13.5 and OpenTofu 1.10.6 are tested. The Rust worker invokes
+the selected engine CLI; provider plugins remain engine-managed executables. Set `CODER_ENCRYPTION_KEY` on the server before creating infrastructure.
 
 Create an organization-scoped key using an administrator session:
 `POST /api/v2/organizations/{organization_id}/provisionerkeys`. The response's
@@ -97,7 +134,24 @@ parameter. The example uses Terraform's built-in `terraform_data` resource,
 so it needs no cloud account or external provider. Start creates one resource,
 stop removes it, and delete destroys the remaining state.
 
-A Terraform spec accepts `driver`, `files`, and optional `variables`. Files must
+To swap an installed engine, set `CODER_IAC_BINARY=/absolute/path/to/tofu`
+or select `CODER_IAC_ENGINE=opentofu`. An explicit executable takes precedence
+over the embedded engine. Selecting a different engine kind uses its PATH
+command; it does not silently run the other embedded engine. `provisioner_spec`
+continues to use `driver: "terraform"` for both engines. The queue, lifecycle,
+and encrypted state protocol are shared. Back up state and verify provider,
+lockfile, state-format, and template compatibility before changing engines for
+existing cloud infrastructure; the tested built-in-resource example does not
+establish universal compatibility.
+
+Set `CODER_PROVIDER_MIRROR` to a prepared engine-compatible provider mirror to
+install providers locally without registry fallback. A private job-local CLI
+configuration isolates worker settings from the user's global configuration.
+The mirror does not vendor remote modules or remove a provider's need to reach
+its cloud API. Ship required modules/providers separately for air-gapped use.
+
+A Terraform spec accepts `driver`, `files`, optional `variables`, and an
+optional `agent: { "ports": [22, 3000] }` configuration. Files must
 be flat `.tf`/`.tf.json` files, plus an optional `.terraform.lock.hcl`, with at
 most 32 files and 64 KiB total source. Use the local Terraform backend; external
 backends and Terraform Cloud are unsupported. Rich parameters become typed
@@ -107,7 +161,11 @@ destroy plan. Templates define stop behavior; the worker cannot infer how an
 arbitrary provider should shut a resource down. Names beginning with `coder_`
 are reserved. Optional `coder_workspace_id` and `coder_organization_id` variables
 are available, and `coder_environment` receives the owner's enabled secrets as
-a sensitive map. Cloud credentials belong to the worker environment.
+a sensitive map. When `agent` is configured, declare sensitive string variable
+`coder_agent_token`; the worker supplies a stable, encrypted workspace credential
+on every transition. Use it to configure `CODER_AGENT_TOKEN` in the deployed
+agent. The template must install and launch the platform-matching agent binary;
+adding the `agent` block alone does not create a machine or start an agent. Cloud credentials belong to the worker environment.
 
 The worker renews leases, applies saved plans, and checkpoints AES-256-GCM state
 in PostgreSQL with workspace/organization authenticated context. Each run uses a
@@ -208,19 +266,83 @@ with `lease_token`, `revision`, `state`, and `dirty`. Each write increments the
 revision; completion requires matching `state_revision` and a clean checkpoint
 for success. These routes use the same `/api/v2/provisioner` prefix.
 
-Cloud and Docker resource providers have not been exercised. SSH, workspace
-agents, and WireGuard networking are not implemented. Workspaces remain pending
+Cloud and Docker resource providers have not been exercised. The outbound Rust
+agent provides relayed TCP, including SSH transport to an existing SSH service.
+WireGuard, direct peer-to-peer networking, and the Go agent protocol are not implemented. Workspaces remain pending
 until a suitable worker executes their jobs. The JSON worker protocol is not the existing Go DRPC protocol.
 Full RBAC, audit, OAuth/SSO, scheduling, quotas, enterprise features, and in-place
 Go data migration remain unported. This is not a production-compatible Coder
 replacement.
+
+## Connect a workspace
+
+Install `coder` inside the workspace and on the client. The workspace's SSH
+service or application must already listen on IPv4 loopback or all IPv4
+interfaces. The agent never accepts inbound connections and never connects to
+arbitrary destination hosts. Both server and agent enforce explicit port lists.
+
+For a manually installed agent, obtain an owner session token from
+`POST /api/v2/users/login`, then register allowed ports on the client:
+
+```sh
+export CODER_URL=https://coder.example.com
+export CODER_SESSION_TOKEN='<owner session token>'
+./coder register WORKSPACE_UUID 22,3000
+```
+
+Registration prints a one-time `token`; keep that response private. Install the
+token and the same permitted ports in the workspace's service environment:
+
+```sh
+export CODER_URL=https://coder.example.com
+export CODER_AGENT_TOKEN='<registered token>'
+export CODER_AGENT_PORTS=22,3000
+./coder agent
+```
+
+A template with an `agent` configuration can install this environment using
+`var.coder_agent_token` instead of manual registration. The token is stored as a
+hash for authentication and encrypted for worker bootstrap. Rotating manual
+registration invalidates the prior credential. Revoke it with
+`DELETE /api/v2/workspaces/{id}/agent`; inspect connection status and allowed
+ports with `GET` on the same path. Owner metadata APIs never return the token.
+
+On the client, forward a workspace application to a local loopback listener:
+
+```sh
+./coder forward WORKSPACE_UUID 3000 127.0.0.1:13000
+```
+
+For SSH, use the stdio transport as a ProxyCommand, keeping the usual SSH
+host-key verification and user authentication:
+
+```sh
+ssh -o 'ProxyCommand=/absolute/path/to/coder connect WORKSPACE_UUID 22' user@workspace
+```
+
+The SSH command inherits `CODER_URL` and `CODER_SESSION_TOKEN`. This transports
+SSH to an existing workspace SSH server; it does not install sshd, manage SSH
+keys, or implement a browser terminal. Forwarded application traffic terminates
+at the relay; use SSH or application TLS when end-to-end encryption is required.
+The relay supports independent TCP half-close, bounded frames/backpressure, and
+32 simultaneous sessions per workspace (1024 per server). It rechecks sessions,
+organization access, port permissions, agent credentials, and workspace state
+every two seconds; a blocked socket write can add its ten-second timeout to
+revocation latency. Stops, deletes, recovery requirements, logout, and key
+revocation close access. Clients reconnect explicitly after a network failure.
+
+Run one Rust server instance for this relay. Connection tickets and sockets are
+process-local; multi-server routing and distributed relay state are not
+implemented. Remote deployments require WSS through the TLS reverse proxy.
+There is no UDP/WireGuard, STUN/DERP, transparent VPN, or direct connection mode.
 
 ## Database integration tests
 
 ```sh
 cargo test --workspace --locked
 cargo test -p coder-server --test control_plane --locked -- --ignored
-CODER_TEST_TERRAFORM_BINARY=/absolute/path/to/terraform cargo test -p coder-server --test infrastructure --locked -- --ignored
+CODER_TEST_TERRAFORM_BINARY=/absolute/path/to/terraform CODER_TEST_ALTERNATE_IAC_BINARY=/absolute/path/to/tofu cargo test -p coder-server --test infrastructure --locked -- --ignored
+cargo test -p coder-server --test networking --locked -- --ignored
 ```
 
 The integration commands require `CODER_TEST_DATABASE_URL` pointing to an **empty,
@@ -232,7 +354,11 @@ HTTP-service restart persistence, and real Rust UI sign-in. The infrastructure
 test executes the example template with real Terraform, checks start/stop/delete
 across fresh worker directories, encrypted state, stale lease rejection, dirty
 state blocking, and administrator recovery. It uses built-in resources and
-creates no cloud infrastructure. Local verification
+creates no cloud infrastructure. The networking test runs real WebSocket and TCP
+connections through the outbound agent, including concurrent transfers,
+half-close, cross-user rejection, credential revocation, logout, and single-use
+connection tickets. CI also exercises the embedded OpenTofu engine through
+infrastructure jobs. Local verification
 also supports an embedded PostgreSQL test adapter with
 `CODER_TEST_SINGLE_CONNECTION=1`; this adapter does not establish native
 PostgreSQL concurrency or production load behavior.
@@ -314,11 +440,12 @@ porting and verifying all of these areas before switching the runtime:
 
 - Remaining API models/routes, OAuth, fine-grained RBAC, and audit.
 - Provider compatibility, scheduling, import workflows, and event streams.
-- Workspace agents, SSH, PTYs, tunnels, WireGuard, and workspace proxies.
+- Go-compatible agent/SSH protocols, PTYs, WireGuard, direct peer connections,
+  workspace proxies, and distributed relay coordination.
 - CLI commands, SDK transport, configuration, and credential storage.
 - Remaining browser UI routes, live interactions, and deployment customizations.
 - Enterprise features, custom airgap tools, and native monitoring utilities.
-- Packaging, installation, containers, Helm, upgrades, and release automation.
+- Cross-platform packaging, installation, containers, Helm, upgrades, and release automation.
 - Compatibility and end-to-end tests across supported operating systems.
 
 Keep the existing SQL migrations, protocol schemas, assets, and fixtures as

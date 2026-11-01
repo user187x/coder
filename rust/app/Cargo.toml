@@ -1,0 +1,17 @@
+[package]
+name = "coder"
+version = "1.5.2"
+edition = "2024"
+rust-version = "1.85"
+license = "AGPL-3.0-only"
+description = "Unified Rust control plane, infrastructure worker, and workspace networking CLI"
+publish = false
+
+[dependencies]
+coder-server = { path = "../server" }
+coder-provisioner = { path = "../provisioner" }
+coder-network = { path = "../network" }
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+
+[lints.rust]
+unsafe_code = "forbid"

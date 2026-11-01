@@ -1,7 +1,10 @@
 //! Terraform execution with renewable job leases and encrypted remote state.
 
 mod api;
+pub mod engine;
+mod runner;
 mod terraform;
+pub use runner::run;
 
 use api::{Api, Job, Snapshot};
 use serde_json::{Value, json};
@@ -50,6 +53,8 @@ impl From<std::io::Error> for Error {
 pub struct Worker {
     api: Api,
     binary: PathBuf,
+    _engine: Option<engine::Engine>,
+    mirror: Option<PathBuf>,
     recovery: PathBuf,
     timeout: Duration,
 }
@@ -76,9 +81,31 @@ impl Worker {
         Ok(Self {
             api: Api::new(server, token)?,
             binary,
+            _engine: None,
+            mirror: None,
             recovery,
             timeout: Duration::from_secs(1800),
         })
+    }
+    /// Constructs a worker from a replaceable or bundled engine.
+    pub fn with_engine(
+        server: &str,
+        token: String,
+        engine: engine::Engine,
+        recovery: PathBuf,
+    ) -> Result<Self, Error> {
+        let mut worker = Self::new(server, token, engine.path().to_owned(), recovery)?;
+        worker._engine = Some(engine);
+        Ok(worker)
+    }
+    /// Restricts provider installation to a local filesystem mirror, without registry fallback.
+    pub fn with_provider_mirror(mut self, mirror: PathBuf) -> Result<Self, Error> {
+        let mirror = std::fs::canonicalize(mirror)?;
+        if !mirror.is_dir() {
+            return Err(Error::Config("Provider mirror must be a directory."));
+        }
+        self.mirror = Some(mirror);
+        Ok(self)
     }
     /// Sets the deadline for all Terraform phases in one job.
     pub fn with_timeout(mut self, timeout: Duration) -> Self {
