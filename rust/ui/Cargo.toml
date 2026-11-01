@@ -1,0 +1,23 @@
+[package]
+name = "coder-ui"
+version = "1.5.2"
+edition = "2024"
+rust-version = "1.85"
+license = "AGPL-3.0-only"
+description = "Rust-rendered Coder workspace dashboard"
+publish = false
+
+[dependencies]
+axum = { version = "0.8", default-features = false, features = ["form", "http1", "json", "query", "tokio"] }
+coder-core = { path = ".." }
+maud = "0.27"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["macros", "net", "rt-multi-thread", "signal"] }
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }

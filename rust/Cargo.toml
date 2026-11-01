@@ -7,6 +7,14 @@ license = "AGPL-3.0-only"
 description = "Shared Coder protocol and validation logic"
 publish = false
 
+[workspace]
+members = ["ui"]
+default-members = [".", "ui"]
+resolver = "3"
+
+[profile.release]
+strip = true
+
 [lints.rust]
 unsafe_code = "forbid"
 missing_docs = "warn"
