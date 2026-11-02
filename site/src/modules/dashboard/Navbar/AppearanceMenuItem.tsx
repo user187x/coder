@@ -1,11 +1,17 @@
-import { PaletteIcon } from "lucide-react";
+import { PaletteIcon, SlidersHorizontalIcon } from "lucide-react";
 import { useId, useState } from "react";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { DropdownMenuItem } from "#/components/DropdownMenu/DropdownMenu";
 import { AnimationsToggleItem } from "./UserDropdown/AnimationsToggleItem";
 import { ThemeToggleItem } from "./UserDropdown/ThemeToggleItem";
 
-export const AppearanceMenuItem = ({ className }: { className?: string }) => {
+export const AppearanceMenuItem = ({
+	to,
+	className,
+}: {
+	to: string;
+	className?: string;
+}) => {
 	const [expanded, setExpanded] = useState(false);
 	const id = useId();
 	const navigate = useNavigate();
@@ -23,7 +29,7 @@ export const AppearanceMenuItem = ({ className }: { className?: string }) => {
 				onContextMenu={(event) => {
 					event.preventDefault();
 					event.stopPropagation();
-					navigate("/deployment/customize");
+					navigate(to);
 				}}
 				onKeyDown={(event) => {
 					if (
@@ -32,7 +38,7 @@ export const AppearanceMenuItem = ({ className }: { className?: string }) => {
 					) {
 						event.preventDefault();
 						event.stopPropagation();
-						navigate("/deployment/customize");
+						navigate(to);
 					}
 				}}
 			>
@@ -48,6 +54,12 @@ export const AppearanceMenuItem = ({ className }: { className?: string }) => {
 				>
 					<ThemeToggleItem showDetails={false} />
 					<AnimationsToggleItem showDetails={false} />
+					<DropdownMenuItem asChild>
+						<Link to={to}>
+							<SlidersHorizontalIcon aria-hidden />
+							Personalize
+						</Link>
+					</DropdownMenuItem>
 				</div>
 			)}
 		</>

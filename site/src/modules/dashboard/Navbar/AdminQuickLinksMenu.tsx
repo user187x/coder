@@ -247,7 +247,10 @@ const QuickLinkRow: React.FC<QuickLinkRowProps> = ({
 			) : link.id === "announcement" ? (
 				<AnnouncementMenuItem className={cn("min-w-0 flex-1", itemClassName)} />
 			) : link.id === "customize" ? (
-				<AppearanceMenuItem className={cn("min-w-0 flex-1", itemClassName)} />
+				<AppearanceMenuItem
+					to={link.path}
+					className={cn("min-w-0 flex-1", itemClassName)}
+				/>
 			) : (
 				<DropdownMenuItem
 					asChild

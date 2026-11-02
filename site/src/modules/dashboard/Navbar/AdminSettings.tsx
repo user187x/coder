@@ -88,7 +88,11 @@ export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
 					) : page.id === "announcement" ? (
 						<AnnouncementMenuItem key={page.id} className={itemClassName} />
 					) : page.id === "customize" ? (
-						<AppearanceMenuItem key={page.id} className={itemClassName} />
+						<AppearanceMenuItem
+							key={page.id}
+							to={page.path}
+							className={itemClassName}
+						/>
 					) : (
 						<DropdownMenuItem key={page.id} asChild className={itemClassName}>
 							<Link to={page.path}>
