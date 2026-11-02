@@ -31,10 +31,10 @@ import { getLatencyColor } from "#/utils/latency";
 import {
 	AdminSettingsItems,
 	type AdminSettingsPermissions,
-	canViewAdminSettings,
 } from "./AdminSettings";
 import type { AdminPage } from "./adminQuickLinks";
 import { sortProxiesByLatency } from "./proxyUtils";
+import { SettingsChatPanel } from "./SettingsChatPanel";
 
 const itemStyles = {
 	default: "px-9 h-10 no-underline",
@@ -96,15 +96,11 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
 				<DropdownMenuSeparator />
 				<ProxySettingsSub proxyContextValue={proxyContextValue} />
 
-				{canViewAdminSettings(adminPermissions) && (
-					<>
-						<DropdownMenuSeparator />
-						<AdminSettingsSub
-							permissions={adminPermissions}
-							quickLinks={adminQuickLinks}
-						/>
-					</>
-				)}
+				<DropdownMenuSeparator />
+				<SettingsSub
+					permissions={adminPermissions}
+					quickLinks={adminQuickLinks}
+				/>
 				<DropdownMenuSeparator />
 				<UserSettingsSub
 					user={user}
@@ -218,16 +214,17 @@ const ProxySettingsSub: React.FC<ProxySettingsSubProps> = ({
 	);
 };
 
-type AdminSettingsSubProps = {
+type SettingsSubProps = {
 	permissions: AdminSettingsPermissions;
 	quickLinks?: readonly AdminPage[];
 };
 
-const AdminSettingsSub: React.FC<AdminSettingsSubProps> = ({
+const SettingsSub: React.FC<SettingsSubProps> = ({
 	permissions,
 	quickLinks,
 }) => {
 	const [open, setOpen] = useState(false);
+	const [chatExpanded, setChatExpanded] = useState(false);
 
 	return (
 		<Collapsible open={open} onOpenChange={setOpen}>
@@ -248,9 +245,14 @@ const AdminSettingsSub: React.FC<AdminSettingsSubProps> = ({
 			<CollapsibleContent>
 				<AdminSettingsItems
 					itemClassName={cn(itemStyles.default, itemStyles.sub)}
+					chatExpanded={chatExpanded}
+					onChatToggle={() => setChatExpanded((expanded) => !expanded)}
 					permissions={permissions}
 					quickLinks={quickLinks}
 				/>
+				{chatExpanded && (
+					<SettingsChatPanel onClose={() => setChatExpanded(false)} />
+				)}
 			</CollapsibleContent>
 		</Collapsible>
 	);

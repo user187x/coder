@@ -208,6 +208,7 @@ describe("ProxyMenu", () => {
 			);
 		expect(items.map((item) => item.textContent?.trim())).toEqual([
 			expect.stringMatching(/^Workspaces/),
+			"Chat",
 			...pages.slice(0, 2).map((page) => page.label),
 			"Organizations",
 			"Audit logs",

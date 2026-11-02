@@ -5,6 +5,7 @@ import { MemoryRouter } from "react-router";
 import { API } from "#/api/api";
 import { PlatformAPI } from "#/api/platform";
 import { getPreferredProxy } from "#/contexts/ProxyContext";
+import * as chatStore from "#/modules/platform/chat/chatStore";
 import {
 	MockPrimaryWorkspaceProxy,
 	MockProxyLatencies,
@@ -138,6 +139,40 @@ describe("NavbarView", () => {
 			within(menu).queryByRole("menuitem", { name: "Settings" }),
 		).toBeNull();
 	});
+
+	it.each([
+		{ role: "member", permissions: {}, mobile: true },
+		{ role: "user admin", permissions: { canViewUsers: true }, mobile: false },
+		{ role: "auditor", permissions: { canViewAuditLog: true }, mobile: false },
+		{ role: "owner", permissions: { canEditDeployment: true }, mobile: true },
+	])(
+		"opens and closes Settings chat for a $role without a pinned shortcut",
+		async ({ permissions, mobile }) => {
+			const setOpen = vi.spyOn(chatStore, "setChatMenuOpen");
+			vi.spyOn(chatStore, "useChatConnection").mockImplementation(() => {});
+			renderNavbar(
+				permissions,
+				"canEditDeployment" in permissions ? MockUserOwner : MockUserMember,
+			);
+			const user = userEvent.setup();
+			if (mobile) {
+				await user.click(screen.getByRole("button", { name: "Open menu" }));
+				await user.click(
+					await screen.findByRole("menuitem", {
+						name: "Settings",
+					}),
+				);
+			} else {
+				await user.click(screen.getByRole("button", { name: /Settings/ }));
+			}
+			await user.click(await screen.findByRole("menuitem", { name: "Chat" }));
+			expect(setOpen).toHaveBeenCalledWith(true);
+			await user.click(
+				screen.getByRole("button", { name: "Dismiss quick chat" }),
+			);
+			expect(setOpen).toHaveBeenLastCalledWith(false);
+		},
+	);
 
 	it("lets a member restore chat from the Settings menu", async () => {
 		const save = vi

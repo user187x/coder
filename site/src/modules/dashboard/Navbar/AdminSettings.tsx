@@ -66,6 +66,14 @@ export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
 }) => {
 	return (
 		<>
+			{!quickLinks.some((page) => page.id === "chat") && (
+				<ChatMenuItem
+					expanded={chatExpanded}
+					onToggle={onChatToggle}
+					admin={permissions.canEditDeployment}
+					className={itemClassName}
+				/>
+			)}
 			{quickLinksEditor ? (
 				<AdminQuickLinksMenu
 					chatExpanded={chatExpanded}
@@ -127,9 +135,11 @@ export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
 					</Link>
 				</DropdownMenuItem>
 			)}
-			<div ref={metricsRef} data-settings-metrics hidden={chatExpanded}>
-				<ClusterGauge />
-			</div>
+			{canViewAdminSettings(permissions) && (
+				<div ref={metricsRef} data-settings-metrics hidden={chatExpanded}>
+					<ClusterGauge />
+				</div>
+			)}
 		</>
 	);
 };
