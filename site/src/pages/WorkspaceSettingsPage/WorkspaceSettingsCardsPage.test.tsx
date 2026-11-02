@@ -387,7 +387,7 @@ describe("WorkspaceSettingsCardsPage", () => {
 			await connect(publisher, [MockPreviewParameter1]);
 			const name = await screen.findByLabelText("Workspace name");
 			await user.clear(name);
-			await user.type(name, "new-name");
+			await user.paste("new-name");
 			expect(name).toHaveValue("new-name");
 			const bar = await screen.findByTestId("save-bar");
 			expect(bar).toHaveTextContent("Saved as they are: nothing restarts.");
@@ -423,7 +423,7 @@ describe("WorkspaceSettingsCardsPage", () => {
 			await connect(publisher, [cpu("2")]);
 			const name = await screen.findByLabelText("Workspace name");
 			await user.clear(name);
-			await user.type(name, "bad!name");
+			await user.paste("bad!name");
 			await user.click(
 				within(screen.getByTestId("parameter-field-cpu")).getByRole("button", {
 					name: "4 Cores",
