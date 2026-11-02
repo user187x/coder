@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "react-query";
 import { toast } from "sonner";
 import { getErrorMessage } from "#/api/errors";
 import type {
+	DrTargetInput,
 	PersistenceCheck,
 	PersistenceFix,
 	PersistenceReport,
@@ -25,7 +26,7 @@ import {
 	CHECK_STATUS_VARIANTS,
 	worstCheckStatus,
 } from "#/modules/platform/checkStatus";
-import { DisasterRecoveryCard } from "./DisasterRecoveryCard";
+import { DisasterRecoveryCard, newDrTarget } from "./DisasterRecoveryCard";
 import { PersistenceMap } from "./PersistenceMap";
 import { ClusterSettingsCard, OperatorSetupCard } from "./PersistenceSetup";
 import { InstancesTable, StorageClassesTable } from "./PersistenceTables";
@@ -40,6 +41,9 @@ import { FIX_LABELS, fixesForSettings, fixesNeeded } from "./persistenceFixes";
  */
 export const PersistenceView: React.FC = () => {
 	const queryClient = useQueryClient();
+	const [editingTarget, setEditingTarget] = useState<DrTargetInput | null>(
+		null,
+	);
 	const [paused, setPaused] = useState(false);
 	const reportQuery = useQuery(persistenceReport(paused));
 	const report = reportQuery.data;
@@ -113,7 +117,10 @@ export const PersistenceView: React.FC = () => {
 						{getErrorMessage(reportQuery.error, "unknown error")}
 					</p>
 				) : null}
-				<PersistenceMap report={report} />
+				<PersistenceMap
+					report={report}
+					onAddTarget={() => setEditingTarget(newDrTarget("s3"))}
+				/>
 			</section>
 			{!report.facts.operator.installed && report.mode !== "external" && (
 				<OperatorSetupCard />
@@ -134,7 +141,10 @@ export const PersistenceView: React.FC = () => {
 				/>
 			)}
 			{/* Platform: copies of the database outside the cluster. */}
-			<DisasterRecoveryCard />
+			<DisasterRecoveryCard
+				editing={editingTarget}
+				onEditingChange={setEditingTarget}
+			/>
 			{report.facts.cluster && <InstancesTable report={report} />}
 			<StorageClassesTable report={report} />
 			<ConfirmDialog

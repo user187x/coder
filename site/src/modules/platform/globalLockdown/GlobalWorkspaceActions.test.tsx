@@ -2,6 +2,7 @@ import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MockWorkspace } from "#/testHelpers/entities";
 import { renderComponent as render } from "#/testHelpers/renderHelpers";
+import { MockWorkspacePowerOperation } from "#/testHelpers/workspacePower";
 import { GlobalWorkspaceActionsView } from "./GlobalWorkspaceActions";
 
 it.each([
@@ -116,3 +117,33 @@ it.each([true, false])(
 		);
 	},
 );
+
+it("clears individual or completed entries without submitting power actions", async () => {
+	const onClear = vi.fn();
+	const onRun = vi.fn();
+	const completed = {
+		...MockWorkspacePowerOperation,
+		status: "partial" as const,
+	};
+	const running = {
+		...MockWorkspacePowerOperation,
+		id: "running-operation",
+		status: "running" as const,
+	};
+	render(
+		<GlobalWorkspaceActionsView
+			workspaces={[MockWorkspace]}
+			operations={[completed, running]}
+			onRun={onRun}
+			onClear={onClear}
+		/>,
+	);
+	const user = userEvent.setup();
+	await user.click(screen.getByRole("button", { name: "Clear entry" }));
+	expect(onClear).toHaveBeenLastCalledWith([completed]);
+	await user.click(
+		screen.getByRole("button", { name: "Clear completed entries" }),
+	);
+	expect(onClear).toHaveBeenLastCalledWith([completed]);
+	expect(onRun).not.toHaveBeenCalled();
+});

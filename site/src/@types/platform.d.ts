@@ -11,6 +11,7 @@ declare global {
 	interface Window {
 		/** URL of the uploaded logo, or "" when Coder's own logo is used. */
 		__cuiLogo?: string;
+		__cuiLogoEnabled?: boolean;
 		__cuiClassification?: ClassificationSettings;
 		/** The sign-in page's title, effect and messages (Customize > Sign-in page). */
 		__cuiLoginPage?: LoginPageSettings;

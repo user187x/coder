@@ -30,8 +30,10 @@ import {
 	TableHeader,
 	TableRow,
 } from "#/components/Table/Table";
+import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { ScreenShareCard } from "#/modules/platform/screenShare/ScreenShareCard";
 import { pageTitle } from "#/utils/page";
+import { ObservabilityCard } from "./ObservabilityCard";
 import { SecurityPostureSection } from "./SecurityPostureSection";
 import { MAX_SHOWN_LINES, useWorkspaceLogs } from "./useWorkspaceLogs";
 
@@ -64,7 +66,11 @@ const startedAgo = (iso: string | null) => {
  * newest 5 MB per workspace).
  */
 const MonitoringSettingsPage: React.FC = () => {
-	const overviewQuery = useQuery(monitoring());
+	const { permissions } = useAuthenticated();
+	const overviewQuery = useQuery({
+		...monitoring(),
+		enabled: permissions.editDeploymentConfig,
+	});
 	const [filter, setFilter] = useState("");
 	const [onlyRunning, setOnlyRunning] = useState(false);
 
@@ -80,41 +86,52 @@ const MonitoringSettingsPage: React.FC = () => {
 				</SettingsHeaderDescription>
 			</SettingsHeader>
 
-			<ScreenShareCard
-				overview={overviewQuery.data}
-				error={overviewQuery.error}
-				onRetry={() => void overviewQuery.refetch()}
-			/>
-			<SecurityPostureSection />
-
-			<div className="mb-4 flex flex-wrap items-center gap-4">
-				<SearchField
-					value={filter}
-					onChange={setFilter}
-					placeholder="Filter users or workspaces"
-					aria-label="Filter users or workspaces"
-				/>
-				<div className="flex items-center gap-2">
-					<Switch
-						id="monitoring-only-running"
-						checked={onlyRunning}
-						onCheckedChange={setOnlyRunning}
+			{permissions.editDeploymentConfig && (
+				<>
+					<ScreenShareCard
+						overview={overviewQuery.data}
+						error={overviewQuery.error}
+						onRetry={() => void overviewQuery.refetch()}
 					/>
-					<Label htmlFor="monitoring-only-running">
-						Only users with running workspaces
-					</Label>
-				</div>
-			</div>
+					<SecurityPostureSection />
 
-			{overviewQuery.isLoading ? (
-				<Loader />
-			) : !overviewQuery.data ? (
-				<ErrorAlert error={overviewQuery.error} />
-			) : (
-				<UserList
-					overview={overviewQuery.data}
-					filter={filter.trim().toLowerCase()}
-					onlyRunning={onlyRunning}
+					<div className="mb-4 flex flex-wrap items-center gap-4">
+						<SearchField
+							value={filter}
+							onChange={setFilter}
+							placeholder="Filter users or workspaces"
+							aria-label="Filter users or workspaces"
+						/>
+						<div className="flex items-center gap-2">
+							<Switch
+								id="monitoring-only-running"
+								checked={onlyRunning}
+								onCheckedChange={setOnlyRunning}
+							/>
+							<Label htmlFor="monitoring-only-running">
+								Only users with running workspaces
+							</Label>
+						</div>
+					</div>
+
+					{overviewQuery.isLoading ? (
+						<Loader />
+					) : !overviewQuery.data ? (
+						<ErrorAlert error={overviewQuery.error} />
+					) : (
+						<UserList
+							overview={overviewQuery.data}
+							filter={filter.trim().toLowerCase()}
+							onlyRunning={onlyRunning}
+						/>
+					)}
+				</>
+			)}
+			{permissions.viewDeploymentConfig && (
+				<ObservabilityCard
+					scrollReady={
+						!permissions.editDeploymentConfig || !overviewQuery.isLoading
+					}
 				/>
 			)}
 		</>

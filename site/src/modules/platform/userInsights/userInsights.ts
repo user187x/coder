@@ -50,13 +50,13 @@ export const useUserInsights = (enabled: boolean) => {
 		...insightsUserLatency(params),
 		enabled,
 		retry: false,
-		refetchInterval: 5 * 60_000,
+		refetchInterval: 30_000,
 	});
 	const activity = useQuery({
 		...insightsUserActivity(params),
 		enabled,
 		retry: false,
-		refetchInterval: 5 * 60_000,
+		refetchInterval: 30_000,
 	});
 	const byUser = new Map<string, UserInsight>();
 	for (const u of latency.data?.report.users ?? []) {

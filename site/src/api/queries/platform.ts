@@ -39,7 +39,7 @@ export const dashboardAddress = () => ({
 });
 
 export const classificationKey = [...platformKey, "classification"] as const;
-const logoKey = [...platformKey, "logo"] as const;
+export const logoKey = [...platformKey, "logo"] as const;
 const myAvatarKey = [...platformKey, "avatar", "me"] as const;
 const avatarDefaultsKey = [...platformKey, "avatar", "defaults"] as const;
 export const announcementReportKey = [...platformKey, "announcements"] as const;
@@ -526,9 +526,13 @@ export const workspaceNetwork = (workspaceId: string) => ({
 	retry: false,
 });
 
-/** Admin Controls > Online Users: asked again every few seconds while the page is open. */
-export const onlineUsers = () => ({
-	queryKey: [...platformKey, "presence"] as const,
+/** Presence changes refresh immediately; polling covers missed notifications. */
+export const onlineUsers = (presenceVersion = 0) => ({
+	queryKey: [...platformKey, "presence", presenceVersion] as const,
+	gcTime: 0,
+	placeholderData: (
+		previous?: Awaited<ReturnType<typeof PlatformAPI.getPresence>>,
+	) => previous,
 	queryFn: PlatformAPI.getPresence,
 	refetchInterval: 3_000,
 	refetchIntervalInBackground: false,
@@ -850,3 +854,8 @@ export const updateUserUIPreferences = (client: QueryClient) => ({
 });
 
 export const lockdownRootKey = ["platform", "lockdown"] as const;
+
+export const updateLogoVisibility = (queryClient: QueryClient) => ({
+	mutationFn: PlatformAPI.setLogoEnabled,
+	onSuccess: () => queryClient.invalidateQueries({ queryKey: logoKey }),
+});

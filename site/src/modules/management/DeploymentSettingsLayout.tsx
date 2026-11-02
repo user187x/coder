@@ -3,7 +3,6 @@ import { Suspense } from "react";
 import { Navigate, Outlet, useLocation } from "react-router";
 import {
 	BreadcrumbItem,
-	BreadcrumbLink,
 	BreadcrumbList,
 	BreadcrumbPage,
 } from "#/components/Breadcrumb/Breadcrumb";
@@ -13,6 +12,7 @@ import { adminCategory } from "#/modules/dashboard/Navbar/adminQuickLinks";
 import { canViewDeploymentSettings } from "#/modules/permissions";
 import { RequirePermission } from "#/modules/permissions/RequirePermission";
 import { AdminBreadcrumb } from "./AdminBreadcrumb";
+import { AdminCategoryMenu } from "./AdminCategoryMenu";
 import { DeploymentSidebar } from "./DeploymentSidebar";
 
 const DeploymentSettingsLayout: React.FC = () => {
@@ -53,10 +53,7 @@ const DeploymentSettingsLayout: React.FC = () => {
 				<AdminBreadcrumb variant="connected">
 					<BreadcrumbList>
 						<BreadcrumbItem>
-							<BreadcrumbLink to="/hud" end>
-								<SettingsIcon aria-hidden className="size-4 shrink-0" />
-								Admin
-							</BreadcrumbLink>
+							<AdminCategoryMenu />
 						</BreadcrumbItem>
 						<BreadcrumbItem>
 							<BreadcrumbPage className="text-content-primary">

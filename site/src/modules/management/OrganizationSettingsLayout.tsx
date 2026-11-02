@@ -7,7 +7,6 @@ import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { Avatar } from "#/components/Avatar/Avatar";
 import {
 	BreadcrumbItem,
-	BreadcrumbLink,
 	BreadcrumbList,
 	BreadcrumbPage,
 	BreadcrumbSeparator,
@@ -20,6 +19,7 @@ import {
 } from "#/modules/permissions/organizations";
 import NotFoundPage from "#/pages/NotFoundPage/NotFoundPage";
 import { AdminBreadcrumb } from "./AdminBreadcrumb";
+import { AdminCategoryMenu } from "./AdminCategoryMenu";
 
 export const OrganizationSettingsContext = createContext<
 	OrganizationSettingsValue | undefined
@@ -96,7 +96,7 @@ const OrganizationSettingsLayout: React.FC = () => {
 				<AdminBreadcrumb>
 					<BreadcrumbList>
 						<BreadcrumbItem>
-							<BreadcrumbLink to="/hud">Admin</BreadcrumbLink>
+							<AdminCategoryMenu />
 						</BreadcrumbItem>
 						<BreadcrumbSeparator />
 						<BreadcrumbItem>

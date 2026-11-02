@@ -94,7 +94,7 @@ export const DeploymentSidebarView: React.FC<DeploymentSidebarViewProps> = ({
 		permissions.editDeploymentConfig &&
 			item("customize", "/deployment/customize", "Appearance"),
 		Boolean(health) && { id: "health", label: "Health", node: health },
-		permissions.editDeploymentConfig &&
+		(permissions.editDeploymentConfig || permissions.viewDeploymentConfig) &&
 			item("monitoring", "/deployment/monitoring", "Monitoring"),
 		permissions.viewDeploymentConfig &&
 			item("network", "/deployment/network", "Network"),
@@ -110,8 +110,6 @@ export const DeploymentSidebarView: React.FC<DeploymentSidebarViewProps> = ({
 		// Platform: the quick access wheel's wedges (Escape, on every page)
 		permissions.editDeploymentConfig &&
 			item("quick-menu", "/deployment/quick-menu", "Quick Menu"),
-		permissions.viewDeploymentConfig &&
-			item("observability", "/deployment/observability", "Observability"),
 		permissions.viewDeploymentConfig &&
 			item("persistence", "/deployment/persistence", "Persistence"),
 		permissions.viewDeploymentConfig &&

@@ -4,6 +4,7 @@ import { useMutation, useQueries, useQuery, useQueryClient } from "react-query";
 import type { WorkspacePowerOperation } from "#/api/platform";
 import { users as usersQuery } from "#/api/queries/users";
 import {
+	clearWorkspacePowerHistory,
 	runWorkspacePower,
 	type WorkspacePowerResult,
 	workspacePowerHistory,
@@ -51,6 +52,7 @@ export const GlobalWorkspaceActions: React.FC<{
 	const history = useQueries({
 		queries: organizations.map(workspacePowerHistory),
 	});
+	const clear = useMutation(clearWorkspacePowerHistory(client));
 	const run = useMutation(runWorkspacePower(client, controlToken));
 	return (
 		<GlobalWorkspaceActionsView
@@ -64,6 +66,9 @@ export const GlobalWorkspaceActions: React.FC<{
 			}
 			disabled={disabled}
 			busy={run.isPending}
+			clearing={clear.isPending}
+			clearError={clear.error}
+			onClear={(operations) => clear.mutate(operations)}
 			error={
 				workspaces.error ||
 				accounts.error ||
@@ -98,6 +103,9 @@ type Props = {
 		excludeAdmins: boolean,
 	) => void;
 	onRefresh?: () => void;
+	onClear?: (operations: readonly WorkspacePowerOperation[]) => void;
+	clearing?: boolean;
+	clearError?: unknown;
 };
 
 /** Reviews a fixed target snapshot before requesting deployment-wide workspace power actions. */
@@ -112,6 +120,9 @@ export const GlobalWorkspaceActionsView: React.FC<Props> = ({
 	failures = [],
 	onRun,
 	onRefresh,
+	onClear,
+	clearing = false,
+	clearError,
 }) => {
 	const [action, setAction] = useState<Action>();
 	const [excludeAdmins, setExcludeAdmins] = useState(true);
@@ -228,6 +239,7 @@ export const GlobalWorkspaceActionsView: React.FC<Props> = ({
 					{f.workspace_ids.length} workspace requests failed: {f.message}
 				</p>
 			))}
+			{clearError ? <ErrorAlert error={clearError} /> : null}
 			{operations.length > 0 && (
 				<details
 					className="mt-2 text-xs"
@@ -241,6 +253,23 @@ export const GlobalWorkspaceActionsView: React.FC<Props> = ({
 					<summary className="cursor-pointer font-medium">
 						Workspace power operations
 					</summary>
+					{onClear && (
+						<Button
+							variant="outline"
+							size="sm"
+							className="mt-2"
+							disabled={
+								disabled ||
+								clearing ||
+								operations.every((op) => op.status === "running")
+							}
+							onClick={() =>
+								onClear(operations.filter((op) => op.status !== "running"))
+							}
+						>
+							<Spinner loading={clearing} /> Clear completed entries
+						</Button>
+					)}
 					<div className="mt-2 max-h-80 space-y-3 overflow-y-auto">
 						{[...operations]
 							.sort((a, b) => b.created_at - a.created_at)
@@ -291,6 +320,17 @@ export const GlobalWorkspaceActionsView: React.FC<Props> = ({
 											</li>
 										))}
 									</ul>
+									{onClear && op.status !== "running" && (
+										<Button
+											variant="subtle"
+											size="sm"
+											className="mt-2"
+											disabled={disabled || clearing}
+											onClick={() => onClear([op])}
+										>
+											Clear entry
+										</Button>
+									)}
 								</section>
 							))}
 					</div>

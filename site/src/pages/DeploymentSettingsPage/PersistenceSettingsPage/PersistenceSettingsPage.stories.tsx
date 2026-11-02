@@ -1,7 +1,9 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { userEvent, within } from "storybook/test";
+import { drKey } from "#/api/queries/disasterRecovery";
 import { persistenceReportKey } from "#/api/queries/platform";
 import {
+	MockDisasterRecovery,
 	MockPersistenceReport,
 	MockPersistenceReportCloud,
 	MockPersistenceReportNeedsAttention,
@@ -75,5 +77,21 @@ export const NoOperator: Story = {
 export const CloudDatabase: Story = {
 	parameters: {
 		queries: [{ key: persistenceReportKey, data: MockPersistenceReportCloud }],
+	},
+};
+
+export const AddBackupTarget: Story = {
+	parameters: {
+		queries: [
+			{ key: persistenceReportKey, data: MockPersistenceReportNeedsAttention },
+			{ key: drKey, data: MockDisasterRecovery },
+		],
+	},
+	play: async ({ canvasElement }) => {
+		await userEvent.click(
+			await within(canvasElement).findByRole("button", {
+				name: "None scheduled: Add a target",
+			}),
+		);
 	},
 };

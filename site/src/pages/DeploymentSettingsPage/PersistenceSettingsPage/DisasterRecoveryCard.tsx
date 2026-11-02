@@ -16,6 +16,7 @@ import {
 	type DrView,
 	PlatformAPI,
 } from "#/api/platform";
+import { drKey } from "#/api/queries/disasterRecovery";
 import { Alert, AlertDescription } from "#/components/Alert/Alert";
 import { Badge } from "#/components/Badge/Badge";
 import { Button } from "#/components/Button/Button";
@@ -34,8 +35,6 @@ import {
 	TableRow,
 } from "#/components/Table/Table";
 
-const drKey = ["platform", "persistence", "dr"] as const;
-
 const formatBytes = (n: number | null | undefined) => {
 	if (n === null || n === undefined) {
 		return "–";
@@ -53,7 +52,7 @@ const formatBytes = (n: number | null | undefined) => {
 const when = (t?: number) =>
 	t ? new Date(t * 1000).toLocaleString() : "never";
 
-const blank = (kind: "s3" | "postgres"): DrTargetInput => ({
+export const newDrTarget = (kind: "s3" | "postgres"): DrTargetInput => ({
 	kind,
 	name: kind === "s3" ? "Offsite bucket" : "Standby database",
 	enabled: true,
@@ -68,7 +67,10 @@ const blank = (kind: "s3" | "postgres"): DrTargetInput => ({
  * kept), or a copy into an external PostgreSQL every N hours (which then holds
  * what Coder's held). The dumps run in the database's primary instance.
  */
-export const DisasterRecoveryCard: React.FC = () => {
+export const DisasterRecoveryCard: React.FC<{
+	editing: DrTargetInput | null;
+	onEditingChange: (target: DrTargetInput | null) => void;
+}> = ({ editing, onEditingChange: setEditing }) => {
 	const queryClient = useQueryClient();
 	const query = useQuery({
 		queryKey: drKey,
@@ -76,7 +78,6 @@ export const DisasterRecoveryCard: React.FC = () => {
 		refetchInterval: (q: { state: { data?: DrView } }) =>
 			q.state.data?.running ? 3_000 : 30_000,
 	});
-	const [editing, setEditing] = useState<DrTargetInput | null>(null);
 	const [deleting, setDeleting] = useState<DrTarget | null>(null);
 	const setView = (view: DrView) => queryClient.setQueryData(drKey, view);
 	const run = useMutation({
@@ -132,7 +133,7 @@ export const DisasterRecoveryCard: React.FC = () => {
 							</span>
 						)}
 					</Button>
-					<Button size="sm" onClick={() => setEditing(blank("s3"))}>
+					<Button size="sm" onClick={() => setEditing(newDrTarget("s3"))}>
 						<PlusIcon />
 						Add a target
 					</Button>
@@ -355,7 +356,9 @@ const TargetDialog: React.FC<{
 					{!editing && (
 						<RadioGroup
 							value={t.kind}
-							onValueChange={(v) => setT({ ...blank(v as "s3" | "postgres") })}
+							onValueChange={(v) =>
+								setT({ ...newDrTarget(v as "s3" | "postgres") })
+							}
 							className="flex gap-6"
 							aria-label="Where to"
 						>

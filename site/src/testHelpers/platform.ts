@@ -5,6 +5,7 @@ import type {
 	ClassificationSettings,
 	ClusterUsage,
 	DatabaseCluster,
+	DrView,
 	KeycloakReport,
 	LogoState,
 	MonitoringOverview,
@@ -12,6 +13,7 @@ import type {
 	PersistenceReport,
 	TemplateIconList,
 } from "#/api/platform";
+import type { SerpentOption } from "#/api/typesGenerated";
 import { MockLavaAvatar } from "./avatar";
 import { MockUserMember, MockUserOwner } from "./entities";
 
@@ -703,3 +705,40 @@ export const MockTemplateIcons: TemplateIconList = {
 		},
 	],
 };
+
+export const MockDisasterRecovery: DrView = {
+	available: true,
+	unavailable: null,
+	database: "coder",
+	cluster: "coder-db",
+	targets: [],
+	runs: [],
+	running: null,
+	everyHoursRange: [0, 168],
+	keepRange: [1, 1000],
+};
+
+export const MockObservabilityOptions: SerpentOption[] = [
+	{
+		name: "Capture Logs in Traces",
+		description: "Capture log events in traces.",
+		value: false,
+		group: { name: "Introspection", description: "" },
+		flag: "trace-logs",
+		env: "CODER_TRACE_LOGS",
+		hidden: false,
+	},
+	{
+		name: "Human Log Location",
+		description: "Output human-readable logs to a given file.",
+		value: "/dev/stderr",
+		group: {
+			name: "Logging",
+			description: "",
+			parent: { name: "Introspection", description: "" },
+		},
+		flag: "log-human",
+		env: "CODER_LOGGING_HUMAN",
+		hidden: false,
+	},
+];

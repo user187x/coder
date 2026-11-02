@@ -14,12 +14,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { cn } from "cn";
-import {
-	ChevronDownIcon,
-	GripVerticalIcon,
-	SettingsIcon,
-	Trash2Icon,
-} from "lucide-react";
+import { ChevronDownIcon, GripVerticalIcon, Trash2Icon } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { Link } from "react-router";
 import {
@@ -154,15 +149,9 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 						setExpanded(!expanded);
 					}}
 				>
-					<SettingsIcon aria-hidden />
-					Settings
-					<ChevronDownIcon
-						aria-hidden
-						className={cn(
-							"ml-auto transition-transform motion-reduce:transition-none",
-							expanded && "rotate-180",
-						)}
-					/>
+					<ChevronDownIcon aria-hidden className="size-3.5" />
+					<span className="flex-1 text-center">Controls</span>
+					<ChevronDownIcon aria-hidden className="size-3.5" />
 				</DropdownMenuItem>
 				<CollapsibleContent
 					id={choicesId}

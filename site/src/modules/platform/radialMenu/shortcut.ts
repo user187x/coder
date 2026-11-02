@@ -1,3 +1,5 @@
+export const DEFAULT_QUICK_MENU_SHORTCUT = "Ctrl+Escape";
+
 type KeyEvent = Pick<
 	KeyboardEvent,
 	"key" | "repeat" | "ctrlKey" | "altKey" | "metaKey" | "shiftKey"

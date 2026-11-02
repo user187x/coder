@@ -152,7 +152,8 @@ export const platformRequest = { get, post, upload, base: PLATFORM_BASE };
 export const LOGIN_EFFECTS = ["wireframe", "neon", "plain"] as const;
 export type LoginEffect = (typeof LOGIN_EFFECTS)[number];
 /** The quick access wheel's wedges (Admin Settings > Quick Menu): choices' IDs in order; null: the default wheel. */
-type QuickMenuSettings = {
+export type QuickMenuSettings = {
+	enabled?: boolean;
 	shortcut?: string;
 	items: string[] | null;
 	updatedBy?: string | null;
@@ -200,6 +201,7 @@ export type ClassificationSettings = {
 };
 
 export type LogoState = {
+	enabled?: boolean;
 	available: boolean;
 	set: boolean;
 	url: string | null;
@@ -209,8 +211,7 @@ export type LogoState = {
 	updatedAt: string | null;
 };
 
-export const BACKGROUND_SLOTS = ["login", "dashboard"] as const;
-export type BackgroundSlot = (typeof BACKGROUND_SLOTS)[number];
+export type BackgroundSlot = "login" | "dashboard";
 export type BackgroundFit =
 	| "cover"
 	| "contain"
@@ -2108,6 +2109,19 @@ export const PlatformAPI = {
 		get<{ operations: WorkspacePowerOperation[] }>(
 			`${PLATFORM_BASE}/api/organizations/${encodeURIComponent(organizationId)}/workspace-power`,
 		),
+	clearWorkspacePowerOperation: async (organizationId: string, id: string) => {
+		try {
+			const response = await platformAxios.delete<{ ok: boolean }>(
+				`${PLATFORM_BASE}/api/organizations/${encodeURIComponent(organizationId)}/workspace-power/operation/${encodeURIComponent(id)}`,
+				withSession({
+					headers: { "X-Requested-With": PLATFORM_REQUESTED_WITH },
+				}),
+			);
+			return response.data;
+		} catch (error) {
+			throw toPlatformError(error);
+		}
+	},
 	getWorkspacePowerOperation: (organizationId: string, id: string) =>
 		get<WorkspacePowerOperation>(
 			`${PLATFORM_BASE}/api/organizations/${encodeURIComponent(organizationId)}/workspace-power/operation/${encodeURIComponent(id)}`,
@@ -2422,10 +2436,11 @@ export const PlatformAPI = {
 
 	getLoginPage: () => get<LoginPageSettings>(`${PLATFORM_BASE}/api/login-page`),
 	getQuickMenu: () => get<QuickMenuSettings>(`${PLATFORM_BASE}/api/quick-menu`),
-	saveQuickMenu: (items: string[], shortcut?: string) =>
+	saveQuickMenu: (items: string[], shortcut?: string, enabled = true) =>
 		post<QuickMenuSettings>(`${PLATFORM_BASE}/api/quick-menu`, {
 			items,
 			shortcut,
+			enabled,
 		}),
 	resetQuickMenu: () =>
 		post<QuickMenuSettings>(`${PLATFORM_BASE}/api/quick-menu/reset`, {}),
@@ -2441,6 +2456,10 @@ export const PlatformAPI = {
 			signedOutMessage: settings.signedOutMessage.trim(),
 		}),
 
+	setLogoEnabled: (enabled: boolean) =>
+		post<{ ok: true; enabled: boolean }>(`${PLATFORM_BASE}/api/logo`, {
+			enabled,
+		}),
 	getLogo: () => get<LogoState>(`${PLATFORM_BASE}/api/logo`),
 	uploadLogo: (dataUrl: string) =>
 		post<{ ok: true; set: true; url: string }>(`${PLATFORM_BASE}/api/logo`, {
@@ -2458,6 +2477,12 @@ export const PlatformAPI = {
 		}),
 	resetAvatar: () =>
 		post<{ ok: true; set: false }>(`${PLATFORM_BASE}/api/avatar/reset`, {}),
+	getBackgroundHTML: async (url: string): Promise<string> => {
+		const response = await fetch(url, { credentials: "same-origin" });
+		if (!response.ok)
+			throw new Error("The saved background could not be loaded.");
+		return response.text();
+	},
 	getBackgrounds: () =>
 		get<BackgroundsState>(`${PLATFORM_BASE}/api/backgrounds`),
 	/** A new image (dataUrl) and/or new settings for one background. */

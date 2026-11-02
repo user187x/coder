@@ -1482,6 +1482,7 @@ def login_page_settings():
 # The dashboard knows the choices (the admin categories and its own pages) by their IDs; none saved: its default wheel.
 QUICK_MENU_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,39}$")
 QUICK_MENU_WEDGES = (3, 12)
+QUICK_MENU_SHORTCUT = "Ctrl+Escape"
 
 
 def clean_quick_menu_shortcut(value):
@@ -1506,12 +1507,15 @@ def clean_quick_menu(p):
     least, most = QUICK_MENU_WEDGES
     if not least <= len(items) <= most:
         raise ValueError("The wheel takes %d to %d wedges." % (least, most))
-    return {"items": items, "shortcut": clean_quick_menu_shortcut(p.get("shortcut", "Escape"))}
+    enabled = p.get("enabled", True)
+    if not isinstance(enabled, bool):
+        raise ValueError("enabled: expected a boolean.")
+    return {"items": items, "shortcut": clean_quick_menu_shortcut(p.get("shortcut", QUICK_MENU_SHORTCUT)), "enabled": enabled}
 
 
 def quick_menu_settings():
     saved = STORE.get_setting("quick_menu", None) or {}
-    return {"items": saved.get("items") or None, "shortcut": saved.get("shortcut") or "Escape", "updatedBy": saved.get("updatedBy"), "updatedAt": saved.get("updatedAt"),
+    return {"items": saved.get("items") or None, "shortcut": saved.get("shortcut") or QUICK_MENU_SHORTCUT, "enabled": saved.get("enabled", True), "updatedBy": saved.get("updatedBy"), "updatedAt": saved.get("updatedAt"),
             "wedges": list(QUICK_MENU_WEDGES)}
 
 
@@ -3274,7 +3278,7 @@ BG_TYPES = {"image/png", "image/jpeg", "image/webp", "image/gif", "image/avif"}
 BG_MAX_BYTES = 4 * 1024 * 1024  # the dashboard sends at most 1920 x 1200 (WebP); an animated GIF as it is
 BG_FITS = ("cover", "contain", "tile", "stretch", "center", "span")
 BG_LAYERS = ("under", "over")  # behind the page's content, or a faint watermark over it
-BG_OPACITY = (0.02, 0.3, 0.06)  # min, max, default: hardly noticeable
+BG_OPACITY = (0.02, 1.0, 0.06)  # min, max, default: hardly noticeable
 BG_HTML_MAX = 256 * 1024  # an HTML / CSS background (an animated one like the Particles preset)
 BG_PARAMS_MAX = 16 * 1024
 # The dials every HTML background has, and their bounds: playback speed of its animations, then CSS filters.
@@ -8246,7 +8250,7 @@ def chat_availability():
 
 def chat_people():
     """{user id: {id, username, name, admin, lastSeen}} of Coder's active users (its users table; system users left
-    out), most recently seen first, cached for a minute. Empty when Coder's database can't be read."""
+    out), most recently seen first. A short cache lets newly active accounts appear promptly. Empty on read failure."""
     hit = CACHE.get("chat-people")
     if hit is not None:
         return hit
@@ -8272,7 +8276,7 @@ def chat_people():
                 }
     except Exception as e:  # noqa: BLE001 - no list rather than an error
         log(event="chat-people-failed", error=str(e)[:200])
-    CACHE.put("chat-people", people, 60)
+    CACHE.put("chat-people", people, 5)
     return people
 
 
@@ -8350,6 +8354,7 @@ def boot_js():
             json.dumps(default_avatar),
         )
     )
+    js += "window.__cuiLogoEnabled=%s;\n" % json.dumps(STORE.get_setting("logo_enabled", True))
     try:
         js += "window.__cuiLoginPage=%s;\n" % json.dumps(login_page_settings())
     except Exception as e:  # noqa: BLE001 - the default sign-in page rather than a broken one
@@ -8756,6 +8761,7 @@ class Handler(BaseHTTPRequestHandler):
                 {
                     "available": LOGOS is not None and LOGOS.pool is not None,
                     "set": bool(logo),
+                    "enabled": STORE.get_setting("logo_enabled", True),
                     "url": BASE + "/logo?v=" + logo["sha"] if logo else None,
                     "type": logo and logo["type"],
                     "bytes": logo and len(logo["data"]),
@@ -9020,6 +9026,9 @@ class Handler(BaseHTTPRequestHandler):
         self.send(404, "not found\n")
 
     def logo(self, versioned):
+        if STORE.get_setting("logo_enabled", True) is False:
+            return self.send(200, '<svg xmlns="http://www.w3.org/2000/svg"/>',
+                             "image/svg+xml", {"Cache-Control": "no-cache"})
         logo = (
             LOGOS.peek() if LOGOS else None
         )  # the cached copy: never waits for the database
@@ -9157,6 +9166,9 @@ class Handler(BaseHTTPRequestHandler):
             "favicon-dark.svg",
         ):
             return self.send(404, "not found\n")
+        if STORE.get_setting("logo_enabled", True) is False:
+            return self.send(200, '<svg xmlns="http://www.w3.org/2000/svg"/>',
+                             "image/svg+xml", {"Cache-Control": "no-cache"})
         logo = (
             LOGOS.peek() if LOGOS else None
         )  # the cached copy: never waits for the database
@@ -9739,6 +9751,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_DELETE(self):
         url = urllib.parse.urlsplit(self.path)
+        if workspacepower.handle(self, "DELETE", url.path, url.query):
+            return
         if not workspacetunnels.handle(self, "DELETE", url.path, url.query):
             self.send(404, "not found\n")
 
@@ -9979,10 +9993,17 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 if path.endswith("/reset"):
                     LOGOS.reset()
+                    STORE.put_setting("logo_enabled", True)
                     log(event="logo-reset", user=user["username"])
                     return self.send_json(200, {"ok": True, "set": False})
+                if "enabled" in payload:
+                    if not isinstance(payload["enabled"], bool) or "dataUrl" in payload:
+                        raise ValueError("Expected a boolean enabled value without dataUrl.")
+                    STORE.put_setting("logo_enabled", payload["enabled"])
+                    return self.send_json(200, {"ok": True, "enabled": payload["enabled"]})
                 ctype, data = parse_logo(payload.get("dataUrl"))
                 sha = LOGOS.put(ctype, data, user["username"])
+                STORE.put_setting("logo_enabled", True)
             except ValueError as e:
                 return self.send_json(400, {"error": str(e)})
             except Exception as e:  # noqa: BLE001

@@ -42,6 +42,8 @@ describe("TerminalAnswers", () => {
 			"cat hello",
 			"CAT",
 			"cd /tmp",
+			"dir",
+			"DIR /tmp",
 			"echo noise",
 		])
 			expect(answerFor(command)).toBe("none");

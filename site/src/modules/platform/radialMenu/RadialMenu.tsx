@@ -9,6 +9,7 @@ import {
 import { createPortal } from "react-dom";
 import { useQuery } from "react-query";
 import { useNavigate } from "react-router";
+import type { QuickMenuSettings } from "#/api/platform";
 import { buildInfo } from "#/api/queries/buildInfo";
 import { isEmbeddedFrame } from "#/contexts/platformBoot";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
@@ -16,7 +17,7 @@ import { useEmbeddedMetadata } from "#/hooks/useEmbeddedMetadata";
 import { setDrawerOpen, useChatSnapshot } from "../chat/chatStore";
 import { CHAT_CONSOLE_PAGE } from "../chat/consolePlaces";
 import { useQuickMenu } from "./quickMenu";
-import { matchesShortcut } from "./shortcut";
+import { DEFAULT_QUICK_MENU_SHORTCUT, matchesShortcut } from "./shortcut";
 import { Wheel, type WheelItem } from "./Wheel";
 import { wheelOf } from "./wheelChoices";
 import "./radialMenu.css";
@@ -85,22 +86,25 @@ export const popupOpen = (doc: Document = document): boolean =>
 
 const OPEN_EVENT = "coder-radial-open";
 
-/**
- * Platform: the quick access wheel (radial-menu.html), on every signed-in page (RequireAuth mounts it). Escape
- * opens it over the page - everything behind it under a see-through Gaussian blur - and each wedge goes straight to
- * its page: the wedges admins arranged (Admin Settings > Quick Menu: the dashboard's pages and every admin
- * category), or the default eight. Pages a user may not open show dimmed and say why. Escape again, or a click off the
- * wheel, closes it; the arrow keys go round it, Enter opens. A menu or dialog open closes on the same Escape, under
- * it; a terminal keeps its Escape (Shift+Escape there) - escapeOpensWheel.
- */
+/** Shared navigation wheel; disabling it removes its keyboard and embedded-frame listeners. */
 export const RadialMenu: React.FC = () => {
+	const menu = useQuickMenu();
+	return menu.isLoading || menu.data?.enabled === false ? null : (
+		<RadialMenuContent settings={menu.data} />
+	);
+};
+
+const RadialMenuContent = ({
+	settings,
+}: {
+	settings: QuickMenuSettings | undefined;
+}) => {
 	const navigate = useNavigate();
 	const { permissions } = useAuthenticated();
 	const { metadata } = useEmbeddedMetadata();
 	const build = useQuery(buildInfo(metadata["build-info"]));
 	const chat = useChatSnapshot();
-	const menu = useQuickMenu();
-	const shortcut = menu.data?.shortcut || "Escape";
+	const shortcut = settings?.shortcut || DEFAULT_QUICK_MENU_SHORTCUT;
 	// closed: not on the page at all; closing: fading out
 	const [phase, setPhase] = useState<"closed" | "open" | "closing">("closed");
 	const open = phase === "open";
@@ -112,7 +116,7 @@ export const RadialMenu: React.FC = () => {
 		permissions,
 		oauth2Provider: Boolean(build.data?.oauth2_provider),
 	};
-	const choices = wheelOf(menu.data?.items);
+	const choices = wheelOf(settings?.items);
 	const items: WheelItem[] = choices.map((choice) => ({
 		id: choice.id,
 		name: choice.label,

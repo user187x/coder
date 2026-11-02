@@ -354,6 +354,7 @@ export const ResourceTrayLockedClosed: Story = {
 
 export const HiddenChatMenu: Story = {
 	...ResourceTrayOpened,
+	args: { ...ResourceTrayOpened.args, controls: undefined },
 	parameters: {
 		queries: [
 			...(ResourceTrayOpened.parameters?.queries ?? []),
@@ -479,7 +480,7 @@ export const CentralAdminSettingsExpanded: Story = {
 	play: async (context) => {
 		await CentralAdminMenu.play?.(context);
 		await userEvent.click(
-			await within(document.body).findByRole("menuitem", { name: "Settings" }),
+			await within(document.body).findByRole("menuitem", { name: "Controls" }),
 		);
 	},
 };
@@ -822,7 +823,7 @@ export const RemoveAddedResourceShortcut: Story = {
 	},
 };
 
-export const PersonalAppearanceContextMenu: Story = {
+export const PersonalAppearanceExpanded: Story = {
 	...CentralAdminMenu,
 	args: {
 		...CentralAdminMenu.args,
@@ -846,13 +847,12 @@ export const PersonalAppearanceContextMenu: Story = {
 	},
 	play: async (context) => {
 		await CentralAdminMenu.play?.(context);
-		await userEvent.pointer({
-			target: await within(context.canvasElement.ownerDocument.body).findByRole(
+		await userEvent.click(
+			await within(context.canvasElement.ownerDocument.body).findByRole(
 				"menuitem",
 				{ name: "Appearance" },
 			),
-			keys: "[MouseRight]",
-		});
+		);
 	},
 };
 

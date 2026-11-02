@@ -9,6 +9,8 @@ import {
 	Routes,
 } from "react-router";
 import { PlatformAPI } from "#/api/platform";
+import { quickMenuKey } from "#/api/queries/quickMenu";
+import { MockQuickMenu } from "#/testHelpers/appearance";
 import { MockNoPermissions, MockPermissions } from "#/testHelpers/entities";
 import { escapeOpensWheel, popupOpen, RadialMenu } from "./RadialMenu";
 import { matchesShortcut, shortcutFromEvent } from "./shortcut";
@@ -29,9 +31,10 @@ const escapeKey = (over: Partial<KeyboardEvent> = {}) =>
 		...over,
 	}) as KeyboardEvent;
 
-const renderWheel = () =>
-	render(
-		<QueryClientProvider client={new QueryClient()}>
+const renderWheel = async () => {
+	const client = new QueryClient();
+	const result = render(
+		<QueryClientProvider client={client}>
 			<MemoryRouter initialEntries={["/workspaces"]}>
 				<Routes>
 					<Route path="/workspaces" element={<div>Workspaces page</div>} />
@@ -42,6 +45,10 @@ const renderWheel = () =>
 			</MemoryRouter>
 		</QueryClientProvider>,
 	);
+
+	await waitFor(() => expect(client.getQueryData(quickMenuKey)).toBeDefined());
+	return result;
+};
 
 const press = () => fireEvent.keyDown(window, { key: "Escape" });
 
@@ -122,9 +129,10 @@ describe("RadialMenu", () => {
 	beforeEach(() => {
 		document.documentElement.dataset.animations = "off";
 		auth.permissions = MockPermissions;
-		// no wedges arranged: the default wheel
+		// A saved Escape shortcut remains usable.
 		vi.spyOn(PlatformAPI, "getQuickMenu").mockResolvedValue({
 			items: null,
+			shortcut: "Escape",
 			wedges: [3, 12],
 		});
 	});
@@ -133,7 +141,7 @@ describe("RadialMenu", () => {
 	});
 
 	it("opens on Escape, closes on Escape, and goes straight to a wedge's page", async () => {
-		renderWheel();
+		await renderWheel();
 		expect(screen.queryByTestId("radial-menu")).toBeNull();
 		press();
 		expect(await screen.findByTestId("radial-menu")).toBeInTheDocument();
@@ -157,7 +165,7 @@ describe("RadialMenu", () => {
 	});
 
 	it("shows the wedge pointed at in the hub: its icon above its name, centred", async () => {
-		renderWheel();
+		await renderWheel();
 		press();
 		// the hub's icon is the pointed-at wedge's (a new element per icon)
 		const hub = () => screen.getByTestId("radial-center-icon");
@@ -187,7 +195,7 @@ describe("RadialMenu", () => {
 
 	it("says which pages are admins' to a member, and does not go there", async () => {
 		auth.permissions = MockNoPermissions;
-		renderWheel();
+		await renderWheel();
 		press();
 		const hud = await screen.findByTestId("radial-hud");
 		expect(hud).toHaveAttribute("aria-disabled", "true");
@@ -202,9 +210,10 @@ describe("RadialMenu", () => {
 	it("has the wedges admins arranged (Admin Settings > Quick Menu)", async () => {
 		vi.spyOn(PlatformAPI, "getQuickMenu").mockResolvedValue({
 			items: ["security", "images", "health"],
+			shortcut: "Escape",
 			wedges: [3, 12],
 		});
-		renderWheel();
+		await renderWheel();
 		await waitFor(() => expect(PlatformAPI.getQuickMenu).toHaveBeenCalled());
 		await new Promise((r) => setTimeout(r, 0));
 		press();
@@ -219,7 +228,7 @@ describe("RadialMenu", () => {
 	});
 
 	it("closes on a click off the wheel", async () => {
-		renderWheel();
+		await renderWheel();
 		press();
 		fireEvent.click(await screen.findByTestId("radial-menu"));
 		expect(screen.queryByTestId("radial-menu")).toBeNull();
@@ -271,4 +280,50 @@ it("matches configured combinations exactly and ignores bare modifiers and repea
 	expect(
 		shortcutFromEvent(escapeKey({ key: "k", repeat: true })),
 	).toBeUndefined();
+});
+
+it("uses Ctrl+Escape by default and opens the Leases destination", async () => {
+	document.documentElement.dataset.animations = "off";
+	const client = new QueryClient();
+	client.setQueryData(quickMenuKey, {
+		...MockQuickMenu,
+		items: ["workspaces", "leases", "templates"],
+	});
+	const router = createMemoryRouter([{ path: "*", element: <RadialMenu /> }], {
+		initialEntries: ["/workspaces"],
+	});
+	render(
+		<QueryClientProvider client={client}>
+			<RouterProvider router={router} />
+		</QueryClientProvider>,
+	);
+	const user = userEvent.setup();
+	await user.keyboard("{Control>}{Escape}{/Control}");
+	await user.click(await screen.findByRole("menuitem", { name: "Leases" }));
+	expect(router.state.location.pathname + router.state.location.hash).toBe(
+		"/deployment/users#short-term-leases",
+	);
+	delete document.documentElement.dataset.animations;
+});
+
+it("leaves the shortcut available to the page when Quick Menu is disabled", async () => {
+	const client = new QueryClient();
+	client.setQueryData(quickMenuKey, { ...MockQuickMenu, enabled: false });
+	const keyDown = vi.fn();
+	render(
+		<QueryClientProvider client={client}>
+			<MemoryRouter>
+				<input aria-label="Page field" onKeyDown={keyDown} />
+				<RadialMenu />
+			</MemoryRouter>
+		</QueryClientProvider>,
+	);
+	const user = userEvent.setup();
+	await user.click(screen.getByRole("textbox", { name: "Page field" }));
+	await user.keyboard("{Control>}{Escape}{/Control}");
+	expect(
+		keyDown.mock.calls.some(
+			([event]) => event.key === "Escape" && !event.defaultPrevented,
+		),
+	).toBe(true);
 });

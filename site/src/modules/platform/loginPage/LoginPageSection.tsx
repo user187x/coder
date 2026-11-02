@@ -1,14 +1,13 @@
-import { cn } from "cn";
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { toast } from "sonner";
-import { getErrorMessage } from "#/api/errors";
 import {
 	LOGIN_EFFECTS,
 	LOGIN_PAGE_DEFAULT,
 	type LoginEffect,
 	type LoginPageSettings,
 } from "#/api/platform";
+import { backgrounds } from "#/api/queries/backgrounds";
 import { loginPage, updateLoginPage } from "#/api/queries/platform";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { Button } from "#/components/Button/Button";
@@ -24,9 +23,14 @@ import {
 } from "#/components/Select/Select";
 import { Slider } from "#/components/Slider/Slider";
 import { Spinner } from "#/components/Spinner/Spinner";
+import { Tabs, TabsList, TabsTrigger } from "#/components/Tabs/Tabs";
 import { Textarea } from "#/components/Textarea/Textarea";
 import { ColorField } from "#/modules/platform/ColorField";
 import { getApplicationName } from "#/utils/appearance";
+import {
+	BackgroundCard,
+	type BackgroundEditorHandle,
+} from "../background/BackgroundSection";
 import { ImageUploadSplit } from "../imageStore/ImageUploadSplit";
 import { PREBAKED_BACKGROUNDS } from "../pictures";
 import { SignInTitle } from "./SignInTitle";
@@ -63,39 +67,40 @@ const same = (a: LoginPageSettings, b: LoginPageSettings) =>
 export const LoginPageSection: React.FC = () => {
 	const queryClient = useQueryClient();
 	const query = useQuery(loginPage());
-	const save = useMutation(updateLoginPage(queryClient));
-	const [draft, setDraft] = useState<LoginPageSettings | null>(null);
+	const backgroundQuery = useQuery(backgrounds());
+	const background = useRef<BackgroundEditorHandle>(null);
+	const [backgroundDirty, setBackgroundDirty] = useState(false);
+	const save = useMutation({
+		...updateLoginPage(queryClient),
+		onSuccess: (res) => {
+			queryClient.setQueryData(loginPage().queryKey, res);
+			setDraft(null);
+			window.__cuiLoginPage = res;
+		},
+	});
+	const [edited, setDraft] = useState<LoginPageSettings | null>(null);
 	const [preview, setPreview] = useState<"in" | "out">("in");
 	const ids = useId();
 	const imageInput = useRef<HTMLInputElement>(null);
 	const applicationName = getApplicationName();
 
-	useEffect(() => {
-		if (query.data && draft === null) {
-			setDraft({ ...LOGIN_PAGE_DEFAULT, ...query.data });
-		}
-	}, [query.data, draft]);
-
-	if (query.isLoading) {
-		return <Loader />;
-	}
-	if (!query.data || !draft) {
-		return <ErrorAlert error={query.error} />;
-	}
 	const saved = { ...LOGIN_PAGE_DEFAULT, ...query.data };
+	const draft = edited ?? saved;
 	const dirty = !same(draft, saved);
+	const saveAll = useMutation({
+		mutationFn: async () => {
+			if (background.current?.dirty && !background.current.ready)
+				throw new Error("Finish choosing a background before saving.");
+			if (dirty) await save.mutateAsync(draft);
+			if (background.current?.dirty) await background.current.save();
+		},
+		onSuccess: () => toast.success("Sign-in and sign-out appearance saved."),
+	});
+	if (query.isLoading || backgroundQuery.isLoading) return <Loader />;
+	if (!query.data || !backgroundQuery.data)
+		return <ErrorAlert error={query.error ?? backgroundQuery.error} />;
 	const set = (patch: Partial<LoginPageSettings>) =>
 		setDraft({ ...draft, ...patch });
-	const submit = (settings: LoginPageSettings, what: string) =>
-		save.mutate(settings, {
-			onSuccess: (res) => {
-				setDraft({ ...LOGIN_PAGE_DEFAULT, ...res });
-				window.__cuiLoginPage = res;
-				toast.success(what);
-			},
-			onError: (e) =>
-				toast.error(getErrorMessage(e, "The sign-in page was not saved.")),
-		});
 
 	const pickImage = (file: File) => {
 		if (file.size > 256 * 1024) {
@@ -106,9 +111,7 @@ export const LoginPageSection: React.FC = () => {
 		reader.onload = () => {
 			if (typeof reader.result === "string") {
 				const headingImage = reader.result;
-				setDraft((current) =>
-					current ? { ...current, headingImage } : current,
-				);
+				setDraft((current) => ({ ...(current ?? draft), headingImage }));
 			}
 		};
 		reader.onerror = () => toast.error("The heading image could not be read.");
@@ -117,247 +120,210 @@ export const LoginPageSection: React.FC = () => {
 
 	return (
 		<section
-			aria-labelledby="customize-login-page"
-			className="mt-10 border-0 border-t border-solid border-border pt-8"
-			data-testid="customize-login-page"
+			aria-labelledby={`${ids}-heading`}
+			className="rounded-xl border border-solid border-border bg-surface-primary p-6"
+			data-testid={`${ids}-heading`}
 		>
-			<h2 id="customize-login-page" className="m-0 mb-2 text-lg font-semibold">
+			<h2 id={`${ids}-heading`} className="m-0 mb-2 text-lg font-semibold">
 				Sign-in and sign-out page
 			</h2>
 			<p className="m-0 mb-4 text-sm text-content-secondary">
-				Update the title, effect and messages with a live preview.
+				Set the heading, messages and background together. Your preview follows
+				unsaved changes.
 			</p>
 
-			<div className="grid gap-5 rounded-lg border border-solid border-border p-4 lg:grid-cols-2">
-				<div className="grid grid-cols-2 gap-3">
-					<div className="col-span-2 flex flex-col gap-2">
-						<Label htmlFor={`${ids}-heading-mode`}>Heading</Label>
-						<Select
-							value={draft.headingMode ?? "text"}
-							onValueChange={(value) => {
-								if (value === "none" || value === "text" || value === "image")
-									set({ headingMode: value });
-							}}
-						>
-							<SelectTrigger id={`${ids}-heading-mode`}>
-								<SelectValue />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value="none">None</SelectItem>
-								<SelectItem value="text">Text</SelectItem>
-								<SelectItem value="image">Image</SelectItem>
-							</SelectContent>
-						</Select>
-						{draft.headingMode === "image" && (
-							<>
-								<Label className="sr-only" htmlFor={`${ids}-heading-image`}>
-									Upload heading image
-								</Label>
-								<Input
-									id={`${ids}-heading-image`}
-									ref={imageInput}
-									className="hidden"
-									type="file"
-									accept="image/png,image/jpeg,image/gif,image/webp,image/avif"
-									onChange={(event) => {
-										const file = event.target.files?.[0];
-										if (file) pickImage(file);
-										event.target.value = "";
-									}}
-								/>
-								<ImageUploadSplit
-									title="Heading image: the image store"
-									onUpload={() => imageInput.current?.click()}
-									disabled={save.isPending}
-									gallery={{
-										extra: PREBAKED_BACKGROUNDS,
-										lava: { size: 128, maxBytes: 256 * 1024 },
-										onPick: pickImage,
-										onPickBuiltin: (picture) =>
-											set({ headingImage: picture.url }),
-									}}
-								/>
-								<span className="text-xs text-content-secondary">
-									Upload PNG, JPEG, GIF, WebP or AVIF up to 256 KB, or choose an
-									image from the store. The title supplies alternative text.
-								</span>
-							</>
-						)}
-					</div>
-					{draft.headingMode !== "none" && (
-						<>
-							<div className="flex flex-col gap-2">
-								<Label htmlFor={`${ids}-title`}>Title</Label>
-								<Input
-									id={`${ids}-title`}
-									value={draft.title}
-									maxLength={40}
-									placeholder={applicationName}
-									onChange={(e) => set({ title: e.target.value })}
-								/>
-								<span className="text-xs text-content-secondary">
-									Empty: the deployment's name ({applicationName}).
-								</span>
-							</div>
-
-							<div className="flex flex-col gap-2">
-								<Label htmlFor={`${ids}-effect`}>Text effect</Label>
-								<Select
-									value={draft.effect}
-									onValueChange={(value) => {
-										const effect = LOGIN_EFFECTS.find(
-											(effect) => effect === value,
-										);
-										if (effect) set({ effect });
-									}}
-								>
-									<SelectTrigger id={`${ids}-effect`}>
-										<SelectValue />
-									</SelectTrigger>
-									<SelectContent>
-										{LOGIN_EFFECTS.map((effect) => (
-											<SelectItem key={effect} value={effect}>
-												{EFFECT_LABEL[effect].name}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
-							</div>
-
-							<ColorField
-								label="Colour"
-								value={draft.color}
-								presets={COLOR_PRESETS}
-								onChange={(color) => set({ color: color.toLowerCase() })}
-							/>
-
-							{draft.effect !== "plain" && (
-								<div className="flex flex-col gap-2">
-									<div className="flex items-center justify-between">
-										<Label htmlFor={`${ids}-speed`}>
-											{draft.effect === "neon" ? "Pulse" : "Trace"} speed
-										</Label>
-										<span className="text-sm tabular-nums text-content-secondary">
-											{draft.speed.toFixed(1)} s
-										</span>
-									</div>
-									<Slider
-										id={`${ids}-speed`}
-										min={0.5}
-										max={20}
-										step={0.1}
-										value={[draft.speed]}
-										onValueChange={([speed]) => set({ speed })}
-										aria-label="Seconds per trace or pulse"
+			{query.error && <ErrorAlert error={query.error} />}
+			{backgroundQuery.error && <ErrorAlert error={backgroundQuery.error} />}
+			<BackgroundCard
+				slot="login"
+				state={backgroundQuery.data}
+				managed
+				ref={background}
+				disabled={saveAll.isPending}
+				onDirtyChange={setBackgroundDirty}
+				controls={
+					<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+						<div className="sm:col-span-2 flex flex-col gap-2">
+							<Label htmlFor={`${ids}-heading-mode`}>Heading</Label>
+							<Select
+								value={draft.headingMode ?? "text"}
+								onValueChange={(value) => {
+									if (value === "none" || value === "text" || value === "image")
+										set({ headingMode: value });
+								}}
+							>
+								<SelectTrigger id={`${ids}-heading-mode`}>
+									<SelectValue />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="none">None</SelectItem>
+									<SelectItem value="text">Text</SelectItem>
+									<SelectItem value="image">Image</SelectItem>
+								</SelectContent>
+							</Select>
+							{draft.headingMode === "image" && (
+								<>
+									<Label className="sr-only" htmlFor={`${ids}-heading-image`}>
+										Upload heading image
+									</Label>
+									<Input
+										id={`${ids}-heading-image`}
+										ref={imageInput}
+										className="hidden"
+										type="file"
+										accept="image/png,image/jpeg,image/gif,image/webp,image/avif"
+										onChange={(event) => {
+											const file = event.target.files?.[0];
+											if (file) pickImage(file);
+											event.target.value = "";
+										}}
+									/>
+									<ImageUploadSplit
+										title="Heading image: the image store"
+										onUpload={() => imageInput.current?.click()}
+										disabled={save.isPending}
+										gallery={{
+											extra: PREBAKED_BACKGROUNDS,
+											lava: { size: 128, maxBytes: 256 * 1024 },
+											onPick: pickImage,
+											onPickBuiltin: (picture) =>
+												set({ headingImage: picture.url }),
+										}}
 									/>
 									<span className="text-xs text-content-secondary">
-										Seconds for one{" "}
-										{draft.effect === "neon" ? "pulse" : "trace"}: lower is
-										faster.
+										Upload PNG, JPEG, GIF, WebP or AVIF up to 256 KB, or choose
+										an image from the store. The title supplies alternative
+										text.
+									</span>
+								</>
+							)}
+						</div>
+						{draft.headingMode !== "none" && (
+							<>
+								<div className="flex flex-col gap-2">
+									<Label htmlFor={`${ids}-title`}>Title</Label>
+									<Input
+										id={`${ids}-title`}
+										value={draft.title}
+										maxLength={40}
+										placeholder={applicationName}
+										onChange={(e) => set({ title: e.target.value })}
+									/>
+									<span className="text-xs text-content-secondary">
+										Empty: the deployment's name ({applicationName}).
 									</span>
 								</div>
-							)}
-						</>
-					)}
-					<div className="flex flex-col gap-2">
-						<Label htmlFor={`${ids}-message`}>Sign-in message</Label>
-						<Textarea
-							id={`${ids}-message`}
-							value={draft.message}
-							maxLength={300}
-							rows={2}
-							placeholder="For example: Authorised users only."
-							onChange={(e) => set({ message: e.target.value })}
-							onFocus={() => setPreview("in")}
-						/>
-					</div>
-					<div className="flex flex-col gap-2">
-						<Label htmlFor={`${ids}-signed-out`}>Sign-out message</Label>
-						<Textarea
-							id={`${ids}-signed-out`}
-							value={draft.signedOutMessage}
-							maxLength={300}
-							rows={2}
-							placeholder="For example: You are signed out. Close this window on a shared computer."
-							onChange={(e) => set({ signedOutMessage: e.target.value })}
-							onFocus={() => setPreview("out")}
-						/>
-						<span className="text-xs text-content-secondary">
-							Shown right after signing out, instead of the sign-in message.
-						</span>
-					</div>
 
-					<div className="col-span-2 flex flex-wrap gap-2">
-						<Button
-							disabled={
-								!dirty ||
-								save.isPending ||
-								(draft.headingMode === "image" && !draft.headingImage)
-							}
-							onClick={() => submit(draft, "The sign-in page is saved.")}
-							data-testid="login-page-save"
-						>
-							<Spinner loading={save.isPending} />
-							Save
-						</Button>
-						<Button
-							variant="outline"
-							disabled={!dirty || save.isPending}
-							onClick={() => setDraft(saved)}
-						>
-							Discard changes
-						</Button>
-						<Button
-							variant="outline"
-							disabled={same(saved, LOGIN_PAGE_DEFAULT) || save.isPending}
-							onClick={() =>
-								submit(
-									LOGIN_PAGE_DEFAULT,
-									"The sign-in page is back to its defaults.",
-								)
-							}
-						>
-							Restore defaults
-						</Button>
-					</div>
-				</div>
+								<div className="flex flex-col gap-2">
+									<Label htmlFor={`${ids}-effect`}>Text effect</Label>
+									<Select
+										value={draft.effect}
+										onValueChange={(value) => {
+											const effect = LOGIN_EFFECTS.find(
+												(effect) => effect === value,
+											);
+											if (effect) set({ effect });
+										}}
+									>
+										<SelectTrigger id={`${ids}-effect`}>
+											<SelectValue />
+										</SelectTrigger>
+										<SelectContent>
+											{LOGIN_EFFECTS.map((effect) => (
+												<SelectItem key={effect} value={effect}>
+													{EFFECT_LABEL[effect].name}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+								</div>
 
-				<div className="flex flex-col gap-3">
-					<div className="flex items-center justify-between gap-2">
-						<span className="text-sm font-medium">Preview</span>
-						<div
-							className="inline-flex rounded-md border border-solid border-border p-0.5"
-							role="tablist"
-						>
-							{(
-								[
-									["in", "Signing in"],
-									["out", "After signing out"],
-								] as const
-							).map(([value, label]) => (
-								<button
-									key={value}
-									type="button"
-									role="tab"
-									aria-selected={preview === value}
-									onClick={() => setPreview(value)}
-									className={cn(
-										"cursor-pointer rounded border-0 px-2.5 py-1 font-[inherit] text-xs",
-										preview === value
-											? "bg-surface-tertiary text-content-primary"
-											: "bg-transparent text-content-secondary hover:text-content-primary",
-									)}
-								>
-									{label}
-								</button>
-							))}
+								<ColorField
+									label="Colour"
+									value={draft.color}
+									presets={COLOR_PRESETS}
+									onChange={(color) => set({ color: color.toLowerCase() })}
+								/>
+
+								{draft.effect !== "plain" && (
+									<div className="flex flex-col gap-2">
+										<div className="flex items-center justify-between">
+											<Label htmlFor={`${ids}-speed`}>
+												{draft.effect === "neon" ? "Pulse" : "Trace"} speed
+											</Label>
+											<span className="text-sm tabular-nums text-content-secondary">
+												{draft.speed.toFixed(1)} s
+											</span>
+										</div>
+										<Slider
+											id={`${ids}-speed`}
+											min={0.5}
+											max={20}
+											step={0.1}
+											value={[draft.speed]}
+											onValueChange={([speed]) => set({ speed })}
+											aria-label="Seconds per trace or pulse"
+										/>
+										<span className="text-xs text-content-secondary">
+											Seconds for one{" "}
+											{draft.effect === "neon" ? "pulse" : "trace"}: lower is
+											faster.
+										</span>
+									</div>
+								)}
+							</>
+						)}
+						<div className="flex flex-col gap-2">
+							<Label htmlFor={`${ids}-message`}>Sign-in message</Label>
+							<Textarea
+								id={`${ids}-message`}
+								value={draft.message}
+								maxLength={300}
+								rows={2}
+								placeholder="For example: Authorised users only."
+								onChange={(e) => set({ message: e.target.value })}
+								onFocus={() => setPreview("in")}
+							/>
+						</div>
+						<div className="flex flex-col gap-2">
+							<Label htmlFor={`${ids}-signed-out`}>Sign-out message</Label>
+							<Textarea
+								id={`${ids}-signed-out`}
+								value={draft.signedOutMessage}
+								maxLength={300}
+								rows={2}
+								placeholder="For example: You are signed out. Close this window on a shared computer."
+								onChange={(e) => set({ signedOutMessage: e.target.value })}
+								onFocus={() => setPreview("out")}
+							/>
+							<span className="text-xs text-content-secondary">
+								Shown right after signing out, instead of the sign-in message.
+							</span>
 						</div>
 					</div>
+				}
+				previewHeader={
+					<div className="flex flex-wrap items-center justify-between gap-2">
+						<span className="text-sm font-medium">Live preview</span>
+						<Tabs
+							value={preview}
+							onValueChange={(value) => {
+								if (value === "in" || value === "out") setPreview(value);
+							}}
+						>
+							<TabsList aria-label="Sign-in preview">
+								<TabsTrigger value="in">Signing in</TabsTrigger>
+								<TabsTrigger value="out">After signing out</TabsTrigger>
+							</TabsList>
+						</Tabs>
+					</div>
+				}
+				previewContent={
 					<div
-						className="flex min-h-56 items-center justify-center rounded-lg border border-solid border-border bg-surface-primary px-5 py-6"
+						className="flex min-h-80 items-center justify-center px-6 py-8"
 						data-testid="login-page-preview"
 					>
-						<div className="w-full max-w-[385px]">
+						<div className="w-full max-w-[385px] rounded-lg bg-surface-primary/90 p-5">
 							<SignInTitle
 								settings={draft}
 								applicationName={applicationName}
@@ -370,7 +336,38 @@ export const LoginPageSection: React.FC = () => {
 							</div>
 						</div>
 					</div>
-				</div>
+				}
+			/>
+			{saveAll.error && <ErrorAlert error={saveAll.error} />}
+			<div className="mt-6 flex flex-wrap gap-2 border-0 border-t border-solid border-border pt-5">
+				<Button
+					disabled={
+						(!dirty && !backgroundDirty) ||
+						saveAll.isPending ||
+						(draft.headingMode === "image" && !draft.headingImage)
+					}
+					onClick={() => saveAll.mutate()}
+				>
+					<Spinner loading={saveAll.isPending} />
+					Save sign-in appearance
+				</Button>
+				<Button
+					variant="outline"
+					disabled={(!dirty && !backgroundDirty) || saveAll.isPending}
+					onClick={() => {
+						setDraft(null);
+						background.current?.reset();
+					}}
+				>
+					Discard changes
+				</Button>
+				<Button
+					variant="subtle"
+					disabled={saveAll.isPending}
+					onClick={() => setDraft(LOGIN_PAGE_DEFAULT)}
+				>
+					Reset text
+				</Button>
 			</div>
 		</section>
 	);

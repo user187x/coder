@@ -1,16 +1,22 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { within } from "storybook/test";
+import { userEvent, within } from "storybook/test";
 import {
 	BreadcrumbItem,
-	BreadcrumbLink,
 	BreadcrumbList,
 	BreadcrumbPage,
 } from "#/components/Breadcrumb/Breadcrumb";
+import { MockPermissions, MockUserOwner } from "#/testHelpers/entities";
+import {
+	withAuthProvider,
+	withDashboardProvider,
+} from "#/testHelpers/storybook";
 import { AdminBreadcrumb } from "./AdminBreadcrumb";
+import { AdminCategoryMenu } from "./AdminCategoryMenu";
 
 const meta: Meta<typeof AdminBreadcrumb> = {
 	title: "modules/management/AdminBreadcrumb",
 	component: AdminBreadcrumb,
+	decorators: [withDashboardProvider, withAuthProvider],
 	render: () => (
 		<div>
 			<div className="sticky top-0 z-40 flex h-[72px] items-center bg-surface-primary px-6">
@@ -20,7 +26,7 @@ const meta: Meta<typeof AdminBreadcrumb> = {
 				<AdminBreadcrumb variant="connected">
 					<BreadcrumbList>
 						<BreadcrumbItem>
-							<BreadcrumbLink to="/hud">Admin</BreadcrumbLink>
+							<AdminCategoryMenu />
 						</BreadcrumbItem>
 						<BreadcrumbItem>
 							<BreadcrumbPage>Health</BreadcrumbPage>
@@ -41,7 +47,11 @@ const meta: Meta<typeof AdminBreadcrumb> = {
 			</div>
 		</div>
 	),
-	parameters: { layout: "fullscreen" },
+	parameters: {
+		layout: "fullscreen",
+		user: MockUserOwner,
+		permissions: MockPermissions,
+	},
 };
 export default meta;
 type Story = StoryObj<typeof AdminBreadcrumb>;
@@ -51,5 +61,14 @@ export const Scrolled: Story = {
 		within(canvasElement)
 			.getByRole("heading", { name: "Provisioner details" })
 			.scrollIntoView();
+	},
+};
+
+export const Categories: Story = {
+	play: async ({ canvasElement }) => {
+		await userEvent.pointer({
+			target: within(canvasElement).getByRole("link", { name: "Admin" }),
+			keys: "[MouseRight]",
+		});
 	},
 };

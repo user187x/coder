@@ -51,7 +51,6 @@ describe("adminPagesFor", () => {
 			"Notifications",
 			"OAuth2 Applications",
 			"Quick Menu",
-			"Observability",
 			"Persistence",
 			"Security",
 		]);
@@ -151,4 +150,14 @@ describe("adminPageIcon", () => {
 		}
 		expect(adminPageIcon("no-such-page")).toBeUndefined();
 	});
+});
+
+it("retains Observability shortcuts under Monitoring for configuration viewers", () => {
+	const pages = adminPagesFor({
+		permissions: { ...MockNoPermissions, viewDeploymentConfig: true },
+		oauth2Provider: false,
+	});
+	expect(
+		ids(resolveAdminQuickLinks(["observability", "monitoring"], pages)),
+	).toEqual(["monitoring"]);
 });

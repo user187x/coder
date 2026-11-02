@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { GaugeIcon, RadioIcon } from "lucide-react";
+import { GaugeIcon, RadioIcon, SettingsIcon } from "lucide-react";
 import { useState } from "react";
 import { NavLink } from "react-router";
 import { toast } from "sonner";
@@ -138,7 +138,10 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 	const reading = (
 		<>
 			{pill}
-			Settings
+			<span className="inline-flex items-center gap-1.5">
+				<SettingsIcon aria-hidden className="size-3.5" />
+				Settings
+			</span>
 			<ChevronDownIcon className="text-content-primary" />
 			<SettingsNotificationBadge permissions={controls?.permissions} />
 		</>
@@ -324,9 +327,8 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 							}}
 						/>
 
-						{!controls?.quickLinks?.some((page) => page.id === "chat") && (
+						{!controls && (
 							<ChatMenuItem
-								admin={controls?.permissions.canEditDeployment}
 								expanded={chatExpanded}
 								onToggle={() => setChatExpanded(!chatExpanded)}
 							/>

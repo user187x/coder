@@ -71,6 +71,8 @@ export const NavbarLogo: React.FC = () => {
 				? "transparent"
 				: "opaque";
 
+	if (!logoURL) return null;
+
 	return (
 		<NavLink
 			to="/workspaces"

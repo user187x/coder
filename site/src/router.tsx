@@ -199,12 +199,7 @@ const HudPage = lazy(() => import("./pages/HudPage/HudPage"));
 const CertificatesPage = lazy(
 	() => import("./pages/UserSettingsPage/CertificatesPage/CertificatesPage"),
 );
-const ObservabilitySettingsPage = lazy(
-	() =>
-		import(
-			"./pages/DeploymentSettingsPage/ObservabilitySettingsPage/ObservabilitySettingsPage"
-		),
-);
+
 const ExternalAuthPage = lazy(
 	() => import("./pages/ExternalAuthPage/ExternalAuthPage"),
 );
@@ -538,7 +533,9 @@ export const router = createBrowserRouter(
 							<Route path="security" element={<SecuritySettingsPage />} />
 							<Route
 								path="observability"
-								element={<ObservabilitySettingsPage />}
+								element={
+									<Navigate to="/deployment/monitoring#observability" replace />
+								}
 							/>
 
 							<Route path="network" element={<NetworkSettingsPage />} />

@@ -11,6 +11,7 @@ describe("the wheel's choices", () => {
 		expect(ids).toEqual(
 			expect.arrayContaining([
 				"workspaces",
+				"leases",
 				"templates",
 				"images",
 				"account",
@@ -36,4 +37,12 @@ describe("the wheel's choices", () => {
 		expect(labelSize("Notifications", 30)).toBeLessThan(13);
 		expect(labelSize("Notifications", 30)).toBeGreaterThanOrEqual(8);
 	});
+});
+
+it("keeps saved Observability wedges as Monitoring without duplicates", () => {
+	expect(
+		wheelOf(["observability", "monitoring", "workspaces", "templates"]).map(
+			(c) => c.id,
+		),
+	).toEqual(["monitoring", "workspaces", "templates"]);
 });

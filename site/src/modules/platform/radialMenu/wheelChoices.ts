@@ -4,6 +4,7 @@ import {
 	ContainerIcon,
 	EyeIcon,
 	FileTextIcon,
+	HourglassIcon,
 	type LucideIcon,
 	MessagesSquareIcon,
 } from "lucide-react";
@@ -48,6 +49,15 @@ const DASHBOARD: readonly WheelChoice[] = [
 		to: "/templates",
 		group: "dashboard",
 		allowed: everyone,
+	},
+	{
+		id: "leases",
+		label: "Leases",
+		icon: HourglassIcon,
+		to: "/deployment/users#short-term-leases",
+		group: "dashboard",
+		allowed: ({ permissions }) =>
+			permissions.viewAllUsers && permissions.createUser,
 	},
 	// the Resources menu's icon for it
 	{
@@ -123,9 +133,16 @@ export const wheelOf = (ids: readonly string[] | null | undefined) => {
 	const all = wheelChoices();
 	const pick = (list: readonly string[]) =>
 		list
-			.map((id) => all.find((choice) => choice.id === id))
+			.map((id) =>
+				all.find(
+					(choice) =>
+						choice.id === (id === "observability" ? "monitoring" : id),
+				),
+			)
 			.filter((choice): choice is WheelChoice => Boolean(choice))
 			.slice(0, WHEEL_WEDGES.most);
-	const chosen = pick(ids ?? []);
+	const chosen = [
+		...new Map(pick(ids ?? []).map((choice) => [choice.id, choice])).values(),
+	];
 	return chosen.length >= WHEEL_WEDGES.least ? chosen : pick(DEFAULT_WHEEL);
 };

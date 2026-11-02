@@ -1,12 +1,14 @@
 import { useQuery } from "react-query";
 import { onlineUsers } from "#/api/queries/platform";
 import type { User } from "#/api/typesGenerated";
+import { useChatSnapshot } from "#/modules/platform/chat/chatStore";
 
 export const AccountPresence: React.FC<{
 	user: Pick<User, "id" | "status" | "last_seen_at">;
 	enabled: boolean;
 }> = ({ user, enabled }) => {
-	const presence = useQuery({ ...onlineUsers(), enabled });
+	const { presenceVersion } = useChatSnapshot();
+	const presence = useQuery({ ...onlineUsers(presenceVersion), enabled });
 	const peer = presence.data?.online.find((person) => person.id === user.id);
 	const recent = presence.data?.recent.find((person) => person.id === user.id);
 	const online = peer !== undefined && peer.status !== "offline";

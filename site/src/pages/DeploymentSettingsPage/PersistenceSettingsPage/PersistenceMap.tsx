@@ -240,9 +240,10 @@ const Box: React.FC<
 );
 
 /** General > Persistence: tiles, then a map of how Coder's data is stored. */
-export const PersistenceMap: React.FC<{ report: PersistenceReport }> = ({
-	report,
-}) => {
+export const PersistenceMap: React.FC<{
+	report: PersistenceReport;
+	onAddTarget: () => void;
+}> = ({ report, onAddTarget }) => {
 	const container = useRef<HTMLDivElement>(null);
 	const { paths, box } = useLinks(container, report);
 	const now = useNow();
@@ -352,7 +353,18 @@ export const PersistenceMap: React.FC<{ report: PersistenceReport }> = ({
 						}
 					>
 						<div className="font-semibold">
-							{backups?.configured ? backups.method : "None scheduled"}
+							{backups?.configured ? (
+								backups.method
+							) : (
+								<button
+									type="button"
+									aria-label="None scheduled: Add a target"
+									onClick={onAddTarget}
+									className="cursor-pointer border-0 bg-transparent p-0 text-left font-[inherit] text-inherit before:absolute before:inset-0 before:rounded-lg hover:underline focus-visible:outline-none focus-visible:before:ring-2 focus-visible:before:ring-content-link"
+								>
+									None scheduled
+								</button>
+							)}
 						</div>
 						<div className="text-xs text-content-secondary">
 							{backups?.configured

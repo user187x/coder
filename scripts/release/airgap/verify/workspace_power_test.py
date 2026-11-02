@@ -275,6 +275,42 @@ class WorkspacePowerTest(unittest.TestCase):
                      "/workspace-power/operation/" + operation["id"])
         self.assertEqual(handler.send_json.call_args.args[0], 404)
 
+    def test_clear_completed_operation_preserves_running_operations(self):
+        operation = self.operation()
+        power.update(operation["id"], status="partial")
+        other = self.operation()
+        handler = self.handler()
+        route = power.BASE + "/organizations/" + self.org + "/workspace-power/operation/"
+        power.handle(handler, "DELETE", route + operation["id"])
+        self.assertEqual(handler.send_json.call_args.args, (200, {"ok": True}))
+        with self.assertRaises(LookupError):
+            power.read_operation(self.org, operation["id"])
+        self.assertEqual(power.read_operation(self.org, other["id"])["status"], "running")
+        power.handle(handler, "DELETE", route + other["id"])
+        self.assertEqual(handler.send_json.call_args.args[0], 409)
+        self.assertEqual(power.read_operation(self.org, other["id"])["status"], "running")
+
+    def test_clear_requires_csrf_admin_and_workspace_update_permission(self):
+        operation = self.operation()
+        power.update(operation["id"], status="completed")
+        route = power.BASE + "/organizations/" + self.org + "/workspace-power/operation/" + operation["id"]
+        handler = self.handler()
+        handler.csrf_ok.return_value = False
+        power.handle(handler, "DELETE", route)
+        self.assertEqual(handler.send_json.call_args.args[0], 403)
+        handler.user.assert_not_called()
+        handler = self.handler()
+        handler.user.return_value = (None, True)
+        power.handle(handler, "DELETE", route)
+        handler.user.assert_called_once_with(admin=True)
+        handler = self.handler()
+        power.HTTP_JSON.return_value = (200, {self.wid: False})
+        power.handle(handler, "DELETE", route)
+        self.assertEqual(handler.send_json.call_args.args[0], 403)
+        self.assertEqual(power.read_operation(self.org, operation["id"])["status"], "completed")
+        power.handle(handler, "DELETE", route.replace(self.org, str(uuid.uuid4())))
+        self.assertEqual(handler.send_json.call_args.args[0], 404)
+
     def vm_fixture(self, owner=True, organization=None):
         vm = {"metadata": {"uid": "vm-uid", "resourceVersion": "1", "labels": {
             "com.coder.workspace.id": self.wid, "com.coder.organization.id": organization or self.org}},

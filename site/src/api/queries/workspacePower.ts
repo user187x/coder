@@ -123,3 +123,24 @@ export const runWorkspacePower = (
 		]);
 	},
 });
+
+export const clearWorkspacePowerHistory = (client: QueryClient) => ({
+	mutationFn: async (operations: readonly WorkspacePowerOperation[]) => {
+		const results = await Promise.allSettled(
+			operations
+				.filter((op) => op.status !== "running")
+				.map((op) =>
+					PlatformAPI.clearWorkspacePowerOperation(op.organization_id, op.id),
+				),
+		);
+		const errors = results.flatMap((result) =>
+			result.status === "rejected" ? [result.reason] : [],
+		);
+		if (errors.length)
+			throw new AggregateError(
+				errors,
+				`${errors.length} operation entries could not be cleared. Refresh and try again.`,
+			);
+	},
+	onSettled: () => client.invalidateQueries({ queryKey: workspacePowerKey }),
+});

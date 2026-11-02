@@ -70,7 +70,7 @@ it("adds a setting from the inline picker without navigating", async () => {
 		</MemoryRouter>,
 	);
 	const user = userEvent.setup();
-	await user.click(screen.getByRole("menuitem", { name: "Settings" }));
+	await user.click(screen.getByRole("menuitem", { name: "Controls" }));
 	await user.click(screen.getByRole("menuitem", { name: "Security" }));
 	expect(onChange).toHaveBeenCalledWith(["security"]);
 });

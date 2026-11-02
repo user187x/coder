@@ -63,7 +63,7 @@ export const answerFor = (command: string): Answer => {
 		command === MOUSE ||
 		command === MATRIX ||
 		["clear", "exit", "close"].includes(command) ||
-		["cat", "cd", "echo"].includes(word) ||
+		["cat", "cd", "dir", "echo"].includes(word) ||
 		RM_RF.test(command)
 	) {
 		return "none";
@@ -297,7 +297,7 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 				return;
 			}
 			if (keyword === "cat") setCat((value) => value + 1);
-			if (keyword === "cd") setFlash((value) => value + 1);
+			if (keyword === "cd" || keyword === "dir") setFlash((value) => value + 1);
 			if (keyword === "echo") setEcho(true);
 			if (command.toLowerCase() === "clear") {
 				setHistory([]);

@@ -758,13 +758,24 @@ class QuickMenuTest(unittest.TestCase):
 
     def test_checked(self):
         self.assertEqual(ui.clean_quick_menu({"items": ["workspaces", "accounts", "oauth2-applications"]}),
-                         {"items": ["workspaces", "accounts", "oauth2-applications"], "shortcut": "Escape"})
+                         {"items": ["workspaces", "accounts", "oauth2-applications"], "shortcut": "Ctrl+Escape", "enabled": True})
         for bad, why in (({"items": ["a", "a", "b"]}, "once"), ({"items": ["a", "b"]}, "3 to 12"),
                          ({"items": ["x%d" % i for i in range(13)]}, "3 to 12"), ({"items": "workspaces"}, "IDs"),
                          ({"items": ["Workspaces", "b", "c"]}, "IDs"), ({"items": ["../x", "b", "c"]}, "IDs")):
             with self.assertRaises(ValueError) as e:
                 ui.clean_quick_menu(bad)
             self.assertIn(why, str(e.exception))
+
+    def test_disabled_and_default_shortcut(self):
+        with mock.patch.object(ui, "STORE", mock.Mock(get_setting=lambda key, default=None: None)):
+            settings = ui.quick_menu_settings()
+        self.assertEqual(settings["shortcut"], "Ctrl+Escape")
+        self.assertIs(settings["enabled"], True)
+        disabled = ui.clean_quick_menu({"items": ["workspaces", "leases", "accounts"], "enabled": False, "shortcut": "Ctrl+K"})
+        self.assertIs(disabled["enabled"], False)
+        self.assertEqual(disabled["shortcut"], "Ctrl+K")
+        with self.assertRaises(ValueError):
+            ui.clean_quick_menu({"items": ["a", "b", "c"], "enabled": "false"})
 
     def test_shortcuts(self):
         for raw, expected in (("Escape", "Escape"), ("Ctrl+Shift+k", "Ctrl+Shift+K"), ("Shift+Ctrl+K", "Ctrl+Shift+K"), ("F8", "F8"), ("Meta+Space", "Meta+Space"), ("a", "A")):
@@ -4662,6 +4673,48 @@ class ClusterNetworkViewTest(unittest.TestCase):
         self.cn.handle(h, "GET", "/__coder-ui/api/network/nothing", "")
         self.cn.handle(h, "POST", "/__coder-ui/api/network/mesh", "")
         self.assertEqual([s for s, _ in sent], [400, 404, 404, 405])
+
+
+
+
+
+class LogoVisibilityTest(unittest.TestCase):
+    def post(self, payload, *, allowed=True):
+        handler = mock.Mock(path=ui.BASE + "/api/logo")
+        handler.csrf_ok.return_value = True
+        handler.body.return_value = payload
+        handler.user.return_value = ({"username": "admin"}, None) if allowed else (None, "forbidden")
+        logos = mock.Mock()
+        store = mock.Mock()
+        with mock.patch.object(ui, "LOGOS", logos), mock.patch.object(ui, "STORE", store):
+            ui.Handler.do_POST(handler)
+        handler.user.assert_called_once_with(admin=True)
+        return handler, logos, store
+
+    def test_hide_preserves_uploaded_image(self):
+        handler, logos, store = self.post({"enabled": False})
+        store.put_setting.assert_called_once_with("logo_enabled", False)
+        logos.put.assert_not_called()
+        logos.reset.assert_not_called()
+        handler.send_json.assert_called_once_with(200, {"ok": True, "enabled": False})
+
+    def test_validate_visibility_and_require_admin(self):
+        handler, _, store = self.post({"enabled": "false"})
+        self.assertEqual(handler.send_json.call_args.args[0], 400)
+        store.put_setting.assert_not_called()
+        _, _, store = self.post({"enabled": False}, allowed=False)
+        store.put_setting.assert_not_called()
+
+    def test_hidden_logo_is_in_boot_and_favicon(self):
+        store = mock.Mock(get_setting=lambda key, default=None: False if key == "logo_enabled" else default)
+        with mock.patch.object(ui, "STORE", store), mock.patch.object(ui, "LOGOS", None), mock.patch.object(ui, "AVATARS", None), mock.patch.object(ui, "BACKGROUNDS", None):
+            self.assertIn("window.__cuiLogoEnabled=false;", ui.boot_js())
+            handler = mock.Mock()
+            ui.Handler.favicon(handler, "favicon-dark.png")
+        self.assertEqual(handler.send.call_args.args[:3], (200, '<svg xmlns="http://www.w3.org/2000/svg"/>', "image/svg+xml"))
+
+    def test_full_strength_background(self):
+        self.assertEqual(ui.clean_bg_settings({"opacity": 1})["opacity"], 1)
 
 
 if __name__ == "__main__":

@@ -14,7 +14,6 @@ import {
 	NetworkIcon,
 	PaletteIcon,
 	TagIcon,
-	TelescopeIcon,
 	UsersIcon,
 } from "lucide-react";
 import { MaxAdminQuickLinks } from "#/api/typesGenerated";
@@ -104,7 +103,8 @@ const ADMIN_PAGES: readonly (AdminPage & {
 		label: "Monitoring",
 		icon: ActivityIcon,
 		path: "/deployment/monitoring",
-		allowed: ({ permissions }) => permissions.editDeploymentConfig,
+		allowed: ({ permissions }) =>
+			permissions.editDeploymentConfig || permissions.viewDeploymentConfig,
 	},
 	{
 		id: "network",
@@ -134,13 +134,6 @@ const ADMIN_PAGES: readonly (AdminPage & {
 		icon: LifeBuoyIcon,
 		path: "/deployment/quick-menu",
 		allowed: ({ permissions }) => permissions.editDeploymentConfig,
-	},
-	{
-		id: "observability",
-		label: "Observability",
-		icon: TelescopeIcon,
-		path: "/deployment/observability",
-		allowed: ({ permissions }) => permissions.viewDeploymentConfig,
 	},
 	{
 		id: "persistence",
@@ -185,7 +178,9 @@ export const resolveAdminQuickLinks = (
 	const used = new Set<string>();
 	const links: AdminPage[] = [];
 	for (const id of chosen) {
-		const page = pages.find((p) => p.id === id);
+		const page = pages.find(
+			(p) => p.id === (id === "observability" ? "monitoring" : id),
+		);
 		if (page && !used.has(page.id)) {
 			used.add(page.id);
 			links.push(page);

@@ -2,6 +2,7 @@ import { API } from "#/api/api";
 import { PlatformAPI } from "#/api/platform";
 import type * as TypesGen from "#/api/typesGenerated";
 import { Button } from "#/components/Button/Button";
+import { useProductLogoURL } from "#/components/Icons/ProductLogo";
 import type { ProxyContextValue } from "#/contexts/ProxyContext";
 import { NotificationsInbox } from "#/modules/notifications/NotificationsInbox/NotificationsInbox";
 import { AnnouncementBanner } from "#/modules/platform/announcement/AnnouncementBanner";
@@ -42,6 +43,7 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 	adminQuickLinks,
 	proxyContextValue,
 }) => {
+	const logoURL = useProductLogoURL();
 	// Editable where there is anything to link to.
 	const quickLinksEditor =
 		adminQuickLinks && adminQuickLinks.pages.length > 0
@@ -78,7 +80,7 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 			<NavbarArrange
 				className="relative hidden md:flex flex-1 min-w-0 items-center gap-3 h-full"
 				items={{
-					logo: <NavbarLogo />,
+					logo: logoURL ? <NavbarLogo /> : null,
 					workspaces: (
 						<nav className="flex items-center h-full">
 							<WorkspacesDropdown
