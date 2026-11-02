@@ -26,6 +26,31 @@ ld = load("lockdown", "lockdown.py")
 pv = load("provisioners", "provisioners.py")
 
 
+class PlatformHTTPTest(unittest.TestCase):
+    def test_delete_body_does_not_corrupt_next_request(self):
+        import http.client
+        import http.server
+        with http.server.ThreadingHTTPServer(("127.0.0.1", 0), ui.Handler) as server:
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            connection = http.client.HTTPConnection(*server.server_address, timeout=5)
+            try:
+                oid = "00000000-0000-4000-8000-000000000001"
+                path = f"{ui.BASE}/api/organizations/{oid}/workspace-power/operation/{oid}"
+                connection.request("DELETE", path, body=b"{}", headers={"Content-Type": "application/json"})
+                response = connection.getresponse()
+                self.assertEqual(response.status, 403)
+                response.read()
+                connection.request("GET", ui.BASE + "/healthz")
+                response = connection.getresponse()
+                self.assertEqual(response.status, 200)
+                response.read()
+            finally:
+                connection.close()
+                server.shutdown()
+                thread.join()
+
+
 class QuarantineDatabasePolicyTest(unittest.TestCase):
     def test_pgwire_policy_flags_are_decoded_before_enforcement(self):
         wid = '11111111-1111-4111-8111-111111111111'

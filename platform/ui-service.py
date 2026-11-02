@@ -9750,6 +9750,8 @@ class Handler(BaseHTTPRequestHandler):
         return self.send_json(200, {"cleared": len(rows)})
 
     def do_DELETE(self):
+        # DELETE handlers may finish without reading the client's JSON body.
+        self.close_connection = True
         url = urllib.parse.urlsplit(self.path)
         if workspacepower.handle(self, "DELETE", url.path, url.query):
             return
