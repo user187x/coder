@@ -6,8 +6,8 @@ build, pull, or start it. Import it into Images only in an enclave selected for
 accreditation testing, then select it for a dedicated research workspace.
 
 The image extends the Coder workspace image, retaining its terminal, editor,
-desktop, and file browser. It includes the supplied `sandbox_environement`
-sources and a Debian guest with its own Linux kernel, matching kernel headers,
+desktop, and file browser. It includes the research projects maintained in
+[`source/`](source/) and a Debian guest with its own Linux kernel, matching kernel headers,
 GCC, Clang, libbpf, bpftool, Python, pytest, GDB, and strace.
 
 ## Build and transfer
@@ -17,7 +17,7 @@ From the repository root:
 ```sh
 RESEARCH_IMAGE=coder-research-sandbox:$(cat RELEASE_VERSION) \
 RESEARCH_ARCHIVE=/tmp/coder-research-sandbox.tar.gz \
-  bash airgap-dist/development/tools/build-research-workspace.sh
+  ./scripts/build_airgap_release.sh --tool build-research-workspace.sh
 ```
 
 The script builds only `linux/amd64`, runs the guest checks, and optionally writes

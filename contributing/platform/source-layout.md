@@ -18,6 +18,10 @@ The charts reference Python source with relative symlinks. Edit the files under
 The online service is an existing implementation, not a copy of the current
 platform service. Consolidating its behavior requires a separate migration.
 
+Kernel and eBPF research projects live in `images/research-workspace/source/`.
+The optional [research workspace image](../../images/research-workspace/README.md)
+includes these sources and compiles them for its disposable guest kernel.
+
 ## Check source
 
 From the repository root:

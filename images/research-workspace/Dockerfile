@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 python3-venv python3-pytest git jq curl wget ca-certificates \
     iproute2 iputils-ping procps strace gdb kmod sudo util-linux busybox \
     && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
-COPY --from=research-source / /opt/coder-research/source/
+COPY source/ /opt/coder-research/source/
 COPY guest/ /usr/local/lib/coder-research/
 RUN chmod 0755 /usr/local/lib/coder-research/* \
     && /bin/busybox --list | grep -qx poweroff \

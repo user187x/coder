@@ -6,9 +6,8 @@ root="$(cd "$here/../../.." && pwd)"
 version="$(cat "$root/RELEASE_VERSION")"
 image="${RESEARCH_IMAGE:-coder-research-sandbox:$version}"
 docker build --platform linux/amd64 \
-	--build-context "research-source=$root/sandbox_environement" \
 	--build-arg "VERSION=$version" --tag "$image" \
-	"$root/airgap-dist/development/research-workspace"
+	"$root/images/research-workspace"
 docker run --rm --network none --cap-drop ALL --security-opt no-new-privileges \
 	--memory 4g --cpus 2 --entrypoint sandbox-guest "$image" \
 	/opt/coder-research/smoke.sh --timeout 900
