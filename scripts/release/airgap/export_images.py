@@ -74,7 +74,7 @@ def main():
         records[group].append(f"{digest(target)}  {name}\n")
         print(f"Verified {group}/{name}", flush=True)
     for group, entries in records.items():
-        text = "".join(sorted(entries))
+        text = "".join(sorted(entries, key=lambda entry: entry.split()[1]))
         (checksums / group).mkdir(parents=True, exist_ok=True)
         (checksums / group / "SHA256SUMS").write_text(text)
         (destination / "images" / group / "SHA256SUMS").write_text(text)
