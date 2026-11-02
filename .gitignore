@@ -136,3 +136,11 @@ docs/.audit/
 test-timings.tsv
 # Binary left behind by `go build ./scripts/typegen`.
 /typegen
+
+# Generated release output and image-build inputs.
+/build/
+/images/airgap-image/template/
+/images/workspace-image-dataflow/nifi-*-bin.zip*
+/images/workspace-image-dataflow/airflow-constraints.txt
+*.pyc
+__pycache__/

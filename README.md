@@ -124,3 +124,8 @@ New contributors are always welcome. If you are new to the Coder codebase, see
 ## Hiring
 
 Apply on the [careers page](https://jobs.ashbyhq.com/coder?utm_source=github&utm_medium=readme&utm_campaign=unknown) if you are interested in joining the team.
+
+## Platform source and release tooling
+
+See [Platform source and air-gapped releases](contributing/platform/source-layout.md)
+for source locations, validation, and release generation.

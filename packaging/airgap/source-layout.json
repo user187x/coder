@@ -1,0 +1,153 @@
+[
+  {
+    "source": "helm/coder-airgapped",
+    "destination": "airgap-dist/helm-chart/coder-airgapped"
+  },
+  {
+    "source": "platform",
+    "destination": "airgap-dist/helm-chart/coder-airgapped/files/ui-updates",
+    "exclude": [
+      "online"
+    ]
+  },
+  {
+    "source": "scripts/release/airgap",
+    "destination": "airgap-dist/development/tools",
+    "exclude": [
+      "assemble.py",
+      "assemble_test.py"
+    ]
+  },
+  {
+    "source": "packaging/airgap",
+    "destination": "airgap-dist/helm-chart",
+    "exclude": [
+      "source-layout.json",
+      "archive-checksums",
+      "source.gitignore",
+      "cloud-disconnect.svg",
+      "ha-template.png",
+      ".gitattributes"
+    ]
+  },
+  {
+    "source": "packaging/airgap/archive-checksums",
+    "destination": "airgap-dist/helm-chart/images"
+  },
+  {
+    "source": "packaging/airgap/source.gitignore",
+    "destination": "airgap-dist/.gitignore"
+  },
+  {
+    "source": "packaging/airgap/.gitattributes",
+    "destination": "airgap-dist/.gitattributes"
+  },
+  {
+    "source": "packaging/airgap/cloud-disconnect.svg",
+    "destination": "airgap-dist/cloud-disconnect.svg"
+  },
+  {
+    "source": "packaging/airgap/ha-template.png",
+    "destination": "airgap-dist/ha-template.png"
+  },
+  {
+    "source": "packaging/reference",
+    "destination": "airgap-dist/development/reference"
+  },
+  {
+    "source": "packaging/upstream-charts",
+    "destination": "airgap-dist/development/upstream-charts"
+  },
+  {
+    "source": "packaging/keycloak",
+    "destination": "airgap-dist/development/keycloak"
+  },
+  {
+    "source": "contributing/platform/coder-fork",
+    "destination": "airgap-dist/development/coder-fork"
+  },
+  {
+    "source": "contributing/platform/development.md",
+    "destination": "airgap-dist/development/README.md"
+  },
+  {
+    "source": "contributing/platform/README.md",
+    "destination": "airgap-dist/README.md"
+  },
+  {
+    "source": "contributing/platform/CHANGELOG.md",
+    "destination": "airgap-dist/CHANGELOG.md"
+  },
+  {
+    "source": "contributing/platform/image-archives.md",
+    "destination": "airgap-dist/helm-chart/images/README.md"
+  },
+  {
+    "source": "images/airgap-image",
+    "destination": "airgap-dist/development/airgap-image"
+  },
+  {
+    "source": "images/browser-workspaces",
+    "destination": "airgap-dist/development/browser-workspaces"
+  },
+  {
+    "source": "images/graphics",
+    "destination": "airgap-dist/development/graphics"
+  },
+  {
+    "source": "images/image-store",
+    "destination": "airgap-dist/development/image-store"
+  },
+  {
+    "source": "images/image-tools",
+    "destination": "airgap-dist/development/image-tools"
+  },
+  {
+    "source": "images/registry-image",
+    "destination": "airgap-dist/development/registry-image"
+  },
+  {
+    "source": "images/research-workspace",
+    "destination": "airgap-dist/development/research-workspace"
+  },
+  {
+    "source": "images/workspace-image",
+    "destination": "airgap-dist/development/workspace-image"
+  },
+  {
+    "source": "images/workspace-image-dataflow",
+    "destination": "airgap-dist/development/workspace-image-dataflow"
+  },
+  {
+    "source": "contributing/platform/FEATURES.md",
+    "destination": "airgap-dist/docs/FEATURES.md"
+  },
+  {
+    "source": "contributing/platform/READINESS.md",
+    "destination": "airgap-dist/docs/READINESS.md"
+  },
+  {
+    "source": "contributing/platform/fix-image-api.md",
+    "destination": "airgap-dist/docs/fix-image-api.md"
+  },
+  {
+    "source": "contributing/platform/adr",
+    "destination": "airgap-dist/docs/adr"
+  },
+  {
+    "destination": "airgap-dist/development/tools/runtime/update-platform-service.py",
+    "link": "../../../helm-chart/update-platform-service.py"
+  },
+  {
+    "destination": "airgap-dist/helm-chart/coder-airgapped/charts/coder-workspace/files/scripts/cloud-drive-cli.py",
+    "link": "../../../../files/ui-updates/clouddrive_cli.py"
+  },
+  {
+    "destination": "airgap-dist/helm-chart/coder-airgapped/charts/coder-workspace/files/scripts/lockdown.sh",
+    "link": "../../../../files/ui-updates/lockdown.sh"
+  },
+  {
+    "destination": "airgap-dist/helm-chart/coder-airgapped/files/bootstrap/pgwire.py",
+    "link": "../ui-updates/pgwire.py"
+  }
+]

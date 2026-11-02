@@ -1,0 +1,1 @@
+../../../../packaging/airgap/update-platform-service.py

@@ -1,1 +1,0 @@
-../../../../files/ui-updates/lockdown.sh

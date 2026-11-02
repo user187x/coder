@@ -58,10 +58,10 @@ IIF = "IIF"
 [files]
 extend-exclude = [
 	# Imported cluster snapshots, vendored Kubernetes resources and generated image inventory.
-	"airgap-dist/development/reference/**",
-	"airgap-dist/helm-chart/prereqs/**",
-	"airgap-dist/helm-chart/coder-airgapped/charts/traefik/**",
-	"airgap-dist/helm-chart/coder-airgapped/files/ui-updates/image-contents.json",
+	"packaging/reference/**",
+	"packaging/airgap/prereqs/**",
+	"helm/coder-airgapped/charts/traefik/**",
+	"platform/image-contents.json",
 	"**.svg",
 	"**.png",
 	"**.lock",

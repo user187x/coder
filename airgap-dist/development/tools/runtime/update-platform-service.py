@@ -1,1 +1,0 @@
-../../../helm-chart/update-platform-service.py

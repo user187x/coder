@@ -1,0 +1,1 @@
+../../../../platform/test_adminnotes.py

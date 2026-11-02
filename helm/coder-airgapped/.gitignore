@@ -1,0 +1,3 @@
+# Vendored subcharts are maintained source for the offline chart.
+!charts/
+!charts/**
