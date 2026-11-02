@@ -7,6 +7,11 @@ import * as CreateDayString from "#/utils/createDayString";
 import * as templateVersionUtils from "#/utils/templateVersion";
 import TemplateVersionPage from "./TemplateVersionPage";
 
+// jsdom has no canvas support; these tests exercise the file list.
+vi.mock("#/components/SyntaxHighlighter/SyntaxHighlighter", () => ({
+	SyntaxHighlighter: () => null,
+}));
+
 const TEMPLATE_NAME = "coder-ts";
 const VERSION_NAME = "12345";
 const TERRAFORM_FILENAME = "main.tf";
