@@ -4585,6 +4585,23 @@ class ClusterNetworkViewTest(unittest.TestCase):
         with self.assertRaises(LookupError):
             self.cn.entity("tok", "type=link&id=nothing-here")
 
+    def test_coder_probe_uses_the_services_target_port(self):
+        for target, expected in (("secure", 9443), (8443, 8443)):
+            with self.subTest(target=target):
+                self.mesh_env()
+                self.pods[0]["spec"]["containers"][0]["ports"] = [
+                    {"name": "http", "containerPort": 8080}, {"name": "secure", "containerPort": 9443}]
+                self.cn.KUBE.routes["/api/v1/namespaces/coder/services"][1]["items"].append({
+                    "metadata": {"name": "coder", "namespace": "coder"},
+                    "spec": {"selector": {"app.kubernetes.io/name": "coder"},
+                             "ports": [{"port": 443, "targetPort": target}]}})
+                with mock.patch.object(self.cn, "_cache", {}), mock.patch.object(self.cn, "CODER_URL", "https://coder.coder.svc"), \
+                        mock.patch.object(self.cn, "http_ms", return_value=(1, None, 200)), \
+                        mock.patch.object(self.cn, "tcp_ms", return_value=(1, None)) as tcp:
+                    self.cn.Mesh().report("tok")
+                    tcp.assert_any_call("10.0.0.10", expected)
+                    self.assertNotIn(mock.call("10.0.0.10", 8080), tcp.call_args_list)
+
     def test_a_failed_probe_is_that_connections_error(self):
         self.mesh_env()
         self.snapshot["pods"] = [p for p in self.pods if p["metadata"]["name"] in ("coder-878d-a", "coder-ui-updates-x")]

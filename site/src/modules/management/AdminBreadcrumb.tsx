@@ -1,10 +1,11 @@
+import { cn } from "cn";
 import { useEffect, useRef } from "react";
 import { Breadcrumb } from "#/components/Breadcrumb/Breadcrumb";
 
 /** Keeps admin navigation below the navbar and the category rail below the breadcrumb. */
 export const AdminBreadcrumb: React.FC<
 	React.ComponentProps<typeof Breadcrumb>
-> = (props) => {
+> = ({ className, ...props }) => {
 	const ref = useRef<HTMLElement>(null);
 	useEffect(() => {
 		const nav = ref.current;
@@ -33,7 +34,10 @@ export const AdminBreadcrumb: React.FC<
 		<Breadcrumb
 			{...props}
 			ref={ref}
-			className="sticky top-[calc(var(--dashboard-navigation-height,72px)+var(--coder-classification-h,0px))] z-30 flow-root border-0 border-b border-solid border-border bg-surface-primary"
+			className={cn(
+				"sticky top-[calc(var(--dashboard-navigation-height,72px)+var(--coder-classification-h,0px))] z-30 flow-root border-0 border-b border-solid border-border bg-surface-primary",
+				className,
+			)}
 		/>
 	);
 };
