@@ -1,0 +1,2756 @@
+diff --git a/backend/go.mod b/backend/go.mod
+index 760b902c75..e870d1a7ab 100644
+--- a/backend/go.mod
++++ b/backend/go.mod
+@@ -31,7 +31,7 @@
+ 	golang.org/x/crypto v0.57.0
+ 	golang.org/x/image v0.46.0
+ 	golang.org/x/mod v0.41.0
+-	golang.org/x/net v0.59.0
++	golang.org/x/net v0.60.0
+ 	golang.org/x/oauth2 v0.37.0
+ 	golang.org/x/sys v0.48.0
+ 	golang.org/x/term v0.46.0
+diff --git a/backend/go.sum b/backend/go.sum
+index 37c4e7086b..85340695e9 100644
+--- a/backend/go.sum
++++ b/backend/go.sum
+@@ -253,6 +253,8 @@
+ golang.org/x/net v0.7.0/go.mod h1:2Tu9+aMcznHK/AK1HMvgo6xiTLG5rD5rZLDS+rp2Bjs=
+ golang.org/x/net v0.59.0 h1:5zfYln+w5XCxwrnMMJPufRgNoXEaGxl0wo5GqPXyues=
+ golang.org/x/net v0.59.0/go.mod h1:2DA/G1UfVbCpQPeWTmMPGY7Cs2PkBkwu743bVX5PIVg=
++golang.org/x/net v0.60.0 h1:79p50tfZlm0J9YfoDsSi639qSXNGVwEzOPLCxM2FsYU=
++golang.org/x/net v0.60.0/go.mod h1:2DA/G1UfVbCpQPeWTmMPGY7Cs2PkBkwu743bVX5PIVg=
+ golang.org/x/oauth2 v0.37.0 h1:JUlcxA8oAtauLfiH8FX2/FkAWHAdi0QtGCGc+hofE98=
+ golang.org/x/oauth2 v0.37.0/go.mod h1:IxwZNxUULJmpBFf9K/9NTMSIfZZuvuTy1gGxhigP/58=
+ golang.org/x/sync v0.0.0-20190423024810-112230192c58/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
+diff --git a/backend/internal/adapters/fs/files/files.go b/backend/internal/adapters/fs/files/files.go
+index 78ca56943e..0117a1d7aa 100644
+--- a/backend/internal/adapters/fs/files/files.go
++++ b/backend/internal/adapters/fs/files/files.go
+@@ -197,12 +197,13 @@
+ 		return items, fmt.Errorf("could not get index: %v ", opts.Source)
+ 	}
+ 	infoReq := indexing.FileInfoRequest{
+-		IndexPath:         indexPath,
+-		FollowSymlinks:    opts.FollowSymlinks,
+-		ShowHidden:        opts.ShowHidden,
+-		HideFileExt:       opts.HideFileExt,
+-		Expand:            true,
+-		SkipExtendedAttrs: true,
++		IndexPath:           indexPath,
++		FollowSymlinks:      opts.FollowSymlinks,
++		AllowSymlinkTargets: opts.AllowSymlinkTargets,
++		ShowHidden:          opts.ShowHidden,
++		HideFileExt:         opts.HideFileExt,
++		Expand:              true,
++		SkipExtendedAttrs:   true,
+ 	}
+ 	if opts.FollowSymlinks {
+ 		infoReq.BoundIndexPath = userScope
+@@ -262,12 +263,13 @@
+ 	// Layer 2: INDEX RULES (global)
+ 	// Get file info using unified entry point (applies IsViewable/ShouldSkip)
+ 	fileInfoReq := indexing.FileInfoRequest{
+-		IndexPath:         indexPath,
+-		FollowSymlinks:    opts.FollowSymlinks,
+-		ShowHidden:        opts.ShowHidden,
+-		HideFileExt:       opts.HideFileExt,
+-		Expand:            opts.Expand,
+-		SkipExtendedAttrs: opts.SkipExtendedAttrs,
++		IndexPath:           indexPath,
++		FollowSymlinks:      opts.FollowSymlinks,
++		AllowSymlinkTargets: opts.AllowSymlinkTargets,
++		ShowHidden:          opts.ShowHidden,
++		HideFileExt:         opts.HideFileExt,
++		Expand:              opts.Expand,
++		SkipExtendedAttrs:   opts.SkipExtendedAttrs,
+ 	}
+ 	if opts.FollowSymlinks {
+ 		fileInfoReq.BoundIndexPath = userScope
+@@ -290,7 +292,7 @@
+ 	// Build response
+ 	response.FileInfo = *info
+ 	if opts.FollowSymlinks && info.Type != "directory" {
+-		realPath, _, err := idx.GetRealPathScoped(userScope, indexPath)
++		realPath, _, err := idx.GetRealPathFor(userScope, opts.AllowSymlinkTargets, indexPath)
+ 		if err != nil {
+ 			return response, err
+ 		}
+@@ -640,7 +642,7 @@
+ 		return fmt.Errorf("refusing to delete source root directory: %s", absPath)
+ 	}
+ 
+-	if !index.Config.ResolvedRules.IndexingDisabled {
++	if !index.Config.ResolvedRules.IndexingDisabled && index.InSourceTree(absPath) {
+ 		indexPath := index.MakeIndexPath(absPath, isDir).String()
+ 
+ 		// Perform the physical deletion
+@@ -787,9 +789,13 @@
+ 		return err
+ 	}
+ 
++	// Paths reached through symlinkTargets are outside the source tree and never indexed.
++	srcTracked := srcIdx.InSourceTree(realsrc)
++	dstTracked := dstIdx.InSourceTree(realdst)
++
+ 	// Handle SOURCE cleanup (treat as deletion)
+ 	// Run async to avoid blocking the HTTP response
+-	if !srcIdx.Config.ResolvedRules.IndexingDisabled {
++	if !srcIdx.Config.ResolvedRules.IndexingDisabled && srcTracked {
+ 		go func() {
+ 			if isSrcDir {
+ 				srcIdx.DeleteMetadata(srcIndexPath, true, true)
+@@ -804,7 +810,7 @@
+ 
+ 	// Handle DESTINATION indexing
+ 	// Run async to avoid blocking the HTTP response
+-	if !dstIdx.Config.ResolvedRules.IndexingDisabled {
++	if !dstIdx.Config.ResolvedRules.IndexingDisabled && dstTracked {
+ 		if isSrcDir {
+ 			go func() {
+ 				// Recursively index the moved directory tree
+@@ -829,7 +835,7 @@
+ 	// Share path reconciliation is handled by state.UpdateSharesForMovedResource (see http/resource.go).
+ 
+ 	// Update access rules for the moved path
+-	if srcIdx.Path == dstIdx.Path {
++	if srcIdx.Path == dstIdx.Path && srcTracked && dstTracked {
+ 		go s.updateAccessRulesOnMove(
+ 			srcIdx.Path,
+ 			srcIdx.MakeIndexPath(realsrc, isSrcDir),
+@@ -861,7 +867,7 @@
+ 
+ 	// Refresh source (non-recursive, just metadata)
+ 	srcIdx := indexing.GetIndex(sourceIndex)
+-	if srcIdx != nil && !srcIdx.Config.ResolvedRules.IndexingDisabled {
++	if srcIdx != nil && !srcIdx.Config.ResolvedRules.IndexingDisabled && srcIdx.InSourceTree(realsrc) {
+ 		srcRefreshPath := realsrc
+ 		if !isSrcDir {
+ 			srcRefreshPath = filepath.Dir(realsrc)
+@@ -872,7 +878,7 @@
+ 	// Refresh destination (RECURSIVE for directories to capture full tree)
+ 	// Run async to avoid blocking the HTTP response
+ 	dstIdx := indexing.GetIndex(destIndex)
+-	if dstIdx != nil && !dstIdx.Config.ResolvedRules.IndexingDisabled {
++	if dstIdx != nil && !dstIdx.Config.ResolvedRules.IndexingDisabled && dstIdx.InSourceTree(realdst) {
+ 		if isSrcDir {
+ 			go func() {
+ 				// Recursively index the copied directory tree
+@@ -901,10 +907,12 @@
+ 	if idx == nil {
+ 		return fmt.Errorf("could not get index: %v ", opts.Source)
+ 	}
+-	realPath, _, _ := idx.GetRealPath(opts.Path)
++	realPath, err := idx.GetWritePath("/", opts.AllowSymlinkTargets, opts.Path)
++	if err != nil {
++		return err
++	}
+ 
+ 	var stat os.FileInfo
+-	var err error
+ 	// Check if the destination exists and is a file
+ 	if stat, err = os.Stat(realPath); err == nil && !stat.IsDir() {
+ 		// If it's a file and we're trying to create a directory, remove the file first
+@@ -957,12 +965,17 @@
+ 	if idx == nil {
+ 		return fmt.Errorf("could not get index: %v ", source)
+ 	}
+-	realPath, _, _ := idx.GetRealPath(path)
++	// Callers serving a public share check the path strictly before writing; here a write may
++	// land in the source or in its symlinkTargets, never anywhere else.
++	realPath, err := idx.GetWritePath("/", true, path)
++	if err != nil {
++		return err
++	}
+ 	// Strip trailing slash from realPath if it's meant to be a file
+ 	realPath = strings.TrimRight(realPath, "/")
+ 	// Ensure the parent directories exist
+ 	parentDir := filepath.Dir(realPath)
+-	err := os.MkdirAll(parentDir, fileutils.PermDir)
++	err = os.MkdirAll(parentDir, fileutils.PermDir)
+ 	if err != nil {
+ 		return err
+ 	}
+diff --git a/backend/internal/errors/errors.go b/backend/internal/errors/errors.go
+index b13e9438a5..5cff6381d7 100644
+--- a/backend/internal/errors/errors.go
++++ b/backend/internal/errors/errors.go
+@@ -25,6 +25,7 @@
+ 	ErrNotIndexed           = errors.New("directory or item excluded from indexing")
+ 	ErrNotViewable          = errors.New("directory or item is not viewable")
+ 	ErrPathEscapesScope     = errors.New("resolved path escapes scope")
++	ErrWriteNotPermitted    = errors.New("destination is read-only or not writable")
+ 	ErrWrongLoginMethod     = errors.New("user attempted to login with wrong login method")
+ 	ErrInvalidLoginMethod   = errors.New("invalid login method")
+ 	ErrDownloadNotAllowed   = errors.New("downloads are not allowed for this share")
+diff --git a/backend/internal/utils/file.go b/backend/internal/utils/file.go
+index 7cb600659a..f479b2ca48 100644
+--- a/backend/internal/utils/file.go
++++ b/backend/internal/utils/file.go
+@@ -61,6 +61,7 @@
+ 	ShareHash                string // when set, pinned items are loaded from this share link
+ 	HideFileExt              string // Hide files based on extensions (eg: '.lrc' or '.srt')
+ 	FollowSymlinks           bool   // whether to follow symlinks
++	AllowSymlinkTargets      bool   // whether symlinks may resolve into the source's symlinkTargets (never set for public shares)
+ 	Only                     string // whether to only get files or folders
+ 	SkipExtendedAttrs        bool   // whether to skip extended attributes
+ 	ShowSharedAttr           bool   // whether to show share attributes
+diff --git a/backend/internal/web/archive.go b/backend/internal/web/archive.go
+index b43f5bf49c..380742cb32 100644
+--- a/backend/internal/web/archive.go
++++ b/backend/internal/web/archive.go
+@@ -24,6 +24,7 @@
+ 	"github.com/gtsteffaniak/filebrowser/backend/internal/adapters/fs/fileutils"
+ 	"github.com/gtsteffaniak/filebrowser/backend/internal/archiveencoding"
+ 	activitydb "github.com/gtsteffaniak/filebrowser/backend/internal/database/activity"
++	libErrors "github.com/gtsteffaniak/filebrowser/backend/internal/errors"
+ 	"github.com/gtsteffaniak/filebrowser/backend/internal/state"
+ 	"github.com/gtsteffaniak/filebrowser/backend/internal/utils"
+ 	"github.com/gtsteffaniak/filebrowser/backend/pkg/indexing"
+@@ -273,12 +274,15 @@
+ 	if fullDestParent != fullDestFile && !state.AccessPermitted(idxTo.Path, utils.IndexPathFromNormalized(fullDestParent, true), d.User.Username) {
+ 		return http.StatusForbidden, fmt.Errorf("access denied to destination parent of %s", req.Destination)
+ 	}
+-	parentReal, _, err := idxTo.GetRealPath(fullDestParent)
++	parentReal, _, err := idxTo.GetRealPathFor("/", symlinkTargetsAllowed(d), fullDestParent)
++	if errors.Is(err, libErrors.ErrPathEscapesScope) {
++		return http.StatusForbidden, err
++	}
+ 	if err != nil {
+ 		return http.StatusBadRequest, fmt.Errorf("destination parent path invalid: %v", err)
+ 	}
+ 	if err = os.MkdirAll(parentReal, fileutils.EffectiveDirPerm()); err != nil {
+-		return http.StatusInternalServerError, fmt.Errorf("cannot create destination parent directory: %v", err)
++		return writeErrStatus(fmt.Errorf("cannot create destination parent directory: %w", err))
+ 	}
+ 	destRel := strings.TrimLeft(filepath.ToSlash(req.Destination), "/")
+ 	fileName := path.Base(destRel)
+@@ -336,7 +340,7 @@
+ 	var createErr error
+ 	file, err := os.OpenFile(destFileReal, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, fileutils.EffectiveFilePerm())
+ 	if err != nil {
+-		return http.StatusInternalServerError, err
++		return writeErrStatus(err)
+ 	}
+ 	defer file.Close()
+ 
+@@ -356,7 +360,7 @@
+ 		}
+ 		var toDelete []itemToDelete
+ 		for _, full := range itemPaths {
+-			realPath, isDir, err := idx.GetRealPath(full)
++			realPath, isDir, err := idx.GetRealPathFor("/", symlinkTargetsAllowed(d), full)
+ 			if err != nil {
+ 				continue
+ 			}
+@@ -461,7 +465,10 @@
+ 	if !state.AccessPermitted(idxFrom.Path, utils.IndexPathFromNormalized(fullArchivePath, true), d.User.Username) {
+ 		return http.StatusForbidden, fmt.Errorf("access denied to archive %s", req.Path)
+ 	}
+-	archiveReal, _, err := idxFrom.GetRealPath(fullArchivePath)
++	archiveReal, _, err := idxFrom.GetRealPathFor("/", symlinkTargetsAllowed(d), fullArchivePath)
++	if errors.Is(err, libErrors.ErrPathEscapesScope) {
++		return http.StatusForbidden, err
++	}
+ 	if err != nil {
+ 		return http.StatusNotFound, fmt.Errorf("archive path not found: %v", err)
+ 	}
+@@ -478,7 +485,10 @@
+ 	if !state.AccessPermitted(idxTo.Path, utils.IndexPathFromNormalized(fullDestPath, true), d.User.Username) {
+ 		return http.StatusForbidden, fmt.Errorf("access denied to destination %s", req.Destination)
+ 	}
+-	destReal, _, err := idxTo.GetRealPath(fullDestPath)
++	destReal, _, err := idxTo.GetRealPathFor("/", symlinkTargetsAllowed(d), fullDestPath)
++	if errors.Is(err, libErrors.ErrPathEscapesScope) {
++		return http.StatusForbidden, err
++	}
+ 	if err != nil {
+ 		return http.StatusBadRequest, fmt.Errorf("destination path invalid: %v", err)
+ 	}
+@@ -560,7 +570,15 @@
+ 		return nil // Silently skip this file/folder
+ 	}
+ 
+-	realPath, _, _ := idx.GetRealPath(path)
++	bound, allowTargets := archivePathBounds(d)
++	realPath, _, err := idx.GetRealPathFor(bound, allowTargets, path)
++	if errors.Is(err, libErrors.ErrPathEscapesScope) {
++		logger.Debugf("archive: skipping %s, it resolves out of bounds", path)
++		return nil // Silently skip, like a path denied by access rules
++	}
++	if err != nil {
++		return err
++	}
+ 	info, err := os.Stat(realPath)
+ 	if err != nil {
+ 		return err
+@@ -603,6 +621,13 @@
+ 				}
+ 			}
+ 
++			// The walk does not follow symlinks, but reading one does: skip those that leave bounds.
++			if fileInfo.Mode()&os.ModeSymlink != 0 {
++				if _, linkErr := idx.ResolveContained(filePath, bound, allowTargets); linkErr != nil {
++					return nil
++				}
++			}
++
+ 			// Prepend base folder name unless flatten is true
+ 			if !flatten {
+ 				relPath = filepath.Join(baseName, relPath)
+@@ -637,6 +662,15 @@
+ 	return addSingleFile(realPath, baseName, zipWriter, tarWriter)
+ }
+ 
++// archivePathBounds returns the index prefix and symlinkTargets policy that archived paths must
++// resolve within: the share's path for a public share, the source otherwise.
++func archivePathBounds(d *Context) (string, bool) {
++	if d.Share.Hash != "" {
++		return d.Share.Path, false
++	}
++	return "/", true
++}
++
+ // addSingleFile writes one file into the given zip or tar writer.
+ func addSingleFile(realPath, archivePath string, zipWriter *zip.Writer, tarWriter *tar.Writer) error {
+ 	file, err := os.Open(realPath)
+@@ -769,7 +803,8 @@
+ 	if idx == nil {
+ 		return http.StatusInternalServerError, fmt.Errorf("source %s is not available", source)
+ 	}
+-	realPath, _, err := idx.GetRealPath(fileList[0])
++	bound, allowTargets := archivePathBounds(d)
++	realPath, _, err := idx.GetRealPathFor(bound, allowTargets, fileList[0])
+ 	if err != nil {
+ 		return realPathErrStatus(err), err
+ 	}
+@@ -1304,6 +1339,27 @@
+ 	return nil
+ }
+ 
++// sizeOnDisk returns the total size of the regular files at or below realPath, without
++// following symlinks (an archive skips symlinked folders as well).
++func sizeOnDisk(realPath string) (int64, error) {
++	var total int64
++	err := filepath.WalkDir(realPath, func(_ string, entry fs.DirEntry, err error) error {
++		if err != nil {
++			return err
++		}
++		if !entry.Type().IsRegular() {
++			return nil
++		}
++		info, err := entry.Info()
++		if err != nil {
++			return err
++		}
++		total += info.Size()
++		return nil
++	})
++	return total, err
++}
++
+ // computeArchiveSize returns the combined size of the given paths, respecting access rules.
+ // Paths denied by access are skipped (not counted).
+ func computeArchiveSize(source string, fileList []string, d *Context) (int64, error) {
+@@ -1314,14 +1370,24 @@
+ 	}
+ 
+ 	permUser := accessCheckUsername(d)
++	bound, allowTargets := archivePathBounds(d)
+ 	for _, path := range fileList {
+ 		if !state.AccessPermitted(idx.Path, utils.IndexPathFromNormalized(path, true), permUser) {
+ 			continue
+ 		}
+-		realPath, isDir, err := idx.GetRealPath(path)
++		realPath, isDir, err := idx.GetRealPathFor(bound, allowTargets, path)
+ 		if err != nil {
+ 			return 0, err
+ 		}
++		if !idx.InSourceTree(realPath) {
++			// symlinkTargets are not indexed, so measure them on disk.
++			size, sizeErr := sizeOnDisk(realPath)
++			if sizeErr != nil {
++				return 0, fmt.Errorf("failed to get file info for %s : %v", path, sizeErr)
++			}
++			estimatedSize += size
++			continue
++		}
+ 		info, ok := idx.GetReducedMetadata(realPath, isDir)
+ 		if !ok {
+ 			indexPath := idx.MakeIndexPath(realPath, isDir).String()
+diff --git a/backend/internal/web/download.go b/backend/internal/web/download.go
+index 969c1b2149..fc6c9cc400 100644
+--- a/backend/internal/web/download.go
++++ b/backend/internal/web/download.go
+@@ -322,7 +322,7 @@
+ 		}
+ 		_, isDir, err = idx.GetRealPathScoped(d.Share.Path, firstFilePath)
+ 	} else {
+-		_, isDir, err = idx.GetRealPath(firstFilePath)
++		_, isDir, err = idx.GetRealPathFor("/", symlinkTargetsAllowed(d), firstFilePath)
+ 	}
+ 	if err != nil {
+ 		s := realPathErrStatus(err)
+diff --git a/backend/internal/web/fileWatcher.go b/backend/internal/web/fileWatcher.go
+index 208f09c43f..aafa033f2f 100644
+--- a/backend/internal/web/fileWatcher.go
++++ b/backend/internal/web/fileWatcher.go
+@@ -188,7 +188,7 @@
+ 	}
+ 
+ 	// Get real file path
+-	realPath, _, err := idx.GetRealPath(scopePath)
++	realPath, _, err := idx.GetRealPathFor("/", symlinkTargetsAllowed(d), scopePath)
+ 	if err != nil {
+ 		return http.StatusNotFound, fmt.Errorf("file not found: %v", err)
+ 	}
+@@ -336,7 +336,7 @@
+ 	}
+ 
+ 	// Get real file path
+-	realPath, _, err := idx.GetRealPath(scopePath)
++	realPath, _, err := idx.GetRealPathFor("/", symlinkTargetsAllowed(d), scopePath)
+ 	if err != nil {
+ 		return http.StatusNotFound, fmt.Errorf("path not found: %v", err)
+ 	}
+diff --git a/backend/internal/web/http.go b/backend/internal/web/http.go
+index c3eca1261c..cdfe2b40b5 100644
+--- a/backend/internal/web/http.go
++++ b/backend/internal/web/http.go
+@@ -7,6 +7,7 @@
+ 	"encoding/json"
+ 	"errors"
+ 	"fmt"
++	"io/fs"
+ 	"math"
+ 	"net"
+ 	"net/http"
+@@ -14,6 +15,7 @@
+ 	"os"
+ 	"strconv"
+ 	"strings"
++	"syscall"
+ 	"time"
+ 
+ 	libErrors "github.com/gtsteffaniak/filebrowser/backend/internal/errors"
+@@ -138,7 +140,7 @@
+ 	switch {
+ 	case err == nil:
+ 		return http.StatusOK
+-	case os.IsPermission(err):
++	case os.IsPermission(err), isWriteNotPermitted(err):
+ 		return http.StatusForbidden
+ 	case errors.Is(err, libErrors.ErrAccessDenied):
+ 		return http.StatusForbidden
+@@ -167,6 +169,27 @@
+ 	}
+ }
+ 
++// isWriteNotPermitted reports whether err is a write refused by the filesystem, eg. a drive
++// mounted read-only (EROFS) or a folder the server may not write to (EACCES, EPERM).
++func isWriteNotPermitted(err error) bool {
++	return errors.Is(err, libErrors.ErrWriteNotPermitted) || errors.Is(err, syscall.EROFS) || errors.Is(err, fs.ErrPermission)
++}
++
++// writeErrStatus maps a failed filesystem write to a status code and a response error. A write the
++// filesystem refuses is a 403 with a plain message rather than a 500 naming the path.
++func writeErrStatus(err error) (int, error) {
++	if isWriteNotPermitted(err) {
++		return http.StatusForbidden, libErrors.ErrWriteNotPermitted
++	}
++	return http.StatusInternalServerError, err
++}
++
++// symlinkTargetsAllowed reports whether a request may follow symlinks into its source's
++// symlinkTargets. Requests made through a public share never do.
++func symlinkTargetsAllowed(d *Context) bool {
++	return d.Share.Hash == ""
++}
++
+ // realPathErrStatus maps filesystem path resolution errors to HTTP status codes for download/view/archive paths.
+ func realPathErrStatus(err error) int {
+ 	if errors.Is(err, libErrors.ErrPathEscapesScope) {
+diff --git a/backend/internal/web/media.go b/backend/internal/web/media.go
+index 25b0b01380..cdf1519c6a 100644
+--- a/backend/internal/web/media.go
++++ b/backend/internal/web/media.go
+@@ -79,6 +79,7 @@
+ 		}
+ 		fileOpts = utils.FileOptions{
+ 			FollowSymlinks:           true,
++			AllowSymlinkTargets:      symlinkTargetsAllowed(d),
+ 			Path:                     path,
+ 			Source:                   source,
+ 			Expand:                   true,
+@@ -170,6 +171,7 @@
+ 	albumArt := r.URL.Query().Get("albumArt") == "true"
+ 	fileInfo, err := files.FileInfoFaster(utils.FileOptions{
+ 		FollowSymlinks:           true,
++		AllowSymlinkTargets:      symlinkTargetsAllowed(d),
+ 		Path:                     path,
+ 		Source:                   source,
+ 		Expand:                   true,
+@@ -266,15 +268,16 @@
+ 		showHidden = d.Share.ShowHidden
+ 	}
+ 	fileInfo, err := files.FileInfoFaster(utils.FileOptions{
+-		FollowSymlinks:    d.Share.Hash == "",
+-		Path:              path,
+-		Source:            source,
+-		Expand:            true,
+-		Content:           false,
+-		Metadata:          false,
+-		ShowHidden:        showHidden,
+-		HideFileExt:       hideFileExt,
+-		SkipExtendedAttrs: false,
++		FollowSymlinks:      d.Share.Hash == "",
++		AllowSymlinkTargets: symlinkTargetsAllowed(d),
++		Path:                path,
++		Source:              source,
++		Expand:              true,
++		Content:             false,
++		Metadata:            false,
++		ShowHidden:          showHidden,
++		HideFileExt:         hideFileExt,
++		SkipExtendedAttrs:   false,
+ 	}, fileUser)
+ 	if err != nil {
+ 		return ErrToStatus(err), err
+diff --git a/backend/internal/web/onlyOffice.go b/backend/internal/web/onlyOffice.go
+index b1112df64e..5e7a9b1fcb 100644
+--- a/backend/internal/web/onlyOffice.go
++++ b/backend/internal/web/onlyOffice.go
+@@ -190,10 +190,11 @@
+ 		logger.Debugf("OnlyOffice user request: request path=%s", path)
+ 		var fileInfo *iteminfo.ExtendedFileInfo
+ 		fileInfo, err = files.FileInfoFaster(utils.FileOptions{
+-			Path:           path,
+-			Source:         source,
+-			Expand:         false,
+-			FollowSymlinks: true,
++			Path:                path,
++			Source:              source,
++			Expand:              false,
++			FollowSymlinks:      true,
++			AllowSymlinkTargets: symlinkTargetsAllowed(d),
+ 		}, d.User)
+ 		if err != nil {
+ 			logger.Errorf("OnlyOffice: failed to get file info for source=%s, path=%s: %v", source, path, err)
+@@ -533,7 +534,8 @@
+ 	}
+ 	path = cleanPath
+ 
+-	if err := validateOnlyOfficeCallbackKey(source, path, user, data); err != nil {
++	allowTargets := symlinkTargetsAllowed(d)
++	if err := validateOnlyOfficeCallbackKeyFor(source, path, user, data, allowTargets); err != nil {
+ 		return returnOnlyOfficeError(w, r, 400, err.Error())
+ 	}
+ 
+@@ -550,7 +552,7 @@
+ 		// has been saved successfully below, otherwise a failed save could
+ 		// not be retried by the document server.
+ 		if data.Status == onlyOfficeStatusDocumentClosedWithNoChanges {
+-			deleteOfficeId(source, path, user)
++			deleteOfficeIdFor(source, path, user, allowTargets)
+ 		}
+ 
+ 		// Send log event for document closure and clean up log context
+@@ -689,8 +691,9 @@
+ 		// CRITICAL: Validate that the original file still exists before saving
+ 		// This prevents creating duplicate files if the original was renamed/moved
+ 		_, err = files.FileInfoFaster(utils.FileOptions{
+-			Source: source,
+-			Path:   path,
++			Source:              source,
++			Path:                path,
++			AllowSymlinkTargets: allowTargets,
+ 		}, user)
+ 		if err != nil {
+ 			logger.Errorf("OnlyOffice callback: original file no longer exists at path=%s: %v",
+@@ -736,7 +739,7 @@
+ 		// The document was saved, so a "closed with changes" session is
+ 		// complete: retire the document key so it cannot be reused.
+ 		if data.Status == onlyOfficeStatusDocumentClosedWithChanges {
+-			deleteOfficeId(source, path, user)
++			deleteOfficeIdFor(source, path, user, allowTargets)
+ 		}
+ 	}
+ 
+@@ -906,14 +909,21 @@
+ // validateOnlyOfficeCallbackKey ensures the callback document key matches the active editor session.
+ // Fails closed when the path cannot be resolved or no editor session key is cached for that file.
+ func validateOnlyOfficeCallbackKey(source, path string, user *users.User, data *OnlyOfficeCallback) error {
++	return validateOnlyOfficeCallbackKeyFor(source, path, user, data, false)
++}
++
++// validateOnlyOfficeCallbackKeyFor is validateOnlyOfficeCallbackKey that, with allowTargets, also
++// resolves documents reached through the source's symlinkTargets.
++func validateOnlyOfficeCallbackKeyFor(source, path string, user *users.User, data *OnlyOfficeCallback, allowTargets bool) error {
+ 	if data.Key == "" {
+ 		return errors.New("missing document key in callback")
+ 	}
+ 	fi, err := files.FileInfoFaster(utils.FileOptions{
+-		Path:           path,
+-		Source:         source,
+-		Expand:         false,
+-		FollowSymlinks: true,
++		Path:                path,
++		Source:              source,
++		Expand:              false,
++		FollowSymlinks:      true,
++		AllowSymlinkTargets: allowTargets,
+ 	}, user)
+ 	if err != nil {
+ 		return fmt.Errorf("could not resolve document for callback: %w", err)
+@@ -942,11 +952,18 @@
+ }
+ 
+ func deleteOfficeId(source, path string, user *users.User) {
++	deleteOfficeIdFor(source, path, user, false)
++}
++
++// deleteOfficeIdFor is deleteOfficeId that, with allowTargets, also resolves documents reached
++// through the source's symlinkTargets.
++func deleteOfficeIdFor(source, path string, user *users.User, allowTargets bool) {
+ 	fi, err := files.FileInfoFaster(utils.FileOptions{
+-		Path:           path,
+-		Source:         source,
+-		Expand:         false,
+-		FollowSymlinks: true,
++		Path:                path,
++		Source:              source,
++		Expand:              false,
++		FollowSymlinks:      true,
++		AllowSymlinkTargets: allowTargets,
+ 	}, user)
+ 	key := path
+ 	if fi != nil && fi.RealPath != "" {
+diff --git a/backend/internal/web/preview.go b/backend/internal/web/preview.go
+index cfdca8ffca..75ed9058b4 100644
+--- a/backend/internal/web/preview.go
++++ b/backend/internal/web/preview.go
+@@ -74,10 +74,11 @@
+ 		return http.StatusForbidden, fmt.Errorf("user is not allowed to view files in this source")
+ 	}
+ 	fileInfo, err := files.FileInfoFaster(utils.FileOptions{
+-		Path:     path,
+-		Source:   source,
+-		AlbumArt: true, // Extract album art for audio previews
+-		Expand:   true,
++		Path:                path,
++		Source:              source,
++		AlbumArt:            true, // Extract album art for audio previews
++		Expand:              true,
++		AllowSymlinkTargets: symlinkTargetsAllowed(d),
+ 	}, d.User)
+ 	if err != nil {
+ 		logger.Errorf("error getting file info: %v", err)
+@@ -184,10 +185,11 @@
+ 	}
+ 	fileInfo, err := files.FileInfoFaster(
+ 		utils.FileOptions{
+-			Path:     path,
+-			Source:   source,
+-			AlbumArt: true,
+-			Metadata: true,
++			Path:                path,
++			Source:              source,
++			AlbumArt:            true,
++			Metadata:            true,
++			AllowSymlinkTargets: symlinkTargetsAllowed(d),
+ 		}, user)
+ 	if err != nil {
+ 		return nil, err
+diff --git a/backend/internal/web/quota_helpers.go b/backend/internal/web/quota_helpers.go
+index 881167e920..50b3c586b2 100644
+--- a/backend/internal/web/quota_helpers.go
++++ b/backend/internal/web/quota_helpers.go
+@@ -52,7 +52,13 @@
+ // resolvePutRealPath maps an index path to a real filesystem path for PUT.
+ // Existing files resolve directly; missing final components resolve via the parent directory.
+ func resolvePutRealPath(idx *indexing.Index, fullIndexPath string) (string, error) {
+-	realPath, isDir, err := idx.GetRealPath(fullIndexPath)
++	return resolvePutRealPathFor(idx, fullIndexPath, false)
++}
++
++// resolvePutRealPathFor is resolvePutRealPath that, with allowTargets, also lets symlinks resolve
++// into the source's symlinkTargets.
++func resolvePutRealPathFor(idx *indexing.Index, fullIndexPath string, allowTargets bool) (string, error) {
++	realPath, isDir, err := idx.GetRealPathFor("/", allowTargets, fullIndexPath)
+ 	if err == nil {
+ 		if isDir {
+ 			return "", fmt.Errorf("path is a directory")
+@@ -67,7 +73,7 @@
+ 	if parentIndexPath == "." || parentIndexPath == "" {
+ 		parentIndexPath = "/"
+ 	}
+-	parentReal, isDir, parentErr := idx.GetRealPath(parentIndexPath)
++	parentReal, isDir, parentErr := idx.GetRealPathFor("/", allowTargets, parentIndexPath)
+ 	if parentErr != nil {
+ 		return "", parentErr
+ 	}
+@@ -117,6 +123,9 @@
+ 		return http.StatusOK, nil
+ 	}
+ 	logger.Debugf("put write failed: %v", err)
++	if isWriteNotPermitted(err) {
++		return http.StatusForbidden, commonerrors.ErrWriteNotPermitted
++	}
+ 	return http.StatusInternalServerError, errPutUpdateFailed
+ }
+ 
+@@ -176,7 +185,7 @@
+ 	if idx == nil {
+ 		return http.StatusNotFound, fmt.Errorf("source not found")
+ 	}
+-	realPath, err := resolvePutRealPath(idx, fullIndexPath)
++	realPath, err := resolvePutRealPathFor(idx, fullIndexPath, symlinkTargetsAllowed(d))
+ 	if err != nil {
+ 		return sanitizePutPathError(err)
+ 	}
+diff --git a/backend/internal/web/resource.go b/backend/internal/web/resource.go
+index e4c8b3edd5..8a203976ee 100644
+--- a/backend/internal/web/resource.go
++++ b/backend/internal/web/resource.go
+@@ -163,6 +163,7 @@
+ 	skipExtendedAttrs := r.URL.Query().Get("skipExtendedAttrs") == "true"
+ 	fileInfo, err := files.FileInfoFaster(utils.FileOptions{
+ 		FollowSymlinks:           true,
++		AllowSymlinkTargets:      symlinkTargetsAllowed(d),
+ 		Path:                     path,
+ 		Source:                   source,
+ 		Expand:                   true,
+@@ -260,11 +261,12 @@
+ 	}
+ 
+ 	fileInfo, err := files.FileInfoFaster(utils.FileOptions{
+-		Path:        path,
+-		Source:      source,
+-		Expand:      false,
+-		ShowHidden:  d.User.ShowHidden,
+-		HideFileExt: d.User.HideFileExt,
++		Path:                path,
++		Source:              source,
++		Expand:              false,
++		ShowHidden:          d.User.ShowHidden,
++		HideFileExt:         d.User.HideFileExt,
++		AllowSymlinkTargets: symlinkTargetsAllowed(d),
+ 	}, d.User)
+ 	if err != nil {
+ 		return ErrToStatus(err), err
+@@ -541,10 +543,11 @@
+ 
+ 			// Get file info
+ 			fileInfo, err := files.FileInfoFaster(utils.FileOptions{
+-				FollowSymlinks: true,
+-				Path:           sanitizedPath,
+-				Source:         item.Source,
+-				ShowHidden:     true,
++				FollowSymlinks:      true,
++				AllowSymlinkTargets: symlinkTargetsAllowed(d),
++				Path:                sanitizedPath,
++				Source:              item.Source,
++				ShowHidden:          true,
+ 			}, filePermUser)
+ 			if err != nil {
+ 				response.Failed = append(response.Failed, BulkDeleteItem{
+@@ -731,10 +734,11 @@
+ 	}
+ 	isDir := r.URL.Query().Get("isDir") == "true"
+ 	fileOpts := utils.FileOptions{
+-		Path:           path,
+-		Source:         source,
+-		Expand:         false,
+-		FollowSymlinks: true,
++		Path:                path,
++		Source:              source,
++		Expand:              false,
++		FollowSymlinks:      true,
++		AllowSymlinkTargets: symlinkTargetsAllowed(d),
+ 	}
+ 
+ 	userscope, err := filePermUser.GetScopeForSourceName(source)
+@@ -746,8 +750,12 @@
+ 
+ 	fullIndexPath := utils.JoinScopedIndexPath(userscope, path)
+ 
+-	// get scoped path
+-	realPath, _, _ := idx.GetRealPath(fullIndexPath)
++	// Resolve where the write lands; a symlink anywhere in the path must stay in bounds.
++	realPath, err := idx.GetWritePath("/", fileOpts.AllowSymlinkTargets, fullIndexPath)
++	if err != nil {
++		logger.Debugf("could not resolve upload path %v: %v", fullIndexPath, err)
++		return realPathErrStatus(err), err
++	}
+ 
+ 	if d.Share.Hash == "" {
+ 		filePerms, permErr := effectiveFilePerms(d, source)
+@@ -887,7 +895,7 @@
+ 		outFile, err = os.OpenFile(tempFilePath, os.O_CREATE|os.O_WRONLY, fileutils.PermFile)
+ 		if err != nil {
+ 			logger.Debugf("could not open temp file: %v", err)
+-			return http.StatusInternalServerError, fmt.Errorf("could not open temp file: %v", err)
++			return writeErrStatus(fmt.Errorf("could not open temp file: %w", err))
+ 		}
+ 		defer outFile.Close()
+ 
+@@ -975,7 +983,7 @@
+ 			if err != nil {
+ 				logger.Debugf("could not move file from %v to %v: %v", tempFilePath, realPath, err)
+ 				abandonSession = false
+-				return http.StatusInternalServerError, fmt.Errorf("could not move file from chunked folder to destination: %v", err)
++				return writeErrStatus(fmt.Errorf("could not move file from chunked folder to destination: %w", err))
+ 			}
+ 			reconcileSharesAfterMove(false, source, source, tempFilePath, realPath)
+ 			if commitErr := commitUploadQuotaAfterMove(quotaCtx); commitErr != nil {
+@@ -1025,7 +1033,7 @@
+ 	// uploads never leave a corrupt destination file.
+ 	if err = os.MkdirAll(filepath.Dir(realPath), fileutils.EffectiveDirPerm()); err != nil {
+ 		logger.Debugf("could not create parent directory: %v", err)
+-		return http.StatusInternalServerError, fmt.Errorf("could not create parent directory: %v", err)
++		return writeErrStatus(fmt.Errorf("could not create parent directory: %w", err))
+ 	}
+ 
+ 	sessionID, sessionErr := parseUploadSession(r)
+@@ -1064,7 +1072,7 @@
+ 	outFile, err := os.OpenFile(tempFilePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, fileutils.PermFile)
+ 	if err != nil {
+ 		logger.Debugf("could not open temp file: %v", err)
+-		return http.StatusInternalServerError, fmt.Errorf("could not open temp file: %v", err)
++		return writeErrStatus(fmt.Errorf("could not open temp file: %w", err))
+ 	}
+ 
+ 	written, copyErr := io.Copy(outFile, r.Body)
+@@ -1290,6 +1298,7 @@
+ 		Succeeded: make([]MoveCopyItem, 0),
+ 		Failed:    make([]MoveCopyItem, 0),
+ 	}
++	escapedCount := 0 // items refused because a symlink resolves out of bounds
+ 
+ 	// Process each item
+ 	for _, item := range req.Items {
+@@ -1446,11 +1455,23 @@
+ 			continue
+ 		}
+ 
+-		// Get real paths (fullSrcIndexPath already includes user scope)
+-		realSrc, isSrcDir, err := srcIdx.GetRealPath(fullSrcIndexPath)
++		// Get real paths (fullSrcIndexPath already includes user scope). Copy duplicates what a
++		// symlink points to; move and rename act on the symlink itself.
++		allowTargets := symlinkTargetsAllowed(d)
++		var realSrc string
++		var isSrcDir bool
++		if req.Action == "copy" {
++			realSrc, isSrcDir, err = srcIdx.GetRealPathFor("/", allowTargets, fullSrcIndexPath)
++		} else {
++			realSrc, isSrcDir, err = srcIdx.GetEntryPath("/", allowTargets, fullSrcIndexPath)
++		}
+ 		if err != nil {
+ 			logger.Errorf("could not resolve source path: %v, fromPath: %v", err, clientFromPath)
+ 			item.Message = "could not resolve source path"
++			if err == errors.ErrPathEscapesScope {
++				item.Message = err.Error()
++				escapedCount++
++			}
+ 			if d.Share.Hash != "" {
+ 				response.Failed = append(response.Failed, MoveCopyItem{
+ 					Message: item.Message,
+@@ -1464,9 +1485,13 @@
+ 		// Check destination parent directory exists
+ 		dstParentPath := filepath.Dir(cleanToPath)
+ 		fullDstParentPath := utils.JoinScopedIndexPath(userscopeDst, dstParentPath)
+-		parentDir, _, err := dstIdx.GetRealPath(fullDstParentPath)
++		parentDir, _, err := dstIdx.GetRealPathFor("/", allowTargets, fullDstParentPath)
+ 		if err != nil {
+ 			item.Message = "destination directory does not exist"
++			if err == errors.ErrPathEscapesScope {
++				item.Message = err.Error()
++				escapedCount++
++			}
+ 			if d.Share.Hash != "" {
+ 				response.Failed = append(response.Failed, MoveCopyItem{
+ 					Message: item.Message,
+@@ -1534,13 +1559,14 @@
+ 
+ 		// Perform the action
+ 		err = patchAction(r.Context(), patchActionParams{
+-			action:   req.Action,
+-			srcIndex: item.FromSource,
+-			dstIndex: item.ToSource,
+-			src:      realSrc,
+-			dst:      realDest,
+-			d:        d,
+-			isSrcDir: isSrcDir,
++			action:       req.Action,
++			srcIndex:     item.FromSource,
++			dstIndex:     item.ToSource,
++			srcIndexPath: fullSrcIndexPath,
++			src:          realSrc,
++			dst:          realDest,
++			d:            d,
++			isSrcDir:     isSrcDir,
+ 		})
+ 		if err != nil {
+ 			releaseCopyMoveQuota(patchSessionID)
+@@ -1592,7 +1618,10 @@
+ 
+ 	// Determine status code based on results
+ 	statusCode := http.StatusOK
+-	if len(response.Failed) > 0 && len(response.Succeeded) == 0 {
++	if len(response.Failed) > 0 && len(response.Succeeded) == 0 && escapedCount == len(response.Failed) {
++		// Every item was refused by the symlink containment check
++		statusCode = http.StatusForbidden
++	} else if len(response.Failed) > 0 && len(response.Succeeded) == 0 {
+ 		// All operations failed - return 500 error
+ 		statusCode = http.StatusInternalServerError
+ 	} else if len(response.Failed) > 0 && len(response.Succeeded) > 0 {
+@@ -1690,13 +1719,14 @@
+ }
+ 
+ type patchActionParams struct {
+-	action   string
+-	srcIndex string
+-	dstIndex string
+-	src      string
+-	dst      string
+-	d        *Context
+-	isSrcDir bool
++	action       string
++	srcIndex     string
++	dstIndex     string
++	srcIndexPath string // index path of src, including the user scope
++	src          string
++	dst          string
++	d            *Context
++	isSrcDir     bool
+ }
+ 
+ func patchAction(ctx context.Context, params patchActionParams) error {
+@@ -1705,8 +1735,9 @@
+ 		err := files.CopyResource(params.isSrcDir, params.srcIndex, params.dstIndex, params.src, params.dst)
+ 		return err
+ 	case "rename", "move":
+-		idx := indexing.GetIndex(params.srcIndex)
+-		srcPath := idx.MakeIndexPath(params.src, params.isSrcDir).String()
++		// src may lie in a symlinkTarget, outside the source, so use the requested index path
++		// rather than mapping src back with MakeIndexPath.
++		srcPath := params.srcIndexPath
+ 		userScope := ""
+ 		userScope, _ = params.d.User.GetScopeForSourceName(params.srcIndex)
+ 		if userScope != "" && userScope != "/" {
+@@ -1715,12 +1746,13 @@
+ 		}
+ 
+ 		fileInfo, err := files.FileInfoFaster(utils.FileOptions{
+-			FollowSymlinks: true,
+-			Path:           srcPath,
+-			Source:         params.srcIndex,
+-			IsDir:          params.isSrcDir,
+-			ShowHidden:     params.d.User.ShowHidden,
+-			HideFileExt:    params.d.User.HideFileExt,
++			FollowSymlinks:      true,
++			AllowSymlinkTargets: symlinkTargetsAllowed(params.d),
++			Path:                srcPath,
++			Source:              params.srcIndex,
++			IsDir:               params.isSrcDir,
++			ShowHidden:          params.d.User.ShowHidden,
++			HideFileExt:         params.d.User.HideFileExt,
+ 		}, params.d.User)
+ 
+ 		if err != nil {
+@@ -1797,11 +1829,12 @@
+ 		return http.StatusForbidden, fmt.Errorf("user is not allowed to view files in this source")
+ 	}
+ 	items, err := files.GetDirItems(utils.FileOptions{
+-		FollowSymlinks: true,
+-		Path:           r.URL.Query().Get("path"),
+-		Source:         r.URL.Query().Get("source"),
+-		ShowHidden:     d.User.ShowHidden,
+-		Only:           r.URL.Query().Get("only"),
++		FollowSymlinks:      true,
++		AllowSymlinkTargets: symlinkTargetsAllowed(d),
++		Path:                r.URL.Query().Get("path"),
++		Source:              r.URL.Query().Get("source"),
++		ShowHidden:          d.User.ShowHidden,
++		Only:                r.URL.Query().Get("only"),
+ 	}, d.User)
+ 	if err != nil {
+ 		if err == errors.ErrAccessDenied {
+diff --git a/backend/internal/web/share.go b/backend/internal/web/share.go
+index ee10b2720b..8f642c5339 100644
+--- a/backend/internal/web/share.go
++++ b/backend/internal/web/share.go
+@@ -4,6 +4,7 @@
+ 	"crypto/rand"
+ 	"encoding/base64"
+ 	"encoding/json"
++	"errors"
+ 	"fmt"
+ 	"io"
+ 	"net/http"
+@@ -18,6 +19,7 @@
+ 	activitydb "github.com/gtsteffaniak/filebrowser/backend/internal/database/activity"
+ 	"github.com/gtsteffaniak/filebrowser/backend/internal/database/share"
+ 	"github.com/gtsteffaniak/filebrowser/backend/internal/database/users"
++	libErrors "github.com/gtsteffaniak/filebrowser/backend/internal/errors"
+ 	"github.com/gtsteffaniak/filebrowser/backend/internal/sharedefaults"
+ 	"github.com/gtsteffaniak/filebrowser/backend/internal/state"
+ 	"github.com/gtsteffaniak/filebrowser/backend/internal/utils"
+@@ -399,6 +401,13 @@
+ 
+ 	storedPath := utils.JoinPathAsUnix(userscope, cleanPath)
+ 
++	// Shares are served with the strict symlink check (never symlinkTargets), so refuse one
++	// whose path leaves the source or the owner's scope through a symlink. GetWritePath resolves
++	// the deepest existing ancestor, which also catches a path that does not exist yet.
++	if _, resolveErr := idx.GetWritePath(userscope, false, storedPath); errors.Is(resolveErr, libErrors.ErrPathEscapesScope) {
++		return http.StatusForbidden, resolveErr
++	}
++
+ 	if status, policyErr := applyShareDefaultsPolicy(d.User, &req.ShareEditable, true); policyErr != nil {
+ 		return status, policyErr
+ 	}
+diff --git a/backend/internal/web/stream.go b/backend/internal/web/stream.go
+index a68c4762b6..104daf1e3c 100644
+--- a/backend/internal/web/stream.go
++++ b/backend/internal/web/stream.go
+@@ -508,7 +508,7 @@
+ 		bound = userScope
+ 	}
+ 
+-	realPath, _, err := idx.GetRealPathScoped(bound, scopedFilePath)
++	realPath, _, err := idx.GetRealPathFor(bound, symlinkTargetsAllowed(d), scopedFilePath)
+ 	if err != nil {
+ 		return realPathErrStatus(err), err
+ 	}
+diff --git a/backend/internal/web/symlink_containment_test.go b/backend/internal/web/symlink_containment_test.go
+new file mode 100644
+index 0000000000..4da5c26075
+--- /dev/null
++++ b/backend/internal/web/symlink_containment_test.go
+@@ -0,0 +1,149 @@
++package web
++
++import (
++	"encoding/json"
++	"net/http"
++	"net/http/httptest"
++	"net/url"
++	"os"
++	"path/filepath"
++	"slices"
++	"strings"
++	"sync"
++	"testing"
++
++	"github.com/gtsteffaniak/filebrowser/backend/internal/database/users"
++	"github.com/gtsteffaniak/filebrowser/backend/internal/preview"
++	"github.com/gtsteffaniak/filebrowser/backend/pkg/indexing/iteminfo"
++)
++
++// startPreviewOnce starts the preview service: delete, move and rename clear thumbnails.
++var startPreviewOnce sync.Once
++
++// setupOutsideLinkHTTPTest builds on the upload fixture: source "uploads" with a link
++// /out -> <outside>, a folder outside the source that holds docs/plan.md.
++func setupOutsideLinkHTTPTest(t *testing.T) (root, outside string, user *users.User) {
++	t.Helper()
++	startPreviewOnce.Do(func() {
++		cacheDir, err := os.MkdirTemp("", "fb-symlink-preview-")
++		if err != nil {
++			t.Fatal(err)
++		}
++		_ = preview.StartPreviewGenerator(1, cacheDir)
++	})
++	root, user = setupUploadHTTPTest(t)
++	outside = filepath.Join(t.TempDir(), "drive")
++	if err := os.MkdirAll(filepath.Join(outside, "docs"), 0o755); err != nil {
++		t.Fatal(err)
++	}
++	if err := os.WriteFile(filepath.Join(outside, "docs", "plan.md"), []byte("hello-outside"), 0o644); err != nil {
++		t.Fatal(err)
++	}
++	if err := os.Symlink(outside, filepath.Join(root, "out")); err != nil {
++		t.Fatal(err)
++	}
++	return root, outside, user
++}
++
++func getResource(t *testing.T, user *users.User, path string) (int, *iteminfo.ExtendedFileInfo) {
++	t.Helper()
++	req := httptest.NewRequest(http.MethodGet, "/api/resources?source=uploads&path="+url.QueryEscape(path), nil)
++	rec := httptest.NewRecorder()
++	status, err := resourceGetHandler(rec, req, &requestContext{User: user})
++	if err != nil {
++		return status, nil
++	}
++	var info iteminfo.ExtendedFileInfo
++	if decodeErr := json.Unmarshal(rec.Body.Bytes(), &info); decodeErr != nil {
++		t.Fatalf("decode %s: %v", path, decodeErr)
++	}
++	return http.StatusOK, &info
++}
++
++func TestOutsideSymlink_GetBelowLinkIsForbidden(t *testing.T) {
++	_, _, user := setupOutsideLinkHTTPTest(t)
++	for _, p := range []string{"/out", "/out/docs", "/out/docs/plan.md"} {
++		if status, _ := getResource(t, user, p); status != http.StatusForbidden {
++			t.Fatalf("GET %s: status %d, want 403", p, status)
++		}
++	}
++}
++
++func TestOutsideSymlink_CreateBelowLinkIsForbidden(t *testing.T) {
++	for _, c := range []struct {
++		name    string
++		path    string
++		headers map[string]string
++		isDir   bool
++		created string // relative to the outside folder
++	}{
++		{"upload", "/out/docs/new.txt", map[string]string{"X-File-Upload-Session": "s1"}, false, "docs/new.txt"},
++		{"upload into missing folder", "/out/docs/sub/new.txt", map[string]string{"X-File-Upload-Session": "s2"}, false, "docs/sub"},
++		{"create file", "/out/docs/empty.txt", nil, false, "docs/empty.txt"},
++		{"create folder", "/out/docs/folder", nil, true, "docs/folder"},
++	} {
++		t.Run(c.name, func(t *testing.T) {
++			_, outside, user := setupOutsideLinkHTTPTest(t)
++			target := "/api/resources?source=uploads&path=" + url.QueryEscape(c.path)
++			if c.isDir {
++				target += "&isDir=true"
++			}
++			body := "new"
++			req := httptest.NewRequest(http.MethodPost, target, strings.NewReader(body))
++			req.ContentLength = int64(len(body))
++			for k, v := range c.headers {
++				req.Header.Set(k, v)
++			}
++			status, err := ResourcePostHandler(httptest.NewRecorder(), req, &requestContext{User: user})
++			if status != http.StatusForbidden {
++				t.Fatalf("status %d err %v", status, err)
++			}
++			if _, err := os.Stat(filepath.Join(outside, filepath.FromSlash(c.created))); !os.IsNotExist(err) {
++				t.Fatalf("%s was created outside the source: %v", c.created, err)
++			}
++		})
++	}
++}
++
++func TestOutsideSymlink_DeleteBelowLinkIsForbidden(t *testing.T) {
++	_, outside, user := setupOutsideLinkHTTPTest(t)
++	req := httptest.NewRequest(http.MethodDelete, "/api/resources?source=uploads&path=/out/docs/plan.md", nil)
++	status, err := resourceDeleteHandler(httptest.NewRecorder(), req, &requestContext{User: user})
++	if status != http.StatusForbidden {
++		t.Fatalf("status %d err %v", status, err)
++	}
++	if _, err := os.Stat(filepath.Join(outside, "docs", "plan.md")); err != nil {
++		t.Fatalf("file outside the source was deleted: %v", err)
++	}
++}
++
++func TestOutsideSymlink_ArchiveSkipsEscapingPaths(t *testing.T) {
++	root, outside, user := setupOutsideLinkHTTPTest(t)
++	if err := os.Symlink(filepath.Join(outside, "docs", "plan.md"), filepath.Join(root, "plan-link.md")); err != nil {
++		t.Fatal(err)
++	}
++	if err := os.WriteFile(filepath.Join(root, "local.txt"), []byte("local"), 0o644); err != nil {
++		t.Fatal(err)
++	}
++	req := httptest.NewRequest(http.MethodGet, "/api/raw?algo=zip", nil)
++	rec := httptest.NewRecorder()
++	// Only the first path is checked before the archive is built.
++	if _, err := BuildAndStreamArchive(rec, req, &requestContext{User: user}, "uploads", []string{"/local.txt", "/out/docs"}); err != nil {
++		t.Fatal(err)
++	}
++	if names := readZipFileNames(rec.Body.Bytes()); !slices.Equal(names, []string{"local.txt"}) {
++		t.Fatalf("archive entries %v, want only local.txt", names)
++	}
++
++	rec = httptest.NewRecorder()
++	if _, err := BuildAndStreamArchive(rec, req, &requestContext{User: user}, "uploads", []string{"/"}); err != nil {
++		t.Fatal(err)
++	}
++	names := readZipFileNames(rec.Body.Bytes())
++	if slices.ContainsFunc(names, func(n string) bool { return strings.HasSuffix(n, "plan-link.md") }) {
++		t.Fatalf("archive followed a symlink out of the source: %v", names)
++	}
++	if !slices.ContainsFunc(names, func(n string) bool { return strings.HasSuffix(n, "local.txt") }) {
++		t.Fatalf("archive is missing local.txt: %v", names)
++	}
++}
+diff --git a/backend/internal/web/symlink_targets_test.go b/backend/internal/web/symlink_targets_test.go
+new file mode 100644
+index 0000000000..ad97afa2b8
+--- /dev/null
++++ b/backend/internal/web/symlink_targets_test.go
+@@ -0,0 +1,415 @@
++package web
++
++import (
++	"bytes"
++	"encoding/json"
++	"errors"
++	"fmt"
++	"io"
++	"net/http"
++	"net/http/httptest"
++	"net/url"
++	"os"
++	"path/filepath"
++	"slices"
++	"strings"
++	"syscall"
++	"testing"
++
++	"github.com/gtsteffaniak/filebrowser/backend/internal/adapters/fs/files"
++	"github.com/gtsteffaniak/filebrowser/backend/internal/app"
++	"github.com/gtsteffaniak/filebrowser/backend/internal/database/share"
++	"github.com/gtsteffaniak/filebrowser/backend/internal/database/users"
++	libErrors "github.com/gtsteffaniak/filebrowser/backend/internal/errors"
++	"github.com/gtsteffaniak/filebrowser/backend/internal/state"
++	"github.com/gtsteffaniak/filebrowser/backend/internal/utils"
++	"github.com/gtsteffaniak/filebrowser/backend/pkg/indexing"
++	"github.com/gtsteffaniak/filebrowser/backend/pkg/indexing/iteminfo"
++	"github.com/gtsteffaniak/filebrowser/backend/pkg/settings"
++)
++
++// setupSymlinkTargetHTTPTest is setupOutsideLinkHTTPTest where, with allow, the outside folder
++// <drive> is the source's only symlinkTargets entry.
++func setupSymlinkTargetHTTPTest(t *testing.T, allow bool) (root, drive string, user *users.User) {
++	t.Helper()
++	root, drive, user = setupOutsideLinkHTTPTest(t)
++	if allow {
++		indexing.GetIndex("uploads").Config.SymlinkTargets = []string{drive}
++	}
++	return root, drive, user
++}
++
++func shareContextFor(user *users.User) *Context {
++	return &Context{
++		User:      &users.User{FrontendUser: users.FrontendUser{Username: users.AnonymousUserName}},
++		ShareUser: user,
++		Share:     share.Share{ShareColumns: share.ShareColumns{Hash: "symlink-share", Path: "/"}},
++	}
++}
++
++func TestSymlinkTargetsHTTP_GetListingAndFolder(t *testing.T) {
++	for _, allow := range []bool{false, true} {
++		t.Run(fmt.Sprintf("allow=%v", allow), func(t *testing.T) {
++			_, _, user := setupSymlinkTargetHTTPTest(t, allow)
++
++			status, root := getResource(t, user, "/")
++			if status != http.StatusOK {
++				t.Fatalf("list /: %d", status)
++			}
++			isFolder := slices.ContainsFunc(root.Folders, func(i iteminfo.ItemInfo) bool { return i.Name == "out" })
++			if isFolder != allow {
++				t.Fatalf("out listed as folder=%v, want %v", isFolder, allow)
++			}
++
++			for _, p := range []string{"/out", "/out/docs", "/out/docs/plan.md"} {
++				status, info := getResource(t, user, p)
++				want := http.StatusForbidden
++				if allow {
++					want = http.StatusOK
++				}
++				if status != want {
++					t.Fatalf("GET %s: status %d, want %d", p, status, want)
++				}
++				if allow && p == "/out/docs" && (len(info.Files) != 1 || info.Files[0].Name != "plan.md") {
++					t.Fatalf("GET %s: files %+v", p, info.Files)
++				}
++			}
++		})
++	}
++}
++
++func TestSymlinkTargetsHTTP_Download(t *testing.T) {
++	for _, allow := range []bool{false, true} {
++		t.Run(fmt.Sprintf("allow=%v", allow), func(t *testing.T) {
++			_, _, user := setupSymlinkTargetHTTPTest(t, allow)
++			req := httptest.NewRequest(http.MethodGet, "/api/raw?source=uploads&file=/out/docs/plan.md", nil)
++			rec := httptest.NewRecorder()
++			status, err := RawFilesHandler(rec, req, &requestContext{User: user}, "uploads", []string{"/out/docs/plan.md"})
++			if !allow {
++				if status != http.StatusForbidden {
++					t.Fatalf("status %d err %v", status, err)
++				}
++				return
++			}
++			if err != nil || rec.Body.String() != "hello-outside" {
++				t.Fatalf("status %d err %v body %q", status, err, rec.Body.String())
++			}
++		})
++	}
++}
++
++func TestSymlinkTargetsHTTP_PublicShareStaysStrict(t *testing.T) {
++	root, drive, user := setupSymlinkTargetHTTPTest(t, true)
++	if err := os.Symlink(filepath.Join(drive, "docs", "plan.md"), filepath.Join(root, "plan-link.md")); err != nil {
++		t.Fatal(err)
++	}
++	if err := os.WriteFile(filepath.Join(root, "local.txt"), []byte("local"), 0o644); err != nil {
++		t.Fatal(err)
++	}
++
++	// Share download of a file through the link
++	req := httptest.NewRequest(http.MethodGet, "/public/api/raw?hash=symlink-share", nil)
++	status, _ := RawFilesHandler(httptest.NewRecorder(), req, shareContextFor(user), "uploads", []string{"/out/docs/plan.md"})
++	if status != http.StatusForbidden {
++		t.Fatalf("share download through link: status %d", status)
++	}
++
++	// What withHashFileHelper fetches for a share request
++	_, err := files.FileInfoFaster(utils.FileOptions{Path: "/out/docs", Source: "uploads", Expand: true, FollowSymlinks: true}, user)
++	if !errors.Is(err, libErrors.ErrPathEscapesScope) {
++		t.Fatalf("share listing through link: %v", err)
++	}
++
++	// A share upload through the link
++	body := "nope"
++	req = httptest.NewRequest(http.MethodPost, "/api/resources?source=uploads&path=/out/docs/new.txt", strings.NewReader(body))
++	req.ContentLength = int64(len(body))
++	req.Header.Set("X-File-Upload-Session", "share-session")
++	status, _ = ResourcePostHandler(httptest.NewRecorder(), req, shareContextFor(user))
++	if status != http.StatusForbidden {
++		t.Fatalf("share upload through link: status %d", status)
++	}
++	if _, err := os.Stat(filepath.Join(drive, "docs", "new.txt")); !os.IsNotExist(err) {
++		t.Fatalf("share upload wrote through the link: %v", err)
++	}
++
++	// Archiving the share root leaves out files whose symlink resolves into the target, while
++	// the same archive for the user includes them.
++	archiveNames := func(d *Context) []string {
++		req := httptest.NewRequest(http.MethodGet, "/api/raw?algo=zip", nil)
++		rec := httptest.NewRecorder()
++		if _, err := BuildAndStreamArchive(rec, req, d, "uploads", []string{"/"}); err != nil {
++			t.Fatal(err)
++		}
++		return readZipFileNames(rec.Body.Bytes())
++	}
++	shareNames := archiveNames(shareContextFor(user))
++	userNames := archiveNames(&requestContext{User: user})
++	hasLink := func(names []string) bool {
++		return slices.ContainsFunc(names, func(n string) bool { return strings.HasSuffix(n, "plan-link.md") })
++	}
++	if hasLink(shareNames) || !slices.ContainsFunc(shareNames, func(n string) bool { return strings.HasSuffix(n, "local.txt") }) {
++		t.Fatalf("share archive: %v", shareNames)
++	}
++	if !hasLink(userNames) {
++		t.Fatalf("user archive is missing the linked file: %v", userNames)
++	}
++}
++
++func TestSymlinkTargetsHTTP_CreateThroughLink(t *testing.T) {
++	type create struct {
++		name    string
++		path    string
++		headers map[string]string
++		isDir   bool
++		result  string // created in drive
++	}
++	creates := []create{
++		{"upload", "/out/docs/new.txt", map[string]string{"X-File-Upload-Session": "s1"}, false, "docs/new.txt"},
++		{"upload into missing folder", "/out/docs/sub/new.txt", map[string]string{"X-File-Upload-Session": "s2"}, false, "docs/sub/new.txt"},
++		{"create file", "/out/docs/empty.txt", map[string]string{}, false, "docs/empty.txt"},
++		{"create folder", "/out/docs/folder", map[string]string{}, true, "docs/folder"},
++	}
++	for _, allow := range []bool{false, true} {
++		for _, c := range creates {
++			t.Run(fmt.Sprintf("%s/allow=%v", c.name, allow), func(t *testing.T) {
++				_, drive, user := setupSymlinkTargetHTTPTest(t, allow)
++				target := "/api/resources?source=uploads&path=" + url.QueryEscape(c.path)
++				if c.isDir {
++					target += "&isDir=true"
++				}
++				body := "new"
++				req := httptest.NewRequest(http.MethodPost, target, strings.NewReader(body))
++				req.ContentLength = int64(len(body))
++				for k, v := range c.headers {
++					req.Header.Set(k, v)
++				}
++				status, err := ResourcePostHandler(httptest.NewRecorder(), req, &requestContext{User: user})
++				_, statErr := os.Stat(filepath.Join(drive, filepath.FromSlash(c.result)))
++				if !allow {
++					if status != http.StatusForbidden || !os.IsNotExist(statErr) {
++						t.Fatalf("status %d err %v, created=%v", status, err, statErr == nil)
++					}
++					return
++				}
++				if status != http.StatusOK || statErr != nil {
++					t.Fatalf("status %d err %v stat %v", status, err, statErr)
++				}
++			})
++		}
++	}
++}
++
++func TestSymlinkTargetsHTTP_ReadOnlyTargetIs403(t *testing.T) {
++	if os.Geteuid() == 0 {
++		t.Skip("root bypasses directory permissions")
++	}
++	_, drive, user := setupSymlinkTargetHTTPTest(t, true)
++	ro := filepath.Join(drive, "ro")
++	if err := os.Mkdir(ro, 0o555); err != nil {
++		t.Fatal(err)
++	}
++	t.Cleanup(func() { _ = os.Chmod(ro, 0o755) })
++
++	status, err := postUpload(t, user, "/out/ro/new.txt", strings.NewReader("x"), 1, nil)
++	if status != http.StatusForbidden || !errors.Is(err, libErrors.ErrWriteNotPermitted) {
++		t.Fatalf("status %d err %v", status, err)
++	}
++	if strings.Contains(err.Error(), ro) {
++		t.Fatalf("error names the path: %v", err)
++	}
++}
++
++func patchResources(t *testing.T, user *users.User, action, from, to string) (int, MoveCopyResponse) {
++	t.Helper()
++	req := httptest.NewRequest(http.MethodPatch, "/api/resources", nil)
++	rec := httptest.NewRecorder()
++	d := &requestContext{User: user, Data: MoveCopyRequest{
++		Action: action,
++		Items:  []MoveCopyItem{{FromSource: "uploads", FromPath: from, ToSource: "uploads", ToPath: to}},
++	}}
++	status, err := ResourcePatchHandler(rec, req, d)
++	if err != nil {
++		t.Fatalf("patch: %v", err)
++	}
++	var resp MoveCopyResponse
++	if decodeErr := json.Unmarshal(rec.Body.Bytes(), &resp); decodeErr != nil {
++		t.Fatalf("decode patch response: %v (%s)", decodeErr, rec.Body.String())
++	}
++	_ = status // RenderJSON already wrote it to rec
++	return rec.Code, resp
++}
++
++func TestSymlinkTargetsHTTP_MoveCopyRenameInsideLink(t *testing.T) {
++	for _, tc := range []struct {
++		action, from, to string
++		gone, created    string // relative to drive (or the source when prefixed with "src:")
++	}{
++		{"rename", "/out/docs/plan.md", "/out/docs/renamed.md", "docs/plan.md", "docs/renamed.md"},
++		{"move", "/out/docs/plan.md", "/out/plan.md", "docs/plan.md", "plan.md"},
++		{"copy", "/out/docs/plan.md", "/copied.md", "", "src:copied.md"},
++	} {
++		for _, allow := range []bool{false, true} {
++			t.Run(fmt.Sprintf("%s/allow=%v", tc.action, allow), func(t *testing.T) {
++				root, drive, user := setupSymlinkTargetHTTPTest(t, allow)
++				status, resp := patchResources(t, user, tc.action, tc.from, tc.to)
++				resolve := func(p string) string {
++					if rest, ok := strings.CutPrefix(p, "src:"); ok {
++						return filepath.Join(root, rest)
++					}
++					return filepath.Join(drive, p)
++				}
++				_, createdErr := os.Stat(resolve(tc.created))
++				if !allow {
++					if status != http.StatusForbidden || len(resp.Failed) != 1 || !os.IsNotExist(createdErr) {
++						t.Fatalf("status %d resp %+v created=%v", status, resp, createdErr == nil)
++					}
++					return
++				}
++				if status != http.StatusOK || createdErr != nil {
++					t.Fatalf("status %d resp %+v stat %v", status, resp, createdErr)
++				}
++				if tc.gone != "" {
++					if _, err := os.Stat(resolve(tc.gone)); !os.IsNotExist(err) {
++						t.Fatalf("source still exists after %s: %v", tc.action, err)
++					}
++				}
++			})
++		}
++	}
++}
++
++func TestSymlinkTargetsHTTP_RenameAndDeleteTheLinkItself(t *testing.T) {
++	root, drive, user := setupSymlinkTargetHTTPTest(t, true)
++	status, resp := patchResources(t, user, "rename", "/out", "/drive-link")
++	if status != http.StatusOK {
++		t.Fatalf("rename link: status %d resp %+v", status, resp)
++	}
++	if target, err := os.Readlink(filepath.Join(root, "drive-link")); err != nil || target != drive {
++		t.Fatalf("renamed link: target %q err %v", target, err)
++	}
++	if _, err := os.Stat(filepath.Join(drive, "docs", "plan.md")); err != nil {
++		t.Fatalf("renaming the link touched its target: %v", err)
++	}
++
++	req := httptest.NewRequest(http.MethodDelete, "/api/resources?source=uploads&path=/drive-link", nil)
++	status, err := resourceDeleteHandler(httptest.NewRecorder(), req, &requestContext{User: user})
++	if status != http.StatusOK {
++		t.Fatalf("delete link: status %d err %v", status, err)
++	}
++	if _, err := os.Lstat(filepath.Join(root, "drive-link")); !os.IsNotExist(err) {
++		t.Fatalf("link still exists: %v", err)
++	}
++	if _, err := os.Stat(filepath.Join(drive, "docs", "plan.md")); err != nil {
++		t.Fatalf("deleting the link touched its target: %v", err)
++	}
++}
++
++func TestSymlinkTargetsHTTP_DeleteInsideLink(t *testing.T) {
++	for _, allow := range []bool{false, true} {
++		t.Run(fmt.Sprintf("allow=%v", allow), func(t *testing.T) {
++			_, drive, user := setupSymlinkTargetHTTPTest(t, allow)
++			req := httptest.NewRequest(http.MethodDelete, "/api/resources?source=uploads&path=/out/docs/plan.md", nil)
++			status, err := resourceDeleteHandler(httptest.NewRecorder(), req, &requestContext{User: user})
++			_, statErr := os.Stat(filepath.Join(drive, "docs", "plan.md"))
++			if !allow {
++				if status != http.StatusForbidden || statErr != nil {
++					t.Fatalf("status %d err %v, deleted=%v", status, err, statErr != nil)
++				}
++				return
++			}
++			if status != http.StatusOK || !os.IsNotExist(statErr) {
++				t.Fatalf("status %d err %v stat %v", status, err, statErr)
++			}
++		})
++	}
++}
++
++func TestSymlinkTargetsHTTP_ShareCreationRefusesEscapingPath(t *testing.T) {
++	dbPath := filepath.Join(t.TempDir(), "share-symlink.sqlite")
++	if _, err := state.Initialize(dbPath); err != nil {
++		t.Fatal(err)
++	}
++	app.MustWireServices(state.Default())
++	t.Cleanup(func() { state.Close() })
++
++	root := t.TempDir()
++	drive := t.TempDir()
++	if err := os.MkdirAll(filepath.Join(root, "docs"), 0o755); err != nil {
++		t.Fatal(err)
++	}
++	if err := os.Symlink(drive, filepath.Join(root, "out")); err != nil {
++		t.Fatal(err)
++	}
++	prevSourceMap, prevNameToSource := settings.Config.Server.SourceMap, settings.Config.Server.NameToSource
++	t.Cleanup(func() {
++		settings.Config.Server.SourceMap, settings.Config.Server.NameToSource = prevSourceMap, prevNameToSource
++		indexing.ClearTestIndices()
++	})
++	settings.Config.Server.SourceMap = map[string]*settings.Source{root: {Path: root, Name: "srv"}}
++	settings.Config.Server.NameToSource = map[string]*settings.Source{"srv": settings.Config.Server.SourceMap[root]}
++	settings.InitializeUserResolvers()
++	indexing.SetTestIndex("srv", root)
++	// The allowlist is on, but shares must still refuse paths through the link.
++	indexing.GetIndex("srv").Config.SymlinkTargets = []string{drive}
++
++	perms := users.SourceFilePermissions{View: true, Download: true, Modify: true, Create: true, Delete: true}
++	owner := &users.User{
++		FrontendUser: users.FrontendUser{
++			Username:    "symlink_share_owner",
++			Permissions: users.Permissions{Share: true},
++		},
++		BackendScopes:            []users.BackendScope{{Path: root, Scope: "/", Permissions: perms}},
++		BackendSourcePermissions: map[string]users.SourceFilePermissions{root: perms},
++		Version:                  users.SourcePermissionsMigrationVersion,
++	}
++	if err := state.CreateUser(owner, ""); err != nil {
++		t.Fatal(err)
++	}
++	got, err := state.GetUserByUsername(owner.Username)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	for _, tc := range []struct {
++		path string
++		want int
++	}{
++		{"/out", http.StatusForbidden},
++		{"/out/sub", http.StatusForbidden},
++		{"/docs", http.StatusOK},
++	} {
++		raw, _ := json.Marshal(map[string]string{"path": tc.path, "source": "srv"})
++		req := httptest.NewRequest(http.MethodPost, "/api/share", bytes.NewReader(raw))
++		rec := httptest.NewRecorder()
++		status, err := sharePostHandler(rec, req, &Context{User: &got})
++		if status == 0 {
++			status = rec.Code
++		}
++		if status != tc.want {
++			t.Fatalf("share %s: status %d err %v body %s", tc.path, status, err, rec.Body.String())
++		}
++	}
++}
++
++func TestErrToStatus_ReadOnlyFilesystem(t *testing.T) {
++	erofs := &os.PathError{Op: "open", Path: "/mnt/cloud-drive-peers/bob/x", Err: syscall.EROFS}
++	if got := ErrToStatus(erofs); got != http.StatusForbidden {
++		t.Fatalf("ErrToStatus(EROFS) = %d", got)
++	}
++	status, err := writeErrStatus(fmt.Errorf("could not open temp file: %w", erofs))
++	if status != http.StatusForbidden || !errors.Is(err, libErrors.ErrWriteNotPermitted) {
++		t.Fatalf("writeErrStatus(EROFS) = %d, %v", status, err)
++	}
++	status, err = writeErrStatus(fmt.Errorf("could not open temp file: %w", &os.PathError{Op: "open", Path: "/x", Err: syscall.EACCES}))
++	if status != http.StatusForbidden || !errors.Is(err, libErrors.ErrWriteNotPermitted) {
++		t.Fatalf("writeErrStatus(EACCES) = %d, %v", status, err)
++	}
++	status, _ = writeErrStatus(io.ErrUnexpectedEOF)
++	if status != http.StatusInternalServerError {
++		t.Fatalf("writeErrStatus(other) = %d", status)
++	}
++	if status, _ := sanitizePutWriteError(erofs); status != http.StatusForbidden {
++		t.Fatalf("sanitizePutWriteError(EROFS) = %d", status)
++	}
++}
+diff --git a/backend/pkg/indexing/indexingFiles.go b/backend/pkg/indexing/indexingFiles.go
+index bb8a7f73b2..d88465bdb2 100644
+--- a/backend/pkg/indexing/indexingFiles.go
++++ b/backend/pkg/indexing/indexingFiles.go
+@@ -68,6 +68,10 @@
+ 	FollowSymlinks    bool   // Whether to follow symlinks or return symlink info
+ 	ShowHidden        bool   // Whether to include hidden files/directories
+ 	HideFileExt       string // Hide files based on extensions
++
++	// Symlinked folders in a listing (only with FollowSymlinks, non-recursive)
++	BoundIndexPath      string // index prefix a symlinked folder must resolve into (e.g. user scope)
++	AllowSymlinkTargets bool   // also accept folders under the source's symlinkTargets
+ }
+ 
+ // ScannerInfo is the exposed scanner information for the client
+@@ -138,6 +142,9 @@
+ 	// Adaptive scheduler: shared slot map (UTC unix seconds -> scanners).
+ 	scheduleSlotsMu sync.Mutex
+ 	scheduleSlots   map[int64][]*Scanner
++
++	// Config.SymlinkTargets resolved on first use
++	symlinkTargets symlinkTargetSet
+ }
+ 
+ var (
+@@ -435,14 +442,15 @@
+ 
+ // FileInfoRequest specifies what information to retrieve
+ type FileInfoRequest struct {
+-	IndexPath         string
+-	FollowSymlinks    bool
+-	BoundIndexPath    string // index prefix for symlink containment (e.g. user scope)
+-	ShowHidden        bool
+-	HideFileExt       string // Hide files based on their extension
+-	Expand            bool   // get child items for directories
+-	IsRoutineScan     bool   // scanner vs API call
+-	SkipExtendedAttrs bool   // whether to skip extended attributes
++	IndexPath           string
++	FollowSymlinks      bool
++	BoundIndexPath      string // index prefix for symlink containment (e.g. user scope)
++	AllowSymlinkTargets bool   // also let symlinks resolve into the source's symlinkTargets (never for public shares)
++	ShowHidden          bool
++	HideFileExt         string // Hide files based on their extension
++	Expand              bool   // get child items for directories
++	IsRoutineScan       bool   // scanner vs API call
++	SkipExtendedAttrs   bool   // whether to skip extended attributes
+ }
+ 
+ // filesystemBound resolves the filesystem path for an index prefix under this source.
+@@ -463,12 +471,21 @@
+ }
+ 
+ // ensureResolvedContained rejects resolved filesystem paths outside the source or scope prefix.
+-func (idx *Index) ensureResolvedContained(realPath, boundIndexPath string) error {
++// realPath must already be resolved; it is compared as is. With allowTargets, a path under one of
++// the source's symlinkTargets is accepted as well, whatever the scope prefix.
++func (idx *Index) ensureResolvedContained(realPath, boundIndexPath string, allowTargets bool) error {
++	realPath, err := filepath.Abs(realPath)
++	if err != nil {
++		return err
++	}
++	if allowTargets && idx.underSymlinkTarget(realPath) {
++		return nil
++	}
+ 	sourceRoot, err := idx.filesystemBound("/")
+ 	if err != nil {
+ 		return err
+ 	}
+-	if err := iteminfo.PathWithinRoot(sourceRoot, realPath); err != nil {
++	if !withinRoot(sourceRoot, realPath) {
+ 		return errors.ErrPathEscapesScope
+ 	}
+ 	bound := boundIndexPath
+@@ -480,7 +497,7 @@
+ 		if err != nil {
+ 			return err
+ 		}
+-		if err := iteminfo.PathWithinRoot(scopeRoot, realPath); err != nil {
++		if !withinRoot(scopeRoot, realPath) {
+ 			return errors.ErrPathEscapesScope
+ 		}
+ 	}
+@@ -488,12 +505,12 @@
+ }
+ 
+ // resolveSymlinksContained resolves symlinks and ensures the target stays within bounds.
+-func (idx *Index) resolveSymlinksContained(fsPath, boundIndexPath string) (string, error) {
++func (idx *Index) resolveSymlinksContained(fsPath, boundIndexPath string, allowTargets bool) (string, error) {
+ 	resolved, err := filepath.EvalSymlinks(fsPath)
+ 	if err != nil {
+ 		return "", err
+ 	}
+-	if err := idx.ensureResolvedContained(resolved, boundIndexPath); err != nil {
++	if err := idx.ensureResolvedContained(resolved, boundIndexPath, allowTargets); err != nil {
+ 		return "", err
+ 	}
+ 	return resolved, nil
+@@ -501,7 +518,7 @@
+ 
+ // resolvePathContext resolves all path characteristics in a SINGLE stat call
+ // This eliminates duplicate stat/lstat calls and redundant isHidden/isSymlink checks
+-func (idx *Index) resolvePathContext(indexPath string, followSymlinks bool, boundIndexPath string) (*PathContext, error) {
++func (idx *Index) resolvePathContext(indexPath string, followSymlinks bool, boundIndexPath string, allowTargets bool) (*PathContext, error) {
+ 	realPath := utils.JoinUnderSourceRoot(idx.Path, indexPath)
+ 
+ 	// ONE filesystem stat call
+@@ -512,16 +529,21 @@
+ 
+ 	isSymlink := fileInfo.Mode()&os.ModeSymlink != 0
+ 
+-	// Resolve symlink if requested
+-	if isSymlink && followSymlinks {
+-		realPath, err = idx.resolveSymlinksContained(realPath, boundIndexPath)
++	// The OS follows symlinks anywhere in the path, not just in the last component, so every
++	// one of them must pass the containment check.
++	if followSymlinks {
++		realPath, err = idx.resolveSymlinksContained(realPath, boundIndexPath, allowTargets)
+ 		if err != nil {
+ 			return nil, err
+ 		}
+-		fileInfo, err = os.Stat(realPath)
+-		if err != nil {
+-			return nil, err
++		if isSymlink {
++			fileInfo, err = os.Stat(realPath)
++			if err != nil {
++				return nil, err
++			}
+ 		}
++	} else if err = idx.ensureEntryContained(realPath, boundIndexPath, allowTargets); err != nil {
++		return nil, err
+ 	}
+ 
+ 	isDir := fileInfo.IsDir()
+@@ -570,7 +592,7 @@
+ // User permission checking happens in the API layer (FileInfoFaster)
+ func (idx *Index) GetFileInfo(req FileInfoRequest) (*iteminfo.FileInfo, error) {
+ 	// 1. Resolve path context (single stat call)
+-	ctx, err := idx.resolvePathContext(req.IndexPath, req.FollowSymlinks, req.BoundIndexPath)
++	ctx, err := idx.resolvePathContext(req.IndexPath, req.FollowSymlinks, req.BoundIndexPath, req.AllowSymlinkTargets)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -628,13 +650,15 @@
+ 	defer dir.Close()
+ 
+ 	opts := Options{
+-		Recursive:         false,
+-		CheckViewable:     true,
+-		IsRoutineScan:     req.IsRoutineScan,
+-		SkipExtendedAttrs: req.SkipExtendedAttrs || !isIndexable,
+-		FollowSymlinks:    req.FollowSymlinks,
+-		ShowHidden:        req.ShowHidden,
+-		HideFileExt:       req.HideFileExt,
++		Recursive:           false,
++		CheckViewable:       true,
++		IsRoutineScan:       req.IsRoutineScan,
++		SkipExtendedAttrs:   req.SkipExtendedAttrs || !isIndexable,
++		FollowSymlinks:      req.FollowSymlinks,
++		ShowHidden:          req.ShowHidden,
++		HideFileExt:         req.HideFileExt,
++		BoundIndexPath:      req.BoundIndexPath,
++		AllowSymlinkTargets: req.AllowSymlinkTargets,
+ 	}
+ 
+ 	return idx.GetDirInfoCore(dir, ctx.FileInfo, ctx.IndexPath, opts, nil)
+@@ -701,10 +725,12 @@
+ 	realPath := utils.JoinUnderSourceRoot(idx.Path, indexPath)
+ 	if opts.FollowSymlinks {
+ 		var err error
+-		realPath, err = idx.resolveSymlinksContained(realPath, "/")
++		realPath, err = idx.resolveSymlinksContained(realPath, opts.BoundIndexPath, opts.AllowSymlinkTargets)
+ 		if err != nil {
+ 			return nil, err
+ 		}
++	} else if err := idx.ensureEntryContained(realPath, opts.BoundIndexPath, opts.AllowSymlinkTargets); err != nil {
++		return nil, err
+ 	}
+ 
+ 	dir, err := os.Open(realPath)
+@@ -951,13 +977,21 @@
+ 	for _, file := range files {
+ 		subfileBaseName := file.Name()
+ 		isDir := iteminfo.IsDirectory(file)
++		isSymlink := file.Mode()&os.ModeSymlink != 0
++		// Readdir lstats entries, so a symlinked folder looks like a file. An API listing
++		// shows it as a folder when it can be opened; scans never descend into one.
++		if isSymlink && opts.FollowSymlinks && !opts.Recursive {
++			if target, ok := idx.symlinkDirInfo(utils.JoinPathAsUnix(idx.Path, indexPath, subfileBaseName), opts); ok {
++				file = target
++				isDir = true
++			}
++		}
+ 		fullCombined := indexPath + subfileBaseName
+ 		// Add trailing slash for directories to match normalized folder paths
+ 		if isDir {
+ 			fullCombined = fullCombined + "/"
+ 		}
+ 		hidden := IsHidden(utils.JoinPathAsUnix(idx.Path, indexPath, subfileBaseName))
+-		isSymlink := file.Mode()&os.ModeSymlink != 0
+ 
+ 		// Check if item should be skipped
+ 		shouldSkip := false
+@@ -1061,15 +1095,15 @@
+ }
+ 
+ func (idx *Index) GetRealPath(relativePath ...string) (string, bool, error) {
+-	return idx.getRealPathInternal("/", false, relativePath...)
++	return idx.getRealPathInternal("/", false, false, relativePath...)
+ }
+ 
+ // GetRealPathScoped resolves an index path and rejects symlink targets outside the source and bound prefix.
+ func (idx *Index) GetRealPathScoped(boundIndexPath string, relativePath ...string) (string, bool, error) {
+-	return idx.getRealPathInternal(boundIndexPath, true, relativePath...)
++	return idx.getRealPathInternal(boundIndexPath, true, false, relativePath...)
+ }
+ 
+-func (idx *Index) getRealPathInternal(boundIndexPath string, enforceScope bool, relativePath ...string) (string, bool, error) {
++func (idx *Index) getRealPathInternal(boundIndexPath string, enforceScope bool, allowTargets bool, relativePath ...string) (string, bool, error) {
+ 	parts := make([]string, 0, len(relativePath)+1)
+ 	parts = append(parts, idx.Path)
+ 	for _, p := range relativePath {
+@@ -1080,7 +1114,7 @@
+ 	if enforceScope && bound == "" {
+ 		bound = "/"
+ 	}
+-	cacheKey := fmt.Sprintf("realpath|scoped=%t|bound=%q|path=%q", enforceScope, bound, joinedPath)
++	cacheKey := fmt.Sprintf("realpath|scoped=%t|bound=%q|targets=%t|path=%q", enforceScope, bound, allowTargets, joinedPath)
+ 	isDir, _ := IsDirCache.Get(cacheKey + ":isdir")
+ 	cached, ok := RealPathCache.Get(cacheKey)
+ 	if ok && cached != "" {
+@@ -1095,12 +1129,16 @@
+ 		return realPath, isDir, err
+ 	}
+ 	if enforceScope {
+-		if err := idx.ensureResolvedContained(realPath, boundIndexPath); err != nil {
++		if err := idx.ensureResolvedContained(realPath, boundIndexPath, allowTargets); err != nil {
+ 			return "", false, err
+ 		}
+-	} else if err := idx.ensureResolvedContained(realPath, "/"); err != nil {
++	} else if err := idx.ensureResolvedContained(realPath, "/", allowTargets); err != nil {
+ 		return "", false, err
+ 	}
++	if !idx.InSourceTree(realPath) {
++		// Links into symlinkTargets change when drives are connected or disconnected.
++		return realPath, isDir, nil
++	}
+ 	RealPathCache.Set(cacheKey, realPath)
+ 	IsDirCache.Set(cacheKey+":isdir", isDir)
+ 	return realPath, isDir, nil
+@@ -1152,6 +1190,11 @@
+ 		return fmt.Errorf("path is not a directory: %s", indexPath)
+ 	}
+ 
++	// Never index a folder that resolves outside the source tree (eg. into symlinkTargets).
++	if resolved, evalErr := filepath.EvalSymlinks(realPath); evalErr != nil || !idx.InSourceTree(resolved) {
++		return nil
++	}
++
+ 	// Check if excluded from indexing
+ 	hidden := IsHidden(realPath)
+ 	isSymlink := dirInfo.Mode()&os.ModeSymlink != 0
+diff --git a/backend/pkg/indexing/symlink_containment_test.go b/backend/pkg/indexing/symlink_containment_test.go
+index fa39d0dcce..19d4ca79eb 100644
+--- a/backend/pkg/indexing/symlink_containment_test.go
++++ b/backend/pkg/indexing/symlink_containment_test.go
+@@ -176,3 +176,102 @@
+ 		t.Fatalf("expected ErrPathEscapesScope from GetFileInfo, got %v", err)
+ 	}
+ }
++
++// setupSymlinkDirEscapeFixture adds /user1/outdir -> a folder outside the source, so paths below
++// the link reach outside it through a symlink that is not their last component.
++func setupSymlinkDirEscapeFixture(t *testing.T) (sourceRoot, userScope, outsideDir string) {
++	t.Helper()
++	sourceRoot, userScope = setupSymlinkEscapeFixture(t)
++	outsideDir = filepath.Join(filepath.Dir(sourceRoot), "outside-dir")
++	if err := os.MkdirAll(filepath.Join(outsideDir, "sub"), 0o755); err != nil {
++		t.Fatal(err)
++	}
++	if err := os.WriteFile(filepath.Join(outsideDir, "sub", "f.txt"), []byte("outside"), 0o644); err != nil {
++		t.Fatal(err)
++	}
++	if err := os.Symlink(outsideDir, filepath.Join(sourceRoot, "user1", "outdir")); err != nil {
++		t.Fatal(err)
++	}
++	if err := os.Symlink(filepath.Join(filepath.Dir(sourceRoot), "missing"), filepath.Join(sourceRoot, "user1", "gone")); err != nil {
++		t.Fatal(err)
++	}
++	return sourceRoot, userScope, outsideDir
++}
++
++func TestGetFileInfo_RejectsEscapeThroughIntermediateSymlink(t *testing.T) {
++	sourceRoot, userScope, _ := setupSymlinkDirEscapeFixture(t)
++	idx := symlinkTestIndex(sourceRoot)
++
++	for _, tc := range []struct {
++		path   string
++		follow bool
++	}{
++		{"/user1/outdir/sub", true},
++		{"/user1/outdir/sub/f.txt", true},
++		{"/user1/outdir/sub", false},
++		{"/user1/outdir/sub/f.txt", false},
++	} {
++		req := FileInfoRequest{IndexPath: tc.path, FollowSymlinks: tc.follow, Expand: true}
++		if tc.follow {
++			req.BoundIndexPath = userScope
++		}
++		_, err := idx.GetFileInfo(req)
++		if !errors.Is(err, liberrors.ErrPathEscapesScope) {
++			t.Fatalf("%s (follow=%v): expected ErrPathEscapesScope, got %v", tc.path, tc.follow, err)
++		}
++	}
++	_, err := idx.GetFsInfo("/user1/outdir/sub", false, true)
++	if !errors.Is(err, liberrors.ErrPathEscapesScope) {
++		t.Fatalf("GetFsInfo: expected ErrPathEscapesScope, got %v", err)
++	}
++
++	// Without following, the link itself is an entry of the source (eg. to delete it).
++	if _, err := idx.GetFileInfo(FileInfoRequest{IndexPath: "/user1/outdir"}); err != nil {
++		t.Fatalf("lstat of the link itself: %v", err)
++	}
++	// Paths inside the source are unaffected.
++	if _, err := idx.GetFileInfo(FileInfoRequest{IndexPath: "/user1/allowed.txt", FollowSymlinks: true, BoundIndexPath: userScope}); err != nil {
++		t.Fatalf("in-scope file: %v", err)
++	}
++}
++
++func TestGetWritePath_RejectsEscapeThroughSymlink(t *testing.T) {
++	sourceRoot, _, outsideDir := setupSymlinkDirEscapeFixture(t)
++	idx := symlinkTestIndex(sourceRoot)
++
++	for _, p := range []string{
++		"/user1/outdir/new.txt",
++		"/user1/outdir/newdir/new.txt",
++		"/user1/outdir/sub/new.txt",
++		"/user1/secret_link", // overwriting through a file link
++	} {
++		_, err := idx.GetWritePath("/", false, p)
++		if !errors.Is(err, liberrors.ErrPathEscapesScope) {
++			t.Fatalf("%s: expected ErrPathEscapesScope, got %v", p, err)
++		}
++	}
++	if _, err := os.Stat(filepath.Join(outsideDir, "new.txt")); !os.IsNotExist(err) {
++		t.Fatalf("resolving a write path must not create anything: %v", err)
++	}
++
++	for _, p := range []string{"/user1/gone", "/user1/gone/new.txt"} {
++		if _, err := idx.GetWritePath("/", false, p); err == nil {
++			t.Fatalf("%s: expected an error for a dangling link", p)
++		}
++	}
++	if _, err := os.Lstat(filepath.Join(filepath.Dir(sourceRoot), "missing")); !os.IsNotExist(err) {
++		t.Fatalf("dangling link target was created: %v", err)
++	}
++
++	got, err := idx.GetWritePath("/", false, "/user1/newdir/new.txt")
++	if err != nil {
++		t.Fatal(err)
++	}
++	want, err := filepath.EvalSymlinks(filepath.Join(sourceRoot, "user1"))
++	if err != nil {
++		t.Fatal(err)
++	}
++	if want = filepath.Join(want, "newdir", "new.txt"); got != want {
++		t.Fatalf("in-source write path: got %q want %q", got, want)
++	}
++}
+diff --git a/backend/pkg/indexing/symlink_paths.go b/backend/pkg/indexing/symlink_paths.go
+new file mode 100644
+index 0000000000..d718b67014
+--- /dev/null
++++ b/backend/pkg/indexing/symlink_paths.go
+@@ -0,0 +1,91 @@
++package indexing
++
++import (
++	"os"
++	"path/filepath"
++	"strings"
++
++	"github.com/gtsteffaniak/filebrowser/backend/internal/utils"
++)
++
++// withinRoot reports whether path equals root or lies below it. Both must already be resolved.
++func withinRoot(root, path string) bool {
++	rel, err := filepath.Rel(root, path)
++	if err != nil {
++		return false
++	}
++	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
++}
++
++// ensureEntryContained checks the symlinks above the last component of fsPath, for callers that
++// act on the entry itself (lstat, delete, rename) and so do not follow a symlink there.
++func (idx *Index) ensureEntryContained(fsPath, boundIndexPath string, allowTargets bool) error {
++	entryPath, err := idx.resolveEntry(fsPath)
++	if err != nil {
++		return err
++	}
++	return idx.ensureResolvedContained(entryPath, boundIndexPath, allowTargets)
++}
++
++// resolveEntry resolves every symlink in fsPath except the last component.
++func (idx *Index) resolveEntry(fsPath string) (string, error) {
++	abs, err := filepath.Abs(fsPath)
++	if err != nil {
++		return "", err
++	}
++	if abs == filepath.Clean(idx.Path) {
++		// The source root itself; a symlinked root is followed by filesystemBound.
++		return idx.filesystemBound("/")
++	}
++	parent, err := filepath.EvalSymlinks(filepath.Dir(abs))
++	if err != nil {
++		return "", err
++	}
++	return filepath.Join(parent, filepath.Base(abs)), nil
++}
++
++// GetWritePath resolves an index path that may not exist yet to the filesystem path a write
++// would land on. Symlinks are resolved in the deepest existing ancestor (and in the path itself
++// when it exists) and the result must pass ensureResolvedContained, so a write through a symlink
++// that leaves the source fails with ErrPathEscapesScope instead of following it.
++func (idx *Index) GetWritePath(boundIndexPath string, allowTargets bool, indexPath string) (string, error) {
++	abs, err := filepath.Abs(utils.JoinUnderSourceRoot(idx.Path, indexPath))
++	if err != nil {
++		return "", err
++	}
++	existing := abs
++	var missing []string
++	for {
++		_, statErr := os.Lstat(existing)
++		if statErr == nil {
++			break
++		}
++		if !os.IsNotExist(statErr) {
++			return "", statErr
++		}
++		parent := filepath.Dir(existing)
++		if parent == existing {
++			return "", statErr
++		}
++		missing = append(missing, filepath.Base(existing))
++		existing = parent
++	}
++	// A dangling symlink fails here, rather than letting MkdirAll or O_CREAT create its target.
++	resolved, err := filepath.EvalSymlinks(existing)
++	if err != nil {
++		return "", err
++	}
++	for i := len(missing) - 1; i >= 0; i-- {
++		resolved = filepath.Join(resolved, missing[i])
++	}
++	if err := idx.ensureResolvedContained(resolved, boundIndexPath, allowTargets); err != nil {
++		return "", err
++	}
++	return resolved, nil
++}
++
++// ResolveContained resolves fsPath, a filesystem path reached under this source (eg. while
++// walking a directory), and checks the result like GetRealPathFor.
++func (idx *Index) ResolveContained(fsPath, boundIndexPath string, allowTargets bool) (string, error) {
++	return idx.resolveSymlinksContained(fsPath, boundIndexPath, allowTargets)
++}
+diff --git a/backend/pkg/indexing/symlink_targets.go b/backend/pkg/indexing/symlink_targets.go
+new file mode 100644
+index 0000000000..cf1e051df6
+--- /dev/null
++++ b/backend/pkg/indexing/symlink_targets.go
+@@ -0,0 +1,126 @@
++package indexing
++
++import (
++	"os"
++	"path/filepath"
++	"sync"
++
++	"github.com/gtsteffaniak/filebrowser/backend/internal/utils"
++	"github.com/gtsteffaniak/filebrowser/backend/pkg/indexing/iteminfo"
++	"github.com/gtsteffaniak/go-logger/logger"
++)
++
++// symlinkTargetSet holds Config.SymlinkTargets resolved with filepath.EvalSymlinks.
++// An entry whose directory is missing (eg. a disconnected drive) stays pending and is
++// retried when a path fails to match the resolved entries.
++type symlinkTargetSet struct {
++	mu       sync.Mutex
++	loaded   bool
++	resolved []string
++	pending  []string
++}
++
++// HasSymlinkTargets reports whether the source allows symlinks to resolve outside it.
++func (idx *Index) HasSymlinkTargets() bool {
++	return len(idx.Config.SymlinkTargets) > 0
++}
++
++// underSymlinkTarget reports whether an already resolved path is one of the source's
++// symlinkTargets or below one.
++func (idx *Index) underSymlinkTarget(realPath string) bool {
++	if !idx.HasSymlinkTargets() {
++		return false
++	}
++	t := &idx.symlinkTargets
++	t.mu.Lock()
++	defer t.mu.Unlock()
++	if !t.loaded {
++		t.pending = append([]string(nil), idx.Config.SymlinkTargets...)
++		t.loaded = true
++		t.resolvePendingLocked()
++	}
++	if t.matchLocked(realPath) {
++		return true
++	}
++	if len(t.pending) == 0 {
++		return false
++	}
++	t.resolvePendingLocked()
++	return t.matchLocked(realPath)
++}
++
++func (t *symlinkTargetSet) matchLocked(realPath string) bool {
++	for _, root := range t.resolved {
++		if withinRoot(root, realPath) {
++			return true
++		}
++	}
++	return false
++}
++
++func (t *symlinkTargetSet) resolvePendingLocked() {
++	stillPending := t.pending[:0]
++	for _, target := range t.pending {
++		resolved, err := filepath.EvalSymlinks(target)
++		if err != nil {
++			logger.Debugf("symlink target %v is not available: %v", target, err)
++			stillPending = append(stillPending, target)
++			continue
++		}
++		if info, err := os.Stat(resolved); err != nil || !info.IsDir() {
++			logger.Warningf("ignoring symlink target %v: not a directory", target)
++			continue
++		}
++		t.resolved = append(t.resolved, resolved)
++	}
++	t.pending = stillPending
++}
++
++// GetRealPathFor resolves an index path like GetRealPathScoped. When allowTargets is set it also
++// accepts symlinks that resolve into the source's symlinkTargets. Callers serving a public share
++// must pass false.
++func (idx *Index) GetRealPathFor(boundIndexPath string, allowTargets bool, relativePath ...string) (string, bool, error) {
++	return idx.getRealPathInternal(boundIndexPath, true, allowTargets, relativePath...)
++}
++
++// GetEntryPath resolves an index path without following a symlink in its last component, so
++// renaming or moving a link acts on the link and not on what it points to. isDir is false for a
++// symlink.
++func (idx *Index) GetEntryPath(boundIndexPath string, allowTargets bool, indexPath string) (string, bool, error) {
++	entryPath, err := idx.resolveEntry(utils.JoinUnderSourceRoot(idx.Path, indexPath))
++	if err != nil {
++		return "", false, err
++	}
++	info, err := os.Lstat(entryPath)
++	if err != nil {
++		return "", false, err
++	}
++	if err := idx.ensureResolvedContained(entryPath, boundIndexPath, allowTargets); err != nil {
++		return "", false, err
++	}
++	return entryPath, iteminfo.IsDirectory(info), nil
++}
++
++// InSourceTree reports whether a resolved filesystem path lies in the source itself. Paths
++// reached through symlinkTargets do not, and are never indexed.
++func (idx *Index) InSourceTree(realPath string) bool {
++	if withinRoot(filepath.Clean(idx.Path), realPath) {
++		return true
++	}
++	root, err := idx.filesystemBound("/")
++	return err == nil && withinRoot(root, realPath)
++}
++
++// symlinkDirInfo returns the target's info when a symlink entry in a listing points to a
++// directory the caller may open, so it can be listed as a folder. Dangling links and links that
++// fail ensureResolvedContained return false and keep being listed as files.
++func (idx *Index) symlinkDirInfo(fsPath string, opts Options) (os.FileInfo, bool) {
++	target, err := os.Stat(fsPath)
++	if err != nil || !iteminfo.IsDirectory(target) {
++		return nil, false
++	}
++	if _, err := idx.resolveSymlinksContained(fsPath, opts.BoundIndexPath, opts.AllowSymlinkTargets); err != nil {
++		return nil, false
++	}
++	return target, true
++}
+diff --git a/backend/pkg/indexing/symlink_targets_test.go b/backend/pkg/indexing/symlink_targets_test.go
+new file mode 100644
+index 0000000000..5705db6c28
+--- /dev/null
++++ b/backend/pkg/indexing/symlink_targets_test.go
+@@ -0,0 +1,370 @@
++package indexing
++
++import (
++	"errors"
++	"os"
++	"path/filepath"
++	"slices"
++	"testing"
++
++	liberrors "github.com/gtsteffaniak/filebrowser/backend/internal/errors"
++	"github.com/gtsteffaniak/filebrowser/backend/pkg/indexing/iteminfo"
++	"github.com/gtsteffaniak/filebrowser/backend/pkg/settings"
++)
++
++// symlinkTargetFixture is the layout from the symlinkTargets acceptance tests:
++//
++//	src/sub/inside.txt
++//	src/in   -> src/sub         (inside the source)
++//	src/out  -> T               (outside, the allowed target)
++//	src/gone -> nonexistent     (dangling)
++//	src/etc  -> etc             (outside, never allowed)
++//	src/a    -> T/b -> etc      (chain whose final target is not allowed)
++//	T/file.txt, T/sub/deep.txt
++type symlinkTargetFixture struct {
++	root, source, target, other string
++}
++
++func setupSymlinkTargetFixture(t *testing.T) symlinkTargetFixture {
++	t.Helper()
++	root := t.TempDir()
++	f := symlinkTargetFixture{
++		root:   root,
++		source: filepath.Join(root, "src"),
++		target: filepath.Join(root, "T"),
++		other:  filepath.Join(root, "etc"),
++	}
++	writeFixtureFile(t, filepath.Join(f.source, "sub", "inside.txt"), "inside")
++	writeFixtureFile(t, filepath.Join(f.target, "file.txt"), "in-target")
++	writeFixtureFile(t, filepath.Join(f.target, "sub", "deep.txt"), "deep")
++	writeFixtureFile(t, filepath.Join(f.other, "passwd"), "secret")
++	links := map[string]string{
++		filepath.Join(f.source, "in"):   filepath.Join(f.source, "sub"),
++		filepath.Join(f.source, "out"):  f.target,
++		filepath.Join(f.source, "gone"): filepath.Join(root, "nonexistent"),
++		filepath.Join(f.source, "etc"):  f.other,
++		filepath.Join(f.target, "b"):    f.other,
++		filepath.Join(f.source, "a"):    filepath.Join(f.target, "b"),
++	}
++	for link, target := range links {
++		if err := os.Symlink(target, link); err != nil {
++			t.Fatal(err)
++		}
++	}
++	return f
++}
++
++func writeFixtureFile(t *testing.T, path, content string) {
++	t.Helper()
++	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
++		t.Fatal(err)
++	}
++	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
++		t.Fatal(err)
++	}
++}
++
++func (f symlinkTargetFixture) index(targets ...string) *Index {
++	return &Index{
++		Source: settings.Source{
++			Path:   f.source,
++			Config: settings.SourceConfig{SymlinkTargets: targets},
++		},
++		folderSizes:         make(map[string]uint64),
++		folderSizesUnsynced: make(map[string]struct{}),
++	}
++}
++
++func listingNames(info *iteminfo.FileInfo) (folders, files []string) {
++	for _, d := range info.Folders {
++		folders = append(folders, d.Name)
++	}
++	for _, f := range info.Files {
++		files = append(files, f.Name)
++	}
++	return folders, files
++}
++
++func requireEscape(t *testing.T, what string, err error) {
++	t.Helper()
++	if !errors.Is(err, liberrors.ErrPathEscapesScope) {
++		t.Fatalf("%s: expected ErrPathEscapesScope, got %v", what, err)
++	}
++}
++
++func TestSymlinkTargets_ListingShowsOpenableSymlinkedFolders(t *testing.T) {
++	f := setupSymlinkTargetFixture(t)
++	cases := []struct {
++		name         string
++		idx          *Index
++		allowTargets bool
++		wantFolders  []string
++		wantFiles    []string
++	}{
++		{"default", f.index(), false, []string{"in", "sub"}, []string{"a", "etc", "gone", "out"}},
++		{"allowlist", f.index(f.target), true, []string{"in", "out", "sub"}, []string{"a", "etc", "gone"}},
++		// a public share request never sets AllowSymlinkTargets
++		{"allowlist, share request", f.index(f.target), false, []string{"in", "sub"}, []string{"a", "etc", "gone", "out"}},
++	}
++	for _, tc := range cases {
++		t.Run(tc.name, func(t *testing.T) {
++			info, err := tc.idx.GetFileInfo(FileInfoRequest{
++				IndexPath:           "/",
++				FollowSymlinks:      true,
++				AllowSymlinkTargets: tc.allowTargets,
++				Expand:              true,
++				SkipExtendedAttrs:   true,
++			})
++			if err != nil {
++				t.Fatal(err)
++			}
++			folders, files := listingNames(info)
++			slices.Sort(folders)
++			slices.Sort(files)
++			if !slices.Equal(folders, tc.wantFolders) || !slices.Equal(files, tc.wantFiles) {
++				t.Fatalf("folders=%v files=%v, want folders=%v files=%v", folders, files, tc.wantFolders, tc.wantFiles)
++			}
++			for _, d := range info.Folders {
++				if d.Type != "directory" {
++					t.Fatalf("folder %s has type %q", d.Name, d.Type)
++				}
++			}
++		})
++	}
++}
++
++func TestSymlinkTargets_OpenFolderThroughLink(t *testing.T) {
++	f := setupSymlinkTargetFixture(t)
++	for _, tc := range []struct {
++		path string
++		want string
++	}{
++		{"/out", "file.txt"},
++		{"/out/sub", "deep.txt"},
++	} {
++		req := FileInfoRequest{IndexPath: tc.path, FollowSymlinks: true, Expand: true, SkipExtendedAttrs: true}
++		_, err := f.index().GetFileInfo(req)
++		requireEscape(t, "default "+tc.path, err)
++
++		req.AllowSymlinkTargets = true
++		info, err := f.index(f.target).GetFileInfo(req)
++		if err != nil {
++			t.Fatalf("allowlist %s: %v", tc.path, err)
++		}
++		if info.Type != "directory" {
++			t.Fatalf("allowlist %s: type %q", tc.path, info.Type)
++		}
++		_, files := listingNames(info)
++		if !slices.Contains(files, tc.want) {
++			t.Fatalf("allowlist %s: files=%v, want %s", tc.path, files, tc.want)
++		}
++	}
++}
++
++func TestSymlinkTargets_ReadFileThroughLink(t *testing.T) {
++	f := setupSymlinkTargetFixture(t)
++
++	_, _, err := f.index().GetRealPathFor("/", false, "/out/file.txt")
++	requireEscape(t, "default", err)
++
++	realPath, isDir, err := f.index(f.target).GetRealPathFor("/", true, "/out/file.txt")
++	if err != nil || isDir {
++		t.Fatalf("allowlist: real=%q isDir=%v err=%v", realPath, isDir, err)
++	}
++	data, err := os.ReadFile(realPath)
++	if err != nil || string(data) != "in-target" {
++		t.Fatalf("read %q: %q %v", realPath, data, err)
++	}
++
++	// The same index without the flag (a public share) stays strict.
++	_, _, err = f.index(f.target).GetRealPathFor("/", false, "/out/file.txt")
++	requireEscape(t, "allowlist, share request", err)
++}
++
++func TestSymlinkTargets_StrictLookupNotServedFromCache(t *testing.T) {
++	f := setupSymlinkTargetFixture(t)
++	idx := f.index(f.target)
++	if _, _, err := idx.GetRealPathFor("/", true, "/out/file.txt"); err != nil {
++		t.Fatal(err)
++	}
++	_, _, err := idx.GetRealPathScoped("/", "/out/file.txt")
++	requireEscape(t, "strict after allowed lookup", err)
++	_, _, err = idx.GetRealPath("/out/file.txt")
++	requireEscape(t, "unscoped after allowed lookup", err)
++}
++
++func TestSymlinkTargets_WritePath(t *testing.T) {
++	f := setupSymlinkTargetFixture(t)
++	for _, p := range []string{"/out/new.txt", "/out/newdir/new.txt", "/out/sub/new.txt"} {
++		_, err := f.index().GetWritePath("/", false, p)
++		requireEscape(t, "default "+p, err)
++
++		realPath, err := f.index(f.target).GetWritePath("/", true, p)
++		if err != nil {
++			t.Fatalf("allowlist %s: %v", p, err)
++		}
++		want := filepath.Join(f.target, filepath.FromSlash(p[len("/out/"):]))
++		if realPath != want {
++			t.Fatalf("allowlist %s: got %q want %q", p, realPath, want)
++		}
++	}
++	if _, err := os.Stat(filepath.Join(f.target, "new.txt")); !os.IsNotExist(err) {
++		t.Fatalf("resolving a write path must not create anything: %v", err)
++	}
++
++	// Paths inside the source are unaffected.
++	realPath, err := f.index().GetWritePath("/", false, "/sub/new.txt")
++	if err != nil || realPath != filepath.Join(f.source, "sub", "new.txt") {
++		t.Fatalf("in-source write path: %q %v", realPath, err)
++	}
++	realPath, err = f.index().GetWritePath("/", false, "/in/new.txt")
++	if err != nil || realPath != filepath.Join(f.source, "sub", "new.txt") {
++		t.Fatalf("write path through inside link: %q %v", realPath, err)
++	}
++}
++
++func TestSymlinkTargets_WritePathThroughDanglingLink(t *testing.T) {
++	f := setupSymlinkTargetFixture(t)
++	for _, idx := range []*Index{f.index(), f.index(f.target)} {
++		for _, p := range []string{"/gone", "/gone/new.txt"} {
++			if _, err := idx.GetWritePath("/", true, p); err == nil {
++				t.Fatalf("%s: expected an error for a dangling link", p)
++			}
++		}
++	}
++	if _, err := os.Lstat(filepath.Join(f.root, "nonexistent")); !os.IsNotExist(err) {
++		t.Fatalf("dangling link target was created: %v", err)
++	}
++}
++
++func TestSymlinkTargets_EntryPathForMoveAndDelete(t *testing.T) {
++	f := setupSymlinkTargetFixture(t)
++
++	_, _, err := f.index().GetEntryPath("/", false, "/out/file.txt")
++	requireEscape(t, "default entry inside link", err)
++	_, err = f.index().GetFileInfo(FileInfoRequest{IndexPath: "/out/file.txt"})
++	requireEscape(t, "default lstat inside link", err)
++
++	entry, isDir, err := f.index(f.target).GetEntryPath("/", true, "/out/sub")
++	if err != nil || !isDir || entry != filepath.Join(f.target, "sub") {
++		t.Fatalf("allowlist entry: %q isDir=%v err=%v", entry, isDir, err)
++	}
++	if _, err = f.index(f.target).GetFileInfo(FileInfoRequest{IndexPath: "/out/file.txt", AllowSymlinkTargets: true}); err != nil {
++		t.Fatalf("allowlist lstat inside link: %v", err)
++	}
++
++	// The link itself is an entry of the source: rename and delete act on it, not on T.
++	for _, idx := range []*Index{f.index(), f.index(f.target)} {
++		entry, isDir, err = idx.GetEntryPath("/", false, "/out")
++		if err != nil || isDir || entry != filepath.Join(f.source, "out") {
++			t.Fatalf("link entry: %q isDir=%v err=%v", entry, isDir, err)
++		}
++	}
++}
++
++func TestSymlinkTargets_OnlyListedTargetsAllowed(t *testing.T) {
++	f := setupSymlinkTargetFixture(t)
++	idx := f.index(f.target)
++	for _, p := range []string{"/etc", "/etc/passwd", "/a", "/out/b", "/out/b/passwd"} {
++		_, _, err := idx.GetRealPathFor("/", true, p)
++		requireEscape(t, "GetRealPathFor "+p, err)
++		_, err = idx.GetFileInfo(FileInfoRequest{IndexPath: p, FollowSymlinks: true, AllowSymlinkTargets: true, Expand: true})
++		requireEscape(t, "GetFileInfo "+p, err)
++		_, err = idx.GetWritePath("/", true, p)
++		requireEscape(t, "GetWritePath "+p, err)
++	}
++	for _, dir := range []string{"/etc", "/a", "/out/b"} {
++		_, err := idx.GetWritePath("/", true, dir+"/new.txt")
++		requireEscape(t, "GetWritePath "+dir+"/new.txt", err)
++	}
++}
++
++func TestSymlinkTargets_UserScope(t *testing.T) {
++	f := setupSymlinkTargetFixture(t)
++	writeFixtureFile(t, filepath.Join(f.source, "user2", "secret.txt"), "user2")
++	if err := os.MkdirAll(filepath.Join(f.source, "user1"), 0o755); err != nil {
++		t.Fatal(err)
++	}
++	if err := os.Symlink(f.target, filepath.Join(f.source, "user1", "drive")); err != nil {
++		t.Fatal(err)
++	}
++	if err := os.Symlink(filepath.Join(f.source, "user2"), filepath.Join(f.source, "user1", "peer")); err != nil {
++		t.Fatal(err)
++	}
++	idx := f.index(f.target)
++
++	if _, _, err := idx.GetRealPathFor("/user1", true, "/user1/drive/file.txt"); err != nil {
++		t.Fatalf("link into an allowed target from the user's scope: %v", err)
++	}
++	_, _, err := idx.GetRealPathFor("/user1", true, "/user1/peer/secret.txt")
++	requireEscape(t, "link to another scope in the source", err)
++
++	info, err := idx.GetFileInfo(FileInfoRequest{
++		IndexPath:           "/user1",
++		FollowSymlinks:      true,
++		BoundIndexPath:      "/user1",
++		AllowSymlinkTargets: true,
++		Expand:              true,
++		SkipExtendedAttrs:   true,
++	})
++	if err != nil {
++		t.Fatal(err)
++	}
++	folders, files := listingNames(info)
++	if !slices.Equal(folders, []string{"drive"}) || !slices.Equal(files, []string{"peer"}) {
++		t.Fatalf("folders=%v files=%v", folders, files)
++	}
++}
++
++func TestSymlinkTargets_MissingTargetResolvedWhenItAppears(t *testing.T) {
++	f := setupSymlinkTargetFixture(t)
++	late := filepath.Join(f.root, "late")
++	if err := os.Symlink(late, filepath.Join(f.source, "late")); err != nil {
++		t.Fatal(err)
++	}
++	idx := f.index(late)
++	if _, _, err := idx.GetRealPathFor("/", true, "/late"); err == nil {
++		t.Fatal("expected an error while the target is missing")
++	}
++	writeFixtureFile(t, filepath.Join(late, "x.txt"), "x")
++	if _, _, err := idx.GetRealPathFor("/", true, "/late/x.txt"); err != nil {
++		t.Fatalf("target that appeared after first use: %v", err)
++	}
++}
++
++func TestSymlinkTargets_IndexingDoesNotDescend(t *testing.T) {
++	f := setupSymlinkTargetFixture(t)
++	idx := f.index(f.target)
++
++	// Scans list entries without FollowSymlinks, so a symlinked folder stays a file entry and is
++	// never opened.
++	dir, err := os.Open(f.source)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer dir.Close()
++	stat, err := dir.Stat()
++	if err != nil {
++		t.Fatal(err)
++	}
++	info, err := idx.GetDirInfoCore(dir, stat, "/", Options{CheckViewable: true, SkipExtendedAttrs: true}, nil)
++	if err != nil {
++		t.Fatal(err)
++	}
++	folders, _ := listingNames(info)
++	if slices.Contains(folders, "out") || slices.Contains(folders, "in") {
++		t.Fatalf("scan listing resolved symlinked folders: %v", folders)
++	}
++
++	// Refreshing a folder reached through the link (as a listing or a write does) must not
++	// index it.
++	if err := idx.RefreshDirectory("/out/", false); err != nil {
++		t.Fatal(err)
++	}
++	if _, ok := idx.folderSizes["/out/"]; ok {
++		t.Fatal("folder under a symlink target was indexed")
++	}
++	if idx.InSourceTree(filepath.Join(f.target, "file.txt")) {
++		t.Fatal("a symlink target is not part of the source tree")
++	}
++}
+diff --git a/backend/pkg/settings/config.go b/backend/pkg/settings/config.go
+index fc4b89b8fe..d80aa5f805 100644
+--- a/backend/pkg/settings/config.go
++++ b/backend/pkg/settings/config.go
+@@ -453,6 +453,7 @@
+ 			}
+ 			modifyExcludeInclude(source)
+ 			setConditionals(source)
++			normalizeSymlinkTargets(source)
+ 			if source.Config.DefaultUserScope == "" {
+ 				source.Config.DefaultUserScope = "/"
+ 			}
+@@ -1195,6 +1196,31 @@
+ 	config.Config.ResolvedRules = resolved
+ }
+ 
++// normalizeSymlinkTargets cleans config.symlinkTargets. Relative entries are dropped; missing
++// directories only warn, because mounted drives may appear after startup.
++func normalizeSymlinkTargets(config *Source) {
++	var targets []string
++	for _, target := range config.Config.SymlinkTargets {
++		target = strings.TrimSpace(target)
++		if target == "" {
++			continue
++		}
++		if !filepath.IsAbs(target) {
++			logger.Warningf("source %v: ignoring symlinkTargets entry %q, it must be an absolute path", config.Name, target)
++			continue
++		}
++		target = filepath.Clean(target)
++		if slices.Contains(targets, target) {
++			continue
++		}
++		if _, err := os.Stat(target); err != nil {
++			logger.Warningf("source %v: symlinkTargets entry %v is not available yet, it will be resolved when first used: %v", config.Name, target, err)
++		}
++		targets = append(targets, target)
++	}
++	config.Config.SymlinkTargets = targets
++}
++
+ func modifyExcludeInclude(config *Source) {
+ 	// Helper to normalize a full path value (FilePaths, FolderPaths)
+ 	// These always start with "/" and match against full index paths
+diff --git a/backend/pkg/settings/structs.go b/backend/pkg/settings/structs.go
+index 50e4bb100f..397d75e84e 100644
+--- a/backend/pkg/settings/structs.go
++++ b/backend/pkg/settings/structs.go
+@@ -234,15 +234,16 @@
+ }
+ 
+ type SourceConfig struct {
+-	DenyByDefault    bool              `json:"denyByDefault,omitempty"` // deny access unless an "allow" access rule was specifically created.
+-	Private          bool              `json:"private"`                 // designate as source as private -- currently just means no sharing permitted.
+-	ReadOnly         bool              `json:"readOnly,omitempty"`      // read-only source, changes from the UI, webdav, and API will be disabled.
+-	Disabled         bool              `json:"disabled,omitempty"`      // disable the source, this is useful so you don't need to remove it from the config file
+-	Rules            []ConditionalRule `json:"rules"`                   // list of item rules to apply to specific paths
+-	DefaultUserScope string            `json:"defaultUserScope"`        // defaults to root of index "/" should match folders under path
+-	DefaultEnabled   bool              `json:"defaultEnabled"`          // should be added as a default source for new users?
+-	CreateUserDir    bool              `json:"createUserDir"`           // create a user directory for each user under defaultUserScope + username
+-	UseLogicalSize   bool              `json:"useLogicalSize"`          // calculate sizes based on logical size instead of disk utilization (du -sh), folders will be 0 bytes when empty.
++	DenyByDefault    bool              `json:"denyByDefault,omitempty"`  // deny access unless an "allow" access rule was specifically created.
++	Private          bool              `json:"private"`                  // designate as source as private -- currently just means no sharing permitted.
++	ReadOnly         bool              `json:"readOnly,omitempty"`       // read-only source, changes from the UI, webdav, and API will be disabled.
++	Disabled         bool              `json:"disabled,omitempty"`       // disable the source, this is useful so you don't need to remove it from the config file
++	Rules            []ConditionalRule `json:"rules"`                    // list of item rules to apply to specific paths
++	DefaultUserScope string            `json:"defaultUserScope"`         // defaults to root of index "/" should match folders under path
++	DefaultEnabled   bool              `json:"defaultEnabled"`           // should be added as a default source for new users?
++	CreateUserDir    bool              `json:"createUserDir"`            // create a user directory for each user under defaultUserScope + username
++	UseLogicalSize   bool              `json:"useLogicalSize"`           // calculate sizes based on logical size instead of disk utilization (du -sh), folders will be 0 bytes when empty.
++	SymlinkTargets   []string          `json:"symlinkTargets,omitempty"` // opt-in list of absolute directories outside the source that its symlinks may resolve into (eg. mounted drives). Followed for users of the source, never for public shares, and never indexed.
+ 	// DefaultPermissions is the template for new user scopes on this source (also synced globally via Access settings).
+ 	DefaultPermissions users.SourceFilePermissions `json:"defaultPermissions,omitempty" yaml:"defaultPermissions,omitempty"`
+ 	// DefaultPermissionsFromConfig holds permission flags explicitly set under defaultPermissions in config YAML.
+diff --git a/backend/pkg/settings/symlink_targets_test.go b/backend/pkg/settings/symlink_targets_test.go
+new file mode 100644
+index 0000000000..c45ea849da
+--- /dev/null
++++ b/backend/pkg/settings/symlink_targets_test.go
+@@ -0,0 +1,34 @@
++package settings
++
++import (
++	"path/filepath"
++	"slices"
++	"testing"
++)
++
++func TestNormalizeSymlinkTargets(t *testing.T) {
++	existing := t.TempDir()
++	missing := filepath.Join(t.TempDir(), "not-mounted-yet")
++	source := &Source{
++		Name: "home",
++		Config: SourceConfig{SymlinkTargets: []string{
++			existing + "/",
++			"",
++			"  ",
++			"relative/drive",
++			missing,
++			existing,
++		}},
++	}
++	normalizeSymlinkTargets(source)
++	want := []string{existing, missing}
++	if !slices.Equal(source.Config.SymlinkTargets, want) {
++		t.Fatalf("got %v, want %v", source.Config.SymlinkTargets, want)
++	}
++
++	empty := &Source{}
++	normalizeSymlinkTargets(empty)
++	if empty.Config.SymlinkTargets != nil {
++		t.Fatalf("absent setting must stay nil, got %v", empty.Config.SymlinkTargets)
++	}
++}
+diff --git a/backend/swagger/docs/docs.go b/backend/swagger/docs/docs.go
+index ac7cbcb55f..2ec22f9826 100644
+--- a/backend/swagger/docs/docs.go
++++ b/backend/swagger/docs/docs.go
+@@ -6789,6 +6789,13 @@
+                         "$ref": "#/definitions/settings.ConditionalRule"
+                     }
+                 },
++                "symlinkTargets": {
++                    "description": "opt-in list of absolute directories outside the source that its symlinks may resolve into (eg. mounted drives). Followed for users of the source, never for public shares, and never indexed.",
++                    "type": "array",
++                    "items": {
++                        "type": "string"
++                    }
++                },
+                 "useLogicalSize": {
+                     "description": "calculate sizes based on logical size instead of disk utilization (du -sh), folders will be 0 bytes when empty.",
+                     "type": "boolean"
+diff --git a/backend/swagger/docs/swagger.json b/backend/swagger/docs/swagger.json
+index 1297736f18..30620a0580 100644
+--- a/backend/swagger/docs/swagger.json
++++ b/backend/swagger/docs/swagger.json
+@@ -6778,6 +6778,13 @@
+                         "$ref": "#/definitions/settings.ConditionalRule"
+                     }
+                 },
++                "symlinkTargets": {
++                    "description": "opt-in list of absolute directories outside the source that its symlinks may resolve into (eg. mounted drives). Followed for users of the source, never for public shares, and never indexed.",
++                    "type": "array",
++                    "items": {
++                        "type": "string"
++                    }
++                },
+                 "useLogicalSize": {
+                     "description": "calculate sizes based on logical size instead of disk utilization (du -sh), folders will be 0 bytes when empty.",
+                     "type": "boolean"
+diff --git a/backend/swagger/docs/swagger.yaml b/backend/swagger/docs/swagger.yaml
+index bec575002c..a6160aedc8 100644
+--- a/backend/swagger/docs/swagger.yaml
++++ b/backend/swagger/docs/swagger.yaml
+@@ -1061,6 +1061,13 @@
+         items:
+           $ref: '#/definitions/settings.ConditionalRule'
+         type: array
++      symlinkTargets:
++        description: opt-in list of absolute directories outside the source that its
++          symlinks may resolve into (eg. mounted drives). Followed for users of the
++          source, never for public shares, and never indexed.
++        items:
++          type: string
++        type: array
+       useLogicalSize:
+         description: calculate sizes based on logical size instead of disk utilization
+           (du -sh), folders will be 0 bytes when empty.
+diff --git a/frontend/public/config.generated.yaml b/frontend/public/config.generated.yaml
+index 1ddddbca37..c12abb4090 100644
+--- a/frontend/public/config.generated.yaml
++++ b/frontend/public/config.generated.yaml
+@@ -41,6 +41,7 @@
+         defaultEnabled: true              # should be added as a default source for new users?
+         createUserDir: false              # create a user directory for each user under defaultUserScope + username
+         useLogicalSize: false             # calculate sizes based on logical size instead of disk utilization (du -sh), folders will be 0 bytes when empty.
++        symlinkTargets:                   # opt-in list of absolute directories outside the source that its symlinks may resolve into (eg. mounted drives). Followed for users of the source, never for public shares, and never indexed.
+         defaultPermissions:               # DefaultPermissions is the template for new user scopes on this source (also synced globally via Access settings).
+           view: false
+           download: false

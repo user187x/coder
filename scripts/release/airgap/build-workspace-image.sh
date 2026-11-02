@@ -4,8 +4,8 @@
 # resizing it, Chromium, Terminator,
 # Firefox, JetBrains Mono Nerd Font in every terminal (code-server's too) and Noto Color Emoji, tmux, command-line
 # tools, k9s/kubectl/kubelogin, Python venv, default ~/.bashrc, code-server, FileBrowser Quantum) and saves it into the delivery bundle (helm-chart/images/workspaces/, its images.txt section's folder), replacing the
-# previous one (needs internet). FileBrowser Quantum is a binary for linux-amd64, kept untracked at the repository's
-# root as filebrowser-quantum (or FILEBROWSER_QUANTUM=<file>); the Dockerfile checks its SHA-256 and version. Since
+# previous one (needs internet). FileBrowser Quantum is built from the pinned source under images/filebrowser
+# when its input is absent (or FILEBROWSER_QUANTUM=<file>); the Dockerfile checks its SHA-256 and version. Since
 # 1.9.2 it is the workspace's own build of 2.1.2 (version 2.1.2-coder.1, a FileBrowser update for symlinked folders:
 # gtsteffaniak/filebrowser v2.1.2 with its patches, built as its release is - static, frontend embedded, not packed);
 # since 1.9.4 built with Go 1.27.3 and golang.org/x/net 0.60.0 (same source, version and flags; the Dockerfile checks
@@ -21,6 +21,11 @@ release="$(cat "$(dirname "$top")/RELEASE_VERSION")" # every image of ours is ta
 tag="${1:-$release}"
 img="docker.io/mrshll187/coder-workspace:${tag}"
 quantum="${FILEBROWSER_QUANTUM:-${top}/filebrowser-quantum}"
+if [[ ! -f "$quantum" && -z "${FILEBROWSER_QUANTUM:-}" ]]; then
+	source_root=${CODER_SOURCE_ROOT:-$(dirname "$top")}
+	python3 "$source_root/images/filebrowser/build.py"
+	quantum="$source_root/images/filebrowser/bin/filebrowser-quantum"
+fi
 [ -f "$quantum" ] || {
 	echo "FileBrowser Quantum's binary is missing: $quantum (see the top of this script)" >&2
 	exit 1

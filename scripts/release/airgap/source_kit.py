@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Package committed source with all inputs required by the installer assembler."""
+"""Package committed source with an optional verified File Browser binary."""
 import argparse
 import importlib.util
 from pathlib import Path
@@ -26,11 +26,11 @@ def package(root, output, include_binary=True):
             result = archive.wait()
         if result:
             raise RuntimeError("git archive failed")
-        if include_binary:
+        payload = root / "images/filebrowser/bin/filebrowser-quantum"
+        if include_binary and payload.is_file():
             spec = importlib.util.spec_from_file_location("filebrowser_input", stage / "images/filebrowser/restore.py")
             inputs = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(inputs)
-            payload = root / "images/filebrowser/bin/filebrowser-quantum"
             inputs.verify(payload)
             destination = stage / payload.relative_to(root)
             destination.parent.mkdir(parents=True)
@@ -46,7 +46,7 @@ def package(root, output, include_binary=True):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("output", type=Path)
-    parser.add_argument("--source-only", action="store_true", help="omit the binary for source-layout CI checks")
+    parser.add_argument("--source-only", action="store_true", help="omit the prebuilt binary; rebuild it from included source")
     args = parser.parse_args()
     print(package(Path(__file__).resolve().parents[3], args.output.resolve(), not args.source_only))
 

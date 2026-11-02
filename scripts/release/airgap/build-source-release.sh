@@ -29,7 +29,7 @@ if ((plan)); then
 	printf 'Release: %s\nRegistry: %s\nBuild: Enterprise and AGPL servers, image tools, UI service, DEFAULT workspace, registry, MinIO\nDATAFLOW: %s\nPush: %s\nOutput: %s\n' "$version" "$registry" "$dataflow" "$push" "$out"
 	exit 0
 fi
-for command in docker go pnpm helm python3 curl zstd sha256sum; do
+for command in docker go pnpm helm python3 patch curl zstd sha256sum; do
 	command -v "$command" >/dev/null || {
 		echo "Install $command first. See START-HERE.md." >&2
 		exit 1
@@ -40,10 +40,11 @@ done
 	exit 1
 }
 docker info >/dev/null
-[[ -s "$root/airgap-dist/filebrowser-quantum" ]] || {
-	echo 'Missing FileBrowser payload. Extract the complete build kit.' >&2
-	exit 1
-}
+if [[ ! -s "$root/airgap-dist/filebrowser-quantum" ]]; then
+	source_root=${CODER_SOURCE_ROOT:-$root}
+	python3 "$source_root/images/filebrowser/build.py"
+	cp "$source_root/images/filebrowser/bin/filebrowser-quantum" "$root/airgap-dist/filebrowser-quantum"
+fi
 export CODER_SKIP_IMAGE_ARCHIVES=1
 # The source kit has no .git directory. scripts/lib.sh accepts src as its root.
 export src="$root"

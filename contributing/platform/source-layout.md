@@ -53,9 +53,10 @@ The version comes from `RELEASE_VERSION`. The release cache defaults to
 `build/airgap-cache/<version>/` inside the project.
 Use `--cache-dir` to select another cache. It contains `images/<group>/*.tar.gz`
 and its archive hashes must match `packaging/airgap/archive-checksums/`.
-The custom File Browser input belongs in `images/filebrowser/bin/`.
-Follow the [input recovery instructions](../../images/filebrowser/README.md)
-to restore and verify it from a saved file, workspace image, or live workspace pod.
+The custom File Browser source, patches, and build recipe belong in `images/filebrowser/`.
+Follow its [build instructions](../../images/filebrowser/README.md) to compile the
+verified binary into ignored `images/filebrowser/bin/`. Workspace and source release
+builds compile it automatically when the binary is absent.
 
 Run a source image build through the same entry point:
 
@@ -64,7 +65,7 @@ Run a source image build through the same entry point:
 ```
 
 This requires the connected build dependencies documented in the release helpers
-and the verified File Browser input. It is distinct from packaging existing
+and builds the verified File Browser input when needed. It is distinct from packaging existing
 release images.
 
 The source build produces both server editions, packages both charts, and writes

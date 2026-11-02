@@ -21,6 +21,8 @@ class SourceKitTest(unittest.TestCase):
                 "RELEASE_VERSION": "1.2.3\n",
                 "scripts/release/airgap/release/START-HERE.md": "Build instructions\n",
                 "images/graphics/logo.txt": "required graphic\n",
+                "images/filebrowser/upstream-2.1.2.tar.gz": "pinned source archive\n",
+                "images/filebrowser/patches/coder-workspace.patch": "custom changes\n",
                 "packaging/airgap/source-layout.json": json.dumps([
                     {"source": "images/graphics", "destination": "airgap-dist/development/graphics"},
                 ]),
@@ -33,11 +35,14 @@ class SourceKitTest(unittest.TestCase):
             subprocess.run(["git", "-C", str(root), "add", "."], check=True)
             subprocess.run(["git", "-C", str(root), "-c", "user.name=Test", "-c", "user.email=test@example.com",
                             "commit", "-qm", "fixture"], check=True)
-            archive = source_kit.package(root, Path(temporary) / "output", include_binary=False)
+            archive = source_kit.package(root, Path(temporary) / "output")
             extracted = Path(temporary) / "extracted"
             with tarfile.open(archive) as stream:
                 stream.extractall(extracted, filter="data")
             source = extracted / "coder-build-kit-1.2.3"
+            self.assertEqual((source / "images/filebrowser/upstream-2.1.2.tar.gz").read_text(), "pinned source archive\n")
+            self.assertEqual((source / "images/filebrowser/patches/coder-workspace.patch").read_text(), "custom changes\n")
+            self.assertFalse((source / "images/filebrowser/bin/filebrowser-quantum").exists())
             stage = Path(temporary) / "stage"
             stage.mkdir()
             with patch.object(assemble, "ROOT", source):

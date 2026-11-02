@@ -3,13 +3,14 @@
 This guide uses the small source build kit. To install the supplied images without building,
 use INSTALL.md instead.
 You build the fork images, put them in your registry, then install one Helm chart.
-The build kit contains the source and the custom FileBrowser binary needed by DEFAULT.
+The build kit contains the custom FileBrowser source needed by DEFAULT and may include
+its verified binary. If that binary is absent, the build compiles it from the included source.
 It does not contain saved base images. The built server includes matching agent downloads.
 
 ## Before you start
 
 Use a Linux x86_64 machine for the build. It needs Docker with BuildKit, Go 1.26.10 or newer,
-Node.js 22 or 24, pnpm 10, Helm 3, Python 3, curl, Git, gzip and zstd.
+Node.js 22 or 24, pnpm 10, Helm 3, Python 3.12 or newer, patch, curl, Git, gzip and zstd.
 Docker must be running. Allow plenty of disk space for build caches and workspace images.
 
 Run these checks:

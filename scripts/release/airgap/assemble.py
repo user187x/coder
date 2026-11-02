@@ -54,9 +54,13 @@ def main():
     mode.add_argument("--verify-bundle", action="store_true", help="check sources and cached image archives")
     mode.add_argument("--tool", help="run a release helper relative to scripts/release/airgap")
     parser.add_argument("--out", type=Path, help="release output directory")
-    parser.add_argument("--cache-dir", type=Path, help="release cache containing images/ and inputs/")
+    parser.add_argument("--cache-dir", type=Path, help="release cache containing images/")
     parser.add_argument("args", nargs=argparse.REMAINDER, help="helper arguments after --")
     args = parser.parse_args()
+    if args.check or args.verify_bundle:
+        result = subprocess.run(["python3", str(ROOT / "images/filebrowser/build.py"), "--check-source"], check=False)
+        if result.returncode:
+            return result.returncode
     version = (ROOT / "RELEASE_VERSION").read_text().strip()
     build = ROOT / "build"
     cache = args.cache_dir or build / "airgap-cache" / version

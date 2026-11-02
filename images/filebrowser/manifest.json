@@ -3,5 +3,20 @@
   "version": "2.1.2-coder.1",
   "platform": "linux/amd64",
   "sha256": "ebbcd406bc4f966c2fc47823402100fff2045b55bc4cc6c4c03e4bce3ba07df8",
-  "container_path": "/usr/local/bin/filebrowser"
+  "container_path": "/usr/local/bin/filebrowser",
+  "source": {
+    "repository": "https://github.com/user187x/filebrowser-quantum",
+    "commit": "91bc608f0ec6a3246c29e5fc87acdd46a5fadf44",
+    "binary_revision": "f5e0d43",
+    "archive": {
+      "path": "upstream-2.1.2.tar.gz",
+      "sha256": "45aa58662137ec68c50383823689816f812a5d5da61fdc12ea84d5b9940b8b29"
+    },
+    "patches": [
+      {
+        "path": "patches/coder-workspace.patch",
+        "sha256": "011fa9c68625b1215c4d1c013955252266ece5488d4b29af47818072e3b2721a"
+      }
+    ]
+  }
 }

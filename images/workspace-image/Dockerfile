@@ -29,8 +29,8 @@
 #     points Vim at; the template copies them into homes that have none (or still Ubuntu's stock .bashrc);
 #   - code-server and File Browser, the template's two web apps (pinned below, checked by SHA-256): the template used
 #     to download them at every workspace start, which fails without internet. File Browser is FileBrowser Quantum
-#     (gtsteffaniak/filebrowser), a binary for linux-amd64 (filebrowser-quantum at the repository's root, put into
-#     the build by ../tools/build-workspace-image.sh) - since 1.9.2 the workspace's own build of 2.1.2 with a
+#     (gtsteffaniak/filebrowser), built from the pinned source in ../filebrowser/ and supplied through
+#     build-workspace-image.sh - since 1.9.2 the workspace's own build of 2.1.2 with a
 #     FileBrowser update for symlinked folders (symlinkTargets) - unpacked from UPX when packed, so the Images view's
 #     scanner reads its Go modules; installed as /usr/local/bin/filebrowser, the command the template starts;
 #   - security: every package upgraded at build time; Docker's engine and plugins (dockerd, containerd, buildx,
@@ -41,7 +41,7 @@
 #     instead of Rust coreutils (see the step before addons.json);
 #   - /usr/share/coder-workspace/addons.json: what it adds over the base, with every version (addons/addons.py), for
 #     the Images view, which lists it next to the image's security report.
-# Build with ../tools/build-workspace-image.sh, which saves it into the delivery bundle.
+# Build from the repository root with scripts/release/airgap/assemble.py --tool build-workspace-image.sh.
 ARG BASE=codercom/enterprise-base:ubuntu
 ARG FILEBROWSER_QUANTUM_VERSION=2.1.2-coder.1
 ARG FILEBROWSER_QUANTUM_SHA256=ebbcd406bc4f966c2fc47823402100fff2045b55bc4cc6c4c03e4bce3ba07df8
