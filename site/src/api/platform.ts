@@ -108,6 +108,24 @@ const post = async <T>(
 	}
 };
 
+const deleteJSON = async <T>(url: string): Promise<T> => {
+	try {
+		const result = await platformAxios.delete<T>(
+			url,
+			withSession({
+				data: {},
+				headers: {
+					"Content-Type": "application/json",
+					"X-Requested-With": PLATFORM_REQUESTED_WITH,
+				},
+			}),
+		);
+		return result.data;
+	} catch (error) {
+		throw toPlatformError(error);
+	}
+};
+
 export { get as platformGet, post as platformPost };
 
 /**
@@ -2109,19 +2127,10 @@ export const PlatformAPI = {
 		get<{ operations: WorkspacePowerOperation[] }>(
 			`${PLATFORM_BASE}/api/organizations/${encodeURIComponent(organizationId)}/workspace-power`,
 		),
-	clearWorkspacePowerOperation: async (organizationId: string, id: string) => {
-		try {
-			const response = await platformAxios.delete<{ ok: boolean }>(
-				`${PLATFORM_BASE}/api/organizations/${encodeURIComponent(organizationId)}/workspace-power/operation/${encodeURIComponent(id)}`,
-				withSession({
-					headers: { "X-Requested-With": PLATFORM_REQUESTED_WITH },
-				}),
-			);
-			return response.data;
-		} catch (error) {
-			throw toPlatformError(error);
-		}
-	},
+	clearWorkspacePowerOperation: (organizationId: string, id: string) =>
+		deleteJSON<{ ok: boolean }>(
+			`${PLATFORM_BASE}/api/organizations/${encodeURIComponent(organizationId)}/workspace-power/operation/${encodeURIComponent(id)}`,
+		),
 	getWorkspacePowerOperation: (organizationId: string, id: string) =>
 		get<WorkspacePowerOperation>(
 			`${PLATFORM_BASE}/api/organizations/${encodeURIComponent(organizationId)}/workspace-power/operation/${encodeURIComponent(id)}`,
@@ -2180,23 +2189,10 @@ export const PlatformAPI = {
 			`${PLATFORM_BASE}/api/organizations/${encodeURIComponent(organizationId)}/workspace-tunnels/${encodeURIComponent(id)}`,
 			{ revision, ports },
 		),
-	deleteWorkspaceTunnel: async (organizationId: string, id: string) => {
-		try {
-			const result = await platformAxios.delete<{ tunnel: WorkspaceTunnel }>(
-				`${PLATFORM_BASE}/api/organizations/${encodeURIComponent(organizationId)}/workspace-tunnels/${encodeURIComponent(id)}`,
-				withSession({
-					data: {},
-					headers: {
-						"Content-Type": "application/json",
-						"X-Requested-With": PLATFORM_REQUESTED_WITH,
-					},
-				}),
-			);
-			return result.data;
-		} catch (error) {
-			throw toPlatformError(error);
-		}
-	},
+	deleteWorkspaceTunnel: (organizationId: string, id: string) =>
+		deleteJSON<{ tunnel: WorkspaceTunnel }>(
+			`${PLATFORM_BASE}/api/organizations/${encodeURIComponent(organizationId)}/workspace-tunnels/${encodeURIComponent(id)}`,
+		),
 	/** The caller's Cloud Drive; PlatformError 404 where the deployment has none. */
 	getSafe: () => get<SafeSummary>(`${PLATFORM_BASE}/api/safe`),
 	/** drive: a Cloud Drive shared with the caller (its owner's id) - every file route takes it. */
