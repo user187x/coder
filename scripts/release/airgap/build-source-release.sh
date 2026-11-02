@@ -26,7 +26,7 @@ chart="$root/airgap-dist/helm-chart/coder-airgapped"
 version=$(sed -n 's/^appVersion: "\(.*\)"/\1/p' "$chart/Chart.yaml")
 out="$root/build/release-$version"
 if ((plan)); then
-	printf 'Release: %s\nRegistry: %s\nBuild: server, image tools, UI service, DEFAULT workspace, registry, MinIO\nDATAFLOW: %s\nPush: %s\nOutput: %s\n' "$version" "$registry" "$dataflow" "$push" "$out"
+	printf 'Release: %s\nRegistry: %s\nBuild: Enterprise and AGPL servers, image tools, UI service, DEFAULT workspace, registry, MinIO\nDATAFLOW: %s\nPush: %s\nOutput: %s\n' "$version" "$registry" "$dataflow" "$push" "$out"
 	exit 0
 fi
 for command in docker go pnpm helm python3 curl zstd sha256sum; do
@@ -47,16 +47,19 @@ docker info >/dev/null
 export CODER_SKIP_IMAGE_ARCHIVES=1
 # The source kit has no .git directory. scripts/lib.sh accepts src as its root.
 export src="$root"
-mkdir -p "$out/platform"
+mkdir -p "$out/platform" "$out/platform-agpl"
 cd "$root/site"
 pnpm install --frozen-lockfile
 pnpm build
 cd "$root"
 "$here/build-agent-archive.sh" "$version" linux/amd64
-"$root/scripts/build_go.sh" --version "$version" --os linux --arch amd64 --agpl --output "$out/platform/coder"
+"$root/scripts/build_go.sh" --version "$version" --os linux --arch amd64 --output "$out/platform/coder"
+"$root/scripts/build_go.sh" --version "$version" --os linux --arch amd64 --agpl --output "$out/platform-agpl/coder"
 docker build --platform linux/amd64 -f scripts/Dockerfile.base -t "coder-runtime:$version" scripts
 docker build --platform linux/amd64 -f scripts/Dockerfile --build-arg "BASE_IMAGE=coder-runtime:$version" --build-arg "CODER_VERSION=$version" -t "coder-platform-base:$version" "$out/platform"
 "$here/build-airgap-image.sh" "coder-platform-base:$version"
+docker build --platform linux/amd64 -f scripts/Dockerfile --build-arg "BASE_IMAGE=coder-runtime:$version" --build-arg "CODER_VERSION=$version" -t "coder-platform-agpl-base:$version" "$out/platform-agpl"
+"$here/build-airgap-image.sh" --agpl "coder-platform-agpl-base:$version"
 ensure_image() {
 	local image=$1
 	shift
@@ -83,6 +86,7 @@ for line in pathlib.Path(sys.argv[2]).read_text().splitlines():
   ref=line.split()[0]
   if ref in text: refs.add(ref)
 refs.add('docker.io/mrshll187/coder-platform:'+sys.argv[3])
+refs.add('docker.io/mrshll187/coder-platform-agpl:'+sys.argv[3])
 refs.add('docker.io/mrshll187/coder-workspace:'+sys.argv[3])
 refs={r for r in refs if not r.startswith('docker.io/mrshll187/coder-platform:') or r.endswith(':'+sys.argv[3])}
 out.joinpath('FORK-IMAGES.txt').write_text(''.join(r+'\n' for r in sorted(refs) if r.startswith('docker.io/mrshll187/')))
@@ -97,6 +101,8 @@ while IFS= read -r image; do
 	if ((push)); then docker push "$target"; fi
 done <"$out/FORK-IMAGES.txt"
 helm package "$chart" --destination "$out"
+helm package "$root/helm/coder-platform" --destination "$out"
+cp "$root/airgap-dist/helm-chart/images.txt" "$out/images.txt"
 python3 - "$root" "$out" "$registry" "$dataflow" <<'PY'
 import pathlib,sys
 root,out,registry,dataflow=sys.argv[1:]

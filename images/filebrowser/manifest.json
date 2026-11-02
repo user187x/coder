@@ -1,0 +1,7 @@
+{
+  "name": "FileBrowser Quantum",
+  "version": "2.1.2-coder.1",
+  "platform": "linux/amd64",
+  "sha256": "ebbcd406bc4f966c2fc47823402100fff2045b55bc4cc6c4c03e4bce3ba07df8",
+  "container_path": "/usr/local/bin/filebrowser"
+}

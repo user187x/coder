@@ -46,14 +46,16 @@ Preview the release or write its files to an output directory:
 
 ```sh
 ./scripts/build_airgap_release.sh --plan
-./scripts/build_airgap_release.sh --out /path/to/releases/coder-1.5.2
+./scripts/build_airgap_release.sh --out /path/to/releases/coder-1.5.3
 ```
 
 The version comes from `RELEASE_VERSION`. The release cache defaults to
-`${XDG_CACHE_HOME:-$HOME/.cache}/coder/airgap/releases/<version>/`.
+`build/airgap-cache/<version>/` inside the project.
 Use `--cache-dir` to select another cache. It contains `images/<group>/*.tar.gz`
-and, for source builds, `inputs/filebrowser-quantum`. Archive hashes must match
-`packaging/airgap/archive-checksums/`.
+and its archive hashes must match `packaging/airgap/archive-checksums/`.
+The custom File Browser input belongs in `images/filebrowser/bin/`.
+Follow the [input recovery instructions](../../images/filebrowser/README.md)
+to restore and verify it from a saved file, workspace image, or live workspace pod.
 
 Run a source image build through the same entry point:
 
@@ -62,8 +64,17 @@ Run a source image build through the same entry point:
 ```
 
 This requires the connected build dependencies documented in the release helpers
-and the File Browser payload in the cache. It is distinct from packaging existing
+and the verified File Browser input. It is distinct from packaging existing
 release images.
+
+Package committed source, including graphics and the verified File Browser input:
+
+```sh
+python3 scripts/release/airgap/source_kit.py build/source-kit
+```
+
+The `platform-release` CI workflow checks an extracted source kit as well as
+the platform tests, chart checks, release versions, and research runner tests.
 
 The entry point assembles the installer layout in a temporary directory under
 ignored `build/` output. `packaging/airgap/source-layout.json` maps source
@@ -74,3 +85,19 @@ Helpers that write to the installer's `dist/` directory use
 `build/airgap-artifacts/<version>/`, or `--out` when supplied.
 Use the entry point rather than invoking the internal helpers directly, since
 they operate on the generated installer layout.
+
+## Prepare a deployment rollback
+
+Save the current Helm configuration, Kubernetes resources and secrets, and all
+databases in the deployment's CloudNativePG cluster:
+
+```sh
+python3 scripts/release/backup-deployment.py --context CONTEXT
+```
+
+The command writes a private snapshot under `build/deployment-backups/`, restores
+the database dumps into a disposable PostgreSQL container with no network, and
+writes `VERIFIED.json` only after restoration succeeds. The source cluster is
+read only throughout. Preserve this directory and the previous release images
+before an upgrade. It contains credentials and must remain outside Git.
+Workspace volumes and Cloud Drive object data require their own storage backups.

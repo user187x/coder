@@ -40,9 +40,7 @@ def assemble(destination, cache, archives):
                 os.link(source, target)
             except OSError:
                 shutil.copyfile(source, target)
-    payload = cache / "inputs/filebrowser-quantum"
-    if not payload.is_file():
-        payload = ROOT / "release-inputs/filebrowser-quantum"
+    payload = ROOT / "images/filebrowser/bin/filebrowser-quantum"
     if payload.is_file():
         shutil.copy2(payload, destination / "airgap-dist/filebrowser-quantum")
 
@@ -60,8 +58,8 @@ def main():
     parser.add_argument("args", nargs=argparse.REMAINDER, help="helper arguments after --")
     args = parser.parse_args()
     version = (ROOT / "RELEASE_VERSION").read_text().strip()
-    cache = args.cache_dir or Path(os.environ.get("XDG_CACHE_HOME", str(Path.home() / ".cache"))) / "coder/airgap/releases" / version
     build = ROOT / "build"
+    cache = args.cache_dir or build / "airgap-cache" / version
     build.mkdir(exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="airgap-source-", dir=build) as temporary:
         stage = Path(temporary)

@@ -13,6 +13,10 @@ dev="$(dirname "$here")"
 top="$(dirname "$dev")"
 release="$(cat "$(dirname "$top")/RELEASE_VERSION")"
 repo=coder-platform
+if [[ "${1:-}" == --agpl ]]; then
+	repo=coder-platform-agpl
+	shift
+fi
 if [[ "${1:-}" == --upstream ]]; then
 	repo=coder-upstream
 	shift

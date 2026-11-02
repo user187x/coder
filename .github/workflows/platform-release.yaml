@@ -1,0 +1,57 @@
+name: platform-release
+
+on:
+  push:
+    paths:
+      - "platform/**"
+      - "images/**"
+      - "helm/**"
+      - "packaging/**"
+      - "scripts/release/airgap/**"
+      - "scripts/build_airgap_release.sh"
+      - "RELEASE_VERSION"
+      - ".github/workflows/platform-release.yaml"
+  pull_request:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: platform-release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source-and-charts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-mise
+        with:
+          install-args: helm terraform
+      - name: Install Python test dependencies
+        run: |
+          python3 -m venv build/release-tests
+          build/release-tests/bin/pip install PyYAML==6.0.3 cryptography==50.0.2
+          echo "$PWD/build/release-tests/bin" >> "$GITHUB_PATH"
+      - name: Check source, charts, and release versions
+        run: |
+          ./scripts/build_airgap_release.sh --check
+          ./scripts/build_airgap_release.sh --tool verify/release_version.py
+      - name: Test platform, packaging, and research runner
+        run: |
+          ./scripts/build_airgap_release.sh --unit
+          python3 -m unittest discover -s scripts/release/airgap -p '*_test.py'
+          python3 images/research-workspace/runner_test.py
+      - name: Validate an extracted committed source kit
+        run: |
+          python3 scripts/release/airgap/source_kit.py build/source-kit --source-only
+          mkdir -p build/extracted-kit
+          tar -xzf build/source-kit/coder-build-kit-*.tar.gz -C build/extracted-kit
+          cd build/extracted-kit/coder-build-kit-*
+          ./scripts/build_airgap_release.sh --tool build-source-release.sh -- registry.example.com/coder --plan
+          ./scripts/build_airgap_release.sh --check
