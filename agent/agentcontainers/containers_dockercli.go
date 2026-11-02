@@ -328,7 +328,7 @@ func runDockerInspect(ctx context.Context, execer agentexec.Execer, ids ...strin
 			// which is likely to be "signal: killed".
 			return stdout, stderr, ctx.Err()
 		}
-		if bytes.Contains(stderr, []byte("No such object:")) {
+		if bytes.Contains(bytes.ToLower(stderr), []byte("no such object:")) {
 			// This can happen if a container is deleted between the time we check for its existence and the time we inspect it.
 			return stdout, stderr, nil
 		}
