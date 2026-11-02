@@ -82,12 +82,14 @@ if $run; then
 		zero="0000000000000000000000000000000000000000"
 		changed=""
 		fallback=false
+		has_updates=false
 
 		for entry in "${push_refs[@]}"; do
 			read -r _local_ref local_oid _remote_ref remote_oid <<< "$entry"
 			if [[ $local_oid == "$zero" ]]; then
 				continue
 			fi
+			has_updates=true
 			if [[ $remote_oid == "$zero" ]]; then
 				base=$(git merge-base "$local_oid" origin/main 2>/dev/null || true)
 				if [[ -z $base ]]; then
@@ -103,7 +105,9 @@ if $run; then
 			fi
 		done
 
-		if $fallback || [[ -z $changed ]]; then
+		if [[ ${#push_refs[@]} -gt 0 ]] && ! $has_updates; then
+			echo "pre-push: branch deletions only, skipping tests"
+		elif $fallback || [[ -z $changed ]]; then
 			make pre-push || rc=$?
 		elif grep -qE '\.(go|ts|tsx|sql|proto)$|^go\.(mod|sum)$|^site/|^Makefile$' <<<"$changed"; then
 			make pre-push || rc=$?
