@@ -19,6 +19,7 @@ type DeploymentSidebarViewProps = {
 	buildInfo: BuildInfoResponse;
 	/** General's Health entry (HealthNavItem). */
 	health?: React.ReactNode;
+	network?: React.ReactNode;
 	/** The platform service is connected to Keycloak: a green check after Authentication. */
 	keycloakConnected?: boolean;
 	/** The admin's order of the categories (page IDs); empty or missing: alphabetical. */
@@ -37,6 +38,7 @@ export const DeploymentSidebarView: React.FC<DeploymentSidebarViewProps> = ({
 	permissions,
 	buildInfo,
 	health,
+	network,
 	keycloakConnected,
 	order = [],
 	onReorder,
@@ -97,7 +99,7 @@ export const DeploymentSidebarView: React.FC<DeploymentSidebarViewProps> = ({
 		(permissions.editDeploymentConfig || permissions.viewDeploymentConfig) &&
 			item("monitoring", "/deployment/monitoring", "Monitoring"),
 		permissions.viewDeploymentConfig &&
-			item("network", "/deployment/network", "Network"),
+			item("network", "/deployment/network", "Network", network),
 		permissions.viewNotificationTemplate &&
 			item("notifications", "/deployment/notifications", "Notifications"),
 		permissions.viewDeploymentConfig &&

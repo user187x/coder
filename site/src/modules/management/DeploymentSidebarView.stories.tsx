@@ -1,6 +1,16 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { delay, HttpResponse, http } from "msw";
+import { userEvent, within } from "storybook/test";
 import { reactRouterParameters } from "storybook-addon-remix-react-router";
+import { clusterMeshKey } from "#/api/clusterNetwork";
 import { HEALTH_QUERY_KEY } from "#/api/queries/debug";
+import { networkReportKey } from "#/api/queries/platform";
+import {
+	MockClusterNetworkReport,
+	MockHealthyClusterNetworkReport,
+	MockHealthyMeshReport,
+	MockMeshReport,
+} from "#/testHelpers/clusterNetwork";
 import {
 	MockBuildInfo,
 	MockHealth,
@@ -10,6 +20,7 @@ import {
 import { withDashboardProvider } from "#/testHelpers/storybook";
 import { DeploymentSidebarView } from "./DeploymentSidebarView";
 import { HealthNavItem } from "./HealthNavItem";
+import { NetworkStatusIndicator } from "./NetworkStatusIndicator";
 
 const meta: Meta<typeof DeploymentSidebarView> = {
 	title: "modules/management/DeploymentSidebarView",
@@ -89,5 +100,106 @@ export const HealthOpen: Story = {
 			routing: { path: "/health/derp" },
 		}),
 		queries: [{ key: HEALTH_QUERY_KEY, data: MockHealth }],
+	},
+};
+
+export const NetworkHealthy: Story = {
+	args: { health: <HealthNavItem />, network: <NetworkStatusIndicator /> },
+	parameters: {
+		reactRouter: reactRouterParameters({
+			location: { path: "/deployment/network" },
+			routing: { path: "/deployment/network" },
+		}),
+		queries: [
+			{ key: HEALTH_QUERY_KEY, data: MockHealth },
+			{ key: networkReportKey, data: MockHealthyClusterNetworkReport },
+			{ key: clusterMeshKey, data: MockHealthyMeshReport },
+		],
+	},
+};
+
+export const NetworkIssues: Story = {
+	...NetworkHealthy,
+	parameters: {
+		...NetworkHealthy.parameters,
+		queries: [
+			{ key: HEALTH_QUERY_KEY, data: MockHealth },
+			{ key: networkReportKey, data: MockClusterNetworkReport },
+			{ key: clusterMeshKey, data: MockMeshReport },
+		],
+	},
+	play: async ({ canvasElement }) => {
+		await userEvent.hover(
+			await within(canvasElement).findByRole("img", {
+				name: /Network needs attention/,
+			}),
+		);
+	},
+};
+
+export const NetworkWarning: Story = {
+	...NetworkHealthy,
+	parameters: {
+		...NetworkHealthy.parameters,
+		queries: [
+			{ key: HEALTH_QUERY_KEY, data: MockHealth },
+			{
+				key: networkReportKey,
+				data: {
+					...MockHealthyClusterNetworkReport,
+					unplaced: MockHealthyClusterNetworkReport.workspaces,
+				},
+			},
+			{ key: clusterMeshKey, data: MockHealthyMeshReport },
+		],
+	},
+};
+
+export const NetworkLoading: Story = {
+	...NetworkHealthy,
+	parameters: {
+		...NetworkHealthy.parameters,
+		queries: [{ key: HEALTH_QUERY_KEY, data: MockHealth }],
+		msw: {
+			handlers: [
+				http.get("*/api/network", async () => {
+					await delay("infinite");
+				}),
+				http.get("*/api/network/mesh", async () => {
+					await delay("infinite");
+				}),
+			],
+		},
+	},
+};
+
+export const NetworkUnavailable: Story = {
+	...NetworkHealthy,
+	parameters: {
+		...NetworkHealthy.parameters,
+		queries: [{ key: HEALTH_QUERY_KEY, data: MockHealth }],
+		msw: {
+			handlers: [
+				http.get("*/api/network", () =>
+					HttpResponse.json(
+						{ message: "Network report unavailable" },
+						{ status: 503 },
+					),
+				),
+				http.get("*/api/network/mesh", () =>
+					HttpResponse.json(
+						{ message: "Network report unavailable" },
+						{ status: 503 },
+					),
+				),
+			],
+		},
+	},
+	play: async ({ canvasElement }) => {
+		await userEvent.hover(
+			await within(canvasElement).findByRole("img", {
+				name: "Network status unavailable",
+			}),
+		);
 	},
 };

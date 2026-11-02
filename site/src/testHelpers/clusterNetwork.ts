@@ -105,6 +105,15 @@ export const MockClusterNetworkReport: ClusterNetworkReport = {
 	servicesError: null,
 };
 
+export const MockHealthyClusterNetworkReport: ClusterNetworkReport = {
+	...MockClusterNetworkReport,
+	coder: MockClusterNetworkReport.coder.map((pod) => ({ ...pod, ready: true })),
+	services: MockClusterNetworkReport.services?.map((service) => ({
+		...service,
+		ready: service.endpoints,
+	})),
+};
+
 const edge = (
 	id: string,
 	from: MeshEdge["from"],
@@ -262,6 +271,15 @@ export const MockMeshReport: MeshReport = {
 			"platform service",
 		),
 	],
+};
+
+export const MockHealthyMeshReport: MeshReport = {
+	...MockMeshReport,
+	edges: MockMeshReport.edges.map((edge) => ({
+		...edge,
+		error: null,
+		samples: edge.samples.map((sample) => ({ ...sample, error: null })),
+	})),
 };
 
 export const MockHAStorageReport: HAStorageReport = {
