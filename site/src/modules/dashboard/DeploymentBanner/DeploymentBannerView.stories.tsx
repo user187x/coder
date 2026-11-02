@@ -1,16 +1,19 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, screen, userEvent, waitFor, within } from "storybook/test";
+import { classificationKey } from "#/api/queries/platform";
 import type {
 	AppFamilyName,
 	DeploymentStats,
 	SessionCountApp,
 	SessionCountDeploymentStats,
 } from "#/api/typesGenerated";
+import { ClassificationBars } from "#/modules/platform/ClassificationBars";
 import {
 	DeploymentHealthUnhealthy,
 	MockDeploymentStats,
 	MockHealth,
 } from "#/testHelpers/entities";
+import { MockClassification } from "#/testHelpers/platform";
 import { DeploymentBannerView } from "./DeploymentBannerView";
 
 const app = (
@@ -68,6 +71,28 @@ export default meta;
 type Story = StoryObj<typeof DeploymentBannerView>;
 
 export const Example: Story = {};
+
+export const Floating: Story = {
+	args: { health: MockHealth },
+	parameters: {
+		layout: "fullscreen",
+		queries: [{ key: classificationKey, data: MockClassification }],
+	},
+	render: (args) => (
+		<>
+			<ClassificationBars />
+			<div className="flex min-h-screen flex-col justify-between bg-surface-secondary">
+				<h1 className="m-0 p-8 text-2xl">Workspaces</h1>
+				<DeploymentBannerView {...args} />
+			</div>
+		</>
+	),
+};
+
+export const Mobile: Story = {
+	...Floating,
+	globals: { viewport: { value: "iphone12" } },
+};
 
 export const Loading: Story = {
 	args: { stats: undefined },
