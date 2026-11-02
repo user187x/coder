@@ -18,11 +18,7 @@ import {
 	MockWorkspaceBuildParameter4,
 	MockWorkspaceBuildParameter7,
 } from "#/testHelpers/entities";
-import {
-	checkParameters,
-	editParameters,
-	isBuildParameter,
-} from "#/testHelpers/parameters";
+import { checkParameters } from "#/testHelpers/parameters";
 import {
 	renderWithWorkspaceSettingsLayout,
 	waitForLoaderToBeRemoved,
@@ -234,20 +230,30 @@ describe("WorkspaceSettingsCardsPage", () => {
 				{ name: MockPreviewParameter1.name, value: "" },
 				{ name: MockPreviewParameter7.name, value: "not-blank" },
 			];
-			await editParameters(...edited);
-			await waitFor(() => {
-				expect(publisher.clientSentData).toHaveLength(1);
-				expect(JSON.parse(publisher.clientSentData[0] as string)).toEqual(
-					expect.objectContaining({
-						id: 0,
-						inputs: Object.fromEntries(
-							[...edited, MockPreviewParameter4].map((p) => [
-								p.name,
-								isBuildParameter(p) ? p.value : p.value.value,
-							]),
-						),
-					}),
-				);
+			const user = userEvent.setup();
+			await user.clear(
+				screen.getByRole("textbox", {
+					name: new RegExp(MockPreviewParameter1.name),
+				}),
+			);
+			await user.click(
+				screen.getByRole("textbox", {
+					name: new RegExp(MockPreviewParameter7.name),
+				}),
+			);
+			await user.paste("not-blank");
+
+			const requestId = await waitFor(() => {
+				const message = publisher.clientSentData.at(-1);
+				if (typeof message !== "string")
+					throw new Error("Waiting for parameter preview");
+				const request: TypesGen.DynamicParametersRequest = JSON.parse(message);
+				expect(request.inputs).toEqual({
+					[MockPreviewParameter1.name]: "",
+					[MockPreviewParameter7.name]: "not-blank",
+					[MockPreviewParameter4.name]: MockPreviewParameter4.value.value,
+				});
+				return request.id;
 			});
 			await connect(
 				publisher,
@@ -257,7 +263,7 @@ describe("WorkspaceSettingsCardsPage", () => {
 					MockPreviewParameter4,
 					MockPreviewParameter7,
 				],
-				0,
+				requestId,
 			);
 			await checkParameters(
 				...edited,
