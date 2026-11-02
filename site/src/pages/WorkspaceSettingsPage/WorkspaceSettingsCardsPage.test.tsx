@@ -33,6 +33,12 @@ import {
 } from "#/testHelpers/websockets";
 import WorkspaceSettingsCardsPage from "./WorkspaceSettingsCardsPage";
 
+// Keep dashboard polling and animation timers out of the settings form tests.
+vi.mock("#/modules/dashboard/DashboardLayout", async () => {
+	const { Outlet } = await import("react-router");
+	return { DashboardLayout: Outlet };
+});
+
 const option = (name: string, value: string) => ({
 	name,
 	description: "",
@@ -111,7 +117,6 @@ describe("WorkspaceSettingsCardsPage", () => {
 	});
 
 	afterEach(() => {
-		vi.useRealTimers();
 		vi.restoreAllMocks();
 	});
 
@@ -225,14 +230,11 @@ describe("WorkspaceSettingsCardsPage", () => {
 				MockPreviewParameter7,
 			);
 
-			// Make the debounce fire after each macrotask.
-			vi.useFakeTimers();
-			vi.setTimerTickMode("nextTimerAsync");
 			const edited = [
 				{ name: MockPreviewParameter1.name, value: "" },
 				{ name: MockPreviewParameter7.name, value: "not-blank" },
 			];
-			editParameters(...edited);
+			await editParameters(...edited);
 			await waitFor(() => {
 				expect(publisher.clientSentData).toHaveLength(1);
 				expect(JSON.parse(publisher.clientSentData[0] as string)).toEqual(
