@@ -90,6 +90,15 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 		}
 	};
 
+	const controlsChevron = (
+		<span
+			aria-hidden
+			className="inline-flex size-4 shrink-0 items-center justify-center rounded-full bg-content-secondary/5 ring-1 ring-inset ring-content-secondary/15"
+		>
+			<ChevronDownIcon className={cn("size-3", expanded && "rotate-180")} />
+		</span>
+	);
+
 	return (
 		<>
 			<DndContext
@@ -149,9 +158,9 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 						setExpanded(!expanded);
 					}}
 				>
-					<ChevronDownIcon aria-hidden className="size-3.5" />
+					{controlsChevron}
 					<span className="flex-1 text-center">Controls</span>
-					<ChevronDownIcon aria-hidden className="size-3.5" />
+					{controlsChevron}
 				</DropdownMenuItem>
 				<CollapsibleContent
 					id={choicesId}
