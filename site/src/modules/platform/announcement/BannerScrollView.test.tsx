@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { useRef } from "react";
 import { MemoryRouter } from "react-router";
 import { BannerScrollView, RM_RF } from "./BannerScrollView";
@@ -320,11 +321,17 @@ describe("BannerScrollView", () => {
 		}
 	});
 
-	it("closes with Escape", () => {
-		render(<Harness />);
-		fireEvent.click(screen.getByTestId("announcement-scroll-toggle"));
-		fireEvent.keyDown(document, { key: "Escape" });
-		act(() => vi.advanceTimersByTime(300));
-		expect(screen.queryByTestId("announcement-scroll-view")).toBeNull();
+	it("cancels the delayed Escape close when unmounted", async () => {
+		const user = userEvent.setup({
+			advanceTimers: vi.advanceTimersByTimeAsync,
+		});
+		const { unmount } = render(<Harness />);
+		await user.click(
+			screen.getByRole("button", { name: "Read the whole announcement" }),
+		);
+		await user.keyboard("{Escape}");
+		expect(vi.getTimerCount()).toBeGreaterThan(0);
+		unmount();
+		expect(vi.getTimerCount()).toBe(0);
 	});
 });

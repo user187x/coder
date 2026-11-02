@@ -161,6 +161,8 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 	const open = manualOpen || Boolean(workspace);
 	const [expanded, setExpanded] = useState(false);
 	const [closing, setClosing] = useState(false);
+	const closeTimer = useRef<number | undefined>(undefined);
+	useEffect(() => () => window.clearTimeout(closeTimer.current), []);
 	const [rect, setRect] = useState<Rect>();
 	const [typed, setTyped] = useState("");
 	const [cat, setCat] = useState(0);
@@ -211,8 +213,9 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 			return;
 		}
 		setClosing(true);
-		window.setTimeout(
+		closeTimer.current = window.setTimeout(
 			() => {
+				closeTimer.current = undefined;
 				setOpen(false);
 				setClosing(false);
 			},
