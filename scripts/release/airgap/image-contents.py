@@ -30,16 +30,15 @@ OURS = "docker.io/mrshll187/"
 
 # Where each of ours is made: (folder, build script) in this repository.
 SOURCES = {
-    "coder-platform-agpl": ("development/coder-fork", "scripts/build_go.sh --agpl"),
-    "coder-platform": ("development/coder-fork (the fork: ~/workspace/coder), development/airgap-image",
-                       "scripts/build_platform_image.sh (fork), development/tools/build-airgap-image.sh"),
-    "coder-upstream": ("development/airgap-image", "development/tools/build-airgap-image.sh"),
-    "coder-ui-updates": ("helm-chart/coder-airgapped/files/ui-updates", "development/tools/build-ui-image.sh"),
-    "coder-image-tools": ("development/image-tools", "development/tools/build-image-tools.sh"),
-    "coder-workspace": ("development/workspace-image", "development/tools/build-workspace-image.sh"),
-    "coder-workspace-dataflow": ("development/workspace-image-dataflow", "development/tools/build-dataflow-image.sh"),
-    "coder-registry": ("development/registry-image", "development/tools/build-registry-image.sh"),
-    "coder-minio": ("development/tools/build-minio-image.sh", "development/tools/build-minio-image.sh"),
+    "coder-platform-agpl": ("images/airgap-image", "scripts/release/airgap/build-source-release.sh"),
+    "coder-platform": ("images/airgap-image", "scripts/release/airgap/build-source-release.sh"),
+    "coder-upstream": ("images/airgap-image", "scripts/release/airgap/build-airgap-image.sh --upstream"),
+    "coder-ui-updates": ("platform", "scripts/release/airgap/build-ui-image.sh"),
+    "coder-image-tools": ("images/image-tools", "scripts/release/airgap/build-image-tools.sh"),
+    "coder-workspace": ("images/workspace-image", "scripts/release/airgap/build-workspace-image.sh"),
+    "coder-workspace-dataflow": ("images/workspace-image-dataflow", "scripts/release/airgap/build-dataflow-image.sh"),
+    "coder-registry": ("images/registry-image", "scripts/release/airgap/build-registry-image.sh"),
+    "coder-minio": ("scripts/release/airgap", "scripts/release/airgap/build-minio-image.sh"),
 }
 
 # The programs we put in each (beyond the workspace images' add-ons): (name, what it does, command, version pattern).

@@ -65,14 +65,31 @@ ensure_image() {
 	shift
 	if ! docker image inspect "$image" >/dev/null 2>&1; then "$@"; fi
 }
+restore_image() {
+	local image=$1 digest
+	digest=$(awk -v image="$image" '$1 == image {print $2}' "$root/airgap-dist/helm-chart/images.txt")
+	[[ -n "$digest" ]] || {
+		echo "No pinned digest for $image" >&2
+		return 1
+	}
+	docker pull --platform linux/amd64 "${image%:*}@$digest"
+	docker tag "${image%:*}@$digest" "$image"
+}
+ensure_image "docker.io/mrshll187/coder-upstream:${version}" restore_image "docker.io/mrshll187/coder-upstream:${version}"
 ensure_image "docker.io/mrshll187/coder-image-tools:${version}" "$here/build-image-tools.sh"
-"$here/build-ui-image.sh"
 ensure_image "docker.io/mrshll187/coder-workspace:${version}" "$here/build-workspace-image.sh"
 ensure_image "docker.io/mrshll187/coder-registry:${version}" "$here/build-registry-image.sh"
 ensure_image "docker.io/mrshll187/coder-minio:${version}" "$here/build-minio-image.sh"
 if ((dataflow)); then
 	ensure_image "docker.io/mrshll187/coder-workspace-dataflow:${version}" "$here/build-dataflow-image.sh" --no-store
+else
+	ensure_image "docker.io/mrshll187/coder-workspace-dataflow:${version}" restore_image "docker.io/mrshll187/coder-workspace-dataflow:${version}"
 fi
+"$here/build-ui-image.sh"
+python3 "$here/pin_images.py" "$root/airgap-dist/helm-chart/images.txt"
+python3 "$here/image-contents.py"
+# The service serves the inventory of the images built above.
+"$here/build-ui-image.sh"
 helm lint "$chart"
 helm template coder-fork "$chart" --set global.bundled.traefik=true --set global.bundled.cloudnativePG=true --set "coder-workspace.dataflowTemplate.enabled=$([[ $dataflow == 1 ]] && echo true || echo false)" >"$out/rendered.yaml"
 helm template coder-fork "$chart" -f "$root/airgap-dist/helm-chart/values-ha.example.yaml" --set global.bundled.traefik=true --set global.bundled.cloudnativePG=true --set "coder-workspace.dataflowTemplate.enabled=$([[ $dataflow == 1 ]] && echo true || echo false)" >>"$out/rendered.yaml"
@@ -84,7 +101,7 @@ refs=set()
 for line in pathlib.Path(sys.argv[2]).read_text().splitlines():
  if line.startswith(('ghcr.io/','docker.io/','cr.yandex/','registry.k8s.io/')):
   ref=line.split()[0]
-  if ref in text: refs.add(ref)
+  if ref in text or ref.startswith('docker.io/mrshll187/'): refs.add(ref)
 refs.add('docker.io/mrshll187/coder-platform:'+sys.argv[3])
 refs.add('docker.io/mrshll187/coder-platform-agpl:'+sys.argv[3])
 refs.add('docker.io/mrshll187/coder-workspace:'+sys.argv[3])
@@ -103,6 +120,11 @@ done <"$out/FORK-IMAGES.txt"
 helm package "$chart" --destination "$out"
 helm package "$root/helm/coder-platform" --destination "$out"
 cp "$root/airgap-dist/helm-chart/images.txt" "$out/images.txt"
+cp "$chart/files/ui-updates/image-contents.json" "$out/image-contents.json"
+# Preserve generated pins in canonical source when the temporary installer tree is removed.
+source_root=${CODER_SOURCE_ROOT:-$root}
+cp "$out/images.txt" "$source_root/packaging/airgap/images.txt"
+cp "$out/image-contents.json" "$source_root/platform/image-contents.json"
 python3 - "$root" "$out" "$registry" "$dataflow" <<'PY'
 import pathlib,sys
 root,out,registry,dataflow=sys.argv[1:]

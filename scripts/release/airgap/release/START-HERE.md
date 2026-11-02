@@ -1,4 +1,4 @@
-# Install Coder fork 1.5.2
+# Install Coder fork 1.5.3
 
 This guide uses the small source build kit. To install the supplied images without building,
 use INSTALL.md instead.
@@ -44,8 +44,8 @@ Open a terminal in that folder. Run:
 
 ```bash
 sha256sum -c SOURCE-SHA256SUMS
-tar -xzf coder-build-kit-1.5.2.tar.gz
-cd coder-build-kit-1.5.2
+tar -xzf coder-build-kit-1.5.3.tar.gz
+cd coder-build-kit-1.5.3
 ```
 
 Every checksum must say `OK`. Stop if one fails and download that file again.
@@ -74,28 +74,31 @@ Run this from inside the extracted build kit:
 The first build can take a long time. Let it finish. A failed step stops the script.
 After fixing the reported problem, run the same command again; Docker reuses cached work.
 Existing matching local workspace, registry, MinIO and image-tools images are reused.
+The unchanged upstream rollback image is retrieved by its pinned digest when absent.
 The script does not export large image archives.
 
 When it prints `Build finished`, your output folder is:
 
 ```text
-build/release-1.5.2/
+build/release-1.5.3/
 ```
 
 That folder contains:
 
-- `coder-airgapped-1.5.2.tgz`: the single Helm chart to install.
+- `coder-airgapped-1.5.3.tgz`: the single Helm chart to install.
 - `values.yaml`: the settings file you will edit next.
 - `BUILT-IMAGES.txt`: every fork image pushed to your registry.
 - `PUBLIC-IMAGES.txt`: common public images the cluster also needs.
 - `FORK-IMAGES.txt`: original names of the fork images you built.
 
-Use the chart from this output folder. The build updates its UI image tag to match the code.
+Use the chart from this output folder. Both server editions and both charts use the
+version in `RELEASE_VERSION`. The build refreshes the image inventory and digests.
 
 ### Optional: add DATAFLOW
 
-DEFAULT works without DATAFLOW. Do not build DATAFLOW unless you need NiFi and Airflow.
-To include it, use this command instead:
+DEFAULT works without DATAFLOW. The release includes the pinned DATAFLOW image,
+retrieving it when absent. To build it from source when absent and enable its
+template, use this command instead:
 
 ```bash
 ./scripts/build_airgap_release.sh --tool build-source-release.sh -- registry.example.com/coder --dataflow --push
@@ -185,7 +188,7 @@ namespace also has the pull credentials required by your registry.
 Run from the generated output folder:
 
 ```bash
-helm upgrade --install coder-fork ./coder-airgapped-1.5.2.tgz \
+helm upgrade --install coder-fork ./coder-airgapped-1.5.3.tgz \
   --namespace coder-fork --create-namespace \
   --values values.yaml --timeout 20m
 ```

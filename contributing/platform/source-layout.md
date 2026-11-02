@@ -67,6 +67,21 @@ This requires the connected build dependencies documented in the release helpers
 and the verified File Browser input. It is distinct from packaging existing
 release images.
 
+The source build produces both server editions, packages both charts, and writes
+the resulting image pins and contents inventory back to `packaging/airgap/` and
+`platform/`. Review and commit those metadata changes with the release.
+
+Export the built images into the project cache before creating an offline bundle:
+
+```sh
+python3 scripts/release/airgap/export_images.py --reuse-cache /path/to/previous/cache
+```
+
+The optional previous cache supplies public image archives only when their hashes
+match the committed checksums. Our images are exported from Docker after their
+IDs are checked against the release inventory. Archive checksums are updated in
+`packaging/airgap/archive-checksums/`.
+
 Package committed source, including graphics and the verified File Browser input:
 
 ```sh
@@ -80,7 +95,7 @@ The entry point assembles the installer layout in a temporary directory under
 ignored `build/` output. `packaging/airgap/source-layout.json` maps source
 directories into that layout. Existing installers keep their internal
 `airgap-dist` paths only inside generated output. The temporary tree is removed
-when the command finishes; release output and the external cache are retained.
+when the command finishes; release output and the image cache are retained.
 Helpers that write to the installer's `dist/` directory use
 `build/airgap-artifacts/<version>/`, or `--out` when supplied.
 Use the entry point rather than invoking the internal helpers directly, since
