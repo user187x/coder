@@ -476,6 +476,8 @@ metricsServer:
 # coder-image-registry and pulled by workspace pods as localhost:<localPort>/coder-images/<name>:<version>.
 # ---------------------------------------------------------------------------------------------------------------
 imageBuilder:
+  # Optional research image published to a registry the workspace nodes can reach.
+  researchImage: ""
   enabled: true
   buildkitImage: '{{ include "platform.image" (list . "docker.io/moby/buildkit:v0.33.0-rootless") }}'
   # The node proxy's image: any image with python3 (the add-on services' is reused).

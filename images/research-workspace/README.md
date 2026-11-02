@@ -2,8 +2,8 @@
 
 This is an opt-in testing image, not a platform deployment dependency. The normal
 installer, Helm charts, required nine-image inventory, and release build do not
-build, pull, or start it. Import it into Images only in an enclave selected for
-accreditation testing, then select it for a dedicated research workspace.
+build, pull, or start it. Use it for a dedicated research workspace in an enclave
+selected for accreditation testing.
 
 The image extends the Coder workspace image, retaining its terminal, editor,
 desktop, and file browser. It includes the research projects maintained in
@@ -20,14 +20,24 @@ RESEARCH_ARCHIVE=/tmp/coder-research-sandbox.tar.gz \
   ./scripts/build_airgap_release.sh --tool build-research-workspace.sh
 ```
 
-The script builds only `linux/amd64`, runs the guest checks, and optionally writes
-a Docker archive and SHA-256 checksum. Nothing is pushed or deployed. The version
+The script uses the workspace base at `RELEASE_VERSION` and builds only `linux/amd64`.
+It runs the guest checks and optionally writes a Docker archive and SHA-256 checksum.
+Nothing is pushed or deployed. The version
 comes from `RELEASE_VERSION`, independently of the platform's required inventory.
 
 Use **Images > Import** to import the archive or a separately published registry
 reference. Select that image when creating the dedicated workspace. Allocate at
 least 4 GiB RAM and 2 CPU cores. The default guest uses 2 GiB and 2 virtual CPUs;
 software emulation is slower than hardware virtualization.
+
+To enable the deployment shortcut, publish the image to a registry reachable by
+the workspace nodes and set `imageBuilder.researchImage` in the Helm values to
+its full registry reference. Prefer an immutable `@sha256` digest. In **Images**,
+select **Deploy research sandbox**, then **Continue to workspace setup**.
+The form selects the research image on the default workspace template and starts
+with 2 CPU cores and 4 GiB of memory. Review the name and schedule before creating
+the workspace. This shortcut does not change existing workspaces or start guest
+modules automatically.
 
 ## Run experiments
 

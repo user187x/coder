@@ -77,6 +77,7 @@ import {
 	type ImportImageDialogProps,
 } from "./ImportImageDialog";
 import { NewImageDialog } from "./NewImageDialog";
+import { ResearchSandboxButton } from "./ResearchSandboxButton";
 import { SecurityDataBadge } from "./SecurityData";
 
 type StatusFilter = "all" | "ready" | "building" | "draft" | "failed";
@@ -152,6 +153,9 @@ const ImagesPage: React.FC = () => {
 							</Button>
 						)}
 						<SecurityDataBadge onOpen={() => setSettings(true)} />
+						{canEdit && (
+							<ResearchSandboxButton sandbox={query.data?.researchSandbox} />
+						)}
 						<Button
 							variant="outline"
 							size="lg"

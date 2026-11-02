@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 ARG GUEST_BASE=debian:bookworm-slim@sha256:99c0b25c46d0214d5a2091092e7908907dcaecd6a962cde0ac700acee222b6f3
-ARG WORKSPACE_BASE=docker.io/mrshll187/coder-workspace:1.5.1@sha256:72a82891e0a8705995ef2c5c761a7b4be130b2f641e6c246b9c2a5dcf5dc7ba0
+ARG WORKSPACE_BASE
 FROM ${GUEST_BASE} AS guest
 ARG TARGETARCH
 RUN test "$TARGETARCH" = amd64

@@ -95,6 +95,7 @@ BASE_FALLBACK = os.environ.get("BUILDER_BASE_FALLBACK", "")
 # The image the workspace template runs, as the template names it, and the template's name (for the tracked entry).
 WORKSPACE_IMAGE = os.environ.get("BUILDER_WORKSPACE_IMAGE", "")
 WORKSPACE_TEMPLATE = os.environ.get("BUILDER_WORKSPACE_TEMPLATE", "")
+RESEARCH_IMAGE = os.environ.get("BUILDER_RESEARCH_IMAGE", "")
 TRACKED_ID = "coder-workspace"
 TRACKED_SYNC_SECONDS = 300
 ADDONS_PATH = "usr/share/coder-workspace/addons.json"
@@ -3250,6 +3251,8 @@ def route(h, method, rest, query, user, editor, admin):
         if rest in ("", "/") and method == "GET":
             return h.send_json(200, {"images": with_pit(STORE.images()), "canEdit": editor, "pullPrefix": PULL_PREFIX,
                                      "baseImage": BASE_IMAGE.rsplit("/", 1)[-1],
+                                     "researchSandbox": {"image": RESEARCH_IMAGE, "template": TEMPLATES[0]["name"]}
+                                     if REF_RE.fullmatch(RESEARCH_IMAGE) and TEMPLATES and TEMPLATES[0].get("name") else None,
                                      "templates": [{"name": t.get("name"), "displayName": t.get("displayName")}
                                                    for t in TEMPLATES if t.get("name")]}) or True
         if rest in ("", "/") and method == "POST":

@@ -6,6 +6,7 @@ root="$(cd "$here/../../.." && pwd)"
 version="$(cat "$root/RELEASE_VERSION")"
 image="${RESEARCH_IMAGE:-coder-research-sandbox:$version}"
 docker build --platform linux/amd64 \
+	--build-arg "WORKSPACE_BASE=docker.io/mrshll187/coder-workspace:$version" \
 	--build-arg "VERSION=$version" --tag "$image" \
 	"$root/images/research-workspace"
 docker run --rm --network none --cap-drop ALL --security-opt no-new-privileges \

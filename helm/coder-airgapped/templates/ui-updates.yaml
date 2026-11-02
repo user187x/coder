@@ -164,6 +164,7 @@ spec:
             # The image the workspace template runs: an entry of its own in the Images view (scanned from the copy above).
             {{- $tpl := index $.Values "coder-workspace" "template" }}
             - {name: BUILDER_WORKSPACE_IMAGE, value: {{ $ws | quote }}}
+            - {name: BUILDER_RESEARCH_IMAGE, value: {{ .researchImage | default "" | quote }}}
             - {name: BUILDER_WORKSPACE_TEMPLATE, value: {{ $tpl.displayName | default $tpl.name | quote }}}
             # The templates the chart pushes, with their images: the Images view's In use list, and its "Create a
             # workspace on it" (their Workspace image parameter).
