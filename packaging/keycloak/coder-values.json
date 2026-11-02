@@ -18,5 +18,52 @@
       "namespace": "coder",
       "adminSecret": "coder-keycloak-admin"
     }
+  },
+  "traefik": {
+    "providers": {
+      "file": {
+        "enabled": true,
+        "content": {
+          "http": {
+            "routers": {
+              "keycloak-misdirected": {
+                "entryPoints": [
+                  "websecure"
+                ],
+                "rule": "HostRegexp(\"^keycloak\\\\.coder\\\\.grey\\\\-marshall\\\\.com\\\\.?$\")",
+                "priority": 1000000,
+                "tls": {},
+                "middlewares": [
+                  "keycloak-no-cache",
+                  "keycloak-retry"
+                ],
+                "service": "noop@internal"
+              }
+            },
+            "middlewares": {
+              "keycloak-retry": {
+                "errors": {
+                  "status": [
+                    "418"
+                  ],
+                  "statusRewrites": {
+                    "418": 421
+                  },
+                  "service": "noop@internal",
+                  "query": "/"
+                }
+              },
+              "keycloak-no-cache": {
+                "headers": {
+                  "customResponseHeaders": {
+                    "Cache-Control": "no-store"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
   }
 }

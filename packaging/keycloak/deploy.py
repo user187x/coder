@@ -3,6 +3,7 @@
 import argparse
 import base64
 import json
+import re
 import secrets
 import subprocess
 import pathlib
@@ -103,10 +104,27 @@ def resources(namespace, cluster, hostname, coder_url, image, client_secret,
     ]
 
 
+def gateway_values(hostname):
+    """Return a bundled Traefik rule for sign-in requests on a reused dashboard connection."""
+    # HostRegexp matches the HTTP authority without claiming Keycloak's TLS SNI.
+    # A fresh connection must still reach Keycloak's own certificate listener.
+    rule = 'HostRegexp(' + json.dumps('^' + re.escape(hostname) + r'\.?$') + ')'
+    router = {'entryPoints': ['websecure'], 'rule': rule, 'priority': 1_000_000,
+              'tls': {}, 'middlewares': ['keycloak-no-cache', 'keycloak-retry'], 'service': 'noop@internal'}
+    # Traefik's noop service returns 418. Map it to the HTTP/2 fresh-connection response.
+    middlewares = {
+        'keycloak-retry': {'errors': {'status': ['418'], 'statusRewrites': {'418': 421},
+                                      'service': 'noop@internal', 'query': '/'}},
+        'keycloak-no-cache': {'headers': {'customResponseHeaders': {'Cache-Control': 'no-store'}}},
+    }
+    return {'providers': {'file': {'enabled': True, 'content': {'http': {
+        'routers': {'keycloak-misdirected': router}, 'middlewares': middlewares}}}}}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--connect-coder', action='store_true', help='Connect Coder after verifying public issuer discovery; keep password login enabled')
-    parser.add_argument('--values-output', type=pathlib.Path, help='Save non-secret Helm overrides for future upgrades')
+    parser.add_argument('--values-output', type=pathlib.Path, help='Save Helm values for OIDC and the bundled Traefik sign-in route')
     parser.add_argument('--server-tls-secret', default='coder-keycloak-server-tls', help='Existing exact-host TLS certificate Secret (tls.crt and tls.key)')
     parser.add_argument('--client-auth-configmap', default='coder-client-auth', help='Existing client CA and CRL ConfigMap (ca.crt and clients.crl.pem)')
     parser.add_argument('--client-certificate-issuer-secret', help='Existing encrypted device certificate issuer Secret (ca.crt, ca.key and password)')
@@ -150,10 +168,12 @@ def main():
         overrides = {'global': {'disablePasswordAuth': 'false', 'oidc': {
             'issuerUrl': issuer, 'clientId': 'coder', 'signInText': 'Sign in with Keycloak',
             'ignoreEmailVerified': 'false',
-        }}, 'uiUpdates': {'keycloak': {'enabled': True, 'namespace': args.namespace, 'adminSecret': 'coder-keycloak-admin'}}}
+        }}, 'uiUpdates': {'keycloak': {'enabled': True, 'namespace': args.namespace, 'adminSecret': 'coder-keycloak-admin'}},
+            'traefik': gateway_values(args.hostname)}
         if args.client_certificate_issuer_secret:
             overrides['uiUpdates']['clientCertificates'] = {'enabled': True, 'issuerSecret': args.client_certificate_issuer_secret}
         args.values_output.write_text(json.dumps(overrides, indent=2) + '\n')
+        print('Apply %s to the Coder Helm release to configure sign-in routing.' % args.values_output)
     if args.connect_coder:
         with urllib.request.urlopen(issuer + '/.well-known/openid-configuration', timeout=15) as response:
             if json.load(response).get('issuer') != issuer:
