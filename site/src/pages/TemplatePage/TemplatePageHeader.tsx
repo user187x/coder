@@ -7,11 +7,13 @@ import {
 	SettingsIcon,
 	TrashIcon,
 } from "lucide-react";
+import { useState } from "react";
 import { useQuery } from "react-query";
 import { Link as RouterLink, useNavigate } from "react-router";
 import { toast } from "sonner";
 import { API } from "#/api/api";
 import { getErrorDetail } from "#/api/errors";
+import { templateVersion as versionQuery } from "#/api/queries/templates";
 import { workspaces } from "#/api/queries/workspaces";
 import type {
 	AuthorizationResponse,
@@ -52,13 +54,14 @@ type TemplateMenuProps = {
 	canUpdate: boolean;
 	organizationName: string;
 	templateName: string;
-	templateVersion: string;
+	templateVersion?: string;
 	templateId: string;
-	fileId: string;
+	fileId?: string;
+	label?: string;
 	onDelete: () => void;
 };
 
-const TemplateMenu: React.FC<TemplateMenuProps> = ({
+export const TemplateMenu: React.FC<TemplateMenuProps> = ({
 	template,
 	canUpdate,
 	organizationName,
@@ -66,8 +69,16 @@ const TemplateMenu: React.FC<TemplateMenuProps> = ({
 	templateVersion,
 	templateId,
 	fileId,
+	label = "Open menu",
 	onDelete,
 }) => {
+	const [open, setOpen] = useState(false);
+	const version = useQuery({
+		...versionQuery(template.active_version_id),
+		enabled: open && !fileId,
+	});
+	const versionName = templateVersion ?? version.data?.name;
+	const versionFile = fileId ?? version.data?.job.file_id;
 	const dialogState = useDeletionDialogState(
 		templateId,
 		onDelete,
@@ -79,7 +90,7 @@ const TemplateMenu: React.FC<TemplateMenuProps> = ({
 	const workspaceCountQuery = useQuery({
 		...workspaces({ q: queryText }),
 		select: (res) => res.count,
-		enabled: canUpdate,
+		enabled: canUpdate && (open || dialogState.isDeleteDialogOpen),
 	});
 	const safeToDeleteTemplate = workspaceCountQuery.data === 0;
 
@@ -88,7 +99,8 @@ const TemplateMenu: React.FC<TemplateMenuProps> = ({
 	// Platform: the whole template in one ZIP: its Terraform, scripts and other files, and the icons it uses
 	const handleExport = async () => {
 		try {
-			const source = await API.downloadTemplateVersion(fileId, "zip");
+			if (!versionFile || !versionName) return;
+			const source = await API.downloadTemplateVersion(versionFile, "zip");
 			const { zip, missing } = await buildTemplateExport(
 				source,
 				template.icon,
@@ -97,7 +109,7 @@ const TemplateMenu: React.FC<TemplateMenuProps> = ({
 			const url = window.URL.createObjectURL(zip);
 			const link = document.createElement("a");
 			link.href = url;
-			link.download = `${templateName}-${templateVersion}.zip`;
+			link.download = `${templateName}-${versionName}.zip`;
 			document.body.appendChild(link);
 			link.click();
 			document.body.removeChild(link);
@@ -118,11 +130,10 @@ const TemplateMenu: React.FC<TemplateMenuProps> = ({
 
 	return (
 		<>
-			<DropdownMenu>
+			<DropdownMenu open={open} onOpenChange={setOpen}>
 				<DropdownMenuTrigger asChild>
-					<ShadcnButton size="icon-lg" variant="subtle" aria-label="Open menu">
+					<ShadcnButton size="icon-lg" variant="subtle" aria-label={label}>
 						<EllipsisVerticalIcon aria-hidden="true" />
-						<span className="sr-only">Open menu</span>
 					</ShadcnButton>
 				</DropdownMenuTrigger>
 				<DropdownMenuContent align="end">
@@ -135,14 +146,28 @@ const TemplateMenu: React.FC<TemplateMenuProps> = ({
 								</RouterLink>
 							</DropdownMenuItem>
 
-							<DropdownMenuItem asChild>
-								<RouterLink
-									to={`${templateLink}/versions/${templateVersion}/edit`}
+							{versionName ? (
+								<DropdownMenuItem asChild>
+									<RouterLink
+										to={`${templateLink}/versions/${versionName}/edit`}
+									>
+										<EditIcon />
+										Edit files
+									</RouterLink>
+								</DropdownMenuItem>
+							) : (
+								<DropdownMenuItem disabled>Edit files</DropdownMenuItem>
+							)}
+							{version.isError && !versionName && (
+								<DropdownMenuItem
+									onSelect={(e) => {
+										e.preventDefault();
+										void version.refetch();
+									}}
 								>
-									<EditIcon />
-									Edit files
-								</RouterLink>
-							</DropdownMenuItem>
+									Retry loading active version
+								</DropdownMenuItem>
+							)}
 
 							<DropdownMenuItem asChild>
 								<RouterLink to={`/templates/new?fromTemplate=${templateId}`}>
@@ -152,6 +177,7 @@ const TemplateMenu: React.FC<TemplateMenuProps> = ({
 							</DropdownMenuItem>
 
 							<DropdownMenuItem
+								disabled={!versionFile || !versionName}
 								onClick={() => handleExport()}
 								title="The template's Terraform, scripts and other files, and the icons it uses"
 							>

@@ -35,7 +35,7 @@ import {
 	normalizeImage,
 } from "#/utils/normalizeImage";
 
-/** The pictures Upload image takes (as Templates > Icons). */
+/** The pictures Upload image takes (as Template editor > Icons). */
 const ICON_ACCEPT = ".png,.jpg,.jpeg,.svg,.webp,.gif,.avif,image/*";
 
 const EmojiPicker = lazy(() => import("./EmojiPicker"));
@@ -75,7 +75,7 @@ export const IconField: React.FC<IconFieldProps> = ({
 	const queryClient = useQueryClient();
 	const stringValue = value ?? "";
 
-	// Upload image: the picture goes to the icon library (Templates > Icons, owners and template admins), resized to
+	// Upload image: the picture goes to the icon library (Template editor > Icons, owners and template admins), resized to
 	// fit 256 x 256, under a name from its file (a free one: an icon of that name is never replaced), and is used.
 	const upload = async (file: File) => {
 		setUploading(true);
@@ -246,7 +246,7 @@ export const IconField: React.FC<IconFieldProps> = ({
 };
 
 /**
- * The emoji picker with icons uploaded in Templates > Icons in their own
+ * The emoji picker with icons uploaded in Template editor > Icons in their own
  * category. Mounted only while the popover is open, so the list is fetched on
  * first use; without the platform service the category is simply absent.
  */

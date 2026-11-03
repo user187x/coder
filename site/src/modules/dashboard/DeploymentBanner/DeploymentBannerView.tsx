@@ -12,7 +12,7 @@ import {
 	WrenchIcon,
 } from "lucide-react";
 import prettyBytes from "pretty-bytes";
-import { Fragment, memo, useEffect, useMemo, useState } from "react";
+import { Fragment, memo, useEffect, useMemo, useRef, useState } from "react";
 import { Link as RouterLink } from "react-router";
 import {
 	type AppFamilyName,
@@ -35,6 +35,7 @@ import {
 	TooltipTrigger,
 } from "#/components/Tooltip/Tooltip";
 import { useAnimationsEnabled } from "#/hooks/useAnimationSettings";
+import { useFitText } from "#/hooks/useFitText";
 import "./deploymentBanner.css";
 import { getDisplayWorkspaceStatus } from "#/utils/workspace";
 
@@ -49,6 +50,8 @@ export const DeploymentBannerView: React.FC<DeploymentBannerViewProps> = ({
 	stats,
 	fetchStats,
 }) => {
+	const row = useRef<HTMLDivElement>(null);
+	const fontSize = useFitText(row, 14, 8, true);
 	const aggregatedMinutes = useMemo(() => {
 		if (!stats) {
 			return;
@@ -110,7 +113,9 @@ export const DeploymentBannerView: React.FC<DeploymentBannerViewProps> = ({
 		<div
 			role="group"
 			aria-label="Deployment statistics"
-			className="deployment-stats flex min-w-0 w-full flex-wrap items-center justify-around gap-x-[1em] gap-y-1 px-3 py-1.5 font-mono leading-none tabular-nums"
+			ref={row}
+			style={{ fontSize }}
+			className="deployment-stats flex min-w-0 w-full flex-nowrap items-center justify-between gap-[0.65em] overflow-x-auto whitespace-nowrap px-[0.8em] py-1.5 font-mono leading-none tabular-nums"
 		>
 			<TooltipProvider delayDuration={100}>
 				<Tooltip>

@@ -390,9 +390,9 @@ const ArrangeItem: React.FC<ArrangeItemProps> = ({
 						type="button"
 						aria-label={`Remove ${LABELS[id]}`}
 						onClick={onRemove}
-						className="absolute -right-2 -top-2 z-20 flex size-4 items-center justify-center rounded-full border border-solid border-border bg-surface-primary text-content-secondary hover:text-content-primary"
+						className="absolute -right-2 -top-2 z-20 flex size-6 cursor-pointer items-center justify-center rounded-[0.5rem] border-2 border-solid border-red-400 bg-red-700 p-0 text-white shadow-md hover:bg-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-content-primary"
 					>
-						<XIcon className="size-3" />
+						<XIcon aria-hidden className="size-4" strokeWidth={3} />
 					</button>
 				</>
 			)}

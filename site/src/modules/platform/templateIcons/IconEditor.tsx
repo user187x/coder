@@ -63,7 +63,7 @@ type IconEditorProps = {
 	helperText?: React.ReactNode;
 };
 
-/** The icons uploaded in Templates > Icons, and an upload there (owners and template admins) chosen at once. */
+/** The icons uploaded in Template editor > Icons, and an upload there (owners and template admins) chosen at once. */
 const useIconUpload = (
 	onChange: (value: string) => void,
 	uploadName: string | undefined,
@@ -82,7 +82,7 @@ const useIconUpload = (
 			);
 			await upload.mutateAsync({ name, dataUrl: image.dataURL });
 			onChange(templateIconPath(name));
-			toast.success(`Uploaded as ${name} (Templates > Icons).`);
+			toast.success(`Uploaded as ${name} (Template editor > Icons).`);
 		} catch (err) {
 			toast.error(
 				err instanceof ImageNormalizeError
@@ -102,7 +102,7 @@ const useIconUpload = (
 
 /**
  * Picking an icon (a template's, a workspace's): a large preview, the icons
- * uploaded in Templates > Icons as one-click choices, Upload (a picture from
+ * uploaded in Template editor > Icons as one-click choices, Upload (a picture from
  * the computer, saved there - owners and template admins), Emoji or icon
  * (Coder's picker), a reset, and the icon's address for anything else (a
  * path such as /icon/go.svg, or a URL).
@@ -323,7 +323,7 @@ type InlineIconEditorProps = Pick<
 
 /**
  * The icon editor in one line (the workspace settings page): a small preview, Upload, and Emoji or icon - whose picker
- * also offers the icons uploaded in Templates > Icons - and, once one is chosen, a way back to the fallback. No
+ * also offers the icons uploaded in Template editor > Icons - and, once one is chosen, a way back to the fallback. No
  * address field.
  */
 export const InlineIconEditor: React.FC<InlineIconEditorProps> = ({

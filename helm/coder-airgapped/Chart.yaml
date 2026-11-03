@@ -24,7 +24,7 @@ dependencies:
     repository: file://charts/coder
     condition: coder.enabled
   # The prerequisites, for one `helm install` on a bare cluster (global.bundled; off where the cluster has its own):
-  # Traefik 41.4.0 with the Gateway API v1.6.2 CRDs (in its crds/), its Gateway on the chart's wildcard certificate, and
+  # Traefik 41.4.0 with the Gateway API v1.6.0 CRDs (in its crds/), its Gateway on the chart's wildcard certificate, and
   # the CloudNativePG operator 0.29.0 (its CRDs in crds/). Vendored + the platform patch (--platform-templates-only).
   - name: traefik
     version: 41.4.0-platform.1

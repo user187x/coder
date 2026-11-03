@@ -67,7 +67,9 @@ export const Scrolled: Story = {
 export const Categories: Story = {
 	play: async ({ canvasElement }) => {
 		await userEvent.pointer({
-			target: within(canvasElement).getByRole("link", { name: "Admin" }),
+			target: within(canvasElement).getByRole("link", {
+				name: "Admin Settings",
+			}),
 			keys: "[MouseRight]",
 		});
 	},

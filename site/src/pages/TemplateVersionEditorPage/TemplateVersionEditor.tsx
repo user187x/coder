@@ -86,6 +86,7 @@ type TemplateVersionEditorProps = {
 	onFileTreeChange: (updater: (fileTree: FileTree) => FileTree) => void;
 	buildLogs?: ProvisionerJobLog[];
 	resources?: WorkspaceResource[];
+	iconsAction?: React.ReactNode;
 	isBuilding: boolean;
 	canPublish: boolean;
 	onPreview: (files: FileTree) => Promise<void>;
@@ -109,6 +110,7 @@ type TemplateVersionEditorProps = {
 };
 
 export const TemplateVersionEditor: React.FC<TemplateVersionEditorProps> = ({
+	iconsAction,
 	isBuilding,
 	canPublish,
 	template,
@@ -272,6 +274,7 @@ export const TemplateVersionEditor: React.FC<TemplateVersionEditorProps> = ({
 
 					<div className="flex items-center justify-end gap-2 pr-4">
 						<TemplateVersionStatusBadge version={templateVersion} />
+						{iconsAction}
 
 						<div className="flex gap-1 items-center">
 							<TopbarButton

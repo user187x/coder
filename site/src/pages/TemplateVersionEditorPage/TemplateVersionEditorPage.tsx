@@ -23,7 +23,9 @@ import type {
 	TemplateVersion,
 } from "#/api/typesGenerated";
 import { Loader } from "#/components/Loader/Loader";
+import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { linkToTemplate, useLinks } from "#/modules/navigation";
+import { TemplateIconsButton } from "#/modules/platform/templateIcons/TemplateIconsDialog";
 import { useWatchVersionLogs } from "#/modules/templates/useWatchVersionLogs";
 import { existsFile, type FileTree, traverse } from "#/utils/filetree";
 import { pageTitle } from "#/utils/page";
@@ -32,6 +34,7 @@ import { createTemplateVersionFileTree } from "#/utils/templateVersion";
 import { TemplateVersionEditor } from "./TemplateVersionEditor";
 
 const TemplateVersionEditorPage: React.FC = () => {
+	const { permissions } = useAuthenticated();
 	const getLink = useLinks();
 	const queryClient = useQueryClient();
 	const navigate = useNavigate();
@@ -134,6 +137,7 @@ const TemplateVersionEditorPage: React.FC = () => {
 				<Loader fullscreen />
 			) : (
 				<TemplateVersionEditor
+					iconsAction={permissions.createTemplates && <TemplateIconsButton />}
 					activePath={activePath}
 					onActivePathChange={onActivePathChange}
 					template={templateQuery.data}

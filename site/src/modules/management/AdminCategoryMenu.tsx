@@ -40,7 +40,7 @@ export const AdminCategoryMenu = () => {
 					title="Accounts; right-click for admin categories"
 				>
 					<SettingsIcon aria-hidden className="size-4 shrink-0" />
-					Admin
+					Admin Settings
 				</BreadcrumbLink>
 			</ContextMenuTrigger>
 			<ContextMenuContent

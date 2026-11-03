@@ -21,7 +21,7 @@
 # ./make --argocd <harbor>/<project> does every step below for you (and fills this file in: .deploy/argocd/). By hand:
 #   1. Images and charts:  ./make --push-images <harbor>/<project>   (images, both charts, the prerequisites' charts)
 #                          or ./mirror-images.sh push <registry> and ./mirror-images.sh charts <registry>/charts
-#   2. Prerequisites in the cluster: Gateway API CRDs (v1.6.2: prereqs/), a Gateway with an HTTPS listener for
+#   2. Prerequisites in the cluster: Gateway API CRDs (v1.6.0: prereqs/), a Gateway with an HTTPS listener for
 #      coder.<domain> and *.<domain> (Traefik: prereqs/), the CloudNativePG operator (install.sh --cnpg)
 #   3. Secrets and default images the charts do not create (names = global.secretNames below):
 #        ./install.sh --prepare-only --ca ca.crt --oidc-ca keycloak-ca.crt --oidc-secret-file oidc-client-secret.txt \

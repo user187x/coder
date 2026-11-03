@@ -25,13 +25,13 @@ import { Loader } from "#/components/Loader/Loader";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { pageTitle } from "#/utils/page";
 import "./hud.css";
+import { useFitText } from "#/hooks/useFitText";
 import { HudGraphs } from "./HudGraphs";
 import { HudSortableGrid } from "./HudSortableGrid";
 import { HudStorageClasses } from "./HudStorageClasses";
 import { hudIcon } from "./hudIcons";
 import { applyOrder, elevate, readHudOrder, writeHudOrder } from "./hudOrder";
 import { SystemUptime } from "./SystemUptime";
-import { useFitText } from "./useFitText";
 
 /** How many updates each sparkline (and "change") covers: 30 × 10 s = 5 minutes. */
 const HISTORY = 30;
