@@ -1,5 +1,6 @@
 import { useEffect, useId, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
+import { backgroundHTML, backgrounds } from "#/api/queries/backgrounds";
 import {
 	navbarAppearance,
 	updateNavbarAppearance,
@@ -7,11 +8,16 @@ import {
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { Button } from "#/components/Button/Button";
 import { Loader } from "#/components/Loader/Loader";
+import { BackgroundPreview } from "#/modules/platform/background/BackgroundPreview";
 
 export function NavbarAppearance() {
 	const id = useId();
 	const client = useQueryClient();
 	const query = useQuery(navbarAppearance());
+	const background = useQuery(backgrounds()).data?.dashboard;
+	const html = useQuery(
+		backgroundHTML(background?.kind === "html" ? background.url : undefined),
+	);
 	const save = useMutation(updateNavbarAppearance(client));
 	const [draft, setDraft] = useState<number | null>(null);
 	const value = draft ?? query.data?.transparency ?? 0;
@@ -42,43 +48,57 @@ export function NavbarAppearance() {
 				<ErrorAlert error={query.error ?? save.error} />
 			)}
 			{query.data && (
-				<>
-					<label
-						className="flex max-w-xl justify-between text-sm font-medium"
-						htmlFor={`${id}-range`}
-					>
-						Navbar transparency <span aria-hidden>{value}%</span>
-					</label>
-					<input
-						id={`${id}-range`}
-						type="range"
-						min="0"
-						max="100"
-						step="1"
-						className="block my-3 w-full max-w-xl accent-content-link"
-						aria-valuetext={`${value}% transparent`}
-						value={value}
-						disabled={save.isPending}
-						onChange={(e) => setDraft(e.currentTarget.valueAsNumber)}
-					/>
-					<div className="flex gap-2">
-						<Button
-							disabled={save.isPending || value === query.data.transparency}
-							onClick={() =>
-								save.mutate(value, { onSuccess: () => setDraft(null) })
-							}
+				<div className="grid items-start gap-6 xl:grid-cols-2">
+					<div className="min-w-0">
+						<label
+							className="flex justify-between text-sm font-medium"
+							htmlFor={`${id}-range`}
 						>
-							Save navbar appearance
-						</Button>
-						<Button
-							variant="outline"
-							disabled={save.isPending || draft === null}
-							onClick={() => setDraft(null)}
-						>
-							Discard changes
-						</Button>
+							Navbar transparency <span aria-hidden>{value}%</span>
+						</label>
+						<input
+							id={`${id}-range`}
+							type="range"
+							min="0"
+							max="100"
+							step="1"
+							className="block my-3 w-full accent-content-link"
+							aria-valuetext={`${value}% transparent`}
+							value={value}
+							disabled={save.isPending}
+							onChange={(e) => setDraft(e.currentTarget.valueAsNumber)}
+						/>
+						<div className="flex flex-wrap gap-2">
+							<Button
+								disabled={save.isPending || value === query.data.transparency}
+								onClick={() =>
+									save.mutate(value, { onSuccess: () => setDraft(null) })
+								}
+							>
+								Save navbar appearance
+							</Button>
+							<Button
+								variant="outline"
+								disabled={save.isPending || draft === null}
+								onClick={() => setDraft(null)}
+							>
+								Discard changes
+							</Button>
+						</div>
 					</div>
-				</>
+					<div className="flex min-w-0 flex-col gap-3">
+						<span className="text-sm font-medium">Live preview</span>
+						<BackgroundPreview
+							slot="dashboard"
+							image={background?.kind === "html" ? null : (background ?? null)}
+							html={html.data}
+							opacity={background?.opacity ?? 0}
+							layer={background?.layer ?? "under"}
+							dials={background?.params ?? {}}
+							navbarTransparency={value}
+						/>
+					</div>
+				</div>
 			)}
 		</section>
 	);

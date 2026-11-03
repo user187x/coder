@@ -183,96 +183,104 @@ export const LogoView: React.FC<LogoViewProps> = ({
 			aria-labelledby={`${visibilityId}-heading`}
 			className="rounded-xl border border-solid border-border bg-surface-primary p-6"
 		>
-			<div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-				<h2
-					id={`${visibilityId}-heading`}
-					className="m-0 text-base font-semibold"
-				>
-					Deployment branding
-				</h2>
-				<Badge variant={logo.set ? "green" : "default"}>
-					{!logo.available
-						? "Not available"
-						: logo.enabled === false
-							? "Hidden"
-							: logo.set
-								? "Custom logo"
-								: "Default logo"}
-				</Badge>
-			</div>
-			<label
-				htmlFor={visibilityId}
-				className="mb-5 flex items-center justify-between gap-4 text-sm font-medium"
-			>
-				<span>
-					Show logo
-					<span className="mt-1 block text-xs font-normal text-content-secondary">
-						Navigation, sign-in, setup pages and browser tab. Hiding keeps your
-						saved logo.
-					</span>
-				</span>
-				<Switch
-					id={visibilityId}
-					checked={logo.enabled !== false}
-					disabled={!logo.available || visibilityPending}
-					onCheckedChange={onEnabledChange}
-				/>
-			</label>
-			<Tabs
-				value={previewTheme}
-				onValueChange={(value) => {
-					if (value === "dark" || value === "light") setPreviewTheme(value);
-				}}
-			>
-				<TabsList aria-label="Logo preview theme">
-					<TabsTrigger value="dark">Dark</TabsTrigger>
-					<TabsTrigger value="light">Light</TabsTrigger>
-				</TabsList>
-				<TabsContent value={previewTheme}>
-					<LogoPreview
-						theme={previewTheme}
-						src={logo.url}
-						hidden={logo.enabled === false}
-						caption={`${previewTheme === "dark" ? "Dark" : "Light"} theme preview`}
-					/>
-				</TabsContent>
-			</Tabs>
-			<p className="m-0 mt-4 text-sm text-content-secondary">
-				{!logo.available
-					? "The platform service is not connected to Coder's database, so a logo cannot be stored."
-					: logo.enabled === false
-						? "Logo hidden. Your saved logo is kept for when you turn it on again."
-						: logo.set && logo.type && logo.bytes !== null
-							? `${logo.type.replace("image/", "").toUpperCase()}, ${formatBytes(logo.bytes)} · uploaded by ${logo.updatedBy ?? "unknown"}${logo.updatedAt ? ` on ${new Date(logo.updatedAt).toLocaleString("en-US")}` : ""}`
-							: "No custom logo: the default logo is shown."}
-			</p>
-			{/* One button: Change Logo, its arrow's menu restoring the default. */}
-			<div className="mt-4 flex">
-				<Button
-					className="rounded-r-none"
-					disabled={!logo.available}
-					onClick={onUpload}
-				>
-					Change Logo
-				</Button>
-				<DropdownMenu>
-					<DropdownMenuTrigger asChild>
-						<Button
-							className="min-w-0 rounded-l-none border-0 border-l border-solid border-l-content-invert/25 px-2"
-							disabled={!logo.available}
-							aria-label="More logo choices"
-							data-testid="logo-menu"
+			<div className="grid items-start gap-6 xl:grid-cols-2">
+				<div className="min-w-0">
+					<div className="mb-4 flex flex-wrap items-center gap-3">
+						<h2
+							id={`${visibilityId}-heading`}
+							className="m-0 text-base font-semibold"
 						>
-							<ChevronDownIcon />
+							Deployment branding
+						</h2>
+						<Badge variant={logo.set ? "green" : "default"}>
+							{!logo.available
+								? "Not available"
+								: logo.enabled === false
+									? "Hidden"
+									: logo.set
+										? "Custom logo"
+										: "Default logo"}
+						</Badge>
+					</div>
+					<label
+						htmlFor={visibilityId}
+						className="mb-5 flex items-start gap-3 text-sm font-medium"
+					>
+						<Switch
+							id={visibilityId}
+							checked={logo.enabled !== false}
+							disabled={!logo.available || visibilityPending}
+							onCheckedChange={onEnabledChange}
+						/>
+						<span>
+							Show logo
+							<span className="mt-1 block text-xs font-normal text-content-secondary">
+								Navigation, sign-in, setup pages and browser tab. Hiding keeps
+								your saved logo.
+							</span>
+						</span>
+					</label>
+
+					<p className="m-0 mt-4 text-sm text-content-secondary">
+						{!logo.available
+							? "The platform service is not connected to Coder's database, so a logo cannot be stored."
+							: logo.enabled === false
+								? "Logo hidden. Your saved logo is kept for when you turn it on again."
+								: logo.set && logo.type && logo.bytes !== null
+									? `${logo.type.replace("image/", "").toUpperCase()}, ${formatBytes(logo.bytes)} · uploaded by ${logo.updatedBy ?? "unknown"}${logo.updatedAt ? ` on ${new Date(logo.updatedAt).toLocaleString("en-US")}` : ""}`
+									: "No custom logo: the default logo is shown."}
+					</p>
+					{/* One button: Change Logo, its arrow's menu restoring the default. */}
+					<div className="mt-4 flex">
+						<Button
+							className="rounded-r-none"
+							disabled={!logo.available}
+							onClick={onUpload}
+						>
+							Change Logo
 						</Button>
-					</DropdownMenuTrigger>
-					<DropdownMenuContent align="start">
-						<DropdownMenuItem disabled={!logo.set} onSelect={onReset}>
-							<RotateCcwIcon />
-							Restore the default logo
-						</DropdownMenuItem>
-					</DropdownMenuContent>
-				</DropdownMenu>
+						<DropdownMenu>
+							<DropdownMenuTrigger asChild>
+								<Button
+									className="min-w-0 rounded-l-none border-0 border-l border-solid border-l-content-invert/25 px-2"
+									disabled={!logo.available}
+									aria-label="More logo choices"
+									data-testid="logo-menu"
+								>
+									<ChevronDownIcon />
+								</Button>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align="start">
+								<DropdownMenuItem disabled={!logo.set} onSelect={onReset}>
+									<RotateCcwIcon />
+									Restore the default logo
+								</DropdownMenuItem>
+							</DropdownMenuContent>
+						</DropdownMenu>
+					</div>
+				</div>
+				<div className="flex min-w-0 flex-col gap-3">
+					<span className="text-sm font-medium">Live preview</span>
+					<Tabs
+						value={previewTheme}
+						onValueChange={(value) => {
+							if (value === "dark" || value === "light") setPreviewTheme(value);
+						}}
+					>
+						<TabsList aria-label="Logo preview theme">
+							<TabsTrigger value="dark">Dark</TabsTrigger>
+							<TabsTrigger value="light">Light</TabsTrigger>
+						</TabsList>
+						<TabsContent value={previewTheme}>
+							<LogoPreview
+								theme={previewTheme}
+								src={logo.url}
+								hidden={logo.enabled === false}
+								caption={`${previewTheme === "dark" ? "Dark" : "Light"} theme preview`}
+							/>
+						</TabsContent>
+					</Tabs>
+				</div>
 			</div>
 		</section>
 	);

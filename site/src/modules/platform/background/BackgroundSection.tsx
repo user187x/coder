@@ -1,3 +1,4 @@
+import { cn } from "cn";
 import { useImperativeHandle, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { toast } from "sonner";
@@ -513,7 +514,12 @@ export const BackgroundCard: React.FC<{
 					)}
 				</div>
 			</fieldset>
-			<div className="flex min-w-0 flex-col gap-3 xl:sticky xl:top-20">
+			<div
+				className={cn(
+					"flex min-w-0 flex-col gap-3",
+					slot === "login" ? "xl:self-center" : "xl:sticky xl:top-20",
+				)}
+			>
 				{previewHeader ?? <span className="text-sm font-medium">Preview</span>}
 				<BackgroundPreview
 					slot={slot}

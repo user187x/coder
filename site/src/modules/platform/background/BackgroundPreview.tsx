@@ -11,12 +11,22 @@ import { backgroundStyle } from "./PlatformBackground";
 export const BackgroundPreview: React.FC<{
 	slot: BackgroundSlot;
 	children?: React.ReactNode;
+	navbarTransparency?: number;
 	image: BackgroundImage | null;
 	html?: string;
 	dials: BackgroundDials;
 	opacity: number;
 	layer: BackgroundLayer;
-}> = ({ slot, image, html, dials, opacity, layer, children }) => {
+}> = ({
+	slot,
+	image,
+	html,
+	dials,
+	opacity,
+	layer,
+	children,
+	navbarTransparency,
+}) => {
 	const htmlLayer = html ? (
 		<HtmlPreviewFrame
 			html={html}
@@ -34,7 +44,11 @@ export const BackgroundPreview: React.FC<{
 				"relative isolate overflow-hidden rounded-lg border border-solid border-border bg-surface-primary",
 				children ? "min-h-80" : "h-44",
 			)}
-			aria-label="Preview"
+			aria-label={
+				navbarTransparency === undefined
+					? "Preview"
+					: `Navigation bar preview at ${navbarTransparency}% transparency`
+			}
 			role="img"
 		>
 			{layer === "under" && htmlLayer}
@@ -54,10 +68,35 @@ export const BackgroundPreview: React.FC<{
 					</div>
 				) : (
 					<div className="flex h-full flex-col">
-						<div className="flex h-8 items-center gap-2 border-0 border-b border-solid border-border px-3">
-							<span className="h-3 w-10 rounded bg-content-secondary/40" />
-							<span className="h-3 w-16 rounded bg-content-secondary/25" />
-							<span className="h-3 w-12 rounded bg-content-secondary/25" />
+						<div
+							className={cn(
+								"flex h-8 items-center gap-2 border-0 border-b border-solid border-border px-3",
+								navbarTransparency !== undefined && "relative z-20",
+							)}
+							style={
+								navbarTransparency === undefined
+									? undefined
+									: {
+											backgroundColor: `hsl(var(--surface-primary) / ${1 - navbarTransparency / 100})`,
+										}
+							}
+						>
+							{navbarTransparency !== undefined ? (
+								<>
+									<span className="rounded border border-solid border-border bg-surface-primary px-2 py-0.5 text-xs">
+										Resources
+									</span>
+									<span className="ml-auto rounded border border-solid border-border bg-surface-primary px-2 py-0.5 text-xs">
+										Settings
+									</span>
+								</>
+							) : (
+								<>
+									<span className="h-3 w-10 rounded bg-content-secondary/40" />
+									<span className="h-3 w-16 rounded bg-content-secondary/25" />
+									<span className="h-3 w-12 rounded bg-content-secondary/25" />
+								</>
+							)}
 						</div>
 						<div className="flex flex-1 flex-col gap-2 p-4">
 							<span className="h-4 w-40 rounded bg-content-secondary/40" />
