@@ -51,7 +51,7 @@ export const DeploymentBannerView: React.FC<DeploymentBannerViewProps> = ({
 	fetchStats,
 }) => {
 	const row = useRef<HTMLDivElement>(null);
-	const fontSize = useFitText(row, 14, 8, true);
+	const fontSize = useFitText(row, 14, 9, true, true);
 	const aggregatedMinutes = useMemo(() => {
 		if (!stats) {
 			return;

@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "react-query";
 import { toast } from "sonner";
 import { getErrorMessage } from "#/api/errors";
 import { buildInfo } from "#/api/queries/buildInfo";
+import { navbarAppearance } from "#/api/queries/platform";
 import {
 	preferenceSettings,
 	preferenceSettingsKey,
@@ -25,6 +26,10 @@ export const Navbar: React.FC = () => {
 	const { user: me, permissions, signOut } = useAuthenticated();
 	const featureVisibility = useFeatureVisibility();
 	const proxyContextValue = useProxy();
+	const { data: navbar } = useQuery({
+		...navbarAppearance(),
+		enabled: window.__cuiNavbarTransparency !== undefined,
+	});
 
 	const canViewDeployment = canViewDeploymentSettings(permissions);
 	const canViewOrganizations = canViewOrganizationSettings;
@@ -52,6 +57,7 @@ export const Navbar: React.FC = () => {
 	}
 	return (
 		<NavbarView
+			transparency={navbar?.transparency}
 			user={me}
 			buildInfo={buildInfoQuery.data}
 			supportLinks={Array.from(uniqueLinks.values())}

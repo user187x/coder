@@ -2477,6 +2477,12 @@ export const PlatformAPI = {
 		post<{ ok: true; enabled: boolean }>(`${PLATFORM_BASE}/api/logo`, {
 			enabled,
 		}),
+	getNavbarAppearance: () =>
+		get<{ transparency: number }>(`${PLATFORM_BASE}/api/navbar-appearance`),
+	setNavbarAppearance: (transparency: number) =>
+		post<{ transparency: number }>(`${PLATFORM_BASE}/api/navbar-appearance`, {
+			transparency,
+		}),
 	getAnimationPolicy: () =>
 		get<AnimationPolicy>(`${PLATFORM_BASE}/api/animations`),
 	setAnimationPolicy: (change: {

@@ -1,8 +1,14 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { LOGIN_PAGE_DEFAULT } from "#/api/platform";
 import { backgroundsKey } from "#/api/queries/backgrounds";
-import { loginPageKey, logoKey } from "#/api/queries/platform";
+import {
+	animationPolicy,
+	loginPageKey,
+	logoKey,
+	navbarAppearance,
+} from "#/api/queries/platform";
 import { myAppearanceKey } from "#/api/queries/users";
+import { DEFAULT_ANIMATION_POLICY } from "#/hooks/useAnimationSettings";
 import { MockBackgrounds } from "#/testHelpers/appearance";
 import { MockUserAppearanceSettings } from "#/testHelpers/entities";
 import { MockLogo } from "#/testHelpers/platform";
@@ -20,6 +26,8 @@ const meta: Meta<typeof CustomizeSettingsPage> = {
 		layout: "fullscreen",
 		queries: [
 			{ key: logoKey, data: MockLogo },
+			{ key: navbarAppearance().queryKey, data: { transparency: 45 } },
+			{ key: animationPolicy().queryKey, data: DEFAULT_ANIMATION_POLICY },
 			{
 				key: loginPageKey,
 				data: {

@@ -14,6 +14,7 @@ declare global {
 		__cuiLogo?: string;
 		__cuiLogoEnabled?: boolean;
 		__cuiAnimationPolicy?: AnimationPolicy;
+		__cuiNavbarTransparency?: number;
 		__cuiClassification?: ClassificationSettings;
 		/** The sign-in page's title, effect and messages (Customize > Sign-in page). */
 		__cuiLoginPage?: LoginPageSettings;

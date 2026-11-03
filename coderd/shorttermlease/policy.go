@@ -53,7 +53,7 @@ func Allowed(row database.ShortTermLease, r *http.Request) bool {
 		return false
 	}
 	switch p {
-	case "/__coder-ui/api/animations", "/api/v2/users/first", "/api/v2/users/authmethods", "/api/v2/users/me/appearance", "/api/v2/users/me/preferences", "/__coder-ui/boot.js", "/__coder-ui/logo", "/api/v2/users/me", "/api/v2/workspaces", "/api/v2/buildinfo", "/api/v2/appearance", "/api/v2/experiments", "/api/v2/entitlements", "/api/v2/organizations", "/api/v2/deployment/stats", "/api/v2/users/me/roles":
+	case "/__coder-ui/api/navbar-appearance", "/__coder-ui/api/animations", "/api/v2/users/first", "/api/v2/users/authmethods", "/api/v2/users/me/appearance", "/api/v2/users/me/preferences", "/__coder-ui/boot.js", "/__coder-ui/logo", "/api/v2/users/me", "/api/v2/workspaces", "/api/v2/buildinfo", "/api/v2/appearance", "/api/v2/experiments", "/api/v2/entitlements", "/api/v2/organizations", "/api/v2/deployment/stats", "/api/v2/users/me/roles":
 		return true
 	}
 	if strings.HasPrefix(p, "/__coder-ui/icons/") || strings.HasPrefix(p, "/__coder-ui/background/") || strings.HasPrefix(p, "/__coder-ui/banner-picture/") {

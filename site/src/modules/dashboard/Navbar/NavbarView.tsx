@@ -23,6 +23,7 @@ import { WorkspacesDropdown } from "./WorkspacesDropdown";
 import "./navbarSoft.css";
 
 type NavbarViewProps = {
+	transparency?: number;
 	user: TypesGen.User;
 	buildInfo?: TypesGen.BuildInfoResponse;
 	supportLinks: readonly TypesGen.LinkConfig[];
@@ -34,6 +35,7 @@ type NavbarViewProps = {
 };
 
 export const NavbarView: React.FC<NavbarViewProps> = ({
+	transparency = 0,
 	user,
 	buildInfo,
 	supportLinks,
@@ -67,6 +69,9 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 					event.preventDefault();
 					startNavbarArrange();
 				}
+			}}
+			style={{
+				backgroundColor: `hsl(var(--surface-primary) / var(--navbar-preview-alpha, ${1 - transparency / 100}))`,
 			}}
 			className="navbar-soft sticky top-0 bg-surface-primary z-40 border-0 border-b border-solid h-[72px] min-h-[72px] flex items-center leading-none px-6"
 		>

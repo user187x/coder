@@ -40,6 +40,22 @@ export const dashboardAddress = () => ({
 });
 
 export const classificationKey = [...platformKey, "classification"] as const;
+const navbarAppearanceKey = [...platformKey, "navbar-appearance"] as const;
+export const navbarAppearance = () => ({
+	queryKey: navbarAppearanceKey,
+	queryFn: PlatformAPI.getNavbarAppearance,
+	initialData:
+		typeof window.__cuiNavbarTransparency === "number"
+			? { transparency: window.__cuiNavbarTransparency }
+			: undefined,
+	refetchInterval: 30_000,
+	retry: false,
+});
+export const updateNavbarAppearance = (client: QueryClient) => ({
+	mutationFn: PlatformAPI.setNavbarAppearance,
+	onSuccess: (value: { transparency: number }) =>
+		client.setQueryData(navbarAppearanceKey, value),
+});
 const animationPolicyKey = [...platformKey, "animations"] as const;
 export const animationPolicy = () => ({
 	queryKey: animationPolicyKey,

@@ -8435,6 +8435,7 @@ def boot_js():
             json.dumps(default_avatar),
         )
     )
+    js += "window.__cuiNavbarTransparency=%s;\n" % json.dumps(STORE.get_setting("navbar_transparency", 0))
     js += "window.__cuiAnimationPolicy=%s;\n" % json.dumps(animation_policy())
     js += "window.__cuiLogoEnabled=%s;\n" % json.dumps(STORE.get_setting("logo_enabled", True))
     try:
@@ -9089,6 +9090,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_json(
                 200, STORE.get_setting("classification", CLASSIFICATION_DEFAULT)
             )
+        if path == BASE + "/api/navbar-appearance":
+            return self.send_json(200, {"transparency": STORE.get_setting("navbar_transparency", 0)})
         if path == BASE + "/api/animations":
             return self.send_json(200, animation_policy())
         if path == BASE + "/api/login-page":
@@ -9895,6 +9898,7 @@ class Handler(BaseHTTPRequestHandler):
             BASE + "/api/events/clear",
             BASE + "/api/classification",
             BASE + "/api/login-page",
+            BASE + "/api/navbar-appearance",
             BASE + "/api/animations",
             BASE + "/api/quick-menu",
             BASE + "/api/quick-menu/reset",
@@ -9984,6 +9988,12 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path in (BASE + "/api/notes", BASE + "/api/notes/update", BASE + "/api/notes/delete"):
             return self.notes_post(path, payload, user)
+        if path == BASE + "/api/navbar-appearance":
+            value = payload.get("transparency")
+            if type(value) is not int or not 0 <= value <= 100:
+                return self.send_json(400, {"error": "Transparency must be a whole percentage from 0 to 100."})
+            STORE.put_setting("navbar_transparency", value)
+            return self.send_json(200, {"transparency": value})
         if path == BASE + "/api/animations":
             part, enabled = payload.get("part"), payload.get("enabled")
             if part not in ANIMATION_PARTS or not isinstance(enabled, bool):

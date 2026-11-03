@@ -4747,6 +4747,16 @@ class LogoVisibilityTest(unittest.TestCase):
         _, _, store = self.post({"enabled": False}, allowed=False)
         store.put_setting.assert_not_called()
 
+    def test_navbar_transparency_validates_range_and_requires_admin(self):
+        for value in (-1, 101, True, "50", 12.5):
+            handler, _, store = self.post({"transparency": value}, path="/api/navbar-appearance")
+            self.assertEqual(handler.send_json.call_args.args[0], 400)
+            store.put_setting.assert_not_called()
+        _, _, store = self.post({"transparency": 40}, path="/api/navbar-appearance", allowed=False)
+        store.put_setting.assert_not_called()
+        _, _, store = self.post({"transparency": 40}, path="/api/navbar-appearance")
+        store.put_setting.assert_called_once_with("navbar_transparency", 40)
+
     def test_animation_policy_requires_admin_and_an_explicit_boolean(self):
         for payload in ({"part": "gifs", "enabled": "false"}, {"part": "other", "enabled": False}):
             handler, _, store = self.post(payload, path="/api/animations")
