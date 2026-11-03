@@ -20,7 +20,7 @@ it.each([
 		{
 			path: "*",
 			element: (
-				<AccountShortcutMenu>
+				<AccountShortcutMenu onSignOut={vi.fn()}>
 					<button type="button">Account</button>
 				</AccountShortcutMenu>
 			),
@@ -51,7 +51,7 @@ it("opens the picture editor from the keyboard context menu", async () => {
 				element: (
 					<>
 						<Observe />
-						<AccountShortcutMenu>
+						<AccountShortcutMenu onSignOut={vi.fn()}>
 							<button type="button">Account</button>
 						</AccountShortcutMenu>
 					</>
@@ -63,4 +63,27 @@ it("opens the picture editor from the keyboard context menu", async () => {
 	await user.keyboard("{Shift>}{F10}{/Shift}");
 	await user.click(screen.getByRole("menuitem", { name: "Set picture" }));
 	expect(pictureOpen).toBe(true);
+});
+
+it("signs out once from Account actions", async () => {
+	const onSignOut = vi.fn();
+	const user = userEvent.setup();
+	renderWithRouter(
+		createMemoryRouter([
+			{
+				path: "/",
+				element: (
+					<AccountShortcutMenu onSignOut={onSignOut}>
+						<button type="button">Account</button>
+					</AccountShortcutMenu>
+				),
+			},
+		]),
+	);
+	await user.pointer({
+		target: screen.getByRole("button", { name: "Account" }),
+		keys: "[MouseRight]",
+	});
+	await user.click(screen.getByRole("menuitem", { name: "Sign Out" }));
+	expect(onSignOut).toHaveBeenCalledOnce();
 });

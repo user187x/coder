@@ -197,7 +197,7 @@ export const SettingsResourceTray = ({
 	];
 	const accountShortcut = (
 		<div className="relative mb-2 size-8 shrink-0">
-			<AccountShortcutMenu>
+			<AccountShortcutMenu onSignOut={onSignOut}>
 				<DropdownMenuItem
 					ref={accountLink}
 					className="justify-center size-8 p-0"
