@@ -160,6 +160,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 				open={open}
 				onOpenChange={(next) => {
 					setOpen(next);
+					if (!next) setChatExpanded(false);
 					// The menu's old "Refresh latencies" row, now each time it opens.
 					if (next) {
 						proxy?.refetchProxyLatencies();
@@ -321,6 +322,8 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 						{/* Platform: the latency to each of your workspaces, live, while it is pressed; locked, the grid's choice. */}
 						<WorkspacesLatencyMenu
 							open={open}
+							chatExpanded={chatExpanded}
+							onExpand={() => setChatExpanded(false)}
 							onOpenGrid={(ids, layout) => {
 								setOpen(false);
 								// after the menu has handed the focus back, so the grid keeps it

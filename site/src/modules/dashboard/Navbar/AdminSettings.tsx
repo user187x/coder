@@ -95,8 +95,8 @@ export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
 					</Link>
 				</DropdownMenuItem>
 			)}
-			{canViewAdminSettings(permissions) && (
-				<div ref={metricsRef} data-settings-metrics hidden={chatExpanded}>
+			{!chatExpanded && canViewAdminSettings(permissions) && (
+				<div ref={metricsRef} data-settings-metrics>
 					<ClusterGauge />
 				</div>
 			)}

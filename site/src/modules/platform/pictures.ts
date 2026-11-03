@@ -13,27 +13,23 @@ export type PrebakedPicture = {
 	type: string;
 };
 
+const metalBackground = {
+	url: "/pictures/meta.jpeg",
+	opacity: 0.2,
+	fit: "span",
+	layer: "under",
+	builtin: true,
+} satisfies BackgroundImage;
+
 export const DEFAULT_BACKGROUNDS = {
-	login: {
-		url: "/pictures/login-orbit.gif",
-		opacity: 1,
-		fit: "span",
-		layer: "under",
-		builtin: true,
-	},
-	dashboard: {
-		url: "/pictures/meta.jpeg",
-		opacity: 0.2,
-		fit: "span",
-		layer: "under",
-		builtin: true,
-	},
+	login: metalBackground,
+	dashboard: metalBackground,
 } satisfies Record<BackgroundSlot, BackgroundImage>;
 
 export const PREBAKED_BACKGROUNDS: readonly PrebakedPicture[] = [
 	{
 		name: "login-orbit.gif",
-		url: DEFAULT_BACKGROUNDS.login.url,
+		url: "/pictures/login-orbit.gif",
 		type: "image/gif",
 	},
 	{

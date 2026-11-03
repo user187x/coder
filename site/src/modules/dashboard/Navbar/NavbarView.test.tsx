@@ -12,6 +12,7 @@ import {
 	MockUserMember,
 	MockUserOwner,
 } from "#/testHelpers/entities";
+import { MockClusterUsage } from "#/testHelpers/platform";
 import { renderComponent } from "#/testHelpers/renderHelpers";
 import type { AdminSettingsPermissions } from "./AdminSettings";
 import { NavbarView } from "./NavbarView";
@@ -181,6 +182,30 @@ describe("NavbarView", () => {
 			expect(setOpen).toHaveBeenLastCalledWith(false);
 		},
 	);
+
+	it("closes the workspace list for Controls chat and restores metrics when chat closes", async () => {
+		vi.spyOn(chatStore, "useChatConnection").mockImplementation(() => {});
+		vi.spyOn(PlatformAPI, "getClusterUsage").mockResolvedValue(
+			MockClusterUsage,
+		);
+		renderNavbar({ canEditDeployment: true });
+		const user = userEvent.setup();
+		await user.click(screen.getByRole("button", { name: /Settings/ }));
+		await user.click(await screen.findByRole("menuitem", { name: "Controls" }));
+		const pill = screen.getByTestId("workspaces-latency");
+		pill.focus();
+		await user.keyboard("{Enter}");
+		expect(pill).toHaveAttribute("aria-expanded", "true");
+		await user.click(screen.getByRole("menuitem", { name: "Chat" }));
+		expect(pill).toHaveAttribute("aria-expanded", "false");
+		const metrics = "Cluster CPU, memory, network and disk";
+		expect(screen.queryByLabelText(metrics)).toBeNull();
+		await user.click(
+			screen.getByRole("button", { name: "Dismiss quick chat" }),
+		);
+		expect(await screen.findByLabelText(metrics)).toBeTruthy();
+		expect(pill).toHaveAttribute("aria-expanded", "false");
+	});
 
 	it("lets a member restore chat from the Settings menu", async () => {
 		const save = vi

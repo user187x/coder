@@ -901,8 +901,8 @@ def main():
                       and d["metadata"]["name"] == "coder-ui-updates")
     env = deployment["spec"]["template"]["spec"]["containers"][0]["env"]
     defaults = json.loads(next(e["value"] for e in env if e["name"] == "BACKGROUND_DEFAULTS"))
-    check("appearance: fresh installs use the bundled animated login and dashboard pictures",
-          defaults.get("login", {}).get("picture") == "/pictures/login-orbit.gif"
+    check("appearance: fresh installs use the bundled metal background for login and dashboard",
+          defaults.get("login", {}).get("picture") == "/pictures/meta.jpeg"
           and defaults.get("dashboard", {}).get("picture") == "/pictures/meta.jpeg", defaults)
     push_jobs = {d["metadata"]["name"]: "\n".join(c["args"][0] for c in d["spec"]["template"]["spec"]["containers"])
                  for d in yaml.safe_load_all(rdf) if d and d.get("kind") == "Job" and "push-template" in d["metadata"]["name"]}
