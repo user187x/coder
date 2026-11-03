@@ -1,3 +1,4 @@
+import { cn } from "cn";
 import { RefreshCcwIcon } from "lucide-react";
 import type React from "react";
 import { useQuery } from "react-query";
@@ -99,11 +100,12 @@ export const WorkspaceStatusIndicator: React.FC<
 	workspace,
 	children,
 	runningLight = false,
-	className,
+	className: extraClassName,
 	listPill = false,
 	agentUpdateAvailable = false,
 	starting = false,
 }) => {
+	const className = cn("shrink-0 whitespace-nowrap", extraClassName);
 	let { text, type } = getDisplayWorkspaceStatus(
 		workspace.latest_build.status,
 		workspace.latest_build.job,
