@@ -1,7 +1,7 @@
 import { cn } from "cn";
 import { Suspense } from "react";
 import { useQuery } from "react-query";
-import { Outlet } from "react-router";
+import { Outlet, useMatch } from "react-router";
 import { globalLockdown } from "#/api/queries/globalLockdown";
 import { Loader } from "#/components/Loader/Loader";
 import { isEmbeddedFrame } from "#/contexts/platformBoot";
@@ -19,6 +19,7 @@ import { UpdateCheckNotice } from "./UpdateCheckNotice/UpdateCheckNotice";
 import { useUpdateCheck } from "./useUpdateCheck";
 
 export const DashboardLayout: React.FC = () => {
+	const workspaceList = useMatch("/workspaces");
 	const { permissions } = useAuthenticated();
 	const { data: lockdown } = useQuery(globalLockdown());
 	const updateCheck = useUpdateCheck(permissions.viewDeploymentConfig);
@@ -75,14 +76,16 @@ export const DashboardLayout: React.FC = () => {
 					</Suspense>
 				</main>
 
-				{!embedded && <DeploymentBanner />}
+				{!embedded && !workspaceList && <DeploymentBanner />}
 
 				{!embedded && updateCheck.isVisible && updateCheck.data && (
 					<UpdateCheckNotice
 						version={updateCheck.data.version}
 						releaseNotesUrl={updateCheck.data.url}
 						onDismiss={updateCheck.dismiss}
-						aboveDeploymentBanner={Boolean(permissions.viewDeploymentStats)}
+						aboveDeploymentBanner={Boolean(
+							!workspaceList && permissions.viewDeploymentStats,
+						)}
 					/>
 				)}
 			</div>

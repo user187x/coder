@@ -8399,6 +8399,62 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v2/users/login/email/request": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Request an email sign-in token",
+                "operationId": "request-an-email-sign-in-token",
+                "parameters": [
+                    {
+                        "description": "Registered email address",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.RequestOneTimePasscodeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    }
+                }
+            }
+        },
+        "/api/v2/users/login/email/verify": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Sign in with a single-use email token",
+                "operationId": "sign-in-with-a-single-use-email-token",
+                "parameters": [
+                    {
+                        "description": "Email address and token",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/coderd.emailLoginVerification"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    }
+                }
+            }
+        },
         "/api/v2/users/logout": {
             "post": {
                 "produces": [
@@ -13923,56 +13979,6 @@ const docTemplate = `{
                         "Authorization": []
                     }
                 ]
-            }
-        },
-        "/users/login/email/request": {
-            "post": {
-                "tags": [
-                    "Authentication"
-                ],
-                "summary": "Request an email sign-in token",
-                "operationId": "request-email-login",
-                "parameters": [
-                    {
-                        "description": "Registered email address",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/codersdk.RequestOneTimePasscodeRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "204": {
-                        "description": "No Content"
-                    }
-                }
-            }
-        },
-        "/users/login/email/verify": {
-            "post": {
-                "tags": [
-                    "Authentication"
-                ],
-                "summary": "Sign in with a single-use email token",
-                "operationId": "verify-email-login",
-                "parameters": [
-                    {
-                        "description": "Email address and token",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/coderd.emailLoginVerification"
-                        }
-                    }
-                ],
-                "responses": {
-                    "204": {
-                        "description": "No Content"
-                    }
-                }
             }
         }
     },

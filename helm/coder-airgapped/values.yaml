@@ -193,13 +193,7 @@ coder:
                 except OSError as e:
                     print("waiting for the database at %s:%d: %s" % (host, port, e), flush=True)
                     time.sleep(3)
-        # Optional email sign-in works without Keycloak and independently of the notifications method.
-    # Add a Secret with coder.coder.envFrom: [{secretRef: {name: coder-login-mail}}].
-    # Configure CODER_EMAIL_LOGIN_ENABLED=true, CODER_EMAIL_FROM, CODER_EMAIL_SMARTHOST (host:port),
-    # and CODER_EMAIL_TLS_STARTTLS=true or CODER_EMAIL_FORCE_TLS=true. If the relay requires login,
-    # include CODER_EMAIL_AUTH_USERNAME and CODER_EMAIL_AUTH_PASSWORD in the Secret.
-    # Enable only where control of the registered mailbox is an approved independent login factor.
-    env:
+        env:
           - name: DB_HOST
             valueFrom: {secretKeyRef: {name: '{{ .Values.global.database.name }}-app', key: host}}
           - name: DB_PORT
@@ -231,6 +225,12 @@ coder:
     # Extra environment appended to `env` (platform patch), so overrides need not repeat the list below, e.g.
     #   [{name: CODER_TELEMETRY_ENABLE, value: "false"}, {name: CODER_UPDATE_CHECK, value: "false"}]
     extraEnv: []
+    # Optional email sign-in works without Keycloak and independently of the notifications method.
+    # Add a Secret with coder.coder.envFrom: [{secretRef: {name: coder-login-mail}}].
+    # Configure CODER_EMAIL_LOGIN_ENABLED=true, CODER_EMAIL_FROM, CODER_EMAIL_SMARTHOST (host:port),
+    # and CODER_EMAIL_TLS_STARTTLS=true or CODER_EMAIL_FORCE_TLS=true. If the relay requires login,
+    # include CODER_EMAIL_AUTH_USERNAME and CODER_EMAIL_AUTH_PASSWORD in the Secret.
+    # Enable only where control of the registered mailbox is an approved independent login factor.
     env:
     # The platform build asks the add-on service (Health > User Quota) before creating a workspace. This and the next
     # are the fork's own settings: empty (unset) for upstream Coder, on a base without the layer.

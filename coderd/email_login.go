@@ -51,11 +51,12 @@ func emailLoginUser(user database.User, email string) bool {
 }
 
 // @Summary Request an email sign-in token
-// @ID request-email-login
+// @ID request-an-email-sign-in-token
 // @Tags Authentication
+// @Accept json
 // @Param request body codersdk.RequestOneTimePasscodeRequest true "Registered email address"
 // @Success 204
-// @Router /users/login/email/request [post]
+// @Router /api/v2/users/login/email/request [post]
 func (api *API) requestEmailLogin(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	if !api.emailLoginAvailable() {
@@ -110,11 +111,12 @@ func (api *API) requestEmailLogin(rw http.ResponseWriter, r *http.Request) {
 }
 
 // @Summary Sign in with a single-use email token
-// @ID verify-email-login
+// @ID sign-in-with-a-single-use-email-token
 // @Tags Authentication
+// @Accept json
 // @Param request body emailLoginVerification true "Email address and token"
 // @Success 204
-// @Router /users/login/email/verify [post]
+// @Router /api/v2/users/login/email/verify [post]
 func (api *API) verifyEmailLogin(rw http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	if !api.emailLoginAvailable() {

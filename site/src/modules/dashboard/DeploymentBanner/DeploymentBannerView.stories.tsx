@@ -166,3 +166,5 @@ export const WithDismissedHealthIssues: Story = {
 };
 
 export const Healthy: Story = { args: { health: MockHealth } };
+
+export const BelowWorkspaceTable: Story = { args: { underTable: true } };

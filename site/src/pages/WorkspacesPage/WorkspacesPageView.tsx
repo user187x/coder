@@ -20,7 +20,9 @@ import {
 	PageHeaderTitle,
 } from "#/components/PageHeader/PageHeader";
 import { PaginationWidgetBase } from "#/components/PaginationWidget/PaginationWidgetBase";
+import { isEmbeddedFrame } from "#/contexts/platformBoot";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
+import { DeploymentBanner } from "#/modules/dashboard/DeploymentBanner/DeploymentBanner";
 import { CloudDrive } from "#/modules/platform/cloudDrive/CloudDrive";
 import {
 	isLinked,
@@ -274,39 +276,42 @@ export const WorkspacesPageView: React.FC<WorkspacesPageViewProps> = ({
 				/>
 			) : (
 				// Platform: in a rounded card, its footer saying what it holds and what anything in it does
-				<WorkspaceTableTunnels
-					actorId={me.id}
-					shown={workspaces ?? []}
-					canManage={me.roles.some((role) => role.name === "owner")}
-				>
-					<TableCard
-						data-testid="workspaces-card"
-						summary={summary}
-						footerRight={
-							checkedWorkspaces.length > 0
-								? `Selected ${checkedWorkspaces.length} of ${workspaces?.length ?? 0} workspaces`
-								: undefined
-						}
-						hint={
-							drive.enabled && mine.length > 0
-								? "Drag the Cloud Drive plug onto a row to mount it, or pull a plug off a row to unmount"
-								: "Point at anything in the table to read what it does"
-						}
+				<>
+					<WorkspaceTableTunnels
+						actorId={me.id}
+						shown={workspaces ?? []}
+						canManage={me.roles.some((role) => role.name === "owner")}
 					>
-						<WorkspacesTable
-							canCreateTemplate={canCreateTemplate}
-							canCreateWorkspace={canCreateWorkspace}
-							workspaces={workspaces}
-							isUsingFilter={filter.used}
-							onClearFilter={() => filter.update("")}
-							checkedWorkspaces={checkedWorkspaces}
-							onCheckChange={onCheckChange}
-							templates={templates}
-							onActionSuccess={onActionSuccess}
-							onActionError={onActionError}
-						/>
-					</TableCard>
-				</WorkspaceTableTunnels>
+						<TableCard
+							data-testid="workspaces-card"
+							summary={summary}
+							footerRight={
+								checkedWorkspaces.length > 0
+									? `Selected ${checkedWorkspaces.length} of ${workspaces?.length ?? 0} workspaces`
+									: undefined
+							}
+							hint={
+								drive.enabled && mine.length > 0
+									? "Drag the Cloud Drive plug onto a row to mount it, or pull a plug off a row to unmount"
+									: "Point at anything in the table to read what it does"
+							}
+						>
+							<WorkspacesTable
+								canCreateTemplate={canCreateTemplate}
+								canCreateWorkspace={canCreateWorkspace}
+								workspaces={workspaces}
+								isUsingFilter={filter.used}
+								onClearFilter={() => filter.update("")}
+								checkedWorkspaces={checkedWorkspaces}
+								onCheckChange={onCheckChange}
+								templates={templates}
+								onActionSuccess={onActionSuccess}
+								onActionError={onActionError}
+							/>
+						</TableCard>
+					</WorkspaceTableTunnels>
+					{!isEmbeddedFrame() && <DeploymentBanner underTable />}
+				</>
 			)}
 
 			{count !== undefined && (

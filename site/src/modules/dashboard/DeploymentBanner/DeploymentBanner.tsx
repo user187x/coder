@@ -15,7 +15,11 @@ const HIDE_DEPLOYMENT_BANNER_PATHS = [
 	/^\/@(?<username>[a-zA-Z0-9-]+)\/(?<workspace_name>[a-zA-Z0-9-]+)$/,
 ];
 
-export const DeploymentBanner: React.FC = () => {
+export const DeploymentBanner = ({
+	underTable = false,
+}: {
+	underTable?: boolean;
+}) => {
 	const { permissions } = useAuthenticated();
 	const deploymentStatsQuery = useQuery({
 		...deploymentStats(),
@@ -40,6 +44,7 @@ export const DeploymentBanner: React.FC = () => {
 
 	return (
 		<DeploymentBannerView
+			underTable={underTable}
 			health={healthQuery.data}
 			stats={deploymentStatsQuery.data}
 			fetchStats={() => deploymentStatsQuery.refetch()}

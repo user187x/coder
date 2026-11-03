@@ -11,11 +11,11 @@ title: Authentication
 
 ```sh
 # Example request using curl
-curl -X POST http://coder-server:8080/users/login/email/request \
+curl -X POST http://coder-server:8080/api/v2/users/login/email/request \
   -H 'Content-Type: application/json'
 ```
 
-`POST /users/login/email/request`
+`POST /api/v2/users/login/email/request`
 
 > Body parameter
 
@@ -43,11 +43,11 @@ curl -X POST http://coder-server:8080/users/login/email/request \
 
 ```sh
 # Example request using curl
-curl -X POST http://coder-server:8080/users/login/email/verify \
+curl -X POST http://coder-server:8080/api/v2/users/login/email/verify \
   -H 'Content-Type: application/json'
 ```
 
-`POST /users/login/email/verify`
+`POST /api/v2/users/login/email/verify`
 
 > Body parameter
 
