@@ -188,7 +188,7 @@ export const BackgroundCard: React.FC<{
 		setProblem(undefined);
 		setPreparing(true);
 		try {
-			const ready = await prepareBackground(file);
+			const ready = await prepareBackground(file, state.limits.maxBytes);
 			change({
 				...ready,
 				name: file.name,
@@ -323,6 +323,12 @@ export const BackgroundCard: React.FC<{
 										: "No image."}
 					</span>
 				</div>
+				{draft.source === "image" && (
+					<p className="m-0 text-xs text-content-secondary">
+						Upload a GIF up to {state.limits.maxBytes / (1024 * 1024)} MiB to
+						keep its original resolution and frame rate.
+					</p>
+				)}
 				<div className="flex items-center gap-3">
 					<Label htmlFor={`background-source-${slot}`}>Source</Label>
 					<Select

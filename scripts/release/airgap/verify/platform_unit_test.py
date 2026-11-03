@@ -2676,7 +2676,7 @@ class InstallDefaultsTest(unittest.TestCase):
         store.put_setting.side_effect = lambda k, v: settings.__setitem__(k, v)
         bgs = mock.Mock()
         bgs.all.return_value = {"dashboard": {"type": "image/png"}}  # an admin set this one
-        wanted = {"login": {"picture": "minecraft-cube.gif", "opacity": 0.09, "fit": "cover", "layer": "over"},
+        wanted = {"login": {"picture": "/pictures/login-orbit.gif", "opacity": 1, "fit": "span", "layer": "under"},
                   "dashboard": {"picture": "spiral.gif", "opacity": 0.03, "fit": "cover", "layer": "under"}}
         with mock.patch.object(ui, "STORE", store), mock.patch.object(ui, "BACKGROUNDS", bgs), \
                 mock.patch.object(ui, "BACKGROUND_DEFAULTS", json.dumps(wanted)), \
@@ -2685,13 +2685,22 @@ class InstallDefaultsTest(unittest.TestCase):
             bgs.put.assert_called_once()
             slot, ctype, data, opts, by = bgs.put.call_args[0]
             self.assertEqual((slot, data, opts["opacity"], opts["layer"], by),
-                             ("login", b"/__coder-ui/image-store/minecraft-cube.gif", 0.09, "over", "install defaults"))
+                             ("login", b"/pictures/login-orbit.gif", 1, "under", "install defaults"))
             self.assertIn("background_defaults_seeded", settings)
             # once only: after a Reset, nothing comes back
             bgs.all.return_value = {}
             bgs.put.reset_mock()
             ui.seed_background_defaults()
             bgs.put.assert_not_called()
+
+    def test_gif_upload_keeps_original_bytes_above_four_mib(self):
+        import base64
+        data = b"GIF89a" + b"\0" * (4 * 1024 * 1024)
+        url = "data:image/gif;base64," + base64.b64encode(data).decode()
+        self.assertEqual(ui.parse_background(url), ("image/gif", data))
+        with mock.patch.object(ui, "BG_MAX_BYTES", len(data) - 1):
+            with self.assertRaisesRegex(ValueError, "or smaller"):
+                ui.parse_background(url)
 
 
 class ImagesAdminOnlyTest(unittest.TestCase):

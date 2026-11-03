@@ -61,6 +61,15 @@ const meta: Meta<typeof ChatConsoleWorkspace> = {
 export default meta;
 type Story = StoryObj<typeof ChatConsoleWorkspace>;
 export const Conversations: Story = {};
+export const NoConversations: Story = {
+	beforeEach: () => {
+		spyOn(PlatformAPI, "getChatState").mockResolvedValue({
+			...MockChatState,
+			me: { ...MockChatState.me, admin: true },
+			conversations: [],
+		});
+	},
+};
 export const People: Story = {
 	play: async ({ canvasElement }) => {
 		await userEvent.click(

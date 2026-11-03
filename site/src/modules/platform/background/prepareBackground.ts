@@ -1,8 +1,9 @@
+import { readFileAsDataURL } from "#/utils/images";
 import { sniffImageType } from "#/utils/normalizeImage";
 
 const MAX_WIDTH = 1920;
 const MAX_HEIGHT = 1200;
-const MAX_BYTES = 4 * 1024 * 1024;
+const MAX_STILL_BYTES = 4 * 1024 * 1024;
 
 /**
  * A picture ready to store: an animated GIF as it is (so it keeps moving),
@@ -11,22 +12,24 @@ const MAX_BYTES = 4 * 1024 * 1024;
  */
 export const prepareBackground = async (
 	file: File,
+	maxBytes: number,
 ): Promise<{ dataURL: string; bytes: number }> => {
-	const bytes = new Uint8Array(await file.arrayBuffer());
-	const type = sniffImageType(bytes);
+	const header = new Uint8Array(await file.slice(0, 512).arrayBuffer());
+	const type = sniffImageType(header);
 	if (!type || type === "image/svg+xml") {
 		throw new Error("Choose a PNG, JPEG, WebP, GIF or AVIF image.");
 	}
-	if (type === "image/gif" && bytes.length <= MAX_BYTES) {
-		const dataURL = await new Promise<string>((resolve, reject) => {
-			const reader = new FileReader();
-			reader.onload = () => resolve(String(reader.result));
-			reader.onerror = () => reject(new Error("The file could not be read."));
-			reader.readAsDataURL(new Blob([bytes], { type }));
-		});
-		return { dataURL, bytes: bytes.length };
+	if (type === "image/gif") {
+		if (file.size > maxBytes) {
+			throw new Error(
+				`GIF backgrounds must be ${maxBytes / (1024 * 1024)} MiB or smaller.`,
+			);
+		}
+		// Preserve the original frames, delays and loop count even if the file has no MIME type.
+		const dataURL = await readFileAsDataURL(file.slice(0, file.size, type));
+		return { dataURL, bytes: file.size };
 	}
-	const bitmap = await createImageBitmap(new Blob([bytes], { type }));
+	const bitmap = await createImageBitmap(file.slice(0, file.size, type));
 	const scale = Math.min(
 		1,
 		MAX_WIDTH / bitmap.width,
@@ -43,7 +46,7 @@ export const prepareBackground = async (
 			dataURL = canvas.toDataURL("image/jpeg", quality);
 		}
 		const size = Math.round((dataURL.length - dataURL.indexOf(",") - 1) * 0.75);
-		if (size <= MAX_BYTES) {
+		if (size <= Math.min(maxBytes, MAX_STILL_BYTES)) {
 			return { dataURL, bytes: size };
 		}
 	}

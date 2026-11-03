@@ -52,6 +52,10 @@ mkdir -p "$out/platform" "$out/platform-agpl"
 cd "$root/site"
 pnpm install --frozen-lockfile
 pnpm build
+# Both server editions embed this dashboard, including the offline appearance defaults.
+for picture in login-orbit.gif meta.jpeg; do
+	cmp "static/pictures/$picture" "out/pictures/$picture"
+done
 cd "$root"
 "$here/build-agent-archive.sh" "$version" linux/amd64
 "$root/scripts/build_go.sh" --version "$version" --os linux --arch amd64 --output "$out/platform/coder"

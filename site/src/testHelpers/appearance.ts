@@ -10,7 +10,10 @@ export const MockCustomTheme: CustomTheme = {
 };
 export const MockBackgrounds: BackgroundsState = {
 	available: true,
-	limits: { opacity: { min: 0, max: 1, default: 0.06 }, maxBytes: 4194304 },
+	limits: {
+		opacity: { min: 0, max: 1, default: 0.06 },
+		maxBytes: 16 * 1024 * 1024,
+	},
 	login: {
 		url: "/pictures/destructed-cube.png",
 		opacity: 0.06,

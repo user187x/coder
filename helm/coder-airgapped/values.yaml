@@ -692,13 +692,13 @@ uiUpdates:
     enabled: false
     # Dedicated client CA Secret: ca.crt, encrypted ca.key, password. Never a server TLS CA.
     issuerSecret: coder-client-certificate-issuer
-  # The install's look: its backgrounds, each one of the image store's pictures (development/image-store), set once on
+  # Backgrounds can reference a bundled /pictures/ path or a file name from the image store. Set once on
   # a fresh install in the slots no one has set (an admin's change or Reset stays). The default logo and avatar are
   # ../defaults/logo.* and avatar.*, in the service's image (build-ui-image.sh), the ConfigMaps below over them.
   appearanceDefaults:
     backgrounds:
-      login: {picture: minecraft-cube.gif, opacity: 0.09, fit: cover, layer: over}
-      dashboard: {picture: spiral.gif, opacity: 0.03, fit: cover, layer: under}
+      login: {picture: /pictures/login-orbit.gif, opacity: 1, fit: span, layer: under}
+      dashboard: {picture: /pictures/meta.jpeg, opacity: 0.2, fit: span, layer: under}
   # Default logo / avatar ConfigMaps (binaryData), created by ../install.sh from ../defaults/ (kept out of the
   # chart: Helm's release record is limited to 1 MiB). Optional mounts: missing ConfigMaps are fine.
   defaults:

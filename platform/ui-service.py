@@ -3244,7 +3244,7 @@ def parse_logo(data_url):
     data = base64.b64decode(m.group(2))
     if not data or len(data) > LOGO_MAX_BYTES:
         raise ValueError(
-            "The image must be smaller than %d MB." % (LOGO_MAX_BYTES // 1048576)
+            "The image must be %d MiB or smaller." % (LOGO_MAX_BYTES // 1048576)
         )
     ctype = m.group(1)
     ok = {
@@ -3276,7 +3276,7 @@ LOGOS = None
 # --------------------------------------------------------------------------- Background images (Coder's database)
 BG_SLOTS = ("login", "dashboard")
 BG_TYPES = {"image/png", "image/jpeg", "image/webp", "image/gif", "image/avif"}
-BG_MAX_BYTES = 4 * 1024 * 1024  # the dashboard sends at most 1920 x 1200 (WebP); an animated GIF as it is
+BG_MAX_BYTES = 16 * 1024 * 1024  # GIF backgrounds retain their original frames and resolution
 BG_FITS = ("cover", "contain", "tile", "stretch", "center", "span")
 BG_LAYERS = ("under", "over")  # behind the page's content, or a faint watermark over it
 BG_OPACITY = (0.02, 1.0, 0.06)  # min, max, default: hardly noticeable
@@ -3418,7 +3418,7 @@ def parse_background(data_url):
         raise ValueError("Upload a PNG, JPEG, WebP, GIF or AVIF image.")
     data = base64.b64decode(m.group(2))
     if not data or len(data) > BG_MAX_BYTES:
-        raise ValueError("The image must be smaller than %d MB." % (BG_MAX_BYTES // 1048576))
+        raise ValueError("The image must be %d MiB or smaller." % (BG_MAX_BYTES // 1048576))
     if image_type(data) != m.group(1):
         raise ValueError("The file is not a valid %s image." % m.group(1).split("/")[1].upper())
     return m.group(1), data
@@ -3556,7 +3556,10 @@ def seed_background_defaults():
             for slot, d in wanted.items():
                 if slot not in BG_SLOTS or slot in have or not isinstance(d, dict):
                     continue
-                ctype, data = parse_background_picture("%s/image-store/%s" % (BASE, d.get("picture", "")))
+                picture = d.get("picture")
+                if isinstance(picture, str) and not picture.startswith("/"):
+                    picture = "%s/image-store/%s" % (BASE, picture)
+                ctype, data = parse_background_picture(picture)
                 settings = {"opacity": float(d.get("opacity", 0.06)), "fit": d.get("fit", "cover"),
                             "layer": d.get("layer", "under"), "params": {}}
                 BACKGROUNDS.put(slot, ctype, data, settings, "install defaults")
@@ -8584,7 +8587,7 @@ class Handler(BaseHTTPRequestHandler):
         if urllib.parse.urlsplit(self.path).path == BASE + "/api/login-page":
             limit = LOGIN_HEADING_MAX_CHARS + 16384  # a heading image as a data URL, and the page's text
         if urllib.parse.urlsplit(self.path).path == BASE + "/api/backgrounds":
-            limit = BG_MAX_BYTES * 2 + BG_HTML_MAX * 2 + BG_PARAMS_MAX
+            limit = 4 * ((BG_MAX_BYTES + 2) // 3) + BG_PARAMS_MAX + 16384
         if urllib.parse.urlsplit(self.path).path == BASE + "/api/banner-pictures":
             limit = BANNER_PICTURE_MAX_BYTES * 4 // 3 + 4096  # base64 of the largest picture, and its name
         if urllib.parse.urlsplit(self.path).path == BASE + "/api/icons":

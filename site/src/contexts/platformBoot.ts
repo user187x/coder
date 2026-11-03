@@ -15,6 +15,8 @@ import type {
 	ClassificationSettings,
 } from "#/api/platform";
 
+import { DEFAULT_BACKGROUNDS } from "#/modules/platform/pictures";
+
 type PlatformSnapshot = {
 	logoURL: string;
 	logoEnabled: boolean;
@@ -39,7 +41,7 @@ let snapshot: PlatformSnapshot = {
 	avatars: window.__cuiAvatars ?? {},
 	defaultAvatarURL: window.__cuiAvatarDefault || DEFAULT_AVATAR_URL,
 	defaultAvatarUsers: window.__cuiAvatarUsers ?? new Set(),
-	backgrounds: window.__cuiBackgrounds ?? {},
+	backgrounds: window.__cuiBackgrounds ?? DEFAULT_BACKGROUNDS,
 };
 
 const listeners = new Set<() => void>();
