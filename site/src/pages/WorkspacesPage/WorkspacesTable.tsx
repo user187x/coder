@@ -196,7 +196,7 @@ export const WorkspacesTable: React.FC<WorkspacesTableProps> = ({
 					>
 						Name
 					</TableHead>
-					{/* Platform: CPU and RAM as live graphs, the disk used of what it was given */}
+					{/* Platform: CPU and MEM as live graphs, the disk used of what it was given */}
 					<TableHead
 						className={cn("w-0 px-3 text-center", hideHeaders && "invisible")}
 					>

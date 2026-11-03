@@ -73,7 +73,7 @@ export const WorkspaceMetricDetails: React.FC<{
 				className="w-[360px] max-w-[calc(100vw-32px)] p-4 shadow-lg"
 			>
 				<WorkspaceMetricHistory
-					label={kind === "ram" ? "MEM" : label.toUpperCase()}
+					label={label.toUpperCase()}
 					capacity={
 						maximum && {
 							...maximum,

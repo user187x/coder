@@ -131,7 +131,7 @@ resource "coder_agent" "main" {
   }
 
   metadata {
-    display_name = "RAM Usage"
+    display_name = "MEM Usage"
     key          = "1_ram_usage"
     script       = "coder stat mem"
     interval     = 10

@@ -60,6 +60,14 @@ html[data-workspace-expanded] {
 }
 .workspace-dashboard-page[data-workspace-expanded] .workspace-agent-card {
 	flex: 1;
+	min-height: 0;
+	overflow: auto;
+	overscroll-behavior: contain;
+}
+.workspace-dashboard-page[data-workspace-expanded]
+	.workspace-agent-card
+	> fieldset {
+	flex: 1 0 auto;
 }
 .workspace-dashboard-page[data-workspace-expanded] .agent-app-frame {
 	flex: 1;

@@ -22,7 +22,7 @@ import {
 import type { OneWayWebSocket } from "#/utils/OneWayWebSocket";
 import { WorkspaceMetricDetails } from "./WorkspaceMetricDetails";
 
-/** How many readings the CPU and RAM graphs show, the newest on the right. */
+/** How many readings the CPU and MEM graphs show, the newest on the right. */
 const GRAPH_BARS = 12;
 /** The disk's bar, in segments. */
 const DISK_SEGMENTS = 16;
@@ -86,7 +86,7 @@ export const readingOf = (m?: WorkspaceAgentMetadata): Reading | null => {
 		: { share: Math.max(0, Math.min(100, share)), text };
 };
 
-/** The workspace's own CPU, RAM and disk readings (not the cluster's), as its page shows them. */
+/** The workspace's own CPU, MEM and disk readings (not the cluster's), as its page shows them. */
 const RANKS = { cpu: 0, ram: 1, disk: 2 } as const;
 const workspaceMetric = (
 	metadata: readonly WorkspaceAgentMetadata[],
@@ -151,7 +151,7 @@ const useAgentReadings = (agentId: string | undefined) => {
 };
 
 /**
- * Platform: the Workspaces table's Resources column - a running workspace's CPU and RAM as small live bar graphs
+ * Platform: the Workspaces table's Resources column - a running workspace's CPU and MEM as small live bar graphs
  * (its last readings, each bar coloured by its level, as on its page) and its disk as a bar of what is used of what
  * it was given. The readings are its agent's metadata, the same as its page's Workspace group; a workspace that is
  * not running (or whose agent is not connected) shows a dash.
@@ -224,10 +224,10 @@ export const WorkspaceResources: React.FC<{ workspace: Workspace }> = ({
 				organizationId={workspace.organization_id}
 				agentId={agent.id}
 				kind="ram"
-				label="RAM"
+				label="MEM"
 				metric={ramMetric}
 			>
-				<BarGraph label="RAM" reading={ram} shares={series.ram} />
+				<BarGraph label="MEM" reading={ram} shares={series.ram} />
 			</WorkspaceMetricDetails>
 			<WorkspaceMetricDetails
 				workspaceId={workspace.id}

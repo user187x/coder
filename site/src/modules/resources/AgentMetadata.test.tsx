@@ -25,15 +25,15 @@ const metadata = [
 	metric("2_load", "Load Avg", "0.13 / 6 cores (2%)"),
 	metric("3_home_disk", "Disk", "0.3/20 GB (1%)"),
 	metric("4_cpu_usage_host", "CPU", "2.8/24 cores (12%)"),
-	metric("5_mem_usage_host", "RAM", "19.5/98.6 GB (20%)"),
+	metric("5_mem_usage_host", "MEM", "19.5/98.6 GB (20%)"),
 	metric("6_disk_host", "Disk", "918.7/1003.7 GB (92%)"),
 	metric("7_load_host", "Load Avg", "2.10/24 cores (9%)"),
 ];
-it("orders CPU, RAM, Disk and load consistently in workspace and host groups", () => {
+it("orders CPU, MEM, Disk and load consistently in workspace and host groups", () => {
 	for (const items of [metadata, [...metadata].reverse()])
 		expect(groupMetadata(items).map((g) => g.items.map(metricName))).toEqual([
-			["CPU", "RAM", "Disk", "Ø Load"],
-			["CPU", "RAM", "Disk", "Ø Load"],
+			["CPU", "MEM", "Disk", "Ø Load"],
+			["CPU", "MEM", "Disk", "Ø Load"],
 		]);
 });
 it("normalizes legacy host and load metric names", () => {
@@ -79,7 +79,7 @@ it("publishes only workspace metric intervals when infrastructure is restricted"
 	);
 	expect(publish).toHaveBeenCalledWith("restricted-intervals", [
 		{ name: "Workspace CPU", s: 10 },
-		{ name: "Workspace RAM", s: 10 },
+		{ name: "Workspace MEM", s: 10 },
 		{ name: "Workspace Ø Load", s: 10 },
 		{ name: "Workspace Disk", s: 10 },
 	]);

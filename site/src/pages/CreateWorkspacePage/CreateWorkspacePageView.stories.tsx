@@ -122,25 +122,25 @@ const parameterDropdown: PreviewParameter = {
 	options: [
 		{
 			name: "t3.micro",
-			description: "1 vCPU, 1 GB RAM - Free tier eligible",
+			description: "1 vCPU, 1 GB MEM - Free tier eligible",
 			value: { valid: true, value: "t3.micro" },
 			icon: "/emojis/1f7e2.png",
 		},
 		{
 			name: "t3.small",
-			description: "2 vCPU, 2 GB RAM",
+			description: "2 vCPU, 2 GB MEM",
 			value: { valid: true, value: "t3.small" },
 			icon: "/emojis/1f7e1.png",
 		},
 		{
 			name: "t3.medium",
-			description: "2 vCPU, 4 GB RAM",
+			description: "2 vCPU, 4 GB MEM",
 			value: { valid: true, value: "t3.medium" },
 			icon: "/emojis/1f7e0.png",
 		},
 		{
 			name: "t3.large",
-			description: "2 vCPU, 8 GB RAM",
+			description: "2 vCPU, 8 GB MEM",
 			value: { valid: true, value: "t3.large" },
 			icon: "/emojis/1f534.png",
 		},

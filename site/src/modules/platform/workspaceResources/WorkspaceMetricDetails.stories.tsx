@@ -27,7 +27,7 @@ const meta: Meta<typeof WorkspaceMetricHistory> = {
 export default meta;
 type Story = StoryObj<typeof WorkspaceMetricHistory>;
 export const CPU: Story = {};
-export const RAM: Story = {
+export const MEM: Story = {
 	args: {
 		label: "MEM",
 		capacity: { text: "8GiB", label: "Assigned maximum: 8 GiB" },

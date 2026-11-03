@@ -9,11 +9,11 @@
 {{- $metrics := .Files.Get "files/scripts/metadata.sh" }}
 {{- range $entry := list
   (list "0_cpu_usage" "CPU" "coder stat cpu" 10 1)
-  (list "1_ram_usage" "RAM" (printf "%s\nram" $metrics) 10 1)
+  (list "1_ram_usage" "MEM" (printf "%s\nram" $metrics) 10 1)
   (list "2_home_disk" "Disk" (printf "%s\ndisk" $metrics) 60 15)
   (list "3_load" "Ø Load" (printf "%s\nload" $metrics) 10 3)
   (list "4_cpu_usage_host" "CPU" "coder stat cpu --host" 10 1)
-  (list "5_mem_usage_host" "RAM" (printf "%s\nram_host" $metrics) 10 1)
+  (list "5_mem_usage_host" "MEM" (printf "%s\nram_host" $metrics) 10 1)
   (list "6_disk_host" "Disk" (printf "%s\ndisk_host" $metrics) 60 5)
   (list "7_load_host" "Ø Load" (printf "%s\nload_host" $metrics) 60 1)
   (list "8_net_io" "Network" (printf "%s\nnet" $metrics) 1 1) }}

@@ -203,7 +203,7 @@ def validate_vm(obj, fetch, namespace, allowed_images, cpu_models, registry_name
     exact(memory, ('guest', 'maxGuest'))
     memory_bytes = quantity(memory['guest'])
     if memory_bytes <= 0 or quantity(memory['maxGuest']) != memory_bytes:
-        raise ProfileError('VM current and maximum RAM must equal allocation')
+        raise ProfileError('VM current and maximum MEM must equal allocation')
     resources = domain['resources']
     exact(resources, ('requests', 'limits'))
     if quantity(resources['requests'].get('cpu', '0')) != cores or quantity(resources['limits'].get('cpu', '0')) != cores or quantity(resources['requests'].get('memory', '0')) != memory_bytes:

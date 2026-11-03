@@ -82,7 +82,7 @@ if (args.workspace) {
 		const chips = await page.getByTestId("metadata-percent").count();
 		check("workspace metrics: percentage chips", chips >= 3, `${chips} chips`);
 		const text = (await page.getByTestId("metrics-group-workspace").innerText()).replace(/\s+/g, " ");
-		check("workspace metrics: RAM in GB", / GB/.test(text) && !/GiB/.test(text), text.slice(0, 160));
+		check("workspace metrics: MEM in GB", / GB/.test(text) && !/GiB/.test(text), text.slice(0, 160));
 		const box = async (l) => l.boundingBox();
 		const apps = await box(page.getByTestId("agent-apps"));
 		const ws = await box(page.getByTestId("metrics-group-workspace"));
