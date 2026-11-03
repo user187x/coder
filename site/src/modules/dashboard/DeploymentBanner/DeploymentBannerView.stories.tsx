@@ -13,13 +13,11 @@ import {
 	TableRow,
 } from "#/components/Table/Table";
 import { TableCard } from "#/modules/platform/tableCard/TableCard";
-import { HudStorageClasses } from "#/pages/HudPage/HudStorageClasses";
 import {
 	DeploymentHealthUnhealthy,
 	MockDeploymentStats,
 	MockHealth,
 } from "#/testHelpers/entities";
-import { MockHudStorage } from "#/testHelpers/hud";
 import { DeploymentBannerView } from "./DeploymentBannerView";
 
 const app = (
@@ -104,15 +102,18 @@ export const Mobile: Story = {
 	globals: { viewport: { value: "iphone12" } },
 };
 
-export const HudTableFooter: Story = {
+export const HudTotals: Story = {
 	args: { health: MockHealth },
 	render: (args) => (
-		<main className="max-w-6xl mx-auto">
-			<HudStorageClasses
-				storage={MockHudStorage}
-				footerStats={<DeploymentBannerView {...args} />}
-			/>
-		</main>
+		<div className="max-w-6xl mx-auto overflow-hidden rounded-lg border border-solid border-border bg-surface-secondary/40">
+			<div
+				data-deployment-footer="hud"
+				className="border-0 border-b border-solid border-border"
+			>
+				<DeploymentBannerView {...args} />
+			</div>
+			<div className="px-4 py-3 font-mono text-sm">CPU · Memory · GPU</div>
+		</div>
 	),
 };
 

@@ -42,15 +42,17 @@ const DeploymentSettingsLayout: React.FC = () => {
 	// this page must be visible if you can see any of these. The AI settings
 	// pages render in this layout too and check their own permissions, and so
 	// do the Health pages (the health report).
+	const category = adminCategory(location.pathname);
 	const canViewHealth = permissions.viewDebugInfo;
 	const canViewDeploymentSettingsPage =
+		(category?.id === "images" && permissions.editDeploymentConfig) ||
 		canViewDeploymentSettings(permissions) ||
 		location.pathname.startsWith("/ai/settings") ||
 		(location.pathname.startsWith("/health") && canViewHealth);
 
 	// the category's quick-link icon in the breadcrumb (General: the Admin menu's Settings icon)
 	const chat = location.pathname === "/deployment/chat";
-	const category = adminCategory(location.pathname);
+
 	const CategoryIcon = category?.icon ?? SettingsIcon;
 
 	return (

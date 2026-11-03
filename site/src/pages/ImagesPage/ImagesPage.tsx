@@ -28,7 +28,6 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "#/components/DropdownMenu/DropdownMenu";
-import { Margins } from "#/components/Margins/Margins";
 import {
 	PageHeader,
 	PageHeaderSubtitle,
@@ -125,7 +124,7 @@ const ImagesPage: React.FC = () => {
 	}, [query.data, search, status, onlyNeedsFixing]);
 
 	return (
-		<Margins className="pb-12">
+		<div className="min-w-0 pb-12">
 			<title>{pageTitle("Images")}</title>
 			<PageHeader
 				actions={
@@ -325,7 +324,7 @@ const ImagesPage: React.FC = () => {
 				/>
 			)}
 			{settings && <ImagesSettingsDialog onClose={() => setSettings(false)} />}
-		</Margins>
+		</div>
 	);
 };
 

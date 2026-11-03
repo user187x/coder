@@ -472,7 +472,9 @@ export const router = createBrowserRouter(
 
 					{/* Platform: admins only */}
 					<Route path="/images" element={<RequireImagesAccess />}>
-						<Route index element={<ImagesPage />} />
+						<Route element={<DeploymentSettingsLayout />}>
+							<Route index element={<ImagesPage />} />
+						</Route>
 						<Route path=":image">
 							<Route index element={<ImageDetailPage />} />
 							<Route path="edit" element={<ImageEditorPage />} />
