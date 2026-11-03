@@ -127,6 +127,7 @@ const ImagesPage: React.FC = () => {
 		<div className="min-w-0 pb-12">
 			<title>{pageTitle("Images")}</title>
 			<PageHeader
+				className="pt-0 pb-6 md:items-start"
 				actions={
 					<div className="flex flex-wrap items-center gap-2">
 						{(needFixing > 0 || onlyNeedsFixing) && (

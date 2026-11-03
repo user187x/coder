@@ -1,9 +1,9 @@
 import { Building2Icon, CableIcon, ScrollTextIcon } from "lucide-react";
 import { Link } from "react-router";
 import { DropdownMenuItem } from "#/components/DropdownMenu/DropdownMenu";
-import { ClusterGauge } from "#/modules/platform/ClusterGauge";
 import { AdminQuickLinksMenu } from "./AdminQuickLinksMenu";
 import type { AdminPage } from "./adminQuickLinks";
+import { SettingsMetricGraphs } from "./SettingsMetricGraphs";
 
 /**
  * Permissions that determine which items appear in the Admin menu.
@@ -95,10 +95,11 @@ export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
 					</Link>
 				</DropdownMenuItem>
 			)}
-			{!chatExpanded && canViewAdminSettings(permissions) && (
-				<div ref={metricsRef} data-settings-metrics>
-					<ClusterGauge />
-				</div>
+			{canViewAdminSettings(permissions) && (
+				<SettingsMetricGraphs
+					anchor={metricsRef}
+					chatExpanded={Boolean(chatExpanded)}
+				/>
 			)}
 		</>
 	);

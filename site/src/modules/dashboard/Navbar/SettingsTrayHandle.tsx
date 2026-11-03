@@ -14,6 +14,7 @@ export const SettingsTrayHandle = ({
 	label,
 	attention,
 	instructions,
+	horizontal = false,
 	expanded,
 	locked,
 	busy,
@@ -24,6 +25,7 @@ export const SettingsTrayHandle = ({
 	label: string;
 	attention?: string;
 	instructions?: string;
+	horizontal?: boolean;
 	expanded: boolean;
 	locked?: boolean;
 	busy: boolean;
@@ -46,7 +48,7 @@ export const SettingsTrayHandle = ({
 						? `${label} locked ${expanded ? "open" : "closed"}.`
 						: `${label} unlocked.`}
 			</span>
-			{(["top", "bottom"] as const).map((edge) => (
+			{(horizontal ? ["left", "right"] : ["top", "bottom"]).map((edge) => (
 				<DropdownMenuItem
 					key={edge}
 					role="menuitemcheckbox"

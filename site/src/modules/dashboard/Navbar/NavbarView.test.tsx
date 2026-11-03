@@ -207,6 +207,46 @@ describe("NavbarView", () => {
 		expect(pill).toHaveAttribute("aria-expanded", "false");
 	});
 
+	it("saves the graph handle's visibility and restores it after chat", async () => {
+		vi.spyOn(PlatformAPI, "getClusterUsage").mockResolvedValue(
+			MockClusterUsage,
+		);
+		const save = vi
+			.spyOn(PlatformAPI, "setUserUIPreferences")
+			.mockImplementation(async (changes) => changes);
+		vi.spyOn(chatStore, "useChatConnection").mockImplementation(() => {});
+		renderNavbar({ canEditDeployment: true });
+		const user = userEvent.setup();
+		await user.click(screen.getByRole("button", { name: /Settings/ }));
+		await user.dblClick(
+			await screen.findByRole("menuitem", { name: "Hide metric graphs" }),
+		);
+		expect(save).toHaveBeenLastCalledWith({
+			settings_metrics: { expanded: false, locked: false },
+		});
+		await user.click(screen.getByRole("menuitem", { name: "Controls" }));
+		await user.click(screen.getByRole("menuitem", { name: "Chat" }));
+		await user.click(
+			screen.getByRole("button", { name: "Dismiss quick chat" }),
+		);
+		const grip = await screen.findByRole("menuitem", {
+			name: "Show metric graphs",
+		});
+		grip.focus();
+		await user.keyboard("{Enter}");
+		expect(save).toHaveBeenLastCalledWith({
+			settings_metrics: { expanded: true, locked: false },
+		});
+		await user.click(
+			await screen.findByRole("menuitemcheckbox", {
+				name: "Lock metric graphs (left dimple)",
+			}),
+		);
+		expect(save).toHaveBeenLastCalledWith({
+			settings_metrics: { expanded: true, locked: true },
+		});
+	});
+
 	it("lets a member restore chat from the Settings menu", async () => {
 		const save = vi
 			.spyOn(PlatformAPI, "setUserUIPreferences")

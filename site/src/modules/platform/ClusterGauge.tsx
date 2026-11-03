@@ -3,10 +3,11 @@ import { useQuery } from "react-query";
 import type {
 	ClusterHistory,
 	ClusterNetwork,
+	ClusterUsage,
 	ResourceUsage,
 	UsagePoint,
 } from "#/api/platform";
-import { clusterUsage, hudHistory } from "#/api/queries/platform";
+import { hudHistory } from "#/api/queries/platform";
 
 import { ClusterDiskGraph } from "./ClusterDiskGraph";
 
@@ -48,18 +49,12 @@ const formatAmount = (kind: Kind, value: number) =>
  * be given; under each, its last 15 minutes; under both, network and disk history.
  * Users who are not admins get no answer, so nothing is shown.
  */
-export const ClusterGauge: React.FC = () => {
-	const { data } = useQuery(clusterUsage());
+export const ClusterGauge: React.FC<{ data: ClusterUsage }> = ({ data }) => {
 	const disk = useQuery({
 		...hudHistory("15m"),
-		enabled: Boolean(data),
 		retry: false,
 		refetchIntervalInBackground: false,
 	});
-
-	if (!data) {
-		return null;
-	}
 
 	return (
 		<div

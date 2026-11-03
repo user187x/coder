@@ -199,8 +199,12 @@ class UIState(threading.Thread):
     def preferences(self, user_id, changes=None):
         pool = self.database()
         if changes is not None:
-            if not isinstance(changes, dict) or changes.keys() - {'people_order', 'people_sort', 'quota_seen', 'resource_shortcuts', 'resource_shortcut_order', 'resource_tray', 'admin_notes_tray', 'resource_tray_top', 'admin_notes_tray_top', 'navbar_layout', 'chat_position', 'chat_size', 'chat_hidden', 'chat_keep_open'}:
+            if not isinstance(changes, dict) or changes.keys() - {'people_order', 'people_sort', 'quota_seen', 'resource_shortcuts', 'resource_shortcut_order', 'resource_tray', 'admin_notes_tray', 'resource_tray_top', 'admin_notes_tray_top', 'settings_metrics', 'navbar_layout', 'chat_position', 'chat_size', 'chat_hidden', 'chat_keep_open'}:
                 raise ValueError('Unsupported preference.')
+            if 'settings_metrics' in changes:
+                metrics = changes['settings_metrics']
+                if not isinstance(metrics, dict) or set(metrics) != {'expanded', 'locked'} or any(type(v) is not bool for v in metrics.values()):
+                    raise ValueError('Invalid metric graph preference.')
             for key in ('resource_tray_top', 'admin_notes_tray_top'):
                 if key in changes and (type(changes[key]) not in (int, float) or not 0 <= changes[key] <= 16384):
                     raise ValueError('Invalid panel position.')
