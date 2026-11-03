@@ -8,6 +8,11 @@ import { Avatar } from "#/components/Avatar/Avatar";
 import { Button } from "#/components/Button/Button";
 import { Checkbox } from "#/components/Checkbox/Checkbox";
 import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "#/components/Popover/Popover";
+import {
 	Table,
 	TableBody,
 	TableCell,
@@ -27,6 +32,7 @@ import { AccountWorkspaceManagement } from "./AccountWorkspaceManagement";
 type PanelProps = {
 	user: User;
 	canManage: boolean;
+	compact?: boolean;
 	selected: ReadonlyMap<string, Workspace>;
 	onSelect: (workspace: Workspace, checked: boolean) => void;
 };
@@ -57,6 +63,7 @@ export const AccountWorkspacePanelView: React.FC<
 > = ({
 	user,
 	canManage,
+	compact = false,
 	selected,
 	onSelect,
 	workspaces: list,
@@ -105,14 +112,14 @@ export const AccountWorkspacePanelView: React.FC<
 					<Table
 						aria-label={`${user.username}'s workspaces`}
 						className="account-workspaces-table"
-						wrapperClassName="min-w-0 overflow-x-hidden"
+						wrapperClassName="account-workspaces-table-surface min-w-0 overflow-clip"
 					>
 						<colgroup>
-							{canManage && <col style={{ width: "6%" }} />}
-							<col style={{ width: canManage ? "22%" : "28%" }} />
-							<col style={{ width: "23%" }} />
-							<col style={{ width: "21%" }} />
-							<col style={{ width: "28%" }} />
+							{canManage && <col style={{ width: 32 }} />}
+							<col />
+							{!compact && <col style={{ width: "23%" }} />}
+							{!compact && <col style={{ width: "21%" }} />}
+							<col style={{ width: compact ? 80 : "28%" }} />
 						</colgroup>
 						<TableHeader>
 							<TableRow>
@@ -141,93 +148,124 @@ export const AccountWorkspacePanelView: React.FC<
 							</TableRow>
 						</TableHeader>
 						<TableBody>
-							{list.map((w) => (
-								<RestrictedWorkspaceRow workspace={w} key={w.id}>
-									{canManage && (
-										<TableCell data-account-field="selection">
-											<Checkbox
-												aria-label={`Choose workspace ${user.username}/${w.name}`}
-												checked={selected.has(w.id)}
-												disabled={
-													w.is_prebuild || w.latest_build.status === "deleted"
-												}
-												onCheckedChange={(v) => onSelect(w, v === true)}
+							{list.map((w) => {
+								const template = (
+									<Button
+										asChild
+										variant="outline"
+										size="sm"
+										className="max-w-full min-w-0 gap-1 rounded-[10px] py-1 pl-1 pr-2"
+									>
+										<Link
+											to={links(
+												linkToTemplate(w.organization_name, w.template_name),
+											)}
+										>
+											<Avatar
+												variant="icon"
+												src={w.template_icon}
+												fallback={w.template_display_name || w.template_name}
+												size="md"
+												className="rounded-[7px]"
 											/>
-										</TableCell>
-									)}
-									<TableCell data-label="Workspace">
-										<Button
-											asChild
-											variant="subtle"
-											size="sm"
-											className="min-w-0 max-w-full"
-										>
-											<Link
-												to={`/@${encodeURIComponent(w.owner_name)}/${encodeURIComponent(w.name)}`}
-												aria-label={`Open dashboard for ${w.name}`}
-											>
-												<WorkspaceRestrictionAvatar workspace={w}>
-													<Avatar
-														src={w.owner_avatar_url}
-														fallback={w.owner_name}
-														size="sm"
-													/>
-												</WorkspaceRestrictionAvatar>
-												<span className="truncate">{w.name}</span>
-												<ArrowUpRightIcon aria-hidden />
-											</Link>
-										</Button>
-										{w.is_prebuild && (
-											<span className="ml-2 text-xs text-content-secondary">
-												System prebuild
+											<span className="truncate">
+												{w.template_display_name ||
+													w.template_name ||
+													"Unknown template"}
 											</span>
-										)}
-									</TableCell>
-									<TableCell data-label="Template">
-										<Button
-											asChild
-											variant="outline"
-											size="sm"
-											className="max-w-full min-w-0 gap-1 rounded-[10px] py-1 pl-1 pr-2"
-										>
-											<Link
-												to={links(
-													linkToTemplate(w.organization_name, w.template_name),
-												)}
-											>
-												<Avatar
-													variant="icon"
-													src={w.template_icon}
-													fallback={w.template_display_name || w.template_name}
-													size="md"
-													className="rounded-[7px]"
+										</Link>
+									</Button>
+								);
+								const status = (
+									<WorkspaceStatusIndicator
+										workspace={w}
+										runningLight
+										className="workspace-topbar-running-status gap-1.5 rounded-full border border-solid border-current/20 bg-surface-secondary px-2 py-1 text-xs"
+									/>
+								);
+								const actions =
+									canManage && !w.is_prebuild ? (
+										<AccountWorkspaceManagement workspace={w} />
+									) : (
+										<span className="text-xs text-content-secondary">
+											View only
+										</span>
+									);
+								return (
+									<RestrictedWorkspaceRow workspace={w} key={w.id}>
+										{canManage && (
+											<TableCell data-account-field="selection">
+												<Checkbox
+													aria-label={`Choose workspace ${user.username}/${w.name}`}
+													checked={selected.has(w.id)}
+													disabled={
+														w.is_prebuild || w.latest_build.status === "deleted"
+													}
+													onCheckedChange={(v) => onSelect(w, v === true)}
 												/>
-												<span className="truncate">
-													{w.template_display_name ||
-														w.template_name ||
-														"Unknown template"}
-												</span>
-											</Link>
-										</Button>
-									</TableCell>
-									<TableCell data-label="Status">
-										<WorkspaceStatusIndicator
-											workspace={w}
-											runningLight
-											className="workspace-topbar-running-status gap-1.5 rounded-full border border-solid border-current/20 bg-surface-secondary px-2 py-1 text-xs"
-										/>
-									</TableCell>
-									<TableCell data-label="Actions">
-										{canManage && !w.is_prebuild ? (
-											<AccountWorkspaceManagement workspace={w} />
-										) : (
-											<span className="text-xs text-content-secondary">
-												View only
-											</span>
+											</TableCell>
 										)}
-									</TableCell>
-								</RestrictedWorkspaceRow>
-							))}
+										<TableCell data-label="Workspace">
+											<Button
+												asChild
+												variant="subtle"
+												size="sm"
+												className="min-w-0 max-w-full"
+											>
+												<Link
+													to={`/@${encodeURIComponent(w.owner_name)}/${encodeURIComponent(w.name)}`}
+													aria-label={`Open dashboard for ${w.name}`}
+												>
+													<WorkspaceRestrictionAvatar workspace={w}>
+														<Avatar
+															src={w.owner_avatar_url}
+															fallback={w.owner_name}
+															size="sm"
+														/>
+													</WorkspaceRestrictionAvatar>
+													<span className="truncate">{w.name}</span>
+													<ArrowUpRightIcon aria-hidden />
+												</Link>
+											</Button>
+											{w.is_prebuild && (
+												<span className="ml-2 text-xs text-content-secondary">
+													System prebuild
+												</span>
+											)}
+										</TableCell>
+
+										{compact ? (
+											<TableCell>
+												<Popover>
+													<PopoverTrigger asChild>
+														<Button
+															size="sm"
+															variant="outline"
+															aria-label={`Details for ${w.name}`}
+														>
+															Details
+														</Button>
+													</PopoverTrigger>
+													<PopoverContent
+														className="flex w-fit max-w-[calc(100vw-1rem)] flex-col items-start gap-2"
+														aria-label={`Details for ${w.name}`}
+													>
+														{template}
+														{status}
+														{actions}
+													</PopoverContent>
+												</Popover>
+											</TableCell>
+										) : (
+											<>
+												<TableCell>{template}</TableCell>
+												<TableCell>{status}</TableCell>
+												<TableCell>{actions}</TableCell>
+											</>
+										)}
+									</RestrictedWorkspaceRow>
+								);
+							})}
 						</TableBody>
 					</Table>
 				</TableCard>

@@ -1,7 +1,7 @@
 import { cn } from "cn";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
-import { useContext, useId, useState } from "react";
+import { useContext, useId, useLayoutEffect, useRef, useState } from "react";
 import { useQuery } from "react-query";
 import type { WorkspaceNote } from "#/api/platform";
 import type { GroupsByUserId } from "#/api/queries/groups";
@@ -10,6 +10,13 @@ import type * as TypesGen from "#/api/typesGenerated";
 import { AvatarDataSkeleton } from "#/components/Avatar/AvatarDataSkeleton";
 import { Checkbox } from "#/components/Checkbox/Checkbox";
 import { InfoTooltip } from "#/components/InfoTooltip/InfoTooltip";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "#/components/Select/Select";
 import { Skeleton } from "#/components/Skeleton/Skeleton";
 import {
 	Table,
@@ -70,6 +77,16 @@ export type UsersTableProps = {
 	onSelect?: (ids: ReadonlySet<string>) => void;
 };
 
+const fieldWidths = {
+	Roles: 9,
+	Notes: 11,
+	Resources: 18,
+	Latency: 9,
+	Activity: 9,
+	Status: 10,
+};
+type AccountField = keyof typeof fieldWidths;
+
 export const UsersTable: React.FC<UsersTableProps> = (props) => {
 	const { users = [], selected, onSelect } = props;
 	const quota = useContext(QuotaEditorContext);
@@ -85,18 +102,68 @@ export const UsersTable: React.FC<UsersTableProps> = (props) => {
 		});
 	// Platform: each user's latency and activity over the last seven days (what a template's Overview showed)
 	const insights = useUserInsights(true);
+	const region = useRef<HTMLDivElement>(null);
+	const [layout, setLayout] = useState<"wide" | "compact" | "narrow">("wide");
+	useLayoutEffect(() => {
+		const element = region.current;
+		if (!element) return;
+		const measure = (width: number) =>
+			setLayout(width < 620 ? "narrow" : width < 960 ? "compact" : "wide");
+		measure(element.getBoundingClientRect().width || 960);
+		const observer = new ResizeObserver(([entry]) => {
+			if (entry) measure(entry.contentRect.width);
+		});
+		observer.observe(element);
+		return () => observer.disconnect();
+	}, []);
+	const [picked, setPicked] = useState("");
+	const fields: AccountField[] = ["Roles", "Notes"];
+	if (quota) fields.push("Resources");
+	if (insights.shown) fields.push("Latency", "Activity");
+	fields.push("Status");
+	const fixed = layout === "compact" ? ["Roles", "Notes", "Status"] : [];
+	const choices = fields.filter((field) => !fixed.includes(field));
+	const current =
+		choices.find((field) => field === picked) ??
+		(layout === "narrow" ? "Status" : choices[0]);
+	const visible = new Set(
+		fields.filter(
+			(field) =>
+				layout === "wide" || fixed.includes(field) || field === current,
+		),
+	);
 	const choosable = users.filter((u) => u.id !== props.me);
 	const all =
 		choosable.length > 0 && choosable.every((u) => selected?.has(u.id));
 	const some = choosable.some((u) => selected?.has(u.id));
 	return (
-		<>
+		<div ref={region} className="accounts-table-region">
 			{props.canManageWorkspaces && selectedWorkspaces.size > 0 && (
 				<AccountWorkspaceActions
 					targets={[...selectedWorkspaces.values()]}
 					onClear={() => setSelectedWorkspaces(new Map())}
 					onDeleted={(workspace) => onWorkspaceSelect(workspace, false)}
 				/>
+			)}
+			{layout !== "wide" && choices.length > 1 && (
+				<div className="flex items-center justify-end gap-2 px-3 py-1 text-xs text-content-secondary">
+					<span>Show column</span>
+					<Select value={current} onValueChange={setPicked}>
+						<SelectTrigger
+							aria-label="Account detail column"
+							className="h-7 w-auto gap-2"
+						>
+							<SelectValue />
+						</SelectTrigger>
+						<SelectContent>
+							{choices.map((field) => (
+								<SelectItem key={field} value={field}>
+									{field}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+				</div>
 			)}
 			<Table
 				data-testid="users-table"
@@ -105,23 +172,17 @@ export const UsersTable: React.FC<UsersTableProps> = (props) => {
 				wrapperClassName="accounts-table-surface"
 			>
 				<colgroup>
-					{selected && onSelect && <col style={{ width: "3%" }} />}
-					<col
-						style={{
-							width: `${100 - 9 - 11 - 10 - (quota ? 18 : 0) - (insights.shown ? 18 : 0) - (props.canEditUsers ? 5 : 0) - (selected && onSelect ? 3 : 0)}%`,
-						}}
-					/>
-					<col style={{ width: "9%" }} />
-					<col style={{ width: "11%" }} />
-					{quota && <col style={{ width: "18%" }} />}
-					{insights.shown && (
-						<>
-							<col style={{ width: "9%" }} />
-							<col style={{ width: "9%" }} />
-						</>
-					)}
-					<col style={{ width: "10%" }} />
-					{props.canEditUsers && <col style={{ width: "5%" }} />}
+					{selected && onSelect && <col style={{ width: 32 }} />}
+					<col />
+					{[...visible].map((field) => (
+						<col
+							key={field}
+							style={{
+								width: layout === "narrow" ? "30%" : `${fieldWidths[field]}%`,
+							}}
+						/>
+					))}
+					{props.canEditUsers && <col style={{ width: 40 }} />}
 				</colgroup>
 				<TableHeader>
 					<TableRow>
@@ -140,39 +201,43 @@ export const UsersTable: React.FC<UsersTableProps> = (props) => {
 							</TableHead>
 						)}
 						<TableHead>User</TableHead>
-						<TableHead>
-							<div className="flex flex-row gap-2 items-center">
-								<span>Roles</span>
-								<RolesHelpPopover />
-							</div>
-						</TableHead>
-						{/* Platform: admins' post-it notes on the user's workspaces, instead of Groups. */}
-						<TableHead>Notes</TableHead>
-						{quota && <TableHead>Resources</TableHead>}
-						{/* Platform: how the user's connections to their workspaces went, beside when they were last seen */}
-						{insights.shown && (
-							<>
-								<TableHead className="whitespace-nowrap text-center">
-									<span className="flex items-center justify-center gap-1">
-										Latency
-										<InfoTooltip size="small">
-											<TooltipTitle>Latency</TooltipTitle>
-											<TooltipMessage>{`The median round trip of the user's connections to their workspaces over the last ${INSIGHTS_DAYS} days, every template.`}</TooltipMessage>
-										</InfoTooltip>
-									</span>
-								</TableHead>
-								<TableHead className="whitespace-nowrap text-center">
-									<span className="flex items-center justify-center gap-1">
-										Activity
-										<InfoTooltip size="small">
-											<TooltipTitle>Activity</TooltipTitle>
-											<TooltipMessage>{`How long the user was connected to their workspaces (apps, the terminal, SSH) over the last ${INSIGHTS_DAYS} days, every template.`}</TooltipMessage>
-										</InfoTooltip>
-									</span>
-								</TableHead>
-							</>
+						{visible.has("Roles") && (
+							<TableHead>
+								<div className="flex flex-row gap-2 items-center">
+									<span>Roles</span>
+									<RolesHelpPopover />
+								</div>
+							</TableHead>
 						)}
-						<TableHead className="text-center">Status</TableHead>
+						{/* Platform: admins' post-it notes on the user's workspaces, instead of Groups. */}
+						{visible.has("Notes") && <TableHead>Notes</TableHead>}
+						{visible.has("Resources") && <TableHead>Resources</TableHead>}
+						{/* Platform: how the user's connections to their workspaces went, beside when they were last seen */}
+						{visible.has("Latency") && (
+							<TableHead className="whitespace-nowrap text-center">
+								<span className="flex items-center justify-center gap-1">
+									Latency
+									<InfoTooltip size="small">
+										<TooltipTitle>Latency</TooltipTitle>
+										<TooltipMessage>{`The median round trip of the user's connections to their workspaces over the last ${INSIGHTS_DAYS} days, every template.`}</TooltipMessage>
+									</InfoTooltip>
+								</span>
+							</TableHead>
+						)}
+						{visible.has("Activity") && (
+							<TableHead className="whitespace-nowrap text-center">
+								<span className="flex items-center justify-center gap-1">
+									Activity
+									<InfoTooltip size="small">
+										<TooltipTitle>Activity</TooltipTitle>
+										<TooltipMessage>{`How long the user was connected to their workspaces (apps, the terminal, SSH) over the last ${INSIGHTS_DAYS} days, every template.`}</TooltipMessage>
+									</InfoTooltip>
+								</span>
+							</TableHead>
+						)}
+						{visible.has("Status") && (
+							<TableHead className="text-center">Status</TableHead>
+						)}
 						{props.canEditUsers && (
 							<TableHead>
 								<span className="sr-only">Account actions</span>
@@ -184,19 +249,23 @@ export const UsersTable: React.FC<UsersTableProps> = (props) => {
 				<TableBody>
 					<UsersTableBody
 						{...props}
+						narrow={layout === "narrow"}
+						visible={visible}
 						insights={insights}
 						selectedWorkspaces={selectedWorkspaces}
 						onWorkspaceSelect={onWorkspaceSelect}
 					/>
 				</TableBody>
 			</Table>
-		</>
+		</div>
 	);
 };
 
 const UsersTableBody: React.FC<
 	UsersTableProps & {
 		insights: ReturnType<typeof useUserInsights>;
+		visible: ReadonlySet<AccountField>;
+		narrow: boolean;
 		selectedWorkspaces: ReadonlyMap<string, TypesGen.Workspace>;
 		onWorkspaceSelect: (
 			workspace: TypesGen.Workspace,
@@ -205,6 +274,8 @@ const UsersTableBody: React.FC<
 	}
 > = ({
 	insights,
+	visible,
+	narrow,
 	selectedWorkspaces,
 	onWorkspaceSelect,
 	canManageWorkspaces,
@@ -224,7 +295,7 @@ const UsersTableBody: React.FC<
 			<UsersTableSkeleton
 				canEditUsers={canEditUsers}
 				selectable={Boolean(selected && onSelect)}
-				insights={insights.shown}
+				visible={visible}
 			/>
 		);
 	}
@@ -236,6 +307,8 @@ const UsersTableBody: React.FC<
 	return users.map((user) => (
 		<UsersTableRow
 			key={user.id}
+			narrow={narrow}
+			visible={visible}
 			user={user}
 			selected={selected}
 			selectedWorkspaces={selectedWorkspaces}
@@ -266,6 +339,8 @@ type UsersTableRowProps = Omit<
 	"isLoading" | "users" | "groupsByUserId"
 > & {
 	user: TypesGen.User;
+	narrow: boolean;
+	visible: ReadonlySet<AccountField>;
 	selectedWorkspaces: ReadonlyMap<string, TypesGen.Workspace>;
 	onWorkspaceSelect: (workspace: TypesGen.Workspace, checked: boolean) => void;
 	notes: readonly WorkspaceNote[] | undefined;
@@ -280,6 +355,8 @@ type UsersTableRowProps = Omit<
  */
 const UsersTableRow: React.FC<UsersTableRowProps> = ({
 	user,
+	narrow,
+	visible,
 	selectedWorkspaces,
 	onWorkspaceSelect,
 	canManageWorkspaces,
@@ -296,13 +373,11 @@ const UsersTableRow: React.FC<UsersTableRowProps> = ({
 }) => {
 	const [expanded, setExpanded] = useState(false);
 	const panelId = useId();
-	const quota = useContext(QuotaEditorContext);
 	const columns =
-		4 +
-		(insight ? 2 : 0) +
-		(quota ? 1 : 0) +
-		(canEditUsers ? 1 : 0) +
-		(selected && onSelect ? 1 : 0);
+		1 +
+		visible.size +
+		Number(Boolean(canEditUsers)) +
+		Number(Boolean(selected && onSelect));
 	const toggle = (event: React.MouseEvent<HTMLTableRowElement>) => {
 		const target = event.target;
 		if (
@@ -313,6 +388,13 @@ const UsersTableRow: React.FC<UsersTableRowProps> = ({
 		if (window.getSelection()?.toString().trim()) return;
 		setExpanded((value) => !value);
 	};
+
+	const accountLinks = (
+		<>
+			<ShareApprovalButton user={user} />
+			<ChatUserButton user={user} />
+		</>
+	);
 
 	return (
 		<>
@@ -347,79 +429,84 @@ const UsersTableRow: React.FC<UsersTableRowProps> = ({
 						panelId={panelId}
 						onToggle={() => setExpanded((value) => !value)}
 					>
-						<ShareApprovalButton user={user} />
-						<ChatUserButton user={user} />
+						{!narrow && accountLinks}
 					</AccountIdentity>
 				</TableCell>
 
-				<UserRoleCell roles={user.roles} className="account-roles" />
-
-				<UserNotesCell
-					username={user.username}
-					notes={notes}
-					className="account-notes"
-				/>
-				{quota && <AccountResourcesCell user={user} />}
-
-				{insight && (
-					<>
-						<TableCell
-							className="whitespace-nowrap text-center"
-							data-testid="user-latency"
-							data-label="Latency"
-						>
-							{insight.latency ? (
-								<span
-									className={cn(
-										"text-sm font-medium tabular-nums",
-										getLatencyColor(insight.latency.p50),
-									)}
-									title={`Median ${formatLatency(insight.latency.p50)}, 95th percentile ${formatLatency(insight.latency.p95)}`}
-								>
-									{formatLatency(insight.latency.p50)}
-								</span>
-							) : (
-								<span className="text-sm text-content-disabled">—</span>
-							)}
-						</TableCell>
-						<TableCell
-							className="whitespace-nowrap text-center"
-							data-testid="user-activity"
-							data-label="Activity"
-						>
-							{insight.seconds ? (
-								<div className="mx-auto flex min-w-0 max-w-20 flex-col items-center gap-1">
-									<span className="text-sm tabular-nums text-content-primary">
-										{formatActivity(insight.seconds)}
-									</span>
-									<span
-										aria-hidden
-										className="h-1 w-full overflow-hidden rounded-full bg-surface-tertiary"
-									>
-										<span
-											className="block h-full rounded-full bg-content-link"
-											style={{
-												width: `${Math.max(4, (insight.seconds / Math.max(most, 1)) * 100)}%`,
-											}}
-										/>
-									</span>
-								</div>
-							) : (
-								<span className="text-sm text-content-disabled">—</span>
-							)}
-						</TableCell>
-					</>
+				{visible.has("Roles") && (
+					<UserRoleCell roles={user.roles} className="account-roles" />
 				)}
 
-				<TableCell
-					data-label="Status"
-					className={cn(
-						"capitalize text-center",
-						user.status === "suspended" && "text-content-secondary",
-					)}
-				>
-					<AccountPresence user={user} enabled={canEditUsers} />
-				</TableCell>
+				{visible.has("Notes") && (
+					<UserNotesCell
+						username={user.username}
+						notes={notes}
+						className="account-notes"
+					/>
+				)}
+				{visible.has("Resources") && <AccountResourcesCell user={user} />}
+
+				{insight && visible.has("Latency") && (
+					<TableCell
+						className="whitespace-nowrap text-center"
+						data-testid="user-latency"
+						data-label="Latency"
+					>
+						{insight.latency ? (
+							<span
+								className={cn(
+									"text-sm font-medium tabular-nums",
+									getLatencyColor(insight.latency.p50),
+								)}
+								title={`Median ${formatLatency(insight.latency.p50)}, 95th percentile ${formatLatency(insight.latency.p95)}`}
+							>
+								{formatLatency(insight.latency.p50)}
+							</span>
+						) : (
+							<span className="text-sm text-content-disabled">N/A</span>
+						)}
+					</TableCell>
+				)}
+				{insight && visible.has("Activity") && (
+					<TableCell
+						className="whitespace-nowrap text-center"
+						data-testid="user-activity"
+						data-label="Activity"
+					>
+						{insight.seconds ? (
+							<div className="mx-auto flex min-w-0 max-w-20 flex-col items-center gap-1">
+								<span className="text-sm tabular-nums text-content-primary">
+									{formatActivity(insight.seconds)}
+								</span>
+								<span
+									aria-hidden
+									className="h-1 w-full overflow-hidden rounded-full bg-surface-tertiary"
+								>
+									<span
+										className="block h-full rounded-full bg-content-link"
+										style={{
+											width: `${Math.max(4, (insight.seconds / Math.max(most, 1)) * 100)}%`,
+										}}
+									/>
+								</span>
+							</div>
+						) : (
+							<span className="text-sm text-content-disabled">N/A</span>
+						)}
+					</TableCell>
+				)}
+
+				{visible.has("Status") && (
+					<TableCell
+						data-label="Status"
+						className={cn(
+							"capitalize text-center",
+							user.status === "suspended" && "text-content-secondary",
+						)}
+					>
+						<AccountPresence user={user} enabled={canEditUsers} />
+					</TableCell>
+				)}
 
 				{canEditUsers && (
 					<TableCell
@@ -443,7 +530,13 @@ const UsersTableRow: React.FC<UsersTableRowProps> = ({
 				<TableRow className="account-workspaces-expanded">
 					<TableCell colSpan={columns} className="bg-surface-secondary/50 p-0">
 						<div id={panelId}>
+							{narrow && (
+								<div className="flex items-center gap-2 px-3">
+									{accountLinks}
+								</div>
+							)}
 							<AccountWorkspacePanel
+								compact={narrow}
 								user={user}
 								canManage={Boolean(canManageWorkspaces)}
 								selected={selectedWorkspaces}
@@ -459,15 +552,14 @@ const UsersTableRow: React.FC<UsersTableRowProps> = ({
 
 type UsersTableSkeletonProps = {
 	canEditUsers: boolean;
-	insights?: boolean;
+	visible: ReadonlySet<AccountField>;
 	selectable?: boolean;
 };
 const UsersTableSkeleton: React.FC<UsersTableSkeletonProps> = ({
 	canEditUsers,
-	insights,
+	visible,
 	selectable,
 }) => {
-	const quota = useContext(QuotaEditorContext);
 	return (
 		<TableLoaderSkeleton>
 			<TableRowSkeleton>
@@ -479,30 +571,11 @@ const UsersTableSkeleton: React.FC<UsersTableSkeletonProps> = ({
 				<TableCell>
 					<AvatarDataSkeleton />
 				</TableCell>
-				<TableCell>
-					<Skeleton variant="text" width="25%" />
-				</TableCell>
-				<TableCell>
-					<Skeleton variant="text" width="25%" />
-				</TableCell>
-				{quota && (
-					<TableCell>
-						<Skeleton variant="text" width="140px" />
+				{[...visible].map((field) => (
+					<TableCell key={field}>
+						<Skeleton variant="text" width="70%" />
 					</TableCell>
-				)}
-				{insights && (
-					<>
-						<TableCell>
-							<Skeleton variant="text" width="40px" />
-						</TableCell>
-						<TableCell>
-							<Skeleton variant="text" width="60px" />
-						</TableCell>
-					</>
-				)}
-				<TableCell>
-					<Skeleton variant="text" width="25%" />
-				</TableCell>
+				))}
 				{canEditUsers && (
 					<TableCell className="w-px text-right">
 						<Skeleton variant="text" width="25%" />

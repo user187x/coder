@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createMemoryRouter } from "react-router";
 import { API } from "#/api/api";
@@ -14,6 +14,7 @@ import {
 	MockWorkspace,
 } from "#/testHelpers/entities";
 import { renderWithRouter } from "#/testHelpers/renderHelpers";
+import { MockResizeObserver } from "#/testHelpers/resizeObserver";
 import { MockWorkspacePowerOperation } from "#/testHelpers/workspacePower";
 import { UsersTable, type UsersTableProps } from "./UsersTable";
 
@@ -61,6 +62,36 @@ describe("UsersTable", () => {
 		});
 	});
 	afterEach(() => vi.restoreAllMocks());
+	it("opens notes for the chosen account from the narrow detail column", async () => {
+		MockResizeObserver.reset();
+		vi.stubGlobal("ResizeObserver", MockResizeObserver);
+		try {
+			const getWorkspaces = vi
+				.spyOn(API, "getWorkspaces")
+				.mockResolvedValue({ workspaces: [], count: 0 });
+			renderUsersTable();
+			act(() => MockResizeObserver.getLast().simulateResize(360));
+			const user = userEvent.setup();
+			await user.click(
+				screen.getByRole("combobox", { name: "Account detail column" }),
+			);
+			await user.click(screen.getByRole("option", { name: "Notes" }));
+			await user.click(
+				screen.getByRole("button", {
+					name: `View notes for ${MockUserMember.username}`,
+				}),
+			);
+			await waitFor(() =>
+				expect(getWorkspaces).toHaveBeenCalledWith({
+					q: `owner:${MockUserMember.username}`,
+					limit: 0,
+				}),
+			);
+		} finally {
+			vi.unstubAllGlobals();
+		}
+	});
+
 	it("expands in place and navigates only through an explicit workspace dashboard link", async () => {
 		const getWorkspaces = vi.spyOn(API, "getWorkspaces").mockResolvedValue({
 			workspaces: [{ ...MockWorkspace, owner_name: MockUserMember.username }],

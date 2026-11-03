@@ -48,6 +48,7 @@ const meta: Meta<typeof UsersTable> = {
 		withAuthProvider,
 	],
 	parameters: {
+		user: MockUserOwner,
 		queries: [
 			{ key: quotaReport().queryKey, data: MockQuotaReport },
 			{ key: notesByUserKey, data: { users: {} } },
@@ -223,6 +224,17 @@ export const MixedAccountIdentity: Story = {
 			},
 		],
 	},
+};
+
+export const SidebarWidth: Story = {
+	args: MixedAccountIdentity.args,
+	decorators: [
+		(Story) => (
+			<div className="w-[800px] max-w-full">
+				<Story />
+			</div>
+		),
+	],
 };
 
 export const NarrowAccounts: Story = {

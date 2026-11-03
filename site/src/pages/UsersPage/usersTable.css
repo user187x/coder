@@ -1,140 +1,44 @@
-.accounts-table-surface {
+.accounts-table-region {
+	min-width: 0;
 	container: accounts / inline-size;
-	min-width: 0;
 }
-.accounts-table {
-	table-layout: fixed;
-	width: 100%;
+.accounts-table-region .accounts-table-surface,
+.accounts-table-region .account-workspaces-table-surface {
+	overflow: clip;
 }
-.accounts-table > :is(thead, tbody) > tr > :is(th, td) {
-	min-width: 0;
-	padding: 8px;
-	overflow-wrap: anywhere;
-}
-.accounts-table .account-roles > div {
-	flex-wrap: wrap;
-}
-.accounts-table .account-roles > div > span {
-	max-width: 100%;
-	white-space: normal;
-	overflow-wrap: anywhere;
-}
-@container accounts (max-width: 960px) {
-	.accounts-table,
-	.accounts-table > thead,
-	.accounts-table > tbody {
-		display: block;
-	}
-	.accounts-table > colgroup {
-		display: none;
-	}
-	.accounts-table > thead > tr {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 4px;
-	}
-	.accounts-table > thead > tr > th {
-		width: auto;
-		padding: 4px;
-		font-size: 10px;
-	}
-	.accounts-table > tbody > tr {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		width: 100%;
-		margin-top: 8px;
-		border: 1px solid hsl(var(--border-default));
-		border-radius: 8px;
-	}
-	.accounts-table > tbody > tr > td {
-		box-sizing: border-box;
-		width: 50%;
-		border: 0;
-		white-space: normal;
-	}
-	.accounts-table > tbody > tr > [data-account-field="selection"] {
-		order: -3;
-		width: 32px;
-		flex: 0 0 32px;
-	}
-	.accounts-table > tbody > tr > [data-account-field="identity"] {
-		order: -2;
-		width: 0;
-		flex: 1 1 0;
-	}
-	.accounts-table > tbody > tr > [data-account-field="actions"] {
-		order: -1;
-		width: 40px;
-		flex: 0 0 40px;
-	}
-	.accounts-table > tbody > tr > [data-account-field="resources"],
-	.accounts-table > tbody > .account-workspaces-expanded > td,
-	.accounts-table > tbody > tr > td[colspan] {
-		width: 100%;
-	}
-	.accounts-table > tbody > tr > td[data-label]::before,
-	.accounts-table > tbody > tr > .account-roles::before,
-	.accounts-table > tbody > tr > .account-notes::before {
-		display: block;
-		margin-bottom: 4px;
-		color: hsl(var(--content-secondary));
-		font-size: 10px;
-		content: attr(data-label);
-	}
-	.accounts-table > tbody > tr > .account-roles::before {
-		content: "Roles";
-	}
-	.accounts-table > tbody > tr > .account-notes::before {
-		content: "Notes";
-	}
-}
-
+.accounts-table,
 .account-workspaces-table {
-	table-layout: fixed;
 	width: 100%;
+	table-layout: fixed;
 }
+.accounts-table > :is(thead, tbody) > tr > :is(th, td),
 .account-workspaces-table > :is(thead, tbody) > tr > :is(th, td) {
 	min-width: 0;
-	overflow-wrap: anywhere;
+	padding: 8px;
+	white-space: nowrap;
 }
-@container accounts (max-width: 960px) {
-	.account-workspaces-table,
-	.account-workspaces-table > thead,
-	.account-workspaces-table > tbody {
-		display: block;
+.accounts-table .account-roles > div {
+	min-width: 0;
+	flex-wrap: nowrap;
+}
+.accounts-table [data-label="Status"] span,
+.accounts-table .account-roles > div > span {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.accounts-table [data-account-field="resources"] button > span {
+	overflow: hidden;
+}
+@container accounts (max-width: 620px) {
+	.accounts-table [data-account-field="identity"] > div {
+		gap: 4px;
 	}
-	.account-workspaces-table > colgroup {
-		display: none;
-	}
-	.account-workspaces-table > :is(thead, tbody) > tr {
-		display: flex;
-		flex-wrap: wrap;
-	}
+	.accounts-table > :is(thead, tbody) > tr > :is(th, td),
 	.account-workspaces-table > :is(thead, tbody) > tr > :is(th, td) {
-		box-sizing: border-box;
-		width: 50%;
-		padding: 8px;
-	}
-	.account-workspaces-table > thead > tr > th {
-		width: auto;
-		font-size: 10px;
-	}
-	.account-workspaces-table > tbody > tr > [data-label="Actions"] {
-		width: 100%;
-	}
-	.account-workspaces-table > tbody > tr > [data-account-field="selection"] {
-		width: 32px;
-	}
-	.account-workspaces-table > tbody > tr > td[data-label]::before {
-		display: block;
-		margin-bottom: 4px;
-		color: hsl(var(--content-secondary));
-		font-size: 10px;
-		content: attr(data-label);
+		padding-inline: 4px;
 	}
 }
-
 .account-resource-popover {
 	container: quota-details / inline-size;
 }
@@ -163,4 +67,10 @@
 		margin-bottom: 6px;
 		content: attr(data-label);
 	}
+}
+
+.accounts-focus {
+	overflow-x: clip;
+	overflow-y: auto;
+	scrollbar-width: none;
 }

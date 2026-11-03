@@ -73,8 +73,8 @@ export const UsersPageView: React.FC<UsersPageViewProps> = ({
 			data-testid="accounts-card"
 			className={
 				focused
-					? "flex min-h-0 min-w-0 flex-col gap-3"
-					: "mb-6 flex flex-col gap-3 rounded-lg border border-solid border-border p-6"
+					? "flex min-w-0 flex-col gap-3"
+					: "mb-6 flex min-w-0 flex-col gap-3 rounded-lg border border-solid border-border p-2 sm:p-6"
 			}
 		>
 			<div className="flex flex-wrap items-start gap-2">
@@ -118,7 +118,7 @@ export const UsersPageView: React.FC<UsersPageViewProps> = ({
 				/>
 			)}
 
-			<div className={focused ? "min-h-0 overflow-auto" : "min-w-0"}>
+			<div className="min-w-0">
 				<TableCard
 					summary={
 						<PaginationAmount
@@ -183,7 +183,7 @@ export const UsersPageView: React.FC<UsersPageViewProps> = ({
 			{focused ? (
 				<Dialog open onOpenChange={onFocusChange}>
 					<DialogContent
-						className="inset-x-0 top-[var(--coder-classification-h,0px)] bottom-[var(--coder-classification-h,0px)] flex max-h-none w-full max-w-none translate-x-0 translate-y-0 flex-col rounded-none border-0 p-4 sm:rounded-none sm:p-6"
+						className="accounts-focus inset-x-0 top-[var(--coder-classification-h,0px)] bottom-[var(--coder-classification-h,0px)] flex max-h-none w-full max-w-none translate-x-0 translate-y-0 flex-col rounded-none border-0 p-4 sm:rounded-none sm:p-6"
 						aria-describedby={undefined}
 						onCloseAutoFocus={(event) => {
 							event.preventDefault();
