@@ -13,14 +13,14 @@ vi.mock("#/contexts/auth/AuthProvider", () => ({
 const message =
 	"# Maintenance tonight\nThe cluster restarts at 22:00.\n\n- save your work\n- push your branches\n\n![diagram](/icon/desktop.svg) 🚀 **Thanks!**";
 
-const Harness: React.FC = () => {
+const Harness: React.FC<{ picture?: string }> = ({ picture }) => {
 	const anchor = useRef<HTMLDivElement>(null);
 	return (
 		<MemoryRouter>
 			<div>
 				<div ref={anchor}>
 					<BannerScrollView
-						banner={{ id: "x", message, font: "default" }}
+						banner={{ id: "x", message, font: "default", picture }}
 						anchor={anchor}
 					/>
 				</div>
@@ -78,6 +78,38 @@ describe("BannerScrollView", () => {
 				heading.compareDocumentPosition(prompts[0]) &
 					Node.DOCUMENT_POSITION_FOLLOWING,
 		).toBeTruthy();
+	});
+
+	it("can hide and restore the terminal picture and clear the prompt from its context menu", async () => {
+		vi.useRealTimers();
+		const user = userEvent.setup();
+		render(<Harness picture="/pictures/login-orbit.gif" />);
+		await user.click(
+			screen.getByRole("button", { name: "Read the whole announcement" }),
+		);
+		const readMenu = async () => {
+			await user.pointer({
+				keys: "[MouseRight]",
+				target: screen.getByText("Broadcast Announcement"),
+			});
+		};
+		await readMenu();
+		expect(screen.queryByRole("menuitem", { name: "Settings" })).toBeNull();
+		await user.click(
+			screen.getByRole("menuitem", { name: "Disable background" }),
+		);
+		expect(screen.queryByTestId("announcement-scroll-picture")).toBeNull();
+		await readMenu();
+		await user.click(
+			screen.getByRole("menuitem", { name: "Enable background" }),
+		);
+		expect(screen.getByTestId("announcement-scroll-picture")).toBeTruthy();
+		await readMenu();
+		await user.click(screen.getByRole("menuitem", { name: "Clear" }));
+		expect(screen.queryByText("Maintenance tonight")).toBeNull();
+		expect(screen.getByTestId("announcement-scroll-prompt")).toHaveTextContent(
+			"root@platform:~#",
+		);
 	});
 
 	it("prints the time on a dot-matrix display for time, ticking", () => {
@@ -329,9 +361,21 @@ describe("BannerScrollView", () => {
 		await user.click(
 			screen.getByRole("button", { name: "Read the whole announcement" }),
 		);
-		await user.keyboard("{Escape}");
-		expect(vi.getTimerCount()).toBeGreaterThan(0);
-		unmount();
-		expect(vi.getTimerCount()).toBe(0);
+		const scheduled = vi.spyOn(window, "setTimeout");
+		const canceled = vi.spyOn(window, "clearTimeout");
+		try {
+			await user.keyboard("{Escape}");
+			const close = scheduled.mock.calls.findIndex(
+				([, delay]) => delay === 220,
+			);
+			expect(close).toBeGreaterThanOrEqual(0);
+			unmount();
+			expect(canceled).toHaveBeenCalledWith(
+				scheduled.mock.results[close].value,
+			);
+		} finally {
+			scheduled.mockRestore();
+			canceled.mockRestore();
+		}
 	});
 });
