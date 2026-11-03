@@ -20,6 +20,26 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 export const ForceFocus: Story = {};
+export const CenteredPicture: Story = {
+	args: {
+		banner: {
+			...meta.args.banner,
+			countdown: "",
+			picture: "/icon/coder.svg",
+			message: "Scheduled maintenance",
+		},
+	},
+};
+export const WrappedMessage: Story = {
+	args: {
+		banner: {
+			...meta.args.banner,
+			countdown: "",
+			message:
+				"Maintenance begins this evening. Please save your work and close any open terminals before the scheduled restart. You can reopen your workspace after the maintenance window.",
+		},
+	},
+};
 export const ImmediateForceFocus: Story = {
 	args: { banner: { ...meta.args.banner, countdown: "" } },
 };
