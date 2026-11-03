@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { MemoryRouter } from "react-router";
 import { API } from "#/api/api";
-import { PlatformAPI } from "#/api/platform";
+import { PlatformAPI, type UserUIPreferences } from "#/api/platform";
 import { getPreferredProxy } from "#/contexts/ProxyContext";
 import * as chatStore from "#/modules/platform/chat/chatStore";
 import {
@@ -211,9 +211,16 @@ describe("NavbarView", () => {
 		vi.spyOn(PlatformAPI, "getClusterUsage").mockResolvedValue(
 			MockClusterUsage,
 		);
+		let preferences: UserUIPreferences = {};
+		vi.mocked(PlatformAPI.getUserUIPreferences).mockImplementation(
+			async () => preferences,
+		);
 		const save = vi
 			.spyOn(PlatformAPI, "setUserUIPreferences")
-			.mockImplementation(async (changes) => changes);
+			.mockImplementation(async (changes) => {
+				preferences = { ...preferences, ...changes };
+				return preferences;
+			});
 		vi.spyOn(chatStore, "useChatConnection").mockImplementation(() => {});
 		renderNavbar({ canEditDeployment: true });
 		const user = userEvent.setup();

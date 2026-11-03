@@ -32,6 +32,9 @@ const meta: Meta<typeof UsersPageView> = {
 	title: "pages/UsersPageView",
 	component: UsersPageView,
 	args: {
+		focused: false,
+		onFocusChange: () => {},
+		onPageSizeChange: () => {},
 		canEditUsers: true,
 		me: MockUserOwner.id,
 		filterProps: defaultFilterProps,

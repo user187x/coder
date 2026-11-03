@@ -430,7 +430,7 @@ func (b *Builder) buildTx(authFunc func(action policy.Action, object rbac.Object
 			return nil, nil, nil, err
 		}
 	}
-	if err := b.checkQuarantine(); err != nil {
+	if err := b.checkQuarantine(authFunc); err != nil {
 		return nil, nil, nil, err
 	}
 
@@ -1285,7 +1285,7 @@ func (b *Builder) getPresetParameterValues() ([]database.TemplateVersionPresetPa
 	return *b.templateVersionPresetParameterValues, nil
 }
 
-func (b *Builder) checkQuarantine() error {
+func (b *Builder) checkQuarantine(authorize func(policy.Action, rbac.Objecter) bool) error {
 	if b.trans != database.WorkspaceTransitionStart && b.trans != database.WorkspaceTransitionDelete {
 		return nil
 	}
@@ -1301,6 +1301,11 @@ func (b *Builder) checkQuarantine() error {
 		return BuildError{http.StatusInternalServerError, "Cannot verify workspace quarantine", err}
 	}
 	if current.Enabled {
+		// Deletion does not release containment. Workspace deletion permission
+		// was checked before this deployment-level permission.
+		if b.trans == database.WorkspaceTransitionDelete && authorize != nil && authorize(policy.ActionUpdate, rbac.ResourceDeploymentConfig) {
+			return nil
+		}
 		return BuildError{http.StatusLocked, "Workspace is quarantined", workspacequarantine.ErrQuarantined}
 	}
 	if b.trans == database.WorkspaceTransitionDelete {

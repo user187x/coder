@@ -129,3 +129,56 @@ it("updates another account's workspace only after review", async () => {
 		expect(update).toHaveBeenCalledWith(workspace, undefined),
 	);
 });
+
+it("cancels an active build and queues deletion only for the workspace confirmed by name", async () => {
+	vi.spyOn(PlatformAPI, "getWorkspacePowerHistory").mockResolvedValue({
+		operations: [],
+	});
+	const active = {
+		...MockWorkspace,
+		owner_name: "lease-account",
+		latest_build: {
+			...MockWorkspace.latest_build,
+			transition: "start" as const,
+			status: "starting" as const,
+			job: { ...MockWorkspace.latest_build.job, status: "running" as const },
+		},
+	};
+	const other = { ...MockWorkspace, id: "other-workspace", name: "another" };
+	const remove = vi
+		.spyOn(API, "deleteWorkspace")
+		.mockRejectedValueOnce({
+			isAxiosError: true,
+			response: {
+				status: 409,
+				data: { message: "A workspace build is already active." },
+			},
+		})
+		.mockResolvedValue({ ...active.latest_build, transition: "delete" });
+	vi.spyOn(API, "getWorkspace").mockResolvedValue(active);
+	const cancel = vi
+		.spyOn(API, "cancelWorkspaceBuild")
+		.mockResolvedValue({ message: "Canceling" });
+	vi.spyOn(API, "getWorkspaceBuild").mockResolvedValue({
+		...active.latest_build,
+		job: { ...active.latest_build.job, status: "canceled" },
+	});
+	const deleteAccount = vi.spyOn(API, "deleteUser");
+	render(<AccountWorkspaceActions targets={[active, other]} />);
+	const user = userEvent.setup();
+	await user.click(screen.getByRole("button", { name: "Delete workspaces" }));
+	const dialog = within(
+		screen.getByRole("dialog", { name: "Delete Workspace" }),
+	);
+	await user.type(dialog.getByLabelText("Workspace name"), active.name);
+	await user.click(dialog.getByRole("button", { name: "Delete" }));
+	await waitFor(() => expect(remove).toHaveBeenCalledTimes(2));
+	expect(cancel).toHaveBeenCalledWith(active.latest_build.id);
+	await user.click(
+		within(
+			await screen.findByRole("dialog", { name: "Delete Workspace" }),
+		).getByRole("button", { name: "Cancel" }),
+	);
+	expect(remove.mock.calls.map(([id]) => id)).toEqual([active.id, active.id]);
+	expect(deleteAccount).not.toHaveBeenCalled();
+});

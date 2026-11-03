@@ -30,11 +30,33 @@ const UsersPage: React.FC = () => {
 		enabled: viewDeploymentConfig,
 	});
 
-	const usersQuery = usePaginatedQuery(paginatedUsers(searchParams));
+	const focused = searchParams.get("focus") === "1";
+	const sizeParam = focused ? "focus_limit" : "limit";
+	const requestedSize = Number(searchParams.get(sizeParam));
+	const sizes = focused ? [10, 25, 50, 100] : [10, 25, 50];
+	const limit = sizes.includes(requestedSize)
+		? requestedSize
+		: focused
+			? 100
+			: 10;
+	const updateView = (key: string, value: string | undefined) => {
+		const next = new URLSearchParams(searchParams);
+		if (value === undefined) next.delete(key);
+		else next.set(key, value);
+		next.delete("page");
+		setSearchParams(next);
+	};
+	const usersQuery = usePaginatedQuery({
+		...paginatedUsers(searchParams),
+		recordsPerPage: limit,
+	});
 	const useFilterResult = useFilter({
 		searchParams,
-		onSearchParamsChange: setSearchParams,
-		onUpdate: usersQuery.goToFirstPage,
+		onSearchParamsChange: (params) => {
+			const next = new URLSearchParams(params);
+			next.delete("page");
+			setSearchParams(next);
+		},
 	});
 
 	const statusMenu = useStatusFilterMenu({
@@ -67,6 +89,9 @@ const UsersPage: React.FC = () => {
 						menus: { status: statusMenu },
 					}}
 					usersQuery={usersQuery}
+					focused={focused}
+					onFocusChange={(open) => updateView("focus", open ? "1" : undefined)}
+					onPageSizeChange={(size) => updateView(sizeParam, String(size))}
 					groupsByUserId={groupsByUserIdQuery.data}
 					me={me.id}
 					canCreateUser={canCreateUser}

@@ -147,3 +147,25 @@ func TestWorkspaceQuarantineCancelsCapturedStartAndDelete(t *testing.T) {
 		})
 	}
 }
+
+func TestDeploymentAdminDeletesQuarantinedWorkspace(t *testing.T) {
+	t.Parallel()
+	client, db := coderdtest.NewWithDatabase(t, nil)
+	owner := coderdtest.CreateFirstUser(t, client)
+	member, user := coderdtest.CreateAnotherUser(t, client, owner.OrganizationID)
+	workspace := dbfake.WorkspaceBuild(t, db, database.WorkspaceTable{OrganizationID: owner.OrganizationID, OwnerID: user.ID}).Seed(database.WorkspaceBuild{Transition: database.WorkspaceTransitionStop}).Do().Workspace
+	ctx := testutil.Context(t, testutil.WaitLong)
+	_, err := client.UpdateWorkspaceQuarantine(ctx, owner.OrganizationID, workspace.ID, codersdk.UpdateWorkspaceQuarantineRequest{Enabled: true, Reason: "review before cleanup"})
+	require.NoError(t, err)
+	req := codersdk.CreateWorkspaceBuildRequest{Transition: codersdk.WorkspaceTransitionDelete}
+	_, err = member.CreateWorkspaceBuild(ctx, workspace.ID, req)
+	var denied *codersdk.Error
+	require.ErrorAs(t, err, &denied)
+	require.Equal(t, http.StatusLocked, denied.StatusCode())
+	build, err := client.CreateWorkspaceBuild(ctx, workspace.ID, req)
+	require.NoError(t, err)
+	require.Equal(t, codersdk.WorkspaceTransitionDelete, build.Transition)
+	policy, err := client.WorkspaceQuarantine(ctx, owner.OrganizationID, workspace.ID)
+	require.NoError(t, err)
+	require.True(t, policy.Enabled)
+}
