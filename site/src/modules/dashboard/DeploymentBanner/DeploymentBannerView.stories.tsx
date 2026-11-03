@@ -97,8 +97,18 @@ export const TableFooter: Story = {
 	),
 };
 
-export const Mobile: Story = {
+export const ExpandedTableFooter: Story = {
 	...TableFooter,
+	play: async ({ canvasElement }) => {
+		await userEvent.dblClick(
+			within(canvasElement).getByRole("button", {
+				name: "Show deployment statistics",
+			}),
+		);
+	},
+};
+export const Mobile: Story = {
+	...ExpandedTableFooter,
 	globals: { viewport: { value: "iphone12" } },
 };
 

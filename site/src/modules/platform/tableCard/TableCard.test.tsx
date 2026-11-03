@@ -87,6 +87,15 @@ it("keeps a statistics action on the table that provided it", async () => {
 			<TableCard summary="Images">{table}</TableCard>
 		</>,
 	);
+	const handle = screen.getByRole("button", {
+		name: "Show deployment statistics",
+	});
+	await user.click(handle);
+	expect(screen.queryByRole("button", { name: "Refresh stats" })).toBeNull();
+	await user.dblClick(handle);
 	await user.click(screen.getByRole("button", { name: "Refresh stats" }));
 	expect(refresh).toHaveBeenCalledTimes(1);
+	handle.focus();
+	await user.keyboard("{Enter}");
+	expect(screen.queryByRole("button", { name: "Refresh stats" })).toBeNull();
 });

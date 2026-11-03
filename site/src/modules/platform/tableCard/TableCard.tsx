@@ -1,5 +1,7 @@
 import { cn } from "cn";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useId, useRef, useState } from "react";
+import { Button } from "#/components/Button/Button";
+import "#/modules/platform/buildFooter/buildFooter.css";
 import "./tableCard.css";
 
 /** What a table's element says on hover, read from it: its hint, title, or (a control's) label. */
@@ -58,6 +60,9 @@ export const TableCard: React.FC<{
 	...props
 }) => {
 	const card = useRef<HTMLDivElement>(null);
+	const statsId = useId();
+	const [showStats, setShowStats] = useState(false);
+	const toggleStats = () => setShowStats((open) => !open);
 	const [hovered, setHovered] = useState<string | null>(null);
 	const follow = useCallback((e: React.SyntheticEvent) => {
 		if (card.current) {
@@ -67,6 +72,32 @@ export const TableCard: React.FC<{
 	const caption = (
 		<>
 			<span className="table-card-summary">{summary}</span>
+			{footerStats && (
+				<Button
+					type="button"
+					variant="subtle"
+					size="sm"
+					className="h-6 min-w-0 touch-manipulation rounded-full"
+					aria-controls={statsId}
+					aria-expanded={showStats}
+					aria-label={
+						showStats
+							? "Hide deployment statistics"
+							: "Show deployment statistics"
+					}
+					data-hint={
+						showStats
+							? "Double-click to hide deployment statistics"
+							: "Double-click to show deployment statistics"
+					}
+					onDoubleClick={toggleStats}
+					onClick={(e) => {
+						if (e.detail === 0) toggleStats();
+					}}
+				>
+					<span aria-hidden className="build-footer-grip" />
+				</Button>
+			)}
 			<span
 				className={cn("table-card-hint", hovered && "table-card-hint-on")}
 				data-testid="table-card-hint"
@@ -100,8 +131,13 @@ export const TableCard: React.FC<{
 				>
 					{footerStats ? (
 						<>
-							<div data-deployment-footer="card" className="empty:hidden">
-								{footerStats}
+							<div
+								id={statsId}
+								data-deployment-footer="card"
+								hidden={!showStats}
+								className="empty:hidden"
+							>
+								{showStats && footerStats}
 							</div>
 							<div className="table-card-caption">{caption}</div>
 						</>

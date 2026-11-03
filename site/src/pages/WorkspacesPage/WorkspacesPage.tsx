@@ -7,6 +7,7 @@ import { workspacePermissionsByOrganization } from "#/api/queries/organizations"
 import { templates, templateVersionRoot } from "#/api/queries/templates";
 import { workspaces } from "#/api/queries/workspaces";
 import { useFilter } from "#/components/Filter/Filter";
+import { isEmbeddedFrame } from "#/contexts/platformBoot";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { usePagination } from "#/hooks/usePagination";
 import { DeploymentBanner } from "#/modules/dashboard/DeploymentBanner/DeploymentBanner";
@@ -159,7 +160,11 @@ const WorkspacesPage: React.FC = () => {
 			<title>{pageTitle("Workspaces")}</title>
 
 			<WorkspacesPageView
-				footerStats={<DeploymentBanner />}
+				footerStats={
+					!isEmbeddedFrame() &&
+					permissions.viewDeploymentConfig &&
+					permissions.viewDeploymentStats && <DeploymentBanner />
+				}
 				canCreateTemplate={permissions.createTemplates}
 				canCreateWorkspace={permissions.createWorkspace}
 				canChangeVersions={permissions.updateTemplates}
