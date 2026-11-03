@@ -104,7 +104,7 @@ export const AddingQuickLink: Story = {
 		await userEvent.click(canvas.getByRole("button", { name: /Settings/ }));
 		const body = within(canvasElement.ownerDocument.body);
 		await userEvent.click(
-			await body.findByRole("menuitem", { name: "Settings" }),
+			await body.findByRole("menuitem", { name: "Controls" }),
 		);
 		await userEvent.click(
 			await body.findByRole("menuitem", { name: "Security" }),
@@ -274,7 +274,7 @@ export const SettingsChoicesExpanded: Story = {
 		);
 		await userEvent.click(
 			await within(canvasElement.ownerDocument.body).findByRole("menuitem", {
-				name: "Settings",
+				name: "Controls",
 			}),
 		);
 	},

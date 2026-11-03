@@ -131,14 +131,11 @@ const HudPage: React.FC = () => {
 							<GaugeIcon aria-hidden className="size-6" />
 							HUD
 						</h1>
-						<p className="m-0 text-sm text-content-secondary">
-							The platform at a glance, updated every {HUD_REFRESH_MS / 1000}{" "}
-							seconds. Click a figure to open what is behind it.
-						</p>
-					</div>
-					<div className="flex flex-col items-end gap-1.5 text-sm text-content-secondary">
 						{data && (
-							<span className="flex items-center gap-2" aria-live="off">
+							<span
+								className="flex items-center gap-2 text-sm text-content-secondary"
+								aria-live="off"
+							>
 								<span
 									aria-hidden
 									className={cn(
@@ -152,8 +149,12 @@ const HudPage: React.FC = () => {
 									" · CPU and memory are what was requested: metrics-server is not answering"}
 							</span>
 						)}
-						{data?.uptime && <SystemUptime uptime={data.uptime} />}
+						<p className="m-0 text-sm text-content-secondary">
+							The platform at a glance, updated every {HUD_REFRESH_MS / 1000}{" "}
+							seconds. Click a figure to open what is behind it.
+						</p>
 					</div>
+					{data?.uptime && <SystemUptime uptime={data.uptime} />}
 				</header>
 
 				{error ? <ErrorAlert error={error} /> : null}

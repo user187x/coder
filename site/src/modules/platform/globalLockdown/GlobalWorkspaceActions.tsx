@@ -166,7 +166,8 @@ export const GlobalWorkspaceActionsView: React.FC<Props> = ({
 	return (
 		<div className="bulk-action-surface flex max-w-sm flex-col items-stretch gap-2 rounded-lg p-2">
 			<Button
-				variant="destructive"
+				variant="outline"
+				className="border-red-500 bg-red-700 font-semibold text-white hover:bg-red-800 disabled:text-white disabled:opacity-50"
 				disabled={
 					disabled ||
 					loading ||
@@ -180,7 +181,8 @@ export const GlobalWorkspaceActionsView: React.FC<Props> = ({
 				Shut Down
 			</Button>
 			<Button
-				variant="destructive"
+				variant="outline"
+				className="border-gray-500 bg-gray-700 font-semibold text-white hover:bg-gray-800 disabled:text-white disabled:opacity-50"
 				disabled={
 					disabled ||
 					loading ||

@@ -16,10 +16,23 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { cn } from "cn";
-import { XIcon } from "lucide-react";
+import {
+	BellIcon,
+	CheckIcon,
+	CircleUserIcon,
+	GaugeIcon,
+	ImageIcon,
+	type LucideIcon,
+	MegaphoneIcon,
+	MonitorIcon,
+	RadioIcon,
+	RotateCcwIcon,
+	XIcon,
+} from "lucide-react";
 import {
 	useEffect,
 	useEffectEvent,
+	useId,
 	useLayoutEffect,
 	useRef,
 	useState,
@@ -45,6 +58,16 @@ const LABELS: Record<NavbarItem, string> = {
 	hud: "HUD",
 };
 
+const RESTORE_ICONS: Record<NavbarItem, LucideIcon> = {
+	logo: ImageIcon,
+	notifications: BellIcon,
+	account: CircleUserIcon,
+	workspaces: MonitorIcon,
+	banner: MegaphoneIcon,
+	latency: RadioIcon,
+	hud: GaugeIcon,
+};
+
 // The banner placeholder is wide: the item under the pointer is the target.
 const itemUnderPointer: CollisionDetection = (args) => {
 	const under = pointerWithin(args);
@@ -68,6 +91,7 @@ export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 	const [arranging, setArranging] = useState(false);
 	const toolbar = useRef<HTMLDivElement>(null);
 	const controls = useRef<HTMLDivElement>(null);
+	const headingId = useId();
 	const doneButton = useRef<HTMLButtonElement>(null);
 	const [navbarBottom, setNavbarBottom] = useState(0);
 	const toggleArrange = useEffectEvent(() => {
@@ -237,51 +261,73 @@ export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 					>
 						<div
 							role="dialog"
-							aria-label="Rearrange navigation bar"
-							className="flex w-max max-w-full max-h-full overflow-y-auto flex-col gap-3 rounded-xl border border-solid border-border bg-surface-primary p-4 text-sm text-content-secondary shadow-xl"
+							aria-labelledby={headingId}
+							className="flex w-full max-w-2xl max-h-full flex-col overflow-y-auto rounded-xl border border-solid border-border bg-surface-primary text-sm text-content-secondary shadow-xl"
 							data-testid="navbar-arrange-hint"
 						>
-							<div className="flex flex-wrap items-center gap-3">
-								<span>Drag to rearrange. Use × to remove.</span>
-								<Button size="sm" variant="outline" onClick={reset}>
-									Reset
-								</Button>
-								<Button
-									ref={doneButton}
-									size="sm"
-									disabled={saving}
-									onClick={done}
+							<div className="min-h-36 p-5 sm:p-6">
+								<h2
+									id={headingId}
+									className="m-0 text-lg font-semibold text-content-primary"
 								>
-									{saving ? "Saving…" : "Done"}
-								</Button>
-							</div>
-							{hidden.some((id) => items[id] !== null) && (
+									Rearrange navigation bar
+								</h2>
 								<div
-									className="flex flex-wrap items-center gap-2"
+									className="mt-4 flex flex-wrap items-center gap-2"
 									role="group"
 									aria-label="Removed toolbar items"
 								>
-									<span>Restore:</span>
-									{hidden
-										.filter((id) => items[id] !== null)
-										.map((id) => (
-											<Button
-												key={id}
-												size="sm"
-												variant="outline"
-												aria-label={`Restore ${LABELS[id]}`}
-												onClick={() =>
-													save(
-														order,
-														hidden.filter((item) => item !== id),
-													)
-												}
-											>
-												{LABELS[id]}
-											</Button>
-										))}
+									{hidden.some((id) => items[id] !== null) ? (
+										<>
+											<span className="w-full font-medium">Restore items</span>
+											{hidden
+												.filter((id) => items[id] !== null)
+												.map((id) => {
+													const Icon = RESTORE_ICONS[id];
+													return (
+														<Button
+															key={id}
+															size="sm"
+															variant="outline"
+															aria-label={`Restore ${LABELS[id]}`}
+															onClick={() =>
+																save(
+																	order,
+																	hidden.filter((item) => item !== id),
+																)
+															}
+														>
+															<Icon aria-hidden />
+															{LABELS[id]}
+														</Button>
+													);
+												})}
+										</>
+									) : (
+										<span>All available items are on the navigation bar.</span>
+									)}
 								</div>
-							)}
+							</div>
+							<footer className="flex flex-wrap items-center gap-3 border-0 border-t border-solid border-border p-4 sm:px-6">
+								<span className="mr-auto">
+									Drag to rearrange. Use × to remove.
+								</span>
+								<div className="flex items-center gap-2">
+									<Button size="sm" variant="outline" onClick={reset}>
+										<RotateCcwIcon aria-hidden />
+										Reset
+									</Button>
+									<Button
+										ref={doneButton}
+										size="sm"
+										disabled={saving}
+										onClick={done}
+									>
+										<CheckIcon aria-hidden />
+										{saving ? "Saving…" : "Done"}
+									</Button>
+								</div>
+							</footer>
 						</div>
 					</div>,
 					document.body,
