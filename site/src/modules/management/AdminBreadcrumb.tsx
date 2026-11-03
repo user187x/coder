@@ -35,7 +35,7 @@ export const AdminBreadcrumb: React.FC<
 			{...props}
 			ref={ref}
 			className={cn(
-				"sticky top-[calc(var(--dashboard-navigation-height,72px)+var(--coder-classification-h,0px))] z-30 flow-root w-fit max-w-full",
+				"sticky top-[calc(var(--dashboard-navigation-height,72px)+var(--coder-classification-h,0px))] z-30 flow-root pointer-events-none [&_a]:pointer-events-auto [&_button]:pointer-events-auto",
 				className,
 			)}
 		/>
