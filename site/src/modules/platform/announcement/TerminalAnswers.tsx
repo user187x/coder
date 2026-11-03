@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "react-query";
+import { getErrorMessage } from "#/api/errors";
 import { dashboardAddress } from "#/api/queries/platform";
 import { workspaces } from "#/api/queries/workspaces";
 import type { Workspace } from "#/api/typesGenerated";
 import { useAuthContext } from "#/contexts/auth/AuthProvider";
+import { startupState } from "#/modules/platform/workspaceInitializing/workspaceReadiness";
 import { HealthResponse } from "./HealthResponse";
 
 /** What the announcement terminal answers a command with (BannerScrollView). */
@@ -115,23 +117,54 @@ const LsResponse: React.FC = () => {
 	if (query.isLoading) {
 		return <div className="banner-scroll-out">…</div>;
 	}
+	if (query.isError) {
+		return (
+			<div className="banner-scroll-out">
+				<span data-terminal-tone="error">[ERROR]</span>{" "}
+				{getErrorMessage(query.error, "Could not list workspaces.")}
+			</div>
+		);
+	}
 	const list = query.data?.workspaces ?? [];
 	if (list.length === 0) {
 		return <div className="banner-scroll-out">no workspaces</div>;
 	}
 	const now = Date.now();
 	const width = Math.max(4, ...list.map((w) => w.name.length)) + 2;
-	const rows = [
-		["NAME", "STATE", "UPTIME"],
-		...list.map((w) => [w.name, w.latest_build.status, uptimeText(w, now)]),
-	];
+	const rows = list.map((workspace) => {
+		const state = (
+			startupState(workspace) ?? workspace.latest_build.status
+		).toLowerCase();
+		let tone = "warning";
+		let label = state;
+		if (
+			state === "failed" ||
+			state === "needs attention" ||
+			(state === "running" && !workspace.health.healthy)
+		) {
+			tone = "error";
+			label = `[ERROR] ${state === "running" ? "unhealthy" : state}`;
+		} else if (state === "running") {
+			tone = "ok";
+			label = "[OK] running";
+		} else if (state === "stopped" || state === "deleted") {
+			tone = "inactive";
+		}
+		return { workspace, tone, label };
+	});
+	const stateWidth = Math.max(5, ...rows.map((row) => row.label.length)) + 2;
 	return (
 		<div className="banner-scroll-out" data-testid="announcement-scroll-ls">
-			{rows.map(([name, state, up], i) => (
-				<div key={i} className={i === 0 ? "opacity-60" : undefined}>
-					{name.padEnd(width)}
-					{state.padEnd(10)}
-					{up}
+			<div className="opacity-60">
+				{"NAME".padEnd(width)}
+				{"STATE".padEnd(stateWidth)}UPTIME
+			</div>
+			{rows.map(({ workspace, tone, label }) => (
+				<div key={workspace.id}>
+					{workspace.name.padEnd(width)}
+					<span data-terminal-tone={tone}>{label}</span>
+					{" ".repeat(stateWidth - label.length)}
+					{uptimeText(workspace, now)}
 				</div>
 			))}
 		</div>

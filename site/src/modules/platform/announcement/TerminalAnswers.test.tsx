@@ -77,8 +77,9 @@ describe("TerminalAnswers", () => {
 			workspaces: [
 				ws("look", "running", new Date(Date.now() - 65 * 60_000).toISOString()),
 				ws("old", "stopped"),
+				ws("broken", "failed"),
 			],
-			count: 2,
+			count: 3,
 		});
 		renderComponent(
 			<QueryClientProvider client={new QueryClient()}>
@@ -91,8 +92,9 @@ describe("TerminalAnswers", () => {
 		);
 		expect(lines).toEqual([
 			"NAME STATE UPTIME",
-			"look running 1h 5m",
+			"look [OK] running 1h 5m",
 			"old stopped -",
+			"broken [ERROR] failed -",
 		]);
 	});
 

@@ -32,6 +32,16 @@ export const HealthResponse = () => {
 	if (report.checks.some((check) => check.severity === "unknown"))
 		unavailable.push("Some service endpoints could not be checked.");
 	const loading = report.loading || list.isLoading;
+	const tone =
+		report.issues.some((check) => check.severity === "error") || failed
+			? "error"
+			: report.issues.length ||
+					broken.length ||
+					partial ||
+					unavailable.length ||
+					loading
+				? "warning"
+				: "ok";
 	const status =
 		report.issues.length || broken.length
 			? "Needs attention"
@@ -48,7 +58,9 @@ export const HealthResponse = () => {
 			className="banner-scroll-out whitespace-normal"
 			aria-label="Coder health report"
 		>
-			<strong>CODER HEALTH: {status}</strong>
+			<strong>
+				CODER HEALTH: <span data-terminal-tone={tone}>{status}</span>
+			</strong>
 			{report.version && <div>Coder {report.version}</div>}
 			{loading && <div>Checking services and workspaces...</div>}
 			{!canViewHealth && <div>Deployment checks require health access.</div>}
@@ -59,7 +71,7 @@ export const HealthResponse = () => {
 			{report.clusterTime && <div>Cluster report: {report.clusterTime}</div>}
 			{unavailable.map((message) => (
 				<div key={message}>
-					UNAVAILABLE: {message}
+					<span data-terminal-tone="error">[UNAVAILABLE]</span> {message}
 					{report.checks.length > 0 ? " Last known readings retained." : ""}
 				</div>
 			))}
@@ -73,13 +85,19 @@ export const HealthResponse = () => {
 			)}
 			{report.checks.map((check) => (
 				<div key={check.name}>
-					[{check.severity.toUpperCase()}] {check.name}
+					<span data-terminal-tone={check.severity}>
+						[{check.severity.toUpperCase()}]
+					</span>{" "}
+					{check.name}
 					{check.detail ? `: ${check.detail}` : ""}
 				</div>
 			))}
 			{broken.map((workspace) => (
 				<div key={workspace.id}>
-					[WORKSPACE] {workspace.owner}/{workspace.name}:{" "}
+					<span data-terminal-tone={workspace.severity}>
+						[{workspace.severity.toUpperCase()}]
+					</span>{" "}
+					{workspace.owner}/{workspace.name}:{" "}
 					{workspace.problems.map((p) => p.text).join("; ")}
 				</div>
 			))}
