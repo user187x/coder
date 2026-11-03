@@ -17,7 +17,6 @@ import { Button } from "#/components/Button/Button";
 import { ConfirmDialog } from "#/components/Dialog/ConfirmDialog/ConfirmDialog";
 import { Loader } from "#/components/Loader/Loader";
 import {
-	SettingsHeader,
 	SettingsHeaderDescription,
 	SettingsHeaderTitle,
 } from "#/components/SettingsHeader/SettingsHeader";
@@ -34,6 +33,7 @@ import { useEmbeddedMetadata } from "#/hooks/useEmbeddedMetadata";
 import { md5Hex } from "#/utils/md5";
 import { pageTitle } from "#/utils/page";
 import { sha256Hex } from "#/utils/pkcs12";
+import { UserSettingsHeader } from "../UserSettingsHeader";
 import {
 	CertificateUploadDialog,
 	type PreparedCertificate,
@@ -215,7 +215,8 @@ const CertificatesPage: React.FC = () => {
 	return (
 		<>
 			<title>{pageTitle("Certificates")}</title>
-			<SettingsHeader
+			<UserSettingsHeader
+				section="certificates"
 				actions={
 					<div className="flex flex-wrap gap-2">
 						<Button variant="outline" onClick={() => setSSHKeyFrom("choose")}>
@@ -235,7 +236,7 @@ const CertificatesPage: React.FC = () => {
 					Your .p12 certificate, installed into every workspace you start as
 					~/.cert/{username}.p12.
 				</SettingsHeaderDescription>
-			</SettingsHeader>
+			</UserSettingsHeader>
 
 			<div className="flex flex-col gap-6">
 				{!filePathsEnabled && (

@@ -8,6 +8,7 @@ import { useStatusFilterMenu } from "#/components/Filter/UsersFilter";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { usePaginatedQuery } from "#/hooks/usePaginatedQuery";
 import { useDashboard } from "#/modules/dashboard/useDashboard";
+import { ShortTermLeases } from "#/modules/platform/shortTermLeases/ShortTermLeases";
 import { pageTitle } from "#/utils/page";
 import { UserQuotaProvider, UserQuotaSection } from "./UserQuotaSection";
 import { UsersPageView } from "./UsersPageView";
@@ -69,6 +70,7 @@ const UsersPage: React.FC = () => {
 					groupsByUserId={groupsByUserIdQuery.data}
 					me={me.id}
 					canCreateUser={canCreateUser}
+					leases={permissions.editDeploymentConfig && <ShortTermLeases />}
 					canEditUsers={canEditUsers}
 					canManageWorkspaces={permissions.editDeploymentConfig}
 					canViewActivity={entitlements.features.audit_log.enabled}

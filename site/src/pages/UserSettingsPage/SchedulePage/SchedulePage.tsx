@@ -8,11 +8,11 @@ import type { UserQuietHoursScheduleResponse } from "#/api/typesGenerated";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { Loader } from "#/components/Loader/Loader";
 import {
-	SettingsHeader,
 	SettingsHeaderDescription,
 	SettingsHeaderTitle,
 } from "#/components/SettingsHeader/SettingsHeader";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
+import { UserSettingsHeader } from "../UserSettingsHeader";
 import { ScheduleForm } from "./ScheduleForm";
 
 const SchedulePage: React.FC = () => {
@@ -42,13 +42,13 @@ const SchedulePage: React.FC = () => {
 
 	return (
 		<>
-			<SettingsHeader>
+			<UserSettingsHeader section="schedule">
 				<SettingsHeaderTitle>Quiet hours</SettingsHeaderTitle>
 				<SettingsHeaderDescription>
 					Workspaces may be automatically updated during your quiet hours, as
 					configured by your administrators.
 				</SettingsHeaderDescription>
-			</SettingsHeader>
+			</UserSettingsHeader>
 			<ScheduleForm
 				isLoading={mutationLoading}
 				initialValues={quietHoursSchedule as UserQuietHoursScheduleResponse}

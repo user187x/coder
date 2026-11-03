@@ -1,4 +1,5 @@
 import { adminPageChoices } from "#/modules/dashboard/Navbar/adminQuickLinks";
+import { MockNoPermissions } from "#/testHelpers/entities";
 import { labelSize } from "./Wheel";
 import { DEFAULT_WHEEL, wheelChoices, wheelOf } from "./wheelChoices";
 
@@ -45,4 +46,20 @@ it("keeps saved Observability wedges as Monitoring without duplicates", () => {
 			(c) => c.id,
 		),
 	).toEqual(["monitoring", "workspaces", "templates"]);
+});
+
+it("requires deployment update access for the leases shortcut", () => {
+	const leases = wheelChoices().find((entry) => entry.id === "leases");
+	const permissions = {
+		...MockNoPermissions,
+		viewAllUsers: true,
+		createUser: true,
+	};
+	expect(leases?.allowed({ permissions, oauth2Provider: false })).toBe(false);
+	expect(
+		leases?.allowed({
+			permissions: { ...permissions, editDeploymentConfig: true },
+			oauth2Provider: false,
+		}),
+	).toBe(true);
 });

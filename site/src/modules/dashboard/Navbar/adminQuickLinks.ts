@@ -5,6 +5,7 @@ import {
 	CloudIcon,
 	ContainerIcon,
 	DatabaseIcon,
+	FileTextIcon,
 	HeartPulseIcon,
 	KeyRoundIcon,
 	LifeBuoyIcon,
@@ -12,6 +13,7 @@ import {
 	type LucideIcon,
 	MegaphoneIcon,
 	MessagesSquareIcon,
+	MonitorIcon,
 	NetworkIcon,
 	PaletteIcon,
 	TagIcon,
@@ -169,9 +171,22 @@ export const adminPageChoices = (): readonly (AdminPage & {
 
 export type { AdminPageAccess };
 
-/** Chat opens the personal panel even for users who cannot configure deployment chat. */
-export const settingsPagesFor = (access: AdminPageAccess): AdminPage[] =>
-	ADMIN_PAGES.filter((page) => page.id === "chat" || page.allowed(access));
+/** Personal destinations and the deployment controls the current user can open. */
+export const settingsPagesFor = (access: AdminPageAccess): AdminPage[] => [
+	{
+		id: "workspaces",
+		label: "Workspaces",
+		icon: MonitorIcon,
+		path: "/workspaces",
+	},
+	{
+		id: "templates",
+		label: "Templates",
+		icon: FileTextIcon,
+		path: "/templates",
+	},
+	...ADMIN_PAGES.filter((page) => page.id === "chat" || page.allowed(access)),
+];
 
 /** The admin pages this user can open, in the order the add menu lists them. */
 export const adminPagesFor = (access: AdminPageAccess): AdminPage[] =>

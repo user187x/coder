@@ -12,7 +12,6 @@ import {
 	SettingsHeaderDescription,
 	SettingsHeaderTitle,
 } from "#/components/SettingsHeader/SettingsHeader";
-import { ShortTermLeases } from "#/modules/platform/shortTermLeases/ShortTermLeases";
 import { TableCard } from "#/modules/platform/tableCard/TableCard";
 import { BulkUserActions } from "#/modules/users/BulkUserActions";
 import {
@@ -29,6 +28,7 @@ type UsersPageViewProps = Omit<
 	filterProps: React.ComponentProps<typeof UsersFilter>;
 	usersQuery: PaginationResult<TypesGen.GetUsersResponse>;
 	canCreateUser?: boolean;
+	leases?: React.ReactNode;
 	/** User Quota (UserQuotaSection), for admins: shared controls below the merged accounts table. */
 	quota?: React.ReactNode;
 };
@@ -37,6 +37,7 @@ export const UsersPageView: React.FC<UsersPageViewProps> = ({
 	filterProps,
 	usersQuery,
 	canCreateUser,
+	leases,
 	quota,
 	...props
 }) => {
@@ -120,7 +121,7 @@ export const UsersPageView: React.FC<UsersPageViewProps> = ({
 					/>
 				)}
 			</section>
-			{canCreateUser && <ShortTermLeases />}
+			{leases}
 
 			{quota && (
 				<section

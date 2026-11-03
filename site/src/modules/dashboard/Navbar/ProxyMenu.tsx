@@ -234,7 +234,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 						]}
 					/>
 
-					<div className="rounded-md border border-solid border-border bg-surface-primary p-2 shadow-md max-h-(--radix-dropdown-menu-content-available-height) overflow-y-auto scrollbar-thin [scrollbar-color:hsl(var(--surface-quaternary))_transparent]">
+					<div className="flex flex-col rounded-md border border-solid border-border bg-surface-primary p-2 shadow-md max-h-(--radix-dropdown-menu-content-available-height) overflow-y-auto scrollbar-thin [scrollbar-color:hsl(var(--surface-quaternary))_transparent]">
 						{regions && proxy && (
 							<DropdownMenuSub>
 								<DropdownMenuSubTrigger data-testid="navbar-region">
@@ -333,7 +333,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 							<nav
 								aria-label="Settings"
 								data-testid="controls-group"
-								className="mx-1 mt-2 mb-1 rounded-lg border border-solid border-border p-1"
+								className="mx-1 mt-2 mb-1 flex flex-auto flex-col rounded-lg border border-solid border-border p-1"
 							>
 								<AdminSettingsItems
 									metricsRef={setMetricsElement}

@@ -7,6 +7,7 @@ import {
 	adminPageIcon,
 	adminPagesFor,
 	resolveAdminQuickLinks,
+	settingsPagesFor,
 } from "./adminQuickLinks";
 
 const allPages = adminPagesFor({
@@ -161,4 +162,24 @@ it("retains Observability shortcuts under Monitoring for configuration viewers",
 	expect(
 		ids(resolveAdminQuickLinks(["observability", "monitoring"], pages)),
 	).toEqual(["monitoring"]);
+});
+
+it("offers personal destinations to members and restores their saved quick links in order", () => {
+	const pages = settingsPagesFor({
+		permissions: MockNoPermissions,
+		oauth2Provider: false,
+	});
+	expect(ids(addableAdminPages([], pages))).toEqual([
+		"workspaces",
+		"templates",
+		"chat",
+	]);
+	expect(
+		ids(
+			resolveAdminQuickLinks(
+				["templates", "security", "chat", "workspaces"],
+				pages,
+			),
+		),
+	).toEqual(["templates", "chat", "workspaces"]);
 });

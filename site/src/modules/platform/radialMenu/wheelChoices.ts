@@ -56,7 +56,7 @@ const DASHBOARD: readonly WheelChoice[] = [
 		to: "/deployment/users#short-term-leases",
 		group: "dashboard",
 		allowed: ({ permissions }) =>
-			permissions.viewAllUsers && permissions.createUser,
+			permissions.viewAllUsers && permissions.editDeploymentConfig,
 	},
 	// the Resources menu's icon for it
 	{

@@ -3,11 +3,9 @@ import { toast } from "sonner";
 import { API } from "#/api/api";
 import { authMethods, updatePassword } from "#/api/queries/users";
 import { Loader } from "#/components/Loader/Loader";
-import {
-	SettingsHeader,
-	SettingsHeaderTitle,
-} from "#/components/SettingsHeader/SettingsHeader";
+import { SettingsHeaderTitle } from "#/components/SettingsHeader/SettingsHeader";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
+import { UserSettingsHeader } from "../UserSettingsHeader";
 import { SecurityForm } from "./SecurityForm";
 import {
 	SingleSignOnSection,
@@ -74,9 +72,9 @@ export const SecurityPageView: React.FC<SecurityPageViewProps> = ({
 	return (
 		<div className="flex flex-col gap-12">
 			<div>
-				<SettingsHeader>
+				<UserSettingsHeader section="security">
 					<SettingsHeaderTitle>Security</SettingsHeaderTitle>
-				</SettingsHeader>
+				</UserSettingsHeader>
 				<SecurityForm {...security.form} />
 			</div>
 			{oidc && <SingleSignOnSection {...oidc.section} />}

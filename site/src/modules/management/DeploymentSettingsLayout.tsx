@@ -1,8 +1,4 @@
-import {
-	PanelLeftCloseIcon,
-	PanelLeftOpenIcon,
-	SettingsIcon,
-} from "lucide-react";
+import { SettingsIcon } from "lucide-react";
 import { Suspense, useId, useState } from "react";
 import { Navigate, Outlet, useLocation } from "react-router";
 import {
@@ -16,6 +12,7 @@ import { canViewDeploymentSettings } from "#/modules/permissions";
 import { RequirePermission } from "#/modules/permissions/RequirePermission";
 import { AdminBreadcrumb } from "./AdminBreadcrumb";
 import { AdminCategoryMenu } from "./AdminCategoryMenu";
+import { CategoryBreadcrumbButton } from "./CategoryBreadcrumbButton";
 import { DeploymentSidebar } from "./DeploymentSidebar";
 
 const DeploymentSettingsLayout: React.FC = () => {
@@ -23,7 +20,6 @@ const DeploymentSettingsLayout: React.FC = () => {
 	const location = useLocation();
 	const sidebarId = useId();
 	const [sidebarOpen, setSidebarOpen] = useState(true);
-	const SidebarIcon = sidebarOpen ? PanelLeftCloseIcon : PanelLeftOpenIcon;
 
 	if (location.pathname === "/deployment") {
 		return (
@@ -67,46 +63,13 @@ const DeploymentSettingsLayout: React.FC = () => {
 							<AdminCategoryMenu />
 						</BreadcrumbItem>
 						<BreadcrumbItem>
-							<button
-								type="button"
-								aria-current="page"
-								aria-controls={sidebarId}
-								aria-expanded={sidebarOpen}
-								title={
-									sidebarOpen
-										? "Double-click to hide categories"
-										: "Double-click to show categories"
-								}
-								onDoubleClick={(event) => {
-									if (
-										!(
-											event.target instanceof Element &&
-											event.target.closest("[data-category-toggle]")
-										)
-									)
-										setSidebarOpen((open) => !open);
-								}}
-								onClick={(event) => {
-									if (
-										event.detail === 0 ||
-										(event.detail === 1 &&
-											event.target instanceof Element &&
-											event.target.closest("[data-category-toggle]"))
-									)
-										setSidebarOpen((open) => !open);
-								}}
-							>
-								<CategoryIcon aria-hidden className="size-4 shrink-0" />
-								<span className="truncate">{category?.label ?? "General"}</span>
-								<span
-									data-category-toggle=""
-									aria-hidden="true"
-									title={sidebarOpen ? "Hide categories" : "Show categories"}
-									className="inline-flex size-5 shrink-0 items-center justify-center rounded-sm opacity-70 hover:opacity-100"
-								>
-									<SidebarIcon className="size-3.5" />
-								</span>
-							</button>
+							<CategoryBreadcrumbButton
+								label={category?.label ?? "General"}
+								icon={CategoryIcon}
+								controls={sidebarId}
+								sidebarOpen={sidebarOpen}
+								onToggle={() => setSidebarOpen((open) => !open)}
+							/>
 						</BreadcrumbItem>
 					</BreadcrumbList>
 				</AdminBreadcrumb>

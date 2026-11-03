@@ -14,7 +14,12 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { cn } from "cn";
-import { ChevronDownIcon, GripVerticalIcon, Trash2Icon } from "lucide-react";
+import {
+	ChevronDownIcon,
+	GripVerticalIcon,
+	PinIcon,
+	Trash2Icon,
+} from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { Link } from "react-router";
 import {
@@ -149,7 +154,11 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 				</SortableContext>
 			</DndContext>
 
-			<Collapsible open={expanded} onOpenChange={setExpanded}>
+			<Collapsible
+				open={expanded}
+				onOpenChange={setExpanded}
+				className="mt-auto"
+			>
 				<DropdownMenuItem
 					aria-expanded={expanded}
 					data-settings-expanded={expanded}
@@ -172,16 +181,33 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 					className="admin-quick-link-choices overflow-hidden"
 				>
 					<div className="my-1 rounded-lg border border-solid border-border bg-surface-secondary p-1">
-						<ChatMenuItem
-							admin={admin}
-							expanded={chatExpanded}
-							onToggle={onChatToggle}
-							onPin={
-								onChange && addable.some((page) => page.id === "chat")
-									? () => onChange([...ids, "chat"])
-									: undefined
-							}
-						/>
+						<div className="flex items-center">
+							<ChatMenuItem
+								className="min-w-0 flex-1"
+								admin={admin}
+								expanded={chatExpanded}
+								onToggle={onChatToggle}
+								onPin={
+									onChange && addable.some((page) => page.id === "chat")
+										? () => onChange([...ids, "chat"])
+										: undefined
+								}
+							/>
+							{onChange && addable.some((page) => page.id === "chat") && (
+								<DropdownMenuItem
+									aria-label="Add Chat to quick links"
+									title="Add Chat to quick links"
+									className="shrink-0"
+									onSelect={(e) => {
+										e.preventDefault();
+										onChange([...ids, "chat"]);
+										setAnnouncement("Chat added to the quick links.");
+									}}
+								>
+									<PinIcon aria-hidden />
+								</DropdownMenuItem>
+							)}
+						</div>
 						{onChange &&
 							choices.length > 0 &&
 							choices.map((page) => (
@@ -195,6 +221,10 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 								>
 									<page.icon aria-hidden />
 									{page.label}
+									<PinIcon
+										aria-hidden
+										className="ml-auto size-3.5 text-content-secondary"
+									/>
 								</DropdownMenuItem>
 							))}
 					</div>

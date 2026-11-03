@@ -3,7 +3,6 @@ import { useSearchParams } from "react-router";
 import { groupsForUser } from "#/api/queries/groups";
 import { authMethods } from "#/api/queries/users";
 import {
-	SettingsHeader,
 	SettingsHeaderDescription,
 	SettingsHeaderTitle,
 } from "#/components/SettingsHeader/SettingsHeader";
@@ -11,6 +10,7 @@ import { useAuthContext } from "#/contexts/auth/AuthProvider";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { useDashboard } from "#/modules/dashboard/useDashboard";
 import { AccountAvatar } from "#/modules/platform/avatar/AccountAvatar";
+import { UserSettingsHeader } from "../UserSettingsHeader";
 import { AccountForm } from "./AccountForm";
 import { AccountUserGroups } from "./AccountUserGroups";
 
@@ -31,12 +31,12 @@ const AccountPage: React.FC = () => {
 	return (
 		<div className="flex flex-col gap-12">
 			<div>
-				<SettingsHeader>
+				<UserSettingsHeader section="account">
 					<SettingsHeaderTitle>Account</SettingsHeaderTitle>
 					<SettingsHeaderDescription>
 						Update your account info.
 					</SettingsHeaderDescription>
-				</SettingsHeader>
+				</UserSettingsHeader>
 				<AccountAvatar user={me} />
 				<AccountForm
 					focusUsername={search.get("edit") === "username"}
