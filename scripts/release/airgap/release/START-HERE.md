@@ -287,7 +287,9 @@ processes one request at a time. In **Settings > Network > Create node**, choose
 allows one additional node. Review that ceiling and local worker memory before starting the service.
 
 - **k3d** requires the k3d CLI and access to the cluster host's Docker daemon. Set `memory` on the discovered profile.
-- **minikube** requires the minikube CLI on the host that owns the named profile.
+- **minikube** requires the minikube CLI on the host that owns the named profile and a multi-node CNI.
+  For a new profile, use `minikube start --cni=kindnet`. A single-node bridge configuration can leave
+  a newly registered worker at `KubeletNotReady`.
 - **EKS managed node groups** require the AWS CLI and permission to describe the cluster and node group,
   update the group's scaling configuration, and describe the update. Discovery recognizes EKS ARN contexts.
   For a context alias, add e.g. `{"id":"workers","label":"EKS workers","kind":"eks-managed","region":"us-east-1","cluster":"production","group":"workers"}`

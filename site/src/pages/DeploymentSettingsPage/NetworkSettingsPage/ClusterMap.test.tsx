@@ -19,6 +19,10 @@ import { renderComponent } from "#/testHelpers/renderHelpers";
 import { MockResizeObserver } from "#/testHelpers/resizeObserver";
 import { ClusterMap } from "./ClusterMap";
 
+vi.mock("#/hooks/useAuthenticated", () => ({
+	useAuthenticated: () => ({ permissions: { editDeploymentConfig: false } }),
+}));
+
 const renderMap = () =>
 	renderComponent(
 		<QueryClientProvider

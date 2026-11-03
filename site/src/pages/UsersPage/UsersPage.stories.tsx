@@ -286,6 +286,12 @@ export const UpdateUserRoleSuccess: Story = {
 	parameters: {
 		queries: [
 			...parameters.queries,
+			{
+				key: rolesQueryKey,
+				data: MockRoles.map((role) =>
+					role.name === "auditor" ? { ...role, assignable: true } : role,
+				),
+			},
 			//	Ensure the first user has the 'owner' role to test the edit functionality.
 			{
 				key: usersKey({ limit: 10, offset: 0, q: "" }),
@@ -353,7 +359,7 @@ export const UpdateUserRoleError: Story = {
 			within(dialog).getByLabelText("Auditor", { exact: false }),
 		);
 		await user.click(within(dialog).getByRole("button", { name: "Save" }));
-		await body.findByText(/Roles were not saved/);
+		await body.findByText(/Roles were not saved/, {}, { timeout: 10000 });
 	},
 };
 

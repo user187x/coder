@@ -139,7 +139,7 @@ class Operator:
         candidates = []
         for node in self.nodes():
             name, labels = node['metadata']['name'], node['metadata'].get('labels', {})
-            if name in job['before'] or not any(c['type'] == 'Ready' and c['status'] == 'True' for c in node['status']['conditions']):
+            if name in job['before']:
                 continue
             kind = p['kind']
             if kind == 'k3d' and labels.get('coder.com/node-request') != job['id']:
@@ -151,6 +151,11 @@ class Operator:
             if kind == 'eks-managed' and labels.get('eks.amazonaws.com/nodegroup') != p['group']:
                 continue
             if kind == 'eks-manual' and node['spec'].get('providerID', '').split('/')[-1] != job.get('providerRef'):
+                continue
+            ready = next((c for c in node['status']['conditions'] if c['type'] == 'Ready'), {})
+            if ready.get('status') != 'True':
+                job['message'] = (f"{name} registered. {ready.get('reason', 'Not Ready')}: "
+                                  f"{ready.get('message', 'Waiting for kubelet readiness.')}")[:600]
                 continue
             candidates.append(name)
         if p['kind'] == 'karpenter' and job.get('providerRef') != 'static':
@@ -246,10 +251,12 @@ class Operator:
                     self.k('-n', self.namespace, 'delete', 'pod', 'coder-node-' + rid, '--ignore-not-found', '--wait=false')
                 raise ValueError('Timed out waiting for registration. Inspect the provider before submitting another request.')
             else:
+                previous_message = job['message']
                 name = self.observe(p, job)
-                if not name:
+                if name:
+                    job.update(phase='ready', message=name + ' is Ready.')
+                elif previous_message == job['message']:
                     return
-                job.update(phase='ready', message=name + ' is Ready.')
         except (ValueError, KeyError, OSError) as err:
             job.update(phase='failed', message=str(err)[:600])
         latest = self.current()
