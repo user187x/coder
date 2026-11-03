@@ -99,9 +99,11 @@ export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 		else setArranging(true);
 	});
 	const [announcement, setAnnouncement] = useState("");
-	const visible = order.filter(
-		(id) => items[id] !== null && !hidden.includes(id),
+	const available = order.filter(
+		(id) => items[id] !== null || (arranging && id === "logo"),
 	);
+	const visible = available.filter((id) => !hidden.includes(id));
+	const removed = hidden.filter((id) => available.includes(id));
 	const sensors = useSensors(
 		useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
 	);
@@ -243,7 +245,14 @@ export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 							onDone={done}
 							onRemove={() => save(order, [...hidden, id])}
 						>
-							{items[id]}
+							{id === "logo" && items.logo === null ? (
+								<span className="inline-flex h-10 items-center gap-2 rounded-md border border-dashed border-border px-2 text-xs text-content-secondary">
+									<ImageIcon className="size-4" aria-hidden />
+									Logo
+								</span>
+							) : (
+								items[id]
+							)}
 						</ArrangeItem>
 					))}
 				</SortableContext>
@@ -272,36 +281,40 @@ export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 								>
 									Rearrange navigation bar
 								</h2>
+								{items.logo === null && (
+									<p className="mb-0 mt-2">
+										You can position the Logo tile here. Turn on Show logo in
+										Admin Settings › Appearance to display it.
+									</p>
+								)}
 								<div
 									className="mt-4 flex flex-wrap items-center gap-2"
 									role="group"
 									aria-label="Removed toolbar items"
 								>
-									{hidden.some((id) => items[id] !== null) ? (
+									{removed.length > 0 ? (
 										<>
 											<span className="w-full font-medium">Restore items</span>
-											{hidden
-												.filter((id) => items[id] !== null)
-												.map((id) => {
-													const Icon = RESTORE_ICONS[id];
-													return (
-														<Button
-															key={id}
-															size="sm"
-															variant="outline"
-															aria-label={`Restore ${LABELS[id]}`}
-															onClick={() =>
-																save(
-																	order,
-																	hidden.filter((item) => item !== id),
-																)
-															}
-														>
-															<Icon aria-hidden />
-															{LABELS[id]}
-														</Button>
-													);
-												})}
+											{removed.map((id) => {
+												const Icon = RESTORE_ICONS[id];
+												return (
+													<Button
+														key={id}
+														size="sm"
+														variant="outline"
+														aria-label={`Restore ${LABELS[id]}`}
+														onClick={() =>
+															save(
+																order,
+																hidden.filter((item) => item !== id),
+															)
+														}
+													>
+														<Icon aria-hidden />
+														{LABELS[id]}
+													</Button>
+												);
+											})}
 										</>
 									) : (
 										<span>All available items are on the navigation bar.</span>
