@@ -13,6 +13,7 @@ import { ConfirmDialog } from "#/components/Dialog/ConfirmDialog/ConfirmDialog";
 import { Input } from "#/components/Input/Input";
 import { Label } from "#/components/Label/Label";
 import { Spinner } from "#/components/Spinner/Spinner";
+import { AccountWorkspaceDelete } from "./AccountWorkspaceDelete";
 
 type Action = "stop" | "restart" | "terminate";
 const labels: Record<Action, string> = {
@@ -24,12 +25,14 @@ const labels: Record<Action, string> = {
 export const AccountWorkspaceActions: React.FC<{
 	targets: readonly Workspace[];
 	onClear?: () => void;
+	onDeleted?: (workspace: Workspace) => void;
 	compact?: boolean;
 	restartDisabled?: boolean;
 	children?: React.ReactNode;
 }> = ({
 	targets,
 	onClear,
+	onDeleted,
 	compact = false,
 	restartDisabled = false,
 	children,
@@ -81,6 +84,11 @@ export const AccountWorkspaceActions: React.FC<{
 						{regular.length} selected workspaces
 					</span>
 				)}
+				<AccountWorkspaceDelete
+					workspaces={regular}
+					compact={compact}
+					onDeleted={onDeleted}
+				/>
 				<Button
 					size={compact ? "icon" : "sm"}
 					className={compact ? "size-7 shrink-0" : undefined}

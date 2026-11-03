@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { userEvent, within } from "storybook/test";
+import { fireEvent, userEvent, within } from "storybook/test";
 import { workspaces } from "#/api/queries/workspaces";
 import { workspaceTunnels } from "#/api/queries/workspaceTunnels";
 import { MockWorkspace } from "#/testHelpers/entities";
@@ -39,6 +39,16 @@ export const Focused: Story = {
 };
 
 export const List: Story = { args: { initialLayout: "list" } };
+
+export const TwoRowsInView: Story = {
+	...List,
+	play: async () => {
+		const slider = await within(document.body).findByRole("slider", {
+			name: "Workspaces in view",
+		});
+		fireEvent.input(slider, { target: { value: "2" } });
+	},
+};
 
 export const SwitchToList: Story = {
 	play: async () => {

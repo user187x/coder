@@ -42,7 +42,7 @@ export const TemplateIconsButton: React.FC = () => {
 	const [open, setOpen] = useState(false);
 	return (
 		<>
-			<Button size="lg" variant="outline" onClick={() => setOpen(true)}>
+			<Button size="sm" variant="outline" onClick={() => setOpen(true)}>
 				<ImagesIcon />
 				Icons
 			</Button>
@@ -54,7 +54,7 @@ export const TemplateIconsButton: React.FC = () => {
 type PendingIcon = { file: File; image: NormalizedImage };
 
 /**
- * Templates > Icons: pictures uploaded to Coder's database and served at
+ * Template editor > Icons: pictures uploaded to Coder's database and served at
  * /__coder-ui/icons/<name>, for template, workspace and Terraform resource
  * icons (`icon = "/__coder-ui/icons/<name>"`), and in every icon picker.
  * Owners and template admins add and remove them; everyone can copy a path.

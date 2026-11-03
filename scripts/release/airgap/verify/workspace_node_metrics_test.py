@@ -405,3 +405,21 @@ class WorkspaceVMMetricsTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class StartupReasonTest(unittest.TestCase):
+    def test_reveals_current_pod_reason_only_to_authorized_workspace_reader(self):
+        wid, oid = str(uuid.uuid4()), str(uuid.uuid4())
+        pod = {"metadata": {"name": "workspace", "namespace": "coder", "uid": "pod"},
+               "status": {"conditions": [{"type": "PodScheduled", "status": "False", "reason": "Unschedulable",
+                                           "message": "0/4 nodes are available: Insufficient memory."}]}}
+        kube = mock.Mock()
+        kube.call.return_value = (200, {"items": [pod]})
+        with mock.patch.object(metrics, "KUBE", kube), mock.patch.object(metrics, "WORKSPACE_INFO", return_value={"organization_id": oid}):
+            with self.assertRaises(LookupError):
+                metrics.startup_issue("session", str(uuid.uuid4()), wid)
+            kube.call.assert_not_called()
+            result = metrics.startup_issue("session", oid, wid)
+            self.assertEqual(result["issue"]["reason"], "Unschedulable")
+            self.assertIn("Insufficient memory", result["issue"]["message"])
+            pod["status"] = {"phase": "Running", "containerStatuses": [{"name": "dev", "state": {"running": {}}}]}
+            self.assertIsNone(metrics.startup_issue("session", oid, wid)["issue"])

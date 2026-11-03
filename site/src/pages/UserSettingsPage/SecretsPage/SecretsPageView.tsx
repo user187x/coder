@@ -9,10 +9,10 @@ import type {
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { Button } from "#/components/Button/Button";
 import {
-	SettingsHeader,
 	SettingsHeaderDescription,
 	SettingsHeaderTitle,
 } from "#/components/SettingsHeader/SettingsHeader";
+import { UserSettingsHeader } from "../UserSettingsHeader";
 import { SecretDialog } from "./SecretDialog";
 import { SecretsTable } from "./SecretsTable";
 
@@ -86,7 +86,8 @@ export const SecretsPageView: React.FC<SecretsPageViewProps> = ({
 
 	return (
 		<div className="flex flex-col gap-6">
-			<SettingsHeader
+			<UserSettingsHeader
+				section="secrets"
 				actions={
 					<Button onClick={(event) => openAddSecret(event.currentTarget)}>
 						<PlusIcon />
@@ -100,7 +101,7 @@ export const SecretsPageView: React.FC<SecretsPageViewProps> = ({
 						? "Secrets with an environment variable or file path are injected into workspaces you own when they start. Each environment variable and file path must be unique."
 						: "File path delivery is disabled. Environment variables still work; saved paths remain blocked until delivery is enabled."}{" "}
 				</SettingsHeaderDescription>
-			</SettingsHeader>
+			</UserSettingsHeader>
 
 			<SecretDialog
 				open={dialogState.open}

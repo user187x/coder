@@ -1,48 +1,20 @@
 import { useQuery } from "react-query";
-import { useLocation } from "react-router";
 import { health } from "#/api/queries/debug";
 import { deploymentStats } from "#/api/queries/deployment";
+import { isEmbeddedFrame } from "#/contexts/platformBoot";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { DeploymentBannerView } from "./DeploymentBannerView";
 
-const HIDE_DEPLOYMENT_BANNER_PATHS = [
-	// Hide the banner on workspace page because it already has a lot of
-	// information.
-	// - It adds names to the main groups that we're checking for, so it'll be a
-	//   little more self-documenting
-	// - It redefines each group to only allow the characters A-Z (lowercase or
-	//   uppercase), numbers, and hyphens
-	/^\/@(?<username>[a-zA-Z0-9-]+)\/(?<workspace_name>[a-zA-Z0-9-]+)$/,
-];
-
-export const DeploymentBanner: React.FC = () => {
+export function DeploymentBanner() {
 	const { permissions } = useAuthenticated();
-	const deploymentStatsQuery = useQuery({
-		...deploymentStats(),
-		enabled: permissions.viewDeploymentStats,
-	});
-	const healthQuery = useQuery({
-		...health(),
-		enabled: permissions.viewDeploymentConfig,
-	});
-	const location = useLocation();
-	const isHidden = HIDE_DEPLOYMENT_BANNER_PATHS.some((regex) =>
-		regex.test(location.pathname),
-	);
-
-	if (
-		isHidden ||
-		!permissions.viewDeploymentConfig ||
-		!deploymentStatsQuery.data
-	) {
-		return null;
-	}
-
+	const enabled =
+		!isEmbeddedFrame() &&
+		permissions.viewDeploymentConfig &&
+		permissions.viewDeploymentStats;
+	const { data: stats, refetch } = useQuery({ ...deploymentStats(), enabled });
+	const { data: report } = useQuery({ ...health(), enabled });
+	if (!enabled || !stats) return null;
 	return (
-		<DeploymentBannerView
-			health={healthQuery.data}
-			stats={deploymentStatsQuery.data}
-			fetchStats={() => deploymentStatsQuery.refetch()}
-		/>
+		<DeploymentBannerView stats={stats} health={report} fetchStats={refetch} />
 	);
-};
+}

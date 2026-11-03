@@ -278,6 +278,10 @@ export const WorkspaceTopbar: React.FC<WorkspaceTopbarProps> = ({
 							</>
 						) : (
 							<WorkspaceStatusIndicator
+								starting={
+									isUpdating &&
+									(buildStatus === "stopped" || buildStatus === "pending")
+								}
 								workspace={workspace}
 								runningLight
 								className="workspace-topbar-running-status gap-1.5 rounded-full border border-solid border-current/20 bg-surface-secondary px-2 py-1 text-xs"

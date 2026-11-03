@@ -18,11 +18,7 @@ import {
 	MockWorkspaceBuildParameter4,
 	MockWorkspaceBuildParameter7,
 } from "#/testHelpers/entities";
-import {
-	checkParameters,
-	editParameters,
-	isBuildParameter,
-} from "#/testHelpers/parameters";
+import { checkParameters } from "#/testHelpers/parameters";
 import {
 	renderWithWorkspaceSettingsLayout,
 	waitForLoaderToBeRemoved,
@@ -32,6 +28,12 @@ import {
 	mockDynamicParameterWebSocket,
 } from "#/testHelpers/websockets";
 import WorkspaceSettingsCardsPage from "./WorkspaceSettingsCardsPage";
+
+// Keep dashboard polling and animation timers out of the settings form tests.
+vi.mock("#/modules/dashboard/DashboardLayout", async () => {
+	const { Outlet } = await import("react-router");
+	return { DashboardLayout: Outlet };
+});
 
 const option = (name: string, value: string) => ({
 	name,
@@ -111,7 +113,6 @@ describe("WorkspaceSettingsCardsPage", () => {
 	});
 
 	afterEach(() => {
-		vi.useRealTimers();
 		vi.restoreAllMocks();
 	});
 
@@ -225,27 +226,34 @@ describe("WorkspaceSettingsCardsPage", () => {
 				MockPreviewParameter7,
 			);
 
-			// Make the debounce fire after each macrotask.
-			vi.useFakeTimers();
-			vi.setTimerTickMode("nextTimerAsync");
 			const edited = [
 				{ name: MockPreviewParameter1.name, value: "" },
 				{ name: MockPreviewParameter7.name, value: "not-blank" },
 			];
-			editParameters(...edited);
-			await waitFor(() => {
-				expect(publisher.clientSentData).toHaveLength(1);
-				expect(JSON.parse(publisher.clientSentData[0] as string)).toEqual(
-					expect.objectContaining({
-						id: 0,
-						inputs: Object.fromEntries(
-							[...edited, MockPreviewParameter4].map((p) => [
-								p.name,
-								isBuildParameter(p) ? p.value : p.value.value,
-							]),
-						),
-					}),
-				);
+			const user = userEvent.setup();
+			await user.clear(
+				screen.getByRole("textbox", {
+					name: new RegExp(MockPreviewParameter1.name),
+				}),
+			);
+			await user.click(
+				screen.getByRole("textbox", {
+					name: new RegExp(MockPreviewParameter7.name),
+				}),
+			);
+			await user.paste("not-blank");
+
+			const requestId = await waitFor(() => {
+				const message = publisher.clientSentData.at(-1);
+				if (typeof message !== "string")
+					throw new Error("Waiting for parameter preview");
+				const request: TypesGen.DynamicParametersRequest = JSON.parse(message);
+				expect(request.inputs).toEqual({
+					[MockPreviewParameter1.name]: "",
+					[MockPreviewParameter7.name]: "not-blank",
+					[MockPreviewParameter4.name]: MockPreviewParameter4.value.value,
+				});
+				return request.id;
 			});
 			await connect(
 				publisher,
@@ -255,7 +263,7 @@ describe("WorkspaceSettingsCardsPage", () => {
 					MockPreviewParameter4,
 					MockPreviewParameter7,
 				],
-				0,
+				requestId,
 			);
 			await checkParameters(
 				...edited,
@@ -379,7 +387,7 @@ describe("WorkspaceSettingsCardsPage", () => {
 			await connect(publisher, [MockPreviewParameter1]);
 			const name = await screen.findByLabelText("Workspace name");
 			await user.clear(name);
-			await user.type(name, "new-name");
+			await user.paste("new-name");
 			expect(name).toHaveValue("new-name");
 			const bar = await screen.findByTestId("save-bar");
 			expect(bar).toHaveTextContent("Saved as they are: nothing restarts.");
@@ -415,7 +423,7 @@ describe("WorkspaceSettingsCardsPage", () => {
 			await connect(publisher, [cpu("2")]);
 			const name = await screen.findByLabelText("Workspace name");
 			await user.clear(name);
-			await user.type(name, "bad!name");
+			await user.paste("bad!name");
 			await user.click(
 				within(screen.getByTestId("parameter-field-cpu")).getByRole("button", {
 					name: "4 Cores",

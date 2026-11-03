@@ -29,12 +29,13 @@ import { Latency } from "#/components/Latency/Latency";
 import type { ProxyContextValue } from "#/contexts/ProxyContext";
 import { getLatencyColor } from "#/utils/latency";
 import {
+	type AdminQuickLinksEditor,
 	AdminSettingsItems,
 	type AdminSettingsPermissions,
-	canViewAdminSettings,
 } from "./AdminSettings";
 import type { AdminPage } from "./adminQuickLinks";
 import { sortProxiesByLatency } from "./proxyUtils";
+import { SettingsChatPanel } from "./SettingsChatPanel";
 
 const itemStyles = {
 	default: "px-9 h-10 no-underline",
@@ -47,6 +48,7 @@ type MobileMenuProps = {
 	adminPermissions: AdminSettingsPermissions;
 	/** The admin's quick links, shown read-only (they are edited in the desktop Admin menu). */
 	adminQuickLinks?: readonly AdminPage[];
+	quickLinksEditor?: AdminQuickLinksEditor;
 	user?: TypesGen.User;
 	supportLinks?: readonly TypesGen.LinkConfig[];
 	onSignOut: () => void;
@@ -56,6 +58,7 @@ type MobileMenuProps = {
 export const MobileMenu: React.FC<MobileMenuProps> = ({
 	adminPermissions,
 	adminQuickLinks,
+	quickLinksEditor,
 	proxyContextValue,
 	user,
 	supportLinks,
@@ -96,15 +99,12 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
 				<DropdownMenuSeparator />
 				<ProxySettingsSub proxyContextValue={proxyContextValue} />
 
-				{canViewAdminSettings(adminPermissions) && (
-					<>
-						<DropdownMenuSeparator />
-						<AdminSettingsSub
-							permissions={adminPermissions}
-							quickLinks={adminQuickLinks}
-						/>
-					</>
-				)}
+				<DropdownMenuSeparator />
+				<SettingsSub
+					permissions={adminPermissions}
+					quickLinks={adminQuickLinks}
+					quickLinksEditor={quickLinksEditor}
+				/>
 				<DropdownMenuSeparator />
 				<UserSettingsSub
 					user={user}
@@ -218,16 +218,19 @@ const ProxySettingsSub: React.FC<ProxySettingsSubProps> = ({
 	);
 };
 
-type AdminSettingsSubProps = {
+type SettingsSubProps = {
 	permissions: AdminSettingsPermissions;
 	quickLinks?: readonly AdminPage[];
+	quickLinksEditor?: AdminQuickLinksEditor;
 };
 
-const AdminSettingsSub: React.FC<AdminSettingsSubProps> = ({
+const SettingsSub: React.FC<SettingsSubProps> = ({
 	permissions,
 	quickLinks,
+	quickLinksEditor,
 }) => {
 	const [open, setOpen] = useState(false);
+	const [chatExpanded, setChatExpanded] = useState(false);
 
 	return (
 		<Collapsible open={open} onOpenChange={setOpen}>
@@ -248,9 +251,15 @@ const AdminSettingsSub: React.FC<AdminSettingsSubProps> = ({
 			<CollapsibleContent>
 				<AdminSettingsItems
 					itemClassName={cn(itemStyles.default, itemStyles.sub)}
+					chatExpanded={chatExpanded}
+					onChatToggle={() => setChatExpanded((expanded) => !expanded)}
 					permissions={permissions}
 					quickLinks={quickLinks}
+					quickLinksEditor={quickLinksEditor}
 				/>
+				{chatExpanded && (
+					<SettingsChatPanel onClose={() => setChatExpanded(false)} />
+				)}
 			</CollapsibleContent>
 		</Collapsible>
 	);

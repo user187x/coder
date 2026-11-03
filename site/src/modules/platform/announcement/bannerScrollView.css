@@ -3,7 +3,7 @@
  * scan-line sheen, a prompt and a blinking cursor - showing the whole message as rich text. Above everything
  * (fixed, the highest z-index), about a quarter of the page tall, scrolling when the message is longer; it rolls
  * down when opened and back up when closed. Its chrome is the dashboard's grays - its dark theme's surfaces (zinc),
- * in either theme, as a terminal stays dark - with the prompt's colours as the only colour.
+ * in either theme, as a terminal stays dark - with semantic colours for command output.
  */
 .banner-scroll {
 	--banner-scroll-screen: #18181b; /* zinc-900: the dark theme's surface-secondary */
@@ -308,4 +308,24 @@ html.platform-sparks-cursor * {
 }
 .banner-scroll-body {
 	padding-bottom: 32px;
+}
+
+/* Give statuses a dark backing so their contrast survives custom banner colors and pictures. */
+.banner-scroll-out [data-terminal-tone] {
+	background: #18181b;
+	border-radius: 0.2em;
+	font-weight: 600;
+}
+.banner-scroll-out [data-terminal-tone="ok"] {
+	color: #86efac;
+}
+.banner-scroll-out [data-terminal-tone="error"] {
+	color: #fca5a5;
+}
+.banner-scroll-out [data-terminal-tone="warning"],
+.banner-scroll-out [data-terminal-tone="unknown"] {
+	color: #fcd34d;
+}
+.banner-scroll-out [data-terminal-tone="inactive"] {
+	color: #d4d4d8;
 }

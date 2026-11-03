@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { useQuery } from "react-query";
+import { workspaceStartup } from "#/api/queries/workspaceMetrics";
 import type { Workspace, WorkspaceAgent } from "#/api/typesGenerated";
 import { initializingMilestones, initializingStep } from "./workspaceReadiness";
 import "./workspaceInitializing.css";
@@ -66,6 +68,18 @@ export const WorkspaceInitializing: React.FC<WorkspaceInitializingProps> = ({
 	const overall = useStartProgress(milestones.done, milestones.total, now);
 	const percent = Math.round(overall * 100);
 
+	const { data: startup } = useQuery(workspaceStartup(workspace));
+	if (startup?.issue) {
+		return (
+			<section
+				role="status"
+				className="rounded-md border border-solid border-border p-4"
+			>
+				<h2 className="text-base">Workspace startup blocked</h2>
+				<p>{startup.issue.message}</p>
+			</section>
+		);
+	}
 	const { step, progress } = initializingStep(agent);
 	const listed = progress?.pending.slice(0, MAX_LISTED_SCRIPTS) ?? [];
 	const more = (progress?.pending.length ?? 0) - listed.length;

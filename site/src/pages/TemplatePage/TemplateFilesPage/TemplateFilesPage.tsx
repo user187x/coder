@@ -140,6 +140,7 @@ const TemplateFilesPage: React.FC = () => {
 			)}
 			{shouldDisplayFiles && version ? (
 				<TemplateFiles
+					onSelectFile={() => setView("code")}
 					fill
 					key={version.id}
 					organizationName={template.organization_name}

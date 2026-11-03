@@ -7,6 +7,13 @@ import type {
 	SessionCountDeploymentStats,
 } from "#/api/typesGenerated";
 import {
+	Table,
+	TableBody,
+	TableCell,
+	TableRow,
+} from "#/components/Table/Table";
+import { TableCard } from "#/modules/platform/tableCard/TableCard";
+import {
 	DeploymentHealthUnhealthy,
 	MockDeploymentStats,
 	MockHealth,
@@ -68,6 +75,57 @@ export default meta;
 type Story = StoryObj<typeof DeploymentBannerView>;
 
 export const Example: Story = {};
+
+export const TableFooter: Story = {
+	args: { health: MockHealth },
+	render: (args) => (
+		<main className="max-w-6xl mx-auto">
+			<TableCard
+				footerStats={<DeploymentBannerView {...args} />}
+				summary="Showing 1 of 1 workspaces"
+				hint="Point at anything in the table to read what it does"
+			>
+				<Table aria-label="Workspaces">
+					<TableBody>
+						<TableRow>
+							<TableCell>Browser</TableCell>
+						</TableRow>
+					</TableBody>
+				</Table>
+			</TableCard>
+		</main>
+	),
+};
+
+export const ExpandedTableFooter: Story = {
+	...TableFooter,
+	play: async ({ canvasElement }) => {
+		await userEvent.dblClick(
+			within(canvasElement).getByRole("button", {
+				name: "Show deployment statistics",
+			}),
+		);
+	},
+};
+export const Mobile: Story = {
+	...ExpandedTableFooter,
+	globals: { viewport: { value: "iphone12" } },
+};
+
+export const HudTotals: Story = {
+	args: { health: MockHealth },
+	render: (args) => (
+		<div className="max-w-6xl mx-auto overflow-hidden rounded-lg border border-solid border-border bg-surface-secondary/40">
+			<div
+				data-deployment-footer="hud"
+				className="border-0 border-b border-solid border-border"
+			>
+				<DeploymentBannerView {...args} />
+			</div>
+			<div className="px-4 py-3 font-mono text-sm">CPU · Memory · GPU</div>
+		</div>
+	),
+};
 
 export const Loading: Story = {
 	args: { stats: undefined },

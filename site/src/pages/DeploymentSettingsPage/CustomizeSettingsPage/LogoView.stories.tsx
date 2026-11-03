@@ -6,7 +6,12 @@ import { LogoView } from "./CustomizeSettingsPage";
 const meta: Meta<typeof LogoView> = {
 	title: "pages/DeploymentSettingsPage/CustomizeSettingsPage/LogoView",
 	component: LogoView,
-	args: { logo: MockLogo, onUpload: fn(), onReset: fn() },
+	args: {
+		logo: MockLogo,
+		onEnabledChange: fn(),
+		onUpload: fn(),
+		onReset: fn(),
+	},
 };
 
 export default meta;
@@ -39,4 +44,8 @@ export const LightPreview: Story = {
 			within(canvasElement).getByRole("tab", { name: "Light" }),
 		);
 	},
+};
+
+export const HiddenLogo: Story = {
+	args: { logo: { ...MockLogo, enabled: false } },
 };

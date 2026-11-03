@@ -4,10 +4,10 @@ import { Link as RouterLink } from "react-router";
 import type { APIKeyWithOwner } from "#/api/typesGenerated";
 import { Button } from "#/components/Button/Button";
 import {
-	SettingsHeader,
 	SettingsHeaderDescription,
 	SettingsHeaderTitle,
 } from "#/components/SettingsHeader/SettingsHeader";
+import { UserSettingsHeader } from "../UserSettingsHeader";
 import { ConfirmDeleteDialog } from "./ConfirmDeleteDialog";
 import { useTokensData } from "./hooks";
 import { TokensPageView } from "./TokensPageView";
@@ -34,7 +34,8 @@ const TokensPage: React.FC = () => {
 
 	return (
 		<>
-			<SettingsHeader
+			<UserSettingsHeader
+				section="tokens"
 				actions={
 					<Button asChild variant="outline">
 						<RouterLink to="new">
@@ -53,7 +54,7 @@ const TokensPage: React.FC = () => {
 					</code>{" "}
 					command.
 				</SettingsHeaderDescription>
-			</SettingsHeader>
+			</UserSettingsHeader>
 			<TokensPageView
 				tokens={tokens}
 				isLoading={isFetching}

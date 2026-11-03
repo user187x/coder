@@ -1,11 +1,9 @@
 import { SettingsIcon } from "lucide-react";
-import { Suspense } from "react";
+import { Suspense, useId, useState } from "react";
 import { Navigate, Outlet, useLocation } from "react-router";
 import {
 	BreadcrumbItem,
-	BreadcrumbLink,
 	BreadcrumbList,
-	BreadcrumbPage,
 } from "#/components/Breadcrumb/Breadcrumb";
 import { Loader } from "#/components/Loader/Loader";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
@@ -13,11 +11,15 @@ import { adminCategory } from "#/modules/dashboard/Navbar/adminQuickLinks";
 import { canViewDeploymentSettings } from "#/modules/permissions";
 import { RequirePermission } from "#/modules/permissions/RequirePermission";
 import { AdminBreadcrumb } from "./AdminBreadcrumb";
+import { AdminCategoryMenu } from "./AdminCategoryMenu";
+import { CategoryBreadcrumbButton } from "./CategoryBreadcrumbButton";
 import { DeploymentSidebar } from "./DeploymentSidebar";
 
 const DeploymentSettingsLayout: React.FC = () => {
 	const { permissions } = useAuthenticated();
 	const location = useLocation();
+	const sidebarId = useId();
+	const [sidebarOpen, setSidebarOpen] = useState(true);
 
 	if (location.pathname === "/deployment") {
 		return (
@@ -36,45 +38,57 @@ const DeploymentSettingsLayout: React.FC = () => {
 	// this page must be visible if you can see any of these. The AI settings
 	// pages render in this layout too and check their own permissions, and so
 	// do the Health pages (the health report).
+	const category = adminCategory(location.pathname);
 	const canViewHealth = permissions.viewDebugInfo;
 	const canViewDeploymentSettingsPage =
+		(category?.id === "images" && permissions.editDeploymentConfig) ||
 		canViewDeploymentSettings(permissions) ||
 		location.pathname.startsWith("/ai/settings") ||
 		(location.pathname.startsWith("/health") && canViewHealth);
 
 	// the category's quick-link icon in the breadcrumb (General: the Admin menu's Settings icon)
 	const chat = location.pathname === "/deployment/chat";
-	const category = adminCategory(location.pathname);
+
 	const CategoryIcon = category?.icon ?? SettingsIcon;
 
 	return (
 		<RequirePermission isFeatureVisible={canViewDeploymentSettingsPage}>
 			<div className={chat ? "flex-1 min-h-0" : undefined}>
-				<AdminBreadcrumb variant="connected">
+				<AdminBreadcrumb
+					variant="connected"
+					className="deployment-breadcrumb"
+					data-categories-collapsed={!sidebarOpen || undefined}
+				>
 					<BreadcrumbList>
 						<BreadcrumbItem>
-							<BreadcrumbLink to="/hud" end>
-								<SettingsIcon aria-hidden className="size-4 shrink-0" />
-								Admin
-							</BreadcrumbLink>
+							<AdminCategoryMenu />
 						</BreadcrumbItem>
 						<BreadcrumbItem>
-							<BreadcrumbPage className="text-content-primary">
-								<CategoryIcon aria-hidden className="size-4 shrink-0" />
-								{category?.label ?? "General"}
-							</BreadcrumbPage>
+							<CategoryBreadcrumbButton
+								label={category?.label ?? "General"}
+								icon={CategoryIcon}
+								controls={sidebarId}
+								sidebarOpen={sidebarOpen}
+								onToggle={() => setSidebarOpen((open) => !open)}
+							/>
 						</BreadcrumbItem>
 					</BreadcrumbList>
 				</AdminBreadcrumb>
 				<section className="px-4 sm:px-6 lg:px-10 max-w-[1920px] mx-auto">
 					<div className="flex flex-col gap-4 py-3 lg:flex-row lg:gap-8 lg:py-5">
-						{chat ? (
-							<div className="hidden lg:contents">
-								<DeploymentSidebar />
-							</div>
-						) : (
-							<DeploymentSidebar />
-						)}
+						<div
+							id={sidebarId}
+							hidden={!sidebarOpen}
+							className={
+								sidebarOpen
+									? chat
+										? "hidden lg:contents"
+										: "contents"
+									: undefined
+							}
+						>
+							{sidebarOpen && <DeploymentSidebar />}
+						</div>
 						<div className="grow min-w-0">
 							<Suspense fallback={<Loader />}>
 								<Outlet />

@@ -46,7 +46,7 @@ const pages = adminPagesFor({
 
 const controls = {
 	permissions: {
-		canViewDeployment: true,
+		canViewHud: true,
 		canViewOrganizations: true,
 		canViewAuditLog: true,
 		canViewConnectionLog: true,
@@ -126,13 +126,12 @@ describe("ProxyMenu", () => {
 				},
 			});
 			await user.click(screen.getByRole("button", { name: /Settings/ }));
-			await user.pointer({
-				target: await screen.findByRole("menuitem", { name: "Appearance" }),
-				keys: "[MouseRight]",
+			const shortcut = await screen.findByRole("menuitem", {
+				name: "Appearance",
 			});
-			const shortcut = screen.getByRole("menuitem", { name: "Appearance" });
-			await user.pointer({ target: shortcut, keys: "[MouseRight]" });
-			await user.pointer({ target: shortcut, keys: "[MouseRight]" });
+			await user.click(shortcut);
+			await user.click(shortcut);
+			await user.click(shortcut);
 			const appearance = within(
 				await screen.findByRole("group", {
 					name: "Personal dashboard appearance",
@@ -150,8 +149,8 @@ describe("ProxyMenu", () => {
 				),
 			);
 			shortcut.focus();
-			await user.keyboard("{Shift>}{F10}{/Shift}");
-			await user.keyboard("{Shift>}{F10}{/Shift}");
+			await user.keyboard("{Enter}");
+			await user.keyboard("{Enter}");
 			await user.click(
 				within(
 					screen.getByRole("group", { name: "Personal dashboard appearance" }),
@@ -209,8 +208,8 @@ describe("ProxyMenu", () => {
 			);
 		expect(items.map((item) => item.textContent?.trim())).toEqual([
 			expect.stringMatching(/^Workspaces/),
-			"Chat",
 			...pages.slice(0, 2).map((page) => page.label),
+			"Controls",
 			"Organizations",
 			"Audit logs",
 			"Connection logs",

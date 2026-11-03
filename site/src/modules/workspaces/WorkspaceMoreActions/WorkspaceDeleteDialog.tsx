@@ -25,6 +25,9 @@ type WorkspaceDeleteDialogProps = {
 	workspace: Workspace;
 	canDeleteFailedWorkspace: boolean;
 	isOpen: boolean;
+	pending?: boolean;
+	error?: unknown;
+	buildNotice?: string;
 	onCancel: () => void;
 	onConfirm: (arg: CreateWorkspaceBuildRequest["orphan"]) => void;
 };
@@ -33,6 +36,9 @@ export const WorkspaceDeleteDialog: React.FC<WorkspaceDeleteDialogProps> = ({
 	workspace,
 	canDeleteFailedWorkspace,
 	isOpen,
+	pending = false,
+	error,
+	buildNotice,
 	onCancel,
 	onConfirm,
 }) => {
@@ -74,6 +80,7 @@ export const WorkspaceDeleteDialog: React.FC<WorkspaceDeleteDialogProps> = ({
 	}
 
 	const confirm = async () => {
+		if (pending || releasing || guard.isLoading) return;
 		if (source) {
 			if (!sourceConfirmed) {
 				return;
@@ -125,9 +132,13 @@ export const WorkspaceDeleteDialog: React.FC<WorkspaceDeleteDialogProps> = ({
 			open={isOpen}
 			title="Delete Workspace"
 			onConfirm={() => void confirm()}
-			onClose={onCancel}
+			confirmLoading={pending || releasing}
+			onClose={() => {
+				if (!pending && !releasing) onCancel();
+			}}
 			disabled={
 				guard.isLoading ||
+				pending ||
 				releasing ||
 				(source ? !sourceConfirmed : !confirmation.confirmed)
 			}
@@ -136,7 +147,7 @@ export const WorkspaceDeleteDialog: React.FC<WorkspaceDeleteDialogProps> = ({
 					<div className="flex items-center justify-between rounded-md border border-solid border-border p-4 mb-5 leading-snug">
 						<div>
 							<p className="m-0 text-base font-semibold text-content-primary">
-								{workspace.name}
+								{workspace.owner_name}/{workspace.name}
 							</p>
 							<p className="m-0 text-xs text-content-secondary">workspace</p>
 						</div>
@@ -149,6 +160,12 @@ export const WorkspaceDeleteDialog: React.FC<WorkspaceDeleteDialogProps> = ({
 					</div>
 
 					<p>Deleting this workspace is irreversible!</p>
+					{buildNotice && <p>{buildNotice}</p>}
+					{Boolean(error) && (
+						<p role="alert" className="text-content-destructive">
+							{getErrorMessage(error, "Could not prepare workspace deletion.")}
+						</p>
+					)}
 					{source ? (
 						<div
 							className="flex flex-col gap-3"

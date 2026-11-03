@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PlatformAPI } from "#/api/platform";
 import { MockBackgrounds } from "#/testHelpers/appearance";
@@ -6,86 +6,25 @@ import { render } from "#/testHelpers/renderHelpers";
 import { BackgroundSection } from "./BackgroundSection";
 
 afterEach(() => vi.restoreAllMocks());
-it("keeps both tab drafts and saves them together without an intervening save", async () => {
+it("saves dashboard fit and layer without changing the login background", async () => {
 	vi.spyOn(PlatformAPI, "getBackgrounds").mockResolvedValue(MockBackgrounds);
 	const save = vi
 		.spyOn(PlatformAPI, "saveBackground")
 		.mockResolvedValue({ ok: true, set: true });
+	const user = userEvent.setup();
 	render(<BackgroundSection />);
-	fireEvent.change(
-		await screen.findByLabelText("Dashboard background strength"),
-		{ target: { value: "18" } },
+	await user.selectOptions(
+		await screen.findByRole("combobox", { name: "Fit" }),
+		"span",
 	);
-	await userEvent.selectOptions(
-		within(screen.getByRole("tabpanel", { name: "Dashboard" })).getByRole(
-			"combobox",
-			{ name: "Fit" },
+	await user.click(screen.getByLabelText("Over the page, as a watermark"));
+	await user.click(screen.getByRole("button", { name: "Save" }));
+	await waitFor(() =>
+		expect(save).toHaveBeenCalledExactlyOnceWith(
+			"dashboard",
+			expect.objectContaining({ fit: "span", layer: "over" }),
 		),
-		"span",
 	);
-	await userEvent.click(
-		screen.getByRole("tab", { name: "Sign-in / sign-out" }),
-	);
-	fireEvent.change(screen.getByLabelText("Sign-in page background strength"), {
-		target: { value: "22" },
-	});
-	await userEvent.selectOptions(
-		within(
-			screen.getByRole("tabpanel", { name: "Sign-in / sign-out" }),
-		).getByRole("combobox", { name: "Fit" }),
-		"span",
-	);
-	await userEvent.click(
-		within(
-			screen.getByRole("tabpanel", { name: "Sign-in / sign-out" }),
-		).getByLabelText("Over the page, as a watermark"),
-	);
-	await userEvent.click(screen.getByRole("tab", { name: "Dashboard" }));
-	expect(save).not.toHaveBeenCalled();
-	await userEvent.click(
-		screen.getByRole("button", { name: "Save backgrounds" }),
-	);
-	await waitFor(() => expect(save).toHaveBeenCalledTimes(2));
-	expect(save).toHaveBeenCalledWith(
-		"dashboard",
-		expect.objectContaining({ opacity: 0.18, fit: "span", layer: "under" }),
-	);
-	expect(save).toHaveBeenCalledWith(
-		"login",
-		expect.objectContaining({ opacity: 0.22, fit: "span", layer: "over" }),
-	);
-});
-
-it("retries only the unsaved background after a partial failure", async () => {
-	vi.spyOn(PlatformAPI, "getBackgrounds").mockResolvedValue(MockBackgrounds);
-	const save = vi
-		.spyOn(PlatformAPI, "saveBackground")
-		.mockResolvedValueOnce({ ok: true, set: true })
-		.mockRejectedValueOnce(new Error("Temporary failure"))
-		.mockResolvedValue({ ok: true, set: true });
-	render(<BackgroundSection />);
-	fireEvent.change(
-		await screen.findByLabelText("Dashboard background strength"),
-		{ target: { value: "18" } },
-	);
-	await userEvent.click(
-		screen.getByRole("tab", { name: "Sign-in / sign-out" }),
-	);
-	fireEvent.change(screen.getByLabelText("Sign-in page background strength"), {
-		target: { value: "22" },
-	});
-	await userEvent.click(
-		screen.getByRole("button", { name: "Save backgrounds" }),
-	);
-	await waitFor(() => expect(save).toHaveBeenCalledTimes(2));
-	await userEvent.click(
-		screen.getByRole("button", { name: "Save backgrounds" }),
-	);
-	await waitFor(() => expect(save).toHaveBeenCalledTimes(3));
-	expect(save.mock.calls[2]).toEqual([
-		"dashboard",
-		expect.objectContaining({ opacity: 0.18 }),
-	]);
 });
 
 it("stages removal until the shared save action", async () => {
@@ -94,12 +33,9 @@ it("stages removal until the shared save action", async () => {
 		.spyOn(PlatformAPI, "resetBackground")
 		.mockResolvedValue({ ok: true, set: false });
 	render(<BackgroundSection />);
-	const panel = await screen.findByRole("tabpanel", { name: "Dashboard" });
-	await userEvent.click(within(panel).getByRole("button", { name: "Remove" }));
+	await userEvent.click(await screen.findByRole("button", { name: "Remove" }));
 	expect(remove).not.toHaveBeenCalled();
-	await userEvent.click(
-		screen.getByRole("button", { name: "Save backgrounds" }),
-	);
+	await userEvent.click(screen.getByRole("button", { name: "Save" }));
 	await waitFor(() => expect(remove).toHaveBeenCalledWith("dashboard"));
 });
 
@@ -116,13 +52,43 @@ it("saves the lava lamp as a preset, its HTML drawn from its settings", async ()
 	);
 	await userEvent.click(within(card).getByRole("button", { name: "Add lava" }));
 	await userEvent.selectOptions(within(card).getByLabelText("Fit"), "tile");
-	await userEvent.click(
-		screen.getByRole("button", { name: "Save backgrounds" }),
-	);
+	await userEvent.click(screen.getByRole("button", { name: "Save" }));
 	await waitFor(() => expect(save).toHaveBeenCalledTimes(1));
 	const [slot, body] = save.mock.calls[0];
 	expect(slot).toBe("dashboard");
 	expect(body.params?.preset).toMatchObject({ name: "lava", fit: "tile" });
 	expect(body.html).toContain('F="tile"');
 	expect(body.html?.match(/class="blob"/g)).toHaveLength(7);
+});
+
+it("saves an editable gradient preset at full strength", async () => {
+	vi.spyOn(PlatformAPI, "getBackgrounds").mockResolvedValue(MockBackgrounds);
+	const save = vi
+		.spyOn(PlatformAPI, "saveBackground")
+		.mockResolvedValue({ ok: true, set: true });
+	const user = userEvent.setup();
+	render(<BackgroundSection />);
+	await user.click(await screen.findByRole("combobox", { name: "Source" }));
+	await user.click(screen.getByRole("option", { name: "Color or gradient" }));
+	await user.click(screen.getByRole("combobox", { name: "Fill style" }));
+	await user.click(screen.getByRole("option", { name: "Linear gradient" }));
+	await user.clear(screen.getByLabelText("Angle (degrees)"));
+	await user.type(screen.getByLabelText("Angle (degrees)"), "90");
+	await user.click(screen.getByRole("button", { name: "Save" }));
+	await waitFor(() =>
+		expect(save).toHaveBeenCalledWith(
+			"dashboard",
+			expect.objectContaining({
+				opacity: 1,
+				params: {
+					preset: expect.objectContaining({
+						name: "fill",
+						mode: "linear",
+						angle: 90,
+					}),
+				},
+				html: expect.stringContaining("linear-gradient(90deg"),
+			}),
+		),
+	);
 });

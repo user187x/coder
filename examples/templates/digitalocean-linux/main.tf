@@ -133,23 +133,23 @@ data "coder_parameter" "droplet_size" {
   # s-1vcpu-512mb-10gb is unsupported in tor1, blr1, lon1, sfo2, and nyc3 regions
   # s-8vcpu-16gb access requires a support ticket with Digital Ocean
   option {
-    name  = "1 vCPU, 1 GB RAM"
+    name  = "1 vCPU, 1 GB MEM"
     value = "s-1vcpu-1gb"
   }
   option {
-    name  = "1 vCPU, 2 GB RAM"
+    name  = "1 vCPU, 2 GB MEM"
     value = "s-1vcpu-2gb"
   }
   option {
-    name  = "2 vCPU, 2 GB RAM"
+    name  = "2 vCPU, 2 GB MEM"
     value = "s-2vcpu-2gb"
   }
   option {
-    name  = "2 vCPU, 4 GB RAM"
+    name  = "2 vCPU, 4 GB MEM"
     value = "s-2vcpu-4gb"
   }
   option {
-    name  = "4 vCPU, 8 GB RAM"
+    name  = "4 vCPU, 8 GB MEM"
     value = "s-4vcpu-8gb"
   }
 }

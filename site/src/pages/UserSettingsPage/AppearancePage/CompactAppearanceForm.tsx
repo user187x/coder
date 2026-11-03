@@ -80,7 +80,7 @@ export const CompactAppearanceForm = ({
 		request.theme_preference = encodeCustomTheme(custom);
 	return (
 		<section
-			className="rounded-lg border border-solid border-border p-4"
+			className="rounded-xl border border-solid border-border bg-surface-primary p-6"
 			aria-label="Your theme and terminal font"
 		>
 			{Boolean(error) && <ErrorAlert error={error} />}

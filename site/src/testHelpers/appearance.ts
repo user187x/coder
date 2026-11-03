@@ -1,4 +1,4 @@
-import type { BackgroundsState } from "#/api/platform";
+import type { BackgroundsState, QuickMenuSettings } from "#/api/platform";
 import type { CustomTheme } from "#/theme/customTheme";
 export const MockCustomTheme: CustomTheme = {
 	base: "dark",
@@ -10,9 +10,12 @@ export const MockCustomTheme: CustomTheme = {
 };
 export const MockBackgrounds: BackgroundsState = {
 	available: true,
-	limits: { opacity: { min: 0, max: 0.5, default: 0.06 }, maxBytes: 4194304 },
+	limits: {
+		opacity: { min: 0, max: 1, default: 0.06 },
+		maxBytes: 16 * 1024 * 1024,
+	},
 	login: {
-		url: "/pictures/login.png",
+		url: "/pictures/destructed-cube.png",
 		opacity: 0.06,
 		fit: "cover",
 		layer: "under",
@@ -23,7 +26,7 @@ export const MockBackgrounds: BackgroundsState = {
 		updatedAt: null,
 	},
 	dashboard: {
-		url: "/pictures/dashboard.png",
+		url: "/pictures/background.gif",
 		opacity: 0.06,
 		fit: "cover",
 		layer: "under",
@@ -33,4 +36,10 @@ export const MockBackgrounds: BackgroundsState = {
 		updatedBy: "admin",
 		updatedAt: null,
 	},
+};
+
+export const MockQuickMenu: QuickMenuSettings = {
+	items: null,
+	wedges: [3, 12],
+	enabled: true,
 };

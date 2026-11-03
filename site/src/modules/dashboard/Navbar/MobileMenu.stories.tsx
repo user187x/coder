@@ -42,7 +42,7 @@ const meta: Meta<typeof MobileMenu> = {
 		onSignOut: fn(),
 		isDefaultOpen: true,
 		adminPermissions: {
-			canViewDeployment: true,
+			canViewHud: true,
 			canViewOrganizations: true,
 			canViewUsers: true,
 			canViewAuditLog: true,
@@ -88,6 +88,7 @@ export const OrgAdmin: Story = {
 };
 
 export const Member: Story = {
+	play: openAdminSettings,
 	args: {
 		user: MockUserMember,
 		adminPermissions: {},
@@ -179,7 +180,7 @@ async function openAdminSettings({
 	const user = userEvent.setup();
 	const body = within(canvasElement.ownerDocument.body);
 	const menuItem = await body.findByRole("menuitem", {
-		name: /^controls$/i,
+		name: /^settings$/i,
 	});
 	await user.click(menuItem);
 }

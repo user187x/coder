@@ -27,11 +27,13 @@ export const ChatMenuItem = ({
 	className,
 	expanded,
 	onToggle,
+	onPin,
 }: {
 	admin?: boolean;
 	className?: string;
 	expanded?: boolean;
 	onToggle?: () => void;
+	onPin?: () => void;
 }) => {
 	const total = unreadTotal(useChatSnapshot());
 	const navigate = useNavigate();
@@ -86,6 +88,9 @@ export const ChatMenuItem = ({
 				</DropdownMenuItem>
 			</ContextMenuTrigger>
 			<ContextMenuContent className="z-[80]" aria-label="Chat options">
+				{onPin && (
+					<ContextMenuItem onSelect={onPin}>Add quick link</ContextMenuItem>
+				)}
 				<ContextMenuItem
 					disabled={save.isPending || preferences.isLoading}
 					onSelect={toggle}

@@ -1,6 +1,7 @@
 import {
 	ImageIcon,
 	KeyRoundIcon,
+	LogOutIcon,
 	UserRoundIcon,
 	UserRoundPenIcon,
 } from "lucide-react";
@@ -9,6 +10,7 @@ import {
 	ContextMenu,
 	ContextMenuContent,
 	ContextMenuItem,
+	ContextMenuSeparator,
 	ContextMenuTrigger,
 } from "#/components/ContextMenu/ContextMenu";
 import { openAvatarDialog } from "#/modules/platform/avatar/avatarDialogStore";
@@ -16,8 +18,10 @@ import { openAvatarDialog } from "#/modules/platform/avatar/avatarDialogStore";
 /** Account shortcuts reuse the authenticated profile and picture editors. */
 export const AccountShortcutMenu = ({
 	children,
+	onSignOut,
 }: {
 	children: React.ReactElement;
+	onSignOut: () => void;
 }) => {
 	const navigate = useNavigate();
 	return (
@@ -68,6 +72,11 @@ export const AccountShortcutMenu = ({
 				<ContextMenuItem onSelect={openAvatarDialog}>
 					<ImageIcon />
 					Set picture
+				</ContextMenuItem>
+				<ContextMenuSeparator />
+				<ContextMenuItem onSelect={onSignOut}>
+					<LogOutIcon />
+					Sign Out
 				</ContextMenuItem>
 			</ContextMenuContent>
 		</ContextMenu>

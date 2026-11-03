@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { GaugeIcon, RadioIcon } from "lucide-react";
+import { GaugeIcon, RadioIcon, SettingsIcon } from "lucide-react";
 import { useState } from "react";
 import { NavLink } from "react-router";
 import { toast } from "sonner";
@@ -31,7 +31,6 @@ import {
 	type AdminSettingsPermissions,
 } from "./AdminSettings";
 import type { AdminPage } from "./adminQuickLinks";
-import { ChatMenuItem } from "./ChatMenuItem";
 import { sortProxiesByLatency } from "./proxyUtils";
 import { SettingsChatPanel } from "./SettingsChatPanel";
 import { SettingsNotificationBadge } from "./SettingsNotificationBadge";
@@ -138,7 +137,10 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 	const reading = (
 		<>
 			{pill}
-			Settings
+			<span className="inline-flex items-center gap-1.5">
+				<SettingsIcon aria-hidden className="size-3.5" />
+				Settings
+			</span>
 			<ChevronDownIcon className="text-content-primary" />
 			<SettingsNotificationBadge permissions={controls?.permissions} />
 		</>
@@ -158,6 +160,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 				open={open}
 				onOpenChange={(next) => {
 					setOpen(next);
+					if (!next) setChatExpanded(false);
 					// The menu's old "Refresh latencies" row, now each time it opens.
 					if (next) {
 						proxy?.refetchProxyLatencies();
@@ -212,25 +215,27 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 					// Reserve only exterior space for the tray; the menu body retains its own width and scrolling.
 					className={cn(
 						"relative w-max min-w-[240px] max-w-[calc(100vw-32px)] overflow-visible border-0 bg-transparent p-0 shadow-none",
-						controls && "settings-menu pl-16",
+						"settings-menu pl-16",
 					)}
 				>
-					{controls && (
-						<SettingsSidePanels
-							container={menuElement}
-							anchor={metricsElement}
-							images={Boolean(controls.permissions.canEditDeployment)}
-							user={user}
-							buildInfo={buildInfo}
-							supportLinks={supportLinks}
-							onSignOut={onSignOut}
-							pages={[
-								...(controls.quickLinks ?? []),
-								...(controls.quickLinksEditor?.addable ?? []),
-							]}
-						/>
-					)}
-					<div className="rounded-md border border-solid border-border bg-surface-primary p-2 shadow-md max-h-(--radix-dropdown-menu-content-available-height) overflow-y-auto scrollbar-thin [scrollbar-color:hsl(var(--surface-quaternary))_transparent]">
+					<SettingsSidePanels
+						container={menuElement}
+						anchor={metricsElement}
+						hud={hud}
+						chatExpanded={chatExpanded}
+						onChatToggle={() => setChatExpanded((open) => !open)}
+						images={Boolean(controls?.permissions.canEditDeployment)}
+						user={user}
+						buildInfo={buildInfo}
+						supportLinks={supportLinks}
+						onSignOut={onSignOut}
+						pages={[
+							...(controls?.quickLinks ?? []),
+							...(controls?.quickLinksEditor?.addable ?? []),
+						]}
+					/>
+
+					<div className="flex flex-col rounded-md border border-solid border-border bg-surface-primary p-2 shadow-md max-h-(--radix-dropdown-menu-content-available-height) overflow-y-auto scrollbar-thin [scrollbar-color:hsl(var(--surface-quaternary))_transparent]">
 						{regions && proxy && (
 							<DropdownMenuSub>
 								<DropdownMenuSubTrigger data-testid="navbar-region">
@@ -317,6 +322,8 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 						{/* Platform: the latency to each of your workspaces, live, while it is pressed; locked, the grid's choice. */}
 						<WorkspacesLatencyMenu
 							open={open}
+							chatExpanded={chatExpanded}
+							onExpand={() => setChatExpanded(false)}
 							onOpenGrid={(ids, layout) => {
 								setOpen(false);
 								// after the menu has handed the focus back, so the grid keeps it
@@ -324,20 +331,12 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 							}}
 						/>
 
-						{!controls?.quickLinks?.some((page) => page.id === "chat") && (
-							<ChatMenuItem
-								admin={controls?.permissions.canEditDeployment}
-								expanded={chatExpanded}
-								onToggle={() => setChatExpanded(!chatExpanded)}
-							/>
-						)}
-
 						{/* Platform: the whole Controls menu, its graphs last, in a rounded box of its own */}
 						{controls && (
 							<nav
 								aria-label="Settings"
 								data-testid="controls-group"
-								className="mx-1 mt-2 mb-1 rounded-lg border border-solid border-border p-1"
+								className="mx-1 mt-2 mb-1 flex flex-auto flex-col rounded-lg border border-solid border-border p-1"
 							>
 								<AdminSettingsItems
 									metricsRef={setMetricsElement}

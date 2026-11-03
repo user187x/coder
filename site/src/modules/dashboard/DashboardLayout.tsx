@@ -13,7 +13,6 @@ import { AnnouncementExpiry } from "#/modules/platform/announcement/Announcement
 import { DashboardAddons } from "#/modules/platform/DashboardAddons";
 import { GlobalLockdownGate } from "#/modules/platform/globalLockdown/GlobalLockdown";
 import { WorkspaceScheduleGate } from "#/modules/platform/scheduler/WorkspaceScheduleGate";
-import { DeploymentBanner } from "./DeploymentBanner/DeploymentBanner";
 import { Navbar } from "./Navbar/Navbar";
 import { UpdateCheckNotice } from "./UpdateCheckNotice/UpdateCheckNotice";
 import { useUpdateCheck } from "./useUpdateCheck";
@@ -57,7 +56,7 @@ export const DashboardLayout: React.FC = () => {
 				</div>
 
 				{/* Pages that scroll end with room to spare, so their last line clears
-				    the deployment stats bar and the Chats dock; full-height pages
+				    the Chats dock; full-height pages
 				    (their root grows to fill main) do not. */}
 				<main
 					id="main-content"
@@ -75,14 +74,11 @@ export const DashboardLayout: React.FC = () => {
 					</Suspense>
 				</main>
 
-				{!embedded && <DeploymentBanner />}
-
 				{!embedded && updateCheck.isVisible && updateCheck.data && (
 					<UpdateCheckNotice
 						version={updateCheck.data.version}
 						releaseNotesUrl={updateCheck.data.url}
 						onDismiss={updateCheck.dismiss}
-						aboveDeploymentBanner={Boolean(permissions.viewDeploymentStats)}
 					/>
 				)}
 			</div>

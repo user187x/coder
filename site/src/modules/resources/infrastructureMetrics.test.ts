@@ -173,7 +173,7 @@ it.each([
 ])("formats CPU capacity %s to at most one decimal", (value, text) => {
 	expect(infrastructureMaximum(value, "cores")?.text).toBe(text);
 });
-it("keeps RAM compact while retaining exact byte quantity", () => {
+it("keeps MEM compact while retaining exact byte quantity", () => {
 	const value = 20171026432;
 	const badge = infrastructureMaximum(value, "bytes");
 	expect(badge?.text).toBe("18.8");
@@ -192,7 +192,7 @@ it("distinguishes assigned VM memory from guest reserve and application usable m
 	const ram = MockWorkspaceMetricMetadata.find((m) =>
 		/ram|mem/i.test(m.description.key),
 	);
-	if (!ram) throw new Error("RAM fixture missing");
+	if (!ram) throw new Error("MEM fixture missing");
 	const badge = workspaceMaximum(ram, {
 		...MockWorkspaceInfrastructureMetrics.allocation,
 		memory: 2147483648,

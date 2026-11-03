@@ -82,7 +82,7 @@ export const MockWorkspaceInfrastructureMetrics = {
 
 export const MockWorkspaceMetricMetadata = [
 	["0_cpu", "CPU", "0.2 / 2 cores (10%)"],
-	["1_ram", "RAM", "1 / 4 GiB (25%)"],
+	["1_ram", "MEM", "1 / 4 GiB (25%)"],
 	["2_disk", "Disk", "0.3 / 10 GiB (3%)"],
 	["3_load", "Ø Load", "0.15 / 2 cores (7.5%)"],
 ].map(([key, display_name, value]) => ({

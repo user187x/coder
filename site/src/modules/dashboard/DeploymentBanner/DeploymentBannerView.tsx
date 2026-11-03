@@ -12,7 +12,7 @@ import {
 	WrenchIcon,
 } from "lucide-react";
 import prettyBytes from "pretty-bytes";
-import { Fragment, memo, useEffect, useMemo, useState } from "react";
+import { Fragment, memo, useEffect, useMemo, useRef, useState } from "react";
 import { Link as RouterLink } from "react-router";
 import {
 	type AppFamilyName,
@@ -35,6 +35,7 @@ import {
 	TooltipTrigger,
 } from "#/components/Tooltip/Tooltip";
 import { useAnimationsEnabled } from "#/hooks/useAnimationSettings";
+import { useFitText } from "#/hooks/useFitText";
 import "./deploymentBanner.css";
 import { getDisplayWorkspaceStatus } from "#/utils/workspace";
 
@@ -49,6 +50,8 @@ export const DeploymentBannerView: React.FC<DeploymentBannerViewProps> = ({
 	stats,
 	fetchStats,
 }) => {
+	const row = useRef<HTMLDivElement>(null);
+	const fontSize = useFitText(row, 14, 9, true, true);
 	const aggregatedMinutes = useMemo(() => {
 		if (!stats) {
 			return;
@@ -108,9 +111,11 @@ export const DeploymentBannerView: React.FC<DeploymentBannerViewProps> = ({
 
 	return (
 		<div
-			className="sticky bottom-0 z-1 flex h-9 w-full items-center gap-2
-		 		overflow-x-auto overflow-y-hidden whitespace-nowrap border-0 border-t border-solid border-border
-				bg-surface-primary px-3 font-mono text-xs leading-none"
+			role="group"
+			aria-label="Deployment statistics"
+			ref={row}
+			style={{ fontSize }}
+			className="deployment-stats flex min-w-0 w-full flex-nowrap items-center justify-between gap-[0.65em] overflow-x-auto whitespace-nowrap px-[0.8em] py-1.5 font-mono leading-none tabular-nums"
 		>
 			<TooltipProvider delayDuration={100}>
 				<Tooltip>
@@ -118,7 +123,7 @@ export const DeploymentBannerView: React.FC<DeploymentBannerViewProps> = ({
 						{healthErrors.length > 0 ? (
 							<Link
 								asChild
-								className="flex p-3 bg-content-destructive"
+								className="flex size-7 shrink-0 items-center justify-center rounded-full bg-content-destructive"
 								showExternalIcon={false}
 							>
 								<RouterLink
@@ -130,7 +135,7 @@ export const DeploymentBannerView: React.FC<DeploymentBannerViewProps> = ({
 							</Link>
 						) : (
 							<div
-								className="flex size-7 shrink-0 items-center justify-center rounded-full border border-solid border-border"
+								className="flex size-5 shrink-0 items-center justify-center"
 								role="img"
 								aria-label={healthLabel}
 								data-testid="deployment-health-trigger"
@@ -164,7 +169,7 @@ export const DeploymentBannerView: React.FC<DeploymentBannerViewProps> = ({
 				</Tooltip>
 			</TooltipProvider>
 
-			<div className="flex h-7 shrink-0 items-center rounded-full border border-solid border-border px-3">
+			<div className="flex h-7 shrink-0 items-center">
 				<div className="mr-2 text-content-primary">Workspaces</div>
 				<div className="flex gap-2 text-content-secondary">
 					<WorkspaceBuildValue
@@ -194,7 +199,7 @@ export const DeploymentBannerView: React.FC<DeploymentBannerViewProps> = ({
 				</div>
 			</div>
 
-			<div className="flex h-7 shrink-0 items-center rounded-full border border-solid border-border px-3">
+			<div className="flex h-7 shrink-0 items-center border-0 border-l border-solid border-border pl-3">
 				<TooltipProvider delayDuration={100}>
 					<Tooltip>
 						<TooltipTrigger asChild>
@@ -252,13 +257,12 @@ export const DeploymentBannerView: React.FC<DeploymentBannerViewProps> = ({
 
 			<ActiveConnections sessionCount={stats?.session_count} />
 
-			<div className="ml-auto flex shrink-0 items-center gap-2 pl-2 text-content-primary">
+			<div className="flex shrink-0 items-center gap-3 border-0 border-l border-solid border-border pl-3 text-content-primary">
 				<TooltipProvider delayDuration={100}>
 					<Tooltip>
 						<TooltipTrigger asChild>
-							{/* Platform: in a pill (GUI-UPDATES) */}
 							<div
-								className="flex h-7 items-center gap-1.5 rounded-full border border-solid border-border bg-surface-primary px-3 text-content-secondary"
+								className="flex h-7 items-center gap-1.5 text-content-secondary"
 								data-testid="deployment-banner-aggregated"
 							>
 								<ClockIcon className="size-icon-xs" />
@@ -279,7 +283,7 @@ export const DeploymentBannerView: React.FC<DeploymentBannerViewProps> = ({
 					<Tooltip>
 						<TooltipTrigger asChild>
 							<Button
-								className="h-7 w-auto rounded-full border border-solid border-border px-2.5 font-mono [&_svg]:mr-1"
+								className="h-7 w-auto rounded-full px-2.5 font-mono [&_svg]:mr-1"
 								onClick={() => {
 									if (fetchStats) {
 										fetchStats();
@@ -364,7 +368,7 @@ const ActiveConnections = memo(
 
 		return (
 			<TooltipProvider delayDuration={TOOLTIP_DELAY_DURATION}>
-				<div className="flex h-7 shrink-0 items-center rounded-full border border-solid border-border px-3">
+				<div className="flex h-7 shrink-0 items-center border-0 border-l border-solid border-border pl-3">
 					<div className="mr-2 text-content-primary">Active Connections</div>
 					<div className="flex gap-2 text-content-secondary">
 						{FAMILY_SLOTS.map(({ key, name, icon }, index) => {
@@ -469,7 +473,7 @@ const WorkspaceBuildValue: React.FC<WorkspaceBuildValueProps> = ({
 						<RouterLink
 							to={`/workspaces?filter=${encodeURIComponent(`status:${status}`)}`}
 						>
-							<div className="flex items-center gap-1 text-xs">
+							<div className="flex items-center gap-1">
 								{icon}
 								{typeof count === "undefined" ? "-" : count}
 							</div>

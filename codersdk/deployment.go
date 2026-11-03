@@ -661,6 +661,7 @@ type DeploymentValues struct {
 	Dangerous                               DangerousConfig                      `json:"dangerous,omitempty" typescript:",notnull"`
 	DisablePathApps                         serpent.Bool                         `json:"disable_path_apps,omitempty" typescript:",notnull"`
 	Sessions                                SessionLifetime                      `json:"session_lifetime,omitempty" typescript:",notnull"`
+	EmailLoginEnabled                       serpent.Bool                         `json:"email_login_enabled,omitempty"`
 	DisablePasswordAuth                     serpent.Bool                         `json:"disable_password_auth,omitempty" typescript:",notnull"`
 	Support                                 SupportConfig                        `json:"support,omitempty" typescript:",notnull"`
 	EnableAuthzRecording                    serpent.Bool                         `json:"enable_authz_recording,omitempty" typescript:",notnull"`
@@ -3393,6 +3394,12 @@ communicating directly.`,
 			Value: &c.DisablePasswordAuth,
 			Group: &deploymentGroupNetworkingHTTP,
 			YAML:  "disablePasswordAuth",
+		},
+		{
+			Name:        "Email login",
+			Description: "Allow active accounts to sign in with a single-use token sent directly to their registered email address through the configured SMTP relay.",
+			Flag:        "email-login", Env: "CODER_EMAIL_LOGIN_ENABLED", YAML: "emailLogin",
+			Value: &c.EmailLoginEnabled, Group: &deploymentGroupNetworkingHTTP,
 		},
 		{
 			Name:          "Config Path",

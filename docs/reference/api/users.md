@@ -330,6 +330,7 @@ curl -X GET http://coder-server:8080/api/v2/users/authmethods \
 
 ```json
 {
+  "email_login": true,
   "oidc": {
     "accountUrl": "string",
     "enabled": true,

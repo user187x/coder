@@ -93,7 +93,10 @@ test("Show the new Coder version notification", async () => {
 	renderWithAuth(<DashboardLayout />, {
 		children: [{ element: <h1>Test page</h1> }],
 	});
-	await screen.findByTestId("update-check-notice");
+	await userEvent
+		.setup()
+		.click(await screen.findByRole("button", { name: "Dismiss" }));
+	expect(localStorage.getItem("dismissedVersion")).toBe("v0.12.9");
 });
 
 test("hides AI Governance seat warnings for non-admin users", async () => {

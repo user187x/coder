@@ -228,6 +228,10 @@ describe("CreateWorkspacePage", () => {
 	};
 
 	beforeEach(() => {
+		vi.spyOn(PlatformAPI, "checkWorkspaceAdmission").mockResolvedValue({
+			allowed: true,
+			message: "Within quota.",
+		});
 		vi.clearAllMocks();
 
 		vi.spyOn(API, "getTemplate").mockResolvedValue(MockTemplate);
@@ -1022,6 +1026,32 @@ describe("CreateWorkspacePage", () => {
 			options: [option("Classic", "classic"), option("Serenade", "serenade")],
 			order: 2,
 		};
+
+		it.each(["quota", "capacity"])(
+			"prevents selection of a CPU size outside %s",
+			async (limit) => {
+				vi.mocked(PlatformAPI.checkWorkspaceAdmission).mockResolvedValue({
+					allowed: true,
+					message: "Within quota.",
+					remaining: {
+						cpu: limit === "quota" ? 2 : null,
+						memory: null,
+						disk: null,
+						workspaces: null,
+					},
+					nodes: [{ cpu: limit === "capacity" ? 2 : 8, memory: 16, gpus: 0 }],
+				});
+				const { mockPublisher, mockSocket } = await renderPageWithSocket();
+				await expectSocketHandshake({ mockPublisher, parameters: [cpu] });
+				await waitForLoaderToBeRemoved();
+				const choice = screen.getByRole("button", { name: "4 Cores" });
+				await waitFor(() => expect(choice).toBeDisabled());
+				await userEvent.click(choice);
+				expect(mockSocket.send).not.toHaveBeenCalledWith(
+					expect.stringContaining('"cpu":"4"'),
+				);
+			},
+		);
 
 		it("shows the parameters as the workspace settings page's cards, immutable ones settable", async () => {
 			const { mockPublisher, mockSocket } = await renderPageWithSocket();

@@ -53,13 +53,13 @@ class UIStateTest(unittest.TestCase):
         self.state.database()
 
     def test_preferences_survive_service_restart_and_remain_per_user(self):
-        settings = {'resource_tray_top': 56.5, 'admin_notes_tray_top': 300, 'chat_keep_open': True, 'admin_notes_tray': {'expanded': True, 'lock': 'down'}, 'people_sort': 'manual', 'people_order': [self.other], 'resource_shortcuts': ['images', 'hud'], 'resource_tray': {'expanded': False, 'lock': 'up'}, 'chat_size': {'width': 360, 'height': 280}}
+        settings = {'settings_metrics': {'expanded': False, 'locked': True}, 'resource_shortcut_order': ['chat', 'templates', 'account', 'workspaces', 'images', 'hud'], 'resource_tray_top': 56.5, 'admin_notes_tray_top': 300, 'chat_keep_open': True, 'admin_notes_tray': {'expanded': True, 'lock': 'down'}, 'people_sort': 'manual', 'people_order': [self.other], 'resource_shortcuts': ['images', 'hud'], 'resource_tray': {'expanded': False, 'lock': 'up'}, 'chat_size': {'width': 360, 'height': 280}}
         self.assertEqual(self.state.preferences(self.user, settings), settings)
         restarted = uistate.UIState(lambda: self.pool, lambda **kwargs: None)
         self.assertEqual(restarted.preferences(self.user), settings)
         self.assertEqual(restarted.preferences(self.other), {})
         self.assertEqual(restarted.preferences(self.user, {'people_sort': 'name'}), {**settings, 'people_sort': 'name'})
-        for invalid in ({'chat_keep_open': 'yes'}, {'people_order': [self.other, self.other]}, {'people_order': [{}]},
+        for invalid in ({'settings_metrics': {'expanded': 'false', 'locked': True}}, {'settings_metrics': None}, {'chat_keep_open': 'yes'}, {'people_order': [self.other, self.other]}, {'people_order': [{}]},
                         {'people_order': ['not-a-user-id']}, {'people_sort': 'unknown'}, {'admin': True}, {'resource_shortcuts': ['hud', 'hud']}, {'resource_shortcuts': ['javascript:alert(1)']}, {'resource_shortcuts': ['a' * 65]}, {'resource_shortcuts': [1]}, {'resource_shortcuts': ['hud', 'images', 'leases', 'monitoring']}, {'resource_shortcuts': ['account']}, {'resource_shortcuts': ['workspaces']}, {'resource_shortcuts': ['templates']}):
             with self.assertRaises(ValueError):
                 self.state.preferences(self.user, invalid)

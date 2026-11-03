@@ -12,6 +12,7 @@ import { createPortal } from "react-dom";
 import { useLocation } from "react-router";
 import type { Banner } from "#/api/platform";
 import { CornerExpandButton } from "#/components/Button/CornerExpandButton";
+import { AnnouncementPanelMenu } from "./AnnouncementPanelMenu";
 import { BannerBlocks, PictureScreen } from "./BannerText";
 import { BrokenScreenOverlay } from "./BrokenScreenOverlay";
 import { bannerAlpha, withBannerAlpha } from "./bannerAlpha";
@@ -63,7 +64,7 @@ export const answerFor = (command: string): Answer => {
 		command === MOUSE ||
 		command === MATRIX ||
 		["clear", "exit", "close"].includes(command) ||
-		["cat", "cd", "echo"].includes(word) ||
+		["cat", "cd", "dir", "echo"].includes(word) ||
 		RM_RF.test(command)
 	) {
 		return "none";
@@ -157,10 +158,14 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 		return resetConnector;
 	}, [location.pathname]);
 	const picture = safeHref(banner.picture ?? "");
+	const [showPicture, setShowPicture] = useState(true);
+	const menu = useRef<HTMLDivElement>(null);
 	const [manualOpen, setOpen] = useState(false);
 	const open = manualOpen || Boolean(workspace);
 	const [expanded, setExpanded] = useState(false);
 	const [closing, setClosing] = useState(false);
+	const closeTimer = useRef<number | undefined>(undefined);
+	useEffect(() => () => window.clearTimeout(closeTimer.current), []);
 	const [rect, setRect] = useState<Rect>();
 	const [typed, setTyped] = useState("");
 	const [cat, setCat] = useState(0);
@@ -211,8 +216,9 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 			return;
 		}
 		setClosing(true);
-		window.setTimeout(
+		closeTimer.current = window.setTimeout(
 			() => {
+				closeTimer.current = undefined;
 				setOpen(false);
 				setClosing(false);
 			},
@@ -262,6 +268,12 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 		}
 	}, [typed, history]);
 
+	const clear = () => {
+		setTyped("");
+		setHistory([]);
+		setCleared(true);
+	};
+
 	const onPromptKey = (event: React.KeyboardEvent) => {
 		if (workspace) return;
 		if (echo) {
@@ -297,11 +309,10 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 				return;
 			}
 			if (keyword === "cat") setCat((value) => value + 1);
-			if (keyword === "cd") setFlash((value) => value + 1);
+			if (keyword === "cd" || keyword === "dir") setFlash((value) => value + 1);
 			if (keyword === "echo") setEcho(true);
 			if (command.toLowerCase() === "clear") {
-				setHistory([]);
-				setCleared(true);
+				clear();
 			} else {
 				setHistory((h) =>
 					[...h, { command, answer: answerFor(command) }].slice(-MAX_HISTORY),
@@ -343,14 +354,18 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 		}
 		const onPointer = (event: PointerEvent) => {
 			const target = event.target as Node;
-			if (panel.current?.contains(target) || toggle.current?.contains(target)) {
+			if (
+				panel.current?.contains(target) ||
+				toggle.current?.contains(target) ||
+				menu.current?.contains(target)
+			) {
 				return;
 			}
 			close();
 		};
 		const onKey = (event: KeyboardEvent) => {
 			if (echo) setEcho(false);
-			if (event.key === "Escape") {
+			if (event.key === "Escape" && !menu.current && !event.defaultPrevented) {
 				close();
 				toggle.current?.focus();
 			}
@@ -394,117 +409,126 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 			{open &&
 				rect &&
 				createPortal(
-					<div
-						ref={panel}
-						role="dialog"
-						aria-label={
-							workspace ? `Terminal: ${workspace.name}` : "Announcement"
-						}
-						data-testid="announcement-scroll-view"
-						data-closing={closing || undefined}
-						tabIndex={-1}
-						onKeyDown={onPromptKey}
-						className="banner-scroll"
-						data-announcement-motion={motion.effects ? "on" : "off"}
-						data-picture={picture ? "" : undefined}
-						style={
-							{
-								"--banner-alpha": bannerAlpha(banner.opacity),
-								top: rect.top,
-								left: expanded ? 8 : rect.left,
-								width: expanded ? "calc(100vw - 16px)" : rect.width,
-								height: expanded
-									? `calc(100dvh - ${rect.top + 8}px)`
-									: undefined,
-								maxHeight: `calc(100dvh - ${rect.top + 8}px)`,
-								...(colors
-									? {
-											"--banner-scroll-screen": withBannerAlpha(
-												colors.bg,
-												banner.opacity,
-											),
-											"--banner-scroll-ink": colors.fg,
-										}
-									: {}),
-							} as React.CSSProperties
-						}
+					<AnnouncementPanelMenu
+						menuRef={menu}
+						hasPicture={Boolean(picture)}
+						showPicture={showPicture}
+						onTogglePicture={() => setShowPicture((show) => !show)}
+						onClear={workspace ? undefined : clear}
+						onClose={close}
 					>
-						{picture && (
-							<div
-								className="banner-scroll-picture"
-								aria-hidden
-								data-testid="announcement-scroll-picture"
-							>
-								<PictureScreen
-									effect={banner.pictureEffect}
-									pictures={[
-										{
-											src: picture,
-											alt: "",
-											fit: banner.pictureFit ?? "span",
-										},
-									]}
-								/>
-							</div>
-						)}
 						<div
-							className="banner-scroll-bar"
-							data-testid="announcement-scroll-title"
-							aria-hidden
+							ref={panel}
+							role="dialog"
+							aria-label={
+								workspace ? `Terminal: ${workspace.name}` : "Announcement"
+							}
+							data-testid="announcement-scroll-view"
+							data-closing={closing || undefined}
+							tabIndex={-1}
+							onKeyDown={onPromptKey}
+							className="banner-scroll"
+							data-announcement-motion={motion.effects ? "on" : "off"}
+							data-picture={picture && showPicture ? "" : undefined}
+							style={
+								{
+									"--banner-alpha": bannerAlpha(banner.opacity),
+									top: rect.top,
+									left: expanded ? 8 : rect.left,
+									width: expanded ? "calc(100vw - 16px)" : rect.width,
+									height: expanded
+										? `calc(100dvh - ${rect.top + 8}px)`
+										: undefined,
+									maxHeight: `calc(100dvh - ${rect.top + 8}px)`,
+									...(colors
+										? {
+												"--banner-scroll-screen": withBannerAlpha(
+													colors.bg,
+													banner.opacity,
+												),
+												"--banner-scroll-ink": colors.fg,
+											}
+										: {}),
+								} as React.CSSProperties
+							}
 						>
-							<b>
-								{workspace
-									? `${workspace.owner_name}/${workspace.name} terminal`
-									: "Broadcast Announcement"}
-							</b>
-						</div>
-						{workspace ? (
-							<BannerWorkspaceTerminal
-								key={workspace.id}
-								workspace={workspace}
-							/>
-						) : (
-							<div ref={body} className="banner-scroll-body">
-								{!cleared && (
-									<div
-										className="banner-scroll-text"
-										style={{ fontFamily: bannerFontStack(banner.font) }}
-									>
-										<BannerBlocks
-											message={banner.message}
-											markdown={banner.markdown !== false}
-										/>
-									</div>
-								)}
-								{history.map(({ command, answer }, i) => (
-									<div key={i} className="banner-scroll-prompt">
-										<i>root@platform</i>:<em>~</em># {command}
-										<TerminalAnswer
-											answer={answer}
-											command={command}
-											time={<DotMatrixTime />}
-										/>
-									</div>
-								))}
-								{cat > 0 && <PromptCat key={cat} onDone={() => setCat(0)} />}
-								{echo && <PromptEcho />}
+							{picture && showPicture && (
 								<div
-									className="banner-scroll-prompt"
-									data-testid="announcement-scroll-prompt"
+									className="banner-scroll-picture"
 									aria-hidden
+									data-testid="announcement-scroll-picture"
 								>
-									<i>root@platform</i>:<em>~</em># {typed}
-									<span className="banner-scroll-cursor" />
+									<PictureScreen
+										effect={banner.pictureEffect}
+										pictures={[
+											{
+												src: picture,
+												alt: "",
+												fit: banner.pictureFit ?? "span",
+											},
+										]}
+									/>
 								</div>
+							)}
+							<div
+								className="banner-scroll-bar"
+								data-testid="announcement-scroll-title"
+								aria-hidden
+							>
+								<b>
+									{workspace
+										? `${workspace.owner_name}/${workspace.name} terminal`
+										: "Broadcast Announcement"}
+								</b>
 							</div>
-						)}
-						<CornerExpandButton
-							bottom
-							label="announcement panel"
-							expanded={expanded}
-							onToggle={() => setExpanded(!expanded)}
-						/>
-					</div>,
+							{workspace ? (
+								<BannerWorkspaceTerminal
+									key={workspace.id}
+									workspace={workspace}
+								/>
+							) : (
+								<div ref={body} className="banner-scroll-body">
+									{!cleared && (
+										<div
+											className="banner-scroll-text"
+											style={{ fontFamily: bannerFontStack(banner.font) }}
+										>
+											<BannerBlocks
+												message={banner.message}
+												markdown={banner.markdown !== false}
+											/>
+										</div>
+									)}
+									{history.map(({ command, answer }, i) => (
+										<div key={i} className="banner-scroll-prompt">
+											<i>root@platform</i>:<em>~</em># {command}
+											<TerminalAnswer
+												answer={answer}
+												command={command}
+												time={<DotMatrixTime />}
+											/>
+										</div>
+									))}
+									{cat > 0 && <PromptCat key={cat} onDone={() => setCat(0)} />}
+									{echo && <PromptEcho />}
+									<div
+										className="banner-scroll-prompt"
+										data-testid="announcement-scroll-prompt"
+										aria-hidden
+									>
+										<i>root@platform</i>:<em>~</em># {typed}
+										<span className="banner-scroll-cursor" />
+									</div>
+								</div>
+							)}
+							<CornerExpandButton
+								bottom
+								label="announcement panel"
+								expanded={expanded}
+								onToggle={() => setExpanded(!expanded)}
+							/>
+						</div>
+					</AnnouncementPanelMenu>,
 					document.body,
 				)}
 			{skynet && <SkynetOverlay onDone={endSkynet} />}

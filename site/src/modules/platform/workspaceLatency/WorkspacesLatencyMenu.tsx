@@ -145,13 +145,15 @@ export const TemplatePill: React.FC<{
  */
 export const WorkspacesLatencyMenu: React.FC<{
 	open: boolean;
+	chatExpanded?: boolean;
+	onExpand?: () => void;
 	/** Shows the chosen workspaces (their ids) together: without it, the locked list chooses none. */
 	onOpenGrid?: (ids: string[], layout: "list" | "grid") => void;
-}> = ({ open, onOpenGrid }) => {
+}> = ({ open, chatExpanded = false, onExpand, onOpenGrid }) => {
 	const query = useQuery({
 		...workspaces({ q: "owner:me" }),
-		enabled: open,
-		refetchInterval: open ? REFRESH_MS : false,
+		enabled: open && !chatExpanded,
+		refetchInterval: open && !chatExpanded ? REFRESH_MS : false,
 	});
 	const list = query.data?.workspaces ?? [];
 	const running = list.filter((w) => w.latest_build.status === "running");
@@ -160,7 +162,7 @@ export const WorkspacesLatencyMenu: React.FC<{
 	const [pressed, setPressed] = useState(false);
 	const [locked, setLocked] = useState(false);
 	const [keyboard, setKeyboard] = useState(false);
-	const expanded = pressed || locked || keyboard;
+	const expanded = !chatExpanded && (pressed || locked || keyboard);
 	const selecting = (locked || keyboard) && onOpenGrid !== undefined;
 	const [selected, setSelected] = useState<string[]>();
 	const chosen = list.filter(
@@ -214,14 +216,16 @@ export const WorkspacesLatencyMenu: React.FC<{
 
 	// The menu closed: everything starts over.
 	useEffect(() => {
-		if (!open) {
+		if (!open || chatExpanded) {
 			stopHold();
 			setPressed(false);
 			setLocked(false);
 			setKeyboard(false);
+		}
+		if (!open) {
 			setSelected(undefined);
 		}
-	}, [open]);
+	}, [open, chatExpanded]);
 	useEffect(() => stopHold, []);
 
 	// Locked: a press anywhere but the list (and the pill, which unlocks it itself) lets go of it - in the menu, once
@@ -302,11 +306,13 @@ export const WorkspacesLatencyMenu: React.FC<{
 						setLocked(false);
 						return;
 					}
+					onExpand?.();
 					setPressed(true);
 					stopHold();
 					holdTimer.current = window.setTimeout(() => setLocked(true), HOLD_MS);
 				}}
 				onDoubleClick={() => {
+					onExpand?.();
 					stopHold();
 					setLocked(true);
 				}}
@@ -321,6 +327,7 @@ export const WorkspacesLatencyMenu: React.FC<{
 							setLocked(false);
 							setKeyboard(false);
 						} else {
+							onExpand?.();
 							setKeyboard(true);
 						}
 					}

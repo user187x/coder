@@ -1452,6 +1452,8 @@ func New(options *Options) *API {
 				r.Use(httpmw.RateLimit(options.LoginRateLimit, time.Minute))
 				r.Post("/login", api.postLogin)
 				r.Post("/otp/request", api.postRequestOneTimePasscode)
+				r.Post("/login/email/request", api.requestEmailLogin)
+				r.Post("/login/email/verify", api.verifyEmailLogin)
 				r.Post("/validate-password", api.validateUserPassword)
 				r.Post("/otp/change-password", api.postChangePasswordWithOneTimePasscode)
 				r.Route("/oidc/callback", func(r chi.Router) {

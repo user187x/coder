@@ -95,6 +95,7 @@ export const UsersTable: React.FC<UsersTableProps> = (props) => {
 				<AccountWorkspaceActions
 					targets={[...selectedWorkspaces.values()]}
 					onClear={() => setSelectedWorkspaces(new Map())}
+					onDeleted={(workspace) => onWorkspaceSelect(workspace, false)}
 				/>
 			)}
 			<Table

@@ -27,7 +27,7 @@ describe("Admin menu", () => {
 						<DropdownMenuContent>
 							<AdminSettingsItems
 								permissions={{
-									canViewDeployment: true,
+									canViewHud: true,
 									canViewOrganizations: true,
 									canViewAuditLog: true,
 									canViewConnectionLog: true,
@@ -43,11 +43,14 @@ describe("Admin menu", () => {
 		const labels = items.map((item) => item.textContent?.trim());
 		expect(labels).toEqual([
 			...pages.slice(0, 4).map((page) => page.label),
+			"Controls",
 			"Organizations",
 			"Audit logs",
 			"Connection logs",
 		]);
-		for (const item of items) {
+		for (const item of items.filter(
+			(item) => item.textContent !== "Controls",
+		)) {
 			expect(item.firstElementChild?.tagName.toLowerCase()).toBe("svg");
 		}
 	});
@@ -60,17 +63,33 @@ it("adds a setting from the inline picker without navigating", async () => {
 		oauth2Provider: true,
 	});
 	renderComponent(
-		<MemoryRouter>
-			<DropdownMenu open>
-				<DropdownMenuTrigger>Menu</DropdownMenuTrigger>
-				<DropdownMenuContent>
-					<AdminQuickLinksMenu links={[]} addable={pages} onChange={onChange} />
-				</DropdownMenuContent>
-			</DropdownMenu>
-		</MemoryRouter>,
+		<QueryClientProvider client={new QueryClient()}>
+			<MemoryRouter>
+				<DropdownMenu open>
+					<DropdownMenuTrigger>Menu</DropdownMenuTrigger>
+					<DropdownMenuContent>
+						<AdminQuickLinksMenu
+							links={[]}
+							addable={pages}
+							onChange={onChange}
+						/>
+					</DropdownMenuContent>
+				</DropdownMenu>
+			</MemoryRouter>
+		</QueryClientProvider>,
 	);
 	const user = userEvent.setup();
-	await user.click(screen.getByRole("menuitem", { name: "Settings" }));
+	await user.click(screen.getByRole("menuitem", { name: "Controls" }));
+	await user.pointer({
+		target: screen.getByRole("menuitem", { name: "Chat" }),
+		keys: "[MouseRight]",
+	});
+	await user.click(
+		await screen.findByRole("menuitem", {
+			name: "Add quick link",
+		}),
+	);
+	expect(onChange).toHaveBeenLastCalledWith(["chat"]);
 	await user.click(screen.getByRole("menuitem", { name: "Security" }));
 	expect(onChange).toHaveBeenCalledWith(["security"]);
 });

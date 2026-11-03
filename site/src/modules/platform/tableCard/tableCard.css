@@ -52,20 +52,40 @@
 	box-shadow: inset 3px 0 0 hsl(var(--content-link));
 }
 .table-card-footer {
+	border-top: 1px solid hsl(var(--border-default));
+	background: hsl(var(--surface-secondary) / 0.45);
+}
+.table-card-caption {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
 	gap: 16px;
 	min-height: 46px;
 	padding: 10px 20px;
-	border-top: 1px solid hsl(var(--border-default));
-	background: hsl(var(--surface-secondary) / 0.45);
 	font-size: 12.5px;
 	color: hsl(var(--content-secondary));
 }
 .table-card-summary {
 	flex: none;
 	white-space: nowrap;
+}
+[data-deployment-footer] + .table-card-caption {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+	min-height: 0;
+	gap: 2px 8px;
+	margin: 4px clamp(12px, 2%, 28px) 6px;
+	padding: 3px 12px;
+	border: 1px solid hsl(var(--border-default));
+	border-radius: 9999px;
+	background: hsl(var(--surface-primary));
+	text-align: center;
+	font-size: 11px;
+}
+[data-deployment-footer] + .table-card-caption .table-card-summary {
+	min-width: 0;
+	text-align: left;
+	white-space: normal;
 }
 .table-card-hint {
 	min-width: 0;
@@ -74,6 +94,12 @@
 	text-overflow: ellipsis;
 	white-space: nowrap;
 	transition: color 120ms;
+}
+.table-card-caption .table-card-hint:empty {
+	display: none;
+}
+.table-card-caption:has(.table-card-hint:not(:empty)) {
+	justify-content: space-between;
 }
 .table-card-hint-on {
 	color: hsl(var(--content-primary));

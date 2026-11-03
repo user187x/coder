@@ -438,12 +438,27 @@ def run(token, operation):
         action=operation["action"], status="completed" if success else "partial")
 
 
+def clear_operation(token, user, oid, operation_id):
+    operation = read_operation(oid, operation_id)
+    permissions(token, operation["workspaces"], "update")
+    def clear(data):
+        current = data.get(operation_id)
+        if not current or current["organization_id"] != oid:
+            raise LookupError("Workspace operation not found.")
+        if current["status"] == "running":
+            raise Conflict("A running workspace operation cannot be cleared.")
+        del data[operation_id]
+    store(clear)
+    LOG(event="workspace-power-history-cleared", operation=operation_id, organization=oid, user=user["id"])
+    return {"ok": True}
+
+
 def handle(h, method, path, query=""):
     match = ROUTE.fullmatch(path)
     if not match:
         return False
     try:
-        if method == "POST" and not h.csrf_ok():
+        if method in ("POST", "DELETE") and not h.csrf_ok():
             raise PermissionError("Request rejected (cross-site protection).")
         user, err = h.user(admin=True)
         if err:
@@ -457,6 +472,8 @@ def handle(h, method, path, query=""):
             if not isinstance(body, dict):
                 raise ValueError("Expected a JSON object.")
             h.send_json(202, start(h.token(), user, oid, body))
+        elif method == "DELETE" and operation_id:
+            h.send_json(200, clear_operation(h.token(), user, oid, identifier(operation_id)))
         elif method == "GET":
             operations = [read_operation(oid, identifier(operation_id))] if operation_id else store(
                 lambda data: [op for op in data.values() if op["organization_id"] == oid])

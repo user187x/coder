@@ -351,13 +351,8 @@ func (api *API) postWorkspaceBuilds(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := api.checkPlatformStartQuota(ctx, httpmw.APITokenFromRequest(r), apiKey.UserID, workspace, createBuild, func(action policy.Action, object rbac.Objecter) bool { return api.Authorize(r, action, object) }); err != nil {
-		httperror.WriteWorkspaceBuildError(ctx, rw, err)
-		return
-	}
-
 	apiBuild, err := api.postWorkspaceBuildsInternal(
-		ctx,
+		ctx, httpmw.APITokenFromRequest(r),
 		apiKey,
 		workspace,
 		createBuild,
@@ -378,7 +373,7 @@ func (api *API) postWorkspaceBuilds(rw http.ResponseWriter, r *http.Request) {
 // workspace builds, can be called by other handlers and must not
 // reference httpmw.
 func (api *API) postWorkspaceBuildsInternal(
-	ctx context.Context,
+	ctx context.Context, sessionToken string,
 	apiKey database.APIKey,
 	workspace database.Workspace,
 	createBuild codersdk.CreateWorkspaceBuildRequest,
@@ -435,6 +430,10 @@ func (api *API) postWorkspaceBuildsInternal(
 	)
 
 	err := api.Database.InTx(func(tx database.Store) error {
+		if err := api.checkPlatformStartQuota(ctx, tx, sessionToken, apiKey.UserID, workspace, createBuild, authorize); err != nil {
+			return err
+		}
+
 		var err error
 
 		// #20925: if the workspace is dormant and we are starting the workspace,

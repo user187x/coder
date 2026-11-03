@@ -193,6 +193,7 @@ QUARANTINE_ENFORCER = None
 NEKO_MEDIA = None
 import vmusercommand
 import quotaextras
+import workspacecapacity
 import workspacenodemetrics
 import math
 import drivepeers  # noqa: E402  (Cloud Drives shared between users: asked for in chat, approved by admins)
@@ -1482,6 +1483,7 @@ def login_page_settings():
 # The dashboard knows the choices (the admin categories and its own pages) by their IDs; none saved: its default wheel.
 QUICK_MENU_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,39}$")
 QUICK_MENU_WEDGES = (3, 12)
+QUICK_MENU_SHORTCUT = "Ctrl+Escape"
 
 
 def clean_quick_menu_shortcut(value):
@@ -1506,12 +1508,15 @@ def clean_quick_menu(p):
     least, most = QUICK_MENU_WEDGES
     if not least <= len(items) <= most:
         raise ValueError("The wheel takes %d to %d wedges." % (least, most))
-    return {"items": items, "shortcut": clean_quick_menu_shortcut(p.get("shortcut", "Escape"))}
+    enabled = p.get("enabled", True)
+    if not isinstance(enabled, bool):
+        raise ValueError("enabled: expected a boolean.")
+    return {"items": items, "shortcut": clean_quick_menu_shortcut(p.get("shortcut", QUICK_MENU_SHORTCUT)), "enabled": enabled}
 
 
 def quick_menu_settings():
     saved = STORE.get_setting("quick_menu", None) or {}
-    return {"items": saved.get("items") or None, "shortcut": saved.get("shortcut") or "Escape", "updatedBy": saved.get("updatedBy"), "updatedAt": saved.get("updatedAt"),
+    return {"items": saved.get("items") or None, "shortcut": saved.get("shortcut") or QUICK_MENU_SHORTCUT, "enabled": saved.get("enabled", True), "updatedBy": saved.get("updatedBy"), "updatedAt": saved.get("updatedAt"),
             "wedges": list(QUICK_MENU_WEDGES)}
 
 
@@ -3239,7 +3244,7 @@ def parse_logo(data_url):
     data = base64.b64decode(m.group(2))
     if not data or len(data) > LOGO_MAX_BYTES:
         raise ValueError(
-            "The image must be smaller than %d MB." % (LOGO_MAX_BYTES // 1048576)
+            "The image must be %d MiB or smaller." % (LOGO_MAX_BYTES // 1048576)
         )
     ctype = m.group(1)
     ok = {
@@ -3271,10 +3276,10 @@ LOGOS = None
 # --------------------------------------------------------------------------- Background images (Coder's database)
 BG_SLOTS = ("login", "dashboard")
 BG_TYPES = {"image/png", "image/jpeg", "image/webp", "image/gif", "image/avif"}
-BG_MAX_BYTES = 4 * 1024 * 1024  # the dashboard sends at most 1920 x 1200 (WebP); an animated GIF as it is
+BG_MAX_BYTES = 16 * 1024 * 1024  # GIF backgrounds retain their original frames and resolution
 BG_FITS = ("cover", "contain", "tile", "stretch", "center", "span")
 BG_LAYERS = ("under", "over")  # behind the page's content, or a faint watermark over it
-BG_OPACITY = (0.02, 0.3, 0.06)  # min, max, default: hardly noticeable
+BG_OPACITY = (0.02, 1.0, 0.06)  # min, max, default: hardly noticeable
 BG_HTML_MAX = 256 * 1024  # an HTML / CSS background (an animated one like the Particles preset)
 BG_PARAMS_MAX = 16 * 1024
 # The dials every HTML background has, and their bounds: playback speed of its animations, then CSS filters.
@@ -3413,7 +3418,7 @@ def parse_background(data_url):
         raise ValueError("Upload a PNG, JPEG, WebP, GIF or AVIF image.")
     data = base64.b64decode(m.group(2))
     if not data or len(data) > BG_MAX_BYTES:
-        raise ValueError("The image must be smaller than %d MB." % (BG_MAX_BYTES // 1048576))
+        raise ValueError("The image must be %d MiB or smaller." % (BG_MAX_BYTES // 1048576))
     if image_type(data) != m.group(1):
         raise ValueError("The file is not a valid %s image." % m.group(1).split("/")[1].upper())
     return m.group(1), data
@@ -3551,7 +3556,10 @@ def seed_background_defaults():
             for slot, d in wanted.items():
                 if slot not in BG_SLOTS or slot in have or not isinstance(d, dict):
                     continue
-                ctype, data = parse_background_picture("%s/image-store/%s" % (BASE, d.get("picture", "")))
+                picture = d.get("picture")
+                if isinstance(picture, str) and not picture.startswith("/"):
+                    picture = "%s/image-store/%s" % (BASE, picture)
+                ctype, data = parse_background_picture(picture)
                 settings = {"opacity": float(d.get("opacity", 0.06)), "fit": d.get("fit", "cover"),
                             "layer": d.get("layer", "under"), "params": {}}
                 BACKGROUNDS.put(slot, ctype, data, settings, "install defaults")
@@ -6988,7 +6996,7 @@ def quota_me(token, user):
     return {"limited": True, "exempt": False, **addition, "usage": usage, "left": left, "resourceModes": modes,
             "atLimit": any(left[k] is not None and left[k] <= 0 for k in QUOTA_KEYS)}
 
-def quota_check(token, user, body):
+def quota_check(token, user, body, resolved=False):
     """Before Coder creates a workspace: would it pass the owner's limits? {"allowed", "message", ...}. Asked by Coder
     with the requester's own session, so it sees exactly what they may see."""
     settings = quota_settings()
@@ -6999,7 +7007,7 @@ def quota_check(token, user, body):
     else:
         status, u = _coder_get(token, "/api/v2/users/%s" % urllib.parse.quote(owner))
         if status != 200 or not isinstance(u, dict):
-            return {"allowed": True, "message": "owner not readable; not checked"}
+            return {"allowed": False, "message": "The workspace owner could not be verified."}
         target = {"username": u.get("username"), "id": u.get("id"), "roles": sorted({r.get("name") for r in u.get("roles") or []})}
     if body.get("owner_id") and body["owner_id"] != target["id"]:
         return {"allowed": False, "message": "Workspace owner identity does not match the quota request."}
@@ -7015,7 +7023,7 @@ def quota_check(token, user, body):
     if not version and body.get("template_id"):
         st, t = _coder_get(token, "/api/v2/templates/%s" % body["template_id"])
         version = (t or {}).get("active_version_id") if st == 200 and isinstance(t, dict) else None
-    if version:
+    if version and not resolved:
         st, rich = _coder_get(token, "/api/v2/templateversions/%s/rich-parameters" % version)
         for p in rich if st == 200 and isinstance(rich, list) else []:
             params.setdefault(p.get("name"), p.get("default_value"))
@@ -7050,12 +7058,83 @@ def quota_check(token, user, body):
         over.append(("memory: this workspace needs %s GiB, above its per-instance limit of %s" % (fmt(want_mem), fmt(limits["memory"]))) if modes["memory"] == "instance" else ("memory: this one needs %s GiB, %s of %s GiB are taken" % (fmt(want_mem), fmt(usage["memory"]), fmt(limits["memory"]))))
     if limits["disk"] is not None and after["disk"] > limits["disk"]:
         over.append("disk: %s GB requested, %s GB %s limit" % (fmt(after["disk"]), fmt(limits["disk"]), modes["disk"]))
+    remaining = {k: None if limits[k] is None else max(0, limits[k] - (
+        0 if modes.get(k) == "instance" else usage[k])) for k in QUOTA_KEYS}
+    addition = {**addition, "remaining": remaining}
     if over:
         who = "Your" if target["username"] == user["username"] else "%s's" % target["username"]
         return {"allowed": False, **addition, "usage": usage, "request": {"cpu": want_cpu, "memory": want_mem, "disk": want_disk},
                 "message": "%s workspace quota is reached (%s). Delete or shrink a workspace, or ask an admin to raise the "
                            "quota in Health > User Quota." % (who, "; ".join(over))}
     return {"allowed": True, "message": "within quota", **addition, "usage": usage, "request": {"cpu": want_cpu, "memory": want_mem, "disk": want_disk}}
+
+
+def workspace_admission(token, user, body):
+    """Check the workspace owner's allowance and the placement of the requested build."""
+    tid = str(uuid.UUID(body["template_id"]))
+    oid = str(uuid.UUID(body["organization_id"]))
+    version = str(uuid.UUID(body["template_version_id"]))
+    status, template = _coder_get(token, "/api/v2/templates/" + tid)
+    if status != 200 or template.get("organization_id") != oid:
+        return {"allowed": False, "message": "Template not accessible in this organization."}
+    if body.get("owner") not in (None, "me", user["id"], user["username"]):
+        st, checks = _coder_send(token, "POST", "/api/v2/authcheck", {"checks": {"create": {"action": "create",
+            "object": {"resource_type": "workspace", "organization_id": oid, "owner_id": body.get("owner_id")}}}})
+        if st != 200 or not checks.get("create"):
+            return {"allowed": False, "message": "You cannot create a workspace for this owner."}
+    if version != template.get("active_version_id"):
+        st, metadata = _coder_get(token, "/api/v2/templateversions/" + version)
+        if st != 200 or metadata.get("template_id") != tid:
+            return {"allowed": False, "message": "Template version does not match this workspace template."}
+    # A version's resource inventory is immutable after a successful template import.
+    definitions = CACHE.get("workspace-admission:" + version)
+    if definitions is None:
+        st, rich = _coder_get(token, "/api/v2/templateversions/" + version + "/rich-parameters")
+        if st != 200 or not isinstance(rich, list):
+            raise RuntimeError("Template resources could not be read.")
+        st, resources = _coder_get(token, "/api/v2/templateversions/" + version + "/resources")
+        if st != 200 or not isinstance(resources, list):
+            raise RuntimeError("Template infrastructure could not be read.")
+        definitions = ({p["name"]: p.get("default_value") for p in rich}, any(
+            r.get("type") in ("kubernetes_deployment", "kubernetes_deployment_v1", "kubernetes_pod",
+                              "kubernetes_pod_v1", "kubernetes_manifest") for r in resources))
+        CACHE.put("workspace-admission:" + version, definitions, 60)
+    defaults, kubernetes = definitions
+    values = {**defaults, **{p["name"]: p["value"] for p in body.get("rich_parameter_values") or []}}
+    parameters = [{"name": k, "value": v} for k, v in values.items()]
+    result = quota_check(token, user, {**body, "rich_parameter_values": parameters}, resolved=True)
+    if not kubernetes or not any(k in values for k in workspacecapacity.RESOURCES):
+        return result
+    current = body.get("current_workspace_id")
+    bound_node = None
+    if current:
+        current = str(uuid.UUID(current))
+        ws = workspace_info(token, current)
+        if not ws or ws.get("organization_id") != oid or ws.get("owner_id") != body.get("owner_id"):
+            return {"allowed": False, "message": "Workspace ownership could not be verified."}
+        st, pvc = KUBE.call("GET", "/api/v1/namespaces/%s/persistentvolumeclaims/coder-%s-home" % (WORKSPACE_NAMESPACE, current))
+        if st not in (200, 404):
+            raise RuntimeError("Workspace volume placement is unavailable.")
+        if st == 200:
+            bound_node = (pvc.get("metadata", {}).get("annotations") or {}).get("volume.kubernetes.io/selected-node")
+    nodes = workspacecapacity.available(cluster_snapshot(), template["name"], current, quantity, WORKSPACE_NAMESPACE, bound_node)
+    if not current and "home_disk_size" in values:
+        # The bundled local-path provisioner creates homes on the chosen node's filesystem.
+        st, classes = KUBE.call("GET", "/apis/storage.k8s.io/v1/storageclasses")
+        default = next((c for c in classes.get("items", []) if
+                        c["metadata"].get("annotations", {}).get("storageclass.kubernetes.io/is-default-class") == "true"), {}) if st == 200 else {}
+        if default.get("provisioner") == "rancher.io/local-path":
+            summaries = node_summaries()
+            for node in nodes:
+                fs = summaries.get(node["_name"], {}).get("node", {}).get("fs", {})
+                if hudstorage.fresh(fs) and fs.get("availableBytes") is not None:
+                    node["disk"] = fs["availableBytes"] / 1e9
+    for node in nodes:
+        node.pop("_name")
+    issue = workspacecapacity.check_size(values, nodes)
+    if result["allowed"] and issue:
+        result = {**result, "allowed": False, "message": issue}
+    return {**result, "nodes": nodes}
 
 
 # --------------------------------------------------------------------------- Global Workspace Scheduler (Health > User Quota)
@@ -8246,7 +8325,7 @@ def chat_availability():
 
 def chat_people():
     """{user id: {id, username, name, admin, lastSeen}} of Coder's active users (its users table; system users left
-    out), most recently seen first, cached for a minute. Empty when Coder's database can't be read."""
+    out), most recently seen first. A short cache lets newly active accounts appear promptly. Empty on read failure."""
     hit = CACHE.get("chat-people")
     if hit is not None:
         return hit
@@ -8272,7 +8351,7 @@ def chat_people():
                 }
     except Exception as e:  # noqa: BLE001 - no list rather than an error
         log(event="chat-people-failed", error=str(e)[:200])
-    CACHE.put("chat-people", people, 60)
+    CACHE.put("chat-people", people, 5)
     return people
 
 
@@ -8328,6 +8407,15 @@ def presence_report(token):
     return {"online": online, "recent": recent, "idleSeconds": CHAT_IDLE_SECONDS, "generatedAt": now()}
 
 
+ANIMATION_PARTS = ("all", "effects", "gifs", "graphs", "background", "announcement")
+
+
+def animation_policy():
+    backing = STORE.settings_backing
+    settings = backing.read("platform-settings", {}, legacy=STORE.legacy_settings) if backing else STORE.legacy_settings()
+    return {part: settings.get("animation_" + part, True) is not False for part in ANIMATION_PARTS}
+
+
 def boot_js():
     """Classic script every Coder page loads before its own code: which logo to show (read synchronously by the
     rewritten logo component) and the classification marking, so neither flickers in after the first paint.
@@ -8350,6 +8438,9 @@ def boot_js():
             json.dumps(default_avatar),
         )
     )
+    js += "window.__cuiNavbarTransparency=%s;\n" % json.dumps(STORE.get_setting("navbar_transparency", 0))
+    js += "window.__cuiAnimationPolicy=%s;\n" % json.dumps(animation_policy())
+    js += "window.__cuiLogoEnabled=%s;\n" % json.dumps(STORE.get_setting("logo_enabled", True))
     try:
         js += "window.__cuiLoginPage=%s;\n" % json.dumps(login_page_settings())
     except Exception as e:  # noqa: BLE001 - the default sign-in page rather than a broken one
@@ -8496,7 +8587,7 @@ class Handler(BaseHTTPRequestHandler):
         if urllib.parse.urlsplit(self.path).path == BASE + "/api/login-page":
             limit = LOGIN_HEADING_MAX_CHARS + 16384  # a heading image as a data URL, and the page's text
         if urllib.parse.urlsplit(self.path).path == BASE + "/api/backgrounds":
-            limit = BG_MAX_BYTES * 2 + BG_HTML_MAX * 2 + BG_PARAMS_MAX
+            limit = 4 * ((BG_MAX_BYTES + 2) // 3) + BG_PARAMS_MAX + 16384
         if urllib.parse.urlsplit(self.path).path == BASE + "/api/banner-pictures":
             limit = BANNER_PICTURE_MAX_BYTES * 4 // 3 + 4096  # base64 of the largest picture, and its name
         if urllib.parse.urlsplit(self.path).path == BASE + "/api/icons":
@@ -8756,6 +8847,7 @@ class Handler(BaseHTTPRequestHandler):
                 {
                     "available": LOGOS is not None and LOGOS.pool is not None,
                     "set": bool(logo),
+                    "enabled": STORE.get_setting("logo_enabled", True),
                     "url": BASE + "/logo?v=" + logo["sha"] if logo else None,
                     "type": logo and logo["type"],
                     "bytes": logo and len(logo["data"]),
@@ -9001,6 +9093,10 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_json(
                 200, STORE.get_setting("classification", CLASSIFICATION_DEFAULT)
             )
+        if path == BASE + "/api/navbar-appearance":
+            return self.send_json(200, {"transparency": STORE.get_setting("navbar_transparency", 0)})
+        if path == BASE + "/api/animations":
+            return self.send_json(200, animation_policy())
         if path == BASE + "/api/login-page":
             return self.send_json(200, login_page_settings())
         if path == BASE + "/api/quick-menu":
@@ -9020,6 +9116,9 @@ class Handler(BaseHTTPRequestHandler):
         self.send(404, "not found\n")
 
     def logo(self, versioned):
+        if STORE.get_setting("logo_enabled", True) is False:
+            return self.send(200, '<svg xmlns="http://www.w3.org/2000/svg"/>',
+                             "image/svg+xml", {"Cache-Control": "no-cache"})
         logo = (
             LOGOS.peek() if LOGOS else None
         )  # the cached copy: never waits for the database
@@ -9157,6 +9256,9 @@ class Handler(BaseHTTPRequestHandler):
             "favicon-dark.svg",
         ):
             return self.send(404, "not found\n")
+        if STORE.get_setting("logo_enabled", True) is False:
+            return self.send(200, '<svg xmlns="http://www.w3.org/2000/svg"/>',
+                             "image/svg+xml", {"Cache-Control": "no-cache"})
         logo = (
             LOGOS.peek() if LOGOS else None
         )  # the cached copy: never waits for the database
@@ -9738,7 +9840,11 @@ class Handler(BaseHTTPRequestHandler):
         return self.send_json(200, {"cleared": len(rows)})
 
     def do_DELETE(self):
+        # DELETE handlers may finish without reading the client's JSON body.
+        self.close_connection = True
         url = urllib.parse.urlsplit(self.path)
+        if workspacepower.handle(self, "DELETE", url.path, url.query):
+            return
         if not workspacetunnels.handle(self, "DELETE", url.path, url.query):
             self.send(404, "not found\n")
 
@@ -9795,6 +9901,8 @@ class Handler(BaseHTTPRequestHandler):
             BASE + "/api/events/clear",
             BASE + "/api/classification",
             BASE + "/api/login-page",
+            BASE + "/api/navbar-appearance",
+            BASE + "/api/animations",
             BASE + "/api/quick-menu",
             BASE + "/api/quick-menu/reset",
             BASE + "/api/keycloak/apply",
@@ -9858,8 +9966,8 @@ class Handler(BaseHTTPRequestHandler):
             if err:
                 return
             try:
-                result = quota_check(self.token(), user, payload)
-            except Exception as e:  # noqa: BLE001 - Coder lets the workspace through when the check itself fails
+                result = workspace_admission(self.token(), user, payload)
+            except Exception as e:  # noqa: BLE001 - the client can retry when capacity is readable
                 log(event="quota-check-failed", user=user["username"], error=str(e)[:200])
                 return self.send_json(503, {"error": "The quota could not be checked: %s" % str(e)[:200]})
             if not result.get("allowed"):
@@ -9883,6 +9991,18 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path in (BASE + "/api/notes", BASE + "/api/notes/update", BASE + "/api/notes/delete"):
             return self.notes_post(path, payload, user)
+        if path == BASE + "/api/navbar-appearance":
+            value = payload.get("transparency")
+            if type(value) is not int or not 0 <= value <= 100:
+                return self.send_json(400, {"error": "Transparency must be a whole percentage from 0 to 100."})
+            STORE.put_setting("navbar_transparency", value)
+            return self.send_json(200, {"transparency": value})
+        if path == BASE + "/api/animations":
+            part, enabled = payload.get("part"), payload.get("enabled")
+            if part not in ANIMATION_PARTS or not isinstance(enabled, bool):
+                return self.send_json(400, {"error": "Expected an animation category and a boolean enabled value."})
+            STORE.put_setting("animation_" + part, enabled)
+            return self.send_json(200, animation_policy())
         if path == BASE + "/api/login-page":
             try:
                 value = clean_login_page(payload)
@@ -9979,10 +10099,17 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 if path.endswith("/reset"):
                     LOGOS.reset()
+                    STORE.put_setting("logo_enabled", True)
                     log(event="logo-reset", user=user["username"])
                     return self.send_json(200, {"ok": True, "set": False})
+                if "enabled" in payload:
+                    if not isinstance(payload["enabled"], bool) or "dataUrl" in payload:
+                        raise ValueError("Expected a boolean enabled value without dataUrl.")
+                    STORE.put_setting("logo_enabled", payload["enabled"])
+                    return self.send_json(200, {"ok": True, "enabled": payload["enabled"]})
                 ctype, data = parse_logo(payload.get("dataUrl"))
                 sha = LOGOS.put(ctype, data, user["username"])
+                STORE.put_setting("logo_enabled", True)
             except ValueError as e:
                 return self.send_json(400, {"error": str(e)})
             except Exception as e:  # noqa: BLE001

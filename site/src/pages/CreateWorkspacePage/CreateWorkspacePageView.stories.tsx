@@ -1,17 +1,26 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { expect, screen, within } from "storybook/test";
+import { expect, screen, spyOn, within } from "storybook/test";
 import { DetailedError } from "#/api/errors";
+import { PlatformAPI } from "#/api/platform";
 import type { Preset, PreviewParameter } from "#/api/typesGenerated";
 import {
 	MockTemplate,
 	MockUserMember,
 	MockUserOwner,
 } from "#/testHelpers/entities";
+import { withDashboardProvider } from "#/testHelpers/storybook";
 import { CreateWorkspacePageView } from "./CreateWorkspacePageView";
 
 const meta: Meta<typeof CreateWorkspacePageView> = {
 	title: "Pages/CreateWorkspacePageView",
+	beforeEach: () => {
+		spyOn(PlatformAPI, "checkWorkspaceAdmission").mockResolvedValue({
+			allowed: true,
+			message: "Within quota.",
+		});
+	},
 	component: CreateWorkspacePageView,
+	decorators: [withDashboardProvider],
 	args: {
 		autofillParameters: [],
 		diagnostics: [],
@@ -113,25 +122,25 @@ const parameterDropdown: PreviewParameter = {
 	options: [
 		{
 			name: "t3.micro",
-			description: "1 vCPU, 1 GB RAM - Free tier eligible",
+			description: "1 vCPU, 1 GB MEM - Free tier eligible",
 			value: { valid: true, value: "t3.micro" },
 			icon: "/emojis/1f7e2.png",
 		},
 		{
 			name: "t3.small",
-			description: "2 vCPU, 2 GB RAM",
+			description: "2 vCPU, 2 GB MEM",
 			value: { valid: true, value: "t3.small" },
 			icon: "/emojis/1f7e1.png",
 		},
 		{
 			name: "t3.medium",
-			description: "2 vCPU, 4 GB RAM",
+			description: "2 vCPU, 4 GB MEM",
 			value: { valid: true, value: "t3.medium" },
 			icon: "/emojis/1f7e0.png",
 		},
 		{
 			name: "t3.large",
-			description: "2 vCPU, 8 GB RAM",
+			description: "2 vCPU, 8 GB MEM",
 			value: { valid: true, value: "t3.large" },
 			icon: "/emojis/1f534.png",
 		},
@@ -572,5 +581,15 @@ export const DynamicParameterFlowTemplate: Story = {
 		expect(
 			canvas.queryByText("This template uses deprecated parameters"),
 		).not.toBeInTheDocument();
+	},
+};
+
+export const InsufficientCapacity: Story = {
+	beforeEach: () => {
+		spyOn(PlatformAPI, "checkWorkspaceAdmission").mockResolvedValue({
+			allowed: false,
+			message: "No eligible node has enough memory for this workspace.",
+			nodes: [],
+		});
 	},
 };

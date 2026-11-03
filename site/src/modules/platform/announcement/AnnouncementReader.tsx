@@ -50,7 +50,7 @@ export const AnnouncementReader: React.FC<{
 					<DialogTitle>Announcement</DialogTitle>
 					<AnnouncementMessage banner={banner} />
 					<DialogClose asChild>
-						<Button variant="outline" className="justify-self-end">
+						<Button variant="outline" className="justify-self-center">
 							Close
 						</Button>
 					</DialogClose>
@@ -96,14 +96,14 @@ const AnnouncementMessageContent: React.FC<{ banner: BannerFields }> = ({
 			tabIndex={0}
 			role="region"
 			aria-label="Announcement message"
-			className="max-h-[60vh] overflow-y-auto break-words rounded-lg border border-solid border-border bg-surface-secondary p-5 text-sm leading-relaxed"
+			className="max-h-[60vh] overflow-y-auto break-words rounded-lg border border-solid border-border bg-surface-secondary p-5 text-sm leading-relaxed [&>p:not(:has(br))]:mx-auto [&>p:not(:has(br))]:w-fit"
 			style={{ fontFamily: bannerFontStack(banner.font) }}
 		>
 			{banner.picture && safeHref(banner.picture) && (
 				<AnnouncementImage
 					src={banner.picture}
 					alt="Announcement"
-					className="mb-4 max-h-80 max-w-full object-contain"
+					className="mx-auto mb-4 block max-h-80 w-full object-contain object-center"
 				/>
 			)}
 			{banner.countdown && <BannerCountdown to={banner.countdown} />}

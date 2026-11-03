@@ -108,6 +108,24 @@ const post = async <T>(
 	}
 };
 
+const deleteJSON = async <T>(url: string): Promise<T> => {
+	try {
+		const result = await platformAxios.delete<T>(
+			url,
+			withSession({
+				data: {},
+				headers: {
+					"Content-Type": "application/json",
+					"X-Requested-With": PLATFORM_REQUESTED_WITH,
+				},
+			}),
+		);
+		return result.data;
+	} catch (error) {
+		throw toPlatformError(error);
+	}
+};
+
 export { get as platformGet, post as platformPost };
 
 /**
@@ -152,7 +170,8 @@ export const platformRequest = { get, post, upload, base: PLATFORM_BASE };
 export const LOGIN_EFFECTS = ["wireframe", "neon", "plain"] as const;
 export type LoginEffect = (typeof LOGIN_EFFECTS)[number];
 /** The quick access wheel's wedges (Admin Settings > Quick Menu): choices' IDs in order; null: the default wheel. */
-type QuickMenuSettings = {
+export type QuickMenuSettings = {
+	enabled?: boolean;
 	shortcut?: string;
 	items: string[] | null;
 	updatedBy?: string | null;
@@ -199,7 +218,13 @@ export type ClassificationSettings = {
 	updatedAt?: string;
 };
 
+export type AnimationPolicy = Record<
+	"all" | "effects" | "gifs" | "graphs" | "background" | "announcement",
+	boolean
+>;
+
 export type LogoState = {
+	enabled?: boolean;
 	available: boolean;
 	set: boolean;
 	url: string | null;
@@ -209,8 +234,7 @@ export type LogoState = {
 	updatedAt: string | null;
 };
 
-export const BACKGROUND_SLOTS = ["login", "dashboard"] as const;
-export type BackgroundSlot = (typeof BACKGROUND_SLOTS)[number];
+export type BackgroundSlot = "login" | "dashboard";
 export type BackgroundFit =
 	| "cover"
 	| "contain"
@@ -781,6 +805,21 @@ type DashboardAddress = {
 };
 
 /** The signed-in user's own quota (the Workspaces page's pill); limited false = no limit applies to them. */
+export type WorkspaceAdmissionRequest = {
+	organization_id: string;
+	template_id: string;
+	template_version_id: string;
+	owner_id: string;
+	owner: string;
+	rich_parameter_values: { name: string; value: string }[];
+};
+type WorkspaceAdmission = {
+	allowed: boolean;
+	message: string;
+	remaining?: QuotaLimits;
+	nodes?: { cpu: number; memory: number; gpus: number; disk?: number }[];
+};
+
 export type QuotaMe = {
 	resourceModes?: QuotaResourceModes;
 	baseLimits?: QuotaLimits;
@@ -1339,8 +1378,10 @@ export type UserUIPreferences = {
 		offset: number;
 	} | null;
 	resource_shortcuts?: string[];
+	resource_shortcut_order?: string[];
 	resource_tray_top?: number;
 	admin_notes_tray_top?: number;
+	settings_metrics?: { expanded: boolean; locked: boolean };
 	resource_tray?: { expanded: boolean; lock: "up" | "down" } | null;
 	admin_notes_tray?: { expanded: boolean; lock: "up" | "down" } | null;
 	chat_hidden?: boolean;
@@ -2108,6 +2149,10 @@ export const PlatformAPI = {
 		get<{ operations: WorkspacePowerOperation[] }>(
 			`${PLATFORM_BASE}/api/organizations/${encodeURIComponent(organizationId)}/workspace-power`,
 		),
+	clearWorkspacePowerOperation: (organizationId: string, id: string) =>
+		deleteJSON<{ ok: boolean }>(
+			`${PLATFORM_BASE}/api/organizations/${encodeURIComponent(organizationId)}/workspace-power/operation/${encodeURIComponent(id)}`,
+		),
 	getWorkspacePowerOperation: (organizationId: string, id: string) =>
 		get<WorkspacePowerOperation>(
 			`${PLATFORM_BASE}/api/organizations/${encodeURIComponent(organizationId)}/workspace-power/operation/${encodeURIComponent(id)}`,
@@ -2166,23 +2211,10 @@ export const PlatformAPI = {
 			`${PLATFORM_BASE}/api/organizations/${encodeURIComponent(organizationId)}/workspace-tunnels/${encodeURIComponent(id)}`,
 			{ revision, ports },
 		),
-	deleteWorkspaceTunnel: async (organizationId: string, id: string) => {
-		try {
-			const result = await platformAxios.delete<{ tunnel: WorkspaceTunnel }>(
-				`${PLATFORM_BASE}/api/organizations/${encodeURIComponent(organizationId)}/workspace-tunnels/${encodeURIComponent(id)}`,
-				withSession({
-					data: {},
-					headers: {
-						"Content-Type": "application/json",
-						"X-Requested-With": PLATFORM_REQUESTED_WITH,
-					},
-				}),
-			);
-			return result.data;
-		} catch (error) {
-			throw toPlatformError(error);
-		}
-	},
+	deleteWorkspaceTunnel: (organizationId: string, id: string) =>
+		deleteJSON<{ tunnel: WorkspaceTunnel }>(
+			`${PLATFORM_BASE}/api/organizations/${encodeURIComponent(organizationId)}/workspace-tunnels/${encodeURIComponent(id)}`,
+		),
 	/** The caller's Cloud Drive; PlatformError 404 where the deployment has none. */
 	getSafe: () => get<SafeSummary>(`${PLATFORM_BASE}/api/safe`),
 	/** drive: a Cloud Drive shared with the caller (its owner's id) - every file route takes it. */
@@ -2422,10 +2454,11 @@ export const PlatformAPI = {
 
 	getLoginPage: () => get<LoginPageSettings>(`${PLATFORM_BASE}/api/login-page`),
 	getQuickMenu: () => get<QuickMenuSettings>(`${PLATFORM_BASE}/api/quick-menu`),
-	saveQuickMenu: (items: string[], shortcut?: string) =>
+	saveQuickMenu: (items: string[], shortcut?: string, enabled = true) =>
 		post<QuickMenuSettings>(`${PLATFORM_BASE}/api/quick-menu`, {
 			items,
 			shortcut,
+			enabled,
 		}),
 	resetQuickMenu: () =>
 		post<QuickMenuSettings>(`${PLATFORM_BASE}/api/quick-menu/reset`, {}),
@@ -2441,6 +2474,22 @@ export const PlatformAPI = {
 			signedOutMessage: settings.signedOutMessage.trim(),
 		}),
 
+	setLogoEnabled: (enabled: boolean) =>
+		post<{ ok: true; enabled: boolean }>(`${PLATFORM_BASE}/api/logo`, {
+			enabled,
+		}),
+	getNavbarAppearance: () =>
+		get<{ transparency: number }>(`${PLATFORM_BASE}/api/navbar-appearance`),
+	setNavbarAppearance: (transparency: number) =>
+		post<{ transparency: number }>(`${PLATFORM_BASE}/api/navbar-appearance`, {
+			transparency,
+		}),
+	getAnimationPolicy: () =>
+		get<AnimationPolicy>(`${PLATFORM_BASE}/api/animations`),
+	setAnimationPolicy: (change: {
+		part: keyof AnimationPolicy;
+		enabled: boolean;
+	}) => post<AnimationPolicy>(`${PLATFORM_BASE}/api/animations`, change),
 	getLogo: () => get<LogoState>(`${PLATFORM_BASE}/api/logo`),
 	uploadLogo: (dataUrl: string) =>
 		post<{ ok: true; set: true; url: string }>(`${PLATFORM_BASE}/api/logo`, {
@@ -2458,6 +2507,12 @@ export const PlatformAPI = {
 		}),
 	resetAvatar: () =>
 		post<{ ok: true; set: false }>(`${PLATFORM_BASE}/api/avatar/reset`, {}),
+	getBackgroundHTML: async (url: string): Promise<string> => {
+		const response = await fetch(url, { credentials: "same-origin" });
+		if (!response.ok)
+			throw new Error("The saved background could not be loaded.");
+		return response.text();
+	},
 	getBackgrounds: () =>
 		get<BackgroundsState>(`${PLATFORM_BASE}/api/backgrounds`),
 	/** A new image (dataUrl) and/or new settings for one background. */
@@ -2623,6 +2678,8 @@ export const PlatformAPI = {
 			`${PLATFORM_BASE}/api/scheduler`,
 			settings,
 		),
+	checkWorkspaceAdmission: (request: WorkspaceAdmissionRequest) =>
+		post<WorkspaceAdmission>(`${PLATFORM_BASE}/api/quota/check`, request),
 	getQuotaMe: () => get<QuotaMe>(`${PLATFORM_BASE}/api/quota/me`),
 	getDashboardAddress: () =>
 		get<DashboardAddress>(`${PLATFORM_BASE}/api/dashboard-address`),

@@ -2,16 +2,16 @@ import { API } from "#/api/api";
 import { PlatformAPI } from "#/api/platform";
 import type * as TypesGen from "#/api/typesGenerated";
 import { Button } from "#/components/Button/Button";
+import { useProductLogoURL } from "#/components/Icons/ProductLogo";
 import type { ProxyContextValue } from "#/contexts/ProxyContext";
 import { NotificationsInbox } from "#/modules/notifications/NotificationsInbox/NotificationsInbox";
 import { AnnouncementBanner } from "#/modules/platform/announcement/AnnouncementBanner";
 import { ChatInboxIndicator } from "#/modules/platform/chat/ChatInboxIndicator";
 import { NavbarArrange } from "#/modules/platform/navbarOrder/NavbarArrange";
 import { startNavbarArrange } from "#/modules/platform/navbarOrder/navbarOrder";
-import {
-	type AdminQuickLinks,
-	type AdminSettingsPermissions,
-	canViewAdminSettings,
+import type {
+	AdminQuickLinks,
+	AdminSettingsPermissions,
 } from "./AdminSettings";
 import { addableAdminPages } from "./adminQuickLinks";
 import { MobileMenu } from "./MobileMenu";
@@ -23,6 +23,7 @@ import { WorkspacesDropdown } from "./WorkspacesDropdown";
 import "./navbarSoft.css";
 
 type NavbarViewProps = {
+	transparency?: number;
 	user: TypesGen.User;
 	buildInfo?: TypesGen.BuildInfoResponse;
 	supportLinks: readonly TypesGen.LinkConfig[];
@@ -34,6 +35,7 @@ type NavbarViewProps = {
 };
 
 export const NavbarView: React.FC<NavbarViewProps> = ({
+	transparency = 0,
 	user,
 	buildInfo,
 	supportLinks,
@@ -42,6 +44,7 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 	adminQuickLinks,
 	proxyContextValue,
 }) => {
+	const logoURL = useProductLogoURL();
 	// Editable where there is anything to link to.
 	const quickLinksEditor =
 		adminQuickLinks && adminQuickLinks.pages.length > 0
@@ -67,6 +70,9 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 					startNavbarArrange();
 				}
 			}}
+			style={{
+				backgroundColor: `hsl(var(--surface-primary) / var(--navbar-preview-alpha, ${1 - transparency / 100}))`,
+			}}
 			className="navbar-soft sticky top-0 bg-surface-primary z-40 border-0 border-b border-solid h-[72px] min-h-[72px] flex items-center leading-none px-6"
 		>
 			{/* Platform: the logo in a tile like the user's avatar. */}
@@ -78,7 +84,7 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 			<NavbarArrange
 				className="relative hidden md:flex flex-1 min-w-0 items-center gap-3 h-full"
 				items={{
-					logo: <NavbarLogo />,
+					logo: logoURL ? <NavbarLogo /> : null,
 					workspaces: (
 						<nav className="flex items-center h-full">
 							<WorkspacesDropdown
@@ -99,16 +105,12 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 								(role) => role.name === "owner",
 							)}
 							proxyContextValue={proxyContextValue}
-							hud={adminPermissions.canViewDeployment}
-							controls={
-								canViewAdminSettings(adminPermissions)
-									? {
-											permissions: adminPermissions,
-											quickLinks: adminQuickLinks?.links,
-											quickLinksEditor,
-										}
-									: undefined
-							}
+							hud={adminPermissions.canViewHud}
+							controls={{
+								permissions: adminPermissions,
+								quickLinks: adminQuickLinks?.links,
+								quickLinksEditor,
+							}}
 						/>
 					),
 					notifications: (
@@ -171,6 +173,7 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 							proxyContextValue={proxyContextValue}
 							adminPermissions={adminPermissions}
 							adminQuickLinks={adminQuickLinks?.links}
+							quickLinksEditor={quickLinksEditor}
 							user={user}
 							supportLinks={supportLinks}
 							onSignOut={onSignOut}

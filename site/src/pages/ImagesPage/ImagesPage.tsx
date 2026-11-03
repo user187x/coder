@@ -28,7 +28,6 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "#/components/DropdownMenu/DropdownMenu";
-import { Margins } from "#/components/Margins/Margins";
 import {
 	PageHeader,
 	PageHeaderSubtitle,
@@ -77,6 +76,7 @@ import {
 	type ImportImageDialogProps,
 } from "./ImportImageDialog";
 import { NewImageDialog } from "./NewImageDialog";
+import { ResearchSandboxButton } from "./ResearchSandboxButton";
 import { SecurityDataBadge } from "./SecurityData";
 
 type StatusFilter = "all" | "ready" | "building" | "draft" | "failed";
@@ -124,9 +124,10 @@ const ImagesPage: React.FC = () => {
 	}, [query.data, search, status, onlyNeedsFixing]);
 
 	return (
-		<Margins className="pb-12">
+		<div className="min-w-0 pb-12">
 			<title>{pageTitle("Images")}</title>
 			<PageHeader
+				className="pt-0 pb-6 md:items-start"
 				actions={
 					<div className="flex flex-wrap items-center gap-2">
 						{(needFixing > 0 || onlyNeedsFixing) && (
@@ -152,6 +153,9 @@ const ImagesPage: React.FC = () => {
 							</Button>
 						)}
 						<SecurityDataBadge onOpen={() => setSettings(true)} />
+						{canEdit && (
+							<ResearchSandboxButton sandbox={query.data?.researchSandbox} />
+						)}
 						<Button
 							variant="outline"
 							size="lg"
@@ -321,7 +325,7 @@ const ImagesPage: React.FC = () => {
 				/>
 			)}
 			{settings && <ImagesSettingsDialog onClose={() => setSettings(false)} />}
-		</Margins>
+		</div>
 	);
 };
 

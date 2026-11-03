@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "react-query";
 import { toast } from "sonner";
 import { getErrorMessage } from "#/api/errors";
 import { buildInfo } from "#/api/queries/buildInfo";
+import { navbarAppearance } from "#/api/queries/platform";
 import {
 	preferenceSettings,
 	preferenceSettingsKey,
@@ -12,10 +13,9 @@ import { useProxy } from "#/contexts/ProxyContext";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { useEmbeddedMetadata } from "#/hooks/useEmbeddedMetadata";
 import { useDashboard } from "#/modules/dashboard/useDashboard";
-import { canViewDeploymentSettings } from "#/modules/permissions";
 import { isOfferedSupportLink } from "#/modules/platform/supportLinks";
 import { useFeatureVisibility } from "../useFeatureVisibility";
-import { adminPagesFor, resolveAdminQuickLinks } from "./adminQuickLinks";
+import { resolveAdminQuickLinks, settingsPagesFor } from "./adminQuickLinks";
 import { NavbarView } from "./NavbarView";
 
 export const Navbar: React.FC = () => {
@@ -25,15 +25,18 @@ export const Navbar: React.FC = () => {
 	const { user: me, permissions, signOut } = useAuthenticated();
 	const featureVisibility = useFeatureVisibility();
 	const proxyContextValue = useProxy();
+	const { data: navbar } = useQuery({
+		...navbarAppearance(),
+		enabled: window.__cuiNavbarTransparency !== undefined,
+	});
 
-	const canViewDeployment = canViewDeploymentSettings(permissions);
 	const canViewOrganizations = canViewOrganizationSettings;
 	const canViewHealth = permissions.viewDebugInfo;
 	const canViewAuditLog =
 		featureVisibility.audit_log && permissions.viewAnyAuditLog;
 	const canViewConnectionLog =
 		featureVisibility.connection_log && permissions.viewAnyConnectionLog;
-	const adminPages = adminPagesFor({
+	const adminPages = settingsPagesFor({
 		permissions,
 		oauth2Provider: Boolean(buildInfoQuery.data?.oauth2_provider),
 	});
@@ -52,12 +55,13 @@ export const Navbar: React.FC = () => {
 	}
 	return (
 		<NavbarView
+			transparency={navbar?.transparency}
 			user={me}
 			buildInfo={buildInfoQuery.data}
 			supportLinks={Array.from(uniqueLinks.values())}
 			onSignOut={signOut}
 			adminPermissions={{
-				canViewDeployment,
+				canViewHud: permissions.viewDeploymentConfig,
 				canViewUsers: permissions.viewAllUsers,
 				canViewOrganizations,
 				canViewAuditLog,

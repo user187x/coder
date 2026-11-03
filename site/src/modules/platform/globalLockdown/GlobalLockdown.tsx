@@ -259,10 +259,15 @@ export const GlobalLockdownCardView: React.FC<GlobalLockdownCardViewProps> = ({
 						) : null}
 					</div>
 					{renderActionPanel(
-						<div className="flex w-full flex-col items-stretch gap-3">
+						<div className="flex w-full max-w-sm flex-col items-stretch gap-3">
 							<Button
 								ref={trigger}
-								variant={state?.enabled ? "outline" : "destructive"}
+								variant="outline"
+								className={cn(
+									"mx-2 font-semibold",
+									!state?.enabled &&
+										"border-blue-500 bg-blue-700 text-white hover:bg-blue-800 disabled:text-white disabled:opacity-50",
+								)}
 								disabled={loading || !state?.admin || busy}
 								onClick={() => {
 									setConfirmation("");

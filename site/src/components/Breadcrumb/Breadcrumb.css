@@ -1,12 +1,12 @@
 .breadcrumb-connected {
-	--crumb-edge: 12px;
-	container-type: inline-size;
+	--crumb-edge: 8px;
 }
 
 .breadcrumb-connected > ol {
 	gap: 4px;
 	margin-block: 10px;
-	padding-inline: 24px;
+	flex-wrap: nowrap;
+	padding-inline: 16px 0;
 }
 
 .breadcrumb-connected > ol > li {
@@ -14,16 +14,22 @@
 	max-width: 100%;
 }
 
+.breadcrumb-connected > ol > li:first-child {
+	flex-shrink: 0;
+}
+
 .breadcrumb-connected > ol > li + li {
 	margin-left: calc(-1 * var(--crumb-edge));
 }
 
-.breadcrumb-connected > ol > li > :is(a, span) {
+.breadcrumb-connected > ol > li > :is(a, span, button) {
 	display: flex;
 	align-items: center;
-	gap: 8px;
+	gap: 4px;
+	min-width: 0;
 	min-height: 36px;
-	padding: 8px clamp(14px, 2cqw, 20px);
+	font-size: 0.8125rem;
+	padding: 8px 8px;
 	background: hsl(var(--surface-tertiary));
 	color: hsl(var(--content-secondary));
 	text-decoration: none;
@@ -37,14 +43,14 @@
 	color: hsl(var(--content-primary));
 }
 
-.breadcrumb-connected > ol > li > a:focus-visible {
+.breadcrumb-connected > ol > li > :is(a, button):focus-visible {
 	outline: 2px solid hsl(var(--content-link));
 	outline-offset: -4px;
 }
 
-.breadcrumb-connected > ol > li:first-child > :is(a, span) {
+.breadcrumb-connected > ol > li:first-child > :is(a, span, button) {
 	border-radius: 6px 0 0 6px;
-	padding-right: calc(clamp(14px, 2cqw, 20px) + var(--crumb-edge));
+	padding-right: calc(8px + var(--crumb-edge));
 	clip-path: polygon(
 		0 0,
 		calc(100% - var(--crumb-edge)) 0,
@@ -54,9 +60,9 @@
 	);
 }
 
-.breadcrumb-connected > ol > li:not(:first-child) > :is(a, span) {
-	padding-left: calc(clamp(14px, 2cqw, 20px) + var(--crumb-edge));
-	padding-right: calc(clamp(14px, 2cqw, 20px) + var(--crumb-edge));
+.breadcrumb-connected > ol > li:not(:first-child) > :is(a, span, button) {
+	padding-left: calc(8px + var(--crumb-edge));
+	padding-right: calc(8px + var(--crumb-edge));
 	clip-path: polygon(
 		0 0,
 		calc(100% - var(--crumb-edge)) 0,
@@ -67,26 +73,90 @@
 	);
 }
 
-.breadcrumb-connected > ol > li:last-child > :is(a, span) {
+.breadcrumb-connected > ol > li:last-child > :is(a, span, button) {
 	border-radius: 0 6px 6px 0;
-	padding-right: clamp(14px, 2cqw, 20px);
+	padding-right: 8px;
 	clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, var(--crumb-edge) 50%);
 }
 
-.breadcrumb-connected > ol > li:only-child > :is(a, span) {
+.breadcrumb-connected > ol > li:only-child > :is(a, span, button) {
 	border-radius: 6px;
-	padding-inline: clamp(14px, 2cqw, 20px);
+	padding-inline: 8px;
 	clip-path: none;
 }
 
-.breadcrumb-connected > ol > li > [aria-current="page"] {
+.breadcrumb-connected > ol > li > button[aria-current="page"] {
+	background: hsl(var(--surface-tertiary));
+	color: hsl(var(--content-primary));
+	font-weight: 700;
+}
+
+.breadcrumb-connected > ol > li > :is(a, span)[aria-current="page"] {
 	background: hsl(var(--surface-invert-primary));
 	color: hsl(var(--content-invert));
 	font-weight: 700;
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.breadcrumb-connected > ol > li > :is(a, span) {
+	.breadcrumb-connected > ol > li > :is(a, span, button) {
 		transition: none;
 	}
+}
+
+.breadcrumb-connected > ol > li > button {
+	border: 0;
+	cursor: pointer;
+	touch-action: manipulation;
+	font-family: inherit;
+}
+.breadcrumb-connected[data-categories-collapsed] > ol > li:first-child > a {
+	clip-path: polygon(
+		0 0,
+		100% 0,
+		calc(100% - var(--crumb-edge)) 50%,
+		100% 100%,
+		0 100%
+	);
+}
+.breadcrumb-connected[data-categories-collapsed] > ol > li:last-child > button {
+	clip-path: polygon(
+		var(--crumb-edge) 0,
+		100% 0,
+		100% 100%,
+		var(--crumb-edge) 100%,
+		0 50%
+	);
+}
+
+.deployment-breadcrumb > ol > li:first-child {
+	width: 5.5rem;
+}
+.deployment-breadcrumb > ol > li + li {
+	width: 11.625rem;
+}
+.deployment-breadcrumb > ol > li > :is(a, span, button) {
+	width: 100%;
+	justify-content: center;
+	font-size: 0.75rem;
+	line-height: 1.25;
+	white-space: nowrap;
+}
+.deployment-breadcrumb > ol > li > :is(a, span, button) svg {
+	width: 0.875rem;
+	height: 0.875rem;
+	flex-shrink: 0;
+}
+.deployment-breadcrumb > ol > li > :is(a, button) [data-category-toggle] {
+	width: 1rem;
+}
+.breadcrumb-connected.deployment-breadcrumb > ol > li:first-child > a {
+	background: hsl(var(--surface-tertiary));
+	color: hsl(var(--content-primary));
+}
+.breadcrumb-connected.deployment-breadcrumb
+	> ol
+	> li:last-child
+	> [aria-current="page"] {
+	background: white;
+	color: var(--color-gray-900);
 }

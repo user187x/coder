@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from "react";
+import { createContext, useContext, useSyncExternalStore } from "react";
 
 /**
  * The user menu's Animations (on by default, remembered in this browser): one
@@ -16,6 +16,27 @@ import { useSyncExternalStore } from "react";
  * The live metric graphs are the fourth part (metricGraphSettings: Metrics
  * Interval's "off"). All off overrides every part, without forgetting them.
  */
+export const ANIMATION_LABELS = [
+	{ part: "all", label: "All animations" },
+	{ part: "effects", label: "Effects & transitions" },
+	{ part: "gifs", label: "Animated GIFs" },
+	{ part: "graphs", label: "Live graphs" },
+	{ part: "background", label: "Moving background" },
+	{ part: "announcement", label: "Announcement animations" },
+] as const;
+export const DEFAULT_ANIMATION_POLICY = {
+	all: true,
+	effects: true,
+	gifs: true,
+	graphs: true,
+	background: true,
+	announcement: true,
+};
+export const AnimationPolicyContext = createContext(
+	window.__cuiAnimationPolicy ?? DEFAULT_ANIMATION_POLICY,
+);
+export const useAnimationPolicy = () => useContext(AnimationPolicyContext);
+
 const KEY = "coder-ui-animations";
 const PARTS_KEY = "coder-ui-animations-parts";
 const CHANGE = "coder-ui-animations-change";
@@ -97,12 +118,22 @@ const subscribe = (onChange: () => void) => {
 };
 
 /** The switches as set (a part may be on while all are off). */
-export const useAnimationSettings = (): AnimationSettings =>
-	useSyncExternalStore(
+export const useAnimationSettings = (): AnimationSettings => {
+	const policy = useAnimationPolicy();
+	const personal = useSyncExternalStore(
 		subscribe,
 		() => settings,
 		() => settings,
 	);
+
+	return {
+		all: personal.all && policy.all,
+		effects: personal.effects && policy.effects,
+		gifs: personal.gifs && policy.gifs,
+		background: personal.background && policy.background,
+		announcement: personal.announcement && policy.announcement,
+	};
+};
 
 /** Whether a part moves now: all on, and that part on. */
 export const animated = (s: AnimationSettings, part: AnimationPart) =>

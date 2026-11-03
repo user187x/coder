@@ -7,6 +7,7 @@ import {
 	useLoginPageSettings,
 } from "#/modules/platform/loginPage/SignInTitle";
 import { getApplicationName } from "#/utils/appearance";
+import { EmailSignIn } from "./EmailSignIn";
 import { OAuthSignInForm } from "./OAuthSignInForm";
 import { PasswordSignInForm } from "./PasswordSignInForm";
 
@@ -79,7 +80,9 @@ export const SignInForm: React.FC<SignInFormProps> = ({
 				)
 			)}
 
-			{!passwordEnabled && !oAuthEnabled && (
+			{authMethods?.email_login && <EmailSignIn />}
+
+			{!passwordEnabled && !oAuthEnabled && !authMethods?.email_login && (
 				<Alert severity="error" prominent>
 					No authentication methods configured!
 				</Alert>

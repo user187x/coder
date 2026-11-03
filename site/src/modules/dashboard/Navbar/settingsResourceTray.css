@@ -44,12 +44,8 @@
 	gap: 6px;
 	padding-top: 8px;
 	margin-top: -8px;
-	max-height: calc(
-		var(--radix-dropdown-menu-content-available-height, 80vh) -
-		104px
-	);
-	overflow-y: auto;
-	scrollbar-width: thin;
+	flex: none;
+	zoom: var(--settings-links-scale, 1);
 	width: 100%;
 }
 
@@ -207,4 +203,42 @@ html[data-animations="off"]
 	.settings-resource-tray[data-account-open]
 	.settings-resource-tray-panel {
 	animation: none;
+}
+
+.settings-menu > .rounded-md {
+	min-height: min(
+		var(--settings-rail-height, 0px),
+		var(--radix-dropdown-menu-content-available-height, 80vh)
+	);
+}
+
+.settings-metrics-handle {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 20px;
+}
+.settings-metrics-handle
+	:is(.settings-resource-tray-dimple, .settings-resource-tray-toggle) {
+	position: static;
+	transform: none;
+	cursor: pointer;
+}
+.settings-metrics-handle .settings-resource-tray-toggle {
+	order: 1;
+	width: 84px;
+	height: 20px;
+}
+.settings-metrics-handle [data-edge="right"] {
+	order: 2;
+}
+.settings-metrics-handle .settings-resource-tray-grip {
+	width: 72px;
+	height: 8px;
+	background-image: repeating-linear-gradient(
+		90deg,
+		hsl(var(--content-secondary) / 0.55) 0 1px,
+		transparent 1px 4px
+	);
+	background-size: 53px 6px;
 }

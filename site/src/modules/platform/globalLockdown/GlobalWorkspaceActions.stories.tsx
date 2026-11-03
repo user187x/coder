@@ -7,7 +7,7 @@ import { GlobalWorkspaceActionsView } from "./GlobalWorkspaceActions";
 const meta: Meta<typeof GlobalWorkspaceActionsView> = {
 	title: "modules/platform/GlobalWorkspaceActions",
 	component: GlobalWorkspaceActionsView,
-	args: { workspaces: [MockWorkspace], onRun: fn() },
+	args: { workspaces: [MockWorkspace], onRun: fn(), onClear: fn() },
 };
 export default meta;
 type Story = StoryObj<typeof GlobalWorkspaceActionsView>;
@@ -87,5 +87,15 @@ export const ReadError: Story = {
 	args: {
 		error: new Error("Could not read workspace targets"),
 		onRefresh: fn(),
+	},
+};
+
+export const ClearingHistory: Story = {
+	args: { ...PartialFailure.args, clearing: true },
+};
+export const ClearHistoryFailed: Story = {
+	args: {
+		...PartialFailure.args,
+		clearError: new Error("The completed entry could not be cleared."),
 	},
 };

@@ -2,7 +2,7 @@
 keep it fast under load, and keep the image builder honest offline. Imported as modules, nothing started.
 
   python3 -m unittest platform_unit_test.py"""
-import contextlib, importlib.util, io, json, os, sys, threading, unittest, urllib.parse
+import contextlib, importlib.util, io, json, os, sys, tempfile, threading, unittest, urllib.parse
 from unittest import mock
 
 SRC = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -24,6 +24,31 @@ ui = load("ui_service", "ui-service.py")
 ib = load("imagebuilder", "imagebuilder.py")
 ld = load("lockdown", "lockdown.py")
 pv = load("provisioners", "provisioners.py")
+
+
+class PlatformHTTPTest(unittest.TestCase):
+    def test_delete_body_does_not_corrupt_next_request(self):
+        import http.client
+        import http.server
+        with http.server.ThreadingHTTPServer(("127.0.0.1", 0), ui.Handler) as server:
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            connection = http.client.HTTPConnection(*server.server_address, timeout=5)
+            try:
+                oid = "00000000-0000-4000-8000-000000000001"
+                path = f"{ui.BASE}/api/organizations/{oid}/workspace-power/operation/{oid}"
+                connection.request("DELETE", path, body=b"{}", headers={"Content-Type": "application/json"})
+                response = connection.getresponse()
+                self.assertEqual(response.status, 403)
+                response.read()
+                connection.request("GET", ui.BASE + "/healthz")
+                response = connection.getresponse()
+                self.assertEqual(response.status, 200)
+                response.read()
+            finally:
+                connection.close()
+                server.shutdown()
+                thread.join()
 
 
 class QuarantineDatabasePolicyTest(unittest.TestCase):
@@ -758,13 +783,24 @@ class QuickMenuTest(unittest.TestCase):
 
     def test_checked(self):
         self.assertEqual(ui.clean_quick_menu({"items": ["workspaces", "accounts", "oauth2-applications"]}),
-                         {"items": ["workspaces", "accounts", "oauth2-applications"], "shortcut": "Escape"})
+                         {"items": ["workspaces", "accounts", "oauth2-applications"], "shortcut": "Ctrl+Escape", "enabled": True})
         for bad, why in (({"items": ["a", "a", "b"]}, "once"), ({"items": ["a", "b"]}, "3 to 12"),
                          ({"items": ["x%d" % i for i in range(13)]}, "3 to 12"), ({"items": "workspaces"}, "IDs"),
                          ({"items": ["Workspaces", "b", "c"]}, "IDs"), ({"items": ["../x", "b", "c"]}, "IDs")):
             with self.assertRaises(ValueError) as e:
                 ui.clean_quick_menu(bad)
             self.assertIn(why, str(e.exception))
+
+    def test_disabled_and_default_shortcut(self):
+        with mock.patch.object(ui, "STORE", mock.Mock(get_setting=lambda key, default=None: None)):
+            settings = ui.quick_menu_settings()
+        self.assertEqual(settings["shortcut"], "Ctrl+Escape")
+        self.assertIs(settings["enabled"], True)
+        disabled = ui.clean_quick_menu({"items": ["workspaces", "leases", "accounts"], "enabled": False, "shortcut": "Ctrl+K"})
+        self.assertIs(disabled["enabled"], False)
+        self.assertEqual(disabled["shortcut"], "Ctrl+K")
+        with self.assertRaises(ValueError):
+            ui.clean_quick_menu({"items": ["a", "b", "c"], "enabled": "false"})
 
     def test_shortcuts(self):
         for raw, expected in (("Escape", "Escape"), ("Ctrl+Shift+k", "Ctrl+Shift+K"), ("Shift+Ctrl+K", "Ctrl+Shift+K"), ("F8", "F8"), ("Meta+Space", "Meta+Space"), ("a", "A")):
@@ -2640,7 +2676,7 @@ class InstallDefaultsTest(unittest.TestCase):
         store.put_setting.side_effect = lambda k, v: settings.__setitem__(k, v)
         bgs = mock.Mock()
         bgs.all.return_value = {"dashboard": {"type": "image/png"}}  # an admin set this one
-        wanted = {"login": {"picture": "minecraft-cube.gif", "opacity": 0.09, "fit": "cover", "layer": "over"},
+        wanted = {"login": {"picture": "/pictures/login-orbit.gif", "opacity": 1, "fit": "span", "layer": "under"},
                   "dashboard": {"picture": "spiral.gif", "opacity": 0.03, "fit": "cover", "layer": "under"}}
         with mock.patch.object(ui, "STORE", store), mock.patch.object(ui, "BACKGROUNDS", bgs), \
                 mock.patch.object(ui, "BACKGROUND_DEFAULTS", json.dumps(wanted)), \
@@ -2649,13 +2685,22 @@ class InstallDefaultsTest(unittest.TestCase):
             bgs.put.assert_called_once()
             slot, ctype, data, opts, by = bgs.put.call_args[0]
             self.assertEqual((slot, data, opts["opacity"], opts["layer"], by),
-                             ("login", b"/__coder-ui/image-store/minecraft-cube.gif", 0.09, "over", "install defaults"))
+                             ("login", b"/pictures/login-orbit.gif", 1, "under", "install defaults"))
             self.assertIn("background_defaults_seeded", settings)
             # once only: after a Reset, nothing comes back
             bgs.all.return_value = {}
             bgs.put.reset_mock()
             ui.seed_background_defaults()
             bgs.put.assert_not_called()
+
+    def test_gif_upload_keeps_original_bytes_above_four_mib(self):
+        import base64
+        data = b"GIF89a" + b"\0" * (4 * 1024 * 1024)
+        url = "data:image/gif;base64," + base64.b64encode(data).decode()
+        self.assertEqual(ui.parse_background(url), ("image/gif", data))
+        with mock.patch.object(ui, "BG_MAX_BYTES", len(data) - 1):
+            with self.assertRaisesRegex(ValueError, "or smaller"):
+                ui.parse_background(url)
 
 
 class ImagesAdminOnlyTest(unittest.TestCase):
@@ -4549,6 +4594,23 @@ class ClusterNetworkViewTest(unittest.TestCase):
         with self.assertRaises(LookupError):
             self.cn.entity("tok", "type=link&id=nothing-here")
 
+    def test_coder_probe_uses_the_services_target_port(self):
+        for target, expected in (("secure", 9443), (8443, 8443)):
+            with self.subTest(target=target):
+                self.mesh_env()
+                self.pods[0]["spec"]["containers"][0]["ports"] = [
+                    {"name": "http", "containerPort": 8080}, {"name": "secure", "containerPort": 9443}]
+                self.cn.KUBE.routes["/api/v1/namespaces/coder/services"][1]["items"].append({
+                    "metadata": {"name": "coder", "namespace": "coder"},
+                    "spec": {"selector": {"app.kubernetes.io/name": "coder"},
+                             "ports": [{"port": 443, "targetPort": target}]}})
+                with mock.patch.object(self.cn, "_cache", {}), mock.patch.object(self.cn, "CODER_URL", "https://coder.coder.svc"), \
+                        mock.patch.object(self.cn, "http_ms", return_value=(1, None, 200)), \
+                        mock.patch.object(self.cn, "tcp_ms", return_value=(1, None)) as tcp:
+                    self.cn.Mesh().report("tok")
+                    tcp.assert_any_call("10.0.0.10", expected)
+                    self.assertNotIn(mock.call("10.0.0.10", 8080), tcp.call_args_list)
+
     def test_a_failed_probe_is_that_connections_error(self):
         self.mesh_env()
         self.snapshot["pods"] = [p for p in self.pods if p["metadata"]["name"] in ("coder-878d-a", "coder-ui-updates-x")]
@@ -4662,6 +4724,79 @@ class ClusterNetworkViewTest(unittest.TestCase):
         self.cn.handle(h, "GET", "/__coder-ui/api/network/nothing", "")
         self.cn.handle(h, "POST", "/__coder-ui/api/network/mesh", "")
         self.assertEqual([s for s, _ in sent], [400, 404, 404, 405])
+
+
+
+
+
+class LogoVisibilityTest(unittest.TestCase):
+    def post(self, payload, *, allowed=True, path="/api/logo"):
+        handler = mock.Mock(path=ui.BASE + path)
+        handler.csrf_ok.return_value = True
+        handler.body.return_value = payload
+        handler.user.return_value = ({"username": "admin"}, None) if allowed else (None, "forbidden")
+        logos = mock.Mock()
+        store = mock.Mock()
+        with mock.patch.object(ui, "LOGOS", logos), mock.patch.object(ui, "STORE", store):
+            ui.Handler.do_POST(handler)
+        handler.user.assert_called_once_with(admin=True)
+        return handler, logos, store
+
+    def test_hide_preserves_uploaded_image(self):
+        handler, logos, store = self.post({"enabled": False})
+        store.put_setting.assert_called_once_with("logo_enabled", False)
+        logos.put.assert_not_called()
+        logos.reset.assert_not_called()
+        handler.send_json.assert_called_once_with(200, {"ok": True, "enabled": False})
+
+    def test_validate_visibility_and_require_admin(self):
+        handler, _, store = self.post({"enabled": "false"})
+        self.assertEqual(handler.send_json.call_args.args[0], 400)
+        store.put_setting.assert_not_called()
+        _, _, store = self.post({"enabled": False}, allowed=False)
+        store.put_setting.assert_not_called()
+
+    def test_navbar_transparency_validates_range_and_requires_admin(self):
+        for value in (-1, 101, True, "50", 12.5):
+            handler, _, store = self.post({"transparency": value}, path="/api/navbar-appearance")
+            self.assertEqual(handler.send_json.call_args.args[0], 400)
+            store.put_setting.assert_not_called()
+        _, _, store = self.post({"transparency": 40}, path="/api/navbar-appearance", allowed=False)
+        store.put_setting.assert_not_called()
+        _, _, store = self.post({"transparency": 40}, path="/api/navbar-appearance")
+        store.put_setting.assert_called_once_with("navbar_transparency", 40)
+
+    def test_animation_policy_requires_admin_and_an_explicit_boolean(self):
+        for payload in ({"part": "gifs", "enabled": "false"}, {"part": "other", "enabled": False}):
+            handler, _, store = self.post(payload, path="/api/animations")
+            self.assertEqual(handler.send_json.call_args.args[0], 400)
+            store.put_setting.assert_not_called()
+        _, _, store = self.post({"part": "gifs", "enabled": False}, path="/api/animations", allowed=False)
+        store.put_setting.assert_not_called()
+        _, _, store = self.post({"part": "gifs", "enabled": False}, path="/api/animations")
+        store.put_setting.assert_called_once_with("animation_gifs", False)
+
+    def test_animation_categories_persist_independently(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = ui.Store(os.path.join(tmp, "state.db"))
+            with mock.patch.object(ui, "STORE", store):
+                self.assertTrue(all(ui.animation_policy().values()))
+                store.put_setting("animation_gifs", False)
+                store.put_setting("animation_all", False)
+                store.put_setting("animation_all", True)
+                self.assertFalse(ui.animation_policy()["gifs"])
+                self.assertTrue(ui.animation_policy()["graphs"])
+
+    def test_hidden_logo_is_in_boot_and_favicon(self):
+        store = mock.Mock(get_setting=lambda key, default=None: False if key == "logo_enabled" else default)
+        with mock.patch.object(ui, "STORE", store), mock.patch.object(ui, "LOGOS", None), mock.patch.object(ui, "AVATARS", None), mock.patch.object(ui, "BACKGROUNDS", None):
+            self.assertIn("window.__cuiLogoEnabled=false;", ui.boot_js())
+            handler = mock.Mock()
+            ui.Handler.favicon(handler, "favicon-dark.png")
+        self.assertEqual(handler.send.call_args.args[:3], (200, '<svg xmlns="http://www.w3.org/2000/svg"/>', "image/svg+xml"))
+
+    def test_full_strength_background(self):
+        self.assertEqual(ui.clean_bg_settings({"opacity": 1})["opacity"], 1)
 
 
 if __name__ == "__main__":

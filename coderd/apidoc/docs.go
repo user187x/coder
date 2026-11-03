@@ -8399,6 +8399,62 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v2/users/login/email/request": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Request an email sign-in token",
+                "operationId": "request-an-email-sign-in-token",
+                "parameters": [
+                    {
+                        "description": "Registered email address",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.RequestOneTimePasscodeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    }
+                }
+            }
+        },
+        "/api/v2/users/login/email/verify": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Sign in with a single-use email token",
+                "operationId": "sign-in-with-a-single-use-email-token",
+                "parameters": [
+                    {
+                        "description": "Email address and token",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/coderd.emailLoginVerification"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    }
+                }
+            }
+        },
         "/api/v2/users/logout": {
             "post": {
                 "produces": [
@@ -14182,6 +14238,23 @@ const docTemplate = `{
                 }
             }
         },
+        "coderd.emailLoginVerification": {
+            "type": "object",
+            "required": [
+                "email",
+                "token"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "maxLength": 320
+                },
+                "token": {
+                    "type": "string",
+                    "maxLength": 128
+                }
+            }
+        },
         "codersdk.ACLAvailable": {
             "type": "object",
             "properties": {
@@ -15296,6 +15369,9 @@ const docTemplate = `{
         "codersdk.AuthMethods": {
             "type": "object",
             "properties": {
+                "email_login": {
+                    "type": "boolean"
+                },
                 "oidc": {
                     "$ref": "#/definitions/codersdk.OIDCAuthMethod"
                 },
@@ -16741,6 +16817,9 @@ const docTemplate = `{
                     "$ref": "#/definitions/serpent.URL"
                 },
                 "dynamic_parameters_full_evaluation": {
+                    "type": "boolean"
+                },
+                "email_login_enabled": {
                     "type": "boolean"
                 },
                 "enable_authz_recording": {

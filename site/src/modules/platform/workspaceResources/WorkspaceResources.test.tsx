@@ -136,7 +136,7 @@ describe("WorkspaceResources", () => {
 	});
 });
 
-it.each(["CPU", "RAM", "Disk"])(
+it.each(["CPU", "MEM", "Disk"])(
 	"requests finer history only while %s details are open",
 	async (label) => {
 		const user = userEvent.setup();

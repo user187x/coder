@@ -38,7 +38,7 @@ it("moves, removes, restores and resets tiles, saving the layout", async () => {
 		<QueryClientProvider client={client}>
 			<NavbarArrange
 				items={{
-					logo: <span>Logo</span>,
+					logo: null,
 					workspaces: <span>Resources</span>,
 					banner: <span>Announcement</span>,
 					latency: <span>Settings</span>,
@@ -51,6 +51,8 @@ it("moves, removes, restores and resets tiles, saving the layout", async () => {
 	);
 	const user = userEvent.setup();
 	act(() => startNavbarArrange());
+	await user.click(screen.getByRole("button", { name: "Remove Logo" }));
+	await user.click(screen.getByRole("button", { name: "Restore Logo" }));
 	screen.getByRole("button", { name: "Move Logo" }).focus();
 	await user.keyboard("{ArrowRight}");
 	await user.click(screen.getByRole("button", { name: "Remove Account" }));

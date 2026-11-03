@@ -1,6 +1,9 @@
 import { useState } from "react";
+import { Button } from "#/components/Button/Button";
 import type { LavaPictureOptions } from "#/components/LavaImage/drawLava";
 import type { LavaSettings } from "#/components/LavaImage/lava";
+import { FillDialog } from "../fill/FillDialog";
+import type { FillSettings } from "../fill/fill";
 import { ImageStoreGrid } from "../imageStore/ImageStoreGrid";
 import {
 	fetchStoreImage,
@@ -36,6 +39,7 @@ export type GalleryPickerProps = {
 	lava?: LavaPictureOptions;
 	/** Platform: a lava lamp made here comes as its settings instead (a background draws it live itself). */
 	onLava?: (settings: LavaSettings) => void;
+	onFill?: (settings: FillSettings) => void;
 };
 
 /**
@@ -57,14 +61,41 @@ export const GalleryPicker: React.FC<GalleryPickerProps> = ({
 	onChosen,
 	lava,
 	onLava,
+	onFill,
 }) => {
 	const { images } = useImageStore(extra);
 	const [loading, setLoading] = useState<string>();
+	const [fillOpen, setFillOpen] = useState(false);
 	const [lavaOpen, setLavaOpen] = useState(false);
 
 	return (
 		<div className="flex flex-col gap-2" data-testid="gallery-picker">
 			{label && <span className="text-sm text-content-secondary">{label}</span>}
+			<Button
+				variant="outline"
+				disabled={disabled}
+				onClick={() => setFillOpen(true)}
+			>
+				Color or gradient
+			</Button>
+			<FillDialog
+				open={fillOpen}
+				onOpenChange={setFillOpen}
+				size={lava?.size}
+				onSettings={
+					onFill &&
+					((value) => {
+						onSelect?.(undefined);
+						onFill(value);
+						onChosen?.();
+					})
+				}
+				onPick={(file) => {
+					onSelect?.(undefined);
+					onPick(file);
+					onChosen?.();
+				}}
+			/>
 			<LavaEntry disabled={disabled} onClick={() => setLavaOpen(true)} />
 			<LavaDialog
 				open={lavaOpen}

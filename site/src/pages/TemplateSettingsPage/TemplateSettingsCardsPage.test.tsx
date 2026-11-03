@@ -28,7 +28,7 @@ const renderPage = async (template: Template = MockTemplate) => {
 		MockTemplateVersionVariable1,
 		MockTemplateVersionVariable2,
 	]);
-	// The icon editor lists the uploaded icons (Templates > Icons).
+	// The icon editor lists the uploaded icons (Template editor > Icons).
 	vi.spyOn(PlatformAPI, "getTemplateIcons").mockResolvedValue({
 		icons: [],
 		canManage: false,

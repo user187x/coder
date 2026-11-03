@@ -3,9 +3,11 @@ import base64
 import importlib.util
 import json
 import pathlib
+import re
 import subprocess
 import unittest
 from unittest import mock
+from urllib.parse import urlparse
 
 spec = importlib.util.spec_from_file_location('keycloak_deploy', pathlib.Path(__file__).with_name('deploy.py'))
 deploy = importlib.util.module_from_spec(spec)
@@ -61,6 +63,27 @@ class DeploymentTest(unittest.TestCase):
         with mock.patch('subprocess.run', return_value=result), mock.patch.object(deploy, 'apply') as apply:
             self.assertEqual(deploy.secret(['kubectl'], 'example', 'identity', {'password': 'new'}), {'password': 'existing'})
             apply.assert_not_called()
+
+    def test_misdirected_requests_match_only_the_keycloak_authority(self):
+        values = deploy.gateway_values('identity.example.test')
+        http = values['providers']['file']['content']['http']
+        router = http['routers']['keycloak-misdirected']
+        rule = router['rule']
+        self.assertTrue(rule.startswith('HostRegexp('))
+        pattern = json.loads(rule.removeprefix('HostRegexp(').removesuffix(')'))
+        for host in ('identity.example.test', 'identity.example.test.'):
+            self.assertIsNotNone(re.fullmatch(pattern, host))
+        for host in ('identityXexample.test', 'app.identity.example.test', 'identity.example.test.evil'):
+            self.assertIsNone(re.fullmatch(pattern, host))
+        retry = http['middlewares']['keycloak-retry']['errors']
+        self.assertEqual(retry['statusRewrites'], {'418': 421})
+        self.assertEqual(router['service'], retry['service'])
+        self.assertEqual(retry['service'], 'noop@internal')
+
+    def test_saved_install_values_match_the_issuer(self):
+        example = json.loads(pathlib.Path(__file__).with_name('coder-values.json').read_text())
+        host = urlparse(example['global']['oidc']['issuerUrl']).hostname
+        self.assertEqual(example['traefik'], deploy.gateway_values(host))
 
 
 if __name__ == '__main__':

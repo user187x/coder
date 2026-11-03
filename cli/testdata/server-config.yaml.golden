@@ -46,6 +46,10 @@ networking:
     # directly in the database.
     # (default: <unset>, type: bool)
     disablePasswordAuth: false
+    # Allow active accounts to sign in with a single-use token sent directly to their
+    # registered email address through the configured SMTP relay.
+    # (default: <unset>, type: bool)
+    emailLogin: false
     # The interval in which coderd should be checking the status of workspace proxies.
     # (default: 1m0s, type: duration)
     proxyHealthInterval: 1m0s

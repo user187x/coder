@@ -25,13 +25,14 @@ import { Loader } from "#/components/Loader/Loader";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { pageTitle } from "#/utils/page";
 import "./hud.css";
+import { useFitText } from "#/hooks/useFitText";
+import { DeploymentBanner } from "#/modules/dashboard/DeploymentBanner/DeploymentBanner";
 import { HudGraphs } from "./HudGraphs";
 import { HudSortableGrid } from "./HudSortableGrid";
 import { HudStorageClasses } from "./HudStorageClasses";
 import { hudIcon } from "./hudIcons";
 import { applyOrder, elevate, readHudOrder, writeHudOrder } from "./hudOrder";
 import { SystemUptime } from "./SystemUptime";
-import { useFitText } from "./useFitText";
 
 /** How many updates each sparkline (and "change") covers: 30 × 10 s = 5 minutes. */
 const HISTORY = 30;
@@ -130,14 +131,11 @@ const HudPage: React.FC = () => {
 							<GaugeIcon aria-hidden className="size-6" />
 							HUD
 						</h1>
-						<p className="m-0 text-sm text-content-secondary">
-							The platform at a glance, updated every {HUD_REFRESH_MS / 1000}{" "}
-							seconds. Click a figure to open what is behind it.
-						</p>
-					</div>
-					<div className="flex flex-col items-end gap-1.5 text-sm text-content-secondary">
 						{data && (
-							<span className="flex items-center gap-2" aria-live="off">
+							<span
+								className="flex items-center gap-2 text-sm text-content-secondary"
+								aria-live="off"
+							>
 								<span
 									aria-hidden
 									className={cn(
@@ -151,8 +149,12 @@ const HudPage: React.FC = () => {
 									" · CPU and memory are what was requested: metrics-server is not answering"}
 							</span>
 						)}
-						{data?.uptime && <SystemUptime uptime={data.uptime} />}
+						<p className="m-0 text-sm text-content-secondary">
+							The platform at a glance, updated every {HUD_REFRESH_MS / 1000}{" "}
+							seconds. Click a figure to open what is behind it.
+						</p>
 					</div>
+					{data?.uptime && <SystemUptime uptime={data.uptime} />}
 				</header>
 
 				{error ? <ErrorAlert error={error} /> : null}
@@ -160,30 +162,38 @@ const HudPage: React.FC = () => {
 
 				{data && (
 					<>
-						{/* Every total on one line: the text shrinks (useFitText) rather than wrap. */}
-						<ul
-							ref={totalsLine}
-							aria-label="Totals"
-							data-testid="hud-totals"
-							className="m-0 flex list-none flex-nowrap items-baseline justify-between gap-x-[1.75em] overflow-hidden whitespace-nowrap rounded-lg border border-solid border-border bg-surface-secondary/40 px-4 py-3 font-mono leading-5"
-							style={{ fontSize: `${totalsFont}px` }}
-						>
-							{totals.map((m) => (
-								<li key={m.id} className="shrink-0">
-									<MetricLink
-										metric={m}
-										className="flex items-baseline gap-[0.6em] text-inherit no-underline hover:underline"
-									>
-										<span className="text-content-secondary">{m.label}</span>
-										<span className="font-semibold tabular-nums text-content-primary">
-											{formatValue(m)}
-											{m.unit && m.value !== null ? ` ${m.unit}` : ""}
-										</span>
-										<Delta series={track.series[m.id]} inline />
-									</MetricLink>
-								</li>
-							))}
-						</ul>
+						<div className="overflow-hidden rounded-lg border border-solid border-border bg-surface-secondary/40">
+							<div
+								data-deployment-footer="hud"
+								className="border-0 border-b border-solid border-border empty:hidden"
+							>
+								<DeploymentBanner />
+							</div>
+							{/* Every total on one line: the text shrinks (useFitText) rather than wrap. */}
+							<ul
+								ref={totalsLine}
+								aria-label="Totals"
+								data-testid="hud-totals"
+								className="m-0 flex list-none flex-nowrap items-baseline justify-between gap-x-[1.75em] overflow-hidden whitespace-nowrap px-4 py-3 font-mono leading-5"
+								style={{ fontSize: `${totalsFont}px` }}
+							>
+								{totals.map((m) => (
+									<li key={m.id} className="shrink-0">
+										<MetricLink
+											metric={m}
+											className="flex items-baseline gap-[0.6em] text-inherit no-underline hover:underline"
+										>
+											<span className="text-content-secondary">{m.label}</span>
+											<span className="font-semibold tabular-nums text-content-primary">
+												{formatValue(m)}
+												{m.unit && m.value !== null ? ` ${m.unit}` : ""}
+											</span>
+											<Delta series={track.series[m.id]} inline />
+										</MetricLink>
+									</li>
+								))}
+							</ul>
+						</div>
 
 						{/* The Sort menu sits with the graphs' controls, not over the totals (which grow). */}
 						<HudGraphs

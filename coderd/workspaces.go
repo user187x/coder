@@ -728,11 +728,6 @@ func createWorkspace(
 		})
 	}
 
-	// The platform's per-user quota (number of workspaces, CPU cores, memory).
-	if err := api.checkPlatformQuota(ctx, opts.sessionToken, owner, template.OrganizationID, template.ID, templateVersionID, req); err != nil {
-		return codersdk.Workspace{}, err
-	}
-
 	var (
 		provisionerJob     *database.ProvisionerJob
 		workspaceBuild     *database.WorkspaceBuild
@@ -740,6 +735,10 @@ func createWorkspace(
 	)
 
 	err = api.Database.InTx(func(db database.Store) error {
+		if err := api.checkPlatformQuota(ctx, db, opts.sessionToken, owner, template.OrganizationID, template.ID, templateVersionID, req); err != nil {
+			return err
+		}
+
 		var (
 			prebuildsClaimer = *api.PrebuildsClaimer.Load()
 			workspaceID      uuid.UUID

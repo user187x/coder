@@ -159,7 +159,7 @@ export const BulkUserActions: React.FC<BulkUserActionsProps> = ({
 				onClick={() => setAction("delete")}
 			>
 				<Trash2Icon />
-				Delete
+				{others.length > 1 ? "Delete accounts" : "Delete account"}
 			</Button>
 			<Button
 				size="sm"

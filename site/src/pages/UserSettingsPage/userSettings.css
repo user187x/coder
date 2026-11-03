@@ -1,0 +1,17 @@
+.user-settings-card {
+	--account-card-padding: clamp(16px, 2vw, 24px);
+	padding: var(--account-card-padding);
+}
+.user-settings-card-head {
+	margin: calc(-1 * var(--account-card-padding))
+		calc(-1 * var(--account-card-padding)) var(--account-card-padding);
+	padding: var(--account-card-padding);
+	border-bottom: 1px solid var(--ws-line-soft);
+	background: var(--ws-header);
+}
+.user-settings-card-head h1 {
+	font-size: 1.25rem;
+}
+.user-settings-card form {
+	max-width: 48rem;
+}

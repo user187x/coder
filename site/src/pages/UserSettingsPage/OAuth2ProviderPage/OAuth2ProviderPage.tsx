@@ -4,11 +4,9 @@ import { toast } from "sonner";
 import { getErrorDetail, getErrorMessage } from "#/api/errors";
 import { getApps, revokeApp } from "#/api/queries/oauth2";
 import { DeleteDialog } from "#/components/Dialog/DeleteDialog/DeleteDialog";
-import {
-	SettingsHeader,
-	SettingsHeaderTitle,
-} from "#/components/SettingsHeader/SettingsHeader";
+import { SettingsHeaderTitle } from "#/components/SettingsHeader/SettingsHeader";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
+import { UserSettingsHeader } from "../UserSettingsHeader";
 import OAuth2ProviderPageView from "./OAuth2ProviderPageView";
 
 const OAuth2ProviderPage: React.FC = () => {
@@ -23,9 +21,9 @@ const OAuth2ProviderPage: React.FC = () => {
 
 	return (
 		<>
-			<SettingsHeader>
+			<UserSettingsHeader section="oauth2-provider">
 				<SettingsHeaderTitle>OAuth2 Applications</SettingsHeaderTitle>
-			</SettingsHeader>
+			</UserSettingsHeader>
 			<OAuth2ProviderPageView
 				isLoading={userOAuth2AppsQuery.isLoading}
 				error={userOAuth2AppsQuery.error}

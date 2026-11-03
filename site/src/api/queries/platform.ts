@@ -23,6 +23,7 @@ import {
 	PlatformAPI,
 	type QuotaSettings,
 	type SchedulerSettings,
+	type WorkspaceAdmissionRequest,
 } from "#/api/platform";
 import {
 	ATTACHMENT_REFRESH_MS,
@@ -39,7 +40,37 @@ export const dashboardAddress = () => ({
 });
 
 export const classificationKey = [...platformKey, "classification"] as const;
-const logoKey = [...platformKey, "logo"] as const;
+const navbarAppearanceKey = [...platformKey, "navbar-appearance"] as const;
+export const navbarAppearance = () => ({
+	queryKey: navbarAppearanceKey,
+	queryFn: PlatformAPI.getNavbarAppearance,
+	initialData:
+		typeof window.__cuiNavbarTransparency === "number"
+			? { transparency: window.__cuiNavbarTransparency }
+			: undefined,
+	refetchInterval: 30_000,
+	retry: false,
+});
+export const updateNavbarAppearance = (client: QueryClient) => ({
+	mutationFn: PlatformAPI.setNavbarAppearance,
+	onSuccess: (value: { transparency: number }) =>
+		client.setQueryData(navbarAppearanceKey, value),
+});
+const animationPolicyKey = [...platformKey, "animations"] as const;
+export const animationPolicy = () => ({
+	queryKey: animationPolicyKey,
+	queryFn: PlatformAPI.getAnimationPolicy,
+	initialData: window.__cuiAnimationPolicy,
+	refetchInterval: 30_000,
+	retry: false,
+});
+export const updateAnimationPolicy = (client: QueryClient) => ({
+	mutationFn: PlatformAPI.setAnimationPolicy,
+	onSuccess: (
+		policy: Awaited<ReturnType<typeof PlatformAPI.getAnimationPolicy>>,
+	) => client.setQueryData(animationPolicyKey, policy),
+});
+export const logoKey = [...platformKey, "logo"] as const;
 const myAvatarKey = [...platformKey, "avatar", "me"] as const;
 const avatarDefaultsKey = [...platformKey, "avatar", "defaults"] as const;
 export const announcementReportKey = [...platformKey, "announcements"] as const;
@@ -526,9 +557,13 @@ export const workspaceNetwork = (workspaceId: string) => ({
 	retry: false,
 });
 
-/** Admin Controls > Online Users: asked again every few seconds while the page is open. */
-export const onlineUsers = () => ({
-	queryKey: [...platformKey, "presence"] as const,
+/** Presence changes refresh immediately; polling covers missed notifications. */
+export const onlineUsers = (presenceVersion = 0) => ({
+	queryKey: [...platformKey, "presence", presenceVersion] as const,
+	gcTime: 0,
+	placeholderData: (
+		previous?: Awaited<ReturnType<typeof PlatformAPI.getPresence>>,
+	) => previous,
 	queryFn: PlatformAPI.getPresence,
 	refetchInterval: 3_000,
 	refetchIntervalInBackground: false,
@@ -659,7 +694,13 @@ export const quotaReport = () => ({
 	refetchInterval: QUOTA_REFRESH_MS,
 });
 
-/** The signed-in user's own limits and what their workspaces take (the Workspaces page's quota pill). */
+export const workspaceAdmission = (request: WorkspaceAdmissionRequest) => ({
+	queryKey: [...platformKey, "workspace-admission", request],
+	queryFn: () => PlatformAPI.checkWorkspaceAdmission(request),
+	refetchInterval: 5000,
+	retry: false,
+});
+
 export const quotaMe = () => ({
 	queryKey: quotaMeKey,
 	queryFn: PlatformAPI.getQuotaMe,
@@ -850,3 +891,8 @@ export const updateUserUIPreferences = (client: QueryClient) => ({
 });
 
 export const lockdownRootKey = ["platform", "lockdown"] as const;
+
+export const updateLogoVisibility = (queryClient: QueryClient) => ({
+	mutationFn: PlatformAPI.setLogoEnabled,
+	onSuccess: () => queryClient.invalidateQueries({ queryKey: logoKey }),
+});

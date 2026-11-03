@@ -3,7 +3,9 @@ import {
 	AppWindowIcon,
 	BellIcon,
 	CloudIcon,
+	ContainerIcon,
 	DatabaseIcon,
+	FileTextIcon,
 	HeartPulseIcon,
 	KeyRoundIcon,
 	LifeBuoyIcon,
@@ -11,10 +13,10 @@ import {
 	type LucideIcon,
 	MegaphoneIcon,
 	MessagesSquareIcon,
+	MonitorIcon,
 	NetworkIcon,
 	PaletteIcon,
 	TagIcon,
-	TelescopeIcon,
 	UsersIcon,
 } from "lucide-react";
 import { MaxAdminQuickLinks } from "#/api/typesGenerated";
@@ -100,11 +102,19 @@ const ADMIN_PAGES: readonly (AdminPage & {
 		allowed: ({ permissions }) => permissions.viewDebugInfo,
 	},
 	{
+		id: "images",
+		label: "Images",
+		icon: ContainerIcon,
+		path: "/images",
+		allowed: ({ permissions }) => permissions.editDeploymentConfig,
+	},
+	{
 		id: "monitoring",
 		label: "Monitoring",
 		icon: ActivityIcon,
 		path: "/deployment/monitoring",
-		allowed: ({ permissions }) => permissions.editDeploymentConfig,
+		allowed: ({ permissions }) =>
+			permissions.editDeploymentConfig || permissions.viewDeploymentConfig,
 	},
 	{
 		id: "network",
@@ -136,13 +146,6 @@ const ADMIN_PAGES: readonly (AdminPage & {
 		allowed: ({ permissions }) => permissions.editDeploymentConfig,
 	},
 	{
-		id: "observability",
-		label: "Observability",
-		icon: TelescopeIcon,
-		path: "/deployment/observability",
-		allowed: ({ permissions }) => permissions.viewDeploymentConfig,
-	},
-	{
 		id: "persistence",
 		label: "Persistence",
 		icon: DatabaseIcon,
@@ -168,6 +171,23 @@ export const adminPageChoices = (): readonly (AdminPage & {
 
 export type { AdminPageAccess };
 
+/** Personal destinations and the deployment controls the current user can open. */
+export const settingsPagesFor = (access: AdminPageAccess): AdminPage[] => [
+	{
+		id: "workspaces",
+		label: "Workspaces",
+		icon: MonitorIcon,
+		path: "/workspaces",
+	},
+	{
+		id: "templates",
+		label: "Templates",
+		icon: FileTextIcon,
+		path: "/templates",
+	},
+	...ADMIN_PAGES.filter((page) => page.id === "chat" || page.allowed(access)),
+];
+
 /** The admin pages this user can open, in the order the add menu lists them. */
 export const adminPagesFor = (access: AdminPageAccess): AdminPage[] =>
 	ADMIN_PAGES.filter((page) => page.allowed(access)).map(
@@ -185,7 +205,9 @@ export const resolveAdminQuickLinks = (
 	const used = new Set<string>();
 	const links: AdminPage[] = [];
 	for (const id of chosen) {
-		const page = pages.find((p) => p.id === id);
+		const page = pages.find(
+			(p) => p.id === (id === "observability" ? "monitoring" : id),
+		);
 		if (page && !used.has(page.id)) {
 			used.add(page.id);
 			links.push(page);

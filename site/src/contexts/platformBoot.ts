@@ -15,8 +15,11 @@ import type {
 	ClassificationSettings,
 } from "#/api/platform";
 
+import { DEFAULT_BACKGROUNDS } from "#/modules/platform/pictures";
+
 type PlatformSnapshot = {
 	logoURL: string;
+	logoEnabled: boolean;
 	avatars: Readonly<Record<string, string>>;
 	defaultAvatarURL: string;
 	defaultAvatarUsers: ReadonlySet<string>;
@@ -34,10 +37,11 @@ const DEFAULT_AVATAR_URL = "/brain.gif";
 
 let snapshot: PlatformSnapshot = {
 	logoURL: window.__cuiLogo ?? "",
+	logoEnabled: window.__cuiLogoEnabled !== false,
 	avatars: window.__cuiAvatars ?? {},
 	defaultAvatarURL: window.__cuiAvatarDefault || DEFAULT_AVATAR_URL,
 	defaultAvatarUsers: window.__cuiAvatarUsers ?? new Set(),
-	backgrounds: window.__cuiBackgrounds ?? {},
+	backgrounds: window.__cuiBackgrounds ?? DEFAULT_BACKGROUNDS,
 };
 
 const listeners = new Set<() => void>();
@@ -65,8 +69,13 @@ export const getBootClassification = (): ClassificationSettings | undefined =>
 	window.__cuiClassification;
 
 export const setLogoURL = (url: string | null) => {
-	update({ logoURL: url ?? "" });
+	update({ logoURL: url ?? "", logoEnabled: true });
 	applyFavicons(url ?? "");
+};
+
+export const setLogoEnabled = (enabled: boolean) => {
+	update({ logoEnabled: enabled });
+	applyFavicons(snapshot.logoURL);
 };
 
 /** A saved (or removed) background shows at once on this page. */
@@ -128,11 +137,13 @@ const applyFavicons = (logoURL: string) => {
 		if (!originalFavicons.has(link)) {
 			originalFavicons.set(link, link.href);
 		}
-		link.href = logoURL || originalFavicons.get(link) || link.href;
+		link.href = snapshot.logoEnabled
+			? logoURL || originalFavicons.get(link) || link.href
+			: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E";
 	}
 };
 
-if (snapshot.logoURL) {
+if (snapshot.logoURL || !snapshot.logoEnabled) {
 	applyFavicons(snapshot.logoURL);
 }
 

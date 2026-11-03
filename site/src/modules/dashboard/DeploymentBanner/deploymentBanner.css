@@ -1,3 +1,47 @@
+[data-deployment-footer] {
+	container-type: inline-size;
+}
+.deployment-stats .gap-2 {
+	gap: 0.5em;
+}
+.deployment-stats .gap-1 {
+	gap: 0.25em;
+}
+.deployment-stats .mr-2 {
+	margin-inline-end: 0.5em;
+}
+.deployment-stats .pl-3 {
+	padding-inline-start: 0.6em;
+}
+.deployment-stats :is(a, button) {
+	font-size: inherit;
+}
+.deployment-stats svg {
+	width: 1em;
+	height: 1em;
+}
+[data-deployment-footer="hud"] .deployment-stats {
+	justify-content: space-between;
+}
+@container (max-width: 560px) {
+	.deployment-stats .mr-2 {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+	}
+}
+@container (max-width: 720px) {
+	.deployment-stats {
+		column-gap: 0.3em;
+	}
+	.deployment-stats > div {
+		padding-inline-start: 0;
+		border-inline-start: 0;
+	}
+}
+
 .deployment-health-orb {
 	animation: deployment-health-orb 4s ease-in-out infinite;
 }

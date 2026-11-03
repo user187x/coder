@@ -11,7 +11,10 @@ import { Toaster } from "./components/Toaster/Toaster";
 import { AuthProvider } from "./contexts/auth/AuthProvider";
 import { DiffsWorkerPoolProvider } from "./contexts/DiffsWorkerPoolProvider";
 import { ThemeProvider } from "./contexts/ThemeProvider";
-import { AnimationsController } from "./modules/platform/animations/AnimationsController";
+import {
+	AnimationPolicyProvider,
+	AnimationsController,
+} from "./modules/platform/animations/AnimationsController";
 import { AvatarDialogHost } from "./modules/platform/avatar/AvatarDialog";
 import {
 	ClassificationBars,
@@ -83,13 +86,15 @@ export const App: React.FC = () => {
 	return (
 		<StrictMode>
 			<AppProviders>
-				{/* If you're wondering where the global error boundary is,
+				<AnimationPolicyProvider>
+					{/* If you're wondering where the global error boundary is,
 				    it's connected to the router */}
-				<RouterProvider router={router} />
-				{/* not on the terminal page: the terminal fills its whole window */}
-				{!isTerminalPage(pathname) && <ClassificationBars />}
-				<AvatarDialogHost />
-				<AnimationsController />
+					<RouterProvider router={router} />
+					{/* not on the terminal page: the terminal fills its whole window */}
+					{!isTerminalPage(pathname) && <ClassificationBars />}
+					<AvatarDialogHost />
+					<AnimationsController />
+				</AnimationPolicyProvider>
 			</AppProviders>
 		</StrictMode>
 	);

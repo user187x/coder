@@ -97,6 +97,13 @@ func (s *SMTPHandler) Dispatcher(payload types.MessagePayload, titleTmpl, bodyTm
 //   - we require custom TLS settings
 //   - dynamic determination of available AUTH mechanisms
 //
+// SendLoginToken sends a sign-in credential only to its registered mailbox.
+func (s *SMTPHandler) SendLoginToken(ctx context.Context, to, token string) error {
+	body := "Enter this one-time token in the Coder sign-in form within ten minutes: " + token
+	_, err := s.dispatch("Your Coder sign-in token", "<p>"+body+"</p>", body, to)(ctx, uuid.New())
+	return err
+}
+
 // NOTE: this is inspired by Alertmanager's email notifier:
 // https://github.com/prometheus/alertmanager/blob/342f6a599ce16c138663f18ed0b880e777c3017d/notify/email/email.go
 func (s *SMTPHandler) dispatch(subject, htmlBody, plainBody, to string) DeliveryFunc {

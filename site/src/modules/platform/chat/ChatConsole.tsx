@@ -55,6 +55,8 @@ import {
 } from "./chatStore";
 import "./chatConsole.css";
 
+const CONVERSATION_PANE =
+	"m-1 flex min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border border-solid border-border bg-surface-secondary/70";
 const ROW_HEIGHT = 60;
 const OVERSCAN = 6;
 // How many names a confirmation of several deletes lists (and how many more).
@@ -658,7 +660,7 @@ export const ChatConsole: React.FC<ChatConsoleProps> = ({
 				</nav>
 
 				{view ? (
-					<div className="relative flex min-h-0 min-w-0 flex-col">
+					<div className={cn(CONVERSATION_PANE, "relative")}>
 						<div className="flex items-center gap-2 border-0 border-b border-solid border-border px-3 py-1.5">
 							<ChatAvatar peer={view.peer} />
 							<span className="flex min-w-0 flex-1 flex-col">
@@ -774,7 +776,12 @@ export const ChatConsole: React.FC<ChatConsoleProps> = ({
 						</div>
 					</div>
 				) : (
-					<div className="flex flex-col items-center justify-center gap-2 p-6 text-center text-sm text-content-secondary">
+					<div
+						className={cn(
+							CONVERSATION_PANE,
+							"items-center justify-center gap-2 p-6 text-center text-sm text-content-secondary",
+						)}
+					>
 						<KeyboardIcon className="size-6 opacity-60" />
 						<p className="m-0">Pick a conversation on the left.</p>
 						<p className="m-0 text-xs">

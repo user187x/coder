@@ -1,11 +1,16 @@
 import { cn } from "cn";
 import { ChevronDownIcon, RotateCcwIcon } from "lucide-react";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { toast } from "sonner";
 import { getErrorMessage } from "#/api/errors";
 import type { LogoState } from "#/api/platform";
-import { logo, resetLogo, uploadLogo } from "#/api/queries/platform";
+import {
+	logo,
+	resetLogo,
+	updateLogoVisibility,
+	uploadLogo,
+} from "#/api/queries/platform";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { Badge } from "#/components/Badge/Badge";
 import { Button } from "#/components/Button/Button";
@@ -33,13 +38,18 @@ import {
 	SettingsHeaderTitle,
 } from "#/components/SettingsHeader/SettingsHeader";
 import { Spinner } from "#/components/Spinner/Spinner";
+import { Switch } from "#/components/Switch/Switch";
 import {
 	Tabs,
 	TabsContent,
 	TabsList,
 	TabsTrigger,
 } from "#/components/Tabs/Tabs";
-import { DEFAULT_LOGO_URL, setLogoURL } from "#/contexts/platformBoot";
+import {
+	DEFAULT_LOGO_URL,
+	setLogoEnabled,
+	setLogoURL,
+} from "#/contexts/platformBoot";
 import { BackgroundSection } from "#/modules/platform/background/BackgroundSection";
 import { GalleryPicker } from "#/modules/platform/gallery/GalleryPicker";
 import { LoginPageSection } from "#/modules/platform/loginPage/LoginPageSection";
@@ -52,6 +62,8 @@ import {
 	normalizeImage,
 } from "#/utils/normalizeImage";
 import { pageTitle } from "#/utils/page";
+import { DeploymentAnimations } from "./DeploymentAnimations";
+import { NavbarAppearance } from "./NavbarAppearance";
 
 const LOGO_EXTENSIONS = ["png", "jpg", "jpeg", "svg", "webp", "gif", "avif"];
 
@@ -70,33 +82,37 @@ const CustomizeSettingsPage: React.FC = () => {
 			<SettingsHeader>
 				<SettingsHeaderTitle>Appearance</SettingsHeaderTitle>
 				<SettingsHeaderDescription>
-					The logo shown everywhere in Coder (navigation bar, sign-in and set-up
-					pages, browser tab icon), the sign-in and sign-out page's title and
-					messages, the background images of the sign-in page and the dashboard,
-					and your own theme and terminal font.
+					Manage deployment branding and backgrounds, then personalize your own
+					theme.
 				</SettingsHeaderDescription>
 			</SettingsHeader>
 
-			<LogoSection />
+			<div className="flex flex-col gap-6">
+				<LogoSection />
+				<NavbarAppearance />
+				<DeploymentAnimations />
 
-			<LoginPageSection />
+				<LoginPageSection />
 
-			<BackgroundSection />
+				<BackgroundSection />
 
-			<section
-				aria-label="Your theme and terminal font"
-				className="mt-10 border-0 border-t border-solid border-border pt-8"
-			>
 				<AppearancePage compact />
-			</section>
+			</div>
 		</>
 	);
 };
 
-const LogoSection: React.FC = () => {
+export const LogoSection: React.FC = () => {
 	const queryClient = useQueryClient();
 	const logoQuery = useQuery(logo());
 	const reset = useMutation(resetLogo(queryClient));
+	const visibility = useMutation({
+		...updateLogoVisibility(queryClient),
+		onSuccess: async ({ enabled }) => {
+			setLogoEnabled(enabled);
+			await queryClient.invalidateQueries({ queryKey: logo().queryKey });
+		},
+	});
 	const [uploading, setUploading] = useState(false);
 	const [confirmingReset, setConfirmingReset] = useState(false);
 
@@ -109,8 +125,11 @@ const LogoSection: React.FC = () => {
 
 	return (
 		<>
+			{visibility.error && <ErrorAlert error={visibility.error} />}
 			<LogoView
 				logo={logoQuery.data}
+				visibilityPending={visibility.isPending}
+				onEnabledChange={(enabled) => visibility.mutate(enabled)}
 				onUpload={() => setUploading(true)}
 				onReset={() => setConfirmingReset(true)}
 			/>
@@ -144,85 +163,124 @@ const LogoSection: React.FC = () => {
 
 type LogoViewProps = {
 	logo: LogoState;
+	onEnabledChange: (enabled: boolean) => void;
+	visibilityPending?: boolean;
 	onUpload: () => void;
 	onReset: () => void;
 };
 
 export const LogoView: React.FC<LogoViewProps> = ({
 	logo,
+	onEnabledChange,
+	visibilityPending,
 	onUpload,
 	onReset,
 }) => {
+	const visibilityId = useId();
 	const [previewTheme, setPreviewTheme] = useState<"dark" | "light">("dark");
 	return (
 		<section
-			aria-labelledby="customize-logo"
-			className="rounded-lg border border-solid border-border p-4"
+			aria-labelledby={`${visibilityId}-heading`}
+			className="rounded-xl border border-solid border-border bg-surface-primary p-6"
 		>
-			<div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-				<h2 id="customize-logo" className="m-0 text-base font-semibold">
-					Current logo
-				</h2>
-				<Badge variant={logo.set ? "green" : "default"}>
-					{!logo.available
-						? "Not available"
-						: logo.set
-							? "Custom logo"
-							: "Default logo"}
-				</Badge>
-			</div>
-			<Tabs
-				value={previewTheme}
-				onValueChange={(value) => {
-					if (value === "dark" || value === "light") setPreviewTheme(value);
-				}}
-			>
-				<TabsList aria-label="Logo preview theme">
-					<TabsTrigger value="dark">Dark</TabsTrigger>
-					<TabsTrigger value="light">Light</TabsTrigger>
-				</TabsList>
-				<TabsContent value={previewTheme}>
-					<LogoPreview
-						theme={previewTheme}
-						src={logo.url}
-						caption={`${previewTheme === "dark" ? "Dark" : "Light"} theme preview`}
-					/>
-				</TabsContent>
-			</Tabs>
-			<p className="m-0 mt-4 text-sm text-content-secondary">
-				{!logo.available
-					? "The platform service is not connected to Coder's database, so a logo cannot be stored."
-					: logo.set && logo.type && logo.bytes !== null
-						? `${logo.type.replace("image/", "").toUpperCase()}, ${formatBytes(logo.bytes)} · uploaded by ${logo.updatedBy ?? "unknown"}${logo.updatedAt ? ` on ${new Date(logo.updatedAt).toLocaleString("en-US")}` : ""}`
-						: "No custom logo: the default logo is shown."}
-			</p>
-			{/* One button: Change Logo, its arrow's menu restoring the default. */}
-			<div className="mt-4 flex">
-				<Button
-					className="rounded-r-none"
-					disabled={!logo.available}
-					onClick={onUpload}
-				>
-					Change Logo
-				</Button>
-				<DropdownMenu>
-					<DropdownMenuTrigger asChild>
-						<Button
-							className="min-w-0 rounded-l-none border-0 border-l border-solid border-l-content-invert/25 px-2"
-							disabled={!logo.available}
-							aria-label="More logo choices"
-							data-testid="logo-menu"
+			<div className="grid items-start gap-6 xl:grid-cols-2">
+				<div className="min-w-0">
+					<div className="mb-4 flex flex-wrap items-center gap-3">
+						<h2
+							id={`${visibilityId}-heading`}
+							className="m-0 text-base font-semibold"
 						>
-							<ChevronDownIcon />
+							Deployment branding
+						</h2>
+						<Badge variant={logo.set ? "green" : "default"}>
+							{!logo.available
+								? "Not available"
+								: logo.enabled === false
+									? "Hidden"
+									: logo.set
+										? "Custom logo"
+										: "Default logo"}
+						</Badge>
+					</div>
+					<label
+						htmlFor={visibilityId}
+						className="mb-5 flex items-start gap-3 text-sm font-medium"
+					>
+						<Switch
+							id={visibilityId}
+							checked={logo.enabled !== false}
+							disabled={!logo.available || visibilityPending}
+							onCheckedChange={onEnabledChange}
+						/>
+						<span>
+							Show logo
+							<span className="mt-1 block text-xs font-normal text-content-secondary">
+								Navigation, sign-in, setup pages and browser tab. Hiding keeps
+								your saved logo.
+							</span>
+						</span>
+					</label>
+
+					<p className="m-0 mt-4 text-sm text-content-secondary">
+						{!logo.available
+							? "The platform service is not connected to Coder's database, so a logo cannot be stored."
+							: logo.enabled === false
+								? "Logo hidden. Your saved logo is kept for when you turn it on again."
+								: logo.set && logo.type && logo.bytes !== null
+									? `${logo.type.replace("image/", "").toUpperCase()}, ${formatBytes(logo.bytes)} · uploaded by ${logo.updatedBy ?? "unknown"}${logo.updatedAt ? ` on ${new Date(logo.updatedAt).toLocaleString("en-US")}` : ""}`
+									: "No custom logo: the default logo is shown."}
+					</p>
+					{/* One button: Change Logo, its arrow's menu restoring the default. */}
+					<div className="mt-4 flex">
+						<Button
+							className="rounded-r-none"
+							disabled={!logo.available}
+							onClick={onUpload}
+						>
+							Change Logo
 						</Button>
-					</DropdownMenuTrigger>
-					<DropdownMenuContent align="start">
-						<DropdownMenuItem disabled={!logo.set} onSelect={onReset}>
-							<RotateCcwIcon />
-							Restore the default logo
-						</DropdownMenuItem>
-					</DropdownMenuContent>
-				</DropdownMenu>
+						<DropdownMenu>
+							<DropdownMenuTrigger asChild>
+								<Button
+									className="min-w-0 rounded-l-none border-0 border-l border-solid border-l-content-invert/25 px-2"
+									disabled={!logo.available}
+									aria-label="More logo choices"
+									data-testid="logo-menu"
+								>
+									<ChevronDownIcon />
+								</Button>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align="start">
+								<DropdownMenuItem disabled={!logo.set} onSelect={onReset}>
+									<RotateCcwIcon />
+									Restore the default logo
+								</DropdownMenuItem>
+							</DropdownMenuContent>
+						</DropdownMenu>
+					</div>
+				</div>
+				<div className="flex min-w-0 flex-col gap-3">
+					<span className="text-sm font-medium">Live preview</span>
+					<Tabs
+						value={previewTheme}
+						onValueChange={(value) => {
+							if (value === "dark" || value === "light") setPreviewTheme(value);
+						}}
+					>
+						<TabsList aria-label="Logo preview theme">
+							<TabsTrigger value="dark">Dark</TabsTrigger>
+							<TabsTrigger value="light">Light</TabsTrigger>
+						</TabsList>
+						<TabsContent value={previewTheme}>
+							<LogoPreview
+								theme={previewTheme}
+								src={logo.url}
+								hidden={logo.enabled === false}
+								caption={`${previewTheme === "dark" ? "Dark" : "Light"} theme preview`}
+							/>
+						</TabsContent>
+					</Tabs>
+				</div>
 			</div>
 		</section>
 	);
@@ -233,6 +291,7 @@ type LogoPreviewProps = {
 	src: string | null;
 	caption: string;
 	signIn?: boolean;
+	hidden?: boolean;
 };
 
 /** How the logo looks in the navigation bar (or on the sign-in page) of a theme. */
@@ -241,6 +300,7 @@ const LogoPreview: React.FC<LogoPreviewProps> = ({
 	src,
 	caption,
 	signIn = false,
+	hidden = false,
 }) => (
 	<figure className="m-0">
 		<div
@@ -252,11 +312,16 @@ const LogoPreview: React.FC<LogoPreviewProps> = ({
 					: "h-[72px] items-center gap-4",
 			)}
 		>
-			<ExternalImage
-				src={src || DEFAULT_LOGO_URL}
-				alt="Logo"
-				className={cn("max-w-[200px] object-contain", signIn ? "h-12" : "h-7")}
-			/>
+			{!hidden && (
+				<ExternalImage
+					src={src || DEFAULT_LOGO_URL}
+					alt="Logo"
+					className={cn(
+						"max-w-[200px] object-contain",
+						signIn ? "h-12" : "h-7",
+					)}
+				/>
+			)}
 			<span className="text-sm">
 				{signIn ? "Sign in to Coder" : "Workspaces · Templates"}
 			</span>

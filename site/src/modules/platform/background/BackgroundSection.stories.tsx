@@ -12,10 +12,16 @@ const meta: Meta<typeof BackgroundSection> = {
 export default meta;
 type Story = StoryObj<typeof BackgroundSection>;
 export const Dashboard: Story = {};
-export const SignIn: Story = {
+export const Gradient: Story = {
 	play: async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		await userEvent.click(canvas.getByRole("combobox", { name: "Source" }));
 		await userEvent.click(
-			within(canvasElement).getByRole("tab", { name: "Sign-in / sign-out" }),
+			within(document.body).getByRole("option", { name: "Color or gradient" }),
+		);
+		await userEvent.click(canvas.getByRole("combobox", { name: "Fill style" }));
+		await userEvent.click(
+			within(document.body).getByRole("option", { name: "Linear gradient" }),
 		);
 	},
 };

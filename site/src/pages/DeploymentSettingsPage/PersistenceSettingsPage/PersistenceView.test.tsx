@@ -1,8 +1,9 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
-import type { PersistenceReport } from "#/api/platform";
+import { type PersistenceReport, PlatformAPI } from "#/api/platform";
 import {
+	MockDisasterRecovery,
 	MockPersistenceReportNeedsAttention,
 	MockPersistenceReportNoOperator,
 } from "#/testHelpers/platform";
@@ -89,3 +90,31 @@ describe("PersistenceView", () => {
 		);
 	});
 });
+
+it.each(["None scheduled: Add a target", "Add a target"])(
+	"opens and saves the same target editor from %s",
+	async (trigger) => {
+		serve(MockPersistenceReportNeedsAttention);
+		vi.spyOn(PlatformAPI, "getDisasterRecovery").mockResolvedValue(
+			MockDisasterRecovery,
+		);
+		const save = vi
+			.spyOn(PlatformAPI, "saveDrTarget")
+			.mockResolvedValue(MockDisasterRecovery);
+		const user = userEvent.setup();
+		render(<PersistenceView />);
+		await user.click(await screen.findByRole("button", { name: trigger }));
+		await user.type(screen.getByLabelText("Bucket"), "coder-backups");
+		await user.click(screen.getByRole("button", { name: "Save" }));
+		await vi.waitFor(() =>
+			expect(save).toHaveBeenCalledWith(
+				expect.objectContaining({
+					kind: "s3",
+					bucket: "coder-backups",
+					enabled: true,
+				}),
+			),
+		);
+		vi.restoreAllMocks();
+	},
+);

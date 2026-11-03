@@ -608,6 +608,7 @@ export const ImagesAPI = {
 			canEdit: boolean;
 			pullPrefix: string;
 			baseImage: string;
+			researchSandbox?: { image: string; template: string } | null;
 			/** The templates whose workspaces can run on an image here (their Workspace image parameter). */
 			templates?: { name: string; displayName: string }[];
 		}>(IMAGES),

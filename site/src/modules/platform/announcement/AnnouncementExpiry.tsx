@@ -113,7 +113,7 @@ export const AnnouncementExpiryNotice: React.FC<{
 			>
 				<DialogTitle>Announcement</DialogTitle>
 				<AnnouncementMessage banner={banner} />
-				<Button onClick={dismiss} className="justify-self-end">
+				<Button onClick={dismiss} className="justify-self-center">
 					Dismiss
 				</Button>
 			</DialogContent>

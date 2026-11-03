@@ -1,75 +1,37 @@
 import {
-	AppWindowIcon,
-	BellIcon,
-	CalendarClockIcon,
-	CircleUserIcon,
-	FileKeyIcon,
-	KeySquareIcon,
-	LockIcon,
-	type LucideIcon,
-	TicketIcon,
-	VaultIcon,
-} from "lucide-react";
-import {
 	Sidebar as BaseSidebar,
 	SettingsSidebarNavItem,
 } from "#/components/Sidebar/Sidebar";
 import { useDashboard } from "#/modules/dashboard/useDashboard";
-
-/** A page of the account view, with its icon before its name (as in the Admin menu and General's sidebar). */
-const Item: React.FC<{ href: string; icon: LucideIcon; children: string }> = ({
-	href,
-	icon: Icon,
-	children,
-}) => (
-	<SettingsSidebarNavItem href={href}>
-		<span className="inline-flex items-center gap-2">
-			<Icon aria-hidden className="size-4 shrink-0" />
-			{children}
-		</span>
-	</SettingsSidebarNavItem>
-);
+import { settingsSections } from "./settingsSections";
 
 export const Sidebar: React.FC = () => {
 	const { entitlements, buildInfo } = useDashboard();
-	const showSchedulePage =
-		entitlements.features.advanced_template_scheduling.enabled;
-	const showOAuth2Page = buildInfo.oauth2_provider;
-
 	return (
-		<BaseSidebar>
+		<BaseSidebar className="lg:sticky lg:top-[calc(var(--dashboard-navigation-height,72px)+var(--admin-breadcrumb-height,0px)+16px+var(--coder-classification-h,0px))] lg:self-start [@media(max-height:640px)]:static">
+			<div className="px-3 pb-2 text-xs font-medium text-content-secondary">
+				Categories
+			</div>
 			<div className="flex flex-col gap-1">
-				<Item href="account" icon={CircleUserIcon}>
-					Account
-				</Item>
-				{showOAuth2Page && (
-					<Item href="oauth2-provider" icon={AppWindowIcon}>
-						OAuth2 Applications
-					</Item>
+				{Object.entries(settingsSections).map(
+					([path, { label, icon: Icon }]) => {
+						if (
+							path === "appearance" ||
+							(path === "oauth2-provider" && !buildInfo.oauth2_provider) ||
+							(path === "schedule" &&
+								!entitlements.features.advanced_template_scheduling.enabled)
+						)
+							return null;
+						return (
+							<SettingsSidebarNavItem key={path} href={path}>
+								<span className="inline-flex items-center gap-2">
+									<Icon aria-hidden className="size-4 shrink-0" />
+									{label}
+								</span>
+							</SettingsSidebarNavItem>
+						);
+					},
 				)}
-				{showSchedulePage && (
-					<Item href="schedule" icon={CalendarClockIcon}>
-						Schedule
-					</Item>
-				)}
-				<Item href="security" icon={LockIcon}>
-					Security
-				</Item>
-				<Item href="ssh-keys" icon={KeySquareIcon}>
-					SSH Keys
-				</Item>
-				<Item href="tokens" icon={TicketIcon}>
-					Tokens
-				</Item>
-				<Item href="secrets" icon={VaultIcon}>
-					Secrets
-				</Item>
-				<Item href="certificates" icon={FileKeyIcon}>
-					Certificates
-				</Item>
-				<Item href="notifications" icon={BellIcon}>
-					Notifications
-				</Item>
 			</div>
 		</BaseSidebar>
 	);

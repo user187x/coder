@@ -233,6 +233,8 @@ def services_report(pods):
                     "external": [i.get("ip") or i.get("hostname") for i in (st.get("loadBalancer") or {}).get(
                         "ingress") or []] + list(spec.get("externalIPs") or []),
                     "ports": [port_text(p) for p in spec.get("ports") or []],
+                    "tcpTargets": {str(p["port"]): p.get("targetPort", p["port"]) for p in spec.get("ports") or []
+                                   if p.get("port") and p.get("protocol", "TCP") == "TCP"},
                     "endpoints": len(eps) if slices is not None else None,
                     "ready": sum(1 for e in eps if e["ready"]) if slices is not None else None,
                 })
@@ -518,6 +520,8 @@ def go_duration_ms(text):
 def tcp_ms(host, port, tries=3, timeout=PROBE_TIMEOUT):
     """(median connect time in ms, error): a TCP handshake to host:port, tries times (the name resolved first, so DNS
     is not timed)."""
+    if port is None:
+        return None, "Service target port is not declared by the pod"
     try:
         addr = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)[0]
     except OSError as e:
@@ -686,7 +690,7 @@ class Mesh:
         meta = {
             "gateway": ("Traefik" if groups["gateway"] else "Way in", host, "gateway",
                         svc(lambda s: s["kind"] == "gateway")),
-            "coder": ("Coder", None, "coder", svc(lambda s: s["name"] == RELEASE and s["kind"] == "coder")),
+            "coder": ("Coder", None, "coder", svc(lambda s: s["namespace"] == NAMESPACE and s["name"] == RELEASE and s["kind"] == "coder")),
             "workspaces": ("Workspaces", "agents", "workspace", None),
             "code-server": ("code-server", "HA instances", "code-server", None),
             "replicator": ("Replicator", "code-server HA", "replicator", None),
@@ -734,14 +738,24 @@ class Mesh:
             if "replicator" in present:
                 submit("heartbeats", lambda e: {}, replicator_heartbeats, db)
         tcp_targets = {}
-        for nid, names, default in (("coder", ("http",), 8080), ("database", ("postgresql", "pgbouncer"), 5432),
+        coder_url = urllib.parse.urlsplit(CODER_URL)
+        tls = coder_url.scheme == "https"
+        coder_service = meta["coder"][3] or {}
+        target = coder_service.get("tcpTargets", {}).get(str(coder_url.port or (443 if tls else 80)))
+        if isinstance(target, int):
+            coder_names, coder_default = (), target
+        elif target:
+            coder_names, coder_default = (target,), None
+        else:
+            coder_names, coder_default = (("https",), 8443) if tls else (("http",), 8080)
+        for nid, names, default in (("coder", coder_names, coder_default), ("database", ("postgresql", "pgbouncer"), 5432),
                                     ("replicas", ("postgresql",), 5432), ("code-server", ("station",), 8080)):
             for p in groups.get(nid) or []:
                 ip = (p.get("status") or {}).get("podIP")
                 if ip:
                     port = pod_port(p, names, default)
                     key = "tcp:%s:%s" % (nid, (p.get("metadata") or {}).get("name"))
-                    tcp_targets[key] = (nid, "%s %s:%s" % ((p.get("metadata") or {}).get("name"), ip, port))
+                    tcp_targets[key] = (nid, "%s %s:%s" % ((p.get("metadata") or {}).get("name"), ip, port or target))
                     submit(key, lambda e: (None, e), tcp_ms, ip, port)
         storage_url = (backend or {}).get("endpoint") or ""
         storage_host = urllib.parse.urlsplit(storage_url) if storage_url else None

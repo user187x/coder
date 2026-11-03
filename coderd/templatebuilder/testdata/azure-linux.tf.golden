@@ -30,47 +30,47 @@ data "coder_parameter" "instance_type" {
   icon         = "/icon/azure.png"
   mutable      = false
   option {
-    name  = "Standard_B1ms (1 vCPU, 2 GiB RAM)"
+    name  = "Standard_B1ms (1 vCPU, 2 GiB MEM)"
     value = "Standard_B1ms"
   }
   option {
-    name  = "Standard_B2ms (2 vCPU, 8 GiB RAM)"
+    name  = "Standard_B2ms (2 vCPU, 8 GiB MEM)"
     value = "Standard_B2ms"
   }
   option {
-    name  = "Standard_B4ms (4 vCPU, 16 GiB RAM)"
+    name  = "Standard_B4ms (4 vCPU, 16 GiB MEM)"
     value = "Standard_B4ms"
   }
   option {
-    name  = "Standard_B8ms (8 vCPU, 32 GiB RAM)"
+    name  = "Standard_B8ms (8 vCPU, 32 GiB MEM)"
     value = "Standard_B8ms"
   }
   option {
-    name  = "Standard_B12ms (12 vCPU, 48 GiB RAM)"
+    name  = "Standard_B12ms (12 vCPU, 48 GiB MEM)"
     value = "Standard_B12ms"
   }
   option {
-    name  = "Standard_B16ms (16 vCPU, 64 GiB RAM)"
+    name  = "Standard_B16ms (16 vCPU, 64 GiB MEM)"
     value = "Standard_B16ms"
   }
   option {
-    name  = "Standard_D2as_v5 (2 vCPU, 8 GiB RAM)"
+    name  = "Standard_D2as_v5 (2 vCPU, 8 GiB MEM)"
     value = "Standard_D2as_v5"
   }
   option {
-    name  = "Standard_D4as_v5 (4 vCPU, 16 GiB RAM)"
+    name  = "Standard_D4as_v5 (4 vCPU, 16 GiB MEM)"
     value = "Standard_D4as_v5"
   }
   option {
-    name  = "Standard_D8as_v5 (8 vCPU, 32 GiB RAM)"
+    name  = "Standard_D8as_v5 (8 vCPU, 32 GiB MEM)"
     value = "Standard_D8as_v5"
   }
   option {
-    name  = "Standard_D16as_v5 (16 vCPU, 64 GiB RAM)"
+    name  = "Standard_D16as_v5 (16 vCPU, 64 GiB MEM)"
     value = "Standard_D16as_v5"
   }
   option {
-    name  = "Standard_D32as_v5 (32 vCPU, 128 GiB RAM)"
+    name  = "Standard_D32as_v5 (32 vCPU, 128 GiB MEM)"
     value = "Standard_D32as_v5"
   }
 }

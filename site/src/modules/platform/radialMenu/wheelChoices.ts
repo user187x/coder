@@ -4,6 +4,7 @@ import {
 	ContainerIcon,
 	EyeIcon,
 	FileTextIcon,
+	HourglassIcon,
 	type LucideIcon,
 	MessagesSquareIcon,
 } from "lucide-react";
@@ -11,7 +12,6 @@ import {
 	type AdminPageAccess,
 	adminPageChoices,
 } from "#/modules/dashboard/Navbar/adminQuickLinks";
-import { canViewDeploymentSettings } from "#/modules/permissions";
 
 /**
  * A choice for a wedge of the quick access wheel (Escape): one of the dashboard's own pages, or a category of
@@ -49,6 +49,15 @@ const DASHBOARD: readonly WheelChoice[] = [
 		group: "dashboard",
 		allowed: everyone,
 	},
+	{
+		id: "leases",
+		label: "Leases",
+		icon: HourglassIcon,
+		to: "/deployment/users#short-term-leases",
+		group: "dashboard",
+		allowed: ({ permissions }) =>
+			permissions.viewAllUsers && permissions.editDeploymentConfig,
+	},
 	// the Resources menu's icon for it
 	{
 		id: "images",
@@ -81,7 +90,7 @@ const DASHBOARD: readonly WheelChoice[] = [
 		icon: EyeIcon,
 		to: "/hud",
 		group: "dashboard",
-		allowed: ({ permissions }) => canViewDeploymentSettings(permissions),
+		allowed: ({ permissions }) => permissions.viewDeploymentConfig,
 	},
 ];
 
@@ -123,9 +132,16 @@ export const wheelOf = (ids: readonly string[] | null | undefined) => {
 	const all = wheelChoices();
 	const pick = (list: readonly string[]) =>
 		list
-			.map((id) => all.find((choice) => choice.id === id))
+			.map((id) =>
+				all.find(
+					(choice) =>
+						choice.id === (id === "observability" ? "monitoring" : id),
+				),
+			)
 			.filter((choice): choice is WheelChoice => Boolean(choice))
 			.slice(0, WHEEL_WEDGES.most);
-	const chosen = pick(ids ?? []);
+	const chosen = [
+		...new Map(pick(ids ?? []).map((choice) => [choice.id, choice])).values(),
+	];
 	return chosen.length >= WHEEL_WEDGES.least ? chosen : pick(DEFAULT_WHEEL);
 };

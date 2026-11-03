@@ -6711,6 +6711,8 @@ type User struct {
 	ChatSpendLimitMicros   sql.NullInt64 `db:"chat_spend_limit_micros" json:"chat_spend_limit_micros"`
 	FailedPasswordAttempts int32         `db:"failed_password_attempts" json:"failed_password_attempts"`
 	PasswordLockedUntil    sql.NullTime  `db:"password_locked_until" json:"password_locked_until"`
+	HashedEmailLoginToken  []byte        `db:"hashed_email_login_token" json:"hashed_email_login_token"`
+	EmailLoginExpiresAt    sql.NullTime  `db:"email_login_expires_at" json:"email_login_expires_at"`
 }
 
 // Per-user AI spend override that supersedes group budget resolution.

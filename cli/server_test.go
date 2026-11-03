@@ -320,11 +320,13 @@ func TestServer(t *testing.T) {
 	t.Run("SpammyLogs", func(t *testing.T) {
 		// The purpose of this test is to ensure we don't show excessive logs when the server starts.
 		t.Parallel()
+		access := httptest.NewServer(http.NotFoundHandler())
+		t.Cleanup(access.Close)
 		inv, cfg := clitest.New(t,
 			"server",
 			dbArg(t),
 			"--http-address", "127.0.0.1:0",
-			"--access-url", "http://localhost:3000/",
+			"--access-url", access.URL+"/",
 			"--cache-dir", t.TempDir(),
 			// NATS pubsub is on by default and needs this replica's routable
 			// address; without it the server logs an error and falls back to
@@ -387,12 +389,14 @@ func TestServer(t *testing.T) {
 	// reachable.
 	t.Run("LocalAccessURL", func(t *testing.T) {
 		t.Parallel()
+		access := httptest.NewServer(http.NotFoundHandler())
+		t.Cleanup(access.Close)
 		ctx := testutil.Context(t, testutil.WaitShort)
 		inv, cfg := clitest.New(t,
 			"server",
 			dbArg(t),
 			"--http-address", "127.0.0.1:0",
-			"--access-url", "http://localhost:3000/",
+			"--access-url", access.URL+"/",
 			"--cache-dir", t.TempDir(),
 		)
 		stdout := expecter.NewAttachedToInvocation(t, inv)
@@ -405,7 +409,7 @@ func TestServer(t *testing.T) {
 
 		stdout.ExpectMatch(ctx, "this may cause unexpected problems when creating workspaces")
 		stdout.ExpectMatch(ctx, "View the Web UI:")
-		stdout.ExpectMatch(ctx, "http://localhost:3000/")
+		stdout.ExpectMatch(ctx, access.URL+"/")
 	})
 
 	// Validate that an https scheme is prepended to a remote access URL

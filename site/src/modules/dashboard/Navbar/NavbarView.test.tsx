@@ -3,14 +3,16 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { MemoryRouter } from "react-router";
 import { API } from "#/api/api";
-import { PlatformAPI } from "#/api/platform";
+import { PlatformAPI, type UserUIPreferences } from "#/api/platform";
 import { getPreferredProxy } from "#/contexts/ProxyContext";
+import * as chatStore from "#/modules/platform/chat/chatStore";
 import {
 	MockPrimaryWorkspaceProxy,
 	MockProxyLatencies,
 	MockUserMember,
 	MockUserOwner,
 } from "#/testHelpers/entities";
+import { MockClusterUsage } from "#/testHelpers/platform";
 import { renderComponent } from "#/testHelpers/renderHelpers";
 import type { AdminSettingsPermissions } from "./AdminSettings";
 import { NavbarView } from "./NavbarView";
@@ -75,7 +77,7 @@ describe("NavbarView", () => {
 			const save = vi
 				.spyOn(PlatformAPI, "setUserUIPreferences")
 				.mockImplementation(async (settings) => settings);
-			renderNavbar({ canViewDeployment: true, canEditDeployment: true });
+			renderNavbar({ canViewHud: true, canEditDeployment: true });
 			const user = userEvent.setup();
 			await user.click(
 				screen.getByRole("button", { name: new RegExp(trigger) }),
@@ -95,7 +97,7 @@ describe("NavbarView", () => {
 			const save = vi
 				.spyOn(PlatformAPI, "setUserUIPreferences")
 				.mockImplementation(async (settings) => settings);
-			renderNavbar({ canViewDeployment: true });
+			renderNavbar({ canViewHud: true });
 			const user = userEvent.setup();
 			await user.pointer({
 				target:
@@ -110,7 +112,7 @@ describe("NavbarView", () => {
 	);
 
 	it("has no Controls button of its own: the Controls are in the latency menu", async () => {
-		renderNavbar({ canViewDeployment: true, canViewAuditLog: true });
+		renderNavbar({ canViewHud: true, canViewAuditLog: true });
 		const withControls = menuButtons().filter((button) =>
 			button.textContent?.includes("Settings"),
 		);
@@ -139,6 +141,119 @@ describe("NavbarView", () => {
 		).toBeNull();
 	});
 
+	it.each([
+		{ role: "member", permissions: {}, mobile: true },
+		{ role: "user admin", permissions: { canViewUsers: true }, mobile: false },
+		{ role: "auditor", permissions: { canViewAuditLog: true }, mobile: false },
+		{ role: "owner", permissions: { canEditDeployment: true }, mobile: true },
+	])(
+		"opens and closes Settings chat for a $role without a pinned shortcut",
+		async ({ permissions, mobile }) => {
+			const setOpen = vi.spyOn(chatStore, "setChatMenuOpen");
+			vi.spyOn(chatStore, "useChatConnection").mockImplementation(() => {});
+			renderNavbar(
+				permissions,
+				"canEditDeployment" in permissions ? MockUserOwner : MockUserMember,
+			);
+			const user = userEvent.setup();
+			if (mobile) {
+				await user.click(screen.getByRole("button", { name: "Open menu" }));
+				await user.click(
+					await screen.findByRole("menuitem", {
+						name: "Settings",
+					}),
+				);
+			} else {
+				await user.click(screen.getByRole("button", { name: /Settings/ }));
+			}
+			if (mobile)
+				await user.click(
+					await screen.findByRole("menuitem", { name: "Controls" }),
+				);
+			await user.click(
+				await screen.findByRole("menuitem", {
+					name: mobile ? "Chat" : "Open quick chat",
+				}),
+			);
+			expect(setOpen).toHaveBeenCalledWith(true);
+			await user.click(
+				screen.getByRole("button", { name: "Dismiss quick chat" }),
+			);
+			expect(setOpen).toHaveBeenLastCalledWith(false);
+		},
+	);
+
+	it("closes the workspace list for Controls chat and restores metrics when chat closes", async () => {
+		vi.spyOn(chatStore, "useChatConnection").mockImplementation(() => {});
+		vi.spyOn(PlatformAPI, "getClusterUsage").mockResolvedValue(
+			MockClusterUsage,
+		);
+		renderNavbar({ canEditDeployment: true });
+		const user = userEvent.setup();
+		await user.click(screen.getByRole("button", { name: /Settings/ }));
+		await user.click(await screen.findByRole("menuitem", { name: "Controls" }));
+		const pill = screen.getByTestId("workspaces-latency");
+		pill.focus();
+		await user.keyboard("{Enter}");
+		expect(pill).toHaveAttribute("aria-expanded", "true");
+		await user.click(screen.getByRole("menuitem", { name: "Chat" }));
+		expect(pill).toHaveAttribute("aria-expanded", "false");
+		const metrics = "Cluster CPU, memory, network and disk";
+		expect(screen.queryByLabelText(metrics)).toBeNull();
+		await user.click(
+			screen.getByRole("button", { name: "Dismiss quick chat" }),
+		);
+		expect(await screen.findByLabelText(metrics)).toBeTruthy();
+		expect(pill).toHaveAttribute("aria-expanded", "false");
+	});
+
+	it("saves the graph handle's visibility and restores it after chat", async () => {
+		vi.spyOn(PlatformAPI, "getClusterUsage").mockResolvedValue(
+			MockClusterUsage,
+		);
+		let preferences: UserUIPreferences = {};
+		vi.mocked(PlatformAPI.getUserUIPreferences).mockImplementation(
+			async () => preferences,
+		);
+		const save = vi
+			.spyOn(PlatformAPI, "setUserUIPreferences")
+			.mockImplementation(async (changes) => {
+				preferences = { ...preferences, ...changes };
+				return preferences;
+			});
+		vi.spyOn(chatStore, "useChatConnection").mockImplementation(() => {});
+		renderNavbar({ canEditDeployment: true });
+		const user = userEvent.setup();
+		await user.click(screen.getByRole("button", { name: /Settings/ }));
+		await user.dblClick(
+			await screen.findByRole("menuitem", { name: "Hide metric graphs" }),
+		);
+		expect(save).toHaveBeenLastCalledWith({
+			settings_metrics: { expanded: false, locked: false },
+		});
+		await user.click(screen.getByRole("menuitem", { name: "Controls" }));
+		await user.click(screen.getByRole("menuitem", { name: "Chat" }));
+		await user.click(
+			screen.getByRole("button", { name: "Dismiss quick chat" }),
+		);
+		const grip = await screen.findByRole("menuitem", {
+			name: "Show metric graphs",
+		});
+		grip.focus();
+		await user.keyboard("{Enter}");
+		expect(save).toHaveBeenLastCalledWith({
+			settings_metrics: { expanded: true, locked: false },
+		});
+		await user.click(
+			await screen.findByRole("menuitemcheckbox", {
+				name: "Lock metric graphs (left dimple)",
+			}),
+		);
+		expect(save).toHaveBeenLastCalledWith({
+			settings_metrics: { expanded: true, locked: true },
+		});
+	});
+
 	it("lets a member restore chat from the Settings menu", async () => {
 		const save = vi
 			.spyOn(PlatformAPI, "setUserUIPreferences")
@@ -149,6 +264,7 @@ describe("NavbarView", () => {
 		renderNavbar({}, MockUserMember);
 		const user = userEvent.setup();
 		await user.click(screen.getByRole("button", { name: /Settings/ }));
+		await user.click(await screen.findByRole("menuitem", { name: "Controls" }));
 		await user.pointer({
 			target: await screen.findByRole("menuitem", { name: "Chat" }),
 			keys: "[MouseRight]",

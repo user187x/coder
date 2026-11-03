@@ -5,16 +5,13 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"math"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/google/uuid"
 
 	"cdr.dev/slog/v3"
 	"github.com/coder/coder/v2/coderd/database"
-	"github.com/coder/coder/v2/coderd/database/db2sdk"
 	"github.com/coder/coder/v2/coderd/httpapi/httperror"
 	"github.com/coder/coder/v2/coderd/rbac"
 	"github.com/coder/coder/v2/coderd/rbac/policy"
@@ -48,22 +45,43 @@ type platformQuotaResponse struct {
 // checkPlatformQuota asks the platform service whether owner may have one
 // more workspace built with req's parameters (the number of workspaces and the
 // CPU cores and memory they ask for). It runs with the requester's own session,
-// so the service sees exactly what they may see. It fails open: without the
-// service, a session token or an answer, the workspace is created as usual.
-func (api *API) checkPlatformQuota(ctx context.Context, sessionToken string, owner workspaceOwner, organizationID, templateID, templateVersionID uuid.UUID, req codersdk.CreateWorkspaceRequest) error {
+// so the service sees exactly what they may see.
+func (api *API) checkPlatformQuota(ctx context.Context, db database.Store, sessionToken string, owner workspaceOwner, organizationID, templateID, templateVersionID uuid.UUID, req codersdk.CreateWorkspaceRequest) error {
+	if !api.platformQuotaConfigured() {
+		return nil
+	}
+	if err := db.AcquireLock(ctx, database.GenLockID("workspace-admission:"+owner.ID.String())); err != nil {
+		return err
+	}
+	parameters := req.RichParameterValues
+	if req.TemplateVersionPresetID != uuid.Nil {
+		preset, err := db.GetPresetParametersByPresetID(ctx, req.TemplateVersionPresetID)
+		if err != nil {
+			return err
+		}
+		parameters = append([]codersdk.WorkspaceBuildParameter(nil), parameters...)
+		for _, p := range preset {
+			parameters = append(parameters, codersdk.WorkspaceBuildParameter{Name: p.Name, Value: p.Value})
+		}
+	}
 	return api.checkPlatformQuotaRequest(ctx, sessionToken, platformQuotaRequest{
 		Owner:               owner.Username,
 		OwnerID:             owner.ID,
 		OrganizationID:      organizationID,
 		TemplateID:          templateID,
 		TemplateVersionID:   templateVersionID,
-		RichParameterValues: req.RichParameterValues,
+		RichParameterValues: parameters,
 	})
 }
 
 func (api *API) checkPlatformQuotaRequest(ctx context.Context, sessionToken string, request platformQuotaRequest) error {
 	var answer platformQuotaResponse
-	if !api.askPlatformService(ctx, "platform_quota", sessionToken, "/api/quota/check", request, &answer) || answer.Allowed {
+	if !api.askPlatformService(ctx, "platform_quota", sessionToken, "/api/quota/check", request, &answer) {
+		return httperror.NewResponseError(http.StatusServiceUnavailable, codersdk.Response{
+			Message: "Workspace capacity and quota could not be checked. Please try again.",
+		})
+	}
+	if answer.Allowed {
 		return nil
 	}
 	message := answer.Message
@@ -72,26 +90,24 @@ func (api *API) checkPlatformQuotaRequest(ctx context.Context, sessionToken stri
 	}
 	return httperror.NewResponseError(http.StatusForbidden, codersdk.Response{
 		Message: message,
-		Detail:  "Workspace quota: an administrator sets it in Health > User Quota.",
 	})
 }
 
-// checkPlatformStartQuota checks increased allocations on user-initiated starts.
-// Unchanged or reduced allocations remain restartable after a limit is lowered.
-// Like creation, this is advisory and fails open when the service is unavailable;
-// concurrent starts can race because the external check reserves no resources.
-func (api *API) checkPlatformStartQuota(ctx context.Context, sessionToken string, initiatorID uuid.UUID, workspace database.Workspace, req codersdk.CreateWorkspaceBuildRequest, authorize func(policy.Action, rbac.Objecter) bool) error {
+func (api *API) platformQuotaConfigured() bool {
+	for _, route := range api.PlatformServiceRoutes {
+		if route.PathPrefix == platformQuotaPrefix {
+			return true
+		}
+	}
+	return false
+}
+
+// checkPlatformStartQuota checks the resolved size before a user starts a workspace.
+func (api *API) checkPlatformStartQuota(ctx context.Context, db database.Store, sessionToken string, initiatorID uuid.UUID, workspace database.Workspace, req codersdk.CreateWorkspaceBuildRequest, authorize func(policy.Action, rbac.Objecter) bool) error {
 	if req.Transition != codersdk.WorkspaceTransitionStart || workspace.IsPrebuild() || sessionToken == "" || req.Orphan {
 		return nil
 	}
-	configured := false
-	for _, route := range api.PlatformServiceRoutes {
-		if route.PathPrefix == platformQuotaPrefix {
-			configured = true
-			break
-		}
-	}
-	if !configured {
+	if !api.platformQuotaConfigured() {
 		return nil
 	}
 	if err := validateCreateWorkspaceBuildOnSuccess(req); err != nil {
@@ -110,20 +126,12 @@ func (api *API) checkPlatformStartQuota(ctx context.Context, sessionToken string
 	if req.TemplateVersionID != uuid.Nil {
 		builder = builder.VersionID(req.TemplateVersionID)
 	}
-	version, parameters, err := builder.ResolveParameters(ctx, api.Database, api.FileCache, authorize)
-	if err != nil {
+	if err := db.AcquireLock(ctx, database.GenLockID("workspace-admission:"+workspace.OwnerID.String())); err != nil {
 		return err
 	}
-	previous, err := api.Database.GetLatestWorkspaceBuildByWorkspaceID(ctx, workspace.ID)
+	version, parameters, err := builder.ResolveParameters(ctx, db, api.FileCache, authorize)
 	if err != nil {
 		return err
-	}
-	old, err := api.Database.GetWorkspaceBuildParameters(ctx, previous.ID)
-	if err != nil {
-		return err
-	}
-	if !platformAllocationIncreased(db2sdk.WorkspaceBuildParameters(old), parameters) {
-		return nil
 	}
 	return api.checkPlatformQuotaRequest(ctx, sessionToken, platformQuotaRequest{
 		Owner:               workspace.OwnerUsername,
@@ -134,30 +142,6 @@ func (api *API) checkPlatformStartQuota(ctx context.Context, sessionToken string
 		TemplateVersionID:   version,
 		RichParameterValues: parameters,
 	})
-}
-
-func platformAllocationIncreased(previous, next []codersdk.WorkspaceBuildParameter) bool {
-	values := func(params []codersdk.WorkspaceBuildParameter) map[string]float64 {
-		result := map[string]float64{}
-		for _, p := range params {
-			if p.Name != "cpu" && p.Name != "memory" && p.Name != "home_disk_size" {
-				continue
-			}
-			value, err := strconv.ParseFloat(p.Value, 64)
-			if err != nil {
-				value = 0
-			}
-			result[p.Name] = math.Max(0, value)
-		}
-		return result
-	}
-	old, updated := values(previous), values(next)
-	for _, name := range []string{"cpu", "memory", "home_disk_size"} {
-		if math.IsNaN(updated[name]) || math.IsInf(updated[name], 0) || updated[name] > old[name] {
-			return true
-		}
-	}
-	return false
 }
 
 // askPlatformService POSTs request to the platform service (path under

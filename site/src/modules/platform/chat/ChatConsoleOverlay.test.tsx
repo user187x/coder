@@ -65,6 +65,7 @@ const renderDashboard = (at = "/") => {
 	});
 	vi.spyOn(PlatformAPI, "getQuickMenu").mockResolvedValue({
 		items: null,
+		shortcut: "Escape",
 		wedges: [3, 12],
 	});
 	const router = createMemoryRouter(

@@ -882,6 +882,15 @@ This forces all sessions to become invalid after the session expiry duration has
 - CLI flag: [`--disable-session-expiry-refresh`](../../reference/cli/server/index.md#--disable-session-expiry-refresh)
 - YAML key: `networking.http.disableSessionExpiryRefresh`
 
+#### Email login
+
+Allow active accounts to sign in with a single-use token sent directly to their registered email address through the configured SMTP relay.
+
+- Type: `bool`
+- Environment variable: `CODER_EMAIL_LOGIN_ENABLED`
+- CLI flag: [`--email-login`](../../reference/cli/server/index.md#--email-login)
+- YAML key: `networking.http.emailLogin`
+
 #### Address
 
 HTTP bind address of the server.

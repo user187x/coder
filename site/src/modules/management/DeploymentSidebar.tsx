@@ -12,6 +12,7 @@ import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { useDashboard } from "#/modules/dashboard/useDashboard";
 import { DeploymentSidebarView } from "./DeploymentSidebarView";
 import { HealthNavItem } from "./HealthNavItem";
+import { NetworkStatusIndicator } from "./NetworkStatusIndicator";
 
 /**
  * A sidebar for deployment settings, in the order the admin arranged it (a
@@ -33,6 +34,11 @@ export const DeploymentSidebar: React.FC = () => {
 			permissions={permissions}
 			buildInfo={buildInfo}
 			health={permissions.viewDebugInfo ? <HealthNavItem /> : undefined}
+			network={
+				permissions.viewDeploymentConfig ? (
+					<NetworkStatusIndicator />
+				) : undefined
+			}
 			keycloakConnected={keycloak?.connected === true}
 			order={preferences.data?.admin_sidebar_order ?? []}
 			onReorder={(ids) => {

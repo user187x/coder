@@ -1,24 +1,35 @@
-import { ChevronDownIcon, PaletteIcon } from "lucide-react";
+import { PaletteIcon, SlidersHorizontalIcon } from "lucide-react";
 import { useId, useState } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { DropdownMenuItem } from "#/components/DropdownMenu/DropdownMenu";
 import { AnimationsToggleItem } from "./UserDropdown/AnimationsToggleItem";
 import { ThemeToggleItem } from "./UserDropdown/ThemeToggleItem";
 
-export const AppearanceMenuItem = ({ className }: { className?: string }) => {
+export const AppearanceMenuItem = ({
+	to,
+	className,
+}: {
+	to: string;
+	className?: string;
+}) => {
 	const [expanded, setExpanded] = useState(false);
 	const id = useId();
+	const navigate = useNavigate();
 	return (
 		<>
 			<DropdownMenuItem
-				asChild
 				className={className}
 				aria-expanded={expanded}
 				aria-controls={expanded ? id : undefined}
+				onSelect={(event) => {
+					event.preventDefault();
+					setExpanded((open) => !open);
+				}}
+				title="Click for appearance controls; right-click for deployment appearance"
 				onContextMenu={(event) => {
 					event.preventDefault();
 					event.stopPropagation();
-					setExpanded((open) => !open);
+					navigate(to);
 				}}
 				onKeyDown={(event) => {
 					if (
@@ -27,21 +38,12 @@ export const AppearanceMenuItem = ({ className }: { className?: string }) => {
 					) {
 						event.preventDefault();
 						event.stopPropagation();
-						setExpanded((open) => !open);
+						navigate(to);
 					}
 				}}
 			>
-				<Link
-					to="/deployment/customize"
-					title="Right-click for your dashboard appearance controls"
-				>
-					<PaletteIcon aria-hidden />
-					Appearance
-					<ChevronDownIcon
-						aria-hidden
-						className={`ml-auto size-3.5 ${expanded ? "rotate-180" : ""}`}
-					/>
-				</Link>
+				<PaletteIcon aria-hidden />
+				Appearance
 			</DropdownMenuItem>
 			{expanded && (
 				<div
@@ -52,6 +54,12 @@ export const AppearanceMenuItem = ({ className }: { className?: string }) => {
 				>
 					<ThemeToggleItem showDetails={false} />
 					<AnimationsToggleItem showDetails={false} />
+					<DropdownMenuItem asChild>
+						<Link to={to}>
+							<SlidersHorizontalIcon aria-hidden />
+							Personalize
+						</Link>
+					</DropdownMenuItem>
 				</div>
 			)}
 		</>

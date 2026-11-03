@@ -9,6 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/coder/coder/v2/coderd/database"
+	"github.com/coder/coder/v2/coderd/rbac"
+	"github.com/coder/coder/v2/coderd/rbac/policy"
 )
 
 type quarantineStore struct {
@@ -41,12 +43,14 @@ func (s *quarantineStore) ConsumeWorkspaceQuarantineManualStart(context.Context,
 func TestWorkspaceQuarantineBuildGuard(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
-		name                                     string
-		transition                               database.WorkspaceTransition
-		enabled, manual, latch, denied, consumed bool
+		name                                            string
+		transition                                      database.WorkspaceTransition
+		enabled, manual, latch, denied, consumed, admin bool
 	}{
 		{name: "quarantined manual Start", transition: database.WorkspaceTransitionStart, enabled: true, manual: true, latch: true, denied: true},
 		{name: "quarantined Delete", transition: database.WorkspaceTransitionDelete, enabled: true, latch: true, denied: true},
+		{name: "administrator deletes without releasing quarantine", transition: database.WorkspaceTransitionDelete, enabled: true, latch: true, admin: true},
+		{name: "administrator cannot start in quarantine", transition: database.WorkspaceTransitionStart, enabled: true, latch: true, admin: true, denied: true},
 		{name: "quarantined Stop permitted", transition: database.WorkspaceTransitionStop, enabled: true, latch: true},
 		{name: "released scheduled Start denied", transition: database.WorkspaceTransitionStart, latch: true, denied: true},
 		{name: "released explicit Start consumes latch", transition: database.WorkspaceTransitionStart, latch: true, manual: true, consumed: true},
@@ -58,7 +62,11 @@ func TestWorkspaceQuarantineBuildGuard(t *testing.T) {
 			wid, oid := uuid.New(), uuid.New()
 			store := &quarantineStore{row: database.WorkspaceQuarantine{WorkspaceID: wid, OrganizationID: oid, Enabled: tc.enabled, ManualStartRequired: tc.latch, ReleasePrepared: true}}
 			builder := Builder{workspace: database.Workspace{ID: wid, OrganizationID: oid}, trans: tc.transition, ctx: context.Background(), store: store, manualStart: tc.manual}
-			err := builder.checkQuarantine()
+			err := builder.checkQuarantine(func(action policy.Action, object rbac.Objecter) bool {
+				require.Equal(t, policy.ActionUpdate, action)
+				require.Equal(t, rbac.ResourceDeploymentConfig, object)
+				return tc.admin
+			})
 			if tc.denied {
 				require.Error(t, err)
 			} else {
@@ -76,12 +84,12 @@ func TestWorkspaceQuarantineBuildGuardFailClosed(t *testing.T) {
 	t.Parallel()
 	store := &quarantineStore{err: sql.ErrConnDone}
 	builder := Builder{workspace: database.Workspace{ID: uuid.New()}, trans: database.WorkspaceTransitionStart, ctx: context.Background(), store: store, manualStart: true}
-	require.Error(t, builder.checkQuarantine())
+	require.Error(t, builder.checkQuarantine(nil))
 	require.False(t, store.consumed)
 	store.err = nil
 	store.row = database.WorkspaceQuarantine{ManualStartRequired: true, ReleasePrepared: false}
-	require.Error(t, builder.checkQuarantine())
+	require.Error(t, builder.checkQuarantine(nil))
 	require.False(t, store.consumed)
 	store.err = sql.ErrNoRows
-	require.NoError(t, builder.checkQuarantine())
+	require.NoError(t, builder.checkQuarantine(nil))
 }

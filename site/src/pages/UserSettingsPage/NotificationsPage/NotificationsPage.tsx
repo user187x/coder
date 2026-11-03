@@ -15,7 +15,6 @@ import {
 import type { NotificationTemplate } from "#/api/typesGenerated";
 import { Loader } from "#/components/Loader/Loader";
 import {
-	SettingsHeader,
 	SettingsHeaderDescription,
 	SettingsHeaderTitle,
 } from "#/components/SettingsHeader/SettingsHeader";
@@ -35,6 +34,7 @@ import {
 } from "#/modules/notifications/utils";
 import type { Permissions } from "#/modules/permissions";
 import { pageTitle } from "#/utils/page";
+import { UserSettingsHeader } from "../UserSettingsHeader";
 
 const NotificationsPage: React.FC = () => {
 	const { user, permissions } = useAuthenticated();
@@ -105,12 +105,12 @@ const NotificationsPage: React.FC = () => {
 		<>
 			<title>{pageTitle("Notifications Settings")}</title>
 
-			<SettingsHeader>
+			<UserSettingsHeader section="notifications">
 				<SettingsHeaderTitle>Notifications</SettingsHeaderTitle>
 				<SettingsHeaderDescription>
 					Control which notifications you receive.
 				</SettingsHeaderDescription>
-			</SettingsHeader>
+			</UserSettingsHeader>
 
 			{ready ? (
 				<div className="flex flex-col gap-8">

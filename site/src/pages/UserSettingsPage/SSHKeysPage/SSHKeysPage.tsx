@@ -4,10 +4,8 @@ import { toast } from "sonner";
 import { getErrorDetail, getErrorMessage } from "#/api/errors";
 import { regenerateUserSSHKey, userSSHKey } from "#/api/queries/sshKeys";
 import { ConfirmDialog } from "#/components/Dialog/ConfirmDialog/ConfirmDialog";
-import {
-	SettingsHeader,
-	SettingsHeaderTitle,
-} from "#/components/SettingsHeader/SettingsHeader";
+import { SettingsHeaderTitle } from "#/components/SettingsHeader/SettingsHeader";
+import { UserSettingsHeader } from "../UserSettingsHeader";
 import {
 	SSH_KEY_TYPES,
 	type SSHKeyAlgorithm,
@@ -27,9 +25,9 @@ const SSHKeysPage: React.FC = () => {
 
 	return (
 		<>
-			<SettingsHeader>
+			<UserSettingsHeader section="ssh-keys">
 				<SettingsHeaderTitle>SSH keys</SettingsHeaderTitle>
-			</SettingsHeader>
+			</UserSettingsHeader>
 			<SSHKeysPageView
 				isLoading={userSSHKeyQuery.isLoading}
 				getSSHKeyError={userSSHKeyQuery.error}

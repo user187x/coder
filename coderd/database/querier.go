@@ -106,6 +106,7 @@ type sqlcQuerier interface {
 	// when the automation is not a single-use webhook or was already
 	// consumed, so callers can refuse the delivery.
 	ConsumeChatAutomationWebhookByID(ctx context.Context, arg ConsumeChatAutomationWebhookByIDParams) (int64, error)
+	ConsumeUserEmailLoginToken(ctx context.Context, arg ConsumeUserEmailLoginTokenParams) (int64, error)
 	ConsumeWorkspaceQuarantineManualStart(ctx context.Context, arg ConsumeWorkspaceQuarantineManualStartParams) error
 	CountAIBridgeSessions(ctx context.Context, arg CountAIBridgeSessionsParams) (int64, error)
 	CountAuditLogs(ctx context.Context, arg CountAuditLogsParams) (int64, error)
@@ -1516,6 +1517,7 @@ type sqlcQuerier interface {
 	// A wait longer than lock_timeout_ms fails with lock_not_available
 	// instead of blocking. The setting reverts when the transaction ends.
 	SetTransactionLockTimeout(ctx context.Context, lockTimeoutMs int64) error
+	SetUserEmailLoginToken(ctx context.Context, arg SetUserEmailLoginTokenParams) error
 	SoftDeleteChatMessageByID(ctx context.Context, id int64) error
 	SoftDeleteChatMessagesAfterID(ctx context.Context, arg SoftDeleteChatMessagesAfterIDParams) error
 	SoftDeleteContextFileMessages(ctx context.Context, chatID uuid.UUID) error

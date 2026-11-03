@@ -1,9 +1,9 @@
 import { act, render, screen } from "@testing-library/react";
-import { TooltipProvider } from "#/components/Tooltip/Tooltip";
 import { AgentBorderFx } from "#/modules/platform/agentBorder/AgentBorderFx";
 import { toBars } from "#/modules/resources/MetadataHistogram";
 import { WorkspaceStatusIndicator } from "#/modules/workspaces/WorkspaceStatusIndicator/WorkspaceStatusIndicator";
 import { MockWorkspace } from "#/testHelpers/entities";
+import { render as renderWithProviders } from "#/testHelpers/renderHelpers";
 import {
 	setWorkspaceContact,
 	useWorkspaceContactLost,
@@ -37,10 +37,8 @@ describe("contact with Coder about a workspace", () => {
 	});
 
 	it("turns the running light grey and still, and says no contact instead of running", () => {
-		render(
-			<TooltipProvider>
-				<WorkspaceStatusIndicator workspace={running} runningLight />
-			</TooltipProvider>,
+		renderWithProviders(
+			<WorkspaceStatusIndicator workspace={running} runningLight />,
 		);
 		const light = screen.getByTestId("workspace-running-light");
 		expect(light).not.toHaveAttribute("data-lost");

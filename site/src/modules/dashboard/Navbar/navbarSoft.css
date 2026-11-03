@@ -66,11 +66,6 @@
 }
 .settings-menu:has(
 		[data-workspaces-expanded="true"],
-		[data-settings-expanded="true"]
-	)
-	[data-settings-metrics],
-.settings-menu:has(
-		[data-workspaces-expanded="true"],
 		[data-settings-expanded="true"],
 		[data-settings-chat]
 	)

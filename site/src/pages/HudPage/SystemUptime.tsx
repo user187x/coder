@@ -17,12 +17,7 @@ export const formatUptime = (ms: number): string => {
 	return h > 0 ? `${h}h ${m}m` : `${m}m`;
 };
 
-/**
- * The HUD's System Uptime, a small pill under the Live indicator: how long the
- * Coder server has been up and online - since its oldest ready replica started
- * (the platform service reads it from Kubernetes). It counts on between the
- * HUD's updates.
- */
+/** Counts uptime from the oldest ready Coder replica between HUD updates. */
 export const SystemUptime: React.FC<{
 	uptime: { since: string | null; replicas: number };
 }> = ({ uptime }) => {

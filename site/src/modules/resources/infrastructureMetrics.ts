@@ -27,7 +27,7 @@ export const loadReading = (item: WorkspaceAgentMetadata) => {
 };
 const labels = {
 	cpu: "CPU",
-	memory: "RAM",
+	memory: "MEM",
 	disk: "Disk",
 	load: "Ø Load",
 } as const;

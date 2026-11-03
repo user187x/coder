@@ -33,8 +33,6 @@ import { WorkspaceStatusIndicator } from "#/modules/workspaces/WorkspaceStatusIn
 import { WorkspaceTunnelPorts } from "../workspaceTunnels/WorkspaceTunnelPorts";
 import { isEmbedSizeMessage } from "./embeddedSize";
 
-/** Columns and rows in view at most: four dashboards; with more, the grid is dragged round to reach the others. */
-const IN_VIEW = 2;
 /** A dashboard is drawn at least this wide and scaled down to its cell, so the page keeps its wide layout. */
 export const FRAME_WIDTH = 1024;
 /** How often the workspaces' names and states are asked again while the grid is open. */
@@ -53,7 +51,7 @@ export const gridLayout = (n: number): { cols: number; rows: number } => {
 	if (n === 2) {
 		return { cols: 2, rows: 1 };
 	}
-	if (n <= IN_VIEW * IN_VIEW) {
+	if (n <= 4) {
 		return { cols: 2, rows: 2 };
 	}
 	const cols = Math.ceil(Math.sqrt(n));
@@ -61,6 +59,19 @@ export const gridLayout = (n: number): { cols: number; rows: number } => {
 };
 
 const workspacePath = (w: Workspace) => `/@${w.owner_name}/${w.name}`;
+
+// Alternate columns and rows so intermediate grid sizes stay close to square.
+const viewSizes = (cols: number, rows: number) => {
+	const sizes = [{ cols: 1, rows: 1 }];
+	let across = 1;
+	let down = 1;
+	while (across < cols || down < rows) {
+		if (across < cols && (across <= down || down === rows)) across++;
+		else down++;
+		sizes.push({ cols: across, rows: down });
+	}
+	return sizes;
+};
 
 /**
  * Fit all dashboards to the same viewport and scale, using the tallest reported
@@ -113,8 +124,8 @@ type WorkspaceGridProps = {
  * Platform: several workspaces' dashboards at once (the Workspaces list's "View in a grid", ProxyMenu), in a window
  * over the page, the page blurred behind it. Each cell is the workspace's dashboard, live, in a frame of its own (an
  * embedded dashboard page: Workspace shows its dashboard alone, the rest of its page left behind, and tells its
- * height; a link out of it goes to this page), scaled to fit its cell's width and height and centred in it. Up to
- * four fill the window; with more, the cells keep that size and the grid is grabbed
+ * height; a link out of it goes to this page), scaled to fit its cell's width and height and centred in it.
+ * The view slider sizes the cells. When more dashboards are available, the grid is grabbed
  * and dragged round to reach the others (or scrolled) - the dashboards are then pictures to drag by until one is
  * clicked, which makes that one usable, the others still dragging the grid. Leaving to another page closes it.
  */
@@ -195,6 +206,7 @@ const GridBody: React.FC<GridBodyProps> = ({
 	initialLayout = "grid",
 }) => {
 	const [layout, setLayout] = useState<"grid" | "list">(initialLayout);
+	const [density, setDensity] = useState({ list: 1, grid: 3 });
 	const spacing = layout === "list" ? 24 : GAP;
 	const [focusedId, setFocusedId] = useState<string | null>(null);
 	const focused = shown.find((workspace) => workspace.id === focusedId);
@@ -217,8 +229,26 @@ const GridBody: React.FC<GridBodyProps> = ({
 		layout === "list"
 			? { cols: 1, rows: shown.length }
 			: gridLayout(shown.length);
-	const inViewCols = Math.min(cols, IN_VIEW);
-	const inViewRows = layout === "list" ? 1 : Math.min(rows, IN_VIEW);
+	const sizes = viewSizes(
+		size.w
+			? Math.min(
+					cols,
+					Math.max(1, Math.floor((size.w + spacing) / (200 + spacing))),
+				)
+			: cols,
+		size.h
+			? Math.min(
+					rows,
+					Math.max(1, Math.floor((size.h + spacing) / (120 + spacing))),
+				)
+			: rows,
+	);
+	const level = Math.min(density[layout], sizes.length);
+	const { cols: inViewCols, rows: inViewRows } = sizes[level - 1];
+	const viewLabel =
+		layout === "list"
+			? `${inViewRows} ${inViewRows === 1 ? "row" : "rows"}`
+			: `${inViewCols} × ${inViewRows}`;
 	const cellW = Math.max(
 		0,
 		Math.floor(
@@ -230,7 +260,8 @@ const GridBody: React.FC<GridBodyProps> = ({
 		0,
 		Math.floor((size.h - spacing * (inViewRows - 1)) / inViewRows),
 	);
-	const pannable = layout === "grid" && (cols > IN_VIEW || rows > IN_VIEW);
+	const pannable =
+		layout === "grid" && (cols > inViewCols || rows > inViewRows);
 	// inside the cell's 1px border
 	const frameW = Math.max(0, cellW - 2);
 	const frameH = Math.max(0, availableCellH - BAR_HEIGHT - 14);
@@ -339,8 +370,8 @@ const GridBody: React.FC<GridBodyProps> = ({
 
 	return (
 		<>
-			<header className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 border-0 border-b border-solid border-border px-4 py-3">
-				<div className="flex min-w-0 items-center gap-3">
+			<header className="grid grid-cols-[1fr_auto] items-center gap-2 border-0 border-b border-solid border-border px-4 py-3 sm:grid-cols-[1fr_auto_1fr]">
+				<div className="order-last col-span-2 flex min-w-0 items-center gap-2 sm:order-none sm:col-span-1">
 					<DropdownMenu>
 						<DropdownMenuTrigger asChild>
 							<Button
@@ -377,13 +408,35 @@ const GridBody: React.FC<GridBodyProps> = ({
 							</DropdownMenuRadioGroup>
 						</DropdownMenuContent>
 					</DropdownMenu>
+					<label className="flex shrink-0 items-center gap-2 text-xs text-content-secondary">
+						<span>View</span>
+						<input
+							type="range"
+							aria-label="Workspaces in view"
+							aria-valuetext={viewLabel}
+							min={1}
+							max={sizes.length}
+							step={1}
+							value={level}
+							disabled={sizes.length === 1}
+							className="w-16 cursor-pointer accent-content-link disabled:cursor-default md:w-24"
+							onChange={(event) => {
+								const next = event.currentTarget.valueAsNumber;
+								setDensity((current) => ({ ...current, [layout]: next }));
+								setActive(null);
+							}}
+						/>
+						<span aria-hidden className="whitespace-nowrap tabular-nums">
+							{viewLabel}
+						</span>
+					</label>
 					{pannable && (
 						<span
 							data-testid="workspace-grid-hint"
 							className="hidden min-w-0 items-center gap-1.5 truncate text-sm text-content-secondary lg:flex"
 						>
 							<HandIcon aria-hidden className="size-4 shrink-0" />
-							Drag to see them all; click one to use it
+							Drag to see more workspaces
 						</span>
 					)}
 				</div>

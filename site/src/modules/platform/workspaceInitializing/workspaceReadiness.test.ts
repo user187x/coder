@@ -9,6 +9,7 @@ import {
 	agentInitializing,
 	initializingMilestones,
 	initializingStep,
+	startupState,
 } from "./workspaceReadiness";
 
 const workspace = (status: WorkspaceStatus) => ({
@@ -114,7 +115,7 @@ describe("agentInitializing", () => {
 		).toBe(false);
 		expect(
 			agentInitializing(workspace("running"), agent("timeout", "created")),
-		).toBe(false);
+		).toBe(true);
 	});
 });
 
@@ -160,4 +161,26 @@ describe("initializingMilestones", () => {
 			initializingMilestones({ ...agent("connecting", "created"), apps: [] }),
 		).toEqual({ done: 0, total: 1 });
 	});
+});
+
+it("waits for every agent and its apps before declaring a completed build ready", () => {
+	const w = workspace("running");
+	const withAgent = (a: WorkspaceAgent) => ({
+		...w,
+		latest_build: {
+			...w.latest_build,
+			resources: [{ ...MockWorkspace.latest_build.resources[0], agents: [a] }],
+		},
+	});
+	const a = { ...agent("connected", "ready"), apps: [] };
+	expect(startupState(withAgent(a))).toBeNull();
+	expect(startupState(withAgent({ ...a, status: "connecting" }))).toBe(
+		"Starting",
+	);
+	expect(startupState(withAgent({ ...a, lifecycle_state: "starting" }))).toBe(
+		"Starting",
+	);
+	expect(startupState(withAgent({ ...a, status: "timeout" }))).toBe(
+		"Needs attention",
+	);
 });

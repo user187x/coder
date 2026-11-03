@@ -2,8 +2,11 @@ import "#/modules/platform/settingsPage/settingsPage.css";
 import { type FormikContextType, getIn, useFormik } from "formik";
 import { ExternalLinkIcon } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useQuery } from "react-query";
 import { Link as RouterLink } from "react-router";
 import * as Yup from "yup";
+import { PlatformError } from "#/api/platform";
+import { workspaceAdmission } from "#/api/queries/platform";
 import type * as TypesGen from "#/api/typesGenerated";
 import type {
 	FriendlyDiagnostic,
@@ -187,7 +190,7 @@ export const CreateWorkspacePageView: React.FC<
 			validateOnChange: true,
 			validateOnBlur: true,
 			onSubmit: (request) => {
-				if (!hasAllRequiredExternalAuth) {
+				if (!hasAllRequiredExternalAuth || admissionBlocked) {
 					return;
 				}
 
@@ -401,7 +404,67 @@ export const CreateWorkspacePageView: React.FC<
 		setFieldValue: form.setFieldValue,
 	});
 
+	const values = form.values.rich_parameter_values ?? [];
+	const resourceValues = values.filter((p) =>
+		RESOURCE_PARAMETERS.includes(p.name),
+	);
+	const admission = useQuery({
+		...workspaceAdmission({
+			template_id: template.id,
+			organization_id: template.organization_id,
+			template_version_id: versionId ?? template.active_version_id,
+			owner_id: owner.id,
+			owner: owner.username,
+			rich_parameter_values: resourceValues,
+		}),
+		enabled: Boolean(template.id && owner.id),
+	});
+	const unavailable =
+		admission.isError &&
+		!(
+			admission.error instanceof PlatformError && admission.error.status === 404
+		);
+	const admissionBlocked =
+		admission.isLoading || admission.data?.allowed === false || unavailable;
+	const admissionMessage = unavailable
+		? "Workspace quota and cluster capacity could not be checked. Try again."
+		: admission.data?.allowed === false
+			? admission.data.message
+			: undefined;
+	const canSelect = (name: string, value: string) => {
+		const key = name === "home_disk_size" ? "disk" : name;
+		if (key !== "cpu" && key !== "memory" && key !== "disk" && key !== "gpus")
+			return true;
+		const left = admission.data?.remaining;
+		if (
+			left?.workspaces === 0 ||
+			(left &&
+				key !== "gpus" &&
+				left[key] != null &&
+				Number(value) > Number(left[key]))
+		)
+			return false;
+		// Choose CPU first, then memory and GPUs. An invalid default must still allow a smaller choice.
+		const selected = (n: string) =>
+			Number(resourceValues.find((p) => p.name === n)?.value || 0);
+		return (
+			admission.data?.nodes?.some((node) => {
+				if (key === "cpu") return node.cpu >= Number(value);
+				if (key === "memory")
+					return node.cpu >= selected("cpu") && node.memory >= Number(value);
+				if (key === "gpus" && Number(value) === 0) return true;
+				return (
+					node.cpu >= selected("cpu") &&
+					node.memory >= selected("memory") &&
+					(key === "gpus"
+						? node.gpus >= Number(value)
+						: node.disk === undefined || node.disk >= Number(value))
+				);
+			}) ?? true
+		);
+	};
 	const disabled =
+		admissionBlocked ||
 		creatingWorkspace ||
 		!hasAllRequiredExternalAuth ||
 		diagnostics.some((diagnostic) => diagnostic.severity === "error") ||
@@ -417,7 +480,6 @@ export const CreateWorkspacePageView: React.FC<
 	const isCreatingForSelf = owner.id === defaultOwner.id;
 
 	// The parameters as the page's Resources and Environment cards take them (the workspace settings page's cards).
-	const values = form.values.rich_parameter_values ?? [];
 	const lockedByLink = (name: string) =>
 		Boolean(disabledParams?.includes(name.toLowerCase().replace(/ /g, "_")));
 	// A preset's are held, and out of sight unless asked for (or something is wrong with them).
@@ -452,6 +514,8 @@ export const CreateWorkspacePageView: React.FC<
 		},
 		disabled: false,
 		creating: true,
+		canSelect,
+		diskLimit: admission.data?.remaining?.disk ?? undefined,
 		locked: (name) => presetParameterNames.includes(name) || lockedByLink(name),
 	};
 	const hasResources = RESOURCE_PARAMETERS.some((name) =>
@@ -599,6 +663,12 @@ export const CreateWorkspacePageView: React.FC<
 
 				<main className="flex min-w-0 flex-[999_1_560px] flex-col gap-6">
 					{Boolean(error) && <ErrorAlert error={error} />}
+					{admissionMessage && (
+						<Alert severity="warning">
+							<AlertTitle>Workspace cannot start</AlertTitle>
+							<AlertDescription>{admissionMessage}</AlertDescription>
+						</Alert>
+					)}
 
 					{template.use_classic_parameter_flow && (
 						<Alert

@@ -45,6 +45,7 @@ export const useFitText = (
 	max: number,
 	min: number,
 	shown: boolean,
+	fitControls = false,
 ): number => {
 	const [size, setSize] = useState(max);
 	useLayoutEffect(() => {
@@ -52,7 +53,9 @@ export const useFitText = (
 		if (!el || !shown) {
 			return;
 		}
+		const container = fitControls ? (el.parentElement ?? el) : el;
 		const fit = () => {
+			if (fitControls) el.style.zoom = "";
 			const style = getComputedStyle(el);
 			const available =
 				el.clientWidth -
@@ -74,18 +77,30 @@ export const useFitText = (
 					break;
 				}
 			}
+			if (fitControls && el.clientWidth > 0) {
+				// Native button dimensions and pixel rounding still take space at the minimum font size.
+				let zoom = 1;
+				for (
+					let pass = 0;
+					pass < 5 && el.scrollWidth > el.clientWidth;
+					pass++
+				) {
+					zoom *= (el.clientWidth - 2) / el.scrollWidth;
+					el.style.zoom = String(zoom);
+				}
+			}
 			setSize(next);
 		};
 		fit();
 		// Only a new width: the font size itself changes the height.
-		let width = el.clientWidth;
+		let width = container.clientWidth;
 		const resized = new ResizeObserver(() => {
-			if (el.clientWidth !== width) {
-				width = el.clientWidth;
+			if (container.clientWidth !== width) {
+				width = container.clientWidth;
 				fit();
 			}
 		});
-		resized.observe(el);
+		resized.observe(container);
 		// New figures, or a change (▲ 2) appearing a render after them.
 		const changed = new MutationObserver(fit);
 		changed.observe(el, {
@@ -97,6 +112,6 @@ export const useFitText = (
 			resized.disconnect();
 			changed.disconnect();
 		};
-	}, [ref, max, min, shown]);
+	}, [ref, max, min, shown, fitControls]);
 	return size;
 };

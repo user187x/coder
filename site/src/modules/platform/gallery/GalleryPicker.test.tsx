@@ -46,9 +46,15 @@ describe("GalleryPicker", () => {
 		const onPickBuiltin = vi.fn();
 		const onPick = vi.fn();
 		renderPicker({ extra: PREBAKED_BACKGROUNDS, onPick, onPickBuiltin });
-		fireEvent.click(await screen.findByRole("radio", { name: "creeper.gif" }));
+		fireEvent.click(
+			await screen.findByRole("radio", { name: "login-orbit.gif" }),
+		);
 		await waitFor(() =>
-			expect(onPickBuiltin).toHaveBeenCalledWith(PREBAKED_BACKGROUNDS[0]),
+			expect(onPickBuiltin).toHaveBeenCalledWith({
+				name: "login-orbit.gif",
+				url: "/pictures/login-orbit.gif",
+				type: "image/gif",
+			}),
 		);
 		expect(onPick).not.toHaveBeenCalled();
 		expect(fetchSpy).not.toHaveBeenCalled();

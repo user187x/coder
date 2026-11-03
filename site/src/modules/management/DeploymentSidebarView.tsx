@@ -19,6 +19,7 @@ type DeploymentSidebarViewProps = {
 	buildInfo: BuildInfoResponse;
 	/** General's Health entry (HealthNavItem). */
 	health?: React.ReactNode;
+	network?: React.ReactNode;
 	/** The platform service is connected to Keycloak: a green check after Authentication. */
 	keycloakConnected?: boolean;
 	/** The admin's order of the categories (page IDs); empty or missing: alphabetical. */
@@ -37,6 +38,7 @@ export const DeploymentSidebarView: React.FC<DeploymentSidebarViewProps> = ({
 	permissions,
 	buildInfo,
 	health,
+	network,
 	keycloakConnected,
 	order = [],
 	onReorder,
@@ -94,10 +96,11 @@ export const DeploymentSidebarView: React.FC<DeploymentSidebarViewProps> = ({
 		permissions.editDeploymentConfig &&
 			item("customize", "/deployment/customize", "Appearance"),
 		Boolean(health) && { id: "health", label: "Health", node: health },
-		permissions.editDeploymentConfig &&
+		permissions.editDeploymentConfig && item("images", "/images", "Images"),
+		(permissions.editDeploymentConfig || permissions.viewDeploymentConfig) &&
 			item("monitoring", "/deployment/monitoring", "Monitoring"),
 		permissions.viewDeploymentConfig &&
-			item("network", "/deployment/network", "Network"),
+			item("network", "/deployment/network", "Network", network),
 		permissions.viewNotificationTemplate &&
 			item("notifications", "/deployment/notifications", "Notifications"),
 		permissions.viewDeploymentConfig &&
@@ -110,8 +113,6 @@ export const DeploymentSidebarView: React.FC<DeploymentSidebarViewProps> = ({
 		// Platform: the quick access wheel's wedges (Escape, on every page)
 		permissions.editDeploymentConfig &&
 			item("quick-menu", "/deployment/quick-menu", "Quick Menu"),
-		permissions.viewDeploymentConfig &&
-			item("observability", "/deployment/observability", "Observability"),
 		permissions.viewDeploymentConfig &&
 			item("persistence", "/deployment/persistence", "Persistence"),
 		permissions.viewDeploymentConfig &&

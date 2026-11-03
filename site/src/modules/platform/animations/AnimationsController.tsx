@@ -1,7 +1,26 @@
 import { useEffect } from "react";
-import { animated, useAnimationSettings } from "#/hooks/useAnimationSettings";
+import { useQuery } from "react-query";
+import { animationPolicy } from "#/api/queries/platform";
+import {
+	AnimationPolicyContext,
+	animated,
+	DEFAULT_ANIMATION_POLICY,
+	useAnimationSettings,
+} from "#/hooks/useAnimationSettings";
 import { freezeAll, freezeImage, thawAll } from "./gifFreezer";
 import "./animations.css";
+
+export function AnimationPolicyProvider({ children }: React.PropsWithChildren) {
+	const { data } = useQuery({
+		...animationPolicy(),
+		enabled: Boolean(window.__cuiAnimationPolicy),
+	});
+	return (
+		<AnimationPolicyContext.Provider value={data ?? DEFAULT_ANIMATION_POLICY}>
+			{children}
+		</AnimationPolicyContext.Provider>
+	);
+}
 
 /**
  * Applies the user menu's Animations to the whole dashboard: <html

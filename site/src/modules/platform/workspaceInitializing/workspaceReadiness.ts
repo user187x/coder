@@ -44,6 +44,7 @@ export const agentInitializing = (
 		return false;
 	}
 	return (
+		agent.status === "timeout" ||
 		agent.status === "connecting" ||
 		(agent.status === "connected" &&
 			(agent.lifecycle_state === "created" ||
@@ -68,6 +69,10 @@ type InitializingStep = {
 };
 
 export const initializingStep = (agent: WorkspaceAgent): InitializingStep => {
+	if (agent.status === "timeout")
+		return {
+			step: "The workspace agent timed out while connecting. Check the build and agent logs.",
+		};
 	if (agent.status === "connecting") {
 		return { step: "Waiting for the workspace agent to connect" };
 	}
@@ -125,4 +130,23 @@ export const initializingMilestones = (
 		done: connected + scriptsDone + appsDone,
 		total: 1 + scripts.length + apps.length,
 	};
+};
+
+/** User-facing state after the provisioner finishes but before the workspace is usable. */
+export const startupState = (workspace: Workspace) => {
+	const build = workspace.latest_build;
+	if (build.transition !== "start" || build.status !== "running") return null;
+	const agents = build.resources.flatMap((resource) => resource.agents ?? []);
+	if (
+		agents.some(
+			(a) =>
+				a.status === "timeout" ||
+				a.status === "disconnected" ||
+				a.lifecycle_state === "start_error" ||
+				a.lifecycle_state === "start_timeout" ||
+				a.apps.some((app) => !app.hidden && app.health === "unhealthy"),
+		)
+	)
+		return "Needs attention";
+	return agents.some((a) => !agentAppsReady(a)) ? "Starting" : null;
 };

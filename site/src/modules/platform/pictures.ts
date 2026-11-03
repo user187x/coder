@@ -1,3 +1,5 @@
+import type { BackgroundImage, BackgroundSlot } from "#/api/platform";
+
 /**
  * Pictures baked into the dashboard (site/static/pictures/), so they are there
  * offline from the first install, however Coder was installed (install.sh,
@@ -11,7 +13,30 @@ export type PrebakedPicture = {
 	type: string;
 };
 
+const metalBackground = {
+	url: "/pictures/meta.jpeg",
+	opacity: 0.2,
+	fit: "span",
+	layer: "under",
+	builtin: true,
+} satisfies BackgroundImage;
+
+export const DEFAULT_BACKGROUNDS = {
+	login: metalBackground,
+	dashboard: metalBackground,
+} satisfies Record<BackgroundSlot, BackgroundImage>;
+
 export const PREBAKED_BACKGROUNDS: readonly PrebakedPicture[] = [
+	{
+		name: "login-orbit.gif",
+		url: "/pictures/login-orbit.gif",
+		type: "image/gif",
+	},
+	{
+		name: "meta.jpeg",
+		url: DEFAULT_BACKGROUNDS.dashboard.url,
+		type: "image/jpeg",
+	},
 	{ name: "creeper.gif", url: "/pictures/creeper.gif", type: "image/gif" },
 	{
 		name: "background.gif",

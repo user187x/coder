@@ -2,7 +2,11 @@ import { QueryClient } from "react-query";
 import { PlatformAPI } from "#/api/platform";
 import { MockWorkspace } from "#/testHelpers/entities";
 import { MockWorkspacePowerOperation } from "#/testHelpers/workspacePower";
-import { runWorkspacePower, workspacePowerHistory } from "./workspacePower";
+import {
+	clearWorkspacePowerHistory,
+	runWorkspacePower,
+	workspacePowerHistory,
+} from "./workspacePower";
 
 afterEach(() => {
 	vi.restoreAllMocks();
@@ -161,4 +165,29 @@ it("uses the server-guarded route for global actions", async () => {
 		true,
 	);
 	expect(regular).not.toHaveBeenCalled();
+});
+
+it("refreshes history after a partial clear and never clears running entries", async () => {
+	const client = new QueryClient();
+	const key = workspacePowerHistory(MockWorkspace.organization_id).queryKey;
+	client.setQueryData(key, { operations: [MockWorkspacePowerOperation] });
+	const clear = vi
+		.spyOn(PlatformAPI, "clearWorkspacePowerOperation")
+		.mockResolvedValueOnce({ ok: true })
+		.mockRejectedValueOnce(new Error("Not permitted"));
+	const mutation = clearWorkspacePowerHistory(client);
+	await expect(
+		mutation.mutationFn([
+			MockWorkspacePowerOperation,
+			{ ...MockWorkspacePowerOperation, id: "failed-entry" },
+			{
+				...MockWorkspacePowerOperation,
+				id: "running-entry",
+				status: "running",
+			},
+		]),
+	).rejects.toThrow("1 operation entries could not be cleared");
+	await mutation.onSettled();
+	expect(clear).toHaveBeenCalledTimes(2);
+	expect(client.getQueryState(key)?.isInvalidated).toBe(true);
 });

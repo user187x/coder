@@ -20,6 +20,10 @@
 		"path": "./reference/api/authentication.md"
 	},
 	{
+		"title": "Authentication",
+		"path": "./reference/api/authentication.md"
+	},
+	{
 		"title": "Authorization",
 		"path": "./reference/api/authorization.md"
 	},

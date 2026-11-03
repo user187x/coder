@@ -1,4 +1,5 @@
 import { adminPageChoices } from "#/modules/dashboard/Navbar/adminQuickLinks";
+import { MockNoPermissions } from "#/testHelpers/entities";
 import { labelSize } from "./Wheel";
 import { DEFAULT_WHEEL, wheelChoices, wheelOf } from "./wheelChoices";
 
@@ -11,6 +12,7 @@ describe("the wheel's choices", () => {
 		expect(ids).toEqual(
 			expect.arrayContaining([
 				"workspaces",
+				"leases",
 				"templates",
 				"images",
 				"account",
@@ -36,4 +38,28 @@ describe("the wheel's choices", () => {
 		expect(labelSize("Notifications", 30)).toBeLessThan(13);
 		expect(labelSize("Notifications", 30)).toBeGreaterThanOrEqual(8);
 	});
+});
+
+it("keeps saved Observability wedges as Monitoring without duplicates", () => {
+	expect(
+		wheelOf(["observability", "monitoring", "workspaces", "templates"]).map(
+			(c) => c.id,
+		),
+	).toEqual(["monitoring", "workspaces", "templates"]);
+});
+
+it("requires deployment update access for the leases shortcut", () => {
+	const leases = wheelChoices().find((entry) => entry.id === "leases");
+	const permissions = {
+		...MockNoPermissions,
+		viewAllUsers: true,
+		createUser: true,
+	};
+	expect(leases?.allowed({ permissions, oauth2Provider: false })).toBe(false);
+	expect(
+		leases?.allowed({
+			permissions: { ...permissions, editDeploymentConfig: true },
+			oauth2Provider: false,
+		}),
+	).toBe(true);
 });

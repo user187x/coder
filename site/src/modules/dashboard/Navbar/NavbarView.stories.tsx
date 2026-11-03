@@ -29,7 +29,7 @@ const meta: Meta<typeof NavbarView> = {
 	args: {
 		user: MockUserOwner,
 		adminPermissions: {
-			canViewDeployment: true,
+			canViewHud: true,
 			canViewOrganizations: true,
 			canViewUsers: true,
 			canViewAuditLog: true,
@@ -104,7 +104,7 @@ export const AddingQuickLink: Story = {
 		await userEvent.click(canvas.getByRole("button", { name: /Settings/ }));
 		const body = within(canvasElement.ownerDocument.body);
 		await userEvent.click(
-			await body.findByRole("menuitem", { name: "Settings" }),
+			await body.findByRole("menuitem", { name: "Controls" }),
 		);
 		await userEvent.click(
 			await body.findByRole("menuitem", { name: "Security" }),
@@ -157,7 +157,7 @@ export const ForSingleOrgOSSAdmin: Story = {
 	parameters: { pixel: { matrix: pixelWithDesktop } },
 	args: {
 		adminPermissions: {
-			canViewDeployment: true,
+			canViewHud: true,
 		},
 	},
 	play: async ({ canvasElement }) => {
@@ -274,7 +274,7 @@ export const SettingsChoicesExpanded: Story = {
 		);
 		await userEvent.click(
 			await within(canvasElement.ownerDocument.body).findByRole("menuitem", {
-				name: "Settings",
+				name: "Controls",
 			}),
 		);
 	},

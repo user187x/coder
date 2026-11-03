@@ -175,6 +175,29 @@ describe("WorkspaceGrid", () => {
 		await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
 	});
 
+	it("changes view density without losing workspaces or the other layout's setting", async () => {
+		const user = userEvent.setup();
+		const onOpenChange = renderGrid(["one", "two", "three", "four", "five"]);
+		const slider = await screen.findByRole("slider", {
+			name: "Workspaces in view",
+		});
+		fireEvent.change(slider, { target: { value: "1" } });
+		expect(slider).toHaveAttribute("aria-valuetext", "1 × 1");
+		await user.click(
+			screen.getByRole("button", { name: "Workspace layout: Grid" }),
+		);
+		await user.click(screen.getByRole("menuitemradio", { name: "List" }));
+		fireEvent.change(slider, { target: { value: "3" } });
+		expect(slider).toHaveAttribute("aria-valuetext", "3 rows");
+		await user.click(
+			screen.getByRole("button", { name: "Workspace layout: List" }),
+		);
+		await user.click(screen.getByRole("menuitemradio", { name: "Grid" }));
+		expect(slider).toHaveAttribute("aria-valuetext", "1 × 1");
+		await user.click(screen.getByRole("button", { name: "Open five" }));
+		await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
+	});
+
 	it("opens a workspace's page from its bar, and makes way for it", async () => {
 		const onOpenChange = renderGrid(["one", "two"]);
 		fireEvent.click(await screen.findByTestId("workspace-grid-open-two"));

@@ -241,6 +241,7 @@ curl -X GET http://coder-server:8080/api/v2/deployment/config \
       "user": {}
     },
     "dynamic_parameters_full_evaluation": true,
+    "email_login_enabled": true,
     "enable_authz_recording": true,
     "enable_terraform_debug_mode": true,
     "ephemeral_deployment": true,

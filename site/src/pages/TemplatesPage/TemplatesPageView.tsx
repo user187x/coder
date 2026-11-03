@@ -1,7 +1,9 @@
 import { cn } from "cn";
 import { ArrowRightIcon, PlusIcon, TriangleAlertIcon } from "lucide-react";
+import { useQueryClient } from "react-query";
 import { Link as RouterLink, useNavigate } from "react-router";
 import { hasError, isApiValidationError } from "#/api/errors";
+import { invalidateTemplateListQueries } from "#/api/queries/templates";
 import type {
 	AuthorizationResponse,
 	Template,
@@ -41,6 +43,7 @@ import { linkToTemplate, useLinks } from "#/modules/navigation";
 import type { WorkspacePermissions } from "#/modules/permissions/workspaces";
 import { TableCard } from "#/modules/platform/tableCard/TableCard";
 import { TemplateAccessMenu } from "#/modules/platform/templateAccess/TemplateAccessMenu";
+import { TemplateMenu } from "#/pages/TemplatePage/TemplatePageHeader";
 import { createDayString } from "#/utils/createDayString";
 import {
 	formatTemplateActiveDevelopersLabel,
@@ -164,6 +167,7 @@ const TemplateRow: React.FC<TemplateRowProps> = ({
 	template,
 	workspacePermissions,
 }) => {
+	const client = useQueryClient();
 	const getLink = useLinks();
 	const templatePageLink = getLink(
 		linkToTemplate(template.organization_name, template.name),
@@ -253,6 +257,24 @@ const TemplateRow: React.FC<TemplateRowProps> = ({
 					templatePageLink={templatePageLink}
 				/>
 			</TableCell>
+			<TableCell
+				className="w-px text-right"
+				onClick={(e) => e.stopPropagation()}
+				onKeyDown={(e) => e.stopPropagation()}
+				onAuxClick={(e) => e.stopPropagation()}
+			>
+				{canUpdateTemplate && !template.deleted && (
+					<TemplateMenu
+						template={template}
+						canUpdate
+						organizationName={template.organization_name}
+						templateName={template.name}
+						templateId={template.id}
+						label={`Actions for ${template.display_name || template.name}`}
+						onDelete={() => void invalidateTemplateListQueries(client)}
+					/>
+				)}
+			</TableCell>
 		</TableRow>
 	);
 };
@@ -263,7 +285,6 @@ type TemplatesPageViewProps = {
 	showOrganizations: boolean;
 	canCreateTemplates: boolean;
 	/** Opens the icon library; shown next to "New template". */
-	iconsAction?: React.ReactNode;
 	templateBuilderEnabled: boolean;
 	examples: TemplateExample[] | undefined;
 	templates: Template[] | undefined;
@@ -276,7 +297,6 @@ export const TemplatesPageView: React.FC<TemplatesPageViewProps> = ({
 	filterState,
 	showOrganizations,
 	canCreateTemplates,
-	iconsAction,
 	templateBuilderEnabled,
 	examples,
 	templates,
@@ -307,7 +327,6 @@ export const TemplatesPageView: React.FC<TemplatesPageViewProps> = ({
 				actions={
 					canCreateTemplates && (
 						<div className="flex flex-wrap gap-2">
-							{iconsAction}
 							<Button asChild size="lg">
 								<RouterLink
 									to={
@@ -387,6 +406,9 @@ export const TemplatesPageView: React.FC<TemplatesPageViewProps> = ({
 							{/* Platform: who may see and use each template (its access list) */}
 							{showAccess && <TableHead className="w-[1%]">Access</TableHead>}
 							<TableHead className="w-[1%]" />
+							<TableHead className="w-px">
+								<span className="sr-only">Template actions</span>
+							</TableHead>
 						</TableRow>
 					</TableHeader>
 					<TableBody>

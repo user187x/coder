@@ -90,7 +90,7 @@ const tileLabel = (name: string) => {
 	};
 };
 
-type TileOption = { value: string; name: string };
+type TileOption = { value: string; name: string; disabled?: boolean };
 
 /** A choice as tiles (CPU, memory): each a button, the chosen one pressed. */
 export const OptionTiles: React.FC<{
@@ -118,7 +118,7 @@ export const OptionTiles: React.FC<{
 						className="ws-tile"
 						aria-pressed={option.value === value}
 						aria-label={option.name}
-						disabled={disabled}
+						disabled={disabled || option.disabled}
 						onClick={() => onChange(option.value)}
 					>
 						<span className="ws-tile-n">{n}</span>

@@ -4,8 +4,9 @@ import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { toast } from "sonner";
 import { getErrorMessage } from "#/api/errors";
-import { PlatformAPI } from "#/api/platform";
+import type { QuickMenuSettings } from "#/api/platform";
 import { buildInfo } from "#/api/queries/buildInfo";
+import { resetQuickMenu, saveQuickMenu } from "#/api/queries/quickMenu";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { Button } from "#/components/Button/Button";
 import {
@@ -25,13 +26,17 @@ import {
 	SettingsHeaderTitle,
 } from "#/components/SettingsHeader/SettingsHeader";
 import { Spinner } from "#/components/Spinner/Spinner";
+import { Switch } from "#/components/Switch/Switch";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { useEmbeddedMetadata } from "#/hooks/useEmbeddedMetadata";
 import {
 	quickMenuKey,
 	useQuickMenu,
 } from "#/modules/platform/radialMenu/quickMenu";
-import { shortcutFromEvent } from "#/modules/platform/radialMenu/shortcut";
+import {
+	DEFAULT_QUICK_MENU_SHORTCUT,
+	shortcutFromEvent,
+} from "#/modules/platform/radialMenu/shortcut";
 import { Wheel } from "#/modules/platform/radialMenu/Wheel";
 import {
 	WHEEL_WEDGES,
@@ -47,7 +52,7 @@ const GROUP_LABEL: Record<WheelChoice["group"], string> = {
 };
 
 /**
- * Platform: Admin Settings > Quick Menu - the wedges of the quick access wheel Escape opens on every page: which
+ * Admin Settings > Quick Menu: the shared shortcut and wedges on every page. Choose which
  * choices (the dashboard's pages and every admin category), in what order (clockwise from the top), 3 to 12 of them.
  * Everyone gets the same wheel; a page someone may not open shows dimmed for them. A live preview beside the list.
  */
@@ -66,31 +71,36 @@ const QuickMenuSettingsPage: React.FC = () => {
 	const [draft, setDraft] = useState<string[] | null>(null);
 	const ids = draft ?? saved;
 	const [shortcutDraft, setShortcutDraft] = useState<string | null>(null);
-	const shortcut = shortcutDraft ?? menu.data?.shortcut ?? "Escape";
+	const shortcut =
+		shortcutDraft ?? menu.data?.shortcut ?? DEFAULT_QUICK_MENU_SHORTCUT;
+	const [enabledDraft, setEnabledDraft] = useState<boolean | null>(null);
+	const enabled = enabledDraft ?? menu.data?.enabled ?? true;
 	const [recording, setRecording] = useState(false);
 	const shortcutInput = useRef<HTMLInputElement>(null);
 	const wedges = ids
 		.map((id) => all.find((choice) => choice.id === id))
 		.filter((choice): choice is WheelChoice => Boolean(choice));
 	const changed =
+		enabled !== (menu.data?.enabled ?? true) ||
 		(draft !== null && draft.join() !== saved.join()) ||
-		shortcut !== (menu.data?.shortcut ?? "Escape");
+		shortcut !== (menu.data?.shortcut ?? DEFAULT_QUICK_MENU_SHORTCUT);
 	const addable = all.filter((choice) => !ids.includes(choice.id));
 
-	const onSaved = (message: string) => (data: unknown) => {
+	const onSaved = (message: string) => (data: QuickMenuSettings) => {
 		queryClient.setQueryData(quickMenuKey, data);
 		setDraft(null);
 		setShortcutDraft(null);
+		setEnabledDraft(null);
 		toast.success(message);
 	};
 	const save = useMutation({
-		mutationFn: () => PlatformAPI.saveQuickMenu(ids, shortcut),
+		...saveQuickMenu(queryClient),
 		onSuccess: onSaved("Quick Menu shortcut and wedges saved."),
 		onError: (error) =>
 			toast.error(getErrorMessage(error, "The Quick Menu was not saved.")),
 	});
 	const reset = useMutation({
-		mutationFn: PlatformAPI.resetQuickMenu,
+		...resetQuickMenu(queryClient),
 		onSuccess: onSaved("Quick Menu shortcut and wedges reset to defaults."),
 		onError: (error) =>
 			toast.error(getErrorMessage(error, "The Quick Menu was not reset.")),
@@ -118,7 +128,9 @@ const QuickMenuSettingsPage: React.FC = () => {
 				</SettingsHeaderDescription>
 			</SettingsHeader>
 
-			{menu.isLoading ? (
+			{menu.isError && !menu.data ? (
+				<ErrorAlert error={menu.error} />
+			) : menu.isLoading ? (
 				<Loader />
 			) : (
 				<div className="flex flex-wrap items-start gap-8">
@@ -157,6 +169,15 @@ const QuickMenuSettingsPage: React.FC = () => {
 							>
 								Activation shortcut
 							</h2>
+							<div className="flex items-center justify-between gap-3">
+								<Label htmlFor="quick-menu-enabled">Enable Quick Menu</Label>
+								<Switch
+									id="quick-menu-enabled"
+									checked={enabled}
+									disabled={busy}
+									onCheckedChange={setEnabledDraft}
+								/>
+							</div>
 							<Label htmlFor="quick-menu-shortcut">
 								Key or key combination
 							</Label>
@@ -168,6 +189,7 @@ const QuickMenuSettingsPage: React.FC = () => {
 									readOnly
 									value={recording ? "Press a key or combination" : shortcut}
 									className="max-w-64"
+									disabled={busy || !enabled}
 									onKeyDown={(event) => {
 										event.preventDefault();
 										event.stopPropagation();
@@ -181,7 +203,7 @@ const QuickMenuSettingsPage: React.FC = () => {
 								/>
 								<Button
 									variant="outline"
-									disabled={busy}
+									disabled={busy || !enabled}
 									onClick={() => {
 										setRecording(true);
 										shortcutInput.current?.focus();
@@ -191,13 +213,13 @@ const QuickMenuSettingsPage: React.FC = () => {
 								</Button>
 								<Button
 									variant="subtle"
-									disabled={busy}
+									disabled={busy || !enabled}
 									onClick={() => {
-										setShortcutDraft("Escape");
+										setShortcutDraft(DEFAULT_QUICK_MENU_SHORTCUT);
 										setRecording(false);
 									}}
 								>
-									Use Escape
+									Use Ctrl+Escape
 								</Button>
 							</div>
 							<p className="m-0 text-xs text-content-secondary">
@@ -344,14 +366,19 @@ const QuickMenuSettingsPage: React.FC = () => {
 									<Button
 										variant="subtle"
 										disabled={busy}
-										onClick={() => setDraft(null)}
+										onClick={() => {
+											setDraft(null);
+											setShortcutDraft(null);
+											setEnabledDraft(null);
+											setRecording(false);
+										}}
 									>
 										Discard
 									</Button>
 								)}
 								<Button
 									disabled={busy || !changed}
-									onClick={() => save.mutate()}
+									onClick={() => save.mutate({ items: ids, shortcut, enabled })}
 									data-testid="quick-menu-save"
 								>
 									<Spinner loading={save.isPending} />

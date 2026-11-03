@@ -9,7 +9,7 @@ type BuildParameter = TypesGen.WorkspaceBuildParameter & {
 
 type Parameter = BuildParameter | TypesGen.PreviewParameter;
 
-export function isBuildParameter(
+function isBuildParameter(
 	parameter: Parameter,
 ): parameter is TypesGen.WorkspaceBuildParameter {
 	return typeof parameter.value === "string";

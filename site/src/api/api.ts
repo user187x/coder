@@ -361,6 +361,14 @@ class ApiMethods {
 		this.experimental = new ExperimentalApiMethods(this.axios);
 	}
 
+	requestEmailLogin = async (email: string): Promise<void> => {
+		await this.axios.post("/api/v2/users/login/email/request", { email });
+	};
+
+	verifyEmailLogin = async (email: string, token: string): Promise<void> => {
+		await this.axios.post("/api/v2/users/login/email/verify", { email, token });
+	};
+
 	login = async (
 		email: string,
 		password: string,
