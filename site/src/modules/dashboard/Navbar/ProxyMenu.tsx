@@ -31,7 +31,6 @@ import {
 	type AdminSettingsPermissions,
 } from "./AdminSettings";
 import type { AdminPage } from "./adminQuickLinks";
-import { ChatMenuItem } from "./ChatMenuItem";
 import { sortProxiesByLatency } from "./proxyUtils";
 import { SettingsChatPanel } from "./SettingsChatPanel";
 import { SettingsNotificationBadge } from "./SettingsNotificationBadge";
@@ -221,7 +220,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 					<SettingsSidePanels
 						container={menuElement}
 						anchor={metricsElement}
-						hud={Boolean(controls)}
+						hud={Boolean(controls?.permissions.canViewDeployment)}
 						chatExpanded={chatExpanded}
 						onChatToggle={() => setChatExpanded((open) => !open)}
 						images={Boolean(controls?.permissions.canEditDeployment)}
@@ -328,13 +327,6 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 								window.setTimeout(() => setWorkspaceView({ ids, layout }));
 							}}
 						/>
-
-						{!controls && (
-							<ChatMenuItem
-								expanded={chatExpanded}
-								onToggle={() => setChatExpanded(!chatExpanded)}
-							/>
-						)}
 
 						{/* Platform: the whole Controls menu, its graphs last, in a rounded box of its own */}
 						{controls && (

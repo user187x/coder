@@ -199,7 +199,7 @@ class UIState(threading.Thread):
     def preferences(self, user_id, changes=None):
         pool = self.database()
         if changes is not None:
-            if not isinstance(changes, dict) or changes.keys() - {'people_order', 'people_sort', 'quota_seen', 'resource_shortcuts', 'resource_tray', 'admin_notes_tray', 'resource_tray_top', 'admin_notes_tray_top', 'navbar_layout', 'chat_position', 'chat_size', 'chat_hidden', 'chat_keep_open'}:
+            if not isinstance(changes, dict) or changes.keys() - {'people_order', 'people_sort', 'quota_seen', 'resource_shortcuts', 'resource_shortcut_order', 'resource_tray', 'admin_notes_tray', 'resource_tray_top', 'admin_notes_tray_top', 'navbar_layout', 'chat_position', 'chat_size', 'chat_hidden', 'chat_keep_open'}:
                 raise ValueError('Unsupported preference.')
             for key in ('resource_tray_top', 'admin_notes_tray_top'):
                 if key in changes and (type(changes[key]) not in (int, float) or not 0 <= changes[key] <= 16384):
@@ -233,6 +233,10 @@ class UIState(threading.Thread):
                 position = changes['chat_position']
                 if not isinstance(position, dict) or set(position) != {'edge', 'offset'} or position['edge'] not in ('top', 'right', 'bottom', 'left') or type(position['offset']) not in (int, float) or not 0 <= position['offset'] <= 1:
                     raise ValueError('Invalid chat position.')
+            if 'resource_shortcut_order' in changes:
+                order = changes['resource_shortcut_order']
+                if not isinstance(order, list) or len(order) > 7 or not all(isinstance(item, str) and re.fullmatch(r'[a-z][a-z0-9-]{0,63}', item) for item in order) or len(set(order)) != len(order):
+                    raise ValueError('Invalid resource shortcut order.')
             if 'resource_shortcuts' in changes:
                 shortcuts = changes['resource_shortcuts']
                 if not isinstance(shortcuts, list) or len(shortcuts) > 3 or not all(isinstance(item, str) and item not in {'account', 'workspaces', 'templates'} and re.fullmatch(r'[a-z][a-z0-9-]{0,63}', item) for item in shortcuts) or len(set(shortcuts)) != len(shortcuts):

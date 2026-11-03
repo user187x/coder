@@ -1,4 +1,8 @@
-import { SettingsIcon } from "lucide-react";
+import {
+	PanelLeftCloseIcon,
+	PanelLeftOpenIcon,
+	SettingsIcon,
+} from "lucide-react";
 import { Suspense, useId, useState } from "react";
 import { Navigate, Outlet, useLocation } from "react-router";
 import {
@@ -19,6 +23,7 @@ const DeploymentSettingsLayout: React.FC = () => {
 	const location = useLocation();
 	const sidebarId = useId();
 	const [sidebarOpen, setSidebarOpen] = useState(true);
+	const SidebarIcon = sidebarOpen ? PanelLeftCloseIcon : PanelLeftOpenIcon;
 
 	if (location.pathname === "/deployment") {
 		return (
@@ -70,13 +75,35 @@ const DeploymentSettingsLayout: React.FC = () => {
 										? "Double-click to hide categories"
 										: "Double-click to show categories"
 								}
-								onDoubleClick={() => setSidebarOpen((open) => !open)}
+								onDoubleClick={(event) => {
+									if (
+										!(
+											event.target instanceof Element &&
+											event.target.closest("[data-category-toggle]")
+										)
+									)
+										setSidebarOpen((open) => !open);
+								}}
 								onClick={(event) => {
-									if (event.detail === 0) setSidebarOpen((open) => !open);
+									if (
+										event.detail === 0 ||
+										(event.detail === 1 &&
+											event.target instanceof Element &&
+											event.target.closest("[data-category-toggle]"))
+									)
+										setSidebarOpen((open) => !open);
 								}}
 							>
 								<CategoryIcon aria-hidden className="size-4 shrink-0" />
 								{category?.label ?? "General"}
+								<span
+									data-category-toggle=""
+									aria-hidden="true"
+									title={sidebarOpen ? "Hide categories" : "Show categories"}
+									className="inline-flex size-6 items-center justify-center rounded-sm opacity-70 hover:opacity-100"
+								>
+									<SidebarIcon className="size-3.5" />
+								</span>
 							</button>
 						</BreadcrumbItem>
 					</BreadcrumbList>

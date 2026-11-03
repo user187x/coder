@@ -1,5 +1,8 @@
 import { useSyncExternalStore } from "react";
-import { useAnimationSettings } from "#/hooks/useAnimationSettings";
+import {
+	useAnimationPolicy,
+	useAnimationSettings,
+} from "#/hooks/useAnimationSettings";
 
 /**
  * The workspace metric graphs' refresh interval, shared by the agent's
@@ -70,7 +73,8 @@ export const useGraphEveryChoice = () =>
 /** The interval the graphs use: "off" while all animations are off. */
 export const useGraphEvery = (): GraphEvery => {
 	const chosen = useGraphEveryChoice();
-	return useAnimationSettings().all ? chosen : "off";
+	const policy = useAnimationPolicy();
+	return useAnimationSettings().all && policy.graphs ? chosen : "off";
 };
 
 /** Animations > Live graphs: off, or back to the interval chosen before. */

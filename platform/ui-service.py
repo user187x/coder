@@ -8404,6 +8404,15 @@ def presence_report(token):
     return {"online": online, "recent": recent, "idleSeconds": CHAT_IDLE_SECONDS, "generatedAt": now()}
 
 
+ANIMATION_PARTS = ("all", "effects", "gifs", "graphs", "background", "announcement")
+
+
+def animation_policy():
+    backing = STORE.settings_backing
+    settings = backing.read("platform-settings", {}, legacy=STORE.legacy_settings) if backing else STORE.legacy_settings()
+    return {part: settings.get("animation_" + part, True) is not False for part in ANIMATION_PARTS}
+
+
 def boot_js():
     """Classic script every Coder page loads before its own code: which logo to show (read synchronously by the
     rewritten logo component) and the classification marking, so neither flickers in after the first paint.
@@ -8426,6 +8435,7 @@ def boot_js():
             json.dumps(default_avatar),
         )
     )
+    js += "window.__cuiAnimationPolicy=%s;\n" % json.dumps(animation_policy())
     js += "window.__cuiLogoEnabled=%s;\n" % json.dumps(STORE.get_setting("logo_enabled", True))
     try:
         js += "window.__cuiLoginPage=%s;\n" % json.dumps(login_page_settings())
@@ -9079,6 +9089,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_json(
                 200, STORE.get_setting("classification", CLASSIFICATION_DEFAULT)
             )
+        if path == BASE + "/api/animations":
+            return self.send_json(200, animation_policy())
         if path == BASE + "/api/login-page":
             return self.send_json(200, login_page_settings())
         if path == BASE + "/api/quick-menu":
@@ -9883,6 +9895,7 @@ class Handler(BaseHTTPRequestHandler):
             BASE + "/api/events/clear",
             BASE + "/api/classification",
             BASE + "/api/login-page",
+            BASE + "/api/animations",
             BASE + "/api/quick-menu",
             BASE + "/api/quick-menu/reset",
             BASE + "/api/keycloak/apply",
@@ -9971,6 +9984,12 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path in (BASE + "/api/notes", BASE + "/api/notes/update", BASE + "/api/notes/delete"):
             return self.notes_post(path, payload, user)
+        if path == BASE + "/api/animations":
+            part, enabled = payload.get("part"), payload.get("enabled")
+            if part not in ANIMATION_PARTS or not isinstance(enabled, bool):
+                return self.send_json(400, {"error": "Expected an animation category and a boolean enabled value."})
+            STORE.put_setting("animation_" + part, enabled)
+            return self.send_json(200, animation_policy())
         if path == BASE + "/api/login-page":
             try:
                 value = clean_login_page(payload)

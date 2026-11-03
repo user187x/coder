@@ -46,7 +46,7 @@ Preview the release or write its files to an output directory:
 
 ```sh
 ./scripts/build_airgap_release.sh --plan
-./scripts/build_airgap_release.sh --out /path/to/releases/coder-1.6.1
+./scripts/build_airgap_release.sh --out /path/to/releases/coder-1.6.2
 ```
 
 The version comes from `RELEASE_VERSION`. The release cache defaults to

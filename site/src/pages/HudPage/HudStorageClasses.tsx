@@ -57,5 +57,9 @@ export const HudStorageClasses = ({ storage }: { storage: HudStorage }) => (
 				</TableBody>
 			</Table>
 		)}
+		<div
+			data-deployment-footer="hud"
+			className="mt-3 border-0 border-t border-solid border-border bg-surface-secondary/40 empty:hidden"
+		/>
 	</section>
 );

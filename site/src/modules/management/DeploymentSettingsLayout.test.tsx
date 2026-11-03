@@ -15,6 +15,8 @@ it("hides and restores the category links without resetting the current page", a
 	const search = await screen.findByRole("textbox", { name: "Account search" });
 	await user.type(search, "demo");
 	const category = screen.getByRole("button", { name: "Accounts" });
+	await user.click(screen.getByTitle("Hide categories"));
+	await user.click(screen.getByTitle("Show categories"));
 	await user.click(category);
 	expect(category).toHaveAttribute("aria-expanded", "true");
 	await user.dblClick(category);

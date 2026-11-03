@@ -43,11 +43,14 @@ describe("Admin menu", () => {
 		const labels = items.map((item) => item.textContent?.trim());
 		expect(labels).toEqual([
 			...pages.slice(0, 4).map((page) => page.label),
+			"Controls",
 			"Organizations",
 			"Audit logs",
 			"Connection logs",
 		]);
-		for (const item of items) {
+		for (const item of items.filter(
+			(item) => item.textContent !== "Controls",
+		)) {
 			expect(item.firstElementChild?.tagName.toLowerCase()).toBe("svg");
 		}
 	});
@@ -60,14 +63,20 @@ it("adds a setting from the inline picker without navigating", async () => {
 		oauth2Provider: true,
 	});
 	renderComponent(
-		<MemoryRouter>
-			<DropdownMenu open>
-				<DropdownMenuTrigger>Menu</DropdownMenuTrigger>
-				<DropdownMenuContent>
-					<AdminQuickLinksMenu links={[]} addable={pages} onChange={onChange} />
-				</DropdownMenuContent>
-			</DropdownMenu>
-		</MemoryRouter>,
+		<QueryClientProvider client={new QueryClient()}>
+			<MemoryRouter>
+				<DropdownMenu open>
+					<DropdownMenuTrigger>Menu</DropdownMenuTrigger>
+					<DropdownMenuContent>
+						<AdminQuickLinksMenu
+							links={[]}
+							addable={pages}
+							onChange={onChange}
+						/>
+					</DropdownMenuContent>
+				</DropdownMenu>
+			</MemoryRouter>
+		</QueryClientProvider>,
 	);
 	const user = userEvent.setup();
 	await user.click(screen.getByRole("menuitem", { name: "Controls" }));

@@ -72,13 +72,16 @@ export const TableCard: React.FC<{
 			{children}
 			{summary !== undefined && (
 				<div className="table-card-footer" data-testid="table-card-footer">
-					<span className="table-card-summary">{summary}</span>
-					<span
-						className={cn("table-card-hint", hovered && "table-card-hint-on")}
-						data-testid="table-card-hint"
-					>
-						{footerRight ?? hovered ?? hint}
-					</span>
+					<div data-deployment-footer="card" className="empty:hidden" />
+					<div className="table-card-caption">
+						<span className="table-card-summary">{summary}</span>
+						<span
+							className={cn("table-card-hint", hovered && "table-card-hint-on")}
+							data-testid="table-card-hint"
+						>
+							{footerRight ?? hovered ?? hint}
+						</span>
+					</div>
 				</div>
 			)}
 		</div>

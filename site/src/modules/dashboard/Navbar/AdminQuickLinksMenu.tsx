@@ -34,7 +34,8 @@ type AdminQuickLinksMenuProps = {
 	/** The pages that can still be added, in the order to offer them. */
 	addable: readonly AdminPage[];
 	/** The new list of page IDs, in order, after an add, remove or move. */
-	onChange: (ids: string[]) => void;
+	onChange?: (ids: string[]) => void;
+	admin?: boolean;
 	itemClassName?: string;
 	chatExpanded?: boolean;
 	onChatToggle?: () => void;
@@ -48,6 +49,7 @@ type AdminQuickLinksMenuProps = {
  */
 export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 	links,
+	admin,
 	addable,
 	onChange,
 	itemClassName,
@@ -79,7 +81,7 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 		if (from === -1 || to < 0 || to >= ids.length || to === from) {
 			return;
 		}
-		onChange(arrayMove(ids, from, to));
+		onChange?.(arrayMove(ids, from, to));
 		const label = links[from]?.label ?? id;
 		setAnnouncement(`${label} moved to position ${to + 1} of ${ids.length}.`);
 	};
@@ -112,6 +114,8 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 						<QuickLinkRow
 							key={link.id}
 							link={link}
+							admin={admin}
+							editable={Boolean(onChange)}
 							chatExpanded={chatExpanded}
 							onChatToggle={onChatToggle}
 							itemClassName={itemClassName}
@@ -125,7 +129,7 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 							}}
 							onRemove={() => {
 								setMoving(undefined);
-								onChange(ids.filter((id) => id !== link.id));
+								onChange?.(ids.filter((id) => id !== link.id));
 								setAnnouncement(`${link.label} removed from the quick links.`);
 							}}
 							onToggleMoving={() => {
@@ -167,7 +171,12 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 					className="admin-quick-link-choices overflow-hidden"
 				>
 					<div className="my-1 rounded-lg border border-solid border-border bg-surface-secondary p-1">
-						{addable.length === 0 ? (
+						<ChatMenuItem
+							admin={admin}
+							expanded={chatExpanded}
+							onToggle={onChatToggle}
+						/>
+						{!onChange ? null : addable.length === 0 ? (
 							<p className="m-0 p-2 text-xs text-content-secondary">
 								All available settings are in your quick links.
 							</p>
@@ -177,12 +186,12 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 									key={page.id}
 									onSelect={(event) => {
 										event.preventDefault();
-										onChange([...ids, page.id]);
+										onChange?.([...ids, page.id]);
 										setAnnouncement(`${page.label} added to the quick links.`);
 									}}
 								>
 									<page.icon aria-hidden />
-									{page.label}
+									{page.id === "chat" ? "Pin Chat to quick links" : page.label}
 								</DropdownMenuItem>
 							))
 						)}
@@ -198,6 +207,8 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 };
 
 type QuickLinkRowProps = {
+	editable: boolean;
+	admin?: boolean;
 	link: AdminPage;
 	itemClassName?: string;
 	chatExpanded?: boolean;
@@ -213,6 +224,8 @@ type QuickLinkRowProps = {
 
 const QuickLinkRow: React.FC<QuickLinkRowProps> = ({
 	link,
+	editable,
+	admin,
 	itemClassName,
 	chatExpanded,
 	onChatToggle,
@@ -230,7 +243,7 @@ const QuickLinkRow: React.FC<QuickLinkRowProps> = ({
 		transform,
 		transition,
 		isDragging,
-	} = useSortable({ id: link.id });
+	} = useSortable({ id: link.id, disabled: !editable });
 
 	return (
 		<div
@@ -248,7 +261,7 @@ const QuickLinkRow: React.FC<QuickLinkRowProps> = ({
 		>
 			{link.id === "chat" ? (
 				<ChatMenuItem
-					admin
+					admin={admin}
 					expanded={chatExpanded}
 					onToggle={onChatToggle}
 					className={cn("min-w-0 flex-1", itemClassName)}
@@ -271,57 +284,61 @@ const QuickLinkRow: React.FC<QuickLinkRowProps> = ({
 					</Link>
 				</DropdownMenuItem>
 			)}
-			<DropdownMenuItem
-				aria-label={`Remove ${link.label} from the quick links`}
-				title="Remove"
-				className="flex-none px-2 text-content-secondary hover:text-content-destructive focus:text-content-destructive"
-				onSelect={(event) => {
-					// Stay open, so several links can be removed in a row.
-					event.preventDefault();
-					onRemove();
-				}}
-			>
-				<Trash2Icon aria-hidden />
-			</DropdownMenuItem>
-			<DropdownMenuItem
-				ref={(node) => {
-					setActivatorNodeRef(node);
-					handleRef(node);
-				}}
-				aria-label={`Reorder ${link.label}`}
-				title="Drag to reorder"
-				className={cn(
-					"flex-none touch-none px-1 text-content-secondary",
-					isDragging ? "cursor-grabbing" : "cursor-grab",
-					moving &&
-						"bg-surface-secondary text-content-primary ring-1 ring-content-link",
-				)}
-				{...listeners}
-				// A click on the handle does nothing (and keeps the menu open).
-				onSelect={(event) => event.preventDefault()}
-				onKeyDown={(event) => {
-					if (event.key === "Enter" || event.key === " ") {
-						event.preventDefault();
-						onToggleMoving();
-						return;
-					}
-					if (!moving) {
-						return;
-					}
-					// While moving, the arrows move this row instead of the menu's focus.
-					if (event.key === "ArrowUp" || event.key === "ArrowDown") {
-						event.preventDefault();
-						event.stopPropagation();
-						onMove(event.key === "ArrowUp" ? -1 : 1);
-					} else if (event.key === "Escape") {
-						event.preventDefault();
-						event.stopPropagation();
-						onStopMoving();
-					}
-				}}
-			>
-				<GripVerticalIcon aria-hidden />
-			</DropdownMenuItem>
+			{editable && (
+				<>
+					<DropdownMenuItem
+						aria-label={`Remove ${link.label} from the quick links`}
+						title="Remove"
+						className="flex-none px-2 text-content-secondary hover:text-content-destructive focus:text-content-destructive"
+						onSelect={(event) => {
+							// Stay open, so several links can be removed in a row.
+							event.preventDefault();
+							onRemove();
+						}}
+					>
+						<Trash2Icon aria-hidden />
+					</DropdownMenuItem>
+					<DropdownMenuItem
+						ref={(node) => {
+							setActivatorNodeRef(node);
+							handleRef(node);
+						}}
+						aria-label={`Reorder ${link.label}`}
+						title="Drag to reorder"
+						className={cn(
+							"flex-none touch-none px-1 text-content-secondary",
+							isDragging ? "cursor-grabbing" : "cursor-grab",
+							moving &&
+								"bg-surface-secondary text-content-primary ring-1 ring-content-link",
+						)}
+						{...listeners}
+						// A click on the handle does nothing (and keeps the menu open).
+						onSelect={(event) => event.preventDefault()}
+						onKeyDown={(event) => {
+							if (event.key === "Enter" || event.key === " ") {
+								event.preventDefault();
+								onToggleMoving();
+								return;
+							}
+							if (!moving) {
+								return;
+							}
+							// While moving, the arrows move this row instead of the menu's focus.
+							if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+								event.preventDefault();
+								event.stopPropagation();
+								onMove(event.key === "ArrowUp" ? -1 : 1);
+							} else if (event.key === "Escape") {
+								event.preventDefault();
+								event.stopPropagation();
+								onStopMoving();
+							}
+						}}
+					>
+						<GripVerticalIcon aria-hidden />
+					</DropdownMenuItem>
+				</>
+			)}
 		</div>
 	);
 };

@@ -63,6 +63,8 @@ import {
 } from "#/utils/normalizeImage";
 import { pageTitle } from "#/utils/page";
 
+import { DeploymentAnimations } from "./DeploymentAnimations";
+
 const LOGO_EXTENSIONS = ["png", "jpg", "jpeg", "svg", "webp", "gif", "avif"];
 
 /**
@@ -87,6 +89,7 @@ const CustomizeSettingsPage: React.FC = () => {
 
 			<div className="flex flex-col gap-6">
 				<LogoSection />
+				<DeploymentAnimations />
 
 				<LoginPageSection />
 

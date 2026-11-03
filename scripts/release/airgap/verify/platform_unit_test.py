@@ -2,7 +2,7 @@
 keep it fast under load, and keep the image builder honest offline. Imported as modules, nothing started.
 
   python3 -m unittest platform_unit_test.py"""
-import contextlib, importlib.util, io, json, os, sys, threading, unittest, urllib.parse
+import contextlib, importlib.util, io, json, os, sys, tempfile, threading, unittest, urllib.parse
 from unittest import mock
 
 SRC = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -4721,8 +4721,8 @@ class ClusterNetworkViewTest(unittest.TestCase):
 
 
 class LogoVisibilityTest(unittest.TestCase):
-    def post(self, payload, *, allowed=True):
-        handler = mock.Mock(path=ui.BASE + "/api/logo")
+    def post(self, payload, *, allowed=True, path="/api/logo"):
+        handler = mock.Mock(path=ui.BASE + path)
         handler.csrf_ok.return_value = True
         handler.body.return_value = payload
         handler.user.return_value = ({"username": "admin"}, None) if allowed else (None, "forbidden")
@@ -4746,6 +4746,27 @@ class LogoVisibilityTest(unittest.TestCase):
         store.put_setting.assert_not_called()
         _, _, store = self.post({"enabled": False}, allowed=False)
         store.put_setting.assert_not_called()
+
+    def test_animation_policy_requires_admin_and_an_explicit_boolean(self):
+        for payload in ({"part": "gifs", "enabled": "false"}, {"part": "other", "enabled": False}):
+            handler, _, store = self.post(payload, path="/api/animations")
+            self.assertEqual(handler.send_json.call_args.args[0], 400)
+            store.put_setting.assert_not_called()
+        _, _, store = self.post({"part": "gifs", "enabled": False}, path="/api/animations", allowed=False)
+        store.put_setting.assert_not_called()
+        _, _, store = self.post({"part": "gifs", "enabled": False}, path="/api/animations")
+        store.put_setting.assert_called_once_with("animation_gifs", False)
+
+    def test_animation_categories_persist_independently(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = ui.Store(os.path.join(tmp, "state.db"))
+            with mock.patch.object(ui, "STORE", store):
+                self.assertTrue(all(ui.animation_policy().values()))
+                store.put_setting("animation_gifs", False)
+                store.put_setting("animation_all", False)
+                store.put_setting("animation_all", True)
+                self.assertFalse(ui.animation_policy()["gifs"])
+                self.assertTrue(ui.animation_policy()["graphs"])
 
     def test_hidden_logo_is_in_boot_and_favicon(self):
         store = mock.Mock(get_setting=lambda key, default=None: False if key == "logo_enabled" else default)

@@ -218,6 +218,11 @@ export type ClassificationSettings = {
 	updatedAt?: string;
 };
 
+export type AnimationPolicy = Record<
+	"all" | "effects" | "gifs" | "graphs" | "background" | "announcement",
+	boolean
+>;
+
 export type LogoState = {
 	enabled?: boolean;
 	available: boolean;
@@ -1373,6 +1378,7 @@ export type UserUIPreferences = {
 		offset: number;
 	} | null;
 	resource_shortcuts?: string[];
+	resource_shortcut_order?: string[];
 	resource_tray_top?: number;
 	admin_notes_tray_top?: number;
 	resource_tray?: { expanded: boolean; lock: "up" | "down" } | null;
@@ -2471,6 +2477,12 @@ export const PlatformAPI = {
 		post<{ ok: true; enabled: boolean }>(`${PLATFORM_BASE}/api/logo`, {
 			enabled,
 		}),
+	getAnimationPolicy: () =>
+		get<AnimationPolicy>(`${PLATFORM_BASE}/api/animations`),
+	setAnimationPolicy: (change: {
+		part: keyof AnimationPolicy;
+		enabled: boolean;
+	}) => post<AnimationPolicy>(`${PLATFORM_BASE}/api/animations`, change),
 	getLogo: () => get<LogoState>(`${PLATFORM_BASE}/api/logo`),
 	uploadLogo: (dataUrl: string) =>
 		post<{ ok: true; set: true; url: string }>(`${PLATFORM_BASE}/api/logo`, {

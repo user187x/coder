@@ -15,7 +15,7 @@ import { useDashboard } from "#/modules/dashboard/useDashboard";
 import { canViewDeploymentSettings } from "#/modules/permissions";
 import { isOfferedSupportLink } from "#/modules/platform/supportLinks";
 import { useFeatureVisibility } from "../useFeatureVisibility";
-import { adminPagesFor, resolveAdminQuickLinks } from "./adminQuickLinks";
+import { resolveAdminQuickLinks, settingsPagesFor } from "./adminQuickLinks";
 import { NavbarView } from "./NavbarView";
 
 export const Navbar: React.FC = () => {
@@ -33,7 +33,7 @@ export const Navbar: React.FC = () => {
 		featureVisibility.audit_log && permissions.viewAnyAuditLog;
 	const canViewConnectionLog =
 		featureVisibility.connection_log && permissions.viewAnyConnectionLog;
-	const adminPages = adminPagesFor({
+	const adminPages = settingsPagesFor({
 		permissions,
 		oauth2Provider: Boolean(buildInfoQuery.data?.oauth2_provider),
 	});

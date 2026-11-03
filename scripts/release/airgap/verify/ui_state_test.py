@@ -53,7 +53,7 @@ class UIStateTest(unittest.TestCase):
         self.state.database()
 
     def test_preferences_survive_service_restart_and_remain_per_user(self):
-        settings = {'resource_tray_top': 56.5, 'admin_notes_tray_top': 300, 'chat_keep_open': True, 'admin_notes_tray': {'expanded': True, 'lock': 'down'}, 'people_sort': 'manual', 'people_order': [self.other], 'resource_shortcuts': ['images', 'hud'], 'resource_tray': {'expanded': False, 'lock': 'up'}, 'chat_size': {'width': 360, 'height': 280}}
+        settings = {'resource_shortcut_order': ['chat', 'templates', 'account', 'workspaces', 'images', 'hud'], 'resource_tray_top': 56.5, 'admin_notes_tray_top': 300, 'chat_keep_open': True, 'admin_notes_tray': {'expanded': True, 'lock': 'down'}, 'people_sort': 'manual', 'people_order': [self.other], 'resource_shortcuts': ['images', 'hud'], 'resource_tray': {'expanded': False, 'lock': 'up'}, 'chat_size': {'width': 360, 'height': 280}}
         self.assertEqual(self.state.preferences(self.user, settings), settings)
         restarted = uistate.UIState(lambda: self.pool, lambda **kwargs: None)
         self.assertEqual(restarted.preferences(self.user), settings)

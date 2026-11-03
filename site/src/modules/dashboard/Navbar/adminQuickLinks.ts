@@ -169,6 +169,10 @@ export const adminPageChoices = (): readonly (AdminPage & {
 
 export type { AdminPageAccess };
 
+/** Chat opens the personal panel even for users who cannot configure deployment chat. */
+export const settingsPagesFor = (access: AdminPageAccess): AdminPage[] =>
+	ADMIN_PAGES.filter((page) => page.id === "chat" || page.allowed(access));
+
 /** The admin pages this user can open, in the order the add menu lists them. */
 export const adminPagesFor = (access: AdminPageAccess): AdminPage[] =>
 	ADMIN_PAGES.filter((page) => page.allowed(access)).map(

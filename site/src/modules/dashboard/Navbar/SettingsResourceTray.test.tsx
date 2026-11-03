@@ -194,6 +194,24 @@ function renderTray() {
 	return { ...view, client, router };
 }
 
+it("saves the reordered permanent links without opening a workspace", async () => {
+	const save = vi
+		.spyOn(PlatformAPI, "setUserUIPreferences")
+		.mockImplementation(async (prefs) => prefs);
+	const user = userEvent.setup();
+	const { router } = renderTray();
+	const workspaces = await screen.findByRole("menuitem", {
+		name: "Workspaces",
+	});
+	workspaces.focus();
+	await user.keyboard("{Alt>}{ArrowDown}{/Alt}");
+	await waitFor(() =>
+		expect(save).toHaveBeenCalledWith({
+			resource_shortcut_order: ["account", "templates", "workspaces"],
+		}),
+	);
+	expect(router.state.location.pathname).toBe("/");
+});
 it.each(["top", "bottom"])(
 	"locks with the %s dimple and restores visibility on remount",
 	async (edge) => {

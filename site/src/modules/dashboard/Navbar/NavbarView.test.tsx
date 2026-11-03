@@ -165,6 +165,10 @@ describe("NavbarView", () => {
 			} else {
 				await user.click(screen.getByRole("button", { name: /Settings/ }));
 			}
+			if (mobile)
+				await user.click(
+					await screen.findByRole("menuitem", { name: "Controls" }),
+				);
 			await user.click(
 				await screen.findByRole("menuitem", {
 					name: mobile ? "Chat" : "Open quick chat",
@@ -188,6 +192,7 @@ describe("NavbarView", () => {
 		renderNavbar({}, MockUserMember);
 		const user = userEvent.setup();
 		await user.click(screen.getByRole("button", { name: /Settings/ }));
+		await user.click(await screen.findByRole("menuitem", { name: "Controls" }));
 		await user.pointer({
 			target: await screen.findByRole("menuitem", { name: "Chat" }),
 			keys: "[MouseRight]",

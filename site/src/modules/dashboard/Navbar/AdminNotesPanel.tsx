@@ -179,7 +179,7 @@ export const AdminNotesPanel = ({
 							autoFocus
 							maxLength={10000}
 							rows={6}
-							className="min-h-28 flex-1 resize-none"
+							className="min-h-28 flex-1 resize-none bg-surface-tertiary text-content-primary"
 							value={draft.text}
 							disabled={busy}
 							onChange={(event) =>

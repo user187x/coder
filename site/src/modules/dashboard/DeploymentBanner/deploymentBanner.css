@@ -1,3 +1,29 @@
+[data-deployment-footer] {
+	container-type: inline-size;
+}
+.deployment-stats {
+	font-size: clamp(11px, 1.05cqi, 14px);
+}
+.deployment-stats :is(a, button) {
+	font-size: inherit;
+}
+.deployment-stats svg {
+	width: 1em;
+	height: 1em;
+}
+[data-deployment-footer="hud"] .deployment-stats {
+	justify-content: space-between;
+}
+@container (max-width: 720px) {
+	.deployment-stats {
+		justify-content: center;
+	}
+	.deployment-stats > div {
+		padding-inline-start: 0;
+		border-inline-start: 0;
+	}
+}
+
 .deployment-health-orb {
 	animation: deployment-health-orb 4s ease-in-out infinite;
 }

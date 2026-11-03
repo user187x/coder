@@ -1,19 +1,27 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { useRef } from "react";
 import { expect, screen, userEvent, waitFor, within } from "storybook/test";
-import { classificationKey } from "#/api/queries/platform";
 import type {
 	AppFamilyName,
 	DeploymentStats,
 	SessionCountApp,
 	SessionCountDeploymentStats,
 } from "#/api/typesGenerated";
-import { ClassificationBars } from "#/modules/platform/ClassificationBars";
+import {
+	Table,
+	TableBody,
+	TableCell,
+	TableRow,
+} from "#/components/Table/Table";
+import { TableCard } from "#/modules/platform/tableCard/TableCard";
+import { HudStorageClasses } from "#/pages/HudPage/HudStorageClasses";
 import {
 	DeploymentHealthUnhealthy,
 	MockDeploymentStats,
 	MockHealth,
 } from "#/testHelpers/entities";
-import { MockClassification } from "#/testHelpers/platform";
+import { MockHudStorage } from "#/testHelpers/hud";
+import { DeploymentFooter } from "./DeploymentBanner";
 import { DeploymentBannerView } from "./DeploymentBannerView";
 
 const app = (
@@ -72,26 +80,53 @@ type Story = StoryObj<typeof DeploymentBannerView>;
 
 export const Example: Story = {};
 
-export const Floating: Story = {
-	args: { health: MockHealth },
-	parameters: {
-		layout: "fullscreen",
-		queries: [{ key: classificationKey, data: MockClassification }],
-	},
-	render: (args) => (
+function FooterStory({
+	children,
+	stats,
+}: React.PropsWithChildren<{ stats: React.ReactNode }>) {
+	const content = useRef<HTMLElement>(null);
+	return (
 		<>
-			<ClassificationBars />
-			<div className="flex min-h-screen flex-col justify-between bg-surface-secondary">
-				<h1 className="m-0 p-8 text-2xl">Workspaces</h1>
-				<DeploymentBannerView {...args} />
-			</div>
+			<main ref={content} className="max-w-6xl mx-auto">
+				{children}
+			</main>
+			<DeploymentFooter content={content}>{stats}</DeploymentFooter>
 		</>
+	);
+}
+
+export const TableFooter: Story = {
+	args: { health: MockHealth },
+	render: (args) => (
+		<FooterStory stats={<DeploymentBannerView {...args} />}>
+			<TableCard
+				summary="Showing 1 of 1 templates"
+				hint="Point at anything in the table to read what it does"
+			>
+				<Table aria-label="Templates">
+					<TableBody>
+						<TableRow>
+							<TableCell>Browser</TableCell>
+						</TableRow>
+					</TableBody>
+				</Table>
+			</TableCard>
+		</FooterStory>
 	),
 };
 
 export const Mobile: Story = {
-	...Floating,
+	...TableFooter,
 	globals: { viewport: { value: "iphone12" } },
+};
+
+export const HudTableFooter: Story = {
+	args: { health: MockHealth },
+	render: (args) => (
+		<FooterStory stats={<DeploymentBannerView {...args} />}>
+			<HudStorageClasses storage={MockHudStorage} />
+		</FooterStory>
+	),
 };
 
 export const Loading: Story = {
@@ -166,5 +201,3 @@ export const WithDismissedHealthIssues: Story = {
 };
 
 export const Healthy: Story = { args: { health: MockHealth } };
-
-export const BelowWorkspaceTable: Story = { args: { underTable: true } };

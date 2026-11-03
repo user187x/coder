@@ -14,9 +14,10 @@ import { useQuery } from "react-query";
 import { banner as bannerQuery } from "#/api/queries/platform";
 import { DropdownMenuItem } from "#/components/DropdownMenu/DropdownMenu";
 import {
-	type AnimationPart,
+	ANIMATION_LABELS,
 	setAnimationPart,
 	setAnimationsEnabled,
+	useAnimationPolicy,
 	useAnimationSettings,
 } from "#/hooks/useAnimationSettings";
 import {
@@ -72,24 +73,17 @@ const SwitchItem: React.FC<{
 	</DropdownMenuItem>
 );
 
-const PARTS: readonly { part: AnimationPart; label: string; hint: string }[] = [
-	{
-		part: "effects",
-		label: "Effects & transitions",
-		hint: "Menus, fades, borders, banners, cables",
-	},
-	{ part: "gifs", label: "Animated GIFs", hint: "Still on their first frame" },
-	{
-		part: "background",
-		label: "Moving background",
-		hint: "Particles and animated backgrounds",
-	},
-	{
-		part: "announcement",
-		label: "Announcement animations",
-		hint: "Text effects, scrolling and animated pictures",
-	},
-];
+const PART_HINTS = {
+	effects: "Menus, fades, borders, banners, cables",
+	gifs: "Still on their first frame",
+	background: "Particles and animated backgrounds",
+	announcement: "Text effects, scrolling and animated pictures",
+};
+const PARTS = ANIMATION_LABELS.flatMap(({ part, label }) =>
+	part === "all" || part === "graphs"
+		? []
+		: [{ part, label, hint: PART_HINTS[part] }],
+);
 
 /**
  * Platform: the user menu's Animations (animations.ts): a switch for all of
@@ -106,8 +100,9 @@ export const AnimationsToggleItem: React.FC<{
 	const [expanded, setExpanded] = useState(false);
 	const s = useAnimationSettings();
 	const policy = useQuery(bannerQuery(false));
+	const global = useAnimationPolicy();
 	const announcementDisabled = policy.data?.animationsDisabled === true;
-	const graphs = useGraphEveryChoice() !== "off";
+	const graphs = useGraphEveryChoice() !== "off" && global.graphs;
 	const parts = PARTS.map(
 		({ part }) => s[part] && (part !== "announcement" || !announcementDisabled),
 	).concat(graphs);
@@ -124,6 +119,7 @@ export const AnimationsToggleItem: React.FC<{
 				label="Animations"
 				hint="Enable or disable dashboard animations"
 				on={s.all}
+				disabled={!global.all}
 				onChange={setAnimationsEnabled}
 				icon={SparklesIcon}
 			/>
@@ -166,6 +162,7 @@ export const AnimationsToggleItem: React.FC<{
 						label="All animations"
 						hint="Off: everything below stands still"
 						on={s.all}
+						disabled={!global.all}
 						onChange={setAnimationsEnabled}
 					/>
 					{PARTS.slice(0, 2).map(({ part, label, hint }) => (
@@ -176,7 +173,7 @@ export const AnimationsToggleItem: React.FC<{
 							label={label}
 							hint={hint}
 							on={s.all && s[part]}
-							disabled={!s.all}
+							disabled={!s.all || !global[part]}
 							onChange={(on) => setAnimationPart(part, on)}
 						/>
 					))}
@@ -186,7 +183,7 @@ export const AnimationsToggleItem: React.FC<{
 						icon={ChartNoAxesCombinedIcon}
 						hint="The workspace metric graphs"
 						on={s.all && graphs}
-						disabled={!s.all}
+						disabled={!s.all || !global.graphs}
 						onChange={setGraphsOn}
 					/>
 					{PARTS.slice(2).map(({ part, label, hint }) => (
@@ -206,7 +203,9 @@ export const AnimationsToggleItem: React.FC<{
 								(part !== "announcement" || !announcementDisabled)
 							}
 							disabled={
-								!s.all || (part === "announcement" && announcementDisabled)
+								!s.all ||
+								!global[part] ||
+								(part === "announcement" && announcementDisabled)
 							}
 							onChange={(on) => setAnimationPart(part, on)}
 						/>

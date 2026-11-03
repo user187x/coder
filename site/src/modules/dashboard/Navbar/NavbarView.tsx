@@ -9,10 +9,9 @@ import { AnnouncementBanner } from "#/modules/platform/announcement/Announcement
 import { ChatInboxIndicator } from "#/modules/platform/chat/ChatInboxIndicator";
 import { NavbarArrange } from "#/modules/platform/navbarOrder/NavbarArrange";
 import { startNavbarArrange } from "#/modules/platform/navbarOrder/navbarOrder";
-import {
-	type AdminQuickLinks,
-	type AdminSettingsPermissions,
-	canViewAdminSettings,
+import type {
+	AdminQuickLinks,
+	AdminSettingsPermissions,
 } from "./AdminSettings";
 import { addableAdminPages } from "./adminQuickLinks";
 import { MobileMenu } from "./MobileMenu";
@@ -102,15 +101,11 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 							)}
 							proxyContextValue={proxyContextValue}
 							hud={adminPermissions.canViewDeployment}
-							controls={
-								canViewAdminSettings(adminPermissions)
-									? {
-											permissions: adminPermissions,
-											quickLinks: adminQuickLinks?.links,
-											quickLinksEditor,
-										}
-									: undefined
-							}
+							controls={{
+								permissions: adminPermissions,
+								quickLinks: adminQuickLinks?.links,
+								quickLinksEditor,
+							}}
 						/>
 					),
 					notifications: (
@@ -173,6 +168,7 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 							proxyContextValue={proxyContextValue}
 							adminPermissions={adminPermissions}
 							adminQuickLinks={adminQuickLinks?.links}
+							quickLinksEditor={quickLinksEditor}
 							user={user}
 							supportLinks={supportLinks}
 							onSignOut={onSignOut}

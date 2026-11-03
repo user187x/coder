@@ -40,6 +40,20 @@ export const dashboardAddress = () => ({
 });
 
 export const classificationKey = [...platformKey, "classification"] as const;
+const animationPolicyKey = [...platformKey, "animations"] as const;
+export const animationPolicy = () => ({
+	queryKey: animationPolicyKey,
+	queryFn: PlatformAPI.getAnimationPolicy,
+	initialData: window.__cuiAnimationPolicy,
+	refetchInterval: 30_000,
+	retry: false,
+});
+export const updateAnimationPolicy = (client: QueryClient) => ({
+	mutationFn: PlatformAPI.setAnimationPolicy,
+	onSuccess: (
+		policy: Awaited<ReturnType<typeof PlatformAPI.getAnimationPolicy>>,
+	) => client.setQueryData(animationPolicyKey, policy),
+});
 export const logoKey = [...platformKey, "logo"] as const;
 const myAvatarKey = [...platformKey, "avatar", "me"] as const;
 const avatarDefaultsKey = [...platformKey, "avatar", "defaults"] as const;

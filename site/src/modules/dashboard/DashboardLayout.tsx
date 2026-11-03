@@ -1,7 +1,7 @@
 import { cn } from "cn";
-import { Suspense } from "react";
+import { Suspense, useRef } from "react";
 import { useQuery } from "react-query";
-import { Outlet, useMatch } from "react-router";
+import { Outlet } from "react-router";
 import { globalLockdown } from "#/api/queries/globalLockdown";
 import { Loader } from "#/components/Loader/Loader";
 import { isEmbeddedFrame } from "#/contexts/platformBoot";
@@ -19,7 +19,7 @@ import { UpdateCheckNotice } from "./UpdateCheckNotice/UpdateCheckNotice";
 import { useUpdateCheck } from "./useUpdateCheck";
 
 export const DashboardLayout: React.FC = () => {
-	const workspaceList = useMatch("/workspaces");
+	const content = useRef<HTMLElement>(null);
 	const { permissions } = useAuthenticated();
 	const { data: lockdown } = useQuery(globalLockdown());
 	const updateCheck = useUpdateCheck(permissions.viewDeploymentConfig);
@@ -58,9 +58,10 @@ export const DashboardLayout: React.FC = () => {
 				</div>
 
 				{/* Pages that scroll end with room to spare, so their last line clears
-				    the deployment stats bar and the Chats dock; full-height pages
+				    the Chats dock; full-height pages
 				    (their root grows to fill main) do not. */}
 				<main
+					ref={content}
 					id="main-content"
 					tabIndex={-1}
 					className={cn(
@@ -76,16 +77,15 @@ export const DashboardLayout: React.FC = () => {
 					</Suspense>
 				</main>
 
-				{!embedded && !workspaceList && <DeploymentBanner />}
+				{!embedded && canViewDeployment && (
+					<DeploymentBanner content={content} />
+				)}
 
 				{!embedded && updateCheck.isVisible && updateCheck.data && (
 					<UpdateCheckNotice
 						version={updateCheck.data.version}
 						releaseNotesUrl={updateCheck.data.url}
 						onDismiss={updateCheck.dismiss}
-						aboveDeploymentBanner={Boolean(
-							!workspaceList && permissions.viewDeploymentStats,
-						)}
 					/>
 				)}
 			</div>

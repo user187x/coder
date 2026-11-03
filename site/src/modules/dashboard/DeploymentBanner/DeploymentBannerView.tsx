@@ -1,4 +1,3 @@
-import { cn } from "cn";
 import dayjs from "dayjs";
 import {
 	AppWindowIcon,
@@ -40,14 +39,12 @@ import "./deploymentBanner.css";
 import { getDisplayWorkspaceStatus } from "#/utils/workspace";
 
 type DeploymentBannerViewProps = {
-	underTable?: boolean;
 	health?: HealthcheckReport;
 	stats?: DeploymentStats;
 	fetchStats?: () => void;
 };
 
 export const DeploymentBannerView: React.FC<DeploymentBannerViewProps> = ({
-	underTable = false,
 	health,
 	stats,
 	fetchStats,
@@ -111,12 +108,9 @@ export const DeploymentBannerView: React.FC<DeploymentBannerViewProps> = ({
 
 	return (
 		<div
-			className={cn(
-				"flex min-h-9 items-center overflow-x-auto overflow-y-hidden whitespace-nowrap rounded-full border border-solid border-border bg-surface-primary px-3 py-1 font-mono leading-none",
-				underTable
-					? "mt-2 w-full min-w-0 flex-wrap justify-center gap-x-3 gap-y-1 text-[clamp(10px,0.9vw,13px)] [&_svg]:size-[1em] sm:justify-around"
-					: "sticky bottom-[calc(var(--coder-classification-h,0px)+6px)] z-1 mx-auto mb-1.5 w-max max-w-[calc(100%-24px)] gap-3 text-xs shadow-lg",
-			)}
+			role="group"
+			aria-label="Deployment statistics"
+			className="deployment-stats flex min-w-0 w-full flex-wrap items-center justify-around gap-x-[1em] gap-y-1 px-3 py-1.5 font-mono leading-none tabular-nums"
 		>
 			<TooltipProvider delayDuration={100}>
 				<Tooltip>
@@ -474,7 +468,7 @@ const WorkspaceBuildValue: React.FC<WorkspaceBuildValueProps> = ({
 						<RouterLink
 							to={`/workspaces?filter=${encodeURIComponent(`status:${status}`)}`}
 						>
-							<div className="flex items-center gap-1 text-xs">
+							<div className="flex items-center gap-1">
 								{icon}
 								{typeof count === "undefined" ? "-" : count}
 							</div>

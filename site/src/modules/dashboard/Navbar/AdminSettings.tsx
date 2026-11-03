@@ -3,10 +3,7 @@ import { Link } from "react-router";
 import { DropdownMenuItem } from "#/components/DropdownMenu/DropdownMenu";
 import { ClusterGauge } from "#/modules/platform/ClusterGauge";
 import { AdminQuickLinksMenu } from "./AdminQuickLinksMenu";
-import { AnnouncementMenuItem } from "./AnnouncementMenuItem";
-import { AppearanceMenuItem } from "./AppearanceMenuItem";
 import type { AdminPage } from "./adminQuickLinks";
-import { ChatMenuItem } from "./ChatMenuItem";
 
 /**
  * Permissions that determine which items appear in the Admin menu.
@@ -66,51 +63,14 @@ export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
 }) => {
 	return (
 		<>
-			{!quickLinks.some((page) => page.id === "chat") && (
-				<ChatMenuItem
-					expanded={chatExpanded}
-					onToggle={onChatToggle}
-					admin={permissions.canEditDeployment}
-					className={itemClassName}
-				/>
-			)}
-			{quickLinksEditor ? (
-				<AdminQuickLinksMenu
-					chatExpanded={chatExpanded}
-					onChatToggle={onChatToggle}
-					links={quickLinks}
-					addable={quickLinksEditor.addable}
-					onChange={quickLinksEditor.onChange}
-					itemClassName={itemClassName}
-				/>
-			) : (
-				quickLinks.map((page) =>
-					page.id === "chat" ? (
-						<ChatMenuItem
-							key={page.id}
-							expanded={chatExpanded}
-							onToggle={onChatToggle}
-							admin={permissions.canEditDeployment}
-							className={itemClassName}
-						/>
-					) : page.id === "announcement" ? (
-						<AnnouncementMenuItem key={page.id} className={itemClassName} />
-					) : page.id === "customize" ? (
-						<AppearanceMenuItem
-							key={page.id}
-							to={page.path}
-							className={itemClassName}
-						/>
-					) : (
-						<DropdownMenuItem key={page.id} asChild className={itemClassName}>
-							<Link to={page.path}>
-								<page.icon aria-hidden />
-								{page.label}
-							</Link>
-						</DropdownMenuItem>
-					),
-				)
-			)}
+			<AdminQuickLinksMenu
+				admin={permissions.canEditDeployment}
+				chatExpanded={chatExpanded}
+				onChatToggle={onChatToggle}
+				links={quickLinks}
+				addable={quickLinksEditor?.addable ?? []}
+				onChange={quickLinksEditor?.onChange}
+			/>
 			{permissions.canViewOrganizations && (
 				<DropdownMenuItem asChild className={itemClassName}>
 					<Link to="/organizations">
@@ -148,6 +108,5 @@ export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
  * Whether the user has any permission that should surface the Admin menu.
  * Organizations alone does not gate visibility, matching prior behavior.
  */
-export const canViewAdminSettings = (
-	permissions: AdminSettingsPermissions,
-): boolean => Object.values(permissions).some((canView) => canView);
+const canViewAdminSettings = (permissions: AdminSettingsPermissions): boolean =>
+	Object.values(permissions).some((canView) => canView);

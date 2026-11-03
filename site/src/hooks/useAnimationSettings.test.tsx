@@ -9,7 +9,9 @@ import {
 } from "#/components/DropdownMenu/DropdownMenu";
 import {
 	ANIMATION_PARTS,
+	AnimationPolicyContext,
 	animated,
+	DEFAULT_ANIMATION_POLICY,
 	setAnimationPart,
 	setAnimationsEnabled,
 	useAnimationSettings,
@@ -20,7 +22,7 @@ import {
 	useGraphEvery,
 } from "#/modules/resources/metricGraphSettings";
 import { MockBanner } from "#/testHelpers/platform";
-import { render } from "#/testHelpers/renderHelpers";
+import { render, renderComponent } from "#/testHelpers/renderHelpers";
 
 const observed = vi.fn();
 const Probe = () => {
@@ -123,4 +125,26 @@ it("prevents a personal override of an administrator restriction and retains the
 		screen.getByRole("menuitemcheckbox", { name: /Announcement animations/ }),
 	);
 	expect(observed.mock.lastCall?.[0].announcement).toBe(false);
+});
+
+it("applies a deployment restriction without changing the personal choices", () => {
+	const view = (restricted: boolean) => (
+		<AnimationPolicyContext.Provider
+			value={{
+				...DEFAULT_ANIMATION_POLICY,
+				gifs: !restricted,
+				graphs: !restricted,
+			}}
+		>
+			<Probe />
+		</AnimationPolicyContext.Provider>
+	);
+	const result = renderComponent(view(true));
+	expect(observed.mock.lastCall?.[0]).toMatchObject({
+		gifs: false,
+		graphs: "off",
+		effects: true,
+	});
+	result.rerender(view(false));
+	expect(observed.mock.lastCall?.[0]).toMatchObject({ gifs: true, graphs: 1 });
 });
