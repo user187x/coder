@@ -105,7 +105,7 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 								(role) => role.name === "owner",
 							)}
 							proxyContextValue={proxyContextValue}
-							hud={adminPermissions.canViewDeployment}
+							hud={adminPermissions.canViewHud}
 							controls={{
 								permissions: adminPermissions,
 								quickLinks: adminQuickLinks?.links,

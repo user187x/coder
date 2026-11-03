@@ -46,7 +46,7 @@ const pages = adminPagesFor({
 
 const controls = {
 	permissions: {
-		canViewDeployment: true,
+		canViewHud: true,
 		canViewOrganizations: true,
 		canViewAuditLog: true,
 		canViewConnectionLog: true,

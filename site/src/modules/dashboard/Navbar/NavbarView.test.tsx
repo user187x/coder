@@ -76,7 +76,7 @@ describe("NavbarView", () => {
 			const save = vi
 				.spyOn(PlatformAPI, "setUserUIPreferences")
 				.mockImplementation(async (settings) => settings);
-			renderNavbar({ canViewDeployment: true, canEditDeployment: true });
+			renderNavbar({ canViewHud: true, canEditDeployment: true });
 			const user = userEvent.setup();
 			await user.click(
 				screen.getByRole("button", { name: new RegExp(trigger) }),
@@ -96,7 +96,7 @@ describe("NavbarView", () => {
 			const save = vi
 				.spyOn(PlatformAPI, "setUserUIPreferences")
 				.mockImplementation(async (settings) => settings);
-			renderNavbar({ canViewDeployment: true });
+			renderNavbar({ canViewHud: true });
 			const user = userEvent.setup();
 			await user.pointer({
 				target:
@@ -111,7 +111,7 @@ describe("NavbarView", () => {
 	);
 
 	it("has no Controls button of its own: the Controls are in the latency menu", async () => {
-		renderNavbar({ canViewDeployment: true, canViewAuditLog: true });
+		renderNavbar({ canViewHud: true, canViewAuditLog: true });
 		const withControls = menuButtons().filter((button) =>
 			button.textContent?.includes("Settings"),
 		);

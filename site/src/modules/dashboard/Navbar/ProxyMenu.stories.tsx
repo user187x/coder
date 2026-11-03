@@ -261,7 +261,7 @@ export const ResourceTrayOpened: Story = {
 		controls: {
 			permissions: {
 				canEditDeployment: true,
-				canViewDeployment: true,
+				canViewHud: true,
 				canViewUsers: true,
 			},
 		},
@@ -316,7 +316,7 @@ export const TemplatesOnly: Story = {
 	...ResourceTrayOpened,
 	args: {
 		controls: {
-			permissions: { canViewDeployment: true, canEditDeployment: false },
+			permissions: { canViewHud: true, canEditDeployment: false },
 		},
 	},
 };
@@ -354,7 +354,11 @@ export const ResourceTrayLockedClosed: Story = {
 
 export const HiddenChatMenu: Story = {
 	...ResourceTrayOpened,
-	args: { ...ResourceTrayOpened.args, controls: undefined },
+	args: {
+		...ResourceTrayOpened.args,
+		hud: false,
+		controls: { permissions: { canViewUsers: true } },
+	},
 	parameters: {
 		queries: [
 			...(ResourceTrayOpened.parameters?.queries ?? []),
@@ -364,6 +368,11 @@ export const HiddenChatMenu: Story = {
 	play: async ({ canvasElement }) => {
 		await userEvent.click(
 			within(canvasElement).getByRole("button", { name: /Settings/ }),
+		);
+		await userEvent.click(
+			within(canvasElement.ownerDocument.body).getByRole("menuitem", {
+				name: "Controls",
+			}),
 		);
 		const chat = within(canvasElement.ownerDocument.body).getByRole(
 			"menuitem",

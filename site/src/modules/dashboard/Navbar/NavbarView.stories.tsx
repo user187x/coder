@@ -29,7 +29,7 @@ const meta: Meta<typeof NavbarView> = {
 	args: {
 		user: MockUserOwner,
 		adminPermissions: {
-			canViewDeployment: true,
+			canViewHud: true,
 			canViewOrganizations: true,
 			canViewUsers: true,
 			canViewAuditLog: true,
@@ -157,7 +157,7 @@ export const ForSingleOrgOSSAdmin: Story = {
 	parameters: { pixel: { matrix: pixelWithDesktop } },
 	args: {
 		adminPermissions: {
-			canViewDeployment: true,
+			canViewHud: true,
 		},
 	},
 	play: async ({ canvasElement }) => {

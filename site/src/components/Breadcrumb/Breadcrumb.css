@@ -85,7 +85,13 @@
 	clip-path: none;
 }
 
-.breadcrumb-connected > ol > li > [aria-current="page"] {
+.breadcrumb-connected > ol > li > button[aria-current="page"] {
+	background: hsl(var(--surface-tertiary));
+	color: hsl(var(--content-primary));
+	font-weight: 700;
+}
+
+.breadcrumb-connected > ol > li > :is(a, span)[aria-current="page"] {
 	background: hsl(var(--surface-invert-primary));
 	color: hsl(var(--content-invert));
 	font-weight: 700;

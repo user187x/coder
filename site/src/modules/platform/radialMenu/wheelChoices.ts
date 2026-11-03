@@ -12,7 +12,6 @@ import {
 	type AdminPageAccess,
 	adminPageChoices,
 } from "#/modules/dashboard/Navbar/adminQuickLinks";
-import { canViewDeploymentSettings } from "#/modules/permissions";
 
 /**
  * A choice for a wedge of the quick access wheel (Escape): one of the dashboard's own pages, or a category of
@@ -91,7 +90,7 @@ const DASHBOARD: readonly WheelChoice[] = [
 		icon: EyeIcon,
 		to: "/hud",
 		group: "dashboard",
-		allowed: ({ permissions }) => canViewDeploymentSettings(permissions),
+		allowed: ({ permissions }) => permissions.viewDeploymentConfig,
 	},
 ];
 

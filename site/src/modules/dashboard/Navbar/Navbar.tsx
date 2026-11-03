@@ -13,7 +13,6 @@ import { useProxy } from "#/contexts/ProxyContext";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { useEmbeddedMetadata } from "#/hooks/useEmbeddedMetadata";
 import { useDashboard } from "#/modules/dashboard/useDashboard";
-import { canViewDeploymentSettings } from "#/modules/permissions";
 import { isOfferedSupportLink } from "#/modules/platform/supportLinks";
 import { useFeatureVisibility } from "../useFeatureVisibility";
 import { resolveAdminQuickLinks, settingsPagesFor } from "./adminQuickLinks";
@@ -31,7 +30,6 @@ export const Navbar: React.FC = () => {
 		enabled: window.__cuiNavbarTransparency !== undefined,
 	});
 
-	const canViewDeployment = canViewDeploymentSettings(permissions);
 	const canViewOrganizations = canViewOrganizationSettings;
 	const canViewHealth = permissions.viewDebugInfo;
 	const canViewAuditLog =
@@ -63,7 +61,7 @@ export const Navbar: React.FC = () => {
 			supportLinks={Array.from(uniqueLinks.values())}
 			onSignOut={signOut}
 			adminPermissions={{
-				canViewDeployment,
+				canViewHud: permissions.viewDeploymentConfig,
 				canViewUsers: permissions.viewAllUsers,
 				canViewOrganizations,
 				canViewAuditLog,

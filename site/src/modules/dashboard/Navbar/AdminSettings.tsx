@@ -42,7 +42,7 @@ export type AdminQuickLinks = {
 };
 
 export type AdminSettingsPermissions = {
-	canViewDeployment?: boolean;
+	canViewHud?: boolean;
 	canViewUsers?: boolean;
 	canViewOrganizations?: boolean;
 	canViewAuditLog?: boolean;

@@ -27,7 +27,7 @@ describe("Admin menu", () => {
 						<DropdownMenuContent>
 							<AdminSettingsItems
 								permissions={{
-									canViewDeployment: true,
+									canViewHud: true,
 									canViewOrganizations: true,
 									canViewAuditLog: true,
 									canViewConnectionLog: true,
@@ -80,6 +80,16 @@ it("adds a setting from the inline picker without navigating", async () => {
 	);
 	const user = userEvent.setup();
 	await user.click(screen.getByRole("menuitem", { name: "Controls" }));
+	await user.pointer({
+		target: screen.getByRole("menuitem", { name: "Chat" }),
+		keys: "[MouseRight]",
+	});
+	await user.click(
+		await screen.findByRole("menuitem", {
+			name: "Add quick link",
+		}),
+	);
+	expect(onChange).toHaveBeenLastCalledWith(["chat"]);
 	await user.click(screen.getByRole("menuitem", { name: "Security" }));
 	expect(onChange).toHaveBeenCalledWith(["security"]);
 });

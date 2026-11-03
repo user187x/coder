@@ -220,7 +220,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 					<SettingsSidePanels
 						container={menuElement}
 						anchor={metricsElement}
-						hud={Boolean(controls?.permissions.canViewDeployment)}
+						hud={hud}
 						chatExpanded={chatExpanded}
 						onChatToggle={() => setChatExpanded((open) => !open)}
 						images={Boolean(controls?.permissions.canEditDeployment)}

@@ -42,7 +42,7 @@ const meta: Meta<typeof MobileMenu> = {
 		onSignOut: fn(),
 		isDefaultOpen: true,
 		adminPermissions: {
-			canViewDeployment: true,
+			canViewHud: true,
 			canViewOrganizations: true,
 			canViewUsers: true,
 			canViewAuditLog: true,

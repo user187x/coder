@@ -58,6 +58,7 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 }) => {
 	const [expanded, setExpanded] = useState(false);
 	const choicesId = useId();
+	const choices = addable.filter((page) => page.id !== "chat");
 	const ids = links.map((link) => link.id);
 	// The page being moved with the keyboard, if any.
 	const [moving, setMoving] = useState<string>();
@@ -175,13 +176,15 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 							admin={admin}
 							expanded={chatExpanded}
 							onToggle={onChatToggle}
+							onPin={
+								onChange && addable.some((page) => page.id === "chat")
+									? () => onChange([...ids, "chat"])
+									: undefined
+							}
 						/>
-						{!onChange ? null : addable.length === 0 ? (
-							<p className="m-0 p-2 text-xs text-content-secondary">
-								All available settings are in your quick links.
-							</p>
-						) : (
-							addable.map((page) => (
+						{onChange &&
+							choices.length > 0 &&
+							choices.map((page) => (
 								<DropdownMenuItem
 									key={page.id}
 									onSelect={(event) => {
@@ -191,10 +194,9 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 									}}
 								>
 									<page.icon aria-hidden />
-									{page.id === "chat" ? "Pin Chat to quick links" : page.label}
+									{page.label}
 								</DropdownMenuItem>
-							))
-						)}
+							))}
 					</div>
 				</CollapsibleContent>
 			</Collapsible>
