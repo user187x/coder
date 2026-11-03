@@ -1027,6 +1027,53 @@ describe("CreateWorkspacePage", () => {
 			order: 2,
 		};
 
+		it("starts with a fitting memory option when the template default exceeds one node's capacity", async () => {
+			const memory = {
+				...cpu,
+				name: "memory",
+				display_name: "Memory",
+				value: { value: "4", valid: true },
+				default_value: { value: "4", valid: true },
+				options: [option("2 GB", "2"), option("4 GB", "4")],
+			};
+			vi.mocked(PlatformAPI.checkWorkspaceAdmission).mockImplementation(
+				async (request) => ({
+					allowed:
+						request.rich_parameter_values.find((p) => p.name === "memory")
+							?.value === "2",
+					message: "4 GiB does not fit.",
+					nodes: [{ cpu: 8, memory: 3.83, gpus: 0 }],
+				}),
+			);
+			const { mockPublisher, mockSocket } = await renderPageWithSocket();
+			await expectSocketHandshake({ mockPublisher, parameters: [cpu, memory] });
+			await waitFor(() =>
+				expect(mockSocket.send).toHaveBeenCalledWith(
+					expect.stringContaining('"memory":"2"'),
+				),
+			);
+			await waitFor(() =>
+				expect(screen.getByTestId("at-a-glance")).toHaveTextContent("2 GB"),
+			);
+			await userEvent.type(
+				screen.getByRole("textbox", { name: /workspace name/i }),
+				"sized",
+			);
+			await userEvent.click(
+				screen.getByRole("button", { name: /create workspace/i }),
+			);
+			await waitFor(() =>
+				expect(API.createWorkspace).toHaveBeenCalledWith(
+					"test-user",
+					expect.objectContaining({
+						rich_parameter_values: expect.arrayContaining([
+							{ name: "memory", value: "2" },
+						]),
+					}),
+				),
+			);
+		});
+
 		it.each(["quota", "capacity"])(
 			"prevents selection of a CPU size outside %s",
 			async (limit) => {

@@ -269,6 +269,44 @@ password sign-in. If Argo CD manages the installation, make these settings in it
 instead of applying a conflicting manual Helm release. Keep Crossplane responsible for its
 infrastructure resources and Argo CD responsible for this application's desired settings.
 
+## Add worker nodes from Network
+
+Run the node provisioner on a trusted management host that can already manage the target cluster.
+Use the kubeconfig context for that cluster and the UUID of the Coder organization that may request workers.
+From the extracted build kit, generate and review the operator configuration:
+
+```bash
+python3 scripts/release/airgap/node-provisioner.py --discover CONTEXT \
+  --namespace CODER_NAMESPACE --organization ORGANIZATION_UUID > operator.json
+python3 scripts/release/airgap/node-provisioner.py --config operator.json
+```
+
+Supervise the second command as a service. The operator checks the cluster identity, advertises its targets and
+processes one request at a time. In **Settings > Network > Create node**, choose a target and select
+**Create one node**. The dialog reports when a new worker becomes Ready. The initial `maxNodes` ceiling
+allows one additional node. Review that ceiling and local worker memory before starting the service.
+
+- **k3d** requires the k3d CLI and access to the cluster host's Docker daemon. Set `memory` on the discovered profile.
+- **minikube** requires the minikube CLI on the host that owns the named profile.
+- **EKS managed node groups** require the AWS CLI and permission to describe the cluster and node group,
+  update the group's scaling configuration, and describe the update. Discovery recognizes EKS ARN contexts.
+  For a context alias, add e.g. `{"id":"workers","label":"EKS workers","kind":"eks-managed","region":"us-east-1","cluster":"production","group":"workers"}`
+  to `profiles`. The group maximum is respected. Use workload demand for groups controlled by Cluster Autoscaler.
+- **Self-managed EKS workers** require an operator-prepared EC2 launch template with the subnet, security groups,
+  node IAM instance profile, AMI and bootstrap settings for this cluster. Enroll that node role with EKS first.
+  Add e.g. `{"id":"manual","label":"EKS EC2 worker","kind":"eks-manual","region":"us-east-1","cluster":"production","launchTemplate":"lt-0123456789abcdef0","version":"3"}`
+  to `profiles`. The host needs permission to describe the cluster and instances, run one instance using that
+  template, and pass that instance role. Capacity and charges continue until an operator terminates the instance.
+- **Karpenter** requires a Ready NodePool. For a static pool the operator increments replicas. For a dynamic
+  pool it requests a small scheduling Pod that needs a new node, then releases it once the worker is Ready.
+  Set `pauseImage` to an available registry image in disconnected clusters. The pool's consolidation policy
+  governs how long spare capacity remains.
+
+The host needs Kubernetes access to read nodes and namespaces and to create and patch its
+`coder-node-provisioning` ConfigMap in the Coder namespace. Karpenter also requires access to read and
+patch the selected NodePool and to create, get and delete the scheduling Pod. Supply cloud credentials
+through the AWS credential chain on the host. Keep them out of the configuration file and the dashboard.
+
 ## If something fails
 
 Run:

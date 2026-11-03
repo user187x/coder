@@ -4,7 +4,7 @@ import { PlatformAPI } from "#/api/platform";
 import { onlineUsers } from "#/api/queries/platform";
 import { MockOnlineChatUser } from "#/testHelpers/chat";
 import { MockUserMember } from "#/testHelpers/entities";
-import { AccountPresence } from "./AccountPresence";
+import { AccountPresence, useAccountPresence } from "./AccountPresence";
 
 let presenceVersion = 0;
 vi.mock("#/modules/platform/chat/chatStore", () => ({
@@ -22,17 +22,20 @@ it("refreshes shared account presence immediately on a live change", async () =>
 	const getPresence = vi
 		.spyOn(PlatformAPI, "getPresence")
 		.mockResolvedValue(report);
-	const view = () => (
-		<>
-			<AccountPresence user={MockUserMember} enabled />
-			<AccountPresence
-				user={{ ...MockUserMember, id: "another-user" }}
-				enabled
-			/>
-		</>
-	);
+	const View = () => {
+		const presence = useAccountPresence(true);
+		return (
+			<>
+				<AccountPresence user={MockUserMember} presence={presence} />
+				<AccountPresence
+					user={{ ...MockUserMember, id: "another-user" }}
+					presence={presence}
+				/>
+			</>
+		);
+	};
 	const queryClient = new QueryClient();
-	const { rerender } = render(view(), {
+	const { rerender } = render(<View />, {
 		wrapper: ({ children }) => (
 			<QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
 		),
@@ -46,7 +49,7 @@ it("refreshes shared account presence immediately on a live change", async () =>
 	};
 	getPresence.mockResolvedValue(updated);
 	presenceVersion = 1;
-	rerender(view());
+	rerender(<View />);
 	await waitFor(() =>
 		expect(queryClient.getQueryData(onlineUsers(1).queryKey)).toEqual(updated),
 	);

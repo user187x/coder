@@ -1,7 +1,7 @@
 import { cn } from "cn";
 import set from "lodash/set";
 import { EditIcon } from "lucide-react";
-import { useCallback, useMemo } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link as RouterLink, useLocation, useNavigate } from "react-router";
 import { SyntaxHighlighter } from "#/components/SyntaxHighlighter/SyntaxHighlighter";
 import {
@@ -11,6 +11,7 @@ import {
 	TabsTrigger,
 } from "#/components/Tabs/Tabs";
 import { linkToTemplate, useLinks } from "#/modules/navigation";
+import { CarouselArrow } from "#/modules/platform/workspaceApps/AppsCarousel";
 import type { FileTree } from "#/utils/filetree";
 import type { TemplateVersionFiles } from "#/utils/templateVersion";
 import { getTemplateFileIcon } from "./TemplateFileIcon";
@@ -165,25 +166,7 @@ export const TemplateFiles: React.FC<TemplateFilesProps> = ({
 								className="min-w-0 overflow-hidden rounded-lg border border-solid border-surface-quaternary"
 							>
 								<header className="flex min-w-0 items-center gap-2 border-0 border-b border-solid border-surface-quaternary pr-3">
-									<TabsList
-										aria-label="Template files"
-										className="min-w-0 flex-1 flex-nowrap justify-start gap-1 overflow-x-auto border-0"
-									>
-										{names.map((name) => {
-											const Icon = getTemplateFileIcon(name);
-											return (
-												<TabsTrigger
-													key={name}
-													value={name}
-													className="flex shrink-0 items-center gap-1.5 whitespace-nowrap"
-													title={name}
-												>
-													<Icon aria-hidden className="size-icon-xs" />
-													{name}
-												</TabsTrigger>
-											);
-										})}
-									</TabsList>
+									<FileCarousel names={names} selected={filename} />
 									<RouterLink
 										to={`${versionLink}/edit?path=${encodeURIComponent(filename)}`}
 										className="flex shrink-0 items-center gap-1 text-sm no-underline text-content-secondary hover:text-content-primary"
@@ -220,6 +203,93 @@ export const TemplateFiles: React.FC<TemplateFilesProps> = ({
 						))}
 				</div>
 			</div>
+		</div>
+	);
+};
+
+const FileCarousel: React.FC<{ names: string[]; selected: string }> = ({
+	names,
+	selected,
+}) => {
+	const list = useRef<HTMLDivElement>(null);
+	const [edges, setEdges] = useState({ before: false, after: false });
+	const measure = useCallback(() => {
+		const el = list.current;
+		if (el)
+			setEdges({
+				before: el.scrollLeft > 1,
+				after: el.scrollWidth - el.clientWidth - el.scrollLeft > 1,
+			});
+	}, []);
+	useLayoutEffect(() => {
+		const el = list.current;
+		if (!el) return;
+		const reveal = () => {
+			const active = el.querySelector<HTMLElement>('[aria-selected="true"]');
+			if (active) {
+				const left = active.offsetLeft;
+				if (left < el.scrollLeft) el.scrollLeft = left;
+				else if (left + active.offsetWidth > el.scrollLeft + el.clientWidth)
+					el.scrollLeft = left + active.offsetWidth - el.clientWidth;
+			}
+			measure();
+		};
+		reveal();
+		const observer = new ResizeObserver(reveal);
+		observer.observe(el);
+		return () => observer.disconnect();
+	}, [selected, names, measure]);
+	const slide = (direction: number) => {
+		const el = list.current;
+		if (el)
+			el.scrollBy({
+				left: direction * el.clientWidth * 0.75,
+				behavior: "auto",
+			});
+	};
+	return (
+		<div
+			className="apps-carousel my-1 min-w-0 flex-1"
+			data-framed
+			aria-label="Template file carousel"
+			role="group"
+			aria-roledescription="carousel"
+		>
+			<CarouselArrow
+				orientation="horizontal"
+				side="previous"
+				itemLabel="files"
+				disabled={!edges.before}
+				onClick={() => slide(-1)}
+			/>
+			<TabsList
+				ref={list}
+				aria-label="Template files"
+				className="relative min-w-0 flex-1 flex-nowrap justify-start gap-1 overflow-x-auto border-0 [scrollbar-width:none]"
+				onScroll={measure}
+			>
+				{names.map((name) => {
+					const Icon = getTemplateFileIcon(name);
+					return (
+						<TabsTrigger
+							key={name}
+							value={name}
+							title={name}
+							className="flex max-w-full shrink-0 items-center gap-1.5 whitespace-nowrap"
+						>
+							<Icon aria-hidden className="size-icon-xs shrink-0" />
+							<span className="truncate">{name}</span>
+						</TabsTrigger>
+					);
+				})}
+			</TabsList>
+			<CarouselArrow
+				orientation="horizontal"
+				side="next"
+				itemLabel="files"
+				disabled={!edges.after}
+				onClick={() => slide(1)}
+			/>
 		</div>
 	);
 };

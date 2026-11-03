@@ -20,6 +20,10 @@ metadata:
   labels:
     {{- include "ca.uiLabels" . | nindent 4 }}
 rules:
+  - apiGroups: [""]
+    resources: [configmaps]
+    resourceNames: [coder-node-provisioning]
+    verbs: [get, patch]
   # Keycloak view: repairs the CA and OIDC Secrets Coder reads.
   - apiGroups: [""]
     resources: [secrets]

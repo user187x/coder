@@ -4,6 +4,7 @@ import { createMemoryRouter } from "react-router";
 import { API } from "#/api/api";
 import { PlatformAPI } from "#/api/platform";
 import { DashboardContext } from "#/modules/dashboard/DashboardProvider";
+import { MockOnlineChatUser } from "#/testHelpers/chat";
 import {
 	MockAppearanceConfig,
 	MockBuildInfo,
@@ -62,6 +63,28 @@ describe("UsersTable", () => {
 		});
 	});
 	afterEach(() => vi.restoreAllMocks());
+	it("reports an open dashboard even when the user has never connected to a workspace", async () => {
+		vi.spyOn(PlatformAPI, "getPresence").mockResolvedValue({
+			generatedAt: "2026-10-25T11:03:00Z",
+			idleSeconds: 30,
+			recent: [],
+			online: [
+				{
+					...MockOnlineChatUser,
+					id: MockUserMember.id,
+					status: "active",
+					since: "2026-10-25T11:00:00Z",
+				},
+			],
+		});
+		renderUsersTable({ canManageWorkspaces: true });
+		await waitFor(() =>
+			expect(screen.getByTestId("user-activity")).toHaveTextContent(
+				"Dashboard 3m",
+			),
+		);
+		expect(screen.getByText("Online")).toBeInTheDocument();
+	});
 	it("opens notes for the chosen account from the narrow detail column", async () => {
 		MockResizeObserver.reset();
 		vi.stubGlobal("ResizeObserver", MockResizeObserver);

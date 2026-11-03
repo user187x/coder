@@ -35,6 +35,7 @@ import {
 } from "#/components/Table/Table";
 import { TableEmpty } from "#/components/TableEmpty/TableEmpty";
 import { useAnimationsEnabled } from "#/hooks/useAnimationSettings";
+import { useAuthenticated } from "#/hooks/useAuthenticated";
 import {
 	ago,
 	bytes,
@@ -44,6 +45,7 @@ import {
 	Tile,
 	useNow,
 } from "#/modules/platform/ClusterVisuals";
+import { CreateNode } from "./CreateNode";
 import { EntityContextMenu } from "./EntityActions";
 import "./clusterMap.css";
 import { CoderReplicas } from "./CoderReplicas";
@@ -100,6 +102,7 @@ const nodeStatus = (n: ClusterNode): ["error" | "warn" | "ok", string] =>
  */
 export const ClusterMap: React.FC = () => {
 	const [paused, setPaused] = useState(false);
+	const { permissions } = useAuthenticated();
 	const query = useQuery(networkReport(paused));
 	// The service adds kinds, roles, requests and Services to the report (clusternet.py).
 	const report = query.data as ClusterNetworkReport | undefined;
@@ -131,6 +134,7 @@ export const ClusterMap: React.FC = () => {
 								</h2>
 								<div className="flex items-center gap-3">
 									<LiveStatus paused={paused} updatedAt={query.dataUpdatedAt} />
+									{permissions.editDeploymentConfig && <CreateNode />}
 									{report && (
 										<Dialog>
 											<DialogTrigger asChild>

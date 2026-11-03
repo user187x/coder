@@ -21,7 +21,7 @@ const parameters = {
 	queries: [
 		// This query loads users for the filter menu, not for the table
 		{
-			key: usersKey({ limit: 25, offset: 25, q: "" }),
+			key: usersKey({ limit: 10, offset: 10, q: "" }),
 			data: {
 				users: [],
 				count: 60,
@@ -29,7 +29,7 @@ const parameters = {
 		},
 		// Users for the table
 		{
-			key: usersKey({ limit: 25, offset: 0, q: "" }),
+			key: usersKey({ limit: 10, offset: 0, q: "" }),
 			data: {
 				users: MockUsers,
 				count: 60,
@@ -174,7 +174,7 @@ export const ActivateUserSuccess: Story = {
 			// To activate a user, the user must be suspended first. Since we use the
 			// first user in the test, we need to ensure it is suspended.
 			{
-				key: usersKey({ limit: 25, offset: 0, q: "" }),
+				key: usersKey({ limit: 10, offset: 0, q: "" }),
 				data: {
 					users: replaceUser(MockUsers, 0, {
 						...MockUsers[0],
@@ -232,7 +232,7 @@ export const ResetUserPasswordSuccess: Story = {
 			// Ensure the first user's login type is set to 'password' to reset their
 			// password during the test.
 			{
-				key: usersKey({ limit: 25, offset: 0, q: "" }),
+				key: usersKey({ limit: 10, offset: 0, q: "" }),
 				data: {
 					users: MockUsers.map((u, i) => {
 						return i === 0 ? { ...u, login_type: "password" } : u;
@@ -288,7 +288,7 @@ export const UpdateUserRoleSuccess: Story = {
 			...parameters.queries,
 			//	Ensure the first user has the 'owner' role to test the edit functionality.
 			{
-				key: usersKey({ limit: 25, offset: 0, q: "" }),
+				key: usersKey({ limit: 10, offset: 0, q: "" }),
 				data: {
 					users: replaceUser(MockUsers, 0, {
 						...MockUsers[0],
@@ -341,7 +341,10 @@ export const UpdateUserRoleError: Story = {
 		const user = userEvent.setup();
 		const canvas = within(canvasElement);
 		const body = within(document.body);
-		spyOn(API, "updateUserRoles").mockRejectedValue({});
+		spyOn(API, "updateUserRoles").mockRejectedValue(
+			new Error("Role update rejected"),
+		);
+		spyOn(API, "getUsers").mockResolvedValue({ users: MockUsers, count: 60 });
 
 		await openUserMenu(canvas, user);
 		await user.click(await body.findByRole("menuitem", { name: "Edit" }));
@@ -358,8 +361,7 @@ async function openUserMenu(
 	canvas: ReturnType<typeof within>,
 	user: ReturnType<typeof userEvent.setup>,
 ) {
-	// A row opens the user's workspace, so it is a button named by its cells.
-	const row = canvas.getByRole("button", {
+	const row = canvas.getByRole("row", {
 		name: (accessibleName: string) =>
 			accessibleName.includes(MockUsers[0].email),
 	});

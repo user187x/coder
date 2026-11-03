@@ -135,7 +135,7 @@ export const AppsCarousel: React.FC<{
 	);
 };
 
-const CarouselArrow: React.FC<{
+export const CarouselArrow: React.FC<{
 	side: "previous" | "next";
 	orientation: "horizontal" | "vertical";
 	itemLabel: string;

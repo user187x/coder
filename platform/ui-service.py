@@ -193,6 +193,7 @@ QUARANTINE_ENFORCER = None
 NEKO_MEDIA = None
 import vmusercommand
 import quotaextras
+import nodeprovisioning
 import workspacecapacity
 import workspacenodemetrics
 import math
@@ -9076,6 +9077,8 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as e:  # noqa: BLE001
                 log(event="network-report-failed", error=str(e)[:300])
                 return self.send_json(503, {"error": str(e)[:300]})
+        if nodeprovisioning.handle(self, "GET", path, KUBE, CODER_NAMESPACE, log):
+            return
         if clusternet.handle(self, "GET", path, url.query):
             return
         if path == BASE + "/api/persistence":
@@ -9875,6 +9878,8 @@ class Handler(BaseHTTPRequestHandler):
         if workspacemigration.handle(self, "POST", path):
             return
         if workspacevolumes.handle(self, "POST", path, url.query):
+            return
+        if nodeprovisioning.handle(self, "POST", path, KUBE, CODER_NAMESPACE, log):
             return
         if clusternet.handle(self, "POST", path, url.query):
             return

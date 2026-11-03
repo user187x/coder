@@ -48,7 +48,7 @@ import { UserMoreActions } from "#/modules/users/UserMoreActions";
 import { UserRoleCell } from "#/modules/users/UserRoleCell";
 import { getLatencyColor } from "#/utils/latency";
 import { AccountIdentity } from "./AccountIdentity";
-import { AccountPresence } from "./AccountPresence";
+import { AccountPresence, useAccountPresence } from "./AccountPresence";
 import { AccountResourcesCell } from "./AccountResourcesCell";
 import { AccountWorkspaceActions } from "./AccountWorkspaceActions";
 import { AccountWorkspacePanel } from "./AccountWorkspacePanel";
@@ -119,7 +119,8 @@ export const UsersTable: React.FC<UsersTableProps> = (props) => {
 	const [picked, setPicked] = useState("");
 	const fields: AccountField[] = ["Roles", "Notes"];
 	if (quota) fields.push("Resources");
-	if (insights.shown) fields.push("Latency", "Activity");
+	if (insights.shown) fields.push("Latency");
+	if (insights.shown || props.canManageWorkspaces) fields.push("Activity");
 	fields.push("Status");
 	const fixed = layout === "compact" ? ["Roles", "Notes", "Status"] : [];
 	const choices = fields.filter((field) => !fixed.includes(field));
@@ -230,7 +231,7 @@ export const UsersTable: React.FC<UsersTableProps> = (props) => {
 									Activity
 									<InfoTooltip size="small">
 										<TooltipTitle>Activity</TooltipTitle>
-										<TooltipMessage>{`How long the user was connected to their workspaces (apps, the terminal, SSH) over the last ${INSIGHTS_DAYS} days, every template.`}</TooltipMessage>
+										<TooltipMessage>{`Dashboard shows how long the current browser session has been open, including idle time. Workspace shows connection time over the last ${INSIGHTS_DAYS} days, every template.`}</TooltipMessage>
 									</InfoTooltip>
 								</span>
 							</TableHead>
@@ -289,6 +290,7 @@ const UsersTableBody: React.FC<
 	selected,
 	onSelect,
 }) => {
+	const presence = useAccountPresence(Boolean(canManageWorkspaces));
 	const notesQuery = useQuery(notesByUser());
 	if (isLoading) {
 		return (
@@ -307,6 +309,7 @@ const UsersTableBody: React.FC<
 	return users.map((user) => (
 		<UsersTableRow
 			key={user.id}
+			presence={presence}
 			narrow={narrow}
 			visible={visible}
 			user={user}
@@ -339,6 +342,7 @@ type UsersTableRowProps = Omit<
 	"isLoading" | "users" | "groupsByUserId"
 > & {
 	user: TypesGen.User;
+	presence: ReturnType<typeof useAccountPresence>;
 	narrow: boolean;
 	visible: ReadonlySet<AccountField>;
 	selectedWorkspaces: ReadonlyMap<string, TypesGen.Workspace>;
@@ -355,6 +359,7 @@ type UsersTableRowProps = Omit<
  */
 const UsersTableRow: React.FC<UsersTableRowProps> = ({
 	user,
+	presence,
 	narrow,
 	visible,
 	selectedWorkspaces,
@@ -371,6 +376,12 @@ const UsersTableRow: React.FC<UsersTableRowProps> = ({
 	selected,
 	onSelect,
 }) => {
+	const peer = presence.users.get(user.id);
+	const dashboardSeconds =
+		peer?.since && peer.status !== "offline" && presence.generatedAt
+			? (Date.parse(presence.generatedAt) - Date.parse(peer.since)) / 1000
+			: Number.NaN;
+	const hasDashboard = Number.isFinite(dashboardSeconds);
 	const [expanded, setExpanded] = useState(false);
 	const panelId = useId();
 	const columns =
@@ -467,15 +478,30 @@ const UsersTableRow: React.FC<UsersTableRowProps> = ({
 						)}
 					</TableCell>
 				)}
-				{insight && visible.has("Activity") && (
+				{visible.has("Activity") && (
 					<TableCell
 						className="whitespace-nowrap text-center"
 						data-testid="user-activity"
 						data-label="Activity"
 					>
-						{insight.seconds ? (
+						{hasDashboard && (
+							<div
+								className="truncate text-xs tabular-nums"
+								title={`Dashboard tab open since ${peer?.since}${presence.stale ? " (last reported)" : ""}`}
+							>
+								{presence.stale ? "Last tab" : "Dashboard"}{" "}
+								{formatActivity(Math.max(0, dashboardSeconds))}
+							</div>
+						)}
+						{insight?.seconds ? (
 							<div className="mx-auto flex min-w-0 max-w-20 flex-col items-center gap-1">
-								<span className="text-sm tabular-nums text-content-primary">
+								<span
+									className="w-full truncate text-xs tabular-nums text-content-primary"
+									title={`Workspace connection time: ${formatActivity(insight.seconds)}`}
+								>
+									<span className="text-[10px] text-content-secondary">
+										Workspace{" "}
+									</span>
 									{formatActivity(insight.seconds)}
 								</span>
 								<span
@@ -491,7 +517,9 @@ const UsersTableRow: React.FC<UsersTableRowProps> = ({
 								</span>
 							</div>
 						) : (
-							<span className="text-sm text-content-disabled">N/A</span>
+							!hasDashboard && (
+								<span className="text-sm text-content-disabled">N/A</span>
+							)
 						)}
 					</TableCell>
 				)}
@@ -504,7 +532,7 @@ const UsersTableRow: React.FC<UsersTableRowProps> = ({
 							user.status === "suspended" && "text-content-secondary",
 						)}
 					>
-						<AccountPresence user={user} enabled={canEditUsers} />
+						<AccountPresence user={user} presence={presence} />
 					</TableCell>
 				)}
 

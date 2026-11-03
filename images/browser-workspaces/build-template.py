@@ -91,6 +91,9 @@ default_memory = "4"
 def neko_template(base, output, image, turn_secret):
     kasm_template(base, output)
     source = (output / 'main.tf').read_text()
+    source, count = re.subn(r'(data "coder_parameter" "home_disk_size" \{[^}]*?default\s*=\s*)"[^"]+"', r'\g<1>"25"', source, count=1)
+    if not count:
+        raise ValueError('Cannot set the Browser home disk default in this template.')
     source = re.sub(r'(variable "terminal" \{.*?default\s*=\s*)true', r'\g<1>false', source, count=1, flags=re.S)
     source = source.replace('var.terminal', 'false')
     dev_security = r'(security_context\s*\{\s*run_as_user\s*=\s*"1000"\s*)\}'
@@ -166,6 +169,7 @@ def neko_template(base, output, image, turn_secret):
     (output / 'browser.tf').write_text('''data "coder_parameter" "lease_policy" {
   name = "lease_policy"
   display_name = "Browser lease policy"
+  description = "A regular workspace uses no lease restrictions. Coder sets this value when an administrator issues a short-term Browser lease in Accounts."
   type = "string"
   default = "{}"
   mutable = false

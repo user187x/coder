@@ -1,7 +1,14 @@
 import "#/modules/platform/settingsPage/settingsPage.css";
 import { type FormikContextType, getIn, useFormik } from "formik";
 import { ExternalLinkIcon } from "lucide-react";
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import {
+	useCallback,
+	useEffect,
+	useEffectEvent,
+	useId,
+	useRef,
+	useState,
+} from "react";
 import { useQuery } from "react-query";
 import { Link as RouterLink } from "react-router";
 import * as Yup from "yup";
@@ -381,6 +388,7 @@ export const CreateWorkspacePageView: React.FC<
 		parameterField: string,
 		value: string,
 	) => {
+		setSizeNotice("");
 		const currentFormValue = form.values.rich_parameter_values?.find(
 			(p) => p.name === parameter.name,
 		)?.value;
@@ -518,6 +526,84 @@ export const CreateWorkspacePageView: React.FC<
 		diskLimit: admission.data?.remaining?.disk ?? undefined,
 		locked: (name) => presetParameterNames.includes(name) || lockedByLink(name),
 	};
+	// Keep explicit selections and presets. An untouched default may no longer fit on any one node.
+	const [sizeNotice, setSizeNotice] = useState("");
+	const fitDefaults = useEffectEvent(() => {
+		const report = admission.data;
+		if (
+			!report ||
+			report.allowed ||
+			!report.nodes?.length ||
+			report.remaining?.workspaces === 0 ||
+			!parameters.length
+		)
+			return;
+		const number = (name: string) => Number(controls.value(name) || 0);
+		const disk = number("home_disk_size");
+		const gpu = number("gpus");
+		if (disk > (report.remaining?.disk ?? Number.POSITIVE_INFINITY)) return;
+		const options = (name: "cpu" | "memory") => {
+			const current = number(name);
+			const p = controls.parameter(name);
+			if (
+				!p?.options.length ||
+				p.styling?.disabled ||
+				controls.locked?.(name) ||
+				getIn(form.touched, name) ||
+				presets.some(
+					(preset) =>
+						(preset.Default || preset.ID === urlPreset?.ID) &&
+						preset.Parameters?.some((param) => param.Name === name),
+				)
+			)
+				return [current];
+			return p.options
+				.filter((o) => o.value.valid)
+				.map((o) => Number(o.value.value))
+				.filter((v) => v > 0 && v <= current)
+				.sort((a, b) => b - a);
+		};
+		for (const cpu of options("cpu")) {
+			for (const memory of options("memory")) {
+				if (
+					cpu > (report.remaining?.cpu ?? Number.POSITIVE_INFINITY) ||
+					memory > (report.remaining?.memory ?? Number.POSITIVE_INFINITY) ||
+					!report.nodes.some(
+						(n) =>
+							n.cpu >= cpu &&
+							n.memory >= memory &&
+							n.gpus >= gpu &&
+							(n.disk ?? Number.POSITIVE_INFINITY) >= disk,
+					)
+				)
+					continue;
+				const updates = values.flatMap((v) => {
+					const size =
+						v.name === "cpu" ? cpu : v.name === "memory" ? memory : undefined;
+					if (size === undefined || Number(v.value) === size) return [];
+					const parameter = controls.parameter(v.name);
+					return parameter ? [{ parameter, value: String(size) }] : [];
+				});
+				if (!updates.length) return;
+				for (const { parameter, value } of updates) {
+					void form.setFieldTouched(parameter.name, true, false);
+					void form.setFieldValue(
+						`rich_parameter_values.${values.findIndex((v) => v.name === parameter.name)}.value`,
+						value,
+						false,
+					);
+				}
+				sendDynamicParamsRequest(updates);
+				setSizeNotice(
+					`Available starting size selected: ${cpu} CPUs and ${memory} GiB of memory.`,
+				);
+				return;
+			}
+		}
+	});
+	useEffect(() => {
+		if (admission.data?.allowed === false) fitDefaults();
+	}, [admission.data, parameters]);
 	const hasResources = RESOURCE_PARAMETERS.some((name) =>
 		controls.parameter(name),
 	);
@@ -663,6 +749,11 @@ export const CreateWorkspacePageView: React.FC<
 
 				<main className="flex min-w-0 flex-[999_1_560px] flex-col gap-6">
 					{Boolean(error) && <ErrorAlert error={error} />}
+					{sizeNotice && !admissionMessage && admission.data?.allowed && (
+						<p role="status" className="m-0 text-sm text-content-secondary">
+							{sizeNotice}
+						</p>
+					)}
 					{admissionMessage && (
 						<Alert severity="warning">
 							<AlertTitle>Workspace cannot start</AlertTitle>

@@ -256,10 +256,17 @@ export const EnvironmentCard: React.FC<{
 	const theme = params.parameter("desktop_theme");
 	const image = params.parameter("workspace_image");
 	const folder = params.parameter("start_directory");
+	const leasePolicy = params.parameters.find(
+		(p) =>
+			p.name === "lease_policy" &&
+			!p.mutable &&
+			p.display_name === "Browser lease policy",
+	);
 	const more = params.parameters.filter(
 		(p) =>
 			!RESOURCE_PARAMETERS.includes(p.name) &&
-			!ENVIRONMENT_PARAMETERS.includes(p.name),
+			!ENVIRONMENT_PARAMETERS.includes(p.name) &&
+			p !== leasePolicy,
 	);
 	// A template with none of the platform's own: its parameters, as they are.
 	const own = Boolean(theme || image || folder);
@@ -297,6 +304,18 @@ export const EnvironmentCard: React.FC<{
 							)}
 						</div>
 					)}
+					{leasePolicy && (
+						<div>
+							<div className="font-medium">Browser access</div>
+							<p className="ws-desc">
+								{params.value("lease_policy").trim() === "{}"
+									? "Standard workspace. No lease restrictions apply."
+									: "This workspace uses the restrictions set when its Browser lease was issued."}{" "}
+								Administrators choose temporary access, allowed websites and
+								firewall rules in Accounts under Short Term Lease.
+							</p>
+						</div>
+					)}
 					{more.length > 0 && (
 						<div
 							className={
@@ -317,7 +336,7 @@ export const EnvironmentCard: React.FC<{
 							))}
 						</div>
 					)}
-					{!own && more.length === 0 && (
+					{!own && !leasePolicy && more.length === 0 && (
 						<p className="m-0 text-[13px] text-(--ws-muted)">
 							This template has nothing to set here.
 						</p>

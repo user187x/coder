@@ -9,6 +9,10 @@ import {
 	MockUserMember,
 	MockUserOwner,
 } from "#/testHelpers/entities";
+import {
+	withAuthProvider,
+	withDashboardProvider,
+} from "#/testHelpers/storybook";
 import { UsersTable } from "./UsersTable";
 
 const mockGroupsByUserId = new Map([
@@ -19,6 +23,8 @@ const mockGroupsByUserId = new Map([
 const meta: Meta<typeof UsersTable> = {
 	title: "pages/UsersPage/UsersTable",
 	component: UsersTable,
+	parameters: { user: MockUserOwner },
+	decorators: [withDashboardProvider, withAuthProvider],
 	args: {
 		me: MockUserOwner.id,
 		onAction: fn(),
@@ -86,15 +92,13 @@ export const Editable: Story = {
 	},
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		// A row opens the user's workspace, so it is a button named by its cells.
-		const ownerRow = canvas.getByRole("button", {
+		const ownerRow = canvas.getByRole("row", {
 			name: (accessibleName) => accessibleName.includes(MockUserOwner.email),
 		});
 		await userEvent.click(
 			within(ownerRow).getByRole("button", { name: /open menu/i }),
 		);
 		const menu = within(document.body);
-		await menu.findByRole("menuitem", { name: "Edit" });
 		await menu.findByRole("menuitem", { name: "Edit" });
 	},
 };
