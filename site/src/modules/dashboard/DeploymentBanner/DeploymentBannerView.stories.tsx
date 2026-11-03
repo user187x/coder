@@ -84,10 +84,10 @@ export const TableFooter: Story = {
 		<main className="max-w-6xl mx-auto">
 			<TableCard
 				footerStats={<DeploymentBannerView {...args} />}
-				summary="Showing 1 of 1 templates"
+				summary="Showing 1 of 1 workspaces"
 				hint="Point at anything in the table to read what it does"
 			>
-				<Table aria-label="Templates">
+				<Table aria-label="Workspaces">
 					<TableBody>
 						<TableRow>
 							<TableCell>Browser</TableCell>

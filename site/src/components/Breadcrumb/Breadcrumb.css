@@ -1,17 +1,21 @@
 .breadcrumb-connected {
-	--crumb-edge: 12px;
-	container-type: inline-size;
+	--crumb-edge: 8px;
 }
 
 .breadcrumb-connected > ol {
 	gap: 4px;
 	margin-block: 10px;
-	padding-inline: 24px;
+	flex-wrap: nowrap;
+	padding-inline: 16px 0;
 }
 
 .breadcrumb-connected > ol > li {
 	min-width: 0;
 	max-width: 100%;
+}
+
+.breadcrumb-connected > ol > li:first-child {
+	flex-shrink: 0;
 }
 
 .breadcrumb-connected > ol > li + li {
@@ -21,9 +25,11 @@
 .breadcrumb-connected > ol > li > :is(a, span, button) {
 	display: flex;
 	align-items: center;
-	gap: 8px;
+	gap: 4px;
+	min-width: 0;
 	min-height: 36px;
-	padding: 8px clamp(14px, 2cqw, 20px);
+	font-size: 0.8125rem;
+	padding: 8px 8px;
 	background: hsl(var(--surface-tertiary));
 	color: hsl(var(--content-secondary));
 	text-decoration: none;
@@ -44,7 +50,7 @@
 
 .breadcrumb-connected > ol > li:first-child > :is(a, span, button) {
 	border-radius: 6px 0 0 6px;
-	padding-right: calc(clamp(14px, 2cqw, 20px) + var(--crumb-edge));
+	padding-right: calc(8px + var(--crumb-edge));
 	clip-path: polygon(
 		0 0,
 		calc(100% - var(--crumb-edge)) 0,
@@ -55,8 +61,8 @@
 }
 
 .breadcrumb-connected > ol > li:not(:first-child) > :is(a, span, button) {
-	padding-left: calc(clamp(14px, 2cqw, 20px) + var(--crumb-edge));
-	padding-right: calc(clamp(14px, 2cqw, 20px) + var(--crumb-edge));
+	padding-left: calc(8px + var(--crumb-edge));
+	padding-right: calc(8px + var(--crumb-edge));
 	clip-path: polygon(
 		0 0,
 		calc(100% - var(--crumb-edge)) 0,
@@ -69,13 +75,13 @@
 
 .breadcrumb-connected > ol > li:last-child > :is(a, span, button) {
 	border-radius: 0 6px 6px 0;
-	padding-right: clamp(14px, 2cqw, 20px);
+	padding-right: 8px;
 	clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, var(--crumb-edge) 50%);
 }
 
 .breadcrumb-connected > ol > li:only-child > :is(a, span, button) {
 	border-radius: 6px;
-	padding-inline: clamp(14px, 2cqw, 20px);
+	padding-inline: 8px;
 	clip-path: none;
 }
 
@@ -96,7 +102,6 @@
 	cursor: pointer;
 	touch-action: manipulation;
 	font-family: inherit;
-	font-size: inherit;
 }
 .breadcrumb-connected[data-categories-collapsed] > ol > li:first-child > a {
 	clip-path: polygon(

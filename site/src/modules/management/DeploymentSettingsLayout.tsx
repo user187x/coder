@@ -95,12 +95,12 @@ const DeploymentSettingsLayout: React.FC = () => {
 								}}
 							>
 								<CategoryIcon aria-hidden className="size-4 shrink-0" />
-								{category?.label ?? "General"}
+								<span className="truncate">{category?.label ?? "General"}</span>
 								<span
 									data-category-toggle=""
 									aria-hidden="true"
 									title={sidebarOpen ? "Hide categories" : "Show categories"}
-									className="inline-flex size-6 items-center justify-center rounded-sm opacity-70 hover:opacity-100"
+									className="inline-flex size-5 shrink-0 items-center justify-center rounded-sm opacity-70 hover:opacity-100"
 								>
 									<SidebarIcon className="size-3.5" />
 								</span>
