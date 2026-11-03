@@ -59,3 +59,8 @@ export const getWorkspaceInfrastructureMetrics = (
 	platformGet<WorkspaceInfrastructureMetrics>(
 		`/__coder-ui/api/organizations/${encodeURIComponent(organizationId)}/workspaces/${encodeURIComponent(workspaceId)}/node-metrics?seconds=${seconds}`,
 	);
+
+export const getWorkspaceStartup = (org: string, id: string) =>
+	platformGet<{ issue: { reason: string; message: string } | null }>(
+		`/__coder-ui/api/organizations/${encodeURIComponent(org)}/workspaces/${encodeURIComponent(id)}/startup`,
+	);

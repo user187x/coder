@@ -1,5 +1,7 @@
 import { RefreshCcwIcon } from "lucide-react";
 import type React from "react";
+import { useQuery } from "react-query";
+import { workspaceStartup } from "#/api/queries/workspaceMetrics";
 import type { Workspace } from "#/api/typesGenerated";
 import {
 	StatusIndicator,
@@ -11,6 +13,7 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "#/components/Tooltip/Tooltip";
+import { startupState } from "#/modules/platform/workspaceInitializing/workspaceReadiness";
 import { useWorkspaceContactLost } from "#/modules/platform/workspaceLiveness/liveness";
 import {
 	formatStarted,
@@ -87,6 +90,7 @@ type WorkspaceStatusIndicatorProps = {
 	runningLight?: boolean;
 	listPill?: boolean;
 	agentUpdateAvailable?: boolean;
+	starting?: boolean;
 };
 
 export const WorkspaceStatusIndicator: React.FC<
@@ -98,6 +102,7 @@ export const WorkspaceStatusIndicator: React.FC<
 	className,
 	listPill = false,
 	agentUpdateAvailable = false,
+	starting = false,
 }) => {
 	let { text, type } = getDisplayWorkspaceStatus(
 		workspace.latest_build.status,
@@ -114,6 +119,51 @@ export const WorkspaceStatusIndicator: React.FC<
 	if (lostWhileRunning) {
 		text = "No contact";
 		type = "inactive";
+	}
+
+	const startup = workspaceStartup(workspace);
+	const { data } = useQuery(startup);
+	const issue = startup.enabled ? data?.issue : null;
+	if (issue) {
+		return (
+			<StatusIndicator
+				variant="warning"
+				className={className}
+				title={issue.message}
+			>
+				<StatusIndicatorDot />
+				<span>
+					Startup blocked:{" "}
+					{issue.reason === "Unschedulable" &&
+					issue.message.includes("Insufficient memory")
+						? "insufficient memory"
+						: issue.reason}
+				</span>
+			</StatusIndicator>
+		);
+	}
+	const readiness = starting ? "Starting" : startupState(workspace);
+	if (readiness && !lostWhileRunning) {
+		return (
+			<StatusIndicator
+				variant={readiness === "Starting" ? "pending" : "warning"}
+				className={className}
+				data-workspace-pill-state={
+					readiness === "Starting" ? "starting" : "failed"
+				}
+			>
+				{runningLight ? (
+					<WorkspaceStateOrb
+						state={readiness === "Starting" ? "starting" : "error"}
+					/>
+				) : (
+					<StatusIndicatorDot />
+				)}
+				<span className="sr-only">Workspace status:</span>
+				{readiness}
+				{children}
+			</StatusIndicator>
+		);
 	}
 
 	const update =

@@ -5,15 +5,67 @@ title: Authentication
 
 <!-- DO NOT EDIT | GENERATED CONTENT -->
 
-Long-lived tokens can be generated to perform actions on behalf of your user account:
+## Request an email sign-in token
+
+### Code samples
 
 ```sh
-coder tokens create
+# Example request using curl
+curl -X POST http://coder-server:8080/users/login/email/request \
+  -H 'Content-Type: application/json'
 ```
 
-You can use tokens with the Coder's REST API using the `Coder-Session-Token` HTTP header.
+`POST /users/login/email/request`
 
-```console
-curl 'http://coder-server:8080/api/v2/workspaces' \
-  -H 'Coder-Session-Token: *****'
+> Body parameter
+
+```json
+{
+  "email": "user@example.com"
+}
 ```
+
+### Parameters
+
+| Name   | In   | Type                                                                                       | Required | Description              |
+|--------|------|--------------------------------------------------------------------------------------------|----------|--------------------------|
+| `body` | body | [codersdk.RequestOneTimePasscodeRequest](schemas.md#codersdkrequestonetimepasscoderequest) | true     | Registered email address |
+
+### Responses
+
+| Status | Meaning                                                         | Description | Schema |
+|--------|-----------------------------------------------------------------|-------------|--------|
+| 204    | [No Content](https://tools.ietf.org/html/rfc7231#section-6.3.5) | No Content  |        |
+
+## Sign in with a single-use email token
+
+### Code samples
+
+```sh
+# Example request using curl
+curl -X POST http://coder-server:8080/users/login/email/verify \
+  -H 'Content-Type: application/json'
+```
+
+`POST /users/login/email/verify`
+
+> Body parameter
+
+```json
+{
+  "email": "string",
+  "token": "string"
+}
+```
+
+### Parameters
+
+| Name   | In   | Type                                                                     | Required | Description             |
+|--------|------|--------------------------------------------------------------------------|----------|-------------------------|
+| `body` | body | [coderd.emailLoginVerification](schemas.md#coderdemailloginverification) | true     | Email address and token |
+
+### Responses
+
+| Status | Meaning                                                         | Description | Schema |
+|--------|-----------------------------------------------------------------|-------------|--------|
+| 204    | [No Content](https://tools.ietf.org/html/rfc7231#section-6.3.5) | No Content  |        |

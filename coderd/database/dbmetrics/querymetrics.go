@@ -345,6 +345,14 @@ func (m queryMetricsStore) ConsumeChatAutomationWebhookByID(ctx context.Context,
 	return r0, r1
 }
 
+func (m queryMetricsStore) ConsumeUserEmailLoginToken(ctx context.Context, arg database.ConsumeUserEmailLoginTokenParams) (int64, error) {
+	start := time.Now()
+	r0, r1 := m.s.ConsumeUserEmailLoginToken(ctx, arg)
+	m.queryLatencies.WithLabelValues("ConsumeUserEmailLoginToken").Observe(time.Since(start).Seconds())
+	m.queryCounts.WithLabelValues(httpmw.ExtractHTTPRoute(ctx), httpmw.ExtractHTTPMethod(ctx), "ConsumeUserEmailLoginToken").Inc()
+	return r0, r1
+}
+
 func (m queryMetricsStore) ConsumeWorkspaceQuarantineManualStart(ctx context.Context, arg database.ConsumeWorkspaceQuarantineManualStartParams) error {
 	start := time.Now()
 	r0 := m.s.ConsumeWorkspaceQuarantineManualStart(ctx, arg)
@@ -5478,6 +5486,14 @@ func (m queryMetricsStore) SetTransactionLockTimeout(ctx context.Context, lockTi
 	r0 := m.s.SetTransactionLockTimeout(ctx, lockTimeoutMspgCatalogint8)
 	m.queryLatencies.WithLabelValues("SetTransactionLockTimeout").Observe(time.Since(start).Seconds())
 	m.queryCounts.WithLabelValues(httpmw.ExtractHTTPRoute(ctx), httpmw.ExtractHTTPMethod(ctx), "SetTransactionLockTimeout").Inc()
+	return r0
+}
+
+func (m queryMetricsStore) SetUserEmailLoginToken(ctx context.Context, arg database.SetUserEmailLoginTokenParams) error {
+	start := time.Now()
+	r0 := m.s.SetUserEmailLoginToken(ctx, arg)
+	m.queryLatencies.WithLabelValues("SetUserEmailLoginToken").Observe(time.Since(start).Seconds())
+	m.queryCounts.WithLabelValues(httpmw.ExtractHTTPRoute(ctx), httpmw.ExtractHTTPMethod(ctx), "SetUserEmailLoginToken").Inc()
 	return r0
 }
 

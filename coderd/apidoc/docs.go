@@ -13924,6 +13924,56 @@ const docTemplate = `{
                     }
                 ]
             }
+        },
+        "/users/login/email/request": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Request an email sign-in token",
+                "operationId": "request-email-login",
+                "parameters": [
+                    {
+                        "description": "Registered email address",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/codersdk.RequestOneTimePasscodeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    }
+                }
+            }
+        },
+        "/users/login/email/verify": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Sign in with a single-use email token",
+                "operationId": "verify-email-login",
+                "parameters": [
+                    {
+                        "description": "Email address and token",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/coderd.emailLoginVerification"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -14179,6 +14229,23 @@ const docTemplate = `{
                 "csp-report": {
                     "type": "object",
                     "additionalProperties": true
+                }
+            }
+        },
+        "coderd.emailLoginVerification": {
+            "type": "object",
+            "required": [
+                "email",
+                "token"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "maxLength": 320
+                },
+                "token": {
+                    "type": "string",
+                    "maxLength": 128
                 }
             }
         },
@@ -15296,6 +15363,9 @@ const docTemplate = `{
         "codersdk.AuthMethods": {
             "type": "object",
             "properties": {
+                "email_login": {
+                    "type": "boolean"
+                },
                 "oidc": {
                     "$ref": "#/definitions/codersdk.OIDCAuthMethod"
                 },
@@ -16741,6 +16811,9 @@ const docTemplate = `{
                     "$ref": "#/definitions/serpent.URL"
                 },
                 "dynamic_parameters_full_evaluation": {
+                    "type": "boolean"
+                },
+                "email_login_enabled": {
                     "type": "boolean"
                 },
                 "enable_authz_recording": {

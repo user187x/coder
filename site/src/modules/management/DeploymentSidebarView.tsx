@@ -96,6 +96,7 @@ export const DeploymentSidebarView: React.FC<DeploymentSidebarViewProps> = ({
 		permissions.editDeploymentConfig &&
 			item("customize", "/deployment/customize", "Appearance"),
 		Boolean(health) && { id: "health", label: "Health", node: health },
+		permissions.editDeploymentConfig && item("images", "/images", "Images"),
 		(permissions.editDeploymentConfig || permissions.viewDeploymentConfig) &&
 			item("monitoring", "/deployment/monitoring", "Monitoring"),
 		permissions.viewDeploymentConfig &&

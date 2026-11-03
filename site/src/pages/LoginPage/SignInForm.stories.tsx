@@ -104,3 +104,20 @@ export const WithKeycloak: Story = {
 		},
 	},
 };
+
+export const EmailRecovery: Story = {
+	args: {
+		authMethods: {
+			password: { enabled: true },
+			oidc: { enabled: false, signInText: "", iconUrl: "" },
+			email_login: true,
+		},
+	},
+	play: async ({ canvasElement }) => {
+		await userEvent.click(
+			await within(canvasElement).findByRole("button", {
+				name: "Sign in by email",
+			}),
+		);
+	},
+};

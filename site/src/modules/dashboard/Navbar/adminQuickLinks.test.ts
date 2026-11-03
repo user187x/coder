@@ -46,6 +46,7 @@ describe("adminPagesFor", () => {
 			"Cloud Drive",
 			"Appearance",
 			"Health",
+			"Images",
 			"Monitoring",
 			"Network",
 			"Notifications",

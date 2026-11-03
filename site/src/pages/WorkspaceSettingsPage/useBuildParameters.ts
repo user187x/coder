@@ -415,6 +415,8 @@ export type ParameterControls = {
 	disabled: boolean;
 	/** A new workspace's: the immutable ones are set now too. */
 	creating?: boolean;
+	canSelect?: (name: string, value: string) => boolean;
+	diskLimit?: number;
 	/** Held by what opened the page (a preset, the link). */
 	locked?: (name: string) => boolean;
 };

@@ -3,6 +3,7 @@ import {
 	AppWindowIcon,
 	BellIcon,
 	CloudIcon,
+	ContainerIcon,
 	DatabaseIcon,
 	HeartPulseIcon,
 	KeyRoundIcon,
@@ -97,6 +98,13 @@ const ADMIN_PAGES: readonly (AdminPage & {
 		icon: HeartPulseIcon,
 		path: "/health",
 		allowed: ({ permissions }) => permissions.viewDebugInfo,
+	},
+	{
+		id: "images",
+		label: "Images",
+		icon: ContainerIcon,
+		path: "/images",
+		allowed: ({ permissions }) => permissions.editDeploymentConfig,
 	},
 	{
 		id: "monitoring",

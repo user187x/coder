@@ -1,17 +1,26 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { expect, screen, within } from "storybook/test";
+import { expect, screen, spyOn, within } from "storybook/test";
 import { DetailedError } from "#/api/errors";
+import { PlatformAPI } from "#/api/platform";
 import type { Preset, PreviewParameter } from "#/api/typesGenerated";
 import {
 	MockTemplate,
 	MockUserMember,
 	MockUserOwner,
 } from "#/testHelpers/entities";
+import { withDashboardProvider } from "#/testHelpers/storybook";
 import { CreateWorkspacePageView } from "./CreateWorkspacePageView";
 
 const meta: Meta<typeof CreateWorkspacePageView> = {
 	title: "Pages/CreateWorkspacePageView",
+	beforeEach: () => {
+		spyOn(PlatformAPI, "checkWorkspaceAdmission").mockResolvedValue({
+			allowed: true,
+			message: "Within quota.",
+		});
+	},
 	component: CreateWorkspacePageView,
+	decorators: [withDashboardProvider],
 	args: {
 		autofillParameters: [],
 		diagnostics: [],
@@ -572,5 +581,15 @@ export const DynamicParameterFlowTemplate: Story = {
 		expect(
 			canvas.queryByText("This template uses deprecated parameters"),
 		).not.toBeInTheDocument();
+	},
+};
+
+export const InsufficientCapacity: Story = {
+	beforeEach: () => {
+		spyOn(PlatformAPI, "checkWorkspaceAdmission").mockResolvedValue({
+			allowed: false,
+			message: "No eligible node has enough memory for this workspace.",
+			nodes: [],
+		});
 	},
 };

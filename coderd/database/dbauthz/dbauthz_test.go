@@ -3471,6 +3471,16 @@ func (s *MethodTestSuite) TestUser() {
 		dbm.EXPECT().UpdateUserHashedPassword(gomock.Any(), arg).Return(nil).AnyTimes()
 		check.Args(arg).Asserts(u, policy.ActionUpdatePersonal).Returns()
 	}))
+	s.Run("SetUserEmailLoginToken", s.Mocked(func(dbm *dbmock.MockStore, faker *gofakeit.Faker, check *expects) {
+		arg := testutil.Fake(s.T(), faker, database.SetUserEmailLoginTokenParams{})
+		dbm.EXPECT().SetUserEmailLoginToken(gomock.Any(), arg).Return(nil).AnyTimes()
+		check.Args(arg).Asserts(rbac.ResourceSystem, policy.ActionUpdate).Returns()
+	}))
+	s.Run("ConsumeUserEmailLoginToken", s.Mocked(func(dbm *dbmock.MockStore, faker *gofakeit.Faker, check *expects) {
+		arg := testutil.Fake(s.T(), faker, database.ConsumeUserEmailLoginTokenParams{})
+		dbm.EXPECT().ConsumeUserEmailLoginToken(gomock.Any(), arg).Return(int64(1), nil).AnyTimes()
+		check.Args(arg).Asserts(rbac.ResourceSystem, policy.ActionUpdate).Returns(int64(1))
+	}))
 	s.Run("UpdateUserHashedOneTimePasscode", s.Mocked(func(dbm *dbmock.MockStore, faker *gofakeit.Faker, check *expects) {
 		u := testutil.Fake(s.T(), faker, database.User{})
 		arg := database.UpdateUserHashedOneTimePasscodeParams{ID: u.ID}

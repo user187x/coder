@@ -800,6 +800,21 @@ type DashboardAddress = {
 };
 
 /** The signed-in user's own quota (the Workspaces page's pill); limited false = no limit applies to them. */
+export type WorkspaceAdmissionRequest = {
+	organization_id: string;
+	template_id: string;
+	template_version_id: string;
+	owner_id: string;
+	owner: string;
+	rich_parameter_values: { name: string; value: string }[];
+};
+type WorkspaceAdmission = {
+	allowed: boolean;
+	message: string;
+	remaining?: QuotaLimits;
+	nodes?: { cpu: number; memory: number; gpus: number; disk?: number }[];
+};
+
 export type QuotaMe = {
 	resourceModes?: QuotaResourceModes;
 	baseLimits?: QuotaLimits;
@@ -2644,6 +2659,8 @@ export const PlatformAPI = {
 			`${PLATFORM_BASE}/api/scheduler`,
 			settings,
 		),
+	checkWorkspaceAdmission: (request: WorkspaceAdmissionRequest) =>
+		post<WorkspaceAdmission>(`${PLATFORM_BASE}/api/quota/check`, request),
 	getQuotaMe: () => get<QuotaMe>(`${PLATFORM_BASE}/api/quota/me`),
 	getDashboardAddress: () =>
 		get<DashboardAddress>(`${PLATFORM_BASE}/api/dashboard-address`),

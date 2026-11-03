@@ -193,6 +193,7 @@ QUARANTINE_ENFORCER = None
 NEKO_MEDIA = None
 import vmusercommand
 import quotaextras
+import workspacecapacity
 import workspacenodemetrics
 import math
 import drivepeers  # noqa: E402  (Cloud Drives shared between users: asked for in chat, approved by admins)
@@ -6992,7 +6993,7 @@ def quota_me(token, user):
     return {"limited": True, "exempt": False, **addition, "usage": usage, "left": left, "resourceModes": modes,
             "atLimit": any(left[k] is not None and left[k] <= 0 for k in QUOTA_KEYS)}
 
-def quota_check(token, user, body):
+def quota_check(token, user, body, resolved=False):
     """Before Coder creates a workspace: would it pass the owner's limits? {"allowed", "message", ...}. Asked by Coder
     with the requester's own session, so it sees exactly what they may see."""
     settings = quota_settings()
@@ -7003,7 +7004,7 @@ def quota_check(token, user, body):
     else:
         status, u = _coder_get(token, "/api/v2/users/%s" % urllib.parse.quote(owner))
         if status != 200 or not isinstance(u, dict):
-            return {"allowed": True, "message": "owner not readable; not checked"}
+            return {"allowed": False, "message": "The workspace owner could not be verified."}
         target = {"username": u.get("username"), "id": u.get("id"), "roles": sorted({r.get("name") for r in u.get("roles") or []})}
     if body.get("owner_id") and body["owner_id"] != target["id"]:
         return {"allowed": False, "message": "Workspace owner identity does not match the quota request."}
@@ -7019,7 +7020,7 @@ def quota_check(token, user, body):
     if not version and body.get("template_id"):
         st, t = _coder_get(token, "/api/v2/templates/%s" % body["template_id"])
         version = (t or {}).get("active_version_id") if st == 200 and isinstance(t, dict) else None
-    if version:
+    if version and not resolved:
         st, rich = _coder_get(token, "/api/v2/templateversions/%s/rich-parameters" % version)
         for p in rich if st == 200 and isinstance(rich, list) else []:
             params.setdefault(p.get("name"), p.get("default_value"))
@@ -7054,12 +7055,83 @@ def quota_check(token, user, body):
         over.append(("memory: this workspace needs %s GiB, above its per-instance limit of %s" % (fmt(want_mem), fmt(limits["memory"]))) if modes["memory"] == "instance" else ("memory: this one needs %s GiB, %s of %s GiB are taken" % (fmt(want_mem), fmt(usage["memory"]), fmt(limits["memory"]))))
     if limits["disk"] is not None and after["disk"] > limits["disk"]:
         over.append("disk: %s GB requested, %s GB %s limit" % (fmt(after["disk"]), fmt(limits["disk"]), modes["disk"]))
+    remaining = {k: None if limits[k] is None else max(0, limits[k] - (
+        0 if modes.get(k) == "instance" else usage[k])) for k in QUOTA_KEYS}
+    addition = {**addition, "remaining": remaining}
     if over:
         who = "Your" if target["username"] == user["username"] else "%s's" % target["username"]
         return {"allowed": False, **addition, "usage": usage, "request": {"cpu": want_cpu, "memory": want_mem, "disk": want_disk},
                 "message": "%s workspace quota is reached (%s). Delete or shrink a workspace, or ask an admin to raise the "
                            "quota in Health > User Quota." % (who, "; ".join(over))}
     return {"allowed": True, "message": "within quota", **addition, "usage": usage, "request": {"cpu": want_cpu, "memory": want_mem, "disk": want_disk}}
+
+
+def workspace_admission(token, user, body):
+    """Check the workspace owner's allowance and the placement of the requested build."""
+    tid = str(uuid.UUID(body["template_id"]))
+    oid = str(uuid.UUID(body["organization_id"]))
+    version = str(uuid.UUID(body["template_version_id"]))
+    status, template = _coder_get(token, "/api/v2/templates/" + tid)
+    if status != 200 or template.get("organization_id") != oid:
+        return {"allowed": False, "message": "Template not accessible in this organization."}
+    if body.get("owner") not in (None, "me", user["id"], user["username"]):
+        st, checks = _coder_send(token, "POST", "/api/v2/authcheck", {"checks": {"create": {"action": "create",
+            "object": {"resource_type": "workspace", "organization_id": oid, "owner_id": body.get("owner_id")}}}})
+        if st != 200 or not checks.get("create"):
+            return {"allowed": False, "message": "You cannot create a workspace for this owner."}
+    if version != template.get("active_version_id"):
+        st, metadata = _coder_get(token, "/api/v2/templateversions/" + version)
+        if st != 200 or metadata.get("template_id") != tid:
+            return {"allowed": False, "message": "Template version does not match this workspace template."}
+    # A version's resource inventory is immutable after a successful template import.
+    definitions = CACHE.get("workspace-admission:" + version)
+    if definitions is None:
+        st, rich = _coder_get(token, "/api/v2/templateversions/" + version + "/rich-parameters")
+        if st != 200 or not isinstance(rich, list):
+            raise RuntimeError("Template resources could not be read.")
+        st, resources = _coder_get(token, "/api/v2/templateversions/" + version + "/resources")
+        if st != 200 or not isinstance(resources, list):
+            raise RuntimeError("Template infrastructure could not be read.")
+        definitions = ({p["name"]: p.get("default_value") for p in rich}, any(
+            r.get("type") in ("kubernetes_deployment", "kubernetes_deployment_v1", "kubernetes_pod",
+                              "kubernetes_pod_v1", "kubernetes_manifest") for r in resources))
+        CACHE.put("workspace-admission:" + version, definitions, 60)
+    defaults, kubernetes = definitions
+    values = {**defaults, **{p["name"]: p["value"] for p in body.get("rich_parameter_values") or []}}
+    parameters = [{"name": k, "value": v} for k, v in values.items()]
+    result = quota_check(token, user, {**body, "rich_parameter_values": parameters}, resolved=True)
+    if not kubernetes or not any(k in values for k in workspacecapacity.RESOURCES):
+        return result
+    current = body.get("current_workspace_id")
+    bound_node = None
+    if current:
+        current = str(uuid.UUID(current))
+        ws = workspace_info(token, current)
+        if not ws or ws.get("organization_id") != oid or ws.get("owner_id") != body.get("owner_id"):
+            return {"allowed": False, "message": "Workspace ownership could not be verified."}
+        st, pvc = KUBE.call("GET", "/api/v1/namespaces/%s/persistentvolumeclaims/coder-%s-home" % (WORKSPACE_NAMESPACE, current))
+        if st not in (200, 404):
+            raise RuntimeError("Workspace volume placement is unavailable.")
+        if st == 200:
+            bound_node = (pvc.get("metadata", {}).get("annotations") or {}).get("volume.kubernetes.io/selected-node")
+    nodes = workspacecapacity.available(cluster_snapshot(), template["name"], current, quantity, WORKSPACE_NAMESPACE, bound_node)
+    if not current and "home_disk_size" in values:
+        # The bundled local-path provisioner creates homes on the chosen node's filesystem.
+        st, classes = KUBE.call("GET", "/apis/storage.k8s.io/v1/storageclasses")
+        default = next((c for c in classes.get("items", []) if
+                        c["metadata"].get("annotations", {}).get("storageclass.kubernetes.io/is-default-class") == "true"), {}) if st == 200 else {}
+        if default.get("provisioner") == "rancher.io/local-path":
+            summaries = node_summaries()
+            for node in nodes:
+                fs = summaries.get(node["_name"], {}).get("node", {}).get("fs", {})
+                if hudstorage.fresh(fs) and fs.get("availableBytes") is not None:
+                    node["disk"] = fs["availableBytes"] / 1e9
+    for node in nodes:
+        node.pop("_name")
+    issue = workspacecapacity.check_size(values, nodes)
+    if result["allowed"] and issue:
+        result = {**result, "allowed": False, "message": issue}
+    return {**result, "nodes": nodes}
 
 
 # --------------------------------------------------------------------------- Global Workspace Scheduler (Health > User Quota)
@@ -9874,8 +9946,8 @@ class Handler(BaseHTTPRequestHandler):
             if err:
                 return
             try:
-                result = quota_check(self.token(), user, payload)
-            except Exception as e:  # noqa: BLE001 - Coder lets the workspace through when the check itself fails
+                result = workspace_admission(self.token(), user, payload)
+            except Exception as e:  # noqa: BLE001 - the client can retry when capacity is readable
                 log(event="quota-check-failed", user=user["username"], error=str(e)[:200])
                 return self.send_json(503, {"error": "The quota could not be checked: %s" % str(e)[:200]})
             if not result.get("allowed"):

@@ -1,17 +1,10 @@
-import { cn } from "cn";
-import {
-	PanelLeftCloseIcon,
-	PanelLeftOpenIcon,
-	SettingsIcon,
-} from "lucide-react";
+import { SettingsIcon } from "lucide-react";
 import { Suspense, useId, useState } from "react";
 import { Navigate, Outlet, useLocation } from "react-router";
 import {
 	BreadcrumbItem,
 	BreadcrumbList,
-	BreadcrumbPage,
 } from "#/components/Breadcrumb/Breadcrumb";
-import { Button } from "#/components/Button/Button";
 import { Loader } from "#/components/Loader/Loader";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { adminCategory } from "#/modules/dashboard/Navbar/adminQuickLinks";
@@ -60,37 +53,33 @@ const DeploymentSettingsLayout: React.FC = () => {
 			<div className={chat ? "flex-1 min-h-0" : undefined}>
 				<AdminBreadcrumb
 					variant="connected"
-					className="flex items-center justify-between"
+					data-categories-collapsed={!sidebarOpen || undefined}
 				>
 					<BreadcrumbList>
 						<BreadcrumbItem>
 							<AdminCategoryMenu />
 						</BreadcrumbItem>
 						<BreadcrumbItem>
-							<BreadcrumbPage className="text-content-primary">
+							<button
+								type="button"
+								aria-current="page"
+								aria-controls={sidebarId}
+								aria-expanded={sidebarOpen}
+								title={
+									sidebarOpen
+										? "Double-click to hide categories"
+										: "Double-click to show categories"
+								}
+								onDoubleClick={() => setSidebarOpen((open) => !open)}
+								onClick={(event) => {
+									if (event.detail === 0) setSidebarOpen((open) => !open);
+								}}
+							>
 								<CategoryIcon aria-hidden className="size-4 shrink-0" />
 								{category?.label ?? "General"}
-							</BreadcrumbPage>
+							</button>
 						</BreadcrumbItem>
 					</BreadcrumbList>
-					<Button
-						type="button"
-						variant="subtle"
-						size="sm"
-						className={cn("mr-4 shrink-0", chat && "hidden lg:inline-flex")}
-						aria-expanded={sidebarOpen}
-						aria-controls={sidebarId}
-						aria-label={sidebarOpen ? "Hide categories" : "Show categories"}
-						title={sidebarOpen ? "Hide categories" : "Show categories"}
-						onClick={() => setSidebarOpen((open) => !open)}
-					>
-						{sidebarOpen ? (
-							<PanelLeftCloseIcon aria-hidden />
-						) : (
-							<PanelLeftOpenIcon aria-hidden />
-						)}
-						<span className="hidden sm:inline">Categories</span>
-					</Button>
 				</AdminBreadcrumb>
 				<section className="px-4 sm:px-6 lg:px-10 max-w-[1920px] mx-auto">
 					<div className="flex flex-col gap-4 py-3 lg:flex-row lg:gap-8 lg:py-5">

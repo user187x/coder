@@ -14,9 +14,12 @@ it("hides and restores the category links without resetting the current page", a
 	});
 	const search = await screen.findByRole("textbox", { name: "Account search" });
 	await user.type(search, "demo");
-	await user.click(screen.getByRole("button", { name: "Hide categories" }));
+	const category = screen.getByRole("button", { name: "Accounts" });
+	await user.click(category);
+	expect(category).toHaveAttribute("aria-expanded", "true");
+	await user.dblClick(category);
 	expect(screen.queryByRole("link", { name: "Accounts" })).toBeNull();
-	const toggle = screen.getByRole("button", { name: "Show categories" });
+	const toggle = screen.getByRole("button", { name: "Accounts" });
 	expect(toggle).toHaveFocus();
 	await user.keyboard("{Enter}");
 	expect(screen.getByRole("link", { name: "Accounts" })).toHaveAttribute(

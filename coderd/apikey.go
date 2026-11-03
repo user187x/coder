@@ -567,12 +567,16 @@ func (api *API) getMaxTokenLifetime(ctx context.Context, userID uuid.UUID) (time
 }
 
 func (api *API) createAPIKey(ctx context.Context, params apikey.CreateParams) (*http.Cookie, *database.APIKey, error) {
+	return api.createAPIKeyWithStore(ctx, api.Database, params)
+}
+
+func (api *API) createAPIKeyWithStore(ctx context.Context, store database.Store, params apikey.CreateParams) (*http.Cookie, *database.APIKey, error) {
 	key, sessionToken, err := apikey.Generate(params)
 	if err != nil {
 		return nil, nil, xerrors.Errorf("generate API key: %w", err)
 	}
 
-	newkey, err := api.Database.InsertAPIKey(ctx, key)
+	newkey, err := store.InsertAPIKey(ctx, key)
 	if err != nil {
 		return nil, nil, xerrors.Errorf("insert API key: %w", err)
 	}

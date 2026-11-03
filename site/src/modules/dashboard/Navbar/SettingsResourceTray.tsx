@@ -5,6 +5,7 @@ import {
 	GaugeIcon,
 	HourglassIcon,
 	LayoutTemplateIcon,
+	MessagesSquareIcon,
 	MonitorIcon,
 	PlusIcon,
 	Trash2Icon,
@@ -42,7 +43,12 @@ import type { SettingsPanelPlacement } from "./settingsPanelLayout";
 import { UserDropdownContent } from "./UserDropdown/UserDropdownContent";
 import "./settingsResourceTray.css";
 
-const permanentShortcutIds = new Set(["account", "workspaces", "templates"]);
+const permanentShortcutIds = new Set([
+	"account",
+	"workspaces",
+	"templates",
+	"chat",
+]);
 
 const destinations: readonly AdminPage[] = [
 	{ id: "hud", label: "HUD", path: "/hud", icon: GaugeIcon },
@@ -50,6 +56,9 @@ const destinations: readonly AdminPage[] = [
 
 export const SettingsResourceTray = ({
 	images,
+	hud = true,
+	chatExpanded,
+	onChatToggle,
 	user,
 	buildInfo,
 	supportLinks,
@@ -59,6 +68,9 @@ export const SettingsResourceTray = ({
 	onElement,
 }: {
 	images: boolean;
+	hud?: boolean;
+	chatExpanded?: boolean;
+	onChatToggle?: () => void;
 	user: User;
 	buildInfo?: BuildInfoResponse;
 	supportLinks: readonly LinkConfig[];
@@ -142,7 +154,7 @@ export const SettingsResourceTray = ({
 	const choices = [
 		...new Map(
 			[
-				...destinations,
+				...(hud ? destinations : []),
 				...(images
 					? [
 							{
@@ -309,6 +321,21 @@ export const SettingsResourceTray = ({
 								onSignOut={onSignOut}
 							/>
 						</div>
+					)}
+					{!accountOpen && onChatToggle && (
+						<DropdownMenuItem
+							className="justify-center size-8 shrink-0 p-0"
+							aria-label="Open quick chat"
+							aria-expanded={chatExpanded}
+							title="Chat"
+							onSelect={(event) => {
+								event.preventDefault();
+								setAdding(false);
+								onChatToggle();
+							}}
+						>
+							<MessagesSquareIcon aria-hidden />
+						</DropdownMenuItem>
 					)}
 					{!accountOpen &&
 						links.map((page) => {

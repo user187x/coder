@@ -209,9 +209,9 @@ func TestPlatformWorkspaceQuota(t *testing.T) {
 	require.NoError(t, create())
 	<-checks
 
-	// The check itself failing lets the workspace through.
+	// A configured admission service must confirm the allocation.
 	reply(http.StatusServiceUnavailable, `{"error": "down"}`)
-	require.NoError(t, create())
+	require.ErrorContains(t, create(), "could not be checked")
 	<-checks
 }
 
@@ -321,12 +321,14 @@ func TestPlatformWorkspaceQuotaStartResize(t *testing.T) {
 	require.Equal(t, first.OrganizationID.String(), check["organization_id"])
 	require.Equal(t, version.ID.String(), check["template_version_id"], "an unpinned start uses the previous build version")
 	require.ElementsMatch(t, []any{map[string]any{"name": "cpu", "value": "4"}, map[string]any{"name": "memory", "value": "4"}}, check["rich_parameter_values"])
+	allowed.Store(true)
 	for _, params := range [][]codersdk.WorkspaceBuildParameter{nil, {{Name: "cpu", Value: "2"}}} {
 		build, err := client.CreateWorkspaceBuild(ctx, workspace.ID, codersdk.CreateWorkspaceBuildRequest{Transition: codersdk.WorkspaceTransitionStart, RichParameterValues: params})
 		require.NoError(t, err)
 		coderdtest.AwaitWorkspaceBuildJobCompleted(t, client, build.ID)
+		<-checks
 	}
-	require.Empty(t, checks, "unchanged and reduced allocations must remain restartable")
+	require.Empty(t, checks)
 	allowed.Store(true)
 	build, err := client.CreateWorkspaceBuild(ctx, workspace.ID, codersdk.CreateWorkspaceBuildRequest{Transition: codersdk.WorkspaceTransitionStart, RichParameterValues: []codersdk.WorkspaceBuildParameter{{Name: "cpu", Value: "4"}}})
 	require.NoError(t, err)

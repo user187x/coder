@@ -428,3 +428,11 @@ export const updateAccount = (target: User, queryClient: QueryClient) => ({
 		]);
 	},
 });
+
+export const requestEmailLogin = () => ({
+	mutationFn: (email: string) => API.requestEmailLogin(email),
+});
+export const verifyEmailLogin = () => ({
+	mutationFn: ({ email, token }: { email: string; token: string }) =>
+		API.verifyEmailLogin(email, token),
+});

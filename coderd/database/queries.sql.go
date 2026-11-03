@@ -33696,6 +33696,27 @@ func (q *sqlQuerier) AllUserIDs(ctx context.Context, includeSystem bool) ([]uuid
 	return items, nil
 }
 
+const consumeUserEmailLoginToken = `-- name: ConsumeUserEmailLoginToken :execrows
+UPDATE users
+SET hashed_email_login_token = NULL, email_login_expires_at = NULL
+WHERE id = $1 AND hashed_email_login_token = $2
+    AND email_login_expires_at > NOW()
+    AND status = 'active' AND NOT deleted AND NOT is_service_account
+`
+
+type ConsumeUserEmailLoginTokenParams struct {
+	ID                    uuid.UUID `db:"id" json:"id"`
+	HashedEmailLoginToken []byte    `db:"hashed_email_login_token" json:"hashed_email_login_token"`
+}
+
+func (q *sqlQuerier) ConsumeUserEmailLoginToken(ctx context.Context, arg ConsumeUserEmailLoginTokenParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, consumeUserEmailLoginToken, arg.ID, arg.HashedEmailLoginToken)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const deleteUserChatCompactionThreshold = `-- name: DeleteUserChatCompactionThreshold :exec
 DELETE FROM user_configs WHERE user_id = $1 AND key = $2
 `
@@ -34008,7 +34029,7 @@ func (q *sqlQuerier) GetUserAppearanceSettings(ctx context.Context, userID uuid.
 
 const getUserByEmailOrUsername = `-- name: GetUserByEmailOrUsername :one
 SELECT
-	id, email, username, hashed_password, created_at, updated_at, status, rbac_roles, login_type, avatar_url, deleted, last_seen_at, quiet_hours_schedule, name, github_com_user_id, hashed_one_time_passcode, one_time_passcode_expires_at, is_system, is_service_account, chat_spend_limit_micros, failed_password_attempts, password_locked_until
+	id, email, username, hashed_password, created_at, updated_at, status, rbac_roles, login_type, avatar_url, deleted, last_seen_at, quiet_hours_schedule, name, github_com_user_id, hashed_one_time_passcode, one_time_passcode_expires_at, is_system, is_service_account, chat_spend_limit_micros, failed_password_attempts, password_locked_until, hashed_email_login_token, email_login_expires_at
 FROM
 	users
 WHERE
@@ -34049,13 +34070,15 @@ func (q *sqlQuerier) GetUserByEmailOrUsername(ctx context.Context, arg GetUserBy
 		&i.ChatSpendLimitMicros,
 		&i.FailedPasswordAttempts,
 		&i.PasswordLockedUntil,
+		&i.HashedEmailLoginToken,
+		&i.EmailLoginExpiresAt,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
 SELECT
-	id, email, username, hashed_password, created_at, updated_at, status, rbac_roles, login_type, avatar_url, deleted, last_seen_at, quiet_hours_schedule, name, github_com_user_id, hashed_one_time_passcode, one_time_passcode_expires_at, is_system, is_service_account, chat_spend_limit_micros, failed_password_attempts, password_locked_until
+	id, email, username, hashed_password, created_at, updated_at, status, rbac_roles, login_type, avatar_url, deleted, last_seen_at, quiet_hours_schedule, name, github_com_user_id, hashed_one_time_passcode, one_time_passcode_expires_at, is_system, is_service_account, chat_spend_limit_micros, failed_password_attempts, password_locked_until, hashed_email_login_token, email_login_expires_at
 FROM
 	users
 WHERE
@@ -34090,6 +34113,8 @@ func (q *sqlQuerier) GetUserByID(ctx context.Context, id uuid.UUID) (User, error
 		&i.ChatSpendLimitMicros,
 		&i.FailedPasswordAttempts,
 		&i.PasswordLockedUntil,
+		&i.HashedEmailLoginToken,
+		&i.EmailLoginExpiresAt,
 	)
 	return i, err
 }
@@ -34197,7 +34222,7 @@ func (q *sqlQuerier) GetUserCount(ctx context.Context, includeSystem bool) (int6
 }
 
 const getUserForChatSyntheticAPIKeyByID = `-- name: GetUserForChatSyntheticAPIKeyByID :one
-SELECT id, email, username, hashed_password, created_at, updated_at, status, rbac_roles, login_type, avatar_url, deleted, last_seen_at, quiet_hours_schedule, name, github_com_user_id, hashed_one_time_passcode, one_time_passcode_expires_at, is_system, is_service_account, chat_spend_limit_micros, failed_password_attempts, password_locked_until
+SELECT id, email, username, hashed_password, created_at, updated_at, status, rbac_roles, login_type, avatar_url, deleted, last_seen_at, quiet_hours_schedule, name, github_com_user_id, hashed_one_time_passcode, one_time_passcode_expires_at, is_system, is_service_account, chat_spend_limit_micros, failed_password_attempts, password_locked_until, hashed_email_login_token, email_login_expires_at
 FROM users
 WHERE id = $1::uuid
 `
@@ -34228,6 +34253,8 @@ func (q *sqlQuerier) GetUserForChatSyntheticAPIKeyByID(ctx context.Context, id u
 		&i.ChatSpendLimitMicros,
 		&i.FailedPasswordAttempts,
 		&i.PasswordLockedUntil,
+		&i.HashedEmailLoginToken,
+		&i.EmailLoginExpiresAt,
 	)
 	return i, err
 }
@@ -34268,7 +34295,7 @@ func (q *sqlQuerier) GetUserThinkingDisplayMode(ctx context.Context, userID uuid
 
 const getUsers = `-- name: GetUsers :many
 SELECT
-	id, email, username, hashed_password, created_at, updated_at, status, rbac_roles, login_type, avatar_url, deleted, last_seen_at, quiet_hours_schedule, name, github_com_user_id, hashed_one_time_passcode, one_time_passcode_expires_at, is_system, is_service_account, chat_spend_limit_micros, failed_password_attempts, password_locked_until, COUNT(*) OVER() AS count
+	id, email, username, hashed_password, created_at, updated_at, status, rbac_roles, login_type, avatar_url, deleted, last_seen_at, quiet_hours_schedule, name, github_com_user_id, hashed_one_time_passcode, one_time_passcode_expires_at, is_system, is_service_account, chat_spend_limit_micros, failed_password_attempts, password_locked_until, hashed_email_login_token, email_login_expires_at, COUNT(*) OVER() AS count
 FROM
 	users
 WHERE
@@ -34436,6 +34463,8 @@ type GetUsersRow struct {
 	ChatSpendLimitMicros     sql.NullInt64  `db:"chat_spend_limit_micros" json:"chat_spend_limit_micros"`
 	FailedPasswordAttempts   int32          `db:"failed_password_attempts" json:"failed_password_attempts"`
 	PasswordLockedUntil      sql.NullTime   `db:"password_locked_until" json:"password_locked_until"`
+	HashedEmailLoginToken    []byte         `db:"hashed_email_login_token" json:"hashed_email_login_token"`
+	EmailLoginExpiresAt      sql.NullTime   `db:"email_login_expires_at" json:"email_login_expires_at"`
 	Count                    int64          `db:"count" json:"count"`
 }
 
@@ -34490,6 +34519,8 @@ func (q *sqlQuerier) GetUsers(ctx context.Context, arg GetUsersParams) ([]GetUse
 			&i.ChatSpendLimitMicros,
 			&i.FailedPasswordAttempts,
 			&i.PasswordLockedUntil,
+			&i.HashedEmailLoginToken,
+			&i.EmailLoginExpiresAt,
 			&i.Count,
 		); err != nil {
 			return nil, err
@@ -34506,7 +34537,7 @@ func (q *sqlQuerier) GetUsers(ctx context.Context, arg GetUsersParams) ([]GetUse
 }
 
 const getUsersByIDs = `-- name: GetUsersByIDs :many
-SELECT id, email, username, hashed_password, created_at, updated_at, status, rbac_roles, login_type, avatar_url, deleted, last_seen_at, quiet_hours_schedule, name, github_com_user_id, hashed_one_time_passcode, one_time_passcode_expires_at, is_system, is_service_account, chat_spend_limit_micros, failed_password_attempts, password_locked_until FROM users WHERE id = ANY($1 :: uuid [ ])
+SELECT id, email, username, hashed_password, created_at, updated_at, status, rbac_roles, login_type, avatar_url, deleted, last_seen_at, quiet_hours_schedule, name, github_com_user_id, hashed_one_time_passcode, one_time_passcode_expires_at, is_system, is_service_account, chat_spend_limit_micros, failed_password_attempts, password_locked_until, hashed_email_login_token, email_login_expires_at FROM users WHERE id = ANY($1 :: uuid [ ])
 `
 
 // This shouldn't check for deleted, because it's frequently used
@@ -34544,6 +34575,8 @@ func (q *sqlQuerier) GetUsersByIDs(ctx context.Context, ids []uuid.UUID) ([]User
 			&i.ChatSpendLimitMicros,
 			&i.FailedPasswordAttempts,
 			&i.PasswordLockedUntil,
+			&i.HashedEmailLoginToken,
+			&i.EmailLoginExpiresAt,
 		); err != nil {
 			return nil, err
 		}
@@ -34579,7 +34612,7 @@ VALUES
 		-- we were doing before.
 		COALESCE(NULLIF($10::text, '')::user_status, 'dormant'::user_status),
 		$11::bool
-	) RETURNING id, email, username, hashed_password, created_at, updated_at, status, rbac_roles, login_type, avatar_url, deleted, last_seen_at, quiet_hours_schedule, name, github_com_user_id, hashed_one_time_passcode, one_time_passcode_expires_at, is_system, is_service_account, chat_spend_limit_micros, failed_password_attempts, password_locked_until
+	) RETURNING id, email, username, hashed_password, created_at, updated_at, status, rbac_roles, login_type, avatar_url, deleted, last_seen_at, quiet_hours_schedule, name, github_com_user_id, hashed_one_time_passcode, one_time_passcode_expires_at, is_system, is_service_account, chat_spend_limit_micros, failed_password_attempts, password_locked_until, hashed_email_login_token, email_login_expires_at
 `
 
 type InsertUserParams struct {
@@ -34634,6 +34667,8 @@ func (q *sqlQuerier) InsertUser(ctx context.Context, arg InsertUserParams) (User
 		&i.ChatSpendLimitMicros,
 		&i.FailedPasswordAttempts,
 		&i.PasswordLockedUntil,
+		&i.HashedEmailLoginToken,
+		&i.EmailLoginExpiresAt,
 	)
 	return i, err
 }
@@ -34699,6 +34734,23 @@ func (q *sqlQuerier) RecordUserPasswordAttempt(ctx context.Context, arg RecordUs
 	var password_locked_until sql.NullTime
 	err := row.Scan(&password_locked_until)
 	return password_locked_until, err
+}
+
+const setUserEmailLoginToken = `-- name: SetUserEmailLoginToken :exec
+UPDATE users
+SET hashed_email_login_token = $1, email_login_expires_at = $2
+WHERE id = $3
+`
+
+type SetUserEmailLoginTokenParams struct {
+	HashedEmailLoginToken []byte       `db:"hashed_email_login_token" json:"hashed_email_login_token"`
+	EmailLoginExpiresAt   sql.NullTime `db:"email_login_expires_at" json:"email_login_expires_at"`
+	ID                    uuid.UUID    `db:"id" json:"id"`
+}
+
+func (q *sqlQuerier) SetUserEmailLoginToken(ctx context.Context, arg SetUserEmailLoginTokenParams) error {
+	_, err := q.db.ExecContext(ctx, setUserEmailLoginToken, arg.HashedEmailLoginToken, arg.EmailLoginExpiresAt, arg.ID)
+	return err
 }
 
 const updateInactiveUsersToDormant = `-- name: UpdateInactiveUsersToDormant :many
@@ -34962,7 +35014,7 @@ SET
 WHERE
 	LOWER(email) = LOWER($3)
 	AND deleted = false
-RETURNING id, email, username, hashed_password, created_at, updated_at, status, rbac_roles, login_type, avatar_url, deleted, last_seen_at, quiet_hours_schedule, name, github_com_user_id, hashed_one_time_passcode, one_time_passcode_expires_at, is_system, is_service_account, chat_spend_limit_micros, failed_password_attempts, password_locked_until
+RETURNING id, email, username, hashed_password, created_at, updated_at, status, rbac_roles, login_type, avatar_url, deleted, last_seen_at, quiet_hours_schedule, name, github_com_user_id, hashed_one_time_passcode, one_time_passcode_expires_at, is_system, is_service_account, chat_spend_limit_micros, failed_password_attempts, password_locked_until, hashed_email_login_token, email_login_expires_at
 `
 
 type UpdateUserEmailParams struct {
@@ -34997,6 +35049,8 @@ func (q *sqlQuerier) UpdateUserEmail(ctx context.Context, arg UpdateUserEmailPar
 		&i.ChatSpendLimitMicros,
 		&i.FailedPasswordAttempts,
 		&i.PasswordLockedUntil,
+		&i.HashedEmailLoginToken,
+		&i.EmailLoginExpiresAt,
 	)
 	return i, err
 }
@@ -35069,7 +35123,7 @@ SET
 	last_seen_at = $2,
 	updated_at = $3
 WHERE
-	id = $1 RETURNING id, email, username, hashed_password, created_at, updated_at, status, rbac_roles, login_type, avatar_url, deleted, last_seen_at, quiet_hours_schedule, name, github_com_user_id, hashed_one_time_passcode, one_time_passcode_expires_at, is_system, is_service_account, chat_spend_limit_micros, failed_password_attempts, password_locked_until
+	id = $1 RETURNING id, email, username, hashed_password, created_at, updated_at, status, rbac_roles, login_type, avatar_url, deleted, last_seen_at, quiet_hours_schedule, name, github_com_user_id, hashed_one_time_passcode, one_time_passcode_expires_at, is_system, is_service_account, chat_spend_limit_micros, failed_password_attempts, password_locked_until, hashed_email_login_token, email_login_expires_at
 `
 
 type UpdateUserLastSeenAtParams struct {
@@ -35104,6 +35158,8 @@ func (q *sqlQuerier) UpdateUserLastSeenAt(ctx context.Context, arg UpdateUserLas
 		&i.ChatSpendLimitMicros,
 		&i.FailedPasswordAttempts,
 		&i.PasswordLockedUntil,
+		&i.HashedEmailLoginToken,
+		&i.EmailLoginExpiresAt,
 	)
 	return i, err
 }
@@ -35123,7 +35179,7 @@ SET
 WHERE
 	id = $2
 	AND NOT is_system
-RETURNING id, email, username, hashed_password, created_at, updated_at, status, rbac_roles, login_type, avatar_url, deleted, last_seen_at, quiet_hours_schedule, name, github_com_user_id, hashed_one_time_passcode, one_time_passcode_expires_at, is_system, is_service_account, chat_spend_limit_micros, failed_password_attempts, password_locked_until
+RETURNING id, email, username, hashed_password, created_at, updated_at, status, rbac_roles, login_type, avatar_url, deleted, last_seen_at, quiet_hours_schedule, name, github_com_user_id, hashed_one_time_passcode, one_time_passcode_expires_at, is_system, is_service_account, chat_spend_limit_micros, failed_password_attempts, password_locked_until, hashed_email_login_token, email_login_expires_at
 `
 
 type UpdateUserLoginTypeParams struct {
@@ -35157,6 +35213,8 @@ func (q *sqlQuerier) UpdateUserLoginType(ctx context.Context, arg UpdateUserLogi
 		&i.ChatSpendLimitMicros,
 		&i.FailedPasswordAttempts,
 		&i.PasswordLockedUntil,
+		&i.HashedEmailLoginToken,
+		&i.EmailLoginExpiresAt,
 	)
 	return i, err
 }
@@ -35172,7 +35230,7 @@ SET
 	name = $6
 WHERE
 	id = $1
-RETURNING id, email, username, hashed_password, created_at, updated_at, status, rbac_roles, login_type, avatar_url, deleted, last_seen_at, quiet_hours_schedule, name, github_com_user_id, hashed_one_time_passcode, one_time_passcode_expires_at, is_system, is_service_account, chat_spend_limit_micros, failed_password_attempts, password_locked_until
+RETURNING id, email, username, hashed_password, created_at, updated_at, status, rbac_roles, login_type, avatar_url, deleted, last_seen_at, quiet_hours_schedule, name, github_com_user_id, hashed_one_time_passcode, one_time_passcode_expires_at, is_system, is_service_account, chat_spend_limit_micros, failed_password_attempts, password_locked_until, hashed_email_login_token, email_login_expires_at
 `
 
 type UpdateUserProfileParams struct {
@@ -35217,6 +35275,8 @@ func (q *sqlQuerier) UpdateUserProfile(ctx context.Context, arg UpdateUserProfil
 		&i.ChatSpendLimitMicros,
 		&i.FailedPasswordAttempts,
 		&i.PasswordLockedUntil,
+		&i.HashedEmailLoginToken,
+		&i.EmailLoginExpiresAt,
 	)
 	return i, err
 }
@@ -35228,7 +35288,7 @@ SET
 	quiet_hours_schedule = $2
 WHERE
 	id = $1
-RETURNING id, email, username, hashed_password, created_at, updated_at, status, rbac_roles, login_type, avatar_url, deleted, last_seen_at, quiet_hours_schedule, name, github_com_user_id, hashed_one_time_passcode, one_time_passcode_expires_at, is_system, is_service_account, chat_spend_limit_micros, failed_password_attempts, password_locked_until
+RETURNING id, email, username, hashed_password, created_at, updated_at, status, rbac_roles, login_type, avatar_url, deleted, last_seen_at, quiet_hours_schedule, name, github_com_user_id, hashed_one_time_passcode, one_time_passcode_expires_at, is_system, is_service_account, chat_spend_limit_micros, failed_password_attempts, password_locked_until, hashed_email_login_token, email_login_expires_at
 `
 
 type UpdateUserQuietHoursScheduleParams struct {
@@ -35262,6 +35322,8 @@ func (q *sqlQuerier) UpdateUserQuietHoursSchedule(ctx context.Context, arg Updat
 		&i.ChatSpendLimitMicros,
 		&i.FailedPasswordAttempts,
 		&i.PasswordLockedUntil,
+		&i.HashedEmailLoginToken,
+		&i.EmailLoginExpiresAt,
 	)
 	return i, err
 }
@@ -35274,7 +35336,7 @@ SET
 	rbac_roles = ARRAY(SELECT DISTINCT UNNEST($1 :: text[]))
 WHERE
 	id = $2
-RETURNING id, email, username, hashed_password, created_at, updated_at, status, rbac_roles, login_type, avatar_url, deleted, last_seen_at, quiet_hours_schedule, name, github_com_user_id, hashed_one_time_passcode, one_time_passcode_expires_at, is_system, is_service_account, chat_spend_limit_micros, failed_password_attempts, password_locked_until
+RETURNING id, email, username, hashed_password, created_at, updated_at, status, rbac_roles, login_type, avatar_url, deleted, last_seen_at, quiet_hours_schedule, name, github_com_user_id, hashed_one_time_passcode, one_time_passcode_expires_at, is_system, is_service_account, chat_spend_limit_micros, failed_password_attempts, password_locked_until, hashed_email_login_token, email_login_expires_at
 `
 
 type UpdateUserRolesParams struct {
@@ -35308,6 +35370,8 @@ func (q *sqlQuerier) UpdateUserRoles(ctx context.Context, arg UpdateUserRolesPar
 		&i.ChatSpendLimitMicros,
 		&i.FailedPasswordAttempts,
 		&i.PasswordLockedUntil,
+		&i.HashedEmailLoginToken,
+		&i.EmailLoginExpiresAt,
 	)
 	return i, err
 }
@@ -35348,7 +35412,7 @@ SET
 	-- If the user is logging in, set last_seen_at to updated_at.
 	last_seen_at = CASE WHEN $4 :: boolean THEN $3 :: timestamptz ELSE last_seen_at END
 WHERE
-	id = $1 RETURNING id, email, username, hashed_password, created_at, updated_at, status, rbac_roles, login_type, avatar_url, deleted, last_seen_at, quiet_hours_schedule, name, github_com_user_id, hashed_one_time_passcode, one_time_passcode_expires_at, is_system, is_service_account, chat_spend_limit_micros, failed_password_attempts, password_locked_until
+	id = $1 RETURNING id, email, username, hashed_password, created_at, updated_at, status, rbac_roles, login_type, avatar_url, deleted, last_seen_at, quiet_hours_schedule, name, github_com_user_id, hashed_one_time_passcode, one_time_passcode_expires_at, is_system, is_service_account, chat_spend_limit_micros, failed_password_attempts, password_locked_until, hashed_email_login_token, email_login_expires_at
 `
 
 type UpdateUserStatusParams struct {
@@ -35389,6 +35453,8 @@ func (q *sqlQuerier) UpdateUserStatus(ctx context.Context, arg UpdateUserStatusP
 		&i.ChatSpendLimitMicros,
 		&i.FailedPasswordAttempts,
 		&i.PasswordLockedUntil,
+		&i.HashedEmailLoginToken,
+		&i.EmailLoginExpiresAt,
 	)
 	return i, err
 }

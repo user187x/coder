@@ -70,6 +70,7 @@ const TilesOrField: React.FC<{
 			options={parameter.options.map((o) => ({
 				value: o.value.value,
 				name: o.name,
+				disabled: params.canSelect?.(name, o.value.value) === false,
 			}))}
 			value={params.value(name)}
 			onChange={(value) => void params.change(parameter, value)}
@@ -94,7 +95,12 @@ const GpuStrip: React.FC<{ params: ParameterControls; saving: boolean }> = ({
 		parameter && offered && editable(params, parameter, saving),
 	);
 	// The counts the template offers beyond none (1, 2, 4 GPUs)
-	const counts = parameter?.options.filter((o) => o.value.value !== "0") ?? [];
+	const counts =
+		parameter?.options.filter(
+			(o) =>
+				o.value.value !== "0" &&
+				params.canSelect?.("gpus", o.value.value) !== false,
+		) ?? [];
 	// What turning it on again picks: the count it had, else the first offered
 	const [last, setLast] = useState(() =>
 		on ? value : (counts[0]?.value.value ?? "1"),
@@ -149,11 +155,18 @@ const GpuStrip: React.FC<{ params: ParameterControls; saving: boolean }> = ({
 				pressed={on && offered}
 				labelledBy="gpu-label"
 				describedBy="gpu-help"
-				disabled={!canChange}
+				disabled={!canChange || (!on && counts.length === 0)}
 				testId="gpu-switch"
 				onChange={(pressed) => {
 					if (parameter) {
-						void params.change(parameter, pressed ? last : "0");
+						void params.change(
+							parameter,
+							pressed
+								? counts.some((o) => o.value.value === last)
+									? last
+									: (counts[0]?.value.value ?? "0")
+								: "0",
+						);
 					}
 				}}
 			/>
@@ -255,7 +268,15 @@ const NewDiskStrip: React.FC<{
 					inputMode="numeric"
 					className="ws-input ws-input-mono w-24 text-right"
 					min={parameter.validations[0]?.validation_min ?? undefined}
-					max={parameter.validations[0]?.validation_max ?? undefined}
+					max={
+						params.diskLimit == null
+							? (parameter.validations[0]?.validation_max ?? undefined)
+							: Math.min(
+									params.diskLimit,
+									parameter.validations[0]?.validation_max ??
+										Number.POSITIVE_INFINITY,
+								)
+					}
 					value={params.value(parameter.name)}
 					disabled={!editable(params, parameter, saving)}
 					aria-invalid={Boolean(error)}

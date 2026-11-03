@@ -524,6 +524,8 @@ func (q *sqlQuerier) GetAuthorizedUsers(ctx context.Context, arg GetUsersParams,
 			&i.ChatSpendLimitMicros,
 			&i.FailedPasswordAttempts,
 			&i.PasswordLockedUntil,
+			&i.HashedEmailLoginToken,
+			&i.EmailLoginExpiresAt,
 			&i.Count,
 		); err != nil {
 			return nil, err

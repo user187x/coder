@@ -47,6 +47,7 @@ const (
 	CheckChatUserAclNotNullJsonb                             CheckConstraint = "chat_user_acl_not_null_jsonb"                              // chats
 	CheckChatsPinOrderArchivedCheck                          CheckConstraint = "chats_pin_order_archived_check"                            // chats
 	CheckChatsPinOrderParentCheck                            CheckConstraint = "chats_pin_order_parent_check"                              // chats
+	CheckEmailLoginTokenSet                                  CheckConstraint = "email_login_token_set"                                     // users
 	CheckOneTimePasscodeSet                                  CheckConstraint = "one_time_passcode_set"                                     // users
 	CheckUsersChatSpendLimitMicrosCheck                      CheckConstraint = "users_chat_spend_limit_micros_check"                       // users
 	CheckUsersEmailNotEmpty                                  CheckConstraint = "users_email_not_empty"                                     // users

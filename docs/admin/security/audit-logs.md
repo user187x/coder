@@ -725,8 +725,10 @@ Actions: `create`, `write`, `delete`
 <tr><td><code>created_at</code></td><td>No</td></tr>
 <tr><td><code>deleted</code></td><td>Yes</td></tr>
 <tr><td><code>email</code></td><td>Yes</td></tr>
+<tr><td><code>email_login_expires_at</code></td><td>No</td></tr>
 <tr><td><code>failed_password_attempts</code></td><td>No</td></tr>
 <tr><td><code>github_com_user_id</code></td><td>No</td></tr>
+<tr><td><code>hashed_email_login_token</code></td><td>Yes</td></tr>
 <tr><td><code>hashed_one_time_passcode</code></td><td>No</td></tr>
 <tr><td><code>hashed_password</code></td><td>Yes</td></tr>
 <tr><td><code>id</code></td><td>Yes</td></tr>

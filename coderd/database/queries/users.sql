@@ -826,3 +826,15 @@ UPDATE users SET
     END
 WHERE id = @id::uuid AND NOT deleted
 RETURNING password_locked_until;
+
+-- name: SetUserEmailLoginToken :exec
+UPDATE users
+SET hashed_email_login_token = @hashed_email_login_token, email_login_expires_at = @email_login_expires_at
+WHERE id = @id;
+
+-- name: ConsumeUserEmailLoginToken :execrows
+UPDATE users
+SET hashed_email_login_token = NULL, email_login_expires_at = NULL
+WHERE id = @id AND hashed_email_login_token = @hashed_email_login_token
+    AND email_login_expires_at > NOW()
+    AND status = 'active' AND NOT deleted AND NOT is_service_account;

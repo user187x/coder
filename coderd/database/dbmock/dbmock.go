@@ -483,6 +483,21 @@ func (mr *MockStoreMockRecorder) ConsumeChatAutomationWebhookByID(ctx, arg any) 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ConsumeChatAutomationWebhookByID", reflect.TypeOf((*MockStore)(nil).ConsumeChatAutomationWebhookByID), ctx, arg)
 }
 
+// ConsumeUserEmailLoginToken mocks base method.
+func (m *MockStore) ConsumeUserEmailLoginToken(ctx context.Context, arg database.ConsumeUserEmailLoginTokenParams) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ConsumeUserEmailLoginToken", ctx, arg)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ConsumeUserEmailLoginToken indicates an expected call of ConsumeUserEmailLoginToken.
+func (mr *MockStoreMockRecorder) ConsumeUserEmailLoginToken(ctx, arg any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ConsumeUserEmailLoginToken", reflect.TypeOf((*MockStore)(nil).ConsumeUserEmailLoginToken), ctx, arg)
+}
+
 // ConsumeWorkspaceQuarantineManualStart mocks base method.
 func (m *MockStore) ConsumeWorkspaceQuarantineManualStart(ctx context.Context, arg database.ConsumeWorkspaceQuarantineManualStartParams) error {
 	m.ctrl.T.Helper()
@@ -10394,6 +10409,20 @@ func (m *MockStore) SetTransactionLockTimeout(ctx context.Context, lockTimeoutMs
 func (mr *MockStoreMockRecorder) SetTransactionLockTimeout(ctx, lockTimeoutMs any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetTransactionLockTimeout", reflect.TypeOf((*MockStore)(nil).SetTransactionLockTimeout), ctx, lockTimeoutMs)
+}
+
+// SetUserEmailLoginToken mocks base method.
+func (m *MockStore) SetUserEmailLoginToken(ctx context.Context, arg database.SetUserEmailLoginTokenParams) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetUserEmailLoginToken", ctx, arg)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SetUserEmailLoginToken indicates an expected call of SetUserEmailLoginToken.
+func (mr *MockStoreMockRecorder) SetUserEmailLoginToken(ctx, arg any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetUserEmailLoginToken", reflect.TypeOf((*MockStore)(nil).SetUserEmailLoginToken), ctx, arg)
 }
 
 // SoftDeleteChatMessageByID mocks base method.

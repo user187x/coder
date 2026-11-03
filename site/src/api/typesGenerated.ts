@@ -896,6 +896,7 @@ export interface AuthMethod {
  * AuthMethods contains authentication method information like whether they are enabled or not or custom text, etc.
  */
 export interface AuthMethods {
+	readonly email_login?: boolean;
 	readonly terms_of_service_url?: string;
 	readonly password: AuthMethod;
 	readonly oidc: OIDCAuthMethod;
@@ -2034,6 +2035,7 @@ export interface DeploymentValues {
 	readonly dangerous?: DangerousConfig;
 	readonly disable_path_apps?: boolean;
 	readonly session_lifetime?: SessionLifetime;
+	readonly email_login_enabled?: boolean;
 	readonly disable_password_auth?: boolean;
 	readonly support?: SupportConfig;
 	readonly enable_authz_recording?: boolean;

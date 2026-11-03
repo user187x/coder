@@ -165,7 +165,11 @@ describe("NavbarView", () => {
 			} else {
 				await user.click(screen.getByRole("button", { name: /Settings/ }));
 			}
-			await user.click(await screen.findByRole("menuitem", { name: "Chat" }));
+			await user.click(
+				await screen.findByRole("menuitem", {
+					name: mobile ? "Chat" : "Open quick chat",
+				}),
+			);
 			expect(setOpen).toHaveBeenCalledWith(true);
 			await user.click(
 				screen.getByRole("button", { name: "Dismiss quick chat" }),

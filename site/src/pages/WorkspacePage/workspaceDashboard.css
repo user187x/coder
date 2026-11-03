@@ -6,6 +6,17 @@ html[data-workspace-expanded] {
 	height: 40px;
 	pointer-events: none;
 }
+.workspace-dashboard-page:not([data-workspace-expanded])
+	.workspace-dashboard-scroll {
+	display: flex;
+	flex-direction: column;
+}
+.workspace-dashboard-page:not([data-workspace-expanded])
+	.workspace-dashboard-content {
+	width: 100%;
+	flex: none;
+	margin-block: auto;
+}
 .workspace-dashboard-page[data-workspace-expanded] .workspace-dashboard-scroll {
 	display: flex;
 	flex-direction: column;

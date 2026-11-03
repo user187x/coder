@@ -19,7 +19,7 @@ import uuid
 
 import vmprofile
 
-ROUTE = re.compile(r"^/__coder-ui/api/organizations/([0-9a-f-]{36})/workspaces/([0-9a-f-]{36})/node-metrics$")
+ROUTE = re.compile(r"^/__coder-ui/api/organizations/([0-9a-f-]{36})/workspaces/([0-9a-f-]{36})/(node-metrics|startup)$")
 WORKSPACE_INFO = SNAPSHOT = QUANTITY = KUBE = INFRASTRUCTURE_ACCESS = None
 HISTORY = None
 INSECURE_TLS = False
@@ -405,6 +405,41 @@ def report(token, oid, wid, owner=False, seconds=300):
             "generatedAt": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")}
 
 
+def startup_issue(token, oid, wid):
+    workspace = WORKSPACE_INFO(token, wid)
+    if not workspace or workspace.get("organization_id") != oid:
+        raise LookupError("Workspace not found in this organization.")
+    selector = urllib.parse.quote("com.coder.workspace.id=" + wid, safe="")
+    status, listed = KUBE.call("GET", "/api/v1/pods?labelSelector=" + selector)
+    if status != 200:
+        raise RuntimeError("Workspace pod status unavailable.")
+    pods = sorted((p for p in listed.get("items", []) if not p["metadata"].get("deletionTimestamp")),
+                  key=lambda p: p["metadata"].get("creationTimestamp", ""), reverse=True)
+    if not pods:
+        return {"issue": None}
+    pod = pods[0]
+    state = pod.get("status") or {}
+    condition = next((c for c in state.get("conditions", []) if c["type"] == "PodScheduled" and c["status"] == "False"), None)
+    if condition:
+        return {"issue": {"reason": condition.get("reason", "Waiting for placement"),
+                          "message": condition.get("message") or "Kubernetes has not assigned the workspace to a node."}}
+    for container in (state.get("initContainerStatuses") or []) + (state.get("containerStatuses") or []):
+        waiting = container.get("state", {}).get("waiting") or {}
+        if waiting.get("reason") not in (None, "PodInitializing", "ContainerCreating"):
+            return {"issue": {"reason": waiting["reason"], "message": "%s: %s" % (
+                container["name"], waiting.get("message") or waiting["reason"])}}
+    if state.get("phase") == "Failed":
+        return {"issue": {"reason": state.get("reason") or "Pod failed", "message": state.get("message") or "Workspace pod failed."}}
+    if state.get("phase") == "Pending":
+        ns = urllib.parse.quote(pod["metadata"]["namespace"], safe="")
+        query = urllib.parse.urlencode({"fieldSelector": "type=Warning,involvedObject.uid=" + pod["metadata"]["uid"]})
+        st, events = KUBE.call("GET", "/api/v1/namespaces/%s/events?%s" % (ns, query))
+        if st == 200 and events.get("items"):
+            latest = max(events["items"], key=lambda e: e.get("lastTimestamp") or e.get("eventTime") or e["metadata"].get("creationTimestamp", ""))
+            return {"issue": {"reason": latest["reason"], "message": latest.get("message") or latest["reason"]}}
+    return {"issue": None}
+
+
 def handle(h, method, path, query=""):
     match = ROUTE.fullmatch(path)
     if not match:
@@ -416,7 +451,10 @@ def handle(h, method, path, query=""):
     if err:
         return True
     try:
-        oid, wid = (str(uuid.UUID(value)) for value in match.groups())
+        oid, wid = (str(uuid.UUID(value)) for value in match.groups()[:2])
+        if match.group(3) == "startup":
+            h.send_json(200, startup_issue(h.token(), oid, wid))
+            return True
         seconds = max(40, min(14400, int((urllib.parse.parse_qs(query).get("seconds") or [300])[0])))
         h.send_json(200, report(h.token(), oid, wid, owner="owner" in user.get("roles", []), seconds=seconds))
     except LookupError as error:

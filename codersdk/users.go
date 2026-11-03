@@ -350,6 +350,7 @@ type OAuthConversionResponse struct {
 
 // AuthMethods contains authentication method information like whether they are enabled or not or custom text, etc.
 type AuthMethods struct {
+	EmailLogin        bool           `json:"email_login,omitempty"`
 	TermsOfServiceURL string         `json:"terms_of_service_url,omitempty"`
 	Password          AuthMethod     `json:"password"`
 	OIDC              OIDCAuthMethod `json:"oidc"`

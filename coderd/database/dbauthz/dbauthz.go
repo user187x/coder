@@ -2031,6 +2031,13 @@ func (q *querier) ConsumeChatAutomationWebhookByID(ctx context.Context, arg data
 	return q.db.ConsumeChatAutomationWebhookByID(ctx, arg)
 }
 
+func (q *querier) ConsumeUserEmailLoginToken(ctx context.Context, arg database.ConsumeUserEmailLoginTokenParams) (int64, error) {
+	if err := q.authorizeContext(ctx, policy.ActionUpdate, rbac.ResourceSystem); err != nil {
+		return 0, err
+	}
+	return q.db.ConsumeUserEmailLoginToken(ctx, arg)
+}
+
 func (q *querier) ConsumeWorkspaceQuarantineManualStart(ctx context.Context, arg database.ConsumeWorkspaceQuarantineManualStartParams) error {
 	workspace, err := q.db.GetWorkspaceByID(ctx, arg.WorkspaceID)
 	if err != nil {
@@ -7664,6 +7671,13 @@ func (q *querier) SetChatContextSnapshot(ctx context.Context, arg database.SetCh
 // transaction and reads no data, like AcquireLock.
 func (q *querier) SetTransactionLockTimeout(ctx context.Context, lockTimeoutMs int64) error {
 	return q.db.SetTransactionLockTimeout(ctx, lockTimeoutMs)
+}
+
+func (q *querier) SetUserEmailLoginToken(ctx context.Context, arg database.SetUserEmailLoginTokenParams) error {
+	if err := q.authorizeContext(ctx, policy.ActionUpdate, rbac.ResourceSystem); err != nil {
+		return err
+	}
+	return q.db.SetUserEmailLoginToken(ctx, arg)
 }
 
 func (q *querier) SoftDeleteChatMessageByID(ctx context.Context, id int64) error {

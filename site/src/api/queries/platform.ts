@@ -23,6 +23,7 @@ import {
 	PlatformAPI,
 	type QuotaSettings,
 	type SchedulerSettings,
+	type WorkspaceAdmissionRequest,
 } from "#/api/platform";
 import {
 	ATTACHMENT_REFRESH_MS,
@@ -663,7 +664,13 @@ export const quotaReport = () => ({
 	refetchInterval: QUOTA_REFRESH_MS,
 });
 
-/** The signed-in user's own limits and what their workspaces take (the Workspaces page's quota pill). */
+export const workspaceAdmission = (request: WorkspaceAdmissionRequest) => ({
+	queryKey: [...platformKey, "workspace-admission", request],
+	queryFn: () => PlatformAPI.checkWorkspaceAdmission(request),
+	refetchInterval: 5000,
+	retry: false,
+});
+
 export const quotaMe = () => ({
 	queryKey: quotaMeKey,
 	queryFn: PlatformAPI.getQuotaMe,

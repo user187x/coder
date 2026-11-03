@@ -190,6 +190,8 @@ var auditableResourcesTypes = map[any]map[string]Action{
 		"name":                         ActionTrack,
 		"github_com_user_id":           ActionIgnore,
 		"hashed_one_time_passcode":     ActionIgnore,
+		"hashed_email_login_token":     ActionSecret,
+		"email_login_expires_at":       ActionIgnore,
 		"one_time_passcode_expires_at": ActionTrack,
 		"is_system":                    ActionTrack, // Should never change, but track it anyway.
 		"is_service_account":           ActionTrack, // Should never change, but track it anyway.

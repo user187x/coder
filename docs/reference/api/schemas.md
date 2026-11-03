@@ -299,6 +299,22 @@ title: Schemas
 |--------------|--------|----------|--------------|-------------|
 | `csp-report` | object | false    |              |             |
 
+## coderd.emailLoginVerification
+
+```json
+{
+  "email": "string",
+  "token": "string"
+}
+```
+
+### Properties
+
+| Name    | Type   | Required | Restrictions | Description |
+|---------|--------|----------|--------------|-------------|
+| `email` | string | true     |              |             |
+| `token` | string | true     |              |             |
+
 ## codersdk.ACLAvailable
 
 ```json
@@ -1048,6 +1064,7 @@ title: Schemas
 
 ```json
 {
+  "email_login": true,
   "oidc": {
     "accountUrl": "string",
     "enabled": true,
@@ -1065,6 +1082,7 @@ title: Schemas
 
 | Name                   | Type                                               | Required | Restrictions | Description |
 |------------------------|----------------------------------------------------|----------|--------------|-------------|
+| `email_login`          | boolean                                            | false    |              |             |
 | `oidc`                 | [codersdk.OIDCAuthMethod](#codersdkoidcauthmethod) | false    |              |             |
 | `password`             | [codersdk.AuthMethod](#codersdkauthmethod)         | false    |              |             |
 | `terms_of_service_url` | string                                             | false    |              |             |
@@ -2577,6 +2595,7 @@ CreateWorkspaceRequest provides options for creating a new workspace. Only one o
       "user": {}
     },
     "dynamic_parameters_full_evaluation": true,
+    "email_login_enabled": true,
     "enable_authz_recording": true,
     "enable_terraform_debug_mode": true,
     "ephemeral_deployment": true,
@@ -3125,6 +3144,7 @@ CreateWorkspaceRequest provides options for creating a new workspace. Only one o
     "user": {}
   },
   "dynamic_parameters_full_evaluation": true,
+  "email_login_enabled": true,
   "enable_authz_recording": true,
   "enable_terraform_debug_mode": true,
   "ephemeral_deployment": true,
@@ -3498,6 +3518,7 @@ CreateWorkspaceRequest provides options for creating a new workspace. Only one o
 | `disable_workspace_sharing`                    | boolean                                                                                              | false    |              |                                                                           |
 | `docs_url`                                     | [serpent.URL](#serpenturl)                                                                           | false    |              |                                                                           |
 | `dynamic_parameters_full_evaluation`           | boolean                                                                                              | false    |              |                                                                           |
+| `email_login_enabled`                          | boolean                                                                                              | false    |              |                                                                           |
 | `enable_authz_recording`                       | boolean                                                                                              | false    |              |                                                                           |
 | `enable_terraform_debug_mode`                  | boolean                                                                                              | false    |              |                                                                           |
 | `ephemeral_deployment`                         | boolean                                                                                              | false    |              |                                                                           |

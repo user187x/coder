@@ -215,24 +215,26 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 					// Reserve only exterior space for the tray; the menu body retains its own width and scrolling.
 					className={cn(
 						"relative w-max min-w-[240px] max-w-[calc(100vw-32px)] overflow-visible border-0 bg-transparent p-0 shadow-none",
-						controls && "settings-menu pl-16",
+						"settings-menu pl-16",
 					)}
 				>
-					{controls && (
-						<SettingsSidePanels
-							container={menuElement}
-							anchor={metricsElement}
-							images={Boolean(controls.permissions.canEditDeployment)}
-							user={user}
-							buildInfo={buildInfo}
-							supportLinks={supportLinks}
-							onSignOut={onSignOut}
-							pages={[
-								...(controls.quickLinks ?? []),
-								...(controls.quickLinksEditor?.addable ?? []),
-							]}
-						/>
-					)}
+					<SettingsSidePanels
+						container={menuElement}
+						anchor={metricsElement}
+						hud={Boolean(controls)}
+						chatExpanded={chatExpanded}
+						onChatToggle={() => setChatExpanded((open) => !open)}
+						images={Boolean(controls?.permissions.canEditDeployment)}
+						user={user}
+						buildInfo={buildInfo}
+						supportLinks={supportLinks}
+						onSignOut={onSignOut}
+						pages={[
+							...(controls?.quickLinks ?? []),
+							...(controls?.quickLinksEditor?.addable ?? []),
+						]}
+					/>
+
 					<div className="rounded-md border border-solid border-border bg-surface-primary p-2 shadow-md max-h-(--radix-dropdown-menu-content-available-height) overflow-y-auto scrollbar-thin [scrollbar-color:hsl(var(--surface-quaternary))_transparent]">
 						{regions && proxy && (
 							<DropdownMenuSub>
