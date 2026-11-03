@@ -132,7 +132,7 @@
 	width: 5.5rem;
 }
 .deployment-breadcrumb > ol > li + li {
-	width: 11.25rem;
+	width: 11.625rem;
 }
 .deployment-breadcrumb > ol > li > :is(a, span, button) {
 	width: 100%;
