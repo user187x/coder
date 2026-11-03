@@ -96,7 +96,7 @@ export const SortableCategories: React.FC<SortableCategoriesProps> = ({
 		<>
 			<div className="flex items-center justify-between pb-1 pl-3">
 				<span className="text-xs font-medium text-content-secondary">
-					Categories
+					Settings
 				</span>
 				<Button
 					size="icon"

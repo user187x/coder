@@ -23,7 +23,7 @@ const meta: Meta<typeof AdminBreadcrumb> = {
 				Coder navigation
 			</div>
 			<div>
-				<AdminBreadcrumb variant="connected">
+				<AdminBreadcrumb variant="connected" className="deployment-breadcrumb">
 					<BreadcrumbList>
 						<BreadcrumbItem>
 							<AdminCategoryMenu />
@@ -35,7 +35,7 @@ const meta: Meta<typeof AdminBreadcrumb> = {
 				</AdminBreadcrumb>
 				<div className="flex gap-8 px-6 py-5">
 					<aside className="sticky top-[calc(88px+var(--admin-breadcrumb-height,0px))] h-fit w-52 shrink-0">
-						Categories
+						Settings
 					</aside>
 					<div className="min-w-0 flex-1">
 						<h1>Workspace Health</h1>
@@ -68,7 +68,7 @@ export const Categories: Story = {
 	play: async ({ canvasElement }) => {
 		await userEvent.pointer({
 			target: within(canvasElement).getByRole("link", {
-				name: "Admin Settings",
+				name: "Settings",
 			}),
 			keys: "[MouseRight]",
 		});

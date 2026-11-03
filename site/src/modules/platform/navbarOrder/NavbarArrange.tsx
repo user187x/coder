@@ -284,7 +284,7 @@ export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 								{items.logo === null && (
 									<p className="mb-0 mt-2">
 										You can position the Logo tile here. Turn on Show logo in
-										Admin Settings › Appearance to display it.
+										Settings › Appearance to display it.
 									</p>
 								)}
 								<div

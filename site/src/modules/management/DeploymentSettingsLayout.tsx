@@ -56,6 +56,7 @@ const DeploymentSettingsLayout: React.FC = () => {
 			<div className={chat ? "flex-1 min-h-0" : undefined}>
 				<AdminBreadcrumb
 					variant="connected"
+					className="deployment-breadcrumb"
 					data-categories-collapsed={!sidebarOpen || undefined}
 				>
 					<BreadcrumbList>
