@@ -6,6 +6,9 @@ html[data-workspace-expanded] {
 	height: 40px;
 	pointer-events: none;
 }
+.workspace-dashboard-expand-corner .corner-expand-tab > svg {
+	translate: 2px -2px;
+}
 .workspace-dashboard-page:not([data-workspace-expanded])
 	.workspace-dashboard-scroll {
 	display: flex;
