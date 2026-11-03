@@ -6,6 +6,7 @@ import { workspacePermissionsByOrganization } from "#/api/queries/organizations"
 import { templateExamples, templates } from "#/api/queries/templates";
 import type { AuthorizationRequest } from "#/api/typesGenerated";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
+import { DeploymentBanner } from "#/modules/dashboard/DeploymentBanner/DeploymentBanner";
 import { useDashboard } from "#/modules/dashboard/useDashboard";
 import { pageTitle } from "#/utils/page";
 import { useTemplatesFilter } from "./TemplatesFilter";
@@ -67,6 +68,7 @@ const TemplatesPage: React.FC = () => {
 		<>
 			<title>{pageTitle("Templates")}</title>
 			<TemplatesPageView
+				footerStats={<DeploymentBanner />}
 				error={error}
 				filterState={filterState}
 				showOrganizations={showOrganizations}

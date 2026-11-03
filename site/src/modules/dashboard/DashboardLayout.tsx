@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { Suspense, useRef } from "react";
+import { Suspense } from "react";
 import { useQuery } from "react-query";
 import { Outlet } from "react-router";
 import { globalLockdown } from "#/api/queries/globalLockdown";
@@ -13,13 +13,11 @@ import { AnnouncementExpiry } from "#/modules/platform/announcement/Announcement
 import { DashboardAddons } from "#/modules/platform/DashboardAddons";
 import { GlobalLockdownGate } from "#/modules/platform/globalLockdown/GlobalLockdown";
 import { WorkspaceScheduleGate } from "#/modules/platform/scheduler/WorkspaceScheduleGate";
-import { DeploymentBanner } from "./DeploymentBanner/DeploymentBanner";
 import { Navbar } from "./Navbar/Navbar";
 import { UpdateCheckNotice } from "./UpdateCheckNotice/UpdateCheckNotice";
 import { useUpdateCheck } from "./useUpdateCheck";
 
 export const DashboardLayout: React.FC = () => {
-	const content = useRef<HTMLElement>(null);
 	const { permissions } = useAuthenticated();
 	const { data: lockdown } = useQuery(globalLockdown());
 	const updateCheck = useUpdateCheck(permissions.viewDeploymentConfig);
@@ -61,7 +59,6 @@ export const DashboardLayout: React.FC = () => {
 				    the Chats dock; full-height pages
 				    (their root grows to fill main) do not. */}
 				<main
-					ref={content}
 					id="main-content"
 					tabIndex={-1}
 					className={cn(
@@ -76,10 +73,6 @@ export const DashboardLayout: React.FC = () => {
 						</GlobalLockdownGate>
 					</Suspense>
 				</main>
-
-				{!embedded && canViewDeployment && (
-					<DeploymentBanner content={content} />
-				)}
 
 				{!embedded && updateCheck.isVisible && updateCheck.data && (
 					<UpdateCheckNotice

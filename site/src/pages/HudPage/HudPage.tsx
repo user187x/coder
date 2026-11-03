@@ -26,6 +26,7 @@ import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { pageTitle } from "#/utils/page";
 import "./hud.css";
 import { useFitText } from "#/hooks/useFitText";
+import { DeploymentBanner } from "#/modules/dashboard/DeploymentBanner/DeploymentBanner";
 import { HudGraphs } from "./HudGraphs";
 import { HudSortableGrid } from "./HudSortableGrid";
 import { HudStorageClasses } from "./HudStorageClasses";
@@ -218,7 +219,12 @@ const HudPage: React.FC = () => {
 								),
 							}))}
 						/>
-						{data.storage && <HudStorageClasses storage={data.storage} />}
+						{data.storage && (
+							<HudStorageClasses
+								storage={data.storage}
+								footerStats={<DeploymentBanner />}
+							/>
+						)}
 					</>
 				)}
 			</div>

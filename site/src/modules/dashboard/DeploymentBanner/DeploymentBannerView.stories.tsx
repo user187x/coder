@@ -1,5 +1,4 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { useRef } from "react";
 import { expect, screen, userEvent, waitFor, within } from "storybook/test";
 import type {
 	AppFamilyName,
@@ -21,7 +20,6 @@ import {
 	MockHealth,
 } from "#/testHelpers/entities";
 import { MockHudStorage } from "#/testHelpers/hud";
-import { DeploymentFooter } from "./DeploymentBanner";
 import { DeploymentBannerView } from "./DeploymentBannerView";
 
 const app = (
@@ -80,26 +78,12 @@ type Story = StoryObj<typeof DeploymentBannerView>;
 
 export const Example: Story = {};
 
-function FooterStory({
-	children,
-	stats,
-}: React.PropsWithChildren<{ stats: React.ReactNode }>) {
-	const content = useRef<HTMLElement>(null);
-	return (
-		<>
-			<main ref={content} className="max-w-6xl mx-auto">
-				{children}
-			</main>
-			<DeploymentFooter content={content}>{stats}</DeploymentFooter>
-		</>
-	);
-}
-
 export const TableFooter: Story = {
 	args: { health: MockHealth },
 	render: (args) => (
-		<FooterStory stats={<DeploymentBannerView {...args} />}>
+		<main className="max-w-6xl mx-auto">
 			<TableCard
+				footerStats={<DeploymentBannerView {...args} />}
 				summary="Showing 1 of 1 templates"
 				hint="Point at anything in the table to read what it does"
 			>
@@ -111,7 +95,7 @@ export const TableFooter: Story = {
 					</TableBody>
 				</Table>
 			</TableCard>
-		</FooterStory>
+		</main>
 	),
 };
 
@@ -123,9 +107,12 @@ export const Mobile: Story = {
 export const HudTableFooter: Story = {
 	args: { health: MockHealth },
 	render: (args) => (
-		<FooterStory stats={<DeploymentBannerView {...args} />}>
-			<HudStorageClasses storage={MockHudStorage} />
-		</FooterStory>
+		<main className="max-w-6xl mx-auto">
+			<HudStorageClasses
+				storage={MockHudStorage}
+				footerStats={<DeploymentBannerView {...args} />}
+			/>
+		</main>
 	),
 };
 

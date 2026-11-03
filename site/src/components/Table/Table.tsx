@@ -23,7 +23,6 @@ export const Table: React.FC<TableProps> = ({
 				)}
 				{...props}
 			/>
-			<div data-deployment-footer="table" className="empty:hidden" />
 		</div>
 	);
 };

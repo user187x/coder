@@ -45,9 +45,18 @@ export const TableCard: React.FC<{
 	hint?: React.ReactNode;
 	/** Persistent footer status, taking precedence over hover hints. */
 	footerRight?: React.ReactNode;
+	footerStats?: React.ReactNode;
 	className?: string;
 	"data-testid"?: string;
-}> = ({ children, summary, hint, footerRight, className, ...props }) => {
+}> = ({
+	children,
+	summary,
+	hint,
+	footerRight,
+	footerStats,
+	className,
+	...props
+}) => {
 	const card = useRef<HTMLDivElement>(null);
 	const [hovered, setHovered] = useState<string | null>(null);
 	const follow = useCallback((e: React.SyntheticEvent) => {
@@ -55,6 +64,17 @@ export const TableCard: React.FC<{
 			setHovered(hintOf(e.target, card.current));
 		}
 	}, []);
+	const caption = (
+		<>
+			<span className="table-card-summary">{summary}</span>
+			<span
+				className={cn("table-card-hint", hovered && "table-card-hint-on")}
+				data-testid="table-card-hint"
+			>
+				{footerRight ?? hovered ?? hint}
+			</span>
+		</>
+	);
 	return (
 		<div
 			ref={card}
@@ -71,17 +91,23 @@ export const TableCard: React.FC<{
 		>
 			{children}
 			{summary !== undefined && (
-				<div className="table-card-footer" data-testid="table-card-footer">
-					<div data-deployment-footer="card" className="empty:hidden" />
-					<div className="table-card-caption">
-						<span className="table-card-summary">{summary}</span>
-						<span
-							className={cn("table-card-hint", hovered && "table-card-hint-on")}
-							data-testid="table-card-hint"
-						>
-							{footerRight ?? hovered ?? hint}
-						</span>
-					</div>
+				<div
+					className={cn(
+						"table-card-footer",
+						!footerStats && "table-card-caption",
+					)}
+					data-testid="table-card-footer"
+				>
+					{footerStats ? (
+						<>
+							<div data-deployment-footer="card" className="empty:hidden">
+								{footerStats}
+							</div>
+							<div className="table-card-caption">{caption}</div>
+						</>
+					) : (
+						caption
+					)}
 				</div>
 			)}
 		</div>

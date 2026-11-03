@@ -38,6 +38,7 @@ import { WorkspacesButton } from "./WorkspacesButton";
 
 type TemplateQuery = UseQueryResult<Template[]>;
 type WorkspacesPageViewProps = {
+	footerStats?: React.ReactNode;
 	error: unknown;
 	workspaces?: readonly Workspace[];
 	checkedWorkspaces: readonly Workspace[];
@@ -62,6 +63,7 @@ type WorkspacesPageViewProps = {
 };
 
 export const WorkspacesPageView: React.FC<WorkspacesPageViewProps> = ({
+	footerStats,
 	workspaces,
 	error,
 	limit,
@@ -280,6 +282,7 @@ export const WorkspacesPageView: React.FC<WorkspacesPageViewProps> = ({
 					canManage={me.roles.some((role) => role.name === "owner")}
 				>
 					<TableCard
+						footerStats={footerStats}
 						data-testid="workspaces-card"
 						summary={summary}
 						footerRight={

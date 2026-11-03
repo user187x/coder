@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { TableCard } from "./TableCard";
 
 const table = (
@@ -66,4 +67,26 @@ describe("TableCard", () => {
 		render(<TableCard>{table}</TableCard>);
 		expect(screen.queryByTestId("table-card-footer")).toBeNull();
 	});
+});
+
+it("keeps a statistics action on the table that provided it", async () => {
+	const refresh = vi.fn();
+	const user = userEvent.setup();
+	render(
+		<>
+			<TableCard
+				summary="Workspaces"
+				footerStats={
+					<button type="button" onClick={refresh}>
+						Refresh stats
+					</button>
+				}
+			>
+				{table}
+			</TableCard>
+			<TableCard summary="Images">{table}</TableCard>
+		</>,
+	);
+	await user.click(screen.getByRole("button", { name: "Refresh stats" }));
+	expect(refresh).toHaveBeenCalledTimes(1);
 });

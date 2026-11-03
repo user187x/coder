@@ -280,6 +280,7 @@ const TemplateRow: React.FC<TemplateRowProps> = ({
 };
 
 type TemplatesPageViewProps = {
+	footerStats?: React.ReactNode;
 	error?: unknown;
 	filterState: TemplateFilterState;
 	showOrganizations: boolean;
@@ -293,6 +294,7 @@ type TemplatesPageViewProps = {
 };
 
 export const TemplatesPageView: React.FC<TemplatesPageViewProps> = ({
+	footerStats,
 	error,
 	filterState,
 	showOrganizations,
@@ -367,6 +369,7 @@ export const TemplatesPageView: React.FC<TemplatesPageViewProps> = ({
 
 			{/* Platform: in a rounded card, its footer saying what it holds and what anything in it does */}
 			<TableCard
+				footerStats={footerStats}
 				data-testid="templates-card"
 				summary={
 					templates && templates.length > 0 ? (

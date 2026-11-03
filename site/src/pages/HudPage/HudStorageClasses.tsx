@@ -13,7 +13,13 @@ const gib = (value: number | null) =>
 		? "Unavailable"
 		: `${value.toLocaleString("en-US", { maximumFractionDigits: 2 })} GiB`;
 
-export const HudStorageClasses = ({ storage }: { storage: HudStorage }) => (
+export const HudStorageClasses = ({
+	storage,
+	footerStats,
+}: {
+	storage: HudStorage;
+	footerStats?: React.ReactNode;
+}) => (
 	<section className="rounded-lg border border-solid border-border p-4">
 		<h2 className="m-0 text-base font-medium">Storage classes</h2>
 		<p className="text-xs text-content-secondary">
@@ -57,9 +63,13 @@ export const HudStorageClasses = ({ storage }: { storage: HudStorage }) => (
 				</TableBody>
 			</Table>
 		)}
-		<div
-			data-deployment-footer="hud"
-			className="mt-3 border-0 border-t border-solid border-border bg-surface-secondary/40 empty:hidden"
-		/>
+		{footerStats && (
+			<div
+				data-deployment-footer="hud"
+				className="mt-3 border-0 border-t border-solid border-border bg-surface-secondary/40 empty:hidden"
+			>
+				{footerStats}
+			</div>
+		)}
 	</section>
 );
