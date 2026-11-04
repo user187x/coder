@@ -28,6 +28,7 @@ html[data-workspace-expanded] {
 	bottom: var(--workspace-bottom);
 	left: 0;
 	right: var(--dashboard-dock-inset, 0px);
+	width: auto;
 	z-index: 30;
 	padding: 0;
 }
