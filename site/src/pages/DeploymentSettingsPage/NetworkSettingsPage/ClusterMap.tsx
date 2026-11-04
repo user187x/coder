@@ -45,7 +45,7 @@ import { EntityContextMenu } from "./EntityActions";
 import "./clusterMap.css";
 import { CoderReplicas } from "./CoderReplicas";
 import { CodeServerHACard } from "./CodeServerHACard";
-import { cores, nodeBadgeStyle } from "./clusterFormat";
+import { cores, nodeBadgeStyle, nodeStatus } from "./clusterFormat";
 import {
 	componentIcon,
 	groupByKind,
@@ -55,6 +55,7 @@ import {
 } from "./componentKinds";
 import { EntityProvider, useOpenEntity } from "./EntityDetails";
 import { MeshCard } from "./MeshCard";
+import { NodesTable } from "./NodesTable";
 import { NodesTopologyCard } from "./NodesTopologyCard";
 
 const agentOk = (w: NetworkWorkspace) =>
@@ -74,15 +75,6 @@ const agentLabel = (w: NetworkWorkspace) => {
 			? "connected"
 			: `${w.agents.length} connected`;
 };
-
-const nodeStatus = (n: ClusterNode): ["error" | "warn" | "ok", string] =>
-	!n.ready
-		? ["error", "Not ready"]
-		: n.unschedulable
-			? ["warn", "Cordoned"]
-			: n.pressure.length
-				? ["warn", n.pressure.join(", ")]
-				: ["ok", "Ready"];
 
 /**
  * General > Network (top of the page): a live map of the Kubernetes cluster
@@ -993,106 +985,6 @@ const WorkspacesTable: React.FC<{ report: ClusterNetworkReport }> = ({
 					{report.unplaced.map((w) => `${w.owner}/${w.name}`).join(", ")}
 				</p>
 			)}
-		</section>
-	);
-};
-
-const NodesTable: React.FC<{ report: ClusterNetworkReport }> = ({ report }) => {
-	const now = useNow();
-	return (
-		<section
-			aria-labelledby="cluster-nodes"
-			className="flex flex-col gap-3 rounded-lg border border-solid border-border p-6"
-		>
-			<div className="flex flex-wrap items-center justify-between gap-3">
-				<h2 id="cluster-nodes" className="m-0 text-base font-semibold">
-					Nodes
-				</h2>
-				<span className="text-xs text-content-secondary">
-					{report.nodes.length} {report.nodes.length === 1 ? "node" : "nodes"}
-					{report.metrics
-						? ""
-						: " · usage needs metrics-server (showing requests)"}
-				</span>
-			</div>
-			<div className="overflow-x-auto">
-				<Table aria-label="Nodes">
-					<TableHeader>
-						<TableRow>
-							{[
-								"Node",
-								"Status",
-								"Roles",
-								"Internal IP",
-								"External IP",
-								"Pod CIDR",
-								"CPU",
-								"Memory",
-								"Pods",
-								"Kubelet",
-								"OS / kernel",
-								"Runtime",
-								"Taints",
-								"Age",
-							].map((h) => (
-								<TableHead key={h}>{h}</TableHead>
-							))}
-						</TableRow>
-					</TableHeader>
-					<TableBody>
-						{report.nodes.map((n) => {
-							const [status, label] = nodeStatus(n);
-							return (
-								<TableRow key={n.name} className="whitespace-nowrap">
-									<TableCell>{n.name}</TableCell>
-									<TableCell>
-										<StatusDot status={status}>{label}</StatusDot>
-									</TableCell>
-									<TableCell>{n.roles.join(", ")}</TableCell>
-									<TableCell className="font-mono text-xs">
-										{(n.addresses.InternalIP ?? []).join(", ") || "N/A"}
-									</TableCell>
-									<TableCell className="font-mono text-xs">
-										{(n.addresses.ExternalIP ?? []).join(", ") || "N/A"}
-									</TableCell>
-									<TableCell className="font-mono text-xs">
-										{n.podCIDRs.join(", ") || "N/A"}
-									</TableCell>
-									<TableCell className="text-right tabular-nums">
-										{n.usage ? `${cores(n.usage.cpu)} / ` : ""}
-										{cores(n.allocatable.cpu)}
-									</TableCell>
-									<TableCell className="text-right tabular-nums">
-										{n.usage ? `${bytes(n.usage.memory)} / ` : ""}
-										{bytes(n.allocatable.memory)}
-									</TableCell>
-									<TableCell className="text-right tabular-nums">
-										{n.podCount} / {n.allocatable.pods ?? "N/A"}
-									</TableCell>
-									<TableCell className="font-mono text-xs">
-										{n.kubelet ?? "N/A"}
-									</TableCell>
-									<TableCell>
-										{n.os ?? "N/A"} · {n.kernel ?? ""}
-									</TableCell>
-									<TableCell className="font-mono text-xs">
-										{n.runtime ?? "N/A"}
-									</TableCell>
-									<TableCell className="font-mono text-xs">
-										{n.taints.join(", ") || "N/A"}
-									</TableCell>
-									<TableCell
-										className="text-right tabular-nums"
-										data-pixel="ignore"
-									>
-										{ago(n.created, now)}
-									</TableCell>
-								</TableRow>
-							);
-						})}
-					</TableBody>
-				</Table>
-			</div>
 		</section>
 	);
 };

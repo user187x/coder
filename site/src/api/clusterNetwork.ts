@@ -487,7 +487,53 @@ const entityQuery = (ref: EntityRef) => {
 	return q.toString();
 };
 
+export type NodeConfiguration = {
+	name: string;
+	uid: string;
+	resourceVersion: string;
+	labels: Record<string, string>;
+	annotations: Record<string, string>;
+	taints: {
+		key: string;
+		value?: string;
+		effect: "NoSchedule" | "PreferNoSchedule" | "NoExecute";
+		timeAdded?: string;
+	}[];
+	unschedulable: boolean;
+};
+
+export type NodePod = PodBrief & {
+	uid: string;
+	kind: ComponentKind;
+	created: string;
+	status: string;
+	containers: number;
+	readyContainers: number;
+};
+
 export const ClusterNetworkAPI = {
+	nodePods: (name?: string) =>
+		get<{ node: string | null; pods: NodePod[] }>(
+			`${base}/api/network/node-pods?${new URLSearchParams(name ? { name } : {})}`,
+		),
+	nodeConfiguration: (name: string) =>
+		get<NodeConfiguration>(
+			`${base}/api/network/node-config?${new URLSearchParams({ name })}`,
+		),
+	editNode: (
+		body: Pick<NodeConfiguration, "name" | "uid" | "resourceVersion"> & {
+			changes: Partial<
+				Pick<
+					NodeConfiguration,
+					"labels" | "annotations" | "taints" | "unschedulable"
+				>
+			>;
+		},
+	) =>
+		platformRequest.post<{ saved: boolean }>(
+			`${base}/api/network/edit-node`,
+			body,
+		),
 	logTargets: (ref: KubernetesEntityRef) =>
 		get<{ pods: NetworkLogPod[] }>(
 			`${base}/api/network/log-targets?${entityQuery(ref)}`,
@@ -507,7 +553,7 @@ export const ClusterNetworkAPI = {
 	mesh: () => get<MeshReport>(`${base}/api/network/mesh`),
 };
 
-const clusterNetworkKey = ["platform", "cluster-network"] as const;
+export const clusterNetworkKey = ["platform", "cluster-network"] as const;
 export const clusterEntityKey = (ref: EntityRef) =>
 	[...clusterNetworkKey, "entity", entityQuery(ref)] as const;
 export const clusterMeshKey = [...clusterNetworkKey, "mesh"] as const;
@@ -601,4 +647,27 @@ export const restartNetworkPod = (client: QueryClient) => ({
 		pod: NetworkLogPod;
 		confirmation: string;
 	}) => ClusterNetworkAPI.restartPod(pod, confirmation),
+});
+
+/** All namespaces are included, with optional filtering by the hosting node. */
+export const networkNodePods = (name?: string) => ({
+	queryKey: [...clusterNetworkKey, "node-pods", name ?? "all"] as const,
+	queryFn: () => ClusterNetworkAPI.nodePods(name),
+	refetchInterval: 5_000,
+	retry: false,
+});
+
+export const networkNodeConfiguration = (name: string) => ({
+	queryKey: [...clusterNetworkKey, "node-config", name] as const,
+	queryFn: () => ClusterNetworkAPI.nodeConfiguration(name),
+	retry: false,
+});
+
+export const updateNetworkNode = (client: QueryClient) => ({
+	mutationFn: ClusterNetworkAPI.editNode,
+	onSettled: () =>
+		Promise.all([
+			client.invalidateQueries({ queryKey: clusterNetworkKey }),
+			client.invalidateQueries({ queryKey: networkReportKey }),
+		]),
 });

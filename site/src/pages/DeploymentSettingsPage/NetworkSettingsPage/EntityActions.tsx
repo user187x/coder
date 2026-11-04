@@ -1,5 +1,14 @@
 import { stripAnsi } from "fancy-ansi";
-import { FileTextIcon, InfoIcon, RotateCwIcon, XIcon } from "lucide-react";
+import {
+	FileTextIcon,
+	InfoIcon,
+	LogOutIcon,
+	PencilIcon,
+	RotateCwIcon,
+	ShieldIcon,
+	TagIcon,
+	XIcon,
+} from "lucide-react";
 import {
 	createContext,
 	useContext,
@@ -37,7 +46,9 @@ import { Input } from "#/components/Input/Input";
 import { Label } from "#/components/Label/Label";
 import { Loader } from "#/components/Loader/Loader";
 
-type Mode = "logs" | "restart";
+import { type NodeAction, NodeActions, nodeActionTitles } from "./NodeActions";
+
+type Mode = "logs" | "restart" | NodeAction;
 const Actions = createContext<
 	(target: EntityRef, mode: Mode | "details") => void
 >(() => {});
@@ -64,9 +75,33 @@ export const EntityContextMenu: React.FC<{
 					<RotateCwIcon />
 					Restart Pod
 				</ContextMenuItem>
+				{target.type === "node" && (
+					<>
+						<ContextMenuItem onSelect={() => action(target, "edit-node")}>
+							<PencilIcon />
+							Edit node
+						</ContextMenuItem>
+						<ContextMenuItem onSelect={() => action(target, "restart-node")}>
+							<RotateCwIcon />
+							Restart node
+						</ContextMenuItem>
+						<ContextMenuItem onSelect={() => action(target, "drain-node")}>
+							<LogOutIcon />
+							Drain node
+						</ContextMenuItem>
+						<ContextMenuItem onSelect={() => action(target, "cordon-node")}>
+							<ShieldIcon />
+							Cordon or uncordon node
+						</ContextMenuItem>
+						<ContextMenuItem onSelect={() => action(target, "taint-node")}>
+							<TagIcon />
+							Taint node
+						</ContextMenuItem>
+					</>
+				)}
 				<ContextMenuItem onSelect={() => action(target, "details")}>
 					<InfoIcon />
-					Details
+					{target.type === "node" ? "Describe" : "Details"}
 				</ContextMenuItem>
 			</ContextMenuContent>
 		</ContextMenu>
@@ -105,7 +140,11 @@ export const EntityActionsProvider: React.FC<{
 					<div className="flex items-start justify-between gap-3">
 						<div className="min-w-0">
 							<DrawerTitle>
-								{view?.mode === "restart" ? "Restart Pod" : "Pod logs"}
+								{!view || view.mode === "logs"
+									? "Pod logs"
+									: view.mode === "restart"
+										? "Restart Pod"
+										: nodeActionTitles[view.mode]}
 							</DrawerTitle>
 							<DrawerDescription className="break-all">
 								{view?.target.type === "node"
@@ -114,18 +153,29 @@ export const EntityActionsProvider: React.FC<{
 							</DrawerDescription>
 						</div>
 						<DrawerClose asChild>
-							<Button size="icon" variant="subtle" aria-label="Close pod panel">
+							<Button
+								size="icon"
+								variant="subtle"
+								aria-label="Close object panel"
+							>
 								<XIcon />
 							</Button>
 						</DrawerClose>
 					</div>
-					{view && (
-						<PodSelection
-							key={JSON.stringify(view)}
-							target={view.target}
-							mode={view.mode}
-						/>
-					)}
+					{view &&
+						(view.mode === "logs" || view.mode === "restart" ? (
+							<PodSelection
+								key={JSON.stringify(view)}
+								target={view.target}
+								mode={view.mode}
+							/>
+						) : (
+							<NodeActions
+								key={JSON.stringify(view)}
+								name={view.target.name}
+								action={view.mode}
+							/>
+						))}
 				</DrawerContent>
 			</Drawer>
 		</Actions.Provider>
@@ -135,10 +185,10 @@ export const EntityActionsProvider: React.FC<{
 const selectClass =
 	"h-9 w-full rounded-md border border-solid border-border bg-surface-primary px-2 text-sm text-content-primary";
 
-const PodSelection: React.FC<{ target: KubernetesEntityRef; mode: Mode }> = ({
-	target,
-	mode,
-}) => {
+const PodSelection: React.FC<{
+	target: KubernetesEntityRef;
+	mode: "logs" | "restart";
+}> = ({ target, mode }) => {
 	const targets = useQuery(networkLogTargets(target));
 	const [uid, setUid] = useState("");
 	const pod =

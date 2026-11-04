@@ -3,13 +3,16 @@ import { platformRequest } from "./platform";
 type NodeOperation = {
 	id: string;
 	profile: string;
+	action?: "create" | "restart-node" | "drain-node";
+	node?: string;
 	phase: "queued" | "provisioning" | "ready" | "failed";
 	message: string;
 };
 
 type NodeOperator = {
 	online: boolean;
-	profiles: { id: string; label: string; kind: string }[];
+	maintenance?: boolean;
+	profiles: { id: string; label: string; kind: string; restart?: boolean }[];
 	operation: NodeOperation | null;
 };
 
@@ -28,6 +31,19 @@ export const createWorkerNode = (organization: string) => ({
 		id: string;
 		profile: string;
 		previous: string | null;
+	}) => platformRequest.post<NodeOperation>(endpoint(organization), body),
+	retry: false,
+});
+
+export const maintainClusterNode = (organization: string) => ({
+	mutationFn: (body: {
+		id: string;
+		previous: string | null;
+		profile: string;
+		action: "restart-node" | "drain-node";
+		node: string;
+		uid: string;
+		confirmation: string;
 	}) => platformRequest.post<NodeOperation>(endpoint(organization), body),
 	retry: false,
 });

@@ -40,8 +40,10 @@ class NetworkActionsTest(unittest.TestCase):
         other["spec"]["nodeName"] = "worker-2"
         network.SNAPSHOT = lambda: {"pods": [self.pod, other]}
         self.kube.call.return_value = (200, {"spec": {"selector": {"app": "coder"}}})
-        for query in ("type=node&name=worker-1", "type=service&namespace=coder&name=coder"):
-            self.assertEqual([p["uid"] for p in network.log_targets(query)["pods"]], ["original-uid"])
+        self.assertEqual([p["uid"] for p in network.log_targets("type=service&namespace=coder&name=coder")["pods"]], ["original-uid"])
+        self.kube.call.side_effect = [(200, {}), (200, {"items": [other]})]
+        self.assertEqual([p["uid"] for p in network.log_targets("type=node&name=worker-2")["pods"]], ["other"])
+        self.assertIn("fieldSelector=spec.nodeName%3Dworker-2", self.kube.call.call_args.args[1])
 
     def test_restart_uses_eviction_with_uid_precondition_and_audits_actor(self):
         self.kube.call.side_effect = [(200, self.pod), (201, {})]
@@ -70,7 +72,7 @@ class NetworkActionsTest(unittest.TestCase):
         network.LOG.assert_not_called()
 
     def test_authentication_and_csrf_precede_kubernetes_access(self):
-        for endpoint, method in (("pod-logs", "GET"), ("log-targets", "GET"), ("restart-pod", "POST")):
+        for endpoint, method in (("pod-logs", "GET"), ("log-targets", "GET"), ("restart-pod", "POST"), ("edit-node", "POST"), ("node-config", "GET"), ("node-pods", "GET")):
             handler = mock.Mock()
             handler.user.return_value = (None, True)
             self.assertTrue(network.handle(handler, method, network.BASE + "/api/network/" + endpoint, self.query))
@@ -79,6 +81,49 @@ class NetworkActionsTest(unittest.TestCase):
         handler.user.return_value = ({"id": "admin"}, False)
         handler.csrf_ok.return_value = False
         network.handle(handler, "POST", network.BASE + "/api/network/restart-pod", "")
+        handler.send_json.assert_called_with(403, {"error": "Cross-site request refused"})
+        self.kube.call.assert_not_called()
+
+    def test_node_pods_include_all_namespaces_sidecars_and_pagination(self):
+        pod = copy.deepcopy(self.pod)
+        pod["metadata"].update(namespace="kube-system", creationTimestamp="2026-01-01T00:00:00Z")
+        pod["spec"]["initContainers"] = [{"name": "proxy", "restartPolicy": "Always"}]
+        pod["status"] = {"phase": "Running", "containerStatuses": [{"name": "coder", "ready": True}],
+                         "initContainerStatuses": [{"name": "proxy", "ready": False, "restartCount": 4,
+                                                    "state": {"waiting": {"reason": "CrashLoopBackOff"}}}]}
+        self.kube.call.side_effect = [(200, {"items": [pod], "metadata": {"continue": "next"}}),
+                                      (200, {"items": []})]
+        result = network.node_pods("")["pods"]
+        self.assertEqual(len(result), 1)
+        self.assertEqual((result[0]["namespace"], result[0]["readyContainers"], result[0]["containers"],
+                          result[0]["restarts"], result[0]["status"]), ("kube-system", 1, 2, 4, "Init:CrashLoopBackOff"))
+        self.assertFalse(result[0]["ready"])
+        self.assertIn("continue=next", self.kube.call.call_args.args[1])
+
+    def test_edit_node_is_atomic_and_only_changes_supported_fields(self):
+        self.kube.call.side_effect = [(200, {"metadata": {"uid": "node-uid", "resourceVersion": "42"}, "spec": {}}), (200,{})]
+        body = {"name": "worker-1", "uid": "node-uid", "resourceVersion": "42", "changes": {"unschedulable": True}}
+        self.assertEqual(network.edit_node(body, {"id": "admin"}), {"saved": True})
+        self.assertEqual(self.kube.call.call_args.args, ("PATCH", "/api/v1/nodes/worker-1", [
+            {"op": "test", "path": "/metadata/uid", "value": "node-uid"},
+            {"op": "test", "path": "/metadata/resourceVersion", "value": "42"},
+            {"op": "add", "path": "/spec/unschedulable", "value": True}], "application/json-patch+json"))
+
+    def test_node_edits_refuse_stale_and_invalid_requests(self):
+        self.kube.call.return_value = (200, {"metadata": {"uid": "node-uid", "resourceVersion": "42"}, "spec": {}})
+        body = {"name": "worker-1", "uid": "node-uid", "resourceVersion": "42", "changes": {"labels": {"zone": "east"}}}
+        for fields in ({"uid": "replaced"}, {"resourceVersion": "old"}, {"changes": {"providerID": "other"}},
+                       {"changes": {"labels": {"x": 1}}}, {"changes": {"taints": [{"key": "a", "effect": "invalid"}]}},
+                       {"changes": {"unschedulable": "true"}}):
+            with self.subTest(fields=fields), self.assertRaises(ValueError):
+                network.edit_node({**body, **fields}, {"id": "admin"})
+        self.assertTrue(all(c.args[0] == "GET" for c in self.kube.call.call_args_list))
+
+    def test_node_edit_rejects_cross_site_requests(self):
+        handler = mock.Mock()
+        handler.user.return_value = ({"id": "admin"}, False)
+        handler.csrf_ok.return_value = False
+        network.handle(handler, "POST", network.BASE + "/api/network/edit-node", "")
         handler.send_json.assert_called_with(403, {"error": "Cross-site request refused"})
         self.kube.call.assert_not_called()
 

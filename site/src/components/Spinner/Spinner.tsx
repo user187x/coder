@@ -48,7 +48,8 @@ export function Spinner({
 			aria-label={label}
 			className={cn(
 				spinnerVariants({ size }),
-				!isPixel() && "animate-spin motion-reduce:animate-none",
+				!isPixel() &&
+					"animate-spin [animation-duration:2s] will-change-transform motion-reduce:animate-none",
 				className,
 			)}
 			{...props}
@@ -65,6 +66,7 @@ export function Spinner({
 					transform={`rotate(${angle} 32 32)`}
 				/>
 			))}
+			<circle cx="32" cy="16" r="2.5" fill="hsl(var(--surface-primary))" />
 		</svg>
 	);
 }

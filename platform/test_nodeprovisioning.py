@@ -49,6 +49,28 @@ class TestNodeProvisioning(unittest.TestCase):
         self.assertEqual(self.send(), 409)
         self.assertEqual(sum(c.args[0] == 'PATCH' for c in self.k.call.call_args_list), 1)
 
+    def test_maintenance_requires_confirmation_identity_and_operator_capability(self):
+        self.handler.body.return_value.update(action="restart-node", node="worker-1", uid="node-uid", confirmation="worker-1")
+        self.assertEqual(self.send(), 503)
+        self.data.update(maintenance="true", profiles='[{"id":"local","restart":true}]')
+        node = {"metadata": {"uid": "node-uid"}}
+        self.k.call.side_effect = lambda method, path, *args: (200, node if path.startswith("/api/v1/nodes/") else self.cm)
+        self.handler.body.return_value["confirmation"] = "other"
+        self.assertEqual(self.send(), 400)
+        self.handler.body.return_value["confirmation"] = "worker-1"
+        self.handler.body.return_value["uid"] = "old"
+        self.assertEqual(self.send(), 409)
+        self.handler.body.return_value["uid"] = "node-uid"
+        self.assertEqual(self.send(), 202)
+        self.assertEqual(self.handler.send_json.call_args.args[1]["action"], "restart-node")
+
+    def test_drain_uses_enrolled_operator_without_creation_profile(self):
+        self.data.update(maintenance="true", profiles='[]')
+        self.handler.body.return_value.update(action="drain-node", profile="", node="worker-1", uid="node-uid", confirmation="worker-1")
+        self.k.call.side_effect = lambda method, path, *args: (200, {"metadata": {"uid": "node-uid"}} if path.startswith("/api/v1/nodes/") else self.cm)
+        self.assertEqual(self.send(), 202)
+        self.assertEqual(self.handler.send_json.call_args.args[1]["node"], "worker-1")
+
 
 if __name__ == '__main__':
     unittest.main()

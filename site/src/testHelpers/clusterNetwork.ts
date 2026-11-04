@@ -6,7 +6,9 @@ import type {
 	MeshReport,
 	NetworkLogPod,
 	NetworkPodLogs,
+	NodeConfiguration,
 	NodeDetails,
+	NodePod,
 	PodBrief,
 	PodDetails,
 } from "#/api/clusterNetwork";
@@ -647,3 +649,23 @@ export const MockNetworkOptions: SerpentOption[] = [
 		hidden: false,
 	},
 ];
+
+export const MockNodeConfiguration: NodeConfiguration = {
+	name: "node-a",
+	uid: "node-uid",
+	resourceVersion: "42",
+	labels: { zone: "east" },
+	annotations: {},
+	taints: [],
+	unschedulable: false,
+};
+export const MockNodePod: NodePod = {
+	...brief("metrics-server", "node-a"),
+	namespace: "kube-system",
+	uid: "pod-uid",
+	kind: "platform",
+	created: "2026-09-29T08:00:00Z",
+	status: "Running",
+	readyContainers: 1,
+	containers: 1,
+};

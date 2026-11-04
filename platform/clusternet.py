@@ -1207,17 +1207,16 @@ def log_targets(query):
     kind = (args.get("type") or [""])[0]
     if kind == "pod":
         pods = [_get("/api/v1/namespaces/%s/pods/%s" % (namespace, name), "pod")]
-    elif kind in ("service", "node"):
+    elif kind == "node":
+        _get("/api/v1/nodes/%s" % name, "node")
+        pods = list_node_pods(name)
+    elif kind == "service":
         hit = SNAPSHOT()
-        pods = hit["pods"] + hit.get("failedPods", [])
-        if kind == "service":
-            service = _get("/api/v1/namespaces/%s/services/%s" % (namespace, name), "Service")
-            selector = (service.get("spec") or {}).get("selector")
-            pods = [p for p in pods if (p.get("metadata") or {}).get("namespace") == namespace
-                    and selects(selector, (p.get("metadata") or {}).get("labels") or {})]
-        else:
-            _get("/api/v1/nodes/%s" % name, "node")
-            pods = [p for p in pods if (p.get("spec") or {}).get("nodeName") == name]
+        service = _get("/api/v1/namespaces/%s/services/%s" % (namespace, name), "Service")
+        selector = (service.get("spec") or {}).get("selector")
+        pods = [p for p in hit["pods"] + hit.get("failedPods", [])
+                if (p.get("metadata") or {}).get("namespace") == namespace
+                and selects(selector, (p.get("metadata") or {}).get("labels") or {})]
     else:
         raise ValueError("Logs are available for pods, Services and nodes.")
     result = {}
@@ -1291,17 +1290,134 @@ def restart_pod(body, user):
     return {"accepted": True, "message": "Restart requested. The workload controller will replace the pod."}
 
 
+
+def node_config(query):
+    _, name, _ = pod_reference(query)
+    node = _get("/api/v1/nodes/" + name, "node")
+    meta, spec = node["metadata"], node.get("spec") or {}
+    return {"name": name, "uid": meta["uid"], "resourceVersion": meta["resourceVersion"],
+            "labels": meta.get("labels") or {}, "annotations": meta.get("annotations") or {},
+            "taints": spec.get("taints") or [], "unschedulable": bool(spec.get("unschedulable"))}
+
+
+def list_node_pods(name=""):
+    pods, token = [], ""
+    while True:
+        args = {"limit": "500"}
+        if name:
+            args["fieldSelector"] = "spec.nodeName=" + name
+        if token:
+            args["continue"] = token
+        page = _get("/api/v1/pods?" + urllib.parse.urlencode(args), "node pods")
+        pods.extend(page.get("items") or [])
+        token = page.get("metadata", {}).get("continue") or ""
+        if not token:
+            return pods
+
+
+def node_pods(query):
+    args = urllib.parse.parse_qs(query)
+    name = (args.get("name") or [""])[0]
+    if name:
+        name = node_config(query)["name"]
+    pods = []
+    for pod in list_node_pods(name):
+        meta, spec, status = pod["metadata"], pod.get("spec") or {}, pod.get("status") or {}
+        containers = status.get("containerStatuses") or []
+        sidecars = [c for c in spec.get("initContainers") or [] if c.get("restartPolicy") == "Always"]
+        states = containers + [c for c in status.get("initContainerStatuses") or []
+                               if c["name"] in {sc["name"] for sc in sidecars}]
+        phase = status.get("reason") or status.get("phase") or "Unknown"
+        for container in states:
+            state = container.get("state") or {}
+            if state.get("waiting", {}).get("reason"):
+                phase = state["waiting"]["reason"]
+                break
+            if state.get("terminated", {}).get("exitCode"):
+                phase = state["terminated"].get("reason") or "Error"
+        init = status.get("initContainerStatuses") or []
+        for container in init:
+            state = container.get("state") or {}
+            if state.get("waiting", {}).get("reason"):
+                phase = "Init:" + state["waiting"]["reason"]
+                break
+            if state.get("terminated", {}).get("exitCode"):
+                phase = "Init:" + (state["terminated"].get("reason") or "Error")
+                break
+        if meta.get("deletionTimestamp"):
+            phase = "Terminating"
+        pods.append({**_brief(pod),
+                     "ready": any(c.get("type") == "Ready" and c.get("status") == "True" for c in status.get("conditions") or []),
+                     "restarts": sum(c.get("restartCount", 0) for c in containers + init), "uid": meta["uid"], "created": meta.get("creationTimestamp"),
+                     "kind": component_kind(meta.get("labels") or {}), "status": phase, "readyContainers": sum(bool(c.get("ready")) for c in states),
+                     "containers": len(spec.get("containers") or []) + len(sidecars)})
+    return {"node": name or None, "pods": sorted(pods, key=lambda p: (p["namespace"], p["name"]))}
+
+
+def edit_node(body, user):
+    if not isinstance(body, dict):
+        raise ValueError("Expected node settings.")
+    name = body.get("name")
+    if not isinstance(name, str) or not NAME_RE.fullmatch(name):
+        raise ValueError("Select a valid node.")
+    current = node_config(urllib.parse.urlencode({"name": name}))
+    if current["uid"] != body.get("uid") or current["resourceVersion"] != body.get("resourceVersion"):
+        raise ValueError("The node changed. Refresh its settings before saving.")
+    changes = body.get("changes")
+    if not isinstance(changes, dict) or not changes or set(changes) - {"labels", "annotations", "taints", "unschedulable"}:
+        raise ValueError("Edit node labels, annotations, taints or scheduling.")
+    for key in ("labels", "annotations"):
+        if key in changes and (not isinstance(changes[key], dict) or
+                               not all(isinstance(k, str) and isinstance(v, str) for k, v in changes[key].items())):
+            raise ValueError("Labels and annotations must contain text keys and values.")
+    if "unschedulable" in changes and not isinstance(changes["unschedulable"], bool):
+        raise ValueError("Scheduling must be enabled or disabled.")
+    if "taints" in changes:
+        taints = changes["taints"]
+        if not isinstance(taints, list) or any(not isinstance(t, dict) or not isinstance(t.get("key"), str) or
+                not t["key"] or not isinstance(t.get("value", ""), str) or
+                t.get("effect") not in ("NoSchedule", "PreferNoSchedule", "NoExecute") or
+                set(t) - {"key", "value", "effect", "timeAdded"} for t in taints):
+            raise ValueError("Each taint needs a key and a scheduling effect.")
+    patch = [{"op": "test", "path": "/metadata/uid", "value": current["uid"]},
+             {"op": "test", "path": "/metadata/resourceVersion", "value": current["resourceVersion"]}]
+    for key, value in changes.items():
+        prefix = "/metadata/" if key in ("labels", "annotations") else "/spec/"
+        patch.append({"op": "add", "path": prefix + key, "value": value})
+    status, _ = KUBE.call("PATCH", "/api/v1/nodes/" + name, patch, "application/json-patch+json")
+    if status == 403:
+        raise PermissionError("Kubernetes denied node editing.")
+    if status in (409, 422):
+        raise ValueError("The node changed or Kubernetes rejected the settings. Refresh and review your changes.")
+    if status != 200:
+        raise RuntimeError("Node update: Kubernetes HTTP %s" % status)
+    if LOG:
+        LOG(event="network-node-edited", user_id=user["id"], node=name, node_uid=current["uid"],
+            fields=sorted(changes))
+    return {"saved": True}
+
+
 def handle(h, method, path, query):
     """True when it answered (the paths under /api/network/)."""
     if not path.startswith(BASE + "/api/network/"):
         return False
-    if method != "GET" and not (method == "POST" and path in (BASE + "/api/network/coder-scale", BASE + "/api/network/restart-pod")):
+    if method != "GET" and not (method == "POST" and path in (BASE + "/api/network/coder-scale", BASE + "/api/network/restart-pod", BASE + "/api/network/edit-node")):
         h.send_json(405, {"error": "method not allowed"})
         return True
     user, err = h.user(admin=True)
     if err:
         return True
     try:
+        if path == BASE + "/api/network/node-config":
+            return h.send_json(200, node_config(query)) or True
+        if path == BASE + "/api/network/node-pods":
+            return h.send_json(200, node_pods(query)) or True
+        if path == BASE + "/api/network/edit-node":
+            if method != "POST":
+                return h.send_json(405, {"error": "method not allowed"}) or True
+            if not h.csrf_ok():
+                return h.send_json(403, {"error": "Cross-site request refused"}) or True
+            return h.send_json(200, edit_node(h.body() or {}, user)) or True
         if path == BASE + "/api/network/restart-pod":
             if method != "POST":
                 return h.send_json(405, {"error": "method not allowed"}) or True

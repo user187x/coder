@@ -1,3 +1,4 @@
+import type { ClusterNode } from "#/api/platform";
 /** CPU cores as Kubernetes writes them: "250m" under one core, else "1.5" ("N/A" if unknown). */
 export const cores = (c: number | null | undefined) =>
 	c == null || !Number.isFinite(c)
@@ -55,3 +56,14 @@ export const nodeBadgeStyle = (name: string) => {
 		borderColor: `hsl(${hue} 55% 43%)`,
 	};
 };
+
+export const nodeStatus = (
+	n: ClusterNode,
+): ["error" | "warn" | "ok", string] =>
+	!n.ready
+		? ["error", "Not ready"]
+		: n.unschedulable
+			? ["warn", "Cordoned"]
+			: n.pressure.length
+				? ["warn", n.pressure.join(", ")]
+				: ["ok", "Ready"];

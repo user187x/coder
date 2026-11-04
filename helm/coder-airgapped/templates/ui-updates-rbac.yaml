@@ -197,6 +197,9 @@ rules:
   - apiGroups: [""]
     resources: [nodes, pods, persistentvolumes, persistentvolumeclaims]
     verbs: [get, list]
+  - apiGroups: [""]
+    resources: [nodes]
+    verbs: [patch]
   # Node-image cleanup verifies pending workloads and rollback controller templates before removal.
   - apiGroups: [apps]
     resources: [deployments, statefulsets, daemonsets, replicasets]

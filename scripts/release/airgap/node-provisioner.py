@@ -79,6 +79,97 @@ class Operator:
     def nodes(self):
         return json.loads(self.k('get', 'nodes', '-o', 'json'))['items']
 
+    def maintenance_node(self, job):
+        name = job['node']
+        if not re.fullmatch(r'[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?', name):
+            raise ValueError('Invalid node name.')
+        node = json.loads(self.k('get', 'node', name, '-o', 'json'))
+        if node['metadata']['uid'] != job['uid']:
+            raise ValueError('The node was replaced. Refresh before requesting maintenance.')
+        return node
+
+    def prepare_maintenance(self, p, job):
+        node = self.maintenance_node(job)
+        job['bootID'] = node.get('status', {}).get('nodeInfo', {}).get('bootID')
+        if job['action'] == 'drain-node':
+            return
+        self.validate(p)
+        kind, name = p['kind'], job['node']
+        labels = node['metadata'].get('labels', {})
+        if kind == 'k3d':
+            members = json.loads(run('k3d', 'node', 'list', '-o', 'json'))
+            if not any(n['name'] == name and n.get('runtimeLabels', {}).get('k3d.cluster') == p['cluster'] for n in members):
+                raise ValueError('This node does not belong to the enrolled k3d cluster.')
+            job['containerID'], job['containerStarted'] = run('docker', 'inspect', '--format', '{{.Id}} {{.State.StartedAt}}', name).split()
+        elif kind == 'minikube':
+            if labels.get('minikube.k8s.io/name') != p['profile']:
+                raise ValueError('This node does not belong to the enrolled minikube profile.')
+        elif kind in ('eks-managed', 'eks-manual', 'karpenter') and p.get('region') and p.get('cluster'):
+            instance = node.get('spec', {}).get('providerID', '').split('/')[-1]
+            if not re.fullmatch(r'i-[a-f0-9]+', instance):
+                raise ValueError('The node has no valid EC2 instance identity.')
+            if kind == 'eks-managed' and labels.get('eks.amazonaws.com/nodegroup') != p['group']:
+                raise ValueError('The node belongs to another EKS node group.')
+            if kind == 'karpenter' and labels.get('karpenter.sh/nodepool') != p['pool']:
+                raise ValueError('The node belongs to another Karpenter pool.')
+            response = self.aws(p, 'ec2', 'describe-instances', '--instance-ids', instance)
+            instances = [i for r in response['Reservations'] for i in r['Instances']]
+            if len(instances) != 1:
+                raise ValueError('Cannot identify exactly one EC2 node instance.')
+            tags = {t['Key']: t['Value'] for t in instances[0].get('Tags', [])}
+            if tags.get('kubernetes.io/cluster/' + p['cluster']) not in ('owned', 'shared') and tags.get('eks:cluster-name') != p['cluster']:
+                raise ValueError('EC2 tags do not confirm membership in the enrolled cluster.')
+            job['instanceID'] = instance
+        else:
+            raise ValueError('Configure a supported host provider to restart this node.')
+
+    def maintain(self, p, job):
+        self.maintenance_node(job)
+        name = job['node']
+        if job['action'] == 'drain-node':
+            self.k('drain', name, '--ignore-daemonsets', '--timeout=10m', timeout=660)
+        elif p['kind'] == 'k3d':
+            if run('docker', 'inspect', '--format', '{{.Id}}', name) != job['containerID']:
+                raise ValueError('The node container was replaced. Refresh before restarting.')
+            run('k3d', 'node', 'stop', name, timeout=180)
+            run('k3d', 'node', 'start', name, timeout=180)
+        elif p['kind'] == 'minikube':
+            run('minikube', '-p', p['profile'], 'node', 'stop', name, timeout=180)
+            run('minikube', '-p', p['profile'], 'node', 'start', name, timeout=180)
+        else:
+            self.aws(p, 'ec2', 'reboot-instances', '--instance-ids', job['instanceID'])
+        job['commandCompleted'] = True
+
+    def observe_maintenance(self, p, job):
+        node = self.maintenance_node(job)
+        name = job['node']
+        if job['action'] == 'drain-node':
+            pods = json.loads(self.k('get', 'pods', '-A', '--field-selector', 'spec.nodeName=' + name, '-o', 'json'))['items']
+            remaining = [pod for pod in pods if pod.get('status', {}).get('phase') not in ('Succeeded', 'Failed')
+                         and 'kubernetes.io/config.mirror' not in pod['metadata'].get('annotations', {})
+                         and not any(o.get('controller') and o['kind'] == 'DaemonSet' for o in pod['metadata'].get('ownerReferences', []))]
+            if node.get('spec', {}).get('unschedulable') and not remaining:
+                return name + ' drained and cordoned. Uncordon when maintenance is complete.'
+            job['message'] = f'{len(remaining)} pods remain on {name}. Check disruption budgets and pod storage.'
+            return None
+        restarted = bool(job.get('commandCompleted'))
+        if p['kind'] == 'k3d':
+            if run('docker', 'inspect', '--format', '{{.Id}}', name) != job['containerID']:
+                raise ValueError('The node container changed during restart. Inspect its provider.')
+            state = json.loads(run('docker', 'inspect', '--format', '{{json .State}}', job['containerID']))
+            if not state['Running']:
+                # A crash after stopping the container must not strand the node.
+                run('k3d', 'node', 'start', name, timeout=180)
+                return None
+            restarted = state['StartedAt'] != job['containerStarted']
+        elif p['kind'] != 'minikube':
+            boot = node.get('status', {}).get('nodeInfo', {}).get('bootID')
+            restarted = bool(boot and job.get('bootID') and boot != job['bootID'])
+        ready = any(c['type'] == 'Ready' and c['status'] == 'True' for c in node.get('status', {}).get('conditions', []))
+        if restarted and ready:
+            return name + ' restarted and is Ready.'
+        return None
+
     def launch(self, p, job, nodes):
         kind, rid = p['kind'], job['id']
         if kind == 'k3d':
@@ -202,11 +293,13 @@ class Operator:
             for p in self.profiles.values():
                 try:
                     self.validate(p)
-                    self.available.append({'id': p['id'], 'label': p['label'], 'kind': p['kind']})
+                    self.available.append({'id': p['id'], 'label': p['label'], 'kind': p['kind'],
+                                           'restart': p['kind'] in ('k3d', 'minikube', 'eks-managed', 'eks-manual') or
+                                           (p['kind'] == 'karpenter' and bool(p.get('region') and p.get('cluster')))})
                 except (ValueError, KeyError, RuntimeError, OSError, subprocess.TimeoutExpired) as err:
                     print(f"Provider {p['id']} unavailable: {err}", file=sys.stderr, flush=True)
             self.refresh_at = time.monotonic() + 60
-        cm = self.patch(cm, profiles=json.dumps(self.available), heartbeat=str(int(time.time())))
+        cm = self.patch(cm, profiles=json.dumps(self.available), heartbeat=str(int(time.time())), maintenance='true')
         job = json.loads(cm['data'].get('operation', 'null'))
         if not job or job.get('organization_id') != self.org or job.get('phase') not in ('queued', 'provisioning'):
             return
@@ -214,15 +307,22 @@ class Operator:
         if rid != job['id']:
             raise ValueError('Invalid request ID.')
         p = self.profiles.get(job['profile'])
+        maintenance = job.get('action', 'create') != 'create'
         try:
-            if not p:
+            if job.get('action', 'create') not in ('create', 'restart-node', 'drain-node'):
+                raise ValueError('Invalid node action.')
+            if not p and job.get('action') != 'drain-node':
                 raise ValueError('The requested provider is no longer configured.')
             if job['phase'] == 'queued':
                 nodes = self.nodes()
-                if len(nodes) >= self.config['maxNodes']:
+                if not maintenance and len(nodes) >= self.config['maxNodes']:
                     raise ValueError('The cluster has reached the operator node limit.')
-                self.validate(p)
-                job.update(phase='provisioning', before=[n['metadata']['name'] for n in nodes], message='Requesting a worker.')
+                if maintenance:
+                    self.prepare_maintenance(p, job)
+                else:
+                    self.validate(p)
+                job.update(phase='provisioning', before=[n['metadata']['name'] for n in nodes],
+                           message='Performing node maintenance.' if maintenance else 'Requesting a worker.')
                 # Only the process winning this resourceVersion comparison may call the provider.
                 try:
                     self.patch(cm, operation=json.dumps(job))
@@ -238,23 +338,29 @@ class Operator:
                 thread = threading.Thread(target=heartbeat, daemon=True)
                 thread.start()
                 try:
-                    job['providerRef'] = self.launch(p, job, nodes)
-                    job['message'] = 'Waiting for a new Kubernetes node to become Ready.'
+                    if maintenance:
+                        self.maintain(p, job)
+                        job['message'] = 'Checking node maintenance result.'
+                    else:
+                        job['providerRef'] = self.launch(p, job, nodes)
+                        job['message'] = 'Waiting for a new Kubernetes node to become Ready.'
                 except (RuntimeError, subprocess.TimeoutExpired) as err:
                     # A lost CLI response may follow successful provisioning. Reconcile without a second launch.
-                    job['message'] = 'Checking registration after a provider error: ' + str(err)[:300]
+                    job['message'] = 'Checking operation after a provider error: ' + str(err)[:300]
+                    if job.get('action') == 'drain-node':
+                        job.update(phase='failed', message='Drain incomplete. The node may remain cordoned. ' + str(err)[:450])
                 finally:
                     stop.set()
                     thread.join()
             elif time.time() - job['created'] > 1800:
-                if p['kind'] == 'karpenter':
+                if not maintenance and p['kind'] == 'karpenter':
                     self.k('-n', self.namespace, 'delete', 'pod', 'coder-node-' + rid, '--ignore-not-found', '--wait=false')
-                raise ValueError('Timed out waiting for registration. Inspect the provider before submitting another request.')
+                raise ValueError('Timed out waiting for the node. Inspect its provider and scheduling state before another request.')
             else:
                 previous_message = job['message']
-                name = self.observe(p, job)
-                if name:
-                    job.update(phase='ready', message=name + ' is Ready.')
+                result = self.observe_maintenance(p, job) if maintenance else self.observe(p, job)
+                if result:
+                    job.update(phase='ready', message=result if maintenance else result + ' is Ready.')
                 elif previous_message == job['message']:
                     return
         except (ValueError, KeyError, OSError) as err:
