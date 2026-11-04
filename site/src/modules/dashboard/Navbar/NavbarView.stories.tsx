@@ -52,6 +52,35 @@ export const ForAdmin: Story = {
 	},
 };
 
+export const CompactDockWithoutPageAction: Story = {
+	parameters: {
+		pixel: { matrix: pixelWithDesktop },
+		queries: [
+			{
+				key: userUIPreferences().queryKey,
+				data: {
+					settings_sidebar: true,
+					settings_sidebar_compact: true,
+					navbar_layout: {
+						order: ["workspaces", "latency"],
+						hidden: ["logo", "banner", "notifications", "account"],
+					},
+				},
+			},
+		],
+	},
+	render: (args) => (
+		<>
+			<NavbarView {...args} />
+			<main id="main-content" className="p-6">
+				<section className="rounded-lg border border-solid border-border p-4">
+					Message
+				</section>
+			</main>
+		</>
+	),
+};
+
 export const ForAdminWithoutQuickLinks: Story = {
 	parameters: { pixel: { matrix: pixelWithDesktop } },
 	args: {

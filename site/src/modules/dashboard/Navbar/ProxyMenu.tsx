@@ -107,22 +107,9 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 		const root = document.documentElement;
 		const measure = () => {
 			if (!navbar) return;
-			const bounds = navbar.getBoundingClientRect();
 			root.style.setProperty(
 				"--settings-navbar-scale",
 				getComputedStyle(navbar).zoom || "1",
-			);
-			const buttons = Array.from(
-				navbar.querySelectorAll("a[href],button"),
-				(el) => el.getBoundingClientRect(),
-			).filter((rect) => rect.width > 0);
-			const lastEdge = Math.max(
-				bounds.left,
-				...buttons.map((rect) => rect.right),
-			);
-			root.style.setProperty(
-				"--settings-panel-right",
-				`${Math.max(0, bounds.right - lastEdge)}px`,
 			);
 			root.style.setProperty(
 				"--settings-panel-top",
@@ -131,10 +118,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 		};
 		measure();
 		const observer = new ResizeObserver(measure);
-		if (navbar) {
-			observer.observe(navbar);
-			for (const child of navbar.children) observer.observe(child);
-		}
+		if (navbar) observer.observe(navbar);
 		window.addEventListener("resize", measure);
 		window.addEventListener("scroll", measure, { passive: true });
 		return () => {
@@ -142,7 +126,6 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 			window.removeEventListener("resize", measure);
 			window.removeEventListener("scroll", measure);
 			root.style.removeProperty("--settings-panel-top");
-			root.style.removeProperty("--settings-panel-right");
 			root.style.removeProperty("--settings-navbar-scale");
 			delete root.dataset.settingsSide;
 		};

@@ -1,5 +1,6 @@
 :root {
 	--navbar-control-gap: 0.75rem;
+	--navbar-inline-padding: 1.5rem;
 }
 
 /* Navbar controls share a rounded outline. The announcement owns its buttons. */
@@ -8,6 +9,7 @@
 	border-radius: 10px;
 }
 .navbar-soft {
+	padding-inline: var(--navbar-inline-padding);
 	--navbar-action-width: 8.5rem;
 	--navbar-action-height: 2.5rem;
 }
@@ -96,6 +98,10 @@
 
 html[data-settings-side] {
 	--settings-dock-width: min(244px, 75vw);
+	--settings-panel-right: calc(
+		var(--navbar-inline-padding) *
+		var(--settings-navbar-scale, 1)
+	);
 }
 html[data-settings-side="compact"] {
 	--settings-dock-width: 52px;
@@ -159,8 +165,7 @@ html[data-settings-side="compact"] {
 	html[data-settings-side]:not([data-chat-side]) #main-content {
 		margin-right: calc(
 			var(--settings-dock-width) +
-			var(--settings-panel-right, 1.5rem) -
-			(100vw - 100%)
+			var(--settings-panel-right)
 		);
 	}
 }
