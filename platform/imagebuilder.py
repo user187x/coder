@@ -1599,7 +1599,6 @@ def node_image_groups():
                 g["nodes"].append(name)
     by_name = {nodeimagepurge.normalize(n): g for g in groups.values() for n in g["names"]}
     by_node = {(node, nodeimagepurge.normalize(n)): g for g in groups.values() for node in g["nodes"] for n in g["names"]}
-    running_by_digest = {}
     status, pods = kube_call("GET", "/api/v1/pods?fieldSelector=" + urllib.parse.quote("status.phase=Running"))
     for pod in (pods.get("items") or []) if status == 200 and isinstance(pods, dict) else []:
         node = (pod.get("spec") or {}).get("nodeName")
@@ -1634,8 +1633,14 @@ def node_image_groups():
             if main and main.get("name") == c.get("name") and (c.get("state") or {}).get("running") is not None:
                 # The runtime can report an older alias of exactly the same content.
                 g.setdefault("workspaceRefs", set()).add(main["image"])
-                if digest:
-                    running_by_digest.setdefault(digest, set()).add(main["image"])
+    # A runtime may report the OCI index for one pod and its platform manifest
+    # for another. Kubelet lists both digest aliases for the cached image.
+    running_by_digest = {}
+    for g in groups.values():
+        if g.get("workspaceRefs"):
+            for name in g["names"]:
+                if "@sha256:" in name:
+                    running_by_digest.setdefault(nodeimagepurge.normalize(name), set()).update(g["workspaceRefs"])
     for g in groups.values():
         for name in g["names"]:
             refs = running_by_digest.get(nodeimagepurge.normalize(name))

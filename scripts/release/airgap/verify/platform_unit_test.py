@@ -1788,7 +1788,7 @@ class NodeImagesTest(unittest.TestCase):
     def test_inventory_uses_workspace_tag_and_matches_cached_content_by_digest(self):
         repo = "registry.example/workspace"
         old, current = repo + ":1.6.5", repo + ":1.7.1"
-        digest, unused_digest = (repo + "@sha256:" + ch * 64 for ch in "ab")
+        digest, unused_digest, index = (repo + "@sha256:" + ch * 64 for ch in "abc")
         def node(name, names):
             return {"metadata": {"name": name}, "status": {"images": [{"names": names, "sizeBytes": 42}]}}
         def pod(node, tag, reported, image_id):
@@ -1796,9 +1796,9 @@ class NodeImagesTest(unittest.TestCase):
                     "spec": {"nodeName": node, "containers": [{"name": "dev", "image": tag}]},
                     "status": {"containerStatuses": [{"name": "dev", "image": reported, "imageID": image_id,
                                                       "state": {"running": {}}}]}}
-        nodes = [node("n1", [old, current, digest]), node("n2", [repo + ":1.5.2", digest]),
+        nodes = [node("n1", [old, current, digest]), node("n2", [repo + ":1.5.2", index, digest]),
                  node("n3", [old, unused_digest])]
-        pods = [pod("n2", current, repo + ":1.5.2", digest)]
+        pods = [pod("n2", current, repo + ":1.5.2", index)]
         def inventory():
             def call(method, path):
                 return 200, {"items": nodes if path == "/api/v1/nodes" else pods}
@@ -1808,7 +1808,7 @@ class NodeImagesTest(unittest.TestCase):
         rows = inventory()
         self.assertEqual(set(rows), {old, current})
         self.assertEqual(rows[current]["nodes"], ["n1", "n2"])
-        self.assertEqual(set(rows[current]["names"]), {old, repo + ":1.5.2", digest})
+        self.assertEqual(set(rows[current]["names"]), {old, repo + ":1.5.2", digest, index})
         self.assertEqual(rows[current]["entry"], "catalog")
         self.assertTrue(rows[current]["running"])
         self.assertFalse(rows[old]["running"])
