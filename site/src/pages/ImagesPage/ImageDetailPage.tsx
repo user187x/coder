@@ -55,22 +55,22 @@ import {
 	StatusBadge,
 	TrackedBadge,
 } from "./badges";
-import {
-	CoderForkBadge,
-	ImageContentsTree,
-	ourImage,
-	useImageContents,
-} from "./CoderForkImages";
 import { ImageAddons } from "./ImageAddons";
 import { imageKey } from "./ImageEditorPage";
 import { ImageReport } from "./ImageReport";
 import { ImportImageDialog } from "./ImportImageDialog";
+import {
+	ImageContentsTree,
+	ourImage,
+	PlatformImageBadge,
+	useImageContents,
+} from "./PlatformImages";
 
 /**
  * Templates > Images > (an image): how to use it, its security report, its
  * add-ons, its builds, its backup. The workspace template's own image (tracked)
  * is read-only: its report and add-ons, rescans, a download; its entry can be
- * deleted (back with the next workspace image). One of the Coder fork's images
+ * deleted (back with the next workspace image). One of the platform's images
  * shows what it holds, in detail.
  */
 const ImageDetailPage: React.FC = () => {
@@ -205,7 +205,7 @@ const ImageDetailView: React.FC<{ image: ImageDetail }> = ({ image }) => {
 						status={image.status}
 						building={Boolean(image.activeBuild)}
 					/>
-					{ours && <CoderForkBadge ours={ours} />}
+					{ours && <PlatformImageBadge ours={ours} />}
 					{tracked && <TrackedBadge />}
 					{imported && <ImportedBadge from={imported.from} />}
 					{tag && <span className="text-content-secondary">{tag}</span>}
@@ -510,7 +510,7 @@ const ImageDetailView: React.FC<{ image: ImageDetail }> = ({ image }) => {
 					<h2 className="m-0 text-lg font-semibold">
 						What it holds
 						<span className="ml-2 text-sm font-normal text-content-secondary">
-							recorded from the image as the Coder fork built it
+							recorded from the image as it was built
 						</span>
 					</h2>
 					<ImageContentsTree ours={ours} asked={asked ?? undefined} />

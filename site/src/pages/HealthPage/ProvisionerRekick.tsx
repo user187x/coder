@@ -6,6 +6,7 @@ import { getErrorMessage } from "#/api/errors";
 import type {
 	ProvisionerJobState,
 	ProvisionersRekickResult,
+	ProvisionersReport,
 	TerraformProcess,
 } from "#/api/platform";
 import {
@@ -58,7 +59,14 @@ const jobLabel = (job: ProvisionerJobState) =>
  */
 export const ProvisionerRekick: React.FC = () => {
 	const queryClient = useQueryClient();
-	const { data: report, error, isLoading } = useQuery(provisioners());
+	const {
+		data: report,
+		error,
+		isLoading,
+		dataUpdatedAt,
+		refetch,
+		isFetching,
+	} = useQuery(provisioners());
 	const rekick = useMutation(rekickProvisioners(queryClient));
 	const restart = useMutation(restartCoderPod(queryClient));
 	const [result, setResult] = useState<ProvisionersRekickResult>();
@@ -90,6 +98,12 @@ export const ProvisionerRekick: React.FC = () => {
 	}
 	const stuck = report.jobs.filter((j) => j.stuck);
 	const busy = rekick.isPending;
+	const readyPeers =
+		restarting && report.podStatus
+			? Object.entries(report.podStatus).filter(
+					([name, pod]) => name !== restarting && pod.ready,
+				).length
+			: undefined;
 
 	return (
 		<section
@@ -172,23 +186,63 @@ export const ProvisionerRekick: React.FC = () => {
 
 			{result && <RekickResult result={result} />}
 
-			<div className="flex flex-col gap-2">
-				<h3 className="m-0 text-base font-medium">Terraform in Coder's pods</h3>
+			<section
+				className="flex flex-col gap-3 rounded-lg border border-solid border-border bg-surface-secondary p-4"
+				aria-label="Coder pod restarts"
+			>
+				<div className="flex flex-wrap items-center justify-between gap-2">
+					<h3 className="m-0 text-base font-semibold">Restart a Coder pod</h3>
+					<Button
+						size="sm"
+						variant="outline"
+						disabled={isFetching}
+						onClick={() => void refetch()}
+					>
+						Refresh status
+					</Button>
+				</div>
+				<p className="m-0 text-sm text-content-secondary">
+					Use a restart when a provisioner stays stuck after re-kicking its job.
+					Check for active Terraform processes and another ready pod before
+					restarting.
+				</p>
+				<span className="text-xs text-content-secondary">
+					Updated {new Date(dataUpdatedAt).toLocaleTimeString()} · Refreshes
+					every 15 seconds
+				</span>
+				{Object.keys(report.pods).length === 0 && (
+					<p>No running Coder pods found.</p>
+				)}
 				{Object.entries(report.pods).map(([pod, procs]) => (
 					<PodProcesses
 						key={pod}
 						pod={pod}
 						procs={procs}
+						status={report.podStatus?.[pod]}
 						onRestart={() => setRestarting(pod)}
 					/>
 				))}
-			</div>
+			</section>
 
 			<ConfirmDialog
 				type="delete"
 				open={Boolean(restarting)}
 				title={`Restart ${restarting ?? ""}?`}
-				description="The pod is deleted and its Deployment starts another: for about half a minute Coder answers from its other pods only (with one pod, not at all), and open terminals and apps reconnect. Its provisioner daemons start afresh."
+				description={
+					<div className="space-y-2">
+						<p>
+							Kubernetes will replace this pod. Its running jobs may be
+							interrupted, and terminals and apps may need to reconnect.
+						</p>
+						<p>
+							{readyPeers === undefined
+								? "Other pods’ readiness is unknown."
+								: readyPeers === 0
+									? "No other Coder pod is ready. Coder may be unavailable until the replacement is ready."
+									: `${readyPeers} other ready Coder ${readyPeers === 1 ? "pod can" : "pods can"} serve requests during this restart.`}
+						</p>
+					</div>
+				}
 				confirmText="Restart"
 				confirmLoading={restart.isPending}
 				onClose={() => setRestarting(undefined)}
@@ -244,20 +298,34 @@ const RekickResult: React.FC<{ result: ProvisionersRekickResult }> = ({
 type PodProcessesProps = {
 	pod: string;
 	procs: TerraformProcess[] | { error: string };
+	status?: NonNullable<ProvisionersReport["podStatus"]>[string];
 	onRestart: () => void;
 };
 
 const PodProcesses: React.FC<PodProcessesProps> = ({
 	pod,
 	procs,
+	status,
 	onRestart,
 }) => (
 	<div
-		className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-solid border-border px-4 py-3"
+		className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-solid border-border bg-surface-primary px-4 py-3"
 		data-testid="coder-pod"
 	>
 		<div className="min-w-0">
-			<div className="font-mono text-sm">{pod}</div>
+			<div className="flex flex-wrap items-center gap-2">
+				<span className="font-mono text-sm">{pod}</span>
+				{status && (
+					<Badge variant={status.ready ? "green" : "warning"}>
+						{status.ready ? "Ready" : "Not ready"}
+					</Badge>
+				)}
+			</div>
+			{status && (
+				<div className="my-1 text-xs text-content-secondary">
+					{status.node || "Unknown node"} · {status.restarts} container restarts
+				</div>
+			)}
 			<div className="text-xs text-content-secondary">
 				{"error" in procs
 					? `Its processes could not be read: ${procs.error}`
@@ -271,7 +339,7 @@ const PodProcesses: React.FC<PodProcessesProps> = ({
 								.join(" · ")}
 			</div>
 		</div>
-		<Button size="sm" variant="outline" onClick={onRestart}>
+		<Button aria-label={`Restart pod ${pod}`} onClick={onRestart}>
 			<RotateCcwIcon />
 			Restart pod
 		</Button>

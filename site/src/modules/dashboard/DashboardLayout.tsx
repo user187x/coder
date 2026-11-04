@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import { useQuery } from "react-query";
 import { Outlet } from "react-router";
 import { globalLockdown } from "#/api/queries/globalLockdown";
@@ -14,10 +14,12 @@ import { DashboardAddons } from "#/modules/platform/DashboardAddons";
 import { GlobalLockdownGate } from "#/modules/platform/globalLockdown/GlobalLockdown";
 import { WorkspaceScheduleGate } from "#/modules/platform/scheduler/WorkspaceScheduleGate";
 import { Navbar } from "./Navbar/Navbar";
+import { NavbarActionTarget } from "./Navbar/NavbarAction";
 import { UpdateCheckNotice } from "./UpdateCheckNotice/UpdateCheckNotice";
 import { useUpdateCheck } from "./useUpdateCheck";
 
 export const DashboardLayout: React.FC = () => {
+	const [actionTarget, setActionTarget] = useState<HTMLDivElement | null>(null);
 	const { permissions } = useAuthenticated();
 	const { data: lockdown } = useQuery(globalLockdown());
 	const updateCheck = useUpdateCheck(permissions.viewDeploymentConfig);
@@ -27,7 +29,7 @@ export const DashboardLayout: React.FC = () => {
 	const embedded = isEmbeddedFrame();
 
 	return (
-		<>
+		<NavbarActionTarget.Provider value={embedded ? undefined : actionTarget}>
 			{canViewDeployment && !embedded && <LicenseBanner />}
 			{!embedded && <AnnouncementBanners />}
 			{!embedded && <AnnouncementExpiry />}
@@ -46,7 +48,7 @@ export const DashboardLayout: React.FC = () => {
 				>
 					Skip to main content
 				</a>
-				{!embedded && <Navbar />}
+				{!embedded && <Navbar actionRef={setActionTarget} />}
 				{/* On narrow screens the announcement is not docked in the navbar. */}
 				<div
 					data-dashboard-mobile-announcement
@@ -84,7 +86,7 @@ export const DashboardLayout: React.FC = () => {
 			</div>
 
 			<DashboardAddons />
-		</>
+		</NavbarActionTarget.Provider>
 	);
 };
 

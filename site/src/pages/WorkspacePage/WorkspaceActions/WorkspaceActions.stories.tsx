@@ -238,7 +238,10 @@ export const OpenDownloadLogs: Story = {
 	parameters: {
 		queries: [
 			{
-				key: buildLogsKey(Mocks.MockWorkspace.id),
+				key: [
+					...buildLogsKey(Mocks.MockWorkspace.id),
+					Mocks.MockWorkspace.latest_build.id,
+				],
 				data: generateLogs(200),
 			},
 			{

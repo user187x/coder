@@ -54,5 +54,5 @@ export const uptimeInWords = (ms: number): string => {
 export const formatStarted = (date: Date): string =>
 	date.toLocaleString(undefined, {
 		dateStyle: "medium",
-		timeStyle: "medium",
+		timeStyle: "long",
 	});

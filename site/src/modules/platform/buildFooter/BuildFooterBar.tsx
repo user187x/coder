@@ -23,7 +23,8 @@ export const BuildFooterBar: React.FC<{
 	/** The build's time (or its skeleton). */
 	total: React.ReactNode;
 	controls?: string;
-}> = ({ open, onOpenChange, disabled, total, controls }) => {
+	label?: React.ReactNode;
+}> = ({ open, onOpenChange, disabled, total, controls, label }) => {
 	const end = useContext(BuildFooterEnd);
 	const drag = useRef<{ y: number; moved: boolean } | null>(null);
 	const pulled = useRef(false);
@@ -38,7 +39,7 @@ export const BuildFooterBar: React.FC<{
 		<div className="build-footer-bar" data-testid="build-timeline-bar">
 			<span className="build-footer-label">
 				<HistoryIcon aria-hidden className="size-3.5" />
-				Build timeline
+				{label || "Build timeline"}
 				<span className="build-footer-total">{total}</span>
 			</span>
 			<button

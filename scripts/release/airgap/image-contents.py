@@ -45,7 +45,7 @@ SOURCES = {
 PROGRAMS = {
     "coder-platform-agpl": [("Coder (AGPL)", "AGPL-only server edition", ["coder", "--version"], r"Coder .*?(v\S+)")],
     "coder-platform": [
-        ("Coder (the fork)", "The dashboard and its server", ["coder", "--version"], r"Coder (v\S+)"),
+        ("Coder", "The dashboard and its server", ["coder", "--version"], r"Coder (v\S+)"),
         ("Terraform", "Builds workspaces; providers mirrored for offline use", ["terraform", "version"],
          r"Terraform (v\S+)"),
     ],

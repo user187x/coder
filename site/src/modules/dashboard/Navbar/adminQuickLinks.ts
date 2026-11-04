@@ -7,6 +7,7 @@ import {
 	DatabaseIcon,
 	FileTextIcon,
 	HeartPulseIcon,
+	HourglassIcon,
 	KeyRoundIcon,
 	LifeBuoyIcon,
 	LockIcon,
@@ -185,6 +186,16 @@ export const settingsPagesFor = (access: AdminPageAccess): AdminPage[] => [
 		icon: FileTextIcon,
 		path: "/templates",
 	},
+	...(access.permissions.editDeploymentConfig
+		? [
+				{
+					id: "leases",
+					label: "Lease",
+					icon: HourglassIcon,
+					path: "/deployment/users#short-term-leases",
+				},
+			]
+		: []),
 	...ADMIN_PAGES.filter((page) => page.id === "chat" || page.allowed(access)),
 ];
 

@@ -1,8 +1,19 @@
 import { cn } from "cn";
-import { GaugeIcon, RadioIcon, SettingsIcon } from "lucide-react";
-import { useState } from "react";
+import {
+	GaugeIcon,
+	PanelRightCloseIcon,
+	PanelRightOpenIcon,
+	RadioIcon,
+	SettingsIcon,
+} from "lucide-react";
+import { useLayoutEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "react-query";
 import { NavLink } from "react-router";
 import { toast } from "sonner";
+import {
+	updateUserUIPreferences,
+	userUIPreferences,
+} from "#/api/queries/platform";
 import type { BuildInfoResponse, LinkConfig, User } from "#/api/typesGenerated";
 import { Abbr } from "#/components/Abbr/Abbr";
 import { ChevronDownIcon } from "#/components/AnimatedIcons/ChevronDown";
@@ -29,10 +40,12 @@ import {
 	type AdminQuickLinksEditor,
 	AdminSettingsItems,
 	type AdminSettingsPermissions,
+	canViewAdminSettings,
 } from "./AdminSettings";
 import type { AdminPage } from "./adminQuickLinks";
 import { sortProxiesByLatency } from "./proxyUtils";
 import { SettingsChatPanel } from "./SettingsChatPanel";
+import { SettingsMetricGraphs } from "./SettingsMetricGraphs";
 import { SettingsNotificationBadge } from "./SettingsNotificationBadge";
 import { SettingsSidePanels } from "./SettingsSidePanels";
 import "./navbarSoft.css";
@@ -83,6 +96,23 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 }) => {
 	const [open, setOpen] = useState(false);
 	const [chatExpanded, setChatExpanded] = useState(false);
+	const client = useQueryClient();
+	const prefs = useQuery({
+		...userUIPreferences(),
+		enabled: Boolean(controls),
+	});
+	const docking = useMutation({
+		...updateUserUIPreferences(client),
+		onError: () => toast.error("Could not save Settings sidebar preference."),
+	});
+	const docked = Boolean(controls && prefs.data?.settings_sidebar);
+	useLayoutEffect(() => {
+		if (!docked) return;
+		document.documentElement.dataset.settingsSide = "";
+		return () => {
+			delete document.documentElement.dataset.settingsSide;
+		};
+	}, [docked]);
 	const closeMenu = () => setOpen(false);
 	// The workspaces in the grid (their ids), while it is open.
 	const [workspaceView, setWorkspaceView] = useState<{
@@ -157,8 +187,10 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 	return (
 		<>
 			<DropdownMenu
-				open={open}
+				modal={!docked}
+				open={open || docked}
 				onOpenChange={(next) => {
+					if (docked && !next) return;
 					setOpen(next);
 					if (!next) setChatExpanded(false);
 					// The menu's old "Refresh latencies" row, now each time it opens.
@@ -210,6 +242,13 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 				)}
 				<DropdownMenuContent
 					ref={setMenuElement}
+					data-settings-docked={docked || undefined}
+					onInteractOutside={(e) => {
+						if (docked) e.preventDefault();
+					}}
+					onEscapeKeyDown={(e) => {
+						if (docked) e.preventDefault();
+					}}
 					align="end"
 					data-testid="navbar-latency-controls-menu"
 					// Reserve only exterior space for the tray; the menu body retains its own width and scrolling.
@@ -236,6 +275,20 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 					/>
 
 					<div className="flex flex-col rounded-md border border-solid border-border bg-surface-primary p-2 shadow-md max-h-(--radix-dropdown-menu-content-available-height) overflow-y-auto scrollbar-thin [scrollbar-color:hsl(var(--surface-quaternary))_transparent]">
+						{controls && (
+							<DropdownMenuItem
+								className="self-end text-xs"
+								disabled={docking.isPending || !prefs.data}
+								onSelect={(event) => {
+									event.preventDefault();
+									setOpen(true);
+									docking.mutate({ settings_sidebar: !docked });
+								}}
+							>
+								{docked ? <PanelRightCloseIcon /> : <PanelRightOpenIcon />}
+								{docked ? "Return to dropdown" : "Dock Settings"}
+							</DropdownMenuItem>
+						)}
 						{regions && proxy && (
 							<DropdownMenuSub>
 								<DropdownMenuSubTrigger data-testid="navbar-region">
@@ -321,7 +374,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 
 						{/* Platform: the latency to each of your workspaces, live, while it is pressed; locked, the grid's choice. */}
 						<WorkspacesLatencyMenu
-							open={open}
+							open={open || docked}
 							chatExpanded={chatExpanded}
 							onExpand={() => setChatExpanded(false)}
 							onOpenGrid={(ids, layout) => {
@@ -339,7 +392,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 								className="mx-1 mt-2 mb-1 flex flex-auto flex-col rounded-lg border border-solid border-border p-1"
 							>
 								<AdminSettingsItems
-									metricsRef={setMetricsElement}
+									externalMetrics
 									chatExpanded={chatExpanded}
 									onChatToggle={() => setChatExpanded(!chatExpanded)}
 									permissions={controls.permissions}
@@ -347,6 +400,12 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 									quickLinksEditor={controls.quickLinksEditor}
 								/>
 							</nav>
+						)}
+						{controls && canViewAdminSettings(controls.permissions) && (
+							<SettingsMetricGraphs
+								anchor={setMetricsElement}
+								chatExpanded={chatExpanded}
+							/>
 						)}
 						{chatExpanded && (
 							<SettingsChatPanel onClose={() => setChatExpanded(false)} />

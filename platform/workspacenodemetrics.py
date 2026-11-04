@@ -398,6 +398,12 @@ def report(token, oid, wid, owner=False, seconds=300):
             history_error = 'Shared metric history is temporarily unavailable.'
     return {"workspaceId": wid, "workspaceName": workspace.get("name", ""), "nodeName": node_name,
             "allocation": guest["allocation"] if guest is not None else allocation(pods, wid), "infrastructureRestricted": False,
+            "pods": [{"name": p["metadata"]["name"], "node": p.get("spec", {}).get("nodeName"),
+                      "nodeIP": p.get("status", {}).get("hostIP"), "ip": p.get("status", {}).get("podIP"),
+                      "startedAt": p.get("status", {}).get("startTime"),
+                      "containers": [{"name": c["name"], "image": c["image"]}
+                                     for c in p.get("spec", {}).get("containers", []) if c.get("name") and c.get("image")]}
+                     for p in pods if p.get("metadata", {}).get("name")],
             "history": history, "historyError": history_error,
             "node": readings.get(node_name, unavailable(reason)),
             "cluster": aggregate([readings[name] for name, node in nodes.items() if ready(node)]),

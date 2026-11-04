@@ -4736,7 +4736,7 @@ class LogoVisibilityTest(unittest.TestCase):
         handler.body.return_value = payload
         handler.user.return_value = ({"username": "admin"}, None) if allowed else (None, "forbidden")
         logos = mock.Mock()
-        store = mock.Mock()
+        store = mock.Mock(get_setting=lambda key, default: default)
         with mock.patch.object(ui, "LOGOS", logos), mock.patch.object(ui, "STORE", store):
             ui.Handler.do_POST(handler)
         handler.user.assert_called_once_with(admin=True)
@@ -4764,7 +4764,11 @@ class LogoVisibilityTest(unittest.TestCase):
         _, _, store = self.post({"transparency": 40}, path="/api/navbar-appearance", allowed=False)
         store.put_setting.assert_not_called()
         _, _, store = self.post({"transparency": 40}, path="/api/navbar-appearance")
-        store.put_setting.assert_called_once_with("navbar_transparency", 40)
+        store.put_setting.assert_called_once_with("navbar_appearance", {"transparency": 40, "scale": 100, "wireframe": True})
+        for invalid in ({"scale": 126}, {"scale": True}, {"wireframe": "false"}):
+            handler, _, store = self.post({"transparency": 40, **invalid}, path="/api/navbar-appearance")
+            self.assertEqual(handler.send_json.call_args.args[0], 400)
+            store.put_setting.assert_not_called()
 
     def test_animation_policy_requires_admin_and_an_explicit_boolean(self):
         for payload in ({"part": "gifs", "enabled": "false"}, {"part": "other", "enabled": False}):

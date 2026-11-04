@@ -5,6 +5,7 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "#/components/Tooltip/Tooltip";
+import { formatStarted } from "#/modules/platform/workspaceUptime/workspaceUptime";
 import { Bar, ClickableBar } from "./Chart/Bar";
 import { Blocks } from "./Chart/Blocks";
 import { Chart, ChartContent } from "./Chart/Chart";
@@ -151,6 +152,7 @@ export const StagesChart: React.FC<StagesChartProps> = ({
 										);
 									}
 
+									const when = `Started ${formatStarted(t.range.startedAt)} · Finished ${formatStarted(t.range.endedAt)}`;
 									const value = calcDuration(t.range);
 									const offset = calcOffset(t.range, totalRange);
 									const validDuration = value > 0 && !Number.isNaN(value);
@@ -163,6 +165,7 @@ export const StagesChart: React.FC<StagesChartProps> = ({
 											{/** We only want to expand stages with more than one resource */}
 											{t.visibleResources > 1 ? (
 												<ClickableBar
+													title={when}
 													aria-label={`View ${t.stage.label} details`}
 													scale={scale}
 													value={value}
@@ -177,10 +180,15 @@ export const StagesChart: React.FC<StagesChartProps> = ({
 													<Blocks count={t.visibleResources} />
 												</ClickableBar>
 											) : (
-												<Bar scale={scale} value={value} offset={offset} />
+												<Bar
+													title={when}
+													scale={scale}
+													value={value}
+													offset={offset}
+												/>
 											)}
 											{validDuration ? (
-												<span>{formatTime(value)}</span>
+												<span title={when}>{formatTime(value)}</span>
 											) : (
 												<span className="text-content-destructive">
 													Invalid

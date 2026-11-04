@@ -115,7 +115,7 @@ export const DeploymentBannerView: React.FC<DeploymentBannerViewProps> = ({
 			aria-label="Deployment statistics"
 			ref={row}
 			style={{ fontSize }}
-			className="deployment-stats flex min-w-0 w-full flex-nowrap items-center justify-between gap-[0.65em] overflow-x-auto whitespace-nowrap px-[0.8em] py-1.5 font-mono leading-none tabular-nums"
+			className="deployment-stats flex min-w-0 w-auto max-w-none flex-nowrap items-center justify-between gap-[0.65em] whitespace-nowrap px-[0.8em] py-1.5 font-mono leading-none tabular-nums"
 		>
 			<TooltipProvider delayDuration={100}>
 				<Tooltip>

@@ -1,5 +1,6 @@
 import { useEffect, useId, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
+import type { NavbarStyle } from "#/api/platform";
 import { backgroundHTML, backgrounds } from "#/api/queries/backgrounds";
 import {
 	navbarAppearance,
@@ -8,6 +9,7 @@ import {
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { Button } from "#/components/Button/Button";
 import { Loader } from "#/components/Loader/Loader";
+import { Switch } from "#/components/Switch/Switch";
 import { BackgroundPreview } from "#/modules/platform/background/BackgroundPreview";
 
 export function NavbarAppearance() {
@@ -19,15 +21,30 @@ export function NavbarAppearance() {
 		backgroundHTML(background?.kind === "html" ? background.url : undefined),
 	);
 	const save = useMutation(updateNavbarAppearance(client));
-	const [draft, setDraft] = useState<number | null>(null);
-	const value = draft ?? query.data?.transparency ?? 0;
+	const [draft, setDraft] = useState<NavbarStyle | null>(null);
+	const value = draft ??
+		query.data ?? { transparency: 0, scale: 100, wireframe: true };
+	const dirty =
+		value.scale !== query.data?.scale ||
+		value.wireframe !== query.data?.wireframe ||
+		value.transparency !== query.data?.transparency;
 	useEffect(() => {
 		if (draft === null) return;
 		document.documentElement.style.setProperty(
 			"--navbar-preview-alpha",
-			String(1 - draft / 100),
+			String(1 - draft.transparency / 100),
+		);
+		document.documentElement.style.setProperty(
+			"--navbar-preview-scale",
+			String(draft.scale / 100),
+		);
+		document.documentElement.style.setProperty(
+			"--navbar-preview-border",
+			draft.wireframe ? "hsl(var(--border-default))" : "transparent",
 		);
 		return () => {
+			document.documentElement.style.removeProperty("--navbar-preview-scale");
+			document.documentElement.style.removeProperty("--navbar-preview-border");
 			document.documentElement.style.removeProperty("--navbar-preview-alpha");
 		};
 	}, [draft]);
@@ -40,8 +57,8 @@ export function NavbarAppearance() {
 				Navigation bar
 			</h2>
 			<p className="text-sm text-content-secondary">
-				Choose how much of the page shows through the navigation bar for
-				everyone. Preview your changes before saving.
+				Set the transparency, size and outline of the navigation bar for
+				everyone.
 			</p>
 			{query.isLoading && <Loader />}
 			{(query.error || save.error) && (
@@ -54,7 +71,7 @@ export function NavbarAppearance() {
 							className="flex justify-between text-sm font-medium"
 							htmlFor={`${id}-range`}
 						>
-							Navbar transparency <span aria-hidden>{value}%</span>
+							Navbar transparency <span aria-hidden>{value.transparency}%</span>
 						</label>
 						<input
 							id={`${id}-range`}
@@ -63,14 +80,53 @@ export function NavbarAppearance() {
 							max="100"
 							step="1"
 							className="block my-3 w-full accent-content-link"
-							aria-valuetext={`${value}% transparent`}
-							value={value}
+							aria-valuetext={`${value.transparency}% transparent`}
+							value={value.transparency}
 							disabled={save.isPending}
-							onChange={(e) => setDraft(e.currentTarget.valueAsNumber)}
+							onChange={(e) =>
+								setDraft({
+									...value,
+									transparency: e.currentTarget.valueAsNumber,
+								})
+							}
 						/>
+						<label
+							className="flex justify-between text-sm font-medium"
+							htmlFor={`${id}-size`}
+						>
+							Navbar size <span aria-hidden>{value.scale}%</span>
+						</label>
+						<input
+							type="range"
+							id={`${id}-size`}
+							min={75}
+							max={125}
+							step={1}
+							className="block my-3 w-full accent-content-link"
+							aria-valuetext={`${value.scale}%`}
+							value={value.scale}
+							disabled={save.isPending}
+							onChange={(e) =>
+								setDraft({ ...value, scale: e.currentTarget.valueAsNumber })
+							}
+						/>
+						<label
+							className="mb-4 flex items-center justify-between text-sm font-medium"
+							htmlFor={`${id}-frame`}
+						>
+							Show navbar wireframe
+							<Switch
+								id={`${id}-frame`}
+								checked={value.wireframe}
+								disabled={save.isPending}
+								onCheckedChange={(wireframe) =>
+									setDraft({ ...value, wireframe })
+								}
+							/>
+						</label>
 						<div className="flex flex-wrap gap-2">
 							<Button
-								disabled={save.isPending || value === query.data.transparency}
+								disabled={save.isPending || !dirty}
 								onClick={() =>
 									save.mutate(value, { onSuccess: () => setDraft(null) })
 								}
@@ -95,7 +151,7 @@ export function NavbarAppearance() {
 							opacity={background?.opacity ?? 0}
 							layer={background?.layer ?? "under"}
 							dials={background?.params ?? {}}
-							navbarTransparency={value}
+							navbarStyle={value}
 						/>
 					</div>
 				</div>

@@ -26,7 +26,10 @@ const meta: Meta<typeof CustomizeSettingsPage> = {
 		layout: "fullscreen",
 		queries: [
 			{ key: logoKey, data: MockLogo },
-			{ key: navbarAppearance().queryKey, data: { transparency: 45 } },
+			{
+				key: navbarAppearance().queryKey,
+				data: { transparency: 45, scale: 110, wireframe: false },
+			},
 			{ key: animationPolicy().queryKey, data: DEFAULT_ANIMATION_POLICY },
 			{
 				key: loginPageKey,

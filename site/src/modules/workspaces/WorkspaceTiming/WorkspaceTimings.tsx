@@ -2,11 +2,15 @@ import { cn } from "cn";
 import sortBy from "lodash/sortBy";
 import uniqBy from "lodash/uniqBy";
 import { useId, useState } from "react";
+import { useQuery } from "react-query";
+import { buildLogs } from "#/api/queries/workspaces";
 import type {
 	AgentConnectionTiming,
 	AgentScriptTiming,
 	ProvisionerTiming,
+	Workspace,
 } from "#/api/typesGenerated";
+import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { ChevronDownIcon } from "#/components/AnimatedIcons/ChevronDown";
 import { Button } from "#/components/Button/Button";
 import {
@@ -15,7 +19,15 @@ import {
 	CollapsibleTrigger,
 } from "#/components/Collapsible/Collapsible";
 import { Skeleton } from "#/components/Skeleton/Skeleton";
+import {
+	Tabs,
+	TabsContent,
+	TabsList,
+	TabsTrigger,
+} from "#/components/Tabs/Tabs";
 import { BuildFooterBar } from "#/modules/platform/buildFooter/BuildFooterBar";
+import { WorkspaceBuildLogs } from "#/modules/workspaces/WorkspaceBuildLogs/WorkspaceBuildLogs";
+import { BuildRunDetails } from "./BuildRunDetails";
 import {
 	calcDuration,
 	formatTime,
@@ -44,6 +56,7 @@ type TimingView =
 	  };
 
 type WorkspaceTimingsProps = {
+	workspace?: Workspace;
 	defaultIsOpen?: boolean;
 	/** Platform: the workspace card's footer (BuildFooterBar) instead of a card of its own. */
 	footer?: boolean;
@@ -56,6 +69,7 @@ export const WorkspaceTimings: React.FC<WorkspaceTimingsProps> = ({
 	provisionerTimings = [],
 	agentScriptTimings = [],
 	agentConnectionTimings = [],
+	workspace,
 	defaultIsOpen = false,
 	footer = false,
 }) => {
@@ -225,18 +239,44 @@ export const WorkspaceTimings: React.FC<WorkspaceTimingsProps> = ({
 				className="build-footer"
 				data-testid="build-timeline-footer"
 			>
-				<BuildFooterBar
-					open={isOpen}
-					onOpenChange={setIsOpen}
-					disabled={isLoading}
-					total={total}
-					controls={bodyId}
-				/>
-				{!isLoading && (
+				<Tabs defaultValue="timeline" onValueChange={() => setIsOpen(true)}>
+					<BuildFooterBar
+						open={isOpen}
+						onOpenChange={setIsOpen}
+						total={total}
+						controls={bodyId}
+						label={
+							workspace && (
+								<TabsList
+									aria-label="Build details"
+									className="relative z-10 gap-2 border-0"
+								>
+									<TabsTrigger value="timeline" onClick={() => setIsOpen(true)}>
+										Build timeline
+									</TabsTrigger>
+									<TabsTrigger value="logs" onClick={() => setIsOpen(true)}>
+										Build logs
+									</TabsTrigger>
+								</TabsList>
+							)
+						}
+					/>
 					<CollapsibleContent id={bodyId} className="build-footer-body">
-						{body}
+						<TabsContent value="timeline">
+							{workspace && <BuildRunDetails workspace={workspace} />}
+							{isLoading ? (
+								<p className="p-4">Timing data is not available yet.</p>
+							) : (
+								body
+							)}
+						</TabsContent>
+						{workspace && (
+							<TabsContent value="logs">
+								<BuildLogsPanel workspace={workspace} />
+							</TabsContent>
+						)}
 					</CollapsibleContent>
-				)}
+				</Tabs>
 			</Collapsible>
 		);
 	}
@@ -266,6 +306,30 @@ export const WorkspaceTimings: React.FC<WorkspaceTimingsProps> = ({
 		</Collapsible>
 	);
 };
+
+function BuildLogsPanel({ workspace }: { workspace: Workspace }) {
+	const query = useQuery({
+		...buildLogs(workspace),
+		refetchInterval: workspace.latest_build.job.completed_at ? false : 2000,
+	});
+	if (query.isError) return <ErrorAlert error={query.error} />;
+	if (!query.data?.length)
+		return (
+			<p className="p-4">
+				{query.isLoading ? "Loading build logs…" : "No build logs recorded."}
+			</p>
+		);
+	return (
+		<div className="max-h-96 overflow-auto">
+			<WorkspaceBuildLogs
+				logs={query.data}
+				build={workspace.latest_build}
+				sticky
+				disableAutoscroll
+			/>
+		</div>
+	);
+}
 
 const toTimeRange = (timing: {
 	started_at: string;

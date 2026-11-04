@@ -23,7 +23,10 @@ import { WorkspacesDropdown } from "./WorkspacesDropdown";
 import "./navbarSoft.css";
 
 type NavbarViewProps = {
+	actionRef?: React.Ref<HTMLDivElement>;
 	transparency?: number;
+	scale?: number;
+	wireframe?: boolean;
 	user: TypesGen.User;
 	buildInfo?: TypesGen.BuildInfoResponse;
 	supportLinks: readonly TypesGen.LinkConfig[];
@@ -35,7 +38,10 @@ type NavbarViewProps = {
 };
 
 export const NavbarView: React.FC<NavbarViewProps> = ({
+	actionRef,
 	transparency = 0,
+	scale = 100,
+	wireframe = true,
 	user,
 	buildInfo,
 	supportLinks,
@@ -71,6 +77,8 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 				}
 			}}
 			style={{
+				zoom: `var(--navbar-preview-scale, ${scale / 100})`,
+				borderBottomColor: `var(--navbar-preview-border, ${wireframe ? "hsl(var(--border-default))" : "transparent"})`,
 				backgroundColor: `hsl(var(--surface-primary) / var(--navbar-preview-alpha, ${1 - transparency / 100}))`,
 			}}
 			className="navbar-soft sticky top-0 bg-surface-primary z-40 border-0 border-b border-solid h-[72px] min-h-[72px] flex items-center leading-none px-6"
@@ -141,6 +149,10 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 				}}
 			/>
 
+			<div
+				ref={actionRef}
+				className="mx-2 flex shrink-0 items-center empty:hidden"
+			/>
 			<div
 				className={`flex items-center justify-end gap-3 ml-auto ${supportLinks.some(isNavbarLink) ? "md:ml-3" : "md:hidden"}`}
 			>

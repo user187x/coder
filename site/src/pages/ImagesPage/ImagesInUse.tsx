@@ -20,10 +20,14 @@ import {
 	TableRow,
 } from "#/components/Table/Table";
 import { TableCard } from "#/modules/platform/tableCard/TableCard";
-import { formatSize } from "./badges";
-import { CoderForkBadge, ourImage, useImageContents } from "./CoderForkImages";
+import { formatSize, ImageVersionBadge, imageVersion } from "./badges";
 import { nameFrom } from "./ImportImageDialog";
 import { NodeImageCleanup } from "./NodeImageCleanup";
+import {
+	ourImage,
+	PlatformImageBadge,
+	useImageContents,
+} from "./PlatformImages";
 
 /**
  * Scan, for an image that has no entry here: scanned as it is (from the
@@ -90,7 +94,8 @@ export const ImagesInUse: React.FC<{
 				<Table data-testid="images-in-use">
 					<TableHeader>
 						<TableRow>
-							<TableHead className="w-[42%]">Image</TableHead>
+							<TableHead className="w-[30%]">Image</TableHead>
+							<TableHead className="w-[12%]">Version</TableHead>
 							<TableHead className="w-[20%]">Workspaces</TableHead>
 							<TableHead className="w-[18%]">Templates</TableHead>
 							<TableHead className="w-[20%]" />
@@ -102,6 +107,9 @@ export const ImagesInUse: React.FC<{
 								<TableCell className="break-all font-mono text-xs">
 									{i.image}
 									<OursTag catalog={catalog} image={i.image} />
+								</TableCell>
+								<TableCell>
+									<ImageVersionBadge version={imageVersion(i.image)} />
 								</TableCell>
 								<TableCell className="text-sm text-content-secondary">
 									{i.workspaces.length ? (
@@ -152,7 +160,7 @@ export const ImagesInUse: React.FC<{
 	);
 };
 
-/** One of the Coder fork's images: its tag, which opens what it holds (Coder fork images). */
+/** One of the platform's images: its tag, which opens what it holds (Platform release images). */
 const OursTag: React.FC<{
 	catalog: ReturnType<typeof useImageContents>["data"];
 	image: string;
@@ -160,7 +168,7 @@ const OursTag: React.FC<{
 	const ours = ourImage(catalog, image);
 	return ours ? (
 		<span className="ml-2 inline-flex align-middle font-sans">
-			<CoderForkBadge ours={ours} link />
+			<PlatformImageBadge ours={ours} link />
 		</span>
 	) : null;
 };
@@ -227,7 +235,8 @@ export const ImagesOnNodes: React.FC<{ canEdit: boolean }> = ({ canEdit }) => {
 				>
 					<TableHeader>
 						<TableRow>
-							<TableHead className="w-[52%]">Image</TableHead>
+							<TableHead className="w-[40%]">Image</TableHead>
+							<TableHead className="w-[12%]">Version</TableHead>
 							<TableHead className="w-[12%]">Size</TableHead>
 							<TableHead className="w-[18%]">Nodes</TableHead>
 							<TableHead className="w-[18%]" />
@@ -260,6 +269,9 @@ export const ImagesOnNodes: React.FC<{ canEdit: boolean }> = ({ canEdit }) => {
 											running
 										</Badge>
 									)}
+								</TableCell>
+								<TableCell>
+									<ImageVersionBadge version={imageVersion(i.image)} />
 								</TableCell>
 								<TableCell className="text-sm tabular-nums text-content-secondary">
 									{formatSize(i.sizeBytes)}

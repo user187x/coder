@@ -1,12 +1,4 @@
 import type { HudStorage } from "#/api/platform";
-import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from "#/components/Table/Table";
 
 const gib = (value: number | null) =>
 	value === null
@@ -26,36 +18,51 @@ export const HudStorageClasses = ({ storage }: { storage: HudStorage }) => (
 		) : storage.classes.length === 0 ? (
 			<p>No persistent volumes or claims.</p>
 		) : (
-			<Table aria-label="Storage class totals">
-				<TableHeader>
-					<TableRow>
-						{[
-							"Storage class",
-							"Volumes",
-							"Claims",
-							"Capacity",
-							"Claimed",
-							"Measured usage",
-						].map((label) => (
-							<TableHead key={label}>{label}</TableHead>
-						))}
-					</TableRow>
-				</TableHeader>
-				<TableBody>
-					{storage.classes.map((group) => (
-						<TableRow key={group.name}>
-							<TableCell>{group.name}</TableCell>
-							<TableCell>{group.volumes}</TableCell>
-							<TableCell>{group.claims}</TableCell>
-							<TableCell>{gib(group.capacity)}</TableCell>
-							<TableCell>{gib(group.claimed)}</TableCell>
-							<TableCell>
-								{gib(group.used)} ({group.measuredClaims}/{group.claims} claims)
-							</TableCell>
-						</TableRow>
-					))}
-				</TableBody>
-			</Table>
+			<div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+				{storage.classes.map((group) => (
+					<article
+						key={group.name}
+						className="min-w-0 rounded-lg border border-solid border-border bg-surface-primary p-4"
+					>
+						<h3 className="m-0 text-sm font-semibold">{group.name}</h3>
+						<p className="mt-1 text-xs text-content-secondary">
+							{group.volumes} volumes · {group.claims} claims
+						</p>
+						<dl className="m-0 grid gap-3">
+							{(
+								[
+									["Capacity", group.capacity],
+									["Claimed", group.claimed],
+									["Measured usage", group.used],
+								] as const
+							).map(([label, value]) => (
+								<div key={label} className="grid gap-1">
+									<div className="flex justify-between text-xs">
+										<dt>{label}</dt>
+										<dd className="m-0 tabular-nums">{gib(value)}</dd>
+									</div>
+									<div
+										aria-hidden
+										className="h-2 overflow-hidden rounded bg-surface-tertiary"
+									>
+										{typeof value === "number" && (
+											<div
+												className="h-full rounded bg-content-link"
+												style={{
+													width: `${(100 * value) / Math.max(1, group.capacity, group.claimed, group.used ?? 0)}%`,
+												}}
+											/>
+										)}
+									</div>
+								</div>
+							))}
+						</dl>
+						<p className="mb-0 text-xs text-content-secondary">
+							Usage measured for {group.measuredClaims} of {group.claims} claims
+						</p>
+					</article>
+				))}
+			</div>
 		)}
 	</section>
 );

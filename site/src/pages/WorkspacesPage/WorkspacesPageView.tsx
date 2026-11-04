@@ -21,6 +21,7 @@ import {
 } from "#/components/PageHeader/PageHeader";
 import { PaginationWidgetBase } from "#/components/PaginationWidget/PaginationWidgetBase";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
+import { NavbarAction } from "#/modules/dashboard/Navbar/NavbarAction";
 import { CloudDrive } from "#/modules/platform/cloudDrive/CloudDrive";
 import {
 	isLinked,
@@ -132,14 +133,16 @@ export const WorkspacesPageView: React.FC<WorkspacesPageViewProps> = ({
 			<PageHeader
 				actions={
 					canCreateWorkspace && (
-						<WorkspacesButton
-							templates={templates}
-							templatesFetchStatus={templatesFetchStatus}
-						>
-							{/* Platform: the plus glyph says "new" */}
-							<PlusIcon aria-hidden />
-							Workspace
-						</WorkspacesButton>
+						<NavbarAction>
+							<WorkspacesButton
+								templates={templates}
+								templatesFetchStatus={templatesFetchStatus}
+							>
+								{/* Platform: the plus glyph says "new" */}
+								<PlusIcon aria-hidden />
+								Workspace
+							</WorkspacesButton>
+						</NavbarAction>
 					)
 				}
 			>

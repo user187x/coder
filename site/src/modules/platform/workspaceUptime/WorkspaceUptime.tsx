@@ -67,7 +67,10 @@ export const WorkspaceUptime: React.FC<{
 				</span>
 			</TooltipTrigger>
 			<TooltipContent>
-				Up {uptimeInWords(up)}: on since {formatStarted(started)}
+				{workspace.latest_build.job.completed_at
+					? "Start build finished"
+					: "Start build began"}{" "}
+				{formatStarted(started)} · Up {uptimeInWords(up)}
 			</TooltipContent>
 		</Tooltip>
 	);

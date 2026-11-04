@@ -420,30 +420,32 @@ export const BannerEditor: React.FC<BannerEditorProps> = ({
 							{form.message.length} / {MESSAGE_MAX_LENGTH}
 						</span>
 					</div>
-					{previewing ? (
-						preview
-					) : (
-						<Textarea
-							id={`${id}-message`}
-							ref={messageRef}
-							// Platform: the Show banner switch takes the admin here when there is nothing to show
-							data-banner-message=""
-							rows={6}
-							className="min-h-40 resize-y border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
-							maxLength={MESSAGE_MAX_LENGTH}
-							placeholder="What do developers need to know?"
-							value={form.message}
-							// As it will look: in the banner's font, lined up as chosen.
-							style={{
-								fontFamily: bannerFontStack(form.font),
-								textAlign: form.align ?? "center",
-							}}
-							onChange={(event) => onChange({ message: event.target.value })}
-							onKeyUp={rememberCaret}
-							onClick={rememberCaret}
-							onBlur={rememberCaret}
-						/>
-					)}
+					<div className="min-w-0 rounded-lg border border-solid border-border bg-surface-secondary p-2 focus-within:ring-2 focus-within:ring-content-link">
+						{previewing ? (
+							preview
+						) : (
+							<Textarea
+								id={`${id}-message`}
+								ref={messageRef}
+								// Platform: the Show banner switch takes the admin here when there is nothing to show
+								data-banner-message=""
+								rows={6}
+								className="min-h-40 resize-y border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
+								maxLength={MESSAGE_MAX_LENGTH}
+								placeholder="What do developers need to know?"
+								value={form.message}
+								// As it will look: in the banner's font, lined up as chosen.
+								style={{
+									fontFamily: bannerFontStack(form.font),
+									textAlign: form.align ?? "center",
+								}}
+								onChange={(event) => onChange({ message: event.target.value })}
+								onKeyUp={rememberCaret}
+								onClick={rememberCaret}
+								onBlur={rememberCaret}
+							/>
+						)}
+					</div>
 				</div>
 			</fieldset>
 

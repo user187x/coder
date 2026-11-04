@@ -44,17 +44,15 @@ const navbarAppearanceKey = [...platformKey, "navbar-appearance"] as const;
 export const navbarAppearance = () => ({
 	queryKey: navbarAppearanceKey,
 	queryFn: PlatformAPI.getNavbarAppearance,
-	initialData:
-		typeof window.__cuiNavbarTransparency === "number"
-			? { transparency: window.__cuiNavbarTransparency }
-			: undefined,
+	initialData: window.__cuiNavbarAppearance,
 	refetchInterval: 30_000,
 	retry: false,
 });
 export const updateNavbarAppearance = (client: QueryClient) => ({
 	mutationFn: PlatformAPI.setNavbarAppearance,
-	onSuccess: (value: { transparency: number }) =>
-		client.setQueryData(navbarAppearanceKey, value),
+	onSuccess: (
+		value: Awaited<ReturnType<typeof PlatformAPI.getNavbarAppearance>>,
+	) => client.setQueryData(navbarAppearanceKey, value),
 });
 const animationPolicyKey = [...platformKey, "animations"] as const;
 export const animationPolicy = () => ({
@@ -739,7 +737,7 @@ export const updateQuota = (queryClient: QueryClient) => ({
 	},
 });
 
-export const HUD_REFRESH_MS = 10_000;
+const HUD_REFRESH_MS = 10_000;
 
 /** The HUD's figures, refreshed while the page is open. */
 export const hudHistory = (range: HudRange) => ({

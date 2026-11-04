@@ -1,5 +1,8 @@
 [data-deployment-footer] {
 	container-type: inline-size;
+	inline-size: 100%;
+	min-inline-size: 0;
+	box-sizing: border-box;
 }
 .deployment-stats .gap-2 {
 	gap: 0.5em;

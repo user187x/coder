@@ -164,7 +164,7 @@ it("adds consecutive shortcuts and saves the ordered choices", async () => {
 	);
 });
 
-function renderTray() {
+function renderTray(onSignOut = vi.fn()) {
 	const client = new QueryClient({
 		defaultOptions: { queries: { retry: false } },
 	});
@@ -179,7 +179,7 @@ function renderTray() {
 							images
 							user={MockUserOwner}
 							supportLinks={[]}
-							onSignOut={vi.fn()}
+							onSignOut={onSignOut}
 						/>
 					</DropdownMenuContent>
 				</DropdownMenu>
@@ -433,4 +433,16 @@ it("caps the tray at three permanent and three added shortcuts, then frees a rem
 			resource_shortcuts: ["images", "leases", "monitoring"],
 		}),
 	);
+});
+
+it("signs out through the selected resource shortcut", async () => {
+	vi.mocked(PlatformAPI.getUserUIPreferences).mockResolvedValue({
+		resource_shortcuts: ["logout"],
+	});
+	const signOut = vi.fn();
+	renderTray(signOut);
+	await userEvent
+		.setup()
+		.click(await screen.findByRole("menuitem", { name: "Sign out" }));
+	expect(signOut).toHaveBeenCalledTimes(1);
 });

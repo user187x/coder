@@ -5,6 +5,7 @@ import {
 	GaugeIcon,
 	HourglassIcon,
 	LayoutTemplateIcon,
+	LogOutIcon,
 	MessagesSquareIcon,
 	MonitorIcon,
 	PlusIcon,
@@ -173,6 +174,7 @@ export const SettingsResourceTray = ({
 						]
 					: []),
 				...pages,
+				{ id: "logout", label: "Sign out", icon: LogOutIcon, path: "" },
 			].map((page) => [page.id, page]),
 		).values(),
 	].filter((page) => !permanentShortcutIds.has(page.id));
@@ -259,18 +261,28 @@ export const SettingsResourceTray = ({
 		</DropdownMenuItem>
 	);
 	const resourceLinks = links.map((page) => {
-		const shortcut = (
-			<DropdownMenuItem
-				key={page.id}
-				asChild
-				className="justify-center size-8 shrink-0 p-0"
-				title={page.label}
-			>
-				<Link to={page.path} aria-label={page.label}>
-					<page.icon aria-hidden />
-				</Link>
-			</DropdownMenuItem>
-		);
+		const shortcut =
+			page.id === "logout" ? (
+				<DropdownMenuItem
+					aria-label={page.label}
+					title={page.label}
+					className="justify-center size-8 shrink-0 p-0"
+					onSelect={onSignOut}
+				>
+					<LogOutIcon aria-hidden />
+				</DropdownMenuItem>
+			) : (
+				<DropdownMenuItem
+					key={page.id}
+					asChild
+					className="justify-center size-8 shrink-0 p-0"
+					title={page.label}
+				>
+					<Link to={page.path} aria-label={page.label}>
+						<page.icon aria-hidden />
+					</Link>
+				</DropdownMenuItem>
+			);
 		if (permanentShortcutIds.has(page.id))
 			return { id: page.id, content: shortcut };
 		return {

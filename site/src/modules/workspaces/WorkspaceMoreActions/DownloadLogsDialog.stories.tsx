@@ -17,7 +17,7 @@ const meta: Meta<typeof DownloadLogsDialog> = {
 	parameters: {
 		queries: [
 			{
-				key: buildLogsKey(MockWorkspace.id),
+				key: [...buildLogsKey(MockWorkspace.id), MockWorkspace.latest_build.id],
 				data: generateLogs(200),
 			},
 			{
@@ -38,7 +38,7 @@ export const Loading: Story = {
 	parameters: {
 		queries: [
 			{
-				key: buildLogsKey(MockWorkspace.id),
+				key: [...buildLogsKey(MockWorkspace.id), MockWorkspace.latest_build.id],
 				data: undefined,
 			},
 			{

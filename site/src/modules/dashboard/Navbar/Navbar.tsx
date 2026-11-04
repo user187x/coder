@@ -18,7 +18,9 @@ import { useFeatureVisibility } from "../useFeatureVisibility";
 import { resolveAdminQuickLinks, settingsPagesFor } from "./adminQuickLinks";
 import { NavbarView } from "./NavbarView";
 
-export const Navbar: React.FC = () => {
+export const Navbar: React.FC<{ actionRef?: React.Ref<HTMLDivElement> }> = ({
+	actionRef,
+}) => {
 	const { metadata } = useEmbeddedMetadata();
 	const buildInfoQuery = useQuery(buildInfo(metadata["build-info"]));
 	const { appearance, canViewOrganizationSettings } = useDashboard();
@@ -55,7 +57,10 @@ export const Navbar: React.FC = () => {
 	}
 	return (
 		<NavbarView
+			actionRef={actionRef}
 			transparency={navbar?.transparency}
+			scale={navbar?.scale}
+			wireframe={navbar?.wireframe}
 			user={me}
 			buildInfo={buildInfoQuery.data}
 			supportLinks={Array.from(uniqueLinks.values())}

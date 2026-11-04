@@ -76,7 +76,7 @@ export const AdminNotesTray = ({
 			ref={onElement}
 			style={{
 				top: placement.top,
-				maxHeight: placement.maxHeight,
+				height: Math.min(124, placement.maxHeight),
 				minHeight: Math.min(124, placement.maxHeight),
 			}}
 		>
@@ -109,6 +109,8 @@ export const AdminNotesTray = ({
 				inert={!expanded}
 				className="settings-admin-notes-panel"
 				style={{
+					position: "absolute",
+					top: 0,
 					left: 49 - width,
 					width,
 					maxHeight: placement.maxHeight,

@@ -46,6 +46,14 @@ export type WorkspaceInfrastructureMetrics = {
 	workspaceName: string;
 	nodeName: string | null;
 	infrastructureRestricted?: boolean;
+	pods?: {
+		name: string;
+		node?: string;
+		nodeIP?: string;
+		ip?: string;
+		startedAt?: string;
+		containers: { name: string; image: string }[];
+	}[];
 	node: InfrastructureMetrics | null;
 	cluster: InfrastructureMetrics | null;
 	nodeCount: number | null;

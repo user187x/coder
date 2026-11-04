@@ -668,6 +668,12 @@ export type WorkspaceLockdown = {
 	canChange: boolean;
 };
 
+export type NavbarStyle = {
+	transparency: number;
+	scale: number;
+	wireframe: boolean;
+};
+
 export type HudStorage = {
 	used: number | null;
 	total: number | null;
@@ -1377,6 +1383,7 @@ export type UserUIPreferences = {
 		edge: "top" | "right" | "bottom" | "left";
 		offset: number;
 	} | null;
+	settings_sidebar?: boolean;
 	resource_shortcuts?: string[];
 	resource_shortcut_order?: string[];
 	resource_tray_top?: number;
@@ -2066,6 +2073,10 @@ export type ProvisionersReport = {
 	}[];
 	/** By Coder pod: its terraform processes, or why they could not be read. */
 	pods: Record<string, TerraformProcess[] | { error: string }>;
+	podStatus?: Record<
+		string,
+		{ node: string | null; ready: boolean; restarts: number }
+	>;
 	stuck: number;
 };
 
@@ -2479,11 +2490,9 @@ export const PlatformAPI = {
 			enabled,
 		}),
 	getNavbarAppearance: () =>
-		get<{ transparency: number }>(`${PLATFORM_BASE}/api/navbar-appearance`),
-	setNavbarAppearance: (transparency: number) =>
-		post<{ transparency: number }>(`${PLATFORM_BASE}/api/navbar-appearance`, {
-			transparency,
-		}),
+		get<NavbarStyle>(`${PLATFORM_BASE}/api/navbar-appearance`),
+	setNavbarAppearance: (style: NavbarStyle) =>
+		post<NavbarStyle>(`${PLATFORM_BASE}/api/navbar-appearance`, style),
 	getAnimationPolicy: () =>
 		get<AnimationPolicy>(`${PLATFORM_BASE}/api/animations`),
 	setAnimationPolicy: (change: {

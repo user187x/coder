@@ -37,6 +37,7 @@ export const SettingsSidePanels = ({
 	const [notesTop, setNotesTop] = useState<number | null>(null);
 	const [bounds, setBounds] = useState({
 		height: 0,
+		viewport: 0,
 		width: 0,
 		anchorTop: 0,
 		anchorVisible: false,
@@ -68,6 +69,7 @@ export const SettingsSidePanels = ({
 			);
 			const next = {
 				height,
+				viewport,
 				width: Math.max(
 					0,
 					Math.min(window.innerWidth - 24, menu.left + 65 - 12),
@@ -75,7 +77,7 @@ export const SettingsSidePanels = ({
 				anchorTop: metric ? metric.top - menu.top : 0,
 				anchorVisible: Boolean(metric?.height),
 				resourceHeight: resourcePanel?.getBoundingClientRect().height ?? 164,
-				notesHeight: notesPanel?.getBoundingClientRect().height ?? 124,
+				notesHeight: 124,
 			};
 			setBounds((previous) =>
 				Object.entries(next).every(
@@ -118,6 +120,7 @@ export const SettingsSidePanels = ({
 	const withNotes = resources.images && bounds.anchorVisible;
 	const layout = settingsPanelLayout({
 		...bounds,
+		height: bounds.viewport,
 		resourceTop: resourceTop ?? preferences.data?.resource_tray_top ?? 56,
 		notesTop:
 			notesTop ?? preferences.data?.admin_notes_tray_top ?? bounds.anchorTop,
@@ -141,6 +144,7 @@ export const SettingsSidePanels = ({
 					maxWidth={bounds.width}
 					placement={{
 						...layout.notes,
+						maxHeight: Math.max(0, bounds.viewport - layout.notes.top - 8),
 						onMove: setNotesTop,
 						onCommit: (top) => save.mutate({ admin_notes_tray_top: top }),
 					}}

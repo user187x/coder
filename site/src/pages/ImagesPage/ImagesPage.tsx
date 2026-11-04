@@ -44,6 +44,7 @@ import {
 } from "#/components/Table/Table";
 import { TableEmpty } from "#/components/TableEmpty/TableEmpty";
 import { useClickableTableRow } from "#/hooks/useClickableTableRow";
+import { NavbarAction } from "#/modules/dashboard/Navbar/NavbarAction";
 import { createDayString } from "#/utils/createDayString";
 import { pageTitle } from "#/utils/page";
 import {
@@ -51,8 +52,10 @@ import {
 	FipsBadge,
 	formatSize,
 	GradeBadge,
+	ImageVersionBadge,
 	ImportedBadge,
 	InThePitBadge,
+	imageVersion,
 	NeedsFixingBadge,
 	PatchedBadge,
 	StatusBadge,
@@ -60,14 +63,6 @@ import {
 } from "./badges";
 import "./pitStop.css";
 import { TableCard } from "#/modules/platform/tableCard/TableCard";
-import {
-	CoderForkBadge,
-	CoderForkImages,
-	ContentsToggle,
-	ImageContentsTree,
-	ourImage,
-	useImageContents,
-} from "./CoderForkImages";
 import { IsoLibrary } from "./FileLibrary";
 import { ImagesInUse, ImagesOnNodes } from "./ImagesInUse";
 import { ImagesSettingsDialog } from "./ImagesSettingsDialog";
@@ -76,6 +71,14 @@ import {
 	type ImportImageDialogProps,
 } from "./ImportImageDialog";
 import { NewImageDialog } from "./NewImageDialog";
+import {
+	ContentsToggle,
+	ImageContentsTree,
+	ourImage,
+	PlatformImageBadge,
+	PlatformImages,
+	useImageContents,
+} from "./PlatformImages";
 import { ResearchSandboxButton } from "./ResearchSandboxButton";
 import { SecurityDataBadge } from "./SecurityData";
 
@@ -87,8 +90,8 @@ type StatusFilter = "all" | "ready" | "building" | "draft" | "failed";
  * admins and template admins create, edit, build and delete them. First, the
  * image the workspace template runs (tracked, read-only): its security report
  * and add-ons, for everyone to see. Every entry can be deleted (confirmed
- * first). The Coder fork's own images carry a tag and open what they hold;
- * Coder fork images lists them all.
+ * first). The platform's own images carry a tag and open what they hold;
+ * Platform release images lists them all.
  */
 const ImagesPage: React.FC = () => {
 	const query = useQuery({
@@ -175,10 +178,12 @@ const ImagesPage: React.FC = () => {
 							</Button>
 						)}
 						{canEdit && (
-							<Button size="lg" onClick={() => setCreating(true)}>
-								<PlusIcon />
-								New Image
-							</Button>
+							<NavbarAction>
+								<Button size="lg" onClick={() => setCreating(true)}>
+									<PlusIcon />
+									New Image
+								</Button>
+							</NavbarAction>
 						)}
 					</div>
 				}
@@ -245,7 +250,8 @@ const ImagesPage: React.FC = () => {
 				<Table data-testid="images-table">
 					<TableHeader>
 						<TableRow>
-							<TableHead className="w-[32%]">Name</TableHead>
+							<TableHead className="w-[26%]">Name</TableHead>
+							<TableHead>Version</TableHead>
 							<TableHead className="w-[14%]">Contents</TableHead>
 							<TableHead className="w-[10%]">Size</TableHead>
 							<TableHead className="w-[12%]">Security</TableHead>
@@ -257,7 +263,7 @@ const ImagesPage: React.FC = () => {
 					<TableBody>
 						{query.isLoading ? (
 							<TableRow>
-								<TableCell colSpan={7} className="text-content-secondary">
+								<TableCell colSpan={8} className="text-content-secondary">
 									Loading…
 								</TableCell>
 							</TableRow>
@@ -310,7 +316,7 @@ const ImagesPage: React.FC = () => {
 				</Table>
 			</TableCard>
 
-			<CoderForkImages />
+			<PlatformImages />
 			<ImagesInUse
 				canEdit={canEdit}
 				onImport={(initial) => setImporting(initial)}
@@ -339,7 +345,7 @@ const ImageRow: React.FC<{
 	const queryClient = useQueryClient();
 	const [deleting, setDeleting] = useState(false);
 	const [showContents, setShowContents] = useState(false);
-	// one of the Coder fork's images (the workspace template's, or one imported or scanned as it is)
+	// one of the platform's images (the workspace template's, or one imported or scanned as it is)
 	const asked =
 		image.tracked?.image ??
 		image.scanned?.image ??
@@ -425,7 +431,7 @@ const ImageRow: React.FC<{
 							{image.name}
 							<StatusBadge status={image.status} />
 							{summary?.needsFixing && <NeedsFixingBadge />}
-							{ours && <CoderForkBadge ours={ours} />}
+							{ours && <PlatformImageBadge ours={ours} />}
 							{tracked && <TrackedBadge />}
 							{image.pit && (
 								<InThePitBadge lap={image.pit.lap} laps={image.pit.laps} />
@@ -434,11 +440,6 @@ const ImageRow: React.FC<{
 								<PatchedBadge from={image.imported.from} />
 							) : (
 								image.imported && <ImportedBadge from={image.imported.from} />
-							)}
-							{image.version > 0 && (
-								<span className="text-xs font-normal text-content-secondary">
-									v{image.version}
-								</span>
 							)}
 						</span>
 						<span className="line-clamp-1 text-sm text-content-secondary">
@@ -461,6 +462,15 @@ const ImageRow: React.FC<{
 							</span>
 						)}
 					</div>
+				</TableCell>
+				<TableCell>
+					<ImageVersionBadge
+						version={
+							imageVersion(
+								tracked?.image ?? image.scanned?.image ?? image.pullRef,
+							) ?? (image.version > 0 ? `v${image.version}` : undefined)
+						}
+					/>
 				</TableCell>
 				<TableCell className="text-sm text-content-secondary">
 					{contents || "–"}
@@ -653,7 +663,7 @@ const ImageRow: React.FC<{
 			</TableRow>
 			{ours && showContents && (
 				<TableRow className="hover:bg-transparent">
-					<TableCell colSpan={7} className="bg-surface-secondary/40">
+					<TableCell colSpan={8} className="bg-surface-secondary/40">
 						<ImageContentsTree ours={ours} asked={asked ?? undefined} />
 					</TableCell>
 				</TableRow>

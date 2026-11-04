@@ -12,7 +12,9 @@ import {
 	UserXIcon,
 } from "lucide-react";
 import { useState } from "react";
+import { useQuery } from "react-query";
 import { Link } from "react-router";
+import { authMethods } from "#/api/queries/users";
 import type { User } from "#/api/typesGenerated";
 import { Button } from "#/components/Button/Button";
 import {
@@ -45,6 +47,20 @@ export const UserMoreActions: React.FC<UserMoreActionsProps> = ({
 	canManageWorkspaces,
 	oidcRoleSyncEnabled,
 }) => {
+	const { data: methods } = useQuery({
+		...authMethods(),
+		enabled: user.login_type === "oidc",
+	});
+	const provider = methods?.oidc.accountUrl;
+	const passwordURL = provider && new URL(provider);
+	if (passwordURL && me !== user.id) {
+		const [prefix, realmPath] = passwordURL.pathname.split("/realms/");
+		const realm = realmPath?.split("/")[0];
+		if (realm) {
+			passwordURL.pathname = `${prefix}/admin/${realm}/console/`;
+			passwordURL.hash = `/${realm}/users`;
+		}
+	}
 	const [lockdownOpen, setLockdownOpen] = useState(false);
 	const [quotaOpen, setQuotaOpen] = useState(false);
 	const [driveOpen, setDriveOpen] = useState(false);
@@ -111,15 +127,30 @@ export const UserMoreActions: React.FC<UserMoreActionsProps> = ({
 						Edit
 					</DropdownMenuItem>
 
-					{user.status !== "suspended" && (
-						<DropdownMenuItem
-							disabled={user.login_type !== "password"}
-							onClick={() => onAction({ type: "resetPassword", user })}
-						>
-							<KeyRoundIcon aria-hidden />
-							Password Reset
-						</DropdownMenuItem>
-					)}
+					{user.status !== "suspended" &&
+						(user.login_type === "oidc" && passwordURL ? (
+							<DropdownMenuItem asChild>
+								<a href={passwordURL.href} target="_blank" rel="noreferrer">
+									<KeyRoundIcon />
+									Manage password in Keycloak
+								</a>
+							</DropdownMenuItem>
+						) : user.id === me && user.login_type === "password" ? (
+							<DropdownMenuItem asChild>
+								<Link to="/settings/security">
+									<KeyRoundIcon />
+									Change password
+								</Link>
+							</DropdownMenuItem>
+						) : (
+							<DropdownMenuItem
+								disabled={user.login_type !== "password"}
+								onClick={() => onAction({ type: "resetPassword", user })}
+							>
+								<KeyRoundIcon aria-hidden />
+								Password Reset
+							</DropdownMenuItem>
+						))}
 
 					{user.status === "active" || user.status === "dormant" ? (
 						<DropdownMenuItem

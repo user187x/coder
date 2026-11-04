@@ -32,6 +32,7 @@ import { AnnouncementMenuItem } from "./AnnouncementMenuItem";
 import { AppearanceMenuItem } from "./AppearanceMenuItem";
 import type { AdminPage } from "./adminQuickLinks";
 import { ChatMenuItem } from "./ChatMenuItem";
+import { SettingsDestinationMenu } from "./SettingsDestinationMenu";
 
 type AdminQuickLinksMenuProps = {
 	/** The quick links, in the user's order. */
@@ -209,23 +210,23 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 							)}
 						</div>
 						{onChange &&
-							choices.length > 0 &&
 							choices.map((page) => (
-								<DropdownMenuItem
-									key={page.id}
-									onSelect={(event) => {
-										event.preventDefault();
-										onChange?.([...ids, page.id]);
-										setAnnouncement(`${page.label} added to the quick links.`);
-									}}
-								>
-									<page.icon aria-hidden />
-									{page.label}
-									<PinIcon
-										aria-hidden
-										className="ml-auto size-3.5 text-content-secondary"
-									/>
-								</DropdownMenuItem>
+								<div key={page.id} className="flex items-center">
+									<DestinationLink link={page} />
+									<DropdownMenuItem
+										aria-label={`Add ${page.label} to quick links`}
+										title={`Pin ${page.label}`}
+										onSelect={(event) => {
+											event.preventDefault();
+											onChange([...ids, page.id]);
+											setAnnouncement(
+												`${page.label} added to the quick links.`,
+											);
+										}}
+									>
+										<PinIcon aria-hidden />
+									</DropdownMenuItem>
+								</div>
 							))}
 					</div>
 				</CollapsibleContent>
@@ -237,6 +238,28 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 		</>
 	);
 };
+
+function DestinationLink({
+	link,
+	className,
+}: {
+	link: AdminPage;
+	className?: string;
+}) {
+	const item = (
+		<DropdownMenuItem asChild className={cn("min-w-0 flex-1", className)}>
+			<Link to={link.path}>
+				<link.icon aria-hidden />
+				<span className="truncate">{link.label}</span>
+			</Link>
+		</DropdownMenuItem>
+	);
+	return link.id === "workspaces" || link.id === "templates" ? (
+		<SettingsDestinationMenu kind={link.id}>{item}</SettingsDestinationMenu>
+	) : (
+		item
+	);
+}
 
 type QuickLinkRowProps = {
 	editable: boolean;
@@ -306,15 +329,7 @@ const QuickLinkRow: React.FC<QuickLinkRowProps> = ({
 					className={cn("min-w-0 flex-1", itemClassName)}
 				/>
 			) : (
-				<DropdownMenuItem
-					asChild
-					className={cn("min-w-0 flex-1", itemClassName)}
-				>
-					<Link to={link.path}>
-						<link.icon aria-hidden />
-						<span className="truncate">{link.label}</span>
-					</Link>
-				</DropdownMenuItem>
+				<DestinationLink link={link} className={itemClassName} />
 			)}
 			{editable && (
 				<>

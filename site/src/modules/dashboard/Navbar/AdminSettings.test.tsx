@@ -90,6 +90,8 @@ it("adds a setting from the inline picker without navigating", async () => {
 		}),
 	);
 	expect(onChange).toHaveBeenLastCalledWith(["chat"]);
-	await user.click(screen.getByRole("menuitem", { name: "Security" }));
+	await user.click(
+		screen.getByRole("menuitem", { name: "Add Security to quick links" }),
+	);
 	expect(onChange).toHaveBeenCalledWith(["security"]);
 });

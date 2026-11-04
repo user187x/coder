@@ -8,12 +8,8 @@ import {
 	ImagesAPI,
 } from "#/api/images";
 import { renderComponent } from "#/testHelpers/renderHelpers";
-import {
-	CoderForkImages,
-	ImageContentsTree,
-	ourImage,
-} from "./CoderForkImages";
 import ImagesPage from "./ImagesPage";
+import { ImageContentsTree, ourImage, PlatformImages } from "./PlatformImages";
 
 const workspace: ImageContents = {
 	ref: "docker.io/mrshll187/coder-workspace:1.9.3",
@@ -147,7 +143,7 @@ const withQueries = (node: React.ReactNode) =>
 	);
 
 describe("ourImage", () => {
-	it("knows the Coder fork's images, and their other versions", () => {
+	it("knows the platform's images, and their other versions", () => {
 		expect(ourImage(catalog, workspace.ref)).toEqual({
 			contents: workspace,
 			exact: true,
@@ -239,18 +235,18 @@ describe("an image's parts missing", () => {
 	});
 });
 
-describe("Coder fork images", () => {
+describe("Platform release images", () => {
 	afterEach(() => vi.restoreAllMocks());
 
 	it("lists every image of ours, each opening what it holds", async () => {
 		vi.spyOn(ImagesAPI, "contents").mockResolvedValue(catalog);
-		withQueries(<CoderForkImages />);
-		const row = await screen.findByTestId("coder-fork-coder-registry");
-		expect(row).toHaveTextContent("coder-registryCoder fork");
+		withQueries(<PlatformImages />);
+		const row = await screen.findByTestId("platform-image-coder-registry");
+		expect(row).toHaveTextContent("coder-registryPlatform image");
 		expect(row).toHaveTextContent("1 program");
-		expect(screen.getByTestId("coder-fork-coder-workspace")).toHaveTextContent(
-			"1 add-ons · 3 OS packages · 2 Python packages",
-		);
+		expect(
+			screen.getByTestId("platform-image-coder-workspace"),
+		).toHaveTextContent("1 add-ons · 3 OS packages · 2 Python packages");
 		expect(screen.queryByTestId("image-contents")).toBeNull();
 		fireEvent.click(row);
 		expect(await screen.findByTestId("image-contents")).toHaveTextContent(
@@ -275,13 +271,13 @@ describe("The Images table", () => {
 		return vi.spyOn(ImagesAPI, "remove").mockResolvedValue({ ok: true });
 	};
 
-	it("tags the workspace image as the Coder fork's, opens what it holds, and deletes its entry", async () => {
+	it("tags the workspace image as the platform's, opens what it holds, and deletes its entry", async () => {
 		const remove = page([tracked("1.9.2")]);
 		withQueries(<ImagesPage />);
 		const row = await screen.findByTestId("image-workspace");
 		await waitFor(() =>
-			expect(within(row).getByTestId("coder-fork")).toHaveTextContent(
-				"Coder fork",
+			expect(within(row).getByTestId("platform-image")).toHaveTextContent(
+				"Platform image",
 			),
 		);
 		fireEvent.click(within(row).getByTestId("contents-toggle"));
@@ -322,7 +318,7 @@ describe("The Images table", () => {
 			within(tool).getByRole("link", { name: "Download tool" }),
 		).toBeInTheDocument();
 		expect(within(tool).getByTestId("image-delete")).toBeEnabled();
-		expect(within(tool).queryByTestId("coder-fork")).toBeNull();
+		expect(within(tool).queryByTestId("platform-image")).toBeNull();
 		const scan = screen.getByTestId("image-scan-postgres");
 		fireEvent.click(within(scan).getByTestId("image-delete"));
 		expect(await screen.findByRole("dialog")).toHaveTextContent(

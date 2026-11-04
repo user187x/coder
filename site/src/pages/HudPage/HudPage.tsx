@@ -10,7 +10,7 @@ import { useEffect, useRef, useState } from "react";
 import { useQuery } from "react-query";
 import { Link as RouterLink } from "react-router";
 import type { HudMetric } from "#/api/platform";
-import { HUD_REFRESH_MS, hud } from "#/api/queries/platform";
+import { hud } from "#/api/queries/platform";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { Button } from "#/components/Button/Button";
 import {
@@ -149,10 +149,6 @@ const HudPage: React.FC = () => {
 									" · CPU and memory are what was requested: metrics-server is not answering"}
 							</span>
 						)}
-						<p className="m-0 text-sm text-content-secondary">
-							The platform at a glance, updated every {HUD_REFRESH_MS / 1000}{" "}
-							seconds. Click a figure to open what is behind it.
-						</p>
 					</div>
 					{data?.uptime && <SystemUptime uptime={data.uptime} />}
 				</header>

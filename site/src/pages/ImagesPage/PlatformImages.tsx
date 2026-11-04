@@ -1,4 +1,4 @@
-import { ChevronRightIcon, GitForkIcon } from "lucide-react";
+import { ChevronRightIcon, PackageIcon } from "lucide-react";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { useQuery } from "react-query";
 import { useLocation } from "react-router";
@@ -22,11 +22,11 @@ import {
 import { useClickableTableRow } from "#/hooks/useClickableTableRow";
 import { TableCard } from "#/modules/platform/tableCard/TableCard";
 import { createDayString } from "#/utils/createDayString";
-import { formatSize } from "./badges";
+import { formatSize, ImageVersionBadge, imageVersion } from "./badges";
 
 const contentsKey = ["platform", "images", "contents"] as const;
 
-/** The Coder fork's images: we build them, so what they hold is known precisely. */
+/** The platform's images: we build them, so what they hold is known precisely. */
 const OURS = "docker.io/mrshll187/";
 
 /** What each image of ours holds (recorded when they were built: it does not change while the page is open). */
@@ -69,23 +69,28 @@ export const ourImage = (
 	return other ? { contents: other, exact: false } : undefined;
 };
 
-/** Where an image's contents open in Coder fork images (from the other tables' badges). */
+/** Where an image's contents open in Platform release images (from the other tables' badges). */
 const contentsAnchor = (repository: string) => `contents-${repository}`;
 
-/** An image the Coder fork builds. */
-export const CoderForkBadge: React.FC<{ ours: OurImage; link?: boolean }> = ({
-	ours,
-	link,
-}) => {
-	const title = `Built by the Coder fork (${ours.contents.source.build || ours.contents.repository}): what it holds is known precisely${
+/** An image the platform ships. */
+export const PlatformImageBadge: React.FC<{
+	ours: OurImage;
+	link?: boolean;
+}> = ({ ours, link }) => {
+	const title = `Built by the platform (${ours.contents.source.build || ours.contents.repository}): what it holds is known precisely${
 		ours.exact
 			? ""
 			: ` - described as ${tag(ours.contents.ref)}, the version the platform pins`
 	}`;
 	const badge = (
-		<Badge variant="purple" size="sm" title={title} data-testid="coder-fork">
-			<GitForkIcon />
-			Coder fork
+		<Badge
+			variant="purple"
+			size="sm"
+			title={title}
+			data-testid="platform-image"
+		>
+			<PackageIcon />
+			Platform image
 		</Badge>
 	);
 	return link ? (
@@ -522,11 +527,11 @@ const summary = (c: ImageContents) => {
 };
 
 /**
- * Coder fork images: every image the fork builds (images.txt's docker.io/mrshll187/), each with what it holds, read
+ * Platform release images: every image the fork builds (images.txt's docker.io/mrshll187/), each with what it holds, read
  * from the image as built - every program with its own version, every OS and Python package, its configuration and
- * every build step. A "Coder fork" tag elsewhere in the view opens its entry here.
+ * every build step. A "Platform image" tag elsewhere in the view opens its entry here.
  */
-export const CoderForkImages: React.FC = () => {
+export const PlatformImages: React.FC = () => {
 	const query = useImageContents();
 	const location = useLocation();
 	const [open, setOpen] = useState<string | null>(null);
@@ -535,7 +540,7 @@ export const CoderForkImages: React.FC = () => {
 			? a.repository.localeCompare(b.repository)
 			: a.section.localeCompare(b.section),
 	);
-	// #contents-<repository> (a Coder fork tag in In use or On the nodes): that image, open and in view
+	// #contents-<repository> (a Platform image tag in In use or On the nodes): that image, open and in view
 	const asked = location.hash.startsWith("#contents-")
 		? location.hash.slice("#contents-".length)
 		: null;
@@ -550,34 +555,34 @@ export const CoderForkImages: React.FC = () => {
 		return null;
 	}
 	return (
-		<section className="mt-10" aria-labelledby="coder-fork-images">
+		<section className="mt-10" aria-labelledby="platform-release-images">
 			<h2
-				id="coder-fork-images"
+				id="platform-release-images"
 				className="m-0 flex items-center gap-2 text-lg font-semibold"
 			>
-				Coder fork images
+				Platform release images
 			</h2>
 			<p className="mt-1 mb-3 text-sm text-content-secondary">
-				The images the Coder fork builds ({images.length}), with what each holds
-				as built: every program and the version it reports, every OS and Python
-				package, its configuration and every build step.
+				Images included in the platform release. Expand an image to see its
+				programs, packages, configuration and build steps.
 			</p>
 			<TableCard
-				summary={`${images.length} ${images.length === 1 ? "image" : "images"} the Coder fork builds`}
+				summary={`${images.length} ${images.length === 1 ? "image" : "images"} the platform ships`}
 				hint="Point at anything in the table to read what it does"
 			>
-				<Table data-testid="coder-fork-images">
+				<Table data-testid="platform-release-images">
 					<TableHeader>
 						<TableRow>
-							<TableHead className="w-[40%]">Image</TableHead>
-							<TableHead className="w-[30%]">Contents</TableHead>
+							<TableHead className="w-[32%]">Image</TableHead>
+							<TableHead className="w-[12%]">Version</TableHead>
+							<TableHead className="w-[26%]">Contents</TableHead>
 							<TableHead className="w-[10%]">Size</TableHead>
 							<TableHead className="w-[20%]">Built</TableHead>
 						</TableRow>
 					</TableHeader>
 					<TableBody>
 						{images.map((c) => (
-							<ForkImageRow
+							<PlatformImageRow
 								key={c.ref}
 								contents={c}
 								open={open === c.repository}
@@ -593,7 +598,7 @@ export const CoderForkImages: React.FC = () => {
 	);
 };
 
-const ForkImageRow: React.FC<{
+const PlatformImageRow: React.FC<{
 	contents: ImageContents;
 	open: boolean;
 	onToggle: () => void;
@@ -606,7 +611,7 @@ const ForkImageRow: React.FC<{
 				{...clickable}
 				id={contentsAnchor(c.repository)}
 				aria-expanded={open}
-				data-testid={`coder-fork-${c.repository}`}
+				data-testid={`platform-image-${c.repository}`}
 			>
 				<TableCell>
 					<div className="flex items-start gap-2">
@@ -614,7 +619,7 @@ const ForkImageRow: React.FC<{
 						<div className="flex min-w-0 flex-col gap-0.5">
 							<span className="flex flex-wrap items-center gap-2 font-semibold">
 								{c.repository}
-								<CoderForkBadge ours={ours} />
+								<PlatformImageBadge ours={ours} />
 							</span>
 							<span className="line-clamp-2 text-sm text-content-secondary">
 								{c.description}
@@ -633,6 +638,9 @@ const ForkImageRow: React.FC<{
 						</div>
 					</div>
 				</TableCell>
+				<TableCell>
+					<ImageVersionBadge version={imageVersion(c.ref)} />
+				</TableCell>
 				<TableCell className="text-sm text-content-secondary">
 					{summary(c) || "–"}
 				</TableCell>
@@ -646,7 +654,7 @@ const ForkImageRow: React.FC<{
 			</TableRow>
 			{open && (
 				<TableRow className="hover:bg-transparent">
-					<TableCell colSpan={4} className="bg-surface-secondary/40">
+					<TableCell colSpan={5} className="bg-surface-secondary/40">
 						<ImageContentsTree ours={ours} />
 					</TableCell>
 				</TableRow>

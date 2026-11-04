@@ -4,6 +4,7 @@ import type {
 	BackgroundImage,
 	BackgroundLayer,
 	BackgroundSlot,
+	NavbarStyle,
 } from "#/api/platform";
 import { HtmlPreviewFrame } from "./HtmlBackgroundControls";
 import { backgroundStyle } from "./PlatformBackground";
@@ -11,22 +12,13 @@ import { backgroundStyle } from "./PlatformBackground";
 export const BackgroundPreview: React.FC<{
 	slot: BackgroundSlot;
 	children?: React.ReactNode;
-	navbarTransparency?: number;
+	navbarStyle?: NavbarStyle;
 	image: BackgroundImage | null;
 	html?: string;
 	dials: BackgroundDials;
 	opacity: number;
 	layer: BackgroundLayer;
-}> = ({
-	slot,
-	image,
-	html,
-	dials,
-	opacity,
-	layer,
-	children,
-	navbarTransparency,
-}) => {
+}> = ({ slot, image, html, dials, opacity, layer, children, navbarStyle }) => {
 	const htmlLayer = html ? (
 		<HtmlPreviewFrame
 			html={html}
@@ -45,9 +37,9 @@ export const BackgroundPreview: React.FC<{
 				children ? "min-h-80" : "h-44",
 			)}
 			aria-label={
-				navbarTransparency === undefined
+				navbarStyle === undefined
 					? "Preview"
-					: `Navigation bar preview at ${navbarTransparency}% transparency`
+					: `Navigation bar preview at ${navbarStyle.transparency}% transparency`
 			}
 			role="img"
 		>
@@ -71,17 +63,21 @@ export const BackgroundPreview: React.FC<{
 						<div
 							className={cn(
 								"flex h-8 items-center gap-2 border-0 border-b border-solid border-border px-3",
-								navbarTransparency !== undefined && "relative z-20",
+								navbarStyle !== undefined && "relative z-20",
 							)}
 							style={
-								navbarTransparency === undefined
+								navbarStyle === undefined
 									? undefined
 									: {
-											backgroundColor: `hsl(var(--surface-primary) / ${1 - navbarTransparency / 100})`,
+											zoom: navbarStyle.scale / 100,
+											borderBottomColor: navbarStyle.wireframe
+												? undefined
+												: "transparent",
+											backgroundColor: `hsl(var(--surface-primary) / ${1 - navbarStyle.transparency / 100})`,
 										}
 							}
 						>
-							{navbarTransparency !== undefined ? (
+							{navbarStyle !== undefined ? (
 								<>
 									<span className="rounded border border-solid border-border bg-surface-primary px-2 py-0.5 text-xs">
 										Resources

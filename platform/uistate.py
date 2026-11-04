@@ -199,8 +199,10 @@ class UIState(threading.Thread):
     def preferences(self, user_id, changes=None):
         pool = self.database()
         if changes is not None:
-            if not isinstance(changes, dict) or changes.keys() - {'people_order', 'people_sort', 'quota_seen', 'resource_shortcuts', 'resource_shortcut_order', 'resource_tray', 'admin_notes_tray', 'resource_tray_top', 'admin_notes_tray_top', 'settings_metrics', 'navbar_layout', 'chat_position', 'chat_size', 'chat_hidden', 'chat_keep_open'}:
+            if not isinstance(changes, dict) or changes.keys() - {'people_order', 'people_sort', 'quota_seen', 'resource_shortcuts', 'resource_shortcut_order', 'resource_tray', 'admin_notes_tray', 'resource_tray_top', 'admin_notes_tray_top', 'settings_metrics', 'settings_sidebar', 'navbar_layout', 'chat_position', 'chat_size', 'chat_hidden', 'chat_keep_open'}:
                 raise ValueError('Unsupported preference.')
+            if 'settings_sidebar' in changes and type(changes['settings_sidebar']) is not bool:
+                raise ValueError('Invalid settings sidebar preference.')
             if 'settings_metrics' in changes:
                 metrics = changes['settings_metrics']
                 if not isinstance(metrics, dict) or set(metrics) != {'expanded', 'locked'} or any(type(v) is not bool for v in metrics.values()):

@@ -8411,6 +8411,11 @@ def presence_report(token):
 ANIMATION_PARTS = ("all", "effects", "gifs", "graphs", "background", "announcement")
 
 
+def navbar_appearance():
+    legacy = {"transparency": STORE.get_setting("navbar_transparency", 0), "scale": 100, "wireframe": True}
+    return STORE.get_setting("navbar_appearance", legacy)
+
+
 def animation_policy():
     backing = STORE.settings_backing
     settings = backing.read("platform-settings", {}, legacy=STORE.legacy_settings) if backing else STORE.legacy_settings()
@@ -8439,7 +8444,9 @@ def boot_js():
             json.dumps(default_avatar),
         )
     )
-    js += "window.__cuiNavbarTransparency=%s;\n" % json.dumps(STORE.get_setting("navbar_transparency", 0))
+    appearance = navbar_appearance()
+    js += "window.__cuiNavbarAppearance=%s;\n" % json.dumps(appearance)
+    js += "window.__cuiNavbarTransparency=%s;\n" % json.dumps(appearance["transparency"])
     js += "window.__cuiAnimationPolicy=%s;\n" % json.dumps(animation_policy())
     js += "window.__cuiLogoEnabled=%s;\n" % json.dumps(STORE.get_setting("logo_enabled", True))
     try:
@@ -9097,7 +9104,7 @@ class Handler(BaseHTTPRequestHandler):
                 200, STORE.get_setting("classification", CLASSIFICATION_DEFAULT)
             )
         if path == BASE + "/api/navbar-appearance":
-            return self.send_json(200, {"transparency": STORE.get_setting("navbar_transparency", 0)})
+            return self.send_json(200, navbar_appearance())
         if path == BASE + "/api/animations":
             return self.send_json(200, animation_policy())
         if path == BASE + "/api/login-page":
@@ -10000,8 +10007,14 @@ class Handler(BaseHTTPRequestHandler):
             value = payload.get("transparency")
             if type(value) is not int or not 0 <= value <= 100:
                 return self.send_json(400, {"error": "Transparency must be a whole percentage from 0 to 100."})
-            STORE.put_setting("navbar_transparency", value)
-            return self.send_json(200, {"transparency": value})
+            previous = navbar_appearance()
+            scale = payload.get("scale", previous["scale"])
+            wireframe = payload.get("wireframe", previous["wireframe"])
+            if type(scale) is not int or not 75 <= scale <= 125 or type(wireframe) is not bool:
+                return self.send_json(400, {"error": "Size must be 75 to 125 percent and wireframe must be on or off."})
+            appearance = {"transparency": value, "scale": scale, "wireframe": wireframe}
+            STORE.put_setting("navbar_appearance", appearance)
+            return self.send_json(200, appearance)
         if path == BASE + "/api/animations":
             part, enabled = payload.get("part"), payload.get("enabled")
             if part not in ANIMATION_PARTS or not isinstance(enabled, bool):

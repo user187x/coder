@@ -39,6 +39,7 @@ import {
 } from "#/components/TableLoader/TableLoader";
 import { TooltipMessage, TooltipTitle } from "#/components/Tooltip/Tooltip";
 import { useClickableTableRow } from "#/hooks/useClickableTableRow";
+import { NavbarAction } from "#/modules/dashboard/Navbar/NavbarAction";
 import { linkToTemplate, useLinks } from "#/modules/navigation";
 import type { WorkspacePermissions } from "#/modules/permissions/workspaces";
 import { TableCard } from "#/modules/platform/tableCard/TableCard";
@@ -327,19 +328,21 @@ export const TemplatesPageView: React.FC<TemplatesPageViewProps> = ({
 				actions={
 					canCreateTemplates && (
 						<div className="flex flex-wrap gap-2">
-							<Button asChild size="lg">
-								<RouterLink
-									to={
-										templateBuilderEnabled
-											? "/templates/new/builder"
-											: "/starter-templates"
-									}
-								>
-									{/* Platform: the plus glyph says "new" */}
-									<PlusIcon />
-									Template
-								</RouterLink>
-							</Button>
+							<NavbarAction>
+								<Button asChild size="lg">
+									<RouterLink
+										to={
+											templateBuilderEnabled
+												? "/templates/new/builder"
+												: "/starter-templates"
+										}
+									>
+										{/* Platform: the plus glyph says "new" */}
+										<PlusIcon />
+										Template
+									</RouterLink>
+								</Button>
+							</NavbarAction>
 						</div>
 					)
 				}

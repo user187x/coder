@@ -63,13 +63,17 @@ def exec_in(pod, command, timeout=30):
 
 
 # --------------------------------------------------------------------------- the report
-def coder_pods():
+def running_coder_pods():
     status, pods = KUBE.call("GET", "/api/v1/namespaces/%s/pods?labelSelector=%s"
                              % (NAMESPACE, urllib.parse.quote(POD_SELECTOR)))
     if status != 200:
         raise RuntimeError("could not list Coder's pods (HTTP %s)" % status)
-    return [p["metadata"]["name"] for p in pods.get("items") or []
+    return [p for p in pods.get("items") or []
             if (p.get("status") or {}).get("phase") == "Running" and not p["metadata"].get("deletionTimestamp")]
+
+
+def coder_pods():
+    return [pod["metadata"]["name"] for pod in running_coder_pods()]
 
 
 def parse_processes(text):
@@ -86,10 +90,10 @@ def parse_processes(text):
     return out
 
 
-def processes():
+def processes(names=None):
     """{pod: [process]} or {pod: {"error": ...}}."""
     found = {}
-    for pod in coder_pods():
+    for pod in coder_pods() if names is None else names:
         try:
             code, out, err = exec_in(pod, ["sh", "-c", SCAN])
             found[pod] = parse_processes(out) if code == 0 else {"error": (err or out).strip()[:300] or "exit %d" % code}
@@ -158,7 +162,16 @@ def daemons(token):
 
 def report(token):
     js = jobs(token)
-    return {"stuckAfterSeconds": STUCK_AFTER, "jobs": js, "daemons": daemons(token), "pods": processes(),
+    pod_status = {}
+    for pod in running_coder_pods():
+        status = pod.get("status") or {}
+        pod_status[pod["metadata"]["name"]] = {
+            "node": (pod.get("spec") or {}).get("nodeName"),
+            "ready": any(c.get("type") == "Ready" and c.get("status") == "True" for c in status.get("conditions") or []),
+            "restarts": sum(c.get("restartCount", 0) for c in status.get("containerStatuses") or []),
+        }
+    return {"stuckAfterSeconds": STUCK_AFTER, "jobs": js, "daemons": daemons(token),
+            "pods": processes(pod_status), "podStatus": pod_status,
             "stuck": sum(1 for j in js if j["stuck"])}
 
 

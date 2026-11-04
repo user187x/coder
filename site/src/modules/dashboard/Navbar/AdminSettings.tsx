@@ -18,7 +18,7 @@ type AdminSettingsItemsProps = {
 	quickLinks?: readonly AdminPage[];
 	/** Makes the quick links editable in place: add, remove and reorder. */
 	quickLinksEditor?: AdminQuickLinksEditor;
-	metricsRef?: React.Ref<HTMLDivElement>;
+	externalMetrics?: boolean;
 	chatExpanded?: boolean;
 	onChatToggle?: () => void;
 };
@@ -57,7 +57,7 @@ export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
 	permissions,
 	quickLinks = [],
 	quickLinksEditor,
-	metricsRef,
+	externalMetrics,
 	chatExpanded,
 	onChatToggle,
 }) => {
@@ -95,11 +95,8 @@ export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
 					</Link>
 				</DropdownMenuItem>
 			)}
-			{canViewAdminSettings(permissions) && (
-				<SettingsMetricGraphs
-					anchor={metricsRef}
-					chatExpanded={Boolean(chatExpanded)}
-				/>
+			{!externalMetrics && canViewAdminSettings(permissions) && (
+				<SettingsMetricGraphs chatExpanded={Boolean(chatExpanded)} />
 			)}
 		</>
 	);
@@ -109,5 +106,6 @@ export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
  * Whether the user has any permission that should surface the Admin menu.
  * Organizations alone does not gate visibility, matching prior behavior.
  */
-const canViewAdminSettings = (permissions: AdminSettingsPermissions): boolean =>
-	Object.values(permissions).some((canView) => canView);
+export const canViewAdminSettings = (
+	permissions: AdminSettingsPermissions,
+): boolean => Object.values(permissions).some((canView) => canView);

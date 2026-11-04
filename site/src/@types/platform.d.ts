@@ -4,6 +4,7 @@ import type {
 	BackgroundSlot,
 	ClassificationSettings,
 	LoginPageSettings,
+	NavbarStyle,
 } from "#/api/platform";
 
 // What the platform service's boot.js sets before the dashboard starts
@@ -15,6 +16,7 @@ declare global {
 		__cuiLogoEnabled?: boolean;
 		__cuiAnimationPolicy?: AnimationPolicy;
 		__cuiNavbarTransparency?: number;
+		__cuiNavbarAppearance?: NavbarStyle;
 		__cuiClassification?: ClassificationSettings;
 		/** The sign-in page's title, effect and messages (Customize > Sign-in page). */
 		__cuiLoginPage?: LoginPageSettings;

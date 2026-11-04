@@ -14,6 +14,7 @@ export const AdminBreadcrumb: React.FC<
 		const mobileBanner = document.querySelector<HTMLElement>(
 			"[data-dashboard-mobile-announcement]",
 		);
+		const navbar = document.querySelector(".navbar-soft");
 		const update = () => {
 			parent.style.setProperty(
 				"--admin-breadcrumb-height",
@@ -21,11 +22,12 @@ export const AdminBreadcrumb: React.FC<
 			);
 			parent.style.setProperty(
 				"--dashboard-navigation-height",
-				`${72 + (mobileBanner?.getBoundingClientRect().height ?? 0)}px`,
+				`${(navbar?.getBoundingClientRect().height ?? 72) + (mobileBanner?.getBoundingClientRect().height ?? 0)}px`,
 			);
 		};
 		const observer = new ResizeObserver(update);
 		observer.observe(nav);
+		if (navbar) observer.observe(navbar);
 		if (mobileBanner) observer.observe(mobileBanner);
 		update();
 		return () => observer.disconnect();

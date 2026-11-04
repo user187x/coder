@@ -1,5 +1,6 @@
 import { ChevronDownIcon, CrosshairIcon } from "lucide-react";
 import { useState } from "react";
+import { Link } from "react-router";
 import type { User } from "#/api/typesGenerated";
 import { Button } from "#/components/Button/Button";
 import {
@@ -27,14 +28,29 @@ export const ChatUserButton: React.FC<ChatUserButtonProps> = ({ user }) => {
 	const { me } = useChatSnapshot();
 	const [forcing, setForcing] = useState(false);
 
-	if (
-		!me?.admin ||
-		me.id === user.id ||
-		user.is_service_account ||
-		user.status === "suspended"
-	) {
-		return null;
-	}
+	if (!me?.admin) return null;
+	if (user.is_service_account || user.status === "suspended")
+		return (
+			<span
+				title={
+					user.is_service_account
+						? "Service accounts cannot receive chat messages"
+						: "This account is suspended"
+				}
+			>
+				<Button size="sm" variant="subtle" disabled>
+					Chat
+				</Button>
+			</span>
+		);
+	if (me.id === user.id)
+		return (
+			<Button asChild size="sm" variant="outline">
+				<Link to="/deployment/chat" title="Open your conversations">
+					Chat
+				</Link>
+			</Button>
+		);
 	const peer = { id: user.id, username: user.username, name: user.name ?? "" };
 
 	return (

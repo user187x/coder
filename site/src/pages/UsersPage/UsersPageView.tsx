@@ -20,6 +20,7 @@ import {
 	SettingsHeaderDescription,
 	SettingsHeaderTitle,
 } from "#/components/SettingsHeader/SettingsHeader";
+import { NavbarAction } from "#/modules/dashboard/Navbar/NavbarAction";
 import { TableCard } from "#/modules/platform/tableCard/TableCard";
 import { BulkUserActions } from "#/modules/users/BulkUserActions";
 import {
@@ -164,12 +165,14 @@ export const UsersPageView: React.FC<UsersPageViewProps> = ({
 			<SettingsHeader
 				actions={
 					canCreateUser && (
-						<Button asChild>
-							<Link to="create">
-								<UserPlusIcon />
-								New account
-							</Link>
-						</Button>
+						<NavbarAction>
+							<Button asChild>
+								<Link to="create">
+									<UserPlusIcon />
+									New account
+								</Link>
+							</Button>
+						</NavbarAction>
 					)
 				}
 			>

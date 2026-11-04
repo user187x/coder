@@ -136,6 +136,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
 	// Platform: the Build timeline, the last agent card's footer - or, with no agent card, a card of its own.
 	const buildTimeline = (footer: boolean) => (
 		<WorkspaceTimings
+			workspace={workspace}
 			footer={footer}
 			provisionerTimings={timings?.provisioner_timings}
 			agentScriptTimings={timings?.agent_script_timings}

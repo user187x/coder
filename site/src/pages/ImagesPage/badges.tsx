@@ -3,6 +3,38 @@ import { ShieldAlertIcon, ShieldCheckIcon, ShieldIcon } from "lucide-react";
 import type { ImageListItem, ImageStatus, ReportSummary } from "#/api/images";
 import { Badge } from "#/components/Badge/Badge";
 
+export function imageVersion(ref?: string | null) {
+	if (!ref) return undefined;
+	const [name, digest] = ref.split("@");
+	if (/^sha256:[a-f0-9]{64}$/i.test(name)) return name;
+	const tag = name.slice(name.lastIndexOf("/") + 1).split(":")[1];
+	return tag || digest || "latest";
+}
+
+const versionColors = [
+	"info",
+	"green",
+	"purple",
+	"magenta",
+	"warning",
+] as const;
+
+export const ImageVersionBadge = ({ version }: { version?: string }) => {
+	if (!version) return <span className="text-content-secondary">Unbuilt</span>;
+	let hash = 0;
+	for (const char of version) hash = (31 * hash + char.charCodeAt(0)) >>> 0;
+	return (
+		<Badge
+			size="sm"
+			variant={versionColors[hash % versionColors.length]}
+			title={version}
+			className="max-w-full font-mono"
+		>
+			<span className="truncate">{version}</span>
+		</Badge>
+	);
+};
+
 export const StatusBadge: React.FC<{
 	status: ImageStatus;
 	building?: boolean;
