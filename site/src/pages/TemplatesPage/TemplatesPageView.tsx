@@ -241,7 +241,7 @@ const TemplateRow: React.FC<TemplateRowProps> = ({
 				)}
 			</TableCell>
 
-			<TableCell className="text-content-secondary">
+			<TableCell className="text-center text-content-secondary">
 				{formatTemplateBuildTime(template.build_time_stats.start.P50)}
 			</TableCell>
 
@@ -427,11 +427,13 @@ export const TemplatesPageView: React.FC<TemplatesPageViewProps> = ({
 							<TableHead className="w-[15%]">
 								{showOrganizations ? "Organization" : "Used by"}
 							</TableHead>
-							<TableHead className="w-[10%]">Build time</TableHead>
+							<TableHead className="w-[10%] text-center">Build time</TableHead>
 							<TableHead className="w-[16%]">Active version</TableHead>
 							<TableHead className="w-[12%]">Last updated</TableHead>
 							{/* Platform: who may see and use each template (its access list) */}
-							{showAccess && <TableHead className="w-[1%]">Access</TableHead>}
+							{showAccess && (
+								<TableHead className="w-[1%] text-center">Access</TableHead>
+							)}
 							<TableHead className="w-[1%]" />
 							<TableHead className="w-px">
 								<span className="sr-only">Template actions</span>

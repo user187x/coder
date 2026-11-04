@@ -306,9 +306,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
 		>
 			{/* Platform: no left sidebar - its Resources and History open from the top pill (WorkspaceNav), which floats
 			    over the dashboard as wide as it, staying in view as the dashboard scrolls */}
-			<div className="workspace-dashboard-scroll relative flex-1 min-h-0 w-full overflow-y-auto bg-[radial-gradient(circle_at_1px_1px,hsl(var(--content-disabled))_0,transparent_1px)] bg-position-[-2px_-2px] bg-size-[16px_16px] p-4 md:p-8 md:pt-6">
-				<div className="absolute top-0 left-0 right-0 h-32 bg-linear-to-b from-surface-primary to-transparent"></div>
-
+			<div className="workspace-dashboard-scroll relative flex-1 min-h-0 w-full overflow-y-auto p-4 md:p-8 md:pt-6">
 				<div className="workspace-dashboard-content relative z-10">
 					{!topAgents.length && workspaceTopbar}
 
