@@ -12,6 +12,7 @@ import type {
 	PodBrief,
 	PodDetails,
 } from "#/api/clusterNetwork";
+import type { NodeOperator } from "#/api/nodeProvisioning";
 import type { SerpentOption } from "#/api/typesGenerated";
 import { MockNetworkReport } from "./platform";
 
@@ -668,4 +669,13 @@ export const MockNodePod: NodePod = {
 	status: "Running",
 	readyContainers: 1,
 	containers: 1,
+};
+
+export const MockNodeOperator: NodeOperator = {
+	online: true,
+	maintenance: true,
+	profiles: [
+		{ id: "local", label: "Local cluster", kind: "k3d", restart: true },
+	],
+	operation: null,
 };

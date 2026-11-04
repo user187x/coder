@@ -9,7 +9,7 @@ type NodeOperation = {
 	message: string;
 };
 
-type NodeOperator = {
+export type NodeOperator = {
 	online: boolean;
 	maintenance?: boolean;
 	profiles: { id: string; label: string; kind: string; restart?: boolean }[];

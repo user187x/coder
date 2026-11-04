@@ -2,7 +2,10 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ClusterNetworkAPI } from "#/api/clusterNetwork";
 import { platformRequest } from "#/api/platform";
-import { MockNodeConfiguration } from "#/testHelpers/clusterNetwork";
+import {
+	MockNodeConfiguration,
+	MockNodeOperator,
+} from "#/testHelpers/clusterNetwork";
 import { MockDefaultOrganization } from "#/testHelpers/entities";
 import { render } from "#/testHelpers/renderHelpers";
 import { NodeActions } from "./NodeActions";
@@ -74,12 +77,7 @@ it("preserves a metadata draft when the query refreshes and submits its original
 
 it("submits an enrolled node restart with confirmation and node identity", async () => {
 	const user = userEvent.setup();
-	vi.spyOn(platformRequest, "get").mockResolvedValue({
-		online: true,
-		maintenance: true,
-		profiles: [{ id: "local", label: "Local cluster", restart: true }],
-		operation: null,
-	});
+	vi.spyOn(platformRequest, "get").mockResolvedValue(MockNodeOperator);
 	const post = vi
 		.spyOn(platformRequest, "post")
 		.mockResolvedValue({ id: "op", phase: "queued" });

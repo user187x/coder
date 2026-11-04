@@ -4,7 +4,12 @@ import {
 	ClusterNetworkAPI,
 	networkNodeConfiguration,
 } from "#/api/clusterNetwork";
-import { MockNodeConfiguration } from "#/testHelpers/clusterNetwork";
+import { platformRequest } from "#/api/platform";
+import {
+	MockNodeConfiguration,
+	MockNodeOperator,
+} from "#/testHelpers/clusterNetwork";
+import { withDashboardProvider } from "#/testHelpers/storybook";
 import { NodeActions } from "./NodeActions";
 
 const meta: Meta<typeof NodeActions> = {
@@ -12,6 +17,7 @@ const meta: Meta<typeof NodeActions> = {
 	component: NodeActions,
 	args: { name: MockNodeConfiguration.name, action: "edit-node" },
 	decorators: [
+		withDashboardProvider,
 		(Story) => (
 			<div className="max-w-xl rounded-lg bg-surface-primary p-5">
 				<Story />
@@ -72,3 +78,14 @@ export const Unavailable: Story = {
 		return () => query.mockRestore();
 	},
 };
+
+export const Restart: Story = {
+	args: { action: "restart-node" },
+	beforeEach: () => {
+		const query = spyOn(platformRequest, "get").mockResolvedValue(
+			MockNodeOperator,
+		);
+		return () => query.mockRestore();
+	},
+};
+export const Drain: Story = { ...Restart, args: { action: "drain-node" } };
