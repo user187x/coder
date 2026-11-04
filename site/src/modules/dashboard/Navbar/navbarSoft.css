@@ -97,11 +97,23 @@
 }
 
 html[data-settings-side] {
-	--settings-dock-width: min(244px, 75vw);
+	--settings-dock-width: min(244px, 40vw);
 	--settings-panel-right: calc(
 		var(--navbar-inline-padding) *
 		var(--settings-navbar-scale, 1)
 	);
+}
+html[data-settings-side] {
+	--settings-dock-inset: calc(
+		var(--settings-dock-width) +
+		var(--settings-panel-right) +
+		var(--settings-tray-width, 0px)
+	);
+}
+html[data-settings-side="expanded"]:has(
+	.settings-resource-tray-panel[aria-hidden="false"]
+) {
+	--settings-tray-width: 49px;
 }
 html[data-settings-side="compact"] {
 	--settings-dock-width: 52px;
@@ -114,13 +126,7 @@ html[data-settings-side="compact"] {
 		var(--navbar-control-gap) *
 		var(--settings-navbar-scale, 1)
 	);
-	inset: calc(
-			var(
-				--settings-panel-top,
-				calc(var(--coder-classification-h, 0px) + 72px)
-			) +
-			var(--dock-block-gap)
-		)
+	inset: calc(var(--coder-classification-h, 0px) + var(--dock-block-gap))
 		var(--dock-gutter)
 		calc(var(--coder-classification-h, 0px) + var(--dock-block-gap)) auto !important;
 	transform: none !important;
@@ -161,29 +167,15 @@ html[data-settings-side="compact"] {
 	:is(.settings-resource-tray, .settings-admin-notes-tray) {
 	left: -49px;
 }
-@media (min-width: 1024px) {
-	html[data-settings-side]:not([data-chat-side]) #main-content {
-		margin-right: calc(
-			var(--settings-dock-width) +
-			var(--settings-panel-right)
-		);
-	}
+/* Keep the page, navbar and fullscreen workspace inside the same available width. */
+html:is([data-settings-side], [data-chat-side]) {
+	--dashboard-dock-inset: calc(
+		var(--settings-dock-inset, 0px) +
+		var(--chat-side-width, 0px)
+	);
 }
-html[data-chat-side]
-	[data-radix-popper-content-wrapper]:has(
-		> .settings-menu[data-settings-docked]
-	) {
-	bottom: calc(50dvh + var(--dock-block-gap)) !important;
-}
-html[data-settings-side][data-chat-side] .chat-side-panel {
-	top: 50dvh;
-}
-
-html[data-settings-side][data-chat-side] .chat-side-panel {
-	right: var(--settings-panel-right, 1.5rem);
-}
-html[data-settings-side="expanded"][data-chat-side] .chat-side-panel {
-	width: var(--settings-dock-width);
+html:is([data-settings-side], [data-chat-side]) .dashboard-frame {
+	margin-inline-end: var(--dashboard-dock-inset);
 }
 
 .navbar-soft [data-navbar-item="action"]:has(.navbar-action:empty) {

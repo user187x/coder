@@ -37,7 +37,11 @@ export const chatRightEdge = () => {
 				0,
 				Math.min(
 					document.documentElement.clientWidth,
-					side.getBoundingClientRect().left,
+					(
+						side.querySelector(
+							'.settings-resource-tray-panel[aria-hidden="false"]',
+						) ?? side
+					).getBoundingClientRect().left,
 				),
 			)
 		: document.documentElement.clientWidth;

@@ -111,21 +111,14 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 				"--settings-navbar-scale",
 				getComputedStyle(navbar).zoom || "1",
 			);
-			root.style.setProperty(
-				"--settings-panel-top",
-				`${navbar.getBoundingClientRect().bottom}px`,
-			);
 		};
 		measure();
 		const observer = new ResizeObserver(measure);
 		if (navbar) observer.observe(navbar);
 		window.addEventListener("resize", measure);
-		window.addEventListener("scroll", measure, { passive: true });
 		return () => {
 			observer.disconnect();
 			window.removeEventListener("resize", measure);
-			window.removeEventListener("scroll", measure);
-			root.style.removeProperty("--settings-panel-top");
 			root.style.removeProperty("--settings-navbar-scale");
 			delete root.dataset.settingsSide;
 		};
