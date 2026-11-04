@@ -668,7 +668,10 @@ export type WorkspaceLockdown = {
 	canChange: boolean;
 };
 
+export type NavbarLayout = { order: string[]; hidden: string[] };
+
 export type NavbarStyle = {
+	defaultLayout?: NavbarLayout;
 	transparency: number;
 	scale: number;
 	wireframe: boolean;
@@ -1379,7 +1382,7 @@ export type WorkspaceResourceHistory = {
 	>;
 };
 export type UserUIPreferences = {
-	navbar_layout?: { order: string[]; hidden: string[] };
+	navbar_layout?: NavbarLayout | null;
 	chat_position?: {
 		edge: "top" | "right" | "bottom" | "left";
 		offset: number;
@@ -2493,6 +2496,8 @@ export const PlatformAPI = {
 		}),
 	getNavbarAppearance: () =>
 		get<NavbarStyle>(`${PLATFORM_BASE}/api/navbar-appearance`),
+	setNavbarLayoutDefault: (layout: NavbarLayout) =>
+		post<NavbarStyle>(`${PLATFORM_BASE}/api/navbar-layout-default`, layout),
 	setNavbarAppearance: (style: NavbarStyle) =>
 		post<NavbarStyle>(`${PLATFORM_BASE}/api/navbar-appearance`, style),
 	getAnimationPolicy: () =>

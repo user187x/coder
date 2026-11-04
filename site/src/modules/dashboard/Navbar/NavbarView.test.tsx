@@ -106,6 +106,8 @@ describe("NavbarView", () => {
 						: screen.getByRole("button", { name: new RegExp(`^${name}`) }),
 				keys: "[MouseRight]",
 			});
+			screen.getByRole("button", { name: "Move Page action" }).focus();
+			await user.keyboard("{ArrowLeft}");
 			await user.click(screen.getByRole("button", { name: "Done" }));
 			await waitFor(() => expect(save).toHaveBeenCalledOnce());
 		},

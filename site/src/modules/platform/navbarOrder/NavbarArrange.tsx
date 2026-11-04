@@ -25,6 +25,7 @@ import {
 	type LucideIcon,
 	MegaphoneIcon,
 	MonitorIcon,
+	PlusIcon,
 	RadioIcon,
 	RotateCcwIcon,
 	XIcon,
@@ -38,6 +39,7 @@ import {
 	useState,
 } from "react";
 import { createPortal } from "react-dom";
+import type { NavbarLayout } from "#/api/platform";
 import { Button } from "#/components/Button/Button";
 import {
 	isNavbarItem,
@@ -49,6 +51,7 @@ import {
 
 const LABELS: Record<NavbarItem, string> = {
 	logo: "Logo",
+	action: "Page action",
 	notifications: "Notifications",
 	account: "Account",
 	workspaces: "Workspaces",
@@ -60,6 +63,7 @@ const LABELS: Record<NavbarItem, string> = {
 
 const RESTORE_ICONS: Record<NavbarItem, LucideIcon> = {
 	logo: ImageIcon,
+	action: PlusIcon,
 	notifications: BellIcon,
 	account: CircleUserIcon,
 	workspaces: MonitorIcon,
@@ -78,14 +82,19 @@ type NavbarArrangeProps = {
 	/** Each item's content; null for one this user does not have (it is left out). */
 	items: Record<NavbarItem, React.ReactNode | null>;
 	className?: string;
+	defaultLayout?: NavbarLayout;
+	canSetDefault?: boolean;
 };
 
 /** Customizable toolbar with a palette for removed tiles. */
 export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 	items,
 	className,
+	defaultLayout,
+	canSetDefault = false,
 }) => {
-	const { order, hidden, save, reset, commit, saving } = useNavbarOrder();
+	const { order, hidden, save, reset, publish, commit, saving } =
+		useNavbarOrder(defaultLayout);
 	const done = () => commit(() => setArranging(false));
 	const escapeDone = useEffectEvent(done);
 	const [arranging, setArranging] = useState(false);
@@ -326,7 +335,23 @@ export const NavbarArrange: React.FC<NavbarArrangeProps> = ({
 									Drag to rearrange. Use × to remove.
 								</span>
 								<div className="flex items-center gap-2">
-									<Button size="sm" variant="outline" onClick={reset}>
+									{canSetDefault && (
+										<Button
+											size="sm"
+											variant="outline"
+											disabled={saving}
+											onClick={publish}
+											title="Use this arrangement for everyone who has not saved a personal layout."
+										>
+											Set deployment default
+										</Button>
+									)}
+									<Button
+										size="sm"
+										variant="outline"
+										onClick={reset}
+										title="Use the deployment default"
+									>
 										<RotateCcwIcon aria-hidden />
 										Reset
 									</Button>
@@ -445,14 +470,16 @@ const ArrangeItem: React.FC<ArrangeItemProps> = ({
 							}
 						}}
 					/>
-					<button
-						type="button"
-						aria-label={`Remove ${LABELS[id]}`}
-						onClick={onRemove}
-						className="absolute -right-2 -top-2 z-20 flex size-6 cursor-pointer items-center justify-center rounded-[0.5rem] border-2 border-solid border-red-400 bg-red-700 p-0 text-white shadow-md hover:bg-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-content-primary"
-					>
-						<XIcon aria-hidden className="size-4" strokeWidth={3} />
-					</button>
+					{id !== "action" && (
+						<button
+							type="button"
+							aria-label={`Remove ${LABELS[id]}`}
+							onClick={onRemove}
+							className="absolute -right-2 -top-2 z-20 flex size-6 cursor-pointer items-center justify-center rounded-[0.5rem] border-2 border-solid border-red-400 bg-red-700 p-0 text-white shadow-md hover:bg-red-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-content-primary"
+						>
+							<XIcon aria-hidden className="size-4" strokeWidth={3} />
+						</button>
+					)}
 				</>
 			)}
 		</div>

@@ -8414,7 +8414,9 @@ ANIMATION_PARTS = ("all", "effects", "gifs", "graphs", "background", "announceme
 
 def navbar_appearance():
     legacy = {"transparency": STORE.get_setting("navbar_transparency", 0), "scale": 100, "wireframe": True}
-    return STORE.get_setting("navbar_appearance", legacy)
+    appearance = STORE.get_setting("navbar_appearance", legacy)
+    layout = STORE.get_setting("navbar_layout_default", None)
+    return {**appearance, "defaultLayout": layout} if layout is not None else appearance
 
 
 def animation_policy():
@@ -9915,6 +9917,7 @@ class Handler(BaseHTTPRequestHandler):
             BASE + "/api/classification",
             BASE + "/api/login-page",
             BASE + "/api/navbar-appearance",
+            BASE + "/api/navbar-layout-default",
             BASE + "/api/animations",
             BASE + "/api/quick-menu",
             BASE + "/api/quick-menu/reset",
@@ -10004,6 +10007,13 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path in (BASE + "/api/notes", BASE + "/api/notes/update", BASE + "/api/notes/delete"):
             return self.notes_post(path, payload, user)
+        if path == BASE + "/api/navbar-layout-default":
+            try:
+                layout = uistate.navbar_layout(payload)
+            except ValueError as e:
+                return self.send_json(400, {"error": str(e)})
+            STORE.put_setting("navbar_layout_default", layout)
+            return self.send_json(200, navbar_appearance())
         if path == BASE + "/api/navbar-appearance":
             value = payload.get("transparency")
             if type(value) is not int or not 0 <= value <= 100:
@@ -10015,7 +10025,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_json(400, {"error": "Size must be 75 to 125 percent and wireframe must be on or off."})
             appearance = {"transparency": value, "scale": scale, "wireframe": wireframe}
             STORE.put_setting("navbar_appearance", appearance)
-            return self.send_json(200, appearance)
+            return self.send_json(200, navbar_appearance())
         if path == BASE + "/api/animations":
             part, enabled = payload.get("part"), payload.get("enabled")
             if part not in ANIMATION_PARTS or not isinstance(enabled, bool):

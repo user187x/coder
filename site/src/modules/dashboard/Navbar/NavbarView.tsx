@@ -1,5 +1,5 @@
 import { API } from "#/api/api";
-import { PlatformAPI } from "#/api/platform";
+import { type NavbarLayout, PlatformAPI } from "#/api/platform";
 import type * as TypesGen from "#/api/typesGenerated";
 import { Button } from "#/components/Button/Button";
 import { useProductLogoURL } from "#/components/Icons/ProductLogo";
@@ -24,6 +24,7 @@ import "./navbarSoft.css";
 
 type NavbarViewProps = {
 	actionRef?: React.Ref<HTMLDivElement>;
+	defaultLayout?: NavbarLayout;
 	transparency?: number;
 	scale?: number;
 	wireframe?: boolean;
@@ -39,6 +40,7 @@ type NavbarViewProps = {
 
 export const NavbarView: React.FC<NavbarViewProps> = ({
 	actionRef,
+	defaultLayout,
 	transparency = 0,
 	scale = 100,
 	wireframe = true,
@@ -90,7 +92,9 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 
 			{/* Platform: Workspaces, the banner, latency and HUD, in the user's order (NavbarArrange). */}
 			<NavbarArrange
-				className="relative hidden md:flex flex-1 min-w-0 items-center gap-(--navbar-control-gap) h-full"
+				defaultLayout={defaultLayout}
+				canSetDefault={adminPermissions.canEditDeployment}
+				className="relative flex flex-1 min-w-0 items-center gap-(--navbar-control-gap) h-full"
 				items={{
 					logo: logoURL ? <NavbarLogo /> : null,
 					workspaces: (
@@ -146,13 +150,12 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 					),
 					// never alone: always joined to the latency menu
 					hud: null,
+					action: (
+						<div ref={actionRef} className="navbar-action flex items-center" />
+					),
 				}}
 			/>
 
-			<div
-				ref={actionRef}
-				className="navbar-action ml-2 flex shrink-0 items-center empty:hidden"
-			/>
 			<div
 				className={`flex items-center justify-end gap-3 ml-auto ${supportLinks.some(isNavbarLink) ? "md:ml-3" : "md:hidden"}`}
 			>

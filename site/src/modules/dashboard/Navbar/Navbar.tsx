@@ -58,6 +58,7 @@ export const Navbar: React.FC<{ actionRef?: React.Ref<HTMLDivElement> }> = ({
 	return (
 		<NavbarView
 			actionRef={actionRef}
+			defaultLayout={navbar?.defaultLayout}
 			transparency={navbar?.transparency}
 			scale={navbar?.scale}
 			wireframe={navbar?.wireframe}

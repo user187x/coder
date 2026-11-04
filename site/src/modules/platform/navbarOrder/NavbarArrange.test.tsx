@@ -22,6 +22,7 @@ it("preserves the legacy order and inserts the newly movable edge tiles", () => 
 		"latency",
 		"notifications",
 		"account",
+		"action",
 	]);
 	expect(normalizeOrder(null)).toEqual(NAVBAR_ITEMS);
 });
@@ -45,6 +46,7 @@ it("moves, removes, restores and resets tiles, saving the layout", async () => {
 					hud: null,
 					notifications: <span>Notifications</span>,
 					account: <span>Account</span>,
+					action: <button type="button">Workspace</button>,
 				}}
 			/>
 		</QueryClientProvider>,
@@ -62,6 +64,8 @@ it("moves, removes, restores and resets tiles, saving the layout", async () => {
 	await user.click(
 		screen.getByRole("button", { name: "Restore Notifications" }),
 	);
+	screen.getByRole("button", { name: "Move Page action" }).focus();
+	await user.keyboard("{ArrowLeft}");
 	await user.click(screen.getByRole("button", { name: "Done" }));
 	await waitFor(() =>
 		expect(save).toHaveBeenCalledWith({
@@ -72,8 +76,9 @@ it("moves, removes, restores and resets tiles, saving the layout", async () => {
 					"banner",
 					"latency",
 					"hud",
-					"notifications",
+					"action",
 					"account",
+					"notifications",
 				],
 				hidden: ["account"],
 			},
@@ -84,7 +89,50 @@ it("moves, removes, restores and resets tiles, saving the layout", async () => {
 	act(() => startNavbarArrange());
 	await waitFor(() =>
 		expect(save).toHaveBeenLastCalledWith({
-			navbar_layout: { order: [...NAVBAR_ITEMS], hidden: [] },
+			navbar_layout: null,
 		}),
 	);
+});
+
+it("publishes the inherited order without writing a personal override", async () => {
+	const layout = {
+		order: ["action", ...NAVBAR_ITEMS.filter((id) => id !== "action")],
+		hidden: ["logo"],
+	};
+	vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({});
+	const personal = vi.spyOn(PlatformAPI, "setUserUIPreferences");
+	const publish = vi
+		.spyOn(PlatformAPI, "setNavbarLayoutDefault")
+		.mockResolvedValue({
+			transparency: 0,
+			scale: 100,
+			wireframe: true,
+			defaultLayout: layout,
+		});
+	renderComponent(
+		<QueryClientProvider client={new QueryClient()}>
+			<NavbarArrange
+				canSetDefault
+				defaultLayout={layout}
+				items={{
+					logo: null,
+					workspaces: <span>Resources</span>,
+					banner: <span>Banner</span>,
+					latency: null,
+					hud: null,
+					notifications: null,
+					account: null,
+					action: <span>Workspace</span>,
+				}}
+			/>
+		</QueryClientProvider>,
+	);
+	const user = userEvent.setup();
+	act(() => startNavbarArrange());
+	await user.click(
+		screen.getByRole("button", { name: "Set deployment default" }),
+	);
+	await waitFor(() => expect(publish).toHaveBeenCalledWith(layout));
+	await user.click(screen.getByRole("button", { name: "Done" }));
+	expect(personal).not.toHaveBeenCalled();
 });

@@ -54,6 +54,10 @@ export const updateNavbarAppearance = (client: QueryClient) => ({
 		value: Awaited<ReturnType<typeof PlatformAPI.getNavbarAppearance>>,
 	) => client.setQueryData(navbarAppearanceKey, value),
 });
+export const updateNavbarLayoutDefault = (client: QueryClient) => ({
+	...updateNavbarAppearance(client),
+	mutationFn: PlatformAPI.setNavbarLayoutDefault,
+});
 const animationPolicyKey = [...platformKey, "animations"] as const;
 export const animationPolicy = () => ({
 	queryKey: animationPolicyKey,

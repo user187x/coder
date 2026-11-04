@@ -57,6 +57,13 @@ class UIStateTest(unittest.TestCase):
         self.assertEqual(self.state.preferences(self.user, settings), settings)
         restarted = uistate.UIState(lambda: self.pool, lambda **kwargs: None)
         self.assertEqual(restarted.preferences(self.user), settings)
+        layout = {'order': ['action', 'account', 'banner', 'logo', 'workspaces', 'latency', 'hud', 'notifications'], 'hidden': ['account']}
+        self.state.preferences(self.user, {'navbar_layout': layout})
+        self.assertEqual(restarted.preferences(self.user)['navbar_layout'], layout)
+        self.assertNotIn('navbar_layout', restarted.preferences(self.other))
+        self.state.preferences(self.user, {'navbar_layout': None})
+        self.assertIsNone(restarted.preferences(self.user)['navbar_layout'])
+        settings['navbar_layout'] = None
         self.assertEqual(restarted.preferences(self.other), {})
         self.assertEqual(restarted.preferences(self.user, {'people_sort': 'name'}), {**settings, 'people_sort': 'name'})
         for invalid in ({'settings_metrics': {'expanded': 'false', 'locked': True}}, {'settings_metrics': None}, {'chat_keep_open': 'yes'}, {'people_order': [self.other, self.other]}, {'people_order': [{}]},

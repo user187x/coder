@@ -189,3 +189,27 @@ html[data-settings-side="expanded"][data-chat-side] .chat-side-panel {
 html[data-settings-side][data-chat-side] .navbar-soft {
 	margin-right: 0;
 }
+
+.navbar-soft [data-navbar-item="action"]:has(.navbar-action:empty) {
+	display: none;
+}
+.navbar-soft
+	[data-arranging]
+	[data-navbar-item="action"]:has(.navbar-action:empty) {
+	display: block;
+}
+.navbar-soft [data-arranging] .navbar-action:empty::before {
+	content: "Page action";
+	display: grid;
+	place-items: center;
+	width: var(--navbar-action-width);
+	height: var(--navbar-action-height);
+	border-radius: 0.5rem;
+	background: hsl(var(--surface-secondary));
+	color: hsl(var(--content-secondary));
+}
+@media (width < 48rem) {
+	.navbar-soft [data-navbar-item]:not([data-navbar-item="action"]) {
+		display: none;
+	}
+}

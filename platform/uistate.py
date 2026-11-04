@@ -24,6 +24,21 @@ READINGS = """SELECT w.organization_id::text, w.id::text, a.id::text, m.key, m.v
         AND m.collected_at > now() - interval '5 minutes'"""
 
 
+def navbar_layout(value):
+    items = {'logo', 'workspaces', 'banner', 'latency', 'hud', 'notifications', 'account', 'action'}
+    if not isinstance(value, dict) or set(value) != {'order', 'hidden'}:
+        raise ValueError('Invalid navbar layout.')
+    for entries in value.values():
+        if not isinstance(entries, list) or not all(isinstance(item, str) and item in items for item in entries) or len(set(entries)) != len(entries):
+            raise ValueError('Invalid navbar layout.')
+    order = value['order']
+    if set(order) == items - {'action'}:
+        order = [*order, 'action']
+    if set(order) != items or {'action', 'banner'}.intersection(value['hidden']):
+        raise ValueError('The navbar must include all items and keep the page action and banner visible.')
+    return {'order': order, 'hidden': value['hidden']}
+
+
 class UIState(threading.Thread):
     def __init__(self, pool, log, infrastructure=None):
         super().__init__(daemon=True, name='ui-history')
@@ -224,17 +239,8 @@ class UIState(threading.Thread):
                 tray = changes[key]
                 if not isinstance(tray, dict) or set(tray) != {'expanded', 'lock'} or type(tray['expanded']) is not bool or tray['lock'] not in ('up', 'down'):
                     raise ValueError('Invalid panel lock.')
-            if 'navbar_layout' in changes:
-                layout = changes['navbar_layout']
-                items = {'logo', 'workspaces', 'banner', 'latency', 'hud', 'notifications', 'account'}
-                if not isinstance(layout, dict) or set(layout) != {'order', 'hidden'}:
-                    raise ValueError('Invalid navbar layout.')
-                for field in ('order', 'hidden'):
-                    values = layout[field]
-                    if not isinstance(values, list) or not all(isinstance(item, str) and item in items for item in values) or len(set(values)) != len(values):
-                        raise ValueError('Invalid navbar layout.')
-                if set(layout['order']) != items or 'banner' in layout['hidden']:
-                    raise ValueError('Invalid navbar layout.')
+            if changes.get('navbar_layout') is not None:
+                changes = {**changes, 'navbar_layout': navbar_layout(changes['navbar_layout'])}
             if 'chat_position' in changes and changes['chat_position'] is not None:
                 position = changes['chat_position']
                 if not isinstance(position, dict) or set(position) != {'edge', 'offset'} or position['edge'] not in ('top', 'right', 'bottom', 'left') or type(position['offset']) not in (int, float) or not 0 <= position['offset'] <= 1:

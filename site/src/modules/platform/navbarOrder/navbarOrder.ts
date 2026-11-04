@@ -2,8 +2,9 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { toast } from "sonner";
 import { getErrorMessage } from "#/api/errors";
-import type { UserUIPreferences } from "#/api/platform";
+import type { NavbarLayout } from "#/api/platform";
 import {
+	updateNavbarLayoutDefault,
 	updateUserUIPreferences,
 	userUIPreferences,
 } from "#/api/queries/platform";
@@ -16,6 +17,7 @@ export const NAVBAR_ITEMS = [
 	"hud",
 	"notifications",
 	"account",
+	"action",
 ] as const;
 export type NavbarItem = (typeof NAVBAR_ITEMS)[number];
 const KEY = "coder-ui-navbar-order";
@@ -40,13 +42,28 @@ const readNavbarOrder = (): NavbarItem[] => {
 		return [...NAVBAR_ITEMS];
 	}
 };
-export const useNavbarOrder = () => {
+export const useNavbarOrder = (defaultLayout?: NavbarLayout) => {
 	const client = useQueryClient();
 	const preferences = useQuery(userUIPreferences());
-	const [draft, setDraft] = useState<UserUIPreferences["navbar_layout"]>();
-	const layout = draft ?? preferences.data?.navbar_layout;
-	const order = layout ? normalizeOrder(layout.order) : readNavbarOrder();
-	const hidden = (layout?.hidden ?? []).filter(isNavbarItem);
+	const [draft, setDraft] = useState<NavbarLayout | null>();
+	const personal =
+		draft === undefined ? preferences.data?.navbar_layout : draft;
+	const layout = personal ?? defaultLayout;
+	const order = layout
+		? normalizeOrder(layout.order)
+		: personal === null
+			? [...NAVBAR_ITEMS]
+			: readNavbarOrder();
+	const hidden: NavbarItem[] = (layout?.hidden ?? [])
+		.filter(isNavbarItem)
+		.filter((item) => item !== "action" && item !== "banner");
+	const deploymentDefault = useMutation({
+		...updateNavbarLayoutDefault(client),
+		onError: (error) =>
+			toast.error(
+				getErrorMessage(error, "Could not save the default navbar layout."),
+			),
+	});
 	const mutation = useMutation({
 		...updateUserUIPreferences(client),
 		onError: (error) =>
@@ -55,20 +72,32 @@ export const useNavbarOrder = () => {
 	return {
 		order,
 		hidden,
-		save: (next: NavbarItem[], removed = hidden) =>
+		save: (next: NavbarItem[], removed: NavbarItem[] = hidden) =>
 			setDraft({ order: next, hidden: removed }),
-		reset: () => setDraft({ order: [...NAVBAR_ITEMS], hidden: [] }),
-		commit: (onSuccess: () => void) =>
+		reset: () => setDraft(null),
+		publish: () =>
+			deploymentDefault.mutate(
+				{ order, hidden },
+				{
+					onSuccess: () => toast.success("Default navbar layout saved."),
+				},
+			),
+		commit: (onSuccess: () => void) => {
+			if (draft === undefined) {
+				onSuccess();
+				return;
+			}
 			mutation.mutate(
-				{ navbar_layout: { order, hidden } },
+				{ navbar_layout: draft === null ? null : { order, hidden } },
 				{
 					onSuccess: () => {
 						setDraft(undefined);
 						onSuccess();
 					},
 				},
-			),
-		saving: mutation.isPending,
+			);
+		},
+		saving: mutation.isPending || deploymentDefault.isPending,
 	};
 };
 /** Starts arranging even when the account tile is hidden. */

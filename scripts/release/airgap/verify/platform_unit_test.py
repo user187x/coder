@@ -4795,6 +4795,25 @@ class LogoVisibilityTest(unittest.TestCase):
             self.assertEqual(handler.send_json.call_args.args[0], 400)
             store.put_setting.assert_not_called()
 
+    def test_navbar_default_requires_admin_and_keeps_mandatory_items(self):
+        path = "/api/navbar-layout-default"
+        legacy = ["workspaces", "banner", "logo", "account", "latency", "hud", "notifications"]
+        _, _, store = self.post({"order": legacy, "hidden": ["account"]}, path=path)
+        store.put_setting.assert_called_once_with("navbar_layout_default", {"order": legacy + ["action"], "hidden": ["account"]})
+        layout = {"order": ["action", *legacy], "hidden": []}
+        _, _, store = self.post(layout, path=path, allowed=False)
+        store.put_setting.assert_not_called()
+        for invalid in ({**layout, "hidden": ["action"]}, {**layout, "hidden": ["banner"]}, {**layout, "order": [*legacy, "logo"]}):
+            handler, _, store = self.post(invalid, path=path)
+            self.assertEqual(handler.send_json.call_args.args[0], 400)
+            store.put_setting.assert_not_called()
+        with tempfile.TemporaryDirectory() as tmp:
+            backing = ui.Store(os.path.join(tmp, "state.db"))
+            with mock.patch.object(ui, "STORE", backing):
+                backing.put_setting("navbar_layout_default", layout)
+                backing.put_setting("navbar_appearance", {"scale": 110, "transparency": 45, "wireframe": False})
+                self.assertEqual(ui.navbar_appearance()["defaultLayout"], layout)
+
     def test_animation_policy_requires_admin_and_an_explicit_boolean(self):
         for payload in ({"part": "gifs", "enabled": "false"}, {"part": "other", "enabled": False}):
             handler, _, store = self.post(payload, path="/api/animations")
