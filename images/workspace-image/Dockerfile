@@ -167,7 +167,7 @@ RUN install -d /usr/share/coder-workspace \
 # Security: the base's packages to their newest (Ubuntu's and Docker's fixes since the base was built); Docker's engine
 # and plugins out (no privileges to run them in a workspace pod; their Go builds carried known vulnerabilities; the
 # docker CLI stays, for a remote daemon); the base's /usr/bin/pebble out (no package owns it, nothing uses it).
-# iptables stays (Docker had pulled it in): Lock Down's Network mode runs it from this image (lockdown.sh).
+# Keep packet inspection tools available in the workspace image.
 # The build takes Ubuntu's phased updates too (an apt setting removed again in the last step): apt holds a phased
 # update back from an upgrade, and then leaves out what needs it - in October 2026 systemd 259.9's phasing made apt
 # drop xfce4-power-manager, udev and upower from the desktop's install.

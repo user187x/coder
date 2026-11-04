@@ -28,6 +28,8 @@ ctx="$(mktemp -d)"
 trap 'rm -rf "$ctx"' EXIT
 (cd "${top}/.." && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -o "$ctx/workspace-tunnel" ./cmd/workspace-tunnel)
 
+(cd "${top}/.." && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -o "$ctx/workspace-platform" ./cmd/workspace-platform)
+
 # The code: every file of files/ui-updates but Python's bytecode; and the image store's files (the tag follows both).
 mapfile -t files < <(cd "$src" && find . -maxdepth 1 -type f ! -name '*.pyc' -printf '%P\n' | LC_ALL=C sort)
 mapfile -t pictures < <(cd "$store" && find pictures thumbs -type f -printf '%p\n' | LC_ALL=C sort)
@@ -43,7 +45,7 @@ hash=$({
 	(cd "$store" && sha256sum "${pictures[@]}")
 	sha256sum "$here/build-ui-image.sh"
 	(cd "${top}/.." && sha256sum coderd/database/queries/notificationsinbox.sql)
-	(cd "$ctx" && sha256sum workspace-tunnel)
+	(cd "$ctx" && sha256sum workspace-tunnel workspace-platform)
 	(cd "$defaults" && sha256sum "${baked[@]}")
 } | sha256sum | cut -c1-12)
 img="${repo}:${release}"
@@ -78,6 +80,7 @@ RUN python3 -m ensurepip \\
 COPY image-store/ /image-store/
 COPY defaults/ /defaults/
 COPY app/ /app/
+COPY --chmod=755 workspace-platform /usr/local/bin/workspace-platform
 COPY --chmod=755 workspace-tunnel /usr/local/bin/workspace-tunnel-native
 COPY --chmod=755 workspace-tunnel /usr/local/bin/workspace-tunnel
 LABEL org.opencontainers.image.title="coder-ui-updates" org.opencontainers.image.revision="code-${hash}"

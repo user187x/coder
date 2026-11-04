@@ -134,6 +134,7 @@ spec:
             {{- end }}
             # Lock Down > Freeze of a stopped workspace: the image that copies its home volume (the snapshot)
             - {name: LOCKDOWN_COPY_IMAGE, value: {{ tpl (index $.Values "coder-workspace" "workspaceImage") $ | quote }}}
+            - {name: WORKSPACE_PLATFORM_IMAGE, value: {{ $.Values.uiUpdates.image | quote }}}
             - {name: CODER_DEPLOYMENT, value: coder}
             - {name: CODER_RELEASE, value: {{ .Release.Name | quote }}}
             - {name: ATTACHED, value: "false"}

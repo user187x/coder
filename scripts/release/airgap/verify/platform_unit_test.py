@@ -330,7 +330,7 @@ class LockDownTest(unittest.TestCase):
             patcher = mock.patch.object(ld.sandbox, name, return_value=result)
             patcher.start()
             self.addCleanup(patcher.stop)
-        for name, value in (("LOG", None), ("CODER_HOST", "coder.example.com"), ("APPLY_TIMEOUT", 5)):
+        for name, value in (("LOG", None), ("CODER_HOST", "coder.example.com"), ("TOOLS_IMAGE", "reg/platform:1"), ("APPLY_TIMEOUT", 5)):
             p = mock.patch.object(ld, name, value)
             p.start()
             self.addCleanup(p.stop)
@@ -354,8 +354,8 @@ class LockDownTest(unittest.TestCase):
         patch = next(c for c in calls if c[1].endswith("/ephemeralcontainers"))
         c = patch[2]["spec"]["ephemeralContainers"][0]
         self.assertEqual(c["targetContainerName"], "dev")                      # shares the workspace's processes
-        self.assertEqual(c["image"], "docker.io/mrshll187/coder-workspace:1.8.3")
-        self.assertEqual(c["command"][4:], ["network,sudo", "coder.example.com", "/proc/1/root", "", ""])
+        self.assertEqual(c["image"], ld.TOOLS_IMAGE)
+        self.assertEqual(c["command"], ["/usr/local/bin/workspace-platform", "lockdown", "network,sudo", "coder.example.com", "/proc/1/root", "", ""])
         self.assertEqual(c["securityContext"]["runAsUser"], 0)
         self.assertEqual(set(c["securityContext"]["capabilities"]["add"]), {"NET_ADMIN", "NET_RAW", "SYS_PTRACE"})
         annotate = [c for c in calls if c[0] == "PATCH" and c[3] == "application/merge-patch+json"]
@@ -374,7 +374,7 @@ class LockDownTest(unittest.TestCase):
             self.assertEqual([r[1] for r in ld.reconcile(self.WID, "network")], [True])
         added = next(c for c in calls if c[1].endswith("/ephemeralcontainers"))[2]["spec"]["ephemeralContainers"][0]
         self.assertEqual(added["targetContainerName"], "workspace")
-        self.assertEqual(added["image"], agent["image"])
+        self.assertEqual(added["image"], ld.TOOLS_IMAGE)
         self.assertEqual(ld.home_claim(pod), "home-claim")
 
     def test_in_force_already_or_failing(self):
@@ -430,7 +430,7 @@ class LockDownTest(unittest.TestCase):
         with mock.patch.object(ld, "KUBE", kube):
             ld.watch_once()
         c = next(c for c in calls if c[1].endswith("/ephemeralcontainers"))[2]["spec"]["ephemeralContainers"][0]
-        self.assertEqual(c["command"][4], "off")
+        self.assertEqual(c["command"][2], "off")
 
     def test_only_admins_lock_owners_see(self):
         kube, _, _ = self.kube()
@@ -528,7 +528,7 @@ class FreezeTest(unittest.TestCase):
             patcher = mock.patch.object(ld.sandbox, name, return_value=result)
             patcher.start()
             self.addCleanup(patcher.stop)
-        for name, value in (("LOG", None), ("CODER_HOST", "coder.example.com"), ("APPLY_TIMEOUT", 5),
+        for name, value in (("LOG", None), ("CODER_HOST", "coder.example.com"), ("TOOLS_IMAGE", "reg/platform:1"), ("APPLY_TIMEOUT", 5),
                             ("COPY_IMAGE", "docker.io/mrshll187/coder-workspace:1.8.3")):
             p = mock.patch.object(ld, name, value)
             p.start()
@@ -556,7 +556,7 @@ class FreezeTest(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(res["modes"], ["network", "sudo", "freeze"])          # Complete, and paused
         c = next(c for c in calls if c[1].endswith("/ephemeralcontainers"))[2]["spec"]["ephemeralContainers"][0]
-        self.assertEqual(c["command"][4], "network,sudo,freeze")
+        self.assertEqual(c["command"][2], "network,sudo,freeze")
         pvc = next(b for p, b in state["objects"].items() if p.endswith("/persistentvolumeclaims"))
         job = next(b for p, b in state["objects"].items() if p.endswith("/jobs"))
         self.assertEqual(pvc["spec"]["storageClassName"], "gp3")
@@ -4131,6 +4131,7 @@ class WebhookTest(unittest.TestCase):
     def setUpClass(cls):
         cls.wh = load("webhook", "webhook.py")
         cls.wh.USER_STORAGE, cls.wh.CODER_HOST = True, "coder.example.com"
+        cls.wh.TOOLS_IMAGE = "reg/platform:1"
         cls.wh.CSHA_IMAGE, cls.wh.CSHA_DB_CA_SECRET = "reg/user187x/coder-ui-updates:x", "coder-db-ca"
 
     def example_pod(self, token=True, annotations=None):
@@ -4155,13 +4156,13 @@ class WebhookTest(unittest.TestCase):
 
     def test_a_plain_pod_gets_every_piece(self):
         pod = self.example_pod()
-        after = self.apply(pod, self.wh.patch(pod, {"cloudDrive": {}, "homeSize": "10Gi"}, "LOCKDOWN"))
+        after = self.apply(pod, self.wh.patch(pod, {"cloudDrive": {}, "homeSize": "10Gi"}))
         spec, dev = after["spec"], after["spec"]["containers"][0]
         self.assertEqual([c["name"] for c in spec["initContainers"]], ["trust-local-ca", "lockdown"])
         lock = spec["initContainers"][1]
-        self.assertEqual(lock["image"], "reg/ws:1", "the agent's own image")
-        self.assertEqual(lock["command"], ["sh", "-c", "LOCKDOWN", "lockdown", "file:/etc/coder-lockdown/" + self.WID,
-                                           "coder.example.com", ""])
+        self.assertEqual(lock["image"], "reg/platform:1")
+        self.assertEqual(lock["command"], ["/usr/local/bin/workspace-platform", "init-lockdown", "file:/etc/coder-lockdown/" + self.WID,
+                                           "coder.example.com"])
         self.assertEqual(lock["securityContext"]["capabilities"]["add"], ["NET_ADMIN", "NET_RAW"])
         mounts = {m["mountPath"]: m for m in dev["volumeMounts"]}
         for path in ("/etc/coder-lockdown", "/etc/ssl/certs/ca-certificates.crt", "/mnt/cloud-drive", "/etc/platform",
@@ -4178,13 +4179,13 @@ class WebhookTest(unittest.TestCase):
         self.assertNotIn("code-server-relay", [c["name"] for c in spec["containers"]], "not asked for")
 
     def test_what_a_pod_has_is_left_alone(self):
-        pod = self.apply(self.example_pod(), self.wh.patch(self.example_pod(), {"cloudDrive": {}}, "LOCKDOWN"))
-        self.assertEqual(self.wh.patch(pod, {"cloudDrive": {}}, "LOCKDOWN"), [], "a decorated or mutated pod: no change")
+        pod = self.apply(self.example_pod(), self.wh.patch(self.example_pod(), {"cloudDrive": {}}))
+        self.assertEqual(self.wh.patch(pod, {"cloudDrive": {}}), [], "a decorated or mutated pod: no change")
 
     def test_network_tools_come_from_the_managed_image(self):
         pod = self.example_pod()
-        with mock.patch.object(self.wh, "LOCKDOWN_IMAGE", "registry/network-tools:1"):
-            after = self.apply(pod, self.wh.patch(pod, {"cloudDrive": {}}, "L"))
+        with mock.patch.object(self.wh, "TOOLS_IMAGE", "registry/network-tools:1"):
+            after = self.apply(pod, self.wh.patch(pod, {"cloudDrive": {}}))
         self.assertEqual(after["spec"]["initContainers"][1]["image"], "registry/network-tools:1")
         self.assertEqual(after["spec"]["containers"][0]["image"], pod["spec"]["containers"][0]["image"])
 
@@ -4192,7 +4193,7 @@ class WebhookTest(unittest.TestCase):
         pod = self.example_pod()
         pod["spec"]["containers"].insert(0, {"name": "workspace-tunnel", "image": "reg/runtime:1",
                                              "env": [{"name": "CODER_AGENT_TOKEN", "value": "test"}]})
-        after = self.apply(pod, self.wh.patch(pod, {"cloudDrive": {}}, "L"))
+        after = self.apply(pod, self.wh.patch(pod, {"cloudDrive": {}}))
         mounts = after["spec"]["containers"][0]["volumeMounts"]
         self.assertIn({"name": "ca-bundle", "mountPath": "/etc/ssl/certs/ca-certificates.crt",
                        "subPath": "ca-certificates.crt", "readOnly": True}, mounts)
@@ -4215,7 +4216,7 @@ class WebhookTest(unittest.TestCase):
             "workspacePeers": {self.WID: [{"owner": "other", "name": "alice", "claim": "shared",
                                            "id": "item", "kind": "item", "item": "file", "path": "file"}]}}
         pod = self.example_pod()
-        after = self.apply(pod, self.wh.patch(pod, {"cloudDrive": grants}, "L"))
+        after = self.apply(pod, self.wh.patch(pod, {"cloudDrive": grants}))
         claims = [v["persistentVolumeClaim"]["claimName"] for v in after["spec"]["volumes"]
                   if "persistentVolumeClaim" in v]
         self.assertIn("audit-claim", claims)
@@ -4231,7 +4232,7 @@ class WebhookTest(unittest.TestCase):
             {"id": "i1", "owner": "bob", "name": "bob", "claim": claim, "readOnly": False, "kind": "item",
              "path": "docs", "item": "docs"}]}}
         pod = self.example_pod()
-        after = self.apply(pod, self.wh.patch(pod, {"cloudDrive": state}, "L"))
+        after = self.apply(pod, self.wh.patch(pod, {"cloudDrive": state}))
         vol = self.wh.peer_volume(claim)
         volumes = {v["name"]: v for v in after["spec"]["volumes"]}
         self.assertFalse(volumes[vol]["persistentVolumeClaim"]["readOnly"], "read only only when all of it is")
@@ -4248,33 +4249,33 @@ class WebhookTest(unittest.TestCase):
         pod["spec"]["containers"][1]["name"] = "workspace"
         pod["spec"]["containers"][1]["env"] = [{"name": "CODER_AGENT_TOKEN", "valueFrom": {"secretKeyRef": {"name": "t", "key": "k"}}}]
         self.assertEqual(self.wh.agent_container(pod), 1, "the one given the agent's token")
-        after = self.apply(pod, self.wh.patch(pod, {"cloudDrive": {}}, "L"))
+        after = self.apply(pod, self.wh.patch(pod, {"cloudDrive": {}}))
         names = [c["name"] for c in after["spec"]["containers"]]
         self.assertEqual(names, ["sidecar", "workspace", "code-server-relay"])
         relay = after["spec"]["containers"][2]
         token = next(e for e in relay["env"] if e["name"] == "CSHA_AGENT_TOKEN")
         self.assertEqual(token["valueFrom"], {"secretKeyRef": {"name": "t", "key": "k"}})
         self.assertIn({"name": "CODER_CODE_SERVER_HA", "value": "1"}, after["spec"]["containers"][1]["env"])
-        self.assertEqual(after["spec"]["initContainers"][1]["image"], "reg/ws:1", "Lock Down runs the agent's image")
+        self.assertEqual(after["spec"]["initContainers"][1]["image"], "reg/platform:1", "Lock Down uses the trusted platform image")
 
     def test_an_admission_review(self):
         import base64
         body = {"apiVersion": "admission.k8s.io/v1", "request": {
             "uid": "u1", "operation": "CREATE", "kind": {"kind": "Pod"}, "object": self.example_pod()}}
         with mock.patch.object(self.wh, "log"):
-            out = self.wh.review(body, lambda pod: {"cloudDrive": {}}, "L")
+            out = self.wh.review(body, lambda pod: {"cloudDrive": {}})
         self.assertEqual((out["kind"], out["response"]["uid"], out["response"]["allowed"]), ("AdmissionReview", "u1", True))
         ops = json.loads(base64.b64decode(out["response"]["patch"]))
         self.assertEqual(self.apply(self.example_pod(), ops)["spec"]["initContainers"][1]["name"], "lockdown")
         body["request"]["operation"] = "UPDATE"
-        out = self.wh.review(body, lambda pod: {}, "L")
+        out = self.wh.review(body, lambda pod: {})
         self.assertNotIn("patch", out["response"], "CREATE only")
 
     def test_the_server_answers_the_api_servers_path(self):
         """The API server calls /mutate?timeout=5s: the query is not part of the route (a 404 there refused every
         workspace pod, failurePolicy Fail)."""
         import http.client
-        srv = self.wh.server(lambda pod: {"cloudDrive": {}}, "L", port=0, tls_dir=None)
+        srv = self.wh.server(lambda pod: {"cloudDrive": {}}, port=0, tls_dir=None)
         threading.Thread(target=srv.serve_forever, daemon=True).start()
         try:
             body = json.dumps({"apiVersion": "admission.k8s.io/v1", "request": {

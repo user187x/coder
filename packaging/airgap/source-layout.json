@@ -143,10 +143,6 @@
     "link": "../../../../files/ui-updates/clouddrive_cli.py"
   },
   {
-    "destination": "airgap-dist/helm-chart/coder-airgapped/charts/coder-workspace/files/scripts/lockdown.sh",
-    "link": "../../../../files/ui-updates/lockdown.sh"
-  },
-  {
     "destination": "airgap-dist/helm-chart/coder-airgapped/files/bootstrap/pgwire.py",
     "link": "../ui-updates/pgwire.py"
   }

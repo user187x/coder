@@ -59,6 +59,9 @@ class WorkspaceNodeMetricsTest(unittest.TestCase):
         return metrics.report("fixture-token", self.org, self.wid, owner=owner)
 
     def test_actual_workspace_node_is_separate_from_true_cluster_aggregate(self):
+        self.snapshot["pods"][0]["metadata"]["name"] = "fixture-pod"
+        self.snapshot["pods"][0]["status"]["podIP"] = "10.0.0.1"
+        self.snapshot["pods"].append(self.pod("two", wid=str(uuid.uuid4())))
         result = self.report()
         self.assertEqual(result["nodeName"], "one")
         self.assertEqual(result["workspaceName"], "fixture")
@@ -74,7 +77,7 @@ class WorkspaceNodeMetricsTest(unittest.TestCase):
         self.assertEqual(result["nodeCount"], 2)
         self.assertEqual(result["node"]["cpu"]["collectedAt"], self.at)
         self.assertNotIn('"two"', json.dumps(result))
-        self.assertNotIn("pods", result)
+        self.assertEqual([(pod["name"], pod["ip"]) for pod in result["pods"]], [("fixture-pod", "10.0.0.1")])
         metrics.INFRASTRUCTURE_ACCESS.assert_called_once_with("fixture-token")
 
     def test_scope_and_organization_are_checked_before_any_cluster_access(self):

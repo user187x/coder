@@ -1,7 +1,7 @@
 {{- if (.Values.global.platformAgent | default dict).enabled }}
 {{- $scripts := list }}
 {{- $metadata := list }}
-{{- $lockdown := printf "#!/bin/sh\nset -- start \"file:/etc/coder-lockdown/$CODER_WORKSPACE_ID\"\n%s" (.Files.Get "files/scripts/lockdown.sh") }}
+{{- $lockdown := `exec /opt/coder-platform/workspace-platform lockdown start "file:/etc/coder-lockdown/$CODER_WORKSPACE_ID"` }}
 {{- $scripts = append $scripts (dict "display_name" "Lock Down" "icon" "/__icons/lockdown.svg" "script" $lockdown "run_on_start" true "start_blocks_login" true) }}
 {{- range $entry := list
   (list "0_cpu_usage" "CPU" "coder stat cpu" 10 1)

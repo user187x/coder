@@ -18,7 +18,7 @@ class PlatformAgentChartTest(unittest.TestCase):
 
     def test_native_agent_manifest_and_startup_shell(self):
         config = json.loads(self.docs[("ConfigMap", "coder-platform-agent")]["data"]["agent.json"])
-        self.assertEqual({s["display_name"] for s in config["scripts"]}, {"Certificates", "Lock Down", "Cloud Drive"})
+        self.assertEqual({s["display_name"] for s in config["scripts"]}, {"Lock Down", "Cloud Drive"})
         self.assertEqual(len({m["key"] for m in config["metadata"]}), 10)
         for script in config["scripts"]:
             with self.subTest(script=script["display_name"]):

@@ -53,7 +53,7 @@ docker run --rm --entrypoint sh "$img" -c '
 	for m in coder-clipboard coder-resize; do test -f /usr/share/novnc/app/$m.js && grep -q "app/$m.js" /usr/share/novnc/vnc.html || { echo "missing: noVNC $m"; exit 1; }; done
 	/usr/local/bin/tmux -V && command -v tmux-mirror-setup >/dev/null
 	for t in btop bat batcat vim eza fzf grc jq yq k9s kubectl kubectl-oidc_login kubelogin k9s-copy-secret code-server filebrowser; do command -v $t >/dev/null || { echo "missing: $t"; exit 1; }; done
-	# Lock Down runs these from the image (lockdown.sh: Network, Freeze), as root in the pod
+	# Networking and process inspection commands shipped with the workspace image.
 	for t in iptables ip6tables getent awk kill stat; do command -v $t >/dev/null || { echo "missing (Lock Down): $t"; exit 1; }; done
 	# GNU coreutils (not Rust coreutils), and the compilers still there without build-essential
 	ls --version | grep -q "GNU coreutils" && gcc --version >/dev/null && g++ --version >/dev/null && make --version >/dev/null

@@ -4,7 +4,7 @@ creates it - not spliced into the template's Terraform. Any template's pod gets 
 A JSON patch per pod, CREATE only, for the pods of the workspace namespace labelled app.kubernetes.io/name=
 coder-workspace with com.coder.workspace.id (the MutatingWebhookConfiguration selects them). Into the agent's
 container (the one with CODER_AGENT_TOKEN, else "dev", else the first):
-  - Lock Down: the init container "lockdown" (the agent's image, root with NET_ADMIN + NET_RAW, lockdown.sh against the
+  - Lock Down: the init container "lockdown" (the managed tools image, root with NET_ADMIN + NET_RAW, enforcing the
     workspace's entry of the ConfigMap coder-lockdown, none: nothing locked), that ConfigMap at /etc/coder-lockdown
   - the cluster's CA trusted: the init container "trust-local-ca" appends tls-ca's ca.crt to the image's bundle
   - the Cloud Drive (USER_STORAGE): the owner's volume, what is shared with them, the ISO library and the downward-API
@@ -43,7 +43,8 @@ CODER_HOST = urllib.parse.urlparse(os.environ.get("CODER_ACCESS_URL", "")).hostn
 TLS_CA_SECRET = os.environ.get("TLS_CA_SECRET", "tls-ca")
 CSHA_IMAGE = os.environ.get("CODE_SERVER_HA_IMAGE", "")
 CSHA_DB_CA_SECRET = os.environ.get("CODE_SERVER_HA_DB_CA_SECRET", "")
-LOCKDOWN_IMAGE = os.environ.get("LOCKDOWN_COPY_IMAGE", "")
+TOOLS_IMAGE = os.environ.get("WORKSPACE_PLATFORM_IMAGE", "")
+TOOLS_PATH = "/opt/coder-platform"
 STATE_TTL = 2.0
 
 CLOUD_DRIVE_MOUNT = "/mnt/cloud-drive"
@@ -54,11 +55,6 @@ CSHA_ANNOTATION = "platform.coder/code-server-ha"
 
 def log(**kw):
     print(json.dumps(dict(kw, at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))), flush=True)
-
-
-def lockdown_script():
-    with open(os.path.join(APP, "lockdown.sh")) as f:
-        return f.read()
 
 
 # ------------------------------------------------------------------------------------------------- the Cloud Drive
@@ -116,7 +112,7 @@ def _named(items, name):
     return any(x.get("name") == name for x in items or [])
 
 
-def mutated(pod, state, lockdown_sh):
+def mutated(pod, state):
     """The pod as the platform runs it (a copy; the patch is the difference)."""
     pod = copy.deepcopy(pod)
     meta = pod.setdefault("metadata", {})
@@ -170,18 +166,31 @@ def mutated(pod, state, lockdown_sh):
 
     # Lock Down: before anything of the workspace runs, in the pod's network namespace (the workspace's container
     # shares it and cannot change it: no NET_ADMIN)
+    if not TOOLS_IMAGE:
+        raise ValueError("Workspace platform tools image is not configured.")
+    volume({"name": "coder-platform-tools", "emptyDir": {}})
+    mount({"name": "coder-platform-tools", "mountPath": TOOLS_PATH, "readOnly": True})
     if not _named(inits, "lockdown"):
         at = next((i + 1 for i, c in enumerate(inits) if c.get("name") == "trust-local-ca"), 0)
         inits.insert(at, {
-            "name": "lockdown", "image": LOCKDOWN_IMAGE or image, "imagePullPolicy": "IfNotPresent",
+            "name": "lockdown", "image": TOOLS_IMAGE, "imagePullPolicy": "IfNotPresent",
             "resources": {"requests": {"cpu": "1", "memory": "64Mi"}, "limits": {"cpu": "1", "memory": "64Mi"}},
-            "command": ["sh", "-c", lockdown_sh, "lockdown", "file:/etc/coder-lockdown/%s" % workspace_id, CODER_HOST, ""],
+            "command": ["/usr/local/bin/workspace-platform", "init-lockdown", "file:/etc/coder-lockdown/%s" % workspace_id, CODER_HOST],
             "securityContext": {"runAsUser": 0, "runAsNonRoot": False,
                                 "capabilities": {"add": ["NET_ADMIN", "NET_RAW"]}},
-            "volumeMounts": [{"name": "lockdown", "mountPath": "/etc/coder-lockdown", "readOnly": True}],
+            "volumeMounts": [{"name": "lockdown", "mountPath": "/etc/coder-lockdown", "readOnly": True},
+                             {"name": "coder-platform-tools", "mountPath": TOOLS_PATH}],
         })
         volume({"name": "lockdown", "configMap": {"name": "coder-lockdown", "optional": True}})
         mount({"name": "lockdown", "mountPath": "/etc/coder-lockdown", "readOnly": True})
+
+    elif not any(m.get("name") == "coder-platform-tools" for c in inits for m in c.get("volumeMounts", [])):
+        # Older templates may supply their own lockdown init container.
+        inits.append({"name": "install-coder-platform-tools", "image": TOOLS_IMAGE,
+                      "command": ["/usr/local/bin/workspace-platform", "install"],
+                      "securityContext": {"runAsUser": 0, "allowPrivilegeEscalation": False,
+                                          "capabilities": {"drop": ["ALL"]}},
+                      "volumeMounts": [{"name": "coder-platform-tools", "mountPath": TOOLS_PATH}]})
 
     # the home claim's size as Kubernetes has it (it can grow after creation), for the Disk metric
     if state.get("homeSize"):
@@ -246,10 +255,10 @@ def mutated(pod, state, lockdown_sh):
     return pod
 
 
-def patch(pod, state, lockdown_sh):
+def patch(pod, state):
     """The JSON patch from the pod to the platform's: whole top-level fields replaced (metadata's annotations and the
     spec's lists), which keeps it short and exact."""
-    after = mutated(pod, state, lockdown_sh)
+    after = mutated(pod, state)
     ops = []
     before_meta = pod.get("metadata") or {}
     if after["metadata"].get("annotations") != before_meta.get("annotations"):
@@ -321,13 +330,13 @@ class Kube:
         return {"cloudDrive": self.cloud_drive(), "homeSize": self.claim_size(home_claim(pod))}
 
 
-def review(body, state_of, lockdown_sh):
+def review(body, state_of):
     """An AdmissionReview answered: allowed, with the patch."""
     request = body.get("request") or {}
     response = {"uid": request.get("uid", ""), "allowed": True}
     pod = request.get("object") or {}
     if request.get("operation") == "CREATE" and request.get("kind", {}).get("kind") == "Pod" and pod.get("spec"):
-        ops = patch(pod, state_of(pod), lockdown_sh)
+        ops = patch(pod, state_of(pod))
         if ops:
             import base64
             response["patchType"] = "JSONPatch"
@@ -339,7 +348,7 @@ def review(body, state_of, lockdown_sh):
             "response": response}
 
 
-def server(state_of, lockdown_sh, port=PORT, tls_dir=TLS_DIR, runtime_review=None):
+def server(state_of, port=PORT, tls_dir=TLS_DIR, runtime_review=None):
     """The HTTPS server: POST /mutate (the API server adds ?timeout=...), GET /healthz. tls_dir None: plain HTTP (tests)."""
 
     class Handler(http.server.BaseHTTPRequestHandler):
@@ -368,7 +377,7 @@ def server(state_of, lockdown_sh, port=PORT, tls_dir=TLS_DIR, runtime_review=Non
                 self.connection.settimeout(10)
                 body = json.loads(self.rfile.read(length))
                 if self.route() == "/mutate":
-                    out = review(body, state_of, lockdown_sh)
+                    out = review(body, state_of)
                 elif runtime_review is not None:
                     out = runtime_review(body, self.route() == "/runtime-mutate")
                 else:
@@ -412,7 +421,7 @@ def main():
         controllers = json.loads(os.environ.get("WORKSPACE_VM_CONTROLLER_USERS", '["system:serviceaccount:kubevirt:kubevirt-controller"]'))
         registry_namespace = os.environ.get("WORKSPACE_VM_HOME_REGISTRY_NAMESPACE", "coder-runtime-system")
         runtime_review = lambda body, mutate: admission_review(body, fetch, trusted, NAMESPACE, mutate, admin_groups, mode, images, models, controllers, registry_namespace)
-    srv = server(kube.state, lockdown_script(), runtime_review=runtime_review)
+    srv = server(kube.state, runtime_review=runtime_review)
     log(event="webhook-start", port=PORT, namespace=NAMESPACE, userStorage=USER_STORAGE)
     srv.serve_forever()
 

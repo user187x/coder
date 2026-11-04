@@ -1,1 +1,0 @@
-../../../../platform/lockdown.sh

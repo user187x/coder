@@ -813,7 +813,7 @@ def main():
     webhook = open(os.path.join(chart, "files/ui-updates/webhook.py")).read()
     check("native agent: platform scripts and metadata ship independently of template Terraform",
           set(agent_scripts) == {"Lock Down", "Cloud Drive"} and not os.path.exists(os.path.join(tf_dir, "scripts", "certificates.sh"))
-          and len(agent_metadata) == 10 and "set -- start" in agent_scripts["Lock Down"]
+          and len(agent_metadata) == 10 and "/opt/coder-platform/workspace-platform lockdown start" in agent_scripts["Lock Down"]
           and not re.search(r"# platform:(begin|end)", tf["main.tf"])
           and "CODER_PLATFORM_AGENT_DIR" in r and "/etc/coder-platform-agent" in r,
           {"scripts": sorted(agent_scripts), "metadata": sorted(agent_metadata)})
@@ -969,11 +969,9 @@ def main():
     mounts = [n for n in names if n.endswith(".py") and re.search(r'"configMap": \{"name": "coder-ui-updates"',
                                                                 open(os.path.join(ui_dir, n)).read())]
     check("platform service: its Jobs take the code from its image, not a ConfigMap", not mounts, mounts or "")
-    ui_lock = os.path.join(chart, "files/ui-updates/lockdown.sh")
-    tpl_lock = os.path.join(tf_dir, "scripts", "lockdown.sh")
-    check("Lock Down: the platform service's lockdown.sh is the template's (one script, two places)",
-          os.path.isfile(ui_lock) and os.path.isfile(tpl_lock) and open(ui_lock).read() == open(tpl_lock).read(),
-          "files/ui-updates/lockdown.sh vs charts/coder-workspace/files/scripts/lockdown.sh")
+    check("workspace Lock Down uses the deployment-owned native binary before workspace startup",
+          '"/usr/local/bin/workspace-platform", "init-lockdown"' in webhook and "WORKSPACE_PLATFORM_IMAGE" in r
+          and "coder-platform-tools" in webhook and not os.path.exists(os.path.join(tf_dir, "scripts", "lockdown.sh")), "")
     bad = [os.path.basename(s) for s in scripts if run(["bash", "-n", s])[0] != 0]
     check("template scripts: shell syntax (bash -n)", not bad, bad or "%d scripts" % len(scripts))
     main_tf = tf["main.tf"] + "".join(open(s).read() for s in scripts)

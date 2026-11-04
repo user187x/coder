@@ -19,9 +19,9 @@ stopped one, from its next start on. It stays until an admin lifts it.
 The settings are the ConfigMap coder-lockdown (made at the first lock; Helm and Argo CD do not manage it): key
 <workspace id> = "network,sudo" (what the workspace template's pod reads at start: its init container sets Network,
 a start script that blocks login sets Sudo), key <workspace id>.meta = who set it, when, and the workspace's name.
-A running pod gets the setting at once from an ephemeral container: the workspace's own image, root with NET_ADMIN
+A running pod gets the setting at once from an ephemeral container: the deployment's tools image, root with NET_ADMIN
 (the pod's network namespace) and SYS_PTRACE (the workspace container's files, through its processes), running
-lockdown.sh. The pod's annotation platform.coder/lockdown says what was applied; a watcher keeps every running
+the native lockdown command. The pod's annotation platform.coder/lockdown says what was applied; a watcher keeps every running
 workspace as the ConfigMap says (a workspace from an older template version, a restart, or this service's own), so
 a lock comes back with every start until an admin lifts it: a frozen workspace that is started again is frozen again.
 
@@ -52,7 +52,7 @@ MAX_PROCESSES = 300
 WATCH_SECONDS = 15
 APPLY_TIMEOUT = 120
 COPY_IMAGE = os.environ.get("LOCKDOWN_COPY_IMAGE", "")  # a stopped workspace's snapshot (no pod to take it from)
-SCRIPT = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "lockdown.sh")).read()
+TOOLS_IMAGE = os.environ.get("WORKSPACE_PLATFORM_IMAGE", "")
 
 LOG = KUBE = WORKSPACE_INFO = None
 ADMIN_ROLES = set()
@@ -198,18 +198,20 @@ def annotate(pod, modes):
 
 
 def apply(pod, modes):
-    """Runs lockdown.sh in an ephemeral container of the running pod: (ok, message)."""
+    """Runs the native lockdown command in an ephemeral container of the running pod: (ok, message)."""
     meta = pod["metadata"]
     wid = meta.get('labels', {}).get('com.coder.workspace.id')
     coder_ips, peers, signature = sandbox.inputs(wid) if modes == 'sandbox' else ('', '', '')
     name = "lockdown-%d" % int(time.time() * 1000)
     agent = kexec.agent_container(pod)
-    image = COPY_IMAGE or agent.get("image")
-    if not image or not agent.get("name"):
+    image = TOOLS_IMAGE
+    if not image:
+        return False, "No workspace platform tools image is configured."
+    if not agent.get("name"):
         return False, "The workspace pod has no agent container."
     container = {
         "name": name, "image": image, "imagePullPolicy": "IfNotPresent", "targetContainerName": agent["name"],
-        "command": ["sh", "-c", SCRIPT, "lockdown", modes, CODER_HOST, "/proc/1/root", coder_ips, peers],
+        "command": ["/usr/local/bin/workspace-platform", "lockdown", modes, CODER_HOST, "/proc/1/root", coder_ips, peers],
         "securityContext": {"runAsUser": 0, "runAsNonRoot": False, "allowPrivilegeEscalation": False,
                             "capabilities": {"add": ["NET_ADMIN", "NET_RAW", "SYS_PTRACE"]}},
         "resources": {},
