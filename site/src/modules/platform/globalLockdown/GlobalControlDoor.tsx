@@ -132,7 +132,7 @@ export const GlobalControlDoor: React.FC<{
 				<div className="global-control-bottom-bar" aria-hidden />
 				<form
 					className={cn(
-						"global-control-pin-panel z-10 flex w-full flex-col gap-3 rounded-xl border border-solid border-border p-5",
+						"z-10 flex w-full flex-col gap-3 rounded-xl border border-solid border-border bg-surface-primary p-5 text-content-primary",
 						unlock.isError && "global-control-pin-error",
 					)}
 					onSubmit={(event) => {

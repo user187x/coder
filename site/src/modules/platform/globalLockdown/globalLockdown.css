@@ -71,10 +71,6 @@
 	border-top: 1px solid #737373;
 	box-shadow: 0 5px 15px rgb(0 0 0 / 50%);
 }
-.global-control-pin-panel {
-	background: rgb(0 0 0 / 88%);
-	backdrop-filter: blur(8px);
-}
 @media (prefers-reduced-motion: reduce) {
 	.global-control-door {
 		transition: none;

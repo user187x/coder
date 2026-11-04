@@ -136,6 +136,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 		layout: "list" | "grid";
 	} | null>(null);
 	const [menuElement, setMenuElement] = useState<HTMLDivElement | null>(null);
+	const [menuSurface, setMenuSurface] = useState<HTMLDivElement | null>(null);
 	const [metricsElement, setMetricsElement] = useState<HTMLDivElement | null>(
 		null,
 	);
@@ -276,6 +277,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 					{!compact && (
 						<SettingsSidePanels
 							container={menuElement}
+							surface={menuSurface}
 							anchor={metricsElement}
 							hud={hud}
 							chatExpanded={chatExpanded}
@@ -292,7 +294,10 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 						/>
 					)}
 
-					<div className="flex flex-col rounded-md border border-solid border-border bg-surface-primary p-2 shadow-md max-h-(--radix-dropdown-menu-content-available-height) overflow-y-auto scrollbar-thin [scrollbar-color:hsl(var(--surface-quaternary))_transparent]">
+					<div
+						ref={setMenuSurface}
+						className="flex flex-col rounded-md border border-solid border-border bg-surface-primary p-2 shadow-md max-h-(--radix-dropdown-menu-content-available-height) overflow-y-auto scrollbar-thin [scrollbar-color:hsl(var(--surface-quaternary))_transparent]"
+					>
 						{docked && (
 							<DropdownMenuItem
 								aria-label={

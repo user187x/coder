@@ -55,7 +55,7 @@ export const CategoryBreadcrumbButton = ({
 				data-category-toggle=""
 				aria-hidden="true"
 				title={sidebarOpen ? "Hide categories" : "Show categories"}
-				className="inline-flex size-5 shrink-0 items-center justify-center rounded-sm opacity-70 hover:opacity-100"
+				className="absolute inset-y-0 right-0 inline-flex w-8 items-center justify-center bg-gray-600 text-white hover:bg-gray-700"
 			>
 				<SidebarIcon className="size-3.5" />
 			</span>

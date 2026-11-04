@@ -146,8 +146,9 @@
 	height: 0.875rem;
 	flex-shrink: 0;
 }
-.deployment-breadcrumb > ol > li > :is(a, button) [data-category-toggle] {
-	width: 1rem;
+.breadcrumb-connected.deployment-breadcrumb > ol > li:last-child > button {
+	position: relative;
+	padding-right: 2rem;
 }
 .breadcrumb-connected.deployment-breadcrumb > ol > li:first-child > a {
 	background: hsl(var(--surface-tertiary));

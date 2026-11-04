@@ -13,6 +13,7 @@ import { settingsPanelLayout } from "./settingsPanelLayout";
 /** Shares the menu's vertical rail between the shortcut and notes drawers. */
 export const SettingsSidePanels = ({
 	container,
+	surface,
 	anchor,
 	...resources
 }: Omit<
@@ -20,6 +21,7 @@ export const SettingsSidePanels = ({
 	"placement" | "onElement"
 > & {
 	container: HTMLElement | null;
+	surface: HTMLElement | null;
 	anchor: HTMLElement | null;
 }) => {
 	const [resourcePanel, setResourcePanel] = useState<HTMLDivElement | null>(
@@ -46,7 +48,7 @@ export const SettingsSidePanels = ({
 		notesHeight: 124,
 	});
 	useLayoutEffect(() => {
-		if (!container) return;
+		if (!container || !surface) return;
 		const navbar = document.querySelector(".navbar-soft");
 		const links = resourcePanel?.querySelector<HTMLElement>(
 			".settings-resource-tray-links",
@@ -73,7 +75,11 @@ export const SettingsSidePanels = ({
 				"--settings-rail-height",
 				`${Math.ceil(railHeight)}px`,
 			);
-			const height = Math.min(Math.max(menu.height, railHeight), viewport);
+			// The notes editor may extend below Settings, but its drag handle stays on the visible surface.
+			const height = Math.min(
+				surface.getBoundingClientRect().bottom - menu.top,
+				viewport,
+			);
 			const available = Math.max(1, height - topInset - 16 - notesSpace - 28);
 			container.style.setProperty(
 				"--settings-links-scale",
@@ -112,6 +118,7 @@ export const SettingsSidePanels = ({
 		const observer = new ResizeObserver(schedule);
 		for (const element of [
 			container,
+			surface,
 			navbar,
 			anchor,
 			resourcePanel,
@@ -130,7 +137,7 @@ export const SettingsSidePanels = ({
 			window.removeEventListener("resize", schedule);
 			window.removeEventListener("scroll", schedule, true);
 		};
-	}, [container, anchor, resourcePanel, notesPanel, resources.images]);
+	}, [container, surface, anchor, resourcePanel, notesPanel, resources.images]);
 	const withNotes = resources.images && bounds.anchorVisible;
 	const layout = settingsPanelLayout({
 		...bounds,
@@ -159,7 +166,6 @@ export const SettingsSidePanels = ({
 					railViewport={Math.max(0, bounds.viewport - 8)}
 					placement={{
 						...layout.notes,
-
 						onMove: setNotesTop,
 						onCommit: (top) => save.mutate({ admin_notes_tray_top: top }),
 					}}
