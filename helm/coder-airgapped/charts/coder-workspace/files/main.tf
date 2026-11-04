@@ -491,8 +491,6 @@ resource "coder_agent" "main" {
     filebrowser = base64encode(file("${path.module}/scripts/filebrowser.sh"))
     # btop's disk: the home volume's own size where volumes are folders of the node's disk (startup.sh builds it)
     home_statfs = base64encode(file("${path.module}/scripts/home-statfs.c"))
-    # and the Disk metric's measurement (scripts/metadata.sh's disk), which startup.sh keeps fresh for it
-    platform_metadata = base64encode(file("${path.module}/scripts/metadata.sh"))
   })
 
 }

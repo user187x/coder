@@ -3,17 +3,16 @@
 {{- $metadata := list }}
 {{- $lockdown := printf "#!/bin/sh\nset -- start \"file:/etc/coder-lockdown/$CODER_WORKSPACE_ID\"\n%s" (.Files.Get "files/scripts/lockdown.sh") }}
 {{- $scripts = append $scripts (dict "display_name" "Lock Down" "icon" "/__icons/lockdown.svg" "script" $lockdown "run_on_start" true "start_blocks_login" true) }}
-{{- $metrics := .Files.Get "files/scripts/metadata.sh" }}
 {{- range $entry := list
   (list "0_cpu_usage" "CPU" "coder stat cpu" 10 1)
-  (list "1_ram_usage" "MEM" (printf "%s\nram" $metrics) 10 1)
-  (list "2_home_disk" "Disk" (printf "%s\ndisk" $metrics) 60 15)
-  (list "3_load" "Ø Load" (printf "%s\nload" $metrics) 10 3)
+  (list "1_ram_usage" "MEM" "coder stat workspace ram" 10 1)
+  (list "2_home_disk" "Disk" "coder stat workspace disk" 60 15)
+  (list "3_load" "Ø Load" "coder stat workspace load" 10 3)
   (list "4_cpu_usage_host" "CPU" "coder stat cpu --host" 10 1)
-  (list "5_mem_usage_host" "MEM" (printf "%s\nram_host" $metrics) 10 1)
-  (list "6_disk_host" "Disk" (printf "%s\ndisk_host" $metrics) 60 5)
-  (list "7_load_host" "Ø Load" (printf "%s\nload_host" $metrics) 60 1)
-  (list "8_net_io" "Network" (printf "%s\nnet" $metrics) 1 1) }}
+  (list "5_mem_usage_host" "MEM" "coder stat workspace ram_host" 10 1)
+  (list "6_disk_host" "Disk" "coder stat workspace disk_host" 60 5)
+  (list "7_load_host" "Ø Load" "coder stat workspace load_host" 60 1)
+  (list "8_net_io" "Network" "coder stat workspace net" 1 1) }}
 {{- $metadata = append $metadata (dict "key" (index $entry 0) "display_name" (index $entry 1) "script" (index $entry 2) "interval" (index $entry 3) "timeout" (index $entry 4)) }}
 {{- end }}
 {{- if (.Values.global.userStorage | default dict).enabled }}

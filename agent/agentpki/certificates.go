@@ -188,7 +188,8 @@ func replace(files afero.Fs, target string, data []byte) error {
 	if err != nil {
 		return xerrors.Errorf("create certificate file: %w", err)
 	}
-	defer func() { _ = files.Remove(file.Name()) }()
+	name := file.Name()
+	defer func() { _ = files.Remove(name) }()
 	if err = files.Chmod(file.Name(), 0o600); err != nil {
 		file.Close()
 		return err

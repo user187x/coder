@@ -3,7 +3,7 @@
  * wrapper in ~/.local/bin preloads it). On a cluster whose volumes are folders of the node's disk - minikube's and
  * kind's local-path, the hostpath provisioner - statvfs() of the home answers for the node's whole disk, hundreds of
  * GB. For a path in the home this answers with the volume's own size and the home's measured usage instead, as the
- * workspace's Disk metric does: metadata.sh's disk() writes them to /tmp/coder-home-disk ("<total> <used>", bytes)
+ * workspace's Disk metric does: coder stat workspace disk writes them to /tmp/coder-home-disk ("<total> <used>", bytes)
  * while the home's filesystem is far larger than its claim, and removes the file otherwise. Anything else - another
  * path, no such file - is answered as it is. On a real volume (EBS, Ceph...) there is no file: nothing changes.
  */

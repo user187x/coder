@@ -346,7 +346,7 @@ fi
 # btop's disk: where the cluster's volumes are folders of the node's disk (local-path, hostpath: minikube, kind), the
 # home's statvfs() answers for the node's whole disk. A small library (scripts/home-statfs.c), built here once a
 # version, answers for the home volume instead - its size and the home's usage, as the Disk metric measures them
-# (metadata.sh) - preloaded by a btop wrapper in ~/.local/bin. On a real volume it changes nothing.
+# (coder stat workspace disk), preloaded by a btop wrapper in ~/.local/bin. On a real volume it changes nothing.
 # The image's btop: the first on the PATH but the wrapper's folder.
 btop_bin=$(PATH=$(printf '%s' "$PATH" | tr ':' '\n' | grep -vxF "$HOME/.local/bin" | paste -sd: -) command -v btop)
 if [ -n "$btop_bin" ] && command -v gcc >/dev/null; then
@@ -366,11 +366,9 @@ if [ -n "$btop_bin" ] && command -v gcc >/dev/null; then
 	fi
 	# The home's size and use for the library, kept fresh here too (each minute, quietly): the Disk metric writes them
 	# as it measures, but an agent can be without its metadata (a lost database row) - btop is right all the same.
-	echo '${platform_metadata}' | base64 -d >"$statfs_dir/metadata.sh"
 	(
 		while :; do
-			nice -n 19 bash -c "$(cat "$statfs_dir/metadata.sh")
-disk" >/dev/null 2>&1
+			nice -n 19 coder stat workspace disk >/dev/null 2>&1
 			sleep 60
 		done
 	) </dev/null >/dev/null 2>&1 &

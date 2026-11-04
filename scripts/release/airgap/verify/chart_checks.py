@@ -494,12 +494,8 @@ def template_checks(B, chart, default_render, dataflow_render):
             for ln in open(os.path.join(tpl_scripts, n)).read().splitlines()
             if re.search(r"\(.*&&.*&\)\s*$", ln) and not ln.lstrip().startswith("#")]
     check("template scripts: no background subshell keeps the script's output open", not held, held[:3])
-    # A metric's output is its value: reading a /proc entry of a process that ended meanwhile fails the redirection
-    # before a trailing 2>/dev/null applies, and "bash: line N: /proc/...: No such file" showed in the dashboard
-    metadata = open(os.path.join(chart, "charts", "coder-workspace", "files", "scripts", "metadata.sh")).read()
-    leaky = [ln.strip() for ln in metadata.splitlines()
-             if re.search(r'<\s*"?/proc/\$', ln) and not re.search(r"\{[^}]*<[^}]*;\s*\}\s*2>/dev/null", ln)]
-    check("metadata.sh: a process's /proc entry is read with its errors silenced (in braces)", not leaky, leaky[:3])
+    check("home disk monitoring uses the native agent command", "coder stat workspace disk" in startup
+          and not os.path.exists(os.path.join(tpl_scripts, "metadata.sh")), "")
     # The Linux user and the hostname are the owner's, not "coder": the account renamed by editing its files (usermod
     # refuses while its processes run), after a sudo rule for the new name that visudo accepted
     check("startup.sh: the Linux user renamed after the owner (sudo rule checked first, files edited, USER set)",
@@ -821,6 +817,10 @@ def main():
           and not re.search(r"# platform:(begin|end)", tf["main.tf"])
           and "CODER_PLATFORM_AGENT_DIR" in r and "/etc/coder-platform-agent" in r,
           {"scripts": sorted(agent_scripts), "metadata": sorted(agent_metadata)})
+    for key, metric in (("1_ram_usage", "ram"), ("2_home_disk", "disk"), ("3_load", "load"),
+                        ("5_mem_usage_host", "ram_host"), ("6_disk_host", "disk_host"),
+                        ("7_load_host", "load_host"), ("8_net_io", "net")):
+        check("native workspace metric " + metric, agent_metadata[key]["script"] == "coder stat workspace " + metric, key)
     check("template: the Desktop, File Browser and Terminal apps are the template's choice (variables)",
           all(re.search(r'variable "%s" \{\s*type\s*=\s*bool' % v, tf["main.tf"]) for v in ("desktop", "file_browser",
                                                                                           "terminal"))

@@ -8,6 +8,7 @@ import (
 	"golang.org/x/xerrors"
 
 	"github.com/coder/clistat"
+	"github.com/coder/coder/v2/agent/workspacestats"
 	"github.com/coder/coder/v2/cli/cliui"
 	"github.com/coder/serpent"
 )
@@ -49,6 +50,20 @@ func (r *RootCmd) stat() *serpent.Command {
 			r.statCPU(fs),
 			r.statMem(fs),
 			r.statDisk(fs),
+			{
+				Use:        "workspace <measurement>",
+				Short:      "Read a platform workspace or node metric.",
+				Hidden:     true,
+				Middleware: serpent.RequireNArgs(1),
+				Handler: func(inv *serpent.Invocation) error {
+					value, err := workspacestats.Collect(inv.Context(), inv.Args[0])
+					if err != nil {
+						return err
+					}
+					_, err = fmt.Fprintln(inv.Stdout, value)
+					return err
+				},
+			},
 		},
 		Handler: func(inv *serpent.Invocation) error {
 			var sr statsRow

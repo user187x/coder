@@ -6,9 +6,9 @@ USAGE:
   Show resource usage for the current workspace.
 
 SUBCOMMANDS:
-    cpu     Show CPU usage, in cores.
-    disk    Show disk usage, in gigabytes.
-    mem     Show memory usage, in gigabytes.
+    cpu          Show CPU usage, in cores.
+    disk         Show disk usage, in gigabytes.
+    mem          Show memory usage, in gigabytes.
 
 OPTIONS:
   -c, --column [host cpu|host memory|home disk|container cpu|container memory] (default: host cpu,host memory,home disk,container cpu,container memory)
