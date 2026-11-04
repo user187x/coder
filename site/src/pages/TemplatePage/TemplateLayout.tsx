@@ -15,6 +15,7 @@ import {
 	workspacePermissionChecks,
 } from "#/modules/permissions/workspaces";
 import { TemplatePageHeader } from "./TemplatePageHeader";
+import { TemplateStats } from "./TemplateStats";
 
 const templatePermissions = (
 	templateId: string,
@@ -146,6 +147,12 @@ export const TemplateLayout: React.FC<React.PropsWithChildren> = ({
 			)}
 
 			<Margins>
+				<div className="mb-3">
+					<TemplateStats
+						template={data.template}
+						activeVersion={data.activeVersion}
+					/>
+				</div>
 				<TemplateLayoutContext.Provider value={data}>
 					<Suspense fallback={<Loader />}>{children}</Suspense>
 				</TemplateLayoutContext.Provider>

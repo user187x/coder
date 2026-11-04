@@ -45,7 +45,6 @@ import {
 	buildTemplateExport,
 	fetchDeploymentIcon,
 } from "#/modules/platform/templateExport/templateExport";
-import { TemplateStats } from "./TemplateStats";
 import { useDeletionDialogState } from "./useDeletionDialogState";
 
 type TemplateMenuProps = {
@@ -334,9 +333,6 @@ export const TemplatePageHeader: React.FC<TemplatePageHeaderProps> = ({
 					</div>
 				</div>
 			</PageHeader>
-			<div className="pb-8">
-				<TemplateStats template={template} activeVersion={activeVersion} />
-			</div>
 		</Margins>
 	);
 };

@@ -1,8 +1,7 @@
 import { cn } from "cn";
 import set from "lodash/set";
-import { EditIcon } from "lucide-react";
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Link as RouterLink, useLocation, useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { SyntaxHighlighter } from "#/components/SyntaxHighlighter/SyntaxHighlighter";
 import {
 	Tabs,
@@ -26,6 +25,7 @@ type TemplateFilesProps = {
 	 * Files used to compare with current files
 	 */
 	baseFiles?: TemplateVersionFiles;
+	canEdit?: boolean;
 	/** Shown under the file tree, in the same sticky column (Source Code: the versions). */
 	sidebar?: React.ReactNode;
 	/** Shown above the file tree (Source Code: Upload). */
@@ -48,6 +48,7 @@ export const TemplateFiles: React.FC<TemplateFilesProps> = ({
 	versionName,
 	currentFiles,
 	baseFiles,
+	canEdit = true,
 	sidebar,
 	actions,
 	tabs,
@@ -56,6 +57,7 @@ export const TemplateFiles: React.FC<TemplateFilesProps> = ({
 	fill = false,
 }) => {
 	const getLink = useLinks();
+	const [showDiff, setShowDiff] = useState(true);
 	const location = useLocation();
 	const navigate = useNavigate();
 	const names = useMemo(
@@ -87,7 +89,7 @@ export const TemplateFiles: React.FC<TemplateFilesProps> = ({
 		(filename: string) => {
 			const value = currentFiles[filename].trim();
 			const previousValue = baseFiles ? baseFiles[filename]?.trim() : undefined;
-			const hasDiff = previousValue && value !== previousValue;
+			const hasDiff = previousValue !== undefined && value !== previousValue;
 
 			return {
 				value,
@@ -165,22 +167,15 @@ export const TemplateFiles: React.FC<TemplateFilesProps> = ({
 								onValueChange={pickFile}
 								className="min-w-0 overflow-hidden rounded-lg border border-solid border-surface-quaternary"
 							>
-								<header className="flex min-w-0 items-center gap-2 border-0 border-b border-solid border-surface-quaternary pr-3">
+								<header className="flex w-full min-w-0 items-center border-0 border-b border-solid border-surface-quaternary">
 									<FileCarousel names={names} selected={filename} />
-									<RouterLink
-										to={`${versionLink}/edit?path=${encodeURIComponent(filename)}`}
-										className="flex shrink-0 items-center gap-1 text-sm no-underline text-content-secondary hover:text-content-primary"
-									>
-										<EditIcon aria-hidden className="size-icon-xs" />
-										Edit
-									</RouterLink>
 								</header>
 								<TabsContent value={filename} className="m-0">
 									<SyntaxHighlighter
 										key={filename}
 										language={getLanguage(filename)}
 										value={info.value}
-										compareWith={info.previousValue}
+										compareWith={showDiff ? info.previousValue : undefined}
 										editorProps={{
 											// 18 is the editor line height; filling the page, up to most of the window
 											height: Math.min(
@@ -193,6 +188,34 @@ export const TemplateFiles: React.FC<TemplateFilesProps> = ({
 												editor.updateOptions({
 													scrollBeyondLastLine: false,
 												});
+												const editors =
+													"getModifiedEditor" in editor
+														? [
+																editor.getOriginalEditor(),
+																editor.getModifiedEditor(),
+															]
+														: [editor];
+												for (const pane of editors) {
+													if (canEdit)
+														pane.addAction({
+															id: "coder.editTemplateFile",
+															label: "Edit file",
+															contextMenuGroupId: "navigation",
+															run: () =>
+																navigate(
+																	`${versionLink}/edit?path=${encodeURIComponent(filename)}`,
+																),
+														});
+													if (info.hasDiff)
+														pane.addAction({
+															id: "coder.toggleTemplateDiff",
+															label: showDiff
+																? "Hide diff view"
+																: "Show diff view",
+															contextMenuGroupId: "navigation",
+															run: () => setShowDiff(!showDiff),
+														});
+												}
 											},
 										}}
 									/>
@@ -275,7 +298,7 @@ const FileCarousel: React.FC<{ names: string[]; selected: string }> = ({
 							key={name}
 							value={name}
 							title={name}
-							className="flex max-w-full shrink-0 items-center gap-1.5 whitespace-nowrap"
+							className="flex max-w-full shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-linear-to-r from-surface-secondary to-surface-tertiary px-3! py-1.5! data-[state=active]:ring-1 data-[state=active]:ring-inset data-[state=active]:ring-content-link"
 						>
 							<Icon aria-hidden className="size-icon-xs shrink-0" />
 							<span className="truncate">{name}</span>

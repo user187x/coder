@@ -34,7 +34,7 @@ export const SyntaxHighlighter: React.FC<SyntaxHighlighterProps> = ({
 	language,
 	editorProps,
 }) => {
-	const hasDiff = compareWith && value !== compareWith;
+	const hasDiff = compareWith !== undefined && value !== compareWith;
 	const theme = useTheme();
 	const coderTheme = useCoderTheme();
 

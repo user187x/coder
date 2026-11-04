@@ -133,35 +133,32 @@ const QuickMenuSettingsPage: React.FC = () => {
 			) : menu.isLoading ? (
 				<Loader />
 			) : (
-				<div className="flex flex-wrap items-start gap-8">
-					<section
-						aria-label="Preview"
-						className="flex w-full max-w-[380px] flex-col items-center gap-2 rounded-2xl border border-solid border-border bg-surface-secondary p-4"
-						data-testid="quick-menu-preview"
-					>
-						<Wheel
-							items={wedges.map((choice) => ({
-								id: choice.id,
-								name: choice.label,
-								icon: choice.icon,
-								allowed: choice.allowed(access),
-								why: "Admins only",
-							}))}
-							testIdPrefix="quick-menu-preview"
-							className="quick-menu-preview-wheel"
-						/>
-						<span className="text-xs text-content-secondary">
-							Preview: point at a wedge
-						</span>
-					</section>
+				<div className="flex flex-wrap items-start gap-6">
+					<div className="flex w-full max-w-[380px] flex-col gap-3">
+						<section
+							aria-label="Preview"
+							className="flex w-full max-w-[380px] flex-col items-center gap-2 rounded-2xl border border-solid border-border bg-surface-secondary p-4"
+							data-testid="quick-menu-preview"
+						>
+							<Wheel
+								items={wedges.map((choice) => ({
+									id: choice.id,
+									name: choice.label,
+									icon: choice.icon,
+									allowed: choice.allowed(access),
+									why: "Admins only",
+								}))}
+								testIdPrefix="quick-menu-preview"
+								className="quick-menu-preview-wheel"
+							/>
+							<span className="text-xs text-content-secondary">
+								Preview: point at a wedge
+							</span>
+						</section>
 
-					<section
-						aria-labelledby="quick-menu-wedges"
-						className="flex min-w-[300px] flex-1 flex-col gap-3"
-					>
 						<section
 							aria-labelledby="quick-menu-shortcut-heading"
-							className="mb-3 flex flex-col gap-3 rounded-lg border border-solid border-border p-4"
+							className="flex flex-col gap-2 rounded-2xl border border-solid border-border bg-surface-secondary p-4"
 						>
 							<h2
 								id="quick-menu-shortcut-heading"
@@ -188,7 +185,7 @@ const QuickMenuSettingsPage: React.FC = () => {
 									data-quick-menu-shortcut
 									readOnly
 									value={recording ? "Press a key or combination" : shortcut}
-									className="max-w-64"
+									className="w-full"
 									disabled={busy || !enabled}
 									onKeyDown={(event) => {
 										event.preventDefault();
@@ -223,11 +220,16 @@ const QuickMenuSettingsPage: React.FC = () => {
 								</Button>
 							</div>
 							<p className="m-0 text-xs text-content-secondary">
-								Save below to apply the shortcut and wedges for everyone.
-								Browser and system shortcuts may take priority. Plain character
-								keys do not activate the menu while typing in a field.
+								Save your changes in Wedges to apply them for everyone. Browser
+								and system shortcuts may take priority. Plain character keys do
+								not activate the menu while typing in a field.
 							</p>
 						</section>
+					</div>
+					<section
+						aria-labelledby="quick-menu-wedges"
+						className="flex min-w-[300px] flex-1 flex-col gap-3"
+					>
 						<div className="flex items-center justify-between gap-3">
 							<h2
 								id="quick-menu-wedges"

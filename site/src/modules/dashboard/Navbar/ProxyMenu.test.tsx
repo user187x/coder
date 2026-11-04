@@ -207,6 +207,7 @@ describe("ProxyMenu", () => {
 					item.textContent?.trim(),
 			);
 		expect(items.map((item) => item.textContent?.trim())).toEqual([
+			"Dock Settings",
 			expect.stringMatching(/^Workspaces/),
 			...pages.slice(0, 2).map((page) => page.label),
 			"Controls",
@@ -214,7 +215,7 @@ describe("ProxyMenu", () => {
 			"Audit logs",
 			"Connection logs",
 		]);
-		expect(items[0]).toBe(within(menu).getByTestId("workspaces-latency"));
+		expect(items[1]).toBe(within(menu).getByTestId("workspaces-latency"));
 		// the old first row (the region, its latency and its house) and the refresh row are gone
 		expect(within(menu).queryByRole("menuitemradio")).toBeNull();
 		expect(

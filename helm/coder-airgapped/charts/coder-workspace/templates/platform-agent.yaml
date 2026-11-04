@@ -2,10 +2,7 @@
 {{- $scripts := list }}
 {{- $metadata := list }}
 {{- $lockdown := printf "#!/bin/sh\nset -- start \"file:/etc/coder-lockdown/$CODER_WORKSPACE_ID\"\n%s" (.Files.Get "files/scripts/lockdown.sh") }}
-{{- $certificates := .Files.Get "files/scripts/certificates.sh" | replace "owner='${owner_name}'" "owner=\"$CODER_WORKSPACE_OWNER_NAME\"" | replace "$${" "${" }}
-{{- range $entry := list (dict "name" "Lock Down" "icon" "lockdown" "source" $lockdown) (dict "name" "Certificates" "icon" "certificate" "source" $certificates) }}
-{{- $scripts = append $scripts (dict "display_name" $entry.name "icon" (printf "/__icons/%s.svg" $entry.icon) "script" $entry.source "run_on_start" true "start_blocks_login" true) }}
-{{- end }}
+{{- $scripts = append $scripts (dict "display_name" "Lock Down" "icon" "/__icons/lockdown.svg" "script" $lockdown "run_on_start" true "start_blocks_login" true) }}
 {{- $metrics := .Files.Get "files/scripts/metadata.sh" }}
 {{- range $entry := list
   (list "0_cpu_usage" "CPU" "coder stat cpu" 10 1)

@@ -9,7 +9,6 @@ import {
 	useParams,
 	useSearchParams,
 } from "react-router";
-import { API } from "#/api/api";
 import {
 	previousTemplateVersion,
 	templateFiles,
@@ -19,7 +18,6 @@ import { Alert, AlertDescription, AlertTitle } from "#/components/Alert/Alert";
 import { Button } from "#/components/Button/Button";
 import { Loader } from "#/components/Loader/Loader";
 import { linkToTemplate, useLinks } from "#/modules/navigation";
-import { TemplateAppsPanel } from "#/modules/platform/templateApps/TemplateAppsPanel";
 import { GlobalFiles } from "#/modules/templates/TemplateFiles/GlobalFiles";
 import { MaterializedTemplate } from "#/modules/templates/TemplateFiles/MaterializedTemplate";
 import { TemplateFiles } from "#/modules/templates/TemplateFiles/TemplateFiles";
@@ -74,12 +72,6 @@ const TemplateFilesPage: React.FC = () => {
 	});
 	const shouldDisplayFiles =
 		currentFiles && (!hasPreviousVersion || previousFiles);
-	// Platform: the apps a workspace of this version gets, at the top (what was the Overview's resources table)
-	const { data: resources } = useQuery({
-		queryKey: ["templateVersion", version?.id, "resources"],
-		queryFn: () => API.getTemplateVersionResources(version?.id ?? ""),
-		enabled: Boolean(version),
-	});
 	// Code: the template's own files; Materialized: its main.tf as it is provisioned (the platform's sections in).
 	const [view, setView] = useState<"code" | "materialized">("code");
 
@@ -135,11 +127,9 @@ const TemplateFilesPage: React.FC = () => {
 					</button>
 				</div>
 			)}
-			{resources && (
-				<TemplateAppsPanel resources={resources} className="mb-6" />
-			)}
 			{shouldDisplayFiles && version ? (
 				<TemplateFiles
+					canEdit={permissions.canUpdateTemplate}
 					onSelectFile={() => setView("code")}
 					fill
 					key={version.id}

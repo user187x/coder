@@ -816,7 +816,7 @@ def main():
     agent_metadata = {x["key"]: x for x in agent_config["metadata"]}
     webhook = open(os.path.join(chart, "files/ui-updates/webhook.py")).read()
     check("native agent: platform scripts and metadata ship independently of template Terraform",
-          set(agent_scripts) == {"Lock Down", "Certificates", "Cloud Drive"}
+          set(agent_scripts) == {"Lock Down", "Cloud Drive"} and not os.path.exists(os.path.join(tf_dir, "scripts", "certificates.sh"))
           and len(agent_metadata) == 10 and "set -- start" in agent_scripts["Lock Down"]
           and not re.search(r"# platform:(begin|end)", tf["main.tf"])
           and "CODER_PLATFORM_AGENT_DIR" in r and "/etc/coder-platform-agent" in r,

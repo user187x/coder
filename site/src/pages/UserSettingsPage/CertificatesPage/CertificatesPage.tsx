@@ -62,8 +62,7 @@ const daysLeft = (date: string) =>
  * Settings > Certificates: the user's PKCS#12 certificate, installed into
  * every workspace they start as ~/.cert/<username>.p12 (mode 0600). It is one
  * of their own Coder secrets: the file, base64-encoded, delivered by Coder's
- * agent to ~/.cert/.<username>.p12.b64, which the template's installer
- * decodes. Coder never returns secret values, so this page shows what it can
+ * agent and decoded directly into the workspace certificate. Coder never returns secret values, so this page shows what it can
  * see: description and dates.
  */
 const CertificatesPage: React.FC = () => {

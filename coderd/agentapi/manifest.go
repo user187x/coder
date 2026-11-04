@@ -204,6 +204,7 @@ func dbAgentScriptToProto(script database.GetWorkspaceAgentScriptsByAgentIDsRow)
 		LogSourceId:      script.LogSourceID[:],
 		LogPath:          script.LogPath,
 		Script:           script.Script,
+		DisplayName:      script.DisplayName,
 		Cron:             script.Cron,
 		RunOnStart:       script.RunOnStart,
 		RunOnStop:        script.RunOnStop,
