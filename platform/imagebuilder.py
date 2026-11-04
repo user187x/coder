@@ -1575,6 +1575,12 @@ def scan_only(steps):
         return False
 
 
+def workspace_container(pod):
+    """The workspace's dev container, or the first container for a legacy template."""
+    containers = (pod.get("spec") or {}).get("containers") or []
+    return next((c for c in containers if c.get("name") == "dev"), containers[0] if containers else None)
+
+
 def node_image_groups():
     """Every image the cluster's nodes hold (preloaded, loaded or pulled), each once with all its names there (a tag,
     its digest) and the nodes that hold it: [{"names", "sizeBytes", "nodes"}]. A node reports only its largest images
@@ -1592,25 +1598,49 @@ def node_image_groups():
             if name not in g["nodes"]:
                 g["nodes"].append(name)
     by_name = {nodeimagepurge.normalize(n): g for g in groups.values() for n in g["names"]}
+    by_node = {(node, nodeimagepurge.normalize(n)): g for g in groups.values() for node in g["nodes"] for n in g["names"]}
+    running_by_digest = {}
     status, pods = kube_call("GET", "/api/v1/pods?fieldSelector=" + urllib.parse.quote("status.phase=Running"))
     for pod in (pods.get("items") or []) if status == 200 and isinstance(pods, dict) else []:
         node = (pod.get("spec") or {}).get("nodeName")
         st = pod.get("status") or {}
+        workspace = "com.coder.workspace.id" in ((pod.get("metadata") or {}).get("labels") or {})
+        main = workspace_container(pod) if workspace else None
         for c in (st.get("containerStatuses") or []) + (st.get("initContainerStatuses") or []):
             ref = c.get("image") or ""
             # its digest too, when the runtime knows it by one (a locally loaded image has only its ID)
             names = [n for n in (ref, c.get("imageID") or "") if n and not n.startswith("sha256:")]
             if not node or not names:
                 continue
-            g = next((by_name[nodeimagepurge.normalize(n)] for n in names if nodeimagepurge.normalize(n) in by_name), None)
+            keys = [nodeimagepurge.normalize(n) for n in reversed(names)]
+            digest = next((key for key in keys if "@sha256:" in key), None)
+            # A mutable tag may refer to different bytes on two nodes.
+            g = by_node.get((node, digest)) or by_name.get(digest)
+            if g is None:
+                for key in keys:
+                    candidate = by_node.get((node, key)) or by_name.get(key)
+                    if candidate and (not digest or not any("@sha256:" in n for n in candidate["names"])):
+                        g = candidate
+                        break
             if g is None:
                 g = groups.setdefault(tuple(sorted(names)), {"names": sorted(names), "sizeBytes": 0, "nodes": []})
             for n in names:
                 if n not in g["names"]:
                     g["names"].append(n)
                 by_name[nodeimagepurge.normalize(n)] = g
+                by_node[(node, nodeimagepurge.normalize(n))] = g
             if node not in g["nodes"]:
                 g["nodes"].append(node)
+            if main and main.get("name") == c.get("name") and (c.get("state") or {}).get("running") is not None:
+                # The runtime can report an older alias of exactly the same content.
+                g.setdefault("workspaceRefs", set()).add(main["image"])
+                if digest:
+                    running_by_digest.setdefault(digest, set()).add(main["image"])
+    for g in groups.values():
+        for name in g["names"]:
+            refs = running_by_digest.get(nodeimagepurge.normalize(name))
+            if refs:
+                g.setdefault("workspaceRefs", set()).update(refs)
     return list(groups.values())
 
 
@@ -2546,12 +2576,11 @@ def images_in_use():
     status, pods = kube_call("GET", "/api/v1/namespaces/%s/pods?labelSelector=%s" % (
         NAMESPACE, urllib.parse.quote("com.coder.workspace.id")))
     for pod in (pods.get("items") or []) if status == 200 and isinstance(pods, dict) else []:
-        containers = (pod.get("spec") or {}).get("containers") or []
-        if not containers or (pod.get("status") or {}).get("phase") not in ("Running", "Pending"):
+        main = workspace_container(pod)
+        if not main or (pod.get("status") or {}).get("phase") not in ("Running", "Pending"):
             continue
         labels = (pod.get("metadata") or {}).get("labels") or {}
         ws = "%s/%s" % (labels.get("com.coder.user.username", "?"), labels.get("com.coder.workspace.name", "?"))
-        main = next((container for container in containers if container.get("name") == "dev"), containers[0])
         found.setdefault(main["image"], {"workspaces": [], "templates": []})["workspaces"].append(ws)
     for t in TEMPLATES:
         if t.get("image"):
@@ -2581,16 +2610,28 @@ def images_on_nodes():
         for kind in ("tracked", "scanned"):
             if (img.get(kind) or {}).get("image"):
                 entries[img[kind]["image"]] = img["id"]
-    running = {e["image"] for e in images_in_use() if e["workspaces"]}
+    # Kubelet can report different subsets of cache aliases on different nodes.
+    # Consolidate the displayed rows without changing the per-node cleanup inputs.
+    running_rows = {}
     out = []
     for g in node_image_groups():
-        # its readable name (a tag) first; digests as the other names
-        refs = sorted(g["names"], key=lambda r: ("@" in r, r))
-        main = refs[0]
-        entry = next((entries[r] for r in refs if r in entries), None) or entries.get(
-            in_builder_registry(main) or "", None)
-        out.append({"image": main, "names": refs[1:], "sizeBytes": g["sizeBytes"], "nodes": sorted(g["nodes"]),
-                    "running": any(r in running for r in refs), "entry": entry})
+        active = g.get("workspaceRefs") or set()
+        for ref in active or [min(g["names"], key=lambda r: ("@" in r, r))]:
+            row = running_rows.get(ref) if active else None
+            if row is None:
+                row = {"image": ref, "names": set(), "sizeBytes": 0, "nodes": set(), "running": bool(active)}
+                out.append(row)
+                if active:
+                    running_rows[ref] = row
+            row["names"].update(g["names"])
+            row["nodes"].update(g["nodes"])
+            row["sizeBytes"] = max(row["sizeBytes"], g["sizeBytes"])
+    for row in out:
+        ref = row["image"]
+        row["nodes"] = sorted(row["nodes"])
+        row["names"] = sorted(row["names"] - {ref}, key=lambda r: ("@" in r, r))
+        row["entry"] = next((entries[n] for n in [ref, *row["names"]] if n in entries),
+                            entries.get(in_builder_registry(ref)))
     out.sort(key=lambda x: (not x["running"], x["entry"] is None, x["image"]))
     return out
 
