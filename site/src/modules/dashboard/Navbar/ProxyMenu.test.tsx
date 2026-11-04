@@ -219,8 +219,14 @@ describe("ProxyMenu", () => {
 				expect.objectContaining({ settings_sidebar: true }),
 			),
 		);
+		const undock = await screen.findByRole("menuitem", {
+			name: "Return to dropdown",
+		});
+		expect(undock).toBeVisible();
+		expect(screen.queryByRole("button", { name: /^Settings/ })).toBeNull();
+		await userEvent.click(undock);
 		expect(
-			await screen.findByRole("menuitem", { name: "Return to dropdown" }),
+			await screen.findByRole("button", { name: /^Settings/ }),
 		).toBeVisible();
 	});
 

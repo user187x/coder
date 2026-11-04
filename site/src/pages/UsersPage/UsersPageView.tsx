@@ -1,5 +1,4 @@
 import {
-	ChevronDownIcon,
 	HourglassIcon,
 	Maximize2Icon,
 	Minimize2Icon,
@@ -8,6 +7,7 @@ import {
 import { useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
 import type * as TypesGen from "#/api/typesGenerated";
+import { ChevronDownIcon } from "#/components/AnimatedIcons/ChevronDown";
 import { Button } from "#/components/Button/Button";
 import { Dialog, DialogContent, DialogTitle } from "#/components/Dialog/Dialog";
 import {
@@ -175,35 +175,29 @@ export const UsersPageView: React.FC<UsersPageViewProps> = ({
 			<h1 className="sr-only">Accounts</h1>
 			{canCreateUser && (
 				<NavbarAction>
-					<div className="inline-flex">
-						<Button
-							asChild
-							className={onCreateLease ? "rounded-r-none" : undefined}
-						>
-							<Link to="create">
-								<UserPlusIcon />
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button size="lg">
+								<UserPlusIcon aria-hidden />
 								New account
-							</Link>
-						</Button>
-						{onCreateLease && (
-							<DropdownMenu>
-								<DropdownMenuTrigger asChild>
-									<Button
-										aria-label="More account actions"
-										className="min-w-0 rounded-l-none border-0 border-l border-solid border-l-content-invert/25 px-2"
-									>
-										<ChevronDownIcon aria-hidden />
-									</Button>
-								</DropdownMenuTrigger>
-								<DropdownMenuContent align="end">
-									<DropdownMenuItem onSelect={onCreateLease}>
-										<HourglassIcon aria-hidden />
-										Create Lease
-									</DropdownMenuItem>
-								</DropdownMenuContent>
-							</DropdownMenu>
-						)}
-					</div>
+								<ChevronDownIcon aria-hidden />
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="end">
+							<DropdownMenuItem asChild>
+								<Link to="create">
+									<UserPlusIcon aria-hidden />
+									New account
+								</Link>
+							</DropdownMenuItem>
+							{onCreateLease && (
+								<DropdownMenuItem onSelect={onCreateLease}>
+									<HourglassIcon aria-hidden />
+									Create Lease
+								</DropdownMenuItem>
+							)}
+						</DropdownMenuContent>
+					</DropdownMenu>
 				</NavbarAction>
 			)}
 

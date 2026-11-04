@@ -68,10 +68,7 @@ type ProxyMenuProps = {
 	proxyContextValue?: ProxyContextValue;
 	canManageTunnels?: boolean;
 	tunnelActorId?: string;
-	/**
-	 * Platform: the HUD's link joined on its left (admins): one split button - HUD, then the latency, "Settings" and
-	 * the menu's chevron - in the place of three buttons.
-	 */
+	/** Whether the user can open the HUD from Settings. */
 	hud?: boolean;
 	/** Platform: the Controls menu, under the Workspaces row; the button then says "Settings". */
 	controls?: ProxyMenuControls;
@@ -237,7 +234,8 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 				<div
 					role="group"
 					aria-label="Dashboard navigation"
-					className="navbar-split"
+					className={docked ? "hidden" : "navbar-split"}
+					hidden={docked}
 					data-testid={hud ? "navbar-hud-latency" : undefined}
 				>
 					<DropdownMenuTrigger asChild>

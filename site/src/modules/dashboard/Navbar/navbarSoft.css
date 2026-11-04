@@ -3,10 +3,18 @@
 .navbar-soft a.inline-flex:not(#coder-system-banner a) {
 	border-radius: 10px;
 }
+.navbar-soft {
+	--navbar-action-width: 8.5rem;
+	--navbar-action-height: 2.5rem;
+}
+.navbar-soft :is(.navbar-split, .navbar-action > button, .navbar-action > a) {
+	box-sizing: border-box;
+	width: var(--navbar-action-width);
+	height: var(--navbar-action-height);
+}
 .navbar-split {
 	display: inline-flex;
 	align-items: stretch;
-	height: 2.5rem;
 	border: 1px solid hsl(var(--border-default));
 	border-radius: 10px;
 	background: hsl(var(--surface-primary));
@@ -15,6 +23,8 @@
 	white-space: nowrap;
 }
 .navbar-split-menu {
+	width: 100%;
+	justify-content: center;
 	display: inline-flex;
 	align-items: center;
 	gap: 0.5rem;
@@ -89,11 +99,16 @@ html[data-settings-side="compact"] {
 [data-radix-popper-content-wrapper]:has(
 	> .settings-menu[data-settings-docked]
 ) {
-	inset: var(
-			--settings-panel-top,
-			calc(var(--coder-classification-h, 0px) + 72px)
+	--dock-gutter: var(--settings-panel-right, 1.5rem);
+	inset: calc(
+			var(
+				--settings-panel-top,
+				calc(var(--coder-classification-h, 0px) + 72px)
+			) +
+			var(--dock-gutter)
 		)
-		var(--settings-panel-right, 1.5rem) var(--coder-classification-h, 0px) auto !important;
+		var(--dock-gutter)
+		calc(var(--coder-classification-h, 0px) + var(--dock-gutter)) auto !important;
 	transform: none !important;
 	width: var(--settings-dock-width);
 	min-width: 0 !important; /* Override the popper wrapper’s inline max-content minimum. */

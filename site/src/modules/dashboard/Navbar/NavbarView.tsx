@@ -151,7 +151,7 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 
 			<div
 				ref={actionRef}
-				className="mx-2 flex shrink-0 items-center empty:hidden"
+				className="navbar-action mx-2 flex shrink-0 items-center empty:hidden"
 			/>
 			<div
 				className={`flex items-center justify-end gap-3 ml-auto ${supportLinks.some(isNavbarLink) ? "md:ml-3" : "md:hidden"}`}

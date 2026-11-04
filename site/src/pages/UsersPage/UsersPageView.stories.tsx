@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { expect, spyOn, within } from "storybook/test";
+import { expect, fn, spyOn, userEvent, within } from "storybook/test";
 import { PlatformAPI } from "#/api/platform";
 import { quotaReport, schedulerReport } from "#/api/queries/platform";
 import {
@@ -55,12 +55,18 @@ type Story = StoryObj<typeof UsersPageView>;
 export const Admin: Story = {
 	args: {
 		canCreateUser: true,
+		onCreateLease: fn(),
 	},
-	play: async ({ canvasElement }) => {
+	play: async ({ canvasElement, args }) => {
 		const canvas = within(canvasElement);
+		const trigger = canvas.getByRole("button", { name: "New account" });
+		await userEvent.click(trigger);
+		const menu = within(await within(document.body).findByRole("menu"));
 		await expect(
-			canvas.getByRole("link", { name: "New account" }),
-		).toBeVisible();
+			menu.getByRole("menuitem", { name: "New account" }),
+		).toHaveAttribute("href", expect.stringMatching(/create$/));
+		await userEvent.click(menu.getByRole("menuitem", { name: "Create Lease" }));
+		await expect(args.onCreateLease).toHaveBeenCalledOnce();
 	},
 };
 
