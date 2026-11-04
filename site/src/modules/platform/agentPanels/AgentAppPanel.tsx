@@ -185,7 +185,11 @@ const PanelWithApp: React.FC<AgentAppPanelProps & { app: WorkspaceApp }> = ({
 			}
 		>
 			{browserSession ? (
-				<WorkspaceIframe src={sessionUrl} title={name} />
+				<WorkspaceIframe
+					src={sessionUrl ? `${sessionUrl}&panel=1` : undefined}
+					title={name}
+					allow="clipboard-read; clipboard-write; autoplay"
+				/>
 			) : (
 				<WorkspaceAppFrame
 					workspace={workspace}

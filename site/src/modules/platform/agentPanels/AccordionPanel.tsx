@@ -130,20 +130,29 @@ export const AccordionPanel: React.FC<AccordionPanelProps> = ({
 	const [resizing, setResizing] = useState(false);
 	const box = useRef<HTMLDivElement>(null);
 	const [browserMuted, setBrowserMuted] = useState(true);
+	const [transport, setTransport] = useState<"https" | "webrtc" | null>(null);
 	useEffect(() => {
 		if (slug !== "neko-browser") return;
-		const audioState = (event: MessageEvent) => {
+		const browserState = (event: MessageEvent) => {
 			if (
 				event.origin !== window.location.origin ||
-				event.source !== box.current?.querySelector("iframe")?.contentWindow ||
-				event.data?.type !== "coder:browser-audio" ||
-				typeof event.data.muted !== "boolean"
+				event.source !== box.current?.querySelector("iframe")?.contentWindow
 			)
 				return;
-			setBrowserMuted(event.data.muted);
+			if (
+				event.data?.type === "coder:browser-transport" &&
+				(event.data.mode === "https" || event.data.mode === "webrtc")
+			)
+				setTransport(event.data.mode);
+			if (
+				event.data?.type === "coder:browser-audio" &&
+				typeof event.data.muted === "boolean"
+			) {
+				setBrowserMuted(event.data.muted);
+			}
 		};
-		window.addEventListener("message", audioState);
-		return () => window.removeEventListener("message", audioState);
+		window.addEventListener("message", browserState);
+		return () => window.removeEventListener("message", browserState);
 	}, [slug]);
 	useEffect(() => {
 		if (!["neko-browser", "novnc"].includes(slug) || !open || !loaded || popup)
@@ -189,6 +198,8 @@ export const AccordionPanel: React.FC<AccordionPanelProps> = ({
 				popup?.close();
 				setPopup(null);
 				setLoaded(false);
+				setTransport(null);
+				setBrowserMuted(true);
 				setOpen(false);
 				if (remove) onRemove();
 			} catch {
@@ -358,7 +369,7 @@ export const AccordionPanel: React.FC<AccordionPanelProps> = ({
 					}
 				}}
 			>
-				<div className="px-4 py-2 relative flex items-center gap-2">
+				<div className="px-4 py-2 relative flex flex-wrap items-center gap-2">
 					{handle}
 					<CollapsibleTrigger asChild>
 						<Button
@@ -371,6 +382,37 @@ export const AccordionPanel: React.FC<AccordionPanelProps> = ({
 							<span>{title}</span>
 						</Button>
 					</CollapsibleTrigger>
+					{slug === "neko-browser" &&
+						transport &&
+						open &&
+						available &&
+						!popup && (
+							<div
+								role="group"
+								aria-label="Browser transport"
+								className="relative z-[1] inline-flex shrink-0 items-center rounded-full border border-solid border-border bg-surface-secondary p-0.5"
+							>
+								{(["https", "webrtc"] as const).map((mode) => (
+									<Button
+										key={mode}
+										size="sm"
+										variant="subtle"
+										aria-pressed={transport === mode}
+										className="h-6 rounded-full px-2 text-xs text-content-secondary aria-pressed:bg-surface-primary aria-pressed:text-content-link aria-pressed:shadow-sm"
+										onClick={() =>
+											box.current
+												?.querySelector("iframe")
+												?.contentWindow?.postMessage(
+													{ type: "coder:browser-set-transport", mode },
+													window.location.origin,
+												)
+										}
+									>
+										{mode === "https" ? "HTTPS" : "WebRTC"}
+									</Button>
+								))}
+							</div>
+						)}
 					{unavailable && (
 						<Badge size="xs" className="relative z-[1]">
 							{unavailable}
@@ -381,7 +423,7 @@ export const AccordionPanel: React.FC<AccordionPanelProps> = ({
 							In its own window
 						</Badge>
 					)}
-					<span className="relative z-[1] ml-auto flex items-center gap-1">
+					<span className="relative z-[1] ml-auto flex flex-wrap items-center justify-end gap-1">
 						{extras}
 						{onCloseSession && (
 							<label

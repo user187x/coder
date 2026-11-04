@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Browser workspace</title>
+  <script defer src="./coder-transport.js"></script>
   <style>
     :root { color-scheme: dark; font: 13px system-ui, sans-serif; }
     body { margin: 0; height: 100dvh; display: flex; flex-direction: column; background: #121317; color: #f1f2f5; }
@@ -20,6 +21,10 @@
     import RFB from "./compat/core/rfb.js";
     const status = document.querySelector('[role="status"]');
     const sound = document.querySelector("#sound");
+    const panelControls = window.parent !== window && new URL(location.href).searchParams.has("panel");
+    sound.hidden = panelControls;
+    document.querySelector("#retry").hidden = panelControls;
+    const audioControl = panelControls ? "Unmute on the Web Browser panel" : "Enable audio";
     const audio = new Audio();
     audio.preload = "none";
     const tellPanel = muted => window.parent.postMessage({type: "coder:browser-audio", muted}, location.origin);
@@ -42,8 +47,8 @@
         if (error.name === "AbortError") return;
         stopSound();
         status.textContent = error.name === "NotAllowedError"
-          ? "Click Enable audio to play sound in this browser."
-          : "Browser audio could not connect. Click Enable audio to retry.";
+          ? `Click ${audioControl} to play sound in this browser.`
+          : `Browser audio could not connect. Click ${audioControl} to retry.`;
       }
     };
     sound.addEventListener("click", () => audio.paused ? playSound() : stopSound());

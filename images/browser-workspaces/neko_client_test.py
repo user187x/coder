@@ -69,6 +69,43 @@ assert.equal(run({width:2}), 'https://coder.test/sessions/example/compatibility.
 """
         subprocess.run(['node', '-e', program, source], check=True, capture_output=True, text=True)
 
+    def test_panel_switches_viewer_without_changing_session(self):
+        source = pathlib.Path(__file__).with_name('neko-transport.js').read_text()
+        program = r"""
+const assert = require('node:assert/strict');
+const vm = require('node:vm');
+const origin = 'https://coder.test';
+const session = origin + '/@owner/workspace/apps/neko/sessions/app123/';
+let href = session + '?embed=1&panel=1', message, reported, tick;
+const parent = {postMessage: (data, target) => { assert.equal(target, origin); reported = data.mode; }};
+const window = {parent, addEventListener: (name, fn) => {if (name === 'message') message = fn;},
+  setInterval: fn => {tick = fn;}, clearInterval: () => {tick = undefined;}};
+const load = () => vm.runInNewContext(process.argv[1], {URL, window,
+  location: {href, replace: url => {href = url.href;}}, history: {replaceState: (_, __, url) => {href = url.href;}},
+  performance: {now: () => 30000}, document: {addEventListener() {}, querySelector() {return null;}}});
+const select = (mode, source = parent, from = origin) =>
+  message({source, origin: from, data: {type: 'coder:browser-set-transport', mode}});
+load();
+assert.equal(reported, 'webrtc');
+select('https', {});
+select('https', parent, 'https://other.test');
+select('invalid');
+assert.equal(href, session + '?embed=1&panel=1');
+select('webrtc'); tick();
+assert.equal(tick, undefined);
+select('https');
+assert.equal(href, session + 'compatibility.html?embed=1&panel=1&transport=https');
+load();
+assert.equal(reported, 'https');
+select('webrtc');
+assert.equal(href, session + '?embed=1&panel=1&transport=webrtc');
+load();
+assert.equal(reported, 'webrtc');
+assert.equal(tick, undefined);
+"""
+        result = subprocess.run(['node', '-e', program, source], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_panel_commands_require_the_same_origin_parent(self):
         source = pathlib.Path(__file__).with_name('neko-panel.js').read_text()
         program = r"""

@@ -23,7 +23,26 @@ const meta: Meta<typeof AccordionPanel> = {
 export default meta;
 type Story = StoryObj<typeof AccordionPanel>;
 
-export const Browser: Story = {};
+export const Browser: Story = {
+	args: {
+		children: (
+			<iframe
+				title="Browser session preview"
+				srcDoc={`<script>
+					let mode = "webrtc";
+					onmessage = ({source, data}) => {
+						if (source !== parent) return;
+						if (data.type === "coder:browser-set-transport") mode = data.mode;
+						if (data.type === "coder:browser-fit" || data.type === "coder:browser-set-transport") {
+							parent.postMessage({type: "coder:browser-transport", mode}, parent.location.origin);
+						}
+					};
+				</script>`}
+				className="size-full border-0"
+			/>
+		),
+	},
+};
 export const KeepSession: Story = {
 	play: async ({ canvasElement }) => {
 		await userEvent.click(

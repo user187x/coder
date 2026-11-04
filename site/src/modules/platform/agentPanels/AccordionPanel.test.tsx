@@ -71,6 +71,67 @@ describe("the accordion panel", () => {
 		},
 	);
 
+	it("sends transport and mute changes to the active browser session", async () => {
+		render(
+			<AccordionPanel
+				{...base}
+				initiallyOpen
+				title="Web Browser"
+				kind="app"
+				slug="neko-browser"
+			>
+				<iframe title="browser-session" />
+			</AccordionPanel>,
+		);
+		const frame =
+			screen.getByTitle<HTMLIFrameElement>("browser-session").contentWindow;
+		if (!frame) throw new Error("Expected browser session");
+		const post = vi.spyOn(frame, "postMessage");
+		const origin = window.location.origin;
+		const report = (
+			data: object,
+			source: Window = frame,
+			sourceOrigin = origin,
+		) => {
+			fireEvent(
+				window,
+				new MessageEvent("message", { data, source, origin: sourceOrigin }),
+			);
+		};
+		const ready = { type: "coder:browser-transport", mode: "webrtc" };
+		report(ready, window);
+		report(ready, frame, "https://other.test");
+		expect(
+			screen.queryByRole("group", { name: "Browser transport" }),
+		).toBeNull();
+		report(ready);
+		await userEvent.click(screen.getByRole("button", { name: "HTTPS" }));
+		expect(post).toHaveBeenLastCalledWith(
+			{ type: "coder:browser-set-transport", mode: "https" },
+			origin,
+		);
+		report({ type: "coder:browser-transport", mode: "https" });
+		expect(
+			screen.getByRole("button", { name: "HTTPS", pressed: true }),
+		).toBeVisible();
+		await userEvent.click(screen.getByRole("button", { name: "Unmute" }));
+		expect(post).toHaveBeenLastCalledWith(
+			{ type: "coder:browser-mute", muted: false },
+			origin,
+		);
+		report({ type: "coder:browser-audio", muted: false });
+		await userEvent.click(screen.getByRole("button", { name: "Mute" }));
+		expect(post).toHaveBeenLastCalledWith(
+			{ type: "coder:browser-mute", muted: true },
+			origin,
+		);
+		await userEvent.click(screen.getByRole("button", { name: "WebRTC" }));
+		expect(post).toHaveBeenLastCalledWith(
+			{ type: "coder:browser-set-transport", mode: "webrtc" },
+			origin,
+		);
+	});
+
 	it("starts the default app session on readiness and preserves it when collapsed", async () => {
 		const start = vi.fn();
 		const stop = vi.fn();
