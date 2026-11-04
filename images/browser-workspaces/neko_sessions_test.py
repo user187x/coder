@@ -1,4 +1,5 @@
 """Integration coverage; run inside a disposable image with its session gateway running."""
+import asyncio
 import json
 import os
 import pathlib
@@ -22,6 +23,30 @@ class SessionsTest(unittest.TestCase):
         try:
             self.assertEqual(get(f'sessions/{first}/?embed=1').status, 200)
             self.assertEqual(get(f'sessions/{second}/?embed=1').status, 200)
+            async def verify_desktop():
+                from aiohttp import ClientSession, WSServerHandshakeError
+                async with ClientSession() as client:
+                    url = base + f'sessions/{first}/desktop-socket'
+                    with self.assertRaises(WSServerHandshakeError) as rejected:
+                        await client.ws_connect(url, protocols=('binary', 'coder.wrong'))
+                    self.assertEqual(rejected.exception.status, 403)
+                    async with client.ws_connect(url, protocols=('binary', 'coder.' + csrf)) as socket:
+                        self.assertEqual(socket.protocol, 'binary')
+                        self.assertTrue((await socket.receive_bytes(timeout=10)).startswith(b'RFB '))
+                    with self.assertRaises(WSServerHandshakeError) as missing:
+                        await client.ws_connect(base + 'sessions/missing/desktop-socket', protocols=('binary', 'coder.' + csrf))
+                    self.assertEqual(missing.exception.status, 410)
+                    audio = base + f'sessions/{first}/desktop-audio'
+                    async with client.get(audio) as unauthorized:
+                        self.assertEqual(unauthorized.status, 403)
+                    async with client.get(base + f'sessions/{first}/compatibility.html?embed=1') as page:
+                        grant = page.cookies['coder_browser_audio']
+                        self.assertTrue(grant['secure'] and grant['httponly'])
+                    async with client.get(audio, cookies={'coder_browser_audio': grant.value}) as response:
+                        self.assertEqual(response.status, 200)
+                        self.assertEqual(response.content_type, 'audio/mpeg')
+                        self.assertTrue(await asyncio.wait_for(response.content.read(1024), 12))
+            asyncio.run(verify_desktop())
             one = next(root.glob(first + '-*'))
             two = next(root.glob(second + '-*'))
             self.assertNotEqual(one, two)

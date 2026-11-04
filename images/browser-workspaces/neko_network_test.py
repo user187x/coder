@@ -24,13 +24,14 @@ class NekoNetworkTest(unittest.TestCase):
             base = root / 'base'
             base.mkdir()
             (base / 'scripts').mkdir()
-            (base / 'main.tf').write_text('        container {\n          name  = "dev"\n          security_context {\n            run_as_user = "1000"\n          }\n        }\n')
+            (base / 'main.tf').write_text('data "coder_parameter" "home_disk_size" {\n  default = "10"\n}\n        container {\n          name  = "dev"\n          security_context {\n            run_as_user = "1000"\n          }\n        }\n')
             (base / 'workspace-vm.tf').write_text('')
             archive = builder.neko_template(base, root / 'template', 'registry.test/neko@sha256:123', 'custom-turn')
             with tarfile.open(archive) as tar:
                 policies = json.load(tar.extractfile('browser-network.tf.json'))['resource']['kubernetes_network_policy_v1']
                 policy = policies['browser_media']
             source = (root / 'template/main.tf').read_text()
+            self.assertIn('default = "25"', source)
             self.assertNotIn('var.terminal', source)
             self.assertIn('terminal = false', (root / 'template/terraform.tfvars').read_text())
             self.assertIn('CODER_AGENT_BLOCK_TERMINAL_ACCESS', source)

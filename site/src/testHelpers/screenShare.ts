@@ -16,6 +16,7 @@ export const MockScreenShare: ScreenShareSession = {
 	viewer: MockUserMember.id,
 	sharer_name: MockUserOwner.username,
 	viewer_name: MockUserMember.username,
+	admin_viewer: false,
 	workspace_id: null,
 	label: "Workspace desktop",
 	status: "requested",

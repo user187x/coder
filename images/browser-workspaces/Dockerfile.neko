@@ -1,6 +1,7 @@
 FROM ghcr.io/m1k1o/neko/chromium:3.1.6@sha256:2471119c7b4010067f76f3421a78a8bcf35e3c223b2d1f4db084914ec915fb30
-RUN apt-get update && apt-get install -y --no-install-recommends libnss3-tools openssl python3-aiohttp && rm -rf /var/lib/apt/lists/* \
-    && cp -a /home/neko /opt/neko-default-profile
+RUN apt-get update && apt-get install -y --no-install-recommends libnss3-tools openssl python3-aiohttp novnc tigervnc-scraping-server ffmpeg && rm -rf /var/lib/apt/lists/* \
+    && cp -a /home/neko /opt/neko-default-profile \
+    && mkdir -p /var/www/compat && cp -aL /usr/share/novnc/core /usr/share/novnc/vendor /var/www/compat/
 COPY chromium-browser-policy.json /etc/chromium/policies/managed/coder-browser.json
 COPY kasm-browser.py /opt/coder/browser-certificates.py
 COPY neko-certificates.conf /etc/neko/supervisord/certificates.conf
@@ -12,5 +13,7 @@ COPY patch-neko-client.py neko-start.py /opt/coder/
 COPY neko-sessions.py neko-support.html /opt/coder/
 COPY neko-supervisord.conf /etc/neko/coder-supervisord.conf
 COPY neko-panel.js /var/www/coder-panel.js
+COPY neko-transport.js /var/www/coder-transport.js
+COPY neko-compatibility.html /var/www/compatibility.html
 RUN python3 /opt/coder/patch-neko-client.py
 CMD ["/usr/bin/python3", "/opt/coder/neko-start.py"]

@@ -29,7 +29,7 @@ async def stop_session(session_id):
                 os.killpg(process.pid, signal.SIGTERM)
             except ProcessLookupError:
                 pass
-    for process in session['processes']:
+    for process in list(session['processes']):
         try:
             await asyncio.wait_for(process.wait(), 5)
         except asyncio.TimeoutError:
@@ -51,7 +51,8 @@ async def start_session(session_id):
     home = pathlib.Path(tempfile.mkdtemp(prefix=session_id + '-', dir=ROOT))
     display = f':{110 + slot}'
     port = 8110 + slot
-    session = {'slot': slot, 'port': port, 'home': home, 'processes': []}
+    session = {'slot': slot, 'port': port, 'home': home, 'processes': [],
+               'audio_key': secrets.token_urlsafe(32), 'audio_clients': 0}
     SESSIONS[session_id] = session
     env = dict(os.environ, HOME=str(home), DISPLAY=display,
                XDG_RUNTIME_DIR=str(home / 'runtime'), XDG_CONFIG_HOME=str(home / '.config'),
@@ -160,6 +161,117 @@ async def list_sessions(_request):
     return web.json_response({'sessions': sessions}, headers={'Cache-Control': 'no-store'})
 
 
+async def desktop_socket(request):
+    # The control token is readable only through this owner's Coder app. Requiring
+    # it as a subprotocol also prevents cross-origin WebSocket connections.
+    protocols = [p.strip() for p in request.headers.get('Sec-WebSocket-Protocol', '').split(',')]
+    if 'binary' not in protocols or not any(
+            secrets.compare_digest(p.encode(), ('coder.' + CSRF).encode()) for p in protocols):
+        raise web.HTTPForbidden()
+    async with LOCK:
+        session = SESSIONS.get(request.match_info['session'])
+        if not session or session['browser'].returncode is not None:
+            raise web.HTTPGone(text='This browser session has closed.')
+        path = session['home'] / 'desktop.sock'
+        server = session.get('desktop_server')
+        if not server or server.returncode is not None:
+            path.unlink(missing_ok=True)
+            with (session['home'] / 'desktop.log').open('ab') as log:
+                server = await asyncio.create_subprocess_exec(
+                    '/usr/bin/X0tigervnc', '-display', session['env']['DISPLAY'],
+                    '-rfbport', '-1', '-rfbunixpath', str(path), '-rfbunixmode', '0600',
+                    '-SecurityTypes', 'None', '-AlwaysShared', '-AcceptCutText=0',
+                    '-SendCutText=0', '-AcceptSetDesktopSize=0', '-QueryConnect=0',
+                    env=session['env'], stdout=log, stderr=log, start_new_session=True)
+            session['desktop_server'] = server
+            session['processes'].append(server)
+    for _ in range(50):
+        try:
+            reader, writer = await asyncio.open_unix_connection(path)
+            break
+        except (FileNotFoundError, ConnectionRefusedError):
+            if server.returncode is not None:
+                raise web.HTTPServiceUnavailable(text='The desktop connection exited.')
+            await asyncio.sleep(0.1)
+    else:
+        raise web.HTTPServiceUnavailable(text='The desktop connection did not start.')
+    ws = web.WebSocketResponse(protocols=('binary',))
+    async def from_display():
+        while chunk := await reader.read(65536):
+            await ws.send_bytes(chunk)
+    async def to_display():
+        async for message in ws:
+            if message.type != WSMsgType.BINARY:
+                break
+            writer.write(message.data)
+            await writer.drain()
+    tasks = []
+    try:
+        await ws.prepare(request)
+        tasks = [asyncio.create_task(fn()) for fn in (from_display, to_display)]
+        done, _ = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+        for task in done:
+            task.result()
+    finally:
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+        writer.close()
+        try:
+            await writer.wait_closed()
+        finally:
+            await ws.close()
+    return ws
+
+
+async def desktop_audio(request):
+    # Authorize the native media element without putting a token in its URL.
+    async with LOCK:
+        session = SESSIONS.get(request.match_info['session'])
+        if not session:
+            raise web.HTTPGone()
+        if not secrets.compare_digest(request.cookies.get('coder_browser_audio', '').encode(), session['audio_key'].encode()):
+            raise web.HTTPForbidden()
+        if session['audio_clients'] >= 4:
+            raise web.HTTPTooManyRequests()
+        process = await asyncio.create_subprocess_exec(
+            '/usr/bin/ffmpeg', '-nostdin', '-loglevel', 'error', '-f', 'pulse',
+            '-i', 'audio_output.monitor', '-c:a', 'libmp3lame', '-b:a', '96k',
+            '-write_xing', '0', '-flush_packets', '1', '-f', 'mp3', 'pipe:1',
+            stdout=asyncio.subprocess.PIPE, env=session['env'], start_new_session=True)
+        session['audio_clients'] += 1
+        session['processes'].append(process)
+    stream = web.StreamResponse(headers={'Content-Type': 'audio/mpeg', 'Cache-Control': 'no-store',
+                                         'Cross-Origin-Resource-Policy': 'same-origin', 'X-Accel-Buffering': 'no'})
+    try:
+        first = await asyncio.wait_for(process.stdout.read(8192), 10)
+        if not first:
+            raise web.HTTPServiceUnavailable(text='Browser audio capture failed.')
+        await stream.prepare(request)
+        await stream.write(first)
+        while chunk := await process.stdout.read(8192):
+            await stream.write(chunk)
+    except asyncio.TimeoutError:
+        raise web.HTTPServiceUnavailable(text='Browser audio capture timed out.')
+    except ConnectionResetError:
+        pass
+    finally:
+        session['audio_clients'] -= 1
+        if process.returncode is None:
+            try:
+                process.terminate()
+            except ProcessLookupError:
+                pass
+        try:
+            await asyncio.wait_for(process.communicate(), 3)
+        except asyncio.TimeoutError:
+            process.kill()
+            await process.communicate()
+        if process in session['processes']:
+            session['processes'].remove(process)
+    return stream
+
+
 async def support(_request):
     return web.FileResponse('/opt/coder/neko-support.html', headers={
         'Cache-Control': 'no-store',
@@ -205,6 +317,10 @@ async def proxy(request):
         for key, value in response.headers.items():
             if key.lower() not in HOP_HEADERS:
                 result.headers.add(key, value)
+        if request.match_info.get('path') == 'compatibility.html' and result.status == 200:
+            result.set_cookie('coder_browser_audio', session['audio_key'], path='', secure=True,
+                              httponly=True, samesite='Strict')
+            result.headers['Cache-Control'] = 'no-store'
         return result
 
 
@@ -231,6 +347,8 @@ def application():
     app.router.add_get('/sessions', list_sessions)
     app.router.add_get('/support', support)
     app.router.add_get('/sessions/{session}/status', status)
+    app.router.add_get('/sessions/{session}/desktop-socket', desktop_socket)
+    app.router.add_get('/sessions/{session}/desktop-audio', desktop_audio, allow_head=False)
     app.router.add_route('*', '/sessions/{session}/{path:.*}', proxy)
     return app
 

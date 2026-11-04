@@ -86,7 +86,7 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 			className="navbar-soft sticky top-0 bg-surface-primary z-40 border-0 border-b border-solid h-[72px] min-h-[72px] flex items-center leading-none"
 		>
 			{/* Platform: the logo in a tile like the user's avatar. */}
-			<div className="md:hidden">
+			<div className="@[48rem]/dashboard:hidden">
 				<NavbarLogo />
 			</div>
 
@@ -157,10 +157,10 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 			/>
 
 			<div
-				className={`flex items-center justify-end gap-3 ml-auto ${supportLinks.some(isNavbarLink) ? "md:ml-3" : "md:hidden"}`}
+				className={`flex items-center justify-end gap-3 ml-auto ${supportLinks.some(isNavbarLink) ? "@[48rem]/dashboard:ml-3" : "@[48rem]/dashboard:hidden"}`}
 			>
 				{supportLinks.filter(isNavbarLink).map((link) => (
-					<div key={link.name} className="hidden md:block">
+					<div key={link.name} className="hidden @[48rem]/dashboard:block">
 						<SupportButton
 							name={link.name}
 							target={link.target}
@@ -169,7 +169,7 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 					</div>
 				))}
 
-				<div className="md:hidden">
+				<div className="@[48rem]/dashboard:hidden">
 					<div className="flex items-center gap-3">
 						<div className="relative">
 							<NotificationsInbox

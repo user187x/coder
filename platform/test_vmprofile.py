@@ -288,7 +288,7 @@ class VMProfileTest(unittest.TestCase):
                 validate_vm(vm, fetch, 'coder', [IMAGE], ['Haswell-noTSX'])
 
     def test_guest_docker_arguments_cannot_override_boundary(self):
-        path = pathlib.Path(__file__).resolve().parents[1] / 'vmguest/runner.py'
+        path = pathlib.Path(__file__).resolve().parents[1] / 'helm/coder-airgapped/files/vmguest/runner.py'
         spec = importlib.util.spec_from_file_location('guest_runner', path)
         runner = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(runner)

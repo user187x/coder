@@ -6,6 +6,7 @@ export type ScreenShareSession = {
 	viewer: string;
 	sharer_name: string;
 	viewer_name: string;
+	admin_viewer: boolean;
 	workspace_id: string | null;
 	label: string;
 	status: "requested" | "sharing" | "ended";

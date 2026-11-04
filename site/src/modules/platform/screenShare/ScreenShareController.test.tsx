@@ -47,6 +47,7 @@ it.each(["sharer", "viewer"] as const)(
 			offer: "v=0\r\nexisting-offer",
 			answer: "v=0\r\nexisting-answer",
 			status: "sharing" as const,
+			admin_viewer: true,
 		};
 		vi.spyOn(ScreenShareAPI, "state").mockResolvedValue({
 			sessions: [session],

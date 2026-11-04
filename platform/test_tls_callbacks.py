@@ -224,7 +224,8 @@ class TLSCallbackTest(unittest.TestCase):
         cache = Mock()
         cache.get.return_value = None
         namespace = {'ssl': ssl, 're': re, 'json': json, 'urllib': urllib, 'TLS': ctx,
-                     'CODER_URL': self.server.url, 'LOGOS': None, 'FAVICONS': cache}
+                     'CODER_URL': self.server.url, 'LOGOS': None, 'FAVICONS': cache,
+                     'STORE': SimpleNamespace(get_setting=lambda name, default: default)}
         exec(compile(ast.Module(body=constants + functions, type_ignores=[]), str(ROOT / 'ui-service.py'), 'exec'), namespace)
         self.assertEqual(namespace['http_json'](self.url('/json')), (200, {}))
         self.assertEqual(namespace['parse_background_picture']('/pictures/probe.png')[1], b'/pictures/probe.png\n17')

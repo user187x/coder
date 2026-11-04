@@ -35,7 +35,7 @@ export const DashboardLayout: React.FC = () => {
 			{!embedded && <AnnouncementExpiry />}
 			{(!lockdown?.enabled || lockdown.admin) && <WorkspaceScheduleGate />}
 
-			<div className="flex flex-col min-h-screen justify-between">
+			<div className="dashboard-frame @container/dashboard flex min-h-screen min-w-0 flex-col justify-between">
 				{/* biome-ignore lint/a11y/useValidAnchor: Skip links use fragment anchors by design. */}
 				<a
 					href="#main-content"
@@ -52,7 +52,7 @@ export const DashboardLayout: React.FC = () => {
 				{/* On narrow screens the announcement is not docked in the navbar. */}
 				<div
 					data-dashboard-mobile-announcement
-					className="md:hidden sticky top-[calc(72px+var(--coder-classification-h,0px))] z-39 empty:hidden"
+					className="@[48rem]/dashboard:hidden sticky top-[calc(72px+var(--coder-classification-h,0px))] z-39 empty:hidden"
 				>
 					<AnnouncementBanner placement="page" />
 				</div>

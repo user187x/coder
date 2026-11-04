@@ -64,7 +64,7 @@ def patch(root):
         (root / 'js' / name).write_text(source)
         path.unlink()
         html = html.replace(path.name, name)
-    html = html.replace('<head>', '<head><script src="coder-owner.js"></script><script defer src="coder-panel.js"></script>', 1)
+    html = html.replace('<head>', '<head><script src="coder-owner.js"></script><script defer src="coder-panel.js"></script><script defer src="coder-transport.js"></script>', 1)
     index.write_text(html)
 
 

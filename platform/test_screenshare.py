@@ -132,6 +132,11 @@ class SupportTest(unittest.TestCase):
         self.assertEqual(created.body['session']['status'],'requested')
         self.assertEqual(len(call(sharer, method='GET').body['iceServers']), 1)
         self.assertIsNone(created.body['session']['offer'])
+        self.assertFalse(created.body['session']['admin_viewer'])
+        self.pool.query("UPDATE users SET rbac_roles=ARRAY['owner'] WHERE id=$1::uuid", [viewer])
+        for participant in (sharer, viewer):
+            self.assertTrue(call(participant, method='GET').body['sessions'][0]['admin_viewer'])
+        self.pool.query("UPDATE users SET rbac_roles='{}' WHERE id=$1::uuid", [viewer])
         self.assertEqual(call(stranger,method='GET').body['sessions'],[])
         self.assertEqual(call(stranger,method='GET').body['iceServers'],[])
         self.assertEqual(call(stranger,{'action':'heartbeat','id':sid}).status,403)

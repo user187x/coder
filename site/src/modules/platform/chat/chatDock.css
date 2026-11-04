@@ -1,21 +1,24 @@
-/* Platform: the chat attached to the right side (ChatSidePanel, 380px wide) takes its room from the page, which
-   narrows beside it instead of going on underneath - on a wide screen: there the panel runs up to the classification
-   bar (the top of the window without one), and the navbar narrows beside it too, its items sizing to what is left.
-   A narrower screen keeps the whole page: the panel lies over its right edge, from below the navbar. The bottom
-   bars keep the full width; the panel stops above them. */
-.chat-side-panel {
-	top: var(--chat-top, 0px);
-	bottom: var(--chat-bottom, 0px);
+/* Share a single width between the fixed rail and the dashboard beside it. */
+html[data-chat-side] {
+	--chat-side-width: min(380px, 48vw);
+	--dashboard-dock-inset: var(--chat-side-width);
 }
-@media (min-width: 1024px) {
-	.chat-side-panel {
-		top: var(--coder-classification-h, 0px);
-	}
-	/* 380px less the scrollbar's width (100vw - 100%): the panel lies over it, flush with the window's edge */
-	html[data-chat-side] #main-content,
-	html[data-chat-side] .navbar-soft {
-		margin-right: calc(380px - (100vw - 100%));
-	}
+html[data-settings-side="expanded"][data-chat-side] {
+	--chat-side-width: var(--settings-dock-width);
+}
+html[data-settings-side][data-chat-side] {
+	--dashboard-dock-inset: calc(
+		var(--chat-side-width) +
+		var(--settings-panel-right)
+	);
+}
+html[data-chat-side] .dashboard-frame {
+	margin-inline-end: var(--dashboard-dock-inset);
+}
+.chat-side-panel {
+	width: var(--chat-side-width);
+	top: var(--coder-classification-h, 0px);
+	bottom: var(--chat-bottom, 0px);
 }
 
 .chat-dock-section-tab {

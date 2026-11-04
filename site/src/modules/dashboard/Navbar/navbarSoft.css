@@ -186,10 +186,6 @@ html[data-settings-side="expanded"][data-chat-side] .chat-side-panel {
 	width: var(--settings-dock-width);
 }
 
-html[data-settings-side][data-chat-side] .navbar-soft {
-	margin-right: 0;
-}
-
 .navbar-soft [data-navbar-item="action"]:has(.navbar-action:empty) {
 	display: none;
 }
@@ -208,7 +204,7 @@ html[data-settings-side][data-chat-side] .navbar-soft {
 	background: hsl(var(--surface-secondary));
 	color: hsl(var(--content-secondary));
 }
-@media (width < 48rem) {
+@container dashboard (width < 48rem) {
 	.navbar-soft [data-navbar-item]:not([data-navbar-item="action"]) {
 		display: none;
 	}

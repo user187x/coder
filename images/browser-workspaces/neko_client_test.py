@@ -45,6 +45,30 @@ global.window = {CODER_NEKO_OWNER: 'workspace-owner'};
 '''
         subprocess.run(['node', '-e', program, patcher.CONNECT], check=True, capture_output=True, text=True)
 
+    def test_transport_uses_https_only_when_an_owner_has_no_playable_video(self):
+        source = pathlib.Path(__file__).with_name('neko-transport.js').read_text()
+        program = r"""
+const assert = require('node:assert/strict');
+const vm = require('node:vm');
+function run({support = false, width = 2}) {
+  let tick, time = 0, destination;
+  class MediaStream {}
+  const location = {href: 'https://coder.test/sessions/example/?embed=1' + (support ? '&support=1' : ''),
+    search: '?embed=1', replace: url => { destination = url.href; }};
+  const document = {hidden:false, addEventListener(){}, querySelector: () => ({
+    srcObject:new MediaStream(), readyState:4, videoWidth:width, videoHeight:width})};
+  vm.runInNewContext(process.argv[1], {URL, location, MediaStream, HTMLMediaElement:{HAVE_CURRENT_DATA:2},
+    performance:{now:()=>time}, document, window:{setInterval:fn=>{tick=fn}, clearInterval(){}, addEventListener(){}}});
+  time = 21000;
+  tick?.();
+  return destination;
+}
+assert.equal(run({support:true}), undefined);
+assert.equal(run({width:800}), undefined);
+assert.equal(run({width:2}), 'https://coder.test/sessions/example/compatibility.html?embed=1');
+"""
+        subprocess.run(['node', '-e', program, source], check=True, capture_output=True, text=True)
+
     def test_panel_commands_require_the_same_origin_parent(self):
         source = pathlib.Path(__file__).with_name('neko-panel.js').read_text()
         program = r"""

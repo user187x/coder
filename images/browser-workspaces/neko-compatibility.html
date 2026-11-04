@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Browser workspace</title>
+  <style>
+    :root { color-scheme: dark; font: 13px system-ui, sans-serif; }
+    body { margin: 0; height: 100dvh; display: flex; flex-direction: column; background: #121317; color: #f1f2f5; }
+    header { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .35rem .65rem; }
+    a, button { color: #a8d8ff; }
+    button { cursor: pointer; background: transparent; border: 1px solid currentColor; border-radius: .4rem; padding: .2rem .5rem; }
+    main { flex: 1; min-height: 0; }
+  </style>
+</head>
+<body>
+  <header><span role="status">Connecting through HTTPS…</span><button id="sound" type="button" aria-pressed="false">Enable audio</button><a id="retry" href="./">Retry WebRTC</a></header>
+  <main aria-label="Workspace browser desktop"></main>
+  <script type="module">
+    import RFB from "./compat/core/rfb.js";
+    const status = document.querySelector('[role="status"]');
+    const sound = document.querySelector("#sound");
+    const audio = new Audio();
+    audio.preload = "none";
+    const tellPanel = muted => window.parent.postMessage({type: "coder:browser-audio", muted}, location.origin);
+    const stopSound = () => {
+      audio.pause();
+      audio.removeAttribute("src");
+      audio.load();
+      sound.textContent = "Enable audio";
+      sound.setAttribute("aria-pressed", "false");
+      tellPanel(true);
+    };
+    const playSound = async () => {
+      if (!audio.hasAttribute("src")) audio.src = new URL("desktop-audio", location.href).href;
+      try {
+        await audio.play();
+        sound.textContent = "Mute audio";
+        sound.setAttribute("aria-pressed", "true");
+        tellPanel(false);
+      } catch (error) {
+        if (error.name === "AbortError") return;
+        stopSound();
+        status.textContent = error.name === "NotAllowedError"
+          ? "Click Enable audio to play sound in this browser."
+          : "Browser audio could not connect. Click Enable audio to retry.";
+      }
+    };
+    sound.addEventListener("click", () => audio.paused ? playSound() : stopSound());
+    window.addEventListener("message", event => {
+      if (event.origin !== location.origin || event.source !== window.parent) return;
+      if (event.data?.type === "coder:browser-mute" && typeof event.data.muted === "boolean") {
+        if (event.data.muted) stopSound();
+        else void playSound();
+      }
+    });
+    window.addEventListener("pagehide", stopSound, {once: true});
+    tellPanel(true);
+    const retry = new URL("./", location.href);
+    retry.search = location.search;
+    document.querySelector("#retry").href = retry;
+    try {
+      const response = await fetch(new URL("../../control", location.href), {cache: "no-store"});
+      if (!response.ok) throw new Error("Could not authorize the desktop connection.");
+      const {csrf} = await response.json();
+      const socket = new URL("desktop-socket", location.href);
+      socket.protocol = location.protocol === "https:" ? "wss:" : "ws:";
+      const viewer = new RFB(document.querySelector("main"), socket.href, {wsProtocols: ["binary", "coder." + csrf]});
+      viewer.scaleViewport = true;
+      viewer.addEventListener("connect", () => {
+        status.textContent = "Connected through HTTPS";
+      });
+      viewer.addEventListener("disconnect", async () => {
+        status.textContent = "Desktop disconnected. Refresh this panel to reconnect.";
+        if (location.search.includes("embed")) {
+          try {
+            const response = await fetch(new URL("status", location.href), {cache: "no-store"});
+            if (response.ok && (await response.json()).running === false) {
+              (window.opener || window.parent).postMessage({type: "coder:browser-exited"}, location.origin);
+            }
+          } catch { /* Keep the reconnect message when the workspace is unreachable. */ }
+        }
+      });
+      window.addEventListener("pagehide", () => viewer.disconnect(), {once: true});
+    } catch (error) {
+      status.textContent = error.message;
+    }
+  </script>
+</body>
+</html>

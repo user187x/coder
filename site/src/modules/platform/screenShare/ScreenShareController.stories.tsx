@@ -29,6 +29,8 @@ export const ConnectedInAnotherTab: Story = {
 						{
 							...MockScreenShare,
 							status: "sharing",
+							admin_viewer: true,
+							expires_at: "2099-01-01T00:00:00Z",
 							offer: "v=0\r\nexisting-offer",
 							answer: "v=0\r\nexisting-answer",
 						},

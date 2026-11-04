@@ -1,4 +1,5 @@
-import { useEffect, useEffectEvent, useRef } from "react";
+import { useEffect, useEffectEvent, useRef, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { useLocation } from "react-router";
 import { getErrorMessage } from "#/api/errors";
@@ -21,9 +22,16 @@ import {
 } from "./media";
 import { SharedDashboardView } from "./SharedDashboardView";
 
+const subscribeFullscreen = (changed: () => void) => {
+	document.addEventListener("fullscreenchange", changed);
+	return () => document.removeEventListener("fullscreenchange", changed);
+};
+const watermarkHost = () => document.fullscreenElement ?? document.body;
+
 /** Keeps a consented stream alive across page changes; navigation never starts capture. */
 export const ScreenShareController = () => {
 	const { user } = useAuthContext();
+	const overlayHost = useSyncExternalStore(subscribeFullscreen, watermarkHost);
 	const client = useQueryClient();
 	const query = useQuery({ ...screenShares(), enabled: Boolean(user) });
 	const { mutateAsync: signal } = useMutation({
@@ -217,6 +225,22 @@ export const ScreenShareController = () => {
 			data-dashboard-support-ignore
 			className="fixed left-1/2 top-20 z-[70] w-[min(420px,calc(100vw-32px))] -translate-x-1/2 rounded-xl border border-solid border-border bg-surface-primary p-3 shadow-xl"
 		>
+			{query.data?.sessions.some(
+				(s) =>
+					s.admin_viewer &&
+					s.status === "sharing" &&
+					Date.parse(s.expires_at) > Date.now(),
+			) &&
+				createPortal(
+					<div
+						role="status"
+						data-dashboard-support-ignore
+						className="pointer-events-none fixed bottom-[calc(var(--coder-classification-h,0px)+0.75rem)] left-3 z-[100] rounded-md bg-black/70 px-3 py-1.5 text-xs font-semibold text-white"
+					>
+						Monitoring In Progress
+					</div>,
+					overlayHost,
+				)}
 			<div className="flex items-center justify-between gap-3">
 				<strong className="text-sm">
 					{media.id

@@ -179,9 +179,10 @@ def sessions(db, uid, sid=None):
     rows = db.query('''SELECT row_to_json(s)::text FROM (SELECT id::text, organization_id::text,
         sharer::text, viewer::text, (SELECT username FROM users WHERE id=sharer) AS sharer_name,
         (SELECT username FROM users WHERE id=viewer) AS viewer_name,
+        EXISTS(SELECT 1 FROM users WHERE id=viewer AND rbac_roles && $3::text[]) AS admin_viewer,
         workspace_id::text, label, status, mode, offer, answer, created_at, expires_at FROM coder_ui_updates.screen_shares
         WHERE (sharer=$1::uuid OR viewer=$1::uuid) AND ($2::uuid IS NULL OR id=$2::uuid)
-        AND (status != 'ended' OR id=$2::uuid) ORDER BY created_at DESC LIMIT 10) s''', [uid, sid])
+        AND (status != 'ended' OR id=$2::uuid) ORDER BY created_at DESC LIMIT 10) s''', [uid, sid, '{' + ','.join(admin_roles()) + '}'])
     return [json.loads(row[0]) for row in rows]
 
 
