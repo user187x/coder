@@ -32,11 +32,6 @@ import {
 import { ExternalImage } from "#/components/ExternalImage/ExternalImage";
 import { FileUpload } from "#/components/FileUpload/FileUpload";
 import { Loader } from "#/components/Loader/Loader";
-import {
-	SettingsHeader,
-	SettingsHeaderDescription,
-	SettingsHeaderTitle,
-} from "#/components/SettingsHeader/SettingsHeader";
 import { Spinner } from "#/components/Spinner/Spinner";
 import { Switch } from "#/components/Switch/Switch";
 import {
@@ -79,13 +74,7 @@ const CustomizeSettingsPage: React.FC = () => {
 	return (
 		<>
 			<title>{pageTitle("Appearance")}</title>
-			<SettingsHeader>
-				<SettingsHeaderTitle>Appearance</SettingsHeaderTitle>
-				<SettingsHeaderDescription>
-					Manage deployment branding and backgrounds, then personalize your own
-					theme.
-				</SettingsHeaderDescription>
-			</SettingsHeader>
+			<h1 className="sr-only">Appearance</h1>
 
 			<div className="flex flex-col gap-6">
 				<LogoSection />

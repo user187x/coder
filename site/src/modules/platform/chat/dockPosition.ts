@@ -29,13 +29,27 @@ export const snapDockPosition = (
 	};
 };
 
+/** The content right edge follows the Settings panel in both docked sizes. */
+export const chatRightEdge = () => {
+	const side = document.querySelector(".settings-menu[data-settings-docked]");
+	return side
+		? Math.max(
+				0,
+				Math.min(
+					document.documentElement.clientWidth,
+					side.getBoundingClientRect().left,
+				),
+			)
+		: document.documentElement.clientWidth;
+};
+
 export const placeDock = (
 	element: HTMLElement,
 	position: DockPosition,
 	top: number,
 	bottom: number,
 ) => {
-	const width = document.documentElement.clientWidth;
+	const width = chatRightEdge();
 	const height = window.innerHeight;
 	// Opposing anchors stretch an auto-sized dock and feed the previous position into its next measurement.
 	element.style.right = "auto";

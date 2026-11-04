@@ -5,6 +5,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -15,6 +16,7 @@ import (
 	"golang.org/x/xerrors"
 
 	workspacelockdown "github.com/coder/coder/v2/cmd/workspace-platform/internal/lockdown"
+	"github.com/coder/coder/v2/cmd/workspace-platform/internal/workspacecloud"
 )
 
 const toolsDir = "/opt/coder-platform"
@@ -50,10 +52,17 @@ func install() error {
 }
 
 func run(ctx context.Context, args []string) error {
+	if filepath.Base(os.Args[0]) == "cloud-drive" {
+		return workspacecloud.Command(args, os.Stdin, os.Stdout)
+	}
 	if len(args) == 0 {
 		return xerrors.New("expected a workspace platform command")
 	}
 	switch args[0] {
+	case "cloud-drive":
+		return workspacecloud.Command(args[1:], os.Stdin, os.Stdout)
+	case "cloud-runtime":
+		return workspacecloud.Runtime(ctx, args[1:], os.Stdout)
 	case "install":
 		return install()
 	case "init-lockdown":
@@ -74,6 +83,10 @@ func main() {
 	stop()
 	if err != nil {
 		_, _ = fmt.Fprintln(os.Stderr, err)
+		var classified interface{ ExitCode() int }
+		if errors.As(err, &classified) {
+			os.Exit(classified.ExitCode())
+		}
 		os.Exit(1)
 	}
 }

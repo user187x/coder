@@ -38,6 +38,7 @@ export const SettingsSidePanels = ({
 	const [bounds, setBounds] = useState({
 		height: 0,
 		viewport: 0,
+		topInset: 0,
 		width: 0,
 		anchorTop: 0,
 		anchorVisible: false,
@@ -46,13 +47,24 @@ export const SettingsSidePanels = ({
 	});
 	useLayoutEffect(() => {
 		if (!container) return;
+		const navbar = document.querySelector(".navbar-soft");
 		const links = resourcePanel?.querySelector<HTMLElement>(
 			".settings-resource-tray-links",
 		);
 		const measure = () => {
 			const menu = container.getBoundingClientRect();
 			const metric = anchor?.getBoundingClientRect();
-			const viewport = Math.max(0, window.innerHeight - menu.top - 8);
+			const docked = container.hasAttribute("data-settings-docked");
+			const viewport = Math.max(
+				0,
+				Math.min(
+					window.innerHeight - menu.top - 8,
+					docked ? menu.height : Number.POSITIVE_INFINITY,
+				),
+			);
+			const topInset = docked
+				? Math.max(0, (navbar?.getBoundingClientRect().bottom ?? 0) - menu.top)
+				: 0;
 			const notesSpace = resources.images && metric?.height ? 136 : 0;
 			// Reserve room for the full strip even when the settings list has only one row.
 			const linksHeight = links?.offsetHeight ?? 0;
@@ -62,7 +74,7 @@ export const SettingsSidePanels = ({
 				`${Math.ceil(railHeight)}px`,
 			);
 			const height = Math.min(Math.max(menu.height, railHeight), viewport);
-			const available = Math.max(1, height - 16 - notesSpace - 28);
+			const available = Math.max(1, height - topInset - 16 - notesSpace - 28);
 			container.style.setProperty(
 				"--settings-links-scale",
 				String(Math.min(1, available / Math.max(1, linksHeight))),
@@ -70,9 +82,10 @@ export const SettingsSidePanels = ({
 			const next = {
 				height,
 				viewport,
+				topInset,
 				width: Math.max(
 					0,
-					Math.min(window.innerWidth - 24, menu.left + 65 - 12),
+					Math.min(window.innerWidth - 24, menu.left + (docked ? 0 : 65) - 12),
 				),
 				anchorTop: metric ? metric.top - menu.top : 0,
 				anchorVisible: Boolean(metric?.height),
@@ -99,6 +112,7 @@ export const SettingsSidePanels = ({
 		const observer = new ResizeObserver(schedule);
 		for (const element of [
 			container,
+			navbar,
 			anchor,
 			resourcePanel,
 			notesPanel,
@@ -120,7 +134,7 @@ export const SettingsSidePanels = ({
 	const withNotes = resources.images && bounds.anchorVisible;
 	const layout = settingsPanelLayout({
 		...bounds,
-		height: bounds.viewport,
+		height: bounds.height,
 		resourceTop: resourceTop ?? preferences.data?.resource_tray_top ?? 56,
 		notesTop:
 			notesTop ?? preferences.data?.admin_notes_tray_top ?? bounds.anchorTop,
@@ -142,9 +156,10 @@ export const SettingsSidePanels = ({
 					hidden={!withNotes}
 					onElement={setNotesPanel}
 					maxWidth={bounds.width}
+					railViewport={Math.max(0, bounds.viewport - 8)}
 					placement={{
 						...layout.notes,
-						maxHeight: Math.max(0, bounds.viewport - layout.notes.top - 8),
+
 						onMove: setNotesTop,
 						onCommit: (top) => save.mutate({ admin_notes_tray_top: top }),
 					}}

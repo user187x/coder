@@ -21,11 +21,6 @@ import {
 } from "#/components/Dialog/Dialog";
 import { Loader } from "#/components/Loader/Loader";
 import {
-	SettingsHeader,
-	SettingsHeaderDescription,
-	SettingsHeaderTitle,
-} from "#/components/SettingsHeader/SettingsHeader";
-import {
 	Table,
 	TableBody,
 	TableCell,
@@ -110,15 +105,7 @@ export const ClusterMap: React.FC = () => {
 	return (
 		<EntityProvider>
 			<section>
-				<SettingsHeader>
-					<SettingsHeaderTitle>Cluster Network</SettingsHeaderTitle>
-					<SettingsHeaderDescription>
-						A live map of the Kubernetes cluster Coder runs on: nodes, their
-						addresses and load, the platform's pods and the workspaces on each.
-						Click any pod, Service, node or line for its details. Refreshes
-						every 5 seconds.
-					</SettingsHeaderDescription>
-				</SettingsHeader>
+				<h1 className="sr-only">Cluster Network</h1>
 				{query.isLoading ? (
 					<Loader />
 				) : (

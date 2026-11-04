@@ -26,9 +26,7 @@ export const UserAuthSettingsPageView = ({
 	return (
 		<div className="flex flex-col gap-12">
 			<div>
-				<SettingsHeader>
-					<SettingsHeaderTitle>User Authentication</SettingsHeaderTitle>
-				</SettingsHeader>
+				<h1 className="sr-only">User Authentication</h1>
 
 				<SettingsHeader>
 					<SettingsHeaderTitle level="h2" hierarchy="secondary">

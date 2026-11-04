@@ -1,49 +1,71 @@
+import { cn } from "cn";
 import { PlusIcon } from "lucide-react";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useQuery } from "react-query";
 import { Link } from "react-router";
 import { deploymentConfig } from "#/api/queries/deployment";
 import { templates } from "#/api/queries/templates";
 import { workspaces } from "#/api/queries/workspaces";
-import {
-	ContextMenu,
-	ContextMenuContent,
-	ContextMenuItem,
-	ContextMenuTrigger,
-} from "#/components/ContextMenu/ContextMenu";
+import { DropdownMenuItem } from "#/components/DropdownMenu/DropdownMenu";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { linkToTemplate, useLinks } from "#/modules/navigation";
+import type { AdminPage } from "./adminQuickLinks";
 
 export function SettingsDestinationMenu({
-	kind,
-	children,
+	link,
+	className,
 }: {
-	kind: "workspaces" | "templates";
-	children: React.ReactElement;
+	link: AdminPage;
+	className?: string;
 }) {
 	const [open, setOpen] = useState(false);
+	const id = useId();
+	const toggle = (event: React.SyntheticEvent) => {
+		event.preventDefault();
+		event.stopPropagation();
+		setOpen((previous) => !previous);
+	};
 	return (
-		<ContextMenu onOpenChange={setOpen}>
-			<ContextMenuTrigger
+		<>
+			<DropdownMenuItem
 				asChild
-				onContextMenu={(event) => event.stopPropagation()}
+				aria-expanded={open}
+				aria-controls={open ? id : undefined}
+				className={cn("min-w-0 flex-1", className)}
+				onContextMenu={toggle}
+				onKeyDown={(event) => {
+					if (
+						event.key === "ContextMenu" ||
+						(event.shiftKey && event.key === "F10") ||
+						event.key === "ArrowRight"
+					) {
+						toggle(event);
+					}
+				}}
+				title={`Right-click to show or hide ${link.label.toLowerCase()}`}
 			>
-				{children}
-			</ContextMenuTrigger>
-			<ContextMenuContent
-				aria-label={
-					kind === "templates" ? "Available templates" : "Your workspaces"
-				}
-				className="max-h-[min(24rem,70dvh)] overflow-y-auto"
-			>
-				{open &&
-					(kind === "workspaces" ? (
+				<Link to={link.path}>
+					<link.icon aria-hidden />
+					<span className="truncate">{link.label}</span>
+				</Link>
+			</DropdownMenuItem>
+			{open && (
+				<div
+					id={id}
+					role="group"
+					aria-label={
+						link.id === "workspaces" ? "Your workspaces" : "Available templates"
+					}
+					className="order-last my-1 w-full min-w-0 rounded-md border border-solid border-border bg-surface-secondary p-1"
+				>
+					{link.id === "workspaces" ? (
 						<WorkspaceDestinations />
 					) : (
 						<TemplateDestinations />
-					))}
-			</ContextMenuContent>
-		</ContextMenu>
+					)}
+				</div>
+			)}
+		</>
 	);
 }
 
@@ -52,22 +74,22 @@ function WorkspaceDestinations() {
 	return (
 		<>
 			{query.data?.workspaces.map((item) => (
-				<ContextMenuItem key={item.id} asChild>
+				<DropdownMenuItem key={item.id} asChild>
 					<Link
 						to={`/@${encodeURIComponent(item.owner_name)}/${encodeURIComponent(item.name)}`}
 					>
 						{item.name}
 					</Link>
-				</ContextMenuItem>
+				</DropdownMenuItem>
 			))}
 			{!query.data?.workspaces.length && (
-				<ContextMenuItem disabled>
+				<DropdownMenuItem disabled>
 					{query.isLoading
 						? "Loading workspaces…"
 						: query.isError
 							? "Could not load workspaces"
 							: "No workspaces"}
-				</ContextMenuItem>
+				</DropdownMenuItem>
 			)}
 		</>
 	);
@@ -84,26 +106,26 @@ function TemplateDestinations() {
 	return (
 		<>
 			{query.data?.map((item) => (
-				<ContextMenuItem key={item.id} asChild>
+				<DropdownMenuItem key={item.id} asChild>
 					<Link to={getLink(linkToTemplate(item.organization_name, item.name))}>
 						{item.display_name || item.name}{" "}
 						<small className="ml-auto text-content-secondary">
 							{item.organization_display_name || item.organization_name}
 						</small>
 					</Link>
-				</ContextMenuItem>
+				</DropdownMenuItem>
 			))}
 			{!query.data?.length && (
-				<ContextMenuItem disabled>
+				<DropdownMenuItem disabled>
 					{query.isLoading
 						? "Loading templates…"
 						: query.isError
 							? "Could not load templates"
 							: "No templates available"}
-				</ContextMenuItem>
+				</DropdownMenuItem>
 			)}
 			{permissions.createTemplates && (
-				<ContextMenuItem
+				<DropdownMenuItem
 					asChild
 					className="mt-2 justify-center rounded-full bg-surface-invert-primary p-3 text-content-invert"
 				>
@@ -117,7 +139,7 @@ function TemplateDestinations() {
 						<PlusIcon />
 						Create template
 					</Link>
-				</ContextMenuItem>
+				</DropdownMenuItem>
 			)}
 		</>
 	);

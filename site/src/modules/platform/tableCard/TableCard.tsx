@@ -77,7 +77,7 @@ export const TableCard: React.FC<{
 					type="button"
 					variant="subtle"
 					size="sm"
-					className="h-6 min-w-0 touch-manipulation rounded-full"
+					className="table-stats-handle h-6 min-w-0 touch-manipulation rounded-full"
 					aria-controls={statsId}
 					aria-expanded={showStats}
 					aria-label={

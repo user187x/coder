@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # File Browser in the workspace: FileBrowser Quantum, the workspace image's. Installed as ~/.local/bin/coder-filebrowser
-# by startup.sh and by the Cloud Drive's script (scripts/cloud-drive.sh: a platform section, so templates made in the
+# by startup.sh and by the Cloud Drive's platform hook ( a platform section, so templates made in the
 # template builder get the current one at every build), whichever is newer (HELPER_VERSION). Its settings beside its
 # database (~/.config/filebrowser-quantum/env: APPS, START_DIR; without it - a template's own older startup.sh
 # started File Browser - they are read from the config.yaml that one wrote). It serves under the app's path
@@ -14,7 +14,7 @@
 #   coder-filebrowser check     the same, skipped while another call works (the watcher's, every 10 seconds: it also
 #                               takes over a File Browser an older startup.sh started with this config)
 # Its sources, each a link in its sidebar: the Start folder, and every Cloud Drive here (read only where shared so),
-# which the Cloud Drive's script tells (scripts/cloud-drive.sh: which drives, where their links are and lead). Those
+# which the Cloud Drive reports ( which drives, where their links are and lead). Those
 # are links to volumes mounted out of the way (/mnt/...), and Quantum opens no link that leads out of its source's
 # folder (it answers 403: "permission denied", or an empty folder). The workspace image's own build (a version ending
 # -coder.N: FileBrowser Quantum with symlinkTargets) opens them where they are: the Start folder may follow links into
@@ -30,7 +30,7 @@ pidfile=/tmp/coder-filebrowser.pid
 port=13339
 # The Cloud Drive's script as this start wrote it: none in a workspace without a Cloud Drive, or before that script
 # ran (it starts File Browser again once the drives are linked).
-cloud_drive_sh=/tmp/coder-cloud-drive/cloud-drive.sh
+cloud_runtime=/opt/coder-platform/workspace-platform
 # File Browser runs as PID $1 (one that exited and is not reaped yet, a zombie, does not)
 alive() { [ "$(cat "/proc/$1/comm" 2>/dev/null)" = filebrowser ] && ! grep -q '^State:[[:space:]]*Z' "/proc/$1/status"; }
 
@@ -84,8 +84,8 @@ others() {
 
 # cloud_drive drives | targets | links: what the Cloud Drive's script says (nothing without it).
 cloud_drive() {
-	if [ -x "$cloud_drive_sh" ]; then
-		"$cloud_drive_sh" "$1" 2>/dev/null || true
+	if [ -x "$cloud_runtime" ]; then
+		"$cloud_runtime" cloud-runtime "$1" 2>/dev/null || true
 	fi
 }
 

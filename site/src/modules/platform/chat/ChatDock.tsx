@@ -31,7 +31,12 @@ import {
 	windowsBeside,
 } from "./chatStore";
 import { CHAT_CONSOLE_PAGE } from "./consolePlaces";
-import { type DockPosition, placeDock, snapDockPosition } from "./dockPosition";
+import {
+	chatRightEdge,
+	type DockPosition,
+	placeDock,
+	snapDockPosition,
+} from "./dockPosition";
 import "./chatDock.css";
 import { bottomBarsHeight } from "#/utils/bottomBars";
 
@@ -70,6 +75,11 @@ const useDockMeasurements = (
 			}
 			const height = window.innerHeight;
 			const right = document.documentElement.getBoundingClientRect().right;
+			const boundary = chatRightEdge();
+			const reserved = Math.max(
+				0,
+				document.documentElement.clientWidth - boundary,
+			);
 			const positioned =
 				position &&
 				["bar", "window", "compact"].includes(element.dataset.mode ?? "");
@@ -111,9 +121,11 @@ const useDockMeasurements = (
 			if (!positioned) {
 				element.style.right = expanded
 					? uptime
-						? `${Math.max(16, right - uptime.left + 8)}px`
-						: `${Math.max(16, right - expanded.right + 16)}px`
-					: "";
+						? `${Math.max(16, reserved + 16, right - uptime.left + 8)}px`
+						: `${Math.max(16, reserved + 16, right - expanded.right + 16)}px`
+					: reserved
+						? `${reserved + 16}px`
+						: "";
 			}
 			set(element, "--chat-bottom", bottom);
 
@@ -220,7 +232,7 @@ export const ChatDock: React.FC = () => {
 			Number.parseFloat(element.style.getPropertyValue("--chat-top")) || 0;
 		const bottom = bottomBarsHeight(element);
 		const next = snapDockPosition(element.getBoundingClientRect(), {
-			width: document.documentElement.clientWidth,
+			width: chatRightEdge(),
 			height: window.innerHeight,
 			top,
 			bottom,
@@ -377,7 +389,7 @@ export const ChatDock: React.FC = () => {
 						const start = drag.current;
 						if (!start) return;
 						const element = event.currentTarget;
-						element.style.left = `${Math.max(0, Math.min(document.documentElement.clientWidth - start.width, start.left + event.clientX - start.x))}px`;
+						element.style.left = `${Math.max(0, Math.min(chatRightEdge() - start.width, start.left + event.clientX - start.x))}px`;
 						element.style.top = `${Math.max(0, Math.min(window.innerHeight - start.height, start.top + event.clientY - start.y))}px`;
 						element.style.bottom = "auto";
 						element.style.right = "auto";
@@ -393,7 +405,7 @@ export const ChatDock: React.FC = () => {
 							0;
 						const bottom = bottomBarsHeight(element);
 						const next = snapDockPosition(element.getBoundingClientRect(), {
-							width: document.documentElement.clientWidth,
+							width: chatRightEdge(),
 							height: window.innerHeight,
 							top,
 							bottom,
@@ -410,7 +422,7 @@ export const ChatDock: React.FC = () => {
 					role="region"
 					data-mode={mode}
 					className={cn(
-						"pointer-events-none fixed right-4 flex flex-col items-end gap-2 text-sm text-content-primary transition-[bottom] duration-200 motion-reduce:transition-none md:flex-row md:gap-3 [&>*]:pointer-events-auto",
+						"chat-floating-dock pointer-events-none fixed right-4 flex flex-col items-end gap-2 text-sm text-content-primary transition-[bottom] duration-200 motion-reduce:transition-none md:flex-row md:gap-3 [&>*]:pointer-events-auto",
 						// Floating, in front of everything but the chat's own overlays; attached or full screen (or under the
 						// console over the page), a part of the page: above it and its navbar, below its dialogs (the ones
 						// opened from the chat too).

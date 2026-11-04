@@ -119,18 +119,19 @@ const HudPage: React.FC = () => {
 	}
 
 	const metrics = data ? applyOrder(data.metrics, order) : [];
+	const storage = data?.storage;
 	const totals = data ? data.metrics.filter((m) => m.group === "totals") : [];
 
 	return (
 		<>
 			<title>{pageTitle("HUD")}</title>
 			<div className="flex w-full min-w-0 flex-col gap-6 px-6 pb-12 pt-8">
-				<header className="flex flex-wrap items-center justify-between gap-3">
-					<div className="flex flex-col gap-1">
-						<h1 className="m-0 flex items-center gap-2 text-2xl font-semibold">
-							<GaugeIcon aria-hidden className="size-6" />
-							HUD
-						</h1>
+				<header className="flex flex-col gap-1">
+					<h1 className="m-0 flex items-center gap-2 text-2xl font-semibold">
+						<GaugeIcon aria-hidden className="size-6" />
+						HUD
+					</h1>
+					<div className="flex items-center justify-between gap-3">
 						{data && (
 							<span
 								className="flex items-center gap-2 text-sm text-content-secondary"
@@ -149,8 +150,8 @@ const HudPage: React.FC = () => {
 									" · CPU and memory are what was requested: metrics-server is not answering"}
 							</span>
 						)}
+						{data?.uptime && <SystemUptime uptime={data.uptime} />}
 					</div>
-					{data?.uptime && <SystemUptime uptime={data.uptime} />}
 				</header>
 
 				{error ? <ErrorAlert error={error} /> : null}
@@ -206,25 +207,48 @@ const HudPage: React.FC = () => {
 						<HudSortableGrid
 							className="grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-3"
 							onReorder={reorder}
-							panels={metrics.map((m, i) => ({
-								id: m.id,
-								label: m.label,
-								render: (handle) => (
-									<div className="relative h-full">
-										<div className="absolute right-2 top-2 z-[1]">{handle}</div>
-										<MetricTile
-											metric={m}
-											series={track.series[m.id]}
-											first={i === 0 && order[0] === m.id}
-											flash={
-												track.at === data.generatedAt && track.moved.has(m.id)
-											}
-										/>
-									</div>
-								),
-							}))}
+							panels={applyOrder(
+								[
+									...metrics.map((m, i) => ({
+										id: m.id,
+										label: m.label,
+										render: (handle: React.ReactNode) => (
+											<div className="relative h-full">
+												<div className="absolute right-2 top-2 z-[1]">
+													{handle}
+												</div>
+												<MetricTile
+													metric={m}
+													series={track.series[m.id]}
+													first={i === 0 && order[0] === m.id}
+													flash={
+														track.at === data.generatedAt &&
+														track.moved.has(m.id)
+													}
+												/>
+											</div>
+										),
+									})),
+									...(storage
+										? [
+												{
+													id: "storage-classes",
+													label: "Storage classes",
+													fullWidth: true,
+													render: (handle: React.ReactNode) => (
+														<HudStorageClasses
+															storage={storage}
+															cluster={data.cluster}
+															handle={handle}
+														/>
+													),
+												},
+											]
+										: []),
+								],
+								order,
+							)}
 						/>
-						{data.storage && <HudStorageClasses storage={data.storage} />}
 					</>
 				)}
 			</div>

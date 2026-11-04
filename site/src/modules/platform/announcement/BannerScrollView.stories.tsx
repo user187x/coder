@@ -102,7 +102,7 @@ export const Expanded: Story = {
 				name: "Read the whole announcement",
 			}),
 		);
-		await userEvent.click(
+		await userEvent.dblClick(
 			within(document.body).getByRole("button", {
 				name: "Expand announcement panel",
 			}),
@@ -166,7 +166,7 @@ export const ExpandedTerminal: Story = {
 	...Terminal,
 	play: async (context) => {
 		await Terminal.play?.(context);
-		await userEvent.click(
+		await userEvent.dblClick(
 			within(document.body).getByRole("button", {
 				name: "Expand announcement panel",
 			}),
@@ -178,7 +178,7 @@ export const RestoredTerminal: Story = {
 	...Terminal,
 	play: async (context) => {
 		await ExpandedTerminal.play?.(context);
-		await userEvent.click(
+		await userEvent.dblClick(
 			within(document.body).getByRole("button", {
 				name: "Restore announcement panel",
 			}),
@@ -196,7 +196,7 @@ export const ConnectFromContextMenu: Story = {
 		await userEvent.click(
 			within(document.body).getByRole("menuitem", { name: "Connect terminal" }),
 		);
-		await userEvent.click(
+		await userEvent.dblClick(
 			within(document.body).getByRole("button", {
 				name: "Expand announcement panel",
 			}),

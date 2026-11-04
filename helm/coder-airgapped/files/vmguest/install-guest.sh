@@ -27,7 +27,7 @@ install -m 0644 /tmp/coder-vm-source/vmprofile.py /usr/local/lib/coder-vm/vmprof
 install -m 0644 /tmp/coder-vm-source/coder-workspace.service /etc/systemd/system/coder-workspace.service
 install -m 0644 /tmp/coder-vm-source/private_config.py /usr/local/lib/coder-vm/private_config.py
 install -m 0644 /tmp/coder-vm-source/user_command.py /usr/local/lib/coder-vm/user_command.py
-install -m 0644 /tmp/coder-vm-source/clouddrive_cli.py /usr/local/lib/coder-vm/clouddrive_cli.py
+install -m 0555 /tmp/coder-vm-source/workspace-platform /usr/local/lib/coder-vm/workspace-platform
 install -m 0755 /tmp/coder-vm-source/user-command-wrapper.py /usr/local/sbin/coder-vm-user-command
 install -m 0644 /tmp/coder-vm-source/drivesource.py /usr/local/lib/coder-vm/drivesource.py
 install -m 0755 /tmp/coder-vm-source/source-wrapper.py /usr/local/sbin/coder-vm-source

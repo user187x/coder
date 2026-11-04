@@ -10,6 +10,7 @@ export type SettingsPanelPlacement = {
 /** Resolves both footprints together so resizing cannot leave overlapping drawers. */
 export const settingsPanelLayout = ({
 	height,
+	topInset = 0,
 	resourceHeight,
 	notesHeight,
 	resourceTop,
@@ -17,6 +18,7 @@ export const settingsPanelLayout = ({
 	withNotes,
 }: {
 	height: number;
+	topInset?: number;
 	resourceHeight: number;
 	notesHeight: number;
 	resourceTop: number;
@@ -25,7 +27,7 @@ export const settingsPanelLayout = ({
 }) => {
 	const padding = 8;
 	const gap = withNotes ? 12 : 0;
-	const available = Math.max(0, height - padding * 2 - gap);
+	const available = Math.max(0, height - topInset - padding * 2 - gap);
 	const notesMinimum = withNotes ? Math.min(124, available / 2) : 0;
 	const resourceMaximum = available - notesMinimum;
 	const resources = Math.min(resourceMaximum, Math.max(164, resourceHeight));
@@ -34,7 +36,7 @@ export const settingsPanelLayout = ({
 		? Math.min(notesMaximum, Math.max(notesMinimum, notesHeight))
 		: 0;
 	const resourceY = Math.max(
-		padding,
+		padding + topInset,
 		Math.min(height - padding - resources - gap - notes, resourceTop),
 	);
 	const notesY = Math.max(
@@ -44,7 +46,7 @@ export const settingsPanelLayout = ({
 	return {
 		resources: {
 			top: resourceY,
-			minTop: padding,
+			minTop: padding + topInset,
 			maxTop: withNotes
 				? notesY - gap - resources
 				: height - padding - resources,

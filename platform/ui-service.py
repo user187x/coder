@@ -7833,7 +7833,8 @@ def hud_report(token):
     ]
     storage = hud_storage()
     metrics.extend(hudstorage.metrics(storage))
-    out = {"metrics": metrics, "storage": storage, "generatedAt": now(), "live": metrics_live, "uptime": coder_uptime()}
+    out = {"metrics": metrics, "storage": storage, "generatedAt": now(), "live": metrics_live, "uptime": coder_uptime(),
+           "cluster": {key: cluster[key] for key in ("cpu", "memory", "live")} if cluster else None}
     CACHE.put("hud:" + token[:16], out, 5)
     return out
 
@@ -10467,7 +10468,7 @@ def tunnel_live_workspaces():
 def safe_cloud_drive_attachment(owner_id):
     """How an account's Cloud Drive is in each of its started workspaces (Coder's database): [(workspace id, value,
     collected at (epoch seconds; 0 or less: never), job status)] of the latest builds that start them, whose agent has
-    the template's metadata cloud_drive (scripts/cloud-drive.sh status); None before the database is up."""
+    the template's metadata cloud_drive (workspace-platform cloud-runtime status); None before the database is up."""
     pool = LOGOS.pool if LOGOS else None
     if not pool:
         return None

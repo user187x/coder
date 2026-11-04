@@ -1,14 +1,16 @@
 import { cn } from "cn";
 import {
 	GaugeIcon,
+	MonitorIcon,
 	PanelRightCloseIcon,
+	PanelRightDashedIcon,
 	PanelRightOpenIcon,
 	RadioIcon,
 	SettingsIcon,
 } from "lucide-react";
 import { useLayoutEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
-import { NavLink } from "react-router";
+import { Link, NavLink } from "react-router";
 import { toast } from "sonner";
 import {
 	updateUserUIPreferences,
@@ -17,7 +19,6 @@ import {
 import type { BuildInfoResponse, LinkConfig, User } from "#/api/typesGenerated";
 import { Abbr } from "#/components/Abbr/Abbr";
 import { ChevronDownIcon } from "#/components/AnimatedIcons/ChevronDown";
-import { Button } from "#/components/Button/Button";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -45,6 +46,7 @@ import {
 import type { AdminPage } from "./adminQuickLinks";
 import { sortProxiesByLatency } from "./proxyUtils";
 import { SettingsChatPanel } from "./SettingsChatPanel";
+import { SettingsInbox } from "./SettingsInbox";
 import { SettingsMetricGraphs } from "./SettingsMetricGraphs";
 import { SettingsNotificationBadge } from "./SettingsNotificationBadge";
 import { SettingsSidePanels } from "./SettingsSidePanels";
@@ -75,14 +77,7 @@ type ProxyMenuProps = {
 	controls?: ProxyMenuControls;
 };
 
-/**
- * Platform: the top bar's latency and Controls menu, one button where there were two. The button shows the latency
- * to the selected region in a pill (the antenna in the latency's colour), then "Settings" and the chevron. The menu
- * holds the Workspaces row, which shows the latency to each workspace while it is pressed (WorkspacesLatencyMenu),
- * and under it the whole Controls menu, its graphs last, in a rounded box. With more than one region, a Region row comes first
- * (Coder's region picker). Each opening measures the latency again. The workspaces chosen in the locked Workspaces
- * list open here together, in the workspace grid (the menu closes for it).
- */
+/** The Settings dropdown and dock share workspace, notification and region controls. */
 export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 	user,
 	buildInfo,
@@ -106,13 +101,34 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 		onError: () => toast.error("Could not save Settings sidebar preference."),
 	});
 	const docked = Boolean(controls && prefs.data?.settings_sidebar);
+	const compact = Boolean(docked && prefs.data?.settings_sidebar_compact);
 	useLayoutEffect(() => {
 		if (!docked) return;
-		document.documentElement.dataset.settingsSide = "";
-		return () => {
-			delete document.documentElement.dataset.settingsSide;
+		document.documentElement.dataset.settingsSide = compact
+			? "compact"
+			: "expanded";
+		const navbar = document.querySelector(".navbar-soft");
+		const root = document.documentElement;
+		const measure = () => {
+			if (navbar)
+				root.style.setProperty(
+					"--settings-panel-top",
+					`${navbar.getBoundingClientRect().bottom}px`,
+				);
 		};
-	}, [docked]);
+		measure();
+		const observer = new ResizeObserver(measure);
+		if (navbar) observer.observe(navbar);
+		window.addEventListener("resize", measure);
+		window.addEventListener("scroll", measure, { passive: true });
+		return () => {
+			observer.disconnect();
+			window.removeEventListener("resize", measure);
+			window.removeEventListener("scroll", measure);
+			root.style.removeProperty("--settings-panel-top");
+			delete root.dataset.settingsSide;
+		};
+	}, [docked, compact]);
 	const closeMenu = () => setOpen(false);
 	// The workspaces in the grid (their ids), while it is open.
 	const [workspaceView, setWorkspaceView] = useState<{
@@ -139,7 +155,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 	const pill = proxy && (
 		<span
 			data-testid="navbar-latency-pill"
-			className="inline-flex items-center gap-1.5 h-7 pl-2 pr-2.5 rounded-full border border-solid border-border bg-surface-secondary"
+			className="mx-1 my-1 flex min-h-8 shrink-0 items-center justify-center gap-1.5 rounded-full border border-solid border-border px-2 py-1.5 text-sm text-content-secondary [&_svg]:size-4"
 		>
 			<span className="sr-only">
 				Latency for {selectedProxy?.display_name ?? "your region"}
@@ -166,7 +182,6 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 
 	const reading = (
 		<>
-			{pill}
 			<span className="inline-flex items-center gap-1.5">
 				<SettingsIcon aria-hidden className="size-3.5" />
 				Settings
@@ -176,18 +191,12 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 		</>
 	);
 
-	const title = [
-		selectedProxy && `Latency to ${selectedProxy.display_name}`,
-		"your workspaces",
-		controls && "the Settings",
-	]
-		.filter(Boolean)
-		.join(", ");
+	const dockLabel = docked ? "Return to dropdown" : "Dock Settings";
 
 	return (
 		<>
 			<DropdownMenu
-				modal={!docked}
+				modal={false}
 				open={open || docked}
 				onOpenChange={(next) => {
 					if (docked && !next) return;
@@ -199,47 +208,53 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 					}
 				}}
 			>
-				{hud ? (
-					<div
-						role="group"
-						aria-label={
-							controls ? "HUD, latency and Settings" : "HUD and latency"
-						}
-						className={cn("navbar-split", controls && "settings-navbar-width")}
-						data-testid="navbar-hud-latency"
-					>
-						<NavLink
-							to="/hud"
-							className="navbar-split-main"
-							title="HUD: the platform at a glance"
-						>
+				<div
+					role="group"
+					aria-label="Dashboard navigation"
+					className={cn("navbar-split", controls && "settings-navbar-width")}
+					data-testid={hud ? "navbar-hud-latency" : undefined}
+				>
+					{hud && (
+						<NavLink to="/hud" className="navbar-split-main" title="HUD">
 							<GaugeIcon aria-hidden />
 							HUD
 						</NavLink>
-						<DropdownMenuTrigger asChild>
-							<button
-								type="button"
-								className="navbar-split-menu relative"
-								title={title}
-								data-testid="navbar-latency-controls"
-							>
-								{reading}
-							</button>
-						</DropdownMenuTrigger>
-					</div>
-				) : (
+					)}
+					{controls && (
+						<button
+							type="button"
+							className="navbar-dock-toggle"
+							aria-label={dockLabel}
+							title={dockLabel}
+							aria-pressed={docked}
+							disabled={docking.isPending || !prefs.data}
+							onClick={() => {
+								setOpen(true);
+								docking.mutate({
+									settings_sidebar: !docked,
+									settings_sidebar_compact: false,
+								});
+								if (!docked && !open) proxy?.refetchProxyLatencies();
+							}}
+						>
+							{docked ? (
+								<PanelRightCloseIcon aria-hidden />
+							) : (
+								<PanelRightOpenIcon aria-hidden />
+							)}
+						</button>
+					)}
 					<DropdownMenuTrigger asChild>
-						<Button
-							variant="outline"
-							size="lg"
-							title={title}
+						<button
+							type="button"
+							className="navbar-split-menu relative"
+							title="Settings"
 							data-testid="navbar-latency-controls"
-							className={cn("relative", controls && "settings-navbar-width")}
 						>
 							{reading}
-						</Button>
+						</button>
 					</DropdownMenuTrigger>
-				)}
+				</div>
 				<DropdownMenuContent
 					ref={setMenuElement}
 					data-settings-docked={docked || undefined}
@@ -254,161 +269,229 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 					// Reserve only exterior space for the tray; the menu body retains its own width and scrolling.
 					className={cn(
 						"relative w-max min-w-[240px] max-w-[calc(100vw-32px)] overflow-visible border-0 bg-transparent p-0 shadow-none",
-						"settings-menu pl-16",
+						"settings-menu",
+						!docked && "pl-16",
 					)}
 				>
-					<SettingsSidePanels
-						container={menuElement}
-						anchor={metricsElement}
-						hud={hud}
-						chatExpanded={chatExpanded}
-						onChatToggle={() => setChatExpanded((open) => !open)}
-						images={Boolean(controls?.permissions.canEditDeployment)}
-						user={user}
-						buildInfo={buildInfo}
-						supportLinks={supportLinks}
-						onSignOut={onSignOut}
-						pages={[
-							...(controls?.quickLinks ?? []),
-							...(controls?.quickLinksEditor?.addable ?? []),
-						]}
-					/>
+					{!compact && (
+						<SettingsSidePanels
+							container={menuElement}
+							anchor={metricsElement}
+							hud={hud}
+							chatExpanded={chatExpanded}
+							onChatToggle={() => setChatExpanded((open) => !open)}
+							images={Boolean(controls?.permissions.canEditDeployment)}
+							user={user}
+							buildInfo={buildInfo}
+							supportLinks={supportLinks}
+							onSignOut={onSignOut}
+							pages={[
+								...(controls?.quickLinks ?? []),
+								...(controls?.quickLinksEditor?.addable ?? []),
+							]}
+						/>
+					)}
 
 					<div className="flex flex-col rounded-md border border-solid border-border bg-surface-primary p-2 shadow-md max-h-(--radix-dropdown-menu-content-available-height) overflow-y-auto scrollbar-thin [scrollbar-color:hsl(var(--surface-quaternary))_transparent]">
-						{controls && (
+						{docked && (
 							<DropdownMenuItem
-								className="self-end text-xs"
-								disabled={docking.isPending || !prefs.data}
+								aria-label={
+									compact
+										? "Expand Settings sidebar"
+										: "Collapse Settings to shortcut icons"
+								}
+								title={
+									compact
+										? "Expand Settings sidebar"
+										: "Collapse Settings to shortcut icons"
+								}
+								disabled={docking.isPending}
+								className={cn(
+									"text-xs",
+									compact ? "justify-center" : "self-end",
+								)}
 								onSelect={(event) => {
 									event.preventDefault();
-									setOpen(true);
-									docking.mutate({ settings_sidebar: !docked });
+									docking.mutate({ settings_sidebar_compact: !compact });
 								}}
 							>
-								{docked ? <PanelRightCloseIcon /> : <PanelRightOpenIcon />}
-								{docked ? "Return to dropdown" : "Dock Settings"}
+								<PanelRightDashedIcon aria-hidden />
+								{!compact && "Collapse to icons"}
 							</DropdownMenuItem>
 						)}
-						{regions && proxy && (
-							<DropdownMenuSub>
-								<DropdownMenuSubTrigger data-testid="navbar-region">
-									<RadioIcon aria-hidden />
-									Region
-									<span className="ml-auto truncate text-xs text-content-secondary">
-										{selectedProxy?.display_name}
-									</span>
-								</DropdownMenuSubTrigger>
-								<DropdownMenuSubContent className="w-80">
-									<DropdownMenuItem
-										disabled
-										className="flex flex-col gap-1 items-start data-disabled:opacity-100"
-									>
-										<div className="text-content-primary font-semibold text-left">
-											Select a region nearest to you
-										</div>
-										<div className="text-xs text-content-secondary leading-relaxed">
-											Workspace proxies improve terminal and web app
-											connections.{" "}
-											<Abbr
-												title="Command-Line Interface"
-												pronunciation="initialism"
-											>
-												CLI
-											</Abbr>{" "}
-											connections are unaffected. If no region is selected, the
-											primary region will be used.
-										</div>
+						{compact ? (
+							<>
+								{!controls?.quickLinks?.some(
+									(link) => link.id === "workspaces",
+								) && (
+									<DropdownMenuItem asChild className="justify-center">
+										<Link
+											to="/workspaces"
+											aria-label="Workspaces"
+											title="Workspaces"
+										>
+											<MonitorIcon aria-hidden />
+										</Link>
 									</DropdownMenuItem>
-
-									<DropdownMenuSeparator />
-
-									<div className="max-h-[calc(100vh-22rem)] -mr-2 pr-2 overflow-y-auto scrollbar-thin [scrollbar-color:hsl(var(--surface-quaternary))_transparent]">
-										<DropdownMenuRadioGroup value={selectedProxy?.id}>
-											{sortProxiesByLatency(regions, latencies).map(
-												(region) => (
-													<DropdownMenuRadioItem
-														value={region.id}
-														key={region.id}
-														onClick={(e) => {
-															e.preventDefault();
-															if (!region.healthy) {
-																toast.error(
-																	`Failed to select proxy "${region.display_name}".`,
-																	{
-																		description:
-																			"Please select a healthy workspace proxy.",
-																	},
-																);
-																closeMenu();
-																return;
-															}
-
-															proxy.setProxy(region);
-															closeMenu();
-														}}
+								)}
+								{controls?.quickLinks?.map((link) =>
+									link.id === "chat" ? (
+										<DropdownMenuItem
+											key={link.id}
+											aria-label="Chat"
+											title="Chat"
+											className="justify-center"
+											onSelect={(event) => {
+												event.preventDefault();
+												docking.mutate({ settings_sidebar_compact: false });
+												setChatExpanded(true);
+											}}
+										>
+											<link.icon aria-hidden />
+										</DropdownMenuItem>
+									) : (
+										<DropdownMenuItem
+											key={link.id}
+											asChild
+											className="justify-center"
+										>
+											<Link
+												to={link.path}
+												title={link.label}
+												aria-label={link.label}
+											>
+												<link.icon aria-hidden />
+											</Link>
+										</DropdownMenuItem>
+									),
+								)}
+							</>
+						) : (
+							<>
+								{pill}
+								{regions && proxy && (
+									<DropdownMenuSub>
+										<DropdownMenuSubTrigger data-testid="navbar-region">
+											<RadioIcon aria-hidden />
+											Region
+											<span className="ml-auto truncate text-xs text-content-secondary">
+												{selectedProxy?.display_name}
+											</span>
+										</DropdownMenuSubTrigger>
+										<DropdownMenuSubContent className="w-80">
+											<DropdownMenuItem
+												disabled
+												className="flex flex-col gap-1 items-start data-disabled:opacity-100"
+											>
+												<div className="text-content-primary font-semibold text-left">
+													Select a region nearest to you
+												</div>
+												<div className="text-xs text-content-secondary leading-relaxed">
+													Workspace proxies improve terminal and web app
+													connections.{" "}
+													<Abbr
+														title="Command-Line Interface"
+														pronunciation="initialism"
 													>
-														<div className="flex gap-3 items-center w-full">
-															<div className="leading-none size-4">
-																<ExternalImage
-																	src={region.icon_url}
-																	alt=""
-																	className="object-contain size-full"
-																/>
-															</div>
+														CLI
+													</Abbr>{" "}
+													connections are unaffected. If no region is selected,
+													the primary region will be used.
+												</div>
+											</DropdownMenuItem>
 
-															{region.display_name}
+											<DropdownMenuSeparator />
 
-															<Latency
-																className="ml-auto"
-																latency={latencies[region.id]?.latencyMS}
-															/>
-														</div>
-													</DropdownMenuRadioItem>
-												),
-											)}
-										</DropdownMenuRadioGroup>
-									</div>
-								</DropdownMenuSubContent>
-							</DropdownMenuSub>
-						)}
+											<div className="max-h-[calc(100vh-22rem)] -mr-2 pr-2 overflow-y-auto scrollbar-thin [scrollbar-color:hsl(var(--surface-quaternary))_transparent]">
+												<DropdownMenuRadioGroup value={selectedProxy?.id}>
+													{sortProxiesByLatency(regions, latencies).map(
+														(region) => (
+															<DropdownMenuRadioItem
+																value={region.id}
+																key={region.id}
+																onClick={(e) => {
+																	e.preventDefault();
+																	if (!region.healthy) {
+																		toast.error(
+																			`Failed to select proxy "${region.display_name}".`,
+																			{
+																				description:
+																					"Please select a healthy workspace proxy.",
+																			},
+																		);
+																		closeMenu();
+																		return;
+																	}
 
-						{/* Platform: the latency to each of your workspaces, live, while it is pressed; locked, the grid's choice. */}
-						<WorkspacesLatencyMenu
-							open={open || docked}
-							chatExpanded={chatExpanded}
-							onExpand={() => setChatExpanded(false)}
-							onOpenGrid={(ids, layout) => {
-								setOpen(false);
-								// after the menu has handed the focus back, so the grid keeps it
-								window.setTimeout(() => setWorkspaceView({ ids, layout }));
-							}}
-						/>
+																	proxy.setProxy(region);
+																	closeMenu();
+																}}
+															>
+																<div className="flex gap-3 items-center w-full">
+																	<div className="leading-none size-4">
+																		<ExternalImage
+																			src={region.icon_url}
+																			alt=""
+																			className="object-contain size-full"
+																		/>
+																	</div>
 
-						{/* Platform: the whole Controls menu, its graphs last, in a rounded box of its own */}
-						{controls && (
-							<nav
-								aria-label="Settings"
-								data-testid="controls-group"
-								className="mx-1 mt-2 mb-1 flex flex-auto flex-col rounded-lg border border-solid border-border p-1"
-							>
-								<AdminSettingsItems
-									externalMetrics
+																	{region.display_name}
+
+																	<Latency
+																		className="ml-auto"
+																		latency={latencies[region.id]?.latencyMS}
+																	/>
+																</div>
+															</DropdownMenuRadioItem>
+														),
+													)}
+												</DropdownMenuRadioGroup>
+											</div>
+										</DropdownMenuSubContent>
+									</DropdownMenuSub>
+								)}
+
+								{/* Platform: the latency to each of your workspaces, live, while it is pressed; locked, the grid's choice. */}
+								<WorkspacesLatencyMenu
+									open={open || docked}
 									chatExpanded={chatExpanded}
-									onChatToggle={() => setChatExpanded(!chatExpanded)}
-									permissions={controls.permissions}
-									quickLinks={controls.quickLinks}
-									quickLinksEditor={controls.quickLinksEditor}
+									onExpand={() => setChatExpanded(false)}
+									onOpenGrid={(ids, layout) => {
+										setOpen(false);
+										// after the menu has handed the focus back, so the grid keeps it
+										window.setTimeout(() => setWorkspaceView({ ids, layout }));
+									}}
 								/>
-							</nav>
-						)}
-						{controls && canViewAdminSettings(controls.permissions) && (
-							<SettingsMetricGraphs
-								anchor={setMetricsElement}
-								chatExpanded={chatExpanded}
-							/>
-						)}
-						{chatExpanded && (
-							<SettingsChatPanel onClose={() => setChatExpanded(false)} />
+
+								{/* Platform: the whole Controls menu, its graphs last, in a rounded box of its own */}
+								{controls && (
+									<nav
+										aria-label="Settings"
+										data-testid="controls-group"
+										className="mx-1 mt-2 mb-1 flex flex-auto flex-col rounded-lg border border-solid border-border p-1"
+									>
+										<AdminSettingsItems
+											externalMetrics
+											beforeControls={docked && <SettingsInbox />}
+											chatExpanded={chatExpanded}
+											onChatToggle={() => setChatExpanded(!chatExpanded)}
+											permissions={controls.permissions}
+											quickLinks={controls.quickLinks}
+											quickLinksEditor={controls.quickLinksEditor}
+										/>
+									</nav>
+								)}
+								{controls && canViewAdminSettings(controls.permissions) && (
+									<SettingsMetricGraphs
+										anchor={setMetricsElement}
+										chatExpanded={chatExpanded}
+									/>
+								)}
+								{chatExpanded && (
+									<SettingsChatPanel onClose={() => setChatExpanded(false)} />
+								)}
+							</>
 						)}
 					</div>
 				</DropdownMenuContent>

@@ -19,6 +19,7 @@ import { GripVerticalIcon } from "lucide-react";
 export type HudPanel = {
 	id: string;
 	label: string;
+	fullWidth?: boolean;
 	render: (handle: React.ReactNode) => React.ReactNode;
 };
 
@@ -81,7 +82,9 @@ const SortablePanel = ({ panel }: { panel: HudPanel }) => {
 	return (
 		<div
 			ref={setNodeRef}
-			className="relative min-w-0"
+			className={
+				panel.fullWidth ? "relative col-span-full min-w-0" : "relative min-w-0"
+			}
 			style={{
 				transform: CSS.Transform.toString(transform),
 				transition,

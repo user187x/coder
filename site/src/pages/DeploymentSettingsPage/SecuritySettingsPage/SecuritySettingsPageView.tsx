@@ -28,12 +28,7 @@ export const SecuritySettingsPageView: React.FC<
 	return (
 		<div className="flex flex-col gap-12">
 			<div>
-				<SettingsHeader>
-					<SettingsHeaderTitle>Security</SettingsHeaderTitle>
-					<SettingsHeaderDescription>
-						Ensure your Coder deployment is secure.{" "}
-					</SettingsHeaderDescription>
-				</SettingsHeader>
+				<h1 className="sr-only">Security</h1>
 
 				{lockdown && <div className="mb-12">{lockdown}</div>}
 				{certificates && <div className="mb-12">{certificates}</div>}

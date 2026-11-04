@@ -15,11 +15,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "#/components/Select/Select";
-import {
-	SettingsHeader,
-	SettingsHeaderDescription,
-	SettingsHeaderTitle,
-} from "#/components/SettingsHeader/SettingsHeader";
 import { NavbarAction } from "#/modules/dashboard/Navbar/NavbarAction";
 import { TableCard } from "#/modules/platform/tableCard/TableCard";
 import { BulkUserActions } from "#/modules/users/BulkUserActions";
@@ -162,26 +157,17 @@ export const UsersPageView: React.FC<UsersPageViewProps> = ({
 
 	return (
 		<>
-			<SettingsHeader
-				actions={
-					canCreateUser && (
-						<NavbarAction>
-							<Button asChild>
-								<Link to="create">
-									<UserPlusIcon />
-									New account
-								</Link>
-							</Button>
-						</NavbarAction>
-					)
-				}
-			>
-				<SettingsHeaderTitle>Accounts</SettingsHeaderTitle>
-				<SettingsHeaderDescription>
-					Manage user accounts, permissions and resource quotas. Expand an
-					account to manage its workspaces.
-				</SettingsHeaderDescription>
-			</SettingsHeader>
+			<h1 className="sr-only">Accounts</h1>
+			{canCreateUser && (
+				<NavbarAction>
+					<Button asChild>
+						<Link to="create">
+							<UserPlusIcon />
+							New account
+						</Link>
+					</Button>
+				</NavbarAction>
+			)}
 
 			{focused ? (
 				<Dialog open onOpenChange={onFocusChange}>

@@ -996,39 +996,18 @@ def main():
     # Quantum opens no link out of a source's folder (403): the Cloud Drives (links to /mnt/...) are sources of their
     # own, read only where shared read only, their links hidden in the Start folder; the watcher restarts it as the
     # drive is connected or disconnected.
-    cd_sh = open(os.path.join(tf_dir, "scripts", "cloud-drive.sh")).read()
-    check("template: File Browser shows every Cloud Drive here as a source of its own (read only where shared so)",
-          'SHARED="$LINK/Shared"' in cd_sh and "readOnly" in cd_sh and "readOnly" in fb
-          and "rule filePath" in fb and "rule folderPath" in fb and "sidebarLinks" in fb
-          and 'cloud_drive drives | jq' in fb and 'cloud_drive targets |' in fb and 'cloud_drive links |' in fb
-          and '"$FB" restart' in cd_sh and 'setsid "$SELF" watch' in cd_sh
-          and 'declare -f state_now target_of sync_link files_again files_check watch probe source_of drives targets links' in cd_sh, "")
-    # The kubelet may take a minute or more to update the annotation's file in the pod: the platform service also
-    # tells the workspace at once (cloud-drive.sh push, by exec), and the watcher follows whichever was written last.
-    # The workspace says whether the drive is attached (status: its agent's metadata cloud_drive, in the Cloud Drive's
-    # platform section), which the service reads from Coder's database for the Workspaces page.
     safe_py = open(os.path.join(chart, "files/ui-updates/safe.py")).read()
-    ui_py = open(os.path.join(chart, "files/ui-updates/ui-service.py")).read()
-    check("Cloud Drive: told at once (push by exec), the newer of it and the annotation's file followed",
-          'if { read -r at state <"$PUSHED"; } 2>/dev/null && [ "$${at:-0}" -ge "$file_at" ]; then' in cd_sh
-          and 'file_at="$(stat -L -c %Y "$STATE"' in cd_sh and "push) push" in cd_sh
-          and 'PUSH_HELPER = "/tmp/coder-cloud-drive/cloud-drive.sh"' in safe_py
-          and '[PUSH_HELPER, "push", want]' in safe_py and "push_soon(pod[\"metadata\"][\"name\"], wid, want)" in safe_py, "")
-    check("Cloud Drive: the workspace says whether it is attached (metadata cloud_drive), the service reads it",
-          "cloud-drive.sh status 2>/dev/null || echo starting" in agent_metadata.get("9_cloud_drive", {}).get("script", "")
-          and all(w in cd_sh for w in ("echo attached", "echo unanswered", "echo detached", "echo waiting"))
-          and "m.key ~ '(^|_)cloud_drive$'" in ui_py and "attachment=safe_cloud_drive_attachment" in ui_py
-          and '"attachment": attachment(user["id"])' in safe_py, "")
-    # The Cloud Drive's logic is in its own script alone: File Browser asks it which drives are here (it writes itself
-    # to /tmp/coder-cloud-drive/cloud-drive.sh at start, per container), and the startup script knows nothing of it.
-    cd_paths = ("cloud-drive-shared", "/mnt/cloud-drive", "CLOUD_DRIVE_LINK", "cloud_drive_link")
-    leaked = ["%s: %s" % (n, p) for n, text in (("startup.sh", startup), ("filebrowser.sh", fb)) for p in cd_paths
-              if p in "\n".join(ln for ln in text.splitlines() if not ln.lstrip().startswith("#"))]
-    check("template: the Cloud Drive's logic in one script (cloud-drive.sh; File Browser asks it, startup.sh has none)",
-          not leaked and "cloud_drive_link" not in tf["main.tf"]
-          and "SELF=/tmp/coder-cloud-drive/cloud-drive.sh" in cd_sh
-          and "cloud_drive_sh=/tmp/coder-cloud-drive/cloud-drive.sh" in fb
-          and cd_sh.index("write_self\n") < cd_sh.index("sync_link\nlink_shared\nfiles_again"), leaked[:3])
+    check("workspace: Cloud Drive connections and metadata use the deployment-owned Go binary",
+          "cloud-runtime start" in agent_scripts.get("Cloud Drive", "")
+          and "cloud-runtime status" in agent_metadata.get("9_cloud_drive", {}).get("script", "")
+          and "cloud-runtime" in fb and "cloud_drive drives | jq" in fb and "cloud_drive targets |" in fb
+          and "cloud_drive links |" in fb and "readOnly" in fb and "rule filePath" in fb
+          and "rule folderPath" in fb and "sidebarLinks" in fb
+          and "PUSH_COMMAND + [want]" in safe_py and "MOUNT_COMMAND + args" in safe_py
+          and "push_soon(pod[\"metadata\"][\"name\"], wid, want)" in safe_py
+          and "cloud_drive_link" not in tf["main.tf"]
+          and all(not os.path.exists(os.path.join(tf_dir, "scripts", name))
+                  for name in ("cloud-drive.sh", "cloud-drive-cli.py")), "")
     # NiFi and Airflow start in scripts of their own (the dataflow template's only), beside the startup script, which
     # knows nothing of them.
     nifi_sh = open(os.path.join(tf_dir, "dataflow", "apache_nifi.sh")).read()
@@ -1078,10 +1057,10 @@ def main():
     # Browser an older startup.sh started; a drive whose storage does not answer is left out, not waited on.
     check("template: File Browser keeps every Cloud Drive through restarts and in every template (builder-made too)",
           "pidfile=/tmp/" in fb and '"/proc/$1/comm"' in fb and "HELPER_VERSION=" in fb and "install)" in fb
-          and "check) flock -n 9" in fb and "timeout 10 test" in cd_sh and 'grep -qxF "$config"' in fb
+          and "check) flock -n 9" in fb and 'grep -qxF "$config"' in fb
           and base64.b64encode(fb.encode()).decode() in agent_scripts.get("Cloud Drive", "")
-          and 'bash "$fb_helper" install' in cd_sh and 'bash "$fb_helper" install' in startup
-          and "files_check" in cd_sh, "")
+          and 'bash "$fb_helper" install' in agent_scripts["Cloud Drive"] and 'bash "$fb_helper" install' in startup
+          and "cloud-runtime start" in agent_scripts["Cloud Drive"], "")
     # Folders and files of a Cloud Drive shared with the owner: each its owner's volume's subPath, mounted apart
     # (/mnt/cloud-drive-items/<share id>, one volume per owner's volume and access) and linked under
     # ~/cloud-drive-shared/<owner>/; File Browser makes each shared folder a source of its own.
@@ -1089,8 +1068,7 @@ def main():
           '"/mnt/cloud-drive-items/%s"' in webhook and '"subPath": p.get("path", "")' in webhook
           and '"claimName": claim' in webhook and '"readOnly": bool(p.get("readOnly"))' in webhook
           and 'annotations[MOUNTS_ANNOTATION] = json.dumps(' in webhook
-          and 'ITEMS=/mnt/cloud-drive-items' in cd_sh and '-lname "$ITEMS/*" -delete' in cd_sh
-          and "(shared items)" in cd_sh and 'source_of "$item"' in cd_sh and "unique_names" in fb, "")
+          and "unique_names" in fb, "")
     # The desktop's look: the Desktop theme parameter (where the template has the desktop), put in the home by the
     # workspace image's coder-desktop-theme before the desktop starts (an image without it: skipped).
     check("template: the Desktop theme parameter (Serenade by default, or Classic) applied before the desktop starts",

@@ -9,7 +9,7 @@ container (the one with CODER_AGENT_TOKEN, else "dev", else the first):
   - the cluster's CA trusted: the init container "trust-local-ca" appends tls-ca's ca.crt to the image's bundle
   - the Cloud Drive (USER_STORAGE): the owner's volume, what is shared with them, the ISO library and the downward-API
     files /etc/platform/cloud-drive (connected or not, kept current by the platform service) and
-    /etc/platform/cloud-drive-mounts (what this pod mounts: JSON, read by cloud-drive.sh) - from the ConfigMap
+    /etc/platform/cloud-drive-mounts (mounted drives read by the workspace agent) - from the ConfigMap
     coder-cloud-drive the platform service keeps (safe.py)
   - code-server HA, for a pod annotated platform.coder/code-server-ha=on by its template: the relay sidecar
   - CODER_HOME_DISK_SIZE (the size of the claim mounted at /home/coder, for the Disk metric)

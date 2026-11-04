@@ -1,9 +1,12 @@
 import { cn } from "cn";
 import { ArrowRightIcon, PlusIcon, TriangleAlertIcon } from "lucide-react";
-import { useQueryClient } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 import { Link as RouterLink, useNavigate } from "react-router";
 import { hasError, isApiValidationError } from "#/api/errors";
-import { invalidateTemplateListQueries } from "#/api/queries/templates";
+import {
+	invalidateTemplateListQueries,
+	templateVersion,
+} from "#/api/queries/templates";
 import type {
 	AuthorizationResponse,
 	Template,
@@ -168,6 +171,11 @@ const TemplateRow: React.FC<TemplateRowProps> = ({
 	template,
 	workspacePermissions,
 }) => {
+	const promoted = useQuery({
+		...templateVersion(template.active_version_id),
+		enabled: Boolean(template.active_version_id),
+		staleTime: 60_000,
+	});
 	const client = useQueryClient();
 	const getLink = useLinks();
 	const templatePageLink = getLink(
@@ -237,6 +245,21 @@ const TemplateRow: React.FC<TemplateRowProps> = ({
 				{formatTemplateBuildTime(template.build_time_stats.start.P50)}
 			</TableCell>
 
+			<TableCell>
+				{promoted.data ? (
+					<Badge size="sm" title={promoted.data.name} className="max-w-full">
+						<span className="truncate">{promoted.data.name}</span>
+					</Badge>
+				) : (
+					<span className="text-content-secondary">
+						{promoted.isError
+							? "Unavailable"
+							: promoted.isLoading
+								? "Loading…"
+								: "None"}
+					</span>
+				)}
+			</TableCell>
 			<TableCell data-pixel="ignore" className="text-content-secondary">
 				{createDayString(template.updated_at)}
 			</TableCell>
@@ -405,7 +428,8 @@ export const TemplatesPageView: React.FC<TemplatesPageViewProps> = ({
 								{showOrganizations ? "Organization" : "Used by"}
 							</TableHead>
 							<TableHead className="w-[10%]">Build time</TableHead>
-							<TableHead className="w-[15%]">Last updated</TableHead>
+							<TableHead className="w-[16%]">Active version</TableHead>
+							<TableHead className="w-[12%]">Last updated</TableHead>
 							{/* Platform: who may see and use each template (its access list) */}
 							{showAccess && <TableHead className="w-[1%]">Access</TableHead>}
 							<TableHead className="w-[1%]" />
@@ -463,6 +487,9 @@ const TableLoader: React.FC = () => {
 				</TableCell>
 				<TableCell>
 					<Skeleton variant="text" width="25%" />
+				</TableCell>
+				<TableCell>
+					<Skeleton variant="text" width="50%" />
 				</TableCell>
 			</TableRowSkeleton>
 		</TableLoaderSkeleton>

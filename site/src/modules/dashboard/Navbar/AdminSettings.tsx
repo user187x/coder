@@ -21,6 +21,7 @@ type AdminSettingsItemsProps = {
 	externalMetrics?: boolean;
 	chatExpanded?: boolean;
 	onChatToggle?: () => void;
+	beforeControls?: React.ReactNode;
 };
 
 /** Changes to an admin's quick links, made from the Admin menu. */
@@ -60,10 +61,12 @@ export const AdminSettingsItems: React.FC<AdminSettingsItemsProps> = ({
 	externalMetrics,
 	chatExpanded,
 	onChatToggle,
+	beforeControls,
 }) => {
 	return (
 		<>
 			<AdminQuickLinksMenu
+				beforeControls={beforeControls}
 				admin={permissions.canEditDeployment}
 				chatExpanded={chatExpanded}
 				onChatToggle={onChatToggle}

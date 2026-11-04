@@ -5,7 +5,7 @@
 # the desktop and the apps (code-server, File Browser). A template made in Create new template may leave out the
 # desktop or File Browser (its desktop and file_browser variables). Runs at every start; each step is safe to repeat.
 # Scripts of their own run beside it (each its coder_script in main.tf, in the workspace's Logs under its name): the
-# Cloud Drive (cloud-drive.sh: everything the workspace does with it), Lock Down and the certificate.
+# Cloud Drive, Lock Down and certificates are managed by the workspace agent.
 # The .tf file renders this with templatefile(), so Terraform template syntax applies here: a shell variable in
 # braces is written with two dollar signs ($${HOME}), and a percent sign before a brace is doubled (%%{).
 set -e

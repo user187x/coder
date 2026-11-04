@@ -16,9 +16,9 @@
 {{- $metadata = append $metadata (dict "key" (index $entry 0) "display_name" (index $entry 1) "script" (index $entry 2) "interval" (index $entry 3) "timeout" (index $entry 4)) }}
 {{- end }}
 {{- if (.Values.global.userStorage | default dict).enabled }}
-{{- $cloud := .Files.Get "files/scripts/cloud-drive.sh" | replace "${link}" "" | replace "${mode}" "" | replace "${mount}" "" | replace "${items}" "" | replace "${cli}" (.Files.Get "files/scripts/cloud-drive-cli.py" | b64enc) | replace "${filebrowser}" (.Files.Get "files/scripts/filebrowser.sh" | b64enc) | replace "$${" "${" }}
+{{- $cloud := printf "set -eu\nfb_helper=$(mktemp)\ntrap 'rm -f \"$fb_helper\"' EXIT\nprintf '%%s' '%s' | base64 -d > \"$fb_helper\"\nbash \"$fb_helper\" install\n/opt/coder-platform/workspace-platform cloud-runtime start" (.Files.Get "files/scripts/filebrowser.sh" | b64enc) }}
 {{- $scripts = append $scripts (dict "display_name" "Cloud Drive" "icon" "/__icons/cloud-drive.svg" "script" $cloud "run_on_start" true "start_blocks_login" true) }}
-{{- $metadata = append $metadata (dict "key" "9_cloud_drive" "display_name" "Cloud Drive" "script" "/tmp/coder-cloud-drive/cloud-drive.sh status 2>/dev/null || echo starting" "interval" 2 "timeout" 4) }}
+{{- $metadata = append $metadata (dict "key" "9_cloud_drive" "display_name" "Cloud Drive" "script" "/opt/coder-platform/workspace-platform cloud-runtime status 2>/dev/null || echo starting" "interval" 2 "timeout" 4) }}
 {{- end }}
 apiVersion: v1
 kind: ConfigMap

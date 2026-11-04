@@ -27,7 +27,7 @@ class UserCommandTest(unittest.TestCase):
         request = command.validate(self.request, self.identity)
         args, data = command.command(request)
         self.assertEqual(args[:6], ['docker', 'exec', '--interactive', '--user', '1000:1000', '--env'])
-        self.assertIn('/opt/coder-vm-support/clouddrive_cli.py', args)
+        self.assertIn('/opt/coder-platform/workspace-platform', args)
         self.assertEqual(args[-3:], ['plan', '/home/coder/project', '--json'])
         self.assertEqual(data, b'')
         self.assertNotIn('sh', args)

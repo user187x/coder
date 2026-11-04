@@ -283,7 +283,7 @@ export const ResourceTrayOpened: Story = {
 	},
 	play: async ({ canvasElement }) => {
 		await userEvent.click(
-			within(canvasElement).getByRole("button", { name: /Settings/ }),
+			within(canvasElement).getByRole("button", { name: /^Settings/ }),
 		);
 	},
 };
@@ -291,7 +291,7 @@ export const ResourceTrayHidden: Story = {
 	...ResourceTrayOpened,
 	play: async ({ canvasElement }) => {
 		await userEvent.click(
-			within(canvasElement).getByRole("button", { name: /Settings/ }),
+			within(canvasElement).getByRole("button", { name: /^Settings/ }),
 		);
 		await userEvent.dblClick(
 			within(canvasElement.ownerDocument.body).getByRole("menuitem", {
@@ -367,7 +367,7 @@ export const HiddenChatMenu: Story = {
 	},
 	play: async ({ canvasElement }) => {
 		await userEvent.click(
-			within(canvasElement).getByRole("button", { name: /Settings/ }),
+			within(canvasElement).getByRole("button", { name: /^Settings/ }),
 		);
 		await userEvent.click(
 			within(canvasElement.ownerDocument.body).getByRole("menuitem", {
@@ -807,7 +807,7 @@ export const ShortcutPickerAboveClosedNotes: Story = {
 	...CentralAdminNotes,
 	play: async ({ canvasElement }) => {
 		await userEvent.click(
-			within(canvasElement).getByRole("button", { name: /Settings/ }),
+			within(canvasElement).getByRole("button", { name: /^Settings/ }),
 		);
 		const body = within(canvasElement.ownerDocument.body);
 		await userEvent.click(
@@ -820,7 +820,7 @@ export const RemoveAddedResourceShortcut: Story = {
 	...ResourceTrayWithShortcuts,
 	play: async ({ canvasElement }) => {
 		await userEvent.click(
-			within(canvasElement).getByRole("button", { name: /Settings/ }),
+			within(canvasElement).getByRole("button", { name: /^Settings/ }),
 		);
 		await userEvent.pointer({
 			target: await within(canvasElement.ownerDocument.body).findByRole(

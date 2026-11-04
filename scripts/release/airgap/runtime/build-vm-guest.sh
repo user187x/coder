@@ -17,10 +17,13 @@ for tool in qemu-system-x86_64 qemu-img ssh scp ssh-keygen xorriso python3; do c
 	exit 1
 }
 repo=$(git -C "$(dirname "$0")" rev-parse --show-toplevel)
-source_dir=$repo/airgap-dist/helm-chart/coder-airgapped/files/vmguest
-profile=$repo/airgap-dist/helm-chart/coder-airgapped/files/ui-updates/vmprofile.py
+files_dir=$repo/helm/coder-airgapped/files
+[[ -d $files_dir/vmguest ]] || files_dir=$repo/airgap-dist/helm-chart/coder-airgapped/files
+source_dir=$files_dir/vmguest
+profile=$files_dir/ui-updates/vmprofile.py
 work=$(mktemp -d "${TMPDIR:-/tmp}/coder-guest-bake.XXXXXX")
 CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o "$work/workspace-tunnel" "$repo/cmd/workspace-tunnel"
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -o "$work/workspace-platform" "$repo/cmd/workspace-platform"
 CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o "$work/launch-gate" "$repo/cmd/workspace-vm-launch-gate"
 python3 - "$work/launch-gate" <<'ELF'
 import pathlib, struct, sys
@@ -77,12 +80,12 @@ for attempt in $(seq 1 90); do
 	sleep 2
 done
 ssh "${ssh_args[@]}" builder@127.0.0.1 'cloud-init status --wait >/dev/null; mkdir -p /tmp/coder-vm-source'
-scp -q -i "$work/key" -o "UserKnownHostsFile=$work/known_hosts" -P "$port" "$source_dir"/runner.py "$source_dir"/coder-workspace.service "$source_dir"/install-guest.sh "$source_dir"/seal-guest.sh "$source_dir"/private_config.py "$source_dir"/user_command.py "$source_dir"/user-command-wrapper.py "$repo/airgap-dist/helm-chart/coder-airgapped/files/ui-updates/clouddrive_cli.py" "$source_dir"/source-wrapper.py "$source_dir"/launch-user.sh "$source_dir"/registry-relay.py "$source_dir"/coder-vm-registry.service "$repo/airgap-dist/helm-chart/coder-airgapped/files/ui-updates/drivesource.py" "$work/workspace-tunnel" "$work/launch-gate" "$profile" builder@127.0.0.1:/tmp/coder-vm-source/
+scp -q -i "$work/key" -o "UserKnownHostsFile=$work/known_hosts" -P "$port" "$source_dir"/runner.py "$source_dir"/coder-workspace.service "$source_dir"/install-guest.sh "$source_dir"/seal-guest.sh "$source_dir"/private_config.py "$source_dir"/user_command.py "$source_dir"/user-command-wrapper.py "$work/workspace-platform" "$source_dir"/source-wrapper.py "$source_dir"/launch-user.sh "$source_dir"/registry-relay.py "$source_dir"/coder-vm-registry.service "$files_dir/ui-updates/drivesource.py" "$work/workspace-tunnel" "$work/launch-gate" "$profile" builder@127.0.0.1:/tmp/coder-vm-source/
 ssh "${ssh_args[@]}" builder@127.0.0.1 'sudo bash /tmp/coder-vm-source/install-guest.sh'
 # The supervisor/validator source digests are recorded outside the image, with no credentials.
 sha256sum "$source_dir"/*.py "$source_dir"/*.sh "$source_dir"/*.service "$work/workspace-tunnel" "$work/launch-gate" "$profile" \
-	"$repo/airgap-dist/helm-chart/coder-airgapped/files/ui-updates/clouddrive_cli.py" \
-	"$repo/airgap-dist/helm-chart/coder-airgapped/files/ui-updates/drivesource.py" >"$output.sources.sha256"
+	"$work/workspace-platform" \
+	"$files_dir/ui-updates/drivesource.py" >"$output.sources.sha256"
 ssh "${ssh_args[@]}" builder@127.0.0.1 'sudo bash /tmp/coder-vm-source/seal-guest.sh' || true
 for attempt in $(seq 1 90); do
 	if ! kill -0 "$pid" 2>/dev/null; then break; fi

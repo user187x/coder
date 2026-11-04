@@ -1,4 +1,4 @@
-import { useImperativeHandle, useState } from "react";
+import { useId, useImperativeHandle, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { toast } from "sonner";
 import { getErrorMessage } from "#/api/errors";
@@ -28,6 +28,7 @@ import type { DockListActions } from "./dockActions";
 export const DockNotifications: React.FC<{
 	actionsRef?: React.Ref<DockListActions>;
 }> = ({ actionsRef }) => {
+	const selectId = useId();
 	const client = useQueryClient();
 	const query = useQuery(inboxNotifications());
 	const remove = useMutation(deleteInboxNotifications(client));
@@ -128,11 +129,11 @@ export const DockNotifications: React.FC<{
 										className="border-0 border-b border-solid border-border"
 									>
 										<label
-											htmlFor={`select-notification-${item.id}`}
+											htmlFor={`${selectId}-${item.id}`}
 											className="flex items-center gap-2 px-3 pt-2 text-xs"
 										>
 											<Checkbox
-												id={`select-notification-${item.id}`}
+												id={`${selectId}-${item.id}`}
 												checked={selected.has(item.id)}
 												onCheckedChange={(checked) =>
 													setSelected((previous) => {

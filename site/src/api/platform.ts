@@ -695,6 +695,7 @@ export type HudStorage = {
 };
 
 type HudReport = {
+	cluster?: Pick<ClusterUsage, "cpu" | "memory" | "live"> | null;
 	storage?: HudStorage;
 	metrics: HudMetric[];
 	generatedAt: string;
@@ -1384,6 +1385,7 @@ export type UserUIPreferences = {
 		offset: number;
 	} | null;
 	settings_sidebar?: boolean;
+	settings_sidebar_compact?: boolean;
 	resource_shortcuts?: string[];
 	resource_shortcut_order?: string[];
 	resource_tray_top?: number;
@@ -1938,7 +1940,7 @@ export type CloudDriveConnections = {
 	attachment?: Record<string, CloudDriveAttachment>;
 };
 
-/** The Cloud Drive in a workspace (scripts/cloud-drive.sh status): attached (linked, its storage answers), or not yet -
+/** The Cloud Drive in a workspace (workspace-platform cloud-runtime status): attached (linked, its storage answers), or not yet -
  * starting (no word from it yet), waiting (on its way), unanswered (linked, its storage does not answer), offline (no
  * volume: its source workspace was not running at the start), stale (its agent went quiet); none there - shared (with
  * others), detached (disconnected). */

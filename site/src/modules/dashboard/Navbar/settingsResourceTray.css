@@ -242,3 +242,20 @@ html[data-animations="off"]
 	);
 	background-size: 53px 6px;
 }
+
+.settings-admin-notes-handle .settings-resource-tray-dimple[data-edge="top"] {
+	top: 0;
+	transform: none;
+}
+.settings-admin-notes-handle
+	.settings-resource-tray-dimple[data-edge="bottom"] {
+	top: auto;
+	bottom: 0;
+	transform: none;
+}
+.settings-admin-notes-handle .settings-resource-tray-toggle {
+	height: min(84px, calc(100% - 40px));
+}
+.settings-admin-notes-handle .settings-resource-tray-grip {
+	max-height: 100%;
+}

@@ -7,11 +7,6 @@ import {
 } from "#/api/queries/notifications";
 import { Loader } from "#/components/Loader/Loader";
 import {
-	SettingsHeader,
-	SettingsHeaderDescription,
-	SettingsHeaderTitle,
-} from "#/components/SettingsHeader/SettingsHeader";
-import {
 	Tabs,
 	TabsContent,
 	TabsList,
@@ -75,12 +70,7 @@ const NotificationsPage: React.FC = () => {
 		<>
 			<title>{pageTitle("Notifications Settings")}</title>
 
-			<SettingsHeader>
-				<SettingsHeaderTitle>Notifications</SettingsHeaderTitle>
-				<SettingsHeaderDescription>
-					Control delivery methods for notifications on this deployment.{" "}
-				</SettingsHeaderDescription>
-			</SettingsHeader>
+			<h1 className="sr-only">Notifications</h1>
 
 			{!ready ? (
 				<Loader />

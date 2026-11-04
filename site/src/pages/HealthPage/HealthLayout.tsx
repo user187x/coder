@@ -54,7 +54,7 @@ export const HealthLayout: React.FC = () => {
 			<div className="flex flex-col gap-3">
 				<section
 					aria-label="Deployment health"
-					className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-lg border border-solid border-border px-4 py-3 text-sm"
+					className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-lg border border-solid border-border bg-surface-primary/50 px-4 py-3 text-sm"
 				>
 					<div className="flex items-center gap-3">
 						<HealthIcon size={28} severity={healthStatus.severity} />
@@ -87,8 +87,6 @@ export const HealthLayout: React.FC = () => {
 						<TooltipTrigger asChild>
 							<Button
 								className="ml-auto"
-								size="icon-lg"
-								variant="subtle"
 								aria-label="Refresh health checks"
 								disabled={isRefreshing}
 								data-testid="healthcheck-refresh-button"
@@ -99,8 +97,9 @@ export const HealthLayout: React.FC = () => {
 								{isRefreshing ? (
 									<Spinner size="sm" loading />
 								) : (
-									<RotateCcwIcon className="size-5" />
+									<RotateCcwIcon aria-hidden />
 								)}
+								Refresh
 							</Button>
 						</TooltipTrigger>
 						<TooltipContent side="bottom">Refresh health checks</TooltipContent>

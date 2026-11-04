@@ -123,7 +123,7 @@ export const DeploymentBannerView: React.FC<DeploymentBannerViewProps> = ({
 						{healthErrors.length > 0 ? (
 							<Link
 								asChild
-								className="flex size-7 shrink-0 items-center justify-center rounded-full bg-content-destructive"
+								className={`deployment-health-error flex size-7 shrink-0 items-center justify-center rounded-full bg-content-destructive ${animations ? "deployment-health-pulse" : ""}`}
 								showExternalIcon={false}
 							>
 								<RouterLink
@@ -142,7 +142,7 @@ export const DeploymentBannerView: React.FC<DeploymentBannerViewProps> = ({
 							>
 								<span
 									aria-hidden
-									className={`size-1.5 rounded-full ${healthy ? `bg-[#4ade80] opacity-60 ${animations ? "deployment-health-orb" : ""}` : health ? "bg-content-warning opacity-60" : "bg-content-disabled"}`}
+									className={`deployment-health-orb ${healthy ? "text-content-success" : health ? "text-content-warning" : "text-content-disabled"} ${animations && health ? "deployment-health-pulse" : ""}`}
 								/>
 							</div>
 						)}

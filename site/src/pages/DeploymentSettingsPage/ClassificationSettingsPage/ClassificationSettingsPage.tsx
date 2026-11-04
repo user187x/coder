@@ -10,11 +10,6 @@ import { Button } from "#/components/Button/Button";
 import { Input } from "#/components/Input/Input";
 import { Label } from "#/components/Label/Label";
 import { Loader } from "#/components/Loader/Loader";
-import {
-	SettingsHeader,
-	SettingsHeaderDescription,
-	SettingsHeaderTitle,
-} from "#/components/SettingsHeader/SettingsHeader";
 import { Slider } from "#/components/Slider/Slider";
 import { Spinner } from "#/components/Spinner/Spinner";
 import { Switch } from "#/components/Switch/Switch";
@@ -80,13 +75,7 @@ const ClassificationSettingsPage: React.FC = () => {
 	return (
 		<>
 			<title>{pageTitle("Classification")}</title>
-			<SettingsHeader>
-				<SettingsHeaderTitle>Classification</SettingsHeaderTitle>
-				<SettingsHeaderDescription>
-					Mark every Coder page with its classification, in a bar at the very
-					top and the very bottom.
-				</SettingsHeaderDescription>
-			</SettingsHeader>
+			<h1 className="sr-only">Classification</h1>
 
 			{settingsQuery.isLoading ? (
 				<Loader />

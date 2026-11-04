@@ -16,6 +16,7 @@ import {
 	ChartSearch,
 	ChartToolbar,
 } from "./Chart/Chart";
+import { TimingInterval } from "./Chart/TimingInterval";
 import {
 	calcDuration,
 	calcOffset,
@@ -92,6 +93,7 @@ export const ScriptsChart: React.FC<ScriptsChartProps> = ({
 							{visibleTimings.map((t) => (
 								<YAxisLabel key={t.name} id={encodeURIComponent(t.name)}>
 									{t.name}
+									<TimingInterval range={t.range} />
 								</YAxisLabel>
 							))}
 						</YAxisLabels>
@@ -122,6 +124,7 @@ export const ScriptsChart: React.FC<ScriptsChartProps> = ({
 											className="border-surface-quaternary text-content-primary"
 										>
 											Script exited with <strong>code {t.exitCode}</strong>
+											<TimingInterval range={t.range} />
 										</TooltipContent>
 									</Tooltip>
 

@@ -500,7 +500,7 @@ def verify_container(runtime):
         '/run/coder-vm/agent-init.sh': ('/run/coder-workspace/agent-init.sh', False),
         '/run/coder-vm/launch-gate': (str(LIB/'launch-gate'), False),
         '/etc/ssl/certs/ca-certificates.crt': ('/run/coder-workspace/ca-certificates.crt', False),
-        '/opt/coder-vm-support/clouddrive_cli.py': (str(LIB/'clouddrive_cli.py'), False)}
+        '/opt/coder-platform/workspace-platform': (str(LIB/'workspace-platform'), False)}
     for path in ('/proc/cpuinfo','/proc/meminfo','/proc/stat','/proc/swaps','/proc/uptime','/sys/devices/system/cpu'):
         required[path] = ('/var/lib/lxcfs'+path, False)
     mounts = container.get('Mounts') or []

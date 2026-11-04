@@ -1,7 +1,16 @@
+import {
+	BoxIcon,
+	ClockIcon,
+	CpuIcon,
+	GitCommitHorizontalIcon,
+	LayersIcon,
+	NetworkIcon,
+} from "lucide-react";
 import { useInfiniteQuery, useQuery } from "react-query";
 import { infiniteWorkspaceBuilds } from "#/api/queries/workspaceBuilds";
 import { workspaceInfrastructureMetrics } from "#/api/queries/workspaceMetrics";
 import type { Workspace } from "#/api/typesGenerated";
+import { Badge } from "#/components/Badge/Badge";
 import { Button } from "#/components/Button/Button";
 import { formatStarted } from "#/modules/platform/workspaceUptime/workspaceUptime";
 
@@ -18,22 +27,40 @@ export function BuildRunDetails({ workspace }: { workspace: Workspace }) {
 	);
 	return (
 		<section
-			className="space-y-3 border-0 border-b border-solid border-border p-4"
+			className="space-y-2 border-0 border-b border-solid border-border px-4 py-3"
 			aria-label="Workspace run details"
 		>
-			<h3 className="m-0 text-sm font-semibold">
-				Build #{build.build_number} · {build.transition} ·{" "}
-				{build.template_version_name}
-			</h3>
-			<p className="m-0 text-xs">
-				Build started {timestamp(build.job.started_at)} · Finished{" "}
-				{timestamp(build.job.completed_at)}
+			<div className="flex flex-wrap items-center gap-1.5">
+				<h3 className="m-0 mr-1 text-sm font-semibold">
+					Build #{build.build_number}
+				</h3>
+				<Badge size="xs">{build.transition}</Badge>
+				<Badge variant="outline" size="xs">
+					<GitCommitHorizontalIcon aria-hidden />
+					{build.template_version_name}
+				</Badge>
+			</div>
+			<p className="m-0 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+				<span className="inline-flex items-center gap-1">
+					<ClockIcon aria-hidden className="size-3" />
+					Started {timestamp(build.job.started_at)}
+				</span>
+				<span>Finished {timestamp(build.job.completed_at)}</span>
 			</p>
 			{build.resources
 				.flatMap((resource) => resource.agents ?? [])
 				.map((agent) => (
-					<p className="m-0 text-xs" key={agent.id}>
-						Agent {agent.name} · {agent.version || "Version unavailable"} ·
+					<p
+						className="m-0 flex flex-wrap items-center gap-1.5 text-xs"
+						key={agent.id}
+					>
+						<Badge size="xs" variant="info">
+							<CpuIcon aria-hidden />
+							Agent {agent.name}
+						</Badge>
+						<Badge size="xs" variant="outline">
+							{agent.version || "Version unavailable"}
+						</Badge>
 						Started {timestamp(agent.started_at)}
 					</p>
 				))}
@@ -45,18 +72,30 @@ export function BuildRunDetails({ workspace }: { workspace: Workspace }) {
 				runtime.data.pods.map((pod) => (
 					<div
 						key={pod.name}
-						className="rounded border border-solid border-border p-2 text-xs break-words"
+						className="grid min-w-0 gap-1.5 rounded-lg border border-solid border-border bg-surface-secondary p-2 text-xs break-words"
 					>
 						<div>
-							Pod <b>{pod.name}</b> · IP {pod.ip || "Unassigned"} · Started{" "}
+							<Badge size="xs">
+								<BoxIcon aria-hidden />
+								Pod
+							</Badge>{" "}
+							<b>{pod.name}</b> · IP {pod.ip || "Unassigned"} · Started{" "}
 							{timestamp(pod.startedAt)}
 						</div>
 						<div>
-							Node {pod.node || "Unassigned"} · IP {pod.nodeIP || "Unavailable"}
+							<Badge size="xs">
+								<NetworkIcon aria-hidden />
+								Node
+							</Badge>{" "}
+							{pod.node || "Unassigned"} · IP {pod.nodeIP || "Unavailable"}
 						</div>
 						{pod.containers.map((container) => (
 							<div key={container.name}>
-								{container.name} · <code>{container.image}</code>
+								<Badge size="xs" variant="outline">
+									<LayersIcon aria-hidden />
+									{container.name}
+								</Badge>{" "}
+								<code className="break-all">{container.image}</code>
 							</div>
 						))}
 					</div>

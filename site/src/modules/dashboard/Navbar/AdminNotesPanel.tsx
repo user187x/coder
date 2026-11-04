@@ -89,12 +89,12 @@ export const AdminNotesPanel = ({
 		<div
 			ref={panel}
 			className="settings-notes-content flex min-h-0 flex-col"
-			style={{ height: height ?? undefined }}
+			style={{ minHeight: height ?? undefined }}
 			role="dialog"
 			aria-label="Admin notes"
 			onKeyDown={(event) => event.stopPropagation()}
 		>
-			<div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3">
+			<div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto scrollbar-none p-3">
 				<div className="flex shrink-0 items-center justify-between gap-2">
 					<strong className="text-sm">Admin notes</strong>
 					<div className="flex gap-1">
@@ -179,7 +179,7 @@ export const AdminNotesPanel = ({
 							autoFocus
 							maxLength={10000}
 							rows={6}
-							className="min-h-28 flex-1 resize-none bg-surface-tertiary text-content-primary"
+							className="min-h-28 flex-1 resize-none [field-sizing:content] bg-surface-tertiary text-content-primary"
 							value={draft.text}
 							disabled={busy}
 							onChange={(event) =>

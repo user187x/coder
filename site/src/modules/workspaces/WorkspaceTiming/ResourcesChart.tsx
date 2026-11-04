@@ -18,6 +18,7 @@ import {
 	ChartSearch,
 	ChartToolbar,
 } from "./Chart/Chart";
+import { TimingInterval } from "./Chart/TimingInterval";
 import {
 	calcDuration,
 	calcOffset,
@@ -103,6 +104,7 @@ export const ResourcesChart: React.FC<ResourcesChartProps> = ({
 								return (
 									<YAxisLabel key={label} id={encodeURIComponent(t.name)}>
 										{label}
+										<TimingInterval range={t.range} />
 									</YAxisLabel>
 								);
 							})}
@@ -147,6 +149,7 @@ export const ResourcesChart: React.FC<ResourcesChartProps> = ({
 													view template
 												</Link>
 											)}
+											<TimingInterval range={t.range} />
 										</TooltipContent>
 									</Tooltip>
 									{formatTime(duration)}

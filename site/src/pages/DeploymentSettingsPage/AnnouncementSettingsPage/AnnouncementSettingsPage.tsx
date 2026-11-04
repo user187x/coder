@@ -22,11 +22,6 @@ import { Button } from "#/components/Button/Button";
 import { ConfirmDialog } from "#/components/Dialog/ConfirmDialog/ConfirmDialog";
 import { Label } from "#/components/Label/Label";
 import { Loader } from "#/components/Loader/Loader";
-import {
-	SettingsHeader,
-	SettingsHeaderDescription,
-	SettingsHeaderTitle,
-} from "#/components/SettingsHeader/SettingsHeader";
 import { Switch } from "#/components/Switch/Switch";
 import { useAuthContext } from "#/contexts/auth/AuthProvider";
 import { BannerPreview } from "#/modules/platform/announcement/BannerPreview";
@@ -212,13 +207,7 @@ const AnnouncementSettingsPage: React.FC = () => {
 	return (
 		<>
 			<title>{pageTitle("Announcement")}</title>
-			<SettingsHeader>
-				<SettingsHeaderTitle>Announcement</SettingsHeaderTitle>
-				<SettingsHeaderDescription>
-					Show an announcement across the Coder dashboard and see who has
-					confirmed reading it.
-				</SettingsHeaderDescription>
-			</SettingsHeader>
+			<h1 className="sr-only">Announcement</h1>
 
 			{stateQuery.isLoading ? (
 				<Loader />

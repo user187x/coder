@@ -84,3 +84,12 @@
 .chat-resize-handle[data-edge="bottom-left"] {
 	cursor: nesw-resize;
 }
+
+html[data-settings-side]
+	.chat-floating-dock:is(
+		[data-mode="bar"],
+		[data-mode="compact"],
+		[data-mode="window"]
+	) {
+	max-width: max(0px, calc(100vw - var(--settings-dock-width) - 32px));
+}

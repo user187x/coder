@@ -126,3 +126,28 @@ html[data-animations="off"] .workspace-selection-toolbar {
 		animation: none;
 	}
 }
+
+.table-stats-handle:is(:hover, :focus-visible) .build-footer-grip {
+	border-color: hsl(var(--content-link));
+	background-image: repeating-linear-gradient(
+		90deg,
+		hsl(var(--content-link)) 0 1px,
+		transparent 1px 4px
+	);
+}
+@media (prefers-reduced-motion: no-preference) {
+	html:not([data-animations="off"])
+		.table-stats-handle:is(:hover, :focus-visible)
+		.build-footer-grip {
+		animation: table-stats-pulse 1.4s ease-in-out infinite;
+	}
+}
+@keyframes table-stats-pulse {
+	0%,
+	100% {
+		box-shadow: 0 0 0 0 hsl(var(--content-link) / 0.1);
+	}
+	50% {
+		box-shadow: 0 0 5px 2px hsl(var(--content-link) / 0.55);
+	}
+}

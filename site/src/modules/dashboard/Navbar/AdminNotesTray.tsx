@@ -17,11 +17,13 @@ import "./adminNotesTray.css";
 export const AdminNotesTray = ({
 	placement,
 	maxWidth,
+	railViewport,
 	hidden,
 	onElement,
 }: {
 	placement: SettingsPanelPlacement;
 	maxWidth: number;
+	railViewport?: number;
 	hidden: boolean;
 	onElement: React.RefCallback<HTMLDivElement>;
 }) => {
@@ -113,7 +115,11 @@ export const AdminNotesTray = ({
 					top: 0,
 					left: 49 - width,
 					width,
-					maxHeight: placement.maxHeight,
+					maxHeight: railViewport,
+					transform:
+						railViewport === undefined
+							? undefined
+							: `translateY(clamp(${-placement.top}px, calc(${railViewport - placement.top}px - 100%), 0px))`,
 				}}
 			>
 				<div className="settings-admin-notes-inner">

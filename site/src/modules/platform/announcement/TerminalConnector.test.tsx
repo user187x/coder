@@ -113,10 +113,10 @@ it("opens one terminal in the banner that armed the connector and closes its ses
 	await waitFor(() =>
 		expect(sessions.open).toHaveBeenCalledExactlyOnceWith(MockWorkspace.id),
 	);
-	await user.click(
+	await user.dblClick(
 		screen.getByRole("button", { name: "Expand announcement panel" }),
 	);
-	await user.click(
+	await user.dblClick(
 		screen.getByRole("button", { name: "Restore announcement panel" }),
 	);
 	expect(sessions.open).toHaveBeenCalledExactlyOnceWith(MockWorkspace.id);

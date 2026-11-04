@@ -249,7 +249,8 @@ export const WorkspaceTimings: React.FC<WorkspaceTimingsProps> = ({
 							workspace && (
 								<TabsList
 									aria-label="Build details"
-									className="relative z-10 gap-2 border-0"
+									variant={null}
+									className="relative z-10 gap-1 border-0 [&_button]:rounded-lg [&_button]:border [&_button]:border-solid [&_button]:border-transparent [&_button]:px-2.5 [&_button]:py-1 [&_button[data-state=active]]:border-border [&_button[data-state=active]]:bg-surface-secondary"
 								>
 									<TabsTrigger value="timeline" onClick={() => setIsOpen(true)}>
 										Build timeline

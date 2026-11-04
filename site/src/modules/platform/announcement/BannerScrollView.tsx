@@ -163,6 +163,10 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 	const [manualOpen, setOpen] = useState(false);
 	const open = manualOpen || Boolean(workspace);
 	const [expanded, setExpanded] = useState(false);
+	const [panelSize, setPanelSize] = useState<{
+		width: number;
+		height: number;
+	}>();
 	const [closing, setClosing] = useState(false);
 	const closeTimer = useRef<number | undefined>(undefined);
 	useEffect(() => () => window.clearTimeout(closeTimer.current), []);
@@ -433,13 +437,20 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 							style={
 								{
 									"--banner-alpha": bannerAlpha(banner.opacity),
-									top: rect.top,
-									left: expanded ? 8 : rect.left,
-									width: expanded ? "calc(100vw - 16px)" : rect.width,
+									top: expanded
+										? "var(--coder-classification-h, 0px)"
+										: rect.top,
+									left: expanded ? 0 : rect.left,
+									width: expanded ? "100%" : (panelSize?.width ?? rect.width),
+									maxWidth: expanded
+										? "100%"
+										: `calc(100vw - ${rect.left + 8}px)`,
 									height: expanded
-										? `calc(100dvh - ${rect.top + 8}px)`
-										: undefined,
-									maxHeight: `calc(100dvh - ${rect.top + 8}px)`,
+										? "calc(100dvh - 2 * var(--coder-classification-h, 0px))"
+										: panelSize?.height,
+									maxHeight: expanded
+										? "100dvh"
+										: `calc(100dvh - ${rect.top + 8}px)`,
 									...(colors
 										? {
 												"--banner-scroll-screen": withBannerAlpha(
@@ -524,6 +535,18 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 							<CornerExpandButton
 								bottom
 								label="announcement panel"
+								onResize={({ width, height }) =>
+									setPanelSize({
+										width: Math.min(
+											window.innerWidth - rect.left - 8,
+											Math.max(240, width),
+										),
+										height: Math.min(
+											window.innerHeight - rect.top - 8,
+											Math.max(140, height),
+										),
+									})
+								}
 								expanded={expanded}
 								onToggle={() => setExpanded(!expanded)}
 							/>

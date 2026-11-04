@@ -28,11 +28,6 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "#/components/DropdownMenu/DropdownMenu";
-import {
-	PageHeader,
-	PageHeaderSubtitle,
-	PageHeaderTitle,
-} from "#/components/PageHeader/PageHeader";
 import { SearchField } from "#/components/SearchField/SearchField";
 import {
 	Table,
@@ -129,71 +124,53 @@ const ImagesPage: React.FC = () => {
 	return (
 		<div className="min-w-0 pb-12">
 			<title>{pageTitle("Images")}</title>
-			<PageHeader
-				className="pt-0 pb-6 md:items-start"
-				actions={
-					<div className="flex flex-wrap items-center gap-2">
-						{(needFixing > 0 || onlyNeedsFixing) && (
-							<Button
-								variant="outline"
-								size="lg"
-								aria-pressed={onlyNeedsFixing}
-								onClick={() => setOnlyNeedsFixing(!onlyNeedsFixing)}
-								title={
-									onlyNeedsFixing
-										? "Show every image again"
-										: "Show only the images that need fixing"
-								}
-								className="border-border-destructive/60 bg-surface-destructive/25 text-highlight-red aria-pressed:bg-surface-destructive/60"
-								data-testid="images-need-fixing"
-							>
-								<span
-									aria-hidden
-									className="size-2 rounded-full bg-border-destructive"
-								/>
-								{needFixing} image{needFixing === 1 ? "" : "s"} need
-								{needFixing === 1 ? "s" : ""} fixing
-							</Button>
-						)}
-						<SecurityDataBadge onOpen={() => setSettings(true)} />
-						{canEdit && (
-							<ResearchSandboxButton sandbox={query.data?.researchSandbox} />
-						)}
-						<Button
-							variant="outline"
-							size="lg"
-							onClick={() => setSettings(true)}
-						>
-							<SettingsIcon />
-							Settings
+			<h1 className="sr-only">Images</h1>
+			<div className="mb-5 flex flex-wrap items-center justify-end gap-2">
+				{(needFixing > 0 || onlyNeedsFixing) && (
+					<Button
+						variant="outline"
+						size="lg"
+						aria-pressed={onlyNeedsFixing}
+						onClick={() => setOnlyNeedsFixing(!onlyNeedsFixing)}
+						title={
+							onlyNeedsFixing
+								? "Show every image again"
+								: "Show only the images that need fixing"
+						}
+						className="border-border-destructive/60 bg-surface-destructive/25 text-highlight-red aria-pressed:bg-surface-destructive/60"
+						data-testid="images-need-fixing"
+					>
+						<span
+							aria-hidden
+							className="size-2 rounded-full bg-border-destructive"
+						/>
+						{needFixing} image{needFixing === 1 ? "" : "s"} need
+						{needFixing === 1 ? "s" : ""} fixing
+					</Button>
+				)}
+				<SecurityDataBadge onOpen={() => setSettings(true)} />
+				{canEdit && (
+					<ResearchSandboxButton sandbox={query.data?.researchSandbox} />
+				)}
+				<Button variant="outline" size="lg" onClick={() => setSettings(true)}>
+					<SettingsIcon />
+					Settings
+				</Button>
+				{canEdit && (
+					<Button variant="outline" size="lg" onClick={() => setImporting({})}>
+						<ImportIcon />
+						Import
+					</Button>
+				)}
+				{canEdit && (
+					<NavbarAction>
+						<Button size="lg" onClick={() => setCreating(true)}>
+							<PlusIcon />
+							New Image
 						</Button>
-						{canEdit && (
-							<Button
-								variant="outline"
-								size="lg"
-								onClick={() => setImporting({})}
-							>
-								<ImportIcon />
-								Import
-							</Button>
-						)}
-						{canEdit && (
-							<NavbarAction>
-								<Button size="lg" onClick={() => setCreating(true)}>
-									<PlusIcon />
-									New Image
-								</Button>
-							</NavbarAction>
-						)}
-					</div>
-				}
-			>
-				<PageHeaderTitle>Images</PageHeaderTitle>
-				<PageHeaderSubtitle>
-					Workspace images built in the cluster, ready for any workspace
-					template.
-				</PageHeaderSubtitle>
-			</PageHeader>
+					</NavbarAction>
+				)}
+			</div>
 
 			<div className="mb-4 flex flex-wrap items-center gap-3">
 				<SearchField

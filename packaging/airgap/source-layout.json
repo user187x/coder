@@ -139,10 +139,6 @@
     "link": "../../../helm-chart/update-platform-service.py"
   },
   {
-    "destination": "airgap-dist/helm-chart/coder-airgapped/charts/coder-workspace/files/scripts/cloud-drive-cli.py",
-    "link": "../../../../files/ui-updates/clouddrive_cli.py"
-  },
-  {
     "destination": "airgap-dist/helm-chart/coder-airgapped/files/bootstrap/pgwire.py",
     "link": "../ui-updates/pgwire.py"
   }

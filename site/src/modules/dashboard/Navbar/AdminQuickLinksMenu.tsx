@@ -45,6 +45,7 @@ type AdminQuickLinksMenuProps = {
 	itemClassName?: string;
 	chatExpanded?: boolean;
 	onChatToggle?: () => void;
+	beforeControls?: React.ReactNode;
 };
 
 /**
@@ -61,6 +62,7 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 	itemClassName,
 	chatExpanded,
 	onChatToggle,
+	beforeControls,
 }) => {
 	const [expanded, setExpanded] = useState(false);
 	const choicesId = useId();
@@ -154,6 +156,7 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 					))}
 				</SortableContext>
 			</DndContext>
+			{beforeControls}
 
 			<Collapsible
 				open={expanded}
@@ -211,7 +214,7 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 						</div>
 						{onChange &&
 							choices.map((page) => (
-								<div key={page.id} className="flex items-center">
+								<div key={page.id} className="flex flex-wrap items-center">
 									<DestinationLink link={page} />
 									<DropdownMenuItem
 										aria-label={`Add ${page.label} to quick links`}
@@ -246,18 +249,15 @@ function DestinationLink({
 	link: AdminPage;
 	className?: string;
 }) {
-	const item = (
+	if (link.id === "workspaces" || link.id === "templates")
+		return <SettingsDestinationMenu link={link} className={className} />;
+	return (
 		<DropdownMenuItem asChild className={cn("min-w-0 flex-1", className)}>
 			<Link to={link.path}>
 				<link.icon aria-hidden />
 				<span className="truncate">{link.label}</span>
 			</Link>
 		</DropdownMenuItem>
-	);
-	return link.id === "workspaces" || link.id === "templates" ? (
-		<SettingsDestinationMenu kind={link.id}>{item}</SettingsDestinationMenu>
-	) : (
-		item
 	);
 }
 
@@ -268,6 +268,7 @@ type QuickLinkRowProps = {
 	itemClassName?: string;
 	chatExpanded?: boolean;
 	onChatToggle?: () => void;
+	beforeControls?: React.ReactNode;
 	moving: boolean;
 	handleRef: (node: HTMLElement | null) => void;
 	onRemove: () => void;

@@ -1,5 +1,6 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MonitorIcon } from "lucide-react";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { MemoryRouter } from "react-router";
 import { API } from "#/api/api";
@@ -12,6 +13,7 @@ import {
 	MockProxyLatencies,
 	MockUserAppearanceSettings,
 	MockUserOwner,
+	MockWorkspace,
 	MockWorkspaceProxies,
 } from "#/testHelpers/entities";
 import { MockHudHistory } from "#/testHelpers/hud";
@@ -125,7 +127,7 @@ describe("ProxyMenu", () => {
 						: undefined,
 				},
 			});
-			await user.click(screen.getByRole("button", { name: /Settings/ }));
+			await user.click(screen.getByRole("button", { name: /^Settings/ }));
 			const shortcut = await screen.findByRole("menuitem", {
 				name: "Appearance",
 			});
@@ -160,30 +162,39 @@ describe("ProxyMenu", () => {
 		},
 	);
 
-	it("joins the HUD on as one split button: the HUD's link, then the latency in a pill, Controls and the chevron", () => {
+	it("keeps docking in the navbar and shows the current latency inside Settings", async () => {
+		const save = vi
+			.spyOn(PlatformAPI, "setUserUIPreferences")
+			.mockImplementation(async (changes) => changes);
 		renderMenu({ proxyContextValue: value, hud: true, controls });
 		const split = screen.getByTestId("navbar-hud-latency");
-		const [hud, menu] = Array.from(split.children);
-		expect(hud).toHaveAttribute("href", "/hud");
-		expect(hud).toHaveTextContent("HUD");
-		expect(menu.tagName).toBe("BUTTON");
-		expect(menu).toHaveAttribute("aria-haspopup", "menu");
-		const pill = within(menu as HTMLElement).getByTestId("navbar-latency-pill");
-		expect(menu.firstElementChild).toBe(pill);
-		expect(pill).toHaveClass("rounded-full");
-		// the latency reading, its antenna in the latency's colour (green: good)
-		expect(pill).toHaveTextContent(/Latency for/);
-		expect(pill).toHaveTextContent(/ms/);
+		expect(within(split).getByRole("link", { name: "HUD" })).toHaveAttribute(
+			"href",
+			"/hud",
+		);
+		const dock = within(split).getByRole("button", { name: "Dock Settings" });
+		expect(dock).toHaveTextContent("");
+		expect(within(split).queryByTestId("navbar-latency-pill")).toBeNull();
+		const menu = await openMenu();
+		const pill = within(menu).getByTestId("navbar-latency-pill");
+		expect(pill).toHaveTextContent(/Latency for.*ms/);
 		expect(pill.querySelector("svg")).toHaveClass("text-content-success");
-		// "Settings" to the pill's right
-		expect(pill.nextSibling?.textContent).toBe("Settings");
+		await userEvent.click(dock);
+		await waitFor(() =>
+			expect(save).toHaveBeenCalledWith(
+				expect.objectContaining({ settings_sidebar: true }),
+			),
+		);
+		expect(
+			await screen.findByRole("button", { name: "Return to dropdown" }),
+		).toBeVisible();
 	});
 
 	it("keeps Settings available without the HUD", () => {
 		renderMenu({ proxyContextValue: value });
 		expect(screen.queryByTestId("navbar-hud-latency")).toBeNull();
 		expect(screen.queryByRole("link", { name: /HUD/ })).toBeNull();
-		const button = screen.getByRole("button", { name: /Latency for/ });
+		const button = screen.getByRole("button", { name: /^Settings/ });
 		expect(button).toBeVisible();
 		expect(button).toHaveTextContent("Settings");
 	});
@@ -207,7 +218,6 @@ describe("ProxyMenu", () => {
 					item.textContent?.trim(),
 			);
 		expect(items.map((item) => item.textContent?.trim())).toEqual([
-			"Dock Settings",
 			expect.stringMatching(/^Workspaces/),
 			...pages.slice(0, 2).map((page) => page.label),
 			"Controls",
@@ -215,7 +225,7 @@ describe("ProxyMenu", () => {
 			"Audit logs",
 			"Connection logs",
 		]);
-		expect(items[1]).toBe(within(menu).getByTestId("workspaces-latency"));
+		expect(items[0]).toBe(within(menu).getByTestId("workspaces-latency"));
 		// the old first row (the region, its latency and its house) and the refresh row are gone
 		expect(within(menu).queryByRole("menuitemradio")).toBeNull();
 		expect(
@@ -268,5 +278,43 @@ describe("ProxyMenu", () => {
 				within(menu).getByRole("menuitem", { name: "Accounts" }),
 			).toBeInTheDocument(),
 		);
+	});
+
+	it("expands the current user's workspace links inside their pinned row", async () => {
+		vi.spyOn(API, "getWorkspaces").mockResolvedValue({
+			workspaces: [{ ...MockWorkspace, owner_name: "test", name: "Browser" }],
+			count: 1,
+		});
+		renderMenu({
+			proxyContextValue: single,
+			controls: {
+				...controls,
+				quickLinks: [
+					{
+						id: "workspaces",
+						label: "Workspaces",
+						path: "/workspaces",
+						icon: MonitorIcon,
+					},
+				],
+			},
+		});
+		const menu = await openMenu();
+		const link = within(within(menu).getByTestId("controls-group")).getByRole(
+			"menuitem",
+			{ name: "Workspaces" },
+		);
+		fireEvent.contextMenu(link);
+		const destinations = await within(menu).findByRole("group", {
+			name: "Your workspaces",
+		});
+		expect(link.parentElement).toContainElement(destinations);
+		expect(
+			await within(destinations).findByRole("menuitem", { name: "Browser" }),
+		).toHaveAttribute("href", "/@test/Browser");
+		fireEvent.contextMenu(link);
+		expect(
+			within(menu).queryByRole("group", { name: "Your workspaces" }),
+		).toBeNull();
 	});
 });

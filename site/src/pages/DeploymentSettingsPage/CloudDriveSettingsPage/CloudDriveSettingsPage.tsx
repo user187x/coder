@@ -6,11 +6,6 @@ import { PlatformAPI } from "#/api/platform";
 import { cloudDriveSettings, safeKey } from "#/api/queries/platform";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { Loader } from "#/components/Loader/Loader";
-import {
-	SettingsHeader,
-	SettingsHeaderDescription,
-	SettingsHeaderTitle,
-} from "#/components/SettingsHeader/SettingsHeader";
 import { Switch } from "#/components/Switch/Switch";
 import { CloudDriveSettings } from "#/modules/platform/cloudDrive/CloudDriveSettings";
 import { pageTitle } from "#/utils/page";
@@ -41,14 +36,7 @@ const CloudDriveSettingsPage: React.FC = () => {
 	return (
 		<>
 			<title>{pageTitle("Cloud Drive")}</title>
-			<SettingsHeader>
-				<SettingsHeaderTitle>Cloud Drive</SettingsHeaderTitle>
-				<SettingsHeaderDescription>
-					Every user's own drive of files, linked into their workspaces at
-					~/cloud-drive: on or off for everyone, where it keeps its files, and
-					how much each account may keep.
-				</SettingsHeaderDescription>
-			</SettingsHeader>
+			<h1 className="sr-only">Cloud Drive</h1>
 
 			{settings.isLoading && <Loader />}
 			{settings.error ? (

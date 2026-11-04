@@ -2833,7 +2833,7 @@ class CloudDriveConnectionsTest(unittest.TestCase):
         # the kubelet may take a minute to update the annotation's file in the pod: the workspace is told by exec
         self.answer = (0, "detached\n", "")
         self.safe.set_connected(self.h, self.OWNER, self.WS, {"connected": False})
-        self.assertEqual(self.execs, [("coder-ws-1", [self.safe.PUSH_HELPER, "push", "off"])])
+        self.assertEqual(self.execs, [("coder-ws-1", self.safe.PUSH_COMMAND + ["off"])])
         # its answer stands over an older reading of its agent's metadata, a newer reading over it
         t = self.safe.time.time()
         self.safe.ATTACHMENT = lambda owner: [(self.WS, "attached", t - 5, "succeeded")]
@@ -2870,7 +2870,7 @@ class CloudDriveConnectionsTest(unittest.TestCase):
                 break
             self.safe.time.sleep(0.01)
         self.assertEqual(self.safe._attach_seen[self.WS][0], "detached")
-        self.assertTrue(all(cmd == [self.safe.PUSH_HELPER, "push", "off"] for _, cmd in self.execs))
+        self.assertTrue(all(cmd == self.safe.PUSH_COMMAND + ["off"] for _, cmd in self.execs))
         # a newer state: the retries of the older one give way
         self.safe._wanted["coder-ws-1"] = "on"
         n = len(self.execs)
@@ -3341,23 +3341,38 @@ class CloudDriveBackendTest(unittest.TestCase):
 
 
 class CloudDriveMountTest(unittest.TestCase):
-    """The Cloud Drive mounted into a folder of a workspace (clouddrive_cli.py, the workspace's `cloud-drive`): links
-    beside the folder's files, folders merged, collisions halted and resolved as the owner chooses."""
+    """Run the deployed Cloud Drive CLI with its dashboard and terminal input contracts."""
+
+    @classmethod
+    def setUpClass(cls):
+        import subprocess, tempfile
+        cls.build = tempfile.TemporaryDirectory()
+        cls.addClassCleanup(cls.build.cleanup)
+        cls.binary = os.path.join(cls.build.name, "workspace-platform")
+        subprocess.run(["go", "build", "-o", cls.binary, "./cmd/workspace-platform"],
+                       cwd=os.environ["CODER_SOURCE_ROOT"], check=True)
+
+    def cli(self, *args, status=0):
+        import subprocess
+        p = subprocess.run([self.binary, "cloud-drive", *args, "--json"], capture_output=True,
+                           env=dict(os.environ, HOME=self.home))
+        self.assertEqual(p.returncode, status, (p.stderr, p.stdout))
+        return json.loads(p.stdout)
+
+    def apply(self, target, mode, decisions=None, status=0):
+        return self.cli("apply", target, "--mode", mode, "--decisions", json.dumps(decisions or {}), status=status)
 
     def setUp(self):
         import tempfile
-        self.home = tempfile.mkdtemp()
-        self.cli = load("clouddrive_cli", "clouddrive_cli.py")
-        c = self.cli
-        c.HOME = self.home
-        c.CLOUD = os.path.join(self.home, "cloud-drive")
-        c.STATE = os.path.join(self.home, ".config", "cloud-drive", "mounts.json")
-        c.OVERWRITTEN = os.path.join(self.home, ".local", "share", "cloud-drive", "overwritten")
+        folder = tempfile.TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        self.home = folder.name
+        self.cloud = os.path.join(self.home, "cloud-drive")
         drive = os.path.join(self.home, "drive")
         for rel, text in (("data.csv", "cloud"), ("notes.txt", "cloud"), ("new.txt", "c"), ("src/main.py", "c"),
                           ("src/util.py", "c"), ("docs/a.md", "d")):
             self.write(os.path.join(drive, rel), text)
-        os.symlink(drive, c.CLOUD)
+        os.symlink(drive, self.cloud)
         for rel in ("data.csv", "notes.txt", "src/main.py", "keep.me"):
             self.write(os.path.join(self.home, "data", rel), "mine")
         self.target = os.path.join(self.home, "data")
@@ -3371,33 +3386,23 @@ class CloudDriveMountTest(unittest.TestCase):
         with open(os.path.join(self.target, rel)) as f:
             return f.read()
 
-    def test_names_kept_both(self):
-        r = self.cli.renamed
-        self.assertEqual([r("data.csv"), r("archive.tar.gz"), r(".bashrc"), r("Makefile"), r("src"),
-                          r("data.csv", 2)],
-                         ["data-(cloud_drive).csv", "archive-(cloud_drive).tar.gz", ".bashrc-(cloud_drive)",
-                          "Makefile-(cloud_drive)", "src-(cloud_drive)", "data-(cloud_drive)-2.csv"])
-
     def test_paths(self):
-        self.assertEqual(self.cli.resolve("data"), self.target)
-        self.assertEqual(self.cli.resolve("~/data"), self.target)
-        self.assertEqual(self.cli.resolve(self.target + "/"), self.target)
-        for bad in ("/etc", "/", "cloud-drive", "cloud-drive/x", "", "data/keep.me", "/proc/1"):
-            with self.assertRaises(ValueError, msg=bad):
-                self.cli.resolve(bad)
+        for name in ("data", "~/data", self.target + "/"):
+            self.assertEqual(self.cli("plan", name)["target"], self.target)
+        for name in ("/etc", "/", "cloud-drive", "cloud-drive/x", "", "data/keep.me", "/proc/1"):
+            self.assertIn("error", self.cli("plan", name, status=1))
 
     def test_the_plan_halts_on_files_of_the_same_name_and_merges_folders(self):
-        p = self.cli.plan(self.target)
+        p = self.cli("plan", self.target)
         self.assertEqual(sorted(x["path"] for x in p["links"]), ["docs", "new.txt", "src/util.py"])
         self.assertEqual([c["path"] for c in p["collisions"]], ["data.csv", "notes.txt", "src/main.py"])
         self.assertEqual(p["merged"], ["src"])
         self.assertEqual(p["collisions"][2]["keepBothAs"], "src/main-(cloud_drive).py")
-        with self.assertRaises(self.cli.Halt):  # "ask" with an answer missing changes nothing
-            self.cli.apply(self.target, "ask", {"data.csv": "overwrite"})
+        self.assertTrue(self.apply(self.target, "ask", {"data.csv": "overwrite"}, status=3)["halted"])
         self.assertFalse(os.path.islink(os.path.join(self.target, "docs")))
 
     def test_keep_both(self):
-        r = self.cli.apply(self.target, "keep-both")
+        r = self.apply(self.target, "keep-both")
         self.assertEqual((r["linked"], len(r["keptBoth"]), r["overwritten"]), (3, 3, []))
         self.assertEqual(self.read("data.csv"), "mine")
         self.assertEqual(self.read("data-(cloud_drive).csv"), "cloud")
@@ -3405,35 +3410,35 @@ class CloudDriveMountTest(unittest.TestCase):
         self.assertEqual(self.read("keep.me"), "mine")
 
     def test_overwrite_all_and_unmount_puts_them_back(self):
-        r = self.cli.apply(self.target, "overwrite-all")
+        r = self.apply(self.target, "overwrite-all")
         self.assertEqual(sorted(r["overwritten"]), ["data.csv", "notes.txt", "src/main.py"])
         self.assertEqual(self.read("data.csv"), "cloud")
         self.assertTrue(os.path.exists(os.path.join(r["movedTo"], "data", "data.csv")))
-        u = self.cli.unmount(self.target)
+        u = self.cli("unmount", self.target)
         self.assertEqual((u["removed"], u["restored"]), (6, 3))
         self.assertEqual(self.read("data.csv"), "mine")
         self.assertEqual(sorted(os.listdir(self.target)), ["data.csv", "keep.me", "notes.txt", "src"])
         self.assertEqual(os.listdir(os.path.join(self.target, "src")), ["main.py"])
 
     def test_each_occurrence(self):
-        self.cli.apply(self.target, "ask", {"data.csv": "overwrite", "notes.txt": "keep", "src/main.py": "keep"})
+        self.apply(self.target, "ask", {"data.csv": "overwrite", "notes.txt": "keep", "src/main.py": "keep"})
         self.assertEqual(self.read("data.csv"), "cloud")
         self.assertEqual((self.read("notes.txt"), self.read("notes-(cloud_drive).txt")), ("mine", "cloud"))
         self.assertEqual(self.read("src/main-(cloud_drive).py"), "c")
 
     def test_sync_follows_the_cloud_drive_as_the_mount_was_made(self):
-        self.cli.apply(self.target, "ask", {"data.csv": "keep", "notes.txt": "keep", "src/main.py": "keep"})
+        self.apply(self.target, "ask", {"data.csv": "keep", "notes.txt": "keep", "src/main.py": "keep"})
         drive = os.path.join(self.home, "drive")
         self.write(os.path.join(drive, "later.txt"), "c")
         self.write(os.path.join(self.target, "later.txt"), "mine")
         os.remove(os.path.join(drive, "new.txt"))
-        self.cli.sync()
+        self.cli("sync")
         self.assertFalse(os.path.lexists(os.path.join(self.target, "new.txt")))  # gone from the Cloud Drive
         self.assertEqual(self.read("later-(cloud_drive).txt"), "c")  # kept both: nobody to ask
-        self.assertEqual(self.cli.listing()["mounts"][0]["mode"], "ask")  # how it was made stays
+        self.assertEqual(self.cli("list")["mounts"][0]["mode"], "ask")  # how it was made stays
         # the Cloud Drive away (disconnected): nothing is touched
-        os.remove(self.cli.CLOUD)
-        self.assertEqual(self.cli.sync(), [])
+        os.remove(self.cloud)
+        self.assertEqual(self.cli("sync"), [])
         self.assertTrue(os.path.islink(os.path.join(self.target, "docs")))
 
     def test_the_service_runs_it_in_the_owners_running_workspace(self):
@@ -3459,12 +3464,9 @@ class CloudDriveMountTest(unittest.TestCase):
         pod, container, command, stdin = calls[0]
         self.assertEqual(pod, "ws-pod")
         self.assertEqual(container, "")  # kexec selects the pod's actual agent container.
-        self.assertEqual(command[:2], ["python3", "-c"])
-        self.assertEqual(command[4:], ["apply", "data", "--mode", "ask",
-                                       "--decisions=-:%d" % len(json.dumps({"b.txt": "overwrite"})), "--json"])
-        n = int(command[3])
-        self.assertTrue(stdin[:n].startswith(b"#!/usr/bin/env python3"))  # the command, then the answers
-        self.assertEqual(json.loads(stdin[n:]), {"b.txt": "overwrite"})
+        self.assertEqual(command, safe.MOUNT_COMMAND + ["apply", "data", "--mode", "ask",
+                         "--decisions=-:%d" % len(json.dumps({"b.txt": "overwrite"})), "--json"])
+        self.assertEqual(json.loads(stdin), {"b.txt": "overwrite"})
         for body in ({"workspace": wid, "path": "data", "mode": "nope"},
                      {"workspace": wid, "path": "data", "mode": "ask", "decisions": {"x": "delete"}},
                      {"workspace": "x", "path": "data", "mode": "ask"},
@@ -3477,25 +3479,15 @@ class CloudDriveMountTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             safe.mount_plan(h, user, {"workspace": wid, "path": "data"})
 
-    def test_the_boot_runs_the_command_with_its_arguments(self):
-        """CLI_BOOT, as the service sends it: the command's code on stdin, its exit code kept."""
+    def test_native_cli_does_not_wait_for_stdin_to_close(self):
         import subprocess
-        safe = load("safe", "safe.py")
-        code = safe._cli_text()
         env = dict(os.environ, HOME=self.home)
-        p = subprocess.run(["python3", "-c", safe.CLI_BOOT, str(len(code)), "plan", "data", "--json"],
-                           input=code, capture_output=True, env=env)
-        self.assertEqual(p.returncode, 0, p.stderr)
-        self.assertEqual(len(json.loads(p.stdout)["collisions"]), 3)
-        p = subprocess.run(["python3", "-c", safe.CLI_BOOT, str(len(code)), "apply", "data", "--mode", "ask",
-                            "--decisions", "-", "--json"], input=code + b"{}", capture_output=True, env=env)
-        self.assertEqual((p.returncode, json.loads(p.stdout)["halted"]), (3, True))
         # as through exec: stdin never ends - the command reads exactly the answers' bytes
         answers = json.dumps({"data.csv": "keep", "notes.txt": "keep", "src/main.py": "overwrite"}).encode()
-        proc = subprocess.Popen(["python3", "-c", safe.CLI_BOOT, str(len(code)), "apply", "data", "--mode", "ask",
+        proc = subprocess.Popen([self.binary, "cloud-drive", "apply", "data", "--mode", "ask",
                                  "--decisions=-:%d" % len(answers), "--json"], stdin=subprocess.PIPE,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
-        proc.stdin.write(code + answers)
+        proc.stdin.write(answers)
         proc.stdin.flush()  # and left open
         out, err = proc.stdout.read(), proc.stderr.read()
         proc.wait(timeout=30)

@@ -20,11 +20,6 @@ import {
 import { Input } from "#/components/Input/Input";
 import { Label } from "#/components/Label/Label";
 import { Loader } from "#/components/Loader/Loader";
-import {
-	SettingsHeader,
-	SettingsHeaderDescription,
-	SettingsHeaderTitle,
-} from "#/components/SettingsHeader/SettingsHeader";
 import { Spinner } from "#/components/Spinner/Spinner";
 import { Switch } from "#/components/Switch/Switch";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
@@ -118,15 +113,7 @@ const QuickMenuSettingsPage: React.FC = () => {
 	return (
 		<>
 			<title>{pageTitle("Quick Menu")}</title>
-			<SettingsHeader>
-				<SettingsHeaderTitle>Quick Menu</SettingsHeaderTitle>
-				<SettingsHeaderDescription>
-					Choose the shortcut that opens the wheel on every page, its wedges -
-					the dashboard's pages and every admin category - and their order,
-					clockwise from the top. Everyone gets this wheel; a page someone may
-					not open shows dimmed for them.
-				</SettingsHeaderDescription>
-			</SettingsHeader>
+			<h1 className="sr-only">Quick Menu</h1>
 
 			{menu.isError && !menu.data ? (
 				<ErrorAlert error={menu.error} />
@@ -134,10 +121,10 @@ const QuickMenuSettingsPage: React.FC = () => {
 				<Loader />
 			) : (
 				<div className="flex flex-wrap items-start gap-6">
-					<div className="flex w-full max-w-[380px] flex-col gap-3">
+					<div className="grid w-full max-w-[336px] auto-rows-fr gap-3">
 						<section
 							aria-label="Preview"
-							className="flex w-full max-w-[380px] flex-col items-center gap-2 rounded-2xl border border-solid border-border bg-surface-secondary p-4"
+							className="flex min-w-0 flex-col items-center justify-center gap-2 rounded-2xl border border-solid border-border bg-surface-secondary p-4"
 							data-testid="quick-menu-preview"
 						>
 							<Wheel
@@ -158,7 +145,7 @@ const QuickMenuSettingsPage: React.FC = () => {
 
 						<section
 							aria-labelledby="quick-menu-shortcut-heading"
-							className="flex flex-col gap-2 rounded-2xl border border-solid border-border bg-surface-secondary p-4"
+							className="flex min-w-0 flex-col justify-center gap-3 rounded-2xl border border-solid border-border bg-surface-secondary p-4"
 						>
 							<h2
 								id="quick-menu-shortcut-heading"
@@ -228,7 +215,7 @@ const QuickMenuSettingsPage: React.FC = () => {
 					</div>
 					<section
 						aria-labelledby="quick-menu-wedges"
-						className="flex min-w-[300px] flex-1 flex-col gap-3"
+						className="flex min-w-[min(100%,300px)] flex-1 flex-col gap-3"
 					>
 						<div className="flex items-center justify-between gap-3">
 							<h2

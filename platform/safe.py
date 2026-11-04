@@ -6,7 +6,7 @@ driver ru.yandex.s3.csi), and the Workspaces page opens it. Its owner may discon
 again; a new workspace is connected): the workspace template mounts the volume out of the way (/mnt/cloud-drive) and a
 watcher in the workspace links ~/cloud-drive to it while its pod's annotation platform.coder/cloud-drive says "on" -
 which it reads through the downward API, and which this module also tells it at once, by exec (the workspace's
-cloud-drive.sh push: the kubelet may take a minute or more to update the annotation's file), so a change shows in the
+workspace-platform cloud-runtime push: the kubelet may take a minute or more to update the annotation's file), so a change shows in the
 running workspace within a second, no restart. The workspace says whether the drive is attached (its agent's metadata
 cloud_drive, read from Coder's database): connections' "attachment". The disconnected workspaces are kept in
 LINKS_FILE; a watcher here keeps every running workspace pod's annotation so (a pod starts "on", from its template). This module keeps, every RECONCILE_EVERY seconds: the
@@ -167,9 +167,11 @@ OFF_FILE = os.environ.get("SAFE_OFF_FILE", "/data/cloud-drive-off.json")
 LINKS_FILE = os.environ.get("SAFE_LINKS_FILE", "/data/cloud-drive-links.json")
 LINK_ANNOTATION = "platform.coder/cloud-drive"
 LINK_WATCH_SECONDS = 5
-# The workspace's Cloud Drive script (scripts/cloud-drive.sh, which writes itself there at its start): told each change
-# of the annotation at once (push), it answers how the drive is then (its status word).
-PUSH_HELPER = "/tmp/coder-cloud-drive/cloud-drive.sh"
+# Older running workspaces keep the helpers installed by their previous template until their next build.
+NATIVE_TOOL = "/opt/coder-platform/workspace-platform"
+PUSH_COMMAND = ["sh", "-c", 'if [ -x "$1" ]; then exec "$1" cloud-runtime push "$2"; fi; exec /tmp/coder-cloud-drive/cloud-drive.sh push "$2"', "cloud-drive", NATIVE_TOOL]
+MOUNT_COMMAND = ["sh", "-c", 'bin=$1; shift; if [ -x "$bin" ]; then exec "$bin" cloud-drive "$@"; fi; exec "$HOME/.local/bin/cloud-drive" "$@"', "cloud-drive", NATIVE_TOOL]
+
 PUSH_RETRY, PUSH_TRIES = 3, 20  # a workspace whose script has not run yet is tried again for a minute
 # A workspace's word on its drive (its agent's metadata) older than this: its agent has gone quiet ("stale").
 ATTACH_FRESH = 20
@@ -591,7 +593,7 @@ def push_link(pod_name, wid, want):
     """The workspace told at once (its Cloud Drive script, by exec), its answer kept (attachment): True when it took
     it. False when it has no such script (a template version from before it, or a start before the script ran)."""
     try:
-        code, out, err = kexec.exec_in(KUBE, NAMESPACE, pod_name, SOURCE_CONTAINER, [PUSH_HELPER, "push", want],
+        code, out, err = kexec.exec_in(KUBE, NAMESPACE, pod_name, SOURCE_CONTAINER, PUSH_COMMAND + [want],
                                        timeout=15)
     except Exception as e:  # noqa: BLE001 - the annotation stands; the workspace follows it once its file is updated
         LOG(event="cloud-drive-push-failed", pod=pod_name, link=want, error=str(e)[:200])
@@ -619,7 +621,7 @@ def push_soon(pod_name, wid, want, first=True):
 
 def attachment(user_id):
     """{workspace id: word} - how the account's Cloud Drive is in each of its started workspaces whose template reports
-    it: the word of its agent's metadata (scripts/cloud-drive.sh status: attached, waiting, unanswered, offline,
+    it: the word of its agent's metadata (workspace-platform cloud-runtime status: attached, waiting, unanswered, offline,
     shared, detached), or its answer to a push when that is newer; "starting" before a first word (its build or its
     agent still starting), "stale" when its agent has not said for ATTACH_FRESH seconds. {} while Coder's database
     cannot be read."""
@@ -2682,21 +2684,8 @@ def handle_libraries(h, method, path, query):
 
 
 # ---------------------------------------------------------------------------------------------------- mounts
-# The Cloud Drive mounted into a folder of one of the owner's workspaces: clouddrive_cli.py (the workspace's own
-# `cloud-drive` command, installed by the template) run there through exec, as the workspace's user, with --json. It
-# links the Cloud Drive's entries into the folder (folders of the same name merged); a file of the same name halts it
-# until the owner chooses: keep both (data-(cloud_drive).csv) or overwrite (all, or each occurrence). The code is sent
-# with each call, so a workspace of an older template version can mount too.
-CLI_BOOT = ("import sys; n = int(sys.argv[1]); code = sys.stdin.buffer.read(n).decode(); "
-            "sys.argv = ['cloud-drive'] + sys.argv[2:]; "
-            "exec(compile(code, 'cloud-drive', 'exec'), {'__name__': '__main__'})")
 MOUNT_MODES = ("keep-both", "overwrite-all", "ask")
 MOUNT_DECISIONS_MAX = 100000
-
-
-def _cli_text():
-    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "clouddrive_cli.py"), "rb") as f:
-        return f.read()
 
 
 def _mount_workspace(h, user, wid):
@@ -2723,10 +2712,9 @@ def run_cli(pod, args, stdin=b"", timeout=180):
     if _source_is_vm(pod):
         import vmusercommand
         return vmusercommand.run(KUBE, NAMESPACE, pod, args, stdin, timeout)
-    code = _cli_text()
     rc, out, err = kexec.exec_in(KUBE, NAMESPACE, pod, SOURCE_CONTAINER,
-                                 ["python3", "-c", CLI_BOOT, str(len(code))] + args + ["--json"],
-                                 timeout=timeout, stdin=code + stdin)
+                                 MOUNT_COMMAND + args + ["--json"],
+                                 timeout=timeout, stdin=stdin)
     try:
         result = json.loads(out.strip().splitlines()[-1]) if out.strip() else None
     except ValueError:

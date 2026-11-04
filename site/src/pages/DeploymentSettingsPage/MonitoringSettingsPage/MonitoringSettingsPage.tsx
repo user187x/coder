@@ -16,11 +16,6 @@ import {
 import { Label } from "#/components/Label/Label";
 import { Loader } from "#/components/Loader/Loader";
 import { SearchField } from "#/components/SearchField/SearchField";
-import {
-	SettingsHeader,
-	SettingsHeaderDescription,
-	SettingsHeaderTitle,
-} from "#/components/SettingsHeader/SettingsHeader";
 import { Switch } from "#/components/Switch/Switch";
 import {
 	Table,
@@ -77,14 +72,7 @@ const MonitoringSettingsPage: React.FC = () => {
 	return (
 		<>
 			<title>{pageTitle("Monitoring")}</title>
-			<SettingsHeader>
-				<SettingsHeaderTitle>Monitoring</SettingsHeaderTitle>
-				<SettingsHeaderDescription>
-					Zero-trust checks and runtime signals that help protect the platform,
-					then every user and their running workspaces: open one to follow its
-					logs live.
-				</SettingsHeaderDescription>
-			</SettingsHeader>
+			<h1 className="sr-only">Monitoring</h1>
 
 			{permissions.editDeploymentConfig && (
 				<>

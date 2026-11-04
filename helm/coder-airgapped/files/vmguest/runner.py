@@ -33,7 +33,7 @@ def docker_argv(profile, home, runtime, bundle, nonce):
             '--env', 'CODER_CODE_SERVER_HA=', '--env', 'CODER_HOME_DISK_SIZE=' + str(profile['home_bytes']),
             '--mount', 'type=bind,src=/usr/local/lib/coder-vm/launch-gate,dst=/run/coder-vm/launch-gate,readonly',
             '--mount', 'type=bind,src=/usr/local/lib/coder-vm/launch-user.sh,dst=/run/coder-vm/launch-user.sh,readonly',
-            '--mount', 'type=bind,src=/usr/local/lib/coder-vm/clouddrive_cli.py,dst=/opt/coder-vm-support/clouddrive_cli.py,readonly',
+            '--mount', 'type=bind,src=/usr/local/lib/coder-vm/workspace-platform,dst=/opt/coder-platform/workspace-platform,readonly',
             '--mount', 'type=bind,src=/var/lib/coder-workspace/platform,dst=/etc/platform,readonly',
             '--mount', 'type=bind,src=/var/lib/coder-workspace/drives,dst=/mnt/coder-vm-drives,bind-propagation=rslave',
             '--mount', 'type=bind,src=' + str(home) + ',dst=/home/coder',

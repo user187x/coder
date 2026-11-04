@@ -16,7 +16,7 @@ import private_config
 from vmprofile import ProfileError
 
 CONFIG = pathlib.Path('/etc/coder-workspace')
-CLI = '/opt/coder-vm-support/clouddrive_cli.py'
+CLI = '/opt/coder-platform/workspace-platform'
 MAX_OUTPUT = 1048576
 CHECK_SOURCE = '''import json,os,sys
 p=sys.argv[1]
@@ -63,7 +63,7 @@ def command(request):
     if action == 'check-source':
         arguments, data = ['python3', '-c', CHECK_SOURCE, path], b''
     else:
-        arguments, data = ['python3', CLI, action], b''
+        arguments, data = [CLI, 'cloud-drive', action], b''
         if action != 'list':
             arguments.append(path)
         if action == 'apply':

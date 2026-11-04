@@ -46,19 +46,29 @@
 }
 
 .deployment-health-orb {
-	animation: deployment-health-orb 4s ease-in-out infinite;
+	display: block;
+	width: 0.85rem;
+	height: 0.85rem;
+	border-radius: 50%;
+	background: radial-gradient(circle at 32% 28%, white, currentColor 55%);
+	box-shadow: 0 0 4px currentColor;
 }
-@keyframes deployment-health-orb {
-	0%,
-	100% {
-		opacity: 0.45;
+.deployment-health-error {
+	color: hsl(var(--content-destructive));
+}
+.deployment-health-pulse {
+	animation: deployment-health-pulse 2.4s ease-out infinite;
+}
+@keyframes deployment-health-pulse {
+	from {
+		box-shadow: 0 0 0 0 currentColor;
 	}
-	50% {
-		opacity: 0.75;
+	to {
+		box-shadow: 0 0 0 5px transparent;
 	}
 }
 @media (prefers-reduced-motion: reduce) {
-	.deployment-health-orb {
+	.deployment-health-pulse {
 		animation: none;
 	}
 }
