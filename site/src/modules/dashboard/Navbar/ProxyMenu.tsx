@@ -107,22 +107,11 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 		const root = document.documentElement;
 		const measure = () => {
 			if (!navbar) return;
-			const bounds = navbar.getBoundingClientRect();
-			root.style.setProperty(
-				"--settings-navbar-scale",
-				getComputedStyle(navbar).zoom || "1",
-			);
-			const buttons = Array.from(
-				navbar.querySelectorAll("a[href],button"),
-				(el) => el.getBoundingClientRect(),
-			).filter((rect) => rect.width > 0);
-			const lastEdge = Math.max(
-				bounds.left,
-				...buttons.map((rect) => rect.right),
-			);
+			const style = getComputedStyle(navbar);
+			root.style.setProperty("--settings-navbar-scale", style.zoom || "1");
 			root.style.setProperty(
 				"--settings-panel-right",
-				`${Math.max(0, bounds.right - lastEdge)}px`,
+				`calc(${style.paddingRight} * var(--settings-navbar-scale))`,
 			);
 			root.style.setProperty(
 				"--settings-panel-top",
@@ -131,10 +120,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 		};
 		measure();
 		const observer = new ResizeObserver(measure);
-		if (navbar) {
-			observer.observe(navbar);
-			for (const child of navbar.children) observer.observe(child);
-		}
+		if (navbar) observer.observe(navbar);
 		window.addEventListener("resize", measure);
 		window.addEventListener("scroll", measure, { passive: true });
 		return () => {
