@@ -80,7 +80,7 @@ describe("NavbarView", () => {
 			renderNavbar({ canViewHud: true, canEditDeployment: true });
 			const user = userEvent.setup();
 			await user.click(
-				screen.getByRole("button", { name: new RegExp(trigger) }),
+				screen.getByRole("button", { name: new RegExp(`^${trigger}`) }),
 			);
 			await user.pointer({
 				target: await screen.findByRole(role, { name }),
@@ -103,7 +103,7 @@ describe("NavbarView", () => {
 				target:
 					name === "navbar surface"
 						? screen.getByTestId("navbar-arrange")
-						: screen.getByRole("button", { name: new RegExp(name) }),
+						: screen.getByRole("button", { name: new RegExp(`^${name}`) }),
 				keys: "[MouseRight]",
 			});
 			await user.click(screen.getByRole("button", { name: "Done" }));
@@ -164,7 +164,7 @@ describe("NavbarView", () => {
 					}),
 				);
 			} else {
-				await user.click(screen.getByRole("button", { name: /Settings/ }));
+				await user.click(screen.getByRole("button", { name: /^Settings/ }));
 			}
 			if (mobile)
 				await user.click(
@@ -190,7 +190,7 @@ describe("NavbarView", () => {
 		);
 		renderNavbar({ canEditDeployment: true });
 		const user = userEvent.setup();
-		await user.click(screen.getByRole("button", { name: /Settings/ }));
+		await user.click(screen.getByRole("button", { name: /^Settings/ }));
 		await user.click(await screen.findByRole("menuitem", { name: "Controls" }));
 		const pill = screen.getByTestId("workspaces-latency");
 		pill.focus();
@@ -224,7 +224,7 @@ describe("NavbarView", () => {
 		vi.spyOn(chatStore, "useChatConnection").mockImplementation(() => {});
 		renderNavbar({ canEditDeployment: true });
 		const user = userEvent.setup();
-		await user.click(screen.getByRole("button", { name: /Settings/ }));
+		await user.click(screen.getByRole("button", { name: /^Settings/ }));
 		await user.dblClick(
 			await screen.findByRole("menuitem", { name: "Hide metric graphs" }),
 		);
@@ -263,7 +263,7 @@ describe("NavbarView", () => {
 		});
 		renderNavbar({}, MockUserMember);
 		const user = userEvent.setup();
-		await user.click(screen.getByRole("button", { name: /Settings/ }));
+		await user.click(screen.getByRole("button", { name: /^Settings/ }));
 		await user.click(await screen.findByRole("menuitem", { name: "Controls" }));
 		await user.pointer({
 			target: await screen.findByRole("menuitem", { name: "Chat" }),
