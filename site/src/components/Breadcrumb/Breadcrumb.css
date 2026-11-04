@@ -3,6 +3,7 @@
 }
 
 .breadcrumb-connected > ol {
+	zoom: var(--breadcrumb-scale, 1);
 	gap: 4px;
 	margin-block: 10px;
 	flex-wrap: nowrap;
@@ -27,7 +28,8 @@
 	align-items: center;
 	gap: 4px;
 	min-width: 0;
-	min-height: 36px;
+	height: var(--navbar-action-height, 2.5rem);
+	box-sizing: border-box;
 	font-size: 0.8125rem;
 	padding: 8px 8px;
 	background: hsl(var(--surface-tertiary));
@@ -109,34 +111,15 @@
 	touch-action: manipulation;
 	font-family: inherit;
 }
-.breadcrumb-connected[data-categories-collapsed] > ol > li:first-child > a {
-	clip-path: polygon(
-		0 0,
-		100% 0,
-		calc(100% - var(--crumb-edge)) 50%,
-		100% 100%,
-		0 100%
-	);
+.breadcrumb-connected > ol > li {
+	width: var(--navbar-action-width, 8.5rem);
 }
-.breadcrumb-connected[data-categories-collapsed] > ol > li:last-child > button {
-	clip-path: polygon(
-		var(--crumb-edge) 0,
-		100% 0,
-		100% 100%,
-		var(--crumb-edge) 100%,
-		0 50%
-	);
-}
-
-.deployment-breadcrumb > ol > li:first-child {
-	width: 5.5rem;
-}
-.deployment-breadcrumb > ol > li + li {
-	width: 11.625rem;
-}
-.deployment-breadcrumb > ol > li > :is(a, span, button) {
+.breadcrumb-connected > ol > li > :is(a, span, button) {
 	width: 100%;
 	justify-content: center;
+}
+
+.deployment-breadcrumb > ol > li > :is(a, span, button) {
 	font-size: 0.75rem;
 	line-height: 1.25;
 	white-space: nowrap;
@@ -155,6 +138,13 @@
 	> li:last-child
 	> [aria-current="page"] {
 	color: var(--color-gray-900);
+}
+
+.category-breadcrumb-button {
+	--arrow-shift: -2px;
+}
+.category-breadcrumb-button[aria-expanded="false"] {
+	--arrow-shift: 2px;
 }
 
 /* Two clipped faces let the page show through the seam. */
@@ -186,4 +176,48 @@
 	width: var(--toggle-width);
 	padding-left: var(--crumb-edge);
 	clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, var(--crumb-edge) 50%);
+}
+
+.breadcrumb-connected[data-categories-collapsed] > ol > li:first-child,
+.breadcrumb-connected[data-categories-collapsed]
+	.category-breadcrumb-button
+	> :not([data-category-toggle]),
+.breadcrumb-connected[data-categories-collapsed]
+	.category-breadcrumb-button::before {
+	display: none;
+}
+.breadcrumb-connected[data-categories-collapsed] > ol > li:last-child {
+	width: auto;
+	margin-left: 0;
+}
+.breadcrumb-connected[data-categories-collapsed]
+	> ol
+	> li
+	> .category-breadcrumb-button {
+	width: var(--toggle-width);
+	padding: 0;
+	clip-path: none;
+}
+.breadcrumb-connected[data-categories-collapsed] [data-category-toggle] {
+	padding: 0;
+	clip-path: none;
+	border-radius: 6px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	html:not([data-animations="off"])
+		.category-breadcrumb-button:is(:hover, :focus-visible)
+		[data-category-toggle]
+		svg
+		> path:last-child {
+		animation: breadcrumb-direction 900ms ease-in-out infinite alternate;
+	}
+}
+@keyframes breadcrumb-direction {
+	from {
+		transform: translateX(0);
+	}
+	to {
+		transform: translateX(var(--arrow-shift));
+	}
 }

@@ -24,6 +24,7 @@ export const CategoryBreadcrumbButton = ({
 			type="button"
 			className="category-breadcrumb-button"
 			aria-current="page"
+			aria-label={label}
 			aria-controls={controls}
 			aria-expanded={sidebarOpen}
 			title={

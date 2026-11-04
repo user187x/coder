@@ -4543,7 +4543,8 @@ class ClusterNetworkViewTest(unittest.TestCase):
         workspaces = {"workspaces": [
             {"owner_name": "alice", "name": "look", "latest_build": {"resources": [{"agents": [agent("connected", 0.4)]}]}},
             {"owner_name": "bob", "name": "b", "latest_build": {"resources": [{"agents": [agent("connected", 1.6)]}]}},
-            {"owner_name": "carol", "name": "c", "latest_build": {"resources": [{"agents": [agent("timeout", None)]}]}}]}
+            {"owner_name": "carol", "name": "c", "latest_build": {"resources": [{"agents": [agent("timeout", None)]}]}},
+            {"owner_name": "dan", "name": "d", "latest_build": {"resources": [{"agents": [agent("connected", None)]}]}}]}
         calls = []
 
         def coder_get(token, path):
@@ -4592,7 +4593,11 @@ class ClusterNetworkViewTest(unittest.TestCase):
                          ("Coder", "2026-10-21T02:24:16Z"))
         self.assertEqual(e["coder-database"]["ms"], 0.043)                    # the duration, not the rounded 0 ms
         self.assertEqual(e["coder-workspaces"]["ms"], 1.0)                    # the connected agents' median
-        self.assertEqual(len(e["coder-workspaces"]["samples"]), 3)
+        samples = {s["target"]: s for s in e["coder-workspaces"]["samples"]}
+        self.assertEqual(len(samples), 4)
+        self.assertIsNone(samples["dan/d.main"]["ms"])
+        self.assertIsNone(samples["dan/d.main"]["error"])
+        self.assertEqual(samples["carol/c.main"]["error"], "timeout")
         # what only another pod sees: drawn, never numbered
         for eid in ("workspaces-code-server", "replicator-database", "replicator-code-server", "database-replicas"):
             self.assertIsNone(e[eid]["ms"], eid)

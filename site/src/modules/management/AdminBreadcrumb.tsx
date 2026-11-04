@@ -16,6 +16,12 @@ export const AdminBreadcrumb: React.FC<
 		);
 		const navbar = document.querySelector(".navbar-soft");
 		const update = () => {
+			if (navbar) {
+				parent.style.setProperty(
+					"--breadcrumb-scale",
+					getComputedStyle(navbar).zoom,
+				);
+			}
 			parent.style.setProperty(
 				"--admin-breadcrumb-height",
 				`${nav.getBoundingClientRect().height}px`,
@@ -37,9 +43,8 @@ export const AdminBreadcrumb: React.FC<
 			{...props}
 			ref={ref}
 			className={cn(
-				"sticky top-[calc(var(--dashboard-navigation-height,72px)+var(--coder-classification-h,0px))] z-30 flow-root pointer-events-none [&_a]:pointer-events-auto [&_button]:pointer-events-auto",
-				props.variant === "connected" &&
-					"w-full max-w-72 max-lg:static data-[categories-collapsed]:static",
+				"sticky top-[calc(var(--dashboard-navigation-height,72px)+var(--coder-classification-h,0px)*max(1,var(--breadcrumb-scale,1)))] z-30 flow-root pointer-events-none [&_a]:pointer-events-auto [&_button]:pointer-events-auto",
+				props.variant === "connected" && "w-fit max-w-full",
 				className,
 			)}
 		/>

@@ -1,4 +1,6 @@
 :root {
+	--navbar-action-width: 8.5rem;
+	--navbar-action-height: 2.5rem;
 	--navbar-control-gap: 0.75rem;
 	--navbar-inline-padding: 1.5rem;
 }
@@ -10,8 +12,6 @@
 }
 .navbar-soft {
 	padding-inline: var(--navbar-inline-padding);
-	--navbar-action-width: 8.5rem;
-	--navbar-action-height: 2.5rem;
 }
 .navbar-soft :is(.navbar-split, .navbar-action > button, .navbar-action > a) {
 	box-sizing: border-box;

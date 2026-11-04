@@ -901,8 +901,8 @@ def workspaces_agents(token):
         for r in (w.get("latest_build") or {}).get("resources") or []:
             for a in r.get("agents") or []:
                 lat = [v.get("latency_ms") for v in (a.get("latency") or {}).values()
-                       if isinstance(v, dict) and v.get("preferred")]
-                ok = a.get("status") == "connected" and bool(lat)
+                       if isinstance(v, dict) and v.get("preferred") and v.get("latency_ms") is not None]
+                ok = a.get("status") == "connected"
                 out.append({"target": "%s/%s.%s" % (w.get("owner_name"), w.get("name"), a.get("name")),
                             "ms": round(lat[0], 3) if lat else None, "ok": ok, "status": a.get("status")})
     return out, None
