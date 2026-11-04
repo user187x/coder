@@ -1,3 +1,7 @@
+:root {
+	--navbar-control-gap: 0.75rem;
+}
+
 /* Navbar controls share a rounded outline. The announcement owns its buttons. */
 .navbar-soft button:not(#coder-system-banner button, .navbar-split-menu),
 .navbar-soft a.inline-flex:not(#coder-system-banner a) {
@@ -100,19 +104,29 @@ html[data-settings-side="compact"] {
 	> .settings-menu[data-settings-docked]
 ) {
 	--dock-gutter: var(--settings-panel-right, 1.5rem);
+	--dock-block-gap: var(--dock-gutter);
 	inset: calc(
 			var(
 				--settings-panel-top,
 				calc(var(--coder-classification-h, 0px) + 72px)
 			) +
-			var(--dock-gutter)
+			var(--dock-block-gap)
 		)
 		var(--dock-gutter)
-		calc(var(--coder-classification-h, 0px) + var(--dock-gutter)) auto !important;
+		calc(var(--coder-classification-h, 0px) + var(--dock-block-gap)) auto !important;
 	transform: none !important;
 	width: var(--settings-dock-width);
 	min-width: 0 !important; /* Override the popper wrapper’s inline max-content minimum. */
 	z-index: 42 !important;
+}
+html[data-settings-side="compact"]
+	[data-radix-popper-content-wrapper]:has(
+		> .settings-menu[data-settings-docked]
+	) {
+	--dock-block-gap: calc(
+		var(--navbar-control-gap) *
+		var(--settings-navbar-scale, 1)
+	);
 }
 .settings-menu[data-settings-docked] {
 	width: 100%;
@@ -124,6 +138,11 @@ html[data-settings-side="compact"] {
 .settings-menu[data-settings-docked] > .rounded-md {
 	height: 100%;
 	max-height: 100%;
+}
+html[data-settings-side="compact"]
+	.settings-menu[data-settings-docked]
+	> .rounded-md {
+	border-radius: 1.125rem;
 }
 .settings-menu[data-settings-docked]
 	:is(.settings-resource-tray, .settings-admin-notes-tray) {
@@ -143,6 +162,12 @@ html[data-chat-side]
 		> .settings-menu[data-settings-docked]
 	) {
 	bottom: 50dvh !important;
+}
+html[data-chat-side][data-settings-side="compact"]
+	[data-radix-popper-content-wrapper]:has(
+		> .settings-menu[data-settings-docked]
+	) {
+	bottom: calc(50dvh + var(--dock-block-gap)) !important;
 }
 html[data-settings-side][data-chat-side] .chat-side-panel {
 	top: 50dvh;

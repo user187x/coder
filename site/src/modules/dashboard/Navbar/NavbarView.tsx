@@ -90,7 +90,7 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 
 			{/* Platform: Workspaces, the banner, latency and HUD, in the user's order (NavbarArrange). */}
 			<NavbarArrange
-				className="relative hidden md:flex flex-1 min-w-0 items-center gap-3 h-full"
+				className="relative hidden md:flex flex-1 min-w-0 items-center gap-(--navbar-control-gap) h-full"
 				items={{
 					logo: logoURL ? <NavbarLogo /> : null,
 					workspaces: (

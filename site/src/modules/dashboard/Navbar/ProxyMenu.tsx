@@ -109,6 +109,10 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 		const measure = () => {
 			if (!navbar) return;
 			const bounds = navbar.getBoundingClientRect();
+			root.style.setProperty(
+				"--settings-navbar-scale",
+				getComputedStyle(navbar).zoom || "1",
+			);
 			const buttons = Array.from(
 				navbar.querySelectorAll("a[href],button"),
 				(el) => el.getBoundingClientRect(),
@@ -140,6 +144,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 			window.removeEventListener("scroll", measure);
 			root.style.removeProperty("--settings-panel-top");
 			root.style.removeProperty("--settings-panel-right");
+			root.style.removeProperty("--settings-navbar-scale");
 			delete root.dataset.settingsSide;
 		};
 	}, [docked, compact]);
