@@ -30,24 +30,21 @@ describe("tripleDesCbcDecrypt", () => {
 		).toEqual(plain);
 	});
 
-	it("fails on the wrong key (bad padding)", () => {
-		const key = randomBytes(24);
-		const iv = randomBytes(8);
+	it("rejects invalid padding produced by a wrong key", () => {
+		const key = Buffer.from(
+			"0123456789abcdef23456789abcdef01456789abcdef0123",
+			"hex",
+		);
+		const iv = Buffer.alloc(8);
 		const cipher = createCipheriv("des-ede3-cbc", key, iv);
 		const encrypted = Buffer.concat([
-			cipher.update(randomBytes(64)),
+			cipher.update("workspace"),
 			cipher.final(),
 		]);
-		const wrong = bytes(randomBytes(24));
-		let failures = 0;
-		for (let i = 0; i < 5; i++) {
-			try {
-				tripleDesCbcDecrypt(wrong, bytes(iv), bytes(encrypted));
-			} catch {
-				failures++;
-			}
-			wrong[0] ^= 0xff;
-		}
-		expect(failures).toBeGreaterThanOrEqual(3);
+		const wrong = bytes(key);
+		wrong[0] ^= 0x80;
+		expect(() =>
+			tripleDesCbcDecrypt(wrong, bytes(iv), bytes(encrypted)),
+		).toThrow("bad padding");
 	});
 });
