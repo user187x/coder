@@ -22,6 +22,7 @@ export const CategoryBreadcrumbButton = ({
 	return (
 		<button
 			type="button"
+			className="category-breadcrumb-button"
 			aria-current="page"
 			aria-controls={controls}
 			aria-expanded={sidebarOpen}
@@ -55,7 +56,7 @@ export const CategoryBreadcrumbButton = ({
 				data-category-toggle=""
 				aria-hidden="true"
 				title={sidebarOpen ? "Hide categories" : "Show categories"}
-				className="absolute inset-y-0 right-0 inline-flex w-8 items-center justify-center bg-gray-600 text-white hover:bg-gray-700"
+				className="absolute inset-y-0 right-0 inline-flex items-center justify-center bg-gray-600 text-white hover:bg-gray-700"
 			>
 				<SidebarIcon className="size-3.5" />
 			</span>

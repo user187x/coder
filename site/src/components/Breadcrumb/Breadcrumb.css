@@ -146,10 +146,6 @@
 	height: 0.875rem;
 	flex-shrink: 0;
 }
-.breadcrumb-connected.deployment-breadcrumb > ol > li:last-child > button {
-	position: relative;
-	padding-right: 2rem;
-}
 .breadcrumb-connected.deployment-breadcrumb > ol > li:first-child > a {
 	background: hsl(var(--surface-tertiary));
 	color: hsl(var(--content-primary));
@@ -158,6 +154,36 @@
 	> ol
 	> li:last-child
 	> [aria-current="page"] {
-	background: white;
 	color: var(--color-gray-900);
+}
+
+/* Two clipped faces let the page show through the seam. */
+.breadcrumb-connected > ol > li > button.category-breadcrumb-button {
+	--toggle-width: 2.25rem;
+	position: relative;
+	isolation: isolate;
+	padding-right: var(--toggle-width);
+	background: transparent;
+}
+.breadcrumb-connected .category-breadcrumb-button::before {
+	content: "";
+	position: absolute;
+	inset: 0 calc(var(--toggle-width) - var(--crumb-edge) + 3px) 0 0;
+	z-index: -1;
+	background: hsl(var(--surface-tertiary));
+	clip-path: polygon(
+		0 0,
+		calc(100% - var(--crumb-edge)) 0,
+		100% 50%,
+		calc(100% - var(--crumb-edge)) 100%,
+		0 100%
+	);
+}
+.deployment-breadcrumb .category-breadcrumb-button::before {
+	background: white;
+}
+.breadcrumb-connected .category-breadcrumb-button [data-category-toggle] {
+	width: var(--toggle-width);
+	padding-left: var(--crumb-edge);
+	clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, var(--crumb-edge) 50%);
 }
