@@ -59,3 +59,26 @@ it("paginates the account query, searches from the first match, and restores the
 		getUsers.mockRestore();
 	}
 });
+
+it("opens account and lease creation from a single trigger", async () => {
+	const { router } = renderWithAuth(<UsersPage />, {
+		path: "/deployment/users",
+		route: "/deployment/users",
+		extraRoutes: [{ path: "/deployment/users/create", element: <div /> }],
+	});
+	const user = userEvent.setup();
+	const trigger = await screen.findByRole("button", { name: "New account" });
+	await user.click(trigger);
+	await user.click(
+		await screen.findByRole("menuitem", { name: "Create Lease" }),
+	);
+	expect(
+		await screen.findByRole("dialog", { name: "New short term lease" }),
+	).toHaveAttribute("data-state", "open");
+	await user.keyboard("{Escape}");
+	await user.click(trigger);
+	await user.click(
+		await screen.findByRole("menuitem", { name: "New account" }),
+	);
+	expect(router.state.location.pathname).toBe("/deployment/users/create");
+});
