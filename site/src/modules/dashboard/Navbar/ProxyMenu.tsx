@@ -107,18 +107,34 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 		document.documentElement.dataset.settingsSide = compact
 			? "compact"
 			: "expanded";
-		const navbar = document.querySelector(".navbar-soft");
+		const navbar = document.querySelector<HTMLElement>(".navbar-soft");
 		const root = document.documentElement;
 		const measure = () => {
-			if (navbar)
-				root.style.setProperty(
-					"--settings-panel-top",
-					`${navbar.getBoundingClientRect().bottom}px`,
-				);
+			if (!navbar) return;
+			const bounds = navbar.getBoundingClientRect();
+			const buttons = Array.from(
+				navbar.querySelectorAll("a[href],button"),
+				(el) => el.getBoundingClientRect(),
+			).filter((rect) => rect.width > 0);
+			const lastEdge = Math.max(
+				bounds.left,
+				...buttons.map((rect) => rect.right),
+			);
+			root.style.setProperty(
+				"--settings-panel-right",
+				`${Math.max(0, bounds.right - lastEdge)}px`,
+			);
+			root.style.setProperty(
+				"--settings-panel-top",
+				`${navbar.getBoundingClientRect().bottom}px`,
+			);
 		};
 		measure();
 		const observer = new ResizeObserver(measure);
-		if (navbar) observer.observe(navbar);
+		if (navbar) {
+			observer.observe(navbar);
+			for (const child of navbar.children) observer.observe(child);
+		}
 		window.addEventListener("resize", measure);
 		window.addEventListener("scroll", measure, { passive: true });
 		return () => {
@@ -126,6 +142,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 			window.removeEventListener("resize", measure);
 			window.removeEventListener("scroll", measure);
 			root.style.removeProperty("--settings-panel-top");
+			root.style.removeProperty("--settings-panel-right");
 			delete root.dataset.settingsSide;
 		};
 	}, [docked, compact]);
@@ -153,10 +170,16 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 	const regions =
 		proxy?.proxies && proxy.proxies.length > 1 ? proxy.proxies : undefined;
 
-	const pill = proxy && (
-		<span
+	const pill = (
+		<DropdownMenuItem
+			onSelect={(event) => {
+				event.preventDefault();
+				proxy?.refetchProxyLatencies();
+			}}
+			disabled={!proxy}
+			title="Refresh latency"
 			data-testid="navbar-latency-pill"
-			className="mx-1 my-1 flex min-h-8 shrink-0 items-center justify-center gap-1.5 rounded-full border border-solid border-border px-2 py-1.5 text-sm text-content-secondary [&_svg]:size-4"
+			className="min-h-8 min-w-0 flex-1 justify-center gap-1 rounded-full border border-solid border-border px-1 text-xs text-content-secondary [&_svg]:size-3.5"
 		>
 			<span className="sr-only">
 				Latency for {selectedProxy?.display_name ?? "your region"}
@@ -175,10 +198,12 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 						isLoading={isLoading}
 					/>
 				</>
-			) : (
+			) : proxy ? (
 				"Select Proxy"
+			) : (
+				"Unavailable"
 			)}
-		</span>
+		</DropdownMenuItem>
 	);
 
 	const reading = (
@@ -212,39 +237,9 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 				<div
 					role="group"
 					aria-label="Dashboard navigation"
-					className={cn("navbar-split", controls && "settings-navbar-width")}
+					className="navbar-split"
 					data-testid={hud ? "navbar-hud-latency" : undefined}
 				>
-					{hud && (
-						<NavLink to="/hud" className="navbar-split-main" title="HUD">
-							<GaugeIcon aria-hidden />
-							HUD
-						</NavLink>
-					)}
-					{controls && (
-						<button
-							type="button"
-							className="navbar-dock-toggle"
-							aria-label={dockLabel}
-							title={dockLabel}
-							aria-pressed={docked}
-							disabled={docking.isPending || !prefs.data}
-							onClick={() => {
-								setOpen(true);
-								docking.mutate({
-									settings_sidebar: !docked,
-									settings_sidebar_compact: false,
-								});
-								if (!docked && !open) proxy?.refetchProxyLatencies();
-							}}
-						>
-							{docked ? (
-								<PanelRightCloseIcon aria-hidden />
-							) : (
-								<PanelRightOpenIcon aria-hidden />
-							)}
-						</button>
-					)}
 					<DropdownMenuTrigger asChild>
 						<button
 							type="button"
@@ -298,6 +293,49 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 						ref={setMenuSurface}
 						className="flex flex-col rounded-md border border-solid border-border bg-surface-primary p-2 shadow-md max-h-(--radix-dropdown-menu-content-available-height) overflow-y-auto scrollbar-thin [scrollbar-color:hsl(var(--surface-quaternary))_transparent]"
 					>
+						{!compact && (
+							<div
+								role="group"
+								aria-label="Settings navigation"
+								className="mx-1 mb-1 flex items-center gap-1"
+							>
+								{hud && (
+									<DropdownMenuItem
+										asChild
+										className="min-h-8 flex-1 justify-center gap-1 rounded-full border border-solid border-border px-1 text-xs"
+									>
+										<NavLink to="/hud" title="HUD">
+											<GaugeIcon aria-hidden />
+											HUD
+										</NavLink>
+									</DropdownMenuItem>
+								)}
+								{pill}
+								{controls && (
+									<DropdownMenuItem
+										aria-label={dockLabel}
+										title={dockLabel}
+										disabled={docking.isPending || !prefs.data}
+										className="min-h-8 flex-1 justify-center rounded-full border border-solid border-border px-1"
+										onSelect={(event) => {
+											event.preventDefault();
+											setOpen(true);
+											docking.mutate({
+												settings_sidebar: !docked,
+												settings_sidebar_compact: false,
+											});
+										}}
+									>
+										{docked ? (
+											<PanelRightCloseIcon aria-hidden />
+										) : (
+											<PanelRightOpenIcon aria-hidden />
+										)}
+									</DropdownMenuItem>
+								)}
+							</div>
+						)}
+
 						{docked && (
 							<DropdownMenuItem
 								aria-label={
@@ -370,10 +408,12 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 										</DropdownMenuItem>
 									),
 								)}
+								{controls && canViewAdminSettings(controls.permissions) && (
+									<SettingsMetricGraphs compact chatExpanded={false} />
+								)}
 							</>
 						) : (
 							<>
-								{pill}
 								{regions && proxy && (
 									<DropdownMenuSub>
 										<DropdownMenuSubTrigger data-testid="navbar-region">

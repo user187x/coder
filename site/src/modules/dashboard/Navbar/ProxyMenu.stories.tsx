@@ -823,10 +823,11 @@ export const RemoveAddedResourceShortcut: Story = {
 			within(canvasElement).getByRole("button", { name: /^Settings/ }),
 		);
 		await userEvent.pointer({
-			target: await within(canvasElement.ownerDocument.body).findByRole(
-				"menuitem",
-				{ name: "HUD" },
-			),
+			target: await within(
+				await within(canvasElement.ownerDocument.body).findByRole("group", {
+					name: "Resource shortcuts",
+				}),
+			).findByRole("menuitem", { name: "HUD" }),
 			keys: "[MouseRight]",
 		});
 	},

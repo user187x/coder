@@ -45,8 +45,12 @@ import { TableCard } from "#/modules/platform/tableCard/TableCard";
 
 export const ShortTermLeases = ({
 	clock = Date.now,
+	creating: controlledCreating,
+	onCreatingChange,
 }: {
 	clock?: () => number;
+	creating?: boolean;
+	onCreatingChange?: (open: boolean) => void;
 }) => {
 	const id = useId();
 	const section = useRef<HTMLElement>(null);
@@ -61,7 +65,9 @@ export const ShortTermLeases = ({
 	const allTemplates = useQuery(templates());
 	const [template, setTemplate] = useState("");
 	const [minutes, setMinutes] = useState("15");
-	const [creating, setCreating] = useState(false);
+	const [localCreating, setLocalCreating] = useState(false);
+	const creating = controlledCreating ?? localCreating;
+	const setCreating = onCreatingChange ?? setLocalCreating;
 	const [issuedToken, setIssuedToken] = useState("");
 	const [websiteMode, setWebsiteMode] = useState("all");
 	const [websites, setWebsites] = useState("");

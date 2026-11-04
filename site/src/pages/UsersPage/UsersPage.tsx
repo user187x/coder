@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "react-query";
 import { useSearchParams } from "react-router";
 import { deploymentConfig } from "#/api/queries/deployment";
@@ -15,6 +16,7 @@ import { UsersPageView } from "./UsersPageView";
 
 const UsersPage: React.FC = () => {
 	const [searchParams, setSearchParams] = useSearchParams();
+	const [createLeaseOpen, setCreateLeaseOpen] = useState(false);
 	const { entitlements } = useDashboard();
 
 	const groupsByUserIdQuery = useQuery(groupsByUserId());
@@ -95,7 +97,19 @@ const UsersPage: React.FC = () => {
 					groupsByUserId={groupsByUserIdQuery.data}
 					me={me.id}
 					canCreateUser={canCreateUser}
-					leases={permissions.editDeploymentConfig && <ShortTermLeases />}
+					onCreateLease={
+						permissions.editDeploymentConfig
+							? () => setCreateLeaseOpen(true)
+							: undefined
+					}
+					leases={
+						permissions.editDeploymentConfig && (
+							<ShortTermLeases
+								creating={createLeaseOpen}
+								onCreatingChange={setCreateLeaseOpen}
+							/>
+						)
+					}
 					canEditUsers={canEditUsers}
 					canManageWorkspaces={permissions.editDeploymentConfig}
 					canViewActivity={entitlements.features.audit_log.enabled}

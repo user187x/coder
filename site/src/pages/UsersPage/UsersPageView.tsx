@@ -1,9 +1,21 @@
-import { Maximize2Icon, Minimize2Icon, UserPlusIcon } from "lucide-react";
+import {
+	ChevronDownIcon,
+	HourglassIcon,
+	Maximize2Icon,
+	Minimize2Icon,
+	UserPlusIcon,
+} from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
 import type * as TypesGen from "#/api/typesGenerated";
 import { Button } from "#/components/Button/Button";
 import { Dialog, DialogContent, DialogTitle } from "#/components/Dialog/Dialog";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "#/components/DropdownMenu/DropdownMenu";
 import { UsersFilter } from "#/components/Filter/UsersFilter";
 import { PaginationAmount } from "#/components/PaginationWidget/PaginationAmount";
 import type { PaginationResult } from "#/components/PaginationWidget/PaginationContainer";
@@ -36,6 +48,7 @@ type UsersPageViewProps = Omit<
 	onPageSizeChange: (size: number) => void;
 	canCreateUser?: boolean;
 	leases?: React.ReactNode;
+	onCreateLease?: () => void;
 	/** User Quota (UserQuotaSection), for admins: shared controls below the merged accounts table. */
 	quota?: React.ReactNode;
 };
@@ -48,11 +61,13 @@ export const UsersPageView: React.FC<UsersPageViewProps> = ({
 	onPageSizeChange,
 	canCreateUser,
 	leases,
+	onCreateLease,
 	quota,
 	...props
 }) => {
 	const [action, setAction] = useState<UserAdminAction | undefined>();
 	// Platform: accounts chosen for Edit Roles, Suspend, Delete or Chat at once (on this page).
+
 	const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(
 		new Set(),
 	);
@@ -160,12 +175,35 @@ export const UsersPageView: React.FC<UsersPageViewProps> = ({
 			<h1 className="sr-only">Accounts</h1>
 			{canCreateUser && (
 				<NavbarAction>
-					<Button asChild>
-						<Link to="create">
-							<UserPlusIcon />
-							New account
-						</Link>
-					</Button>
+					<div className="inline-flex">
+						<Button
+							asChild
+							className={onCreateLease ? "rounded-r-none" : undefined}
+						>
+							<Link to="create">
+								<UserPlusIcon />
+								New account
+							</Link>
+						</Button>
+						{onCreateLease && (
+							<DropdownMenu>
+								<DropdownMenuTrigger asChild>
+									<Button
+										aria-label="More account actions"
+										className="min-w-0 rounded-l-none border-0 border-l border-solid border-l-content-invert/25 px-2"
+									>
+										<ChevronDownIcon aria-hidden />
+									</Button>
+								</DropdownMenuTrigger>
+								<DropdownMenuContent align="end">
+									<DropdownMenuItem onSelect={onCreateLease}>
+										<HourglassIcon aria-hidden />
+										Create Lease
+									</DropdownMenuItem>
+								</DropdownMenuContent>
+							</DropdownMenu>
+						)}
+					</div>
 				</NavbarAction>
 			)}
 

@@ -1,6 +1,4 @@
-/* Platform: the top bar's controls rounder (GUI-UPDATES), the banner's own buttons aside; and the HUD and latency
-   split button (ProxyMenu hud): the HUD's link on the left, the latency and its menu's chevron on the right, one
-   outline round both. Not in a layer: over the buttons' utilities. */
+/* Navbar controls share a rounded outline. The announcement owns its buttons. */
 .navbar-soft button:not(#coder-system-banner button, .navbar-split-menu),
 .navbar-soft a.inline-flex:not(#coder-system-banner a) {
 	border-radius: 10px;
@@ -16,7 +14,6 @@
 	font-weight: 500;
 	white-space: nowrap;
 }
-.navbar-split-main,
 .navbar-split-menu {
 	display: inline-flex;
 	align-items: center;
@@ -29,20 +26,14 @@
 	cursor: pointer;
 	transition: background-color 120ms;
 }
-.navbar-soft .navbar-split-main {
-	border-radius: 9px 0 0 9px;
-}
 .navbar-soft .navbar-split-menu {
 	padding-right: 0.625rem;
-	border-left: 1px solid hsl(var(--border-default));
-	border-radius: 0 9px 9px 0;
+	border-radius: 9px;
 }
-.navbar-split-main:hover,
 .navbar-split-menu:hover,
 .navbar-split-menu[data-state="open"] {
 	background: hsl(var(--surface-secondary));
 }
-.navbar-split-main:focus-visible,
 .navbar-split-menu:focus-visible {
 	outline: 2px solid hsl(var(--content-link));
 	outline-offset: -2px;
@@ -52,14 +43,6 @@
 	height: 1.125rem;
 }
 
-.settings-navbar-width {
-	width: min(300px, calc(100vw - 96px));
-	flex-shrink: 0;
-}
-.settings-navbar-width .navbar-split-menu {
-	flex: 1;
-	justify-content: center;
-}
 .settings-menu {
 	width: min(364px, calc(100vw - 32px));
 	min-width: 0;
@@ -98,7 +81,7 @@
 }
 
 html[data-settings-side] {
-	--settings-dock-width: min(316px, 85vw);
+	--settings-dock-width: min(244px, 75vw);
 }
 html[data-settings-side="compact"] {
 	--settings-dock-width: 52px;
@@ -110,9 +93,10 @@ html[data-settings-side="compact"] {
 			--settings-panel-top,
 			calc(var(--coder-classification-h, 0px) + 72px)
 		)
-		0 var(--coder-classification-h, 0px) auto !important;
+		var(--settings-panel-right, 1.5rem) var(--coder-classification-h, 0px) auto !important;
 	transform: none !important;
 	width: var(--settings-dock-width);
+	min-width: 0 !important; /* Override the popper wrapper’s inline max-content minimum. */
 	z-index: 42 !important;
 }
 .settings-menu[data-settings-docked] {
@@ -132,7 +116,11 @@ html[data-settings-side="compact"] {
 }
 @media (min-width: 1024px) {
 	html[data-settings-side]:not([data-chat-side]) #main-content {
-		margin-right: calc(var(--settings-dock-width) - (100vw - 100%));
+		margin-right: calc(
+			var(--settings-dock-width) +
+			var(--settings-panel-right, 1.5rem) -
+			(100vw - 100%)
+		);
 	}
 }
 html[data-chat-side]
@@ -145,26 +133,13 @@ html[data-settings-side][data-chat-side] .chat-side-panel {
 	top: 50dvh;
 }
 
-html[data-settings-side="expanded"][data-chat-side] {
-	--settings-dock-width: min(380px, 100vw);
+html[data-settings-side][data-chat-side] .chat-side-panel {
+	right: var(--settings-panel-right, 1.5rem);
+}
+html[data-settings-side="expanded"][data-chat-side] .chat-side-panel {
+	width: var(--settings-dock-width);
 }
 
 html[data-settings-side][data-chat-side] .navbar-soft {
 	margin-right: 0;
-}
-.navbar-soft .navbar-dock-toggle {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	padding-inline: 0.625rem;
-	border: 0;
-	border-radius: 0;
-	background: transparent;
-	color: hsl(var(--content-secondary));
-	cursor: pointer;
-}
-.navbar-dock-toggle:hover,
-.navbar-dock-toggle[aria-pressed="true"] {
-	background: hsl(var(--surface-secondary));
-	color: hsl(var(--content-primary));
 }

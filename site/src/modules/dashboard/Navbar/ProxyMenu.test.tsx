@@ -162,23 +162,57 @@ describe("ProxyMenu", () => {
 		},
 	);
 
-	it("keeps docking in the navbar and shows the current latency inside Settings", async () => {
+	it("toggles live metric graphs without expanding the shortcut rail", async () => {
+		const prefs = { settings_sidebar: true, settings_sidebar_compact: true };
+		vi.mocked(PlatformAPI.getUserUIPreferences).mockResolvedValue(prefs);
+		const save = vi
+			.spyOn(PlatformAPI, "setUserUIPreferences")
+			.mockImplementation(async (changes) => ({ ...prefs, ...changes }));
+		const user = userEvent.setup();
+		renderMenu({ proxyContextValue: value, hud: true, controls });
+		const graphs = await screen.findByRole("group", {
+			name: "Cluster metric history",
+		});
+		expect(within(graphs).getAllByRole("img")).toHaveLength(4);
+		await user.click(
+			screen.getByRole("menuitem", { name: "Hide metric graphs" }),
+		);
+		expect(save).toHaveBeenCalledWith({
+			settings_metrics: { expanded: false, locked: false },
+		});
+		expect(
+			screen.queryByRole("group", { name: "Cluster metric history" }),
+		).toBeNull();
+		await user.click(
+			screen.getByRole("menuitem", { name: "Show metric graphs" }),
+		);
+		expect(
+			await screen.findByRole("group", { name: "Cluster metric history" }),
+		).toBeVisible();
+	});
+
+	it("groups HUD, latency and docking inside Settings", async () => {
 		const save = vi
 			.spyOn(PlatformAPI, "setUserUIPreferences")
 			.mockImplementation(async (changes) => changes);
 		renderMenu({ proxyContextValue: value, hud: true, controls });
 		const split = screen.getByTestId("navbar-hud-latency");
-		expect(within(split).getByRole("link", { name: "HUD" })).toHaveAttribute(
-			"href",
-			"/hud",
-		);
-		const dock = within(split).getByRole("button", { name: "Dock Settings" });
-		expect(dock).toHaveTextContent("");
-		expect(within(split).queryByTestId("navbar-latency-pill")).toBeNull();
+		expect(within(split).queryByRole("link", { name: "HUD" })).toBeNull();
 		const menu = await openMenu();
+		const navigation = within(menu).getByRole("group", {
+			name: "Settings navigation",
+		});
+		expect(
+			within(navigation).getByRole("menuitem", { name: "HUD" }),
+		).toHaveAttribute("href", "/hud");
+		const dock = within(navigation).getByRole("menuitem", {
+			name: "Dock Settings",
+		});
+		expect(dock).toHaveTextContent("");
+
 		const pill = within(menu).getByTestId("navbar-latency-pill");
 		expect(pill).toHaveTextContent(/Latency for.*ms/);
-		expect(pill.querySelector("svg")).toHaveClass("text-content-success");
+
 		await userEvent.click(dock);
 		await waitFor(() =>
 			expect(save).toHaveBeenCalledWith(
@@ -186,7 +220,7 @@ describe("ProxyMenu", () => {
 			),
 		);
 		expect(
-			await screen.findByRole("button", { name: "Return to dropdown" }),
+			await screen.findByRole("menuitem", { name: "Return to dropdown" }),
 		).toBeVisible();
 	});
 
@@ -209,10 +243,14 @@ describe("ProxyMenu", () => {
 		const tray = within(menu).getByRole("group", {
 			name: "Resource shortcuts",
 		});
+		const navigation = within(menu).getByRole("group", {
+			name: "Settings navigation",
+		});
 		const items = within(menu)
 			.getAllByRole("menuitem")
 			.filter(
 				(item) =>
+					!navigation.contains(item) &&
 					!list.contains(item) &&
 					!tray.contains(item) &&
 					item.textContent?.trim(),
