@@ -4,7 +4,7 @@ import { Outlet } from "react-router";
 import type { DeploymentConfig } from "#/api/api";
 import { deploymentConfig } from "#/api/queries/deployment";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
-import { Loader } from "#/components/Loader/Loader";
+import { PageLoader } from "#/components/Loader/Loader";
 
 export const DeploymentConfigContext = createContext<
 	DeploymentConfigValue | undefined
@@ -33,7 +33,7 @@ const DeploymentConfigProvider: React.FC = () => {
 	}
 
 	if (!deploymentConfigQuery.data) {
-		return <Loader />;
+		return <PageLoader />;
 	}
 
 	return (

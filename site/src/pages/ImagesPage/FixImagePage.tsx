@@ -13,7 +13,7 @@ import {
 } from "#/api/images";
 import { imagesKey } from "#/api/queries/images";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
-import { Loader } from "#/components/Loader/Loader";
+import { PageLoader } from "#/components/Loader/Loader";
 import { Spinner } from "#/components/Spinner/Spinner";
 import { createDayString } from "#/utils/createDayString";
 import { pageTitle } from "#/utils/page";
@@ -157,7 +157,7 @@ const FixImagePage: React.FC = () => {
 		);
 	}
 	if (!image) {
-		return <Loader />;
+		return <PageLoader />;
 	}
 	return <FixImage image={image} />;
 };

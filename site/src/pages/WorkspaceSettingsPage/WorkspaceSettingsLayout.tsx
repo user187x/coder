@@ -7,7 +7,7 @@ import {
 	workspacePermissions,
 } from "#/api/queries/workspaces";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
-import { Loader } from "#/components/Loader/Loader";
+import { PageLoader } from "#/components/Loader/Loader";
 import { SettingsPageHeader } from "#/modules/platform/settingsPage/SettingsPageHeader";
 import { TerminalGlyph } from "#/modules/platform/settingsPage/settingsIcons";
 import { pageTitle } from "#/utils/page";
@@ -33,7 +33,7 @@ export const WorkspaceSettingsLayout: React.FC = () => {
 	const permissionsQuery = useQuery(workspacePermissions(workspaceQuery.data));
 
 	if (workspaceQuery.isLoading) {
-		return <Loader />;
+		return <PageLoader />;
 	}
 
 	const error = workspaceQuery.error || permissionsQuery.error;
@@ -69,7 +69,7 @@ export const WorkspaceSettingsLayout: React.FC = () => {
 							permissions: permissionsQuery.data,
 						}}
 					>
-						<Suspense fallback={<Loader />}>
+						<Suspense fallback={<PageLoader />}>
 							<Outlet />
 						</Suspense>
 					</WorkspaceSettings.Provider>

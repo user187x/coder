@@ -6,7 +6,7 @@ import {
 } from "#/api/queries/users";
 import type { UpdateUserAppearanceSettingsRequest } from "#/api/typesGenerated";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
-import { Loader } from "#/components/Loader/Loader";
+import { PageLoader } from "#/components/Loader/Loader";
 import { useEmbeddedMetadata } from "#/hooks/useEmbeddedMetadata";
 import { usePreferredColorScheme } from "#/theme/usePreferredColorScheme";
 import { AppearanceForm } from "./AppearanceForm";
@@ -70,7 +70,7 @@ const AppearancePage: React.FC<{ compact?: boolean }> = ({
 	);
 
 	if (appearanceSettingsQuery.isLoading) {
-		return <Loader />;
+		return <PageLoader />;
 	}
 
 	if (!appearanceSettingsQuery.data) {

@@ -7,7 +7,7 @@ import type {
 	RoleSyncSettings,
 } from "#/api/typesGenerated";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
-import { Loader } from "#/components/Loader/Loader";
+import { PageLoader } from "#/components/Loader/Loader";
 import {
 	Tabs,
 	TabsContent,
@@ -63,7 +63,7 @@ const IdpSyncPageView: React.FC<IdpSyncPageViewProps> = ({
 		: 0;
 
 	if (!groupSyncSettings || !roleSyncSettings || !groups) {
-		return <Loader />;
+		return <PageLoader />;
 	}
 
 	return (

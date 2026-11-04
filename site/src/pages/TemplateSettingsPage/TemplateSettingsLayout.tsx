@@ -7,7 +7,7 @@ import { templateByName } from "#/api/queries/templates";
 import type { AuthorizationResponse, Template } from "#/api/typesGenerated";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { ExternalImage } from "#/components/ExternalImage/ExternalImage";
-import { Loader } from "#/components/Loader/Loader";
+import { PageLoader } from "#/components/Loader/Loader";
 import { useDashboard } from "#/modules/dashboard/useDashboard";
 import { linkToTemplate, useLinks } from "#/modules/navigation";
 import {
@@ -60,7 +60,7 @@ export const TemplateSettingsLayout: React.FC = () => {
 	});
 
 	if (!templateQuery.data || !permissionsQuery.data) {
-		return <Loader />;
+		return <PageLoader />;
 	}
 
 	const error = templateQuery.isError || permissionsQuery.isError;
@@ -121,7 +121,7 @@ export const TemplateSettingsLayout: React.FC = () => {
 						permissions: permissionsQuery.data,
 					}}
 				>
-					<Suspense fallback={<Loader />}>
+					<Suspense fallback={<PageLoader />}>
 						<Outlet />
 					</Suspense>
 				</TemplateSettings.Provider>

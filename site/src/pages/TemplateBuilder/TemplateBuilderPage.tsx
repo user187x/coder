@@ -6,7 +6,7 @@ import {
 	createTemplateFromBuilder,
 	templateBuilderBases,
 } from "#/api/queries/templateBuilder";
-import { Loader } from "#/components/Loader/Loader";
+import { PageLoader } from "#/components/Loader/Loader";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { linkToTemplate, useLinks } from "#/modules/navigation";
 import { pageTitle } from "#/utils/page";
@@ -64,7 +64,7 @@ const TemplateBuilderPage: React.FC = () => {
 	// Hold the wizard until ?base= has been fully consumed, and the bases are known (the deployment's own is
 	// preselected), so it mounts exactly once with its initial state settled.
 	if (isLoading || baseParam || (wizardReady && basesQuery.isLoading)) {
-		return <Loader />;
+		return <PageLoader />;
 	}
 
 	if (!permissions.createTemplates) {

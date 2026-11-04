@@ -28,11 +28,16 @@ export const Loader: React.FC<LoaderProps> = ({
 			data-testid="loader"
 			className={cn(
 				"flex items-center justify-center",
-				fullscreen ? "absolute inset-0 bg-surface-primary" : "w-full p-8",
+				fullscreen ? "fixed inset-0 bg-surface-primary" : "w-full p-8",
 				className,
 			)}
 		>
-			<Spinner size={size} loading />
+			<Spinner size={fullscreen && size === "lg" ? "page" : size} loading />
 		</div>
 	);
 };
+
+/** Centers the route loading indicator while leaving dashboard navigation available. */
+export const PageLoader = () => (
+	<Loader fullscreen className="pointer-events-none bg-transparent" />
+);

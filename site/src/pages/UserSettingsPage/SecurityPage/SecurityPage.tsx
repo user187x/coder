@@ -2,7 +2,7 @@ import { useMutation, useQuery } from "react-query";
 import { toast } from "sonner";
 import { API } from "#/api/api";
 import { authMethods, updatePassword } from "#/api/queries/users";
-import { Loader } from "#/components/Loader/Loader";
+import { PageLoader } from "#/components/Loader/Loader";
 import { SettingsHeaderTitle } from "#/components/SettingsHeader/SettingsHeader";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { UserSettingsHeader } from "../UserSettingsHeader";
@@ -23,7 +23,7 @@ const SecurityPage: React.FC = () => {
 	const singleSignOnSection = useSingleSignOnSection();
 
 	if (!authMethodsQuery.data || !userLoginType) {
-		return <Loader />;
+		return <PageLoader />;
 	}
 
 	return (

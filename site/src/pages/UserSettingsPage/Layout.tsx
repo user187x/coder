@@ -6,7 +6,7 @@ import {
 	BreadcrumbLink,
 	BreadcrumbList,
 } from "#/components/Breadcrumb/Breadcrumb";
-import { Loader } from "#/components/Loader/Loader";
+import { PageLoader } from "#/components/Loader/Loader";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { AdminBreadcrumb } from "#/modules/management/AdminBreadcrumb";
 import { CategoryBreadcrumbButton } from "#/modules/management/CategoryBreadcrumbButton";
@@ -65,7 +65,7 @@ const Layout: React.FC = () => {
 							aria-label={`${section.label} settings`}
 							className="ws-settings ws-card user-settings-card grow min-w-0 self-stretch lg:self-start"
 						>
-							<Suspense fallback={<Loader />}>
+							<Suspense fallback={<PageLoader />}>
 								<Outlet />
 							</Suspense>
 						</section>

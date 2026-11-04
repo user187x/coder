@@ -1,18 +1,13 @@
-/**
- * This component was inspired by
- * https://www.radix-ui.com/themes/docs/components/spinner and developed using
- * https://v0.dev/ help.
- */
-
 import { isPixel } from "@coder/pixel-storybook/storyapi";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "cn";
 
-const leaves = Array.from({ length: 8 }).map((_, i) => i);
+const toothAngles = [0, 45, 90, 135, 180, 225, 270, 315];
 
 const spinnerVariants = cva("", {
 	variants: {
 		size: {
+			page: "size-14 text-content-link",
 			lg: "size-icon-lg",
 			sm: "size-icon-sm",
 		},
@@ -47,30 +42,27 @@ export function Spinner({
 
 	return (
 		<svg
-			viewBox="0 0 24 24"
-			xmlns="http://www.w3.org/2000/svg"
+			viewBox="0 0 64 64"
 			fill="currentColor"
 			role={label ? "status" : undefined}
 			aria-label={label}
-			className={cn(spinnerVariants({ size, className }))}
+			className={cn(
+				spinnerVariants({ size }),
+				!isPixel() && "animate-spin motion-reduce:animate-none",
+				className,
+			)}
 			{...props}
 		>
 			<title>Loading spinner</title>
-			{leaves.map((leaf) => (
-				<rect
-					key={leaf}
-					x="10.9"
-					y="2"
-					width="2"
-					height="5.5"
-					rx="1"
-					className={isPixel() ? "" : "animate-spinner-leaf"}
-					style={{
-						transform: `rotate(${leaf * (360 / leaves.length)}deg)`,
-						transformOrigin: "center",
-						"--spinner-leaf-index": leaf,
-						"--spinner-leaf-count": leaves.length,
-					}}
+			<path
+				fillRule="evenodd"
+				d="M32 10a22 22 0 1 1 0 44 22 22 0 1 1 0-44Zm0 11a11 11 0 1 0 0 22 11 11 0 1 0 0-22Z"
+			/>
+			{toothAngles.map((angle) => (
+				<path
+					key={angle}
+					d="m26 12 1-6 2-2h6l2 2 1 6-6 2Z"
+					transform={`rotate(${angle} 32 32)`}
 				/>
 			))}
 		</svg>

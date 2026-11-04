@@ -10,7 +10,7 @@ import type {
 import { Alert } from "#/components/Alert/Alert";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { Button } from "#/components/Button/Button";
-import { Loader } from "#/components/Loader/Loader";
+import { Loader, PageLoader } from "#/components/Loader/Loader";
 import { Margins } from "#/components/Margins/Margins";
 import {
 	FullWidthPageHeader,
@@ -95,7 +95,7 @@ export const WorkspaceBuildPageView: React.FC<WorkspaceBuildPageViewProps> = ({
 	}
 
 	if (!build) {
-		return <Loader />;
+		return <PageLoader />;
 	}
 
 	const agents = build.resources.flatMap((resource) => resource.agents ?? []);

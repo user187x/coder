@@ -11,7 +11,7 @@ import type { CustomRoleRequest } from "#/api/typesGenerated";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { Button } from "#/components/Button/Button";
 import { EmptyState } from "#/components/EmptyState/EmptyState";
-import { Loader } from "#/components/Loader/Loader";
+import { PageLoader } from "#/components/Loader/Loader";
 import { useOrganizationSettings } from "#/modules/management/OrganizationSettingsLayout";
 import { RequirePermission } from "#/modules/permissions/RequirePermission";
 import { pageTitle } from "#/utils/page";
@@ -40,7 +40,7 @@ const CreateEditRolePage: React.FC = () => {
 	const rolesHref = `/organizations/${organizationName}/roles`;
 
 	if (rolesQuery.isLoading) {
-		return <Loader />;
+		return <PageLoader />;
 	}
 
 	if (rolesQuery.error) {

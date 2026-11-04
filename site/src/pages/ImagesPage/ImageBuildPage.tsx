@@ -16,7 +16,7 @@ import { type BuildDetail, ImagesAPI, terraformSnippet } from "#/api/images";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { Button } from "#/components/Button/Button";
 import { CodeExample } from "#/components/CodeExample/CodeExample";
-import { Loader } from "#/components/Loader/Loader";
+import { PageLoader } from "#/components/Loader/Loader";
 import { Margins } from "#/components/Margins/Margins";
 import { Spinner } from "#/components/Spinner/Spinner";
 import { useStartProgress } from "#/modules/platform/workspaceInitializing/WorkspaceInitializing";
@@ -69,7 +69,7 @@ const ImageBuildPage: React.FC = () => {
 		);
 	}
 	if (!query.data) {
-		return <Loader />;
+		return <PageLoader />;
 	}
 	const { build, image } = query.data;
 	const name = detail.data?.image.name ?? id;

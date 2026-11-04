@@ -6,7 +6,7 @@ import {
 } from "#/api/queries/settings";
 import type { UserQuietHoursScheduleResponse } from "#/api/typesGenerated";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
-import { Loader } from "#/components/Loader/Loader";
+import { PageLoader } from "#/components/Loader/Loader";
 import {
 	SettingsHeaderDescription,
 	SettingsHeaderTitle,
@@ -33,7 +33,7 @@ const SchedulePage: React.FC = () => {
 	} = useMutation(updateUserQuietHoursSchedule(me.id, queryClient));
 
 	if (isLoading) {
-		return <Loader />;
+		return <PageLoader />;
 	}
 
 	if (isError) {

@@ -5,7 +5,7 @@ import { API } from "#/api/api";
 import { checkAuthorization } from "#/api/queries/authCheck";
 import type { AuthorizationRequest } from "#/api/typesGenerated";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
-import { Loader } from "#/components/Loader/Loader";
+import { PageLoader } from "#/components/Loader/Loader";
 import { Margins } from "#/components/Margins/Margins";
 import { LinkTabs, LinkTabsList, TabLink } from "#/components/Tabs/Tabs";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
@@ -111,7 +111,7 @@ export const TemplateLayout: React.FC<React.PropsWithChildren> = ({
 	}
 
 	if (isLoading || !data || !workspacePermissionsQuery.data) {
-		return <Loader />;
+		return <PageLoader />;
 	}
 
 	return (
@@ -154,7 +154,7 @@ export const TemplateLayout: React.FC<React.PropsWithChildren> = ({
 					/>
 				</div>
 				<TemplateLayoutContext.Provider value={data}>
-					<Suspense fallback={<Loader />}>{children}</Suspense>
+					<Suspense fallback={<PageLoader />}>{children}</Suspense>
 				</TemplateLayoutContext.Provider>
 			</Margins>
 		</div>

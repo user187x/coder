@@ -31,7 +31,7 @@ import {
 } from "#/components/DropdownMenu/DropdownMenu";
 import { ExternalImage } from "#/components/ExternalImage/ExternalImage";
 import { FileUpload } from "#/components/FileUpload/FileUpload";
-import { Loader } from "#/components/Loader/Loader";
+import { PageLoader } from "#/components/Loader/Loader";
 import { Spinner } from "#/components/Spinner/Spinner";
 import { Switch } from "#/components/Switch/Switch";
 import {
@@ -106,7 +106,7 @@ export const LogoSection: React.FC = () => {
 	const [confirmingReset, setConfirmingReset] = useState(false);
 
 	if (logoQuery.isLoading) {
-		return <Loader />;
+		return <PageLoader />;
 	}
 	if (!logoQuery.data) {
 		return <ErrorAlert error={logoQuery.error} />;

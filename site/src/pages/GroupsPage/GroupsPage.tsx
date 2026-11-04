@@ -7,7 +7,7 @@ import { paginatedGroupsByOrganization } from "#/api/queries/groups";
 import { organizationsPermissions } from "#/api/queries/organizations";
 import { EmptyState } from "#/components/EmptyState/EmptyState";
 import { useFilter } from "#/components/Filter/Filter";
-import { Loader } from "#/components/Loader/Loader";
+import { PageLoader } from "#/components/Loader/Loader";
 import { usePaginatedQuery } from "#/hooks/usePaginatedQuery";
 import { useFeatureVisibility } from "#/modules/dashboard/useFeatureVisibility";
 import { RequirePermission } from "#/modules/permissions/RequirePermission";
@@ -60,7 +60,7 @@ const GroupsPage: React.FC = () => {
 	}
 
 	if (permissionsQuery.isLoading) {
-		return <Loader />;
+		return <PageLoader />;
 	}
 
 	const title = <title>{pageTitle("Groups")}</title>;

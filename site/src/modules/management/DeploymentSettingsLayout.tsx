@@ -5,7 +5,7 @@ import {
 	BreadcrumbItem,
 	BreadcrumbList,
 } from "#/components/Breadcrumb/Breadcrumb";
-import { Loader } from "#/components/Loader/Loader";
+import { PageLoader } from "#/components/Loader/Loader";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { adminCategory } from "#/modules/dashboard/Navbar/adminQuickLinks";
 import { canViewDeploymentSettings } from "#/modules/permissions";
@@ -90,7 +90,7 @@ const DeploymentSettingsLayout: React.FC = () => {
 							{sidebarOpen && <DeploymentSidebar />}
 						</div>
 						<div className="grow min-w-0">
-							<Suspense fallback={<Loader />}>
+							<Suspense fallback={<PageLoader />}>
 								<Outlet />
 							</Suspense>
 						</div>

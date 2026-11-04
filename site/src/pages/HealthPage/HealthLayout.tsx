@@ -5,7 +5,7 @@ import { Outlet } from "react-router";
 import { health, refreshHealth } from "#/api/queries/debug";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { Button } from "#/components/Button/Button";
-import { Loader } from "#/components/Loader/Loader";
+import { PageLoader } from "#/components/Loader/Loader";
 import { Spinner } from "#/components/Spinner/Spinner";
 import {
 	Tooltip,
@@ -37,7 +37,7 @@ export const HealthLayout: React.FC = () => {
 	);
 
 	if (isLoading) {
-		return <Loader />;
+		return <PageLoader />;
 	}
 
 	if (error || !healthStatus) {
@@ -106,7 +106,7 @@ export const HealthLayout: React.FC = () => {
 					</Tooltip>
 				</section>
 				<div className="min-w-0">
-					<Suspense fallback={<Loader />}>
+					<Suspense fallback={<PageLoader />}>
 						<Outlet context={healthStatus} />
 					</Suspense>
 				</div>

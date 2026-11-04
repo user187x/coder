@@ -26,7 +26,7 @@ import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { Button } from "#/components/Button/Button";
 import { Input } from "#/components/Input/Input";
 import { Label } from "#/components/Label/Label";
-import { Loader } from "#/components/Loader/Loader";
+import { PageLoader } from "#/components/Loader/Loader";
 import { Margins } from "#/components/Margins/Margins";
 import { Spinner } from "#/components/Spinner/Spinner";
 import { Textarea } from "#/components/Textarea/Textarea";
@@ -71,7 +71,7 @@ const ImageEditorPage: React.FC = () => {
 		);
 	}
 	if (!query.data) {
-		return <Loader />;
+		return <PageLoader />;
 	}
 	if (!query.data.image.canEdit) {
 		return <Navigate to={`/images/${id}`} replace />;

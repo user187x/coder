@@ -11,7 +11,7 @@ import {
 	BreadcrumbPage,
 	BreadcrumbSeparator,
 } from "#/components/Breadcrumb/Breadcrumb";
-import { Loader } from "#/components/Loader/Loader";
+import { PageLoader } from "#/components/Loader/Loader";
 import { useDashboard } from "#/modules/dashboard/useDashboard";
 import {
 	canViewOrganization,
@@ -66,7 +66,7 @@ const OrganizationSettingsLayout: React.FC = () => {
 	}
 
 	if (!orgPermissionsQuery.data) {
-		return <Loader />;
+		return <PageLoader />;
 	}
 
 	const viewableOrganizations = organizations.filter((org) =>
@@ -123,7 +123,7 @@ const OrganizationSettingsLayout: React.FC = () => {
 					</BreadcrumbList>
 				</AdminBreadcrumb>
 
-				<Suspense fallback={<Loader />}>
+				<Suspense fallback={<PageLoader />}>
 					<Outlet />
 				</Suspense>
 			</div>

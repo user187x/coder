@@ -3,7 +3,7 @@ import { Suspense, useState } from "react";
 import { useQuery } from "react-query";
 import { Outlet } from "react-router";
 import { globalLockdown } from "#/api/queries/globalLockdown";
-import { Loader } from "#/components/Loader/Loader";
+import { PageLoader } from "#/components/Loader/Loader";
 import { isEmbeddedFrame } from "#/contexts/platformBoot";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { AnnouncementBanners } from "#/modules/dashboard/AnnouncementBanners/AnnouncementBanners";
@@ -69,7 +69,7 @@ export const DashboardLayout: React.FC = () => {
 						"focus:outline-hidden",
 					)}
 				>
-					<Suspense fallback={<Loader />}>
+					<Suspense fallback={<PageLoader />}>
 						<GlobalLockdownGate>
 							<Outlet />
 						</GlobalLockdownGate>

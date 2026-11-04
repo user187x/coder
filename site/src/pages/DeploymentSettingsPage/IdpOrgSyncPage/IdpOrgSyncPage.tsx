@@ -8,7 +8,7 @@ import {
 	patchOrganizationSyncSettings,
 } from "#/api/queries/idpsync";
 import { FeatureUnavailable } from "#/components/FeatureUnavailable/FeatureUnavailable";
-import { Loader } from "#/components/Loader/Loader";
+import { PageLoader } from "#/components/Loader/Loader";
 import {
 	SettingsHeader,
 	SettingsHeaderDescription,
@@ -39,7 +39,7 @@ const IdpOrgSyncPage: React.FC = () => {
 	);
 
 	if (settingsQuery.isLoading) {
-		return <Loader />;
+		return <PageLoader />;
 	}
 
 	return (

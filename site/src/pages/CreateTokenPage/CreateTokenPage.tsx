@@ -9,7 +9,7 @@ import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { CodeExample } from "#/components/CodeExample/CodeExample";
 import { ConfirmDialog } from "#/components/Dialog/ConfirmDialog/ConfirmDialog";
 import { FullPageHorizontalForm } from "#/components/FullPageForm/FullPageHorizontalForm";
-import { Loader } from "#/components/Loader/Loader";
+import { PageLoader } from "#/components/Loader/Loader";
 import { pageTitle } from "#/utils/page";
 import { CreateTokenForm } from "./CreateTokenForm";
 import { type CreateTokenData, NANO_HOUR } from "./utils";
@@ -85,7 +85,7 @@ const CreateTokenPage: React.FC<CreateTokenPageProps> = ({ now }) => {
 	);
 
 	if (fetchingTokenConfig) {
-		return <Loader />;
+		return <PageLoader />;
 	}
 
 	return (

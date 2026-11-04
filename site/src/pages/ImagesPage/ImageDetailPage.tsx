@@ -32,7 +32,7 @@ import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { Button } from "#/components/Button/Button";
 import { CodeExample } from "#/components/CodeExample/CodeExample";
 import { ConfirmDialog } from "#/components/Dialog/ConfirmDialog/ConfirmDialog";
-import { Loader } from "#/components/Loader/Loader";
+import { PageLoader } from "#/components/Loader/Loader";
 import { Margins } from "#/components/Margins/Margins";
 import { Spinner } from "#/components/Spinner/Spinner";
 import { Switch } from "#/components/Switch/Switch";
@@ -92,7 +92,7 @@ const ImageDetailPage: React.FC = () => {
 		);
 	}
 	if (!query.data) {
-		return <Loader />;
+		return <PageLoader />;
 	}
 	return <ImageDetailView image={query.data.image} />;
 };

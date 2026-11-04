@@ -4,7 +4,7 @@ import type { TemplateExample } from "#/api/typesGenerated";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { Button } from "#/components/Button/Button";
 import { ExternalImage } from "#/components/ExternalImage/ExternalImage";
-import { Loader } from "#/components/Loader/Loader";
+import { PageLoader } from "#/components/Loader/Loader";
 import { Margins } from "#/components/Margins/Margins";
 import { MemoizedMarkdown } from "#/components/Markdown/Markdown";
 import {
@@ -30,7 +30,7 @@ export const StarterTemplatePageView: React.FC<
 	}
 
 	if (!starterTemplate) {
-		return <Loader />;
+		return <PageLoader />;
 	}
 
 	return (
