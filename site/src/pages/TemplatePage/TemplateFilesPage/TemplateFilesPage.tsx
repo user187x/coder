@@ -141,15 +141,6 @@ const TemplateFilesPage: React.FC = () => {
 					actions={
 						<>
 							{permissions.canUpdateTemplate && (
-								<Button asChild variant="outline" size="sm">
-									<RouterLink
-										to={`${getLink(linkToTemplate(template.organization_name, template.name))}/versions/${version.name}/edit`}
-									>
-										Developer mode
-									</RouterLink>
-								</Button>
-							)}
-							{permissions.canUpdateTemplate && (
 								<UploadTemplateFiles
 									template={template}
 									version={version}
@@ -160,34 +151,45 @@ const TemplateFilesPage: React.FC = () => {
 						</>
 					}
 					tabs={
-						<div
-							className="flex gap-1 border-0 border-b border-solid border-border"
-							role="tablist"
-							aria-label="Source code view"
-						>
-							{(
-								[
-									["code", "Code"],
-									["materialized", "Materialized"],
-								] as const
-							).map(([id, label]) => (
-								<button
-									key={id}
-									type="button"
-									role="tab"
-									aria-selected={view === id}
-									data-testid={`source-view-${id}`}
-									onClick={() => setView(id)}
-									className={cn(
-										"-mb-px cursor-pointer border-0 border-b-2 border-solid bg-transparent px-3 py-2 text-sm",
-										view === id
-											? "border-content-link text-content-primary"
-											: "border-transparent text-content-secondary hover:text-content-primary",
-									)}
-								>
-									{label}
-								</button>
-							))}
+						<div className="flex flex-wrap items-center justify-between gap-2 border-0 border-b border-solid border-border">
+							<div
+								className="flex min-w-0 gap-1"
+								role="tablist"
+								aria-label="Source code view"
+							>
+								{(
+									[
+										["code", "Code"],
+										["materialized", "Materialized"],
+									] as const
+								).map(([id, label]) => (
+									<button
+										key={id}
+										type="button"
+										role="tab"
+										aria-selected={view === id}
+										data-testid={`source-view-${id}`}
+										onClick={() => setView(id)}
+										className={cn(
+											"-mb-px cursor-pointer border-0 border-b-2 border-solid bg-transparent px-3 py-2 text-sm",
+											view === id
+												? "border-content-link text-content-primary"
+												: "border-transparent text-content-secondary hover:text-content-primary",
+										)}
+									>
+										{label}
+									</button>
+								))}
+							</div>
+							{permissions.canUpdateTemplate && (
+								<Button asChild variant="outline" size="sm">
+									<RouterLink
+										to={`${getLink(linkToTemplate(template.organization_name, template.name))}/versions/${version.name}/edit`}
+									>
+										Developer mode
+									</RouterLink>
+								</Button>
+							)}
 						</div>
 					}
 					content={

@@ -45,7 +45,6 @@ type AdminQuickLinksMenuProps = {
 	itemClassName?: string;
 	chatExpanded?: boolean;
 	onChatToggle?: () => void;
-	beforeControls?: React.ReactNode;
 };
 
 /**
@@ -62,7 +61,6 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 	itemClassName,
 	chatExpanded,
 	onChatToggle,
-	beforeControls,
 }) => {
 	const [expanded, setExpanded] = useState(false);
 	const choicesId = useId();
@@ -156,7 +154,6 @@ export const AdminQuickLinksMenu: React.FC<AdminQuickLinksMenuProps> = ({
 					))}
 				</SortableContext>
 			</DndContext>
-			{beforeControls}
 
 			<Collapsible
 				open={expanded}
@@ -268,7 +265,6 @@ type QuickLinkRowProps = {
 	itemClassName?: string;
 	chatExpanded?: boolean;
 	onChatToggle?: () => void;
-	beforeControls?: React.ReactNode;
 	moving: boolean;
 	handleRef: (node: HTMLElement | null) => void;
 	onRemove: () => void;

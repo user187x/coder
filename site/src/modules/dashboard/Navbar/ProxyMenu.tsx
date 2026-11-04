@@ -46,7 +46,6 @@ import {
 import type { AdminPage } from "./adminQuickLinks";
 import { sortProxiesByLatency } from "./proxyUtils";
 import { SettingsChatPanel } from "./SettingsChatPanel";
-import { SettingsInbox } from "./SettingsInbox";
 import { SettingsMetricGraphs } from "./SettingsMetricGraphs";
 import { SettingsNotificationBadge } from "./SettingsNotificationBadge";
 import { SettingsSidePanels } from "./SettingsSidePanels";
@@ -221,6 +220,27 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 
 	const dockLabel = docked ? "Return to dropdown" : "Dock Settings";
 
+	const compactLabel = compact
+		? "Expand Settings sidebar"
+		: "Collapse Settings to shortcut icons";
+	const compactToggle = docked && (
+		<DropdownMenuItem
+			aria-label={compactLabel}
+			title={compactLabel}
+			disabled={docking.isPending}
+			className={cn(
+				"min-h-8 justify-center rounded-full border border-solid border-border px-1",
+				!compact && "flex-1",
+			)}
+			onSelect={(event) => {
+				event.preventDefault();
+				docking.mutate({ settings_sidebar_compact: !compact });
+			}}
+		>
+			<PanelRightDashedIcon aria-hidden />
+		</DropdownMenuItem>
+	);
+
 	return (
 		<>
 			<DropdownMenu
@@ -265,7 +285,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 					}}
 					align="end"
 					data-testid="navbar-latency-controls-menu"
-					// Reserve only exterior space for the tray; the menu body retains its own width and scrolling.
+					// The floating menu reserves space for the slide-out trays.
 					className={cn(
 						"relative w-max min-w-[240px] max-w-[calc(100vw-32px)] overflow-visible border-0 bg-transparent p-0 shadow-none",
 						"settings-menu",
@@ -336,37 +356,12 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 										)}
 									</DropdownMenuItem>
 								)}
+								{compactToggle}
 							</div>
-						)}
-
-						{docked && (
-							<DropdownMenuItem
-								aria-label={
-									compact
-										? "Expand Settings sidebar"
-										: "Collapse Settings to shortcut icons"
-								}
-								title={
-									compact
-										? "Expand Settings sidebar"
-										: "Collapse Settings to shortcut icons"
-								}
-								disabled={docking.isPending}
-								className={cn(
-									"text-xs",
-									compact ? "justify-center" : "self-end",
-								)}
-								onSelect={(event) => {
-									event.preventDefault();
-									docking.mutate({ settings_sidebar_compact: !compact });
-								}}
-							>
-								<PanelRightDashedIcon aria-hidden />
-								{!compact && "Collapse to icons"}
-							</DropdownMenuItem>
 						)}
 						{compact ? (
 							<>
+								{compactToggle}
 								{!controls?.quickLinks?.some(
 									(link) => link.id === "workspaces",
 								) && (
@@ -521,7 +516,6 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 									>
 										<AdminSettingsItems
 											externalMetrics
-											beforeControls={docked && <SettingsInbox />}
 											chatExpanded={chatExpanded}
 											onChatToggle={() => setChatExpanded(!chatExpanded)}
 											permissions={controls.permissions}

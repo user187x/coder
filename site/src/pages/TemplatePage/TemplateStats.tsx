@@ -17,7 +17,7 @@ export const TemplateStats: React.FC<TemplateStatsProps> = ({
 	activeVersion,
 }) => {
 	return (
-		<Stats className="flex gap-x-4 px-3 py-1 [&>div]:p-1 [&>div]:text-xs">
+		<Stats className="flex justify-center gap-x-4 px-3 py-1 [&>div]:p-1 [&>div]:text-xs">
 			<StatsItem
 				label="Used by"
 				value={

@@ -22,8 +22,8 @@ vi.mock("#/modules/dashboard/useDashboard", () => ({
 	useDashboard: () => ({ showOrganizations: false }),
 }));
 vi.mock("#/modules/templates/TemplateFiles/TemplateFiles", () => ({
-	TemplateFiles: ({ actions }: React.ComponentProps<typeof TemplateFiles>) => (
-		<div>{actions}</div>
+	TemplateFiles: ({ tabs }: React.ComponentProps<typeof TemplateFiles>) => (
+		<div>{tabs}</div>
 	),
 }));
 vi.mock("#/modules/templates/TemplateFiles/GlobalFiles", () => ({
