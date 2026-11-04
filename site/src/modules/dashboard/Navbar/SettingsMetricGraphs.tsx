@@ -18,7 +18,8 @@ export const SettingsMetricGraphs: React.FC<{
 	anchor?: React.Ref<HTMLDivElement>;
 	chatExpanded: boolean;
 	compact?: boolean;
-}> = ({ anchor, chatExpanded, compact = false }) => {
+	latency?: React.ReactNode;
+}> = ({ anchor, chatExpanded, compact = false, latency }) => {
 	const id = useId();
 	const client = useQueryClient();
 	const preferences = useQuery(userUIPreferences());
@@ -67,7 +68,7 @@ export const SettingsMetricGraphs: React.FC<{
 	return (
 		<div ref={anchor} data-settings-metrics>
 			<div id={id} hidden={!expanded}>
-				{expanded && <ClusterGauge data={cluster.data} />}
+				{expanded && <ClusterGauge data={cluster.data} latency={latency} />}
 			</div>
 			<div className="settings-metrics-handle">
 				<SettingsTrayHandle

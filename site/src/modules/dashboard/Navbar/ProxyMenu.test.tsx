@@ -191,7 +191,7 @@ describe("ProxyMenu", () => {
 		).toBeVisible();
 	});
 
-	it("groups HUD, latency and docking inside Settings", async () => {
+	it("shows latency beside the cluster heading and keeps HUD and docking in navigation", async () => {
 		const save = vi
 			.spyOn(PlatformAPI, "setUserUIPreferences")
 			.mockImplementation(async (changes) => changes);
@@ -210,7 +210,14 @@ describe("ProxyMenu", () => {
 		});
 		expect(dock).toHaveTextContent("");
 
-		const pill = within(menu).getByTestId("navbar-latency-pill");
+		const cluster = await within(menu).findByRole("group", {
+			name: "Cluster CPU, memory, network and disk",
+		});
+		const pill = within(cluster).getByTestId("navbar-latency-pill");
+		expect(within(navigation).queryByTestId("navbar-latency-pill")).toBeNull();
+		const refreshes = value.refetchProxyLatencies.mock.calls.length;
+		await userEvent.click(pill);
+		expect(value.refetchProxyLatencies).toHaveBeenCalledTimes(refreshes + 1);
 		expect(pill).toHaveTextContent(/Latency for.*ms/);
 
 		await userEvent.click(dock);
@@ -242,7 +249,7 @@ describe("ProxyMenu", () => {
 	it("holds the Workspaces row, then the whole Controls menu, its graphs last - no Default row", async () => {
 		renderMenu({ proxyContextValue: single, hud: true, controls });
 		const menu = await openMenu();
-		await within(menu).findByRole("group", {
+		const cluster = await within(menu).findByRole("group", {
 			name: "Cluster CPU, memory, network and disk",
 		});
 		const list = within(menu).getByTestId("workspaces-latency-list");
@@ -257,6 +264,7 @@ describe("ProxyMenu", () => {
 			.filter(
 				(item) =>
 					!navigation.contains(item) &&
+					!cluster.contains(item) &&
 					!list.contains(item) &&
 					!tray.contains(item) &&
 					item.textContent?.trim(),

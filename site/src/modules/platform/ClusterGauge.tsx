@@ -49,7 +49,10 @@ const formatAmount = (kind: Kind, value: number) =>
  * be given; under each, its last 15 minutes; under both, network and disk history.
  * Users who are not admins get no answer, so nothing is shown.
  */
-export const ClusterGauge: React.FC<{ data: ClusterUsage }> = ({ data }) => {
+export const ClusterGauge: React.FC<{
+	data: ClusterUsage;
+	latency?: React.ReactNode;
+}> = ({ data, latency }) => {
 	const disk = useQuery({
 		...hudHistory("15m"),
 		retry: false,
@@ -64,7 +67,10 @@ export const ClusterGauge: React.FC<{ data: ClusterUsage }> = ({ data }) => {
 			className="mt-1 px-2.5 pt-2.5 pb-1.5 border-0 border-t border-solid border-border cursor-default"
 		>
 			<div className="flex items-baseline justify-between mb-2 text-xs font-semibold text-content-primary">
-				<span>Cluster</span>
+				<span className="inline-flex items-center gap-1.5">
+					Cluster
+					{latency}
+				</span>
 				<span
 					className="text-2xs font-normal text-content-secondary flex items-center gap-1.5"
 					title={

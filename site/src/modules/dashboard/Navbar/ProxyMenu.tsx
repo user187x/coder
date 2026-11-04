@@ -147,7 +147,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 	const regions =
 		proxy?.proxies && proxy.proxies.length > 1 ? proxy.proxies : undefined;
 
-	const pill = (
+	const clusterLatency = (
 		<DropdownMenuItem
 			onSelect={(event) => {
 				event.preventDefault();
@@ -156,7 +156,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 			disabled={!proxy}
 			title="Refresh latency"
 			data-testid="navbar-latency-pill"
-			className="min-h-8 min-w-0 flex-1 justify-center gap-1 rounded-full border border-solid border-border px-1 text-xs text-content-secondary [&_svg]:size-3.5"
+			className="h-4 min-w-0 shrink-0 gap-0.5 rounded-full border border-solid border-border px-1 py-0 text-2xs leading-none tabular-nums text-content-secondary [&_svg]:size-2.5!"
 		>
 			<span className="sr-only">
 				Latency for {selectedProxy?.display_name ?? "your region"}
@@ -170,7 +170,10 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 					/>
 
 					<Latency
-						className={selectedLatency ? "text-content-primary" : undefined}
+						className={cn(
+							"text-2xs leading-none",
+							selectedLatency && "text-content-primary",
+						)}
 						latency={selectedLatency}
 						isLoading={isLoading}
 					/>
@@ -301,7 +304,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 								{hud && (
 									<DropdownMenuItem
 										asChild
-										className="min-h-8 flex-1 justify-center gap-1 rounded-full border border-solid border-border px-1 text-xs"
+										className="min-h-8 flex-2 justify-center gap-1 rounded-full border border-solid border-border px-1 text-xs"
 									>
 										<NavLink to="/hud" title="HUD">
 											<GaugeIcon aria-hidden />
@@ -309,7 +312,6 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 										</NavLink>
 									</DropdownMenuItem>
 								)}
-								{pill}
 								{controls && (
 									<DropdownMenuItem
 										aria-label={dockLabel}
@@ -326,7 +328,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 										}}
 									>
 										{docked ? (
-											<PanelRightCloseIcon aria-hidden />
+											<PanelRightCloseIcon aria-hidden className="-rotate-90" />
 										) : (
 											<PanelRightOpenIcon aria-hidden />
 										)}
@@ -503,6 +505,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 								{controls && canViewAdminSettings(controls.permissions) && (
 									<SettingsMetricGraphs
 										anchor={setMetricsElement}
+										latency={clusterLatency}
 										chatExpanded={chatExpanded}
 									/>
 								)}
