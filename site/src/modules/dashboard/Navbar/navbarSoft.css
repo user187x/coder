@@ -18,6 +18,27 @@
 	width: var(--navbar-action-width);
 	height: var(--navbar-action-height);
 }
+.navbar-soft .navbar-action > :is(button, a) {
+	align-items: center;
+	justify-content: center;
+	gap: 0.25rem;
+	padding-inline: 0.5rem;
+	line-height: 1;
+}
+.navbar-soft .navbar-action > :is(button, a) > svg {
+	width: 1.125rem;
+	height: 1.125rem;
+	padding: 0;
+}
+.navbar-soft .navbar-action > :is(button, a) > svg.dropdown-chevron {
+	width: 0.75rem;
+	height: 0.75rem;
+}
+.navbar-soft #coder-system-banner {
+	box-sizing: border-box;
+	height: var(--navbar-action-height);
+	min-height: var(--navbar-action-height);
+}
 .navbar-split {
 	display: inline-flex;
 	align-items: stretch;

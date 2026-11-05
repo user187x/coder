@@ -88,14 +88,15 @@ export const ChatPanel: React.FC<{
 				)}
 				<div
 					data-chat-drag
-					title="Middle-drag to move chat. Right-click for position options."
+					title="Drag to move chat. Right-click for position options."
 					className={cn(
-						"flex shrink-0 items-center bg-surface-primary",
+						"flex shrink-0 touch-none select-none items-center bg-surface-primary",
 						raised && "border-0 border-b border-solid border-border pr-1",
 					)}
 				>
 					<button
 						type="button"
+						data-chat-drag
 						aria-expanded={raised}
 						aria-disabled={none}
 						aria-label={total ? `Chats, ${total} unread` : panelTitle(state)}
@@ -469,7 +470,7 @@ export const RestoreChatButton: React.FC<{
 			data-chat-restore
 			className={cn(
 				navbarTileTriggerClass,
-				"rounded-[10px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-content-link",
+				"touch-none select-none rounded-[10px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-content-link",
 			)}
 			aria-label={
 				total ? `Restore chat bar, ${total} unread` : "Restore chat bar"

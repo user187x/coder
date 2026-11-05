@@ -564,7 +564,7 @@ it("clears the inbox through the Notifications tab context menu after confirmati
 });
 
 it.each(["left", "top"])(
-	"keeps the %s edge stable after middle-drag and can restore automatic placement",
+	"keeps the %s edge stable after left-drag and can restore automatic placement",
 	async (edge) => {
 		const intervals = vi.spyOn(window, "setInterval");
 		const save = vi
@@ -591,9 +591,9 @@ it.each(["left", "top"])(
 			1200,
 		);
 		await user.pointer([
-			{ keys: "[MouseMiddle>]", target: bar, coords: { x: 700, y: 650 } },
+			{ keys: "[MouseLeft>]", target: bar, coords: { x: 700, y: 650 } },
 			{ target: bar, coords: destination },
-			{ keys: "[/MouseMiddle]", target: bar, coords: destination },
+			{ keys: "[/MouseLeft]", target: bar, coords: destination },
 		]);
 		await waitFor(() =>
 			expect(save).toHaveBeenCalledWith({
@@ -609,11 +609,12 @@ it.each(["left", "top"])(
 				for (let index = 0; index < 5; index++) measure();
 			}
 		});
-		await user.pointer([
-			{ keys: "[MouseMiddle>]", target: bar, coords: destination },
-			{ keys: "[/MouseMiddle]", target: bar, coords: destination },
-		]);
-		await waitFor(() => expect(save).toHaveBeenLastCalledWith(saved));
+		expect(save).toHaveBeenLastCalledWith(saved);
+		const snapshot = renderHook(() => useChatSnapshot());
+		expect(snapshot.result.current.dockMode).toBe("bar");
+		await user.click(bar);
+		expect(snapshot.result.current.dockMode).toBe("window");
+		expect(save).toHaveBeenCalledTimes(1);
 		await user.pointer({ keys: "[MouseRight]", target: bar });
 		await user.click(
 			await screen.findByRole("menuitem", { name: "Reset chat position" }),
@@ -621,6 +622,7 @@ it.each(["left", "top"])(
 		await waitFor(() =>
 			expect(save).toHaveBeenLastCalledWith({ chat_position: null }),
 		);
+		await act(() => setDockMode("bar"));
 		vi.restoreAllMocks();
 	},
 );

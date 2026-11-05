@@ -1,3 +1,4 @@
+import { cn } from "cn";
 import { createContext, Suspense, useContext } from "react";
 import { useQuery } from "react-query";
 import { Outlet, useLocation, useNavigate, useParams } from "react-router";
@@ -97,6 +98,7 @@ export const TemplateLayout: React.FC<React.PropsWithChildren> = ({
 		templateNamePath === templateName
 			? "summary"
 			: (templateNamePath as string);
+	const filesView = activeTab === "files" || activeTab === "summary";
 	const { workspace_prebuilds: isWorkspacePrebuildsEnabled } =
 		useFeatureVisibility();
 	const showPrebuilds =
@@ -115,47 +117,58 @@ export const TemplateLayout: React.FC<React.PropsWithChildren> = ({
 	}
 
 	return (
-		<div className="pb-12">
-			<TemplatePageHeader
-				template={data.template}
-				activeVersion={data.activeVersion}
-				permissions={data.permissions}
-				workspacePermissions={
-					workspacePermissionsQuery.data as WorkspacePermissions
-				}
-				onDeleteTemplate={() => {
-					navigate("/templates");
-				}}
-			/>
-
-			{/* Platform: Source Code is the template page's one view (Overview is gone); tabs only with Prebuilds beside it */}
-			{showPrebuilds ? (
-				<LinkTabs active={activeTab} className="mb-10 -mt-3">
-					<Margins>
-						<LinkTabsList>
-							<TabLink to="files" value="files">
-								Source Code
-							</TabLink>
-							<TabLink to="prebuilds" value="prebuilds">
-								Prebuilds
-							</TabLink>
-						</LinkTabsList>
-					</Margins>
-				</LinkTabs>
-			) : (
-				<div className="mt-1" />
-			)}
-
+		<div className={filesView ? "flex-1 min-h-0 py-3" : "pb-12"}>
 			<Margins>
-				<div className="mb-3">
-					<TemplateStats
+				<section
+					className={cn(
+						filesView &&
+							"overflow-hidden rounded-xl border border-solid border-border bg-surface-primary/85 shadow-sm",
+					)}
+				>
+					<TemplatePageHeader
+						compact={filesView}
 						template={data.template}
 						activeVersion={data.activeVersion}
+						permissions={data.permissions}
+						workspacePermissions={
+							workspacePermissionsQuery.data as WorkspacePermissions
+						}
+						onDeleteTemplate={() => {
+							navigate("/templates");
+						}}
 					/>
-				</div>
-				<TemplateLayoutContext.Provider value={data}>
-					<Suspense fallback={<PageLoader />}>{children}</Suspense>
-				</TemplateLayoutContext.Provider>
+
+					{/* Platform: Source Code is the template page's one view (Overview is gone); tabs only with Prebuilds beside it */}
+					{showPrebuilds ? (
+						<LinkTabs
+							active={activeTab}
+							className={filesView ? "px-4 mb-2" : "mb-10 -mt-3"}
+						>
+							<LinkTabsList>
+								<TabLink to="files" value="files">
+									Source Code
+								</TabLink>
+								<TabLink to="prebuilds" value="prebuilds">
+									Prebuilds
+								</TabLink>
+							</LinkTabsList>
+						</LinkTabs>
+					) : (
+						<div className="mt-1" />
+					)}
+
+					<div className={filesView ? "px-3 pb-3" : undefined}>
+						<div className="mb-3">
+							<TemplateStats
+								template={data.template}
+								activeVersion={data.activeVersion}
+							/>
+						</div>
+						<TemplateLayoutContext.Provider value={data}>
+							<Suspense fallback={<PageLoader />}>{children}</Suspense>
+						</TemplateLayoutContext.Provider>
+					</div>
+				</section>
 			</Margins>
 		</div>
 	);

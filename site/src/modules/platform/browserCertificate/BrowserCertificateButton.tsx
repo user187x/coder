@@ -37,7 +37,7 @@ export const BrowserCertificateButton: React.FC<{
 		<AgentButton disabled={disabled}>{children}</AgentButton>
 	);
 	return (
-		<Popover open={open} onOpenChange={setOpen}>
+		<Popover open={open} onOpenChange={setOpen} modal={grouped}>
 			<PopoverTrigger asChild>{trigger}</PopoverTrigger>
 			{open && (
 				<PopoverContent

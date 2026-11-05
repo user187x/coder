@@ -2,12 +2,8 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useQueryClient } from "react-query";
 import { userEvent, within } from "storybook/test";
 import { browserCertificateStatus } from "#/api/queries/browserCertificate";
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuTrigger,
-} from "#/components/DropdownMenu/DropdownMenu";
 import { MockBrowserCertificate } from "#/testHelpers/browserCertificate";
+import { AddPanelTab } from "../agentPanels/AddPanelTab";
 import { BrowserCertificateButton } from "./BrowserCertificateButton";
 
 const meta = {
@@ -117,19 +113,35 @@ export const GroupedReady: Story = {
 	args: { grouped: true },
 	decorators: [
 		(Story) => (
-			<DropdownMenu defaultOpen>
-				<DropdownMenuTrigger>Browser apps</DropdownMenuTrigger>
-				<DropdownMenuContent>
-					<Story />
-				</DropdownMenuContent>
-			</DropdownMenu>
+			<div className="relative mt-8">
+				<AddPanelTab
+					apps={[]}
+					disabled={false}
+					onAdd={() => {}}
+					actions={<Story />}
+				/>
+			</div>
 		),
 	],
 	play: async () => {
 		await userEvent.click(
+			await within(document.body).findByRole("button", { name: "Add a panel" }),
+		);
+		await userEvent.click(
 			await within(document.body).findByRole("menuitem", {
 				name: "Browser Certificate",
 			}),
+		);
+	},
+};
+
+export const GroupedLocked: Story = {
+	...GroupedReady,
+	parameters: Locked.parameters,
+	play: async (context) => {
+		await GroupedReady.play?.(context);
+		await userEvent.click(
+			await within(document.body).findByLabelText("Certificate password"),
 		);
 	},
 };

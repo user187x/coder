@@ -1,7 +1,11 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { UserPlusIcon } from "lucide-react";
+import { useState } from "react";
 import { fn, spyOn, userEvent, within } from "storybook/test";
 import { PlatformAPI } from "#/api/platform";
-import { userUIPreferences } from "#/api/queries/platform";
+import { bannerKey, userUIPreferences } from "#/api/queries/platform";
+import { ChevronDownIcon } from "#/components/AnimatedIcons/ChevronDown";
+import { Button } from "#/components/Button/Button";
 import { startNavbarArrange } from "#/modules/platform/navbarOrder/navbarOrder";
 import {
 	MockBuildInfo,
@@ -10,8 +14,10 @@ import {
 	MockUserOwner,
 } from "#/testHelpers/entities";
 import { pixelWithDesktop, pixelWithTablet } from "#/testHelpers/pixel";
+import { MockBanner } from "#/testHelpers/platform";
 import { withDashboardProvider } from "#/testHelpers/storybook";
 import { adminPagesFor, resolveAdminQuickLinks } from "./adminQuickLinks";
+import { NavbarAction, NavbarActionTarget } from "./NavbarAction";
 import { NavbarView } from "./NavbarView";
 
 const adminPages = adminPagesFor({
@@ -50,6 +56,45 @@ export const ForAdmin: Story = {
 		const canvas = within(canvasElement);
 		await userEvent.click(canvas.getByRole("button", { name: /^Settings/ }));
 	},
+};
+
+export const AccountActionAlignment: Story = {
+	parameters: {
+		pixel: { matrix: pixelWithDesktop },
+		queries: [
+			{ key: userUIPreferences().queryKey, data: {} },
+			{
+				key: bannerKey,
+				data: {
+					...MockBanner,
+					receipts: false,
+					message: "Platform announcement",
+				},
+			},
+		],
+	},
+	render: function Render(args) {
+		const [target, setTarget] = useState<HTMLDivElement | null>(null);
+		return (
+			<NavbarActionTarget.Provider value={target}>
+				<div className="@container/dashboard">
+					<NavbarView {...args} actionRef={setTarget} />
+				</div>
+				<NavbarAction>
+					<Button>
+						<UserPlusIcon aria-hidden />
+						New account
+						<ChevronDownIcon aria-hidden />
+					</Button>
+				</NavbarAction>
+			</NavbarActionTarget.Provider>
+		);
+	},
+};
+
+export const ScaledAccountActionAlignment: Story = {
+	...AccountActionAlignment,
+	args: { scale: 120 },
 };
 
 export const CompactDockWithoutPageAction: Story = {

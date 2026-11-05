@@ -150,11 +150,11 @@ export const UploadTemplateFiles: React.FC<UploadTemplateFilesProps> = ({
 			<Button
 				size="sm"
 				variant="outline"
-				className="w-full justify-start"
+				className="w-full shrink-0 justify-center font-semibold"
 				title="Add files from your computer to this template (a new version)"
 				onClick={() => input.current?.click()}
 			>
-				<UploadIcon />
+				<UploadIcon strokeWidth={2.5} />
 				Upload
 			</Button>
 			<Dialog open={open} onOpenChange={(next) => !next && close()}>

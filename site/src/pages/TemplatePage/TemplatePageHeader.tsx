@@ -1,9 +1,11 @@
 import {
+	ChevronDownIcon,
 	CopyIcon,
 	DownloadIcon,
 	EditIcon,
 	EllipsisVerticalIcon,
-	PlusIcon,
+	FileTextIcon,
+	MonitorIcon,
 	SettingsIcon,
 	TrashIcon,
 } from "lucide-react";
@@ -32,13 +34,13 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "#/components/DropdownMenu/DropdownMenu";
-import { Margins } from "#/components/Margins/Margins";
 import { MemoizedInlineMarkdown } from "#/components/Markdown/InlineMarkdown";
 import {
 	PageHeader,
 	PageHeaderSubtitle,
 	PageHeaderTitle,
 } from "#/components/PageHeader/PageHeader";
+import { NavbarAction } from "#/modules/dashboard/Navbar/NavbarAction";
 import { linkToTemplate, useLinks } from "#/modules/navigation";
 import type { WorkspacePermissions } from "#/modules/permissions/workspaces";
 import {
@@ -49,7 +51,7 @@ import { useDeletionDialogState } from "./useDeletionDialogState";
 
 type TemplateMenuProps = {
 	template: Template;
-	/** Only editors get the menu. */
+	/** Whether template management actions are available. */
 	canUpdate: boolean;
 	organizationName: string;
 	templateName: string;
@@ -57,6 +59,9 @@ type TemplateMenuProps = {
 	templateId: string;
 	fileId?: string;
 	label?: string;
+	/** Render the combined navbar action with optional workspace creation. */
+	navbar?: boolean;
+	canCreateWorkspace?: boolean;
 	onDelete: () => void;
 };
 
@@ -69,12 +74,14 @@ export const TemplateMenu: React.FC<TemplateMenuProps> = ({
 	templateId,
 	fileId,
 	label = "Open menu",
+	navbar = false,
+	canCreateWorkspace = false,
 	onDelete,
 }) => {
 	const [open, setOpen] = useState(false);
 	const version = useQuery({
 		...versionQuery(template.active_version_id),
-		enabled: open && !fileId,
+		enabled: canUpdate && open && !fileId,
 	});
 	const versionName = templateVersion ?? version.data?.name;
 	const versionFile = fileId ?? version.data?.job.file_id;
@@ -131,11 +138,28 @@ export const TemplateMenu: React.FC<TemplateMenuProps> = ({
 		<>
 			<DropdownMenu open={open} onOpenChange={setOpen}>
 				<DropdownMenuTrigger asChild>
-					<ShadcnButton size="icon-lg" variant="subtle" aria-label={label}>
-						<EllipsisVerticalIcon aria-hidden="true" />
-					</ShadcnButton>
+					{navbar ? (
+						<Button>
+							{canCreateWorkspace ? <MonitorIcon /> : <FileTextIcon />}
+							{canCreateWorkspace ? "Workspace" : "Template"}
+							<ChevronDownIcon className="size-icon-xs opacity-60" />
+						</Button>
+					) : (
+						<ShadcnButton size="icon-lg" variant="subtle" aria-label={label}>
+							<EllipsisVerticalIcon aria-hidden="true" />
+						</ShadcnButton>
+					)}
 				</DropdownMenuTrigger>
 				<DropdownMenuContent align="end">
+					{canCreateWorkspace && (
+						<DropdownMenuItem asChild>
+							<RouterLink to={`${templateLink}/workspace`}>
+								<MonitorIcon />
+								Create Workspace
+							</RouterLink>
+						</DropdownMenuItem>
+					)}
+					{canCreateWorkspace && canUpdate && <DropdownMenuSeparator />}
 					{canUpdate && (
 						<>
 							<DropdownMenuItem asChild>
@@ -258,6 +282,7 @@ type TemplatePageHeaderProps = {
 	permissions: AuthorizationResponse;
 	workspacePermissions: WorkspacePermissions;
 	onDeleteTemplate: () => void;
+	compact?: boolean;
 };
 
 export const TemplatePageHeader: React.FC<TemplatePageHeaderProps> = ({
@@ -266,52 +291,40 @@ export const TemplatePageHeader: React.FC<TemplatePageHeaderProps> = ({
 	permissions,
 	workspacePermissions,
 	onDeleteTemplate,
+	compact = false,
 }) => {
-	const getLink = useLinks();
-	const templateLink = getLink(
-		linkToTemplate(template.organization_name, template.name),
-	);
-
+	const canCreateWorkspace =
+		!template.deprecated &&
+		Boolean(workspacePermissions.createWorkspaceForUserID);
 	return (
-		<Margins>
-			<PageHeader
-				actions={
-					<>
-						{!template.deprecated &&
-							workspacePermissions.createWorkspaceForUserID && (
-								<Button asChild>
-									<RouterLink to={`${templateLink}/workspace`}>
-										<PlusIcon />
-										Create Workspace
-									</RouterLink>
-								</Button>
-							)}
-
-						{permissions.canUpdateTemplate && (
-							<TemplateMenu
-								template={template}
-								canUpdate={permissions.canUpdateTemplate}
-								organizationName={template.organization_name}
-								templateId={template.id}
-								templateName={template.name}
-								templateVersion={activeVersion.name}
-								fileId={activeVersion.job.file_id}
-								onDelete={onDeleteTemplate}
-							/>
-						)}
-					</>
-				}
-			>
+		<>
+			{(canCreateWorkspace || permissions.canUpdateTemplate) && (
+				<NavbarAction>
+					<TemplateMenu
+						navbar
+						template={template}
+						canCreateWorkspace={canCreateWorkspace}
+						canUpdate={permissions.canUpdateTemplate}
+						organizationName={template.organization_name}
+						templateId={template.id}
+						templateName={template.name}
+						templateVersion={activeVersion.name}
+						fileId={activeVersion.job.file_id}
+						onDelete={onDeleteTemplate}
+					/>
+				</NavbarAction>
+			)}
+			<PageHeader className={compact ? "px-4 py-3 gap-3" : undefined}>
 				<div className="flex flex-row gap-4">
 					<Avatar
-						size="lg"
+						size={compact ? "md" : "lg"}
 						variant="icon"
 						src={template.icon}
 						fallback={template.name}
 					/>
 					<div>
 						<div className="flex flex-row items-center gap-2">
-							<PageHeaderTitle>
+							<PageHeaderTitle className={compact ? "text-xl" : undefined}>
 								{template.display_name.length > 0
 									? template.display_name
 									: template.name}
@@ -333,6 +346,6 @@ export const TemplatePageHeader: React.FC<TemplatePageHeaderProps> = ({
 					</div>
 				</div>
 			</PageHeader>
-		</Margins>
+		</>
 	);
 };

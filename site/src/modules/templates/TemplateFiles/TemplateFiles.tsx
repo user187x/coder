@@ -11,6 +11,7 @@ import {
 } from "#/components/Tabs/Tabs";
 import { linkToTemplate, useLinks } from "#/modules/navigation";
 import { CarouselArrow } from "#/modules/platform/workspaceApps/AppsCarousel";
+import { bottomBarsHeight } from "#/utils/bottomBars";
 import type { FileTree } from "#/utils/filetree";
 import type { TemplateVersionFiles } from "#/utils/templateVersion";
 import { getTemplateFileIcon } from "./TemplateFileIcon";
@@ -35,10 +36,7 @@ type TemplateFilesProps = {
 	/** Shown in place of the files (Source Code: the materialized main.tf). */
 	content?: React.ReactNode;
 	onSelectFile?: () => void;
-	/**
-	 * Platform: the page has no tabs above it (Source Code, the template page's one view): the file tree sticks just
-	 * under the navigation and both columns take the height the tabs had, the files a taller view each.
-	 */
+	/** Fit the file browser to the remaining viewport height. */
 	fill?: boolean;
 };
 
@@ -56,6 +54,26 @@ export const TemplateFiles: React.FC<TemplateFilesProps> = ({
 	onSelectFile,
 	fill = false,
 }) => {
+	const container = useRef<HTMLDivElement>(null);
+	useLayoutEffect(() => {
+		const element = container.current;
+		if (!fill || !element) return;
+		const measure = () => {
+			const top = element.getBoundingClientRect().top + window.scrollY;
+			element.style.height = `${Math.max(280, window.innerHeight - top - bottomBarsHeight() - 40)}px`;
+		};
+		const observer = new ResizeObserver(measure);
+		if (element.parentElement) observer.observe(element.parentElement);
+		const navbar = document.querySelector(".navbar-soft");
+		if (navbar) observer.observe(navbar);
+		measure();
+		window.addEventListener("resize", measure);
+		return () => {
+			observer.disconnect();
+			window.removeEventListener("resize", measure);
+			element.style.removeProperty("height");
+		};
+	}, [fill]);
 	const getLink = useLinks();
 	const [showDiff, setShowDiff] = useState(true);
 	const location = useLocation();
@@ -115,23 +133,26 @@ export const TemplateFiles: React.FC<TemplateFilesProps> = ({
 
 	const info = filename === undefined ? undefined : fileInfo(filename);
 	return (
-		<div>
-			<div className="flex items-start gap-8">
-				{/* top-28 (112px) is a sum of nav height (72px) and TemplateLayout's LinkTabs' mb-10 (40px); without
-				    the tabs (fill), the nav and a 16px gap */}
+		<div ref={container} className={cn("min-w-0", fill && "min-h-0")}>
+			<div
+				className={cn(
+					"flex gap-3",
+					fill ? "h-full min-h-0 items-stretch" : "items-start",
+				)}
+			>
 				<div
 					className={cn(
-						"sticky flex w-[240px] shrink-0 flex-col gap-3",
+						"flex w-[clamp(9rem,22%,15rem)] shrink-0 flex-col gap-2",
 						fill
-							? "top-[calc(88px+var(--coder-classification-h,0px))] max-h-[calc(100dvh-104px-var(--coder-classification-h,0px))]"
-							: "top-[calc(112px+var(--coder-classification-h,0px))] max-h-[calc(100dvh-128px-var(--coder-classification-h,0px))]",
+							? "min-h-0 [&>section[aria-label=Versions]]:min-h-0 [&>section[aria-label=Versions]]:max-h-none [&>section[aria-label=Versions]]:flex-1"
+							: "sticky top-[calc(112px+var(--coder-classification-h,0px))] max-h-[calc(100dvh-128px-var(--coder-classification-h,0px))]",
 					)}
 				>
 					{actions}
 					<div
 						className={cn(
-							"min-h-0 overflow-auto rounded-lg border border-solid border-surface-quaternary py-1",
-							sidebar && "max-h-[40vh]",
+							"min-h-0 overflow-auto rounded-lg border border-solid border-surface-quaternary bg-surface-secondary/50 py-1",
+							sidebar && (fill ? "max-h-[42%] shrink-0" : "max-h-[40vh]"),
 						)}
 					>
 						<TemplateFileTree
@@ -156,74 +177,74 @@ export const TemplateFiles: React.FC<TemplateFilesProps> = ({
 				</div>
 
 				<div
-					className="flex min-w-0 flex-1 flex-col gap-4"
+					className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 [&>div[role=tablist]]:shrink-0"
 					data-testid="template-files-content"
 				>
 					{tabs}
-					{content ??
-						(filename !== undefined && info ? (
-							<Tabs
+					{content ? (
+						<div className="min-h-0 flex-1 overflow-auto">{content}</div>
+					) : filename !== undefined && info ? (
+						<Tabs
+							value={filename}
+							onValueChange={pickFile}
+							className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-solid border-surface-quaternary bg-surface-primary"
+						>
+							<header className="flex w-full min-w-0 shrink-0 items-center border-0 border-b border-solid border-surface-quaternary">
+								<FileCarousel names={names} selected={filename} />
+							</header>
+							<TabsContent
 								value={filename}
-								onValueChange={pickFile}
-								className="min-w-0 overflow-hidden rounded-lg border border-solid border-surface-quaternary"
+								className={cn("m-0", fill && "min-h-0 flex-1 overflow-hidden")}
 							>
-								<header className="flex w-full min-w-0 items-center border-0 border-b border-solid border-surface-quaternary">
-									<FileCarousel names={names} selected={filename} />
-								</header>
-								<TabsContent value={filename} className="m-0">
-									<SyntaxHighlighter
-										key={filename}
-										language={getLanguage(filename)}
-										value={info.value}
-										compareWith={showDiff ? info.previousValue : undefined}
-										editorProps={{
-											// 18 is the editor line height; filling the page, up to most of the window
-											height: Math.min(
-												numberOfLines(info.value) * 18,
-												fill
-													? Math.max(560, Math.round(window.innerHeight * 0.72))
-													: 560,
-											),
-											onMount: (editor) => {
-												editor.updateOptions({
-													scrollBeyondLastLine: false,
-												});
-												const editors =
-													"getModifiedEditor" in editor
-														? [
-																editor.getOriginalEditor(),
-																editor.getModifiedEditor(),
-															]
-														: [editor];
-												for (const pane of editors) {
-													if (canEdit)
-														pane.addAction({
-															id: "coder.editTemplateFile",
-															label: "Edit file",
-															contextMenuGroupId: "navigation",
-															run: () =>
-																navigate(
-																	`${versionLink}/edit?path=${encodeURIComponent(filename)}`,
-																),
-														});
-													if (info.hasDiff)
-														pane.addAction({
-															id: "coder.toggleTemplateDiff",
-															label: showDiff
-																? "Hide diff view"
-																: "Show diff view",
-															contextMenuGroupId: "navigation",
-															run: () => setShowDiff(!showDiff),
-														});
-												}
-											},
-										}}
-									/>
-								</TabsContent>
-							</Tabs>
-						) : (
-							<p>No files in this template version.</p>
-						))}
+								<SyntaxHighlighter
+									key={filename}
+									language={getLanguage(filename)}
+									value={info.value}
+									compareWith={showDiff ? info.previousValue : undefined}
+									editorProps={{
+										height: fill
+											? "100%"
+											: Math.min(numberOfLines(info.value) * 18, 560),
+										onMount: (editor) => {
+											editor.updateOptions({
+												scrollBeyondLastLine: false,
+											});
+											const editors =
+												"getModifiedEditor" in editor
+													? [
+															editor.getOriginalEditor(),
+															editor.getModifiedEditor(),
+														]
+													: [editor];
+											for (const pane of editors) {
+												if (canEdit)
+													pane.addAction({
+														id: "coder.editTemplateFile",
+														label: "Edit file",
+														contextMenuGroupId: "navigation",
+														run: () =>
+															navigate(
+																`${versionLink}/edit?path=${encodeURIComponent(filename)}`,
+															),
+													});
+												if (info.hasDiff)
+													pane.addAction({
+														id: "coder.toggleTemplateDiff",
+														label: showDiff
+															? "Hide diff view"
+															: "Show diff view",
+														contextMenuGroupId: "navigation",
+														run: () => setShowDiff(!showDiff),
+													});
+											}
+										},
+									}}
+								/>
+							</TabsContent>
+						</Tabs>
+					) : (
+						<p>No files in this template version.</p>
+					)}
 				</div>
 			</div>
 		</div>

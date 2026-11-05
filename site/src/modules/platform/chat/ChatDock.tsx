@@ -221,7 +221,19 @@ export const ChatDock: React.FC = () => {
 		top: number;
 		width: number;
 		height: number;
+		moved: boolean;
+		anchors: { left: string; top: string; right: string; bottom: string };
 	} | null>(null);
+	const suppressDragClick = useRef(false);
+	const cancelDrag = () => {
+		const start = drag.current;
+		drag.current = null;
+		suppressDragClick.current = false;
+		if (start && dock.current) {
+			Object.assign(dock.current.style, start.anchors);
+			delete dock.current.dataset.dragging;
+		}
+	};
 	useDockMeasurements(dock, position);
 	const moveToEdge = (next: DockPosition | null) =>
 		savePosition.mutate({ chat_position: next });
@@ -364,22 +376,24 @@ export const ChatDock: React.FC = () => {
 		<ContextMenu>
 			<ContextMenuTrigger asChild disabled={!floating}>
 				<div
-					onMouseDownCapture={(event) => {
-						if (event.button === 1 && floating) event.preventDefault();
-					}}
-					onAuxClickCapture={(event) => {
-						if (event.button === 1 && floating) event.preventDefault();
-					}}
-					onPointerDownCapture={(event) => {
-						if (
-							event.button !== 1 ||
-							!floating ||
-							!(event.target instanceof Element) ||
-							!event.target.closest("[data-chat-drag], [data-chat-restore]")
-						)
-							return;
+					onClickCapture={(event) => {
+						if (!suppressDragClick.current) return;
+						suppressDragClick.current = false;
 						event.preventDefault();
 						event.stopPropagation();
+					}}
+					onPointerDownCapture={(event) => {
+						suppressDragClick.current = false;
+						if (
+							event.button !== 0 ||
+							!floating ||
+							!(event.target instanceof Element) ||
+							!event.target.closest("[data-chat-drag], [data-chat-restore]") ||
+							event.target.closest(
+								"button:not([data-chat-drag], [data-chat-restore]), a, input, [role=switch]",
+							)
+						)
+							return;
 						const rect = event.currentTarget.getBoundingClientRect();
 						drag.current = {
 							x: event.clientX,
@@ -388,23 +402,46 @@ export const ChatDock: React.FC = () => {
 							top: rect.top,
 							width: rect.width,
 							height: rect.height,
+							moved: false,
+							anchors: {
+								left: event.currentTarget.style.left,
+								top: event.currentTarget.style.top,
+								right: event.currentTarget.style.right,
+								bottom: event.currentTarget.style.bottom,
+							},
 						};
-						event.currentTarget.dataset.dragging = "true";
-						event.currentTarget.setPointerCapture(event.pointerId);
+						event.target.setPointerCapture(event.pointerId);
 					}}
 					onPointerMove={(event) => {
 						const start = drag.current;
 						if (!start) return;
+						if ((event.buttons & 1) === 0) {
+							cancelDrag();
+							return;
+						}
 						const element = event.currentTarget;
+						if (!start.moved) {
+							if (
+								Math.hypot(event.clientX - start.x, event.clientY - start.y) < 4
+							)
+								return;
+							start.moved = true;
+							suppressDragClick.current = true;
+							element.dataset.dragging = "true";
+							element.setPointerCapture(event.pointerId);
+						}
+						event.preventDefault();
 						element.style.left = `${Math.max(0, Math.min(chatRightEdge() - start.width, start.left + event.clientX - start.x))}px`;
 						element.style.top = `${Math.max(0, Math.min(window.innerHeight - start.height, start.top + event.clientY - start.y))}px`;
 						element.style.bottom = "auto";
 						element.style.right = "auto";
 					}}
 					onPointerUp={(event) => {
-						if (!drag.current) return;
-						const element = event.currentTarget;
+						const start = drag.current;
+						if (!start) return;
 						drag.current = null;
+						if (!start.moved) return;
+						const element = event.currentTarget;
 						delete element.dataset.dragging;
 						element.releasePointerCapture(event.pointerId);
 						const top =
@@ -420,10 +457,7 @@ export const ChatDock: React.FC = () => {
 						placeDock(element, next, top, bottom);
 						moveToEdge(next);
 					}}
-					onPointerCancel={(event) => {
-						drag.current = null;
-						delete event.currentTarget.dataset.dragging;
-					}}
+					onPointerCancel={cancelDrag}
 					ref={dock}
 					aria-label="Chats"
 					role="region"

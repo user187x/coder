@@ -3,53 +3,79 @@ import userEvent from "@testing-library/user-event";
 import * as certificateAPI from "#/api/browserCertificate";
 import { MockBrowserCertificate } from "#/testHelpers/browserCertificate";
 import { render } from "#/testHelpers/renderHelpers";
+import { AddPanelTab } from "../agentPanels/AddPanelTab";
 import { BrowserCertificateButton } from "./BrowserCertificateButton";
 
-it("imports the saved certificate through the workspace app and clears its password", async () => {
-	vi.spyOn(certificateAPI, "getBrowserCertificateStatus").mockResolvedValue({
-		state: "locked",
-		message: "Unlock your saved certificate.",
-		csrf: "test-csrf",
-	});
-	const importCertificate = vi
-		.spyOn(certificateAPI, "importBrowserCertificate")
-		.mockResolvedValue({ message: "Browser relaunched." });
-	render(
-		<BrowserCertificateButton baseUrl="/certificate/">
-			Browser Certificate
-		</BrowserCertificateButton>,
-	);
-	const user = userEvent.setup();
-	await user.click(screen.getByRole("button", { name: "Browser Certificate" }));
-	await user.type(
-		screen.getByLabelText("Certificate password"),
-		"test-password",
-	);
-	await user.click(
-		screen.getByRole("button", { name: "Import and relaunch browser" }),
-	);
-	await waitFor(() =>
-		expect(importCertificate).toHaveBeenCalledWith(
-			"/certificate/",
-			"test-csrf",
-			undefined,
+it.each([false, true])(
+	"imports the saved certificate and clears its password (grouped %s)",
+	async (grouped) => {
+		vi.spyOn(certificateAPI, "getBrowserCertificateStatus").mockResolvedValue({
+			state: "locked",
+			message: "Unlock your saved certificate.",
+			csrf: "test-csrf",
+		});
+		const importCertificate = vi
+			.spyOn(certificateAPI, "importBrowserCertificate")
+			.mockResolvedValue({ message: "Browser relaunched." });
+		const button = (
+			<BrowserCertificateButton baseUrl="/certificate/" grouped={grouped}>
+				Browser Certificate
+			</BrowserCertificateButton>
+		);
+		render(
+			grouped ? (
+				<AddPanelTab
+					apps={[]}
+					disabled={false}
+					onAdd={vi.fn()}
+					actions={button}
+				/>
+			) : (
+				button
+			),
+		);
+		const user = userEvent.setup();
+		if (grouped)
+			await user.click(screen.getByRole("button", { name: "Add a panel" }));
+		await user.click(
+			screen.getByRole(grouped ? "menuitem" : "button", {
+				name: "Browser Certificate",
+			}),
+		);
+		await user.type(
+			screen.getByLabelText("Certificate password"),
 			"test-password",
-		),
-	);
-	await user.click(screen.getByRole("button", { name: "Close" }));
-	await user.click(screen.getByRole("button", { name: "Browser Certificate" }));
-	await user.click(
-		screen.getByRole("button", { name: "Import and relaunch browser" }),
-	);
-	await waitFor(() =>
-		expect(importCertificate).toHaveBeenLastCalledWith(
-			"/certificate/",
-			"test-csrf",
-			undefined,
-			"",
-		),
-	);
-});
+		);
+		await user.click(
+			screen.getByRole("button", { name: "Import and relaunch browser" }),
+		);
+		await waitFor(() =>
+			expect(importCertificate).toHaveBeenCalledWith(
+				"/certificate/",
+				"test-csrf",
+				undefined,
+				"test-password",
+			),
+		);
+		await user.click(screen.getByRole("button", { name: "Close" }));
+		await user.click(
+			screen.getByRole(grouped ? "menuitem" : "button", {
+				name: "Browser Certificate",
+			}),
+		);
+		await user.click(
+			screen.getByRole("button", { name: "Import and relaunch browser" }),
+		);
+		await waitFor(() =>
+			expect(importCertificate).toHaveBeenLastCalledWith(
+				"/certificate/",
+				"test-csrf",
+				undefined,
+				"",
+			),
+		);
+	},
+);
 
 it("only reimports an installed certificate after explicitly choosing Replace", async () => {
 	vi.spyOn(certificateAPI, "getBrowserCertificateStatus").mockResolvedValue(

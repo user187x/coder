@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { expect, userEvent, waitFor, within } from "storybook/test";
+import { fn, userEvent, within } from "storybook/test";
 import { workspacesKey } from "#/api/queries/workspaces";
 import {
 	MockTemplate,
@@ -27,6 +27,7 @@ const meta: Meta<typeof TemplatePageHeader> = {
 		],
 	},
 	args: {
+		onDeleteTemplate: fn(),
 		template: MockTemplate,
 		activeVersion: MockTemplateVersion,
 		permissions: {
@@ -41,31 +42,13 @@ const meta: Meta<typeof TemplatePageHeader> = {
 export default meta;
 type Story = StoryObj<typeof TemplatePageHeader>;
 
-export const Example: Story = {
+export const Example: Story = {};
+
+export const OpenActions: Story = {
 	play: async ({ canvasElement }) => {
-		const canvas = within(canvasElement);
-		await userEvent.click(canvas.getByRole("button", { name: "Open menu" }));
-
-		const menu = within(document.body);
-		await expect(
-			menu.getByRole("menuitem", { name: "Settings" }),
-		).toHaveAttribute("href", `/templates/${MockTemplate.name}/settings`);
-		await expect(
-			menu.getByRole("menuitem", { name: "Edit files" }),
-		).toHaveAttribute(
-			"href",
-			`/templates/${MockTemplate.name}/versions/${MockTemplateVersion.name}/edit`,
+		await userEvent.click(
+			within(canvasElement).getByRole("button", { name: "Workspace" }),
 		);
-		await expect(
-			menu.getByRole("menuitem", { name: "Duplicate…" }),
-		).toHaveAttribute("href", `/templates/new?fromTemplate=${MockTemplate.id}`);
-
-		await userEvent.keyboard("{Escape}");
-		await waitFor(() => {
-			expect(
-				menu.queryByRole("menuitem", { name: "Settings" }),
-			).not.toBeInTheDocument();
-		});
 	},
 };
 
@@ -93,7 +76,7 @@ export const HasWorkspaces: Story = {
 	},
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		const templateMenu = canvas.getByLabelText("Open menu");
+		const templateMenu = canvas.getByRole("button", { name: "Workspace" });
 		await userEvent.click(templateMenu);
 		const deleteOption = within(document.body).getByText("Delete…");
 		await userEvent.click(deleteOption);

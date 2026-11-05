@@ -18,6 +18,9 @@ const meta: Meta<typeof ChatDock> = {
 	component: ChatDock,
 	beforeEach: () => {
 		spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({});
+		spyOn(PlatformAPI, "setUserUIPreferences").mockImplementation(
+			async (settings) => settings,
+		);
 		spyOn(API, "getInboxNotifications").mockResolvedValue({
 			notifications: [MockNotification],
 			unread_count: 1,

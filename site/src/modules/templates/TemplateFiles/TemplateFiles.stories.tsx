@@ -1,4 +1,15 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { useState } from "react";
+import { fn } from "storybook/test";
+import { templateVersionsQueryKey } from "#/api/queries/templates";
+import { Button } from "#/components/Button/Button";
+import { NavbarActionTarget } from "#/modules/dashboard/Navbar/NavbarAction";
+import { UploadTemplateFiles } from "#/pages/TemplatePage/TemplateFilesPage/UploadTemplateFiles";
+import { VersionsSidebar } from "#/pages/TemplatePage/TemplateFilesPage/VersionsSidebar";
+import { TemplatePageHeader } from "#/pages/TemplatePage/TemplatePageHeader";
+import { TemplateStats } from "#/pages/TemplatePage/TemplateStats";
+import { MockTemplate, MockTemplateVersion } from "#/testHelpers/entities";
+import "#/modules/dashboard/Navbar/navbarSoft.css";
 import { withDashboardProvider } from "#/testHelpers/storybook";
 import { TemplateFiles } from "./TemplateFiles";
 
@@ -37,3 +48,77 @@ export const WithDiff: Story = {
 };
 
 export { Example as TemplateFiles };
+
+export const ViewportCard: Story = {
+	args: {
+		fill: true,
+		templateName: MockTemplate.name,
+		organizationName: MockTemplate.organization_name,
+		versionName: MockTemplateVersion.name,
+		actions: (
+			<UploadTemplateFiles
+				template={MockTemplate}
+				version={MockTemplateVersion}
+				folders={["build"]}
+			/>
+		),
+		sidebar: (
+			<VersionsSidebar
+				template={MockTemplate}
+				canUpdate
+				shownVersionName={MockTemplateVersion.name}
+				onSelect={fn()}
+			/>
+		),
+		tabs: (
+			<div className="flex shrink-0 items-center justify-between border-0 border-b border-solid border-border pb-2">
+				<span>Code</span>
+				<Button size="sm" variant="outline">
+					Developer mode
+				</Button>
+			</div>
+		),
+	},
+	parameters: {
+		queries: [
+			{
+				key: templateVersionsQueryKey(MockTemplate.id),
+				data: Array.from({ length: 30 }, (_, index) => ({
+					...MockTemplateVersion,
+					id: `version-${index}`,
+					name: `release-${index}`,
+				})),
+			},
+		],
+	},
+	render: function ViewportCard(args) {
+		const [target, setTarget] = useState<HTMLDivElement | null>(null);
+		return (
+			<NavbarActionTarget.Provider value={target}>
+				<div className="navbar-soft flex h-16 items-center justify-end gap-3 px-4">
+					<Button variant="outline">Settings</Button>
+					<div ref={setTarget} className="navbar-action" />
+				</div>
+				<section className="mx-auto mt-3 max-w-screen-xl overflow-hidden rounded-xl border border-solid border-border bg-surface-primary/85 shadow-sm">
+					<TemplatePageHeader
+						compact
+						template={MockTemplate}
+						activeVersion={MockTemplateVersion}
+						permissions={{ canUpdateTemplate: true }}
+						workspacePermissions={{ createWorkspaceForUserID: true }}
+						onDeleteTemplate={fn()}
+					/>
+					<div className="px-3 pb-3">
+						<div className="mb-3">
+							<TemplateStats
+								template={MockTemplate}
+								activeVersion={MockTemplateVersion}
+							/>
+						</div>
+						<TemplateFiles {...args} />
+					</div>
+				</section>
+			</NavbarActionTarget.Provider>
+		);
+	},
+};
