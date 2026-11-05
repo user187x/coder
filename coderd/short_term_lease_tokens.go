@@ -53,7 +53,8 @@ func (api *API) issueShortTermLeaseToken(ctx context.Context, tx database.Store,
 	return row, token, err
 }
 
-// @Summary Reveal an active lease token to an administrator
+// @Summary Get short term lease token
+// @Description Reveal an active lease token to an administrator.
 // @ID get-short-term-lease-token
 // @Security CoderSessionToken
 // @Produce json
@@ -66,7 +67,8 @@ func (api *API) shortTermLeaseToken(rw http.ResponseWriter, r *http.Request) {
 	api.handleShortTermLeaseToken(rw, r)
 }
 
-// @Summary Replace an active lease token and invalidate its previous sessions
+// @Summary Replace short term lease token
+// @Description Replace an active lease token and invalidate its previous sessions.
 // @ID replace-short-term-lease-token
 // @Security CoderSessionToken
 // @Produce json

@@ -761,7 +761,7 @@ curl -X PATCH http://coder-server:8080/api/v2/organizations/{organization}/short
 
 To perform this operation, you must be authenticated. [Learn more](authentication.md).
 
-## Reveal an active lease token to an administrator
+## Get short term lease token
 
 ### Code samples
 
@@ -773,6 +773,8 @@ curl -X GET http://coder-server:8080/api/v2/organizations/{organization}/short-t
 ```
 
 `GET /api/v2/organizations/{organization}/short-term-leases/{user}/token`
+
+Reveal an active lease token to an administrator.
 
 ### Parameters
 
@@ -817,7 +819,7 @@ curl -X GET http://coder-server:8080/api/v2/organizations/{organization}/short-t
 
 To perform this operation, you must be authenticated. [Learn more](authentication.md).
 
-## Replace an active lease token and invalidate its previous sessions
+## Replace short term lease token
 
 ### Code samples
 
@@ -829,6 +831,8 @@ curl -X POST http://coder-server:8080/api/v2/organizations/{organization}/short-
 ```
 
 `POST /api/v2/organizations/{organization}/short-term-leases/{user}/token`
+
+Replace an active lease token and invalidate its previous sessions.
 
 ### Parameters
 

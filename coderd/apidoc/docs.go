@@ -5510,13 +5510,14 @@ const docTemplate = `{
         },
         "/api/v2/organizations/{organization}/short-term-leases/{user}/token": {
             "get": {
+                "description": "Reveal an active lease token to an administrator.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Organizations"
                 ],
-                "summary": "Reveal an active lease token to an administrator",
+                "summary": "Get short term lease token",
                 "operationId": "get-short-term-lease-token",
                 "parameters": [
                     {
@@ -5551,13 +5552,14 @@ const docTemplate = `{
                 ]
             },
             "post": {
+                "description": "Replace an active lease token and invalidate its previous sessions.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Organizations"
                 ],
-                "summary": "Replace an active lease token and invalidate its previous sessions",
+                "summary": "Replace short term lease token",
                 "operationId": "replace-short-term-lease-token",
                 "parameters": [
                     {
