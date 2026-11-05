@@ -1,4 +1,5 @@
 import { MessagesSquareIcon } from "lucide-react";
+import { useId, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
@@ -7,12 +8,6 @@ import {
 	updateUserUIPreferences,
 	userUIPreferences,
 } from "#/api/queries/platform";
-import {
-	ContextMenu,
-	ContextMenuContent,
-	ContextMenuItem,
-	ContextMenuTrigger,
-} from "#/components/ContextMenu/ContextMenu";
 import { DropdownMenuItem } from "#/components/DropdownMenu/DropdownMenu";
 import { CountBadge } from "#/modules/platform/chat/ChatWindow";
 import {
@@ -36,6 +31,13 @@ export const ChatMenuItem = ({
 	onPin?: () => void;
 }) => {
 	const total = unreadTotal(useChatSnapshot());
+	const [optionsOpen, setOptionsOpen] = useState(false);
+	const optionsId = useId();
+	const toggleOptions = (event: React.SyntheticEvent) => {
+		event.preventDefault();
+		event.stopPropagation();
+		setOptionsOpen((open) => !open);
+	};
 	const navigate = useNavigate();
 	const client = useQueryClient();
 	const preferences = useQuery(userUIPreferences());
@@ -66,43 +68,66 @@ export const ChatMenuItem = ({
 		else save.mutate({ chat_hidden: true });
 	};
 	return (
-		<ContextMenu>
-			<ContextMenuTrigger
-				asChild
-				onContextMenu={(event) => event.stopPropagation()}
+		<>
+			<DropdownMenuItem
+				className={className}
+				aria-expanded={expanded}
+				aria-controls={optionsOpen ? optionsId : undefined}
+				title="Right-click for Chat options"
+				onContextMenu={toggleOptions}
+				onKeyDown={(event) => {
+					if (
+						event.key === "ContextMenu" ||
+						(event.shiftKey && event.key === "F10") ||
+						event.key === "ArrowRight"
+					)
+						toggleOptions(event);
+				}}
+				onSelect={(event) => {
+					if (onToggle) {
+						event.preventDefault();
+						onToggle();
+					} else if (admin) navigate("/deployment/chat");
+					else show();
+				}}
 			>
-				<DropdownMenuItem
-					className={className}
-					aria-expanded={expanded}
-					onSelect={(event) => {
-						if (onToggle) {
+				<MessagesSquareIcon aria-hidden />
+				<span className="flex-1">Chat</span>
+				{total > 0 && <CountBadge count={total} />}
+			</DropdownMenuItem>
+			{optionsOpen && (
+				<div
+					id={optionsId}
+					role="group"
+					className="order-last my-1 w-full min-w-0 rounded-md border border-solid border-border bg-surface-secondary p-1"
+					aria-label="Chat options"
+				>
+					{onPin && (
+						<DropdownMenuItem
+							onSelect={(event) => {
+								event.preventDefault();
+								onPin();
+							}}
+						>
+							Add quick link
+						</DropdownMenuItem>
+					)}
+					<DropdownMenuItem
+						disabled={save.isPending || preferences.isLoading}
+						onSelect={(event) => {
 							event.preventDefault();
-							onToggle();
-						} else if (admin) navigate("/deployment/chat");
-						else show();
-					}}
-				>
-					<MessagesSquareIcon aria-hidden />
-					<span className="flex-1">Chat</span>
-					{total > 0 && <CountBadge count={total} />}
-				</DropdownMenuItem>
-			</ContextMenuTrigger>
-			<ContextMenuContent className="z-[80]" aria-label="Chat options">
-				{onPin && (
-					<ContextMenuItem onSelect={onPin}>Add quick link</ContextMenuItem>
-				)}
-				<ContextMenuItem
-					disabled={save.isPending || preferences.isLoading}
-					onSelect={toggle}
-				>
-					{hidden ? "Show" : "Hide"}
-				</ContextMenuItem>
-				{admin && (
-					<ContextMenuItem onSelect={() => navigate("/deployment/chat")}>
-						Settings
-					</ContextMenuItem>
-				)}
-			</ContextMenuContent>
-		</ContextMenu>
+							toggle();
+						}}
+					>
+						{hidden ? "Show" : "Hide"}
+					</DropdownMenuItem>
+					{admin && (
+						<DropdownMenuItem onSelect={() => navigate("/deployment/chat")}>
+							Console
+						</DropdownMenuItem>
+					)}
+				</div>
+			)}
+		</>
 	);
 };

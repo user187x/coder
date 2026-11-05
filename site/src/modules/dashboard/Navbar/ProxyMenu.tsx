@@ -209,7 +209,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 			disabled={docking.isPending}
 			className={cn(
 				"min-h-8 justify-center rounded-full border border-solid border-border px-1",
-				!compact && "flex-1",
+				compact ? "mx-auto size-8 shrink-0 p-0" : "flex-1",
 			)}
 			onSelect={(event) => {
 				event.preventDefault();
@@ -293,7 +293,7 @@ export const ProxyMenu: React.FC<ProxyMenuProps> = ({
 
 					<div
 						ref={setMenuSurface}
-						className="flex flex-col rounded-md border border-solid border-border bg-surface-primary p-2 shadow-md max-h-(--radix-dropdown-menu-content-available-height) overflow-y-auto scrollbar-thin [scrollbar-color:hsl(var(--surface-quaternary))_transparent]"
+						className="settings-menu-surface flex flex-col rounded-2xl border border-solid border-border bg-surface-primary p-2 shadow-md max-h-(--radix-dropdown-menu-content-available-height) overflow-y-auto scrollbar-thin [scrollbar-color:hsl(var(--surface-quaternary))_transparent]"
 					>
 						{!compact && (
 							<div

@@ -293,7 +293,7 @@ export const ResourceTrayHidden: Story = {
 		await userEvent.click(
 			within(canvasElement).getByRole("button", { name: /^Settings/ }),
 		);
-		await userEvent.dblClick(
+		await userEvent.click(
 			within(canvasElement.ownerDocument.body).getByRole("menuitem", {
 				name: "Hide resource shortcuts",
 			}),
@@ -458,7 +458,7 @@ export const CentralAdminNotes: Story = {
 	...CentralAdminMenu,
 	play: async (context) => {
 		await CentralAdminMenu.play?.(context);
-		await userEvent.dblClick(
+		await userEvent.click(
 			await within(document.body).findByRole("menuitem", {
 				name: "Show admin notes",
 			}),
@@ -781,10 +781,10 @@ export const AnchoredPanelsAfterToggle: Story = {
 	play: async (context) => {
 		await CentralAdminNotes.play?.(context);
 		for (const label of ["resource shortcuts", "admin notes"]) {
-			await userEvent.dblClick(
+			await userEvent.click(
 				within(document.body).getByRole("menuitem", { name: `Hide ${label}` }),
 			);
-			await userEvent.dblClick(
+			await userEvent.click(
 				within(document.body).getByRole("menuitem", { name: `Show ${label}` }),
 			);
 		}
@@ -796,7 +796,7 @@ export const AnchoredPanelsHidden: Story = {
 	play: async (context) => {
 		await CentralAdminNotes.play?.(context);
 		for (const label of ["resource shortcuts", "admin notes"]) {
-			await userEvent.dblClick(
+			await userEvent.click(
 				within(document.body).getByRole("menuitem", { name: `Hide ${label}` }),
 			);
 		}

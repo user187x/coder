@@ -52,7 +52,7 @@
 .settings-resource-tray-toggle {
 	position: absolute;
 	top: 50%;
-	left: calc(100% + 1px);
+	left: calc(100% + var(--settings-handle-offset, 9px) - 6px);
 	z-index: 1;
 	width: 12px;
 	height: 84px;
@@ -66,7 +66,7 @@
 .settings-resource-tray-dimple {
 	position: absolute;
 	top: 50%;
-	left: calc(100% - 3px);
+	left: calc(100% + var(--settings-handle-offset, 9px) - 10px);
 	width: 20px;
 	height: 20px;
 	padding: 0;
@@ -205,7 +205,7 @@ html[data-animations="off"]
 	animation: none;
 }
 
-.settings-menu > .rounded-md {
+.settings-menu > .settings-menu-surface {
 	min-height: min(
 		var(--settings-rail-height, 0px),
 		var(--radix-dropdown-menu-content-available-height, 80vh)

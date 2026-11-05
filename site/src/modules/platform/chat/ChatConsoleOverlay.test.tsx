@@ -276,4 +276,34 @@ describe("ChatConsoleOverlay: the chat bar's console button", () => {
 		);
 		expect(screen.queryByTestId("chat-console-overlay")).toBeNull();
 	});
+
+	it("opens the existing console in full screen and preserves its message draft", async () => {
+		const user = userEvent.setup();
+		const send = vi.spyOn(PlatformAPI, "sendChatMessage").mockResolvedValue({
+			message: message(10, ME, "bob"),
+		});
+		renderDashboard(CHAT_CONSOLE_PAGE);
+		const card = await screen.findByRole("region", {
+			name: "Chat console panel",
+		});
+		const requestFullscreen = vi.fn().mockResolvedValue(undefined);
+		card.requestFullscreen = requestFullscreen;
+		await user.type(
+			await within(card).findByRole("textbox", { name: "Message bob" }),
+			"Keep this draft",
+		);
+		await user.click(
+			within(card).getByRole("button", { name: "Full screen Chat console" }),
+		);
+		expect(requestFullscreen).toHaveBeenCalledOnce();
+		await user.click(within(card).getByRole("button", { name: "Send" }));
+		await waitFor(() =>
+			expect(send).toHaveBeenCalledWith(
+				expect.objectContaining({
+					to: "bob",
+					text: "Keep this draft",
+				}),
+			),
+		);
+	});
 });

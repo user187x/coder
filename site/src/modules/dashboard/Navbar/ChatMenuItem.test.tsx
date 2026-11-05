@@ -77,7 +77,7 @@ it("opens Chat administration from the admin context menu", async () => {
 		target: await screen.findByRole("menuitem", { name: "Chat" }),
 		keys: "[MouseRight]",
 	});
-	await user.click(await screen.findByRole("menuitem", { name: "Settings" }));
+	await user.click(await screen.findByRole("menuitem", { name: "Console" }));
 	await waitFor(() =>
 		expect(router.state.location.pathname).toBe("/deployment/chat"),
 	);

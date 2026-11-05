@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { ArrowRightIcon, PlusIcon, TriangleAlertIcon } from "lucide-react";
+import { ArrowRightIcon, FileTextIcon, TriangleAlertIcon } from "lucide-react";
 import { useQuery, useQueryClient } from "react-query";
 import { Link as RouterLink, useNavigate } from "react-router";
 import { hasError, isApiValidationError } from "#/api/errors";
@@ -361,7 +361,7 @@ export const TemplatesPageView: React.FC<TemplatesPageViewProps> = ({
 										}
 									>
 										{/* Platform: the plus glyph says "new" */}
-										<PlusIcon />
+										<FileTextIcon />
 										Template
 									</RouterLink>
 								</Button>

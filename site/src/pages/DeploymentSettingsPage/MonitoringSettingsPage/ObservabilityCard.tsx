@@ -15,33 +15,37 @@ export const ObservabilityCard = ({
 	const headingId = useId();
 	const query = useQuery(deploymentConfig());
 	const { hash } = useLocation();
-	const section = useRef<HTMLElement>(null);
+	const section = useRef<HTMLDetailsElement>(null);
 	useEffect(() => {
-		if (hash === "#observability" && scrollReady)
-			section.current?.scrollIntoView({ block: "start" });
+		if (hash === "#observability" && scrollReady && section.current) {
+			section.current.open = true;
+			section.current.scrollIntoView({ block: "start" });
+		}
 	}, [hash, scrollReady]);
 	return (
-		<section
+		<details
 			ref={section}
 			id="observability"
 			aria-labelledby={headingId}
 			className="mt-6 scroll-mt-40 rounded-xl border border-solid border-border bg-surface-primary p-6"
 		>
-			<h2 id={headingId} className="m-0 mb-5 text-lg font-semibold">
-				Observability
-			</h2>
-			{query.error && <ErrorAlert error={query.error} />}
-			{query.isLoading ? (
-				<Loader />
-			) : (
-				query.data && (
-					<OptionsTable
-						options={query.data.options.filter((option) =>
-							deploymentGroupHasParent(option.group, "Introspection"),
-						)}
-					/>
-				)
-			)}
-		</section>
+			<summary id={headingId} className="cursor-pointer text-lg font-semibold">
+				Observability Configurations
+			</summary>
+			<div className="mt-5">
+				{query.error && <ErrorAlert error={query.error} />}
+				{query.isLoading ? (
+					<Loader />
+				) : (
+					query.data && (
+						<OptionsTable
+							options={query.data.options.filter((option) =>
+								deploymentGroupHasParent(option.group, "Introspection"),
+							)}
+						/>
+					)
+				)}
+			</div>
+		</details>
 	);
 };

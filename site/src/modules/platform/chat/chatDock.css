@@ -6,7 +6,7 @@ html[data-settings-side][data-chat-side] {
 	--chat-side-width: min(380px, 32vw);
 }
 .chat-side-panel {
-	right: var(--settings-dock-inset, 0px);
+	right: 0;
 	width: var(--chat-side-width);
 	top: var(--coder-classification-h, 0px);
 	bottom: var(--chat-bottom, 0px);
@@ -86,4 +86,13 @@ html[data-settings-side]
 		[data-mode="window"]
 	) {
 	max-width: max(0px, calc(100vw - var(--settings-dock-inset) - 32px));
+}
+
+.chat-resize-handle[data-edge="left"],
+.chat-resize-handle[data-edge="right"] {
+	top: 14px;
+	bottom: 14px;
+	width: 7px;
+	height: auto;
+	cursor: ew-resize;
 }

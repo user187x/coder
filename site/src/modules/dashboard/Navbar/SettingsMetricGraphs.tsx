@@ -51,7 +51,7 @@ export const SettingsMetricGraphs: React.FC<{
 					aria-expanded={expanded}
 					aria-controls={id}
 					disabled={save.isPending || !preferences.isSuccess}
-					className="justify-center"
+					className="mx-auto size-8 shrink-0 justify-center rounded-full border border-solid border-border bg-surface-secondary p-0"
 					onSelect={(event) => {
 						event.preventDefault();
 						change(!expanded, locked);

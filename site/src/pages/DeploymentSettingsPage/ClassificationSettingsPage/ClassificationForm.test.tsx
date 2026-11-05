@@ -25,6 +25,20 @@ const renderForm = (form: ClassificationSettings) => {
 };
 
 describe("ClassificationForm", () => {
+	it("changes sign-in visibility independently of banner styling", async () => {
+		const { onChange } = renderForm({ ...saved, enabled: true });
+		await userEvent.click(
+			screen.getByRole("switch", { name: "Show on sign-in screen" }),
+		);
+		expect(onChange).toHaveBeenCalledWith({ showOnLogin: false });
+	});
+
+	it("saves a sign-in visibility change to legacy settings", async () => {
+		const form = { ...saved, showOnLogin: false };
+		const { onSave } = renderForm(form);
+		await userEvent.click(screen.getByRole("button", { name: "Save" }));
+		expect(onSave).toHaveBeenCalledWith(form);
+	});
 	it("gives a light marking colour black text", async () => {
 		const { onChange } = renderForm(saved);
 

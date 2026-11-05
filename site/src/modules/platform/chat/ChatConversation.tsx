@@ -21,6 +21,10 @@ import { type ChatFile, type ChatMessage, PlatformAPI } from "#/api/platform";
 import { Button } from "#/components/Button/Button";
 import { Checkbox } from "#/components/Checkbox/Checkbox";
 import {
+	Collapsible,
+	CollapsibleContent,
+} from "#/components/Collapsible/Collapsible";
+import {
 	ContextMenu,
 	ContextMenuContent,
 	ContextMenuItem,
@@ -28,6 +32,7 @@ import {
 } from "#/components/ContextMenu/ContextMenu";
 import { ConfirmDialog } from "#/components/Dialog/ConfirmDialog/ConfirmDialog";
 import { CloudDriveShareCard } from "#/modules/platform/cloudDrive/CloudDrivePeers";
+import { ChatKeyboard } from "./ChatKeyboard";
 import {
 	type ChatWindowState,
 	deleteChatMessages,
@@ -98,6 +103,8 @@ export type ConversationActions = DockListActions & {
 };
 
 type ChatConversationProps = {
+	keyboardOpen?: boolean;
+	onKeyboardClose?: () => void;
 	compact?: boolean;
 	view: ChatWindowState;
 	/** The dock, left out of screenshots. */
@@ -120,6 +127,8 @@ type ChatConversationProps = {
  */
 export const ChatConversation: React.FC<ChatConversationProps> = ({
 	view: w,
+	keyboardOpen = false,
+	onKeyboardClose,
 	dock,
 	ref,
 	compact,
@@ -671,6 +680,23 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
 					<SendIcon />
 				</Button>
 			</form>
+			<Collapsible open={keyboardOpen} className="shrink-0">
+				<CollapsibleContent className="chat-keyboard-reveal overflow-hidden">
+					<ChatKeyboard
+						key={peer.id}
+						inputRef={inputRef}
+						disabled={blocked || sending}
+						onChange={(value) => {
+							setText(value);
+							if (value.trim()) reportTyping(peer.id);
+						}}
+						onClose={() => {
+							onKeyboardClose?.();
+							inputRef.current?.focus();
+						}}
+					/>
+				</CollapsibleContent>
+			</Collapsible>
 		</div>
 	);
 };
@@ -889,7 +915,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
 	>
 		<div
 			className={cn(
-				"max-w-[80%] rounded-[14px] border border-solid px-2.5 py-1.5 leading-snug whitespace-pre-wrap [overflow-wrap:anywhere] text-content-primary",
+				"chat-message-bubble max-w-[80%] rounded-[14px] border border-solid px-2.5 py-1.5 leading-snug whitespace-pre-wrap [overflow-wrap:anywhere] text-content-primary",
 				side === "admin"
 					? "rounded-bl bg-surface-sky border-border-sky"
 					: "rounded-br bg-surface-tertiary border-border",

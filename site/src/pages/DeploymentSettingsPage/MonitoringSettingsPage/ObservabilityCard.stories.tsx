@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { userEvent, within } from "storybook/test";
 import { deploymentConfigQueryKey } from "#/api/queries/deployment";
 import { MockDeploymentConfig } from "#/testHelpers/entities";
 import { MockObservabilityOptions } from "#/testHelpers/platform";
@@ -20,12 +21,21 @@ const meta: Meta<typeof ObservabilityCard> = {
 export default meta;
 type Story = StoryObj<typeof ObservabilityCard>;
 export const Default: Story = {};
+export const Expanded: Story = {
+	play: async ({ canvasElement }) => {
+		await userEvent.click(
+			within(canvasElement).getByText("Observability Configurations"),
+		);
+	},
+};
 export const Empty: Story = {
+	play: Expanded.play,
 	parameters: {
 		queries: [{ key: deploymentConfigQueryKey, data: MockDeploymentConfig }],
 	},
 };
 export const LoadError: Story = {
+	play: Expanded.play,
 	parameters: {
 		queries: [
 			{

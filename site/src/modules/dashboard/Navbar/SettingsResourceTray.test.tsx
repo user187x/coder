@@ -220,7 +220,7 @@ it.each(["top", "bottom"])(
 			.mockImplementation(async (settings) => settings);
 		const user = userEvent.setup();
 		const first = renderTray();
-		await user.dblClick(
+		await user.click(
 			await screen.findByRole("menuitem", { name: "Hide resource shortcuts" }),
 		);
 		await user.click(
@@ -237,7 +237,7 @@ it.each(["top", "bottom"])(
 		first.unmount();
 		vi.mocked(PlatformAPI.getUserUIPreferences).mockResolvedValue(preference);
 		renderTray();
-		await user.dblClick(
+		await user.click(
 			await screen.findByRole("menuitem", { name: "Show resource shortcuts" }),
 		);
 		await waitFor(() =>
@@ -273,7 +273,7 @@ it("supports keyboard locking and preserves the previous preference if saving fa
 		}),
 	);
 	save.mockRejectedValueOnce(new Error("Unavailable"));
-	await user.dblClick(grip);
+	await user.click(grip);
 	await waitFor(() => expect(save).toHaveBeenCalledTimes(2));
 	await waitFor(() =>
 		expect(client.getQueryData(userUIPreferences().queryKey)).toEqual({

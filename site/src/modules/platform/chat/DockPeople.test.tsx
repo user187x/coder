@@ -84,7 +84,7 @@ it("persists alphabetical sorting through the shared preferences API", async () 
 it("keeps bulk selection and limits bulk deletion to the search results", async () => {
 	const user = userEvent.setup();
 	render(<DockPeople />);
-	await screen.findByRole("checkbox", { name: `Select ${MockChatPeer.name}` });
+	await screen.findByRole("button", { name: `Reorder ${MockChatPeer.name}` });
 	await user.type(
 		screen.getByRole("textbox", { name: "Find people" }),
 		MockChatPeer.username,

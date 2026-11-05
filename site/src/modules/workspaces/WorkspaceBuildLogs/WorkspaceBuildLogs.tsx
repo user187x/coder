@@ -1,9 +1,36 @@
 import { cn } from "cn";
 import dayjs from "dayjs";
+import {
+	BrushCleaningIcon,
+	ClipboardListIcon,
+	GitForkIcon,
+	PlayIcon,
+	SettingsIcon,
+	SquareIcon,
+	TrashIcon,
+} from "lucide-react";
 import { Fragment, useLayoutEffect, useRef } from "react";
 import type { ProvisionerJobLog, WorkspaceBuild } from "#/api/typesGenerated";
 import type { Line } from "#/components/Logs/LogLine";
 import { Logs, LogsHeader } from "#/components/Logs/Logs";
+
+import { getTemplateFileIcon } from "#/modules/templates/TemplateFiles/TemplateFileIcon";
+
+const TerraformIcon = getTemplateFileIcon("main.tf");
+const stageIcons: Record<string, React.ReactNode> = {
+	"Initializing Terraform Directory": (
+		<TerraformIcon aria-hidden className="size-4" />
+	),
+	"Planning Infrastructure": (
+		<ClipboardListIcon aria-hidden className="size-4" />
+	),
+	"Starting workspace": <PlayIcon aria-hidden className="size-4" />,
+	"Stopping workspace": <SquareIcon aria-hidden className="size-4" />,
+	"Deleting workspace": <TrashIcon aria-hidden className="size-4" />,
+	"Graphing Infrastructure": <GitForkIcon aria-hidden className="size-4" />,
+	"Cleaning Up": <BrushCleaningIcon aria-hidden className="size-4" />,
+	"Setting up": <SettingsIcon aria-hidden className="size-4" />,
+};
 
 type Stage = ProvisionerJobLog["stage"];
 type LogsGroupedByStage = Record<Stage, ProvisionerJobLog[]>;
@@ -80,7 +107,12 @@ export const WorkspaceBuildLogs: React.FC<WorkspaceBuildLogsProps> = ({
 				return (
 					<Fragment key={stage}>
 						<LogsHeader
-							title={stage}
+							title={
+								<span className="inline-flex items-center gap-2">
+									{stageIcons[stage]}
+									{stage}
+								</span>
+							}
 							detail={
 								duration === undefined ? undefined : `${duration} seconds`
 							}

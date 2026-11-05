@@ -494,7 +494,10 @@ describe("Dock selection actions", () => {
 				name: `Select ${MockNotification.title}`,
 			}),
 		);
-		await user.click(screen.getByRole("button", { name: "Delete selected" }));
+		await user.click(
+			screen.getByRole("button", { name: "Notification actions" }),
+		);
+		await user.click(screen.getByRole("menuitem", { name: "Delete selected" }));
 		expect(remove).not.toHaveBeenCalled();
 		await user.click(
 			within(screen.getByRole("dialog")).getByRole("button", {

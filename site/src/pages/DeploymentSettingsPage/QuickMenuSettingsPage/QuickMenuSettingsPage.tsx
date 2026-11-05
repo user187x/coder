@@ -120,7 +120,7 @@ const QuickMenuSettingsPage: React.FC = () => {
 			) : menu.isLoading ? (
 				<Loader />
 			) : (
-				<div className="flex flex-wrap items-start gap-6">
+				<div className="flex flex-wrap items-stretch gap-6">
 					<div className="grid w-full max-w-[336px] auto-rows-fr gap-3">
 						<section
 							aria-label="Preview"
@@ -215,7 +215,7 @@ const QuickMenuSettingsPage: React.FC = () => {
 					</div>
 					<section
 						aria-labelledby="quick-menu-wedges"
-						className="flex min-w-[min(100%,300px)] flex-1 flex-col gap-3"
+						className="flex min-w-[min(100%,300px)] flex-1 flex-col gap-3 rounded-2xl border border-solid border-border bg-surface-secondary p-4"
 					>
 						<div className="flex items-center justify-between gap-3">
 							<h2

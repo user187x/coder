@@ -1,6 +1,6 @@
 import { PaletteIcon, SlidersHorizontalIcon } from "lucide-react";
 import { useId, useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link } from "react-router";
 import { DropdownMenuItem } from "#/components/DropdownMenu/DropdownMenu";
 import { AnimationsToggleItem } from "./UserDropdown/AnimationsToggleItem";
 import { ThemeToggleItem } from "./UserDropdown/ThemeToggleItem";
@@ -14,36 +14,34 @@ export const AppearanceMenuItem = ({
 }) => {
 	const [expanded, setExpanded] = useState(false);
 	const id = useId();
-	const navigate = useNavigate();
+	const toggle = (event: React.SyntheticEvent) => {
+		event.preventDefault();
+		event.stopPropagation();
+		setExpanded((open) => !open);
+	};
 	return (
 		<>
 			<DropdownMenuItem
+				asChild
 				className={className}
 				aria-expanded={expanded}
 				aria-controls={expanded ? id : undefined}
-				onSelect={(event) => {
-					event.preventDefault();
-					setExpanded((open) => !open);
-				}}
-				title="Click for appearance controls; right-click for deployment appearance"
-				onContextMenu={(event) => {
-					event.preventDefault();
-					event.stopPropagation();
-					navigate(to);
-				}}
+				title="Right-click for appearance controls"
+				onContextMenu={toggle}
 				onKeyDown={(event) => {
 					if (
 						event.key === "ContextMenu" ||
-						(event.shiftKey && event.key === "F10")
+						(event.shiftKey && event.key === "F10") ||
+						event.key === "ArrowRight"
 					) {
-						event.preventDefault();
-						event.stopPropagation();
-						navigate(to);
+						toggle(event);
 					}
 				}}
 			>
-				<PaletteIcon aria-hidden />
-				Appearance
+				<Link to={to}>
+					<PaletteIcon aria-hidden />
+					Appearance
+				</Link>
 			</DropdownMenuItem>
 			{expanded && (
 				<div

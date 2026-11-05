@@ -210,6 +210,7 @@ export const LOGIN_PAGE_DEFAULT: LoginPageSettings = {
 
 export type ClassificationSettings = {
 	enabled: boolean;
+	showOnLogin?: boolean;
 	text: string;
 	height: number;
 	background: string;
@@ -2464,6 +2465,7 @@ export const PlatformAPI = {
 	updateClassification: (settings: ClassificationSettings) =>
 		post<ClassificationSettings>(`${PLATFORM_BASE}/api/classification`, {
 			enabled: settings.enabled,
+			showOnLogin: settings.showOnLogin !== false,
 			text: settings.text.trim(),
 			height: settings.height,
 			background: settings.background,

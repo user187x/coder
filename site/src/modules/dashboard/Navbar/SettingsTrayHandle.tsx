@@ -21,6 +21,7 @@ export const SettingsTrayHandle = ({
 	controls,
 	toggle,
 	lock,
+	children,
 }: {
 	label: string;
 	attention?: string;
@@ -32,14 +33,15 @@ export const SettingsTrayHandle = ({
 	controls: string;
 	toggle: () => void;
 	lock: (expanded: boolean | null) => void;
+	children?: React.ReactNode;
 }) => {
 	const id = useId();
 	return (
 		<>
 			<span className="sr-only" id={`${id}-instructions`}>
-				{attention} Double-click or press Enter to show or hide. Click either
-				dimple to lock or unlock the current visibility. Right-click for lock
-				open and lock closed. {instructions}
+				{attention} Click or press Enter to show or hide. Click either dimple to
+				lock or unlock the current visibility. Right-click for lock open and
+				lock closed. {instructions}
 			</span>
 			<span className="sr-only" role="status">
 				{busy
@@ -76,20 +78,16 @@ export const SettingsTrayHandle = ({
 						aria-controls={controls}
 						aria-describedby={`${id}-instructions`}
 						aria-disabled={busy}
-						title={`${attention ? `${attention} ` : ""}${locked ? "Locked" : "Unlocked"}. Double-click to show or hide. ${instructions ?? ""}`}
+						title={`${attention ? `${attention} ` : ""}${locked ? "Locked" : "Unlocked"}. Click to show or hide. ${instructions ?? ""}`}
 						className="settings-resource-tray-toggle"
-						onSelect={(event) => event.preventDefault()}
-						onDoubleClick={(event) => {
+						onSelect={(event) => {
 							event.preventDefault();
 							if (!busy) toggle();
 						}}
 						onContextMenu={(event) => event.stopPropagation()}
 						onKeyDown={(event) => {
 							if (busy) return;
-							if (event.key === "Enter" || event.key === " ") {
-								event.preventDefault();
-								toggle();
-							} else if (
+							if (
 								event.shiftKey &&
 								["ArrowUp", "ArrowDown", "Home"].includes(event.key)
 							) {
@@ -122,6 +120,7 @@ export const SettingsTrayHandle = ({
 					>
 						Unlock
 					</ContextMenuItem>
+					{children}
 				</ContextMenuContent>
 			</ContextMenu>
 		</>

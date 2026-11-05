@@ -60,10 +60,8 @@ it.each(["Admin notes", "Resource shortcuts"])(
 			{ keys: "[/MouseMiddle]" },
 		]);
 		await user.click(grip);
-		expect(toggle).not.toHaveBeenCalled();
-		expect(onCommit).not.toHaveBeenCalled();
-		await user.dblClick(grip);
 		expect(toggle).toHaveBeenCalledTimes(1);
+		expect(onCommit).not.toHaveBeenCalled();
 		await user.click(
 			screen.getByRole("menuitemcheckbox", {
 				name: `Unlock ${label.toLowerCase()} (top dimple)`,

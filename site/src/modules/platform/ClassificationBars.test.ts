@@ -1,4 +1,20 @@
-import { isTerminalPage } from "./ClassificationBars";
+import { MockClassification } from "#/testHelpers/platform";
+import { isClassificationShown, isTerminalPage } from "./ClassificationBars";
+
+it("preserves sign-in markings for older settings and honors the saved choice", () => {
+	const settings = { ...MockClassification, enabled: true };
+	expect(isClassificationShown(settings, true)).toBe(true);
+	expect(isClassificationShown({ ...settings, showOnLogin: false }, true)).toBe(
+		false,
+	);
+	expect(
+		isClassificationShown({ ...settings, showOnLogin: false }, false),
+	).toBe(true);
+	expect(isClassificationShown({ ...settings, enabled: false }, true)).toBe(
+		false,
+	);
+	expect(isClassificationShown(undefined, true)).toBe(false);
+});
 
 describe("isTerminalPage", () => {
 	it("is Coder's terminal page, in a window of its own", () => {

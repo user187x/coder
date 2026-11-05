@@ -1,6 +1,6 @@
 import {
+	MonitorIcon,
 	PlayIcon,
-	PlusIcon,
 	RotateCcwIcon,
 	SquareIcon,
 	TrashIcon,
@@ -139,7 +139,7 @@ export const WorkspacesPageView: React.FC<WorkspacesPageViewProps> = ({
 								templatesFetchStatus={templatesFetchStatus}
 							>
 								{/* Platform: the plus glyph says "new" */}
-								<PlusIcon aria-hidden />
+								<MonitorIcon aria-hidden />
 								Workspace
 							</WorkspacesButton>
 						</NavbarAction>

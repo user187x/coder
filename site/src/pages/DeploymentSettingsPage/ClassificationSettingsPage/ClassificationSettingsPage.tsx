@@ -45,7 +45,8 @@ const DARK_TEXT_BACKGROUNDS = new Set(["#fce83a", "#ff8c00"]);
 const FIELDS = ["enabled", "text", "height", "background", "color"] as const;
 
 const sameSettings = (a: ClassificationSettings, b: ClassificationSettings) =>
-	FIELDS.every((field) => a[field] === b[field]);
+	FIELDS.every((field) => a[field] === b[field]) &&
+	(a.showOnLogin !== false) === (b.showOnLogin !== false);
 
 // WCAG contrast ratio, to warn about unreadable combinations.
 const luminance = (hex: string) => {
@@ -168,8 +169,8 @@ export const ClassificationForm: React.FC<ClassificationFormProps> = ({
 					<PreviewBar settings={form} height={height} />
 				</div>
 				<p className="m-0 mt-3 text-center text-sm text-content-secondary">
-					Both bars always match: same text, height and colours, glued to the
-					top and bottom of every Coder page (sign-in page included).
+					Both bars use the same text, height and colours at the top and bottom
+					of the page.
 				</p>
 			</section>
 
@@ -192,16 +193,29 @@ export const ClassificationForm: React.FC<ClassificationFormProps> = ({
 							Customize the label, size and colours of both banners.
 						</p>
 					</div>
-					<div className="ml-auto flex items-center gap-2.5">
-						<Switch
-							id="classification-enabled"
-							checked={form.enabled}
-							onCheckedChange={(enabled) => onChange({ enabled })}
-						/>
-						<Label htmlFor="classification-enabled">Show on every page</Label>
-						<span className="text-sm text-content-secondary">
-							{form.enabled ? "On" : "Off"}
-						</span>
+					<div className="ml-auto flex flex-wrap items-center gap-4">
+						<div className="flex items-center gap-2.5">
+							<Switch
+								id="classification-enabled"
+								checked={form.enabled}
+								onCheckedChange={(enabled) => onChange({ enabled })}
+							/>
+							<Label htmlFor="classification-enabled">Enable banners</Label>
+							<span className="text-sm text-content-secondary">
+								{form.enabled ? "On" : "Off"}
+							</span>
+						</div>
+						<div className="flex items-center gap-2.5">
+							<Switch
+								id="classification-login"
+								checked={form.showOnLogin !== false}
+								disabled={!form.enabled}
+								onCheckedChange={(showOnLogin) => onChange({ showOnLogin })}
+							/>
+							<Label htmlFor="classification-login">
+								Show on sign-in screen
+							</Label>
+						</div>
 					</div>
 				</header>
 				<div className="grid gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.8fr)]">

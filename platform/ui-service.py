@@ -31,7 +31,7 @@
 
   Classification banner
   GET  /__coder-ui/api/classification     public (the marking shows on the sign-in page too)
-  POST /__coder-ui/api/classification     admins: {enabled, text, height, background, color}
+  POST /__coder-ui/api/classification     admins: {enabled, showOnLogin, text, height, background, color}
 
   Sign-in and sign-out page
   GET  /__coder-ui/api/login-page         public (the sign-in page reads it; boot.js has it too)
@@ -1523,6 +1523,7 @@ def quick_menu_settings():
 
 CLASSIFICATION_DEFAULT = {
     "enabled": False,
+    "showOnLogin": True,
     "text": "UNCLASSIFIED",
     "height": 24,
     "background": "#007a33",
@@ -7218,9 +7219,21 @@ def fixed_schedule(settings):
             "ttl_ms": _fixed_ttl_ms(f["start"], f["stop"])}
 
 
-def scheduler_exempt(settings, username, roles):
+def scheduler_lease_users(settings):
+    """Lease expiry governs temporary accounts instead of recurring workspace schedules."""
+    if not settings["enabled"]:
+        return set()
+    pool = LOGOS.pool if LOGOS else None
+    if not pool:
+        raise RuntimeError("Lease scheduling policy is unavailable.")
+    return {row[0] for row in pool.query("SELECT user_id::text FROM short_term_leases")}
+
+
+def scheduler_exempt(settings, username, roles, user_id, lease_users):
     if not settings["enabled"]:
         return "the scheduler is off"
+    if user_id in lease_users:
+        return "short-term lease expiry controls this account"
     if username in settings["excludedUsers"]:
         return "excluded"
     if settings["ignoreAdmins"] and set(roles) & ADMIN_ROLES:
@@ -7262,7 +7275,7 @@ def scheduler_check(token, user, body):
     target = _scheduler_target(token, user, body.get("owner"))
     if target is None:
         raise RuntimeError("Workspace owner could not be checked.")
-    why = scheduler_exempt(settings, target["username"], target["roles"])
+    why = scheduler_exempt(settings, target["username"], target["roles"], target["id"], scheduler_lease_users(settings))
     if why:
         return {"allowed": True, "message": why}
     action = body.get("action") or "create"
@@ -7300,7 +7313,7 @@ def _workspace_schedules(token, owner=None):
     status, data = _coder_get(token, "/api/v2/workspaces?" + urllib.parse.urlencode(q))
     if status != 200 or not isinstance(data, dict):
         raise RuntimeError("Coder's workspaces API answered HTTP %s" % status)
-    return [{"id": w.get("id"), "name": w.get("name"), "owner": w.get("owner_name"),
+    return [{"id": w.get("id"), "name": w.get("name"), "owner": w.get("owner_name"), "owner_id": w.get("owner_id"),
              "autostart_schedule": w.get("autostart_schedule") or None, "ttl_ms": w.get("ttl_ms") or None}
             for w in data.get("workspaces") or []]
 
@@ -7308,7 +7321,7 @@ def _workspace_schedules(token, owner=None):
 def scheduler_me(token, user):
     """For the dashboard: the rules that apply to this user, and their workspaces that break them."""
     settings = scheduler_settings()
-    why = scheduler_exempt(settings, user["username"], user["roles"])
+    why = scheduler_exempt(settings, user["username"], user["roles"], user["id"], scheduler_lease_users(settings))
     out = {"enforced": not why, "reason": why, "mode": settings["mode"], "maxActiveHours": settings["maxActiveHours"]}
     if settings["mode"] == "fixed":
         out["fixed"] = dict(settings["fixed"], **fixed_schedule(settings))
@@ -7338,8 +7351,9 @@ def scheduler_report(token):
             break
         offset += 500
     workspaces, broken, exempt = _workspace_schedules(token), [], 0
+    lease_users = scheduler_lease_users(settings)
     for w in workspaces:
-        if scheduler_exempt(settings, w["owner"], users.get(w["owner"], [])):
+        if scheduler_exempt(settings, w["owner"], users.get(w["owner"], []), w["owner_id"], lease_users):
             exempt += 1
             continue
         problem = schedule_problem(settings, w["autostart_schedule"], w["ttl_ms"])
@@ -9953,6 +9967,7 @@ class Handler(BaseHTTPRequestHandler):
             BASE + "/api/notes/delete",
             BASE + "/api/notes/dismiss",
             BASE + "/api/inbox/clear",
+            BASE + "/api/inbox/delete",
         }
         if path not in routes and not path.startswith(BASE + "/api/chat/"):
             return self.send(404, "not found\n")
@@ -10285,6 +10300,9 @@ class Handler(BaseHTTPRequestHandler):
 
     @staticmethod
     def clean_classification(p):
+        show_on_login = p.get("showOnLogin", True)
+        if type(show_on_login) is not bool:
+            raise ValueError("Sign-in banner visibility must be true or false.")
         text = str(p.get("text", "")).strip()
         if len(text) > 120 or any(c in text for c in "\n\r"):
             raise ValueError(
@@ -10307,6 +10325,7 @@ class Handler(BaseHTTPRequestHandler):
             )
         return {
             "enabled": enabled,
+            "showOnLogin": show_on_login,
             "text": text,
             "height": height,
             "background": bg.lower(),

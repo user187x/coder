@@ -542,7 +542,7 @@ export const WorkspacesLatencyMenu: React.FC<{
 											title={label}
 											disabled={chosen.length === 0}
 											className={cn(
-												"min-h-10 flex-1 justify-center rounded-none px-4 py-2 first:border-0 first:border-r first:border-solid first:border-border",
+												"h-7 min-h-0 flex-1 justify-center rounded-none px-3 py-0 first:border-0 first:border-r first:border-solid first:border-border",
 												ANNOUNCEMENT_ACTION_SURFACE,
 											)}
 											onSelect={() =>
@@ -552,7 +552,7 @@ export const WorkspacesLatencyMenu: React.FC<{
 												)
 											}
 										>
-											<Icon aria-hidden className="size-5" />
+											<Icon aria-hidden className="size-4" />
 										</DropdownMenuItem>
 									))}
 								</div>

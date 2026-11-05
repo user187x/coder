@@ -1,4 +1,5 @@
 import {
+	BoxIcon,
 	CloudUploadIcon,
 	DownloadIcon,
 	EllipsisVerticalIcon,
@@ -165,7 +166,7 @@ const ImagesPage: React.FC = () => {
 				{canEdit && (
 					<NavbarAction>
 						<Button size="lg" onClick={() => setCreating(true)}>
-							<PlusIcon />
+							<BoxIcon />
 							New Image
 						</Button>
 					</NavbarAction>

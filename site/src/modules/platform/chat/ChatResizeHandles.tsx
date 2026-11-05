@@ -2,7 +2,14 @@ import { useEffect, useRef } from "react";
 import type { UserUIPreferences } from "#/api/platform";
 import { bottomBarsHeight } from "#/utils/bottomBars";
 
-type Edge = "top" | "top-left" | "top-right" | "bottom-left" | "bottom-right";
+type Edge =
+	| "left"
+	| "right"
+	| "top"
+	| "top-left"
+	| "top-right"
+	| "bottom-left"
+	| "bottom-right";
 type ResizeStart = {
 	x: number;
 	y: number;
@@ -121,7 +128,15 @@ export const ChatResizeHandles = ({
 	return (
 		<>
 			{(
-				["top", "top-left", "top-right", "bottom-left", "bottom-right"] as const
+				[
+					"left",
+					"right",
+					"top",
+					"top-left",
+					"top-right",
+					"bottom-left",
+					"bottom-right",
+				] as const
 			).map((edge) => (
 				<button
 					key={edge}

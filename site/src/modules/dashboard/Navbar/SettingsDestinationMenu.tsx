@@ -127,7 +127,7 @@ function TemplateDestinations() {
 			{permissions.createTemplates && (
 				<DropdownMenuItem
 					asChild
-					className="mt-2 justify-center rounded-full bg-surface-invert-primary p-3 text-content-invert"
+					className="mt-1 h-8 min-h-0 justify-center rounded-full border border-solid border-border px-3 py-0 text-xs"
 				>
 					<Link
 						to={

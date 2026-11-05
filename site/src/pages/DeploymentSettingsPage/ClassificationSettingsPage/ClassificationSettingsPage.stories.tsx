@@ -31,6 +31,17 @@ export const Disabled: Story = {
 	},
 };
 
+export const DashboardOnly: Story = {
+	parameters: {
+		queries: [
+			{
+				key: classificationKey,
+				data: { ...MockClassification, showOnLogin: false },
+			},
+		],
+	},
+};
+
 export const LowContrast: Story = {
 	parameters: {
 		queries: [

@@ -19,25 +19,32 @@ export const classificationFontSize = (height: number): number =>
 export const isTerminalPage = (pathname: string): boolean =>
 	/^\/[^/]+\/[^/]+\/terminal\/?$/.test(pathname);
 
-const isShown = (
+/** Applies the saved sign-in visibility while preserving older deployment settings. */
+export const isClassificationShown = (
 	settings: ClassificationSettings | undefined,
+	signIn: boolean,
 ): settings is ClassificationSettings =>
-	Boolean(settings?.enabled && settings.text);
+	Boolean(
+		settings?.enabled &&
+			settings.text &&
+			(!signIn || settings.showOnLogin !== false),
+	);
 
 /**
- * The classification marking on every page, the sign-in page included (but
- * not the terminal page, which App leaves it off: isTerminalPage): two
- * identical bars glued to the very top and the very bottom of the window,
- * above everything else. The page is inset by the bars' height so nothing
- * hides underneath them.
+ * Displays matching classification bars and insets page content by their height.
+ * The saved sign-in option applies before the login page's first paint.
  */
-export const ClassificationBars: React.FC = () => {
+export const ClassificationBars = ({
+	signIn = false,
+}: {
+	signIn?: boolean;
+}) => {
 	const { data: settings } = useQuery({
 		...classification(getBootClassification()),
 		enabled: !isEmbeddedFrame(),
 	});
 
-	if (isEmbeddedFrame() || !isShown(settings)) {
+	if (isEmbeddedFrame() || !isClassificationShown(settings, signIn)) {
 		return null;
 	}
 

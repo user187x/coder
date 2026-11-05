@@ -74,6 +74,7 @@ export const DockPeople: React.FC<{
 	});
 	const [search, setSearch] = useState("");
 	const [hidden, setHidden] = useState<Set<string>>(new Set());
+	const [selecting, setSelecting] = useState(false);
 	const [selected, setSelected] = useState<Set<string>>(new Set());
 	const [deleting, setDeleting] = useState<string[] | null>(null);
 	const remove = useMutation({
@@ -157,7 +158,10 @@ export const DockPeople: React.FC<{
 					<ArrowDownAZIcon className="size-4" />
 				</Button>
 			</div>
-			<details className="text-xs">
+			<details
+				className="text-xs"
+				onToggle={(event) => setSelecting(event.currentTarget.open)}
+			>
 				<summary className="cursor-pointer p-2">
 					Bulk actions · {chosen.length} selected
 				</summary>
@@ -271,18 +275,20 @@ export const DockPeople: React.FC<{
 									<ContextMenu>
 										<ContextMenuTrigger asChild>
 											<div className="flex items-center rounded-md hover:bg-surface-secondary">
-												<Checkbox
-													aria-label={`Select ${displayName(peer)}`}
-													checked={selected.has(peer.id)}
-													onCheckedChange={(checked) =>
-														setSelected((old) => {
-															const next = new Set(old);
-															if (checked) next.add(peer.id);
-															else next.delete(peer.id);
-															return next;
-														})
-													}
-												/>
+												{(selecting || selected.size > 0) && (
+													<Checkbox
+														aria-label={`Select ${displayName(peer)}`}
+														checked={selected.has(peer.id)}
+														onCheckedChange={(checked) =>
+															setSelected((old) => {
+																const next = new Set(old);
+																if (checked) next.add(peer.id);
+																else next.delete(peer.id);
+																return next;
+															})
+														}
+													/>
+												)}
 												<button
 													type="button"
 													className="flex min-w-0 flex-1 items-center gap-2 border-0 bg-transparent p-2 text-left text-inherit"

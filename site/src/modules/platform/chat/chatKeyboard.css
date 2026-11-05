@@ -1,0 +1,77 @@
+.chat-keyboard {
+	container-type: inline-size;
+	padding: 8px;
+	border-top: 1px solid hsl(var(--border-default));
+	background: hsl(var(--surface-secondary));
+}
+.chat-keyboard-row {
+	display: grid;
+	grid-template-columns: repeat(26, minmax(0, 1fr));
+	gap: clamp(2px, 0.7cqi, 8px);
+	margin-bottom: clamp(2px, 0.7cqi, 8px);
+}
+.chat-keyboard-row:last-child {
+	margin-bottom: 0;
+}
+.chat-keyboard .chat-key {
+	min-width: 0;
+	height: clamp(28px, 6.5cqi, 54px);
+	padding: 0;
+	border-radius: clamp(5px, 1.2cqi, 14px);
+	background: hsl(var(--surface-tertiary));
+	font-size: clamp(10px, 2.5cqi, 20px);
+	font-weight: 600;
+	box-shadow: 0 1px 1px rgb(0 0 0 / 0.2);
+}
+.chat-keyboard .chat-key[data-character="true"] {
+	background: color-mix(
+		in srgb,
+		hsl(var(--content-primary)) 12%,
+		hsl(var(--surface-tertiary))
+	);
+}
+.chat-keyboard .chat-key:hover,
+.chat-keyboard .chat-key-active {
+	background: hsl(var(--surface-sky));
+	border-color: hsl(var(--content-link));
+}
+.chat-keyboard .chat-key > svg {
+	width: clamp(14px, 3cqi, 24px);
+	height: clamp(14px, 3cqi, 24px);
+}
+.chat-keyboard-reveal[data-state="open"] {
+	animation: chat-keyboard-open 200ms ease-out;
+}
+.chat-keyboard-reveal[data-state="closed"] {
+	animation: chat-keyboard-close 160ms ease-in;
+}
+@keyframes chat-keyboard-open {
+	from {
+		height: 0;
+		opacity: 0;
+		transform: translateY(12px);
+	}
+	to {
+		height: var(--radix-collapsible-content-height);
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+@keyframes chat-keyboard-close {
+	from {
+		height: var(--radix-collapsible-content-height);
+		opacity: 1;
+	}
+	to {
+		height: 0;
+		opacity: 0;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.chat-keyboard-reveal[data-state] {
+		animation: none;
+	}
+}
+html[data-animations="off"] .chat-keyboard-reveal {
+	animation: none;
+}

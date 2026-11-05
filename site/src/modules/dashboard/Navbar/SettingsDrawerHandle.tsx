@@ -23,6 +23,7 @@ export const SettingsDrawerHandle = ({
 		element: HTMLElement;
 	} | null>(null);
 	const frame = useRef(0);
+	const suppressClick = useRef(false);
 	useEffect(() => () => cancelAnimationFrame(frame.current), []);
 	const clamp = (y: number) => ({
 		x: 0,
@@ -44,6 +45,13 @@ export const SettingsDrawerHandle = ({
 	return (
 		<div
 			className="settings-drawer-handle"
+			onClickCapture={(event) => {
+				if (suppressClick.current) {
+					suppressClick.current = false;
+					event.preventDefault();
+					event.stopPropagation();
+				}
+			}}
 			onPointerDownCapture={(event) => {
 				if (event.button === 1) event.preventDefault();
 				if (
@@ -55,6 +63,7 @@ export const SettingsDrawerHandle = ({
 				event.stopPropagation();
 				const element = event.target.closest("[data-settings-panel-grip]");
 				if (!(element instanceof HTMLElement)) return;
+				suppressClick.current = false;
 				drag.current = { y: event.clientY, position, moved: false, element };
 				element.setPointerCapture(event.pointerId);
 			}}
@@ -70,6 +79,7 @@ export const SettingsDrawerHandle = ({
 				event.stopPropagation();
 				cancelAnimationFrame(frame.current);
 				move(event.clientY);
+				suppressClick.current = drag.current.moved;
 				if (drag.current.moved)
 					onCommit(
 						clamp(drag.current.position.y + event.clientY - drag.current.y),

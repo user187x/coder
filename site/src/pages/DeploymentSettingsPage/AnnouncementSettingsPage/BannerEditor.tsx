@@ -396,8 +396,8 @@ export const BannerEditor: React.FC<BannerEditorProps> = ({
 						onChange={(countdown) => onChange({ countdown })}
 					/>
 				</div>
-				<div className="flex flex-col gap-3 p-4">
-					<div className="flex items-center justify-end gap-3">
+				<div className="flex flex-col gap-1 p-3 pt-1">
+					<div className="flex h-7 items-center justify-end gap-2">
 						<Label
 							className="sr-only"
 							htmlFor={previewing ? undefined : `${id}-message`}
@@ -408,7 +408,7 @@ export const BannerEditor: React.FC<BannerEditorProps> = ({
 							<Button
 								variant="subtle"
 								size="sm"
-								className="ml-auto"
+								className="ml-auto h-6 gap-1 px-2 text-xs [&_svg]:size-3"
 								aria-pressed={previewing}
 								onClick={() => onPreviewChange?.(!previewing)}
 							>

@@ -131,9 +131,9 @@ describe("ProxyMenu", () => {
 			const shortcut = await screen.findByRole("menuitem", {
 				name: "Appearance",
 			});
-			await user.click(shortcut);
-			await user.click(shortcut);
-			await user.click(shortcut);
+			await user.pointer({ target: shortcut, keys: "[MouseRight]" });
+			await user.pointer({ target: shortcut, keys: "[MouseRight]" });
+			await user.pointer({ target: shortcut, keys: "[MouseRight]" });
 			const appearance = within(
 				await screen.findByRole("group", {
 					name: "Personal dashboard appearance",
@@ -151,8 +151,8 @@ describe("ProxyMenu", () => {
 				),
 			);
 			shortcut.focus();
-			await user.keyboard("{Enter}");
-			await user.keyboard("{Enter}");
+			await user.keyboard("{Shift>}{F10}{/Shift}");
+			await user.keyboard("{Shift>}{F10}{/Shift}");
 			await user.click(
 				within(
 					screen.getByRole("group", { name: "Personal dashboard appearance" }),

@@ -103,6 +103,24 @@ export const CloudDriveBrowser: React.FC<{
 	const [problem, setProblem] = useState<string | null>(null);
 	const [dragging, setDragging] = useState(false);
 	const fileInput = useRef<HTMLInputElement>(null);
+	const mounted = useRef(true);
+	const timers = useRef(new Set<ReturnType<typeof setTimeout>>());
+	useEffect(() => {
+		mounted.current = true;
+		return () => {
+			mounted.current = false;
+			for (const timer of timers.current) clearTimeout(timer);
+			timers.current.clear();
+		};
+	}, []);
+	const later = (callback: () => void, delay: number) => {
+		if (!mounted.current) return;
+		const timer = setTimeout(() => {
+			timers.current.delete(timer);
+			callback();
+		}, delay);
+		timers.current.add(timer);
+	};
 	const refresh = () => queryClient.invalidateQueries({ queryKey: safeKey });
 	// The Refresh button's feedback: spinning while it reads (at least a moment, so it shows), then a check.
 	const [refreshing, setRefreshing] = useState<"idle" | "busy" | "done">(
@@ -117,12 +135,13 @@ export const CloudDriveBrowser: React.FC<{
 		try {
 			await refresh();
 		} finally {
-			const left = REFRESH_MIN_SPIN_MS - (Date.now() - started);
-			if (left > 0) {
-				await new Promise((resolve) => setTimeout(resolve, left));
-			}
-			setRefreshing("done");
-			setTimeout(() => setRefreshing("idle"), REFRESH_DONE_MS);
+			later(
+				() => {
+					setRefreshing("done");
+					later(() => setRefreshing("idle"), REFRESH_DONE_MS);
+				},
+				Math.max(0, REFRESH_MIN_SPIN_MS - (Date.now() - started)),
+			);
 		}
 	};
 
@@ -133,7 +152,7 @@ export const CloudDriveBrowser: React.FC<{
 	// A finished transfer stays a moment, then goes.
 	const finish = (id: number, change: Partial<Transfer>) => {
 		patch(id, { ...change, done: true });
-		window.setTimeout(
+		later(
 			() => setTransfers((all) => all.filter((t) => t.id !== id)),
 			change.browser ? 6000 : 2500,
 		);

@@ -177,6 +177,7 @@ export const ChatConsole: React.FC<ChatConsoleProps> = ({
 	className,
 }) => {
 	const own = useRef<HTMLElement>(null);
+	const [keyboardOpen, setKeyboardOpen] = useState(false);
 	const state = useChatSnapshot();
 	const me = state.me;
 	const view = state.consoleView;
@@ -461,14 +462,24 @@ export const ChatConsole: React.FC<ChatConsoleProps> = ({
 					/>
 					Next after reply
 				</label>
-				<span
-					className="flex text-content-secondary"
-					title={SHORTCUTS}
-					role="img"
-					aria-label="Keyboard shortcuts"
+				<Button
+					variant="subtle"
+					size="icon"
+					className="size-7"
+					disabled={!view}
+					title={`On-screen keyboard
+${SHORTCUTS}`}
+					aria-label={
+						keyboardOpen ? "Hide on-screen keyboard" : "Show on-screen keyboard"
+					}
+					aria-expanded={keyboardOpen}
+					onClick={() => {
+						setKeyboardOpen(!keyboardOpen);
+						conversation.current?.focus();
+					}}
 				>
-					<KeyboardIcon className="size-4" />
-				</span>
+					<KeyboardIcon />
+				</Button>
 				{actions}
 			</header>
 
@@ -765,6 +776,8 @@ export const ChatConsole: React.FC<ChatConsoleProps> = ({
 							data-direction={direction}
 						>
 							<ChatConversation
+								keyboardOpen={keyboardOpen}
+								onKeyboardClose={() => setKeyboardOpen(false)}
 								ref={conversation}
 								view={view}
 								dock={dock ?? own}

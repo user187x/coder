@@ -8,7 +8,7 @@ import {
 import { render } from "#/testHelpers/renderHelpers";
 import { AppearanceMenuItem } from "./AppearanceMenuItem";
 
-it.each(["right-click", "keyboard context menu", "Personalize"])(
+it.each(["click", "right-click", "keyboard context menu"])(
 	"navigates to deployment appearance using %s",
 	async (input) => {
 		const { router } = render(
@@ -21,15 +21,16 @@ it.each(["right-click", "keyboard context menu", "Personalize"])(
 		);
 		const user = userEvent.setup();
 		const item = screen.getByRole("menuitem", { name: "Appearance" });
-		if (input === "Personalize") {
+		if (input === "click") {
 			await user.click(item);
-			await user.click(screen.getByRole("menuitem", { name: "Personalize" }));
 		} else if (input === "right-click")
 			await user.pointer({ target: item, keys: "[MouseRight]" });
 		else {
 			item.focus();
 			await user.keyboard("{Shift>}{F10}{/Shift}");
 		}
+		if (input !== "click")
+			await user.click(screen.getByRole("menuitem", { name: "Personalize" }));
 		expect(router.state.location.pathname).toBe("/deployment/customize");
 	},
 );

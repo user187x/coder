@@ -1,4 +1,5 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { type ChatMessage, PlatformAPI } from "#/api/platform";
 import { renderComponent } from "#/testHelpers/renderHelpers";
@@ -154,5 +155,137 @@ describe("chat attachments", () => {
 		const download = screen.getByRole("link", { name: /build\.log/ });
 		expect(download).toHaveAttribute("download", "build.log");
 		expect(download).toHaveTextContent("3.0 MB");
+	});
+});
+
+describe("chat on-screen keyboard", () => {
+	afterEach(() => vi.restoreAllMocks());
+	const setup = () => {
+		const send = vi.spyOn(PlatformAPI, "sendChatMessage").mockResolvedValue({
+			message: message({ id: 99, from: "me", to: "bob" }),
+		});
+		renderComponent(
+			<QueryClientProvider client={new QueryClient()}>
+				<ChatConversation view={view()} dock={{ current: null }} keyboardOpen />
+			</QueryClientProvider>,
+		);
+		return send;
+	};
+
+	it("types shifted letters and symbols, edits a selection, and sends through the composer", async () => {
+		const user = userEvent.setup();
+		const send = setup();
+		await user.click(screen.getByRole("button", { name: "Left Shift" }));
+		await user.click(screen.getByRole("button", { name: "H" }));
+		await user.click(screen.getByRole("button", { name: "i" }));
+		await user.click(
+			screen.getByRole("button", { name: "Numbers and symbols" }),
+		);
+		await user.click(screen.getByRole("button", { name: "!" }));
+		await user.click(
+			screen.getByRole("button", { name: "Numbers and symbols" }),
+		);
+		await user.click(screen.getByRole("button", { name: "Cursor left" }));
+		await user.click(screen.getByRole("button", { name: "Left Shift" }));
+		await user.click(screen.getByRole("button", { name: "Cursor left" }));
+		await user.click(screen.getByRole("button", { name: "e" }));
+		await user.click(screen.getByRole("button", { name: "Enter" }));
+		await waitFor(() =>
+			expect(send).toHaveBeenCalledWith(
+				expect.objectContaining({ to: "bob", text: "He!" }),
+			),
+		);
+	});
+
+	it("inserts line breaks and removes whole emoji without sending prematurely", async () => {
+		const user = userEvent.setup();
+		const send = setup();
+		await user.click(screen.getByRole("button", { name: "a" }));
+		await user.click(screen.getByRole("button", { name: "Right Shift" }));
+		await user.click(screen.getByRole("button", { name: "Enter" }));
+		await user.click(screen.getByRole("button", { name: "Emoji" }));
+		await user.click(screen.getByRole("button", { name: "❤️" }));
+		await user.click(screen.getByRole("button", { name: "Backspace" }));
+		await user.click(screen.getByRole("button", { name: "👍" }));
+		expect(send).not.toHaveBeenCalled();
+		await user.click(screen.getByRole("button", { name: "Enter" }));
+		await waitFor(() =>
+			expect(send).toHaveBeenCalledWith(
+				expect.objectContaining({ text: "a\n👍" }),
+			),
+		);
+	});
+
+	it("supports clipboard replacement, undo and redo", async () => {
+		const user = userEvent.setup();
+		const write = vi
+			.spyOn(navigator.clipboard, "writeText")
+			.mockResolvedValue();
+		vi.spyOn(navigator.clipboard, "readText").mockResolvedValue("original");
+		const send = setup();
+		await user.type(
+			screen.getByRole("textbox", { name: "Message Bob" }),
+			"original",
+		);
+		await user.click(screen.getByRole("button", { name: "Ctrl" }));
+		await user.click(screen.getByRole("button", { name: "a" }));
+		await user.click(screen.getByRole("button", { name: "Ctrl" }));
+		await user.click(screen.getByRole("button", { name: "c" }));
+		expect(write).toHaveBeenCalledWith("original");
+		await user.click(screen.getByRole("button", { name: "x" }));
+		await user.click(screen.getByRole("button", { name: "Ctrl" }));
+		await user.click(screen.getByRole("button", { name: "z" }));
+		await user.click(screen.getByRole("button", { name: "Ctrl" }));
+		await user.click(screen.getByRole("button", { name: "a" }));
+		await user.click(screen.getByRole("button", { name: "Ctrl" }));
+		await user.click(screen.getByRole("button", { name: "c" }));
+		expect(write).toHaveBeenLastCalledWith("original");
+		await user.click(screen.getByRole("button", { name: "Ctrl" }));
+		await user.click(screen.getByRole("button", { name: "y" }));
+		await user.click(screen.getByRole("button", { name: "Ctrl" }));
+		await user.click(screen.getByRole("button", { name: "a" }));
+		await user.click(screen.getByRole("button", { name: "Ctrl" }));
+		await user.click(screen.getByRole("button", { name: "c" }));
+		expect(write).toHaveBeenLastCalledWith("x");
+		await user.click(screen.getByRole("button", { name: "Ctrl" }));
+		await user.click(screen.getByRole("button", { name: "v" }));
+		await user.click(screen.getByRole("button", { name: "Enter" }));
+		await waitFor(() =>
+			expect(send).toHaveBeenCalledWith(
+				expect.objectContaining({ text: "original" }),
+			),
+		);
+	});
+
+	it("limits pasted text without splitting an emoji", async () => {
+		const user = userEvent.setup();
+		vi.spyOn(navigator.clipboard, "readText").mockResolvedValue(
+			`${"a".repeat(3999)}👍`,
+		);
+		const send = setup();
+		await user.click(screen.getByRole("button", { name: "Ctrl" }));
+		await user.click(screen.getByRole("button", { name: "v" }));
+		await user.click(screen.getByRole("button", { name: "Enter" }));
+		await waitFor(() =>
+			expect(send).toHaveBeenCalledWith(
+				expect.objectContaining({ text: "a".repeat(3999) }),
+			),
+		);
+	});
+
+	it("changes layout and uses Caps Lock across multiple keystrokes", async () => {
+		const user = userEvent.setup();
+		const send = setup();
+		await user.click(screen.getByRole("button", { name: "Keyboard layout" }));
+		await user.click(screen.getByRole("menuitemradio", { name: "AZERTY" }));
+		await user.click(screen.getByRole("button", { name: "Caps Lock" }));
+		await user.click(screen.getByRole("button", { name: "A" }));
+		await user.click(screen.getByRole("button", { name: "Z" }));
+		await user.click(screen.getByRole("button", { name: "Enter" }));
+		await waitFor(() =>
+			expect(send).toHaveBeenCalledWith(
+				expect.objectContaining({ text: "AZ" }),
+			),
+		);
 	});
 });

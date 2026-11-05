@@ -107,3 +107,13 @@ export const Compact: Story = {
 export const ViewportConsole: Story = {
 	render: () => <ChatConsoleCard />,
 };
+
+export const OnScreenKeyboard: Story = {
+	play: async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		await userEvent.click(await canvas.findByRole("option", { name: /Alex/ }));
+		await userEvent.click(
+			await canvas.findByRole("button", { name: "Show on-screen keyboard" }),
+		);
+	},
+};

@@ -91,7 +91,11 @@ export const App: React.FC = () => {
 				    it's connected to the router */}
 					<RouterProvider router={router} />
 					{/* not on the terminal page: the terminal fills its whole window */}
-					{!isTerminalPage(pathname) && <ClassificationBars />}
+					{!isTerminalPage(pathname) && (
+						<ClassificationBars
+							signIn={pathname === "/login" || pathname.startsWith("/login/")}
+						/>
+					)}
 					<AvatarDialogHost />
 					<AnimationsController />
 				</AnimationPolicyProvider>

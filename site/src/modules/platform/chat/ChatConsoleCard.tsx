@@ -1,4 +1,9 @@
-import { AppWindowIcon, Maximize2Icon, Minimize2Icon } from "lucide-react";
+import {
+	AppWindowIcon,
+	Maximize2Icon,
+	Minimize2Icon,
+	SquareArrowOutUpRightIcon,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "#/components/Button/Button";
@@ -41,6 +46,25 @@ export const ChatConsoleCard: React.FC = () => {
 	const { me } = useChatSnapshot();
 	const [poppedOut, setPoppedOut] = useState(false);
 	const popup = useRef<Window | null>(null);
+	const panel = useRef<HTMLElement>(null);
+	const [fullscreen, setFullscreen] = useState(false);
+	useEffect(() => {
+		const changed = () =>
+			setFullscreen(document.fullscreenElement === panel.current);
+		document.addEventListener("fullscreenchange", changed);
+		return () => document.removeEventListener("fullscreenchange", changed);
+	}, []);
+	const toggleFullscreen = async () => {
+		try {
+			if (document.fullscreenElement === panel.current)
+				await document.exitFullscreen();
+			else await panel.current?.requestFullscreen();
+		} catch {
+			toast.error(
+				"The browser could not open the Chat console in full screen.",
+			);
+		}
+	};
 
 	// The window says when it opens and closes; asked on arrival, it says it is there.
 	useEffect(() => {
@@ -111,12 +135,13 @@ export const ChatConsoleCard: React.FC = () => {
 
 	return (
 		<section
+			ref={panel}
 			aria-labelledby="chat-console-card"
-			className="flex min-h-0 min-w-0 flex-col h-[calc(100dvh-var(--dashboard-navigation-height,72px)-var(--admin-breadcrumb-height,58px)-2*var(--coder-classification-h,0px)-80px)]"
+			className="flex min-h-0 min-w-0 flex-col h-[calc(100dvh-var(--dashboard-navigation-height,72px)-var(--admin-breadcrumb-height,58px)-2*var(--coder-classification-h,0px)-80px)] fullscreen:h-screen fullscreen:bg-surface-primary fullscreen:p-2"
 			data-testid="chat-console-card"
 		>
 			<h2 id="chat-console-card" className="sr-only">
-				Chat console
+				Chat console panel
 			</h2>
 			{poppedOut ? (
 				<div className="flex flex-col items-center gap-3 rounded-md border border-dashed border-border p-8 text-center text-sm text-content-secondary">
@@ -140,16 +165,33 @@ export const ChatConsoleCard: React.FC = () => {
 					place="card"
 					className="min-w-0 flex-1"
 					actions={
-						<Button
-							variant="subtle"
-							size="icon"
-							onClick={popOut}
-							aria-label="Pop out into a window of its own"
-							title="Pop out into a window of its own, full size"
-							data-testid="chat-console-pop-out"
-						>
-							<Maximize2Icon />
-						</Button>
+						<>
+							<Button
+								variant="subtle"
+								size="icon"
+								onClick={() => void toggleFullscreen()}
+								aria-label={
+									fullscreen
+										? "Exit Chat console full screen"
+										: "Full screen Chat console"
+								}
+								title={
+									fullscreen ? "Exit full screen" : "Full screen in this window"
+								}
+							>
+								{fullscreen ? <Minimize2Icon /> : <Maximize2Icon />}
+							</Button>
+							<Button
+								variant="subtle"
+								size="icon"
+								onClick={popOut}
+								aria-label="Pop out into a window of its own"
+								title="Pop out into a window of its own, full size"
+								data-testid="chat-console-pop-out"
+							>
+								<SquareArrowOutUpRightIcon />
+							</Button>
+						</>
 					}
 				/>
 			)}

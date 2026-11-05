@@ -30,6 +30,8 @@ afterEach(() => {
 	vi.unstubAllGlobals();
 });
 it.each([
+	["left", -100, 100, 520, 520],
+	["right", 100, 100, 520, 520],
 	["top", 0, 100, 420, 420],
 	["top left", 100, 100, 320, 420],
 	["top right", 100, 100, 520, 420],

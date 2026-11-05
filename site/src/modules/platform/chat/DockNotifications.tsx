@@ -1,3 +1,4 @@
+import { MoreHorizontalIcon } from "lucide-react";
 import { useId, useImperativeHandle, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { toast } from "sonner";
@@ -18,6 +19,12 @@ import {
 	ContextMenuTrigger,
 } from "#/components/ContextMenu/ContextMenu";
 import { ConfirmDialog } from "#/components/Dialog/ConfirmDialog/ConfirmDialog";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "#/components/DropdownMenu/DropdownMenu";
 import { InboxItem } from "#/modules/notifications/NotificationsInbox/InboxItem";
 import { parseColors } from "../announcement/bannerTokens";
 import { CloudDriveShareCard } from "../cloudDrive/CloudDrivePeers";
@@ -56,11 +63,11 @@ export const DockNotifications: React.FC<{
 			aria-label="Notifications"
 			className="flex min-h-0 flex-1 flex-col"
 		>
-			<div className="bulk-action-surface flex flex-wrap items-center justify-center gap-1 border-0 border-b border-solid border-border p-2 text-xs">
-				<span>{ids.length} selected</span>
+			<div className="bulk-action-surface flex flex-nowrap items-center gap-1 whitespace-nowrap border-0 border-b border-solid border-border p-2 text-xs">
 				<Button
 					size="sm"
-					variant="subtle"
+					variant="outline"
+					className="h-7 shrink-0 px-2 text-xs"
 					disabled={all.isPending}
 					onClick={() =>
 						all.mutate(undefined, {
@@ -70,31 +77,45 @@ export const DockNotifications: React.FC<{
 						})
 					}
 				>
-					Select all
+					Select All
 				</Button>
 				<Button
 					size="sm"
-					variant="subtle"
+					variant="outline"
+					className="h-7 shrink-0 px-2 text-xs"
 					onClick={() => setSelected(new Set())}
 				>
-					Clear selection
+					Clear
 				</Button>
-				<Button
-					size="sm"
-					variant="subtle"
-					disabled={!ids.length || remove.isPending}
-					onClick={() => setDeleting(ids)}
-				>
-					Delete selected
-				</Button>
-				<Button
-					size="sm"
-					variant="subtle"
-					disabled={!items.length || remove.isPending}
-					onClick={() => setDeleting(null)}
-				>
-					Clear all
-				</Button>
+				<span className="ml-auto text-[10px] tabular-nums">
+					{ids.length} selected
+				</span>
+				<DropdownMenu>
+					<DropdownMenuTrigger asChild>
+						<Button
+							variant="subtle"
+							size="icon"
+							className="size-6 shrink-0"
+							aria-label="Notification actions"
+						>
+							<MoreHorizontalIcon />
+						</Button>
+					</DropdownMenuTrigger>
+					<DropdownMenuContent className="z-[120]" align="end">
+						<DropdownMenuItem
+							disabled={!ids.length || remove.isPending}
+							onSelect={() => setDeleting(ids)}
+						>
+							Delete selected
+						</DropdownMenuItem>
+						<DropdownMenuItem
+							disabled={!items.length || remove.isPending}
+							onSelect={() => setDeleting(null)}
+						>
+							Clear all
+						</DropdownMenuItem>
+					</DropdownMenuContent>
+				</DropdownMenu>
 			</div>
 			<div className="min-h-0 flex-1 overflow-y-auto">
 				{query.isLoading ? (
