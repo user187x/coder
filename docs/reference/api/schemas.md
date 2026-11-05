@@ -8053,19 +8053,19 @@ Git clone makes use of this by parsing the URL from: 'Username for "https://gith
 
 ### Properties
 
-| Name                     | Type                                                         | Required | Restrictions | Description                                                       |
-|--------------------------|--------------------------------------------------------------|----------|--------------|-------------------------------------------------------------------|
-| `auto_remove_history`    | boolean                                                      | false    |              |                                                                   |
-| `expires_at`             | string                                                       | false    |              |                                                                   |
-| `extension_requested_at` | string                                                       | false    |              |                                                                   |
-| `issued_at`              | string                                                       | false    |              |                                                                   |
-| `organization_id`        | string                                                       | false    |              |                                                                   |
-| `revoked_at`             | string                                                       | false    |              |                                                                   |
-| `terms`                  | [codersdk.ShortTermLeaseTerms](#codersdkshorttermleaseterms) | false    |              |                                                                   |
-| `token`                  | string                                                       | false    |              | Token is returned only at creation; the database stores its hash. |
-| `token_id`               | string                                                       | false    |              |                                                                   |
-| `user_id`                | string                                                       | false    |              |                                                                   |
-| `workspace_id`           | string                                                       | false    |              |                                                                   |
+| Name                     | Type                                                         | Required | Restrictions | Description                                                           |
+|--------------------------|--------------------------------------------------------------|----------|--------------|-----------------------------------------------------------------------|
+| `auto_remove_history`    | boolean                                                      | false    |              |                                                                       |
+| `expires_at`             | string                                                       | false    |              |                                                                       |
+| `extension_requested_at` | string                                                       | false    |              |                                                                       |
+| `issued_at`              | string                                                       | false    |              |                                                                       |
+| `organization_id`        | string                                                       | false    |              |                                                                       |
+| `revoked_at`             | string                                                       | false    |              |                                                                       |
+| `terms`                  | [codersdk.ShortTermLeaseTerms](#codersdkshorttermleaseterms) | false    |              |                                                                       |
+| `token`                  | string                                                       | false    |              | Token is returned at creation or by the administrator token endpoint. |
+| `token_id`               | string                                                       | false    |              |                                                                       |
+| `user_id`                | string                                                       | false    |              |                                                                       |
+| `workspace_id`           | string                                                       | false    |              |                                                                       |
 
 ## codersdk.ShortTermLeaseTerms
 

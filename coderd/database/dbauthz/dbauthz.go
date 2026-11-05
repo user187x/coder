@@ -4998,6 +4998,20 @@ func (q *querier) GetShortTermLeaseByWorkspaceID(ctx context.Context, workspaceI
 	return q.db.GetShortTermLeaseByWorkspaceID(ctx, workspaceID)
 }
 
+func (q *querier) GetShortTermLeaseCredential(ctx context.Context, arg database.GetShortTermLeaseCredentialParams) (database.ShortTermLeaseCredential, error) {
+	if err := q.authorizeContext(ctx, policy.ActionRead, rbac.ResourceSystem); err != nil {
+		return database.ShortTermLeaseCredential{}, err
+	}
+	return q.db.GetShortTermLeaseCredential(ctx, arg)
+}
+
+func (q *querier) GetShortTermLeaseForUpdate(ctx context.Context, arg database.GetShortTermLeaseForUpdateParams) (database.ShortTermLease, error) {
+	if err := q.authorizeContext(ctx, policy.ActionUpdate, rbac.ResourceSystem); err != nil {
+		return database.ShortTermLease{}, err
+	}
+	return q.db.GetShortTermLeaseForUpdate(ctx, arg)
+}
+
 func (q *querier) GetShortTermLeasesByOrganization(ctx context.Context, organizationID uuid.UUID) ([]database.ShortTermLease, error) {
 	if err := q.authorizeContext(ctx, policy.ActionUpdate, rbac.ResourceSystem); err != nil {
 		return nil, err
@@ -7359,6 +7373,13 @@ func (q *querier) ListProvisionerKeysByOrganization(ctx context.Context, organiz
 
 func (q *querier) ListProvisionerKeysByOrganizationExcludeReserved(ctx context.Context, organizationID uuid.UUID) ([]database.ProvisionerKey, error) {
 	return fetchWithPostFilter(q.auth, policy.ActionRead, q.db.ListProvisionerKeysByOrganizationExcludeReserved)(ctx, organizationID)
+}
+
+func (q *querier) ListShortTermLeaseCredentials(ctx context.Context) ([]database.ShortTermLeaseCredential, error) {
+	if err := q.authorizeContext(ctx, policy.ActionRead, rbac.ResourceSystem); err != nil {
+		return nil, err
+	}
+	return q.db.ListShortTermLeaseCredentials(ctx)
 }
 
 func (q *querier) ListUsageEventCreatedAtsByTypeSince(ctx context.Context, arg database.ListUsageEventCreatedAtsByTypeSinceParams) ([]time.Time, error) {
@@ -9760,6 +9781,13 @@ func (q *querier) UpsertRuntimeConfig(ctx context.Context, arg database.UpsertRu
 		return err
 	}
 	return q.db.UpsertRuntimeConfig(ctx, arg)
+}
+
+func (q *querier) UpsertShortTermLeaseCredential(ctx context.Context, arg database.UpsertShortTermLeaseCredentialParams) error {
+	if err := q.authorizeContext(ctx, policy.ActionUpdate, rbac.ResourceSystem); err != nil {
+		return err
+	}
+	return q.db.UpsertShortTermLeaseCredential(ctx, arg)
 }
 
 func (q *querier) UpsertTailnetCoordinator(ctx context.Context, id uuid.UUID) (database.TailnetCoordinator, error) {

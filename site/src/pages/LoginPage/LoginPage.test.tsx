@@ -2,6 +2,7 @@ import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 import { createMemoryRouter } from "react-router";
+import { ShortTermLeasesAPI } from "#/api/shortTermLeases";
 import { MockUserOwner } from "#/testHelpers/entities";
 import {
 	render,
@@ -10,6 +11,7 @@ import {
 } from "#/testHelpers/renderHelpers";
 import { server } from "#/testHelpers/server";
 import LoginPage from "./LoginPage";
+import { SignInForm } from "./SignInForm";
 
 describe("LoginPage", () => {
 	// Capture original values before any test stubs take effect.
@@ -346,5 +348,50 @@ describe("LoginPage", () => {
 		await waitFor(() => {
 			expect(locationHrefSpy).toHaveBeenCalledWith(redirectPath);
 		});
+	});
+});
+
+describe("sign-in method selector", () => {
+	it("switches between lease and password authentication", async () => {
+		const user = userEvent.setup();
+		const submit = vi.fn();
+		const login = vi
+			.spyOn(ShortTermLeasesAPI, "login")
+			.mockRejectedValue(new Error("Invalid token"));
+		render(
+			<SignInForm
+				isSigningIn={false}
+				redirectTo="/workspaces"
+				onSubmit={submit}
+			/>,
+		);
+		await user.click(
+			screen.getByRole("button", { name: "Choose sign-in method" }),
+		);
+		await user.click(
+			screen.getByRole("menuitemradio", { name: "Lease token" }),
+		);
+		await user.type(
+			screen.getByLabelText("Lease token", { exact: true }),
+			" test-lease ",
+		);
+		await user.click(screen.getByRole("button", { name: "Sign In" }));
+		await waitFor(() => expect(login).toHaveBeenCalledWith("test-lease"));
+		await user.click(
+			await screen.findByRole("button", { name: "Choose sign-in method" }),
+		);
+		await user.click(
+			screen.getByRole("menuitemradio", { name: "Username and password" }),
+		);
+		await user.type(screen.getByLabelText(/Username or email/i), "xxx");
+		await user.type(screen.getByLabelText(/^Password/), "example-password");
+		await user.click(screen.getByRole("button", { name: "Sign In" }));
+		await waitFor(() =>
+			expect(submit).toHaveBeenCalledWith(
+				{ email: "xxx", password: "example-password" },
+				expect.anything(),
+			),
+		);
+		login.mockRestore();
 	});
 });

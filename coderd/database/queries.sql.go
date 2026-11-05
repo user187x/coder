@@ -28537,6 +28537,57 @@ func (q *sqlQuerier) GetShortTermLeaseByWorkspaceID(ctx context.Context, workspa
 	return i, err
 }
 
+const getShortTermLeaseCredential = `-- name: GetShortTermLeaseCredential :one
+SELECT user_id, organization_id, token_id, value, value_key_id FROM short_term_lease_credentials WHERE user_id = $1 AND organization_id = $2
+`
+
+type GetShortTermLeaseCredentialParams struct {
+	UserID         uuid.UUID `db:"user_id" json:"user_id"`
+	OrganizationID uuid.UUID `db:"organization_id" json:"organization_id"`
+}
+
+func (q *sqlQuerier) GetShortTermLeaseCredential(ctx context.Context, arg GetShortTermLeaseCredentialParams) (ShortTermLeaseCredential, error) {
+	row := q.db.QueryRowContext(ctx, getShortTermLeaseCredential, arg.UserID, arg.OrganizationID)
+	var i ShortTermLeaseCredential
+	err := row.Scan(
+		&i.UserID,
+		&i.OrganizationID,
+		&i.TokenID,
+		&i.Value,
+		&i.ValueKeyID,
+	)
+	return i, err
+}
+
+const getShortTermLeaseForUpdate = `-- name: GetShortTermLeaseForUpdate :one
+SELECT user_id, organization_id, workspace_id, issued_by, issued_at, expires_at, revoked_at, extension_requested_at, token_id, hidden_at, auto_remove_history, terms FROM short_term_leases WHERE user_id = $1 AND organization_id = $2 FOR UPDATE
+`
+
+type GetShortTermLeaseForUpdateParams struct {
+	UserID         uuid.UUID `db:"user_id" json:"user_id"`
+	OrganizationID uuid.UUID `db:"organization_id" json:"organization_id"`
+}
+
+func (q *sqlQuerier) GetShortTermLeaseForUpdate(ctx context.Context, arg GetShortTermLeaseForUpdateParams) (ShortTermLease, error) {
+	row := q.db.QueryRowContext(ctx, getShortTermLeaseForUpdate, arg.UserID, arg.OrganizationID)
+	var i ShortTermLease
+	err := row.Scan(
+		&i.UserID,
+		&i.OrganizationID,
+		&i.WorkspaceID,
+		&i.IssuedBy,
+		&i.IssuedAt,
+		&i.ExpiresAt,
+		&i.RevokedAt,
+		&i.ExtensionRequestedAt,
+		&i.TokenID,
+		&i.HiddenAt,
+		&i.AutoRemoveHistory,
+		&i.Terms,
+	)
+	return i, err
+}
+
 const getShortTermLeasesByOrganization = `-- name: GetShortTermLeasesByOrganization :many
 SELECT user_id, organization_id, workspace_id, issued_by, issued_at, expires_at, revoked_at, extension_requested_at, token_id, hidden_at, auto_remove_history, terms FROM short_term_leases WHERE organization_id = $1 AND hidden_at IS NULL
 AND NOT (auto_remove_history AND (expires_at <= now() OR revoked_at IS NOT NULL)) ORDER BY issued_at DESC
@@ -28647,6 +28698,39 @@ func (q *sqlQuerier) InsertShortTermLease(ctx context.Context, arg InsertShortTe
 	return i, err
 }
 
+const listShortTermLeaseCredentials = `-- name: ListShortTermLeaseCredentials :many
+SELECT user_id, organization_id, token_id, value, value_key_id FROM short_term_lease_credentials FOR UPDATE
+`
+
+func (q *sqlQuerier) ListShortTermLeaseCredentials(ctx context.Context) ([]ShortTermLeaseCredential, error) {
+	rows, err := q.db.QueryContext(ctx, listShortTermLeaseCredentials)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ShortTermLeaseCredential
+	for rows.Next() {
+		var i ShortTermLeaseCredential
+		if err := rows.Scan(
+			&i.UserID,
+			&i.OrganizationID,
+			&i.TokenID,
+			&i.Value,
+			&i.ValueKeyID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const requestShortTermLeaseExtension = `-- name: RequestShortTermLeaseExtension :one
 UPDATE short_term_leases SET extension_requested_at = now()
 WHERE user_id = $1 AND revoked_at IS NULL AND expires_at > now()
@@ -28701,6 +28785,33 @@ func (q *sqlQuerier) RevokeShortTermLease(ctx context.Context, arg RevokeShortTe
 		&i.Terms,
 	)
 	return i, err
+}
+
+const upsertShortTermLeaseCredential = `-- name: UpsertShortTermLeaseCredential :exec
+INSERT INTO short_term_lease_credentials (user_id, organization_id, token_id, value, value_key_id)
+VALUES ($1, $2, $3, $4, $5)
+ON CONFLICT (user_id) DO UPDATE SET token_id = EXCLUDED.token_id,
+    value = EXCLUDED.value, value_key_id = EXCLUDED.value_key_id
+WHERE short_term_lease_credentials.organization_id = EXCLUDED.organization_id
+`
+
+type UpsertShortTermLeaseCredentialParams struct {
+	UserID         uuid.UUID      `db:"user_id" json:"user_id"`
+	OrganizationID uuid.UUID      `db:"organization_id" json:"organization_id"`
+	TokenID        string         `db:"token_id" json:"token_id"`
+	Value          string         `db:"value" json:"value"`
+	ValueKeyID     sql.NullString `db:"value_key_id" json:"value_key_id"`
+}
+
+func (q *sqlQuerier) UpsertShortTermLeaseCredential(ctx context.Context, arg UpsertShortTermLeaseCredentialParams) error {
+	_, err := q.db.ExecContext(ctx, upsertShortTermLeaseCredential,
+		arg.UserID,
+		arg.OrganizationID,
+		arg.TokenID,
+		arg.Value,
+		arg.ValueKeyID,
+	)
+	return err
 }
 
 const deleteRuntimeConfig = `-- name: DeleteRuntimeConfig :exec

@@ -15,6 +15,7 @@ import (
 	"github.com/coder/coder/v2/coderd/coderdtest"
 	"github.com/coder/coder/v2/coderd/database"
 	"github.com/coder/coder/v2/coderd/database/dbauthz"
+	"github.com/coder/coder/v2/coderd/database/dbgen"
 	"github.com/coder/coder/v2/coderd/workspacequarantine"
 	"github.com/coder/coder/v2/coderd/workspacescheduler"
 	"github.com/coder/coder/v2/codersdk"
@@ -73,6 +74,29 @@ func TestShortTermLeaseLifecycle(t *testing.T) {
 	require.NotEmpty(t, lease.Token)
 	require.NotNil(t, lease.WorkspaceID)
 	require.Equal(t, 15*time.Minute, lease.ExpiresAt.Sub(lease.IssuedAt))
+	res, err = client.Request(ctx, http.MethodGet, path+"/"+lease.UserID.String()+"/token", nil)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, res.StatusCode)
+	require.Equal(t, "no-store", res.Header.Get("Cache-Control"))
+	var revealed codersdk.ShortTermLease
+	require.NoError(t, codersdk.ReadBodyAsJSON(res, &revealed))
+	_ = res.Body.Close()
+	require.Equal(t, lease.Token, revealed.Token)
+	otherOrg := dbgen.Organization(t, db, database.Organization{})
+	wrongPath := "/api/v2/organizations/" + otherOrg.ID.String() + "/short-term-leases/" + lease.UserID.String() + "/token"
+	for _, method := range []string{http.MethodGet, http.MethodPost} {
+		res, err = client.Request(ctx, method, wrongPath, nil)
+		require.NoError(t, err)
+		require.Equal(t, http.StatusNotFound, res.StatusCode)
+		_ = res.Body.Close()
+	}
+	res, err = client.Request(ctx, http.MethodGet, path, nil)
+	require.NoError(t, err)
+	var listed []codersdk.ShortTermLease
+	require.NoError(t, codersdk.ReadBodyAsJSON(res, &listed))
+	_ = res.Body.Close()
+	require.Len(t, listed, 1)
+	require.Empty(t, listed[0].Token)
 	guest := codersdk.New(client.URL)
 	guest.SetSessionToken(lease.Token)
 	_, err = guest.Template(ctx, template.ID)
@@ -89,6 +113,25 @@ func TestShortTermLeaseLifecycle(t *testing.T) {
 
 	_, err = guest.User(ctx, codersdk.Me)
 	require.NoError(t, err)
+	res, err = guest.Request(ctx, http.MethodGet, path+"/"+lease.UserID.String()+"/token", nil)
+	require.NoError(t, err)
+	require.NotEqual(t, http.StatusOK, res.StatusCode)
+	_ = res.Body.Close()
+	res, err = client.Request(ctx, http.MethodPost, path+"/"+lease.UserID.String()+"/token", nil)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, res.StatusCode)
+	var replaced codersdk.ShortTermLease
+	require.NoError(t, codersdk.ReadBodyAsJSON(res, &replaced))
+	_ = res.Body.Close()
+	require.NotEqual(t, lease.Token, replaced.Token)
+	require.Equal(t, lease.ExpiresAt, replaced.ExpiresAt)
+	require.Equal(t, lease.WorkspaceID, replaced.WorkspaceID)
+	_, err = guest.User(ctx, codersdk.Me)
+	require.Error(t, err, "replacement must invalidate the old session")
+	guest.SetSessionToken(replaced.Token)
+	_, err = guest.User(ctx, codersdk.Me)
+	require.NoError(t, err)
+
 	_, err = guest.CreateAPIKey(ctx, codersdk.Me)
 	require.Error(t, err)
 	res, err = guest.Request(ctx, http.MethodPost, "/api/v2/short-term-lease/extension", nil)
@@ -105,6 +148,13 @@ func TestShortTermLeaseLifecycle(t *testing.T) {
 	require.Equal(t, http.StatusOK, res.StatusCode)
 	_, err = guest.User(ctx, codersdk.Me)
 	require.Error(t, err)
+	for _, method := range []string{http.MethodGet, http.MethodPost} {
+		res, err = client.Request(ctx, method, path+"/"+lease.UserID.String()+"/token", nil)
+		require.NoError(t, err)
+		require.Equal(t, http.StatusConflict, res.StatusCode)
+		_ = res.Body.Close()
+	}
+
 	res, err = client.Request(ctx, http.MethodPatch, path+"/"+lease.UserID.String(), codersdk.UpdateShortTermLeaseRequest{Minutes: 5})
 	require.NoError(t, err)
 	defer res.Body.Close()

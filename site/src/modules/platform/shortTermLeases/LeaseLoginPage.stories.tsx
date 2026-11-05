@@ -20,11 +20,9 @@ export const InvalidToken: Story = {
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
 		await userEvent.type(
-			canvas.getByLabelText("Session token"),
+			canvas.getByLabelText("Lease token"),
 			"example-expired-token",
 		);
-		await userEvent.click(
-			canvas.getByRole("button", { name: "Open Browser workspace" }),
-		);
+		await userEvent.click(canvas.getByRole("button", { name: "Sign In" }));
 	},
 };

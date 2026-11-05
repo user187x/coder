@@ -5795,7 +5795,7 @@ export interface ShortTermLease {
 	readonly auto_remove_history: boolean;
 	readonly token_id: string;
 	/**
-	 * Token is returned only at creation; the database stores its hash.
+	 * Token is returned at creation or by the administrator token endpoint.
 	 */
 	readonly token?: string;
 }

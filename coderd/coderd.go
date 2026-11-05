@@ -1302,6 +1302,8 @@ func New(options *Options) *API {
 				r.Get("/short-term-leases", api.shortTermLeases)
 				r.Post("/short-term-leases", api.postShortTermLease)
 				r.Patch("/short-term-leases/{user}", api.patchShortTermLease)
+				r.Get("/short-term-leases/{user}/token", api.shortTermLeaseToken)
+				r.Post("/short-term-leases/{user}/token", api.replaceShortTermLeaseToken)
 				r.Delete("/short-term-leases/{user}", api.deleteShortTermLeaseHistory)
 				r.With(httpmw.ExtractWorkspaceParam(options.Database)).Get("/workspaces/{workspace}/quarantine", api.workspaceQuarantineStatus)
 				r.With(httpmw.ExtractWorkspaceParam(options.Database)).Put("/workspaces/{workspace}/quarantine", api.putWorkspaceQuarantine)

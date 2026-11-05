@@ -42,6 +42,8 @@ import {
 import { Textarea } from "#/components/Textarea/Textarea";
 import { useTime } from "#/hooks/useTime";
 import { TableCard } from "#/modules/platform/tableCard/TableCard";
+import { LeaseAccess } from "./LeaseAccess";
+import { LeaseSignInLink } from "./LeaseSignInLink";
 
 export const ShortTermLeases = ({
 	clock = Date.now,
@@ -69,6 +71,7 @@ export const ShortTermLeases = ({
 	const creating = controlledCreating ?? localCreating;
 	const setCreating = onCreatingChange ?? setLocalCreating;
 	const [issuedToken, setIssuedToken] = useState("");
+	const [accessUser, setAccessUser] = useState("");
 	const [websiteMode, setWebsiteMode] = useState("all");
 	const [websites, setWebsites] = useState("");
 	const [firewall, setFirewall] = useState(true);
@@ -78,6 +81,12 @@ export const ShortTermLeases = ({
 		queries: (orgs.data ?? []).map((org) => shortTermLeases(org.id)),
 	});
 	const rows = queries.flatMap((query) => query.data ?? []);
+	const accessLease = rows.find(
+		(row) =>
+			row.user_id === accessUser &&
+			!row.revoked_at &&
+			Date.parse(row.expires_at) > now,
+	);
 	const [extending, setExtending] = useState<ShortTermLease | null>(null);
 	const [extensionMinutes, setExtensionMinutes] = useState("15");
 	const extensionDuration = Number(extensionMinutes);
@@ -128,6 +137,9 @@ export const ShortTermLeases = ({
 				Issue temporary access to a fresh, isolated Browser workspace. Expired
 				leases cannot be renewed.
 			</p>
+			<div className="mb-4">
+				<LeaseSignInLink />
+			</div>
 			{Boolean(error) && <ErrorAlert error={error} />}
 			<div className="mb-4 flex flex-wrap items-end gap-3">
 				<Button
@@ -161,11 +173,12 @@ export const ShortTermLeases = ({
 						Create an isolated Browser workspace. Website restrictions apply
 						only to Chromium.
 					</DialogDescription>
+					<LeaseSignInLink />
 					{issuedToken ? (
 						<>
 							<p>
-								Copy this token now. It will not be shown again. Give it to the
-								tenant with the <a href="/lease">lease sign-in link</a>.
+								Give this token and the lease sign-in URL to the tenant. An
+								administrator can reveal it again from the lease table.
 							</p>
 							<CodeExample
 								code={issuedToken}
@@ -406,7 +419,11 @@ export const ShortTermLeases = ({
 								const active =
 									!row.revoked_at && Date.parse(row.expires_at) > now;
 								return (
-									<TableRow key={row.user_id}>
+									<TableRow
+										key={row.user_id}
+										onPointerEnter={() => setAccessUser(row.user_id)}
+										onFocusCapture={() => setAccessUser(row.user_id)}
+									>
 										<TableCell>
 											<code title={row.user_id}>
 												lease-{row.user_id.slice(0, 8)}
@@ -471,6 +488,15 @@ export const ShortTermLeases = ({
 										</TableCell>
 										<TableCell>
 											<div className="flex flex-wrap gap-2">
+												{active && (
+													<Button
+														size="sm"
+														variant="outline"
+														onClick={() => setAccessUser(row.user_id)}
+													>
+														Sign-in details
+													</Button>
+												)}
 												{active ? (
 													<>
 														<Button
@@ -521,6 +547,18 @@ export const ShortTermLeases = ({
 								);
 							})}
 						</TableBody>
+						{accessLease && (
+							<tfoot>
+								<TableRow>
+									<TableCell colSpan={6}>
+										<LeaseAccess
+											key={accessLease.user_id}
+											lease={accessLease}
+										/>
+									</TableCell>
+								</TableRow>
+							</tfoot>
+						)}
 					</Table>
 				</TableCard>
 			)}

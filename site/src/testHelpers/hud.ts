@@ -38,6 +38,7 @@ export const MockHudHistory: HudHistory = {
 		memoryWorkspaces: 4,
 		memoryTotal: 16,
 		latency: 0.2,
+		serviceLatency: 2.4,
 		latencyP95: 0.4,
 		latencyMax: 0.5,
 		connections: 3,

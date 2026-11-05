@@ -3201,6 +3201,22 @@ func (m queryMetricsStore) GetShortTermLeaseByWorkspaceID(ctx context.Context, w
 	return r0, r1
 }
 
+func (m queryMetricsStore) GetShortTermLeaseCredential(ctx context.Context, arg database.GetShortTermLeaseCredentialParams) (database.ShortTermLeaseCredential, error) {
+	start := time.Now()
+	r0, r1 := m.s.GetShortTermLeaseCredential(ctx, arg)
+	m.queryLatencies.WithLabelValues("GetShortTermLeaseCredential").Observe(time.Since(start).Seconds())
+	m.queryCounts.WithLabelValues(httpmw.ExtractHTTPRoute(ctx), httpmw.ExtractHTTPMethod(ctx), "GetShortTermLeaseCredential").Inc()
+	return r0, r1
+}
+
+func (m queryMetricsStore) GetShortTermLeaseForUpdate(ctx context.Context, arg database.GetShortTermLeaseForUpdateParams) (database.ShortTermLease, error) {
+	start := time.Now()
+	r0, r1 := m.s.GetShortTermLeaseForUpdate(ctx, arg)
+	m.queryLatencies.WithLabelValues("GetShortTermLeaseForUpdate").Observe(time.Since(start).Seconds())
+	m.queryCounts.WithLabelValues(httpmw.ExtractHTTPRoute(ctx), httpmw.ExtractHTTPMethod(ctx), "GetShortTermLeaseForUpdate").Inc()
+	return r0, r1
+}
+
 func (m queryMetricsStore) GetShortTermLeasesByOrganization(ctx context.Context, organizationID uuid.UUID) ([]database.ShortTermLease, error) {
 	start := time.Now()
 	r0, r1 := m.s.GetShortTermLeasesByOrganization(ctx, organizationID)
@@ -5209,6 +5225,14 @@ func (m queryMetricsStore) ListProvisionerKeysByOrganizationExcludeReserved(ctx 
 	return r0, r1
 }
 
+func (m queryMetricsStore) ListShortTermLeaseCredentials(ctx context.Context) ([]database.ShortTermLeaseCredential, error) {
+	start := time.Now()
+	r0, r1 := m.s.ListShortTermLeaseCredentials(ctx)
+	m.queryLatencies.WithLabelValues("ListShortTermLeaseCredentials").Observe(time.Since(start).Seconds())
+	m.queryCounts.WithLabelValues(httpmw.ExtractHTTPRoute(ctx), httpmw.ExtractHTTPMethod(ctx), "ListShortTermLeaseCredentials").Inc()
+	return r0, r1
+}
+
 func (m queryMetricsStore) ListUsageEventCreatedAtsByTypeSince(ctx context.Context, arg database.ListUsageEventCreatedAtsByTypeSinceParams) ([]time.Time, error) {
 	start := time.Now()
 	r0, r1 := m.s.ListUsageEventCreatedAtsByTypeSince(ctx, arg)
@@ -7031,6 +7055,14 @@ func (m queryMetricsStore) UpsertRuntimeConfig(ctx context.Context, arg database
 	r0 := m.s.UpsertRuntimeConfig(ctx, arg)
 	m.queryLatencies.WithLabelValues("UpsertRuntimeConfig").Observe(time.Since(start).Seconds())
 	m.queryCounts.WithLabelValues(httpmw.ExtractHTTPRoute(ctx), httpmw.ExtractHTTPMethod(ctx), "UpsertRuntimeConfig").Inc()
+	return r0
+}
+
+func (m queryMetricsStore) UpsertShortTermLeaseCredential(ctx context.Context, arg database.UpsertShortTermLeaseCredentialParams) error {
+	start := time.Now()
+	r0 := m.s.UpsertShortTermLeaseCredential(ctx, arg)
+	m.queryLatencies.WithLabelValues("UpsertShortTermLeaseCredential").Observe(time.Since(start).Seconds())
+	m.queryCounts.WithLabelValues(httpmw.ExtractHTTPRoute(ctx), httpmw.ExtractHTTPMethod(ctx), "UpsertShortTermLeaseCredential").Inc()
 	return r0
 }
 

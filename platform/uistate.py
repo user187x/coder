@@ -78,6 +78,7 @@ class UIState(threading.Thread):
                     lat_p50 double precision, lat_p95 double precision, lat_max double precision, connections integer,
                     net_rx double precision, net_tx double precision, disk_used double precision, disk_total double precision,
                     disk_claimed double precision, volume_used double precision)""")
+                pool.query("ALTER TABLE coder_ui_updates.hud_samples ADD COLUMN IF NOT EXISTS service_latency double precision")
                 pool.query("""CREATE TABLE IF NOT EXISTS coder_ui_updates.agent_network (
                     agent_id uuid NOT NULL REFERENCES workspace_agents(id) ON DELETE CASCADE,
                     t bigint NOT NULL, rx bigint NOT NULL, tx bigint NOT NULL, PRIMARY KEY(agent_id, t))""")
@@ -144,7 +145,7 @@ class UIState(threading.Thread):
 
     HUD_COLUMNS = ('t', 'live', 'cpu', 'cpu_ws', 'cpu_total', 'mem', 'mem_ws', 'mem_total',
                    'lat_p50', 'lat_p95', 'lat_max', 'connections', 'net_rx', 'net_tx',
-                   'disk_used', 'disk_total', 'disk_claimed', 'volume_used')
+                   'disk_used', 'disk_total', 'disk_claimed', 'volume_used', 'service_latency')
 
     def insert_hud(self, rows):
         if not rows:

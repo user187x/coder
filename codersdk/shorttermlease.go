@@ -18,7 +18,7 @@ type ShortTermLease struct {
 	Terms                *ShortTermLeaseTerms `json:"terms,omitempty"`
 	AutoRemoveHistory    bool                 `json:"auto_remove_history"`
 	TokenID              string               `json:"token_id"`
-	// Token is returned only at creation; the database stores its hash.
+	// Token is returned at creation or by the administrator token endpoint.
 	Token string `json:"token,omitempty"`
 }
 

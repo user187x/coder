@@ -6349,6 +6349,14 @@ type ShortTermLease struct {
 	Terms                json.RawMessage `db:"terms" json:"terms"`
 }
 
+type ShortTermLeaseCredential struct {
+	UserID         uuid.UUID      `db:"user_id" json:"user_id"`
+	OrganizationID uuid.UUID      `db:"organization_id" json:"organization_id"`
+	TokenID        string         `db:"token_id" json:"token_id"`
+	Value          string         `db:"value" json:"value"`
+	ValueKeyID     sql.NullString `db:"value_key_id" json:"value_key_id"`
+}
+
 type SiteConfig struct {
 	Key   string `db:"key" json:"key"`
 	Value string `db:"value" json:"value"`

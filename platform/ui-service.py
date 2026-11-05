@@ -8035,7 +8035,7 @@ class HudHistory(threading.Thread):
                 cpu REAL, cpu_ws REAL, cpu_total REAL, mem REAL, mem_ws REAL, mem_total REAL,
                 lat_p50 REAL, lat_p95 REAL, lat_max REAL, connections INTEGER)""")
             columns = {r[1] for r in db.execute("PRAGMA table_info(samples)")}
-            for column in ("net_rx", "net_tx", "disk_used", "disk_total", "disk_claimed", "volume_used"):
+            for column in ("net_rx", "net_tx", "disk_used", "disk_total", "disk_claimed", "volume_used", "service_latency"):
                 if column not in columns:
                     db.execute("ALTER TABLE samples ADD COLUMN %s REAL" % column)
 
@@ -8129,6 +8129,15 @@ class HudHistory(threading.Thread):
         )
         return rows[0] if rows else None
 
+    def service_latency(self):
+        """Round-trip time from the platform service to Coder's health endpoint."""
+        started = time.monotonic()
+        try:
+            status, _ = http_json(CODER_URL + "/healthz", timeout=4)
+        except (OSError, TimeoutError):
+            return None
+        return (time.monotonic() - started) * 1000 if status == 200 else None
+
     def sample(self):
         cluster = cluster_usage()
         live = cluster_snapshot()["usage"] is not None
@@ -8149,7 +8158,7 @@ class HudHistory(threading.Thread):
                cluster["memory"]["used"] / gib, sum(v["memory"] for v in ws.values()) if live else None,
                cluster["memory"]["total"] / gib,
                lat[0] if lat else None, lat[1] if lat else None, lat[2] if lat else None, int(lat[3]) if lat else 0,
-               net_rx, net_tx, disk["used"], disk["total"], disk["claimed"], disk["volumeUsed"])
+               net_rx, net_tx, disk["used"], disk["total"], disk["claimed"], disk["volumeUsed"], self.service_latency())
         if self.backing is not None:
             self.migrate_legacy()
             row = tuple(float(value) if value is not None and i in (8, 9, 10) else value for i, value in enumerate(row))
@@ -8159,7 +8168,7 @@ class HudHistory(threading.Thread):
             return
         with self.connect() as db:
             db.execute("""INSERT OR REPLACE INTO samples (t, live, cpu, cpu_ws, cpu_total, mem, mem_ws, mem_total,
-                lat_p50, lat_p95, lat_max, connections, net_rx, net_tx, disk_used, disk_total, disk_claimed, volume_used) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", row)
+                lat_p50, lat_p95, lat_max, connections, net_rx, net_tx, disk_used, disk_total, disk_claimed, volume_used, service_latency) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", row)
             db.execute("DELETE FROM samples WHERE t < ?", (int(time.time()) - HUD_HISTORY_DAYS * 86400,))
 
     def run(self):
@@ -8192,11 +8201,12 @@ class HudHistory(threading.Thread):
                     avg(mem) AS mem, max(mem) AS mem_peak, avg(mem_ws) AS mem_ws, max(mem_total) AS mem_total,
                     avg(lat_p50) AS lat_p50, max(lat_p95) AS lat_p95, max(lat_max) AS lat_max,
                     max(connections) AS connections, avg(disk_used) AS disk_used, max(disk_total) AS disk_total,
-                    avg(disk_claimed) AS disk_claimed, avg(volume_used) AS volume_used
+                    avg(disk_claimed) AS disk_claimed, avg(volume_used) AS volume_used,
+                    avg(service_latency) AS service_latency
                    FROM samples WHERE t >= ? GROUP BY b ORDER BY b""",
                 (start, step, start),
             ('b', 't', 'live', 'cpu', 'cpu_peak', 'cpu_ws', 'cpu_total', 'mem', 'mem_peak', 'mem_ws', 'mem_total',
-             'lat_p50', 'lat_p95', 'lat_max', 'connections', 'disk_used', 'disk_total', 'disk_claimed', 'volume_used'))
+             'lat_p50', 'lat_p95', 'lat_max', 'connections', 'disk_used', 'disk_total', 'disk_claimed', 'volume_used', 'service_latency'))
         r2 = lambda v: None if v is None else round(v, 3)  # noqa: E731
         points = [{"t": r["b"] * step + start, "live": bool(r["live"]), "cpu": r2(r["cpu"]), "cpuPeak": r2(r["cpu_peak"]),
                    "cpuWorkspaces": r2(r["cpu_ws"]), "cpuTotal": r2(r["cpu_total"]), "memory": r2(r["mem"]),
@@ -8204,7 +8214,7 @@ class HudHistory(threading.Thread):
                    "latency": r2(r["lat_p50"]), "latencyP95": r2(r["lat_p95"]), "latencyMax": r2(r["lat_max"]),
                    "diskUsed": r2(r["disk_used"]), "diskTotal": r2(r["disk_total"]),
                    "diskClaimed": r2(r["disk_claimed"]), "volumeUsed": r2(r["volume_used"]),
-                   "connections": r["connections"] or 0} for r in rows]
+                   "serviceLatency": r2(r["service_latency"]), "connections": r["connections"] or 0} for r in rows]
         return {"range": range_ if range_ in HUD_RANGES else "1h", "start": start, "end": end, "step": step,
                 "points": points}
 

@@ -20,8 +20,7 @@ const readRange = (): HudRange => {
 };
 
 /**
- * The HUD's history graphs, under the totals: system latency (users'
- * connections to their workspaces), CPU and memory in use across the cluster
+ * The HUD's history graphs, under the totals: system latency (Coder's health endpoint), CPU and memory in use across the cluster
  * (what workspaces use of it, darker), over a chosen range. Sampled by the
  * platform service every 15 seconds whether or not the page is open.
  */
@@ -95,35 +94,26 @@ export const HudGraphs: React.FC<HudGraphsProps> = ({ leading }) => {
 										title="System latency"
 										unit="ms"
 										history={data}
-										bars={(p) => ({ value: p.latency, mark: p.latencyP95 })}
+										bars={(p) => ({ value: p.serviceLatency ?? null })}
 										top={(ps) =>
-											Math.max(
-												...ps.map((p) => p.latencyP95 ?? p.latency ?? 0),
-											) * 1.15
+											Math.max(...ps.map((p) => p.serviceLatency ?? 0)) * 1.15
 										}
 										summary={(p) => (
 											<>
 												<span className="text-2xl font-semibold tabular-nums">
-													{fmt(p?.latency, 2)}
+													{fmt(p?.serviceLatency, 2)}
 												</span>
 												<span className="text-sm text-content-secondary">
-													ms median
-													{p?.latencyP95 !== null &&
-														p?.latencyP95 !== undefined &&
-														` · p95 ${fmt(p.latencyP95, 2)} ms`}
-													{p
-														? ` · ${p.connections} agent${p.connections === 1 ? "" : "s"}`
-														: ""}
+													ms · Coder response
 												</span>
 											</>
 										)}
 										legend={
-											<>
-												<Swatch className="opacity-45">median</Swatch>
-												<Swatch className="opacity-20">95th percentile</Swatch>
-											</>
+											<Swatch className="opacity-45">
+												health endpoint round trip
+											</Swatch>
 										}
-										empty="No one connected to a workspace in this range"
+										empty="No successful Coder response samples in this range"
 									/>
 								),
 							},

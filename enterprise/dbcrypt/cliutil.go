@@ -232,6 +232,9 @@ func Rotate(ctx context.Context, log slog.Logger, sqlDB *sql.DB, ciphers []Ciphe
 		log.Debug(ctx, "encrypted user ai provider key", slog.F("user_ai_provider_key_id", key.ID), slog.F("ai_provider_id", key.AIProviderID), slog.F("user_id", key.UserID), slog.F("current", idx+1), slog.F("cipher", ciphers[0].HexDigest()))
 	}
 
+	if err := reencryptLeaseCredentials(ctx, cryptDB); err != nil {
+		return xerrors.Errorf("rotate lease credentials: %w", err)
+	}
 	// Revoke old keys
 	for _, c := range ciphers[1:] {
 		if err := db.RevokeDBCryptKey(ctx, c.HexDigest()); err != nil {
@@ -450,6 +453,9 @@ func Decrypt(ctx context.Context, log slog.Logger, sqlDB *sql.DB, ciphers []Ciph
 		log.Debug(ctx, "decrypted user ai provider key", slog.F("user_ai_provider_key_id", key.ID), slog.F("ai_provider_id", key.AIProviderID), slog.F("user_id", key.UserID), slog.F("current", idx+1))
 	}
 
+	if err := reencryptLeaseCredentials(ctx, cryptDB); err != nil {
+		return xerrors.Errorf("decrypt lease credentials: %w", err)
+	}
 	// Revoke _all_ keys
 	for _, c := range ciphers {
 		if err := db.RevokeDBCryptKey(ctx, c.HexDigest()); err != nil {
@@ -473,6 +479,8 @@ DELETE FROM external_auth_links
 DELETE FROM user_ai_provider_keys
 	WHERE api_key_key_id IS NOT NULL;
 DELETE FROM user_secrets
+	WHERE value_key_id IS NOT NULL;
+DELETE FROM short_term_lease_credentials
 	WHERE value_key_id IS NOT NULL;
 DELETE FROM chat_mcp_servers
 	WHERE headers_key_id IS NOT NULL;

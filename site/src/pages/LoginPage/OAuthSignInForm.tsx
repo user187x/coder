@@ -7,6 +7,7 @@ type OAuthSignInFormProps = {
 	isSigningIn: boolean;
 	redirectTo: string;
 	authMethods?: AuthMethods;
+	compact?: boolean;
 };
 
 /** Platform: the Keycloak logo the sign-in page shows as Keycloak's button (site/static). */
@@ -19,6 +20,7 @@ export const OAuthSignInForm: React.FC<OAuthSignInFormProps> = ({
 	isSigningIn,
 	redirectTo,
 	authMethods,
+	compact = false,
 }) => {
 	if (!authMethods?.oidc.enabled) {
 		return null;
@@ -28,6 +30,36 @@ export const OAuthSignInForm: React.FC<OAuthSignInFormProps> = ({
 	)}`;
 	const label = authMethods.oidc.signInText || "OpenID Connect";
 	const { iconUrl } = authMethods.oidc;
+	if (compact) {
+		return (
+			<Button
+				asChild
+				size="lg"
+				className="min-w-0 flex-1 rounded-r-none"
+				disabled={isSigningIn}
+			>
+				<a
+					href={isSigningIn ? undefined : href}
+					aria-label={label}
+					aria-disabled={isSigningIn || undefined}
+				>
+					{isKeycloak(iconUrl) ? (
+						<img
+							src={KEYCLOAK_LOGO}
+							alt=""
+							draggable={false}
+							className="h-7! w-auto! max-w-full object-contain p-0!"
+						/>
+					) : (
+						<>
+							<KeyIcon aria-hidden />
+							{label}
+						</>
+					)}
+				</a>
+			</Button>
+		);
+	}
 
 	if (isKeycloak(iconUrl)) {
 		return (

@@ -551,25 +551,25 @@ curl -X GET http://coder-server:8080/api/v2/organizations/{organization}/short-t
 
 Status Code **200**
 
-| Name                       | Type                                                                   | Required | Restrictions | Description                                                       |
-|----------------------------|------------------------------------------------------------------------|----------|--------------|-------------------------------------------------------------------|
-| `[array item]`             | array                                                                  | false    |              |                                                                   |
-| `» auto_remove_history`    | boolean                                                                | false    |              |                                                                   |
-| `» expires_at`             | string(date-time)                                                      | false    |              |                                                                   |
-| `» extension_requested_at` | string(date-time)                                                      | false    |              |                                                                   |
-| `» issued_at`              | string(date-time)                                                      | false    |              |                                                                   |
-| `» organization_id`        | string(uuid)                                                           | false    |              |                                                                   |
-| `» revoked_at`             | string(date-time)                                                      | false    |              |                                                                   |
-| `» terms`                  | [codersdk.ShortTermLeaseTerms](schemas.md#codersdkshorttermleaseterms) | false    |              |                                                                   |
-| `»» firewall`              | boolean                                                                | false    |              |                                                                   |
-| `»» no_root`               | boolean                                                                | false    |              |                                                                   |
-| `»» sandbox_only`          | boolean                                                                | false    |              |                                                                   |
-| `»» website_mode`          | string                                                                 | false    |              |                                                                   |
-| `»» websites`              | array                                                                  | false    |              |                                                                   |
-| `» token`                  | string                                                                 | false    |              | Token is returned only at creation; the database stores its hash. |
-| `» token_id`               | string                                                                 | false    |              |                                                                   |
-| `» user_id`                | string(uuid)                                                           | false    |              |                                                                   |
-| `» workspace_id`           | string(uuid)                                                           | false    |              |                                                                   |
+| Name                       | Type                                                                   | Required | Restrictions | Description                                                           |
+|----------------------------|------------------------------------------------------------------------|----------|--------------|-----------------------------------------------------------------------|
+| `[array item]`             | array                                                                  | false    |              |                                                                       |
+| `» auto_remove_history`    | boolean                                                                | false    |              |                                                                       |
+| `» expires_at`             | string(date-time)                                                      | false    |              |                                                                       |
+| `» extension_requested_at` | string(date-time)                                                      | false    |              |                                                                       |
+| `» issued_at`              | string(date-time)                                                      | false    |              |                                                                       |
+| `» organization_id`        | string(uuid)                                                           | false    |              |                                                                       |
+| `» revoked_at`             | string(date-time)                                                      | false    |              |                                                                       |
+| `» terms`                  | [codersdk.ShortTermLeaseTerms](schemas.md#codersdkshorttermleaseterms) | false    |              |                                                                       |
+| `»» firewall`              | boolean                                                                | false    |              |                                                                       |
+| `»» no_root`               | boolean                                                                | false    |              |                                                                       |
+| `»» sandbox_only`          | boolean                                                                | false    |              |                                                                       |
+| `»» website_mode`          | string                                                                 | false    |              |                                                                       |
+| `»» websites`              | array                                                                  | false    |              |                                                                       |
+| `» token`                  | string                                                                 | false    |              | Token is returned at creation or by the administrator token endpoint. |
+| `» token_id`               | string                                                                 | false    |              |                                                                       |
+| `» user_id`                | string(uuid)                                                           | false    |              |                                                                       |
+| `» workspace_id`           | string(uuid)                                                           | false    |              |                                                                       |
 
 To perform this operation, you must be authenticated. [Learn more](authentication.md).
 
@@ -724,6 +724,118 @@ curl -X PATCH http://coder-server:8080/api/v2/organizations/{organization}/short
 | `organization` | path | string(uuid)                                                                           | true     | Organization ID         |
 | `user`         | path | string(uuid)                                                                           | true     | Temporary user ID       |
 | `body`         | body | [codersdk.UpdateShortTermLeaseRequest](schemas.md#codersdkupdateshorttermleaserequest) | true     | Extension or revocation |
+
+### Example responses
+
+> 200 Response
+
+```json
+{
+  "auto_remove_history": true,
+  "expires_at": "2019-08-24T14:15:22Z",
+  "extension_requested_at": "2019-08-24T14:15:22Z",
+  "issued_at": "2019-08-24T14:15:22Z",
+  "organization_id": "7c60d51f-b44e-4682-87d6-449835ea4de6",
+  "revoked_at": "2019-08-24T14:15:22Z",
+  "terms": {
+    "firewall": true,
+    "no_root": true,
+    "sandbox_only": true,
+    "website_mode": "string",
+    "websites": [
+      "string"
+    ]
+  },
+  "token": "string",
+  "token_id": "string",
+  "user_id": "a169451c-8525-4352-b8ca-070dd449a1a5",
+  "workspace_id": "0967198e-ec7b-4c6b-b4d3-f71244cadbe9"
+}
+```
+
+### Responses
+
+| Status | Meaning                                                 | Description | Schema                                                       |
+|--------|---------------------------------------------------------|-------------|--------------------------------------------------------------|
+| 200    | [OK](https://tools.ietf.org/html/rfc7231#section-6.3.1) | OK          | [codersdk.ShortTermLease](schemas.md#codersdkshorttermlease) |
+
+To perform this operation, you must be authenticated. [Learn more](authentication.md).
+
+## Reveal an active lease token to an administrator
+
+### Code samples
+
+```sh
+# Example request using curl
+curl -X GET http://coder-server:8080/api/v2/organizations/{organization}/short-term-leases/{user}/token \
+  -H 'Accept: application/json' \
+  -H 'Coder-Session-Token: API_KEY'
+```
+
+`GET /api/v2/organizations/{organization}/short-term-leases/{user}/token`
+
+### Parameters
+
+| Name           | In   | Type         | Required | Description       |
+|----------------|------|--------------|----------|-------------------|
+| `organization` | path | string(uuid) | true     | Organization ID   |
+| `user`         | path | string(uuid) | true     | Temporary user ID |
+
+### Example responses
+
+> 200 Response
+
+```json
+{
+  "auto_remove_history": true,
+  "expires_at": "2019-08-24T14:15:22Z",
+  "extension_requested_at": "2019-08-24T14:15:22Z",
+  "issued_at": "2019-08-24T14:15:22Z",
+  "organization_id": "7c60d51f-b44e-4682-87d6-449835ea4de6",
+  "revoked_at": "2019-08-24T14:15:22Z",
+  "terms": {
+    "firewall": true,
+    "no_root": true,
+    "sandbox_only": true,
+    "website_mode": "string",
+    "websites": [
+      "string"
+    ]
+  },
+  "token": "string",
+  "token_id": "string",
+  "user_id": "a169451c-8525-4352-b8ca-070dd449a1a5",
+  "workspace_id": "0967198e-ec7b-4c6b-b4d3-f71244cadbe9"
+}
+```
+
+### Responses
+
+| Status | Meaning                                                 | Description | Schema                                                       |
+|--------|---------------------------------------------------------|-------------|--------------------------------------------------------------|
+| 200    | [OK](https://tools.ietf.org/html/rfc7231#section-6.3.1) | OK          | [codersdk.ShortTermLease](schemas.md#codersdkshorttermlease) |
+
+To perform this operation, you must be authenticated. [Learn more](authentication.md).
+
+## Replace an active lease token and invalidate its previous sessions
+
+### Code samples
+
+```sh
+# Example request using curl
+curl -X POST http://coder-server:8080/api/v2/organizations/{organization}/short-term-leases/{user}/token \
+  -H 'Accept: application/json' \
+  -H 'Coder-Session-Token: API_KEY'
+```
+
+`POST /api/v2/organizations/{organization}/short-term-leases/{user}/token`
+
+### Parameters
+
+| Name           | In   | Type         | Required | Description       |
+|----------------|------|--------------|----------|-------------------|
+| `organization` | path | string(uuid) | true     | Organization ID   |
+| `user`         | path | string(uuid) | true     | Temporary user ID |
 
 ### Example responses
 

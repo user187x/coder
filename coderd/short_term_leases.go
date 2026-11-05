@@ -14,7 +14,6 @@ import (
 	"golang.org/x/xerrors"
 
 	"cdr.dev/slog/v3"
-	"github.com/coder/coder/v2/coderd/apikey"
 	"github.com/coder/coder/v2/coderd/audit"
 	"github.com/coder/coder/v2/coderd/database"
 	"github.com/coder/coder/v2/coderd/database/dbauthz"
@@ -190,17 +189,13 @@ func (api *API) postShortTermLease(rw http.ResponseWriter, r *http.Request) {
 	}
 	var token string
 	err = api.Database.InTx(func(tx database.Store) error {
-		// Account policy, not refreshable key expiry, is the authoritative lease clock.
-		params, raw, e := apikey.Generate(apikey.CreateParams{UserID: user.ID, LoginType: database.LoginTypePassword, ExpiresAt: now.Add(366 * 24 * time.Hour), Scopes: database.APIKeyScopes{database.ApiKeyScopeWorkspaceRead, database.ApiKeyScopeWorkspaceApplicationConnect, database.ApiKeyScopeUserReadPersonal, database.ApiKeyScopeUserRead, database.ApiKeyScopeOrganizationRead, database.ApiKeyScopeTemplateRead}})
+		var e error
+		row, e = tx.GetShortTermLeaseForUpdate(ctx, database.GetShortTermLeaseForUpdateParams{UserID: user.ID, OrganizationID: org})
 		if e != nil {
 			return e
 		}
-		key, e := tx.InsertAPIKey(ctx, params)
-		if e != nil {
-			return e
-		}
-		row, e = tx.BindShortTermLease(ctx, database.BindShortTermLeaseParams{UserID: user.ID, OrganizationID: org, WorkspaceID: uuid.NullUUID{UUID: ws.ID, Valid: true}, TokenID: key.ID})
-		token = raw
+		row.WorkspaceID = uuid.NullUUID{UUID: ws.ID, Valid: true}
+		row, token, e = api.issueShortTermLeaseToken(ctx, tx, row)
 		return e
 	}, nil)
 	if err != nil {

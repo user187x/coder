@@ -1,6 +1,22 @@
 -- name: GetShortTermLeaseByUserID :one
 SELECT * FROM short_term_leases WHERE user_id = $1;
 
+-- name: GetShortTermLeaseForUpdate :one
+SELECT * FROM short_term_leases WHERE user_id = $1 AND organization_id = $2 FOR UPDATE;
+
+-- name: GetShortTermLeaseCredential :one
+SELECT * FROM short_term_lease_credentials WHERE user_id = $1 AND organization_id = $2;
+
+-- name: ListShortTermLeaseCredentials :many
+SELECT * FROM short_term_lease_credentials FOR UPDATE;
+
+-- name: UpsertShortTermLeaseCredential :exec
+INSERT INTO short_term_lease_credentials (user_id, organization_id, token_id, value, value_key_id)
+VALUES ($1, $2, $3, $4, $5)
+ON CONFLICT (user_id) DO UPDATE SET token_id = EXCLUDED.token_id,
+    value = EXCLUDED.value, value_key_id = EXCLUDED.value_key_id
+WHERE short_term_lease_credentials.organization_id = EXCLUDED.organization_id;
+
 -- name: GetShortTermLeaseByWorkspaceID :one
 SELECT * FROM short_term_leases WHERE workspace_id = $1;
 

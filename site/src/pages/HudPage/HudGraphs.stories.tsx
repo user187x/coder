@@ -42,3 +42,20 @@ export const MissingStorage: Story = {
 		],
 	},
 };
+
+export const MissingCoderResponses: Story = {
+	parameters: {
+		queries: [
+			{
+				key: hudHistory("1h").queryKey,
+				data: {
+					...MockHudHistory,
+					points: MockHudHistory.points.map((p) => ({
+						...p,
+						serviceLatency: null,
+					})),
+				},
+			},
+		],
+	},
+};

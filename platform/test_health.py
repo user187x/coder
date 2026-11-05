@@ -42,5 +42,55 @@ class HealthTest(unittest.TestCase):
             self.assertFalse(clusternet.on_map(pod))
 
 
+
+class HudLatencyTest(unittest.TestCase):
+    def history(self, http):
+        import threading
+        import time
+        source = ast.parse(pathlib.Path(__file__).with_name('ui-service.py').read_text())
+        definition = next(n for n in source.body if isinstance(n, ast.ClassDef) and n.name == 'HudHistory')
+        clock = Mock(wraps=time)
+        clock.monotonic.side_effect = [10, 10.025]
+        scope = {'threading': threading, 'time': clock, 'http_json': http, 'CODER_URL': 'https://coder'}
+        exec(compile(ast.Module(body=[definition], type_ignores=[]), 'HudHistory', 'exec'), scope)
+        return scope['HudHistory']('unused', backing=Mock())
+
+    def test_service_latency_without_workspace_connections(self):
+        http = Mock(return_value=(200, 'OK'))
+        self.assertAlmostEqual(self.history(http).service_latency(), 25)
+        http.assert_called_once_with('https://coder/healthz', timeout=4)
+
+    def test_failed_probe_is_missing_not_zero(self):
+        for http in (Mock(return_value=(503, 'unavailable')), Mock(side_effect=TimeoutError())):
+            self.assertIsNone(self.history(http).service_latency())
+
+    def test_latency_survives_sample_storage_and_bucketing(self):
+        import sqlite3
+        import tempfile
+        import threading
+        import time
+        source = ast.parse(pathlib.Path(__file__).with_name('ui-service.py').read_text())
+        definition = next(n for n in source.body if isinstance(n, ast.ClassDef) and n.name == 'HudHistory')
+        scope = {
+            'threading': threading, 'time': time, 'sqlite3': sqlite3,
+            'HUD_SAMPLE_EVERY': 15, 'HUD_HISTORY_DAYS': 7, 'HUD_RANGES': {'1h': 3600},
+            'LOGOS': None, 'CODER_URL': 'https://coder', 'http_json': Mock(return_value=(200, 'OK')),
+            'cluster_usage': lambda: {'cpu': {'used': 1, 'total': 4}, 'memory': {'used': 2, 'total': 8}},
+            'cluster_snapshot': lambda: {'usage': {}}, '_pod_usage_by_workspace': lambda: {},
+            'node_network_counters': lambda: {},
+            'hud_storage': lambda: {'used': 1, 'total': 10, 'claimed': 5, 'volumeUsed': 1},
+        }
+        exec(compile(ast.Module(body=[definition], type_ignores=[]), 'HudHistory', 'exec'), scope)
+        with tempfile.TemporaryDirectory() as folder:
+            history = scope['HudHistory'](str(pathlib.Path(folder) / 'hud.db'))
+            history.service_latency = lambda: 25.5
+            history.sample()
+            points = history.series('1h')['points']
+        self.assertEqual(len(points), 1)
+        self.assertEqual(points[0]['serviceLatency'], 25.5)
+        self.assertIsNone(points[0]['latency'])
+        self.assertEqual(points[0]['connections'], 0)
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -5996,6 +5996,36 @@ func (mr *MockStoreMockRecorder) GetShortTermLeaseByWorkspaceID(ctx, workspaceID
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetShortTermLeaseByWorkspaceID", reflect.TypeOf((*MockStore)(nil).GetShortTermLeaseByWorkspaceID), ctx, workspaceID)
 }
 
+// GetShortTermLeaseCredential mocks base method.
+func (m *MockStore) GetShortTermLeaseCredential(ctx context.Context, arg database.GetShortTermLeaseCredentialParams) (database.ShortTermLeaseCredential, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetShortTermLeaseCredential", ctx, arg)
+	ret0, _ := ret[0].(database.ShortTermLeaseCredential)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetShortTermLeaseCredential indicates an expected call of GetShortTermLeaseCredential.
+func (mr *MockStoreMockRecorder) GetShortTermLeaseCredential(ctx, arg any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetShortTermLeaseCredential", reflect.TypeOf((*MockStore)(nil).GetShortTermLeaseCredential), ctx, arg)
+}
+
+// GetShortTermLeaseForUpdate mocks base method.
+func (m *MockStore) GetShortTermLeaseForUpdate(ctx context.Context, arg database.GetShortTermLeaseForUpdateParams) (database.ShortTermLease, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetShortTermLeaseForUpdate", ctx, arg)
+	ret0, _ := ret[0].(database.ShortTermLease)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetShortTermLeaseForUpdate indicates an expected call of GetShortTermLeaseForUpdate.
+func (mr *MockStoreMockRecorder) GetShortTermLeaseForUpdate(ctx, arg any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetShortTermLeaseForUpdate", reflect.TypeOf((*MockStore)(nil).GetShortTermLeaseForUpdate), ctx, arg)
+}
+
 // GetShortTermLeasesByOrganization mocks base method.
 func (m *MockStore) GetShortTermLeasesByOrganization(ctx context.Context, organizationID uuid.UUID) ([]database.ShortTermLease, error) {
 	m.ctrl.T.Helper()
@@ -9863,6 +9893,21 @@ func (mr *MockStoreMockRecorder) ListProvisionerKeysByOrganizationExcludeReserve
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListProvisionerKeysByOrganizationExcludeReserved", reflect.TypeOf((*MockStore)(nil).ListProvisionerKeysByOrganizationExcludeReserved), ctx, organizationID)
 }
 
+// ListShortTermLeaseCredentials mocks base method.
+func (m *MockStore) ListShortTermLeaseCredentials(ctx context.Context) ([]database.ShortTermLeaseCredential, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListShortTermLeaseCredentials", ctx)
+	ret0, _ := ret[0].([]database.ShortTermLeaseCredential)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListShortTermLeaseCredentials indicates an expected call of ListShortTermLeaseCredentials.
+func (mr *MockStoreMockRecorder) ListShortTermLeaseCredentials(ctx any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListShortTermLeaseCredentials", reflect.TypeOf((*MockStore)(nil).ListShortTermLeaseCredentials), ctx)
+}
+
 // ListUsageEventCreatedAtsByTypeSince mocks base method.
 func (m *MockStore) ListUsageEventCreatedAtsByTypeSince(ctx context.Context, arg database.ListUsageEventCreatedAtsByTypeSinceParams) ([]time.Time, error) {
 	m.ctrl.T.Helper()
@@ -13205,6 +13250,20 @@ func (m *MockStore) UpsertRuntimeConfig(ctx context.Context, arg database.Upsert
 func (mr *MockStoreMockRecorder) UpsertRuntimeConfig(ctx, arg any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpsertRuntimeConfig", reflect.TypeOf((*MockStore)(nil).UpsertRuntimeConfig), ctx, arg)
+}
+
+// UpsertShortTermLeaseCredential mocks base method.
+func (m *MockStore) UpsertShortTermLeaseCredential(ctx context.Context, arg database.UpsertShortTermLeaseCredentialParams) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpsertShortTermLeaseCredential", ctx, arg)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpsertShortTermLeaseCredential indicates an expected call of UpsertShortTermLeaseCredential.
+func (mr *MockStoreMockRecorder) UpsertShortTermLeaseCredential(ctx, arg any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpsertShortTermLeaseCredential", reflect.TypeOf((*MockStore)(nil).UpsertShortTermLeaseCredential), ctx, arg)
 }
 
 // UpsertTailnetCoordinator mocks base method.

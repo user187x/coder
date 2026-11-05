@@ -44,6 +44,20 @@ export const requestLeaseExtension = (client: QueryClient) => ({
 });
 export const leaseLogin = () => ({ mutationFn: ShortTermLeasesAPI.login });
 
+export const revealLeaseToken = () => ({
+	mutationFn: ({ org, user }: { org: string; user: string }) =>
+		ShortTermLeasesAPI.token(org, user),
+	gcTime: 0,
+});
+
+export const replaceLeaseToken = (client: QueryClient) => ({
+	mutationFn: ({ org, user }: { org: string; user: string }) =>
+		ShortTermLeasesAPI.replaceToken(org, user),
+	onSettled: (_data: unknown, _error: unknown, { org }: { org: string }) =>
+		client.invalidateQueries({ queryKey: leasesKey(org) }),
+	gcTime: 0,
+});
+
 export const removeShortTermLease = (client: QueryClient) => ({
 	mutationFn: ({ org, user }: { org: string; user: string }) =>
 		ShortTermLeasesAPI.remove(org, user),

@@ -3234,6 +3234,14 @@ COMMENT ON COLUMN replicas.cluster_host IS 'Hostname or IP address the replica i
 
 COMMENT ON COLUMN replicas.nats_port IS 'Port number for NATS clustering. 0 means NATS is disabled.';
 
+CREATE TABLE short_term_lease_credentials (
+    user_id uuid NOT NULL,
+    organization_id uuid NOT NULL,
+    token_id text NOT NULL,
+    value text NOT NULL,
+    value_key_id text
+);
+
 CREATE TABLE short_term_leases (
     user_id uuid NOT NULL,
     organization_id uuid NOT NULL,
@@ -4759,6 +4767,9 @@ ALTER TABLE ONLY provisioner_jobs
 ALTER TABLE ONLY provisioner_keys
     ADD CONSTRAINT provisioner_keys_pkey PRIMARY KEY (id);
 
+ALTER TABLE ONLY short_term_lease_credentials
+    ADD CONSTRAINT short_term_lease_credentials_pkey PRIMARY KEY (user_id);
+
 ALTER TABLE ONLY short_term_leases
     ADD CONSTRAINT short_term_leases_pkey PRIMARY KEY (user_id);
 
@@ -5730,6 +5741,18 @@ ALTER TABLE ONLY provisioner_jobs
 
 ALTER TABLE ONLY provisioner_keys
     ADD CONSTRAINT provisioner_keys_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
+
+ALTER TABLE ONLY short_term_lease_credentials
+    ADD CONSTRAINT short_term_lease_credentials_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE;
+
+ALTER TABLE ONLY short_term_lease_credentials
+    ADD CONSTRAINT short_term_lease_credentials_token_id_fkey FOREIGN KEY (token_id) REFERENCES api_keys(id) ON DELETE CASCADE;
+
+ALTER TABLE ONLY short_term_lease_credentials
+    ADD CONSTRAINT short_term_lease_credentials_user_id_fkey FOREIGN KEY (user_id) REFERENCES short_term_leases(user_id) ON DELETE CASCADE;
+
+ALTER TABLE ONLY short_term_lease_credentials
+    ADD CONSTRAINT short_term_lease_credentials_value_key_id_fkey FOREIGN KEY (value_key_id) REFERENCES dbcrypt_keys(active_key_digest);
 
 ALTER TABLE ONLY short_term_leases
     ADD CONSTRAINT short_term_leases_issued_by_fkey FOREIGN KEY (issued_by) REFERENCES users(id);

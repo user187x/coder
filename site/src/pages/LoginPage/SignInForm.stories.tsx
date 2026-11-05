@@ -121,3 +121,33 @@ export const EmailRecovery: Story = {
 		);
 	},
 };
+
+export const LeaseToken: Story = {
+	...WithKeycloak,
+	play: async ({ canvasElement }) => {
+		await userEvent.click(
+			within(canvasElement).getByRole("button", {
+				name: "Choose sign-in method",
+			}),
+		);
+		await userEvent.click(
+			within(document.body).getByRole("menuitemradio", { name: "Lease token" }),
+		);
+	},
+};
+
+export const KeycloakSelected: Story = {
+	...WithKeycloak,
+	play: async ({ canvasElement }) => {
+		await userEvent.click(
+			within(canvasElement).getByRole("button", {
+				name: "Choose sign-in method",
+			}),
+		);
+		await userEvent.click(
+			within(document.body).getByRole("menuitemradio", {
+				name: "Sign in with Keycloak",
+			}),
+		);
+	},
+};

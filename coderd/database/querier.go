@@ -901,6 +901,8 @@ type sqlcQuerier interface {
 	GetRuntimeConfig(ctx context.Context, key string) (string, error)
 	GetShortTermLeaseByUserID(ctx context.Context, userID uuid.UUID) (ShortTermLease, error)
 	GetShortTermLeaseByWorkspaceID(ctx context.Context, workspaceID uuid.NullUUID) (ShortTermLease, error)
+	GetShortTermLeaseCredential(ctx context.Context, arg GetShortTermLeaseCredentialParams) (ShortTermLeaseCredential, error)
+	GetShortTermLeaseForUpdate(ctx context.Context, arg GetShortTermLeaseForUpdateParams) (ShortTermLease, error)
 	GetShortTermLeasesByOrganization(ctx context.Context, organizationID uuid.UUID) ([]ShortTermLease, error)
 	// Find chats that appear stuck and need recovery:
 	//   1. Running chats whose heartbeat has expired (worker crash).
@@ -1422,6 +1424,7 @@ type sqlcQuerier interface {
 	ListOrganizationAISpendUsers(ctx context.Context, arg ListOrganizationAISpendUsersParams) ([]ListOrganizationAISpendUsersRow, error)
 	ListProvisionerKeysByOrganization(ctx context.Context, organizationID uuid.UUID) ([]ProvisionerKey, error)
 	ListProvisionerKeysByOrganizationExcludeReserved(ctx context.Context, organizationID uuid.UUID) ([]ProvisionerKey, error)
+	ListShortTermLeaseCredentials(ctx context.Context) ([]ShortTermLeaseCredential, error)
 	// Used by the usage generator to find missing heartbeat buckets.
 	ListUsageEventCreatedAtsByTypeSince(ctx context.Context, arg ListUsageEventCreatedAtsByTypeSinceParams) ([]time.Time, error)
 	ListUserChatCompactionThresholds(ctx context.Context, userID uuid.UUID) ([]UserConfig, error)
@@ -1871,6 +1874,7 @@ type sqlcQuerier interface {
 	UpsertPrebuildsSettings(ctx context.Context, value string) error
 	UpsertProvisionerDaemon(ctx context.Context, arg UpsertProvisionerDaemonParams) (ProvisionerDaemon, error)
 	UpsertRuntimeConfig(ctx context.Context, arg UpsertRuntimeConfigParams) error
+	UpsertShortTermLeaseCredential(ctx context.Context, arg UpsertShortTermLeaseCredentialParams) error
 	UpsertTailnetCoordinator(ctx context.Context, id uuid.UUID) (TailnetCoordinator, error)
 	UpsertTailnetPeer(ctx context.Context, arg UpsertTailnetPeerParams) (TailnetPeer, error)
 	UpsertTailnetTunnel(ctx context.Context, arg UpsertTailnetTunnelParams) (TailnetTunnel, error)

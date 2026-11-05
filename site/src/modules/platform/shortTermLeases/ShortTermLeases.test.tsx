@@ -83,12 +83,10 @@ it("submits the provided lease token through the lease login API", async () => {
 		.mockImplementation(() => new Promise(() => {}));
 	render(<LeaseLoginPage />);
 	await userEvent.type(
-		screen.getByLabelText("Session token"),
+		screen.getByLabelText("Lease token"),
 		"  example-test-token  ",
 	);
-	await userEvent.click(
-		screen.getByRole("button", { name: "Open Browser workspace" }),
-	);
+	await userEvent.click(screen.getByRole("button", { name: "Sign In" }));
 	await waitFor(() => expect(login).toHaveBeenCalledWith("example-test-token"));
 });
 
@@ -163,5 +161,61 @@ it("extends leases independently of a canceled creation form and across organiza
 			minutes: 30,
 			revoke: false,
 		}),
+	);
+});
+
+it("reveals an active lease token only on request and copies its sign-in URL", async () => {
+	const user = userEvent.setup();
+	const clipboard = vi.spyOn(navigator.clipboard, "writeText");
+	const reveal = vi.spyOn(ShortTermLeasesAPI, "token").mockResolvedValue({
+		...MockShortTermLease,
+		token: "revealed-lease-token",
+	});
+	render(
+		<ShortTermLeases clock={() => Date.parse(MockShortTermLease.issued_at)} />,
+	);
+	await user.click(
+		await screen.findByRole("button", { name: "Sign-in details" }),
+	);
+	expect(reveal).not.toHaveBeenCalled();
+	await user.click(screen.getByRole("button", { name: "Reveal token" }));
+	await user.click(
+		await screen.findByRole("button", { name: "Copy lease token" }),
+	);
+	expect(reveal).toHaveBeenCalledWith(
+		MockShortTermLease.organization_id,
+		MockShortTermLease.user_id,
+	);
+	expect(clipboard).toHaveBeenCalledWith("revealed-lease-token");
+	await user.click(
+		screen.getAllByRole("button", { name: "Copy lease sign-in URL" })[0],
+	);
+	expect(clipboard).toHaveBeenCalledWith(
+		new URL("/lease", window.location.origin).href,
+	);
+});
+
+it("replaces a lease token only after confirmation", async () => {
+	const user = userEvent.setup();
+	const replace = vi
+		.spyOn(ShortTermLeasesAPI, "replaceToken")
+		.mockResolvedValue({
+			...MockShortTermLease,
+			token: "replacement-lease-token",
+		});
+	render(
+		<ShortTermLeases clock={() => Date.parse(MockShortTermLease.issued_at)} />,
+	);
+	await user.click(
+		await screen.findByRole("button", { name: "Sign-in details" }),
+	);
+	await user.click(screen.getByRole("button", { name: "Replace token…" }));
+	expect(replace).not.toHaveBeenCalled();
+	await user.click(screen.getByRole("button", { name: "Replace token" }));
+	await waitFor(() =>
+		expect(replace).toHaveBeenCalledWith(
+			MockShortTermLease.organization_id,
+			MockShortTermLease.user_id,
+		),
 	);
 });

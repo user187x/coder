@@ -621,6 +621,8 @@ export type HudHistoryPoint = {
 	memoryWorkspaces: number | null;
 	memoryTotal: number | null;
 	latency: number | null;
+	/** Coder health endpoint round-trip time measured by the platform service. */
+	serviceLatency?: number | null;
 	latencyP95: number | null;
 	latencyMax: number | null;
 	connections: number;

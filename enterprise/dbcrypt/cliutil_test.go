@@ -1794,3 +1794,39 @@ func TestFullLifecycleAllHandledTables(t *testing.T) {
 
 	requireAllKeysRevoked(ctx, t, rawDB)
 }
+
+func TestRotateLeaseCredentials(t *testing.T) {
+	t.Parallel()
+	f := newRotateFixture(t)
+	user := dbgen.User(t, f.rawDB, database.User{})
+	org := dbgen.Organization(t, f.rawDB, database.Organization{})
+	key, token := dbgen.APIKey(t, f.rawDB, database.APIKey{UserID: user.ID})
+	_, err := f.rawDB.InsertShortTermLease(f.ctx, database.InsertShortTermLeaseParams{
+		UserID: user.ID, OrganizationID: org.ID, IssuedBy: user.ID,
+		IssuedAt: time.Now(), ExpiresAt: time.Now().Add(time.Hour),
+	})
+	require.NoError(t, err)
+	require.NoError(t, f.cryptDBA.UpsertShortTermLeaseCredential(f.ctx, database.UpsertShortTermLeaseCredentialParams{
+		UserID: user.ID, OrganizationID: org.ID, TokenID: key.ID, Value: token,
+	}))
+	params := database.GetShortTermLeaseCredentialParams{UserID: user.ID, OrganizationID: org.ID}
+	stored, err := f.rawDB.GetShortTermLeaseCredential(f.ctx, params)
+	require.NoError(t, err)
+	require.NotEqual(t, token, stored.Value)
+	decoded, err := f.cryptDBA.GetShortTermLeaseCredential(f.ctx, params)
+	require.NoError(t, err)
+	require.Equal(t, token, decoded.Value)
+	f.rotate(t)
+	stored, err = f.rawDB.GetShortTermLeaseCredential(f.ctx, params)
+	require.NoError(t, err)
+	require.Equal(t, f.cipherB.HexDigest(), stored.ValueKeyID.String)
+	require.Equal(t, token, decryptRawString(t, f.cipherB, stored.Value))
+	require.NoError(t, dbcrypt.Decrypt(f.ctx, testutil.Logger(t), f.sqlDB, []dbcrypt.Cipher{f.cipherB}))
+	stored, err = f.rawDB.GetShortTermLeaseCredential(f.ctx, params)
+	require.NoError(t, err)
+	require.Equal(t, token, stored.Value)
+	require.False(t, stored.ValueKeyID.Valid)
+	require.NoError(t, f.rawDB.DeleteAPIKeyByID(f.ctx, key.ID))
+	_, err = f.rawDB.GetShortTermLeaseCredential(f.ctx, params)
+	require.ErrorIs(t, err, sql.ErrNoRows)
+}

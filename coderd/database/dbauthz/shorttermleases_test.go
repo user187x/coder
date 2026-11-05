@@ -12,6 +12,25 @@ import (
 )
 
 func (s *MethodTestSuite) TestShortTermLeases() {
+	s.Run("GetShortTermLeaseCredential", s.Mocked(func(db *dbmock.MockStore, _ *gofakeit.Faker, check *expects) {
+		arg := database.GetShortTermLeaseCredentialParams{}
+		db.EXPECT().GetShortTermLeaseCredential(gomock.Any(), arg).Return(database.ShortTermLeaseCredential{}, nil).AnyTimes()
+		check.Args(arg).Asserts(rbac.ResourceSystem, policy.ActionRead).Returns(database.ShortTermLeaseCredential{})
+	}))
+	s.Run("GetShortTermLeaseForUpdate", s.Mocked(func(db *dbmock.MockStore, _ *gofakeit.Faker, check *expects) {
+		arg := database.GetShortTermLeaseForUpdateParams{}
+		db.EXPECT().GetShortTermLeaseForUpdate(gomock.Any(), arg).Return(database.ShortTermLease{}, nil).AnyTimes()
+		check.Args(arg).Asserts(rbac.ResourceSystem, policy.ActionUpdate).Returns(database.ShortTermLease{})
+	}))
+	s.Run("ListShortTermLeaseCredentials", s.Mocked(func(db *dbmock.MockStore, _ *gofakeit.Faker, check *expects) {
+		db.EXPECT().ListShortTermLeaseCredentials(gomock.Any()).Return([]database.ShortTermLeaseCredential{}, nil).AnyTimes()
+		check.Args().Asserts(rbac.ResourceSystem, policy.ActionRead).Returns([]database.ShortTermLeaseCredential{})
+	}))
+	s.Run("UpsertShortTermLeaseCredential", s.Mocked(func(db *dbmock.MockStore, _ *gofakeit.Faker, check *expects) {
+		arg := database.UpsertShortTermLeaseCredentialParams{}
+		db.EXPECT().UpsertShortTermLeaseCredential(gomock.Any(), arg).Return(nil).AnyTimes()
+		check.Args(arg).Asserts(rbac.ResourceSystem, policy.ActionUpdate).Returns()
+	}))
 	s.Run("BindShortTermLease", s.Mocked(func(db *dbmock.MockStore, _ *gofakeit.Faker, check *expects) {
 		arg := database.BindShortTermLeaseParams{}
 		db.EXPECT().BindShortTermLease(gomock.Any(), arg).Return(database.ShortTermLease{}, nil).AnyTimes()

@@ -112,3 +112,44 @@ export const IssueLease: Story = {
 export const Expired: Story = {
 	args: { clock: () => Date.parse(MockShortTermLease.expires_at) + 1 },
 };
+
+export const SignInDetails: Story = {
+	...Active,
+	play: async ({ canvasElement }) => {
+		await userEvent.click(
+			await within(canvasElement).findByRole("button", {
+				name: "Sign-in details",
+			}),
+		);
+	},
+};
+
+export const RevealedToken: Story = {
+	...Active,
+	beforeEach: () => {
+		const request = spyOn(ShortTermLeasesAPI, "token").mockResolvedValue({
+			...MockShortTermLease,
+			token: "example-lease-token",
+		});
+		return () => request.mockRestore();
+	},
+	play: async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		await userEvent.click(
+			await canvas.findByRole("button", { name: "Sign-in details" }),
+		);
+		await userEvent.click(canvas.getByRole("button", { name: "Reveal token" }));
+	},
+};
+
+export const TokenUnavailable: Story = {
+	...RevealedToken,
+	beforeEach: () => {
+		const request = spyOn(ShortTermLeasesAPI, "token").mockRejectedValue(
+			new Error(
+				"This lease token is unavailable. For an active lease, issue a replacement token.",
+			),
+		);
+		return () => request.mockRestore();
+	},
+};
