@@ -1,4 +1,8 @@
-import { screen, waitFor } from "@testing-library/react";
+import {
+	screen,
+	waitFor,
+	waitForElementToBeRemoved,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { API } from "#/api/api";
 import { MockUserMember } from "#/testHelpers/entities";
@@ -72,10 +76,13 @@ it("opens account and lease creation from a single trigger", async () => {
 	await user.click(
 		await screen.findByRole("menuitem", { name: "Create Lease" }),
 	);
-	expect(
-		await screen.findByRole("dialog", { name: "New short term lease" }),
-	).toHaveAttribute("data-state", "open");
+	const dialog = await screen.findByRole("dialog", {
+		name: "New short term lease",
+	});
+	await user.click(screen.getByRole("spinbutton", { name: "Minutes" }));
+	const closed = waitForElementToBeRemoved(dialog);
 	await user.keyboard("{Escape}");
+	await closed;
 	await user.click(trigger);
 	await user.click(
 		await screen.findByRole("menuitem", { name: "New account" }),
