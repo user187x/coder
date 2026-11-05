@@ -227,7 +227,7 @@ describe("NavbarView", () => {
 		renderNavbar({ canEditDeployment: true });
 		const user = userEvent.setup();
 		await user.click(screen.getByRole("button", { name: /^Settings/ }));
-		await user.dblClick(
+		await user.click(
 			await screen.findByRole("menuitem", { name: "Hide metric graphs" }),
 		);
 		expect(save).toHaveBeenLastCalledWith({
