@@ -8,6 +8,7 @@ import {
 	PanelRightIcon,
 	PanelsTopLeftIcon,
 	PinIcon,
+	XIcon,
 } from "lucide-react";
 import { useRef } from "react";
 import { useQuery } from "react-query";
@@ -40,10 +41,11 @@ const BAR_HEIGHT = "46px";
 export const ChatPanel: React.FC<{
 	dock: React.RefObject<HTMLElement | null>;
 	size: UserUIPreferences["chat_size"];
+	onClose: () => void;
 	onResize: (size: UserUIPreferences["chat_size"]) => void;
 	keepOpen?: boolean;
 	onToggleKeepOpen?: () => void;
-}> = ({ dock, size, onResize, keepOpen, onToggleKeepOpen }) => {
+}> = ({ dock, size, onResize, onClose, keepOpen, onToggleKeepOpen }) => {
 	const panel = useRef<HTMLDivElement>(null);
 	const state = useChatSnapshot();
 	const me = state.me;
@@ -185,6 +187,9 @@ export const ChatPanel: React.FC<{
 							</DockButton>
 						</>
 					)}
+					<DockButton label="Close chat" testId="chat-close" onClick={onClose}>
+						<XIcon />
+					</DockButton>
 				</div>
 				<div
 					hidden={!raised}

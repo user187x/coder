@@ -25,6 +25,7 @@ import {
 	markRead,
 	openChatWith,
 	setDockMode,
+	setFocusedWindow,
 	useChatSnapshot,
 } from "./chatStore";
 import { CHAT_CONSOLE_PAGE } from "./consolePlaces";
@@ -220,6 +221,70 @@ describe("ChatDock: the bar, the raised window, the side panel and full screen",
 				expect.objectContaining({ to: "ann", text: "draft kept" }),
 			),
 		);
+	});
+
+	it.each(["bar", "window", "side", "full"] as const)(
+		"closes %s chat with the saved hidden preference",
+		async (mode) => {
+			const save = vi
+				.spyOn(PlatformAPI, "setUserUIPreferences")
+				.mockImplementation(async (settings) => settings);
+			const user = userEvent.setup();
+			renderDock();
+			await screen.findByRole("button", { name: "Chats" });
+			act(() => setDockMode(mode));
+			await user.click(
+				await screen.findByRole("button", { name: "Close chat" }),
+			);
+			await waitFor(() =>
+				expect(save).toHaveBeenCalledWith({ chat_hidden: true }),
+			);
+		},
+	);
+
+	it("retains the opening read boundary and retries a failed receipt on conversation interaction", async () => {
+		const user = userEvent.setup();
+		renderDock();
+		await raise(user);
+		vi.mocked(PlatformAPI.getChatMessages).mockResolvedValue({
+			messages: [message(1, "bob", ME), message(101, "bob", ME)],
+			readUpTo: 1,
+		});
+		const read = vi
+			.mocked(PlatformAPI.markChatRead)
+			.mockRejectedValueOnce(new Error("Disconnected"));
+		const { result } = renderHook(useChatSnapshot);
+		await act(() => openChatWith({ id: "bob", username: "bob", name: "" }));
+		await waitFor(() => expect(read).toHaveBeenCalledWith("bob", 101));
+		await user.click(
+			await screen.findByRole("log", { name: "Messages with bob" }),
+		);
+		await waitFor(() => expect(result.current.panelView?.readSent).toBe(101));
+		expect(result.current.panelView?.readAtOpen).toBe(1);
+		expect(result.current.conversations.get("bob")?.unread).toBe(0);
+		expect(read.mock.calls.filter(([peer]) => peer === "bob")).toHaveLength(2);
+		act(() => setFocusedWindow(null));
+		await act(async () => {
+			deliverPoll({
+				messages: [message(102, "bob", ME)],
+				available: [ME],
+				off: [],
+				availVersion: 1,
+				typing: [],
+				cleared: [],
+				clearVersion: 0,
+			});
+		});
+		await waitFor(() =>
+			expect(result.current.conversations.get("bob")?.unread).toBe(1),
+		);
+		vi.spyOn(PlatformAPI, "sendChatTyping").mockResolvedValue({ ok: true });
+		await user.type(
+			screen.getByRole("textbox", { name: "Message bob" }),
+			"Thanks",
+		);
+		await waitFor(() => expect(read).toHaveBeenCalledWith("bob", 102));
+		expect(result.current.conversations.get("bob")?.unread).toBe(0);
 	});
 
 	it("does not mark hidden compact conversations as read", async () => {
@@ -445,11 +510,19 @@ describe("Dock selection actions", () => {
 			.spyOn(PlatformAPI, "deleteChatMessages")
 			.mockResolvedValue({ peer: "ann", ids: [1], conversation: null });
 		renderDock();
+		vi.mocked(PlatformAPI.getChatMessages).mockResolvedValue({
+			messages: [message(1, "ann", ME), message(2, "ann", ME)],
+			readUpTo: 2,
+		});
 		const user = userEvent.setup();
 		await raise(user);
 		await act(() => openChatWith({ id: "ann", username: "ann", name: "" }));
+		const select = await screen.findByRole("button", {
+			name: "Select all loaded",
+		});
+		await user.click(select);
 		await user.click(
-			await screen.findByRole("checkbox", { name: "Select message 1" }),
+			screen.getByRole("checkbox", { name: "Select message 2" }),
 		);
 		const log = screen.getByRole("log", { name: "Messages with ann" });
 		await user.click(

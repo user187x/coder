@@ -225,6 +225,13 @@ export const ChatDock: React.FC = () => {
 	useDockMeasurements(dock, position);
 	const moveToEdge = (next: DockPosition | null) =>
 		savePosition.mutate({ chat_position: next });
+	const closeChat = () =>
+		savePosition.mutate(
+			{ chat_hidden: true },
+			{
+				onSuccess: () => setDockMode("bar"),
+			},
+		);
 	const resize = (size: UserUIPreferences["chat_size"]) => {
 		const element = dock.current;
 		if (!element) return;
@@ -443,9 +450,12 @@ export const ChatDock: React.FC = () => {
 							})
 						}
 						onResize={resize}
+						onClose={closeChat}
 					/>
-					{mode === "side" && <ChatSidePanel dock={dock} />}
-					{mode === "full" && <ChatFullScreen dock={dock} />}
+					{mode === "side" && <ChatSidePanel dock={dock} onClose={closeChat} />}
+					{mode === "full" && (
+						<ChatFullScreen dock={dock} onClose={closeChat} />
+					)}
 					<ChatConsoleOverlay />
 					<ChatFocusOverlay />
 				</div>
@@ -463,11 +473,7 @@ export const ChatDock: React.FC = () => {
 				>
 					Keep chat open
 				</ContextMenuCheckboxItem>
-				<ContextMenuItem
-					onSelect={() => savePosition.mutate({ chat_hidden: true })}
-				>
-					Hide
-				</ContextMenuItem>
+				<ContextMenuItem onSelect={closeChat}>Hide</ContextMenuItem>
 				{(["top", "right", "bottom", "left"] as const).map((edge) => (
 					<ContextMenuItem
 						key={edge}

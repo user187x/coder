@@ -37,6 +37,7 @@ it("opens deletion confirmation from the conversation header without deleting im
 		pending: [],
 		lastIn: 0,
 		readSent: 0,
+		readAtOpen: 0,
 		clearedByPeer: false,
 		focusRequest: 0,
 		loadingOlder: false,

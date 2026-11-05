@@ -65,6 +65,8 @@ export type ChatWindowState = {
 	/** The newest message received from the peer, and the newest reported read. */
 	lastIn: number;
 	readSent: number;
+	/** Read boundary when this conversation was opened, retained while reading it. */
+	readAtOpen: number;
 	/** The peer deleted the conversation while this window was open. */
 	clearedByPeer: boolean;
 	/** Bumped to ask the window to focus its message box. */
@@ -377,6 +379,7 @@ const newView = (peer: ChatPeer, minimized: boolean, focus: boolean) => ({
 	pending: [],
 	lastIn: 0,
 	readSent: 0,
+	readAtOpen: 0,
 	clearedByPeer: false,
 	focusRequest: focus && !minimized ? 1 : 0,
 	loadingOlder: false,
@@ -451,6 +454,7 @@ const loadHistory = async (peerId: string) => {
 				loading: false,
 				olderDone: messages.length < HISTORY_PAGE,
 				readSent: Math.max(w.readSent, readUpTo),
+				readAtOpen: readUpTo,
 			};
 			return appendMessages({ ...ready, pending: [] }, [
 				...messages,
@@ -484,6 +488,7 @@ const openWindow = (
 		updateWindow(peer.id, (w) => ({
 			...w,
 			minimized,
+			readAtOpen: w.minimized && !minimized ? w.readSent : w.readAtOpen,
 			focusRequest: focus && !minimized ? w.focusRequest + 1 : w.focusRequest,
 		}));
 	} else {
@@ -509,6 +514,8 @@ export const closeWindow = (peerId: string) => {
 export const setFocusedWindow = (peerId: string | null) => {
 	focusedPeer = peerId;
 };
+
+const pendingReads = new Set<string>();
 
 /**
  * Read = the window is in use (clicked, typed in or expanded just now; else it
@@ -540,12 +547,41 @@ export const markRead = (peerId: string, used: boolean) => {
 		conversations.set(peerId, { ...conversation, unread: 0 });
 		update({ conversations });
 	}
-	if (w.lastIn > w.readSent) {
+	const reader = snapshot.me?.id;
+	const requestKey = `${reader}:${peerId}`;
+	if (w.lastIn > w.readSent && !pendingReads.has(requestKey)) {
 		const last = w.lastIn;
-		updateWindow(peerId, (current) => ({ ...current, readSent: last }));
-		PlatformAPI.markChatRead(peerId, last).catch(() => {
-			// The count comes back on the next page load; nothing else to do.
-		});
+		pendingReads.add(requestKey);
+		void PlatformAPI.markChatRead(peerId, last).then(
+			() => {
+				pendingReads.delete(requestKey);
+				if (snapshot.me?.id !== reader) return;
+				updateWindow(peerId, (current) => ({
+					...current,
+					readSent: Math.max(current.readSent, last),
+				}));
+				markRead(peerId, false);
+			},
+			() => {
+				pendingReads.delete(requestKey);
+				if (snapshot.me?.id !== reader) return;
+				// Leave the confirmed cursor intact so the next interaction retries.
+				const current = snapshot.conversations.get(peerId);
+				if (current) {
+					const conversations = new Map(snapshot.conversations);
+					conversations.set(peerId, {
+						...current,
+						unread: Math.max(
+							current.unread,
+							w.messages.filter(
+								(message) => message.from !== reader && message.id > w.readSent,
+							).length,
+						),
+					});
+					update({ conversations });
+				}
+			},
+		);
 	}
 };
 
@@ -971,6 +1007,18 @@ export const setDockMode = (mode: DockMode) => {
 		return;
 	}
 	const wasAttached = attached();
+	if (
+		(from === "bar" || from === "compact") &&
+		next !== "compact" &&
+		next !== "bar"
+	) {
+		for (const view of snapshot.windows) {
+			updateWindow(view.peer.id, (current) => ({
+				...current,
+				readAtOpen: current.readSent,
+			}));
+		}
+	}
 	const attaching = next === "side" || next === "full";
 	const fullFrom =
 		next === "full" ? (from === "side" ? "side" : "window") : snapshot.fullFrom;
@@ -1038,7 +1086,12 @@ export const selectInPanel = (peer: ChatPeer, focus = false) => {
 			: undefined);
 	setPanelView(
 		open
-			? { ...open, minimized: false, focusRequest: focus ? 1 : 0 }
+			? {
+					...open,
+					minimized: false,
+					focusRequest: focus ? 1 : 0,
+					readAtOpen: open.readSent,
+				}
 			: newView(peer, false, focus),
 	);
 	if (!open) {
@@ -1222,7 +1275,12 @@ export const selectInConsole = (peer: ChatPeer, focus = false) => {
 		(snapshot.panelView?.peer.id === peer.id ? snapshot.panelView : undefined);
 	update({
 		consoleView: open
-			? { ...open, minimized: false, focusRequest: focus ? 1 : 0 }
+			? {
+					...open,
+					minimized: false,
+					focusRequest: focus ? 1 : 0,
+					readAtOpen: open.readSent,
+				}
 			: newView(peer, false, focus),
 	});
 	if (!open) {

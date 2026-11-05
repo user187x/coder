@@ -15,6 +15,7 @@ const view = (messages: ChatMessage[] = []): ChatWindowState => ({
 	pending: [],
 	lastIn: 0,
 	readSent: 0,
+	readAtOpen: 0,
 	clearedByPeer: false,
 	focusRequest: 0,
 	loadingOlder: false,

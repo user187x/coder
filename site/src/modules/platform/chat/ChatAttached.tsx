@@ -4,6 +4,7 @@ import {
 	Minimize2Icon,
 	MinusIcon,
 	PictureInPicture2Icon,
+	XIcon,
 } from "lucide-react";
 import {
 	ChatHeading,
@@ -15,6 +16,7 @@ import { exitFullScreen, setDockMode, useChatSnapshot } from "./chatStore";
 import { DockSections } from "./DockSections";
 
 type AttachedProps = {
+	onClose: () => void;
 	/** The dock, left out of screenshots. */
 	dock: React.RefObject<HTMLElement | null>;
 };
@@ -37,7 +39,7 @@ const headerClass =
  * screen or is minimized to the bar. It comes back attached on the next page
  * load (initialDockMode).
  */
-export const ChatSidePanel: React.FC<AttachedProps> = ({ dock }) => {
+export const ChatSidePanel: React.FC<AttachedProps> = ({ dock, onClose }) => {
 	const state = useChatSnapshot();
 	const me = state.me;
 	if (!me) {
@@ -76,6 +78,9 @@ export const ChatSidePanel: React.FC<AttachedProps> = ({ dock }) => {
 				>
 					<MinusIcon />
 				</DockButton>
+				<DockButton label="Close chat" testId="chat-close" onClick={onClose}>
+					<XIcon />
+				</DockButton>
 			</header>
 			<DockSections dock={dock} />
 		</section>
@@ -89,7 +94,7 @@ export const ChatSidePanel: React.FC<AttachedProps> = ({ dock }) => {
  * the side panel, whichever it came from; so does going to another page
  * (ChatDock).
  */
-export const ChatFullScreen: React.FC<AttachedProps> = ({ dock }) => {
+export const ChatFullScreen: React.FC<AttachedProps> = ({ dock, onClose }) => {
 	const state = useChatSnapshot();
 	const me = state.me;
 	if (!me) {
@@ -117,6 +122,9 @@ export const ChatFullScreen: React.FC<AttachedProps> = ({ dock }) => {
 					onClick={exitFullScreen}
 				>
 					<Minimize2Icon />
+				</DockButton>
+				<DockButton label="Close chat" testId="chat-close" onClick={onClose}>
+					<XIcon />
 				</DockButton>
 			</header>
 			<DockSections dock={dock} wide />

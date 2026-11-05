@@ -187,10 +187,52 @@ export const PinnedWindow: Story = {
 export const PositionMenu: Story = {
 	play: async () => {
 		await userEvent.pointer({
-			target: await within(document.body).findByRole("region", {
+			target: await within(document.body).findByRole("button", {
 				name: "Chats",
 			}),
 			keys: "[MouseRight]",
 		});
 	},
+};
+
+export const UnreadConversation: Story = {
+	beforeEach: () => {
+		spyOn(PlatformAPI, "getChatMessages").mockResolvedValue({
+			messages: [
+				MockChatState.conversations[0].last,
+				{
+					...MockChatState.conversations[0].last,
+					id: 2,
+					text: "There is a new update for you.",
+				},
+			],
+			readUpTo: 1,
+		});
+	},
+	play: Conversation.play,
+};
+export const SelectedMessages: Story = {
+	beforeEach: UnreadConversation.beforeEach,
+	play: async (context) => {
+		await Conversation.play?.(context);
+		await userEvent.click(
+			await within(document.body).findByRole("button", {
+				name: "Select all loaded",
+			}),
+		);
+	},
+};
+
+export const UnreadHistory: Story = {
+	beforeEach: () => {
+		spyOn(PlatformAPI, "getChatMessages").mockResolvedValue({
+			messages: Array.from({ length: 30 }, (_, index) => ({
+				...MockChatState.conversations[0].last,
+				id: index + 1,
+				text: `Workspace update ${index + 1}. The build and application health checks have completed.`,
+			})),
+			readUpTo: 20,
+		});
+	},
+	play: Conversation.play,
 };

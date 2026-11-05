@@ -147,6 +147,9 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
 	const [deleting, setDeleting] = useState(false);
 	const selectionRef = useRef<DockListActions>(null);
 	const logRef = useRef<HTMLDivElement>(null);
+	const messagesRef = useRef<HTMLDivElement>(null);
+	const unreadRef = useRef<HTMLDivElement>(null);
+	const positionedRef = useRef<string | null>(null);
 	const inputRef = useRef<HTMLTextAreaElement>(null);
 	const fileRef = useRef<HTMLInputElement>(null);
 	const attachmentRef = useRef<Attachment | null>(null);
@@ -168,34 +171,58 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
 		setAttachment(null);
 	};
 
-	// Each conversation starts fresh: its own draft, at its newest message.
+	// Clear unsent content when switching to a different conversation.
 	useEffect(() => {
 		setText("");
 		setShot(null);
 		dropAttachment();
 		setError(null);
 		setConfirmingDelete(false);
-		followRef.current = true;
 	}, [peer.id]);
 
 	// Keep the newest message in view while the reader is at the bottom.
 	const messageCount = w.messages.length;
 	useLayoutEffect(() => {
 		const log = logRef.current;
-		if (!log || messageCount < 0) {
+		if (!log || w.loading) {
 			return;
 		}
-		if (anchorRef.current) {
-			log.scrollTop =
-				log.scrollHeight - anchorRef.current.height + anchorRef.current.top;
-			anchorRef.current = null;
-		} else if (followRef.current) {
-			log.scrollTop = log.scrollHeight;
-		}
-	}, [messageCount, typing, w.minimized, peer.id]);
+		const position = () => {
+			if (!log.clientHeight) return;
+			const visit = `${peer.id}:${w.readAtOpen}`;
+			if (positionedRef.current !== visit) {
+				positionedRef.current = visit;
+				const unread = unreadRef.current;
+				log.scrollTop = unread
+					? log.scrollTop +
+						unread.getBoundingClientRect().top -
+						log.getBoundingClientRect().top
+					: log.scrollHeight;
+				followRef.current =
+					log.scrollHeight - log.scrollTop - log.clientHeight < 60;
+			} else if (anchorRef.current) {
+				log.scrollTop =
+					log.scrollHeight - anchorRef.current.height + anchorRef.current.top;
+				anchorRef.current = null;
+			} else if (followRef.current) {
+				log.scrollTop = log.scrollHeight;
+			}
+		};
+		position();
+		const observer = new ResizeObserver(position);
+		observer.observe(log);
+		if (messagesRef.current) observer.observe(messagesRef.current);
+		return () => observer.disconnect();
+	}, [messageCount, typing, w.loading, w.minimized, w.readAtOpen, peer.id]);
 
 	// An upload still going when the conversation goes away is cancelled.
-	useEffect(() => () => attachmentRef.current?.abort.abort(), []);
+	useEffect(
+		() => () => {
+			attachmentRef.current?.abort.abort();
+			setFocusedWindow(null);
+		},
+		[],
+	);
 
 	/** Uploads a file for the next message to this person (one at a time: a new one replaces it). */
 	const attach = (file: File) => {
@@ -269,6 +296,8 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
 				setAttachment(null);
 			}
 			followRef.current = true;
+			if (logRef.current)
+				logRef.current.scrollTop = logRef.current.scrollHeight;
 			onSent?.();
 		} catch (err) {
 			setError(
@@ -348,6 +377,8 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
 				}
 			}}
 			onFocus={() => setFocusedWindow(peer.id)}
+			onPointerDownCapture={() => markRead(peer.id, true)}
+			onKeyDownCapture={() => markRead(peer.id, true)}
 			onBlur={(event) => {
 				if (!event.currentTarget.contains(event.relatedTarget)) {
 					setFocusedWindow(null);
@@ -380,13 +411,17 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
 							{w.loadingOlder ? "Loading…" : "Earlier messages"}
 						</button>
 					)}
-					<MessageLog
-						compact={compact}
-						view={w}
-						meId={me?.id ?? ""}
-						name={name}
-						actionsRef={selectionRef}
-					/>
+					<div ref={messagesRef} className="flex shrink-0 flex-col gap-0.5">
+						<MessageLog
+							key={peer.id}
+							compact={compact}
+							view={w}
+							meId={me?.id ?? ""}
+							name={name}
+							actionsRef={selectionRef}
+							unreadRef={unreadRef}
+						/>
+					</div>
 				</div>
 				{location.protocol === "https:" && (
 					<span
@@ -646,6 +681,7 @@ type MessageLogProps = {
 	view: ChatWindowState;
 	meId: string;
 	name: string;
+	unreadRef: React.Ref<HTMLDivElement>;
 };
 
 const MessageLog: React.FC<MessageLogProps> = ({
@@ -654,6 +690,7 @@ const MessageLog: React.FC<MessageLogProps> = ({
 	meId,
 	name,
 	actionsRef,
+	unreadRef,
 }) => {
 	const [selected, setSelected] = useState<Set<number>>(new Set());
 	const [deleting, setDeleting] = useState<number[] | null | undefined>();
@@ -670,6 +707,9 @@ const MessageLog: React.FC<MessageLogProps> = ({
 			toast.error(getErrorMessage(error, "Unable to delete messages.")),
 	});
 	const ids = w.messages.filter((m) => selected.has(m.id)).map((m) => m.id);
+	const firstUnread = w.messages.find(
+		(message) => message.from !== meId && message.id > w.readAtOpen,
+	)?.id;
 	const toggle = (id: number) =>
 		setSelected((previous) => {
 			const next = new Set(previous);
@@ -755,6 +795,16 @@ const MessageLog: React.FC<MessageLogProps> = ({
 				const mine = m.from === meId;
 				return (
 					<div key={m.id} className="contents">
+						{m.id === firstUnread && (
+							<div
+								ref={unreadRef}
+								className="my-2 flex items-center gap-2 text-[11px] text-content-link"
+							>
+								<span className="h-px flex-1 bg-border" />
+								<span>New messages</span>
+								<span className="h-px flex-1 bg-border" />
+							</div>
+						)}
 						{gap && (
 							<div className="mt-2.5 mb-0.5 self-center text-[11px] text-content-secondary">
 								{formatWhen(m.at)}
@@ -773,11 +823,13 @@ const MessageLog: React.FC<MessageLogProps> = ({
 						<ContextMenu>
 							<ContextMenuTrigger asChild>
 								<div className="flex flex-col">
-									<Checkbox
-										aria-label={`Select message ${m.id}`}
-										checked={selected.has(m.id)}
-										onCheckedChange={() => toggle(m.id)}
-									/>
+									{ids.length > 0 && (
+										<Checkbox
+											aria-label={`Select message ${m.id}`}
+											checked={selected.has(m.id)}
+											onCheckedChange={() => toggle(m.id)}
+										/>
+									)}
 									<MessageBubble message={m} side={side} meId={meId} />
 								</div>
 							</ContextMenuTrigger>
