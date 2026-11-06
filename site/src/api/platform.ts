@@ -1414,6 +1414,8 @@ export type UserUIPreferences = {
 	resource_shortcut_order?: string[];
 	resource_tray_top?: number;
 	admin_notes_tray_top?: number;
+	/** What the admin notes handle opens: the notes (default) or the chat side panel. */
+	admin_notes_tray_target?: "chat" | "notes";
 	settings_metrics?: { expanded: boolean; locked: boolean };
 	resource_tray?: { expanded: boolean; lock: "up" | "down" } | null;
 	admin_notes_tray?: { expanded: boolean; lock: "up" | "down" } | null;

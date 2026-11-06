@@ -8,6 +8,15 @@ import {
 	updateUserUIPreferences,
 	userUIPreferences,
 } from "#/api/queries/platform";
+import {
+	ContextMenuCheckboxItem,
+	ContextMenuGroup,
+	ContextMenuSeparator,
+} from "#/components/ContextMenu/ContextMenu";
+import {
+	setDockMode,
+	useChatSnapshot,
+} from "#/modules/platform/chat/chatStore";
 import { AdminNotesPanel } from "./AdminNotesPanel";
 import { SettingsDrawerHandle } from "./SettingsDrawerHandle";
 import type { SettingsPanelPlacement } from "./settingsPanelLayout";
@@ -43,9 +52,18 @@ export const AdminNotesTray = ({
 			),
 	});
 	const [visible, setVisible] = useState<boolean | null>(null);
+	const chat = useChatSnapshot();
+	// The handle can open the chat side panel instead of the notes; chat keeps its own remembered layout.
+	const target = prefs.data?.admin_notes_tray_target ?? "notes";
+	const chatOpen = chat.dockMode === "side";
 	const locked = prefs.data?.admin_notes_tray;
 	const expanded = visible ?? locked?.expanded ?? false;
+	const notesOpen = target === "notes" && expanded;
 	const toggle = () => {
+		if (target === "chat") {
+			setDockMode(chatOpen ? "bar" : "side");
+			return;
+		}
 		if (save.isPending) return;
 		setVisible(!expanded);
 		if (locked)
@@ -55,6 +73,10 @@ export const AdminNotesTray = ({
 			);
 	};
 	const lock = (open: boolean | null) => {
+		if (target === "chat") {
+			if (open !== null) setDockMode(open ? "side" : "bar");
+			return;
+		}
 		if (save.isPending) return;
 		if (prefs.isLoading || prefs.isError) {
 			toast.error("Load panel preferences before locking notes. Try again.");
@@ -91,24 +113,50 @@ export const AdminNotesTray = ({
 					limits={{ minY: placement.minTop, maxY: placement.maxTop }}
 					onChange={({ y }) => placement.onMove(y)}
 					onCommit={({ y }) => placement.onCommit(y)}
-					label="Admin notes"
+					label={target === "chat" ? "Chat" : "Admin notes"}
 					attention={
 						unread
 							? `${unread} unread shared ${unread === 1 ? "note" : "notes"}. Open and click each note to mark it read.`
 							: undefined
 					}
-					expanded={expanded}
-					locked={Boolean(locked)}
+					expanded={target === "chat" ? chatOpen : expanded}
+					locked={target === "notes" && Boolean(locked)}
 					busy={save.isPending}
 					controls={id}
 					toggle={toggle}
 					lock={lock}
-				/>
+				>
+					<ContextMenuSeparator />
+					<ContextMenuGroup aria-label="Set target">
+						<div className="px-2 py-1 text-xs text-content-secondary">
+							Set Target
+						</div>
+						{(
+							[
+								["chat", "Chat"],
+								["notes", "Admin Notes"],
+							] as const
+						).map(([value, name]) => (
+							<ContextMenuCheckboxItem
+								key={value}
+								checked={target === value}
+								disabled={save.isPending}
+								onSelect={() => {
+									if (value === target) return;
+									if (value === "notes" && chatOpen) setDockMode("bar");
+									save.mutate({ admin_notes_tray_target: value });
+								}}
+							>
+								{name}
+							</ContextMenuCheckboxItem>
+						))}
+					</ContextMenuGroup>
+				</SettingsDrawerHandle>
 			</div>
 			<div
 				id={id}
-				aria-hidden={!expanded}
-				inert={!expanded}
+				aria-hidden={!notesOpen}
+				inert={!notesOpen}
 				className="settings-admin-notes-panel"
 				style={{
 					position: "absolute",
@@ -130,7 +178,7 @@ export const AdminNotesTray = ({
 							railViewport === undefined ? undefined : railViewport - 18,
 					}}
 				>
-					<AdminNotesPanel enabled={expanded && !hidden} onClose={toggle} />
+					<AdminNotesPanel enabled={notesOpen && !hidden} onClose={toggle} />
 				</div>
 			</div>
 		</div>

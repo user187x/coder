@@ -215,8 +215,10 @@ class UIState(threading.Thread):
     def preferences(self, user_id, changes=None):
         pool = self.database()
         if changes is not None:
-            if not isinstance(changes, dict) or changes.keys() - {'people_order', 'people_sort', 'quota_seen', 'resource_shortcuts', 'resource_shortcut_order', 'resource_tray', 'admin_notes_tray', 'resource_tray_top', 'admin_notes_tray_top', 'settings_metrics', 'settings_sidebar', 'settings_sidebar_compact', 'navbar_layout', 'chat_position', 'chat_size', 'chat_hidden', 'chat_keep_open'}:
+            if not isinstance(changes, dict) or changes.keys() - {'people_order', 'people_sort', 'quota_seen', 'resource_shortcuts', 'resource_shortcut_order', 'resource_tray', 'admin_notes_tray', 'resource_tray_top', 'admin_notes_tray_top', 'settings_metrics', 'settings_sidebar', 'settings_sidebar_compact', 'navbar_layout', 'chat_position', 'chat_size', 'chat_hidden', 'chat_keep_open', 'admin_notes_tray_target'}:
                 raise ValueError('Unsupported preference.')
+            if 'admin_notes_tray_target' in changes and changes['admin_notes_tray_target'] not in ('chat', 'notes'):
+                raise ValueError('Invalid admin notes tray target.')
             if any(key in changes and type(changes[key]) is not bool for key in ('settings_sidebar', 'settings_sidebar_compact')):
                 raise ValueError('Invalid settings sidebar preference.')
             if 'settings_metrics' in changes:
