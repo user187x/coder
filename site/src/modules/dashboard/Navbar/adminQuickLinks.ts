@@ -258,7 +258,7 @@ export const adminCategory = (pathname: string): AdminPage | null => {
 		[p.path, ...(CATEGORY_PREFIXES[p.id] ?? [])].some(under),
 	);
 	if (!page) {
-		return null;
+		return WORKSPACE_PAGES.find((p) => under(p.path)) ?? null;
 	}
 	const { allowed: _allowed, ...category } = page;
 	return category;

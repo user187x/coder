@@ -11,6 +11,7 @@ import { GlobalErrorBoundary } from "./components/ErrorBoundary/GlobalErrorBound
 import { Loader } from "./components/Loader/Loader";
 import { RequireAuth } from "./contexts/auth/RequireAuth";
 import { DashboardLayout } from "./modules/dashboard/DashboardLayout";
+import { AdminSettingsFrame } from "./modules/management/AdminSettingsFrame";
 import { LeaseLoginPage } from "./modules/platform/shortTermLeases/LeaseLoginPage";
 import AuditPage from "./pages/AuditPage/AuditPage";
 import ConnectionLogPage from "./pages/ConnectionLogPage/ConnectionLogPage";
@@ -452,7 +453,9 @@ export const router = createBrowserRouter(
 						element={<ExternalAuthPage />}
 					/>
 
-					<Route path="/workspaces" element={<WorkspacesPage />} />
+					<Route path="/workspaces" element={<AdminSettingsFrame />}>
+						<Route index element={<WorkspacesPage />} />
+					</Route>
 					<Route path="/hud" element={<HudPage />} />
 
 					<Route path="/starter-templates">
@@ -461,7 +464,9 @@ export const router = createBrowserRouter(
 					</Route>
 
 					<Route path="/templates">
-						<Route index element={<TemplatesPage />} />
+						<Route element={<AdminSettingsFrame />}>
+							<Route index element={<TemplatesPage />} />
+						</Route>
 						<Route path="new">
 							<Route index element={<CreateTemplatePage />} />
 							<Route path="builder" element={<TemplateBuilderPage />} />

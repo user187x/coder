@@ -41,7 +41,8 @@ const DeploymentSettingsLayout: React.FC = () => {
 	const category = adminCategory(location.pathname);
 	const canViewHealth = permissions.viewDebugInfo;
 	const canViewDeploymentSettingsPage =
-		(category?.id === "images" && permissions.editDeploymentConfig) ||
+		(["images", "templates", "workspaces"].includes(category?.id ?? "") &&
+			permissions.editDeploymentConfig) ||
 		canViewDeploymentSettings(permissions) ||
 		location.pathname.startsWith("/ai/settings") ||
 		(location.pathname.startsWith("/health") && canViewHealth);

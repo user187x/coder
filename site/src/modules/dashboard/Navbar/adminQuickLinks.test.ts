@@ -129,6 +129,8 @@ describe("adminCategoryLabel", () => {
 			"OAuth2 Applications",
 		);
 		expect(adminCategoryLabel("/deployment/users")).toBe("Accounts");
+		expect(adminCategoryLabel("/workspaces")).toBe("Workspaces");
+		expect(adminCategoryLabel("/templates")).toBe("Templates");
 	});
 
 	it("has no category for other pages", () => {
