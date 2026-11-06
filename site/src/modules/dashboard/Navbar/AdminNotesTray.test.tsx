@@ -53,6 +53,22 @@ it("opens the chat side panel when chat is the handle's target", async () => {
 	expect(setDockMode).toHaveBeenCalledWith("side");
 });
 
+it("shows chat again before opening it when it was closed", async () => {
+	vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({
+		admin_notes_tray_target: "chat",
+		chat_hidden: true,
+	});
+	const save = vi
+		.spyOn(PlatformAPI, "setUserUIPreferences")
+		.mockResolvedValue({ admin_notes_tray_target: "chat", chat_hidden: false });
+	renderTray();
+	await userEvent.click(
+		await screen.findByRole("menuitem", { name: "Show chat" }),
+	);
+	await waitFor(() => expect(setDockMode).toHaveBeenCalledWith("side"));
+	expect(save).toHaveBeenCalledWith({ chat_hidden: false });
+});
+
 it("saves Chat as the handle's target from its context menu", async () => {
 	vi.spyOn(PlatformAPI, "getUserUIPreferences").mockResolvedValue({});
 	const save = vi

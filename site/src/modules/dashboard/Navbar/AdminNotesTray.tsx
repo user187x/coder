@@ -55,13 +55,24 @@ export const AdminNotesTray = ({
 	const chat = useChatSnapshot();
 	// The handle can open the chat side panel instead of the notes; chat keeps its own remembered layout.
 	const target = prefs.data?.admin_notes_tray_target ?? "notes";
-	const chatOpen = chat.dockMode === "side";
+	// Closed with its X, chat stays hidden (chat_hidden) whatever its layout: the handle shows it again first.
+	const chatHidden = Boolean(prefs.data?.chat_hidden);
+	const chatOpen = chat.dockMode === "side" && !chatHidden;
+	const showChat = (open: boolean) => {
+		if (!open) setDockMode("bar");
+		else if (chatHidden)
+			save.mutate(
+				{ chat_hidden: false },
+				{ onSuccess: () => setDockMode("side") },
+			);
+		else setDockMode("side");
+	};
 	const locked = prefs.data?.admin_notes_tray;
 	const expanded = visible ?? locked?.expanded ?? false;
 	const notesOpen = target === "notes" && expanded;
 	const toggle = () => {
 		if (target === "chat") {
-			setDockMode(chatOpen ? "bar" : "side");
+			showChat(!chatOpen);
 			return;
 		}
 		if (save.isPending) return;
@@ -74,7 +85,7 @@ export const AdminNotesTray = ({
 	};
 	const lock = (open: boolean | null) => {
 		if (target === "chat") {
-			if (open !== null) setDockMode(open ? "side" : "bar");
+			if (open !== null) showChat(open);
 			return;
 		}
 		if (save.isPending) return;
