@@ -1,5 +1,6 @@
 import { cn } from "cn";
 import { NetworkIcon } from "lucide-react";
+import { useId } from "react";
 import { Link } from "react-router";
 import type { HudNode } from "#/api/platform";
 import {
@@ -13,19 +14,50 @@ import {
 	TooltipTrigger,
 } from "#/components/Tooltip/Tooltip";
 
-const HEALTH: Record<HudNode["health"], { label: string; orb: string }> = {
+const HEALTH: Record<
+	HudNode["health"],
+	{ label: string; orb: string; fill: string }
+> = {
 	ok: {
 		label: "Healthy",
 		orb: "bg-content-success shadow-[0_0_8px_hsl(var(--content-success))]",
+		fill: "fill-content-success [filter:drop-shadow(0_0_1.5px_hsl(var(--content-success)))]",
 	},
 	warning: {
 		label: "Degraded",
 		orb: "bg-content-warning shadow-[0_0_8px_hsl(var(--content-warning))]",
+		fill: "fill-content-warning [filter:drop-shadow(0_0_1.5px_hsl(var(--content-warning)))]",
 	},
 	down: {
 		label: "Not ready",
 		orb: "bg-content-destructive shadow-[0_0_8px_hsl(var(--content-destructive))]",
+		fill: "fill-content-destructive [filter:drop-shadow(0_0_1.5px_hsl(var(--content-destructive)))]",
 	},
+};
+
+/** The most characters the orb's edge holds; longer names keep both ends around an ellipsis. */
+const RING_CHARACTERS = 22;
+
+/**
+ * Each node's name for the edge of its orb: the prefix every node shares (k3d-coder-) dropped, and a name still too
+ * long for the edge cut in the middle, where node names differ least.
+ */
+export const ringLabels = (names: readonly string[]) => {
+	let shared = names.length > 1 ? names[0] : "";
+	for (const name of names) {
+		while (!name.startsWith(shared)) shared = shared.slice(0, -1);
+	}
+	const cut = shared.lastIndexOf("-") + 1;
+	return new Map(
+		names.map((name) => {
+			const rest = name.slice(cut) || name;
+			const label =
+				rest.length <= RING_CHARACTERS
+					? rest
+					: `${rest.slice(0, 11)}…${rest.slice(-(RING_CHARACTERS - 12))}`;
+			return [name, label];
+		}),
+	);
 };
 
 /** How many labels and annotations the hover card lists before pointing to the details. */
@@ -41,22 +73,24 @@ export const HudNodeStrip: React.FC<{ nodes: readonly HudNode[] }> = ({
 	if (nodes.length === 0) {
 		return null;
 	}
+	const labels = ringLabels(nodes.map((node) => node.name));
 	return (
 		<ul
 			aria-label="Kubernetes nodes"
-			className="m-0 flex list-none flex-nowrap items-center border-0 border-t border-solid border-border bg-surface-primary/30 px-2 py-2.5 backdrop-blur-sm"
+			className="m-0 flex list-none flex-nowrap items-center border-0 border-t border-solid border-border bg-surface-primary/30 bg-[repeating-linear-gradient(90deg,hsl(var(--content-link)/0.08)_0_1px,transparent_1px_7px)] px-2 py-1.5 backdrop-blur-sm"
 		>
 			{nodes.map((node) => (
 				<li key={node.name} className="flex min-w-0 flex-1 justify-center">
-					<NodeOrb node={node} />
+					<NodeOrb node={node} ring={labels.get(node.name) ?? node.name} />
 				</li>
 			))}
 		</ul>
 	);
 };
 
-const NodeOrb: React.FC<{ node: HudNode }> = ({ node }) => {
+const NodeOrb: React.FC<{ node: HudNode; ring: string }> = ({ node, ring }) => {
 	const health = HEALTH[node.health];
+	const edge = useId();
 	const metadata = [
 		...Object.entries(node.labels),
 		...Object.entries(node.annotations),
@@ -69,11 +103,39 @@ const NodeOrb: React.FC<{ node: HudNode }> = ({ node }) => {
 						<button
 							type="button"
 							aria-label={`${node.name}: ${health.label}`}
-							className={cn(
-								"aspect-square w-full max-w-3.5 cursor-pointer rounded-full border-0 p-0 transition-transform hover:scale-125 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-content-link",
-								health.orb,
-							)}
-						/>
+							className="group aspect-square w-full max-w-[40px] cursor-pointer rounded-full border-0 bg-transparent p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-content-link"
+						>
+							{/* The orb, its node's name running around its edge from the top. */}
+							<svg
+								viewBox="0 0 28 28"
+								aria-hidden
+								className="block size-full overflow-visible"
+							>
+								<path
+									id={edge}
+									fill="none"
+									d="M 14,24.2 a 10.2,10.2 0 1,1 0,-20.4 a 10.2,10.2 0 1,1 0,20.4"
+								/>
+								<circle
+									cx={14}
+									cy={14}
+									r={8}
+									className={cn(
+										"origin-center transition-transform [transform-box:fill-box] group-hover:scale-110",
+										health.fill,
+									)}
+								/>
+								<text className="fill-content-secondary font-mono text-[3.2px]">
+									<textPath
+										href={`#${edge}`}
+										startOffset="50%"
+										textAnchor="middle"
+									>
+										{ring}
+									</textPath>
+								</text>
+							</svg>
+						</button>
 					</PopoverTrigger>
 				</TooltipTrigger>
 				<TooltipContent className="max-w-sm">
