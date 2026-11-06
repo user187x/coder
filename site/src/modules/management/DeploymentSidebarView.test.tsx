@@ -24,12 +24,16 @@ describe("DeploymentSidebarView", () => {
 		);
 
 		const links = await screen.findAllByRole("link");
-		// Online Users (a card of the Chat page) and Overview (its rows in Network) are gone; Quick Menu is new
-		expect(links).toHaveLength(15);
-		expect(screen.getByRole("link", { name: "Images" })).toHaveAttribute(
-			"href",
-			"/images",
-		);
+		// Online Users (a card of the Chat page) and Overview (its rows in Network) are gone; Quick Menu,
+		// Templates and Workspaces are new
+		expect(links).toHaveLength(17);
+		for (const [name, href] of [
+			["Images", "/images"],
+			["Templates", "/templates"],
+			["Workspaces", "/workspaces"],
+		]) {
+			expect(screen.getByRole("link", { name })).toHaveAttribute("href", href);
+		}
 		expect(
 			links.find((link) => link.textContent?.includes("Quick Menu")),
 		).toHaveAttribute("href", "/deployment/quick-menu");

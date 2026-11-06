@@ -172,8 +172,8 @@ export const adminPageChoices = (): readonly (AdminPage & {
 
 export type { AdminPageAccess };
 
-/** Personal destinations and the deployment controls the current user can open. */
-export const settingsPagesFor = (access: AdminPageAccess): AdminPage[] => [
+/** Pages outside General that Settings and General's sidebar also link to. */
+const WORKSPACE_PAGES: readonly AdminPage[] = [
 	{
 		id: "workspaces",
 		label: "Workspaces",
@@ -186,6 +186,11 @@ export const settingsPagesFor = (access: AdminPageAccess): AdminPage[] => [
 		icon: FileTextIcon,
 		path: "/templates",
 	},
+];
+
+/** Personal destinations and the deployment controls the current user can open. */
+export const settingsPagesFor = (access: AdminPageAccess): AdminPage[] => [
+	...WORKSPACE_PAGES,
 	...(access.permissions.editDeploymentConfig
 		? [
 				{
@@ -265,4 +270,4 @@ export const adminCategoryLabel = (pathname: string): string | null =>
 
 /** A category's icon (the one its quick link shows), by its ID. */
 export const adminPageIcon = (id: string): LucideIcon | undefined =>
-	ADMIN_PAGES.find((page) => page.id === id)?.icon;
+	[...ADMIN_PAGES, ...WORKSPACE_PAGES].find((page) => page.id === id)?.icon;

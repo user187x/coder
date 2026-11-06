@@ -30,7 +30,8 @@ type DeploymentSidebarViewProps = {
 
 /**
  * Navigation for General (the deployment settings): its categories in the
- * order the admin arranged them (alphabetical until then). Licenses,
+ * order the admin arranged them (alphabetical until then), with Templates and
+ * Workspaces among them. Licenses,
  * Workspace Proxies, Groups, IdP Organization Sync and External
  * Authentication are not offered here; their pages still answer.
  */
@@ -117,6 +118,8 @@ export const DeploymentSidebarView: React.FC<DeploymentSidebarViewProps> = ({
 			item("persistence", "/deployment/persistence", "Persistence"),
 		permissions.viewDeploymentConfig &&
 			item("security", "/deployment/security", "Security"),
+		item("templates", "/templates", "Templates"),
+		item("workspaces", "/workspaces", "Workspaces"),
 	];
 	const categories = candidates.filter((c): c is SidebarCategory => Boolean(c));
 
