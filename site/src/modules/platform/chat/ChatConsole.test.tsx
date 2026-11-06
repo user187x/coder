@@ -6,9 +6,10 @@ import {
 	PlatformAPI,
 } from "#/api/platform";
 import { render } from "#/testHelpers/renderHelpers";
+import { mobileViewportMediaQuery } from "#/utils/mobile";
 import { ChatConsole } from "./ChatConsole";
 import type * as ChatStoreModule from "./chatStore";
-import type { useChatSnapshot } from "./chatStore";
+import type { ChatWindowState, useChatSnapshot } from "./chatStore";
 
 type Snapshot = ReturnType<typeof useChatSnapshot>;
 
@@ -47,6 +48,31 @@ const snapshot = vi.hoisted(() => ({ current: null as unknown }));
 vi.mock("./chatStore", async (importOriginal) => ({
 	...(await importOriginal<typeof ChatStoreModule>()),
 	useChatSnapshot: () => snapshot.current,
+	// The snapshot is fixed, so selecting a conversation puts its view in it by hand.
+	selectInConsole: (peer: ChatWindowState["peer"]) => {
+		const view: ChatWindowState = {
+			peer,
+			minimized: false,
+			loading: false,
+			loadError: null,
+			messages: [],
+			pending: [],
+			lastIn: 0,
+			readSent: 0,
+			readAtOpen: 0,
+			clearedByPeer: false,
+			focusRequest: 0,
+			loadingOlder: false,
+			olderDone: false,
+		};
+		snapshot.current = {
+			...(snapshot.current as Snapshot),
+			consoleView: view,
+		};
+	},
+}));
+vi.mock("./ChatConversation", () => ({
+	ChatConversation: () => <textarea aria-label="Message" />,
 }));
 
 const renderConsole = () => {
@@ -214,5 +240,44 @@ describe("ChatConsole: choosing conversations", () => {
 		await user.click(row("bob"));
 		await user.click(screen.getByTestId("chat-console-group"));
 		expect(create).toHaveBeenCalledWith(["ann", "bob"]);
+	});
+});
+
+describe("ChatConsole: on a narrow screen", () => {
+	beforeEach(() => {
+		vi.stubGlobal("matchMedia", (query: string) => ({
+			matches: query === mobileViewportMediaQuery,
+			media: query,
+			addEventListener: () => {},
+			removeEventListener: () => {},
+		}));
+	});
+	afterEach(() => {
+		vi.unstubAllGlobals();
+		vi.restoreAllMocks();
+	});
+
+	it("shows the list or the conversation, with a way back", async () => {
+		const user = userEvent.setup();
+		renderConsole();
+		expect(
+			await screen.findByRole("navigation", { name: "Conversations" }),
+		).toBeDefined();
+		expect(screen.queryByRole("textbox", { name: "Message" })).toBeNull();
+		expect(
+			screen.queryByRole("button", { name: "Back to the list" }),
+		).toBeNull();
+
+		await user.click(row("ann"));
+		expect(screen.getByRole("textbox", { name: "Message" })).toBeDefined();
+		expect(
+			screen.queryByRole("navigation", { name: "Conversations" }),
+		).toBeNull();
+
+		await user.click(screen.getByRole("button", { name: "Back to the list" }));
+		expect(
+			screen.getByRole("navigation", { name: "Conversations" }),
+		).toBeDefined();
+		expect(screen.queryByRole("textbox", { name: "Message" })).toBeNull();
 	});
 });

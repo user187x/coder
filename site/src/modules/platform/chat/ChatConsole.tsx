@@ -1,5 +1,6 @@
 import { cn } from "cn";
 import {
+	ArrowLeftIcon,
 	CameraIcon,
 	ChevronDownIcon,
 	ChevronUpIcon,
@@ -35,11 +36,13 @@ import {
 	ContextMenuTrigger,
 } from "#/components/ContextMenu/ContextMenu";
 import { ConfirmDialog } from "#/components/Dialog/ConfirmDialog/ConfirmDialog";
+import { useMediaQuery } from "#/hooks/useMediaQuery";
 import { AskForCloudDriveDialog } from "#/modules/platform/cloudDrive/CloudDrivePeers";
 import {
 	userCloudDriveHref,
 	userWorkspaceHref,
 } from "#/modules/users/userPlaces";
+import { mobileViewportMediaQuery } from "#/utils/mobile";
 import { ChatAvatar } from "./ChatAvatar";
 import { ChatConversation, type ConversationActions } from "./ChatConversation";
 import { ChatPeople } from "./ChatPeople";
@@ -174,6 +177,9 @@ export const ChatConsole: React.FC<ChatConsoleProps> = ({
 	className,
 }) => {
 	const [keyboardOpen, setKeyboardOpen] = useState(false);
+	// Narrow screens show the list or the open conversation, one at a time.
+	const narrow = useMediaQuery(mobileViewportMediaQuery);
+	const [opened, setOpened] = useState(false);
 	const state = useChatSnapshot();
 	const me = state.me;
 	const view = state.consoleView;
@@ -215,6 +221,8 @@ export const ChatConsole: React.FC<ChatConsoleProps> = ({
 	}, [state.conversations, meId]);
 
 	const selectedId = view?.peer.id;
+	const showConversation = !narrow || (opened && Boolean(view));
+	const showList = !narrow || !showConversation;
 	const index = list.findIndex((c) => c.peer.id === selectedId);
 
 	const go = (
@@ -226,6 +234,7 @@ export const ChatConsole: React.FC<ChatConsoleProps> = ({
 			return;
 		}
 		setDirection(dir);
+		setOpened(true);
 		selectInConsole(to.peer, focus);
 		const i = list.findIndex((c) => c.peer.id === to.peer.id);
 		const box = listRef.current;
@@ -418,13 +427,13 @@ export const ChatConsole: React.FC<ChatConsoleProps> = ({
 			data-place={place}
 			onKeyDown={onKeyDown}
 			className={cn(
-				"chat-console flex min-h-0 w-full flex-col overflow-hidden rounded-lg border border-solid border-border bg-surface-primary",
+				"chat-console flex min-h-0 w-full min-w-0 flex-col overflow-hidden rounded-lg border border-solid border-border bg-surface-primary",
 				className,
 			)}
 		>
-			<header className="flex items-center gap-3 border-0 border-b border-solid border-border bg-surface-secondary px-3 py-1.5">
+			<header className="flex flex-wrap items-center gap-x-3 gap-y-1 border-0 border-b border-solid border-border bg-surface-secondary px-3 py-1.5">
 				<span className="text-[13px] font-semibold">Chat console</span>
-				<span className="flex items-center gap-2 text-xs text-content-secondary">
+				<span className="flex flex-wrap items-center gap-x-2 text-xs text-content-secondary">
 					<span>
 						<b className="text-highlight-orange">{counts.waiting}</b> waiting
 					</span>
@@ -478,198 +487,222 @@ ${SHORTCUTS}`}
 				{actions}
 			</header>
 
-			<div className="grid min-h-0 flex-1 grid-cols-[minmax(220px,300px)_1fr]">
-				<nav
-					aria-label="Conversations"
-					className="flex min-h-0 flex-col border-0 border-r border-solid border-border"
-				>
-					<div className="flex flex-col gap-1.5 p-2">
-						<label className="flex items-center gap-1.5 rounded-md border border-solid border-border bg-surface-primary px-2">
-							<SearchIcon className="size-3.5 shrink-0 text-content-secondary" />
-							<input
-								ref={searchRef}
-								type="search"
-								value={query}
-								onChange={(event) => setQuery(event.target.value)}
-								onKeyDown={(event) => {
-									if (event.key === "ArrowDown" || event.key === "Enter") {
-										event.preventDefault();
-										if (event.key === "Enter" && list[0]) {
-											go(list[0], "next");
-										}
-										listRef.current?.focus();
-									}
-									if (event.key === "Escape") {
-										event.stopPropagation();
-										setQuery("");
-										listRef.current?.focus();
-									}
-								}}
-								placeholder="Search people or messages"
-								aria-label="Search conversations"
-								className="h-8 min-w-0 flex-1 border-0 bg-transparent text-[13px] text-inherit outline-hidden"
-							/>
-						</label>
-						<div className="flex gap-1">
-							<div
-								role="tablist"
-								aria-label="Show"
-								className="flex flex-1 gap-1"
-							>
-								{(
-									[
-										["waiting", "Waiting", counts.waiting],
-										["unread", "Unread", counts.unread],
-										["all", "All", counts.all],
-									] as const
-								).map(([value, label, n]) => (
-									<button
-										key={value}
-										type="button"
-										role="tab"
-										aria-selected={filter === value}
-										onClick={() => setFilter(value)}
-										className={cn(
-											"flex flex-1 cursor-pointer items-center justify-center gap-1 rounded-md border border-solid px-1.5 py-1 text-xs",
-											filter === value
-												? "border-border bg-surface-tertiary font-semibold text-content-primary"
-												: "border-transparent bg-transparent text-content-secondary hover:text-content-primary",
-										)}
-									>
-										{label}
-										<span className="tabular-nums opacity-70">{n}</span>
-									</button>
-								))}
-							</div>
-							<Button
-								variant={selecting ? "outline" : "subtle"}
-								size="icon"
-								className="size-7 shrink-0"
-								onClick={() =>
-									selecting ? stopSelecting() : setSelecting(true)
-								}
-								aria-pressed={selecting}
-								aria-label="Choose conversations"
-								title="Choose conversations - delete them, or chat with their people in one group chat (or Ctrl+click them)"
-								data-testid="chat-console-select"
-							>
-								<ListChecksIcon />
-							</Button>
-						</div>
-					</div>
-					{selecting && (
-						<div
-							className="flex shrink-0 items-center gap-2 border-0 border-t border-solid border-border py-1.5 pr-2.5 pl-[13px] text-xs"
-							data-testid="chat-console-select-all-bar"
-						>
-							<label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 text-content-secondary">
+			<div
+				className={cn(
+					"grid min-h-0 flex-1",
+					narrow
+						? "grid-cols-[minmax(0,1fr)]"
+						: "grid-cols-[minmax(220px,300px)_1fr]",
+				)}
+			>
+				{showList && (
+					<nav
+						aria-label="Conversations"
+						className="flex min-h-0 min-w-0 flex-col border-0 border-r border-solid border-border max-sm:border-r-0"
+					>
+						<div className="flex flex-col gap-1.5 p-2">
+							<label className="flex items-center gap-1.5 rounded-md border border-solid border-border bg-surface-primary px-2">
+								<SearchIcon className="size-3.5 shrink-0 text-content-secondary" />
 								<input
-									type="checkbox"
-									ref={(box) => {
-										if (box) {
-											box.indeterminate = shownChosen > 0 && !allChosen;
+									ref={searchRef}
+									type="search"
+									value={query}
+									onChange={(event) => setQuery(event.target.value)}
+									onKeyDown={(event) => {
+										if (event.key === "ArrowDown" || event.key === "Enter") {
+											event.preventDefault();
+											if (event.key === "Enter" && list[0]) {
+												go(list[0], "next");
+											}
+											listRef.current?.focus();
+										}
+										if (event.key === "Escape") {
+											event.stopPropagation();
+											setQuery("");
+											listRef.current?.focus();
 										}
 									}}
-									checked={allChosen}
-									disabled={list.length === 0 || removing}
-									onChange={toggleAll}
-									className="m-0 shrink-0"
-									data-testid="chat-console-select-all"
+									placeholder="Search people or messages"
+									aria-label="Search conversations"
+									className="h-8 min-w-0 flex-1 border-0 bg-transparent text-[13px] text-inherit outline-hidden"
 								/>
-								<span className="truncate">
-									Select all
-									<span className="ml-1 tabular-nums opacity-70">
-										{list.length}
-									</span>
-								</span>
 							</label>
-							<Button
-								size="xs"
-								variant="destructive"
-								className="[&>svg]:size-3.5"
-								disabled={chosen.length === 0 || removing}
-								onClick={() => setDeleting(chosen.map((c) => c.peer))}
-								title="Delete the chosen conversations, for everyone in them"
-								data-testid="chat-console-delete-chosen"
-							>
-								<TrashIcon />
-								Delete
-								{chosen.length > 0 && (
-									<span className="tabular-nums">{chosen.length}</span>
-								)}
-							</Button>
+							<div className="flex gap-1">
+								<div
+									role="tablist"
+									aria-label="Show"
+									className="flex flex-1 gap-1"
+								>
+									{(
+										[
+											["waiting", "Waiting", counts.waiting],
+											["unread", "Unread", counts.unread],
+											["all", "All", counts.all],
+										] as const
+									).map(([value, label, n]) => (
+										<button
+											key={value}
+											type="button"
+											role="tab"
+											aria-selected={filter === value}
+											onClick={() => setFilter(value)}
+											className={cn(
+												"flex flex-1 cursor-pointer items-center justify-center gap-1 rounded-md border border-solid px-1.5 py-1 text-xs",
+												filter === value
+													? "border-border bg-surface-tertiary font-semibold text-content-primary"
+													: "border-transparent bg-transparent text-content-secondary hover:text-content-primary",
+											)}
+										>
+											{label}
+											<span className="tabular-nums opacity-70">{n}</span>
+										</button>
+									))}
+								</div>
+								<Button
+									variant={selecting ? "outline" : "subtle"}
+									size="icon"
+									className="size-7 shrink-0"
+									onClick={() =>
+										selecting ? stopSelecting() : setSelecting(true)
+									}
+									aria-pressed={selecting}
+									aria-label="Choose conversations"
+									title="Choose conversations - delete them, or chat with their people in one group chat (or Ctrl+click them)"
+									data-testid="chat-console-select"
+								>
+									<ListChecksIcon />
+								</Button>
+							</div>
 						</div>
-					)}
-					<RolodexList
-						listRef={listRef}
-						list={list}
-						meId={meId}
-						selectedId={selectedId}
-						typing={state.typing}
-						now={now}
-						onPick={(c, event) =>
-							selecting || event?.ctrlKey || event?.metaKey
-								? toggle(c)
-								: go(c, list.indexOf(c) < index ? "prev" : "next")
-						}
-						selecting={selecting}
-						picked={picked}
-						menu={menu}
-						onStep={step}
-						onOpen={() => conversation.current?.focus()}
-						empty={
-							query
-								? "Nobody matches."
-								: filter === "waiting"
-									? "Nobody is waiting for an answer."
-									: filter === "unread"
-										? "Nothing unread."
-										: 'No conversations yet. Start one with "Chat" in Admin › Accounts.'
-						}
-					/>
-					{selecting && (
-						<div
-							className="flex shrink-0 items-center gap-2 border-0 border-t border-solid border-border px-2.5 py-2 text-xs"
-							data-testid="chat-console-selection"
-						>
-							<span className="flex-1 text-content-secondary">
-								{chosen.length === 0
-									? "Choose conversations"
-									: `${chosen.length} chosen`}
-							</span>
-							<Button size="xs" variant="outline" onClick={stopSelecting}>
-								Cancel
-							</Button>
-							<Button
-								size="xs"
-								className="[&>svg]:size-3.5"
-								disabled={people.length === 0 || grouping}
-								onClick={() => void chatWithPicked()}
-								title={
-									people.length < chosen.length
-										? "A group chat with the people chosen (group chats are left out)"
-										: "A group chat with the people chosen"
-								}
-								data-testid="chat-console-group"
+						{selecting && (
+							<div
+								className="flex shrink-0 items-center gap-2 border-0 border-t border-solid border-border py-1.5 pr-2.5 pl-[13px] text-xs"
+								data-testid="chat-console-select-all-bar"
 							>
-								<UsersIcon />
-								Chat with {people.length === 1 ? "them" : "all"}
-							</Button>
-						</div>
-					)}
-					{/* Who is online now (grey when idle): a conversation with any of them, from here. */}
-					<ChatPeople
-						onOpen={(peer) => selectInConsole(peer)}
-						onlineOnly
-						className="max-h-[40%] shrink-0 overflow-y-auto border-0 border-t border-solid border-border"
-					/>
-				</nav>
+								<label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 text-content-secondary">
+									<input
+										type="checkbox"
+										ref={(box) => {
+											if (box) {
+												box.indeterminate = shownChosen > 0 && !allChosen;
+											}
+										}}
+										checked={allChosen}
+										disabled={list.length === 0 || removing}
+										onChange={toggleAll}
+										className="m-0 shrink-0"
+										data-testid="chat-console-select-all"
+									/>
+									<span className="truncate">
+										Select all
+										<span className="ml-1 tabular-nums opacity-70">
+											{list.length}
+										</span>
+									</span>
+								</label>
+								<Button
+									size="xs"
+									variant="destructive"
+									className="[&>svg]:size-3.5"
+									disabled={chosen.length === 0 || removing}
+									onClick={() => setDeleting(chosen.map((c) => c.peer))}
+									title="Delete the chosen conversations, for everyone in them"
+									data-testid="chat-console-delete-chosen"
+								>
+									<TrashIcon />
+									Delete
+									{chosen.length > 0 && (
+										<span className="tabular-nums">{chosen.length}</span>
+									)}
+								</Button>
+							</div>
+						)}
+						<RolodexList
+							listRef={listRef}
+							list={list}
+							meId={meId}
+							selectedId={selectedId}
+							typing={state.typing}
+							now={now}
+							onPick={(c, event) =>
+								selecting || event?.ctrlKey || event?.metaKey
+									? toggle(c)
+									: go(c, list.indexOf(c) < index ? "prev" : "next")
+							}
+							selecting={selecting}
+							picked={picked}
+							menu={menu}
+							onStep={step}
+							onOpen={() => conversation.current?.focus()}
+							empty={
+								query
+									? "Nobody matches."
+									: filter === "waiting"
+										? "Nobody is waiting for an answer."
+										: filter === "unread"
+											? "Nothing unread."
+											: 'No conversations yet. Start one with "Chat" in Admin › Accounts.'
+							}
+						/>
+						{selecting && (
+							<div
+								className="flex shrink-0 items-center gap-2 border-0 border-t border-solid border-border px-2.5 py-2 text-xs"
+								data-testid="chat-console-selection"
+							>
+								<span className="flex-1 text-content-secondary">
+									{chosen.length === 0
+										? "Choose conversations"
+										: `${chosen.length} chosen`}
+								</span>
+								<Button size="xs" variant="outline" onClick={stopSelecting}>
+									Cancel
+								</Button>
+								<Button
+									size="xs"
+									className="[&>svg]:size-3.5"
+									disabled={people.length === 0 || grouping}
+									onClick={() => void chatWithPicked()}
+									title={
+										people.length < chosen.length
+											? "A group chat with the people chosen (group chats are left out)"
+											: "A group chat with the people chosen"
+									}
+									data-testid="chat-console-group"
+								>
+									<UsersIcon />
+									Chat with {people.length === 1 ? "them" : "all"}
+								</Button>
+							</div>
+						)}
+						{/* Who is online now (grey when idle): a conversation with any of them, from here. */}
+						<ChatPeople
+							onOpen={(peer) => {
+								setOpened(true);
+								selectInConsole(peer);
+							}}
+							onlineOnly
+							className="max-h-[40%] shrink-0 overflow-y-auto border-0 border-t border-solid border-border"
+						/>
+					</nav>
+				)}
 
-				{view ? (
+				{!showConversation ? null : view ? (
 					<div className={cn(CONVERSATION_PANE, "relative")}>
-						<div className="flex items-center gap-2 border-0 border-b border-solid border-border px-3 py-1.5">
+						<div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-0 border-b border-solid border-border px-3 py-1.5">
+							{narrow && (
+								<Button
+									variant="subtle"
+									size="icon"
+									className="size-10"
+									onClick={() => setOpened(false)}
+									aria-label="Back to the list"
+									title="Back to the list"
+								>
+									<ArrowLeftIcon />
+								</Button>
+							)}
 							<ChatAvatar peer={view.peer} />
-							<span className="flex min-w-0 flex-1 flex-col">
+							<span className="flex min-w-0 grow basis-28 flex-col">
 								<span className="truncate text-sm font-semibold">
 									{displayName(view.peer)}
 								</span>
@@ -776,7 +809,10 @@ ${SHORTCUTS}`}
 								ref={conversation}
 								view={view}
 								className="min-h-0 flex-1"
-								onEscape={() => listRef.current?.focus()}
+								onEscape={() => {
+									setOpened(false);
+									listRef.current?.focus();
+								}}
 								onSent={autoNext ? () => nextWaiting(true) : undefined}
 								onShootingChange={setShooting}
 							/>

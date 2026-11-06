@@ -634,7 +634,7 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
 					disabled={blocked}
 					placeholder={blocked ? `${name} has turned chat off` : "Message"}
 					aria-label={`Message ${name}`}
-					className="max-h-[120px] min-h-9 flex-1 resize-none rounded-[18px] border border-solid border-border bg-surface-primary px-2.5 py-2 text-sm leading-snug text-inherit field-sizing-content disabled:cursor-not-allowed"
+					className="max-h-[120px] min-h-9 flex-1 resize-none rounded-[18px] border border-solid border-border bg-surface-primary px-2.5 py-2 text-sm leading-snug text-inherit field-sizing-content max-sm:text-base disabled:cursor-not-allowed"
 					onFocus={() => markRead(peer.id, true)}
 					onPaste={(event) => {
 						const file = event.clipboardData.files[0];
