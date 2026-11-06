@@ -127,16 +127,11 @@ html[data-settings-side] {
 	);
 }
 html[data-settings-side] {
+	/* The mini-panel (the resource tray) is not part of it: opened, it lies over the page. */
 	--settings-dock-inset: calc(
 		var(--settings-dock-width) +
-		var(--settings-panel-right) +
-		var(--settings-tray-width, 0px)
+		var(--settings-panel-right)
 	);
-}
-html[data-settings-side="expanded"]:has(
-	.settings-resource-tray-panel[aria-hidden="false"]
-) {
-	--settings-tray-width: 49px;
 }
 html[data-settings-side="compact"] {
 	--settings-dock-width: 52px;
@@ -192,7 +187,7 @@ html[data-settings-side="compact"] {
 }
 /* Docked beside an attached chat, the expanded Settings shares its column: Settings above, chat below (chatDock.css). */
 html[data-settings-side="expanded"][data-chat-side] {
-	--settings-dock-inset: var(--settings-tray-width, 0px);
+	--settings-dock-inset: 0px;
 }
 html[data-settings-side="expanded"][data-chat-side]
 	[data-radix-popper-content-wrapper]:has(
@@ -200,7 +195,8 @@ html[data-settings-side="expanded"][data-chat-side]
 	) {
 	inset: calc(var(--coder-classification-h, 0px) + var(--dock-block-gap))
 		var(--dock-gutter) calc(50% + var(--dock-block-gap)) auto !important;
-	width: calc(var(--chat-side-width) - 2 * var(--dock-gutter));
+	/* Its left edge is the chat's, the same distance from the page. */
+	width: calc(var(--chat-side-width) - var(--dock-gutter));
 }
 /* Keep the page, navbar and fullscreen workspace inside the same available width. */
 html:is([data-settings-side], [data-chat-side]) {
