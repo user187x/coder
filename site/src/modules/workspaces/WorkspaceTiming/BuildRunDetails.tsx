@@ -7,18 +7,23 @@ import {
 	NetworkIcon,
 } from "lucide-react";
 import { useInfiniteQuery, useQuery } from "react-query";
+import { Link } from "react-router";
 import { infiniteWorkspaceBuilds } from "#/api/queries/workspaceBuilds";
 import { workspaceInfrastructureMetrics } from "#/api/queries/workspaceMetrics";
 import type { Workspace } from "#/api/typesGenerated";
 import { Badge } from "#/components/Badge/Badge";
 import { Button } from "#/components/Button/Button";
+import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { formatStarted } from "#/modules/platform/workspaceUptime/workspaceUptime";
+import { nodeBadgeStyle } from "#/pages/DeploymentSettingsPage/NetworkSettingsPage/clusterFormat";
+import { ImageVersionBadge, imageVersion } from "#/pages/ImagesPage/badges";
 
 const timestamp = (value?: string | null) =>
 	value ? formatStarted(new Date(value)) : "Not recorded";
 
 export function BuildRunDetails({ workspace }: { workspace: Workspace }) {
 	const build = workspace.latest_build;
+	const { permissions } = useAuthenticated();
 	const runtime = useQuery(
 		workspaceInfrastructureMetrics(workspace.organization_id, workspace.id),
 	);
@@ -58,9 +63,11 @@ export function BuildRunDetails({ workspace }: { workspace: Workspace }) {
 							<CpuIcon aria-hidden />
 							Agent {agent.name}
 						</Badge>
-						<Badge size="xs" variant="outline">
-							{agent.version || "Version unavailable"}
-						</Badge>
+						{agent.version ? (
+							<ImageVersionBadge version={agent.version} />
+						) : (
+							<span>Version unavailable</span>
+						)}
 						Started {timestamp(agent.started_at)}
 					</p>
 				))}
@@ -74,28 +81,52 @@ export function BuildRunDetails({ workspace }: { workspace: Workspace }) {
 						key={pod.name}
 						className="grid min-w-0 gap-1.5 rounded-lg border border-solid border-border bg-surface-secondary p-2 text-xs break-words"
 					>
-						<div>
+						<div className="flex flex-wrap items-center gap-1.5">
 							<Badge size="xs">
 								<BoxIcon aria-hidden />
 								Pod
 							</Badge>{" "}
-							<b>{pod.name}</b> · IP {pod.ip || "Unassigned"} · Started{" "}
+							<b>{pod.name}</b> <IPAddressBadge address={pod.ip} /> Started{" "}
 							{timestamp(pod.startedAt)}
 						</div>
-						<div>
-							<Badge size="xs">
-								<NetworkIcon aria-hidden />
-								Node
-							</Badge>{" "}
-							{pod.node || "Unassigned"} · IP {pod.nodeIP || "Unavailable"}
+						<div className="flex flex-wrap items-center gap-1.5">
+							{pod.node ? (
+								<Badge
+									size="sm"
+									className="rounded-full"
+									style={nodeBadgeStyle(pod.node)}
+									asChild={permissions.viewDeploymentConfig}
+								>
+									{permissions.viewDeploymentConfig ? (
+										<Link
+											to={`/deployment/network?node=${encodeURIComponent(pod.node)}`}
+										>
+											<NetworkIcon aria-hidden />
+											{pod.node}
+										</Link>
+									) : (
+										<span>
+											<NetworkIcon aria-hidden />
+											{pod.node}
+										</span>
+									)}
+								</Badge>
+							) : (
+								<span>Node unassigned</span>
+							)}
+							<IPAddressBadge address={pod.nodeIP} />
 						</div>
 						{pod.containers.map((container) => (
-							<div key={container.name}>
+							<div
+								key={container.name}
+								className="flex flex-wrap items-center gap-1.5"
+							>
 								<Badge size="xs" variant="outline">
 									<LayersIcon aria-hidden />
 									{container.name}
 								</Badge>{" "}
 								<code className="break-all">{container.image}</code>
+								<ImageVersionBadge version={imageVersion(container.image)} />
 							</div>
 						))}
 					</div>
@@ -126,5 +157,24 @@ export function BuildRunDetails({ workspace }: { workspace: Workspace }) {
 				)}
 			</details>
 		</section>
+	);
+}
+
+function IPAddressBadge({ address }: { address?: string | null }) {
+	if (!address) return <span>IP unavailable</span>;
+	let hash = 0;
+	for (const character of address)
+		hash = (Math.imul(hash, 31) + character.charCodeAt(0)) >>> 0;
+	return (
+		<Badge
+			variant="outline"
+			size="sm"
+			className="rounded-none border-dashed font-mono"
+			style={{ borderColor: `hsl(${hash % 360} 55% 55%)` }}
+			title={`IP address ${address}`}
+		>
+			<NetworkIcon aria-hidden />
+			{address}
+		</Badge>
 	);
 }

@@ -130,6 +130,7 @@ export const AccordionPanel: React.FC<AccordionPanelProps> = ({
 	const [resizing, setResizing] = useState(false);
 	const box = useRef<HTMLDivElement>(null);
 	const [browserMuted, setBrowserMuted] = useState(true);
+	const [browserVolume, setBrowserVolume] = useState(1);
 	const [transport, setTransport] = useState<"https" | "webrtc" | null>(null);
 	useEffect(() => {
 		if (slug !== "neko-browser") return;
@@ -149,6 +150,9 @@ export const AccordionPanel: React.FC<AccordionPanelProps> = ({
 				typeof event.data.muted === "boolean"
 			) {
 				setBrowserMuted(event.data.muted);
+				if (Number.isFinite(event.data.volume)) {
+					setBrowserVolume(Math.min(1, Math.max(0, event.data.volume)));
+				}
 			}
 		};
 		window.addEventListener("message", browserState);
@@ -458,6 +462,29 @@ export const AccordionPanel: React.FC<AccordionPanelProps> = ({
 									{browserMuted ? <Volume2Icon /> : <VolumeXIcon />}
 									{browserMuted ? "Unmute" : "Mute"}
 								</Button>
+								{!browserMuted && (
+									<input
+										type="range"
+										aria-label="Browser volume"
+										aria-valuetext={`${Math.round(browserVolume * 100)}%`}
+										title={`Volume ${Math.round(browserVolume * 100)}%`}
+										min={0}
+										max={100}
+										step={1}
+										value={Math.round(browserVolume * 100)}
+										className="mx-1 w-20 cursor-pointer accent-content-link"
+										onChange={(event) => {
+											const volume = event.currentTarget.valueAsNumber / 100;
+											setBrowserVolume(volume);
+											box.current
+												?.querySelector("iframe")
+												?.contentWindow?.postMessage(
+													{ type: "coder:browser-volume", volume },
+													window.location.origin,
+												);
+										}}
+									/>
+								)}
 								<Button
 									size="sm"
 									variant="outline"

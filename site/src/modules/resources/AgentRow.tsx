@@ -4,6 +4,7 @@ import {
 	CopyIcon,
 	EllipsisIcon,
 	InfoIcon,
+	MaximizeIcon,
 	PackageIcon,
 	PlayIcon,
 	TriangleAlertIcon,
@@ -28,6 +29,12 @@ import {
 	CollapsibleContent,
 	CollapsibleTrigger,
 } from "#/components/Collapsible/Collapsible";
+import {
+	ContextMenu,
+	ContextMenuContent,
+	ContextMenuItem,
+	ContextMenuTrigger,
+} from "#/components/ContextMenu/ContextMenu";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -127,6 +134,8 @@ type AgentRowProps = {
 	restricted?: boolean;
 	/** Embedded dashboards defer panel sessions until the user opens them. */
 	initiallyCollapsed?: boolean;
+	onToggleFullscreen?: () => void;
+	fullscreen?: boolean;
 };
 
 const statusBorderClassByStatus: Partial<
@@ -187,6 +196,8 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 	topbar,
 	restricted = false,
 	initiallyCollapsed = false,
+	onToggleFullscreen,
+	fullscreen = false,
 }) => {
 	const [overviewCollapsed, setOverviewCollapsed] = useState(false);
 	const overviewId = useId();
@@ -517,31 +528,43 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 				)}
 			>
 				{topbar && (
-					<Button
-						type="button"
-						variant="subtle"
-						size="icon"
-						className="absolute left-1/2 top-1 z-20 h-3 w-9 -translate-x-1/2 rounded-b-full rounded-t-none border border-t-0 border-solid border-border bg-surface-secondary text-content-secondary"
-						aria-label={
-							overviewCollapsed
-								? "Expand workspace overview"
-								: "Collapse workspace overview"
-						}
-						title={
-							overviewCollapsed
-								? "Expand workspace overview"
-								: "Collapse workspace overview"
-						}
-						aria-expanded={!overviewCollapsed}
-						aria-controls={`${overviewId} ${overviewId}-network ${overviewId}-metrics`}
-						onClick={() => setOverviewCollapsed((current) => !current)}
-					>
-						{overviewCollapsed ? (
-							<ChevronUpIcon className="size-3 rotate-180" />
-						) : (
-							<ChevronUpIcon className="size-3" />
+					<ContextMenu>
+						<ContextMenuTrigger asChild>
+							<Button
+								type="button"
+								variant="subtle"
+								size="icon"
+								className="workspace-overview-toggle absolute left-1/2 top-1 z-20 h-3 w-9 -translate-x-1/2 rounded-b-full rounded-t-none border border-t-0 border-solid border-border bg-surface-secondary text-content-secondary"
+								aria-label={
+									overviewCollapsed
+										? "Expand workspace overview"
+										: "Collapse workspace overview"
+								}
+								title={
+									overviewCollapsed
+										? "Expand workspace overview"
+										: "Collapse workspace overview"
+								}
+								aria-expanded={!overviewCollapsed}
+								aria-controls={`${overviewId} ${overviewId}-network ${overviewId}-metrics`}
+								onClick={() => setOverviewCollapsed((current) => !current)}
+							>
+								{overviewCollapsed ? (
+									<ChevronUpIcon className="size-3 rotate-180" />
+								) : (
+									<ChevronUpIcon className="size-3" />
+								)}
+							</Button>
+						</ContextMenuTrigger>
+						{onToggleFullscreen && (
+							<ContextMenuContent>
+								<ContextMenuItem onSelect={onToggleFullscreen}>
+									<MaximizeIcon />{" "}
+									{fullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+								</ContextMenuItem>
+							</ContextMenuContent>
 						)}
-					</Button>
+					</ContextMenu>
 				)}
 				{topbar && (
 					<div

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { CornerExpandButton } from "#/components/Button/CornerExpandButton";
 import { bottomBarsHeight } from "#/utils/bottomBars";
 import "./workspaceDashboard.css";
@@ -77,6 +78,24 @@ export const Workspace: React.FC<WorkspaceProps> = ({
 	const embedded = isEmbeddedFrame();
 	const [expanded, setExpanded] = useState(false);
 	const pageRef = useRef<HTMLDivElement>(null);
+	const [fullscreen, setFullscreen] = useState(false);
+	useEffect(() => {
+		const changed = () =>
+			setFullscreen(document.fullscreenElement === pageRef.current);
+		document.addEventListener("fullscreenchange", changed);
+		return () => document.removeEventListener("fullscreenchange", changed);
+	}, []);
+	const toggleFullscreen = async () => {
+		try {
+			if (document.fullscreenElement === pageRef.current)
+				await document.exitFullscreen();
+			else await pageRef.current?.requestFullscreen();
+		} catch {
+			toast.error(
+				"Could not enter fullscreen. Use the corner button to expand the workspace.",
+			);
+		}
+	};
 	useEffect(() => {
 		if (!expanded) return;
 		const root = document.documentElement;
@@ -247,6 +266,10 @@ export const Workspace: React.FC<WorkspaceProps> = ({
 					{topAgents.map((agent, i) => (
 						<AgentRow
 							initiallyCollapsed={embedded}
+							fullscreen={fullscreen}
+							onToggleFullscreen={
+								embedded ? undefined : () => void toggleFullscreen()
+							}
 							key={agent.id}
 							agent={agent}
 							topbar={i === 0 ? workspaceTopbar : undefined}

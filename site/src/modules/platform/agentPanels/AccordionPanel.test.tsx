@@ -119,7 +119,14 @@ describe("the accordion panel", () => {
 			{ type: "coder:browser-mute", muted: false },
 			origin,
 		);
-		report({ type: "coder:browser-audio", muted: false });
+		report({ type: "coder:browser-audio", muted: false, volume: 0.7 });
+		fireEvent.change(screen.getByRole("slider", { name: "Browser volume" }), {
+			target: { value: "35" },
+		});
+		expect(post).toHaveBeenLastCalledWith(
+			{ type: "coder:browser-volume", volume: 0.35 },
+			origin,
+		);
 		await userEvent.click(screen.getByRole("button", { name: "Mute" }));
 		expect(post).toHaveBeenLastCalledWith(
 			{ type: "coder:browser-mute", muted: true },

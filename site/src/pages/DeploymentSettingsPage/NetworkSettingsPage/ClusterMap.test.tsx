@@ -1,6 +1,7 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "react-query";
+import { MemoryRouter } from "react-router";
 import {
 	ClusterNetworkAPI,
 	type EntityDetails,
@@ -30,7 +31,9 @@ const renderMap = () =>
 				new QueryClient({ defaultOptions: { queries: { retry: false } } })
 			}
 		>
-			<ClusterMap />
+			<MemoryRouter>
+				<ClusterMap />
+			</MemoryRouter>
 		</QueryClientProvider>,
 	);
 

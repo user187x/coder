@@ -136,7 +136,7 @@ const NodeDetails: React.FC<{ node: HudNode }> = ({ node }) => {
 			<MetadataList title="Labels" entries={node.labels} />
 			<MetadataList title="Annotations" entries={node.annotations} />
 			<Link
-				to="/deployment/network"
+				to={`/deployment/network?node=${encodeURIComponent(node.name)}`}
 				className="flex items-center gap-1.5 self-start text-xs text-content-link"
 			>
 				<NetworkIcon className="size-3.5" />

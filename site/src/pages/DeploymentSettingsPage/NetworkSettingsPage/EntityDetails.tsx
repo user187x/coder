@@ -2,6 +2,7 @@ import { cn } from "cn";
 import { ArrowLeftIcon, XIcon } from "lucide-react";
 import { createContext, useCallback, useContext, useState } from "react";
 import { useQuery } from "react-query";
+import { useSearchParams } from "react-router";
 import {
 	type AgentLinkDetails,
 	type ClusterCondition,
@@ -50,22 +51,36 @@ export const useOpenEntity = () => useContext(OpenEntity);
 export const EntityProvider: React.FC<{ children: React.ReactNode }> = ({
 	children,
 }) => {
+	const [searchParams, setSearchParams] = useSearchParams();
+	const node = searchParams.get("node");
+	const close = () => {
+		setStack([]);
+		if (node)
+			setSearchParams(
+				(params) => {
+					params.delete("node");
+					return params;
+				},
+				{ replace: true },
+			);
+	};
 	const [stack, setStack] = useState<EntityRef[]>([]);
 	const open = useCallback(
 		(ref: EntityRef) => setStack((s) => [...s, ref].slice(-12)),
 		[],
 	);
-	const current = stack.at(-1);
+	const current: EntityRef | undefined =
+		stack.at(-1) ?? (node ? { type: "node", name: node } : undefined);
 
 	return (
 		<OpenEntity.Provider value={open}>
-			<EntityActionsProvider onDetails={open} onOpen={() => setStack([])}>
+			<EntityActionsProvider onDetails={open} onOpen={close}>
 				{children}
 				<Drawer
 					open={current !== undefined}
 					onOpenChange={(next) => {
 						if (!next) {
-							setStack([]);
+							close();
 						}
 					}}
 				>

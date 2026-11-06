@@ -9,6 +9,7 @@
     :root { color-scheme: dark; font: 13px system-ui, sans-serif; }
     body { margin: 0; height: 100dvh; display: flex; flex-direction: column; background: #121317; color: #f1f2f5; }
     header { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .35rem .65rem; }
+    header[hidden] { display: none; }
     a, button { color: #a8d8ff; }
     button { cursor: pointer; background: transparent; border: 1px solid currentColor; border-radius: .4rem; padding: .2rem .5rem; }
     main { flex: 1; min-height: 0; }
@@ -20,6 +21,11 @@
   <script type="module">
     import RFB from "./compat/core/rfb.js";
     const status = document.querySelector('[role="status"]');
+    const header = document.querySelector("header");
+    const showStatus = text => {
+      status.textContent = text;
+      header.hidden = false;
+    };
     const sound = document.querySelector("#sound");
     const panelControls = window.parent !== window && new URL(location.href).searchParams.has("panel");
     sound.hidden = panelControls;
@@ -27,7 +33,7 @@
     const audioControl = panelControls ? "Unmute on the Web Browser panel" : "Enable audio";
     const audio = new Audio();
     audio.preload = "none";
-    const tellPanel = muted => window.parent.postMessage({type: "coder:browser-audio", muted}, location.origin);
+    const tellPanel = muted => window.parent.postMessage({type: "coder:browser-audio", muted, volume: audio.volume}, location.origin);
     const stopSound = () => {
       audio.pause();
       audio.removeAttribute("src");
@@ -46,9 +52,9 @@
       } catch (error) {
         if (error.name === "AbortError") return;
         stopSound();
-        status.textContent = error.name === "NotAllowedError"
+        showStatus(error.name === "NotAllowedError"
           ? `Click ${audioControl} to play sound in this browser.`
-          : `Browser audio could not connect. Click ${audioControl} to retry.`;
+          : `Browser audio could not connect. Click ${audioControl} to retry.`);
       }
     };
     sound.addEventListener("click", () => audio.paused ? playSound() : stopSound());
@@ -57,6 +63,10 @@
       if (event.data?.type === "coder:browser-mute" && typeof event.data.muted === "boolean") {
         if (event.data.muted) stopSound();
         else void playSound();
+      }
+      if (event.data?.type === "coder:browser-volume" && Number.isFinite(event.data.volume)) {
+        audio.volume = Math.max(0, Math.min(1, event.data.volume));
+        tellPanel(audio.paused);
       }
     });
     window.addEventListener("pagehide", stopSound, {once: true});
@@ -74,9 +84,10 @@
       viewer.scaleViewport = true;
       viewer.addEventListener("connect", () => {
         status.textContent = "Connected through HTTPS";
+        header.hidden = panelControls;
       });
       viewer.addEventListener("disconnect", async () => {
-        status.textContent = "Desktop disconnected. Refresh this panel to reconnect.";
+        showStatus("Desktop disconnected. Refresh this panel to reconnect.");
         if (location.search.includes("embed")) {
           try {
             const response = await fetch(new URL("status", location.href), {cache: "no-store"});
@@ -88,7 +99,7 @@
       });
       window.addEventListener("pagehide", () => viewer.disconnect(), {once: true});
     } catch (error) {
-      status.textContent = error.message;
+      showStatus(error.message);
     }
   </script>
 </body>

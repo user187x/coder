@@ -76,6 +76,7 @@ if (new URL(location.href).searchParams.has("embed")) {
     if (video) window.parent.postMessage({
       type: "coder:browser-audio",
       muted: video.muted,
+      volume: video.volume,
     }, location.origin);
   };
   const observeVideo = new MutationObserver(() => {
@@ -105,6 +106,12 @@ if (new URL(location.href).searchParams.has("embed")) {
       if (!video) return;
       document.documentElement.toggleAttribute("data-coder-muted", event.data.muted);
       video.muted = event.data.muted;
+      reportAudio();
+    }
+    if (event.data?.type === "coder:browser-volume" && Number.isFinite(event.data.volume)) {
+      const video = document.querySelector("video");
+      if (!video) return;
+      video.volume = Math.max(0, Math.min(1, event.data.volume));
       reportAudio();
     }
     if (event.data?.type !== "coder:browser-resolution") return;

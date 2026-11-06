@@ -89,3 +89,44 @@ html[data-workspace-expanded] {
 	flex: 1;
 	min-height: 0;
 }
+
+.workspace-overview-toggle:is(:hover, :focus-visible) {
+	border-color: hsl(var(--content-link));
+	color: hsl(var(--content-link));
+	box-shadow: 0 0 8px hsl(var(--content-link) / 0.6);
+}
+.workspace-dashboard-grid:has(
+		.workspace-overview-toggle:is(:hover, :focus-visible)
+	)
+	.workspace-agent-card,
+.workspace-dashboard-grid:has(.corner-expand-tab:is(:hover, :focus-visible))
+	.workspace-agent-card {
+	box-shadow:
+		0 0 0 2px hsl(var(--content-link)),
+		0 0 14px hsl(var(--content-link) / 0.5);
+}
+.workspace-dashboard-expand-corner .corner-expand-tab {
+	clip-path: none;
+	border-radius: 0 24px 0 18px;
+	background: transparent;
+}
+.workspace-dashboard-expand-corner
+	.corner-expand-tab:is(:hover, :focus-visible) {
+	background: hsl(var(--surface-tertiary));
+	color: hsl(var(--content-link));
+}
+
+.workspace-dashboard-page:fullscreen {
+	width: 100%;
+	height: 100%;
+	background: hsl(var(--surface-primary));
+}
+.workspace-dashboard-page:fullscreen .workspace-dashboard-scroll {
+	position: relative;
+	inset: auto;
+	padding: 8px;
+}
+.workspace-dashboard-page:fullscreen .workspace-dashboard-grid {
+	width: 100%;
+	max-width: none;
+}

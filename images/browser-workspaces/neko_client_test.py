@@ -115,7 +115,7 @@ const vm = require('node:vm');
         const listeners = {}, timers = new Map(), resolutions = [];
         let clicked = 0, nextTimer = 0;
 const parent = {postMessage() {}};
-const video = {muted:true, addEventListener() {}};
+const video = {muted:true, volume:1, addEventListener() {}};
 const root = {toggleAttribute() {}};
 const context = {
  URL, location:{href:'https://coder.test/app/?embed=1',origin:'https://coder.test'},
@@ -136,6 +136,14 @@ assert.equal(video.muted,true);
 assert.equal(clicked,0);
         listeners.message({origin:'https://coder.test',source:parent,data:{type:'coder:browser-mute',muted:false}});
 assert.equal(video.muted,false);
+listeners.message({origin:'https://other.test',source:parent,data:{type:'coder:browser-volume',volume:0.2}});
+assert.equal(video.volume,1);
+listeners.message({origin:'https://coder.test',source:parent,data:{type:'coder:browser-volume',volume:0.4}});
+assert.equal(video.volume,0.4);
+listeners.message({origin:'https://coder.test',source:parent,data:{type:'coder:browser-volume',volume:5}});
+assert.equal(video.volume,1);
+listeners.message({origin:'https://coder.test',source:parent,data:{type:'coder:browser-volume',volume:NaN}});
+assert.equal(video.volume,1);
         listeners.message({origin:'https://coder.test',source:parent,data:{type:'coder:browser-resolution'}});
 assert.equal(clicked,1);
         context.window.innerWidth = 1536;
