@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import * as path from "node:path";
 import babel from "@rolldown/plugin-babel";
 import { storybookTest } from "@storybook/addon-vitest/vitest-plugin";
@@ -20,6 +21,34 @@ compilerPreset.rolldown.filter = {
 	id: {
 		// Keep in sync with targetDirs in scripts/check-compiler.mjs.
 		include: [/src\/pages\/TemplateBuilder\//],
+	},
+};
+
+// The Borealis cursor theme (static/cursors/, from scripts/build-cursors.py): each CSS cursor keyword it draws
+// becomes its image, a 2x copy where image-set works, and the keyword itself as the fallback.
+const cursorHotspots: Record<string, [number, number]> = JSON.parse(
+	readFileSync(
+		path.resolve(import.meta.dirname, "static/cursors/cursors.json"),
+		"utf8",
+	),
+);
+const cursorTheme = {
+	postcssPlugin: "coder-cursor-theme",
+	Declaration: {
+		cursor(decl: {
+			value: string;
+			cloneBefore: (overrides: { value: string }) => unknown;
+		}) {
+			const keyword = decl.value.trim();
+			const hotspot = cursorHotspots[keyword];
+			if (!hotspot) {
+				return;
+			}
+			const [x, y] = hotspot;
+			const image = `/cursors/${keyword}`;
+			decl.cloneBefore({ value: `url("${image}.png") ${x} ${y}, ${keyword}` });
+			decl.value = `image-set(url("${image}.png") 1x, url("${image}@2x.png") 2x) ${x} ${y}, ${keyword}`;
+		},
 	},
 };
 
@@ -47,6 +76,9 @@ export default defineConfig({
 		format: "es",
 	},
 	publicDir: path.resolve(import.meta.dirname, "./static"),
+	css: {
+		postcss: { plugins: [cursorTheme] },
+	},
 	build: {
 		outDir: path.resolve(import.meta.dirname, "./out"),
 		emptyOutDir: false, // We need to keep the /bin folder and GITKEEP files

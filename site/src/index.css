@@ -219,9 +219,33 @@
 		border-color: var(--color-gray-200, currentcolor);
 	}
 
+	/*
+	  The cursor theme (vite.config.mts) can only restyle named cursors, not
+	  the browser's own "auto", so the page, links and text fields name theirs.
+	*/
+	html {
+		cursor: default;
+	}
+
+	a[href],
 	button:not(:disabled),
 	[role="button"]:not(:disabled) {
 		cursor: pointer;
+	}
+
+	input:not(
+		[type="button"],
+		[type="submit"],
+		[type="reset"],
+		[type="checkbox"],
+		[type="radio"],
+		[type="range"],
+		[type="color"],
+		[type="file"]
+	),
+	textarea,
+	[contenteditable]:not([contenteditable="false"]) {
+		cursor: text;
 	}
 
 	button,
