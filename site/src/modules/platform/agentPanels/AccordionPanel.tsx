@@ -41,6 +41,8 @@ type AccordionPanelProps = {
 	unavailable?: string;
 	/** At the right of its header, before Pop out (an app's port, ...). */
 	extras?: React.ReactNode;
+	/** Controls right after the browser transport pill (the browser's lock), while the panel is open in place. */
+	transportControls?: React.ReactNode;
 	/** Just added: open it right away. */
 	initiallyOpen: boolean;
 	/** The page it shows: Pop out opens it in a browser window of its own. None: no Pop out. */
@@ -78,6 +80,7 @@ export const AccordionPanel: React.FC<AccordionPanelProps> = ({
 	handle,
 	unavailable,
 	extras,
+	transportControls,
 	initiallyOpen,
 	href,
 	fitToPage,
@@ -417,6 +420,11 @@ export const AccordionPanel: React.FC<AccordionPanelProps> = ({
 								))}
 							</div>
 						)}
+					{transportControls && open && available && !popup && (
+						<span className="relative z-[1] inline-flex shrink-0 items-center">
+							{transportControls}
+						</span>
+					)}
 					{unavailable && (
 						<Badge size="xs" className="relative z-[1]">
 							{unavailable}

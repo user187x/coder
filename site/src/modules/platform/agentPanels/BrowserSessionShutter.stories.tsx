@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { fn, userEvent, within } from "storybook/test";
+import { fn } from "storybook/test";
 import { BrowserSessionShutterView } from "./BrowserSessionShutter";
 
 const meta: Meta<typeof BrowserSessionShutterView> = {
@@ -9,9 +9,9 @@ const meta: Meta<typeof BrowserSessionShutterView> = {
 		status: { configured: true, locked: false, retryAfter: 0 },
 		busy: false,
 		error: null,
-		onReset: fn(),
+		setup: false,
+		onCancelSetup: fn(),
 		onSetAndLock: fn(),
-		onLock: fn(),
 		onUnlock: fn(),
 		children: (
 			<div className="flex flex-1 items-center justify-center bg-surface-tertiary">
@@ -39,10 +39,8 @@ export const RateLimited: Story = {
 	args: { status: { configured: true, locked: true, retryAfter: 120 } },
 };
 export const SettingPIN: Story = {
-	args: { status: { configured: false, locked: false, retryAfter: 0 } },
-	play: async ({ canvasElement }) => {
-		await userEvent.click(
-			within(canvasElement).getByRole("button", { name: "Lock browser" }),
-		);
+	args: {
+		status: { configured: false, locked: false, retryAfter: 0 },
+		setup: true,
 	},
 };

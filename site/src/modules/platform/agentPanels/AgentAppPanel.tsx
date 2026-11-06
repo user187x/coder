@@ -1,6 +1,11 @@
 import { GlobeIcon, SquareTerminalIcon } from "lucide-react";
-import { useMutation } from "react-query";
-import { closeWorkspaceBrowserSession } from "#/api/queries/browserSessions";
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "react-query";
+import {
+	browserLock,
+	changeWorkspaceBrowserLock,
+	closeWorkspaceBrowserSession,
+} from "#/api/queries/browserSessions";
 import type {
 	Workspace,
 	WorkspaceAgent,
@@ -14,7 +19,10 @@ import {
 	WorkspaceIframe,
 } from "#/modules/apps/WorkspaceAppFrame";
 import { AccordionPanel } from "./AccordionPanel";
-import { BrowserSessionShutter } from "./BrowserSessionShutter";
+import {
+	BrowserLockButton,
+	BrowserSessionShutterView,
+} from "./BrowserSessionShutter";
 
 /**
  * The apps that grow to fit their page. Not the desktop or code-server:
@@ -136,6 +144,16 @@ const PanelWithApp: React.FC<AgentAppPanelProps & { app: WorkspaceApp }> = ({
 	const closeSession = useMutation(
 		closeWorkspaceBrowserSession(link.href ?? "", sessionId),
 	);
+	const client = useQueryClient();
+	const lockStatus = useQuery({
+		...browserLock(link.href ?? ""),
+		enabled: browserSession && Boolean(link.href),
+	});
+	const lockChange = useMutation(
+		changeWorkspaceBrowserLock(client, link.href ?? ""),
+	);
+	const [lockSetup, setLockSetup] = useState(false);
+	const lockClosed = Boolean(lockStatus.data?.locked) || lockSetup;
 	return (
 		<AccordionPanel
 			id={id}
@@ -162,6 +180,20 @@ const PanelWithApp: React.FC<AgentAppPanelProps & { app: WorkspaceApp }> = ({
 			onRemove={onRemove}
 			kind={app.command ? "command" : external ? "external" : "app"}
 			slug={slug}
+			transportControls={
+				browserSession ? (
+					<BrowserLockButton
+						closed={lockClosed}
+						busy={lockChange.isPending || lockStatus.isLoading}
+						onClick={() => {
+							lockChange.reset();
+							if (lockStatus.data?.configured)
+								lockChange.mutate({ action: "pin-lock" });
+							else setLockSetup(true);
+						}}
+					/>
+				) : undefined
+			}
 			extras={
 				<>
 					{/* Platform: the port and protocol the app's service runs on, at the right, before Pop out. */}
@@ -186,13 +218,32 @@ const PanelWithApp: React.FC<AgentAppPanelProps & { app: WorkspaceApp }> = ({
 			}
 		>
 			{browserSession ? (
-				<BrowserSessionShutter baseUrl={link.href ?? ""}>
+				<BrowserSessionShutterView
+					status={lockStatus.data}
+					setup={lockSetup}
+					busy={lockChange.isPending}
+					error={lockChange.error}
+					onCancelSetup={() => setLockSetup(false)}
+					onSetAndLock={(pin) =>
+						lockChange.mutate(
+							{ action: "pin-set", pin },
+							{
+								onSuccess: () =>
+									lockChange.mutate(
+										{ action: "pin-lock" },
+										{ onSuccess: () => setLockSetup(false) },
+									),
+							},
+						)
+					}
+					onUnlock={(pin) => lockChange.mutate({ action: "pin-unlock", pin })}
+				>
 					<WorkspaceIframe
 						src={sessionUrl ? `${sessionUrl}&panel=1` : undefined}
 						title={name}
 						allow="clipboard-read; clipboard-write; autoplay"
 					/>
-				</BrowserSessionShutter>
+				</BrowserSessionShutterView>
 			) : (
 				<WorkspaceAppFrame
 					workspace={workspace}

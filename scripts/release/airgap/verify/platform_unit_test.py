@@ -1148,7 +1148,7 @@ class DisasterRecoveryTest(unittest.TestCase):
 
 
 class AgentNetHistoryTest(unittest.TestCase):
-    """The workspace page's network pill: the last 5 minutes of each agent's traffic, kept whether or not anyone looks."""
+    """The workspace page's network pill: up to 30 minutes of each agent's traffic, kept whether or not anyone looks."""
 
     def test_a_reading_after_another_is_a_rate(self):
         h = ui.AgentNetHistory()
@@ -1165,15 +1165,15 @@ class AgentNetHistoryTest(unittest.TestCase):
         self.assertEqual(r["a1"]["last"], {"at": t0 + 4000, "rx": 100, "tx": 50})
         self.assertEqual(r["a2"], {"samples": [], "last": None})
 
-    def test_keeps_five_minutes_and_no_rate_across_a_long_gap(self):
+    def test_keeps_thirty_minutes_and_no_rate_across_a_long_gap(self):
         h = ui.AgentNetHistory()
         t0 = 1_000_000_000_000
-        for i in range(200):                                     # every 2 s for 400 s
+        for i in range(1000):                                    # every 2 s for 2000 s
             h.add([("a1", "%d 0" % (i * 1000), t0 + i * 2000)], now_ms=t0 + i * 2000)
         samples = h.recent(["a1"])["a1"]["samples"]
-        self.assertTrue(all(s["t"] >= t0 + 398_000 - 300_000 for s in samples))
-        self.assertEqual(len(samples), 151)                  # 98 s to 398 s, both ends kept
-        h.add([("a1", "999999 0", t0 + 398_000 + 600_000)], now_ms=t0 + 398_000 + 600_000)  # 10 minutes later
+        self.assertTrue(all(s["t"] >= t0 + 1_998_000 - 1_800_000 for s in samples))
+        self.assertEqual(len(samples), 901)                  # 198 s to 1998 s, both ends kept
+        h.add([("a1", "999999 0", t0 + 1_998_000 + 1_860_000)], now_ms=t0 + 1_998_000 + 1_860_000)  # 31 minutes later
         self.assertEqual(h.recent(["a1"])["a1"]["samples"], [])
         h.add([("a1", "bad", t0)], now_ms=t0)                    # not a reading: ignored
 
