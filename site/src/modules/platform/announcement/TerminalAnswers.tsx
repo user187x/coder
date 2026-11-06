@@ -32,6 +32,37 @@ const NO_NO_TEXT = "ahh ahh ahh...";
 const NO_NO_LEAD_MS = 200;
 const NO_NO_PER_MS = 70;
 
+/** An unknown command's only answer, a shrug: shown, faded out after this long (ms), then gone. */
+const SHRUG_SHOWN_MS = 1200;
+const SHRUG_FADE_MS = 400;
+
+const NotFoundShrug: React.FC = () => {
+	const [gone, setGone] = useState(false);
+	useEffect(() => {
+		const timer = window.setTimeout(
+			() => setGone(true),
+			SHRUG_SHOWN_MS + SHRUG_FADE_MS,
+		);
+		return () => window.clearTimeout(timer);
+	}, []);
+	if (gone) {
+		return null;
+	}
+	return (
+		<div
+			role="img"
+			aria-label="shrug"
+			className="banner-scroll-out banner-scroll-shrug"
+			data-testid="announcement-scroll-notfound"
+			style={{
+				animation: `banner-scroll-fade-out ${SHRUG_FADE_MS}ms ease-in ${SHRUG_SHOWN_MS}ms 1 both`,
+			}}
+		>
+			🤷
+		</div>
+	);
+};
+
 /**
  * The terminal's answer to an rm: a picture printed inline, as image-capable terminals show one (imgcat), then "ahh
  * ahh ahh..." typed out a letter at a time (the banner's typewriter effect, announce-appear) - faded out after 1.5 s,
@@ -213,21 +244,13 @@ const IdentityResponse: React.FC = () => {
 /** The terminal's answers that print something (the effects run from BannerScrollView itself). */
 export const TerminalAnswer: React.FC<{
 	answer: Answer;
-	command: string;
 	time: React.ReactNode;
-}> = ({ answer, command, time }) => {
+}> = ({ answer, time }) => {
 	switch (answer) {
 		case "nono":
 			return <NoNoResponse />;
 		case "notfound":
-			return (
-				<div
-					className="banner-scroll-out"
-					data-testid="announcement-scroll-notfound"
-				>
-					bash: {command.split(" ")[0]}: command not found
-				</div>
-			);
+			return <NotFoundShrug />;
 		case "time":
 			return time;
 		case "date":

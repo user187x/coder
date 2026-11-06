@@ -206,6 +206,11 @@ html[data-animations="off"] .banner-scroll-cursor {
 
 /* The answer to any command but "skynet" (NoNoResponse): a picture printed inline, as image-capable terminals show
  * one, then "ahh ahh ahh..." typed out (the typewriter effect's announce-appear, staggered). */
+/* An unknown command's only answer, a passing shrug (TerminalAnswers). */
+.banner-scroll-shrug {
+	font-size: 1.4em;
+	line-height: 1.2;
+}
 .banner-scroll-nono {
 	margin: 4px 0 6px;
 	white-space: normal;

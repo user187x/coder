@@ -31,6 +31,7 @@ import {
 	BannerWorkspaceTerminal,
 	TerminalConnectorCable,
 } from "./TerminalConnector";
+import { completeCommand, terminalCommands } from "./terminalCompletion";
 import {
 	registerTerminalBanner,
 	resetConnector,
@@ -131,7 +132,8 @@ type BannerScrollViewProps = {
  * terminal would: Backspace, and Enter runs the line (TerminalAnswers): "ls" lists the user's workspaces with their
  * state and uptime, "date" says the date, "whoami" identifies the signed-in user, "ip" the dashboard's address, "clear" empties the screen, "time" prints the time
  * on a dot-matrix display (DotMatrixTime, ticking); anything starting with "rm" is answered with a wagging finger and
- * "ahh ahh ahh..." that fade away after 1.5 s (NoNoResponse); anything else is not found. The effects take the whole
+ * "ahh ahh ahh..." that fade away after 1.5 s (NoNoResponse); anything else gets a passing shrug. Tab completes
+ * the command being typed, as a shell does (terminalCompletion). The effects take the whole
  * screen (fullscreen.ts) while they last: typing "skynet" rolls the view up and fades the screen into Skynet; running
  * "rm -rf *" breaks the screen (BrokenScreenOverlay) until any key; "matrix" pours the Matrix's rain over it
  * (MatrixOverlay) until a key or the mouse; "/dev/mouse" turns the mouse pointer into sparks (sparksCursor) until any
@@ -204,6 +206,8 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 		leaveFullscreen();
 	}, []);
 	const [doom, setDoom] = useState(false);
+	/** The commands a Tab could not choose between, listed over the prompt until the next key. */
+	const [completions, setCompletions] = useState<string[] | null>(null);
 	const endDoom = useCallback(() => setDoom(false), []);
 
 	const place = () => {
@@ -221,6 +225,7 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 		setCat(0);
 		setFlash(0);
 		setEcho(false);
+		setCompletions(null);
 		// Closing the panel ends a game of DOOM: its frame unmounts with the panel, and it reopens to the terminal.
 		setDoom(false);
 		if (workspace) resetConnector();
@@ -297,7 +302,31 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 		if (event.ctrlKey || event.metaKey || event.altKey) {
 			return;
 		}
-		if (event.key === "Backspace") {
+		// Typing "skynet" (or completing it) starts it at once, without Enter.
+		const typeLine = (next: string) => {
+			if (next.trim().toLowerCase() === SKYNET) {
+				setTyped("");
+				enterFullscreen();
+				setSkynet(true);
+				close();
+			} else {
+				setTyped(next);
+			}
+		};
+		// Tab completes only a started command: at an empty prompt (and with Shift) it moves the focus on, so the
+		// keyboard can always leave the panel.
+		if (event.key === "Tab" && (event.shiftKey || !typed.trim())) {
+			return;
+		}
+		setCompletions(null);
+		if (event.key === "Tab") {
+			const done = completeCommand(
+				typed,
+				terminalCommands(location.pathname === "/workspaces"),
+			);
+			typeLine(done.typed);
+			setCompletions(done.candidates ?? null);
+		} else if (event.key === "Backspace") {
 			setTyped((t) => t.slice(0, -1));
 		} else if (event.key === "Enter") {
 			const command = typed.trim().replace(/\s+/g, " ");
@@ -346,15 +375,7 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 				window.setTimeout(startSparks, 0);
 			}
 		} else if (event.key.length === 1) {
-			const next = (typed + event.key).slice(0, MAX_TYPED);
-			if (next.trim().toLowerCase() === SKYNET) {
-				setTyped("");
-				enterFullscreen();
-				setSkynet(true);
-				close();
-			} else {
-				setTyped(next);
-			}
+			typeLine((typed + event.key).slice(0, MAX_TYPED));
 		} else {
 			return;
 		}
@@ -527,13 +548,20 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 											<i>root@platform</i>:<em>~</em># {command}
 											<TerminalAnswer
 												answer={answer}
-												command={command}
 												time={<DotMatrixTime />}
 											/>
 										</div>
 									))}
 									{cat > 0 && <PromptCat key={cat} onDone={() => setCat(0)} />}
 									{echo && <PromptEcho />}
+									{completions && (
+										<div
+											className="banner-scroll-out banner-scroll-completions"
+											data-testid="announcement-scroll-completions"
+										>
+											{completions.join("  ")}
+										</div>
+									)}
 									<div
 										className="banner-scroll-prompt"
 										data-testid="announcement-scroll-prompt"

@@ -156,6 +156,25 @@ describe("BannerScrollView", () => {
 		expect(screen.queryByRole("region", { name: "DOOM" })).toBeNull();
 	});
 
+	it("completes the command being typed on Tab, listing the choices when it cannot", () => {
+		render(<Harness />);
+		fireEvent.click(screen.getByTestId("announcement-scroll-toggle"));
+		const view = screen.getByTestId("announcement-scroll-view");
+		const prompt = () =>
+			screen.getByTestId("announcement-scroll-prompt").textContent;
+		type("ma");
+		fireEvent.keyDown(view, { key: "Tab" });
+		expect(prompt()).toContain("# matrix");
+		for (let i = 0; i < 6; i++) fireEvent.keyDown(view, { key: "Backspace" });
+		type("wh");
+		fireEvent.keyDown(view, { key: "Tab" });
+		expect(prompt()).toContain("# who");
+		fireEvent.keyDown(view, { key: "Tab" });
+		expect(
+			screen.getByTestId("announcement-scroll-completions"),
+		).toHaveTextContent("who whoami");
+	});
+
 	const type = (text: string) => {
 		const view = screen.getByTestId("announcement-scroll-view");
 		for (const key of text) {
@@ -211,10 +230,10 @@ describe("BannerScrollView", () => {
 		run("data");
 		expect(screen.getAllByTestId("announcement-scroll-date")).toHaveLength(2);
 		run("cowsay hi");
-		expect(
-			screen.getByTestId("announcement-scroll-notfound"),
-		).toHaveTextContent("bash: cowsay: command not found");
+		expect(screen.getByRole("img", { name: "shrug" })).toHaveTextContent("🤷");
 		expect(screen.queryByTestId("announcement-scroll-nono")).toBeNull();
+		act(() => vi.advanceTimersByTime(1700));
+		expect(screen.queryByRole("img", { name: "shrug" })).toBeNull();
 		run("clear");
 		expect(view.querySelectorAll(".banner-scroll-prompt")).toHaveLength(1);
 		expect(view.querySelector("h2")).toBeNull();

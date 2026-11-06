@@ -83,7 +83,7 @@ describe("TerminalAnswers", () => {
 		});
 		renderComponent(
 			<QueryClientProvider client={new QueryClient()}>
-				<TerminalAnswer answer="ls" command="ls" time={null} />
+				<TerminalAnswer answer="ls" time={null} />
 			</QueryClientProvider>,
 		);
 		const out = await screen.findByTestId("announcement-scroll-ls");
@@ -106,7 +106,7 @@ describe("TerminalAnswers", () => {
 		});
 		renderComponent(
 			<QueryClientProvider client={new QueryClient()}>
-				<TerminalAnswer answer="ip" command="ip" time={null} />
+				<TerminalAnswer answer="ip" time={null} />
 			</QueryClientProvider>,
 		);
 		const out = await screen.findByTestId("announcement-scroll-ip");
