@@ -24,7 +24,6 @@ import { InfoTooltip } from "#/components/InfoTooltip/InfoTooltip";
 import { Margins } from "#/components/Margins/Margins";
 import {
 	PageHeader,
-	PageHeaderSubtitle,
 	PageHeaderTitle,
 } from "#/components/PageHeader/PageHeader";
 import { Skeleton } from "#/components/Skeleton/Skeleton";
@@ -347,10 +346,13 @@ export const TemplatesPageView: React.FC<TemplatesPageViewProps> = ({
 				<CompatibilityModeAlert templates={compatibilityModeTemplates} />
 			)}
 
+			{/* The announcement banner names the section, so the heading is for assistive technology only. */}
 			<PageHeader
+				className="py-4"
 				actions={
-					canCreateTemplates && (
-						<div className="flex flex-wrap gap-2">
+					<div className="flex flex-wrap items-center gap-2">
+						<TemplateHelpPopover />
+						{canCreateTemplates && (
 							<NavbarAction>
 								<Button asChild size="lg">
 									<RouterLink
@@ -366,19 +368,11 @@ export const TemplatesPageView: React.FC<TemplatesPageViewProps> = ({
 									</RouterLink>
 								</Button>
 							</NavbarAction>
-						</div>
-					)
+						)}
+					</div>
 				}
 			>
-				<PageHeaderTitle>
-					<div className="flex flex-row gap-2 items-center">
-						Templates
-						<TemplateHelpPopover />
-					</div>
-				</PageHeaderTitle>
-				<PageHeaderSubtitle>
-					Select a template to create a workspace.
-				</PageHeaderSubtitle>
+				<PageHeaderTitle className="sr-only">Templates</PageHeaderTitle>
 			</PageHeader>
 
 			<TemplatesFilter

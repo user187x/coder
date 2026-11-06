@@ -48,6 +48,16 @@ func clean(t *testing.T, payload any) (platformbanner.Fields, error) {
 	return platformbanner.Clean(raw)
 }
 
+func TestCleanIntroductions(t *testing.T) {
+	t.Parallel()
+	f, err := clean(t, map[string]any{"message": "hello"})
+	require.NoError(t, err)
+	require.False(t, f.Introductions, "settings saved before it existed: off")
+	f, err = clean(t, map[string]any{"message": "hello", "introductions": true})
+	require.NoError(t, err)
+	require.True(t, f.Introductions)
+}
+
 func TestCleanFillsAndChecks(t *testing.T) {
 	t.Parallel()
 	f, err := clean(t, map[string]any{"message": "  hello  ", "speed": "fast", "unknown": 1, "id": "ignored"})
@@ -72,6 +82,7 @@ func TestCleanFillsAndChecks(t *testing.T) {
 		{map[string]any{"message": "x", "loopText": "true"}, "loopText must be true or false."},
 		{map[string]any{"message": 5}, "message must be text."},
 		{map[string]any{"title": strings.Repeat("é", 81), "message": "x"}, "title is too long (max 80 characters)."},
+		{map[string]any{"message": "x", "introductions": "yes"}, "introductions must be true or false."},
 		{map[string]any{"message": "x", "dismissible": "yes"}, "dismissible must be true or false."},
 		{map[string]any{"message": "x", "level": "loud"}, "Style must be one of: info, success, warning, critical."},
 		{map[string]any{"message": "x", "effect": nil}, "Text effect must be one of: none, typewriter, fade, rise, wave, bounce, flip, shake, pulse, rainbow, starwars, pewpew, flap, shimmer, kitt, aurora, neon, chrome, focus, ember, spectrum, anaglyph, heartbeat, softblur, voltage."},

@@ -33,6 +33,7 @@ import {
 	outlineColor,
 	parseColors,
 } from "./bannerTokens";
+import { useSectionSplash } from "./sectionIntroductions";
 import { useAnnouncementMotion } from "./useAnnouncementMotion";
 import "./bannerLcd.css";
 import { bannerAlpha, withBannerAlpha } from "./bannerAlpha";
@@ -214,6 +215,9 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 	onDismiss,
 }) => {
 	const motion = useAnnouncementMotion(banner.animationsDisabled);
+	const introductions = banner.introductions === true && placement !== "login";
+	const sectionSplash = useSectionSplash();
+	const splash = introductions ? sectionSplash : null;
 	const queryClient = useQueryClient();
 	// Receipts (who viewed it, Confirm): not on the sign-in page, and only when
 	// the announcement asks for them (a greeting need not).
@@ -332,6 +336,25 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 								"max-h-[36px] overflow-hidden [overflow-wrap:anywhere]",
 						)}
 					/>
+					{/* The section's name over whatever the banner shows, on a blurred pill. */}
+					{introductions && (
+						<span
+							aria-live="polite"
+							data-testid="section-splash"
+							className={cn(
+								"pointer-events-none absolute inset-0 flex items-center justify-center px-3",
+								motion.effects &&
+									"transition-opacity duration-300 motion-reduce:transition-none",
+								splash ? "opacity-100" : "opacity-0",
+							)}
+						>
+							{splash && (
+								<span className="max-w-full truncate rounded-full bg-black/55 px-4 font-semibold text-white [text-shadow:0_0_2px_rgb(0_0_0/0.9),0_0_6px_rgb(0_0_0/0.6)] supports-[backdrop-filter]:bg-black/25 supports-[backdrop-filter]:backdrop-blur-md">
+									{splash}
+								</span>
+							)}
+						</span>
+					)}
 				</BannerLcd>
 				{/* Scroll mode: the whole message at once, without waiting for its effect - at the right, by the close */}
 				{placement !== "login" && (

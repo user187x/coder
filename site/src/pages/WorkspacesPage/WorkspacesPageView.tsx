@@ -130,28 +130,28 @@ export const WorkspacesPageView: React.FC<WorkspacesPageViewProps> = ({
 		// Platform: relative for the Cloud Drive's ropes over the table.
 		<Margins className="relative pb-12" data-cloud-drive-area>
 			{/* Platform: Workspaces | Templates | Images. */}
+			{/* The announcement banner names the section, so the heading is for assistive technology only. */}
 			<PageHeader
+				className="py-4"
 				actions={
-					canCreateWorkspace && (
-						<NavbarAction>
-							<WorkspacesButton
-								templates={templates}
-								templatesFetchStatus={templatesFetchStatus}
-							>
-								{/* Platform: the plus glyph says "new" */}
-								<MonitorIcon aria-hidden />
-								Workspace
-							</WorkspacesButton>
-						</NavbarAction>
-					)
+					<>
+						<WorkspaceHelpPopover />
+						{canCreateWorkspace && (
+							<NavbarAction>
+								<WorkspacesButton
+									templates={templates}
+									templatesFetchStatus={templatesFetchStatus}
+								>
+									{/* Platform: the plus glyph says "new" */}
+									<MonitorIcon aria-hidden />
+									Workspace
+								</WorkspacesButton>
+							</NavbarAction>
+						)}
+					</>
 				}
 			>
-				<PageHeaderTitle>
-					<div className="flex flex-row gap-2 items-center">
-						<span>Workspaces</span>
-						<WorkspaceHelpPopover />
-					</div>
-				</PageHeaderTitle>
+				<PageHeaderTitle className="sr-only">Workspaces</PageHeaderTitle>
 			</PageHeader>
 
 			{hasError(error) && !isApiValidationError(error) && (

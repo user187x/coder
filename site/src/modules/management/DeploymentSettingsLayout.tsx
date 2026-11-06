@@ -1,15 +1,19 @@
 import { SettingsIcon } from "lucide-react";
 import { Suspense, useId, useState } from "react";
+import { useQuery } from "react-query";
 import { Navigate, Outlet, useLocation } from "react-router";
+import { banner as bannerQuery } from "#/api/queries/platform";
 import {
 	BreadcrumbItem,
 	BreadcrumbList,
 } from "#/components/Breadcrumb/Breadcrumb";
 import { PageLoader } from "#/components/Loader/Loader";
+import { isEmbeddedFrame } from "#/contexts/platformBoot";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { adminCategory } from "#/modules/dashboard/Navbar/adminQuickLinks";
 import { canViewDeploymentSettings } from "#/modules/permissions";
 import { RequirePermission } from "#/modules/permissions/RequirePermission";
+import { useAnnounceSection } from "#/modules/platform/announcement/sectionIntroductions";
 import { AdminBreadcrumb } from "./AdminBreadcrumb";
 import { AdminCategoryMenu } from "./AdminCategoryMenu";
 import { CategoryBreadcrumbButton } from "./CategoryBreadcrumbButton";
@@ -20,6 +24,13 @@ const DeploymentSettingsLayout: React.FC = () => {
 	const location = useLocation();
 	const sidebarId = useId();
 	const [sidebarOpen, setSidebarOpen] = useState(true);
+	const { data: introductions = false } = useQuery({
+		...bannerQuery(false),
+		enabled: !isEmbeddedFrame(),
+		select: (banner) => banner.introductions === true,
+	});
+	const category = adminCategory(location.pathname);
+	useAnnounceSection(category, introductions);
 
 	if (location.pathname === "/deployment") {
 		return (
@@ -38,7 +49,6 @@ const DeploymentSettingsLayout: React.FC = () => {
 	// this page must be visible if you can see any of these. The AI settings
 	// pages render in this layout too and check their own permissions, and so
 	// do the Health pages (the health report).
-	const category = adminCategory(location.pathname);
 	const canViewHealth = permissions.viewDebugInfo;
 	const canViewDeploymentSettingsPage =
 		(["images", "templates", "workspaces"].includes(category?.id ?? "") &&

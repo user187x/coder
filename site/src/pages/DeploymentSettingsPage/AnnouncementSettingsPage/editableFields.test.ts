@@ -41,6 +41,7 @@ describe("editableFields", () => {
 			markdown: false,
 			align: "center",
 			outline: false,
+			introductions: false,
 			picture: "",
 			pictureFit: "span",
 			pictureEffect: "none",

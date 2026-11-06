@@ -33,6 +33,7 @@ import {
 import { pageTitle } from "#/utils/page";
 import { Acknowledgements } from "./Acknowledgements";
 import { BannerEditor, MESSAGE_MAX_LENGTH } from "./BannerEditor";
+import { IntroductionCard } from "./IntroductionCard";
 import { NotificationComposer } from "./NotificationComposer";
 
 // The crawl's pace before it had a slider of its own (announcements with only a speed).
@@ -68,6 +69,7 @@ const FIELDS = [
 	"markdown",
 	"align",
 	"outline",
+	"introductions",
 	"picture",
 	"pictureFit",
 	"pictureEffect",
@@ -105,6 +107,7 @@ const fieldsOf = ({ id: _id, ...banner }: Banner): BannerFields => {
 		markdown: banner.markdown ?? true,
 		align: banner.align ?? "center",
 		outline: banner.outline ?? false,
+		introductions: banner.introductions ?? false,
 		picture: banner.picture ?? "",
 		pictureFit: banner.pictureFit ?? "span",
 		pictureEffect: banner.pictureEffect ?? "none",
@@ -465,6 +468,25 @@ const AnnouncementEditor: React.FC<{ state: BannerState }> = ({ state }) => {
 					setDraft(null);
 					setProblem(null);
 				}}
+			/>
+
+			<IntroductionCard
+				checked={published.introductions === true}
+				disabled={busy}
+				onCheckedChange={(introductions) =>
+					publish.mutate(
+						{ ...published, introductions },
+						{
+							onSuccess: () => {
+								setProblem(null);
+								toast.success(
+									`Section introductions ${introductions ? "on" : "off"}.`,
+								);
+							},
+							onError,
+						},
+					)
+				}
 			/>
 
 			<div className="flex flex-col gap-1 text-sm text-content-secondary">

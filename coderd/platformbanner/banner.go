@@ -63,6 +63,9 @@ type Fields struct {
 	Align    string `json:"align"`
 	// The message outlined in a contrasting color, legible over any picture.
 	Outline bool `json:"outline"`
+	// Introductions: the banner briefly names the admin settings section the
+	// user navigates to, and the section pages drop their big heading.
+	Introductions bool `json:"introductions"`
 	// The banner's background picture (a same-site path or an http(s) URL)
 	// and how it fills the banner.
 	Picture       string `json:"picture"`
@@ -226,6 +229,7 @@ func Clean(raw []byte) (Fields, error) {
 		{"receipts", &out.Receipts},
 		{"markdown", &out.Markdown},
 		{"outline", &out.Outline},
+		{"introductions", &out.Introductions},
 	} {
 		if v, ok := payload[b.key]; ok {
 			var value bool

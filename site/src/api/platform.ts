@@ -1633,6 +1633,8 @@ export type Banner = {
 	 * off.
 	 */
 	outline?: boolean;
+	/** Section introductions: the banner names the admin section being opened, and its page drops the big heading. Missing: off. */
+	introductions?: boolean;
 	/** The banner's background picture (a same-site path or an http(s) URL); "" or missing: none. */
 	picture?: string;
 	/** How the background picture fills the banner's screen; missing: "span". */

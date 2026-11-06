@@ -53,6 +53,16 @@ describe("WorkspacesPageView", () => {
 			.spyOn(PlatformAPI, "getWorkspaceTunnels")
 			.mockResolvedValue({ tunnels: [] }),
 	);
+	it("has an h1 for the outline and shows no visible title text of its own", async () => {
+		renderWithAuth(<WorkspacesPageView {...defaultProps} />);
+
+		const heading = await screen.findByRole("heading", { level: 1 });
+		expect(heading).toHaveTextContent("Workspaces");
+		expect(
+			screen.getByRole("button", { name: "Workspace" }),
+		).toBeInTheDocument();
+	});
+
 	it("hides the New workspace button and explains the missing permission", async () => {
 		renderWithAuth(
 			<WorkspacesPageView {...defaultProps} canCreateWorkspace={false} />,
