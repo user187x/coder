@@ -50,9 +50,11 @@ export const OpenPicker: Story = {
 		});
 		await userEvent.click(button);
 		await expect(button).toHaveAttribute("aria-expanded", "true");
-		await expect(
-			await screen.findByRole("menuitem", { name: /Upload image/ }),
-		).toBeVisible();
+		// The menu fades in: it is visible once the animation leaves opacity 0.
+		const upload = await screen.findByRole("menuitem", {
+			name: /Upload image/,
+		});
+		await waitFor(() => expect(upload).toBeVisible());
 		await userEvent.click(
 			await screen.findByRole("menuitem", { name: /Emoji or icon/ }),
 		);
