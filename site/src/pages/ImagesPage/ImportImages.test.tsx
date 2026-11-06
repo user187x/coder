@@ -4,7 +4,7 @@ import { MemoryRouter } from "react-router";
 import { ImagesAPI, type Library } from "#/api/images";
 import { renderComponent } from "#/testHelpers/renderHelpers";
 import { IsoLibrary } from "./FileLibrary";
-import { ImagesInUse } from "./ImagesInUse";
+import { ImagesInUse, ImagesOnNodes } from "./ImagesInUse";
 import { nameFrom } from "./ImportImageDialog";
 
 const withQueries = (node: React.ReactNode) =>
@@ -129,5 +129,38 @@ describe("IsoLibrary", () => {
 		expect(del).not.toHaveBeenCalled();
 		fireEvent.click(screen.getByRole("button", { name: "Delete?" }));
 		await waitFor(() => expect(del).toHaveBeenCalledWith("isos", "ubuntu.iso"));
+	});
+});
+
+describe("ImagesOnNodes", () => {
+	afterEach(() => vi.restoreAllMocks());
+
+	it("cleans up a digest-only image by its digest while showing the tag its pods pin", async () => {
+		const digest = `docker.io/coturn/coturn@sha256:${"b".repeat(64)}`;
+		vi.spyOn(ImagesAPI, "onNodes").mockResolvedValue({
+			images: [
+				{
+					image: digest,
+					tag: "docker.io/coturn/coturn:4.18.0-r0",
+					names: [],
+					sizeBytes: 51_000_000,
+					nodes: ["n1"],
+					running: false,
+					entry: null,
+					purgeBlocked: "",
+				},
+			],
+		});
+		const preview = vi
+			.spyOn(ImagesAPI, "previewNodeImageCleanup")
+			.mockReturnValue(new Promise(() => {}));
+		withQueries(<ImagesOnNodes canEdit />);
+		fireEvent.click(
+			await screen.findByRole("checkbox", {
+				name: "Select docker.io/coturn/coturn:4.18.0-r0 for cleanup",
+			}),
+		);
+		fireEvent.click(screen.getByRole("button", { name: "Review cleanup (1)" }));
+		await waitFor(() => expect(preview).toHaveBeenCalledWith([digest]));
 	});
 });

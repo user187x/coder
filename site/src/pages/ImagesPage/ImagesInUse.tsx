@@ -248,7 +248,7 @@ export const ImagesOnNodes: React.FC<{ canEdit: boolean }> = ({ canEdit }) => {
 								<TableCell className="break-all font-mono text-xs">
 									{canEdit && (
 										<Checkbox
-											aria-label={`Select ${i.image} for cleanup`}
+											aria-label={`Select ${i.tag ?? i.image} for cleanup`}
 											checked={chosen.includes(i.image)}
 											disabled={i.purgeBlocked !== ""}
 											title={i.purgeBlocked || undefined}
@@ -262,7 +262,14 @@ export const ImagesOnNodes: React.FC<{ canEdit: boolean }> = ({ canEdit }) => {
 											}
 										/>
 									)}
-									<span title={i.names.join("\n") || undefined}>{i.image}</span>
+									<span
+										title={
+											[...(i.tag ? [i.image] : []), ...i.names].join("\n") ||
+											undefined
+										}
+									>
+										{i.tag ?? i.image}
+									</span>
 									<OursTag catalog={catalog} image={i.image} />
 									{i.running && (
 										<Badge size="xs" className="ml-2 align-middle">
@@ -271,7 +278,7 @@ export const ImagesOnNodes: React.FC<{ canEdit: boolean }> = ({ canEdit }) => {
 									)}
 								</TableCell>
 								<TableCell>
-									<ImageVersionBadge version={imageVersion(i.image)} />
+									<ImageVersionBadge version={imageVersion(i.tag ?? i.image)} />
 								</TableCell>
 								<TableCell className="text-sm tabular-nums text-content-secondary">
 									{formatSize(i.sizeBytes)}

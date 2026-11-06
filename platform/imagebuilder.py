@@ -1600,7 +1600,8 @@ def node_image_groups():
     by_name = {nodeimagepurge.normalize(n): g for g in groups.values() for n in g["names"]}
     by_node = {(node, nodeimagepurge.normalize(n)): g for g in groups.values() for node in g["nodes"] for n in g["names"]}
     status, pods = kube_call("GET", "/api/v1/pods?fieldSelector=" + urllib.parse.quote("status.phase=Running"))
-    for pod in (pods.get("items") or []) if status == 200 and isinstance(pods, dict) else []:
+    running = (pods.get("items") or []) if status == 200 and isinstance(pods, dict) else []
+    for pod in running:
         node = (pod.get("spec") or {}).get("nodeName")
         st = pod.get("status") or {}
         workspace = "com.coder.workspace.id" in ((pod.get("metadata") or {}).get("labels") or {})
@@ -1646,6 +1647,12 @@ def node_image_groups():
             refs = running_by_digest.get(nodeimagepurge.normalize(name))
             if refs:
                 g.setdefault("workspaceRefs", set()).update(refs)
+    # An image pinned by tag and digest is cached by its digest alone: its pods' specs still say which version it is.
+    tags = nodeimagepurge.spec_tags(running)
+    for g in groups.values():
+        found = {tags[key] for key in map(nodeimagepurge.normalize, g["names"]) if key in tags}
+        if found:
+            g["tags"] = found
     return list(groups.values())
 
 
@@ -2624,17 +2631,21 @@ def images_on_nodes():
         for ref in active or [min(g["names"], key=lambda r: ("@" in r, r))]:
             row = running_rows.get(ref) if active else None
             if row is None:
-                row = {"image": ref, "names": set(), "sizeBytes": 0, "nodes": set(), "running": bool(active)}
+                row = {"image": ref, "names": set(), "tags": set(), "sizeBytes": 0, "nodes": set(), "running": bool(active)}
                 out.append(row)
                 if active:
                     running_rows[ref] = row
             row["names"].update(g["names"])
+            row["tags"].update(g.get("tags") or ())
             row["nodes"].update(g["nodes"])
             row["sizeBytes"] = max(row["sizeBytes"], g["sizeBytes"])
     for row in out:
         ref = row["image"]
         row["nodes"] = sorted(row["nodes"])
         row["names"] = sorted(row["names"] - {ref}, key=lambda r: ("@" in r, r))
+        # The version a digest-only row runs as (its pods' tag), for display; row["image"] stays its identity.
+        tags = row.pop("tags")
+        row["tag"] = min(tags) if "@" in ref and tags else None
         row["entry"] = next((entries[n] for n in [ref, *row["names"]] if n in entries),
                             entries.get(in_builder_registry(ref)))
     out.sort(key=lambda x: (not x["running"], x["entry"] is None, x["image"]))

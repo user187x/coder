@@ -15,6 +15,21 @@ WORKLOADS = ['/api/v1/pods', '/apis/apps/v1/deployments', '/apis/apps/v1/statefu
 
 
 
+def spec_tags(pods):
+    """{repo@digest: repo:tag} from pod specs that pin an image by tag and digest (repo:tag@sha256:...). The runtime
+    then caches it by digest alone, so the tag shows only in the spec."""
+    out = {}
+    for pod in pods or []:
+        spec = pod.get("spec") or {}
+        for container in (spec.get("containers") or []) + (spec.get("initContainers") or []):
+            name, _, digest = (container.get("image") or "").partition("@")
+            repo, colon, tag = name.rpartition(":")
+            if not digest.startswith("sha256:") or not colon or not tag or "/" in tag:
+                continue
+            out[normalize(repo + "@" + digest)] = normalize(name)
+    return out
+
+
 def normalize(ref):
     for prefix in ('docker://', 'docker-pullable://', 'containerd://', 'cri-o://'):
         ref = ref.removeprefix(prefix)

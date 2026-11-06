@@ -1817,6 +1817,26 @@ class NodeImagesTest(unittest.TestCase):
         pods.append(pod("n3", old, old, unused_digest))
         self.assertTrue(inventory()[old]["running"])
 
+    def test_digest_only_cache_shows_the_tag_its_pods_pin(self):
+        # coturn pinned as repo:tag@digest: the runtime keeps only the digest, so the version comes from the pod spec.
+        digest = "sha256:" + "b" * 64
+        nodes = {"items": [{"metadata": {"name": "n1"}, "status": {"images": [
+            {"names": ["docker.io/coturn/coturn@" + digest], "sizeBytes": 51000000}]}}]}
+        pods = {"items": [{"spec": {"nodeName": "n1", "containers": [
+            {"name": "turn", "image": "coturn/coturn:4.18.0-r0@" + digest}]},
+            "status": {"containerStatuses": [{"name": "turn", "image": "sha256:" + "c" * 64,
+                                              "imageID": "docker.io/coturn/coturn@" + digest}]}}]}
+        calls = lambda method, path, *a, **k: (200, nodes if path == "/api/v1/nodes" else pods)
+        with mock.patch.object(ib, "kube_call", calls), mock.patch.object(ib, "STORE") as store:
+            store.images.return_value = []
+            (row,) = ib.images_on_nodes()
+        self.assertEqual(row["image"], "docker.io/coturn/coturn@" + digest)
+        self.assertEqual(row["tag"], "docker.io/coturn/coturn:4.18.0-r0")
+        pods["items"].clear()
+        with mock.patch.object(ib, "kube_call", calls), mock.patch.object(ib, "STORE") as store:
+            store.images.return_value = []
+            self.assertIsNone(ib.images_on_nodes()[0]["tag"])
+
     def test_running_pods_images_count_as_on_their_node(self):
         nodes = {"items": [{"metadata": {"name": "n1"}, "status": {"images": [
             {"names": ["ghcr.io/o/big:1", "ghcr.io/o/big@sha256:aa"], "sizeBytes": 5000}]}}]}

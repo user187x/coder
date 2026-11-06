@@ -415,6 +415,8 @@ type ImageOnNode = {
 	image: string;
 	/** Its other names on the nodes (digests). */
 	names: string[];
+	/** The tag its pods pin a digest-only image by (repo:tag), for display; null when the nodes know a tag. */
+	tag?: string | null;
 	sizeBytes: number;
 	nodes: string[];
 	/** A workspace runs it now. */
