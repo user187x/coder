@@ -42,6 +42,32 @@ const meta: Meta<typeof AdminNotesPanel> = {
 export default meta;
 type Story = StoryObj<typeof AdminNotesPanel>;
 export const Rows: Story = {};
+export const ManySharedNotes: Story = {
+	decorators: [
+		(Story) => (
+			<div className="settings-admin-notes-inner h-64">
+				<Story />
+			</div>
+		),
+	],
+	parameters: {
+		queries: [
+			{ key: organizations().queryKey, data: [MockOrganization] },
+			{
+				key: adminNotesKey(MockOrganization.id),
+				data: {
+					notes: Array.from({ length: 8 }, (_, index) => ({
+						...MockAdminNote,
+						id: `shared-${index}`,
+						text: `Shared backlog note ${index + 1}`,
+						shared: true,
+						unread: true,
+					})),
+				},
+			},
+		],
+	},
+};
 export const Editing: Story = {
 	play: async ({ canvasElement }) => {
 		await userEvent.click(

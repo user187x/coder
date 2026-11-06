@@ -94,7 +94,7 @@ export const AdminNotesPanel = ({
 			aria-label="Admin notes"
 			onKeyDown={(event) => event.stopPropagation()}
 		>
-			<div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto scrollbar-none p-3">
+			<div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3">
 				<div className="flex shrink-0 items-center justify-between gap-2">
 					<strong className="text-sm">Admin notes</strong>
 					<div className="flex gap-1">
@@ -222,7 +222,7 @@ export const AdminNotesPanel = ({
 						)}
 						{remove.error && <ErrorAlert error={remove.error} />}
 						{query.data && (
-							<div className="overflow-hidden rounded-lg border border-solid border-border">
+							<div className="shrink-0 overflow-hidden rounded-lg border border-solid border-border">
 								<Table aria-label="Admin notes">
 									<TableHeader>
 										<TableRow>

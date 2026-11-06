@@ -122,7 +122,14 @@ export const AdminNotesTray = ({
 							: `translateY(clamp(${-placement.top}px, calc(${railViewport - placement.top}px - 100%), 0px))`,
 				}}
 			>
-				<div className="settings-admin-notes-inner">
+				{/* The panel only caps its own height; its notes scroll once the inner box is capped too (less its 8px padding and border). */}
+				<div
+					className="settings-admin-notes-inner"
+					style={{
+						maxHeight:
+							railViewport === undefined ? undefined : railViewport - 18,
+					}}
+				>
 					<AdminNotesPanel enabled={expanded && !hidden} onClose={toggle} />
 				</div>
 			</div>
