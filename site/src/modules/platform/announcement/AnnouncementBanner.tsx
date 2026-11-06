@@ -334,6 +334,11 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 							compact &&
 								!inNavbar &&
 								"max-h-[36px] overflow-hidden [overflow-wrap:anywhere]",
+							// The section splash replaces the message while it shows: none of it peeks out beside the pill.
+							introductions &&
+								motion.effects &&
+								"transition-opacity duration-300 motion-reduce:transition-none",
+							splash && "opacity-0",
 						)}
 					/>
 					{/* The section's name over whatever the banner shows, on a blurred pill. */}
