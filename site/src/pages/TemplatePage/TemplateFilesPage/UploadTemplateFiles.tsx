@@ -183,7 +183,7 @@ export const UploadTemplateFiles: React.FC<UploadTemplateFilesProps> = ({
 								<Button
 									size="icon"
 									variant="subtle"
-									className="size-6"
+									className="size-6 rounded-[7px] bg-content-destructive text-white hover:bg-content-destructive/85 hover:text-white"
 									aria-label={`Leave out ${file.name}`}
 									disabled={saving}
 									onClick={() => setFiles((f) => f.filter((x) => x !== file))}

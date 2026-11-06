@@ -30,7 +30,9 @@ export const StatusIndicator: React.FC<{
 	compact?: boolean;
 	/** The drive transfers now (uploading or downloading): the green light flashes like an LED. */
 	active?: boolean;
-}> = ({ status, compact = false, active = false }) => {
+	/** The settings page's headline status: a larger pill with a glowing light. */
+	prominent?: boolean;
+}> = ({ status, compact = false, active = false, prominent = false }) => {
 	const state =
 		status?.connected === true
 			? "connected"
@@ -45,7 +47,12 @@ export const StatusIndicator: React.FC<{
 				: "Checking…";
 	return (
 		<span
-			className="inline-flex items-center gap-1.5 text-xs text-content-secondary"
+			className={cn(
+				"inline-flex items-center gap-1.5",
+				prominent
+					? "rounded-full border border-solid border-border bg-surface-secondary px-3 py-1 text-sm font-medium text-content-primary"
+					: "text-xs text-content-secondary",
+			)}
 			data-testid="cloud-drive-status"
 			data-state={state}
 			title={
@@ -62,6 +69,13 @@ export const StatusIndicator: React.FC<{
 				data-active={(active && state === "connected") || undefined}
 				className={cn(
 					"size-2 rounded-full",
+					prominent && "size-2.5 shadow-[0_0_6px_currentColor]",
+					prominent &&
+						(state === "connected"
+							? "text-content-success"
+							: state === "disconnected"
+								? "text-content-destructive"
+								: "text-content-secondary"),
 					active && state === "connected" && "cd-led-active",
 					state === "connected"
 						? "bg-content-success"
@@ -126,13 +140,8 @@ export const CloudDriveSettings: React.FC<{ settings: Settings }> = ({
 				<div className="flex items-center justify-between gap-3">
 					<h3 className="m-0 text-base font-semibold">Where your files are</h3>
 					<div className="flex items-center gap-3">
-						<StatusIndicator status={settings.status} />
-						<Button
-							size="sm"
-							variant="outline"
-							disabled={check.isPending}
-							onClick={() => check.mutate()}
-						>
+						<StatusIndicator status={settings.status} prominent />
+						<Button disabled={check.isPending} onClick={() => check.mutate()}>
 							<Spinner loading={check.isPending} />
 							Check now
 						</Button>
