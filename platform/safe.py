@@ -681,7 +681,18 @@ def links_once():
                 shared=wid in shared, by="watcher")
             push_soon(pod["metadata"]["name"], wid, want)
     sources_once()
-    publish_state(shared)
+    grants = drivepeers.active(strict=True)
+    publish_state(shared, grants)
+    for pod in linked:
+        labels = pod["metadata"].get("labels") or {}
+        wid = labels.get("com.coder.workspace.id")
+        owner = labels.get("com.coder.user.id")
+        if not owner or not wid:
+            continue
+        peers = grants.get(owner, [])
+        allowed = [] if wid in shared else [
+            m for m in peers if not m.get("workspaceId") or m["workspaceId"] == wid]
+        replace_pod_with_revoked_mount(pod, allowed)
 
 
 def publish_now():
@@ -723,14 +734,14 @@ def item_kind(owner_id, path, fresh=False):
     return kind
 
 
-def peer_mounts():
+def peer_mounts(grants=None):
     """{user id: [{id, owner, name, claim, readOnly, kind, path, item}]}: the Cloud Drives - or folders and files of
     them - shared with each user (drivepeers), by the volume their owner's own workspaces mount now: the S3 one, or the
     source's while it runs (none while it is stopped). A folder or file is the volume's subPath, mounted only while it
     is there (the kubelet would make a missing one a folder); item its name, for the link."""
     srcs = sources()
     out = {}
-    for requester, peers in drivepeers.active().items():
+    for requester, peers in (drivepeers.active() if grants is None else grants).items():
         for p in peers:
             src = srcs.get(p["owner"])
             if src and not (_sources_seen.get(p["owner"]) or {}).get("running"):
@@ -750,12 +761,12 @@ def peer_mounts():
     return out
 
 
-def publish_state(shared):
+def publish_state(shared, grants=None):
     """The ConfigMap the workspace templates read at a start: {"shared": [workspace ids], "sources": {owner id:
     {workspace, path, running}}, "peers": {user id: [{owner, name, claim, readOnly}]}} - a shared workspace mounts no
     Cloud Drive; a source workspace serves its directory and mounts none; the owner's others mount the source's while
     it runs; a user's workspaces mount the Cloud Drives shared with them (peer_mounts)."""
-    mounts = peer_mounts()
+    mounts = peer_mounts() if grants is None else peer_mounts(grants)
     workspace_mounts = {}
     for peers in mounts.values():
         for mount in peers:
@@ -854,6 +865,35 @@ def peer_mount_path(p):
     """Where the template mounts a share (peer_mounts): a drive at /mnt/cloud-drive-peers/<owner>, a folder or file at
     /mnt/cloud-drive-items/<share id>."""
     return PEER_MOUNT_DIRS[0] + p["name"] if p.get("kind", "drive") == "drive" else PEER_MOUNT_DIRS[1] + p["id"]
+
+
+def replace_pod_with_revoked_mount(pod, allowed):
+    """Replace a Deployment pod when its immutable spec still mounts a revoked grant."""
+    meta = pod["metadata"]
+    if not meta.get("uid") or not any(ref.get("controller") and ref.get("kind") == "ReplicaSet"
+                                     for ref in meta.get("ownerReferences") or []):
+        return
+    spec = pod.get("spec") or {}
+    volumes = {v["name"] for v in spec.get("volumes") or [] if v.get("persistentVolumeClaim")}
+    grants = {}
+    for grant in allowed:
+        key = (peer_mount_path(grant), grant["path"])
+        grants[key] = grants.get(key, False) or grant["access"] == "write"
+    for container in spec.get("containers") or []:
+        for mount in container.get("volumeMounts") or []:
+            path = mount.get("mountPath") or ""
+            if mount.get("name") not in volumes or not path.startswith(PEER_MOUNT_DIRS):
+                continue
+            write = grants.get((path, mount.get("subPath") or ""))
+            if write is not None and (write or mount.get("readOnly")):
+                continue
+            status, _ = KUBE.call("DELETE", "/api/v1/namespaces/%s/pods/%s" % (NAMESPACE, meta["name"]),
+                                  {"preconditions": {"uid": meta["uid"]}})
+            if status in (200, 202):
+                LOG(event="cloud-drive-revoked-mount-replaced", pod=meta["name"], mount=path)
+            elif status not in (404, 409):
+                LOG(event="cloud-drive-revoked-mount-replacement-failed", pod=meta["name"], status=status)
+            return
 
 
 def stale_mounts(user_id, src, shared):

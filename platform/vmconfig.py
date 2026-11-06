@@ -51,7 +51,8 @@ class Configurator:
         own_source = sources.get(owner)
         is_source = own_source and not own_source.get('suspended') and own_source.get('workspace') == wid
         mounts = [] if is_source else [mount('own', 'own', owner)]
-        peers = safe.peer_mounts().get(owner, [])
+        peers = [peer for peer in safe.peer_mounts().get(owner, [])
+                 if not peer.get('workspaceId') or peer['workspaceId'] == wid]
         for peer in peers:
             kind = 'peer' if peer['kind'] == 'drive' else 'item'
             path = peer.get('path', '')

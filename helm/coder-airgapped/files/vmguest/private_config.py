@@ -7,6 +7,7 @@ import json
 import os
 import pathlib
 import re
+import shutil
 import stat
 import subprocess
 import sys
@@ -192,12 +193,22 @@ def file_link(mount, remove=False):
 
 
 def remove_mount(mount):
-    if mount['kind'] == 'item' and mount['item_kind'] == 'file':
+    """Detach a mount and drop what it left in the guest once its rclone service has stopped: the write cache, which
+    holds copies of the owner's files, and a share's empty mountpoint, so a revoked share leaves nothing under /mnt."""
+    file_item = mount['kind'] == 'item' and mount['item_kind'] == 'file'
+    if file_item:
         unmount(file_parent(mount))
         file_link(mount, remove=True)
     else:
         unmount(destination_for(mount))
     service('coder-vm-mount-' + mount['id'], '', enabled=False)
+    shutil.rmtree(PRIVATE / ('mount-' + mount['id']), ignore_errors=True)
+    if mount['kind'] in ('peer', 'item'):
+        try:
+            # rmdir never removes content: a mountpoint still holding files is left for inspection.
+            os.rmdir(file_parent(mount) if file_item else destination_for(mount))
+        except (FileNotFoundError, OSError):
+            pass
 
 
 def trusted_json(path):

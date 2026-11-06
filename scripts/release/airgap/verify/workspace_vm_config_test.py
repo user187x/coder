@@ -33,6 +33,15 @@ class ConfigTest(unittest.TestCase):
         self.assertTrue(all(m['secret_key'] == 'actor-secret' for m in result['mounts']))
         self.assertNotIn('actor-secret', str(result['mounts_state']))
 
+    def test_workspace_scoped_peer_is_only_visible_in_its_workspace(self):
+        self.safe.peer_mounts.return_value['actor'][0]['workspaceId'] = 'workspace'
+        with mock.patch('builtins.open', mock.mock_open(read_data=b'public-ca')):
+            allowed = self.config.drive(self.profile)
+            excluded = self.config.drive(dict(self.profile, workspace_id='other-workspace'))
+        self.assertEqual([mount['id'] for mount in allowed['mounts']], ['own', 'share', 'iso'])
+        self.assertEqual([mount['id'] for mount in excluded['mounts']], ['own', 'iso'])
+        self.assertEqual(excluded['mounts_state']['peers'], {'actor': []})
+
     def test_disconnected_workspace_keeps_only_the_existing_readonly_iso_library(self):
         with mock.patch('builtins.open', mock.mock_open(read_data=b'public-ca')):
             for reason in ('shared', 'disconnected', 'global'):

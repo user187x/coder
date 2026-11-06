@@ -210,6 +210,29 @@ class PrivateConfigTest(unittest.TestCase):
             with self.assertRaises(ProfileError):
                 private.file_link(item, remove=True)
 
+    def test_revoked_share_leaves_no_cache_or_mountpoint(self):
+        peer = dict(self.mount, id='2d0c4a7f9e8b4c1d8a6f3e2b1c0d9e8f', kind='peer', name='owner')
+        with tempfile.TemporaryDirectory() as directory, mock.patch.object(private, 'PRIVATE', pathlib.Path(directory) / 'private'), \
+                mock.patch.object(private, 'DRIVES', pathlib.Path(directory) / 'drives'), \
+                mock.patch.object(private, 'run', return_value=mock.Mock(returncode=1)), mock.patch.object(private, 'service') as service:
+            cache = private.PRIVATE / ('mount-' + peer['id']) / 'cache'
+            cache.mkdir(parents=True)
+            (cache / 'copy-of-owner-file').write_text('owner data')
+            own = private.DRIVES / 'own'
+            own.mkdir(parents=True)
+            private.destination_for(peer).mkdir(parents=True)
+            private.remove_mount(peer)
+            service.assert_called_once_with('coder-vm-mount-' + peer['id'], '', enabled=False)
+            self.assertFalse((private.PRIVATE / ('mount-' + peer['id'])).exists())
+            self.assertFalse(private.destination_for(peer).exists())
+            leftover = private.DRIVES / 'items' / 'kept'
+            leftover.mkdir(parents=True)
+            (leftover / 'unexpected').write_text('x')
+            private.remove_mount(dict(peer, id='kept', kind='item', item_kind='folder'))
+            self.assertTrue((leftover / 'unexpected').exists())
+            private.remove_mount(dict(self.mount))
+            self.assertTrue(own.is_dir())
+
     def test_socket_scope_is_supervisor_inspected_and_fenced(self):
         identity = 'a' * 64 + ' 123'
         with mock.patch.object(private, 'run', return_value=mock.Mock(stdout=identity)), \

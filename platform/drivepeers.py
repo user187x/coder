@@ -76,14 +76,18 @@ def policy_lock():
             yield
 
 
-def _load():
+def _load(strict=False):
     try:
         if PERSISTENCE is not None:
             data = PERSISTENCE.read_file(PEERS_FILE, {})
         else:
             with open(PEERS_FILE) as f:
                 data = json.load(f)
+    except FileNotFoundError:
+        data = {}
     except (OSError, ValueError):
+        if strict:
+            raise
         data = {}
     settings = {**DEFAULT_SETTINGS, **(data.get("settings") or {})}
     shares = data.get("shares") if isinstance(data.get("shares"), dict) else {}
@@ -162,10 +166,10 @@ def settings():
     return _load()["settings"]
 
 
-def active():
+def active(strict=False):
     """{user id: [{id, owner, name, access, path, kind}]} of the shares mounted now (none while the feature is off):
     name is the owner's username; path and kind what of their drive (path "" and kind "drive": all of it)."""
-    data = _load()
+    data = _load(strict=True) if strict else _load()
     if not data["settings"]["enabled"]:
         return {}
     out = {}
