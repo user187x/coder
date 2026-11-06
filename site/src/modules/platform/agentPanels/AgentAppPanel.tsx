@@ -14,6 +14,7 @@ import {
 	WorkspaceIframe,
 } from "#/modules/apps/WorkspaceAppFrame";
 import { AccordionPanel } from "./AccordionPanel";
+import { BrowserSessionShutter } from "./BrowserSessionShutter";
 
 /**
  * The apps that grow to fit their page. Not the desktop or code-server:
@@ -185,11 +186,13 @@ const PanelWithApp: React.FC<AgentAppPanelProps & { app: WorkspaceApp }> = ({
 			}
 		>
 			{browserSession ? (
-				<WorkspaceIframe
-					src={sessionUrl ? `${sessionUrl}&panel=1` : undefined}
-					title={name}
-					allow="clipboard-read; clipboard-write; autoplay"
-				/>
+				<BrowserSessionShutter baseUrl={link.href ?? ""}>
+					<WorkspaceIframe
+						src={sessionUrl ? `${sessionUrl}&panel=1` : undefined}
+						title={name}
+						allow="clipboard-read; clipboard-write; autoplay"
+					/>
+				</BrowserSessionShutter>
 			) : (
 				<WorkspaceAppFrame
 					workspace={workspace}

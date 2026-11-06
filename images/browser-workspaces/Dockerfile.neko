@@ -10,7 +10,7 @@ RUN python3 -c 'import json,pathlib; p=pathlib.Path("/etc/chromium/policies/mana
 RUN sed -i '/  --no-first-run/a\  --hide-crash-restore-bubble' /etc/neko/supervisord/chromium.conf
 RUN sed -i '/show-component-extension-options/d' /etc/chromium.d/default-flags
 COPY patch-neko-client.py neko-start.py /opt/coder/
-COPY neko-sessions.py neko-support.html /opt/coder/
+COPY neko-sessions.py browser_pin.py neko-support.html /opt/coder/
 COPY neko-supervisord.conf /etc/neko/coder-supervisord.conf
 COPY neko-panel.js /var/www/coder-panel.js
 COPY neko-transport.js /var/www/coder-transport.js

@@ -11,12 +11,100 @@ import tempfile
 
 from aiohttp import ClientSession, ClientTimeout, WSMsgType, web
 
+from browser_pin import BrowserPIN
+
 SESSIONS = {}
 LOCK = asyncio.Lock()
 CSRF = secrets.token_urlsafe(32)
 MAX_SESSIONS = 6
 ROOT = pathlib.Path('/tmp/coder-browser-sessions')
 HOP_HEADERS = {'host', 'content-length', 'connection', 'transfer-encoding', 'upgrade', 'content-encoding'}
+PIN = BrowserPIN()
+UNLOCK_COOKIE = 'coder_browser_unlock'
+# Requests reaching browser sessions (pages, signaling and desktop sockets, audio streams): cancelled on lock.
+ACTIVE = set()
+LOCKED_PAGE = ('<!doctype html><title>Browser locked</title><body style="font:16px system-ui;background:#262626;'
+               'color:#e5e5e5;display:grid;place-items:center;height:100vh;margin:0">'
+               '<p>This browser is locked. Unlock it with its PIN from the workspace panel.</p></body>')
+
+
+class HTTPLocked(web.HTTPClientError):
+    status_code = 423
+
+
+def pin_status(request):
+    return PIN.status(request.cookies.get(UNLOCK_COOKIE))
+
+
+def set_unlock_cookie(response, token):
+    response.set_cookie(UNLOCK_COOKIE, token, path='', secure=True, httponly=True, samesite='Strict')
+
+
+def lock_now():
+    PIN.lock()
+    current = asyncio.current_task()
+    for task in list(ACTIVE):
+        if task is not current:
+            task.cancel()
+
+
+@web.middleware
+async def pin_gate(request, handler):
+    """Refuse everything but the lock's own controls while the browser is locked, whatever the path or transport."""
+    if request.path in ('/control', '/support'):
+        return await handler(request)
+    if not PIN.allows(request.cookies.get(UNLOCK_COOKIE)):
+        if 'text/html' in request.headers.get('Accept', ''):
+            return web.Response(status=423, text=LOCKED_PAGE, content_type='text/html',
+                                headers={'Cache-Control': 'no-store'})
+        return web.json_response({'locked': True}, status=423, headers={'Cache-Control': 'no-store'})
+    task = asyncio.current_task()
+    ACTIVE.add(task)
+    try:
+        return await handler(request)
+    finally:
+        ACTIVE.discard(task)
+
+
+async def pin_control(request, data):
+    """The PIN actions: set (when none is set), unlock, lock (always allowed) and clear (unlocked, with the PIN)."""
+    action = data.get('action')
+    token = request.cookies.get(UNLOCK_COOKIE)
+    if action == 'pin-unlock':
+        new = PIN.unlock(data.get('pin'))
+        if not new:
+            status = PIN.status(None)
+            raise web.HTTPTooManyRequests(text=json.dumps(status), content_type='application/json') \
+                if status['retryAfter'] else web.HTTPForbidden(text=json.dumps(status), content_type='application/json')
+        response = web.json_response(PIN.status(new))
+        set_unlock_cookie(response, new)
+        return response
+    if action == 'pin-set':
+        if PIN.configured:
+            raise web.HTTPConflict(text='A PIN is already set. Clear it before choosing another.')
+        try:
+            new = PIN.configure(data.get('pin'))
+        except ValueError as error:
+            raise web.HTTPBadRequest(text=str(error))
+        response = web.json_response(PIN.status(new))
+        set_unlock_cookie(response, new)
+        return response
+    if action == 'pin-lock':
+        if not PIN.configured:
+            raise web.HTTPConflict(text='Set a PIN before locking the browser.')
+        lock_now()
+        response = web.json_response(PIN.status(None))
+        response.del_cookie(UNLOCK_COOKIE, path='')
+        return response
+    if not PIN.allows(token):
+        raise HTTPLocked()
+    if action == 'pin-clear':
+        if not PIN.clear(data.get('pin')):
+            raise web.HTTPForbidden(text=json.dumps(PIN.status(token)), content_type='application/json')
+        response = web.json_response(PIN.status(None))
+        response.del_cookie(UNLOCK_COOKIE, path='')
+        return response
+    return None
 
 
 async def stop_session(session_id):
@@ -114,10 +202,17 @@ async def start_session(session_id):
 
 async def control(request):
     if request.method == 'GET':
-        return web.json_response({'csrf': CSRF}, headers={'Cache-Control': 'no-store'})
+        return web.json_response({'csrf': CSRF, 'pin': pin_status(request)}, headers={'Cache-Control': 'no-store'})
     if not secrets.compare_digest(request.headers.get('X-Browser-CSRF', ''), CSRF):
         raise web.HTTPForbidden()
     data = await request.json()
+    if not isinstance(data, dict):
+        raise web.HTTPBadRequest()
+    if str(data.get('action', '')).startswith('pin-'):
+        response = await pin_control(request, data)
+        if response is not None:
+            return response
+        raise web.HTTPBadRequest()
     if data.get('action') == 'reload-certificates':
         async with LOCK:
             for session in SESSIONS.values():
@@ -340,7 +435,7 @@ async def lifecycle(app):
 
 
 def application():
-    app = web.Application(client_max_size=2 * 1024 * 1024)
+    app = web.Application(client_max_size=2 * 1024 * 1024, middlewares=[pin_gate])
     app.cleanup_ctx.append(lifecycle)
     app.router.add_route('*', '/control', control)
     app.router.add_get('/', index)
