@@ -8,6 +8,7 @@ type WorkspaceOrbState =
 	| "running"
 	| "error"
 	| "starting"
+	| "warning"
 	| "locked"
 	| "stopped";
 const palette = (primary: string, accent: string): LavaSettings => ({
@@ -20,17 +21,20 @@ const settings: Record<WorkspaceOrbState, LavaSettings> = {
 	running: palette("#22c55e", "#065f46"),
 	error: palette("#ef4444", "#7f1d1d"),
 	starting: palette("#facc15", "#a16207"),
+	warning: palette("#facc15", "#a16207"),
 	locked: palette("#f97316", "#9a3412"),
 	stopped: palette("#a3a3a3", "#525252"),
 };
 
-export const WorkspaceStateOrb: React.FC<{ state: WorkspaceOrbState }> = ({
-	state,
-}) => (
+export const WorkspaceStateOrb: React.FC<{
+	state: WorkspaceOrbState;
+	/** Any CSS length for both sides. */
+	size?: string;
+}> = ({ state, size = "1em" }) => (
 	<LiveLava
 		className="rounded-full"
 		settings={settings[state]}
-		style={{ width: "1em", height: "1em" }}
+		style={{ width: size, height: size }}
 		paused={state === "stopped"}
 	/>
 );

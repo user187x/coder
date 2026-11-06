@@ -1,4 +1,3 @@
-import { cn } from "cn";
 import { NetworkIcon } from "lucide-react";
 import { useId } from "react";
 import { Link } from "react-router";
@@ -13,26 +12,18 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "#/components/Tooltip/Tooltip";
+import { WorkspaceStateOrb } from "#/modules/workspaces/WorkspaceStatusIndicator/WorkspaceStateOrb";
 
 const HEALTH: Record<
 	HudNode["health"],
-	{ label: string; orb: string; fill: string }
+	{
+		label: string;
+		orb: React.ComponentProps<typeof WorkspaceStateOrb>["state"];
+	}
 > = {
-	ok: {
-		label: "Healthy",
-		orb: "bg-content-success shadow-[0_0_8px_hsl(var(--content-success))]",
-		fill: "fill-content-success [filter:drop-shadow(0_0_1.5px_hsl(var(--content-success)))]",
-	},
-	warning: {
-		label: "Degraded",
-		orb: "bg-content-warning shadow-[0_0_8px_hsl(var(--content-warning))]",
-		fill: "fill-content-warning [filter:drop-shadow(0_0_1.5px_hsl(var(--content-warning)))]",
-	},
-	down: {
-		label: "Not ready",
-		orb: "bg-content-destructive shadow-[0_0_8px_hsl(var(--content-destructive))]",
-		fill: "fill-content-destructive [filter:drop-shadow(0_0_1.5px_hsl(var(--content-destructive)))]",
-	},
+	ok: { label: "Healthy", orb: "running" },
+	warning: { label: "Degraded", orb: "warning" },
+	down: { label: "Not ready", orb: "error" },
 };
 
 /** The most characters the orb's edge holds; longer names keep both ends around an ellipsis. */
@@ -64,7 +55,7 @@ export const ringLabels = (names: readonly string[]) => {
 const HOVER_ENTRIES = 8;
 
 /**
- * One translucent row with an orb per node, colored by its health. Every node gets an equal share of the row, so any
+ * One translucent row with an orb per node, drawn as the workspace status orb, colored by its health. Every node gets an equal share of the row, so any
  * number of nodes fits left to right; hovering shows its address and metadata, clicking opens its details.
  */
 export const HudNodeStrip: React.FC<{ nodes: readonly HudNode[] }> = ({
@@ -103,7 +94,7 @@ const NodeOrb: React.FC<{ node: HudNode; ring: string }> = ({ node, ring }) => {
 						<button
 							type="button"
 							aria-label={`${node.name}: ${health.label}`}
-							className="group aspect-square w-full max-w-[40px] cursor-pointer rounded-full border-0 bg-transparent p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-content-link"
+							className="group relative aspect-square w-full max-w-[40px] cursor-pointer rounded-full border-0 bg-transparent p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-content-link"
 						>
 							{/* The orb, its node's name running around its edge from the top. */}
 							<svg
@@ -116,15 +107,6 @@ const NodeOrb: React.FC<{ node: HudNode; ring: string }> = ({ node, ring }) => {
 									fill="none"
 									d="M 14,24.2 a 10.2,10.2 0 1,1 0,-20.4 a 10.2,10.2 0 1,1 0,20.4"
 								/>
-								<circle
-									cx={14}
-									cy={14}
-									r={8}
-									className={cn(
-										"origin-center transition-transform [transform-box:fill-box] group-hover:scale-110",
-										health.fill,
-									)}
-								/>
 								<text className="fill-content-secondary font-mono text-[3.2px]">
 									<textPath
 										href={`#${edge}`}
@@ -135,6 +117,12 @@ const NodeOrb: React.FC<{ node: HudNode; ring: string }> = ({ node, ring }) => {
 									</textPath>
 								</text>
 							</svg>
+							<span
+								aria-hidden
+								className="pointer-events-none absolute inset-0 m-auto flex size-[57%] items-center justify-center transition-transform group-hover:scale-110"
+							>
+								<WorkspaceStateOrb state={health.orb} size="100%" />
+							</span>
 						</button>
 					</PopoverTrigger>
 				</TooltipTrigger>
@@ -179,10 +167,9 @@ const NodeDetails: React.FC<{ node: HudNode }> = ({ node }) => {
 	return (
 		<div className="flex max-h-[60vh] flex-col gap-3 overflow-y-auto p-4 text-sm">
 			<div className="flex items-center gap-2">
-				<span
-					aria-hidden
-					className={cn("size-3 shrink-0 rounded-full", health.orb)}
-				/>
+				<span aria-hidden className="inline-flex shrink-0">
+					<WorkspaceStateOrb state={health.orb} size="0.75rem" />
+				</span>
 				<strong className="truncate">{node.name}</strong>
 			</div>
 			<dl className="m-0 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">

@@ -13,3 +13,4 @@ export const Failed: Story = { args: { state: "error" } };
 export const Starting: Story = { args: { state: "starting" } };
 export const Locked: Story = { args: { state: "locked" } };
 export const Stopped: Story = { args: { state: "stopped" } };
+export const Warning: Story = { args: { state: "warning" } };
