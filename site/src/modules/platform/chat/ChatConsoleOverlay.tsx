@@ -81,7 +81,6 @@ export const ChatConsoleOverlay: React.FC = () => {
 						</DialogPrimitive.Description>
 						<ChatConsoleWorkspace
 							place="overlay"
-							dock={overlay}
 							className="h-full rounded-[14px]"
 							actions={
 								<>

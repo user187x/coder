@@ -43,9 +43,7 @@ it("opens deletion confirmation from the conversation header without deleting im
 		loadingOlder: false,
 		olderDone: true,
 	};
-	render(
-		<PanelConversation view={view} dock={{ current: null }} onBack={vi.fn()} />,
-	);
+	render(<PanelConversation view={view} onBack={vi.fn()} />);
 	await userEvent.pointer({
 		target: screen.getByRole("group", { name: "Conversation with Alex" }),
 		keys: "[MouseRight]",

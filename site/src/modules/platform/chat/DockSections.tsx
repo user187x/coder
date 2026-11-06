@@ -26,9 +26,8 @@ import { PanelConversation } from "./PanelConversation";
 
 /** The same sections remain available when the dock is attached to the page. */
 export const DockSections: React.FC<{
-	dock: React.RefObject<HTMLElement | null>;
 	wide?: boolean;
-}> = ({ dock, wide = false }) => {
+}> = ({ wide = false }) => {
 	const peopleActions = useRef<DockListActions>(null);
 	const notificationActions = useRef<DockListActions>(null);
 	const chatActions = useRef<ConversationActions>(null);
@@ -159,7 +158,6 @@ export const DockSections: React.FC<{
 										? state.panelView
 										: window
 								}
-								dock={dock}
 								onBack={() => setDockTab("people")}
 								onEscape={() => setDockTab("people")}
 							/>

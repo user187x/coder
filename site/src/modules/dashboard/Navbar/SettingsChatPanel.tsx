@@ -15,7 +15,6 @@ import { PanelConversation } from "#/modules/platform/chat/PanelConversation";
 
 /** A compact conversation surface using the same history, uploads, and sharing controls as the dock. */
 export const SettingsChatPanel = ({ onClose }: { onClose: () => void }) => {
-	const panel = useRef<HTMLDivElement>(null);
 	const actions = useRef<ConversationActions>(null);
 	const state = useChatSnapshot();
 	useChatConnection(true);
@@ -25,7 +24,6 @@ export const SettingsChatPanel = ({ onClose }: { onClose: () => void }) => {
 	}, []);
 	return (
 		<div
-			ref={panel}
 			role="region"
 			aria-label="Quick chat"
 			data-settings-chat
@@ -54,7 +52,6 @@ export const SettingsChatPanel = ({ onClose }: { onClose: () => void }) => {
 					actionsRef={actions}
 					compact
 					key={state.panelView.peer.id}
-					dock={panel}
 					view={state.panelView}
 					onBack={closePanelView}
 					onEscape={closePanelView}

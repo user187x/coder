@@ -107,8 +107,6 @@ type ChatConversationProps = {
 	onKeyboardClose?: () => void;
 	compact?: boolean;
 	view: ChatWindowState;
-	/** The dock, left out of screenshots. */
-	dock: React.RefObject<HTMLElement | null>;
 	ref?: React.Ref<ConversationActions>;
 	className?: string;
 	style?: React.CSSProperties;
@@ -129,7 +127,6 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
 	view: w,
 	keyboardOpen = false,
 	onKeyboardClose,
-	dock,
 	ref,
 	compact,
 	className,
@@ -324,7 +321,7 @@ export const ChatConversation: React.FC<ChatConversationProps> = ({
 		setShooting(true);
 		onShootingChange?.(true);
 		try {
-			setShot(await takeScreenshot(dock.current));
+			setShot(await takeScreenshot());
 			inputRef.current?.focus();
 		} catch (err) {
 			setShot(null);

@@ -196,7 +196,7 @@ export const ChatPanel: React.FC<{
 					hidden={!raised}
 					className={cn("flex min-h-0 flex-1", !raised && "hidden")}
 				>
-					<DockSections dock={dock} />
+					<DockSections />
 				</div>
 			</div>
 		</>

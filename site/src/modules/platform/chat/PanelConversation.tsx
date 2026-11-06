@@ -22,7 +22,6 @@ import {
 type PanelConversationProps = {
 	actionsRef?: React.RefObject<ConversationActions | null>;
 	compact?: boolean;
-	dock: React.RefObject<HTMLElement | null>;
 	view: ChatWindowState;
 	/** Back to the list (in full screen only where the list is not beside it). */
 	onBack: () => void;
@@ -34,7 +33,6 @@ type PanelConversationProps = {
 /** The conversation open in the side panel or full screen: who it is with, its menu, and the conversation itself. */
 export const PanelConversation: React.FC<PanelConversationProps> = ({
 	view,
-	dock,
 	onBack,
 	backClassName,
 	onEscape,
@@ -109,7 +107,6 @@ export const PanelConversation: React.FC<PanelConversationProps> = ({
 				ref={actions}
 				compact={compact}
 				view={view}
-				dock={dock}
 				className="min-h-0 flex-1"
 				onEscape={onEscape}
 				onShootingChange={setShooting}

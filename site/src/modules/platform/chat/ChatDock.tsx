@@ -486,10 +486,8 @@ export const ChatDock: React.FC = () => {
 						onResize={resize}
 						onClose={closeChat}
 					/>
-					{mode === "side" && <ChatSidePanel dock={dock} onClose={closeChat} />}
-					{mode === "full" && (
-						<ChatFullScreen dock={dock} onClose={closeChat} />
-					)}
+					{mode === "side" && <ChatSidePanel onClose={closeChat} />}
+					{mode === "full" && <ChatFullScreen onClose={closeChat} />}
 					<ChatConsoleOverlay />
 					<ChatFocusOverlay />
 				</div>

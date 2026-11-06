@@ -42,7 +42,7 @@ const message = (over: Partial<ChatMessage>): ChatMessage => ({
 const render = (messages?: ChatMessage[]) =>
 	renderComponent(
 		<QueryClientProvider client={new QueryClient()}>
-			<ChatConversation view={view(messages)} dock={{ current: null }} />
+			<ChatConversation view={view(messages)} />
 		</QueryClientProvider>,
 	);
 
@@ -166,7 +166,7 @@ describe("chat on-screen keyboard", () => {
 		});
 		renderComponent(
 			<QueryClientProvider client={new QueryClient()}>
-				<ChatConversation view={view()} dock={{ current: null }} keyboardOpen />
+				<ChatConversation view={view()} keyboardOpen />
 			</QueryClientProvider>,
 		);
 		return send;

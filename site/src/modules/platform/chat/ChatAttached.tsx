@@ -17,8 +17,6 @@ import { DockSections } from "./DockSections";
 
 type AttachedProps = {
 	onClose: () => void;
-	/** The dock, left out of screenshots. */
-	dock: React.RefObject<HTMLElement | null>;
 };
 
 /** From the navbar's bottom down to the bottom bars (ChatDock measures both). */
@@ -39,7 +37,7 @@ const headerClass =
  * screen or is minimized to the bar. It comes back attached on the next page
  * load (initialDockMode).
  */
-export const ChatSidePanel: React.FC<AttachedProps> = ({ dock, onClose }) => {
+export const ChatSidePanel: React.FC<AttachedProps> = ({ onClose }) => {
 	const state = useChatSnapshot();
 	const me = state.me;
 	if (!me) {
@@ -82,7 +80,7 @@ export const ChatSidePanel: React.FC<AttachedProps> = ({ dock, onClose }) => {
 					<XIcon />
 				</DockButton>
 			</header>
-			<DockSections dock={dock} />
+			<DockSections />
 		</section>
 	);
 };
@@ -94,7 +92,7 @@ export const ChatSidePanel: React.FC<AttachedProps> = ({ dock, onClose }) => {
  * the side panel, whichever it came from; so does going to another page
  * (ChatDock).
  */
-export const ChatFullScreen: React.FC<AttachedProps> = ({ dock, onClose }) => {
+export const ChatFullScreen: React.FC<AttachedProps> = ({ onClose }) => {
 	const state = useChatSnapshot();
 	const me = state.me;
 	if (!me) {
@@ -127,7 +125,7 @@ export const ChatFullScreen: React.FC<AttachedProps> = ({ dock, onClose }) => {
 					<XIcon />
 				</DockButton>
 			</header>
-			<DockSections dock={dock} wide />
+			<DockSections wide />
 		</section>
 	);
 };

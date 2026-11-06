@@ -137,8 +137,6 @@ const isTextField = (target: EventTarget | null) =>
 		target.isContentEditable);
 
 type ChatConsoleProps = {
-	/** What screenshots leave out (the dock, the overlay it is in, or the console's own window). */
-	dock?: React.RefObject<HTMLElement | null>;
 	/**
 	 * Where it is: the Chat page's card, over the page (ChatConsoleOverlay), or a window of its own (its links then
 	 * open in the dashboard's tab).
@@ -171,12 +169,10 @@ type ChatConsoleProps = {
  * response (the newest admin message in front of everything for them).
  */
 export const ChatConsole: React.FC<ChatConsoleProps> = ({
-	dock,
 	place,
 	actions,
 	className,
 }) => {
-	const own = useRef<HTMLElement>(null);
 	const [keyboardOpen, setKeyboardOpen] = useState(false);
 	const state = useChatSnapshot();
 	const me = state.me;
@@ -417,7 +413,6 @@ export const ChatConsole: React.FC<ChatConsoleProps> = ({
 
 	return (
 		<section
-			ref={own}
 			aria-label="Chat console"
 			data-testid="chat-console"
 			data-place={place}
@@ -780,7 +775,6 @@ ${SHORTCUTS}`}
 								onKeyboardClose={() => setKeyboardOpen(false)}
 								ref={conversation}
 								view={view}
-								dock={dock ?? own}
 								className="min-h-0 flex-1"
 								onEscape={() => listRef.current?.focus()}
 								onSent={autoNext ? () => nextWaiting(true) : undefined}

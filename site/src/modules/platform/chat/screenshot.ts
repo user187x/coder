@@ -23,13 +23,13 @@ const encode = (canvas: HTMLCanvasElement): string => {
 };
 
 /**
- * What the user sees, minus `exclude` (the chat itself): drawn from the page
+ * What the user sees, the chat included: drawn from the page
  * (html2canvas-pro, which reads the oklab() / oklch() colours of Tailwind 4
  * that html2canvas could not), so the browser asks nothing. WebP, else JPEG, made smaller
  * until it fits the service's 4 MB. Content it cannot draw (a WebGL
  * canvas, for example) comes out blank.
  */
-export const takeScreenshot = async (exclude: Element | null) => {
+export const takeScreenshot = async () => {
 	const { default: html2canvas } = await import("html2canvas-pro");
 	const canvas = await html2canvas(document.documentElement, {
 		x: window.scrollX,
@@ -42,7 +42,6 @@ export const takeScreenshot = async (exclude: Element | null) => {
 		useCORS: true,
 		logging: false,
 		backgroundColor: getComputedStyle(document.body).backgroundColor || null,
-		ignoreElements: (node) => Boolean(exclude?.contains(node)),
 	});
 	return {
 		dataURL: encode(canvas),
