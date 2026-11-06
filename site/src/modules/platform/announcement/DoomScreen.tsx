@@ -38,7 +38,8 @@ export const DoomScreen: React.FC<{ onDone: () => void }> = ({ onDone }) => {
 			<Button
 				variant="outline"
 				size="sm"
-				className="absolute right-3 top-3 opacity-60 hover:opacity-100 focus-visible:opacity-100"
+				// Light on dark whatever the theme: it sits on the game's black screen.
+				className="absolute right-3 top-3 border-white/50 bg-black/75 text-white hover:bg-black hover:text-white focus-visible:bg-black"
 				onClick={onDone}
 			>
 				<XIcon />
