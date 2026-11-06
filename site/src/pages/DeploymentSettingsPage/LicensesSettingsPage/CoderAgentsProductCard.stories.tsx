@@ -31,12 +31,6 @@ export const Default: Story = {
 		await expect(getMetricValue(canvas, "Concurrent agents")).toHaveTextContent(
 			"Unlimited",
 		);
-		await expect(
-			canvas.getByRole("link", { name: "View docs" }),
-		).toHaveAttribute(
-			"href",
-			expect.stringContaining("/ai-coder/agents/licensing-usage"),
-		);
 	},
 };
 

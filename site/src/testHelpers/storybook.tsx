@@ -76,7 +76,7 @@ export const withDashboardProvider = (
 };
 
 type MessageEvent = Record<"data", string>;
-type CallbackFn = (ev?: MessageEvent) => void;
+type CallbackFn = (ev?: MessageEvent | CloseEvent | Event) => void;
 
 // parameters.webSocket accepts two formats:
 //
@@ -142,9 +142,14 @@ export const withWebSocket = (
 					const callback = this.#listeners.get(entry.event);
 
 					if (callback) {
+						// A browser hands every listener its event; the terminal reads a close's code.
 						entry.event === "message"
 							? callback({ data: entry.data })
-							: callback();
+							: entry.event === "close"
+								? callback(
+										new CloseEvent("close", { code: 1000, wasClean: true }),
+									)
+								: callback(new Event(entry.event));
 					}
 				}
 			}, 0);

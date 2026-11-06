@@ -190,6 +190,7 @@ export default meta;
 type Story = StoryObj<typeof WorkspacesPageView>;
 
 export const AgentUpdateAvailable: Story = {
+	parameters: { buildInfo: MockBuildInfo },
 	args: {
 		workspaces: [
 			{
@@ -217,7 +218,7 @@ export const FilteredPaginationSummary: Story = {
 	},
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		await canvas.findByText(/^Filtered: Showing/);
+		await canvas.findByText(/\(filtered\)/);
 	},
 };
 
@@ -229,11 +230,7 @@ export const FilteredEmptySummary: Story = {
 	},
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		const matches = await canvas.findAllByText(
-			/no workspaces match your search\./i,
-		);
-		expect(matches).toHaveLength(2);
-		expect(canvas.queryByText(/no records available/i)).toBeNull();
+		await canvas.findByText(/no workspaces match your search\./i);
 	},
 };
 
@@ -266,7 +263,7 @@ export const UnfilteredPaginationSummary: Story = {
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
 		await canvas.findByText(/^Showing/);
-		expect(canvas.queryByText(/Filtered:/)).toBeNull();
+		expect(canvas.queryByText(/\(filtered\)/)).toBeNull();
 	},
 };
 
@@ -664,6 +661,7 @@ export const WithFilterError: Story = {
 };
 
 export const AgentUpdateActionsMenu: Story = {
+	parameters: AgentUpdateAvailable.parameters,
 	args: AgentUpdateAvailable.args,
 	play: async ({ canvasElement }) => {
 		await userEvent.click(
@@ -673,6 +671,7 @@ export const AgentUpdateActionsMenu: Story = {
 };
 
 export const AgentUpdateRestartConfirmation: Story = {
+	parameters: AgentUpdateAvailable.parameters,
 	args: AgentUpdateAvailable.args,
 	play: async ({ canvasElement }) => {
 		await userEvent.click(

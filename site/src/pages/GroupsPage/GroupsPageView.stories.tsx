@@ -88,9 +88,6 @@ export const WithGroups: Story = {
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
 		await expect(canvas.getByRole("heading", { name: "Groups" })).toBeVisible();
-		await expect(
-			canvas.getByRole("link", { name: /view docs/i }),
-		).toBeVisible();
 		expect(canvas.getAllByRole("link", { name: "New group" })).toHaveLength(1);
 	},
 };
@@ -203,9 +200,6 @@ export const EmptyGroup: Story = {
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
 		await expect(canvas.getByRole("heading", { name: "Groups" })).toBeVisible();
-		await expect(
-			canvas.getByRole("link", { name: /view docs/i }),
-		).toBeVisible();
 		expect(
 			canvas.queryByRole("link", { name: "New group" }),
 		).not.toBeInTheDocument();

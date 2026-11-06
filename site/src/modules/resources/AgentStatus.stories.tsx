@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { expect, screen, userEvent, waitFor, within } from "storybook/test";
+import { expect, screen, userEvent, waitFor } from "storybook/test";
 import { MockWorkspaceAgent } from "#/testHelpers/entities";
 import {
 	agentConnectionMessages,
@@ -17,30 +17,15 @@ type Story = StoryObj<typeof AgentStatus>;
 
 /**
  * Shared play helper that hovers the status icon, then asserts the
- * tooltip contains the expected title and detail text, plus a
- * troubleshoot link when the agent has a troubleshooting URL.
+ * tooltip contains the expected title and detail text.
  */
-async function expectTooltip(
-	ariaLabel: string,
-	title: string,
-	detail: string,
-	hasTroubleshootLink: boolean,
-) {
+async function expectTooltip(ariaLabel: string, title: string, detail: string) {
 	const icon = screen.getByRole("status", { name: ariaLabel });
 	await userEvent.hover(icon);
 	await waitFor(() => {
 		const tooltip = screen.getByRole("tooltip");
 		expect(tooltip).toHaveTextContent(title);
 		expect(tooltip).toHaveTextContent(detail);
-		if (hasTroubleshootLink) {
-			expect(
-				within(tooltip).getByRole("link", { name: "Troubleshoot" }),
-			).toBeInTheDocument();
-		} else {
-			expect(
-				within(tooltip).queryByRole("link", { name: "Troubleshoot" }),
-			).not.toBeInTheDocument();
-		}
 	});
 }
 
@@ -97,7 +82,6 @@ export const ShutdownScriptFailed: Story = {
 			"Shutdown script failed",
 			agentScriptMessages.shutdown_error.title,
 			agentScriptMessages.shutdown_error.detail,
-			true,
 		);
 	},
 };
@@ -115,7 +99,6 @@ export const ShutdownScriptTimeout: Story = {
 			"Shutdown script timeout",
 			agentScriptMessages.shutdown_timeout.title,
 			agentScriptMessages.shutdown_timeout.detail,
-			true,
 		);
 	},
 };
@@ -132,7 +115,6 @@ export const ConnectionTimeout: Story = {
 			"Timeout",
 			agentConnectionMessages.timeout.title,
 			agentConnectionMessages.timeout.detail,
-			true,
 		);
 	},
 };

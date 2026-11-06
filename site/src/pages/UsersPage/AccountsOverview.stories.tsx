@@ -13,7 +13,10 @@ import {
 	MockUserOwner,
 	MockWorkspace,
 } from "#/testHelpers/entities";
-import { withAuthProvider } from "#/testHelpers/storybook";
+import {
+	withAuthProvider,
+	withDashboardProvider,
+} from "#/testHelpers/storybook";
 import { MockQuotaReport } from "#/testHelpers/userQuota";
 import { QuotaEditorContext, UserQuotaProvider } from "./UserQuotaSection";
 import { UsersTable } from "./UsersTable";
@@ -46,6 +49,7 @@ const meta: Meta<typeof UsersTable> = {
 			</UserQuotaProvider>
 		),
 		withAuthProvider,
+		withDashboardProvider,
 	],
 	parameters: {
 		user: MockUserOwner,

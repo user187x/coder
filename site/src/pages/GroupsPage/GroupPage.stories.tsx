@@ -166,22 +166,26 @@ export const NoUpdatePermission: Story = {
 
 /**
  * The settings page is reachable by direct URL even when the settings tab is
- * hidden. Without group:update, it must render the permission dialog instead
- * of the editable form.
+ * hidden. Without group:update, it redirects to the workspaces list instead
+ * of rendering the editable form.
  */
 export const SettingsWithoutUpdatePermission: Story = {
 	parameters: {
 		reactRouter: reactRouterParameters({
 			location: {
+				path: "/organizations/:organization/groups/:groupName/settings",
 				pathParams: {
 					organization: MockDefaultOrganization.name,
 					groupName: MockGroupWithoutMembers.name,
 				},
 			},
-			routing: reactRouterOutlet(
-				{ path: "/organizations/:organization/groups/:groupName/settings" },
-				<GroupSettingsPage />,
-			),
+			routing: [
+				...reactRouterOutlet(
+					{ path: "/organizations/:organization/groups/:groupName/settings" },
+					<GroupSettingsPage />,
+				),
+				{ path: "/workspaces", element: <div>Workspaces list</div> },
+			],
 		}),
 		queries: [
 			groupQuery(MockGroupWithoutMembers),
@@ -193,24 +197,7 @@ export const SettingsWithoutUpdatePermission: Story = {
 		],
 	},
 	play: async ({ canvasElement }) => {
-		const body = within(document.body);
-		await expect(
-			await body.findByText("You don't have permission to view this page"),
-		).toBeInTheDocument();
-		// The editable budget/name form is never rendered.
-		const canvas = within(canvasElement);
-		await expect(
-			await canvas.findByRole("link", {
-				name: "Back to groups",
-				hidden: true,
-			}),
-		).toHaveAttribute(
-			"href",
-			`/organizations/${MockDefaultOrganization.name}/groups`,
-		);
-		expect(
-			canvas.queryByRole("button", { name: "Save" }),
-		).not.toBeInTheDocument();
+		await within(canvasElement).findByText("Workspaces list");
 	},
 };
 

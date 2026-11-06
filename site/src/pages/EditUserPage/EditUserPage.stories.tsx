@@ -63,11 +63,8 @@ export const Ready: Story = {
 		).toBeVisible();
 		await userEvent.click(canvas.getByRole("button", { name: /open menu/i }));
 		const menu = within(document.body);
-		await menu.findByRole("menuitem", { name: "Workspaces" });
+		await menu.findByRole("menuitem", { name: "All workspaces" });
 		await menu.findByRole("menuitem", { name: "View activity" });
-		await expect(
-			menu.queryByRole("menuitem", { name: "Edit" }),
-		).not.toBeInTheDocument();
 		await menu.findByRole("menuitem", { name: "Delete…" });
 	},
 };

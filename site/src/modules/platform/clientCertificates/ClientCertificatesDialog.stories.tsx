@@ -6,7 +6,6 @@ import {
 	MockClientCertificate,
 } from "#/testHelpers/clientCertificates";
 import { MockUserOwner, mockApiError } from "#/testHelpers/entities";
-import * as download from "./ClientCertificateDownload";
 import { ClientCertificatesDialog } from "./ClientCertificatesDialog";
 
 const meta = {
@@ -58,7 +57,7 @@ export const DownloadReady: Story = {
 		spyOn(ClientCertificatesAPI, "issue").mockResolvedValue(
 			MockCertificateDownload,
 		);
-		spyOn(download, "saveClientCertificate").mockImplementation(() => {});
+		spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
 	},
 	play: async () => {
 		const page = within(document.body);

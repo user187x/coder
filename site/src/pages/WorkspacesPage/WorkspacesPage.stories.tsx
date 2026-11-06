@@ -313,8 +313,7 @@ export const DeletesOnlySelectedWorkspaces: Story = {
 		const user = userEvent.setup();
 
 		await selectWorkspaces(canvas, user, ["1", "2"]);
-		await openBulkActions(canvas, user);
-		await user.click(await body.findByRole("menuitem", { name: /delete/i }));
+		await user.click(await bulkAction(canvas, /delete/i));
 
 		const confirmButton = await body.findByTestId("confirm-button");
 		await user.click(confirmButton);
@@ -353,8 +352,7 @@ export const BatchUpdateSkipsUpToDateWorkspaces: Story = {
 		const user = userEvent.setup();
 
 		await selectWorkspaces(canvas, user, ["1", "2", "3", "4"]);
-		await openBulkActions(canvas, user);
-		await user.click(await body.findByRole("menuitem", { name: /Update/ }));
+		await user.click(await bulkAction(canvas, /Update/));
 
 		const modal = await body.findByRole("dialog", { name: /Review Updates/i });
 		await user.click(
@@ -391,8 +389,7 @@ export const BatchUpdateRunningWorkspace: Story = {
 		const user = userEvent.setup();
 
 		await selectWorkspaces(canvas, user, ["1", "2", "3"]);
-		await openBulkActions(canvas, user);
-		await user.click(await body.findByRole("menuitem", { name: /Update/ }));
+		await user.click(await bulkAction(canvas, /Update/));
 
 		const modal = await body.findByRole("dialog", { name: /Review Updates/i });
 		await user.click(
@@ -437,8 +434,7 @@ export const BatchUpdateShowsSubmittingState: Story = {
 		spyOn(API, "updateWorkspace").mockReturnValue(pendingUpdate);
 
 		await selectWorkspaces(canvas, user, ["1", "2", "3"]);
-		await openBulkActions(canvas, user);
-		await user.click(await body.findByRole("menuitem", { name: /Update/ }));
+		await user.click(await bulkAction(canvas, /Update/));
 
 		const modal = await body.findByRole("dialog", { name: /Review Updates/i });
 		await user.click(
@@ -488,8 +484,7 @@ export const BatchUpdateIgnoresDormantWorkspaces: Story = {
 		const user = userEvent.setup();
 
 		await selectWorkspaces(canvas, user, ["1", "2", "3"]);
-		await openBulkActions(canvas, user);
-		await user.click(await body.findByRole("menuitem", { name: /Update/ }));
+		await user.click(await bulkAction(canvas, /Update/));
 
 		const modal = await body.findByRole("dialog", { name: /Review Updates/i });
 		await user.click(within(modal).getByRole("button", { name: /Update/ }));
@@ -524,8 +519,7 @@ export const StopsOnlySelectedWorkspaces: Story = {
 		const user = userEvent.setup();
 
 		await selectWorkspaces(canvas, user, ["1", "2"]);
-		await openBulkActions(canvas, user);
-		await user.click(await body.findByRole("menuitem", { name: /stop/i }));
+		await user.click(await bulkAction(canvas, /stop/i));
 
 		const dialog = await body.findByRole("dialog");
 		await user.click(within(dialog).getByRole("button", { name: "Stop" }));
@@ -558,12 +552,10 @@ export const StartsOnlySelectedWorkspaces: Story = {
 	},
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		const body = within(document.body);
 		const user = userEvent.setup();
 
 		await selectWorkspaces(canvas, user, ["1", "2"]);
-		await openBulkActions(canvas, user);
-		await user.click(await body.findByRole("menuitem", { name: /start/i }));
+		await user.click(await bulkAction(canvas, /start/i));
 
 		await waitFor(() => expect(API.startWorkspace).toHaveBeenCalledTimes(2));
 		expect(API.startWorkspace).toHaveBeenCalledWith(
@@ -587,14 +579,11 @@ export const StartIgnoresAlreadyRunningWorkspaces: Story = {
 	},
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		const body = within(document.body);
 		const user = userEvent.setup();
 
 		await selectWorkspaces(canvas, user, ["1", "2", "3"]);
-		await openBulkActions(canvas, user);
-
-		const startItem = await body.findByRole("menuitem", { name: /start/i });
-		expect(startItem).not.toHaveAttribute("data-disabled");
+		const startItem = await bulkAction(canvas, /start/i);
+		expect(startItem).toBeEnabled();
 		await user.click(startItem);
 
 		await waitFor(() => expect(API.startWorkspace).toHaveBeenCalledTimes(2));
@@ -623,10 +612,8 @@ export const StopIgnoresAlreadyStoppedWorkspaces: Story = {
 		const user = userEvent.setup();
 
 		await selectWorkspaces(canvas, user, ["1", "2", "3"]);
-		await openBulkActions(canvas, user);
-
-		const stopItem = await body.findByRole("menuitem", { name: /stop/i });
-		expect(stopItem).not.toHaveAttribute("data-disabled");
+		const stopItem = await bulkAction(canvas, /stop/i);
+		expect(stopItem).toBeEnabled();
 		await user.click(stopItem);
 
 		const dialog = await body.findByRole("dialog");
@@ -646,14 +633,11 @@ export const StartDisabledWhenNoWorkspacesAreStartable: Story = {
 	},
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		const body = within(document.body);
 		const user = userEvent.setup();
 
 		await selectWorkspaces(canvas, user, ["1", "2", "3"]);
-		await openBulkActions(canvas, user);
-
-		const startItem = await body.findByRole("menuitem", { name: /start/i });
-		expect(startItem).toHaveAttribute("data-disabled");
+		const startItem = await bulkAction(canvas, /start/i);
+		expect(startItem).toBeDisabled();
 	},
 };
 
@@ -666,22 +650,20 @@ export const StopDisabledWhenNoWorkspacesAreStoppable: Story = {
 	},
 	play: async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		const body = within(document.body);
 		const user = userEvent.setup();
 
 		await selectWorkspaces(canvas, user, ["1", "2", "3"]);
-		await openBulkActions(canvas, user);
-
-		const stopItem = await body.findByRole("menuitem", { name: /stop/i });
-		expect(stopItem).toHaveAttribute("data-disabled");
+		const stopItem = await bulkAction(canvas, /stop/i);
+		expect(stopItem).toBeDisabled();
 	},
 };
 
+// No app still "initializing": until every app has answered its health check the row shows none of them
+// (agentAppsReady, covered by its own tests).
 const appHealthStatuses: [WorkspaceAppHealth, boolean][] = [
 	["healthy", true],
 	["disabled", true],
 	["unhealthy", false],
-	["initializing", false],
 ];
 
 const appsWorkspace: Workspace = {
@@ -779,11 +761,10 @@ async function selectWorkspaces(
 	}
 }
 
-async function openBulkActions(
-	canvas: ReturnType<typeof within>,
-	user: ReturnType<typeof userEvent.setup>,
-) {
-	await user.click(
-		await canvas.findByRole("button", { name: /bulk actions/i }),
-	);
+/** A button of the toolbar shown once workspaces are selected. */
+async function bulkAction(canvas: ReturnType<typeof within>, name: RegExp) {
+	const toolbar = await canvas.findByRole("toolbar", {
+		name: "Workspaces chosen",
+	});
+	return within(toolbar).getByRole("button", { name });
 }

@@ -225,10 +225,28 @@ export const SequentialAuthFlow: Story = {
 };
 
 /**
- * A user without workspace-create permission is blocked by the
- * RequirePermission dialog instead of seeing the form.
+ * A user without workspace-create permission is redirected to the workspaces
+ * list by RequirePermission instead of seeing the form.
  */
 export const PermissionDenied: Story = {
+	parameters: {
+		reactRouter: reactRouterParameters({
+			location: {
+				path: "/templates/:organization/:template/workspace",
+				pathParams: {
+					organization: MockTemplate.organization_name,
+					template: MockTemplate.name,
+				},
+			},
+			routing: [
+				{
+					path: "/templates/:organization/:template/workspace",
+					useStoryElement: true,
+				},
+				{ path: "/workspaces", element: <div>Workspaces</div> },
+			],
+		}),
+	},
 	beforeEach: () => {
 		spyOn(API, "checkAuthorization").mockResolvedValue({
 			createWorkspaceForUserID: false,
@@ -237,9 +255,7 @@ export const PermissionDenied: Story = {
 		});
 	},
 	play: async ({ canvasElement }) => {
-		// The dialog renders in a portal outside the story canvas.
-		const body = within(canvasElement.ownerDocument.body);
-		await body.findByText(/you don't have permission to view this page/i);
+		await within(canvasElement).findByText("Workspaces");
 		expect(
 			within(canvasElement).queryByRole("form", {
 				name: /create workspace/i,
@@ -250,22 +266,27 @@ export const PermissionDenied: Story = {
 
 /**
  * A user without workspace-create permission following a ?mode=auto link is
- * blocked by the RequirePermission dialog without seeing the auto-create
- * consent dialog.
+ * redirected to the workspaces list without seeing the auto-create consent
+ * dialog.
  */
 export const PermissionDeniedAutoMode: Story = {
 	parameters: {
 		reactRouter: reactRouterParameters({
 			location: {
+				path: "/templates/:organization/:template/workspace",
 				pathParams: {
 					organization: MockTemplate.organization_name,
 					template: MockTemplate.name,
 				},
 				searchParams: { mode: "auto" },
 			},
-			routing: {
-				path: "/templates/:organization/:template/workspace",
-			},
+			routing: [
+				{
+					path: "/templates/:organization/:template/workspace",
+					useStoryElement: true,
+				},
+				{ path: "/workspaces", element: <div>Workspaces</div> },
+			],
 		}),
 	},
 	beforeEach: () => {
@@ -277,7 +298,7 @@ export const PermissionDeniedAutoMode: Story = {
 	},
 	play: async ({ canvasElement }) => {
 		const body = within(canvasElement.ownerDocument.body);
-		await body.findByText(/you don't have permission to view this page/i);
+		await within(canvasElement).findByText("Workspaces");
 		expect(body.queryByText(/automatic workspace creation/i)).toBeNull();
 	},
 };

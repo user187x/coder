@@ -135,8 +135,14 @@ const meta: Meta<typeof AgentRow> = {
 		workspace: M.MockWorkspace,
 		initialMetadata: defaultAgentMetadata,
 	},
-	decorators: [withProxyProvider(), withDashboardProvider, withWebSocket],
+	decorators: [
+		withProxyProvider(),
+		withDashboardProvider,
+		withWebSocket,
+		withAuthProvider,
+	],
 	parameters: {
+		user: M.MockUserOwner,
 		queries: [
 			{
 				key: workspaceInfrastructureMetrics(
@@ -165,8 +171,6 @@ type Story = StoryObj<typeof AgentRow>;
 export const Example: Story = {};
 
 export const NekoBrowser: Story = {
-	parameters: { user: M.MockUserOwner },
-	decorators: [withAuthProvider],
 	args: {
 		workspace: { ...M.MockWorkspace, id: "neko-panel-story" },
 		agent: {

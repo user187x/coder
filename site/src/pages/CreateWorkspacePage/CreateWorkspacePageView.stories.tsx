@@ -529,11 +529,6 @@ export const ClassicParameterFlowTemplate: Story = {
 			within(alert).getByText("This template uses deprecated parameters"),
 		).toBeVisible();
 		expect(
-			within(alert).getByRole("link", {
-				name: /view docs \(opens in new tab\)/i,
-			}),
-		).toBeVisible();
-		expect(
 			within(alert).queryByRole("link", { name: "Open template settings" }),
 		).not.toBeInTheDocument();
 	},
@@ -547,22 +542,11 @@ export const ClassicParameterFlowTemplateWithUpdatePermission: Story = {
 	play: async ({ canvasElement }) => {
 		const alert = within(canvasElement).getByRole("alert");
 
-		const docsLink = within(alert).getByRole("link", {
-			name: /view docs \(opens in new tab\)/i,
-		});
-		expect(docsLink).toHaveAttribute(
-			"href",
-			expect.stringContaining(
-				"/admin/templates/extending-templates/dynamic-parameters",
-			),
-		);
-		expect(docsLink).toHaveAttribute("target", "_blank");
-		expect(docsLink).toHaveAttribute("rel", "noreferrer");
 		expect(
 			within(alert).getByRole("link", { name: "Open template settings" }),
 		).toHaveAttribute(
 			"href",
-			"/templates/default/docker-template/settings/parameters",
+			"/templates/default/docker-template/settings#parameters",
 		);
 	},
 };

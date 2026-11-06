@@ -1,12 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { isMac, isWindows, supportsCoderDesktop } from "./platform";
+import { isMac } from "./platform";
 
-const stubPlatform = (platform: string, maxTouchPoints = 0) => {
-	vi.stubGlobal("navigator", {
-		...navigator,
-		platform,
-		maxTouchPoints,
-	});
+const stubPlatform = (platform: string) => {
+	vi.stubGlobal("navigator", { ...navigator, platform });
 };
 
 describe("platform", () => {
@@ -17,28 +13,12 @@ describe("platform", () => {
 	it("detects macOS", () => {
 		stubPlatform("MacIntel");
 		expect(isMac()).toBe(true);
-		expect(isWindows()).toBe(false);
-		expect(supportsCoderDesktop()).toBe(true);
 	});
 
-	it("detects Windows", () => {
-		stubPlatform("Win32");
-		expect(isWindows()).toBe(true);
-		expect(isMac()).toBe(false);
-		expect(supportsCoderDesktop()).toBe(true);
-	});
-
-	it("treats Linux and other platforms as unsupported", () => {
-		stubPlatform("Linux x86_64");
-		expect(isMac()).toBe(false);
-		expect(isWindows()).toBe(false);
-		expect(supportsCoderDesktop()).toBe(false);
-	});
-
-	it("excludes iPadOS masquerading as macOS", () => {
-		// iPadOS 13+ reports "MacIntel" but exposes a touchscreen.
-		stubPlatform("MacIntel", 5);
-		expect(isMac()).toBe(true);
-		expect(supportsCoderDesktop()).toBe(false);
+	it("treats Windows and Linux as not macOS", () => {
+		for (const platform of ["Win32", "Linux x86_64"]) {
+			stubPlatform(platform);
+			expect(isMac()).toBe(false);
+		}
 	});
 });

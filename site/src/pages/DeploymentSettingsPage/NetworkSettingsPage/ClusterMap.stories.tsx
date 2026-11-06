@@ -16,6 +16,11 @@ import {
 	MockNodeDetails,
 	MockPodDetails,
 } from "#/testHelpers/clusterNetwork";
+import { MockPermissions, MockUserOwner } from "#/testHelpers/entities";
+import {
+	withAuthProvider,
+	withDashboardProvider,
+} from "#/testHelpers/storybook";
 import { ClusterMap } from "./ClusterMap";
 
 // The cards, and what a click on the Coder pod, node-a or the platform service -> Coder connection opens.
@@ -43,7 +48,10 @@ const cards = [
 const meta: Meta<typeof ClusterMap> = {
 	title: "pages/DeploymentSettingsPage/NetworkSettingsPage/ClusterMap",
 	component: ClusterMap,
+	decorators: [withAuthProvider, withDashboardProvider],
 	parameters: {
+		user: MockUserOwner,
+		permissions: MockPermissions,
 		queries: [
 			{ key: networkReportKey, data: MockClusterNetworkReport },
 			...cards,
