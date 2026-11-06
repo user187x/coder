@@ -71,6 +71,16 @@ describe("AnnouncementBanner", () => {
 		expect(localStorage.getItem("coder-banner-dismissed")).toBeNull();
 	});
 
+	it("keeps the navbar announcement on one line, ellipsized", async () => {
+		useBanner(MockBanner);
+		render(<AnnouncementBanner placement="navbar" />);
+
+		const text = (await screen.findByTestId("announcement-lcd")).querySelector(
+			"[data-banner-text]",
+		);
+		expect(text).toHaveClass("truncate", "min-w-0");
+	});
+
 	it("records that the signed-in user saw the announcement", async () => {
 		const receipts = useBanner(MockBanner);
 		render(<AnnouncementBanner placement="navbar" />);

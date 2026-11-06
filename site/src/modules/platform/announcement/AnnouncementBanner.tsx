@@ -219,6 +219,7 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 	// the announcement asks for them (a greeting need not).
 	const receipts = placement !== "login" && banner.receipts !== false;
 	const compact = placement !== "page";
+	const inNavbar = placement === "navbar";
 	const statusQuery = useQuery({
 		...announcementStatus(banner.id),
 		enabled: receipts,
@@ -320,11 +321,14 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 					<BannerText
 						banner={banner}
 						animate
-						loop={compact && banner.loopText !== false}
+						loop={compact && !inNavbar && banner.loopText !== false}
 						className={cn(
 							"min-w-0 flex-1 text-center",
+							// The navbar stays one row: the message shrinks to one line and ends in an ellipsis.
+							inNavbar && "truncate",
 							// Long announcements must leave room for the sign-in form.
 							compact &&
+								!inNavbar &&
 								"max-h-[36px] overflow-hidden [overflow-wrap:anywhere]",
 						)}
 					/>
