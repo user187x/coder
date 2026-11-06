@@ -3,7 +3,12 @@ import { QueryClient, QueryClientProvider } from "react-query";
 import { PlatformAPI } from "#/api/platform";
 import type { WorkspaceAgentMetadata } from "#/api/typesGenerated";
 import { renderComponent } from "#/testHelpers/renderHelpers";
-import { AgentNetworkPill, pillBars, spanText } from "./AgentNetworkPill";
+import {
+	AgentNetworkPill,
+	pillBars,
+	pillWindow,
+	spanText,
+} from "./AgentNetworkPill";
 import { publishAgentMetadata } from "./agentMetadataStore";
 
 const reading = (
@@ -23,7 +28,28 @@ const reading = (
 	},
 ];
 
+describe("pillWindow", () => {
+	it("shows more history as the pill is dragged wider, within what is kept", () => {
+		expect(pillWindow(110)).toBe(300_000);
+		expect(pillWindow(330)).toBe(900_000);
+		expect(pillWindow(40)).toBe(300_000);
+		expect(pillWindow(5000)).toBe(1_800_000);
+	});
+});
+
 describe("pillBars", () => {
+	it("keeps the narrow pill's bar density over a longer window", () => {
+		const now = 10_000_000;
+		const samples = [
+			{ from: now - 902_000, t: now - 899_000, rx: 10, tx: 10 },
+			{ from: now - 4_000, t: now - 1_000, rx: 10, tx: 10 },
+		];
+		expect(pillBars(samples, now)).toHaveLength(1);
+		const wide = pillBars(samples, now, 900_000);
+		expect(wide).toHaveLength(2);
+		expect(wide[1].width).toBeCloseTo(wide[0].width);
+		expect(wide[0].x).toBeLessThan(wide[1].x);
+	});
 	const slot = 104 / 80;
 	it("draws the last 5 minutes in 80 narrow slots, newest at the right", () => {
 		const now = 300_000;

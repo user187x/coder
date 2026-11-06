@@ -7940,7 +7940,7 @@ HUD_HISTORY_DAYS = int(os.environ.get("HUD_HISTORY_DAYS", "7"))
 HUD_RANGES = {"15m": 900, "1h": 3600, "6h": 6 * 3600, "24h": 86400, "7d": 7 * 86400}
 
 
-NET_HISTORY_SECONDS = 300  # the workspace page's network pill: the last 5 minutes
+NET_HISTORY_SECONDS = 1800  # the workspace page's network pill: up to 30 minutes, as wide as it is dragged
 NET_HISTORY_EVERY = 2  # seconds between looks at the agents' latest network readings
 NET_READING_RE = re.compile(r"^\s*(\d+)\s+(\d+)\s*$")
 

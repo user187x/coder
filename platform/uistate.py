@@ -122,7 +122,7 @@ class UIState(threading.Thread):
         if time.time() - self.cleaned >= 60:
             pool.query('DELETE FROM coder_ui_updates.workspace_metrics WHERE t < $1::bigint', [int(time.time() * 1000) - RESOURCE_RETENTION * 1000])
             pool.query('DELETE FROM coder_ui_updates.infrastructure_metrics WHERE t < $1::bigint', [int(time.time() * 1000) - RESOURCE_RETENTION * 1000])
-            pool.query('DELETE FROM coder_ui_updates.agent_network WHERE t < $1::bigint', [int(time.time() * 1000) - 360000])
+            pool.query('DELETE FROM coder_ui_updates.agent_network WHERE t < $1::bigint', [int(time.time() * 1000) - 1920000])
             self.cleaned = time.time()
 
     def history(self, workspace, seconds=300, buckets=12):

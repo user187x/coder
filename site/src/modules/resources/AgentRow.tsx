@@ -642,7 +642,10 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 							)}
 						</div>
 
-						<div className="flex shrink-0 items-center gap-2 rounded-full border border-solid border-border p-0.5">
+						<div
+							data-agent-controls
+							className="flex shrink-0 items-center gap-2 rounded-full border border-solid border-border p-0.5"
+						>
 							{anyRunningOrStartingDevcontainers && (
 								<Button
 									variant="outline"

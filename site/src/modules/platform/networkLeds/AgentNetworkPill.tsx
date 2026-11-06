@@ -49,9 +49,29 @@ export const spanText = (from: number, to: number) => {
 	};
 };
 
-/** What the pill shows: the last 5 minutes (the platform service keeps them, so a page opens with them). */
+/** What the pill shows at its narrowest: the last 5 minutes (the platform service keeps them, so a page opens with them). */
 const PILL_WINDOW_MS = 300_000;
 const PILL_BARS = 80;
+/** Dragged wider, the pill shows proportionally more history, up to what the platform service keeps. */
+const PILL_GRAPH_WIDTH = 110;
+const PILL_MAX_WINDOW_MS = 1_800_000;
+/** The gap the dragged pill keeps from the Metrics Interval control. */
+const PILL_DRAG_GAP = 12;
+const WIDTH_KEY = "coder:network-pill-width";
+
+/** How much history a graph this wide shows: the narrowest pill's density of bars, kept. */
+export const pillWindow = (width: number) =>
+	Math.min(
+		PILL_MAX_WINDOW_MS,
+		Math.max(PILL_WINDOW_MS, (PILL_WINDOW_MS * width) / PILL_GRAPH_WIDTH),
+	);
+
+const savedWidth = () => {
+	const width = Number(localStorage.getItem(WIDTH_KEY));
+	return Number.isFinite(width) && width >= PILL_GRAPH_WIDTH
+		? width
+		: PILL_GRAPH_WIDTH;
+};
 /** How often the window slides on its own (readings or not). */
 const PILL_TICK_MS = 1000;
 /** Live readings this late: the minutes are asked of the platform service again (and again, while it lasts). */
@@ -71,15 +91,20 @@ const heatColor = (ratio: number) => {
  * above the middle line, what was sent hanging below it, to the busiest
  * reading shown.
  */
-export const pillBars = (samples: readonly NetworkSample[], now: number) => {
-	const span = PILL_WINDOW_MS / PILL_BARS;
-	const start = now - PILL_WINDOW_MS;
+export const pillBars = (
+	samples: readonly NetworkSample[],
+	now: number,
+	windowMs = PILL_WINDOW_MS,
+) => {
+	const count = Math.round((PILL_BARS * windowMs) / PILL_WINDOW_MS);
+	const span = windowMs / count;
+	const start = now - windowMs;
 	const slots: ({ t: number; rx: number; tx: number } | undefined)[] = [];
 	for (const s of samples) {
 		if (s.t <= start || s.t > now) {
 			continue;
 		}
-		const i = Math.min(PILL_BARS - 1, Math.floor((s.t - start) / span));
+		const i = Math.min(count - 1, Math.floor((s.t - start) / span));
 		const cur = slots[i];
 		slots[i] = cur
 			? {
@@ -91,7 +116,7 @@ export const pillBars = (samples: readonly NetworkSample[], now: number) => {
 	}
 	const shown = slots.flatMap((v, i) => (v ? [{ ...v, i }] : []));
 	const peak = Math.max(MIN_PEAK, ...shown.flatMap((s) => [s.rx, s.tx]));
-	const slot = W / PILL_BARS;
+	const slot = W / count;
 	const half = H / 2 - 0.5;
 	return shown.map((s, n) => ({
 		t: s.t,
@@ -131,6 +156,30 @@ export const AgentNetworkPill: React.FC<{
 	const last = useRef<{ at: number; rx: number; tx: number } | null>(null);
 	const [lastAt, setLastAt] = useState<number | null>(null);
 	const [history, setHistory] = useState<NetworkSample[]>([]);
+	const [width, setWidth] = useState(savedWidth);
+	const pill = useRef<HTMLSpanElement>(null);
+	const drag = useRef<{ x: number; width: number } | null>(null);
+	// As wide as the space up to the card's controls (Metrics Interval), less a gap.
+	const resize = (next: number) => {
+		const graph = pill.current?.querySelector("svg")?.getBoundingClientRect();
+		const controls = pill.current
+			?.closest(".workspace-agent-card")
+			?.querySelector("[data-agent-controls]")
+			?.getBoundingClientRect();
+		const tail =
+			(pill.current?.getBoundingClientRect().right ?? 0) - (graph?.right ?? 0);
+		const most =
+			graph && controls
+				? controls.left - PILL_DRAG_GAP - graph.left - tail
+				: Number.POSITIVE_INFINITY;
+		const bounded = Math.round(
+			Math.max(PILL_GRAPH_WIDTH, Math.min(next, most, PILL_GRAPH_WIDTH * 6)),
+		);
+		setWidth(bounded);
+		return bounded;
+	};
+	const keep = (value: number) =>
+		localStorage.setItem(WIDTH_KEY, String(value));
 	// the window's clock: it slides every second, readings or not
 	const [clock, setClock] = useState(() => Date.now());
 	useEffect(() => {
@@ -150,7 +199,7 @@ export const AgentNetworkPill: React.FC<{
 		if (!seed) {
 			return;
 		}
-		setHistory((h) => mergeSamples(seed.samples, h, PILL_WINDOW_MS));
+		setHistory((h) => mergeSamples(seed.samples, h, PILL_MAX_WINDOW_MS));
 		if (seed.last && (!last.current || seed.last.at > last.current.at)) {
 			last.current = seed.last;
 			setLastAt(seed.last.at);
@@ -188,7 +237,7 @@ export const AgentNetworkPill: React.FC<{
 						tx: tx >= prev.tx ? (tx - prev.tx) / seconds : 0,
 					},
 				],
-				PILL_WINDOW_MS,
+				PILL_MAX_WINDOW_MS,
 			),
 		);
 	}, [value, collectedAt, locked]);
@@ -204,8 +253,8 @@ export const AgentNetworkPill: React.FC<{
 	// what slid out of the window is dropped (a page left open for days keeps 5 minutes, no more)
 	useEffect(() => {
 		setHistory((h) =>
-			h.length > 0 && h[0].t <= clock - PILL_WINDOW_MS
-				? h.filter((s) => s.t > clock - PILL_WINDOW_MS)
+			h.length > 0 && h[0].t <= clock - PILL_MAX_WINDOW_MS
+				? h.filter((s) => s.t > clock - PILL_MAX_WINDOW_MS)
 				: h,
 		);
 	}, [clock]);
@@ -215,9 +264,10 @@ export const AgentNetworkPill: React.FC<{
 	}
 	const now = history[history.length - 1];
 	const end = stoppedAt ?? clock;
-	const bars = locked ? [] : pillBars(history, end);
+	const windowMs = pillWindow(width);
+	const bars = locked ? [] : pillBars(history, end, windowMs);
 	// the graph's span, as it is: from its first bar's time to its last's
-	const span = spanText(end - PILL_WINDOW_MS, end);
+	const span = spanText(end - windowMs, end);
 	const label = locked
 		? "Network locked down: nothing gets in or out but Coder's own connection"
 		: stopped
@@ -230,6 +280,7 @@ export const AgentNetworkPill: React.FC<{
 		<Tooltip>
 			<TooltipTrigger asChild>
 				<span
+					ref={pill}
 					role="img"
 					aria-label={label}
 					data-testid="agent-network-pill"
@@ -252,7 +303,8 @@ export const AgentNetworkPill: React.FC<{
 					<svg
 						viewBox={`0 0 ${W} ${H}`}
 						preserveAspectRatio="none"
-						className="block h-4 w-[110px] shrink-0 overflow-visible"
+						style={{ width }}
+						className="block h-4 shrink-0 overflow-visible"
 						aria-hidden
 					>
 						<line
@@ -296,6 +348,43 @@ export const AgentNetworkPill: React.FC<{
 						>
 							{span.end}
 						</span>
+					)}
+					{!locked && (
+						<span
+							role="separator"
+							tabIndex={0}
+							aria-orientation="vertical"
+							aria-label="Network history width"
+							aria-valuenow={width}
+							aria-valuemin={PILL_GRAPH_WIDTH}
+							aria-valuemax={PILL_GRAPH_WIDTH * 6}
+							aria-valuetext={`${Math.round(windowMs / 60_000)} minutes`}
+							title="Drag to show more history (arrow keys too; Home resets)"
+							className="-mr-1.5 h-4 w-1.5 shrink-0 cursor-ew-resize touch-none rounded-full bg-border hover:bg-content-link focus-visible:bg-content-link focus-visible:outline-none"
+							onPointerDown={(event) => {
+								if (event.button !== 0) return;
+								drag.current = { x: event.clientX, width };
+								event.currentTarget.setPointerCapture(event.pointerId);
+							}}
+							onPointerMove={(event) => {
+								const start = drag.current;
+								if (start) resize(start.width + event.clientX - start.x);
+							}}
+							onLostPointerCapture={() => {
+								if (drag.current) keep(width);
+								drag.current = null;
+							}}
+							onKeyDown={(event) => {
+								const step = { ArrowRight: 20, ArrowLeft: -20 }[event.key];
+								if (step === undefined && event.key !== "Home") return;
+								event.preventDefault();
+								keep(
+									event.key === "Home"
+										? resize(PILL_GRAPH_WIDTH)
+										: resize(width + (step ?? 0)),
+								);
+							}}
+						/>
 					)}
 				</span>
 			</TooltipTrigger>
