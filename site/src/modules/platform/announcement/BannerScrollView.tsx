@@ -18,7 +18,7 @@ import { BrokenScreenOverlay } from "./BrokenScreenOverlay";
 import { bannerAlpha, withBannerAlpha } from "./bannerAlpha";
 import { bannerFontStack } from "./bannerFonts";
 import { safeHref } from "./bannerTokens";
-import { DoomOverlay } from "./DoomOverlay";
+import { DoomScreen } from "./DoomScreen";
 import { DotMatrixTime } from "./DotMatrixTime";
 import { enterFullscreen, leaveFullscreen } from "./fullscreen";
 import { attachAnnouncementAutoScroll } from "./hoverAutoScroll";
@@ -55,7 +55,7 @@ const MOUSE = "/dev/mouse";
 const TIME = "time";
 /** Run at the prompt: the Matrix's rain over the screen (MatrixOverlay) until a key or the mouse. */
 const MATRIX = "matrix";
-/** Run at the prompt: DOOM over the whole screen (DoomOverlay) until it is exited. */
+/** Run at the prompt: DOOM in this panel, in place of the terminal (DoomScreen), until it is exited. */
 const DOOM = "doom";
 
 /** What a command run at the prompt is answered with (TerminalAnswers); "clear" and the effects print nothing. */
@@ -204,10 +204,7 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 		leaveFullscreen();
 	}, []);
 	const [doom, setDoom] = useState(false);
-	const endDoom = useCallback(() => {
-		setDoom(false);
-		leaveFullscreen();
-	}, []);
+	const endDoom = useCallback(() => setDoom(false), []);
 
 	const place = () => {
 		const r = anchor.current?.getBoundingClientRect();
@@ -224,6 +221,8 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 		setCat(0);
 		setFlash(0);
 		setEcho(false);
+		// Closing the panel ends a game of DOOM: its frame unmounts with the panel, and it reopens to the terminal.
+		setDoom(false);
 		if (workspace) resetConnector();
 		if (!open || closing) {
 			return;
@@ -340,9 +339,7 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 				setMatrix(true);
 				close();
 			} else if (command.toLowerCase() === DOOM) {
-				enterFullscreen();
 				setDoom(true);
-				close();
 			} else if (command === MOUSE) {
 				close();
 				// after this Enter: the sparks stop at the next key
@@ -505,7 +502,9 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 										: "Broadcast Announcement"}
 								</b>
 							</div>
-							{workspace ? (
+							{doom ? (
+								<DoomScreen onDone={endDoom} />
+							) : workspace ? (
 								<BannerWorkspaceTerminal
 									key={workspace.id}
 									workspace={workspace}
@@ -570,7 +569,6 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 			{skynet && <SkynetOverlay onDone={endSkynet} />}
 			{broken && <BrokenScreenOverlay onDone={endBroken} />}
 			{matrix && <MatrixOverlay onDone={endMatrix} />}
-			{doom && <DoomOverlay onDone={endDoom} />}
 		</>
 	);
 };

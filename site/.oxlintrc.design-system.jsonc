@@ -8,7 +8,8 @@
 		"e2e/**/*Generated.ts",
 		"scripts/*.mjs",
 		"**/typesGenerated.ts",
-		"src/vendor/**"
+		"src/vendor/**",
+		"static/doom/**"
 	],
 	"rules": {
 		// Advisory until existing palette colors and undeclared tokens are resolved.

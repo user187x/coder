@@ -7,8 +7,14 @@
 	},
 	"files": {
 		// static/*.html are Go templates with {{ }} directives that
-		// Biome's HTML parser does not support.
-		"includes": ["**", "!**/pnpm-lock.yaml", "!**/static/*.html"],
+		// Biome's HTML parser does not support. static/doom is a built,
+		// vendored engine (scripts/build-doom.sh).
+		"includes": [
+			"**",
+			"!**/pnpm-lock.yaml",
+			"!**/static/*.html",
+			"!**/static/doom/**"
+		],
 		"ignoreUnknown": true,
 		"maxSize": 2097152
 	},

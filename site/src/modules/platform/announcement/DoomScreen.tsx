@@ -6,10 +6,11 @@ import { Button } from "#/components/Button/Button";
 const DOOM_PAGE = "/doom/index.html";
 
 /**
- * DOOM over the whole screen, typed at the announcement prompt. The game runs in its own frame, which keeps the focus
- * so every key and the mouse go to it, not the dashboard; Exit DOOM, or quitting from the game's menu, ends it.
+ * DOOM in the announcement panel, in place of its terminal, typed at the prompt. The game runs in its own frame, which
+ * keeps the focus so every key and the mouse go to it, not the dashboard; Exit DOOM, or quitting from the game's menu,
+ * returns to the terminal.
  */
-export const DoomOverlay: React.FC<{ onDone: () => void }> = ({ onDone }) => {
+export const DoomScreen: React.FC<{ onDone: () => void }> = ({ onDone }) => {
 	const frame = useRef<HTMLIFrameElement>(null);
 	useEffect(() => {
 		const quit = (event: MessageEvent) => {
@@ -25,11 +26,7 @@ export const DoomOverlay: React.FC<{ onDone: () => void }> = ({ onDone }) => {
 		return () => window.removeEventListener("message", quit);
 	}, [onDone]);
 	return (
-		<div
-			role="dialog"
-			aria-label="DOOM"
-			className="fixed inset-0 z-[2147483647] bg-black"
-		>
+		<section aria-label="DOOM" className="relative min-h-0 flex-1 bg-black">
 			<iframe
 				ref={frame}
 				src={DOOM_PAGE}
@@ -47,6 +44,6 @@ export const DoomOverlay: React.FC<{ onDone: () => void }> = ({ onDone }) => {
 				<XIcon />
 				Exit DOOM
 			</Button>
-		</div>
+		</section>
 	);
 };

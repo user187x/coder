@@ -334,7 +334,8 @@
 		"e2e/**/*Generated.ts",
 		"scripts/*.mjs",
 		"**/typesGenerated.ts",
-		"src/vendor/**"
+		"src/vendor/**",
+		"static/doom/**"
 	],
 	"overrides": [
 		{

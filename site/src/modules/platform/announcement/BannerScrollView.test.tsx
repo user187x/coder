@@ -140,7 +140,20 @@ describe("BannerScrollView", () => {
 			key: "Enter",
 		});
 		fireEvent.click(screen.getByRole("button", { name: "Exit DOOM" }));
-		expect(screen.queryByRole("dialog", { name: "DOOM" })).toBeNull();
+		expect(screen.queryByRole("region", { name: "DOOM" })).toBeNull();
+	});
+
+	it("ends DOOM when the panel closes, reopening to the terminal", () => {
+		render(<Harness />);
+		const toggle = screen.getByTestId("announcement-scroll-toggle");
+		fireEvent.click(toggle);
+		type("doom");
+		fireEvent.keyDown(screen.getByTestId("announcement-scroll-view"), {
+			key: "Enter",
+		});
+		fireEvent.click(toggle);
+		fireEvent.click(toggle);
+		expect(screen.queryByRole("region", { name: "DOOM" })).toBeNull();
 	});
 
 	const type = (text: string) => {
