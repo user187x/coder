@@ -100,6 +100,53 @@ describe("section introductions", () => {
 		expect(splash).toHaveTextContent("");
 	});
 
+	it("names the section when the page mounts a settings layout of its own", async () => {
+		const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+		server.use(
+			http.get("/__banner/banner.json", () =>
+				HttpResponse.json({ ...MockBanner, introductions: true }),
+			),
+		);
+		renderWithAuth(
+			<>
+				<AnnouncementBanner placement="navbar" />
+				<Outlet />
+			</>,
+			{
+				path: "/",
+				route: "/deployment/users",
+				children: [
+					{
+						path: "deployment",
+						element: <DeploymentSettingsLayout />,
+						children: [
+							{
+								path: "users",
+								element: <Link to="/templates">Open the list</Link>,
+							},
+						],
+					},
+					{
+						// As in the router: a level deeper than the deployment pages, so its layout is a new one.
+						path: "templates",
+						children: [
+							{
+								element: <DeploymentSettingsLayout />,
+								children: [{ index: true, element: <h1>Templates list</h1> }],
+							},
+						],
+					},
+				],
+			},
+		);
+		const splash = await screen.findByTestId("section-splash");
+		await user.click(
+			await screen.findByRole("link", { name: "Open the list" }),
+		);
+		await screen.findByRole("heading", { name: "Templates list" });
+		await waitFor(() => expect(splash).toHaveTextContent("Templates"));
+	});
+
 	it("shows no splash when the setting is off", async () => {
 		const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
 		renderSections(false);

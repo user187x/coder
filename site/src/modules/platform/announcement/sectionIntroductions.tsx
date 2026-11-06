@@ -1,9 +1,15 @@
-import { useEffect, useRef, useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 
 /** How long the announcement banner names the section being opened. */
 const SECTION_SPLASH_MS = 2000;
 
 let splash: string | null = null;
+/**
+ * The section last shown, kept outside any component: Workspaces, Templates
+ * and the deployment pages each mount their own settings layout, so moving
+ * between them starts a new component.
+ */
+let lastSection: string | null | undefined;
 let timer: ReturnType<typeof setTimeout> | undefined;
 const listeners = new Set<() => void>();
 
@@ -37,22 +43,23 @@ export const useSectionSplash = () =>
 	);
 
 /**
- * Shows the section's name when the user moves to a different one: not on the
- * first render, and not when only the query string changes within a section.
+ * Shows the section's name when the user moves to a different one: not when
+ * the app first loads, and not when only the query string changes within a
+ * section.
  */
 export const useAnnounceSection = (
 	section: { id: string; label: string } | null,
 	enabled: boolean,
 ) => {
-	const previous = useRef(section?.id);
-	const id = section?.id;
+	const id = section?.id ?? null;
 	const label = section?.label;
 	useEffect(() => {
-		if (previous.current === id) {
+		const first = lastSection === undefined;
+		if (lastSection === id) {
 			return;
 		}
-		previous.current = id;
-		if (enabled && label) {
+		lastSection = id;
+		if (!first && enabled && label) {
 			showSectionSplash(label);
 		}
 	}, [id, label, enabled]);
