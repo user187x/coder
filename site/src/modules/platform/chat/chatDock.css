@@ -11,6 +11,15 @@ html[data-settings-side][data-chat-side] {
 	top: var(--coder-classification-h, 0px);
 	bottom: var(--chat-bottom, 0px);
 }
+/* Under the docked Settings (navbarSoft.css) the chat takes the column's lower half. */
+html[data-settings-side="expanded"][data-chat-side] {
+	--chat-side-width: min(380px, 48vw);
+}
+html[data-settings-side="expanded"][data-chat-side] .chat-side-panel {
+	top: 50%;
+	border-top-width: 1px;
+	border-top-left-radius: 1.125rem;
+}
 
 .chat-dock-section-tab {
 	display: flex;
