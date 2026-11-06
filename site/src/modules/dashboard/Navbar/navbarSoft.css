@@ -3,6 +3,16 @@
 	--navbar-action-height: 2.5rem;
 	--navbar-control-gap: 0.75rem;
 	--navbar-inline-padding: 1.5rem;
+	/* The docked Settings and the attached chat share these insets and corners. */
+	--dock-gutter: calc(
+		var(--navbar-inline-padding) *
+		var(--settings-navbar-scale, 1)
+	);
+	--dock-block-gap: calc(
+		var(--navbar-control-gap) *
+		var(--settings-navbar-scale, 1)
+	);
+	--dock-radius: 1.125rem;
 }
 
 /* Navbar controls share a rounded outline. The announcement owns its buttons. */
@@ -139,11 +149,6 @@ html[data-settings-side="compact"] {
 [data-radix-popper-content-wrapper]:has(
 	> .settings-menu[data-settings-docked]
 ) {
-	--dock-gutter: var(--settings-panel-right, 1.5rem);
-	--dock-block-gap: calc(
-		var(--navbar-control-gap) *
-		var(--settings-navbar-scale, 1)
-	);
 	inset: calc(var(--coder-classification-h, 0px) + var(--dock-block-gap))
 		calc(var(--chat-side-width, 0px) + var(--dock-gutter))
 		calc(var(--coder-classification-h, 0px) + var(--dock-block-gap)) auto !important;
@@ -163,7 +168,7 @@ html[data-settings-side="compact"] {
 	height: 100%;
 	max-height: 100%;
 	overflow: clip;
-	border-radius: 1.125rem;
+	border-radius: var(--dock-radius);
 }
 .settings-menu[data-settings-docked] nav[aria-label="Settings"] {
 	min-height: 0;
