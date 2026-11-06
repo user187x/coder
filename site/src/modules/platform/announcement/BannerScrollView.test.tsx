@@ -132,6 +132,17 @@ describe("BannerScrollView", () => {
 		expect(timeText(new Date(2026, 0, 2, 3, 4, 5).getTime())).toBe("03:04:05");
 	});
 
+	it("starts DOOM for doom, in any case, and leaves it on Exit DOOM", () => {
+		render(<Harness />);
+		fireEvent.click(screen.getByTestId("announcement-scroll-toggle"));
+		type("DOOM");
+		fireEvent.keyDown(screen.getByTestId("announcement-scroll-view"), {
+			key: "Enter",
+		});
+		fireEvent.click(screen.getByRole("button", { name: "Exit DOOM" }));
+		expect(screen.queryByRole("dialog", { name: "DOOM" })).toBeNull();
+	});
+
 	const type = (text: string) => {
 		const view = screen.getByTestId("announcement-scroll-view");
 		for (const key of text) {

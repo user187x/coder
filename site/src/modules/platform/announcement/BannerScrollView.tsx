@@ -18,6 +18,7 @@ import { BrokenScreenOverlay } from "./BrokenScreenOverlay";
 import { bannerAlpha, withBannerAlpha } from "./bannerAlpha";
 import { bannerFontStack } from "./bannerFonts";
 import { safeHref } from "./bannerTokens";
+import { DoomOverlay } from "./DoomOverlay";
 import { DotMatrixTime } from "./DotMatrixTime";
 import { enterFullscreen, leaveFullscreen } from "./fullscreen";
 import { attachAnnouncementAutoScroll } from "./hoverAutoScroll";
@@ -54,6 +55,8 @@ const MOUSE = "/dev/mouse";
 const TIME = "time";
 /** Run at the prompt: the Matrix's rain over the screen (MatrixOverlay) until a key or the mouse. */
 const MATRIX = "matrix";
+/** Run at the prompt: DOOM over the whole screen (DoomOverlay) until it is exited. */
+const DOOM = "doom";
 
 /** What a command run at the prompt is answered with (TerminalAnswers); "clear" and the effects print nothing. */
 export const answerFor = (command: string): Answer => {
@@ -63,6 +66,7 @@ export const answerFor = (command: string): Answer => {
 		!command ||
 		command === MOUSE ||
 		command === MATRIX ||
+		command === DOOM ||
 		["clear", "exit", "close"].includes(command) ||
 		["cat", "cd", "dir", "echo"].includes(word) ||
 		RM_RF.test(command)
@@ -199,6 +203,11 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 		setMatrix(false);
 		leaveFullscreen();
 	}, []);
+	const [doom, setDoom] = useState(false);
+	const endDoom = useCallback(() => {
+		setDoom(false);
+		leaveFullscreen();
+	}, []);
 
 	const place = () => {
 		const r = anchor.current?.getBoundingClientRect();
@@ -329,6 +338,10 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 			} else if (command === MATRIX) {
 				enterFullscreen();
 				setMatrix(true);
+				close();
+			} else if (command.toLowerCase() === DOOM) {
+				enterFullscreen();
+				setDoom(true);
 				close();
 			} else if (command === MOUSE) {
 				close();
@@ -557,6 +570,7 @@ export const BannerScrollView: React.FC<BannerScrollViewProps> = ({
 			{skynet && <SkynetOverlay onDone={endSkynet} />}
 			{broken && <BrokenScreenOverlay onDone={endBroken} />}
 			{matrix && <MatrixOverlay onDone={endMatrix} />}
+			{doom && <DoomOverlay onDone={endDoom} />}
 		</>
 	);
 };

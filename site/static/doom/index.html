@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>DOOM</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  /* SDL reads mouse coordinates from the canvas: it must have no border or padding. */
+  canvas { display: block; width: 100vw; height: 100vh; object-fit: contain; image-rendering: pixelated; border: 0; padding: 0; outline: none; }
+  #start { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+    background: #000; color: #e11d1d; font: 700 28px/1.2 monospace; cursor: pointer; letter-spacing: 0.08em; }
+  #start small { color: #a1a1aa; font: 400 13px/1.6 monospace; letter-spacing: 0; text-align: center; }
+  #start[hidden] { display: none; }
+</style>
+</head>
+<body>
+<canvas id="canvas" tabindex="0" oncontextmenu="event.preventDefault()"></canvas>
+<div id="start" role="button" tabindex="0">
+  <span id="status">LOADING…</span>
+  <small>Move W A S D · Turn: mouse or arrows · Fire: Space or click · Use: E · Run: Shift · Menu: Esc<br>
+  Click the game to capture the mouse; Esc releases it.</small>
+</div>
+<script>
+  // Offline DOOM: the Chocolate Doom WebAssembly engine (see README.md) with Freedoom's game data, all served here.
+  var IWAD = "freedoom1.wad";
+  var start = document.getElementById("start");
+  var status = document.getElementById("status");
+  var ready = false;
+  var Module = {
+    noInitialRun: true,
+    canvas: document.getElementById("canvas"),
+    preRun: () => {
+      Module.FS.createPreloadedFile("", IWAD, IWAD, true, true);
+      Module.FS.createPreloadedFile("", "default.cfg", "default.cfg", true, true);
+    },
+    onRuntimeInitialized: () => {
+      ready = true;
+      status.textContent = "CLICK TO PLAY";
+    },
+    // Quitting from the game's menu ends the overlay in the dashboard too.
+    onExit: () => { parent.postMessage({ type: "coder:doom-exit" }, location.origin); },
+    setStatus: () => {},
+  };
+  var play = () => {
+    if (!ready) return;
+    start.hidden = true;
+    Module.canvas.focus();
+    Module.callMain(["-iwad", IWAD, "-window", "-nogui", "-config", "default.cfg"]);
+  };
+  start.addEventListener("click", play);
+  start.addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") play(); });
+  window.addEventListener("load", () => { start.focus(); });
+  window.onerror = () => { status.textContent = "DOOM COULD NOT START"; };
+</script>
+<script src="websockets-doom.js" onerror="status.textContent = 'DOOM ENGINE NOT INSTALLED (scripts/build-doom.sh)'"></script>
+</body>
+</html>

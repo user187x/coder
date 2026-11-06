@@ -62,6 +62,8 @@ extend-exclude = [
 	"packaging/airgap/prereqs/**",
 	"helm/coder-airgapped/charts/traefik/**",
 	"platform/image-contents.json",
+	# Vendored game engine settings and data (see its README): third-party keys such as snd_mport.
+	"site/static/doom/**",
 	"**.svg",
 	"**.png",
 	"**.lock",
