@@ -13,12 +13,12 @@ html[data-settings-side][data-chat-side] {
 	bottom: calc(var(--chat-bottom, 0px) + var(--dock-block-gap, 0.75rem));
 	border-radius: var(--dock-radius, 1.125rem);
 }
-/* Under the docked Settings (navbarSoft.css) the chat takes the column's lower half. */
+/* Under the docked Settings (navbarSoft.css) the chat takes the column's lower half, from --dock-split, which also fixes the Settings bottom. */
 html[data-settings-side="expanded"][data-chat-side] {
 	--chat-side-width: min(380px, 48vw);
 }
 html[data-settings-side="expanded"][data-chat-side] .chat-side-panel {
-	top: 50%;
+	top: var(--dock-split, 50%);
 }
 
 .chat-dock-section-tab {

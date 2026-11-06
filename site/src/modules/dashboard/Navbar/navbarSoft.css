@@ -193,13 +193,16 @@ html[data-settings-side="compact"] {
 /* Docked beside an attached chat, the expanded Settings shares its column: Settings above, chat below (chatDock.css). */
 html[data-settings-side="expanded"][data-chat-side] {
 	--settings-dock-inset: 0px;
+	/* The chat's top edge (chatDock.css); the Settings bottom derives from it, so the gap is always one --dock-block-gap. */
+	--dock-split: 50%;
 }
 html[data-settings-side="expanded"][data-chat-side]
 	[data-radix-popper-content-wrapper]:has(
 		> .settings-menu[data-settings-docked]
 	) {
 	inset: calc(var(--coder-classification-h, 0px) + var(--dock-block-gap))
-		var(--dock-gutter) calc(50% + var(--dock-block-gap)) auto !important;
+		var(--dock-gutter) calc(100% - var(--dock-split) + var(--dock-block-gap))
+		auto !important;
 	/* Its left edge is the chat's, the same distance from the page. */
 	width: calc(var(--chat-side-width) - var(--dock-gutter));
 }
