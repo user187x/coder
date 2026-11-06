@@ -1,4 +1,4 @@
-import type { HudHistory, HudStorage } from "#/api/platform";
+import type { HudHistory, HudNode, HudStorage } from "#/api/platform";
 
 export const MockHudStorage: HudStorage = {
 	used: 30,
@@ -47,4 +47,25 @@ export const MockHudHistory: HudHistory = {
 		diskClaimed: 40,
 		volumeUsed: 15 + i / 24,
 	})),
+};
+
+export const MockHudNode: HudNode = {
+	name: "k3d-coder-ha-lab-agent-0",
+	health: "ok",
+	ip: "172.18.0.4",
+	roles: ["worker"],
+	pressure: [],
+	unschedulable: false,
+	kubelet: "v1.35.5+k3s1",
+	created: "2026-10-26T14:02:00Z",
+	labels: {
+		"kubernetes.io/arch": "amd64",
+		"kubernetes.io/hostname": "k3d-coder-ha-lab-agent-0",
+		"kubernetes.io/os": "linux",
+		"node.kubernetes.io/instance-type": "k3s",
+	},
+	annotations: {
+		"k3s.io/node-args": '["agent","--node-label","pool=general"]',
+		"node.alpha.kubernetes.io/ttl": "0",
+	},
 };

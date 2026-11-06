@@ -28,6 +28,7 @@ import "./hud.css";
 import { useFitText } from "#/hooks/useFitText";
 import { DeploymentBanner } from "#/modules/dashboard/DeploymentBanner/DeploymentBanner";
 import { HudGraphs } from "./HudGraphs";
+import { HudNodeStrip } from "./HudNodeStrip";
 import { HudSortableGrid } from "./HudSortableGrid";
 import { HudStorageClasses } from "./HudStorageClasses";
 import { hudIcon } from "./hudIcons";
@@ -190,6 +191,7 @@ const HudPage: React.FC = () => {
 									</li>
 								))}
 							</ul>
+							<HudNodeStrip nodes={data.nodes ?? []} />
 						</div>
 
 						{/* The Sort menu sits with the graphs' controls, not over the totals (which grow). */}

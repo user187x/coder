@@ -120,7 +120,7 @@
   GET  /__coder-ui/api/lockdown[/<id>]      admins (an owner: their workspace): Lock Down; POST /<id> {mode}: see lockdown.py
   GET  /__coder-ui/api/provisioners          admins: provisioner daemons, running jobs, terraform processes; POST
                                              /rekick {jobs}, /restart {pod}: see provisioners.py
-  GET  /__coder-ui/api/hud                 admins: the HUD's metrics (totals, leaders, health) and Coder's uptime, cached 5 seconds
+  GET  /__coder-ui/api/hud                 admins: the HUD's metrics (totals, leaders, health), node strip and Coder's uptime, cached 5 seconds
   GET  /__coder-ui/api/hud/history?range=  admins: the HUD graphs (CPU, memory, latency), sampled every 15 s, kept 7 days
   GET  /__coder-ui/api/workspaces/<id>/network   a workspace's network traffic, the last 5 minutes per agent (who
                                            may see the workspace)
@@ -178,6 +178,7 @@ import lockdown  # noqa: E402  (Lock Down: admins jail a workspace's network and
 import safe  # noqa: E402  (the safe: each account's own files on S3, on the Workspaces page and in its workspaces)
 import provisioners  # noqa: E402  (Provisioner Daemons: stuck jobs, their terraform processes, a re-kick)
 import dr  # noqa: E402  (Persistence > Disaster recovery: Coder's database dumped or copied outside the cluster)
+import hudnodes
 import hudstorage
 import workspaceconnections
 import workspacetunnels
@@ -7848,7 +7849,8 @@ def hud_report(token):
     storage = hud_storage()
     metrics.extend(hudstorage.metrics(storage))
     out = {"metrics": metrics, "storage": storage, "generatedAt": now(), "live": metrics_live, "uptime": coder_uptime(),
-           "cluster": {key: cluster[key] for key in ("cpu", "memory", "live")} if cluster else None}
+           "cluster": {key: cluster[key] for key in ("cpu", "memory", "live")} if cluster else None,
+           "nodes": hudnodes.summarize(snapshot["nodes"])}
     CACHE.put("hud:" + token[:16], out, 5)
     return out
 

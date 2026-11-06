@@ -700,8 +700,26 @@ export type HudStorage = {
 	}[];
 };
 
+/** One node in the HUD's node strip (platform/hudnodes.py). */
+export type HudNode = {
+	name: string;
+	/** ok: Ready; warning: under pressure or cordoned; down: not Ready. */
+	health: "ok" | "warning" | "down";
+	ip: string | null;
+	roles: string[];
+	pressure: string[];
+	unschedulable: boolean;
+	kubelet: string | null;
+	created: string | null;
+	labels: Record<string, string>;
+	/** Values longer than 200 characters are cut. */
+	annotations: Record<string, string>;
+};
+
 type HudReport = {
 	cluster?: Pick<ClusterUsage, "cpu" | "memory" | "live"> | null;
+	/** Missing from an older platform service. */
+	nodes?: HudNode[];
 	storage?: HudStorage;
 	metrics: HudMetric[];
 	generatedAt: string;
