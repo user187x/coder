@@ -12,6 +12,8 @@
 }
 .navbar-soft {
 	padding-inline: var(--navbar-inline-padding);
+	/* The strip behind the controls rounds its corners as they do. */
+	border-radius: 10px;
 }
 .navbar-soft :is(.navbar-split, .navbar-action > button, .navbar-action > a) {
 	box-sizing: border-box;
