@@ -97,3 +97,14 @@ it("disconnects the current support session", async () => {
 		expect(end).toHaveBeenCalledWith({ action: "end", id: MockScreenShare.id }),
 	);
 });
+
+it("opens the search door into a focused search field", async () => {
+	render(<ScreenShareCard overview={MockMonitoringOverview} />);
+	await userEvent.click(
+		screen.getByText("Search workspaces or users", { ignore: "label" }),
+	);
+	await userEvent.keyboard("dev{Enter}");
+	expect(
+		screen.getByRole("combobox", { name: "Search workspaces or users" }),
+	).toHaveValue("TestUser2/dev");
+});

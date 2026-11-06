@@ -188,3 +188,59 @@
 		}
 	}
 }
+
+/* The live-view search as a VCR tape door: centered glyph and text, swinging in on its top hinge when focused. */
+.vhs-search {
+	perspective: 640px;
+}
+.vhs-door {
+	position: absolute;
+	inset: 0;
+	z-index: 10;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.5rem;
+	padding: 0 0.75rem 4px;
+	border: 0;
+	border-radius: inherit;
+	background: linear-gradient(to bottom, #2f2f2f, #151515 70%, #0c0c0c);
+	box-shadow:
+		inset 0 1px 0 rgb(255 255 255 / 12%),
+		inset 0 -2px 0 rgb(0 0 0 / 70%);
+	color: #d4d4d4;
+	font: inherit;
+	font-size: 0.875rem;
+	cursor: pointer;
+	transform-origin: top center;
+	transition:
+		transform 420ms cubic-bezier(0.3, 0.7, 0.2, 1),
+		opacity 420ms ease-in;
+}
+/* The tape slot's lip along the bottom edge. */
+.vhs-door::after {
+	content: "";
+	position: absolute;
+	inset: auto 14% 4px;
+	height: 3px;
+	border-radius: 2px;
+	background: #000;
+	box-shadow: 0 1px 0 rgb(255 255 255 / 10%);
+}
+.vhs-door[data-open] {
+	transform: rotateX(-88deg);
+	opacity: 0;
+	pointer-events: none;
+}
+.vhs-door:disabled {
+	cursor: not-allowed;
+	opacity: 0.6;
+}
+@media (prefers-reduced-motion: reduce) {
+	.vhs-door {
+		transition: none;
+	}
+}
+html[data-animations="off"] .vhs-door {
+	transition: none;
+}

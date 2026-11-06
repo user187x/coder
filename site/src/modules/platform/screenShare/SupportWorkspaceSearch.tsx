@@ -1,5 +1,5 @@
-import { CheckIcon } from "lucide-react";
-import { useState } from "react";
+import { CheckIcon, SearchIcon } from "lucide-react";
+import { useRef, useState } from "react";
 import type { MonitoringOverview } from "#/api/platform";
 import { Avatar } from "#/components/Avatar/Avatar";
 import {
@@ -23,6 +23,7 @@ export const SupportWorkspaceSearch = ({
 }) => {
 	const [search, setSearch] = useState("");
 	const [open, setOpen] = useState(false);
+	const input = useRef<HTMLInputElement>(null);
 	const workspaces =
 		overview?.users.flatMap(({ user, instances }) =>
 			instances.map((workspace) => ({ user, workspace })),
@@ -40,12 +41,31 @@ export const SupportWorkspaceSearch = ({
 		<Command
 			label="Search workspaces or users"
 			shouldFilter={false}
-			className="relative h-auto min-w-48 flex-1 overflow-visible border border-solid border-border"
+			className="vhs-search relative h-auto min-w-48 flex-1 overflow-visible border border-solid border-border"
 			onBlur={(event) => {
 				if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
 			}}
 		>
+			{/* A VCR's tape door over the field: it swings in on its top hinge when the search takes focus. */}
+			<button
+				type="button"
+				tabIndex={-1}
+				aria-hidden
+				data-open={open || undefined}
+				className="vhs-door"
+				disabled={disabled || !overview}
+				onClick={() => input.current?.focus()}
+			>
+				<SearchIcon className="size-4 shrink-0" />
+				<span className="truncate">
+					{selected
+						? `${selected.user.username}/${selected.workspace.name}`
+						: "Search workspaces or users"}
+				</span>
+			</button>
 			<CommandInput
+				ref={input}
+				className="text-center"
 				aria-label="Search workspaces or users"
 				placeholder="Search workspaces or users…"
 				disabled={disabled || !overview}
