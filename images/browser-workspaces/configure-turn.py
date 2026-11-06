@@ -46,7 +46,7 @@ if credentials.returncode:
     config = '\n'.join([
         'realm=' + args.hostname, 'server-name=' + args.hostname,
         'listening-port=3478', 'tls-listening-port=5349', 'no-udp', 'no-tcp',
-        'no-tcp-relay', 'no-cli', 'no-multicast-peers', 'no-software-attribute',
+        'no-tcp-relay', 'no-multicast-peers', 'no-software-attribute',
         'lt-cred-mech', 'user=browser:' + password,
         'cert=/tls/tls.crt', 'pkey=/tls/tls.key',
         'min-port=49160', 'max-port=49200', 'user-quota=8', 'total-quota=16',
@@ -73,7 +73,7 @@ resources = rbac_resources + [
             'automountServiceAccountToken': False,
             'securityContext': {'runAsUser': 65532, 'runAsGroup': 65532, 'fsGroup': 65532, 'runAsNonRoot': True},
             'containers': [{'name': 'turn',
-                'image': 'coturn/coturn:4.17.1-r0@sha256:ed84c3109f3f0a57ccc829ae9413f70b95fc0452322efb9279db308717138280',
+                'image': 'coturn/coturn:4.18.0-r0@sha256:bbefd3e1fdfdc0d58770fe01b581fd8b00d9f3a5580d00acb77cf719a6bc78e3',
                 'command': ['/bin/sh', '-c', 'exec turnserver -c /config/turnserver.conf --listening-ip="$POD_IP" --relay-ip="$POD_IP"'],
                 'env': [{'name': 'POD_IP', 'valueFrom': {'fieldRef': {'fieldPath': 'status.podIP'}}}],
                 'ports': [{'name': 'turn-tls', 'containerPort': 5349}],

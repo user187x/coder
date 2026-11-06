@@ -12,7 +12,7 @@ docker.io/library/python:3.13-alpine                      sha256:2d9aefe2fef018a
 ghcr.io/cloudnative-pg/postgresql:18.4-system-trixie      sha256:42708a75345b7a48fdd9257b071830783a97fd228529196b6313187a7198e185   database, uiUpdates.logsDb, uiUpdates.pgImage
 ghcr.io/cloudnative-pg/pgbouncer:1.25.1                   sha256:e6ddfe22d845e603825e235dd8334b21ecd125abea2a2172478f556b8dee2bb8   the database's PgBouncer pooler (database.pooler, values-ha.example.yaml); CloudNativePG 1.30's own default
 
-docker.io/coturn/coturn:4.17.1-r0 sha256:ed84c3109f3f0a57ccc829ae9413f70b95fc0452322efb9279db308717138280   TLS relay for authorized dashboard support sessions
+docker.io/coturn/coturn:4.18.0-r0 sha256:bbefd3e1fdfdc0d58770fe01b581fd8b00d9f3a5580d00acb77cf719a6bc78e3   TLS relay for authorized dashboard support sessions
 
 [workspaces]    images/workspaces/     push      the workspace templates' images
 docker.io/mrshll187/coder-workspace:1.8.5 sha256:6a2d362bef139d6744549ad4ca39c3403934f15ed195092031ba240991b28238 workspace pods (default: DEFAULT): enterprise-base + desktop (no light-locker) with its Classic and Serenade themes (picom, eww, rofi), noVNC's clipboard shared with the computer, Chromium (default), Terminator, Firefox, JetBrains Mono Nerd Font in every terminal (code-server's too) and Noto Color Emoji, tmux, CLI tools, k9s/kubectl/kubelogin, Python venv, code-server, FileBrowser Quantum 2.1.2-coder.1 (symlinked folders), default ~/.bashrc and desktop background (development/workspace-image)

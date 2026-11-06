@@ -141,7 +141,7 @@ class LiveRelayTest(unittest.TestCase):
         cls.password, cls.secret = secrets.token_hex(24), secrets.token_hex(24)
         (directory / 'turnserver.conf').write_text('\n'.join([
             'listening-ip=0.0.0.0', 'relay-ip=127.0.0.1', 'tls-listening-port=5349',
-            'no-udp', 'no-tcp', 'no-dtls', 'no-tlsv1', 'no-tlsv1_1', 'no-tcp-relay',
+            'no-udp', 'no-tcp', 'no-tlsv1', 'no-tlsv1_1', 'no-tcp-relay',
             'use-auth-secret', 'static-auth-secret=' + cls.secret, 'realm=isolated.test', 'user-quota=2',
             'cert=/test/cert.pem', 'pkey=/test/key.pem', 'allow-loopback-peers',
             'cli', 'cli-ip=0.0.0.0', 'cli-port=5766', 'cli-password=' + cls.password,
@@ -150,7 +150,7 @@ class LiveRelayTest(unittest.TestCase):
         ]) + '\n')
         cls.name = 'coder-relay-test-' + uuid.uuid4().hex[:12]
         cls.addClassCleanup(lambda: subprocess.run(['docker', 'rm', '-f', cls.name], capture_output=True))
-        image = 'coturn/coturn:4.17.1-r0@sha256:ed84c3109f3f0a57ccc829ae9413f70b95fc0452322efb9279db308717138280'
+        image = 'coturn/coturn:4.18.0-r0@sha256:bbefd3e1fdfdc0d58770fe01b581fd8b00d9f3a5580d00acb77cf719a6bc78e3'
         subprocess.run(['docker', 'run', '--detach', '--rm', '--name', cls.name,
                         '--publish', '127.0.0.1::5349', '--publish', '127.0.0.1::5766',
                         '--volume', str(directory) + ':/test:ro', image, '-c', '/test/turnserver.conf'],

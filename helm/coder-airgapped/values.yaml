@@ -647,7 +647,7 @@ uiUpdates:
     hostname: 'support-relay.{{ .Values.global.domain }}'
     gatewayClassName: traefik
     gatewayPort: 8443
-    image: 'docker.io/coturn/coturn:4.17.1-r0@sha256:ed84c3109f3f0a57ccc829ae9413f70b95fc0452322efb9279db308717138280'
+    image: 'docker.io/coturn/coturn:4.18.0-r0@sha256:bbefd3e1fdfdc0d58770fe01b581fd8b00d9f3a5580d00acb77cf719a6bc78e3'
   # Enable after qualifying host process visibility on approved VM workers.
   quarantineObserver:
     enabled: false

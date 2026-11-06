@@ -27,7 +27,6 @@ data:
     tls-listening-port=5349
     no-udp
     no-tcp
-    no-dtls
     no-tlsv1
     no-tlsv1_1
     no-tcp-relay
