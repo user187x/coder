@@ -1,5 +1,6 @@
 import { useId, useState } from "react";
 import { useMutation } from "react-query";
+import { getErrorStatus } from "#/api/errors";
 import { leaseLogin } from "#/api/queries/shortTermLeases";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { Button } from "#/components/Button/Button";
@@ -21,14 +22,23 @@ export const LeaseTokenSignInForm = ({
 			onSubmit={(event) => {
 				event.preventDefault();
 				if (!token.trim() || login.isPending) return;
-				login.mutate(token.trim(), {
+				const submitted = token.trim();
+				// Drop the token from state as soon as it is submitted.
+				setToken("");
+				login.mutate(submitted, {
 					onSuccess: () => window.location.assign("/workspaces"),
 				});
 			}}
 		>
-			{login.error && (
-				<ErrorAlert error={login.error} showDebugDetail={false} />
-			)}
+			{login.error &&
+				(getErrorStatus(login.error) === 429 ? (
+					<ErrorAlert
+						error={new Error("Too many attempts. Wait a moment and try again.")}
+						showDebugDetail={false}
+					/>
+				) : (
+					<ErrorAlert error={login.error} showDebugDetail={false} />
+				))}
 			<div className="flex flex-col items-start gap-2">
 				<Label htmlFor={tokenId}>Lease token</Label>
 				<Input

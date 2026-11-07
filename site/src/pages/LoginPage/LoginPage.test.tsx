@@ -395,3 +395,100 @@ describe("sign-in method selector", () => {
 		login.mockRestore();
 	});
 });
+
+describe("lease token sign-in", () => {
+	const assign = vi.fn();
+	const leaseToken = "example-lease-token";
+
+	beforeEach(() => {
+		vi.stubGlobal("location", {
+			origin: "http://localhost",
+			href: "http://localhost/login",
+			search: "",
+			assign,
+		});
+	});
+
+	afterEach(() => {
+		vi.unstubAllGlobals();
+		assign.mockReset();
+	});
+
+	const openLeaseForm = async (user: ReturnType<typeof userEvent.setup>) => {
+		render(
+			<SignInForm
+				isSigningIn={false}
+				redirectTo="/"
+				authMethods={{
+					password: { enabled: true },
+					oidc: { enabled: false, signInText: "", iconUrl: "" },
+				}}
+				onSubmit={vi.fn()}
+			/>,
+		);
+		await user.click(
+			screen.getByRole("button", { name: "Choose sign-in method" }),
+		);
+		await user.click(
+			screen.getByRole("menuitemradio", { name: "Lease token" }),
+		);
+		return screen.getByLabelText("Lease token", { exact: true });
+	};
+
+	it("shows a private token field when Lease token is chosen", async () => {
+		const field = await openLeaseForm(userEvent.setup());
+		expect(field).toHaveAttribute("type", "password");
+		expect(field).toHaveAttribute("autocomplete", "off");
+	});
+
+	it("posts the token in the body and redirects on success", async () => {
+		const user = userEvent.setup();
+		let body: unknown;
+		let requestUrl = "";
+		server.use(
+			http.post("/api/v2/short-term-lease/login", async ({ request }) => {
+				body = await request.json();
+				requestUrl = request.url;
+				return HttpResponse.json({});
+			}),
+		);
+		const field = await openLeaseForm(user);
+		await user.type(field, leaseToken);
+		await user.click(screen.getByRole("button", { name: "Sign In" }));
+
+		await waitFor(() => expect(assign).toHaveBeenCalledWith("/workspaces"));
+		expect(body).toEqual({ token: leaseToken });
+		expect(requestUrl).not.toContain(leaseToken);
+		expect(assign.mock.calls.flat().join()).not.toContain(leaseToken);
+		expect(field).toHaveValue("");
+	});
+
+	it.each([401, 403])("shows the server error on a %i", async (status) => {
+		const user = userEvent.setup();
+		server.use(
+			http.post("/api/v2/short-term-lease/login", () =>
+				HttpResponse.json({ message: "Lease rejected." }, { status }),
+			),
+		);
+		const field = await openLeaseForm(user);
+		await user.type(field, leaseToken);
+		await user.click(screen.getByRole("button", { name: "Sign In" }));
+
+		expect(await screen.findByText("Lease rejected.")).toBeInTheDocument();
+		expect(assign).not.toHaveBeenCalled();
+	});
+
+	it("shows a clear message when rate limited", async () => {
+		const user = userEvent.setup();
+		server.use(
+			http.post("/api/v2/short-term-lease/login", () =>
+				HttpResponse.json({ message: "raw" }, { status: 429 }),
+			),
+		);
+		const field = await openLeaseForm(user);
+		await user.type(field, leaseToken);
+		await user.click(screen.getByRole("button", { name: "Sign In" }));
+
+		expect(await screen.findByText(/too many attempts/i)).toBeInTheDocument();
+	});
+});
