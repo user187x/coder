@@ -154,7 +154,7 @@ export const WorkspacesCardBody: React.FC<{
 						</span>
 					</div>
 					<span className="text-right text-xs tabular-nums text-content-secondary">
-						{formatQuotaNumber(w.cpu)} cores
+						{formatQuotaNumber(w.cpu)} {w.cpu === 1 ? "core" : "cores"}
 						<br />
 						{formatQuotaNumber(w.memory)} GiB · {formatQuotaNumber(w.disk)} GB
 					</span>
