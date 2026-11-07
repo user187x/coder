@@ -10,6 +10,8 @@ import {
 	MockNetworkAnsiPodLogs,
 	MockNetworkLogPod,
 } from "#/testHelpers/clusterNetwork";
+import { MockPermissions, MockUserOwner } from "#/testHelpers/entities";
+import { withAuthProvider } from "#/testHelpers/storybook";
 import { EntityActionsProvider, EntityContextMenu } from "./EntityActions";
 
 const target: KubernetesEntityRef = {
@@ -40,7 +42,10 @@ const meta: Meta<typeof EntityActionsProvider> = {
 			</EntityContextMenu>
 		</EntityActionsProvider>
 	),
+	decorators: [withAuthProvider],
 	parameters: {
+		user: MockUserOwner,
+		permissions: MockPermissions,
 		queries: [
 			{
 				key: networkLogTargets(target).queryKey,

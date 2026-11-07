@@ -8,6 +8,8 @@ export type MigrationNode = {
 	disk: { total: number | null; used: number | null; free: number | null };
 	eligible: boolean;
 	reasons: string[];
+	/** What this workspace needs from a destination: cores, memory bytes, disk bytes. */
+	needs?: { cpu: number; memory: number; disk: number };
 };
 type WorkspaceMigration = {
 	id: string;
@@ -29,9 +31,33 @@ export type WorkspaceMigrationPlan = {
 	nodes: MigrationNode[];
 	operation: WorkspaceMigration | null;
 };
+/** One row of the admin list. percent is the share of the home volume copied. */
+export type WorkspaceMigrationSummary = {
+	id: string;
+	workspaceId: string;
+	workspaceName: string | null;
+	status: WorkspaceMigration["status"];
+	phase: string | null;
+	percent: number;
+	/** Cores and bytes the workspace requests, when its pod spec was recorded. */
+	cpu: number | null;
+	memoryBytes: number | null;
+	diskBytes: number | null;
+	copiedBytes: number | null;
+	sourceNode: string | null;
+	target: string | null;
+	message: string | null;
+	error: string | null;
+	startedAt: string;
+	updatedAt: string;
+};
 const path = (id: string) =>
 	`${platformRequest.base}/api/workspace-migrations/${encodeURIComponent(id)}`;
 export const WorkspaceMigrationsAPI = {
+	list: () =>
+		platformRequest.get<{ migrations: WorkspaceMigrationSummary[] }>(
+			`${platformRequest.base}/api/workspace-migrations`,
+		),
 	cancel: (id: string) =>
 		platformRequest.post<{ operation: WorkspaceMigration }>(path(id), {
 			cancel: true,

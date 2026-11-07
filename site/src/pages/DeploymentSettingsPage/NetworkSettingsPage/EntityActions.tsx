@@ -3,6 +3,7 @@ import {
 	FileTextIcon,
 	InfoIcon,
 	LogOutIcon,
+	MoveRightIcon,
 	PencilIcon,
 	RotateCwIcon,
 	ShieldIcon,
@@ -27,6 +28,8 @@ import {
 	networkPodLogs,
 	restartNetworkPod,
 } from "#/api/clusterNetwork";
+import { getErrorMessage } from "#/api/errors";
+import { workspaceMigrationPlan } from "#/api/queries/workspaceMigrations";
 import { ErrorAlert } from "#/components/Alert/ErrorAlert";
 import { Button } from "#/components/Button/Button";
 import {
@@ -45,6 +48,8 @@ import {
 import { Input } from "#/components/Input/Input";
 import { Label } from "#/components/Label/Label";
 import { Loader } from "#/components/Loader/Loader";
+import { useAuthenticated } from "#/hooks/useAuthenticated";
+import { MigrateWorkspaceDialog } from "#/modules/workspaces/WorkspaceMoreActions/MigrateWorkspaceDialog";
 
 import { type NodeAction, NodeActions, nodeActionTitles } from "./NodeActions";
 
@@ -52,6 +57,53 @@ type Mode = "logs" | "restart" | NodeAction;
 const Actions = createContext<
 	(target: EntityRef, mode: Mode | "details") => void
 >(() => {});
+type MigrationTarget = { id: string; name: string };
+const MigrateAction = createContext<(workspace: MigrationTarget) => void>(
+	() => {},
+);
+
+/**
+ * Offers migration for pods that carry the workspace labels. System pods have
+ * none, so they never get the item. Eligibility comes from the migration plan.
+ */
+const MigratePodItem: React.FC<{ target: KubernetesEntityRef }> = ({
+	target,
+}) => {
+	const migrate = useContext(MigrateAction);
+	const pods = useQuery(networkLogTargets(target));
+	const pod = pods.data?.pods.find((p) => p.workspaceId);
+	const plan = useQuery({
+		...workspaceMigrationPlan(pod?.workspaceId ?? ""),
+		enabled: Boolean(pod?.workspaceId),
+		retry: false,
+	});
+	if (!pod?.workspaceId) return null;
+	const workspace = {
+		id: pod.workspaceId,
+		name: pod.workspaceName || pod.name,
+	};
+	const reason = plan.error
+		? getErrorMessage(plan.error, "This workspace cannot be migrated.")
+		: plan.isLoading
+			? "Checking eligibility"
+			: null;
+	return (
+		<ContextMenuItem
+			disabled={Boolean(reason)}
+			onSelect={() => migrate(workspace)}
+		>
+			<MoveRightIcon />
+			<span className="flex flex-col">
+				Migrate to node...
+				{reason && (
+					<span className="max-w-64 text-xs text-content-secondary">
+						{reason}
+					</span>
+				)}
+			</span>
+		</ContextMenuItem>
+	);
+};
 
 /** Adds the same Kubernetes actions to buttons and SVG nodes without changing their layout. */
 export const EntityContextMenu: React.FC<{
@@ -59,6 +111,7 @@ export const EntityContextMenu: React.FC<{
 	children: React.ReactElement;
 }> = ({ target, children }) => {
 	const action = useContext(Actions);
+	const { permissions } = useAuthenticated();
 	if (!target || target.type === "link") return children;
 	return (
 		<ContextMenu modal={false}>
@@ -75,6 +128,9 @@ export const EntityContextMenu: React.FC<{
 					<RotateCwIcon />
 					Restart Pod
 				</ContextMenuItem>
+				{target.type === "pod" && permissions.editDeploymentConfig && (
+					<MigratePodItem target={target} />
+				)}
 				{target.type === "node" && (
 					<>
 						<ContextMenuItem onSelect={() => action(target, "edit-node")}>
@@ -117,68 +173,79 @@ export const EntityActionsProvider: React.FC<{
 		target: KubernetesEntityRef;
 		mode: Mode;
 	}>();
+	const [migrating, setMigrating] = useState<MigrationTarget>();
 	return (
-		<Actions.Provider
-			value={(target, mode) => {
-				if (mode === "details") {
-					setView(undefined);
-					onDetails(target);
-				} else if (target.type !== "link") {
-					onOpen();
-					setView({ target, mode });
-				}
-			}}
-		>
-			{children}
-			<Drawer
-				open={Boolean(view)}
-				onOpenChange={(open) => {
-					if (!open) setView(undefined);
+		<MigrateAction.Provider value={setMigrating}>
+			<Actions.Provider
+				value={(target, mode) => {
+					if (mode === "details") {
+						setView(undefined);
+						onDetails(target);
+					} else if (target.type !== "link") {
+						onOpen();
+						setView({ target, mode });
+					}
 				}}
 			>
-				<DrawerContent className="w-full gap-4 bg-surface-primary p-5 sm:max-w-2xl">
-					<div className="flex items-start justify-between gap-3">
-						<div className="min-w-0">
-							<DrawerTitle>
-								{!view || view.mode === "logs"
-									? "Pod logs"
-									: view.mode === "restart"
-										? "Restart Pod"
-										: nodeActionTitles[view.mode]}
-							</DrawerTitle>
-							<DrawerDescription className="break-all">
-								{view?.target.type === "node"
-									? view.target.name
-									: view && `${view.target.namespace}/${view.target.name}`}
-							</DrawerDescription>
+				{children}
+				<Drawer
+					open={Boolean(view)}
+					onOpenChange={(open) => {
+						if (!open) setView(undefined);
+					}}
+				>
+					<DrawerContent className="w-full gap-4 bg-surface-primary p-5 sm:max-w-2xl">
+						<div className="flex items-start justify-between gap-3">
+							<div className="min-w-0">
+								<DrawerTitle>
+									{!view || view.mode === "logs"
+										? "Pod logs"
+										: view.mode === "restart"
+											? "Restart Pod"
+											: nodeActionTitles[view.mode]}
+								</DrawerTitle>
+								<DrawerDescription className="break-all">
+									{view?.target.type === "node"
+										? view.target.name
+										: view && `${view.target.namespace}/${view.target.name}`}
+								</DrawerDescription>
+							</div>
+							<DrawerClose asChild>
+								<Button
+									size="icon"
+									variant="subtle"
+									aria-label="Close object panel"
+								>
+									<XIcon />
+								</Button>
+							</DrawerClose>
 						</div>
-						<DrawerClose asChild>
-							<Button
-								size="icon"
-								variant="subtle"
-								aria-label="Close object panel"
-							>
-								<XIcon />
-							</Button>
-						</DrawerClose>
-					</div>
-					{view &&
-						(view.mode === "logs" || view.mode === "restart" ? (
-							<PodSelection
-								key={JSON.stringify(view)}
-								target={view.target}
-								mode={view.mode}
-							/>
-						) : (
-							<NodeActions
-								key={JSON.stringify(view)}
-								name={view.target.name}
-								action={view.mode}
-							/>
-						))}
-				</DrawerContent>
-			</Drawer>
-		</Actions.Provider>
+						{view &&
+							(view.mode === "logs" || view.mode === "restart" ? (
+								<PodSelection
+									key={JSON.stringify(view)}
+									target={view.target}
+									mode={view.mode}
+								/>
+							) : (
+								<NodeActions
+									key={JSON.stringify(view)}
+									name={view.target.name}
+									action={view.mode}
+								/>
+							))}
+					</DrawerContent>
+				</Drawer>
+				{migrating && (
+					<MigrateWorkspaceDialog
+						key={migrating.id}
+						workspace={migrating}
+						open
+						onClose={() => setMigrating(undefined)}
+					/>
+				)}
+			</Actions.Provider>
+		</MigrateAction.Provider>
 	);
 };
 

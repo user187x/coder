@@ -45,6 +45,17 @@ class NetworkActionsTest(unittest.TestCase):
         self.assertEqual([p["uid"] for p in network.log_targets("type=node&name=worker-2")["pods"]], ["other"])
         self.assertIn("fieldSelector=spec.nodeName%3Dworker-2", self.kube.call.call_args.args[1])
 
+    def test_log_targets_report_the_workspace_a_pod_belongs_to(self):
+        workspace = copy.deepcopy(self.pod)
+        workspace["metadata"].update(uid="ws-uid", name="ws-1", labels={
+            "com.coder.workspace.id": "11111111-1111-1111-1111-111111111111", "com.coder.workspace.name": "dev"})
+        self.kube.call.return_value = (200, workspace)
+        pod = network.log_targets("type=pod&namespace=coder&name=ws-1")["pods"][0]
+        self.assertEqual((pod["workspaceId"], pod["workspaceName"]), ("11111111-1111-1111-1111-111111111111", "dev"))
+        self.kube.call.return_value = (200, self.pod)
+        pod = network.log_targets("type=pod&namespace=coder&name=coder-1")["pods"][0]
+        self.assertIsNone(pod["workspaceId"])
+
     def test_restart_uses_eviction_with_uid_precondition_and_audits_actor(self):
         self.kube.call.side_effect = [(200, self.pod), (201, {})]
         self.assertTrue(network.restart_pod(self.body, {"id": "admin-id"})["accepted"])

@@ -55,6 +55,7 @@ import {
 } from "./componentKinds";
 import { EntityProvider, useOpenEntity } from "./EntityDetails";
 import { MeshCard } from "./MeshCard";
+import { MigrationsTable } from "./MigrationsTable";
 import { NodesTable } from "./NodesTable";
 import { NodesTopologyCard } from "./NodesTopologyCard";
 
@@ -174,6 +175,7 @@ export const ClusterMap: React.FC = () => {
 						{report && <NodesTopologyCard report={report} />}
 						{report && <WorkspacesTable report={report} />}
 						{report && <NodesTable report={report} />}
+						{permissions.editDeploymentConfig && <MigrationsTable />}
 					</div>
 				)}
 			</section>

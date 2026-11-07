@@ -1228,7 +1228,10 @@ def log_targets(query):
         owners = meta.get("ownerReferences") or []
         controlled = any(o.get("controller") and o.get("kind") in (
             "ReplicaSet", "StatefulSet", "DaemonSet", "ReplicationController", "Cluster") for o in owners)
+        labels = meta.get("labels") or {}
         result[uid] = {"namespace": meta.get("namespace"), "name": meta.get("name"), "uid": uid,
+                       "workspaceId": labels.get("com.coder.workspace.id"),
+                       "workspaceName": labels.get("com.coder.workspace.name"),
                        "containers": [c["name"] for key in ("containers", "initContainers", "ephemeralContainers")
                                       for c in spec.get(key) or []],
                        "restartable": controlled and not meta.get("deletionTimestamp"),

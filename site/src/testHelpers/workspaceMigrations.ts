@@ -1,6 +1,7 @@
 import type { WorkspaceMigrationPlan } from "#/api/workspaceMigrations";
 import { MockWorkspace } from "./entities";
 
+const needs = { cpu: 4, memory: 8 * 1024 ** 3, disk: 10 * 1024 ** 3 };
 export const MockWorkspaceMigrationPlan: WorkspaceMigrationPlan = {
 	workspaceId: MockWorkspace.id,
 	workspaceName: MockWorkspace.name,
@@ -35,6 +36,7 @@ export const MockWorkspaceMigrationPlan: WorkspaceMigrationPlan = {
 			disk: { total: 1024 ** 4, used: 200 * 1024 ** 3, free: 824 * 1024 ** 3 },
 			eligible: true,
 			reasons: [],
+			needs,
 		},
 		{
 			name: "worker-03",
@@ -47,9 +49,10 @@ export const MockWorkspaceMigrationPlan: WorkspaceMigrationPlan = {
 			},
 			disk: { total: 1024 ** 4, used: 1020 * 1024 ** 3, free: 4 * 1024 ** 3 },
 			eligible: false,
+			needs,
 			reasons: [
-				"Insufficient CPU headroom",
-				"Insufficient disk space including safety reserve",
+				"Needs 4 cores, 2.5 free",
+				"Needs 10.0 GiB disk plus a safety reserve, 4.0 GiB free",
 			],
 		},
 	],

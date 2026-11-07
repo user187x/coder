@@ -94,8 +94,25 @@ def local_node(pv):
     raise ValueError('Migration requires a local home volume bound to exactly one node.')
 
 
+def tolerated(taint, tolerations):
+    for t in tolerations or []:
+        if t.get('effect') not in (None, '', taint.get('effect')):
+            continue
+        if not t.get('key') and t.get('operator') == 'Exists':
+            return True
+        if t.get('key') == taint.get('key') and (t.get('operator') == 'Exists' or (t.get('operator') or 'Equal') == 'Equal' and t.get('value', '') == taint.get('value', '')):
+            return True
+    return False
+
+
+def gib(value):
+    return '%.1f GiB' % (value / 1024 ** 3)
+
+
 def candidates(snapshot, summaries, pod_spec, source, disk_bytes):
     required = requests(pod_spec)
+    arch = lambda n: ((n.get('status') or {}).get('nodeInfo') or {}).get('architecture')
+    source_arch = next((arch(n) for n in snapshot['nodes'] if n['metadata']['name'] == source), None)
     out = []
     for node in snapshot['nodes']:
         meta, spec, status = node['metadata'], node.get('spec') or {}, node.get('status') or {}
@@ -105,7 +122,7 @@ def candidates(snapshot, summaries, pod_spec, source, disk_bytes):
         measured = hudstorage.fresh(fs)
         disks = {key: hudstorage.number(fs.get(field)) if measured else None for key, field in [('total', 'capacityBytes'), ('used', 'usedBytes'), ('free', 'availableBytes')]}
         usage = (snapshot.get('usage') or {}).get(name) or {}
-        metrics_fresh = hudstorage.fresh({'time': (snapshot.get('usageTimes') or {}).get(name)})
+        metrics_fresh = bool((snapshot.get('usageTimes') or {}).get(name)) and hudstorage.fresh({'time': snapshot['usageTimes'][name]})
         total = {key: QUANTITY((status.get('allocatable') or {}).get(key)) or 0 for key in ('cpu', 'memory')}
         used = {key: QUANTITY(usage.get(key)) if metrics_fresh else None for key in total}
         reserved = {key: 0 for key in total}
@@ -121,8 +138,10 @@ def candidates(snapshot, summaries, pod_spec, source, disk_bytes):
             reasons.append('Node is not schedulable')
         if any(conditions.get(key) == 'True' for key in ('DiskPressure', 'MemoryPressure', 'PIDPressure')):
             reasons.append('Node reports resource pressure')
-        if any(t.get('effect') in ('NoSchedule', 'NoExecute') for t in spec.get('taints') or []):
-            reasons.append('Node has a scheduling taint')
+        if any(t.get('effect') in ('NoSchedule', 'NoExecute') and not tolerated(t, pod_spec.get('tolerations')) for t in spec.get('taints') or []):
+            reasons.append('Node has a taint the workspace does not tolerate')
+        if source_arch and arch(node) and arch(node) != source_arch:
+            reasons.append('Architecture %s differs from %s' % (arch(node), source_arch))
         labels = meta.get('labels') or {}
         if any(labels.get(key) != value for key, value in (pod_spec.get('nodeSelector') or {}).items()):
             reasons.append('Workspace node selector does not match')
@@ -130,15 +149,18 @@ def candidates(snapshot, summaries, pod_spec, source, disk_bytes):
             if used[key] is None or not snapshot.get('podsAvailable', False):
                 reasons.append('%s usage is unavailable' % key.capitalize())
             elif max(used[key], reserved[key]) + required[key] > total[key] * .9:
-                reasons.append('Insufficient %s headroom' % key)
+                free = max(0, total[key] * .9 - max(used[key], reserved[key]))
+                reasons.append('Needs %s cores, %.1f free' % (round(required[key], 2), free) if key == 'cpu'
+                               else 'Needs %s memory, %s free' % (gib(required[key]), gib(free)))
         if disks['free'] is None or disks['total'] is None:
             reasons.append('Disk measurements unavailable')
         elif disks['free'] - disk_bytes < max(1024 ** 3, disks['total'] * .05):
-            reasons.append('Insufficient disk space including safety reserve')
+            reasons.append('Needs %s disk plus a safety reserve, %s free' % (gib(disk_bytes), gib(disks['free'])))
         out.append(dict(name=name, ips=[a['address'] for a in status.get('addresses') or [] if a['type'] in ('InternalIP', 'ExternalIP')],
                         cpu=dict(total=total['cpu'], used=used['cpu'], requested=reserved['cpu']),
                         memory=dict(total=total['memory'], used=used['memory'], requested=reserved['memory']),
-                        disk=disks, eligible=not reasons, reasons=reasons))
+                        disk=disks, eligible=not reasons, reasons=reasons,
+                        needs=dict(cpu=required['cpu'], memory=required['memory'], disk=disk_bytes)))
     return out
 
 
@@ -165,20 +187,71 @@ def plan(ws):
         raise ValueError('Workspaces with additional persistent volumes need a coordinated storage migration.')
     source = local_node(pv)
     disk_bytes = volumes.ib_quantity((pvc['status'].get('capacity') or {}).get('storage'))
+    # Persist scheduling inputs only; container environment variables may contain agent credentials.
+    scheduling = {key: copy.deepcopy(pod_spec[key]) for key in ('nodeSelector', 'tolerations', 'overhead') if key in pod_spec}
+    runtime = pod_spec.get('runtimeClassName')
+    if runtime:
+        try:
+            runtime_class = api('GET', '/apis/node.k8s.io/v1/runtimeclasses/' + urllib.parse.quote(runtime, safe=''))
+        except Exception:
+            raise ValueError('The workspace runtime class %s could not be inspected.' % runtime)
+        scheduling['nodeSelector'] = dict(scheduling.get('nodeSelector') or {}, **((runtime_class.get('scheduling') or {}).get('nodeSelector') or {}))
+        scheduling['tolerations'] = (scheduling.get('tolerations') or []) + ((runtime_class.get('scheduling') or {}).get('tolerations') or [])
+        if 'overhead' not in scheduling and (runtime_class.get('overhead') or {}).get('podFixed'):
+            scheduling['overhead'] = runtime_class['overhead']['podFixed']
+    for key in ('containers', 'initContainers'):
+        scheduling[key] = [{'resources': copy.deepcopy(c.get('resources') or {})} for c in pod_spec.get(key) or []]
     snapshot = SNAPSHOT()
     summaries = SUMMARIES()
-    nodes = candidates(snapshot, summaries, pod_spec, source, disk_bytes)
+    nodes = candidates(snapshot, summaries, scheduling, source, disk_bytes)
     measurements = [hudstorage.number(volume.get('usedBytes')) for summary in summaries.values()
                     for pod in summary.get('pods') or [] for volume in pod.get('volume') or []
                     if (volume.get('pvcRef') or {}).get('name') == pvc['metadata']['name']
                     and (volume.get('pvcRef') or {}).get('namespace') == volumes.NAMESPACE and hudstorage.fresh(volume)]
     home_used = max((value for value in measurements if value is not None), default=None)
-    # Persist scheduling inputs only; container environment variables may contain agent credentials.
-    scheduling = {key: copy.deepcopy(pod_spec[key]) for key in ('nodeSelector',) if key in pod_spec}
-    for key in ('containers', 'initContainers'):
-        scheduling[key] = [{'resources': copy.deepcopy(c.get('resources') or {})} for c in pod_spec.get(key) or []]
     return dict(workspaceId=ws['id'], workspaceName=ws['name'], sourceNode=source, diskBytes=disk_bytes,
                 nodes=nodes, homeUsedBytes=home_used, generatedAt=volumes.now()), dict(pvc=pvc, pv=pv, podSpec=scheduling)
+
+
+PHASES = ('prepare', 'copy', 'cutover', 'start', 'done')
+
+
+def progress(op):
+    """Share of the home volume copied: bytes sent out of the measured home size, 100 once the copy is verified."""
+    phase = op.get('phase')
+    if phase in PHASES[2:]:
+        return 100
+    total, copied = op.get('homeUsedBytes'), op.get('copiedBytes')
+    if phase != 'copy' or not total or not copied:
+        return 0
+    return min(99, int(100 * copied / total))
+
+
+def requested(op, key):
+    """Total CPU cores or memory bytes the workspace's containers request (limits if no request), or None."""
+    values = []
+    for container in (op.get('podSpec') or {}).get('containers') or []:
+        resources = container.get('resources') or {}
+        value = (resources.get('requests') or {}).get(key) or (resources.get('limits') or {}).get(key)
+        if value is not None:
+            values.append(QUANTITY(value))
+    return sum(v for v in values if v is not None) if values else None
+
+
+def listing():
+    rows = database().query('''SELECT id::text, workspace_id::text, status, state::text,
+        to_char(created_at AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'),
+        to_char(updated_at AT TIME ZONE 'utc', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')
+        FROM coder_ui_updates.workspace_migrations ORDER BY created_at DESC LIMIT 50''')
+    out = []
+    for mid, wid, status, state, created, updated in rows:
+        op = json.loads(state)
+        out.append(dict(id=mid, workspaceId=wid, workspaceName=op.get('workspaceName'), status=status,
+                        phase=op.get('phase'), percent=progress(op), cpu=requested(op, 'cpu'), memoryBytes=requested(op, 'memory'),
+                        diskBytes=op.get('diskBytes'), copiedBytes=op.get('copiedBytes'), sourceNode=op.get('sourceNode'),
+                        target=op.get('target'), message=op.get('message'), error=op.get('error'),
+                        startedAt=created, updatedAt=updated))
+    return out
 
 
 def public(op):
@@ -270,7 +343,7 @@ def command(mode):
     return ['python3', '-c', script, mode, '/home-data']
 
 
-def copy_home(source, target):
+def copy_home(source, target, op=None):
     chunks = queue.Queue(maxsize=16)
     stopped = threading.Event()
     result = []
@@ -297,12 +370,17 @@ def copy_home(source, target):
                 enqueue(None)
 
     def consume():
+        sent, saved = 0, 0.0
         while True:
             chunk = chunks.get(timeout=7200)
             if chunk is None:
                 if result[0]:
                     raise result[0]
                 return
+            sent += len(chunk)
+            if op is not None and time.monotonic() - saved > 3:
+                saved = time.monotonic()
+                save(op, copiedBytes=sent)
             yield chunk
 
     producer = threading.Thread(target=produce, daemon=True)
@@ -413,7 +491,7 @@ def run(token, op, lease):
         if code or not available.strip().isdigit() or int(available) < op['diskBytes'] + 1024 ** 3:
             raise RuntimeError('The destination filesystem does not have enough free space.')
         save(op, message='Copying and verifying home files, ownership, permissions and extended attributes.')
-        checksum = copy_home(source['metadata']['name'], target['metadata']['name'])
+        checksum = copy_home(source['metadata']['name'], target['metadata']['name'], op)
         save(op, phase='cutover', destinationPV=pv, checksum=checksum,
              retainedVolume=op['pv']['metadata']['name'], message='Verified the copy. Switching the workspace home binding.')
     if op['phase'] == 'cutover':
@@ -489,7 +567,7 @@ def start(token, ws, user, target=None, resume=False):
             node = next((n for n in preview['nodes'] if n['name'] == target), None)
             if not node or not node['eligible']:
                 raise ValueError('This destination cannot accept the workspace.')
-            op = dict(id=str(uuid.uuid4()), workspaceId=ws['id'], target=target, sourceNode=preview['sourceNode'],
+            op = dict(id=str(uuid.uuid4()), workspaceId=ws['id'], workspaceName=ws['name'], target=target, sourceNode=preview['sourceNode'],
                       diskBytes=preview['diskBytes'], homeUsedBytes=preview['homeUsedBytes'], phase='prepare', initialBuild=ws['latest_build']['id'], wasRunning=volumes.is_running(ws), **private)
             op['temporaryClaim'] = 'coder-migration-' + op['id']
             lease.query('''INSERT INTO coder_ui_updates.workspace_migrations(id, organization_id, workspace_id, created_by, status, worker, state)
@@ -524,7 +602,7 @@ def cancel(ws):
 
 
 def handle(h, method, url):
-    if not url.startswith(BASE):
+    if not url.startswith(BASE) and url != BASE.rstrip('/'):
         return False
     if method not in ('GET', 'POST'):
         h.send_json(405, {'error': 'Method not allowed'})
@@ -536,6 +614,12 @@ def handle(h, method, url):
     if error:
         return True
     try:
+        if url.rstrip('/') == BASE.rstrip('/'):
+            if method != 'GET':
+                h.send_json(405, {'error': 'Method not allowed'})
+            else:
+                h.send_json(200, {'migrations': listing()})
+            return True
         wid = str(uuid.UUID(url[len(BASE):]))
         token = h.token()
         ws = volumes.workspace(token, wid)

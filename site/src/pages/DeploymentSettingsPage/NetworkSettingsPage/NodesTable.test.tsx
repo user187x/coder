@@ -10,6 +10,10 @@ import { render } from "#/testHelpers/renderHelpers";
 import { EntityProvider } from "./EntityDetails";
 import { NodesTable } from "./NodesTable";
 
+vi.mock("#/hooks/useAuthenticated", () => ({
+	useAuthenticated: () => ({ permissions: { editDeploymentConfig: false } }),
+}));
+
 afterEach(() => vi.restoreAllMocks());
 it("loads pods across namespaces when a node expands and opens the selected pod", async () => {
 	const user = userEvent.setup();

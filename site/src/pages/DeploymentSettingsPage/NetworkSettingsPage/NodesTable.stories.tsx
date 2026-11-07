@@ -5,6 +5,8 @@ import {
 	MockClusterNetworkReport,
 	MockNodePod,
 } from "#/testHelpers/clusterNetwork";
+import { MockPermissions, MockUserOwner } from "#/testHelpers/entities";
+import { withAuthProvider } from "#/testHelpers/storybook";
 import { EntityProvider } from "./EntityDetails";
 import { NodesTable } from "./NodesTable";
 
@@ -13,6 +15,7 @@ const meta: Meta<typeof NodesTable> = {
 	component: NodesTable,
 	args: { report: MockClusterNetworkReport },
 	decorators: [
+		withAuthProvider,
 		(Story) => (
 			<EntityProvider>
 				<Story />
@@ -27,6 +30,8 @@ const meta: Meta<typeof NodesTable> = {
 		return () => pods.mockRestore();
 	},
 	parameters: {
+		user: MockUserOwner,
+		permissions: MockPermissions,
 		queries: [
 			{
 				key: networkNodePods().queryKey,

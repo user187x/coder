@@ -77,7 +77,7 @@ export const MigrateWorkspaceDialog = ({
 	open,
 	onClose,
 }: {
-	workspace: Workspace;
+	workspace: Pick<Workspace, "id" | "name">;
 	open: boolean;
 	onClose: () => void;
 }) => {
@@ -251,6 +251,13 @@ export const MigrateWorkspaceDialog = ({
 												)}
 											>
 												<NodeDetails node={node} />
+												{node.needs && (
+													<span className="mt-3 block text-xs text-content-secondary">
+														Needs {cores(node.needs.cpu)} cores,{" "}
+														{bytes(node.needs.memory)} memory and{" "}
+														{bytes(node.needs.disk)} disk
+													</span>
+												)}
 												<span
 													className={cn(
 														"mt-4 flex min-h-5 items-center gap-1.5 text-xs",

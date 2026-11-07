@@ -4,12 +4,15 @@ import type React from "react";
 type LinearProgressProps = React.ComponentProps<"div"> & {
 	value: number;
 	variant: "determinate" | "indeterminate";
+	/** Animates the determinate fill with the shared barber pole (still under reduced motion). */
+	striped?: boolean;
 };
 
 const LinearProgress: React.FC<LinearProgressProps> = ({
 	value,
 	className,
 	variant,
+	striped,
 	...props
 }) => {
 	const isDeterminate = variant === "determinate";
@@ -44,7 +47,10 @@ const LinearProgress: React.FC<LinearProgressProps> = ({
 				</>
 			) : (
 				<div
-					className="h-full rounded-full bg-highlight-sky"
+					className={cn(
+						"h-full rounded-full bg-highlight-sky",
+						striped && "workspace-barber-pole",
+					)}
 					style={{ width: `${value}%` }}
 				/>
 			)}

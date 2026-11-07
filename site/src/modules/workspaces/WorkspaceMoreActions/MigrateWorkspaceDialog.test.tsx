@@ -70,3 +70,25 @@ it("resumes an interrupted operation without creating a second migration", async
 	await waitFor(() => expect(resume).toHaveBeenCalledWith(MockWorkspace.id));
 	expect(start).not.toHaveBeenCalled();
 });
+
+it("disables an ineligible destination with its reason and selects an eligible one", async () => {
+	const start = vi
+		.spyOn(WorkspaceMigrationsAPI, "start")
+		.mockImplementation(() => new Promise(() => {}));
+	const user = setup();
+	const blocked = await screen.findByRole("button", {
+		name: "Migrate to worker-03",
+	});
+	expect(blocked).toHaveAttribute("aria-disabled", "true");
+	expect(blocked).toHaveTextContent("Needs 4 cores, 2.5 free");
+	await user.click(blocked);
+	expect(blocked).toHaveAttribute("aria-pressed", "false");
+	const ready = screen.getByRole("button", { name: "Migrate to worker-02" });
+	expect(ready).toHaveAttribute("aria-disabled", "false");
+	expect(ready).toHaveTextContent(
+		"Needs 4 cores, 8 GiB memory and 10 GiB disk",
+	);
+	await user.click(ready);
+	expect(ready).toHaveAttribute("aria-pressed", "true");
+	expect(start).not.toHaveBeenCalled();
+});

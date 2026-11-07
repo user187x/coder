@@ -116,9 +116,35 @@ class MigrationTests(unittest.TestCase):
         self.snapshot['podsAvailable'] = False
         self.assertFalse(self.candidate()['eligible'])
 
+    def test_each_check_blocks_with_its_reason(self):
+        self.assertEqual(self.candidate()['reasons'], [])
+        self.assertEqual(self.candidate()['needs'], dict(cpu=1.0, memory=2000.0, disk=10 * 1024**3))
+        node = self.snapshot['nodes'][0]
+        node['spec']['unschedulable'] = True
+        self.assertIn('Node is not schedulable', self.candidate()['reasons'])
+        node['spec'].pop('unschedulable')
+        node['status']['conditions'][0]['status'] = 'False'
+        self.assertIn('Node is not schedulable', self.candidate()['reasons'])
+        node['status']['conditions'][0]['status'] = 'True'
+        self.snapshot['usage']['target']['memory'] = '31000'
+        self.assertTrue(any(r.startswith('Needs') and 'memory' in r for r in self.candidate()['reasons']))
+        self.snapshot['usage']['target']['memory'] = '4000'
+        self.summary['target']['node']['fs']['availableBytes'] = 11 * 1024**3
+        self.assertTrue(any('disk' in r and 'free' in r for r in self.candidate()['reasons']))
+
+    def test_taints_need_tolerations_and_architecture_must_match(self):
+        node = self.snapshot['nodes'][0]
+        node['spec']['taints'] = [dict(key='gpu', value='a', effect='NoSchedule')]
+        self.assertIn('Node has a taint the workspace does not tolerate', self.candidate()['reasons'])
+        self.pod['tolerations'] = [dict(key='gpu', operator='Equal', value='a', effect='NoSchedule')]
+        self.assertEqual(self.candidate()['reasons'], [])
+        node['status']['nodeInfo'] = dict(architecture='arm64')
+        self.snapshot['nodes'].append(dict(metadata=dict(name='source', labels={}), spec={}, status=dict(nodeInfo=dict(architecture='amd64'))))
+        self.assertTrue(any(r.startswith('Architecture arm64') for r in self.candidate()['reasons']))
+
     def test_requested_resources_and_safety_reserve_block_destination(self):
         self.snapshot['pods'] = [{'spec': {'nodeName': 'target', 'containers': [{'resources': {'requests': {'cpu': '7'}}}]}}]
-        self.assertIn('Insufficient cpu headroom', self.candidate()['reasons'])
+        self.assertTrue(any(r.startswith('Needs 1') and 'cores' in r for r in self.candidate()['reasons']))
         self.snapshot['pods'] = []
         self.summary['target']['node']['fs']['availableBytes'] = 11 * 1024**3
         self.assertFalse(self.candidate()['eligible'])
@@ -148,6 +174,41 @@ class MigrationTests(unittest.TestCase):
             migration.handle(handler, 'POST', migration.BASE + '314b2f50-3acd-43c9-89bf-b40a60cf885b')
             workspace.assert_not_called()
             self.assertEqual(handler.send_json.call_args.args[0], 403)
+
+    def test_progress_is_the_share_of_the_home_copied(self):
+        copy = dict(phase='copy', homeUsedBytes=1000, copiedBytes=250)
+        self.assertEqual(migration.progress(copy), 25)
+        self.assertEqual(migration.progress(dict(copy, copiedBytes=5000)), 99)
+        self.assertEqual(migration.progress(dict(copy, homeUsedBytes=None)), 0)
+        self.assertEqual([migration.progress(dict(phase=p)) for p in ('prepare', 'canceled')], [0, 0])
+        self.assertEqual([migration.progress(dict(phase=p)) for p in ('cutover', 'start', 'done')], [100] * 3)
+
+    def test_requested_resources_sum_requests_then_limits(self):
+        spec = dict(podSpec=dict(containers=[
+            dict(resources=dict(requests=dict(cpu='2', memory='100'))),
+            dict(resources=dict(limits=dict(cpu='1', memory='50')))]))
+        self.assertEqual((migration.requested(spec, 'cpu'), migration.requested(spec, 'memory')), (3.0, 150.0))
+        self.assertIsNone(migration.requested({}, 'cpu'))
+
+    def test_list_reports_progress_and_requires_an_admin(self):
+        state = json.dumps(dict(workspaceName='dev', phase='cutover', diskBytes=10, copiedBytes=7, podSpec=dict(containers=[dict(resources=dict(requests=dict(cpu='2', memory='100')))]), sourceNode='a', target='b', message='m', error=None))
+        db = Mock()
+        db.query.return_value = [['mid', 'wid', 'running', state, '2026-11-06T10:00:00Z', '2026-11-06T10:05:00Z']]
+        handler = Mock()
+        handler.user.return_value = ({'id': 'u'}, None)
+        with patch.object(migration, 'database', return_value=db):
+            self.assertTrue(migration.handle(handler, 'GET', migration.BASE.rstrip('/')))
+        code, body = handler.send_json.call_args.args
+        self.assertEqual(code, 200)
+        self.assertEqual(body['migrations'][0], dict(
+            id='mid', workspaceId='wid', workspaceName='dev', status='running', phase='cutover', percent=100, cpu=2.0, memoryBytes=100.0, diskBytes=10, copiedBytes=7,
+            sourceNode='a', target='b', message='m', error=None,
+            startedAt='2026-11-06T10:00:00Z', updatedAt='2026-11-06T10:05:00Z'))
+        denied = Mock()
+        denied.user.return_value = (None, 'denied')
+        with patch.object(migration, 'database') as unused:
+            migration.handle(denied, 'GET', migration.BASE.rstrip('/'))
+            unused.assert_not_called()
 
     def test_missing_lease_never_runs_migration(self):
         lease = Mock()

@@ -606,6 +606,9 @@ export type NetworkLogPod = {
 	namespace: string;
 	name: string;
 	uid: string;
+	/** Set only for pods that belong to a Coder workspace. */
+	workspaceId?: string | null;
+	workspaceName?: string | null;
 	containers: string[];
 	restartable: boolean;
 	restartReason: string;

@@ -1,13 +1,22 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ClusterNetworkAPI, type EntityRef } from "#/api/clusterNetwork";
+import { WorkspaceMigrationsAPI } from "#/api/workspaceMigrations";
 import {
 	MockNetworkAnsiPodLogs,
 	MockNetworkLogPod,
 	MockNetworkPodLogs,
 } from "#/testHelpers/clusterNetwork";
 import { render } from "#/testHelpers/renderHelpers";
+import { MockWorkspaceMigrationPlan } from "#/testHelpers/workspaceMigrations";
 import { EntityActionsProvider, EntityContextMenu } from "./EntityActions";
+
+const auth = vi.hoisted(() => ({ admin: true }));
+vi.mock("#/hooks/useAuthenticated", () => ({
+	useAuthenticated: () => ({
+		permissions: { editDeploymentConfig: auth.admin },
+	}),
+}));
 
 const target: EntityRef = {
 	type: "pod",
@@ -34,6 +43,7 @@ const menu = async (name: string) => {
 };
 
 beforeEach(() => {
+	auth.admin = false;
 	vi.spyOn(ClusterNetworkAPI, "logTargets").mockResolvedValue({
 		pods: [MockNetworkLogPod],
 	});
@@ -137,4 +147,87 @@ it("does not send restart requests for unmanaged pods", async () => {
 		await screen.findByRole("button", { name: "Restart Pod" }),
 	);
 	expect(restart).not.toHaveBeenCalled();
+});
+
+describe("Migrate to node", () => {
+	const workspacePod = {
+		...MockNetworkLogPod,
+		workspaceId: MockWorkspaceMigrationPlan.workspaceId,
+		workspaceName: MockWorkspaceMigrationPlan.workspaceName,
+	};
+	beforeEach(() => {
+		auth.admin = true;
+	});
+	const open = async () => {
+		await userEvent.pointer({
+			keys: "[MouseRight]",
+			target: screen.getByRole("button", { name: "Coder pod" }),
+		});
+		await screen.findByRole("menuitem", { name: "View Logs" });
+	};
+
+	it("opens the migration dialog for a workspace pod, excluding its node", async () => {
+		vi.mocked(ClusterNetworkAPI.logTargets).mockResolvedValue({
+			pods: [workspacePod],
+		});
+		const plan = vi
+			.spyOn(WorkspaceMigrationsAPI, "plan")
+			.mockResolvedValue(MockWorkspaceMigrationPlan);
+		show();
+		await open();
+		await userEvent.click(
+			await screen.findByRole("menuitem", { name: "Migrate to node..." }),
+		);
+		expect(
+			await screen.findByRole("button", { name: "Migrate to worker-02" }),
+		).toBeInTheDocument();
+		expect(plan).toHaveBeenCalledWith(workspacePod.workspaceId);
+		expect(
+			screen.queryByRole("button", {
+				name: `Migrate to ${MockWorkspaceMigrationPlan.sourceNode}`,
+			}),
+		).not.toBeInTheDocument();
+	});
+
+	it("is absent for system pods", async () => {
+		const plan = vi.spyOn(WorkspaceMigrationsAPI, "plan");
+		show();
+		await open();
+		await waitFor(() =>
+			expect(ClusterNetworkAPI.logTargets).toHaveBeenCalled(),
+		);
+		expect(
+			screen.queryByRole("menuitem", { name: /Migrate to node/ }),
+		).not.toBeInTheDocument();
+		expect(plan).not.toHaveBeenCalled();
+	});
+
+	it("is absent for non-admins", async () => {
+		auth.admin = false;
+		vi.mocked(ClusterNetworkAPI.logTargets).mockResolvedValue({
+			pods: [workspacePod],
+		});
+		show();
+		await open();
+		expect(
+			screen.queryByRole("menuitem", { name: /Migrate to node/ }),
+		).not.toBeInTheDocument();
+		expect(ClusterNetworkAPI.logTargets).not.toHaveBeenCalled();
+	});
+
+	it("is disabled with the reason for an ineligible workspace", async () => {
+		vi.mocked(ClusterNetworkAPI.logTargets).mockResolvedValue({
+			pods: [workspacePod],
+		});
+		vi.spyOn(WorkspaceMigrationsAPI, "plan").mockRejectedValue(
+			new Error("This workspace uses another storage type."),
+		);
+		show();
+		await open();
+		const item = await screen.findByRole("menuitem", {
+			name: /Migrate to node/,
+		});
+		await waitFor(() => expect(item).toHaveAttribute("aria-disabled", "true"));
+		expect(item).toHaveTextContent("This workspace uses another storage type.");
+	});
 });
