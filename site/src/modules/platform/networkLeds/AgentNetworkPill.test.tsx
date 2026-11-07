@@ -196,6 +196,85 @@ describe("AgentNetworkPill", () => {
 		expect(pill).toHaveAttribute("data-stopped", "true");
 		expect(pill).toHaveClass("grayscale");
 	});
+
+	describe("inside the card's header", () => {
+		const rect = (left: number, right: number, top = 0, bottom = 26) =>
+			({
+				left,
+				right,
+				top,
+				bottom,
+				width: right - left,
+				height: bottom - top,
+			}) as DOMRect;
+		let controlsLeft: number;
+		let controlsTop: number;
+		let notify: () => void;
+
+		beforeEach(() => {
+			localStorage.setItem("coder:network-pill-width", "600");
+			controlsLeft = 400;
+			controlsTop = 0;
+			vi.stubGlobal(
+				"ResizeObserver",
+				class {
+					constructor(cb: () => void) {
+						notify = cb;
+					}
+					observe() {}
+					disconnect() {}
+				},
+			);
+			vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(
+				function (this: Element) {
+					if (this.tagName.toLowerCase() === "svg") return rect(100, 210);
+					if (this.getAttribute("data-testid") === "agent-network-pill")
+						return rect(60, 240);
+					if (this.hasAttribute("data-agent-controls"))
+						return rect(controlsLeft, 900, controlsTop, controlsTop + 26);
+					if (this.tagName.toLowerCase() === "header") return rect(0, 1000);
+					return rect(0, 0);
+				},
+			);
+		});
+		afterEach(() => {
+			localStorage.clear();
+			vi.unstubAllGlobals();
+		});
+
+		const renderInCard = () => {
+			renderComponent(
+				<QueryClientProvider client={new QueryClient()}>
+					<div className="workspace-agent-card">
+						<header>
+							<AgentNetworkPill agentId="pill-agent" />
+							<div data-agent-controls />
+						</header>
+					</div>
+				</QueryClientProvider>,
+			);
+			act(() =>
+				publishAgentMetadata("pill-agent", reading(1000, 500, ago(2000))),
+			);
+			return screen.getByRole("separator", { name: "Network history width" });
+		};
+
+		it("never grows past the controls, less the gap, and follows the card as it resizes", () => {
+			const handle = renderInCard();
+			// 400 (controls) - 12 (gap) - 100 (graph) - 30 (what follows the graph)
+			expect(handle).toHaveAttribute("aria-valuenow", "258");
+			controlsLeft = 300;
+			act(() => notify());
+			expect(handle).toHaveAttribute("aria-valuenow", "158");
+		});
+
+		it("is bounded by the card's edge when the controls wrap below it", () => {
+			controlsTop = 40;
+			const handle = renderInCard();
+			// the saved 600 fits: 1000 (card edge) - 100 - 30 = 870
+			expect(handle).toHaveAttribute("aria-valuenow", "600");
+		});
+	});
 });
 
 describe("spanText", () => {

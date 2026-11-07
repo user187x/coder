@@ -599,7 +599,7 @@ export const AgentRow: React.FC<AgentRowProps> = ({
 							    their time span - in one pill */}
 								{agent.status === "connected" && (
 									<span
-										className="inline-flex shrink-0 items-center gap-1 rounded-full border border-solid border-border p-0.5 [&>[data-testid]]:border-0 [&>[data-testid]]:bg-transparent"
+										className="inline-flex min-w-0 max-w-full items-center gap-1 rounded-full border border-solid border-border p-0.5 [&>[data-testid]]:border-0 [&>[data-testid]]:bg-transparent"
 										data-testid="agent-network-group"
 									>
 										{agent.latency && Object.keys(agent.latency).length > 0 && (

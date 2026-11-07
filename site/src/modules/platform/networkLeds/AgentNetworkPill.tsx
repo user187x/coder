@@ -159,22 +159,36 @@ export const AgentNetworkPill: React.FC<{
 	const [width, setWidth] = useState(savedWidth);
 	const pill = useRef<HTMLSpanElement>(null);
 	const drag = useRef<{ x: number; width: number } | null>(null);
-	// As wide as the space up to the card's controls (Metrics Interval), less a gap.
-	const resize = (next: number) => {
-		const graph = pill.current?.querySelector("svg")?.getBoundingClientRect();
-		const controls = pill.current
+	// The widest the graph may be: up to the card's controls (Metrics Interval, Open ports, Lock Down)
+	// less a gap, or, when they wrap below, up to the card's edge.
+	const [most, setMost] = useState(Number.POSITIVE_INFINITY);
+	const measure = () => {
+		const el = pill.current;
+		const graph = el?.querySelector("svg")?.getBoundingClientRect();
+		const controlsEl = el
 			?.closest(".workspace-agent-card")
-			?.querySelector("[data-agent-controls]")
-			?.getBoundingClientRect();
-		const tail =
-			(pill.current?.getBoundingClientRect().right ?? 0) - (graph?.right ?? 0);
-		const most =
-			graph && controls
-				? controls.left - PILL_DRAG_GAP - graph.left - tail
-				: Number.POSITIVE_INFINITY;
-		const bounded = Math.round(
-			Math.max(PILL_GRAPH_WIDTH, Math.min(next, most, PILL_GRAPH_WIDTH * 6)),
+			?.querySelector("[data-agent-controls]");
+		if (!(el && graph && controlsEl)) {
+			return Number.POSITIVE_INFINITY;
+		}
+		const box = el.getBoundingClientRect();
+		const controls = controlsEl.getBoundingClientRect();
+		const row = controlsEl.parentElement?.getBoundingClientRect();
+		const tail = box.right - graph.right;
+		const sameRow = controls.top < box.bottom && controls.bottom > box.top;
+		const edge = sameRow ? controls.left - PILL_DRAG_GAP : row?.right;
+		return edge === undefined
+			? Number.POSITIVE_INFINITY
+			: edge - graph.left - tail;
+	};
+	const bound = (next: number, limit: number) =>
+		Math.round(
+			Math.max(PILL_GRAPH_WIDTH, Math.min(next, limit, PILL_GRAPH_WIDTH * 6)),
 		);
+	const resize = (next: number) => {
+		const limit = measure();
+		setMost(limit);
+		const bounded = bound(next, limit);
 		setWidth(bounded);
 		return bounded;
 	};
@@ -259,12 +273,30 @@ export const AgentNetworkPill: React.FC<{
 		);
 	}, [clock]);
 
-	if (!(item && parse(value)) && !seed?.last) {
+	const visible = Boolean((item && parse(value)) || seed?.last);
+	// the card narrows or widens: the bound is measured again, not only on a drag
+	useEffect(() => {
+		const el = pill.current;
+		if (!(visible && el && typeof ResizeObserver !== "undefined")) {
+			return;
+		}
+		const observer = new ResizeObserver(() => setMost(measure()));
+		const row = el
+			.closest(".workspace-agent-card")
+			?.querySelector("[data-agent-controls]")?.parentElement;
+		observer.observe(el);
+		if (row) observer.observe(row);
+		setMost(measure());
+		return () => observer.disconnect();
+	}, [visible]);
+
+	if (!visible) {
 		return null;
 	}
+	const shownWidth = bound(width, most);
 	const now = history[history.length - 1];
 	const end = stoppedAt ?? clock;
-	const windowMs = pillWindow(width);
+	const windowMs = pillWindow(shownWidth);
 	const bars = locked ? [] : pillBars(history, end, windowMs);
 	// the graph's span, as it is: from its first bar's time to its last's
 	const span = spanText(end - windowMs, end);
@@ -288,7 +320,7 @@ export const AgentNetworkPill: React.FC<{
 					data-stopped={stopped || undefined}
 					className={cn(
 						WORKSPACE_PILL,
-						"w-auto gap-2 px-3 transition-[filter,opacity] duration-500",
+						"w-auto min-w-0 max-w-full gap-2 overflow-hidden px-3 transition-[filter,opacity] duration-500",
 						stopped && "opacity-60 grayscale",
 					)}
 				>
@@ -303,8 +335,8 @@ export const AgentNetworkPill: React.FC<{
 					<svg
 						viewBox={`0 0 ${W} ${H}`}
 						preserveAspectRatio="none"
-						style={{ width }}
-						className="block h-4 shrink-0 overflow-visible"
+						style={{ width: shownWidth }}
+						className="block h-4 min-w-0 shrink overflow-visible"
 						aria-hidden
 					>
 						<line
@@ -355,7 +387,7 @@ export const AgentNetworkPill: React.FC<{
 							tabIndex={0}
 							aria-orientation="vertical"
 							aria-label="Network history width"
-							aria-valuenow={width}
+							aria-valuenow={shownWidth}
 							aria-valuemin={PILL_GRAPH_WIDTH}
 							aria-valuemax={PILL_GRAPH_WIDTH * 6}
 							aria-valuetext={`${Math.round(windowMs / 60_000)} minutes`}
@@ -363,7 +395,7 @@ export const AgentNetworkPill: React.FC<{
 							className="-mr-1.5 h-4 w-1.5 shrink-0 cursor-ew-resize touch-none rounded-full bg-border hover:bg-content-link focus-visible:bg-content-link focus-visible:outline-none"
 							onPointerDown={(event) => {
 								if (event.button !== 0) return;
-								drag.current = { x: event.clientX, width };
+								drag.current = { x: event.clientX, width: shownWidth };
 								event.currentTarget.setPointerCapture(event.pointerId);
 							}}
 							onPointerMove={(event) => {
@@ -371,7 +403,7 @@ export const AgentNetworkPill: React.FC<{
 								if (start) resize(start.width + event.clientX - start.x);
 							}}
 							onLostPointerCapture={() => {
-								if (drag.current) keep(width);
+								if (drag.current) keep(shownWidth);
 								drag.current = null;
 							}}
 							onKeyDown={(event) => {
@@ -381,7 +413,7 @@ export const AgentNetworkPill: React.FC<{
 								keep(
 									event.key === "Home"
 										? resize(PILL_GRAPH_WIDTH)
-										: resize(width + (step ?? 0)),
+										: resize(shownWidth + (step ?? 0)),
 								);
 							}}
 						/>
