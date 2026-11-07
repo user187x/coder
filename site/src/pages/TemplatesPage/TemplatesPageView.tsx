@@ -324,7 +324,7 @@ export const TemplatesPageView: React.FC<TemplatesPageViewProps> = ({
 		filterState.filter.values.compatibility_mode !== "true";
 
 	return (
-		<Margins className="pb-12">
+		<Margins className="flex grow flex-col pb-12">
 			{showCompatibilityModeAlert && (
 				<CompatibilityModeAlert templates={compatibilityModeTemplates} />
 			)}
@@ -350,92 +350,98 @@ export const TemplatesPageView: React.FC<TemplatesPageViewProps> = ({
 				</NavbarAction>
 			)}
 
-			<TemplatesFilter
-				filter={filterState.filter}
-				error={error}
-				userMenu={filterState.menus.user}
-			/>
-			{/* Validation errors are shown on the filter, other errors are an alert box. */}
-			{hasError(error) && !isApiValidationError(error) && (
-				<ErrorAlert error={error} />
-			)}
+			{/* Centers the filter and the table in the room below the navbar when they are shorter than it, as on Workspaces; taller content starts at the top and the page scrolls. */}
+			<div className="my-auto">
+				<TemplatesFilter
+					filter={filterState.filter}
+					error={error}
+					userMenu={filterState.menus.user}
+				/>
+				{/* Validation errors are shown on the filter, other errors are an alert box. */}
+				{hasError(error) && !isApiValidationError(error) && (
+					<ErrorAlert error={error} />
+				)}
 
-			{/* Platform: in a rounded card, its footer saying what it holds and what anything in it does */}
-			<TableCard
-				data-testid="templates-card"
-				summary={
-					templates && templates.length > 0 ? (
-						<span data-testid="templates-summary">
-							Showing{" "}
-							<strong className="font-semibold text-content-primary">
-								{templates.length}
-							</strong>
-							{filterState.filter.used ? (
-								` ${templates.length === 1 ? "template" : "templates"} (filtered)`
-							) : (
-								<>
-									{" "}
-									of{" "}
-									<strong className="font-semibold text-content-primary">
-										{templates.length}
-									</strong>{" "}
-									{templates.length === 1 ? "template" : "templates"}
-								</>
-							)}{" "}
-							· {templates.reduce((n, t) => n + t.active_user_count, 0)} using
-							them
-						</span>
-					) : undefined
-				}
-				hint="Point at anything in the table to read what it does"
-			>
-				<Table>
-					<TableHeader>
-						<TableRow>
-							<TableHead className="w-[35%]">Name</TableHead>
-							<TableHead className="w-[15%]">
-								{showOrganizations ? "Organization" : "Used by"}
-							</TableHead>
-							<TableHead className="w-[10%] text-center">Build time</TableHead>
-							<TableHead className="w-[16%]">Active version</TableHead>
-							<TableHead className="w-[12%]">Last updated</TableHead>
-							{/* Platform: who may see and use each template (its access list) */}
-							{showAccess && (
-								<TableHead className="w-[1%] text-center">Access</TableHead>
-							)}
-							<TableHead className="w-[1%]" />
-							<TableHead className="w-px">
-								<span className="sr-only">Template actions</span>
-							</TableHead>
-						</TableRow>
-					</TableHeader>
-					<TableBody>
-						{isLoading ? (
-							<TableLoader />
-						) : isEmpty ? (
-							<EmptyTemplates
-								canCreateTemplates={canCreateTemplates}
-								templateBuilderEnabled={templateBuilderEnabled}
-								examples={examples ?? []}
-								isUsingFilter={filterState.filter.used}
-							/>
-						) : (
-							templates.map((template) => (
-								<TemplateRow
-									key={template.id}
-									canUpdateTemplate={
-										templateUpdatePermissions[template.organization_id] ?? false
-									}
-									showAccess={showAccess}
-									showOrganizations={showOrganizations}
-									template={template}
-									workspacePermissions={workspacePermissions}
+				{/* Platform: in a rounded card, its footer saying what it holds and what anything in it does */}
+				<TableCard
+					data-testid="templates-card"
+					summary={
+						templates && templates.length > 0 ? (
+							<span data-testid="templates-summary">
+								Showing{" "}
+								<strong className="font-semibold text-content-primary">
+									{templates.length}
+								</strong>
+								{filterState.filter.used ? (
+									` ${templates.length === 1 ? "template" : "templates"} (filtered)`
+								) : (
+									<>
+										{" "}
+										of{" "}
+										<strong className="font-semibold text-content-primary">
+											{templates.length}
+										</strong>{" "}
+										{templates.length === 1 ? "template" : "templates"}
+									</>
+								)}{" "}
+								· {templates.reduce((n, t) => n + t.active_user_count, 0)} using
+								them
+							</span>
+						) : undefined
+					}
+					hint="Point at anything in the table to read what it does"
+				>
+					<Table>
+						<TableHeader>
+							<TableRow>
+								<TableHead className="w-[35%]">Name</TableHead>
+								<TableHead className="w-[15%]">
+									{showOrganizations ? "Organization" : "Used by"}
+								</TableHead>
+								<TableHead className="w-[10%] text-center">
+									Build time
+								</TableHead>
+								<TableHead className="w-[16%]">Active version</TableHead>
+								<TableHead className="w-[12%]">Last updated</TableHead>
+								{/* Platform: who may see and use each template (its access list) */}
+								{showAccess && (
+									<TableHead className="w-[1%] text-center">Access</TableHead>
+								)}
+								<TableHead className="w-[1%]" />
+								<TableHead className="w-px">
+									<span className="sr-only">Template actions</span>
+								</TableHead>
+							</TableRow>
+						</TableHeader>
+						<TableBody>
+							{isLoading ? (
+								<TableLoader />
+							) : isEmpty ? (
+								<EmptyTemplates
+									canCreateTemplates={canCreateTemplates}
+									templateBuilderEnabled={templateBuilderEnabled}
+									examples={examples ?? []}
+									isUsingFilter={filterState.filter.used}
 								/>
-							))
-						)}
-					</TableBody>
-				</Table>
-			</TableCard>
+							) : (
+								templates.map((template) => (
+									<TemplateRow
+										key={template.id}
+										canUpdateTemplate={
+											templateUpdatePermissions[template.organization_id] ??
+											false
+										}
+										showAccess={showAccess}
+										showOrganizations={showOrganizations}
+										template={template}
+										workspacePermissions={workspacePermissions}
+									/>
+								))
+							)}
+						</TableBody>
+					</Table>
+				</TableCard>
+			</div>
 		</Margins>
 	);
 };
