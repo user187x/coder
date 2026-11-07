@@ -4,6 +4,9 @@ html[data-workspace-expanded] {
 .workspace-dashboard-expand-corner {
 	width: 40px;
 	height: 40px;
+	/* Inset inside the agent card's border, so the tab and its hover fill never cover the border line or its glow. */
+	top: 2px;
+	right: 2px;
 	pointer-events: none;
 }
 .workspace-dashboard-expand-corner .corner-expand-tab > svg {
@@ -107,7 +110,7 @@ html[data-workspace-expanded] {
 }
 .workspace-dashboard-expand-corner .corner-expand-tab {
 	clip-path: none;
-	border-radius: 0 24px 0 18px;
+	border-radius: 0 22px 0 18px;
 	background: transparent;
 }
 .workspace-dashboard-expand-corner
