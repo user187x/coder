@@ -58,6 +58,7 @@ import { MeshCard } from "./MeshCard";
 import { MigrationsTable } from "./MigrationsTable";
 import { NodesTable } from "./NodesTable";
 import { NodesTopologyCard } from "./NodesTopologyCard";
+import { WorkspaceSkewCard } from "./WorkspaceSkewCard";
 
 const agentOk = (w: NetworkWorkspace) =>
 	w.agents.length > 0 && w.agents.every((a) => a.status === "connected");
@@ -176,6 +177,7 @@ export const ClusterMap: React.FC = () => {
 						{report && <WorkspacesTable report={report} />}
 						{report && <NodesTable report={report} />}
 						{permissions.editDeploymentConfig && <MigrationsTable />}
+						{report && <WorkspaceSkewCard report={report} />}
 					</div>
 				)}
 			</section>
