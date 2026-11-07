@@ -35,7 +35,6 @@ import { WorkspacesTable } from "#/pages/WorkspacesPage/WorkspacesTable";
 import { mustUpdateWorkspace } from "#/utils/workspace";
 import { WorkspacesFilter } from "./filter/WorkspacesFilter";
 import { isDeleting } from "./startingRows";
-import { WorkspaceHelpPopover } from "./WorkspaceHelpPopover";
 import { WorkspacesButton } from "./WorkspacesButton";
 
 type TemplateQuery = UseQueryResult<Template[]>;
@@ -139,21 +138,18 @@ export const WorkspacesPageView: React.FC<WorkspacesPageViewProps> = ({
 			<PageHeader
 				className="py-4"
 				actions={
-					<>
-						<WorkspaceHelpPopover />
-						{canCreateWorkspace && (
-							<NavbarAction>
-								<WorkspacesButton
-									templates={templates}
-									templatesFetchStatus={templatesFetchStatus}
-								>
-									{/* Platform: the plus glyph says "new" */}
-									<MonitorIcon aria-hidden />
-									Workspace
-								</WorkspacesButton>
-							</NavbarAction>
-						)}
-					</>
+					canCreateWorkspace && (
+						<NavbarAction>
+							<WorkspacesButton
+								templates={templates}
+								templatesFetchStatus={templatesFetchStatus}
+							>
+								{/* Platform: the plus glyph says "new" */}
+								<MonitorIcon aria-hidden />
+								Workspace
+							</WorkspacesButton>
+						</NavbarAction>
+					)
 				}
 			>
 				<PageHeaderTitle className="sr-only">Workspaces</PageHeaderTitle>

@@ -20,7 +20,6 @@ import { AvatarDataSkeleton } from "#/components/Avatar/AvatarDataSkeleton";
 import { Badge } from "#/components/Badge/Badge";
 import { DeprecatedBadge } from "#/components/Badge/PresetBadges";
 import { Button } from "#/components/Button/Button";
-import { InfoTooltip } from "#/components/InfoTooltip/InfoTooltip";
 import { Margins } from "#/components/Margins/Margins";
 import {
 	PageHeader,
@@ -39,7 +38,6 @@ import {
 	TableLoaderSkeleton,
 	TableRowSkeleton,
 } from "#/components/TableLoader/TableLoader";
-import { TooltipMessage, TooltipTitle } from "#/components/Tooltip/Tooltip";
 import { useClickableTableRow } from "#/hooks/useClickableTableRow";
 import { NavbarAction } from "#/modules/dashboard/Navbar/NavbarAction";
 import { linkToTemplate, useLinks } from "#/modules/navigation";
@@ -95,18 +93,6 @@ const CompatibilityModeAlert: React.FC<{ templates: readonly Template[] }> = ({
 				settings.
 			</AlertDescription>
 		</Alert>
-	);
-};
-
-const TemplateHelpPopover: React.FC = () => {
-	return (
-		<InfoTooltip>
-			<TooltipTitle>What is a template?</TooltipTitle>
-			<TooltipMessage>
-				With templates you can create a common configuration for your workspaces
-				using Terraform.
-			</TooltipMessage>
-		</InfoTooltip>
 	);
 };
 
@@ -351,7 +337,6 @@ export const TemplatesPageView: React.FC<TemplatesPageViewProps> = ({
 				className="py-4"
 				actions={
 					<div className="flex flex-wrap items-center gap-2">
-						<TemplateHelpPopover />
 						{canCreateTemplates && (
 							<NavbarAction>
 								<Button asChild size="lg">
