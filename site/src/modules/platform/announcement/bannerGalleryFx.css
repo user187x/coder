@@ -1,0 +1,686 @@
+/*
+ * More text effects, ported from the local visualfx text-effect library: pure CSS (no pseudo-element copies, no
+ * scripts, no web fonts), so each plays on the banner's own font. Every one carries .fx-lib for the shared rules at
+ * the end (play once, still under reduced motion or when animations are off).
+ */
+/* Their colours where no banner screen sets them (the effect gallery's tiles). */
+:where(.fx-lib) {
+	--ink: var(--banner-lcd-ink, #fff);
+	--ink-2: #ff4fd8;
+	--ink-3: #4ff8ff;
+}
+
+[data-banner-text].fx-gold {
+	letter-spacing: 0.08em;
+	color: transparent;
+	background:
+		linear-gradient(
+			108deg,
+			#7a4a08 0%,
+			#f2c15d 18%,
+			#fff4b8 24%,
+			#b87014 36%,
+			#f6d66d 51%,
+			#8e560b 68%,
+			#fff0a2 76%,
+			#c98218 100%
+		)
+		0 0 / 230% 100%;
+	-webkit-background-clip: text;
+	background-clip: text;
+	animation: fx-gold 3.1s ease-in-out infinite;
+}
+@keyframes fx-gold {
+	0%,
+	100% {
+		background-position: 115% 0;
+		filter: saturate(1.05);
+	}
+	45% {
+		background-position: -35% 0;
+		filter: saturate(1.35) brightness(1.12);
+	}
+}
+
+[data-banner-text].fx-hologram {
+	display: inline-block;
+	letter-spacing: 0.12em;
+	color: color-mix(in srgb, var(--ink-3) 72%, var(--ink));
+	text-shadow:
+		0 0 6px color-mix(in srgb, var(--ink-3) 60%, transparent),
+		0 -2px 0 color-mix(in srgb, var(--ink-2) 55%, transparent),
+		0 0 22px color-mix(in srgb, var(--ink-3) 45%, transparent);
+	animation: fx-hologram 3.8s ease-in-out infinite;
+}
+@keyframes fx-hologram {
+	0%,
+	100% {
+		transform: translateY(1px) skewX(0deg);
+		filter: brightness(1);
+	}
+	46% {
+		transform: translateY(-1px) skewX(0deg);
+		filter: brightness(1.25);
+	}
+	50% {
+		transform: translateY(-1px) skewX(-6deg);
+		filter: brightness(0.8);
+	}
+	54% {
+		transform: translateY(-1px) skewX(0deg);
+		filter: brightness(1.25);
+	}
+}
+
+[data-banner-text].fx-vaporwave {
+	display: inline-block;
+	letter-spacing: 0.16em;
+	color: var(--ink);
+	animation: fx-vaporwave 2.8s ease-in-out infinite;
+}
+@keyframes fx-vaporwave {
+	0%,
+	100% {
+		transform: translateX(-2px);
+		text-shadow:
+			-6px 3px 2px color-mix(in srgb, var(--ink-2) 55%, transparent),
+			6px -3px 2px color-mix(in srgb, var(--ink-3) 55%, transparent);
+	}
+	50% {
+		transform: translateX(2px);
+		text-shadow:
+			-10px -2px 3px color-mix(in srgb, var(--ink-2) 75%, transparent),
+			10px 2px 3px color-mix(in srgb, var(--ink-3) 75%, transparent);
+	}
+}
+
+[data-banner-text].fx-slam {
+	display: inline-block;
+	letter-spacing: 0.1em;
+	animation: fx-slam 3s infinite;
+}
+@keyframes fx-slam {
+	0%,
+	30% {
+		opacity: 0;
+		transform: scale(2.4) translateY(-6px);
+		filter: blur(8px);
+		animation-timing-function: cubic-bezier(0.55, 0, 1, 0.45);
+	}
+	36% {
+		opacity: 1;
+		transform: scale(0.9);
+		filter: blur(0);
+		animation-timing-function: cubic-bezier(0.2, 1.6, 0.4, 1);
+	}
+	41%,
+	100% {
+		opacity: 1;
+		transform: scale(1);
+		filter: blur(0);
+	}
+}
+
+[data-banner-text].fx-terminal {
+	letter-spacing: 0.1em;
+	color: #4dff88;
+	text-shadow: 0 0 7px rgb(77 255 136 / 0.8);
+	background: repeating-linear-gradient(
+		0deg,
+		transparent 0 2px,
+		rgb(0 0 0 / 0.3) 2px 4px
+	);
+	animation: fx-terminal 3.4s steps(1) infinite;
+}
+@keyframes fx-terminal {
+	0%,
+	6%,
+	71%,
+	100% {
+		opacity: 1;
+	}
+	3% {
+		opacity: 0.82;
+	}
+	4.5% {
+		opacity: 0.95;
+	}
+	70% {
+		opacity: 0.9;
+	}
+}
+
+[data-banner-text].fx-prism {
+	letter-spacing: 0.12em;
+	color: var(--ink);
+	animation: fx-prism 3s ease-in-out infinite;
+}
+@keyframes fx-prism {
+	0%,
+	100% {
+		text-shadow:
+			-1px 0 0 color-mix(in srgb, var(--ink-2) 35%, transparent),
+			1px 0 0 color-mix(in srgb, var(--ink-3) 35%, transparent);
+	}
+	50% {
+		text-shadow:
+			-5px -1px 0 color-mix(in srgb, var(--ink-2) 85%, transparent),
+			5px 1px 0 color-mix(in srgb, var(--ink-3) 85%, transparent);
+	}
+}
+
+[data-banner-text].fx-sparkle {
+	letter-spacing: 0.12em;
+	color: transparent;
+	background:
+		radial-gradient(circle at 14% 35%, #fff 0 2px, transparent 2.4px),
+		radial-gradient(circle at 42% 68%, #fff 0 1.6px, transparent 2px),
+		radial-gradient(circle at 75% 24%, #fff 0 2.2px, transparent 2.6px),
+		linear-gradient(100deg, var(--ink), var(--ink-3), var(--ink));
+	background-size:
+		120px 60px,
+		150px 72px,
+		180px 68px,
+		240% 100%;
+	-webkit-background-clip: text;
+	background-clip: text;
+	animation: fx-sparkle 3.6s linear infinite;
+}
+@keyframes fx-sparkle {
+	0% {
+		background-position:
+			0 0,
+			0 0,
+			0 0,
+			120% 0;
+	}
+	100% {
+		background-position:
+			120px 0,
+			-150px 0,
+			180px 0,
+			-120% 0;
+	}
+}
+
+[data-banner-text].fx-frost {
+	letter-spacing: 0.1em;
+	color: transparent;
+	background:
+		radial-gradient(circle at 22% 30%, #fff 0 1.6px, transparent 2.2px),
+		radial-gradient(circle at 68% 62%, #fff 0 1.3px, transparent 1.9px),
+		linear-gradient(
+			0deg,
+			#fff 0%,
+			var(--ink-3) 34%,
+			color-mix(in srgb, var(--ink-3) 45%, var(--ink)) 60%,
+			var(--ink) 100%
+		);
+	background-size:
+		90px 46px,
+		120px 58px,
+		100% 260%;
+	-webkit-background-clip: text;
+	background-clip: text;
+	animation: fx-frost 4s ease-in-out infinite alternate;
+}
+@keyframes fx-frost {
+	0% {
+		background-position:
+			0 0,
+			0 0,
+			0 0%;
+		filter: drop-shadow(
+			0 0 2px color-mix(in srgb, var(--ink-3) 30%, transparent)
+		);
+	}
+	100% {
+		background-position:
+			18px 6px,
+			-22px -8px,
+			0 100%;
+		filter: drop-shadow(
+			0 0 10px color-mix(in srgb, var(--ink-3) 75%, transparent)
+		);
+	}
+}
+
+[data-banner-text].fx-longshadow {
+	letter-spacing: 0.1em;
+	color: var(--ink);
+	animation: fx-longshadow 5s linear infinite;
+}
+@keyframes fx-longshadow {
+	0%,
+	100% {
+		text-shadow:
+			3px 0 var(--ink-2),
+			6px 0 color-mix(in srgb, var(--ink-2) 55%, transparent),
+			9px 0 color-mix(in srgb, var(--ink-2) 25%, transparent);
+	}
+	25% {
+		text-shadow:
+			0 3px var(--ink-2),
+			0 6px color-mix(in srgb, var(--ink-2) 55%, transparent),
+			0 9px color-mix(in srgb, var(--ink-2) 25%, transparent);
+	}
+	50% {
+		text-shadow:
+			-3px 0 var(--ink-2),
+			-6px 0 color-mix(in srgb, var(--ink-2) 55%, transparent),
+			-9px 0 color-mix(in srgb, var(--ink-2) 25%, transparent);
+	}
+	75% {
+		text-shadow:
+			0 -3px var(--ink-2),
+			0 -6px color-mix(in srgb, var(--ink-2) 55%, transparent),
+			0 -9px color-mix(in srgb, var(--ink-2) 25%, transparent);
+	}
+}
+
+[data-banner-text].fx-retro {
+	display: inline-block;
+	letter-spacing: 0.02em;
+	color: #ffe6bd;
+	transform: skewX(-8deg);
+	animation: fx-retro 3.2s cubic-bezier(0.45, 0, 0.3, 1) infinite;
+}
+@keyframes fx-retro {
+	0%,
+	100% {
+		text-shadow:
+			1px 1px 0 #f6b33d,
+			2px 2px 0 #e8692c,
+			3px 3px 0 #b23a28,
+			4px 4px 0 #5b2a1e;
+	}
+	35%,
+	65% {
+		text-shadow:
+			3px 3px 0 #f6b33d,
+			6px 6px 0 #e8692c,
+			9px 9px 0 #b23a28,
+			12px 12px 0 #5b2a1e;
+	}
+}
+
+[data-banner-text].fx-popart {
+	letter-spacing: 0.04em;
+	color: var(--ink);
+}
+[data-banner-text].fx-popart b {
+	font-weight: inherit;
+	display: inline-block;
+	animation: fx-popart 1.5s cubic-bezier(0.3, 1.6, 0.4, 1) infinite;
+	animation-delay: calc(var(--i) * 0.09s);
+}
+@keyframes fx-popart {
+	0%,
+	55%,
+	100% {
+		transform: translateY(0);
+		text-shadow: 0 0 0 var(--ink-2);
+	}
+	25% {
+		transform: translateY(-5px) rotate(-4deg);
+		text-shadow: 0 5px 0 var(--ink-2);
+	}
+}
+
+[data-banner-text].fx-glitch {
+	display: inline-block;
+	letter-spacing: 0.06em;
+	color: var(--ink);
+	animation: fx-glitch 2.6s steps(1) infinite;
+}
+@keyframes fx-glitch {
+	0%,
+	12%,
+	20%,
+	55%,
+	100% {
+		transform: none;
+		text-shadow: none;
+	}
+	13% {
+		transform: translate(-3px, -1px);
+		text-shadow:
+			3px 0 var(--ink-2),
+			-3px 0 var(--ink-3);
+	}
+	16% {
+		transform: translate(3px, 1px);
+		text-shadow:
+			-3px 0 var(--ink-2),
+			3px 0 var(--ink-3);
+	}
+	48% {
+		transform: translate(2px, 0) skewX(-8deg);
+		text-shadow:
+			4px 0 var(--ink-3),
+			-4px 0 var(--ink-2);
+	}
+	51% {
+		transform: translate(-2px, 1px);
+		text-shadow:
+			-2px 0 var(--ink-2),
+			2px 0 var(--ink-3);
+	}
+}
+
+[data-banner-text].fx-elastic {
+	display: inline-block;
+	letter-spacing: 0.08em;
+	color: var(--ink-2);
+	animation: fx-elastic 1.6s ease-in-out infinite;
+}
+@keyframes fx-elastic {
+	0%,
+	100% {
+		transform: scale(1, 1);
+	}
+	28% {
+		transform: scale(1.14, 0.8);
+	}
+	44% {
+		transform: scale(0.9, 1.14);
+	}
+	60% {
+		transform: scale(1.06, 0.94);
+	}
+	74% {
+		transform: scale(0.98, 1.03);
+	}
+	86% {
+		transform: scale(1.01, 0.99);
+	}
+}
+
+[data-banner-text].fx-pendulum {
+	letter-spacing: 0.12em;
+	color: var(--ink);
+}
+[data-banner-text].fx-pendulum b {
+	font-weight: inherit;
+	display: inline-block;
+	transform-origin: 50% -40%;
+	animation: fx-pendulum 1.8s ease-in-out infinite;
+	animation-delay: calc(var(--i) * -0.12s);
+}
+[data-banner-text].fx-pendulum b:nth-child(even) {
+	color: var(--ink-3);
+}
+@keyframes fx-pendulum {
+	0%,
+	100% {
+		transform: rotate(8deg);
+	}
+	50% {
+		transform: rotate(-8deg);
+	}
+}
+
+[data-banner-text].fx-stretch {
+	letter-spacing: 0.02em;
+}
+[data-banner-text].fx-stretch b {
+	font-weight: inherit;
+	display: inline-block;
+	color: var(--ink);
+	transform-origin: center bottom;
+	animation: fx-stretch 3.6s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+	animation-delay: calc(var(--i) * 0.1s);
+}
+[data-banner-text].fx-stretch b:nth-child(3n + 1) {
+	color: var(--ink-2);
+}
+[data-banner-text].fx-stretch b:nth-child(3n + 2) {
+	color: var(--ink-3);
+}
+@keyframes fx-stretch {
+	0%,
+	12%,
+	70%,
+	100% {
+		transform: scale(0.92, 1);
+	}
+	34%,
+	42% {
+		transform: scale(0.8, 1.3);
+	}
+	55% {
+		transform: scale(1.05, 0.92);
+	}
+}
+
+[data-banner-text].fx-jitter {
+	display: inline-block;
+	letter-spacing: 0.06em;
+	color: var(--ink);
+	animation: fx-jitter 1.9s steps(1) infinite;
+}
+@keyframes fx-jitter {
+	0%,
+	7%,
+	15%,
+	55%,
+	100% {
+		transform: none;
+		opacity: 1;
+	}
+	8% {
+		transform: skewX(-14deg) translateX(-4px);
+	}
+	10% {
+		transform: skewX(10deg) translateX(3px);
+	}
+	12% {
+		transform: translateY(-2px);
+		opacity: 0.6;
+	}
+	46% {
+		transform: skewX(8deg);
+	}
+	48% {
+		transform: skewX(-6deg) translateY(1px);
+		opacity: 0.75;
+	}
+	50% {
+		transform: translateX(2px);
+	}
+}
+
+[data-banner-text].fx-iridescent {
+	letter-spacing: 0.12em;
+	color: transparent;
+	background:
+		conic-gradient(
+			from 20deg,
+			#f7fbff,
+			var(--ink-3),
+			#bba7ff,
+			var(--ink-2),
+			#fff7d6,
+			#f7fbff
+		)
+		50% 50% / 220% 220%;
+	-webkit-background-clip: text;
+	background-clip: text;
+	animation: fx-iridescent 4.5s linear infinite;
+}
+@keyframes fx-iridescent {
+	to {
+		filter: hue-rotate(360deg);
+		background-position: 120% 50%;
+	}
+}
+
+[data-banner-text].fx-motionblur {
+	letter-spacing: 0.08em;
+	color: var(--ink);
+}
+[data-banner-text].fx-motionblur b {
+	font-weight: inherit;
+	display: inline-block;
+	animation: fx-motionblur 2.9s cubic-bezier(0.16, 0.9, 0.3, 1) infinite;
+	animation-delay: calc(var(--i) * 0.07s);
+}
+@keyframes fx-motionblur {
+	0% {
+		transform: translateX(-40px) scale(2.2, 0.8) skewX(-16deg);
+		filter: blur(4px);
+		opacity: 0;
+	}
+	17% {
+		transform: none;
+		filter: blur(0);
+		opacity: 1;
+	}
+	25% {
+		transform: scale(0.9, 1.1);
+	}
+	33% {
+		transform: scale(1.05, 0.96);
+	}
+	41%,
+	72% {
+		transform: none;
+		filter: blur(0);
+		opacity: 1;
+	}
+	92%,
+	100% {
+		transform: translateX(40px) scale(2.2, 0.8) skewX(16deg);
+		filter: blur(4px);
+		opacity: 0;
+	}
+}
+
+[data-banner-text].fx-karaoke {
+	letter-spacing: 0.12em;
+}
+[data-banner-text].fx-karaoke b {
+	font-weight: inherit;
+	display: inline-block;
+	color: color-mix(in srgb, var(--ink) 42%, transparent);
+	background:
+		linear-gradient(180deg, #fff 0%, var(--ink-2) 42%, var(--ink-3) 100%)
+		no-repeat 0 0 / 0% 100%;
+	-webkit-background-clip: text;
+	background-clip: text;
+	animation: fx-karaoke 4.4s cubic-bezier(0.2, 0.85, 0.25, 1) infinite;
+	animation-delay: calc(var(--i) * 0.18s);
+}
+@keyframes fx-karaoke {
+	0%,
+	6% {
+		background-size: 0% 100%;
+		color: color-mix(in srgb, var(--ink) 42%, transparent);
+	}
+	14%,
+	100% {
+		background-size: 100% 100%;
+		color: transparent;
+	}
+}
+
+[data-banner-text].fx-marker {
+	letter-spacing: 0.08em;
+	color: var(--ink);
+	padding: 0 0.2em;
+	background: linear-gradient(
+			100deg,
+			color-mix(in srgb, var(--ink-2) 85%, transparent),
+			color-mix(in srgb, var(--ink-2) 60%, transparent)
+		)
+		no-repeat 0 62%;
+	background-size: 0% 46%;
+	animation: fx-marker 3s ease-in-out infinite;
+}
+@keyframes fx-marker {
+	0%,
+	100% {
+		background-size: 0% 46%;
+		background-position: 100% 62%;
+	}
+	38%,
+	62% {
+		background-size: 100% 46%;
+		background-position: 0 62%;
+	}
+}
+
+[data-banner-text].fx-loud {
+	display: inline-block;
+	letter-spacing: 0.06em;
+	color: var(--ink);
+	animation: fx-loud 3s infinite;
+}
+@keyframes fx-loud {
+	0%,
+	12%,
+	100% {
+		transform: scale(1);
+		color: var(--ink);
+		text-shadow: none;
+		animation-timing-function: cubic-bezier(0.2, 1.5, 0.4, 1);
+	}
+	20%,
+	44% {
+		transform: scale(1.2);
+		color: var(--ink-2);
+		text-shadow: 0 0 14px color-mix(in srgb, var(--ink-2) 55%, transparent);
+	}
+	26% {
+		transform: translate(-3px, 1px) rotate(-2deg) scale(1.2);
+	}
+	32% {
+		transform: translate(3px, -1px) rotate(2deg) scale(1.2);
+	}
+	38% {
+		transform: translate(-2px, 1px) rotate(-1deg) scale(1.2);
+	}
+}
+
+[data-banner-text].fx-duotone {
+	letter-spacing: 0.1em;
+	color: var(--ink);
+	animation: fx-duotone 2.6s ease-in-out infinite;
+}
+@keyframes fx-duotone {
+	0%,
+	100% {
+		text-shadow:
+			-3px 0 color-mix(in srgb, var(--ink-2) 45%, transparent),
+			3px 0 color-mix(in srgb, var(--ink-3) 45%, transparent);
+	}
+	50% {
+		text-shadow:
+			-8px -2px color-mix(in srgb, var(--ink-2) 80%, transparent),
+			8px 2px color-mix(in srgb, var(--ink-3) 80%, transparent);
+	}
+}
+
+/* Shared: the effects that play once, and the stills. */
+[data-banner-text][data-fx-once].fx-lib,
+[data-banner-text][data-fx-once].fx-lib b {
+	animation-iteration-count: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+	[data-banner-text].fx-lib,
+	[data-banner-text].fx-lib b {
+		animation: none;
+	}
+	[data-banner-text].fx-karaoke b {
+		color: var(--ink);
+		background: none;
+	}
+}
+html[data-animations="off"] [data-banner-text].fx-lib,
+html[data-animations="off"] [data-banner-text].fx-lib b {
+	animation: none;
+}
+html[data-animations="off"] [data-banner-text].fx-karaoke b {
+	color: var(--ink);
+	background: none;
+}

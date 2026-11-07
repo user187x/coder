@@ -58,6 +58,62 @@ func TestCleanIntroductions(t *testing.T) {
 	require.True(t, f.Introductions)
 }
 
+// The effects ported from the visualfx library: the banner's text and the
+// introduction accept every one.
+func TestCleanAcceptsLibraryEffects(t *testing.T) {
+	t.Parallel()
+	for _, effect := range []string{"gold", "hologram", "vaporwave", "slam", "terminal", "prism", "sparkle", "frost", "longshadow", "retro", "popart", "glitch", "elastic", "pendulum", "stretch", "jitter", "iridescent", "motionblur", "karaoke", "marker", "loud", "duotone"} {
+		for _, key := range []string{"effect", "introEffect"} {
+			f, err := clean(t, map[string]any{"message": "x", key: effect})
+			require.NoError(t, err, "%s=%s", key, effect)
+			if key == "effect" {
+				require.Equal(t, effect, f.Effect)
+			} else {
+				require.Equal(t, effect, f.IntroEffect)
+			}
+		}
+	}
+}
+
+func TestCleanIntroductionLook(t *testing.T) {
+	t.Parallel()
+	f, err := clean(t, map[string]any{"message": "hello"})
+	require.NoError(t, err)
+	require.Equal(t, "none", f.IntroEffect, "settings saved before it existed: the fade")
+	require.Equal(t, 2000, f.IntroDurationMs)
+	require.Equal(t, "normal", f.IntroSize)
+	require.Equal(t, "semibold", f.IntroWeight)
+
+	f, err = clean(t, map[string]any{
+		"message": "hello", "introEffect": "pewpew", "introDurationMs": 7500,
+		"introSize": "xlarge", "introWeight": "black",
+	})
+	require.NoError(t, err)
+	require.Equal(t, "pewpew", f.IntroEffect)
+	require.Equal(t, 7500, f.IntroDurationMs)
+	require.Equal(t, "xlarge", f.IntroSize)
+	require.Equal(t, "black", f.IntroWeight)
+
+	for _, c := range []struct {
+		field string
+		value any
+		err   string
+	}{
+		{"introEffect", "confetti", "Introduction text effect must be one of: none, typewriter, fade, rise, wave, bounce, flip, shake, pulse, rainbow, pewpew, flap, shimmer, kitt, aurora, neon, chrome, focus, ember, spectrum, anaglyph, heartbeat, softblur, voltage, gold, hologram, vaporwave, slam, terminal, prism, sparkle, frost, longshadow, retro, popart, glitch, elastic, pendulum, stretch, jitter, iridescent, motionblur, karaoke, marker, loud, duotone."},
+		{"introEffect", "starwars", "Introduction text effect must be one of: none, typewriter, fade, rise, wave, bounce, flip, shake, pulse, rainbow, pewpew, flap, shimmer, kitt, aurora, neon, chrome, focus, ember, spectrum, anaglyph, heartbeat, softblur, voltage, gold, hologram, vaporwave, slam, terminal, prism, sparkle, frost, longshadow, retro, popart, glitch, elastic, pendulum, stretch, jitter, iridescent, motionblur, karaoke, marker, loud, duotone."},
+		{"introEffect", 3, "Introduction text effect must be one of: none, typewriter, fade, rise, wave, bounce, flip, shake, pulse, rainbow, pewpew, flap, shimmer, kitt, aurora, neon, chrome, focus, ember, spectrum, anaglyph, heartbeat, softblur, voltage, gold, hologram, vaporwave, slam, terminal, prism, sparkle, frost, longshadow, retro, popart, glitch, elastic, pendulum, stretch, jitter, iridescent, motionblur, karaoke, marker, loud, duotone."},
+		{"introDurationMs", 500, "The introduction's duration (milliseconds) must be a whole number from 1000 to 10000."},
+		{"introDurationMs", 10500, "The introduction's duration (milliseconds) must be a whole number from 1000 to 10000."},
+		{"introDurationMs", 2.5, "The introduction's duration (milliseconds) must be a whole number from 1000 to 10000."},
+		{"introDurationMs", 2250, "The introduction's duration must be a multiple of 500 milliseconds."},
+		{"introSize", "huge", "Introduction size must be one of: normal, large, xlarge."},
+		{"introWeight", "thin", "Introduction weight must be one of: semibold, bold, black."},
+	} {
+		_, err := clean(t, map[string]any{"message": "x", c.field: c.value})
+		require.EqualError(t, err, c.err, "%s=%v", c.field, c.value)
+	}
+}
+
 func TestCleanFillsAndChecks(t *testing.T) {
 	t.Parallel()
 	f, err := clean(t, map[string]any{"message": "  hello  ", "speed": "fast", "unknown": 1, "id": "ignored"})
@@ -85,7 +141,7 @@ func TestCleanFillsAndChecks(t *testing.T) {
 		{map[string]any{"message": "x", "introductions": "yes"}, "introductions must be true or false."},
 		{map[string]any{"message": "x", "dismissible": "yes"}, "dismissible must be true or false."},
 		{map[string]any{"message": "x", "level": "loud"}, "Style must be one of: info, success, warning, critical."},
-		{map[string]any{"message": "x", "effect": nil}, "Text effect must be one of: none, typewriter, fade, rise, wave, bounce, flip, shake, pulse, rainbow, starwars, pewpew, flap, shimmer, kitt, aurora, neon, chrome, focus, ember, spectrum, anaglyph, heartbeat, softblur, voltage."},
+		{map[string]any{"message": "x", "effect": nil}, "Text effect must be one of: none, typewriter, fade, rise, wave, bounce, flip, shake, pulse, rainbow, starwars, pewpew, flap, shimmer, kitt, aurora, neon, chrome, focus, ember, spectrum, anaglyph, heartbeat, softblur, voltage, gold, hologram, vaporwave, slam, terminal, prism, sparkle, frost, longshadow, retro, popart, glitch, elastic, pendulum, stretch, jitter, iridescent, motionblur, karaoke, marker, loud, duotone."},
 		{map[string]any{"message": "x", "crawlSpeed": 15.5}, "The crawl's speed must be a whole number from 4 to 60."},
 		{map[string]any{"message": "x", "crawlSpeed": true}, "The crawl's speed must be a whole number from 4 to 60."},
 		{map[string]any{"message": "x", "crawlTilt": 101}, "The crawl's convergence must be a whole number from 0 to 100."},

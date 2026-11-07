@@ -15,14 +15,12 @@ import { useId, useRef, useState } from "react";
 import {
 	BANNER_ALIGNS,
 	BANNER_CLOSE_EFFECTS,
-	BANNER_EFFECTS,
 	BANNER_FONTS,
 	BANNER_LEVELS,
 	BANNER_OPEN_EFFECTS,
 	BANNER_SPEEDS,
 	type BannerAlign,
 	type BannerCloseEffect,
-	type BannerEffect,
 	type BannerFields,
 	type BannerFont,
 	type BannerOpenEffect,
@@ -83,83 +81,11 @@ import {
 	UploadImageButton,
 } from "./BackgroundPicture";
 import { BannerAudience } from "./BannerAudience";
+import { EffectGallery } from "./EffectGallery";
 import { EmojiButton } from "./EmojiButton";
 
 // Long broadcasts are what the crawl and the banner's scroll-down view are for.
 export const MESSAGE_MAX_LENGTH = 4000;
-
-const EFFECT_OPTIONS: Record<BannerEffect, { label: string; hint: string }> = {
-	none: { label: "None", hint: "Plain text, no animation." },
-	typewriter: {
-		label: "Typewriter",
-		hint: "Letters appear one by one, as if typed.",
-	},
-	fade: { label: "Fade in", hint: "Words fade in one after another." },
-	rise: { label: "Rise", hint: "Letters slide up into place." },
-	wave: { label: "Wave", hint: "A wave of movement runs through the letters." },
-	bounce: { label: "Bounce", hint: "Letters drop in and bounce." },
-	flip: { label: "Flip", hint: "Letters flip into view." },
-	shake: {
-		label: "Shake",
-		hint: "The whole message shakes: best kept for urgent notices.",
-	},
-	pulse: { label: "Pulse", hint: "The message gently pulses." },
-	rainbow: { label: "Rainbow", hint: "Colours sweep through the letters." },
-	starwars: {
-		label: "Star Wars crawl",
-		hint: "The message rises from the bottom of the banner to its top at a steady pace, within the banner as it stands, for long broadcasts; its convergence tilts the lines away like the opening crawl, or keeps them a flat scroller. Developers can also read it at once in the banner's scroll-down view.",
-	},
-	pewpew: {
-		label: "Pew-Pew",
-		hint: "Each letter fires in as a laser bolt, flashes white on impact with a spark, recoils and settles into a faint glow.",
-	},
-	flap: {
-		label: "Split-Flap",
-		hint: "A departure board: every letter on its own plate, flipping over.",
-	},
-	shimmer: {
-		label: "Ghostwrite",
-		hint: "Muted letters with a soft band of light sweeping across them.",
-	},
-	kitt: {
-		label: "Knight Rider",
-		hint: "KITT's scanner: a red light sweeps back and forth across the banner, its trail fading behind it.",
-	},
-	aurora: {
-		label: "Borealis",
-		hint: "An aurora gradient drifts through the letters.",
-	},
-	neon: { label: "Neon-Haus", hint: "A neon glow flickers like a tube sign." },
-	chrome: {
-		label: "Chrome",
-		hint: "A metallic highlight sweeps over the message.",
-	},
-	focus: { label: "Lens-Drift", hint: "Letters slip in and out of focus." },
-	ember: {
-		label: "Emberglow",
-		hint: "Warm firelight glows behind the letters.",
-	},
-	spectrum: {
-		label: "Prisma",
-		hint: "Each letter refracts a changing spectrum.",
-	},
-	anaglyph: {
-		label: "Anaglyph-3D",
-		hint: "Red and cyan shadows drift apart and return.",
-	},
-	heartbeat: {
-		label: "Cardio",
-		hint: "A double heartbeat pulses with a glow.",
-	},
-	softblur: {
-		label: "Soft-Blur",
-		hint: "The message breathes between crisp and hazy.",
-	},
-	voltage: {
-		label: "Kilovolt",
-		hint: "Letters crackle with staggered electric flashes.",
-	},
-};
 
 const SPEED_LABELS: Record<BannerSpeed, string> = {
 	slow: "Slow",
@@ -783,34 +709,10 @@ const CrawlControls: React.FC<FieldProps> = ({ form, onChange }) => (
 /** The text effect; the crawl's pace and convergence, the Knight Rider sweep's speed; whether it repeats. It plays on the draft preview. */
 const EffectPicker: React.FC<FieldProps> = ({ form, onChange }) => (
 	<div className="flex items-center gap-1">
-		<Select
+		<EffectGallery
 			value={form.effect}
-			onValueChange={(value) => {
-				const effect = BANNER_EFFECTS.find((e) => e === value);
-				if (effect) {
-					onChange({ effect });
-				}
-			}}
-		>
-			<SelectTrigger
-				className="h-8 w-40 text-xs"
-				aria-label="Text effect"
-				title={EFFECT_OPTIONS[form.effect].hint}
-			>
-				<SelectValue />
-			</SelectTrigger>
-			<SelectContent>
-				{BANNER_EFFECTS.map((effect) => (
-					<SelectItem
-						key={effect}
-						value={effect}
-						title={EFFECT_OPTIONS[effect].hint}
-					>
-						{EFFECT_OPTIONS[effect].label}
-					</SelectItem>
-				))}
-			</SelectContent>
-		</Select>
+			onChange={(effect) => onChange({ effect })}
+		/>
 		{form.effect === "starwars" && (
 			<CrawlControls form={form} onChange={onChange} />
 		)}

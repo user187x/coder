@@ -2,6 +2,7 @@ import { SettingsIcon } from "lucide-react";
 import { Suspense, useId, useState } from "react";
 import { useQuery } from "react-query";
 import { Navigate, Outlet, useLocation } from "react-router";
+import { INTRO_DURATION } from "#/api/platform";
 import { banner as bannerQuery } from "#/api/queries/platform";
 import {
 	BreadcrumbItem,
@@ -24,13 +25,20 @@ const DeploymentSettingsLayout: React.FC = () => {
 	const location = useLocation();
 	const sidebarId = useId();
 	const [sidebarOpen, setSidebarOpen] = useState(true);
-	const { data: introductions = false } = useQuery({
+	const { data: introduction } = useQuery({
 		...bannerQuery(false),
 		enabled: !isEmbeddedFrame(),
-		select: (banner) => banner.introductions === true,
+		select: (banner) => ({
+			enabled: banner.introductions === true,
+			durationMs: banner.introDurationMs ?? INTRO_DURATION.default,
+		}),
 	});
 	const category = adminCategory(location.pathname);
-	useAnnounceSection(category, introductions);
+	useAnnounceSection(
+		category,
+		introduction?.enabled === true,
+		introduction?.durationMs,
+	);
 
 	if (location.pathname === "/deployment") {
 		return (

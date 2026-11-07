@@ -1,7 +1,8 @@
-import { act, screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 import { Link, Outlet } from "react-router";
+import type { Banner } from "#/api/platform";
 import { AnnouncementBanner } from "#/modules/platform/announcement/AnnouncementBanner";
 import { MockBanner } from "#/testHelpers/platform";
 import { renderWithAuth } from "#/testHelpers/renderHelpers";
@@ -41,10 +42,13 @@ describe("section introductions", () => {
 		close() {}
 	}
 
-	const renderSections = (introductions: boolean) => {
+	const renderSections = (
+		introductions: boolean,
+		look: Partial<Banner> = {},
+	) => {
 		server.use(
 			http.get("/__banner/banner.json", () =>
-				HttpResponse.json({ ...MockBanner, introductions }),
+				HttpResponse.json({ ...MockBanner, introductions, ...look }),
 			),
 		);
 		return renderWithAuth(<DeploymentSettingsLayout />, {
@@ -98,6 +102,34 @@ describe("section introductions", () => {
 		// Same section, new query string: no splash.
 		await user.click(screen.getByRole("link", { name: "Stay" }));
 		expect(splash).toHaveTextContent("");
+	});
+
+	it("keeps the splash for the configured duration", async () => {
+		const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+		renderSections(true, { introDurationMs: 6000 });
+		const splash = await screen.findByTestId("section-splash");
+		await user.click(await screen.findByRole("link", { name: "Go" }));
+		await waitFor(() => expect(splash).toHaveTextContent("Appearance"));
+		await act(() => vi.advanceTimersByTimeAsync(5800));
+		expect(splash).toHaveTextContent("Appearance");
+		await act(() => vi.advanceTimersByTimeAsync(400));
+		expect(splash).toHaveTextContent("");
+	});
+
+	it("renders the splash with the chosen effect, size and weight", async () => {
+		const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+		renderSections(true, {
+			introEffect: "pewpew",
+			introSize: "xlarge",
+			introWeight: "black",
+		});
+		const splash = await screen.findByTestId("section-splash");
+		await user.click(await screen.findByRole("link", { name: "Go" }));
+		await waitFor(() => expect(splash).toHaveTextContent("Appearance"));
+		expect(within(splash).getByTestId("section-splash-pill")).toHaveAttribute(
+			"data-intro-effect",
+			"pewpew",
+		);
 	});
 
 	it("names the section when the page mounts a settings layout of its own", async () => {

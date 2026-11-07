@@ -154,8 +154,13 @@ it.each([
 			/>
 		</QueryClientProvider>,
 	);
-	await userEvent.click(screen.getByRole("combobox", { name: control }));
-	await userEvent.click(screen.getByRole("option", { name: option }));
+	if (control === "Text effect") {
+		await userEvent.click(screen.getByRole("button", { name: control }));
+		await userEvent.click(screen.getByRole("radio", { name: option }));
+	} else {
+		await userEvent.click(screen.getByRole("combobox", { name: control }));
+		await userEvent.click(screen.getByRole("option", { name: option }));
+	}
 	expect(onChange).toHaveBeenCalledWith(expected);
 });
 

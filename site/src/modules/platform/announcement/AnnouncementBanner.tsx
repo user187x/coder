@@ -33,6 +33,10 @@ import {
 	outlineColor,
 	parseColors,
 } from "./bannerTokens";
+import {
+	SectionSplashPill,
+	SPLASH_MIN_HEIGHT_CLASS,
+} from "./SectionSplashPill";
 import { useSectionSplash } from "./sectionIntroductions";
 import { useAnnouncementMotion } from "./useAnnouncementMotion";
 import "./bannerLcd.css";
@@ -339,6 +343,9 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 								motion.effects &&
 								"transition-opacity duration-300 motion-reduce:transition-none",
 							splash && "opacity-0",
+							splash &&
+								!inNavbar &&
+								SPLASH_MIN_HEIGHT_CLASS[banner.introSize ?? "normal"],
 						)}
 					/>
 					{/* The section's name over whatever the banner shows, on a blurred pill. */}
@@ -354,9 +361,12 @@ const AnnouncementCard: React.FC<AnnouncementCardProps> = ({
 							)}
 						>
 							{splash && (
-								<span className="max-w-full truncate rounded-full bg-black/55 px-4 font-semibold text-white [text-shadow:0_0_2px_rgb(0_0_0/0.9),0_0_6px_rgb(0_0_0/0.6)] supports-[backdrop-filter]:bg-black/25 supports-[backdrop-filter]:backdrop-blur-md">
-									{splash}
-								</span>
+								<SectionSplashPill
+									key={splash}
+									label={splash}
+									look={banner}
+									inNavbar={inNavbar}
+								/>
 							)}
 						</span>
 					)}

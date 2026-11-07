@@ -25,6 +25,7 @@ import {
 } from "./useAnnouncementMotion";
 import "./bannerCrawl.css";
 import "./bannerFx.css";
+import "./bannerGalleryFx.css";
 import "./bannerLibraryFx.css";
 import "./bannerKitt.css";
 import "./bannerRoll.css";
@@ -140,6 +141,28 @@ const EFFECTS: Record<
 	heartbeat: { unit: "whole", className: "fx-heartbeat" },
 	softblur: { unit: "whole", className: "fx-softblur" },
 	voltage: { unit: "char", className: "fx-voltage", maxIndex: 14 },
+	gold: { unit: "whole", className: "fx-lib fx-gold" },
+	hologram: { unit: "whole", className: "fx-lib fx-hologram" },
+	vaporwave: { unit: "whole", className: "fx-lib fx-vaporwave" },
+	slam: { unit: "whole", className: "fx-lib fx-slam" },
+	terminal: { unit: "whole", className: "fx-lib fx-terminal" },
+	prism: { unit: "whole", className: "fx-lib fx-prism" },
+	sparkle: { unit: "whole", className: "fx-lib fx-sparkle" },
+	frost: { unit: "whole", className: "fx-lib fx-frost" },
+	longshadow: { unit: "whole", className: "fx-lib fx-longshadow" },
+	retro: { unit: "whole", className: "fx-lib fx-retro" },
+	popart: { unit: "char", className: "fx-lib fx-popart", maxIndex: 14 },
+	glitch: { unit: "whole", className: "fx-lib fx-glitch" },
+	elastic: { unit: "whole", className: "fx-lib fx-elastic" },
+	pendulum: { unit: "char", className: "fx-lib fx-pendulum", maxIndex: 14 },
+	stretch: { unit: "char", className: "fx-lib fx-stretch", maxIndex: 14 },
+	jitter: { unit: "whole", className: "fx-lib fx-jitter" },
+	iridescent: { unit: "whole", className: "fx-lib fx-iridescent" },
+	motionblur: { unit: "char", className: "fx-lib fx-motionblur", maxIndex: 14 },
+	karaoke: { unit: "char", className: "fx-lib fx-karaoke", maxIndex: 14 },
+	marker: { unit: "whole", className: "fx-lib fx-marker" },
+	loud: { unit: "whole", className: "fx-lib fx-loud" },
+	duotone: { unit: "whole", className: "fx-lib fx-duotone" },
 };
 
 /** A letter's --i: its index, closer together past plan.maxIndex letters. */

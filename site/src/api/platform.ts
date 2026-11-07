@@ -1492,8 +1492,46 @@ export const BANNER_EFFECTS = [
 	"heartbeat",
 	"softblur",
 	"voltage",
+	"gold",
+	"hologram",
+	"vaporwave",
+	"slam",
+	"terminal",
+	"prism",
+	"sparkle",
+	"frost",
+	"longshadow",
+	"retro",
+	"popart",
+	"glitch",
+	"elastic",
+	"pendulum",
+	"stretch",
+	"jitter",
+	"iridescent",
+	"motionblur",
+	"karaoke",
+	"marker",
+	"loud",
+	"duotone",
 ] as const;
 export type BannerEffect = (typeof BANNER_EFFECTS)[number];
+
+/** The effects an introduction can play: the banner's, but the crawl (it needs a whole banner to rise through). */
+export const INTRO_EFFECTS = BANNER_EFFECTS.filter(
+	(effect) => effect !== "starwars",
+);
+export const INTRO_SIZES = ["normal", "large", "xlarge"] as const;
+export type IntroSize = (typeof INTRO_SIZES)[number];
+export const INTRO_WEIGHTS = ["semibold", "bold", "black"] as const;
+export type IntroWeight = (typeof INTRO_WEIGHTS)[number];
+/** How long an introduction stays visible, in milliseconds. */
+export const INTRO_DURATION = {
+	min: 1000,
+	max: 10000,
+	step: 500,
+	default: 2000,
+} as const;
 
 /** How the banner goes away when someone dismisses it (the banner service checks the same list). */
 export const BANNER_CLOSE_EFFECTS = [
@@ -1635,6 +1673,14 @@ export type Banner = {
 	outline?: boolean;
 	/** Section introductions: the banner names the admin section being opened, and its page drops the big heading. Missing: off. */
 	introductions?: boolean;
+	/** The introduction's text effect (not "starwars"); missing: "none", the fade. */
+	introEffect?: BannerEffect;
+	/** How long the introduction stays visible, in ms (INTRO_DURATION); missing: 2000. */
+	introDurationMs?: number;
+	/** Missing: "normal". */
+	introSize?: IntroSize;
+	/** Missing: "semibold". */
+	introWeight?: IntroWeight;
 	/** The banner's background picture (a same-site path or an http(s) URL); "" or missing: none. */
 	picture?: string;
 	/** How the background picture fills the banner's screen; missing: "span". */

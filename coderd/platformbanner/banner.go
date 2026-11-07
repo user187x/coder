@@ -66,6 +66,13 @@ type Fields struct {
 	// Introductions: the banner briefly names the admin settings section the
 	// user navigates to, and the section pages drop their big heading.
 	Introductions bool `json:"introductions"`
+	// How the introduction looks: a text effect (the banner's, but the crawl),
+	// how long it stays in milliseconds (1000-10000, in steps of 500), and its
+	// font size and weight.
+	IntroEffect     string `json:"introEffect"`
+	IntroDurationMs int    `json:"introDurationMs"`
+	IntroSize       string `json:"introSize"`
+	IntroWeight     string `json:"introWeight"`
 	// The banner's background picture (a same-site path or an http(s) URL)
 	// and how it fills the banner.
 	Picture       string `json:"picture"`
@@ -108,6 +115,10 @@ func FieldDefaults() Fields {
 		OpenEffect:      "none",
 		Markdown:        true,
 		Align:           "center",
+		IntroEffect:     "none",
+		IntroDurationMs: 2000,
+		IntroSize:       "normal",
+		IntroWeight:     "semibold",
 		PictureFit:      "span",
 		PictureEffect:   "none",
 		CountdownAction: "none",
@@ -126,8 +137,12 @@ func Defaults() Fields {
 // The choices, in the order the error messages list them. They are the
 // dashboard's (BANNER_EFFECTS, BANNER_OPEN_EFFECTS, bannerFonts.ts, ...).
 var (
-	levels       = []string{"info", "success", "warning", "critical"}
-	effects      = []string{"none", "typewriter", "fade", "rise", "wave", "bounce", "flip", "shake", "pulse", "rainbow", "starwars", "pewpew", "flap", "shimmer", "kitt", "aurora", "neon", "chrome", "focus", "ember", "spectrum", "anaglyph", "heartbeat", "softblur", "voltage"}
+	levels  = []string{"info", "success", "warning", "critical"}
+	effects = []string{"none", "typewriter", "fade", "rise", "wave", "bounce", "flip", "shake", "pulse", "rainbow", "starwars", "pewpew", "flap", "shimmer", "kitt", "aurora", "neon", "chrome", "focus", "ember", "spectrum", "anaglyph", "heartbeat", "softblur", "voltage", "gold", "hologram", "vaporwave", "slam", "terminal", "prism", "sparkle", "frost", "longshadow", "retro", "popart", "glitch", "elastic", "pendulum", "stretch", "jitter", "iridescent", "motionblur", "karaoke", "marker", "loud", "duotone"}
+	// The crawl rises through a whole banner: it does not fit an introduction's pill.
+	introEffects = slices.DeleteFunc(slices.Clone(effects), func(e string) bool { return e == "starwars" })
+	introSizes   = []string{"normal", "large", "xlarge"}
+	introWeights = []string{"semibold", "bold", "black"}
 	speeds       = []string{"slow", "normal", "fast"}
 	closeEffects = []string{"none", "pixelate", "rollup", "fade", "wipe", "matrix", "gaussian", "evaporate", "kitt"}
 	openEffects  = []string{"none", "fade", "rolldown", "kitt", "crt", "glitch"}
@@ -267,6 +282,15 @@ func Clean(raw []byte) (Fields, error) {
 	if err := choice("effect", "none", "Text effect", effects, &out.Effect); err != nil {
 		return Fields{}, err
 	}
+	if err := choice("introEffect", "none", "Introduction text effect", introEffects, &out.IntroEffect); err != nil {
+		return Fields{}, err
+	}
+	if err := choice("introSize", "normal", "Introduction size", introSizes, &out.IntroSize); err != nil {
+		return Fields{}, err
+	}
+	if err := choice("introWeight", "semibold", "Introduction weight", introWeights, &out.IntroWeight); err != nil {
+		return Fields{}, err
+	}
 	if err := choice("speed", "normal", "Speed", speeds, &out.Speed); err != nil {
 		return Fields{}, err
 	}
@@ -286,6 +310,7 @@ func Clean(raw []byte) (Fields, error) {
 		{"crawlSpeed", crawlDefault, 4, 60, "The crawl's speed", &out.CrawlSpeed},
 		{"crawlTilt", FieldDefaults().CrawlTilt, 0, 100, "The crawl's convergence", &out.CrawlTilt},
 		{"opacity", FieldDefaults().Opacity, 20, 100, "The banner's opacity", &out.Opacity},
+		{"introDurationMs", FieldDefaults().IntroDurationMs, 1000, 10000, "The introduction's duration (milliseconds)", &out.IntroDurationMs},
 	} {
 		value := n.fallback
 		if v, ok := payload[n.key]; ok {
@@ -299,6 +324,9 @@ func Clean(raw []byte) (Fields, error) {
 			return Fields{}, ValidationError(fmt.Sprintf("%s must be a whole number from %d to %d.", n.what, n.low, n.high))
 		}
 		*n.dst = value
+	}
+	if out.IntroDurationMs%500 != 0 {
+		return Fields{}, ValidationError("The introduction's duration must be a multiple of 500 milliseconds.")
 	}
 
 	if err := choice("font", "default", "Font", fonts, &out.Font); err != nil {

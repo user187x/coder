@@ -8,6 +8,7 @@ import {
 	type BannerFields,
 	type BannerState,
 	CRAWL_TILT,
+	INTRO_DURATION,
 	PlatformError,
 } from "#/api/platform";
 import {
@@ -70,6 +71,10 @@ const FIELDS = [
 	"align",
 	"outline",
 	"introductions",
+	"introEffect",
+	"introDurationMs",
+	"introSize",
+	"introWeight",
 	"picture",
 	"pictureFit",
 	"pictureEffect",
@@ -108,6 +113,10 @@ const fieldsOf = ({ id: _id, ...banner }: Banner): BannerFields => {
 		align: banner.align ?? "center",
 		outline: banner.outline ?? false,
 		introductions: banner.introductions ?? false,
+		introEffect: banner.introEffect ?? "none",
+		introDurationMs: banner.introDurationMs ?? INTRO_DURATION.default,
+		introSize: banner.introSize ?? "normal",
+		introWeight: banner.introWeight ?? "semibold",
 		picture: banner.picture ?? "",
 		pictureFit: banner.pictureFit ?? "span",
 		pictureEffect: banner.pictureEffect ?? "none",
@@ -471,16 +480,18 @@ const AnnouncementEditor: React.FC<{ state: BannerState }> = ({ state }) => {
 			/>
 
 			<IntroductionCard
-				checked={published.introductions === true}
+				settings={published}
 				disabled={busy}
-				onCheckedChange={(introductions) =>
+				onChange={(change) =>
 					publish.mutate(
-						{ ...published, introductions },
+						{ ...published, ...change },
 						{
 							onSuccess: () => {
 								setProblem(null);
 								toast.success(
-									`Section introductions ${introductions ? "on" : "off"}.`,
+									change.introductions === undefined
+										? "Introduction saved."
+										: `Section introductions ${change.introductions ? "on" : "off"}.`,
 								);
 							},
 							onError,

@@ -1,7 +1,5 @@
 import { useEffect, useSyncExternalStore } from "react";
-
-/** How long the announcement banner names the section being opened. */
-const SECTION_SPLASH_MS = 2000;
+import { INTRO_DURATION } from "#/api/platform";
 
 let splash: string | null = null;
 /**
@@ -20,11 +18,11 @@ const setSplash = (label: string | null) => {
 	}
 };
 
-/** Names a section in the announcement banner for SECTION_SPLASH_MS; a newer one replaces it. */
-const showSectionSplash = (label: string) => {
+/** Names a section in the announcement banner for durationMs; a newer one replaces it. */
+const showSectionSplash = (label: string, durationMs: number) => {
 	clearTimeout(timer);
 	setSplash(label);
-	timer = setTimeout(() => setSplash(null), SECTION_SPLASH_MS);
+	timer = setTimeout(() => setSplash(null), durationMs);
 };
 
 const subscribe = (listener: () => void) => {
@@ -50,6 +48,7 @@ export const useSectionSplash = () =>
 export const useAnnounceSection = (
 	section: { id: string; label: string } | null,
 	enabled: boolean,
+	durationMs: number = INTRO_DURATION.default,
 ) => {
 	const id = section?.id ?? null;
 	const label = section?.label;
@@ -60,7 +59,7 @@ export const useAnnounceSection = (
 		}
 		lastSection = id;
 		if (!first && enabled && label) {
-			showSectionSplash(label);
+			showSectionSplash(label, durationMs);
 		}
-	}, [id, label, enabled]);
+	}, [id, label, enabled, durationMs]);
 };
