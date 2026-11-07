@@ -21,10 +21,7 @@ import { Badge } from "#/components/Badge/Badge";
 import { DeprecatedBadge } from "#/components/Badge/PresetBadges";
 import { Button } from "#/components/Button/Button";
 import { Margins } from "#/components/Margins/Margins";
-import {
-	PageHeader,
-	PageHeaderTitle,
-} from "#/components/PageHeader/PageHeader";
+import { PageHeaderTitle } from "#/components/PageHeader/PageHeader";
 import { Skeleton } from "#/components/Skeleton/Skeleton";
 import {
 	Table,
@@ -333,32 +330,25 @@ export const TemplatesPageView: React.FC<TemplatesPageViewProps> = ({
 			)}
 
 			{/* The announcement banner names the section, so the heading is for assistive technology only. */}
-			<PageHeader
-				className="py-4"
-				actions={
-					<div className="flex flex-wrap items-center gap-2">
-						{canCreateTemplates && (
-							<NavbarAction>
-								<Button asChild size="lg">
-									<RouterLink
-										to={
-											templateBuilderEnabled
-												? "/templates/new/builder"
-												: "/starter-templates"
-										}
-									>
-										{/* Platform: the plus glyph says "new" */}
-										<FileTextIcon />
-										Template
-									</RouterLink>
-								</Button>
-							</NavbarAction>
-						)}
-					</div>
-				}
-			>
-				<PageHeaderTitle className="sr-only">Templates</PageHeaderTitle>
-			</PageHeader>
+			<PageHeaderTitle className="sr-only">Templates</PageHeaderTitle>
+			{/* The create action renders in the navbar (NavbarAction), so no header row reserves space here. */}
+			{canCreateTemplates && (
+				<NavbarAction>
+					<Button asChild size="lg">
+						<RouterLink
+							to={
+								templateBuilderEnabled
+									? "/templates/new/builder"
+									: "/starter-templates"
+							}
+						>
+							{/* Platform: the plus glyph says "new" */}
+							<FileTextIcon />
+							Template
+						</RouterLink>
+					</Button>
+				</NavbarAction>
+			)}
 
 			<TemplatesFilter
 				filter={filterState.filter}

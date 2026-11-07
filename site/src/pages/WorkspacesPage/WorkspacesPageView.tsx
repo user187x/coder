@@ -16,10 +16,7 @@ import { Button } from "#/components/Button/Button";
 import { EmptyState } from "#/components/EmptyState/EmptyState";
 import type { UseFilterResult } from "#/components/Filter/Filter";
 import { Margins } from "#/components/Margins/Margins";
-import {
-	PageHeader,
-	PageHeaderTitle,
-} from "#/components/PageHeader/PageHeader";
+import { PageHeaderTitle } from "#/components/PageHeader/PageHeader";
 import { PaginationWidgetBase } from "#/components/PaginationWidget/PaginationWidgetBase";
 import { useAuthenticated } from "#/hooks/useAuthenticated";
 import { NavbarAction } from "#/modules/dashboard/Navbar/NavbarAction";
@@ -135,25 +132,20 @@ export const WorkspacesPageView: React.FC<WorkspacesPageViewProps> = ({
 		<Margins className="relative pb-12" data-cloud-drive-area>
 			{/* Platform: Workspaces | Templates | Images. */}
 			{/* The announcement banner names the section, so the heading is for assistive technology only. */}
-			<PageHeader
-				className="py-4"
-				actions={
-					canCreateWorkspace && (
-						<NavbarAction>
-							<WorkspacesButton
-								templates={templates}
-								templatesFetchStatus={templatesFetchStatus}
-							>
-								{/* Platform: the plus glyph says "new" */}
-								<MonitorIcon aria-hidden />
-								Workspace
-							</WorkspacesButton>
-						</NavbarAction>
-					)
-				}
-			>
-				<PageHeaderTitle className="sr-only">Workspaces</PageHeaderTitle>
-			</PageHeader>
+			<PageHeaderTitle className="sr-only">Workspaces</PageHeaderTitle>
+			{/* The create action renders in the navbar (NavbarAction), so no header row reserves space here. */}
+			{canCreateWorkspace && (
+				<NavbarAction>
+					<WorkspacesButton
+						templates={templates}
+						templatesFetchStatus={templatesFetchStatus}
+					>
+						{/* Platform: the plus glyph says "new" */}
+						<MonitorIcon aria-hidden />
+						Workspace
+					</WorkspacesButton>
+				</NavbarAction>
+			)}
 
 			{hasError(error) && !isApiValidationError(error) && (
 				<div className="mb-4">

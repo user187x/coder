@@ -99,7 +99,7 @@ export const WorkspaceSkewCard: React.FC<{ report: ClusterNetworkReport }> = ({
 							aria-label={`${c.node}: ${plural(c.workspaces.length)}`}
 							className="flex min-w-0 flex-col gap-2"
 						>
-							<div className="flex flex-col-reverse gap-2">
+							<div className="flex flex-col-reverse items-center gap-1">
 								{Array.from({ length: rows }, (_, i) => {
 									const w = c.workspaces[i];
 									if (!w) {
@@ -107,7 +107,7 @@ export const WorkspaceSkewCard: React.FC<{ report: ClusterNetworkReport }> = ({
 											<span
 												key={`empty-${i}`}
 												aria-hidden
-												className="aspect-square rounded-md bg-surface-tertiary"
+												className="size-5 rounded bg-surface-tertiary"
 											/>
 										);
 									}
@@ -118,7 +118,7 @@ export const WorkspaceSkewCard: React.FC<{ report: ClusterNetworkReport }> = ({
 													role="img"
 													aria-label={w.label}
 													className={cn(
-														"aspect-square rounded-md",
+														"size-5 rounded",
 														tileColor(i + 1, rows),
 													)}
 												/>
