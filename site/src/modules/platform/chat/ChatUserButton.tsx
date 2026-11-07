@@ -1,6 +1,5 @@
 import { ChevronDownIcon, CrosshairIcon } from "lucide-react";
 import { useState } from "react";
-import { Link } from "react-router";
 import type { User } from "#/api/typesGenerated";
 import { Button } from "#/components/Button/Button";
 import {
@@ -22,13 +21,13 @@ type ChatUserButtonProps = {
 /**
  * Admin > Accounts: start a conversation with this user, or - from its menu - send them a message with Forced Focus
  * (in front of everything on their dashboard until they acknowledge it). Admins only; not for service accounts,
- * suspended users or yourself.
+ * suspended users, and not in your own row.
  */
 export const ChatUserButton: React.FC<ChatUserButtonProps> = ({ user }) => {
 	const { me } = useChatSnapshot();
 	const [forcing, setForcing] = useState(false);
 
-	if (!me?.admin) return null;
+	if (!me?.admin || me.id === user.id) return null;
 	if (user.is_service_account || user.status === "suspended")
 		return (
 			<span
@@ -42,14 +41,6 @@ export const ChatUserButton: React.FC<ChatUserButtonProps> = ({ user }) => {
 					Chat
 				</Button>
 			</span>
-		);
-	if (me.id === user.id)
-		return (
-			<Button asChild size="sm" variant="outline">
-				<Link to="/deployment/chat" title="Open your conversations">
-					Chat
-				</Link>
-			</Button>
 		);
 	const peer = { id: user.id, username: user.username, name: user.name ?? "" };
 

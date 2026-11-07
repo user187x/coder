@@ -79,7 +79,7 @@ export type UsersTableProps = {
 
 const fieldWidths = {
 	Roles: 9,
-	Notes: 11,
+	Communication: 15,
 	Resources: 18,
 	Latency: 9,
 	Activity: 9,
@@ -117,12 +117,13 @@ export const UsersTable: React.FC<UsersTableProps> = (props) => {
 		return () => observer.disconnect();
 	}, []);
 	const [picked, setPicked] = useState("");
-	const fields: AccountField[] = ["Roles", "Notes"];
+	const fields: AccountField[] = ["Roles", "Communication"];
 	if (quota) fields.push("Resources");
 	if (insights.shown) fields.push("Latency");
 	if (insights.shown || props.canManageWorkspaces) fields.push("Activity");
 	fields.push("Status");
-	const fixed = layout === "compact" ? ["Roles", "Notes", "Status"] : [];
+	const fixed =
+		layout === "compact" ? ["Roles", "Communication", "Status"] : [];
 	const choices = fields.filter((field) => !fixed.includes(field));
 	const current =
 		choices.find((field) => field === picked) ??
@@ -211,7 +212,9 @@ export const UsersTable: React.FC<UsersTableProps> = (props) => {
 							</TableHead>
 						)}
 						{/* Platform: admins' post-it notes on the user's workspaces, instead of Groups. */}
-						{visible.has("Notes") && <TableHead>Notes</TableHead>}
+						{visible.has("Communication") && (
+							<TableHead>Communication</TableHead>
+						)}
 						{visible.has("Resources") && <TableHead>Resources</TableHead>}
 						{/* Platform: how the user's connections to their workspaces went, beside when they were last seen */}
 						{visible.has("Latency") && (
@@ -403,7 +406,8 @@ const UsersTableRow: React.FC<UsersTableRowProps> = ({
 	const accountLinks = (
 		<>
 			<ShareApprovalButton user={user} />
-			<ChatUserButton user={user} />
+			{/* Chat sits with Notes in Communication; it stays here when that column is hidden. */}
+			{!visible.has("Communication") && <ChatUserButton user={user} />}
 		</>
 	);
 
@@ -448,12 +452,14 @@ const UsersTableRow: React.FC<UsersTableRowProps> = ({
 					<UserRoleCell roles={user.roles} className="account-roles" />
 				)}
 
-				{visible.has("Notes") && (
+				{visible.has("Communication") && (
 					<UserNotesCell
 						username={user.username}
 						notes={notes}
 						className="account-notes"
-					/>
+					>
+						<ChatUserButton user={user} />
+					</UserNotesCell>
 				)}
 				{visible.has("Resources") && <AccountResourcesCell user={user} />}
 

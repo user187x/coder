@@ -98,7 +98,7 @@ describe("UsersTable", () => {
 			await user.click(
 				screen.getByRole("combobox", { name: "Account detail column" }),
 			);
-			await user.click(screen.getByRole("option", { name: "Notes" }));
+			await user.click(screen.getByRole("option", { name: "Communication" }));
 			await user.click(
 				screen.getByRole("button", {
 					name: `View notes for ${MockUserMember.username}`,
