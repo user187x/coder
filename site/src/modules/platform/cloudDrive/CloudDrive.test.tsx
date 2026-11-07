@@ -466,7 +466,11 @@ describe("CloudDrive", () => {
 				);
 				expect(
 					JSON.parse(
-						localStorage.getItem("coder-drive-cable-style-v1:ropes") ?? "{}",
+						localStorage.getItem(
+							Object.keys(localStorage).find((key) =>
+								key.startsWith("coder-drive-cable-style-v1:ropes:"),
+							) ?? "",
+						) ?? "{}",
 					).w1,
 				).toMatchObject({ style: "cable", arrows: "both" });
 			});

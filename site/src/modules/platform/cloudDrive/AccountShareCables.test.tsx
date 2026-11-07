@@ -162,7 +162,11 @@ describe("AccountShareCables", () => {
 		const name = "Manage ann's Cloud Drive, shared with bob (read only)";
 		const stored = () =>
 			JSON.parse(
-				localStorage.getItem("coder-drive-cable-style-v1:shares") ?? "{}",
+				localStorage.getItem(
+					Object.keys(localStorage).find((key) =>
+						key.startsWith("coder-drive-cable-style-v1:shares:"),
+					) ?? "",
+				) ?? "{}",
 			);
 		await user.pointer({
 			keys: "[MouseRight]",

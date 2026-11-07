@@ -1,4 +1,7 @@
 import { useEffect, useId, useState } from "react";
+import { useQueryClient } from "react-query";
+import { meKey } from "#/api/queries/users";
+import type { User } from "#/api/typesGenerated";
 import {
 	ContextMenu,
 	ContextMenuCheckboxItem,
@@ -22,11 +25,22 @@ import {
 	saveDriveCableStyles,
 } from "./driveCableStyle";
 
-/** The saved connector styles of one view, read once and saved on every change. */
-export const useDriveCableStyles = (storageKey: string) => {
+/**
+ * The saved connector styles of one view for the signed-in user (like the tunnel layouts), read when the user changes
+ * and saved on every change.
+ */
+export const useDriveCableStyles = (view: string) => {
+	// The signed-in user from the query cache (the auth provider fills it), so this also works outside the provider.
+	const userId = useQueryClient().getQueryData<User>(meKey)?.id ?? "anonymous";
+	const storageKey = `${view}:${userId}`;
+	const [loaded, setLoaded] = useState(storageKey);
 	const [styles, setStyles] = useState<DriveCableStyles>(() =>
 		readDriveCableStyles(storageKey),
 	);
+	if (loaded !== storageKey) {
+		setLoaded(storageKey);
+		setStyles(readDriveCableStyles(storageKey));
+	}
 	useEffect(() => {
 		saveDriveCableStyles(storageKey, styles);
 	}, [storageKey, styles]);
