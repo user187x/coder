@@ -30,8 +30,11 @@ func TestConfigFromEnv(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, platformha.ModeOff, c.Mode)
 	require.False(t, c.Enabled())
-	require.Equal(t, 30*time.Second, c.LeaseTTL)
-	require.Equal(t, 5*time.Second, c.RenewInterval)
+	require.Equal(t, 60*time.Second, c.LeaseTTL)
+	require.Equal(t, 10*time.Second, c.RenewInterval)
+	require.Equal(t, 45*time.Second, c.FenceAfter(), "a quarter of the lease left as margin")
+	c.LeaseTTL, c.RenewInterval = 20*time.Second, 8*time.Second
+	require.Equal(t, 12*time.Second, c.FenceAfter(), "at least one renew interval left as margin")
 
 	c, err = platformha.ConfigFromEnv(env(map[string]string{
 		"CODER_PLATFORM_HA_MODE": "registry", "CODER_PLATFORM_HA_CELL": "b",
@@ -206,11 +209,11 @@ func TestRegistryFencesBeforeTheLeaseEndsAndRejoins(t *testing.T) {
 	}, testutil.IntervalFast, "it fences, and says so")
 	took := time.Since(broke)
 	cfg := testConfig("")
-	require.GreaterOrEqual(t, took, cfg.LeaseTTL-2*cfg.RenewInterval, "not before the renewals ran out")
+	require.GreaterOrEqual(t, took, cfg.FenceAfter()-cfg.RenewInterval, "not before the renewals ran out")
 	mu.Lock()
 	require.NoError(t, scanErr)
 	require.True(t, leaseValidAtFence.Valid && leaseValidAtFence.Bool, "fenced while its lease was still valid (%.0f ms left)", leftMs.Float64)
-	t.Logf("fenced with %.0f ms of lease left (headroom: one renew interval, %s)", leftMs.Float64, testConfig("").RenewInterval)
+	t.Logf("fenced with %.0f ms of lease left (headroom: %s)", leftMs.Float64, cfg.LeaseTTL-cfg.FenceAfter())
 	mu.Unlock()
 
 	flaky.broken.Store(false)

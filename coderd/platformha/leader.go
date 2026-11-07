@@ -42,7 +42,7 @@ type leadership struct {
 	holding    bool      // this replica holds the active lease
 	serving    bool      // Coder serves here (MarkServing)
 	handedOver bool      // gave the lease up (a handover, or leaving): not a loss, and never takes it again
-	safeUntil  time.Time // last lease renewal's start + LeaseTTL - RenewInterval
+	safeUntil  time.Time // last lease renewal's start + FenceAfter
 	successor  bool      // claimed the successor's place in a handover
 	ready      bool      // told the leader it serves (successor_ready)
 	turn       chan struct{}
@@ -229,29 +229,7 @@ func (r *Registry) leadRound(ctx context.Context) {
 	ttl := r.cfg.LeaseTTL.Seconds()
 
 	if holding {
-		began := r.now()
-		rows, err := r.db.QueryContext(ctx, `
-			UPDATE platform_ha.leases SET expires = now() + make_interval(secs => $4)
-			WHERE name = $1 AND holder = $2 AND holder_epoch = $3
-			RETURNING handover, successor_ready`, ActiveLease, self.ID, self.Epoch, ttl)
-		if err != nil {
-			r.logger.Warn(ctx, "renew the active lease", slog.Error(err))
-			return // the leadership timer decides
-		}
-		defer rows.Close()
-		if !rows.Next() {
-			if rows.Err() == nil {
-				r.stepDown(ctx, "the active lease was taken")
-			}
-			return
-		}
-		var handover, ready bool
-		if err := rows.Scan(&handover, &ready); err != nil {
-			return
-		}
-		r.mu.Lock()
-		r.lead.safeUntil = began.Add(r.cfg.LeaseTTL - r.cfg.RenewInterval)
-		r.mu.Unlock()
+		// renewLeases renewed it before this round's other work.
 		return
 	}
 
@@ -286,7 +264,7 @@ func (r *Registry) leadRound(ctx context.Context) {
 	if took {
 		r.mu.Lock()
 		r.lead.holding, r.lead.handedOver = true, false
-		r.lead.safeUntil = began.Add(r.cfg.LeaseTTL - r.cfg.RenewInterval)
+		r.lead.safeUntil = began.Add(r.cfg.FenceAfter())
 		r.lead.successor, r.lead.ready = false, false
 		r.mu.Unlock()
 		r.logger.Info(ctx, "took the active lease", slog.F("replica_id", self.ID), slog.F("epoch", self.Epoch))
@@ -347,6 +325,34 @@ func (r *Registry) leadRound(ctx context.Context) {
 			}
 		}
 	}
+}
+
+// renewActive extends the active lease by compare-and-set on this replica's
+// holder and epoch. A lease found taken steps down at once.
+func (r *Registry) renewActive(ctx context.Context) error {
+	r.mu.Lock()
+	self := r.self
+	r.mu.Unlock()
+	began := r.now()
+	rows, err := r.db.QueryContext(ctx, `
+		UPDATE platform_ha.leases SET expires = now() + make_interval(secs => $4)
+		WHERE name = $1 AND holder = $2 AND holder_epoch = $3
+		RETURNING 1`, ActiveLease, self.ID, self.Epoch, r.cfg.LeaseTTL.Seconds())
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return err
+		}
+		r.stepDown(ctx, "the active lease was taken")
+		return nil
+	}
+	r.mu.Lock()
+	r.lead.safeUntil = began.Add(r.cfg.FenceAfter())
+	r.mu.Unlock()
+	return nil
 }
 
 // exec1 runs a statement that returns a row when it applied.

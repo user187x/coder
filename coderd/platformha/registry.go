@@ -65,11 +65,13 @@ type DB interface {
 // Fencing: the database decides a lease's end (lease_expires = its now() at the
 // renewal + LeaseTTL). The replica measures from when its renewal started (before
 // the database's now(), so on the safe side) and fences itself by a timer of its
-// own at LeaseTTL-RenewInterval - a full interval before anyone else can see the
-// lease end - and at once when a renewal finds its row taken or gone. Every
-// database call is cut off by that deadline, so a hung call cannot delay the
-// fence. A fenced replica must not serve (OnFenceChange tells the parts that
-// serve); it rejoins under a new epoch as soon as the database answers.
+// own at FenceAfter - a margin before anyone else can see the lease end - and at
+// once when a renewal finds its row taken or gone. A failed renewal is retried
+// until that deadline, each attempt on a timeout of its own, and every database
+// call is cut off by the deadline, so neither a hung call nor the retries can
+// delay the fence. A fenced replica must not serve (OnFenceChange tells the
+// parts that serve); it rejoins under a new epoch as soon as the database
+// answers.
 type Registry struct {
 	db     DB
 	cfg    Config
@@ -81,7 +83,7 @@ type Registry struct {
 	state     string
 	fenced    bool
 	lastRenew time.Time // when the last successful renewal (or join) started, local monotonic
-	safeUntil time.Time // lastRenew + LeaseTTL - RenewInterval: past it, the lease cannot be trusted
+	safeUntil time.Time // lastRenew + FenceAfter: past it, the lease cannot be trusted
 	members   []Replica
 	onFence   []func(fenced bool)
 	lead      leadership  // activeStandby only
@@ -264,7 +266,7 @@ func (r *Registry) join(ctx context.Context) error {
 	}
 	r.mu.Lock()
 	r.self.Epoch, r.self.StartedAt, r.self.LeaseExpires, r.self.State = epoch, started, expires, state
-	r.lastRenew, r.safeUntil = began, began.Add(r.cfg.LeaseTTL-r.cfg.RenewInterval)
+	r.lastRenew, r.safeUntil = began, began.Add(r.cfg.FenceAfter())
 	r.mu.Unlock()
 	r.metrics.epoch.Set(float64(epoch))
 	r.logger.Info(ctx, "joined the replica registry", slog.F("replica_id", self.ID), slog.F("epoch", epoch),
@@ -301,7 +303,7 @@ func (r *Registry) renew(ctx context.Context) error {
 	}
 	r.mu.Lock()
 	r.self.LeaseExpires, r.self.State = expires, state
-	r.lastRenew, r.safeUntil = began, began.Add(r.cfg.LeaseTTL-r.cfg.RenewInterval)
+	r.lastRenew, r.safeUntil = began, began.Add(r.cfg.FenceAfter())
 	r.mu.Unlock()
 	return nil
 }
@@ -388,20 +390,109 @@ func (r *Registry) unfence(ctx context.Context) {
 	}
 }
 
+// renewLeases renews the registry lease and, while this replica holds it, the
+// active lease, each independently of the other. A failed attempt is retried
+// after a short pause until both succeed or the nearer safe deadline is close:
+// one slow statement on a loaded host must not cost the lease. Each attempt
+// runs on a timeout of its own (a stuck connection is abandoned for another),
+// cut off at the safe deadline, so the fence timer is never held up.
+func (r *Registry) renewLeases(ctx context.Context) error {
+	regDone, leadDone := false, false
+	pause := r.cfg.RenewInterval / 10
+	failures := 0
+	for {
+		var lastErr error
+		if !regDone {
+			err := r.attempt(ctx, r.renew)
+			switch {
+			case err == nil:
+				regDone = true
+				r.metrics.renewals.WithLabelValues("ok").Inc()
+			case xerrors.Is(err, errLost):
+				r.metrics.renewals.WithLabelValues("lost").Inc()
+				return err
+			default:
+				lastErr = err
+				failures++
+				r.metrics.renewals.WithLabelValues("error").Inc()
+				r.logger.Warn(ctx, "lease renewal failed, retrying", slog.Error(err))
+			}
+		}
+		if !leadDone {
+			r.mu.Lock()
+			renew := r.lead.holding && !r.lead.handedOver && !r.lead.lostSent
+			r.mu.Unlock()
+			if !renew {
+				leadDone = true
+			} else if err := r.attempt(ctx, r.renewActive); err != nil {
+				lastErr = err
+				failures++
+				r.logger.Warn(ctx, "renew the active lease failed, retrying", slog.Error(err))
+			} else {
+				leadDone = true
+			}
+		}
+		if regDone && leadDone {
+			if failures > 0 {
+				r.logger.Info(ctx, "leases renewed after failed attempts", slog.F("failed_attempts", failures))
+			}
+			return nil
+		}
+		if r.untilRenewDeadline() <= pause {
+			return lastErr
+		}
+		t := time.NewTimer(pause)
+		select {
+		case <-ctx.Done():
+			t.Stop()
+			return ctx.Err()
+		case <-t.C:
+		}
+	}
+}
+
+// attempt runs one renewal on a timeout of a renew interval, cut off at the
+// nearer safe deadline.
+func (r *Registry) attempt(ctx context.Context, renew func(context.Context) error) error {
+	left := r.untilRenewDeadline()
+	if left <= 0 {
+		return context.DeadlineExceeded
+	}
+	ctx, cancel := context.WithTimeout(ctx, min(left, r.cfg.RenewInterval))
+	defer cancel()
+	return renew(ctx)
+}
+
+// untilRenewDeadline is the time left before the nearer of the registry
+// lease's and (while holding it) the active lease's safe deadlines.
+func (r *Registry) untilRenewDeadline() time.Duration {
+	d := r.untilSafe()
+	if left, holding := r.untilLeaderSafe(); holding && left < d {
+		d = left
+	}
+	return d
+}
+
 // round is one pass of the loop: renew (or rejoin when fenced) and read the
-// members. A renewal is cut off at the lease's safe deadline; the fence timer
-// in loop fences when that passes without one.
+// members. Renewals are retried up to the lease's safe deadline; the fence
+// timer in loop fences when that passes without one.
 func (r *Registry) round(ctx context.Context, n int) {
+	if !r.Fenced() {
+		err := r.renewLeases(ctx)
+		switch {
+		case xerrors.Is(err, errLost):
+			r.fence(ctx, err.Error())
+			return
+		case err != nil:
+			r.logger.Warn(ctx, "lease renewal failed until the safe deadline", slog.Error(err))
+			return
+		}
+	}
 	deadline := r.now().Add(r.cfg.RenewInterval)
 	if !r.Fenced() {
-		r.mu.Lock()
-		if r.safeUntil.Before(deadline) {
-			deadline = r.safeUntil
+		if left := r.untilRenewDeadline(); left < r.cfg.RenewInterval {
+			deadline = r.now().Add(left)
 		}
-		if r.lead.holding && r.lead.safeUntil.Before(deadline) {
-			deadline = r.lead.safeUntil
-		}
-		r.mu.Unlock()
 	}
 	opCtx, cancel := context.WithDeadline(ctx, deadline)
 	defer cancel()
@@ -412,26 +503,9 @@ func (r *Registry) round(ctx context.Context, n int) {
 			return
 		}
 		r.unfence(ctx)
-		if r.cfg.Leadership() {
-			r.leadRound(opCtx)
-		}
-	} else {
-		err := r.renew(opCtx)
-		switch {
-		case err == nil:
-			r.metrics.renewals.WithLabelValues("ok").Inc()
-			if r.cfg.Leadership() {
-				r.leadRound(opCtx)
-			}
-		case xerrors.Is(err, errLost):
-			r.metrics.renewals.WithLabelValues("lost").Inc()
-			r.fence(ctx, err.Error())
-			return
-		default:
-			r.metrics.renewals.WithLabelValues("error").Inc()
-			r.logger.Warn(ctx, "lease renewal failed", slog.Error(err))
-			return
-		}
+	}
+	if r.cfg.Leadership() {
+		r.leadRound(opCtx)
 	}
 	if err := r.readMembers(opCtx); err != nil {
 		r.logger.Debug(ctx, "read the replica registry", slog.Error(err))

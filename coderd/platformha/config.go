@@ -37,9 +37,12 @@ const (
 const ActiveLease = "coder-active"
 
 const (
-	DefaultCell          = "a"
-	DefaultLeaseTTL      = 30 * time.Second
-	DefaultRenewInterval = 5 * time.Second
+	DefaultCell = "a"
+	// DefaultLeaseTTL and DefaultRenewInterval ride out a host-load stall of
+	// 30 to 60 seconds: renewals are retried for 45s (FenceAfter) before the
+	// replica fences, 15s before the lease can end.
+	DefaultLeaseTTL      = 60 * time.Second
+	DefaultRenewInterval = 10 * time.Second
 	// DefaultHealthAddress serves the replica's probes and status in the HA
 	// modes, from the start (a standby does not serve Coder's own port).
 	DefaultHealthAddress = ":2113"
@@ -59,8 +62,8 @@ type Config struct {
 	PodName string
 	PodIP   string
 	// LeaseTTL is how long a lease lasts unrenewed; RenewInterval how often
-	// it is renewed. A replica fences itself once LeaseTTL-RenewInterval has
-	// passed since its last renewal.
+	// it is renewed, and how long one renewal attempt may take. A replica
+	// fences itself once FenceAfter has passed since its last renewal.
 	LeaseTTL      time.Duration
 	RenewInterval time.Duration
 	// Version is the replica's build, shown in the registry.
@@ -122,6 +125,15 @@ func ConfigFromEnv(getenv func(string) string, version string) (Config, error) {
 			c.RenewInterval, c.LeaseTTL)
 	}
 	return c, nil
+}
+
+// FenceAfter is how long after a renewal starts the lease is trusted: the
+// replica retries failed renewals until then and fences itself at it. The
+// margin left before the lease can end, at least one renew interval and a
+// quarter of the lease, absorbs a timer that fires late on a stalled host and
+// the time it takes to stop serving.
+func (c Config) FenceAfter() time.Duration {
+	return c.LeaseTTL - max(c.RenewInterval, c.LeaseTTL/4)
 }
 
 // Enabled reports whether any of Platform HA runs.

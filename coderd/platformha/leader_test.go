@@ -2,6 +2,9 @@ package platformha_test
 
 import (
 	"context"
+	"database/sql"
+	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -367,4 +370,154 @@ func TestLeadershipAnyoneTakesALeaseLapsedTooLong(t *testing.T) {
 	testutil.Eventually(ctx, t, func(context.Context) bool { return turned(t, younger, testutil.IntervalFast) },
 		testutil.IntervalFast, "a younger replica takes the lease in the end")
 	require.NoError(t, younger.Close(ctx))
+}
+
+// slowDB delays the lease renewals (the registry's and the active lease's), as
+// a database answering slowly from a loaded host would. Every other statement
+// runs at once.
+type slowDB struct {
+	*sql.DB
+	// delay holds each renewal this long (0: none).
+	delay atomic.Int64
+	// hangs is how many renewals from now on hang until their context ends.
+	hangs atomic.Int64
+	// hung counts the renewals that hung.
+	hung atomic.Int64
+}
+
+func isRenewal(q string) bool {
+	return strings.Contains(q, "UPDATE platform_ha.replicas SET lease_expires") ||
+		strings.Contains(q, "UPDATE platform_ha.leases SET expires = now() +")
+}
+
+func (s *slowDB) QueryContext(ctx context.Context, q string, args ...any) (*sql.Rows, error) {
+	if isRenewal(q) {
+		if s.hangs.Add(-1) >= 0 {
+			s.hung.Add(1)
+			<-ctx.Done()
+			return nil, ctx.Err()
+		}
+		if d := time.Duration(s.delay.Load()); d > 0 {
+			t := time.NewTimer(d)
+			select {
+			case <-ctx.Done():
+				t.Stop()
+				return nil, ctx.Err()
+			case <-t.C:
+			}
+		}
+	}
+	return s.DB.QueryContext(ctx, q, args...)
+}
+
+// holdsThrough asserts that active keeps the active lease, unfenced, and that
+// standby never gets its turn, for d.
+func holdsThrough(t *testing.T, active, standby *platformha.Registry, d time.Duration) {
+	t.Helper()
+	require.False(t, turned(t, standby, d), "the standby must not take over")
+	require.False(t, active.Fenced(), "the active replica must not fence")
+	require.False(t, closed(active.LostActive()), "the active replica must keep the lease")
+	require.Equal(t, platformha.RoleActive, active.Role())
+}
+
+// Every renewal slow but answering (a loaded host): the registry and the active
+// lease each get an attempt's full timeout, so neither starves the other.
+func TestLeadershipSlowRenewalsKeepTheLease(t *testing.T) {
+	t.Parallel()
+	ctx := testutil.Context(t, testutil.WaitLong)
+	db := openDB(t)
+	slowA, slowB := &slowDB{DB: db}, &slowDB{DB: db}
+	a := startStandby(t, slowA, "coder-0")
+	b := startStandby(t, slowB, "coder-1")
+	active, standby := startActive(ctx, t, a, b)
+	slow := slowA
+	if active == b {
+		slow = slowB
+	}
+	cfg := standbyConfig("")
+	// Two renewals per round, each taking most of an attempt's timeout: together
+	// they exceed one renew interval.
+	slow.delay.Store(int64(cfg.RenewInterval * 2 / 3))
+	holdsThrough(t, active, standby, 3*cfg.LeaseTTL)
+	require.NoError(t, active.Close(ctx))
+	require.NoError(t, standby.Close(ctx))
+}
+
+// Renewals that hang (a stalled host) are abandoned after an attempt's timeout
+// and retried: several in a row within the safe window do not cost the lease.
+func TestLeadershipRenewalSurvivesHungAttempts(t *testing.T) {
+	t.Parallel()
+	ctx := testutil.Context(t, testutil.WaitLong)
+	db := openDB(t)
+	slowA, slowB := &slowDB{DB: db}, &slowDB{DB: db}
+	a := startStandby(t, slowA, "coder-0")
+	b := startStandby(t, slowB, "coder-1")
+	active, standby := startActive(ctx, t, a, b)
+	slow := slowA
+	if active == b {
+		slow = slowB
+	}
+	cfg := standbyConfig("")
+	// Each hung attempt costs a renew interval; three fit in FenceAfter.
+	const hangs = 3
+	require.Less(t, hangs*cfg.RenewInterval, cfg.FenceAfter())
+	slow.hangs.Store(hangs)
+	holdsThrough(t, active, standby, cfg.LeaseTTL+hangs*cfg.RenewInterval)
+	require.EqualValues(t, hangs, slow.hung.Load(), "every hung attempt was retried")
+	require.NoError(t, active.Close(ctx))
+	require.NoError(t, standby.Close(ctx))
+}
+
+// The safety property under retries: renewals that never answer still fence the
+// active replica, and step it down, while both its leases are valid in the
+// database, so no standby can have taken over yet.
+func TestLeadershipHungRenewalsFenceBeforeTheLeaseEnds(t *testing.T) {
+	t.Parallel()
+	ctx := testutil.Context(t, testutil.WaitLong)
+	db := openDB(t)
+	slowA, slowB := &slowDB{DB: db}, &slowDB{DB: db}
+	a := startStandby(t, slowA, "coder-0")
+	b := startStandby(t, slowB, "coder-1")
+	active, standby := startActive(ctx, t, a, b)
+	slow := slowA
+	if active == b {
+		slow = slowB
+	}
+	self := active.Self()
+
+	type check struct {
+		replicaValid, activeValid bool
+		err                       error
+	}
+	checks := make(chan check, 1)
+	active.OnFenceChange(func(fenced bool) {
+		if !fenced {
+			return
+		}
+		var c check
+		c.err = db.QueryRowContext(context.Background(), `SELECT
+			(SELECT lease_expires > clock_timestamp() FROM platform_ha.replicas WHERE id = $1 AND epoch = $2),
+			(SELECT expires > clock_timestamp() FROM platform_ha.leases WHERE name = $3 AND holder = $1)`,
+			self.ID, self.Epoch, platformha.ActiveLease).Scan(&c.replicaValid, &c.activeValid)
+		select {
+		case checks <- c:
+		default:
+		}
+	})
+
+	slow.hangs.Store(1 << 30)
+	var c check
+	select {
+	case c = <-checks:
+	case <-ctx.Done():
+		t.Fatal("not fenced while its renewals hang")
+	}
+	require.NoError(t, c.err)
+	require.True(t, c.replicaValid, "fenced while its registry lease was valid")
+	require.True(t, c.activeValid, "fenced while its active lease was valid")
+	require.True(t, closed(active.LostActive()), "fencing stops Coder")
+	require.Equal(t, platformha.RoleStandby, active.Role())
+	testutil.Eventually(ctx, t, func(context.Context) bool { return turned(t, standby, testutil.IntervalFast) },
+		testutil.IntervalFast, "the standby takes over once the lease lapses")
+	require.NoError(t, standby.Close(ctx))
 }

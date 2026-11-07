@@ -79,10 +79,11 @@ global:
     mode: "off"
     # The replicas' cell (one DERP region in active/active).
     cell: "a"
-    # A lease's length unrenewed, and how often it is renewed (under half of it): a replica that cannot renew fences
-    # itself a full interval before its lease can end.
-    leaseTTL: 30s
-    renewInterval: 5s
+    # A lease's length unrenewed, and how often it is renewed (under half of it): a replica that cannot renew retries
+    # until the larger of one interval and a quarter of the lease is left, then fences itself. 60s and 10s ride out a
+    # 45s stall on a loaded host.
+    leaseTTL: 60s
+    renewInterval: 10s
     # activeStandby: how long a leader leaving (a rolling update's preStop) waits for its successor to serve before it
     # lets go anyway - inside the pod's 60 s grace period, with room for Coder's own shutdown.
     handoverTimeout: 40s
