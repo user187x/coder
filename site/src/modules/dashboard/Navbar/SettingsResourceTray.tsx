@@ -4,6 +4,7 @@ import {
 	ContainerIcon,
 	GaugeIcon,
 	HourglassIcon,
+	LayoutDashboardIcon,
 	LayoutTemplateIcon,
 	LogOutIcon,
 	MessagesSquareIcon,
@@ -47,6 +48,7 @@ import "./settingsResourceTray.css";
 
 const permanentShortcutIds = new Set([
 	"account",
+	"dashboard",
 	"workspaces",
 	"templates",
 	"chat",
@@ -172,6 +174,12 @@ export const SettingsResourceTray = ({
 		.slice(0, 3);
 	const chosen = custom.map((page) => page.id);
 	const links: AdminPage[] = [
+		{
+			id: "dashboard",
+			label: "Dashboard",
+			path: "/dashboard",
+			icon: LayoutDashboardIcon,
+		},
 		{
 			id: "workspaces",
 			label: "Workspaces",

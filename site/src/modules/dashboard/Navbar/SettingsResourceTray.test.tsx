@@ -24,6 +24,7 @@ beforeEach(() =>
 afterEach(() => vi.restoreAllMocks());
 
 it.each([
+	["Dashboard", "/dashboard"],
 	["Workspaces", "/workspaces"],
 	["Templates", "/templates"],
 ])("opens %s from the keyboard-accessible tray", async (label, path) => {
@@ -207,7 +208,12 @@ it("saves the reordered permanent links without opening a workspace", async () =
 	await user.keyboard("{Alt>}{ArrowDown}{/Alt}");
 	await waitFor(() =>
 		expect(save).toHaveBeenCalledWith({
-			resource_shortcut_order: ["account", "templates", "workspaces"],
+			resource_shortcut_order: [
+				"account",
+				"dashboard",
+				"templates",
+				"workspaces",
+			],
 		}),
 	);
 	expect(router.state.location.pathname).toBe("/");

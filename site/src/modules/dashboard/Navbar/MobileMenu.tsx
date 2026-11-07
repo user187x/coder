@@ -86,6 +86,9 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
 				sideOffset={17}
 			>
 				<DropdownMenuItem asChild className={itemStyles.default}>
+					<Link to="/dashboard">Dashboard</Link>
+				</DropdownMenuItem>
+				<DropdownMenuItem asChild className={itemStyles.default}>
 					<Link to="/workspaces">Workspaces</Link>
 				</DropdownMenuItem>
 				<DropdownMenuItem asChild className={itemStyles.default}>

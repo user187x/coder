@@ -1,4 +1,9 @@
-import { ContainerIcon, LayoutTemplateIcon, MonitorIcon } from "lucide-react";
+import {
+	ContainerIcon,
+	LayoutDashboardIcon,
+	LayoutTemplateIcon,
+	MonitorIcon,
+} from "lucide-react";
 import { Link } from "react-router";
 import { ChevronDownIcon } from "#/components/AnimatedIcons/ChevronDown";
 import { Button } from "#/components/Button/Button";
@@ -10,7 +15,7 @@ import {
 } from "#/components/DropdownMenu/DropdownMenu";
 
 /**
- * The navbar's "Resources" menu, built like the Admin menu: the workspaces
+ * The navbar's "Resources" menu, built like the Admin menu: the Dashboard, the workspaces
  * list, the templates and the workspace images built for them. Its trigger shows the workspaces icon, drawn at
  * twice its size for sharp HiDPI screens, in the version that reads on the
  * selected theme (black on light, white on dark), and the word "Resources";
@@ -41,6 +46,12 @@ export const WorkspacesDropdown: React.FC<{ images?: boolean }> = ({
 
 			<DropdownMenuContent align="start" className="w-[180px] min-w-auto">
 				<nav>
+					<DropdownMenuItem asChild>
+						<Link to="/dashboard">
+							<LayoutDashboardIcon aria-hidden />
+							Dashboard
+						</Link>
+					</DropdownMenuItem>
 					<DropdownMenuItem asChild>
 						<Link to="/workspaces">
 							<MonitorIcon aria-hidden />
