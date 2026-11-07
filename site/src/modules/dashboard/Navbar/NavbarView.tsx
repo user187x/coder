@@ -78,12 +78,15 @@ export const NavbarView: React.FC<NavbarViewProps> = ({
 					startNavbarArrange();
 				}
 			}}
-			style={{
-				zoom: `var(--navbar-preview-scale, ${scale / 100})`,
-				borderBottomColor: `var(--navbar-preview-border, ${wireframe ? "hsl(var(--border-default))" : "transparent"})`,
-				backgroundColor: `hsl(var(--surface-primary) / var(--navbar-preview-alpha, ${1 - transparency / 100}))`,
-			}}
-			className="navbar-soft sticky top-0 bg-surface-primary z-40 border-0 border-b border-solid h-[72px] min-h-[72px] flex items-center leading-none"
+			style={
+				{
+					"--navbar-zoom": `var(--navbar-preview-scale, ${scale / 100})`,
+					zoom: "var(--navbar-zoom)",
+					borderBottomColor: `var(--navbar-preview-border, ${wireframe ? "hsl(var(--border-default))" : "transparent"})`,
+					"--navbar-strip-bg": `hsl(var(--surface-primary) / var(--navbar-preview-alpha, ${1 - transparency / 100}))`,
+				} as React.CSSProperties
+			}
+			className="navbar-soft sticky top-0 z-40 border-0 border-b border-solid h-[72px] min-h-[72px] flex items-center leading-none"
 		>
 			{/* Platform: the logo in a tile like the user's avatar. */}
 			<div className="@[48rem]/dashboard:hidden">

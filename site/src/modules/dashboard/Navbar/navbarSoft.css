@@ -25,6 +25,22 @@
 	/* The strip behind the controls rounds its corners as they do. */
 	border-radius: 10px;
 }
+/* The strip is a layer of its own: it runs under the docked Settings and chat to the viewport edge while the navbar's content stays inside the dock inset. */
+.navbar-soft::before {
+	content: "";
+	position: absolute;
+	z-index: -1;
+	top: 0;
+	bottom: -1px; /* Covers the navbar's bottom border, which it draws itself. */
+	left: 0;
+	/* The navbar is zoomed, so the inset is divided by the zoom to span unscaled pixels. */
+	right: calc(-1 * var(--dashboard-dock-inset, 0px) / var(--navbar-zoom, 1));
+	border-bottom: 1px solid;
+	border-bottom-color: inherit;
+	border-radius: inherit;
+	background-color: var(--navbar-strip-bg);
+	pointer-events: none;
+}
 .navbar-soft :is(.navbar-split, .navbar-action > button, .navbar-action > a) {
 	box-sizing: border-box;
 	width: var(--navbar-action-width);
