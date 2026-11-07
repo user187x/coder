@@ -122,6 +122,9 @@
 }
 
 [data-banner-text].fx-terminal {
+	/* The scanline background hugs the text instead of filling the card. */
+	flex: 0 1 auto;
+	margin-inline: auto;
 	letter-spacing: 0.1em;
 	color: #4dff88;
 	text-shadow: 0 0 7px rgb(77 255 136 / 0.8);

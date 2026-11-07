@@ -108,7 +108,12 @@ export const EffectGallery: React.FC<EffectGalleryProps> = ({
 								}
 								onPointerEnter={() => setActive(effect)}
 								onPointerLeave={() => setActive(null)}
-								onFocus={() => setActive(effect)}
+								// Opening the gallery focuses the selected tile; only keyboard focus plays a preview, so an idle gallery stays still.
+								onFocus={(event) => {
+									if (event.currentTarget.matches(":focus-visible")) {
+										setActive(effect);
+									}
+								}}
 								onBlur={() => setActive(null)}
 								onKeyDown={(event) => {
 									const step =
