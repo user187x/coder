@@ -124,8 +124,9 @@
 	line-height: 1.25;
 	white-space: nowrap;
 }
+/* At least the navbar action's width; a longer label (User Settings and its avatar) widens it rather than overflowing. */
 .deployment-breadcrumb > ol > li:first-child:not(:only-child) {
-	width: calc(var(--navbar-action-width, 8.5rem) - 2rem);
+	min-width: calc(var(--navbar-action-width, 8.5rem) - 2rem);
 }
 .deployment-breadcrumb > ol > li:last-child:not(:only-child) {
 	width: calc(var(--navbar-action-width, 8.5rem) + 2rem);

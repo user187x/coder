@@ -32,12 +32,18 @@ const Layout: React.FC = () => {
 			<div>
 				<AdminBreadcrumb
 					variant="connected"
+					className="deployment-breadcrumb"
 					data-categories-collapsed={!open || undefined}
 				>
 					<BreadcrumbList>
 						<BreadcrumbItem>
 							<BreadcrumbLink to="/settings/account" end title={me.username}>
-								<Avatar size="sm" fallback={me.username} src={me.avatar_url} />
+								<Avatar
+									size="sm"
+									fallback={me.username}
+									src={me.avatar_url}
+									className="size-4 shrink-0"
+								/>
 								User Settings
 							</BreadcrumbLink>
 						</BreadcrumbItem>

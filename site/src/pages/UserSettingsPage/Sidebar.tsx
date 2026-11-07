@@ -9,9 +9,6 @@ export const Sidebar: React.FC = () => {
 	const { entitlements, buildInfo } = useDashboard();
 	return (
 		<BaseSidebar className="lg:sticky lg:top-[calc(var(--dashboard-navigation-height,72px)+var(--admin-breadcrumb-height,0px)+16px+var(--coder-classification-h,0px))] lg:self-start [@media(max-height:640px)]:static">
-			<div className="px-3 pb-2 text-xs font-medium text-content-secondary">
-				Categories
-			</div>
 			<div className="flex flex-col gap-1">
 				{Object.entries(settingsSections).map(
 					([path, { label, icon: Icon }]) => {
