@@ -781,7 +781,11 @@ lint/ts: site/node_modules/.installed
 .PHONY: lint/ts
 
 # Cap cold-cache golangci-lint on high-core hosts to stay below memory limits.
-GO_LINT_CONCURRENCY := $(shell n=$$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 1); echo $$(( n < 8 ? n : 8 )))
+# A shared host can lower it for every worktree: git config coder.lint-concurrency 2
+# Expanded once at parse time: the recipe SHELL (scripts/lib/timed-shell.sh) would add its output to a later $(shell).
+ifeq ($(origin GO_LINT_CONCURRENCY),undefined)
+GO_LINT_CONCURRENCY := $(shell n=$$(git config --get coder.lint-concurrency 2>/dev/null || nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 1); echo $$(( n < 8 ? n : 8 )))
+endif
 GO_LINT_MEMLIMIT ?= 8GiB
 
 lint/go:
