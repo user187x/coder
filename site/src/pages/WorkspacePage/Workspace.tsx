@@ -215,7 +215,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({
 	const dashboard = (
 		<div className="workspace-dashboard-grid relative flex flex-col gap-6 max-w-[1200px] m-auto">
 			{!embedded && (
-				<div className="workspace-dashboard-expand-corner absolute z-20">
+				<div className="workspace-dashboard-expand-corner absolute z-[1]">
 					<CornerExpandButton
 						expanded={expanded}
 						onToggle={() => setExpanded((current) => !current)}

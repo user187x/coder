@@ -111,7 +111,8 @@ html[data-workspace-expanded] {
 .workspace-dashboard-expand-corner .corner-expand-tab {
 	clip-path: none;
 	border-radius: 0 22px 0 18px;
-	background: transparent;
+	/* Opaque, and only just above the agent card (z-index 1), so the Resources and History panels open over it. */
+	background: hsl(var(--surface-primary));
 }
 .workspace-dashboard-expand-corner
 	.corner-expand-tab:is(:hover, :focus-visible) {
