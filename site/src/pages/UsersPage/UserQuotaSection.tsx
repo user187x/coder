@@ -441,7 +441,7 @@ export const UserQuotaSection: React.FC<{
 										}
 									/>
 									<Label htmlFor="quota-exempt-admins">
-										Administrators are exempt
+										Administrators Exempt
 									</Label>
 									<div className="ml-auto flex items-center gap-2">
 										{dirty && (

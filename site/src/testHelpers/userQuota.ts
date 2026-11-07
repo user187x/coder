@@ -74,6 +74,7 @@ export const MockSchedulerReport: Awaited<
 		maxActiveHours: 2,
 		ignoreAdmins: true,
 		excludedUsers: [],
+		enforcedDays: [0, 1, 2, 3, 4, 5, 6],
 	},
 	workspaces: 1,
 	exempt: 0,

@@ -1126,6 +1126,7 @@ describe("CreateWorkspacePage", () => {
 				reason: "",
 				mode: "user",
 				maxActiveHours: null,
+				enforcedDays: [0, 1, 2, 3, 4, 5, 6],
 				workspaces: [],
 			});
 			const { mockPublisher } = await renderPageWithSocket();

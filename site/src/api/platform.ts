@@ -773,6 +773,8 @@ export type SchedulerSettings = {
 	maxActiveHours: number | null;
 	ignoreAdmins: boolean;
 	excludedUsers: string[];
+	/** The only cron weekdays (0 = Sunday) a workspace may be scheduled to start on; all seven = no restriction. */
+	enforcedDays: number[];
 };
 
 /** A workspace's schedule as Coder stores it. */
@@ -802,6 +804,7 @@ export type SchedulerMe = {
 	reason: string;
 	mode: SchedulerMode;
 	maxActiveHours: number | null;
+	enforcedDays: number[];
 	fixed?: SchedulerSettings["fixed"] & CoderSchedule;
 	workspaces: (ScheduledWorkspace & { compliant: boolean; problem: string })[];
 };

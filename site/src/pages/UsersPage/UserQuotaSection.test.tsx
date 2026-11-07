@@ -225,6 +225,13 @@ it("saves independent per-instance CPU and cumulative memory modes with account 
 	);
 });
 
+it("labels the admin exemption switch", async () => {
+	setup(false, true);
+	expect(
+		await screen.findByRole("switch", { name: "Administrators Exempt" }),
+	).not.toBeChecked();
+});
+
 it("saves disk quota overrides with the other resources", async () => {
 	const save = vi
 		.spyOn(PlatformAPI, "updateQuota")

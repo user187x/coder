@@ -1,3 +1,4 @@
+import { cn } from "cn";
 import { useEffect, useId, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import { toast } from "sonner";
@@ -18,10 +19,21 @@ import {
 	durationMs,
 	formatHours,
 	scheduleProblem,
+	WEEKDAYS,
 } from "#/modules/platform/scheduler/schedule";
 
 /** The slider's range for the maximum active time; 0 is "no limit". */
 const MAX_HOURS_SLIDER = 24;
+
+const WEEKDAY_NAMES: Record<number, string> = {
+	0: "Sunday",
+	1: "Monday",
+	2: "Tuesday",
+	3: "Wednesday",
+	4: "Thursday",
+	5: "Friday",
+	6: "Saturday",
+};
 
 const same = (a: SchedulerSettings, b: SchedulerSettings) =>
 	JSON.stringify(a) === JSON.stringify(b);
@@ -68,6 +80,26 @@ export const WorkspaceSchedulerSection: React.FC = () => {
 			? scheduleProblem(draft.fixed, draft.maxActiveHours)
 			: "";
 	const hours = draft.maxActiveHours ?? 0;
+	const toggleEnforcedDay = (day: number) =>
+		setDraft({
+			...draft,
+			enforcedDays: draft.enforcedDays.includes(day)
+				? draft.enforcedDays.filter((d) => d !== day)
+				: [...draft.enforcedDays, day].sort((a, b) => a - b),
+		});
+	const outside = draft.fixed.days.filter(
+		(d) => !draft.enforcedDays.includes(d),
+	);
+	const enforcedDaysProblem =
+		draft.enforcedDays.length === 0
+			? "Pick at least one day."
+			: draft.mode === "fixed" && outside.length > 0
+				? `The schedule's days (${WEEKDAYS.filter((w) =>
+						outside.includes(w.day),
+					)
+						.map((w) => w.label)
+						.join(", ")}) must be among the enforced days.`
+				: "";
 
 	const onSave = async () => {
 		try {
@@ -150,6 +182,40 @@ export const WorkspaceSchedulerSection: React.FC = () => {
 					</div>
 				</RadioGroup>
 
+				<fieldset className="m-0 flex flex-col gap-1.5 border-0 p-0 text-sm lg:col-span-2">
+					<legend className="mb-1.5 font-medium">Enforced days</legend>
+					<div className="flex flex-wrap gap-1.5">
+						{WEEKDAYS.map(({ day, label }) => {
+							const on = draft.enforcedDays.includes(day);
+							return (
+								<button
+									key={day}
+									type="button"
+									aria-pressed={on}
+									aria-label={WEEKDAY_NAMES[day]}
+									onClick={() => toggleEnforcedDay(day)}
+									className={cn(
+										"h-8 min-w-12 cursor-pointer rounded-md border border-solid px-2 text-xs font-medium uppercase transition-colors",
+										on
+											? "border-content-link bg-surface-secondary text-content-primary"
+											: "border-border bg-transparent text-content-secondary hover:text-content-primary",
+									)}
+								>
+									{label}
+								</button>
+							);
+						})}
+					</div>
+					<p className="m-0 text-content-secondary">
+						Workspaces may only be scheduled on the selected days.
+					</p>
+					{enforcedDaysProblem && (
+						<p role="alert" className="m-0 text-content-destructive">
+							{enforcedDaysProblem}
+						</p>
+					)}
+				</fieldset>
+
 				{draft.mode === "fixed" && (
 					<div className="lg:col-span-2 rounded-md border border-solid border-border p-3">
 						<ScheduleFields
@@ -196,7 +262,7 @@ export const WorkspaceSchedulerSection: React.FC = () => {
 							setDraft({ ...draft, ignoreAdmins })
 						}
 					/>
-					<Label htmlFor={`${ids}-admins`}>Ignore admin accounts</Label>
+					<Label htmlFor={`${ids}-admins`}>Administrators Exempt</Label>
 				</div>
 
 				<div className="flex flex-col gap-1.5 text-sm">
@@ -238,7 +304,9 @@ export const WorkspaceSchedulerSection: React.FC = () => {
 			<div className="flex items-center gap-3">
 				<Button
 					disabled={
-						!dirty || save.isPending || Boolean(fixedProblem && draft.enabled)
+						!dirty ||
+						save.isPending ||
+						Boolean((fixedProblem || enforcedDaysProblem) && draft.enabled)
 					}
 					onClick={onSave}
 				>

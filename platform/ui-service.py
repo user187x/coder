@@ -93,7 +93,7 @@
   Global Workspace Scheduler (Health > User Quota; admins, and Coder's own check before it creates or reschedules)
   GET  /__coder-ui/api/scheduler           admins: the settings and the workspaces that break them
   POST /__coder-ui/api/scheduler           admins: {enabled, mode: user|fixed, fixed: {start, stop, days, timezone},
-                                            maxActiveHours, ignoreAdmins, excludedUsers}
+                                            maxActiveHours, ignoreAdmins, excludedUsers, enforcedDays}
   GET  /__coder-ui/api/scheduler/me        anyone signed in: the rules for them and their workspaces that break them
   POST /__coder-ui/api/scheduler/check     {owner, action: create|autostart|ttl, autostart_schedule, ttl_ms}: allowed?
   GET  /__coder-ui/api/keycloak/status     admins: is Keycloak's admin API usable (General sidebar's check)
@@ -7149,7 +7149,10 @@ def workspace_admission(token, user, body):
 # the user fix workspaces that break the rules before going on.
 SCHEDULER_DEFAULT = {"enabled": False, "mode": "user",
                      "fixed": {"start": "08:00", "stop": "18:00", "days": [1, 2, 3, 4, 5], "timezone": "UTC"},
-                     "maxActiveHours": None, "ignoreAdmins": True, "excludedUsers": []}
+                     "maxActiveHours": None, "ignoreAdmins": True, "excludedUsers": [],
+                     "enforcedDays": [0, 1, 2, 3, 4, 5, 6]}
+# Cron weekdays (0 = Sunday) in the order the dashboard lists them.
+_DAY_NAMES = {0: "Sun", 1: "Mon", 2: "Tue", 3: "Wed", 4: "Thu", 5: "Fri", 6: "Sat"}
 _HHMM = re.compile(r"^([01]\d|2[0-3]):([0-5]\d)$")
 
 
@@ -7159,6 +7162,10 @@ def scheduler_settings():
     out.update({k: v for k, v in s.items() if k in SCHEDULER_DEFAULT})
     out["fixed"] = {**SCHEDULER_DEFAULT["fixed"], **(s.get("fixed") or {})}
     return out
+
+
+def _day_labels(days):
+    return ", ".join(_DAY_NAMES[d] for d in sorted(days, key=lambda d: (d + 6) % 7))
 
 
 def clean_scheduler(raw):
@@ -7174,6 +7181,15 @@ def clean_scheduler(raw):
     days = sorted({int(d) for d in fixed.get("days") or [] if str(d).isdigit() and 0 <= int(d) <= 6})
     if mode == "fixed" and not days:
         raise ValueError("Pick at least one day for the schedule.")
+    enforced = raw.get("enforcedDays", SCHEDULER_DEFAULT["enforcedDays"])
+    if not isinstance(enforced, list):
+        raise ValueError("Enforced days must be a list of weekdays.")
+    enforced = sorted({int(d) for d in enforced if str(d).isdigit() and 0 <= int(d) <= 6})
+    if not enforced:
+        raise ValueError("Pick at least one day workspaces may be scheduled on.")
+    if mode == "fixed" and set(days) - set(enforced):
+        raise ValueError("The schedule's days (%s) must be among the enforced days (%s)."
+                         % (_day_labels(set(days) - set(enforced)), _day_labels(enforced)))
     tz = str(fixed.get("timezone") or "UTC")
     if not re.match(r"^[A-Za-z0-9_+\-/]{1,64}$", tz):
         raise ValueError("Unknown time zone %r." % tz)
@@ -7202,7 +7218,46 @@ def clean_scheduler(raw):
     return {"enabled": raw.get("enabled") is True, "mode": mode,
             "fixed": {"start": start, "stop": stop, "days": days, "timezone": tz},
             "maxActiveHours": hours, "ignoreAdmins": raw.get("ignoreAdmins", True) is not False,
-            "excludedUsers": excluded}
+            "excludedUsers": excluded, "enforcedDays": enforced}
+
+
+def _cron_days(autostart):
+    """The weekdays (0 = Sunday) a Coder autostart cron fires on, or None when they cannot be read."""
+    parts = re.sub(r"^CRON_TZ=\S+\s+", "", autostart or "").split()
+    if len(parts) != 5 or parts[2] != "*" or parts[3] != "*":
+        return None
+    names = {n.lower(): d for d, n in _DAY_NAMES.items()}
+
+    def one(tok):
+        tok = tok.lower()
+        if tok in names:
+            return names[tok]
+        return int(tok) if tok.isdigit() and int(tok) <= 7 else None
+    days = set()
+    for part in parts[4].split(","):
+        if part == "*":
+            days.update(range(7))
+            continue
+        lo, _, hi = part.partition("-")
+        a, b = one(lo), one(hi or lo)
+        if a is None or b is None:
+            return None
+        days.update(d % 7 for d in range(a, (b if b >= a else b + 7) + 1))
+    return days
+
+
+def _enforced_days_problem(settings, autostart):
+    """Why an autostart cron uses a day outside the enforced days, or "" when it does not."""
+    allowed = set(settings["enforcedDays"])
+    if len(allowed) == 7 or not autostart or autostart == "-":
+        return ""
+    days = _cron_days(autostart)
+    if days is None:
+        return "its start days could not be read"
+    extra = days - allowed
+    if extra:
+        return "it starts on %s, but workspaces may only be scheduled on %s" % (_day_labels(extra), _day_labels(allowed))
+    return ""
 
 
 def _fixed_ttl_ms(start, stop):
@@ -7253,6 +7308,9 @@ def schedule_problem(settings, autostart, ttl_ms):
         return "it has no start time"
     if not ttl_ms or ttl_ms <= 0:
         return "it has no stop time"
+    days_problem = _enforced_days_problem(settings, autostart)
+    if days_problem:
+        return days_problem
     cap = settings["maxActiveHours"]
     if cap and ttl_ms > cap * 3600000:
         return "it stays up %g h, more than the %g h allowed" % (round(ttl_ms / 3600000, 2), cap)
@@ -7295,7 +7353,7 @@ def scheduler_check(token, user, body):
     # A change is judged on its own half (start time, or stop time), so a schedule can be set in two steps; creating
     # a workspace needs both, and the dashboard makes users complete them.
     if action == "autostart":
-        problem = "" if autostart else "it has no start time"
+        problem = _enforced_days_problem(settings, autostart) if autostart else "it has no start time"
     elif action == "ttl":
         problem = schedule_problem(settings, "-", ttl)
     else:
@@ -7323,7 +7381,8 @@ def scheduler_me(token, user):
     """For the dashboard: the rules that apply to this user, and their workspaces that break them."""
     settings = scheduler_settings()
     why = scheduler_exempt(settings, user["username"], user["roles"], user["id"], scheduler_lease_users(settings))
-    out = {"enforced": not why, "reason": why, "mode": settings["mode"], "maxActiveHours": settings["maxActiveHours"]}
+    out = {"enforced": not why, "reason": why, "mode": settings["mode"], "maxActiveHours": settings["maxActiveHours"],
+           "enforcedDays": settings["enforcedDays"]}
     if settings["mode"] == "fixed":
         out["fixed"] = dict(settings["fixed"], **fixed_schedule(settings))
     if why:
