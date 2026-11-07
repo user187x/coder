@@ -1,7 +1,8 @@
 import {
+	CircleArrowUpIcon,
 	MonitorIcon,
 	PlayIcon,
-	RotateCcwIcon,
+	RotateCwIcon,
 	SquareIcon,
 	TrashIcon,
 	XIcon,
@@ -50,10 +51,12 @@ type WorkspacesPageViewProps = {
 	onPageChange: (page: number) => void;
 	onCheckChange: (checkedWorkspaces: readonly Workspace[]) => void;
 	isRunningBatchAction: boolean;
+	restartProgress?: { completed: number; total: number };
 	onBatchDeleteTransition: () => void;
 	onBatchUpdateTransition: () => void;
 	onBatchStartTransition: () => void;
 	onBatchStopTransition: () => void;
+	onBatchRestartTransition: () => void;
 	templatesFetchStatus: TemplateQuery["status"];
 	templates: TemplateQuery["data"];
 	canCreateTemplate: boolean;
@@ -77,8 +80,10 @@ export const WorkspacesPageView: React.FC<WorkspacesPageViewProps> = ({
 	onBatchDeleteTransition,
 	onBatchUpdateTransition,
 	onBatchStopTransition,
+	onBatchRestartTransition,
 	onBatchStartTransition,
 	isRunningBatchAction,
+	restartProgress,
 	templates,
 	templatesFetchStatus,
 	canCreateTemplate,
@@ -233,10 +238,26 @@ export const WorkspacesPageView: React.FC<WorkspacesPageViewProps> = ({
 					<Button
 						size="sm"
 						variant="outline"
+						disabled={
+							isRunningBatchAction ||
+							!checkedWorkspaces.some(
+								(w) => w.latest_build.status === "running",
+							)
+						}
+						onClick={onBatchRestartTransition}
+					>
+						<RotateCwIcon />
+						{restartProgress
+							? `Restarting ${Math.min(restartProgress.completed + 1, restartProgress.total)} of ${restartProgress.total}`
+							: "Restart…"}
+					</Button>
+					<Button
+						size="sm"
+						variant="outline"
 						disabled={isRunningBatchAction}
 						onClick={onBatchUpdateTransition}
 					>
-						<RotateCcwIcon data-testid="bulk-action-update" />
+						<CircleArrowUpIcon data-testid="bulk-action-update" />
 						Update…
 					</Button>
 					<Button

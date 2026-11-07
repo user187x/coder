@@ -555,7 +555,7 @@ export const StartsOnlySelectedWorkspaces: Story = {
 		const user = userEvent.setup();
 
 		await selectWorkspaces(canvas, user, ["1", "2"]);
-		await user.click(await bulkAction(canvas, /start/i));
+		await user.click(await bulkAction(canvas, /^start$/i));
 
 		await waitFor(() => expect(API.startWorkspace).toHaveBeenCalledTimes(2));
 		expect(API.startWorkspace).toHaveBeenCalledWith(
@@ -582,7 +582,7 @@ export const StartIgnoresAlreadyRunningWorkspaces: Story = {
 		const user = userEvent.setup();
 
 		await selectWorkspaces(canvas, user, ["1", "2", "3"]);
-		const startItem = await bulkAction(canvas, /start/i);
+		const startItem = await bulkAction(canvas, /^start$/i);
 		expect(startItem).toBeEnabled();
 		await user.click(startItem);
 
@@ -624,6 +624,50 @@ export const StopIgnoresAlreadyStoppedWorkspaces: Story = {
 	},
 };
 
+export const RestartsOnlySelectedRunningWorkspaces: Story = {
+	beforeEach: () => {
+		spyOn(API, "getWorkspaces").mockResolvedValue({
+			workspaces: mixedStateWorkspaces,
+			count: mixedStateWorkspaces.length,
+		});
+		spyOn(API, "restartWorkspace").mockResolvedValue();
+	},
+	play: async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		const body = within(document.body);
+		const user = userEvent.setup();
+
+		await selectWorkspaces(canvas, user, ["1", "2", "3"]);
+		const restartItem = await bulkAction(canvas, /restart/i);
+		expect(restartItem).toBeEnabled();
+		await user.click(restartItem);
+
+		const dialog = await body.findByRole("dialog");
+		await user.click(within(dialog).getByRole("button", { name: "Restart" }));
+
+		await waitFor(() => expect(API.restartWorkspace).toHaveBeenCalledTimes(1));
+		expect(API.restartWorkspace).toHaveBeenCalledWith({
+			workspace: mixedStateWorkspaces[1],
+		});
+	},
+};
+
+export const RestartDisabledWhenNoWorkspacesAreRunning: Story = {
+	beforeEach: () => {
+		spyOn(API, "getWorkspaces").mockResolvedValue({
+			workspaces: stoppedWorkspaces,
+			count: stoppedWorkspaces.length,
+		});
+	},
+	play: async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		const user = userEvent.setup();
+
+		await selectWorkspaces(canvas, user, ["1", "2", "3"]);
+		expect(await bulkAction(canvas, /restart/i)).toBeDisabled();
+	},
+};
+
 export const StartDisabledWhenNoWorkspacesAreStartable: Story = {
 	beforeEach: () => {
 		spyOn(API, "getWorkspaces").mockResolvedValue({
@@ -636,7 +680,7 @@ export const StartDisabledWhenNoWorkspacesAreStartable: Story = {
 		const user = userEvent.setup();
 
 		await selectWorkspaces(canvas, user, ["1", "2", "3"]);
-		const startItem = await bulkAction(canvas, /start/i);
+		const startItem = await bulkAction(canvas, /^start$/i);
 		expect(startItem).toBeDisabled();
 	},
 };

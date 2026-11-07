@@ -5,12 +5,12 @@ import { cn } from "cn";
 import {
 	BanIcon,
 	CircleAlertIcon,
+	CircleArrowUpIcon,
 	EllipsisVerticalIcon,
 	ExternalLinkIcon,
 	FileIcon,
 	PlayIcon,
 	RefreshCcwIcon,
-	RotateCcwIcon,
 	SquareTerminalIcon,
 } from "lucide-react";
 import type React from "react";
@@ -764,7 +764,7 @@ const WorkspaceActionsCell: React.FC<WorkspaceActionsCellProps> = ({
 									isLoading={workspaceUpdate.isUpdating}
 									label="Update and start workspace"
 								>
-									<RotateCcwIcon
+									<CircleArrowUpIcon
 										className="workspace-update-pulse"
 										data-testid="workspace-update-pulse"
 									/>
@@ -795,7 +795,7 @@ const WorkspaceActionsCell: React.FC<WorkspaceActionsCellProps> = ({
 									isLoading={workspaceUpdate.isUpdating}
 									label="Update and restart workspace"
 								>
-									<RotateCcwIcon
+									<CircleArrowUpIcon
 										className="workspace-update-pulse"
 										data-testid="workspace-update-pulse"
 									/>

@@ -1,4 +1,4 @@
-import { CircleAlertIcon, RotateCcwIcon } from "lucide-react";
+import { CircleAlertIcon, CircleArrowUpIcon } from "lucide-react";
 import { useState } from "react";
 import { useQuery } from "react-query";
 import { toast } from "sonner";
@@ -144,7 +144,7 @@ const WorkspaceOutdatedTooltipContent: React.FC<TooltipContentProps> = ({
 
 				<HelpPopoverLinksGroup>
 					<HelpPopoverAction
-						icon={RotateCcwIcon}
+						icon={CircleArrowUpIcon}
 						onClick={updateWorkspace.update}
 					>
 						Update

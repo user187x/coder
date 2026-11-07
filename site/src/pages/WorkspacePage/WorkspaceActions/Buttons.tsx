@@ -2,7 +2,7 @@ import {
 	BanIcon,
 	PlayIcon,
 	PowerIcon,
-	RotateCcwIcon,
+	RotateCwIcon,
 	SquareIcon,
 } from "lucide-react";
 import type { Workspace, WorkspaceBuildParameter } from "#/api/typesGenerated";
@@ -146,7 +146,7 @@ export const RestartButton: React.FC<ActionButtonPropsWithWorkspace> = ({
 			data-testid="workspace-restart-button"
 			disabled={loading || disabled}
 		>
-			<RotateCcwIcon />
+			<RotateCwIcon />
 			{loading ? <>Restarting&hellip;</> : <>Restart&hellip;</>}
 		</TopbarButton>
 	);

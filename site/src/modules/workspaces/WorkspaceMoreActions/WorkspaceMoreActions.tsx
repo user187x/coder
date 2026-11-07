@@ -9,7 +9,7 @@ import {
 	EllipsisVerticalIcon,
 	HardDriveIcon,
 	HistoryIcon,
-	RotateCcwIcon,
+	RotateCwIcon,
 	ServerCogIcon,
 	SettingsIcon,
 	Share2Icon,
@@ -237,7 +237,7 @@ export const WorkspaceMoreActions: React.FC<WorkspaceMoreActionsProps> = ({
 						<DropdownMenuItem onClick={onRestart} disabled={isRestarting}>
 							{agentUpdateAvailable || workspace.outdated || isRestarting ? (
 								<span className="workspace-status-pill inline-flex items-center text-content-warning">
-									<RotateCcwIcon
+									<RotateCwIcon
 										aria-hidden
 										className="size-3.5 workspace-update-pulse"
 									/>
@@ -245,7 +245,7 @@ export const WorkspaceMoreActions: React.FC<WorkspaceMoreActionsProps> = ({
 								</span>
 							) : (
 								<>
-									<RotateCcwIcon />
+									<RotateCwIcon />
 									Restart&hellip;
 								</>
 							)}

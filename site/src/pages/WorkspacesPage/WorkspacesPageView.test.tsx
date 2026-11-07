@@ -38,6 +38,7 @@ const defaultProps = {
 	onBatchUpdateTransition: vi.fn(),
 	onBatchStartTransition: vi.fn(),
 	onBatchStopTransition: vi.fn(),
+	onBatchRestartTransition: vi.fn(),
 	templatesFetchStatus: "success" as const,
 	templates: [MockTemplate],
 	canCreateTemplate: false,
@@ -113,6 +114,62 @@ describe("WorkspacesPageView", () => {
 		expect(
 			screen.queryByText(/don't have permission to create workspaces/i),
 		).not.toBeInTheDocument();
+	});
+
+	it("calls the bulk Restart handler when a selected workspace is running", async () => {
+		const user = userEvent.setup();
+		const onBatchRestartTransition = vi.fn();
+
+		renderWithAuth(
+			<WorkspacesPageView
+				{...defaultProps}
+				workspaces={[MockWorkspace, MockStoppedWorkspace]}
+				checkedWorkspaces={[MockWorkspace, MockStoppedWorkspace]}
+				count={2}
+				onBatchRestartTransition={onBatchRestartTransition}
+			/>,
+		);
+
+		const toolbar = await screen.findByRole("toolbar", {
+			name: "Workspaces chosen",
+		});
+		await user.click(within(toolbar).getByRole("button", { name: /restart/i }));
+		expect(onBatchRestartTransition).toHaveBeenCalledTimes(1);
+	});
+
+	it("disables bulk Restart when no selected workspace is running", async () => {
+		renderWithAuth(
+			<WorkspacesPageView
+				{...defaultProps}
+				workspaces={[MockStoppedWorkspace]}
+				checkedWorkspaces={[MockStoppedWorkspace]}
+				count={1}
+			/>,
+		);
+
+		const toolbar = await screen.findByRole("toolbar", {
+			name: "Workspaces chosen",
+		});
+		expect(
+			within(toolbar).getByRole("button", { name: /restart/i }),
+		).toBeDisabled();
+	});
+
+	it("shows bulk restart progress", async () => {
+		renderWithAuth(
+			<WorkspacesPageView
+				{...defaultProps}
+				workspaces={[MockWorkspace]}
+				checkedWorkspaces={[MockWorkspace]}
+				count={1}
+				isRunningBatchAction
+				restartProgress={{ completed: 2, total: 7 }}
+			/>,
+		);
+
+		expect(
+			await screen.findByRole("button", { name: "Restarting 3 of 7" }),
+		).toBeInTheDocument();
 	});
 
 	it("restarts a running workspace from the overflow menu", async () => {

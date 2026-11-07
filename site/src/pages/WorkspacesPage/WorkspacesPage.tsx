@@ -14,6 +14,7 @@ import { DeploymentBanner } from "#/modules/dashboard/DeploymentBanner/Deploymen
 import { ACTIVE_BUILD_STATUSES } from "#/modules/workspaces/status";
 import { pageTitle } from "#/utils/page";
 import { BatchDeleteConfirmation } from "./BatchDeleteConfirmation";
+import { BatchRestartConfirmation } from "./BatchRestartConfirmation";
 import { BatchStopConfirmation } from "./BatchStopConfirmation";
 import { BatchUpdateModalForm } from "./BatchUpdateModalForm";
 import { useBatchActions } from "./batchActions";
@@ -46,7 +47,7 @@ function useSafeSearchParams() {
 	>;
 }
 
-type BatchAction = "delete" | "stop" | "update";
+type BatchAction = "delete" | "stop" | "restart" | "update";
 
 const WorkspacesPage: React.FC = () => {
 	const queryClient = useQueryClient();
@@ -148,9 +149,9 @@ const WorkspacesPage: React.FC = () => {
 	const checkedWorkspaces =
 		data?.workspaces.filter((w) => checkedWorkspaceIds.has(w.id)) ?? [];
 
-	// Bulk stop only affects running workspaces, so the confirmation dialog and
-	// the mutation should both operate on that subset to avoid over-reporting
-	// how many workspaces will actually be stopped.
+	// Bulk stop and restart only affect running workspaces, so the confirmation
+	// dialog and the mutation should both operate on that subset to avoid
+	// over-reporting how many workspaces will actually be affected.
 	const workspacesToStop = checkedWorkspaces.filter(
 		(w) => w.latest_build.status === "running",
 	);
@@ -191,9 +192,11 @@ const WorkspacesPage: React.FC = () => {
 				onPageChange={pagination.goToPage}
 				filter={filter}
 				isRunningBatchAction={batchActions.isProcessing}
+				restartProgress={batchActions.restartProgress}
 				onBatchDeleteTransition={() => setActiveBatchAction("delete")}
 				onBatchStartTransition={() => batchActions.start(checkedWorkspaces)}
 				onBatchStopTransition={() => setActiveBatchAction("stop")}
+				onBatchRestartTransition={() => setActiveBatchAction("restart")}
 				onBatchUpdateTransition={() => {
 					// Just because batch-updating can be really dangerous
 					// action for running workspaces, we're going to invalidate
@@ -244,6 +247,17 @@ const WorkspacesPage: React.FC = () => {
 				onClose={() => setActiveBatchAction(undefined)}
 				onConfirm={async () => {
 					await batchActions.stop(workspacesToStop);
+					setActiveBatchAction(undefined);
+				}}
+			/>
+
+			<BatchRestartConfirmation
+				isLoading={batchActions.isProcessing}
+				workspacesToRestart={workspacesToStop}
+				open={activeBatchAction === "restart"}
+				onClose={() => setActiveBatchAction(undefined)}
+				onConfirm={async () => {
+					await batchActions.restart(workspacesToStop);
 					setActiveBatchAction(undefined);
 				}}
 			/>

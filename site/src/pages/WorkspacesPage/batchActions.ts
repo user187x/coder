@@ -1,8 +1,37 @@
+import { useState } from "react";
 import { useMutation } from "react-query";
 import { toast } from "sonner";
 import { API } from "#/api/api";
 import { getErrorDetail } from "#/api/errors";
 import type { Workspace, WorkspaceBuild } from "#/api/typesGenerated";
+
+/**
+ * Restarts unpack workspace images and load the host, so only a few run at
+ * once. Each slot is held until the whole stop and start has finished.
+ */
+const RESTART_CONCURRENCY = 2;
+
+/** Runs `fn` over `items` with at most `limit` calls in flight at once. */
+export async function mapWithConcurrency<T, R>(
+	items: readonly T[],
+	limit: number,
+	fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+	const results: R[] = new Array(items.length);
+	let next = 0;
+	const worker = async () => {
+		while (next < items.length) {
+			const index = next++;
+			results[index] = await fn(items[index]);
+		}
+	};
+	await Promise.all(
+		Array.from({ length: Math.min(limit, items.length) }, worker),
+	);
+	return results;
+}
+
+type RestartProgress = Readonly<{ completed: number; total: number }>;
 
 type UseBatchActionsOptions = {
 	onSuccess: () => Promise<void>;
@@ -14,8 +43,11 @@ type UpdateAllPayload = Readonly<{
 
 type UseBatchActionsResult = Readonly<{
 	isProcessing: boolean;
+	/** Set while a bulk restart is running. */
+	restartProgress: RestartProgress | undefined;
 	start: (workspaces: readonly Workspace[]) => Promise<WorkspaceBuild[]>;
 	stop: (workspaces: readonly Workspace[]) => Promise<WorkspaceBuild[]>;
+	restart: (workspaces: readonly Workspace[]) => Promise<unknown[]>;
 	delete: (workspaces: readonly Workspace[]) => Promise<WorkspaceBuild[]>;
 	updateTemplateVersions: (
 		payload: UpdateAllPayload,
@@ -26,6 +58,8 @@ export function useBatchActions(
 	options: UseBatchActionsOptions,
 ): UseBatchActionsResult {
 	const { onSuccess } = options;
+
+	const [restartProgress, setRestartProgress] = useState<RestartProgress>();
 
 	const startAllMutation = useMutation({
 		mutationFn: (workspaces: readonly Workspace[]) => {
@@ -56,6 +90,37 @@ export function useBatchActions(
 		onSuccess,
 		onError: (error) => {
 			toast.error("Failed to stop workspaces.", {
+				description: getErrorDetail(error),
+			});
+		},
+	});
+
+	// Same stop-then-start sequence as restarting a single workspace, staggered
+	// so a large selection does not hit the host all at once.
+	const restartAllMutation = useMutation({
+		mutationFn: async (workspaces: readonly Workspace[]) => {
+			const running = workspaces.filter(
+				(w) => w.latest_build.status === "running",
+			);
+			let completed = 0;
+			setRestartProgress({ completed, total: running.length });
+			try {
+				return await mapWithConcurrency(
+					running,
+					RESTART_CONCURRENCY,
+					async (workspace) => {
+						await API.restartWorkspace({ workspace });
+						completed++;
+						setRestartProgress({ completed, total: running.length });
+					},
+				);
+			} finally {
+				setRestartProgress(undefined);
+			}
+		},
+		onSuccess,
+		onError: (error) => {
+			toast.error("Failed to restart workspaces.", {
 				description: getErrorDetail(error),
 			});
 		},
@@ -98,11 +163,14 @@ export function useBatchActions(
 	return {
 		start: startAllMutation.mutateAsync,
 		stop: stopAllMutation.mutateAsync,
+		restart: restartAllMutation.mutateAsync,
+		restartProgress,
 		delete: deleteAllMutation.mutateAsync,
 		updateTemplateVersions: updateAllMutation.mutateAsync,
 		isProcessing:
 			startAllMutation.isPending ||
 			stopAllMutation.isPending ||
+			restartAllMutation.isPending ||
 			deleteAllMutation.isPending ||
 			updateAllMutation.isPending,
 	};
