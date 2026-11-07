@@ -9,6 +9,7 @@ import {
 	CommandItem,
 	CommandList,
 } from "#/components/Command/Command";
+import { useAuthContext } from "#/contexts/auth/AuthProvider";
 
 export const SupportWorkspaceSearch = ({
 	overview,
@@ -24,9 +25,13 @@ export const SupportWorkspaceSearch = ({
 	const [search, setSearch] = useState("");
 	const [open, setOpen] = useState(false);
 	const input = useRef<HTMLInputElement>(null);
+	const { user: me } = useAuthContext();
+	// The workspace owner shares with the admin requesting, so a support session with oneself cannot start.
 	const workspaces =
 		overview?.users.flatMap(({ user, instances }) =>
-			instances.map((workspace) => ({ user, workspace })),
+			user.id === me?.id
+				? []
+				: instances.map((workspace) => ({ user, workspace })),
 		) ?? [];
 	const selected = workspaces.find(
 		({ workspace }) => workspace.workspaceId === value,

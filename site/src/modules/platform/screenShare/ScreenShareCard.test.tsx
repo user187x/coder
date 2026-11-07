@@ -2,6 +2,7 @@ import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { ScreenShareAPI } from "#/api/screenShare";
+import { MockUserOwner } from "#/testHelpers/entities";
 import { MockMonitoringOverview } from "#/testHelpers/platform";
 import { render } from "#/testHelpers/renderHelpers";
 import { MockScreenShare } from "#/testHelpers/screenShare";
@@ -37,6 +38,31 @@ it.each(["DEV", "testuser2", "test2@coder.com"])(
 		);
 	},
 );
+
+it("does not offer the admin's own workspaces for support", async () => {
+	const [member] = MockMonitoringOverview.users;
+	const overview = {
+		...MockMonitoringOverview,
+		users: [
+			...MockMonitoringOverview.users,
+			{
+				user: { ...member.user, id: MockUserOwner.id, username: "myself" },
+				instances: member.instances.map((w) => ({
+					...w,
+					workspaceId: "ws-own",
+				})),
+			},
+		],
+	};
+	render(<ScreenShareCard overview={overview} />);
+	await userEvent.type(
+		screen.getByRole("combobox", { name: "Search workspaces or users" }),
+		"myself",
+	);
+	expect(screen.queryAllByRole("option", { name: /^myself\// })).toHaveLength(
+		0,
+	);
+});
 
 it("clears the previous selection while searching and preserves a selection across refreshes", async () => {
 	const request = vi
